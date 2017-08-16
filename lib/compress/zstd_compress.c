@@ -1423,6 +1423,160 @@ static size_t ZSTD_count_2segments(const BYTE* ip, const BYTE* match, const BYTE
     return matchLength + ZSTD_count(ip+matchLength, iStart, iEnd);
 }
 
+/**
+ * Defines constant limits common to all compression functions based on the
+ * cctx. Values implicitly used in the functions below.
+ *
+ * Definitions (const):
+ * base - The base pointer for the current segment.
+ * dictLimit - The index of the transition between the current segment and the
+ *             external dictionary.
+ * lowPrefixPtr - base + dictLimit.
+ * lowestIndex - The lowest allowable index for a match.
+ * dictBase - The base pointer for the second segment (the external dictionary).
+ * dictStart - The beginning of the data for the second segment.
+ * dictEnd - The end of the data for the second segment.
+ * iend - The end of the data for the current segment/block.
+ *
+ * Parameters:
+ * extDict - Single segment or external dictionary?
+ *
+ * Single segment:
+ * +--+-------------------------------------------------------+------+--------+
+ * |  | Segment 1                                             |      |        |
+ * +--+-------------------------------------------------------+------+--------+
+ * ^  ^                                                       ^      ^
+ * |  |                                                       |      |
+ * |  +- lowPrefixPtr                                         +- ip  +- iend
+ * +- base
+ *
+ * Two segment:
+ * +--+-----------------------+------+-------+--+-----------------------------+
+ * |  | Segment 1             |      |       |  | Segment 2                   |
+ * +--+-----------------------+------+-------+--+-----------------------------+
+ * ^  ^                       ^      ^       ^  ^                             ^
+ * |  |                       |      |       |  |                             |
+ * |  +- lowPrefixPtr         +- ip  +- iend |  +- dictStart         dictEnd -+
+ * +- base                                   +- dictBase
+ */
+#define ZSTD_DEFINE_LIMITS(cctx, extDict)                                      \
+    BYTE const *const base = cctx->base;                                       \
+    U32 const dictLimit = cctx->dictLimit;                                     \
+    BYTE const *const lowPrefixPtr = base + dictLimit;                         \
+    U32 const lowestIndex = (extDict) ? cctx->lowLimit : dictLimit;            \
+    BYTE const *const dictBase = (extDict) ? cctx->dictBase : NULL;            \
+    BYTE const *const dictStart = (extDict) ? dictBase + lowestIndex : NULL;   \
+    BYTE const *const dictEnd = (extDict) ? dictBase + dictLimit : NULL
+
+
+/* Internal function, do not call directly */
+FORCE_INLINE_TEMPLATE
+void ZSTD_initOffsets_fn(BYTE const* const lowPrefixPtr,
+                         U32* offset_1, U32* offset_2, U32* offsetSaved,
+                         BYTE const* const ip, U32 const extDict)
+{
+    if (!extDict) {
+        U32 const maxRep = (U32)(ip-lowPrefixPtr);
+        if (*offset_2 > maxRep) *offsetSaved = *offset_2, *offset_2 = 0;
+        if (*offset_1 > maxRep) *offsetSaved = *offset_1, *offset_1 = 0;
+    }
+}
+#define ZSTD_initOffsets(offset_1, offset_2, offsetSaved, ip, extDict)         \
+  ZSTD_initOffsets_fn(lowPrefixPtr, offset_1, offset_2, offsetSaved, ip,       \
+                      extDict)
+
+FORCE_INLINE_TEMPLATE
+void ZSTD_saveOffsets(seqStore_t* seqStorePtr,
+                      U32 const offset_1, U32 const offset_2,
+                      U32 const offsetSaved)
+{
+    seqStorePtr->repToConfirm[0] = offset_1 ? offset_1 : offsetSaved;
+    seqStorePtr->repToConfirm[1] = offset_2 ? offset_2 : offsetSaved;
+}
+
+/**
+ * Defines variables for the match given by matchIndex.
+ *
+ * Definitions:
+ * matchStart (const) - The lowest the match can be extended back to.
+ * match (mutable) - The match pointer that can be dereferenced.
+ * matchEnd (const) - The highest the match can extend.
+ *
+ * Parameters:
+ * matchIndex - The match index.
+ * extDict - Single segment or external dictionary?
+ */
+#define ZSTD_DEFINE_MATCH(matchStart, match, matchEnd, matchIndex, extDict)    \
+    BYTE const* const matchStart = ((extDict) && ((matchIndex) < dictLimit)) ? dictStart : lowPrefixPtr; \
+    BYTE const* match = (((extDict) && ((matchIndex) < dictLimit)) ? dictBase : base) + (matchIndex); \
+    BYTE const* const matchEnd = ((extDict) && ((matchIndex) < dictLimit)) ? dictEnd : iend
+
+/**
+ * Defines variables for the given repcode offset relative to ip.
+ *
+ * Definitions:
+ * repIndex (const) - The index of the repcode.
+ * rep (mutable) - The repcode match pointer that can be dereferenced.
+ * repEnd (const) - The highest the repcode match can extend.
+ *
+ * Parameters:
+ * ip - The current input pointer.
+ * offset - The repcode offset relative to ip.
+ * extDict - Single segment or external dictionary?
+ */
+#define ZSTD_DEFINE_REP(repIndex, rep, repEnd, ip, offset, extDict) \
+    U32 const repIndex = (U32)((ip) - base) - (offset); \
+    BYTE const* rep = ((extDict) && ((repIndex) < dictLimit)) ? (dictBase + repIndex) : ((ip) - (offset)); \
+    BYTE const* const repEnd = ((extDict) && ((repIndex) < dictLimit)) ? dictEnd : iend
+
+/* Internal function, do not call directly */
+FORCE_INLINE_TEMPLATE
+int ZSTD_isRepValid32_fn(U32 const dictLimit, U32 const lowestIndex,
+                         U32 const repIndex, U32 const offset,
+                         BYTE const* const rep, BYTE const* const ip,
+                         U32 const extDict)
+{
+    if (extDict) {
+        /* The repcode can't be checked if it is in the last 3 bytes of the
+         * dictionary, so discard it if so. The repcode is invalid if its index
+         * is less than the lowestIndex.
+         */
+        return (((U32)((dictLimit - 1) - repIndex) >= 3) &
+                (repIndex > lowestIndex)) &&
+               (MEM_read32(rep) == MEM_read32(ip));
+    }
+    /* offset_1 assume initialized by ZSTD_initOffsets().
+     * It must be 0 if it is invalid.
+     */
+    return (offset > 0) & (MEM_read32(rep) == MEM_read32(ip));
+}
+
+/**
+ * Check if rep is valid and the first 4 bytes match ip.
+ *
+ * Parameters:
+ * offset, repIndex, rep - Three different representations of the repcode.
+ *                         The offset from ip, index, and pointer.
+ * ip - The current input pointer.
+ * extDict - Single segment or external dictionary?
+ */
+#define ZSTD_isRepValid32(repIndex, offset, rep, ip, extDict)                  \
+  ZSTD_isRepValid32_fn(dictLimit, lowestIndex, repIndex, offset, rep, ip,      \
+                       extDict)
+
+/**
+ * Determines the length of the match.
+ *
+ * Parameters:
+ * ip - The current input pointer.
+ * match - The match pointer.
+ * iend - The end of the input range.
+ * mend - The end of the match contiguous range.
+ * extDict - Single segment or external dictionary?
+ */
+#define ZSTD_count_generic(ip, match, iend, mend, extDict)                     \
+  (extDict ? ZSTD_count_2segments(ip, match, iend, mend, lowPrefixPtr)         \
+           : ZSTD_count(ip, match, iend))
 
 /*-*************************************
 *  Hashes
@@ -1487,51 +1641,50 @@ static void ZSTD_fillHashTable (ZSTD_CCtx* zc, const void* end, const U32 mls)
 FORCE_INLINE_TEMPLATE
 void ZSTD_compressBlock_fast_generic(ZSTD_CCtx* cctx,
                                const void* src, size_t srcSize,
-                               const U32 mls)
+                               U32 const mls, U32 const extDict)
 {
     U32* const hashTable = cctx->hashTable;
     U32  const hBits = cctx->appliedParams.cParams.hashLog;
     seqStore_t* seqStorePtr = &(cctx->seqStore);
-    const BYTE* const base = cctx->base;
     const BYTE* const istart = (const BYTE*)src;
     const BYTE* ip = istart;
     const BYTE* anchor = istart;
-    const U32   lowestIndex = cctx->dictLimit;
-    const BYTE* const lowest = base + lowestIndex;
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - HASH_READ_SIZE;
     U32 offset_1=seqStorePtr->rep[0], offset_2=seqStorePtr->rep[1];
     U32 offsetSaved = 0;
+    ZSTD_DEFINE_LIMITS(cctx, extDict);
 
     /* init */
-    ip += (ip==lowest);
-    {   U32 const maxRep = (U32)(ip-lowest);
-        if (offset_2 > maxRep) offsetSaved = offset_2, offset_2 = 0;
-        if (offset_1 > maxRep) offsetSaved = offset_1, offset_1 = 0;
-    }
+    ip += (!extDict && ip == lowPrefixPtr);
+    ZSTD_initOffsets(&offset_1, &offset_2, &offsetSaved, ip, extDict);
 
-    /* Main Search Loop */
     while (ip < ilimit) {   /* < instead of <=, because repcode check at (ip+1) */
         size_t mLength;
         size_t const h = ZSTD_hashPtr(ip, hBits, mls);
         U32 const current = (U32)(ip-base);
         U32 const matchIndex = hashTable[h];
-        const BYTE* match = base + matchIndex;
+        /* Construct the match, and the lower and upper limits */
+        ZSTD_DEFINE_MATCH(mstart, match, mend, matchIndex, extDict);
+        /* Construct the repcode index, pointer, and the highest it can go */
+        ZSTD_DEFINE_REP(repIndex, rep, rend, ip + 1, offset_1, extDict);
         hashTable[h] = current;   /* update hash table */
 
-        if ((offset_1 > 0) & (MEM_read32(ip+1-offset_1) == MEM_read32(ip+1))) {
-            mLength = ZSTD_count(ip+1+4, ip+1+4-offset_1, iend) + 4;
+        /* Check if the repcode is valid and at least a 4 byte match */
+        if (ZSTD_isRepValid32(repIndex, offset_1, rep, ip + 1, extDict)) {
+            mLength = ZSTD_count_generic(ip + 1 + 4, rep + 4, iend, rend, extDict) + 4;
             ip++;
             ZSTD_storeSeq(seqStorePtr, ip-anchor, anchor, 0, mLength-MINMATCH);
         } else {
             U32 offset;
-            if ( (matchIndex <= lowestIndex) || (MEM_read32(match) != MEM_read32(ip)) ) {
-                ip += ((ip-anchor) >> g_searchStrength) + 1;
+            if ((matchIndex <= lowestIndex) || (MEM_read32(match) != MEM_read32(ip))) {
+                ip += ((ip - anchor) >> g_searchStrength) + 1;
                 continue;
             }
-            mLength = ZSTD_count(ip+4, match+4, iend) + 4;
-            offset = (U32)(ip-match);
-            while (((ip>anchor) & (match>lowest)) && (ip[-1] == match[-1])) { ip--; match--; mLength++; } /* catch up */
+            mLength = ZSTD_count_generic(ip + 4, match + 4, iend, mend, extDict) + 4;
+            while (((ip > anchor) & (match > mstart)) && (ip[-1] == match[-1])) { ip--; match--; mLength++; }
+
+            offset = current - matchIndex;
             offset_2 = offset_1;
             offset_1 = offset;
 
@@ -1547,22 +1700,26 @@ void ZSTD_compressBlock_fast_generic(ZSTD_CCtx* cctx,
             hashTable[ZSTD_hashPtr(base+current+2, hBits, mls)] = current+2;  /* here because current+2 could be > iend-8 */
             hashTable[ZSTD_hashPtr(ip-2, hBits, mls)] = (U32)(ip-2-base);
             /* check immediate repcode */
-            while ( (ip <= ilimit)
-                 && ( (offset_2>0)
-                 & (MEM_read32(ip) == MEM_read32(ip - offset_2)) )) {
-                /* store sequence */
-                size_t const rLength = ZSTD_count(ip+4, ip+4-offset_2, iend) + 4;
-                { U32 const tmpOff = offset_2; offset_2 = offset_1; offset_1 = tmpOff; }  /* swap offset_2 <=> offset_1 */
-                hashTable[ZSTD_hashPtr(ip, hBits, mls)] = (U32)(ip-base);
-                ZSTD_storeSeq(seqStorePtr, 0, anchor, 0, rLength-MINMATCH);
-                ip += rLength;
-                anchor = ip;
-                continue;   /* faster when present ... (?) */
+            while (ip <= ilimit) {
+                U32 const current2 = (U32)(ip-base);
+                /* Construct the repcode index, pointer, and the upper limit */
+                ZSTD_DEFINE_REP(rep2Index, rep2, r2end, ip, offset_2, extDict);
+                /* Check if the repcode is valid and at least a 4 byte match */
+                if (ZSTD_isRepValid32(rep2Index, offset_2, rep2, ip, extDict)) {
+                    /* store sequence */
+                    size_t const rLength = ZSTD_count_generic(ip + 4, rep2 + 4, iend, r2end, extDict) + 4;
+                    { U32 const tmpOff = offset_2; offset_2 = offset_1; offset_1 = tmpOff; }  /* swap offset_2 <=> offset_1 */
+                    hashTable[ZSTD_hashPtr(ip, hBits, mls)] = current2;
+                    ZSTD_storeSeq(seqStorePtr, 0, anchor, 0, rLength-MINMATCH);
+                    ip += rLength;
+                    anchor = ip;
+                    continue;
+                }
+                break;
     }   }   }
 
     /* save reps for next block */
-    seqStorePtr->repToConfirm[0] = offset_1 ? offset_1 : offsetSaved;
-    seqStorePtr->repToConfirm[1] = offset_2 ? offset_2 : offsetSaved;
+    ZSTD_saveOffsets(seqStorePtr, offset_1, offset_2, offsetSaved);
 
     /* Last Literals */
     {   size_t const lastLLSize = iend - anchor;
@@ -1580,108 +1737,13 @@ static void ZSTD_compressBlock_fast(ZSTD_CCtx* ctx,
     {
     default: /* includes case 3 */
     case 4 :
-        ZSTD_compressBlock_fast_generic(ctx, src, srcSize, 4); return;
+        ZSTD_compressBlock_fast_generic(ctx, src, srcSize, 4, 0); return;
     case 5 :
-        ZSTD_compressBlock_fast_generic(ctx, src, srcSize, 5); return;
+        ZSTD_compressBlock_fast_generic(ctx, src, srcSize, 5, 0); return;
     case 6 :
-        ZSTD_compressBlock_fast_generic(ctx, src, srcSize, 6); return;
+        ZSTD_compressBlock_fast_generic(ctx, src, srcSize, 6, 0); return;
     case 7 :
-        ZSTD_compressBlock_fast_generic(ctx, src, srcSize, 7); return;
-    }
-}
-
-
-static void ZSTD_compressBlock_fast_extDict_generic(ZSTD_CCtx* ctx,
-                                 const void* src, size_t srcSize,
-                                 const U32 mls)
-{
-    U32* hashTable = ctx->hashTable;
-    const U32 hBits = ctx->appliedParams.cParams.hashLog;
-    seqStore_t* seqStorePtr = &(ctx->seqStore);
-    const BYTE* const base = ctx->base;
-    const BYTE* const dictBase = ctx->dictBase;
-    const BYTE* const istart = (const BYTE*)src;
-    const BYTE* ip = istart;
-    const BYTE* anchor = istart;
-    const U32   lowestIndex = ctx->lowLimit;
-    const BYTE* const dictStart = dictBase + lowestIndex;
-    const U32   dictLimit = ctx->dictLimit;
-    const BYTE* const lowPrefixPtr = base + dictLimit;
-    const BYTE* const dictEnd = dictBase + dictLimit;
-    const BYTE* const iend = istart + srcSize;
-    const BYTE* const ilimit = iend - 8;
-    U32 offset_1=seqStorePtr->rep[0], offset_2=seqStorePtr->rep[1];
-
-    /* Search Loop */
-    while (ip < ilimit) {  /* < instead of <=, because (ip+1) */
-        const size_t h = ZSTD_hashPtr(ip, hBits, mls);
-        const U32 matchIndex = hashTable[h];
-        const BYTE* matchBase = matchIndex < dictLimit ? dictBase : base;
-        const BYTE* match = matchBase + matchIndex;
-        const U32 current = (U32)(ip-base);
-        const U32 repIndex = current + 1 - offset_1;   /* offset_1 expected <= current +1 */
-        const BYTE* repBase = repIndex < dictLimit ? dictBase : base;
-        const BYTE* repMatch = repBase + repIndex;
-        size_t mLength;
-        hashTable[h] = current;   /* update hash table */
-
-        if ( (((U32)((dictLimit-1) - repIndex) >= 3) /* intentional underflow */ & (repIndex > lowestIndex))
-           && (MEM_read32(repMatch) == MEM_read32(ip+1)) ) {
-            const BYTE* repMatchEnd = repIndex < dictLimit ? dictEnd : iend;
-            mLength = ZSTD_count_2segments(ip+1+4, repMatch+4, iend, repMatchEnd, lowPrefixPtr) + 4;
-            ip++;
-            ZSTD_storeSeq(seqStorePtr, ip-anchor, anchor, 0, mLength-MINMATCH);
-        } else {
-            if ( (matchIndex < lowestIndex) ||
-                 (MEM_read32(match) != MEM_read32(ip)) ) {
-                ip += ((ip-anchor) >> g_searchStrength) + 1;
-                continue;
-            }
-            {   const BYTE* matchEnd = matchIndex < dictLimit ? dictEnd : iend;
-                const BYTE* lowMatchPtr = matchIndex < dictLimit ? dictStart : lowPrefixPtr;
-                U32 offset;
-                mLength = ZSTD_count_2segments(ip+4, match+4, iend, matchEnd, lowPrefixPtr) + 4;
-                while (((ip>anchor) & (match>lowMatchPtr)) && (ip[-1] == match[-1])) { ip--; match--; mLength++; }   /* catch up */
-                offset = current - matchIndex;
-                offset_2 = offset_1;
-                offset_1 = offset;
-                ZSTD_storeSeq(seqStorePtr, ip-anchor, anchor, offset + ZSTD_REP_MOVE, mLength-MINMATCH);
-        }   }
-
-        /* found a match : store it */
-        ip += mLength;
-        anchor = ip;
-
-        if (ip <= ilimit) {
-            /* Fill Table */
-            hashTable[ZSTD_hashPtr(base+current+2, hBits, mls)] = current+2;
-            hashTable[ZSTD_hashPtr(ip-2, hBits, mls)] = (U32)(ip-2-base);
-            /* check immediate repcode */
-            while (ip <= ilimit) {
-                U32 const current2 = (U32)(ip-base);
-                U32 const repIndex2 = current2 - offset_2;
-                const BYTE* repMatch2 = repIndex2 < dictLimit ? dictBase + repIndex2 : base + repIndex2;
-                if ( (((U32)((dictLimit-1) - repIndex2) >= 3) & (repIndex2 > lowestIndex))  /* intentional overflow */
-                   && (MEM_read32(repMatch2) == MEM_read32(ip)) ) {
-                    const BYTE* const repEnd2 = repIndex2 < dictLimit ? dictEnd : iend;
-                    size_t const repLength2 = ZSTD_count_2segments(ip+4, repMatch2+4, iend, repEnd2, lowPrefixPtr) + 4;
-                    U32 tmpOffset = offset_2; offset_2 = offset_1; offset_1 = tmpOffset;   /* swap offset_2 <=> offset_1 */
-                    ZSTD_storeSeq(seqStorePtr, 0, anchor, 0, repLength2-MINMATCH);
-                    hashTable[ZSTD_hashPtr(ip, hBits, mls)] = current2;
-                    ip += repLength2;
-                    anchor = ip;
-                    continue;
-                }
-                break;
-    }   }   }
-
-    /* save reps for next block */
-    seqStorePtr->repToConfirm[0] = offset_1; seqStorePtr->repToConfirm[1] = offset_2;
-
-    /* Last Literals */
-    {   size_t const lastLLSize = iend - anchor;
-        memcpy(seqStorePtr->lit, anchor, lastLLSize);
-        seqStorePtr->lit += lastLLSize;
+        ZSTD_compressBlock_fast_generic(ctx, src, srcSize, 7, 0); return;
     }
 }
 
@@ -1694,16 +1756,15 @@ static void ZSTD_compressBlock_fast_extDict(ZSTD_CCtx* ctx,
     {
     default: /* includes case 3 */
     case 4 :
-        ZSTD_compressBlock_fast_extDict_generic(ctx, src, srcSize, 4); return;
+        ZSTD_compressBlock_fast_generic(ctx, src, srcSize, 4, 1); return;
     case 5 :
-        ZSTD_compressBlock_fast_extDict_generic(ctx, src, srcSize, 5); return;
+        ZSTD_compressBlock_fast_generic(ctx, src, srcSize, 5, 1); return;
     case 6 :
-        ZSTD_compressBlock_fast_extDict_generic(ctx, src, srcSize, 6); return;
+        ZSTD_compressBlock_fast_generic(ctx, src, srcSize, 6, 1); return;
     case 7 :
-        ZSTD_compressBlock_fast_extDict_generic(ctx, src, srcSize, 7); return;
+        ZSTD_compressBlock_fast_generic(ctx, src, srcSize, 7, 1); return;
     }
 }
-
 
 /*-*************************************
 *  Double Fast

@@ -106,7 +106,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    dictionary_t* parsed_dict = create_dictionary();
+    dictionary_t* const parsed_dict = create_dictionary();
     if (dict) {
         parse_dictionary(parsed_dict, dict, dict_size);
     }

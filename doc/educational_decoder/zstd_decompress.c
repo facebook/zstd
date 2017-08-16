@@ -354,7 +354,7 @@ static void execute_sequences(frame_context_t *const ctx, ostream_t *const out,
                               const size_t num_sequences);
 
 // Copies literals and returns the total literal length that was copied
-static u32 copy_literals(sequence_command_t seq, istream_t *litstream,
+static u32 copy_literals(const size_t seq, istream_t *litstream,
                          ostream_t *const out);
 
 // Given an offset code from a sequence command (either an actual offset value
@@ -1273,12 +1273,13 @@ static void execute_sequences(frame_context_t *const ctx, ostream_t *const out,
     for (size_t i = 0; i < num_sequences; i++) {
         const sequence_command_t seq = sequences[i];
         {
-            const u32 literals_size = copy_literals(seq, &litstream, out);
+            const u32 literals_size = copy_literals(seq.literal_length, &litstream, out);
             total_output += literals_size;
         }
-        size_t offset = compute_offset(seq, offset_hist);
 
-        size_t match_length = seq.match_length;
+        size_t const offset = compute_offset(seq, offset_hist);
+
+        size_t const match_length = seq.match_length;
 
         execute_match_copy(ctx, offset, match_length, total_output, out);
 
@@ -1288,31 +1289,28 @@ static void execute_sequences(frame_context_t *const ctx, ostream_t *const out,
     // Copy any leftover literals
     {
         size_t len = IO_istream_len(&litstream);
-        u8 *const write_ptr = IO_get_write_ptr(out, len);
-        const u8 *const read_ptr = IO_get_read_ptr(&litstream, len);
-        memcpy(write_ptr, read_ptr, len);
-
+        copy_literals(len, &litstream, out); 
         total_output += len;
     }
 
     ctx->current_total_output = total_output;
 }
 
-static u32 copy_literals(const sequence_command_t seq, istream_t *litstream,
+static u32 copy_literals(const size_t literal_length, istream_t *litstream,
                          ostream_t *const out) {
     // If the sequence asks for more literals than are left, the
     // sequence must be corrupted
-    if (seq.literal_length > IO_istream_len(litstream)) {
-     CORRUPTION();
+    if (literal_length > IO_istream_len(litstream)) {
+        CORRUPTION();
     }
 
-    u8 *const write_ptr = IO_get_write_ptr(out, seq.literal_length);
+    u8 *const write_ptr = IO_get_write_ptr(out, literal_length);
     const u8 *const read_ptr =
-         IO_get_read_ptr(litstream, seq.literal_length);
+         IO_get_read_ptr(litstream, literal_length);
     // Copy literals to output
-    memcpy(write_ptr, read_ptr, seq.literal_length);
+    memcpy(write_ptr, read_ptr, literal_length);
 
-    return seq.literal_length;
+    return literal_length;
 }
 
 static size_t compute_offset(sequence_command_t seq, u64 *const offset_hist) {

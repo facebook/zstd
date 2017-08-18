@@ -616,6 +616,8 @@ ZSTDLIB_API ZSTD_CCtx_params* ZSTD_createAndInitCCtxParams(int compressionLevel,
 ZSTDLIB_API size_t ZSTD_initCCtxParams(ZSTD_CCtx_params* params, ZSTD_compressionParameters cParams);
 ZSTDLIB_API size_t ZSTD_freeCCtxParams(ZSTD_CCtx_params* params);
 
+ZSTDLIB_API
+
 
 /*! ZSTD_getCParams() :
 *   @return ZSTD_compressionParameters structure for a selected compression level and estimated srcSize.
@@ -1008,6 +1010,8 @@ typedef enum {
  *  Note : when `value` is an enum, cast it to unsigned for proper type checking.
  *  @result : 0, or an error code (which can be tested with ZSTD_isError()). */
 ZSTDLIB_API size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned value);
+
+ZSTDLIB_API size_t ZSTD_CCtxParam_setParameter(ZSTD_CCtx_params* params, ZSTD_cParameter param, unsigned value);
 
 /*! ZSTD_CCtx_setPledgedSrcSize() :
  *  Total input data size to be compressed as a single frame.

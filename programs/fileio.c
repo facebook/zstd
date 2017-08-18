@@ -994,23 +994,29 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
                 {   int lastBlock = 0;
                     do {
                         BYTE blockHeaderBuffer[3];
-                        U32 blockHeader;
-                        int blockSize;
                         size_t const readBytes = fread(blockHeaderBuffer, 1, 3, srcFile);
                         if (readBytes != 3) {
                             DISPLAY("There was a problem reading the block header\n");
                             detectError = 1;
                             break;
                         }
-                        blockHeader = MEM_readLE24(blockHeaderBuffer);
-                        lastBlock = blockHeader & 1;
-                        blockSize = blockHeader >> 3;  /* Warning : does not work when block is RLE type */
-                        {   int const ret = fseek(srcFile, blockSize, SEEK_CUR);
-                            if (ret != 0) {
-                                DISPLAY("Error: could not skip to end of block\n");
+                        {   U32 const blockHeader = MEM_readLE24(blockHeaderBuffer);
+                            U32 const blockTypeID = (blockHeader >> 1) & 3;
+                            U32 const isRLE = (blockTypeID == 1);
+                            U32 const isWrongBlock = (blockTypeID == 3);
+                            long const blockSize = isRLE ? 1 : (long)(blockHeader >> 3);
+                            if (isWrongBlock) {
+                                DISPLAY("Error: unsupported block type \n");
                                 detectError = 1;
                                 break;
-                        }   }
+                            }
+                            lastBlock = blockHeader & 1;
+                            {   int const ret = fseek(srcFile, blockSize, SEEK_CUR);
+                                if (ret != 0) {
+                                    DISPLAY("Error: could not skip to end of block\n");
+                                    detectError = 1;
+                                    break;
+                        }   }   }
                     } while (lastBlock != 1);
 
                     if (detectError) break;

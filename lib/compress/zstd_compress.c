@@ -70,6 +70,7 @@ struct ZSTD_CDict_s {
     ZSTD_CCtx* refContext;
 };  /* typedef'd to ZSTD_CDict within "zstd.h" */
 
+
 struct ZSTD_CCtx_s {
     const BYTE* nextSrc;    /* next block here to continue on current prefix */
     const BYTE* base;       /* All regular indexes relative to this position */
@@ -558,21 +559,41 @@ size_t ZSTD_CCtxParam_setParameter(
         return 0;
 
     case ZSTD_p_jobSize :
-        // TODO
+        if (params->nbThreads <= 1) { return ERROR(parameter_unsupported); }
+        params->jobSize = value;
         return 0;
 
     case ZSTD_p_overlapSizeLog :
-        // TODO
+        params->overlapSizeLog = value;
         return 0;
 
     default: return ERROR(parameter_unsupported);
     }
 }
 
+// This function should probably be updated whenever ZSTD_CCtx_params is updated.
 ZSTDLIB_API size_t ZSTD_CCtx_applyCCtxParams(ZSTD_CCtx* cctx, ZSTD_CCtx_params* params)
 {
-    (void)cctx;
-    (void)params;
+    if (cctx->cdict) { return ERROR(stage_wrong); }
+
+    /* Assume the compression and frame parameters are validated */
+    cctx->requestedParams.cParams = params->cParams;
+    cctx->requestedParams.fParams = params->fParams;
+    cctx->requestedParams.compressionLevel = params->compressionLevel;
+
+    /* Assume dictionary parameters are validated */
+    cctx->requestedParams.dictMode = params->dictMode;
+    cctx->requestedParams.dictContentByRef = params->dictContentByRef;
+
+    /* Set force window explicitly since it sets cctx->loadedDictEnd */
+    CHECK_F( ZSTD_CCtx_setParameter(
+                   cctx, ZSTD_p_forceMaxWindow, params->forceWindow) );
+
+    /* Set multithreading parameters explicitly */
+    CHECK_F( ZSTD_CCtx_setParameter(cctx, ZSTD_p_nbThreads, params->nbThreads) );
+    CHECK_F( ZSTD_CCtx_setParameter(cctx, ZSTD_p_jobSize, params->jobSize) );
+    CHECK_F( ZSTD_CCtx_setParameter(
+                    cctx, ZSTD_p_overlapSizeLog, params->overlapSizeLog) );
     return 0;
 }
 

@@ -221,22 +221,6 @@ typedef struct seqDef_s {
     U16 matchLength;
 } seqDef;
 
-typedef struct ZSTD_CCtx_params_s {
-    ZSTD_compressionParameters cParams;
-    ZSTD_frameParameters fParams;
-
-    int compressionLevel;
-    U32 forceWindow;
-
-    /* Dictionary */
-    ZSTD_dictMode_e dictMode;
-    U32 dictContentByRef;
-
-    /* Multithreading */
-    U32 nbThreads;
-
-} ZSTD_CCtx_params;
-
 typedef struct {
     seqDef* sequencesStart;
     seqDef* sequences;
@@ -250,6 +234,24 @@ typedef struct {
     U32   rep[ZSTD_REP_NUM];
     U32   repToConfirm[ZSTD_REP_NUM];
 } seqStore_t;
+
+struct ZSTD_CCtx_params_s {
+    ZSTD_compressionParameters cParams;
+    ZSTD_frameParameters fParams;
+
+    int compressionLevel;
+
+    U32 forceWindow;           /* force back-references to respect limit of 1<<wLog, even for dictionary */
+
+    /* Dictionary */
+    ZSTD_dictMode_e dictMode;   /* select restricting dictionary to "rawContent" or "fullDict" only */
+    U32 dictContentByRef;
+    U32 nbThreads;
+
+    /* Multithreading: used only to set mtctx parameters */
+    unsigned jobSize;
+    unsigned overlapSizeLog;
+};
 
 typedef struct {
     U32 off;

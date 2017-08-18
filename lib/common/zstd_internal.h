@@ -232,6 +232,8 @@ typedef struct ZSTD_CCtx_params_s {
     ZSTD_dictMode_e dictMode;
     U32 dictContentByRef;
 
+    /* Multithreading */
+    U32 nbThreads;
 
 } ZSTD_CCtx_params;
 

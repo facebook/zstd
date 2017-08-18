@@ -221,6 +221,10 @@ typedef struct seqDef_s {
     U16 matchLength;
 } seqDef;
 
+typedef struct ZSTD_CCtx_params_s {
+    ZSTD_compressionParameters cParams;
+    ZSTD_frameParameters fParams;
+} ZSTD_CCtx_params;
 
 typedef struct {
     seqDef* sequencesStart;

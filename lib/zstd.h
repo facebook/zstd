@@ -425,6 +425,8 @@ typedef struct {
     ZSTD_frameParameters fParams;
 } ZSTD_parameters;
 
+typedef struct ZSTD_CCtx_params_s ZSTD_CCtx_params;
+
 /*= Custom memory allocation functions */
 typedef void* (*ZSTD_allocFunction) (void* opaque, size_t size);
 typedef void  (*ZSTD_freeFunction) (void* opaque, void* address);

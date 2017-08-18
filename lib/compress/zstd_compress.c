@@ -230,45 +230,6 @@ static ZSTD_CCtx_params ZSTD_makeCCtxParamsFromCParams(
     return cctxParams;
 }
 
-ZSTD_CCtx_params* ZSTD_createCCtxParams(void)
-{
-    ZSTD_CCtx_params* params =
-        (ZSTD_CCtx_params*)ZSTD_calloc(sizeof(ZSTD_CCtx_params),
-                                       ZSTD_defaultCMem);
-    if (!params) { return NULL; }
-    // TODO
-//    params->compressionLevel = ZSTD_CLEVEL_DEFAULT;
-    return params;
-}
-
-size_t ZSTD_initCCtxParams(ZSTD_CCtx_params* params,
-                         ZSTD_compressionParameters cParams)
-{
-    CHECK_F( params == NULL );
-    memset(params, 0, sizeof(ZSTD_CCtx_params));
-    params->cParams = cParams;
-    return 0;
-}
-
-ZSTD_CCtx_params* ZSTD_createAndInitCCtxParams(
-        int compressionLevel, unsigned long long estimatedSrcSize,
-        size_t dictSize)
-{
-    ZSTD_CCtx_params* params = ZSTD_createCCtxParams();
-    if (params == NULL) { return NULL; }
-    ZSTD_initCCtxParams(params, ZSTD_getCParams(
-                            compressionLevel, estimatedSrcSize, dictSize));
-    return params;
-}
-
-size_t ZSTD_freeCCtxParams(ZSTD_CCtx_params* params)
-{
-    ZSTD_free(params, ZSTD_defaultCMem);
-    return 0;
-}
-
-
-
 static ZSTD_parameters ZSTD_getParamsFromCCtx(const ZSTD_CCtx* cctx) {
     return ZSTD_getParamsFromCCtxParams(cctx->appliedParams);
 }
@@ -294,6 +255,55 @@ static void ZSTD_cLevelToCParams(ZSTD_CCtx* cctx)
     cctx->requestedParams.cParams = ZSTD_getCParams(cctx->compressionLevel,
                                             cctx->pledgedSrcSizePlusOne-1, 0);
     cctx->compressionLevel = ZSTD_CLEVEL_CUSTOM;
+}
+
+ZSTD_CCtx_params* ZSTD_createCCtxParams(void)
+{
+    ZSTD_CCtx_params* params =
+        (ZSTD_CCtx_params*)ZSTD_calloc(sizeof(ZSTD_CCtx_params),
+                                       ZSTD_defaultCMem);
+    if (!params) { return NULL; }
+    params->compressionLevel = ZSTD_CLEVEL_DEFAULT;
+    return params;
+}
+
+size_t ZSTD_initCCtxParams(ZSTD_CCtx_params* params,
+                           ZSTD_compressionParameters cParams)
+{
+    memset(params, 0, sizeof(ZSTD_CCtx_params));
+    params->cParams = cParams;
+    params->compressionLevel = ZSTD_CLEVEL_CUSTOM;
+    return 0;
+}
+
+ZSTD_CCtx_params* ZSTD_createAndInitCCtxParams(
+        int compressionLevel, unsigned long long estimatedSrcSize,
+        size_t dictSize)
+{
+    ZSTD_CCtx_params* params = ZSTD_createCCtxParams();
+    if (params == NULL) { return NULL; }
+    ZSTD_initCCtxParams(params, ZSTD_getCParams(
+                            compressionLevel, estimatedSrcSize, dictSize));
+    params->compressionLevel = compressionLevel;
+    return params;
+}
+
+size_t ZSTD_freeCCtxParams(ZSTD_CCtx_params* params)
+{
+    if (params == NULL) { return 0; }
+    ZSTD_free(params, ZSTD_defaultCMem);
+    return 0;
+}
+
+
+
+static void ZSTD_cLevelToCCtxParams(ZSTD_CCtx_params* params)
+{
+    if (params->compressionLevel == ZSTD_CLEVEL_CUSTOM) return;
+    // TODO: src size, code duplication
+    params->cParams = ZSTD_getCParams(params->compressionLevel, 0, 0);
+    params->compressionLevel = ZSTD_CLEVEL_CUSTOM;
+
 }
 
 #define CLAMPCHECK(val,min,max) {            \
@@ -438,6 +448,107 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
         if (cctx->nbThreads <= 1) return ERROR(parameter_unsupported);
         assert(cctx->mtctx != NULL);
         return ZSTDMT_setMTCtxParameter(cctx->mtctx, ZSTDMT_p_overlapSectionLog, value);
+
+    default: return ERROR(parameter_unsupported);
+    }
+}
+
+size_t ZSTD_CCtxParam_setParameter(
+        ZSTD_CCtx_params* params, ZSTD_cParameter param, unsigned value)
+{
+    switch(param)
+    {
+    case ZSTD_p_compressionLevel :
+        if ((int)value > ZSTD_maxCLevel()) value = ZSTD_maxCLevel();
+        if (value == 0) return 0;
+        params->compressionLevel = value;
+        return 0;
+
+    case ZSTD_p_windowLog :
+        if (value == 0) return 0;
+        CLAMPCHECK(value, ZSTD_WINDOWLOG_MIN, ZSTD_WINDOWLOG_MAX);
+        ZSTD_cLevelToCCtxParams(params);
+        params->cParams.windowLog = value;
+        return 0;
+
+    case ZSTD_p_hashLog :
+        if (value == 0) return 0;
+        CLAMPCHECK(value, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
+        ZSTD_cLevelToCCtxParams(params);
+        params->cParams.hashLog = value;
+        return 0;
+
+    case ZSTD_p_chainLog :
+        if (value == 0) return 0;
+        CLAMPCHECK(value, ZSTD_CHAINLOG_MIN, ZSTD_CHAINLOG_MAX);
+        ZSTD_cLevelToCCtxParams(params);
+        params->cParams.chainLog = value;
+        return 0;
+
+    case ZSTD_p_searchLog :
+        if (value == 0) return 0;
+        CLAMPCHECK(value, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
+        ZSTD_cLevelToCCtxParams(params);
+        params->cParams.searchLog = value;
+        return 0;
+
+    case ZSTD_p_minMatch :
+        if (value == 0) return 0;
+        CLAMPCHECK(value, ZSTD_SEARCHLENGTH_MIN, ZSTD_SEARCHLENGTH_MAX);
+        ZSTD_cLevelToCCtxParams(params);
+        params->cParams.searchLength = value;
+        return 0;
+
+    case ZSTD_p_targetLength :
+        if (value == 0) return 0;
+        CLAMPCHECK(value, ZSTD_TARGETLENGTH_MIN, ZSTD_TARGETLENGTH_MAX);
+        ZSTD_cLevelToCCtxParams(params);
+        params->cParams.targetLength = value;
+        return 0;
+
+    case ZSTD_p_compressionStrategy :
+        if (value == 0) return 0;
+        CLAMPCHECK(value, (unsigned)ZSTD_fast, (unsigned)ZSTD_btultra);
+        ZSTD_cLevelToCCtxParams(params);
+        params->cParams.strategy = (ZSTD_strategy)value;
+        return 0;
+
+    case ZSTD_p_contentSizeFlag :
+        params->fParams.contentSizeFlag = value > 0;
+        return 0;
+
+    case ZSTD_p_checksumFlag :
+        params->fParams.checksumFlag = value > 0;
+        return 0;
+
+    case ZSTD_p_dictIDFlag :
+        params->fParams.noDictIDFlag = (value == 0);
+        return 0;
+
+    case ZSTD_p_dictMode :
+        ZSTD_STATIC_ASSERT((U32)ZSTD_dm_fullDict > (U32)ZSTD_dm_rawContent);
+        if (value > (unsigned)ZSTD_dm_fullDict) {
+            return ERROR(parameter_outOfBound);
+        }
+//        cctx->dictMode = (ZSTD_dictMode_e)value;
+        return 0;
+
+    case ZSTD_p_refDictContent :
+//        cctx->dictContentByRef = value > 0;
+        return 0;
+
+    case ZSTD_p_forceMaxWindow :
+//        cctx->forceWindow = value > 0;
+        return 0;
+
+    case ZSTD_p_nbThreads :
+        return 0;
+
+    case ZSTD_p_jobSize :
+        return 0;
+
+    case ZSTD_p_overlapSizeLog :
+        return 0;
 
     default: return ERROR(parameter_unsupported);
     }

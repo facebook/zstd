@@ -224,6 +224,8 @@ typedef struct seqDef_s {
 typedef struct ZSTD_CCtx_params_s {
     ZSTD_compressionParameters cParams;
     ZSTD_frameParameters fParams;
+    int compressionLevel;
+
 } ZSTD_CCtx_params;
 
 typedef struct {

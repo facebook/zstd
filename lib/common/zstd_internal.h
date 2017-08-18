@@ -225,6 +225,8 @@ typedef struct ZSTD_CCtx_params_s {
     ZSTD_compressionParameters cParams;
     ZSTD_frameParameters fParams;
     int compressionLevel;
+    U32 forceWindow;
+    ZSTD_dictMode_e dictMode;
 
 } ZSTD_CCtx_params;
 

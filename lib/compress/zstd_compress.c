@@ -1483,7 +1483,7 @@ static void ZSTD_fillHashTable (ZSTD_CCtx* zc, const void* end, const U32 mls)
 }
 
 
-FORCE_INLINE
+FORCE_INLINE_TEMPLATE
 void ZSTD_compressBlock_fast_generic(ZSTD_CCtx* cctx,
                                const void* src, size_t srcSize,
                                const U32 mls)
@@ -1726,7 +1726,7 @@ static void ZSTD_fillDoubleHashTable (ZSTD_CCtx* cctx, const void* end, const U3
 }
 
 
-FORCE_INLINE
+FORCE_INLINE_TEMPLATE
 void ZSTD_compressBlock_doubleFast_generic(ZSTD_CCtx* cctx,
                                  const void* src, size_t srcSize,
                                  const U32 mls)
@@ -2284,7 +2284,7 @@ static size_t ZSTD_BtFindBestMatch_selectMLS_extDict (
 
 /* Update chains up to ip (excluded)
    Assumption : always within prefix (i.e. not within extDict) */
-FORCE_INLINE
+FORCE_INLINE_TEMPLATE
 U32 ZSTD_insertAndFindFirstIndex (ZSTD_CCtx* zc, const BYTE* ip, U32 mls)
 {
     U32* const hashTable  = zc->hashTable;
@@ -2308,7 +2308,7 @@ U32 ZSTD_insertAndFindFirstIndex (ZSTD_CCtx* zc, const BYTE* ip, U32 mls)
 
 
 /* inlining is important to hardwire a hot branch (template emulation) */
-FORCE_INLINE
+FORCE_INLINE_TEMPLATE
 size_t ZSTD_HcFindBestMatch_generic (
                         ZSTD_CCtx* zc,   /* Index table will be updated */
                         const BYTE* const ip, const BYTE* const iLimit,
@@ -2360,7 +2360,7 @@ size_t ZSTD_HcFindBestMatch_generic (
 }
 
 
-FORCE_INLINE size_t ZSTD_HcFindBestMatch_selectMLS (
+FORCE_INLINE_TEMPLATE size_t ZSTD_HcFindBestMatch_selectMLS (
                         ZSTD_CCtx* zc,
                         const BYTE* ip, const BYTE* const iLimit,
                         size_t* offsetPtr,
@@ -2377,7 +2377,7 @@ FORCE_INLINE size_t ZSTD_HcFindBestMatch_selectMLS (
 }
 
 
-FORCE_INLINE size_t ZSTD_HcFindBestMatch_extDict_selectMLS (
+FORCE_INLINE_TEMPLATE size_t ZSTD_HcFindBestMatch_extDict_selectMLS (
                         ZSTD_CCtx* zc,
                         const BYTE* ip, const BYTE* const iLimit,
                         size_t* offsetPtr,
@@ -2397,7 +2397,7 @@ FORCE_INLINE size_t ZSTD_HcFindBestMatch_extDict_selectMLS (
 /* *******************************
 *  Common parser - lazy strategy
 *********************************/
-FORCE_INLINE
+FORCE_INLINE_TEMPLATE
 void ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
                                      const void* src, size_t srcSize,
                                      const U32 searchMethod, const U32 depth)
@@ -2559,7 +2559,7 @@ static void ZSTD_compressBlock_greedy(ZSTD_CCtx* ctx, const void* src, size_t sr
 }
 
 
-FORCE_INLINE
+FORCE_INLINE_TEMPLATE
 void ZSTD_compressBlock_lazy_extDict_generic(ZSTD_CCtx* ctx,
                                      const void* src, size_t srcSize,
                                      const U32 searchMethod, const U32 depth)

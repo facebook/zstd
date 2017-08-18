@@ -87,7 +87,7 @@ int main(int argc, char **argv) {
     }
 
     size_t decompressed_size = ZSTD_get_decompressed_size(input, input_size);
-    if (decompressed_size == -1) {
+    if (decompressed_size == (size_t)-1) {
         decompressed_size = MAX_COMPRESSION_RATIO * input_size;
         fprintf(stderr, "WARNING: Compressed data does not contain "
                         "decompressed size, going to assume the compression "
@@ -106,9 +106,15 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    dictionary_t* const parsed_dict = create_dictionary();
+    if (dict) {
+        parse_dictionary(parsed_dict, dict, dict_size);
+    }
     size_t decompressed =
         ZSTD_decompress_with_dict(output, decompressed_size,
-                                  input, input_size, dict, dict_size);
+                                  input, input_size, parsed_dict);
+
+    free_dictionary(parsed_dict);
 
     write_file(argv[2], output, decompressed);
 
@@ -117,4 +123,3 @@ int main(int argc, char **argv) {
     free(dict);
     input = output = dict = NULL;
 }
-

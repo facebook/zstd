@@ -611,6 +611,12 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_initStaticCDict_advanced_opaque(
                             unsigned byReference, ZSTD_dictMode_e dictMode,
                             ZSTD_CCtx_params* params);
 
+ZSTDLIB_API ZSTD_CCtx_params* ZSTD_createCCtxParams(void);
+ZSTDLIB_API ZSTD_CCtx_params* ZSTD_createAndInitCCtxParams(int compressionLevel, unsigned long long estimatedSrcSize, size_t dictSize);
+ZSTDLIB_API size_t ZSTD_initCCtxParams(ZSTD_CCtx_params* params, ZSTD_compressionParameters cParams);
+ZSTDLIB_API size_t ZSTD_freeCCtxParams(ZSTD_CCtx_params* params);
+
+
 /*! ZSTD_getCParams() :
 *   @return ZSTD_compressionParameters structure for a selected compression level and estimated srcSize.
 *   `estimatedSrcSize` value is optional, select 0 if not known */

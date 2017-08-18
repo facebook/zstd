@@ -230,6 +230,44 @@ static ZSTD_CCtx_params ZSTD_makeCCtxParamsFromCParams(
     return cctxParams;
 }
 
+ZSTD_CCtx_params* ZSTD_createCCtxParams(void)
+{
+    ZSTD_CCtx_params* params =
+        (ZSTD_CCtx_params*)ZSTD_calloc(sizeof(ZSTD_CCtx_params),
+                                       ZSTD_defaultCMem);
+    if (!params) { return NULL; }
+    // TODO
+//    params->compressionLevel = ZSTD_CLEVEL_DEFAULT;
+    return params;
+}
+
+size_t ZSTD_initCCtxParams(ZSTD_CCtx_params* params,
+                         ZSTD_compressionParameters cParams)
+{
+    CHECK_F( params == NULL );
+    memset(params, 0, sizeof(ZSTD_CCtx_params));
+    params->cParams = cParams;
+    return 0;
+}
+
+ZSTD_CCtx_params* ZSTD_createAndInitCCtxParams(
+        int compressionLevel, unsigned long long estimatedSrcSize,
+        size_t dictSize)
+{
+    ZSTD_CCtx_params* params = ZSTD_createCCtxParams();
+    if (params == NULL) { return NULL; }
+    ZSTD_initCCtxParams(params, ZSTD_getCParams(
+                            compressionLevel, estimatedSrcSize, dictSize));
+    return params;
+}
+
+size_t ZSTD_freeCCtxParams(ZSTD_CCtx_params* params)
+{
+    ZSTD_free(params, ZSTD_defaultCMem);
+    return 0;
+}
+
+
 
 static ZSTD_parameters ZSTD_getParamsFromCCtx(const ZSTD_CCtx* cctx) {
     return ZSTD_getParamsFromCCtxParams(cctx->appliedParams);

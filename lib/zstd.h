@@ -608,7 +608,7 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_initStaticCDict(
 ZSTDLIB_API ZSTD_CDict* ZSTD_initStaticCDict_advanced_opaque(
                             void* workspace, size_t workspaceSize,
                       const void* dict, size_t dictSize,
-                            unsigned byReference, ZSTD_dictMode_e dictMode,
+                            unsigned byReference,
                             ZSTD_CCtx_params* params);
 
 ZSTDLIB_API ZSTD_CCtx_params* ZSTD_createCCtxParams(void);

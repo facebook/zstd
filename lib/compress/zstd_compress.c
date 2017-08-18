@@ -220,6 +220,16 @@ static ZSTD_CCtx_params ZSTD_makeCCtxParamsFromParams(ZSTD_parameters params) {
     return cctxParams;
 }
 
+// TODO: get rid of this function too
+static ZSTD_CCtx_params ZSTD_makeCCtxParamsFromCParams(
+        ZSTD_compressionParameters cParams)
+{
+    ZSTD_CCtx_params cctxParams;
+    memset(&cctxParams, 0, sizeof(ZSTD_CCtx_params));
+    cctxParams.cParams = cParams;
+    return cctxParams;
+}
+
 
 static ZSTD_parameters ZSTD_getParamsFromCCtx(const ZSTD_CCtx* cctx) {
     return ZSTD_getParamsFromCCtxParams(cctx->appliedParams);
@@ -537,29 +547,40 @@ ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, u
     return ZSTD_adjustCParams_internal(cPar, srcSize, dictSize);
 }
 
+size_t ZSTD_estimateCCtxSize_advanced_opaque(ZSTD_CCtx_params* params)
+{
+    if (params == NULL) { return 0; }
+    {   ZSTD_compressionParameters cParams = params->cParams;
+        size_t const blockSize =
+        MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << cParams.windowLog);
+        U32    const divider = (cParams.searchLength==3) ? 3 : 4;
+        size_t const maxNbSeq = blockSize / divider;
+        size_t const tokenSpace = blockSize + 11*maxNbSeq;
+        size_t const chainSize =
+                (cParams.strategy == ZSTD_fast) ? 0 : (1 << cParams.chainLog);
+        size_t const hSize = ((size_t)1) << cParams.hashLog;
+        U32    const hashLog3 = (cParams.searchLength>3) ?
+                                0 : MIN(ZSTD_HASHLOG3_MAX, cParams.windowLog);
+        size_t const h3Size = ((size_t)1) << hashLog3;
+        size_t const entropySpace = sizeof(ZSTD_entropyCTables_t);
+        size_t const tableSpace = (chainSize + hSize + h3Size) * sizeof(U32);
+
+        size_t const optBudget =
+                ((MaxML+1) + (MaxLL+1) + (MaxOff+1) + (1<<Litbits))*sizeof(U32)
+                + (ZSTD_OPT_NUM+1)*(sizeof(ZSTD_match_t) + sizeof(ZSTD_optimal_t));
+        size_t const optSpace = ((cParams.strategy == ZSTD_btopt) || (cParams.strategy == ZSTD_btultra)) ? optBudget : 0;
+        size_t const neededSpace = entropySpace + tableSpace + tokenSpace + optSpace;
+
+        DEBUGLOG(5, "sizeof(ZSTD_CCtx) : %u", (U32)sizeof(ZSTD_CCtx));
+        DEBUGLOG(5, "estimate workSpace : %u", (U32)neededSpace);
+        return sizeof(ZSTD_CCtx) + neededSpace;
+    }
+}
 
 size_t ZSTD_estimateCCtxSize_advanced(ZSTD_compressionParameters cParams)
 {
-    size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << cParams.windowLog);
-    U32    const divider = (cParams.searchLength==3) ? 3 : 4;
-    size_t const maxNbSeq = blockSize / divider;
-    size_t const tokenSpace = blockSize + 11*maxNbSeq;
-
-    size_t const chainSize = (cParams.strategy == ZSTD_fast) ? 0 : (1 << cParams.chainLog);
-    size_t const hSize = ((size_t)1) << cParams.hashLog;
-    U32    const hashLog3 = (cParams.searchLength>3) ? 0 : MIN(ZSTD_HASHLOG3_MAX, cParams.windowLog);
-    size_t const h3Size = ((size_t)1) << hashLog3;
-    size_t const entropySpace = sizeof(ZSTD_entropyCTables_t);
-    size_t const tableSpace = (chainSize + hSize + h3Size) * sizeof(U32);
-
-    size_t const optBudget = ((MaxML+1) + (MaxLL+1) + (MaxOff+1) + (1<<Litbits))*sizeof(U32)
-                          + (ZSTD_OPT_NUM+1)*(sizeof(ZSTD_match_t) + sizeof(ZSTD_optimal_t));
-    size_t const optSpace = ((cParams.strategy == ZSTD_btopt) || (cParams.strategy == ZSTD_btultra)) ? optBudget : 0;
-    size_t const neededSpace = entropySpace + tableSpace + tokenSpace + optSpace;
-
-    DEBUGLOG(5, "sizeof(ZSTD_CCtx) : %u", (U32)sizeof(ZSTD_CCtx));
-    DEBUGLOG(5, "estimate workSpace : %u", (U32)neededSpace);
-    return sizeof(ZSTD_CCtx) + neededSpace;
+    ZSTD_CCtx_params params = ZSTD_makeCCtxParamsFromCParams(cParams);
+    return ZSTD_estimateCCtxSize_advanced_opaque(&params);
 }
 
 size_t ZSTD_estimateCCtxSize(int compressionLevel)
@@ -568,15 +589,25 @@ size_t ZSTD_estimateCCtxSize(int compressionLevel)
     return ZSTD_estimateCCtxSize_advanced(cParams);
 }
 
+size_t ZSTD_estimateCStreamSize_advanced_opaque(ZSTD_CCtx_params* params)
+{
+    if (params == NULL) { return 0; }
+    {
+        ZSTD_compressionParameters cParams = params->cParams;
+        size_t const CCtxSize = ZSTD_estimateCCtxSize_advanced(cParams);
+        size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << cParams.windowLog);
+        size_t const inBuffSize = ((size_t)1 << cParams.windowLog) + blockSize;
+        size_t const outBuffSize = ZSTD_compressBound(blockSize) + 1;
+        size_t const streamingSize = inBuffSize + outBuffSize;
+
+        return CCtxSize + streamingSize;
+    }
+}
+
 size_t ZSTD_estimateCStreamSize_advanced(ZSTD_compressionParameters cParams)
 {
-    size_t const CCtxSize = ZSTD_estimateCCtxSize_advanced(cParams);
-    size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << cParams.windowLog);
-    size_t const inBuffSize = ((size_t)1 << cParams.windowLog) + blockSize;
-    size_t const outBuffSize = ZSTD_compressBound(blockSize) + 1;
-    size_t const streamingSize = inBuffSize + outBuffSize;
-
-    return CCtxSize + streamingSize;
+    ZSTD_CCtx_params params = ZSTD_makeCCtxParamsFromCParams(cParams);
+    return ZSTD_estimateCStreamSize_advanced_opaque(&params);
 }
 
 size_t ZSTD_estimateCStreamSize(int compressionLevel) {
@@ -3390,14 +3421,24 @@ size_t ZSTD_compress(void* dst, size_t dstCapacity, const void* src, size_t srcS
 
 /* =====  Dictionary API  ===== */
 
+size_t ZSTD_estimateCDictSize_advanced_opaque(
+        size_t dictSize, ZSTD_CCtx_params* params, unsigned byReference)
+{
+    if (params == NULL) { return 0; }
+    DEBUGLOG(5, "sizeof(ZSTD_CDict) : %u", (U32)sizeof(ZSTD_CDict));
+    DEBUGLOG(5, "CCtx estimate : %u",
+             (U32)ZSTD_estimateCCtxSize_advanced_opaque(params));
+    return sizeof(ZSTD_CDict) + ZSTD_estimateCCtxSize_advanced_opaque(params)
+           + (byReference ? 0 : dictSize);
+
+}
+
 /*! ZSTD_estimateCDictSize_advanced() :
  *  Estimate amount of memory that will be needed to create a dictionary with following arguments */
 size_t ZSTD_estimateCDictSize_advanced(size_t dictSize, ZSTD_compressionParameters cParams, unsigned byReference)
 {
-    DEBUGLOG(5, "sizeof(ZSTD_CDict) : %u", (U32)sizeof(ZSTD_CDict));
-    DEBUGLOG(5, "CCtx estimate : %u", (U32)ZSTD_estimateCCtxSize_advanced(cParams));
-    return sizeof(ZSTD_CDict) + ZSTD_estimateCCtxSize_advanced(cParams)
-           + (byReference ? 0 : dictSize);
+    ZSTD_CCtx_params params = ZSTD_makeCCtxParamsFromCParams(cParams);
+    return ZSTD_estimateCDictSize_advanced_opaque(dictSize, &params, byReference);
 }
 
 size_t ZSTD_estimateCDictSize(size_t dictSize, int compressionLevel)
@@ -3510,24 +3551,12 @@ size_t ZSTD_freeCDict(ZSTD_CDict* cdict)
     }
 }
 
-/*! ZSTD_initStaticCDict_advanced() :
- *  Generate a digested dictionary in provided memory area.
- *  workspace: The memory area to emplace the dictionary into.
- *             Provided pointer must 8-bytes aligned.
- *             It must outlive dictionary usage.
- *  workspaceSize: Use ZSTD_estimateCDictSize()
- *                 to determine how large workspace must be.
- *  cParams : use ZSTD_getCParams() to transform a compression level
- *            into its relevants cParams.
- * @return : pointer to ZSTD_CDict*, or NULL if error (size too small)
- *  Note : there is no corresponding "free" function.
- *         Since workspace was allocated externally, it must be freed externally.
- */
-ZSTD_CDict* ZSTD_initStaticCDict(void* workspace, size_t workspaceSize,
-                           const void* dict, size_t dictSize,
-                                 unsigned byReference, ZSTD_dictMode_e dictMode,
-                                 ZSTD_compressionParameters cParams)
+ZSTD_CDict* ZSTD_initStaticCDict_advanced_opaque(
+        void *workspace, size_t workspaceSize, const void* dict,
+        size_t dictSize, unsigned byReference, ZSTD_dictMode_e dictMode,
+        ZSTD_CCtx_params* params)
 {
+    ZSTD_compressionParameters cParams = params->cParams;
     size_t const cctxSize = ZSTD_estimateCCtxSize_advanced(cParams);
     size_t const neededSize = sizeof(ZSTD_CDict) + (byReference ? 0 : dictSize)
                             + cctxSize;
@@ -3556,6 +3585,31 @@ ZSTD_CDict* ZSTD_initStaticCDict(void* workspace, size_t workspaceSize,
 
     return cdict;
 }
+
+/*! ZSTD_initStaticCDict_advanced() :
+ *  Generate a digested dictionary in provided memory area.
+ *  workspace: The memory area to emplace the dictionary into.
+ *             Provided pointer must 8-bytes aligned.
+ *             It must outlive dictionary usage.
+ *  workspaceSize: Use ZSTD_estimateCDictSize()
+ *                 to determine how large workspace must be.
+ *  cParams : use ZSTD_getCParams() to transform a compression level
+ *            into its relevants cParams.
+ * @return : pointer to ZSTD_CDict*, or NULL if error (size too small)
+ *  Note : there is no corresponding "free" function.
+ *         Since workspace was allocated externally, it must be freed externally.
+ */
+ZSTD_CDict* ZSTD_initStaticCDict(void* workspace, size_t workspaceSize,
+                           const void* dict, size_t dictSize,
+                                 unsigned byReference, ZSTD_dictMode_e dictMode,
+                                 ZSTD_compressionParameters cParams)
+{
+    ZSTD_CCtx_params params = ZSTD_makeCCtxParamsFromCParams(cParams);
+    return ZSTD_initStaticCDict_advanced_opaque(
+            workspace, workspaceSize, dict, dictSize,
+            byReference, dictMode, &params);
+}
+
 
 ZSTD_parameters ZSTD_getParamsFromCDict(const ZSTD_CDict* cdict) {
     return ZSTD_getParamsFromCCtx(cdict->refContext);

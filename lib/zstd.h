@@ -501,6 +501,7 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
  *  Note : CCtx estimation is only correct for single-threaded compression */
 ZSTDLIB_API size_t ZSTD_estimateCCtxSize(int compressionLevel);
 ZSTDLIB_API size_t ZSTD_estimateCCtxSize_advanced(ZSTD_compressionParameters cParams);
+ZSTDLIB_API size_t ZSTD_estimateCCtxSize_advanced_opaque(ZSTD_CCtx_params* params);
 ZSTDLIB_API size_t ZSTD_estimateDCtxSize(void);
 
 /*! ZSTD_estimate?StreamSize() :
@@ -517,6 +518,7 @@ ZSTDLIB_API size_t ZSTD_estimateDCtxSize(void);
  *         In this case, get total size by adding ZSTD_estimate?DictSize */
 ZSTDLIB_API size_t ZSTD_estimateCStreamSize(int compressionLevel);
 ZSTDLIB_API size_t ZSTD_estimateCStreamSize_advanced(ZSTD_compressionParameters cParams);
+ZSTDLIB_API size_t ZSTD_estimateCStreamSize_advanced_opaque(ZSTD_CCtx_params* params);
 ZSTDLIB_API size_t ZSTD_estimateDStreamSize(size_t windowSize);
 ZSTDLIB_API size_t ZSTD_estimateDStreamSize_fromFrame(const void* src, size_t srcSize);
 
@@ -526,6 +528,7 @@ ZSTDLIB_API size_t ZSTD_estimateDStreamSize_fromFrame(const void* src, size_t sr
  *  Note : dictionary created "byReference" are smaller */
 ZSTDLIB_API size_t ZSTD_estimateCDictSize(size_t dictSize, int compressionLevel);
 ZSTDLIB_API size_t ZSTD_estimateCDictSize_advanced(size_t dictSize, ZSTD_compressionParameters cParams, unsigned byReference);
+ZSTDLIB_API size_t ZSTD_estimateCDictSize_advanced_opaque(size_t dictSize, ZSTD_CCtx_params* params, unsigned byReference);
 ZSTDLIB_API size_t ZSTD_estimateDDictSize(size_t dictSize, unsigned byReference);
 
 
@@ -601,6 +604,12 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_initStaticCDict(
                       const void* dict, size_t dictSize,
                             unsigned byReference, ZSTD_dictMode_e dictMode,
                             ZSTD_compressionParameters cParams);
+
+ZSTDLIB_API ZSTD_CDict* ZSTD_initStaticCDict_advanced_opaque(
+                            void* workspace, size_t workspaceSize,
+                      const void* dict, size_t dictSize,
+                            unsigned byReference, ZSTD_dictMode_e dictMode,
+                            ZSTD_CCtx_params* params);
 
 /*! ZSTD_getCParams() :
 *   @return ZSTD_compressionParameters structure for a selected compression level and estimated srcSize.

@@ -224,9 +224,14 @@ typedef struct seqDef_s {
 typedef struct ZSTD_CCtx_params_s {
     ZSTD_compressionParameters cParams;
     ZSTD_frameParameters fParams;
+
     int compressionLevel;
     U32 forceWindow;
+
+    /* Dictionary */
     ZSTD_dictMode_e dictMode;
+    U32 dictContentByRef;
+
 
 } ZSTD_CCtx_params;
 

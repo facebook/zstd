@@ -88,12 +88,12 @@ static FILE* g_displayOut;
 **************************************/
 static int usage(const char* programName)
 {
-    DISPLAY( "Usage :\n");
-    DISPLAY( "      %s [args] [FILE(s)] [-o file]\n", programName);
+    DISPLAY( "Usage : \n");
+    DISPLAY( "      %s [args] [FILE(s)] [-o file] \n", programName);
     DISPLAY( "\n");
-    DISPLAY( "FILE    : a filename\n");
+    DISPLAY( "FILE    : a filename \n");
     DISPLAY( "          with no FILE, or when FILE is - , read standard input\n");
-    DISPLAY( "Arguments :\n");
+    DISPLAY( "Arguments : \n");
 #ifndef ZSTD_NOCOMPRESS
     DISPLAY( " -#     : # compression level (1-%d, default:%d) \n", ZSTDCLI_CLEVEL_MAX, ZSTDCLI_CLEVEL_DEFAULT);
 #endif
@@ -105,7 +105,7 @@ static int usage(const char* programName)
     DISPLAY( " -f     : overwrite output without prompting and (de)compress links \n");
     DISPLAY( "--rm    : remove source file(s) after successful de/compression \n");
     DISPLAY( " -k     : preserve source file(s) (default) \n");
-    DISPLAY( " -h/-H  : display help/long help and exit\n");
+    DISPLAY( " -h/-H  : display help/long help and exit \n");
     return 0;
 }
 
@@ -114,12 +114,12 @@ static int usage_advanced(const char* programName)
     DISPLAY(WELCOME_MESSAGE);
     usage(programName);
     DISPLAY( "\n");
-    DISPLAY( "Advanced arguments :\n");
-    DISPLAY( " -V     : display Version number and exit\n");
+    DISPLAY( "Advanced arguments : \n");
+    DISPLAY( " -V     : display Version number and exit \n");
     DISPLAY( " -v     : verbose mode; specify multiple times to increase verbosity\n");
     DISPLAY( " -q     : suppress warnings; specify twice to suppress errors too\n");
     DISPLAY( " -c     : force write to standard output, even if it is the console\n");
-    DISPLAY( " -l     : print information about zstd compressed files.\n");
+    DISPLAY( " -l     : print information about zstd compressed files \n");
 #ifndef ZSTD_NOCOMPRESS
     DISPLAY( "--ultra : enable levels beyond %i, up to %i (requires more memory)\n", ZSTDCLI_CLEVEL_MAX, ZSTD_maxCLevel());
 #ifdef ZSTD_MULTITHREAD
@@ -151,11 +151,10 @@ static int usage_advanced(const char* programName)
 #endif
 #endif
     DISPLAY( " -M#    : Set a memory usage limit for decompression \n");
-    DISPLAY( "--list  : list information about a zstd compressed file \n");
     DISPLAY( "--      : All arguments after \"--\" are treated as files \n");
 #ifndef ZSTD_NODICT
     DISPLAY( "\n");
-    DISPLAY( "Dictionary builder :\n");
+    DISPLAY( "Dictionary builder : \n");
     DISPLAY( "--train ## : create a dictionary from a training set of files \n");
     DISPLAY( "--train-cover[=k=#,d=#,steps=#] : use the cover algorithm with optional args\n");
     DISPLAY( "--train-legacy[=s=#] : use the legacy algorithm with selectivity (default: %u)\n", g_defaultSelectivityLevel);
@@ -165,12 +164,12 @@ static int usage_advanced(const char* programName)
 #endif
 #ifndef ZSTD_NOBENCH
     DISPLAY( "\n");
-    DISPLAY( "Benchmark arguments :\n");
+    DISPLAY( "Benchmark arguments : \n");
     DISPLAY( " -b#    : benchmark file(s), using # compression level (default : 1) \n");
     DISPLAY( " -e#    : test all compression levels from -bX to # (default: 1)\n");
-    DISPLAY( " -i#    : minimum evaluation time in seconds (default : 3s)\n");
+    DISPLAY( " -i#    : minimum evaluation time in seconds (default : 3s) \n");
     DISPLAY( " -B#    : cut file into independent blocks of size # (default: no block)\n");
-    DISPLAY( "--priority=rt : set process priority to real-time\n");
+    DISPLAY( "--priority=rt : set process priority to real-time \n");
 #endif
     return 0;
 }

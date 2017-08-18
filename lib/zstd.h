@@ -528,7 +528,9 @@ ZSTDLIB_API size_t ZSTD_estimateDStreamSize_fromFrame(const void* src, size_t sr
  *  Note : dictionary created "byReference" are smaller */
 ZSTDLIB_API size_t ZSTD_estimateCDictSize(size_t dictSize, int compressionLevel);
 ZSTDLIB_API size_t ZSTD_estimateCDictSize_advanced(size_t dictSize, ZSTD_compressionParameters cParams, unsigned byReference);
-ZSTDLIB_API size_t ZSTD_estimateCDictSize_advanced_opaque(size_t dictSize, ZSTD_CCtx_params* params, unsigned byReference);
+
+// By reference
+ZSTDLIB_API size_t ZSTD_estimateCDictSize_advanced_opaque(size_t dictSize, ZSTD_CCtx_params* params);
 ZSTDLIB_API size_t ZSTD_estimateDDictSize(size_t dictSize, unsigned byReference);
 
 
@@ -608,7 +610,6 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_initStaticCDict(
 ZSTDLIB_API ZSTD_CDict* ZSTD_initStaticCDict_advanced_opaque(
                             void* workspace, size_t workspaceSize,
                       const void* dict, size_t dictSize,
-                            unsigned byReference,
                             ZSTD_CCtx_params* params);
 
 ZSTDLIB_API ZSTD_CCtx_params* ZSTD_createCCtxParams(void);

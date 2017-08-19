@@ -1266,6 +1266,11 @@ Resulting in following 2-bytes bitstream :
 00010000 00001101
 ```
 
+alternative representation with clearer separation of fields :
+```
+0001_0000 00001_1_01
+```
+
 Reading highest `Max_Number_of_Bits` bits,
 it's possible to compare extracted value to decoding table,
 determining the symbol to decode and number of bits to discard.

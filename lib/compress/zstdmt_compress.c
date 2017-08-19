@@ -806,11 +806,13 @@ size_t ZSTDMT_initCStream_usingCDict(ZSTDMT_CCtx* mtctx,
                                      ZSTD_frameParameters fParams,
                                      unsigned long long pledgedSrcSize)
 {
-    ZSTD_parameters params = ZSTD_getParamsFromCDict(cdict);
+    ZSTD_CCtx_params params = ZSTD_getCCtxParamsFromCDict(cdict);
     if (cdict==NULL) return ERROR(dictionary_wrong);   /* method incompatible with NULL cdict */
+    ZSTDMT_zeroCCtxParams(&params);
     params.fParams = fParams;
-    return ZSTDMT_initCStream_internal(mtctx, NULL, 0 /*dictSize*/, cdict,
-                                        params, pledgedSrcSize);
+
+    return ZSTDMT_initCStream_internal_opaque(mtctx, NULL, 0 /*dictSize*/, cdict,
+                                              params, pledgedSrcSize);
 }
 
 

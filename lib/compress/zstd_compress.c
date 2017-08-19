@@ -3731,6 +3731,7 @@ static size_t ZSTD_initCDict_internal_opaque(ZSTD_CDict* cdict,
     return 0;
 }
 
+#if 0
 static size_t ZSTD_initCDict_internal(
                     ZSTD_CDict* cdict,
               const void* dictBuffer, size_t dictSize,
@@ -3748,11 +3749,52 @@ static size_t ZSTD_initCDict_internal(
                     cdict, dictBuffer, dictSize, cctxParams) );
     return 0;
 }
+#endif
+
+ZSTD_CDict* ZSTD_createCDict_advanced_opaque(
+        const void* dictBuffer, size_t dictSize,
+        ZSTD_CCtx_params params, ZSTD_customMem customMem)
+{
+    DEBUGLOG(5, "ZSTD_createCDict_advanced, mode %u", (U32)dictMode);
+    if (!customMem.customAlloc ^ !customMem.customFree) return NULL;
+
+    {   ZSTD_CDict* const cdict = (ZSTD_CDict*)ZSTD_malloc(sizeof(ZSTD_CDict), customMem);
+        ZSTD_CCtx* const cctx = ZSTD_createCCtx_advanced(customMem);
+        /* Initialize to 0 to preserve semantics */
+        ZSTD_frameParameters const fParams = { 0, 0, 0 };
+        params.fParams = fParams;
+
+        if (!cdict || !cctx) {
+            ZSTD_free(cdict, customMem);
+            ZSTD_freeCCtx(cctx);
+            return NULL;
+        }
+        cdict->refContext = cctx;
+
+
+        if (ZSTD_isError( ZSTD_initCDict_internal_opaque(
+                                        cdict,
+                                        dictBuffer, dictSize,
+                                        params) )) {
+            ZSTD_freeCDict(cdict);
+            return NULL;
+        }
+        return cdict;
+    }
+}
+
 
 ZSTD_CDict* ZSTD_createCDict_advanced(const void* dictBuffer, size_t dictSize,
                                       unsigned byReference, ZSTD_dictMode_e dictMode,
                                       ZSTD_compressionParameters cParams, ZSTD_customMem customMem)
 {
+    ZSTD_CCtx_params cctxParams = ZSTD_makeCCtxParamsFromCParams(cParams);
+    ZSTD_frameParameters const fParams = { 0, 0, 0 };
+    cctxParams.fParams = fParams;
+    cctxParams.dictMode = dictMode;
+    cctxParams.dictContentByRef = byReference;
+    return ZSTD_createCDict_advanced_opaque(dictBuffer, dictSize, cctxParams, customMem);
+#if 0
     DEBUGLOG(5, "ZSTD_createCDict_advanced, mode %u", (U32)dictMode);
     if (!customMem.customAlloc ^ !customMem.customFree) return NULL;
 
@@ -3776,6 +3818,7 @@ ZSTD_CDict* ZSTD_createCDict_advanced(const void* dictBuffer, size_t dictSize,
 
         return cdict;
     }
+#endif
 }
 
 ZSTD_CDict* ZSTD_createCDict(const void* dict, size_t dictSize, int compressionLevel)

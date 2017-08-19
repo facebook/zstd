@@ -351,10 +351,11 @@ void ZSTD_invalidateRepCodes(ZSTD_CCtx* cctx);
  *  expects params to be valid.
  *  must receive dict, or cdict, or none, but not both.
  *  @return : 0, or an error code */
-size_t ZSTD_initCStream_internal(ZSTD_CStream* zcs,
-                     const void* dict, size_t dictSize,
-                     const ZSTD_CDict* cdict,
-                     ZSTD_parameters params, unsigned long long pledgedSrcSize);
+size_t ZSTD_initCStream_internal_opaque(ZSTD_CStream* zcs,
+                                  const void* dict, size_t dictSize,
+                            const ZSTD_CDict* cdict,
+                            ZSTD_CCtx_params  params,
+                            unsigned long long pledgedSrcSize);
 
 /*! ZSTD_compressStream_generic() :
  *  Private use only. To be called from zstdmt_compress.c in single-thread mode. */
@@ -365,8 +366,20 @@ size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
 
 /*! ZSTD_getParamsFromCDict() :
  *  as the name implies */
-ZSTD_parameters ZSTD_getParamsFromCDict(const ZSTD_CDict* cdict);
+ZSTD_CCtx_params ZSTD_getCCtxParamsFromCDict(const ZSTD_CDict* cdict);
 
+/* INTERNAL */
+size_t ZSTD_compressBegin_advanced_opaque(ZSTD_CCtx* cctx,
+                                    const void* dict, size_t dictSize,
+                                    ZSTD_CCtx_params params,
+                                    unsigned long long pledgedSrcSize);
+
+/* INTERNAL */
+size_t ZSTD_compress_advanced_opaque(ZSTD_CCtx* cctx,
+                                     void* dst, size_t dstCapacity,
+                               const void* src, size_t srcSize,
+                               const void* dict,size_t dictSize,
+                               ZSTD_CCtx_params params);
 
 typedef struct {
     blockType_e blockType;

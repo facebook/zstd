@@ -426,7 +426,7 @@ ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced(unsigned nbThreads, ZSTD_customMem cMem)
     mtctx->allJobsCompleted = 1;
     mtctx->sectionSize = 0;
     mtctx->overlapLog = ZSTDMT_OVERLAPLOG_DEFAULT;
-    mtctx->factory = POOL_create(nbThreads, 1);
+    mtctx->factory = POOL_create(nbThreads, 0);
     mtctx->jobs = ZSTDMT_allocJobsTable(&nbJobs, cMem);
     mtctx->jobIDMask = nbJobs - 1;
     mtctx->bufPool = ZSTDMT_createBufferPool(nbThreads, cMem);

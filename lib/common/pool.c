@@ -76,17 +76,13 @@ static void* POOL_thread(void* opaque) {
             return opaque;
         }
         /* Pop a job off the queue */
-        {
-            POOL_job const job = ctx->queue[ctx->queueHead];
+        {   POOL_job const job = ctx->queue[ctx->queueHead];
             ctx->queueHead = (ctx->queueHead + 1) % ctx->queueSize;
             ctx->numThreadsBusy++;
             ctx->queueEmpty = ctx->queueHead == ctx->queueTail;
             /* Unlock the mutex, signal a pusher, and run the job */
             pthread_mutex_unlock(&ctx->queueMutex);
-
-            if (ctx->queueSize > 1) {
-                pthread_cond_signal(&ctx->queuePushCond);
-            }
+            pthread_cond_signal(&ctx->queuePushCond);
 
             job.function(job.opaque);
 
@@ -96,9 +92,8 @@ static void* POOL_thread(void* opaque) {
                 ctx->numThreadsBusy--;
                 pthread_mutex_unlock(&ctx->queueMutex);
                 pthread_cond_signal(&ctx->queuePushCond);
-            }
-        }
-    }
+        }   }
+    }  /* for (;;) */
     /* Unreachable */
 }
 

@@ -701,7 +701,7 @@ int main(int argCount, const char* argv[])
         BMK_setNbSeconds(bench_nbSeconds);
         BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast, &compressionParams, setRealTimePrio);
 #endif
-        (void)bench_nbSeconds;
+        (void)bench_nbSeconds; (void)blockSize; (void)setRealTimePrio;
         goto _end;
     }
 
@@ -772,6 +772,7 @@ int main(int argCount, const char* argv[])
         else
           operationResult = FIO_compressMultipleFilenames(filenameTable, filenameIdx, outFileName ? outFileName : suffix, dictFileName, cLevel, &compressionParams);
 #else
+        (void)suffix;
         DISPLAY("Compression not supported\n");
 #endif
     } else {  /* decompression or test */

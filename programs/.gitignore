@@ -5,6 +5,7 @@ zstd-compress
 zstd-decompress
 zstd-frugal
 zstd-small
+zstd-nolegacy
 
 # Object files
 *.o

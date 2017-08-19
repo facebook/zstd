@@ -42,7 +42,7 @@ CPPFLAGS+= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
            -DZSTD_NEWAPI \
            -DXXH_NAMESPACE=ZSTD_   # because xxhash.o already compiled with this macro from library
 CFLAGS  ?= -O3
-DEBUGFLAGS = -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
+DEBUGFLAGS= -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
             -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
             -Wstrict-prototypes -Wundef -Wpointer-arith -Wformat-security \
             -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings \
@@ -139,7 +139,7 @@ default: zstd-release
 all: zstd
 
 .PHONY: allVariants
-allVariants: zstd zstd-compress zstd-decompress zstd-small
+allVariants: zstd zstd-compress zstd-decompress zstd-small zstd-nolegacy
 
 $(ZSTDDECOMP_O): CFLAGS += $(ALIGN_LOOP)
 
@@ -157,7 +157,7 @@ zstd zstd4 : $(ZSTDLIB_FILES) zstdcli.o fileio.o bench.o datagen.o dibio.o
 ifneq (,$(filter Windows%,$(OS)))
 	windres/generate_res.bat
 endif
-	$(CC) $(FLAGS) $^ $(RES_FILE) -o zstd$(EXT) $(LDFLAGS)
+	$(CC) $(FLAGS) $^ $(RES_FILE) -o $@$(EXT) $(LDFLAGS)
 
 .PHONY: zstd-release
 zstd-release: DEBUGFLAGS :=
@@ -170,8 +170,8 @@ ifneq (,$(filter Windows%,$(OS)))
 endif
 	$(CC) -m32 $(FLAGS) $^ $(RES32_FILE) -o $@$(EXT)
 
-zstd-nolegacy :
-	$(MAKE) zstd ZSTD_LEGACY_SUPPORT=0
+zstd-nolegacy : $(ZSTD_FILES) $(ZDICT_FILES) zstdcli.o fileio.c bench.o datagen.o dibio.o
+	$(CC) $(FLAGS) $^ -o $@$(EXT) $(LDFLAGS)
 
 zstd-nomt : THREAD_CPP :=
 zstd-nomt : THREAD_LD :=
@@ -212,7 +212,7 @@ zstd-decompress: $(ZSTDCOMMON_FILES) $(ZSTDDECOMP_FILES) zstdcli.c fileio.c
 zstd-compress: $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) zstdcli.c fileio.c
 	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS $^ -o $@$(EXT)
 
-# zstd is now built with Multi-threading by default
+# zstd is now built with multithreading enabled y default
 zstdmt: zstd
 
 .PHONY: generate_res
@@ -225,7 +225,7 @@ clean:
 	@$(RM) $(ZSTDDIR)/decompress/*.o $(ZSTDDIR)/decompress/zstd_decompress.gcda
 	@$(RM) core *.o tmp* result* *.gcda dictionary *.zst \
         zstd$(EXT) zstd32$(EXT) zstd-compress$(EXT) zstd-decompress$(EXT) \
-        zstd-small$(EXT) zstd-frugal$(EXT) \
+        zstd-small$(EXT) zstd-frugal$(EXT) zstd-nolegacy$(EXT) \
         *.gcda default.profraw have_zlib$(EXT)
 	@echo Cleaning completed
 

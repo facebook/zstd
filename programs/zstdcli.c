@@ -16,7 +16,7 @@
 #endif
 
 #ifndef ZSTDCLI_CLEVEL_MAX
-#  define ZSTDCLI_CLEVEL_MAX 19   /* when not using --ultra */
+#  define ZSTDCLI_CLEVEL_MAX 19   /* without using --ultra */
 #endif
 
 
@@ -26,14 +26,15 @@
 **************************************/
 #include "platform.h" /* IS_CONSOLE, PLATFORM_POSIX_VERSION */
 #include "util.h"     /* UTIL_HAS_CREATEFILELIST, UTIL_createFileList */
+#include <stdio.h>    /* fprintf(), stdin, stdout, stderr */
 #include <string.h>   /* strcmp, strlen */
 #include <errno.h>    /* errno */
-#include "fileio.h"
+#include "fileio.h"   /* stdinmark, stdoutmark, ZSTD_EXTENSION */
 #ifndef ZSTD_NOBENCH
 #  include "bench.h"  /* BMK_benchFiles, BMK_SetNbSeconds */
 #endif
 #ifndef ZSTD_NODICT
-#  include "dibio.h"
+#  include "dibio.h"  /* ZDICT_cover_params_t, DiB_trainFromFiles() */
 #endif
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_maxCLevel */
 #include "zstd.h"     /* ZSTD_VERSION_STRING */
@@ -64,7 +65,7 @@
 #define MB *(1 <<20)
 #define GB *(1U<<30)
 
-#define DEFAULT_DISPLAY_LEVEL 2
+#define DISPLAY_LEVEL_DEFAULT 2
 
 static const char*    g_defaultDictName = "dictionary";
 static const unsigned g_defaultMaxDictSize = 110 KB;
@@ -79,7 +80,7 @@ static U32 g_overlapLog = OVERLAP_LOG_DEFAULT;
 **************************************/
 #define DISPLAY(...)         fprintf(g_displayOut, __VA_ARGS__)
 #define DISPLAYLEVEL(l, ...) { if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); } }
-static int g_displayLevel = DEFAULT_DISPLAY_LEVEL;   /* 0 : no display,  1: errors,  2 : + result + interaction + warnings,  3 : + progression,  4 : + information */
+static int g_displayLevel = DISPLAY_LEVEL_DEFAULT;   /* 0 : no display,  1: errors,  2 : + result + interaction + warnings,  3 : + progression,  4 : + information */
 static FILE* g_displayOut;
 
 
@@ -312,6 +313,35 @@ static unsigned parseCompressionParameters(const char* stringPtr, ZSTD_compressi
     return 1;
 }
 
+static void printVersion(void)
+{
+    DISPLAY(WELCOME_MESSAGE);
+    /* format support */
+    DISPLAYLEVEL(3, "*** supports: zstd");
+#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>0) && (ZSTD_LEGACY_SUPPORT<8)
+    DISPLAYLEVEL(3, ", zstd legacy v0.%d+", ZSTD_LEGACY_SUPPORT);
+#endif
+#ifdef ZSTD_GZCOMPRESS
+    DISPLAYLEVEL(3, ", gzip");
+#endif
+#ifdef ZSTD_LZ4COMPRESS
+    DISPLAYLEVEL(3, ", lz4");
+#endif
+#ifdef ZSTD_LZMACOMPRESS
+    DISPLAYLEVEL(3, ", lzma, xz ");
+#endif
+    DISPLAYLEVEL(3, "\n");
+    /* posix support */
+#ifdef _POSIX_C_SOURCE
+    DISPLAYLEVEL(4, "_POSIX_C_SOURCE defined: %ldL\n", (long) _POSIX_C_SOURCE);
+#endif
+#ifdef _POSIX_VERSION
+    DISPLAYLEVEL(4, "_POSIX_VERSION defined: %ldL \n", (long) _POSIX_VERSION);
+#endif
+#ifdef PLATFORM_POSIX_VERSION
+    DISPLAYLEVEL(4, "PLATFORM_POSIX_VERSION defined: %ldL\n", (long) PLATFORM_POSIX_VERSION);
+#endif
+}
 
 typedef enum { zom_compress, zom_decompress, zom_test, zom_bench, zom_train, zom_list } zstd_operation_mode;
 
@@ -491,7 +521,7 @@ int main(int argCount, const char* argv[])
                     switch(argument[0])
                     {
                         /* Display help */
-                    case 'V': g_displayOut=stdout; DISPLAY(WELCOME_MESSAGE); CLEAN_RETURN(0);   /* Version Only */
+                    case 'V': g_displayOut=stdout; printVersion(); CLEAN_RETURN(0);   /* Version Only */
                     case 'H':
                     case 'h': g_displayOut=stdout; CLEAN_RETURN(usage_advanced(programName));
 
@@ -641,15 +671,6 @@ int main(int argCount, const char* argv[])
 
     /* Welcome message (if verbose) */
     DISPLAYLEVEL(3, WELCOME_MESSAGE);
-#ifdef _POSIX_C_SOURCE
-    DISPLAYLEVEL(4, "_POSIX_C_SOURCE defined: %ldL\n", (long) _POSIX_C_SOURCE);
-#endif
-#ifdef _POSIX_VERSION
-    DISPLAYLEVEL(4, "_POSIX_VERSION defined: %ldL \n", (long) _POSIX_VERSION);
-#endif
-#ifdef PLATFORM_POSIX_VERSION
-    DISPLAYLEVEL(4, "PLATFORM_POSIX_VERSION defined: %ldL\n", (long) PLATFORM_POSIX_VERSION);
-#endif
 
     if (nbThreads == 0) {
         /* try to guess */

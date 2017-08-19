@@ -139,7 +139,7 @@ default: zstd-release
 all: zstd
 
 .PHONY: allVariants
-allVariants: zstd zstd-compress
+allVariants: zstd zstd-compress zstd-decompress
 
 $(ZSTDDECOMP_O): CFLAGS += $(ALIGN_LOOP)
 

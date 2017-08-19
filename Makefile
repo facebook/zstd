@@ -76,6 +76,7 @@ zlibwrapper:
 
 .PHONY: test shortest
 test shortest:
+	$(MAKE) -C $(PRGDIR) allVariants
 	$(MAKE) -C $(TESTDIR) $@
 
 .PHONY: examples

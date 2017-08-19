@@ -1038,7 +1038,7 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
             /* Skippable frame */
             else if ((magicNumber & 0xFFFFFFF0U) == ZSTD_MAGIC_SKIPPABLE_START) {
                 U32 const frameSize = MEM_readLE32(headerBuffer + 4);
-                long const seek = -numBytesRead + 8 + frameSize;
+                long const seek = (long)(8 + frameSize - numBytesRead);
                 int const ret = LONG_SEEK(srcFile, seek, SEEK_CUR);
                 if (ret != 0) {
                     DISPLAY("Error: could not find end of skippable frame\n");

@@ -634,7 +634,10 @@ int main(int argCount, const char* argv[])
         filenameTable[filenameIdx++] = argument;
     }
 
-    if (lastCommand) { DISPLAY("error : command must be followed by argument \n"); CLEAN_RETURN(1); }  /* forgotten argument */
+    if (lastCommand) { /* forgotten argument */
+        DISPLAY("error : command must be followed by argument \n");
+        CLEAN_RETURN(1);
+    }
 
     /* Welcome message (if verbose) */
     DISPLAYLEVEL(3, WELCOME_MESSAGE);
@@ -642,7 +645,7 @@ int main(int argCount, const char* argv[])
     DISPLAYLEVEL(4, "_POSIX_C_SOURCE defined: %ldL\n", (long) _POSIX_C_SOURCE);
 #endif
 #ifdef _POSIX_VERSION
-    DISPLAYLEVEL(4, "_POSIX_VERSION defined: %ldL\n", (long) _POSIX_VERSION);
+    DISPLAYLEVEL(4, "_POSIX_VERSION defined: %ldL \n", (long) _POSIX_VERSION);
 #endif
 #ifdef PLATFORM_POSIX_VERSION
     DISPLAYLEVEL(4, "PLATFORM_POSIX_VERSION defined: %ldL\n", (long) PLATFORM_POSIX_VERSION);
@@ -651,7 +654,7 @@ int main(int argCount, const char* argv[])
     if (nbThreads == 0) {
         /* try to guess */
         nbThreads = UTIL_countPhysicalCores();
-        DISPLAYLEVEL(3, "Note: %d physical core(s) detected\n", nbThreads);
+        DISPLAYLEVEL(3, "Note: %d physical core(s) detected \n", nbThreads);
     }
 
     g_utilDisplayLevel = g_displayLevel;
@@ -678,10 +681,17 @@ int main(int argCount, const char* argv[])
         }
     }
 #endif
+
     if (operation == zom_list) {
+#ifndef ZSTD_NODECOMPRESS
         int const ret = FIO_listMultipleFiles(filenameIdx, filenameTable, g_displayLevel);
         CLEAN_RETURN(ret);
+#else
+        DISPLAY("file information is not supported \n");
+        CLEAN_RETURN(1);
+#endif
     }
+
     /* Check if benchmark is selected */
     if (operation==zom_bench) {
 #ifndef ZSTD_NOBENCH

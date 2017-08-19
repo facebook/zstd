@@ -1,10 +1,10 @@
-/**
- * Copyright (c) 2016-present, Przemyslaw Skibinski, Facebook, Inc.
+/*
+ * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under both the BSD-style license (found in the
+ * LICENSE file in the root directory of this source tree) and the GPLv2 (found
+ * in the COPYING file in the root directory of this source tree).
  */
 
 #ifndef ZSTD_ZLIBWRAPPER_H
@@ -32,7 +32,7 @@ const char * zstdVersion(void);
 /*** COMPRESSION ***/
 /* ZWRAP_useZSTDcompression() enables/disables zstd compression during runtime.
    By default zstd compression is disabled. To enable zstd compression please use one of the methods:
-   - compilation with the additional option -DZWRAP_USE_ZSTD=1 
+   - compilation with the additional option -DZWRAP_USE_ZSTD=1
    - using '#define ZWRAP_USE_ZSTD 1' in source code before '#include "zstd_zlibwrapper.h"'
    - calling ZWRAP_useZSTDcompression(1)
    All above-mentioned methods will enable zstd compression for all threads.
@@ -45,13 +45,13 @@ int ZWRAP_isUsingZSTDcompression(void);
 /* Changes a pledged source size for a given compression stream.
    It will change ZSTD compression parameters what may improve compression speed and/or ratio.
    The function should be called just after deflateInit() or deflateReset() and before deflate() or deflateSetDictionary().
-   It's only helpful when data is compressed in blocks. 
-   There will be no change in case of deflateInit() or deflateReset() immediately followed by deflate(strm, Z_FINISH) 
+   It's only helpful when data is compressed in blocks.
+   There will be no change in case of deflateInit() or deflateReset() immediately followed by deflate(strm, Z_FINISH)
    as this case is automatically detected.  */
 int ZWRAP_setPledgedSrcSize(z_streamp strm, unsigned long long pledgedSrcSize);
 
 /* Similar to deflateReset but preserves dictionary set using deflateSetDictionary.
-   It should improve compression speed because there will be less calls to deflateSetDictionary 
+   It should improve compression speed because there will be less calls to deflateSetDictionary
    When using zlib compression this method redirects to deflateReset. */
 int ZWRAP_deflateReset_keepDict(z_streamp strm);
 

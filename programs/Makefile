@@ -139,7 +139,7 @@ default: zstd-release
 all: zstd
 
 .PHONY: allVariants
-allVariants: zstd zstd-compress zstd-decompress
+allVariants: zstd zstd-compress zstd-decompress zstd-small
 
 $(ZSTDDECOMP_O): CFLAGS += $(ALIGN_LOOP)
 
@@ -202,9 +202,9 @@ zstd-pgo : clean zstd
 	$(MAKE) zstd MOREFLAGS=-fprofile-use
 
 # minimal target, with only zstd compression and decompression. no bench. no legacy.
-zstd-small: CFLAGS = "-Os -s"
+zstd-small: CFLAGS = -Os -s
 zstd-frugal zstd-small: $(ZSTD_FILES) zstdcli.c fileio.c
-	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT $^ -o zstd$(EXT)
+	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT $^ -o $@$(EXT)
 
 zstd-decompress: $(ZSTDCOMMON_FILES) $(ZSTDDECOMP_FILES) zstdcli.c fileio.c
 	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOCOMPRESS $^ -o $@$(EXT)
@@ -225,6 +225,7 @@ clean:
 	@$(RM) $(ZSTDDIR)/decompress/*.o $(ZSTDDIR)/decompress/zstd_decompress.gcda
 	@$(RM) core *.o tmp* result* *.gcda dictionary *.zst \
         zstd$(EXT) zstd32$(EXT) zstd-compress$(EXT) zstd-decompress$(EXT) \
+        zstd-small$(EXT) zstd-frugal$(EXT) \
         *.gcda default.profraw have_zlib$(EXT)
 	@echo Cleaning completed
 
@@ -301,4 +302,5 @@ uninstall:
 	@$(RM) $(DESTDIR)$(MANDIR)/unzstd.1
 	@$(RM) $(DESTDIR)$(MANDIR)/zstd.1
 	@echo zstd programs successfully uninstalled
+
 endif

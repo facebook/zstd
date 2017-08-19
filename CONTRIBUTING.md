@@ -39,4 +39,4 @@ outlined on that page and do not file a public issue.
 
 ## License
 By contributing to Zstandard, you agree that your contributions will be licensed
-under the [LICENSE](LICENSE) file in the root directory of this source tree.
+under both the [LICENSE](LICENSE) file and the [COPYING](COPYING) file in the root directory of this source tree.

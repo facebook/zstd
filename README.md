@@ -134,12 +134,12 @@ Going into `build` directory, you will find additional possibilities :
 
 ### Status
 
-Zstandard is currently deployed within Facebook. It is used daily to compress and decompress very large amounts of data in multiple formats and use cases.
+Zstandard is currently deployed within Facebook. It is used continuously to compress large amounts of data in multiple formats and use cases.
 Zstandard is considered safe for production environments.
 
 ### License
 
-Zstandard is [BSD-licensed](LICENSE). We also provide an [additional patent grant](PATENTS).
+Zstandard is dual-licensed under [BSD](LICENSE) and [GPLv2](COPYING).
 
 ### Contributing
 

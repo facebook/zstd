@@ -7,17 +7,17 @@ die() {
 
 roundTripTest() {
     if [ -n "$3" ]; then
-        local_c="$3"
-        local_p="$2"
+        cLevel="$3"
+        proba="$2"
     else
-        local_c="$2"
-        local_p=""
+        cLevel="$2"
+        proba=""
     fi
 
     rm -f tmp1 tmp2
-    $ECHO "roundTripTest: ./datagen $1 $local_p | $ZSTD -v$local_c | $ZSTD -d"
-    ./datagen $1 $local_p | $MD5SUM > tmp1
-    ./datagen $1 $local_p | $ZSTD --ultra -v$local_c | $ZSTD -d  | $MD5SUM > tmp2
+    $ECHO "roundTripTest: ./datagen $1 $proba | $ZSTD -v$cLevel | $ZSTD -d"
+    ./datagen $1 $proba | $MD5SUM > tmp1
+    ./datagen $1 $proba | $ZSTD --ultra -v$cLevel | $ZSTD -d  | $MD5SUM > tmp2
     $DIFF -q tmp1 tmp2
 }
 
@@ -383,6 +383,14 @@ $ZSTD -t --rm tmp1.zst
 test -f tmp1.zst   # check file is still present
 split -b16384 tmp1.zst tmpSplit.
 $ZSTD -t tmpSplit.* && die "bad file not detected !"
+./datagen | $ZSTD -c | $ZSTD -t
+
+
+
+$ECHO "\n**** golden files tests **** "
+
+$ZSTD -t -r files
+$ZSTD -c -r files | $ZSTD -t
 
 
 $ECHO "\n**** benchmark mode tests **** "
@@ -625,16 +633,15 @@ roundTripTest -g35000000 -P75 10
 roundTripTest -g35000000 -P75 11
 roundTripTest -g35000000 -P75 12
 
-roundTripTest -g18000000 -P80 13
-roundTripTest -g18000000 -P80 14
-roundTripTest -g18000000 -P80 15
-roundTripTest -g18000000 -P80 16
-roundTripTest -g18000000 -P80 17
+roundTripTest -g18000013 -P80 13
+roundTripTest -g18000014 -P80 14
+roundTripTest -g18000015 -P80 15
+roundTripTest -g18000016 -P80 16
+roundTripTest -g18000017 -P80 17
+roundTripTest -g18000018 -P94 18
+roundTripTest -g18000019 -P94 19
 
-roundTripTest -g50000000 -P94 18
-roundTripTest -g50000000 -P94 19
-
-roundTripTest -g99000000 -P99 20
+roundTripTest -g68000020 -P99 20
 roundTripTest -g6000000000 -P99 1
 
 fileRoundTripTest -g4193M -P99 1
@@ -644,7 +651,8 @@ then
     $ECHO "\n**** zstdmt long round-trip tests **** "
     roundTripTest -g99000000 -P99 "20 -T2"
     roundTripTest -g6000000000 -P99 "1 -T2"
-    fileRoundTripTest -g4193M -P98 " -T0"
+    roundTripTest -g1500000000 -P97 "1 -T999"
+    fileRoundTripTest -g4195M -P98 " -T0"
 else
     $ECHO "\n**** no multithreading, skipping zstdmt tests **** "
 fi

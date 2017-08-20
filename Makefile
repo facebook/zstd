@@ -74,12 +74,9 @@ zstdmt:
 zlibwrapper:
 	$(MAKE) -C $(ZWRAPDIR) test
 
-.PHONY: shortest
-shortest:
-	$(MAKE) -C $(TESTDIR) $@
-
-.PHONY: test
-test:
+.PHONY: test shortest
+test shortest:
+	$(MAKE) -C $(PRGDIR) allVariants
 	$(MAKE) -C $(TESTDIR) $@
 
 .PHONY: examples
@@ -146,6 +143,11 @@ gcc6build: clean
 	gcc-6 -v
 	CC=gcc-6 $(MAKE) all MOREFLAGS="-Werror"
 
+.PHONY: gcc7build
+gcc7build: clean
+	gcc-7 -v
+	CC=gcc-7 $(MAKE) all MOREFLAGS="-Werror"
+
 .PHONY: clangbuild
 clangbuild: clean
 	clang -v
@@ -180,7 +182,7 @@ ppc64fuzz: clean
 	CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc64-static MOREFLAGS="-m64 -static" FUZZER_FLAGS=--no-big-tests $(MAKE) -C $(TESTDIR) fuzztest
 
 gpptest: clean
-	CC=g++ $(MAKE) -C $(PRGDIR) all CFLAGS="-O3 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror"
+	CC=$(CXX) $(MAKE) -C $(PRGDIR) all CFLAGS="-O3 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror"
 
 gcc5test: clean
 	gcc-5 -v

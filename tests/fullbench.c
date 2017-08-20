@@ -1,10 +1,10 @@
-/**
+/*
  * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under both the BSD-style license (found in the
+ * LICENSE file in the root directory of this source tree) and the GPLv2 (found
+ * in the COPYING file in the root directory of this source tree).
  */
 
 
@@ -91,12 +91,6 @@ static size_t BMK_findMaxMem(U64 requiredMem)
 /*_*******************************************************
 *  Benchmark wrappers
 *********************************************************/
-typedef struct {
-    blockType_e blockType;
-    U32 unusedBits;
-    U32 origSize;
-} blockProperties_t;
-
 size_t local_ZSTD_compress(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
 {
     (void)buff2;
@@ -120,7 +114,6 @@ size_t local_ZSTD_decodeLiteralsBlock(void* dst, size_t dstSize, void* buff2, co
     return ZSTD_decodeLiteralsBlock((ZSTD_DCtx*)g_zdc, buff2, g_cSize);
 }
 
-extern size_t ZSTD_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bpPtr);
 extern size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeq, const void* src, size_t srcSize);
 size_t local_ZSTD_decodeSeqHeaders(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
 {

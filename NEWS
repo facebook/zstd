@@ -1,3 +1,18 @@
+v1.3.1
+New license : BSD + GPLv2
+perf: substantially decreased memory usage in Multi-threading mode, thanks to reports by Tino Reichardt (@mcmilk)
+perf: Multi-threading supports up to 256 threads. Cap at 256 when more are requested (#760)
+cli : improved and fixed --list command, by @ib (#772)
+cli : command -vV to list supported formats, by @ib (#771)
+build : fixed binary variants, reported by @svenha (#788)
+build : fix Visual compilation for non x86/x64 targets, reported by Greg Slazinski (@GregSlazinski) (#718)
+API exp : breaking change : ZSTD_getframeHeader() provides more information
+API exp : breaking change : pinned down values of error codes
+doc : fixed huffman example, by Ulrich Kunitz (@ulikunitz)
+new : contrib/adaptive-compression, I/O driven compression strength, by Paul Cruz (@paulcruz74)
+new : contrib/long_distance_matching, statistics by Stella Lau (@stellamplau)
+updated : contrib/linux-kernel, by Nick Terrell (@terrelln)
+
 v1.3.0
 cli : new : `--list` command, by Paul Cruz
 cli : changed : xz/lzma support enabled by default

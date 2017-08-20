@@ -1,10 +1,10 @@
-/**
- * Copyright (c) 2017-present, Facebook, Inc.
+/*
+ * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under both the BSD-style license (found in the
+ * LICENSE file in the root directory of this source tree) and the GPLv2 (found
+ * in the COPYING file in the root directory of this source tree).
  */
 
 /*
@@ -226,4 +226,3 @@ const char* const EXPECTED =
     "snowden is snowed in / he's now then in his snow den / when does the snow end?\n"
     "goodbye little dog / you dug some holes in your day / they'll be hard to fill.\n"
     "when life shuts a door, / just open it. it’s a door. / that is how doors work.\n";
-

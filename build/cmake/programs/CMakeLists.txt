@@ -31,6 +31,9 @@ ENDIF (MSVC)
 
 ADD_EXECUTABLE(zstd ${PROGRAMS_DIR}/zstdcli.c ${PROGRAMS_DIR}/fileio.c ${PROGRAMS_DIR}/bench.c ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/dibio.c ${PlatformDependResources})
 TARGET_LINK_LIBRARIES(zstd libzstd_static)
+IF (CMAKE_SYSTEM_NAME MATCHES "(Solaris|SunOS)")
+    TARGET_LINK_LIBRARIES(zstd rt)
+ENDIF (CMAKE_SYSTEM_NAME MATCHES "(Solaris|SunOS)")
 INSTALL(TARGETS zstd RUNTIME DESTINATION "bin")
 
 IF (UNIX)

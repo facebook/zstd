@@ -108,6 +108,7 @@ the last one takes effect.
 * `-T#`, `--threads=#`:
     Compress using `#` threads (default: 1).
     If `#` is 0, attempt to detect and use the number of physical CPU cores.
+    In all cases, the nb of threads is capped to ZSTDMT_NBTHREADS_MAX==256.
     This modifier does nothing if `zstd` is compiled without multithread support.
 * `-D file`:
     use `file` as Dictionary to compress or decompress FILE(s)
@@ -139,7 +140,9 @@ the last one takes effect.
 * `-h`/`-H`, `--help`:
     display help/long help and exit
 * `-V`, `--version`:
-    display version number and exit
+    display version number and exit.
+    Advanced : `-vV` also displays supported formats.
+    `-vvV` also displays POSIX support.
 * `-v`:
     verbose mode
 * `-q`, `--quiet`:

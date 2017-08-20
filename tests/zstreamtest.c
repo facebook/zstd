@@ -1,10 +1,10 @@
-/**
+/*
  * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under both the BSD-style license (found in the
+ * LICENSE file in the root directory of this source tree) and the GPLv2 (found
+ * in the COPYING file in the root directory of this source tree).
  */
 
 
@@ -93,19 +93,6 @@ unsigned int FUZ_rand(unsigned int* seedPtr)
     rand32  = FUZ_rotl32(rand32, 13);
     *seedPtr = rand32;
     return rand32 >> 5;
-}
-
-static void* allocFunction(void* opaque, size_t size)
-{
-    void* address = malloc(size);
-    (void)opaque;
-    return address;
-}
-
-static void freeFunction(void* opaque, void* address)
-{
-    (void)opaque;
-    free(address);
 }
 
 
@@ -1390,13 +1377,12 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
         /* multi-segments compression test */
         XXH64_reset(&xxhState, 0);
         {   ZSTD_outBuffer outBuff = { cBuffer, cBufferSize, 0 } ;
-            U32 n;
-            for (n=0, cSize=0, totalTestSize=0 ; totalTestSize < maxTestSize ; n++) {
+            for (cSize=0, totalTestSize=0 ; (totalTestSize < maxTestSize) ; ) {
                 /* compress random chunks into randomly sized dst buffers */
                 size_t const randomSrcSize = FUZ_randomLength(&lseed, maxSampleLog);
                 size_t const srcSize = MIN(maxTestSize-totalTestSize, randomSrcSize);
                 size_t const srcStart = FUZ_rand(&lseed) % (srcBufferSize - srcSize);
-                size_t const randomDstSize = FUZ_randomLength(&lseed, maxSampleLog);
+                size_t const randomDstSize = FUZ_randomLength(&lseed, maxSampleLog+1);
                 size_t const dstBuffSize = MIN(cBufferSize - cSize, randomDstSize);
                 ZSTD_EndDirective const flush = (FUZ_rand(&lseed) & 15) ? ZSTD_e_continue : ZSTD_e_flush;
                 ZSTD_inBuffer inBuff = { srcBuffer+srcStart, srcSize, 0 };
@@ -1415,7 +1401,7 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
             {   size_t remainingToFlush = (size_t)(-1);
                 while (remainingToFlush) {
                     ZSTD_inBuffer inBuff = { NULL, 0, 0 };
-                    size_t const randomDstSize = FUZ_randomLength(&lseed, maxSampleLog);
+                    size_t const randomDstSize = FUZ_randomLength(&lseed, maxSampleLog+1);
                     size_t const adjustedDstSize = MIN(cBufferSize - cSize, randomDstSize);
                     outBuff.size = outBuff.pos + adjustedDstSize;
                     DISPLAYLEVEL(5, "End-flush into dst buffer of size %u \n", (U32)adjustedDstSize);
@@ -1543,7 +1529,6 @@ int main(int argc, const char** argv)
     int bigTests = (sizeof(size_t) == 8);
     e_api selected_api = simple_api;
     const char* const programName = argv[0];
-    ZSTD_customMem const customMem = { allocFunction, freeFunction, NULL };
     ZSTD_customMem const customNULL = ZSTD_defaultCMem;
 
     /* Check command line */
@@ -1657,10 +1642,7 @@ int main(int argc, const char** argv)
 
     if (testNb==0) {
         result = basicUnitTests(0, ((double)proba) / 100, customNULL);  /* constant seed for predictability */
-        if (!result) {
-            DISPLAYLEVEL(3, "Unit tests using customMem :\n")
-            result = basicUnitTests(0, ((double)proba) / 100, customMem);  /* use custom memory allocation functions */
-    }   }
+    }
 
     if (!result) {
         switch(selected_api)

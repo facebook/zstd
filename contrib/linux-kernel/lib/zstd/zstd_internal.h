@@ -126,35 +126,29 @@ static const U32 OF_defaultNormLog = OF_DEFAULTNORMLOG;
 /*-*******************************************
 *  Shared functions to include for inlining
 *********************************************/
-static void ZSTD_copy8(void *dst, const void *src) { memcpy(dst, src, 8); }
-#define COPY8(d, s)               \
-	{                         \
-		ZSTD_copy8(d, s); \
-		d += 8;           \
-		s += 8;           \
-	}
-
+ZSTD_STATIC void ZSTD_copy8(void *dst, const void *src) {
+	memcpy(dst, src, 8);
+}
 /*! ZSTD_wildcopy() :
 *   custom version of memcpy(), can copy up to 7 bytes too many (8 bytes if length==0) */
 #define WILDCOPY_OVERLENGTH 8
 ZSTD_STATIC void ZSTD_wildcopy(void *dst, const void *src, ptrdiff_t length)
 {
-	const BYTE *ip = (const BYTE *)src;
-	BYTE *op = (BYTE *)dst;
-	BYTE *const oend = op + length;
-	do
-		COPY8(op, ip)
-	while (op < oend);
-}
-
-ZSTD_STATIC void ZSTD_wildcopy_e(void *dst, const void *src, void *dstEnd) /* should be faster for decoding, but strangely, not verified on all platform */
-{
-	const BYTE *ip = (const BYTE *)src;
-	BYTE *op = (BYTE *)dst;
-	BYTE *const oend = (BYTE *)dstEnd;
-	do
-		COPY8(op, ip)
-	while (op < oend);
+	const BYTE* ip = (const BYTE*)src;
+	BYTE* op = (BYTE*)dst;
+	BYTE* const oend = op + length;
+	/* Work around https://gcc.gnu.org/bugzilla/show_bug.cgi?id=81388.
+	 * Avoid the bad case where the loop only runs once by handling the
+	 * special case separately. This doesn't trigger the bug because it
+	 * doesn't involve pointer/integer overflow.
+	 */
+	if (length <= 8)
+		return ZSTD_copy8(dst, src);
+	do {
+		ZSTD_copy8(op, ip);
+		op += 8;
+		ip += 8;
+	} while (op < oend);
 }
 
 /*-*******************************************

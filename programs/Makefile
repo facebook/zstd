@@ -39,9 +39,10 @@ endif
 
 CPPFLAGS+= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
            -I$(ZSTDDIR)/dictBuilder \
+           -DZSTD_NEWAPI \
            -DXXH_NAMESPACE=ZSTD_   # because xxhash.o already compiled with this macro from library
 CFLAGS  ?= -O3
-DEBUGFLAGS = -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
+DEBUGFLAGS= -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
             -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
             -Wstrict-prototypes -Wundef -Wpointer-arith -Wformat-security \
             -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings \
@@ -131,11 +132,14 @@ else
 LZ4_MSG := $(NO_LZ4_MSG)
 endif
 
-.PHONY: default all clean clean_decomp_o install uninstall generate_res
-
+.PHONY: default
 default: zstd-release
 
+.PHONY: all
 all: zstd
+
+.PHONY: allVariants
+allVariants: zstd zstd-compress zstd-decompress zstd-small zstd-nolegacy
 
 $(ZSTDDECOMP_O): CFLAGS += $(ALIGN_LOOP)
 
@@ -153,8 +157,9 @@ zstd zstd4 : $(ZSTDLIB_FILES) zstdcli.o fileio.o bench.o datagen.o dibio.o
 ifneq (,$(filter Windows%,$(OS)))
 	windres/generate_res.bat
 endif
-	$(CC) $(FLAGS) $^ $(RES_FILE) -o zstd$(EXT) $(LDFLAGS)
+	$(CC) $(FLAGS) $^ $(RES_FILE) -o $@$(EXT) $(LDFLAGS)
 
+.PHONY: zstd-release
 zstd-release: DEBUGFLAGS :=
 zstd-release: zstd
 
@@ -165,8 +170,8 @@ ifneq (,$(filter Windows%,$(OS)))
 endif
 	$(CC) -m32 $(FLAGS) $^ $(RES32_FILE) -o $@$(EXT)
 
-zstd-nolegacy : clean_decomp_o
-	$(MAKE) zstd ZSTD_LEGACY_SUPPORT=0
+zstd-nolegacy : $(ZSTD_FILES) $(ZDICT_FILES) zstdcli.o fileio.c bench.o datagen.o dibio.o
+	$(CC) $(FLAGS) $^ -o $@$(EXT) $(LDFLAGS)
 
 zstd-nomt : THREAD_CPP :=
 zstd-nomt : THREAD_LD :=
@@ -197,9 +202,9 @@ zstd-pgo : clean zstd
 	$(MAKE) zstd MOREFLAGS=-fprofile-use
 
 # minimal target, with only zstd compression and decompression. no bench. no legacy.
-zstd-small: CFLAGS = "-Os -s"
+zstd-small: CFLAGS = -Os -s
 zstd-frugal zstd-small: $(ZSTD_FILES) zstdcli.c fileio.c
-	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT $^ -o zstd$(EXT)
+	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT $^ -o $@$(EXT)
 
 zstd-decompress: $(ZSTDCOMMON_FILES) $(ZSTDDECOMP_FILES) zstdcli.c fileio.c
 	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOCOMPRESS $^ -o $@$(EXT)
@@ -207,22 +212,22 @@ zstd-decompress: $(ZSTDCOMMON_FILES) $(ZSTDDECOMP_FILES) zstdcli.c fileio.c
 zstd-compress: $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) zstdcli.c fileio.c
 	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS $^ -o $@$(EXT)
 
-# zstd is now built with Multi-threading by default
+# zstd is now built with multithreading enabled y default
 zstdmt: zstd
 
+.PHONY: generate_res
 generate_res:
 	windres/generate_res.bat
 
+.PHONY: clean
 clean:
 	$(MAKE) -C $(ZSTDDIR) clean
 	@$(RM) $(ZSTDDIR)/decompress/*.o $(ZSTDDIR)/decompress/zstd_decompress.gcda
 	@$(RM) core *.o tmp* result* *.gcda dictionary *.zst \
         zstd$(EXT) zstd32$(EXT) zstd-compress$(EXT) zstd-decompress$(EXT) \
+        zstd-small$(EXT) zstd-frugal$(EXT) zstd-nolegacy$(EXT) zstd4$(EXT) \
         *.gcda default.profraw have_zlib$(EXT)
 	@echo Cleaning completed
-
-clean_decomp_o:
-	@$(RM) $(ZSTDDECOMP_O)
 
 MD2ROFF = ronn
 MD2ROFF_FLAGS = --roff --warnings --manual="User Commands" --organization="zstd $(ZSTD_VERSION)"
@@ -230,11 +235,14 @@ MD2ROFF_FLAGS = --roff --warnings --manual="User Commands" --organization="zstd 
 zstd.1: zstd.1.md
 	cat $^ | $(MD2ROFF) $(MD2ROFF_FLAGS) | sed -n '/^\.\\\".*/!p' > $@
 
+.PHONY: man
 man: zstd.1
 
+.PHONY: clean-man
 clean-man:
 	rm zstd.1
 
+.PHONY: preview-man
 preview-man: clean-man man
 	man ./zstd.1
 
@@ -242,6 +250,10 @@ preview-man: clean-man man
 # make install is validated only for Linux, OSX, BSD, Hurd and Solaris targets
 #-----------------------------------------------------------------------------
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS))
+
+.PHONY: list
+list:
+	@$(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null | awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' | sort | egrep -v -e '^[^[:alnum:]]' -e '^$@$$' | xargs
 
 ifneq (,$(filter $(shell uname),SunOS))
 INSTALL ?= ginstall
@@ -263,6 +275,7 @@ INSTALL_PROGRAM ?= $(INSTALL) -m 755
 INSTALL_SCRIPT  ?= $(INSTALL) -m 755
 INSTALL_MAN     ?= $(INSTALL) -m 644
 
+.PHONY: install
 install: zstd
 	@echo Installing binaries
 	@$(INSTALL) -d -m 755 $(DESTDIR)$(BINDIR)/ $(DESTDIR)$(MANDIR)/
@@ -278,6 +291,7 @@ install: zstd
 	@ln -sf zstd.1 $(DESTDIR)$(MANDIR)/unzstd.1
 	@echo zstd installation completed
 
+.PHONY: uninstall
 uninstall:
 	@$(RM) $(DESTDIR)$(BINDIR)/zstdgrep
 	@$(RM) $(DESTDIR)$(BINDIR)/zstdless
@@ -288,4 +302,5 @@ uninstall:
 	@$(RM) $(DESTDIR)$(MANDIR)/unzstd.1
 	@$(RM) $(DESTDIR)$(MANDIR)/zstd.1
 	@echo zstd programs successfully uninstalled
+
 endif

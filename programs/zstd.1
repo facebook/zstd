@@ -1,5 +1,5 @@
 .
-.TH "ZSTD" "1" "June 2017" "zstd 1.3.0" "User Commands"
+.TH "ZSTD" "1" "August 2017" "zstd 1.3.1" "User Commands"
 .
 .SH "NAME"
 \fBzstd\fR \- zstd, zstdmt, unzstd, zstdcat \- Compress or decompress \.zst files
@@ -105,7 +105,7 @@ unlocks high compression levels 20+ (maximum 22), using a lot more memory\. Note
 .
 .TP
 \fB\-T#\fR, \fB\-\-threads=#\fR
-Compress using \fB#\fR threads (default: 1)\. If \fB#\fR is 0, attempt to detect and use the number of physical CPU cores\. This modifier does nothing if \fBzstd\fR is compiled without multithread support\.
+Compress using \fB#\fR threads (default: 1)\. If \fB#\fR is 0, attempt to detect and use the number of physical CPU cores\. In all cases, the nb of threads is capped to ZSTDMT_NBTHREADS_MAX==256\. This modifier does nothing if \fBzstd\fR is compiled without multithread support\.
 .
 .TP
 \fB\-D file\fR
@@ -149,7 +149,7 @@ display help/long help and exit
 .
 .TP
 \fB\-V\fR, \fB\-\-version\fR
-display version number and exit
+display version number and exit\. Advanced : \fB\-vV\fR also displays supported formats\. \fB\-vvV\fR also displays POSIX support\.
 .
 .TP
 \fB\-v\fR

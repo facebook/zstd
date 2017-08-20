@@ -11,7 +11,7 @@ There are however other Makefile targets that create different variations of CLI
 
 
 #### Compilation variables
-`zstd` tries to detect and use the following features automatically :
+`zstd` scope can be altered by modifying the following compilation variables :
 
 - __HAVE_THREAD__ : multithreading is automatically enabled when `pthread` is detected.
   It's possible to disable multithread support, by setting HAVE_THREAD=0 .
@@ -39,6 +39,17 @@ There are however other Makefile targets that create different variations of CLI
   It's also possible to force compilation with lzma support, using HAVE_LZMA=1.
   In which case, linking stage will fail if `lzma` library cannot be found.
   This might be useful to prevent silent feature disabling.
+
+- __ZSTD_LEGACY_SUPPORT__ : `zstd` can decompress files compressed by older versions of `zstd`.
+  Starting v0.8.0, all versions of `zstd` produce frames compliant with the [specification](../doc/zstd_compression_format.md), and are therefore compatible.
+  But older versions (< v0.8.0) produced different, incompatible, frames.
+  By default, `zstd` supports decoding legacy formats >= v0.4.0 (`ZSTD_LEGACY_SUPPORT=4`).
+  This can be altered by modifying this compilation variable.
+  `ZSTD_LEGACY_SUPPORT=1` means "support all formats >= v0.1.0".
+  `ZSTD_LEGACY_SUPPORT=2` means "support all formats >= v0.2.0", and so on.
+  `ZSTD_LEGACY_SUPPORT=0` means _DO NOT_ support any legacy format.
+  if `ZSTD_LEGACY_SUPPORT >= 8`, it's the same as `0`, since there is no legacy format after `7`.
+  Note : `zstd` only supports decoding older formats, and cannot generate any legacy format.
 
 
 #### Aggregation of parameters

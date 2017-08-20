@@ -280,7 +280,7 @@ test-zstd: zstd zstd-playTests
 test-zstd32: ZSTD = $(PRGDIR)/zstd32
 test-zstd32: zstd32 zstd-playTests
 
-test-zstd-nolegacy: ZSTD = $(PRGDIR)/zstd
+test-zstd-nolegacy: ZSTD = $(PRGDIR)/zstd-nolegacy
 test-zstd-nolegacy: zstd-nolegacy zstd-playTests
 
 test-gzstd: gzstd

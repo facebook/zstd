@@ -1266,7 +1266,7 @@ Resulting in following 2-bytes bitstream :
 00010000 00001101
 ```
 
-alternative representation with clearer separation of fields :
+Here is an alternative representation with the symbol codes separated by underscore:
 ```
 0001_0000 00001_1_01
 ```

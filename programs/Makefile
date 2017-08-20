@@ -225,7 +225,7 @@ clean:
 	@$(RM) $(ZSTDDIR)/decompress/*.o $(ZSTDDIR)/decompress/zstd_decompress.gcda
 	@$(RM) core *.o tmp* result* *.gcda dictionary *.zst \
         zstd$(EXT) zstd32$(EXT) zstd-compress$(EXT) zstd-decompress$(EXT) \
-        zstd-small$(EXT) zstd-frugal$(EXT) zstd-nolegacy$(EXT) \
+        zstd-small$(EXT) zstd-frugal$(EXT) zstd-nolegacy$(EXT) zstd4$(EXT) \
         *.gcda default.profraw have_zlib$(EXT)
 	@echo Cleaning completed
 

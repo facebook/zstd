@@ -3698,7 +3698,8 @@ static size_t ZSTD_initCDict_internal(
 }
 #endif
 
-static ZSTD_CDict* ZSTD_createCDict_advanced_opaque(
+/* Internal only */
+ZSTD_CDict* ZSTD_createCDict_advanced_opaque(
         const void* dictBuffer, size_t dictSize,
         ZSTD_CCtx_params params, ZSTD_customMem customMem)
 {
@@ -3715,6 +3716,7 @@ static ZSTD_CDict* ZSTD_createCDict_advanced_opaque(
         }
         cdict->refContext = cctx;
 
+        /* TODO: What should be zero? */
         if (ZSTD_isError( ZSTD_initCDict_internal_opaque(
                                         cdict,
                                         dictBuffer, dictSize,
@@ -3992,10 +3994,10 @@ size_t ZSTD_initCStream_internal_opaque(
             return ERROR(memory_allocation);
         }
         ZSTD_freeCDict(zcs->cdictLocal);
-        zcs->cdictLocal = ZSTD_createCDict_advanced(dict, dictSize,
-                                            params.dictContentByRef,
-                                            params.dictMode,
-                                            params.cParams, zcs->customMem);
+        /* TODO opaque version: what needs to be zero? */
+        zcs->cdictLocal = ZSTD_createCDict_advanced_opaque(
+                                            dict, dictSize,
+                                            params, zcs->customMem);
         zcs->cdict = zcs->cdictLocal;
         if (zcs->cdictLocal == NULL) return ERROR(memory_allocation);
     } else {

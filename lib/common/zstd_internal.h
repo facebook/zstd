@@ -360,6 +360,11 @@ size_t ZSTD_initCStream_internal_opaque(
         ZSTD_CCtx_params  params,
         unsigned long long pledgedSrcSize);
 
+/* INTERNAL */
+ZSTD_CDict* ZSTD_createCDict_advanced_opaque(
+        const void* dictBuffer, size_t dictSize,
+        ZSTD_CCtx_params params, ZSTD_customMem customMem);
+
 /*! ZSTD_compressStream_generic() :
  *  Private use only. To be called from zstdmt_compress.c in single-thread mode. */
 size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,

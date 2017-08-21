@@ -186,6 +186,10 @@ static void ZSTDMT_releaseBuffer(ZSTDMT_bufferPool* bufPool, buffer_t buf)
     ZSTD_free(buf.start, bufPool->cMem);
 }
 
+/**
+ * TODO
+ * Resets parameters to zero for jobs?
+ */
 static void ZSTDMT_zeroCCtxParams(ZSTD_CCtx_params* params)
 {
     params->forceWindow = 0;
@@ -777,7 +781,6 @@ size_t ZSTDMT_initCStream_internal_opaque(
     return 0;
 
 }
-
 
 /** ZSTDMT_initCStream_internal() :
  *  internal usage only */

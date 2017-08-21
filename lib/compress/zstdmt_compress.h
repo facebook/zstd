@@ -69,15 +69,6 @@ ZSTDLIB_API size_t ZSTDMT_compress_advanced(ZSTDMT_CCtx* mtctx,
                                      const ZSTD_CDict* cdict,
                                            ZSTD_parameters const params,
                                            unsigned overlapLog);
-#if 0
-ZSTDLIB_API size_t ZSTDMT_compress_advanced_opaque(
-                                           ZSTDMT_CCtx* mtctx,
-                                           void* dst, size_t dstCapacity,
-                                     const void* src, size_t srcSize,
-                                     const ZSTD_CDict* cdict,
-                                           ZSTD_CCtx_params* const params,
-                                           unsigned overlapLog);
-#endif
 
 ZSTDLIB_API size_t ZSTDMT_initCStream_advanced(ZSTDMT_CCtx* mtctx,
                                         const void* dict, size_t dictSize,   /* dict can be released after init, a local copy is preserved within zcs */

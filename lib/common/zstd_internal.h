@@ -221,6 +221,7 @@ typedef struct seqDef_s {
     U16 matchLength;
 } seqDef;
 
+
 typedef struct {
     seqDef* sequencesStart;
     seqDef* sequences;
@@ -240,7 +241,6 @@ struct ZSTD_CCtx_params_s {
     ZSTD_frameParameters fParams;
 
     int compressionLevel;
-
     U32 forceWindow;           /* force back-references to respect limit of 1<<wLog, even for dictionary */
 
     /* Dictionary */
@@ -251,9 +251,10 @@ struct ZSTD_CCtx_params_s {
     U32 nbThreads;
     unsigned jobSize;
     unsigned overlapSizeLog;
-
+#if 0
     /* Test parameter */
     U32 testParam;
+#endif
 };
 
 typedef struct {
@@ -349,16 +350,17 @@ MEM_STATIC U32 ZSTD_highbit32(U32 val)
 void ZSTD_invalidateRepCodes(ZSTD_CCtx* cctx);
 
 
-/*! ZSTD_initCStream_internal() :
+/*! ZSTD_initCStream_internal_opaque() :
  *  Private use only. Init streaming operation.
  *  expects params to be valid.
  *  must receive dict, or cdict, or none, but not both.
  *  @return : 0, or an error code */
-size_t ZSTD_initCStream_internal_opaque(ZSTD_CStream* zcs,
-                                  const void* dict, size_t dictSize,
-                            const ZSTD_CDict* cdict,
-                            ZSTD_CCtx_params  params,
-                            unsigned long long pledgedSrcSize);
+size_t ZSTD_initCStream_internal_opaque(
+        ZSTD_CStream* zcs,
+        const void* dict, size_t dictSize,
+        const ZSTD_CDict* cdict,
+        ZSTD_CCtx_params  params,
+        unsigned long long pledgedSrcSize);
 
 /*! ZSTD_compressStream_generic() :
  *  Private use only. To be called from zstdmt_compress.c in single-thread mode. */

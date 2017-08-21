@@ -38,13 +38,16 @@
         fprintf(stderr,                         \
                 "Error=> %s: %s",               \
                 #f, ZSTD_getErrorName(err));    \
-        exit(1);                                \
+        crash(1);                                \
 }   }
 
 
 /** roundTripTest() :
 *   Compresses `srcBuff` into `compressedBuff`,
 *   then decompresses `compressedBuff` into `resultBuff`.
+*
+*   Parameters are currently set manually.
+*
 *   @return : result of decompression, which should be == `srcSize`
 *          or an error code if either compression or decompression fails.
 *   Note : `compressedBuffCapacity` should be `>= ZSTD_compressBound(srcSize)`

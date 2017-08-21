@@ -502,7 +502,7 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
  *  Note : CCtx estimation is only correct for single-threaded compression */
 ZSTDLIB_API size_t ZSTD_estimateCCtxSize(int compressionLevel);
 ZSTDLIB_API size_t ZSTD_estimateCCtxSize_advanced(ZSTD_compressionParameters cParams);
-ZSTDLIB_API size_t ZSTD_estimateCCtxSize_advanced_opaque(ZSTD_CCtx_params* params);
+ZSTDLIB_API size_t ZSTD_estimateCCtxSize_advanced_opaque(const ZSTD_CCtx_params* params);
 ZSTDLIB_API size_t ZSTD_estimateDCtxSize(void);
 
 /*! ZSTD_estimate?StreamSize() :
@@ -520,7 +520,7 @@ ZSTDLIB_API size_t ZSTD_estimateDCtxSize(void);
  *         In this case, get total size by adding ZSTD_estimate?DictSize */
 ZSTDLIB_API size_t ZSTD_estimateCStreamSize(int compressionLevel);
 ZSTDLIB_API size_t ZSTD_estimateCStreamSize_advanced(ZSTD_compressionParameters cParams);
-ZSTDLIB_API size_t ZSTD_estimateCStreamSize_advanced_opaque(ZSTD_CCtx_params* params);
+ZSTDLIB_API size_t ZSTD_estimateCStreamSize_advanced_opaque(const ZSTD_CCtx_params* params);
 ZSTDLIB_API size_t ZSTD_estimateDStreamSize(size_t windowSize);
 ZSTDLIB_API size_t ZSTD_estimateDStreamSize_fromFrame(const void* src, size_t srcSize);
 
@@ -531,7 +531,7 @@ ZSTDLIB_API size_t ZSTD_estimateDStreamSize_fromFrame(const void* src, size_t sr
  *  Note : dictionary created "byReference" are smaller */
 ZSTDLIB_API size_t ZSTD_estimateCDictSize(size_t dictSize, int compressionLevel);
 ZSTDLIB_API size_t ZSTD_estimateCDictSize_advanced(size_t dictSize, ZSTD_compressionParameters cParams, unsigned byReference);
-ZSTDLIB_API size_t ZSTD_estimateCDictSize_advanced_opaque(size_t dictSize, ZSTD_CCtx_params* params);
+ZSTDLIB_API size_t ZSTD_estimateCDictSize_advanced_opaque(size_t dictSize, const ZSTD_CCtx_params* params);
 ZSTDLIB_API size_t ZSTD_estimateDDictSize(size_t dictSize, unsigned byReference);
 
 
@@ -611,7 +611,7 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_initStaticCDict(
 ZSTDLIB_API ZSTD_CDict* ZSTD_initStaticCDict_advanced_opaque(
                             void* workspace, size_t workspaceSize,
                       const void* dict, size_t dictSize,
-                            ZSTD_CCtx_params* params);
+                            const ZSTD_CCtx_params* params);
 
 /* TODO */
 ZSTDLIB_API ZSTD_CCtx_params* ZSTD_createCCtxParams(void);
@@ -1026,7 +1026,7 @@ ZSTDLIB_API size_t ZSTD_CCtxParam_setParameter(ZSTD_CCtx_params* params, ZSTD_cP
  * This must be done before the dictionary is loaded.
  * The pledgedSrcSize is treated as unknown.
  * Multithreading parameters are applied only if nbThreads > 1. */
-ZSTDLIB_API size_t ZSTD_CCtx_applyCCtxParams(ZSTD_CCtx* cctx, ZSTD_CCtx_params* params);
+ZSTDLIB_API size_t ZSTD_CCtx_applyCCtxParams(ZSTD_CCtx* cctx, const ZSTD_CCtx_params* params);
 
 /*! ZSTD_CCtx_setPledgedSrcSize() :
  *  Total input data size to be compressed as a single frame.

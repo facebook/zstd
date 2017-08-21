@@ -195,6 +195,7 @@ static void ZSTDMT_zeroCCtxParams(ZSTD_CCtx_params* params)
 {
     params->forceWindow = 0;
     params->dictMode = (ZSTD_dictMode_e)(0);
+    params->dictContentByRef = 0;
     params->nbThreads = 0;
     params->jobSize = 0;
     params->overlapSizeLog = 0;
@@ -719,13 +720,9 @@ size_t ZSTDMT_initCStream_internal_opaque(
         const ZSTD_CDict* cdict, ZSTD_CCtx_params cctxParams,
         unsigned long long pledgedSrcSize)
 {
-    ZSTD_parameters params;
-    params.cParams = cctxParams.cParams;
-    params.fParams = cctxParams.fParams;
-
     DEBUGLOG(4, "ZSTDMT_initCStream_internal");
     /* params are supposed to be fully validated at this point */
-    assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
+    assert(!ZSTD_isError(ZSTD_checkCParams(cctxParams.cParams)));
     assert(!((dict) && (cdict)));  /* either dict or cdict, not both */
 
     /* TODO: Set stuff to 0 to preserve old semantics. */
@@ -749,10 +746,11 @@ size_t ZSTDMT_initCStream_internal_opaque(
     if (dict) {
         DEBUGLOG(4,"cdictLocal: %08X", (U32)(size_t)zcs->cdictLocal);
         ZSTD_freeCDict(zcs->cdictLocal);
-        /* TODO: This will need a cctxParam version? */
-        zcs->cdictLocal = ZSTD_createCDict_advanced(dict, dictSize,
-                                                    0 /* byRef */, ZSTD_dm_auto,   /* note : a loadPrefix becomes an internal CDict */
-                                                    params.cParams, zcs->cMem);
+        /* TODO: cctxParam version? Is this correct?
+         * by reference should be zero, mode should be ZSTD_dm_auto */
+        zcs->cdictLocal = ZSTD_createCDict_advanced_opaque(
+                                                    dict, dictSize,
+                                                    cctxParams, zcs->cMem);
         zcs->cdict = zcs->cdictLocal;
         if (zcs->cdictLocal == NULL) return ERROR(memory_allocation);
     } else {
@@ -777,7 +775,7 @@ size_t ZSTDMT_initCStream_internal_opaque(
     zcs->nextJobID = 0;
     zcs->frameEnded = 0;
     zcs->allJobsCompleted = 0;
-    if (params.fParams.checksumFlag) XXH64_reset(&zcs->xxhState, 0);
+    if (cctxParams.fParams.checksumFlag) XXH64_reset(&zcs->xxhState, 0);
     return 0;
 }
 

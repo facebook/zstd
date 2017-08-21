@@ -3708,15 +3708,12 @@ ZSTD_CDict* ZSTD_createCDict_advanced_opaque(
 
     {   ZSTD_CDict* const cdict = (ZSTD_CDict*)ZSTD_malloc(sizeof(ZSTD_CDict), customMem);
         ZSTD_CCtx* const cctx = ZSTD_createCCtx_advanced(customMem);
-
         if (!cdict || !cctx) {
             ZSTD_free(cdict, customMem);
             ZSTD_freeCCtx(cctx);
             return NULL;
         }
         cdict->refContext = cctx;
-
-        /* TODO: What should be zero? */
         if (ZSTD_isError( ZSTD_initCDict_internal_opaque(
                                         cdict,
                                         dictBuffer, dictSize,
@@ -4256,7 +4253,7 @@ size_t ZSTD_compressStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output, ZSTD_inBuf
     return ZSTD_compressStream_generic(zcs, output, input, ZSTD_e_continue);
 }
 
-/*! ZSTDMT_initCStream_internal() :
+/*! ZSTDMT_initCStream_internal_opaque() :
  *  Private use only. Init streaming operation.
  *  expects params to be valid.
  *  must receive dict, or cdict, or none, but not both.

@@ -622,9 +622,9 @@ static size_t COVER_buildDictionary(const COVER_ctx_t *ctx, U32 *freqs,
     /* Select a segment */
     COVER_segment_t segment = COVER_selectSegment(
         ctx, freqs, activeDmers, epochBegin, epochEnd, parameters);
-    /* Trim the segment if necessary and if it is empty then we are done */
+    /* Trim the segment if necessary and if it is too small then we are done */
     segmentSize = MIN(segment.end - segment.begin + parameters.d - 1, tail);
-    if (segmentSize == 0) {
+    if (segmentSize < parameters.d) {
       break;
     }
     /* We fill the dictionary from the back to allow the best segments to be

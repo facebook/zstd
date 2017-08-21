@@ -268,6 +268,7 @@ size_t ZSTD_resetCCtxParams(ZSTD_CCtx_params* params)
 
 size_t ZSTD_initCCtxParams(ZSTD_CCtx_params* cctxParams, ZSTD_parameters params)
 {
+    if (!cctxParams) { return ERROR(GENERIC); }
     memset(cctxParams, 0, sizeof(ZSTD_CCtx_params));
     cctxParams->cParams = params.cParams;
     cctxParams->fParams = params.fParams;

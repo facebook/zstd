@@ -527,11 +527,9 @@ ZSTDLIB_API size_t ZSTD_estimateDStreamSize_fromFrame(const void* src, size_t sr
 /*! ZSTD_estimate?DictSize() :
  *  ZSTD_estimateCDictSize() will bet that src size is relatively "small", and content is copied, like ZSTD_createCDict().
  *  ZSTD_estimateCStreamSize_advanced() makes it possible to control precisely compression parameters, like ZSTD_createCDict_advanced().
- *  ZSTD_estimateCDictSize_advanced_opaque() allows further compression parameters. ByReference can be set with ZSTD_CCtxParam_setParameter.
  *  Note : dictionary created "byReference" are smaller */
 ZSTDLIB_API size_t ZSTD_estimateCDictSize(size_t dictSize, int compressionLevel);
 ZSTDLIB_API size_t ZSTD_estimateCDictSize_advanced(size_t dictSize, ZSTD_compressionParameters cParams, unsigned byReference);
-ZSTDLIB_API size_t ZSTD_estimateCDictSize_advanced_opaque(size_t dictSize, const ZSTD_CCtx_params* params);
 ZSTDLIB_API size_t ZSTD_estimateDDictSize(size_t dictSize, unsigned byReference);
 
 
@@ -607,13 +605,6 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_initStaticCDict(
                       const void* dict, size_t dictSize,
                             unsigned byReference, ZSTD_dictMode_e dictMode,
                             ZSTD_compressionParameters cParams);
-
-ZSTDLIB_API ZSTD_CDict* ZSTD_initStaticCDict_advanced_opaque(
-                            void* workspace, size_t workspaceSize,
-                      const void* dict, size_t dictSize,
-                            const ZSTD_CCtx_params* params);
-
-
 
 /*! ZSTD_getCParams() :
 *   @return ZSTD_compressionParameters structure for a selected compression level and estimated srcSize.

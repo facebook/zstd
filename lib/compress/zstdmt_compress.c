@@ -746,11 +746,10 @@ size_t ZSTDMT_initCStream_internal_opaque(
     if (dict) {
         DEBUGLOG(4,"cdictLocal: %08X", (U32)(size_t)zcs->cdictLocal);
         ZSTD_freeCDict(zcs->cdictLocal);
-        /* TODO: cctxParam version? Is this correct?
-         * by reference should be zero, mode should be ZSTD_dm_auto */
-        zcs->cdictLocal = ZSTD_createCDict_advanced_opaque(
-                                                    dict, dictSize,
-                                                    cctxParams, zcs->cMem);
+        /* TODO: cctxParam version? Is this correct? */
+        zcs->cdictLocal = ZSTD_createCDict_advanced(dict, dictSize,
+                                                    0 /* byRef */, ZSTD_dm_auto,  /* note : a loadPrefix becomes an internal CDict */
+                                                    cctxParams.cParams, zcs->cMem);
         zcs->cdict = zcs->cdictLocal;
         if (zcs->cdictLocal == NULL) return ERROR(memory_allocation);
     } else {

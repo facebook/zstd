@@ -998,6 +998,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
       data->parameters.k = k;
       data->parameters.d = d;
       data->parameters.steps = kSteps;
+      data->parameters.zParams.notificationLevel = g_displayLevel;
       /* Check the parameters */
       if (!COVER_checkParameters(data->parameters)) {
         DISPLAYLEVEL(1, "Cover parameters incorrect\n");

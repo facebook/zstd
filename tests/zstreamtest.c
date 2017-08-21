@@ -1206,6 +1206,7 @@ _output_error:
 
 
 /* Tests for ZSTD_compress_generic() API */
+#if 0
 static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double compressibility, int bigTests)
 {
     U32 const maxSrcLog = bigTests ? 24 : 22;
@@ -1493,8 +1494,22 @@ _output_error:
     result = 1;
     goto _cleanup;
 }
+#endif
 
-static int fuzzerTests_newAPI_opaque(U32 seed, U32 nbTests, unsigned startTest, double compressibility, int bigTests)
+/** If useOpaqueAPI, sets param in cctxParams.
+ *  Otherwise, sets the param in zc. */
+static size_t setCCtxParameter(ZSTD_CCtx* zc, ZSTD_CCtx_params* cctxParams,
+                               ZSTD_cParameter param, unsigned value,
+                               U32 useOpaqueAPI)
+{
+    if (useOpaqueAPI) {
+        return ZSTD_CCtxParam_setParameter(cctxParams, param, value);
+    } else {
+        return ZSTD_CCtx_setParameter(zc, param, value);
+    }
+}
+
+static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double compressibility, int bigTests, U32 const useOpaqueAPI)
 {
     U32 const maxSrcLog = bigTests ? 24 : 22;
     static const U32 maxSampleLog = 19;
@@ -1597,7 +1612,7 @@ static int fuzzerTests_newAPI_opaque(U32 seed, U32 nbTests, unsigned startTest, 
             maxTestSize = FUZ_randomLength(&lseed, oldTestLog+2);
             if (maxTestSize >= srcBufferSize) maxTestSize = srcBufferSize-1;
             {   int const compressionLevel = (FUZ_rand(&lseed) % 5) + 1;
-                CHECK_Z (ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_compressionLevel, compressionLevel));
+                CHECK_Z (setCCtxParameter(zc, cctxParams, ZSTD_p_compressionLevel, compressionLevel, useOpaqueAPI) );
             }
         } else {
             U32 const testLog = FUZ_rand(&lseed) % maxSrcLog;
@@ -1627,45 +1642,53 @@ static int fuzzerTests_newAPI_opaque(U32 seed, U32 nbTests, unsigned startTest, 
                 cParams.targetLength = (U32)(cParams.targetLength * (0.5 + ((double)(FUZ_rand(&lseed) & 127) / 128)));
                 cParams = ZSTD_adjustCParams(cParams, 0, 0);
 
-                if (FUZ_rand(&lseed) & 1) CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_windowLog, cParams.windowLog) );
-                if (FUZ_rand(&lseed) & 1) CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_hashLog, cParams.hashLog) );
-                if (FUZ_rand(&lseed) & 1) CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_chainLog, cParams.chainLog) );
-                if (FUZ_rand(&lseed) & 1) CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_searchLog, cParams.searchLog) );
-                if (FUZ_rand(&lseed) & 1) CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_minMatch, cParams.searchLength) );
-                if (FUZ_rand(&lseed) & 1) CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_targetLength, cParams.targetLength) );
+                if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_windowLog, cParams.windowLog, useOpaqueAPI) );
+                if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_hashLog, cParams.hashLog, useOpaqueAPI) );
+                if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_chainLog, cParams.chainLog, useOpaqueAPI) );
+                if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_searchLog, cParams.searchLog, useOpaqueAPI) );
+                if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_minMatch, cParams.searchLength, useOpaqueAPI) );
+                if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_targetLength, cParams.targetLength, useOpaqueAPI) );
 
                 /* unconditionally set, to be sync with decoder */
                 /* mess with frame parameters */
-                if (FUZ_rand(&lseed) & 1) CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_checksumFlag, FUZ_rand(&lseed) & 1) );
-                if (FUZ_rand(&lseed) & 1) CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_dictIDFlag, FUZ_rand(&lseed) & 1) );
-                if (FUZ_rand(&lseed) & 1) CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_contentSizeFlag, FUZ_rand(&lseed) & 1) );
+                if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_checksumFlag, FUZ_rand(&lseed) & 1, useOpaqueAPI) );
+                if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_dictIDFlag, FUZ_rand(&lseed) & 1, useOpaqueAPI) );
+                if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_contentSizeFlag, FUZ_rand(&lseed) & 1, useOpaqueAPI) );
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( ZSTD_CCtx_setPledgedSrcSize(zc, pledgedSrcSize) );
                 DISPLAYLEVEL(5, "pledgedSrcSize : %u \n", (U32)pledgedSrcSize);
 
-                if (FUZ_rand(&lseed) & 1) CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_refDictContent, FUZ_rand(&lseed) & 1) );
+                if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_refDictContent, FUZ_rand(&lseed) & 1, useOpaqueAPI) );
                 /* multi-threading parameters */
                 {   U32 const nbThreadsCandidate = (FUZ_rand(&lseed) & 4) + 1;
                     U32 const nbThreads = MIN(nbThreadsCandidate, nbThreadsMax);
-                    CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_nbThreads, nbThreads) );
+                    CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_nbThreads, nbThreads, useOpaqueAPI) );
                     if (nbThreads > 1) {
                         U32 const jobLog = FUZ_rand(&lseed) % (testLog+1);
-                        CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_overlapSizeLog, FUZ_rand(&lseed) % 10) );
-                        CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_jobSize, (U32)FUZ_rLogLength(&lseed, jobLog)) );
+                        CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_overlapSizeLog, FUZ_rand(&lseed) % 10, useOpaqueAPI) );
+                        CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_jobSize, (U32)FUZ_rLogLength(&lseed, jobLog), useOpaqueAPI) );
                     }
                 }
 
-                if (FUZ_rand(&lseed) & 1) CHECK_Z (ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_forceMaxWindow, FUZ_rand(&lseed) & 1) );
+                if (FUZ_rand(&lseed) & 1) CHECK_Z (setCCtxParameter(zc, cctxParams, ZSTD_p_forceMaxWindow, FUZ_rand(&lseed) & 1, useOpaqueAPI) );
 
                 /* Apply parameters */
-                CHECK_Z (ZSTD_CCtx_applyCCtxParams(zc, cctxParams) );
+                if (useOpaqueAPI) {
+                    CHECK_Z (ZSTD_CCtx_applyCCtxParams(zc, cctxParams) );
+                }
 
                 if (FUZ_rand(&lseed) & 1) {
                     CHECK_Z( ZSTD_CCtx_loadDictionary(zc, dict, dictSize) );
                     if (dict && dictSize) {
                         /* test that compression parameters are rejected (correctly) after loading a non-NULL dictionary */
-                        size_t const setError = ZSTD_CCtx_applyCCtxParams(zc, cctxParams);
-                        CHECK(!ZSTD_isError(setError), "ZSTD_CCtx_applyCCtxParams should have failed");
-                }   } else {
+                        if (useOpaqueAPI) {
+                            size_t const setError = ZSTD_CCtx_applyCCtxParams(zc, cctxParams);
+                            CHECK(!ZSTD_isError(setError), "ZSTD_CCtx_applyCCtxParams should have failed");
+                        } else {
+                            size_t const setError = ZSTD_CCtx_setParameter(zc, ZSTD_p_windowLog, cParams.windowLog-1);
+                            CHECK(!ZSTD_isError(setError), "ZSTD_CCtx_setParameter should have failed");
+                        }
+                    }
+                } else {
                     CHECK_Z( ZSTD_CCtx_refPrefix(zc, dict, dictSize) );
                 }
         }   }
@@ -1810,7 +1833,7 @@ int FUZ_usage(const char* programName)
     return 0;
 }
 
-typedef enum { simple_api, mt_api, advanced_api, advanced_api_opaque } e_api;
+typedef enum { simple_api, mt_api, advanced_api } e_api;
 
 int main(int argc, const char** argv)
 {
@@ -1826,6 +1849,7 @@ int main(int argc, const char** argv)
     e_api selected_api = simple_api;
     const char* const programName = argv[0];
     ZSTD_customMem const customNULL = ZSTD_defaultCMem;
+    U32 useOpaqueAPI = 0;
 
     /* Check command line */
     for(argNb=1; argNb<argc; argNb++) {
@@ -1837,7 +1861,7 @@ int main(int argc, const char** argv)
 
             if (!strcmp(argument, "--mt")) { selected_api=mt_api; continue; }
             if (!strcmp(argument, "--newapi")) { selected_api=advanced_api; continue; }
-            if (!strcmp(argument, "--opaqueapi")) { selected_api=advanced_api_opaque; continue; }
+            if (!strcmp(argument, "--opaqueapi")) { selected_api=advanced_api; useOpaqueAPI = 1; continue; }
             if (!strcmp(argument, "--no-big-tests")) { bigTests=0; continue; }
 
             argument++;
@@ -1951,10 +1975,7 @@ int main(int argc, const char** argv)
             result = fuzzerTests_MT(seed, nbTests, testNb, ((double)proba) / 100, bigTests);
             break;
         case advanced_api :
-            result = fuzzerTests_newAPI(seed, nbTests, testNb, ((double)proba) / 100, bigTests);
-            break;
-        case advanced_api_opaque :
-            result = fuzzerTests_newAPI_opaque(seed, nbTests, testNb, ((double)proba) / 100, bigTests);
+            result = fuzzerTests_newAPI(seed, nbTests, testNb, ((double)proba) / 100, bigTests, useOpaqueAPI);
             break;
         default :
             assert(0);   /* impossible */

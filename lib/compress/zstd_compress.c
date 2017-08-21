@@ -471,12 +471,12 @@ size_t ZSTD_CCtxParam_setParameter(
         return 0;
 
     case ZSTD_p_jobSize :
-        if (params->nbThreads <= 1) { return ERROR(parameter_unsupported); }
+        if (params->nbThreads <= 1) return ERROR(parameter_unsupported);
         params->jobSize = value;
         return 0;
 
     case ZSTD_p_overlapSizeLog :
-        if (params->nbThreads <= 1) { return ERROR(parameter_unsupported); }
+        if (params->nbThreads <= 1) return ERROR(parameter_unsupported);
         params->overlapSizeLog = value;
         return 0;
 
@@ -525,6 +525,10 @@ size_t ZSTD_CCtx_applyCCtxParams(ZSTD_CCtx* cctx, const ZSTD_CCtx_params* params
 {
     if (params == NULL) { return ERROR(GENERIC); }
     if (cctx->cdict) { return ERROR(stage_wrong); }
+
+    /* TODO: some parameters can be set even if cctx->cdict.
+     * They can be set directly using ZSTD_CCtx_setParameter?
+     */
 
     /* Assume the compression and frame parameters are validated */
     cctx->requestedParams.cParams = params->cParams;

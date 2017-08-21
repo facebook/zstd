@@ -521,7 +521,7 @@ static void ZSTD_debugPrintCCtxParams(ZSTD_CCtx_params* params)
  *
  * Pledged srcSize is treated as unknown.
  */
-size_t ZSTD_CCtx_applyCCtxParams(ZSTD_CCtx* cctx, ZSTD_CCtx_params* params)
+size_t ZSTD_CCtx_applyCCtxParams(ZSTD_CCtx* cctx, const ZSTD_CCtx_params* params)
 {
     if (params == NULL) { return ERROR(GENERIC); }
     if (cctx->cdict) { return ERROR(stage_wrong); }
@@ -693,10 +693,10 @@ ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, u
     return ZSTD_adjustCParams_internal(cPar, srcSize, dictSize);
 }
 
-size_t ZSTD_estimateCCtxSize_advanced_opaque(ZSTD_CCtx_params* params)
+size_t ZSTD_estimateCCtxSize_advanced_opaque(const ZSTD_CCtx_params* params)
 {
     if (params == NULL) { return 0; }
-    {   ZSTD_compressionParameters cParams = params->cParams;
+    {   ZSTD_compressionParameters const cParams = params->cParams;
         size_t const blockSize =
         MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << cParams.windowLog);
         U32    const divider = (cParams.searchLength==3) ? 3 : 4;
@@ -725,7 +725,7 @@ size_t ZSTD_estimateCCtxSize_advanced_opaque(ZSTD_CCtx_params* params)
 
 size_t ZSTD_estimateCCtxSize_advanced(ZSTD_compressionParameters cParams)
 {
-    ZSTD_CCtx_params params = ZSTD_makeCCtxParamsFromCParams(cParams);
+    ZSTD_CCtx_params const params = ZSTD_makeCCtxParamsFromCParams(cParams);
     return ZSTD_estimateCCtxSize_advanced_opaque(&params);
 }
 
@@ -735,7 +735,7 @@ size_t ZSTD_estimateCCtxSize(int compressionLevel)
     return ZSTD_estimateCCtxSize_advanced(cParams);
 }
 
-size_t ZSTD_estimateCStreamSize_advanced_opaque(ZSTD_CCtx_params* params)
+size_t ZSTD_estimateCStreamSize_advanced_opaque(const ZSTD_CCtx_params* params)
 {
     if (params == NULL) { return 0; }
     {   size_t const CCtxSize = ZSTD_estimateCCtxSize_advanced_opaque(params);
@@ -750,7 +750,7 @@ size_t ZSTD_estimateCStreamSize_advanced_opaque(ZSTD_CCtx_params* params)
 
 size_t ZSTD_estimateCStreamSize_advanced(ZSTD_compressionParameters cParams)
 {
-    ZSTD_CCtx_params params = ZSTD_makeCCtxParamsFromCParams(cParams);
+    ZSTD_CCtx_params const params = ZSTD_makeCCtxParamsFromCParams(cParams);
     return ZSTD_estimateCStreamSize_advanced_opaque(&params);
 }
 
@@ -3608,7 +3608,7 @@ size_t ZSTD_compress(void* dst, size_t dstCapacity, const void* src, size_t srcS
 /* =====  Dictionary API  ===== */
 
 size_t ZSTD_estimateCDictSize_advanced_opaque(
-        size_t dictSize, ZSTD_CCtx_params* params)
+        size_t dictSize, const ZSTD_CCtx_params* params)
 {
     if (params == NULL) { return 0; }
     DEBUGLOG(5, "sizeof(ZSTD_CDict) : %u", (U32)sizeof(ZSTD_CDict));
@@ -3766,7 +3766,7 @@ size_t ZSTD_freeCDict(ZSTD_CDict* cdict)
 ZSTD_CDict* ZSTD_initStaticCDict_advanced_opaque(
         void *workspace, size_t workspaceSize, const void* dict,
         size_t dictSize,
-        ZSTD_CCtx_params* params)
+        const ZSTD_CCtx_params* params)
 {
     if (params == NULL) { return NULL; }
     {   ZSTD_CCtx_params cctxParams = *params;
@@ -3928,7 +3928,7 @@ static size_t ZSTD_resetCStream_internal_opaque(
         ZSTD_CStream* zcs,
         const void* dict, size_t dictSize,
         const ZSTD_CDict* cdict,
-        ZSTD_CCtx_params params, unsigned long long pledgedSrcSize)
+        const ZSTD_CCtx_params params, unsigned long long pledgedSrcSize)
 {
     DEBUGLOG(4, "ZSTD_resetCStream_internal");
     /* params are supposed to be fully validated at this point */

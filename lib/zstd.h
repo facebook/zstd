@@ -498,7 +498,7 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
  *  It will also consider src size to be arbitrarily "large", which is worst case.
  *  If srcSize is known to always be small, ZSTD_estimateCCtxSize_advanced() can provide a tighter estimation.
  *  ZSTD_estimateCCtxSize_advanced() can be used in tandem with ZSTD_getCParams() to create cParams from compressionLevel.
- *  TODO: ZSTD_estimateCCtxSize_advanced_opaque()
+ *  ZSTD_estimateCCtxSize_advanced_opaque() can be used in tandem with ZSTD_CCtxParam_setParameter().
  *  Note : CCtx estimation is only correct for single-threaded compression */
 ZSTDLIB_API size_t ZSTD_estimateCCtxSize(int compressionLevel);
 ZSTDLIB_API size_t ZSTD_estimateCCtxSize_advanced(ZSTD_compressionParameters cParams);
@@ -510,7 +510,7 @@ ZSTDLIB_API size_t ZSTD_estimateDCtxSize(void);
  *  It will also consider src size to be arbitrarily "large", which is worst case.
  *  If srcSize is known to always be small, ZSTD_estimateCStreamSize_advanced() can provide a tighter estimation.
  *  ZSTD_estimateCStreamSize_advanced() can be used in tandem with ZSTD_getCParams() to create cParams from compressionLevel.
- *  TODO: ZSTD_estimateCStreamSize_advanced_opaque()
+ *  ZSTD_estimateCStreamSize_advanced_opaque() can be used in tandem with ZSTD_CCtxParam_setParameter().
  *  Note : CStream estimation is only correct for single-threaded compression.
  *  ZSTD_DStream memory budget depends on window Size.
  *  This information can be passed manually, using ZSTD_estimateDStreamSize,
@@ -527,7 +527,7 @@ ZSTDLIB_API size_t ZSTD_estimateDStreamSize_fromFrame(const void* src, size_t sr
 /*! ZSTD_estimate?DictSize() :
  *  ZSTD_estimateCDictSize() will bet that src size is relatively "small", and content is copied, like ZSTD_createCDict().
  *  ZSTD_estimateCStreamSize_advanced() makes it possible to control precisely compression parameters, like ZSTD_createCDict_advanced().
- *  TODO: ZSTD_estimateCDictSize_advanced_opaque()
+ *  ZSTD_estimateCDictSize_advanced_opaque() allows further compression parameters. ByReference can be set with ZSTD_CCtxParam_setParameter.
  *  Note : dictionary created "byReference" are smaller */
 ZSTDLIB_API size_t ZSTD_estimateCDictSize(size_t dictSize, int compressionLevel);
 ZSTDLIB_API size_t ZSTD_estimateCDictSize_advanced(size_t dictSize, ZSTD_compressionParameters cParams, unsigned byReference);
@@ -613,7 +613,10 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_initStaticCDict_advanced_opaque(
                       const void* dict, size_t dictSize,
                             ZSTD_CCtx_params* params);
 
+/* TODO */
 ZSTDLIB_API ZSTD_CCtx_params* ZSTD_createCCtxParams(void);
+/*! ZSTD_resetCCtxParams() :
+ * Reset params to default, with the default compression level. */
 ZSTDLIB_API size_t ZSTD_resetCCtxParams(ZSTD_CCtx_params* params);
 ZSTDLIB_API size_t ZSTD_initCCtxParams(ZSTD_CCtx_params* cctxParams, ZSTD_parameters params);
 ZSTDLIB_API size_t ZSTD_freeCCtxParams(ZSTD_CCtx_params* params);
@@ -1000,9 +1003,6 @@ typedef enum {
     /* advanced parameters - may not remain available after API update */
     ZSTD_p_forceMaxWindow=1100, /* Force back-reference distances to remain < windowSize,
                               * even when referencing into Dictionary content (default:0) */
-#if 0
-    ZSTD_p_test,
-#endif
 
 } ZSTD_cParameter;
 
@@ -1013,9 +1013,19 @@ typedef enum {
  *  @result : 0, or an error code (which can be tested with ZSTD_isError()). */
 ZSTDLIB_API size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned value);
 
-/* TODO */
+/*! ZSTD_CCtxParam_setParameter() :
+ *  Similar to ZSTD_CCtx_setParameter.
+ *  Set one compression parameter, selected by enum ZSTD_cParameter.
+ *  Parameters must be applied to a ZSTD_CCtx using ZSTD_CCtx_applyCCtxParams().
+ *  Note : when `value` is an enum, cast it to unsigned for proper type checking.
+ *  @result : 0, or an error code (which can be tested with ZSTD_isError()). */
 ZSTDLIB_API size_t ZSTD_CCtxParam_setParameter(ZSTD_CCtx_params* params, ZSTD_cParameter param, unsigned value);
-/* TODO */
+
+/*! ZSTD_CCtx_applyCCtxParams() :
+ * Apply a set of ZSTD_CCtx_params to the compression context.
+ * This must be done before the dictionary is loaded.
+ * The pledgedSrcSize is treated as unknown.
+ * Multithreading parameters are applied only if nbThreads > 1. */
 ZSTDLIB_API size_t ZSTD_CCtx_applyCCtxParams(ZSTD_CCtx* cctx, ZSTD_CCtx_params* params);
 
 /*! ZSTD_CCtx_setPledgedSrcSize() :

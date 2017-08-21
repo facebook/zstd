@@ -236,27 +236,6 @@ typedef struct {
     U32   repToConfirm[ZSTD_REP_NUM];
 } seqStore_t;
 
-struct ZSTD_CCtx_params_s {
-    ZSTD_compressionParameters cParams;
-    ZSTD_frameParameters fParams;
-
-    int compressionLevel;
-    U32 forceWindow;           /* force back-references to respect limit of 1<<wLog, even for dictionary */
-
-    /* Dictionary */
-    ZSTD_dictMode_e dictMode;   /* select restricting dictionary to "rawContent" or "fullDict" only */
-    U32 dictContentByRef;
-
-    /* Multithreading: used only to set mtctx parameters */
-    U32 nbThreads;
-    unsigned jobSize;
-    unsigned overlapSizeLog;
-#if 0
-    /* Test parameter */
-    U32 testParam;
-#endif
-};
-
 typedef struct {
     U32 off;
     U32 len;
@@ -306,6 +285,25 @@ typedef struct {
     FSE_repeat matchlength_repeatMode;
     FSE_repeat litlength_repeatMode;
 } ZSTD_entropyCTables_t;
+
+struct ZSTD_CCtx_params_s {
+    ZSTD_compressionParameters cParams;
+    ZSTD_frameParameters fParams;
+
+    int compressionLevel;
+    U32 forceWindow;           /* force back-references to respect limit of
+                                * 1<<wLog, even for dictionary */
+    /* Dictionary */
+    U32 dictContentByRef;
+    ZSTD_dictMode_e dictMode;   /* select restricting dictionary to "rawContent"
+                                 * or "fullDict" only */
+
+    /* Multithreading: used only to set mtctx parameters */
+    U32 nbThreads;
+    unsigned jobSize;
+    unsigned overlapSizeLog;
+};  /* typedef'd to ZSTD_CCtx_params within "zstd.h" */
+
 
 const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx);
 void ZSTD_seqToCodes(const seqStore_t* seqStorePtr);

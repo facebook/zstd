@@ -62,7 +62,7 @@ static unsigned long long GetCurrentClockTimeMicroseconds(void)
                 DEBUGLOG(MUTEX_WAIT_TIME_DLEVEL, "Thread took %llu microseconds to acquire mutex %s \n", \
                    elapsedTime, #mutex);          \
         }   }                                     \
-    } else pthread_mutex_lock(mutex);             \
+    } else { pthread_mutex_lock(mutex); }             \
 }
 
 #else
@@ -646,7 +646,7 @@ static size_t ZSTDMT_compress_advanced_opaque(
             }
         }  /* for (chunkID=0; chunkID<nbChunks; chunkID++) */
 
-        DEBUGLOG(4, "checksumFlag : %u ", params.fParams.checksumFlag);
+        DEBUGLOG(4, "checksumFlag : %u ", cctxParams.fParams.checksumFlag);
         if (cctxParams.fParams.checksumFlag) {
             U32 const checksum = (U32)XXH64_digest(&xxh64);
             if (dstPos + 4 > dstCapacity) {

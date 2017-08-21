@@ -246,11 +246,14 @@ struct ZSTD_CCtx_params_s {
     /* Dictionary */
     ZSTD_dictMode_e dictMode;   /* select restricting dictionary to "rawContent" or "fullDict" only */
     U32 dictContentByRef;
-    U32 nbThreads;
 
     /* Multithreading: used only to set mtctx parameters */
+    U32 nbThreads;
     unsigned jobSize;
     unsigned overlapSizeLog;
+
+    /* Test parameter */
+    U32 testParam;
 };
 
 typedef struct {

@@ -47,8 +47,7 @@ DEBUGFLAGS = -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
             -Wstrict-prototypes -Wundef -Wpointer-arith -Wformat-security \
             -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings \
             -Wredundant-decls
-ZSTD_DEBUG_FLAGS = -g -DZSTD_DEBUG=2
-CFLAGS  += $(DEBUGFLAGS) $(MOREFLAGS) $(ZSTD_DEBUG_FLAGS)
+CFLAGS  += $(DEBUGFLAGS) $(MOREFLAGS)
 FLAGS    = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
 
 

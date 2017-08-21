@@ -25,7 +25,7 @@ PRGDIR  = ../programs
 PYTHON ?= python3
 TESTARTEFACT := versionsTest namespaceTest
 
-DEBUGLEVEL= 2
+DEBUGLEVEL= 1
 DEBUGFLAGS= -g -DZSTD_DEBUG=$(DEBUGLEVEL)
 CPPFLAGS += -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
             -I$(ZSTDDIR)/dictBuilder -I$(ZSTDDIR)/deprecated -I$(PRGDIR)
@@ -169,10 +169,9 @@ datagen : $(PRGDIR)/datagen.c datagencli.c
 roundTripCrash : $(ZSTD_FILES) roundTripCrash.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-OPAQUEFILES := $(ZSTD_FILES) $(ZDICT_FILES) roundTripCrashOpaque.c
-roundTripCrashOpaque : LDFLAGS += $(MULTITHREAD_CPP)
-roundTripCrashOpaque : LDFLAGS += $(MULTITHREAD_LD)
-roundTripCrashOpaque : $(OPAQUEFILES)
+cctxParamRoundTrip : LDFLAGS += $(MULTITHREAD_CPP)
+cctxParamRoundTrip : LDFLAGS += $(MULTITHREAD_LD)
+cctxParamRoundTrip : $(ZSTD_FILES) cctxParamRoundTrip.c 
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
 longmatch  : $(ZSTD_FILES) longmatch.c

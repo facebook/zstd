@@ -188,7 +188,8 @@ static void ZSTDMT_releaseBuffer(ZSTDMT_bufferPool* bufPool, buffer_t buf)
 
 /**
  * TODO
- * Resets parameters to zero for jobs?
+ *
+ * Sets parameters to zero for jobs. Notably, nbThreads should be zero?
  */
 static void ZSTDMT_zeroCCtxParams(ZSTD_CCtx_params* params)
 {
@@ -564,7 +565,6 @@ static size_t ZSTDMT_compress_advanced_opaque(
     DEBUGLOG(4, "nbChunks  : %2u   (chunkSize : %u bytes)   ", nbChunks, (U32)avgChunkSize);
     if (nbChunks==1) {   /* fallback to single-thread mode */
         ZSTD_CCtx* const cctx = mtctx->cctxPool->cctx[0];
-
         if (cdict) return ZSTD_compress_usingCDict_advanced(cctx, dst, dstCapacity, src, srcSize, cdict, cctxParams.fParams);
         return ZSTD_compress_advanced_opaque(cctx, dst, dstCapacity, src, srcSize, NULL, 0, requestedParams);
     }
@@ -664,7 +664,6 @@ static size_t ZSTDMT_compress_advanced_opaque(
         if (!error) DEBUGLOG(4, "compressed size : %u  ", (U32)dstPos);
         return error ? error : dstPos;
     }
-
 }
 
 size_t ZSTDMT_compress_advanced(ZSTDMT_CCtx* mtctx,
@@ -750,6 +749,7 @@ size_t ZSTDMT_initCStream_internal_opaque(
     if (dict) {
         DEBUGLOG(4,"cdictLocal: %08X", (U32)(size_t)zcs->cdictLocal);
         ZSTD_freeCDict(zcs->cdictLocal);
+        /* TODO: This will need a cctxParam version? */
         zcs->cdictLocal = ZSTD_createCDict_advanced(dict, dictSize,
                                                     0 /* byRef */, ZSTD_dm_auto,   /* note : a loadPrefix becomes an internal CDict */
                                                     params.cParams, zcs->cMem);
@@ -779,12 +779,10 @@ size_t ZSTDMT_initCStream_internal_opaque(
     zcs->allJobsCompleted = 0;
     if (params.fParams.checksumFlag) XXH64_reset(&zcs->xxhState, 0);
     return 0;
-
 }
 
-/** ZSTDMT_initCStream_internal() :
- *  internal usage only */
-size_t ZSTDMT_initCStream_internal(ZSTDMT_CCtx* zcs,
+/** ZSTDMT_initCStream_internal() */
+static size_t ZSTDMT_initCStream_internal(ZSTDMT_CCtx* zcs,
                     const void* dict, size_t dictSize, const ZSTD_CDict* cdict,
                     ZSTD_parameters params, unsigned long long pledgedSrcSize)
 {

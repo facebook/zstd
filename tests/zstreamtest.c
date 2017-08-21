@@ -1655,12 +1655,8 @@ static int fuzzerTests_newAPI_opaque(U32 seed, U32 nbTests, unsigned startTest, 
                 }
 
                 if (FUZ_rand(&lseed) & 1) CHECK_Z (ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_forceMaxWindow, FUZ_rand(&lseed) & 1) );
-#if 0
-                if (FUZ_rand(&lseed) & 1) CHECK_Z (ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_test, FUZ_rand(&lseed) & 1) );
-#endif
 
                 /* Apply parameters */
-
                 CHECK_Z (ZSTD_CCtx_applyCCtxParams(zc, cctxParams) );
 
                 if (FUZ_rand(&lseed) & 1) {
@@ -1794,9 +1790,6 @@ _output_error:
     result = 1;
     goto _cleanup;
 }
-
-
-
 
 /*-*******************************************************
 *  Command line

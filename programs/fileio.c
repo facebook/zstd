@@ -213,10 +213,6 @@ void FIO_setOverlapLog(unsigned overlapLog){
         DISPLAYLEVEL(2, "Setting overlapLog is useless in single-thread mode \n");
     g_overlapLog = overlapLog;
 }
-#if 0
-static U32 g_testParamFlag = 0;
-void FIO_setTestParamFlag(unsigned testParamFlag) { g_testParamFlag = testParamFlag; }
-#endif
 
 /*-*************************************
 *  Functions
@@ -414,10 +410,6 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_nbThreads, g_nbThreads) );
             /* dictionary */
             CHECK( ZSTD_CCtx_loadDictionary(ress.cctx, dictBuffer, dictBuffSize) );
-#if 0
-            /* Test */
-            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_test, g_testParamFlag) );
-#endif
         }
 #elif defined(ZSTD_MULTITHREAD)
         {   ZSTD_parameters params = ZSTD_getParams(cLevel, srcSize, dictBuffSize);

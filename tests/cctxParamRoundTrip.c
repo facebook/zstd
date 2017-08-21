@@ -32,6 +32,15 @@
 *==========================================*/
 #define MIN(a,b)  ( (a) < (b) ? (a) : (b) )
 
+static void crash(int errorCode){
+    /* abort if AFL/libfuzzer, exit otherwise */
+    #ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION /* could also use __AFL_COMPILER */
+        abort();
+    #else
+        exit(errorCode);
+    #endif
+}
+
 #define CHECK_Z(f) {                            \
     size_t const err = f;                       \
     if (ZSTD_isError(err)) {                    \
@@ -40,7 +49,6 @@
                 #f, ZSTD_getErrorName(err));    \
         crash(1);                                \
 }   }
-
 
 /** roundTripTest() :
 *   Compresses `srcBuff` into `compressedBuff`,
@@ -61,10 +69,8 @@ static size_t roundTripTest(void* resultBuff, size_t resultBuffCapacity,
     ZSTD_inBuffer inBuffer = { srcBuff, srcBuffSize, 0 };
     ZSTD_outBuffer outBuffer = {compressedBuff, compressedBuffCapacity, 0 };
 
-    ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_compressionLevel, 1);
-    ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_test, 1);
-
-    ZSTD_CCtx_applyCCtxParams(cctx, cctxParams);
+    CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_compressionLevel, 1) );
+    CHECK_Z( ZSTD_CCtx_applyCCtxParams(cctx, cctxParams) );
 
     CHECK_Z (ZSTD_compress_generic(cctx, &outBuffer, &inBuffer, ZSTD_e_end) );
 
@@ -86,15 +92,6 @@ static size_t checkBuffers(const void* buff1, const void* buff2, size_t buffSize
             break;
 
     return pos;
-}
-
-static void crash(int errorCode){
-    /* abort if AFL/libfuzzer, exit otherwise */
-    #ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION /* could also use __AFL_COMPILER */
-        abort();
-    #else
-        exit(errorCode);
-    #endif
 }
 
 static void roundTripCheck(const void* srcBuff, size_t srcBuffSize)

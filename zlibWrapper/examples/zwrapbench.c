@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2016-present, Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -34,7 +34,6 @@
 #ifndef ZSTDCLI_CLEVEL_DEFAULT
 #  define ZSTDCLI_CLEVEL_DEFAULT 3
 #endif
-
 
 
 /*-************************************

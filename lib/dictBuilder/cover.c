@@ -382,7 +382,7 @@ static void COVER_group(COVER_ctx_t *ctx, const void *group,
 typedef struct {
   U32 begin;
   U32 end;
-  double score;
+  U32 score;
 } COVER_segment_t;
 
 /**
@@ -622,6 +622,10 @@ static size_t COVER_buildDictionary(const COVER_ctx_t *ctx, U32 *freqs,
     /* Select a segment */
     COVER_segment_t segment = COVER_selectSegment(
         ctx, freqs, activeDmers, epochBegin, epochEnd, parameters);
+    /* If the segment covers no dmers, then we are out of content */
+    if (segment.score == 0) {
+      break;
+    }
     /* Trim the segment if necessary and if it is too small then we are done */
     segmentSize = MIN(segment.end - segment.begin + parameters.d - 1, tail);
     if (segmentSize < parameters.d) {

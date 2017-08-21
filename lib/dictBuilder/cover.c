@@ -479,9 +479,14 @@ static COVER_segment_t COVER_selectSegment(const COVER_ctx_t *ctx, U32 *freqs,
  * Check the validity of the parameters.
  * Returns non-zero if the parameters are valid and 0 otherwise.
  */
-static int COVER_checkParameters(ZDICT_cover_params_t parameters) {
+static int COVER_checkParameters(ZDICT_cover_params_t parameters,
+                                 size_t maxDictSize) {
   /* k and d are required parameters */
   if (parameters.d == 0 || parameters.k == 0) {
+    return 0;
+  }
+  /* k <= maxDictSize */
+  if (parameters.k > maxDictSize) {
     return 0;
   }
   /* d <= k */
@@ -648,7 +653,7 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_cover(
   COVER_ctx_t ctx;
   COVER_map_t activeDmers;
   /* Checks */
-  if (!COVER_checkParameters(parameters)) {
+  if (!COVER_checkParameters(parameters, dictBufferCapacity)) {
     DISPLAYLEVEL(1, "Cover parameters incorrect\n");
     return ERROR(GENERIC);
   }
@@ -995,7 +1000,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
       data->parameters.d = d;
       data->parameters.steps = kSteps;
       /* Check the parameters */
-      if (!COVER_checkParameters(data->parameters)) {
+      if (!COVER_checkParameters(data->parameters, dictBufferCapacity)) {
         DISPLAYLEVEL(1, "Cover parameters incorrect\n");
         free(data);
         continue;

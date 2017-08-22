@@ -70,6 +70,8 @@ static size_t roundTripTest(void* resultBuff, size_t resultBuffCapacity,
     ZSTD_outBuffer outBuffer = {compressedBuff, compressedBuffCapacity, 0 };
 
     CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_compressionLevel, 1) );
+    CHECK_Z (ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_nbThreads, 3) );
+    CHECK_Z (ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_compressionStrategy, ZSTD_lazy) );
     CHECK_Z( ZSTD_CCtx_applyCCtxParams(cctx, cctxParams) );
 
     CHECK_Z (ZSTD_compress_generic(cctx, &outBuffer, &inBuffer, ZSTD_e_end) );

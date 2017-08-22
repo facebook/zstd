@@ -3418,7 +3418,7 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
     return ZSTD_compress_insertDictionary(cctx, dict, dictSize, params.dictMode);
 }
 
-size_t ZSTD_compressBegin_advanced_opaque(
+size_t ZSTD_compressBegin_advanced_internal(
                                     ZSTD_CCtx* cctx,
                                     const void* dict, size_t dictSize,
                                     ZSTD_CCtx_params params,
@@ -3443,8 +3443,8 @@ size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* cctx,
     cctxParams.fParams = params.fParams;
     cctxParams.dictMode = ZSTD_dm_auto;
 
-    return ZSTD_compressBegin_advanced_opaque(cctx, dict, dictSize, cctxParams,
-                                              pledgedSrcSize);
+    return ZSTD_compressBegin_advanced_internal(cctx, dict, dictSize, cctxParams,
+                                                pledgedSrcSize);
 }
 
 
@@ -3535,11 +3535,11 @@ static size_t ZSTD_compress_internal (ZSTD_CCtx* cctx,
     cctxParams.cParams = params.cParams;
     cctxParams.fParams = params.fParams;
     cctxParams.dictMode = ZSTD_dm_auto;
-    return ZSTD_compress_advanced_opaque(cctx,
-                                         dst, dstCapacity,
-                                         src, srcSize,
-                                         dict, dictSize,
-                                         cctxParams);
+    return ZSTD_compress_advanced_internal(cctx,
+                                          dst, dstCapacity,
+                                          src, srcSize,
+                                          dict, dictSize,
+                                          cctxParams);
 }
 
 size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
@@ -3553,7 +3553,7 @@ size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
 }
 
 /* Internal */
-size_t ZSTD_compress_advanced_opaque(
+size_t ZSTD_compress_advanced_internal(
         ZSTD_CCtx* cctx,
         void* dst, size_t dstCapacity,
         const void* src, size_t srcSize,
@@ -3888,7 +3888,7 @@ size_t ZSTD_resetCStream(ZSTD_CStream* zcs, unsigned long long pledgedSrcSize)
 }
 
 /*! ZSTD_initCStream_internal() :
- *  Note : not static (but hidden) (not exposed). Used by zstdmt_compress.c
+ *  Note : not static, but hidden (not exposed). Used by zstdmt_compress.c
  *  Assumption 1 : params are valid
  *  Assumption 2 : either dict, or cdict, is defined, not both */
 size_t ZSTD_initCStream_internal(
@@ -4154,12 +4154,12 @@ size_t ZSTD_compressStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output, ZSTD_inBuf
     return ZSTD_compressStream_generic(zcs, output, input, ZSTD_e_continue);
 }
 
-/*! ZSTDMT_initCStream_internal_opaque() :
+/*! ZSTDMT_initCStream_internal() :
  *  Private use only. Init streaming operation.
  *  expects params to be valid.
  *  must receive dict, or cdict, or none, but not both.
  *  @return : 0, or an error code */
-size_t ZSTDMT_initCStream_internal_opaque(ZSTDMT_CCtx* zcs,
+size_t ZSTDMT_initCStream_internal(ZSTDMT_CCtx* zcs,
                     const void* dict, size_t dictSize, const ZSTD_CDict* cdict,
                     ZSTD_CCtx_params params, unsigned long long pledgedSrcSize);
 
@@ -4188,7 +4188,7 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
 #ifdef ZSTD_MULTITHREAD
         if (params.nbThreads > 1) {
             DEBUGLOG(4, "call ZSTDMT_initCStream_internal as nbThreads=%u", params.nbThreads);
-            CHECK_F( ZSTDMT_initCStream_internal_opaque(cctx->mtctx, prefix, prefixSize, cctx->cdict, params, cctx->pledgedSrcSizePlusOne-1) );
+            CHECK_F( ZSTDMT_initCStream_internal(cctx->mtctx, prefix, prefixSize, cctx->cdict, params, cctx->pledgedSrcSizePlusOne-1) );
             cctx->streamStage = zcss_load;
         } else
 #endif

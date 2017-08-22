@@ -342,7 +342,7 @@ void ZSTDMT_compressChunk(void* jobDescription)
     } else {  /* srcStart points at reloaded section */
         if (!job->firstChunk) job->params.fParams.contentSizeFlag = 0;  /* ensure no srcSize control */
         {   size_t const dictModeError = ZSTD_setCCtxParameter(cctx, ZSTD_p_forceRawDict, 1);  /* Force loading dictionary in "content-only" mode (no header analysis) */
-            size_t const initError = ZSTD_compressBegin_advanced_opaque(cctx, job->srcStart, job->dictSize, job->params, job->fullFrameSize);
+            size_t const initError = ZSTD_compressBegin_advanced_internal(cctx, job->srcStart, job->dictSize, job->params, job->fullFrameSize);
             if (ZSTD_isError(initError) || ZSTD_isError(dictModeError)) { job->cSize = initError; goto _endJob; }
             ZSTD_setCCtxParameter(cctx, ZSTD_p_forceWindow, 1);
     }   }
@@ -540,7 +540,7 @@ static unsigned computeNbChunks(size_t srcSize, unsigned windowLog, unsigned nbT
     return (multiplier>1) ? nbChunksLarge : nbChunksSmall;
 }
 
-static size_t ZSTDMT_compress_advanced_opaque(
+static size_t ZSTDMT_compress_advanced_internal(
                 ZSTDMT_CCtx* mtctx,
                 void* dst, size_t dstCapacity,
           const void* src, size_t srcSize,
@@ -564,7 +564,7 @@ static size_t ZSTDMT_compress_advanced_opaque(
     if (nbChunks==1) {   /* fallback to single-thread mode */
         ZSTD_CCtx* const cctx = mtctx->cctxPool->cctx[0];
         if (cdict) return ZSTD_compress_usingCDict_advanced(cctx, dst, dstCapacity, src, srcSize, cdict, cctxParams.fParams);
-        return ZSTD_compress_advanced_opaque(cctx, dst, dstCapacity, src, srcSize, NULL, 0, requestedParams);
+        return ZSTD_compress_advanced_internal(cctx, dst, dstCapacity, src, srcSize, NULL, 0, requestedParams);
     }
     assert(avgChunkSize >= 256 KB);  /* condition for ZSTD_compressBound(A) + ZSTD_compressBound(B) <= ZSTD_compressBound(A+B), which is required for compressWithinDst */
     ZSTDMT_setBufferSize(mtctx->bufPool, ZSTD_compressBound(avgChunkSize) );
@@ -674,10 +674,10 @@ size_t ZSTDMT_compress_advanced(ZSTDMT_CCtx* mtctx,
     ZSTD_CCtx_params cctxParams = mtctx->params;
     cctxParams.cParams = params.cParams;
     cctxParams.fParams = params.fParams;
-    return ZSTDMT_compress_advanced_opaque(mtctx,
-                                           dst, dstCapacity,
-                                           src, srcSize,
-                                           cdict, cctxParams, overlapLog);
+    return ZSTDMT_compress_advanced_internal(mtctx,
+                                             dst, dstCapacity,
+                                             src, srcSize,
+                                             cdict, cctxParams, overlapLog);
 }
 
 
@@ -712,7 +712,7 @@ static void ZSTDMT_waitForAllJobsCompleted(ZSTDMT_CCtx* zcs)
     }
 }
 
-size_t ZSTDMT_initCStream_internal_opaque(
+size_t ZSTDMT_initCStream_internal(
         ZSTDMT_CCtx* zcs, const void* dict, size_t dictSize,
         const ZSTD_CDict* cdict, ZSTD_CCtx_params cctxParams,
         unsigned long long pledgedSrcSize)
@@ -773,25 +773,17 @@ size_t ZSTDMT_initCStream_internal_opaque(
     return 0;
 }
 
-/** ZSTDMT_initCStream_internal() */
-static size_t ZSTDMT_initCStream_internal(ZSTDMT_CCtx* zcs,
-                    const void* dict, size_t dictSize, const ZSTD_CDict* cdict,
-                    ZSTD_parameters params, unsigned long long pledgedSrcSize)
-{
-    ZSTD_CCtx_params cctxParams = zcs->params;
-    cctxParams.cParams = params.cParams;
-    cctxParams.fParams = params.fParams;
-    return ZSTDMT_initCStream_internal_opaque(zcs, dict, dictSize, cdict,
-                                              cctxParams, pledgedSrcSize);
-}
-
 size_t ZSTDMT_initCStream_advanced(ZSTDMT_CCtx* mtctx,
                              const void* dict, size_t dictSize,
                                    ZSTD_parameters params,
                                    unsigned long long pledgedSrcSize)
 {
+    ZSTD_CCtx_params cctxParams = mtctx->params;
     DEBUGLOG(5, "ZSTDMT_initCStream_advanced");
-    return ZSTDMT_initCStream_internal(mtctx, dict, dictSize, NULL, params, pledgedSrcSize);
+    cctxParams.cParams = params.cParams;
+    cctxParams.fParams = params.fParams;
+    return ZSTDMT_initCStream_internal(mtctx, dict, dictSize, NULL,
+                                       cctxParams, pledgedSrcSize);
 }
 
 size_t ZSTDMT_initCStream_usingCDict(ZSTDMT_CCtx* mtctx,
@@ -799,12 +791,11 @@ size_t ZSTDMT_initCStream_usingCDict(ZSTDMT_CCtx* mtctx,
                                      ZSTD_frameParameters fParams,
                                      unsigned long long pledgedSrcSize)
 {
-    ZSTD_CCtx_params requestedParams =
-            ZSTDMT_makeJobCCtxParams(ZSTD_getCCtxParamsFromCDict(cdict));
+    ZSTD_CCtx_params requestedParams = ZSTD_getCCtxParamsFromCDict(cdict);
     if (cdict==NULL) return ERROR(dictionary_wrong);   /* method incompatible with NULL cdict */
     requestedParams.fParams = fParams;
-    return ZSTDMT_initCStream_internal_opaque(mtctx, NULL, 0 /*dictSize*/, cdict,
-                                              requestedParams, pledgedSrcSize);
+    return ZSTDMT_initCStream_internal(mtctx, NULL, 0 /*dictSize*/, cdict,
+                                       requestedParams, pledgedSrcSize);
 }
 
 
@@ -814,13 +805,16 @@ size_t ZSTDMT_resetCStream(ZSTDMT_CCtx* zcs, unsigned long long pledgedSrcSize)
 {
     if (zcs->nbThreads==1)
         return ZSTD_resetCStream(zcs->cctxPool->cctx[0], pledgedSrcSize);
-    return ZSTDMT_initCStream_internal_opaque(zcs, NULL, 0, 0, zcs->params,
-                                              pledgedSrcSize);
+    return ZSTDMT_initCStream_internal(zcs, NULL, 0, 0, zcs->params,
+                                       pledgedSrcSize);
 }
 
 size_t ZSTDMT_initCStream(ZSTDMT_CCtx* zcs, int compressionLevel) {
     ZSTD_parameters const params = ZSTD_getParams(compressionLevel, 0, 0);
-    return ZSTDMT_initCStream_internal(zcs, NULL, 0, NULL, params, 0);
+    ZSTD_CCtx_params cctxParams = zcs->params;
+    cctxParams.cParams = params.cParams;
+    cctxParams.fParams = params.fParams;
+    return ZSTDMT_initCStream_internal(zcs, NULL, 0, NULL, cctxParams, 0);
 }
 
 
@@ -973,7 +967,7 @@ size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
       && (mtctx->inBuff.filled==0)  /* nothing buffered */
       && (endOp==ZSTD_e_end)        /* end order */
       && (output->size - output->pos >= ZSTD_compressBound(input->size - input->pos)) ) { /* enough room */
-        size_t const cSize = ZSTDMT_compress_advanced_opaque(mtctx,
+        size_t const cSize = ZSTDMT_compress_advanced_internal(mtctx,
                 (char*)output->dst + output->pos, output->size - output->pos,
                 (const char*)input->src + input->pos, input->size - input->pos,
                 mtctx->cdict, mtctx->params, mtctx->overlapLog);

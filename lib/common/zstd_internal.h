@@ -372,17 +372,17 @@ size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
 ZSTD_CCtx_params ZSTD_getCCtxParamsFromCDict(const ZSTD_CDict* cdict);
 
 /* INTERNAL */
-size_t ZSTD_compressBegin_advanced_opaque(ZSTD_CCtx* cctx,
+size_t ZSTD_compressBegin_advanced_internal(ZSTD_CCtx* cctx,
                                     const void* dict, size_t dictSize,
                                     ZSTD_CCtx_params params,
                                     unsigned long long pledgedSrcSize);
 
 /* INTERNAL */
-size_t ZSTD_compress_advanced_opaque(ZSTD_CCtx* cctx,
-                                     void* dst, size_t dstCapacity,
-                               const void* src, size_t srcSize,
-                               const void* dict,size_t dictSize,
-                               ZSTD_CCtx_params params);
+size_t ZSTD_compress_advanced_internal(ZSTD_CCtx* cctx,
+                                       void* dst, size_t dstCapacity,
+                                 const void* src, size_t srcSize,
+                                 const void* dict,size_t dictSize,
+                                 ZSTD_CCtx_params params);
 
 typedef struct {
     blockType_e blockType;

@@ -382,7 +382,7 @@ static void COVER_group(COVER_ctx_t *ctx, const void *group,
 typedef struct {
   U32 begin;
   U32 end;
-  double score;
+  U32 score;
 } COVER_segment_t;
 
 /**
@@ -627,9 +627,13 @@ static size_t COVER_buildDictionary(const COVER_ctx_t *ctx, U32 *freqs,
     /* Select a segment */
     COVER_segment_t segment = COVER_selectSegment(
         ctx, freqs, activeDmers, epochBegin, epochEnd, parameters);
-    /* Trim the segment if necessary and if it is empty then we are done */
+    /* If the segment covers no dmers, then we are out of content */
+    if (segment.score == 0) {
+      break;
+    }
+    /* Trim the segment if necessary and if it is too small then we are done */
     segmentSize = MIN(segment.end - segment.begin + parameters.d - 1, tail);
-    if (segmentSize == 0) {
+    if (segmentSize < parameters.d) {
       break;
     }
     /* We fill the dictionary from the back to allow the best segments to be
@@ -889,7 +893,7 @@ static void COVER_tryParameters(void *opaque) {
       goto _compressCleanup;
     }
     /* Compress each sample and sum their sizes (or error) */
-    totalCompressedSize = 0;
+    totalCompressedSize = dictBufferCapacity;
     for (i = 0; i < ctx->nbSamples; ++i) {
       const size_t size = ZSTD_compress_usingCDict(
           cctx, dst, dstCapacity, ctx->samples + ctx->offsets[i],
@@ -999,6 +1003,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
       data->parameters.k = k;
       data->parameters.d = d;
       data->parameters.steps = kSteps;
+      data->parameters.zParams.notificationLevel = g_displayLevel;
       /* Check the parameters */
       if (!COVER_checkParameters(data->parameters, dictBufferCapacity)) {
         DISPLAYLEVEL(1, "Cover parameters incorrect\n");

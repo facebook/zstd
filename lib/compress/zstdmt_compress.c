@@ -186,12 +186,12 @@ static void ZSTDMT_releaseBuffer(ZSTDMT_bufferPool* bufPool, buffer_t buf)
     ZSTD_free(buf.start, bufPool->cMem);
 }
 
-/* TODO: Set relevant job parameters, initialize others to default.
- * Notably, nbThreads should be zero. */
+/* Sets parameterse relevant to the compression job, initializing others to
+ * default values. Notably, nbThreads should probably be zero. */
 static ZSTD_CCtx_params ZSTDMT_makeJobCCtxParams(ZSTD_CCtx_params const params)
 {
     ZSTD_CCtx_params jobParams;
-    memset(&jobParams, 0, sizeof(jobParams));
+    memset(&jobParams, 0, sizeof(ZSTD_CCtx_params));
 
     jobParams.cParams = params.cParams;
     jobParams.fParams = params.fParams;
@@ -725,9 +725,9 @@ size_t ZSTDMT_initCStream_internal_opaque(
 
     if (zcs->nbThreads==1) {
         DEBUGLOG(4, "single thread mode");
-        return ZSTD_initCStream_internal_opaque(zcs->cctxPool->cctx[0],
-                                                dict, dictSize, cdict,
-                                                requestedParams, pledgedSrcSize);
+        return ZSTD_initCStream_internal(zcs->cctxPool->cctx[0],
+                                         dict, dictSize, cdict,
+                                         requestedParams, pledgedSrcSize);
     }
 
     if (zcs->allJobsCompleted == 0) {   /* previous compression not correctly finished */

@@ -348,12 +348,12 @@ MEM_STATIC U32 ZSTD_highbit32(U32 val)
 void ZSTD_invalidateRepCodes(ZSTD_CCtx* cctx);
 
 
-/*! ZSTD_initCStream_internal_opaque() :
+/*! ZSTD_initCStream_internal() :
  *  Private use only. Init streaming operation.
  *  expects params to be valid.
  *  must receive dict, or cdict, or none, but not both.
  *  @return : 0, or an error code */
-size_t ZSTD_initCStream_internal_opaque(
+size_t ZSTD_initCStream_internal(
         ZSTD_CStream* zcs,
         const void* dict, size_t dictSize,
         const ZSTD_CDict* cdict,

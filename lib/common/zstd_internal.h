@@ -304,7 +304,6 @@ struct ZSTD_CCtx_params_s {
     unsigned overlapSizeLog;
 };  /* typedef'd to ZSTD_CCtx_params within "zstd.h" */
 
-
 const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx);
 void ZSTD_seqToCodes(const seqStore_t* seqStorePtr);
 

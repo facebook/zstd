@@ -62,7 +62,7 @@ static unsigned long long GetCurrentClockTimeMicroseconds(void)
                 DEBUGLOG(MUTEX_WAIT_TIME_DLEVEL, "Thread took %llu microseconds to acquire mutex %s \n", \
                    elapsedTime, #mutex);          \
         }   }                                     \
-    } else { pthread_mutex_lock(mutex); }             \
+    } else pthread_mutex_lock(mutex);             \
 }
 
 #else
@@ -743,7 +743,7 @@ size_t ZSTDMT_initCStream_internal(
         ZSTD_freeCDict(zcs->cdictLocal);
         /* TODO: cctxParam version? Is this correct? */
         zcs->cdictLocal = ZSTD_createCDict_advanced(dict, dictSize,
-                                                    0 /* byRef */, ZSTD_dm_auto,  /* note : a loadPrefix becomes an internal CDict */
+                                                    0 /* byRef */, ZSTD_dm_auto, /* note : a loadPrefix becomes an internal CDict */
                                                     requestedParams.cParams, zcs->cMem);
         zcs->cdict = zcs->cdictLocal;
         if (zcs->cdictLocal == NULL) return ERROR(memory_allocation);

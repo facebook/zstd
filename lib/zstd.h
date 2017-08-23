@@ -987,7 +987,7 @@ typedef enum {
 
     /* advanced parameters - may not remain available after API update */
     ZSTD_p_forceMaxWindow=1100, /* Force back-reference distances to remain < windowSize,
-                                 * even when referencing into Dictionary content (default:0) */
+                              * even when referencing into Dictionary content (default:0) */
 
 } ZSTD_cParameter;
 
@@ -1100,6 +1100,7 @@ size_t ZSTD_compress_generic_simpleArgs (
                             void* dst, size_t dstCapacity, size_t* dstPos,
                       const void* src, size_t srcSize, size_t* srcPos,
                             ZSTD_EndDirective endOp);
+
 
 /** ZSTD_CCtx_params :
  *

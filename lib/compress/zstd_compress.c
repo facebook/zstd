@@ -1132,7 +1132,7 @@ MEM_STATIC size_t ZSTD_encodeSequences(void* dst, size_t dstCapacity,
             BIT_addBits(&blockStream, sequences[n].litLength, llBits);
             if (MEM_32bits() && ((llBits+mlBits)>24)) BIT_flushBits(&blockStream);
             BIT_addBits(&blockStream, sequences[n].matchLength, mlBits);
-            if (MEM_32bits()) BIT_flushBits(&blockStream);                  /* (7)*/
+            if (MEM_32bits() || (ofBits+mlBits+llBits > 56)) BIT_flushBits(&blockStream);
             if (longOffsets) {
                 int const extraBits = ofBits - MIN(ofBits, STREAM_ACCUMULATOR_MIN-1);
                 if (extraBits) {

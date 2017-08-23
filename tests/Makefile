@@ -169,11 +169,6 @@ datagen : $(PRGDIR)/datagen.c datagencli.c
 roundTripCrash : $(ZSTD_FILES) roundTripCrash.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
-cctxParamRoundTrip : LDFLAGS += $(MULTITHREAD_CPP)
-cctxParamRoundTrip : LDFLAGS += $(MULTITHREAD_LD)
-cctxParamRoundTrip : $(ZSTD_FILES) cctxParamRoundTrip.c 
-	$(CC)      $(FLAGS) $^ -o $@$(EXT)
-
 longmatch  : $(ZSTD_FILES) longmatch.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
@@ -217,7 +212,7 @@ clean:
         fuzzer$(EXT) fuzzer32$(EXT) zbufftest$(EXT) zbufftest32$(EXT) \
         fuzzer-dll$(EXT) zstreamtest-dll$(EXT) zbufftest-dll$(EXT)\
         zstreamtest$(EXT) zstreamtest32$(EXT) \
-        datagen$(EXT) paramgrill$(EXT) roundTripCrash$(EXT) cctxParamRoundTrip$(EXT) longmatch$(EXT) \
+        datagen$(EXT) paramgrill$(EXT) roundTripCrash$(EXT) longmatch$(EXT) \
         symbols$(EXT) invalidDictionaries$(EXT) legacy$(EXT) poolTests$(EXT) \
 	decodecorpus$(EXT)
 	@echo Cleaning completed

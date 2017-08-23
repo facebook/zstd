@@ -302,6 +302,10 @@ struct ZSTD_CCtx_params_s {
     U32 nbThreads;
     unsigned jobSize;
     unsigned overlapSizeLog;
+
+    /* For use with createCCtxParams() and freeCCtxParams() only */
+    ZSTD_customMem customMem;
+
 };  /* typedef'd to ZSTD_CCtx_params within "zstd.h" */
 
 const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx);

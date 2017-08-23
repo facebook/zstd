@@ -1111,7 +1111,9 @@ size_t ZSTD_compress_generic_simpleArgs (
  *  - ZSTD_CCtx_applyCCtxParams() : Apply parameters to an existing CCtx. These
  *  parameters will be applied to all subsequent compression jobs.
  *  - ZSTD_compress_generic() : Do compression using the CCtx.
- *  - ZSTD_freeCCtxParams() : Free the memory. */
+ *  - ZSTD_freeCCtxParams() : Free the memory.
+ *
+ *  This can be used with ZSTD_estimateCCtxSize_opaque() for static allocation. */
 
 ZSTDLIB_API ZSTD_CCtx_params* ZSTD_createCCtxParams(void);
 

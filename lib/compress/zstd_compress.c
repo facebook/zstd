@@ -217,7 +217,7 @@ size_t ZSTD_setCCtxParameter(ZSTD_CCtx* cctx, ZSTD_CCtxParameter param, unsigned
 
 
 #define ZSTD_CLEVEL_CUSTOM 999
-static void ZSTD_cLevelToCCtxParams_srcSize(ZSTD_CCtx_params* params, size_t srcSize)
+static void ZSTD_cLevelToCCtxParams_srcSize(ZSTD_CCtx_params* params, U64 srcSize)
 {
     if (params->compressionLevel == ZSTD_CLEVEL_CUSTOM) return;
     params->cParams = ZSTD_getCParams(params->compressionLevel, srcSize, 0);

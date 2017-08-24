@@ -60,7 +60,7 @@
 
 #define NOISELENGTH 32
 
-static const int g_compressionLevel_default = 6;
+static const int g_compressionLevel_default = 3;
 static const U32 g_selectivity_default = 9;
 
 
@@ -703,7 +703,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     memset(repOffset, 0, sizeof(repOffset));
     repOffset[1] = repOffset[4] = repOffset[8] = 1;
     memset(bestRepOffset, 0, sizeof(bestRepOffset));
-    if (compressionLevel==0) compressionLevel = g_compressionLevel_default;
+    if (compressionLevel<=0) compressionLevel = g_compressionLevel_default;
     params = ZSTD_getParams(compressionLevel, averageSampleSize, dictBufferSize);
     {   size_t const beginResult = ZSTD_compressBegin_advanced(esr.ref, dictBuffer, dictBufferSize, params, 0);
         if (ZSTD_isError(beginResult)) {
@@ -1056,6 +1056,8 @@ size_t ZDICT_trainFromBuffer(void* dictBuffer, size_t dictBufferCapacity,
     memset(&params, 0, sizeof(params));
     params.d = 8;
     params.steps = 4;
+    /* Default to level 6 since no compression level information is avaialble */
+    params.zParams.compressionLevel = 6;
     return ZDICT_optimizeTrainFromBuffer_cover(dictBuffer, dictBufferCapacity,
                                                samplesBuffer, samplesSizes,
                                                nbSamples, &params);

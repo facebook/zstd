@@ -341,10 +341,21 @@ void ZSTDMT_compressChunk(void* jobDescription)
         if (ZSTD_isError(initError)) { job->cSize = initError; goto _endJob; }
     } else {  /* srcStart points at reloaded section */
         if (!job->firstChunk) job->params.fParams.contentSizeFlag = 0;  /* ensure no srcSize control */
-        {   size_t const dictModeError = ZSTD_setCCtxParameter(cctx, ZSTD_p_forceRawDict, 1);  /* Force loading dictionary in "content-only" mode (no header analysis) */
-            size_t const initError = ZSTD_compressBegin_advanced_internal(cctx, job->srcStart, job->dictSize, job->params, job->fullFrameSize);
-            if (ZSTD_isError(initError) || ZSTD_isError(dictModeError)) { job->cSize = initError; goto _endJob; }
-            ZSTD_setCCtxParameter(cctx, ZSTD_p_forceWindow, 1);
+        { ZSTD_CCtx_params jobParams = job->params;
+          /* Force loading dictionary in "content-only" mode (no header analysis) */
+          size_t const dictModeError =
+              ZSTD_CCtxParam_setParameter(&jobParams, ZSTD_p_dictMode, 1);
+          size_t const forceWindowError =
+              ZSTD_CCtxParam_setParameter(&jobParams, ZSTD_p_forceMaxWindow, !job->firstChunk);
+          /* TODO: new/old api do not interact well here (or with
+           * ZSTD_setCCtxParameter).
+           * ZSTD_compressBegin_advanced copies params directly to
+           * appliedParams. ZSTD_CCtx_setParameter sets params in requested
+           * parameters. They should not be mixed -- parameters should be passed
+           * directly */
+          size_t const initError = ZSTD_compressBegin_advanced_internal(cctx, job->srcStart, job->dictSize, jobParams, job->fullFrameSize);
+            if (ZSTD_isError(initError) || ZSTD_isError(dictModeError) ||
+                ZSTD_isError(forceWindowError)) { job->cSize = initError; goto _endJob; }
     }   }
     if (!job->firstChunk) {  /* flush and overwrite frame header when it's not first segment */
         size_t const hSize = ZSTD_compressContinue(cctx, dstBuff.start, dstBuff.size, src, 0);

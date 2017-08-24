@@ -186,7 +186,7 @@ static void ZSTDMT_releaseBuffer(ZSTDMT_bufferPool* bufPool, buffer_t buf)
     ZSTD_free(buf.start, bufPool->cMem);
 }
 
-/* Sets parameterse relevant to the compression job, initializing others to
+/* Sets parameters relevant to the compression job, initializing others to
  * default values. Notably, nbThreads should probably be zero. */
 static ZSTD_CCtx_params ZSTDMT_makeJobCCtxParams(ZSTD_CCtx_params const params)
 {
@@ -347,12 +347,9 @@ void ZSTDMT_compressChunk(void* jobDescription)
               ZSTD_CCtxParam_setParameter(&jobParams, ZSTD_p_dictMode, 1);
           size_t const forceWindowError =
               ZSTD_CCtxParam_setParameter(&jobParams, ZSTD_p_forceMaxWindow, !job->firstChunk);
-          /* TODO: new/old api do not interact well here (or with
-           * ZSTD_setCCtxParameter).
-           * ZSTD_compressBegin_advanced copies params directly to
-           * appliedParams. ZSTD_CCtx_setParameter sets params in requested
-           * parameters. They should not be mixed -- parameters should be passed
-           * directly */
+          /* Note: ZSTD_setCCtxParameter() should not be used here.
+           * ZSTD_compressBegin_advanced_internal() copies the ZSTD_CCtx_params
+           * directly to appliedParams. */
           size_t const initError = ZSTD_compressBegin_advanced_internal(cctx, job->srcStart, job->dictSize, jobParams, job->fullFrameSize);
             if (ZSTD_isError(initError) || ZSTD_isError(dictModeError) ||
                 ZSTD_isError(forceWindowError)) { job->cSize = initError; goto _endJob; }
@@ -752,7 +749,6 @@ size_t ZSTDMT_initCStream_internal(
     if (dict) {
         DEBUGLOG(4,"cdictLocal: %08X", (U32)(size_t)zcs->cdictLocal);
         ZSTD_freeCDict(zcs->cdictLocal);
-        /* TODO: cctxParam version? Is this correct? */
         zcs->cdictLocal = ZSTD_createCDict_advanced(dict, dictSize,
                                                     0 /* byRef */, ZSTD_dm_auto, /* note : a loadPrefix becomes an internal CDict */
                                                     requestedParams.cParams, zcs->cMem);

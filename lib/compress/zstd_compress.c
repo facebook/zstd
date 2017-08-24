@@ -198,18 +198,22 @@ size_t ZSTD_sizeof_CStream(const ZSTD_CStream* zcs)
 const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx) { return &(ctx->seqStore); }
 
 /* older variant; will be deprecated */
+/* Both requested and applied params need to be set as this function can be
+ * called before/after ZSTD_parameters have been applied. */
 size_t ZSTD_setCCtxParameter(ZSTD_CCtx* cctx, ZSTD_CCtxParameter param, unsigned value)
 {
     switch(param)
     {
     case ZSTD_p_forceWindow :
         cctx->requestedParams.forceWindow = value>0;
+        cctx->appliedParams.forceWindow = value>0;
         cctx->loadedDictEnd = 0;
         return 0;
     ZSTD_STATIC_ASSERT(ZSTD_dm_auto==0);
     ZSTD_STATIC_ASSERT(ZSTD_dm_rawContent==1);
     case ZSTD_p_forceRawDict :
         cctx->requestedParams.dictMode = (ZSTD_dictMode_e)(value>0);
+        cctx->appliedParams.dictMode = (ZSTD_dictMode_e)(value>0);
         return 0;
     default: return ERROR(parameter_unsupported);
     }
@@ -490,35 +494,6 @@ size_t ZSTD_CCtxParam_setParameter(
     default: return ERROR(parameter_unsupported);
     }
 }
-
-#if 0
-static void ZSTD_debugPrintCCtxParams(ZSTD_CCtx_params* params)
-{
-    DEBUGLOG(2, "======CCtxParams======");
-    DEBUGLOG(2, "cParams: %u %u %u %u %u %u %u",
-             params->cParams.windowLog,
-             params->cParams.chainLog,
-             params->cParams.hashLog,
-             params->cParams.searchLog,
-             params->cParams.searchLength,
-             params->cParams.targetLength,
-             params->cParams.strategy);
-    DEBUGLOG(2, "fParams: %u %u %u",
-             params->fParams.contentSizeFlag,
-             params->fParams.checksumFlag,
-             params->fParams.noDictIDFlag);
-    DEBUGLOG(2, "cLevel, forceWindow: %u %u",
-             params->compressionLevel,
-             params->forceWindow);
-    DEBUGLOG(2, "dictionary: %u %u",
-             params->dictMode,
-             params->dictContentByRef);
-    DEBUGLOG(2, "multithreading: %u %u %u",
-             params->nbThreads,
-             params->jobSize,
-             params->overlapSizeLog);
-}
-#endif
 
 /**
  * This function should be updated whenever ZSTD_CCtx_params is updated.
@@ -3910,8 +3885,6 @@ size_t ZSTD_initCStream_internal(ZSTD_CStream* zcs,
             return ERROR(memory_allocation);
         }
         ZSTD_freeCDict(zcs->cdictLocal);
-
-        /* Is a CCtx_params version needed? */
         zcs->cdictLocal = ZSTD_createCDict_advanced(
                                             dict, dictSize,
                                             params.dictContentByRef, params.dictMode,

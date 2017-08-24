@@ -25,8 +25,8 @@
 
 /* A job is a function and an opaque argument */
 typedef struct POOL_job_s {
-  POOL_function function;
-  void *opaque;
+    POOL_function function;
+    void *opaque;
 } POOL_job;
 
 struct POOL_ctx_s {
@@ -214,13 +214,13 @@ void POOL_add(void* ctxVoid, POOL_function function, void *opaque) {
 
 /* We don't need any data, but if it is empty malloc() might return NULL. */
 struct POOL_ctx_s {
-  int data;
+    int data;
 };
 
 POOL_ctx* POOL_create(size_t numThreads, size_t queueSize) {
-  (void)numThreads;
-  (void)queueSize;
-  return (POOL_ctx*)malloc(sizeof(POOL_ctx));
+    (void)numThreads;
+    (void)queueSize;
+    return (POOL_ctx*)malloc(sizeof(POOL_ctx));
 }
 
 void POOL_free(POOL_ctx* ctx) {
@@ -228,8 +228,8 @@ void POOL_free(POOL_ctx* ctx) {
 }
 
 void POOL_add(void* ctx, POOL_function function, void* opaque) {
-  (void)ctx;
-  function(opaque);
+    (void)ctx;
+    function(opaque);
 }
 
 size_t POOL_sizeof(POOL_ctx* ctx) {

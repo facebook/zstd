@@ -2440,7 +2440,7 @@ static void ZSTD_compressBlock_btlazy2_extDict(ZSTD_CCtx* ctx, const void* src, 
 static void ZSTD_compressBlock_btopt(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
 #ifdef ZSTD_OPT_H_91842398743
-    ZSTD_compressBlock_opt_generic(ctx, src, srcSize, 0);
+    ZSTD_compressBlock_opt_generic(ctx, src, srcSize, 0, 0);
 #else
     (void)ctx; (void)src; (void)srcSize;
     return;
@@ -2450,7 +2450,7 @@ static void ZSTD_compressBlock_btopt(ZSTD_CCtx* ctx, const void* src, size_t src
 static void ZSTD_compressBlock_btultra(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
 #ifdef ZSTD_OPT_H_91842398743
-    ZSTD_compressBlock_opt_generic(ctx, src, srcSize, 1);
+    ZSTD_compressBlock_opt_generic(ctx, src, srcSize, 1, 0);
 #else
     (void)ctx; (void)src; (void)srcSize;
     return;
@@ -2460,7 +2460,7 @@ static void ZSTD_compressBlock_btultra(ZSTD_CCtx* ctx, const void* src, size_t s
 static void ZSTD_compressBlock_btopt_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
 #ifdef ZSTD_OPT_H_91842398743
-    ZSTD_compressBlock_opt_extDict_generic(ctx, src, srcSize, 0);
+    ZSTD_compressBlock_opt_generic(ctx, src, srcSize, 0, 1);
 #else
     (void)ctx; (void)src; (void)srcSize;
     return;
@@ -2470,7 +2470,7 @@ static void ZSTD_compressBlock_btopt_extDict(ZSTD_CCtx* ctx, const void* src, si
 static void ZSTD_compressBlock_btultra_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
 #ifdef ZSTD_OPT_H_91842398743
-    ZSTD_compressBlock_opt_extDict_generic(ctx, src, srcSize, 1);
+    ZSTD_compressBlock_opt_generic(ctx, src, srcSize, 1, 1);
 #else
     (void)ctx; (void)src; (void)srcSize;
     return;

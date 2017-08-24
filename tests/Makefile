@@ -323,6 +323,7 @@ test-zstream: zstreamtest
 	$(QEMU_SYS) ./zstreamtest $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
 	$(QEMU_SYS) ./zstreamtest --mt $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
 	$(QEMU_SYS) ./zstreamtest --newapi $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
+	$(QEMU_SYS) ./zstreamtest --opaqueapi $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
 
 test-zstream32: zstreamtest32
 	$(QEMU_SYS) ./zstreamtest32 $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)

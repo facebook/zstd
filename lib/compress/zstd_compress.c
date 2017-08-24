@@ -3648,11 +3648,9 @@ static size_t ZSTD_initCDict_internal(
 
     {   ZSTD_frameParameters const fParams = { 0 /* contentSizeFlag */,
                     0 /* checksumFlag */, 0 /* noDictIDFlag */ };  /* dummy */
-        /* TODO: correct? */
         ZSTD_CCtx_params cctxParams = cdict->refContext->requestedParams;
         cctxParams.fParams = fParams;
         cctxParams.cParams = cParams;
-        cctxParams.dictContentByRef = byReference;
         cctxParams.dictMode = dictMode;
         CHECK_F( ZSTD_compressBegin_internal(cdict->refContext,
                                         cdict->dictContent, dictSize,

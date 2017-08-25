@@ -93,6 +93,9 @@ static size_t cctxParamRoundTripTest(void* resultBuff, size_t resultBuffCapacity
 
     /* Set parameters */
     CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_compressionLevel, cLevel) );
+    CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_nbThreads, 2) );
+    CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_overlapSizeLog, 5) );
+
 
     /* Apply parameters */
     CHECK_Z( ZSTD_CCtx_applyCCtxParams(cctx, cctxParams) );

@@ -291,7 +291,7 @@ static ZSTD_CCtx_params ZSTD_assignParamsToCCtxParams(
 }   }
 
 size_t ZSTDMT_CCtxParam_setMTCtxParameter(
-    ZSTD_CCtx_params* params, ZSDTMT_parameter parameter, unsigned value);
+    ZSTD_CCtx_params* params, ZSTDMT_parameter parameter, unsigned value);
 size_t ZSTDMT_initializeCCtxParameters(ZSTD_CCtx_params* params, unsigned nbThreads);
 
 size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned value)

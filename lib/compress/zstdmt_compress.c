@@ -519,7 +519,7 @@ size_t ZSTDMT_sizeof_CCtx(ZSTDMT_CCtx* mtctx)
 
 /* Internal only */
 size_t ZSTDMT_CCtxParam_setMTCtxParameter(
-    ZSTD_CCtx_params* params, ZSDTMT_parameter parameter, unsigned value) {
+    ZSTD_CCtx_params* params, ZSTDMT_parameter parameter, unsigned value) {
     switch(parameter)
     {
     case ZSTDMT_p_sectionSize :
@@ -534,7 +534,7 @@ size_t ZSTDMT_CCtxParam_setMTCtxParameter(
     }
 }
 
-size_t ZSTDMT_setMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSDTMT_parameter parameter, unsigned value)
+size_t ZSTDMT_setMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSTDMT_parameter parameter, unsigned value)
 {
     switch(parameter)
     {

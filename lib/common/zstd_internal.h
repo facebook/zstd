@@ -297,7 +297,7 @@ struct ZSTD_CCtx_params_s {
     ZSTD_dictMode_e dictMode;   /* select restricting dictionary to "rawContent"
                                  * or "fullDict" only */
 
-    /* Multithreading: used only to set mtctx parameters */
+    /* Multithreading: used to pass parameters to mtctx */
     U32 nbThreads;
     unsigned jobSize;
     unsigned overlapSizeLog;

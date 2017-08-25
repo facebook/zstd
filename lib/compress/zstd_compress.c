@@ -282,7 +282,12 @@ size_t ZSTD_resetCCtxParams(ZSTD_CCtx_params* params)
     return 0;
 }
 
-size_t ZSTD_initCCtxParams(ZSTD_CCtx_params* cctxParams, ZSTD_parameters params)
+size_t ZSTD_initCCtxParams(ZSTD_CCtx_params* cctxParams, int compressionLevel) {
+    ZSTD_parameters const params = ZSTD_getParams(compressionLevel, 0, 0);
+    return ZSTD_initCCtxParams_advanced(cctxParams, params);
+}
+
+size_t ZSTD_initCCtxParams_advanced(ZSTD_CCtx_params* cctxParams, ZSTD_parameters params)
 {
     if (!cctxParams) { return ERROR(GENERIC); }
     CHECK_F( ZSTD_checkCParams(params.cParams) );

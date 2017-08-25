@@ -1128,9 +1128,14 @@ ZSTDLIB_API ZSTD_CCtx_params* ZSTD_createCCtxParams(void);
 ZSTDLIB_API size_t ZSTD_resetCCtxParams(ZSTD_CCtx_params* params);
 
 /*! ZSTD_initCCtxParams() :
- *  Set the compression and frame parameters of cctxParams according to params.
- *  All other parameters are reset to their default values. */
-ZSTDLIB_API size_t ZSTD_initCCtxParams(ZSTD_CCtx_params* cctxParams, ZSTD_parameters params);
+ *  Initializes the compression parameters of cctxParams according to
+ *  compression level. All other parameters are reset to their default values. */
+ZSTDLIB_API size_t ZSTD_initCCtxParams(ZSTD_CCtx_params* cctxParams, int compressionLevel);
+
+/*! ZSTD_initCCtxParams_advanced() :
+ *  Initializes the compression and frame parameters of cctxParams according to
+ *  params. All other parameters are reset to their default values. */
+ZSTDLIB_API size_t ZSTD_initCCtxParams_advanced(ZSTD_CCtx_params* cctxParams, ZSTD_parameters params);
 
 ZSTDLIB_API size_t ZSTD_freeCCtxParams(ZSTD_CCtx_params* params);
 

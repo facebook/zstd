@@ -584,7 +584,7 @@ static size_t ZSTDMT_compress_advanced_internal(
     size_t frameStartPos = 0, dstBufferPos = 0;
     XXH64_state_t xxh64;
     assert(jobParams.nbThreads == 0);
-    assert(mtctx->cctxPool.totalCCtx == params.nbThreads);
+    assert(mtctx->cctxPool->totalCCtx == params.nbThreads);
 
     DEBUGLOG(4, "nbChunks  : %2u   (chunkSize : %u bytes)   ", nbChunks, (U32)avgChunkSize);
     if (nbChunks==1) {   /* fallback to single-thread mode */
@@ -748,7 +748,7 @@ size_t ZSTDMT_initCStream_internal(
     /* params are supposed to be fully validated at this point */
     assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
     assert(!((dict) && (cdict)));  /* either dict or cdict, not both */
-    assert(mtctx->cctxPool.totalCCtx == params.nbThreads);
+    assert(zcs->cctxPool->totalCCtx == params.nbThreads);
 
     if (params.nbThreads==1) {
         ZSTD_CCtx_params const singleThreadParams = ZSTDMT_makeJobCCtxParams(params);

@@ -556,10 +556,10 @@ static size_t ZSTDMT_compress_advanced_internal(
                 ZSTD_CCtx_params const cctxParams,
                 unsigned overlapLog)
 {
-    ZSTD_CCtx_params const requestedParams = ZSTDMT_makeJobCCtxParams(cctxParams);
+    ZSTD_CCtx_params const jobParams = ZSTDMT_makeJobCCtxParams(cctxParams);
     unsigned const overlapRLog = (overlapLog>9) ? 0 : 9-overlapLog;
-    size_t const overlapSize = (overlapRLog>=9) ? 0 : (size_t)1 << (requestedParams.cParams.windowLog - overlapRLog);
-    unsigned nbChunks = computeNbChunks(srcSize, requestedParams.cParams.windowLog, mtctx->nbThreads);
+    size_t const overlapSize = (overlapRLog>=9) ? 0 : (size_t)1 << (cctxParams.cParams.windowLog - overlapRLog);
+    unsigned nbChunks = computeNbChunks(srcSize, cctxParams.cParams.windowLog, mtctx->nbThreads);
     size_t const proposedChunkSize = (srcSize + (nbChunks-1)) / nbChunks;
     size_t const avgChunkSize = ((proposedChunkSize & 0x1FFFF) < 0x7FFF) ? proposedChunkSize + 0xFFFF : proposedChunkSize;   /* avoid too small last block */
     const char* const srcStart = (const char*)src;
@@ -571,8 +571,8 @@ static size_t ZSTDMT_compress_advanced_internal(
     DEBUGLOG(4, "nbChunks  : %2u   (chunkSize : %u bytes)   ", nbChunks, (U32)avgChunkSize);
     if (nbChunks==1) {   /* fallback to single-thread mode */
         ZSTD_CCtx* const cctx = mtctx->cctxPool->cctx[0];
-        if (cdict) return ZSTD_compress_usingCDict_advanced(cctx, dst, dstCapacity, src, srcSize, cdict, requestedParams.fParams);
-        return ZSTD_compress_advanced_internal(cctx, dst, dstCapacity, src, srcSize, NULL, 0, requestedParams);
+        if (cdict) return ZSTD_compress_usingCDict_advanced(cctx, dst, dstCapacity, src, srcSize, cdict, jobParams.fParams);
+        return ZSTD_compress_advanced_internal(cctx, dst, dstCapacity, src, srcSize, NULL, 0, jobParams);
     }
     assert(avgChunkSize >= 256 KB);  /* condition for ZSTD_compressBound(A) + ZSTD_compressBound(B) <= ZSTD_compressBound(A+B), which is required for compressWithinDst */
     ZSTDMT_setBufferSize(mtctx->bufPool, ZSTD_compressBound(avgChunkSize) );
@@ -601,7 +601,7 @@ static size_t ZSTDMT_compress_advanced_internal(
             mtctx->jobs[u].srcSize = chunkSize;
             mtctx->jobs[u].cdict = mtctx->nextJobID==0 ? cdict : NULL;
             mtctx->jobs[u].fullFrameSize = srcSize;
-            mtctx->jobs[u].params = requestedParams;
+            mtctx->jobs[u].params = jobParams;
             /* do not calculate checksum within sections, but write it in header for first section */
             if (u!=0) mtctx->jobs[u].params.fParams.checksumFlag = 0;
             mtctx->jobs[u].dstBuff = dstBuffer;
@@ -613,7 +613,7 @@ static size_t ZSTDMT_compress_advanced_internal(
             mtctx->jobs[u].jobCompleted_mutex = &mtctx->jobCompleted_mutex;
             mtctx->jobs[u].jobCompleted_cond = &mtctx->jobCompleted_cond;
 
-            if (requestedParams.fParams.checksumFlag) {
+            if (cctxParams.fParams.checksumFlag) {
                 XXH64_update(&xxh64, srcStart + frameStartPos, chunkSize);
             }
 
@@ -656,8 +656,8 @@ static size_t ZSTDMT_compress_advanced_internal(
             }
         }  /* for (chunkID=0; chunkID<nbChunks; chunkID++) */
 
-        DEBUGLOG(4, "checksumFlag : %u ", requestedParams.fParams.checksumFlag);
-        if (requestedParams.fParams.checksumFlag) {
+        DEBUGLOG(4, "checksumFlag : %u ", cctxParams.fParams.checksumFlag);
+        if (cctxParams.fParams.checksumFlag) {
             U32 const checksum = (U32)XXH64_digest(&xxh64);
             if (dstPos + 4 > dstCapacity) {
                 error = ERROR(dstSize_tooSmall);
@@ -725,17 +725,17 @@ size_t ZSTDMT_initCStream_internal(
         const ZSTD_CDict* cdict, ZSTD_CCtx_params cctxParams,
         unsigned long long pledgedSrcSize)
 {
-    ZSTD_CCtx_params const requestedParams = ZSTDMT_makeJobCCtxParams(cctxParams);
     DEBUGLOG(4, "ZSTDMT_initCStream_internal");
     /* params are supposed to be fully validated at this point */
-    assert(!ZSTD_isError(ZSTD_checkCParams(requestedParams.cParams)));
+    assert(!ZSTD_isError(ZSTD_checkCParams(cctxParams.cParams)));
     assert(!((dict) && (cdict)));  /* either dict or cdict, not both */
 
     if (zcs->nbThreads==1) {
+        ZSTD_CCtx_params const jobParams = ZSTDMT_makeJobCCtxParams(cctxParams);
         DEBUGLOG(4, "single thread mode");
         return ZSTD_initCStream_internal(zcs->cctxPool->cctx[0],
                                          dict, dictSize, cdict,
-                                         requestedParams, pledgedSrcSize);
+                                         jobParams, pledgedSrcSize);
     }
 
     if (zcs->allJobsCompleted == 0) {   /* previous compression not correctly finished */
@@ -744,14 +744,14 @@ size_t ZSTDMT_initCStream_internal(
         zcs->allJobsCompleted = 1;
     }
 
-    zcs->params = requestedParams;
+    zcs->params = cctxParams;
     zcs->frameContentSize = pledgedSrcSize;
     if (dict) {
         DEBUGLOG(4,"cdictLocal: %08X", (U32)(size_t)zcs->cdictLocal);
         ZSTD_freeCDict(zcs->cdictLocal);
         zcs->cdictLocal = ZSTD_createCDict_advanced(dict, dictSize,
                                                     0 /* byRef */, ZSTD_dm_auto, /* note : a loadPrefix becomes an internal CDict */
-                                                    requestedParams.cParams, zcs->cMem);
+                                                    cctxParams.cParams, zcs->cMem);
         zcs->cdict = zcs->cdictLocal;
         if (zcs->cdictLocal == NULL) return ERROR(memory_allocation);
     } else {
@@ -776,7 +776,7 @@ size_t ZSTDMT_initCStream_internal(
     zcs->nextJobID = 0;
     zcs->frameEnded = 0;
     zcs->allJobsCompleted = 0;
-    if (requestedParams.fParams.checksumFlag) XXH64_reset(&zcs->xxhState, 0);
+    if (cctxParams.fParams.checksumFlag) XXH64_reset(&zcs->xxhState, 0);
     return 0;
 }
 
@@ -798,11 +798,11 @@ size_t ZSTDMT_initCStream_usingCDict(ZSTDMT_CCtx* mtctx,
                                      ZSTD_frameParameters fParams,
                                      unsigned long long pledgedSrcSize)
 {
-    ZSTD_CCtx_params requestedParams = ZSTD_getCCtxParamsFromCDict(cdict);
+    ZSTD_CCtx_params params = ZSTD_getCCtxParamsFromCDict(cdict);
     if (cdict==NULL) return ERROR(dictionary_wrong);   /* method incompatible with NULL cdict */
-    requestedParams.fParams = fParams;
+    params.fParams = fParams;
     return ZSTDMT_initCStream_internal(mtctx, NULL, 0 /*dictSize*/, cdict,
-                                       requestedParams, pledgedSrcSize);
+                                       params, pledgedSrcSize);
 }
 
 

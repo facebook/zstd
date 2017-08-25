@@ -307,6 +307,10 @@ static ZSTD_CCtx_params ZSTD_assignParamsToCCtxParams(
         return ERROR(parameter_outOfBound);  \
 }   }
 
+size_t ZSTDMT_CCtxParam_setMTCtxParameter(
+    ZSTD_CCtx_params* params, ZSDTMT_parameter parameter, unsigned value);
+size_t ZSTDMT_initializeCCtxParameters(ZSTD_CCtx_params* params, unsigned nbThreads);
+
 size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned value)
 {
     if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
@@ -359,19 +363,20 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
             cctx->mtctx = ZSTDMT_createCCtx_advanced(value, cctx->customMem);
             if (cctx->mtctx == NULL) return ERROR(memory_allocation);
         }
-        cctx->requestedParams.nbThreads = value;
-        return 0;
+
+        /* Need to initialize overlapSizeLog */
+        return ZSTDMT_initializeCCtxParameters(&cctx->requestedParams, value);
 
     case ZSTD_p_jobSize:
         if (cctx->requestedParams.nbThreads <= 1) return ERROR(parameter_unsupported);
         assert(cctx->mtctx != NULL);
-        return ZSTDMT_setMTCtxParameter(cctx->mtctx, ZSTDMT_p_sectionSize, value);
+        return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
     case ZSTD_p_overlapSizeLog:
         DEBUGLOG(5, " setting overlap with nbThreads == %u", cctx->requestedParams.nbThreads);
         if (cctx->requestedParams.nbThreads <= 1) return ERROR(parameter_unsupported);
         assert(cctx->mtctx != NULL);
-        return ZSTDMT_setMTCtxParameter(cctx->mtctx, ZSTDMT_p_overlapSectionLog, value);
+        return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
     default: return ERROR(parameter_unsupported);
     }
@@ -471,19 +476,15 @@ size_t ZSTD_CCtxParam_setParameter(
 #ifndef ZSTD_MULTITHREAD
         if (value > 1) return ERROR(parameter_unsupported);
 #endif
-        /* Do checks when applying params to cctx */
-        params->nbThreads = value;
-        return 0;
+        return ZSTDMT_initializeCCtxParameters(params, value);
 
     case ZSTD_p_jobSize :
         if (params->nbThreads <= 1) return ERROR(parameter_unsupported);
-        params->jobSize = value;
-        return 0;
+        return ZSTDMT_CCtxParam_setMTCtxParameter(params, ZSTDMT_p_sectionSize, value);
 
     case ZSTD_p_overlapSizeLog :
         if (params->nbThreads <= 1) return ERROR(parameter_unsupported);
-        params->overlapSizeLog = value;
-        return 0;
+        return ZSTDMT_CCtxParam_setMTCtxParameter(params, ZSTDMT_p_overlapSectionLog, value);
 
     default: return ERROR(parameter_unsupported);
     }

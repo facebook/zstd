@@ -167,7 +167,7 @@ datagen : $(PRGDIR)/datagen.c datagencli.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
 roundTripCrash : $(ZSTD_FILES) roundTripCrash.c
-	$(CC)      $(FLAGS) $^ -o $@$(EXT)
+	$(CC)      $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
 
 longmatch  : $(ZSTD_FILES) longmatch.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)

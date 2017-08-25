@@ -1334,7 +1334,6 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
             }
             CHECK_Z( ZSTD_copyCCtx(ctx, refCtx, 0) );
         }
-        ZSTD_setCCtxParameter(ctx, ZSTD_p_forceWindow, FUZ_rand(&lseed) & 1);
 
         {   U32 const nbChunks = (FUZ_rand(&lseed) & 127) + 2;
             U32 n;

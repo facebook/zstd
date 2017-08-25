@@ -197,28 +197,6 @@ size_t ZSTD_sizeof_CStream(const ZSTD_CStream* zcs)
 /* private API call, for dictBuilder only */
 const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx) { return &(ctx->seqStore); }
 
-/* older variant; will be deprecated */
-/* Both requested and applied params need to be set as this function can be
- * called before/after ZSTD_parameters have been applied. */
-size_t ZSTD_setCCtxParameter(ZSTD_CCtx* cctx, ZSTD_CCtxParameter param, unsigned value)
-{
-    switch(param)
-    {
-    case ZSTD_p_forceWindow :
-        cctx->requestedParams.forceWindow = value>0;
-        cctx->appliedParams.forceWindow = value>0;
-        cctx->loadedDictEnd = 0;
-        return 0;
-    ZSTD_STATIC_ASSERT(ZSTD_dm_auto==0);
-    ZSTD_STATIC_ASSERT(ZSTD_dm_rawContent==1);
-    case ZSTD_p_forceRawDict :
-        cctx->requestedParams.dictMode = (ZSTD_dictMode_e)(value>0);
-        cctx->appliedParams.dictMode = (ZSTD_dictMode_e)(value>0);
-        return 0;
-    default: return ERROR(parameter_unsupported);
-    }
-}
-
 
 #define ZSTD_CLEVEL_CUSTOM 999
 static void ZSTD_cLevelToCCtxParams_srcSize(ZSTD_CCtx_params* params, U64 srcSize)

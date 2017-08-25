@@ -347,9 +347,6 @@ void ZSTDMT_compressChunk(void* jobDescription)
               ZSTD_CCtxParam_setParameter(&jobParams, ZSTD_p_dictMode, (U32)ZSTD_dm_rawContent);
           size_t const forceWindowError =
               ZSTD_CCtxParam_setParameter(&jobParams, ZSTD_p_forceMaxWindow, !job->firstChunk);
-          /* Note: ZSTD_setCCtxParameter() should not be used here.
-           * ZSTD_compressBegin_advanced_internal() copies the ZSTD_CCtx_params
-           * directly to appliedParams. */
           size_t const initError = ZSTD_compressBegin_advanced_internal(cctx, job->srcStart, job->dictSize, jobParams, job->fullFrameSize);
             if (ZSTD_isError(initError) || ZSTD_isError(dictModeError) ||
                 ZSTD_isError(forceWindowError)) { job->cSize = initError; goto _endJob; }

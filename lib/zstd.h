@@ -558,17 +558,6 @@ ZSTDLIB_API ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem);
 ZSTDLIB_API ZSTD_CCtx* ZSTD_initStaticCCtx(void* workspace, size_t workspaceSize);
 
 
-/* !!! To be deprecated !!! */
-typedef enum {
-    ZSTD_p_forceWindow,   /* Force back-references to remain < windowSize, even when referencing Dictionary content (default:0) */
-    ZSTD_p_forceRawDict   /* Force loading dictionary in "content-only" mode (no header analysis) */
-} ZSTD_CCtxParameter;
-/*! ZSTD_setCCtxParameter() :
- *  Set advanced parameters, selected through enum ZSTD_CCtxParameter
- *  @result : 0, or an error code (which can be tested with ZSTD_isError()) */
-ZSTDLIB_API size_t ZSTD_setCCtxParameter(ZSTD_CCtx* cctx, ZSTD_CCtxParameter param, unsigned value);
-
-
 /*! ZSTD_createCDict_byReference() :
  *  Create a digested dictionary for compression
  *  Dictionary content is simply referenced, and therefore stays in dictBuffer.
@@ -1119,22 +1108,25 @@ size_t ZSTD_compress_generic_simpleArgs (
  *  - ZSTD_freeCCtxParams() : Free the memory.
  *
  *  This can be used with ZSTD_estimateCCtxSize_opaque() for static allocation
- *  for single-threaded compression. */
-
+ *  for single-threaded compression.
+ */
 ZSTDLIB_API ZSTD_CCtx_params* ZSTD_createCCtxParams(void);
 
 /*! ZSTD_resetCCtxParams() :
- *  Reset params to default, with the default compression level. */
+ *  Reset params to default, with the default compression level.
+ */
 ZSTDLIB_API size_t ZSTD_resetCCtxParams(ZSTD_CCtx_params* params);
 
 /*! ZSTD_initCCtxParams() :
  *  Initializes the compression parameters of cctxParams according to
- *  compression level. All other parameters are reset to their default values. */
+ *  compression level. All other parameters are reset to their default values.
+ */
 ZSTDLIB_API size_t ZSTD_initCCtxParams(ZSTD_CCtx_params* cctxParams, int compressionLevel);
 
 /*! ZSTD_initCCtxParams_advanced() :
  *  Initializes the compression and frame parameters of cctxParams according to
- *  params. All other parameters are reset to their default values. */
+ *  params. All other parameters are reset to their default values.
+ */
 ZSTDLIB_API size_t ZSTD_initCCtxParams_advanced(ZSTD_CCtx_params* cctxParams, ZSTD_parameters params);
 
 ZSTDLIB_API size_t ZSTD_freeCCtxParams(ZSTD_CCtx_params* params);
@@ -1144,14 +1136,16 @@ ZSTDLIB_API size_t ZSTD_freeCCtxParams(ZSTD_CCtx_params* params);
  *  Set one compression parameter, selected by enum ZSTD_cParameter.
  *  Parameters must be applied to a ZSTD_CCtx using ZSTD_CCtx_applyCCtxParams().
  *  Note : when `value` is an enum, cast it to unsigned for proper type checking.
- *  @result : 0, or an error code (which can be tested with ZSTD_isError()). */
+ *  @result : 0, or an error code (which can be tested with ZSTD_isError()).
+ */
 ZSTDLIB_API size_t ZSTD_CCtxParam_setParameter(ZSTD_CCtx_params* params, ZSTD_cParameter param, unsigned value);
 
 /*! ZSTD_CCtx_applyCCtxParams() :
  * Apply a set of ZSTD_CCtx_params to the compression context.
  * This must be done before the dictionary is loaded.
  * The pledgedSrcSize is treated as unknown.
- * Multithreading parameters are applied only if nbThreads > 1. */
+ * Multithreading parameters are applied only if nbThreads > 1.
+ */
 ZSTDLIB_API size_t ZSTD_CCtx_applyCCtxParams(ZSTD_CCtx* cctx, const ZSTD_CCtx_params* params);
 
 /**

@@ -30,6 +30,7 @@ typedef struct POOL_job_s {
 } POOL_job;
 
 struct POOL_ctx_s {
+    ZSTD_customMem customMem;
     /* Keep track of the threads */
     pthread_t *threads;
     size_t numThreads;
@@ -98,11 +99,15 @@ static void* POOL_thread(void* opaque) {
 }
 
 POOL_ctx *POOL_create(size_t numThreads, size_t queueSize) {
+    return POOL_create_advanced(numThreads, queueSize, ZSTD_defaultCMem);
+}
+
+POOL_ctx *POOL_create_advanced(size_t numThreads, size_t queueSize, ZSTD_customMem customMem) {
     POOL_ctx *ctx;
     /* Check the parameters */
     if (!numThreads) { return NULL; }
     /* Allocate the context and zero initialize */
-    ctx = (POOL_ctx *)calloc(1, sizeof(POOL_ctx));
+    ctx = (POOL_ctx *)ZSTD_calloc(sizeof(POOL_ctx), customMem);
     if (!ctx) { return NULL; }
     /* Initialize the job queue.
      * It needs one extra space since one space is wasted to differentiate empty
@@ -119,8 +124,9 @@ POOL_ctx *POOL_create(size_t numThreads, size_t queueSize) {
     (void)pthread_cond_init(&ctx->queuePopCond, NULL);
     ctx->shutdown = 0;
     /* Allocate space for the thread handles */
-    ctx->threads = (pthread_t*)malloc(numThreads * sizeof(pthread_t));
+    ctx->threads = (pthread_t*)ZSTD_malloc(numThreads * sizeof(pthread_t), customMem);
     ctx->numThreads = 0;
+    ctx->customMem = customMem;
     /* Check for errors */
     if (!ctx->threads || !ctx->queue) { POOL_free(ctx); return NULL; }
     /* Initialize the threads */
@@ -160,9 +166,9 @@ void POOL_free(POOL_ctx *ctx) {
     pthread_mutex_destroy(&ctx->queueMutex);
     pthread_cond_destroy(&ctx->queuePushCond);
     pthread_cond_destroy(&ctx->queuePopCond);
-    if (ctx->queue) free(ctx->queue);
-    if (ctx->threads) free(ctx->threads);
-    free(ctx);
+    ZSTD_free(ctx->queue, ctx->customMem);
+    ZSTD_free(ctx->threads, ctx->customMem);
+    ZSTD_free(ctx, ctx->customMem);
 }
 
 size_t POOL_sizeof(POOL_ctx *ctx) {
@@ -213,18 +219,23 @@ void POOL_add(void* ctxVoid, POOL_function function, void *opaque) {
 /* No multi-threading support */
 
 /* We don't need any data, but if it is empty malloc() might return NULL. */
-struct POOL_ctx_s {
-    int data;
-};
+struct POOL_ctx_s {};
+static POOL_ctx g_ctx;
 
 POOL_ctx* POOL_create(size_t numThreads, size_t queueSize) {
+    return POOL_create_advanced(numThreads, queueSize, ZSTD_defaultCMem);
+}
+
+POOL_ctx* POOL_create_advanced(size_t numThreads, size_t queueSize, ZSTD_customMem customMem) {
     (void)numThreads;
     (void)queueSize;
-    return (POOL_ctx*)malloc(sizeof(POOL_ctx));
+    (void)customMem;
+    return &g_ctx;
 }
 
 void POOL_free(POOL_ctx* ctx) {
-    free(ctx);
+    assert(ctx == &g_ctx);
+    (void)ctx;
 }
 
 void POOL_add(void* ctx, POOL_function function, void* opaque) {
@@ -234,6 +245,7 @@ void POOL_add(void* ctx, POOL_function function, void* opaque) {
 
 size_t POOL_sizeof(POOL_ctx* ctx) {
     if (ctx==NULL) return 0;  /* supports sizeof NULL */
+    assert(ctx == &g_ctx);
     return sizeof(*ctx);
 }
 

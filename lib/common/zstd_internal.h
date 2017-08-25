@@ -294,7 +294,6 @@ struct ZSTD_CCtx_params_s {
     U32 forceWindow;           /* force back-references to respect limit of
                                 * 1<<wLog, even for dictionary */
     /* Dictionary */
-    U32 dictContentByRef;
     ZSTD_dictMode_e dictMode;   /* select restricting dictionary to "rawContent"
                                  * or "fullDict" only */
 

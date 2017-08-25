@@ -970,8 +970,6 @@ typedef enum {
     /* dictionary parameters (must be set before ZSTD_CCtx_loadDictionary) */
     ZSTD_p_dictMode=300,     /* Select how dictionary content must be interpreted. Value must be from type ZSTD_dictMode_e.
                               * default : 0==auto : dictionary will be "full" if it respects specification, otherwise it will be "rawContent" */
-    ZSTD_p_refDictContent,   /* Dictionary content will be referenced, instead of copied (default:0==byCopy).
-                              * It requires that dictionary buffer outlives its users */
 
     /* multi-threading parameters */
     ZSTD_p_nbThreads=400,    /* Select how many threads a compression job can spawn (default:1)
@@ -1015,14 +1013,21 @@ ZSTDLIB_API size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long lo
  * @result : 0, or an error code (which can be tested with ZSTD_isError()).
  *  Special : Adding a NULL (or 0-size) dictionary invalidates any previous dictionary,
  *            meaning "return to no-dictionary mode".
- *  Note 1 : `dict` content will be copied internally,
- *           except if ZSTD_p_refDictContent is set before loading.
+ *  Note 1 : `dict` content will be copied internally. Use
+ *            ZSTD_CCtx_loadDictionary_byReference() to reference dictionary
+ *            content instead.
  *  Note 2 : Loading a dictionary involves building tables, which are dependent on compression parameters.
  *           For this reason, compression parameters cannot be changed anymore after loading a dictionary.
  *           It's also a CPU-heavy operation, with non-negligible impact on latency.
  *  Note 3 : Dictionary will be used for all future compression jobs.
  *           To return to "no-dictionary" situation, load a NULL dictionary */
 ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, size_t dictSize);
+
+/*! ZSTD_CCtx_loadDictionary_byReference() :
+ *  Same as ZSTD_CCtx_loadDictionary() except dictionary content will be
+ *  referenced, instead of copied. The dictionary buffer must outlive its users.
+ */
+ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary_byReference(ZSTD_CCtx* cctx, const void* dict, size_t dictSize);
 
 /*! ZSTD_CCtx_refCDict() :
  *  Reference a prepared dictionary, to be used for all next compression jobs.

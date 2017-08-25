@@ -344,7 +344,7 @@ void ZSTDMT_compressChunk(void* jobDescription)
         { ZSTD_CCtx_params jobParams = job->params;
           /* Force loading dictionary in "content-only" mode (no header analysis) */
           size_t const dictModeError =
-              ZSTD_CCtxParam_setParameter(&jobParams, ZSTD_p_dictMode, 1);
+              ZSTD_CCtxParam_setParameter(&jobParams, ZSTD_p_dictMode, (U32)ZSTD_dm_rawContent);
           size_t const forceWindowError =
               ZSTD_CCtxParam_setParameter(&jobParams, ZSTD_p_forceMaxWindow, !job->firstChunk);
           /* Note: ZSTD_setCCtxParameter() should not be used here.

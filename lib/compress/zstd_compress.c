@@ -336,7 +336,6 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
     case ZSTD_p_dictMode:
-    case ZSTD_p_refDictContent:
         if (cctx->cdict) return ERROR(stage_wrong);  /* must be set before loading */
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
@@ -463,11 +462,6 @@ size_t ZSTD_CCtxParam_setParameter(
         params->dictMode = (ZSTD_dictMode_e)value;
         return 0;
 
-    case ZSTD_p_refDictContent :
-        /* dictionary content will be referenced, instead of copied */
-        params->dictContentByRef = value > 0;
-        return 0;
-
     case ZSTD_p_forceMaxWindow :
         params->forceWindow = value > 0;
         return 0;
@@ -514,7 +508,6 @@ size_t ZSTD_CCtx_applyCCtxParams(ZSTD_CCtx* cctx, const ZSTD_CCtx_params* params
 
     /* Assume dictionary parameters are validated */
     cctx->requestedParams.dictMode = params->dictMode;
-    cctx->requestedParams.dictContentByRef = params->dictContentByRef;
 
     /* Set force window explicitly since it sets cctx->loadedDictEnd */
     CHECK_F( ZSTD_CCtx_setParameter(
@@ -541,7 +534,8 @@ ZSTDLIB_API size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long lo
     return 0;
 }
 
-ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, size_t dictSize)
+size_t ZSTD_CCtx_loadDictionary_internal(
+      ZSTD_CCtx* cctx, const void* dict, size_t dictSize, unsigned byReference)
 {
     if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
     if (cctx->staticSize) return ERROR(memory_allocation);  /* no malloc for static CCtx */
@@ -557,7 +551,7 @@ ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, s
                 ZSTD_getCParams(cctx->requestedParams.compressionLevel, 0, dictSize);
         cctx->cdictLocal = ZSTD_createCDict_advanced(
                                 dict, dictSize,
-                                cctx->requestedParams.dictContentByRef,
+                                byReference,
                                 cctx->requestedParams.dictMode,
                                 cParams, cctx->customMem);
         cctx->cdict = cctx->cdictLocal;
@@ -566,6 +560,18 @@ ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, s
     }
     return 0;
 }
+
+ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary_byReference(
+      ZSTD_CCtx* cctx, const void* dict, size_t dictSize)
+{
+    return ZSTD_CCtx_loadDictionary_internal(cctx, dict, dictSize, 1);
+}
+
+ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, size_t dictSize)
+{
+    return ZSTD_CCtx_loadDictionary_internal(cctx, dict, dictSize, 0);
+}
+
 
 size_t ZSTD_CCtx_refCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict)
 {
@@ -3896,7 +3902,7 @@ size_t ZSTD_initCStream_internal(ZSTD_CStream* zcs,
         ZSTD_freeCDict(zcs->cdictLocal);
         zcs->cdictLocal = ZSTD_createCDict_advanced(
                                             dict, dictSize,
-                                            params.dictContentByRef, params.dictMode,
+                                            0 /* byReference */, params.dictMode,
                                             params.cParams, zcs->customMem);
         zcs->cdict = zcs->cdictLocal;
         if (zcs->cdictLocal == NULL) return ERROR(memory_allocation);

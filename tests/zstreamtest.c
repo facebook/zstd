@@ -1366,7 +1366,6 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( ZSTD_CCtx_setPledgedSrcSize(zc, pledgedSrcSize) );
                 DISPLAYLEVEL(5, "pledgedSrcSize : %u \n", (U32)pledgedSrcSize);
 
-                if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_refDictContent, FUZ_rand(&lseed) & 1, useOpaqueAPI) );
                 /* multi-threading parameters */
                 {   U32 const nbThreadsCandidate = (FUZ_rand(&lseed) & 4) + 1;
                     U32 const nbThreads = MIN(nbThreadsCandidate, nbThreadsMax);
@@ -1386,7 +1385,11 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
                 }
 
                 if (FUZ_rand(&lseed) & 1) {
-                    CHECK_Z( ZSTD_CCtx_loadDictionary(zc, dict, dictSize) );
+                    if (FUZ_rand(&lseed) & 1) {
+                        CHECK_Z( ZSTD_CCtx_loadDictionary(zc, dict, dictSize) );
+                    } else {
+                        CHECK_Z( ZSTD_CCtx_loadDictionary_byReference(zc, dict, dictSize) );
+                    }
                     if (dict && dictSize) {
                         /* test that compression parameters are rejected (correctly) after loading a non-NULL dictionary */
                         if (useOpaqueAPI) {

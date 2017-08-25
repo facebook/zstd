@@ -15,8 +15,7 @@
 #include <stdlib.h>      /* malloc, calloc, free */
 #include <string.h>      /* memset */
 #include "error_private.h"
-#define ZSTD_STATIC_LINKING_ONLY
-#include "zstd.h"
+#include "zstd_internal.h"
 
 
 /*-****************************************

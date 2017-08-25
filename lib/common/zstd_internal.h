@@ -29,6 +29,11 @@
 #include "xxhash.h"                /* XXH_reset, update, digest */
 
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
+
 /*-*************************************
 *  Debug
 ***************************************/
@@ -334,5 +339,8 @@ typedef struct {
 size_t ZSTD_getcBlockSize(const void* src, size_t srcSize,
                           blockProperties_t* bpPtr);
 
+#if defined (__cplusplus)
+}
+#endif
 
 #endif   /* ZSTD_CCOMMON_H_MODULE */

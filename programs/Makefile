@@ -68,7 +68,7 @@ endif
 else
 endif
 
-ZSTDLIB_FILES := $(wildcard $(ZSTD_FILES)) $(wildcard $(ZSTDLEGACY_FILES)) $(wildcard $(ZDICT_FILES))
+ZSTDLIB_FILES := $(sort $(wildcard $(ZSTD_FILES)) $(wildcard $(ZSTDLEGACY_FILES)) $(wildcard $(ZDICT_FILES)))
 ZSTDLIB_OBJ   := $(patsubst %.c,%.o,$(ZSTDLIB_FILES))
 
 # Define *.exe as extension for Windows systems

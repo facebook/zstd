@@ -477,7 +477,7 @@ size_t ZSTD_CCtxParam_setParameter(
  * This function should be updated whenever ZSTD_CCtx_params is updated.
  * Parameters are copied manually before the dictionary is loaded.
  * The multithreading parameters jobSize and overlapSizeLog are set only if
- * nbThreads >= 1.
+ * nbThreads > 1.
  *
  * Pledged srcSize is treated as unknown.
  */
@@ -3735,8 +3735,8 @@ ZSTD_CDict* ZSTD_initStaticCDict(void* workspace, size_t workspaceSize,
     return cdict;
 }
 
-ZSTD_CCtx_params ZSTD_getCCtxParamsFromCDict(const ZSTD_CDict* cdict) {
-    return cdict->refContext->appliedParams;
+ZSTD_compressionParameters ZSTD_getCParamsFromCDict(const ZSTD_CDict* cdict) {
+    return cdict->refContext->appliedParams.cParams;
 }
 
 /* ZSTD_compressBegin_usingCDict_advanced() :
@@ -3746,7 +3746,8 @@ size_t ZSTD_compressBegin_usingCDict_advanced(
     ZSTD_frameParameters const fParams, unsigned long long const pledgedSrcSize)
 {
     if (cdict==NULL) return ERROR(dictionary_wrong);
-    {   ZSTD_CCtx_params params = ZSTD_getCCtxParamsFromCDict(cdict);
+    {   ZSTD_CCtx_params params = cctx->requestedParams;
+        params.cParams = ZSTD_getCParamsFromCDict(cdict);
         params.fParams = fParams;
         params.dictMode = ZSTD_dm_auto;
         DEBUGLOG(5, "ZSTD_compressBegin_usingCDict_advanced");
@@ -3892,8 +3893,7 @@ size_t ZSTD_initCStream_internal(ZSTD_CStream* zcs,
         if (zcs->cdictLocal == NULL) return ERROR(memory_allocation);
     } else {
         if (cdict) {
-            ZSTD_CCtx_params const cdictParams = ZSTD_getCCtxParamsFromCDict(cdict);
-            params.cParams = cdictParams.cParams;  /* cParams are enforced from cdict */
+            params.cParams = ZSTD_getCParamsFromCDict(cdict);  /* cParams are enforced from cdict */
         }
         ZSTD_freeCDict(zcs->cdictLocal);
         zcs->cdictLocal = NULL;
@@ -3914,7 +3914,8 @@ size_t ZSTD_initCStream_usingCDict_advanced(ZSTD_CStream* zcs,
                                             unsigned long long pledgedSrcSize)
 {   /* cannot handle NULL cdict (does not know what to do) */
     if (!cdict) return ERROR(dictionary_wrong);
-    {   ZSTD_CCtx_params params = ZSTD_getCCtxParamsFromCDict(cdict);
+    {   ZSTD_CCtx_params params = zcs->requestedParams;
+        params.cParams = ZSTD_getCParamsFromCDict(cdict);
         params.fParams = fParams;
         return ZSTD_initCStream_internal(zcs,
                                 NULL, 0, cdict,

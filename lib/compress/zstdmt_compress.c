@@ -817,7 +817,7 @@ size_t ZSTDMT_initCStream_usingCDict(ZSTDMT_CCtx* mtctx,
                                      unsigned long long pledgedSrcSize)
 {
     ZSTD_CCtx_params cctxParams = mtctx->params;
-    cctxParams.cParams = ZSTD_getCCtxParamsFromCDict(cdict).cParams;
+    cctxParams.cParams = ZSTD_getCParamsFromCDict(cdict);
     cctxParams.fParams = fParams;
     if (cdict==NULL) return ERROR(dictionary_wrong);   /* method incompatible with NULL cdict */
     return ZSTDMT_initCStream_internal(mtctx, NULL, 0 /*dictSize*/, cdict,

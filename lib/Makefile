@@ -31,7 +31,7 @@ CFLAGS  += $(DEBUGFLAGS) $(MOREFLAGS)
 FLAGS    = $(CPPFLAGS) $(CFLAGS)
 
 
-ZSTD_FILES := $(wildcard common/*.c compress/*.c decompress/*.c dictBuilder/*.c deprecated/*.c)
+ZSTD_FILES := $(sort $(wildcard common/*.c compress/*.c decompress/*.c dictBuilder/*.c deprecated/*.c))
 
 ZSTD_LEGACY_SUPPORT ?= 4
 

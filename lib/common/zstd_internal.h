@@ -369,9 +369,9 @@ size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                                    ZSTD_inBuffer* input,
                                    ZSTD_EndDirective const flushMode);
 
-/*! ZSTD_getParamsFromCDict() :
+/*! ZSTD_getCParamsFromCDict() :
  *  as the name implies */
-ZSTD_CCtx_params ZSTD_getCCtxParamsFromCDict(const ZSTD_CDict* cdict);
+ZSTD_compressionParameters ZSTD_getCParamsFromCDict(const ZSTD_CDict* cdict);
 
 /* INTERNAL */
 size_t ZSTD_compressBegin_advanced_internal(ZSTD_CCtx* cctx,

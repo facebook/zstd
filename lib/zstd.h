@@ -963,10 +963,6 @@ typedef enum {
     ZSTD_p_checksumFlag,     /* A 32-bits checksum of content is written at end of frame (default:0) */
     ZSTD_p_dictIDFlag,       /* When applicable, dictID of dictionary is provided in frame header (default:1) */
 
-    /* dictionary parameters (must be set before ZSTD_CCtx_loadDictionary) */
-    ZSTD_p_dictMode=300,     /* Select how dictionary content must be interpreted. Value must be from type ZSTD_dictMode_e.
-                              * default : 0==auto : dictionary will be "full" if it respects specification, otherwise it will be "rawContent" */
-
     /* multi-threading parameters */
     ZSTD_p_nbThreads=400,    /* Select how many threads a compression job can spawn (default:1)
                               * More threads improve speed, but also increase memory usage.
@@ -1011,19 +1007,19 @@ ZSTDLIB_API size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long lo
  *            meaning "return to no-dictionary mode".
  *  Note 1 : `dict` content will be copied internally. Use
  *            ZSTD_CCtx_loadDictionary_byReference() to reference dictionary
- *            content instead.
+ *            content instead. The dictionary buffer must then outlive its
+ *            users.
  *  Note 2 : Loading a dictionary involves building tables, which are dependent on compression parameters.
  *           For this reason, compression parameters cannot be changed anymore after loading a dictionary.
  *           It's also a CPU-heavy operation, with non-negligible impact on latency.
  *  Note 3 : Dictionary will be used for all future compression jobs.
- *           To return to "no-dictionary" situation, load a NULL dictionary */
-ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, size_t dictSize);
-
-/*! ZSTD_CCtx_loadDictionary_byReference() :
- *  Same as ZSTD_CCtx_loadDictionary() except dictionary content will be
- *  referenced, instead of copied. The dictionary buffer must outlive its users.
+ *           To return to "no-dictionary" situation, load a NULL dictionary
+ *  Note 5 : Use ZSTD_CCtx_loadDictionary_advanced() to select how dictionary
+ *           content will be interpreted.
  */
+ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, size_t dictSize);
 ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary_byReference(ZSTD_CCtx* cctx, const void* dict, size_t dictSize);
+ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary_advanced(ZSTD_CCtx* cctx, const void* dict, size_t dictSize, ZSTD_dictLoadMethod_e dictLoadMethod, ZSTD_dictMode_e dictMode);
 
 
 /*! ZSTD_CCtx_refCDict() :
@@ -1050,8 +1046,11 @@ ZSTDLIB_API size_t ZSTD_CCtx_refCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict);
  *  Note 1 : Prefix buffer is referenced. It must outlive compression job.
  *  Note 2 : Referencing a prefix involves building tables, which are dependent on compression parameters.
  *           It's a CPU-heavy operation, with non-negligible impact on latency.
- *  Note 3 : it's possible to alter ZSTD_p_dictMode using ZSTD_CCtx_setParameter() */
+ *  Note 3 : By default, the prefix is treated as raw content
+ *           (ZSTD_dm_rawContent). Use ZSTD_CCtx_refPrefix_advanced() to alter
+ *           dictMode. */
 ZSTDLIB_API size_t ZSTD_CCtx_refPrefix(ZSTD_CCtx* cctx, const void* prefix, size_t prefixSize);
+ZSTDLIB_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* prefix, size_t prefixSize, ZSTD_dictMode_e dictMode);
 
 
 

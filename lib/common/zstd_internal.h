@@ -293,9 +293,6 @@ struct ZSTD_CCtx_params_s {
     int compressionLevel;
     U32 forceWindow;           /* force back-references to respect limit of
                                 * 1<<wLog, even for dictionary */
-    /* Dictionary */
-    ZSTD_dictMode_e dictMode;   /* select restricting dictionary to "rawContent"
-                                 * or "fullDict" only */
 
     /* Multithreading: used to pass parameters to mtctx */
     U32 nbThreads;
@@ -376,6 +373,7 @@ ZSTD_compressionParameters ZSTD_getCParamsFromCDict(const ZSTD_CDict* cdict);
 /* INTERNAL */
 size_t ZSTD_compressBegin_advanced_internal(ZSTD_CCtx* cctx,
                                     const void* dict, size_t dictSize,
+                                    ZSTD_dictMode_e dictMode,
                                     ZSTD_CCtx_params params,
                                     unsigned long long pledgedSrcSize);
 

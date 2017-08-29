@@ -37,13 +37,9 @@ extern "C" {
 #  define WIN32_LEAN_AND_MEAN
 #endif
 
-#ifdef ERROR
-#  undef ERROR   /* reported already defined on VS 2015 (Rich Geldreich) */
-#endif
+#undef ERROR   /* reported already defined on VS 2015 (Rich Geldreich) */
 #include <windows.h>
-#ifdef ERROR
-#  undef ERROR   /* reported already defined on VS 2015 (Rich Geldreich) */
-#endif
+#undef ERROR
 #define ERROR(name) ZSTD_ERROR(name)
 
 

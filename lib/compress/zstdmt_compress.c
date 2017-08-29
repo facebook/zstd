@@ -342,9 +342,9 @@ void ZSTDMT_compressChunk(void* jobDescription)
     } else {  /* srcStart points at reloaded section */
         if (!job->firstChunk) job->params.fParams.contentSizeFlag = 0;  /* ensure no srcSize control */
         { ZSTD_CCtx_params jobParams = job->params;
-          /* Force loading dictionary in "content-only" mode (no header analysis) */
           size_t const forceWindowError =
               ZSTD_CCtxParam_setParameter(&jobParams, ZSTD_p_forceMaxWindow, !job->firstChunk);
+          /* Force loading dictionary in "content-only" mode (no header analysis) */
           size_t const initError = ZSTD_compressBegin_advanced_internal(cctx, job->srcStart, job->dictSize, ZSTD_dm_rawContent, jobParams, job->fullFrameSize);
             if (ZSTD_isError(initError) || ZSTD_isError(forceWindowError)) {
                 job->cSize = initError;

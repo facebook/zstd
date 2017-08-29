@@ -768,7 +768,7 @@ size_t ZSTDMT_initCStream_internal(
         DEBUGLOG(4,"cdictLocal: %08X", (U32)(size_t)zcs->cdictLocal);
         ZSTD_freeCDict(zcs->cdictLocal);
         zcs->cdictLocal = ZSTD_createCDict_advanced(dict, dictSize,
-                                                    0 /* byRef */, ZSTD_dm_auto, /* note : a loadPrefix becomes an internal CDict */
+                                                    ZSTD_dlm_byCopy, ZSTD_dm_auto, /* note : a loadPrefix becomes an internal CDict */
                                                     params.cParams, zcs->cMem);
         zcs->cdict = zcs->cdictLocal;
         if (zcs->cdictLocal == NULL) return ERROR(memory_allocation);

@@ -524,13 +524,19 @@ ZSTDLIB_API size_t ZSTD_estimateCStreamSize_advanced_usingCCtxParams(const ZSTD_
 ZSTDLIB_API size_t ZSTD_estimateDStreamSize(size_t windowSize);
 ZSTDLIB_API size_t ZSTD_estimateDStreamSize_fromFrame(const void* src, size_t srcSize);
 
-/*! ZSTD_estimateCDictSize() :
+typedef enum {
+    ZSTD_dlm_byCopy = 0,      /* Copy dictionary content internally. */
+    ZSTD_dlm_byRef,           /* Reference dictionary content -- the dictionary buffer must outlives its users. */
+} ZSTD_dictLoadMethod_e;
+
+/*! ZSTD_estimate?DictSize() :
  *  ZSTD_estimateCDictSize() will bet that src size is relatively "small", and content is copied, like ZSTD_createCDict().
  *  ZSTD_estimateCStreamSize_advanced_usingCParams() makes it possible to control precisely compression parameters, like ZSTD_createCDict_advanced().
- *  Note : dictionary created "byReference" are smaller */
+ *  Note : dictionary created by reference using ZSTD_dlm_byRef are smaller
+ */
 ZSTDLIB_API size_t ZSTD_estimateCDictSize(size_t dictSize, int compressionLevel);
-ZSTDLIB_API size_t ZSTD_estimateCDictSize_advanced(size_t dictSize, ZSTD_compressionParameters cParams, unsigned byReference);
-ZSTDLIB_API size_t ZSTD_estimateDDictSize(size_t dictSize, unsigned byReference);
+ZSTDLIB_API size_t ZSTD_estimateCDictSize_advanced(size_t dictSize, ZSTD_compressionParameters cParams, ZSTD_dictLoadMethod_e dictLoadMethod);
+ZSTDLIB_API size_t ZSTD_estimateDDictSize(size_t dictSize, ZSTD_dictLoadMethod_e dictLoadMethod);
 
 
 /***************************************
@@ -564,7 +570,6 @@ ZSTDLIB_API ZSTD_CCtx* ZSTD_initStaticCCtx(void* workspace, size_t workspaceSize
  *  It is important that dictBuffer outlives CDict, it must remain read accessible throughout the lifetime of CDict */
 ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_byReference(const void* dictBuffer, size_t dictSize, int compressionLevel);
 
-
 typedef enum { ZSTD_dm_auto=0,        /* dictionary is "full" if it starts with ZSTD_MAGIC_DICTIONARY, otherwise it is "rawContent" */
                ZSTD_dm_rawContent,    /* ensures dictionary is always loaded as rawContent, even if it starts with ZSTD_MAGIC_DICTIONARY */
                ZSTD_dm_fullDict       /* refuses to load a dictionary if it does not respect Zstandard's specification */
@@ -572,7 +577,8 @@ typedef enum { ZSTD_dm_auto=0,        /* dictionary is "full" if it starts with 
 /*! ZSTD_createCDict_advanced() :
  *  Create a ZSTD_CDict using external alloc and free, and customized compression parameters */
 ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictSize,
-                                                  unsigned byReference, ZSTD_dictMode_e dictMode,
+                                                  ZSTD_dictLoadMethod_e dictLoadMethod,
+                                                  ZSTD_dictMode_e dictMode,
                                                   ZSTD_compressionParameters cParams,
                                                   ZSTD_customMem customMem);
 
@@ -592,7 +598,7 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictS
 ZSTDLIB_API ZSTD_CDict* ZSTD_initStaticCDict(
                             void* workspace, size_t workspaceSize,
                       const void* dict, size_t dictSize,
-                            unsigned byReference, ZSTD_dictMode_e dictMode,
+                            ZSTD_dictLoadMethod_e dictLoadMethod, ZSTD_dictMode_e dictMode,
                             ZSTD_compressionParameters cParams);
 
 /*! ZSTD_getCParams() :
@@ -670,7 +676,8 @@ ZSTDLIB_API ZSTD_DDict* ZSTD_createDDict_byReference(const void* dictBuffer, siz
 /*! ZSTD_createDDict_advanced() :
  *  Create a ZSTD_DDict using external alloc and free, optionally by reference */
 ZSTDLIB_API ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize,
-                                                  unsigned byReference, ZSTD_customMem customMem);
+                                                  ZSTD_dictLoadMethod_e dictLoadMethod,
+                                                  ZSTD_customMem customMem);
 
 /*! ZSTD_initStaticDDict() :
  *  Generate a digested dictionary in provided memory area.
@@ -685,7 +692,7 @@ ZSTDLIB_API ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictS
  */
 ZSTDLIB_API ZSTD_DDict* ZSTD_initStaticDDict(void* workspace, size_t workspaceSize,
                                              const void* dict, size_t dictSize,
-                                             unsigned byReference);
+                                             ZSTD_dictLoadMethod_e dictLoadMethod);
 
 /*! ZSTD_getDictID_fromDict() :
  *  Provides the dictID stored within dictionary.
@@ -1018,6 +1025,7 @@ ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, s
  */
 ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary_byReference(ZSTD_CCtx* cctx, const void* dict, size_t dictSize);
 
+
 /*! ZSTD_CCtx_refCDict() :
  *  Reference a prepared dictionary, to be used for all next compression jobs.
  *  Note that compression parameters are enforced from within CDict,
@@ -1096,7 +1104,7 @@ size_t ZSTD_compress_generic_simpleArgs (
                             ZSTD_EndDirective endOp);
 
 
-/** ZSTD_CCtx_params :
+/** ZSTD_CCtx_params
  *
  *  - ZSTD_createCCtxParams() : Create a ZSTD_CCtx_params structure
  *  - ZSTD_CCtxParam_setParameter() : Push parameters one by one into an

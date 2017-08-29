@@ -199,7 +199,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     {   ZSTD_compressionParameters const cParams = ZSTD_getCParams(1, CNBufferSize, dictSize);
         size_t const s = ZSTD_estimateCStreamSize_advanced_usingCParams(cParams)
                         /* uses ZSTD_initCStream_usingDict() */
-                       + ZSTD_estimateCDictSize_advanced(dictSize, cParams, 0);
+                       + ZSTD_estimateCDictSize_advanced(dictSize, cParams, ZSTD_dlm_byCopy);
             if (ZSTD_isError(s)) goto _output_error;
             DISPLAYLEVEL(3, "OK (%u bytes) \n", (U32)s);
     }
@@ -275,7 +275,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
         DISPLAYLEVEL(5, " (windowSize : %u) ", (U32)fhi.windowSize);
         {   size_t const s = ZSTD_estimateDStreamSize(fhi.windowSize)
                             /* uses ZSTD_initDStream_usingDict() */
-                           + ZSTD_estimateDDictSize(dictSize, 0);
+                           + ZSTD_estimateDDictSize(dictSize, ZSTD_dlm_byCopy);
             if (ZSTD_isError(s)) goto _output_error;
             DISPLAYLEVEL(3, "OK (%u bytes) \n", (U32)s);
     }   }
@@ -477,7 +477,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     DISPLAYLEVEL(3, "test%3i : ZSTD_initCStream_usingCDict_advanced with masked dictID : ", testNb++);
     {   ZSTD_compressionParameters const cParams = ZSTD_getCParams(1, CNBufferSize, dictionary.filled);
         ZSTD_frameParameters const fParams = { 1 /* contentSize */, 1 /* checksum */, 1 /* noDictID */};
-        ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dictionary.start, dictionary.filled, 1 /* byReference */, ZSTD_dm_auto, cParams, customMem);
+        ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dictionary.start, dictionary.filled, ZSTD_dlm_byRef, ZSTD_dm_auto, cParams, customMem);
         size_t const initError = ZSTD_initCStream_usingCDict_advanced(zc, cdict, fParams, CNBufferSize);
         if (ZSTD_isError(initError)) goto _output_error;
         cSize = 0;

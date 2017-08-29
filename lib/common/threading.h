@@ -37,7 +37,11 @@ extern "C" {
 #  define WIN32_LEAN_AND_MEAN
 #endif
 
+#undef ERROR   /* reported already defined on VS 2015 (Rich Geldreich) */
 #include <windows.h>
+#undef ERROR
+#define ERROR(name) ZSTD_ERROR(name)
+
 
 /* mutex */
 #define pthread_mutex_t           CRITICAL_SECTION

@@ -670,7 +670,7 @@ ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, u
     return ZSTD_adjustCParams_internal(cPar, srcSize, dictSize);
 }
 
-size_t ZSTD_estimateCCtxSize_advanced_opaque(const ZSTD_CCtx_params* params)
+size_t ZSTD_estimateCCtxSize_advanced_usingCCtxParams(const ZSTD_CCtx_params* params)
 {
     /* Estimate CCtx size is supported for single-threaded compression only. */
     if (params->nbThreads > 1) {
@@ -703,24 +703,24 @@ size_t ZSTD_estimateCCtxSize_advanced_opaque(const ZSTD_CCtx_params* params)
     }
 }
 
-size_t ZSTD_estimateCCtxSize_advanced(ZSTD_compressionParameters cParams)
+size_t ZSTD_estimateCCtxSize_advanced_usingCParams(ZSTD_compressionParameters cParams)
 {
     ZSTD_CCtx_params const params = ZSTD_makeCCtxParamsFromCParams(cParams);
-    return ZSTD_estimateCCtxSize_advanced_opaque(&params);
+    return ZSTD_estimateCCtxSize_advanced_usingCCtxParams(&params);
 }
 
 size_t ZSTD_estimateCCtxSize(int compressionLevel)
 {
     ZSTD_compressionParameters const cParams = ZSTD_getCParams(compressionLevel, 0, 0);
-    return ZSTD_estimateCCtxSize_advanced(cParams);
+    return ZSTD_estimateCCtxSize_advanced_usingCParams(cParams);
 }
 
-size_t ZSTD_estimateCStreamSize_advanced_opaque(const ZSTD_CCtx_params* params)
+size_t ZSTD_estimateCStreamSize_advanced_usingCCtxParams(const ZSTD_CCtx_params* params)
 {
     if (params->nbThreads > 1) {
         return 0;
     }
-    {   size_t const CCtxSize = ZSTD_estimateCCtxSize_advanced_opaque(params);
+    {   size_t const CCtxSize = ZSTD_estimateCCtxSize_advanced_usingCCtxParams(params);
         size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << params->cParams.windowLog);
         size_t const inBuffSize = ((size_t)1 << params->cParams.windowLog) + blockSize;
         size_t const outBuffSize = ZSTD_compressBound(blockSize) + 1;
@@ -730,15 +730,15 @@ size_t ZSTD_estimateCStreamSize_advanced_opaque(const ZSTD_CCtx_params* params)
     }
 }
 
-size_t ZSTD_estimateCStreamSize_advanced(ZSTD_compressionParameters cParams)
+size_t ZSTD_estimateCStreamSize_advanced_usingCParams(ZSTD_compressionParameters cParams)
 {
     ZSTD_CCtx_params const params = ZSTD_makeCCtxParamsFromCParams(cParams);
-    return ZSTD_estimateCStreamSize_advanced_opaque(&params);
+    return ZSTD_estimateCStreamSize_advanced_usingCCtxParams(&params);
 }
 
 size_t ZSTD_estimateCStreamSize(int compressionLevel) {
     ZSTD_compressionParameters const cParams = ZSTD_getCParams(compressionLevel, 0, 0);
-    return ZSTD_estimateCStreamSize_advanced(cParams);
+    return ZSTD_estimateCStreamSize_advanced_usingCParams(cParams);
 }
 
 static U32 ZSTD_equivalentCParams(ZSTD_compressionParameters cParams1,
@@ -3585,8 +3585,9 @@ size_t ZSTD_compress(void* dst, size_t dstCapacity, const void* src, size_t srcS
 size_t ZSTD_estimateCDictSize_advanced(size_t dictSize, ZSTD_compressionParameters cParams, unsigned byReference)
 {
     DEBUGLOG(5, "sizeof(ZSTD_CDict) : %u", (U32)sizeof(ZSTD_CDict));
-    DEBUGLOG(5, "CCtx estimate : %u", (U32)ZSTD_estimateCCtxSize_advanced(cParams));
-    return sizeof(ZSTD_CDict) + ZSTD_estimateCCtxSize_advanced(cParams)
+    DEBUGLOG(5, "CCtx estimate : %u",
+             (U32)ZSTD_estimateCCtxSize_advanced_usingCParams(cParams));
+    return sizeof(ZSTD_CDict) + ZSTD_estimateCCtxSize_advanced_usingCParams(cParams)
            + (byReference ? 0 : dictSize);
 }
 
@@ -3709,7 +3710,7 @@ ZSTD_CDict* ZSTD_initStaticCDict(void* workspace, size_t workspaceSize,
                                  unsigned byReference, ZSTD_dictMode_e dictMode,
                                  ZSTD_compressionParameters cParams)
 {
-    size_t const cctxSize = ZSTD_estimateCCtxSize_advanced(cParams);
+    size_t const cctxSize = ZSTD_estimateCCtxSize_advanced_usingCParams(cParams);
     size_t const neededSize = sizeof(ZSTD_CDict) + (byReference ? 0 : dictSize)
                             + cctxSize;
     ZSTD_CDict* const cdict = (ZSTD_CDict*) workspace;

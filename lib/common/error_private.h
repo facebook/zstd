@@ -48,9 +48,7 @@ typedef ZSTD_ErrorCode ERR_enum;
 /*-****************************************
 *  Error codes handling
 ******************************************/
-#ifdef ERROR
-#  undef ERROR   /* reported already defined on VS 2015 (Rich Geldreich) */
-#endif
+#undef ERROR   /* reported already defined on VS 2015 (Rich Geldreich) */
 #define ERROR(name) ZSTD_ERROR(name)
 #define ZSTD_ERROR(name) ((size_t)-PREFIX(name))
 

@@ -219,7 +219,9 @@ void POOL_add(void* ctxVoid, POOL_function function, void *opaque) {
 /* No multi-threading support */
 
 /* We don't need any data, but if it is empty malloc() might return NULL. */
-struct POOL_ctx_s {};
+struct POOL_ctx_s {
+    int dummy;
+};
 static POOL_ctx g_ctx;
 
 POOL_ctx* POOL_create(size_t numThreads, size_t queueSize) {

@@ -122,7 +122,7 @@ struct ZSTD_CCtx_s {
     /* Dictionary */
     ZSTD_CDict* cdictLocal;
     const ZSTD_CDict* cdict;
-    ZSTD_prefixDict prefixDict;
+    ZSTD_prefixDict prefixDict;   /* single-usage dictionary */
 
     /* Multi-threading */
     ZSTDMT_CCtx* mtctx;
@@ -342,30 +342,16 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
     case ZSTD_p_nbThreads:
         if (value==0) return 0;
         DEBUGLOG(5, " setting nbThreads : %u", value);
-#ifndef ZSTD_MULTITHREAD
-        if (value > 1) return ERROR(parameter_unsupported);
-#endif
-        if ((value>1) && (cctx->requestedParams.nbThreads != value)) {
-            if (cctx->staticSize)  /* MT not compatible with static alloc */
-                return ERROR(parameter_unsupported);
-            ZSTDMT_freeCCtx(cctx->mtctx);
-            cctx->requestedParams.nbThreads = 1;
-            cctx->mtctx = ZSTDMT_createCCtx_advanced(value, cctx->customMem);
-            if (cctx->mtctx == NULL) return ERROR(memory_allocation);
+        if (value > 1 && cctx->staticSize) {
+            return ERROR(parameter_unsupported);  /* MT not compatible with static alloc */
         }
-
-        /* Need to initialize overlapSizeLog */
-        return ZSTDMT_initializeCCtxParameters(&cctx->requestedParams, value);
+        return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
     case ZSTD_p_jobSize:
-        if (cctx->requestedParams.nbThreads <= 1) return ERROR(parameter_unsupported);
-        assert(cctx->mtctx != NULL);
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
     case ZSTD_p_overlapSizeLog:
         DEBUGLOG(5, " setting overlap with nbThreads == %u", cctx->requestedParams.nbThreads);
-        if (cctx->requestedParams.nbThreads <= 1) return ERROR(parameter_unsupported);
-        assert(cctx->mtctx != NULL);
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
     default: return ERROR(parameter_unsupported);
@@ -453,7 +439,7 @@ size_t ZSTD_CCtxParam_setParameter(
         return 0;
 
     case ZSTD_p_nbThreads :
-        if (value == 0) { return 0; }
+        if (value == 0) return 0;
 #ifndef ZSTD_MULTITHREAD
         if (value > 1) return ERROR(parameter_unsupported);
 #endif
@@ -481,7 +467,8 @@ size_t ZSTD_CCtxParam_setParameter(
  */
 size_t ZSTD_CCtx_applyCCtxParams(ZSTD_CCtx* cctx, const ZSTD_CCtx_params* params)
 {
-    if (cctx->cdict) { return ERROR(stage_wrong); }
+    if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
+    if (cctx->cdict) return ERROR(stage_wrong);
 
     /* Assume the compression and frame parameters are validated */
     cctx->requestedParams.cParams = params->cParams;
@@ -498,7 +485,6 @@ size_t ZSTD_CCtx_applyCCtxParams(ZSTD_CCtx* cctx, const ZSTD_CCtx_params* params
         CHECK_F( ZSTD_CCtx_setParameter(cctx, ZSTD_p_jobSize, params->jobSize) );
         CHECK_F( ZSTD_CCtx_setParameter(
                     cctx, ZSTD_p_overlapSizeLog, params->overlapSizeLog) );
-
     }
 
     /* customMem is used only for create/free params and can be ignored */
@@ -4162,11 +4148,19 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
 
 #ifdef ZSTD_MULTITHREAD
         if (params.nbThreads > 1) {
+            if (cctx->mtctx == NULL || cctx->appliedParams.nbThreads != params.nbThreads) {
+                ZSTDMT_freeCCtx(cctx->mtctx);
+                cctx->mtctx = ZSTDMT_createCCtx_advanced(params.nbThreads, cctx->customMem);
+                if (cctx->mtctx == NULL) return ERROR(memory_allocation);
+            }
+
             DEBUGLOG(4, "call ZSTDMT_initCStream_internal as nbThreads=%u", params.nbThreads);
+
             CHECK_F( ZSTDMT_initCStream_internal(
                              cctx->mtctx, prefixDict.dict, prefixDict.dictSize,
                              cctx->cdict, params, cctx->pledgedSrcSizePlusOne-1) );
             cctx->streamStage = zcss_load;
+            cctx->appliedParams.nbThreads = params.nbThreads;
         } else
 #endif
         {
@@ -4178,7 +4172,8 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
 
     /* compression stage */
 #ifdef ZSTD_MULTITHREAD
-    if (cctx->requestedParams.nbThreads > 1) {
+    if (cctx->appliedParams.nbThreads > 1) {
+        assert(cctx->mtctx != NULL);
         size_t const flushMin = ZSTDMT_compressStream_generic(cctx->mtctx, output, input, endOp);
         DEBUGLOG(5, "ZSTDMT_compressStream_generic : %u", (U32)flushMin);
         if ( ZSTD_isError(flushMin)

@@ -465,7 +465,8 @@ size_t ZSTD_CCtxParam_setParameter(
  *
  * Pledged srcSize is treated as unknown.
  */
-size_t ZSTD_CCtx_applyCCtxParams(ZSTD_CCtx* cctx, const ZSTD_CCtx_params* params)
+size_t ZSTD_CCtx_setParametersUsingCCtxParams(
+        ZSTD_CCtx* cctx, const ZSTD_CCtx_params* params)
 {
     if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
     if (cctx->cdict) return ERROR(stage_wrong);

@@ -1381,7 +1381,7 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
 
                 /* Apply parameters */
                 if (useOpaqueAPI) {
-                    CHECK_Z (ZSTD_CCtx_applyCCtxParams(zc, cctxParams) );
+                    CHECK_Z (ZSTD_CCtx_setParametersUsingCCtxParams(zc, cctxParams) );
                 }
 
                 if (FUZ_rand(&lseed) & 1) {
@@ -1393,8 +1393,8 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
                     if (dict && dictSize) {
                         /* test that compression parameters are rejected (correctly) after loading a non-NULL dictionary */
                         if (useOpaqueAPI) {
-                            size_t const setError = ZSTD_CCtx_applyCCtxParams(zc, cctxParams);
-                            CHECK(!ZSTD_isError(setError), "ZSTD_CCtx_applyCCtxParams should have failed");
+                            size_t const setError = ZSTD_CCtx_setParametersUsingCCtxParams(zc, cctxParams);
+                            CHECK(!ZSTD_isError(setError), "ZSTD_CCtx_setParametersUsingCCtxParams should have failed");
                         } else {
                             size_t const setError = ZSTD_CCtx_setParameter(zc, ZSTD_p_windowLog, cParams.windowLog-1);
                             CHECK(!ZSTD_isError(setError), "ZSTD_CCtx_setParameter should have failed");

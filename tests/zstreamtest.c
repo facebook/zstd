@@ -149,6 +149,8 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     U32 testNb = 1;
     ZSTD_CStream* zc = ZSTD_createCStream_advanced(customMem);
     ZSTD_DStream* zd = ZSTD_createDStream_advanced(customMem);
+    ZSTDMT_CCtx* mtctx = ZSTDMT_createCCtx(2);
+
     ZSTD_inBuffer  inBuff, inBuff2;
     ZSTD_outBuffer outBuff;
     buffer_t dictionary = g_nullBuffer;
@@ -605,6 +607,25 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     if (ZSTD_findDecompressedSize(compressedBuffer, cSize) != ZSTD_CONTENTSIZE_UNKNOWN) goto _output_error;
     DISPLAYLEVEL(3, "OK \n");
 
+    /* Basic multithreading compression test */
+    DISPLAYLEVEL(3, "test%3i : compress %u bytes with multiple threads : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
+    { ZSTD_parameters const params = ZSTD_getParams(1, 0, 0);
+      size_t const r = ZSTDMT_initCStream_advanced(mtctx, CNBuffer, dictSize, params, CNBufferSize);
+      if (ZSTD_isError(r)) goto _output_error; }
+    outBuff.dst = (char*)(compressedBuffer);
+    outBuff.size = compressedBufferSize;
+    outBuff.pos = 0;
+    inBuff.src = CNBuffer;
+    inBuff.size = CNBufferSize;
+    inBuff.pos = 0;
+    { size_t const r = ZSTDMT_compressStream_generic(mtctx, &outBuff, &inBuff, ZSTD_e_end);
+      if (ZSTD_isError(r)) goto _output_error; }
+    if (inBuff.pos != inBuff.size) goto _output_error;   /* entire input should be consumed */
+    { size_t const r = ZSTDMT_endStream(mtctx, &outBuff);
+      if (r != 0) goto _output_error; }  /* error, or some data not flushed */
+    DISPLAYLEVEL(3, "OK \n");
+
+
     /* Overlen overwriting window data bug */
     DISPLAYLEVEL(3, "test%3i : wildcopy doesn't overwrite potential match data : ", testNb++);
     {   /* This test has a window size of 1024 bytes and consists of 3 blocks:
@@ -643,6 +664,7 @@ _end:
     FUZ_freeDictionary(dictionary);
     ZSTD_freeCStream(zc);
     ZSTD_freeDStream(zd);
+    ZSTDMT_freeCCtx(mtctx);
     free(CNBuffer);
     free(compressedBuffer);
     free(decodedBuffer);

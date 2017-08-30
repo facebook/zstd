@@ -98,7 +98,7 @@ static size_t cctxParamRoundTripTest(void* resultBuff, size_t resultBuffCapacity
 
 
     /* Apply parameters */
-    CHECK_Z( ZSTD_CCtx_applyCCtxParams(cctx, cctxParams) );
+    CHECK_Z( ZSTD_CCtx_setParametersUsingCCtxParams(cctx, cctxParams) );
 
     CHECK_Z (ZSTD_compress_generic(cctx, &outBuffer, &inBuffer, ZSTD_e_end) );
 

@@ -191,7 +191,7 @@ static void ZSTDMT_releaseBuffer(ZSTDMT_bufferPool* bufPool, buffer_t buf)
 static ZSTD_CCtx_params ZSTDMT_makeJobCCtxParams(ZSTD_CCtx_params const params)
 {
     ZSTD_CCtx_params jobParams;
-    memset(&jobParams, 0, sizeof(ZSTD_CCtx_params));
+    memset(&jobParams, 0, sizeof(jobParams));
 
     jobParams.cParams = params.cParams;
     jobParams.fParams = params.fParams;
@@ -737,7 +737,8 @@ static void ZSTDMT_waitForAllJobsCompleted(ZSTDMT_CCtx* zcs)
 }
 
 size_t ZSTDMT_initCStream_internal(
-        ZSTDMT_CCtx* zcs, const void* dict, size_t dictSize,
+        ZSTDMT_CCtx* zcs,
+        const void* dict, size_t dictSize, ZSTD_dictMode_e dictMode,
         const ZSTD_CDict* cdict, ZSTD_CCtx_params params,
         unsigned long long pledgedSrcSize)
 {
@@ -768,7 +769,7 @@ size_t ZSTDMT_initCStream_internal(
         DEBUGLOG(4,"cdictLocal: %08X", (U32)(size_t)zcs->cdictLocal);
         ZSTD_freeCDict(zcs->cdictLocal);
         zcs->cdictLocal = ZSTD_createCDict_advanced(dict, dictSize,
-                                                    ZSTD_dlm_byCopy, ZSTD_dm_rawContent, /* note : a loadPrefix becomes an internal CDict */
+                                                    ZSTD_dlm_byCopy, dictMode, /* note : a loadPrefix becomes an internal CDict */
                                                     params.cParams, zcs->cMem);
         zcs->cdict = zcs->cdictLocal;
         if (zcs->cdictLocal == NULL) return ERROR(memory_allocation);
@@ -807,7 +808,7 @@ size_t ZSTDMT_initCStream_advanced(ZSTDMT_CCtx* mtctx,
     DEBUGLOG(5, "ZSTDMT_initCStream_advanced");
     cctxParams.cParams = params.cParams;
     cctxParams.fParams = params.fParams;
-    return ZSTDMT_initCStream_internal(mtctx, dict, dictSize, NULL,
+    return ZSTDMT_initCStream_internal(mtctx, dict, dictSize, ZSTD_dm_auto, NULL,
                                        cctxParams, pledgedSrcSize);
 }
 
@@ -820,7 +821,7 @@ size_t ZSTDMT_initCStream_usingCDict(ZSTDMT_CCtx* mtctx,
     cctxParams.cParams = ZSTD_getCParamsFromCDict(cdict);
     cctxParams.fParams = fParams;
     if (cdict==NULL) return ERROR(dictionary_wrong);   /* method incompatible with NULL cdict */
-    return ZSTDMT_initCStream_internal(mtctx, NULL, 0 /*dictSize*/, cdict,
+    return ZSTDMT_initCStream_internal(mtctx, NULL, 0 /*dictSize*/, ZSTD_dm_auto, cdict,
                                        cctxParams, pledgedSrcSize);
 }
 
@@ -831,7 +832,7 @@ size_t ZSTDMT_resetCStream(ZSTDMT_CCtx* zcs, unsigned long long pledgedSrcSize)
 {
     if (zcs->params.nbThreads==1)
         return ZSTD_resetCStream(zcs->cctxPool->cctx[0], pledgedSrcSize);
-    return ZSTDMT_initCStream_internal(zcs, NULL, 0, 0, zcs->params,
+    return ZSTDMT_initCStream_internal(zcs, NULL, 0, ZSTD_dm_auto, 0, zcs->params,
                                        pledgedSrcSize);
 }
 
@@ -840,7 +841,7 @@ size_t ZSTDMT_initCStream(ZSTDMT_CCtx* zcs, int compressionLevel) {
     ZSTD_CCtx_params cctxParams = zcs->params;
     cctxParams.cParams = params.cParams;
     cctxParams.fParams = params.fParams;
-    return ZSTDMT_initCStream_internal(zcs, NULL, 0, NULL, cctxParams, 0);
+    return ZSTDMT_initCStream_internal(zcs, NULL, 0, ZSTD_dm_auto, NULL, cctxParams, 0);
 }
 
 

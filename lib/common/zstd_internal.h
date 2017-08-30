@@ -352,12 +352,10 @@ void ZSTD_invalidateRepCodes(ZSTD_CCtx* cctx);
  *  expects params to be valid.
  *  must receive dict, or cdict, or none, but not both.
  *  @return : 0, or an error code */
-size_t ZSTD_initCStream_internal(
-        ZSTD_CStream* zcs,
-        const void* dict, size_t dictSize,
-        const ZSTD_CDict* cdict,
-        ZSTD_CCtx_params  params,
-        unsigned long long pledgedSrcSize);
+size_t ZSTD_initCStream_internal(ZSTD_CStream* zcs,
+                     const void* dict, size_t dictSize,
+                     const ZSTD_CDict* cdict,
+                     ZSTD_CCtx_params  params, unsigned long long pledgedSrcSize);
 
 /*! ZSTD_compressStream_generic() :
  *  Private use only. To be called from zstdmt_compress.c in single-thread mode. */
@@ -370,14 +368,16 @@ size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
  *  as the name implies */
 ZSTD_compressionParameters ZSTD_getCParamsFromCDict(const ZSTD_CDict* cdict);
 
-/* INTERNAL */
+/* ZSTD_compressBegin_advanced_internal() :
+ * Private use only. To be called from zstdmt_compress.c. */
 size_t ZSTD_compressBegin_advanced_internal(ZSTD_CCtx* cctx,
                                     const void* dict, size_t dictSize,
                                     ZSTD_dictMode_e dictMode,
                                     ZSTD_CCtx_params params,
                                     unsigned long long pledgedSrcSize);
 
-/* INTERNAL */
+/* ZSTD_compress_advanced_internal() :
+ * Private use only. To be called from zstdmt_compress.c. */
 size_t ZSTD_compress_advanced_internal(ZSTD_CCtx* cctx,
                                        void* dst, size_t dstCapacity,
                                  const void* src, size_t srcSize,

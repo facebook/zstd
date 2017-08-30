@@ -810,6 +810,26 @@ static int basicUnitTests(U32 seed, double compressibility)
         }
         DISPLAYLEVEL(4, "OK \n");
 
+        DISPLAYLEVEL(4, "test%3i : Loading rawContent starting with dict header w/ ZSTD_dm_auto should fail", testNb++);
+        {
+            size_t ret;
+            MEM_writeLE32(dictBuffer+2, ZSTD_MAGIC_DICTIONARY);
+            ret = ZSTD_CCtx_loadDictionary_advanced(
+                    cctx, (const char*)dictBuffer+2, dictSize-2, ZSTD_dlm_byRef, ZSTD_dm_auto);
+            if (!ZSTD_isError(ret)) goto _output_error;
+        }
+        DISPLAYLEVEL(4, "OK \n");
+
+        DISPLAYLEVEL(4, "test%3i : Loading rawContent starting with dict header w/ ZSTD_dm_rawContent should pass", testNb++);
+        {
+            size_t ret;
+            MEM_writeLE32(dictBuffer+2, ZSTD_MAGIC_DICTIONARY);
+            ret = ZSTD_CCtx_loadDictionary_advanced(
+                    cctx, (const char*)dictBuffer+2, dictSize-2, ZSTD_dlm_byRef, ZSTD_dm_rawContent);
+            if (ZSTD_isError(ret)) goto _output_error;
+        }
+        DISPLAYLEVEL(4, "OK \n");
+
         ZSTD_freeCCtx(cctx);
         free(dictBuffer);
         free(samplesSizes);

@@ -4174,7 +4174,6 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
     /* compression stage */
 #ifdef ZSTD_MULTITHREAD
     if (cctx->appliedParams.nbThreads > 1) {
-        assert(cctx->mtctx != NULL);
         size_t const flushMin = ZSTDMT_compressStream_generic(cctx->mtctx, output, input, endOp);
         DEBUGLOG(5, "ZSTDMT_compressStream_generic : %u", (U32)flushMin);
         if ( ZSTD_isError(flushMin)

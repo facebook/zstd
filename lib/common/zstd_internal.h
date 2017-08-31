@@ -281,11 +281,10 @@ typedef struct {
 
 typedef struct {
     ldmEntry_t* hashTable;
-    BYTE* bucketOffsets;
-    U32 ldmEnable;          /* 1 if enable long distance matching */
+    BYTE* bucketOffsets;    /* next position in bucket to insert entry */
     U32 hashLog;            /* log size of hashTable */
     U32 bucketLog;          /* log number of buckets, at most 4 */
-    U32 hashEveryLog;
+    U32 hashEveryLog;       /* log number of entries to skip */
 } ldmState_t;
 
 typedef struct {
@@ -312,6 +311,8 @@ struct ZSTD_CCtx_params_s {
     U32 nbThreads;
     unsigned jobSize;
     unsigned overlapSizeLog;
+
+    U32 enableLdm;    /* 1 if enable long distance matching */
 
     /* For use with createCCtxParams() and freeCCtxParams() only */
     ZSTD_customMem customMem;

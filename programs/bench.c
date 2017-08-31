@@ -269,12 +269,12 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
 #ifdef ZSTD_NEWAPI
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_nbThreads, g_nbThreads);
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_compressionLevel, cLevel);
+                    ZSTD_CCtx_setParameter(ctx, ZSTD_p_longDistanceMatching, g_ldmFlag);
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_windowLog, comprParams->windowLog);
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_chainLog, comprParams->chainLog);
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_searchLog, comprParams->searchLog);
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_minMatch, comprParams->searchLength);
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_targetLength, comprParams->targetLength);
-                    ZSTD_CCtx_setParameter(ctx, ZSTD_p_longDistanceMatching, g_ldmFlag);
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_compressionStrategy, comprParams->strategy);
                     ZSTD_CCtx_loadDictionary(ctx, dictBuffer, dictBufferSize);
 #else

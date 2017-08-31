@@ -440,6 +440,8 @@ static int basicUnitTests(U32 seed, double compressibility)
         free(staticDCtxBuffer);
     }
 
+
+
     /* ZSTDMT simple MT compression test */
     DISPLAYLEVEL(4, "test%3i : create ZSTDMT CCtx : ", testNb++);
     {   ZSTDMT_CCtx* mtctx = ZSTDMT_createCCtx(2);
@@ -1340,7 +1342,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
             dictSize = FUZ_rLogLength(&lseed, dictLog);   /* needed also for decompression */
             dict = srcBuffer + (FUZ_rand(&lseed) % (srcBufferSize - dictSize));
 
-
+            CHECK_Z ( ZSTD_CCtx_setParameter(refCtx, ZSTD_p_longDistanceMatching, FUZ_rand(&lseed)&255) );
             if (FUZ_rand(&lseed) & 0xF) {
                 CHECK_Z ( ZSTD_compressBegin_usingDict(refCtx, dict, dictSize, cLevel) );
             } else {
@@ -1349,7 +1351,6 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
                                                     !(FUZ_rand(&lseed)&3) /* contentChecksumFlag*/,
                                                     0 /*NodictID*/ };   /* note : since dictionary is fake, dictIDflag has no impact */
                 ZSTD_parameters const p = FUZ_makeParams(cPar, fPar);
-
                 CHECK_Z ( ZSTD_compressBegin_advanced(refCtx, dict, dictSize, p, 0) );
             }
             CHECK_Z( ZSTD_copyCCtx(ctx, refCtx, 0) );

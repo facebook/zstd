@@ -44,10 +44,6 @@ ZSTD_FILES  := $(ZSTDDECOMP_FILES) $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES)
 ZBUFF_FILES := $(ZSTDDIR)/deprecated/*.c
 ZDICT_FILES := $(ZSTDDIR)/dictBuilder/*.c
 
-ZSTD_OBJ  := $(patsubst %.c,%.o, $(wildcard $(ZSTD_FILES)) )
-ZBUFF_OBJ := $(patsubst %.c,%.o, $(wildcard $(ZBUFF_FILES)) )
-ZDICT_OBJ := $(patsubst %.c,%.o, $(wildcard $(ZDICT_FILES)) )
-
 
 # Define *.exe as extension for Windows systems
 ifneq (,$(filter Windows%,$(OS)))
@@ -75,7 +71,7 @@ all: fullbench fuzzer zstreamtest paramgrill datagen decodecorpus
 
 all32: fullbench32 fuzzer32 zstreamtest32
 
-allnothread: fullbench fuzzer paramgrill datagen  decodecorpus
+allnothread: fullbench fuzzer paramgrill datagen decodecorpus
 
 dll: fuzzer-dll zstreamtest-dll
 
@@ -89,7 +85,7 @@ zstd-nolegacy:
 	$(MAKE) -C $(PRGDIR) $@
 
 gzstd:
-	$(MAKE) -C $(PRGDIR) $@
+	$(MAKE) -C $(PRGDIR) zstd HAVE_ZLIB=1
 
 fullbench32: CPPFLAGS += -m32
 fullbench fullbench32 : CPPFLAGS += $(MULTITHREAD_CPP)
@@ -190,8 +186,8 @@ else
 	$(CC) $(FLAGS) $^ -o $@$(EXT) -Wl,-rpath=$(ZSTDDIR) $(ZSTDDIR)/libzstd.so
 endif
 
-poolTests  : poolTests.c $(ZSTDDIR)/common/pool.c $(ZSTDDIR)/common/threading.c
-	$(CC)    $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
+poolTests : poolTests.c $(ZSTDDIR)/common/pool.c $(ZSTDDIR)/common/threading.c $(ZSTDDIR)/common/zstd_common.c $(ZSTDDIR)/common/error_private.c
+	$(CC) $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
 
 namespaceTest:
 	if $(CC) namespaceTest.c ../lib/common/xxhash.c -o $@ ; then echo compilation should fail; exit 1 ; fi
@@ -282,13 +278,13 @@ test-zstd-nolegacy: ZSTD = $(PRGDIR)/zstd-nolegacy
 test-zstd-nolegacy: zstd-nolegacy zstd-playTests
 
 test-gzstd: gzstd
-	$(PRGDIR)/zstd README.md test-zstd-speed.py
-	gzip README.md test-zstd-speed.py
+	$(PRGDIR)/zstd -f README.md test-zstd-speed.py
+	gzip -f README.md test-zstd-speed.py
 	cat README.md.zst test-zstd-speed.py.gz >zstd_gz.zst
 	cat README.md.gz test-zstd-speed.py.zst >gz_zstd.gz
-	$(PRGDIR)/zstd -d README.md.gz -o README2.md
-	$(PRGDIR)/zstd -d README.md.gz test-zstd-speed.py.gz
-	$(PRGDIR)/zstd -d zstd_gz.zst gz_zstd.gz
+	$(PRGDIR)/zstd -df README.md.gz -o README2.md
+	$(PRGDIR)/zstd -df README.md.gz test-zstd-speed.py.gz
+	$(PRGDIR)/zstd -df zstd_gz.zst gz_zstd.gz
 	$(DIFF) -q zstd_gz gz_zstd
 	echo Hello World ZSTD | $(PRGDIR)/zstd -c - >hello.zst
 	echo Hello World GZIP | gzip -c - >hello.gz
@@ -296,6 +292,7 @@ test-gzstd: gzstd
 	cat hello.zst hello.gz hello.txt >hello_zst_gz_txt.gz
 	$(PRGDIR)/zstd -dcf hello.*
 	$(PRGDIR)/zstd -dcf - <hello_zst_gz_txt.gz
+	$(RM) *.gz *.zst README2.md gz_zstd zstd_gz hello.txt
 
 test-fullbench: fullbench datagen
 	$(QEMU_SYS) ./fullbench -i1

@@ -1,7 +1,8 @@
 v1.3.2
+license : changed /examples license to BSD + GPLv2
+license : fix a few header files to reflect new license (#825)
 fix : a rare compression bug when compression generates very large distances (only possible at --ultra -22)
 build: better compatibility with reproducible builds, by Bernhard M. Wiedemann (@bmwiedemann) (#818)
-changed : examples license changed to BSD + GPLv2
 
 v1.3.1
 New license : BSD + GPLv2

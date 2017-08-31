@@ -48,6 +48,7 @@ grillResults.txt
 _*
 tmp*
 *.zst
+*.gz
 result
 out
 

@@ -2,9 +2,9 @@
  * Copyright (c) 2017-present, Facebook, Inc.
  * All rights reserved.
  *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under both the BSD-style license (found in the
+ * LICENSE file in the root directory of this source tree) and the GPLv2 (found
+ * in the COPYING file in the root directory of this source tree).
  */
 
 /// Zstandard educational decoder implementation
@@ -1289,7 +1289,7 @@ static void execute_sequences(frame_context_t *const ctx, ostream_t *const out,
     // Copy any leftover literals
     {
         size_t len = IO_istream_len(&litstream);
-        copy_literals(len, &litstream, out); 
+        copy_literals(len, &litstream, out);
         total_output += len;
     }
 

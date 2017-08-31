@@ -1,12 +1,10 @@
-# ##########################################################################
+# ################################################################
 # Copyright (c) 2015-present, Yann Collet, Facebook, Inc.
 # All rights reserved.
 #
-# This Makefile is validated for Linux, macOS, *BSD, Hurd, Solaris, MSYS2 targets
-#
-# This source code is licensed under the BSD-style license found in the
-# LICENSE file in the root directory of this source tree. An additional grant
-# of patent rights can be found in the PATENTS file in the same directory.
+# This source code is licensed under both the BSD-style license (found in the
+# LICENSE file in the root directory of this source tree) and the GPLv2 (found
+# in the COPYING file in the root directory of this source tree).
 # ##########################################################################
 # zstd : Command Line Utility, supporting gzip-like arguments
 # zstd32 : Same as zstd, but forced to compile in 32-bits mode

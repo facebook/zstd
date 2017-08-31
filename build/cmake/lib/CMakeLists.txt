@@ -1,13 +1,10 @@
 # ################################################################
-# * Copyright (c) 2014-present, Yann Collet, Facebook, Inc.
-# * All rights reserved.
-# *
-# * This source code is licensed under the BSD-style license found in the
-# * LICENSE file in the root directory of this source tree. An additional grant
-# * of patent rights can be found in the PATENTS file in the same directory.
+# Copyright (c) 2015-present, Yann Collet, Facebook, Inc.
+# All rights reserved.
 #
-# You can contact the author at :
-#  - zstd homepage : http://www.zstd.net/
+# This source code is licensed under both the BSD-style license (found in the
+# LICENSE file in the root directory of this source tree) and the GPLv2 (found
+# in the COPYING file in the root directory of this source tree).
 # ################################################################
 
 PROJECT(libzstd)
@@ -151,10 +148,10 @@ IF (UNIX)
 ENDIF (UNIX)
 
 # install target
-INSTALL(FILES 
-    ${LIBRARY_DIR}/zstd.h 
-    ${LIBRARY_DIR}/deprecated/zbuff.h 
-    ${LIBRARY_DIR}/dictBuilder/zdict.h 
+INSTALL(FILES
+    ${LIBRARY_DIR}/zstd.h
+    ${LIBRARY_DIR}/deprecated/zbuff.h
+    ${LIBRARY_DIR}/dictBuilder/zdict.h
     ${LIBRARY_DIR}/common/zstd_errors.h
     DESTINATION "include")
 

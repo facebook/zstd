@@ -1,10 +1,10 @@
 # ################################################################
-# Copyright (c) 2016-present, Facebook, Inc.
+# Copyright (c) 2017-present, Facebook, Inc.
 # All rights reserved.
 #
-# This source code is licensed under the BSD-style license found in the
-# LICENSE file in the root directory of this source tree. An additional grant
-# of patent rights can be found in the PATENTS file in the same directory.
+# This source code is licensed under both the BSD-style license (found in the
+# LICENSE file in the root directory of this source tree) and the GPLv2 (found
+# in the COPYING file in the root directory of this source tree).
 # ################################################################
 
 # This Makefile presumes libzstd is installed, using `sudo make install`
@@ -25,8 +25,8 @@ LDFLAGS += -lzstd
 
 default: all
 
-all: ldm 
-	
+all: ldm
+
 ldm: ldm_common.c ldm.c main.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
@@ -34,4 +34,3 @@ clean:
 	@rm -f core *.o tmp* result* *.ldm *.ldm.dec \
 	ldm
 	@echo Cleaning completed
-

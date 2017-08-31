@@ -21,6 +21,7 @@ symbols
 legacy
 decodecorpus
 pool
+poolTests
 invalidDictionaries
 
 # Tmp test directory
@@ -48,6 +49,7 @@ grillResults.txt
 _*
 tmp*
 *.zst
+*.gz
 result
 out
 

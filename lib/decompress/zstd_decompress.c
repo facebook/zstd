@@ -344,7 +344,11 @@ size_t ZSTD_getFrameHeader(ZSTD_frameHeader* zfhPtr, const void* src, size_t src
             case 2 : frameContentSize = MEM_readLE32(ip+pos); break;
             case 3 : frameContentSize = MEM_readLE64(ip+pos); break;
         }
-        if (singleSegment) windowSize = frameContentSize;
+        if (singleSegment) {
+            if (frameContentSize > ZSTD_MAXWINDOWSIZE_DEFAULT)
+                return ERROR(frameParameter_windowTooLarge);
+            windowSize = frameContentSize;
+        }
 
         zfhPtr->frameType = ZSTD_frame;
         zfhPtr->frameContentSize = frameContentSize;

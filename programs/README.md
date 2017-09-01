@@ -3,43 +3,53 @@ Command Line Interface for Zstandard library
 
 Command Line Interface (CLI) can be created using the `make` command without any additional parameters.
 There are however other Makefile targets that create different variations of CLI:
-- `zstd` : default CLI supporting gzip-like arguments; includes dictionary builder, benchmark, and support for decompression of legacy zstd versions
-- `zstd32` : Same as `zstd`, but forced to compile in 32-bits mode
-- `zstd_nolegacy` : Same as `zstd` except of support for decompression of legacy zstd versions
-- `zstd-small` : CLI optimized for minimal size; without dictionary builder, benchmark, and support for decompression of legacy zstd versions
-- `zstd-compress` : compressor-only version of CLI; without dictionary builder, benchmark, and support for decompression of legacy zstd versions
-- `zstd-decompress` : decompressor-only version of CLI; without dictionary builder, benchmark, and support for decompression of legacy zstd versions
+- `zstd` : default CLI supporting gzip-like arguments; includes dictionary builder, benchmark, and support for decompression of legacy zstd formats
+- `zstd_nolegacy` : Same as `zstd` but without support for legacy zstd formats
+- `zstd-small` : CLI optimized for minimal size; no dictionary builder, no benchmark, and no support for legacy zstd formats
+- `zstd-compress` : version of CLI which can only compress into zstd format
+- `zstd-decompress` : version of CLI which can only decompress zstd format
 
 
 #### Compilation variables
-`zstd` tries to detect and use the following features automatically :
+`zstd` scope can be altered by modifying the following compilation variables :
 
 - __HAVE_THREAD__ : multithreading is automatically enabled when `pthread` is detected.
-  It's possible to disable multithread support, by either compiling `zstd-nomt` target or using HAVE_THREAD=0 variable.
+  It's possible to disable multithread support, by setting HAVE_THREAD=0 .
   Example : make zstd HAVE_THREAD=0
   It's also possible to force compilation with multithread support, using HAVE_THREAD=1.
   In which case, linking stage will fail if `pthread` library cannot be found.
   This might be useful to prevent silent feature disabling.
 
 - __HAVE_ZLIB__ : `zstd` can compress and decompress files in `.gz` format.
-  This is done through command `--format=gzip`.
+  This is ordered through command `--format=gzip`.
   Alternatively, symlinks named `gzip` or `gunzip` will mimic intended behavior.
   `.gz` support is automatically enabled when `zlib` library is detected at build time.
-  It's possible to disable `.gz` support, by either compiling `zstd-nogz` target or using HAVE_ZLIB=0 variable.
+  It's possible to disable `.gz` support, by setting HAVE_ZLIB=0.
   Example : make zstd HAVE_ZLIB=0
   It's also possible to force compilation with zlib support, using HAVE_ZLIB=1.
   In which case, linking stage will fail if `zlib` library cannot be found.
   This might be useful to prevent silent feature disabling.
 
 - __HAVE_LZMA__ : `zstd` can compress and decompress files in `.xz` and `.lzma` formats.
-  This is done through commands `--format=xz` and `--format=lzma` respectively.
+  This is ordered through commands `--format=xz` and `--format=lzma` respectively.
   Alternatively, symlinks named `xz`, `unxz`, `lzma`, or `unlzma` will mimic intended behavior.
   `.xz` and `.lzma` support is automatically enabled when `lzma` library is detected at build time.
-  It's possible to disable `.xz` and `.lzma` support, by either compiling `zstd-noxz` target or using HAVE_LZMA=0 variable.
+  It's possible to disable `.xz` and `.lzma` support, by setting HAVE_LZMA=0 .
   Example : make zstd HAVE_LZMA=0
   It's also possible to force compilation with lzma support, using HAVE_LZMA=1.
   In which case, linking stage will fail if `lzma` library cannot be found.
   This might be useful to prevent silent feature disabling.
+
+- __ZSTD_LEGACY_SUPPORT__ : `zstd` can decompress files compressed by older versions of `zstd`.
+  Starting v0.8.0, all versions of `zstd` produce frames compliant with the [specification](../doc/zstd_compression_format.md), and are therefore compatible.
+  But older versions (< v0.8.0) produced different, incompatible, frames.
+  By default, `zstd` supports decoding legacy formats >= v0.4.0 (`ZSTD_LEGACY_SUPPORT=4`).
+  This can be altered by modifying this compilation variable.
+  `ZSTD_LEGACY_SUPPORT=1` means "support all formats >= v0.1.0".
+  `ZSTD_LEGACY_SUPPORT=2` means "support all formats >= v0.2.0", and so on.
+  `ZSTD_LEGACY_SUPPORT=0` means _DO NOT_ support any legacy format.
+  if `ZSTD_LEGACY_SUPPORT >= 8`, it's the same as `0`, since there is no legacy format after `7`.
+  Note : `zstd` only supports decoding older formats, and cannot generate any legacy format.
 
 
 #### Aggregation of parameters
@@ -61,7 +71,7 @@ will rely more and more on previously decoded content to compress the rest of th
 
 Usage of the dictionary builder and created dictionaries with CLI:
 
-1. Create the dictionary : `zstd --train FullPathToTrainingSet/* -o dictionaryName`
+1. Create the dictionary : `zstd --train PathToTrainingSet/* -o dictionaryName`
 2. Compress with the dictionary: `zstd FILE -D dictionaryName`
 3. Decompress with the dictionary: `zstd --decompress FILE.zst -D dictionaryName`
 
@@ -70,8 +80,8 @@ Usage of the dictionary builder and created dictionaries with CLI:
 CLI includes in-memory compression benchmark module for zstd.
 The benchmark is conducted using given filenames. The files are read into memory and joined together.
 It makes benchmark more precise as it eliminates I/O overhead.
-Many filenames can be supplied as multiple parameters, parameters with wildcards or
-names of directories can be used as parameters with the `-r` option.
+Multiple filenames can be supplied, as multiple parameters, with wildcards,
+or names of directories can be used as parameters with `-r` option.
 
 The benchmark measures ratio, compressed size, compression and decompression speed.
 One can select compression levels starting from `-b` and ending with `-e`.
@@ -101,13 +111,14 @@ Advanced arguments :
  -v     : verbose mode; specify multiple times to increase verbosity
  -q     : suppress warnings; specify twice to suppress errors too
  -c     : force write to standard output, even if it is the console
+ -l     : print information about zstd compressed files
 --ultra : enable levels beyond 19, up to 22 (requires more memory)
- -T#    : use # threads for compression (default:1)
- -B#    : select size of each job (default:0==automatic)
 --no-dictID : don't write dictID into header (dictionary compression)
 --[no-]check : integrity check (default:enabled)
  -r     : operate recursively on directories
 --format=gzip : compress files to the .gz format
+--format=xz : compress files to the .xz format
+--format=lzma : compress files to the .lzma format
 --test  : test compressed file integrity
 --[no-]sparse : sparse mode (default:disabled)
  -M#    : Set a memory usage limit for decompression

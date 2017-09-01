@@ -140,7 +140,9 @@ the last one takes effect.
 * `-h`/`-H`, `--help`:
     display help/long help and exit
 * `-V`, `--version`:
-    display version number and exit
+    display version number and exit.
+    Advanced : `-vV` also displays supported formats.
+    `-vvV` also displays POSIX support.
 * `-v`:
     verbose mode
 * `-q`, `--quiet`:

@@ -1,7 +1,7 @@
 # Linux Kernel Patch
 
 There are four pieces, the `xxhash` kernel module, the `zstd_compress` and `zstd_decompress` kernel modules, the BtrFS patch, and the SquashFS patch.
-The patches are based off of the linux kernel master branch (version 4.10).
+The patches are based off of the linux kernel master branch.
 
 ## xxHash kernel module
 
@@ -42,7 +42,7 @@ The patches are based off of the linux kernel master branch (version 4.10).
 Benchmarks run on a Ubuntu 14.04 with 2 cores and 4 GiB of RAM.
 The VM is running on a Macbook Pro with a 3.1 GHz Intel Core i7 processor,
 16 GB of ram, and a SSD.
-The kernel running was built from the master branch with the patch (version 4.10).
+The kernel running was built from the master branch with the patch.
 
 The compression benchmark is copying 10 copies of the
 unzipped [silesia corpus](http://mattmahoney.net/dc/silesia.html) into a BtrFS
@@ -69,14 +69,14 @@ See `btrfs-benchmark.sh` for details.
 
 * The patch is located in `squashfs.diff`
 * Additionally `fs/squashfs/zstd_wrapper.c` is provided as a source for convenience.
-* The patch has been tested on a 4.10 kernel.
+* The patch has been tested on the master branch of the kernel.
 
 ### Benchmarks
 
 Benchmarks run on a Ubuntu 14.04 with 2 cores and 4 GiB of RAM.
 The VM is running on a Macbook Pro with a 3.1 GHz Intel Core i7 processor,
 16 GB of ram, and a SSD.
-The kernel running was built from the master branch with the patch (version 4.10).
+The kernel running was built from the master branch with the patch.
 
 The compression benchmark is the file tree from the SquashFS archive found in the
 Ubuntu 16.10 desktop image (ubuntu-16.10-desktop-amd64.iso).

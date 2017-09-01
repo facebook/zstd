@@ -1,10 +1,10 @@
-/**
+/*
  * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under both the BSD-style license (found in the
+ * LICENSE file in the root directory of this source tree) and the GPLv2 (found
+ * in the COPYING file in the root directory of this source tree).
  */
 
 
@@ -635,7 +635,8 @@ ZSTD_compressionParameters ZSTD_adjustCParams_internal(ZSTD_compressionParameter
     {   U32 const minSrcSize = (srcSize==0) ? 500 : 0;
         U64 const rSize = srcSize + dictSize + minSrcSize;
         if (rSize < ((U64)1<<ZSTD_WINDOWLOG_MAX)) {
-            U32 const srcLog = MAX(ZSTD_HASHLOG_MIN, ZSTD_highbit32((U32)(rSize)-1) + 1);
+            U32 const srcLog =
+                    MAX(ZSTD_HASHLOG_MIN, (rSize==1) ? 1 : ZSTD_highbit32((U32)(rSize)-1) + 1);
             if (cPar.windowLog > srcLog) cPar.windowLog = srcLog;
     }   }
     if (cPar.hashLog > cPar.windowLog) cPar.hashLog = cPar.windowLog;
@@ -1106,7 +1107,7 @@ static size_t ZSTD_compressLiterals (ZSTD_entropyCTables_t * entropy,
         else { entropy->hufCTable_repeatMode = HUF_repeat_check; }       /* now have a table to reuse */
     }
 
-    if ((cLitSize==0) | (cLitSize >= srcSize - minGain)) {
+    if ((cLitSize==0) | (cLitSize >= srcSize - minGain) | ERR_isError(cLitSize)) {
         entropy->hufCTable_repeatMode = HUF_repeat_none;
         return ZSTD_noCompressLiterals(dst, dstCapacity, src, srcSize);
     }
@@ -1295,7 +1296,7 @@ MEM_STATIC size_t ZSTD_encodeSequences(void* dst, size_t dstCapacity,
             BIT_addBits(&blockStream, sequences[n].litLength, llBits);
             if (MEM_32bits() && ((llBits+mlBits)>24)) BIT_flushBits(&blockStream);
             BIT_addBits(&blockStream, sequences[n].matchLength, mlBits);
-            if (MEM_32bits()) BIT_flushBits(&blockStream);                  /* (7)*/
+            if (MEM_32bits() || (ofBits+mlBits+llBits > 56)) BIT_flushBits(&blockStream);
             if (longOffsets) {
                 int const extraBits = ofBits - MIN(ofBits, STREAM_ACCUMULATOR_MIN-1);
                 if (extraBits) {
@@ -1320,11 +1321,10 @@ MEM_STATIC size_t ZSTD_encodeSequences(void* dst, size_t dstCapacity,
     }
 }
 
-MEM_STATIC size_t ZSTD_compressSequences (seqStore_t* seqStorePtr,
+MEM_STATIC size_t ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
                               ZSTD_entropyCTables_t* entropy,
                               ZSTD_compressionParameters const* cParams,
-                              void* dst, size_t dstCapacity,
-                              size_t srcSize)
+                              void* dst, size_t dstCapacity)
 {
     const int longOffsets = cParams->windowLog > STREAM_ACCUMULATOR_MIN;
     U32 count[MaxSeq+1];
@@ -1359,7 +1359,7 @@ MEM_STATIC size_t ZSTD_compressSequences (seqStore_t* seqStorePtr,
     if (nbSeq < 0x7F) *op++ = (BYTE)nbSeq;
     else if (nbSeq < LONGNBSEQ) op[0] = (BYTE)((nbSeq>>8) + 0x80), op[1] = (BYTE)nbSeq, op+=2;
     else op[0]=0xFF, MEM_writeLE16(op+1, (U16)(nbSeq - LONGNBSEQ)), op+=3;
-    if (nbSeq==0) goto _check_compressibility;
+    if (nbSeq==0) return op - ostart;
 
     /* seqHead : flags for FSE encoding type */
     seqHead = op++;
@@ -1408,23 +1408,40 @@ MEM_STATIC size_t ZSTD_compressSequences (seqStore_t* seqStorePtr,
         op += streamSize;
     }
 
+    return op - ostart;
+}
 
-    /* check compressibility */
-_check_compressibility:
-    {   size_t const minGain = ZSTD_minGain(srcSize);
-        size_t const maxCSize = srcSize - minGain;
-        if ((size_t)(op-ostart) >= maxCSize) {
-            entropy->hufCTable_repeatMode = HUF_repeat_none;
-            entropy->offcode_repeatMode = FSE_repeat_none;
-            entropy->matchlength_repeatMode = FSE_repeat_none;
-            entropy->litlength_repeatMode = FSE_repeat_none;
-            return 0;
-    }   }
+MEM_STATIC size_t ZSTD_compressSequences(seqStore_t* seqStorePtr,
+                              ZSTD_entropyCTables_t* entropy,
+                              ZSTD_compressionParameters const* cParams,
+                              void* dst, size_t dstCapacity,
+                              size_t srcSize)
+{
+    size_t const cSize = ZSTD_compressSequences_internal(seqStorePtr, entropy, cParams,
+                                                         dst, dstCapacity);
+    size_t const minGain = ZSTD_minGain(srcSize);
+    size_t const maxCSize = srcSize - minGain;
+    /* If the srcSize <= dstCapacity, then there is enough space to write a
+     * raw uncompressed block. Since we ran out of space, the block must not
+     * be compressible, so fall back to a raw uncompressed block.
+     */
+    int const uncompressibleError = cSize == ERROR(dstSize_tooSmall) && srcSize <= dstCapacity;
+
+    if (ZSTD_isError(cSize) && !uncompressibleError)
+        return cSize;
+    /* Check compressibility */
+    if (cSize >= maxCSize || uncompressibleError) {
+        entropy->hufCTable_repeatMode = HUF_repeat_none;
+        entropy->offcode_repeatMode = FSE_repeat_none;
+        entropy->matchlength_repeatMode = FSE_repeat_none;
+        entropy->litlength_repeatMode = FSE_repeat_none;
+        return 0;
+    }
+    assert(!ZSTD_isError(cSize));
 
     /* confirm repcodes */
     { int i; for (i=0; i<ZSTD_REP_NUM; i++) seqStorePtr->rep[i] = seqStorePtr->repToConfirm[i]; }
-
-    return op - ostart;
+    return cSize;
 }
 
 
@@ -1631,7 +1648,7 @@ static void ZSTD_fillHashTable (ZSTD_CCtx* zc, const void* end, const U32 mls)
 }
 
 
-FORCE_INLINE
+FORCE_INLINE_TEMPLATE
 void ZSTD_compressBlock_fast_generic(ZSTD_CCtx* cctx,
                                const void* src, size_t srcSize,
                                const U32 mls)
@@ -1874,7 +1891,7 @@ static void ZSTD_fillDoubleHashTable (ZSTD_CCtx* cctx, const void* end, const U3
 }
 
 
-FORCE_INLINE
+FORCE_INLINE_TEMPLATE
 void ZSTD_compressBlock_doubleFast_generic(ZSTD_CCtx* cctx,
                                  const void* src, size_t srcSize,
                                  const U32 mls)
@@ -2432,7 +2449,7 @@ static size_t ZSTD_BtFindBestMatch_selectMLS_extDict (
 
 /* Update chains up to ip (excluded)
    Assumption : always within prefix (i.e. not within extDict) */
-FORCE_INLINE
+FORCE_INLINE_TEMPLATE
 U32 ZSTD_insertAndFindFirstIndex (ZSTD_CCtx* zc, const BYTE* ip, U32 mls)
 {
     U32* const hashTable  = zc->hashTable;
@@ -2456,7 +2473,7 @@ U32 ZSTD_insertAndFindFirstIndex (ZSTD_CCtx* zc, const BYTE* ip, U32 mls)
 
 
 /* inlining is important to hardwire a hot branch (template emulation) */
-FORCE_INLINE
+FORCE_INLINE_TEMPLATE
 size_t ZSTD_HcFindBestMatch_generic (
                         ZSTD_CCtx* zc,   /* Index table will be updated */
                         const BYTE* const ip, const BYTE* const iLimit,
@@ -2508,7 +2525,7 @@ size_t ZSTD_HcFindBestMatch_generic (
 }
 
 
-FORCE_INLINE size_t ZSTD_HcFindBestMatch_selectMLS (
+FORCE_INLINE_TEMPLATE size_t ZSTD_HcFindBestMatch_selectMLS (
                         ZSTD_CCtx* zc,
                         const BYTE* ip, const BYTE* const iLimit,
                         size_t* offsetPtr,
@@ -2525,7 +2542,7 @@ FORCE_INLINE size_t ZSTD_HcFindBestMatch_selectMLS (
 }
 
 
-FORCE_INLINE size_t ZSTD_HcFindBestMatch_extDict_selectMLS (
+FORCE_INLINE_TEMPLATE size_t ZSTD_HcFindBestMatch_extDict_selectMLS (
                         ZSTD_CCtx* zc,
                         const BYTE* ip, const BYTE* const iLimit,
                         size_t* offsetPtr,
@@ -2545,7 +2562,7 @@ FORCE_INLINE size_t ZSTD_HcFindBestMatch_extDict_selectMLS (
 /* *******************************
 *  Common parser - lazy strategy
 *********************************/
-FORCE_INLINE
+FORCE_INLINE_TEMPLATE
 void ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
                                      const void* src, size_t srcSize,
                                      const U32 searchMethod, const U32 depth)
@@ -2707,7 +2724,7 @@ static void ZSTD_compressBlock_greedy(ZSTD_CCtx* ctx, const void* src, size_t sr
 }
 
 
-FORCE_INLINE
+FORCE_INLINE_TEMPLATE
 void ZSTD_compressBlock_lazy_extDict_generic(ZSTD_CCtx* ctx,
                                      const void* src, size_t srcSize,
                                      const U32 searchMethod, const U32 depth)
@@ -3155,7 +3172,6 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* cctx,
     } else
         return fhSize;
 }
-
 
 size_t ZSTD_compressContinue (ZSTD_CCtx* cctx,
                               void* dst, size_t dstCapacity,

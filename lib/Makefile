@@ -1,13 +1,11 @@
-# ##########################################################################
-# Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+# ################################################################
+# Copyright (c) 2015-present, Yann Collet, Facebook, Inc.
 # All rights reserved.
 #
-# This Makefile is validated for Linux, macOS, *BSD, Hurd, Solaris, MSYS2 targets
-#
-# This source code is licensed under the BSD-style license found in the
-# LICENSE file in the root directory of this source tree. An additional grant
-# of patent rights can be found in the PATENTS file in the same directory.
-# ##########################################################################
+# This source code is licensed under both the BSD-style license (found in the
+# LICENSE file in the root directory of this source tree) and the GPLv2 (found
+# in the COPYING file in the root directory of this source tree).
+# ################################################################
 
 # Version numbers
 LIBVER_MAJOR_SCRIPT:=`sed -n '/define ZSTD_VERSION_MAJOR/s/.*[[:blank:]]\([0-9][0-9]*\).*/\1/p' < ./zstd.h`
@@ -31,7 +29,7 @@ CFLAGS  += $(DEBUGFLAGS) $(MOREFLAGS)
 FLAGS    = $(CPPFLAGS) $(CFLAGS)
 
 
-ZSTD_FILES := $(wildcard common/*.c compress/*.c decompress/*.c dictBuilder/*.c deprecated/*.c)
+ZSTD_FILES := $(sort $(wildcard common/*.c compress/*.c decompress/*.c dictBuilder/*.c deprecated/*.c))
 
 ZSTD_LEGACY_SUPPORT ?= 4
 

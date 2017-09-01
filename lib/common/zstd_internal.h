@@ -260,6 +260,24 @@ typedef struct {
     FSE_repeat litlength_repeatMode;
 } ZSTD_entropyCTables_t;
 
+struct ZSTD_CCtx_params_s {
+    ZSTD_compressionParameters cParams;
+    ZSTD_frameParameters fParams;
+
+    int compressionLevel;
+    U32 forceWindow;           /* force back-references to respect limit of
+                                * 1<<wLog, even for dictionary */
+
+    /* Multithreading: used to pass parameters to mtctx */
+    U32 nbThreads;
+    unsigned jobSize;
+    unsigned overlapSizeLog;
+
+    /* For use with createCCtxParams() and freeCCtxParams() only */
+    ZSTD_customMem customMem;
+
+};  /* typedef'd to ZSTD_CCtx_params within "zstd.h" */
+
 const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx);
 void ZSTD_seqToCodes(const seqStore_t* seqStorePtr);
 
@@ -314,7 +332,7 @@ void ZSTD_invalidateRepCodes(ZSTD_CCtx* cctx);
 size_t ZSTD_initCStream_internal(ZSTD_CStream* zcs,
                      const void* dict, size_t dictSize,
                      const ZSTD_CDict* cdict,
-                     ZSTD_parameters params, unsigned long long pledgedSrcSize);
+                     ZSTD_CCtx_params  params, unsigned long long pledgedSrcSize);
 
 /*! ZSTD_compressStream_generic() :
  *  Private use only. To be called from zstdmt_compress.c in single-thread mode. */
@@ -323,10 +341,25 @@ size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                                    ZSTD_inBuffer* input,
                                    ZSTD_EndDirective const flushMode);
 
-/*! ZSTD_getParamsFromCDict() :
+/*! ZSTD_getCParamsFromCDict() :
  *  as the name implies */
-ZSTD_parameters ZSTD_getParamsFromCDict(const ZSTD_CDict* cdict);
+ZSTD_compressionParameters ZSTD_getCParamsFromCDict(const ZSTD_CDict* cdict);
 
+/* ZSTD_compressBegin_advanced_internal() :
+ * Private use only. To be called from zstdmt_compress.c. */
+size_t ZSTD_compressBegin_advanced_internal(ZSTD_CCtx* cctx,
+                                    const void* dict, size_t dictSize,
+                                    ZSTD_dictMode_e dictMode,
+                                    ZSTD_CCtx_params params,
+                                    unsigned long long pledgedSrcSize);
+
+/* ZSTD_compress_advanced_internal() :
+ * Private use only. To be called from zstdmt_compress.c. */
+size_t ZSTD_compress_advanced_internal(ZSTD_CCtx* cctx,
+                                       void* dst, size_t dstCapacity,
+                                 const void* src, size_t srcSize,
+                                 const void* dict,size_t dictSize,
+                                 ZSTD_CCtx_params params);
 
 typedef struct {
     blockType_e blockType;

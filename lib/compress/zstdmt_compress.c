@@ -197,7 +197,7 @@ static ZSTD_CCtx_params ZSTDMT_makeJobCCtxParams(ZSTD_CCtx_params const params)
     jobParams.fParams = params.fParams;
     jobParams.compressionLevel = params.compressionLevel;
 
-    jobParams.enableLdm = params.enableLdm;
+    jobParams.ldmParams = params.ldmParams;
     return jobParams;
 }
 

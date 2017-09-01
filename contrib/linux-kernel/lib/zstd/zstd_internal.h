@@ -4,8 +4,6 @@
  *
  * This source code is licensed under the BSD-style license found in the
  * LICENSE file in the root directory of https://github.com/facebook/zstd.
- * An additional grant of patent rights can be found in the PATENTS file in the
- * same directory.
  *
  * This program is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License version 2 as published by the
@@ -126,7 +124,7 @@ static const U32 OF_defaultNormLog = OF_DEFAULTNORMLOG;
 /*-*******************************************
 *  Shared functions to include for inlining
 *********************************************/
-static void ZSTD_copy8(void *dst, const void *src) {
+ZSTD_STATIC void ZSTD_copy8(void *dst, const void *src) {
 	memcpy(dst, src, 8);
 }
 /*! ZSTD_wildcopy() :
@@ -134,8 +132,21 @@ static void ZSTD_copy8(void *dst, const void *src) {
 #define WILDCOPY_OVERLENGTH 8
 ZSTD_STATIC void ZSTD_wildcopy(void *dst, const void *src, ptrdiff_t length)
 {
-	if (length > 0)
-		memcpy(dst, src, length);
+	const BYTE* ip = (const BYTE*)src;
+	BYTE* op = (BYTE*)dst;
+	BYTE* const oend = op + length;
+	/* Work around https://gcc.gnu.org/bugzilla/show_bug.cgi?id=81388.
+	 * Avoid the bad case where the loop only runs once by handling the
+	 * special case separately. This doesn't trigger the bug because it
+	 * doesn't involve pointer/integer overflow.
+	 */
+	if (length <= 8)
+		return ZSTD_copy8(dst, src);
+	do {
+		ZSTD_copy8(op, ip);
+		op += 8;
+		ip += 8;
+	} while (op < oend);
 }
 
 /*-*******************************************

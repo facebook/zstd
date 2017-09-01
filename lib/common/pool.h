@@ -1,11 +1,12 @@
-/**
- * Copyright (c) 2016-present, Facebook, Inc.
+/*
+ * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under both the BSD-style license (found in the
+ * LICENSE file in the root directory of this source tree) and the GPLv2 (found
+ * in the COPYING file in the root directory of this source tree).
  */
+
 #ifndef POOL_H
 #define POOL_H
 
@@ -15,6 +16,7 @@ extern "C" {
 
 
 #include <stddef.h>   /* size_t */
+#include "zstd_internal.h"   /* ZSTD_customMem */
 
 typedef struct POOL_ctx_s POOL_ctx;
 
@@ -22,10 +24,11 @@ typedef struct POOL_ctx_s POOL_ctx;
  *  Create a thread pool with at most `numThreads` threads.
  * `numThreads` must be at least 1.
  *  The maximum number of queued jobs before blocking is `queueSize`.
- * `queueSize` must be at least 1.
  * @return : POOL_ctx pointer on success, else NULL.
 */
 POOL_ctx *POOL_create(size_t numThreads, size_t queueSize);
+
+POOL_ctx *POOL_create_advanced(size_t numThreads, size_t queueSize, ZSTD_customMem customMem);
 
 /*! POOL_free() :
     Free a thread pool returned by POOL_create().

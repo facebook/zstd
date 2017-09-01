@@ -2,9 +2,9 @@
  * Copyright (c) 2017-present, Facebook, Inc.
  * All rights reserved.
  *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under both the BSD-style license (found in the
+ * LICENSE file in the root directory of this source tree) and the GPLv2 (found
+ * in the COPYING file in the root directory of this source tree).
  */
 
 #include <stdio.h>
@@ -87,7 +87,7 @@ int main(int argc, char **argv) {
     }
 
     size_t decompressed_size = ZSTD_get_decompressed_size(input, input_size);
-    if (decompressed_size == -1) {
+    if (decompressed_size == (size_t)-1) {
         decompressed_size = MAX_COMPRESSION_RATIO * input_size;
         fprintf(stderr, "WARNING: Compressed data does not contain "
                         "decompressed size, going to assume the compression "
@@ -106,9 +106,15 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    dictionary_t* const parsed_dict = create_dictionary();
+    if (dict) {
+        parse_dictionary(parsed_dict, dict, dict_size);
+    }
     size_t decompressed =
         ZSTD_decompress_with_dict(output, decompressed_size,
-                                  input, input_size, dict, dict_size);
+                                  input, input_size, parsed_dict);
+
+    free_dictionary(parsed_dict);
 
     write_file(argv[2], output, decompressed);
 
@@ -117,4 +123,3 @@ int main(int argc, char **argv) {
     free(dict);
     input = output = dict = NULL;
 }
-

@@ -1,0 +1,12 @@
+#ifndef LDM_PARAMS_H
+#define LDM_PARAMS_H
+
+#define LDM_MEMORY_USAGE 23
+#define HASH_BUCKET_SIZE_LOG 3
+#define LDM_LAG 0
+#define LDM_WINDOW_SIZE_LOG 28
+#define LDM_MIN_MATCH_LENGTH 64
+#define INSERT_BY_TAG 1
+#define USE_CHECKSUM 1
+
+#endif  // LDM_PARAMS_H

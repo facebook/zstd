@@ -1,11 +1,10 @@
-
 /**
  * Copyright (c) 2016 Tino Reichardt
  * All rights reserved.
  *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under both the BSD-style license (found in the
+ * LICENSE file in the root directory of this source tree) and the GPLv2 (found
+ * in the COPYING file in the root directory of this source tree).
  *
  * You can contact the author at:
  * - zstdmt source repository: https://github.com/mcmilk/zstdmt
@@ -38,7 +37,11 @@ extern "C" {
 #  define WIN32_LEAN_AND_MEAN
 #endif
 
+#undef ERROR   /* reported already defined on VS 2015 (Rich Geldreich) */
 #include <windows.h>
+#undef ERROR
+#define ERROR(name) ZSTD_ERROR(name)
+
 
 /* mutex */
 #define pthread_mutex_t           CRITICAL_SECTION

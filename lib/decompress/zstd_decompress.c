@@ -1281,7 +1281,7 @@ static size_t ZSTD_decompressSequencesLong(
     int nbSeq;
 
     unsigned long long const regularWindowSizeMax = 1ULL << STREAM_ACCUMULATOR_MIN;
-    ZSTD_longOffset_e const isLongOffset = (ZSTD_longOffset_e)(dctx->fParams.windowSize >= regularWindowSizeMax);
+    ZSTD_longOffset_e const isLongOffset = (ZSTD_longOffset_e)(MEM_32bits() && (dctx->fParams.windowSize >= regularWindowSizeMax));
     ZSTD_STATIC_ASSERT(ZSTD_lo_isLongOffset == 1);
 
     /* Build Decoding Tables */

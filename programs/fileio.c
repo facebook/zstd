@@ -217,6 +217,20 @@ static U32 g_ldmFlag = 0;
 void FIO_setLdmFlag(unsigned ldmFlag) {
     g_ldmFlag = (ldmFlag>0);
 }
+static U32 g_ldmHashLog = 0;
+void FIO_setLdmHashLog(unsigned ldmHashLog) {
+    g_ldmHashLog = ldmHashLog;
+}
+static U32 g_ldmMinMatch = 0;
+void FIO_setLdmMinMatch(unsigned ldmMinMatch) {
+    g_ldmMinMatch = ldmMinMatch;
+}
+#define FIO_LDM_HASHEVERYLOG_NOTSET 9999
+static U32 g_ldmHashEveryLog = FIO_LDM_HASHEVERYLOG_NOTSET;
+void FIO_setLdmHashEveryLog(unsigned ldmHashEveryLog) {
+    g_ldmHashEveryLog = ldmHashEveryLog;
+}
+
 
 
 /*-*************************************
@@ -406,6 +420,11 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionLevel, cLevel) );
             /* long distance matching */
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_longDistanceMatching, g_ldmFlag) );
+            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_ldmHashLog, g_ldmHashLog) );
+            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_ldmMinMatch, g_ldmMinMatch) );
+            if (g_ldmHashEveryLog != FIO_LDM_HASHEVERYLOG_NOTSET) {
+                CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_ldmHashEveryLog, g_ldmHashEveryLog) );
+            }
             /* compression parameters */
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_windowLog, comprParams->windowLog) );
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_chainLog, comprParams->chainLog) );

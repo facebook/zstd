@@ -134,6 +134,23 @@ void BMK_setLdmFlag(unsigned ldmFlag) {
     g_ldmFlag = ldmFlag;
 }
 
+static U32 g_ldmMinMatch = 0;
+void BMK_setLdmMinMatch(unsigned ldmMinMatch) {
+    g_ldmMinMatch = ldmMinMatch;
+}
+
+static U32 g_ldmHashLog = 0;
+void BMK_setLdmHashLog(unsigned ldmHashLog) {
+    g_ldmHashLog = ldmHashLog;
+}
+
+#define BMK_LDM_HASHEVERYLOG_NOTSET 9999
+static U32 g_ldmHashEveryLog = BMK_LDM_HASHEVERYLOG_NOTSET;
+void BMK_setLdmHashEveryLog(unsigned ldmHashEveryLog) {
+    g_ldmHashEveryLog = ldmHashEveryLog;
+}
+
+
 /* ********************************************************
 *  Bench functions
 **********************************************************/
@@ -270,6 +287,11 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_nbThreads, g_nbThreads);
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_compressionLevel, cLevel);
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_longDistanceMatching, g_ldmFlag);
+                    ZSTD_CCtx_setParameter(ctx, ZSTD_p_ldmMinMatch, g_ldmMinMatch);
+                    ZSTD_CCtx_setParameter(ctx, ZSTD_p_ldmHashLog, g_ldmHashLog);
+                    if (g_ldmHashEveryLog != BMK_LDM_HASHEVERYLOG_NOTSET) {
+                      ZSTD_CCtx_setParameter(ctx, ZSTD_p_ldmHashEveryLog, g_ldmHashEveryLog);
+                    }
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_windowLog, comprParams->windowLog);
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_chainLog, comprParams->chainLog);
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_searchLog, comprParams->searchLog);

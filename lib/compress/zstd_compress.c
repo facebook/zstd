@@ -42,6 +42,7 @@ typedef enum { ZSTDcs_created=0, ZSTDcs_init, ZSTDcs_ongoing, ZSTDcs_ending } ZS
 #define LDM_WINDOW_LOG 27
 #define LDM_HASH_LOG 20
 #define LDM_HASH_CHAR_OFFSET 10
+#define LDM_HASHEVERYLOG_NOTSET 9999
 
 
 /*-*************************************
@@ -320,6 +321,7 @@ static size_t ZSTD_ldm_initializeParameters(ldmParams_t* params, U32 enableLdm)
     params->hashLog = LDM_HASH_LOG;
     params->bucketLog = LDM_BUCKET_SIZE_LOG;
     params->minMatchLength = LDM_MIN_MATCH_LENGTH;
+    params->hashEveryLog = LDM_HASHEVERYLOG_NOTSET;
     return 0;
 }
 
@@ -382,6 +384,10 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
     case ZSTD_p_ldmHashLog:
     case ZSTD_p_ldmMinMatch:
         if (value == 0) return 0;  /* special value : 0 means "don't change anything" */
+        if (cctx->cdict) return ERROR(stage_wrong);
+        return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
+
+    case ZSTD_p_ldmHashEveryLog:
         if (cctx->cdict) return ERROR(stage_wrong);
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
@@ -503,6 +509,13 @@ size_t ZSTD_CCtxParam_setParameter(
         params->ldmParams.minMatchLength = value;
         return 0;
 
+    case ZSTD_p_ldmHashEveryLog :
+        if (value > ZSTD_WINDOWLOG_MAX - ZSTD_HASHLOG_MIN) {
+            return ERROR(parameter_outOfBound);
+        }
+        params->ldmParams.hashEveryLog = value;
+        return 0;
+
     default: return ERROR(parameter_unsupported);
     }
 }
@@ -538,7 +551,7 @@ size_t ZSTD_CCtx_setParametersUsingCCtxParams(
                     cctx, ZSTD_p_overlapSizeLog, params->overlapSizeLog) );
     }
 
-    /* Copy long distance matching parameter */
+    /* Copy long distance matching parameters */
     cctx->requestedParams.ldmParams = params->ldmParams;
 
     /* customMem is used only for create/free params and can be ignored */
@@ -742,7 +755,6 @@ size_t ZSTD_estimateCCtxSize_advanced_usingCCtxParams(const ZSTD_CCtx_params* pa
                 + (ZSTD_OPT_NUM+1)*(sizeof(ZSTD_match_t) + sizeof(ZSTD_optimal_t));
         size_t const optSpace = ((cParams.strategy == ZSTD_btopt) || (cParams.strategy == ZSTD_btultra)) ? optBudget : 0;
 
-        /* Ldm parameters can not currently be changed */
         size_t const ldmSpace = params->ldmParams.enableLdm ?
             ZSTD_ldm_getTableSize(params->ldmParams.hashLog,
                                   params->ldmParams.bucketLog) : 0;
@@ -813,7 +825,8 @@ static U32 ZSTD_equivalentLdmParams(ldmParams_t ldmParams1,
            (ldmParams1.enableLdm == ldmParams2.enableLdm &&
             ldmParams1.hashLog == ldmParams2.hashLog &&
             ldmParams1.bucketLog == ldmParams2.bucketLog &&
-            ldmParams1.minMatchLength == ldmParams2.minMatchLength);
+            ldmParams1.minMatchLength == ldmParams2.minMatchLength &&
+            ldmParams1.hashEveryLog == ldmParams2.hashEveryLog);
 }
 
 /** Equivalence for resetCCtx purposes */
@@ -866,6 +879,8 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
     if (crp == ZSTDcrp_continue) {
         if (ZSTD_equivalentParams(params, zc->appliedParams)) {
             DEBUGLOG(5, "ZSTD_equivalentParams()==1");
+            assert(!(params.ldmParams.enableLdm &&
+                     params.ldmParams.hashEveryLog == LDM_HASHEVERYLOG_NOTSET));
             zc->entropy->hufCTable_repeatMode = HUF_repeat_none;
             zc->entropy->offcode_repeatMode = FSE_repeat_none;
             zc->entropy->matchlength_repeatMode = FSE_repeat_none;
@@ -874,9 +889,11 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
     }   }
 
     if (params.ldmParams.enableLdm) {
-        zc->ldmState.hashEveryLog =
-            params.cParams.windowLog < params.ldmParams.hashLog ?
-                0 : params.cParams.windowLog - params.ldmParams.hashLog;
+        if (params.ldmParams.hashEveryLog == LDM_HASHEVERYLOG_NOTSET) {
+            params.ldmParams.hashEveryLog =
+                    params.cParams.windowLog < params.ldmParams.hashLog ?
+                    0 : params.cParams.windowLog - params.ldmParams.hashLog;
+        }
         zc->ldmState.hashPower =
                 ZSTD_ldm_getHashPower(params.ldmParams.minMatchLength);
     }
@@ -3159,19 +3176,19 @@ static void ZSTD_ldm_insertEntry(ldmState_t* ldmState,
  *
  *  Gets the small hash, checksum, and tag from the rollingHash.
  *
- *  If the tag matches (1 << ldmState->hashEveryLog)-1, then
+ *  If the tag matches (1 << ldmParams.hashEveryLog)-1, then
  *  creates an ldmEntry from the offset, and inserts it into the hash table.
  *
  *  hBits is the length of the small hash, which is the most significant hBits
  *  of rollingHash. The checksum is the next 32 most significant bits, followed
- *  by ldmState->hashEveryLog bits that make up the tag. */
+ *  by ldmParams.hashEveryLog bits that make up the tag. */
 static void ZSTD_ldm_makeEntryAndInsertByTag(ldmState_t* ldmState,
                                              U64 rollingHash, U32 hBits,
                                              U32 const offset,
                                              ldmParams_t const ldmParams)
 {
-    U32 const tag = ZSTD_ldm_getTag(rollingHash, hBits, ldmState->hashEveryLog);
-    U32 const tagMask = (1 << ldmState->hashEveryLog) - 1;
+    U32 const tag = ZSTD_ldm_getTag(rollingHash, hBits, ldmParams.hashEveryLog);
+    U32 const tagMask = (1 << ldmParams.hashEveryLog) - 1;
     if (tag == tagMask) {
         U32 const hash = ZSTD_ldm_getSmallHash(rollingHash, hBits);
         U32 const checksum = ZSTD_ldm_getChecksum(rollingHash, hBits);
@@ -3349,7 +3366,7 @@ size_t ZSTD_compressBlock_ldm_generic(ZSTD_CCtx* cctx,
     const U64 hashPower = ldmState->hashPower;
     const U32 hBits = ldmParams.hashLog - ldmParams.bucketLog;
     const U32 ldmBucketSize = (1 << ldmParams.bucketLog);
-    const U32 ldmTagMask = (1 << ldmState->hashEveryLog) - 1;
+    const U32 ldmTagMask = (1 << ldmParams.hashEveryLog) - 1;
     seqStore_t* const seqStorePtr = &(cctx->seqStore);
     const BYTE* const base = cctx->base;
     const BYTE* const istart = (const BYTE*)src;
@@ -3388,7 +3405,7 @@ size_t ZSTD_compressBlock_ldm_generic(ZSTD_CCtx* cctx,
         lastHashed = ip;
 
         /* Do not insert and do not look for a match */
-        if (ZSTD_ldm_getTag(rollingHash, hBits, ldmState->hashEveryLog) !=
+        if (ZSTD_ldm_getTag(rollingHash, hBits, ldmParams.hashEveryLog) !=
                 ldmTagMask) {
            ip++;
            continue;
@@ -3546,12 +3563,12 @@ static size_t ZSTD_compressBlock_ldm_extDict_generic(
                                  ZSTD_CCtx* ctx,
                                  const void* src, size_t srcSize)
 {
-    ldmState_t* ldmState = &(ctx->ldmState);
+    ldmState_t* const ldmState = &(ctx->ldmState);
     const ldmParams_t ldmParams = ctx->appliedParams.ldmParams;
     const U64 hashPower = ldmState->hashPower;
     const U32 hBits = ldmParams.hashLog - ldmParams.bucketLog;
     const U32 ldmBucketSize = (1 << ldmParams.bucketLog);
-    const U32 ldmTagMask = (1 << ctx->ldmState.hashEveryLog) - 1;
+    const U32 ldmTagMask = (1 << ldmParams.hashEveryLog) - 1;
     seqStore_t* const seqStorePtr = &(ctx->seqStore);
     const BYTE* const base = ctx->base;
     const BYTE* const dictBase = ctx->dictBase;
@@ -3594,7 +3611,7 @@ static size_t ZSTD_compressBlock_ldm_extDict_generic(
         }
         lastHashed = ip;
 
-        if (ZSTD_ldm_getTag(rollingHash, hBits, ldmState->hashEveryLog) !=
+        if (ZSTD_ldm_getTag(rollingHash, hBits, ldmParams.hashEveryLog) !=
                 ldmTagMask) {
             /* Don't insert and don't look for a match */
            ip++;

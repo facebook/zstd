@@ -256,7 +256,6 @@ typedef struct {
 typedef struct {
     ldmEntry_t* hashTable;
     BYTE* bucketOffsets;    /* Next position in bucket to insert entry */
-    U32 hashEveryLog;       /* Log number of entries to skip */
     U64 hashPower;          /* Used to compute the rolling hash.
                              * Depends on ldmParams.minMatchLength */
 } ldmState_t;
@@ -266,6 +265,7 @@ typedef struct {
     U32 hashLog;            /* Log size of hashTable */
     U32 bucketLog;          /* Log number of buckets, at most 4 */
     U32 minMatchLength;     /* Minimum match length */
+    U32 hashEveryLog;       /* Log number of entries to skip */
 } ldmParams_t;
 
 typedef struct {

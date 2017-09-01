@@ -57,6 +57,9 @@ void FIO_setNbThreads(unsigned nbThreads);
 void FIO_setBlockSize(unsigned blockSize);
 void FIO_setOverlapLog(unsigned overlapLog);
 void FIO_setLdmFlag(unsigned ldmFlag);
+void FIO_setLdmHashLog(unsigned ldmHashLog);
+void FIO_setLdmMinMatch(unsigned ldmMinMatch);
+void FIO_setLdmHashEveryLog(unsigned ldmHashEveryLog);
 
 
 /*-*************************************

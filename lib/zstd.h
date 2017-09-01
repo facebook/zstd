@@ -984,11 +984,16 @@ typedef enum {
                                    * ZSTD_p_compressionLevel and before
                                    * ZSTD_p_windowLog and other LDM parameters. */
     ZSTD_p_ldmHashLog,   /* Size of the table for long distance matching.
-                           * Must be clamped between ZSTD_HASHLOG_MIN and
-                           * ZSTD_HASHLOG_MAX */
+                          * Must be clamped between ZSTD_HASHLOG_MIN and
+                          * ZSTD_HASHLOG_MAX */
     ZSTD_p_ldmMinMatch,  /* Minimum size of searched matches for long distance matcher.
-                           * Must be clamped between ZSTD_LDM_SEARCHLENGTH_MIN
-                           * and ZSTD_LDM_SEARCHLENGTH_MAX. */
+                          * Must be clamped between ZSTD_LDM_SEARCHLENGTH_MIN
+                          * and ZSTD_LDM_SEARCHLENGTH_MAX. */
+    ZSTD_p_ldmHashEveryLog,  /* Frequency of inserting/looking up entries in the
+                              * LDM hash table. The default is
+                              * (windowLog - ldmHashLog) to optimize hash table
+                              * usage. Must be clamped between 0 and
+                              * ZSTD_WINDOWLOG_MAX - ZSTD_HASHLOG_MIN. */
 
 } ZSTD_cParameter;
 

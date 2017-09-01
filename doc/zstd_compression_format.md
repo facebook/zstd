@@ -16,7 +16,7 @@ Distribution of this document is unlimited.
 
 ### Version
 
-0.2.5 (31/03/17)
+0.2.6 (19/08/17)
 
 
 Introduction
@@ -106,7 +106,7 @@ The structure of a single Zstandard frame is following:
 
 | `Magic_Number` | `Frame_Header` |`Data_Block`| [More data blocks] | [`Content_Checksum`] |
 |:--------------:|:--------------:|:----------:| ------------------ |:--------------------:|
-| 4 bytes        |  2-14 bytes    | n bytes    |                    |   0-4 bytes          |
+|  4 bytes       |  2-14 bytes    |  n bytes   |                    |     0-4 bytes        |
 
 __`Magic_Number`__
 
@@ -1249,23 +1249,30 @@ Consequently, a last byte of `0` is not possible.
 And the final-bit-flag itself is not part of the useful bitstream.
 Hence, the last byte contains between 0 and 7 useful bits.
 
-For example, if the literal sequence "0145" was encoded using the prefix codes above,
-it would be encoded as:
-```
-00000001 01110000
-```
+Starting from the end,
+it's possible to read the bitstream in a __little-endian__ fashion,
+keeping track of already used bits. Since the bitstream is encoded in reverse
+order, starting from the end read symbols in forward order.
+
+For example, if the literal sequence "0145" was encoded using above prefix code,
+it would be encoded (in reverse order) as:
 
 |Symbol  |   5  |   4  |  1 | 0 | Padding |
 |--------|------|------|----|---|---------|
-|Encoding|`0000`|`0001`|`01`|`1`| `10000` |
+|Encoding|`0000`|`0001`|`01`|`1`| `00001` |
 
-Starting from the end,
-it's possible to read the bitstream in a __little-endian__ fashion,
-keeping track of already used bits.  Since the bitstream is encoded in reverse
-order, by starting at the end the symbols can be read in forward order.
+Resulting in following 2-bytes bitstream :
+```
+00010000 00001101
+```
 
-Reading the last `Max_Number_of_Bits` bits,
-it's then possible to compare extracted value to decoding table,
+Here is an alternative representation with the symbol codes separated by underscore:
+```
+0001_0000 00001_1_01
+```
+
+Reading highest `Max_Number_of_Bits` bits,
+it's possible to compare extracted value to decoding table,
 determining the symbol to decode and number of bits to discard.
 
 The process continues up to reading the required number of symbols per stream.
@@ -1516,12 +1523,13 @@ to crosscheck that an implementation build its decoding tables correctly.
 
 Version changes
 ---------------
+- 0.2.6 : fixed an error in huffman example, by Ulrich Kunitz
 - 0.2.5 : minor typos and clarifications
 - 0.2.4 : section restructuring, by Sean Purcell
 - 0.2.3 : clarified several details, by Sean Purcell
 - 0.2.2 : added predefined codes, by Johannes Rudolph
 - 0.2.1 : clarify field names, by Przemyslaw Skibinski
-- 0.2.0 : numerous format adjustments for zstd v0.8
+- 0.2.0 : numerous format adjustments for zstd v0.8+
 - 0.1.2 : limit Huffman tree depth to 11 bits
 - 0.1.1 : reserved dictID ranges
 - 0.1.0 : initial release

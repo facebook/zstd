@@ -1,10 +1,10 @@
-/**
+/*
  * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under both the BSD-style license (found in the
+ * LICENSE file in the root directory of this source tree) and the GPLv2 (found
+ * in the COPYING file in the root directory of this source tree).
  */
 
 /* *****************************************************************************
@@ -382,7 +382,7 @@ static void COVER_group(COVER_ctx_t *ctx, const void *group,
 typedef struct {
   U32 begin;
   U32 end;
-  double score;
+  U32 score;
 } COVER_segment_t;
 
 /**
@@ -479,9 +479,14 @@ static COVER_segment_t COVER_selectSegment(const COVER_ctx_t *ctx, U32 *freqs,
  * Check the validity of the parameters.
  * Returns non-zero if the parameters are valid and 0 otherwise.
  */
-static int COVER_checkParameters(ZDICT_cover_params_t parameters) {
+static int COVER_checkParameters(ZDICT_cover_params_t parameters,
+                                 size_t maxDictSize) {
   /* k and d are required parameters */
   if (parameters.d == 0 || parameters.k == 0) {
+    return 0;
+  }
+  /* k <= maxDictSize */
+  if (parameters.k > maxDictSize) {
     return 0;
   }
   /* d <= k */
@@ -622,9 +627,13 @@ static size_t COVER_buildDictionary(const COVER_ctx_t *ctx, U32 *freqs,
     /* Select a segment */
     COVER_segment_t segment = COVER_selectSegment(
         ctx, freqs, activeDmers, epochBegin, epochEnd, parameters);
-    /* Trim the segment if necessary and if it is empty then we are done */
+    /* If the segment covers no dmers, then we are out of content */
+    if (segment.score == 0) {
+      break;
+    }
+    /* Trim the segment if necessary and if it is too small then we are done */
     segmentSize = MIN(segment.end - segment.begin + parameters.d - 1, tail);
-    if (segmentSize == 0) {
+    if (segmentSize < parameters.d) {
       break;
     }
     /* We fill the dictionary from the back to allow the best segments to be
@@ -648,7 +657,7 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_cover(
   COVER_ctx_t ctx;
   COVER_map_t activeDmers;
   /* Checks */
-  if (!COVER_checkParameters(parameters)) {
+  if (!COVER_checkParameters(parameters, dictBufferCapacity)) {
     DISPLAYLEVEL(1, "Cover parameters incorrect\n");
     return ERROR(GENERIC);
   }
@@ -884,7 +893,7 @@ static void COVER_tryParameters(void *opaque) {
       goto _compressCleanup;
     }
     /* Compress each sample and sum their sizes (or error) */
-    totalCompressedSize = 0;
+    totalCompressedSize = dictBufferCapacity;
     for (i = 0; i < ctx->nbSamples; ++i) {
       const size_t size = ZSTD_compress_usingCDict(
           cctx, dst, dstCapacity, ctx->samples + ctx->offsets[i],
@@ -960,7 +969,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
   /* Initialization */
   COVER_best_init(&best);
   /* Turn down global display level to clean up display at level 2 and below */
-  g_displayLevel = parameters->zParams.notificationLevel - 1;
+  g_displayLevel = displayLevel == 0 ? 0 : displayLevel - 1;
   /* Loop through d first because each new value needs a new context */
   LOCALDISPLAYLEVEL(displayLevel, 2, "Trying %u different sets of parameters\n",
                     kIterations);
@@ -994,8 +1003,9 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
       data->parameters.k = k;
       data->parameters.d = d;
       data->parameters.steps = kSteps;
+      data->parameters.zParams.notificationLevel = g_displayLevel;
       /* Check the parameters */
-      if (!COVER_checkParameters(data->parameters)) {
+      if (!COVER_checkParameters(data->parameters, dictBufferCapacity)) {
         DISPLAYLEVEL(1, "Cover parameters incorrect\n");
         free(data);
         continue;

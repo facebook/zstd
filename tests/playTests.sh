@@ -291,8 +291,10 @@ $ECHO "- Create dictionary with wrong dictID parameter order (must fail)"
 $ZSTD --train *.c ../programs/*.c --dictID -o 1 tmpDict1 && die "wrong order : --dictID must be followed by argument "
 $ECHO "- Create dictionary with size limit"
 $ZSTD --train *.c ../programs/*.c -o tmpDict2 --maxdict=4K -v
+$ECHO "- Create dictionary with small size limit"
+$ZSTD --train *.c ../programs/*.c -o tmpDict3 --maxdict=1K -v
 $ECHO "- Create dictionary with wrong parameter order (must fail)"
-$ZSTD --train *.c ../programs/*.c -o tmpDict2 --maxdict -v 4K && die "wrong order : --maxdict must be followed by argument "
+$ZSTD --train *.c ../programs/*.c -o tmpDict3 --maxdict -v 4K && die "wrong order : --maxdict must be followed by argument "
 $ECHO "- Compress without dictID"
 $ZSTD -f tmp -D tmpDict1 --no-dictID
 $ZSTD -d tmp.zst -D tmpDict -fo result
@@ -384,6 +386,13 @@ test -f tmp1.zst   # check file is still present
 split -b16384 tmp1.zst tmpSplit.
 $ZSTD -t tmpSplit.* && die "bad file not detected !"
 ./datagen | $ZSTD -c | $ZSTD -t
+
+
+
+$ECHO "\n**** golden files tests **** "
+
+$ZSTD -t -r files
+$ZSTD -c -r files | $ZSTD -t
 
 
 $ECHO "\n**** benchmark mode tests **** "

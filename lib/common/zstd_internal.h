@@ -1,51 +1,20 @@
-/**
+/*
  * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under both the BSD-style license (found in the
+ * LICENSE file in the root directory of this source tree) and the GPLv2 (found
+ * in the COPYING file in the root directory of this source tree).
  */
 
 #ifndef ZSTD_CCOMMON_H_MODULE
 #define ZSTD_CCOMMON_H_MODULE
 
-/*-*******************************************************
-*  Compiler specifics
-*********************************************************/
-#ifdef _MSC_VER    /* Visual Studio */
-#  define FORCE_INLINE static __forceinline
-#  include <intrin.h>                    /* For Visual 2005 */
-#  pragma warning(disable : 4100)        /* disable: C4100: unreferenced formal parameter */
-#  pragma warning(disable : 4127)        /* disable: C4127: conditional expression is constant */
-#  pragma warning(disable : 4204)        /* disable: C4204: non-constant aggregate initializer */
-#  pragma warning(disable : 4324)        /* disable: C4324: padded structure */
-#else
-#  if defined (__cplusplus) || defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L   /* C99 */
-#    ifdef __GNUC__
-#      define FORCE_INLINE static inline __attribute__((always_inline))
-#    else
-#      define FORCE_INLINE static inline
-#    endif
-#  else
-#    define FORCE_INLINE static
-#  endif /* __STDC_VERSION__ */
-#endif
-
-#ifdef _MSC_VER
-#  define FORCE_NOINLINE static __declspec(noinline)
-#else
-#  ifdef __GNUC__
-#    define FORCE_NOINLINE static __attribute__((__noinline__))
-#  else
-#    define FORCE_NOINLINE static
-#  endif
-#endif
-
 
 /*-*************************************
 *  Dependencies
 ***************************************/
+#include "compiler.h"
 #include "mem.h"
 #include "error_private.h"
 #define ZSTD_STATIC_LINKING_ONLY
@@ -58,6 +27,11 @@
 #  define XXH_STATIC_LINKING_ONLY  /* XXH64_state_t */
 #endif
 #include "xxhash.h"                /* XXH_reset, update, digest */
+
+
+#if defined (__cplusplus)
+extern "C" {
+#endif
 
 
 /*-*************************************
@@ -332,24 +306,27 @@ void ZSTD_free(void* ptr, ZSTD_customMem customMem);
 
 MEM_STATIC U32 ZSTD_highbit32(U32 val)
 {
+    assert(val != 0);
+    {
 #   if defined(_MSC_VER)   /* Visual */
-    unsigned long r=0;
-    _BitScanReverse(&r, val);
-    return (unsigned)r;
+        unsigned long r=0;
+        _BitScanReverse(&r, val);
+        return (unsigned)r;
 #   elif defined(__GNUC__) && (__GNUC__ >= 3)   /* GCC Intrinsic */
-    return 31 - __builtin_clz(val);
+        return 31 - __builtin_clz(val);
 #   else   /* Software version */
-    static const int DeBruijnClz[32] = { 0, 9, 1, 10, 13, 21, 2, 29, 11, 14, 16, 18, 22, 25, 3, 30, 8, 12, 20, 28, 15, 17, 24, 7, 19, 27, 23, 6, 26, 5, 4, 31 };
-    U32 v = val;
-    int r;
-    v |= v >> 1;
-    v |= v >> 2;
-    v |= v >> 4;
-    v |= v >> 8;
-    v |= v >> 16;
-    r = DeBruijnClz[(U32)(v * 0x07C4ACDDU) >> 27];
-    return r;
+        static const int DeBruijnClz[32] = { 0, 9, 1, 10, 13, 21, 2, 29, 11, 14, 16, 18, 22, 25, 3, 30, 8, 12, 20, 28, 15, 17, 24, 7, 19, 27, 23, 6, 26, 5, 4, 31 };
+        U32 v = val;
+        int r;
+        v |= v >> 1;
+        v |= v >> 2;
+        v |= v >> 4;
+        v |= v >> 8;
+        v |= v >> 16;
+        r = DeBruijnClz[(U32)(v * 0x07C4ACDDU) >> 27];
+        return r;
 #   endif
+    }
 }
 
 
@@ -410,5 +387,8 @@ typedef struct {
 size_t ZSTD_getcBlockSize(const void* src, size_t srcSize,
                           blockProperties_t* bpPtr);
 
+#if defined (__cplusplus)
+}
+#endif
 
 #endif   /* ZSTD_CCOMMON_H_MODULE */

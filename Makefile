@@ -1,10 +1,10 @@
 # ################################################################
-# Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+# Copyright (c) 2015-present, Yann Collet, Facebook, Inc.
 # All rights reserved.
 #
-# This source code is licensed under the BSD-style license found in the
-# LICENSE file in the root directory of this source tree. An additional grant
-# of patent rights can be found in the PATENTS file in the same directory.
+# This source code is licensed under both the BSD-style license (found in the
+# LICENSE file in the root directory of this source tree) and the GPLv2 (found
+# in the COPYING file in the root directory of this source tree).
 # ################################################################
 
 PRGDIR   = programs
@@ -29,15 +29,12 @@ default: lib-release zstd-release
 all: | allmost examples manual
 
 .PHONY: allmost
-allmost:
-	$(MAKE) -C $(ZSTDDIR) all
-	$(MAKE) -C $(PRGDIR) all
-	$(MAKE) -C $(TESTDIR) all
+allmost: allzstd
 	$(MAKE) -C $(ZWRAPDIR) all
 
 #skip zwrapper, can't build that on alternate architectures without the proper zlib installed
-.PHONY: allarch
-allarch:
+.PHONY: allzstd
+allzstd:
 	$(MAKE) -C $(ZSTDDIR) all
 	$(MAKE) -C $(PRGDIR) all
 	$(MAKE) -C $(TESTDIR) all
@@ -74,12 +71,9 @@ zstdmt:
 zlibwrapper:
 	$(MAKE) -C $(ZWRAPDIR) test
 
-.PHONY: shortest
-shortest:
-	$(MAKE) -C $(TESTDIR) $@
-
-.PHONY: test
-test:
+.PHONY: test shortest
+test shortest:
+	$(MAKE) -C $(PRGDIR) allVariants
 	$(MAKE) -C $(TESTDIR) $@
 
 .PHONY: examples
@@ -146,6 +140,11 @@ gcc6build: clean
 	gcc-6 -v
 	CC=gcc-6 $(MAKE) all MOREFLAGS="-Werror"
 
+.PHONY: gcc7build
+gcc7build: clean
+	gcc-7 -v
+	CC=gcc-7 $(MAKE) all MOREFLAGS="-Werror"
+
 .PHONY: clangbuild
 clangbuild: clean
 	clang -v
@@ -156,16 +155,16 @@ m32build: clean
 	$(MAKE) all32
 
 armbuild: clean
-	CC=arm-linux-gnueabi-gcc CFLAGS="-Werror" $(MAKE) allarch
+	CC=arm-linux-gnueabi-gcc CFLAGS="-Werror" $(MAKE) allzstd
 
 aarch64build: clean
-	CC=aarch64-linux-gnu-gcc CFLAGS="-Werror" $(MAKE) allarch
+	CC=aarch64-linux-gnu-gcc CFLAGS="-Werror" $(MAKE) allzstd
 
 ppcbuild: clean
-	CC=powerpc-linux-gnu-gcc CLAGS="-m32 -Wno-attributes -Werror" $(MAKE) allarch
+	CC=powerpc-linux-gnu-gcc CLAGS="-m32 -Wno-attributes -Werror" $(MAKE) allzstd
 
 ppc64build: clean
-	CC=powerpc-linux-gnu-gcc CFLAGS="-m64 -Werror" $(MAKE) allarch
+	CC=powerpc-linux-gnu-gcc CFLAGS="-m64 -Werror" $(MAKE) allzstd
 
 armfuzz: clean
 	CC=arm-linux-gnueabi-gcc QEMU_SYS=qemu-arm-static MOREFLAGS="-static" FUZZER_FLAGS=--no-big-tests $(MAKE) -C $(TESTDIR) fuzztest

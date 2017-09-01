@@ -161,7 +161,7 @@ datagen : $(PRGDIR)/datagen.c datagencli.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
 roundTripCrash : $(ZSTD_FILES) roundTripCrash.c
-	$(CC)      $(FLAGS) $^ -o $@$(EXT)
+	$(CC)      $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
 
 longmatch  : $(ZSTD_FILES) longmatch.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
@@ -318,6 +318,7 @@ test-zstream: zstreamtest
 	$(QEMU_SYS) ./zstreamtest $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
 	$(QEMU_SYS) ./zstreamtest --mt $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
 	$(QEMU_SYS) ./zstreamtest --newapi $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
+	$(QEMU_SYS) ./zstreamtest --opaqueapi $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
 
 test-zstream32: zstreamtest32
 	$(QEMU_SYS) ./zstreamtest32 $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)

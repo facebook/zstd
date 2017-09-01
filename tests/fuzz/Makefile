@@ -48,7 +48,11 @@ LIBFUZZER ?= -lFuzzer
 
 default: all
 
-all: round_trip simple_decompress
+all: \
+	simple_round_trip \
+	stream_round_trip \
+	simple_decompress \
+	stream_decompress
 
 %.o: %.c
 	$(CC) $(FUZZ_CPPFLAGS) $(FUZZ_CFLAGS) $^ -c -o $@

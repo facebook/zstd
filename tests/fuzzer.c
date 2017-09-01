@@ -1342,7 +1342,6 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
             dictSize = FUZ_rLogLength(&lseed, dictLog);   /* needed also for decompression */
             dict = srcBuffer + (FUZ_rand(&lseed) % (srcBufferSize - dictSize));
 
-            CHECK_Z ( ZSTD_CCtx_setParameter(refCtx, ZSTD_p_longDistanceMatching, FUZ_rand(&lseed)&255) );
             if (FUZ_rand(&lseed) & 0xF) {
                 CHECK_Z ( ZSTD_compressBegin_usingDict(refCtx, dict, dictSize, cLevel) );
             } else {

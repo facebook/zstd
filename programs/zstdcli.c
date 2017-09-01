@@ -72,7 +72,11 @@ static const unsigned g_defaultMaxDictSize = 110 KB;
 static const int      g_defaultDictCLevel = 3;
 static const unsigned g_defaultSelectivityLevel = 9;
 #define OVERLAP_LOG_DEFAULT 9999
+#define LDM_HASHEVERYLOG_DEFAULT 9999
 static U32 g_overlapLog = OVERLAP_LOG_DEFAULT;
+static U32 g_ldmHashLog = 0;
+static U32 g_ldmMinMatch = 0;
+static U32 g_ldmHashEveryLog = LDM_HASHEVERYLOG_DEFAULT;
 
 
 /*-************************************
@@ -305,6 +309,9 @@ static unsigned parseCompressionParameters(const char* stringPtr, ZSTD_compressi
         if (longCommandWArg(&stringPtr, "targetLength=") || longCommandWArg(&stringPtr, "tlen=")) { params->targetLength = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "strategy=") || longCommandWArg(&stringPtr, "strat=")) { params->strategy = (ZSTD_strategy)(readU32FromChar(&stringPtr)); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "overlapLog=") || longCommandWArg(&stringPtr, "ovlog=")) { g_overlapLog = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        if (longCommandWArg(&stringPtr, "ldmHashLog=") || longCommandWArg(&stringPtr, "ldmHlog=")) { g_ldmHashLog = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        if (longCommandWArg(&stringPtr, "ldmSearchLength=") || longCommandWArg(&stringPtr, "ldmSlen=")) { g_ldmMinMatch = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        if (longCommandWArg(&stringPtr, "ldmHashEveryLog=")) { g_ldmHashEveryLog = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         return 0;
     }
 
@@ -724,6 +731,9 @@ int main(int argCount, const char* argv[])
         BMK_setNbThreads(nbThreads);
         BMK_setNbSeconds(bench_nbSeconds);
         BMK_setLdmFlag(ldmFlag);
+        BMK_setLdmMinMatch(g_ldmMinMatch);
+        BMK_setLdmHashLog(g_ldmHashLog);
+        BMK_setLdmHashEveryLog(g_ldmHashEveryLog);
         BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast, &compressionParams, setRealTimePrio);
 #endif
         (void)bench_nbSeconds; (void)blockSize; (void)setRealTimePrio;
@@ -792,6 +802,12 @@ int main(int argCount, const char* argv[])
         FIO_setNbThreads(nbThreads);
         FIO_setBlockSize((U32)blockSize);
         FIO_setLdmFlag(ldmFlag);
+        FIO_setLdmHashLog(g_ldmHashLog);
+        FIO_setLdmMinMatch(g_ldmMinMatch);
+        if (g_ldmHashEveryLog != LDM_HASHEVERYLOG_DEFAULT) {
+            FIO_setLdmHashEveryLog(g_ldmHashEveryLog);
+        }
+
         if (g_overlapLog!=OVERLAP_LOG_DEFAULT) FIO_setOverlapLog(g_overlapLog);
         if ((filenameIdx==1) && outFileName)
           operationResult = FIO_compressFilename(outFileName, filenameTable[0], dictFileName, cLevel, &compressionParams);

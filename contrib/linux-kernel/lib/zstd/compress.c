@@ -4,8 +4,6 @@
  *
  * This source code is licensed under the BSD-style license found in the
  * LICENSE file in the root directory of https://github.com/facebook/zstd.
- * An additional grant of patent rights can be found in the PATENTS file in the
- * same directory.
  *
  * This program is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License version 2 as published by the
@@ -583,7 +581,7 @@ void ZSTD_seqToCodes(const seqStore_t *seqStorePtr)
 		mlCodeTable[seqStorePtr->longLengthPos] = MaxML;
 }
 
-ZSTD_STATIC size_t ZSTD_compressSequences(ZSTD_CCtx *zc, void *dst, size_t dstCapacity, size_t srcSize)
+ZSTD_STATIC size_t ZSTD_compressSequences_internal(ZSTD_CCtx *zc, void *dst, size_t dstCapacity)
 {
 	const int longOffsets = zc->params.cParams.windowLog > STREAM_ACCUMULATOR_MIN;
 	const seqStore_t *seqStorePtr = &(zc->seqStore);
@@ -636,7 +634,7 @@ ZSTD_STATIC size_t ZSTD_compressSequences(ZSTD_CCtx *zc, void *dst, size_t dstCa
 	else
 		op[0] = 0xFF, ZSTD_writeLE16(op + 1, (U16)(nbSeq - LONGNBSEQ)), op += 3;
 	if (nbSeq == 0)
-		goto _check_compressibility;
+		return op - ostart;
 
 	/* seqHead : flags for FSE encoding type */
 	seqHead = op++;
@@ -826,26 +824,31 @@ ZSTD_STATIC size_t ZSTD_compressSequences(ZSTD_CCtx *zc, void *dst, size_t dstCa
 			op += streamSize;
 		}
 	}
-
-/* check compressibility */
-_check_compressibility:
-	{
-		size_t const minGain = ZSTD_minGain(srcSize);
-		size_t const maxCSize = srcSize - minGain;
-		if ((size_t)(op - ostart) >= maxCSize) {
-			zc->flagStaticHufTable = HUF_repeat_none;
-			return 0;
-		}
-	}
-
-	/* confirm repcodes */
-	{
-		int i;
-		for (i = 0; i < ZSTD_REP_NUM; i++)
-			zc->rep[i] = zc->repToConfirm[i];
-	}
-
 	return op - ostart;
+}
+
+ZSTD_STATIC size_t ZSTD_compressSequences(ZSTD_CCtx *zc, void *dst, size_t dstCapacity, size_t srcSize)
+{
+	size_t const cSize = ZSTD_compressSequences_internal(zc, dst, dstCapacity);
+	size_t const minGain = ZSTD_minGain(srcSize);
+	size_t const maxCSize = srcSize - minGain;
+	/* If the srcSize <= dstCapacity, then there is enough space to write a
+	 * raw uncompressed block. Since we ran out of space, the block must not
+	 * be compressible, so fall back to a raw uncompressed block.
+	 */
+	int const uncompressibleError = cSize == ERROR(dstSize_tooSmall) && srcSize <= dstCapacity;
+	int i;
+
+	if (ZSTD_isError(cSize) && !uncompressibleError)
+		return cSize;
+	if (cSize >= maxCSize || uncompressibleError) {
+		zc->flagStaticHufTable = HUF_repeat_none;
+		return 0;
+	}
+	/* confirm repcodes */
+	for (i = 0; i < ZSTD_REP_NUM; i++)
+		zc->rep[i] = zc->repToConfirm[i];
+	return cSize;
 }
 
 /*! ZSTD_storeSeq() :

@@ -1,12 +1,10 @@
-/**
- * util.h - utility functions
- *
+/*
  * Copyright (c) 2016-present, Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under both the BSD-style license (found in the
+ * LICENSE file in the root directory of this source tree) and the GPLv2 (found
+ * in the COPYING file in the root directory of this source tree).
  */
 
 #ifndef UTIL_H_MODULE
@@ -108,12 +106,20 @@ extern "C" {
 
 
 /*-****************************************
+*  Console log
+******************************************/
+static int g_utilDisplayLevel;
+#define UTIL_DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
+#define UTIL_DISPLAYLEVEL(l, ...) { if (g_utilDisplayLevel>=l) { UTIL_DISPLAY(__VA_ARGS__); } }
+
+
+/*-****************************************
 *  Time functions
 ******************************************/
 #if defined(_WIN32)   /* Windows */
    typedef LARGE_INTEGER UTIL_freq_t;
    typedef LARGE_INTEGER UTIL_time_t;
-   UTIL_STATIC void UTIL_initTimer(UTIL_freq_t* ticksPerSecond) { if (!QueryPerformanceFrequency(ticksPerSecond)) fprintf(stderr, "ERROR: QueryPerformance not present\n"); }
+   UTIL_STATIC void UTIL_initTimer(UTIL_freq_t* ticksPerSecond) { if (!QueryPerformanceFrequency(ticksPerSecond)) UTIL_DISPLAYLEVEL(1, "ERROR: QueryPerformance not present\n"); }
    UTIL_STATIC void UTIL_getTime(UTIL_time_t* x) { QueryPerformanceCounter(x); }
    UTIL_STATIC U64 UTIL_getSpanTimeMicro(UTIL_freq_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart; }
    UTIL_STATIC U64 UTIL_getSpanTimeNano(UTIL_freq_t ticksPerSecond, UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart; }
@@ -286,10 +292,6 @@ UTIL_STATIC void *UTIL_realloc(void *ptr, size_t size)
     return NULL;
 }
 
-static int g_utilDisplayLevel;
-#define UTIL_DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
-#define UTIL_DISPLAYLEVEL(l, ...) { if (g_utilDisplayLevel>=l) { UTIL_DISPLAY(__VA_ARGS__); } }
-
 #ifdef _WIN32
 #  define UTIL_HAS_CREATEFILELIST
 
@@ -311,7 +313,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
 
     hFile=FindFirstFileA(path, &cFile);
     if (hFile == INVALID_HANDLE_VALUE) {
-        fprintf(stderr, "Cannot open directory '%s'\n", dirName);
+        UTIL_DISPLAYLEVEL(1, "Cannot open directory '%s'\n", dirName);
         return 0;
     }
     free(path);
@@ -365,7 +367,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
     int dirLength, fnameLength, pathLength, nbFiles = 0;
 
     if (!(dir = opendir(dirName))) {
-        fprintf(stderr, "Cannot open directory '%s': %s\n", dirName, strerror(errno));
+        UTIL_DISPLAYLEVEL(1, "Cannot open directory '%s': %s\n", dirName, strerror(errno));
         return 0;
     }
 
@@ -410,7 +412,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
     }
 
     if (errno != 0) {
-        fprintf(stderr, "readdir(%s) error: %s\n", dirName, strerror(errno));
+        UTIL_DISPLAYLEVEL(1, "readdir(%s) error: %s\n", dirName, strerror(errno));
         free(*bufStart);
         *bufStart = NULL;
     }
@@ -423,7 +425,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
 UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd, int followLinks)
 {
     (void)bufStart; (void)bufEnd; (void)pos;
-    fprintf(stderr, "Directory %s ignored (compiled without _WIN32 or _POSIX_C_SOURCE)\n", dirName);
+    UTIL_DISPLAYLEVEL(1, "Directory %s ignored (compiled without _WIN32 or _POSIX_C_SOURCE)\n", dirName);
     return 0;
 }
 

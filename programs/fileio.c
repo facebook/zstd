@@ -1,10 +1,10 @@
-/**
+/*
  * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under both the BSD-style license (found in the
+ * LICENSE file in the root directory of this source tree) and the GPLv2 (found
+ * in the COPYING file in the root directory of this source tree).
  */
 
 
@@ -925,230 +925,6 @@ int FIO_compressFilename(const char* dstFileName, const char* srcFileName,
     return result;
 }
 
-typedef struct {
-    int numActualFrames;
-    int numSkippableFrames;
-    unsigned long long decompressedSize;
-    int decompUnavailable;
-    unsigned long long compressedSize;
-    int usesCheck;
-} fileInfo_t;
-
-/*
- * Reads information from file, stores in *info
- * if successful, returns 0, returns 1 for frame analysis error, returns 2 for file not compressed with zstd
- * returns 3 for cases in which file could not be opened.
- */
-static int getFileInfo(fileInfo_t* info, const char* inFileName){
-    int detectError = 0;
-    FILE* const srcFile = FIO_openSrcFile(inFileName);
-    if (srcFile == NULL) {
-        DISPLAY("Error: could not open source file %s\n", inFileName);
-        return 3;
-    }
-    info->compressedSize = (unsigned long long)UTIL_getFileSize(inFileName);
-    /* begin analyzing frame */
-    for ( ; ; ) {
-        BYTE headerBuffer[ZSTD_FRAMEHEADERSIZE_MAX];
-        size_t const numBytesRead = fread(headerBuffer, 1, sizeof(headerBuffer), srcFile);
-        if (numBytesRead < ZSTD_frameHeaderSize_min) {
-            if (feof(srcFile) && numBytesRead == 0 && info->compressedSize > 0) {
-                break;
-            }
-            else if (feof(srcFile)) {
-                DISPLAY("Error: reached end of file with incomplete frame\n");
-                detectError = 2;
-                break;
-            }
-            else {
-                DISPLAY("Error: did not reach end of file but ran out of frames\n");
-                detectError = 1;
-                break;
-            }
-        }
-        {
-            U32 const magicNumber = MEM_readLE32(headerBuffer);
-            if (magicNumber == ZSTD_MAGICNUMBER) {
-                U64 const frameContentSize = ZSTD_getFrameContentSize(headerBuffer, numBytesRead);
-                if (frameContentSize == ZSTD_CONTENTSIZE_ERROR || frameContentSize == ZSTD_CONTENTSIZE_UNKNOWN) {
-                    info->decompUnavailable = 1;
-                }
-                else {
-                    info->decompressedSize += frameContentSize;
-                }
-                {
-                    /* move to the end of the frame header */
-                    size_t const headerSize = ZSTD_frameHeaderSize(headerBuffer, numBytesRead);
-                    if (ZSTD_isError(headerSize)) {
-                        DISPLAY("Error: could not determine frame header size\n");
-                        detectError = 1;
-                        break;
-                    }
-                    {
-                        int const ret = fseek(srcFile, ((long)headerSize)-((long)numBytesRead), SEEK_CUR);
-                        if (ret != 0) {
-                            DISPLAY("Error: could not move to end of frame header\n");
-                            detectError = 1;
-                            break;
-                        }
-                    }
-                }
-
-                /* skip the rest of the blocks in the frame */
-                {
-                    int lastBlock = 0;
-                    do {
-                        BYTE blockHeaderBuffer[3];
-                        U32 blockHeader;
-                        int blockSize;
-                        size_t const readBytes = fread(blockHeaderBuffer, 1, 3, srcFile);
-                        if (readBytes != 3) {
-                            DISPLAY("There was a problem reading the block header\n");
-                            detectError = 1;
-                            break;
-                        }
-                        blockHeader = MEM_readLE24(blockHeaderBuffer);
-                        lastBlock = blockHeader & 1;
-                        blockSize = blockHeader >> 3;
-                        {
-                            int const ret = fseek(srcFile, blockSize, SEEK_CUR);
-                            if (ret != 0) {
-                                DISPLAY("Error: could not skip to end of block\n");
-                                detectError = 1;
-                                break;
-                            }
-                        }
-                    } while (lastBlock != 1);
-
-                    if (detectError) {
-                        break;
-                    }
-                }
-                {
-                    /* check if checksum is used */
-                    BYTE const frameHeaderDescriptor = headerBuffer[4];
-                    int const contentChecksumFlag = (frameHeaderDescriptor & (1 << 2)) >> 2;
-                    if (contentChecksumFlag) {
-                        int const ret = fseek(srcFile, 4, SEEK_CUR);
-                        info->usesCheck = 1;
-                        if (ret != 0) {
-                            DISPLAY("Error: could not skip past checksum\n");
-                            detectError = 1;
-                            break;
-                        }
-                    }
-                }
-                info->numActualFrames++;
-            }
-            else if (magicNumber == ZSTD_MAGIC_SKIPPABLE_START) {
-                BYTE frameSizeBuffer[4];
-                size_t const readBytes = fread(frameSizeBuffer, 1, 4, srcFile);
-                if (readBytes != 4) {
-                    DISPLAY("There was an error reading skippable frame size");
-                    detectError = 1;
-                    break;
-                }
-                {
-                    U32 const frameSize = MEM_readLE32(frameSizeBuffer);
-                    int const ret = LONG_SEEK(srcFile, frameSize, SEEK_CUR);
-                    if (ret != 0) {
-                        DISPLAY("Error: could not find end of skippable frame\n");
-                        detectError = 1;
-                        break;
-                    }
-                }
-                info->numSkippableFrames++;
-            }
-            else {
-                detectError = 2;
-                break;
-            }
-        }
-    }
-    fclose(srcFile);
-    return detectError;
-}
-
-static void displayInfo(const char* inFileName, fileInfo_t* info, int displayLevel){
-    double const compressedSizeMB = (double)info->compressedSize/(1 MB);
-    double const decompressedSizeMB = (double)info->decompressedSize/(1 MB);
-    double const ratio = (info->compressedSize == 0) ? 0 : ((double)info->decompressedSize)/info->compressedSize;
-    const char* const checkString = (info->usesCheck ? "XXH64" : "None");
-    if (displayLevel <= 2) {
-        if (!info->decompUnavailable) {
-            DISPLAYOUT("Skippable  Non-Skippable  Compressed  Uncompressed  Ratio  Check  Filename\n");
-            DISPLAYOUT("%9d  %13d  %7.2f MB  %9.2f MB  %5.3f  %5s  %s\n",
-                    info->numSkippableFrames, info->numActualFrames, compressedSizeMB, decompressedSizeMB,
-                    ratio, checkString, inFileName);
-        }
-        else {
-            DISPLAYOUT("Skippable  Non-Skippable  Compressed  Check  Filename\n");
-            DISPLAYOUT("%9d  %13d  %7.2f MB  %5s  %s\n",
-                    info->numSkippableFrames, info->numActualFrames, compressedSizeMB, checkString, inFileName);
-        }
-    }
-    else{
-        DISPLAYOUT("# Zstandard Frames: %d\n", info->numActualFrames);
-        DISPLAYOUT("# Skippable Frames: %d\n", info->numSkippableFrames);
-        DISPLAYOUT("Compressed Size: %.2f MB (%llu B)\n", compressedSizeMB, info->compressedSize);
-        if (!info->decompUnavailable) {
-            DISPLAYOUT("Decompressed Size: %.2f MB (%llu B)\n", decompressedSizeMB, info->decompressedSize);
-            DISPLAYOUT("Ratio: %.4f\n", ratio);
-        }
-        DISPLAYOUT("Check: %s\n", checkString);
-        DISPLAYOUT("\n");
-    }
-}
-
-
-static int FIO_listFile(const char* inFileName, int displayLevel, unsigned fileNo, unsigned numFiles){
-    /* initialize info to avoid warnings */
-    fileInfo_t info;
-    memset(&info, 0, sizeof(info));
-    DISPLAYOUT("%s (%u/%u):\n", inFileName, fileNo, numFiles);
-    {
-        int const error = getFileInfo(&info, inFileName);
-        if (error == 1) {
-            /* display error, but provide output */
-            DISPLAY("An error occurred with getting file info\n");
-        }
-        else if (error == 2) {
-            DISPLAYOUT("File %s not compressed with zstd\n", inFileName);
-            if (displayLevel > 2) {
-                DISPLAYOUT("\n");
-            }
-            return 1;
-        }
-        else if (error == 3) {
-            /* error occurred with opening the file */
-            if (displayLevel > 2) {
-                DISPLAYOUT("\n");
-            }
-            return 1;
-        }
-        displayInfo(inFileName, &info, displayLevel);
-        return error;
-    }
-}
-
-int FIO_listMultipleFiles(unsigned numFiles, const char** filenameTable, int displayLevel){
-    if (numFiles == 0) {
-        DISPLAYOUT("No files given\n");
-        return 0;
-    }
-    DISPLAYOUT("===========================================\n");
-    DISPLAYOUT("Printing information about compressed files\n");
-    DISPLAYOUT("===========================================\n");
-    DISPLAYOUT("Number of files listed: %u\n", numFiles);
-    {
-        int error = 0;
-        unsigned u;
-        for (u=0; u<numFiles;u++) {
-            error |= FIO_listFile(filenameTable[u], displayLevel, u+1, numFiles);
-        }
-        return error;
-    }
-}
 
 int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFiles,
                                   const char* suffix,
@@ -1194,10 +970,8 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
             missed_files += FIO_compressFilename_dstFile(ress, dstFileName, inFileNamesTable[u], compressionLevel);
     }   }
 
-    /* Close & Free */
     FIO_freeCResources(ress);
     free(dstFileName);
-
     return missed_files;
 }
 
@@ -1208,8 +982,8 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
 #ifndef ZSTD_NODECOMPRESS
 
 /* **************************************************************************
-*  Decompression
-****************************************************************************/
+ *  Decompression
+ ***************************************************************************/
 typedef struct {
     void*  srcBuffer;
     size_t srcBufferLoaded;
@@ -1616,7 +1390,7 @@ static unsigned long long FIO_decompressLz4Frame(dRess_t* ress,
             /* Write Block */
             if (decodedBytes) {
                 if (fwrite(ress->dstBuffer, 1, decodedBytes, ress->dstFile) != decodedBytes) {
-                    DISPLAYLEVEL(1, "zstd: %s \n", strerr(errno));
+                    DISPLAYLEVEL(1, "zstd: %s \n", strerror(errno));
                     decodingError = 1; break;
                 }
                 filesize += decodedBytes;
@@ -1877,5 +1651,232 @@ int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles
     FIO_freeDResources(ress);
     return missingFiles + skippedFiles;
 }
+
+
+
+/* **************************************************************************
+ *  .zst file info (--list command)
+ ***************************************************************************/
+
+typedef struct {
+    int numActualFrames;
+    int numSkippableFrames;
+    unsigned long long decompressedSize;
+    int decompUnavailable;
+    unsigned long long compressedSize;
+    int usesCheck;
+} fileInfo_t;
+
+/** getFileInfo() :
+ *  Reads information from file, stores in *info
+ * @return : 0 if successful
+ *           1 for frame analysis error
+ *           2 for file not compressed with zstd
+ *           3 for cases in which file could not be opened.
+ */
+static int getFileInfo(fileInfo_t* info, const char* inFileName){
+    int detectError = 0;
+    FILE* const srcFile = FIO_openSrcFile(inFileName);
+    if (srcFile == NULL) {
+        DISPLAY("Error: could not open source file %s\n", inFileName);
+        return 3;
+    }
+    info->compressedSize = (unsigned long long)UTIL_getFileSize(inFileName);
+
+    /* begin analyzing frame */
+    for ( ; ; ) {
+        BYTE headerBuffer[ZSTD_FRAMEHEADERSIZE_MAX];
+        size_t const numBytesRead = fread(headerBuffer, 1, sizeof(headerBuffer), srcFile);
+        if (numBytesRead < ZSTD_frameHeaderSize_min) {
+            if (feof(srcFile) && numBytesRead == 0 && info->compressedSize > 0) {
+                break;
+            }
+            else if (feof(srcFile)) {
+                DISPLAY("Error: reached end of file with incomplete frame\n");
+                detectError = 2;
+                break;
+            }
+            else {
+                DISPLAY("Error: did not reach end of file but ran out of frames\n");
+                detectError = 1;
+                break;
+            }
+        }
+        {   U32 const magicNumber = MEM_readLE32(headerBuffer);
+            /* Zstandard frame */
+            if (magicNumber == ZSTD_MAGICNUMBER) {
+                U64 const frameContentSize = ZSTD_getFrameContentSize(headerBuffer, numBytesRead);
+                if (frameContentSize == ZSTD_CONTENTSIZE_ERROR || frameContentSize == ZSTD_CONTENTSIZE_UNKNOWN) {
+                    info->decompUnavailable = 1;
+                } else {
+                    info->decompressedSize += frameContentSize;
+                }
+                /* move to the end of the frame header */
+                {   size_t const headerSize = ZSTD_frameHeaderSize(headerBuffer, numBytesRead);
+                    if (ZSTD_isError(headerSize)) {
+                        DISPLAY("Error: could not determine frame header size\n");
+                        detectError = 1;
+                        break;
+                    }
+                    {   int const ret = fseek(srcFile, ((long)headerSize)-((long)numBytesRead), SEEK_CUR);
+                        if (ret != 0) {
+                            DISPLAY("Error: could not move to end of frame header\n");
+                            detectError = 1;
+                            break;
+                }   }   }
+
+                /* skip the rest of the blocks in the frame */
+                {   int lastBlock = 0;
+                    do {
+                        BYTE blockHeaderBuffer[3];
+                        size_t const readBytes = fread(blockHeaderBuffer, 1, 3, srcFile);
+                        if (readBytes != 3) {
+                            DISPLAY("There was a problem reading the block header\n");
+                            detectError = 1;
+                            break;
+                        }
+                        {   U32 const blockHeader = MEM_readLE24(blockHeaderBuffer);
+                            U32 const blockTypeID = (blockHeader >> 1) & 3;
+                            U32 const isRLE = (blockTypeID == 1);
+                            U32 const isWrongBlock = (blockTypeID == 3);
+                            long const blockSize = isRLE ? 1 : (long)(blockHeader >> 3);
+                            if (isWrongBlock) {
+                                DISPLAY("Error: unsupported block type \n");
+                                detectError = 1;
+                                break;
+                            }
+                            lastBlock = blockHeader & 1;
+                            {   int const ret = fseek(srcFile, blockSize, SEEK_CUR);
+                                if (ret != 0) {
+                                    DISPLAY("Error: could not skip to end of block\n");
+                                    detectError = 1;
+                                    break;
+                        }   }   }
+                    } while (lastBlock != 1);
+
+                    if (detectError) break;
+                }
+
+                /* check if checksum is used */
+                {   BYTE const frameHeaderDescriptor = headerBuffer[4];
+                    int const contentChecksumFlag = (frameHeaderDescriptor & (1 << 2)) >> 2;
+                    if (contentChecksumFlag) {
+                        int const ret = fseek(srcFile, 4, SEEK_CUR);
+                        info->usesCheck = 1;
+                        if (ret != 0) {
+                            DISPLAY("Error: could not skip past checksum\n");
+                            detectError = 1;
+                            break;
+                }   }   }
+                info->numActualFrames++;
+            }
+            /* Skippable frame */
+            else if ((magicNumber & 0xFFFFFFF0U) == ZSTD_MAGIC_SKIPPABLE_START) {
+                U32 const frameSize = MEM_readLE32(headerBuffer + 4);
+                long const seek = (long)(8 + frameSize - numBytesRead);
+                int const ret = LONG_SEEK(srcFile, seek, SEEK_CUR);
+                if (ret != 0) {
+                    DISPLAY("Error: could not find end of skippable frame\n");
+                    detectError = 1;
+                    break;
+                }
+                info->numSkippableFrames++;
+            }
+            /* unknown content */
+            else {
+                detectError = 2;
+                break;
+            }
+        }
+    }  /* end analyzing frame */
+    fclose(srcFile);
+    return detectError;
+}
+
+static void displayInfo(const char* inFileName, fileInfo_t* info, int displayLevel){
+    unsigned const unit = info->compressedSize < (1 MB) ? (1 KB) : (1 MB);
+    const char* const unitStr = info->compressedSize < (1 MB) ? "KB" : "MB";
+    double const compressedSizeUnit = (double)info->compressedSize / unit;
+    double const decompressedSizeUnit = (double)info->decompressedSize / unit;
+    double const ratio = (info->compressedSize == 0) ? 0 : ((double)info->decompressedSize)/info->compressedSize;
+    const char* const checkString = (info->usesCheck ? "XXH64" : "None");
+    if (displayLevel <= 2) {
+        if (!info->decompUnavailable) {
+            DISPLAYOUT("Skippable  Non-Skippable  Compressed  Uncompressed  Ratio  Check  Filename\n");
+            DISPLAYOUT("%9d  %13d  %7.2f %2s  %9.2f %2s  %5.3f  %5s  %s\n",
+                    info->numSkippableFrames, info->numActualFrames,
+                    compressedSizeUnit, unitStr, decompressedSizeUnit, unitStr,
+                    ratio, checkString, inFileName);
+        } else {
+            DISPLAYOUT("Skippable  Non-Skippable  Compressed  Check  Filename\n");
+            DISPLAYOUT("%9d  %13d  %7.2f MB  %5s  %s\n",
+                    info->numSkippableFrames, info->numActualFrames,
+                    compressedSizeUnit, checkString, inFileName);
+        }
+    } else {
+        DISPLAYOUT("# Zstandard Frames: %d\n", info->numActualFrames);
+        DISPLAYOUT("# Skippable Frames: %d\n", info->numSkippableFrames);
+        DISPLAYOUT("Compressed Size: %.2f %2s (%llu B)\n",
+                    compressedSizeUnit, unitStr, info->compressedSize);
+        if (!info->decompUnavailable) {
+            DISPLAYOUT("Decompressed Size: %.2f %2s (%llu B)\n",
+                    decompressedSizeUnit, unitStr, info->decompressedSize);
+            DISPLAYOUT("Ratio: %.4f\n", ratio);
+        }
+        DISPLAYOUT("Check: %s\n", checkString);
+        DISPLAYOUT("\n");
+    }
+}
+
+
+static int FIO_listFile(const char* inFileName, int displayLevel, unsigned fileNo, unsigned numFiles){
+    /* initialize info to avoid warnings */
+    fileInfo_t info;
+    memset(&info, 0, sizeof(info));
+    DISPLAYOUT("%s (%u/%u):\n", inFileName, fileNo, numFiles);
+    {
+        int const error = getFileInfo(&info, inFileName);
+        if (error == 1) {
+            /* display error, but provide output */
+            DISPLAY("An error occurred with getting file info\n");
+        }
+        else if (error == 2) {
+            DISPLAYOUT("File %s not compressed with zstd\n", inFileName);
+            if (displayLevel > 2) {
+                DISPLAYOUT("\n");
+            }
+            return 1;
+        }
+        else if (error == 3) {
+            /* error occurred with opening the file */
+            if (displayLevel > 2) {
+                DISPLAYOUT("\n");
+            }
+            return 1;
+        }
+        displayInfo(inFileName, &info, displayLevel);
+        return error;
+    }
+}
+
+int FIO_listMultipleFiles(unsigned numFiles, const char** filenameTable, int displayLevel){
+    if (numFiles == 0) {
+        DISPLAYOUT("No files given\n");
+        return 0;
+    }
+    DISPLAYOUT("===========================================\n");
+    DISPLAYOUT("Printing information about compressed files\n");
+    DISPLAYOUT("===========================================\n");
+    DISPLAYOUT("Number of files listed: %u\n", numFiles);
+    {
+        int error = 0;
+        unsigned u;
+        for (u=0; u<numFiles;u++) {
+            error |= FIO_listFile(filenameTable[u], displayLevel, u+1, numFiles);
+        }
+        return error;
+    }
+}
+
 
 #endif /* #ifndef ZSTD_NODECOMPRESS */

@@ -1,10 +1,10 @@
-/**
+/*
  * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under both the BSD-style license (found in the
+ * LICENSE file in the root directory of this source tree) and the GPLv2 (found
+ * in the COPYING file in the root directory of this source tree).
  */
 
 
@@ -15,8 +15,7 @@
 #include <stdlib.h>      /* malloc, calloc, free */
 #include <string.h>      /* memset */
 #include "error_private.h"
-#define ZSTD_STATIC_LINKING_ONLY
-#include "zstd.h"
+#include "zstd_internal.h"
 
 
 /*-****************************************

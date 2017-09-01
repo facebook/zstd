@@ -1,7 +1,7 @@
-From 0cd63464d182bb9708f8b25f7da3dc8e5ec6b4fa Mon Sep 17 00:00:00 2001
-From: Nick Terrell <terrelln@fb.com>
+From 46bf8f6d30d6ddf2446c110f122482b5e5e16933 Mon Sep 17 00:00:00 2001
+From: Sean Purcell <me@seanp.xyz>
 Date: Mon, 17 Jul 2017 17:08:59 -0700
-Subject: [PATCH v3 4/4] squashfs: Add zstd support
+Subject: [PATCH v5 4/5] squashfs: Add zstd support
 
 Add zstd compression and decompression support to SquashFS. zstd is a
 great fit for SquashFS because it can compress at ratios approaching xz,
@@ -42,16 +42,23 @@ taking over the submission process.
 
 zstd source repository: https://github.com/facebook/zstd
 
-Cc: Sean Purcell <me@seanp.xyz>
+Signed-off-by: Sean Purcell <me@seanp.xyz>
 Signed-off-by: Nick Terrell <terrelln@fb.com>
 ---
+v3 -> v4:
+- Fix minor linter warnings
+
+v4 -> v5:
+- Fix ZSTD_DStream initialization code in squashfs
+- Fix patch documentation to reflect that Sean Purcell is the author
+
  fs/squashfs/Kconfig        |  14 +++++
  fs/squashfs/Makefile       |   1 +
  fs/squashfs/decompressor.c |   7 +++
  fs/squashfs/decompressor.h |   4 ++
  fs/squashfs/squashfs_fs.h  |   1 +
- fs/squashfs/zstd_wrapper.c | 150 +++++++++++++++++++++++++++++++++++++++++++++
- 6 files changed, 177 insertions(+)
+ fs/squashfs/zstd_wrapper.c | 151 +++++++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 178 insertions(+)
  create mode 100644 fs/squashfs/zstd_wrapper.c
 
 diff --git a/fs/squashfs/Kconfig b/fs/squashfs/Kconfig
@@ -140,10 +147,10 @@ index 506f4ba..24d12fd 100644
  	__le32			s_magic;
 diff --git a/fs/squashfs/zstd_wrapper.c b/fs/squashfs/zstd_wrapper.c
 new file mode 100644
-index 0000000..8cb7c76
+index 0000000..eeaabf8
 --- /dev/null
 +++ b/fs/squashfs/zstd_wrapper.c
-@@ -0,0 +1,150 @@
+@@ -0,0 +1,151 @@
 +/*
 + * Squashfs - a compressed read only filesystem for Linux
 + *
@@ -159,10 +166,6 @@ index 0000000..8cb7c76
 + * but WITHOUT ANY WARRANTY; without even the implied warranty of
 + * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 + * GNU General Public License for more details.
-+ *
-+ * You should have received a copy of the GNU General Public License
-+ * along with this program; if not, write to the Free Software
-+ * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 + *
 + * zstd_wrapper.c
 + */
@@ -182,15 +185,18 @@ index 0000000..8cb7c76
 +struct workspace {
 +	void *mem;
 +	size_t mem_size;
++	size_t window_size;
 +};
 +
 +static void *zstd_init(struct squashfs_sb_info *msblk, void *buff)
 +{
 +	struct workspace *wksp = kmalloc(sizeof(*wksp), GFP_KERNEL);
++
 +	if (wksp == NULL)
 +		goto failed;
-+	wksp->mem_size = ZSTD_DStreamWorkspaceBound(max_t(size_t,
-+				msblk->block_size, SQUASHFS_METADATA_SIZE));
++	wksp->window_size = max_t(size_t,
++			msblk->block_size, SQUASHFS_METADATA_SIZE);
++	wksp->mem_size = ZSTD_DStreamWorkspaceBound(wksp->window_size);
 +	wksp->mem = vmalloc(wksp->mem_size);
 +	if (wksp->mem == NULL)
 +		goto failed;
@@ -226,7 +232,7 @@ index 0000000..8cb7c76
 +	ZSTD_inBuffer in_buf = { NULL, 0, 0 };
 +	ZSTD_outBuffer out_buf = { NULL, 0, 0 };
 +
-+	stream = ZSTD_initDStream(wksp->mem_size, wksp->mem, wksp->mem_size);
++	stream = ZSTD_initDStream(wksp->window_size, wksp->mem, wksp->mem_size);
 +
 +	if (!stream) {
 +		ERROR("Failed to initialize zstd decompressor\n");
@@ -239,6 +245,7 @@ index 0000000..8cb7c76
 +	do {
 +		if (in_buf.pos == in_buf.size && k < b) {
 +			int avail = min(length, msblk->devblksize - offset);
++
 +			length -= avail;
 +			in_buf.src = bh[k]->b_data + offset;
 +			in_buf.size = avail;
@@ -249,8 +256,9 @@ index 0000000..8cb7c76
 +		if (out_buf.pos == out_buf.size) {
 +			out_buf.dst = squashfs_next_page(output);
 +			if (out_buf.dst == NULL) {
-+				/* shouldn't run out of pages before stream is
-+				 * done */
++				/* Shouldn't run out of pages
++				 * before stream is done.
++				 */
 +				squashfs_finish_page(output);
 +				goto out;
 +			}

@@ -1,10 +1,10 @@
-/**
+/*
  * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under both the BSD-style license (found in the
+ * LICENSE file in the root directory of this source tree) and the GPLv2 (found
+ * in the COPYING file in the root directory of this source tree).
  */
 
 
@@ -51,15 +51,6 @@
 
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
 #  include "zstd_legacy.h"
-#endif
-
-#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_I86))  /* _mm_prefetch() is not defined outside of x86/x64 */
-#  include <mmintrin.h>   /* https://msdn.microsoft.com/fr-fr/library/84szxsww(v=vs.90).aspx */
-#  define ZSTD_PREFETCH(ptr)   _mm_prefetch((const char*)ptr, _MM_HINT_T0)
-#elif defined(__GNUC__)
-#  define ZSTD_PREFETCH(ptr)   __builtin_prefetch(ptr, 0, 0)
-#else
-#  define ZSTD_PREFETCH(ptr)   /* disabled */
 #endif
 
 
@@ -953,7 +944,7 @@ static seq_t ZSTD_decodeSequence(seqState_t* seqState)
 }
 
 
-FORCE_INLINE
+HINT_INLINE
 size_t ZSTD_execSequence(BYTE* op,
                          BYTE* const oend, seq_t sequence,
                          const BYTE** litPtr, const BYTE* const litLimit,
@@ -1097,7 +1088,7 @@ static size_t ZSTD_decompressSequences(
 }
 
 
-FORCE_INLINE seq_t ZSTD_decodeSequenceLong_generic(seqState_t* seqState, int const longOffsets)
+FORCE_INLINE_TEMPLATE seq_t ZSTD_decodeSequenceLong_generic(seqState_t* seqState, int const longOffsets)
 {
     seq_t seq;
 
@@ -1197,7 +1188,7 @@ static seq_t ZSTD_decodeSequenceLong(seqState_t* seqState, unsigned const window
     }
 }
 
-FORCE_INLINE
+HINT_INLINE
 size_t ZSTD_execSequenceLong(BYTE* op,
                                 BYTE* const oend, seq_t sequence,
                                 const BYTE** litPtr, const BYTE* const litLimit,
@@ -1333,7 +1324,7 @@ static size_t ZSTD_decompressSequencesLong(
             seq_t const sequence = ZSTD_decodeSequenceLong(&seqState, windowSize32);
             size_t const oneSeqSize = ZSTD_execSequenceLong(op, oend, sequences[(seqNb-ADVANCED_SEQS) & STOSEQ_MASK], &litPtr, litEnd, base, vBase, dictEnd);
             if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
-            ZSTD_PREFETCH(sequence.match);
+            PREFETCH(sequence.match);
             sequences[seqNb&STOSEQ_MASK] = sequence;
             op += oneSeqSize;
         }
@@ -1731,7 +1722,7 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
             return 0;
         }
         dctx->expected = 0;   /* not necessary to copy more */
-
+        /* fall-through */
     case ZSTDds_decodeFrameHeader:
         assert(src != NULL);
         memcpy(dctx->headerBuffer + ZSTD_frameHeaderSize_prefix, src, dctx->expected);
@@ -2245,7 +2236,7 @@ size_t ZSTD_estimateDStreamSize(size_t windowSize)
     size_t const blockSize = MIN(windowSize, ZSTD_BLOCKSIZE_MAX);
     size_t const inBuffSize = blockSize;  /* no block can be larger */
     size_t const outBuffSize = windowSize + blockSize + (WILDCOPY_OVERLENGTH * 2);
-    return sizeof(ZSTD_DStream) + ZSTD_estimateDCtxSize() + inBuffSize + outBuffSize;
+    return ZSTD_estimateDCtxSize() + inBuffSize + outBuffSize;
 }
 
 ZSTDLIB_API size_t ZSTD_estimateDStreamSize_fromFrame(const void* src, size_t srcSize)
@@ -2392,7 +2383,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                     zds->outBuffSize = neededOutSize;
             }   }
             zds->streamStage = zdss_read;
-            /* pass-through */
+            /* fall-through */
 
         case zdss_read:
             DEBUGLOG(5, "stage zdss_read");
@@ -2417,8 +2408,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             }   }
             if (ip==iend) { someMoreWork = 0; break; }   /* no more input */
             zds->streamStage = zdss_load;
-            /* pass-through */
-
+            /* fall-through */
         case zdss_load:
             {   size_t const neededInSize = ZSTD_nextSrcSizeToDecompress(zds);
                 size_t const toLoad = neededInSize - zds->inPos;   /* should always be <= remaining space within inBuff */
@@ -2440,8 +2430,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                     zds->outEnd = zds->outStart +  decodedSize;
             }   }
             zds->streamStage = zdss_flush;
-            /* pass-through */
-
+            /* fall-through */
         case zdss_flush:
             {   size_t const toFlushSize = zds->outEnd - zds->outStart;
                 size_t const flushedSize = ZSTD_limitCopy(op, oend-op, zds->outBuff + zds->outStart, toFlushSize);

@@ -255,11 +255,18 @@ typedef struct {
 
 typedef struct {
     ldmEntry_t* hashTable;
-    BYTE* bucketOffsets;    /* next position in bucket to insert entry */
-    U32 hashLog;            /* log size of hashTable */
-    U32 bucketLog;          /* log number of buckets, at most 4 */
-    U32 hashEveryLog;       /* log number of entries to skip */
+    BYTE* bucketOffsets;    /* Next position in bucket to insert entry */
+    U32 hashEveryLog;       /* Log number of entries to skip */
+    U64 hashPower;          /* Used to compute the rolling hash.
+                             * Depends on ldmParams.minMatchLength */
 } ldmState_t;
+
+typedef struct {
+    U32 enableLdm;          /* 1 if enable long distance matching */
+    U32 hashLog;            /* Log size of hashTable */
+    U32 bucketLog;          /* Log number of buckets, at most 4 */
+    U32 minMatchLength;     /* Minimum match length */
+} ldmParams_t;
 
 typedef struct {
     U32 hufCTable[HUF_CTABLE_SIZE_U32(255)];
@@ -286,7 +293,8 @@ struct ZSTD_CCtx_params_s {
     unsigned jobSize;
     unsigned overlapSizeLog;
 
-    U32 enableLdm;    /* 1 if enable long distance matching */
+    /* Long distance matching parameters */
+    ldmParams_t ldmParams;
 
     /* For use with createCCtxParams() and freeCCtxParams() only */
     ZSTD_customMem customMem;

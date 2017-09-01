@@ -1381,6 +1381,8 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_targetLength, cParams.targetLength, useOpaqueAPI) );
 
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_longDistanceMatching, FUZ_rand(&lseed) & 63, useOpaqueAPI) );
+                if (FUZ_rand(&lseed) & 7) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_ldmMinMatch, FUZ_rand(&lseed) % 128 + 4, useOpaqueAPI ) );
+                if (FUZ_rand(&lseed) & 7) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_ldmHashLog, FUZ_rand(&lseed) % 18 + 10,  useOpaqueAPI ) );
 
                 /* unconditionally set, to be sync with decoder */
                 /* mess with frame parameters */

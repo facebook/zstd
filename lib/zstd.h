@@ -390,6 +390,8 @@ ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output
 #define ZSTD_SEARCHLENGTH_MIN   3   /* only for ZSTD_btopt, other strategies are limited to 4 */
 #define ZSTD_TARGETLENGTH_MIN   4
 #define ZSTD_TARGETLENGTH_MAX 999
+#define ZSTD_LDM_SEARCHLENGTH_MIN 4
+#define ZSTD_LDM_SEARCHLENGTH_MAX 4096
 
 #define ZSTD_FRAMEHEADERSIZE_MAX 18    /* for static allocation */
 #define ZSTD_FRAMEHEADERSIZE_MIN  6
@@ -980,7 +982,14 @@ typedef enum {
                                    * increases the memory usage as well as the
                                    * window size. Note: this should be set after
                                    * ZSTD_p_compressionLevel and before
-                                   * ZSTD_p_windowLog. */
+                                   * ZSTD_p_windowLog and other LDM parameters. */
+    ZSTD_p_ldmHashLog,   /* Size of the table for long distance matching.
+                           * Must be clamped between ZSTD_HASHLOG_MIN and
+                           * ZSTD_HASHLOG_MAX */
+    ZSTD_p_ldmMinMatch,  /* Minimum size of searched matches for long distance matcher.
+                           * Must be clamped between ZSTD_LDM_SEARCHLENGTH_MIN
+                           * and ZSTD_LDM_SEARCHLENGTH_MAX. */
+
 } ZSTD_cParameter;
 
 

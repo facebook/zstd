@@ -1,6 +1,7 @@
 v1.3.2
 license : changed /examples license to BSD + GPLv2
 license : fix a few header files to reflect new license (#825)
+fix : 32-bits build can now decode large offsets (levels 21+)
 fix : a rare compression bug when compression generates very large distances (only possible at --ultra -22)
 build: better compatibility with reproducible builds, by Bernhard M. Wiedemann (@bmwiedemann) (#818)
 

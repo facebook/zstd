@@ -392,6 +392,7 @@ ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output
 #define ZSTD_TARGETLENGTH_MAX 999
 #define ZSTD_LDM_SEARCHLENGTH_MIN 4
 #define ZSTD_LDM_SEARCHLENGTH_MAX 4096
+#define ZSTD_LDM_BUCKETSIZELOG_MAX 8
 
 #define ZSTD_FRAMEHEADERSIZE_MAX 18    /* for static allocation */
 #define ZSTD_FRAMEHEADERSIZE_MIN  6
@@ -978,22 +979,25 @@ typedef enum {
     /* advanced parameters - may not remain available after API update */
     ZSTD_p_forceMaxWindow=1100, /* Force back-reference distances to remain < windowSize,
                               * even when referencing into Dictionary content (default:0) */
-    ZSTD_p_longDistanceMatching,  /* Enable long distance matching. This
-                                   * increases the memory usage as well as the
-                                   * window size. Note: this should be set after
-                                   * ZSTD_p_compressionLevel and before
-                                   * ZSTD_p_windowLog and other LDM parameters. */
+    ZSTD_p_enableLongDistanceMatching,  /* Enable long distance matching. This increases the memory
+                                         * usage as well as window size. Note: setting this
+                                         * parameter resets all the LDM parameters as well as
+                                         * ZSTD_p_windowLog. It should be set after
+                                         * ZSTD_p_compressionLevel and before ZSTD_p_windowLog and
+                                         * other LDM parameters. Setting the compression level
+                                         * after this parameter overrides the window log, though LDM
+                                         * will remain enabled until explicitly disabled. */
     ZSTD_p_ldmHashLog,   /* Size of the table for long distance matching.
-                          * Must be clamped between ZSTD_HASHLOG_MIN and
-                          * ZSTD_HASHLOG_MAX */
+                          * Must be clamped between ZSTD_HASHLOG_MIN and ZSTD_HASHLOG_MAX. */
     ZSTD_p_ldmMinMatch,  /* Minimum size of searched matches for long distance matcher.
                           * Must be clamped between ZSTD_LDM_SEARCHLENGTH_MIN
                           * and ZSTD_LDM_SEARCHLENGTH_MAX. */
-    ZSTD_p_ldmHashEveryLog,  /* Frequency of inserting/looking up entries in the
-                              * LDM hash table. The default is
-                              * (windowLog - ldmHashLog) to optimize hash table
-                              * usage. Must be clamped between 0 and
-                              * ZSTD_WINDOWLOG_MAX - ZSTD_HASHLOG_MIN. */
+    ZSTD_p_ldmBucketSizeLog,  /* Log size of each bucket in the hash table for collision resolution.
+                               * The maximum value is ZSTD_LDM_BUCKETSIZELOG_MAX. */
+    ZSTD_p_ldmHashEveryLog,  /* Frequency of inserting/looking up entries in the LDM hash table.
+                              * The default is MAX(0, (windowLog - ldmHashLog)) to
+                              * optimize hash table usage.
+                              * Must be clamped between 0 and ZSTD_WINDOWLOG_MAX - ZSTD_HASHLOG_MIN. */
 
 } ZSTD_cParameter;
 

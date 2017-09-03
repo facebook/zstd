@@ -37,7 +37,6 @@ static const U32 g_searchStrength = 8;   /* control skip over incompressible dat
 typedef enum { ZSTDcs_created=0, ZSTDcs_init, ZSTDcs_ongoing, ZSTDcs_ending } ZSTD_compressionStage_e;
 
 #define LDM_BUCKET_SIZE_LOG 3
-#define LDM_BUCKET_SIZE_LOG_MAX 4
 #define LDM_MIN_MATCH_LENGTH 64
 #define LDM_WINDOW_LOG 27
 #define LDM_HASH_LOG 20
@@ -202,6 +201,33 @@ size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx)
            + cctx->outBuffSize + cctx->inBuffSize
            + ZSTDMT_sizeof_CCtx(cctx->mtctx);
 }
+#if 0
+static void ZSTD_debugPrintCCtxParams(ZSTD_CCtx_params* params)
+{
+    DEBUGLOG(2, "======CCtxParams======");
+    DEBUGLOG(2, "cParams: %u %u %u %u %u %u %u",
+             params->cParams.windowLog,
+             params->cParams.chainLog,
+             params->cParams.hashLog,
+             params->cParams.searchLog,
+             params->cParams.searchLength,
+             params->cParams.targetLength,
+             params->cParams.strategy);
+    DEBUGLOG(2, "fParams: %u %u %u",
+             params->fParams.contentSizeFlag,
+             params->fParams.checksumFlag,
+             params->fParams.noDictIDFlag);
+    DEBUGLOG(2, "cLevel, forceWindow: %u %u",
+             params->compressionLevel,
+             params->forceWindow);
+    DEBUGLOG(2, "ldm: %u %u %u %u %u",
+             params->ldmParams.enableLdm,
+             params->ldmParams.hashLog,
+             params->ldmParams.bucketSizeLog,
+             params->ldmParams.minMatchLength,
+             params->ldmParams.hashEveryLog);
+}
+#endif
 
 size_t ZSTD_sizeof_CStream(const ZSTD_CStream* zcs)
 {
@@ -316,10 +342,10 @@ size_t ZSTDMT_initializeCCtxParameters(ZSTD_CCtx_params* params, unsigned nbThre
 
 static size_t ZSTD_ldm_initializeParameters(ldmParams_t* params, U32 enableLdm)
 {
-    assert(LDM_BUCKET_SIZE_LOG <= LDM_BUCKET_SIZE_LOG_MAX);
+    assert(LDM_BUCKET_SIZE_LOG <= ZSTD_LDM_BUCKETSIZELOG_MAX);
     params->enableLdm = enableLdm>0;
     params->hashLog = LDM_HASH_LOG;
-    params->bucketLog = LDM_BUCKET_SIZE_LOG;
+    params->bucketSizeLog = LDM_BUCKET_SIZE_LOG;
     params->minMatchLength = LDM_MIN_MATCH_LENGTH;
     params->hashEveryLog = LDM_HASHEVERYLOG_NOTSET;
     return 0;
@@ -374,7 +400,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
         DEBUGLOG(5, " setting overlap with nbThreads == %u", cctx->requestedParams.nbThreads);
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
-    case ZSTD_p_longDistanceMatching:
+    case ZSTD_p_enableLongDistanceMatching:
         if (cctx->cdict) return ERROR(stage_wrong);
         if (value != 0) {
             ZSTD_cLevelToCParams(cctx);
@@ -387,6 +413,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
         if (cctx->cdict) return ERROR(stage_wrong);
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
+    case ZSTD_p_ldmBucketSizeLog:
     case ZSTD_p_ldmHashEveryLog:
         if (cctx->cdict) return ERROR(stage_wrong);
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
@@ -490,7 +517,7 @@ size_t ZSTD_CCtxParam_setParameter(
         if (params->nbThreads <= 1) return ERROR(parameter_unsupported);
         return ZSTDMT_CCtxParam_setMTCtxParameter(params, ZSTDMT_p_overlapSectionLog, value);
 
-    case ZSTD_p_longDistanceMatching :
+    case ZSTD_p_enableLongDistanceMatching :
         if (value != 0) {
             ZSTD_cLevelToCCtxParams(params);
             params->cParams.windowLog = LDM_WINDOW_LOG;
@@ -507,6 +534,13 @@ size_t ZSTD_CCtxParam_setParameter(
         if (value == 0) return 0;
         CLAMPCHECK(value, ZSTD_LDM_SEARCHLENGTH_MIN, ZSTD_LDM_SEARCHLENGTH_MAX);
         params->ldmParams.minMatchLength = value;
+        return 0;
+
+    case ZSTD_p_ldmBucketSizeLog :
+        if (value > ZSTD_LDM_BUCKETSIZELOG_MAX) {
+            return ERROR(parameter_outOfBound);
+        }
+        params->ldmParams.bucketSizeLog = value;
         return 0;
 
     case ZSTD_p_ldmHashEveryLog :
@@ -722,12 +756,11 @@ ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, u
 }
 
 /* Estimate the space needed for long distance matching tables. */
-static size_t ZSTD_ldm_getTableSize(U32 ldmHashLog, U32 bucketLog) {
-    size_t const ldmHSize = ((size_t)1) << ldmHashLog;
-    size_t const ldmBucketLog =
-        MIN(bucketLog, LDM_BUCKET_SIZE_LOG_MAX);
+static size_t ZSTD_ldm_getTableSize(U32 hashLog, U32 bucketSizeLog) {
+    size_t const ldmHSize = ((size_t)1) << hashLog;
+    size_t const ldmBucketSizeLog = MIN(bucketSizeLog, hashLog);
     size_t const ldmBucketSize =
-        ((size_t)1) << (ldmHashLog - ldmBucketLog);
+        ((size_t)1) << (hashLog - ldmBucketSizeLog);
     return ldmBucketSize + (ldmHSize * (sizeof(ldmEntry_t)));
 }
 
@@ -757,7 +790,7 @@ size_t ZSTD_estimateCCtxSize_advanced_usingCCtxParams(const ZSTD_CCtx_params* pa
 
         size_t const ldmSpace = params->ldmParams.enableLdm ?
             ZSTD_ldm_getTableSize(params->ldmParams.hashLog,
-                                  params->ldmParams.bucketLog) : 0;
+                                  params->ldmParams.bucketSizeLog) : 0;
 
         size_t const neededSpace = entropySpace + tableSpace + tokenSpace +
                                    optSpace + ldmSpace;
@@ -824,7 +857,7 @@ static U32 ZSTD_equivalentLdmParams(ldmParams_t ldmParams1,
     return (!ldmParams1.enableLdm && !ldmParams2.enableLdm) ||
            (ldmParams1.enableLdm == ldmParams2.enableLdm &&
             ldmParams1.hashLog == ldmParams2.hashLog &&
-            ldmParams1.bucketLog == ldmParams2.bucketLog &&
+            ldmParams1.bucketSizeLog == ldmParams2.bucketSizeLog &&
             ldmParams1.minMatchLength == ldmParams2.minMatchLength &&
             ldmParams1.hashEveryLog == ldmParams2.hashEveryLog);
 }
@@ -889,11 +922,14 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
     }   }
 
     if (params.ldmParams.enableLdm) {
+        /* Adjust long distance matching parameters */
         if (params.ldmParams.hashEveryLog == LDM_HASHEVERYLOG_NOTSET) {
             params.ldmParams.hashEveryLog =
                     params.cParams.windowLog < params.ldmParams.hashLog ?
                     0 : params.cParams.windowLog - params.ldmParams.hashLog;
         }
+        params.ldmParams.bucketSizeLog =
+            MIN(params.ldmParams.bucketSizeLog, params.ldmParams.hashLog);
         zc->ldmState.hashPower =
                 ZSTD_ldm_getHashPower(params.ldmParams.minMatchLength);
     }
@@ -915,7 +951,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
 
         size_t const ldmSpace = params.ldmParams.enableLdm ?
                 ZSTD_ldm_getTableSize(params.ldmParams.hashLog,
-                                      params.ldmParams.bucketLog) : 0;
+                                      params.ldmParams.bucketSizeLog) : 0;
 
         /* Check if workSpace is large enough, alloc a new one if needed */
         {   size_t const entropySpace = sizeof(ZSTD_entropyCTables_t);
@@ -997,7 +1033,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         if (params.ldmParams.enableLdm) {
             size_t const ldmHSize = ((size_t)1) << params.ldmParams.hashLog;
             size_t const ldmBucketSize =
-                    ((size_t)1) << (params.ldmParams.hashLog - params.ldmParams.bucketLog);
+                    ((size_t)1) << (params.ldmParams.hashLog - params.ldmParams.bucketSizeLog);
             memset(ptr, 0, ldmSpace);
             assert(((size_t)ptr & 3) == 0); /* ensure ptr is properly aligned */
             zc->ldmState.hashTable = (ldmEntry_t*)ptr;
@@ -3157,7 +3193,7 @@ static U32 ZSTD_ldm_getTag(U64 hash, U32 hbits, U32 numTagBits)
 static ldmEntry_t* ZSTD_ldm_getBucket(
         ldmState_t* ldmState, size_t hash, ldmParams_t const ldmParams)
 {
-    return ldmState->hashTable + (hash << ldmParams.bucketLog);
+    return ldmState->hashTable + (hash << ldmParams.bucketSizeLog);
 }
 
 /** ZSTD_ldm_insertEntry() :
@@ -3169,7 +3205,7 @@ static void ZSTD_ldm_insertEntry(ldmState_t* ldmState,
     BYTE* const bucketOffsets = ldmState->bucketOffsets;
     *(ZSTD_ldm_getBucket(ldmState, hash, ldmParams) + bucketOffsets[hash]) = entry;
     bucketOffsets[hash]++;
-    bucketOffsets[hash] &= (1 << ldmParams.bucketLog) - 1;
+    bucketOffsets[hash] &= (1 << ldmParams.bucketSizeLog) - 1;
 }
 
 /** ZSTD_ldm_makeEntryAndInsertByTag() :
@@ -3364,8 +3400,8 @@ size_t ZSTD_compressBlock_ldm_generic(ZSTD_CCtx* cctx,
     ldmState_t* const ldmState = &(cctx->ldmState);
     const ldmParams_t ldmParams = cctx->appliedParams.ldmParams;
     const U64 hashPower = ldmState->hashPower;
-    const U32 hBits = ldmParams.hashLog - ldmParams.bucketLog;
-    const U32 ldmBucketSize = (1 << ldmParams.bucketLog);
+    const U32 hBits = ldmParams.hashLog - ldmParams.bucketSizeLog;
+    const U32 ldmBucketSize = (1 << ldmParams.bucketSizeLog);
     const U32 ldmTagMask = (1 << ldmParams.hashEveryLog) - 1;
     seqStore_t* const seqStorePtr = &(cctx->seqStore);
     const BYTE* const base = cctx->base;
@@ -3566,8 +3602,8 @@ static size_t ZSTD_compressBlock_ldm_extDict_generic(
     ldmState_t* const ldmState = &(ctx->ldmState);
     const ldmParams_t ldmParams = ctx->appliedParams.ldmParams;
     const U64 hashPower = ldmState->hashPower;
-    const U32 hBits = ldmParams.hashLog - ldmParams.bucketLog;
-    const U32 ldmBucketSize = (1 << ldmParams.bucketLog);
+    const U32 hBits = ldmParams.hashLog - ldmParams.bucketSizeLog;
+    const U32 ldmBucketSize = (1 << ldmParams.bucketSizeLog);
     const U32 ldmTagMask = (1 << ldmParams.hashEveryLog) - 1;
     seqStore_t* const seqStorePtr = &(ctx->seqStore);
     const BYTE* const base = ctx->base;
@@ -5009,7 +5045,6 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
         return flushMin;
     }
 #endif
-
     CHECK_F( ZSTD_compressStream_generic(cctx, output, input, endOp) );
     DEBUGLOG(5, "completed ZSTD_compress_generic");
     return cctx->outBuffContentSize - cctx->outBuffFlushedSize; /* remaining to flush */

@@ -263,7 +263,7 @@ typedef struct {
 typedef struct {
     U32 enableLdm;          /* 1 if enable long distance matching */
     U32 hashLog;            /* Log size of hashTable */
-    U32 bucketLog;          /* Log number of buckets, at most 4 */
+    U32 bucketSizeLog;      /* Log bucket size for collision resolution, at most 8 */
     U32 minMatchLength;     /* Minimum match length */
     U32 hashEveryLog;       /* Log number of entries to skip */
 } ldmParams_t;

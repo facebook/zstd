@@ -225,8 +225,14 @@ static U32 g_ldmMinMatch = 0;
 void FIO_setLdmMinMatch(unsigned ldmMinMatch) {
     g_ldmMinMatch = ldmMinMatch;
 }
-#define FIO_LDM_HASHEVERYLOG_NOTSET 9999
-static U32 g_ldmHashEveryLog = FIO_LDM_HASHEVERYLOG_NOTSET;
+
+#define FIO_LDM_PARAM_NOTSET 9999
+static U32 g_ldmBucketSizeLog = FIO_LDM_PARAM_NOTSET;
+void FIO_setLdmBucketSizeLog(unsigned ldmBucketSizeLog) {
+    g_ldmBucketSizeLog = ldmBucketSizeLog;
+}
+
+static U32 g_ldmHashEveryLog = FIO_LDM_PARAM_NOTSET;
 void FIO_setLdmHashEveryLog(unsigned ldmHashEveryLog) {
     g_ldmHashEveryLog = ldmHashEveryLog;
 }
@@ -419,10 +425,14 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
             /* compression level */
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionLevel, cLevel) );
             /* long distance matching */
-            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_longDistanceMatching, g_ldmFlag) );
+            CHECK( ZSTD_CCtx_setParameter(
+                          ress.cctx, ZSTD_p_enableLongDistanceMatching, g_ldmFlag) );
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_ldmHashLog, g_ldmHashLog) );
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_ldmMinMatch, g_ldmMinMatch) );
-            if (g_ldmHashEveryLog != FIO_LDM_HASHEVERYLOG_NOTSET) {
+            if (g_ldmBucketSizeLog != FIO_LDM_PARAM_NOTSET) {
+                CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_ldmBucketSizeLog, g_ldmBucketSizeLog) );
+            }
+            if (g_ldmHashEveryLog != FIO_LDM_PARAM_NOTSET) {
                 CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_ldmHashEveryLog, g_ldmHashEveryLog) );
             }
             /* compression parameters */

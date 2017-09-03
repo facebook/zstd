@@ -59,6 +59,7 @@ void FIO_setOverlapLog(unsigned overlapLog);
 void FIO_setLdmFlag(unsigned ldmFlag);
 void FIO_setLdmHashLog(unsigned ldmHashLog);
 void FIO_setLdmMinMatch(unsigned ldmMinMatch);
+void FIO_setLdmBucketSizeLog(unsigned ldmBucketSizeLog);
 void FIO_setLdmHashEveryLog(unsigned ldmHashEveryLog);
 
 

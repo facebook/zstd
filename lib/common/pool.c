@@ -236,7 +236,7 @@ POOL_ctx* POOL_create_advanced(size_t numThreads, size_t queueSize, ZSTD_customM
 }
 
 void POOL_free(POOL_ctx* ctx) {
-    assert(ctx == &g_ctx);
+    assert(!ctx || ctx == &g_ctx);
     (void)ctx;
 }
 

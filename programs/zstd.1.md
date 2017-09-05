@@ -105,6 +105,12 @@ the last one takes effect.
 * `--ultra`:
     unlocks high compression levels 20+ (maximum 22), using a lot more memory.
     Note that decompression will also require more memory when using these levels.
+* `--long`:
+    enables long distance matching.
+    This increases the window size (`windowLog`) and memory usage for both the
+    compressor and decompressor. This setting is designed to improve the
+    compression ratio for files with long matches at a large distance
+    (up to the maximum window size, 128 MiB).
 * `-T#`, `--threads=#`:
     Compress using `#` threads (default: 1).
     If `#` is 0, attempt to detect and use the number of physical CPU cores.
@@ -326,6 +332,47 @@ The list of available _options_:
     Reducing _ovlog_ by 1 reduces the amount of reload by a factor 2.
     Default _ovlog_ is 6, which means "reload `windowSize / 8`".
     Exception : the maximum compression level (22) has a default _ovlog_ of 9.
+
+- `ldmHashLog`=_ldmHlog_, `ldmHlog`=_ldmHlog_:
+    Specify the maximum size for a hash table used for long distance matching.
+
+    This option is ignored unless long distance matching is enabled.
+
+    Bigger hash tables usually improve compression ratio at the expense of more
+    memory during compression and a decrease in compression speed.
+
+    The minimum _ldmHlog_ is 6 and the maximum is 26 (default: 20).
+
+- `ldmSearchLength`=_ldmSlen_, `ldmSlen`=_ldmSlen_:
+    Specify the minimum searched length of a match for long distance matching.
+
+    This option is ignored unless long distance matching is enabled.
+
+    Larger/very small values usually decrease compression ratio.
+
+    The minumum _ldmSlen_ is 4 and the maximum is 4096 (default: 64).
+
+- `ldmBucketSizeLog`=_ldmBucketSizeLog_:
+    Specify the size of each bucket for the hash table used for long distance
+    matching.
+
+    This option is ignored unless long distance matching is enabled.
+
+    Larger bucket sizes improve collision resolution but decrease compression
+    speed.
+
+    The minimum _ldmBucketSizeLog_ is 0 and the maximum is 8 (default: 3).
+
+- `ldmHashEveryLog`=_ldmHashEveryLog_:
+    Specify the frequency of inserting entries into the long distance matching
+    hash table.
+
+    This option is ignored unless long distance matching is enabled.
+
+    Larger values will improve compression speed. Deviating far from the
+    default value will likely result in a decrease in compression ratio.
+
+    The default value is `wLog - ldmHlog`.
 
 ### -B#:
 Select the size of each compression job.

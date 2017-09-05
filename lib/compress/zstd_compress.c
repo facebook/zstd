@@ -1094,7 +1094,8 @@ static size_t ZSTD_copyCCtx_internal(ZSTD_CCtx* dstCCtx,
     if (srcCCtx->stage!=ZSTDcs_init) return ERROR(stage_wrong);
 
     memcpy(&dstCCtx->customMem, &srcCCtx->customMem, sizeof(ZSTD_customMem));
-    {   ZSTD_CCtx_params params = srcCCtx->appliedParams;
+    {   ZSTD_CCtx_params params = dstCCtx->requestedParams;
+        params.cParams = srcCCtx->appliedParams.cParams;
         params.fParams = fParams;
         ZSTD_resetCCtx_internal(dstCCtx, params, pledgedSrcSize,
                                 ZSTDcrp_noMemset, zbuff);

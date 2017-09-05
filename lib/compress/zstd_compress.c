@@ -918,6 +918,8 @@ void ZSTD_invalidateRepCodes(ZSTD_CCtx* cctx) {
 
 /*! ZSTD_copyCCtx_internal() :
  *  Duplicate an existing context `srcCCtx` into another one `dstCCtx`.
+ *  The "context", in this case, refers to the hash and chain tables, entropy
+ *  tables, and dictionary offsets.
  *  Only works during stage ZSTDcs_init (i.e. after creation, but before first call to ZSTD_compressContinue()).
  *  pledgedSrcSize=0 means "empty" if fParams.contentSizeFlag=1
  *  @return : 0, or an error code */
@@ -931,7 +933,9 @@ static size_t ZSTD_copyCCtx_internal(ZSTD_CCtx* dstCCtx,
     if (srcCCtx->stage!=ZSTDcs_init) return ERROR(stage_wrong);
 
     memcpy(&dstCCtx->customMem, &srcCCtx->customMem, sizeof(ZSTD_customMem));
-    {   ZSTD_CCtx_params params = srcCCtx->appliedParams;
+    {   ZSTD_CCtx_params params = dstCCtx->requestedParams;
+        /* Copy only compression parameters related to tables. */
+        params.cParams = srcCCtx->appliedParams.cParams;
         params.fParams = fParams;
         ZSTD_resetCCtx_internal(dstCCtx, params, pledgedSrcSize,
                                 ZSTDcrp_noMemset, zbuff);

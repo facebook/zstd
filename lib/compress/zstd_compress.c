@@ -532,7 +532,7 @@ size_t ZSTD_CCtxParam_setParameter(
 
     case ZSTD_p_ldmMinMatch :
         if (value == 0) return 0;
-        CLAMPCHECK(value, ZSTD_LDM_SEARCHLENGTH_MIN, ZSTD_LDM_SEARCHLENGTH_MAX);
+        CLAMPCHECK(value, ZSTD_LDM_MINMATCH_MIN, ZSTD_LDM_MINMATCH_MAX);
         params->ldmParams.minMatchLength = value;
         return 0;
 
@@ -929,7 +929,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                     0 : params.cParams.windowLog - params.ldmParams.hashLog;
         }
         params.ldmParams.bucketSizeLog =
-            MIN(params.ldmParams.bucketSizeLog, params.ldmParams.hashLog);
+                MIN(params.ldmParams.bucketSizeLog, params.ldmParams.hashLog);
         zc->ldmState.hashPower =
                 ZSTD_ldm_getHashPower(params.ldmParams.minMatchLength);
     }
@@ -949,10 +949,6 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         size_t const buffInSize = (zbuff==ZSTDb_buffered) ? ((size_t)1 << params.cParams.windowLog) + blockSize : 0;
         void* ptr;
 
-        size_t const ldmSpace = params.ldmParams.enableLdm ?
-                ZSTD_ldm_getTableSize(params.ldmParams.hashLog,
-                                      params.ldmParams.bucketSizeLog) : 0;
-
         /* Check if workSpace is large enough, alloc a new one if needed */
         {   size_t const entropySpace = sizeof(ZSTD_entropyCTables_t);
             size_t const optPotentialSpace = ((MaxML+1) + (MaxLL+1) + (MaxOff+1) + (1<<Litbits)) * sizeof(U32)
@@ -961,6 +957,9 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                                     || (params.cParams.strategy == ZSTD_btultra)) ?
                                     optPotentialSpace : 0;
             size_t const bufferSpace = buffInSize + buffOutSize;
+            size_t const ldmSpace = params.ldmParams.enableLdm
+                ? ZSTD_ldm_getTableSize(params.ldmParams.hashLog, params.ldmParams.bucketSizeLog)
+                : 0;
             size_t const neededSpace = entropySpace + optSpace + ldmSpace +
                                        tableSpace + tokenSpace + bufferSpace;
 
@@ -1029,18 +1028,14 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             ptr = zc->optState.priceTable + ZSTD_OPT_NUM+1;
         }
 
-        /* ldm space */
-        /* TODO */
+        /* ldm hash table */
+        /* initialize bucketOffsets table later for pointer alignment */
         if (params.ldmParams.enableLdm) {
             size_t const ldmHSize = ((size_t)1) << params.ldmParams.hashLog;
-            size_t const ldmBucketSize =
-                    ((size_t)1) << (params.ldmParams.hashLog - params.ldmParams.bucketSizeLog);
-            memset(ptr, 0, ldmSpace);
+            memset(ptr, 0, ldmHSize * sizeof(ldmEntry_t));
             assert(((size_t)ptr & 3) == 0); /* ensure ptr is properly aligned */
             zc->ldmState.hashTable = (ldmEntry_t*)ptr;
             ptr = zc->ldmState.hashTable + ldmHSize;
-            zc->ldmState.bucketOffsets = (BYTE*)ptr;
-            ptr = zc->ldmState.bucketOffsets + ldmBucketSize;
         }
 
         /* table Space */
@@ -1059,6 +1054,17 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         zc->seqStore.ofCode = zc->seqStore.mlCode + maxNbSeq;
         zc->seqStore.litStart = zc->seqStore.ofCode + maxNbSeq;
         ptr = zc->seqStore.litStart + blockSize;
+
+        /* ldm bucketOffsets table */
+        if (params.ldmParams.enableLdm) {
+            size_t const ldmBucketSize =
+                  ((size_t)1) << (params.ldmParams.hashLog -
+                                  params.ldmParams.bucketSizeLog);
+            assert(params.ldmParams.hashLog >= params.ldmParams.bucketSizeLog);
+            memset(ptr, 0, ldmBucketSize);
+            zc->ldmState.bucketOffsets = (BYTE*)ptr;
+            ptr = zc->ldmState.bucketOffsets + ldmBucketSize;
+        }
 
         /* buffers */
         zc->inBuffSize = buffInSize;
@@ -3159,11 +3165,12 @@ static ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, int 
 
 /** ZSTD_ldm_getSmallHash() :
  *  numBits should be <= 32
- *  @return : the most significant numBits of value */
+ *  If numBits==0, returns 0.
+ *  @return : the most significant numBits of value. */
 static U32 ZSTD_ldm_getSmallHash(U64 value, U32 numBits)
 {
     assert(numBits <= 32);
-    return (U32)(value >> (64 - numBits));
+    return numBits == 0 ? 0 : (U32)(value >> (64 - numBits));
 }
 
 /** ZSTD_ldm_getChecksum() :
@@ -3183,6 +3190,7 @@ static U32 ZSTD_ldm_getChecksum(U64 hash, U32 numBitsToDiscard)
  *  numTagBits bits. */
 static U32 ZSTD_ldm_getTag(U64 hash, U32 hbits, U32 numTagBits)
 {
+    assert(numTagBits <= 32 && hbits <= 32);
     if (32 - hbits < numTagBits) {
         return hash & ((1 << numTagBits) - 1);
     } else {
@@ -3221,7 +3229,8 @@ static void ZSTD_ldm_insertEntry(ldmState_t* ldmState,
  *  of rollingHash. The checksum is the next 32 most significant bits, followed
  *  by ldmParams.hashEveryLog bits that make up the tag. */
 static void ZSTD_ldm_makeEntryAndInsertByTag(ldmState_t* ldmState,
-                                             U64 rollingHash, U32 hBits,
+                                             U64 const rollingHash,
+                                             U32 const hBits,
                                              U32 const offset,
                                              ldmParams_t const ldmParams)
 {
@@ -3272,7 +3281,7 @@ static U64 ZSTD_ldm_ipow(U64 base, U64 exp)
 }
 
 static U64 ZSTD_ldm_getHashPower(U32 minMatchLength) {
-    assert(minMatchLength >= ZSTD_LDM_SEARCHLENGTH_MIN);
+    assert(minMatchLength >= ZSTD_LDM_MINMATCH_MIN);
     return ZSTD_ldm_ipow(prime8bytes, minMatchLength - 1);
 }
 

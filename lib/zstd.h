@@ -390,8 +390,8 @@ ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output
 #define ZSTD_SEARCHLENGTH_MIN   3   /* only for ZSTD_btopt, other strategies are limited to 4 */
 #define ZSTD_TARGETLENGTH_MIN   4
 #define ZSTD_TARGETLENGTH_MAX 999
-#define ZSTD_LDM_SEARCHLENGTH_MIN 4
-#define ZSTD_LDM_SEARCHLENGTH_MAX 4096
+#define ZSTD_LDM_MINMATCH_MIN 4
+#define ZSTD_LDM_MINMATCH_MAX 4096
 #define ZSTD_LDM_BUCKETSIZELOG_MAX 8
 
 #define ZSTD_FRAMEHEADERSIZE_MAX 18    /* for static allocation */
@@ -996,8 +996,8 @@ typedef enum {
                           * (default: 20). */
     ZSTD_p_ldmMinMatch,  /* Minimum size of searched matches for long distance matcher.
                           * Larger/too small values usually decrease compression ratio.
-                          * Must be clamped between ZSTD_LDM_SEARCHLENGTH_MIN
-                          * and ZSTD_LDM_SEARCHLENGTH_MAX (default: 64). */
+                          * Must be clamped between ZSTD_LDM_MINMATCH_MIN
+                          * and ZSTD_LDM_MINMATCH_MAX (default: 64). */
     ZSTD_p_ldmBucketSizeLog,  /* Log size of each bucket in the LDM hash table for collision resolution.
                                * Larger values usually improve collision resolution but may decrease
                                * compression speed.

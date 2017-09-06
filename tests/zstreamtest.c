@@ -709,6 +709,13 @@ static size_t FUZ_randomLength(U32* seed, U32 maxLog)
 
 #define MIN(a,b)   ( (a) < (b) ? (a) : (b) )
 
+/* Return value in range minVal <= v <= maxVal */
+static U32 FUZ_randomClampedLength(U32* seed, U32 minVal, U32 maxVal)
+{
+    U32 const mod = maxVal < minVal ? 1 : (maxVal + 1) - minVal;
+    return (U32)((FUZ_rand(seed) % mod) + minVal);
+}
+
 #define CHECK(cond, ...) {                                   \
     if (cond) {                                              \
         DISPLAY("Error => ");                                \
@@ -1380,7 +1387,12 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_minMatch, cParams.searchLength, useOpaqueAPI) );
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_targetLength, cParams.targetLength, useOpaqueAPI) );
 
+                /* mess with long distance matching parameters */
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_enableLongDistanceMatching, FUZ_rand(&lseed) & 63, useOpaqueAPI) );
+                if (FUZ_rand(&lseed) & 3) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_ldmHashLog, FUZ_randomClampedLength(&lseed, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX), useOpaqueAPI) );
+                if (FUZ_rand(&lseed) & 3) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_ldmMinMatch, FUZ_randomClampedLength(&lseed, ZSTD_LDM_MINMATCH_MIN, ZSTD_LDM_MINMATCH_MAX), useOpaqueAPI) );
+                if (FUZ_rand(&lseed) & 3) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_ldmBucketSizeLog, FUZ_randomClampedLength(&lseed, 0, ZSTD_LDM_BUCKETSIZELOG_MAX), useOpaqueAPI) );
+                if (FUZ_rand(&lseed) & 3) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_ldmHashEveryLog, FUZ_randomClampedLength(&lseed, 0, ZSTD_WINDOWLOG_MAX - ZSTD_HASHLOG_MIN), useOpaqueAPI) );
 
                 /* unconditionally set, to be sync with decoder */
                 /* mess with frame parameters */

@@ -44,7 +44,7 @@ Optional advanced features are exposed via :
               To enable this feature, it's necessary to define `ZSTD_LEGACY_SUPPORT = 1` during compilation.
               Typically, with `gcc`, add argument `-DZSTD_LEGACY_SUPPORT=1`.
               Using higher number limits the number of version supported.
-              For example, `ZSTD_LEGACY_SUPPORT=2` means : "support legacy formats starting from v0.2+"
+              For example, `ZSTD_LEGACY_SUPPORT=2` means : "support legacy formats starting from v0.2+".
               The API is exposed in `lib/legacy/zstd_legacy.h`.
               Each version also provides a (dedicated) set of advanced API.
               For example, advanced API for version `v0.4` is exposed in `lib/legacy/zstd_v04.h` .
@@ -52,10 +52,10 @@ Optional advanced features are exposed via :
 
 #### Multithreading support
 
-Multithreading is disabled by default for the library.
+Multithreading is disabled by default when building with `make`.
 Enabling multithreading requires 2 conditions :
 - set macro `ZSTD_MULTITHREAD`
-- on POSIX systems : compile with pthread (using `-pthread` with `gcc` for example)
+- on POSIX systems : compile with pthread (`-pthread` compilation flag for `gcc` for example)
 
 Both conditions are automatically triggered by invoking `make lib-mt` target.
 Note that, when linking a POSIX program with a multithreaded version of `libzstd`,
@@ -63,11 +63,11 @@ it's necessary to trigger `-pthread` flag during link stage.
 
 Multithreading capabilities are exposed via :
 - private API `lib/compress/zstdmt_compress.h`.
-  Symbols defined in this header are exposed in library, hence usable.
+  Symbols defined in this header are currently exposed in `libzstd`, hence usable.
   Note however that this API is planned to be locked and remain strictly internal in the future.
 - advanced API `ZSTD_compress_generic()`, defined in `lib/zstd.h`, experimental section.
   This API is still considered experimental, but is designed to be labelled "stable" at some point in the future.
-  It's the recommended entry point to trigger multi-threading.
+  It's the recommended entry point for multi-threading operations.
 
 
 #### Windows : using MinGW+MSYS to create DLL
@@ -100,6 +100,7 @@ Consider migrating code towards supported streaming API exposed in `zstd.h`.
 The other files are not source code. There are :
 
  - `LICENSE` : contains the BSD license text
- - `Makefile` : script to build and install zstd library (static and dynamic)
+ - `Makefile` : `make` script to build and install zstd library (static and dynamic)
+ - `BUCK` : support for `buck` build system (https://buckbuild.com/)
  - `libzstd.pc.in` : for `pkg-config` (used in `make install`)
  - `README.md` : this file

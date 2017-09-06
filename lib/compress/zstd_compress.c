@@ -1030,6 +1030,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         }
 
         /* ldm space */
+        /* TODO */
         if (params.ldmParams.enableLdm) {
             size_t const ldmHSize = ((size_t)1) << params.ldmParams.hashLog;
             size_t const ldmBucketSize =
@@ -3580,7 +3581,7 @@ size_t ZSTD_compressBlock_ldm_generic(ZSTD_CCtx* cctx,
     ZSTD_ldm_fillFastTables(cctx, anchor);
 
     lastLiterals = blockCompressor(cctx, anchor, iend - anchor);
-    cctx->nextToUpdate = (U32)(ip - base);
+    cctx->nextToUpdate = (U32)(iend - base);
 
     /* Restore seqStorePtr->rep */
     for (i = 0; i < ZSTD_REP_NUM; i++)
@@ -3805,7 +3806,7 @@ static size_t ZSTD_compressBlock_ldm_extDict_generic(
 
     /* Call the block compressor one last time on the last literals */
     lastLiterals = blockCompressor(ctx, anchor, iend - anchor);
-    ctx->nextToUpdate = (U32)(ip - base);
+    ctx->nextToUpdate = (U32)(iend - base);
 
     /* Restore seqStorePtr->rep */
     for (i = 0; i < ZSTD_REP_NUM; i++)

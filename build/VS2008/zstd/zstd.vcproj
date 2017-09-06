@@ -444,6 +444,22 @@
 				RelativePath="..\..\..\lib\compress\zstdmt_compress.c"
 				>
 			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstd_fast.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstd_double_fast.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstd_lazy.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstd_opt.c"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -519,10 +535,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\compress\zstd_opt.h"
-				>
-			</File>
-			<File
 				RelativePath="..\..\..\lib\common\zstd_static.h"
 				>
 			</File>
@@ -556,6 +568,26 @@
 			</File>
 			<File
 				RelativePath="..\..\..\lib\compress\zstdmt_compress.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstd_compress.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstd_fast.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstd_double_fast.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstd_lazy.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstd_opt.h"
 				>
 			</File>
 		</Filter>

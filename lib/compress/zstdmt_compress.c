@@ -528,7 +528,7 @@ size_t ZSTDMT_CCtxParam_setMTCtxParameter(
         params->jobSize = value;
         return 0;
     case ZSTDMT_p_overlapSectionLog :
-        DEBUGLOG(5, "ZSTDMT_p_overlapSectionLog : %u", value);
+        DEBUGLOG(4, "ZSTDMT_p_overlapSectionLog : %u", value);
         params->overlapSizeLog = (value >= 9) ? 9 : value;
         return 0;
     default :

@@ -20,7 +20,7 @@
 #include "fuzz_helpers.h"
 #include "zstd.h"
 
-static size_t const kBufSize = ZSTD_BLOCKSIZE_ABSOLUTEMAX;
+static size_t const kBufSize = ZSTD_BLOCKSIZE_MAX;
 
 static ZSTD_DStream *dstream = NULL;
 static void* buf = NULL;

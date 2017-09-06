@@ -201,33 +201,6 @@ size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx)
            + cctx->outBuffSize + cctx->inBuffSize
            + ZSTDMT_sizeof_CCtx(cctx->mtctx);
 }
-#if 0
-static void ZSTD_debugPrintCCtxParams(ZSTD_CCtx_params* params)
-{
-    DEBUGLOG(2, "======CCtxParams======");
-    DEBUGLOG(2, "cParams: %u %u %u %u %u %u %u",
-             params->cParams.windowLog,
-             params->cParams.chainLog,
-             params->cParams.hashLog,
-             params->cParams.searchLog,
-             params->cParams.searchLength,
-             params->cParams.targetLength,
-             params->cParams.strategy);
-    DEBUGLOG(2, "fParams: %u %u %u",
-             params->fParams.contentSizeFlag,
-             params->fParams.checksumFlag,
-             params->fParams.noDictIDFlag);
-    DEBUGLOG(2, "cLevel, forceWindow: %u %u",
-             params->compressionLevel,
-             params->forceWindow);
-    DEBUGLOG(2, "ldm: %u %u %u %u %u",
-             params->ldmParams.enableLdm,
-             params->ldmParams.hashLog,
-             params->ldmParams.bucketSizeLog,
-             params->ldmParams.minMatchLength,
-             params->ldmParams.hashEveryLog);
-}
-#endif
 
 size_t ZSTD_sizeof_CStream(const ZSTD_CStream* zcs)
 {

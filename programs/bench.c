@@ -407,10 +407,8 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                             blockTable[blockNb].cPtr, blockTable[blockNb].cSize,
                             ddict);
                         if (ZSTD_isError(regenSize)) {
-                            DISPLAY("ZSTD_decompress_usingDDict() failed on block %u of size %u : %s  \n",
+                            EXM_THROW(2, "ZSTD_decompress_usingDDict() failed on block %u of size %u : %s  \n",
                                       blockNb, (U32)blockTable[blockNb].cSize, ZSTD_getErrorName(regenSize));
-                            clockLoop = 0;   /* force immediate test end */
-                            break;
                         }
                         blockTable[blockNb].resSize = regenSize;
                     }

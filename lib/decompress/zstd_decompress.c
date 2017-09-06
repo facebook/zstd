@@ -1088,7 +1088,10 @@ static size_t ZSTD_decompressSequences(
 }
 
 
-FORCE_INLINE_TEMPLATE seq_t ZSTD_decodeSequenceLong_generic(seqState_t* seqState, int const longOffsets)
+typedef enum { ZSTD_lo_isRegularOffset, ZSTD_lo_isLongOffset=1 } ZSTD_longOffset_e;
+
+HINT_INLINE
+seq_t ZSTD_decodeSequenceLong(seqState_t* seqState, ZSTD_longOffset_e const longOffsets)
 {
     seq_t seq;
 
@@ -1180,19 +1183,12 @@ FORCE_INLINE_TEMPLATE seq_t ZSTD_decodeSequenceLong_generic(seqState_t* seqState
     return seq;
 }
 
-static seq_t ZSTD_decodeSequenceLong(seqState_t* seqState, unsigned const windowSize) {
-    if (ZSTD_highbit32(windowSize) > STREAM_ACCUMULATOR_MIN) {
-        return ZSTD_decodeSequenceLong_generic(seqState, 1);
-    } else {
-        return ZSTD_decodeSequenceLong_generic(seqState, 0);
-    }
-}
 
 HINT_INLINE
 size_t ZSTD_execSequenceLong(BYTE* op,
-                                BYTE* const oend, seq_t sequence,
-                                const BYTE** litPtr, const BYTE* const litLimit,
-                                const BYTE* const base, const BYTE* const vBase, const BYTE* const dictEnd)
+                             BYTE* const oend, seq_t sequence,
+                             const BYTE** litPtr, const BYTE* const litLimit,
+                             const BYTE* const base, const BYTE* const vBase, const BYTE* const dictEnd)
 {
     BYTE* const oLitEnd = op + sequence.litLength;
     size_t const sequenceLength = sequence.litLength + sequence.matchLength;
@@ -1202,11 +1198,9 @@ size_t ZSTD_execSequenceLong(BYTE* op,
     const BYTE* match = sequence.match;
 
     /* check */
-#if 1
     if (oMatchEnd>oend) return ERROR(dstSize_tooSmall); /* last match must start at a minimum distance of WILDCOPY_OVERLENGTH from oend */
     if (iLitEnd > litLimit) return ERROR(corruption_detected);   /* over-read beyond lit buffer */
     if (oLitEnd>oend_w) return ZSTD_execSequenceLast7(op, oend, sequence, litPtr, litLimit, base, vBase, dictEnd);
-#endif
 
     /* copy Literals */
     ZSTD_copy8(op, *litPtr);
@@ -1216,7 +1210,6 @@ size_t ZSTD_execSequenceLong(BYTE* op,
     *litPtr = iLitEnd;   /* update for next sequence */
 
     /* copy Match */
-#if 1
     if (sequence.offset > (size_t)(oLitEnd - base)) {
         /* offset beyond prefix */
         if (sequence.offset > (size_t)(oLitEnd - vBase)) return ERROR(corruption_detected);
@@ -1236,8 +1229,8 @@ size_t ZSTD_execSequenceLong(BYTE* op,
               return sequenceLength;
             }
     }   }
-    /* Requirement: op <= oend_w && sequence.matchLength >= MINMATCH */
-#endif
+    assert(op <= oend_w);
+    assert(sequence.matchLength >= MINMATCH);
 
     /* match within prefix */
     if (sequence.offset < 8) {
@@ -1285,8 +1278,11 @@ static size_t ZSTD_decompressSequencesLong(
     const BYTE* const base = (const BYTE*) (dctx->base);
     const BYTE* const vBase = (const BYTE*) (dctx->vBase);
     const BYTE* const dictEnd = (const BYTE*) (dctx->dictEnd);
-    unsigned const windowSize32 = (unsigned)dctx->fParams.windowSize;
     int nbSeq;
+
+    unsigned long long const regularWindowSizeMax = 1ULL << STREAM_ACCUMULATOR_MIN;
+    ZSTD_longOffset_e const isLongOffset = (ZSTD_longOffset_e)(MEM_32bits() && (dctx->fParams.windowSize >= regularWindowSizeMax));
+    ZSTD_STATIC_ASSERT(ZSTD_lo_isLongOffset == 1);
 
     /* Build Decoding Tables */
     {   size_t const seqHSize = ZSTD_decodeSeqHeaders(dctx, &nbSeq, ip, seqSize);
@@ -1315,13 +1311,13 @@ static size_t ZSTD_decompressSequencesLong(
 
         /* prepare in advance */
         for (seqNb=0; (BIT_reloadDStream(&seqState.DStream) <= BIT_DStream_completed) && seqNb<seqAdvance; seqNb++) {
-            sequences[seqNb] = ZSTD_decodeSequenceLong(&seqState, windowSize32);
+            sequences[seqNb] = ZSTD_decodeSequenceLong(&seqState, isLongOffset);
         }
         if (seqNb<seqAdvance) return ERROR(corruption_detected);
 
         /* decode and decompress */
         for ( ; (BIT_reloadDStream(&(seqState.DStream)) <= BIT_DStream_completed) && seqNb<nbSeq ; seqNb++) {
-            seq_t const sequence = ZSTD_decodeSequenceLong(&seqState, windowSize32);
+            seq_t const sequence = ZSTD_decodeSequenceLong(&seqState, isLongOffset);
             size_t const oneSeqSize = ZSTD_execSequenceLong(op, oend, sequences[(seqNb-ADVANCED_SEQS) & STOSEQ_MASK], &litPtr, litEnd, base, vBase, dictEnd);
             if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
             PREFETCH(sequence.match);
@@ -1369,12 +1365,8 @@ static size_t ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
         ip += litCSize;
         srcSize -= litCSize;
     }
-    if (sizeof(size_t) > 4)  /* do not enable prefetching on 32-bits x86, as it's performance detrimental */
-                             /* likely because of register pressure */
-                             /* if that's the correct cause, then 32-bits ARM should be affected differently */
-                             /* it would be good to test this on ARM real hardware, to see if prefetch version improves speed */
-        if (dctx->fParams.windowSize > (1<<23))
-            return ZSTD_decompressSequencesLong(dctx, dst, dstCapacity, ip, srcSize);
+    if (dctx->fParams.windowSize > (1<<23))
+        return ZSTD_decompressSequencesLong(dctx, dst, dstCapacity, ip, srcSize);
     return ZSTD_decompressSequences(dctx, dst, dstCapacity, ip, srcSize);
 }
 

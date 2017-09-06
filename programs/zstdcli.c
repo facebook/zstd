@@ -128,7 +128,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -l     : print information about zstd compressed files \n");
 #ifndef ZSTD_NOCOMPRESS
     DISPLAY( "--ultra : enable levels beyond %i, up to %i (requires more memory)\n", ZSTDCLI_CLEVEL_MAX, ZSTD_maxCLevel());
-    DISPLAY( "--long  : enable long distance matching\n");
+    DISPLAY( "--long  : enable long distance matching (requires more memory)\n");
 #ifdef ZSTD_MULTITHREAD
     DISPLAY( " -T#    : use # threads for compression (default:1) \n");
     DISPLAY( " -B#    : select size of each job (default:0==automatic) \n");

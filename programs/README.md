@@ -113,6 +113,7 @@ Advanced arguments :
  -c     : force write to standard output, even if it is the console
  -l     : print information about zstd compressed files
 --ultra : enable levels beyond 19, up to 22 (requires more memory)
+--long  : enable long distance matching (requires more memory)
 --no-dictID : don't write dictID into header (dictionary compression)
 --[no-]check : integrity check (default:enabled)
  -r     : operate recursively on directories
@@ -139,3 +140,60 @@ Benchmark arguments :
  -B#    : cut file into independent blocks of size # (default: no block)
 --priority=rt : set process priority to real-time
 ```
+
+
+#### Long distance matching mode
+The long distance matching mode, enabled with `--long`, is designed to improve
+the compression ratio for files with long matches at a large distance (up to the
+maximum window size, `128 MiB`) while still maintaining compression speed. 
+
+Enabling this mode sets the window size to `128 MiB` and thus increases the memory
+usage for both the compressor and decompressor. Performance in terms of speed is
+dependent on long matches being found. Compression speed may degrade if few long
+matches are found. Decompression speed usually improves when there are many long
+distance matches.
+
+Below are graphs comparing the compression speed, compression ratio, and
+decompression speed with and without long distance matching on an ideal use
+case: a tar of four versions of clang (versions `3.4.1`, `3.4.2`, `3.5.0`,
+`3.5.1`) with a total size of `244889600 B`. This is an ideal use case as there
+are many long distance matches within the maximum window size of `128 MiB` (each
+version is less than `128 MiB`). 
+
+Compression Speed vs Ratio | Decompression Speed
+---------------------------|---------------------
+![Compression Speed vs Ratio](../doc/images/ldmCspeed.png "Compression Speed vs Ratio") | ![Decompression Speed](../doc/images/ldmDspeed.png "Decompression Speed")
+
+| Method | Compression ratio | Compression speed | Decompression speed  |
+|:-------|------------------:|-------------------------:|---------------------------:|
+| `zstd -1`   | `5.065`   | `284.8 MB/s`  | `759.3 MB/s`  |
+| `zstd -5`  | `5.826`    | `124.9 MB/s`  | `674.0 MB/s`  |
+| `zstd -10` | `6.504`    | `29.5 MB/s`   | `771.3 MB/s`  |
+| `zstd -1 --long` | `17.426` | `220.6 MB/s` | `1638.4 MB/s` |
+| `zstd -5 --long` | `19.661` | `165.5 MB/s` | `1530.6 MB/s`|
+| `zstd -10 --long`| `21.949` | `75.6 MB/s` | `1632.6 MB/s`|
+
+On this file, the compression ratio improves significantly with minimal impact
+on compression speed, and the decompression speed doubles.
+
+On the other extreme, compressing a file with few long distance matches (such as
+the [Silesia compression corpus]) will likely lead to a deterioration in
+compression speed (for lower levels) with minimal change in compression ratio.
+
+The below table illustrates this on the [Silesia compression corpus].
+
+[Silesia compression corpus]: http://sun.aei.polsl.pl/~sdeor/index.php?page=silesia
+
+| Method | Compression ratio | Compression speed | Decompression speed  |
+|:-------|------------------:|-------------------------:|---------------------------:|
+| `zstd -1`   | `2.878`   | `231.7 MB/s`  | `594.4 MB/s`  |
+| `zstd -1 --long` | `2.929` | `106.5 MB/s` | `517.9 MB/s` |
+| `zstd -5`  | `3.274`    | `77.1 MB/s`  | `464.2 MB/s`  |
+| `zstd -5 --long` | `3.319` | `51.7 MB/s` | `371.9 MB/s` |
+| `zstd -10` | `3.523`    | `16.4 MB/s`   | `489.2 MB/s`  |
+| `zstd -10 --long`| `3.566` | `16.2 MB/s` | `415.7 MB/s`  |
+
+
+
+
+

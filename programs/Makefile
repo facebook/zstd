@@ -209,8 +209,8 @@ zstd-decompress: $(ZSTDCOMMON_FILES) $(ZSTDDECOMP_FILES) zstdcli.c fileio.c
 zstd-compress: $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) zstdcli.c fileio.c
 	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS $^ -o $@$(EXT)
 
-# zstd is now built with multithreading enabled y default
 zstdmt: zstd
+	ln -sf zstd zstdmt
 
 .PHONY: generate_res
 generate_res:
@@ -252,25 +252,35 @@ ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD Ne
 list:
 	@$(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null | awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' | sort | egrep -v -e '^[^[:alnum:]]' -e '^$@$$' | xargs
 
+DESTDIR     ?=
+# directory variables : GNU conventions prefer lowercase
+# see https://www.gnu.org/prep/standards/html_node/Makefile-Conventions.html
+# support both lower and uppercase (BSD), use uppercase in script
+prefix      ?= /usr/local
+PREFIX      ?= $(prefix)
+exec_prefix ?= $(PREFIX)
+bindir      ?= $(exec_prefix)/bin
+BINDIR      ?= $(bindir)
+datarootdir ?= $(PREFIX)/share
+mandir      ?= $(datarootdir)/man
+man1dir     ?= $(mandir)/man1
+
+ifneq (,$(filter $(shell uname),OpenBSD FreeBSD NetBSD DragonFly SunOS))
+MANDIR  ?= $(PREFIX)/man/man1
+else
+MANDIR  ?= $(man1dir)
+endif
+
 ifneq (,$(filter $(shell uname),SunOS))
 INSTALL ?= ginstall
 else
 INSTALL ?= install
 endif
 
-PREFIX  ?= /usr/local
-DESTDIR ?=
-BINDIR  ?= $(PREFIX)/bin
-
-ifneq (,$(filter $(shell uname),OpenBSD FreeBSD NetBSD DragonFly SunOS))
-MANDIR  ?= $(PREFIX)/man/man1
-else
-MANDIR  ?= $(PREFIX)/share/man/man1
-endif
-
-INSTALL_PROGRAM ?= $(INSTALL) -m 755
-INSTALL_SCRIPT  ?= $(INSTALL) -m 755
-INSTALL_MAN     ?= $(INSTALL) -m 644
+INSTALL_PROGRAM ?= $(INSTALL)
+INSTALL_SCRIPT  ?= $(INSTALL_PROGRAM)
+INSTALL_DATA    ?= $(INSTALL) -m 644
+INSTALL_MAN     ?= $(INSTALL_DATA)
 
 .PHONY: install
 install: zstd

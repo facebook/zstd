@@ -342,7 +342,7 @@ size_t ZSTDMT_initializeCCtxParameters(ZSTD_CCtx_params* params, unsigned nbThre
 
 static size_t ZSTD_ldm_initializeParameters(ldmParams_t* params, U32 enableLdm)
 {
-    assert(LDM_BUCKET_SIZE_LOG <= ZSTD_LDM_BUCKETSIZELOG_MAX);
+    ZSTD_STATIC_ASSERT(LDM_BUCKET_SIZE_LOG <= ZSTD_LDM_BUCKETSIZELOG_MAX);
     params->enableLdm = enableLdm>0;
     params->hashLog = LDM_HASH_LOG;
     params->bucketSizeLog = LDM_BUCKET_SIZE_LOG;
@@ -3568,8 +3568,6 @@ size_t ZSTD_compressBlock_ldm_generic(ZSTD_CCtx* cctx,
             }
             ip += rLength;
             anchor = ip;
-
-            continue;   /* faster when present ... (?) */
         }
     }
 
@@ -3836,12 +3834,11 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc, void* dst, size_t dstCa
     const U32 current = (U32)(istart-base);
     size_t lastLLSize;
     const BYTE* anchor;
+    U32 const extDict = zc->lowLimit < zc->dictLimit;
     const ZSTD_blockCompressor blockCompressor =
-        zc->appliedParams.ldmParams.enableLdm ?
-            (zc->lowLimit < zc->dictLimit ? ZSTD_compressBlock_ldm_extDict :
-                                            ZSTD_compressBlock_ldm) :
-            ZSTD_selectBlockCompressor(zc->appliedParams.cParams.strategy,
-                                       zc->lowLimit < zc->dictLimit);
+        zc->appliedParams.ldmParams.enableLdm
+            ? (extDict ? ZSTD_compressBlock_ldm_extDict : ZSTD_compressBlock_ldm)
+            : ZSTD_selectBlockCompressor(zc->appliedParams.cParams.strategy, extDict);
 
     if (srcSize < MIN_CBLOCK_SIZE+ZSTD_blockHeaderSize+1) return 0;   /* don't even attempt compression below a certain srcSize */
     ZSTD_resetSeqStore(&(zc->seqStore));

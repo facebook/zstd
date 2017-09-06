@@ -333,7 +333,7 @@ The list of available _options_:
     Default _ovlog_ is 6, which means "reload `windowSize / 8`".
     Exception : the maximum compression level (22) has a default _ovlog_ of 9.
 
-- `ldmHashLog`=_ldmHlog_, `ldmHlog`=_ldmHlog_:
+- `ldmHashLog`=_ldmhlog_, `ldmhlog`=_ldmhlog_:
     Specify the maximum size for a hash table used for long distance matching.
 
     This option is ignored unless long distance matching is enabled.
@@ -341,18 +341,18 @@ The list of available _options_:
     Bigger hash tables usually improve compression ratio at the expense of more
     memory during compression and a decrease in compression speed.
 
-    The minimum _ldmHlog_ is 6 and the maximum is 26 (default: 20).
+    The minimum _ldmhlog_ is 6 and the maximum is 26 (default: 20).
 
-- `ldmSearchLength`=_ldmSlen_, `ldmSlen`=_ldmSlen_:
+- `ldmSearchLength`=_ldmslen_, `ldmslen`=_ldmslen_:
     Specify the minimum searched length of a match for long distance matching.
 
     This option is ignored unless long distance matching is enabled.
 
     Larger/very small values usually decrease compression ratio.
 
-    The minumum _ldmSlen_ is 4 and the maximum is 4096 (default: 64).
+    The minumum _ldmslen_ is 4 and the maximum is 4096 (default: 64).
 
-- `ldmBucketSizeLog`=_ldmBucketSizeLog_:
+- `ldmBucketSizeLog`=_ldmblog_, `ldmblog`=_ldmblog_:
     Specify the size of each bucket for the hash table used for long distance
     matching.
 
@@ -361,9 +361,9 @@ The list of available _options_:
     Larger bucket sizes improve collision resolution but decrease compression
     speed.
 
-    The minimum _ldmBucketSizeLog_ is 0 and the maximum is 8 (default: 3).
+    The minimum _ldmblog_ is 0 and the maximum is 8 (default: 3).
 
-- `ldmHashEveryLog`=_ldmHashEveryLog_:
+- `ldmHashEveryLog`=_ldmhevery_, `ldmhevery`=_ldmhevery_:
     Specify the frequency of inserting entries into the long distance matching
     hash table.
 
@@ -372,8 +372,8 @@ The list of available _options_:
     Larger values will improve compression speed. Deviating far from the
     default value will likely result in a decrease in compression ratio.
 
-    The default value is `wLog - ldmHlog`.
-
+    The default value is `wlog - ldmhlog`.
+ 
 ### -B#:
 Select the size of each compression job.
 This parameter is available only when multi-threading is enabled.

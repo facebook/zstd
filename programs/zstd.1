@@ -327,7 +327,7 @@ Determine \fBoverlapSize\fR, amount of data reloaded from previous job\. This pa
 The minimum \fIovlog\fR is 0, and the maximum is 9\. 0 means "no overlap", hence completely independent jobs\. 9 means "full overlap", meaning up to \fBwindowSize\fR is reloaded from previous job\. Reducing \fIovlog\fR by 1 reduces the amount of reload by a factor 2\. Default \fIovlog\fR is 6, which means "reload \fBwindowSize / 8\fR"\. Exception : the maximum compression level (22) has a default \fIovlog\fR of 9\.
 .
 .TP
-\fBldmHashLog\fR=\fIldmHlog\fR, \fBldmHlog\fR=\fIldmHlog\fR
+\fBldmHashLog\fR=\fIldmhlog\fR, \fBldmhlog\fR=\fIldmhlog\fR
 Specify the maximum size for a hash table used for long distance matching\.
 .
 .IP
@@ -337,10 +337,10 @@ This option is ignored unless long distance matching is enabled\.
 Bigger hash tables usually improve compression ratio at the expense of more memory during compression and a decrease in compression speed\.
 .
 .IP
-The minimum \fIldmHlog\fR is 6 and the maximum is 26 (default: 20)\.
+The minimum \fIldmhlog\fR is 6 and the maximum is 26 (default: 20)\.
 .
 .TP
-\fBldmSearchLength\fR=\fIldmSlen\fR, \fBldmSlen\fR=\fIldmSlen\fR
+\fBldmSearchLength\fR=\fIldmslen\fR, \fBldmSlen\fR=\fIldmslen\fR
 Specify the minimum searched length of a match for long distance matching\.
 .
 .IP
@@ -350,10 +350,10 @@ This option is ignored unless long distance matching is enabled\.
 Larger/very small values usually decrease compression ratio\.
 .
 .IP
-The minumum \fIldmSlen\fR is 4 and the maximum is 4096 (default: 64)\.
+The minumum \fIldmslen\fR is 4 and the maximum is 4096 (default: 64)\.
 .
 .TP
-\fBldmBucketSizeLog\fR=\fIldmBucketSizeLog\fR
+\fBldmBucketSizeLog\fR=\fIldmblog\fR, \fBldmblog\fR=\fIldmblog\fR
 Specify the size of each bucket for the hash table used for long distance matching\.
 .
 .IP
@@ -363,10 +363,10 @@ This option is ignored unless long distance matching is enabled\.
 Larger bucket sizes improve collision resolution but decrease compression speed\.
 .
 .IP
-The minimum \fIldmBucketSizeLog\fR is 0 and the maximum is 8 (default: 3)\.
+The minimum \fIldmblog\fR is 0 and the maximum is 8 (default: 3)\.
 .
 .TP
-\fBldmHashEveryLog\fR=\fIldmHashEveryLog\fR
+\fBldmHashEveryLog\fR=\fIldmhevery\fR, \fBldmhevery\fR=\fIldmhevery\fR
 Specify the frequency of inserting entries into the long distance matching hash table\.
 .
 .IP
@@ -376,7 +376,7 @@ This option is ignored unless long distance matching is enabled\.
 Larger values will improve compression speed\. Deviating far from the default value will likely result in a decrease in compression ratio\.
 .
 .IP
-The default value is \fBwLog \- ldmHlog\fR\.
+The default value is \fBwlog \- ldmhlog\fR\.
 .
 .SS "\-B#:"
 Select the size of each compression job\. This parameter is available only when multi\-threading is enabled\. Default value is \fB4 * windowSize\fR, which means it varies depending on compression level\. \fB\-B#\fR makes it possible to select a custom value\. Note that job size must respect a minimum value which is enforced transparently\. This minimum is either 1 MB, or \fBoverlapSize\fR, whichever is largest\.

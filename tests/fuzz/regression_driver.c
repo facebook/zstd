@@ -39,7 +39,7 @@ int main(int argc, char const **argv) {
     FILE *file;
 
     /* Check that it is a regular file, and that the fileSize is valid */
-    FUZZ_ASSERT_MSG(UTIL_isRegFile(fileName), fileName);
+    FUZZ_ASSERT_MSG(UTIL_isRegularFile(fileName), fileName);
     FUZZ_ASSERT_MSG(fileSize <= kMaxFileSize, fileName);
     /* Ensure we have a large enough buffer allocated */
     if (fileSize > bufferSize) {

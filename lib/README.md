@@ -7,6 +7,8 @@ in order to make it easier to select or exclude specific features.
 
 #### Building
 
+`Makefile` script is provided, supporting the standard set of commands,
+directories, and variables (see https://www.gnu.org/prep/standards/html_node/Command-Variables.html).
 - `make` : generates both static and dynamic libraries
 - `make install` : install libraries in default system directories
 

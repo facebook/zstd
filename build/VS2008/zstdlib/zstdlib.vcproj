@@ -403,6 +403,10 @@
 			<File
 				RelativePath="..\..\..\lib\compress\zstd_opt.c"
 				>
+      </File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstd_ldm.c"
+				>
 			</File>
 			<File
 				RelativePath="..\..\..\lib\decompress\zstd_decompress.c"
@@ -532,6 +536,10 @@
 			</File>
 			<File
 				RelativePath="..\..\..\lib\compress\zstd_opt.h"
+				>
+      </File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstd_ldm.h"
 				>
 			</File>
 			<File

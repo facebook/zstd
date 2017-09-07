@@ -33,6 +33,7 @@
     <ClCompile Include="..\..\..\lib\compress\zstd_double_fast.c" />
     <ClCompile Include="..\..\..\lib\compress\zstd_lazy.c" />
     <ClCompile Include="..\..\..\lib\compress\zstd_opt.c" />
+    <ClCompile Include="..\..\..\lib\compress\zstd_ldm.c" />
     <ClCompile Include="..\..\..\lib\compress\zstdmt_compress.c" />
     <ClCompile Include="..\..\..\lib\decompress\huf_decompress.c" />
     <ClCompile Include="..\..\..\lib\decompress\zstd_decompress.c" />
@@ -76,6 +77,7 @@
     <ClInclude Include="..\..\..\lib\compress\zstd_double_fast.h" />
     <ClInclude Include="..\..\..\lib\compress\zstd_lazy.h" />
     <ClInclude Include="..\..\..\lib\compress\zstd_opt.h" />
+    <ClInclude Include="..\..\..\lib\compress\zstd_ldm.h" />
     <ClInclude Include="..\..\..\lib\compress\zstdmt_compress.h" />
   </ItemGroup>
   <ItemGroup>

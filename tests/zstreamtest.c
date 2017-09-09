@@ -909,10 +909,16 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
                 inBuff.size = inBuff.pos + readCSrcSize;
                 outBuff.size = inBuff.pos + dstBuffSize;
                 decompressionResult = ZSTD_decompressStream(zd, &outBuff, &inBuff);
-                CHECK (ZSTD_isError(decompressionResult), "decompression error : %s", ZSTD_getErrorName(decompressionResult));
+                if (ZSTD_getErrorCode(decompressionResult) == ZSTD_error_checksum_wrong) {
+                    DISPLAY("checksum error : \n");
+                    findDiff(copyBuffer, dstBuffer, totalTestSize);
+                }
+                CHECK( ZSTD_isError(decompressionResult), "decompression error : %s",
+                       ZSTD_getErrorName(decompressionResult) );
             }
             CHECK (decompressionResult != 0, "frame not fully decoded");
-            CHECK (outBuff.pos != totalTestSize, "decompressed data : wrong size")
+            CHECK (outBuff.pos != totalTestSize, "decompressed data : wrong size (%u != %u)",
+                    (U32)outBuff.pos, (U32)totalTestSize);
             CHECK (inBuff.pos != cSize, "compressed data should be fully read")
             {   U64 const crcDest = XXH64(dstBuffer, totalTestSize, 0);
                 if (crcDest!=crcOrig) findDiff(copyBuffer, dstBuffer, totalTestSize);

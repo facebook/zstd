@@ -34,7 +34,7 @@ EXT =
 endif
 
 
-all: clean fitblk example zwrapbench minigzip
+all: fitblk example zwrapbench minigzip
 
 test: example fitblk example_zstd fitblk_zstd zwrapbench minigzip minigzip_zstd
 	./example

@@ -1151,17 +1151,17 @@ static void ZSTD_ldm_reduceTable(ldmEntry_t* const table, U32 const size,
 *   rescale all indexes to avoid future overflow (indexes are U32) */
 static void ZSTD_reduceIndex (ZSTD_CCtx* zc, const U32 reducerValue)
 {
-    { U32 const hSize = 1 << zc->appliedParams.cParams.hashLog;
+    { U32 const hSize = (U32)1 << zc->appliedParams.cParams.hashLog;
       ZSTD_reduceTable(zc->hashTable, hSize, reducerValue); }
 
-    { U32 const chainSize = (zc->appliedParams.cParams.strategy == ZSTD_fast) ? 0 : (1 << zc->appliedParams.cParams.chainLog);
+    { U32 const chainSize = (zc->appliedParams.cParams.strategy == ZSTD_fast) ? 0 : ((U32)1 << zc->appliedParams.cParams.chainLog);
       ZSTD_reduceTable(zc->chainTable, chainSize, reducerValue); }
 
-    { U32 const h3Size = (zc->hashLog3) ? 1 << zc->hashLog3 : 0;
+    { U32 const h3Size = (zc->hashLog3) ? (U32)1 << zc->hashLog3 : 0;
       ZSTD_reduceTable(zc->hashTable3, h3Size, reducerValue); }
 
     { if (zc->appliedParams.ldmParams.enableLdm) {
-          U32 const ldmHSize = 1 << zc->appliedParams.ldmParams.hashLog;
+          U32 const ldmHSize = (U32)1 << zc->appliedParams.ldmParams.hashLog;
           ZSTD_ldm_reduceTable(zc->ldmState.hashTable, ldmHSize, reducerValue);
       }
     }
@@ -3163,11 +3163,11 @@ static U32 ZSTD_ldm_getChecksum(U64 hash, U32 numBitsToDiscard)
  *  numTagBits bits. */
 static U32 ZSTD_ldm_getTag(U64 hash, U32 hbits, U32 numTagBits)
 {
-    assert(numTagBits <= 32 && hbits <= 32);
+    assert(numTagBits < 32 && hbits <= 32);
     if (32 - hbits < numTagBits) {
-        return hash & ((1 << numTagBits) - 1);
+        return hash & (((U32)1 << numTagBits) - 1);
     } else {
-        return (hash >> (32 - hbits - numTagBits)) & ((1 << numTagBits) - 1);
+        return (hash >> (32 - hbits - numTagBits)) & (((U32)1 << numTagBits) - 1);
     }
 }
 
@@ -3188,7 +3188,7 @@ static void ZSTD_ldm_insertEntry(ldmState_t* ldmState,
     BYTE* const bucketOffsets = ldmState->bucketOffsets;
     *(ZSTD_ldm_getBucket(ldmState, hash, ldmParams) + bucketOffsets[hash]) = entry;
     bucketOffsets[hash]++;
-    bucketOffsets[hash] &= (1 << ldmParams.bucketSizeLog) - 1;
+    bucketOffsets[hash] &= ((U32)1 << ldmParams.bucketSizeLog) - 1;
 }
 
 /** ZSTD_ldm_makeEntryAndInsertByTag() :
@@ -3208,7 +3208,7 @@ static void ZSTD_ldm_makeEntryAndInsertByTag(ldmState_t* ldmState,
                                              ldmParams_t const ldmParams)
 {
     U32 const tag = ZSTD_ldm_getTag(rollingHash, hBits, ldmParams.hashEveryLog);
-    U32 const tagMask = (1 << ldmParams.hashEveryLog) - 1;
+    U32 const tagMask = ((U32)1 << ldmParams.hashEveryLog) - 1;
     if (tag == tagMask) {
         U32 const hash = ZSTD_ldm_getSmallHash(rollingHash, hBits);
         U32 const checksum = ZSTD_ldm_getChecksum(rollingHash, hBits);
@@ -3385,8 +3385,8 @@ size_t ZSTD_compressBlock_ldm_generic(ZSTD_CCtx* cctx,
     const ldmParams_t ldmParams = cctx->appliedParams.ldmParams;
     const U64 hashPower = ldmState->hashPower;
     const U32 hBits = ldmParams.hashLog - ldmParams.bucketSizeLog;
-    const U32 ldmBucketSize = (1 << ldmParams.bucketSizeLog);
-    const U32 ldmTagMask = (1 << ldmParams.hashEveryLog) - 1;
+    const U32 ldmBucketSize = ((U32)1 << ldmParams.bucketSizeLog);
+    const U32 ldmTagMask = ((U32)1 << ldmParams.hashEveryLog) - 1;
     seqStore_t* const seqStorePtr = &(cctx->seqStore);
     const BYTE* const base = cctx->base;
     const BYTE* const istart = (const BYTE*)src;
@@ -3585,8 +3585,8 @@ static size_t ZSTD_compressBlock_ldm_extDict_generic(
     const ldmParams_t ldmParams = ctx->appliedParams.ldmParams;
     const U64 hashPower = ldmState->hashPower;
     const U32 hBits = ldmParams.hashLog - ldmParams.bucketSizeLog;
-    const U32 ldmBucketSize = (1 << ldmParams.bucketSizeLog);
-    const U32 ldmTagMask = (1 << ldmParams.hashEveryLog) - 1;
+    const U32 ldmBucketSize = ((U32)1 << ldmParams.bucketSizeLog);
+    const U32 ldmTagMask = ((U32)1 << ldmParams.hashEveryLog) - 1;
     seqStore_t* const seqStorePtr = &(ctx->seqStore);
     const BYTE* const base = ctx->base;
     const BYTE* const dictBase = ctx->dictBase;

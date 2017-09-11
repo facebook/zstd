@@ -196,6 +196,8 @@ static ZSTD_CCtx_params ZSTDMT_makeJobCCtxParams(ZSTD_CCtx_params const params)
     jobParams.cParams = params.cParams;
     jobParams.fParams = params.fParams;
     jobParams.compressionLevel = params.compressionLevel;
+
+    jobParams.ldmParams = params.ldmParams;
     return jobParams;
 }
 
@@ -447,8 +449,6 @@ ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced(unsigned nbThreads, ZSTD_customMem cMem)
     ZSTDMT_initializeCCtxParameters(&mtctx->params, nbThreads);
     mtctx->cMem = cMem;
     mtctx->allJobsCompleted = 1;
-    mtctx->sectionSize = 0;
-    mtctx->overlapLog = ZSTDMT_OVERLAPLOG_DEFAULT;
     mtctx->factory = POOL_create_advanced(nbThreads, 0, cMem);
     mtctx->jobs = ZSTDMT_allocJobsTable(&nbJobs, cMem);
     mtctx->jobIDMask = nbJobs - 1;

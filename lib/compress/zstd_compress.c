@@ -389,6 +389,7 @@ size_t ZSTD_CCtxParam_setParameter(
         if (value == 0) return 0;
 #ifndef ZSTD_MULTITHREAD
         if (value > 1) return ERROR(parameter_unsupported);
+        return 0;
 #else
         return ZSTDMT_initializeCCtxParameters(params, value);
 #endif

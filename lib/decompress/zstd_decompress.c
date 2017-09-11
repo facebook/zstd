@@ -2249,7 +2249,6 @@ size_t ZSTD_estimateDStreamSize(size_t windowSize)
 {
     size_t const blockSize = MIN(windowSize, ZSTD_BLOCKSIZE_MAX);
     size_t const inBuffSize = blockSize;  /* no block can be larger */
-    //size_t const outBuffSize = windowSize + blockSize + (WILDCOPY_OVERLENGTH * 2);
     size_t const outBuffSize = ZSTD_decodingBufferSize_min(windowSize, ZSTD_CONTENTSIZE_UNKNOWN);
     return ZSTD_estimateDCtxSize() + inBuffSize + outBuffSize;
 }

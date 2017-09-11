@@ -1384,6 +1384,16 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
         }
 
         /* streaming decompression test */
+        /* ensure memory requirement is good enough (should always be true) */
+        {   ZSTD_frameHeader zfh;
+            CHECK( ZSTD_getFrameHeader(&zfh, cBuffer, ZSTD_frameHeaderSize_max),
+                  "ZSTD_getFrameHeader(): error retrieving frame information");
+            {   size_t const roundBuffSize = ZSTD_decodingBufferSize_min(zfh.windowSize, zfh.frameContentSize);
+                CHECK_Z(roundBuffSize);
+                CHECK((roundBuffSize > totalTestSize) && (zfh.frameContentSize!=ZSTD_CONTENTSIZE_UNKNOWN),
+                      "ZSTD_decodingBufferSize_min() requires more memory (%u) than necessary (%u)",
+                      (U32)roundBuffSize, (U32)totalTestSize );
+        }   }
         if (dictSize<8) dictSize=0, dict=NULL;   /* disable dictionary */
         CHECK_Z( ZSTD_decompressBegin_usingDict(dctx, dict, dictSize) );
         totalCSize = 0;

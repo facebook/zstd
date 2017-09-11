@@ -803,6 +803,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         /* Adjust long distance matching parameters */
         ZSTD_ldm_adjustParameters(&params.ldmParams, params.cParams.windowLog);
         assert(params.ldmParams.hashLog >= params.ldmParams.bucketSizeLog);
+        assert(params.ldmParams.hashEveryLog < 32);
         zc->ldmState.hashPower =
                 ZSTD_ldm_getHashPower(params.ldmParams.minMatchLength);
     }
@@ -1053,17 +1054,17 @@ static void ZSTD_ldm_reduceTable(ldmEntry_t* const table, U32 const size,
 *   rescale all indexes to avoid future overflow (indexes are U32) */
 static void ZSTD_reduceIndex (ZSTD_CCtx* zc, const U32 reducerValue)
 {
-    { U32 const hSize = 1 << zc->appliedParams.cParams.hashLog;
+    { U32 const hSize = (U32)1 << zc->appliedParams.cParams.hashLog;
       ZSTD_reduceTable(zc->hashTable, hSize, reducerValue); }
 
-    { U32 const chainSize = (zc->appliedParams.cParams.strategy == ZSTD_fast) ? 0 : (1 << zc->appliedParams.cParams.chainLog);
+    { U32 const chainSize = (zc->appliedParams.cParams.strategy == ZSTD_fast) ? 0 : ((U32)1 << zc->appliedParams.cParams.chainLog);
       ZSTD_reduceTable(zc->chainTable, chainSize, reducerValue); }
 
-    { U32 const h3Size = (zc->hashLog3) ? 1 << zc->hashLog3 : 0;
+    { U32 const h3Size = (zc->hashLog3) ? (U32)1 << zc->hashLog3 : 0;
       ZSTD_reduceTable(zc->hashTable3, h3Size, reducerValue); }
 
     { if (zc->appliedParams.ldmParams.enableLdm) {
-          U32 const ldmHSize = 1 << zc->appliedParams.ldmParams.hashLog;
+          U32 const ldmHSize = (U32)1 << zc->appliedParams.ldmParams.hashLog;
           ZSTD_ldm_reduceTable(zc->ldmState.hashTable, ldmHSize, reducerValue);
       }
     }

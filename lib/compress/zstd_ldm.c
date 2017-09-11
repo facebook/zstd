@@ -72,11 +72,11 @@ static U32 ZSTD_ldm_getChecksum(U64 hash, U32 numBitsToDiscard)
  *  numTagBits bits. */
 static U32 ZSTD_ldm_getTag(U64 hash, U32 hbits, U32 numTagBits)
 {
-    assert(numTagBits <= 32 && hbits <= 32);
+    assert(numTagBits < 32 && hbits <= 32);
     if (32 - hbits < numTagBits) {
-        return hash & ((1 << numTagBits) - 1);
+        return hash & (((U32)1 << numTagBits) - 1);
     } else {
-        return (hash >> (32 - hbits - numTagBits)) & ((1 << numTagBits) - 1);
+        return (hash >> (32 - hbits - numTagBits)) & (((U32)1 << numTagBits) - 1);
     }
 }
 
@@ -97,7 +97,7 @@ static void ZSTD_ldm_insertEntry(ldmState_t* ldmState,
     BYTE* const bucketOffsets = ldmState->bucketOffsets;
     *(ZSTD_ldm_getBucket(ldmState, hash, ldmParams) + bucketOffsets[hash]) = entry;
     bucketOffsets[hash]++;
-    bucketOffsets[hash] &= (1 << ldmParams.bucketSizeLog) - 1;
+    bucketOffsets[hash] &= ((U32)1 << ldmParams.bucketSizeLog) - 1;
 }
 
 /** ZSTD_ldm_makeEntryAndInsertByTag() :
@@ -117,7 +117,7 @@ static void ZSTD_ldm_makeEntryAndInsertByTag(ldmState_t* ldmState,
                                              ldmParams_t const ldmParams)
 {
     U32 const tag = ZSTD_ldm_getTag(rollingHash, hBits, ldmParams.hashEveryLog);
-    U32 const tagMask = (1 << ldmParams.hashEveryLog) - 1;
+    U32 const tagMask = ((U32)1 << ldmParams.hashEveryLog) - 1;
     if (tag == tagMask) {
         U32 const hash = ZSTD_ldm_getSmallHash(rollingHash, hBits);
         U32 const checksum = ZSTD_ldm_getChecksum(rollingHash, hBits);
@@ -285,8 +285,8 @@ size_t ZSTD_compressBlock_ldm_generic(ZSTD_CCtx* cctx,
     const ldmParams_t ldmParams = cctx->appliedParams.ldmParams;
     const U64 hashPower = ldmState->hashPower;
     const U32 hBits = ldmParams.hashLog - ldmParams.bucketSizeLog;
-    const U32 ldmBucketSize = (1 << ldmParams.bucketSizeLog);
-    const U32 ldmTagMask = (1 << ldmParams.hashEveryLog) - 1;
+    const U32 ldmBucketSize = ((U32)1 << ldmParams.bucketSizeLog);
+    const U32 ldmTagMask = ((U32)1 << ldmParams.hashEveryLog) - 1;
     seqStore_t* const seqStorePtr = &(cctx->seqStore);
     const BYTE* const base = cctx->base;
     const BYTE* const istart = (const BYTE*)src;
@@ -471,7 +471,8 @@ size_t ZSTD_compressBlock_ldm_generic(ZSTD_CCtx* cctx,
     return lastLiterals;
 }
 
-size_t ZSTD_compressBlock_ldm(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
+size_t ZSTD_compressBlock_ldm(ZSTD_CCtx* ctx,
+                              const void* src, size_t srcSize)
 {
     return ZSTD_compressBlock_ldm_generic(ctx, src, srcSize);
 }
@@ -484,8 +485,8 @@ static size_t ZSTD_compressBlock_ldm_extDict_generic(
     const ldmParams_t ldmParams = ctx->appliedParams.ldmParams;
     const U64 hashPower = ldmState->hashPower;
     const U32 hBits = ldmParams.hashLog - ldmParams.bucketSizeLog;
-    const U32 ldmBucketSize = (1 << ldmParams.bucketSizeLog);
-    const U32 ldmTagMask = (1 << ldmParams.hashEveryLog) - 1;
+    const U32 ldmBucketSize = ((U32)1 << ldmParams.bucketSizeLog);
+    const U32 ldmTagMask = ((U32)1 << ldmParams.hashEveryLog) - 1;
     seqStore_t* const seqStorePtr = &(ctx->seqStore);
     const BYTE* const base = ctx->base;
     const BYTE* const dictBase = ctx->dictBase;

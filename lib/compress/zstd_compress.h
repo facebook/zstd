@@ -168,7 +168,7 @@ static unsigned ZSTD_NbCommonBytes (register size_t val)
             unsigned long r = 0;
             _BitScanForward64( &r, (U64)val );
             return (unsigned)(r>>3);
-#       elif defined(__GNUC__) && (__GNUC__ >= 3)
+#       elif defined(__GNUC__) && (__GNUC__ >= 4)
             return (__builtin_ctzll((U64)val) >> 3);
 #       else
             static const int DeBruijnBytePos[64] = { 0, 0, 0, 0, 0, 1, 1, 2,
@@ -202,7 +202,7 @@ static unsigned ZSTD_NbCommonBytes (register size_t val)
             unsigned long r = 0;
             _BitScanReverse64( &r, val );
             return (unsigned)(r>>3);
-#       elif defined(__GNUC__) && (__GNUC__ >= 3)
+#       elif defined(__GNUC__) && (__GNUC__ >= 4)
             return (__builtin_clzll(val) >> 3);
 #       else
             unsigned r;

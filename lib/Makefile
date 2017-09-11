@@ -113,16 +113,17 @@ clean:
 #-----------------------------------------------------------------------------
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS))
 
-ifneq (,$(filter $(shell uname),SunOS))
-INSTALL ?= ginstall
-else
-INSTALL ?= install
-endif
-
-PREFIX     ?= /usr/local
-DESTDIR    ?=
-LIBDIR     ?= $(PREFIX)/lib
-INCLUDEDIR ?= $(PREFIX)/include
+DESTDIR     ?=
+# directory variables : GNU conventions prefer lowercase
+# see https://www.gnu.org/prep/standards/html_node/Makefile-Conventions.html
+# support both lower and uppercase (BSD), use uppercase in script
+prefix      ?= /usr/local
+PREFIX      ?= $(prefix)
+exec_prefix ?= $(PREFIX)
+libdir      ?= $(exec_prefix)/lib
+LIBDIR      ?= $(libdir)
+includedir  ?= $(PREFIX)/include
+INCLUDEDIR  ?= $(includedir)
 
 ifneq (,$(filter $(shell uname),OpenBSD FreeBSD NetBSD DragonFly))
 PKGCONFIGDIR ?= $(PREFIX)/libdata/pkgconfig
@@ -130,8 +131,14 @@ else
 PKGCONFIGDIR ?= $(LIBDIR)/pkgconfig
 endif
 
-INSTALL_LIB  ?= $(INSTALL) -m 755
-INSTALL_DATA ?= $(INSTALL) -m 644
+ifneq (,$(filter $(shell uname),SunOS))
+INSTALL ?= ginstall
+else
+INSTALL ?= install
+endif
+
+INSTALL_PROGRAM ?= $(INSTALL)
+INSTALL_DATA    ?= $(INSTALL) -m 644
 
 
 libzstd.pc:
@@ -148,9 +155,9 @@ install: libzstd.a libzstd libzstd.pc
 	@$(INSTALL_DATA) libzstd.pc $(DESTDIR)$(PKGCONFIGDIR)/
 	@echo Installing libraries
 	@$(INSTALL_DATA) libzstd.a $(DESTDIR)$(LIBDIR)
-	@$(INSTALL_LIB) libzstd.$(SHARED_EXT_VER) $(DESTDIR)$(LIBDIR)
-	@ln -sf libzstd.$(SHARED_EXT_VER) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_MAJOR)
-	@ln -sf libzstd.$(SHARED_EXT_VER) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT)
+	@$(INSTALL_PROGRAM) $(LIBZSTD) $(DESTDIR)$(LIBDIR)
+	@ln -sf $(LIBZSTD) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_MAJOR)
+	@ln -sf $(LIBZSTD) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT)
 	@echo Installing includes
 	@$(INSTALL_DATA) zstd.h $(DESTDIR)$(INCLUDEDIR)
 	@$(INSTALL_DATA) common/zstd_errors.h $(DESTDIR)$(INCLUDEDIR)
@@ -162,7 +169,7 @@ uninstall:
 	@$(RM) $(DESTDIR)$(LIBDIR)/libzstd.a
 	@$(RM) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT)
 	@$(RM) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_MAJOR)
-	@$(RM) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_VER)
+	@$(RM) $(DESTDIR)$(LIBDIR)/$(LIBZSTD)
 	@$(RM) $(DESTDIR)$(PKGCONFIGDIR)/libzstd.pc
 	@$(RM) $(DESTDIR)$(INCLUDEDIR)/zstd.h
 	@$(RM) $(DESTDIR)$(INCLUDEDIR)/zstd_errors.h

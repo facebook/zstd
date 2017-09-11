@@ -112,11 +112,25 @@ size_t ZSTD_freeCCtx(ZSTD_CCtx* cctx)
     cctx->workSpace = NULL;
     ZSTD_freeCDict(cctx->cdictLocal);
     cctx->cdictLocal = NULL;
+#ifdef ZSTD_MULTITHREAD
     ZSTDMT_freeCCtx(cctx->mtctx);
     cctx->mtctx = NULL;
+#endif
     ZSTD_free(cctx, cctx->customMem);
     return 0;   /* reserved as a potential error code in the future */
 }
+
+
+static size_t ZSTD_sizeof_mtctx(const ZSTD_CCtx* cctx)
+{
+#ifdef ZSTD_MULTITHREAD
+    return ZSTDMT_sizeof_CCtx(cctx->mtctx);
+#else
+    (void) cctx;
+    return 0;
+#endif
+}
+
 
 size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx)
 {
@@ -124,11 +138,11 @@ size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx)
     DEBUGLOG(5, "sizeof(*cctx) : %u", (U32)sizeof(*cctx));
     DEBUGLOG(5, "workSpaceSize : %u", (U32)cctx->workSpaceSize);
     DEBUGLOG(5, "streaming buffers : %u", (U32)(cctx->outBuffSize + cctx->inBuffSize));
-    DEBUGLOG(5, "inner MTCTX : %u", (U32)ZSTDMT_sizeof_CCtx(cctx->mtctx));
+    DEBUGLOG(5, "inner MTCTX : %u", (U32)ZSTD_sizeof_mtctx(cctx));
     return sizeof(*cctx) + cctx->workSpaceSize
            + ZSTD_sizeof_CDict(cctx->cdictLocal)
            + cctx->outBuffSize + cctx->inBuffSize
-           + ZSTDMT_sizeof_CCtx(cctx->mtctx);
+           + ZSTD_sizeof_mtctx(cctx);
 }
 
 size_t ZSTD_sizeof_CStream(const ZSTD_CStream* zcs)
@@ -237,10 +251,6 @@ static ZSTD_CCtx_params ZSTD_assignParamsToCCtxParams(
     if (((val)<(min)) | ((val)>(max))) {     \
         return ERROR(parameter_outOfBound);  \
 }   }
-
-size_t ZSTDMT_CCtxParam_setMTCtxParameter(
-    ZSTD_CCtx_params* params, ZSTDMT_parameter parameter, unsigned value);
-size_t ZSTDMT_initializeCCtxParameters(ZSTD_CCtx_params* params, unsigned nbThreads);
 
 size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned value)
 {
@@ -379,16 +389,25 @@ size_t ZSTD_CCtxParam_setParameter(
         if (value == 0) return 0;
 #ifndef ZSTD_MULTITHREAD
         if (value > 1) return ERROR(parameter_unsupported);
-#endif
+#else
         return ZSTDMT_initializeCCtxParameters(params, value);
+#endif
 
     case ZSTD_p_jobSize :
+#ifndef ZSTD_MULTITHREAD
+        return ERROR(parameter_unsupported);
+#else
         if (params->nbThreads <= 1) return ERROR(parameter_unsupported);
         return ZSTDMT_CCtxParam_setMTCtxParameter(params, ZSTDMT_p_sectionSize, value);
+#endif
 
     case ZSTD_p_overlapSizeLog :
+#ifndef ZSTD_MULTITHREAD
+        return ERROR(parameter_unsupported);
+#else
         if (params->nbThreads <= 1) return ERROR(parameter_unsupported);
         return ZSTDMT_CCtxParam_setMTCtxParameter(params, ZSTDMT_p_overlapSectionLog, value);
+#endif
 
     default: return ERROR(parameter_unsupported);
     }
@@ -2530,16 +2549,6 @@ size_t ZSTD_compressStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output, ZSTD_inBuf
 
     return ZSTD_compressStream_generic(zcs, output, input, ZSTD_e_continue);
 }
-
-/*! ZSTDMT_initCStream_internal() :
- *  Private use only. Init streaming operation.
- *  expects params to be valid.
- *  must receive dict, or cdict, or none, but not both.
- *  @return : 0, or an error code */
-size_t ZSTDMT_initCStream_internal(ZSTDMT_CCtx* zcs,
-                    const void* dict, size_t dictSize, ZSTD_dictMode_e dictMode,
-                    const ZSTD_CDict* cdict,
-                    ZSTD_CCtx_params params, unsigned long long pledgedSrcSize);
 
 
 size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,

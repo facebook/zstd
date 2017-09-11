@@ -16,7 +16,9 @@
 *  Dependencies
 ***************************************/
 #include "zstd_internal.h"
-#include "zstdmt_compress.h"
+#ifdef ZSTD_MULTITHREAD
+#  include "zstdmt_compress.h"
+#endif
 
 #if defined (__cplusplus)
 extern "C" {
@@ -90,7 +92,9 @@ struct ZSTD_CCtx_s {
     ZSTD_prefixDict prefixDict;   /* single-usage dictionary */
 
     /* Multi-threading */
+#ifdef ZSTD_MULTITHREAD
     ZSTDMT_CCtx* mtctx;
+#endif
 };
 
 

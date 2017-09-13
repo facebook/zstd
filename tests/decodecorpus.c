@@ -238,6 +238,11 @@ typedef struct {
     size_t dictContentSize;
     BYTE* dictContent;
 } dictInfo;
+
+typedef enum {
+  gt_frame = 0,  /* generate frames */
+  gt_block,      /* generate compressed blocks without block/frame headers */
+} genType_e;
 /*-*******************************************************
 *  Generator Functions
 *********************************************************/
@@ -453,7 +458,7 @@ static size_t writeHufHeader(U32* seed, HUF_CElt* hufTable, void* dst, size_t ds
     return op - ostart;
 }
 
-/* Write a Huffman coded literals block and return the litearls size */
+/* Write a Huffman coded literals block and return the literals size */
 static size_t writeLiteralsBlockCompressed(U32* seed, frame_t* frame, size_t contentSize)
 {
     BYTE* origop = (BYTE*)frame->data;
@@ -1165,6 +1170,61 @@ static void initFrame(frame_t* fr)
     fr->stats.rep[2] = 8;
 }
 
+/**
+ * Generated a single zstd compressed block with no block/frame header.
+ * Returns the final seed.
+ */
+static U32 generateCompressedBlock(U32 seed, frame_t* frame, dictInfo info)
+{
+    size_t blockContentSize;
+    int blockWritten = 0;
+    BYTE* op;
+    DISPLAYLEVEL(1, "block seed: %u\n", seed);
+    initFrame(frame);
+    op = (BYTE*)frame->data;
+
+    while (!blockWritten) {
+        size_t cSize;
+        /* generate window size */
+        {
+            int const exponent = RAND(&seed) % (MAX_WINDOW_LOG - 10);
+            int const mantissa = RAND(&seed) % 8;
+            frame->header.windowSize = (1U << (exponent + 10));
+            frame->header.windowSize += (frame->header.windowSize / 8) * mantissa;
+        }
+
+        /* generate content size */
+        {
+            size_t const maxBlockSize = MIN(MAX_BLOCK_SIZE, frame->header.windowSize);
+            if (RAND(&seed) & 15) {
+                /* some full size blocks */
+                blockContentSize = maxBlockSize;
+            } else if (RAND(&seed) & 7) {
+                /* some small blocks <= 128 bytes*/
+                blockContentSize = RAND(&seed) % (1U << 7);
+            } else {
+                /* some variable size blocks */
+                blockContentSize = RAND(&seed) % maxBlockSize;
+            }
+        }
+
+        /* try generating a compressed block */
+        frame->oldStats = frame->stats;
+        frame->data = op;
+        cSize = writeCompressedBlock(&seed, frame, blockContentSize, info);
+        if (cSize > blockContentSize) {
+            /* data doesn't compress -- try again */
+            frame->stats = frame->oldStats; /* don't update the stats */
+            DISPLAYLEVEL(3, "   can't compress block\n");
+        } else {
+            blockWritten = 1;
+            DISPLAYLEVEL(3, "   block size: %u\n", (U32)cSize);
+            frame->src = (BYTE*)frame->src + blockContentSize;
+        }
+    }
+    return seed;
+}
+
 /* Return the final seed */
 static U32 generateFrame(U32 seed, frame_t* fr, dictInfo info)
 {
@@ -1323,7 +1383,7 @@ cleanup:
     return ret;
 }
 
-static size_t testDecodeWithDict(U32 seed)
+static size_t testDecodeWithDict(U32 seed, genType_e genType)
 {
     /* create variables */
     size_t const dictSize = RAND(&seed) % (10 << 20) + ZDICT_DICTSIZE_MIN + ZDICT_CONTENTSIZE_MIN;
@@ -1346,34 +1406,47 @@ static size_t testDecodeWithDict(U32 seed)
 
     {
         frame_t fr;
+        dictInfo info;
+        ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+        size_t ret;
 
-        /* generate frame */
+        /* get dict info */
         {
             size_t const headerSize = MAX(dictSize/4, 256);
             size_t const dictContentSize = dictSize-headerSize;
             BYTE* const dictContent = fullDict+headerSize;
-            dictInfo const info = initDictInfo(1, dictContentSize, dictContent, dictID);
-            seed = generateFrame(seed, &fr, info);
+            info = initDictInfo(1, dictContentSize, dictContent, dictID);
         }
 
         /* manually decompress and check difference */
-        {
-            ZSTD_DCtx* const dctx = ZSTD_createDCtx();
-            {
-                size_t const returnValue = ZSTD_decompress_usingDict(dctx, DECOMPRESSED_BUFFER, MAX_DECOMPRESSED_SIZE,
-                                                       fr.dataStart, (BYTE*)fr.data - (BYTE*)fr.dataStart,
-                                                       fullDict, dictSize);
-                if (ZSTD_isError(returnValue)) {
-                    errorDetected = returnValue;
-                    goto dictTestCleanup;
-                }
-            }
-
-            if (memcmp(DECOMPRESSED_BUFFER, fr.srcStart, (BYTE*)fr.src - (BYTE*)fr.srcStart) != 0) {
-                errorDetected = ERROR(corruption_detected);
+        if (genType == gt_frame) {
+            /* Test frame */
+            seed = generateFrame(seed, &fr, info);
+            ret = ZSTD_decompress_usingDict(dctx, DECOMPRESSED_BUFFER, MAX_DECOMPRESSED_SIZE,
+                                            fr.dataStart, (BYTE*)fr.data - (BYTE*)fr.dataStart,
+                                            fullDict, dictSize);
+        } else {
+            /* Test block */
+            seed = generateCompressedBlock(seed, &fr, info);
+            ret = ZSTD_decompressBegin_usingDict(dctx, fullDict, dictSize);
+            if (ZSTD_isError(ret)) {
+                errorDetected = ret;
+                ZSTD_freeDCtx(dctx);
                 goto dictTestCleanup;
             }
-            ZSTD_freeDCtx(dctx);
+            ret = ZSTD_decompressBlock(dctx, DECOMPRESSED_BUFFER, MAX_DECOMPRESSED_SIZE,
+                                       fr.dataStart, (BYTE*)fr.data - (BYTE*)fr.dataStart);
+        }
+        ZSTD_freeDCtx(dctx);
+
+        if (ZSTD_isError(ret)) {
+            errorDetected = ret;
+            goto dictTestCleanup;
+        }
+
+        if (memcmp(DECOMPRESSED_BUFFER, fr.srcStart, (BYTE*)fr.src - (BYTE*)fr.srcStart) != 0) {
+            errorDetected = ERROR(corruption_detected);
+            goto dictTestCleanup;
         }
     }
 
@@ -1382,7 +1455,91 @@ dictTestCleanup:
     return errorDetected;
 }
 
-static int runTestMode(U32 seed, unsigned numFiles, unsigned const testDurationS)
+static size_t testDecodeRawBlock(frame_t* fr)
+{
+    ZSTD_DCtx* dctx = ZSTD_createDCtx();
+    size_t ret = ZSTD_decompressBegin(dctx);
+    if (ZSTD_isError(ret)) return ret;
+
+    ret = ZSTD_decompressBlock(
+            dctx,
+            DECOMPRESSED_BUFFER, MAX_DECOMPRESSED_SIZE,
+            fr->dataStart, (BYTE*)fr->data - (BYTE*)fr->dataStart);
+    ZSTD_freeDCtx(dctx);
+    if (ZSTD_isError(ret)) return ret;
+
+    if (memcmp(DECOMPRESSED_BUFFER, fr->srcStart,
+               (BYTE*)fr->src - (BYTE*)fr->srcStart) != 0) {
+        return ERROR(corruption_detected);
+    }
+
+    return ret;
+}
+
+static int runBlockTest(U32* seed)
+{
+    frame_t fr;
+    U32 const seedCopy = *seed;
+    {
+        dictInfo const info = initDictInfo(0, 0, NULL, 0);
+        *seed = generateCompressedBlock(*seed, &fr, info);
+    }
+
+    {   size_t const r = testDecodeRawBlock(&fr);
+        if (ZSTD_isError(r)) {
+            DISPLAY("Error in block mode on test seed %u: %s\n", seedCopy,
+                    ZSTD_getErrorName(r));
+            return 1;
+        }
+    }
+
+    {
+        size_t const r = testDecodeWithDict(*seed, gt_block);
+        if (ZSTD_isError(r)) {
+            DISPLAY("Error in block mode with dictionary on test seed %u: %s\n",
+                    seedCopy, ZSTD_getErrorName(r));
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int runFrameTest(U32* seed)
+{
+    frame_t fr;
+    U32 const seedCopy = *seed;
+    {
+        dictInfo const info = initDictInfo(0, 0, NULL, 0);
+        *seed = generateFrame(*seed, &fr, info);
+    }
+
+    {   size_t const r = testDecodeSimple(&fr);
+        if (ZSTD_isError(r)) {
+            DISPLAY("Error in simple mode on test seed %u: %s\n", seedCopy,
+                    ZSTD_getErrorName(r));
+            return 1;
+        }
+    }
+    {   size_t const r = testDecodeStreaming(&fr);
+        if (ZSTD_isError(r)) {
+            DISPLAY("Error in streaming mode on test seed %u: %s\n", seedCopy,
+                    ZSTD_getErrorName(r));
+            return 1;
+        }
+    }
+    {
+        /* don't create a dictionary that is too big */
+        size_t const r = testDecodeWithDict(*seed, gt_frame);
+        if (ZSTD_isError(r)) {
+            DISPLAY("Error in dictionary mode on test seed %u: %s\n", seedCopy, ZSTD_getErrorName(r));
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int runTestMode(U32 seed, unsigned numFiles, unsigned const testDurationS,
+                       genType_e genType)
 {
     unsigned fnum;
 
@@ -1394,39 +1551,21 @@ static int runTestMode(U32 seed, unsigned numFiles, unsigned const testDurationS
     DISPLAY("seed: %u\n", seed);
 
     for (fnum = 0; fnum < numFiles || clockSpan(startClock) < maxClockSpan; fnum++) {
-        frame_t fr;
-        U32 const seedCopy = seed;
         if (fnum < numFiles)
             DISPLAYUPDATE("\r%u/%u        ", fnum, numFiles);
         else
             DISPLAYUPDATE("\r%u           ", fnum);
-
         {
-            dictInfo const info = initDictInfo(0, 0, NULL, 0);
-            seed = generateFrame(seed, &fr, info);
-        }
+          int ret;
+          if (genType == gt_frame) {
+              ret = runFrameTest(&seed);
+          } else {
+              ret = runBlockTest(&seed);
+          }
 
-        {   size_t const r = testDecodeSimple(&fr);
-            if (ZSTD_isError(r)) {
-                DISPLAY("Error in simple mode on test seed %u: %s\n", seedCopy,
-                        ZSTD_getErrorName(r));
-                return 1;
-            }
-        }
-        {   size_t const r = testDecodeStreaming(&fr);
-            if (ZSTD_isError(r)) {
-                DISPLAY("Error in streaming mode on test seed %u: %s\n", seedCopy,
-                        ZSTD_getErrorName(r));
-                return 1;
-            }
-        }
-        {
-            /* don't create a dictionary that is too big */
-            size_t const r = testDecodeWithDict(seed);
-            if (ZSTD_isError(r)) {
-                DISPLAY("Error in dictionary mode on test seed %u: %s\n", seedCopy, ZSTD_getErrorName(r));
-                return 1;
-            }
+          if (ret) {
+              return ret;
+          }
         }
     }
 
@@ -1441,7 +1580,7 @@ static int runTestMode(U32 seed, unsigned numFiles, unsigned const testDurationS
 *********************************************************/
 
 static int generateFile(U32 seed, const char* const path,
-                         const char* const origPath)
+                        const char* const origPath, genType_e genType)
 {
     frame_t fr;
 
@@ -1449,9 +1588,12 @@ static int generateFile(U32 seed, const char* const path,
 
     {
         dictInfo const info = initDictInfo(0, 0, NULL, 0);
-        generateFrame(seed, &fr, info);
+        if (genType == gt_frame) {
+            generateFrame(seed, &fr, info);
+        } else {
+            generateCompressedBlock(seed, &fr, info);
+        }
     }
-
     outputBuffer(fr.dataStart, (BYTE*)fr.data - (BYTE*)fr.dataStart, path);
     if (origPath) {
         outputBuffer(fr.srcStart, (BYTE*)fr.src - (BYTE*)fr.srcStart, origPath);
@@ -1460,7 +1602,7 @@ static int generateFile(U32 seed, const char* const path,
 }
 
 static int generateCorpus(U32 seed, unsigned numFiles, const char* const path,
-                         const char* const origPath)
+                          const char* const origPath, genType_e genType)
 {
     char outPath[MAX_PATH];
     unsigned fnum;
@@ -1474,7 +1616,11 @@ static int generateCorpus(U32 seed, unsigned numFiles, const char* const path,
 
         {
             dictInfo const info = initDictInfo(0, 0, NULL, 0);
-            seed = generateFrame(seed, &fr, info);
+            if (genType == gt_frame) {
+                seed = generateFrame(seed, &fr, info);
+            } else {
+                seed = generateCompressedBlock(seed, &fr, info);
+            }
         }
 
         if (snprintf(outPath, MAX_PATH, "%s/z%06u.zst", path, fnum) + 1 > MAX_PATH) {
@@ -1498,7 +1644,8 @@ static int generateCorpus(U32 seed, unsigned numFiles, const char* const path,
 }
 
 static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const path,
-                                    const char* const origPath, const size_t dictSize)
+                                  const char* const origPath, const size_t dictSize,
+                                  genType_e genType)
 {
     char outPath[MAX_PATH];
     BYTE* fullDict;
@@ -1550,7 +1697,11 @@ static int generateCorpusWithDict(U32 seed, unsigned numFiles, const char* const
                 size_t const dictContentSize = dictSize-headerSize;
                 BYTE* const dictContent = fullDict+headerSize;
                 dictInfo const info = initDictInfo(1, dictContentSize, dictContent, dictID);
-                seed = generateFrame(seed, &fr, info);
+                if (genType == gt_frame) {
+                    seed = generateFrame(seed, &fr, info);
+                } else {
+                    seed = generateCompressedBlock(seed, &fr, info);
+                }
             }
 
             if (numFiles != 0) {
@@ -1630,6 +1781,7 @@ static void advancedUsage(const char* programName)
     DISPLAY( "Advanced arguments :\n");
     DISPLAY( " --content-size    : always include the content size in the frame header\n");
     DISPLAY( " --use-dict=#      : include a dictionary used to decompress the corpus\n");
+    DISPLAY( " --gen-blocks      : generate raw compressed blocks without block/frame headers\n");
 }
 
 /*! readU32FromChar() :
@@ -1676,6 +1828,7 @@ int main(int argc, char** argv)
     const char* origPath = NULL;
     int useDict = 0;
     unsigned dictSize = (10 << 10); /* 10 kB default */
+    genType_e genType = gt_frame;
 
     int argNb;
 
@@ -1739,6 +1892,8 @@ int main(int argc, char** argv)
                     } else if (longCommandWArg(&argument, "use-dict=")) {
                         dictSize = readU32FromChar(&argument);
                         useDict = 1;
+                    } else if (strcmp(argument, "gen-blocks") == 0) {
+                        genType = gt_block;
                     } else {
                         advancedUsage(argv[0]);
                         return 1;
@@ -1755,7 +1910,7 @@ int main(int argc, char** argv)
     }
 
     if (testMode) {
-        return runTestMode(seed, numFiles, testDuration);
+        return runTestMode(seed, numFiles, testDuration, genType);
     } else {
         if (testDuration) {
             DISPLAY("Error: -T requires test mode (-t)\n\n");
@@ -1771,12 +1926,12 @@ int main(int argc, char** argv)
     }
 
     if (numFiles == 0 && useDict == 0) {
-        return generateFile(seed, path, origPath);
+        return generateFile(seed, path, origPath, genType);
     } else if (useDict == 0){
-        return generateCorpus(seed, numFiles, path, origPath);
+        return generateCorpus(seed, numFiles, path, origPath, genType);
     } else {
         /* should generate files with a dictionary */
-        return generateCorpusWithDict(seed, numFiles, path, origPath, dictSize);
+        return generateCorpusWithDict(seed, numFiles, path, origPath, dictSize, genType);
     }
 
 }

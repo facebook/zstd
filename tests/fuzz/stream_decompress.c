@@ -51,7 +51,7 @@ static ZSTD_inBuffer makeInBuffer(const uint8_t **src, size_t *size)
 
 int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 {
-    seed = FUZZ_seed(src, size);
+    seed = FUZZ_seed(&src, &size);
 
     /* Allocate all buffers and contexts if not already allocated */
     if (!buf) {
@@ -78,7 +78,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     }
 
 error:
-#ifndef STATEFULL_FUZZING
+#ifndef STATEFUL_FUZZING
     ZSTD_freeDStream(dstream); dstream = NULL;
 #endif
     return 0;

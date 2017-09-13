@@ -422,8 +422,6 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
     {   U32 loopNb;
 #       define TIME_SEC_MICROSEC     (1*1000000ULL) /* 1 second */
         U64 const clockLoop = TIMELOOP_S * TIME_SEC_MICROSEC;
-        UTIL_freq_t ticksPerSecond;
-        UTIL_initTimer(&ticksPerSecond);
         DISPLAY("%2i- %-30.30s : \r", benchNb, benchName);
         for (loopNb = 1; loopNb <= g_nbIterations; loopNb++) {
             UTIL_time_t clockStart;
@@ -431,13 +429,13 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
             U32 nbRounds;
 
             UTIL_sleepMilli(1);  /* give processor time to other processes */
-            UTIL_waitForNextTick(ticksPerSecond);
-            UTIL_getTime(&clockStart);
-            for (nbRounds=0; UTIL_clockSpanMicro(clockStart, ticksPerSecond) < clockLoop; nbRounds++) {
+            UTIL_waitForNextTick();
+            clockStart = UTIL_getTime();
+            for (nbRounds=0; UTIL_clockSpanMicro(clockStart) < clockLoop; nbRounds++) {
                 benchResult = benchFunction(dstBuff, dstBuffSize, buff2, src, srcSize);
                 if (ZSTD_isError(benchResult)) { DISPLAY("ERROR ! %s() => %s !! \n", benchName, ZSTD_getErrorName(benchResult)); exit(1); }
             }
-            {   U64 const clockSpanMicro = UTIL_clockSpanMicro(clockStart, ticksPerSecond);
+            {   U64 const clockSpanMicro = UTIL_clockSpanMicro(clockStart);
                 double const averageTime = (double)clockSpanMicro / TIME_SEC_MICROSEC / nbRounds;
                 if (averageTime < bestTime) bestTime = averageTime;
                 DISPLAY("%2i- %-30.30s : %7.1f MB/s  (%9u)\r", loopNb, benchName, (double)srcSize / (1 MB) / bestTime, (U32)benchResult);

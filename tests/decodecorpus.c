@@ -174,7 +174,8 @@ const char *BLOCK_TYPES[] = {"raw", "rle", "compressed"};
 #define MAX_DECOMPRESSED_SIZE (1ULL << MAX_DECOMPRESSED_SIZE_LOG)
 
 #define MAX_WINDOW_LOG 22 /* Recommended support is 8MB, so limit to 4MB + mantissa */
-#define MAX_BLOCK_SIZE (128ULL * 1024)
+#define MAX_BLOCK_SIZE_LOG 17
+#define MAX_BLOCK_SIZE (1ULL << MAX_BLOCK_SIZE_LOG) /* 128 KB */
 
 #define MIN_SEQ_LEN (3)
 #define MAX_NB_SEQ ((MAX_BLOCK_SIZE + MIN_SEQ_LEN - 1) / MIN_SEQ_LEN)
@@ -243,6 +244,13 @@ typedef enum {
   gt_frame = 0,  /* generate frames */
   gt_block,      /* generate compressed blocks without block/frame headers */
 } genType_e;
+
+/*-*******************************************************
+*  Global variables (set from command line)
+*********************************************************/
+U32 g_maxDecompressedSizeLog = MAX_DECOMPRESSED_SIZE_LOG;  /* <= 20 */
+U32 g_maxBlockSize = MAX_BLOCK_SIZE;                       /* <= 128 KB */
+
 /*-*******************************************************
 *  Generator Functions
 *********************************************************/
@@ -279,12 +287,12 @@ static void writeFrameHeader(U32* seed, frame_t* frame, dictInfo info)
     {
         /* Generate random content size */
         size_t highBit;
-        if (RAND(seed) & 7) {
+        if (RAND(seed) & 7 && g_maxDecompressedSizeLog > 7) {
             /* do content of at least 128 bytes */
-            highBit = 1ULL << RAND_range(seed, 7, MAX_DECOMPRESSED_SIZE_LOG);
+            highBit = 1ULL << RAND_range(seed, 7, g_maxDecompressedSizeLog);
         } else if (RAND(seed) & 3) {
             /* do small content */
-            highBit = 1ULL << RAND_range(seed, 0, 7);
+            highBit = 1ULL << RAND_range(seed, 0, MIN(7, 1ULL << g_maxDecompressedSizeLog));
         } else {
             /* 0 size frame */
             highBit = 0;
@@ -364,7 +372,7 @@ static size_t writeLiteralsBlockSimple(U32* seed, frame_t* frame, size_t content
     int const type = RAND(seed) % 2;
     int const sizeFormatDesc = RAND(seed) % 8;
     size_t litSize;
-    size_t maxLitSize = MIN(contentSize, MAX_BLOCK_SIZE);
+    size_t maxLitSize = MIN(contentSize, g_maxBlockSize);
 
     if (sizeFormatDesc == 0) {
         /* Size_FormatDesc = ?0 */
@@ -469,7 +477,7 @@ static size_t writeLiteralsBlockCompressed(U32* seed, frame_t* frame, size_t con
     size_t litSize;
     size_t hufHeaderSize = 0;
     size_t compressedSize = 0;
-    size_t maxLitSize = MIN(contentSize-3, MAX_BLOCK_SIZE);
+    size_t maxLitSize = MIN(contentSize-3, g_maxBlockSize);
 
     symbolEncodingType_e hType;
 
@@ -1086,7 +1094,7 @@ static void writeBlock(U32* seed, frame_t* frame, size_t contentSize,
 static void writeBlocks(U32* seed, frame_t* frame, dictInfo info)
 {
     size_t contentLeft = frame->header.contentSize;
-    size_t const maxBlockSize = MIN(MAX_BLOCK_SIZE, frame->header.windowSize);
+    size_t const maxBlockSize = MIN(g_maxBlockSize, frame->header.windowSize);
     while (1) {
         /* 1 in 4 chance of ending frame */
         int const lastBlock = contentLeft > maxBlockSize ? 0 : !(RAND(seed) & 3);
@@ -1195,11 +1203,11 @@ static U32 generateCompressedBlock(U32 seed, frame_t* frame, dictInfo info)
 
         /* generate content size */
         {
-            size_t const maxBlockSize = MIN(MAX_BLOCK_SIZE, frame->header.windowSize);
+            size_t const maxBlockSize = MIN(g_maxBlockSize, frame->header.windowSize);
             if (RAND(&seed) & 15) {
                 /* some full size blocks */
                 blockContentSize = maxBlockSize;
-            } else if (RAND(&seed) & 7) {
+            } else if (RAND(&seed) & 7 && g_maxBlockSize >= (1U << 7)) {
                 /* some small blocks <= 128 bytes*/
                 blockContentSize = RAND(&seed) % (1U << 7);
             } else {
@@ -1778,10 +1786,13 @@ static void advancedUsage(const char* programName)
 {
     usage(programName);
     DISPLAY( "\n");
-    DISPLAY( "Advanced arguments :\n");
-    DISPLAY( " --content-size    : always include the content size in the frame header\n");
-    DISPLAY( " --use-dict=#      : include a dictionary used to decompress the corpus\n");
-    DISPLAY( " --gen-blocks      : generate raw compressed blocks without block/frame headers\n");
+    DISPLAY( "Advanced arguments        :\n");
+    DISPLAY( " --content-size           : always include the content size in the frame header\n");
+    DISPLAY( " --use-dict=#             : include a dictionary used to decompress the corpus\n");
+    DISPLAY( " --gen-blocks             : generate raw compressed blocks without block/frame headers\n");
+    DISPLAY( " --max-block-size-log=#   : max block size log, must be in range [2, 17]\n");
+    DISPLAY( " --max-content-size-log=# : max content size log, must be <= 20\n");
+    DISPLAY( "                            (this is ignored with gen-blocks)\n");
 }
 
 /*! readU32FromChar() :
@@ -1894,6 +1905,15 @@ int main(int argc, char** argv)
                         useDict = 1;
                     } else if (strcmp(argument, "gen-blocks") == 0) {
                         genType = gt_block;
+                    } else if (longCommandWArg(&argument, "max-block-size-log=")) {
+                        U32 value = readU32FromChar(&argument);
+                        if (value >= 2 && value <= MAX_BLOCK_SIZE) {
+                            g_maxBlockSize = 1U << value;
+                        }
+                    } else if (longCommandWArg(&argument, "max-content-size-log=")) {
+                        U32 value = readU32FromChar(&argument);
+                        g_maxDecompressedSizeLog =
+                                MIN(MAX_DECOMPRESSED_SIZE_LOG, value);
                     } else {
                         advancedUsage(argv[0]);
                         return 1;

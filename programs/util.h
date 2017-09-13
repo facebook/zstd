@@ -217,7 +217,7 @@ UTIL_STATIC U64 UTIL_clockSpanMicro( UTIL_time_t clockStart )
 }
 
 
-UTIL_STATIC void UTIL_waitForNextTick()
+UTIL_STATIC void UTIL_waitForNextTick(void)
 {
     UTIL_time_t const clockStart = UTIL_getTime();
     UTIL_time_t clockEnd;

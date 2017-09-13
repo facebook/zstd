@@ -101,10 +101,19 @@ lib-release lib-release-mt: DEBUGFLAGS :=
 lib-release: lib
 lib-release-mt: lib-mt
 
+# Special case : building library in single-thread mode _and_ without zstdmt_compress.c
+ZSTDMT_FILES = compress/zstdmt_compress.c
+ZSTD_NOMT_FILES = $(filter-out $(ZSTDMT_FILES),$(ZSTD_FILES))
+libzstd-nomt: LDFLAGS += -shared -fPIC -fvisibility=hidden
+libzstd-nomt: $(ZSTD_NOMT_FILES)
+	@echo compiling single-thread dynamic library $(LIBVER)
+	@echo files : $(ZSTD_NOMT_FILES)
+	@$(CC) $(FLAGS) $^ $(LDFLAGS) $(SONAME_FLAGS) -o $@
+
 clean:
 	@$(RM) -r *.dSYM   # Mac OS-X specific
 	@$(RM) core *.o *.a *.gcda *.$(SHARED_EXT) *.$(SHARED_EXT).* libzstd.pc
-	@$(RM) dll/libzstd.dll dll/libzstd.lib
+	@$(RM) dll/libzstd.dll dll/libzstd.lib libzstd-nomt*
 	@$(RM) common/*.o compress/*.o decompress/*.o dictBuilder/*.o legacy/*.o deprecated/*.o
 	@echo Cleaning library completed
 

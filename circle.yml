@@ -9,7 +9,7 @@ dependencies:
 test:
   override:
     - ? |
-        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then cc -v; make all   && make clean; fi &&
+        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then cc -v; make all   && make clean && make -C lib libzstd-nomt && make clean; fi &&
         if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make gnu90build   && make clean; fi
       :
         parallel: true

@@ -7,28 +7,28 @@
 # in the COPYING file in the root directory of this source tree).
 # ################################################################
 
+# Optionally user defined flags
 CFLAGS ?= -O3
 CXXFLAGS ?= -O3
+CPPFLAGS ?=
+LDFLAGS ?=
+ARFLAGS ?=
+LIB_FUZZING_ENGINE ?= libregression.a
 
 ZSTDDIR = ../../lib
 PRGDIR = ../../programs
 
 FUZZ_CPPFLAGS := -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
 	-I$(ZSTDDIR)/dictBuilder -I$(ZSTDDIR)/deprecated -I$(PRGDIR) \
-	-DZSTD_DEBUG=1 -DMEM_FORCE_MEMORY_ACCESS=0 \
-	-DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION $(CPPFLAGS)
-FUZZ_CFLAGS := -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
+	$(CPPFLAGS)
+FUZZ_EXTRA_FLAGS := -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
 	-Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
 	-Wstrict-prototypes -Wundef -Wformat-security \
 	-Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings \
 	-Wredundant-decls \
-	-g -fno-omit-frame-pointer $(CFLAGS)
-FUZZ_CXXFLAGS := -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
-	-Wstrict-aliasing=1 -Wswitch-enum \
-	-Wdeclaration-after-statement -Wstrict-prototypes -Wundef \
-	-Wformat-security -Wvla -Wformat=2 -Winit-self -Wfloat-equal \
-	-Wwrite-strings -Wredundant-decls \
-	-g -fno-omit-frame-pointer -std=c++11 $(CXXFLAGS)
+	-g -fno-omit-frame-pointer
+FUZZ_CFLAGS := $(FUZZ_EXTRA_FLAGS) $(CFLAGS)
+FUZZ_CXXFLAGS := $(FUZZ_EXTRA_FLAGS) -std=c++11 $(CXXFLAGS)
 FUZZ_LDFLAGS := $(LDFLAGS)
 FUZZ_ARFLAGS := $(ARFLAGS)
 FUZZ_TARGET_FLAGS = $(FUZZ_CPPFLAGS) $(FUZZ_CXXFLAGS) $(FUZZ_LDFLAGS)
@@ -40,9 +40,8 @@ ZSTDCOMP_FILES   := $(ZSTDDIR)/compress/*.c
 ZSTDDECOMP_FILES := $(ZSTDDIR)/decompress/*.c
 ZSTD_FILES       := $(ZSTDDECOMP_FILES) $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES)
 
-ZSTD_OBJ  := $(patsubst %.c,%.o, $(wildcard $(ZSTD_FILES)))
+ZSTD_OBJ := $(patsubst %.c,%.o, $(wildcard $(ZSTD_FILES)))
 
-LIBFUZZER ?= -lFuzzer
 
 .PHONY: default all clean
 
@@ -58,42 +57,19 @@ all: \
 	$(CC) $(FUZZ_CPPFLAGS) $(FUZZ_CFLAGS) $^ -c -o $@
 
 simple_round_trip: $(FUZZ_HEADERS) $(ZSTD_OBJ) simple_round_trip.o
-	$(CXX) $(FUZZ_TARGET_FLAGS) $(ZSTD_OBJ) simple_round_trip.o $(LIBFUZZER) -o $@
+	$(CXX) $(FUZZ_TARGET_FLAGS) $(ZSTD_OBJ) simple_round_trip.o $(LIB_FUZZING_ENGINE) -o $@
 
 stream_round_trip: $(FUZZ_HEADERS) $(ZSTD_OBJ) stream_round_trip.o
-	$(CXX) $(FUZZ_TARGET_FLAGS) $(ZSTD_OBJ) stream_round_trip.o $(LIBFUZZER) -o $@
+	$(CXX) $(FUZZ_TARGET_FLAGS) $(ZSTD_OBJ) stream_round_trip.o $(LIB_FUZZING_ENGINE) -o $@
 
 simple_decompress: $(FUZZ_HEADERS) $(ZSTD_OBJ) simple_decompress.o
-	$(CXX) $(FUZZ_TARGET_FLAGS) $(ZSTD_OBJ) simple_decompress.o $(LIBFUZZER) -o $@
+	$(CXX) $(FUZZ_TARGET_FLAGS) $(ZSTD_OBJ) simple_decompress.o $(LIB_FUZZING_ENGINE) -o $@
 
 stream_decompress: $(FUZZ_HEADERS) $(ZSTD_OBJ) stream_decompress.o
-	$(CXX) $(FUZZ_TARGET_FLAGS) $(ZSTD_OBJ) stream_decompress.o $(LIBFUZZER) -o $@
+	$(CXX) $(FUZZ_TARGET_FLAGS) $(ZSTD_OBJ) stream_decompress.o $(LIB_FUZZING_ENGINE) -o $@
 
 libregression.a: $(FUZZ_HEADERS) $(PRGDIR)/util.h regression_driver.o
 	$(AR) $(FUZZ_ARFLAGS) $@ regression_driver.o
-
-%-regression: libregression.a
-	$(RM) $*
-	$(MAKE) $* LDFLAGS="$(FUZZ_LDFLAGS) -L." LIBFUZZER=-lregression
-
-%-regression-test: %-regression
-	./$* corpora/$*
-
-regression-test: \
-	simple_round_trip-regression-test \
-	stream_round_trip-regression-test \
-	simple_decompress-regression-test \
-	stream_decompress-regression-test
-
-%-msan: clean
-	$(MAKE) $* CFLAGS="-fsanitize=memory $(FUZZ_CFLAGS)" \
-		CXXFLAGS="-fsanitize=memory $(FUZZ_CXXFLAGS)"
-
-UASAN_FLAGS := -fsanitize=address,undefined -fno-sanitize-recover=undefined \
-	-fno-sanitize=pointer-overflow
-%-uasan: clean
-	$(MAKE) $* CFLAGS="$(FUZZ_CFLAGS) $(UASAN_FLAGS)" \
-		CXXFLAGS="$(FUZZ_CXXFLAGS) $(UASAN_FLAGS)"
 
 # Install libfuzzer (not usable for MSAN testing)
 # Provided for convienence. To use this library run make libFuzzer and
@@ -102,7 +78,7 @@ UASAN_FLAGS := -fsanitize=address,undefined -fno-sanitize-recover=undefined \
 libFuzzer:
 	@$(RM) -rf Fuzzer
 	@git clone https://chromium.googlesource.com/chromium/llvm-project/llvm/lib/Fuzzer
-	@./Fuzzer/build.sh
+	@cd Fuzzer && ./build.sh
 
 clean:
 	@$(MAKE) -C $(ZSTDDIR) clean

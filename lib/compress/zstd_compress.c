@@ -87,7 +87,7 @@ ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem)
 
 ZSTD_CCtx* ZSTD_initStaticCCtx(void *workspace, size_t workspaceSize)
 {
-    ZSTD_CCtx* cctx = (ZSTD_CCtx*) workspace;
+    ZSTD_CCtx* const cctx = (ZSTD_CCtx*) workspace;
     if (workspaceSize <= sizeof(ZSTD_CCtx)) return NULL;  /* minimum size */
     if ((size_t)workspace & 7) return NULL;  /* must be 8-aligned */
     memset(workspace, 0, workspaceSize);   /* may be a bit generous, could memset be smaller ? */
@@ -97,7 +97,7 @@ ZSTD_CCtx* ZSTD_initStaticCCtx(void *workspace, size_t workspaceSize)
 
     /* entropy space (never moves) */
     if (cctx->workSpaceSize < sizeof(ZSTD_entropyCTables_t)) return NULL;
-    assert(((size_t)cctx->workSpace & 7) == 0);   /* ensure correct alignment */
+    assert(((size_t)cctx->workSpace & (sizeof(void*)-1)) == 0);   /* ensure correct alignment */
     cctx->entropy = (ZSTD_entropyCTables_t*)cctx->workSpace;
 
     return cctx;

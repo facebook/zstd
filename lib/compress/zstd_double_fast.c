@@ -31,7 +31,7 @@ void ZSTD_fillDoubleHashTable(ZSTD_CCtx* cctx, const void* end, const U32 mls)
 
 
 FORCE_INLINE_TEMPLATE
-void ZSTD_compressBlock_doubleFast_generic(ZSTD_CCtx* cctx,
+size_t ZSTD_compressBlock_doubleFast_generic(ZSTD_CCtx* cctx,
                                  const void* src, size_t srcSize,
                                  const U32 mls)
 {
@@ -138,33 +138,30 @@ void ZSTD_compressBlock_doubleFast_generic(ZSTD_CCtx* cctx,
     seqStorePtr->repToConfirm[0] = offset_1 ? offset_1 : offsetSaved;
     seqStorePtr->repToConfirm[1] = offset_2 ? offset_2 : offsetSaved;
 
-    /* Last Literals */
-    {   size_t const lastLLSize = iend - anchor;
-        memcpy(seqStorePtr->lit, anchor, lastLLSize);
-        seqStorePtr->lit += lastLLSize;
-    }
+    /* Return the last literals size */
+    return iend - anchor;
 }
 
 
-void ZSTD_compressBlock_doubleFast(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
+size_t ZSTD_compressBlock_doubleFast(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
     const U32 mls = ctx->appliedParams.cParams.searchLength;
     switch(mls)
     {
     default: /* includes case 3 */
     case 4 :
-        ZSTD_compressBlock_doubleFast_generic(ctx, src, srcSize, 4); return;
+        return ZSTD_compressBlock_doubleFast_generic(ctx, src, srcSize, 4);
     case 5 :
-        ZSTD_compressBlock_doubleFast_generic(ctx, src, srcSize, 5); return;
+        return ZSTD_compressBlock_doubleFast_generic(ctx, src, srcSize, 5);
     case 6 :
-        ZSTD_compressBlock_doubleFast_generic(ctx, src, srcSize, 6); return;
+        return ZSTD_compressBlock_doubleFast_generic(ctx, src, srcSize, 6);
     case 7 :
-        ZSTD_compressBlock_doubleFast_generic(ctx, src, srcSize, 7); return;
+        return ZSTD_compressBlock_doubleFast_generic(ctx, src, srcSize, 7);
     }
 }
 
 
-static void ZSTD_compressBlock_doubleFast_extDict_generic(ZSTD_CCtx* ctx,
+static size_t ZSTD_compressBlock_doubleFast_extDict_generic(ZSTD_CCtx* ctx,
                                  const void* src, size_t srcSize,
                                  const U32 mls)
 {
@@ -287,15 +284,12 @@ static void ZSTD_compressBlock_doubleFast_extDict_generic(ZSTD_CCtx* ctx,
     /* save reps for next block */
     seqStorePtr->repToConfirm[0] = offset_1; seqStorePtr->repToConfirm[1] = offset_2;
 
-    /* Last Literals */
-    {   size_t const lastLLSize = iend - anchor;
-        memcpy(seqStorePtr->lit, anchor, lastLLSize);
-        seqStorePtr->lit += lastLLSize;
-    }
+    /* Return the last literals size */
+    return iend - anchor;
 }
 
 
-void ZSTD_compressBlock_doubleFast_extDict(ZSTD_CCtx* ctx,
+size_t ZSTD_compressBlock_doubleFast_extDict(ZSTD_CCtx* ctx,
                          const void* src, size_t srcSize)
 {
     U32 const mls = ctx->appliedParams.cParams.searchLength;
@@ -303,12 +297,12 @@ void ZSTD_compressBlock_doubleFast_extDict(ZSTD_CCtx* ctx,
     {
     default: /* includes case 3 */
     case 4 :
-        ZSTD_compressBlock_doubleFast_extDict_generic(ctx, src, srcSize, 4); return;
+        return ZSTD_compressBlock_doubleFast_extDict_generic(ctx, src, srcSize, 4);
     case 5 :
-        ZSTD_compressBlock_doubleFast_extDict_generic(ctx, src, srcSize, 5); return;
+        return ZSTD_compressBlock_doubleFast_extDict_generic(ctx, src, srcSize, 5);
     case 6 :
-        ZSTD_compressBlock_doubleFast_extDict_generic(ctx, src, srcSize, 6); return;
+        return ZSTD_compressBlock_doubleFast_extDict_generic(ctx, src, srcSize, 6);
     case 7 :
-        ZSTD_compressBlock_doubleFast_extDict_generic(ctx, src, srcSize, 7); return;
+        return ZSTD_compressBlock_doubleFast_extDict_generic(ctx, src, srcSize, 7);
     }
 }

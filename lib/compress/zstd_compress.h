@@ -68,6 +68,7 @@ struct ZSTD_CCtx_s {
 
     seqStore_t seqStore;    /* sequences storage ptrs */
     optState_t optState;
+    ldmState_t ldmState;    /* long distance matching state */
     U32* hashTable;
     U32* hashTable3;
     U32* chainTable;

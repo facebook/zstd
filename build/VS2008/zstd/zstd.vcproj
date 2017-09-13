@@ -459,6 +459,10 @@
 			<File
 				RelativePath="..\..\..\lib\compress\zstd_opt.c"
 				>
+      </File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstd_ldm.c"
+				>
 			</File>
 		</Filter>
 		<Filter
@@ -588,6 +592,10 @@
 			</File>
 			<File
 				RelativePath="..\..\..\lib\compress\zstd_opt.h"
+				>
+      </File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstd_ldm.h"
 				>
 			</File>
 		</Filter>

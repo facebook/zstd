@@ -17,11 +17,11 @@
 extern "C" {
 #endif
 
-void ZSTD_compressBlock_btopt(ZSTD_CCtx* ctx, const void* src, size_t srcSize);
-void ZSTD_compressBlock_btultra(ZSTD_CCtx* ctx, const void* src, size_t srcSize);
+size_t ZSTD_compressBlock_btopt(ZSTD_CCtx* ctx, const void* src, size_t srcSize);
+size_t ZSTD_compressBlock_btultra(ZSTD_CCtx* ctx, const void* src, size_t srcSize);
 
-void ZSTD_compressBlock_btopt_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize);
-void ZSTD_compressBlock_btultra_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize);
+size_t ZSTD_compressBlock_btopt_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize);
+size_t ZSTD_compressBlock_btultra_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize);
 
 #if defined (__cplusplus)
 }

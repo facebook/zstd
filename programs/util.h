@@ -122,19 +122,23 @@ static int g_utilDisplayLevel;
     UTIL_STATIC UTIL_time_t UTIL_getTime(void) { UTIL_time_t x; QueryPerformanceCounter(&x); return x; }
     UTIL_STATIC U64 UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd)
     {
-        static LARGE_INTEGER ticksPerSecond = 0;
-        if (!ticksPerSecond) {
+        static LARGE_INTEGER ticksPerSecond;
+        static int init = 0;
+        if (!init) {
             if (!QueryPerformanceFrequency(&ticksPerSecond))
                 UTIL_DISPLAYLEVEL(1, "ERROR: QueryPerformanceFrequency() failure\n");
+            init = 1;
         }
         return 1000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart;
     }
     UTIL_STATIC U64 UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd)
     {
-        static LARGE_INTEGER ticksPerSecond = 0;
-        if (!ticksPerSecond) {
+        static LARGE_INTEGER ticksPerSecond;
+        static int init = 0;
+        if (!init) {
             if (!QueryPerformanceFrequency(&ticksPerSecond))
                 UTIL_DISPLAYLEVEL(1, "ERROR: QueryPerformanceFrequency() failure\n");
+            init = 1;
         }
         return 1000000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart;
     }

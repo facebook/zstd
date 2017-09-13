@@ -73,7 +73,12 @@ static const unsigned g_defaultMaxDictSize = 110 KB;
 static const int      g_defaultDictCLevel = 3;
 static const unsigned g_defaultSelectivityLevel = 9;
 #define OVERLAP_LOG_DEFAULT 9999
+#define LDM_PARAM_DEFAULT 9999  /* Default for parameters where 0 is valid */
 static U32 g_overlapLog = OVERLAP_LOG_DEFAULT;
+static U32 g_ldmHashLog = 0;
+static U32 g_ldmMinMatch = 0;
+static U32 g_ldmHashEveryLog = LDM_PARAM_DEFAULT;
+static U32 g_ldmBucketSizeLog = LDM_PARAM_DEFAULT;
 
 
 /*-************************************
@@ -124,6 +129,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -l     : print information about zstd compressed files \n");
 #ifndef ZSTD_NOCOMPRESS
     DISPLAY( "--ultra : enable levels beyond %i, up to %i (requires more memory)\n", ZSTDCLI_CLEVEL_MAX, ZSTD_maxCLevel());
+    DISPLAY( "--long  : enable long distance matching (requires more memory)\n");
 #ifdef ZSTD_MULTITHREAD
     DISPLAY( " -T#    : use # threads for compression (default:1) \n");
     DISPLAY( " -B#    : select size of each job (default:0==automatic) \n");
@@ -305,6 +311,10 @@ static unsigned parseCompressionParameters(const char* stringPtr, ZSTD_compressi
         if (longCommandWArg(&stringPtr, "targetLength=") || longCommandWArg(&stringPtr, "tlen=")) { params->targetLength = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "strategy=") || longCommandWArg(&stringPtr, "strat=")) { params->strategy = (ZSTD_strategy)(readU32FromChar(&stringPtr)); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "overlapLog=") || longCommandWArg(&stringPtr, "ovlog=")) { g_overlapLog = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        if (longCommandWArg(&stringPtr, "ldmHashLog=") || longCommandWArg(&stringPtr, "ldmhlog=")) { g_ldmHashLog = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        if (longCommandWArg(&stringPtr, "ldmSearchLength=") || longCommandWArg(&stringPtr, "ldmslen=")) { g_ldmMinMatch = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        if (longCommandWArg(&stringPtr, "ldmBucketSizeLog=") || longCommandWArg(&stringPtr, "ldmblog")) { g_ldmBucketSizeLog = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        if (longCommandWArg(&stringPtr, "ldmHashEveryLog=") || longCommandWArg(&stringPtr, "ldmhevery")) { g_ldmHashEveryLog = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         return 0;
     }
 
@@ -363,7 +373,8 @@ int main(int argCount, const char* argv[])
         ultra=0,
         lastCommand = 0,
         nbThreads = 1,
-        setRealTimePrio = 0;
+        setRealTimePrio = 0,
+        ldmFlag = 0;
     unsigned bench_nbSeconds = 3;   /* would be better if this value was synchronized from bench */
     size_t blockSize = 0;
     zstd_operation_mode operation = zom_compress;
@@ -395,7 +406,7 @@ int main(int argCount, const char* argv[])
     /* init */
     (void)recursive; (void)cLevelLast;    /* not used when ZSTD_NOBENCH set */
     (void)dictCLevel; (void)dictSelect; (void)dictID;  (void)maxDictSize; /* not used when ZSTD_NODICT set */
-    (void)ultra; (void)cLevel; /* not used when ZSTD_NOCOMPRESS set */
+    (void)ultra; (void)cLevel; (void)ldmFlag; /* not used when ZSTD_NOCOMPRESS set */
     (void)memLimit;   /* not used when ZSTD_NODECOMPRESS set */
     if (filenameTable==NULL) { DISPLAY("zstd: %s \n", strerror(errno)); exit(1); }
     filenameTable[0] = stdinmark;
@@ -448,6 +459,7 @@ int main(int argCount, const char* argv[])
                     if (!strcmp(argument, "--quiet")) { g_displayLevel--; continue; }
                     if (!strcmp(argument, "--stdout")) { forceStdout=1; outFileName=stdoutmark; g_displayLevel-=(g_displayLevel==2); continue; }
                     if (!strcmp(argument, "--ultra")) { ultra=1; continue; }
+                    if (!strcmp(argument, "--long")) { ldmFlag = 1; continue; }
                     if (!strcmp(argument, "--check")) { FIO_setChecksumFlag(2); continue; }
                     if (!strcmp(argument, "--no-check")) { FIO_setChecksumFlag(0); continue; }
                     if (!strcmp(argument, "--sparse")) { FIO_setSparseWrite(2); continue; }
@@ -721,6 +733,15 @@ int main(int argCount, const char* argv[])
         BMK_setBlockSize(blockSize);
         BMK_setNbThreads(nbThreads);
         BMK_setNbSeconds(bench_nbSeconds);
+        BMK_setLdmFlag(ldmFlag);
+        BMK_setLdmMinMatch(g_ldmMinMatch);
+        BMK_setLdmHashLog(g_ldmHashLog);
+        if (g_ldmBucketSizeLog != LDM_PARAM_DEFAULT) {
+            BMK_setLdmBucketSizeLog(g_ldmBucketSizeLog);
+        }
+        if (g_ldmHashEveryLog != LDM_PARAM_DEFAULT) {
+            BMK_setLdmHashEveryLog(g_ldmHashEveryLog);
+        }
         BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast, &compressionParams, setRealTimePrio);
 #endif
         (void)bench_nbSeconds; (void)blockSize; (void)setRealTimePrio;
@@ -788,6 +809,16 @@ int main(int argCount, const char* argv[])
 #ifndef ZSTD_NOCOMPRESS
         FIO_setNbThreads(nbThreads);
         FIO_setBlockSize((U32)blockSize);
+        FIO_setLdmFlag(ldmFlag);
+        FIO_setLdmHashLog(g_ldmHashLog);
+        FIO_setLdmMinMatch(g_ldmMinMatch);
+        if (g_ldmBucketSizeLog != LDM_PARAM_DEFAULT) {
+            FIO_setLdmBucketSizeLog(g_ldmBucketSizeLog);
+        }
+        if (g_ldmHashEveryLog != LDM_PARAM_DEFAULT) {
+            FIO_setLdmHashEveryLog(g_ldmHashEveryLog);
+        }
+
         if (g_overlapLog!=OVERLAP_LOG_DEFAULT) FIO_setOverlapLog(g_overlapLog);
         if ((filenameIdx==1) && outFileName)
           operationResult = FIO_compressFilename(outFileName, filenameTable[0], dictFileName, cLevel, &compressionParams);

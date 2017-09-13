@@ -26,5 +26,10 @@ void BMK_setNbThreads(unsigned nbThreads);
 void BMK_setNotificationLevel(unsigned level);
 void BMK_setAdditionalParam(int additionalParam);
 void BMK_setDecodeOnlyMode(unsigned decodeFlag);
+void BMK_setLdmFlag(unsigned ldmFlag);
+void BMK_setLdmMinMatch(unsigned ldmMinMatch);
+void BMK_setLdmHashLog(unsigned ldmHashLog);
+void BMK_setLdmBucketSizeLog(unsigned ldmBucketSizeLog);
+void BMK_setLdmHashEveryLog(unsigned ldmHashEveryLog);
 
 #endif   /* BENCH_H_121279284357 */

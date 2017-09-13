@@ -250,6 +250,26 @@ typedef struct {
 } optState_t;
 
 typedef struct {
+    U32 offset;
+    U32 checksum;
+} ldmEntry_t;
+
+typedef struct {
+    ldmEntry_t* hashTable;
+    BYTE* bucketOffsets;    /* Next position in bucket to insert entry */
+    U64 hashPower;          /* Used to compute the rolling hash.
+                             * Depends on ldmParams.minMatchLength */
+} ldmState_t;
+
+typedef struct {
+    U32 enableLdm;          /* 1 if enable long distance matching */
+    U32 hashLog;            /* Log size of hashTable */
+    U32 bucketSizeLog;      /* Log bucket size for collision resolution, at most 8 */
+    U32 minMatchLength;     /* Minimum match length */
+    U32 hashEveryLog;       /* Log number of entries to skip */
+} ldmParams_t;
+
+typedef struct {
     U32 hufCTable[HUF_CTABLE_SIZE_U32(255)];
     FSE_CTable offcodeCTable[FSE_CTABLE_SIZE_U32(OffFSELog, MaxOff)];
     FSE_CTable matchlengthCTable[FSE_CTABLE_SIZE_U32(MLFSELog, MaxML)];
@@ -273,6 +293,9 @@ struct ZSTD_CCtx_params_s {
     U32 nbThreads;
     unsigned jobSize;
     unsigned overlapSizeLog;
+
+    /* Long distance matching parameters */
+    ldmParams_t ldmParams;
 
     /* For use with createCCtxParams() and freeCCtxParams() only */
     ZSTD_customMem customMem;

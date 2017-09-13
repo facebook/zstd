@@ -18,9 +18,9 @@ extern "C" {
 #endif
 
 void ZSTD_fillHashTable(ZSTD_CCtx* zc, const void* end, const U32 mls);
-void ZSTD_compressBlock_fast(ZSTD_CCtx* ctx,
-                       const void* src, size_t srcSize);
-void ZSTD_compressBlock_fast_extDict(ZSTD_CCtx* ctx,
+size_t ZSTD_compressBlock_fast(ZSTD_CCtx* ctx,
+                         const void* src, size_t srcSize);
+size_t ZSTD_compressBlock_fast_extDict(ZSTD_CCtx* ctx,
                          const void* src, size_t srcSize);
 
 #if defined (__cplusplus)

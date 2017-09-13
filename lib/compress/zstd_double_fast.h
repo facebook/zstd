@@ -18,8 +18,8 @@ extern "C" {
 #endif
 
 void ZSTD_fillDoubleHashTable(ZSTD_CCtx* cctx, const void* end, const U32 mls);
-void ZSTD_compressBlock_doubleFast(ZSTD_CCtx* ctx, const void* src, size_t srcSize);
-void ZSTD_compressBlock_doubleFast_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize);
+size_t ZSTD_compressBlock_doubleFast(ZSTD_CCtx* ctx, const void* src, size_t srcSize);
+size_t ZSTD_compressBlock_doubleFast_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize);
 
 #if defined (__cplusplus)
 }

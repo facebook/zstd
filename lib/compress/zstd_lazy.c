@@ -398,9 +398,9 @@ FORCE_INLINE_TEMPLATE size_t ZSTD_HcFindBestMatch_extDict_selectMLS (
 *  Common parser - lazy strategy
 *********************************/
 FORCE_INLINE_TEMPLATE
-void ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
-                                     const void* src, size_t srcSize,
-                                     const U32 searchMethod, const U32 depth)
+size_t ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
+                                       const void* src, size_t srcSize,
+                                       const U32 searchMethod, const U32 depth)
 {
     seqStore_t* seqStorePtr = &(ctx->seqStore);
     const BYTE* const istart = (const BYTE*)src;
@@ -530,37 +530,34 @@ _storeSequence:
     seqStorePtr->repToConfirm[0] = offset_1 ? offset_1 : savedOffset;
     seqStorePtr->repToConfirm[1] = offset_2 ? offset_2 : savedOffset;
 
-    /* Last Literals */
-    {   size_t const lastLLSize = iend - anchor;
-        memcpy(seqStorePtr->lit, anchor, lastLLSize);
-        seqStorePtr->lit += lastLLSize;
-    }
+    /* Return the last literals size */
+    return iend - anchor;
 }
 
 
-void ZSTD_compressBlock_btlazy2(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
+size_t ZSTD_compressBlock_btlazy2(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    ZSTD_compressBlock_lazy_generic(ctx, src, srcSize, 1, 2);
+    return ZSTD_compressBlock_lazy_generic(ctx, src, srcSize, 1, 2);
 }
 
-void ZSTD_compressBlock_lazy2(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
+size_t ZSTD_compressBlock_lazy2(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    ZSTD_compressBlock_lazy_generic(ctx, src, srcSize, 0, 2);
+    return ZSTD_compressBlock_lazy_generic(ctx, src, srcSize, 0, 2);
 }
 
-void ZSTD_compressBlock_lazy(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
+size_t ZSTD_compressBlock_lazy(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    ZSTD_compressBlock_lazy_generic(ctx, src, srcSize, 0, 1);
+    return ZSTD_compressBlock_lazy_generic(ctx, src, srcSize, 0, 1);
 }
 
-void ZSTD_compressBlock_greedy(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
+size_t ZSTD_compressBlock_greedy(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    ZSTD_compressBlock_lazy_generic(ctx, src, srcSize, 0, 0);
+    return ZSTD_compressBlock_lazy_generic(ctx, src, srcSize, 0, 0);
 }
 
 
 FORCE_INLINE_TEMPLATE
-void ZSTD_compressBlock_lazy_extDict_generic(ZSTD_CCtx* ctx,
+size_t ZSTD_compressBlock_lazy_extDict_generic(ZSTD_CCtx* ctx,
                                      const void* src, size_t srcSize,
                                      const U32 searchMethod, const U32 depth)
 {
@@ -724,30 +721,27 @@ _storeSequence:
     /* Save reps for next block */
     seqStorePtr->repToConfirm[0] = offset_1; seqStorePtr->repToConfirm[1] = offset_2;
 
-    /* Last Literals */
-    {   size_t const lastLLSize = iend - anchor;
-        memcpy(seqStorePtr->lit, anchor, lastLLSize);
-        seqStorePtr->lit += lastLLSize;
-    }
+    /* Return the last literals size */
+    return iend - anchor;
 }
 
 
-void ZSTD_compressBlock_greedy_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
+size_t ZSTD_compressBlock_greedy_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    ZSTD_compressBlock_lazy_extDict_generic(ctx, src, srcSize, 0, 0);
+    return ZSTD_compressBlock_lazy_extDict_generic(ctx, src, srcSize, 0, 0);
 }
 
-void ZSTD_compressBlock_lazy_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
+size_t ZSTD_compressBlock_lazy_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    ZSTD_compressBlock_lazy_extDict_generic(ctx, src, srcSize, 0, 1);
+    return ZSTD_compressBlock_lazy_extDict_generic(ctx, src, srcSize, 0, 1);
 }
 
-void ZSTD_compressBlock_lazy2_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
+size_t ZSTD_compressBlock_lazy2_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    ZSTD_compressBlock_lazy_extDict_generic(ctx, src, srcSize, 0, 2);
+    return ZSTD_compressBlock_lazy_extDict_generic(ctx, src, srcSize, 0, 2);
 }
 
-void ZSTD_compressBlock_btlazy2_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
+size_t ZSTD_compressBlock_btlazy2_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    ZSTD_compressBlock_lazy_extDict_generic(ctx, src, srcSize, 1, 2);
+    return ZSTD_compressBlock_lazy_extDict_generic(ctx, src, srcSize, 1, 2);
 }

@@ -410,8 +410,8 @@ static U32 ZSTD_BtGetAllMatches_selectMLS_extDict (
 *  Optimal parser
 *********************************/
 FORCE_INLINE_TEMPLATE
-void ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
-                                    const void* src, size_t srcSize, const int ultra)
+size_t ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
+                                      const void* src, size_t srcSize, const int ultra)
 {
     seqStore_t* seqStorePtr = &(ctx->seqStore);
     optState_t* optStatePtr = &(ctx->optState);
@@ -651,27 +651,24 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
     /* Save reps for next block */
     { int i; for (i=0; i<ZSTD_REP_NUM; i++) seqStorePtr->repToConfirm[i] = rep[i]; }
 
-    /* Last Literals */
-    {   size_t const lastLLSize = iend - anchor;
-        memcpy(seqStorePtr->lit, anchor, lastLLSize);
-        seqStorePtr->lit += lastLLSize;
-    }
+    /* Return the last literals size */
+    return iend - anchor;
 }
 
 
-void ZSTD_compressBlock_btopt(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
+size_t ZSTD_compressBlock_btopt(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    ZSTD_compressBlock_opt_generic(ctx, src, srcSize, 0);
+    return ZSTD_compressBlock_opt_generic(ctx, src, srcSize, 0);
 }
 
-void ZSTD_compressBlock_btultra(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
+size_t ZSTD_compressBlock_btultra(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    ZSTD_compressBlock_opt_generic(ctx, src, srcSize, 1);
+    return ZSTD_compressBlock_opt_generic(ctx, src, srcSize, 1);
 }
 
 
 FORCE_INLINE_TEMPLATE
-void ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
+size_t ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
                                      const void* src, size_t srcSize, const int ultra)
 {
     seqStore_t* seqStorePtr = &(ctx->seqStore);
@@ -936,20 +933,17 @@ _storeSequence:   /* cur, last_pos, best_mlen, best_off have to be set */
     /* Save reps for next block */
     { int i; for (i=0; i<ZSTD_REP_NUM; i++) seqStorePtr->repToConfirm[i] = rep[i]; }
 
-    /* Last Literals */
-    {   size_t lastLLSize = iend - anchor;
-        memcpy(seqStorePtr->lit, anchor, lastLLSize);
-        seqStorePtr->lit += lastLLSize;
-    }
+    /* Return the last literals size */
+    return iend - anchor;
 }
 
 
-void ZSTD_compressBlock_btopt_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
+size_t ZSTD_compressBlock_btopt_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    ZSTD_compressBlock_opt_extDict_generic(ctx, src, srcSize, 0);
+    return ZSTD_compressBlock_opt_extDict_generic(ctx, src, srcSize, 0);
 }
 
-void ZSTD_compressBlock_btultra_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
+size_t ZSTD_compressBlock_btultra_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    ZSTD_compressBlock_opt_extDict_generic(ctx, src, srcSize, 1);
+    return ZSTD_compressBlock_opt_extDict_generic(ctx, src, srcSize, 1);
 }

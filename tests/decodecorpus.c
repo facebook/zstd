@@ -292,7 +292,7 @@ static void writeFrameHeader(U32* seed, frame_t* frame, dictInfo info)
             highBit = 1ULL << RAND_range(seed, 7, g_maxDecompressedSizeLog);
         } else if (RAND(seed) & 3) {
             /* do small content */
-            highBit = 1ULL << RAND_range(seed, 0, MIN(7, 1ULL << g_maxDecompressedSizeLog));
+            highBit = 1ULL << RAND_range(seed, 0, MIN(7, 1U << g_maxDecompressedSizeLog));
         } else {
             /* 0 size frame */
             highBit = 0;

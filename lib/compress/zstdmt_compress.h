@@ -108,6 +108,22 @@ ZSTDLIB_API size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
                                                 ZSTD_EndDirective endOp);
 
 
+/* ===   Private definitions; never ever use directly  === */
+
+size_t ZSTDMT_CCtxParam_setMTCtxParameter(ZSTD_CCtx_params* params, ZSTDMT_parameter parameter, unsigned value);
+
+size_t ZSTDMT_initializeCCtxParameters(ZSTD_CCtx_params* params, unsigned nbThreads);
+
+/*! ZSTDMT_initCStream_internal() :
+ *  Private use only. Init streaming operation.
+ *  expects params to be valid.
+ *  must receive dict, or cdict, or none, but not both.
+ *  @return : 0, or an error code */
+size_t ZSTDMT_initCStream_internal(ZSTDMT_CCtx* zcs,
+                    const void* dict, size_t dictSize, ZSTD_dictMode_e dictMode,
+                    const ZSTD_CDict* cdict,
+                    ZSTD_CCtx_params params, unsigned long long pledgedSrcSize);
+
 
 #if defined (__cplusplus)
 }

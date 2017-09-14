@@ -114,9 +114,10 @@ static size_t compress(uint8_t *dst, size_t capacity,
 
 int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 {
-    size_t const neededBufSize = ZSTD_compressBound(size) * 2;
+    size_t neededBufSize;
 
-    seed = FUZZ_seed(src, size);
+    seed = FUZZ_seed(&src, &size);
+    neededBufSize = ZSTD_compressBound(size) * 2;
 
     /* Allocate all buffers and contexts if not already allocated */
     if (neededBufSize > bufSize) {
@@ -145,7 +146,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
         FUZZ_ASSERT_MSG(!memcmp(src, rBuf, size), "Corruption!");
     }
 
-#ifndef STATEFULL_FUZZING
+#ifndef STATEFUL_FUZZING
     ZSTD_freeCStream(cstream); cstream = NULL;
     ZSTD_freeDCtx(dctx); dctx = NULL;
 #endif

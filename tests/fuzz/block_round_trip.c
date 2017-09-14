@@ -1,4 +1,4 @@
-/*
+/**
  * Copyright (c) 2016-present, Facebook, Inc.
  * All rights reserved.
  *
@@ -11,6 +11,8 @@
  * This fuzz target performs a zstd round-trip test (compress & decompress),
  * compares the result with the original, and calls abort() on corruption.
  */
+
+#define ZSTD_STATIC_LINKING_ONLY
 
 #include <stddef.h>
 #include <stdlib.h>
@@ -33,13 +35,26 @@ static size_t roundTripTest(void *result, size_t resultCapacity,
                             const void *src, size_t srcSize)
 {
   int const cLevel = FUZZ_rand(&seed) % kMaxClevel;
-  size_t const cSize = ZSTD_compressCCtx(cctx, compressed, compressedCapacity,
-                                         src, srcSize, cLevel);
-  if (ZSTD_isError(cSize)) {
-    fprintf(stderr, "Compression error: %s\n", ZSTD_getErrorName(cSize));
-    return cSize;
+  size_t ret = ZSTD_compressBegin(cctx, cLevel);
+
+  if (ZSTD_isError(ret)) {
+      fprintf(stderr, "ZSTD_compressBegin() error: %s\n",
+              ZSTD_getErrorName(ret));
+      return ret;
   }
-  return ZSTD_decompressDCtx(dctx, result, resultCapacity, compressed, cSize);
+
+  ret = ZSTD_compressBlock(cctx, compressed, compressedCapacity, src, srcSize);
+  if (ZSTD_isError(ret)) {
+    fprintf(stderr, "ZSTD_compressBlock() error: %s\n", ZSTD_getErrorName(ret));
+    return ret;
+  }
+  if (ret == 0) {
+        FUZZ_ASSERT(resultCapacity >= srcSize);
+        memcpy(result, src, srcSize);
+        return srcSize;
+  }
+  ZSTD_decompressBegin(dctx);
+  return ZSTD_decompressBlock(dctx, result, resultCapacity, compressed, ret);
 }
 
 int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
@@ -47,10 +62,12 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     size_t neededBufSize;
 
     seed = FUZZ_seed(&src, &size);
-    neededBufSize = ZSTD_compressBound(size);
+    neededBufSize = size;
+    if (size > ZSTD_BLOCKSIZE_MAX)
+        return 0;
 
     /* Allocate all buffers and contexts if not already allocated */
-    if (neededBufSize > bufSize) {
+    if (neededBufSize > bufSize || !cBuf || !rBuf) {
         free(cBuf);
         free(rBuf);
         cBuf = malloc(neededBufSize);

@@ -19,6 +19,10 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
@@ -48,11 +52,14 @@
 
 /**
  * Determininistically constructs a seed based on the fuzz input.
- * Only looks at the first FUZZ_RNG_SEED_SIZE bytes of the input.
+ * Consumes up to the first FUZZ_RNG_SEED_SIZE bytes of the input.
  */
-FUZZ_STATIC uint32_t FUZZ_seed(const uint8_t *src, size_t size) {
-  size_t const toHash = MIN(FUZZ_RNG_SEED_SIZE, size);
-  return XXH32(src, toHash, 0);
+FUZZ_STATIC uint32_t FUZZ_seed(uint8_t const **src, size_t* size) {
+  uint8_t const *data = *src;
+  size_t const toHash = MIN(FUZZ_RNG_SEED_SIZE, *size);
+  *size -= toHash;
+  *src += toHash;
+  return XXH32(data, toHash, 0);
 }
 
 #define FUZZ_rotl32(x, r) (((x) << (r)) | ((x) >> (32 - (r))))
@@ -66,5 +73,9 @@ FUZZ_STATIC uint32_t FUZZ_rand(uint32_t *state) {
   *state = rand32;
   return rand32 >> 5;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

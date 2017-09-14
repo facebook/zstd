@@ -14,7 +14,7 @@
 *  Compiler Warnings
 ****************************************/
 #ifdef _MSC_VER
-#  pragma warning(disable : 4127)                /* disable: C4127: conditional expression is constant */
+#  pragma warning(disable : 4127)    /* disable: C4127: conditional expression is constant */
 #endif
 
 
@@ -44,7 +44,7 @@
 #define SAMPLESIZE_MAX (128 KB)
 #define MEMMULT 11    /* rough estimation : memory cost to analyze 1 byte of sample */
 #define COVER_MEMMULT 9    /* rough estimation : memory cost to analyze 1 byte of sample */
-static const size_t maxMemory = (sizeof(size_t) == 4) ? (2 GB - 64 MB) : ((size_t)(512 MB) << sizeof(size_t));
+static const size_t g_maxMemory = (sizeof(size_t) == 4) ? (2 GB - 64 MB) : ((size_t)(512 MB) << sizeof(size_t));
 
 #define NOISELENGTH 32
 
@@ -98,7 +98,9 @@ const char* DiB_getErrorName(size_t errorCode) { return ERR_getErrorName(errorCo
 *  File related operations
 **********************************************************/
 /** DiB_loadFiles() :
-*   @return : nb of files effectively loaded into `buffer` */
+ *  load files listed in fileNamesTable into buffer, even if buffer is too small.
+ * @return : nb of files effectively loaded into `buffer`
+ * *bufferSizePtr is modified, it provides the amount data loaded within buffer */
 static unsigned DiB_loadFiles(void* buffer, size_t* bufferSizePtr,
                               size_t* fileSizes,
                               const char** fileNamesTable, unsigned nbFiles)
@@ -139,16 +141,19 @@ static U32 DiB_rand(U32* src)
     return rand32 >> 5;
 }
 
+/* DiB_shuffle() :
+ * shuffle a table of file names in a semi-random way
+ * It improves dictionary quality by reducing "locality" impact, so if sample set is very large,
+ * it will load random elements from it, instead of just the first ones. */
 static void DiB_shuffle(const char** fileNamesTable, unsigned nbFiles) {
-  /* Initialize the pseudorandom number generator */
-  U32 seed = 0xFD2FB528;
-  unsigned i;
-  for (i = nbFiles - 1; i > 0; --i) {
-    unsigned const j = DiB_rand(&seed) % (i + 1);
-    const char* tmp = fileNamesTable[j];
-    fileNamesTable[j] = fileNamesTable[i];
-    fileNamesTable[i] = tmp;
-  }
+    U32 seed = 0xFD2FB528;
+    unsigned i;
+    for (i = nbFiles - 1; i > 0; --i) {
+        unsigned const j = DiB_rand(&seed) % (i + 1);
+        const char* const tmp = fileNamesTable[j];
+        fileNamesTable[j] = fileNamesTable[i];
+        fileNamesTable[i] = tmp;
+    }
 }
 
 
@@ -162,7 +167,7 @@ static size_t DiB_findMaxMem(unsigned long long requiredMem)
 
     requiredMem = (((requiredMem >> 23) + 1) << 23);
     requiredMem += step;
-    if (requiredMem > maxMemory) requiredMem = maxMemory;
+    if (requiredMem > g_maxMemory) requiredMem = g_maxMemory;
 
     while (!testmem) {
         testmem = malloc((size_t)requiredMem);
@@ -203,7 +208,7 @@ static void DiB_saveDict(const char* dictFileName,
 
 
 static int g_tooLargeSamples = 0;
-static U64 DiB_getTotalCappedFileSize(const char** fileNamesTable, unsigned nbFiles)
+static U64 DiB_totalCappedFileSize(const char** fileNamesTable, unsigned nbFiles)
 {
     U64 total = 0;
     unsigned n;
@@ -236,7 +241,7 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
 {
     void* const dictBuffer = malloc(maxDictSize);
     size_t* const fileSizes = (size_t*)malloc(nbFiles * sizeof(size_t));
-    unsigned long long const totalSizeToLoad = DiB_getTotalCappedFileSize(fileNamesTable, nbFiles);
+    unsigned long long const totalSizeToLoad = DiB_totalCappedFileSize(fileNamesTable, nbFiles);
     size_t const memMult = params ? MEMMULT : COVER_MEMMULT;
     size_t const maxMem =  DiB_findMaxMem(totalSizeToLoad * memMult) / memMult;
     size_t benchedSize = (size_t) MIN ((unsigned long long)maxMem, totalSizeToLoad);
@@ -246,8 +251,9 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
     /* Checks */
     if (params) g_displayLevel = params->zParams.notificationLevel;
     else if (coverParams) g_displayLevel = coverParams->zParams.notificationLevel;
-    else EXM_THROW(13, "Neither dictionary algorith selected");   /* should not happen */
-    if ((!fileSizes) || (!srcBuffer) || (!dictBuffer)) EXM_THROW(12, "not enough memory for DiB_trainFiles");   /* should not happen */
+    else EXM_THROW(13, "Neither dictionary algorithm selected");   /* should not happen */
+    if ((!fileSizes) || (!srcBuffer) || (!dictBuffer))
+        EXM_THROW(12, "not enough memory for DiB_trainFiles");   /* should not happen */
     if (g_tooLargeSamples) {
         DISPLAYLEVEL(2, "!  Warning : some samples are very large \n");
         DISPLAYLEVEL(2, "!  Note that dictionary is only useful for small files or beginning of large files. \n");
@@ -270,8 +276,7 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
     DiB_shuffle(fileNamesTable, nbFiles);
     nbFiles = DiB_loadFiles(srcBuffer, &benchedSize, fileSizes, fileNamesTable, nbFiles);
 
-    {
-        size_t dictSize;
+    {   size_t dictSize;
         if (params) {
             DiB_fillNoise((char*)srcBuffer + benchedSize, NOISELENGTH);   /* guard band, for end of buffer condition */
             dictSize = ZDICT_trainFromBuffer_unsafe_legacy(dictBuffer, maxDictSize,
@@ -285,9 +290,8 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
                 DISPLAYLEVEL(2, "k=%u\nd=%u\nsteps=%u\n", coverParams->k, coverParams->d, coverParams->steps);
             }
         } else {
-            dictSize =
-                ZDICT_trainFromBuffer_cover(dictBuffer, maxDictSize, srcBuffer,
-                                            fileSizes, nbFiles, *coverParams);
+            dictSize = ZDICT_trainFromBuffer_cover(dictBuffer, maxDictSize, srcBuffer,
+                                                   fileSizes, nbFiles, *coverParams);
         }
         if (ZDICT_isError(dictSize)) {
             DISPLAYLEVEL(1, "dictionary training failed : %s \n", ZDICT_getErrorName(dictSize));   /* should not happen */

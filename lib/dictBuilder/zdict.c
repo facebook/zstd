@@ -375,7 +375,7 @@ static int isIncluded(const void* in, const void* container, size_t length)
     return u==length;
 }
 
-/*! ZDICT_checkMerge
+/*! ZDICT_tryMerge() :
     check if dictItem can be merged, do it if possible
     @return : id of destination elt, 0 if not merged
 */
@@ -440,8 +440,8 @@ static U32 ZDICT_tryMerge(dictItem* table, dictItem elt, U32 eltNbToSkip, const 
 
 static void ZDICT_removeDictItem(dictItem* table, U32 id)
 {
-    /* convention : first element is nb of elts */
-    U32 const max = table->pos;
+    /* convention : table[0].pos stores nb of elts */
+    U32 const max = table[0].pos;
     U32 u;
     if (!id) return;   /* protection, should never happen */
     for (u=id; u<max-1; u++)

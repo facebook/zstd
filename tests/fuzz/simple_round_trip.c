@@ -12,12 +12,14 @@
  * compares the result with the original, and calls abort() on corruption.
  */
 
+#define ZSTD_STATIC_LINKING_ONLY
+
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include "fuzz_helpers.h"
-#include "zstd.h"
+#include "zstd_helpers.h"
 
 static const int kMaxClevel = 19;
 
@@ -32,14 +34,28 @@ static size_t roundTripTest(void *result, size_t resultCapacity,
                             void *compressed, size_t compressedCapacity,
                             const void *src, size_t srcSize)
 {
-  int const cLevel = FUZZ_rand(&seed) % kMaxClevel;
-  size_t const cSize = ZSTD_compressCCtx(cctx, compressed, compressedCapacity,
-                                         src, srcSize, cLevel);
-  if (ZSTD_isError(cSize)) {
-    fprintf(stderr, "Compression error: %s\n", ZSTD_getErrorName(cSize));
-    return cSize;
-  }
-  return ZSTD_decompressDCtx(dctx, result, resultCapacity, compressed, cSize);
+    size_t cSize;
+    if (FUZZ_rand(&seed) & 1) {
+        ZSTD_inBuffer in = {src, srcSize, 0};
+        ZSTD_outBuffer out = {compressed, compressedCapacity, 0};
+
+        ZSTD_CCtx_reset(cctx);
+        FUZZ_setRandomParameters(cctx, &seed);
+        size_t const err = ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_end);
+        if (err != 0) {
+            return err;
+        }
+        cSize = out.pos;
+    } else {
+        int const cLevel = FUZZ_rand(&seed) % kMaxClevel;
+        cSize = ZSTD_compressCCtx(
+            cctx, compressed, compressedCapacity, src, srcSize, cLevel);
+    }
+    if (ZSTD_isError(cSize)) {
+        fprintf(stderr, "Compression error: %s\n", ZSTD_getErrorName(cSize));
+        return cSize;
+    }
+    return ZSTD_decompressDCtx(dctx, result, resultCapacity, compressed, cSize);
 }
 
 int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)

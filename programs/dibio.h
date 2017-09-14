@@ -32,7 +32,7 @@
     @return : 0 == ok. Any other : error.
 */
 int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
-                       const char** fileNamesTable, unsigned nbFiles,
+                       const char** fileNamesTable, unsigned nbFiles, size_t chunkSize,
                        ZDICT_legacy_params_t *params, ZDICT_cover_params_t *coverParams,
                        int optimizeCover);
 

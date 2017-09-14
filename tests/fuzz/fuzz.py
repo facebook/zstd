@@ -540,7 +540,7 @@ def regression_parser(args):
         if target == 'all':
             targets = targets.union(TARGETS)
         elif target in TARGETS:
-            targets = targets.add(target)
+            targets.add(target)
         else:
             raise RuntimeError('{} is not a valid target'.format(target))
     args.TARGET = list(targets)
@@ -635,13 +635,17 @@ def gen(args):
             cmd = [
                 args.decodecorpus,
                 '-n{}'.format(args.number),
-                '--max-content-size-log={}'.format(args.max_size_log),
                 '-p{}/'.format(compressed),
                 '-o{}'.format(decompressed),
             ]
 
             if 'block_' in args.TARGET:
-                cmd += ['--gen-blocks']
+                cmd += [
+                    '--gen-blocks',
+                    '--max-block-size-log={}'.format(args.max_size_log)
+                ]
+            else:
+                cmd += ['--max-content-size-log={}'.format(args.max_size_log)]
 
             print(' '.join(cmd))
             subprocess.check_call(cmd)

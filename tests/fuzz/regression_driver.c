@@ -29,9 +29,11 @@ int main(int argc, char const **argv) {
 #ifdef UTIL_HAS_CREATEFILELIST
   files = UTIL_createFileList(files, numFiles, &fileNamesBuf, &numFiles,
                               kFollowLinks);
-  FUZZ_ASSERT(files);
+  if (!files)
+    numFiles = 0;
 #endif
-
+  if (numFiles == 0)
+    fprintf(stderr, "WARNING: No files passed to %s\n", argv[0]);
   for (i = 0; i < numFiles; ++i) {
     char const *fileName = files[i];
     size_t const fileSize = UTIL_getFileSize(fileName);

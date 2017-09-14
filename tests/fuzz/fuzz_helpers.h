@@ -55,10 +55,11 @@ extern "C" {
  * Consumes up to the first FUZZ_RNG_SEED_SIZE bytes of the input.
  */
 FUZZ_STATIC uint32_t FUZZ_seed(uint8_t const **src, size_t* size) {
+  uint8_t const *data = *src;
   size_t const toHash = MIN(FUZZ_RNG_SEED_SIZE, *size);
-  return XXH32(*src, toHash, 0);
   *size -= toHash;
   *src += toHash;
+  return XXH32(data, toHash, 0);
 }
 
 #define FUZZ_rotl32(x, r) (((x) << (r)) | ((x) >> (32 - (r))))

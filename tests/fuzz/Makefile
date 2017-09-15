@@ -33,14 +33,19 @@ FUZZ_LDFLAGS := $(LDFLAGS)
 FUZZ_ARFLAGS := $(ARFLAGS)
 FUZZ_TARGET_FLAGS = $(FUZZ_CPPFLAGS) $(FUZZ_CXXFLAGS) $(FUZZ_LDFLAGS)
 
-FUZZ_HEADERS := fuzz_helpers.h fuzz.h
+FUZZ_HEADERS := fuzz_helpers.h fuzz.h zstd_helpers.h
+FUZZ_SRC := zstd_helpers.c
 
-ZSTDCOMMON_FILES := $(ZSTDDIR)/common/*.c
-ZSTDCOMP_FILES   := $(ZSTDDIR)/compress/*.c
-ZSTDDECOMP_FILES := $(ZSTDDIR)/decompress/*.c
-ZSTD_FILES       := $(ZSTDDECOMP_FILES) $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES)
+ZSTDCOMMON_SRC := $(ZSTDDIR)/common/*.c
+ZSTDCOMP_SRC   := $(ZSTDDIR)/compress/*.c
+ZSTDDECOMP_SRC := $(ZSTDDIR)/decompress/*.c
+FUZZ_SRC       := \
+	$(FUZZ_SRC) \
+	$(ZSTDDECOMP_SRC) \
+	$(ZSTDCOMMON_SRC) \
+	$(ZSTDCOMP_SRC)
 
-ZSTD_OBJ := $(patsubst %.c,%.o, $(wildcard $(ZSTD_FILES)))
+FUZZ_OBJ := $(patsubst %.c,%.o, $(wildcard $(FUZZ_SRC)))
 
 
 .PHONY: default all clean
@@ -58,23 +63,23 @@ all: \
 %.o: %.c
 	$(CC) $(FUZZ_CPPFLAGS) $(FUZZ_CFLAGS) $^ -c -o $@
 
-simple_round_trip: $(FUZZ_HEADERS) $(ZSTD_OBJ) simple_round_trip.o
-	$(CXX) $(FUZZ_TARGET_FLAGS) $(ZSTD_OBJ) simple_round_trip.o $(LIB_FUZZING_ENGINE) -o $@
+simple_round_trip: $(FUZZ_HEADERS) $(FUZZ_OBJ) simple_round_trip.o
+	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_OBJ) simple_round_trip.o $(LIB_FUZZING_ENGINE) -o $@
 
-stream_round_trip: $(FUZZ_HEADERS) $(ZSTD_OBJ) stream_round_trip.o
-	$(CXX) $(FUZZ_TARGET_FLAGS) $(ZSTD_OBJ) stream_round_trip.o $(LIB_FUZZING_ENGINE) -o $@
+stream_round_trip: $(FUZZ_HEADERS) $(FUZZ_OBJ) stream_round_trip.o
+	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_OBJ) stream_round_trip.o $(LIB_FUZZING_ENGINE) -o $@
 
-block_round_trip: $(FUZZ_HEADERS) $(ZSTD_OBJ) block_round_trip.o
-	$(CXX) $(FUZZ_TARGET_FLAGS) $(ZSTD_OBJ) block_round_trip.o $(LIB_FUZZING_ENGINE) -o $@
+block_round_trip: $(FUZZ_HEADERS) $(FUZZ_OBJ) block_round_trip.o
+	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_OBJ) block_round_trip.o $(LIB_FUZZING_ENGINE) -o $@
 
-simple_decompress: $(FUZZ_HEADERS) $(ZSTD_OBJ) simple_decompress.o
-	$(CXX) $(FUZZ_TARGET_FLAGS) $(ZSTD_OBJ) simple_decompress.o $(LIB_FUZZING_ENGINE) -o $@
+simple_decompress: $(FUZZ_HEADERS) $(FUZZ_OBJ) simple_decompress.o
+	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_OBJ) simple_decompress.o $(LIB_FUZZING_ENGINE) -o $@
 
-stream_decompress: $(FUZZ_HEADERS) $(ZSTD_OBJ) stream_decompress.o
-	$(CXX) $(FUZZ_TARGET_FLAGS) $(ZSTD_OBJ) stream_decompress.o $(LIB_FUZZING_ENGINE) -o $@
+stream_decompress: $(FUZZ_HEADERS) $(FUZZ_OBJ) stream_decompress.o
+	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_OBJ) stream_decompress.o $(LIB_FUZZING_ENGINE) -o $@
 
-block_decompress: $(FUZZ_HEADERS) $(ZSTD_OBJ) block_decompress.o
-	$(CXX) $(FUZZ_TARGET_FLAGS) $(ZSTD_OBJ) block_decompress.o $(LIB_FUZZING_ENGINE) -o $@
+block_decompress: $(FUZZ_HEADERS) $(FUZZ_OBJ) block_decompress.o
+	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_OBJ) block_decompress.o $(LIB_FUZZING_ENGINE) -o $@
 
 libregression.a: $(FUZZ_HEADERS) $(PRGDIR)/util.h regression_driver.o
 	$(AR) $(FUZZ_ARFLAGS) $@ regression_driver.o

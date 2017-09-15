@@ -115,13 +115,13 @@ static unsigned DiB_loadFiles(void* buffer, size_t* bufferSizePtr,
         unsigned long long remainingToLoad = fs64;
         U32 const nbChunks = targetChunkSize ? (U32)((fs64 + (targetChunkSize-1)) / targetChunkSize) : 1;
         U64 const chunkSize = targetChunkSize ? MIN(targetChunkSize, fs64) : fs64;
-        size_t const maxChunkSize = MIN(chunkSize, SAMPLESIZE_MAX);
+        size_t const maxChunkSize = (size_t)MIN(chunkSize, SAMPLESIZE_MAX);
         U32 cnb;
         FILE* const f = fopen(fileName, "rb");
         if (f==NULL) EXM_THROW(10, "zstd: dictBuilder: %s %s ", fileName, strerror(errno));
         DISPLAYUPDATE(2, "Loading %s...       \r", fileName);
         for (cnb=0; cnb<nbChunks; cnb++) {
-            size_t const toLoad = MIN(maxChunkSize, remainingToLoad);
+            size_t const toLoad = (size_t)MIN(maxChunkSize, remainingToLoad);
             if (toLoad > *bufferSizePtr-pos) break;
             {   size_t const readSize = fread(buff+pos, 1, toLoad, f);
                 if (readSize != toLoad) EXM_THROW(11, "Pb reading %s", fileName);
@@ -233,7 +233,7 @@ static fileStats DiB_fileStats(const char** fileNamesTable, unsigned nbFiles, si
         U64 const fileSize = UTIL_getFileSize(fileNamesTable[n]);
         U32 const nbChunks = (U32)(chunkSize ? (fileSize + (chunkSize-1)) / chunkSize : 1);
         U64 const chunkToLoad = chunkSize ? MIN(chunkSize, fileSize) : fileSize;
-        size_t const cappedChunkSize = MIN(chunkToLoad, SAMPLESIZE_MAX);
+        size_t const cappedChunkSize = (size_t)MIN(chunkToLoad, SAMPLESIZE_MAX);
         fs.totalSizeToLoad += cappedChunkSize * nbChunks;
         fs.oneSampleTooLarge |= (chunkSize > 2*SAMPLESIZE_MAX);
         fs.nbChunks += nbChunks;

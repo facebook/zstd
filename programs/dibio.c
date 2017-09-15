@@ -297,6 +297,7 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
     if (fs.nbSamples < 5) {
         DISPLAYLEVEL(2, "!  Warning : nb of samples too low for proper processing ! \n");
         DISPLAYLEVEL(2, "!  Please provide _one file per sample_. \n");
+        DISPLAYLEVEL(2, "!  Alternatively, split files into fixed-size blocks representative of samples, with -B# \n");
         EXM_THROW(14, "nb of samples too low");   /* we now clearly forbid this case */
     }
     if (fs.totalSizeToLoad < (unsigned long long)(8 * maxDictSize)) {

@@ -129,7 +129,7 @@ static unsigned DiB_loadFiles(void* buffer, size_t* bufferSizePtr,
                 chunkSizes[nbLoadedChunks++] = toLoad;
                 remainingToLoad -= targetChunkSize;
                 if (toLoad < targetChunkSize) {
-                    fseek(f, (targetChunkSize - toLoad), SEEK_CUR);
+                    fseek(f, (long)(targetChunkSize - toLoad), SEEK_CUR);
         }   }   }
         fclose(f);
     }

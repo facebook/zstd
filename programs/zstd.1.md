@@ -184,6 +184,8 @@ Typical gains range from 10% (at 64KB) to x5 better (at <1KB).
     Dictionary saved into `file` (default name: dictionary).
 * `--maxdict=#`:
     Limit dictionary to specified size (default: 112640).
+* `-B#`:
+    Split input files in blocks of size # (default: no split)
 * `--dictID=#`:
     A dictionary ID is a locally unique ID that a decoder can use to verify it is
     using the right dictionary.
@@ -373,7 +375,7 @@ The list of available _options_:
     default value will likely result in a decrease in compression ratio.
 
     The default value is `wlog - ldmhlog`.
- 
+
 ### -B#:
 Select the size of each compression job.
 This parameter is available only when multi-threading is enabled.

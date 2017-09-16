@@ -759,13 +759,13 @@ int main(int argCount, const char* argv[])
             int const optimize = !coverParams.k || !coverParams.d;
             coverParams.nbThreads = nbThreads;
             coverParams.zParams = zParams;
-            operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenameTable, filenameIdx, NULL, &coverParams, optimize);
+            operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenameTable, filenameIdx, blockSize, NULL, &coverParams, optimize);
         } else {
             ZDICT_legacy_params_t dictParams;
             memset(&dictParams, 0, sizeof(dictParams));
             dictParams.selectivityLevel = dictSelect;
             dictParams.zParams = zParams;
-            operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenameTable, filenameIdx, &dictParams, NULL, 0);
+            operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenameTable, filenameIdx, blockSize, &dictParams, NULL, 0);
         }
 #endif
         goto _end;

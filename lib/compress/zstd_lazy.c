@@ -49,6 +49,7 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
     predictedLarge += (predictedLarge>0);
 #endif /* ZSTD_C_PREDICT */
 
+    assert(ip <= iend-8);   /* required for h calculation */
     hashTable[h] = current;   /* Update Hash Table */
 
     while (nbCompares-- && (matchIndex > windowLow)) {
@@ -93,27 +94,27 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
         }
 
         if (ip+matchLength == iend)   /* equal : no way to know if inf or sup */
-            break;   /* drop , to guarantee consistency ; miss a bit of compression, but other solutions can corrupt the tree */
+            break;   /* drop , to guarantee consistency ; miss a bit of compression, but other solutions can corrupt tree */
 
-        if (match[matchLength] < ip[matchLength]) {  /* necessarily within correct buffer */
-            /* match is smaller than current */
+        if (match[matchLength] < ip[matchLength]) {  /* necessarily within buffer */
+            /* match+1 is smaller than current */
             *smallerPtr = matchIndex;             /* update smaller idx */
             commonLengthSmaller = matchLength;    /* all smaller will now have at least this guaranteed common length */
-            if (matchIndex <= btLow) { smallerPtr=&dummy32; break; }   /* beyond tree size, stop the search */
+            if (matchIndex <= btLow) { smallerPtr=&dummy32; break; }   /* beyond tree size, stop searching */
             smallerPtr = nextPtr+1;               /* new "smaller" => larger of match */
             matchIndex = nextPtr[1];              /* new matchIndex larger than previous (closer to current) */
         } else {
             /* match is larger than current */
             *largerPtr = matchIndex;
             commonLengthLarger = matchLength;
-            if (matchIndex <= btLow) { largerPtr=&dummy32; break; }   /* beyond tree size, stop the search */
+            if (matchIndex <= btLow) { largerPtr=&dummy32; break; }   /* beyond tree size, stop searching */
             largerPtr = nextPtr;
             matchIndex = nextPtr[0];
     }   }
 
     *smallerPtr = *largerPtr = 0;
     if (bestLength > 384) return MIN(192, (U32)(bestLength - 384));   /* speed optimization */
-    if (matchEndIdx > current + 8) return matchEndIdx - current - 8;
+    if (matchEndIdx > current + 8) return matchEndIdx - (current + 8);
     return 1;
 }
 
@@ -147,6 +148,7 @@ static size_t ZSTD_insertBtAndFindBestMatch (
     U32 dummy32;   /* to be nullified at the end */
     size_t bestLength = 0;
 
+    assert(ip <= iend-8);   /* required for h calculation */
     hashTable[h] = current;   /* Update Hash Table */
 
     while (nbCompares-- && (matchIndex > windowLow)) {

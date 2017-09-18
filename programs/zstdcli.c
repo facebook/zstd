@@ -313,8 +313,8 @@ static unsigned parseCompressionParameters(const char* stringPtr, ZSTD_compressi
         if (longCommandWArg(&stringPtr, "overlapLog=") || longCommandWArg(&stringPtr, "ovlog=")) { g_overlapLog = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "ldmHashLog=") || longCommandWArg(&stringPtr, "ldmhlog=")) { g_ldmHashLog = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "ldmSearchLength=") || longCommandWArg(&stringPtr, "ldmslen=")) { g_ldmMinMatch = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
-        if (longCommandWArg(&stringPtr, "ldmBucketSizeLog=") || longCommandWArg(&stringPtr, "ldmblog")) { g_ldmBucketSizeLog = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
-        if (longCommandWArg(&stringPtr, "ldmHashEveryLog=") || longCommandWArg(&stringPtr, "ldmhevery")) { g_ldmHashEveryLog = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        if (longCommandWArg(&stringPtr, "ldmBucketSizeLog=") || longCommandWArg(&stringPtr, "ldmblog=")) { g_ldmBucketSizeLog = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        if (longCommandWArg(&stringPtr, "ldmHashEveryLog=") || longCommandWArg(&stringPtr, "ldmhevery=")) { g_ldmHashEveryLog = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         return 0;
     }
 

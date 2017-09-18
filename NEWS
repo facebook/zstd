@@ -1,8 +1,12 @@
 v1.3.2
+new : long range mode, using --long command, by Stella Lau (@stellamplau)
 license : changed /examples license to BSD + GPLv2
 license : fix a few header files to reflect new license (#825)
-fix : 32-bits build can now decode large offsets (levels 21+)
+fix : multi-threading compression works with custom allocators
 fix : a rare compression bug when compression generates very large distances (only possible at --ultra -22)
+fix : 32-bits build can now decode large offsets (levels 21+)
+cli : new : can split input file for dictionary training, using command -B#
+cli : fix : do not change /dev/null permissions when using command -t with root access, reported by @mike155 (#851)
 build: fix : no-multithread variant compiles without pool.c dependency, reported by Mitchell Blank Jr (@mitchblank) (#819)
 build: better compatibility with reproducible builds, by Bernhard M. Wiedemann (@bmwiedemann) (#818)
 

@@ -860,7 +860,10 @@ size_t ZSTD_execSequenceLast7(BYTE* op,
 }
 
 
-static seq_t ZSTD_decodeSequence(seqState_t* seqState)
+typedef enum { ZSTD_lo_isRegularOffset, ZSTD_lo_isLongOffset=1 } ZSTD_longOffset_e;
+
+
+static seq_t ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e longOffsets)
 {
     seq_t seq;
 
@@ -900,8 +903,16 @@ static seq_t ZSTD_decodeSequence(seqState_t* seqState)
         if (!ofCode)
             offset = 0;
         else {
-            offset = OF_base[ofCode] + BIT_readBitsFast(&seqState->DStream, ofBits);   /* <=  (ZSTD_WINDOWLOG_MAX-1) bits */
-            if (MEM_32bits()) BIT_reloadDStream(&seqState->DStream);
+            ZSTD_STATIC_ASSERT(ZSTD_lo_isLongOffset == 1);
+            if (longOffsets) {
+                int const extraBits = ofBits - MIN(ofBits, STREAM_ACCUMULATOR_MIN);
+                offset = OF_base[ofCode] + (BIT_readBitsFast(&seqState->DStream, ofBits - extraBits) << extraBits);
+                if (MEM_32bits() || extraBits) BIT_reloadDStream(&seqState->DStream);
+                if (extraBits) offset += BIT_readBitsFast(&seqState->DStream, extraBits);
+            } else {
+                offset = OF_base[ofCode] + BIT_readBitsFast(&seqState->DStream, ofBits);   /* <=  (ZSTD_WINDOWLOG_MAX-1) bits */
+                if (MEM_32bits()) BIT_reloadDStream(&seqState->DStream);
+            }
         }
 
         if (ofCode <= 1) {
@@ -1030,7 +1041,8 @@ size_t ZSTD_execSequence(BYTE* op,
 static size_t ZSTD_decompressSequences(
                                ZSTD_DCtx* dctx,
                                void* dst, size_t maxDstSize,
-                         const void* seqStart, size_t seqSize)
+                         const void* seqStart, size_t seqSize,
+                         const ZSTD_longOffset_e isLongOffset)
 {
     const BYTE* ip = (const BYTE*)seqStart;
     const BYTE* const iend = ip + seqSize;
@@ -1065,7 +1077,7 @@ static size_t ZSTD_decompressSequences(
 
         for ( ; (BIT_reloadDStream(&(seqState.DStream)) <= BIT_DStream_completed) && nbSeq ; ) {
             nbSeq--;
-            {   seq_t const sequence = ZSTD_decodeSequence(&seqState);
+            {   seq_t const sequence = ZSTD_decodeSequence(&seqState, isLongOffset);
                 size_t const oneSeqSize = ZSTD_execSequence(op, oend, sequence, &litPtr, litEnd, base, vBase, dictEnd);
                 DEBUGLOG(6, "regenerated sequence size : %u", (U32)oneSeqSize);
                 if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
@@ -1090,7 +1102,6 @@ static size_t ZSTD_decompressSequences(
 }
 
 
-typedef enum { ZSTD_lo_isRegularOffset, ZSTD_lo_isLongOffset=1 } ZSTD_longOffset_e;
 
 HINT_INLINE
 seq_t ZSTD_decodeSequenceLong(seqState_t* seqState, ZSTD_longOffset_e const longOffsets)
@@ -1133,6 +1144,7 @@ seq_t ZSTD_decodeSequenceLong(seqState_t* seqState, ZSTD_longOffset_e const long
         if (!ofCode)
             offset = 0;
         else {
+            ZSTD_STATIC_ASSERT(ZSTD_lo_isLongOffset == 1);
             if (longOffsets) {
                 int const extraBits = ofBits - MIN(ofBits, STREAM_ACCUMULATOR_MIN);
                 offset = OF_base[ofCode] + (BIT_readBitsFast(&seqState->DStream, ofBits - extraBits) << extraBits);
@@ -1268,7 +1280,8 @@ size_t ZSTD_execSequenceLong(BYTE* op,
 static size_t ZSTD_decompressSequencesLong(
                                ZSTD_DCtx* dctx,
                                void* dst, size_t maxDstSize,
-                         const void* seqStart, size_t seqSize)
+                         const void* seqStart, size_t seqSize,
+                         const ZSTD_longOffset_e isLongOffset)
 {
     const BYTE* ip = (const BYTE*)seqStart;
     const BYTE* const iend = ip + seqSize;
@@ -1281,10 +1294,6 @@ static size_t ZSTD_decompressSequencesLong(
     const BYTE* const vBase = (const BYTE*) (dctx->vBase);
     const BYTE* const dictEnd = (const BYTE*) (dctx->dictEnd);
     int nbSeq;
-
-    unsigned long long const regularWindowSizeMax = 1ULL << STREAM_ACCUMULATOR_MIN;
-    ZSTD_longOffset_e const isLongOffset = (ZSTD_longOffset_e)(MEM_32bits() && (dctx->fParams.windowSize >= regularWindowSizeMax));
-    ZSTD_STATIC_ASSERT(ZSTD_lo_isLongOffset == 1);
 
     /* Build Decoding Tables */
     {   size_t const seqHSize = ZSTD_decodeSeqHeaders(dctx, &nbSeq, ip, seqSize);
@@ -1353,9 +1362,18 @@ static size_t ZSTD_decompressSequencesLong(
 
 static size_t ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
                             void* dst, size_t dstCapacity,
-                      const void* src, size_t srcSize)
+                      const void* src, size_t srcSize, const int frame)
 {   /* blockType == blockCompressed */
     const BYTE* ip = (const BYTE*)src;
+    /* isLongOffset must be true if there are long offsets.
+     * Offsets are long if they are larger than 2^STREAM_ACCUMULATOR_MIN.
+     * We don't expect that to be the case in 64-bit mode.
+     * If we are in block mode we don't know the window size, so we have to be
+     * conservative.
+     */
+    ZSTD_longOffset_e const isLongOffset = (ZSTD_longOffset_e)(MEM_32bits() && (!frame || dctx->fParams.windowSize > (1ULL << STREAM_ACCUMULATOR_MIN)));
+    /* We don't expect window sizes this big. */
+    assert(!frame || dctx->fParams.windowSize <= (1ULL << STREAM_ACCUMULATOR_MIN_64));
     DEBUGLOG(5, "ZSTD_decompressBlock_internal");
 
     if (srcSize >= ZSTD_BLOCKSIZE_MAX) return ERROR(srcSize_wrong);
@@ -1367,9 +1385,9 @@ static size_t ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
         ip += litCSize;
         srcSize -= litCSize;
     }
-    if (dctx->fParams.windowSize > (1<<23))
-        return ZSTD_decompressSequencesLong(dctx, dst, dstCapacity, ip, srcSize);
-    return ZSTD_decompressSequences(dctx, dst, dstCapacity, ip, srcSize);
+    if (frame && dctx->fParams.windowSize > (1<<23))
+        return ZSTD_decompressSequencesLong(dctx, dst, dstCapacity, ip, srcSize, isLongOffset);
+    return ZSTD_decompressSequences(dctx, dst, dstCapacity, ip, srcSize, isLongOffset);
 }
 
 
@@ -1389,7 +1407,7 @@ size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx,
 {
     size_t dSize;
     ZSTD_checkContinuity(dctx, dst);
-    dSize = ZSTD_decompressBlock_internal(dctx, dst, dstCapacity, src, srcSize);
+    dSize = ZSTD_decompressBlock_internal(dctx, dst, dstCapacity, src, srcSize, /* frame */ 0);
     dctx->previousDstEnd = (char*)dst + dSize;
     return dSize;
 }
@@ -1505,7 +1523,7 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
         switch(blockProperties.blockType)
         {
         case bt_compressed:
-            decodedSize = ZSTD_decompressBlock_internal(dctx, op, oend-op, ip, cBlockSize);
+            decodedSize = ZSTD_decompressBlock_internal(dctx, op, oend-op, ip, cBlockSize, /* frame */ 1);
             break;
         case bt_raw :
             decodedSize = ZSTD_copyRawBlock(op, oend-op, ip, cBlockSize);
@@ -1759,7 +1777,7 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
             {
             case bt_compressed:
                 DEBUGLOG(5, "case bt_compressed");
-                rSize = ZSTD_decompressBlock_internal(dctx, dst, dstCapacity, src, srcSize);
+                rSize = ZSTD_decompressBlock_internal(dctx, dst, dstCapacity, src, srcSize, /* frame */ 1);
                 break;
             case bt_raw :
                 rSize = ZSTD_copyRawBlock(dst, dstCapacity, src, srcSize);

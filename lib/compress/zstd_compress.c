@@ -134,13 +134,12 @@ static size_t ZSTD_sizeof_mtctx(const ZSTD_CCtx* cctx)
 size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx)
 {
     if (cctx==NULL) return 0;   /* support sizeof on NULL */
-    DEBUGLOG(5, "sizeof(*cctx) : %u", (U32)sizeof(*cctx));
-    DEBUGLOG(5, "workSpaceSize : %u", (U32)cctx->workSpaceSize);
-    DEBUGLOG(5, "streaming buffers : %u", (U32)(cctx->outBuffSize + cctx->inBuffSize));
-    DEBUGLOG(5, "inner MTCTX : %u", (U32)ZSTD_sizeof_mtctx(cctx));
+    DEBUGLOG(3, "sizeof(*cctx) : %u", (U32)sizeof(*cctx));
+    DEBUGLOG(3, "workSpaceSize (including streaming buffers): %u", (U32)cctx->workSpaceSize);
+    DEBUGLOG(3, "inner cdict : %u", (U32)ZSTD_sizeof_CDict(cctx->cdictLocal));
+    DEBUGLOG(3, "inner MTCTX : %u", (U32)ZSTD_sizeof_mtctx(cctx));
     return sizeof(*cctx) + cctx->workSpaceSize
            + ZSTD_sizeof_CDict(cctx->cdictLocal)
-           + cctx->outBuffSize + cctx->inBuffSize
            + ZSTD_sizeof_mtctx(cctx);
 }
 

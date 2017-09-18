@@ -161,6 +161,8 @@ roundTripTest -g512K
 roundTripTest -g512K " --zstd=slen=3,tlen=48,strat=6"
 roundTripTest -g512K " --zstd=strat=6,wlog=23,clog=23,hlog=22,slog=6"
 roundTripTest -g512K " --zstd=windowLog=23,chainLog=23,hashLog=22,searchLog=6,searchLength=3,targetLength=48,strategy=6"
+roundTripTest -g512K " --long --zstd=ldmHashLog=20,ldmSearchLength=64,ldmBucketSizeLog=1,ldmHashEveryLog=7"
+roundTripTest -g512K " --long --zstd=ldmhlog=20,ldmslen=64,ldmblog=1,ldmhevery=7"
 roundTripTest -g512K 19
 
 

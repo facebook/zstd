@@ -106,9 +106,6 @@ static clock_t g_time = 0;
 
 
 /*-*************************************
-*  Errors
-***************************************/
-/*-*************************************
 *  Debug
 ***************************************/
 #if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=1)
@@ -1023,8 +1020,8 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
  ***************************************************************************/
 typedef struct {
     void*  srcBuffer;
-    size_t srcBufferLoaded;
     size_t srcBufferSize;
+    size_t srcBufferLoaded;
     void*  dstBuffer;
     size_t dstBufferSize;
     ZSTD_DStream* dctx;
@@ -1560,11 +1557,11 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* dstFileName, const ch
 
     /* Close file */
     if (fclose(srcFile)) {
-        DISPLAYLEVEL(1, "zstd: %s: %s \n", srcFileName, strerror(errno));  /* error should never happen */
+        DISPLAYLEVEL(1, "zstd: %s: %s \n", srcFileName, strerror(errno));  /* error should not happen */
         return 1;
     }
     if ( g_removeSrcFile /* --rm */
-      && (result==0)   /* decompression successful */
+      && (result==0)     /* decompression successful */
       && strcmp(srcFileName, stdinmark) ) /* not stdin */ {
         if (remove(srcFileName)) {
             /* failed to remove src file */
@@ -1590,7 +1587,8 @@ static int FIO_decompressDstFile(dRess_t ress,
     ress.dstFile = FIO_openDstFile(dstFileName);
     if (ress.dstFile==0) return 1;
 
-    if (strcmp (srcFileName, stdinmark) && UTIL_getFileStat(srcFileName, &statbuf))
+    if ( strcmp(srcFileName, stdinmark)
+      && UTIL_getFileStat(srcFileName, &statbuf) )
         stat_result = 1;
     result = FIO_decompressSrcFile(ress, dstFileName, srcFileName);
 
@@ -1600,11 +1598,15 @@ static int FIO_decompressDstFile(dRess_t ress,
     }
 
     if ( (result != 0)  /* operation failure */
-       && strcmp(dstFileName, nulmark)  /* special case : don't remove() /dev/null (#316) */
-       && remove(dstFileName) /* remove artefact */ )
-        result=1;   /* don't do anything special if remove() fails */
-    else if (strcmp (dstFileName, stdoutmark) && stat_result)
-        UTIL_setFileStat(dstFileName, &statbuf);
+      && strcmp(dstFileName, nulmark)      /* special case : don't remove() /dev/null (#316) */
+      && strcmp(dstFileName, stdoutmark) ) /* special case : don't remove() stdout */
+        remove(dstFileName);  /* remove decompression artefact; note don't do anything special if remove() fails */
+    else {  /* operation success */
+        if ( strcmp(dstFileName, stdoutmark) /* special case : don't chmod stdout */
+          && strcmp(dstFileName, nulmark)    /* special case : don't chmod /dev/null */
+          && stat_result )                   /* file permissions correctly extracted from src */
+            UTIL_setFileStat(dstFileName, &statbuf);  /* transfer file permissions from src into dst */
+    }
     return result;
 }
 

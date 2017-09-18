@@ -9,7 +9,7 @@
 
 # This Makefile presumes libzstd is installed, using `sudo make install`
 
-LDFLAGS += -lzstd
+LIB = ../lib/libzstd.a
 
 .PHONY: default all clean test
 
@@ -18,27 +18,33 @@ default: all
 all: simple_compression simple_decompression \
 	dictionary_compression dictionary_decompression \
 	streaming_compression streaming_decompression \
-	multiple_streaming_compression
+	multiple_streaming_compression streaming_memory_usage
 
-simple_compression : simple_compression.c
+$(LIB) :
+	make -C ../lib libzstd.a
+
+simple_compression : simple_compression.c $(LIB)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
-simple_decompression : simple_decompression.c
+simple_decompression : simple_decompression.c $(LIB)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
-dictionary_compression : dictionary_compression.c
+dictionary_compression : dictionary_compression.c $(LIB)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
-dictionary_decompression : dictionary_decompression.c
+dictionary_decompression : dictionary_decompression.c $(LIB)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
-streaming_compression : streaming_compression.c
+streaming_compression : streaming_compression.c $(LIB)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
-multiple_streaming_compression : multiple_streaming_compression.c
+multiple_streaming_compression : multiple_streaming_compression.c $(LIB)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
-streaming_decompression : streaming_decompression.c
+streaming_decompression : streaming_decompression.c $(LIB)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
+
+streaming_memory_usage : streaming_memory_usage.c $(LIB)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 clean:
@@ -46,7 +52,7 @@ clean:
         simple_compression simple_decompression \
         dictionary_compression dictionary_decompression \
         streaming_compression streaming_decompression \
-        multiple_streaming_compression
+        multiple_streaming_compression streaming_memory_usage
 	@echo Cleaning completed
 
 test: all
@@ -56,6 +62,8 @@ test: all
 	./simple_compression tmp
 	./simple_decompression tmp.zst
 	./streaming_decompression tmp.zst > /dev/null
+	@echo -- Streaming memory usage
+	./streaming_memory_usage
 	@echo -- Streaming compression tests
 	./streaming_compression tmp
 	./streaming_decompression tmp.zst > /dev/null

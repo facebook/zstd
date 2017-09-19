@@ -1372,8 +1372,9 @@ static size_t ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
      * conservative.
      */
     ZSTD_longOffset_e const isLongOffset = (ZSTD_longOffset_e)(MEM_32bits() && (!frame || dctx->fParams.windowSize > (1ULL << STREAM_ACCUMULATOR_MIN)));
-    /* We don't expect window sizes this big. */
-    assert(!frame || dctx->fParams.windowSize <= (1ULL << STREAM_ACCUMULATOR_MIN_64));
+    /* windowSize could be any value at this point, since it is only validated
+     * in the streaming API.
+     */
     DEBUGLOG(5, "ZSTD_decompressBlock_internal");
 
     if (srcSize >= ZSTD_BLOCKSIZE_MAX) return ERROR(srcSize_wrong);

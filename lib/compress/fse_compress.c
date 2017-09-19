@@ -461,6 +461,7 @@ static unsigned FSE_minTableLog(size_t srcSize, unsigned maxSymbolValue)
     U32 minBitsSrc = BIT_highbit32((U32)(srcSize - 1)) + 1;
     U32 minBitsSymbols = BIT_highbit32(maxSymbolValue) + 2;
     U32 minBits = minBitsSrc < minBitsSymbols ? minBitsSrc : minBitsSymbols;
+    assert(srcSize > 1); /* Not supported, RLE should be used instead */
     return minBits;
 }
 
@@ -469,6 +470,7 @@ unsigned FSE_optimalTableLog_internal(unsigned maxTableLog, size_t srcSize, unsi
     U32 maxBitsSrc = BIT_highbit32((U32)(srcSize - 1)) - minus;
     U32 tableLog = maxTableLog;
     U32 minBits = FSE_minTableLog(srcSize, maxSymbolValue);
+    assert(srcSize > 1); /* Not supported, RLE should be used instead */
     if (tableLog==0) tableLog = FSE_DEFAULT_TABLELOG;
     if (maxBitsSrc < tableLog) tableLog = maxBitsSrc;   /* Accuracy can be reduced */
     if (minBits > tableLog) tableLog = minBits;   /* Need a minimum to safely represent all symbol values */

@@ -35,7 +35,7 @@
 *  Frames requiring more memory will be rejected.
 */
 #ifndef ZSTD_MAXWINDOWSIZE_DEFAULT
-#  define ZSTD_MAXWINDOWSIZE_DEFAULT ((1 << ZSTD_WINDOWLOG_MAX) + 1)   /* defined within zstd.h */
+#  define ZSTD_MAXWINDOWSIZE_DEFAULT (((U64)1 << ZSTD_WINDOWLOG_MAX) + 1)   /* defined within zstd.h */
 #endif
 
 

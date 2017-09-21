@@ -1546,6 +1546,10 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
         if (blockProperties.lastBlock) break;
     }
 
+    if (dctx->fParams.frameContentSize != ZSTD_CONTENTSIZE_UNKNOWN) {
+        if ((U64)(op-ostart) != dctx->fParams.frameContentSize) {
+            return ERROR(corruption_detected);
+    }   }
     if (dctx->fParams.checksumFlag) { /* Frame content checksum verification */
         U32 const checkCalc = (U32)XXH64_digest(&dctx->xxhState);
         U32 checkRead;

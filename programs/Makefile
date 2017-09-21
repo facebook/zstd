@@ -140,13 +140,10 @@ allVariants: zstd zstd-compress zstd-decompress zstd-small zstd-nolegacy
 
 $(ZSTDDECOMP_O): CFLAGS += $(ALIGN_LOOP)
 
-zstd zstd4 : CPPFLAGS += $(THREAD_CPP) $(ZLIBCPP) $(LZMACPP)
-zstd zstd4 : LDFLAGS += $(THREAD_LD) $(ZLIBLD) $(LZMALD)
-zstd4 : CPPFLAGS += $(LZ4CPP)
-zstd4 : LDFLAGS += $(LZ4LD)
-zstd : LZ4_MSG := - lz4 support is disabled
-zstd zstd4 : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
-zstd zstd4 : $(ZSTDLIB_FILES) zstdcli.o fileio.o bench.o datagen.o dibio.o
+zstd : CPPFLAGS += $(THREAD_CPP) $(ZLIBCPP) $(LZMACPP) $(LZ4CPP)
+zstd : LDFLAGS += $(THREAD_LD) $(ZLIBLD) $(LZMALD) $(LZ4LD)
+zstd : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
+zstd : $(ZSTDLIB_FILES) zstdcli.o fileio.o bench.o datagen.o dibio.o
 	@echo "$(THREAD_MSG)"
 	@echo "$(ZLIB_MSG)"
 	@echo "$(LZMA_MSG)"

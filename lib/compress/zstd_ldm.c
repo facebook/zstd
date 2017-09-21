@@ -295,7 +295,7 @@ size_t ZSTD_compressBlock_ldm_generic(ZSTD_CCtx* cctx,
     const U32   lowestIndex = cctx->dictLimit;
     const BYTE* const lowest = base + lowestIndex;
     const BYTE* const iend = istart + srcSize;
-    const BYTE* const ilimit = iend - ldmParams.minMatchLength;
+    const BYTE* const ilimit = iend - MAX(ldmParams.minMatchLength, HASH_READ_SIZE);
 
     const ZSTD_blockCompressor blockCompressor =
         ZSTD_selectBlockCompressor(cctx->appliedParams.cParams.strategy, 0);
@@ -499,7 +499,7 @@ static size_t ZSTD_compressBlock_ldm_extDict_generic(
     const BYTE* const lowPrefixPtr = base + dictLimit;
     const BYTE* const dictEnd = dictBase + dictLimit;
     const BYTE* const iend = istart + srcSize;
-    const BYTE* const ilimit = iend - ldmParams.minMatchLength;
+    const BYTE* const ilimit = iend - MAX(ldmParams.minMatchLength, HASH_READ_SIZE);
 
     const ZSTD_blockCompressor blockCompressor =
         ZSTD_selectBlockCompressor(ctx->appliedParams.cParams.strategy, 1);

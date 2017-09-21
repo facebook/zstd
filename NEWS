@@ -3,7 +3,8 @@ new : long range mode, using --long command, by Stella Lau (@stellamplau)
 license : changed /examples license to BSD + GPLv2
 license : fix a few header files to reflect new license (#825)
 fix : multi-threading compression works with custom allocators
-fix : a rare compression bug when compression generates very large distances (only possible at --ultra -22)
+fix : ZSTD_sizeof_CStream() was over-evaluating memory usage
+fix : a rare compression bug when compression generates very large distances and bunch of other conditions (only possible at --ultra -22)
 fix : 32-bits build can now decode large offsets (levels 21+)
 cli : new : can split input file for dictionary training, using command -B#
 cli : fix : do not change /dev/null permissions when using command -t with root access, reported by @mike155 (#851)

@@ -927,14 +927,27 @@ ZSTDLIB_API ZSTD_nextInputType_e ZSTD_nextInputType(ZSTD_DCtx* dctx);
  *   The main driver is that it identifies more clearly the target object type.
  *   It feels clearer in light of potential variants :
  *   ZSTD_CDict_setParameter() (rather than ZSTD_setCDictParameter())
- *   ZSTD_DCtx_setParameter()  (rather than ZSTD_setDCtxParameter() )
- *   Left variant feels easier to distinguish.
+ *   ZSTD_CCtxParams_setParameter()  (rather than ZSTD_setCCtxParamsParameter() )
  */
 
 /* note on enum design :
  * All enum will be manually set to explicit values before reaching "stable API" status */
 
 typedef enum {
+    ZSTD_f_zstd1,            /* Normal (default) zstd frame format, as specified in zstd_compression_format.md */
+    ZSTD_f_zstd1_magicLess,  /* Almost zstd frame format, but without initial 4-bytes magic number */
+    ZSTD_f_zstd1_headerless, /* Almost zstd frame format, but without any frame header;
+                              * Other metadata, like block size or frame checksum, are still generated */
+    ZSTD_f_zstd_block        /* Pure zstd compressed block, without any metadata.
+                              * Note that size of uncompressed block must be <= ZSTD_getBlockSize() <= ZSTD_BLOCKSIZE_MAX == 128 KB.
+                              * See ZSTD_compressBlock() for more details. */
+} ZSTD_format;
+
+typedef enum {
+    /* compression format */
+    ZSTD_p_format = 10,      /* See ZSTD_format enum definition.
+                              * Cast selected strategy as unsigned for ZSTD_CCtx_setParameter() compatibility. */
+
     /* compression parameters */
     ZSTD_p_compressionLevel=100, /* Update all compression parameters according to pre-defined cLevel table
                               * Default level is ZSTD_CLEVEL_DEFAULT==3.
@@ -1216,7 +1229,7 @@ ZSTDLIB_API size_t ZSTD_CCtx_setParametersUsingCCtxParams(
       + compression : any ZSTD_compressBegin*() variant, including with dictionary
       + decompression : any ZSTD_decompressBegin*() variant, including with dictionary
       + copyCCtx() and copyDCtx() can be used too
-    - Block size is limited, it must be <= ZSTD_getBlockSize() <= ZSTD_BLOCKSIZE_MAX
+    - Block size is limited, it must be <= ZSTD_getBlockSize() <= ZSTD_BLOCKSIZE_MAX == 128 KB
       + If input is larger than a block size, it's necessary to split input data into multiple blocks
       + For inputs larger than a single block size, consider using the regular ZSTD_compress() instead.
         Frame metadata is not that costly, and quickly becomes negligible as source size grows larger.

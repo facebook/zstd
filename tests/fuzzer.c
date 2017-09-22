@@ -811,7 +811,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         }
         DISPLAYLEVEL(4, "OK \n");
 
-        DISPLAYLEVEL(4, "test%3i : Loading rawContent starting with dict header w/ ZSTD_dm_auto should fail", testNb++);
+        DISPLAYLEVEL(4, "test%3i : Loading rawContent starting with dict header w/ ZSTD_dm_auto should fail : ", testNb++);
         {
             size_t ret;
             MEM_writeLE32((char*)dictBuffer+2, ZSTD_MAGIC_DICTIONARY);
@@ -821,7 +821,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         }
         DISPLAYLEVEL(4, "OK \n");
 
-        DISPLAYLEVEL(4, "test%3i : Loading rawContent starting with dict header w/ ZSTD_dm_rawContent should pass", testNb++);
+        DISPLAYLEVEL(4, "test%3i : Loading rawContent starting with dict header w/ ZSTD_dm_rawContent should pass : ", testNb++);
         {
             size_t ret;
             MEM_writeLE32((char*)dictBuffer+2, ZSTD_MAGIC_DICTIONARY);

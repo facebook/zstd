@@ -22,6 +22,8 @@ matrix:
     - env: Cmd='make ppcinstall && make ppcfuzz'
     - env: Cmd='make ppcinstall && make ppc64fuzz'
 
+    - env: Cmd='make lz4install && make -C tests test-lz4'
+
 git:
   depth: 1
 

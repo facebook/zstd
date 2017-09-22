@@ -374,4 +374,26 @@ test-decodecorpus-cli: decodecorpus
 test-pool: poolTests
 	$(QEMU_SYS) ./poolTests
 
+test-lz4: ZSTD = LD_LIBRARY_PATH=/usr/local/lib $(PRGDIR)/zstd
+test-lz4: zstd decodecorpus
+	./decodecorpus -ptmp
+	# lz4 -> zstd
+	lz4 < tmp | \
+	$(ZSTD) -d | \
+	cmp - tmp
+	# zstd -> lz4
+	$(ZSTD) --format=lz4 < tmp | \
+	lz4 -d | \
+	cmp - tmp
+	# zstd -> zstd
+	$(ZSTD) --format=lz4 < tmp | \
+	$(ZSTD) -d | \
+	cmp - tmp
+	# zstd -> zstd
+	$(ZSTD) < tmp | \
+	$(ZSTD) -d | \
+	cmp - tmp
+
+	rm tmp
+
 endif

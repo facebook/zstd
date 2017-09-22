@@ -104,8 +104,11 @@ Display information related to a zstd compressed file, such as size, ratio, and 
 unlocks high compression levels 20+ (maximum 22), using a lot more memory\. Note that decompression will also require more memory when using these levels\.
 .
 .TP
-\fB\-\-long\fR
-enables long distance matching\. This increases the window size (\fBwindowLog\fR) and memory usage for both the compressor and decompressor\. This setting is designed to improve the compression ratio for files with long matches at a large distance (up to the maximum window size, 128 MiB)\.
+\fB\-\-long[=#]\fR
+enables long distance matching with \fB#\fR \fBwindowLog\fR, if not \fB#\fR is not present it defaults to \fB27\fR\. This increases the window size (\fBwindowLog\fR) and memory usage for both the compressor and decompressor\. This setting is designed to improve the compression ratio for files with long matches at a large distance\.
+.
+.IP
+Note: If \fBwindowLog\fR is set to larger than 27, \fB\-\-long=windowLog\fR or \fB\-\-memory=windowSize\fR needs to be passed to the decompressor\.
 .
 .TP
 \fB\-T#\fR, \fB\-\-threads=#\fR
@@ -190,6 +193,10 @@ Dictionary saved into \fBfile\fR (default name: dictionary)\.
 Limit dictionary to specified size (default: 112640)\.
 .
 .TP
+\fB\-B#\fR
+Split input files in blocks of size # (default: no split)
+.
+.TP
 \fB\-\-dictID=#\fR
 A dictionary ID is a locally unique ID that a decoder can use to verify it is using the right dictionary\. By default, zstd will create a 4\-bytes random number ID\. It\'s possible to give a precise number instead\. Short numbers have an advantage : an ID < 256 will only need 1 byte in the compressed frame header, and an ID < 65536 will only need 2 bytes\. This compares favorably to 4 bytes default\. However, it\'s up to the dictionary manager to not assign twice the same ID to 2 different dictionaries\.
 .
@@ -267,7 +274,10 @@ There are 8 strategies numbered from 1 to 8, from faster to stronger: 1=ZSTD_fas
 Specify the maximum number of bits for a match distance\.
 .
 .IP
-The higher number of increases the chance to find a match which usually improves compression ratio\. It also increases memory requirements for the compressor and decompressor\. The minimum \fIwlog\fR is 10 (1 KiB) and the maximum is 27 (128 MiB)\.
+The higher number of increases the chance to find a match which usually improves compression ratio\. It also increases memory requirements for the compressor and decompressor\. The minimum \fIwlog\fR is 10 (1 KiB) and the maximum is 30 (1 GiB) on 32\-bit platforms and 31 (2 GiB) on 64\-bit platforms\.
+.
+.IP
+Note: If \fBwindowLog\fR is set to larger than 27, \fB\-\-long=windowLog\fR or \fB\-\-memory=windowSize\fR needs to be passed to the decompressor\.
 .
 .TP
 \fBhashLog\fR=\fIhlog\fR, \fBhlog\fR=\fIhlog\fR
@@ -340,7 +350,7 @@ Bigger hash tables usually improve compression ratio at the expense of more memo
 The minimum \fIldmhlog\fR is 6 and the maximum is 26 (default: 20)\.
 .
 .TP
-\fBldmSearchLength\fR=\fIldmslen\fR, \fBldmSlen\fR=\fIldmslen\fR
+\fBldmSearchLength\fR=\fIldmslen\fR, \fBldmslen\fR=\fIldmslen\fR
 Specify the minimum searched length of a match for long distance matching\.
 .
 .IP

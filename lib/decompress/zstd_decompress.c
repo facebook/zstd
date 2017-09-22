@@ -35,7 +35,7 @@
 *  Frames requiring more memory will be rejected.
 */
 #ifndef ZSTD_MAXWINDOWSIZE_DEFAULT
-#  define ZSTD_MAXWINDOWSIZE_DEFAULT (((U64)1 << ZSTD_WINDOWLOG_MAX) + 1)   /* defined within zstd.h */
+#  define ZSTD_MAXWINDOWSIZE_DEFAULT (((U32)1 << ZSTD_WINDOWLOG_DEFAULTMAX) + 1)
 #endif
 
 
@@ -913,7 +913,7 @@ static seq_t ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e l
             offset = 0;
         else {
             ZSTD_STATIC_ASSERT(ZSTD_lo_isLongOffset == 1);
-            ZSTD_STATIC_ASSERT(LONG_OFFSETS_MAX_EXTRA_BITS_32 == 2);
+            ZSTD_STATIC_ASSERT(LONG_OFFSETS_MAX_EXTRA_BITS_32 == 5);
             assert(ofBits <= MaxOff);
             if (MEM_32bits() && longOffsets) {
                 U32 const extraBits = ofBits - MIN(ofBits, STREAM_ACCUMULATOR_MIN_32-1);
@@ -1159,7 +1159,7 @@ seq_t ZSTD_decodeSequenceLong(seqState_t* seqState, ZSTD_longOffset_e const long
             offset = 0;
         else {
             ZSTD_STATIC_ASSERT(ZSTD_lo_isLongOffset == 1);
-            ZSTD_STATIC_ASSERT(LONG_OFFSETS_MAX_EXTRA_BITS_32 == 2);
+            ZSTD_STATIC_ASSERT(LONG_OFFSETS_MAX_EXTRA_BITS_32 == 5);
             assert(ofBits <= MaxOff);
             if (MEM_32bits() && longOffsets) {
                 U32 const extraBits = ofBits - MIN(ofBits, STREAM_ACCUMULATOR_MIN_32-1);

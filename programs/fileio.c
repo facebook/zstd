@@ -37,6 +37,7 @@
 #  include <io.h>
 #endif
 
+#include "bitstream.h"
 #include "mem.h"
 #include "fileio.h"
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_magicNumber, ZSTD_frameHeaderSize_max */
@@ -1167,6 +1168,35 @@ static unsigned FIO_passThrough(FILE* foutput, FILE* finput, void* buffer, size_
     return 0;
 }
 
+static void FIO_zstdErrorHelp(dRess_t* ress, size_t ret, char const* srcFileName)
+{
+    ZSTD_frameHeader header;
+    /* No special help for these errors */
+    if (ZSTD_getErrorCode(ret) != ZSTD_error_frameParameter_windowTooLarge)
+        return;
+    /* Try to decode the frame header */
+    ret = ZSTD_getFrameHeader(&header, ress->srcBuffer, ress->srcBufferLoaded);
+    if (ret == 0) {
+        U32 const windowSize = (U32)header.windowSize;
+        U32 const windowLog = BIT_highbit32(windowSize) + ((windowSize & (windowSize - 1)) != 0);
+        U32 const windowMB = (windowSize >> 20) + (windowSize & ((1 MB) - 1));
+        assert(header.windowSize <= (U64)((U32)-1));
+        assert(g_memLimit > 0);
+        DISPLAYLEVEL(1, "%s : Window size larger than maximum : %llu > %u\n",
+                        srcFileName, header.windowSize, g_memLimit);
+        if (windowLog <= ZSTD_WINDOWLOG_MAX) {
+            DISPLAYLEVEL(1, "%s : Use --long=%u or --memory=%uMB\n",
+                            srcFileName, windowLog, windowMB);
+            return;
+        }
+    } else if (ZSTD_getErrorCode(ret) != ZSTD_error_frameParameter_windowTooLarge) {
+        DISPLAYLEVEL(1, "%s : Error decoding frame header to read window size : %s\n",
+                        srcFileName, ZSTD_getErrorName(ret));
+        return;
+    }
+    DISPLAYLEVEL(1, "%s : Window log larger than ZSTD_WINDOWLOG_MAX=%u not supported\n",
+                    srcFileName, ZSTD_WINDOWLOG_MAX);
+}
 
 /** FIO_decompressFrame() :
  *  @return : size of decoded zstd frame, or an error code
@@ -1183,8 +1213,8 @@ unsigned long long FIO_decompressZstdFrame(dRess_t* ress,
     ZSTD_resetDStream(ress->dctx);
     if (strlen(srcFileName)>20) srcFileName += strlen(srcFileName)-20;   /* display last 20 characters */
 
-    /* Header loading (optional, saves one loop) */
-    {   size_t const toRead = 9;
+    /* Header loading : ensures ZSTD_getFrameHeader() will succeed */
+    {   size_t const toRead = ZSTD_FRAMEHEADERSIZE_MAX;
         if (ress->srcBufferLoaded < toRead)
             ress->srcBufferLoaded += fread(((char*)ress->srcBuffer) + ress->srcBufferLoaded, 1, toRead - ress->srcBufferLoaded, finput);
     }
@@ -1197,6 +1227,7 @@ unsigned long long FIO_decompressZstdFrame(dRess_t* ress,
         if (ZSTD_isError(readSizeHint)) {
             DISPLAYLEVEL(1, "%s : Decoding error (36) : %s \n",
                             srcFileName, ZSTD_getErrorName(readSizeHint));
+            FIO_zstdErrorHelp(ress, readSizeHint, srcFileName);
             return FIO_ERROR_FRAME_DECODING;
         }
 

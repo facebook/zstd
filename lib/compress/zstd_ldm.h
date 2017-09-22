@@ -20,7 +20,7 @@ extern "C" {
 *  Long distance matching
 ***************************************/
 
-#define ZSTD_LDM_WINDOW_LOG 27
+#define ZSTD_LDM_DEFAULT_WINDOW_LOG ZSTD_WINDOWLOG_DEFAULTMAX
 #define ZSTD_LDM_HASHEVERYLOG_NOTSET 9999
 
 /** ZSTD_compressBlock_ldm_generic() :

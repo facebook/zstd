@@ -97,6 +97,7 @@ clean:
 	@$(MAKE) -C examples/ $@ > $(VOID)
 	@$(MAKE) -C contrib/gen_html $@ > $(VOID)
 	@$(RM) zstd$(EXT) zstdmt$(EXT) tmp*
+	@$(RM) -r lz4
 	@echo Cleaning completed
 
 #------------------------------------------------------------------------------
@@ -273,6 +274,10 @@ gpp6install: apt-add-repo
 
 clang38install:
 	APT_PACKAGES="clang-3.8" $(MAKE) apt-install
+
+# Ubuntu 14.04 ships a too-old lz4
+lz4install:
+	[ -e lz4 ] || git clone https://github.com/lz4/lz4 && sudo $(MAKE) -C lz4 install
 
 endif
 

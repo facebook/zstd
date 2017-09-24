@@ -35,7 +35,7 @@
 *  Frames requiring more memory will be rejected.
 */
 #ifndef ZSTD_MAXWINDOWSIZE_DEFAULT
-#  define ZSTD_MAXWINDOWSIZE_DEFAULT ((1 << ZSTD_WINDOWLOG_MAX) + 1)   /* defined within zstd.h */
+#  define ZSTD_MAXWINDOWSIZE_DEFAULT (((U64)1 << ZSTD_WINDOWLOG_MAX) + 1)   /* defined within zstd.h */
 #endif
 
 
@@ -1546,6 +1546,10 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
         if (blockProperties.lastBlock) break;
     }
 
+    if (dctx->fParams.frameContentSize != ZSTD_CONTENTSIZE_UNKNOWN) {
+        if ((U64)(op-ostart) != dctx->fParams.frameContentSize) {
+            return ERROR(corruption_detected);
+    }   }
     if (dctx->fParams.checksumFlag) { /* Frame content checksum verification */
         U32 const checkCalc = (U32)XXH64_digest(&dctx->xxhState);
         U32 checkRead;

@@ -282,6 +282,7 @@ typedef struct {
 } ZSTD_entropyCTables_t;
 
 struct ZSTD_CCtx_params_s {
+    ZSTD_format_e format;
     ZSTD_compressionParameters cParams;
     ZSTD_frameParameters fParams;
 

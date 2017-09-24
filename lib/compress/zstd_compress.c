@@ -256,6 +256,9 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
 
     switch(param)
     {
+    case ZSTD_p_format :
+        return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
+
     case ZSTD_p_compressionLevel:
         if (value == 0) return 0;  /* special value : 0 means "don't change anything" */
         if (cctx->cdict) return ERROR(stage_wrong);
@@ -326,6 +329,12 @@ size_t ZSTD_CCtxParam_setParameter(
 {
     switch(param)
     {
+    case ZSTD_p_format :
+        if (value > (unsigned)ZSTD_f_zstd1_block)
+            return ERROR(parameter_unsupported);
+        params->format = (ZSTD_format_e)value;
+        return 0;
+
     case ZSTD_p_compressionLevel :
         if ((int)value > ZSTD_maxCLevel()) value = ZSTD_maxCLevel();
         if (value == 0) return 0;

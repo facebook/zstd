@@ -675,7 +675,7 @@ size_t ZSTD_estimateCCtxSize_advanced_usingCCtxParams(const ZSTD_CCtx_params* pa
         size_t const maxNbSeq = blockSize / divider;
         size_t const tokenSpace = blockSize + 11*maxNbSeq;
         size_t const chainSize =
-                (cParams.strategy == ZSTD_fast) ? 0 : (1 << cParams.chainLog);
+                (cParams.strategy == ZSTD_fast) ? 0 : ((size_t)1 << cParams.chainLog);
         size_t const hSize = ((size_t)1) << cParams.hashLog;
         U32    const hashLog3 = (cParams.searchLength>3) ?
                                 0 : MIN(ZSTD_HASHLOG3_MAX, cParams.windowLog);
@@ -833,7 +833,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         size_t const maxNbSeq = blockSize / divider;
         size_t const tokenSpace = blockSize + 11*maxNbSeq;
         size_t const chainSize = (params.cParams.strategy == ZSTD_fast) ?
-                                0 : (1 << params.cParams.chainLog);
+                                0 : ((size_t)1 << params.cParams.chainLog);
         size_t const hSize = ((size_t)1) << params.cParams.hashLog;
         U32    const hashLog3 = (params.cParams.searchLength>3) ?
                                 0 : MIN(ZSTD_HASHLOG3_MAX, params.cParams.windowLog);
@@ -1005,7 +1005,7 @@ static size_t ZSTD_copyCCtx_internal(ZSTD_CCtx* dstCCtx,
     }
 
     /* copy tables */
-    {   size_t const chainSize = (srcCCtx->appliedParams.cParams.strategy == ZSTD_fast) ? 0 : (1 << srcCCtx->appliedParams.cParams.chainLog);
+    {   size_t const chainSize = (srcCCtx->appliedParams.cParams.strategy == ZSTD_fast) ? 0 : ((size_t)1 << srcCCtx->appliedParams.cParams.chainLog);
         size_t const hSize =  (size_t)1 << srcCCtx->appliedParams.cParams.hashLog;
         size_t const h3Size = (size_t)1 << srcCCtx->hashLog3;
         size_t const tableSpace = (chainSize + hSize + h3Size) * sizeof(U32);
@@ -1599,13 +1599,33 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
             return ERROR(dstSize_tooSmall);   /* not enough space to store compressed block */
         if (remaining < blockSize) blockSize = remaining;
 
-        /* preemptive overflow correction */
+        /* preemptive overflow correction:
+         * 1. correction is large enough:
+         *    lowLimit > (3<<29) ==> current > 3<<29 + 1<<windowLog - blockSize
+         *    1<<windowLog <= newCurrent < 1<<chainLog + 1<<windowLog
+         *
+         *    current - newCurrent
+         *    > (3<<29 + 1<<windowLog - blockSize) - (1<<windowLog + 1<<chainLog)
+         *    > (3<<29 - blockSize) - (1<<chainLog)
+         *    > (3<<29 - blockSize) - (1<<30)             (NOTE: chainLog <= 30)
+         *    > 1<<29 - 1<<17
+         *
+         * 2. (ip+blockSize - cctx->base) doesn't overflow:
+         *    In 32 bit mode we limit windowLog to 30 so we don't get
+         *    differences larger than 1<<31-1.
+         * 3. cctx->lowLimit < 1<<32:
+         *    windowLog <= 31 ==> 3<<29 + 1<<windowLog < 7<<29 < 1<<32.
+         */
         if (cctx->lowLimit > (3U<<29)) {
-            U32 const cycleMask = (1 << ZSTD_cycleLog(cctx->appliedParams.cParams.hashLog, cctx->appliedParams.cParams.strategy)) - 1;
+            U32 const cycleMask = (1 << ZSTD_cycleLog(cctx->appliedParams.cParams.chainLog, cctx->appliedParams.cParams.strategy)) - 1;
             U32 const current = (U32)(ip - cctx->base);
             U32 const newCurrent = (current & cycleMask) + (1 << cctx->appliedParams.cParams.windowLog);
             U32 const correction = current - newCurrent;
-            ZSTD_STATIC_ASSERT(ZSTD_WINDOWLOG_MAX_64 <= 30);
+            ZSTD_STATIC_ASSERT(ZSTD_CHAINLOG_MAX <= 30);
+            ZSTD_STATIC_ASSERT(ZSTD_WINDOWLOG_MAX_32 <= 30);
+            ZSTD_STATIC_ASSERT(ZSTD_WINDOWLOG_MAX <= 31);
+            assert(current > newCurrent);
+            assert(correction > 1<<28); /* Loose bound, should be about 1<<29 */
             ZSTD_reduceIndex(cctx, correction);
             cctx->base += correction;
             cctx->dictBase += correction;
@@ -1613,6 +1633,7 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
             cctx->dictLimit -= correction;
             if (cctx->nextToUpdate < correction) cctx->nextToUpdate = 0;
             else cctx->nextToUpdate -= correction;
+            DEBUGLOG(4, "Correction of 0x%x bytes to lowLimit=0x%x\n", correction, cctx->lowLimit);
         }
 
         if ((U32)(ip+blockSize - cctx->base) > cctx->loadedDictEnd + maxDist) {

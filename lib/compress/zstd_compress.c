@@ -2574,6 +2574,7 @@ MEM_STATIC size_t ZSTD_limitCopy(void* dst, size_t dstCapacity,
 
 /** ZSTD_compressStream_generic():
  *  internal function for all *compressStream*() variants and *compress_generic()
+ *  non-static, because can be called from zstdmt.c
  * @return : hint size for next input */
 size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                                    ZSTD_outBuffer* output,

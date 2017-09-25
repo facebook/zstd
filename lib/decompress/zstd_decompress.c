@@ -152,7 +152,9 @@ size_t ZSTD_estimateDCtxSize(void) { return sizeof(ZSTD_DCtx); }
 
 size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx)
 {
-    dctx->expected = ZSTD_frameHeaderSize_prefix;
+    dctx->expected = (dctx->format==ZSTD_f_zstd1_magicless) ?
+                            ZSTD_frameHeaderSize_prefix - 4 /* magic size */ :
+                            ZSTD_frameHeaderSize_prefix;
     dctx->stage = ZSTDds_getFrameHeaderSize;
     dctx->decodedSize = 0;
     dctx->previousDstEnd = NULL;
@@ -182,6 +184,7 @@ static void ZSTD_initDCtx_internal(ZSTD_DCtx* dctx)
     dctx->inBuffSize  = 0;
     dctx->outBuffSize = 0;
     dctx->streamStage = zdss_init;
+    dctx->format = ZSTD_f_zstd1;
 }
 
 ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem)
@@ -488,7 +491,7 @@ unsigned long long ZSTD_getDecompressedSize(const void* src, size_t srcSize)
 *   @return : 0 if success, or an error code, which can be tested using ZSTD_isError() */
 static size_t ZSTD_decodeFrameHeader(ZSTD_DCtx* dctx, const void* src, size_t headerSize)
 {
-    size_t const result = ZSTD_getFrameHeader(&(dctx->fParams), src, headerSize);
+    size_t const result = ZSTD_getFrameHeader_internal(&(dctx->fParams), src, headerSize, dctx->format);
     if (ZSTD_isError(result)) return result;    /* invalid header */
     if (result>0) return ERROR(srcSize_wrong);  /* headerSize too small */
     if (dctx->fParams.dictID && (dctx->dictID != dctx->fParams.dictID))
@@ -1755,33 +1758,31 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
 {
     DEBUGLOG(5, "ZSTD_decompressContinue");
     /* Sanity check */
-    if (srcSize != dctx->expected) return ERROR(srcSize_wrong);   /* not allowed */
+    if (srcSize != dctx->expected) return ERROR(srcSize_wrong);  /* not allowed */
     if (dstCapacity) ZSTD_checkContinuity(dctx, dst);
 
     switch (dctx->stage)
     {
     case ZSTDds_getFrameHeaderSize :
-        if (srcSize != ZSTD_frameHeaderSize_prefix) return ERROR(srcSize_wrong);      /* unauthorized */
         assert(src != NULL);
-        if ((MEM_readLE32(src) & 0xFFFFFFF0U) == ZSTD_MAGIC_SKIPPABLE_START) {        /* skippable frame */
-            memcpy(dctx->headerBuffer, src, ZSTD_frameHeaderSize_prefix);
-            dctx->expected = ZSTD_skippableHeaderSize - ZSTD_frameHeaderSize_prefix;  /* magic number + skippable frame length */
-            dctx->stage = ZSTDds_decodeSkippableHeader;
-            return 0;
-        }
-        dctx->headerSize = ZSTD_frameHeaderSize(src, ZSTD_frameHeaderSize_prefix);
+        if (dctx->format == ZSTD_f_zstd1) {  /* allows header */
+            assert(srcSize >= 4);  /* to read skippable magic number */
+            if ((MEM_readLE32(src) & 0xFFFFFFF0U) == ZSTD_MAGIC_SKIPPABLE_START) {        /* skippable frame */
+                memcpy(dctx->headerBuffer, src, srcSize);
+                dctx->expected = ZSTD_skippableHeaderSize - srcSize;  /* magic number + skippable frame length */
+                dctx->stage = ZSTDds_decodeSkippableHeader;
+                return 0;
+        }   }
+        dctx->headerSize = ZSTD_frameHeaderSize_internal(src, srcSize, dctx->format);
         if (ZSTD_isError(dctx->headerSize)) return dctx->headerSize;
-        memcpy(dctx->headerBuffer, src, ZSTD_frameHeaderSize_prefix);
-        if (dctx->headerSize > ZSTD_frameHeaderSize_prefix) {
-            dctx->expected = dctx->headerSize - ZSTD_frameHeaderSize_prefix;
-            dctx->stage = ZSTDds_decodeFrameHeader;
-            return 0;
-        }
-        dctx->expected = 0;   /* not necessary to copy more */
-        /* fall-through */
+        memcpy(dctx->headerBuffer, src, srcSize);
+        dctx->expected = dctx->headerSize - srcSize;
+        dctx->stage = ZSTDds_decodeFrameHeader;
+        return 0;
+
     case ZSTDds_decodeFrameHeader:
         assert(src != NULL);
-        memcpy(dctx->headerBuffer + ZSTD_frameHeaderSize_prefix, src, dctx->expected);
+        memcpy(dctx->headerBuffer + (dctx->headerSize - srcSize), src, srcSize);
         CHECK_F(ZSTD_decodeFrameHeader(dctx, dctx->headerBuffer, dctx->headerSize));
         dctx->expected = ZSTD_blockHeaderSize;
         dctx->stage = ZSTDds_decodeBlockHeader;
@@ -1813,6 +1814,7 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
             }
             return 0;
         }
+
     case ZSTDds_decompressLastBlock:
     case ZSTDds_decompressBlock:
         DEBUGLOG(5, "case ZSTDds_decompressBlock");
@@ -1858,29 +1860,34 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
             }
             return rSize;
         }
+
     case ZSTDds_checkChecksum:
-        DEBUGLOG(4, "case ZSTDds_checkChecksum");
         assert(srcSize == 4);  /* guaranteed by dctx->expected */
         {   U32 const h32 = (U32)XXH64_digest(&dctx->xxhState);
             U32 const check32 = MEM_readLE32(src);
-            DEBUGLOG(4, "calculated %08X :: %08X read", h32, check32);
+            DEBUGLOG(4, "checksum : calculated %08X :: %08X read", h32, check32);
             if (check32 != h32) return ERROR(checksum_wrong);
             dctx->expected = 0;
             dctx->stage = ZSTDds_getFrameHeaderSize;
             return 0;
         }
+
     case ZSTDds_decodeSkippableHeader:
-        {   assert(src != NULL);
-            memcpy(dctx->headerBuffer + ZSTD_frameHeaderSize_prefix, src, dctx->expected);
-            dctx->expected = MEM_readLE32(dctx->headerBuffer + 4);
+        {   size_t const skippableFrameHeaderSize = 8;
+            assert(src != NULL);
+            assert(srcSize <= skippableFrameHeaderSize);
+            memcpy(dctx->headerBuffer + (skippableFrameHeaderSize - srcSize), src, srcSize);
+            dctx->expected = MEM_readLE32(dctx->headerBuffer + 4);   /* note : expect can grow seriously large, beyond buffer size */
             dctx->stage = ZSTDds_skipFrame;
             return 0;
         }
+
     case ZSTDds_skipFrame:
         {   dctx->expected = 0;
             dctx->stage = ZSTDds_getFrameHeaderSize;
             return 0;
         }
+
     default:
         return ERROR(GENERIC);   /* impossible */
     }
@@ -2308,6 +2315,7 @@ size_t ZSTD_DCtx_setMaxWindowSize(ZSTD_DCtx* dctx, size_t maxWindowSize)
 
 size_t ZSTD_DCtx_setFormat(ZSTD_DCtx* dctx, ZSTD_format_e format)
 {
+    DEBUGLOG(4, "ZSTD_DCtx_setFormat : %u", (unsigned)format);
     ZSTD_STATIC_ASSERT((unsigned)zdss_loadHeader >= (unsigned)zdss_init);
     if ((unsigned)dctx->streamStage > (unsigned)zdss_loadHeader)
         return ERROR(stage_wrong);
@@ -2390,7 +2398,9 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             /* fall-through */
 
         case zdss_loadHeader :
-            {   size_t const hSize = ZSTD_getFrameHeader(&zds->fParams, zds->headerBuffer, zds->lhSize);
+            DEBUGLOG(5, "stage zdss_loadHeader (srcSize : %u)", (U32)(iend - ip));
+            {   size_t const hSize = ZSTD_getFrameHeader_internal(&zds->fParams, zds->headerBuffer, zds->lhSize, zds->format);
+                DEBUGLOG(5, "header size : %u", (U32)hSize);
                 if (ZSTD_isError(hSize)) {
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
                     U32 const legacyVersion = ZSTD_isLegacy(istart, iend-istart);

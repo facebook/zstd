@@ -140,6 +140,34 @@ def parse_env_flags(args, flags):
     return args
 
 
+def compiler_version(cc, cxx):
+    """
+    Determines the compiler and version.
+    Only works for clang and gcc.
+    """
+    cc_version_bytes = subprocess.check_output([cc, "--version"])
+    cxx_version_bytes = subprocess.check_output([cxx, "--version"])
+    if cc_version_bytes.startswith(b'clang'):
+        assert(cxx_version_bytes.startswith(b'clang'))
+        compiler = 'clang'
+    if cc_version_bytes.startswith(b'gcc'):
+        assert(cxx_version_bytes.startswith(b'g++'))
+        compiler = 'gcc'
+    version_regex = b'([0-9])+\.([0-9])+\.([0-9])+'
+    version_match = re.search(version_regex, cc_version_bytes)
+    version = tuple(int(version_match.group(i)) for i in range(1, 4))
+    return compiler, version
+
+
+def overflow_ubsan_flags(cc, cxx):
+    compiler, version = compiler_version(cc, cxx)
+    if compiler == 'gcc':
+        return ['-fno-sanitize=signed-integer-overflow']
+    if compiler == 'clang' and version >= (5, 0, 0):
+        return ['-fno-sanitize=pointer-overflow']
+    return []
+
+
 def build_parser(args):
     description = """
     Cleans the repository and builds a fuzz target (or all).
@@ -364,7 +392,7 @@ def build(args):
     if args.ubsan:
         ubsan_flags = ['-fsanitize=undefined']
         if not args.ubsan_pointer_overflow:
-            ubsan_flags += ['-fno-sanitize=pointer-overflow']
+            ubsan_flags += overflow_ubsan_flags(cc, cxx)
         common_flags += ubsan_flags
 
     if args.stateful_fuzzing:

@@ -941,11 +941,11 @@ static int basicUnitTests(U32 seed, double compressibility)
         }
 
         DISPLAYLEVEL(4, "test%3i : decompress with magic-less instruction : ", testNb++);
-        CHECK( ZSTD_initDStream(dctx) );
+        ZSTD_DCtx_reset(dctx);
         CHECK( ZSTD_DCtx_setFormat(dctx, ZSTD_f_zstd1_magicless) );
         {   ZSTD_inBuffer in = { compressedBuffer, cSize, 0 };
             ZSTD_outBuffer out = { decodedBuffer, CNBuffSize, 0 };
-            size_t const result = ZSTD_decompressStream(dctx, &out, &in);
+            size_t const result = ZSTD_decompress_generic(dctx, &out, &in);
             if (result != 0) goto _output_error;
             if (in.pos != in.size) goto _output_error;
             if (out.pos != inputSize) goto _output_error;

@@ -115,7 +115,6 @@ def parse_env_flags(args, flags):
     """
     Look for flags set by environment variables.
     """
-    flags = ' '.join(flags)
     san_flags = ','.join(re.findall('-fsanitize=((?:[a-z]+,?)+)', flags))
     nosan_flags = ','.join(re.findall('-fno-sanitize=((?:[a-z]+,?)+)', flags))
 

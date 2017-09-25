@@ -27,8 +27,8 @@
 <li><a href="#Chapter17">Buffer-less and synchronous inner streaming functions</a></li>
 <li><a href="#Chapter18">Buffer-less streaming compression (synchronous mode)</a></li>
 <li><a href="#Chapter19">Buffer-less streaming decompression (synchronous mode)</a></li>
-<li><a href="#Chapter20">===   New advanced API (experimental)  ===</a></li>
-<li><a href="#Chapter21">===   Block level API  ===</a></li>
+<li><a href="#Chapter20">New advanced API (experimental)</a></li>
+<li><a href="#Chapter21">Block level API</a></li>
 </ol>
 <hr>
 <a name="Chapter1"></a><h2>Introduction</h2><pre>
@@ -783,7 +783,7 @@ size_t ZSTD_decodingBufferSize_min(unsigned long long windowSize, unsigned long 
 </pre></b><BR>
 <pre><b>typedef enum { ZSTDnit_frameHeader, ZSTDnit_blockHeader, ZSTDnit_block, ZSTDnit_lastBlock, ZSTDnit_checksum, ZSTDnit_skippableFrame } ZSTD_nextInputType_e;
 </b></pre><BR>
-<a name="Chapter20"></a><h2>===   New advanced API (experimental)  ===</h2><pre></pre>
+<a name="Chapter20"></a><h2>New advanced API (experimental)</h2><pre></pre>
 
 <pre><b>typedef enum {
     ZSTD_f_zstd1 = 0,        </b>/* Normal zstd frame format, specified in zstd_compression_format.md (default) */<b>
@@ -1070,9 +1070,9 @@ size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* prefix, size_t 
 </p></pre><BR>
 
 <h3>Advanced parameters for decompression API</h3><pre></pre><b><pre></pre></b><BR>
-<pre><b>size_t ZSTD_DCtx_loadDictionary(ZSTD_DCtx* dctx, const void* dict, size_t dictSize);
-size_t ZSTD_DCtx_loadDictionary_byReference(ZSTD_DCtx* dctx, const void* dict, size_t dictSize);
-size_t ZSTD_DCtx_loadDictionary_advanced(ZSTD_DCtx* dctx, const void* dict, size_t dictSize, ZSTD_dictLoadMethod_e dictLoadMethod, ZSTD_dictMode_e dictMode);
+<pre><b>size_t ZSTD_DCtx_loadDictionary(ZSTD_DCtx* dctx, const void* dict, size_t dictSize);   </b>/* not implemented */<b>
+size_t ZSTD_DCtx_loadDictionary_byReference(ZSTD_DCtx* dctx, const void* dict, size_t dictSize);   </b>/* not implemented */<b>
+size_t ZSTD_DCtx_loadDictionary_advanced(ZSTD_DCtx* dctx, const void* dict, size_t dictSize, ZSTD_dictLoadMethod_e dictLoadMethod, ZSTD_dictMode_e dictMode);   </b>/* not implemented */<b>
 </b><p>  Create an internal DDict from dict buffer,
   to be used to decompress next frames.
  @result : 0, or an error code (which can be tested with ZSTD_isError()).
@@ -1089,7 +1089,7 @@ size_t ZSTD_DCtx_loadDictionary_advanced(ZSTD_DCtx* dctx, const void* dict, size
  
 </p></pre><BR>
 
-<pre><b>size_t ZSTD_DCtx_refDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict);
+<pre><b>size_t ZSTD_DCtx_refDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict);   </b>/* not implemented */<b>
 </b><p>  Reference a prepared dictionary, to be used to decompress next frames.
   The dictionary remains active for decompression of future frames using same DCtx.
  @result : 0, or an error code (which can be tested with ZSTD_isError()).
@@ -1100,8 +1100,8 @@ size_t ZSTD_DCtx_loadDictionary_advanced(ZSTD_DCtx* dctx, const void* dict, size
  
 </p></pre><BR>
 
-<pre><b>size_t ZSTD_DCtx_refPrefix(ZSTD_DCtx* dctx, const void* prefix, size_t prefixSize);
-size_t ZSTD_DCtx_refPrefix_advanced(ZSTD_DCtx* dctx, const void* prefix, size_t prefixSize, ZSTD_dictMode_e dictMode);
+<pre><b>size_t ZSTD_DCtx_refPrefix(ZSTD_DCtx* dctx, const void* prefix, size_t prefixSize);   </b>/* not implemented */<b>
+size_t ZSTD_DCtx_refPrefix_advanced(ZSTD_DCtx* dctx, const void* prefix, size_t prefixSize, ZSTD_dictMode_e dictMode);   </b>/* not implemented */<b>
 </b><p>  Reference a prefix (single-usage dictionary) for next compression job.
   Prefix is **only used once**. It must be explicitly referenced before each frame.
   If there is a need to use same prefix multiple times, consider embedding it into a ZSTD_DDict instead.
@@ -1110,7 +1110,7 @@ size_t ZSTD_DCtx_refPrefix_advanced(ZSTD_DCtx* dctx, const void* prefix, size_t 
   Note 2 : Prefix buffer is referenced. It must outlive compression job.
   Note 3 : By default, the prefix is treated as raw content (ZSTD_dm_rawContent).
            Use ZSTD_CCtx_refPrefix_advanced() to alter dictMode.
-  Note 4 : Referencing a raw content prefix costs almost nothing cpu and memory wise.
+  Note 4 : Referencing a raw content prefix has almost no cpu nor memory cost.
  
 </p></pre><BR>
 
@@ -1131,7 +1131,18 @@ size_t ZSTD_DCtx_refPrefix_advanced(ZSTD_DCtx* dctx, const void* prefix, size_t 
  
 </p></pre><BR>
 
-<a name="Chapter21"></a><h2>===   Block level API  ===</h2><pre></pre>
+<pre><b>size_t ZSTD_decompress_generic(ZSTD_DCtx* dctx,
+                               ZSTD_outBuffer* output,
+                               ZSTD_inBuffer* input);
+</b><p>  Behave the same as ZSTD_decompressStream.
+  Decompression parameters cannot be changed once decompression is started.
+ @return : an error code, which can be tested using ZSTD_isError()
+           if >0, a hint, nb of expected input bytes for next invocation.
+           `0` means : a frame has just been fully decoded and flushed.
+ 
+</p></pre><BR>
+
+<a name="Chapter21"></a><h2>Block level API</h2><pre></pre>
 
 <pre><b></b><p>    Frame metadata cost is typically ~18 bytes, which can be non-negligible for very small blocks (< 100 bytes).
     User will have to take in charge required information to regenerate data, such as compressed and content sizes.

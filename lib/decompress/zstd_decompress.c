@@ -2379,7 +2379,10 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
     U32 someMoreWork = 1;
 
     DEBUGLOG(5, "ZSTD_decompressStream");
+    if (input->pos > input->size) return ERROR(GENERIC);   /* forbidden */
+    if (output->pos > output->size) return ERROR(GENERIC); /* forbidden */
     DEBUGLOG(5, "input size : %u", (U32)(input->size - input->pos));
+
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
     if (zds->legacyVersion) {
         /* legacy support is incompatible with static dctx */
@@ -2589,4 +2592,10 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
         nextSrcSizeHint -= zds->inPos;   /* already loaded*/
         return nextSrcSizeHint;
     }
+}
+
+
+size_t ZSTD_decompress_generic(ZSTD_DCtx* dctx, ZSTD_outBuffer* output, ZSTD_inBuffer* input)
+{
+    return ZSTD_decompressStream(dctx, output, input);
 }

@@ -908,7 +908,9 @@ ZSTDLIB_API ZSTD_nextInputType_e ZSTD_nextInputType(ZSTD_DCtx* dctx);
 
 
 
-/** ===   New advanced API (experimental)  === **/
+/* ============================================ */
+/**       New advanced API (experimental)       */
+/* ============================================ */
 
 /* notes on API design :
  *   In this proposal, parameters are pushed one by one into an existing context,
@@ -1295,23 +1297,31 @@ ZSTDLIB_API size_t ZSTD_DCtx_setMaxWindowSize(ZSTD_DCtx* dctx, size_t maxWindowS
  *  such ZSTD_f_zstd1_magicless for example.
  * @return : 0, or an error code (which can be tested using ZSTD_isError()).
  */
-ZSTDLIB_API size_t ZSTD_DCtx_setFormat(ZSTD_DCtx* dctx, ZSTD_format_e format);   /* implemented, but not functional */
+ZSTDLIB_API size_t ZSTD_DCtx_setFormat(ZSTD_DCtx* dctx, ZSTD_format_e format);
 
 
-/* How to decompress ?
- *
- * currently, use ZSTD_decompressStream().
- * We could also create a ZSTD_decompress_generic(),
- * for an API experience similar to the compression one.
- * It would effectively works exactly the same as ZSTD_decompressStream().
- *
+/*! ZSTD_decompress_generic() :
+ *  Behave the same as ZSTD_decompressStream.
+ *  Decompression parameters cannot be changed once decompression is started.
+ * @return : an error code, which can be tested using ZSTD_isError()
+ *           if >0, a hint, nb of expected input bytes for next invocation.
+ *           `0` means : a frame has just been fully decoded and flushed.
+ */
+ZSTDLIB_API size_t ZSTD_decompress_generic(ZSTD_DCtx* dctx,
+                                           ZSTD_outBuffer* output,
+                                           ZSTD_inBuffer* input);
+
+
+/*
  * Also : to re-init a decoding context, use ZSTD_initDStream().
- * Here also, for a similar API logic, we could create ZSTD_DCtx_reset().
+ * Here for a similar API logic, we could create ZSTD_DCtx_reset().
  * It would behave the same.
  */
 
 
-/** ===   Block level API  === **/
+/* ============================ */
+/**       Block level API       */
+/* ============================ */
 
 /*!
     Block functions produce and decode raw zstd blocks, without frame metadata.

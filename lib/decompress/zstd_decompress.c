@@ -2262,13 +2262,15 @@ size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t di
     return ZSTD_frameHeaderSize_prefix;
 }
 
+/* note : this variant can't fail */
 size_t ZSTD_initDStream(ZSTD_DStream* zds)
 {
     return ZSTD_initDStream_usingDict(zds, NULL, 0);
 }
 
 /* ZSTD_initDStream_usingDDict() :
- * ddict will just be referenced, and must outlive decompression session */
+ * ddict will just be referenced, and must outlive decompression session
+ * this function cannot fail */
 size_t ZSTD_initDStream_usingDDict(ZSTD_DStream* zds, const ZSTD_DDict* ddict)
 {
     size_t const initResult = ZSTD_initDStream(zds);
@@ -2612,4 +2614,11 @@ size_t ZSTD_decompress_generic_simpleArgs (
     *dstPos = output.pos;
     *srcPos = input.pos;
     return cErr;
+}
+
+void ZSTD_DCtx_reset(ZSTD_DCtx* dctx)
+{
+    (void)ZSTD_initDStream(dctx);
+    dctx->format = ZSTD_f_zstd1;
+    dctx->maxWindowSize = ZSTD_MAXWINDOWSIZE_DEFAULT;
 }

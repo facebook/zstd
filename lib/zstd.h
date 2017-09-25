@@ -750,7 +750,7 @@ ZSTDLIB_API size_t ZSTD_resetCStream(ZSTD_CStream* zcs, unsigned long long pledg
 ZSTDLIB_API ZSTD_DStream* ZSTD_createDStream_advanced(ZSTD_customMem customMem);
 ZSTDLIB_API ZSTD_DStream* ZSTD_initStaticDStream(void* workspace, size_t workspaceSize);    /**< same as ZSTD_initStaticDCtx() */
 typedef enum { DStream_p_maxWindowSize } ZSTD_DStreamParameter_e;
-ZSTDLIB_API size_t ZSTD_setDStreamParameter(ZSTD_DStream* zds, ZSTD_DStreamParameter_e paramType, unsigned paramValue);
+ZSTDLIB_API size_t ZSTD_setDStreamParameter(ZSTD_DStream* zds, ZSTD_DStreamParameter_e paramType, unsigned paramValue);   /* obsolete : this API will be removed in a future version */
 ZSTDLIB_API size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t dictSize); /**< note: no dictionary will be used if dict == NULL or dictSize < 8 */
 ZSTDLIB_API size_t ZSTD_initDStream_usingDDict(ZSTD_DStream* zds, const ZSTD_DDict* ddict);  /**< note : ddict is referenced, it must outlive decompression session */
 ZSTDLIB_API size_t ZSTD_resetDStream(ZSTD_DStream* zds);  /**< re-use decompression parameters from previous init; saves dictionary loading */
@@ -920,7 +920,7 @@ ZSTDLIB_API ZSTD_nextInputType_e ZSTD_nextInputType(ZSTD_DCtx* dctx);
  *   This API is intended to replace all others experimental API.
  *   It can basically do all other use cases, and even new ones.
  *   In constrast with _advanced() variants, it stands a reasonable chance to become "stable",
- *   after a testing period.
+ *   after a good testing period.
  */
 
 /* note on naming convention :
@@ -930,22 +930,34 @@ ZSTDLIB_API ZSTD_nextInputType_e ZSTD_nextInputType(ZSTD_DCtx* dctx);
  *   It feels clearer in light of potential variants :
  *   ZSTD_CDict_setParameter() (rather than ZSTD_setCDictParameter())
  *   ZSTD_CCtxParams_setParameter()  (rather than ZSTD_setCCtxParamsParameter() )
+ *   etc...
  */
 
 /* note on enum design :
- * All enum will be manually set to explicit values before reaching "stable API" status */
+ * All enum will be pinned to explicit values before reaching "stable API" status */
 
 typedef enum {
+    /* should we have a ZSTD_f_auto ?
+     * for the time being, it would mean exactly the same as ZSTD_f_zstd1.
+     * But, in the future, if several formats are supported,
+     * on the compression side, it would mean "default format",
+     * and on the decompression side, it would mean "multi format"
+     * while ZSTD_f_zstd1 could be reserved to mean "accept only zstd frames".
+     * Another option could be to define different enums for compression and decompression.
+     * This question could also be kept for later, but there is also the question of pinning the enum value,
+     * and pinning the value `0` is especially important */
     ZSTD_f_zstd1 = 0,        /* Normal zstd frame format, specified in zstd_compression_format.md (default) */
     ZSTD_f_zstd1_magicless,  /* Variant of zstd frame format, without initial 4-bytes magic number.
                               * Useful to save 4 bytes per generated frame.
                               * Decoder will not be able to recognise this format, requiring instructions. */
-    ZSTD_f_zstd1_headerless, /* Variant of zstd frame format, without any frame header;
+    ZSTD_f_zstd1_headerless, /* Not Implemented Yet ! Complex decoder setting ! Might be removed before release */
+                             /* Variant of zstd frame format, without any frame header;
                               * Other metadata, like block size or frame checksum, are still generated.
                               * Useful to save between 6 and ZSTD_frameHeaderSize_max bytes per generated frame.
                               * However, required decoding parameters will have to be saved or known by some mechanism.
                               * Decoder will not be able to recognise this format, requiring instructions and parameters. */
-    ZSTD_f_zstd1_block       /* Generate a zstd compressed block, without any metadata.
+    ZSTD_f_zstd1_block       /* Not Implemented Yet ! Might be removed before release */
+                             /* Generate a zstd compressed block, without any metadata.
                               * Note that size of block content must be <= ZSTD_getBlockSize() <= ZSTD_BLOCKSIZE_MAX == 128 KB.
                               * See ZSTD_compressBlock() for more details.
                               * Resulting compressed block can be decoded with ZSTD_decompressBlock(). */
@@ -1325,11 +1337,15 @@ ZSTDLIB_API size_t ZSTD_decompress_generic_simpleArgs (
                       const void* src, size_t srcSize, size_t* srcPos);
 
 
-/*
- * Also : to re-init a decoding context, use ZSTD_initDStream().
- * Here for a similar API logic, we could create ZSTD_DCtx_reset().
- * It would behave the same.
+/*! ZSTD_DCtx_reset() :
+ *  Return a DCtx to clean state.
+ *  If a decompression was ongoing, any internal data not yet flushed is cancelled.
+ *  All parameters are back to default values, including sticky ones.
+ *  Dictionary (if any) is dropped.
+ *  Parameters can be modified again after a reset.
  */
+ZSTDLIB_API void ZSTD_DCtx_reset(ZSTD_DCtx* dctx);
+
 
 
 /* ============================ */

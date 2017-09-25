@@ -649,7 +649,7 @@ size_t ZSTD_initCStream_usingCDict_advanced(ZSTD_CStream* zcs, const ZSTD_CDict*
 <h3>Advanced Streaming decompression functions</h3><pre></pre><b><pre>ZSTD_DStream* ZSTD_createDStream_advanced(ZSTD_customMem customMem);
 ZSTD_DStream* ZSTD_initStaticDStream(void* workspace, size_t workspaceSize);    </b>/**< same as ZSTD_initStaticDCtx() */<b>
 typedef enum { DStream_p_maxWindowSize } ZSTD_DStreamParameter_e;
-size_t ZSTD_setDStreamParameter(ZSTD_DStream* zds, ZSTD_DStreamParameter_e paramType, unsigned paramValue);
+size_t ZSTD_setDStreamParameter(ZSTD_DStream* zds, ZSTD_DStreamParameter_e paramType, unsigned paramValue);   </b>/* obsolete : this API will be removed in a future version */<b>
 size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t dictSize); </b>/**< note: no dictionary will be used if dict == NULL or dictSize < 8 */<b>
 size_t ZSTD_initDStream_usingDDict(ZSTD_DStream* zds, const ZSTD_DDict* ddict);  </b>/**< note : ddict is referenced, it must outlive decompression session */<b>
 size_t ZSTD_resetDStream(ZSTD_DStream* zds);  </b>/**< re-use decompression parameters from previous init; saves dictionary loading */<b>
@@ -1151,6 +1151,15 @@ size_t ZSTD_DCtx_refPrefix_advanced(ZSTD_DCtx* dctx, const void* prefix, size_t 
   Argument list is larger than ZSTD_{in,out}Buffer,
   but can be helpful for binders from dynamic languages
   which have troubles handling structures containing memory pointers.
+ 
+</p></pre><BR>
+
+<pre><b>void ZSTD_DCtx_reset(ZSTD_DCtx* dctx);   </b>/* Not ready yet ! */<b>
+</b><p>  Return a DCtx to clean state.
+  If a decompression was ongoing, any internal data not yet flushed is cancelled.
+  All parameters are back to default values, including sticky ones.
+  Dictionary (if any) is dropped.
+  Parameters can be modified again after a reset.
  
 </p></pre><BR>
 

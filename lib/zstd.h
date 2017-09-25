@@ -1164,7 +1164,7 @@ ZSTDLIB_API void ZSTD_CCtx_reset(ZSTD_CCtx* cctx);   /* Not ready yet ! */
  *  but can be helpful for binders from dynamic languages
  *  which have troubles handling structures containing memory pointers.
  */
-size_t ZSTD_compress_generic_simpleArgs (
+ZSTDLIB_API size_t ZSTD_compress_generic_simpleArgs (
                             ZSTD_CCtx* cctx,
                             void* dst, size_t dstCapacity, size_t* dstPos,
                       const void* src, size_t srcSize, size_t* srcPos,
@@ -1310,6 +1310,19 @@ ZSTDLIB_API size_t ZSTD_DCtx_setFormat(ZSTD_DCtx* dctx, ZSTD_format_e format);
 ZSTDLIB_API size_t ZSTD_decompress_generic(ZSTD_DCtx* dctx,
                                            ZSTD_outBuffer* output,
                                            ZSTD_inBuffer* input);
+
+
+/*! ZSTD_decompress_generic_simpleArgs() :
+ *  Same as ZSTD_decompress_generic(),
+ *  but using only integral types as arguments.
+ *  Argument list is larger than ZSTD_{in,out}Buffer,
+ *  but can be helpful for binders from dynamic languages
+ *  which have troubles handling structures containing memory pointers.
+ */
+ZSTDLIB_API size_t ZSTD_decompress_generic_simpleArgs (
+                            ZSTD_DCtx* dctx,
+                            void* dst, size_t dstCapacity, size_t* dstPos,
+                      const void* src, size_t srcSize, size_t* srcPos);
 
 
 /*

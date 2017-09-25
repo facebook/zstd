@@ -1142,6 +1142,18 @@ size_t ZSTD_DCtx_refPrefix_advanced(ZSTD_DCtx* dctx, const void* prefix, size_t 
  
 </p></pre><BR>
 
+<pre><b>size_t ZSTD_decompress_generic_simpleArgs (
+                ZSTD_DCtx* dctx,
+                void* dst, size_t dstCapacity, size_t* dstPos,
+          const void* src, size_t srcSize, size_t* srcPos);
+</b><p>  Same as ZSTD_decompress_generic(),
+  but using only integral types as arguments.
+  Argument list is larger than ZSTD_{in,out}Buffer,
+  but can be helpful for binders from dynamic languages
+  which have troubles handling structures containing memory pointers.
+ 
+</p></pre><BR>
+
 <a name="Chapter21"></a><h2>Block level API</h2><pre></pre>
 
 <pre><b></b><p>    Frame metadata cost is typically ~18 bytes, which can be non-negligible for very small blocks (< 100 bytes).

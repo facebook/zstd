@@ -2599,3 +2599,17 @@ size_t ZSTD_decompress_generic(ZSTD_DCtx* dctx, ZSTD_outBuffer* output, ZSTD_inB
 {
     return ZSTD_decompressStream(dctx, output, input);
 }
+
+size_t ZSTD_decompress_generic_simpleArgs (
+                            ZSTD_DCtx* dctx,
+                            void* dst, size_t dstCapacity, size_t* dstPos,
+                      const void* src, size_t srcSize, size_t* srcPos)
+{
+    ZSTD_outBuffer output = { dst, dstCapacity, *dstPos };
+    ZSTD_inBuffer  input  = { src, srcSize, *srcPos };
+    /* ZSTD_compress_generic() will check validity of dstPos and srcPos */
+    size_t const cErr = ZSTD_decompress_generic(dctx, &output, &input);
+    *dstPos = output.pos;
+    *srcPos = input.pos;
+    return cErr;
+}

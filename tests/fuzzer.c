@@ -918,6 +918,43 @@ static int basicUnitTests(U32 seed, double compressibility)
         ZSTD_freeCCtx(cctx);
     }
 
+    /* custom formats tests */
+    {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        static const size_t inputSize = CNBuffSize / 2;   /* won't cause pb with small dict size */
+
+        /* basic block compression */
+        DISPLAYLEVEL(4, "test%3i : magic-less format test : ", testNb++);
+        CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_p_format, ZSTD_f_zstd1_magicless) );
+        {   ZSTD_inBuffer in = { CNBuffer, inputSize, 0 };
+            ZSTD_outBuffer out = { compressedBuffer, ZSTD_compressBound(inputSize), 0 };
+            size_t const result = ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_end);
+            if (result != 0) goto _output_error;
+            if (in.pos != in.size) goto _output_error;
+            cSize = out.pos;
+        }
+        DISPLAYLEVEL(4, "OK (compress : %u -> %u bytes)\n", (U32)inputSize, (U32)cSize);
+
+        DISPLAYLEVEL(4, "test%3i : decompress normally (should fail) : ", testNb++);
+        {   size_t const decodeResult = ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize);
+            if (ZSTD_getErrorCode(decodeResult) != ZSTD_error_prefix_unknown) goto _output_error;
+            DISPLAYLEVEL(4, "OK : %s \n", ZSTD_getErrorName(decodeResult));
+        }
+
+        DISPLAYLEVEL(4, "test%3i : decompress with magic-less instruction : ", testNb++);
+        CHECK( ZSTD_initDStream(dctx) );
+        CHECK( ZSTD_DCtx_setFormat(dctx, ZSTD_f_zstd1_magicless) );
+        {   ZSTD_inBuffer in = { compressedBuffer, cSize, 0 };
+            ZSTD_outBuffer out = { decodedBuffer, CNBuffSize, 0 };
+            size_t const result = ZSTD_decompressStream(dctx, &out, &in);
+            if (result != 0) goto _output_error;
+            if (in.pos != in.size) goto _output_error;
+            if (out.pos != inputSize) goto _output_error;
+            DISPLAYLEVEL(4, "OK : regenerated %u bytes \n", (U32)out.pos);
+        }
+
+        ZSTD_freeCCtx(cctx);
+    }
+
     /* block API tests */
     {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
         static const size_t dictSize = 65 KB;
@@ -961,8 +998,8 @@ static int basicUnitTests(U32 seed, double compressibility)
         DISPLAYLEVEL(4, "OK \n");
 
         ZSTD_freeCCtx(cctx);
-        ZSTD_freeDCtx(dctx);
     }
+    ZSTD_freeDCtx(dctx);
 
     /* long rle test */
     {   size_t sampleSize = 0;

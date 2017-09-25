@@ -1247,9 +1247,9 @@ ZSTDLIB_API size_t ZSTD_CCtx_setParametersUsingCCtxParams(
  *  Note 3 : Use ZSTD_DCtx_loadDictionary_advanced() to select
  *           how dictionary content will be interpreted and loaded.
  */
-ZSTDLIB_API size_t ZSTD_DCtx_loadDictionary(ZSTD_DCtx* dctx, const void* dict, size_t dictSize);
-ZSTDLIB_API size_t ZSTD_DCtx_loadDictionary_byReference(ZSTD_DCtx* dctx, const void* dict, size_t dictSize);
-ZSTDLIB_API size_t ZSTD_DCtx_loadDictionary_advanced(ZSTD_DCtx* dctx, const void* dict, size_t dictSize, ZSTD_dictLoadMethod_e dictLoadMethod, ZSTD_dictMode_e dictMode);
+ZSTDLIB_API size_t ZSTD_DCtx_loadDictionary(ZSTD_DCtx* dctx, const void* dict, size_t dictSize);   /* not implemented */
+ZSTDLIB_API size_t ZSTD_DCtx_loadDictionary_byReference(ZSTD_DCtx* dctx, const void* dict, size_t dictSize);   /* not implemented */
+ZSTDLIB_API size_t ZSTD_DCtx_loadDictionary_advanced(ZSTD_DCtx* dctx, const void* dict, size_t dictSize, ZSTD_dictLoadMethod_e dictLoadMethod, ZSTD_dictMode_e dictMode);   /* not implemented */
 
 
 /*! ZSTD_DCtx_refDDict() :
@@ -1261,7 +1261,7 @@ ZSTDLIB_API size_t ZSTD_DCtx_loadDictionary_advanced(ZSTD_DCtx* dctx, const void
  *  Special : adding a NULL DDict means "return to no-dictionary mode".
  *  Note 2 : DDict is just referenced, its lifetime must outlive its usage from DCtx.
  */
-ZSTDLIB_API size_t ZSTD_DCtx_refDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict);
+ZSTDLIB_API size_t ZSTD_DCtx_refDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict);   /* not implemented */
 
 
 /*! ZSTD_DCtx_refPrefix() :
@@ -1273,10 +1273,10 @@ ZSTDLIB_API size_t ZSTD_DCtx_refDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict);
  *  Note 2 : Prefix buffer is referenced. It must outlive compression job.
  *  Note 3 : By default, the prefix is treated as raw content (ZSTD_dm_rawContent).
  *           Use ZSTD_CCtx_refPrefix_advanced() to alter dictMode.
- *  Note 4 : Referencing a raw content prefix costs almost nothing cpu and memory wise.
+ *  Note 4 : Referencing a raw content prefix has almost no cpu nor memory cost.
  */
-ZSTDLIB_API size_t ZSTD_DCtx_refPrefix(ZSTD_DCtx* dctx, const void* prefix, size_t prefixSize);
-ZSTDLIB_API size_t ZSTD_DCtx_refPrefix_advanced(ZSTD_DCtx* dctx, const void* prefix, size_t prefixSize, ZSTD_dictMode_e dictMode);
+ZSTDLIB_API size_t ZSTD_DCtx_refPrefix(ZSTD_DCtx* dctx, const void* prefix, size_t prefixSize);   /* not implemented */
+ZSTDLIB_API size_t ZSTD_DCtx_refPrefix_advanced(ZSTD_DCtx* dctx, const void* prefix, size_t prefixSize, ZSTD_dictMode_e dictMode);   /* not implemented */
 
 
 /*! ZSTD_DCtx_setMaxWindowSize() :
@@ -1295,8 +1295,20 @@ ZSTDLIB_API size_t ZSTD_DCtx_setMaxWindowSize(ZSTD_DCtx* dctx, size_t maxWindowS
  *  such ZSTD_f_zstd1_magicless for example.
  * @return : 0, or an error code (which can be tested using ZSTD_isError()).
  */
-ZSTDLIB_API size_t ZSTD_DCtx_setFormat(ZSTD_DCtx* dctx, ZSTD_format_e format);
+ZSTDLIB_API size_t ZSTD_DCtx_setFormat(ZSTD_DCtx* dctx, ZSTD_format_e format);   /* implemented, but not functional */
 
+
+/* How to decompress ?
+ *
+ * currently, use ZSTD_decompressStream().
+ * We could also create a ZSTD_decompress_generic(),
+ * for an API experience similar to the compression one.
+ * It would effectively works exactly the same as ZSTD_decompressStream().
+ *
+ * Also : to re-init a decoding context, use ZSTD_initDStream().
+ * Here also, for a similar API logic, we could create ZSTD_DCtx_reset().
+ * It would behave the same.
+ */
 
 
 /** ===   Block level API  === **/

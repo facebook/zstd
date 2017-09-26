@@ -157,6 +157,8 @@ static size_t ZSTD_startingInputLength(ZSTD_format_e format)
                     ZSTD_frameHeaderSize_prefix - ZSTD_frameIdSize :
                     ZSTD_frameHeaderSize_prefix;
     ZSTD_STATIC_ASSERT(ZSTD_FRAMEHEADERSIZE_PREFIX >= ZSTD_FRAMEIDSIZE);
+    /* only supports formats ZSTD_f_zstd1 and ZSTD_f_zstd1_magicless */
+    assert( (format == ZSTD_f_zstd1) || (format == ZSTD_f_zstd1_magicless) );
     return startingInputLength;
 }
 
@@ -315,8 +317,6 @@ static size_t ZSTD_getFrameHeader_internal(ZSTD_frameHeader* zfhPtr, const void*
     const BYTE* ip = (const BYTE*)src;
     size_t const minInputSize = ZSTD_startingInputLength(format);
 
-    /* only supports formats ZSTD_f_zstd1 and ZSTD_f_zstd1_magicless */
-    assert( (format == ZSTD_f_zstd1) || (format == ZSTD_f_zstd1_magicless) );
     if (srcSize < minInputSize) return minInputSize;
 
     if ( (format != ZSTD_f_zstd1_magicless)

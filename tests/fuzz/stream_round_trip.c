@@ -57,7 +57,7 @@ static size_t compress(uint8_t *dst, size_t capacity,
 {
     size_t dstSize = 0;
     ZSTD_CCtx_reset(cctx);
-    FUZZ_setRandomParameters(cctx, &seed);
+    FUZZ_setRandomParameters(cctx, srcSize, &seed);
 
     while (srcSize > 0) {
         ZSTD_inBuffer in = makeInBuffer(&src, &srcSize);
@@ -85,7 +85,10 @@ static size_t compress(uint8_t *dst, size_t capacity,
                     /* Reset the compressor when the frame is finished */
                     if (ret == 0) {
                         ZSTD_CCtx_reset(cctx);
-                        FUZZ_setRandomParameters(cctx, &seed);
+                        if ((FUZZ_rand(&seed) & 7) == 0) {
+                            size_t const remaining = in.size - in.pos;
+                            FUZZ_setRandomParameters(cctx, remaining, &seed);
+                        }
                         mode = -1;
                     }
                     break;
@@ -146,7 +149,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
         size_t const cSize = compress(cBuf, neededBufSize, src, size);
         size_t const rSize =
             ZSTD_decompressDCtx(dctx, rBuf, neededBufSize, cBuf, cSize);
-        FUZZ_ASSERT_MSG(!ZSTD_isError(rSize), ZSTD_getErrorName(rSize));
+        FUZZ_ZASSERT(rSize);
         FUZZ_ASSERT_MSG(rSize == size, "Incorrect regenerated size");
         FUZZ_ASSERT_MSG(!memcmp(src, rBuf, size), "Corruption!");
     }

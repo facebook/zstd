@@ -279,8 +279,8 @@ static size_t ZSTD_frameHeaderSize_internal(const void* src, size_t srcSize, ZST
                     ZSTD_frameHeaderSize_prefix - ZSTD_frameIdSize :
                     ZSTD_frameHeaderSize_prefix;
     ZSTD_STATIC_ASSERT(ZSTD_FRAMEHEADERSIZE_PREFIX >= ZSTD_FRAMEIDSIZE);
-    ZSTD_STATIC_ASSERT((unsigned)ZSTD_f_zstd1 < (unsigned)ZSTD_f_zstd1_magicless);
-    assert((unsigned)format <= ZSTD_f_zstd1_magicless);  /* only supports formats ZSTD_f_zstd1 and ZSTD_f_zstd1_magicless */
+    /* only supports formats ZSTD_f_zstd1 and ZSTD_f_zstd1_magicless */
+    assert( (format == ZSTD_f_zstd1) || (format == ZSTD_f_zstd1_magicless) );
     if (srcSize < minInputSize) return ERROR(srcSize_wrong);
 
     {   BYTE const fhd = ((const BYTE*)src)[minInputSize-1];
@@ -315,12 +315,12 @@ static size_t ZSTD_getFrameHeader_internal(ZSTD_frameHeader* zfhPtr, const void*
                     ZSTD_frameHeaderSize_prefix - ZSTD_frameIdSize :
                     ZSTD_frameHeaderSize_prefix;
 
-    ZSTD_STATIC_ASSERT((unsigned)ZSTD_f_zstd1 < (unsigned)ZSTD_f_zstd1_magicless);
-    assert((unsigned)format <= ZSTD_f_zstd1_magicless);  /* only supports formats ZSTD_f_zstd1 and ZSTD_f_zstd1_magicless */
+    /* only supports formats ZSTD_f_zstd1 and ZSTD_f_zstd1_magicless */
+    assert( (format == ZSTD_f_zstd1) || (format == ZSTD_f_zstd1_magicless) );
     if (srcSize < minInputSize) return minInputSize;
 
-    if (format != ZSTD_f_zstd1_magicless)
-    if (MEM_readLE32(src) != ZSTD_MAGICNUMBER) {
+    if ( (format != ZSTD_f_zstd1_magicless)
+      && (MEM_readLE32(src) != ZSTD_MAGICNUMBER) ) {
         if ((MEM_readLE32(src) & 0xFFFFFFF0U) == ZSTD_MAGIC_SKIPPABLE_START) {
             /* skippable frame */
             if (srcSize < ZSTD_skippableHeaderSize)

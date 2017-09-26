@@ -72,6 +72,7 @@ static const char*    g_defaultDictName = "dictionary";
 static const unsigned g_defaultMaxDictSize = 110 KB;
 static const int      g_defaultDictCLevel = 3;
 static const unsigned g_defaultSelectivityLevel = 9;
+static const unsigned g_defaultMaxWindowLog = 27;
 #define OVERLAP_LOG_DEFAULT 9999
 #define LDM_PARAM_DEFAULT 9999  /* Default for parameters where 0 is valid */
 static U32 g_overlapLog = OVERLAP_LOG_DEFAULT;
@@ -129,7 +130,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -l     : print information about zstd compressed files \n");
 #ifndef ZSTD_NOCOMPRESS
     DISPLAY( "--ultra : enable levels beyond %i, up to %i (requires more memory)\n", ZSTDCLI_CLEVEL_MAX, ZSTD_maxCLevel());
-    DISPLAY( "--long  : enable long distance matching (requires more memory)\n");
+    DISPLAY( "--long[=#]  : enable long distance matching with given window log (default : %u)\n", g_defaultMaxWindowLog);
 #ifdef ZSTD_MULTITHREAD
     DISPLAY( " -T#    : use # threads for compression (default:1) \n");
     DISPLAY( " -B#    : select size of each job (default:0==automatic) \n");
@@ -459,7 +460,6 @@ int main(int argCount, const char* argv[])
                     if (!strcmp(argument, "--quiet")) { g_displayLevel--; continue; }
                     if (!strcmp(argument, "--stdout")) { forceStdout=1; outFileName=stdoutmark; g_displayLevel-=(g_displayLevel==2); continue; }
                     if (!strcmp(argument, "--ultra")) { ultra=1; continue; }
-                    if (!strcmp(argument, "--long")) { ldmFlag = 1; continue; }
                     if (!strcmp(argument, "--check")) { FIO_setChecksumFlag(2); continue; }
                     if (!strcmp(argument, "--no-check")) { FIO_setChecksumFlag(0); continue; }
                     if (!strcmp(argument, "--sparse")) { FIO_setSparseWrite(2); continue; }
@@ -514,6 +514,22 @@ int main(int argCount, const char* argv[])
                     if (longCommandWArg(&argument, "--maxdict=")) { maxDictSize = readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--dictID=")) { dictID = readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--zstd=")) { if (!parseCompressionParameters(argument, &compressionParams)) CLEAN_RETURN(badusage(programName)); continue; }
+                    if (longCommandWArg(&argument, "--long")) {
+                        unsigned ldmWindowLog = 0;
+                        ldmFlag = 1;
+                        /* Parse optional window log */
+                        if (*argument == '=') {
+                            ++argument;
+                            ldmWindowLog = readU32FromChar(&argument);
+                        } else if (*argument != 0) {
+                            /* Invalid character following --long */
+                            CLEAN_RETURN(badusage(programName));
+                        }
+                        /* Only set windowLog if not already set by --zstd */
+                        if (compressionParams.windowLog == 0)
+                            compressionParams.windowLog = ldmWindowLog;
+                        continue;
+                    }
                     /* fall-through, will trigger bad_usage() later on */
                 }
 
@@ -830,6 +846,13 @@ int main(int argCount, const char* argv[])
 #endif
     } else {  /* decompression or test */
 #ifndef ZSTD_NODECOMPRESS
+        if (memLimit == 0) {
+            if (compressionParams.windowLog == 0)
+                memLimit = (U32)1 << g_defaultMaxWindowLog;
+            else {
+                memLimit = (U32)1 << (compressionParams.windowLog & 31);
+            }
+        }
         FIO_setMemLimit(memLimit);
         if (filenameIdx==1 && outFileName)
             operationResult = FIO_decompressFilename(outFileName, filenameTable[0], dictFileName);

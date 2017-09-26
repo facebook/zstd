@@ -105,7 +105,8 @@ static const U32 repStartValue[ZSTD_REP_NUM] = { 1, 4, 8 };
 static const size_t ZSTD_fcs_fieldSize[4] = { 0, 2, 4, 8 };
 static const size_t ZSTD_did_fieldSize[4] = { 0, 1, 2, 4 };
 
-static const size_t ZSTD_frameIdSize = 4;  /* magic number */
+#define ZSTD_FRAMEIDSIZE 4
+static const size_t ZSTD_frameIdSize = ZSTD_FRAMEIDSIZE;  /* magic number size */
 
 #define ZSTD_BLOCKHEADERSIZE 3   /* C standard doesn't allow `static const` variable to be init using another `static const` variable */
 static const size_t ZSTD_blockHeaderSize = ZSTD_BLOCKHEADERSIZE;

@@ -920,7 +920,7 @@ static int basicUnitTests(U32 seed, double compressibility)
 
     /* custom formats tests */
     {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
-        static const size_t inputSize = CNBuffSize / 2;   /* won't cause pb with small dict size */
+        size_t const inputSize = CNBuffSize / 2;   /* won't cause pb with small dict size */
 
         /* basic block compression */
         DISPLAYLEVEL(4, "test%3i : magic-less format test : ", testNb++);

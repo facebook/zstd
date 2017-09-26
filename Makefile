@@ -12,6 +12,7 @@ ZSTDDIR  = lib
 BUILDIR  = build
 ZWRAPDIR = zlibWrapper
 TESTDIR  = tests
+FUZZDIR  = $(TESTDIR)/fuzz
 
 # Define nul output
 VOID = /dev/null
@@ -214,6 +215,15 @@ arm-ppc-compilation:
 	$(MAKE) -C $(PRGDIR) clean zstd CC=aarch64-linux-gnu-gcc QEMU_SYS=qemu-aarch64-static ZSTDRTTEST= MOREFLAGS="-Werror -static"
 	$(MAKE) -C $(PRGDIR) clean zstd CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc-static ZSTDRTTEST= MOREFLAGS="-Werror -Wno-attributes -static"
 	$(MAKE) -C $(PRGDIR) clean zstd CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc64-static ZSTDRTTEST= MOREFLAGS="-m64 -static"
+
+regressiontest:
+	$(MAKE) -C $(FUZZDIR) regressiontest
+
+uasanregressiontest:
+	$(MAKE) -C $(FUZZDIR) regressiontest CC=clang CXX=clang++ CFLAGS="-O3 -fsanitize=address,undefined" CXXFLAGS="-O3 -fsanitize=address,undefined"
+
+msanregressiontest:
+	$(MAKE) -C $(FUZZDIR) regressiontest CC=clang CXX=clang++ CFLAGS="-O3 -fsanitize=memory" CXXFLAGS="-O3 -fsanitize=memory"
 
 # run UBsan with -fsanitize-recover=signed-integer-overflow
 # due to a bug in UBsan when doing pointer subtraction

@@ -1259,20 +1259,30 @@ void ZSTD_seqToCodes(const seqStore_t* seqStorePtr)
         mlCodeTable[seqStorePtr->longLengthPos] = MaxML;
 }
 
-MEM_STATIC symbolEncodingType_e ZSTD_selectEncodingType(FSE_repeat* repeatMode,
-        size_t const mostFrequent, size_t nbSeq, U32 defaultNormLog)
+typedef enum {
+    ZSTD_defaultDisallowed = 0,
+    ZSTD_defaultAllowed = 1
+} ZSTD_defaultPolicy_e;
+
+MEM_STATIC symbolEncodingType_e ZSTD_selectEncodingType(
+        FSE_repeat* repeatMode, size_t const mostFrequent, size_t nbSeq,
+        U32 defaultNormLog, ZSTD_defaultPolicy_e const isDefaultAllowed)
 {
 #define MIN_SEQ_FOR_DYNAMIC_FSE   64
 #define MAX_SEQ_FOR_STATIC_FSE  1000
-
-    if ((mostFrequent == nbSeq) && (nbSeq > 2)) {
+    ZSTD_STATIC_ASSERT(ZSTD_defaultDisallowed == 0 && ZSTD_defaultAllowed != 0);
+    if ((mostFrequent == nbSeq) && (!isDefaultAllowed || nbSeq > 2)) {
+        /* Prefer set_basic over set_rle when there are 2 or less symbols,
+         * since RLE uses 1 byte, but set_basic uses 5-6 bits per symbol.
+         * If basic encoding isn't possible, always choose RLE.
+         */
         *repeatMode = FSE_repeat_check;
         return set_rle;
     }
-    if ((*repeatMode == FSE_repeat_valid) && (nbSeq < MAX_SEQ_FOR_STATIC_FSE)) {
+    if (isDefaultAllowed && (*repeatMode == FSE_repeat_valid) && (nbSeq < MAX_SEQ_FOR_STATIC_FSE)) {
         return set_repeat;
     }
-    if ((nbSeq < MIN_SEQ_FOR_DYNAMIC_FSE) || (mostFrequent < (nbSeq >> (defaultNormLog-1)))) {
+    if (isDefaultAllowed && ((nbSeq < MIN_SEQ_FOR_DYNAMIC_FSE) || (mostFrequent < (nbSeq >> (defaultNormLog-1))))) {
         *repeatMode = FSE_repeat_valid;
         return set_basic;
     }
@@ -1308,6 +1318,7 @@ MEM_STATIC size_t ZSTD_buildCTable(void* dst, size_t dstCapacity,
             count[codeTable[nbSeq-1]]--;
             nbSeq_1--;
         }
+        assert(nbSeq_1 > 1);
         CHECK_F(FSE_normalizeCount(norm, tableLog, count, nbSeq_1, max));
         {   size_t const NCountSize = FSE_writeNCount(op, oend - op, norm, max, tableLog);   /* overflow protected */
             if (FSE_isError(NCountSize)) return NCountSize;
@@ -1445,7 +1456,7 @@ MEM_STATIC size_t ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
     /* CTable for Literal Lengths */
     {   U32 max = MaxLL;
         size_t const mostFrequent = FSE_countFast_wksp(count, &max, llCodeTable, nbSeq, entropy->workspace);
-        LLtype = ZSTD_selectEncodingType(&entropy->litlength_repeatMode, mostFrequent, nbSeq, LL_defaultNormLog);
+        LLtype = ZSTD_selectEncodingType(&entropy->litlength_repeatMode, mostFrequent, nbSeq, LL_defaultNormLog, ZSTD_defaultAllowed);
         {   size_t const countSize = ZSTD_buildCTable(op, oend - op, CTable_LitLength, LLFSELog, (symbolEncodingType_e)LLtype,
                     count, max, llCodeTable, nbSeq, LL_defaultNorm, LL_defaultNormLog, MaxLL,
                     entropy->workspace, sizeof(entropy->workspace));
@@ -1455,9 +1466,11 @@ MEM_STATIC size_t ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
     /* CTable for Offsets */
     {   U32 max = MaxOff;
         size_t const mostFrequent = FSE_countFast_wksp(count, &max, ofCodeTable, nbSeq, entropy->workspace);
-        Offtype = ZSTD_selectEncodingType(&entropy->offcode_repeatMode, mostFrequent, nbSeq, OF_defaultNormLog);
+        /* We can only use the basic table if max <= DefaultMaxOff, otherwise the offsets are too large */
+        ZSTD_defaultPolicy_e const defaultPolicy = max <= DefaultMaxOff ? ZSTD_defaultAllowed : ZSTD_defaultDisallowed;
+        Offtype = ZSTD_selectEncodingType(&entropy->offcode_repeatMode, mostFrequent, nbSeq, OF_defaultNormLog, defaultPolicy);
         {   size_t const countSize = ZSTD_buildCTable(op, oend - op, CTable_OffsetBits, OffFSELog, (symbolEncodingType_e)Offtype,
-                    count, max, ofCodeTable, nbSeq, OF_defaultNorm, OF_defaultNormLog, MaxOff,
+                    count, max, ofCodeTable, nbSeq, OF_defaultNorm, OF_defaultNormLog, DefaultMaxOff,
                     entropy->workspace, sizeof(entropy->workspace));
             if (ZSTD_isError(countSize)) return countSize;
             op += countSize;
@@ -1465,7 +1478,7 @@ MEM_STATIC size_t ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
     /* CTable for MatchLengths */
     {   U32 max = MaxML;
         size_t const mostFrequent = FSE_countFast_wksp(count, &max, mlCodeTable, nbSeq, entropy->workspace);
-        MLtype = ZSTD_selectEncodingType(&entropy->matchlength_repeatMode, mostFrequent, nbSeq, ML_defaultNormLog);
+        MLtype = ZSTD_selectEncodingType(&entropy->matchlength_repeatMode, mostFrequent, nbSeq, ML_defaultNormLog, ZSTD_defaultAllowed);
         {   size_t const countSize = ZSTD_buildCTable(op, oend - op, CTable_MatchLength, MLFSELog, (symbolEncodingType_e)MLtype,
                     count, max, mlCodeTable, nbSeq, ML_defaultNorm, ML_defaultNormLog, MaxML,
                     entropy->workspace, sizeof(entropy->workspace));

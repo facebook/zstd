@@ -150,11 +150,19 @@ size_t ZSTD_sizeof_DCtx (const ZSTD_DCtx* dctx)
 
 size_t ZSTD_estimateDCtxSize(void) { return sizeof(ZSTD_DCtx); }
 
+
+static size_t ZSTD_startingInputLength(ZSTD_format_e format)
+{
+    size_t const startingInputLength = (format==ZSTD_f_zstd1_magicless) ?
+                    ZSTD_frameHeaderSize_prefix - ZSTD_frameIdSize :
+                    ZSTD_frameHeaderSize_prefix;
+    ZSTD_STATIC_ASSERT(ZSTD_FRAMEHEADERSIZE_PREFIX >= ZSTD_FRAMEIDSIZE);
+    return startingInputLength;
+}
+
 size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx)
 {
-    dctx->expected = (dctx->format==ZSTD_f_zstd1_magicless) ?
-                            ZSTD_frameHeaderSize_prefix - ZSTD_frameIdSize :
-                            ZSTD_frameHeaderSize_prefix;
+    dctx->expected = ZSTD_startingInputLength(dctx->format);
     dctx->stage = ZSTDds_getFrameHeaderSize;
     dctx->decodedSize = 0;
     dctx->previousDstEnd = NULL;
@@ -267,7 +275,6 @@ unsigned ZSTD_isFrame(const void* buffer, size_t size)
     return 0;
 }
 
-
 /** ZSTD_frameHeaderSize_internal() :
  *  srcSize must be large enough to reach header size fields.
  *  note : only works for formats ZSTD_f_zstd1 and ZSTD_f_zstd1_magicless
@@ -275,12 +282,7 @@ unsigned ZSTD_isFrame(const void* buffer, size_t size)
  *           or an error code, which can be tested with ZSTD_isError() */
 static size_t ZSTD_frameHeaderSize_internal(const void* src, size_t srcSize, ZSTD_format_e format)
 {
-    size_t const minInputSize = (format==ZSTD_f_zstd1_magicless) ?
-                    ZSTD_frameHeaderSize_prefix - ZSTD_frameIdSize :
-                    ZSTD_frameHeaderSize_prefix;
-    ZSTD_STATIC_ASSERT(ZSTD_FRAMEHEADERSIZE_PREFIX >= ZSTD_FRAMEIDSIZE);
-    /* only supports formats ZSTD_f_zstd1 and ZSTD_f_zstd1_magicless */
-    assert( (format == ZSTD_f_zstd1) || (format == ZSTD_f_zstd1_magicless) );
+    size_t const minInputSize = ZSTD_startingInputLength(format);
     if (srcSize < minInputSize) return ERROR(srcSize_wrong);
 
     {   BYTE const fhd = ((const BYTE*)src)[minInputSize-1];
@@ -311,9 +313,7 @@ size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize)
 static size_t ZSTD_getFrameHeader_internal(ZSTD_frameHeader* zfhPtr, const void* src, size_t srcSize, ZSTD_format_e format)
 {
     const BYTE* ip = (const BYTE*)src;
-    size_t const minInputSize = (format==ZSTD_f_zstd1_magicless) ?
-                    ZSTD_frameHeaderSize_prefix - ZSTD_frameIdSize :
-                    ZSTD_frameHeaderSize_prefix;
+    size_t const minInputSize = ZSTD_startingInputLength(format);
 
     /* only supports formats ZSTD_f_zstd1 and ZSTD_f_zstd1_magicless */
     assert( (format == ZSTD_f_zstd1) || (format == ZSTD_f_zstd1_magicless) );

@@ -1,6 +1,14 @@
 # Fuzzing
 
 Each fuzzing target can be built with multiple engines.
+Zstd provides a fuzz corpus for each target that can be downloaded with
+the command:
+
+```
+make corpora
+```
+
+It will download each corpus into `./corpora/TARGET`.
 
 ## fuzz.py
 

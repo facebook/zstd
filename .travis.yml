@@ -21,6 +21,8 @@ matrix:
     - env: Cmd='make arminstall && make aarch64fuzz'
     - env: Cmd='make ppcinstall && make ppcfuzz'
     - env: Cmd='make ppcinstall && make ppc64fuzz'
+    - env: Cmd='make -j uasanregressiontest'
+    - env: Cmd='make -j msanregressiontest'
 
 git:
   depth: 1

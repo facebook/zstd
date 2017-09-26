@@ -82,11 +82,39 @@ def tmpdir():
         shutil.rmtree(dirpath, ignore_errors=True)
 
 
+def parse_targets(in_targets):
+    targets = set()
+    for target in in_targets:
+        if not target:
+            continue
+        if target == 'all':
+            targets = targets.union(TARGETS)
+        elif target in TARGETS:
+            targets.add(target)
+        else:
+            raise RuntimeError('{} is not a valid target'.format(target))
+    return list(targets)
+
+
+def targets_parser(args, description):
+    parser = argparse.ArgumentParser(prog=args.pop(0), description=description)
+    parser.add_argument(
+        'TARGET',
+        nargs='*',
+        type=str,
+        help='Fuzz target(s) to build {{{}}}'.format(', '.join(ALL_TARGETS)))
+    args, extra = parser.parse_known_args(args)
+    args.extra = extra
+
+    args.TARGET = parse_targets(args.TARGET)
+
+    return args
+
+
 def parse_env_flags(args, flags):
     """
     Look for flags set by environment variables.
     """
-    flags = ' '.join(flags)
     san_flags = ','.join(re.findall('-fsanitize=((?:[a-z]+,?)+)', flags))
     nosan_flags = ','.join(re.findall('-fno-sanitize=((?:[a-z]+,?)+)', flags))
 
@@ -110,6 +138,34 @@ def parse_env_flags(args, flags):
     args.sanitize = args.asan or args.msan or args.ubsan
 
     return args
+
+
+def compiler_version(cc, cxx):
+    """
+    Determines the compiler and version.
+    Only works for clang and gcc.
+    """
+    cc_version_bytes = subprocess.check_output([cc, "--version"])
+    cxx_version_bytes = subprocess.check_output([cxx, "--version"])
+    if cc_version_bytes.startswith(b'clang'):
+        assert(cxx_version_bytes.startswith(b'clang'))
+        compiler = 'clang'
+    if cc_version_bytes.startswith(b'gcc'):
+        assert(cxx_version_bytes.startswith(b'g++'))
+        compiler = 'gcc'
+    version_regex = b'([0-9])+\.([0-9])+\.([0-9])+'
+    version_match = re.search(version_regex, cc_version_bytes)
+    version = tuple(int(version_match.group(i)) for i in range(1, 4))
+    return compiler, version
+
+
+def overflow_ubsan_flags(cc, cxx):
+    compiler, version = compiler_version(cc, cxx)
+    if compiler == 'gcc':
+        return ['-fno-sanitize=signed-integer-overflow']
+    if compiler == 'clang' and version >= (5, 0, 0):
+        return ['-fno-sanitize=pointer-overflow']
+    return []
 
 
 def build_parser(args):
@@ -336,7 +392,7 @@ def build(args):
     if args.ubsan:
         ubsan_flags = ['-fsanitize=undefined']
         if not args.ubsan_pointer_overflow:
-            ubsan_flags += ['-fno-sanitize=pointer-overflow']
+            ubsan_flags += overflow_ubsan_flags(cc, cxx)
         common_flags += ubsan_flags
 
     if args.stateful_fuzzing:
@@ -424,36 +480,42 @@ def libfuzzer_parser(args):
     if args.TARGET and args.TARGET not in TARGETS:
         raise RuntimeError('{} is not a valid target'.format(args.TARGET))
 
-    if not args.corpora:
-        args.corpora = abs_join(CORPORA_DIR, args.TARGET)
-    if not args.artifact:
-        args.artifact = abs_join(CORPORA_DIR, '{}-crash'.format(args.TARGET))
-    if not args.seed:
-        args.seed = abs_join(CORPORA_DIR, '{}-seed'.format(args.TARGET))
-
     return args
 
 
-def libfuzzer(args):
-    try:
-        args = libfuzzer_parser(args)
-    except Exception as e:
-        print(e)
-        return 1
-    target = abs_join(FUZZ_DIR, args.TARGET)
+def libfuzzer(target, corpora=None, artifact=None, seed=None, extra_args=None):
+    if corpora is None:
+        corpora = abs_join(CORPORA_DIR, target)
+    if artifact is None:
+        artifact = abs_join(CORPORA_DIR, '{}-crash'.format(target))
+    if seed is None:
+        seed = abs_join(CORPORA_DIR, '{}-seed'.format(target))
+    if extra_args is None:
+        extra_args = []
 
-    corpora = [create(args.corpora)]
-    artifact = create(args.artifact)
-    seed = check(args.seed)
+    target = abs_join(FUZZ_DIR, target)
+
+    corpora = [create(corpora)]
+    artifact = create(artifact)
+    seed = check(seed)
 
     corpora += [artifact]
     if seed is not None:
         corpora += [seed]
 
     cmd = [target, '-artifact_prefix={}/'.format(artifact)]
-    cmd += corpora + args.extra
+    cmd += corpora + extra_args
     print(' '.join(cmd))
-    subprocess.call(cmd)
+    subprocess.check_call(cmd)
+
+
+def libfuzzer_cmd(args):
+    try:
+        args = libfuzzer_parser(args)
+    except Exception as e:
+        print(e)
+        return 1
+    libfuzzer(args.TARGET, args.corpora, args.artifact, args.seed, args.extra)
     return 0
 
 
@@ -518,39 +580,15 @@ def afl(args):
     return 0
 
 
-def regression_parser(args):
-    description = """
-    Runs one or more regression tests.
-    The fuzzer should have been built with with
-    LIB_FUZZING_ENGINE='libregression.a'.
-    Takes input from CORPORA.
-    """
-    parser = argparse.ArgumentParser(prog=args.pop(0), description=description)
-    parser.add_argument(
-        'TARGET',
-        nargs='*',
-        type=str,
-        help='Fuzz target(s) to build {{{}}}'.format(', '.join(ALL_TARGETS)))
-    args = parser.parse_args(args)
-
-    targets = set()
-    for target in args.TARGET:
-        if not target:
-            continue
-        if target == 'all':
-            targets = targets.union(TARGETS)
-        elif target in TARGETS:
-            targets.add(target)
-        else:
-            raise RuntimeError('{} is not a valid target'.format(target))
-    args.TARGET = list(targets)
-
-    return args
-
-
 def regression(args):
     try:
-        args = regression_parser(args)
+        description = """
+        Runs one or more regression tests.
+        The fuzzer should have been built with with
+        LIB_FUZZING_ENGINE='libregression.a'.
+        Takes input from CORPORA.
+        """
+        args = targets_parser(args, description)
     except Exception as e:
         print(e)
         return 1
@@ -673,6 +711,52 @@ def gen(args):
     return 0
 
 
+def minimize(args):
+    try:
+        description = """
+        Runs a libfuzzer fuzzer with -merge=1 to build a minimal corpus in
+        TARGET_seed_corpus. All extra args are passed to libfuzzer.
+        """
+        args = targets_parser(args, description)
+    except Exception as e:
+        print(e)
+        return 1
+
+    for target in args.TARGET:
+        # Merge the corpus + anything else into the seed_corpus
+        corpus = abs_join(CORPORA_DIR, target)
+        seed_corpus = abs_join(CORPORA_DIR, "{}_seed_corpus".format(target))
+        extra_args = [corpus, "-merge=1"] + args.extra
+        libfuzzer(target, corpora=seed_corpus, extra_args=extra_args)
+        seeds = set(os.listdir(seed_corpus))
+        # Copy all crashes directly into the seed_corpus if not already present
+        crashes = abs_join(CORPORA_DIR, '{}-crash'.format(target))
+        for crash in os.listdir(crashes):
+            if crash not in seeds:
+                shutil.copy(abs_join(crashes, crash), seed_corpus)
+                seeds.add(crash)
+
+
+def zip_cmd(args):
+    try:
+        description = """
+        Zips up the seed corpus.
+        """
+        args = targets_parser(args, description)
+    except Exception as e:
+        print(e)
+        return 1
+
+    for target in args.TARGET:
+        # Zip the seed_corpus
+        seed_corpus = abs_join(CORPORA_DIR, "{}_seed_corpus".format(target))
+        seeds = [abs_join(seed_corpus, f) for f in os.listdir(seed_corpus)]
+        zip_file = "{}.zip".format(seed_corpus)
+        cmd = ["zip", "-q", "-j", "-9", zip_file]
+        print(' '.join(cmd + [abs_join(seed_corpus, '*')]))
+        subprocess.check_call(cmd + seeds)
+
+
 def short_help(args):
     name = args[0]
     print("Usage: {} [OPTIONS] COMMAND [ARGS]...\n".format(name))
@@ -690,6 +774,8 @@ def help(args):
     print("\tafl\t\tRun an AFL fuzzer")
     print("\tregression\tRun a regression test")
     print("\tgen\t\tGenerate a seed corpus for a fuzzer")
+    print("\tminimize\tMinimize the test corpora")
+    print("\tzip\t\tZip the minimized corpora up")
 
 
 def main():
@@ -705,13 +791,17 @@ def main():
     if command == "build":
         return build(args)
     if command == "libfuzzer":
-        return libfuzzer(args)
+        return libfuzzer_cmd(args)
     if command == "regression":
         return regression(args)
     if command == "afl":
         return afl(args)
     if command == "gen":
         return gen(args)
+    if command == "minimize":
+        return minimize(args)
+    if command == "zip":
+        return zip_cmd(args)
     short_help(args)
     print("Error: No such command {} (pass -h for help)".format(command))
     return 1

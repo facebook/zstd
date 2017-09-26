@@ -34,27 +34,20 @@ static size_t roundTripTest(void *result, size_t resultCapacity,
                             void *compressed, size_t compressedCapacity,
                             const void *src, size_t srcSize)
 {
-  int const cLevel = FUZZ_rand(&seed) % kMaxClevel;
-  size_t ret = ZSTD_compressBegin(cctx, cLevel);
+    int const cLevel = FUZZ_rand(&seed) % kMaxClevel;
+    ZSTD_parameters const params = ZSTD_getParams(cLevel, srcSize, 0);
+    size_t ret = ZSTD_compressBegin_advanced(cctx, NULL, 0, params, srcSize);
+    FUZZ_ZASSERT(ret);
 
-  if (ZSTD_isError(ret)) {
-      fprintf(stderr, "ZSTD_compressBegin() error: %s\n",
-              ZSTD_getErrorName(ret));
-      return ret;
-  }
-
-  ret = ZSTD_compressBlock(cctx, compressed, compressedCapacity, src, srcSize);
-  if (ZSTD_isError(ret)) {
-    fprintf(stderr, "ZSTD_compressBlock() error: %s\n", ZSTD_getErrorName(ret));
-    return ret;
-  }
-  if (ret == 0) {
+    ret = ZSTD_compressBlock(cctx, compressed, compressedCapacity, src, srcSize);
+    FUZZ_ZASSERT(ret);
+    if (ret == 0) {
         FUZZ_ASSERT(resultCapacity >= srcSize);
         memcpy(result, src, srcSize);
         return srcSize;
-  }
-  ZSTD_decompressBegin(dctx);
-  return ZSTD_decompressBlock(dctx, result, resultCapacity, compressed, ret);
+    }
+    ZSTD_decompressBegin(dctx);
+    return ZSTD_decompressBlock(dctx, result, resultCapacity, compressed, ret);
 }
 
 int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
@@ -87,7 +80,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     {
         size_t const result =
             roundTripTest(rBuf, neededBufSize, cBuf, neededBufSize, src, size);
-        FUZZ_ASSERT_MSG(!ZSTD_isError(result), ZSTD_getErrorName(result));
+        FUZZ_ZASSERT(result);
         FUZZ_ASSERT_MSG(result == size, "Incorrect regenerated size");
         FUZZ_ASSERT_MSG(!memcmp(src, rBuf, size), "Corruption!");
     }

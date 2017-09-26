@@ -278,7 +278,7 @@ static size_t ZSTD_frameHeaderSize_internal(const void* src, size_t srcSize, ZST
     size_t const minInputSize = (format==ZSTD_f_zstd1_magicless) ?
                     ZSTD_frameHeaderSize_prefix - ZSTD_frameIdSize :
                     ZSTD_frameHeaderSize_prefix;
-    ZSTD_STATIC_ASSERT(ZSTD_frameHeaderSize_prefix >= ZSTD_frameIdSize);
+    ZSTD_STATIC_ASSERT(ZSTD_FRAMEHEADERSIZE_PREFIX >= ZSTD_FRAMEIDSIZE);
     ZSTD_STATIC_ASSERT((unsigned)ZSTD_f_zstd1 < (unsigned)ZSTD_f_zstd1_magicless);
     assert((unsigned)format <= ZSTD_f_zstd1_magicless);  /* only supports formats ZSTD_f_zstd1 and ZSTD_f_zstd1_magicless */
     if (srcSize < minInputSize) return ERROR(srcSize_wrong);

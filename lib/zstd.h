@@ -395,11 +395,12 @@ ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output
 #define ZSTD_LDM_MINMATCH_MAX 4096
 #define ZSTD_LDM_BUCKETSIZELOG_MAX 8
 
-#define ZSTD_FRAMEHEADERSIZE_MAX 18    /* for static allocation */
-#define ZSTD_FRAMEHEADERSIZE_MIN  6
-static const size_t ZSTD_frameHeaderSize_prefix = 5;  /* minimum input size to know frame header size */
-static const size_t ZSTD_frameHeaderSize_max = ZSTD_FRAMEHEADERSIZE_MAX;
+#define ZSTD_FRAMEHEADERSIZE_PREFIX 5   /* minimum input size to know frame header size */
+#define ZSTD_FRAMEHEADERSIZE_MIN    6
+#define ZSTD_FRAMEHEADERSIZE_MAX   18   /* for static allocation */
+static const size_t ZSTD_frameHeaderSize_prefix = ZSTD_FRAMEHEADERSIZE_PREFIX;
 static const size_t ZSTD_frameHeaderSize_min = ZSTD_FRAMEHEADERSIZE_MIN;
+static const size_t ZSTD_frameHeaderSize_max = ZSTD_FRAMEHEADERSIZE_MAX;
 static const size_t ZSTD_skippableHeaderSize = 8;  /* magic number + skippable frame length */
 
 

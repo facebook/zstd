@@ -14,6 +14,13 @@ CPPFLAGS ?=
 LDFLAGS ?=
 ARFLAGS ?=
 LIB_FUZZING_ENGINE ?= libregression.a
+PYTHON ?= python
+ifeq ($(shell uname), Darwin)
+	DOWNLOAD?=curl -L -o
+else
+	DOWNLOAD?=wget -O
+endif
+CORPORA_URL_PREFIX:=https://github.com/facebook/zstd/releases/download/fuzz-corpora/
 
 ZSTDDIR = ../../lib
 PRGDIR = ../../programs
@@ -48,17 +55,19 @@ FUZZ_SRC       := \
 FUZZ_OBJ := $(patsubst %.c,%.o, $(wildcard $(FUZZ_SRC)))
 
 
-.PHONY: default all clean
+.PHONY: default all clean cleanall
 
 default: all
 
-all: \
+FUZZ_TARGETS :=       \
 	simple_round_trip \
 	stream_round_trip \
-	block_round_trip \
+	block_round_trip  \
 	simple_decompress \
 	stream_decompress \
 	block_decompress
+
+all: $(FUZZ_TARGETS)
 
 %.o: %.c
 	$(CC) $(FUZZ_CPPFLAGS) $(FUZZ_CFLAGS) $^ -c -o $@
@@ -93,7 +102,25 @@ libFuzzer:
 	@git clone https://chromium.googlesource.com/chromium/llvm-project/llvm/lib/Fuzzer
 	@cd Fuzzer && ./build.sh
 
+corpora/%_seed_corpus.zip:
+	@mkdir -p corpora
+	$(DOWNLOAD) $@ $(CORPORA_URL_PREFIX)$*_seed_corpus.zip
+
+corpora/%: corpora/%_seed_corpus.zip
+	unzip -q $^ -d $@
+
+.PHONY: corpora
+corpora: $(patsubst %,corpora/%,$(FUZZ_TARGETS))
+
+regressiontest: corpora
+	CC="$(CC)" CXX="$(CXX)" CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" $(PYTHON) ./fuzz.py build all
+	$(PYTHON) ./fuzz.py regression all
+
 clean:
 	@$(MAKE) -C $(ZSTDDIR) clean
 	@$(RM) -f *.a *.o
 	@$(RM) -f simple_round_trip stream_round_trip simple_decompress stream_decompress
+
+cleanall:
+	@$(RM) -rf Fuzzer
+	@$(RM) -rf corpora

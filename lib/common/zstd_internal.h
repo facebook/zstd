@@ -125,7 +125,8 @@ typedef enum { set_basic, set_rle, set_compressed, set_repeat } symbolEncodingTy
 #define MaxLit ((1<<Litbits) - 1)
 #define MaxML  52
 #define MaxLL  35
-#define MaxOff 28
+#define DefaultMaxOff 28
+#define MaxOff 31
 #define MaxSeq MAX(MaxLL, MaxML)   /* Assumption : MaxOff < MaxLL,MaxML */
 #define MLFSELog    9
 #define LLFSELog    9
@@ -151,8 +152,8 @@ static const S16 ML_defaultNorm[MaxML+1] = { 1, 4, 3, 2, 2, 2, 2, 2, 2, 1, 1, 1,
 #define ML_DEFAULTNORMLOG 6  /* for static allocation */
 static const U32 ML_defaultNormLog = ML_DEFAULTNORMLOG;
 
-static const S16 OF_defaultNorm[MaxOff+1] = { 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1,
-                                              1, 1, 1, 1, 1, 1, 1, 1,-1,-1,-1,-1,-1 };
+static const S16 OF_defaultNorm[DefaultMaxOff+1] = { 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1,
+                                                     1, 1, 1, 1, 1, 1, 1, 1,-1,-1,-1,-1,-1 };
 #define OF_DEFAULTNORMLOG 5  /* for static allocation */
 static const U32 OF_defaultNormLog = OF_DEFAULTNORMLOG;
 

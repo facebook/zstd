@@ -881,7 +881,7 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
                                   frame->stats.offsetSymbolSet, 28)) {
             Offtype = set_repeat;
         } else if (!(RAND(seed) & 3)) {
-            FSE_buildCTable_wksp(CTable_OffsetBits, OF_defaultNorm, MaxOff, OF_defaultNormLog, scratchBuffer, sizeof(scratchBuffer));
+            FSE_buildCTable_wksp(CTable_OffsetBits, OF_defaultNorm, DefaultMaxOff, OF_defaultNormLog, scratchBuffer, sizeof(scratchBuffer));
             Offtype = set_basic;
         } else {
             size_t nbSeq_1 = nbSeq;

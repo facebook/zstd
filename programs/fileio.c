@@ -1864,10 +1864,12 @@ static void displayInfo(const char* inFileName, fileInfo_t* info, int displayLev
         DISPLAYOUT("# Zstandard Frames: %d\n", info->numActualFrames);
         DISPLAYOUT("# Skippable Frames: %d\n", info->numSkippableFrames);
         DISPLAYOUT("Compressed Size: %.2f %2s (%llu B)\n",
-                    compressedSizeUnit, unitStr, info->compressedSize);
+                    compressedSizeUnit, unitStr,
+                    (unsigned long long)info->compressedSize);
         if (!info->decompUnavailable) {
             DISPLAYOUT("Decompressed Size: %.2f %2s (%llu B)\n",
-                    decompressedSizeUnit, unitStr, info->decompressedSize);
+                    decompressedSizeUnit, unitStr,
+                    (unsigned long long)info->decompressedSize);
             DISPLAYOUT("Ratio: %.4f\n", ratio);
         }
         DISPLAYOUT("Check: %s\n", checkString);

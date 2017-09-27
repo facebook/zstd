@@ -711,8 +711,8 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_cover(
  * compiled with multithreaded support.
  */
 typedef struct COVER_best_s {
-  pthread_mutex_t mutex;
-  pthread_cond_t cond;
+  ZSTD_pthread_mutex_t mutex;
+  ZSTD_pthread_cond_t cond;
   size_t liveJobs;
   void *dict;
   size_t dictSize;
@@ -725,8 +725,8 @@ typedef struct COVER_best_s {
  */
 static void COVER_best_init(COVER_best_t *best) {
   if (best==NULL) return; /* compatible with init on NULL */
-  (void)pthread_mutex_init(&best->mutex, NULL);
-  (void)pthread_cond_init(&best->cond, NULL);
+  (void)ZSTD_pthread_mutex_init(&best->mutex, NULL);
+  (void)ZSTD_pthread_cond_init(&best->cond, NULL);
   best->liveJobs = 0;
   best->dict = NULL;
   best->dictSize = 0;
@@ -741,11 +741,11 @@ static void COVER_best_wait(COVER_best_t *best) {
   if (!best) {
     return;
   }
-  pthread_mutex_lock(&best->mutex);
+  ZSTD_pthread_mutex_lock(&best->mutex);
   while (best->liveJobs != 0) {
-    pthread_cond_wait(&best->cond, &best->mutex);
+    ZSTD_pthread_cond_wait(&best->cond, &best->mutex);
   }
-  pthread_mutex_unlock(&best->mutex);
+  ZSTD_pthread_mutex_unlock(&best->mutex);
 }
 
 /**
@@ -759,8 +759,8 @@ static void COVER_best_destroy(COVER_best_t *best) {
   if (best->dict) {
     free(best->dict);
   }
-  pthread_mutex_destroy(&best->mutex);
-  pthread_cond_destroy(&best->cond);
+  ZSTD_pthread_mutex_destroy(&best->mutex);
+  ZSTD_pthread_cond_destroy(&best->cond);
 }
 
 /**
@@ -771,9 +771,9 @@ static void COVER_best_start(COVER_best_t *best) {
   if (!best) {
     return;
   }
-  pthread_mutex_lock(&best->mutex);
+  ZSTD_pthread_mutex_lock(&best->mutex);
   ++best->liveJobs;
-  pthread_mutex_unlock(&best->mutex);
+  ZSTD_pthread_mutex_unlock(&best->mutex);
 }
 
 /**
@@ -789,7 +789,7 @@ static void COVER_best_finish(COVER_best_t *best, size_t compressedSize,
   }
   {
     size_t liveJobs;
-    pthread_mutex_lock(&best->mutex);
+    ZSTD_pthread_mutex_lock(&best->mutex);
     --best->liveJobs;
     liveJobs = best->liveJobs;
     /* If the new dictionary is better */
@@ -812,9 +812,9 @@ static void COVER_best_finish(COVER_best_t *best, size_t compressedSize,
       best->parameters = parameters;
       best->compressedSize = compressedSize;
     }
-    pthread_mutex_unlock(&best->mutex);
+    ZSTD_pthread_mutex_unlock(&best->mutex);
     if (liveJobs == 0) {
-      pthread_cond_broadcast(&best->cond);
+      ZSTD_pthread_cond_broadcast(&best->cond);
     }
   }
 }

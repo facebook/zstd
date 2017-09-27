@@ -330,7 +330,7 @@ size_t ZSTD_CCtxParam_setParameter(
     switch(param)
     {
     case ZSTD_p_format :
-        if (value > (unsigned)ZSTD_f_zstd1_block)
+        if (value > (unsigned)ZSTD_f_zstd1)
             return ERROR(parameter_unsupported);
         params->format = (ZSTD_format_e)value;
         return 0;

@@ -786,19 +786,19 @@ size_t ZSTD_decodingBufferSize_min(unsigned long long windowSize, unsigned long 
 <a name="Chapter20"></a><h2>New advanced API (experimental)</h2><pre></pre>
 
 <pre><b>typedef enum {
-    ZSTD_f_zstd1 = 0,        </b>/* Normal zstd frame format, specified in zstd_compression_format.md (default) */<b>
+    </b>/* Question : should we have a format ZSTD_f_auto ?<b>
+     * For the time being, it would mean exactly the same as ZSTD_f_zstd1.
+     * But, in the future, should several formats be supported,
+     * on the compression side, it would mean "default format".
+     * On the decompression side, it would mean "multi format",
+     * and ZSTD_f_zstd1 could be reserved to mean "accept *only* zstd frames".
+     * Since meaning is a little different, another option could be to define different enums for compression and decompression.
+     * This question could be kept for later, when there are actually multiple formats to support,
+     * but there is also the question of pinning enum values, and pinning value `0` is especially important */
+    ZSTD_f_zstd1 = 0,        </b>/* zstd frame format, specified in zstd_compression_format.md (default) */<b>
     ZSTD_f_zstd1_magicless,  </b>/* Variant of zstd frame format, without initial 4-bytes magic number.<b>
                               * Useful to save 4 bytes per generated frame.
-                              * Decoder will not be able to recognise this format, requiring instructions. */
-    ZSTD_f_zstd1_headerless, </b>/* Variant of zstd frame format, without any frame header;<b>
-                              * Other metadata, like block size or frame checksum, are still generated.
-                              * Useful to save between 6 and ZSTD_frameHeaderSize_max bytes per generated frame.
-                              * However, required decoding parameters will have to be saved or known by some mechanism.
-                              * Decoder will not be able to recognise this format, requiring instructions and parameters. */
-    ZSTD_f_zstd1_block       </b>/* Generate a zstd compressed block, without any metadata.<b>
-                              * Note that size of block content must be <= ZSTD_getBlockSize() <= ZSTD_BLOCKSIZE_MAX == 128 KB.
-                              * See ZSTD_compressBlock() for more details.
-                              * Resulting compressed block can be decoded with ZSTD_decompressBlock(). */
+                              * Decoder cannot recognise automatically this format, requiring instructions. */
 } ZSTD_format_e;
 </b></pre><BR>
 <pre><b>typedef enum {
@@ -1154,7 +1154,7 @@ size_t ZSTD_DCtx_refPrefix_advanced(ZSTD_DCtx* dctx, const void* prefix, size_t 
  
 </p></pre><BR>
 
-<pre><b>void ZSTD_DCtx_reset(ZSTD_DCtx* dctx);   </b>/* Not ready yet ! */<b>
+<pre><b>void ZSTD_DCtx_reset(ZSTD_DCtx* dctx);
 </b><p>  Return a DCtx to clean state.
   If a decompression was ongoing, any internal data not yet flushed is cancelled.
   All parameters are back to default values, including sticky ones.

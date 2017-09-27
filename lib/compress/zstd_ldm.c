@@ -14,14 +14,14 @@
 
 #define LDM_BUCKET_SIZE_LOG 3
 #define LDM_MIN_MATCH_LENGTH 64
-#define LDM_HASH_LOG 20
+#define LDM_HASH_RLOG 7
 #define LDM_HASH_CHAR_OFFSET 10
 
 size_t ZSTD_ldm_initializeParameters(ldmParams_t* params, U32 enableLdm)
 {
     ZSTD_STATIC_ASSERT(LDM_BUCKET_SIZE_LOG <= ZSTD_LDM_BUCKETSIZELOG_MAX);
     params->enableLdm = enableLdm>0;
-    params->hashLog = LDM_HASH_LOG;
+    params->hashLog = 0;
     params->bucketSizeLog = LDM_BUCKET_SIZE_LOG;
     params->minMatchLength = LDM_MIN_MATCH_LENGTH;
     params->hashEveryLog = ZSTD_LDM_HASHEVERYLOG_NOTSET;
@@ -30,6 +30,10 @@ size_t ZSTD_ldm_initializeParameters(ldmParams_t* params, U32 enableLdm)
 
 void ZSTD_ldm_adjustParameters(ldmParams_t* params, U32 windowLog)
 {
+    if (params->hashLog == 0) {
+        params->hashLog = MAX(ZSTD_HASHLOG_MIN, windowLog - LDM_HASH_RLOG);
+        assert(params->hashLog <= ZSTD_HASHLOG_MAX);
+    }
     if (params->hashEveryLog == ZSTD_LDM_HASHEVERYLOG_NOTSET) {
         params->hashEveryLog =
                 windowLog < params->hashLog ? 0 : windowLog - params->hashLog;

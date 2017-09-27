@@ -438,7 +438,7 @@ size_t ZSTD_CCtxParam_setParameter(
     case ZSTD_p_enableLongDistanceMatching :
         if (value != 0) {
             ZSTD_cLevelToCCtxParams(params);
-            params->cParams.windowLog = ZSTD_LDM_WINDOW_LOG;
+            params->cParams.windowLog = ZSTD_LDM_DEFAULT_WINDOW_LOG;
         }
         return ZSTD_ldm_initializeParameters(&params->ldmParams, value);
 
@@ -1608,7 +1608,7 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
     const BYTE* ip = (const BYTE*)src;
     BYTE* const ostart = (BYTE*)dst;
     BYTE* op = ostart;
-    U32 const maxDist = 1 << cctx->appliedParams.cParams.windowLog;
+    U32 const maxDist = (U32)1 << cctx->appliedParams.cParams.windowLog;
 
     if (cctx->appliedParams.fParams.checksumFlag && srcSize)
         XXH64_update(&cctx->xxhState, src, srcSize);
@@ -1639,9 +1639,9 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
          *    windowLog <= 31 ==> 3<<29 + 1<<windowLog < 7<<29 < 1<<32.
          */
         if (cctx->lowLimit > (3U<<29)) {
-            U32 const cycleMask = (1 << ZSTD_cycleLog(cctx->appliedParams.cParams.chainLog, cctx->appliedParams.cParams.strategy)) - 1;
+            U32 const cycleMask = ((U32)1 << ZSTD_cycleLog(cctx->appliedParams.cParams.chainLog, cctx->appliedParams.cParams.strategy)) - 1;
             U32 const current = (U32)(ip - cctx->base);
-            U32 const newCurrent = (current & cycleMask) + (1 << cctx->appliedParams.cParams.windowLog);
+            U32 const newCurrent = (current & cycleMask) + ((U32)1 << cctx->appliedParams.cParams.windowLog);
             U32 const correction = current - newCurrent;
             ZSTD_STATIC_ASSERT(ZSTD_CHAINLOG_MAX <= 30);
             ZSTD_STATIC_ASSERT(ZSTD_WINDOWLOG_MAX_32 <= 30);
@@ -1697,7 +1697,7 @@ static size_t ZSTD_writeFrameHeader(void* dst, size_t dstCapacity,
     U32   const dictIDSizeCodeLength = (dictID>0) + (dictID>=256) + (dictID>=65536);   /* 0-3 */
     U32   const dictIDSizeCode = params.fParams.noDictIDFlag ? 0 : dictIDSizeCodeLength;   /* 0-3 */
     U32   const checksumFlag = params.fParams.checksumFlag>0;
-    U32   const windowSize = 1U << params.cParams.windowLog;
+    U32   const windowSize = (U32)1 << params.cParams.windowLog;
     U32   const singleSegment = params.fParams.contentSizeFlag && (windowSize >= pledgedSrcSize);
     BYTE  const windowLogByte = (BYTE)((params.cParams.windowLog - ZSTD_WINDOWLOG_ABSOLUTEMIN) << 3);
     U32   const fcsCode = params.fParams.contentSizeFlag ?
@@ -1801,7 +1801,7 @@ size_t ZSTD_getBlockSize(const ZSTD_CCtx* cctx)
 {
     ZSTD_compressionParameters const cParams =
             ZSTD_getCParamsFromCCtxParams(cctx->appliedParams, 0, 0);
-    return MIN (ZSTD_BLOCKSIZE_MAX, 1 << cParams.windowLog);
+    return MIN (ZSTD_BLOCKSIZE_MAX, (U32)1 << cParams.windowLog);
 }
 
 size_t ZSTD_compressBlock(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize)
@@ -1850,7 +1850,7 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_CCtx* zc, const void* src, size_t 
     case ZSTD_btopt:
     case ZSTD_btultra:
         if (srcSize >= HASH_READ_SIZE)
-            ZSTD_updateTree(zc, iend-HASH_READ_SIZE, iend, 1 << zc->appliedParams.cParams.searchLog, zc->appliedParams.cParams.searchLength);
+            ZSTD_updateTree(zc, iend-HASH_READ_SIZE, iend, (U32)1 << zc->appliedParams.cParams.searchLog, zc->appliedParams.cParams.searchLength);
         break;
 
     default:

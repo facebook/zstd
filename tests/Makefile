@@ -23,18 +23,18 @@ PRGDIR  = ../programs
 PYTHON ?= python3
 TESTARTEFACT := versionsTest namespaceTest
 
-DEBUGLEVEL= 1
-DEBUGFLAGS= -g -DZSTD_DEBUG=$(DEBUGLEVEL)
-CPPFLAGS += -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
-            -I$(ZSTDDIR)/dictBuilder -I$(ZSTDDIR)/deprecated -I$(PRGDIR)
-CFLAGS   ?= -O3
-CFLAGS   += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow                 \
-            -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
-            -Wstrict-prototypes -Wundef -Wformat-security                   \
-            -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings      \
-            -Wredundant-decls
-CFLAGS   += $(DEBUGFLAGS) $(MOREFLAGS)
-FLAGS     = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
+DEBUGLEVEL ?= 1
+DEBUGFLAGS  = -g -DZSTD_DEBUG=$(DEBUGLEVEL)
+CPPFLAGS   += -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
+              -I$(ZSTDDIR)/dictBuilder -I$(ZSTDDIR)/deprecated -I$(PRGDIR)
+CFLAGS     ?= -O3
+CFLAGS     += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow                 \
+              -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
+              -Wstrict-prototypes -Wundef -Wformat-security                   \
+              -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings      \
+              -Wredundant-decls
+CFLAGS     += $(DEBUGFLAGS) $(MOREFLAGS)
+FLAGS       = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
 
 
 ZSTDCOMMON_FILES := $(ZSTDDIR)/common/*.c
@@ -58,8 +58,8 @@ endif
 MULTITHREAD = $(MULTITHREAD_CPP) $(MULTITHREAD_LD)
 
 VOID = /dev/null
-ZSTREAM_TESTTIME ?= -T2mn
-FUZZERTEST ?= -T5mn
+ZSTREAM_TESTTIME ?= -T90s
+FUZZERTEST ?= -T200s
 ZSTDRTTEST = --test-large-data
 DECODECORPUS_TESTTIME ?= -T30
 
@@ -241,7 +241,7 @@ endif
 
 
 #-----------------------------------------------------------------------------
-#make tests validated only for MSYS, Linux, OSX, BSD, Hurd and Solaris targets
+# make tests validated only for below targets
 #-----------------------------------------------------------------------------
 ifneq (,$(filter $(HOST_OS),MSYS POSIX))
 

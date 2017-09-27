@@ -35,12 +35,12 @@ int g_ZSTD_threading_useles_symbol;
 
 static unsigned __stdcall worker(void *arg)
 {
-    pthread_t* const thread = (pthread_t*) arg;
+    ZSTD_pthread_t* const thread = (ZSTD_pthread_t*) arg;
     thread->arg = thread->start_routine(thread->arg);
     return 0;
 }
 
-int pthread_create(pthread_t* thread, const void* unused,
+int ZSTD_pthread_create(ZSTD_pthread_t* thread, const void* unused,
             void* (*start_routine) (void*), void* arg)
 {
     (void)unused;
@@ -54,16 +54,16 @@ int pthread_create(pthread_t* thread, const void* unused,
         return 0;
 }
 
-int _pthread_join(pthread_t * thread, void **value_ptr)
+int ZSTD_pthread_join(ZSTD_pthread_t thread, void **value_ptr)
 {
     DWORD result;
 
-    if (!thread->handle) return 0;
+    if (!thread.handle) return 0;
 
-    result = WaitForSingleObject(thread->handle, INFINITE);
+    result = WaitForSingleObject(thread.handle, INFINITE);
     switch (result) {
     case WAIT_OBJECT_0:
-        if (value_ptr) *value_ptr = thread->arg;
+        if (value_ptr) *value_ptr = thread.arg;
         return 0;
     case WAIT_ABANDONED:
         return EINVAL;

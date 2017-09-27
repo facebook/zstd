@@ -179,9 +179,9 @@ ppcfuzz: clean
 ppc64fuzz: clean
 	CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc64-static MOREFLAGS="-m64 -static" FUZZER_FLAGS=--no-big-tests $(MAKE) -C $(TESTDIR) fuzztest
 
-.PHONY: cpptest
-cpptest: CXXFLAGS += -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror
-cpptest: clean
+.PHONY: cxxtest
+cxxtest: CXXFLAGS += -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror
+cxxtest: clean
 	$(MAKE) -C $(PRGDIR) all CC="$(CXX) -Wno-deprecated" CFLAGS="$(CXXFLAGS)"   # adding -Wno-deprecated to avoid clang++ warning on dealing with C files directly
 
 gcc5test: clean

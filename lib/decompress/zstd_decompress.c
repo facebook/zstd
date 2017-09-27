@@ -2407,12 +2407,12 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
     if (input->pos > input->size) {  /* forbidden */
         DEBUGLOG(5, "in: pos: %u   vs size: %u",
                     (U32)input->pos, (U32)input->size);
-        return ERROR(GENERIC);
+        return ERROR(srcSize_wrong);
     }
     if (output->pos > output->size) {  /* forbidden */
         DEBUGLOG(5, "out: pos: %u   vs size: %u",
                     (U32)output->pos, (U32)output->size);
-        return ERROR(GENERIC);
+        return ERROR(dstSize_tooSmall);
     }
     DEBUGLOG(5, "input size : %u", (U32)(input->size - input->pos));
 

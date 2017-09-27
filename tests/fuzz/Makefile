@@ -118,9 +118,10 @@ regressiontest: corpora
 
 clean:
 	@$(MAKE) -C $(ZSTDDIR) clean
-	@$(RM) -f *.a *.o
-	@$(RM) -f simple_round_trip stream_round_trip simple_decompress stream_decompress
+	@$(RM) *.a *.o
+	@$(RM) simple_round_trip stream_round_trip simple_decompress \
+           stream_decompress block_decompress block_round_trip
 
 cleanall:
-	@$(RM) -rf Fuzzer
-	@$(RM) -rf corpora
+	@$(RM) -r Fuzzer
+	@$(RM) -r corpora

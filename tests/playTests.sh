@@ -635,10 +635,22 @@ $ZSTD -lv tmp1.zst
 rm tmp*
 
 
+$ECHO "\n**** zstd long distance matching tests **** "
+roundTripTest -g0 " --long"
+roundTripTest -g9M "2 --long"
+# Test parameter parsing
+roundTripTest -g1M -P50 "1 --long=29" " --memory=512MB"
+roundTripTest -g1M -P50 "1 --long=29 --zstd=wlog=28" " --memory=256MB"
+roundTripTest -g1M -P50 "1 --long=29" " --long=28 --memory=512MB"
+roundTripTest -g1M -P50 "1 --long=29" " --zstd=wlog=28 --memory=512MB"
+
+
 if [ "$1" != "--test-large-data" ]; then
     $ECHO "Skipping large data tests"
     exit 0
 fi
+
+$ECHO "\n**** large files tests **** "
 
 roundTripTest -g270000000 1
 roundTripTest -g250000000 2
@@ -668,8 +680,8 @@ roundTripTest -g5000000000 -P99 1
 
 fileRoundTripTest -g4193M -P99 1
 
+
 $ECHO "\n**** zstd long, long distance matching round-trip tests **** "
-roundTripTest -g0 "2 --long"
 roundTripTest -g270000000 "1 --long"
 roundTripTest -g130000000 -P60 "5 --long"
 roundTripTest -g35000000 -P70 "8 --long"
@@ -677,11 +689,6 @@ roundTripTest -g18000001 -P80  "18 --long"
 # Test large window logs
 roundTripTest -g700M -P50 "1 --long=29"
 roundTripTest -g600M -P50 "1 --long --zstd=wlog=29,clog=28"
-# Test parameter parsing
-roundTripTest -g1M -P50 "1 --long=29" " --memory=512MB"
-roundTripTest -g1M -P50 "1 --long=29 --zstd=wlog=28" " --memory=256MB"
-roundTripTest -g1M -P50 "1 --long=29" " --long=28 --memory=512MB"
-roundTripTest -g1M -P50 "1 --long=29" " --zstd=wlog=28 --memory=512MB"
 
 
 if [ -n "$hasMT" ]

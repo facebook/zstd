@@ -914,7 +914,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
                 size_t const randomDstSize = FUZ_randomLength(&lseed, maxSampleLog);
                 size_t const dstBuffSize = MIN(dstBufferSize - totalGenSize, randomDstSize);
                 inBuff.size = inBuff.pos + readCSrcSize;
-                outBuff.size = inBuff.pos + dstBuffSize;
+                outBuff.size = outBuff.pos + dstBuffSize;
                 decompressionResult = ZSTD_decompressStream(zd, &outBuff, &inBuff);
                 if (ZSTD_getErrorCode(decompressionResult) == ZSTD_error_checksum_wrong) {
                     DISPLAY("checksum error : \n");

@@ -376,8 +376,8 @@ ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output
 #define ZSTD_MAGIC_SKIPPABLE_START  0x184D2A50U
 #define ZSTD_MAGIC_DICTIONARY       0xEC30A437   /* v0.7+ */
 
-#define ZSTD_WINDOWLOG_MAX_32  27
-#define ZSTD_WINDOWLOG_MAX_64  27
+#define ZSTD_WINDOWLOG_MAX_32  30
+#define ZSTD_WINDOWLOG_MAX_64  31
 #define ZSTD_WINDOWLOG_MAX    ((unsigned)(sizeof(size_t) == 4 ? ZSTD_WINDOWLOG_MAX_32 : ZSTD_WINDOWLOG_MAX_64))
 #define ZSTD_WINDOWLOG_MIN     10
 #define ZSTD_HASHLOG_MAX       MIN(ZSTD_WINDOWLOG_MAX, 30)
@@ -964,7 +964,9 @@ typedef enum {
                               * Special: value 0 means "do not change cLevel". */
     ZSTD_p_windowLog,        /* Maximum allowed back-reference distance, expressed as power of 2.
                               * Must be clamped between ZSTD_WINDOWLOG_MIN and ZSTD_WINDOWLOG_MAX.
-                              * Special: value 0 means "do not change windowLog". */
+                              * Special: value 0 means "do not change windowLog".
+                              * Note: Using a window size greater than ZSTD_MAXWINDOWSIZE_DEFAULT (default: 2^27)
+                              * requires setting the maximum window size at least as large during decompression. */
     ZSTD_p_hashLog,          /* Size of the probe table, as a power of 2.
                               * Resulting table size is (1 << (hashLog+2)).
                               * Must be clamped between ZSTD_HASHLOG_MIN and ZSTD_HASHLOG_MAX.
@@ -1032,7 +1034,7 @@ typedef enum {
                           * Larger values increase memory usage and compression ratio, but decrease
                           * compression speed.
                           * Must be clamped between ZSTD_HASHLOG_MIN and ZSTD_HASHLOG_MAX
-                          * (default: 20). */
+                          * (default: windowlog - 7). */
     ZSTD_p_ldmMinMatch,  /* Minimum size of searched matches for long distance matcher.
                           * Larger/too small values usually decrease compression ratio.
                           * Must be clamped between ZSTD_LDM_MINMATCH_MIN

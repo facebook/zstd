@@ -105,12 +105,16 @@ the last one takes effect.
 * `--ultra`:
     unlocks high compression levels 20+ (maximum 22), using a lot more memory.
     Note that decompression will also require more memory when using these levels.
-* `--long`:
-    enables long distance matching.
+* `--long[=#]`:
+    enables long distance matching with `#` `windowLog`, if not `#` is not
+    present it defaults to `27`.
     This increases the window size (`windowLog`) and memory usage for both the
-    compressor and decompressor. This setting is designed to improve the
-    compression ratio for files with long matches at a large distance
-    (up to the maximum window size, 128 MiB).
+    compressor and decompressor.
+    This setting is designed to improve the compression ratio for files with
+    long matches at a large distance.
+
+    Note: If `windowLog` is set to larger than 27, `--long=windowLog` or
+    `--memory=windowSize` needs to be passed to the decompressor.
 * `-T#`, `--threads=#`:
     Compress using `#` threads (default: 1).
     If `#` is 0, attempt to detect and use the number of physical CPU cores.
@@ -275,7 +279,11 @@ The list of available _options_:
     The higher number of increases the chance to find a match which usually
     improves compression ratio.
     It also increases memory requirements for the compressor and decompressor.
-    The minimum _wlog_ is 10 (1 KiB) and the maximum is 27 (128 MiB).
+    The minimum _wlog_ is 10 (1 KiB) and the maximum is 30 (1 GiB) on 32-bit
+    platforms and 31 (2 GiB) on 64-bit platforms.
+
+    Note: If `windowLog` is set to larger than 27, `--long=windowLog` or
+    `--memory=windowSize` needs to be passed to the decompressor.
 
 - `hashLog`=_hlog_, `hlog`=_hlog_:
     Specify the maximum number of bits for a hash table.

@@ -13,11 +13,16 @@ roundTripTest() {
         cLevel="$2"
         proba=""
     fi
+    if [ -n "$4" ]; then
+        dLevel="$4"
+    else
+        dLevel="$cLevel"
+    fi
 
     rm -f tmp1 tmp2
-    $ECHO "roundTripTest: ./datagen $1 $proba | $ZSTD -v$cLevel | $ZSTD -d"
+    $ECHO "roundTripTest: ./datagen $1 $proba | $ZSTD -v$cLevel | $ZSTD -d$dLevel"
     ./datagen $1 $proba | $MD5SUM > tmp1
-    ./datagen $1 $proba | $ZSTD --ultra -v$cLevel | $ZSTD -d  | $MD5SUM > tmp2
+    ./datagen $1 $proba | $ZSTD --ultra -v$cLevel | $ZSTD -d$dLevel  | $MD5SUM > tmp2
     $DIFF -q tmp1 tmp2
 }
 
@@ -29,12 +34,17 @@ fileRoundTripTest() {
         local_c="$2"
         local_p=""
     fi
+    if [ -n "$4" ]; then
+        local_d="$4"
+    else
+        local_d="$local_c"
+    fi
 
     rm -f tmp.zstd tmp.md5.1 tmp.md5.2
-    $ECHO "fileRoundTripTest: ./datagen $1 $local_p > tmp && $ZSTD -v$local_c -c tmp | $ZSTD -d"
+    $ECHO "fileRoundTripTest: ./datagen $1 $local_p > tmp && $ZSTD -v$local_c -c tmp | $ZSTD -d$local_d"
     ./datagen $1 $local_p > tmp
     cat tmp | $MD5SUM > tmp.md5.1
-    $ZSTD --ultra -v$local_c -c tmp | $ZSTD -d | $MD5SUM > tmp.md5.2
+    $ZSTD --ultra -v$local_c -c tmp | $ZSTD -d$local_d | $MD5SUM > tmp.md5.2
     $DIFF -q tmp.md5.1 tmp.md5.2
 }
 
@@ -673,16 +683,24 @@ roundTripTest -g140000000 -P60 "5 --long"
 roundTripTest -g70000000 -P70 "8 --long"
 roundTripTest -g18000001 -P80  "18 --long"
 fileRoundTripTest -g4100M -P99 "1 --long"
+# Test large window logs
+roundTripTest -g4100M -P50 "1 --long=30"
+roundTripTest -g4100M -P50 "1 --long --zstd=wlog=30,clog=30"
+# Test parameter parsing
+roundTripTest -g1M -P50 "1 --long=30" " --memory=1024MB"
+roundTripTest -g1M -P50 "1 --long=30 --zstd=wlog=29" " --memory=512MB"
+roundTripTest -g1M -P50 "1 --long=30" " --long=29 --memory=1024MB"
+roundTripTest -g1M -P50 "1 --long=30" " --zstd=wlog=29 --memory=1024MB"
 
 
 if [ -n "$hasMT" ]
 then
     $ECHO "\n**** zstdmt long round-trip tests **** "
-    roundTripTest -g99000000 -P99 "20 -T2"
-    roundTripTest -g6000000000 -P99 "1 -T2"
-    roundTripTest -g1500000000 -P97 "1 -T999"
-    fileRoundTripTest -g4195M -P98 " -T0"
-    roundTripTest -g1500000000 -P97 "1 --long -T999"
+    roundTripTest -g99000000 -P99 "20 -T2" " "
+    roundTripTest -g6000000000 -P99 "1 -T2" " "
+    roundTripTest -g1500000000 -P97 "1 -T999" " "
+    fileRoundTripTest -g4195M -P98 " -T0" " "
+    roundTripTest -g1500000000 -P97 "1 --long=23 -T2" " "
 else
     $ECHO "\n**** no multithreading, skipping zstdmt tests **** "
 fi

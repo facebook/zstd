@@ -162,33 +162,9 @@ static size_t ZSTD_startingInputLength(ZSTD_format_e format)
     return startingInputLength;
 }
 
-/* Note : this function cannot fail */
-size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx)
-{
-    assert(dctx != NULL);
-    dctx->expected = ZSTD_startingInputLength(dctx->format);
-    dctx->stage = ZSTDds_getFrameHeaderSize;
-    dctx->decodedSize = 0;
-    dctx->previousDstEnd = NULL;
-    dctx->base = NULL;
-    dctx->vBase = NULL;
-    dctx->dictEnd = NULL;
-    dctx->entropy.hufTable[0] = (HUF_DTable)((HufLog)*0x1000001);  /* cover both little and big endian */
-    dctx->litEntropy = dctx->fseEntropy = 0;
-    dctx->dictID = 0;
-    ZSTD_STATIC_ASSERT(sizeof(dctx->entropy.rep) == sizeof(repStartValue));
-    memcpy(dctx->entropy.rep, repStartValue, sizeof(repStartValue));  /* initial repcodes */
-    dctx->LLTptr = dctx->entropy.LLTable;
-    dctx->MLTptr = dctx->entropy.MLTable;
-    dctx->OFTptr = dctx->entropy.OFTable;
-    dctx->HUFptr = dctx->entropy.hufTable;
-    return 0;
-}
-
 static void ZSTD_initDCtx_internal(ZSTD_DCtx* dctx)
 {
     dctx->format = ZSTD_f_zstd1;  /* ZSTD_decompressBegin() invokes ZSTD_startingInputLength() with argument dctx->format */
-    ZSTD_decompressBegin(dctx);   /* cannot fail */
     dctx->staticSize  = 0;
     dctx->maxWindowSize = ZSTD_MAXWINDOWSIZE_DEFAULT;
     dctx->ddict       = NULL;
@@ -542,7 +518,8 @@ static size_t ZSTD_setRleBlock(void* dst, size_t dstCapacity,
 }
 
 /*! ZSTD_decodeLiteralsBlock() :
- * @return : nb of bytes read from src (< srcSize ) */
+ * @return : nb of bytes read from src (< srcSize )
+ *  note : symbol not declared but exposed for fullbench */
 size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                           const void* src, size_t srcSize)   /* note : srcSize < BLOCKSIZE */
 {
@@ -2001,6 +1978,29 @@ static size_t ZSTD_decompress_insertDictionary(ZSTD_DCtx* dctx, const void* dict
 
     /* reference dictionary content */
     return ZSTD_refDictContent(dctx, dict, dictSize);
+}
+
+/* Note : this function cannot fail */
+size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx)
+{
+    assert(dctx != NULL);
+    dctx->expected = ZSTD_startingInputLength(dctx->format);  /* dctx->format must be properly set */
+    dctx->stage = ZSTDds_getFrameHeaderSize;
+    dctx->decodedSize = 0;
+    dctx->previousDstEnd = NULL;
+    dctx->base = NULL;
+    dctx->vBase = NULL;
+    dctx->dictEnd = NULL;
+    dctx->entropy.hufTable[0] = (HUF_DTable)((HufLog)*0x1000001);  /* cover both little and big endian */
+    dctx->litEntropy = dctx->fseEntropy = 0;
+    dctx->dictID = 0;
+    ZSTD_STATIC_ASSERT(sizeof(dctx->entropy.rep) == sizeof(repStartValue));
+    memcpy(dctx->entropy.rep, repStartValue, sizeof(repStartValue));  /* initial repcodes */
+    dctx->LLTptr = dctx->entropy.LLTable;
+    dctx->MLTptr = dctx->entropy.MLTable;
+    dctx->OFTptr = dctx->entropy.OFTable;
+    dctx->HUFptr = dctx->entropy.hufTable;
+    return 0;
 }
 
 size_t ZSTD_decompressBegin_usingDict(ZSTD_DCtx* dctx, const void* dict, size_t dictSize)

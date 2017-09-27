@@ -529,7 +529,14 @@ size_t ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
            } else {
                 opt[cur].rep[2] = (opt[cur].off > 1) ? opt[cur-mlen].rep[1] : opt[cur-mlen].rep[2];
                 opt[cur].rep[1] = (opt[cur].off > 0) ? opt[cur-mlen].rep[0] : opt[cur-mlen].rep[1];
-                opt[cur].rep[0] = ((opt[cur].off==ZSTD_REP_MOVE_OPT) && (mlen != 1)) ? (opt[cur-mlen].rep[0] - 1) : (opt[cur-mlen].rep[opt[cur].off]);
+                /* If opt[cur].off == ZSTD_REP_MOVE_OPT, then mlen != 1.
+                 * offset ZSTD_REP_MOVE_OPT is used for the special case
+                 * litLength == 0, where offset 0 means something special.
+                 * mlen == 1 means the previous byte was stored as a literal,
+                 * so they are mutually exclusive.
+                 */
+                assert(!(opt[cur].off == ZSTD_REP_MOVE_OPT && mlen == 1));
+                opt[cur].rep[0] = (opt[cur].off == ZSTD_REP_MOVE_OPT) ? (opt[cur-mlen].rep[0] - 1) : (opt[cur-mlen].rep[opt[cur].off]);
            }
 
             best_mlen = minMatch;
@@ -804,7 +811,8 @@ size_t ZSTD_compressBlock_opt_extDict_generic(ZSTD_CCtx* ctx,
             } else {
                 opt[cur].rep[2] = (opt[cur].off > 1) ? opt[cur-mlen].rep[1] : opt[cur-mlen].rep[2];
                 opt[cur].rep[1] = (opt[cur].off > 0) ? opt[cur-mlen].rep[0] : opt[cur-mlen].rep[1];
-                opt[cur].rep[0] = ((opt[cur].off==ZSTD_REP_MOVE_OPT) && (mlen != 1)) ? (opt[cur-mlen].rep[0] - 1) : (opt[cur-mlen].rep[opt[cur].off]);
+                assert(!(opt[cur].off == ZSTD_REP_MOVE_OPT && mlen == 1));
+                opt[cur].rep[0] = (opt[cur].off == ZSTD_REP_MOVE_OPT) ? (opt[cur-mlen].rep[0] - 1) : (opt[cur-mlen].rep[opt[cur].off]);
             }
 
             best_mlen = minMatch;

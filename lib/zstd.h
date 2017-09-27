@@ -928,7 +928,7 @@ ZSTDLIB_API ZSTD_nextInputType_e ZSTD_nextInputType(ZSTD_DCtx* dctx);
  *   Initially, the API favored names like ZSTD_setCCtxParameter() .
  *   In this proposal, convention is changed towards ZSTD_CCtx_setParameter() .
  *   The main driver is that it identifies more clearly the target object type.
- *   It feels clearer in light of potential variants :
+ *   It feels clearer when considering multiple targets :
  *   ZSTD_CDict_setParameter() (rather than ZSTD_setCDictParameter())
  *   ZSTD_CCtxParams_setParameter()  (rather than ZSTD_setCCtxParamsParameter() )
  *   etc...
@@ -938,30 +938,19 @@ ZSTDLIB_API ZSTD_nextInputType_e ZSTD_nextInputType(ZSTD_DCtx* dctx);
  * All enum will be pinned to explicit values before reaching "stable API" status */
 
 typedef enum {
-    /* should we have a ZSTD_f_auto ?
-     * for the time being, it would mean exactly the same as ZSTD_f_zstd1.
-     * But, in the future, if several formats are supported,
-     * on the compression side, it would mean "default format",
-     * and on the decompression side, it would mean "multi format"
-     * while ZSTD_f_zstd1 could be reserved to mean "accept only zstd frames".
-     * Another option could be to define different enums for compression and decompression.
-     * This question could also be kept for later, but there is also the question of pinning the enum value,
-     * and pinning the value `0` is especially important */
-    ZSTD_f_zstd1 = 0,        /* Normal zstd frame format, specified in zstd_compression_format.md (default) */
+    /* Question : should we have a format ZSTD_f_auto ?
+     * For the time being, it would mean exactly the same as ZSTD_f_zstd1.
+     * But, in the future, should several formats be supported,
+     * on the compression side, it would mean "default format".
+     * On the decompression side, it would mean "multi format",
+     * and ZSTD_f_zstd1 could be reserved to mean "accept *only* zstd frames".
+     * Since meaning is a little different, another option could be to define different enums for compression and decompression.
+     * This question could be kept for later, when there are actually multiple formats to support,
+     * but there is also the question of pinning enum values, and pinning value `0` is especially important */
+    ZSTD_f_zstd1 = 0,        /* zstd frame format, specified in zstd_compression_format.md (default) */
     ZSTD_f_zstd1_magicless,  /* Variant of zstd frame format, without initial 4-bytes magic number.
                               * Useful to save 4 bytes per generated frame.
-                              * Decoder will not be able to recognise this format, requiring instructions. */
-    ZSTD_f_zstd1_headerless, /* Not Implemented Yet ! Complex decoder setting ! Might be removed before release */
-                             /* Variant of zstd frame format, without any frame header;
-                              * Other metadata, like block size or frame checksum, are still generated.
-                              * Useful to save between 6 and ZSTD_frameHeaderSize_max bytes per generated frame.
-                              * However, required decoding parameters will have to be saved or known by some mechanism.
-                              * Decoder will not be able to recognise this format, requiring instructions and parameters. */
-    ZSTD_f_zstd1_block       /* Not Implemented Yet ! Might be removed before release */
-                             /* Generate a zstd compressed block, without any metadata.
-                              * Note that size of block content must be <= ZSTD_getBlockSize() <= ZSTD_BLOCKSIZE_MAX == 128 KB.
-                              * See ZSTD_compressBlock() for more details.
-                              * Resulting compressed block can be decoded with ZSTD_decompressBlock(). */
+                              * Decoder cannot recognise automatically this format, requiring instructions. */
 } ZSTD_format_e;
 
 typedef enum {

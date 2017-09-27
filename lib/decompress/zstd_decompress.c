@@ -162,8 +162,10 @@ static size_t ZSTD_startingInputLength(ZSTD_format_e format)
     return startingInputLength;
 }
 
+/* Note : this function cannot fail */
 size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx)
 {
+    assert(dctx != NULL);
     dctx->expected = ZSTD_startingInputLength(dctx->format);
     dctx->stage = ZSTDds_getFrameHeaderSize;
     dctx->decodedSize = 0;
@@ -174,7 +176,7 @@ size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx)
     dctx->entropy.hufTable[0] = (HUF_DTable)((HufLog)*0x1000001);  /* cover both little and big endian */
     dctx->litEntropy = dctx->fseEntropy = 0;
     dctx->dictID = 0;
-    MEM_STATIC_ASSERT(sizeof(dctx->entropy.rep) == sizeof(repStartValue));
+    ZSTD_STATIC_ASSERT(sizeof(dctx->entropy.rep) == sizeof(repStartValue));
     memcpy(dctx->entropy.rep, repStartValue, sizeof(repStartValue));  /* initial repcodes */
     dctx->LLTptr = dctx->entropy.LLTable;
     dctx->MLTptr = dctx->entropy.MLTable;
@@ -185,6 +187,7 @@ size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx)
 
 static void ZSTD_initDCtx_internal(ZSTD_DCtx* dctx)
 {
+    dctx->format = ZSTD_f_zstd1;  /* ZSTD_decompressBegin() invokes ZSTD_startingInputLength() with argument dctx->format */
     ZSTD_decompressBegin(dctx);   /* cannot fail */
     dctx->staticSize  = 0;
     dctx->maxWindowSize = ZSTD_MAXWINDOWSIZE_DEFAULT;
@@ -194,7 +197,19 @@ static void ZSTD_initDCtx_internal(ZSTD_DCtx* dctx)
     dctx->inBuffSize  = 0;
     dctx->outBuffSize = 0;
     dctx->streamStage = zdss_init;
-    dctx->format = ZSTD_f_zstd1;
+}
+
+ZSTD_DCtx* ZSTD_initStaticDCtx(void *workspace, size_t workspaceSize)
+{
+    ZSTD_DCtx* const dctx = (ZSTD_DCtx*) workspace;
+
+    if ((size_t)workspace & 7) return NULL;  /* 8-aligned */
+    if (workspaceSize < sizeof(ZSTD_DCtx)) return NULL;  /* minimum size */
+
+    ZSTD_initDCtx_internal(dctx);
+    dctx->staticSize = workspaceSize;
+    dctx->inBuff = (char*)(dctx+1);
+    return dctx;
 }
 
 ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem)
@@ -209,19 +224,6 @@ ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem)
         ZSTD_initDCtx_internal(dctx);
         return dctx;
     }
-}
-
-ZSTD_DCtx* ZSTD_initStaticDCtx(void *workspace, size_t workspaceSize)
-{
-    ZSTD_DCtx* dctx = (ZSTD_DCtx*) workspace;
-
-    if ((size_t)workspace & 7) return NULL;  /* 8-aligned */
-    if (workspaceSize < sizeof(ZSTD_DCtx)) return NULL;  /* minimum size */
-
-    ZSTD_initDCtx_internal(dctx);
-    dctx->staticSize = workspaceSize;
-    dctx->inBuff = (char*)(dctx+1);
-    return dctx;
 }
 
 ZSTD_DCtx* ZSTD_createDCtx(void)

@@ -1178,7 +1178,7 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double comp
                 size_t const randomDstSize = FUZ_randomLength(&lseed, maxSampleLog);
                 size_t const dstBuffSize = MIN(dstBufferSize - totalGenSize, randomDstSize);
                 inBuff.size = inBuff.pos + readCSrcSize;
-                outBuff.size = inBuff.pos + dstBuffSize;
+                outBuff.size = outBuff.pos + dstBuffSize;
                 DISPLAYLEVEL(5, "ZSTD_decompressStream input %u bytes \n", (U32)readCSrcSize);
                 decompressionResult = ZSTD_decompressStream(zd, &outBuff, &inBuff);
                 CHECK (ZSTD_isError(decompressionResult), "decompression error : %s", ZSTD_getErrorName(decompressionResult));
@@ -1505,7 +1505,7 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
                 size_t const randomDstSize = FUZ_randomLength(&lseed, maxSampleLog);
                 size_t const dstBuffSize = MIN(dstBufferSize - totalGenSize, randomDstSize);
                 inBuff.size = inBuff.pos + readCSrcSize;
-                outBuff.size = inBuff.pos + dstBuffSize;
+                outBuff.size = outBuff.pos + dstBuffSize;
                 DISPLAYLEVEL(5, "ZSTD_decompressStream input %u bytes (pos:%u/%u)\n",
                             (U32)readCSrcSize, (U32)inBuff.pos, (U32)cSize);
                 decompressionResult = ZSTD_decompressStream(zd, &outBuff, &inBuff);

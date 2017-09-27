@@ -2404,8 +2404,16 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
     U32 someMoreWork = 1;
 
     DEBUGLOG(5, "ZSTD_decompressStream");
-    if (input->pos > input->size) return ERROR(GENERIC);   /* forbidden */
-    if (output->pos > output->size) return ERROR(GENERIC); /* forbidden */
+    if (input->pos > input->size) {  /* forbidden */
+        DEBUGLOG(5, "in: pos: %u   vs size: %u",
+                    (U32)input->pos, (U32)input->size);
+        return ERROR(GENERIC);
+    }
+    if (output->pos > output->size) {  /* forbidden */
+        DEBUGLOG(5, "out: pos: %u   vs size: %u",
+                    (U32)output->pos, (U32)output->size);
+        return ERROR(GENERIC);
+    }
     DEBUGLOG(5, "input size : %u", (U32)(input->size - input->pos));
 
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)

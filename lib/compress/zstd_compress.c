@@ -642,7 +642,7 @@ ZSTD_compressionParameters ZSTD_adjustCParams_internal(ZSTD_compressionParameter
     /* resize windowLog if src is small, to use less memory when necessary */
     ZSTD_STATIC_ASSERT(ZSTD_CONTENTSIZE_UNKNOWN == (0ULL - 1));
     if ( (dictSize || (srcSize+1 > 1))  /* srcSize test depends on static assert condition */
-      && (srcSize-1 < (1ULL<<ZSTD_WINDOWLOG_MAX)) ) /* no correction is srcSize is large enough */ {
+      && (srcSize-1 < (1ULL<<ZSTD_WINDOWLOG_MAX)) ) /* no correction when srcSize is large enough */ {
         U32 const minSrcSize = (srcSize==0) ? 513 : 0;
         U64 const rSize = srcSize + dictSize + minSrcSize;
         if (rSize < (1ULL<<ZSTD_WINDOWLOG_MAX)) {

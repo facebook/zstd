@@ -348,13 +348,16 @@ static size_t FIO_createDictBuffer(void** bufferPtr, const char* fileName)
     fileHandle = fopen(fileName, "rb");
     if (fileHandle==0) EXM_THROW(31, "%s: %s", fileName, strerror(errno));
     fileSize = UTIL_getFileSize(fileName);
-    if (fileSize > DICTSIZE_MAX)
+    if (fileSize > DICTSIZE_MAX) {
         EXM_THROW(32, "Dictionary file %s is too large (> %u MB)",
                         fileName, DICTSIZE_MAX >> 20);   /* avoid extreme cases */
+    }
     *bufferPtr = malloc((size_t)fileSize);
     if (*bufferPtr==NULL) EXM_THROW(34, "%s", strerror(errno));
-    { size_t const readSize = fread(*bufferPtr, 1, (size_t)fileSize, fileHandle);
-      if (readSize!=fileSize) EXM_THROW(35, "Error reading dictionary file %s", fileName); }
+    {   size_t const readSize = fread(*bufferPtr, 1, (size_t)fileSize, fileHandle);
+        if (readSize!=fileSize)
+            EXM_THROW(35, "Error reading dictionary file %s", fileName);
+    }
     fclose(fileHandle);
     return (size_t)fileSize;
 }
@@ -971,7 +974,7 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
     char*  dstFileName = (char*)malloc(FNSPACE);
     size_t const suffixSize = suffix ? strlen(suffix) : 0;
     U64 const srcSize = (nbFiles != 1) ? 0 : UTIL_getFileSize(inFileNamesTable[0]) ;
-    int const isRegularFile = (nbFiles != 1) ? 0 : UTIL_isRegularFile(inFileNamesTable[0]);
+    int const isRegularFile = (nbFiles > 1) ? 0 : UTIL_isRegularFile(inFileNamesTable[0]);  /* won't write frame content size when nbFiles > 1 */
     cRess_t ress = FIO_createCResources(dictFileName, compressionLevel, srcSize, isRegularFile, comprParams);
 
     /* init */
@@ -1037,7 +1040,7 @@ static dRess_t FIO_createDResources(const char* dictFileName)
     /* Allocation */
     ress.dctx = ZSTD_createDStream();
     if (ress.dctx==NULL) EXM_THROW(60, "Can't create ZSTD_DStream");
-    ZSTD_setDStreamParameter(ress.dctx, DStream_p_maxWindowSize, g_memLimit);
+    CHECK( ZSTD_setDStreamParameter(ress.dctx, DStream_p_maxWindowSize, g_memLimit) );
     ress.srcBufferSize = ZSTD_DStreamInSize();
     ress.srcBuffer = malloc(ress.srcBufferSize);
     ress.dstBufferSize = ZSTD_DStreamOutSize();
@@ -1731,10 +1734,11 @@ int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles
 typedef struct {
     int numActualFrames;
     int numSkippableFrames;
-    unsigned long long decompressedSize;
+    U64 decompressedSize;
     int decompUnavailable;
-    unsigned long long compressedSize;
+    U64 compressedSize;
     int usesCheck;
+    U32 nbFiles;
 } fileInfo_t;
 
 /** getFileInfo() :
@@ -1751,14 +1755,16 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
         DISPLAY("Error: could not open source file %s\n", inFileName);
         return 3;
     }
-    info->compressedSize = (unsigned long long)UTIL_getFileSize(inFileName);
+    info->compressedSize = UTIL_getFileSize(inFileName);
 
     /* begin analyzing frame */
     for ( ; ; ) {
         BYTE headerBuffer[ZSTD_FRAMEHEADERSIZE_MAX];
         size_t const numBytesRead = fread(headerBuffer, 1, sizeof(headerBuffer), srcFile);
         if (numBytesRead < ZSTD_frameHeaderSize_min) {
-            if (feof(srcFile) && numBytesRead == 0 && info->compressedSize > 0) {
+            if ( feof(srcFile)
+              && (numBytesRead == 0)
+              && (info->compressedSize > 0) ) {
                 break;
             }
             else if (feof(srcFile)) {
@@ -1860,6 +1866,7 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
         }
     }  /* end analyzing frame */
     fclose(srcFile);
+    info->nbFiles = 1;
     return detectError;
 }
 
@@ -1872,25 +1879,28 @@ static void displayInfo(const char* inFileName, fileInfo_t* info, int displayLev
     const char* const checkString = (info->usesCheck ? "XXH64" : "None");
     if (displayLevel <= 2) {
         if (!info->decompUnavailable) {
-            DISPLAYOUT("Skippable  Non-Skippable  Compressed  Uncompressed  Ratio  Check  Filename\n");
-            DISPLAYOUT("%9d  %13d  %7.2f %2s  %9.2f %2s  %5.3f  %5s  %s\n",
-                    info->numSkippableFrames, info->numActualFrames,
+            DISPLAYOUT("%6d  %5d  %7.2f %2s  %9.2f %2s  %5.3f  %5s  %s\n",
+                    info->numSkippableFrames + info->numActualFrames,
+                    info->numSkippableFrames,
                     compressedSizeUnit, unitStr, decompressedSizeUnit, unitStr,
                     ratio, checkString, inFileName);
         } else {
-            DISPLAYOUT("Skippable  Non-Skippable  Compressed  Check  Filename\n");
-            DISPLAYOUT("%9d  %13d  %7.2f MB  %5s  %s\n",
-                    info->numSkippableFrames, info->numActualFrames,
-                    compressedSizeUnit, checkString, inFileName);
+            DISPLAYOUT("%6d  %5d  %7.2f %2s                       %5s  %s\n",
+                    info->numSkippableFrames + info->numActualFrames,
+                    info->numSkippableFrames,
+                    compressedSizeUnit, unitStr,
+                    checkString, inFileName);
         }
     } else {
         DISPLAYOUT("# Zstandard Frames: %d\n", info->numActualFrames);
         DISPLAYOUT("# Skippable Frames: %d\n", info->numSkippableFrames);
         DISPLAYOUT("Compressed Size: %.2f %2s (%llu B)\n",
-                    compressedSizeUnit, unitStr, info->compressedSize);
+                    compressedSizeUnit, unitStr,
+                    (unsigned long long)info->compressedSize);
         if (!info->decompUnavailable) {
             DISPLAYOUT("Decompressed Size: %.2f %2s (%llu B)\n",
-                    decompressedSizeUnit, unitStr, info->decompressedSize);
+                    decompressedSizeUnit, unitStr,
+                    (unsigned long long)info->decompressedSize);
             DISPLAYOUT("Ratio: %.4f\n", ratio);
         }
         DISPLAYOUT("Check: %s\n", checkString);
@@ -1898,33 +1908,40 @@ static void displayInfo(const char* inFileName, fileInfo_t* info, int displayLev
     }
 }
 
+static fileInfo_t FIO_addFInfo(fileInfo_t fi1, fileInfo_t fi2)
+{
+    fileInfo_t total;
+    total.numActualFrames = fi1.numActualFrames + fi2.numActualFrames;
+    total.numSkippableFrames = fi1.numSkippableFrames + fi2.numSkippableFrames;
+    total.compressedSize = fi1.compressedSize + fi2.compressedSize;
+    total.decompressedSize = fi1.decompressedSize + fi2.decompressedSize;
+    total.decompUnavailable = fi1.decompUnavailable | fi2.decompUnavailable;
+    total.usesCheck = fi1.usesCheck & fi2.usesCheck;
+    total.nbFiles = fi1.nbFiles + fi2.nbFiles;
+    return total;
+}
 
-static int FIO_listFile(const char* inFileName, int displayLevel, unsigned fileNo, unsigned numFiles){
+static int FIO_listFile(fileInfo_t* total, const char* inFileName, int displayLevel){
     /* initialize info to avoid warnings */
     fileInfo_t info;
     memset(&info, 0, sizeof(info));
-    DISPLAYOUT("%s (%u/%u):\n", inFileName, fileNo, numFiles);
-    {
-        int const error = getFileInfo(&info, inFileName);
+    {   int const error = getFileInfo(&info, inFileName);
         if (error == 1) {
             /* display error, but provide output */
-            DISPLAY("An error occurred with getting file info\n");
+            DISPLAY("An error occurred while getting file info \n");
         }
         else if (error == 2) {
-            DISPLAYOUT("File %s not compressed with zstd\n", inFileName);
-            if (displayLevel > 2) {
-                DISPLAYOUT("\n");
-            }
+            DISPLAYOUT("File %s not compressed by zstd \n", inFileName);
+            if (displayLevel > 2) DISPLAYOUT("\n");
             return 1;
         }
         else if (error == 3) {
-            /* error occurred with opening the file */
-            if (displayLevel > 2) {
-                DISPLAYOUT("\n");
-            }
+            /* error occurred while opening the file */
+            if (displayLevel > 2) DISPLAYOUT("\n");
             return 1;
         }
         displayInfo(inFileName, &info, displayLevel);
+        *total = FIO_addFInfo(*total, info);
         return error;
     }
 }
@@ -1934,15 +1951,36 @@ int FIO_listMultipleFiles(unsigned numFiles, const char** filenameTable, int dis
         DISPLAYOUT("No files given\n");
         return 0;
     }
-    DISPLAYOUT("===========================================\n");
-    DISPLAYOUT("Printing information about compressed files\n");
-    DISPLAYOUT("===========================================\n");
-    DISPLAYOUT("Number of files listed: %u\n", numFiles);
-    {
-        int error = 0;
+    DISPLAYOUT("Frames  Skips  Compressed  Uncompressed  Ratio  Check  Filename\n");
+    {   int error = 0;
         unsigned u;
+        fileInfo_t total;
+        memset(&total, 0, sizeof(total));
+        total.usesCheck = 1;
         for (u=0; u<numFiles;u++) {
-            error |= FIO_listFile(filenameTable[u], displayLevel, u+1, numFiles);
+            error |= FIO_listFile(&total, filenameTable[u], displayLevel);
+        }
+        if (numFiles > 1) {
+            unsigned const unit = total.compressedSize < (1 MB) ? (1 KB) : (1 MB);
+            const char* const unitStr = total.compressedSize < (1 MB) ? "KB" : "MB";
+            double const compressedSizeUnit = (double)total.compressedSize / unit;
+            double const decompressedSizeUnit = (double)total.decompressedSize / unit;
+            double const ratio = (total.compressedSize == 0) ? 0 : ((double)total.decompressedSize)/total.compressedSize;
+            const char* const checkString = (total.usesCheck ? "XXH64" : "");
+            DISPLAYOUT("----------------------------------------------------------------- \n");
+            if (total.decompUnavailable) {
+                DISPLAYOUT("%6d  %5d  %7.2f %2s                       %5s  %u files\n",
+                        total.numSkippableFrames + total.numActualFrames,
+                        total.numSkippableFrames,
+                        compressedSizeUnit, unitStr,
+                        checkString, total.nbFiles);
+            } else {
+                DISPLAYOUT("%6d  %5d  %7.2f %2s  %9.2f %2s  %5.3f  %5s  %u files\n",
+                        total.numSkippableFrames + total.numActualFrames,
+                        total.numSkippableFrames,
+                        compressedSizeUnit, unitStr, decompressedSizeUnit, unitStr,
+                        ratio, checkString, total.nbFiles);
+            }
         }
         return error;
     }

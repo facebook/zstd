@@ -55,7 +55,6 @@ then
 fi
 
 isWindows=false
-ECHO="echo -e"
 INTOVOID="/dev/null"
 case "$OS" in
   Windows*)
@@ -74,6 +73,11 @@ esac
 DIFF="diff"
 case "$UNAME" in
   SunOS) DIFF="gdiff" ;;
+esac
+
+ECHO="echo -e"
+case "$UNAME" in
+  Darwin) ECHO="echo" ;;
 esac
 
 $ECHO "\nStarting playTests.sh isWindows=$isWindows ZSTD='$ZSTD'"

@@ -63,9 +63,10 @@ typedef enum {
   ZSTD_error_memory_allocation = 64,
   ZSTD_error_dstSize_tooSmall = 70,
   ZSTD_error_srcSize_wrong    = 72,
+  /* following error codes are not stable and may be removed or changed in a future version */
   ZSTD_error_frameIndex_tooLarge = 100,
   ZSTD_error_seekableIO          = 102,
-  ZSTD_error_maxCode = 120  /* never EVER use this value directly, it may change in future versions! Use ZSTD_isError() instead */
+  ZSTD_error_maxCode = 120  /* never EVER use this value directly, it can change in future versions! Use ZSTD_isError() instead */
 } ZSTD_ErrorCode;
 
 /*! ZSTD_getErrorCode() :

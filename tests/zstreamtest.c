@@ -1279,8 +1279,9 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
     const BYTE* dict = NULL;   /* can keep same dict on 2 consecutive tests */
     size_t dictSize = 0;
     U32 oldTestLog = 0;
-    U32 const cLevelMax = bigTests ? (U32)ZSTD_maxCLevel() : g_cLevelMax_smallTests;
-    U32 const nbThreadsMax = bigTests ? 5 : 1;
+    U32 windowLogMalus = 0;   /* can survive between 2 loops */
+    U32 const cLevelMax = bigTests ? (U32)ZSTD_maxCLevel()-1 : g_cLevelMax_smallTests;
+    U32 const nbThreadsMax = bigTests ? 4 : 2;
     ZSTD_CCtx_params* cctxParams = ZSTD_createCCtxParams();
 
     /* allocations */
@@ -1388,10 +1389,14 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
                 cParams.chainLog += (FUZ_rand(&lseed) & 3) - 1;
                 cParams.searchLog += (FUZ_rand(&lseed) & 3) - 1;
                 cParams.searchLength += (FUZ_rand(&lseed) & 3) - 1;
-                cParams.targetLength = (U32)(cParams.targetLength * (0.5 + ((double)(FUZ_rand(&lseed) & 127) / 128)));
+                cParams.targetLength = (U32)((cParams.targetLength + 1 ) * (0.5 + ((double)(FUZ_rand(&lseed) & 127) / 128)));
                 cParams = ZSTD_adjustCParams(cParams, 0, 0);
 
-                if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_windowLog, cParams.windowLog, useOpaqueAPI) );
+                if (FUZ_rand(&lseed) & 1) {
+                    CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_windowLog, cParams.windowLog, useOpaqueAPI) );
+                    assert(cParams.windowLog >= ZSTD_WINDOWLOG_MIN);   /* guaranteed by ZSTD_adjustCParams() */
+                    windowLogMalus = (cParams.windowLog - ZSTD_WINDOWLOG_MIN) / 5;
+                }
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_hashLog, cParams.hashLog, useOpaqueAPI) );
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_chainLog, cParams.chainLog, useOpaqueAPI) );
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_searchLog, cParams.searchLog, useOpaqueAPI) );
@@ -1405,7 +1410,6 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
                 if (FUZ_rand(&lseed) & 3) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_ldmBucketSizeLog, FUZ_randomClampedLength(&lseed, 0, ZSTD_LDM_BUCKETSIZELOG_MAX), useOpaqueAPI) );
                 if (FUZ_rand(&lseed) & 3) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_ldmHashEveryLog, FUZ_randomClampedLength(&lseed, 0, ZSTD_WINDOWLOG_MAX - ZSTD_HASHLOG_MIN), useOpaqueAPI) );
 
-                /* unconditionally set, to be sync with decoder */
                 /* mess with frame parameters */
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_checksumFlag, FUZ_rand(&lseed) & 1, useOpaqueAPI) );
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_dictIDFlag, FUZ_rand(&lseed) & 1, useOpaqueAPI) );
@@ -1415,7 +1419,8 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
 
                 /* multi-threading parameters */
                 {   U32 const nbThreadsCandidate = (FUZ_rand(&lseed) & 4) + 1;
-                    U32 const nbThreads = MIN(nbThreadsCandidate, nbThreadsMax);
+                    U32 const nbThreadsAdjusted = (windowLogMalus < nbThreadsCandidate) ? nbThreadsCandidate - windowLogMalus : 1;
+                    U32 const nbThreads = MIN(nbThreadsAdjusted, nbThreadsMax);
                     CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_nbThreads, nbThreads, useOpaqueAPI) );
                     if (nbThreads > 1) {
                         U32 const jobLog = FUZ_rand(&lseed) % (testLog+1);

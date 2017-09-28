@@ -10,7 +10,7 @@
 
 
 /* ======   Tuning parameters   ====== */
-#define ZSTDMT_NBTHREADS_MAX 256
+#define ZSTDMT_NBTHREADS_MAX 200
 #define ZSTDMT_OVERLAPLOG_DEFAULT 6
 
 

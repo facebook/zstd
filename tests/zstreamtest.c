@@ -741,20 +741,20 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
     static const U32 maxSampleLog = 19;
     size_t const srcBufferSize = (size_t)1<<maxSrcLog;
     BYTE* cNoiseBuffer[5];
-    size_t const copyBufferSize= srcBufferSize + (1<<maxSampleLog);
+    size_t const copyBufferSize = srcBufferSize + (1<<maxSampleLog);
     BYTE*  const copyBuffer = (BYTE*)malloc (copyBufferSize);
-    size_t const cBufferSize   = ZSTD_compressBound(srcBufferSize);
+    size_t const cBufferSize = ZSTD_compressBound(srcBufferSize);
     BYTE*  const cBuffer = (BYTE*)malloc (cBufferSize);
     size_t const dstBufferSize = srcBufferSize;
     BYTE*  const dstBuffer = (BYTE*)malloc (dstBufferSize);
     U32 result = 0;
     U32 testNb = 0;
     U32 coreSeed = seed;
-    ZSTD_CStream* zc = ZSTD_createCStream();   /* will be reset sometimes */
-    ZSTD_DStream* zd = ZSTD_createDStream();   /* will be reset sometimes */
+    ZSTD_CStream* zc = ZSTD_createCStream();   /* will be re-created sometimes */
+    ZSTD_DStream* zd = ZSTD_createDStream();   /* will be re-created sometimes */
     ZSTD_DStream* const zd_noise = ZSTD_createDStream();
     clock_t const startClock = clock();
-    const BYTE* dict=NULL;   /* can keep same dict on 2 consecutive tests */
+    const BYTE* dict = NULL;  /* can keep same dict on 2 consecutive tests */
     size_t dictSize = 0;
     U32 oldTestLog = 0;
     U32 const cLevelMax = bigTests ? (U32)ZSTD_maxCLevel() : g_cLevelMax_smallTests;
@@ -832,8 +832,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
         if ((FUZ_rand(&lseed)&1) /* at beginning, to keep same nb of rand */
             && oldTestLog /* at least one test happened */ && resetAllowed) {
             maxTestSize = FUZ_randomLength(&lseed, oldTestLog+2);
-            if (maxTestSize >= srcBufferSize)
-                maxTestSize = srcBufferSize-1;
+            maxTestSize = MIN(maxTestSize, srcBufferSize-16);
             {   U64 const pledgedSrcSize = (FUZ_rand(&lseed) & 3) ? 0 : maxTestSize;
                 CHECK_Z( ZSTD_resetCStream(zc, pledgedSrcSize) );
             }
@@ -999,15 +998,16 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double comp
     U32 result = 0;
     U32 testNb = 0;
     U32 coreSeed = seed;
-    ZSTDMT_CCtx* zc = ZSTDMT_createCCtx(2);   /* will be reset sometimes */
+    U32 nbThreads = 2;
+    ZSTDMT_CCtx* zc = ZSTDMT_createCCtx(nbThreads);   /* will be reset sometimes */
     ZSTD_DStream* zd = ZSTD_createDStream();   /* will be reset sometimes */
     ZSTD_DStream* const zd_noise = ZSTD_createDStream();
     clock_t const startClock = clock();
     const BYTE* dict=NULL;   /* can keep same dict on 2 consecutive tests */
     size_t dictSize = 0;
     U32 oldTestLog = 0;
-    U32 const cLevelMax = bigTests ? (U32)ZSTD_maxCLevel() : g_cLevelMax_smallTests;
-    U32 const nbThreadsMax = bigTests ? 5 : 2;
+    int const cLevelMax = bigTests ? (U32)ZSTD_maxCLevel()-1 : g_cLevelMax_smallTests;
+    U32 const nbThreadsMax = bigTests ? 4 : 2;
 
     /* allocations */
     cNoiseBuffer[0] = (BYTE*)malloc (srcBufferSize);
@@ -1043,8 +1043,9 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double comp
         size_t maxTestSize;
 
         /* init */
-        if (nbTests >= testNb) { DISPLAYUPDATE(2, "\r%6u/%6u    ", testNb, nbTests); }
-        else { DISPLAYUPDATE(2, "\r%6u          ", testNb); }
+        if (testNb < nbTests) {
+            DISPLAYUPDATE(2, "\r%6u/%6u    ", testNb, nbTests);
+        } else { DISPLAYUPDATE(2, "\r%6u          ", testNb); }
         FUZ_rand(&coreSeed);
         lseed = coreSeed ^ prime32;
 
@@ -1052,7 +1053,7 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double comp
         /* some issues can only happen when reusing states */
         if ((FUZ_rand(&lseed) & 0xFF) == 131) {
             U32 const nbThreadsCandidate = (FUZ_rand(&lseed) % 6) + 1;
-            U32 const nbThreads = MIN(nbThreadsCandidate, nbThreadsMax);
+            nbThreads = MIN(nbThreadsCandidate, nbThreadsMax);
             DISPLAYLEVEL(5, "Creating new context with %u threads \n", nbThreads);
             ZSTDMT_freeCCtx(zc);
             zc = ZSTDMT_createCCtx(nbThreads);
@@ -1092,11 +1093,12 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double comp
         } else {
             U32 const testLog = FUZ_rand(&lseed) % maxSrcLog;
             U32 const dictLog = FUZ_rand(&lseed) % maxSrcLog;
-            U32 const cLevelCandidate = (FUZ_rand(&lseed) %
-                               (ZSTD_maxCLevel() -
-                               (MAX(testLog, dictLog) / 3))) +
-                               1;
-            U32 const cLevel = MIN(cLevelCandidate, cLevelMax);
+            int const cLevelCandidate = ( FUZ_rand(&lseed)
+                            % (ZSTD_maxCLevel() - (MAX(testLog, dictLog) / 2)) )
+                            + 1;
+            int const cLevelThreadAdjusted = cLevelCandidate - (nbThreads * 2) + 2;  /* reduce cLevel when multiple threads to reduce memory consumption */
+            int const cLevelMin = MAX(cLevelThreadAdjusted, 1);  /* no negative cLevel yet */
+            int const cLevel = MIN(cLevelMin, cLevelMax);
             maxTestSize = FUZ_rLogLength(&lseed, testLog);
             oldTestLog = testLog;
             /* random dictionary selection */

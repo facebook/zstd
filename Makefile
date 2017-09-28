@@ -296,7 +296,7 @@ endif
 
 
 #------------------------------------------------------------------------
-#make tests validated only for MSYS, Linux, OSX, kFreeBSD and Hurd targets
+# target specific tests
 #------------------------------------------------------------------------
 ifneq (,$(filter $(HOST_OS),MSYS POSIX))
 cmakebuild:
@@ -306,38 +306,38 @@ cmakebuild:
 	cd $(BUILDIR)/cmake/build ; cmake -DCMAKE_INSTALL_PREFIX:PATH=~/install_test_dir $(CMAKE_PARAMS) .. ; $(MAKE) install ; $(MAKE) uninstall
 
 c90build: clean
-	gcc -v
+	$(CC) -v
 	CFLAGS="-std=c90" $(MAKE) allmost  # will fail, due to missing support for `long long`
 
 gnu90build: clean
-	gcc -v
+	$(CC) -v
 	CFLAGS="-std=gnu90" $(MAKE) allmost
 
 c99build: clean
-	gcc -v
+	$(CC) -v
 	CFLAGS="-std=c99" $(MAKE) allmost
 
 gnu99build: clean
-	gcc -v
+	$(CC) -v
 	CFLAGS="-std=gnu99" $(MAKE) allmost
 
 c11build: clean
-	gcc -v
+	$(CC) -v
 	CFLAGS="-std=c11" $(MAKE) allmost
 
 bmix64build: clean
-	gcc -v
+	$(CC) -v
 	CFLAGS="-O3 -mbmi -Werror" $(MAKE) -C $(TESTDIR) test
 
 bmix32build: clean
-	gcc -v
+	$(CC) -v
 	CFLAGS="-O3 -mbmi -mx32 -Werror" $(MAKE) -C $(TESTDIR) test
 
 bmi32build: clean
-	gcc -v
+	$(CC) -v
 	CFLAGS="-O3 -mbmi -m32 -Werror" $(MAKE) -C $(TESTDIR) test
 
 staticAnalyze: clean
-	gcc -v
+	$(CC) -v
 	CPPFLAGS=-g scan-build --status-bugs -v $(MAKE) all
 endif

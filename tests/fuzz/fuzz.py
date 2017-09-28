@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/bin/env python
 
 # ################################################################
 # Copyright (c) 2016-present, Facebook, Inc.
@@ -757,6 +757,10 @@ def zip_cmd(args):
         subprocess.check_call(cmd + seeds)
 
 
+def list_cmd(args):
+    print("\n".join(TARGETS))
+
+
 def short_help(args):
     name = args[0]
     print("Usage: {} [OPTIONS] COMMAND [ARGS]...\n".format(name))
@@ -776,6 +780,7 @@ def help(args):
     print("\tgen\t\tGenerate a seed corpus for a fuzzer")
     print("\tminimize\tMinimize the test corpora")
     print("\tzip\t\tZip the minimized corpora up")
+    print("\tlist\t\tList the available targets")
 
 
 def main():
@@ -802,6 +807,8 @@ def main():
         return minimize(args)
     if command == "zip":
         return zip_cmd(args)
+    if command == "list":
+        return list_cmd(args)
     short_help(args)
     print("Error: No such command {} (pass -h for help)".format(command))
     return 1

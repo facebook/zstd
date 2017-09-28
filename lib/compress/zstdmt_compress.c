@@ -1014,8 +1014,10 @@ size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
     if (input->size > input->pos) {   /* support NULL input */
         if (mtctx->inBuff.buffer.start == NULL) {
             mtctx->inBuff.buffer = ZSTDMT_getBuffer(mtctx->bufPool);
-            if (mtctx->inBuff.buffer.start == NULL)
+            if (mtctx->inBuff.buffer.start == NULL) {
+                ZSTDMT_waitForAllJobsCompleted(mtctx);
                 return ERROR(memory_allocation);
+            }
             mtctx->inBuff.filled = 0;
         }
         {   size_t const toLoad = MIN(input->size - input->pos, mtctx->inBuffSize - mtctx->inBuff.filled);

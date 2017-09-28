@@ -985,7 +985,7 @@ size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
     assert(output->pos <= output->size);
     assert(input->pos  <= input->size);
     if ((mtctx->frameEnded) && (endOp==ZSTD_e_continue)) {
-        /* current frame being ended. Only flush/end are allowed. Or start new frame with init */
+        /* current frame being ended. Only flush/end are allowed */
         return ERROR(stage_wrong);
     }
     if (mtctx->params.nbThreads==1) {  /* delegate to single-thread (synchronous) */
@@ -1014,7 +1014,8 @@ size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
     if (input->size > input->pos) {   /* support NULL input */
         if (mtctx->inBuff.buffer.start == NULL) {
             mtctx->inBuff.buffer = ZSTDMT_getBuffer(mtctx->bufPool);
-            if (mtctx->inBuff.buffer.start == NULL) return ERROR(memory_allocation);
+            if (mtctx->inBuff.buffer.start == NULL)
+                return ERROR(memory_allocation);
             mtctx->inBuff.filled = 0;
         }
         {   size_t const toLoad = MIN(input->size - input->pos, mtctx->inBuffSize - mtctx->inBuff.filled);

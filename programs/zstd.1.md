@@ -143,6 +143,10 @@ the last one takes effect.
     This is the default behavior.
 * `-r`:
     operate recursively on dictionaries
+* `--format=FORMAT`:
+    compress and decompress in other formats. If compiled with
+    support, zstd can compress to or decompress from other compression algorithm
+    formats. Possibly available options are `gzip`, `xz`, `lzma`, and `lz4`.
 * `-h`/`-H`, `--help`:
     display help/long help and exit
 * `-V`, `--version`:

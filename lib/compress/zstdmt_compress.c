@@ -494,11 +494,29 @@ static void ZSTDMT_releaseAllJobResources(ZSTDMT_CCtx* mtctx)
     mtctx->allJobsCompleted = 1;
 }
 
+static void ZSTDMT_waitForAllJobsCompleted(ZSTDMT_CCtx* zcs)
+{
+    DEBUGLOG(4, "ZSTDMT_waitForAllJobsCompleted");
+    while (zcs->doneJobID < zcs->nextJobID) {
+        unsigned const jobID = zcs->doneJobID & zcs->jobIDMask;
+        PTHREAD_MUTEX_LOCK(&zcs->jobCompleted_mutex);
+        while (zcs->jobs[jobID].jobCompleted==0) {
+            DEBUGLOG(5, "waiting for jobCompleted signal from chunk %u", zcs->doneJobID);   /* we want to block when waiting for data to flush */
+            pthread_cond_wait(&zcs->jobCompleted_cond, &zcs->jobCompleted_mutex);
+        }
+        pthread_mutex_unlock(&zcs->jobCompleted_mutex);
+        zcs->doneJobID++;
+    }
+}
+
 size_t ZSTDMT_freeCCtx(ZSTDMT_CCtx* mtctx)
 {
     if (mtctx==NULL) return 0;   /* compatible with free on NULL */
     POOL_free(mtctx->factory);
-    if (!mtctx->allJobsCompleted) ZSTDMT_releaseAllJobResources(mtctx); /* stop workers first */
+    if (!mtctx->allJobsCompleted) {
+        ZSTDMT_waitForAllJobsCompleted(mtctx);
+        ZSTDMT_releaseAllJobResources(mtctx); /* stop workers first */
+    }
     ZSTDMT_freeBufferPool(mtctx->bufPool);  /* release job resources into pools first */
     ZSTD_free(mtctx->jobs, mtctx->cMem);
     ZSTDMT_freeCCtxPool(mtctx->cctxPool);
@@ -723,21 +741,6 @@ size_t ZSTDMT_compressCCtx(ZSTDMT_CCtx* mtctx,
 /* ====================================== */
 /* =======      Streaming API     ======= */
 /* ====================================== */
-
-static void ZSTDMT_waitForAllJobsCompleted(ZSTDMT_CCtx* zcs)
-{
-    DEBUGLOG(4, "ZSTDMT_waitForAllJobsCompleted");
-    while (zcs->doneJobID < zcs->nextJobID) {
-        unsigned const jobID = zcs->doneJobID & zcs->jobIDMask;
-        PTHREAD_MUTEX_LOCK(&zcs->jobCompleted_mutex);
-        while (zcs->jobs[jobID].jobCompleted==0) {
-            DEBUGLOG(5, "waiting for jobCompleted signal from chunk %u", zcs->doneJobID);   /* we want to block when waiting for data to flush */
-            pthread_cond_wait(&zcs->jobCompleted_cond, &zcs->jobCompleted_mutex);
-        }
-        pthread_mutex_unlock(&zcs->jobCompleted_mutex);
-        zcs->doneJobID++;
-    }
-}
 
 size_t ZSTDMT_initCStream_internal(
         ZSTDMT_CCtx* zcs,

@@ -1322,6 +1322,7 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
         else { DISPLAYUPDATE(2, "\r%6u          ", testNb); }
         FUZ_rand(&coreSeed);
         lseed = coreSeed ^ prime32;
+        DISPLAYLEVEL(5, " ***  Test %u  *** \n", testNb);
 
         /* states full reset (deliberately not synchronized) */
         /* some issues can only happen when reusing states */
@@ -1371,7 +1372,9 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
                                (MAX(testLog, dictLog) / 3))) +
                                1;
             U32 const cLevel = MIN(cLevelCandidate, cLevelMax);
+            DISPLAYLEVEL(5, "t%u: cLevel : %u \n", testNb, cLevel);
             maxTestSize = FUZ_rLogLength(&lseed, testLog);
+            DISPLAYLEVEL(5, "t%u: maxTestSize : %u \n", testNb, (U32)maxTestSize);
             oldTestLog = testLog;
             /* random dictionary selection */
             dictSize  = ((FUZ_rand(&lseed)&63)==1) ? FUZ_rLogLength(&lseed, dictLog) : 0;
@@ -1396,9 +1399,16 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
                     CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_windowLog, cParams.windowLog, useOpaqueAPI) );
                     assert(cParams.windowLog >= ZSTD_WINDOWLOG_MIN);   /* guaranteed by ZSTD_adjustCParams() */
                     windowLogMalus = (cParams.windowLog - ZSTD_WINDOWLOG_MIN) / 5;
+                    DISPLAYLEVEL(5, "t%u: windowLog : %u \n", testNb, cParams.windowLog);
                 }
-                if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_hashLog, cParams.hashLog, useOpaqueAPI) );
-                if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_chainLog, cParams.chainLog, useOpaqueAPI) );
+                if (FUZ_rand(&lseed) & 1) {
+                    CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_hashLog, cParams.hashLog, useOpaqueAPI) );
+                    DISPLAYLEVEL(5, "t%u: hashLog : %u \n", testNb, cParams.hashLog);
+                }
+                if (FUZ_rand(&lseed) & 1) {
+                    CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_chainLog, cParams.chainLog, useOpaqueAPI) );
+                    DISPLAYLEVEL(5, "t%u: chainLog : %u \n", testNb, cParams.chainLog);
+                }
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_searchLog, cParams.searchLog, useOpaqueAPI) );
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_minMatch, cParams.searchLength, useOpaqueAPI) );
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_targetLength, cParams.targetLength, useOpaqueAPI) );
@@ -1415,13 +1425,14 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_dictIDFlag, FUZ_rand(&lseed) & 1, useOpaqueAPI) );
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_contentSizeFlag, FUZ_rand(&lseed) & 1, useOpaqueAPI) );
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( ZSTD_CCtx_setPledgedSrcSize(zc, pledgedSrcSize) );
-                DISPLAYLEVEL(5, "pledgedSrcSize : %u \n", (U32)pledgedSrcSize);
+                DISPLAYLEVEL(5, "t%u: pledgedSrcSize : %u \n", testNb, (U32)pledgedSrcSize);
 
                 /* multi-threading parameters */
                 {   U32 const nbThreadsCandidate = (FUZ_rand(&lseed) & 4) + 1;
                     U32 const nbThreadsAdjusted = (windowLogMalus < nbThreadsCandidate) ? nbThreadsCandidate - windowLogMalus : 1;
                     U32 const nbThreads = MIN(nbThreadsAdjusted, nbThreadsMax);
                     CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_nbThreads, nbThreads, useOpaqueAPI) );
+                    DISPLAYLEVEL(5, "t%u: nbThreads : %u \n", testNb, nbThreads);
                     if (nbThreads > 1) {
                         U32 const jobLog = FUZ_rand(&lseed) % (testLog+1);
                         CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_overlapSizeLog, FUZ_rand(&lseed) % 10, useOpaqueAPI) );

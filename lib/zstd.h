@@ -376,22 +376,22 @@ ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output
 #define ZSTD_MAGIC_SKIPPABLE_START  0x184D2A50U
 #define ZSTD_MAGIC_DICTIONARY       0xEC30A437   /* v0.7+ */
 
-#define ZSTD_WINDOWLOG_MAX_32  30
-#define ZSTD_WINDOWLOG_MAX_64  31
+#define ZSTD_WINDOWLOG_MAX_32   30
+#define ZSTD_WINDOWLOG_MAX_64   31
 #define ZSTD_WINDOWLOG_MAX    ((unsigned)(sizeof(size_t) == 4 ? ZSTD_WINDOWLOG_MAX_32 : ZSTD_WINDOWLOG_MAX_64))
-#define ZSTD_WINDOWLOG_MIN     10
-#define ZSTD_HASHLOG_MAX       MIN(ZSTD_WINDOWLOG_MAX, 30)
-#define ZSTD_HASHLOG_MIN        6
-#define ZSTD_CHAINLOG_MAX      MIN(ZSTD_WINDOWLOG_MAX+1, 30)
-#define ZSTD_CHAINLOG_MIN      ZSTD_HASHLOG_MIN
-#define ZSTD_HASHLOG3_MAX      17
-#define ZSTD_SEARCHLOG_MAX    (ZSTD_WINDOWLOG_MAX-1)
-#define ZSTD_SEARCHLOG_MIN      1
-#define ZSTD_SEARCHLENGTH_MAX   7   /* only for ZSTD_fast, other strategies are limited to 6 */
-#define ZSTD_SEARCHLENGTH_MIN   3   /* only for ZSTD_btopt, other strategies are limited to 4 */
-#define ZSTD_TARGETLENGTH_MIN   4
-#define ZSTD_TARGETLENGTH_MAX 999
-#define ZSTD_LDM_MINMATCH_MIN 4
+#define ZSTD_WINDOWLOG_MIN      10
+#define ZSTD_HASHLOG_MAX        MIN(ZSTD_WINDOWLOG_MAX, 30)
+#define ZSTD_HASHLOG_MIN         6
+#define ZSTD_CHAINLOG_MAX       MIN(ZSTD_WINDOWLOG_MAX+1, 30)
+#define ZSTD_CHAINLOG_MIN       ZSTD_HASHLOG_MIN
+#define ZSTD_HASHLOG3_MAX       17
+#define ZSTD_SEARCHLOG_MAX     (ZSTD_WINDOWLOG_MAX-1)
+#define ZSTD_SEARCHLOG_MIN       1
+#define ZSTD_SEARCHLENGTH_MAX    7   /* only for ZSTD_fast, other strategies are limited to 6 */
+#define ZSTD_SEARCHLENGTH_MIN    3   /* only for ZSTD_btopt, other strategies are limited to 4 */
+#define ZSTD_TARGETLENGTH_MIN    4   /* only useful for btopt */
+#define ZSTD_TARGETLENGTH_MAX  999   /* only useful for btopt */
+#define ZSTD_LDM_MINMATCH_MIN    4
 #define ZSTD_LDM_MINMATCH_MAX 4096
 #define ZSTD_LDM_BUCKETSIZELOG_MAX 8
 

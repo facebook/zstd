@@ -634,26 +634,31 @@ static U32 ZSTD_cycleLog(U32 hashLog, ZSTD_strategy strat)
     mostly downsizing to reduce memory consumption and initialization.
     Both `srcSize` and `dictSize` are optional (use 0 if unknown),
     but if both are 0, no optimization can be done.
-    Note : cPar is considered validated at this stage. Use ZSTD_checkParams() to ensure that. */
+    Note : cPar is considered validated at this stage. Use ZSTD_checkCParams() to ensure that condition. */
 ZSTD_compressionParameters ZSTD_adjustCParams_internal(ZSTD_compressionParameters cPar, unsigned long long srcSize, size_t dictSize)
 {
     assert(ZSTD_checkCParams(cPar)==0);
-    if (srcSize+dictSize == 0) return cPar;   /* no size information available : no adjustment */
 
-    /* resize params, to use less memory when necessary */
-    {   U32 const minSrcSize = (srcSize==0) ? 500 : 0;
+    /* resize windowLog if src is small, to use less memory when necessary */
+    ZSTD_STATIC_ASSERT(ZSTD_CONTENTSIZE_UNKNOWN == -1ULL);
+    if ( (dictSize || (srcSize+1 > 1))  /* srcSize test depends on static assert condition */
+      && (srcSize-1 < (1ULL<<ZSTD_WINDOWLOG_MAX)) ) /* no correction is srcSize is large enough */ {
+        U32 const minSrcSize = (srcSize==0) ? 513 : 0;
         U64 const rSize = srcSize + dictSize + minSrcSize;
-        if (rSize < ((U64)1<<ZSTD_WINDOWLOG_MAX)) {
+        if (rSize < (1ULL<<ZSTD_WINDOWLOG_MAX)) {
             U32 const srcLog =
-                    MAX(ZSTD_HASHLOG_MIN, (rSize==1) ? 1 : ZSTD_highbit32((U32)(rSize)-1) + 1);
+                    MAX(ZSTD_HASHLOG_MIN,
+                        (rSize==1) ? 1 : ZSTD_highbit32((U32)(rSize)-1) + 1);
             if (cPar.windowLog > srcLog) cPar.windowLog = srcLog;
     }   }
     if (cPar.hashLog > cPar.windowLog) cPar.hashLog = cPar.windowLog;
     {   U32 const cycleLog = ZSTD_cycleLog(cPar.chainLog, cPar.strategy);
-        if (cycleLog > cPar.windowLog) cPar.chainLog -= (cycleLog - cPar.windowLog);
+        if (cycleLog > cPar.windowLog)
+            cPar.chainLog -= (cycleLog - cPar.windowLog);
     }
 
-    if (cPar.windowLog < ZSTD_WINDOWLOG_ABSOLUTEMIN) cPar.windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;  /* required for frame header */
+    if (cPar.windowLog < ZSTD_WINDOWLOG_ABSOLUTEMIN)
+        cPar.windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;  /* required for frame header */
 
     return cPar;
 }

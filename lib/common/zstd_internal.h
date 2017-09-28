@@ -106,6 +106,9 @@ static const U32 repStartValue[ZSTD_REP_NUM] = { 1, 4, 8 };
 static const size_t ZSTD_fcs_fieldSize[4] = { 0, 2, 4, 8 };
 static const size_t ZSTD_did_fieldSize[4] = { 0, 1, 2, 4 };
 
+#define ZSTD_FRAMEIDSIZE 4
+static const size_t ZSTD_frameIdSize = ZSTD_FRAMEIDSIZE;  /* magic number size */
+
 #define ZSTD_BLOCKHEADERSIZE 3   /* C standard doesn't allow `static const` variable to be init using another `static const` variable */
 static const size_t ZSTD_blockHeaderSize = ZSTD_BLOCKHEADERSIZE;
 typedef enum { bt_raw, bt_rle, bt_compressed, bt_reserved } blockType_e;
@@ -284,6 +287,7 @@ typedef struct {
 } ZSTD_entropyCTables_t;
 
 struct ZSTD_CCtx_params_s {
+    ZSTD_format_e format;
     ZSTD_compressionParameters cParams;
     ZSTD_frameParameters fParams;
 

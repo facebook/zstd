@@ -53,17 +53,19 @@ static unsigned long long GetCurrentClockTimeMicroseconds(void)
 }
 
 #define MUTEX_WAIT_TIME_DLEVEL 6
-#define ZSTD_PTHREAD_MUTEX_LOCK(mutex) {               \
-    if (ZSTD_DEBUG>=MUTEX_WAIT_TIME_DLEVEL) {   \
+#define ZSTD_PTHREAD_MUTEX_LOCK(mutex) {          \
+    if (ZSTD_DEBUG >= MUTEX_WAIT_TIME_DLEVEL) {   \
         unsigned long long const beforeTime = GetCurrentClockTimeMicroseconds(); \
-        ZSTD_pthread_mutex_lock(mutex);                \
+        ZSTD_pthread_mutex_lock(mutex);           \
         {   unsigned long long const afterTime = GetCurrentClockTimeMicroseconds(); \
             unsigned long long const elapsedTime = (afterTime-beforeTime); \
             if (elapsedTime > 1000) {  /* or whatever threshold you like; I'm using 1 millisecond here */ \
                 DEBUGLOG(MUTEX_WAIT_TIME_DLEVEL, "Thread took %llu microseconds to acquire mutex %s \n", \
                    elapsedTime, #mutex);          \
         }   }                                     \
-    } else ZSTD_pthread_mutex_lock(mutex);             \
+    } else {                                      \
+        ZSTD_pthread_mutex_lock(mutex);           \
+    }                                             \
 }
 
 #else

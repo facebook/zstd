@@ -376,6 +376,7 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
             skippedSize = frameHeaderSize + ZSTD_blockHeaderSize;
             memcpy(buff2, dstBuff+skippedSize, g_cSize-skippedSize);
             srcSize = srcSize > 128 KB ? 128 KB : srcSize;    /* speed relative to block */
+            ZSTD_decompressBegin(g_zdc);
             break;
         }
     case 32:   /* ZSTD_decodeSeqHeaders */

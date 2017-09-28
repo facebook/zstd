@@ -85,7 +85,7 @@ int main(int argc, char const *argv[]) {
                 return 1;
             }
         }
-        
+
         size_t compressedSize;
         {   ZSTD_inBuffer inBuff = { dataToCompress, sizeof(dataToCompress), 0 };
             ZSTD_outBuffer outBuff = { compressedData, sizeof(compressedData), 0 };
@@ -133,7 +133,7 @@ int main(int argc, char const *argv[]) {
 
         size_t const cstreamSize = ZSTD_sizeof_CStream(cstream);
         size_t const cstreamEstimatedSize = wLog ?
-                ZSTD_estimateCStreamSize_advanced_usingCParams(params.cParams) :
+                ZSTD_estimateCStreamSize_usingCParams(params.cParams) :
                 ZSTD_estimateCStreamSize(compressionLevel);
         size_t const dstreamSize = ZSTD_sizeof_DStream(dstream);
 

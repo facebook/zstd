@@ -61,6 +61,8 @@
 #define ZSTD_UNLZMA "unlzma"
 #define ZSTD_XZ "xz"
 #define ZSTD_UNXZ "unxz"
+#define ZSTD_LZ4 "lz4"
+#define ZSTD_UNLZ4 "unlz4"
 
 #define KB *(1 <<10)
 #define MB *(1 <<20)
@@ -425,6 +427,8 @@ int main(int argCount, const char* argv[])
     if (exeNameMatch(programName, ZSTD_UNLZMA)) { operation=zom_decompress; FIO_setCompressionType(FIO_lzmaCompression); FIO_setRemoveSrcFile(1); }    /* behave like unlzma */
     if (exeNameMatch(programName, ZSTD_XZ)) { suffix = XZ_EXTENSION; FIO_setCompressionType(FIO_xzCompression); FIO_setRemoveSrcFile(1); }    /* behave like xz */
     if (exeNameMatch(programName, ZSTD_UNXZ)) { operation=zom_decompress; FIO_setCompressionType(FIO_xzCompression); FIO_setRemoveSrcFile(1); }    /* behave like unxz */
+    if (exeNameMatch(programName, ZSTD_LZ4)) { suffix = LZ4_EXTENSION; FIO_setCompressionType(FIO_lz4Compression); FIO_setRemoveSrcFile(1); }    /* behave like xz */
+    if (exeNameMatch(programName, ZSTD_UNLZ4)) { operation=zom_decompress; FIO_setCompressionType(FIO_lz4Compression); FIO_setRemoveSrcFile(1); }    /* behave like unxz */
     memset(&compressionParams, 0, sizeof(compressionParams));
 
     /* command switches */

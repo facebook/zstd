@@ -50,7 +50,6 @@ static const U32 g_cLevelMax_smallTests = 10;
 #define COMPRESSIBLE_NOISE_LENGTH (10 MB)
 #define FUZ_COMPRESSIBILITY_DEFAULT 50
 static const U32 prime32 = 2654435761U;
-static const U32 windowLogMax = 27;
 
 
 /*-************************************
@@ -1052,8 +1051,7 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double comp
         /* states full reset (deliberately not synchronized) */
         /* some issues can only happen when reusing states */
         if ((FUZ_rand(&lseed) & 0xFF) == 131) {
-            U32 const nbThreadsCandidate = (FUZ_rand(&lseed) % 6) + 1;
-            nbThreads = MIN(nbThreadsCandidate, nbThreadsMax);
+            nbThreads = (FUZ_rand(&lseed) % nbThreadsMax) + 1;
             DISPLAYLEVEL(5, "Creating new context with %u threads \n", nbThreads);
             ZSTDMT_freeCCtx(zc);
             zc = ZSTDMT_createCCtx(nbThreads);
@@ -1369,7 +1367,7 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
             U32 const dictLog = FUZ_rand(&lseed) % maxSrcLog;
             U32 const cLevelCandidate = (FUZ_rand(&lseed) %
                                (ZSTD_maxCLevel() -
-                               (MAX(testLog, dictLog) / 3))) +
+                               (MAX(testLog, dictLog) / 2))) +
                                1;
             U32 const cLevel = MIN(cLevelCandidate, cLevelMax);
             DISPLAYLEVEL(5, "t%u: cLevel : %u \n", testNb, cLevel);
@@ -1384,6 +1382,7 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
             }
             {   U64 const pledgedSrcSize = (FUZ_rand(&lseed) & 3) ? ZSTD_CONTENTSIZE_UNKNOWN : maxTestSize;
                 ZSTD_compressionParameters cParams = ZSTD_getCParams(cLevel, pledgedSrcSize, dictSize);
+                static const U32 windowLogMax = 25;
 
                 /* mess with compression parameters */
                 cParams.windowLog += (FUZ_rand(&lseed) & 3) - 1;

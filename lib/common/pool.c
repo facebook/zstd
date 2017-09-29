@@ -99,16 +99,16 @@ static void* POOL_thread(void* opaque) {
     /* Unreachable */
 }
 
-POOL_ctx *POOL_create(size_t numThreads, size_t queueSize) {
+POOL_ctx* POOL_create(size_t numThreads, size_t queueSize) {
     return POOL_create_advanced(numThreads, queueSize, ZSTD_defaultCMem);
 }
 
-POOL_ctx *POOL_create_advanced(size_t numThreads, size_t queueSize, ZSTD_customMem customMem) {
-    POOL_ctx *ctx;
+POOL_ctx* POOL_create_advanced(size_t numThreads, size_t queueSize, ZSTD_customMem customMem) {
+    POOL_ctx* ctx;
     /* Check the parameters */
     if (!numThreads) { return NULL; }
     /* Allocate the context and zero initialize */
-    ctx = (POOL_ctx *)ZSTD_calloc(sizeof(POOL_ctx), customMem);
+    ctx = (POOL_ctx*)ZSTD_calloc(sizeof(POOL_ctx), customMem);
     if (!ctx) { return NULL; }
     /* Initialize the job queue.
      * It needs one extra space since one space is wasted to differentiate empty
@@ -146,7 +146,7 @@ POOL_ctx *POOL_create_advanced(size_t numThreads, size_t queueSize, ZSTD_customM
 /*! POOL_join() :
     Shutdown the queue, wake any sleeping threads, and join all of the threads.
 */
-static void POOL_join(POOL_ctx *ctx) {
+static void POOL_join(POOL_ctx* ctx) {
     /* Shut down the queue */
     ZSTD_pthread_mutex_lock(&ctx->queueMutex);
     ctx->shutdown = 1;

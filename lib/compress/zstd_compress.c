@@ -640,26 +640,29 @@ static U32 ZSTD_cycleLog(U32 hashLog, ZSTD_strategy strat)
 
 /** ZSTD_adjustCParams_internal() :
     optimize `cPar` for a given input (`srcSize` and `dictSize`).
-    mostly downsizing to reduce memory consumption and initialization.
-    Both `srcSize` and `dictSize` are optional (use 0 if unknown),
-    but if both are 0, no optimization can be done.
+    mostly downsizing to reduce memory consumption and initialization latency.
+    Both `srcSize` and `dictSize` are optional (use 0 if unknown).
     Note : cPar is considered validated at this stage. Use ZSTD_checkCParams() to ensure that condition. */
 ZSTD_compressionParameters ZSTD_adjustCParams_internal(ZSTD_compressionParameters cPar, unsigned long long srcSize, size_t dictSize)
 {
+    static const U64 minSrcSize = 513; /* (1<<9) + 1 */
+    static const U64 maxWindowResize = 1ULL << (ZSTD_WINDOWLOG_MAX-1);
     assert(ZSTD_checkCParams(cPar)==0);
 
-    /* resize windowLog if src is small, to use less memory when necessary */
-    ZSTD_STATIC_ASSERT(ZSTD_CONTENTSIZE_UNKNOWN == (0ULL - 1));
-    if ( (dictSize || (srcSize+1 > 1))  /* srcSize test depends on static assert condition */
-      && (srcSize-1 < (1ULL<<ZSTD_WINDOWLOG_MAX)) ) /* no correction when srcSize is large enough */ {
-        U32 const minSrcSize = (srcSize==0) ? 513 : 0;
-        U64 const rSize = srcSize + dictSize + minSrcSize;
-        if (rSize < (1ULL<<ZSTD_WINDOWLOG_MAX)) {
-            U32 const srcLog =
-                    MAX(ZSTD_HASHLOG_MIN,
-                        (rSize==1) ? 1 : ZSTD_highbit32((U32)(rSize)-1) + 1);
-            if (cPar.windowLog > srcLog) cPar.windowLog = srcLog;
-    }   }
+    if (dictSize && (srcSize+1<2) /* srcSize unknown */ )
+        srcSize = minSrcSize;  /* presumed small when there is a dictionary */
+    else
+        srcSize -= 1;  /* unknown 0 => -1ULL : presumed large */
+
+    /* resize windowLog if input is small enough, to use less memory */
+    if ( (srcSize < maxWindowResize)
+      && (dictSize < maxWindowResize) )  {
+        U32 const tSize = (U32)(srcSize + dictSize);
+        static U32 const hashSizeMin = 1 << ZSTD_HASHLOG_MIN;
+        U32 const srcLog = (tSize < hashSizeMin) ? ZSTD_HASHLOG_MIN :
+                            ZSTD_highbit32(tSize-1) + 1;
+        if (cPar.windowLog > srcLog) cPar.windowLog = srcLog;
+    }
     if (cPar.hashLog > cPar.windowLog) cPar.hashLog = cPar.windowLog;
     {   U32 const cycleLog = ZSTD_cycleLog(cPar.chainLog, cPar.strategy);
         if (cycleLog > cPar.windowLog)

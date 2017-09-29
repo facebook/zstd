@@ -514,13 +514,10 @@ static void ZSTDMT_waitForAllJobsCompleted(ZSTDMT_CCtx* zcs)
 size_t ZSTDMT_freeCCtx(ZSTDMT_CCtx* mtctx)
 {
     if (mtctx==NULL) return 0;   /* compatible with free on NULL */
-    POOL_free(mtctx->factory);
-    if (!mtctx->allJobsCompleted) {
-        ZSTDMT_waitForAllJobsCompleted(mtctx);
-        ZSTDMT_releaseAllJobResources(mtctx); /* stop workers first */
-    }
-    ZSTDMT_freeBufferPool(mtctx->bufPool);  /* release job resources into pools first */
+    POOL_free(mtctx->factory);   /* stop and free worker threads */
+    ZSTDMT_releaseAllJobResources(mtctx);  /* release job resources into pools first */
     ZSTD_free(mtctx->jobs, mtctx->cMem);
+    ZSTDMT_freeBufferPool(mtctx->bufPool);
     ZSTDMT_freeCCtxPool(mtctx->cctxPool);
     ZSTD_freeCDict(mtctx->cdictLocal);
     ZSTD_pthread_mutex_destroy(&mtctx->jobCompleted_mutex);

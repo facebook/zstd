@@ -175,7 +175,8 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     RDG_genBuffer(CNBuffer, CNBufferSize, compressibility, 0., seed);
 
     /* Create dictionary */
-    dictionary = FUZ_createDictionary(CNBuffer, CNBufferSize, 4 KB, 40 KB);
+    DISPLAYLEVEL(3, "creating dictionary for unit tests \n");
+    dictionary = FUZ_createDictionary(CNBuffer, CNBufferSize / 2, 8 KB, 40 KB);
     if (!dictionary.start) {
         DISPLAY("Error creating dictionary, aborting \n");
         goto _output_error;

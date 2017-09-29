@@ -1213,14 +1213,18 @@ unsigned long long FIO_decompressZstdFrame(dRess_t* ress,
     U64 frameSize = 0;
     U32 storedSkips = 0;
 
+    size_t const srcFileLength = strlen(srcFileName);
+    if (srcFileLength>20) srcFileName += srcFileLength-20;  /* display last 20 characters only */
+
     ZSTD_resetDStream(ress->dctx);
-    if (strlen(srcFileName)>20) srcFileName += strlen(srcFileName)-20;   /* display last 20 characters */
 
     /* Header loading : ensures ZSTD_getFrameHeader() will succeed */
-    {   size_t const toRead = ZSTD_FRAMEHEADERSIZE_MAX;
-        if (ress->srcBufferLoaded < toRead)
-            ress->srcBufferLoaded += fread(((char*)ress->srcBuffer) + ress->srcBufferLoaded, 1, toRead - ress->srcBufferLoaded, finput);
-    }
+    {   size_t const toDecode = ZSTD_FRAMEHEADERSIZE_MAX;
+        if (ress->srcBufferLoaded < toDecode) {
+            size_t const toRead = toDecode - ress->srcBufferLoaded;
+            void* const startPosition = (char*)ress->srcBuffer + ress->srcBufferLoaded;
+            ress->srcBufferLoaded += fread(startPosition, 1, toRead, finput);
+    }   }
 
     /* Main decompression Loop */
     while (1) {
@@ -1253,14 +1257,17 @@ unsigned long long FIO_decompressZstdFrame(dRess_t* ress,
         }
 
         /* Fill input buffer */
-        {   size_t const toRead = MIN(readSizeHint, ress->srcBufferSize);  /* support large skippable frames */
-            if (ress->srcBufferLoaded < toRead)
-                ress->srcBufferLoaded += fread((char*)ress->srcBuffer + ress->srcBufferLoaded,
-                                               1, toRead - ress->srcBufferLoaded, finput);
-            if (ress->srcBufferLoaded < toRead) {
-                DISPLAYLEVEL(1, "%s : Read error (39) : premature end \n",
-                                srcFileName);
-                return FIO_ERROR_FRAME_DECODING;
+        {   size_t const toDecode = MIN(readSizeHint, ress->srcBufferSize);  /* support large skippable frames */
+            if (ress->srcBufferLoaded < toDecode) {
+                size_t const toRead = toDecode - ress->srcBufferLoaded;   /* > 0 */
+                void* const startPosition = (char*)ress->srcBuffer + ress->srcBufferLoaded;
+                size_t const readSize = fread(startPosition, 1, toRead, finput);
+                if (readSize==0) {
+                    DISPLAYLEVEL(1, "%s : Read error (39) : premature end \n",
+                                    srcFileName);
+                    return FIO_ERROR_FRAME_DECODING;
+                }
+                ress->srcBufferLoaded += readSize;
     }   }   }
 
     FIO_fwriteSparseEnd(ress->dstFile, storedSkips);

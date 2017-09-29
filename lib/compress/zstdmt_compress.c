@@ -155,6 +155,7 @@ static buffer_t ZSTDMT_getBuffer(ZSTDMT_bufferPool* bufPool)
     if (bufPool->nbBuffers) {   /* try to use an existing buffer */
         buffer_t const buf = bufPool->bTable[--(bufPool->nbBuffers)];
         size_t const availBufferSize = buf.size;
+        bufPool->bTable[bufPool->nbBuffers] = g_nullBuffer;
         if ((availBufferSize >= bSize) & (availBufferSize <= 10*bSize)) {
             /* large enough, but not too much */
             ZSTD_pthread_mutex_unlock(&bufPool->poolMutex);

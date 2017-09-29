@@ -1614,9 +1614,9 @@ int main(int argc, const char** argv)
         /* Parsing commands. Aggregated commands are allowed */
         if (argument[0]=='-') {
 
-            if (!strcmp(argument, "--mt")) { selected_api=mt_api; continue; }
-            if (!strcmp(argument, "--newapi")) { selected_api=advanced_api; continue; }
-            if (!strcmp(argument, "--opaqueapi")) { selected_api=advanced_api; useOpaqueAPI = 1; continue; }
+            if (!strcmp(argument, "--mt")) { selected_api=mt_api; testNb += !testNb; continue; }
+            if (!strcmp(argument, "--newapi")) { selected_api=advanced_api; testNb += !testNb; continue; }
+            if (!strcmp(argument, "--opaqueapi")) { selected_api=advanced_api; testNb += !testNb; useOpaqueAPI = 1; continue; }
             if (!strcmp(argument, "--no-big-tests")) { bigTests=0; continue; }
 
             argument++;

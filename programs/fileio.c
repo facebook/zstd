@@ -757,6 +757,7 @@ static int FIO_compressFilename_internal(cRess_t ress,
     U64 readsize = 0;
     U64 compressedfilesize = 0;
     U64 const fileSize = UTIL_getFileSize(srcFileName);
+    DISPLAYLEVEL(5, "%s: %u bytes \n", srcFileName, (U32)fileSize);
 
     switch (g_compressionType) {
         case FIO_zstdCompression:
@@ -796,7 +797,7 @@ static int FIO_compressFilename_internal(cRess_t ress,
 
     /* init */
 #ifdef ZSTD_NEWAPI
-    /* nothing, reset is implied */
+    CHECK( ZSTD_resetCStream(ress.cctx, fileSize) );  /* to pass fileSize */
 #elif defined(ZSTD_MULTITHREAD)
     CHECK( ZSTDMT_resetCStream(ress.cctx, fileSize) );
 #else
@@ -849,10 +850,10 @@ static int FIO_compressFilename_internal(cRess_t ress,
 
     /* End of Frame */
     {   size_t result = 1;
-        while (result!=0) {   /* note : is there any possibility of endless loop ? */
+        while (result != 0) {
             ZSTD_outBuffer outBuff = { ress.dstBuffer, ress.dstBufferSize, 0 };
 #ifdef ZSTD_NEWAPI
-            ZSTD_inBuffer inBuff = { NULL, 0, 0};
+            ZSTD_inBuffer inBuff = { NULL, 0, 0 };
             result = ZSTD_compress_generic(ress.cctx,
                         &outBuff, &inBuff, ZSTD_e_end);
 #elif defined(ZSTD_MULTITHREAD)
@@ -863,8 +864,10 @@ static int FIO_compressFilename_internal(cRess_t ress,
             if (ZSTD_isError(result))
                 EXM_THROW(26, "Compression error during frame end : %s",
                             ZSTD_getErrorName(result));
-            { size_t const sizeCheck = fwrite(ress.dstBuffer, 1, outBuff.pos, dstFile);
-              if (sizeCheck!=outBuff.pos) EXM_THROW(27, "Write error : cannot write frame end into %s", dstFileName); }
+            {   size_t const sizeCheck = fwrite(ress.dstBuffer, 1, outBuff.pos, dstFile);
+                if (sizeCheck!=outBuff.pos)
+                    EXM_THROW(27, "Write error : cannot write frame end into %s", dstFileName);
+            }
             compressedfilesize += outBuff.pos;
         }
     }
@@ -974,7 +977,7 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
     char*  dstFileName = (char*)malloc(FNSPACE);
     size_t const suffixSize = suffix ? strlen(suffix) : 0;
     U64 const srcSize = (nbFiles != 1) ? 0 : UTIL_getFileSize(inFileNamesTable[0]) ;
-    int const isRegularFile = (nbFiles > 1) ? 0 : UTIL_isRegularFile(inFileNamesTable[0]);  /* won't write frame content size when nbFiles > 1 */
+    int const isRegularFile = (nbFiles > 1) ? 1 : UTIL_isRegularFile(inFileNamesTable[0]);  /* if nbFiles > 1, it's not stdin */
     cRess_t ress = FIO_createCResources(dictFileName, compressionLevel, srcSize, isRegularFile, comprParams);
 
     /* init */

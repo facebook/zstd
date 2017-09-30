@@ -40,6 +40,16 @@ There are however other Makefile targets that create different variations of CLI
   In which case, linking stage will fail if `lzma` library cannot be found.
   This might be useful to prevent silent feature disabling.
 
+- __HAVE_LZ4__ : `zstd` can compress and decompress files in `.lz4` formats.
+  This is ordered through commands `--format=lz4`.
+  Alternatively, symlinks named `lz4`, or `unlz4` will mimic intended behavior.
+  `.lz4` support is automatically enabled when `lz4` library is detected at build time.
+  It's possible to disable `.lz4` support, by setting HAVE_LZ4=0 .
+  Example : make zstd HAVE_LZ4=0
+  It's also possible to force compilation with lz4 support, using HAVE_LZ4=1.
+  In which case, linking stage will fail if `lz4` library cannot be found.
+  This might be useful to prevent silent feature disabling.
+
 - __ZSTD_LEGACY_SUPPORT__ : `zstd` can decompress files compressed by older versions of `zstd`.
   Starting v0.8.0, all versions of `zstd` produce frames compliant with the [specification](../doc/zstd_compression_format.md), and are therefore compatible.
   But older versions (< v0.8.0) produced different, incompatible, frames.

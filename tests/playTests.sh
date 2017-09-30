@@ -598,7 +598,6 @@ $ECHO "\n**** zstd --list/-l single frame tests ****"
 ./datagen > tmp1
 ./datagen > tmp2
 ./datagen > tmp3
-./datagen > tmp4
 $ZSTD tmp*
 $ZSTD -l *.zst
 $ZSTD -lv *.zst
@@ -607,9 +606,7 @@ $ZSTD --list -v *.zst
 
 $ECHO "\n**** zstd --list/-l multiple frame tests ****"
 cat tmp1.zst tmp2.zst > tmp12.zst
-cat tmp3.zst tmp4.zst > tmp34.zst
-cat tmp12.zst tmp34.zst > tmp1234.zst
-cat tmp12.zst tmp4.zst > tmp124.zst
+cat tmp12.zst tmp3.zst > tmp123.zst
 $ZSTD -l *.zst
 $ZSTD -lv *.zst
 $ZSTD --list *.zst
@@ -619,7 +616,7 @@ $ECHO "\n**** zstd --list/-l error detection tests ****"
 ! $ZSTD -l tmp1 tmp1.zst
 ! $ZSTD --list tmp*
 ! $ZSTD -lv tmp1*
-! $ZSTD --list -v tmp2 tmp23.zst
+! $ZSTD --list -v tmp2 tmp12.zst
 
 $ECHO "\n**** zstd --list/-l test with null files ****"
 ./datagen -g0 > tmp5
@@ -642,65 +639,70 @@ $ZSTD -lv tmp1.zst
 rm tmp*
 
 
+$ECHO "\n**** zstd long distance matching tests **** "
+roundTripTest -g0 " --long"
+roundTripTest -g9M "2 --long"
+# Test parameter parsing
+roundTripTest -g1M -P50 "1 --long=29" " --memory=512MB"
+roundTripTest -g1M -P50 "1 --long=29 --zstd=wlog=28" " --memory=256MB"
+roundTripTest -g1M -P50 "1 --long=29" " --long=28 --memory=512MB"
+roundTripTest -g1M -P50 "1 --long=29" " --zstd=wlog=28 --memory=512MB"
+
+
 if [ "$1" != "--test-large-data" ]; then
     $ECHO "Skipping large data tests"
     exit 0
 fi
 
+$ECHO "\n**** large files tests **** "
+
 roundTripTest -g270000000 1
-roundTripTest -g270000000 2
-roundTripTest -g270000000 3
+roundTripTest -g250000000 2
+roundTripTest -g230000000 3
 
 roundTripTest -g140000000 -P60 4
-roundTripTest -g140000000 -P60 5
-roundTripTest -g140000000 -P60 6
+roundTripTest -g130000000 -P62 5
+roundTripTest -g120000000 -P65 6
 
 roundTripTest -g70000000 -P70 7
-roundTripTest -g70000000 -P70 8
-roundTripTest -g70000000 -P70 9
+roundTripTest -g60000000 -P71 8
+roundTripTest -g50000000 -P73 9
 
 roundTripTest -g35000000 -P75 10
-roundTripTest -g35000000 -P75 11
-roundTripTest -g35000000 -P75 12
+roundTripTest -g30000000 -P76 11
+roundTripTest -g25000000 -P78 12
 
 roundTripTest -g18000013 -P80 13
 roundTripTest -g18000014 -P80 14
-roundTripTest -g18000015 -P80 15
-roundTripTest -g18000016 -P80 16
-roundTripTest -g18000017 -P80 17
+roundTripTest -g18000015 -P81 15
+roundTripTest -g18000016 -P84 16
+roundTripTest -g18000017 -P88 17
 roundTripTest -g18000018 -P94 18
-roundTripTest -g18000019 -P94 19
+roundTripTest -g18000019 -P96 19
 
-roundTripTest -g68000020 -P99 20
-roundTripTest -g6000000000 -P99 1
+roundTripTest -g5000000000 -P99 1
 
 fileRoundTripTest -g4193M -P99 1
 
+
 $ECHO "\n**** zstd long, long distance matching round-trip tests **** "
-roundTripTest -g0 "2 --long"
 roundTripTest -g270000000 "1 --long"
-roundTripTest -g140000000 -P60 "5 --long"
-roundTripTest -g70000000 -P70 "8 --long"
+roundTripTest -g130000000 -P60 "5 --long"
+roundTripTest -g35000000 -P70 "8 --long"
 roundTripTest -g18000001 -P80  "18 --long"
-fileRoundTripTest -g4100M -P99 "1 --long"
 # Test large window logs
-roundTripTest -g4100M -P50 "1 --long=30"
-roundTripTest -g4100M -P50 "1 --long --zstd=wlog=30,clog=30"
-# Test parameter parsing
-roundTripTest -g1M -P50 "1 --long=30" " --memory=1024MB"
-roundTripTest -g1M -P50 "1 --long=30 --zstd=wlog=29" " --memory=512MB"
-roundTripTest -g1M -P50 "1 --long=30" " --long=29 --memory=1024MB"
-roundTripTest -g1M -P50 "1 --long=30" " --zstd=wlog=29 --memory=1024MB"
+roundTripTest -g700M -P50 "1 --long=29"
+roundTripTest -g600M -P50 "1 --long --zstd=wlog=29,clog=28"
 
 
 if [ -n "$hasMT" ]
 then
     $ECHO "\n**** zstdmt long round-trip tests **** "
-    roundTripTest -g99000000 -P99 "20 -T2" " "
-    roundTripTest -g6000000000 -P99 "1 -T2" " "
-    roundTripTest -g1500000000 -P97 "1 -T999" " "
-    fileRoundTripTest -g4195M -P98 " -T0" " "
-    roundTripTest -g1500000000 -P97 "1 --long=23 -T2" " "
+    roundTripTest -g80000000 -P99 "19 -T2" " "
+    roundTripTest -g5000000000 -P99 "1 -T2" " "
+    roundTripTest -g500000000 -P97 "1 -T999" " "
+    fileRoundTripTest -g4103M -P98 " -T0" " "
+    roundTripTest -g400000000 -P97 "1 --long=24 -T2" " "
 else
     $ECHO "\n**** no multithreading, skipping zstdmt tests **** "
 fi

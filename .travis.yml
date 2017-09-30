@@ -24,6 +24,8 @@ matrix:
     - env: Cmd='make -j uasanregressiontest'
     - env: Cmd='make -j msanregressiontest'
 
+    - env: Cmd='make lz4install && make -C tests test-lz4'
+
 git:
   depth: 1
 

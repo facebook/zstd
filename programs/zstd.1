@@ -60,11 +60,11 @@ In most places where an integer argument is expected, an optional suffix is supp
 .
 .TP
 \fBKiB\fR
-Multiply the integer by 1,024 (2^10)\. \fBKi\fR, \fBK\fR, and \fBKB\fR are accepted as synonyms for \fBKiB\fR\.
+Multiply the integer by 1,024 (2\e \fBKi\fR, \fBK\fR, and \fBKB\fR are accepted as synonyms for \fBKiB\fR\.
 .
 .TP
 \fBMiB\fR
-Multiply the integer by 1,048,576 (2^20)\. \fBMi\fR, \fBM\fR, and \fBMB\fR are accepted as synonyms for \fBMiB\fR\.
+Multiply the integer by 1,048,576 (2\e \fBMi\fR, \fBM\fR, and \fBMB\fR are accepted as synonyms for \fBMiB\fR\.
 .
 .SS "Operation mode"
 If multiple operation mode options are given, the last one takes effect\.
@@ -149,6 +149,10 @@ keep source file(s) after successful compression or decompression\. This is the 
 .TP
 \fB\-r\fR
 operate recursively on dictionaries
+.
+.TP
+\fB\-\-format=FORMAT\fR
+compress and decompress in other formats\. If compiled with support, zstd can compress to or decompress from other compression algorithm formats\. Possibly available options are \fBgzip\fR, \fBxz\fR, \fBlzma\fR, and \fBlz4\fR\.
 .
 .TP
 \fB\-h\fR/\fB\-H\fR, \fB\-\-help\fR

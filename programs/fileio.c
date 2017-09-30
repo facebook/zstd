@@ -446,6 +446,7 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_targetLength, comprParams->targetLength) );
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionStrategy, (U32)comprParams->strategy) );
             /* multi-threading */
+            DISPLAYLEVEL(5,"set nb threads = %u \n", g_nbThreads);
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_nbThreads, g_nbThreads) );
             /* dictionary */
             CHECK( ZSTD_CCtx_loadDictionary(ress.cctx, dictBuffer, dictBuffSize) );
@@ -797,7 +798,8 @@ static int FIO_compressFilename_internal(cRess_t ress,
 
     /* init */
 #ifdef ZSTD_NEWAPI
-    CHECK( ZSTD_resetCStream(ress.cctx, fileSize) );  /* to pass fileSize */
+    if (fileSize!=0)  /* if stdin, fileSize==0, but is effectively unknown */
+        ZSTD_CCtx_setPledgedSrcSize(ress.cctx, fileSize);
 #elif defined(ZSTD_MULTITHREAD)
     CHECK( ZSTDMT_resetCStream(ress.cctx, fileSize) );
 #else

@@ -2756,6 +2756,7 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
                               ZSTD_inBuffer* input,
                               ZSTD_EndDirective endOp)
 {
+    DEBUGLOG(5, "ZSTD_compress_generic");
     /* check conditions */
     if (output->pos > output->size) return ERROR(GENERIC);
     if (input->pos  > input->size)  return ERROR(GENERIC);
@@ -2798,7 +2799,7 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
 #ifdef ZSTD_MULTITHREAD
     if (cctx->appliedParams.nbThreads > 1) {
         size_t const flushMin = ZSTDMT_compressStream_generic(cctx->mtctx, output, input, endOp);
-        DEBUGLOG(5, "ZSTDMT_compressStream_generic : %u", (U32)flushMin);
+        DEBUGLOG(5, "ZSTDMT_compressStream_generic result : %u", (U32)flushMin);
         if ( ZSTD_isError(flushMin)
           || (endOp == ZSTD_e_end && flushMin == 0) ) { /* compression completed */
             ZSTD_startNewCompression(cctx);

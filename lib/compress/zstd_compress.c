@@ -512,7 +512,7 @@ size_t ZSTD_CCtx_setParametersUsingCCtxParams(
 
 ZSTDLIB_API size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long long pledgedSrcSize)
 {
-    DEBUGLOG(5, " setting pledgedSrcSize to %u", (U32)pledgedSrcSize);
+    DEBUGLOG(4, " setting pledgedSrcSize to %u", (U32)pledgedSrcSize);
     if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
     cctx->pledgedSrcSizePlusOne = pledgedSrcSize+1;
     return 0;
@@ -524,7 +524,7 @@ size_t ZSTD_CCtx_loadDictionary_advanced(
 {
     if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
     if (cctx->staticSize) return ERROR(memory_allocation);  /* no malloc for static CCtx */
-    DEBUGLOG(5, "load dictionary of size %u", (U32)dictSize);
+    DEBUGLOG(4, "load dictionary of size %u", (U32)dictSize);
     ZSTD_freeCDict(cctx->cdictLocal);  /* in case one already exists */
     if (dict==NULL || dictSize==0) {   /* no dictionary mode */
         cctx->cdictLocal = NULL;
@@ -792,13 +792,13 @@ static U32 ZSTD_equivalentParams(ZSTD_CCtx_params params1,
 static size_t ZSTD_continueCCtx(ZSTD_CCtx* cctx, ZSTD_CCtx_params params, U64 pledgedSrcSize)
 {
     U32 const end = (U32)(cctx->nextSrc - cctx->base);
-    DEBUGLOG(5, "continue mode");
+    DEBUGLOG(4, "continue mode");
     cctx->appliedParams = params;
     cctx->pledgedSrcSizePlusOne = pledgedSrcSize+1;
     cctx->consumedSrcSize = 0;
     if (pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN)
         cctx->appliedParams.fParams.contentSizeFlag = 0;
-    DEBUGLOG(5, "pledged content size : %u ; flag : %u",
+    DEBUGLOG(4, "pledged content size : %u ; flag : %u",
         (U32)pledgedSrcSize, cctx->appliedParams.fParams.contentSizeFlag);
     cctx->lowLimit = end;
     cctx->dictLimit = end;
@@ -2124,9 +2124,9 @@ size_t ZSTD_compressEnd (ZSTD_CCtx* cctx,
     endResult = ZSTD_writeEpilogue(cctx, (char*)dst + cSize, dstCapacity-cSize);
     if (ZSTD_isError(endResult)) return endResult;
     if (cctx->appliedParams.fParams.contentSizeFlag) {  /* control src size */
-        DEBUGLOG(5, "end of frame : controlling src size");
+        DEBUGLOG(4, "end of frame : controlling src size");
         if (cctx->pledgedSrcSizePlusOne != cctx->consumedSrcSize+1) {
-            DEBUGLOG(5, "error : pledgedSrcSize = %u, while realSrcSize = %u",
+            DEBUGLOG(4, "error : pledgedSrcSize = %u, while realSrcSize = %u",
                 (U32)cctx->pledgedSrcSizePlusOne-1, (U32)cctx->consumedSrcSize);
             return ERROR(srcSize_wrong);
     }   }

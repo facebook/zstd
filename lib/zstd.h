@@ -131,10 +131,11 @@ ZSTDLIB_API unsigned long long ZSTD_getDecompressedSize(const void* src, size_t 
 
 
 /*======  Helper functions  ======*/
-ZSTDLIB_API int         ZSTD_maxCLevel(void);               /*!< maximum compression level available */
+#define ZSTD_COMPRESSBOUND(srcSize)   ((srcSize) + ((srcSize)>>9) + (((srcSize) < 128 KB) ? ((128 KB - (srcSize)) >> 11) /* margin, from 64 to 0 */ : 0))
 ZSTDLIB_API size_t      ZSTD_compressBound(size_t srcSize); /*!< maximum compressed size in worst case scenario */
 ZSTDLIB_API unsigned    ZSTD_isError(size_t code);          /*!< tells if a `size_t` function result is an error code */
 ZSTDLIB_API const char* ZSTD_getErrorName(size_t code);     /*!< provides readable string from an error code */
+ZSTDLIB_API int         ZSTD_maxCLevel(void);               /*!< maximum compression level available */
 
 
 /***************************************

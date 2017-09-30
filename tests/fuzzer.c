@@ -510,8 +510,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         /* only use the first half so we don't push against size limit of compressedBuffer */
         size_t const segSize = (CNBuffSize / 2) / segs;
         for (i = 0; i < segs; i++) {
-            CHECK_V(r,
-                    ZSTD_compress(
+            CHECK_V(r, ZSTD_compress(
                             (BYTE *)compressedBuffer + off, CNBuffSize - off,
                             (BYTE *)CNBuffer + segSize * i,
                             segSize, 5));

@@ -38,9 +38,7 @@
 *  Helper functions
 ***************************************/
 size_t ZSTD_compressBound(size_t srcSize) {
-    size_t const lowLimit = 256 KB;
-    size_t const margin = (srcSize < lowLimit) ? (lowLimit-srcSize) >> 12 : 0;  /* from 64 to 0 */
-    return srcSize + (srcSize >> 8) + margin;
+    return ZSTD_COMPRESSBOUND(srcSize);
 }
 
 

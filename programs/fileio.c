@@ -145,13 +145,15 @@ static clock_t g_time = 0;
 **************************************/
 #include  <signal.h>
 
+typedef void (*signalHandler_f) (int);
 const char* g_artefact = NULL;
 void INThandler(int sig)
 {
-    signal(sig, SIG_IGN);
-    remove(g_artefact);
+    assert(sig==SIGINT);
+    signal(sig, (signalHandler_f)SIG_IGN);  /* cast required to circumvent a bug in Visual Studio 2008 */
+    if (g_artefact) remove(g_artefact);
     DISPLAY("\n");
-    exit(1);
+    exit(2);
 }
 
 

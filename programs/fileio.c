@@ -140,6 +140,21 @@ static clock_t g_time = 0;
 }   }
 
 
+/*-************************************
+*  Signal (Ctrl-C trapping)
+**************************************/
+#include  <signal.h>
+
+const char* g_artefact = NULL;
+void INThandler(int sig)
+{
+    signal(sig, SIG_IGN);
+    remove(g_artefact);
+    DISPLAY("\n");
+    exit(1);
+}
+
+
 /* ************************************************************
 * Avoid fseek()'s 2GiB barrier with MSVC, MacOS, *BSD, MinGW
 ***************************************************************/
@@ -929,6 +944,14 @@ static int FIO_compressFilename_dstFile(cRess_t ress,
     ress.dstFile = FIO_openDstFile(dstFileName);
     if (ress.dstFile==NULL) return 1;  /* could not open dstFileName */
 
+    if (UTIL_isRegularFile(dstFileName)) {
+        g_artefact = dstFileName;
+        signal(SIGINT, INThandler);
+    } else {
+        g_artefact = NULL;
+    }
+
+
     if (strcmp (srcFileName, stdinmark) && UTIL_getFileStat(srcFileName, &statbuf))
         stat_result = 1;
     result = FIO_compressFilename_srcFile(ress, dstFileName, srcFileName, compressionLevel);
@@ -943,6 +966,9 @@ static int FIO_compressFilename_dstFile(cRess_t ress,
     }
     else if (strcmp (dstFileName, stdoutmark) && stat_result)
         UTIL_setFileStat(dstFileName, &statbuf);
+
+    signal(SIGINT, SIG_DFL);
+
     return result;
 }
 
@@ -1629,6 +1655,13 @@ static int FIO_decompressDstFile(dRess_t ress,
     ress.dstFile = FIO_openDstFile(dstFileName);
     if (ress.dstFile==0) return 1;
 
+    if (UTIL_isRegularFile(dstFileName)) {
+        g_artefact = dstFileName;
+        signal(SIGINT, INThandler);
+    } else {
+        g_artefact = NULL;
+    }
+
     if ( strcmp(srcFileName, stdinmark)
       && UTIL_getFileStat(srcFileName, &statbuf) )
         stat_result = 1;
@@ -1649,6 +1682,9 @@ static int FIO_decompressDstFile(dRess_t ress,
           && stat_result )                   /* file permissions correctly extracted from src */
             UTIL_setFileStat(dstFileName, &statbuf);  /* transfer file permissions from src into dst */
     }
+
+    signal(SIGINT, SIG_DFL);
+
     return result;
 }
 

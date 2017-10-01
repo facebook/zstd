@@ -406,6 +406,7 @@ int main(int argCount, const char* argv[])
     int cover = 1;
 #endif
 
+
     /* init */
     (void)recursive; (void)cLevelLast;    /* not used when ZSTD_NOBENCH set */
     (void)dictCLevel; (void)dictSelect; (void)dictID;  (void)maxDictSize; /* not used when ZSTD_NODICT set */

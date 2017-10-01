@@ -649,8 +649,8 @@ ZSTD_compressionParameters ZSTD_adjustCParams_internal(ZSTD_compressionParameter
 
     if (dictSize && (srcSize+1<2) /* srcSize unknown */ )
         srcSize = minSrcSize;  /* presumed small when there is a dictionary */
-    else
-        srcSize -= 1;  /* unknown 0 => -1ULL : presumed large */
+    else if (srcSize == 0)
+        srcSize = ZSTD_CONTENTSIZE_UNKNOWN;  /* 0 == unknown : presumed large */
 
     /* resize windowLog if input is small enough, to use less memory */
     if ( (srcSize < maxWindowResize)

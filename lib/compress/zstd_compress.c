@@ -240,6 +240,7 @@ static ZSTD_CCtx_params ZSTD_assignParamsToCCtxParams(
     ZSTD_CCtx_params ret = cctxParams;
     ret.cParams = params.cParams;
     ret.fParams = params.fParams;
+    ret.compressionLevel = ZSTD_CLEVEL_CUSTOM;
     return ret;
 }
 

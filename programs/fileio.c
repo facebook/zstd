@@ -148,7 +148,7 @@ static clock_t g_time = 0;
 const char* g_artefact = NULL;
 void INThandler(int sig)
 {
-    assert(sig==SIGINT);
+    assert(sig==SIGINT); (void)sig;
 #if !(defined(_MSC_VER) && (_MSC_VER <= 1500 /* visual studio 2008 */))
     signal(sig, SIG_IGN);  /* this invocation generates a buggy warning in Visual Studio 2008 */
 #endif

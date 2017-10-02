@@ -149,8 +149,8 @@ const char* g_artefact = NULL;
 void INThandler(int sig)
 {
     assert(sig==SIGINT); (void)sig;
-#if !(defined(_MSC_VER) && (_MSC_VER < 1700 /* < visual studio 2012 */))
-    signal(sig, SIG_IGN);  /* this invocation generates a buggy warning in Visual Studio up to 2010 */
+#if !defined(_MSC_VER)
+    signal(sig, SIG_IGN);  /* this invocation generates a buggy warning in Visual Studio */
 #endif
     if (g_artefact) remove(g_artefact);
     DISPLAY("\n");

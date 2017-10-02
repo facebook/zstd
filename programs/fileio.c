@@ -145,8 +145,8 @@ static clock_t g_time = 0;
 **************************************/
 #include  <signal.h>
 
-const char* g_artefact = NULL;
-void INThandler(int sig)
+static const char* g_artefact = NULL;
+static void INThandler(int sig)
 {
     assert(sig==SIGINT); (void)sig;
 #if !defined(_MSC_VER)

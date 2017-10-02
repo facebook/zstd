@@ -401,7 +401,7 @@ typedef struct {
 } cRess_t;
 
 static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
-                                    U64 srcSize, int srcIsRegularFile,
+                                    U64 srcSize,
                                     ZSTD_compressionParameters* comprParams) {
     cRess_t ress;
     memset(&ress, 0, sizeof(ress));
@@ -439,10 +439,9 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
 
 #ifdef ZSTD_NEWAPI
         {   /* frame parameters */
-            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_contentSizeFlag, srcIsRegularFile) );
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_dictIDFlag, g_dictIDFlag) );
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_checksumFlag, g_checksumFlag) );
-            CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, srcSize) );
+            (void)srcSize;
             /* compression level */
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionLevel, cLevel) );
             /* long distance matching */
@@ -465,13 +464,13 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_targetLength, comprParams->targetLength) );
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionStrategy, (U32)comprParams->strategy) );
             /* multi-threading */
+            DISPLAYLEVEL(5,"set nb threads = %u \n", g_nbThreads);
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_nbThreads, g_nbThreads) );
             /* dictionary */
             CHECK( ZSTD_CCtx_loadDictionary(ress.cctx, dictBuffer, dictBuffSize) );
         }
 #elif defined(ZSTD_MULTITHREAD)
         {   ZSTD_parameters params = ZSTD_getParams(cLevel, srcSize, dictBuffSize);
-            params.fParams.contentSizeFlag = srcIsRegularFile;
             params.fParams.checksumFlag = g_checksumFlag;
             params.fParams.noDictIDFlag = !g_dictIDFlag;
             if (comprParams->windowLog) params.cParams.windowLog = comprParams->windowLog;
@@ -486,7 +485,6 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
         }
 #else
         {   ZSTD_parameters params = ZSTD_getParams(cLevel, srcSize, dictBuffSize);
-            params.fParams.contentSizeFlag = srcIsRegularFile;
             params.fParams.checksumFlag = g_checksumFlag;
             params.fParams.noDictIDFlag = !g_dictIDFlag;
             if (comprParams->windowLog) params.cParams.windowLog = comprParams->windowLog;
@@ -776,6 +774,7 @@ static int FIO_compressFilename_internal(cRess_t ress,
     U64 readsize = 0;
     U64 compressedfilesize = 0;
     U64 const fileSize = UTIL_getFileSize(srcFileName);
+    DISPLAYLEVEL(5, "%s: %u bytes \n", srcFileName, (U32)fileSize);
 
     switch (g_compressionType) {
         case FIO_zstdCompression:
@@ -815,11 +814,12 @@ static int FIO_compressFilename_internal(cRess_t ress,
 
     /* init */
 #ifdef ZSTD_NEWAPI
-    /* nothing, reset is implied */
+    if (fileSize!=0)  /* when src is stdin, fileSize==0, but is effectively unknown */
+        ZSTD_CCtx_setPledgedSrcSize(ress.cctx, fileSize);  /* note : fileSize==0 means "empty" */
 #elif defined(ZSTD_MULTITHREAD)
-    CHECK( ZSTDMT_resetCStream(ress.cctx, fileSize) );
+    CHECK( ZSTDMT_resetCStream(ress.cctx, fileSize) );   /* note : fileSize==0 means "unknown" */
 #else
-    CHECK( ZSTD_resetCStream(ress.cctx, fileSize) );
+    CHECK( ZSTD_resetCStream(ress.cctx, fileSize) );   /* note : fileSize==0 means "unknown" */
 #endif
 
     /* Main compression loop */
@@ -868,10 +868,10 @@ static int FIO_compressFilename_internal(cRess_t ress,
 
     /* End of Frame */
     {   size_t result = 1;
-        while (result!=0) {   /* note : is there any possibility of endless loop ? */
+        while (result != 0) {
             ZSTD_outBuffer outBuff = { ress.dstBuffer, ress.dstBufferSize, 0 };
 #ifdef ZSTD_NEWAPI
-            ZSTD_inBuffer inBuff = { NULL, 0, 0};
+            ZSTD_inBuffer inBuff = { NULL, 0, 0 };
             result = ZSTD_compress_generic(ress.cctx,
                         &outBuff, &inBuff, ZSTD_e_end);
 #elif defined(ZSTD_MULTITHREAD)
@@ -879,11 +879,14 @@ static int FIO_compressFilename_internal(cRess_t ress,
 #else
             result = ZSTD_endStream(ress.cctx, &outBuff);
 #endif
-            if (ZSTD_isError(result))
+            if (ZSTD_isError(result)) {
                 EXM_THROW(26, "Compression error during frame end : %s",
                             ZSTD_getErrorName(result));
-            { size_t const sizeCheck = fwrite(ress.dstBuffer, 1, outBuff.pos, dstFile);
-              if (sizeCheck!=outBuff.pos) EXM_THROW(27, "Write error : cannot write frame end into %s", dstFileName); }
+            }
+            {   size_t const sizeCheck = fwrite(ress.dstBuffer, 1, outBuff.pos, dstFile);
+                if (sizeCheck!=outBuff.pos)
+                    EXM_THROW(27, "Write error : cannot write frame end into %s", dstFileName);
+            }
             compressedfilesize += outBuff.pos;
         }
     }
@@ -981,9 +984,8 @@ int FIO_compressFilename(const char* dstFileName, const char* srcFileName,
 {
     clock_t const start = clock();
     U64 const srcSize = UTIL_getFileSize(srcFileName);
-    int const isRegularFile = UTIL_isRegularFile(srcFileName);
 
-    cRess_t const ress = FIO_createCResources(dictFileName, compressionLevel, srcSize, isRegularFile, comprParams);
+    cRess_t const ress = FIO_createCResources(dictFileName, compressionLevel, srcSize, comprParams);
     int const result = FIO_compressFilename_dstFile(ress, dstFileName, srcFileName, compressionLevel);
 
     double const seconds = (double)(clock() - start) / CLOCKS_PER_SEC;
@@ -1004,8 +1006,7 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
     char*  dstFileName = (char*)malloc(FNSPACE);
     size_t const suffixSize = suffix ? strlen(suffix) : 0;
     U64 const srcSize = (nbFiles != 1) ? 0 : UTIL_getFileSize(inFileNamesTable[0]) ;
-    int const isRegularFile = (nbFiles > 1) ? 0 : UTIL_isRegularFile(inFileNamesTable[0]);  /* won't write frame content size when nbFiles > 1 */
-    cRess_t ress = FIO_createCResources(dictFileName, compressionLevel, srcSize, isRegularFile, comprParams);
+    cRess_t ress = FIO_createCResources(dictFileName, compressionLevel, srcSize, comprParams);
 
     /* init */
     if (dstFileName==NULL)

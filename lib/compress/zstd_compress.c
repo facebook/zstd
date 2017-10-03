@@ -1907,8 +1907,10 @@ static size_t ZSTD_loadZstdDictionary(ZSTD_CCtx* cctx, const void* dict, size_t 
     cctx->dictID = cctx->appliedParams.fParams.noDictIDFlag ? 0 :  MEM_readLE32(dictPtr);
     dictPtr += 4;
 
-    {   size_t const hufHeaderSize = HUF_readCTable((HUF_CElt*)cctx->entropy->hufCTable, 255, dictPtr, dictEnd-dictPtr);
+    {   unsigned maxSymbolValue = 255;
+        size_t const hufHeaderSize = HUF_readCTable((HUF_CElt*)cctx->entropy->hufCTable, &maxSymbolValue, dictPtr, dictEnd-dictPtr);
         if (HUF_isError(hufHeaderSize)) return ERROR(dictionary_corrupted);
+        if (maxSymbolValue < 255) return ERROR(dictionary_corrupted);
         dictPtr += hufHeaderSize;
     }
 

@@ -115,10 +115,10 @@ static ZSTDMT_bufferPool* ZSTDMT_createBufferPool(unsigned nbThreads, ZSTD_custo
 static void ZSTDMT_freeBufferPool(ZSTDMT_bufferPool* bufPool)
 {
     unsigned u;
-    DEBUGLOG(3, "ZSTDMT_freeBufferPool (address:%08X)", (U32)bufPool);
+    DEBUGLOG(3, "ZSTDMT_freeBufferPool (address:%08X)", (U32)(size_t)bufPool);
     if (!bufPool) return;   /* compatibility with free on NULL */
     for (u=0; u<bufPool->totalBuffers; u++) {
-        DEBUGLOG(4, "free buffer %2u (address:%08X)", u, (U32)bufPool->bTable[u].start);
+        DEBUGLOG(4, "free buffer %2u (address:%08X)", u, (U32)(size_t)bufPool->bTable[u].start);
         ZSTD_free(bufPool->bTable[u].start, bufPool->cMem);
     }
     ZSTD_pthread_mutex_destroy(&bufPool->poolMutex);
@@ -489,15 +489,15 @@ static void ZSTDMT_releaseAllJobResources(ZSTDMT_CCtx* mtctx)
     unsigned jobID;
     DEBUGLOG(3, "ZSTDMT_releaseAllJobResources");
     for (jobID=0; jobID <= mtctx->jobIDMask; jobID++) {
-        DEBUGLOG(4, "job%02u: release dst address %08X", jobID, (U32)mtctx->jobs[jobID].dstBuff.start);
+        DEBUGLOG(4, "job%02u: release dst address %08X", jobID, (U32)(size_t)mtctx->jobs[jobID].dstBuff.start);
         ZSTDMT_releaseBuffer(mtctx->bufPool, mtctx->jobs[jobID].dstBuff);
         mtctx->jobs[jobID].dstBuff = g_nullBuffer;
-        DEBUGLOG(4, "job%02u: release src address %08X", jobID, (U32)mtctx->jobs[jobID].src.start);
+        DEBUGLOG(4, "job%02u: release src address %08X", jobID, (U32)(size_t)mtctx->jobs[jobID].src.start);
         ZSTDMT_releaseBuffer(mtctx->bufPool, mtctx->jobs[jobID].src);
         mtctx->jobs[jobID].src = g_nullBuffer;
     }
     memset(mtctx->jobs, 0, (mtctx->jobIDMask+1)*sizeof(ZSTDMT_jobDescription));
-    DEBUGLOG(4, "input: release address %08X", (U32)mtctx->inBuff.buffer.start);
+    DEBUGLOG(4, "input: release address %08X", (U32)(size_t)mtctx->inBuff.buffer.start);
     ZSTDMT_releaseBuffer(mtctx->bufPool, mtctx->inBuff.buffer);
     mtctx->inBuff.buffer = g_nullBuffer;
     mtctx->allJobsCompleted = 1;

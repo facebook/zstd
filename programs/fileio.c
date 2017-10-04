@@ -1780,11 +1780,12 @@ int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles
  ***************************************************************************/
 
 typedef struct {
+    U64 decompressedSize;
+    U64 compressedSize;
+    U64 windowSize;
     int numActualFrames;
     int numSkippableFrames;
-    U64 decompressedSize;
     int decompUnavailable;
-    U64 compressedSize;
     int usesCheck;
     U32 nbFiles;
 } fileInfo_t;
@@ -1829,12 +1830,19 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
         {   U32 const magicNumber = MEM_readLE32(headerBuffer);
             /* Zstandard frame */
             if (magicNumber == ZSTD_MAGICNUMBER) {
+                ZSTD_frameHeader header;
                 U64 const frameContentSize = ZSTD_getFrameContentSize(headerBuffer, numBytesRead);
                 if (frameContentSize == ZSTD_CONTENTSIZE_ERROR || frameContentSize == ZSTD_CONTENTSIZE_UNKNOWN) {
                     info->decompUnavailable = 1;
                 } else {
                     info->decompressedSize += frameContentSize;
                 }
+                if (ZSTD_getFrameHeader(&header, headerBuffer, numBytesRead) != 0) {
+                    DISPLAY("Error: could not decode frame header\n");
+                    detectError = 1;
+                    break;
+                }
+                info->windowSize = header.windowSize;
                 /* move to the end of the frame header */
                 {   size_t const headerSize = ZSTD_frameHeaderSize(headerBuffer, numBytesRead);
                     if (ZSTD_isError(headerSize)) {
@@ -1921,6 +1929,7 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
 static void displayInfo(const char* inFileName, fileInfo_t* info, int displayLevel){
     unsigned const unit = info->compressedSize < (1 MB) ? (1 KB) : (1 MB);
     const char* const unitStr = info->compressedSize < (1 MB) ? "KB" : "MB";
+    double const windowSizeUnit = (double)info->windowSize / unit;
     double const compressedSizeUnit = (double)info->compressedSize / unit;
     double const decompressedSizeUnit = (double)info->decompressedSize / unit;
     double const ratio = (info->compressedSize == 0) ? 0 : ((double)info->decompressedSize)/info->compressedSize;
@@ -1942,6 +1951,9 @@ static void displayInfo(const char* inFileName, fileInfo_t* info, int displayLev
     } else {
         DISPLAYOUT("# Zstandard Frames: %d\n", info->numActualFrames);
         DISPLAYOUT("# Skippable Frames: %d\n", info->numSkippableFrames);
+        DISPLAYOUT("Window Size: %.2f %2s (%llu B)\n",
+                   windowSizeUnit, unitStr,
+                   (unsigned long long)info->windowSize);
         DISPLAYOUT("Compressed Size: %.2f %2s (%llu B)\n",
                     compressedSizeUnit, unitStr,
                     (unsigned long long)info->compressedSize);
@@ -1999,7 +2011,9 @@ int FIO_listMultipleFiles(unsigned numFiles, const char** filenameTable, int dis
         DISPLAYOUT("No files given\n");
         return 0;
     }
-    DISPLAYOUT("Frames  Skips  Compressed  Uncompressed  Ratio  Check  Filename\n");
+    if (displayLevel <= 2) {
+        DISPLAYOUT("Frames  Skips  Compressed  Uncompressed  Ratio  Check  Filename\n");
+    }
     {   int error = 0;
         unsigned u;
         fileInfo_t total;
@@ -2008,7 +2022,7 @@ int FIO_listMultipleFiles(unsigned numFiles, const char** filenameTable, int dis
         for (u=0; u<numFiles;u++) {
             error |= FIO_listFile(&total, filenameTable[u], displayLevel);
         }
-        if (numFiles > 1) {
+        if (numFiles > 1 && displayLevel <= 2) {
             unsigned const unit = total.compressedSize < (1 MB) ? (1 KB) : (1 MB);
             const char* const unitStr = total.compressedSize < (1 MB) ? "KB" : "MB";
             double const compressedSizeUnit = (double)total.compressedSize / unit;

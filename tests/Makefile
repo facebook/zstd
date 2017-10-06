@@ -1,13 +1,11 @@
-# ##########################################################################
-# Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+# ################################################################
+# Copyright (c) 2015-present, Yann Collet, Facebook, Inc.
 # All rights reserved.
 #
-# This Makefile is validated for Linux, macOS, *BSD, Hurd, Solaris, MSYS2 targets
-#
-# This source code is licensed under the BSD-style license found in the
-# LICENSE file in the root directory of this source tree. An additional grant
-# of patent rights can be found in the PATENTS file in the same directory.
-# ##########################################################################
+# This source code is licensed under both the BSD-style license (found in the
+# LICENSE file in the root directory of this source tree) and the GPLv2 (found
+# in the COPYING file in the root directory of this source tree).
+# ################################################################
 # datagen : Synthetic and parametrable data generator, for tests
 # fullbench  : Precisely measure speed for each zstd inner functions
 # fullbench32: Same as fullbench, but forced to compile in 32-bits mode
@@ -25,18 +23,18 @@ PRGDIR  = ../programs
 PYTHON ?= python3
 TESTARTEFACT := versionsTest namespaceTest
 
-DEBUGLEVEL= 1
-DEBUGFLAGS= -g -DZSTD_DEBUG=$(DEBUGLEVEL)
-CPPFLAGS += -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
-            -I$(ZSTDDIR)/dictBuilder -I$(ZSTDDIR)/deprecated -I$(PRGDIR)
-CFLAGS   ?= -O3
-CFLAGS   += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow                 \
-            -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
-            -Wstrict-prototypes -Wundef -Wformat-security                   \
-            -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings      \
-            -Wredundant-decls
-CFLAGS   += $(DEBUGFLAGS) $(MOREFLAGS)
-FLAGS     = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
+DEBUGLEVEL ?= 1
+DEBUGFLAGS  = -g -DZSTD_DEBUG=$(DEBUGLEVEL)
+CPPFLAGS   += -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
+              -I$(ZSTDDIR)/dictBuilder -I$(ZSTDDIR)/deprecated -I$(PRGDIR)
+CFLAGS     ?= -O3
+CFLAGS     += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow                 \
+              -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
+              -Wstrict-prototypes -Wundef -Wformat-security                   \
+              -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings      \
+              -Wredundant-decls
+CFLAGS     += $(DEBUGFLAGS) $(MOREFLAGS)
+FLAGS       = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
 
 
 ZSTDCOMMON_FILES := $(ZSTDDIR)/common/*.c
@@ -45,10 +43,6 @@ ZSTDDECOMP_FILES := $(ZSTDDIR)/decompress/*.c
 ZSTD_FILES  := $(ZSTDDECOMP_FILES) $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES)
 ZBUFF_FILES := $(ZSTDDIR)/deprecated/*.c
 ZDICT_FILES := $(ZSTDDIR)/dictBuilder/*.c
-
-ZSTD_OBJ  := $(patsubst %.c,%.o, $(wildcard $(ZSTD_FILES)) )
-ZBUFF_OBJ := $(patsubst %.c,%.o, $(wildcard $(ZBUFF_FILES)) )
-ZDICT_OBJ := $(patsubst %.c,%.o, $(wildcard $(ZDICT_FILES)) )
 
 
 # Define *.exe as extension for Windows systems
@@ -64,8 +58,8 @@ endif
 MULTITHREAD = $(MULTITHREAD_CPP) $(MULTITHREAD_LD)
 
 VOID = /dev/null
-ZSTREAM_TESTTIME ?= -T2mn
-FUZZERTEST ?= -T5mn
+ZSTREAM_TESTTIME ?= -T90s
+FUZZERTEST ?= -T200s
 ZSTDRTTEST = --test-large-data
 DECODECORPUS_TESTTIME ?= -T30
 
@@ -77,7 +71,7 @@ all: fullbench fuzzer zstreamtest paramgrill datagen decodecorpus
 
 all32: fullbench32 fuzzer32 zstreamtest32
 
-allnothread: fullbench fuzzer paramgrill datagen  decodecorpus
+allnothread: fullbench fuzzer paramgrill datagen decodecorpus
 
 dll: fuzzer-dll zstreamtest-dll
 
@@ -91,7 +85,7 @@ zstd-nolegacy:
 	$(MAKE) -C $(PRGDIR) $@
 
 gzstd:
-	$(MAKE) -C $(PRGDIR) $@
+	$(MAKE) -C $(PRGDIR) zstd HAVE_ZLIB=1
 
 fullbench32: CPPFLAGS += -m32
 fullbench fullbench32 : CPPFLAGS += $(MULTITHREAD_CPP)
@@ -167,7 +161,7 @@ datagen : $(PRGDIR)/datagen.c datagencli.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
 
 roundTripCrash : $(ZSTD_FILES) roundTripCrash.c
-	$(CC)      $(FLAGS) $^ -o $@$(EXT)
+	$(CC)      $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
 
 longmatch  : $(ZSTD_FILES) longmatch.c
 	$(CC)      $(FLAGS) $^ -o $@$(EXT)
@@ -192,8 +186,8 @@ else
 	$(CC) $(FLAGS) $^ -o $@$(EXT) -Wl,-rpath=$(ZSTDDIR) $(ZSTDDIR)/libzstd.so
 endif
 
-poolTests  : poolTests.c $(ZSTDDIR)/common/pool.c $(ZSTDDIR)/common/threading.c
-	$(CC)    $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
+poolTests : poolTests.c $(ZSTDDIR)/common/pool.c $(ZSTDDIR)/common/threading.c $(ZSTDDIR)/common/zstd_common.c $(ZSTDDIR)/common/error_private.c
+	$(CC) $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
 
 namespaceTest:
 	if $(CC) namespaceTest.c ../lib/common/xxhash.c -o $@ ; then echo compilation should fail; exit 1 ; fi
@@ -247,7 +241,7 @@ endif
 
 
 #-----------------------------------------------------------------------------
-#make tests validated only for MSYS, Linux, OSX, BSD, Hurd and Solaris targets
+# make tests validated only for below targets
 #-----------------------------------------------------------------------------
 ifneq (,$(filter $(HOST_OS),MSYS POSIX))
 
@@ -284,13 +278,13 @@ test-zstd-nolegacy: ZSTD = $(PRGDIR)/zstd-nolegacy
 test-zstd-nolegacy: zstd-nolegacy zstd-playTests
 
 test-gzstd: gzstd
-	$(PRGDIR)/zstd README.md test-zstd-speed.py
-	gzip README.md test-zstd-speed.py
+	$(PRGDIR)/zstd -f README.md test-zstd-speed.py
+	gzip -f README.md test-zstd-speed.py
 	cat README.md.zst test-zstd-speed.py.gz >zstd_gz.zst
 	cat README.md.gz test-zstd-speed.py.zst >gz_zstd.gz
-	$(PRGDIR)/zstd -d README.md.gz -o README2.md
-	$(PRGDIR)/zstd -d README.md.gz test-zstd-speed.py.gz
-	$(PRGDIR)/zstd -d zstd_gz.zst gz_zstd.gz
+	$(PRGDIR)/zstd -df README.md.gz -o README2.md
+	$(PRGDIR)/zstd -df README.md.gz test-zstd-speed.py.gz
+	$(PRGDIR)/zstd -df zstd_gz.zst gz_zstd.gz
 	$(DIFF) -q zstd_gz gz_zstd
 	echo Hello World ZSTD | $(PRGDIR)/zstd -c - >hello.zst
 	echo Hello World GZIP | gzip -c - >hello.gz
@@ -298,6 +292,7 @@ test-gzstd: gzstd
 	cat hello.zst hello.gz hello.txt >hello_zst_gz_txt.gz
 	$(PRGDIR)/zstd -dcf hello.*
 	$(PRGDIR)/zstd -dcf - <hello_zst_gz_txt.gz
+	$(RM) *.gz *.zst README2.md gz_zstd zstd_gz hello.txt
 
 test-fullbench: fullbench datagen
 	$(QEMU_SYS) ./fullbench -i1
@@ -321,8 +316,9 @@ test-zbuff32: zbufftest32
 
 test-zstream: zstreamtest
 	$(QEMU_SYS) ./zstreamtest $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
-	$(QEMU_SYS) ./zstreamtest --mt $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
-	$(QEMU_SYS) ./zstreamtest --newapi $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
+	$(QEMU_SYS) ./zstreamtest --mt -t1 $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
+	$(QEMU_SYS) ./zstreamtest --newapi -t1 $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
+	$(QEMU_SYS) ./zstreamtest --opaqueapi -t1 $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
 
 test-zstream32: zstreamtest32
 	$(QEMU_SYS) ./zstreamtest32 $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
@@ -377,5 +373,38 @@ test-decodecorpus-cli: decodecorpus
 
 test-pool: poolTests
 	$(QEMU_SYS) ./poolTests
+
+test-lz4: ZSTD = LD_LIBRARY_PATH=/usr/local/lib $(PRGDIR)/zstd
+test-lz4: ZSTD_LZ4 = LD_LIBRARY_PATH=/usr/local/lib ./lz4
+test-lz4: ZSTD_UNLZ4 = LD_LIBRARY_PATH=/usr/local/lib ./unlz4
+test-lz4: zstd decodecorpus
+	ln -s $(PRGDIR)/zstd lz4
+	ln -s $(PRGDIR)/zstd unlz4
+
+	./decodecorpus -ptmp
+	# lz4 -> zstd
+	lz4 < tmp | \
+	$(ZSTD) -d | \
+	cmp - tmp
+	lz4 < tmp | \
+	$(ZSTD_UNLZ4) | \
+	cmp - tmp
+	# zstd -> lz4
+	$(ZSTD) --format=lz4 < tmp | \
+	lz4 -d | \
+	cmp - tmp
+	$(ZSTD_LZ4) < tmp | \
+	lz4 -d | \
+	cmp - tmp
+	# zstd -> zstd
+	$(ZSTD) --format=lz4 < tmp | \
+	$(ZSTD) -d | \
+	cmp - tmp
+	# zstd -> zstd
+	$(ZSTD) < tmp | \
+	$(ZSTD) -d | \
+	cmp - tmp
+
+	rm tmp lz4 unlz4
 
 endif

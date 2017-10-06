@@ -5,6 +5,7 @@
  * This source code is licensed under both the BSD-style license (found in the
  * LICENSE file in the root directory of this source tree) and the GPLv2 (found
  * in the COPYING file in the root directory of this source tree).
+ * You may select, at your option, one of the above-listed licenses.
  */
 
 
@@ -56,6 +57,11 @@ void FIO_setMemLimit(unsigned memLimit);
 void FIO_setNbThreads(unsigned nbThreads);
 void FIO_setBlockSize(unsigned blockSize);
 void FIO_setOverlapLog(unsigned overlapLog);
+void FIO_setLdmFlag(unsigned ldmFlag);
+void FIO_setLdmHashLog(unsigned ldmHashLog);
+void FIO_setLdmMinMatch(unsigned ldmMinMatch);
+void FIO_setLdmBucketSizeLog(unsigned ldmBucketSizeLog);
+void FIO_setLdmHashEveryLog(unsigned ldmHashEveryLog);
 
 
 /*-*************************************

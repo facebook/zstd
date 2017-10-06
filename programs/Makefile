@@ -1,12 +1,10 @@
-# ##########################################################################
+# ################################################################
 # Copyright (c) 2015-present, Yann Collet, Facebook, Inc.
 # All rights reserved.
 #
-# This Makefile is validated for Linux, macOS, *BSD, Hurd, Solaris, MSYS2 targets
-#
-# This source code is licensed under the BSD-style license found in the
-# LICENSE file in the root directory of this source tree. An additional grant
-# of patent rights can be found in the PATENTS file in the same directory.
+# This source code is licensed under both the BSD-style license (found in the
+# LICENSE file in the root directory of this source tree) and the GPLv2 (found
+# in the COPYING file in the root directory of this source tree).
 # ##########################################################################
 # zstd : Command Line Utility, supporting gzip-like arguments
 # zstd32 : Same as zstd, but forced to compile in 32-bits mode
@@ -42,7 +40,7 @@ CPPFLAGS+= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
            -DZSTD_NEWAPI \
            -DXXH_NAMESPACE=ZSTD_   # because xxhash.o already compiled with this macro from library
 CFLAGS  ?= -O3
-DEBUGFLAGS= -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
+DEBUGFLAGS+=-Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
             -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
             -Wstrict-prototypes -Wundef -Wpointer-arith -Wformat-security \
             -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings \
@@ -68,8 +66,7 @@ endif
 else
 endif
 
-ZSTDLIB_FILES := $(wildcard $(ZSTD_FILES)) $(wildcard $(ZSTDLEGACY_FILES)) $(wildcard $(ZDICT_FILES))
-ZSTDLIB_OBJ   := $(patsubst %.c,%.o,$(ZSTDLIB_FILES))
+ZSTDLIB_FILES := $(sort $(wildcard $(ZSTD_FILES)) $(wildcard $(ZSTDLEGACY_FILES)) $(wildcard $(ZDICT_FILES)))
 
 # Define *.exe as extension for Windows systems
 ifneq (,$(filter Windows%,$(OS)))
@@ -143,13 +140,10 @@ allVariants: zstd zstd-compress zstd-decompress zstd-small zstd-nolegacy
 
 $(ZSTDDECOMP_O): CFLAGS += $(ALIGN_LOOP)
 
-zstd zstd4 : CPPFLAGS += $(THREAD_CPP) $(ZLIBCPP) $(LZMACPP)
-zstd zstd4 : LDFLAGS += $(THREAD_LD) $(ZLIBLD) $(LZMALD)
-zstd4 : CPPFLAGS += $(LZ4CPP)
-zstd4 : LDFLAGS += $(LZ4LD)
-zstd : LZ4_MSG := - lz4 support is disabled
-zstd zstd4 : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
-zstd zstd4 : $(ZSTDLIB_FILES) zstdcli.o fileio.o bench.o datagen.o dibio.o
+zstd : CPPFLAGS += $(THREAD_CPP) $(ZLIBCPP) $(LZMACPP) $(LZ4CPP)
+zstd : LDFLAGS += $(THREAD_LD) $(ZLIBLD) $(LZMALD) $(LZ4LD)
+zstd : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
+zstd : $(ZSTDLIB_FILES) zstdcli.o fileio.o bench.o datagen.o dibio.o
 	@echo "$(THREAD_MSG)"
 	@echo "$(ZLIB_MSG)"
 	@echo "$(LZMA_MSG)"
@@ -212,8 +206,8 @@ zstd-decompress: $(ZSTDCOMMON_FILES) $(ZSTDDECOMP_FILES) zstdcli.c fileio.c
 zstd-compress: $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) zstdcli.c fileio.c
 	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS $^ -o $@$(EXT)
 
-# zstd is now built with multithreading enabled y default
 zstdmt: zstd
+	ln -sf zstd zstdmt
 
 .PHONY: generate_res
 generate_res:
@@ -255,25 +249,35 @@ ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD Ne
 list:
 	@$(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null | awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' | sort | egrep -v -e '^[^[:alnum:]]' -e '^$@$$' | xargs
 
+DESTDIR     ?=
+# directory variables : GNU conventions prefer lowercase
+# see https://www.gnu.org/prep/standards/html_node/Makefile-Conventions.html
+# support both lower and uppercase (BSD), use uppercase in script
+prefix      ?= /usr/local
+PREFIX      ?= $(prefix)
+exec_prefix ?= $(PREFIX)
+bindir      ?= $(exec_prefix)/bin
+BINDIR      ?= $(bindir)
+datarootdir ?= $(PREFIX)/share
+mandir      ?= $(datarootdir)/man
+man1dir     ?= $(mandir)/man1
+
+ifneq (,$(filter $(shell uname),OpenBSD FreeBSD NetBSD DragonFly SunOS))
+MANDIR  ?= $(PREFIX)/man/man1
+else
+MANDIR  ?= $(man1dir)
+endif
+
 ifneq (,$(filter $(shell uname),SunOS))
 INSTALL ?= ginstall
 else
 INSTALL ?= install
 endif
 
-PREFIX  ?= /usr/local
-DESTDIR ?=
-BINDIR  ?= $(PREFIX)/bin
-
-ifneq (,$(filter $(shell uname),OpenBSD FreeBSD NetBSD DragonFly SunOS))
-MANDIR  ?= $(PREFIX)/man/man1
-else
-MANDIR  ?= $(PREFIX)/share/man/man1
-endif
-
-INSTALL_PROGRAM ?= $(INSTALL) -m 755
-INSTALL_SCRIPT  ?= $(INSTALL) -m 755
-INSTALL_MAN     ?= $(INSTALL) -m 644
+INSTALL_PROGRAM ?= $(INSTALL)
+INSTALL_SCRIPT  ?= $(INSTALL_PROGRAM)
+INSTALL_DATA    ?= $(INSTALL) -m 644
+INSTALL_MAN     ?= $(INSTALL_DATA)
 
 .PHONY: install
 install: zstd

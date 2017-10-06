@@ -1,3 +1,26 @@
+v1.3.2
+new : long range mode, using --long command, by Stella Lau (@stellamplau)
+new : ability to generate and decode magicless frames (#591)
+changed : maximum nb of threads reduced to 200, to avoid address space exhaustion in 32-bits mode
+fix : multi-threading compression works with custom allocators
+fix : ZSTD_sizeof_CStream() was over-evaluating memory usage
+fix : a rare compression bug when compression generates very large distances and bunch of other conditions (only possible at --ultra -22)
+fix : 32-bits build can now decode large offsets (levels 21+)
+cli : added LZ4 frame support by default, by Felix Handte (@felixhandte)
+cli : improved --list output
+cli : new : can split input file for dictionary training, using command -B#
+cli : new : clean operation artefact on Ctrl-C interruption
+cli : fix : do not change /dev/null permissions when using command -t with root access, reported by @mike155 (#851)
+cli : fix : write file size in header in multiple-files mode
+api : added macro ZSTD_COMPRESSBOUND() for static allocation
+api : experimental : new advanced decompression API
+api : fix : sizeof_CCtx() used to over-estimate
+build: fix : no-multithread variant compiles without pool.c dependency, reported by Mitchell Blank Jr (@mitchblank) (#819)
+build: better compatibility with reproducible builds, by Bernhard M. Wiedemann (@bmwiedemann) (#818)
+example : added streaming_memory_usage
+license : changed /examples license to BSD + GPLv2
+license : fix a few header files to reflect new license (#825)
+
 v1.3.1
 New license : BSD + GPLv2
 perf: substantially decreased memory usage in Multi-threading mode, thanks to reports by Tino Reichardt (@mcmilk)

@@ -19,10 +19,14 @@ matrix:
     - env: Cmd='make ppcinstall && make ppctest'
     - env: Cmd='make ppcinstall && make ppc64test'
 
-
     - env: Cmd='make gpp6install valgrindinstall && make -C zlibWrapper test && make -C zlibWrapper valgrindTest'
     - env: Cmd='make gcc6install && CC=gcc-6 make uasan-test-zstd-nolegacy'
     - env: Cmd='make gcc6install && CC=gcc-6 make uasan-test-zbuff'
+
+    - env: Cmd='make -j uasanregressiontest'
+    - env: Cmd='make -j msanregressiontest'
+
+    - env: Cmd='make lz4install && make -C tests test-lz4'
     - env: Cmd='make -C tests versionsTest'
 
     # OS X Mavericks

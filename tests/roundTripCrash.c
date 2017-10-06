@@ -5,6 +5,7 @@
  * This source code is licensed under both the BSD-style license (found in the
  * LICENSE file in the root directory of this source tree) and the GPLv2 (found
  * in the COPYING file in the root directory of this source tree).
+ * You may select, at your option, one of the above-listed licenses.
  */
 
 /*
@@ -20,15 +21,36 @@
 #include <stddef.h>     /* size_t */
 #include <stdlib.h>     /* malloc, free, exit */
 #include <stdio.h>      /* fprintf */
+#include <string.h>     /* strcmp */
 #include <sys/types.h>  /* stat */
 #include <sys/stat.h>   /* stat */
 #include "xxhash.h"
+
+#define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
 
 /*===========================================
 *   Macros
 *==========================================*/
 #define MIN(a,b)  ( (a) < (b) ? (a) : (b) )
+
+static void crash(int errorCode){
+    /* abort if AFL/libfuzzer, exit otherwise */
+    #ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION /* could also use __AFL_COMPILER */
+        abort();
+    #else
+        exit(errorCode);
+    #endif
+}
+
+#define CHECK_Z(f) {                            \
+    size_t const err = f;                       \
+    if (ZSTD_isError(err)) {                    \
+        fprintf(stderr,                         \
+                "Error=> %s: %s",               \
+                #f, ZSTD_getErrorName(err));    \
+        crash(1);                                \
+}   }
 
 /** roundTripTest() :
 *   Compresses `srcBuff` into `compressedBuff`,
@@ -54,6 +76,38 @@ static size_t roundTripTest(void* resultBuff, size_t resultBuffCapacity,
     return ZSTD_decompress(resultBuff, resultBuffCapacity, compressedBuff, cSize);
 }
 
+/** cctxParamRoundTripTest() :
+ *  Same as roundTripTest() except allows experimenting with ZSTD_CCtx_params. */
+static size_t cctxParamRoundTripTest(void* resultBuff, size_t resultBuffCapacity,
+                            void* compressedBuff, size_t compressedBuffCapacity,
+                      const void* srcBuff, size_t srcBuffSize)
+{
+    ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+    ZSTD_CCtx_params* const cctxParams = ZSTD_createCCtxParams();
+    ZSTD_inBuffer inBuffer = { srcBuff, srcBuffSize, 0 };
+    ZSTD_outBuffer outBuffer = {compressedBuff, compressedBuffCapacity, 0 };
+
+    static const int maxClevel = 19;
+    size_t const hashLength = MIN(128, srcBuffSize);
+    unsigned const h32 = XXH32(srcBuff, hashLength, 0);
+    int const cLevel = h32 % maxClevel;
+
+    /* Set parameters */
+    CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_compressionLevel, cLevel) );
+    CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_nbThreads, 2) );
+    CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_overlapSizeLog, 5) );
+
+
+    /* Apply parameters */
+    CHECK_Z( ZSTD_CCtx_setParametersUsingCCtxParams(cctx, cctxParams) );
+
+    CHECK_Z (ZSTD_compress_generic(cctx, &outBuffer, &inBuffer, ZSTD_e_end) );
+
+    ZSTD_freeCCtxParams(cctxParams);
+    ZSTD_freeCCtx(cctx);
+
+    return ZSTD_decompress(resultBuff, resultBuffCapacity, compressedBuff, outBuffer.pos);
+}
 
 static size_t checkBuffers(const void* buff1, const void* buff2, size_t buffSize)
 {
@@ -68,16 +122,7 @@ static size_t checkBuffers(const void* buff1, const void* buff2, size_t buffSize
     return pos;
 }
 
-static void crash(int errorCode){
-    /* abort if AFL/libfuzzer, exit otherwise */
-    #ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION /* could also use __AFL_COMPILER */
-        abort();
-    #else
-        exit(errorCode);
-    #endif
-}
-
-static void roundTripCheck(const void* srcBuff, size_t srcBuffSize)
+static void roundTripCheck(const void* srcBuff, size_t srcBuffSize, int testCCtxParams)
 {
     size_t const cBuffSize = ZSTD_compressBound(srcBuffSize);
     void* cBuff = malloc(cBuffSize);
@@ -88,7 +133,9 @@ static void roundTripCheck(const void* srcBuff, size_t srcBuffSize)
         exit (1);
     }
 
-    {   size_t const result = roundTripTest(rBuff, cBuffSize, cBuff, cBuffSize, srcBuff, srcBuffSize);
+    {   size_t const result = testCCtxParams ?
+                  cctxParamRoundTripTest(rBuff, cBuffSize, cBuff, cBuffSize, srcBuff, srcBuffSize)
+                : roundTripTest(rBuff, cBuffSize, cBuff, cBuffSize, srcBuff, srcBuffSize);
         if (ZSTD_isError(result)) {
             fprintf(stderr, "roundTripTest error : %s \n", ZSTD_getErrorName(result));
             crash(1);
@@ -162,7 +209,7 @@ static void loadFile(void* buffer, const char* fileName, size_t fileSize)
 }
 
 
-static void fileCheck(const char* fileName)
+static void fileCheck(const char* fileName, int testCCtxParams)
 {
     size_t const fileSize = getFileSize(fileName);
     void* buffer = malloc(fileSize);
@@ -171,16 +218,24 @@ static void fileCheck(const char* fileName)
         exit(4);
     }
     loadFile(buffer, fileName, fileSize);
-    roundTripCheck(buffer, fileSize);
+    roundTripCheck(buffer, fileSize, testCCtxParams);
     free (buffer);
 }
 
 int main(int argCount, const char** argv) {
+    int argNb = 1;
+    int testCCtxParams = 0;
     if (argCount < 2) {
         fprintf(stderr, "Error : no argument : need input file \n");
         exit(9);
     }
-    fileCheck(argv[1]);
+
+    if (!strcmp(argv[argNb], "--cctxParams")) {
+      testCCtxParams = 1;
+      argNb++;
+    }
+
+    fileCheck(argv[argNb], testCCtxParams);
     fprintf(stderr, "no pb detected\n");
     return 0;
 }

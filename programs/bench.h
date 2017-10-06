@@ -5,6 +5,7 @@
  * This source code is licensed under both the BSD-style license (found in the
  * LICENSE file in the root directory of this source tree) and the GPLv2 (found
  * in the COPYING file in the root directory of this source tree).
+ * You may select, at your option, one of the above-listed licenses.
  */
 
 
@@ -25,5 +26,10 @@ void BMK_setNbThreads(unsigned nbThreads);
 void BMK_setNotificationLevel(unsigned level);
 void BMK_setAdditionalParam(int additionalParam);
 void BMK_setDecodeOnlyMode(unsigned decodeFlag);
+void BMK_setLdmFlag(unsigned ldmFlag);
+void BMK_setLdmMinMatch(unsigned ldmMinMatch);
+void BMK_setLdmHashLog(unsigned ldmHashLog);
+void BMK_setLdmBucketSizeLog(unsigned ldmBucketSizeLog);
+void BMK_setLdmHashEveryLog(unsigned ldmHashEveryLog);
 
 #endif   /* BENCH_H_121279284357 */

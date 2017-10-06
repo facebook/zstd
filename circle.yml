@@ -9,7 +9,7 @@ dependencies:
 test:
   override:
     - ? |
-        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then cc -v; make all   && make clean; fi &&
+        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then cc -v; make all   && make clean && make -C lib libzstd-nomt && make clean; fi &&
         if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make gnu90build   && make clean; fi
       :
         parallel: true
@@ -45,12 +45,17 @@ test:
         parallel: true
     - ? |
         if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make ppc64build   && make clean; fi &&
-        if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make gcc7build    && make clean; fi #could add another test here
+        if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make gcc7build    && make clean; fi
       :
         parallel: true
     - ? |
         if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make shortest     && make clean; fi &&
         if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make -C tests test-legacy test-longmatch test-symbols && make clean; fi
+      :
+        parallel: true
+    - ? |
+        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make -j regressiontest && make clean; fi &&
+        if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then true; fi # Could add another test here
       :
         parallel: true
 

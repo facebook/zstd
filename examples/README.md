@@ -11,6 +11,10 @@ Zstandard library : usage examples
   Result remains in memory.
   Introduces usage of : `ZSTD_decompress()`
 
+- [Streaming memory usage](streaming_memory_usage.c) :
+  Provides amount of memory used by streaming context
+  Introduces usage of : `ZSTD_sizeof_CStream()`
+
 - [Streaming compression](streaming_compression.c) :
   Compress a single file.
   Introduces usage of : `ZSTD_compressStream()`

@@ -1,13 +1,10 @@
 # ################################################################
-# * Copyright (c) 2014-present, Yann Collet, Facebook, Inc.
-# * All rights reserved.
-# *
-# * This source code is licensed under the BSD-style license found in the
-# * LICENSE file in the root directory of this source tree. An additional grant
-# * of patent rights can be found in the PATENTS file in the same directory.
+# Copyright (c) 2015-present, Yann Collet, Facebook, Inc.
+# All rights reserved.
 #
-# You can contact the author at :
-#  - zstd homepage : http://www.zstd.net/
+# This source code is licensed under both the BSD-style license (found in the
+# LICENSE file in the root directory of this source tree) and the GPLv2 (found
+# in the COPYING file in the root directory of this source tree).
 # ################################################################
 
 PROJECT(libzstd)
@@ -41,6 +38,11 @@ SET(Sources
         ${LIBRARY_DIR}/compress/huf_compress.c
         ${LIBRARY_DIR}/compress/zstd_compress.c
         ${LIBRARY_DIR}/compress/zstdmt_compress.c
+        ${LIBRARY_DIR}/compress/zstd_fast.c
+        ${LIBRARY_DIR}/compress/zstd_double_fast.c
+        ${LIBRARY_DIR}/compress/zstd_lazy.c
+        ${LIBRARY_DIR}/compress/zstd_opt.c
+        ${LIBRARY_DIR}/compress/zstd_ldm.c
         ${LIBRARY_DIR}/decompress/huf_decompress.c
         ${LIBRARY_DIR}/decompress/zstd_decompress.c
         ${LIBRARY_DIR}/dictBuilder/cover.c
@@ -61,6 +63,12 @@ SET(Headers
         ${LIBRARY_DIR}/common/huf.h
         ${LIBRARY_DIR}/common/mem.h
         ${LIBRARY_DIR}/common/zstd_internal.h
+        ${LIBRARY_DIR}/compress/zstd_compress.h
+        ${LIBRARY_DIR}/compress/zstd_fast.h
+        ${LIBRARY_DIR}/compress/zstd_double_fast.h
+        ${LIBRARY_DIR}/compress/zstd_lazy.h
+        ${LIBRARY_DIR}/compress/zstd_opt.h
+        ${LIBRARY_DIR}/compress/zstd_ldm.h
         ${LIBRARY_DIR}/compress/zstdmt_compress.h
         ${LIBRARY_DIR}/dictBuilder/zdict.h
         ${LIBRARY_DIR}/deprecated/zbuff.h)
@@ -151,10 +159,10 @@ IF (UNIX)
 ENDIF (UNIX)
 
 # install target
-INSTALL(FILES 
-    ${LIBRARY_DIR}/zstd.h 
-    ${LIBRARY_DIR}/deprecated/zbuff.h 
-    ${LIBRARY_DIR}/dictBuilder/zdict.h 
+INSTALL(FILES
+    ${LIBRARY_DIR}/zstd.h
+    ${LIBRARY_DIR}/deprecated/zbuff.h
+    ${LIBRARY_DIR}/dictBuilder/zdict.h
     ${LIBRARY_DIR}/common/zstd_errors.h
     DESTINATION "include")
 

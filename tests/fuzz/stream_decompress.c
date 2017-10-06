@@ -1,10 +1,10 @@
-/**
- * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+/*
+ * Copyright (c) 2016-present, Facebook, Inc.
  * All rights reserved.
  *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under both the BSD-style license (found in the
+ * LICENSE file in the root directory of this source tree) and the GPLv2 (found
+ * in the COPYING file in the root directory of this source tree).
  */
 
 /**
@@ -20,7 +20,7 @@
 #include "fuzz_helpers.h"
 #include "zstd.h"
 
-static size_t const kBufSize = ZSTD_BLOCKSIZE_ABSOLUTEMAX;
+static size_t const kBufSize = ZSTD_BLOCKSIZE_MAX;
 
 static ZSTD_DStream *dstream = NULL;
 static void* buf = NULL;
@@ -51,7 +51,7 @@ static ZSTD_inBuffer makeInBuffer(const uint8_t **src, size_t *size)
 
 int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 {
-    seed = FUZZ_seed(src, size);
+    seed = FUZZ_seed(&src, &size);
 
     /* Allocate all buffers and contexts if not already allocated */
     if (!buf) {
@@ -78,7 +78,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     }
 
 error:
-#ifndef STATEFULL_FUZZING
+#ifndef STATEFUL_FUZZING
     ZSTD_freeDStream(dstream); dstream = NULL;
 #endif
     return 0;

@@ -1,13 +1,11 @@
-# ##########################################################################
-# Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+# ################################################################
+# Copyright (c) 2015-present, Yann Collet, Facebook, Inc.
 # All rights reserved.
 #
-# This Makefile is validated for Linux, macOS, *BSD, Hurd, Solaris, MSYS2 targets
-#
-# This source code is licensed under the BSD-style license found in the
-# LICENSE file in the root directory of this source tree. An additional grant
-# of patent rights can be found in the PATENTS file in the same directory.
-# ##########################################################################
+# This source code is licensed under both the BSD-style license (found in the
+# LICENSE file in the root directory of this source tree) and the GPLv2 (found
+# in the COPYING file in the root directory of this source tree).
+# ################################################################
 
 # Version numbers
 LIBVER_MAJOR_SCRIPT:=`sed -n '/define ZSTD_VERSION_MAJOR/s/.*[[:blank:]]\([0-9][0-9]*\).*/\1/p' < ./zstd.h`
@@ -31,7 +29,7 @@ CFLAGS  += $(DEBUGFLAGS) $(MOREFLAGS)
 FLAGS    = $(CPPFLAGS) $(CFLAGS)
 
 
-ZSTD_FILES := $(wildcard common/*.c compress/*.c decompress/*.c dictBuilder/*.c deprecated/*.c)
+ZSTD_FILES := $(sort $(wildcard common/*.c compress/*.c decompress/*.c dictBuilder/*.c deprecated/*.c))
 
 ZSTD_LEGACY_SUPPORT ?= 4
 
@@ -103,10 +101,19 @@ lib-release lib-release-mt: DEBUGFLAGS :=
 lib-release: lib
 lib-release-mt: lib-mt
 
+# Special case : building library in single-thread mode _and_ without zstdmt_compress.c
+ZSTDMT_FILES = compress/zstdmt_compress.c
+ZSTD_NOMT_FILES = $(filter-out $(ZSTDMT_FILES),$(ZSTD_FILES))
+libzstd-nomt: LDFLAGS += -shared -fPIC -fvisibility=hidden
+libzstd-nomt: $(ZSTD_NOMT_FILES)
+	@echo compiling single-thread dynamic library $(LIBVER)
+	@echo files : $(ZSTD_NOMT_FILES)
+	@$(CC) $(FLAGS) $^ $(LDFLAGS) $(SONAME_FLAGS) -o $@
+
 clean:
 	@$(RM) -r *.dSYM   # Mac OS-X specific
 	@$(RM) core *.o *.a *.gcda *.$(SHARED_EXT) *.$(SHARED_EXT).* libzstd.pc
-	@$(RM) dll/libzstd.dll dll/libzstd.lib
+	@$(RM) dll/libzstd.dll dll/libzstd.lib libzstd-nomt*
 	@$(RM) common/*.o compress/*.o decompress/*.o dictBuilder/*.o legacy/*.o deprecated/*.o
 	@echo Cleaning library completed
 
@@ -115,16 +122,17 @@ clean:
 #-----------------------------------------------------------------------------
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS))
 
-ifneq (,$(filter $(shell uname),SunOS))
-INSTALL ?= ginstall
-else
-INSTALL ?= install
-endif
-
-PREFIX     ?= /usr/local
-DESTDIR    ?=
-LIBDIR     ?= $(PREFIX)/lib
-INCLUDEDIR ?= $(PREFIX)/include
+DESTDIR     ?=
+# directory variables : GNU conventions prefer lowercase
+# see https://www.gnu.org/prep/standards/html_node/Makefile-Conventions.html
+# support both lower and uppercase (BSD), use uppercase in script
+prefix      ?= /usr/local
+PREFIX      ?= $(prefix)
+exec_prefix ?= $(PREFIX)
+libdir      ?= $(exec_prefix)/lib
+LIBDIR      ?= $(libdir)
+includedir  ?= $(PREFIX)/include
+INCLUDEDIR  ?= $(includedir)
 
 ifneq (,$(filter $(shell uname),OpenBSD FreeBSD NetBSD DragonFly))
 PKGCONFIGDIR ?= $(PREFIX)/libdata/pkgconfig
@@ -132,8 +140,14 @@ else
 PKGCONFIGDIR ?= $(LIBDIR)/pkgconfig
 endif
 
-INSTALL_LIB  ?= $(INSTALL) -m 755
-INSTALL_DATA ?= $(INSTALL) -m 644
+ifneq (,$(filter $(shell uname),SunOS))
+INSTALL ?= ginstall
+else
+INSTALL ?= install
+endif
+
+INSTALL_PROGRAM ?= $(INSTALL)
+INSTALL_DATA    ?= $(INSTALL) -m 644
 
 
 libzstd.pc:
@@ -150,9 +164,9 @@ install: libzstd.a libzstd libzstd.pc
 	@$(INSTALL_DATA) libzstd.pc $(DESTDIR)$(PKGCONFIGDIR)/
 	@echo Installing libraries
 	@$(INSTALL_DATA) libzstd.a $(DESTDIR)$(LIBDIR)
-	@$(INSTALL_LIB) libzstd.$(SHARED_EXT_VER) $(DESTDIR)$(LIBDIR)
-	@ln -sf libzstd.$(SHARED_EXT_VER) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_MAJOR)
-	@ln -sf libzstd.$(SHARED_EXT_VER) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT)
+	@$(INSTALL_PROGRAM) $(LIBZSTD) $(DESTDIR)$(LIBDIR)
+	@ln -sf $(LIBZSTD) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_MAJOR)
+	@ln -sf $(LIBZSTD) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT)
 	@echo Installing includes
 	@$(INSTALL_DATA) zstd.h $(DESTDIR)$(INCLUDEDIR)
 	@$(INSTALL_DATA) common/zstd_errors.h $(DESTDIR)$(INCLUDEDIR)
@@ -164,7 +178,7 @@ uninstall:
 	@$(RM) $(DESTDIR)$(LIBDIR)/libzstd.a
 	@$(RM) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT)
 	@$(RM) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_MAJOR)
-	@$(RM) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_VER)
+	@$(RM) $(DESTDIR)$(LIBDIR)/$(LIBZSTD)
 	@$(RM) $(DESTDIR)$(PKGCONFIGDIR)/libzstd.pc
 	@$(RM) $(DESTDIR)$(INCLUDEDIR)/zstd.h
 	@$(RM) $(DESTDIR)$(INCLUDEDIR)/zstd_errors.h

@@ -105,6 +105,16 @@ the last one takes effect.
 * `--ultra`:
     unlocks high compression levels 20+ (maximum 22), using a lot more memory.
     Note that decompression will also require more memory when using these levels.
+* `--long[=#]`:
+    enables long distance matching with `#` `windowLog`, if not `#` is not
+    present it defaults to `27`.
+    This increases the window size (`windowLog`) and memory usage for both the
+    compressor and decompressor.
+    This setting is designed to improve the compression ratio for files with
+    long matches at a large distance.
+
+    Note: If `windowLog` is set to larger than 27, `--long=windowLog` or
+    `--memory=windowSize` needs to be passed to the decompressor.
 * `-T#`, `--threads=#`:
     Compress using `#` threads (default: 1).
     If `#` is 0, attempt to detect and use the number of physical CPU cores.
@@ -137,6 +147,10 @@ the last one takes effect.
     This is the default behavior.
 * `-r`:
     operate recursively on dictionaries
+* `--format=FORMAT`:
+    compress and decompress in other formats. If compiled with
+    support, zstd can compress to or decompress from other compression algorithm
+    formats. Possibly available options are `gzip`, `xz`, `lzma`, and `lz4`.
 * `-h`/`-H`, `--help`:
     display help/long help and exit
 * `-V`, `--version`:
@@ -178,6 +192,8 @@ Typical gains range from 10% (at 64KB) to x5 better (at <1KB).
     Dictionary saved into `file` (default name: dictionary).
 * `--maxdict=#`:
     Limit dictionary to specified size (default: 112640).
+* `-B#`:
+    Split input files in blocks of size # (default: no split)
 * `--dictID=#`:
     A dictionary ID is a locally unique ID that a decoder can use to verify it is
     using the right dictionary.
@@ -267,7 +283,11 @@ The list of available _options_:
     The higher number of increases the chance to find a match which usually
     improves compression ratio.
     It also increases memory requirements for the compressor and decompressor.
-    The minimum _wlog_ is 10 (1 KiB) and the maximum is 27 (128 MiB).
+    The minimum _wlog_ is 10 (1 KiB) and the maximum is 30 (1 GiB) on 32-bit
+    platforms and 31 (2 GiB) on 64-bit platforms.
+
+    Note: If `windowLog` is set to larger than 27, `--long=windowLog` or
+    `--memory=windowSize` needs to be passed to the decompressor.
 
 - `hashLog`=_hlog_, `hlog`=_hlog_:
     Specify the maximum number of bits for a hash table.
@@ -326,6 +346,47 @@ The list of available _options_:
     Reducing _ovlog_ by 1 reduces the amount of reload by a factor 2.
     Default _ovlog_ is 6, which means "reload `windowSize / 8`".
     Exception : the maximum compression level (22) has a default _ovlog_ of 9.
+
+- `ldmHashLog`=_ldmhlog_, `ldmhlog`=_ldmhlog_:
+    Specify the maximum size for a hash table used for long distance matching.
+
+    This option is ignored unless long distance matching is enabled.
+
+    Bigger hash tables usually improve compression ratio at the expense of more
+    memory during compression and a decrease in compression speed.
+
+    The minimum _ldmhlog_ is 6 and the maximum is 26 (default: 20).
+
+- `ldmSearchLength`=_ldmslen_, `ldmslen`=_ldmslen_:
+    Specify the minimum searched length of a match for long distance matching.
+
+    This option is ignored unless long distance matching is enabled.
+
+    Larger/very small values usually decrease compression ratio.
+
+    The minumum _ldmslen_ is 4 and the maximum is 4096 (default: 64).
+
+- `ldmBucketSizeLog`=_ldmblog_, `ldmblog`=_ldmblog_:
+    Specify the size of each bucket for the hash table used for long distance
+    matching.
+
+    This option is ignored unless long distance matching is enabled.
+
+    Larger bucket sizes improve collision resolution but decrease compression
+    speed.
+
+    The minimum _ldmblog_ is 0 and the maximum is 8 (default: 3).
+
+- `ldmHashEveryLog`=_ldmhevery_, `ldmhevery`=_ldmhevery_:
+    Specify the frequency of inserting entries into the long distance matching
+    hash table.
+
+    This option is ignored unless long distance matching is enabled.
+
+    Larger values will improve compression speed. Deviating far from the
+    default value will likely result in a decrease in compression ratio.
+
+    The default value is `wlog - ldmhlog`.
 
 ### -B#:
 Select the size of each compression job.

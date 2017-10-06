@@ -1,10 +1,10 @@
 # ################################################################
-# Copyright (c) 2017-present, Yann Collet, Facebook, Inc.
+# Copyright (c) 2017-present, Facebook, Inc.
 # All rights reserved.
 #
-# This source code is licensed under the BSD-style license found in the
-# LICENSE file in the root directory of this source tree. An additional grant
-# of patent rights can be found in the PATENTS file in the same directory.
+# This source code is licensed under both the BSD-style license (found in the
+# LICENSE file in the root directory of this source tree) and the GPLv2 (found
+# in the COPYING file in the root directory of this source tree).
 # ################################################################
 
 PRGDIR = ../../programs
@@ -12,7 +12,7 @@ VOID   = /dev/null
 export PATH := .:$(PATH)
 
 .PHONY: all
-#all: test-gzip-env 
+#all: test-gzip-env
 all: test-helin-segv test-hufts test-keep test-list test-memcpy-abuse test-mixed
 all: test-null-suffix-clobber test-stdin test-trailing-nul test-unpack-invalid
 all: test-zdiff test-zgrep-context test-zgrep-f test-zgrep-signal test-znew-k test-z-suffix

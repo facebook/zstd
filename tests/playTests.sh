@@ -13,11 +13,16 @@ roundTripTest() {
         cLevel="$2"
         proba=""
     fi
+    if [ -n "$4" ]; then
+        dLevel="$4"
+    else
+        dLevel="$cLevel"
+    fi
 
     rm -f tmp1 tmp2
-    $ECHO "roundTripTest: ./datagen $1 $proba | $ZSTD -v$cLevel | $ZSTD -d"
+    $ECHO "roundTripTest: ./datagen $1 $proba | $ZSTD -v$cLevel | $ZSTD -d$dLevel"
     ./datagen $1 $proba | $MD5SUM > tmp1
-    ./datagen $1 $proba | $ZSTD --ultra -v$cLevel | $ZSTD -d  | $MD5SUM > tmp2
+    ./datagen $1 $proba | $ZSTD --ultra -v$cLevel | $ZSTD -d$dLevel  | $MD5SUM > tmp2
     $DIFF -q tmp1 tmp2
 }
 
@@ -29,12 +34,17 @@ fileRoundTripTest() {
         local_c="$2"
         local_p=""
     fi
+    if [ -n "$4" ]; then
+        local_d="$4"
+    else
+        local_d="$local_c"
+    fi
 
     rm -f tmp.zstd tmp.md5.1 tmp.md5.2
-    $ECHO "fileRoundTripTest: ./datagen $1 $local_p > tmp && $ZSTD -v$local_c -c tmp | $ZSTD -d"
+    $ECHO "fileRoundTripTest: ./datagen $1 $local_p > tmp && $ZSTD -v$local_c -c tmp | $ZSTD -d$local_d"
     ./datagen $1 $local_p > tmp
-    cat tmp | $MD5SUM > tmp.md5.1
-    $ZSTD --ultra -v$local_c -c tmp | $ZSTD -d | $MD5SUM > tmp.md5.2
+    < tmp $MD5SUM > tmp.md5.1
+    $ZSTD --ultra -v$local_c -c tmp | $ZSTD -d$local_d | $MD5SUM > tmp.md5.2
     $DIFF -q tmp.md5.1 tmp.md5.2
 }
 
@@ -45,7 +55,6 @@ then
 fi
 
 isWindows=false
-ECHO="echo -e"
 INTOVOID="/dev/null"
 case "$OS" in
   Windows*)
@@ -64,6 +73,11 @@ esac
 DIFF="diff"
 case "$UNAME" in
   SunOS) DIFF="gdiff" ;;
+esac
+
+ECHO="echo -e"
+case "$UNAME" in
+  Darwin) ECHO="echo" ;;
 esac
 
 $ECHO "\nStarting playTests.sh isWindows=$isWindows ZSTD='$ZSTD'"
@@ -161,6 +175,8 @@ roundTripTest -g512K
 roundTripTest -g512K " --zstd=slen=3,tlen=48,strat=6"
 roundTripTest -g512K " --zstd=strat=6,wlog=23,clog=23,hlog=22,slog=6"
 roundTripTest -g512K " --zstd=windowLog=23,chainLog=23,hashLog=22,searchLog=6,searchLength=3,targetLength=48,strategy=6"
+roundTripTest -g512K " --long --zstd=ldmHashLog=20,ldmSearchLength=64,ldmBucketSizeLog=1,ldmHashEveryLog=7"
+roundTripTest -g512K " --long --zstd=ldmhlog=20,ldmslen=64,ldmblog=1,ldmhevery=7"
 roundTripTest -g512K 19
 
 
@@ -291,8 +307,10 @@ $ECHO "- Create dictionary with wrong dictID parameter order (must fail)"
 $ZSTD --train *.c ../programs/*.c --dictID -o 1 tmpDict1 && die "wrong order : --dictID must be followed by argument "
 $ECHO "- Create dictionary with size limit"
 $ZSTD --train *.c ../programs/*.c -o tmpDict2 --maxdict=4K -v
+$ECHO "- Create dictionary with small size limit"
+$ZSTD --train *.c ../programs/*.c -o tmpDict3 --maxdict=1K -v
 $ECHO "- Create dictionary with wrong parameter order (must fail)"
-$ZSTD --train *.c ../programs/*.c -o tmpDict2 --maxdict -v 4K && die "wrong order : --maxdict must be followed by argument "
+$ZSTD --train *.c ../programs/*.c -o tmpDict3 --maxdict -v 4K && die "wrong order : --maxdict must be followed by argument "
 $ECHO "- Compress without dictID"
 $ZSTD -f tmp -D tmpDict1 --no-dictID
 $ZSTD -d tmp.zst -D tmpDict -fo result
@@ -551,6 +569,15 @@ roundTripTest -g516K 19   # btopt
 
 fileRoundTripTest -g500K
 
+$ECHO "\n**** zstd long distance matching round-trip tests **** "
+roundTripTest -g0 "2 --long"
+roundTripTest -g1000K "1 --long"
+roundTripTest -g517K "6 --long"
+roundTripTest -g516K "16 --long"
+roundTripTest -g518K "19 --long"
+fileRoundTripTest -g5M "3 --long"
+
+
 if [ -n "$hasMT" ]
 then
     $ECHO "\n**** zstdmt round-trip tests **** "
@@ -558,6 +585,9 @@ then
     roundTripTest -g8M "3 -T2"
     roundTripTest -g8000K "2 --threads=2"
     fileRoundTripTest -g4M "19 -T2 -B1M"
+
+    $ECHO "\n**** zstdmt long distance matching round-trip tests **** "
+    roundTripTest -g8M "3 --long -T2"
 else
     $ECHO "\n**** no multithreading, skipping zstdmt tests **** "
 fi
@@ -568,7 +598,6 @@ $ECHO "\n**** zstd --list/-l single frame tests ****"
 ./datagen > tmp1
 ./datagen > tmp2
 ./datagen > tmp3
-./datagen > tmp4
 $ZSTD tmp*
 $ZSTD -l *.zst
 $ZSTD -lv *.zst
@@ -577,9 +606,7 @@ $ZSTD --list -v *.zst
 
 $ECHO "\n**** zstd --list/-l multiple frame tests ****"
 cat tmp1.zst tmp2.zst > tmp12.zst
-cat tmp3.zst tmp4.zst > tmp34.zst
-cat tmp12.zst tmp34.zst > tmp1234.zst
-cat tmp12.zst tmp4.zst > tmp124.zst
+cat tmp12.zst tmp3.zst > tmp123.zst
 $ZSTD -l *.zst
 $ZSTD -lv *.zst
 $ZSTD --list *.zst
@@ -589,7 +616,7 @@ $ECHO "\n**** zstd --list/-l error detection tests ****"
 ! $ZSTD -l tmp1 tmp1.zst
 ! $ZSTD --list tmp*
 ! $ZSTD -lv tmp1*
-! $ZSTD --list -v tmp2 tmp23.zst
+! $ZSTD --list -v tmp2 tmp12.zst
 
 $ECHO "\n**** zstd --list/-l test with null files ****"
 ./datagen -g0 > tmp5
@@ -612,47 +639,70 @@ $ZSTD -lv tmp1.zst
 rm tmp*
 
 
+$ECHO "\n**** zstd long distance matching tests **** "
+roundTripTest -g0 " --long"
+roundTripTest -g9M "2 --long"
+# Test parameter parsing
+roundTripTest -g1M -P50 "1 --long=29" " --memory=512MB"
+roundTripTest -g1M -P50 "1 --long=29 --zstd=wlog=28" " --memory=256MB"
+roundTripTest -g1M -P50 "1 --long=29" " --long=28 --memory=512MB"
+roundTripTest -g1M -P50 "1 --long=29" " --zstd=wlog=28 --memory=512MB"
+
+
 if [ "$1" != "--test-large-data" ]; then
     $ECHO "Skipping large data tests"
     exit 0
 fi
 
+$ECHO "\n**** large files tests **** "
+
 roundTripTest -g270000000 1
-roundTripTest -g270000000 2
-roundTripTest -g270000000 3
+roundTripTest -g250000000 2
+roundTripTest -g230000000 3
 
 roundTripTest -g140000000 -P60 4
-roundTripTest -g140000000 -P60 5
-roundTripTest -g140000000 -P60 6
+roundTripTest -g130000000 -P62 5
+roundTripTest -g120000000 -P65 6
 
 roundTripTest -g70000000 -P70 7
-roundTripTest -g70000000 -P70 8
-roundTripTest -g70000000 -P70 9
+roundTripTest -g60000000 -P71 8
+roundTripTest -g50000000 -P73 9
 
 roundTripTest -g35000000 -P75 10
-roundTripTest -g35000000 -P75 11
-roundTripTest -g35000000 -P75 12
+roundTripTest -g30000000 -P76 11
+roundTripTest -g25000000 -P78 12
 
 roundTripTest -g18000013 -P80 13
 roundTripTest -g18000014 -P80 14
-roundTripTest -g18000015 -P80 15
-roundTripTest -g18000016 -P80 16
-roundTripTest -g18000017 -P80 17
+roundTripTest -g18000015 -P81 15
+roundTripTest -g18000016 -P84 16
+roundTripTest -g18000017 -P88 17
 roundTripTest -g18000018 -P94 18
-roundTripTest -g18000019 -P94 19
+roundTripTest -g18000019 -P96 19
 
-roundTripTest -g68000020 -P99 20
-roundTripTest -g6000000000 -P99 1
+roundTripTest -g5000000000 -P99 1
 
 fileRoundTripTest -g4193M -P99 1
+
+
+$ECHO "\n**** zstd long, long distance matching round-trip tests **** "
+roundTripTest -g270000000 "1 --long"
+roundTripTest -g130000000 -P60 "5 --long"
+roundTripTest -g35000000 -P70 "8 --long"
+roundTripTest -g18000001 -P80  "18 --long"
+# Test large window logs
+roundTripTest -g700M -P50 "1 --long=29"
+roundTripTest -g600M -P50 "1 --long --zstd=wlog=29,clog=28"
+
 
 if [ -n "$hasMT" ]
 then
     $ECHO "\n**** zstdmt long round-trip tests **** "
-    roundTripTest -g99000000 -P99 "20 -T2"
-    roundTripTest -g6000000000 -P99 "1 -T2"
-    roundTripTest -g1500000000 -P97 "1 -T999"
-    fileRoundTripTest -g4195M -P98 " -T0"
+    roundTripTest -g80000000 -P99 "19 -T2" " "
+    roundTripTest -g5000000000 -P99 "1 -T2" " "
+    roundTripTest -g500000000 -P97 "1 -T999" " "
+    fileRoundTripTest -g4103M -P98 " -T0" " "
+    roundTripTest -g400000000 -P97 "1 --long=24 -T2" " "
 else
     $ECHO "\n**** no multithreading, skipping zstdmt tests **** "
 fi

@@ -1,10 +1,10 @@
-/**
+/*
  * Copyright (c) 2016-present, Facebook, Inc.
  * All rights reserved.
  *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under both the BSD-style license (found in the
+ * LICENSE file in the root directory of this source tree) and the GPLv2 (found
+ * in the COPYING file in the root directory of this source tree).
  */
 
 #include "fuzz.h"
@@ -29,9 +29,11 @@ int main(int argc, char const **argv) {
 #ifdef UTIL_HAS_CREATEFILELIST
   files = UTIL_createFileList(files, numFiles, &fileNamesBuf, &numFiles,
                               kFollowLinks);
-  FUZZ_ASSERT(files);
+  if (!files)
+    numFiles = 0;
 #endif
-
+  if (numFiles == 0)
+    fprintf(stderr, "WARNING: No files passed to %s\n", argv[0]);
   for (i = 0; i < numFiles; ++i) {
     char const *fileName = files[i];
     size_t const fileSize = UTIL_getFileSize(fileName);
@@ -39,7 +41,7 @@ int main(int argc, char const **argv) {
     FILE *file;
 
     /* Check that it is a regular file, and that the fileSize is valid */
-    FUZZ_ASSERT_MSG(UTIL_isRegFile(fileName), fileName);
+    FUZZ_ASSERT_MSG(UTIL_isRegularFile(fileName), fileName);
     FUZZ_ASSERT_MSG(fileSize <= kMaxFileSize, fileName);
     /* Ensure we have a large enough buffer allocated */
     if (fileSize > bufferSize) {

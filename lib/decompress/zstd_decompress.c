@@ -1416,7 +1416,7 @@ static size_t ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
     /* windowSize could be any value at this point, since it is only validated
      * in the streaming API.
      */
-    DEBUGLOG(5, "ZSTD_decompressBlock_internal");
+    DEBUGLOG(5, "ZSTD_decompressBlock_internal (size : %u)", (U32)srcSize);
 
     if (srcSize >= ZSTD_BLOCKSIZE_MAX) return ERROR(srcSize_wrong);
 

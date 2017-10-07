@@ -208,7 +208,7 @@ clean:
         zstreamtest$(EXT) zstreamtest32$(EXT) \
         datagen$(EXT) paramgrill$(EXT) roundTripCrash$(EXT) longmatch$(EXT) \
         symbols$(EXT) invalidDictionaries$(EXT) legacy$(EXT) poolTests$(EXT) \
-	decodecorpus$(EXT)
+        decodecorpus$(EXT)
 	@echo Cleaning completed
 
 

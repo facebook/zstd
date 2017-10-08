@@ -327,7 +327,7 @@ MEM_STATIC U32 ZSTD_highbit32(U32 val)
         unsigned long r=0;
         _BitScanReverse(&r, val);
         return (unsigned)r;
-#   elif defined(__GNUC__) && (__GNUC__ >= 3)   /* GCC Intrinsic */
+#   elif defined(__GNUC__) && (__GNUC__ >= 3) && __has_builtin(__builtin_clz)   /* GCC Intrinsic */
         return 31 - __builtin_clz(val);
 #   else   /* Software version */
         static const int DeBruijnClz[32] = { 0, 9, 1, 10, 13, 21, 2, 29, 11, 14, 16, 18, 22, 25, 3, 30, 8, 12, 20, 28, 15, 17, 24, 7, 19, 27, 23, 6, 26, 5, 4, 31 };

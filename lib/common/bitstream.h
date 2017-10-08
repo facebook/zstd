@@ -175,7 +175,7 @@ MEM_STATIC unsigned BIT_highbit32 (register U32 val)
         unsigned long r=0;
         _BitScanReverse ( &r, val );
         return (unsigned) r;
-#   elif defined(__GNUC__) && (__GNUC__ >= 3)   /* Use GCC Intrinsic */
+#   elif defined(__GNUC__) && (__GNUC__ >= 3) && __has_builtin(__builtin_clz)   /* Use GCC Intrinsic */
         return 31 - __builtin_clz (val);
 #   else   /* Software version */
         static const unsigned DeBruijnClz[32] = { 0,  9,  1, 10, 13, 21,  2, 29,

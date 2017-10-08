@@ -26,7 +26,7 @@ matrix:
     - env: Cmd='make -j uasanregressiontest'
     - env: Cmd='make -j msanregressiontest'
 
-    - env: Cmd='make -C tests versionsTest && make lz4install && make -C tests test-lz4'
+    - env: Cmd='make -C tests versionsTest && make lz4install && make clean && make -C tests test-lz4'
 
     # OS X Mavericks
     - env: Cmd="make test"

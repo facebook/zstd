@@ -6,7 +6,7 @@ dist: trusty
 matrix:
   include:
     # Ubuntu 14.04
-    - env: Cmd="make gnu90build && make clean && make cmakebuild && make clean && make travis-install"
+    - env: Cmd="make cxxtest && make clean && make gnu90build && make clean && make cmakebuild && make clean && make travis-install"
 
     - env: Cmd='make gcc6install && CC=gcc-6 make clean uasan-test'
     - env: Cmd='make gcc6install libc6install && CC=gcc-6 make clean uasan-test32'
@@ -26,8 +26,7 @@ matrix:
     - env: Cmd='make -j uasanregressiontest'
     - env: Cmd='make -j msanregressiontest'
 
-    - env: Cmd='make lz4install && make -C tests test-lz4'
-    - env: Cmd='make -C tests versionsTest'
+    - env: Cmd='make -C tests versionsTest && make lz4install && make -C tests test-lz4'
 
     # OS X Mavericks
     - env: Cmd="make test"

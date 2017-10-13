@@ -1536,6 +1536,12 @@ MEM_STATIC size_t ZSTD_compressSequences(seqStore_t* seqStorePtr,
     int const uncompressibleError = (cSize == ERROR(dstSize_tooSmall)) && (srcSize <= dstCapacity);
     if (ZSTD_isError(cSize) && !uncompressibleError)
         return cSize;
+    /* We check that dictionaries have offset codes available for the first
+     * block. After the first block, the offcode table might not have large
+     * enough codes to represent the offsets in the data.
+     */
+    if (entropy->offcode_repeatMode == FSE_repeat_valid)
+        entropy->offcode_repeatMode = FSE_repeat_check;
 
     /* Check compressibility */
     {   size_t const minGain = ZSTD_minGain(srcSize);  /* note : fixed formula, maybe should depend on compression level, or strategy */

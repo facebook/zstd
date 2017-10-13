@@ -439,6 +439,7 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
 
 #ifdef ZSTD_NEWAPI
         {   /* frame parameters */
+            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_contentSizeFlag, 1) );
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_dictIDFlag, g_dictIDFlag) );
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_checksumFlag, g_checksumFlag) );
             (void)srcSize;

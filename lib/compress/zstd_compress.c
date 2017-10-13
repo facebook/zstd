@@ -391,7 +391,7 @@ size_t ZSTD_CCtxParam_setParameter(
 
     case ZSTD_p_contentSizeFlag :
         /* Content size written in frame header _when known_ (default:1) */
-        DEBUGLOG(5, "set content size flag = %u", (value>0));
+        DEBUGLOG(4, "set content size flag = %u", (value>0));
         params->fParams.contentSizeFlag = value > 0;
         return 0;
 
@@ -401,7 +401,7 @@ size_t ZSTD_CCtxParam_setParameter(
         return 0;
 
     case ZSTD_p_dictIDFlag : /* When applicable, dictionary's dictID is provided in frame header (default:1) */
-        DEBUGLOG(5, "set dictIDFlag = %u", (value>0));
+        DEBUGLOG(4, "set dictIDFlag = %u", (value>0));
         params->fParams.noDictIDFlag = (value == 0);
         return 0;
 

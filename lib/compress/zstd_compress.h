@@ -127,7 +127,7 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const v
 #if defined(ZSTD_DEBUG) && (ZSTD_DEBUG >= 6)
     static const BYTE* g_start = NULL;
     U32 const pos = (U32)((const BYTE*)literals - g_start);
-    if (g_start==NULL) g_start = (const BYTE*)literals;
+    if (g_start==NULL) g_start = (const BYTE*)literals;  /* note : index only works for compression within a single segment */
     if ((pos > 0) && (pos < 1000000000))
         DEBUGLOG(6, "Cpos %6u :%5u literals & match %3u bytes at distance %6u",
                pos, (U32)litLength, (U32)matchCode+MINMATCH, (U32)offsetCode);

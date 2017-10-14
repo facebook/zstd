@@ -600,7 +600,7 @@ $ECHO "\n**** zstd --list/-l single frame tests ****"
 ./datagen > tmp3
 $ZSTD tmp*
 $ZSTD -l *.zst
-$ZSTD -lv *.zst
+$ZSTD -lv *.zst | grep "Decompressed Size:"  # check that decompressed size is present in header
 $ZSTD --list *.zst
 $ZSTD --list -v *.zst
 
@@ -609,8 +609,6 @@ cat tmp1.zst tmp2.zst > tmp12.zst
 cat tmp12.zst tmp3.zst > tmp123.zst
 $ZSTD -l *.zst
 $ZSTD -lv *.zst
-$ZSTD --list *.zst
-$ZSTD --list -v *.zst
 
 $ECHO "\n**** zstd --list/-l error detection tests ****"
 ! $ZSTD -l tmp1 tmp1.zst
@@ -627,9 +625,9 @@ $ZSTD -lv tmp5.zst
 ! $ZSTD -lv tmp5*
 
 $ECHO "\n**** zstd --list/-l test with no content size field ****"
-./datagen -g1MB | $ZSTD > tmp6.zst
+./datagen -g513K | $ZSTD > tmp6.zst
 $ZSTD -l tmp6.zst
-$ZSTD -lv tmp6.zst
+! $ZSTD -lv tmp6.zst | grep "Decompressed Size:"  # must NOT be present in header
 
 $ECHO "\n**** zstd --list/-l test with no checksum ****"
 $ZSTD -f --no-check tmp1

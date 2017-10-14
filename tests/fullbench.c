@@ -233,7 +233,7 @@ static ZSTD_CCtx* g_zcc = NULL;
 size_t local_ZSTD_compressContinue(void* dst, size_t dstCapacity, void* buff2, const void* src, size_t srcSize)
 {
     (void)buff2;
-    ZSTD_compressBegin(g_zcc, 1);
+    ZSTD_compressBegin(g_zcc, 1 /* compressionLevel */);
     return ZSTD_compressEnd(g_zcc, dst, dstCapacity, src, srcSize);
 }
 

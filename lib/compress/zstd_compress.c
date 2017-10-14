@@ -531,7 +531,7 @@ size_t ZSTD_CCtx_loadDictionary_advanced(
         cctx->cdict = NULL;
     } else {
         ZSTD_compressionParameters const cParams =
-                ZSTD_getCParamsFromCCtxParams(cctx->requestedParams, 0, dictSize);
+                ZSTD_getCParamsFromCCtxParams(cctx->requestedParams, cctx->pledgedSrcSizePlusOne-1, dictSize);
         cctx->cdictLocal = ZSTD_createCDict_advanced(
                                 dict, dictSize,
                                 dictLoadMethod, dictMode,

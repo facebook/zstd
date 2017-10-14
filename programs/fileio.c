@@ -442,7 +442,6 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_contentSizeFlag, 1) );
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_dictIDFlag, g_dictIDFlag) );
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_checksumFlag, g_checksumFlag) );
-            (void)srcSize;
             /* compression level */
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionLevel, cLevel) );
             /* long distance matching */
@@ -468,7 +467,9 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
             DISPLAYLEVEL(5,"set nb threads = %u \n", g_nbThreads);
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_nbThreads, g_nbThreads) );
             /* dictionary */
+            CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, srcSize) );  /* just to load dictionary with good compression parameters */
             CHECK( ZSTD_CCtx_loadDictionary(ress.cctx, dictBuffer, dictBuffSize) );
+            CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, ZSTD_CONTENTSIZE_UNKNOWN) );  /* reset */
         }
 #elif defined(ZSTD_MULTITHREAD)
         {   ZSTD_parameters params = ZSTD_getParams(cLevel, srcSize, dictBuffSize);
@@ -1006,7 +1007,7 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
     size_t dfnSize = FNSPACE;
     char*  dstFileName = (char*)malloc(FNSPACE);
     size_t const suffixSize = suffix ? strlen(suffix) : 0;
-    U64 const srcSize = (nbFiles != 1) ? 0 : UTIL_getFileSize(inFileNamesTable[0]) ;
+    U64 const srcSize = (nbFiles != 1) ? ZSTD_CONTENTSIZE_UNKNOWN : UTIL_getFileSize(inFileNamesTable[0]) ;
     cRess_t ress = FIO_createCResources(dictFileName, compressionLevel, srcSize, comprParams);
 
     /* init */
@@ -1032,9 +1033,9 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
                 free(dstFileName);
                 dfnSize = ifnSize + 20;
                 dstFileName = (char*)malloc(dfnSize);
-                if (!dstFileName)
+                if (!dstFileName) {
                     EXM_THROW(30, "zstd: %s", strerror(errno));
-            }
+            }   }
             strcpy(dstFileName, inFileNamesTable[u]);
             strcat(dstFileName, suffix);
             missed_files += FIO_compressFilename_dstFile(ress, dstFileName, inFileNamesTable[u], compressionLevel);

@@ -852,7 +852,7 @@ size_t ZSTDMT_initCStream(ZSTDMT_CCtx* zcs, int compressionLevel) {
     ZSTD_CCtx_params cctxParams = zcs->params;
     cctxParams.cParams = params.cParams;
     cctxParams.fParams = params.fParams;
-    return ZSTDMT_initCStream_internal(zcs, NULL, 0, ZSTD_dm_auto, NULL, cctxParams, 0);
+    return ZSTDMT_initCStream_internal(zcs, NULL, 0, ZSTD_dm_auto, NULL, cctxParams, ZSTD_CONTENTSIZE_UNKNOWN);
 }
 
 

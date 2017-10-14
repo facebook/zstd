@@ -327,6 +327,7 @@ void ZSTDMT_compressChunk(void* jobDescription)
     ZSTD_CCtx* cctx = ZSTDMT_getCCtx(job->cctxPool);
     const void* const src = (const char*)job->srcStart + job->dictSize;
     buffer_t dstBuff = job->dstBuff;
+    DEBUGLOG(5, "ZSTDMT_compressChunk")
     DEBUGLOG(5, "job (first:%u) (last:%u) : dictSize %u, srcSize %u",
                  job->firstChunk, job->lastChunk, (U32)job->dictSize, (U32)job->srcSize);
 
@@ -344,22 +345,22 @@ void ZSTDMT_compressChunk(void* jobDescription)
         job->dstBuff = dstBuff;
     }
 
-    if (job->cdict) {  /* should only happen for first segment */
+    if (job->cdict) {
         size_t const initError = ZSTD_compressBegin_usingCDict_advanced(cctx, job->cdict, job->params.fParams, job->fullFrameSize);
-        DEBUGLOG(5, "using CDict");
+        DEBUGLOG(4, "ZSTDMT_compressChunk, using CDict");
+        assert(job->firstChunk); /* should only happen for first segment */
         if (ZSTD_isError(initError)) { job->cSize = initError; goto _endJob; }
     } else {  /* srcStart points at reloaded section */
-        if (!job->firstChunk) job->params.fParams.contentSizeFlag = 0;  /* ensure no srcSize control */
-        { ZSTD_CCtx_params jobParams = job->params;
-          size_t const forceWindowError =
-              ZSTD_CCtxParam_setParameter(&jobParams, ZSTD_p_forceMaxWindow, !job->firstChunk);
-          /* Force loading dictionary in "content-only" mode (no header analysis) */
-          size_t const initError = ZSTD_compressBegin_advanced_internal(cctx, job->srcStart, job->dictSize, ZSTD_dm_rawContent, jobParams, job->fullFrameSize);
-            if (ZSTD_isError(initError) || ZSTD_isError(forceWindowError)) {
-                job->cSize = initError;
-                goto _endJob;
-            }
-    }   }
+        ZSTD_CCtx_params jobParams = job->params;
+        size_t const forceWindowError = ZSTD_CCtxParam_setParameter(&jobParams, ZSTD_p_forceMaxWindow, !job->firstChunk);
+        U64 const pledgedSrcSize = job->firstChunk ? job->fullFrameSize : ZSTD_CONTENTSIZE_UNKNOWN;
+        /* load dictionary in "content-only" mode (no header analysis) */
+        size_t const initError = ZSTD_compressBegin_advanced_internal(cctx, job->srcStart, job->dictSize, ZSTD_dm_rawContent, jobParams, pledgedSrcSize);
+        if (ZSTD_isError(initError) || ZSTD_isError(forceWindowError)) {
+            job->cSize = initError;
+            goto _endJob;
+        }
+    }
     if (!job->firstChunk) {  /* flush and overwrite frame header when it's not first segment */
         size_t const hSize = ZSTD_compressContinue(cctx, dstBuff.start, dstBuff.size, src, 0);
         if (ZSTD_isError(hSize)) { job->cSize = hSize; goto _endJob; }
@@ -367,7 +368,7 @@ void ZSTDMT_compressChunk(void* jobDescription)
     }
 
     DEBUGLOG(5, "Compressing : ");
-    DEBUG_PRINTHEX(4, job->srcStart, 12);
+    DEBUG_PRINTHEX(6, job->srcStart, 12);
     job->cSize = (job->lastChunk) ?
                  ZSTD_compressEnd     (cctx, dstBuff.start, dstBuff.size, src, job->srcSize) :
                  ZSTD_compressContinue(cctx, dstBuff.start, dstBuff.size, src, job->srcSize);
@@ -610,6 +611,7 @@ static size_t ZSTDMT_compress_advanced_internal(
     assert(jobParams.nbThreads == 0);
     assert(mtctx->cctxPool->totalCCtx == params.nbThreads);
 
+    DEBUGLOG(4, "ZSTDMT_compress_advanced_internal");
     DEBUGLOG(4, "nbChunks  : %2u   (chunkSize : %u bytes)   ", nbChunks, (U32)avgChunkSize);
     if (nbChunks==1) {   /* fallback to single-thread mode */
         ZSTD_CCtx* const cctx = mtctx->cctxPool->cctx[0];
@@ -641,7 +643,7 @@ static size_t ZSTDMT_compress_advanced_internal(
             mtctx->jobs[u].srcStart = srcStart + frameStartPos - dictSize;
             mtctx->jobs[u].dictSize = dictSize;
             mtctx->jobs[u].srcSize = chunkSize;
-            mtctx->jobs[u].cdict = mtctx->nextJobID==0 ? cdict : NULL;
+            mtctx->jobs[u].cdict = (u==0) ? cdict : NULL;
             mtctx->jobs[u].fullFrameSize = srcSize;
             mtctx->jobs[u].params = jobParams;
             /* do not calculate checksum within sections, but write it in header for first section */
@@ -777,7 +779,6 @@ size_t ZSTDMT_initCStream_internal(
     zcs->params = params;
     zcs->frameContentSize = pledgedSrcSize;
     if (dict) {
-        DEBUGLOG(4,"cdictLocal: %08X", (U32)(size_t)zcs->cdictLocal);
         ZSTD_freeCDict(zcs->cdictLocal);
         zcs->cdictLocal = ZSTD_createCDict_advanced(dict, dictSize,
                                                     ZSTD_dlm_byCopy, dictMode, /* note : a loadPrefix becomes an internal CDict */
@@ -785,7 +786,6 @@ size_t ZSTDMT_initCStream_internal(
         zcs->cdict = zcs->cdictLocal;
         if (zcs->cdictLocal == NULL) return ERROR(memory_allocation);
     } else {
-        DEBUGLOG(4,"cdictLocal: %08X", (U32)(size_t)zcs->cdictLocal);
         ZSTD_freeCDict(zcs->cdictLocal);
         zcs->cdictLocal = NULL;
         zcs->cdict = cdict;

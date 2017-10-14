@@ -190,9 +190,10 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
 
     /* Basic compression test */
     DISPLAYLEVEL(3, "test%3i : compress %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
-    CHECK_Z( ZSTD_initCStream_usingDict(zc, CNBuffer, dictSize, 1) );
+    CHECK_Z( ZSTD_initCStream_usingDict(zc, CNBuffer, dictSize, 1 /* cLevel */) );
     outBuff.dst = (char*)(compressedBuffer)+cSize;
-    outBuff.size = compressedBufferSize;
+    assert(compressedBufferSize > cSize);
+    outBuff.size = compressedBufferSize - cSize;
     outBuff.pos = 0;
     inBuff.src = CNBuffer;
     inBuff.size = CNBufferSize;

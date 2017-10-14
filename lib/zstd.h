@@ -1000,11 +1000,11 @@ typedef enum {
                               * Special: value 0 means "do not change strategy". */
 
     /* frame parameters */
-    ZSTD_p_contentSizeFlag=200, /* Content size is written into frame header _whenever known_ (default:1)
-                              * note that content size must be known at the beginning,
-                              * it is sent using ZSTD_CCtx_setPledgedSrcSize() */
+    ZSTD_p_contentSizeFlag=200, /* Content size will be written into frame header _whenever known_ (default:1)
+                              * Content size must be known at the beginning of compression,
+                              * it is provided using ZSTD_CCtx_setPledgedSrcSize() */
     ZSTD_p_checksumFlag,     /* A 32-bits checksum of content is written at end of frame (default:0) */
-    ZSTD_p_dictIDFlag,       /* When applicable, dictID of dictionary is provided in frame header (default:1) */
+    ZSTD_p_dictIDFlag,       /* When applicable, dictionary's ID is written into frame header (default:1) */
 
     /* multi-threading parameters */
     ZSTD_p_nbThreads=400,    /* Select how many threads a compression job can spawn (default:1)

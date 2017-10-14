@@ -1282,6 +1282,7 @@ symbolEncodingType_e ZSTD_selectEncodingType(
 #define MAX_SEQ_FOR_STATIC_FSE  1000
     ZSTD_STATIC_ASSERT(ZSTD_defaultDisallowed == 0 && ZSTD_defaultAllowed != 0);
     if ((mostFrequent == nbSeq) && (!isDefaultAllowed || nbSeq > 2)) {
+        DEBUGLOG(5, "Selected set_rle");
         /* Prefer set_basic over set_rle when there are 2 or less symbols,
          * since RLE uses 1 byte, but set_basic uses 5-6 bits per symbol.
          * If basic encoding isn't possible, always choose RLE.
@@ -1291,13 +1292,16 @@ symbolEncodingType_e ZSTD_selectEncodingType(
     }
     if ( isDefaultAllowed
       && (*repeatMode == FSE_repeat_valid) && (nbSeq < MAX_SEQ_FOR_STATIC_FSE)) {
+        DEBUGLOG(5, "Selected set_repeat");
         return set_repeat;
     }
     if ( isDefaultAllowed
       && ((nbSeq < MIN_SEQ_FOR_DYNAMIC_FSE) || (mostFrequent < (nbSeq >> (defaultNormLog-1)))) ) {
+        DEBUGLOG(5, "Selected set_basic");
         *repeatMode = FSE_repeat_valid;
         return set_basic;
     }
+    DEBUGLOG(5, "Selected set_compressed");
     *repeatMode = FSE_repeat_check;
     return set_compressed;
 }
@@ -1475,6 +1479,7 @@ MEM_STATIC size_t ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
     /* build CTable for Literal Lengths */
     {   U32 max = MaxLL;
         size_t const mostFrequent = FSE_countFast_wksp(count, &max, llCodeTable, nbSeq, entropy->workspace);
+        DEBUGLOG(5, "Building LL table");
         LLtype = ZSTD_selectEncodingType(&entropy->litlength_repeatMode, mostFrequent, nbSeq, LL_defaultNormLog, ZSTD_defaultAllowed);
         {   size_t const countSize = ZSTD_buildCTable(op, oend - op, CTable_LitLength, LLFSELog, (symbolEncodingType_e)LLtype,
                     count, max, llCodeTable, nbSeq, LL_defaultNorm, LL_defaultNormLog, MaxLL,
@@ -1487,6 +1492,7 @@ MEM_STATIC size_t ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
         size_t const mostFrequent = FSE_countFast_wksp(count, &max, ofCodeTable, nbSeq, entropy->workspace);
         /* We can only use the basic table if max <= DefaultMaxOff, otherwise the offsets are too large */
         ZSTD_defaultPolicy_e const defaultPolicy = (max <= DefaultMaxOff) ? ZSTD_defaultAllowed : ZSTD_defaultDisallowed;
+        DEBUGLOG(5, "Building OF table");
         Offtype = ZSTD_selectEncodingType(&entropy->offcode_repeatMode, mostFrequent, nbSeq, OF_defaultNormLog, defaultPolicy);
         {   size_t const countSize = ZSTD_buildCTable(op, oend - op, CTable_OffsetBits, OffFSELog, (symbolEncodingType_e)Offtype,
                     count, max, ofCodeTable, nbSeq, OF_defaultNorm, OF_defaultNormLog, DefaultMaxOff,
@@ -1497,6 +1503,7 @@ MEM_STATIC size_t ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
     /* build CTable for MatchLengths */
     {   U32 max = MaxML;
         size_t const mostFrequent = FSE_countFast_wksp(count, &max, mlCodeTable, nbSeq, entropy->workspace);
+        DEBUGLOG(5, "Building ML table");
         MLtype = ZSTD_selectEncodingType(&entropy->matchlength_repeatMode, mostFrequent, nbSeq, ML_defaultNormLog, ZSTD_defaultAllowed);
         {   size_t const countSize = ZSTD_buildCTable(op, oend - op, CTable_MatchLength, MLFSELog, (symbolEncodingType_e)MLtype,
                     count, max, mlCodeTable, nbSeq, ML_defaultNorm, ML_defaultNormLog, MaxML,
@@ -1536,6 +1543,12 @@ MEM_STATIC size_t ZSTD_compressSequences(seqStore_t* seqStorePtr,
     int const uncompressibleError = (cSize == ERROR(dstSize_tooSmall)) && (srcSize <= dstCapacity);
     if (ZSTD_isError(cSize) && !uncompressibleError)
         return cSize;
+    /* We check that dictionaries have offset codes available for the first
+     * block. After the first block, the offcode table might not have large
+     * enough codes to represent the offsets in the data.
+     */
+    if (entropy->offcode_repeatMode == FSE_repeat_valid)
+        entropy->offcode_repeatMode = FSE_repeat_check;
 
     /* Check compressibility */
     {   size_t const minGain = ZSTD_minGain(srcSize);  /* note : fixed formula, maybe should depend on compression level, or strategy */

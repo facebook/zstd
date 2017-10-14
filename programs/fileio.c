@@ -1927,7 +1927,7 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
     return detectError;
 }
 
-static void displayInfo(const char* inFileName, fileInfo_t* info, int displayLevel){
+static void displayInfo(const char* inFileName, const fileInfo_t* info, int displayLevel){
     unsigned const unit = info->compressedSize < (1 MB) ? (1 KB) : (1 MB);
     const char* const unitStr = info->compressedSize < (1 MB) ? "KB" : "MB";
     double const windowSizeUnit = (double)info->windowSize / unit;
@@ -1950,8 +1950,10 @@ static void displayInfo(const char* inFileName, fileInfo_t* info, int displayLev
                     checkString, inFileName);
         }
     } else {
+        DISPLAYOUT("%s \n", inFileName);
         DISPLAYOUT("# Zstandard Frames: %d\n", info->numActualFrames);
-        DISPLAYOUT("# Skippable Frames: %d\n", info->numSkippableFrames);
+        if (info->numSkippableFrames)
+            DISPLAYOUT("# Skippable Frames: %d\n", info->numSkippableFrames);
         DISPLAYOUT("Window Size: %.2f %2s (%llu B)\n",
                    windowSizeUnit, unitStr,
                    (unsigned long long)info->windowSize);
@@ -1983,7 +1985,6 @@ static fileInfo_t FIO_addFInfo(fileInfo_t fi1, fileInfo_t fi2)
 }
 
 static int FIO_listFile(fileInfo_t* total, const char* inFileName, int displayLevel){
-    /* initialize info to avoid warnings */
     fileInfo_t info;
     memset(&info, 0, sizeof(info));
     {   int const error = getFileInfo(&info, inFileName);
@@ -2023,7 +2024,7 @@ int FIO_listMultipleFiles(unsigned numFiles, const char** filenameTable, int dis
         for (u=0; u<numFiles;u++) {
             error |= FIO_listFile(&total, filenameTable[u], displayLevel);
         }
-        if (numFiles > 1 && displayLevel <= 2) {
+        if (numFiles > 1 && displayLevel <= 2) {   /* display total */
             unsigned const unit = total.compressedSize < (1 MB) ? (1 KB) : (1 MB);
             const char* const unitStr = total.compressedSize < (1 MB) ? "KB" : "MB";
             double const compressedSizeUnit = (double)total.compressedSize / unit;
@@ -2043,8 +2044,7 @@ int FIO_listMultipleFiles(unsigned numFiles, const char** filenameTable, int dis
                         total.numSkippableFrames,
                         compressedSizeUnit, unitStr, decompressedSizeUnit, unitStr,
                         ratio, checkString, total.nbFiles);
-            }
-        }
+        }   }
         return error;
     }
 }

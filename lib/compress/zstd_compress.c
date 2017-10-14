@@ -822,9 +822,8 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                                       ZSTD_compResetPolicy_e const crp,
                                       ZSTD_buffered_policy_e const zbuff)
 {
-    DEBUGLOG(4, "ZSTD_resetCCtx_internal");
+    DEBUGLOG(4, "ZSTD_resetCCtx_internal: pledgedSrcSize=%u", (U32)pledgedSrcSize);
     assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
-    DEBUGLOG(4, "pledgedSrcSize: %u", (U32)pledgedSrcSize);
 
     if (crp == ZSTDcrp_continue) {
         if (ZSTD_equivalentParams(params, zc->appliedParams)) {
@@ -2500,12 +2499,15 @@ static size_t ZSTD_resetCStream_internal(ZSTD_CStream* zcs,
     return 0;   /* ready to go */
 }
 
+/* ZSTD_resetCStream():
+ * pledgedSrcSize == 0 means "unknown" */
 size_t ZSTD_resetCStream(ZSTD_CStream* zcs, unsigned long long pledgedSrcSize)
 {
     ZSTD_CCtx_params params = zcs->requestedParams;
-    params.fParams.contentSizeFlag = (pledgedSrcSize > 0);
+    DEBUGLOG(4, "ZSTD_resetCStream: pledgedSrcSize = %u", (U32)pledgedSrcSize);
+    if (pledgedSrcSize==0) pledgedSrcSize = ZSTD_CONTENTSIZE_UNKNOWN;
+    params.fParams.contentSizeFlag = 1;
     params.cParams = ZSTD_getCParamsFromCCtxParams(params, pledgedSrcSize, 0);
-    DEBUGLOG(4, "ZSTD_resetCStream");
     return ZSTD_resetCStream_internal(zcs, NULL, 0, ZSTD_dm_auto, zcs->cdict, params, pledgedSrcSize);
 }
 
@@ -2572,13 +2574,19 @@ size_t ZSTD_initCStream_usingCDict(ZSTD_CStream* zcs, const ZSTD_CDict* cdict)
     return ZSTD_initCStream_usingCDict_advanced(zcs, cdict, fParams, 0);  /* note : will check that cdict != NULL */
 }
 
+/* ZSTD_initCStream_advanced() :
+ * pledgedSrcSize is optional: it can be 0, which means "unknown" if contentSizeFlag is set, or "unknown" if contentSizeFlag is not set. */
 size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs,
                                  const void* dict, size_t dictSize,
                                  ZSTD_parameters params, unsigned long long pledgedSrcSize)
 {
     ZSTD_CCtx_params const cctxParams =
             ZSTD_assignParamsToCCtxParams(zcs->requestedParams, params);
+    DEBUGLOG(4, "ZSTD_initCStream_advanced: pledgedSrcSize=%u, flag=%u",
+            (U32)pledgedSrcSize, params.fParams.contentSizeFlag);
     CHECK_F( ZSTD_checkCParams(params.cParams) );
+    if ((pledgedSrcSize==0) && (params.fParams.contentSizeFlag==0))
+        pledgedSrcSize = ZSTD_CONTENTSIZE_UNKNOWN;
     return ZSTD_initCStream_internal(zcs, dict, dictSize, NULL, cctxParams, pledgedSrcSize);
 }
 

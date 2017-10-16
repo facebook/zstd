@@ -91,7 +91,7 @@ else
     hasMT="true"
 fi
 
-$ECHO "\n**** simple tests **** "
+$ECHO "\n===>  simple tests "
 
 ./datagen > tmp
 $ECHO "test : basic compression "
@@ -166,7 +166,7 @@ $ZSTD -f tmp && die "tmp not present : should have failed"
 test ! -f tmp.zst  # tmp.zst should not be created
 
 
-$ECHO "\n**** Advanced compression parameters **** "
+$ECHO "\n===>  Advanced compression parameters "
 $ECHO "Hello world!" | $ZSTD --zstd=windowLog=21,      - -o tmp.zst && die "wrong parameters not detected!"
 $ECHO "Hello world!" | $ZSTD --zstd=windowLo=21        - -o tmp.zst && die "wrong parameters not detected!"
 $ECHO "Hello world!" | $ZSTD --zstd=windowLog=21,slog  - -o tmp.zst && die "wrong parameters not detected!"
@@ -180,14 +180,14 @@ roundTripTest -g512K " --long --zstd=ldmhlog=20,ldmslen=64,ldmblog=1,ldmhevery=7
 roundTripTest -g512K 19
 
 
-$ECHO "\n**** Pass-Through mode **** "
+$ECHO "\n===>  Pass-Through mode "
 $ECHO "Hello world 1!" | $ZSTD -df
 $ECHO "Hello world 2!" | $ZSTD -dcf
 $ECHO "Hello world 3!" > tmp1
 $ZSTD -dcf tmp1
 
 
-$ECHO "\n**** frame concatenation **** "
+$ECHO "\n===>  frame concatenation "
 
 $ECHO "hello " > hello.tmp
 $ECHO "world!" > world.tmp
@@ -218,7 +218,7 @@ $ECHO "$ECHO foo | $ZSTD | $ZSTD -d > /dev/full"
 $ECHO foo | $ZSTD | $ZSTD -d > /dev/full && die "write error not detected!"
 
 
-$ECHO "\n**** symbolic link test **** "
+$ECHO "\n===>  symbolic link test "
 
 rm -f hello.tmp world.tmp hello.tmp.zst world.tmp.zst
 $ECHO "hello world" > hello.tmp
@@ -233,7 +233,7 @@ rm -f hello.tmp world.tmp hello.tmp.zst world.tmp.zst
 fi
 
 
-$ECHO "\n**** test sparse file support **** "
+$ECHO "\n===>  test sparse file support "
 
 ./datagen -g5M  -P100 > tmpSparse
 $ZSTD tmpSparse -c | $ZSTD -dv -o tmpSparseRegen
@@ -260,7 +260,7 @@ $DIFF tmpSparse2M tmpSparseRegenerated
 rm tmpSparse*
 
 
-$ECHO "\n**** multiple files tests **** "
+$ECHO "\n===>  multiple files tests "
 
 ./datagen -s1        > tmp1 2> $INTOVOID
 ./datagen -s2 -g100K > tmp2 2> $INTOVOID
@@ -283,7 +283,7 @@ $ECHO "compress multiple files including a missing one (notHere) : "
 $ZSTD -f tmp1 notHere tmp2 && die "missing file not detected!"
 
 
-$ECHO "\n**** dictionary tests **** "
+$ECHO "\n===>  dictionary tests "
 
 $ECHO "- test with raw dict (content only) "
 ./datagen > tmpDict
@@ -339,7 +339,7 @@ $ZSTD --train-legacy -q tmp && die "Dictionary training should fail : source is 
 rm tmp*
 
 
-$ECHO "\n**** cover dictionary tests **** "
+$ECHO "\n===>  cover dictionary builder : advanced options "
 
 TESTFILE=../programs/zstdcli.c
 ./datagen > tmpDict
@@ -359,7 +359,7 @@ $ECHO "- Create dictionary with size limit"
 $ZSTD --train-cover=steps=8 *.c ../programs/*.c -o tmpDict2 --maxdict=4K
 rm tmp*
 
-$ECHO "\n**** legacy dictionary tests **** "
+$ECHO "\n===>  legacy dictionary builder "
 
 TESTFILE=../programs/zstdcli.c
 ./datagen > tmpDict
@@ -380,7 +380,7 @@ $ZSTD --train-legacy -s9 *.c ../programs/*.c -o tmpDict2 --maxdict=4K
 rm tmp*
 
 
-$ECHO "\n**** integrity tests **** "
+$ECHO "\n===>  integrity tests "
 
 $ECHO "test one file (tmp1.zst) "
 ./datagen > tmp1
@@ -405,13 +405,13 @@ $ZSTD -t tmpSplit.* && die "bad file not detected !"
 
 
 
-$ECHO "\n**** golden files tests **** "
+$ECHO "\n===>  golden files tests "
 
 $ZSTD -t -r files
 $ZSTD -c -r files | $ZSTD -t
 
 
-$ECHO "\n**** benchmark mode tests **** "
+$ECHO "\n===>  benchmark mode tests "
 
 $ECHO "bench one file"
 ./datagen > tmp1
@@ -422,7 +422,7 @@ $ECHO "with recursive and quiet modes"
 $ZSTD -rqi1b1e2 tmp1
 
 
-$ECHO "\n**** gzip compatibility tests **** "
+$ECHO "\n===>  gzip compatibility tests "
 
 GZIPMODE=1
 $ZSTD --format=gzip -V || GZIPMODE=0
@@ -445,7 +445,7 @@ else
 fi
 
 
-$ECHO "\n**** gzip frame tests **** "
+$ECHO "\n===>  gzip frame tests "
 
 if [ $GZIPMODE -eq 1 ]; then
     ./datagen > tmp
@@ -459,7 +459,7 @@ else
 fi
 
 
-$ECHO "\n**** xz compatibility tests **** "
+$ECHO "\n===>  xz compatibility tests "
 
 LZMAMODE=1
 $ZSTD --format=xz -V || LZMAMODE=0
@@ -505,7 +505,7 @@ else
 fi
 
 
-$ECHO "\n**** xz frame tests **** "
+$ECHO "\n===>  xz frame tests "
 
 if [ $LZMAMODE -eq 1 ]; then
     ./datagen > tmp
@@ -520,7 +520,7 @@ else
     $ECHO "xz mode not supported"
 fi
 
-$ECHO "\n**** lz4 compatibility tests **** "
+$ECHO "\n===>  lz4 compatibility tests "
 
 LZ4MODE=1
 $ZSTD --format=lz4 -V || LZ4MODE=0
@@ -543,7 +543,7 @@ else
 fi
 
 
-$ECHO "\n**** lz4 frame tests **** "
+$ECHO "\n===>  lz4 frame tests "
 
 if [ $LZ4MODE -eq 1 ]; then
     ./datagen > tmp
@@ -556,7 +556,7 @@ else
     $ECHO "lz4 mode not supported"
 fi
 
-$ECHO "\n**** zstd round-trip tests **** "
+$ECHO "\n===>  zstd round-trip tests "
 
 roundTripTest
 roundTripTest -g15K       # TableID==3
@@ -569,7 +569,7 @@ roundTripTest -g516K 19   # btopt
 
 fileRoundTripTest -g500K
 
-$ECHO "\n**** zstd long distance matching round-trip tests **** "
+$ECHO "\n===>  zstd long distance matching round-trip tests "
 roundTripTest -g0 "2 --long"
 roundTripTest -g1000K "1 --long"
 roundTripTest -g517K "6 --long"
@@ -580,21 +580,21 @@ fileRoundTripTest -g5M "3 --long"
 
 if [ -n "$hasMT" ]
 then
-    $ECHO "\n**** zstdmt round-trip tests **** "
+    $ECHO "\n===>  zstdmt round-trip tests "
     roundTripTest -g4M "1 -T0"
     roundTripTest -g8M "3 -T2"
     roundTripTest -g8000K "2 --threads=2"
     fileRoundTripTest -g4M "19 -T2 -B1M"
 
-    $ECHO "\n**** zstdmt long distance matching round-trip tests **** "
+    $ECHO "\n===>  zstdmt long distance matching round-trip tests "
     roundTripTest -g8M "3 --long -T2"
 else
-    $ECHO "\n**** no multithreading, skipping zstdmt tests **** "
+    $ECHO "\n===>  no multithreading, skipping zstdmt tests "
 fi
 
 rm tmp*
 
-$ECHO "\n**** zstd --list/-l single frame tests ****"
+$ECHO "\n===>  zstd --list/-l single frame tests "
 ./datagen > tmp1
 ./datagen > tmp2
 ./datagen > tmp3
@@ -604,19 +604,19 @@ $ZSTD -lv *.zst | grep "Decompressed Size:"  # check that decompressed size is p
 $ZSTD --list *.zst
 $ZSTD --list -v *.zst
 
-$ECHO "\n**** zstd --list/-l multiple frame tests ****"
+$ECHO "\n===>  zstd --list/-l multiple frame tests "
 cat tmp1.zst tmp2.zst > tmp12.zst
 cat tmp12.zst tmp3.zst > tmp123.zst
 $ZSTD -l *.zst
 $ZSTD -lv *.zst
 
-$ECHO "\n**** zstd --list/-l error detection tests ****"
+$ECHO "\n===>  zstd --list/-l error detection tests "
 ! $ZSTD -l tmp1 tmp1.zst
 ! $ZSTD --list tmp*
 ! $ZSTD -lv tmp1*
 ! $ZSTD --list -v tmp2 tmp12.zst
 
-$ECHO "\n**** zstd --list/-l test with null files ****"
+$ECHO "\n===>  zstd --list/-l test with null files "
 ./datagen -g0 > tmp5
 $ZSTD tmp5
 $ZSTD -l tmp5.zst
@@ -624,12 +624,12 @@ $ZSTD -l tmp5.zst
 $ZSTD -lv tmp5.zst
 ! $ZSTD -lv tmp5*
 
-$ECHO "\n**** zstd --list/-l test with no content size field ****"
+$ECHO "\n===>  zstd --list/-l test with no content size field "
 ./datagen -g513K | $ZSTD > tmp6.zst
 $ZSTD -l tmp6.zst
 ! $ZSTD -lv tmp6.zst | grep "Decompressed Size:"  # must NOT be present in header
 
-$ECHO "\n**** zstd --list/-l test with no checksum ****"
+$ECHO "\n===>   zstd --list/-l test with no checksum "
 $ZSTD -f --no-check tmp1
 $ZSTD -l tmp1.zst
 $ZSTD -lv tmp1.zst
@@ -637,7 +637,7 @@ $ZSTD -lv tmp1.zst
 rm tmp*
 
 
-$ECHO "\n**** zstd long distance matching tests **** "
+$ECHO "\n===>   zstd long distance matching tests "
 roundTripTest -g0 " --long"
 roundTripTest -g9M "2 --long"
 # Test parameter parsing
@@ -652,7 +652,7 @@ if [ "$1" != "--test-large-data" ]; then
     exit 0
 fi
 
-$ECHO "\n**** large files tests **** "
+$ECHO "\n===>   large files tests "
 
 roundTripTest -g270000000 1
 roundTripTest -g250000000 2
@@ -683,7 +683,7 @@ roundTripTest -g5000000000 -P99 1
 fileRoundTripTest -g4193M -P99 1
 
 
-$ECHO "\n**** zstd long, long distance matching round-trip tests **** "
+$ECHO "\n===>   zstd long, long distance matching round-trip tests "
 roundTripTest -g270000000 "1 --long"
 roundTripTest -g130000000 -P60 "5 --long"
 roundTripTest -g35000000 -P70 "8 --long"
@@ -695,7 +695,7 @@ roundTripTest -g600M -P50 "1 --long --zstd=wlog=29,clog=28"
 
 if [ -n "$hasMT" ]
 then
-    $ECHO "\n**** zstdmt long round-trip tests **** "
+    $ECHO "\n===>   zstdmt long round-trip tests "
     roundTripTest -g80000000 -P99 "19 -T2" " "
     roundTripTest -g5000000000 -P99 "1 -T2" " "
     roundTripTest -g500000000 -P97 "1 -T999" " "

@@ -2575,7 +2575,8 @@ size_t ZSTD_initCStream_usingCDict(ZSTD_CStream* zcs, const ZSTD_CDict* cdict)
 }
 
 /* ZSTD_initCStream_advanced() :
- * pledgedSrcSize is optional: it can be 0, which means "unknown" if contentSizeFlag is set, or "unknown" if contentSizeFlag is not set. */
+ * pledgedSrcSize : if srcSize is not known at init time, use value ZSTD_CONTENTSIZE_UNKNOWN.
+ * dict is loaded with default parameters ZSTD_dm_auto and ZSTD_dlm_byCopy. */
 size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs,
                                  const void* dict, size_t dictSize,
                                  ZSTD_parameters params, unsigned long long pledgedSrcSize)

@@ -25,7 +25,7 @@
 *  Includes
 ***************************************/
 #include "platform.h"   /* Large Files support, SET_BINARY_MODE */
-#include "util.h"       /* UTIL_getFileSize */
+#include "util.h"       /* UTIL_getFileSize, UTIL_isRegularFile */
 #include <stdio.h>      /* fprintf, fopen, fread, _fileno, stdin, stdout */
 #include <stdlib.h>     /* malloc, free */
 #include <string.h>     /* strcmp, strlen */
@@ -564,7 +564,7 @@ static unsigned long long FIO_compressGzFrame(cRess_t* ress,
                 strm.avail_out = (uInt)ress->dstBufferSize;
             }
         }
-        if (!srcFileSize)
+        if (srcFileSize != UTIL_FILESIZE_UNKNOWN)
             DISPLAYUPDATE(2, "\rRead : %u MB ==> %.2f%%",
                             (U32)(inFileSize>>20),
                             (double)outFileSize/inFileSize*100)
@@ -651,7 +651,7 @@ static unsigned long long FIO_compressLzmaFrame(cRess_t* ress,
                 strm.next_out = (BYTE*)ress->dstBuffer;
                 strm.avail_out = ress->dstBufferSize;
         }   }
-        if (!srcFileSize)
+        if (srcFileSize != UTIL_FILESIZE_UNKNOWN)
             DISPLAYUPDATE(2, "\rRead : %u MB ==> %.2f%%",
                             (U32)(inFileSize>>20),
                             (double)outFileSize/inFileSize*100)
@@ -697,18 +697,17 @@ static unsigned long long FIO_compressLz4Frame(cRess_t* ress,
     prefs.frameInfo.blockSizeID = LZ4F_max4MB;
     prefs.frameInfo.contentChecksumFlag = (contentChecksum_t)g_checksumFlag;
 #if LZ4_VERSION_NUMBER >= 10600
-    prefs.frameInfo.contentSize = srcFileSize;
+    prefs.frameInfo.contentSize = (srcFileSize==UTIL_FILESIZE_UNKNOWN) ? 0 : srcFileSize;
 #endif
 
-    {
-        size_t blockSize = FIO_LZ4_GetBlockSize_FromBlockId(LZ4F_max4MB);
+    {   size_t blockSize = FIO_LZ4_GetBlockSize_FromBlockId(LZ4F_max4MB);
         size_t readSize;
         size_t headerSize = LZ4F_compressBegin(ctx, ress->dstBuffer, ress->dstBufferSize, &prefs);
         if (LZ4F_isError(headerSize))
             EXM_THROW(33, "File header generation failed : %s",
                             LZ4F_getErrorName(headerSize));
-        { size_t const sizeCheck = fwrite(ress->dstBuffer, 1, headerSize, ress->dstFile);
-          if (sizeCheck!=headerSize) EXM_THROW(34, "Write error : cannot write header"); }
+        if (fwrite(ress->dstBuffer, 1, headerSize, ress->dstFile) != headerSize)
+            EXM_THROW(34, "Write error : cannot write header");
         outFileSize += headerSize;
 
         /* Read first block */
@@ -725,7 +724,7 @@ static unsigned long long FIO_compressLz4Frame(cRess_t* ress,
                 EXM_THROW(35, "zstd: %s: lz4 compression failed : %s",
                             srcFileName, LZ4F_getErrorName(outSize));
             outFileSize += outSize;
-            if (!srcFileSize)
+            if (srcFileSize != UTIL_FILESIZE_UNKNOWN)
                 DISPLAYUPDATE(2, "\rRead : %u MB ==> %.2f%%",
                                 (U32)(inFileSize>>20),
                                 (double)outFileSize/inFileSize*100)
@@ -816,12 +815,12 @@ static int FIO_compressFilename_internal(cRess_t ress,
 
     /* init */
 #ifdef ZSTD_NEWAPI
-    if (fileSize!=0)  /* when src is stdin, fileSize==0, but is effectively unknown */
+    if (fileSize!=UTIL_FILESIZE_UNKNOWN)  /* when src is stdin, fileSize==0, but is effectively unknown */
         ZSTD_CCtx_setPledgedSrcSize(ress.cctx, fileSize);
 #elif defined(ZSTD_MULTITHREAD)
-    CHECK( ZSTDMT_resetCStream(ress.cctx, fileSize ? fileSize : ZSTD_CONTENTSIZE_UNKNOWN) );
+    CHECK( ZSTDMT_resetCStream(ress.cctx, (fileSize==UTIL_FILESIZE_UNKNOWN) ? ZSTD_CONTENTSIZE_UNKNOWN : fileSize) );
 #else
-    CHECK( ZSTD_resetCStream(ress.cctx, fileSize ? fileSize : ZSTD_CONTENTSIZE_UNKNOWN) );
+    CHECK( ZSTD_resetCStream(ress.cctx, (fileSize==UTIL_FILESIZE_UNKNOWN) ? ZSTD_CONTENTSIZE_UNKNOWN : fileSize) );
 #endif
 
     /* Main compression loop */
@@ -851,13 +850,13 @@ static int FIO_compressFilename_internal(cRess_t ress,
                 compressedfilesize += outBuff.pos;
         }   }
         if (g_nbThreads > 1) {
-            if (!fileSize)
+            if (fileSize != UTIL_FILESIZE_UNKNOWN)
                 DISPLAYUPDATE(2, "\rRead : %u MB", (U32)(readsize>>20))
             else
                 DISPLAYUPDATE(2, "\rRead : %u / %u MB",
                                     (U32)(readsize>>20), (U32)(fileSize>>20));
         } else {
-            if (!fileSize)
+            if (fileSize != UTIL_FILESIZE_UNKNOWN)
                 DISPLAYUPDATE(2, "\rRead : %u MB ==> %.2f%%",
                                 (U32)(readsize>>20),
                                 (double)compressedfilesize/readsize*100)
@@ -985,7 +984,8 @@ int FIO_compressFilename(const char* dstFileName, const char* srcFileName,
                          const char* dictFileName, int compressionLevel, ZSTD_compressionParameters* comprParams)
 {
     clock_t const start = clock();
-    U64 const srcSize = UTIL_getFileSize(srcFileName);
+    U64 const fileSize = UTIL_getFileSize(srcFileName);
+    U64 const srcSize = (fileSize == UTIL_FILESIZE_UNKNOWN) ? ZSTD_CONTENTSIZE_UNKNOWN : fileSize;
 
     cRess_t const ress = FIO_createCResources(dictFileName, compressionLevel, srcSize, comprParams);
     int const result = FIO_compressFilename_dstFile(ress, dstFileName, srcFileName, compressionLevel);
@@ -1007,7 +1007,9 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
     size_t dfnSize = FNSPACE;
     char*  dstFileName = (char*)malloc(FNSPACE);
     size_t const suffixSize = suffix ? strlen(suffix) : 0;
-    U64 const srcSize = (nbFiles != 1) ? ZSTD_CONTENTSIZE_UNKNOWN : UTIL_getFileSize(inFileNamesTable[0]) ;
+    U64 const firstFileSize = UTIL_getFileSize(inFileNamesTable[0]);
+    U64 const firstSrcSize = (firstFileSize == UTIL_FILESIZE_UNKNOWN) ? ZSTD_CONTENTSIZE_UNKNOWN : firstFileSize;
+    U64 const srcSize = (nbFiles != 1) ? ZSTD_CONTENTSIZE_UNKNOWN : firstSrcSize ;
     cRess_t ress = FIO_createCResources(dictFileName, compressionLevel, srcSize, comprParams);
 
     /* init */
@@ -1799,7 +1801,7 @@ typedef struct {
  *           2 for file not compressed with zstd
  *           3 for cases in which file could not be opened.
  */
-static int getFileInfo(fileInfo_t* info, const char* inFileName){
+static int getFileInfo_fileConfirmed(fileInfo_t* info, const char* inFileName){
     int detectError = 0;
     FILE* const srcFile = FIO_openSrcFile(inFileName);
     if (srcFile == NULL) {
@@ -1815,7 +1817,8 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
         if (numBytesRead < ZSTD_frameHeaderSize_min) {
             if ( feof(srcFile)
               && (numBytesRead == 0)
-              && (info->compressedSize > 0) ) {
+              && (info->compressedSize > 0)
+              && (info->compressedSize != UTIL_FILESIZE_UNKNOWN) ) {
                 break;
             }
             else if (feof(srcFile)) {
@@ -1927,6 +1930,17 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
     info->nbFiles = 1;
     return detectError;
 }
+
+static int getFileInfo(fileInfo_t* info, const char* srcFileName)
+{
+    int const isAFile = UTIL_isRegularFile(srcFileName);
+    if (!isAFile) {
+        DISPLAY("Error : %s is not a file", srcFileName);
+        return 3;
+    }
+    return getFileInfo_fileConfirmed(info, srcFileName);
+}
+
 
 static void displayInfo(const char* inFileName, const fileInfo_t* info, int displayLevel){
     unsigned const unit = info->compressedSize < (1 MB) ? (1 KB) : (1 MB);

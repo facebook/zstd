@@ -313,33 +313,40 @@ UTIL_STATIC U32 UTIL_isLink(const char* infilename)
 }
 
 
+#define UTIL_FILESIZE_UNKNOWN  ((U64)(-1))
 UTIL_STATIC U64 UTIL_getFileSize(const char* infilename)
 {
-    int r;
+    if (!UTIL_isRegularFile(infilename)) return UTIL_FILESIZE_UNKNOWN;
+    {   int r;
 #if defined(_MSC_VER)
-    struct __stat64 statbuf;
-    r = _stat64(infilename, &statbuf);
-    if (r || !(statbuf.st_mode & S_IFREG)) return 0;   /* No good... */
+        struct __stat64 statbuf;
+        r = _stat64(infilename, &statbuf);
+        if (r || !(statbuf.st_mode & S_IFREG)) return UTIL_FILESIZE_UNKNOWN;
 #elif defined(__MINGW32__) && defined (__MSVCRT__)
-    struct _stati64 statbuf;
-    r = _stati64(infilename, &statbuf);
-    if (r || !(statbuf.st_mode & S_IFREG)) return 0;   /* No good... */
+        struct _stati64 statbuf;
+        r = _stati64(infilename, &statbuf);
+        if (r || !(statbuf.st_mode & S_IFREG)) return UTIL_FILESIZE_UNKNOWN;
 #else
-    struct stat statbuf;
-    r = stat(infilename, &statbuf);
-    if (r || !S_ISREG(statbuf.st_mode)) return 0;   /* No good... */
+        struct stat statbuf;
+        r = stat(infilename, &statbuf);
+        if (r || !S_ISREG(statbuf.st_mode)) return UTIL_FILESIZE_UNKNOWN;
 #endif
-    return (U64)statbuf.st_size;
+        return (U64)statbuf.st_size;
+    }
 }
 
 
 UTIL_STATIC U64 UTIL_getTotalFileSize(const char** fileNamesTable, unsigned nbFiles)
 {
     U64 total = 0;
+    int error = 0;
     unsigned n;
-    for (n=0; n<nbFiles; n++)
-        total += UTIL_getFileSize(fileNamesTable[n]);
-    return total;
+    for (n=0; n<nbFiles; n++) {
+        U64 const size = UTIL_getFileSize(fileNamesTable[n]);
+        error |= (size == UTIL_FILESIZE_UNKNOWN);
+        total += size;
+    }
+    return error ? UTIL_FILESIZE_UNKNOWN : total;
 }
 
 

@@ -130,7 +130,7 @@ zbufftest-dll : $(ZSTDDIR)/common/xxhash.c $(PRGDIR)/datagen.c zbufftest.c
 	$(MAKE) -C $(ZSTDDIR) libzstd
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@$(EXT)
 
-ZSTREAMFILES := $(ZSTD_FILES) $(ZDICT_FILES) $(PRGDIR)/datagen.c zstreamtest.c
+ZSTREAMFILES := $(ZSTD_FILES) $(ZDICT_FILES) $(PRGDIR)/datagen.c seqgen.c zstreamtest.c
 zstreamtest : CPPFLAGS += $(MULTITHREAD_CPP)
 zstreamtest : LDFLAGS += $(MULTITHREAD_LD)
 zstreamtest : $(ZSTREAMFILES)

@@ -687,6 +687,11 @@ int benchFiles(const char** fileNamesTable, int nbFiles)
             DISPLAY( "Pb opening %s\n", inFileName);
             return 11;
         }
+        if (inFileSize == UTIL_FILESIZE_UNKNOWN) {
+            DISPLAY("Pb evaluatin size of %s \n", inFileName);
+            fclose(inFile);
+            return 11;
+        }
 
         /* Memory allocation */
         benchedSize = BMK_findMaxMem(inFileSize*3) / 3;
@@ -740,6 +745,11 @@ int optimizeForSize(const char* inFileName, U32 targetSpeed)
 
     /* Init */
     if (inFile==NULL) { DISPLAY( "Pb opening %s\n", inFileName); return 11; }
+    if (inFileSize == UTIL_FILESIZE_UNKNOWN) {
+        DISPLAY("Pb evaluatin size of %s \n", inFileName);
+        fclose(inFile);
+        return 11;
+    }
 
     /* Memory allocation & restrictions */
     if ((U64)benchedSize > inFileSize) benchedSize = (size_t)inFileSize;

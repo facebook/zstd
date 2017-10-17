@@ -684,6 +684,11 @@ static void BMK_loadFiles(void* buffer, size_t bufferSize,
             fileSizes[n] = 0;
             continue;
         }
+        if (fileSize == UTIL_FILESIZE_UNKNOWN) {
+            DISPLAYLEVEL(2, "Cannot determine size of %s ...    \n", fileNamesTable[n]);
+            fileSizes[n] = 0;
+            continue;
+        }
         f = fopen(fileNamesTable[n], "rb");
         if (f==NULL) EXM_THROW(10, "impossible to open file %s", fileNamesTable[n]);
         DISPLAYUPDATE(2, "Loading %s...       \r", fileNamesTable[n]);
@@ -714,11 +719,13 @@ static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles,
 
     /* Load dictionary */
     if (dictFileName != NULL) {
-        U64 dictFileSize = UTIL_getFileSize(dictFileName);
-        if (dictFileSize > 64 MB) EXM_THROW(10, "dictionary file %s too large", dictFileName);
+        U64 const dictFileSize = UTIL_getFileSize(dictFileName);
+        if (dictFileSize > 64 MB)
+            EXM_THROW(10, "dictionary file %s too large", dictFileName);
         dictBufferSize = (size_t)dictFileSize;
         dictBuffer = malloc(dictBufferSize);
-        if (dictBuffer==NULL) EXM_THROW(11, "not enough memory for dictionary (%u bytes)", (U32)dictBufferSize);
+        if (dictBuffer==NULL)
+            EXM_THROW(11, "not enough memory for dictionary (%u bytes)", (U32)dictBufferSize);
         BMK_loadFiles(dictBuffer, dictBufferSize, fileSizes, &dictFileName, 1);
     }
 

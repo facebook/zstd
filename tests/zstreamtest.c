@@ -36,6 +36,7 @@
 #include "datagen.h"      /* RDG_genBuffer */
 #define XXH_STATIC_LINKING_ONLY   /* XXH64_state_t */
 #include "xxhash.h"       /* XXH64_* */
+#include "seqgen.h"
 
 
 /*-************************************
@@ -96,14 +97,20 @@ unsigned int FUZ_rand(unsigned int* seedPtr)
     return rand32 >> 5;
 }
 
-#define CHECK_Z(f) {                                         \
-    size_t const err = f;                                    \
-    if (ZSTD_isError(err)) {                                 \
-        DISPLAY("Error => %s : %s ",                         \
-                #f, ZSTD_getErrorName(err));                 \
-        DISPLAY(" (seed %u, test nb %u)  \n", seed, testNb); \
+#define CHECK(cond, ...) {                                   \
+    if (cond) {                                              \
+        DISPLAY("Error => ");                                \
+        DISPLAY(__VA_ARGS__);                                \
+        DISPLAY(" (seed %u, test nb %u, line %u)  \n",       \
+                seed, testNb, __LINE__);                     \
         goto _output_error;                                  \
 }   }
+
+#define CHECK_Z(f) {                                         \
+    size_t const err = f;                                    \
+    CHECK(ZSTD_isError(err), "%s : %s ",                     \
+          #f, ZSTD_getErrorName(err));                       \
+}
 
 
 /*======================================================
@@ -144,6 +151,63 @@ static void FUZ_freeDictionary(buffer_t dict)
     free(dict.start);
 }
 
+/* Round trips data and updates xxh with the decompressed data produced */
+static size_t SEQ_roundTrip(ZSTD_CCtx* cctx, ZSTD_DCtx* dctx,
+                            XXH64_state_t* xxh, void* data, size_t size,
+                            ZSTD_EndDirective endOp)
+{
+    static BYTE compressed[1024];
+    static BYTE uncompressed[1024];
+
+    ZSTD_inBuffer cin = {data, size, 0};
+    size_t cret;
+
+    do {
+        ZSTD_outBuffer cout = {compressed, sizeof(compressed), 0};
+        ZSTD_inBuffer din = {compressed, 0, 0};
+        ZSTD_outBuffer dout = {uncompressed, 0, 0};
+
+        cret = ZSTD_compress_generic(cctx, &cout, &cin, endOp);
+        if (ZSTD_isError(cret))
+            return cret;
+
+        din.size = cout.pos;
+        while (din.pos < din.size || (endOp == ZSTD_e_end && cret == 0)) {
+            size_t dret;
+
+            dout.pos = 0;
+            dout.size = sizeof(uncompressed);
+            dret = ZSTD_decompressStream(dctx, &dout, &din);
+            if (ZSTD_isError(dret))
+                return dret;
+            XXH64_update(xxh, dout.dst, dout.pos);
+            if (dret == 0)
+                break;
+        }
+    } while (cin.pos < cin.size || (endOp != ZSTD_e_continue && cret != 0));
+    return 0;
+}
+
+/* Generates some data and round trips it */
+static size_t SEQ_generateRoundTrip(ZSTD_CCtx* cctx, ZSTD_DCtx* dctx,
+                                    XXH64_state_t* xxh, SEQ_stream* seq,
+                                    SEQ_gen_type type, unsigned value)
+{
+    static BYTE data[1024];
+    size_t gen;
+
+    do {
+        SEQ_outBuffer sout = {data, sizeof(data), 0};
+        size_t ret;
+        gen = SEQ_gen(seq, type, value, &sout);
+
+        ret = SEQ_roundTrip(cctx, dctx, xxh, sout.dst, sout.pos, ZSTD_e_continue);
+        if (ZSTD_isError(ret))
+            return ret;
+    } while (gen != 0);
+
+    return 0;
+}
 
 static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem customMem)
 {
@@ -618,6 +682,53 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
       if (r != 0) goto _output_error; }  /* error, or some data not flushed */
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : check dictionary FSE tables can represent every code : ", testNb++);
+    {   unsigned const kMaxWindowLog = 24;
+        unsigned value;
+        ZSTD_compressionParameters cParams = ZSTD_getCParams(3, 1U << kMaxWindowLog, 1024);
+        ZSTD_CDict* cdict;
+        ZSTD_DDict* ddict;
+        SEQ_stream seq = SEQ_initStream(0x87654321);
+        SEQ_gen_type type;
+        XXH64_state_t xxh;
+
+        XXH64_reset(&xxh, 0);
+        cParams.windowLog = kMaxWindowLog;
+        cdict = ZSTD_createCDict_advanced(dictionary.start, dictionary.filled, ZSTD_dlm_byRef, ZSTD_dm_fullDict, cParams, ZSTD_defaultCMem);
+        ddict = ZSTD_createDDict(dictionary.start, dictionary.filled);
+
+        if (!cdict || !ddict) goto _output_error;
+
+        ZSTD_CCtx_reset(zc);
+        ZSTD_resetDStream(zd);
+        CHECK_Z(ZSTD_CCtx_refCDict(zc, cdict));
+        CHECK_Z(ZSTD_initDStream_usingDDict(zd, ddict));
+        CHECK_Z(ZSTD_setDStreamParameter(zd, DStream_p_maxWindowSize, 1U << kMaxWindowLog));
+        /* Test all values < 300 */
+        for (value = 0; value < 300; ++value) {
+            for (type = (SEQ_gen_type)0; type < SEQ_gen_max; ++type) {
+                CHECK_Z(SEQ_generateRoundTrip(zc, zd, &xxh, &seq, type, value));
+            }
+        }
+        /* Test values 2^8 to 2^17 */
+        for (value = (1 << 8); value < (1 << 17); value <<= 1) {
+            for (type = (SEQ_gen_type)0; type < SEQ_gen_max; ++type) {
+                CHECK_Z(SEQ_generateRoundTrip(zc, zd, &xxh, &seq, type, value));
+                CHECK_Z(SEQ_generateRoundTrip(zc, zd, &xxh, &seq, type, value + (value >> 2)));
+            }
+        }
+        /* Test offset values up to the max window log */
+        for (value = 8; value <= kMaxWindowLog; ++value) {
+            CHECK_Z(SEQ_generateRoundTrip(zc, zd, &xxh, &seq, SEQ_gen_of, (1U << value) - 1));
+        }
+
+        CHECK_Z(SEQ_roundTrip(zc, zd, &xxh, NULL, 0, ZSTD_e_end));
+        CHECK(SEQ_digest(&seq) != XXH64_digest(&xxh), "SEQ XXH64 does not match");
+
+        ZSTD_freeCDict(cdict);
+        ZSTD_freeDDict(ddict);
+    }
+    DISPLAYLEVEL(3, "OK \n");
 
     /* Overlen overwriting window data bug */
     DISPLAYLEVEL(3, "test%3i : wildcopy doesn't overwrite potential match data : ", testNb++);
@@ -707,14 +818,6 @@ static U32 FUZ_randomClampedLength(U32* seed, U32 minVal, U32 maxVal)
     U32 const mod = maxVal < minVal ? 1 : (maxVal + 1) - minVal;
     return (U32)((FUZ_rand(seed) % mod) + minVal);
 }
-
-#define CHECK(cond, ...) {                                   \
-    if (cond) {                                              \
-        DISPLAY("Error => ");                                \
-        DISPLAY(__VA_ARGS__);                                \
-        DISPLAY(" (seed %u, test nb %u)  \n", seed, testNb); \
-        goto _output_error;                                  \
-}   }
 
 static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compressibility, int bigTests)
 {

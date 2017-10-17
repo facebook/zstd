@@ -838,9 +838,12 @@ size_t ZSTDMT_initCStream_usingCDict(ZSTDMT_CCtx* mtctx,
 
 
 /* ZSTDMT_resetCStream() :
- * pledgedSrcSize is optional and can be zero == unknown */
+ * pledgedSrcSize can be zero == unknown (for the time being)
+ * prefer using ZSTD_CONTENTSIZE_UNKNOWN,
+ * as `0` might mean "empty" in the future */
 size_t ZSTDMT_resetCStream(ZSTDMT_CCtx* zcs, unsigned long long pledgedSrcSize)
 {
+    if (!pledgedSrcSize) pledgedSrcSize = ZSTD_CONTENTSIZE_UNKNOWN;
     if (zcs->params.nbThreads==1)
         return ZSTD_resetCStream(zcs->cctxPool->cctx[0], pledgedSrcSize);
     return ZSTDMT_initCStream_internal(zcs, NULL, 0, ZSTD_dm_auto, 0, zcs->params,

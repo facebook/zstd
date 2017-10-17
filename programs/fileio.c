@@ -817,11 +817,11 @@ static int FIO_compressFilename_internal(cRess_t ress,
     /* init */
 #ifdef ZSTD_NEWAPI
     if (fileSize!=0)  /* when src is stdin, fileSize==0, but is effectively unknown */
-        ZSTD_CCtx_setPledgedSrcSize(ress.cctx, fileSize);  /* note : fileSize==0 means "empty" */
+        ZSTD_CCtx_setPledgedSrcSize(ress.cctx, fileSize);
 #elif defined(ZSTD_MULTITHREAD)
-    CHECK( ZSTDMT_resetCStream(ress.cctx, fileSize) );   /* note : fileSize==0 means "unknown" */
+    CHECK( ZSTDMT_resetCStream(ress.cctx, fileSize ? fileSize : ZSTD_CONTENTSIZE_UNKNOWN) );
 #else
-    CHECK( ZSTD_resetCStream(ress.cctx, fileSize) );   /* note : fileSize==0 means "unknown" */
+    CHECK( ZSTD_resetCStream(ress.cctx, fileSize ? fileSize : ZSTD_CONTENTSIZE_UNKNOWN) );
 #endif
 
     /* Main compression loop */

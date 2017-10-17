@@ -1298,7 +1298,13 @@ symbolEncodingType_e ZSTD_selectEncodingType(
     if ( isDefaultAllowed
       && ((nbSeq < MIN_SEQ_FOR_DYNAMIC_FSE) || (mostFrequent < (nbSeq >> (defaultNormLog-1)))) ) {
         DEBUGLOG(5, "Selected set_basic");
-        *repeatMode = FSE_repeat_valid;
+        /* The format allows default tables to be repeated, but it isn't useful.
+         * When using simple heuristics to select encoding type, we don't want
+         * to confuse these tables with dictionaries. When running more careful
+         * analysis, we don't need to waste time checking both repeating tables
+         * and default tables.
+         */
+        *repeatMode = FSE_repeat_none;
         return set_basic;
     }
     DEBUGLOG(5, "Selected set_compressed");

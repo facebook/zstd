@@ -56,6 +56,6 @@ script:
         date
         git fetch origin dev;
         git checkout -f FETCH_HEAD;
-        date   # check fetch duration
+        date
     fi;
     sh -c "$Cmd" || travis_terminate 1;

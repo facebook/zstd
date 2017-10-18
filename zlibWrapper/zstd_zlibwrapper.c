@@ -270,7 +270,7 @@ ZEXTERN int ZEXPORT z_deflateSetDictionary OF((z_streamp strm,
             zwc->zbc = ZSTD_createCStream_advanced(zwc->customMem);
             if (zwc->zbc == NULL) return ZWRAPC_finishWithError(zwc, strm, 0);
         }
-        { int res = ZWRAP_initializeCStream(zwc, dictionary, dictLength, 0);
+        { int res = ZWRAP_initializeCStream(zwc, dictionary, dictLength, ZSTD_CONTENTSIZE_UNKNOWN);
           if (res != Z_OK) return ZWRAPC_finishWithError(zwc, strm, res); }
         zwc->comprState = ZWRAP_useReset;
     }
@@ -295,7 +295,7 @@ ZEXTERN int ZEXPORT z_deflate OF((z_streamp strm, int flush))
     if (zwc->zbc == NULL) {
         zwc->zbc = ZSTD_createCStream_advanced(zwc->customMem);
         if (zwc->zbc == NULL) return ZWRAPC_finishWithError(zwc, strm, 0);
-        { int const initErr = ZWRAP_initializeCStream(zwc, NULL, 0, (flush == Z_FINISH) ? strm->avail_in : 0);
+        { int const initErr = ZWRAP_initializeCStream(zwc, NULL, 0, (flush == Z_FINISH) ? strm->avail_in : ZSTD_CONTENTSIZE_UNKNOWN);
           if (initErr != Z_OK) return ZWRAPC_finishWithError(zwc, strm, initErr); }
         if (flush != Z_FINISH) zwc->comprState = ZWRAP_useReset;
     } else {
@@ -308,7 +308,7 @@ ZEXTERN int ZEXPORT z_deflate OF((z_streamp strm, int flush))
                     return ZWRAPC_finishWithError(zwc, strm, 0);
                 }
             } else {
-                int const res = ZWRAP_initializeCStream(zwc, NULL, 0, (flush == Z_FINISH) ? strm->avail_in : 0);
+                int const res = ZWRAP_initializeCStream(zwc, NULL, 0, (flush == Z_FINISH) ? strm->avail_in : ZSTD_CONTENTSIZE_UNKNOWN);
                 if (res != Z_OK) return ZWRAPC_finishWithError(zwc, strm, res);
                 if (flush != Z_FINISH) zwc->comprState = ZWRAP_useReset;
             }

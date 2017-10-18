@@ -53,9 +53,9 @@ script:
     export ZSTREAM_TESTTIME=-T80s;
     export DECODECORPUS_TESTTIME=-T40s;
     if [ "$TRAVIS_EVENT_TYPE" = "cron" ]; then
-        date
+        date;
         git fetch origin dev;
         git checkout -f FETCH_HEAD;
-        date
+        date;
     fi;
     sh -c "$Cmd" || travis_terminate 1;

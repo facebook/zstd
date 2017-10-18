@@ -564,7 +564,7 @@ static unsigned long long FIO_compressGzFrame(cRess_t* ress,
                 strm.avail_out = (uInt)ress->dstBufferSize;
             }
         }
-        if (srcFileSize != UTIL_FILESIZE_UNKNOWN)
+        if (srcFileSize == UTIL_FILESIZE_UNKNOWN)
             DISPLAYUPDATE(2, "\rRead : %u MB ==> %.2f%%",
                             (U32)(inFileSize>>20),
                             (double)outFileSize/inFileSize*100)
@@ -651,7 +651,7 @@ static unsigned long long FIO_compressLzmaFrame(cRess_t* ress,
                 strm.next_out = (BYTE*)ress->dstBuffer;
                 strm.avail_out = ress->dstBufferSize;
         }   }
-        if (srcFileSize != UTIL_FILESIZE_UNKNOWN)
+        if (srcFileSize == UTIL_FILESIZE_UNKNOWN)
             DISPLAYUPDATE(2, "\rRead : %u MB ==> %.2f%%",
                             (U32)(inFileSize>>20),
                             (double)outFileSize/inFileSize*100)
@@ -724,7 +724,7 @@ static unsigned long long FIO_compressLz4Frame(cRess_t* ress,
                 EXM_THROW(35, "zstd: %s: lz4 compression failed : %s",
                             srcFileName, LZ4F_getErrorName(outSize));
             outFileSize += outSize;
-            if (srcFileSize != UTIL_FILESIZE_UNKNOWN)
+            if (srcFileSize == UTIL_FILESIZE_UNKNOWN)
                 DISPLAYUPDATE(2, "\rRead : %u MB ==> %.2f%%",
                                 (U32)(inFileSize>>20),
                                 (double)outFileSize/inFileSize*100)
@@ -850,18 +850,18 @@ static int FIO_compressFilename_internal(cRess_t ress,
                 compressedfilesize += outBuff.pos;
         }   }
         if (g_nbThreads > 1) {
-            if (fileSize != UTIL_FILESIZE_UNKNOWN)
+            if (fileSize == UTIL_FILESIZE_UNKNOWN)
                 DISPLAYUPDATE(2, "\rRead : %u MB", (U32)(readsize>>20))
             else
                 DISPLAYUPDATE(2, "\rRead : %u / %u MB",
                                     (U32)(readsize>>20), (U32)(fileSize>>20));
         } else {
-            if (fileSize != UTIL_FILESIZE_UNKNOWN)
+            if (fileSize == UTIL_FILESIZE_UNKNOWN)
                 DISPLAYUPDATE(2, "\rRead : %u MB ==> %.2f%%",
                                 (U32)(readsize>>20),
                                 (double)compressedfilesize/readsize*100)
             else
-            DISPLAYUPDATE(2, "\rRead : %u / %u MB ==> %.2f%%",
+                DISPLAYUPDATE(2, "\rRead : %u / %u MB ==> %.2f%%",
                                 (U32)(readsize>>20), (U32)(fileSize>>20),
                                 (double)compressedfilesize/readsize*100);
         }

@@ -254,9 +254,10 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
 
     /* Basic compression test */
     DISPLAYLEVEL(3, "test%3i : compress %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
-    CHECK_Z( ZSTD_initCStream_usingDict(zc, CNBuffer, dictSize, 1) );
+    CHECK_Z( ZSTD_initCStream_usingDict(zc, CNBuffer, dictSize, 1 /* cLevel */) );
     outBuff.dst = (char*)(compressedBuffer)+cSize;
-    outBuff.size = compressedBufferSize;
+    assert(compressedBufferSize > cSize);
+    outBuff.size = compressedBufferSize - cSize;
     outBuff.pos = 0;
     inBuff.src = CNBuffer;
     inBuff.size = CNBufferSize;
@@ -622,7 +623,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     DISPLAYLEVEL(3, "test%3i : ZSTD_initCStream_advanced with pledgedSrcSize=0 and dict : ", testNb++);
     {   ZSTD_parameters params = ZSTD_getParams(5, 0, 0);
         params.fParams.contentSizeFlag = 1;
-        CHECK_Z( ZSTD_initCStream_advanced(zc, dictionary.start, dictionary.filled, params, 0) );
+        CHECK_Z( ZSTD_initCStream_advanced(zc, dictionary.start, dictionary.filled, params, 0 /* pledgedSrcSize==0 means "empty" when params.fParams.contentSizeFlag is set */) );
     } /* cstream advanced shall write content size = 0 */
     inBuff.src = CNBuffer;
     inBuff.size = 0;
@@ -935,10 +936,11 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
             {   size_t const dictStart = FUZ_rand(&lseed) % (srcBufferSize - dictSize);
                 dict = srcBuffer + dictStart;
             }
-            {   U64 const pledgedSrcSize = (FUZ_rand(&lseed) & 3) ? 0 : maxTestSize;
+            {   U64 const pledgedSrcSize = (FUZ_rand(&lseed) & 3) ? ZSTD_CONTENTSIZE_UNKNOWN : maxTestSize;
                 ZSTD_parameters params = ZSTD_getParams(cLevel, pledgedSrcSize, dictSize);
                 params.fParams.checksumFlag = FUZ_rand(&lseed) & 1;
                 params.fParams.noDictIDFlag = FUZ_rand(&lseed) & 1;
+                params.fParams.contentSizeFlag = FUZ_rand(&lseed) & 1;
                 CHECK_Z ( ZSTD_initCStream_advanced(zc, dict, dictSize, params, pledgedSrcSize) );
         }   }
 
@@ -1189,13 +1191,13 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double comp
             {   size_t const dictStart = FUZ_rand(&lseed) % (srcBufferSize - dictSize);
                 dict = srcBuffer + dictStart;
             }
-            {   U64 const pledgedSrcSize = (FUZ_rand(&lseed) & 3) ? 0 : maxTestSize;
+            {   U64 const pledgedSrcSize = (FUZ_rand(&lseed) & 3) ? ZSTD_CONTENTSIZE_UNKNOWN : maxTestSize;
                 ZSTD_parameters params = ZSTD_getParams(cLevel, pledgedSrcSize, dictSize);
                 DISPLAYLEVEL(5, "Init with windowLog = %u and pledgedSrcSize = %u \n",
                     params.cParams.windowLog, (U32)pledgedSrcSize);
                 params.fParams.checksumFlag = FUZ_rand(&lseed) & 1;
                 params.fParams.noDictIDFlag = FUZ_rand(&lseed) & 1;
-                params.fParams.contentSizeFlag = pledgedSrcSize>0;
+                params.fParams.contentSizeFlag = FUZ_rand(&lseed) & 1;
                 DISPLAYLEVEL(5, "checksumFlag : %u \n", params.fParams.checksumFlag);
                 CHECK_Z( ZSTDMT_initCStream_advanced(zc, dict, dictSize, params, pledgedSrcSize) );
                 CHECK_Z( ZSTDMT_setMTCtxParameter(zc, ZSTDMT_p_overlapSectionLog, FUZ_rand(&lseed) % 12) );

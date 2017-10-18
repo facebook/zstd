@@ -439,9 +439,9 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
 
 #ifdef ZSTD_NEWAPI
         {   /* frame parameters */
+            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_contentSizeFlag, 1) );
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_dictIDFlag, g_dictIDFlag) );
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_checksumFlag, g_checksumFlag) );
-            (void)srcSize;
             /* compression level */
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionLevel, cLevel) );
             /* long distance matching */
@@ -467,7 +467,9 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
             DISPLAYLEVEL(5,"set nb threads = %u \n", g_nbThreads);
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_nbThreads, g_nbThreads) );
             /* dictionary */
+            CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, srcSize) );  /* just to load dictionary with good compression parameters */
             CHECK( ZSTD_CCtx_loadDictionary(ress.cctx, dictBuffer, dictBuffSize) );
+            CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, ZSTD_CONTENTSIZE_UNKNOWN) );  /* reset */
         }
 #elif defined(ZSTD_MULTITHREAD)
         {   ZSTD_parameters params = ZSTD_getParams(cLevel, srcSize, dictBuffSize);
@@ -815,11 +817,11 @@ static int FIO_compressFilename_internal(cRess_t ress,
     /* init */
 #ifdef ZSTD_NEWAPI
     if (fileSize!=0)  /* when src is stdin, fileSize==0, but is effectively unknown */
-        ZSTD_CCtx_setPledgedSrcSize(ress.cctx, fileSize);  /* note : fileSize==0 means "empty" */
+        ZSTD_CCtx_setPledgedSrcSize(ress.cctx, fileSize);
 #elif defined(ZSTD_MULTITHREAD)
-    CHECK( ZSTDMT_resetCStream(ress.cctx, fileSize) );   /* note : fileSize==0 means "unknown" */
+    CHECK( ZSTDMT_resetCStream(ress.cctx, fileSize ? fileSize : ZSTD_CONTENTSIZE_UNKNOWN) );
 #else
-    CHECK( ZSTD_resetCStream(ress.cctx, fileSize) );   /* note : fileSize==0 means "unknown" */
+    CHECK( ZSTD_resetCStream(ress.cctx, fileSize ? fileSize : ZSTD_CONTENTSIZE_UNKNOWN) );
 #endif
 
     /* Main compression loop */
@@ -1005,7 +1007,7 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
     size_t dfnSize = FNSPACE;
     char*  dstFileName = (char*)malloc(FNSPACE);
     size_t const suffixSize = suffix ? strlen(suffix) : 0;
-    U64 const srcSize = (nbFiles != 1) ? 0 : UTIL_getFileSize(inFileNamesTable[0]) ;
+    U64 const srcSize = (nbFiles != 1) ? ZSTD_CONTENTSIZE_UNKNOWN : UTIL_getFileSize(inFileNamesTable[0]) ;
     cRess_t ress = FIO_createCResources(dictFileName, compressionLevel, srcSize, comprParams);
 
     /* init */
@@ -1031,9 +1033,9 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
                 free(dstFileName);
                 dfnSize = ifnSize + 20;
                 dstFileName = (char*)malloc(dfnSize);
-                if (!dstFileName)
+                if (!dstFileName) {
                     EXM_THROW(30, "zstd: %s", strerror(errno));
-            }
+            }   }
             strcpy(dstFileName, inFileNamesTable[u]);
             strcat(dstFileName, suffix);
             missed_files += FIO_compressFilename_dstFile(ress, dstFileName, inFileNamesTable[u], compressionLevel);
@@ -1926,7 +1928,7 @@ static int getFileInfo(fileInfo_t* info, const char* inFileName){
     return detectError;
 }
 
-static void displayInfo(const char* inFileName, fileInfo_t* info, int displayLevel){
+static void displayInfo(const char* inFileName, const fileInfo_t* info, int displayLevel){
     unsigned const unit = info->compressedSize < (1 MB) ? (1 KB) : (1 MB);
     const char* const unitStr = info->compressedSize < (1 MB) ? "KB" : "MB";
     double const windowSizeUnit = (double)info->windowSize / unit;
@@ -1949,8 +1951,10 @@ static void displayInfo(const char* inFileName, fileInfo_t* info, int displayLev
                     checkString, inFileName);
         }
     } else {
+        DISPLAYOUT("%s \n", inFileName);
         DISPLAYOUT("# Zstandard Frames: %d\n", info->numActualFrames);
-        DISPLAYOUT("# Skippable Frames: %d\n", info->numSkippableFrames);
+        if (info->numSkippableFrames)
+            DISPLAYOUT("# Skippable Frames: %d\n", info->numSkippableFrames);
         DISPLAYOUT("Window Size: %.2f %2s (%llu B)\n",
                    windowSizeUnit, unitStr,
                    (unsigned long long)info->windowSize);
@@ -1982,7 +1986,6 @@ static fileInfo_t FIO_addFInfo(fileInfo_t fi1, fileInfo_t fi2)
 }
 
 static int FIO_listFile(fileInfo_t* total, const char* inFileName, int displayLevel){
-    /* initialize info to avoid warnings */
     fileInfo_t info;
     memset(&info, 0, sizeof(info));
     {   int const error = getFileInfo(&info, inFileName);
@@ -2022,7 +2025,7 @@ int FIO_listMultipleFiles(unsigned numFiles, const char** filenameTable, int dis
         for (u=0; u<numFiles;u++) {
             error |= FIO_listFile(&total, filenameTable[u], displayLevel);
         }
-        if (numFiles > 1 && displayLevel <= 2) {
+        if (numFiles > 1 && displayLevel <= 2) {   /* display total */
             unsigned const unit = total.compressedSize < (1 MB) ? (1 KB) : (1 MB);
             const char* const unitStr = total.compressedSize < (1 MB) ? "KB" : "MB";
             double const compressedSizeUnit = (double)total.compressedSize / unit;
@@ -2042,8 +2045,7 @@ int FIO_listMultipleFiles(unsigned numFiles, const char** filenameTable, int dis
                         total.numSkippableFrames,
                         compressedSizeUnit, unitStr, decompressedSizeUnit, unitStr,
                         ratio, checkString, total.nbFiles);
-            }
-        }
+        }   }
         return error;
     }
 }

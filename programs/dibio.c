@@ -117,7 +117,7 @@ static unsigned DiB_loadFiles(void* buffer, size_t* bufferSizePtr,
     for (fileIndex=0; fileIndex<nbFiles; fileIndex++) {
         const char* const fileName = fileNamesTable[fileIndex];
         unsigned long long const fs64 = UTIL_getFileSize(fileName);
-        unsigned long long remainingToLoad = fs64;
+        unsigned long long remainingToLoad = (fs64 == UTIL_FILESIZE_UNKNOWN) ? 0 : fs64;
         U32 const nbChunks = targetChunkSize ? (U32)((fs64 + (targetChunkSize-1)) / targetChunkSize) : 1;
         U64 const chunkSize = targetChunkSize ? MIN(targetChunkSize, fs64) : fs64;
         size_t const maxChunkSize = (size_t)MIN(chunkSize, SAMPLESIZE_MAX);
@@ -245,8 +245,9 @@ static fileStats DiB_fileStats(const char** fileNamesTable, unsigned nbFiles, si
     memset(&fs, 0, sizeof(fs));
     for (n=0; n<nbFiles; n++) {
         U64 const fileSize = UTIL_getFileSize(fileNamesTable[n]);
-        U32 const nbSamples = (U32)(chunkSize ? (fileSize + (chunkSize-1)) / chunkSize : 1);
-        U64 const chunkToLoad = chunkSize ? MIN(chunkSize, fileSize) : fileSize;
+        U64 const srcSize = (fileSize == UTIL_FILESIZE_UNKNOWN) ? 0 : fileSize;
+        U32 const nbSamples = (U32)(chunkSize ? (srcSize + (chunkSize-1)) / chunkSize : 1);
+        U64 const chunkToLoad = chunkSize ? MIN(chunkSize, srcSize) : srcSize;
         size_t const cappedChunkSize = (size_t)MIN(chunkToLoad, SAMPLESIZE_MAX);
         fs.totalSizeToLoad += cappedChunkSize * nbSamples;
         fs.oneSampleTooLarge |= (chunkSize > 2*SAMPLESIZE_MAX);

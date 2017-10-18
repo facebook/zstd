@@ -621,7 +621,7 @@ $ECHO "\n===>  zstd --list/-l test with null files "
 $ZSTD tmp5
 $ZSTD -l tmp5.zst
 ! $ZSTD -l tmp5*
-$ZSTD -lv tmp5.zst
+$ZSTD -lv tmp5.zst | grep "Decompressed Size: 0.00 KB (0 B)"  # check that 0 size is present in header
 ! $ZSTD -lv tmp5*
 
 $ECHO "\n===>  zstd --list/-l test with no content size field "

@@ -295,48 +295,48 @@ test-gzstd: gzstd
 	$(RM) *.gz *.zst README2.md gz_zstd zstd_gz hello.txt
 
 test-fullbench: fullbench datagen
-	$(QEMU_SYS) ./fullbench -i1
-	$(QEMU_SYS) ./fullbench -i1 -P0
+	echo -n "XXX"; date; $(QEMU_SYS) ./fullbench -i1
+	echo -n "XXX"; date; $(QEMU_SYS) ./fullbench -i1 -P0
 
 test-fullbench32: fullbench32 datagen
-	$(QEMU_SYS) ./fullbench32 -i1
-	$(QEMU_SYS) ./fullbench32 -i1 -P0
+	echo -n "XXX"; date; $(QEMU_SYS) ./fullbench32 -i1
+	echo -n "XXX"; date; $(QEMU_SYS) ./fullbench32 -i1 -P0
 
 test-fuzzer: fuzzer
-	$(QEMU_SYS) ./fuzzer $(FUZZERTEST) $(FUZZER_FLAGS)
+	echo -n "XXX"; date; $(QEMU_SYS) ./fuzzer $(FUZZERTEST) $(FUZZER_FLAGS)
 
 test-fuzzer32: fuzzer32
-	$(QEMU_SYS) ./fuzzer32 $(FUZZERTEST) $(FUZZER_FLAGS)
+	echo -n "XXX"; date; $(QEMU_SYS) ./fuzzer32 $(FUZZERTEST) $(FUZZER_FLAGS)
 
 test-zbuff: zbufftest
-	$(QEMU_SYS) ./zbufftest $(ZSTREAM_TESTTIME)
+	echo -n "XXX"; date; $(QEMU_SYS) ./zbufftest $(ZSTREAM_TESTTIME)
 
 test-zbuff32: zbufftest32
-	$(QEMU_SYS) ./zbufftest32 $(ZSTREAM_TESTTIME)
+	echo -n "XXX"; date; $(QEMU_SYS) ./zbufftest32 $(ZSTREAM_TESTTIME)
 
 test-zstream: zstreamtest
-	$(QEMU_SYS) ./zstreamtest $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
-	$(QEMU_SYS) ./zstreamtest --mt -t1 $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
-	$(QEMU_SYS) ./zstreamtest --newapi -t1 $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
-	$(QEMU_SYS) ./zstreamtest --opaqueapi -t1 $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
+	echo -n "XXX"; date; $(QEMU_SYS) ./zstreamtest $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
+	echo -n "XXX"; date; $(QEMU_SYS) ./zstreamtest --mt -t1 $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
+	echo -n "XXX"; date; $(QEMU_SYS) ./zstreamtest --newapi -t1 $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
+	echo -n "XXX"; date; $(QEMU_SYS) ./zstreamtest --opaqueapi -t1 $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
 
 test-zstream32: zstreamtest32
-	$(QEMU_SYS) ./zstreamtest32 $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
+	echo -n "XXX"; date; $(QEMU_SYS) ./zstreamtest32 $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
 
 test-longmatch: longmatch
 	$(QEMU_SYS) ./longmatch
 
 test-invalidDictionaries: invalidDictionaries
-	$(QEMU_SYS) ./invalidDictionaries
+	echo -n "XXX"; date; $(QEMU_SYS) ./invalidDictionaries
 
 test-symbols: symbols
-	$(QEMU_SYS) ./symbols
+	echo -n "XXX"; date; $(QEMU_SYS) ./symbols
 
 test-legacy: legacy
-	$(QEMU_SYS) ./legacy
+	echo -n "XXX"; date; $(QEMU_SYS) ./legacy
 
 test-decodecorpus: decodecorpus
-	$(QEMU_SYS) ./decodecorpus -t $(DECODECORPUS_TESTTIME)
+	echo -n "XXX"; date; $(QEMU_SYS) ./decodecorpus -t $(DECODECORPUS_TESTTIME)
 
 test-decodecorpus-cli: decodecorpus
 	@echo "\n ---- decodecorpus basic cli tests ----"
@@ -372,7 +372,7 @@ test-decodecorpus-cli: decodecorpus
 	@rm -rf testdir
 
 test-pool: poolTests
-	$(QEMU_SYS) ./poolTests
+	echo -n "XXX"; date; $(QEMU_SYS) ./poolTests
 
 test-lz4: ZSTD = LD_LIBRARY_PATH=/usr/local/lib $(PRGDIR)/zstd
 test-lz4: ZSTD_LZ4 = LD_LIBRARY_PATH=/usr/local/lib ./lz4

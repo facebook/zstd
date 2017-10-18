@@ -5,6 +5,12 @@ die() {
     exit 1
 }
 
+display_time()
+{
+  echo -n "XXX"
+  date
+}
+
 roundTripTest() {
     if [ -n "$3" ]; then
         cLevel="$3"
@@ -91,6 +97,7 @@ else
     hasMT="true"
 fi
 
+display_time
 $ECHO "\n**** simple tests **** "
 
 ./datagen > tmp
@@ -166,6 +173,7 @@ $ZSTD -f tmp && die "tmp not present : should have failed"
 test ! -f tmp.zst  # tmp.zst should not be created
 
 
+display_time
 $ECHO "\n**** Advanced compression parameters **** "
 $ECHO "Hello world!" | $ZSTD --zstd=windowLog=21,      - -o tmp.zst && die "wrong parameters not detected!"
 $ECHO "Hello world!" | $ZSTD --zstd=windowLo=21        - -o tmp.zst && die "wrong parameters not detected!"
@@ -233,6 +241,7 @@ rm -f hello.tmp world.tmp hello.tmp.zst world.tmp.zst
 fi
 
 
+display_time
 $ECHO "\n**** test sparse file support **** "
 
 ./datagen -g5M  -P100 > tmpSparse
@@ -339,6 +348,7 @@ $ZSTD --train-legacy -q tmp && die "Dictionary training should fail : source is 
 rm tmp*
 
 
+display_time
 $ECHO "\n**** cover dictionary tests **** "
 
 TESTFILE=../programs/zstdcli.c
@@ -411,6 +421,7 @@ $ZSTD -t -r files
 $ZSTD -c -r files | $ZSTD -t
 
 
+display_time
 $ECHO "\n**** benchmark mode tests **** "
 
 $ECHO "bench one file"
@@ -505,6 +516,7 @@ else
 fi
 
 
+display_time
 $ECHO "\n**** xz frame tests **** "
 
 if [ $LZMAMODE -eq 1 ]; then
@@ -569,6 +581,7 @@ roundTripTest -g516K 19   # btopt
 
 fileRoundTripTest -g500K
 
+display_time
 $ECHO "\n**** zstd long distance matching round-trip tests **** "
 roundTripTest -g0 "2 --long"
 roundTripTest -g1000K "1 --long"
@@ -639,6 +652,7 @@ $ZSTD -lv tmp1.zst
 rm tmp*
 
 
+display_time
 $ECHO "\n**** zstd long distance matching tests **** "
 roundTripTest -g0 " --long"
 roundTripTest -g9M "2 --long"
@@ -654,6 +668,7 @@ if [ "$1" != "--test-large-data" ]; then
     exit 0
 fi
 
+display_time
 $ECHO "\n**** large files tests **** "
 
 roundTripTest -g270000000 1
@@ -695,6 +710,7 @@ roundTripTest -g700M -P50 "1 --long=29"
 roundTripTest -g600M -P50 "1 --long --zstd=wlog=29,clog=28"
 
 
+display_time
 if [ -n "$hasMT" ]
 then
     $ECHO "\n**** zstdmt long round-trip tests **** "

@@ -5,29 +5,6 @@ sudo: required
 dist: trusty
 matrix:
   include:
-    # Ubuntu 14.04
-    - env: Cmd="make cxxtest && make clean && make gnu90build && make clean && make cmakebuild && make clean && make travis-install"
-
-    - env: Cmd='make gcc6install && CC=gcc-6 make clean uasan-test'
-    - env: Cmd='make gcc6install libc6install && CC=gcc-6 make clean uasan-test32'
-    - env: Cmd='make clang38install && CC=clang-3.8 make clean msan-test'
-    - env: Cmd='make clang38install && CC=clang-3.8 make clean tsan-test-zstream'
-    - env: Cmd='make valgrindinstall && make -C tests clean valgrindTest'
-
-    - env: Cmd='make arminstall && make armtest'
-    - env: Cmd='make arminstall && make aarch64test'
-    - env: Cmd='make ppcinstall && make ppctest'
-    - env: Cmd='make ppcinstall && make ppc64test'
-
-    - env: Cmd='make gpp6install valgrindinstall && make -C zlibWrapper test && make -C zlibWrapper valgrindTest'
-    - env: Cmd='make gcc6install && CC=gcc-6 make uasan-test-zstd-nolegacy'
-    - env: Cmd='make gcc6install && CC=gcc-6 make uasan-test-zbuff'
-
-    - env: Cmd='make -j uasanregressiontest'
-    - env: Cmd='make -j msanregressiontest'
-
-    - env: Cmd='make -C tests versionsTest && make lz4install && make clean && make -C tests test-lz4'
-
     # OS X Mavericks
     - env: Cmd="make test"
       os: osx
@@ -52,8 +29,6 @@ script:
   - export FUZZERTEST=-T5mn;
     export ZSTREAM_TESTTIME=-T2mn;
     export DECODECORPUS_TESTTIME=-T1mn;
-    if [ "$TRAVIS_EVENT_TYPE" = "cron" ]; then
-        git fetch origin dev;
-        git checkout -f FETCH_HEAD;
-    fi;
+    git fetch origin dev;
+    git checkout -f FETCH_HEAD;
     sh -c "$Cmd" || travis_terminate 1;

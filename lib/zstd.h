@@ -613,7 +613,7 @@ ZSTDLIB_API ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, uns
 
 /*! ZSTD_getParams() :
 *   same as ZSTD_getCParams(), but @return a full `ZSTD_parameters` object instead of sub-component `ZSTD_compressionParameters`.
-*   All fields of `ZSTD_frameParameters` are set to default (0) */
+*   All fields of `ZSTD_frameParameters` are set to default : contentSize=1, checksum=0, noDictID=0 */
 ZSTDLIB_API ZSTD_parameters ZSTD_getParams(int compressionLevel, unsigned long long estimatedSrcSize, size_t dictSize);
 
 /*! ZSTD_checkCParams() :

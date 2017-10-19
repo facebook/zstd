@@ -41,7 +41,6 @@
 #include "zstd.h"
 #include "datagen.h"     /* RDG_genBuffer */
 #include "xxhash.h"
-#include "zstdmt_compress.h"
 
 
 /* *************************************
@@ -189,7 +188,6 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     size_t const maxCompressedSize = ZSTD_compressBound(srcSize) + (maxNbBlocks * 1024);   /* add some room for safety */
     void* const compressedBuffer = malloc(maxCompressedSize);
     void* resultBuffer = malloc(srcSize);
-    ZSTDMT_CCtx* const mtctx = ZSTDMT_createCCtx(g_nbThreads);
     ZSTD_CCtx* const ctx = ZSTD_createCCtx();
     ZSTD_DCtx* const dctx = ZSTD_createDCtx();
     size_t const loadedCompressedSize = srcSize;
@@ -286,8 +284,6 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                 if (!cCompleted) {   /* still some time to do compression tests */
                     U64 const clockLoop = g_nbSeconds ? TIMELOOP_MICROSEC : 1;
                     U32 nbLoops = 0;
-                    ZSTD_CDict* cdict = NULL;
-#ifdef ZSTD_NEWAPI
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_nbThreads, g_nbThreads);
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_compressionLevel, cLevel);
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_enableLongDistanceMatching, g_ldmFlag);
@@ -306,68 +302,34 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_targetLength, comprParams->targetLength);
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_compressionStrategy, comprParams->strategy);
                     ZSTD_CCtx_loadDictionary(ctx, dictBuffer, dictBufferSize);
-#else
-                    size_t const avgSize = MIN(blockSize, (srcSize / nbFiles));
-                    ZSTD_parameters zparams = ZSTD_getParams(cLevel, avgSize, dictBufferSize);
-                    ZSTD_customMem const cmem = { NULL, NULL, NULL };
-                    if (comprParams->windowLog) zparams.cParams.windowLog = comprParams->windowLog;
-                    if (comprParams->chainLog) zparams.cParams.chainLog = comprParams->chainLog;
-                    if (comprParams->hashLog) zparams.cParams.hashLog = comprParams->hashLog;
-                    if (comprParams->searchLog) zparams.cParams.searchLog = comprParams->searchLog;
-                    if (comprParams->searchLength) zparams.cParams.searchLength = comprParams->searchLength;
-                    if (comprParams->targetLength) zparams.cParams.targetLength = comprParams->targetLength;
-                    if (comprParams->strategy) zparams.cParams.strategy = comprParams->strategy;
-                    cdict = ZSTD_createCDict_advanced(dictBuffer, dictBufferSize, ZSTD_dlm_byRef, ZSTD_dm_auto, zparams.cParams, cmem);
-                    if (cdict==NULL) EXM_THROW(1, "ZSTD_createCDict_advanced() allocation failure");
-#endif
                     do {
                         U32 blockNb;
                         for (blockNb=0; blockNb<nbBlocks; blockNb++) {
-                            size_t rSize;
-#ifdef ZSTD_NEWAPI
-                            ZSTD_outBuffer out = { blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom, 0 };
-                            ZSTD_inBuffer in = { blockTable[blockNb].srcPtr,  blockTable[blockNb].srcSize, 0 };
-                            size_t cError = 1;
-                            while (cError) {
-                                cError = ZSTD_compress_generic(ctx,
+                            size_t moreToFlush = 1;
+                            ZSTD_outBuffer out;
+                            ZSTD_inBuffer in;
+                            in.src = blockTable[blockNb].srcPtr;
+                            in.size = blockTable[blockNb].srcSize;
+                            in.pos = 0;
+                            out.dst = blockTable[blockNb].cPtr;
+                            out.size = blockTable[blockNb].cRoom;
+                            out.pos = 0;
+                            while (moreToFlush) {
+                                moreToFlush = ZSTD_compress_generic(ctx,
                                                     &out, &in, ZSTD_e_end);
-                                if (ZSTD_isError(cError))
+                                if (ZSTD_isError(moreToFlush))
                                     EXM_THROW(1, "ZSTD_compress_generic() error : %s",
-                                                ZSTD_getErrorName(cError));
+                                                ZSTD_getErrorName(moreToFlush));
                             }
-                            rSize = out.pos;
-#else  /* ! ZSTD_NEWAPI */
-                            if (dictBufferSize) {
-                                rSize = ZSTD_compress_usingCDict(ctx,
-                                                blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
-                                                blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize,
-                                                cdict);
-                            } else {
-#  ifdef ZSTD_MULTITHREAD       /* note : limitation : MT single-pass does not support compression with dictionary */
-                                rSize = ZSTDMT_compressCCtx(mtctx,
-                                                blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
-                                                blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize,
-                                                cLevel);
-#  else
-                                rSize = ZSTD_compress_advanced (ctx,
-                                                blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
-                                                blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize,
-                                                NULL, 0, zparams);
-#  endif
-                            }
-                            if (ZSTD_isError(rSize))
-                                EXM_THROW(1, "ZSTD_compress_usingCDict() failed : %s",
-                                            ZSTD_getErrorName(rSize));
-#endif  /* ZSTD_NEWAPI */
-                            blockTable[blockNb].cSize = rSize;
+                            blockTable[blockNb].cSize = out.pos;
                         }
                         nbLoops++;
                     } while (UTIL_clockSpanMicro(clockStart) < clockLoop);
-                    ZSTD_freeCDict(cdict);
-                    {   U64 const clockSpanMicro = UTIL_clockSpanMicro(clockStart);
-                        if (clockSpanMicro < fastestC*nbLoops) fastestC = clockSpanMicro / nbLoops;
-                        totalCTime += clockSpanMicro;
-                        cCompleted = (totalCTime >= maxTime);
+                    {   U64 const loopDuration = UTIL_clockSpanMicro(clockStart);
+                        if (loopDuration < fastestC*nbLoops)
+                            fastestC = loopDuration / nbLoops;
+                        totalCTime += loopDuration;
+                        cCompleted = (totalCTime >= maxTime);  /* end compression tests */
                 }   }
 
                 cSize = 0;
@@ -375,15 +337,15 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                 ratio = (double)srcSize / (double)cSize;
                 markNb = (markNb+1) % NB_MARKS;
                 DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.3f),%6.1f MB/s\r",
-                        marks[markNb], displayName, (U32)srcSize, (U32)cSize, ratio,
-                        (double)srcSize / fastestC );
+                        marks[markNb], displayName, (U32)srcSize, (U32)cSize,
+                        ratio, (double)srcSize / fastestC );
             } else {   /* g_decodeOnly */
                 memcpy(compressedBuffer, srcBuffer, loadedCompressedSize);
             }
 
 #if 0       /* disable decompression test */
             dCompleted=1;
-            (void)totalDTime; (void)fastestD; (void)crcOrig;   /*  unused when decompression disabled */
+            (void)totalDTime; (void)fastestD; (void)crcOrig;   /* unused when decompression disabled */
 #else
             /* Decompression */
             if (!dCompleted) memset(resultBuffer, 0xD6, srcSize);  /* warm result buffer */
@@ -413,9 +375,10 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     nbLoops++;
                 } while (UTIL_clockSpanMicro(clockStart) < clockLoop);
                 ZSTD_freeDDict(ddict);
-                {   U64 const clockSpanMicro = UTIL_clockSpanMicro(clockStart);
-                    if (clockSpanMicro < fastestD*nbLoops) fastestD = clockSpanMicro / nbLoops;
-                    totalDTime += clockSpanMicro;
+                {   U64 const loopDuration = UTIL_clockSpanMicro(clockStart);
+                    if (loopDuration < fastestD*nbLoops)
+                        fastestD = loopDuration / nbLoops;
+                    totalDTime += loopDuration;
                     dCompleted = (totalDTime >= maxTime);
             }   }
 
@@ -478,7 +441,6 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     free(blockTable);
     free(compressedBuffer);
     free(resultBuffer);
-    ZSTDMT_freeCCtx(mtctx);
     ZSTD_freeCCtx(ctx);
     ZSTD_freeDCtx(dctx);
     return 0;

@@ -357,7 +357,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
             {   ZSTD_parameters params = ZSTD_getParams(cLevel, 0, dictSize);
                 params.fParams.checksumFlag = FUZ_rand(&lseed) & 1;
                 params.fParams.noDictIDFlag = FUZ_rand(&lseed) & 1;
-                {   size_t const initError = ZBUFF_compressInit_advanced(zc, dict, dictSize, params, 0);
+                {   size_t const initError = ZBUFF_compressInit_advanced(zc, dict, dictSize, params, ZSTD_CONTENTSIZE_UNKNOWN);
                     CHECK (ZBUFF_isError(initError),"init error : %s", ZBUFF_getErrorName(initError));
         }   }   }
 

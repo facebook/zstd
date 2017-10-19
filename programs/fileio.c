@@ -203,10 +203,6 @@ static U32 g_blockSize = 0;
 void FIO_setBlockSize(unsigned blockSize) {
     if (blockSize && g_nbThreads==1)
         DISPLAYLEVEL(2, "Setting block size is useless in single-thread mode \n");
-#ifdef ZSTD_MULTITHREAD
-    if (blockSize-1 < ZSTDMT_SECTION_SIZE_MIN-1)   /* intentional underflow */
-        DISPLAYLEVEL(2, "Note : minimum block size is %u KB \n", (ZSTDMT_SECTION_SIZE_MIN>>10));
-#endif
     g_blockSize = blockSize;
 }
 #define FIO_OVERLAP_LOG_NOTSET 9999

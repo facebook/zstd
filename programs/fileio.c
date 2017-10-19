@@ -42,9 +42,6 @@
 #include "fileio.h"
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_magicNumber, ZSTD_frameHeaderSize_max */
 #include "zstd.h"
-#ifdef ZSTD_MULTITHREAD
-#  include "zstdmt_compress.h"
-#endif
 #if defined(ZSTD_GZCOMPRESS) || defined(ZSTD_GZDECOMPRESS)
 #  include <zlib.h>
 #  if !defined(z_const)
@@ -69,18 +66,6 @@
 #define KB *(1<<10)
 #define MB *(1<<20)
 #define GB *(1U<<30)
-
-#define _1BIT  0x01
-#define _2BITS 0x03
-#define _3BITS 0x07
-#define _4BITS 0x0F
-#define _6BITS 0x3F
-#define _8BITS 0xFF
-
-#define BLOCKSIZE      (128 KB)
-#define ROLLBUFFERSIZE (BLOCKSIZE*8*64)
-
-#define FIO_FRAMEHEADERSIZE  5    /* as a define, because needed to allocated table on stack */
 
 #define DICTSIZE_MAX (32 MB)   /* protection against large input (attack scenario) */
 
@@ -122,14 +107,14 @@ static clock_t g_time = 0;
 #  define ZSTD_DEBUG 0
 #endif
 #define DEBUGLOG(l,...) if (l<=ZSTD_DEBUG) DISPLAY(__VA_ARGS__);
-#define EXM_THROW(error, ...)                                              \
-{                                                                          \
-    DISPLAYLEVEL(1, "zstd: ");                                             \
-    DEBUGLOG(1, "Error defined at %s, line %i : \n", __FILE__, __LINE__);  \
-    DISPLAYLEVEL(1, "error %i : ", error);                                 \
-    DISPLAYLEVEL(1, __VA_ARGS__);                                          \
-    DISPLAYLEVEL(1, " \n");                                                \
-    exit(error);                                                           \
+#define EXM_THROW(error, ...)                                             \
+{                                                                         \
+    DISPLAYLEVEL(1, "zstd: ");                                            \
+    DEBUGLOG(1, "Error defined at %s, line %i : \n", __FILE__, __LINE__); \
+    DISPLAYLEVEL(1, "error %i : ", error);                                \
+    DISPLAYLEVEL(1, __VA_ARGS__);                                         \
+    DISPLAYLEVEL(1, " \n");                                               \
+    exit(error);                                                          \
 }
 
 #define CHECK(f) {                                   \
@@ -218,10 +203,6 @@ static U32 g_blockSize = 0;
 void FIO_setBlockSize(unsigned blockSize) {
     if (blockSize && g_nbThreads==1)
         DISPLAYLEVEL(2, "Setting block size is useless in single-thread mode \n");
-#ifdef ZSTD_MULTITHREAD
-    if (blockSize-1 < ZSTDMT_SECTION_SIZE_MIN-1)   /* intentional underflow */
-        DISPLAYLEVEL(2, "Note : minimum block size is %u KB \n", (ZSTDMT_SECTION_SIZE_MIN>>10));
-#endif
     g_blockSize = blockSize;
 }
 #define FIO_OVERLAP_LOG_NOTSET 9999
@@ -273,86 +254,88 @@ static int FIO_remove(const char* path)
 }
 
 /** FIO_openSrcFile() :
- * condition : `dstFileName` must be non-NULL.
- * @result : FILE* to `dstFileName`, or NULL if it fails */
+ *  condition : `srcFileName` must be non-NULL.
+ * @result : FILE* to `srcFileName`, or NULL if it fails */
 static FILE* FIO_openSrcFile(const char* srcFileName)
 {
-    FILE* f;
-
+    assert(srcFileName != NULL);
     if (!strcmp (srcFileName, stdinmark)) {
         DISPLAYLEVEL(4,"Using stdin for input\n");
-        f = stdin;
         SET_BINARY_MODE(stdin);
-    } else {
-        if (!UTIL_isRegularFile(srcFileName)) {
-            DISPLAYLEVEL(1, "zstd: %s is not a regular file -- ignored \n",
-                            srcFileName);
-            return NULL;
-        }
-        f = fopen(srcFileName, "rb");
-        if ( f==NULL )
-            DISPLAYLEVEL(1, "zstd: %s: %s \n", srcFileName, strerror(errno));
+        return stdin;
     }
 
-    return f;
+    if (!UTIL_isRegularFile(srcFileName)) {
+        DISPLAYLEVEL(1, "zstd: %s is not a regular file -- ignored \n",
+                        srcFileName);
+        return NULL;
+    }
+
+    {   FILE* const f = fopen(srcFileName, "rb");
+        if (f == NULL)
+            DISPLAYLEVEL(1, "zstd: %s: %s \n", srcFileName, strerror(errno));
+        return f;
+    }
 }
 
 /** FIO_openDstFile() :
- * condition : `dstFileName` must be non-NULL.
+ *  condition : `dstFileName` must be non-NULL.
  * @result : FILE* to `dstFileName`, or NULL if it fails */
 static FILE* FIO_openDstFile(const char* dstFileName)
 {
-    FILE* f;
-
+    assert(dstFileName != NULL);
     if (!strcmp (dstFileName, stdoutmark)) {
         DISPLAYLEVEL(4,"Using stdout for output\n");
-        f = stdout;
         SET_BINARY_MODE(stdout);
         if (g_sparseFileSupport==1) {
             g_sparseFileSupport = 0;
             DISPLAYLEVEL(4, "Sparse File Support is automatically disabled on stdout ; try --sparse \n");
         }
-    } else {
-        if (g_sparseFileSupport == 1) {
-            g_sparseFileSupport = ZSTD_SPARSE_DEFAULT;
-        }
-        if (strcmp (dstFileName, nulmark)) {
-            /* Check if destination file already exists */
-            f = fopen( dstFileName, "rb" );
-            if (f != 0) {  /* dst file exists, prompt for overwrite authorization */
-                fclose(f);
-                if (!g_overwrite) {
-                    if (g_displayLevel <= 1) {
-                        /* No interaction possible */
-                        DISPLAY("zstd: %s already exists; not overwritten  \n",
-                                dstFileName);
-                        return NULL;
-                    }
-                    DISPLAY("zstd: %s already exists; do you wish to overwrite (y/N) ? ",
-                            dstFileName);
-                    {   int ch = getchar();
-                        if ((ch!='Y') && (ch!='y')) {
-                            DISPLAY("    not overwritten  \n");
-                            return NULL;
-                        }
-                        /* flush rest of input line */
-                        while ((ch!=EOF) && (ch!='\n')) ch = getchar();
-                }   }
-                /* need to unlink */
-                FIO_remove(dstFileName);
-        }   }
-        f = fopen( dstFileName, "wb" );
-        if (f==NULL) DISPLAYLEVEL(1, "zstd: %s: %s\n", dstFileName, strerror(errno));
+        return stdout;
     }
 
-    return f;
+    if (g_sparseFileSupport == 1) {
+        g_sparseFileSupport = ZSTD_SPARSE_DEFAULT;
+    }
+
+    if (strcmp (dstFileName, nulmark)) {  /* not /dev/null */
+        /* Check if destination file already exists */
+        FILE* const fCheck = fopen( dstFileName, "rb" );
+        if (fCheck != NULL) {  /* dst file exists, authorization prompt */
+            fclose(fCheck);
+            if (!g_overwrite) {
+                if (g_displayLevel <= 1) {
+                    /* No interaction possible */
+                    DISPLAY("zstd: %s already exists; not overwritten  \n",
+                            dstFileName);
+                    return NULL;
+                }
+                DISPLAY("zstd: %s already exists; overwrite (y/N) ? ",
+                        dstFileName);
+                {   int ch = getchar();
+                    if ((ch!='Y') && (ch!='y')) {
+                        DISPLAY("    not overwritten  \n");
+                        return NULL;
+                    }
+                    /* flush rest of input line */
+                    while ((ch!=EOF) && (ch!='\n')) ch = getchar();
+            }   }
+            /* need to unlink */
+            FIO_remove(dstFileName);
+    }   }
+
+    {   FILE* const f = fopen( dstFileName, "wb" );
+        if (f == NULL)
+            DISPLAYLEVEL(1, "zstd: %s: %s\n", dstFileName, strerror(errno));
+        return f;
+    }
 }
 
 
 /*! FIO_createDictBuffer() :
  *  creates a buffer, pointed by `*bufferPtr`,
  *  loads `filename` content into it, up to DICTSIZE_MAX bytes.
- *  @return : loaded size
+ * @return : loaded size
  *  if fileName==NULL, returns 0 and a NULL pointer
  */
 static size_t FIO_createDictBuffer(void** bufferPtr, const char* fileName)
@@ -360,12 +343,13 @@ static size_t FIO_createDictBuffer(void** bufferPtr, const char* fileName)
     FILE* fileHandle;
     U64 fileSize;
 
+    assert(bufferPtr != NULL);
     *bufferPtr = NULL;
     if (fileName == NULL) return 0;
 
     DISPLAYLEVEL(4,"Loading %s as dictionary \n", fileName);
     fileHandle = fopen(fileName, "rb");
-    if (fileHandle==0) EXM_THROW(31, "%s: %s", fileName, strerror(errno));
+    if (fileHandle==NULL) EXM_THROW(31, "%s: %s", fileName, strerror(errno));
     fileSize = UTIL_getFileSize(fileName);
     if (fileSize > DICTSIZE_MAX) {
         EXM_THROW(32, "Dictionary file %s is too large (> %u MB)",
@@ -393,11 +377,7 @@ typedef struct {
     size_t srcBufferSize;
     void*  dstBuffer;
     size_t dstBufferSize;
-#if !defined(ZSTD_NEWAPI) && defined(ZSTD_MULTITHREAD)
-    ZSTDMT_CCtx* cctx;
-#else
     ZSTD_CStream* cctx;
-#endif
 } cRess_t;
 
 static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
@@ -406,24 +386,9 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
     cRess_t ress;
     memset(&ress, 0, sizeof(ress));
 
-#ifdef ZSTD_NEWAPI
     ress.cctx = ZSTD_createCCtx();
     if (ress.cctx == NULL)
         EXM_THROW(30, "allocation error : can't create ZSTD_CCtx");
-#elif defined(ZSTD_MULTITHREAD)
-    ress.cctx = ZSTDMT_createCCtx(g_nbThreads);
-    if (ress.cctx == NULL)
-        EXM_THROW(30, "allocation error : can't create ZSTDMT_CCtx");
-    if ((cLevel==ZSTD_maxCLevel()) && (g_overlapLog==FIO_OVERLAP_LOG_NOTSET))
-        /* use complete window for overlap */
-        ZSTDMT_setMTCtxParameter(ress.cctx, ZSTDMT_p_overlapSectionLog, 9);
-    if (g_overlapLog != FIO_OVERLAP_LOG_NOTSET)
-        ZSTDMT_setMTCtxParameter(ress.cctx, ZSTDMT_p_overlapSectionLog, g_overlapLog);
-#else
-    ress.cctx = ZSTD_createCStream();
-    if (ress.cctx == NULL)
-        EXM_THROW(30, "allocation error : can't create ZSTD_CStream");
-#endif
     ress.srcBufferSize = ZSTD_CStreamInSize();
     ress.srcBuffer = malloc(ress.srcBufferSize);
     ress.dstBufferSize = ZSTD_CStreamOutSize();
@@ -431,74 +396,44 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
     if (!ress.srcBuffer || !ress.dstBuffer)
         EXM_THROW(31, "allocation error : not enough memory");
 
-    /* dictionary */
+    /* Advances parameters, including dictionary */
     {   void* dictBuffer;
         size_t const dictBuffSize = FIO_createDictBuffer(&dictBuffer, dictFileName);   /* works with dictFileName==NULL */
         if (dictFileName && (dictBuffer==NULL))
             EXM_THROW(32, "allocation error : can't create dictBuffer");
 
-#ifdef ZSTD_NEWAPI
-        {   /* frame parameters */
-            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_contentSizeFlag, 1) );
-            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_dictIDFlag, g_dictIDFlag) );
-            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_checksumFlag, g_checksumFlag) );
-            /* compression level */
-            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionLevel, cLevel) );
-            /* long distance matching */
-            CHECK( ZSTD_CCtx_setParameter(
-                          ress.cctx, ZSTD_p_enableLongDistanceMatching, g_ldmFlag) );
-            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_ldmHashLog, g_ldmHashLog) );
-            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_ldmMinMatch, g_ldmMinMatch) );
-            if (g_ldmBucketSizeLog != FIO_LDM_PARAM_NOTSET) {
-                CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_ldmBucketSizeLog, g_ldmBucketSizeLog) );
-            }
-            if (g_ldmHashEveryLog != FIO_LDM_PARAM_NOTSET) {
-                CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_ldmHashEveryLog, g_ldmHashEveryLog) );
-            }
-            /* compression parameters */
-            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_windowLog, comprParams->windowLog) );
-            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_chainLog, comprParams->chainLog) );
-            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_hashLog, comprParams->hashLog) );
-            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_searchLog, comprParams->searchLog) );
-            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_minMatch, comprParams->searchLength) );
-            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_targetLength, comprParams->targetLength) );
-            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionStrategy, (U32)comprParams->strategy) );
-            /* multi-threading */
-            DISPLAYLEVEL(5,"set nb threads = %u \n", g_nbThreads);
-            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_nbThreads, g_nbThreads) );
-            /* dictionary */
-            CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, srcSize) );  /* just to load dictionary with good compression parameters */
-            CHECK( ZSTD_CCtx_loadDictionary(ress.cctx, dictBuffer, dictBuffSize) );
-            CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, ZSTD_CONTENTSIZE_UNKNOWN) );  /* reset */
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_contentSizeFlag, 1) );  /* always enable content size when available (note: supposed to be default) */
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_dictIDFlag, g_dictIDFlag) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_checksumFlag, g_checksumFlag) );
+        /* compression level */
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionLevel, cLevel) );
+        /* long distance matching */
+        CHECK( ZSTD_CCtx_setParameter(
+                      ress.cctx, ZSTD_p_enableLongDistanceMatching, g_ldmFlag) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_ldmHashLog, g_ldmHashLog) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_ldmMinMatch, g_ldmMinMatch) );
+        if (g_ldmBucketSizeLog != FIO_LDM_PARAM_NOTSET) {
+            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_ldmBucketSizeLog, g_ldmBucketSizeLog) );
         }
-#elif defined(ZSTD_MULTITHREAD)
-        {   ZSTD_parameters params = ZSTD_getParams(cLevel, srcSize, dictBuffSize);
-            params.fParams.checksumFlag = g_checksumFlag;
-            params.fParams.noDictIDFlag = !g_dictIDFlag;
-            if (comprParams->windowLog) params.cParams.windowLog = comprParams->windowLog;
-            if (comprParams->chainLog) params.cParams.chainLog = comprParams->chainLog;
-            if (comprParams->hashLog) params.cParams.hashLog = comprParams->hashLog;
-            if (comprParams->searchLog) params.cParams.searchLog = comprParams->searchLog;
-            if (comprParams->searchLength) params.cParams.searchLength = comprParams->searchLength;
-            if (comprParams->targetLength) params.cParams.targetLength = comprParams->targetLength;
-            if (comprParams->strategy) params.cParams.strategy = (ZSTD_strategy) comprParams->strategy;
-            CHECK( ZSTDMT_initCStream_advanced(ress.cctx, dictBuffer, dictBuffSize, params, srcSize) );
-            ZSTDMT_setMTCtxParameter(ress.cctx, ZSTDMT_p_sectionSize, g_blockSize);
+        if (g_ldmHashEveryLog != FIO_LDM_PARAM_NOTSET) {
+            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_ldmHashEveryLog, g_ldmHashEveryLog) );
         }
-#else
-        {   ZSTD_parameters params = ZSTD_getParams(cLevel, srcSize, dictBuffSize);
-            params.fParams.checksumFlag = g_checksumFlag;
-            params.fParams.noDictIDFlag = !g_dictIDFlag;
-            if (comprParams->windowLog) params.cParams.windowLog = comprParams->windowLog;
-            if (comprParams->chainLog) params.cParams.chainLog = comprParams->chainLog;
-            if (comprParams->hashLog) params.cParams.hashLog = comprParams->hashLog;
-            if (comprParams->searchLog) params.cParams.searchLog = comprParams->searchLog;
-            if (comprParams->searchLength) params.cParams.searchLength = comprParams->searchLength;
-            if (comprParams->targetLength) params.cParams.targetLength = comprParams->targetLength;
-            if (comprParams->strategy) params.cParams.strategy = (ZSTD_strategy) comprParams->strategy;
-            CHECK( ZSTD_initCStream_advanced(ress.cctx, dictBuffer, dictBuffSize, params, srcSize) );
-        }
-#endif
+        /* compression parameters */
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_windowLog, comprParams->windowLog) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_chainLog, comprParams->chainLog) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_hashLog, comprParams->hashLog) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_searchLog, comprParams->searchLog) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_minMatch, comprParams->searchLength) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_targetLength, comprParams->targetLength) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionStrategy, (U32)comprParams->strategy) );
+        /* multi-threading */
+        DISPLAYLEVEL(5,"set nb threads = %u \n", g_nbThreads);
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_nbThreads, g_nbThreads) );
+        /* dictionary */
+        CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, srcSize) );  /* just for dictionary loading, using good compression parameters */
+        CHECK( ZSTD_CCtx_loadDictionary(ress.cctx, dictBuffer, dictBuffSize) );
+        CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, ZSTD_CONTENTSIZE_UNKNOWN) );  /* reset */
+
         free(dictBuffer);
     }
 
@@ -509,11 +444,7 @@ static void FIO_freeCResources(cRess_t ress)
 {
     free(ress.srcBuffer);
     free(ress.dstBuffer);
-#if !defined(ZSTD_NEWAPI) && defined(ZSTD_MULTITHREAD)
-    ZSTDMT_freeCCtx(ress.cctx);
-#else
     ZSTD_freeCStream(ress.cctx);   /* never fails */
-#endif
 }
 
 
@@ -814,14 +745,8 @@ static int FIO_compressFilename_internal(cRess_t ress,
     }
 
     /* init */
-#ifdef ZSTD_NEWAPI
-    if (fileSize!=UTIL_FILESIZE_UNKNOWN)  /* when src is stdin, fileSize==0, but is effectively unknown */
+    if (fileSize != UTIL_FILESIZE_UNKNOWN)
         ZSTD_CCtx_setPledgedSrcSize(ress.cctx, fileSize);
-#elif defined(ZSTD_MULTITHREAD)
-    CHECK( ZSTDMT_resetCStream(ress.cctx, (fileSize==UTIL_FILESIZE_UNKNOWN) ? ZSTD_CONTENTSIZE_UNKNOWN : fileSize) );
-#else
-    CHECK( ZSTD_resetCStream(ress.cctx, (fileSize==UTIL_FILESIZE_UNKNOWN) ? ZSTD_CONTENTSIZE_UNKNOWN : fileSize) );
-#endif
 
     /* Main compression loop */
     while (1) {
@@ -833,14 +758,8 @@ static int FIO_compressFilename_internal(cRess_t ress,
 
         while (inBuff.pos != inBuff.size) {
             ZSTD_outBuffer outBuff = { ress.dstBuffer, ress.dstBufferSize, 0 };
-#ifdef ZSTD_NEWAPI
             CHECK( ZSTD_compress_generic(ress.cctx,
                         &outBuff, &inBuff, ZSTD_e_continue) );
-#elif defined(ZSTD_MULTITHREAD)
-            CHECK( ZSTDMT_compressStream(ress.cctx, &outBuff, &inBuff) );
-#else
-            CHECK( ZSTD_compressStream(ress.cctx, &outBuff, &inBuff) );
-#endif
 
             /* Write compressed stream */
             if (outBuff.pos) {
@@ -871,21 +790,15 @@ static int FIO_compressFilename_internal(cRess_t ress,
     {   size_t result = 1;
         while (result != 0) {
             ZSTD_outBuffer outBuff = { ress.dstBuffer, ress.dstBufferSize, 0 };
-#ifdef ZSTD_NEWAPI
             ZSTD_inBuffer inBuff = { NULL, 0, 0 };
             result = ZSTD_compress_generic(ress.cctx,
                         &outBuff, &inBuff, ZSTD_e_end);
-#elif defined(ZSTD_MULTITHREAD)
-            result = ZSTDMT_endStream(ress.cctx, &outBuff);
-#else
-            result = ZSTD_endStream(ress.cctx, &outBuff);
-#endif
             if (ZSTD_isError(result)) {
                 EXM_THROW(26, "Compression error during frame end : %s",
                             ZSTD_getErrorName(result));
             }
             {   size_t const sizeCheck = fwrite(ress.dstBuffer, 1, outBuff.pos, dstFile);
-                if (sizeCheck!=outBuff.pos)
+                if (sizeCheck != outBuff.pos)
                     EXM_THROW(27, "Write error : cannot write frame end into %s", dstFileName);
             }
             compressedfilesize += outBuff.pos;

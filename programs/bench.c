@@ -287,7 +287,6 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     U64 const clockLoop = g_nbSeconds ? TIMELOOP_MICROSEC : 1;
                     U32 nbLoops = 0;
                     ZSTD_CDict* cdict = NULL;
-#ifdef ZSTD_NEWAPI
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_nbThreads, g_nbThreads);
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_compressionLevel, cLevel);
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_enableLongDistanceMatching, g_ldmFlag);
@@ -306,25 +305,10 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_targetLength, comprParams->targetLength);
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_compressionStrategy, comprParams->strategy);
                     ZSTD_CCtx_loadDictionary(ctx, dictBuffer, dictBufferSize);
-#else
-                    size_t const avgSize = MIN(blockSize, (srcSize / nbFiles));
-                    ZSTD_parameters zparams = ZSTD_getParams(cLevel, avgSize, dictBufferSize);
-                    ZSTD_customMem const cmem = { NULL, NULL, NULL };
-                    if (comprParams->windowLog) zparams.cParams.windowLog = comprParams->windowLog;
-                    if (comprParams->chainLog) zparams.cParams.chainLog = comprParams->chainLog;
-                    if (comprParams->hashLog) zparams.cParams.hashLog = comprParams->hashLog;
-                    if (comprParams->searchLog) zparams.cParams.searchLog = comprParams->searchLog;
-                    if (comprParams->searchLength) zparams.cParams.searchLength = comprParams->searchLength;
-                    if (comprParams->targetLength) zparams.cParams.targetLength = comprParams->targetLength;
-                    if (comprParams->strategy) zparams.cParams.strategy = comprParams->strategy;
-                    cdict = ZSTD_createCDict_advanced(dictBuffer, dictBufferSize, ZSTD_dlm_byRef, ZSTD_dm_auto, zparams.cParams, cmem);
-                    if (cdict==NULL) EXM_THROW(1, "ZSTD_createCDict_advanced() allocation failure");
-#endif
                     do {
                         U32 blockNb;
                         for (blockNb=0; blockNb<nbBlocks; blockNb++) {
                             size_t rSize;
-#ifdef ZSTD_NEWAPI
                             ZSTD_outBuffer out = { blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom, 0 };
                             ZSTD_inBuffer in = { blockTable[blockNb].srcPtr,  blockTable[blockNb].srcSize, 0 };
                             size_t cError = 1;
@@ -336,29 +320,6 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                                                 ZSTD_getErrorName(cError));
                             }
                             rSize = out.pos;
-#else  /* ! ZSTD_NEWAPI */
-                            if (dictBufferSize) {
-                                rSize = ZSTD_compress_usingCDict(ctx,
-                                                blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
-                                                blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize,
-                                                cdict);
-                            } else {
-#  ifdef ZSTD_MULTITHREAD       /* note : limitation : MT single-pass does not support compression with dictionary */
-                                rSize = ZSTDMT_compressCCtx(mtctx,
-                                                blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
-                                                blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize,
-                                                cLevel);
-#  else
-                                rSize = ZSTD_compress_advanced (ctx,
-                                                blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
-                                                blockTable[blockNb].srcPtr,blockTable[blockNb].srcSize,
-                                                NULL, 0, zparams);
-#  endif
-                            }
-                            if (ZSTD_isError(rSize))
-                                EXM_THROW(1, "ZSTD_compress_usingCDict() failed : %s",
-                                            ZSTD_getErrorName(rSize));
-#endif  /* ZSTD_NEWAPI */
                             blockTable[blockNb].cSize = rSize;
                         }
                         nbLoops++;

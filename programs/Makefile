@@ -37,8 +37,7 @@ endif
 
 CPPFLAGS+= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
            -I$(ZSTDDIR)/dictBuilder \
-           -DXXH_NAMESPACE=ZSTD_ \
-           -DZSTD_NEWAPI
+           -DXXH_NAMESPACE=ZSTD_
 CFLAGS  ?= -O3
 DEBUGFLAGS+=-Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
             -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \

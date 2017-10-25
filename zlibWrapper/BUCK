@@ -12,7 +12,7 @@ cxx_library(
     deps=[
         '//lib:zstd',
         '//lib:zstd_common',
-    ]
+    ],
 )
 
 cxx_binary(

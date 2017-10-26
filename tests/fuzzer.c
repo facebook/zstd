@@ -359,6 +359,14 @@ static int basicUnitTests(U32 seed, double compressibility)
       if (ZSTD_getErrorCode(r) != ZSTD_error_srcSize_wrong) goto _output_error; }
     DISPLAYLEVEL(4, "OK \n");
 
+    DISPLAYLEVEL(4, "test%di : check CCtx size after compressing empty input : ", testNb++);
+    {   ZSTD_CCtx* cctx = ZSTD_createCCtx();
+        size_t const r = ZSTD_compressCCtx(cctx, compressedBuffer, compressedBufferSize, NULL, 0, 19);
+        if (ZSTD_isError(r)) goto _output_error;
+        if (ZSTD_sizeof_CCtx(cctx) > (1U << 20)) goto _output_error;
+        ZSTD_freeCCtx(cctx);
+    }
+    DISPLAYLEVEL(4, "OK \n");
 
     /* Static CCtx tests */
 #define STATIC_CCTX_LEVEL 3

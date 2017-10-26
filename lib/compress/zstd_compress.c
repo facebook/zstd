@@ -2213,7 +2213,7 @@ size_t ZSTD_compress_advanced_internal(
 size_t ZSTD_compress_usingDict(ZSTD_CCtx* ctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize,
                                const void* dict, size_t dictSize, int compressionLevel)
 {
-    ZSTD_parameters params = ZSTD_getParams(compressionLevel, srcSize, dict ? dictSize : 0);
+    ZSTD_parameters params = ZSTD_getParams(compressionLevel, srcSize ? srcSize : 1, dict ? dictSize : 0);
     params.fParams.contentSizeFlag = 1;
     return ZSTD_compress_internal(ctx, dst, dstCapacity, src, srcSize, dict, dictSize, params);
 }

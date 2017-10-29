@@ -15,15 +15,9 @@ cxx_library(
     header_namespace='',
     visibility=['PUBLIC'],
     exported_headers=subdir_glob([
-        ('compress', 'zstdmt_compress.h'),
+        ('compress', 'zstd*.h'),
     ]),
-    headers=subdir_glob([
-        ('compress', 'zstd_opt.h'),
-    ]),
-    srcs=[
-        'compress/zstd_compress.c',
-        'compress/zstdmt_compress.c',
-    ],
+    srcs=glob(['compress/zstd*.c']),
     deps=[':common'],
 )
 
@@ -31,7 +25,7 @@ cxx_library(
     name='decompress',
     header_namespace='',
     visibility=['PUBLIC'],
-    srcs=['decompress/zstd_decompress.c'],
+    srcs=glob(['decompress/zstd*.c']),
     deps=[
         ':common',
         ':legacy',
@@ -58,6 +52,9 @@ cxx_library(
     ]),
     srcs=glob(['legacy/*.c']),
     deps=[':common'],
+    exported_preprocessor_flags=[
+        '-DZSTD_LEGACY_SUPPORT=4',
+    ],
 )
 
 cxx_library(
@@ -72,6 +69,15 @@ cxx_library(
     ]),
     srcs=glob(['dictBuilder/*.c']),
     deps=[':common'],
+)
+
+cxx_library(
+    name='compiler',
+    header_namespace='',
+    visibility=['PUBLIC'],
+    exported_headers=subdir_glob([
+        ('common', 'compiler.h'),
+    ]),
 )
 
 cxx_library(
@@ -100,6 +106,7 @@ cxx_library(
     ],
     deps=[
         ':bitstream',
+        ':compiler',
         ':errors',
         ':mem',
     ],
@@ -133,7 +140,10 @@ cxx_library(
         ('common', 'pool.h'),
     ]),
     srcs=['common/pool.c'],
-    deps=[':threading'],
+    deps=[
+        ':threading',
+        ':zstd_common',
+    ],
 )
 
 cxx_library(
@@ -144,6 +154,12 @@ cxx_library(
         ('common', 'threading.h'),
     ]),
     srcs=['common/threading.c'],
+    exported_preprocessor_flags=[
+        '-DZSTD_MULTITHREAD',
+    ],
+    exported_linker_flags=[
+        '-pthread',
+    ],
 )
 
 cxx_library(
@@ -154,6 +170,9 @@ cxx_library(
         ('common', 'xxhash.h'),
     ]),
     srcs=['common/xxhash.c'],
+    exported_preprocessor_flags=[
+        '-DXXH_NAMESPACE=ZSTD_',
+    ],
 )
 
 cxx_library(
@@ -166,6 +185,7 @@ cxx_library(
     ]),
     srcs=['common/zstd_common.c'],
     deps=[
+        ':compiler',
         ':errors',
         ':mem',
     ],
@@ -175,6 +195,7 @@ cxx_library(
     name='common',
     deps=[
         ':bitstream',
+        ':compiler',
         ':entropy',
         ':errors',
         ':mem',

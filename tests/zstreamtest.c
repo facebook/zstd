@@ -213,7 +213,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
 {
     size_t const CNBufferSize = COMPRESSIBLE_NOISE_LENGTH;
     void* CNBuffer = malloc(CNBufferSize);
-    size_t const skippableFrameSize = 11;
+    size_t const skippableFrameSize = 200 KB;
     size_t const compressedBufferSize = (8 + skippableFrameSize) + ZSTD_compressBound(COMPRESSIBLE_NOISE_LENGTH);
     void* compressedBuffer = malloc(compressedBufferSize);
     size_t const decodedBufferSize = CNBufferSize;

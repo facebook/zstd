@@ -1468,14 +1468,18 @@ MEM_STATIC size_t ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
                 entropy, cParams->strategy, op, dstCapacity, literals, litSize);
         if (ZSTD_isError(cSize))
           return cSize;
+        assert(cSize <= dstCapacity);
         op += cSize;
     }
 
     /* Sequences Header */
-    if ((oend-op) < 3 /*max nbSeq Size*/ + 1 /*seqHead */) return ERROR(dstSize_tooSmall);
-    if (nbSeq < 0x7F) *op++ = (BYTE)nbSeq;
-    else if (nbSeq < LONGNBSEQ) op[0] = (BYTE)((nbSeq>>8) + 0x80), op[1] = (BYTE)nbSeq, op+=2;
-    else op[0]=0xFF, MEM_writeLE16(op+1, (U16)(nbSeq - LONGNBSEQ)), op+=3;
+    if ((oend-op) < 3 /*max nbSeq Size*/ + 1 /*seqHead*/) return ERROR(dstSize_tooSmall);
+    if (nbSeq < 0x7F)
+        *op++ = (BYTE)nbSeq;
+    else if (nbSeq < LONGNBSEQ)
+        op[0] = (BYTE)((nbSeq>>8) + 0x80), op[1] = (BYTE)nbSeq, op+=2;
+    else
+        op[0]=0xFF, MEM_writeLE16(op+1, (U16)(nbSeq - LONGNBSEQ)), op+=3;
     if (nbSeq==0) return op - ostart;
 
     /* seqHead : flags for FSE encoding type */
@@ -1606,6 +1610,7 @@ static void ZSTD_storeLastLiterals(seqStore_t* seqStorePtr,
 
 static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc, void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
+    DEBUGLOG(5, "ZSTD_compressBlock_internal : dstCapacity = %u", (U32)dstCapacity);
     if (srcSize < MIN_CBLOCK_SIZE+ZSTD_blockHeaderSize+1)
         return 0;   /* don't even attempt compression below a certain srcSize */
     ZSTD_resetSeqStore(&(zc->seqStore));
@@ -1867,7 +1872,7 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_CCtx* zc, const void* src, size_t 
     zc->lowLimit = zc->dictLimit;
     zc->dictLimit = (U32)(zc->nextSrc - zc->base);
     zc->dictBase = zc->base;
-    zc->base += ip - zc->nextSrc;
+    zc->base = ip - zc->dictLimit;
     zc->nextToUpdate = zc->dictLimit;
     zc->loadedDictEnd = zc->appliedParams.forceWindow ? 0 : (U32)(iend - zc->base);
 

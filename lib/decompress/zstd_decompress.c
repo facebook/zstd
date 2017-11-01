@@ -2555,17 +2555,21 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             /* fall-through */
         case zdss_load:
             {   size_t const neededInSize = ZSTD_nextSrcSizeToDecompress(zds);
-                size_t const toLoad = neededInSize - zds->inPos;   /* should always be <= remaining space within inBuff */
+                size_t const toLoad = neededInSize - zds->inPos;
+                int const isSkipFrame = ZSTD_isSkipFrame(zds);
                 size_t loadedSize;
-                if (toLoad > zds->inBuffSize - zds->inPos) return ERROR(corruption_detected);   /* should never happen */
-                loadedSize = ZSTD_limitCopy(zds->inBuff + zds->inPos, toLoad, ip, iend-ip);
+                if (isSkipFrame) {
+                    loadedSize = MIN(toLoad, (size_t)(iend-ip));
+                } else {
+                    if (toLoad > zds->inBuffSize - zds->inPos) return ERROR(corruption_detected);   /* should never happen */
+                    loadedSize = ZSTD_limitCopy(zds->inBuff + zds->inPos, toLoad, ip, iend-ip);
+                }
                 ip += loadedSize;
                 zds->inPos += loadedSize;
                 if (loadedSize < toLoad) { someMoreWork = 0; break; }   /* not enough input, wait for more */
 
                 /* decode loaded input */
-                {  const int isSkipFrame = ZSTD_isSkipFrame(zds);
-                   size_t const decodedSize = ZSTD_decompressContinue(zds,
+                {   size_t const decodedSize = ZSTD_decompressContinue(zds,
                         zds->outBuff + zds->outStart, zds->outBuffSize - zds->outStart,
                         zds->inBuff, neededInSize);
                     if (ZSTD_isError(decodedSize)) return decodedSize;

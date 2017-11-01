@@ -2814,6 +2814,7 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
     if (cctx->streamStage == zcss_init) {
         ZSTD_prefixDict const prefixDict = cctx->prefixDict;
         ZSTD_CCtx_params params = cctx->requestedParams;
+        if (endOp == ZSTD_e_end) cctx->pledgedSrcSizePlusOne = input->size + 1;
         params.cParams = ZSTD_getCParamsFromCCtxParams(
                 cctx->requestedParams, cctx->pledgedSrcSizePlusOne-1, 0 /*dictSize*/);
         memset(&cctx->prefixDict, 0, sizeof(cctx->prefixDict));  /* single usage */

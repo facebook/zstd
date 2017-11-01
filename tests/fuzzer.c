@@ -525,7 +525,7 @@ static int basicUnitTests(U32 seed, double compressibility)
             off += r;
             if (i == segs/2) {
                 /* insert skippable frame */
-                const U32 skipLen = 128 KB;
+                const U32 skipLen = 129 KB;
                 MEM_writeLE32((BYTE*)compressedBuffer + off, ZSTD_MAGIC_SKIPPABLE_START);
                 MEM_writeLE32((BYTE*)compressedBuffer + off + 4, skipLen);
                 off += skipLen + ZSTD_skippableHeaderSize;

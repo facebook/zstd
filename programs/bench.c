@@ -286,6 +286,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     U32 nbLoops = 0;
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_nbThreads, g_nbThreads);
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_compressionLevel, cLevel);
+                    //ZSTD_CCtx_setPledgedSrcSize(ctx, blockTable[0].srcSize);  /* estimation, only to help cLevel conversion before applying advanced compression parameters */
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_enableLongDistanceMatching, g_ldmFlag);
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_ldmMinMatch, g_ldmMinMatch);
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_ldmHashLog, g_ldmHashLog);
@@ -305,6 +306,14 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     do {
                         U32 blockNb;
                         for (blockNb=0; blockNb<nbBlocks; blockNb++) {
+#if 0   /* direct compression function, for occasional comparison */
+                            ZSTD_parameters const params = ZSTD_getParams(cLevel, blockTable[blockNb].srcSize, dictBufferSize);
+                            blockTable[blockNb].cSize = ZSTD_compress_advanced(ctx,
+                                                            blockTable[blockNb].cPtr, blockTable[blockNb].cRoom,
+                                                            blockTable[blockNb].srcPtr, blockTable[blockNb].srcSize,
+                                                            dictBuffer, dictBufferSize,
+                                                            params);
+#else
                             size_t moreToFlush = 1;
                             ZSTD_outBuffer out;
                             ZSTD_inBuffer in;
@@ -322,6 +331,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                                                 ZSTD_getErrorName(moreToFlush));
                             }
                             blockTable[blockNb].cSize = out.pos;
+#endif
                         }
                         nbLoops++;
                     } while (UTIL_clockSpanMicro(clockStart) < clockLoop);

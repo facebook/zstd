@@ -286,7 +286,6 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                     U32 nbLoops = 0;
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_nbThreads, g_nbThreads);
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_compressionLevel, cLevel);
-                    //ZSTD_CCtx_setPledgedSrcSize(ctx, blockTable[0].srcSize);  /* estimation, only to help cLevel conversion before applying advanced compression parameters */
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_enableLongDistanceMatching, g_ldmFlag);
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_ldmMinMatch, g_ldmMinMatch);
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_ldmHashLog, g_ldmHashLog);

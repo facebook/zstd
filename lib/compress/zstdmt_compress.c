@@ -24,7 +24,7 @@
 #include <string.h>      /* memcpy, memset */
 #include "pool.h"        /* threadpool */
 #include "threading.h"   /* mutex */
-#include "zstd_internal.h"  /* MIN, ERROR, ZSTD_*, ZSTD_highbit32 */
+#include "zstd_compress.h"  /* MIN, ERROR, ZSTD_*, ZSTD_highbit32 */
 #include "zstdmt_compress.h"
 
 

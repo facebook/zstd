@@ -951,7 +951,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
             for (n=0, cSize=0, totalTestSize=0 ; totalTestSize < maxTestSize ; n++) {
                 /* compress random chunks into randomly sized dst buffers */
                 {   size_t const randomSrcSize = FUZ_randomLength(&lseed, maxSampleLog);
-                    size_t const srcSize = MIN (maxTestSize-totalTestSize, randomSrcSize);
+                    size_t const srcSize = MIN(maxTestSize-totalTestSize, randomSrcSize);
                     size_t const srcStart = FUZ_rand(&lseed) % (srcBufferSize - srcSize);
                     size_t const randomDstSize = FUZ_randomLength(&lseed, maxSampleLog);
                     size_t const dstBuffSize = MIN(cBufferSize - cSize, randomDstSize);

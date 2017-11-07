@@ -25,19 +25,19 @@ static void ZSTD_setLog2Prices(optState_t* optPtr)
     optPtr->log2litLengthSum = ZSTD_highbit32(optPtr->litLengthSum+1);
     optPtr->log2litSum = ZSTD_highbit32(optPtr->litSum+1);
     optPtr->log2offCodeSum = ZSTD_highbit32(optPtr->offCodeSum+1);
-    optPtr->factor = 1 + ((optPtr->litSum>>5) / optPtr->litLengthSum) + ((optPtr->litSum<<1) / (optPtr->litSum + optPtr->matchSum));
+    optPtr->factor = 1 + ((optPtr->litSum>>5) / optPtr->litLengthSum)
+                       + ((optPtr->litSum<<1) / (optPtr->litSum + optPtr->matchSum));
 }
 
 
 static void ZSTD_rescaleFreqs(optState_t* optPtr, const BYTE* src, size_t srcSize)
 {
-    unsigned u;
-
     optPtr->cachedLiterals = NULL;
     optPtr->cachedPrice = optPtr->cachedLitLength = 0;
     optPtr->staticPrices = 0;
 
-    if (optPtr->litLengthSum == 0) {
+    if (optPtr->litLengthSum == 0) {  /* first init */
+        unsigned u;
         if (srcSize <= 1024) optPtr->staticPrices = 1;
 
         assert(optPtr->litFreq!=NULL);
@@ -50,10 +50,10 @@ static void ZSTD_rescaleFreqs(optState_t* optPtr, const BYTE* src, size_t srcSiz
         optPtr->litLengthSum = MaxLL+1;
         optPtr->matchLengthSum = MaxML+1;
         optPtr->offCodeSum = (MaxOff+1);
-        optPtr->matchSum = (ZSTD_LITFREQ_ADD<<Litbits);
+        optPtr->matchSum = (ZSTD_LITFREQ_ADD << Litbits);
 
         for (u=0; u<=MaxLit; u++) {
-            optPtr->litFreq[u] = 1 + (optPtr->litFreq[u]>>ZSTD_FREQ_DIV);
+            optPtr->litFreq[u] = 1 + (optPtr->litFreq[u] >> ZSTD_FREQ_DIV);
             optPtr->litSum += optPtr->litFreq[u];
         }
         for (u=0; u<=MaxLL; u++)
@@ -62,7 +62,10 @@ static void ZSTD_rescaleFreqs(optState_t* optPtr, const BYTE* src, size_t srcSiz
             optPtr->matchLengthFreq[u] = 1;
         for (u=0; u<=MaxOff; u++)
             optPtr->offCodeFreq[u] = 1;
+
     } else {
+
+        unsigned u;
         optPtr->matchLengthSum = 0;
         optPtr->litLengthSum = 0;
         optPtr->offCodeSum = 0;

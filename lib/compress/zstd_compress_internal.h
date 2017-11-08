@@ -91,7 +91,7 @@ typedef struct {
     U32  log2offCodeSum;         /* pow2 to compare log2(offreq) to */
     U32  factor;                 /* added to calculate ZSTD_getPrice() (but why?) */
     /* end : updated by ZSTD_setLog2Prices */
-    U32  staticPrices;           /* ? do not update statistics ? */
+    U32  staticPrices;           /* prices follow a static cost structure, statistics are irrelevant */
     U32  cachedPrice;
     U32  cachedLitLength;
     const BYTE* cachedLiterals;

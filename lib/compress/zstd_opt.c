@@ -129,8 +129,7 @@ static U32 ZSTD_getLiteralPrice(optState_t* optPtr, U32 litLength, const BYTE* l
     }
 
     /* literal Length */
-    {   BYTE const LL_deltaCode = 19;
-        BYTE const llCode = (litLength>63) ? (BYTE)ZSTD_highbit32(litLength) + LL_deltaCode : LL_Code[litLength];
+    {   U32 const llCode = ZSTD_LLcode(litLength);
         price += LL_bits[llCode] + optPtr->log2litLengthSum - ZSTD_highbit32(optPtr->litLengthFreq[llCode]+1);
     }
 
@@ -151,8 +150,7 @@ FORCE_INLINE_TEMPLATE U32 ZSTD_getPrice(optState_t* optPtr, U32 litLength, const
     if (!ultra && offCode >= 20) price += (offCode-19)*2; /* handicap for long matches, to favor decompression speed */
 
     /* match Length */
-    {   BYTE const ML_deltaCode = 36;
-        BYTE const mlCode = (mlBase>127) ? (BYTE)ZSTD_highbit32(mlBase) + ML_deltaCode : ML_Code[mlBase];
+    {   U32 const mlCode = ZSTD_MLcode(mlBase);
         price += ML_bits[mlCode] + optPtr->log2matchLengthSum - ZSTD_highbit32(optPtr->matchLengthFreq[mlCode]+1);
     }
 
@@ -170,8 +168,7 @@ static void ZSTD_updatePrice(optState_t* optPtr, U32 litLength, const BYTE* lite
         optPtr->litFreq[literals[u]] += ZSTD_LITFREQ_ADD;
 
     /* literal Length */
-    {   const BYTE LL_deltaCode = 19;
-        const BYTE llCode = (litLength>63) ? (BYTE)ZSTD_highbit32(litLength) + LL_deltaCode : LL_Code[litLength];
+    {   const U32 llCode = ZSTD_LLcode(litLength);
         optPtr->litLengthFreq[llCode]++;
         optPtr->litLengthSum++;
     }
@@ -184,8 +181,7 @@ static void ZSTD_updatePrice(optState_t* optPtr, U32 litLength, const BYTE* lite
 
     /* match Length */
     {   U32 const mlBase = matchLength - MINMATCH;
-        const BYTE ML_deltaCode = 36;
-        const BYTE mlCode = (mlBase>127) ? (BYTE)ZSTD_highbit32(mlBase) + ML_deltaCode : ML_Code[mlBase];
+        U32 const mlCode = ZSTD_MLcode(mlBase);
         optPtr->matchLengthFreq[mlCode]++;
         optPtr->matchLengthSum++;
     }

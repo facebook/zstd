@@ -195,30 +195,43 @@ struct ZSTD_CCtx_s {
 };
 
 
-static const BYTE LL_Code[64] = {  0,  1,  2,  3,  4,  5,  6,  7,
-                                   8,  9, 10, 11, 12, 13, 14, 15,
-                                  16, 16, 17, 17, 18, 18, 19, 19,
-                                  20, 20, 20, 20, 21, 21, 21, 21,
-                                  22, 22, 22, 22, 22, 22, 22, 22,
-                                  23, 23, 23, 23, 23, 23, 23, 23,
-                                  24, 24, 24, 24, 24, 24, 24, 24,
-                                  24, 24, 24, 24, 24, 24, 24, 24 };
+MEM_STATIC U32 ZSTD_LLcode(U32 litLength)
+{
+    static const BYTE LL_Code[64] = {  0,  1,  2,  3,  4,  5,  6,  7,
+                                       8,  9, 10, 11, 12, 13, 14, 15,
+                                      16, 16, 17, 17, 18, 18, 19, 19,
+                                      20, 20, 20, 20, 21, 21, 21, 21,
+                                      22, 22, 22, 22, 22, 22, 22, 22,
+                                      23, 23, 23, 23, 23, 23, 23, 23,
+                                      24, 24, 24, 24, 24, 24, 24, 24,
+                                      24, 24, 24, 24, 24, 24, 24, 24 };
+    static const U32 LL_deltaCode = 19;
+    return (litLength > 63) ? ZSTD_highbit32(litLength) + LL_deltaCode : LL_Code[litLength];
+}
 
-static const BYTE ML_Code[128] = { 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
-                                  16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-                                  32, 32, 33, 33, 34, 34, 35, 35, 36, 36, 36, 36, 37, 37, 37, 37,
-                                  38, 38, 38, 38, 38, 38, 38, 38, 39, 39, 39, 39, 39, 39, 39, 39,
-                                  40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40,
-                                  41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41,
-                                  42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42,
-                                  42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42 };
+/* ZSTD_MLcode() :
+ * note : mlBase = matchLength - MINMATCH;
+ *        because it's the format it's stored in seqStore->sequences */
+MEM_STATIC U32 ZSTD_MLcode(U32 mlBase)
+{
+    static const BYTE ML_Code[128] = { 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
+                                      16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+                                      32, 32, 33, 33, 34, 34, 35, 35, 36, 36, 36, 36, 37, 37, 37, 37,
+                                      38, 38, 38, 38, 38, 38, 38, 38, 39, 39, 39, 39, 39, 39, 39, 39,
+                                      40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40,
+                                      41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41,
+                                      42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42,
+                                      42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42 };
+    static const U32 ML_deltaCode = 36;
+    return (mlBase > 127) ? ZSTD_highbit32(mlBase) + ML_deltaCode : ML_Code[mlBase];
+}
 
 /*! ZSTD_storeSeq() :
  *  Store a sequence (literal length, literals, offset code and match length code) into seqStore_t.
  *  `offsetCode` : distance to match + 3 (values 1-3 are repCodes).
- *  `matchCode` : matchLength - MINMATCH
+ *  `mlBase` : matchLength - MINMATCH
 */
-MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const void* literals, U32 offsetCode, size_t matchCode)
+MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const void* literals, U32 offsetCode, size_t mlBase)
 {
 #if defined(ZSTD_DEBUG) && (ZSTD_DEBUG >= 6)
     static const BYTE* g_start = NULL;
@@ -226,7 +239,7 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const v
     if (g_start==NULL) g_start = (const BYTE*)literals;  /* note : index only works for compression within a single segment */
     if ((pos > 0) && (pos < 1000000000))
         DEBUGLOG(6, "Cpos %6u :%5u literals & match %3u bytes at distance %6u",
-               pos, (U32)litLength, (U32)matchCode+MINMATCH, (U32)offsetCode);
+               pos, (U32)litLength, (U32)mlBase+MINMATCH, (U32)offsetCode);
 #endif
     /* copy Literals */
     assert(seqStorePtr->lit + litLength <= seqStorePtr->litStart + 128 KB);
@@ -245,12 +258,12 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const v
     seqStorePtr->sequences[0].offset = offsetCode + 1;
 
     /* match Length */
-    if (matchCode>0xFFFF) {
+    if (mlBase>0xFFFF) {
         assert(seqStorePtr->longLengthID == 0); /* there can only be a single long length */
         seqStorePtr->longLengthID = 2;
         seqStorePtr->longLengthPos = (U32)(seqStorePtr->sequences - seqStorePtr->sequencesStart);
     }
-    seqStorePtr->sequences[0].matchLength = (U16)matchCode;
+    seqStorePtr->sequences[0].matchLength = (U16)mlBase;
 
     seqStorePtr->sequences++;
 }

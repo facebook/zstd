@@ -26,7 +26,7 @@
 #include "fse.h"
 #define HUF_STATIC_LINKING_ONLY
 #include "huf.h"
-#include "zstd_compress.h"
+#include "zstd_compress_internal.h"
 #include "zstd_fast.h"
 #include "zstd_double_fast.h"
 #include "zstd_lazy.h"

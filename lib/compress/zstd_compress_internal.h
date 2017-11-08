@@ -9,7 +9,7 @@
  */
 
 /* This header contains definitions
- * that shall only be used by modules from within lib/compress.
+ * that shall **only** be used by modules within lib/compress.
  */
 
 #ifndef ZSTD_COMPRESS_H

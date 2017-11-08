@@ -8,8 +8,9 @@
  * You may select, at your option, one of the above-listed licenses.
  */
 
+#include "zstd_compress_internal.h"
 #include "zstd_opt.h"
-#include "zstd_lazy.h"
+#include "zstd_lazy.h"   /* ZSTD_updateTree, ZSTD_updateTree_extDict */
 
 
 #define ZSTD_LITFREQ_ADD    2

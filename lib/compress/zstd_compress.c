@@ -1248,8 +1248,6 @@ static size_t ZSTD_compressLiterals (ZSTD_entropyCTables_t * entropy,
 
 void ZSTD_seqToCodes(const seqStore_t* seqStorePtr)
 {
-    BYTE const LL_deltaCode = 19;
-    BYTE const ML_deltaCode = 36;
     const seqDef* const sequences = seqStorePtr->sequencesStart;
     BYTE* const llCodeTable = seqStorePtr->llCode;
     BYTE* const ofCodeTable = seqStorePtr->ofCode;
@@ -1259,9 +1257,9 @@ void ZSTD_seqToCodes(const seqStore_t* seqStorePtr)
     for (u=0; u<nbSeq; u++) {
         U32 const llv = sequences[u].litLength;
         U32 const mlv = sequences[u].matchLength;
-        llCodeTable[u] = (llv> 63) ? (BYTE)ZSTD_highbit32(llv) + LL_deltaCode : LL_Code[llv];
+        llCodeTable[u] = (BYTE)ZSTD_LLcode(llv);
         ofCodeTable[u] = (BYTE)ZSTD_highbit32(sequences[u].offset);
-        mlCodeTable[u] = (mlv>127) ? (BYTE)ZSTD_highbit32(mlv) + ML_deltaCode : ML_Code[mlv];
+        mlCodeTable[u] = (BYTE)ZSTD_MLcode(mlv);
     }
     if (seqStorePtr->longLengthID==1)
         llCodeTable[seqStorePtr->longLengthPos] = MaxLL;

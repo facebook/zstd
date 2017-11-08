@@ -79,18 +79,19 @@ typedef struct {
     ZSTD_match_t* matchTable;
     ZSTD_optimal_t* priceTable;
 
-    U32  matchLengthSum;
-    U32  matchSum;
-    U32  litLengthSum;
-    U32  litSum;
-    U32  offCodeSum;
-    U32  log2matchLengthSum;
-    U32  log2matchSum;
-    U32  log2litLengthSum;
-    U32  log2litSum;
-    U32  log2offCodeSum;
-    U32  factor;
-    U32  staticPrices;
+    U32  litSum;                 /* nb of literals */
+    U32  litLengthSum;           /* nb of litLength codes */
+    U32  matchLengthSum;         /* nb of matchLength codes */
+    U32  matchSum;               /* one argument to calculate `factor` */
+    U32  offCodeSum;             /* nb of offset codes */
+    /* begin updated by ZSTD_setLog2Prices */
+    U32  log2litSum;             /* pow2 to compare log2(litfreq) to */
+    U32  log2litLengthSum;       /* pow2 to compare log2(llfreq) to */
+    U32  log2matchLengthSum;     /* pow2 to compare log2(mlfreq) to */
+    U32  log2offCodeSum;         /* pow2 to compare log2(offreq) to */
+    U32  factor;                 /* added to calculate ZSTD_getPrice() (but why?) */
+    /* end : updated by ZSTD_setLog2Prices */
+    U32  staticPrices;           /* ? do not update statistics ? */
     U32  cachedPrice;
     U32  cachedLitLength;
     const BYTE* cachedLiterals;

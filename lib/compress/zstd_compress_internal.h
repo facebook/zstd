@@ -233,13 +233,14 @@ MEM_STATIC U32 ZSTD_MLcode(U32 mlBase)
 */
 MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const void* literals, U32 offsetCode, size_t mlBase)
 {
-#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG >= 6)
+#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG >= 2)
     static const BYTE* g_start = NULL;
-    U32 const pos = (U32)((const BYTE*)literals - g_start);
     if (g_start==NULL) g_start = (const BYTE*)literals;  /* note : index only works for compression within a single segment */
-    if ((pos > 0) && (pos < 1000000000))
-        DEBUGLOG(6, "Cpos %6u :%5u literals & match %3u bytes at distance %6u",
+    {   U32 const pos = (U32)((const BYTE*)literals - g_start);
+        g_debuglog_enable = ((pos >= 1622540) & (pos < 1622575));
+        DEBUGLOG(2, "Cpos%7u :%3u literals, match%3u bytes at distance%7u",
                pos, (U32)litLength, (U32)mlBase+MINMATCH, (U32)offsetCode);
+    }
 #endif
     /* copy Literals */
     assert(seqStorePtr->lit + litLength <= seqStorePtr->litStart + 128 KB);

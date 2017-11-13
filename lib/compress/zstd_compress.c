@@ -43,17 +43,6 @@ size_t ZSTD_compressBound(size_t srcSize) {
 
 
 /*-*************************************
-*  Sequence storage
-***************************************/
-static void ZSTD_resetSeqStore(seqStore_t* ssPtr)
-{
-    ssPtr->lit = ssPtr->litStart;
-    ssPtr->sequences = ssPtr->sequencesStart;
-    ssPtr->longLengthID = 0;
-}
-
-
-/*-*************************************
 *  Context memory management
 ***************************************/
 struct ZSTD_CDict_s {
@@ -1604,6 +1593,13 @@ static void ZSTD_storeLastLiterals(seqStore_t* seqStorePtr,
 {
     memcpy(seqStorePtr->lit, anchor, lastLLSize);
     seqStorePtr->lit += lastLLSize;
+}
+
+static void ZSTD_resetSeqStore(seqStore_t* ssPtr)
+{
+    ssPtr->lit = ssPtr->litStart;
+    ssPtr->sequences = ssPtr->sequencesStart;
+    ssPtr->longLengthID = 0;
 }
 
 static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc, void* dst, size_t dstCapacity, const void* src, size_t srcSize)

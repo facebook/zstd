@@ -54,6 +54,7 @@ extern "C" {
 
 #if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=2)
 #  include <stdio.h>
+extern int g_debuglog_enable;
 /* recommended values for ZSTD_DEBUG display levels :
  * 1 : no display, enables assert() only
  * 2 : reserved for currently active debugging path
@@ -61,11 +62,11 @@ extern "C" {
  * 4 : events once per frame
  * 5 : events once per block
  * 6 : events once per sequence (*very* verbose) */
-#  define DEBUGLOG(l, ...) {                         \
-                if (l<=ZSTD_DEBUG) {                 \
-                    fprintf(stderr, __FILE__ ": ");  \
-                    fprintf(stderr, __VA_ARGS__);    \
-                    fprintf(stderr, " \n");          \
+#  define DEBUGLOG(l, ...) {                                 \
+                if ((g_debuglog_enable) & (l<=ZSTD_DEBUG)) { \
+                    fprintf(stderr, __FILE__ ": ");          \
+                    fprintf(stderr, __VA_ARGS__);            \
+                    fprintf(stderr, " \n");                  \
             }   }
 #else
 #  define DEBUGLOG(l, ...)      {}    /* disabled */
@@ -89,9 +90,7 @@ extern "C" {
 #define ZSTD_OPT_NUM    (1<<12)
 
 #define ZSTD_REP_NUM      3                 /* number of repcodes */
-#define ZSTD_REP_CHECK    (ZSTD_REP_NUM)    /* number of repcodes to check by the optimal parser */
 #define ZSTD_REP_MOVE     (ZSTD_REP_NUM-1)
-#define ZSTD_REP_MOVE_OPT (ZSTD_REP_NUM)
 static const U32 repStartValue[ZSTD_REP_NUM] = { 1, 4, 8 };
 
 #define KB *(1 <<10)

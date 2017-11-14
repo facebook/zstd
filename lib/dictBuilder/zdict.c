@@ -135,7 +135,7 @@ static unsigned ZDICT_NbCommonBytes (register size_t val)
             unsigned long r = 0;
             _BitScanReverse64( &r, val );
             return (unsigned)(r>>3);
-#       elif defined(__GNUC__) && (__GNUC__ >= 3)
+#       elif defined(__GNUC__) && (__GNUC__ >= 3) && __has_builtin(__builtin_clzll)
             return (__builtin_clzll(val) >> 3);
 #       else
             unsigned r;
@@ -150,7 +150,7 @@ static unsigned ZDICT_NbCommonBytes (register size_t val)
             unsigned long r = 0;
             _BitScanReverse( &r, (unsigned long)val );
             return (unsigned)(r>>3);
-#       elif defined(__GNUC__) && (__GNUC__ >= 3)
+#       elif defined(__GNUC__) && (__GNUC__ >= 3) && __has_builtin(__builtin_clz)
             return (__builtin_clz((U32)val) >> 3);
 #       else
             unsigned r;

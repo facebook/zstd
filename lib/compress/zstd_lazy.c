@@ -157,6 +157,9 @@ static size_t ZSTD_insertBtAndFindBestMatch (
         size_t matchLength = MIN(commonLengthSmaller, commonLengthLarger);   /* guaranteed minimum nb of common bytes */
         const BYTE* match;
 
+        DEBUGLOG(8, "index%7u evaluated during insertion of %u (presumed min matchLength:%3u) ",
+                    matchIndex, current, (U32)matchLength);
+
         if ((!extDict) || (matchIndex+matchLength >= dictLimit)) {
             match = base + matchIndex;
             if (match[matchLength] == ip[matchLength])
@@ -173,8 +176,11 @@ static size_t ZSTD_insertBtAndFindBestMatch (
                 matchEndIdx = matchIndex + (U32)matchLength;
             if ( (4*(int)(matchLength-bestLength)) > (int)(ZSTD_highbit32(current-matchIndex+1) - ZSTD_highbit32((U32)offsetPtr[0]+1)) )
                 bestLength = matchLength, *offsetPtr = ZSTD_REP_MOVE + current - matchIndex;
-            if (ip+matchLength == iend)   /* equal : no way to know if inf or sup */
+            if (ip+matchLength == iend) {   /* equal : no way to know if inf or sup */
+                DEBUGLOG(8, "index %u has equal value at length %u as src : cannot determine > or <",
+                            matchIndex, (U32)matchLength);
                 break;   /* drop, to guarantee consistency (miss a little bit of compression) */
+            }
         }
 
         if (match[matchLength] < ip[matchLength]) {
@@ -195,7 +201,7 @@ static size_t ZSTD_insertBtAndFindBestMatch (
 
     *smallerPtr = *largerPtr = 0;
 
-    zc->nextToUpdate = (matchEndIdx > current + 8) ? matchEndIdx - 8 : current+1;
+    zc->nextToUpdate = (matchEndIdx > current + 8) ? matchEndIdx - 8 : current+1;   /* skip repetitive patterns */
     return bestLength;
 }
 

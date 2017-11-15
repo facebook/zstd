@@ -1386,7 +1386,7 @@ size_t ZSTD_encodeSequences(
             U32  const llBits = LL_bits[llCode];
             U32  const ofBits = ofCode;
             U32  const mlBits = ML_bits[mlCode];
-            DEBUGLOG(6, "encoding: litlen:%u - matchlen:%u - offCode:%u",
+            DEBUGLOG(6, "encoding: litlen:%2u - matchlen:%2u - offCode:%7u",
                         sequences[n].litLength,
                         sequences[n].matchLength + MINMATCH,
                         sequences[n].offset);                               /* 32b*/  /* 64b*/

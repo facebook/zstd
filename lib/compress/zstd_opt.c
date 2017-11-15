@@ -231,7 +231,8 @@ static U32 ZSTD_insertAndFindFirstIndexHash3 (ZSTD_CCtx* zc, const BYTE* ip)
 /*-*************************************
 *  Binary Tree search
 ***************************************/
-static U32 ZSTD_insertBtAndGetAllMatches (
+FORCE_INLINE_TEMPLATE
+ U32 ZSTD_insertBtAndGetAllMatches (
                         ZSTD_CCtx* zc,
                         const BYTE* const ip, const BYTE* const iLimit, const int extDict,
                         U32 nbCompares, U32 const mls,
@@ -263,14 +264,8 @@ static U32 ZSTD_insertBtAndGetAllMatches (
 
     size_t bestLength = minMatchLen-1;
 
-#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG >= 8)
-    g_debuglog_enable = (current ==  5202593);
-    //g_debuglog_enable = (current ==  8845622);
-    //if (current == 12193408) g_debuglog_enable = 1;
-#endif
-
     /* check repCode */
-#if 0
+#if 1
     if (!extDict) /*static*/ {
         U32 const lastR = ZSTD_REP_NUM + ll0;
         U32 repCode;
@@ -324,7 +319,6 @@ static U32 ZSTD_insertBtAndGetAllMatches (
     (void)ll0; (void)rep; (void)minMatch;
 #endif
 
-#if 1
     /* HC3 match finder */
     if ((mls == 3) /*static*/ && (bestLength < mls)) {
         U32 const matchIndex3 = ZSTD_insertAndFindFirstIndexHash3 (zc, ip);
@@ -353,7 +347,6 @@ static U32 ZSTD_insertBtAndGetAllMatches (
                    | (ip+mlen == iLimit) ) {  /* best possible */
                     return 1;
     }   }   }   }
-#endif
 
     hashTable[h] = current;   /* Update Hash Table */
 
@@ -362,64 +355,21 @@ static U32 ZSTD_insertBtAndGetAllMatches (
         size_t matchLength = MIN(commonLengthSmaller, commonLengthLarger);   /* guaranteed minimum nb of common bytes */
         const BYTE* match;
         assert(current > matchIndex);
-#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=8)
-        if (matchIndex==5189477) g_debuglog_enable = 1;
-        DEBUGLOG(8, "candidate match at index:%7u; presumed min matchLength:%3u ",
-                    matchIndex, (U32)matchLength);
-#endif
+
         if ((!extDict) || (matchIndex+matchLength >= dictLimit)) {
+            assert(matchIndex+matchLength >= dictLimit);  /* ensure the condition is correct when !extDict */
             match = base + matchIndex;
-#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=2)
-            {   size_t const controlSize = ZSTD_count(ip, match, iLimit);
-                if (controlSize < matchLength) {
-                    DEBUGLOG(2, "Warning !! => matchIndex %u while searching %u within prefix is smaller than minimum expectation (%u<%u) !",
-                                matchIndex, current, (U32)controlSize, (U32)matchLength);
-            }   }
-#endif
             if (match[matchLength] == ip[matchLength]) {
                 matchLength += ZSTD_count(ip+matchLength+1, match+matchLength+1, iLimit) +1;
             }
-#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=8)
-            {   int i;
-                RAWLOG(8, "orig %7u: ", current);
-                for (i=0; i<8; i++) RAWLOG(7," %02X ", ip[i]);
-                RAWLOG(8, " \n");
-                RAWLOG(8, "match%7u: ", matchIndex);
-                for (i=0; i<8; i++) RAWLOG(7," %02X ", match[i]);
-                RAWLOG(8, " \n");
-            }
-#endif
         } else {
             match = dictBase + matchIndex;
-#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=2)
-            {   size_t const controlSize = ZSTD_count_2segments(ip, match, iLimit, dictEnd, prefixStart);
-                if (controlSize < matchLength) {
-                    DEBUGLOG(2, "Warning !! => matchIndex %u while searching %u into _extDict is smaller than minimum expectation (%u<%u) !",
-                                matchIndex, current, (U32)controlSize, (U32)matchLength);
-            }   }
-#endif
             matchLength += ZSTD_count_2segments(ip+matchLength, match+matchLength, iLimit, dictEnd, prefixStart);
             if (matchIndex+matchLength >= dictLimit)
                 match = base + matchIndex;   /* prepare for match[matchLength] */
-#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=8)
-            if (matchIndex + 8 < dictLimit)
-            {   int i;
-                const BYTE* const ptr = dictBase + matchIndex;
-                RAWLOG(8, "orig %7u: ", current);
-                for (i=0; i<8; i++) RAWLOG(7," %02X ", ip[i]);
-                RAWLOG(8, " \n");
-                RAWLOG(8, "match%7u: ", matchIndex);
-                for (i=0; i<8; i++) RAWLOG(7," %02X ", ptr[i]);
-                RAWLOG(8, " \n");
-            }
-#endif
         }
-        DEBUGLOG(8, "candidate match has length %u (best:%u) ",
-                    (U32)matchLength, (U32)bestLength);
 
         if (matchLength > bestLength) {
-            DEBUGLOG(8, "current %u : found longer match of size%3u at distance%7u",
-                        current, (U32)matchLength, current - matchIndex);
             assert(matchEndIdx > matchIndex);
             if (matchLength > matchEndIdx - matchIndex)
                 matchEndIdx = matchIndex + (U32)matchLength;
@@ -429,60 +379,23 @@ static U32 ZSTD_insertBtAndGetAllMatches (
             mnum++;
             if (matchLength > ZSTD_OPT_NUM) break;
             if (ip+matchLength == iLimit) {  /* equal : no way to know if inf or sup */
-                DEBUGLOG(8, "match at index %u has equal value at length %u : cannot determine > or <",
-                            matchIndex, (U32)matchLength);
                 break;   /* drop, to preserve bt consistency (miss a little bit of compression) */
             }
         }
 
         if (match[matchLength] < ip[matchLength]) {
-#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=8)
-            DEBUGLOG(8, "match at index %u is smaller than current (%02X<%02X) (pos%u)",
-                        matchIndex, match[matchLength], ip[matchLength], (U32)matchLength);
-            {   int i;
-                RAWLOG(8, "index %u: ", matchIndex);
-                for (i=0; i<18; i++) RAWLOG(7," %02X ", match[i]);
-                RAWLOG(8, " \n");
-            }
-#endif
+            /* match smaller than current */
             *smallerPtr = matchIndex;             /* update smaller idx */
             commonLengthSmaller = matchLength;    /* all smaller will now have at least this guaranteed common length */
             if (matchIndex <= btLow) { smallerPtr=&dummy32; break; }   /* beyond tree size, stop the search */
-            smallerPtr = nextPtr+1;               /* new "smaller" => larger of match */
-            matchIndex = nextPtr[1];              /* new matchIndex larger than previous (closer to current) */
-#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=8)
-            DEBUGLOG(8, "selecting larger candidate : ");
-            {   int i;
-                const BYTE* const match2 = (matchIndex < dictLimit) ? dictBase + matchIndex : base + matchIndex;
-                RAWLOG(8, "index %u: ", matchIndex);
-                for (i=0; i<18; i++) RAWLOG(7," %02X ", match2[i]);
-                RAWLOG(8, " \n");
-            }
-#endif
+            smallerPtr = nextPtr+1;               /* new candidate => larger than match, which was smaller than current */
+            matchIndex = nextPtr[1];              /* new matchIndex, larger than previous, closer to current */
         } else {
-#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=8)
-            DEBUGLOG(8, "match at index %u is larger than current (%02X>%02X) (pos%u)",
-                        matchIndex, match[matchLength], ip[matchLength], (U32)matchLength);
-            {   int i;
-                RAWLOG(8, "index %u: ", matchIndex);
-                for (i=0; i<18; i++) RAWLOG(7," %02X ", match[i]);
-                RAWLOG(8, " \n");
-            }
-#endif
             *largerPtr = matchIndex;
             commonLengthLarger = matchLength;
             if (matchIndex <= btLow) { largerPtr=&dummy32; break; }   /* beyond tree size, stop the search */
             largerPtr = nextPtr;
             matchIndex = nextPtr[0];
-#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=8)
-            DEBUGLOG(8, "selecting smaller candidate : ");
-            {   int i;
-                const BYTE* const match2 = (matchIndex < dictLimit) ? dictBase + matchIndex : base + matchIndex;
-                RAWLOG(8, "index %u: ", matchIndex);
-                for (i=0; i<18; i++) RAWLOG(7," %02X ", match2[i]);
-                RAWLOG(8, " \n");
-            }
-#endif
     }   }
 
     *smallerPtr = *largerPtr = 0;
@@ -492,7 +405,7 @@ static U32 ZSTD_insertBtAndGetAllMatches (
 }
 
 
-static U32 ZSTD_BtGetAllMatches (
+FORCE_INLINE_TEMPLATE U32 ZSTD_BtGetAllMatches (
                         ZSTD_CCtx* zc,   /* Index table will be updated */
                         const BYTE* ip, const BYTE* const iHighLimit, const int extDict,
                         const U32 maxNbAttempts, const U32 matchLengthSearch,
@@ -500,7 +413,8 @@ static U32 ZSTD_BtGetAllMatches (
                         ZSTD_match_t* matches, const U32 minMatchLen)
 {
     if (ip < zc->base + zc->nextToUpdate) return 0;   /* skipped area */
-    ZSTD_updateTree(zc, ip, iHighLimit, maxNbAttempts, matchLengthSearch);
+    if (extDict) ZSTD_updateTree_extDict(zc, ip, iHighLimit, maxNbAttempts, matchLengthSearch);
+    else ZSTD_updateTree(zc, ip, iHighLimit, maxNbAttempts, matchLengthSearch);
     switch(matchLengthSearch)
     {
     case 3 : return ZSTD_insertBtAndGetAllMatches(zc, ip, iHighLimit, extDict, maxNbAttempts, 3, rep, ll0, matches, minMatchLen);

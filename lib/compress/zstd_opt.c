@@ -271,7 +271,6 @@ FORCE_INLINE_TEMPLATE
             U32 const repOffset = (repCode==ZSTD_REP_NUM) ? (rep[0] - 1) : rep[repCode];
             U32 const repIndex = current - repOffset;
             U32 repLen = 0;
-            assert(repOffset <= current);
             assert(current >= dictLimit);
             if (!extDict /*static*/ || (repIndex>=dictLimit)) {
                 if ( (repOffset-1 /* intentional overflow, discards 0 and -1 */ < current-dictLimit)  /* within current mem segment */

@@ -62,6 +62,10 @@ extern int g_debuglog_enable;
  * 4 : events once per frame
  * 5 : events once per block
  * 6 : events once per sequence (*very* verbose) */
+#  define RAWLOG(l, ...) {                                 \
+                if ((g_debuglog_enable) & (l<=ZSTD_DEBUG)) { \
+                    fprintf(stderr, __VA_ARGS__);            \
+            }   }
 #  define DEBUGLOG(l, ...) {                                 \
                 if ((g_debuglog_enable) & (l<=ZSTD_DEBUG)) { \
                     fprintf(stderr, __FILE__ ": ");          \
@@ -69,7 +73,8 @@ extern int g_debuglog_enable;
                     fprintf(stderr, " \n");                  \
             }   }
 #else
-#  define DEBUGLOG(l, ...)      {}    /* disabled */
+#  define RAWLOG(l, ...)      {}    /* disabled */
+#  define DEBUGLOG(l, ...)    {}    /* disabled */
 #endif
 
 

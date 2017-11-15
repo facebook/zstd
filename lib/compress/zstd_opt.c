@@ -265,59 +265,36 @@ FORCE_INLINE_TEMPLATE
     size_t bestLength = minMatchLen-1;
 
     /* check repCode */
-#if 1
-    if (!extDict) /*static*/ {
-        U32 const lastR = ZSTD_REP_NUM + ll0;
+    {   U32 const lastR = ZSTD_REP_NUM + ll0;
         U32 repCode;
         for (repCode = ll0; repCode < lastR; repCode++) {
-            S32 const repOffset = (repCode==ZSTD_REP_NUM) ? (rep[0] - 1) : rep[repCode];
-            if ( (repOffset > 0)
-              && (repOffset < (S32)(ip-prefixStart))  /* within current mem segment */
-              && (ZSTD_readMINMATCH(ip, minMatch) == ZSTD_readMINMATCH(ip - repOffset, minMatch))) {
-                U32 const repLen = (U32)ZSTD_count(ip+minMatch, ip+minMatch-repOffset, iLimit) + minMatch;
-                /* save longer solution */
-                if (repLen > bestLength) {
-                    DEBUGLOG(8, "current %u : found rep%u match of size%3u",
-                                current, repCode - ll0, repLen);
-                    bestLength = repLen;
-                    matches[mnum].off = repCode - ll0;
-                    matches[mnum].len = (U32)repLen;
-                    mnum++;
-                    if ( (repLen > ZSTD_OPT_NUM)
-                       | (ip+repLen == iLimit) ) {  /* best possible */
-                        return mnum;
-        }   }   }   }
-    } else {   /* extDict */
-        U32 const lastR = ZSTD_REP_NUM + ll0;
-        U32 repCode;
-        for (repCode=ll0; repCode<lastR; repCode++) {
-            const S32 repCur = (repCode==ZSTD_REP_NUM) ? (rep[0] - 1) : rep[repCode];
-            const U32 repIndex = (U32)(current - repCur);
-            const BYTE* const repBase = repIndex < dictLimit ? dictBase : base;
-            const BYTE* const repMatch = repBase + repIndex;
-            if ( (repCur > 0 && repCur <= (S32)current)
-               && (((U32)((dictLimit-1) - repIndex) >= 3) & (repIndex>windowLow))  /* intentional overflow */
-               && (ZSTD_readMINMATCH(ip, minMatch) == ZSTD_readMINMATCH(repMatch, minMatch)) ) {
-                /* repcode detected we should take it */
-                const BYTE* const repEnd = repIndex < dictLimit ? dictEnd : iLimit;
-                U32 const repLen = (U32)ZSTD_count_2segments(ip+minMatch, repMatch+minMatch, iLimit, repEnd, prefixStart) + minMatch;
-
-                /* save longer solution */
-                if (repLen > bestLength) {
-                    DEBUGLOG(8, "current %u : found rep%u match of size%3u",
-                                current, repCode - ll0, repLen);
-                    bestLength = repLen;
-                    matches[mnum].off = repCode - ll0;
-                    matches[mnum].len = (U32)repLen;
-                    mnum++;
-                    if ( (repLen > ZSTD_OPT_NUM)
-                       | (ip+repLen == iLimit) ) {  /* best possible */
-                        return mnum;
-        }   }   }   }
-    }
-#else
-    (void)ll0; (void)rep; (void)minMatch;
-#endif
+            U32 const repOffset = (repCode==ZSTD_REP_NUM) ? (rep[0] - 1) : rep[repCode];
+            U32 const repIndex = current - repOffset;
+            U32 repLen = 0;
+            assert(repOffset <= current);
+            assert(current >= dictLimit);
+            if (!extDict /*static*/ || (repIndex>=dictLimit)) {
+                if ( (repOffset-1 /* intentional overflow, discards 0 and -1 */ < current-dictLimit)  /* within current mem segment */
+                  && (ZSTD_readMINMATCH(ip, minMatch) == ZSTD_readMINMATCH(ip - repOffset, minMatch))) {
+                    repLen = (U32)ZSTD_count(ip+minMatch, ip+minMatch-repOffset, iLimit) + minMatch;
+                }
+            } else {  /* extDict */
+                const BYTE* const repMatch = dictBase + repIndex;
+                if ( ((repOffset-1) /*intentional overflow*/ < current)
+                   & (((U32)((dictLimit-1) - repIndex) >= 3) /* intentional overflow */ & (repIndex > windowLow))
+                  && (ZSTD_readMINMATCH(ip, minMatch) == ZSTD_readMINMATCH(repMatch, minMatch)) ) {
+                    repLen = (U32)ZSTD_count_2segments(ip+minMatch, repMatch+minMatch, iLimit, dictEnd, prefixStart) + minMatch;
+            }   }
+            /* save longer solution */
+            if (repLen > bestLength) {
+                bestLength = repLen;
+                matches[mnum].off = repCode - ll0;
+                matches[mnum].len = (U32)repLen;
+                mnum++;
+                if ( (repLen > ZSTD_OPT_NUM)
+                   | (ip+repLen == iLimit) ) {  /* best possible */
+                    return mnum;
+    }   }   }   }
 
     /* HC3 match finder */
     if ((mls == 3) /*static*/ && (bestLength < mls)) {

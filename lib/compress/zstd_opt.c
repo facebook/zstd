@@ -312,8 +312,6 @@ FORCE_INLINE_TEMPLATE
 
             /* save best solution */
             if (mlen >= mls /* == 3 > bestLength */) {
-                DEBUGLOG(8, "current %u : found short match of size%3u at distance%7u",
-                            current, (U32)mlen, current - matchIndex3);
                 bestLength = mlen;
                 assert(current > matchIndex3);
                 assert(mnum==0);  /* no prior solution */
@@ -511,15 +509,11 @@ size_t ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                     U32 const offset = matches[matchNb].off;
                     U32 const end = matches[matchNb].len;
                     repcodes_t const repHistory = ZSTD_updateRep(rep, offset, ll0);
-                    DEBUGLOG(7, "match %u: starting reps=%u,%u,%u ==> %u,%u,%u",
-                                matchNb, rep[0], rep[1], rep[2], repHistory.rep[0], repHistory.rep[1], repHistory.rep[2])
                     while (pos <= end) {
                         U32 const matchPrice = ZSTD_getPrice(optStatePtr, litlen, anchor, offset, pos, ultra);
                         if (pos > last_pos || matchPrice < opt[pos].price) {
                             DEBUGLOG(7, "rPos:%u => set initial price : %u",
                                         pos, matchPrice);
-                            DEBUGLOG(7, "transferring rep:%u,%u,%u",
-                                        repHistory.rep[0], repHistory.rep[1], repHistory.rep[2]);
                             SET_PRICE(pos, pos, offset, litlen, matchPrice, repHistory);   /* note : macro modifies last_pos */
                         }
                         pos++;
@@ -542,8 +536,6 @@ size_t ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                 if (price <= opt[cur].price) {
                     DEBUGLOG(7, "rPos:%u : better price (%u<%u) using literal",
                                 cur, price, opt[cur].price);
-                    DEBUGLOG(7, "transferring rep:%u,%u,%u",
-                                opt[cur-1].rep[0], opt[cur-1].rep[1], opt[cur-1].rep[2]);
                     SET_PRICE(cur, 1/*mlen*/, 0/*offset*/, litlen, price, opt[cur-1].rep);
             }   }
 
@@ -601,8 +593,6 @@ size_t ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
         best_mlen = opt[last_pos].mlen;
         best_off = opt[last_pos].off;
         cur = last_pos - best_mlen;
-        DEBUGLOG(7, "Preparing path selection : last_pos:%u, cur:%u, best_mlen:%u",
-                    last_pos, cur, best_mlen);
 
 _shortestPath:   /* cur, last_pos, best_mlen, best_off have to be set */
         assert(opt[0].mlen == 1);
@@ -650,8 +640,6 @@ _shortestPath:   /* cur, last_pos, best_mlen, best_off have to be set */
 
                 ZSTD_updatePrice(optStatePtr, llen, anchor, offset, mlen);
                 ZSTD_storeSeq(seqStorePtr, llen, anchor, offset, mlen-MINMATCH);
-                DEBUGLOG(7, "seq: ll:%u,ml:%u,off:%u - rep:%u,%u,%u",
-                            llen, mlen, offset, rep[0], rep[1], rep[2]);
                 anchor = ip;
         }   }
     }   /* for (cur=0; cur < last_pos; ) */

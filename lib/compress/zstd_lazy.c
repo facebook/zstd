@@ -50,12 +50,26 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
     predictedLarge += (predictedLarge>0);
 #endif /* ZSTD_C_PREDICT */
 
+#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG >= 2)
+    g_debuglog_enable = (current <=  8530000);
+#endif
+#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG >= 8)
+    g_debuglog_enable = (current ==  5202593);
+#endif
+    DEBUGLOG(8, "ZSTD_insertBt1 (%u)", current);
+
     assert(ip <= iend-8);   /* required for h calculation */
     hashTable[h] = current;   /* Update Hash Table */
 
     while (nbCompares-- && (matchIndex > windowLow)) {
         U32* const nextPtr = bt + 2*(matchIndex & btMask);
         size_t matchLength = MIN(commonLengthSmaller, commonLengthLarger);   /* guaranteed minimum nb of common bytes */
+
+#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG >= 8)
+        if (current ==  5189477) g_debuglog_enable = 1;
+#endif
+        DEBUGLOG(8, "index%8u evaluated during insertion of %u (presumed min matchLength:%3u) ",
+                    matchIndex, current, (U32)matchLength);
 
 #ifdef ZSTD_C_PREDICT   /* note : can create issues when hlog small <= 11 */
         const U32* predictPtr = bt + 2*((matchIndex-1) & btMask);   /* written this way, as bt is a roll buffer */
@@ -79,14 +93,31 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
 #endif
         if ((!extDict) || (matchIndex+matchLength >= dictLimit)) {
             match = base + matchIndex;
+#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=2)
+            {   size_t const controlSize = ZSTD_count(ip, match, iend);
+                if (controlSize < matchLength) {
+                    DEBUGLOG(2, "Warning !! => matchIndex %u while inserting %u within prefix is smaller than minimum expectation (%u<%u) !",
+                                matchIndex, current, (U32)controlSize, (U32)matchLength);
+            }   }
+#endif
             if (match[matchLength] == ip[matchLength])
                 matchLength += ZSTD_count(ip+matchLength+1, match+matchLength+1, iend) +1;
         } else {
             match = dictBase + matchIndex;
+#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=2)
+            {   size_t const controlSize = ZSTD_count_2segments(ip, match, iend, dictEnd, prefixStart);
+                if (controlSize < matchLength) {
+                    DEBUGLOG(2, "Warning !! => matchIndex %u while inserting %u into _extDict is smaller than minimum expectation (%u<%u) !",
+                                matchIndex, current, (U32)controlSize, (U32)matchLength);
+            }   }
+#endif
             matchLength += ZSTD_count_2segments(ip+matchLength, match+matchLength, iend, dictEnd, prefixStart);
             if (matchIndex+matchLength >= dictLimit)
                 match = base + matchIndex;   /* to prepare for next usage of match[matchLength] */
         }
+
+        DEBUGLOG(8, "matchIndex%8u has %u bytes in common with %u ",
+                    matchIndex, (U32)matchLength, current);
 
         if (matchLength > bestLength) {
             bestLength = matchLength;
@@ -94,11 +125,16 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
                 matchEndIdx = matchIndex + (U32)matchLength;
         }
 
-        if (ip+matchLength == iend)   /* equal : no way to know if inf or sup */
+        if (ip+matchLength == iend) {   /* equal : no way to know if inf or sup */
+            DEBUGLOG(8, "index %u has equal value at length %u as src : cannot determine > or <",
+                        matchIndex, (U32)matchLength);
             break;   /* drop , to guarantee consistency ; miss a bit of compression, but other solutions can corrupt tree */
+        }
 
         if (match[matchLength] < ip[matchLength]) {  /* necessarily within buffer */
             /* match+1 is smaller than current */
+            DEBUGLOG(8, "matchIndex%8u is smaller than %u (%u < %u)",
+                        matchIndex, current, match[matchLength], ip[matchLength]);
             *smallerPtr = matchIndex;             /* update smaller idx */
             commonLengthSmaller = matchLength;    /* all smaller will now have at least this guaranteed common length */
             if (matchIndex <= btLow) { smallerPtr=&dummy32; break; }   /* beyond tree size, stop searching */
@@ -106,6 +142,8 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
             matchIndex = nextPtr[1];              /* new matchIndex larger than previous (closer to current) */
         } else {
             /* match is larger than current */
+            DEBUGLOG(8, "matchIndex%8u is larger than %u (%u < %u)",
+                        matchIndex, current, match[matchLength], ip[matchLength]);
             *largerPtr = matchIndex;
             commonLengthLarger = matchLength;
             if (matchIndex <= btLow) { largerPtr=&dummy32; break; }   /* beyond tree size, stop searching */
@@ -157,9 +195,6 @@ static size_t ZSTD_insertBtAndFindBestMatch (
         size_t matchLength = MIN(commonLengthSmaller, commonLengthLarger);   /* guaranteed minimum nb of common bytes */
         const BYTE* match;
 
-        DEBUGLOG(8, "index%7u evaluated during insertion of %u (presumed min matchLength:%3u) ",
-                    matchIndex, current, (U32)matchLength);
-
         if ((!extDict) || (matchIndex+matchLength >= dictLimit)) {
             match = base + matchIndex;
             if (match[matchLength] == ip[matchLength])
@@ -177,8 +212,6 @@ static size_t ZSTD_insertBtAndFindBestMatch (
             if ( (4*(int)(matchLength-bestLength)) > (int)(ZSTD_highbit32(current-matchIndex+1) - ZSTD_highbit32((U32)offsetPtr[0]+1)) )
                 bestLength = matchLength, *offsetPtr = ZSTD_REP_MOVE + current - matchIndex;
             if (ip+matchLength == iend) {   /* equal : no way to know if inf or sup */
-                DEBUGLOG(8, "index %u has equal value at length %u as src : cannot determine > or <",
-                            matchIndex, (U32)matchLength);
                 break;   /* drop, to guarantee consistency (miss a little bit of compression) */
             }
         }

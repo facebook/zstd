@@ -264,14 +264,10 @@ static U32 ZSTD_insertBtAndGetAllMatches (
     size_t bestLength = minMatchLen-1;
 
 #if defined(ZSTD_DEBUG) && (ZSTD_DEBUG >= 8)
-    static const BYTE* g_start = NULL;
-    if (g_start==NULL) g_start = base;  /* note : index only works for compression within a single segment */
-    {   U32 const pos = (U32)(ip - g_start);
-        g_debuglog_enable = (pos==3673728);
-    }
-    if (current == 8793162) g_debuglog_enable = 1;
+    g_debuglog_enable = (current ==  5202593);
+    //g_debuglog_enable = (current ==  8845622);
+    //if (current == 12193408) g_debuglog_enable = 1;
 #endif
-
 
     /* check repCode */
 #if 0
@@ -293,7 +289,7 @@ static U32 ZSTD_insertBtAndGetAllMatches (
                     matches[mnum].len = (U32)repLen;
                     mnum++;
                     if ( (repLen > ZSTD_OPT_NUM)
-                      || (ip+repLen == iLimit) ) {  /* best possible */
+                       | (ip+repLen == iLimit) ) {  /* best possible */
                         return mnum;
         }   }   }   }
     } else {   /* extDict */
@@ -320,7 +316,7 @@ static U32 ZSTD_insertBtAndGetAllMatches (
                     matches[mnum].len = (U32)repLen;
                     mnum++;
                     if ( (repLen > ZSTD_OPT_NUM)
-                      || (ip+repLen == iLimit) ) {  /* best possible */
+                       | (ip+repLen == iLimit) ) {  /* best possible */
                         return mnum;
         }   }   }   }
     }
@@ -352,10 +348,10 @@ static U32 ZSTD_insertBtAndGetAllMatches (
                 assert(mnum==0);  /* no prior solution */
                 matches[0].off = (current - matchIndex3) + ZSTD_REP_MOVE;
                 matches[0].len = (U32)mlen;
-                mnum=1;
+                mnum = 1;
                 if ( (mlen > ZSTD_OPT_NUM)
-                  || (ip+mlen == iLimit) ) {  /* best possible */
-                    return mnum;
+                   | (ip+mlen == iLimit) ) {  /* best possible */
+                    return 1;
     }   }   }   }
 #endif
 
@@ -373,6 +369,13 @@ static U32 ZSTD_insertBtAndGetAllMatches (
 #endif
         if ((!extDict) || (matchIndex+matchLength >= dictLimit)) {
             match = base + matchIndex;
+#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=2)
+            {   size_t const controlSize = ZSTD_count(ip, match, iLimit);
+                if (controlSize < matchLength) {
+                    DEBUGLOG(2, "Warning !! => matchIndex %u while searching %u within prefix is smaller than minimum expectation (%u<%u) !",
+                                matchIndex, current, (U32)controlSize, (U32)matchLength);
+            }   }
+#endif
             if (match[matchLength] == ip[matchLength]) {
                 matchLength += ZSTD_count(ip+matchLength+1, match+matchLength+1, iLimit) +1;
             }
@@ -388,9 +391,16 @@ static U32 ZSTD_insertBtAndGetAllMatches (
 #endif
         } else {
             match = dictBase + matchIndex;
+#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=2)
+            {   size_t const controlSize = ZSTD_count_2segments(ip, match, iLimit, dictEnd, prefixStart);
+                if (controlSize < matchLength) {
+                    DEBUGLOG(2, "Warning !! => matchIndex %u while searching %u into _extDict is smaller than minimum expectation (%u<%u) !",
+                                matchIndex, current, (U32)controlSize, (U32)matchLength);
+            }   }
+#endif
             matchLength += ZSTD_count_2segments(ip+matchLength, match+matchLength, iLimit, dictEnd, prefixStart);
             if (matchIndex+matchLength >= dictLimit)
-                match = base + matchIndex;   /* to prepare for next usage of match[matchLength] */
+                match = base + matchIndex;   /* prepare for match[matchLength] */
 #if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=8)
             if (matchIndex + 8 < dictLimit)
             {   int i;
@@ -431,7 +441,7 @@ static U32 ZSTD_insertBtAndGetAllMatches (
                         matchIndex, match[matchLength], ip[matchLength], (U32)matchLength);
             {   int i;
                 RAWLOG(8, "index %u: ", matchIndex);
-                for (i=0; i<27; i++) RAWLOG(7," %02X ", match[i]);
+                for (i=0; i<18; i++) RAWLOG(7," %02X ", match[i]);
                 RAWLOG(8, " \n");
             }
 #endif
@@ -445,7 +455,7 @@ static U32 ZSTD_insertBtAndGetAllMatches (
             {   int i;
                 const BYTE* const match2 = (matchIndex < dictLimit) ? dictBase + matchIndex : base + matchIndex;
                 RAWLOG(8, "index %u: ", matchIndex);
-                for (i=0; i<27; i++) RAWLOG(7," %02X ", match2[i]);
+                for (i=0; i<18; i++) RAWLOG(7," %02X ", match2[i]);
                 RAWLOG(8, " \n");
             }
 #endif
@@ -455,7 +465,7 @@ static U32 ZSTD_insertBtAndGetAllMatches (
                         matchIndex, match[matchLength], ip[matchLength], (U32)matchLength);
             {   int i;
                 RAWLOG(8, "index %u: ", matchIndex);
-                for (i=0; i<27; i++) RAWLOG(7," %02X ", match[i]);
+                for (i=0; i<18; i++) RAWLOG(7," %02X ", match[i]);
                 RAWLOG(8, " \n");
             }
 #endif
@@ -469,7 +479,7 @@ static U32 ZSTD_insertBtAndGetAllMatches (
             {   int i;
                 const BYTE* const match2 = (matchIndex < dictLimit) ? dictBase + matchIndex : base + matchIndex;
                 RAWLOG(8, "index %u: ", matchIndex);
-                for (i=0; i<27; i++) RAWLOG(7," %02X ", match2[i]);
+                for (i=0; i<18; i++) RAWLOG(7," %02X ", match2[i]);
                 RAWLOG(8, " \n");
             }
 #endif

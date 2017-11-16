@@ -77,7 +77,7 @@ check: shortest
 
 .PHONY: test shortest
 test shortest:
-	$(MAKE) -C $(PRGDIR) allVariants
+	$(MAKE) -C $(PRGDIR) allVariants MOREFLAGS="-g -DZSTD_DEBUG=1"
 	$(MAKE) -C $(TESTDIR) $@
 
 .PHONY: examples

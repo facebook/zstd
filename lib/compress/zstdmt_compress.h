@@ -112,6 +112,9 @@ ZSTDLIB_API size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
 
 size_t ZSTDMT_CCtxParam_setMTCtxParameter(ZSTD_CCtx_params* params, ZSTDMT_parameter parameter, unsigned value);
 
+/* ZSTDMT_CCtxParam_setNbThreads()
+ * Set nbThreads, and clamp it correctly,
+ * but also reset jobSize and overlapLog */ 
 size_t ZSTDMT_CCtxParam_setNbThreads(ZSTD_CCtx_params* params, unsigned nbThreads);
 
 /*! ZSTDMT_initCStream_internal() :

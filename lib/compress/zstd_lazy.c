@@ -146,14 +146,14 @@ void ZSTD_updateTree(ZSTD_CCtx* zc,
                 const BYTE* const ip, const BYTE* const iend,
                 const U32 nbCompares, const U32 mls)
 {
-    return ZSTD_updateTree_internal(zc, ip, iend, nbCompares, mls, 0 /*extDict*/);
+    ZSTD_updateTree_internal(zc, ip, iend, nbCompares, mls, 0 /*extDict*/);
 }
 
 void ZSTD_updateTree_extDict(ZSTD_CCtx* zc,
                 const BYTE* const ip, const BYTE* const iend,
                 const U32 nbCompares, const U32 mls)
 {
-    return ZSTD_updateTree_internal(zc, ip, iend, nbCompares, mls, 1 /*extDict*/);
+    ZSTD_updateTree_internal(zc, ip, iend, nbCompares, mls, 1 /*extDict*/);
 }
 
 

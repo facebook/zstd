@@ -18,8 +18,9 @@
 /** ZSTD_insertBt1() : add one or multiple positions to tree.
 *   ip : assumed <= iend-8 .
 *   @return : nb of positions added */
-static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, const BYTE* const iend, U32 nbCompares,
-                          U32 extDict)
+static U32 ZSTD_insertBt1(ZSTD_CCtx* zc,
+                const BYTE* const ip, const BYTE* const iend,
+                U32 nbCompares, U32 const mls, U32 const extDict)
 {
     U32*   const hashTable = zc->hashTable;
     U32    const hashLog = zc->appliedParams.cParams.hashLog;
@@ -58,6 +59,7 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
     while (nbCompares-- && (matchIndex > windowLow)) {
         U32* const nextPtr = bt + 2*(matchIndex & btMask);
         size_t matchLength = MIN(commonLengthSmaller, commonLengthLarger);   /* guaranteed minimum nb of common bytes */
+        assert(matchIndex < current);
 
 #ifdef ZSTD_C_PREDICT   /* note : can create issues when hlog small <= 11 */
         const U32* predictPtr = bt + 2*((matchIndex-1) & btMask);   /* written this way, as bt is a roll buffer */
@@ -122,6 +124,36 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc, const BYTE* const ip, const U32 mls, co
     if (bestLength > 384) return MIN(192, (U32)(bestLength - 384));   /* speed optimization */
     if (matchEndIdx > current + 8) return matchEndIdx - (current + 8);
     return 1;
+}
+
+FORCE_INLINE_TEMPLATE
+void ZSTD_updateTree_internal(ZSTD_CCtx* zc,
+                const BYTE* const ip, const BYTE* const iend,
+                const U32 nbCompares, const U32 mls, const U32 extDict)
+{
+    const BYTE* const base = zc->base;
+    U32 const target = (U32)(ip - base);
+    U32 idx = zc->nextToUpdate;
+    DEBUGLOG(7, "ZSTD_updateTree_internal, from %u to %u  (extDict:%u)",
+                idx, target, extDict);
+
+    while(idx < target)
+        idx += ZSTD_insertBt1(zc, base+idx, iend, nbCompares, mls, extDict);
+    zc->nextToUpdate = target;
+}
+
+void ZSTD_updateTree(ZSTD_CCtx* zc,
+                const BYTE* const ip, const BYTE* const iend,
+                const U32 nbCompares, const U32 mls)
+{
+    return ZSTD_updateTree_internal(zc, ip, iend, nbCompares, mls, 0 /*extDict*/);
+}
+
+void ZSTD_updateTree_extDict(ZSTD_CCtx* zc,
+                const BYTE* const ip, const BYTE* const iend,
+                const U32 nbCompares, const U32 mls)
+{
+    return ZSTD_updateTree_internal(zc, ip, iend, nbCompares, mls, 1 /*extDict*/);
 }
 
 
@@ -206,16 +238,6 @@ static size_t ZSTD_insertBtAndFindBestMatch (
 }
 
 
-void ZSTD_updateTree(ZSTD_CCtx* zc, const BYTE* const ip, const BYTE* const iend, const U32 nbCompares, const U32 mls)
-{
-    const BYTE* const base = zc->base;
-    const U32 target = (U32)(ip - base);
-    U32 idx = zc->nextToUpdate;
-
-    while(idx < target)
-        idx += ZSTD_insertBt1(zc, base+idx, mls, iend, nbCompares, 0);
-}
-
 /** ZSTD_BtFindBestMatch() : Tree updater, providing best match */
 static size_t ZSTD_BtFindBestMatch (
                         ZSTD_CCtx* zc,
@@ -243,16 +265,6 @@ static size_t ZSTD_BtFindBestMatch_selectMLS (
     case 7 :
     case 6 : return ZSTD_BtFindBestMatch(zc, ip, iLimit, offsetPtr, maxNbAttempts, 6);
     }
-}
-
-
-void ZSTD_updateTree_extDict(ZSTD_CCtx* zc, const BYTE* const ip, const BYTE* const iend, const U32 nbCompares, const U32 mls)
-{
-    const BYTE* const base = zc->base;
-    const U32 target = (U32)(ip - base);
-    U32 idx = zc->nextToUpdate;
-
-    while (idx < target) idx += ZSTD_insertBt1(zc, base+idx, mls, iend, nbCompares, 1);
 }
 
 

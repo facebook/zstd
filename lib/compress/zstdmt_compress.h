@@ -60,8 +60,8 @@ ZSTDLIB_API size_t ZSTDMT_endStream(ZSTDMT_CCtx* mtctx, ZSTD_outBuffer* output);
 
 /* ===   Advanced functions and parameters  === */
 
-#ifndef ZSTDMT_SECTION_SIZE_MIN
-#  define ZSTDMT_SECTION_SIZE_MIN (1U << 20)   /* 1 MB - Minimum size of each compression job */
+#ifndef ZSTDMT_JOBSIZE_MIN
+#  define ZSTDMT_JOBSIZE_MIN (1U << 20)   /* 1 MB - Minimum size of each compression job */
 #endif
 
 ZSTDLIB_API size_t ZSTDMT_compress_advanced(ZSTDMT_CCtx* mtctx,
@@ -112,7 +112,7 @@ ZSTDLIB_API size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
 
 size_t ZSTDMT_CCtxParam_setMTCtxParameter(ZSTD_CCtx_params* params, ZSTDMT_parameter parameter, unsigned value);
 
-size_t ZSTDMT_initializeCCtxParameters(ZSTD_CCtx_params* params, unsigned nbThreads);
+size_t ZSTDMT_CCtxParam_setNbThreads(ZSTD_CCtx_params* params, unsigned nbThreads);
 
 /*! ZSTDMT_initCStream_internal() :
  *  Private use only. Init streaming operation.

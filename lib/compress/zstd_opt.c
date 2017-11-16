@@ -231,7 +231,7 @@ static U32 ZSTD_insertAndFindFirstIndexHash3 (ZSTD_CCtx* zc, const BYTE* ip)
 /*-*************************************
 *  Binary Tree search
 ***************************************/
-//FORCE_INLINE_TEMPLATE
+FORCE_INLINE_TEMPLATE
 U32 ZSTD_insertBtAndGetAllMatches (
                         ZSTD_CCtx* zc,
                         const BYTE* const ip, const BYTE* const iLimit, const int extDict,

@@ -473,6 +473,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     DISPLAYLEVEL(3, "test%3i : digested dictionary : ", testNb++);
     {   ZSTD_CDict* const cdict = ZSTD_createCDict(dictionary.start, dictionary.filled, 1 /*byRef*/ );
         size_t const initError = ZSTD_initCStream_usingCDict(zc, cdict);
+        DISPLAYLEVEL(5, "ZSTD_initCStream_usingCDict result : %u ", (U32)initError);
         if (ZSTD_isError(initError)) goto _output_error;
         cSize = 0;
         outBuff.dst = compressedBuffer;
@@ -481,10 +482,13 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
         inBuff.src = CNBuffer;
         inBuff.size = CNBufferSize;
         inBuff.pos = 0;
+        DISPLAYLEVEL(5, "- starting ZSTD_compressStream ");
         CHECK_Z( ZSTD_compressStream(zc, &outBuff, &inBuff) );
         if (inBuff.pos != inBuff.size) goto _output_error;   /* entire input should be consumed */
-        { size_t const r = ZSTD_endStream(zc, &outBuff);
-          if (r != 0) goto _output_error; }  /* error, or some data not flushed */
+        {   size_t const r = ZSTD_endStream(zc, &outBuff);
+            DISPLAYLEVEL(5, "- ZSTD_endStream result : %u ", (U32)r);
+            if (r != 0) goto _output_error;  /* error, or some data not flushed */
+        }
         cSize = outBuff.pos;
         ZSTD_freeCDict(cdict);
         DISPLAYLEVEL(3, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/CNBufferSize*100);

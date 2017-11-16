@@ -421,10 +421,10 @@ int main(int argCount, const char* argv[])
     /* preset behaviors */
     if (exeNameMatch(programName, ZSTD_ZSTDMT)) nbThreads=0;
     if (exeNameMatch(programName, ZSTD_UNZSTD)) operation=zom_decompress;
-    if (exeNameMatch(programName, ZSTD_CAT)) { operation=zom_decompress; forceStdout=1; FIO_overwriteMode(); outFileName=stdoutmark; g_displayLevel=1; }
+    if (exeNameMatch(programName, ZSTD_CAT)) { operation=zom_decompress; FIO_setRemoveSrcFile(0); forceStdout=1; FIO_overwriteMode(); outFileName=stdoutmark; g_displayLevel=1; }
     if (exeNameMatch(programName, ZSTD_GZ)) { suffix = GZ_EXTENSION; FIO_setCompressionType(FIO_gzipCompression); FIO_setRemoveSrcFile(1); }    /* behave like gzip */
     if (exeNameMatch(programName, ZSTD_GUNZIP)) { operation=zom_decompress; FIO_setRemoveSrcFile(1); }                                          /* behave like gunzip */
-    if (exeNameMatch(programName, ZSTD_GZCAT)) { operation=zom_decompress; forceStdout=1; FIO_overwriteMode(); outFileName=stdoutmark; g_displayLevel=1; }  /* behave like gzcat */
+    if (exeNameMatch(programName, ZSTD_GZCAT)) { operation=zom_decompress; FIO_setRemoveSrcFile(0); forceStdout=1; FIO_overwriteMode(); outFileName=stdoutmark; g_displayLevel=1; }  /* behave like gzcat */
     if (exeNameMatch(programName, ZSTD_LZMA)) { suffix = LZMA_EXTENSION; FIO_setCompressionType(FIO_lzmaCompression); FIO_setRemoveSrcFile(1); }    /* behave like lzma */
     if (exeNameMatch(programName, ZSTD_UNLZMA)) { operation=zom_decompress; FIO_setCompressionType(FIO_lzmaCompression); FIO_setRemoveSrcFile(1); }    /* behave like unlzma */
     if (exeNameMatch(programName, ZSTD_XZ)) { suffix = XZ_EXTENSION; FIO_setCompressionType(FIO_xzCompression); FIO_setRemoveSrcFile(1); }    /* behave like xz */

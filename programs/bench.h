@@ -17,12 +17,13 @@
 #include "zstd.h"     /* ZSTD_compressionParameters */
 
 int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,const char* dictFileName,
-                   int cLevel, int cLevelLast, ZSTD_compressionParameters* compressionParams, int setRealTimePrio);
+                   int cLevel, int cLevelLast, ZSTD_compressionParameters* compressionParams);
 
 /* Set Parameters */
 void BMK_setNbSeconds(unsigned nbLoops);
 void BMK_setBlockSize(size_t blockSize);
 void BMK_setNbThreads(unsigned nbThreads);
+void BMK_setRealTime(unsigned priority);
 void BMK_setNotificationLevel(unsigned level);
 void BMK_setAdditionalParam(int additionalParam);
 void BMK_setDecodeOnlyMode(unsigned decodeFlag);

@@ -753,6 +753,7 @@ int main(int argCount, const char* argv[])
         BMK_setNotificationLevel(g_displayLevel);
         BMK_setBlockSize(blockSize);
         BMK_setNbThreads(nbThreads);
+        BMK_setRealTime(setRealTimePrio);
         BMK_setNbSeconds(bench_nbSeconds);
         BMK_setLdmFlag(ldmFlag);
         BMK_setLdmMinMatch(g_ldmMinMatch);
@@ -763,7 +764,7 @@ int main(int argCount, const char* argv[])
         if (g_ldmHashEveryLog != LDM_PARAM_DEFAULT) {
             BMK_setLdmHashEveryLog(g_ldmHashEveryLog);
         }
-        BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast, &compressionParams, setRealTimePrio);
+        BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast, &compressionParams);
 #endif
         (void)bench_nbSeconds; (void)blockSize; (void)setRealTimePrio;
         goto _end;

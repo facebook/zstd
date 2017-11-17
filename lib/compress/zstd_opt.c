@@ -588,9 +588,8 @@ size_t ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                     while (mlen <= lastML) {
                         U32 const pos = cur + mlen;
                         U32 const price = basePrice + ZSTD_getPrice(optStatePtr, litlen, baseLiterals, offset, mlen, ultra);
-                        assert(pos < ZSTD_OPT_NUM);
 
-                        if ((pos > last_pos) | (price < opt[pos].price)) {
+                        if ((pos > last_pos) || (price < opt[pos].price)) {
                             DEBUGLOG(7, "rPos:%u => new better price (%u<%u)",
                                         pos, price, opt[pos].price);
                             SET_PRICE(pos, mlen, offset, litlen, price, repHistory);  /* note : macro modifies last_pos */

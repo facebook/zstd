@@ -25,6 +25,7 @@ void BMK_setBlockSize(size_t blockSize);
 void BMK_setNbThreads(unsigned nbThreads);
 void BMK_setRealTime(unsigned priority);
 void BMK_setNotificationLevel(unsigned level);
+void BMK_setSeparateFiles(unsigned separate);
 void BMK_setAdditionalParam(int additionalParam);
 void BMK_setDecodeOnlyMode(unsigned decodeFlag);
 void BMK_setLdmFlag(unsigned ldmFlag);

@@ -377,6 +377,7 @@ int main(int argCount, const char* argv[])
         lastCommand = 0,
         nbThreads = 1,
         setRealTimePrio = 0,
+        separateFiles = 0,
         ldmFlag = 0;
     unsigned bench_nbSeconds = 3;   /* would be better if this value was synchronized from bench */
     size_t blockSize = 0;
@@ -633,6 +634,12 @@ int main(int argCount, const char* argv[])
                         blockSize = readU32FromChar(&argument);
                         break;
 
+                        /* benchmark files separately (hidden option) */
+                    case 'S':
+                        argument++;
+                        separateFiles = 1;
+                        break;
+
 #endif   /* ZSTD_NOBENCH */
 
                         /* nb of threads (hidden option) */
@@ -751,6 +758,7 @@ int main(int argCount, const char* argv[])
     if (operation==zom_bench) {
 #ifndef ZSTD_NOBENCH
         BMK_setNotificationLevel(g_displayLevel);
+        BMK_setSeparateFiles(separateFiles);
         BMK_setBlockSize(blockSize);
         BMK_setNbThreads(nbThreads);
         BMK_setRealTime(setRealTimePrio);

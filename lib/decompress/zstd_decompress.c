@@ -827,9 +827,9 @@ typedef struct {
     FSE_DState_t stateOffb;
     FSE_DState_t stateML;
     size_t prevOffset[ZSTD_REP_NUM];
-    const BYTE* base;
+    const BYTE* prefixStart;
+    const BYTE* dictEnd;
     size_t pos;
-    uPtrDiff gotoDict;
 } seqState_t;
 
 
@@ -1224,8 +1224,8 @@ seq_t ZSTD_decodeSequenceLong(seqState_t* seqState, ZSTD_longOffset_e const long
         BIT_reloadDStream(&seqState->DStream);
 
     {   size_t const pos = seqState->pos + seq.litLength;
-        seq.match = seqState->base + pos - seq.offset;    /* single memory segment */
-        if (seq.offset > pos) seq.match += seqState->gotoDict;   /* separate memory segment */
+        const BYTE* const matchBase = (seq.offset > pos) ? seqState->dictEnd : seqState->prefixStart;
+        seq.match = matchBase + pos - seq.offset;
         seqState->pos = pos + seq.matchLength;
     }
 
@@ -1243,7 +1243,7 @@ HINT_INLINE
 size_t ZSTD_execSequenceLong(BYTE* op,
                              BYTE* const oend, seq_t sequence,
                              const BYTE** litPtr, const BYTE* const litLimit,
-                             const BYTE* const base, const BYTE* const vBase, const BYTE* const dictEnd)
+                             const BYTE* const prefixStart, const BYTE* const dictStart, const BYTE* const dictEnd)
 {
     BYTE* const oLitEnd = op + sequence.litLength;
     size_t const sequenceLength = sequence.litLength + sequence.matchLength;
@@ -1253,21 +1253,21 @@ size_t ZSTD_execSequenceLong(BYTE* op,
     const BYTE* match = sequence.match;
 
     /* check */
-    if (oMatchEnd>oend) return ERROR(dstSize_tooSmall); /* last match must start at a minimum distance of WILDCOPY_OVERLENGTH from oend */
+    if (oMatchEnd > oend) return ERROR(dstSize_tooSmall); /* last match must start at a minimum distance of WILDCOPY_OVERLENGTH from oend */
     if (iLitEnd > litLimit) return ERROR(corruption_detected);   /* over-read beyond lit buffer */
-    if (oLitEnd>oend_w) return ZSTD_execSequenceLast7(op, oend, sequence, litPtr, litLimit, base, vBase, dictEnd);
+    if (oLitEnd > oend_w) return ZSTD_execSequenceLast7(op, oend, sequence, litPtr, litLimit, prefixStart, dictStart, dictEnd);
 
     /* copy Literals */
-    ZSTD_copy8(op, *litPtr);
+    ZSTD_copy8(op, *litPtr);  /* note : op <= oLitEnd <= oend_w == oend - 8 */
     if (sequence.litLength > 8)
         ZSTD_wildcopy(op+8, (*litPtr)+8, sequence.litLength - 8);   /* note : since oLitEnd <= oend-WILDCOPY_OVERLENGTH, no risk of overwrite beyond oend */
     op = oLitEnd;
     *litPtr = iLitEnd;   /* update for next sequence */
 
     /* copy Match */
-    if (sequence.offset > (size_t)(oLitEnd - base)) {
+    if (sequence.offset > (size_t)(oLitEnd - prefixStart)) {
         /* offset beyond prefix */
-        if (sequence.offset > (size_t)(oLitEnd - vBase)) return ERROR(corruption_detected);
+        if (sequence.offset > (size_t)(oLitEnd - dictStart)) return ERROR(corruption_detected);
         if (match + sequence.matchLength <= dictEnd) {
             memmove(oLitEnd, match, sequence.matchLength);
             return sequenceLength;
@@ -1277,7 +1277,7 @@ size_t ZSTD_execSequenceLong(BYTE* op,
             memmove(oLitEnd, match, length1);
             op = oLitEnd + length1;
             sequence.matchLength -= length1;
-            match = base;
+            match = prefixStart;
             if (op > oend_w || sequence.matchLength < MINMATCH) {
               U32 i;
               for (i = 0; i < sequence.matchLength; ++i) op[i] = match[i];
@@ -1331,8 +1331,8 @@ static size_t ZSTD_decompressSequencesLong(
     BYTE* op = ostart;
     const BYTE* litPtr = dctx->litPtr;
     const BYTE* const litEnd = litPtr + dctx->litSize;
-    const BYTE* const base = (const BYTE*) (dctx->base);
-    const BYTE* const vBase = (const BYTE*) (dctx->vBase);
+    const BYTE* const prefixStart = (const BYTE*) (dctx->base);
+    const BYTE* const dictStart = (const BYTE*) (dctx->vBase);
     const BYTE* const dictEnd = (const BYTE*) (dctx->dictEnd);
     int nbSeq;
 
@@ -1353,9 +1353,9 @@ static size_t ZSTD_decompressSequencesLong(
         int seqNb;
         dctx->fseEntropy = 1;
         { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) seqState.prevOffset[i] = dctx->entropy.rep[i]; }
-        seqState.base = base;
-        seqState.pos = (size_t)(op-base);
-        seqState.gotoDict = (uPtrDiff)dictEnd - (uPtrDiff)base; /* cast to avoid undefined behaviour */
+        seqState.prefixStart = prefixStart;
+        seqState.pos = (size_t)(op-prefixStart);
+        seqState.dictEnd = dictEnd;
         CHECK_E(BIT_initDStream(&seqState.DStream, ip, iend-ip), corruption_detected);
         FSE_initDState(&seqState.stateLL, &seqState.DStream, dctx->LLTptr);
         FSE_initDState(&seqState.stateOffb, &seqState.DStream, dctx->OFTptr);
@@ -1370,7 +1370,7 @@ static size_t ZSTD_decompressSequencesLong(
         /* decode and decompress */
         for ( ; (BIT_reloadDStream(&(seqState.DStream)) <= BIT_DStream_completed) && seqNb<nbSeq ; seqNb++) {
             seq_t const sequence = ZSTD_decodeSequenceLong(&seqState, isLongOffset);
-            size_t const oneSeqSize = ZSTD_execSequenceLong(op, oend, sequences[(seqNb-ADVANCED_SEQS) & STOSEQ_MASK], &litPtr, litEnd, base, vBase, dictEnd);
+            size_t const oneSeqSize = ZSTD_execSequenceLong(op, oend, sequences[(seqNb-ADVANCED_SEQS) & STOSEQ_MASK], &litPtr, litEnd, prefixStart, dictStart, dictEnd);
             if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
             PREFETCH(sequence.match);
             sequences[seqNb&STOSEQ_MASK] = sequence;
@@ -1381,7 +1381,7 @@ static size_t ZSTD_decompressSequencesLong(
         /* finish queue */
         seqNb -= seqAdvance;
         for ( ; seqNb<nbSeq ; seqNb++) {
-            size_t const oneSeqSize = ZSTD_execSequenceLong(op, oend, sequences[seqNb&STOSEQ_MASK], &litPtr, litEnd, base, vBase, dictEnd);
+            size_t const oneSeqSize = ZSTD_execSequenceLong(op, oend, sequences[seqNb&STOSEQ_MASK], &litPtr, litEnd, prefixStart, dictStart, dictEnd);
             if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
             op += oneSeqSize;
         }

@@ -56,8 +56,6 @@ MEM_STATIC void MEM_check(void) { MEM_STATIC_ASSERT((sizeof(size_t)==4) || (size
   typedef   int32_t S32;
   typedef  uint64_t U64;
   typedef   int64_t S64;
-  typedef  intptr_t iPtrDiff;
-  typedef uintptr_t uPtrDiff;
 #else
   typedef unsigned char      BYTE;
   typedef unsigned short      U16;
@@ -66,8 +64,6 @@ MEM_STATIC void MEM_check(void) { MEM_STATIC_ASSERT((sizeof(size_t)==4) || (size
   typedef   signed int        S32;
   typedef unsigned long long  U64;
   typedef   signed long long  S64;
-  typedef ptrdiff_t      iPtrDiff;
-  typedef size_t         uPtrDiff;
 #endif
 
 

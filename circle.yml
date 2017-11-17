@@ -24,7 +24,7 @@ test:
       :
         parallel: true
     - ? |
-        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make gppbuild     && make clean; fi &&
+        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make cxxtest      && make clean; fi &&
         if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make gcc5build    && make clean; fi
       :
         parallel: true

@@ -416,10 +416,12 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                             DISPLAY("(sample %u, block %u, pos %u) \n", segNb, bNb, pos);
                             if (u>5) {
                                 int n;
+                                DISPLAY("origin: ");
                                 for (n=-5; n<0; n++) DISPLAY("%02X ", ((const BYTE*)srcBuffer)[u+n]);
                                 DISPLAY(" :%02X:  ", ((const BYTE*)srcBuffer)[u]);
                                 for (n=1; n<3; n++) DISPLAY("%02X ", ((const BYTE*)srcBuffer)[u+n]);
                                 DISPLAY(" \n");
+                                DISPLAY("decode: ");
                                 for (n=-5; n<0; n++) DISPLAY("%02X ", ((const BYTE*)resultBuffer)[u+n]);
                                 DISPLAY(" :%02X:  ", ((const BYTE*)resultBuffer)[u]);
                                 for (n=1; n<3; n++) DISPLAY("%02X ", ((const BYTE*)resultBuffer)[u+n]);

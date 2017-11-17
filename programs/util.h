@@ -336,7 +336,7 @@ UTIL_STATIC U64 UTIL_getFileSize(const char* infilename)
 }
 
 
-UTIL_STATIC U64 UTIL_getTotalFileSize(const char** fileNamesTable, unsigned nbFiles)
+UTIL_STATIC U64 UTIL_getTotalFileSize(const char* const * const fileNamesTable, unsigned nbFiles)
 {
     U64 total = 0;
     int error = 0;

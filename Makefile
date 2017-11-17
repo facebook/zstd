@@ -130,11 +130,6 @@ uninstall:
 travis-install:
 	$(MAKE) install PREFIX=~/install_test_dir
 
-.PHONY: gppbuild
-gppbuild: clean
-	g++ -v
-	CC=g++ $(MAKE) -C programs all CFLAGS="-O3 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror"
-
 .PHONY: gcc5build
 gcc5build: clean
 	gcc-5 -v

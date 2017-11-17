@@ -622,7 +622,7 @@ static void BMK_benchFileTable(const char* const * const fileNamesTable, unsigne
 }
 
 
-static void BMK_syntheticTest(int cLevel, int cLevelLast, double compressibility, ZSTD_compressionParameters* compressionParams)
+static void BMK_syntheticTest(int cLevel, int cLevelLast, double compressibility, const ZSTD_compressionParameters* compressionParams)
 {
     char name[20] = {0};
     size_t benchedSize = 10000000;
@@ -643,10 +643,10 @@ static void BMK_syntheticTest(int cLevel, int cLevelLast, double compressibility
 }
 
 
-int BMK_benchFiles(const char** const fileNamesTable, unsigned const nbFiles,
+int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,
                    const char* dictFileName,
                    int cLevel, int cLevelLast,
-                   ZSTD_compressionParameters* compressionParams)
+                   const ZSTD_compressionParameters* compressionParams)
 {
     double const compressibility = (double)g_compressibilityDefault / 100;
 

@@ -135,6 +135,11 @@ void BMK_setRealTime(unsigned priority) {
     g_realTime = (priority>0);
 }
 
+static U32 g_separateFiles = 0;
+void BMK_setSeparateFiles(unsigned separate) {
+    g_separateFiles = (separate>0);
+}
+
 static U32 g_ldmFlag = 0;
 void BMK_setLdmFlag(unsigned ldmFlag) {
     g_ldmFlag = ldmFlag;
@@ -482,11 +487,11 @@ static size_t BMK_findMaxMem(U64 requiredMem)
     return (size_t)(requiredMem);
 }
 
-static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
+static void BMK_benchCLevel(const void* srcBuffer, size_t benchedSize,
                             const char* displayName, int cLevel, int cLevelLast,
                             const size_t* fileSizes, unsigned nbFiles,
                             const void* dictBuffer, size_t dictBufferSize,
-                            ZSTD_compressionParameters *compressionParams)
+                            const ZSTD_compressionParameters* const compressionParams)
 {
     int l;
 
@@ -518,7 +523,7 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
     At most, fills `buffer` entirely */
 static void BMK_loadFiles(void* buffer, size_t bufferSize,
                           size_t* fileSizes,
-                          const char** fileNamesTable, unsigned nbFiles)
+                          const char* const * const fileNamesTable, unsigned nbFiles)
 {
     size_t pos = 0, totalSize = 0;
     unsigned n;
@@ -550,16 +555,17 @@ static void BMK_loadFiles(void* buffer, size_t bufferSize,
     if (totalSize == 0) EXM_THROW(12, "no data to bench");
 }
 
-static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles, const char* dictFileName, int cLevel,
-                               int cLevelLast, ZSTD_compressionParameters *compressionParams)
+static void BMK_benchFileTable(const char* const * const fileNamesTable, unsigned const nbFiles,
+                               const char* const dictFileName,
+                               int const cLevel, int const cLevelLast,
+                               const ZSTD_compressionParameters* const compressionParams)
 {
     void* srcBuffer;
     size_t benchedSize;
     void* dictBuffer = NULL;
     size_t dictBufferSize = 0;
-    size_t* fileSizes = (size_t*)malloc(nbFiles * sizeof(size_t));
+    size_t* const fileSizes = (size_t*)malloc(nbFiles * sizeof(size_t));
     U64 const totalSizeToLoad = UTIL_getTotalFileSize(fileNamesTable, nbFiles);
-    char mfName[20] = {0};
 
     if (!fileSizes) EXM_THROW(12, "not enough memory for fileSizes");
 
@@ -588,13 +594,26 @@ static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles, co
     BMK_loadFiles(srcBuffer, benchedSize, fileSizes, fileNamesTable, nbFiles);
 
     /* Bench */
-    snprintf (mfName, sizeof(mfName), " %u files", nbFiles);
-    {   const char* const displayName = (nbFiles > 1) ? mfName : fileNamesTable[0];
-        BMK_benchCLevel(srcBuffer, benchedSize,
-                        displayName, cLevel, cLevelLast,
-                        fileSizes, nbFiles,
-                        dictBuffer, dictBufferSize, compressionParams);
-    }
+    if (g_separateFiles) {
+        const BYTE* srcPtr = (const BYTE*)srcBuffer;
+        U32 fileNb;
+        for (fileNb=0; fileNb<nbFiles; fileNb++) {
+            size_t const fileSize = fileSizes[fileNb];
+            BMK_benchCLevel(srcPtr, fileSize,
+                            fileNamesTable[fileNb], cLevel, cLevelLast,
+                            fileSizes+fileNb, 1,
+                            dictBuffer, dictBufferSize, compressionParams);
+            srcPtr += fileSize;
+        }
+    } else {
+        char mfName[20] = {0};
+        snprintf (mfName, sizeof(mfName), " %u files", nbFiles);
+        {   const char* const displayName = (nbFiles > 1) ? mfName : fileNamesTable[0];
+            BMK_benchCLevel(srcBuffer, benchedSize,
+                            displayName, cLevel, cLevelLast,
+                            fileSizes, nbFiles,
+                            dictBuffer, dictBufferSize, compressionParams);
+    }   }
 
     /* clean up */
     free(srcBuffer);

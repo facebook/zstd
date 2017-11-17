@@ -131,14 +131,11 @@ zbufftest-dll : $(ZSTDDIR)/common/xxhash.c $(PRGDIR)/datagen.c zbufftest.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@$(EXT)
 
 ZSTREAMFILES := $(ZSTD_FILES) $(ZDICT_FILES) $(PRGDIR)/datagen.c seqgen.c zstreamtest.c
-zstreamtest : CPPFLAGS += $(MULTITHREAD_CPP)
-zstreamtest : LDFLAGS += $(MULTITHREAD_LD)
-zstreamtest : $(ZSTREAMFILES)
-	$(CC) $(FLAGS) $^ -o $@$(EXT)
-
 zstreamtest32 : CFLAGS += -m32
-zstreamtest32 : $(ZSTREAMFILES)
-	$(CC) $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
+zstreamtest zstreamtest32 : CPPFLAGS += $(MULTITHREAD_CPP)
+zstreamtest zstreamtest32 : LDFLAGS += $(MULTITHREAD_LD)
+zstreamtest zstreamtest32 : $(ZSTREAMFILES)
+	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
 zstreamtest_asan : CFLAGS += -fsanitize=address
 zstreamtest_asan : $(ZSTREAMFILES)

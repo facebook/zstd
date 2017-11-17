@@ -1225,7 +1225,8 @@ seq_t ZSTD_decodeSequenceLong(seqState_t* seqState, ZSTD_longOffset_e const long
 
     {   size_t const pos = seqState->pos + seq.litLength;
         const BYTE* const matchBase = (seq.offset > pos) ? seqState->dictEnd : seqState->prefixStart;
-        seq.match = matchBase + pos - seq.offset;
+        seq.match = matchBase + pos - seq.offset;  /* note : this operation can overflow when seq.offset is really too large, which can only happen when input is corrupted.
+                                                    * No consequence though : no memory access will occur, overly large offset will be detected in ZSTD_execSequenceLong() */
         seqState->pos = pos + seq.matchLength;
     }
 
@@ -1372,7 +1373,7 @@ static size_t ZSTD_decompressSequencesLong(
             seq_t const sequence = ZSTD_decodeSequenceLong(&seqState, isLongOffset);
             size_t const oneSeqSize = ZSTD_execSequenceLong(op, oend, sequences[(seqNb-ADVANCED_SEQS) & STOSEQ_MASK], &litPtr, litEnd, prefixStart, dictStart, dictEnd);
             if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
-            PREFETCH(sequence.match);
+            PREFETCH(sequence.match);  /* note : it's safe to invoke PREFETCH() on any memory address, including invalid ones */
             sequences[seqNb&STOSEQ_MASK] = sequence;
             op += oneSeqSize;
         }

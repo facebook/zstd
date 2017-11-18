@@ -1819,17 +1819,21 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* cctx,
         cctx->stage = ZSTDcs_ongoing;
     }
 
+    if (!srcSize) return fhSize;  /* do not generate an empty block if no input */
+
     /* Check if blocks follow each other */
     if (src != cctx->nextSrc) {
         /* not contiguous */
-        ptrdiff_t const delta = cctx->nextSrc - ip;
+        size_t const distanceFromBase = (size_t)(cctx->nextSrc - cctx->base);
         cctx->lowLimit = cctx->dictLimit;
-        cctx->dictLimit = (U32)(cctx->nextSrc - cctx->base);
+        assert(distanceFromBase == (size_t)(U32)distanceFromBase);  /* should never overflow */
+        cctx->dictLimit = (U32)distanceFromBase;
         cctx->dictBase = cctx->base;
-        cctx->base -= delta;
+        cctx->base = ip - distanceFromBase;
         cctx->nextToUpdate = cctx->dictLimit;
         if (cctx->dictLimit - cctx->lowLimit < HASH_READ_SIZE) cctx->lowLimit = cctx->dictLimit;   /* too small extDict */
     }
+    cctx->nextSrc = ip + srcSize;
 
     /* if input and dictionary overlap : reduce dictionary (area presumed modified by input) */
     if ((ip+srcSize > cctx->dictBase + cctx->lowLimit) & (ip < cctx->dictBase + cctx->dictLimit)) {
@@ -1838,17 +1842,13 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* cctx,
         cctx->lowLimit = lowLimitMax;
     }
 
-    cctx->nextSrc = ip + srcSize;
-
-    if (srcSize) {
-        size_t const cSize = frame ?
+    {   size_t const cSize = frame ?
                              ZSTD_compress_frameChunk (cctx, dst, dstCapacity, src, srcSize, lastFrameChunk) :
                              ZSTD_compressBlock_internal (cctx, dst, dstCapacity, src, srcSize);
         if (ZSTD_isError(cSize)) return cSize;
         cctx->consumedSrcSize += srcSize;
         return cSize + fhSize;
-    } else
-        return fhSize;
+    }
 }
 
 size_t ZSTD_compressContinue (ZSTD_CCtx* cctx,

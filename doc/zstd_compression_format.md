@@ -91,10 +91,10 @@ Overview
 
 Frames
 ------
-Zstandard compressed data is made of up one or more __frames__.
+Zstandard compressed data is made of one or more __frames__.
 Each frame is independent and can be decompressed indepedently of other frames.
 The decompressed content of multiple concatenated frames is the concatenation of
-each frames decompressed content.
+each frame decompressed content.
 
 There are two frame formats defined by Zstandard:
   Zstandard frames and Skippable frames.
@@ -182,7 +182,7 @@ data must be regenerated within a single continuous memory segment.
 In this case, `Window_Descriptor` byte is skipped,
 but `Frame_Content_Size` is necessarily present.
 As a consequence, the decoder must allocate a memory segment
-of size equal or bigger than `Frame_Content_Size`.
+of size equal or larger than `Frame_Content_Size`.
 
 In order to preserve the decoder from unreasonable memory requirements,
 a decoder is allowed to reject a compressed frame

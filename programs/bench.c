@@ -356,9 +356,14 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                 { U32 blockNb; for (blockNb=0; blockNb<nbBlocks; blockNb++) cSize += blockTable[blockNb].cSize; }
                 ratio = (double)srcSize / (double)cSize;
                 markNb = (markNb+1) % NB_MARKS;
-                DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.3f),%6.1f MB/s\r",
-                        marks[markNb], displayName, (U32)srcSize, (U32)cSize,
-                        ratio, (double)srcSize / fastestC );
+                {   int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
+                    double const compressionSpeed = (double)srcSize / fastestC;
+                    int const cSpeedAccuracy = (compressionSpeed < 10.) ? 2 : 1;
+                    DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.*f),%6.*f MB/s\r",
+                            marks[markNb], displayName, (U32)srcSize, (U32)cSize,
+                            ratioAccuracy, ratio,
+                            cSpeedAccuracy, compressionSpeed );
+                }
             } else {   /* g_decodeOnly */
                 memcpy(compressedBuffer, srcBuffer, loadedCompressedSize);
             }
@@ -403,10 +408,16 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
             }   }
 
             markNb = (markNb+1) % NB_MARKS;
-            DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.3f),%6.1f MB/s ,%6.1f MB/s\r",
-                    marks[markNb], displayName, (U32)srcSize, (U32)cSize, ratio,
-                    (double)srcSize / fastestC,
-                    (double)srcSize / fastestD );
+            {   int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
+                double const compressionSpeed = (double)srcSize / fastestC;
+                int const cSpeedAccuracy = (compressionSpeed < 10.) ? 2 : 1;
+                double const decompressionSpeed = (double)srcSize / fastestD;
+                DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.*f),%6.*f MB/s ,%6.1f MB/s \r",
+                        marks[markNb], displayName, (U32)srcSize, (U32)cSize,
+                        ratioAccuracy, ratio,
+                        cSpeedAccuracy, compressionSpeed,
+                        decompressionSpeed);
+            }
 
             /* CRC Checking */
             {   U64 const crcCheck = XXH64(resultBuffer, srcSize, 0);
@@ -448,7 +459,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
 #endif
         }   /* for (testNb = 1; testNb <= (g_nbSeconds + !g_nbSeconds); testNb++) */
 
-        if (g_displayLevel == 1) {
+        if (g_displayLevel == 1) {   /* hidden display mode -q, used by python speed benchmark */
             double cSpeed = (double)srcSize / fastestC;
             double dSpeed = (double)srcSize / fastestD;
             if (g_additionalParam)

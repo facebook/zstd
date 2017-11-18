@@ -141,6 +141,21 @@ static void INThandler(int sig)
     DISPLAY("\n");
     exit(2);
 }
+static void addHandler(char const* dstFileName)
+{
+    if (UTIL_isRegularFile(dstFileName)) {
+        g_artefact = dstFileName;
+        signal(SIGINT, INThandler);
+    } else {
+        g_artefact = NULL;
+    }
+}
+/* Idempotent */
+static void clearHandler(void)
+{
+    if (g_artefact) signal(SIGINT, SIG_DFL);
+    g_artefact = NULL;
+}
 
 
 /* ************************************************************
@@ -841,6 +856,10 @@ static int FIO_compressFilename_srcFile(cRess_t ress,
 
     fclose(ress.srcFile);
     if (g_removeSrcFile /* --rm */ && !result && strcmp(srcFileName, stdinmark)) {
+        /* We must clear the handler, since after this point calling it would
+         * delete both the source and destination files.
+         */
+        clearHandler();
         if (remove(srcFileName))
             EXM_THROW(1, "zstd: %s: %s", srcFileName, strerror(errno));
     }
@@ -863,18 +882,16 @@ static int FIO_compressFilename_dstFile(cRess_t ress,
 
     ress.dstFile = FIO_openDstFile(dstFileName);
     if (ress.dstFile==NULL) return 1;  /* could not open dstFileName */
-
-    if (UTIL_isRegularFile(dstFileName)) {
-        g_artefact = dstFileName;
-        signal(SIGINT, INThandler);
-    } else {
-        g_artefact = NULL;
-    }
-
+    /* Must ony be added after FIO_openDstFile() succeeds.
+     * Otherwise we may delete the destination file if at already exists, and
+     * the user presses Ctrl-C when asked if they wish to overwrite.
+     */
+    addHandler(dstFileName);
 
     if (strcmp (srcFileName, stdinmark) && UTIL_getFileStat(srcFileName, &statbuf))
         stat_result = 1;
     result = FIO_compressFilename_srcFile(ress, dstFileName, srcFileName, compressionLevel);
+    clearHandler();
 
     if (fclose(ress.dstFile)) { /* error closing dstFile */
         DISPLAYLEVEL(1, "zstd: %s: %s \n", dstFileName, strerror(errno));
@@ -886,8 +903,6 @@ static int FIO_compressFilename_dstFile(cRess_t ress,
     }
     else if (strcmp (dstFileName, stdoutmark) && stat_result)
         UTIL_setFileStat(dstFileName, &statbuf);
-
-    signal(SIGINT, SIG_DFL);
 
     return result;
 }
@@ -1552,6 +1567,10 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* dstFileName, const ch
     if ( g_removeSrcFile /* --rm */
       && (result==0)     /* decompression successful */
       && strcmp(srcFileName, stdinmark) ) /* not stdin */ {
+        /* We must clear the handler, since after this point calling it would
+         * delete both the source and destination files.
+         */
+        clearHandler();
         if (remove(srcFileName)) {
             /* failed to remove src file */
             DISPLAYLEVEL(1, "zstd: %s: %s \n", srcFileName, strerror(errno));
@@ -1575,18 +1594,17 @@ static int FIO_decompressDstFile(dRess_t ress,
 
     ress.dstFile = FIO_openDstFile(dstFileName);
     if (ress.dstFile==0) return 1;
-
-    if (UTIL_isRegularFile(dstFileName)) {
-        g_artefact = dstFileName;
-        signal(SIGINT, INThandler);
-    } else {
-        g_artefact = NULL;
-    }
+    /* Must ony be added after FIO_openDstFile() succeeds.
+     * Otherwise we may delete the destination file if at already exists, and
+     * the user presses Ctrl-C when asked if they wish to overwrite.
+     */
+    addHandler(dstFileName);
 
     if ( strcmp(srcFileName, stdinmark)
       && UTIL_getFileStat(srcFileName, &statbuf) )
         stat_result = 1;
     result = FIO_decompressSrcFile(ress, dstFileName, srcFileName);
+    clearHandler();
 
     if (fclose(ress.dstFile)) {
         DISPLAYLEVEL(1, "zstd: %s: %s \n", dstFileName, strerror(errno));

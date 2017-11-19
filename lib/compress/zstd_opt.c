@@ -13,7 +13,7 @@
 #include "zstd_lazy.h"   /* ZSTD_updateTree, ZSTD_updateTree_extDict */
 
 
-#define ZSTD_LITFREQ_ADD    2   /* sort of scaling factor for litSum and litFreq (why the need ?), but also used for matchSum ? */
+#define ZSTD_LITFREQ_ADD    2   /* scaling factor for litFreq, so that frequencies adapt faster to new stats. Also used for matchSum (?) */
 #define ZSTD_FREQ_DIV       4   /* log factor when using previous stats to init next stats */
 #define ZSTD_MAX_PRICE     (1<<30)
 
@@ -161,25 +161,26 @@ FORCE_INLINE_TEMPLATE U32 ZSTD_getPrice(optState_t* optPtr, U32 litLength, const
 }
 
 
-static void ZSTD_updatePrice(optState_t* optPtr, U32 litLength, const BYTE* literals, U32 offset, U32 matchLength)
+static void ZSTD_updateStats(optState_t* optPtr, U32 litLength, const BYTE* literals, U32 offsetCode, U32 matchLength)
 {
-    U32 u;
-
     /* literals */
-    optPtr->litSum += litLength*ZSTD_LITFREQ_ADD;
-    for (u=0; u < litLength; u++)
-        optPtr->litFreq[literals[u]] += ZSTD_LITFREQ_ADD;
+    {   U32 u;
+        optPtr->litSum += litLength*ZSTD_LITFREQ_ADD;
+        for (u=0; u < litLength; u++)
+            optPtr->litFreq[literals[u]] += ZSTD_LITFREQ_ADD;
+    }
 
     /* literal Length */
-    {   const U32 llCode = ZSTD_LLcode(litLength);
+    {   U32 const llCode = ZSTD_LLcode(litLength);
         optPtr->litLengthFreq[llCode]++;
         optPtr->litLengthSum++;
     }
 
-    /* match offset */
-    {   BYTE const offCode = (BYTE)ZSTD_highbit32(offset+1);
-        optPtr->offCodeSum++;
+    /* match offset code (0-2=>repCode; 3+=>offset+2) */
+    {   U32 const offCode = ZSTD_highbit32(offsetCode+1);
+        assert(offCode <= MaxOff);
         optPtr->offCodeFreq[offCode]++;
+        optPtr->offCodeSum++;
     }
 
     /* match Length */
@@ -188,8 +189,6 @@ static void ZSTD_updatePrice(optState_t* optPtr, U32 litLength, const BYTE* lite
         optPtr->matchLengthFreq[mlCode]++;
         optPtr->matchLengthSum++;
     }
-
-    ZSTD_setLog2Prices(optPtr);
 }
 
 
@@ -646,10 +645,11 @@ _shortestPath:   /* cur, last_pos, best_mlen, best_off have to be set */
                     }
                 }
 
-                ZSTD_updatePrice(optStatePtr, llen, anchor, offset, mlen);
+                ZSTD_updateStats(optStatePtr, llen, anchor, offset, mlen);
                 ZSTD_storeSeq(seqStorePtr, llen, anchor, offset, mlen-MINMATCH);
                 anchor = ip;
         }   }
+        ZSTD_setLog2Prices(optStatePtr);
     }   /* for (cur=0; cur < last_pos; ) */
 
     /* Save reps for next block */

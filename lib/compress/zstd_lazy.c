@@ -16,8 +16,8 @@
 *  Binary Tree search
 ***************************************/
 /** ZSTD_insertBt1() : add one or multiple positions to tree.
-*   ip : assumed <= iend-8 .
-*   @return : nb of positions added */
+ *  ip : assumed <= iend-8 .
+ * @return : nb of positions added */
 static U32 ZSTD_insertBt1(ZSTD_CCtx* zc,
                 const BYTE* const ip, const BYTE* const iend,
                 U32 nbCompares, U32 const mls, U32 const extDict)
@@ -42,7 +42,7 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc,
     U32* largerPtr  = smallerPtr + 1;
     U32 dummy32;   /* to be nullified at the end */
     U32 const windowLow = zc->lowLimit;
-    U32 matchEndIdx = current+8;
+    U32 matchEndIdx = current+8+1;
     size_t bestLength = 8;
 #ifdef ZSTD_C_PREDICT
     U32 predictedSmall = *(bt + 2*((current-1)&btMask) + 0);
@@ -122,8 +122,8 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc,
 
     *smallerPtr = *largerPtr = 0;
     if (bestLength > 384) return MIN(192, (U32)(bestLength - 384));   /* speed optimization */
-    if (matchEndIdx > current + 8) return matchEndIdx - (current + 8);
-    return 1;
+    assert(matchEndIdx > current + 8);
+    return matchEndIdx - (current + 8);
 }
 
 FORCE_INLINE_TEMPLATE
@@ -182,7 +182,7 @@ static size_t ZSTD_insertBtAndFindBestMatch (
     const U32 windowLow = zc->lowLimit;
     U32* smallerPtr = bt + 2*(current&btMask);
     U32* largerPtr  = bt + 2*(current&btMask) + 1;
-    U32 matchEndIdx = current+8;
+    U32 matchEndIdx = current+8+1;
     U32 dummy32;   /* to be nullified at the end */
     size_t bestLength = 0;
 
@@ -233,7 +233,8 @@ static size_t ZSTD_insertBtAndFindBestMatch (
 
     *smallerPtr = *largerPtr = 0;
 
-    zc->nextToUpdate = (matchEndIdx > current + 8) ? matchEndIdx - 8 : current+1;   /* skip repetitive patterns */
+    assert(matchEndIdx > current+8);
+    zc->nextToUpdate = matchEndIdx - 8;   /* skip repetitive patterns */
     return bestLength;
 }
 

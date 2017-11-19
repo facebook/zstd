@@ -310,8 +310,8 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
 }
 
 
-const char* g_stratName[ZSTD_btultra] = {
-                "ZSTD_fast    ", "ZSTD_dfast   ",
+const char* g_stratName[ZSTD_btultra+1] = {
+                "(none)       ", "ZSTD_fast    ", "ZSTD_dfast   ",
                 "ZSTD_greedy  ", "ZSTD_lazy    ", "ZSTD_lazy2   ",
                 "ZSTD_btlazy2 ", "ZSTD_btopt   ", "ZSTD_btultra "};
 

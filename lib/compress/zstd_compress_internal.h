@@ -347,13 +347,17 @@ MEM_STATIC size_t ZSTD_count(const BYTE* pIn, const BYTE* pMatch, const BYTE* co
     const BYTE* const pStart = pIn;
     const BYTE* const pInLoopLimit = pInLimit - (sizeof(size_t)-1);
 
-    while (pIn < pInLoopLimit) {
-        size_t const diff = MEM_readST(pMatch) ^ MEM_readST(pIn);
-        if (!diff) { pIn+=sizeof(size_t); pMatch+=sizeof(size_t); continue; }
-        pIn += ZSTD_NbCommonBytes(diff);
-        return (size_t)(pIn - pStart);
-    }
-    if (MEM_64bits()) if ((pIn<(pInLimit-3)) && (MEM_read32(pMatch) == MEM_read32(pIn))) { pIn+=4; pMatch+=4; }
+    if (pIn < pInLoopLimit) {
+        { size_t const diff = MEM_readST(pMatch) ^ MEM_readST(pIn);
+          if (diff) return ZSTD_NbCommonBytes(diff); }
+        pIn+=sizeof(size_t); pMatch+=sizeof(size_t);
+        while (pIn < pInLoopLimit) {
+            size_t const diff = MEM_readST(pMatch) ^ MEM_readST(pIn);
+            if (!diff) { pIn+=sizeof(size_t); pMatch+=sizeof(size_t); continue; }
+            pIn += ZSTD_NbCommonBytes(diff);
+            return (size_t)(pIn - pStart);
+    }   }
+    if (MEM_64bits() && (pIn<(pInLimit-3)) && (MEM_read32(pMatch) == MEM_read32(pIn))) { pIn+=4; pMatch+=4; }
     if ((pIn<(pInLimit-1)) && (MEM_read16(pMatch) == MEM_read16(pIn))) { pIn+=2; pMatch+=2; }
     if ((pIn<pInLimit) && (*pMatch == *pIn)) pIn++;
     return (size_t)(pIn - pStart);

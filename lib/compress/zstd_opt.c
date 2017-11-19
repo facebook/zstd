@@ -263,7 +263,7 @@ U32 ZSTD_insertBtAndGetAllMatches (
     U32 const windowLow = zc->lowLimit;
     U32* smallerPtr = bt + 2*(current&btMask);
     U32* largerPtr  = bt + 2*(current&btMask) + 1;
-    U32 matchEndIdx = current+8;   /* farthest referenced position of any match => detects repetitive patterns */
+    U32 matchEndIdx = current+8+1;   /* farthest referenced position of any match => detects repetitive patterns */
     U32 dummy32;   /* to be nullified at the end */
     U32 mnum = 0;
 
@@ -328,8 +328,9 @@ U32 ZSTD_insertBtAndGetAllMatches (
                 matches[0].off = (current - matchIndex3) + ZSTD_REP_MOVE;
                 matches[0].len = (U32)mlen;
                 mnum = 1;
-                if ( (mlen > sufficient_len)
-                   | (ip+mlen == iLimit) ) {  /* best possible */
+                if ( (mlen > sufficient_len) |
+                     (ip+mlen == iLimit) ) {  /* best possible length */
+                    zc->nextToUpdate = current+1;  /* skip insertion */
                     return 1;
     }   }   }   }
 
@@ -387,7 +388,8 @@ U32 ZSTD_insertBtAndGetAllMatches (
 
     *smallerPtr = *largerPtr = 0;
 
-    zc->nextToUpdate = (matchEndIdx > current + 8) ? matchEndIdx - 8 : current+1;  /* skip repetitive patterns */
+    assert(matchEndIdx > current+8);
+    zc->nextToUpdate = matchEndIdx - 8;  /* skip repetitive patterns */
     return mnum;
 }
 

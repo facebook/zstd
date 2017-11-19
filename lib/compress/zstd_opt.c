@@ -345,9 +345,8 @@ U32 ZSTD_insertBtAndGetAllMatches (
         if ((!extDict) || (matchIndex+matchLength >= dictLimit)) {
             assert(matchIndex+matchLength >= dictLimit);  /* ensure the condition is correct when !extDict */
             match = base + matchIndex;
-            if (match[matchLength] == ip[matchLength]) {
-                matchLength += ZSTD_count(ip+matchLength+1, match+matchLength+1, iLimit) +1;
-            }
+            //if (match[matchLength] == ip[matchLength]) { matchLength += ZSTD_count(ip+matchLength+1, match+matchLength+1, iLimit) +1; }
+            matchLength += ZSTD_count(ip+matchLength, match+matchLength, iLimit);
         } else {
             match = dictBase + matchIndex;
             matchLength += ZSTD_count_2segments(ip+matchLength, match+matchLength, iLimit, dictEnd, prefixStart);

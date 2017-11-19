@@ -85,8 +85,8 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc,
         if ((!extDict) || (matchIndex+matchLength >= dictLimit)) {
             assert(matchIndex+matchLength >= dictLimit);   /* might be wrong if extDict is incorrectly set to 0 */
             match = base + matchIndex;
-            if (match[matchLength] == ip[matchLength])
-                matchLength += ZSTD_count(ip+matchLength+1, match+matchLength+1, iend) +1;
+            //if (match[matchLength] == ip[matchLength]) matchLength += ZSTD_count(ip+matchLength+1, match+matchLength+1, iend) +1;
+            matchLength += ZSTD_count(ip+matchLength, match+matchLength, iend);
         } else {
             match = dictBase + matchIndex;
             matchLength += ZSTD_count_2segments(ip+matchLength, match+matchLength, iend, dictEnd, prefixStart);
@@ -196,8 +196,8 @@ static size_t ZSTD_insertBtAndFindBestMatch (
 
         if ((!extDict) || (matchIndex+matchLength >= dictLimit)) {
             match = base + matchIndex;
-            if (match[matchLength] == ip[matchLength])
-                matchLength += ZSTD_count(ip+matchLength+1, match+matchLength+1, iend) +1;
+            //if (match[matchLength] == ip[matchLength]) matchLength += ZSTD_count(ip+matchLength+1, match+matchLength+1, iend) +1;
+            matchLength += ZSTD_count(ip+matchLength, match+matchLength, iend);
         } else {
             match = dictBase + matchIndex;
             matchLength += ZSTD_count_2segments(ip+matchLength, match+matchLength, iend, dictEnd, prefixStart);
@@ -355,14 +355,14 @@ size_t ZSTD_HcFindBestMatch_generic (
     U32 matchIndex = ZSTD_insertAndFindFirstIndex (zc, ip, mls);
 
     for ( ; (matchIndex>lowLimit) & (nbAttempts>0) ; nbAttempts--) {
-        const BYTE* match;
         size_t currentMl=0;
         if ((!extDict) || matchIndex >= dictLimit) {
-            match = base + matchIndex;
+            const BYTE* const match = base + matchIndex;
             if (match[ml] == ip[ml])   /* potentially better */
                 currentMl = ZSTD_count(ip, match, iLimit);
         } else {
-            match = dictBase + matchIndex;
+            const BYTE* const match = dictBase + matchIndex;
+            assert(match+4 <= dictEnd);
             if (MEM_read32(match) == MEM_read32(ip))   /* assumption : matchIndex <= dictLimit-4 (by table construction) */
                 currentMl = ZSTD_count_2segments(ip+4, match+4, iLimit, dictEnd, prefixStart) + 4;
         }
@@ -400,10 +400,10 @@ FORCE_INLINE_TEMPLATE size_t ZSTD_HcFindBestMatch_selectMLS (
 
 
 FORCE_INLINE_TEMPLATE size_t ZSTD_HcFindBestMatch_extDict_selectMLS (
-                        ZSTD_CCtx* zc,
+                        ZSTD_CCtx* const zc,
                         const BYTE* ip, const BYTE* const iLimit,
-                        size_t* offsetPtr,
-                        const U32 maxNbAttempts, const U32 matchLengthSearch)
+                        size_t* const offsetPtr,
+                        U32 const maxNbAttempts, U32 const matchLengthSearch)
 {
     switch(matchLengthSearch)
     {
@@ -522,9 +522,8 @@ size_t ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
          */
         /* catch up */
         if (offset) {
-            while ( (start > anchor)
-                 && (start > base+offset-ZSTD_REP_MOVE)
-                 && (start[-1] == (start-offset+ZSTD_REP_MOVE)[-1]) )  /* only search for offset within prefix */
+            while ( ((start > anchor) & (start - (offset-ZSTD_REP_MOVE) > base))
+                 && (start[-1] == (start-(offset-ZSTD_REP_MOVE))[-1]) )  /* only search for offset within prefix */
                 { start--; matchLength++; }
             offset_2 = offset_1; offset_1 = (U32)(offset - ZSTD_REP_MOVE);
         }
@@ -536,9 +535,8 @@ _storeSequence:
         }
 
         /* check immediate repcode */
-        while ( (ip <= ilimit)
-             && ((offset_2>0)
-             & (MEM_read32(ip) == MEM_read32(ip - offset_2)) )) {
+        while ( ((ip <= ilimit) & (offset_2>0))
+             && (MEM_read32(ip) == MEM_read32(ip - offset_2)) ) {
             /* store sequence */
             matchLength = ZSTD_count(ip+4, ip+4-offset_2, iend) + 4;
             offset = offset_2; offset_2 = offset_1; offset_1 = (U32)offset; /* swap repcodes */

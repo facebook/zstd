@@ -96,7 +96,8 @@ static void ZSTD_rescaleFreqs(optState_t* optPtr, const BYTE* src, size_t srcSiz
 }
 
 
-static U32 ZSTD_getLiteralPrice(optState_t* optPtr, U32 const litLength, const BYTE* literals)
+static U32 ZSTD_getLiteralPrice(optState_t* const optPtr,
+                                U32 const litLength, const BYTE* const literals)
 {
     U32 price;
 
@@ -138,17 +139,22 @@ static U32 ZSTD_getLiteralPrice(optState_t* optPtr, U32 const litLength, const B
 }
 
 
-FORCE_INLINE_TEMPLATE U32 ZSTD_getPrice(optState_t* optPtr, U32 litLength, const BYTE* literals, U32 offset, U32 matchLength, const int ultra)
+/* ZSTD_getPrice() :
+ * optLevel: when <2, favors small offset for decompression speed (improved cache efficiency) */
+FORCE_INLINE_TEMPLATE U32 ZSTD_getPrice(optState_t* optPtr,
+                                    U32 const litLength, const BYTE* const literals, U32 const offset, U32 const matchLength,
+                                    int const optLevel)
 {
-    BYTE const offCode = (BYTE)ZSTD_highbit32(offset+1);
-    U32 const mlBase = matchLength - MINMATCH;
     U32 price;
+    U32 const offCode = ZSTD_highbit32(offset+1);
+    U32 const mlBase = matchLength - MINMATCH;
+    assert(matchLength >= MINMATCH);
 
     if (optPtr->staticPrices)  /* fixed scheme, do not use statistics */
         return ZSTD_getLiteralPrice(optPtr, litLength, literals) + ZSTD_highbit32((U32)mlBase+1) + 16 + offCode;
 
     price = offCode + optPtr->log2offCodeSum - ZSTD_highbit32(optPtr->offCodeFreq[offCode]+1);
-    if (!ultra /*static*/ && offCode >= 20) price += (offCode-19)*2; /* handicap for long distance offsets, favor decompression speed */
+    if ((optLevel<2) /*static*/ && offCode >= 20) price += (offCode-19)*2; /* handicap for long distance offsets, favor decompression speed */
 
     /* match Length */
     {   U32 const mlCode = ZSTD_MLcode(mlBase);
@@ -165,9 +171,9 @@ static void ZSTD_updateStats(optState_t* optPtr, U32 litLength, const BYTE* lite
 {
     /* literals */
     {   U32 u;
-        optPtr->litSum += litLength*ZSTD_LITFREQ_ADD;
         for (u=0; u < litLength; u++)
             optPtr->litFreq[literals[u]] += ZSTD_LITFREQ_ADD;
+        optPtr->litSum += litLength*ZSTD_LITFREQ_ADD;
     }
 
     /* literal Length */
@@ -451,7 +457,7 @@ repcodes_t ZSTD_updateRep(U32 const rep[3], U32 const offset, U32 const ll0)
 FORCE_INLINE_TEMPLATE
 size_t ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                                       const void* src, size_t srcSize,
-                                      const int ultra, const int extDict)
+                                      const int optLevel, const int extDict)
 {
     seqStore_t* const seqStorePtr = &(ctx->seqStore);
     optState_t* const optStatePtr = &(ctx->optState);
@@ -518,7 +524,7 @@ size_t ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                     U32 const end = matches[matchNb].len;
                     repcodes_t const repHistory = ZSTD_updateRep(rep, offset, ll0);
                     while (pos <= end) {
-                        U32 const matchPrice = ZSTD_getPrice(optStatePtr, litlen, anchor, offset, pos, ultra);
+                        U32 const matchPrice = ZSTD_getPrice(optStatePtr, litlen, anchor, offset, pos, optLevel);
                         if (pos > last_pos || matchPrice < opt[pos].price) {
                             DEBUGLOG(7, "rPos:%u => set initial price : %u",
                                         pos, matchPrice);
@@ -576,25 +582,26 @@ size_t ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
 
                 /* set prices using matches found at position == cur */
                 for (matchNb = 0; matchNb < nbMatches; matchNb++) {
-                    U32 mlen = (matchNb>0) ? matches[matchNb-1].len+1 : minMatch;
-                    U32 const lastML = matches[matchNb].len;
                     U32 const offset = matches[matchNb].off;
                     repcodes_t const repHistory = ZSTD_updateRep(opt[cur].rep, offset, ll0);
+                    U32 const lastML = matches[matchNb].len;
+                    U32 const startML = (matchNb>0) ? matches[matchNb-1].len+1 : minMatch;
+                    U32 mlen;
 
                     DEBUGLOG(7, "testing match %u => offCode=%u, mlen=%u, llen=%u",
                                 matchNb, matches[matchNb].off, lastML, litlen);
 
-                    while (mlen <= lastML) {
+                    for (mlen = lastML; mlen >= startML; mlen--) {
                         U32 const pos = cur + mlen;
-                        U32 const price = basePrice + ZSTD_getPrice(optStatePtr, litlen, baseLiterals, offset, mlen, ultra);
+                        U32 const price = basePrice + ZSTD_getPrice(optStatePtr, litlen, baseLiterals, offset, mlen, optLevel);
 
                         if ((pos > last_pos) || (price < opt[pos].price)) {
                             DEBUGLOG(7, "rPos:%u => new better price (%u<%u)",
                                         pos, price, opt[pos].price);
                             SET_PRICE(pos, mlen, offset, litlen, price, repHistory);  /* note : macro modifies last_pos */
+                        } else {
+                            if (optLevel==0) break;  /* gets ~+10% speed for about 0.01 ratio loss */
                         }
-
-                        mlen++;
         }   }   }   }
 
         best_mlen = opt[last_pos].mlen;
@@ -663,20 +670,20 @@ _shortestPath:   /* cur, last_pos, best_mlen, best_off have to be set */
 size_t ZSTD_compressBlock_btopt(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
     DEBUGLOG(5, "ZSTD_compressBlock_btopt");
-    return ZSTD_compressBlock_opt_generic(ctx, src, srcSize, 0 /*ultra*/, 0 /*extDict*/);
+    return ZSTD_compressBlock_opt_generic(ctx, src, srcSize, 0 /*optLevel*/, 0 /*extDict*/);
 }
 
 size_t ZSTD_compressBlock_btultra(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    return ZSTD_compressBlock_opt_generic(ctx, src, srcSize, 1 /*ultra*/, 0 /*extDict*/);
+    return ZSTD_compressBlock_opt_generic(ctx, src, srcSize, 2 /*optLevel*/, 0 /*extDict*/);
 }
 
 size_t ZSTD_compressBlock_btopt_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    return ZSTD_compressBlock_opt_generic(ctx, src, srcSize, 0 /*ultra*/, 1 /*extDict*/);
+    return ZSTD_compressBlock_opt_generic(ctx, src, srcSize, 1 /*optLevel*/, 1 /*extDict*/);
 }
 
 size_t ZSTD_compressBlock_btultra_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    return ZSTD_compressBlock_opt_generic(ctx, src, srcSize, 1 /*ultra*/, 1 /*extDict*/);
+    return ZSTD_compressBlock_opt_generic(ctx, src, srcSize, 2 /*optLevel*/, 1 /*extDict*/);
 }

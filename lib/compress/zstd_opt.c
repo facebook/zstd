@@ -553,10 +553,14 @@ size_t ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                     SET_PRICE(cur, 1/*mlen*/, 0/*offset*/, litlen, price, opt[cur-1].rep);
             }   }
 
-            if (cur == last_pos) break;
-
             /* last match must start at a minimum distance of 8 from oend */
             if (inr > ilimit) continue;
+
+            if (cur == last_pos) break;
+
+             if ( (optLevel==0) /*static*/
+               && (opt[cur+1].price <= opt[cur].price) )
+                continue;  /* skip unpromising positions; about ~+6% speed, -0.01 ratio */
 
             {   U32 const ll0 = (opt[cur].mlen != 1);
                 U32 const litlen = (opt[cur].mlen == 1) ? opt[cur].litlen : 0;
@@ -600,7 +604,7 @@ size_t ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                                         pos, price, opt[pos].price);
                             SET_PRICE(pos, mlen, offset, litlen, price, repHistory);  /* note : macro modifies last_pos */
                         } else {
-                            if (optLevel==0) break;  /* gets ~+10% speed for about 0.01 ratio loss */
+                            if (optLevel==0) break;  /* gets ~+10% speed for about -0.01 ratio loss */
                         }
         }   }   }   }
 

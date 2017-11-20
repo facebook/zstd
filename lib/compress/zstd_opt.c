@@ -345,7 +345,6 @@ U32 ZSTD_insertBtAndGetAllMatches (
         if ((!extDict) || (matchIndex+matchLength >= dictLimit)) {
             assert(matchIndex+matchLength >= dictLimit);  /* ensure the condition is correct when !extDict */
             match = base + matchIndex;
-            //if (match[matchLength] == ip[matchLength]) { matchLength += ZSTD_count(ip+matchLength+1, match+matchLength+1, iLimit) +1; }
             matchLength += ZSTD_count(ip+matchLength, match+matchLength, iLimit);
         } else {
             match = dictBase + matchIndex;
@@ -685,7 +684,7 @@ size_t ZSTD_compressBlock_btultra(ZSTD_CCtx* ctx, const void* src, size_t srcSiz
 
 size_t ZSTD_compressBlock_btopt_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)
 {
-    return ZSTD_compressBlock_opt_generic(ctx, src, srcSize, 1 /*optLevel*/, 1 /*extDict*/);
+    return ZSTD_compressBlock_opt_generic(ctx, src, srcSize, 0 /*optLevel*/, 1 /*extDict*/);
 }
 
 size_t ZSTD_compressBlock_btultra_extDict(ZSTD_CCtx* ctx, const void* src, size_t srcSize)

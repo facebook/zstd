@@ -85,7 +85,6 @@ static U32 ZSTD_insertBt1(ZSTD_CCtx* zc,
         if ((!extDict) || (matchIndex+matchLength >= dictLimit)) {
             assert(matchIndex+matchLength >= dictLimit);   /* might be wrong if extDict is incorrectly set to 0 */
             match = base + matchIndex;
-            //if (match[matchLength] == ip[matchLength]) matchLength += ZSTD_count(ip+matchLength+1, match+matchLength+1, iend) +1;
             matchLength += ZSTD_count(ip+matchLength, match+matchLength, iend);
         } else {
             match = dictBase + matchIndex;
@@ -196,7 +195,6 @@ static size_t ZSTD_insertBtAndFindBestMatch (
 
         if ((!extDict) || (matchIndex+matchLength >= dictLimit)) {
             match = base + matchIndex;
-            //if (match[matchLength] == ip[matchLength]) matchLength += ZSTD_count(ip+matchLength+1, match+matchLength+1, iend) +1;
             matchLength += ZSTD_count(ip+matchLength, match+matchLength, iend);
         } else {
             match = dictBase + matchIndex;

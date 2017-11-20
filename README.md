@@ -57,7 +57,7 @@ Compression Speed vs Ratio | Decompression Speed
 ![Compression Speed vs Ratio](doc/images/Cspeed4.png "Compression Speed vs Ratio") | ![Decompression Speed](doc/images/Dspeed4.png "Decompression Speed")
 
 Several algorithms can produce higher compression ratios, but at slower speeds, falling outside of the graph.
-For a larger picture including very slow modes, [click on this link](doc/images/DCspeed5.png) .
+For a larger picture including very slow modes, [click on this link](doc/images/DCspeed5.png).
 
 
 ### The case for Small Data compression
@@ -84,7 +84,7 @@ Training works if there is some correlation in a family of small data samples. T
 Hence, deploying one dictionary per type of data will provide the greatest benefits.
 Dictionary gains are mostly effective in the first few KB. Then, the compression algorithm will gradually use previously decoded content to better compress the rest of the file.
 
-#### Dictionary compression How To :
+#### Dictionary compression How To:
 
 1) Create the dictionary
 
@@ -109,7 +109,7 @@ If your system is compatible with a standard `make` (or `gmake`) binary generato
 you can simply run it at the root directory.
 It will generate `zstd` within root directory.
 
-Other available options include :
+Other available options include:
 - `make install` : create and install zstd binary, library and man page
 - `make test` : create and run `zstd` and test tools on local platform
 
@@ -125,9 +125,9 @@ A Meson project is provided within `contrib/meson`.
 
 #### Visual Studio (Windows)
 
-Going into `build` directory, you will find additional possibilities :
-- Projects for Visual Studio 2005, 2008 and 2010
-  + VS2010 project is compatible with VS2012, VS2013 and VS2015
+Going into `build` directory, you will find additional possibilities:
+- Projects for Visual Studio 2005, 2008 and 2010.
+  + VS2010 project is compatible with VS2012, VS2013 and VS2015.
 - Automated build scripts for Visual compiler by @KrzysFR , in `build/VS_scripts`,
   which will build `zstd` cli and `libzstd` library without any need to open Visual Studio solution.
 

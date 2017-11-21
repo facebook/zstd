@@ -14,6 +14,11 @@ ZWRAPDIR = zlibWrapper
 TESTDIR  = tests
 FUZZDIR  = $(TESTDIR)/fuzz
 
+# Define some install locations
+PREFIX   = /usr
+LIBDIR   = $(PREFIX)/lib
+MANDIR   = $(PREFIX)/share/man
+
 # Define nul output
 VOID = /dev/null
 
@@ -111,6 +116,7 @@ ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU FreeBSD DragonFly 
 
 HOST_OS = POSIX
 CMAKE_PARAMS = -DZSTD_BUILD_CONTRIB:BOOL=ON -DZSTD_BUILD_STATIC:BOOL=ON -DZSTD_BUILD_TESTS:BOOL=ON -DZSTD_ZLIB_SUPPORT:BOOL=ON -DZSTD_LZMA_SUPPORT:BOOL=ON
+CMAKE_PARAMS += -DCMAKE_INSTALL_PREFIX:STRING="$(PREFIX)" -DCMAKE_INSTALL_LIBDIR:STRING="$(LIBDIR)" -DCMAKE_INSTALL_MANDIR:STRING="$(MANDIR)" 
 
 .PHONY: list
 list:

@@ -662,7 +662,7 @@ _shortestPath:   /* cur, last_pos, best_mlen, best_off have to be set */
                 anchor = ip;
         }   }
         ZSTD_setLog2Prices(optStatePtr);
-    }   while (ip < ilimit)
+    }   /* while (ip < ilimit) */
 
     /* Save reps for next block */
     { int i; for (i=0; i<ZSTD_REP_NUM; i++) seqStorePtr->repToConfirm[i] = rep[i]; }

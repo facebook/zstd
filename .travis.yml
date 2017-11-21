@@ -1,4 +1,4 @@
-# Medium Tests: Run on all commits/PRs to dev branch
+# Long tests: run on commits to master branch/cron builds
 
 language: c
 sudo: required
@@ -6,25 +6,37 @@ dist: trusty
 matrix:
   include:
     # Ubuntu 14.04
-    - env: Cmd='make gcc6install && CC=gcc-6 make clean uasan-test-zstd'
-    - env: Cmd='make gcc6install libc6install && CC=gcc-6 make clean uasan-test-zstd32'
-    - env: Cmd='make clang38install && CC=clang-3.8 make clean msan-test-zstd'
+    - env: Cmd="make cxxtest && make clean && make gnu90build && make clean && make cmakebuild && make clean && make travis-install"
 
-    - env: Cmd='make gcc6install && CC=gcc-6 make clean uasan-fuzztest'
-    - env: Cmd='make gcc6install libc6install && CC=gcc-6 CFLAGS=-m32 make clean uasan-fuzztest'
-    - env: Cmd='make clang38install && CC=clang-3.8 make clean msan-fuzztest'
+    - env: Cmd='make gcc6install && CC=gcc-6 make clean uasan-test'
+    - env: Cmd='make gcc6install libc6install && CC=gcc-6 make clean uasan-test32'
+    - env: Cmd='make clang38install && CC=clang-3.8 make clean msan-test'
     - env: Cmd='make clang38install && CC=clang-3.8 make clean tsan-test-zstream'
-
     - env: Cmd='make valgrindinstall && make -C tests clean valgrindTest'
 
-    - env: Cmd='make arminstall && make armfuzz'
-    - env: Cmd='make arminstall && make aarch64fuzz'
-    - env: Cmd='make ppcinstall && make ppcfuzz'
-    - env: Cmd='make ppcinstall && make ppc64fuzz'
+    - env: Cmd='make arminstall && make armtest'
+    - env: Cmd='make arminstall && make aarch64test'
+    - env: Cmd='make ppcinstall && make ppctest'
+    - env: Cmd='make ppcinstall && make ppc64test'
+
+    - env: Cmd='make gpp6install valgrindinstall && make -C zlibWrapper test && make -C zlibWrapper valgrindTest'
+    - env: Cmd='make gcc6install && CC=gcc-6 make uasan-test-zstd-nolegacy'
+    - env: Cmd='make gcc6install && CC=gcc-6 make uasan-test-zbuff'
+
     - env: Cmd='make -j uasanregressiontest'
     - env: Cmd='make -j msanregressiontest'
 
-    - env: Cmd='make lz4install && make -C tests test-lz4'
+    - env: Cmd='make -C tests versionsTest && make lz4install && make clean && make -C tests test-lz4'
+
+    # OS X Mavericks
+    - env: Cmd="make test"
+      os: osx
+
+before_install:
+  - if [ `uname` = "Darwin" ]; then brew update; fi
+
+install:
+  - if [ `uname` = "Darwin" ]; then brew install xz; fi
 
 git:
   depth: 1
@@ -37,7 +49,13 @@ branches:
 script:
   - JOB_NUMBER=$(echo $TRAVIS_JOB_NUMBER | sed -e 's:[0-9][0-9]*\.\(.*\):\1:')
   - echo JOB_NUMBER=$JOB_NUMBER TRAVIS_BRANCH=$TRAVIS_BRANCH TRAVIS_EVENT_TYPE=$TRAVIS_EVENT_TYPE TRAVIS_PULL_REQUEST=$TRAVIS_PULL_REQUEST
-  - export FUZZERTEST=-T2mn;
-    export ZSTREAM_TESTTIME=-T2mn;
-    export DECODECORPUS_TESTTIME=-T1mn;
+  - export FUZZERTEST=-T3mn;
+    export ZSTREAM_TESTTIME=-T80s;
+    export DECODECORPUS_TESTTIME=-T40s;
+    if [ "$TRAVIS_EVENT_TYPE" = "cron" ]; then
+        date;
+        git fetch origin dev;
+        git checkout -f FETCH_HEAD;
+        date;
+    fi;
     sh -c "$Cmd" || travis_terminate 1;

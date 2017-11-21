@@ -606,7 +606,8 @@ size_t ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                         } else {
                             if (optLevel==0) break;  /* gets ~+10% speed for about -0.01 ratio loss */
                         }
-        }   }   }   }
+            }   }   }
+        }  /* for (cur = 1; cur <= last_pos; cur++) */
 
         best_mlen = opt[last_pos].mlen;
         best_off = opt[last_pos].off;
@@ -661,7 +662,7 @@ _shortestPath:   /* cur, last_pos, best_mlen, best_off have to be set */
                 anchor = ip;
         }   }
         ZSTD_setLog2Prices(optStatePtr);
-    }   /* for (cur=0; cur < last_pos; ) */
+    }   while (ip < ilimit)
 
     /* Save reps for next block */
     { int i; for (i=0; i<ZSTD_REP_NUM; i++) seqStorePtr->repToConfirm[i] = rep[i]; }

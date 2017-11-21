@@ -111,7 +111,7 @@ unsigned long long ZSTD_getFrameContentSize(const void *src, size_t srcSize);
   @return : content size to be decompressed, as a 64-bits value _if known and not empty_, 0 otherwise. 
 </p></pre><BR>
 
-<h3>Helper functions</h3><pre></pre><b><pre>#define ZSTD_COMPRESSBOUND(srcSize)   ((srcSize) + ((srcSize)>>8) + (((srcSize) < 128 KB) ? ((128 KB - (srcSize)) >> 11) </b>/* margin, from 64 to 0 */ : 0))  /* this formula ensures that bound(A) + bound(B) <= bound(A+B) as long as A and B >= 128 KB */<b>
+<h3>Helper functions</h3><pre></pre><b><pre>#define ZSTD_COMPRESSBOUND(srcSize)   ((srcSize) + ((srcSize)>>8) + (((srcSize) < (128<<10)) ? (((128<<10) - (srcSize)) >> 11) </b>/* margin, from 64 to 0 */ : 0))  /* this formula ensures that bound(A) + bound(B) <= bound(A+B) as long as A and B >= 128 KB */<b>
 size_t      ZSTD_compressBound(size_t srcSize); </b>/*!< maximum compressed size in worst case scenario */<b>
 unsigned    ZSTD_isError(size_t code);          </b>/*!< tells if a `size_t` function result is an error code */<b>
 const char* ZSTD_getErrorName(size_t code);     </b>/*!< provides readable string from an error code */<b>
@@ -906,7 +906,8 @@ size_t ZSTD_decodingBufferSize_min(unsigned long long windowSize, unsigned long 
 <pre><b>size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned value);
 </b><p>  Set one compression parameter, selected by enum ZSTD_cParameter.
   Note : when `value` is an enum, cast it to unsigned for proper type checking.
-  @result : 0, or an error code (which can be tested with ZSTD_isError()). 
+  @result : informational value (typically, the one being set, possibly corrected),
+            or an error code (which can be tested with ZSTD_isError()). 
 </p></pre><BR>
 
 <pre><b>size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long long pledgedSrcSize);

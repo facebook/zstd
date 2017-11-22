@@ -310,14 +310,10 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
 }
 
 
-const char* g_stratName[] = { "ZSTD_fast    ",
-                              "ZSTD_dfast   ",
-                              "ZSTD_greedy  ",
-                              "ZSTD_lazy    ",
-                              "ZSTD_lazy2   ",
-                              "ZSTD_btlazy2 ",
-                              "ZSTD_btopt   ",
-                              "ZSTD_btultra "};
+const char* g_stratName[ZSTD_btultra+1] = {
+                "(none)       ", "ZSTD_fast    ", "ZSTD_dfast   ",
+                "ZSTD_greedy  ", "ZSTD_lazy    ", "ZSTD_lazy2   ",
+                "ZSTD_btlazy2 ", "ZSTD_btopt   ", "ZSTD_btultra "};
 
 static void BMK_printWinner(FILE* f, U32 cLevel, BMK_result_t result, ZSTD_compressionParameters params, size_t srcSize)
 {

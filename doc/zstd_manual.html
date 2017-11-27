@@ -19,16 +19,17 @@
 <li><a href="#Chapter9">Streaming decompression - HowTo</a></li>
 <li><a href="#Chapter10">START OF ADVANCED AND EXPERIMENTAL FUNCTIONS</a></li>
 <li><a href="#Chapter11">Advanced types</a></li>
-<li><a href="#Chapter12">Frame size functions</a></li>
-<li><a href="#Chapter13">Context memory usage</a></li>
-<li><a href="#Chapter14">Advanced compression functions</a></li>
-<li><a href="#Chapter15">Advanced decompression functions</a></li>
-<li><a href="#Chapter16">Advanced streaming functions</a></li>
-<li><a href="#Chapter17">Buffer-less and synchronous inner streaming functions</a></li>
-<li><a href="#Chapter18">Buffer-less streaming compression (synchronous mode)</a></li>
-<li><a href="#Chapter19">Buffer-less streaming decompression (synchronous mode)</a></li>
-<li><a href="#Chapter20">New advanced API (experimental)</a></li>
-<li><a href="#Chapter21">Block level API</a></li>
+<li><a href="#Chapter12">Custom memory allocation functions</a></li>
+<li><a href="#Chapter13">Frame size functions</a></li>
+<li><a href="#Chapter14">Context memory usage</a></li>
+<li><a href="#Chapter15">Advanced compression functions</a></li>
+<li><a href="#Chapter16">Advanced decompression functions</a></li>
+<li><a href="#Chapter17">Advanced streaming functions</a></li>
+<li><a href="#Chapter18">Buffer-less and synchronous inner streaming functions</a></li>
+<li><a href="#Chapter19">Buffer-less streaming compression (synchronous mode)</a></li>
+<li><a href="#Chapter20">Buffer-less streaming decompression (synchronous mode)</a></li>
+<li><a href="#Chapter21">New advanced API (experimental)</a></li>
+<li><a href="#Chapter22">Block level API</a></li>
 </ol>
 <hr>
 <a name="Chapter1"></a><h2>Introduction</h2><pre>
@@ -346,17 +347,15 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
     ZSTD_frameParameters fParams;
 } ZSTD_parameters;
 </b></pre><BR>
-<h3>Custom memory allocation functions</h3><pre></pre><b><pre>typedef void* (*ZSTD_allocFunction) (void* opaque, size_t size);
-typedef void  (*ZSTD_freeFunction) (void* opaque, void* address);
-typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; void* opaque; } ZSTD_customMem;
-</b>/* use this constant to defer to stdlib's functions */<b>
-static const ZSTD_customMem ZSTD_defaultCMem = { NULL, NULL, NULL };
-</pre></b><BR>
-<a name="Chapter12"></a><h2>Frame size functions</h2><pre></pre>
+<a name="Chapter12"></a><h2>Custom memory allocation functions</h2><pre></pre>
+
+<pre><b>typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; void* opaque; } ZSTD_customMem;
+</b></pre><BR>
+<a name="Chapter13"></a><h2>Frame size functions</h2><pre></pre>
 
 <pre><b>size_t ZSTD_findFrameCompressedSize(const void* src, size_t srcSize);
 </b><p>  `src` should point to the start of a ZSTD encoded frame or skippable frame
-  `srcSize` must be at least as large as the frame
+  `srcSize` must be >= first frame size
   @return : the compressed size of the first frame starting at `src`,
             suitable to pass to `ZSTD_decompress` or similar,
             or an error code if input is invalid 
@@ -391,7 +390,7 @@ static const ZSTD_customMem ZSTD_defaultCMem = { NULL, NULL, NULL };
    @return : size of the Frame Header 
 </p></pre><BR>
 
-<a name="Chapter13"></a><h2>Context memory usage</h2><pre></pre>
+<a name="Chapter14"></a><h2>Context memory usage</h2><pre></pre>
 
 <pre><b>size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx);
 size_t ZSTD_sizeof_DCtx(const ZSTD_DCtx* dctx);
@@ -450,7 +449,7 @@ size_t ZSTD_estimateDDictSize(size_t dictSize, ZSTD_dictLoadMethod_e dictLoadMet
  
 </p></pre><BR>
 
-<a name="Chapter14"></a><h2>Advanced compression functions</h2><pre></pre>
+<a name="Chapter15"></a><h2>Advanced compression functions</h2><pre></pre>
 
 <pre><b>ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem);
 </b><p>  Create a ZSTD compression context using external alloc and free functions 
@@ -462,7 +461,8 @@ size_t ZSTD_estimateDDictSize(size_t dictSize, ZSTD_dictLoadMethod_e dictLoadMet
              It must outlive context usage.
   workspaceSize: Use ZSTD_estimateCCtxSize() or ZSTD_estimateCStreamSize()
                  to determine how large workspace must be to support scenario.
- @return : pointer to ZSTD_CCtx*, or NULL if error (size too small)
+ @return : pointer to ZSTD_CCtx* (same address as workspace, but different type),
+           or NULL if error (typically size too small)
   Note : zstd will never resize nor malloc() when using a static cctx.
          If it needs more memory than available, it will simply error out.
   Note 2 : there is no corresponding "free" function.
@@ -505,7 +505,8 @@ size_t ZSTD_estimateDDictSize(size_t dictSize, ZSTD_dictLoadMethod_e dictLoadMet
                  to determine how large workspace must be.
   cParams : use ZSTD_getCParams() to transform a compression level
             into its relevants cParams.
- @return : pointer to ZSTD_CDict*, or NULL if error (size too small)
+ @return : pointer to ZSTD_CDict* (same address as workspace, but different type),
+           or NULL if error (typically, size too small).
   Note : there is no corresponding "free" function.
          Since workspace was allocated externally, it must be freed externally.
  
@@ -545,7 +546,7 @@ size_t ZSTD_estimateDDictSize(size_t dictSize, ZSTD_dictLoadMethod_e dictLoadMet
 </b><p>   Same as ZSTD_compress_usingCDict(), with fine-tune control over frame parameters 
 </p></pre><BR>
 
-<a name="Chapter15"></a><h2>Advanced decompression functions</h2><pre></pre>
+<a name="Chapter16"></a><h2>Advanced decompression functions</h2><pre></pre>
 
 <pre><b>unsigned ZSTD_isFrame(const void* buffer, size_t size);
 </b><p>  Tells if the content of `buffer` starts with a valid Frame Identifier.
@@ -564,7 +565,8 @@ size_t ZSTD_estimateDDictSize(size_t dictSize, ZSTD_dictLoadMethod_e dictLoadMet
              It must outlive context usage.
   workspaceSize: Use ZSTD_estimateDCtxSize() or ZSTD_estimateDStreamSize()
                  to determine how large workspace must be to support scenario.
- @return : pointer to ZSTD_DCtx*, or NULL if error (size too small)
+ @return : pointer to ZSTD_DCtx* (same address as workspace, but different type),
+           or NULL if error (typically size too small)
   Note : zstd will never resize nor malloc() when using a static dctx.
          If it needs more memory than available, it will simply error out.
   Note 2 : static dctx is incompatible with legacy support
@@ -627,7 +629,7 @@ size_t ZSTD_estimateDDictSize(size_t dictSize, ZSTD_dictLoadMethod_e dictLoadMet
   When identifying the exact failure cause, it's possible to use ZSTD_getFrameHeader(), which will provide a more precise error code. 
 </p></pre><BR>
 
-<a name="Chapter16"></a><h2>Advanced streaming functions</h2><pre></pre>
+<a name="Chapter17"></a><h2>Advanced streaming functions</h2><pre></pre>
 
 <h3>Advanced Streaming compression functions</h3><pre></pre><b><pre>ZSTD_CStream* ZSTD_createCStream_advanced(ZSTD_customMem customMem);
 ZSTD_CStream* ZSTD_initStaticCStream(void* workspace, size_t workspaceSize);    </b>/**< same as ZSTD_initStaticCCtx() */<b>
@@ -657,14 +659,14 @@ size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t di
 size_t ZSTD_initDStream_usingDDict(ZSTD_DStream* zds, const ZSTD_DDict* ddict);  </b>/**< note : ddict is referenced, it must outlive decompression session */<b>
 size_t ZSTD_resetDStream(ZSTD_DStream* zds);  </b>/**< re-use decompression parameters from previous init; saves dictionary loading */<b>
 </pre></b><BR>
-<a name="Chapter17"></a><h2>Buffer-less and synchronous inner streaming functions</h2><pre>
+<a name="Chapter18"></a><h2>Buffer-less and synchronous inner streaming functions</h2><pre>
   This is an advanced API, giving full control over buffer management, for users which need direct control over memory.
   But it's also a complex one, with several restrictions, documented below.
   Prefer normal streaming API for an easier experience.
  
 <BR></pre>
 
-<a name="Chapter18"></a><h2>Buffer-less streaming compression (synchronous mode)</h2><pre>
+<a name="Chapter19"></a><h2>Buffer-less streaming compression (synchronous mode)</h2><pre>
   A ZSTD_CCtx object is required to track streaming operations.
   Use ZSTD_createCCtx() / ZSTD_freeCCtx() to manage resource.
   ZSTD_CCtx object can be re-used multiple times within successive compression operations.
@@ -700,7 +702,7 @@ size_t ZSTD_compressBegin_usingCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict); 
 size_t ZSTD_compressBegin_usingCDict_advanced(ZSTD_CCtx* const cctx, const ZSTD_CDict* const cdict, ZSTD_frameParameters const fParams, unsigned long long const pledgedSrcSize);   </b>/* compression parameters are already set within cdict. pledgedSrcSize must be correct. If srcSize is not known, use macro ZSTD_CONTENTSIZE_UNKNOWN */<b>
 size_t ZSTD_copyCCtx(ZSTD_CCtx* cctx, const ZSTD_CCtx* preparedCCtx, unsigned long long pledgedSrcSize); </b>/**<  note: if pledgedSrcSize is not known, use ZSTD_CONTENTSIZE_UNKNOWN */<b>
 </pre></b><BR>
-<a name="Chapter19"></a><h2>Buffer-less streaming decompression (synchronous mode)</h2><pre>
+<a name="Chapter20"></a><h2>Buffer-less streaming decompression (synchronous mode)</h2><pre>
   A ZSTD_DCtx object is required to track streaming operations.
   Use ZSTD_createDCtx() / ZSTD_freeDCtx() to manage it.
   A ZSTD_DCtx object can be re-used multiple times.
@@ -786,7 +788,7 @@ size_t ZSTD_decodingBufferSize_min(unsigned long long windowSize, unsigned long 
 </pre></b><BR>
 <pre><b>typedef enum { ZSTDnit_frameHeader, ZSTDnit_blockHeader, ZSTDnit_block, ZSTDnit_lastBlock, ZSTDnit_checksum, ZSTDnit_skippableFrame } ZSTD_nextInputType_e;
 </b></pre><BR>
-<a name="Chapter20"></a><h2>New advanced API (experimental)</h2><pre></pre>
+<a name="Chapter21"></a><h2>New advanced API (experimental)</h2><pre></pre>
 
 <pre><b>typedef enum {
     </b>/* Question : should we have a format ZSTD_f_auto ?<b>
@@ -1169,7 +1171,7 @@ size_t ZSTD_DCtx_refPrefix_advanced(ZSTD_DCtx* dctx, const void* prefix, size_t 
  
 </p></pre><BR>
 
-<a name="Chapter21"></a><h2>Block level API</h2><pre></pre>
+<a name="Chapter22"></a><h2>Block level API</h2><pre></pre>
 
 <pre><b></b><p>    Frame metadata cost is typically ~18 bytes, which can be non-negligible for very small blocks (< 100 bytes).
     User will have to take in charge required information to regenerate data, such as compressed and content sizes.

@@ -65,6 +65,7 @@ endif
 else
 endif
 
+# Sort files in alphabetical order for reproducible builds
 ZSTDLIB_FILES := $(sort $(wildcard $(ZSTD_FILES)) $(wildcard $(ZSTDLEGACY_FILES)) $(wildcard $(ZDICT_FILES)))
 
 # Define *.exe as extension for Windows systems
@@ -262,9 +263,10 @@ mandir      ?= $(datarootdir)/man
 man1dir     ?= $(mandir)/man1
 
 ifneq (,$(filter $(shell uname),OpenBSD FreeBSD NetBSD DragonFly SunOS))
-MANDIR  ?= $(PREFIX)/man/man1
+MANDIR  ?= $(PREFIX)/man
+MAN1DIR ?= $(MANDIR)/man1
 else
-MANDIR  ?= $(man1dir)
+MAN1DIR ?= $(man1dir)
 endif
 
 ifneq (,$(filter $(shell uname),SunOS))
@@ -281,7 +283,7 @@ INSTALL_MAN     ?= $(INSTALL_DATA)
 .PHONY: install
 install: zstd
 	@echo Installing binaries
-	@$(INSTALL) -d -m 755 $(DESTDIR)$(BINDIR)/ $(DESTDIR)$(MANDIR)/
+	@$(INSTALL) -d -m 755 $(DESTDIR)$(BINDIR)/ $(DESTDIR)$(MAN1DIR)/
 	@$(INSTALL_PROGRAM) zstd $(DESTDIR)$(BINDIR)/zstd
 	@ln -sf zstd $(DESTDIR)$(BINDIR)/zstdcat
 	@ln -sf zstd $(DESTDIR)$(BINDIR)/unzstd
@@ -289,9 +291,9 @@ install: zstd
 	@$(INSTALL_SCRIPT) zstdless $(DESTDIR)$(BINDIR)/zstdless
 	@$(INSTALL_SCRIPT) zstdgrep $(DESTDIR)$(BINDIR)/zstdgrep
 	@echo Installing man pages
-	@$(INSTALL_MAN) zstd.1 $(DESTDIR)$(MANDIR)/zstd.1
-	@ln -sf zstd.1 $(DESTDIR)$(MANDIR)/zstdcat.1
-	@ln -sf zstd.1 $(DESTDIR)$(MANDIR)/unzstd.1
+	@$(INSTALL_MAN) zstd.1 $(DESTDIR)$(MAN1DIR)/zstd.1
+	@ln -sf zstd.1 $(DESTDIR)$(MAN1DIR)/zstdcat.1
+	@ln -sf zstd.1 $(DESTDIR)$(MAN1DIR)/unzstd.1
 	@echo zstd installation completed
 
 .PHONY: uninstall
@@ -301,9 +303,9 @@ uninstall:
 	@$(RM) $(DESTDIR)$(BINDIR)/zstdcat
 	@$(RM) $(DESTDIR)$(BINDIR)/unzstd
 	@$(RM) $(DESTDIR)$(BINDIR)/zstd
-	@$(RM) $(DESTDIR)$(MANDIR)/zstdcat.1
-	@$(RM) $(DESTDIR)$(MANDIR)/unzstd.1
-	@$(RM) $(DESTDIR)$(MANDIR)/zstd.1
+	@$(RM) $(DESTDIR)$(MAN1DIR)/zstdcat.1
+	@$(RM) $(DESTDIR)$(MAN1DIR)/unzstd.1
+	@$(RM) $(DESTDIR)$(MAN1DIR)/zstd.1
 	@echo zstd programs successfully uninstalled
 
 endif

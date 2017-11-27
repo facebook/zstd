@@ -432,12 +432,12 @@ typedef struct {
 
 typedef struct ZSTD_CCtx_params_s ZSTD_CCtx_params;
 
-/*= Custom memory allocation functions */
+/*--- Custom memory allocation functions ---*/
 typedef void* (*ZSTD_allocFunction) (void* opaque, size_t size);
 typedef void  (*ZSTD_freeFunction) (void* opaque, void* address);
 typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; void* opaque; } ZSTD_customMem;
 /* use this constant to defer to stdlib's functions */
-static const ZSTD_customMem ZSTD_defaultCMem = { NULL, NULL, NULL };
+static ZSTD_customMem const ZSTD_defaultCMem = { NULL, NULL, NULL };
 
 
 /***************************************
@@ -446,7 +446,7 @@ static const ZSTD_customMem ZSTD_defaultCMem = { NULL, NULL, NULL };
 
 /*! ZSTD_findFrameCompressedSize() :
  *  `src` should point to the start of a ZSTD encoded frame or skippable frame
- *  `srcSize` must be at least as large as the frame
+ *  `srcSize` must be >= first frame size
  *  @return : the compressed size of the first frame starting at `src`,
  *            suitable to pass to `ZSTD_decompress` or similar,
  *            or an error code if input is invalid */
@@ -557,7 +557,8 @@ ZSTDLIB_API ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem);
  *             It must outlive context usage.
  *  workspaceSize: Use ZSTD_estimateCCtxSize() or ZSTD_estimateCStreamSize()
  *                 to determine how large workspace must be to support scenario.
- * @return : pointer to ZSTD_CCtx*, or NULL if error (size too small)
+ * @return : pointer to ZSTD_CCtx* (same address as workspace, but different type),
+ *           or NULL if error (typically size too small)
  *  Note : zstd will never resize nor malloc() when using a static cctx.
  *         If it needs more memory than available, it will simply error out.
  *  Note 2 : there is no corresponding "free" function.
@@ -587,7 +588,7 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictS
                                                   ZSTD_compressionParameters cParams,
                                                   ZSTD_customMem customMem);
 
-/*! ZSTD_initStaticCDict_advanced() :
+/*! ZSTD_initStaticCDict() :
  *  Generate a digested dictionary in provided memory area.
  *  workspace: The memory area to emplace the dictionary into.
  *             Provided pointer must 8-bytes aligned.
@@ -596,7 +597,8 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictS
  *                 to determine how large workspace must be.
  *  cParams : use ZSTD_getCParams() to transform a compression level
  *            into its relevants cParams.
- * @return : pointer to ZSTD_CDict*, or NULL if error (size too small)
+ * @return : pointer to ZSTD_CDict* (same address as workspace, but different type),
+ *           or NULL if error (typically, size too small).
  *  Note : there is no corresponding "free" function.
  *         Since workspace was allocated externally, it must be freed externally.
  */
@@ -660,7 +662,8 @@ ZSTDLIB_API ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem);
  *             It must outlive context usage.
  *  workspaceSize: Use ZSTD_estimateDCtxSize() or ZSTD_estimateDStreamSize()
  *                 to determine how large workspace must be to support scenario.
- * @return : pointer to ZSTD_DCtx*, or NULL if error (size too small)
+ * @return : pointer to ZSTD_DCtx* (same address as workspace, but different type),
+ *           or NULL if error (typically size too small)
  *  Note : zstd will never resize nor malloc() when using a static dctx.
  *         If it needs more memory than available, it will simply error out.
  *  Note 2 : static dctx is incompatible with legacy support

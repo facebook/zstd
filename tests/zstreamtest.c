@@ -209,7 +209,7 @@ static size_t SEQ_generateRoundTrip(ZSTD_CCtx* cctx, ZSTD_DCtx* dctx,
     return 0;
 }
 
-static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem customMem)
+static int basicUnitTests(U32 seed, double compressibility)
 {
     size_t const CNBufferSize = COMPRESSIBLE_NOISE_LENGTH;
     void* CNBuffer = malloc(CNBufferSize);
@@ -221,8 +221,8 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     size_t cSize;
     int testResult = 0;
     U32 testNb = 1;
-    ZSTD_CStream* zc = ZSTD_createCStream_advanced(customMem);
-    ZSTD_DStream* zd = ZSTD_createDStream_advanced(customMem);
+    ZSTD_CStream* zc = ZSTD_createCStream();
+    ZSTD_DStream* zd = ZSTD_createDStream();
     ZSTDMT_CCtx* mtctx = ZSTDMT_createCCtx(2);
 
     ZSTD_inBuffer  inBuff, inBuff2;
@@ -431,7 +431,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     /* Complex context re-use scenario */
     DISPLAYLEVEL(3, "test%3i : context re-use : ", testNb++);
     ZSTD_freeCStream(zc);
-    zc = ZSTD_createCStream_advanced(customMem);
+    zc = ZSTD_createCStream();
     if (zc==NULL) goto _output_error;   /* memory allocation issue */
     /* use 1 */
     {   size_t const inSize = 513;
@@ -548,7 +548,7 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     DISPLAYLEVEL(3, "test%3i : ZSTD_initCStream_usingCDict_advanced with masked dictID : ", testNb++);
     {   ZSTD_compressionParameters const cParams = ZSTD_getCParams(1, CNBufferSize, dictionary.filled);
         ZSTD_frameParameters const fParams = { 1 /* contentSize */, 1 /* checksum */, 1 /* noDictID */};
-        ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dictionary.start, dictionary.filled, ZSTD_dlm_byRef, ZSTD_dm_auto, cParams, customMem);
+        ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dictionary.start, dictionary.filled, ZSTD_dlm_byRef, ZSTD_dm_auto, cParams, ZSTD_defaultCMem);
         size_t const initError = ZSTD_initCStream_usingCDict_advanced(zc, cdict, fParams, CNBufferSize);
         if (ZSTD_isError(initError)) goto _output_error;
         cSize = 0;
@@ -1702,24 +1702,23 @@ typedef enum { simple_api, mt_api, advanced_api } e_api;
 
 int main(int argc, const char** argv)
 {
-    U32 seed=0;
-    int seedset=0;
-    int argNb;
+    U32 seed = 0;
+    int seedset = 0;
     int nbTests = nbTestsDefault;
     int testNb = 0;
     int proba = FUZ_COMPRESSIBILITY_DEFAULT;
-    int result=0;
+    int result = 0;
     int mainPause = 0;
     int bigTests = (sizeof(size_t) == 8);
     e_api selected_api = simple_api;
     const char* const programName = argv[0];
-    ZSTD_customMem const customNULL = ZSTD_defaultCMem;
     U32 useOpaqueAPI = 0;
+    int argNb;
 
     /* Check command line */
     for(argNb=1; argNb<argc; argNb++) {
         const char* argument = argv[argNb];
-        if(!argument) continue;   /* Protection if argument empty */
+        assert(argument != NULL);
 
         /* Parsing commands. Aggregated commands are allowed */
         if (argument[0]=='-') {
@@ -1769,15 +1768,17 @@ int main(int argc, const char** argv)
                         g_clockTime += *argument - '0';
                         argument++;
                     }
-                    if (*argument=='m') g_clockTime *=60, argument++;
-                    if (*argument=='n') argument++;
+                    if (*argument=='m') {    /* -T1m == -T60 */
+                        g_clockTime *=60, argument++;
+                        if (*argument=='n') argument++; /* -T1mn == -T60 */
+                    } else if (*argument=='s') argument++; /* -T10s == -T10 */
                     g_clockTime *= CLOCKS_PER_SEC;
                     break;
 
                 case 's':   /* manually select seed */
                     argument++;
-                    seed=0;
                     seedset=1;
+                    seed=0;
                     while ((*argument>='0') && (*argument<='9')) {
                         seed *= 10;
                         seed += *argument - '0';
@@ -1827,7 +1828,7 @@ int main(int argc, const char** argv)
     if (nbTests<=0) nbTests=1;
 
     if (testNb==0) {
-        result = basicUnitTests(0, ((double)proba) / 100, customNULL);  /* constant seed for predictability */
+        result = basicUnitTests(0, ((double)proba) / 100);  /* constant seed for predictability */
     }
 
     if (!result) {

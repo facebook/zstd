@@ -616,11 +616,16 @@ static unsigned long long FIO_compressLzmaFrame(cRess_t* ress,
 #endif
 
 #ifdef ZSTD_LZ4COMPRESS
+#if LZ4_VERSION_NUMBER <= 10600
+#define LZ4F_blockLinked blockLinked
+#define LZ4F_max64KB max64KB
+#endif
 static int FIO_LZ4_GetBlockSize_FromBlockId (int id) { return (1 << (8 + (2 * id))); }
 static unsigned long long FIO_compressLz4Frame(cRess_t* ress,
                             const char* srcFileName, U64 const srcFileSize,
                             int compressionLevel, U64* readsize)
 {
+    const size_t blockSize = FIO_LZ4_GetBlockSize_FromBlockId(LZ4F_max64KB);
     unsigned long long inFileSize = 0, outFileSize = 0;
 
     LZ4F_preferences_t prefs;
@@ -632,21 +637,19 @@ static unsigned long long FIO_compressLz4Frame(cRess_t* ress,
 
     memset(&prefs, 0, sizeof(prefs));
 
-#if LZ4_VERSION_NUMBER <= 10600
-#define LZ4F_blockIndependent blockIndependent
-#define LZ4F_max4MB max4MB
-#endif
+    assert(blockSize <= ress->srcBufferSize);
+    assert(LZ4F_compressBound(blockSize) <= ress->dstBufferSize);
 
     prefs.autoFlush = 1;
     prefs.compressionLevel = compressionLevel;
-    prefs.frameInfo.blockMode = LZ4F_blockIndependent; /* stick to defaults for lz4 cli */
-    prefs.frameInfo.blockSizeID = LZ4F_max4MB;
+    prefs.frameInfo.blockMode = LZ4F_blockLinked;
+    prefs.frameInfo.blockSizeID = LZ4F_max64KB;
     prefs.frameInfo.contentChecksumFlag = (contentChecksum_t)g_checksumFlag;
 #if LZ4_VERSION_NUMBER >= 10600
     prefs.frameInfo.contentSize = (srcFileSize==UTIL_FILESIZE_UNKNOWN) ? 0 : srcFileSize;
 #endif
 
-    {   size_t blockSize = FIO_LZ4_GetBlockSize_FromBlockId(LZ4F_max4MB);
+    {
         size_t readSize;
         size_t headerSize = LZ4F_compressBegin(ctx, ress->dstBuffer, ress->dstBufferSize, &prefs);
         if (LZ4F_isError(headerSize))

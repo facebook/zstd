@@ -93,9 +93,6 @@ typedef struct {
     U32  factor;                 /* fixed cost added when calculating ZSTD_getPrice() (but why ? seems to favor less sequences) */
     /* end : updated by ZSTD_setLog2Prices */
     U32  staticPrices;           /* prices follow a pre-defined cost structure, statistics are irrelevant */
-    U32  cachedPrice;
-    U32  cachedLitLength;
-    const BYTE* cachedLiterals;
 } optState_t;
 
 typedef struct {

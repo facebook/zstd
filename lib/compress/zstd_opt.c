@@ -27,8 +27,6 @@ static void ZSTD_setLog2Prices(optState_t* optPtr)
     optPtr->log2litLengthSum = ZSTD_highbit32(optPtr->litLengthSum+1);
     optPtr->log2matchLengthSum = ZSTD_highbit32(optPtr->matchLengthSum+1);
     optPtr->log2offCodeSum = ZSTD_highbit32(optPtr->offCodeSum+1);
-    optPtr->factor = 1 + ((optPtr->litSum>>5) / optPtr->litLengthSum)
-                       + ((optPtr->litSum<<1) / (optPtr->litSum + optPtr->matchSum));  /* => {0,1}, == (optPtr->matchSum <= optPtr->litSum) */
 }
 
 
@@ -58,7 +56,6 @@ static void ZSTD_rescaleFreqs(optState_t* const optPtr,
         for (u=0; u<=MaxML; u++)
             optPtr->matchLengthFreq[u] = 1;
         optPtr->matchLengthSum = MaxML+1;
-        optPtr->matchSum = (ZSTD_LITFREQ_ADD << Litbits);
         for (u=0; u<=MaxOff; u++)
             optPtr->offCodeFreq[u] = 1;
         optPtr->offCodeSum = (MaxOff+1);
@@ -77,13 +74,10 @@ static void ZSTD_rescaleFreqs(optState_t* const optPtr,
             optPtr->litLengthSum += optPtr->litLengthFreq[u];
         }
         optPtr->matchLengthSum = 0;
-        optPtr->matchSum = 0;
         for (u=0; u<=MaxML; u++) {
             optPtr->matchLengthFreq[u] = 1 + (optPtr->matchLengthFreq[u]>>ZSTD_FREQ_DIV);
             optPtr->matchLengthSum += optPtr->matchLengthFreq[u];
-            optPtr->matchSum += optPtr->matchLengthFreq[u] * (u + 3);
         }
-        optPtr->matchSum *= ZSTD_LITFREQ_ADD;
         optPtr->offCodeSum = 0;
         for (u=0; u<=MaxOff; u++) {
             optPtr->offCodeFreq[u] = 1 + (optPtr->offCodeFreq[u]>>ZSTD_FREQ_DIV);
@@ -95,8 +89,8 @@ static void ZSTD_rescaleFreqs(optState_t* const optPtr,
 }
 
 
-static U32 ZSTD_rawLiteralsCost(const optState_t* const optPtr,
-                                const BYTE* const literals, U32 const litLength)
+static U32 ZSTD_rawLiteralsCost(const BYTE* const literals, U32 const litLength,
+                                const optState_t* const optPtr)
 {
     if (optPtr->staticPrices) return (litLength*6);  /* 6 bit per literal - no statistic used */
     if (litLength == 0) return 0;
@@ -110,7 +104,7 @@ static U32 ZSTD_rawLiteralsCost(const optState_t* const optPtr,
     }
 }
 
-static U32 ZSTD_litLengthPrice(const optState_t* const optPtr, U32 const litLength)
+static U32 ZSTD_litLengthPrice(U32 const litLength, const optState_t* const optPtr)
 {
     if (optPtr->staticPrices) return ZSTD_highbit32((U32)litLength+1);
 
@@ -121,17 +115,44 @@ static U32 ZSTD_litLengthPrice(const optState_t* const optPtr, U32 const litLeng
     }
 }
 
-static U32 ZSTD_fullLiteralsCost(const optState_t* const optPtr,
-                                 const BYTE* const literals, U32 const litLength)
+static U32 ZSTD_fullLiteralsCost(const BYTE* const literals, U32 const litLength,
+                                 const optState_t* const optPtr)
 {
-    return ZSTD_rawLiteralsCost(optPtr, literals, litLength) + ZSTD_litLengthPrice(optPtr, litLength);
+    return ZSTD_rawLiteralsCost(literals, litLength, optPtr)
+         + ZSTD_litLengthPrice(litLength, optPtr);
+}
+
+static int ZSTD_litLengthContribution(U32 const litLength, const optState_t* const optPtr)
+{
+    if (optPtr->staticPrices) return ZSTD_highbit32(litLength+1);
+
+    /* literal Length */
+    {   U32 const llCode = ZSTD_LLcode(litLength);
+        int const contribution = LL_bits[llCode]
+                        + ZSTD_highbit32(optPtr->litLengthFreq[0]+1)
+                        - ZSTD_highbit32(optPtr->litLengthFreq[llCode]+1);
+#if 1
+        return contribution;
+#else
+        return MAX(0, contribution); /* sometimes better, sometimes not ... */
+#endif
+    }
+}
+
+static int ZSTD_literalsContribution(const BYTE* const literals, U32 const litLength,
+                                     const optState_t* const optPtr)
+{
+    int const contribution = ZSTD_rawLiteralsCost(literals, litLength, optPtr)
+                           + ZSTD_litLengthContribution(litLength, optPtr);
+    return contribution;
 }
 
 
 /* ZSTD_getMatchPrice() :
  * optLevel: when <2, favors small offset for decompression speed (improved cache efficiency) */
-FORCE_INLINE_TEMPLATE U32 ZSTD_getMatchPrice(const optState_t* const optPtr,
+FORCE_INLINE_TEMPLATE U32 ZSTD_getMatchPrice(
                                     U32 const offset, U32 const matchLength,
+                                    const optState_t* const optPtr,
                                     int const optLevel)
 {
     U32 price;
@@ -150,7 +171,7 @@ FORCE_INLINE_TEMPLATE U32 ZSTD_getMatchPrice(const optState_t* const optPtr,
         price += ML_bits[mlCode] + optPtr->log2matchLengthSum - ZSTD_highbit32(optPtr->matchLengthFreq[mlCode]+1);
     }
 
-    price += optPtr->factor;
+    //price += optPtr->factor;
     DEBUGLOG(8, "ZSTD_getMatchPrice(ml:%u) = %u", matchLength, price);
     return price;
 }
@@ -450,9 +471,10 @@ typedef struct {
     U32 rawLitCost;
 } cachedLiteralPrice_t;
 
-static U32 ZSTD_updateCachedLPrice(const optState_t* const optStatePtr,
+static U32 ZSTD_rawLiteralsCost_cached(
                             cachedLiteralPrice_t* const cachedLitPrice,
-                            const BYTE* const anchor, U32 const litlen)
+                            const BYTE* const anchor, U32 const litlen,
+                            const optState_t* const optStatePtr)
 {
     U32 startCost;
     U32 remainingLength;
@@ -469,12 +491,31 @@ static U32 ZSTD_updateCachedLPrice(const optState_t* const optStatePtr,
         remainingLength = litlen;
     }
 
-    {   U32 const rawLitCost = startCost + ZSTD_rawLiteralsCost(optStatePtr, startPosition, remainingLength);
+    {   U32 const rawLitCost = startCost + ZSTD_rawLiteralsCost(startPosition, remainingLength, optStatePtr);
         cachedLitPrice->anchor = anchor;
         cachedLitPrice->litlen = litlen;
         cachedLitPrice->rawLitCost = rawLitCost;
-        return rawLitCost + ZSTD_litLengthPrice(optStatePtr, litlen);
+        return rawLitCost;
     }
+}
+
+static U32 ZSTD_fullLiteralsCost_cached(
+                            cachedLiteralPrice_t* const cachedLitPrice,
+                            const BYTE* const anchor, U32 const litlen,
+                            const optState_t* const optStatePtr)
+{
+    return ZSTD_rawLiteralsCost_cached(cachedLitPrice, anchor, litlen, optStatePtr)
+         + ZSTD_litLengthPrice(litlen, optStatePtr);
+}
+
+static int ZSTD_literalsContribution_cached(
+                            cachedLiteralPrice_t* const cachedLitPrice,
+                            const BYTE* const anchor, U32 const litlen,
+                            const optState_t* const optStatePtr)
+{
+    int const contribution = ZSTD_rawLiteralsCost_cached(cachedLitPrice, anchor, litlen, optStatePtr)
+                           + ZSTD_litLengthContribution(litlen, optStatePtr);
+    return contribution;
 }
 
 FORCE_INLINE_TEMPLATE
@@ -542,7 +583,7 @@ size_t ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
             }   }
 
             /* set prices for first matches starting position == 0 */
-            {   U32 const literalsPrice = ZSTD_updateCachedLPrice(optStatePtr, &cachedLitPrice, anchor, litlen);
+            {   U32 const literalsPrice = ZSTD_fullLiteralsCost_cached(&cachedLitPrice, anchor, litlen, optStatePtr);
                 U32 pos;
                 U32 matchNb;
                 for (pos = 0; pos < minMatch; pos++) {
@@ -554,7 +595,7 @@ size_t ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                     U32 const end = matches[matchNb].len;
                     repcodes_t const repHistory = ZSTD_updateRep(rep, offset, ll0);
                     for ( ; pos <= end ; pos++ ) {
-                        U32 const matchPrice = literalsPrice + ZSTD_getMatchPrice(optStatePtr, offset, pos, optLevel);
+                        U32 const matchPrice = literalsPrice + ZSTD_getMatchPrice(offset, pos, optStatePtr, optLevel);
                         DEBUGLOG(7, "rPos:%u => set initial price : %u",
                                     pos, matchPrice);
                         opt[pos].mlen = pos;
@@ -574,12 +615,13 @@ size_t ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
 
             /* Fix current position with one literal if cheaper */
             {   U32 const litlen = (opt[cur-1].mlen == 1) ? opt[cur-1].litlen + 1 : 1;
-                U32 price;
+                int price;  /* note : contribution can be negative */
                 if (cur > litlen) {
-                    price = opt[cur - litlen].price + ZSTD_fullLiteralsCost(optStatePtr, inr-litlen, litlen);
+                    price = opt[cur - litlen].price + ZSTD_literalsContribution(inr-litlen, litlen, optStatePtr);
                 } else {
-                    price = ZSTD_updateCachedLPrice(optStatePtr, &cachedLitPrice, anchor, litlen);
+                    price = ZSTD_literalsContribution_cached(&cachedLitPrice, anchor, litlen, optStatePtr);
                 }
+                assert(price < 1000000000); /* overflow check */
                 if (price <= opt[cur].price) {
                     DEBUGLOG(7, "rPos:%u : better price (%u<%u) using literal",
                                 cur, price, opt[cur].price);
@@ -602,7 +644,7 @@ size_t ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
             {   U32 const ll0 = (opt[cur].mlen != 1);
                 U32 const litlen = (opt[cur].mlen == 1) ? opt[cur].litlen : 0;
                 U32 const previousPrice = (cur > litlen) ? opt[cur-litlen].price : 0;
-                U32 const basePrice = previousPrice + ZSTD_fullLiteralsCost(optStatePtr, inr-litlen, litlen);
+                U32 const basePrice = previousPrice + ZSTD_fullLiteralsCost(inr-litlen, litlen, optStatePtr);
                 U32 const nbMatches = ZSTD_BtGetAllMatches(ctx, inr, iend, extDict, maxSearches, mls, sufficient_len, opt[cur].rep, ll0, matches, minMatch);
                 U32 matchNb;
                 if (!nbMatches) continue;
@@ -633,7 +675,7 @@ size_t ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
 
                     for (mlen = lastML; mlen >= startML; mlen--) {
                         U32 const pos = cur + mlen;
-                        U32 const price = basePrice + ZSTD_getMatchPrice(optStatePtr, offset, mlen, optLevel);
+                        int const price = basePrice + ZSTD_getMatchPrice(offset, mlen, optStatePtr, optLevel);
 
                         if ((pos > last_pos) || (price < opt[pos].price)) {
                             DEBUGLOG(7, "rPos:%u => new better price (%u<%u)",

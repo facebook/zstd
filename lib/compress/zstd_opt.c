@@ -517,18 +517,28 @@ size_t ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
             }   }
 
             /* set prices for first matches starting position == 0 */
-            {   U32 pos = minMatch;
+            {   U32 pos;
                 U32 matchNb;
+                for (pos = 0; pos < minMatch; pos++) {
+                    opt[pos].mlen = 1;
+                    opt[pos].price = ZSTD_MAX_PRICE;
+                }
                 for (matchNb = 0; matchNb < nbMatches; matchNb++) {
                     U32 const offset = matches[matchNb].off;
                     U32 const end = matches[matchNb].len;
                     repcodes_t const repHistory = ZSTD_updateRep(rep, offset, ll0);
-                    for ( ; pos <= end ; pos++) {
+                    for ( ; pos <= end ; pos++ ) {
                         U32 const matchPrice = ZSTD_getPrice(optStatePtr, litlen, anchor, offset, pos, optLevel);
                         DEBUGLOG(7, "rPos:%u => set initial price : %u",
                                     pos, matchPrice);
-                        SET_PRICE(pos, pos, offset, litlen, matchPrice, repHistory);   /* note : macro modifies last_pos */
-            }   }   }
+                        opt[pos].mlen = pos;
+                        opt[pos].off = offset;
+                        opt[pos].litlen = litlen;
+                        opt[pos].price = matchPrice;
+                        memcpy(opt[pos].rep, &repHistory, sizeof(repHistory));
+                }   }
+                last_pos = pos-1;
+            }
         }
 
         /* check further positions */

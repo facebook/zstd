@@ -374,9 +374,9 @@ test-pool: poolTests
 test-lz4: ZSTD = LD_LIBRARY_PATH=/usr/local/lib $(PRGDIR)/zstd
 test-lz4: ZSTD_LZ4 = LD_LIBRARY_PATH=/usr/local/lib ./lz4
 test-lz4: ZSTD_UNLZ4 = LD_LIBRARY_PATH=/usr/local/lib ./unlz4
-test-lz4: zstd decodecorpus
-	ln -s $(PRGDIR)/zstd lz4
-	ln -s $(PRGDIR)/zstd unlz4
+test-lz4: zstd decodecorpus datagen
+	[ -f lz4 ] || ln -s $(PRGDIR)/zstd lz4
+	[ -f unlz4 ] || ln -s $(PRGDIR)/zstd unlz4
 
 	./decodecorpus -ptmp
 	# lz4 -> zstd
@@ -401,6 +401,8 @@ test-lz4: zstd decodecorpus
 	$(ZSTD) < tmp | \
 	$(ZSTD) -d | \
 	cmp - tmp
+
+	./datagen -g384KB | $(ZSTD) --format=lz4 | $(ZSTD) -d > /dev/null
 
 	rm tmp lz4 unlz4
 

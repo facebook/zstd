@@ -523,14 +523,11 @@ size_t ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                     U32 const offset = matches[matchNb].off;
                     U32 const end = matches[matchNb].len;
                     repcodes_t const repHistory = ZSTD_updateRep(rep, offset, ll0);
-                    while (pos <= end) {
+                    for ( ; pos <= end ; pos++) {
                         U32 const matchPrice = ZSTD_getPrice(optStatePtr, litlen, anchor, offset, pos, optLevel);
-                        if (pos > last_pos || matchPrice < opt[pos].price) {
-                            DEBUGLOG(7, "rPos:%u => set initial price : %u",
-                                        pos, matchPrice);
-                            SET_PRICE(pos, pos, offset, litlen, matchPrice, repHistory);   /* note : macro modifies last_pos */
-                        }
-                        pos++;
+                        DEBUGLOG(7, "rPos:%u => set initial price : %u",
+                                    pos, matchPrice);
+                        SET_PRICE(pos, pos, offset, litlen, matchPrice, repHistory);   /* note : macro modifies last_pos */
             }   }   }
         }
 

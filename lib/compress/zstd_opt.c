@@ -680,7 +680,12 @@ size_t ZSTD_compressBlock_opt_generic(ZSTD_CCtx* ctx,
                         if ((pos > last_pos) || (price < opt[pos].price)) {
                             DEBUGLOG(7, "rPos:%u => new better price (%u<%u)",
                                         pos, price, opt[pos].price);
-                            SET_PRICE(pos, mlen, offset, litlen, price, repHistory);  /* note : macro modifies last_pos */
+                            while (last_pos < pos) { opt[last_pos+1].price = ZSTD_MAX_PRICE; last_pos++; }
+                            opt[pos].mlen = mlen;
+                            opt[pos].off = offset;
+                            opt[pos].litlen = litlen;
+                            opt[pos].price = price;
+                            memcpy(opt[pos].rep, &repHistory, sizeof(repHistory));
                         } else {
                             if (optLevel==0) break;  /* gets ~+10% speed for about -0.01 ratio loss */
                         }

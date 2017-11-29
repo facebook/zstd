@@ -89,6 +89,9 @@ static void ZSTD_rescaleFreqs(optState_t* const optPtr,
 }
 
 
+/* ZSTD_rawLiteralsCost() :
+ * cost of literals (only) in given segment (which length can be null)
+ * does not include cost of literalLength symbol */
 static U32 ZSTD_rawLiteralsCost(const BYTE* const literals, U32 const litLength,
                                 const optState_t* const optPtr)
 {
@@ -104,6 +107,8 @@ static U32 ZSTD_rawLiteralsCost(const BYTE* const literals, U32 const litLength,
     }
 }
 
+/* ZSTD_litLengthPrice() :
+ * cost of literalLength symbol */
 static U32 ZSTD_litLengthPrice(U32 const litLength, const optState_t* const optPtr)
 {
     if (optPtr->staticPrices) return ZSTD_highbit32((U32)litLength+1);
@@ -115,6 +120,9 @@ static U32 ZSTD_litLengthPrice(U32 const litLength, const optState_t* const optP
     }
 }
 
+/* ZSTD_litLengthPrice() :
+ * cost of the literal part of a sequence,
+ * including literals themselves, and literalLength symbol */
 static U32 ZSTD_fullLiteralsCost(const BYTE* const literals, U32 const litLength,
                                  const optState_t* const optPtr)
 {
@@ -122,6 +130,10 @@ static U32 ZSTD_fullLiteralsCost(const BYTE* const literals, U32 const litLength
          + ZSTD_litLengthPrice(litLength, optPtr);
 }
 
+/* ZSTD_litLengthContribution() :
+ * @return ( cost(litlength) - cost(0) )
+ * this value can then be added to rawLiteralsCost()
+ * to provide a cost which is directly comparable to a match ending at same position */
 static int ZSTD_litLengthContribution(U32 const litLength, const optState_t* const optPtr)
 {
     if (optPtr->staticPrices) return ZSTD_highbit32(litLength+1);
@@ -139,6 +151,10 @@ static int ZSTD_litLengthContribution(U32 const litLength, const optState_t* con
     }
 }
 
+/* ZSTD_literalsContribution() :
+ * creates a fake cost for the literals part of a sequence
+ * which can be compared to the ending cost of a match
+ * should a new match start at this position */
 static int ZSTD_literalsContribution(const BYTE* const literals, U32 const litLength,
                                      const optState_t* const optPtr)
 {
@@ -147,8 +163,9 @@ static int ZSTD_literalsContribution(const BYTE* const literals, U32 const litLe
     return contribution;
 }
 
-
 /* ZSTD_getMatchPrice() :
+ * Provides the cost of the match part (offset + matchLength) of a sequence
+ * Must be combined with ZSTD_fullLiteralsCost() to get the full cost of a sequence.
  * optLevel: when <2, favors small offset for decompression speed (improved cache efficiency) */
 FORCE_INLINE_TEMPLATE U32 ZSTD_getMatchPrice(
                                     U32 const offset, U32 const matchLength,
@@ -171,14 +188,13 @@ FORCE_INLINE_TEMPLATE U32 ZSTD_getMatchPrice(
         price += ML_bits[mlCode] + optPtr->log2matchLengthSum - ZSTD_highbit32(optPtr->matchLengthFreq[mlCode]+1);
     }
 
-    //price += optPtr->factor;
     DEBUGLOG(8, "ZSTD_getMatchPrice(ml:%u) = %u", matchLength, price);
     return price;
 }
 
 static void ZSTD_updateStats(optState_t* const optPtr,
-                            U32 litLength, const BYTE* literals,
-                            U32 offsetCode, U32 matchLength)
+                             U32 litLength, const BYTE* literals,
+                             U32 offsetCode, U32 matchLength)
 {
     /* literals */
     {   U32 u;
@@ -209,7 +225,9 @@ static void ZSTD_updateStats(optState_t* const optPtr,
 }
 
 
-/* function safe only for comparisons */
+/* ZSTD_readMINMATCH() :
+ * function safe only for comparisons
+ * assumption : memPtr must be at least 4 bytes before end of buffer */
 MEM_STATIC U32 ZSTD_readMINMATCH(const void* memPtr, U32 length)
 {
     switch (length)
@@ -454,16 +472,6 @@ repcodes_t ZSTD_updateRep(U32 const rep[3], U32 const offset, U32 const ll0)
     return newReps;
 }
 
-/* update opt[pos] and last_pos */
-#define SET_PRICE(pos, mlen_, offset_, litlen_, price_, rep_) \
-    {                                                         \
-        while (last_pos < pos)  { opt[last_pos+1].price = ZSTD_MAX_PRICE; last_pos++; } \
-        opt[pos].mlen = mlen_;                                \
-        opt[pos].off = offset_;                               \
-        opt[pos].litlen = litlen_;                            \
-        opt[pos].price = price_;                              \
-        memcpy(opt[pos].rep, &rep_, sizeof(rep_));            \
-    }
 
 typedef struct {
     const BYTE* anchor;

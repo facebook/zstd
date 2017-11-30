@@ -241,6 +241,7 @@ static ZSTD_CCtx_params ZSTD_assignParamsToCCtxParams(
 
 size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned value)
 {
+    DEBUGLOG(4, "ZSTD_CCtx_setParameter");
     if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
 
     switch(param)
@@ -320,6 +321,7 @@ size_t ZSTD_CCtxParam_setParameter(
         return CCtxParams->compressionLevel;
 
     case ZSTD_p_windowLog :
+        DEBUGLOG(4, "setting windowLog=%u", value);
         if (value) {  /* 0 : does not change current windowLog */
             CLAMPCHECK(value, ZSTD_WINDOWLOG_MIN, ZSTD_WINDOWLOG_MAX);
             ZSTD_cLevelToCCtxParams(CCtxParams);
@@ -2862,7 +2864,6 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
                 if (cctx->mtctx == NULL) return ERROR(memory_allocation);
             }
             DEBUGLOG(4, "call ZSTDMT_initCStream_internal as nbThreads=%u", params.nbThreads);
-            DEBUGLOG(2, "params.windowLog = %u", params.cParams.windowLog);
             CHECK_F( ZSTDMT_initCStream_internal(
                         cctx->mtctx,
                         prefixDict.dict, prefixDict.dictSize, ZSTD_dm_rawContent,

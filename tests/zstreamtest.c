@@ -24,7 +24,6 @@
 **************************************/
 #include <stdlib.h>       /* free */
 #include <stdio.h>        /* fgets, sscanf */
-#include <time.h>         /* clock_t, clock() */
 #include <string.h>       /* strcmp */
 #include <assert.h>       /* assert */
 #include "mem.h"
@@ -37,6 +36,7 @@
 #define XXH_STATIC_LINKING_ONLY   /* XXH64_state_t */
 #include "xxhash.h"       /* XXH64_* */
 #include "seqgen.h"
+#include "util.h"
 
 
 /*-************************************
@@ -62,26 +62,25 @@ static const U32 prime32 = 2654435761U;
                                   if (g_displayLevel>=4) fflush(stderr); }
 static U32 g_displayLevel = 2;
 
-#define DISPLAYUPDATE(l, ...) if (g_displayLevel>=l) { \
-            if ((FUZ_GetClockSpan(g_displayClock) > g_refreshRate) || (g_displayLevel>=4)) \
-            { g_displayClock = clock(); DISPLAY(__VA_ARGS__); \
-              if (g_displayLevel>=4) fflush(stderr); } }
-static const clock_t g_refreshRate = CLOCKS_PER_SEC / 6;
-static clock_t g_displayClock = 0;
+#define SEC_TO_MICRO 1000000
+static const U64 g_refreshRate = SEC_TO_MICRO / 6;
+static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
 
-static clock_t g_clockTime = 0;
+#define DISPLAYUPDATE(l, ...) if (g_displayLevel>=l) { \
+            if ((UTIL_clockSpanMicro(g_displayClock) > g_refreshRate) || (g_displayLevel>=4)) \
+            { g_displayClock = UTIL_getTime(); DISPLAY(__VA_ARGS__); \
+            if (g_displayLevel>=4) fflush(stderr); } }
+
+static U64 g_clockTime = 0;
 
 
 /*-*******************************************************
 *  Fuzzer functions
 *********************************************************/
+#undef MIN
+#undef MAX
+#define MIN(a,b) ((a)<(b)?(a):(b))
 #define MAX(a,b) ((a)>(b)?(a):(b))
-
-static clock_t FUZ_GetClockSpan(clock_t clockStart)
-{
-    return clock() - clockStart;  /* works even when overflow. Max span ~ 30 mn */
-}
-
 /*! FUZ_rand() :
     @return : a 27 bits random value, from a 32-bits `seed`.
     `seed` is also modified */
@@ -815,8 +814,6 @@ static size_t FUZ_randomLength(U32* seed, U32 maxLog)
     return FUZ_rLogLength(seed, logLength);
 }
 
-#define MIN(a,b)   ( (a) < (b) ? (a) : (b) )
-
 /* Return value in range minVal <= v <= maxVal */
 static U32 FUZ_randomClampedLength(U32* seed, U32 minVal, U32 maxVal)
 {
@@ -842,7 +839,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
     ZSTD_CStream* zc = ZSTD_createCStream();   /* will be re-created sometimes */
     ZSTD_DStream* zd = ZSTD_createDStream();   /* will be re-created sometimes */
     ZSTD_DStream* const zd_noise = ZSTD_createDStream();
-    clock_t const startClock = clock();
+    UTIL_time_t const startClock = UTIL_getTime();
     const BYTE* dict = NULL;  /* can keep same dict on 2 consecutive tests */
     size_t dictSize = 0;
     U32 oldTestLog = 0;
@@ -872,7 +869,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
         FUZ_rand(&coreSeed);
 
     /* test loop */
-    for ( ; (testNb <= nbTests) || (FUZ_GetClockSpan(startClock) < g_clockTime) ; testNb++ ) {
+    for ( ; (testNb <= nbTests) || (UTIL_clockSpanMicro(startClock) < g_clockTime) ; testNb++ ) {
         U32 lseed;
         const BYTE* srcBuffer;
         size_t totalTestSize, totalGenSize, cSize;
@@ -1092,7 +1089,7 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double comp
     ZSTDMT_CCtx* zc = ZSTDMT_createCCtx(nbThreads);   /* will be reset sometimes */
     ZSTD_DStream* zd = ZSTD_createDStream();   /* will be reset sometimes */
     ZSTD_DStream* const zd_noise = ZSTD_createDStream();
-    clock_t const startClock = clock();
+    UTIL_time_t const startClock = UTIL_getTime();
     const BYTE* dict=NULL;   /* can keep same dict on 2 consecutive tests */
     size_t dictSize = 0;
     U32 oldTestLog = 0;
@@ -1123,7 +1120,7 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double comp
         FUZ_rand(&coreSeed);
 
     /* test loop */
-    for ( ; (testNb <= nbTests) || (FUZ_GetClockSpan(startClock) < g_clockTime) ; testNb++ ) {
+    for ( ; (testNb <= nbTests) || (UTIL_clockSpanMicro(startClock) < g_clockTime) ; testNb++ ) {
         U32 lseed;
         const BYTE* srcBuffer;
         size_t totalTestSize, totalGenSize, cSize;
@@ -1364,7 +1361,7 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
     ZSTD_CCtx* zc = ZSTD_createCCtx();   /* will be reset sometimes */
     ZSTD_DStream* zd = ZSTD_createDStream();   /* will be reset sometimes */
     ZSTD_DStream* const zd_noise = ZSTD_createDStream();
-    clock_t const startClock = clock();
+    UTIL_time_t const startClock = UTIL_getTime();
     const BYTE* dict = NULL;   /* can keep same dict on 2 consecutive tests */
     size_t dictSize = 0;
     U32 oldTestLog = 0;
@@ -1397,7 +1394,7 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
         FUZ_rand(&coreSeed);
 
     /* test loop */
-    for ( ; (testNb <= nbTests) || (FUZ_GetClockSpan(startClock) < g_clockTime) ; testNb++ ) {
+    for ( ; (testNb <= nbTests) || (UTIL_clockSpanMicro(startClock) < g_clockTime) ; testNb++ ) {
         U32 lseed;
         const BYTE* srcBuffer;
         size_t totalTestSize, totalGenSize, cSize;
@@ -1772,7 +1769,7 @@ int main(int argc, const char** argv)
                         g_clockTime *=60, argument++;
                         if (*argument=='n') argument++; /* -T1mn == -T60 */
                     } else if (*argument=='s') argument++; /* -T10s == -T10 */
-                    g_clockTime *= CLOCKS_PER_SEC;
+                    g_clockTime *= SEC_TO_MICRO;
                     break;
 
                 case 's':   /* manually select seed */

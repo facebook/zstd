@@ -271,11 +271,11 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
     case ZSTD_p_forceMaxWindow :  /* Force back-references to remain < windowSize,
                                    * even when referencing into Dictionary content
                                    * default : 0 when using a CDict, 1 when using a Prefix */
-        cctx->loadedDictEnd = 0;
+        cctx->loadedDictEnd = 0;  /* ? */
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
     case ZSTD_p_nbThreads:
-        if (value > 1 && cctx->staticSize) {
+        if ((value > 1) && cctx->staticSize) {
             return ERROR(parameter_unsupported);  /* MT not compatible with static alloc */
         }
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
@@ -465,14 +465,17 @@ size_t ZSTD_CCtxParam_setParameter(
  * The multithreading parameters jobSize and overlapSizeLog are set only if
  * nbThreads > 1.
  *
- * Pledged srcSize is treated as unknown.
+ * pledgedSrcSize is considered unknown
  */
 size_t ZSTD_CCtx_setParametersUsingCCtxParams(
-        ZSTD_CCtx* cctx, const ZSTD_CCtx_params* params)
+        ZSTD_CCtx* const cctx, const ZSTD_CCtx_params* const params)
 {
     if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
     if (cctx->cdict) return ERROR(stage_wrong);
 
+#if 1
+    cctx->requestedParams = *params;
+#else
     /* Assume the compression and frame parameters are validated */
     cctx->requestedParams.cParams = params->cParams;
     cctx->requestedParams.fParams = params->fParams;
@@ -492,6 +495,7 @@ size_t ZSTD_CCtx_setParametersUsingCCtxParams(
 
     /* Copy long distance matching parameters */
     cctx->requestedParams.ldmParams = params->ldmParams;
+#endif
 
     /* customMem is used only for create/free params and can be ignored */
     return 0;
@@ -2858,6 +2862,7 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
                 if (cctx->mtctx == NULL) return ERROR(memory_allocation);
             }
             DEBUGLOG(4, "call ZSTDMT_initCStream_internal as nbThreads=%u", params.nbThreads);
+            DEBUGLOG(2, "params.windowLog = %u", params.cParams.windowLog);
             CHECK_F( ZSTDMT_initCStream_internal(
                         cctx->mtctx,
                         prefixDict.dict, prefixDict.dictSize, ZSTD_dm_rawContent,

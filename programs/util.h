@@ -216,6 +216,7 @@ static int g_utilDisplayLevel;
     UTIL_STATIC U64 UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC; }
 #endif
 
+#define SEC_TO_MICRO 1000000
 
 /* returns time span in microseconds */
 UTIL_STATIC U64 UTIL_clockSpanMicro( UTIL_time_t clockStart )

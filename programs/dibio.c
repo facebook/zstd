@@ -54,7 +54,6 @@ static const size_t g_maxMemory = (sizeof(size_t) == 4) ? (2 GB - 64 MB) : ((siz
 #define DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
 #define DISPLAYLEVEL(l, ...) if (displayLevel>=l) { DISPLAY(__VA_ARGS__); }
 
-#define SEC_TO_MICRO 1000000
 static const U64 g_refreshRate = SEC_TO_MICRO / 6;
 static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
 

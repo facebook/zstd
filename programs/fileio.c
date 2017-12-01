@@ -81,7 +81,6 @@
 static int g_displayLevel = 2;   /* 0 : no display;  1: errors;  2: + result + interaction + warnings;  3: + progression;  4: + information */
 void FIO_setNotificationLevel(unsigned level) { g_displayLevel=level; }
 
-#define SEC_TO_MICRO 1000000
 static const U64 g_refreshRate = SEC_TO_MICRO / 6;
 static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
 

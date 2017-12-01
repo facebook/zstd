@@ -39,7 +39,6 @@
 #define MB *(1<<20)
 #define GB *(1ULL<<30)
 
-#define SEC_TO_MICRO 1000000
 #define NBLOOPS    2
 #define TIMELOOP  (2 * SEC_TO_MICRO)
 

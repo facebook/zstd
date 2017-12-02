@@ -1,3 +1,7 @@
+machine:
+  environment:
+    CFLAGS: -O0   # for faster compilation, will preserve warnings
+
 dependencies:
   override:
     - sudo dpkg --add-architecture i386

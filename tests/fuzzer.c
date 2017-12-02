@@ -25,7 +25,6 @@
 #include <stdlib.h>       /* free */
 #include <stdio.h>        /* fgets, sscanf */
 #include <string.h>       /* strcmp */
-#include <time.h>         /* clock_t */
 #define ZSTD_STATIC_LINKING_ONLY  /* ZSTD_compressContinue, ZSTD_compressBlock */
 #include "zstd.h"         /* ZSTD_VERSION_STRING */
 #include "zstd_errors.h"  /* ZSTD_getErrorCode */
@@ -36,6 +35,7 @@
 #include "mem.h"
 #define XXH_STATIC_LINKING_ONLY
 #include "xxhash.h"       /* XXH64 */
+#include "util.h"
 
 
 /*-************************************
@@ -56,24 +56,21 @@ static const U32 nbTestsDefault = 30000;
 #define DISPLAYLEVEL(l, ...)  if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); }
 static U32 g_displayLevel = 2;
 
-#define DISPLAYUPDATE(l, ...) if (g_displayLevel>=l) { \
-            if ((FUZ_clockSpan(g_displayClock) > g_refreshRate) || (g_displayLevel>=4)) \
-            { g_displayClock = clock(); DISPLAY(__VA_ARGS__); \
-            if (g_displayLevel>=4) fflush(stdout); } }
-static const clock_t g_refreshRate = CLOCKS_PER_SEC / 6;
-static clock_t g_displayClock = 0;
+static const U64 g_refreshRate = SEC_TO_MICRO / 6;
+static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
 
+#define DISPLAYUPDATE(l, ...) if (g_displayLevel>=l) { \
+            if ((UTIL_clockSpanMicro(g_displayClock) > g_refreshRate) || (g_displayLevel>=4)) \
+            { g_displayClock = UTIL_getTime(); DISPLAY(__VA_ARGS__); \
+            if (g_displayLevel>=4) fflush(stderr); } }
 
 /*-*******************************************************
 *  Fuzzer functions
 *********************************************************/
+#undef MIN
+#undef MAX
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define MAX(a,b) ((a)>(b)?(a):(b))
-
-static clock_t FUZ_clockSpan(clock_t cStart)
-{
-    return clock() - cStart;   /* works even when overflow; max span ~ 30mn */
-}
 
 #define FUZ_rotl32(x,r) ((x << r) | (x >> (32 - r)))
 static unsigned FUZ_rand(unsigned* src)
@@ -1208,8 +1205,8 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
     U32 result = 0;
     U32 testNb = 0;
     U32 coreSeed = seed, lseed = 0;
-    clock_t const startClock = clock();
-    clock_t const maxClockSpan = maxDurationS * CLOCKS_PER_SEC;
+    UTIL_time_t const startClock = UTIL_getTime();
+    U64 const maxClockSpan = maxDurationS * SEC_TO_MICRO;
     int const cLevelLimiter = bigTests ? 3 : 2;
 
     /* allocation */
@@ -1234,7 +1231,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
     for (testNb=1; testNb < startTest; testNb++) FUZ_rand(&coreSeed);
 
     /* main test loop */
-    for ( ; (testNb <= nbTests) || (FUZ_clockSpan(startClock) < maxClockSpan); testNb++ ) {
+    for ( ; (testNb <= nbTests) || (UTIL_clockSpanMicro(startClock) < maxClockSpan); testNb++ ) {
         size_t sampleSize, maxTestSize, totalTestSize;
         size_t cSize, totalCSize, totalGenSize;
         U64 crcOrig;

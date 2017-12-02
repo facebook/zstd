@@ -118,6 +118,7 @@ static int g_utilDisplayLevel;
 *  Time functions
 ******************************************/
 #if defined(_WIN32)   /* Windows */
+    #define UTIL_TIME_INITIALIZER { { 0, 0 } }
     typedef LARGE_INTEGER UTIL_time_t;
     UTIL_STATIC UTIL_time_t UTIL_getTime(void) { UTIL_time_t x; QueryPerformanceCounter(&x); return x; }
     UTIL_STATIC U64 UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd)
@@ -144,6 +145,7 @@ static int g_utilDisplayLevel;
     }
 #elif defined(__APPLE__) && defined(__MACH__)
     #include <mach/mach_time.h>
+    #define UTIL_TIME_INITIALIZER 0
     typedef U64 UTIL_time_t;
     UTIL_STATIC UTIL_time_t UTIL_getTime(void) { return mach_absolute_time(); }
     UTIL_STATIC U64 UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd)
@@ -168,6 +170,7 @@ static int g_utilDisplayLevel;
     }
 #elif (PLATFORM_POSIX_VERSION >= 200112L)
     #include <time.h>
+    #define UTIL_TIME_INITIALIZER { 0, 0 }
     typedef struct timespec UTIL_freq_t;
     typedef struct timespec UTIL_time_t;
     UTIL_STATIC UTIL_time_t UTIL_getTime(void)
@@ -207,11 +210,13 @@ static int g_utilDisplayLevel;
     }
 #else   /* relies on standard C (note : clock_t measurements can be wrong when using multi-threading) */
     typedef clock_t UTIL_time_t;
+    #define UTIL_TIME_INITIALIZER 0
     UTIL_STATIC UTIL_time_t UTIL_getTime(void) { return clock(); }
     UTIL_STATIC U64 UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC; }
     UTIL_STATIC U64 UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC; }
 #endif
 
+#define SEC_TO_MICRO 1000000
 
 /* returns time span in microseconds */
 UTIL_STATIC U64 UTIL_clockSpanMicro( UTIL_time_t clockStart )

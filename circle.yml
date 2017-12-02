@@ -19,11 +19,6 @@ test:
         parallel: true
     - ? |
         if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make c11build     && make clean; fi &&
-        if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make -C lib libzstd-nomt && make clean; fi
-      :
-        parallel: true
-    - ? |
-        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make cxxtest      && make clean; fi &&
         if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make ppc64build   && make clean; fi
       :
         parallel: true
@@ -40,6 +35,11 @@ test:
     - ? |
         if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make shortest     && make clean; fi &&
         if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make -C tests test-legacy test-longmatch test-symbols && make clean; fi
+      :
+        parallel: true
+    - ? |
+        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make cxxtest      && make clean; fi &&
+        if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make -C lib libzstd-nomt && make clean; fi
       :
         parallel: true
     - ? |

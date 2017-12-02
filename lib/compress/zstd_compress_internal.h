@@ -64,7 +64,7 @@ typedef struct {
 } ZSTD_match_t;
 
 typedef struct {
-    U32 price;
+    int price;
     U32 off;
     U32 mlen;
     U32 litlen;
@@ -83,19 +83,14 @@ typedef struct {
     U32  litSum;                 /* nb of literals */
     U32  litLengthSum;           /* nb of litLength codes */
     U32  matchLengthSum;         /* nb of matchLength codes */
-    U32  matchSum;               /* a strange argument used in calculating `factor` */
     U32  offCodeSum;             /* nb of offset codes */
     /* begin updated by ZSTD_setLog2Prices */
     U32  log2litSum;             /* pow2 to compare log2(litfreq) to */
     U32  log2litLengthSum;       /* pow2 to compare log2(llfreq) to */
     U32  log2matchLengthSum;     /* pow2 to compare log2(mlfreq) to */
     U32  log2offCodeSum;         /* pow2 to compare log2(offreq) to */
-    U32  factor;                 /* fixed cost added when calculating ZSTD_getPrice() (but why ? seems to favor less sequences) */
     /* end : updated by ZSTD_setLog2Prices */
     U32  staticPrices;           /* prices follow a pre-defined cost structure, statistics are irrelevant */
-    U32  cachedPrice;
-    U32  cachedLitLength;
-    const BYTE* cachedLiterals;
 } optState_t;
 
 typedef struct {

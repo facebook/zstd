@@ -270,9 +270,8 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
     case ZSTD_p_forceMaxWindow :  /* Force back-references to remain < windowSize,
-                                   * even when referencing into Dictionary content
+                                   * even when referencing into Dictionary content.
                                    * default : 0 when using a CDict, 1 when using a Prefix */
-        cctx->loadedDictEnd = 0;  /* ? */
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
     case ZSTD_p_nbThreads:
@@ -461,13 +460,9 @@ size_t ZSTD_CCtxParam_setParameter(
     }
 }
 
-/**
- * This function should be updated whenever ZSTD_CCtx_params is updated.
- * Parameters are copied manually before the dictionary is loaded.
- * The multithreading parameters jobSize and overlapSizeLog are set only if
- * nbThreads > 1.
- *
- * pledgedSrcSize is considered unknown
+/** ZSTD_CCtx_setParametersUsingCCtxParams() :
+ *  just applies `params` into `cctx`
+ *  no action is performed, parameters are merely stored.
  */
 size_t ZSTD_CCtx_setParametersUsingCCtxParams(
         ZSTD_CCtx* cctx, const ZSTD_CCtx_params* params)
@@ -475,31 +470,8 @@ size_t ZSTD_CCtx_setParametersUsingCCtxParams(
     if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
     if (cctx->cdict) return ERROR(stage_wrong);
 
-#if 1
     cctx->requestedParams = *params;
-#else
-    /* Assume the compression and frame parameters are validated */
-    cctx->requestedParams.cParams = params->cParams;
-    cctx->requestedParams.fParams = params->fParams;
-    cctx->requestedParams.compressionLevel = params->compressionLevel;
 
-    /* Set force window explicitly since it sets cctx->loadedDictEnd */
-    CHECK_F( ZSTD_CCtx_setParameter(
-                   cctx, ZSTD_p_forceMaxWindow, params->forceWindow) );
-
-    /* Set multithreading parameters explicitly */
-    CHECK_F( ZSTD_CCtx_setParameter(cctx, ZSTD_p_nbThreads, params->nbThreads) );
-    if (params->nbThreads > 1) {
-        CHECK_F( ZSTD_CCtx_setParameter(cctx, ZSTD_p_jobSize, params->jobSize) );
-        CHECK_F( ZSTD_CCtx_setParameter(
-                    cctx, ZSTD_p_overlapSizeLog, params->overlapSizeLog) );
-    }
-
-    /* Copy long distance matching parameters */
-    cctx->requestedParams.ldmParams = params->ldmParams;
-#endif
-
-    /* customMem is used only for create/free params and can be ignored */
     return 0;
 }
 
@@ -2097,7 +2069,6 @@ size_t ZSTD_compressBegin_advanced_internal(
                                     unsigned long long pledgedSrcSize)
 {
     DEBUGLOG(4, "ZSTD_compressBegin_advanced_internal");
-    DEBUGLOG(4, "contentSizeFlag : %u", params.fParams.contentSizeFlag);
     /* compression parameters verification and optimization */
     CHECK_F( ZSTD_checkCParams(params.cParams) );
     return ZSTD_compressBegin_internal(cctx, dict, dictSize, dictMode, NULL,

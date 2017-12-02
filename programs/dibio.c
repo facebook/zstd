@@ -26,7 +26,6 @@
 #include <stdlib.h>         /* malloc, free */
 #include <string.h>         /* memset */
 #include <stdio.h>          /* fprintf, fopen, ftello64 */
-#include <time.h>           /* clock_t, clock, CLOCKS_PER_SEC */
 #include <errno.h>          /* errno */
 
 #include "mem.h"            /* read */
@@ -55,15 +54,13 @@ static const size_t g_maxMemory = (sizeof(size_t) == 4) ? (2 GB - 64 MB) : ((siz
 #define DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
 #define DISPLAYLEVEL(l, ...) if (displayLevel>=l) { DISPLAY(__VA_ARGS__); }
 
-#define DISPLAYUPDATE(l, ...) if (displayLevel>=l) { \
-            if ((DIB_clockSpan(g_time) > refreshRate) || (displayLevel>=4)) \
-            { g_time = clock(); DISPLAY(__VA_ARGS__); \
-            if (displayLevel>=4) fflush(stderr); } }
-static const clock_t refreshRate = CLOCKS_PER_SEC * 2 / 10;
-static clock_t g_time = 0;
+static const U64 g_refreshRate = SEC_TO_MICRO / 6;
+static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
 
-static clock_t DIB_clockSpan(clock_t nPrevious) { return clock() - nPrevious; }
-
+#define DISPLAYUPDATE(l, ...) { if (displayLevel>=l) { \
+            if ((UTIL_clockSpanMicro(g_displayClock) > g_refreshRate) || (displayLevel>=4)) \
+            { g_displayClock = UTIL_getTime(); DISPLAY(__VA_ARGS__); \
+            if (displayLevel>=4) fflush(stderr); } } }
 
 /*-*************************************
 *  Exceptions

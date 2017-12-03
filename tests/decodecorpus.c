@@ -14,8 +14,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
+#include "util.h"
 #include "zstd.h"
 #include "zstd_internal.h"
 #include "mem.h"
@@ -49,20 +49,16 @@ static U32 g_displayLevel = 2;
 
 #define DISPLAYUPDATE(...)                                                     \
     do {                                                                       \
-        if ((clockSpan(g_displayClock) > g_refreshRate) ||                     \
+        if ((UTIL_clockSpanMicro(g_displayClock) > g_refreshRate) ||           \
             (g_displayLevel >= 4)) {                                           \
-            g_displayClock = clock();                                          \
+            g_displayClock = UTIL_getTime();                                   \
             DISPLAY(__VA_ARGS__);                                              \
             if (g_displayLevel >= 4) fflush(stderr);                           \
         }                                                                      \
     } while (0)
-static const clock_t g_refreshRate = CLOCKS_PER_SEC / 6;
-static clock_t g_displayClock = 0;
 
-static clock_t clockSpan(clock_t cStart)
-{
-    return clock() - cStart;   /* works even when overflow; max span ~ 30mn */
-}
+static const U64 g_refreshRate = SEC_TO_MICRO / 6;
+static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
 
 #define CHECKERR(code)                                                         \
     do {                                                                       \
@@ -1531,14 +1527,14 @@ static int runTestMode(U32 seed, unsigned numFiles, unsigned const testDurationS
 {
     unsigned fnum;
 
-    clock_t const startClock = clock();
-    clock_t const maxClockSpan = testDurationS * CLOCKS_PER_SEC;
+    UTIL_time_t const startClock = UTIL_getTime();
+    U64 const maxClockSpan = testDurationS * SEC_TO_MICRO;
 
     if (numFiles == 0 && !testDurationS) numFiles = 1;
 
     DISPLAY("seed: %u\n", seed);
 
-    for (fnum = 0; fnum < numFiles || clockSpan(startClock) < maxClockSpan; fnum++) {
+    for (fnum = 0; fnum < numFiles || UTIL_clockSpanMicro(startClock) < maxClockSpan; fnum++) {
         if (fnum < numFiles)
             DISPLAYUPDATE("\r%u/%u        ", fnum, numFiles);
         else

@@ -639,7 +639,6 @@ static unsigned long long FIO_compressLz4Frame(cRess_t* ress,
     memset(&prefs, 0, sizeof(prefs));
 
     assert(blockSize <= ress->srcBufferSize);
-    assert(LZ4F_compressBound(blockSize) <= ress->dstBufferSize);
 
     prefs.autoFlush = 1;
     prefs.compressionLevel = compressionLevel;
@@ -649,6 +648,7 @@ static unsigned long long FIO_compressLz4Frame(cRess_t* ress,
 #if LZ4_VERSION_NUMBER >= 10600
     prefs.frameInfo.contentSize = (srcFileSize==UTIL_FILESIZE_UNKNOWN) ? 0 : srcFileSize;
 #endif
+    assert(LZ4F_compressBound(blockSize, &prefs) <= ress->dstBufferSize);
 
     {
         size_t readSize;

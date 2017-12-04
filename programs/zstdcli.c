@@ -773,8 +773,9 @@ int main(int argCount, const char* argv[])
             BMK_setLdmHashEveryLog(g_ldmHashEveryLog);
         }
         BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast, &compressionParams);
+#else
+        (void)bench_nbSeconds; (void)blockSize; (void)setRealTimePrio; (void)separateFiles;
 #endif
-        (void)bench_nbSeconds; (void)blockSize; (void)setRealTimePrio;
         goto _end;
     }
 

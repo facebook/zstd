@@ -141,7 +141,7 @@ static LDM_hashEntry *getBucket(const LDM_hashTable *table, const hash_t hash) {
   return table->entries + (hash << HASH_BUCKET_SIZE_LOG);
 }
 
-static unsigned ZSTD_NbCommonBytes (register size_t val) {
+static unsigned ZSTD_NbCommonBytes (size_t val) {
   if (MEM_isLittleEndian()) {
     if (MEM_64bits()) {
 #    if defined(_MSC_VER) && defined(_WIN64)
@@ -854,4 +854,3 @@ void LDM_outputConfiguration(void) {
   printf("HASH_CHAR_OFFSET: %d\n", HASH_CHAR_OFFSET);
   printf("=====================\n");
 }
-

@@ -736,18 +736,6 @@ MEM_STATIC BITv05_DStream_status BITv05_reloadDStream(BITv05_DStream_t* bitD);
 MEM_STATIC unsigned BITv05_endOfDStream(const BITv05_DStream_t* bitD);
 
 
-/*!
-* Start by invoking BITv05_initDStream().
-* A chunk of the bitStream is then stored into a local register.
-* Local register size is 64-bits on 64-bits systems, 32-bits on 32-bits systems (size_t).
-* You can then retrieve bitFields stored into the local register, **in reverse order**.
-* Local register is explicitly reloaded from memory by the BITv05_reloadDStream() method.
-* A reload guarantee a minimum of ((8*sizeof(size_t))-7) bits when its result is BITv05_DStream_unfinished.
-* Otherwise, it can be less than that, so proceed accordingly.
-* Checking if DStream has reached its end can be performed with BITv05_endOfDStream()
-*/
-
-
 /*-****************************************
 *  unsafe API
 ******************************************/
@@ -759,7 +747,7 @@ MEM_STATIC size_t BITv05_readBitsFast(BITv05_DStream_t* bitD, unsigned nbBits);
 /*-**************************************************************
 *  Helper functions
 ****************************************************************/
-MEM_STATIC unsigned BITv05_highbit32 (register U32 val)
+MEM_STATIC unsigned BITv05_highbit32 (U32 val)
 {
 #   if defined(_MSC_VER)   /* Visual */
     unsigned long r=0;
@@ -829,13 +817,6 @@ MEM_STATIC size_t BITv05_initDStream(BITv05_DStream_t* bitD, const void* srcBuff
     return srcSize;
 }
 
-/*!BITv05_lookBits
- * Provides next n bits from local register
- * local register is not modified (bits are still present for next read/look)
- * On 32-bits, maxNbBits==25
- * On 64-bits, maxNbBits==57
- * @return : value extracted
- */
 MEM_STATIC size_t BITv05_lookBits(BITv05_DStream_t* bitD, U32 nbBits)
 {
     const U32 bitMask = sizeof(bitD->bitContainer)*8 - 1;
@@ -855,11 +836,6 @@ MEM_STATIC void BITv05_skipBits(BITv05_DStream_t* bitD, U32 nbBits)
     bitD->bitsConsumed += nbBits;
 }
 
-/*!BITv05_readBits
- * Read next n bits from local register.
- * pay attention to not read more than nbBits contained into local register.
- * @return : extracted value.
- */
 MEM_STATIC size_t BITv05_readBits(BITv05_DStream_t* bitD, U32 nbBits)
 {
     size_t value = BITv05_lookBits(bitD, nbBits);
@@ -995,54 +971,6 @@ static unsigned char FSEv05_decodeSymbol(FSEv05_DState_t* DStatePtr, BITv05_DStr
 
 static unsigned FSEv05_endOfDState(const FSEv05_DState_t* DStatePtr);
 
-/*!
-Let's now decompose FSEv05_decompress_usingDTable() into its unitary components.
-You will decode FSEv05-encoded symbols from the bitStream,
-and also any other bitFields you put in, **in reverse order**.
-
-You will need a few variables to track your bitStream. They are :
-
-BITv05_DStream_t DStream;    // Stream context
-FSEv05_DState_t  DState;     // State context. Multiple ones are possible
-FSEv05_DTable*   DTablePtr;  // Decoding table, provided by FSEv05_buildDTable()
-
-The first thing to do is to init the bitStream.
-    errorCode = BITv05_initDStream(&DStream, srcBuffer, srcSize);
-
-You should then retrieve your initial state(s)
-(in reverse flushing order if you have several ones) :
-    errorCode = FSEv05_initDState(&DState, &DStream, DTablePtr);
-
-You can then decode your data, symbol after symbol.
-For information the maximum number of bits read by FSEv05_decodeSymbol() is 'tableLog'.
-Keep in mind that symbols are decoded in reverse order, like a LIFO stack (last in, first out).
-    unsigned char symbol = FSEv05_decodeSymbol(&DState, &DStream);
-
-You can retrieve any bitfield you eventually stored into the bitStream (in reverse order)
-Note : maximum allowed nbBits is 25, for 32-bits compatibility
-    size_t bitField = BITv05_readBits(&DStream, nbBits);
-
-All above operations only read from local register (which size depends on size_t).
-Refueling the register from memory is manually performed by the reload method.
-    endSignal = FSEv05_reloadDStream(&DStream);
-
-BITv05_reloadDStream() result tells if there is still some more data to read from DStream.
-BITv05_DStream_unfinished : there is still some data left into the DStream.
-BITv05_DStream_endOfBuffer : Dstream reached end of buffer. Its container may no longer be completely filled.
-BITv05_DStream_completed : Dstream reached its exact end, corresponding in general to decompression completed.
-BITv05_DStream_tooFar : Dstream went too far. Decompression result is corrupted.
-
-When reaching end of buffer (BITv05_DStream_endOfBuffer), progress slowly, notably if you decode multiple symbols per loop,
-to properly detect the exact end of stream.
-After each decoded symbol, check if DStream is fully consumed using this simple test :
-    BITv05_reloadDStream(&DStream) >= BITv05_DStream_completed
-
-When it's done, verify decompression is fully completed, by checking both DStream and the relevant states.
-Checking if DStream has reached its end is performed by :
-    BITv05_endOfDStream(&DStream);
-Check also the states. There might be some symbols left there, if some high probability ones (>50%) are possible.
-    FSEv05_endOfDState(&DState);
-*/
 
 
 /* *****************************************

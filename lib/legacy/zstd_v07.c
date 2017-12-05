@@ -511,16 +511,6 @@ MEM_STATIC BITv07_DStream_status BITv07_reloadDStream(BITv07_DStream_t* bitD);
 MEM_STATIC unsigned BITv07_endOfDStream(const BITv07_DStream_t* bitD);
 
 
-/* Start by invoking BITv07_initDStream().
-*  A chunk of the bitStream is then stored into a local register.
-*  Local register size is 64-bits on 64-bits systems, 32-bits on 32-bits systems (size_t).
-*  You can then retrieve bitFields stored into the local register, **in reverse order**.
-*  Local register is explicitly reloaded from memory by the BITv07_reloadDStream() method.
-*  A reload guarantee a minimum of ((8*sizeof(bitD->bitContainer))-7) bits when its result is BITv07_DStream_unfinished.
-*  Otherwise, it can be less than that, so proceed accordingly.
-*  Checking if DStream has reached its end can be performed with BITv07_endOfDStream().
-*/
-
 
 /*-****************************************
 *  unsafe API
@@ -533,7 +523,7 @@ MEM_STATIC size_t BITv07_readBitsFast(BITv07_DStream_t* bitD, unsigned nbBits);
 /*-**************************************************************
 *  Internal functions
 ****************************************************************/
-MEM_STATIC unsigned BITv07_highbit32 (register U32 val)
+MEM_STATIC unsigned BITv07_highbit32 (U32 val)
 {
 #   if defined(_MSC_VER)   /* Visual */
     unsigned long r=0;
@@ -599,13 +589,6 @@ MEM_STATIC size_t BITv07_initDStream(BITv07_DStream_t* bitD, const void* srcBuff
 }
 
 
-/*! BITv07_lookBits() :
- *  Provides next n bits from local register.
- *  local register is not modified.
- *  On 32-bits, maxNbBits==24.
- *  On 64-bits, maxNbBits==56.
- *  @return : value extracted
- */
  MEM_STATIC size_t BITv07_lookBits(const BITv07_DStream_t* bitD, U32 nbBits)
 {
     U32 const bitMask = sizeof(bitD->bitContainer)*8 - 1;
@@ -625,11 +608,6 @@ MEM_STATIC void BITv07_skipBits(BITv07_DStream_t* bitD, U32 nbBits)
     bitD->bitsConsumed += nbBits;
 }
 
-/*! BITv07_readBits() :
- *  Read (consume) next n bits from local register and update.
- *  Pay attention to not read more than nbBits contained into local register.
- *  @return : extracted value.
- */
 MEM_STATIC size_t BITv07_readBits(BITv07_DStream_t* bitD, U32 nbBits)
 {
     size_t const value = BITv07_lookBits(bitD, nbBits);
@@ -646,11 +624,6 @@ MEM_STATIC size_t BITv07_readBitsFast(BITv07_DStream_t* bitD, U32 nbBits)
     return value;
 }
 
-/*! BITv07_reloadDStream() :
-*   Refill `BITv07_DStream_t` from src buffer previously defined (see BITv07_initDStream() ).
-*   This function is safe, it guarantees it will not read beyond src buffer.
-*   @return : status of `BITv07_DStream_t` internal register.
-              if status == unfinished, internal register is filled with >= (sizeof(bitD->bitContainer)*8 - 7) bits */
 MEM_STATIC BITv07_DStream_status BITv07_reloadDStream(BITv07_DStream_t* bitD)
 {
     if (bitD->bitsConsumed > (sizeof(bitD->bitContainer)*8))  /* should not happen => corruption detected */
@@ -873,55 +846,6 @@ static void     FSEv07_initDState(FSEv07_DState_t* DStatePtr, BITv07_DStream_t* 
 
 static unsigned char FSEv07_decodeSymbol(FSEv07_DState_t* DStatePtr, BITv07_DStream_t* bitD);
 
-
-/**<
-Let's now decompose FSEv07_decompress_usingDTable() into its unitary components.
-You will decode FSE-encoded symbols from the bitStream,
-and also any other bitFields you put in, **in reverse order**.
-
-You will need a few variables to track your bitStream. They are :
-
-BITv07_DStream_t DStream;    // Stream context
-FSEv07_DState_t  DState;     // State context. Multiple ones are possible
-FSEv07_DTable*   DTablePtr;  // Decoding table, provided by FSEv07_buildDTable()
-
-The first thing to do is to init the bitStream.
-    errorCode = BITv07_initDStream(&DStream, srcBuffer, srcSize);
-
-You should then retrieve your initial state(s)
-(in reverse flushing order if you have several ones) :
-    errorCode = FSEv07_initDState(&DState, &DStream, DTablePtr);
-
-You can then decode your data, symbol after symbol.
-For information the maximum number of bits read by FSEv07_decodeSymbol() is 'tableLog'.
-Keep in mind that symbols are decoded in reverse order, like a LIFO stack (last in, first out).
-    unsigned char symbol = FSEv07_decodeSymbol(&DState, &DStream);
-
-You can retrieve any bitfield you eventually stored into the bitStream (in reverse order)
-Note : maximum allowed nbBits is 25, for 32-bits compatibility
-    size_t bitField = BITv07_readBits(&DStream, nbBits);
-
-All above operations only read from local register (which size depends on size_t).
-Refueling the register from memory is manually performed by the reload method.
-    endSignal = FSEv07_reloadDStream(&DStream);
-
-BITv07_reloadDStream() result tells if there is still some more data to read from DStream.
-BITv07_DStream_unfinished : there is still some data left into the DStream.
-BITv07_DStream_endOfBuffer : Dstream reached end of buffer. Its container may no longer be completely filled.
-BITv07_DStream_completed : Dstream reached its exact end, corresponding in general to decompression completed.
-BITv07_DStream_tooFar : Dstream went too far. Decompression result is corrupted.
-
-When reaching end of buffer (BITv07_DStream_endOfBuffer), progress slowly, notably if you decode multiple symbols per loop,
-to properly detect the exact end of stream.
-After each decoded symbol, check if DStream is fully consumed using this simple test :
-    BITv07_reloadDStream(&DStream) >= BITv07_DStream_completed
-
-When it's done, verify decompression is fully completed, by checking both DStream and the relevant states.
-Checking if DStream has reached its end is performed by :
-    BITv07_endOfDStream(&DStream);
-Check also the states. There might be some symbols left there, if some high probability ones (>50%) are possible.
-    FSEv07_endOfDState(&DState);
-*/
 
 
 /* *****************************************

@@ -103,7 +103,7 @@ unsigned ZDICT_getDictID(const void* dictBuffer, size_t dictSize)
 /*-********************************************************
 *  Dictionary training functions
 **********************************************************/
-static unsigned ZDICT_NbCommonBytes (register size_t val)
+static unsigned ZDICT_NbCommonBytes (size_t val)
 {
     if (MEM_isLittleEndian()) {
         if (MEM_64bits()) {

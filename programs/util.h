@@ -34,7 +34,7 @@ extern "C" {
 #  include <unistd.h>     /* chown, stat */
 #  include <utime.h>      /* utime */
 #endif
-#include <time.h>         /* time */
+#include <time.h>         /* clock_t, clock, CLOCKS_PER_SEC, nanosleep */
 #include <errno.h>
 #include "mem.h"          /* U32, U64 */
 
@@ -64,7 +64,6 @@ extern "C" {
 #elif PLATFORM_POSIX_VERSION >= 0 /* Unix-like operating system */
 #  include <unistd.h>
 #  include <sys/resource.h> /* setpriority */
-#  include <time.h>         /* clock_t, nanosleep, clock, CLOCKS_PER_SEC */
 #  if defined(PRIO_PROCESS)
 #    define SET_REALTIME_PRIORITY setpriority(PRIO_PROCESS, 0, -20)
 #  else
@@ -168,8 +167,7 @@ static int g_utilDisplayLevel;
         }
         return ((clockEnd - clockStart) * (U64)rate.numer) / ((U64)rate.denom);
     }
-#elif (PLATFORM_POSIX_VERSION >= 200112L)
-    #include <time.h>
+#elif (PLATFORM_POSIX_VERSION >= 200112L) && (defined __UCLIBC__ || ((__GLIBC__ == 2 && __GLIBC_MINOR__ >= 17) || __GLIBC__ > 2))
     #define UTIL_TIME_INITIALIZER { 0, 0 }
     typedef struct timespec UTIL_freq_t;
     typedef struct timespec UTIL_time_t;

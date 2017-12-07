@@ -245,13 +245,28 @@ static int basicUnitTests(U32 seed, double compressibility)
     }
     dictID = ZDICT_getDictID(dictionary.start, dictionary.filled);
 
+    /* Basic compression test */
+    DISPLAYLEVEL(3, "test%3i : compress %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
+    CHECK_Z( ZSTD_initCStream(zc, 1 /* cLevel */) );
+    outBuff.dst = (char*)(compressedBuffer);
+    outBuff.size = compressedBufferSize;
+    outBuff.pos = 0;
+    inBuff.src = CNBuffer;
+    inBuff.size = CNBufferSize;
+    inBuff.pos = 0;
+    CHECK_Z( ZSTD_compressStream(zc, &outBuff, &inBuff) );
+    if (inBuff.pos != inBuff.size) goto _output_error;   /* entire input should be consumed */
+    { size_t const r = ZSTD_endStream(zc, &outBuff);
+      if (r != 0) goto _output_error; }  /* error, or some data not flushed */
+    DISPLAYLEVEL(3, "OK (%u bytes)\n", (U32)outBuff.pos);
+
     /* generate skippable frame */
     MEM_writeLE32(compressedBuffer, ZSTD_MAGIC_SKIPPABLE_START);
     MEM_writeLE32(((char*)compressedBuffer)+4, (U32)skippableFrameSize);
     cSize = skippableFrameSize + 8;
 
-    /* Basic compression test */
-    DISPLAYLEVEL(3, "test%3i : compress %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
+    /* Basic compression test using dict */
+    DISPLAYLEVEL(3, "test%3i : skipframe + compress %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
     CHECK_Z( ZSTD_initCStream_usingDict(zc, CNBuffer, dictSize, 1 /* cLevel */) );
     outBuff.dst = (char*)(compressedBuffer)+cSize;
     assert(compressedBufferSize > cSize);

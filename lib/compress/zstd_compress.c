@@ -2466,6 +2466,7 @@ size_t ZSTD_compress_usingCDict(ZSTD_CCtx* cctx,
 
 ZSTD_CStream* ZSTD_createCStream(void)
 {
+    DEBUGLOG(3, "ZSTD_createCStream");
     return ZSTD_createCStream_advanced(ZSTD_defaultCMem);
 }
 
@@ -2633,7 +2634,8 @@ size_t ZSTD_initCStream_srcSize(ZSTD_CStream* zcs, int compressionLevel, unsigne
 
 size_t ZSTD_initCStream(ZSTD_CStream* zcs, int compressionLevel)
 {
-    return ZSTD_initCStream_srcSize(zcs, compressionLevel, 0);
+    DEBUGLOG(4, "ZSTD_initCStream");
+    return ZSTD_initCStream_srcSize(zcs, compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN);
 }
 
 /*======   Compression   ======*/

@@ -2466,6 +2466,7 @@ size_t ZSTD_compress_usingCDict(ZSTD_CCtx* cctx,
 
 ZSTD_CStream* ZSTD_createCStream(void)
 {
+    DEBUGLOG(3, "ZSTD_createCStream");
     return ZSTD_createCStream_advanced(ZSTD_defaultCMem);
 }
 
@@ -2598,7 +2599,8 @@ size_t ZSTD_initCStream_usingCDict(ZSTD_CStream* zcs, const ZSTD_CDict* cdict)
 }
 
 /* ZSTD_initCStream_advanced() :
- * pledgedSrcSize : if srcSize is not known at init time, use value ZSTD_CONTENTSIZE_UNKNOWN.
+ * pledgedSrcSize must be correct.
+ * if srcSize is not known at init time, use value ZSTD_CONTENTSIZE_UNKNOWN.
  * dict is loaded with default parameters ZSTD_dm_auto and ZSTD_dlm_byCopy. */
 size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs,
                                  const void* dict, size_t dictSize,
@@ -2609,9 +2611,8 @@ size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs,
     DEBUGLOG(4, "ZSTD_initCStream_advanced: pledgedSrcSize=%u, flag=%u",
             (U32)pledgedSrcSize, params.fParams.contentSizeFlag);
     CHECK_F( ZSTD_checkCParams(params.cParams) );
-    if ((pledgedSrcSize==0) && (params.fParams.contentSizeFlag==0))
-        pledgedSrcSize = ZSTD_CONTENTSIZE_UNKNOWN;
-    return ZSTD_initCStream_internal(zcs, dict, dictSize, NULL, cctxParams, pledgedSrcSize);
+    if ((pledgedSrcSize==0) && (params.fParams.contentSizeFlag==0)) pledgedSrcSize = ZSTD_CONTENTSIZE_UNKNOWN;  /* for compatibility with older programs relying on this behavior. Users should now specify ZSTD_CONTENTSIZE_UNKNOWN. This line will be removed in the future. */
+    return ZSTD_initCStream_internal(zcs, dict, dictSize, NULL /*cdict*/, cctxParams, pledgedSrcSize);
 }
 
 size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs, const void* dict, size_t dictSize, int compressionLevel)
@@ -2622,18 +2623,18 @@ size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs, const void* dict, size_t di
     return ZSTD_initCStream_internal(zcs, dict, dictSize, NULL, cctxParams, ZSTD_CONTENTSIZE_UNKNOWN);
 }
 
-size_t ZSTD_initCStream_srcSize(ZSTD_CStream* zcs, int compressionLevel, unsigned long long pledgedSrcSize)
+size_t ZSTD_initCStream_srcSize(ZSTD_CStream* zcs, int compressionLevel, unsigned long long pss)
 {
-    ZSTD_CCtx_params cctxParams;
+    U64 const pledgedSrcSize = (pss==0) ? ZSTD_CONTENTSIZE_UNKNOWN : pss;  /* temporary : 0 interpreted as "unknown" during transition period. Users willing to specify "unknown" **must** use ZSTD_CONTENTSIZE_UNKNOWN. `0` will be interpreted as "empty" in the future */
     ZSTD_parameters const params = ZSTD_getParams(compressionLevel, pledgedSrcSize, 0);
-    cctxParams = ZSTD_assignParamsToCCtxParams(zcs->requestedParams, params);
-    cctxParams.fParams.contentSizeFlag = (pledgedSrcSize>0);
+    ZSTD_CCtx_params const cctxParams = ZSTD_assignParamsToCCtxParams(zcs->requestedParams, params);
     return ZSTD_initCStream_internal(zcs, NULL, 0, NULL, cctxParams, pledgedSrcSize);
 }
 
 size_t ZSTD_initCStream(ZSTD_CStream* zcs, int compressionLevel)
 {
-    return ZSTD_initCStream_srcSize(zcs, compressionLevel, 0);
+    DEBUGLOG(4, "ZSTD_initCStream");
+    return ZSTD_initCStream_srcSize(zcs, compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN);
 }
 
 /*======   Compression   ======*/

@@ -524,12 +524,12 @@ static int basicUnitTests(U32 seed, double compressibility)
     {   ZSTD_DDict* const ddict = ZSTD_createDDict(dictionary.start, dictionary.filled);
         size_t const initError = ZSTD_initDStream_usingDDict(zd, ddict);
         if (ZSTD_isError(initError)) goto _output_error;
-        outBuff.dst = decodedBuffer;
-        outBuff.size = CNBufferSize;
-        outBuff.pos = 0;
         inBuff.src = compressedBuffer;
         inBuff.size = cSize;
         inBuff.pos = 0;
+        outBuff.dst = decodedBuffer;
+        outBuff.size = CNBufferSize;
+        outBuff.pos = 0;
         { size_t const r = ZSTD_decompressStream(zd, &outBuff, &inBuff);
           if (r != 0) goto _output_error; }  /* should reach end of frame == 0; otherwise, some data left, or an error */
         if (outBuff.pos != CNBufferSize) goto _output_error;   /* should regenerate the same amount */
@@ -548,12 +548,12 @@ static int basicUnitTests(U32 seed, double compressibility)
     DISPLAYLEVEL(3, "test%3i : maxWindowSize < frame requirement : ", testNb++);
     ZSTD_initDStream_usingDict(zd, CNBuffer, dictSize);
     CHECK_Z( ZSTD_setDStreamParameter(zd, DStream_p_maxWindowSize, 1000) );  /* too small limit */
-    outBuff.dst = decodedBuffer;
-    outBuff.size = CNBufferSize;
-    outBuff.pos = 0;
     inBuff.src = compressedBuffer;
     inBuff.size = cSize;
     inBuff.pos = 0;
+    outBuff.dst = decodedBuffer;
+    outBuff.size = CNBufferSize;
+    outBuff.pos = 0;
     { size_t const r = ZSTD_decompressStream(zd, &outBuff, &inBuff);
       if (!ZSTD_isError(r)) goto _output_error;  /* must fail : frame requires > 100 bytes */
       DISPLAYLEVEL(3, "OK (%s)\n", ZSTD_getErrorName(r)); }
@@ -642,12 +642,12 @@ static int basicUnitTests(U32 seed, double compressibility)
         params.fParams.contentSizeFlag = 1;
         CHECK_Z( ZSTD_initCStream_advanced(zc, dictionary.start, dictionary.filled, params, 0 /* pledgedSrcSize==0 means "empty" when params.fParams.contentSizeFlag is set */) );
     } /* cstream advanced shall write content size = 0 */
-    outBuff.dst = compressedBuffer;
-    outBuff.size = compressedBufferSize;
-    outBuff.pos = 0;
     inBuff.src = CNBuffer;
     inBuff.size = 0;
     inBuff.pos = 0;
+    outBuff.dst = compressedBuffer;
+    outBuff.size = compressedBufferSize;
+    outBuff.pos = 0;
     CHECK_Z( ZSTD_compressStream(zc, &outBuff, &inBuff) );
     if (ZSTD_endStream(zc, &outBuff) != 0) goto _output_error;
     cSize = outBuff.pos;
@@ -671,12 +671,12 @@ static int basicUnitTests(U32 seed, double compressibility)
     if (ZSTD_findDecompressedSize(compressedBuffer, cSize) != 0) goto _output_error;
 
     ZSTD_resetCStream(zc, 0); /* resetCStream should treat 0 as unknown */
-    outBuff.dst = compressedBuffer;
-    outBuff.size = compressedBufferSize;
-    outBuff.pos = 0;
     inBuff.src = CNBuffer;
     inBuff.size = 0;
     inBuff.pos = 0;
+    outBuff.dst = compressedBuffer;
+    outBuff.size = compressedBufferSize;
+    outBuff.pos = 0;
     CHECK_Z( ZSTD_compressStream(zc, &outBuff, &inBuff) );
     if (ZSTD_endStream(zc, &outBuff) != 0) goto _output_error;
     cSize = outBuff.pos;
@@ -688,7 +688,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     {   ZSTD_parameters const params = ZSTD_getParams(1, 0, 0);
         CHECK_Z( ZSTDMT_initCStream_advanced(mtctx, CNBuffer, dictSize, params, CNBufferSize) );
     }
-    outBuff.dst = compressedBuffer;
+    outBuff.dst = (char*)(compressedBuffer);
     outBuff.size = compressedBufferSize;
     outBuff.pos = 0;
     inBuff.src = CNBuffer;
@@ -698,61 +698,6 @@ static int basicUnitTests(U32 seed, double compressibility)
     if (inBuff.pos != inBuff.size) goto _output_error;   /* entire input should be consumed */
     { size_t const r = ZSTDMT_endStream(mtctx, &outBuff);
       if (r != 0) goto _output_error; }  /* error, or some data not flushed */
-    DISPLAYLEVEL(3, "OK \n");
-
-    /* Complex multithreading + dictionary test */
-    {   U32 const nbThreads = 2;
-        size_t const jobSize = 4 * 1 MB;
-        size_t const srcSize = jobSize * nbThreads;  /* we want each job to have predictable size */
-        size_t const segLength = 2 KB;
-        size_t const offset = 600 KB;   /* must be larger than window defined in cdict */
-        size_t const start = jobSize + (offset-1);
-        const BYTE* const srcToCopy = (const BYTE*)CNBuffer + start;
-        BYTE* const dst = (BYTE*)CNBuffer + start - offset;
-        DISPLAYLEVEL(3, "test%3i : compress %u bytes with multiple threads + dictionary : ", testNb++, (U32)srcSize);
-        ZSTD_CCtx_setParameter(zc, ZSTD_p_compressionLevel, 3);
-        ZSTD_CCtx_setParameter(zc, ZSTD_p_nbThreads, 2);
-        ZSTD_CCtx_setParameter(zc, ZSTD_p_jobSize, jobSize);
-        assert(start > offset);
-        assert(start + segLength < COMPRESSIBLE_NOISE_LENGTH);
-        memcpy(dst, srcToCopy, segLength);   /* create a long repetition at long distance for job 2 */
-        outBuff.dst = compressedBuffer;
-        outBuff.size = compressedBufferSize;
-        outBuff.pos = 0;
-        inBuff.src = CNBuffer;
-        inBuff.size = srcSize; assert(srcSize < COMPRESSIBLE_NOISE_LENGTH);
-        inBuff.pos = 0;
-    }
-    {   ZSTD_compressionParameters const cParams = ZSTD_getCParams(1, 4 KB, dictionary.filled);   /* intentionnally lies on estimatedSrcSize, to push cdict into targeting a small window size */
-        ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dictionary.start, dictionary.filled, ZSTD_dlm_byRef, ZSTD_dm_fullDict, cParams, ZSTD_defaultCMem);
-        DISPLAYLEVEL(5, "cParams.windowLog = %u : ", cParams.windowLog);
-        ZSTD_CCtx_refCDict(zc, cdict);
-        CHECK_Z( ZSTD_compress_generic(zc, &outBuff, &inBuff, ZSTD_e_end) );
-        ZSTD_CCtx_refCDict(zc, NULL);  /* do not keep a reference to cdict, as its lifetime ends */
-        ZSTD_freeCDict(cdict);
-    }
-    if (inBuff.pos != inBuff.size) goto _output_error;   /* entire input should be consumed */
-    cSize = outBuff.pos;
-    DISPLAYLEVEL(3, "OK \n");
-
-    DISPLAYLEVEL(3, "test%3i : decompress large frame created from multiple threads + dictionary : ", testNb++);
-    {   ZSTD_DStream* const dstream = ZSTD_createDCtx();
-        ZSTD_frameHeader zfh;
-        ZSTD_getFrameHeader(&zfh, compressedBuffer, cSize);
-        DISPLAYLEVEL(5, "frame windowsize = %u : ", (U32)zfh.windowSize);
-        outBuff.dst = decodedBuffer;
-        outBuff.size = CNBufferSize;
-        outBuff.pos = 0;
-        inBuff.src = compressedBuffer;
-        inBuff.pos = 0;
-        CHECK_Z( ZSTD_initDStream_usingDict(dstream, dictionary.start, dictionary.filled) );
-        inBuff.size = 1;  /* avoid shortcut to single-pass mode */
-        CHECK_Z( ZSTD_decompressStream(dstream, &outBuff, &inBuff) );
-        inBuff.size = cSize;
-        CHECK_Z( ZSTD_decompressStream(dstream, &outBuff, &inBuff) );
-        if (inBuff.pos != inBuff.size) goto _output_error;   /* entire input should be consumed */
-        ZSTD_freeDStream(dstream);
-    }
     DISPLAYLEVEL(3, "OK \n");
 
     DISPLAYLEVEL(3, "test%3i : check dictionary FSE tables can represent every code : ", testNb++);

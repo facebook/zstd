@@ -2451,16 +2451,14 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                         return ZSTD_decompressLegacyStream(zds->legacyContext, legacyVersion, output, input);
                     }
 #endif
-                    return hSize;   /* error */
+                    return hSize; /* error */
                 }
                 if (hSize != 0) {   /* need more input */
                     size_t const toLoad = hSize - zds->lhSize;   /* if hSize!=0, hSize > zds->lhSize */
-                    size_t const remainingInput = (size_t)(iend-ip);
-                    assert(iend >= ip);
-                    if (toLoad > remainingInput) {   /* not enough input to load full header */
-                        if (remainingInput > 0) {
-                            memcpy(zds->headerBuffer + zds->lhSize, ip, remainingInput);
-                            zds->lhSize += remainingInput;
+                    if (toLoad > (size_t)(iend-ip)) {   /* not enough input to load full header */
+                        if (iend-ip > 0) {
+                            memcpy(zds->headerBuffer + zds->lhSize, ip, iend-ip);
+                            zds->lhSize += iend-ip;
                         }
                         input->pos = input->size;
                         return (MAX(ZSTD_frameHeaderSize_min, hSize) - zds->lhSize) + ZSTD_blockHeaderSize;   /* remaining header bytes + next block header */
@@ -2475,10 +2473,8 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                 && (U64)(size_t)(oend-op) >= zds->fParams.frameContentSize) {
                 size_t const cSize = ZSTD_findFrameCompressedSize(istart, iend-istart);
                 if (cSize <= (size_t)(iend-istart)) {
-                    /* shortcut : using single-pass mode */
                     size_t const decompressedSize = ZSTD_decompress_usingDDict(zds, op, oend-op, istart, cSize, zds->ddict);
                     if (ZSTD_isError(decompressedSize)) return decompressedSize;
-                    DEBUGLOG(4, "shortcut to single-pass ZSTD_decompress_usingDDict()")
                     ip = istart + cSize;
                     op += decompressedSize;
                     zds->expected = 0;
@@ -2501,9 +2497,8 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             }
 
             /* control buffer memory usage */
-            DEBUGLOG(4, "Control max memory usage (%u KB <= max %u KB)",
-                        (U32)(zds->fParams.windowSize >>10),
-                        (U32)(zds->maxWindowSize >> 10) );
+            DEBUGLOG(4, "Control max buffer memory usage (max %u KB)",
+                        (U32)(zds->maxWindowSize >> 10));
             zds->fParams.windowSize = MAX(zds->fParams.windowSize, 1U << ZSTD_WINDOWLOG_ABSOLUTEMIN);
             if (zds->fParams.windowSize > zds->maxWindowSize) return ERROR(frameParameter_windowTooLarge);
 

@@ -477,7 +477,7 @@ size_t ZSTD_CCtx_setParametersUsingCCtxParams(
 
 ZSTDLIB_API size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long long pledgedSrcSize)
 {
-    DEBUGLOG(4, "ZSTD_CCtx_setPledgedSrcSize to %u bytes", (U32)pledgedSrcSize);
+    DEBUGLOG(4, " setting pledgedSrcSize to %u", (U32)pledgedSrcSize);
     if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
     cctx->pledgedSrcSizePlusOne = pledgedSrcSize+1;
     return 0;
@@ -489,7 +489,7 @@ size_t ZSTD_CCtx_loadDictionary_advanced(
 {
     if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
     if (cctx->staticSize) return ERROR(memory_allocation);  /* no malloc for static CCtx */
-    DEBUGLOG(4, "ZSTD_CCtx_loadDictionary_advanced (size: %u)", (U32)dictSize);
+    DEBUGLOG(4, "load dictionary of size %u", (U32)dictSize);
     ZSTD_freeCDict(cctx->cdictLocal);  /* in case one already exists */
     if (dict==NULL || dictSize==0) {   /* no dictionary mode */
         cctx->cdictLocal = NULL;
@@ -2273,7 +2273,7 @@ static size_t ZSTD_initCDict_internal(
                     ZSTD_dictMode_e dictMode,
                     ZSTD_compressionParameters cParams)
 {
-    DEBUGLOG(3, "ZSTD_initCDict_internal, mode %u", (U32)dictMode);
+    DEBUGLOG(4, "ZSTD_initCDict_internal, mode %u", (U32)dictMode);
     if ((dictLoadMethod == ZSTD_dlm_byRef) || (!dictBuffer) || (!dictSize)) {
         cdict->dictBuffer = NULL;
         cdict->dictContent = dictBuffer;
@@ -2303,7 +2303,7 @@ ZSTD_CDict* ZSTD_createCDict_advanced(const void* dictBuffer, size_t dictSize,
                                       ZSTD_dictMode_e dictMode,
                                       ZSTD_compressionParameters cParams, ZSTD_customMem customMem)
 {
-    DEBUGLOG(3, "ZSTD_createCDict_advanced, mode %u", (U32)dictMode);
+    DEBUGLOG(4, "ZSTD_createCDict_advanced, mode %u", (U32)dictMode);
     if (!customMem.customAlloc ^ !customMem.customFree) return NULL;
 
     {   ZSTD_CDict* const cdict = (ZSTD_CDict*)ZSTD_malloc(sizeof(ZSTD_CDict), customMem);
@@ -2809,7 +2809,7 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
                               ZSTD_inBuffer* input,
                               ZSTD_EndDirective endOp)
 {
-    DEBUGLOG(5, "ZSTD_compress_generic, endOp=%u ", (U32)endOp);
+    DEBUGLOG(5, "ZSTD_compress_generic");
     /* check conditions */
     if (output->pos > output->size) return ERROR(GENERIC);
     if (input->pos  > input->size)  return ERROR(GENERIC);
@@ -2856,6 +2856,7 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
 #ifdef ZSTD_MULTITHREAD
     if (cctx->appliedParams.nbThreads > 1) {
         size_t const flushMin = ZSTDMT_compressStream_generic(cctx->mtctx, output, input, endOp);
+        DEBUGLOG(5, "ZSTDMT_compressStream_generic result : %u", (U32)flushMin);
         if ( ZSTD_isError(flushMin)
           || (endOp == ZSTD_e_end && flushMin == 0) ) { /* compression completed */
             ZSTD_startNewCompression(cctx);

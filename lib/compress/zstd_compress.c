@@ -2566,7 +2566,7 @@ size_t ZSTD_initCStream_internal(ZSTD_CStream* zcs,
         if (zcs->cdictLocal == NULL) return ERROR(memory_allocation);
     } else {
         if (cdict) {
-            params.cParams = ZSTD_getCParamsFromCDict(cdict);  /* cParams are enforced from cdict; this includes windowLog (should it be enforced from `params` instead ?) */
+            params.cParams = ZSTD_getCParamsFromCDict(cdict);  /* cParams are enforced from cdict; it includes windowLog */
         }
         ZSTD_freeCDict(zcs->cdictLocal);
         zcs->cdictLocal = NULL;

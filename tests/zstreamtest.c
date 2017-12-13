@@ -710,9 +710,9 @@ static int basicUnitTests(U32 seed, double compressibility)
         const BYTE* const srcToCopy = (const BYTE*)CNBuffer + start;
         BYTE* const dst = (BYTE*)CNBuffer + start - offset;
         DISPLAYLEVEL(3, "test%3i : compress %u bytes with multiple threads + dictionary : ", testNb++, (U32)srcSize);
-        ZSTD_CCtx_setParameter(zc, ZSTD_p_compressionLevel, 3);
-        ZSTD_CCtx_setParameter(zc, ZSTD_p_nbThreads, 2);
-        ZSTD_CCtx_setParameter(zc, ZSTD_p_jobSize, jobSize);
+        CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_compressionLevel, 3) );
+        CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_nbThreads, 2) );
+        CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_jobSize, jobSize) );
         assert(start > offset);
         assert(start + segLength < COMPRESSIBLE_NOISE_LENGTH);
         memcpy(dst, srcToCopy, segLength);   /* create a long repetition at long distance for job 2 */
@@ -726,9 +726,9 @@ static int basicUnitTests(U32 seed, double compressibility)
     {   ZSTD_compressionParameters const cParams = ZSTD_getCParams(1, 4 KB, dictionary.filled);   /* intentionnally lies on estimatedSrcSize, to push cdict into targeting a small window size */
         ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dictionary.start, dictionary.filled, ZSTD_dlm_byRef, ZSTD_dm_fullDict, cParams, ZSTD_defaultCMem);
         DISPLAYLEVEL(5, "cParams.windowLog = %u : ", cParams.windowLog);
-        ZSTD_CCtx_refCDict(zc, cdict);
+        CHECK_Z( ZSTD_CCtx_refCDict(zc, cdict) );
         CHECK_Z( ZSTD_compress_generic(zc, &outBuff, &inBuff, ZSTD_e_end) );
-        ZSTD_CCtx_refCDict(zc, NULL);  /* do not keep a reference to cdict, as its lifetime ends */
+        CHECK_Z( ZSTD_CCtx_refCDict(zc, NULL) );  /* do not keep a reference to cdict, as its lifetime ends */
         ZSTD_freeCDict(cdict);
     }
     if (inBuff.pos != inBuff.size) goto _output_error;   /* entire input should be consumed */

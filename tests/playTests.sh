@@ -173,6 +173,22 @@ rm tmp
 $ZSTD -f tmp && die "tmp not present : should have failed"
 test ! -f tmp.zst  # tmp.zst should not be created
 
+$ECHO "test : compress multiple files"
+$ECHO hello > tmp1
+$ECHO world > tmp2
+$ZSTD tmp1 tmp2 -o "$INTOVOID"
+$ZSTD tmp1 tmp2 -c | $ZSTD -t
+$ZSTD tmp1 tmp2 -o tmp.zst
+test ! -f tmp1.zst
+test ! -f tmp2.zst
+$ZSTD tmp1 tmp2
+$ZSTD -t tmp1.zst tmp2.zst
+$ZSTD -dc tmp1.zst tmp2.zst
+$ZSTD tmp1.zst tmp2.zst -o "$INTOVOID"
+$ZSTD -d tmp1.zst tmp2.zst -o tmp
+rm tmp*
+
+
 
 $ECHO "\n===>  Advanced compression parameters "
 $ECHO "Hello world!" | $ZSTD --zstd=windowLog=21,      - -o tmp.zst && die "wrong parameters not detected!"

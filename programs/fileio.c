@@ -261,6 +261,10 @@ void FIO_setLdmHashEveryLog(unsigned ldmHashEveryLog) {
  * @result : Unlink `fileName`, even if it's read-only */
 static int FIO_remove(const char* path)
 {
+    if (!UTIL_isRegularFile(path)) {
+        DISPLAYLEVEL(2, "zstd: Refusing to remove non-regular file %s\n", path);
+        return 0;
+    }
 #if defined(_WIN32) || defined(WIN32)
     /* windows doesn't allow remove read-only files,
      * so try to make it writable first */
@@ -314,9 +318,13 @@ static FILE* FIO_openDstFile(const char* dstFileName)
         g_sparseFileSupport = ZSTD_SPARSE_DEFAULT;
     }
 
-    if (strcmp (dstFileName, nulmark)) {  /* not /dev/null */
+    if (UTIL_isRegularFile(dstFileName)) {
+        FILE* fCheck;
+        if (!strcmp(dstFileName, nulmark)) {
+            EXM_THROW(40, "%s is unexpectedly a regular file", dstFileName);
+        }
         /* Check if destination file already exists */
-        FILE* const fCheck = fopen( dstFileName, "rb" );
+        fCheck = fopen( dstFileName, "rb" );
         if (fCheck != NULL) {  /* dst file exists, authorization prompt */
             fclose(fCheck);
             if (!g_overwrite) {

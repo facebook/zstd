@@ -1033,6 +1033,12 @@ static size_t ZSTD_copyCCtx_internal(ZSTD_CCtx* dstCCtx,
 
     /* copy entropy tables */
     memcpy(dstCCtx->entropy, srcCCtx->entropy, sizeof(ZSTD_entropyCTables_t));
+    /* copy repcodes */
+    {
+        int i;
+        for (i = 0; i < ZSTD_REP_NUM; ++i)
+            dstCCtx->seqStore.rep[i] = srcCCtx->seqStore.rep[i];
+    }
 
     return 0;
 }

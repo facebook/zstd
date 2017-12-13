@@ -1149,7 +1149,7 @@ static void FIO_zstdErrorHelp(dRess_t* ress, size_t ret, char const* srcFileName
     if (ret == 0) {
         U32 const windowSize = (U32)header.windowSize;
         U32 const windowLog = BIT_highbit32(windowSize) + ((windowSize & (windowSize - 1)) != 0);
-        U32 const windowMB = (windowSize >> 20) + (windowSize & ((1 MB) - 1));
+        U32 const windowMB = (windowSize >> 20) + ((windowSize & ((1 MB) - 1)) != 0);
         assert(header.windowSize <= (U64)((U32)-1));
         assert(g_memLimit > 0);
         DISPLAYLEVEL(1, "%s : Window size larger than maximum : %llu > %u\n",

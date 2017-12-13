@@ -297,6 +297,8 @@ cp $TESTFILE tmp
 $ZSTD -f tmp -D tmpDict
 $ZSTD -d tmp.zst -D tmpDict -fo result
 $DIFF $TESTFILE result
+$ECHO "- Test dictionary compression with multithreading "
+./datagen -g5M | $ZSTD -T2 -D tmpDict | $ZSTD -t -D tmpDict   # fails with v1.3.2 
 $ECHO "- Create second (different) dictionary "
 $ZSTD --train *.c ../programs/*.c ../programs/*.h -o tmpDictC
 $ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"

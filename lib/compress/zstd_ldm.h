@@ -37,9 +37,13 @@ extern "C" {
  *  parameters), which stores the matched sequences. The "long distance"
  *  match is then stored with the remaining literals from the
  *  ZSTD_blockCompressor. */
-size_t ZSTD_compressBlock_ldm(ZSTD_CCtx* cctx, const void* src, size_t srcSize);
-size_t ZSTD_compressBlock_ldm_extDict(ZSTD_CCtx* ctx,
-                                      const void* src, size_t srcSize);
+size_t ZSTD_compressBlock_ldm(
+        ldmState_t* ldms, ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
+        ZSTD_CCtx_params const* params, void const* src, size_t srcSize);
+
+size_t ZSTD_compressBlock_ldm_extDict(
+        ldmState_t* ldms, ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
+        ZSTD_CCtx_params const* params, void const* src, size_t srcSize);
 
 /** ZSTD_ldm_initializeParameters() :
  *  Initialize the long distance matching parameters to their default values. */

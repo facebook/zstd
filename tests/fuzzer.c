@@ -835,6 +835,50 @@ static int basicUnitTests(U32 seed, double compressibility)
         }
         DISPLAYLEVEL(4, "OK \n");
 
+        DISPLAYLEVEL(4, "test%3i : Dictionary with non-default repcodes : ", testNb++);
+        { U32 u; for (u=0; u<nbSamples; u++) samplesSizes[u] = sampleUnitSize; }
+        dictSize = ZDICT_trainFromBuffer(dictBuffer, dictSize,
+                                         CNBuffer, samplesSizes, nbSamples);
+        if (ZDICT_isError(dictSize)) goto _output_error;
+        /* Set all the repcodes to non-default */
+        {
+            BYTE* dictPtr = (BYTE*)dictBuffer;
+            BYTE* dictLimit = dictPtr + dictSize - 12;
+            /* Find the repcodes */
+            while (dictPtr < dictLimit &&
+                   (MEM_readLE32(dictPtr) != 1 || MEM_readLE32(dictPtr + 4) != 4 ||
+                    MEM_readLE32(dictPtr + 8) != 8)) {
+                ++dictPtr;
+            }
+            if (dictPtr >= dictLimit) goto _output_error;
+            MEM_writeLE32(dictPtr + 0, 10);
+            MEM_writeLE32(dictPtr + 4, 10);
+            MEM_writeLE32(dictPtr + 8, 10);
+            /* Set the last 8 bytes to 'x' */
+            memset((BYTE*)dictBuffer + dictSize - 8, 'x', 8);
+        }
+        /* The optimal parser checks all the repcodes.
+         * Make sure at least one is a match >= targetLength so that it is
+         * immediately chosen. This will make sure that the compressor and
+         * decompressor agree on at least one of the repcodes.
+         */
+        {   size_t dSize;
+            BYTE data[1024];
+            ZSTD_compressionParameters const cParams = ZSTD_getCParams(19, CNBuffSize, dictSize);
+            ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dictBuffer, dictSize,
+                                            ZSTD_dlm_byRef, ZSTD_dm_auto,
+                                            cParams, ZSTD_defaultCMem);
+            memset(data, 'x', sizeof(data));
+            cSize = ZSTD_compress_usingCDict(cctx, compressedBuffer, compressedBufferSize,
+                                             data, sizeof(data), cdict);
+            ZSTD_freeCDict(cdict);
+            if (ZSTD_isError(cSize)) { DISPLAYLEVEL(5, "Compression error %s : ", ZSTD_getErrorName(cSize)); goto _output_error; }
+            dSize = ZSTD_decompress_usingDict(dctx, decodedBuffer, sizeof(data), compressedBuffer, cSize, dictBuffer, dictSize);
+            if (ZSTD_isError(dSize)) { DISPLAYLEVEL(5, "Decompression error %s : ", ZSTD_getErrorName(dSize)); goto _output_error; }
+            if (memcmp(data, decodedBuffer, sizeof(data))) { DISPLAYLEVEL(5, "Data corruption : "); goto _output_error; }
+        }
+        DISPLAYLEVEL(4, "OK \n");
+
         ZSTD_freeCCtx(cctx);
         free(dictBuffer);
         free(samplesSizes);

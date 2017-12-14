@@ -1738,6 +1738,8 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
             op += cSize;
             assert(dstCapacity >= cSize);
             dstCapacity -= cSize;
+            DEBUGLOG(5, "ZSTD_compress_frameChunk: adding a block of size %u",
+                        (U32)cSize);
     }   }
 
     if (lastFrameChunk && (op>ostart)) cctx->stage = ZSTDcs_ending;
@@ -3062,8 +3064,6 @@ ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, unsigned long l
     size_t const addedSize = srcSizeHint ? 0 : 500;
     U64 const rSize = srcSizeHint+dictSize ? srcSizeHint+dictSize+addedSize : (U64)-1;
     U32 const tableID = (rSize <= 256 KB) + (rSize <= 128 KB) + (rSize <= 16 KB);   /* intentional underflow for srcSizeHint == 0 */
-    DEBUGLOG(4, "ZSTD_getCParams: cLevel=%i, srcSize=%u, dictSize=%u => table %u",
-                compressionLevel, (U32)srcSizeHint, (U32)dictSize, tableID);
 
 #if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=1)
     static int g_monotonicTest = 1;
@@ -3073,6 +3073,8 @@ ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, unsigned long l
     }
 #endif
 
+    DEBUGLOG(4, "ZSTD_getCParams: cLevel=%i, srcSize=%u, dictSize=%u => table %u",
+                compressionLevel, (U32)srcSizeHint, (U32)dictSize, tableID);
     if (compressionLevel <= 0) compressionLevel = ZSTD_CLEVEL_DEFAULT;   /* 0 == default; no negative compressionLevel yet */
     if (compressionLevel > ZSTD_MAX_CLEVEL) compressionLevel = ZSTD_MAX_CLEVEL;
     { ZSTD_compressionParameters const cp = ZSTD_defaultCParameters[tableID][compressionLevel];

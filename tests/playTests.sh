@@ -56,10 +56,12 @@ fi
 
 isWindows=false
 INTOVOID="/dev/null"
+DEVDEVICE="/dev/zero"
 case "$OS" in
   Windows*)
     isWindows=true
     INTOVOID="NUL"
+    DEVDEVICE="NUL"
     ;;
 esac
 
@@ -159,6 +161,12 @@ $ZSTD -f --rm tmp
 test ! -f tmp  # tmp should no longer be present
 $ZSTD -f -d --rm tmp.zst
 test ! -f tmp.zst   # tmp.zst should no longer be present
+$ECHO "test : should quietly not remove non-regular file"
+$ECHO hello > tmp
+$ZSTD tmp -f -o "$DEVDEVICE" 2>tmplog > "$INTOVOID"
+grep -v "Refusing to remove non-regular file" tmplog
+rm -f tmplog
+$ZSTD tmp -f -o "$INTONULL" 2>&1 | grep -v "Refusing to remove non-regular file"
 $ECHO "test : --rm on stdin"
 $ECHO a | $ZSTD --rm > $INTOVOID   # --rm should remain silent
 rm tmp

@@ -939,7 +939,7 @@ int FIO_compressFilename(const char* dstFileName, const char* srcFileName,
 
 
 int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFiles,
-                                  const char* suffix,
+                                  const char* outFileName, const char* suffix,
                                   const char* dictFileName, int compressionLevel,
                                   ZSTD_compressionParameters* comprParams)
 {
@@ -955,16 +955,15 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
     /* init */
     if (dstFileName==NULL)
         EXM_THROW(27, "FIO_compressMultipleFilenames : allocation error for dstFileName");
-    if (suffix == NULL)
+    if (outFileName == NULL && suffix == NULL)
         EXM_THROW(28, "FIO_compressMultipleFilenames : dst unknown");  /* should never happen */
 
     /* loop on each file */
-    if (!strcmp(suffix, stdoutmark)) {
+    if (outFileName != NULL) {
         unsigned u;
-        ress.dstFile = stdout;
-        SET_BINARY_MODE(stdout);
+        ress.dstFile = FIO_openDstFile(outFileName);
         for (u=0; u<nbFiles; u++)
-            missed_files += FIO_compressFilename_srcFile(ress, stdoutmark, inFileNamesTable[u], compressionLevel);
+            missed_files += FIO_compressFilename_srcFile(ress, outFileName, inFileNamesTable[u], compressionLevel);
         if (fclose(ress.dstFile))
             EXM_THROW(29, "Write error : cannot properly close stdout");
     } else {
@@ -1654,24 +1653,21 @@ int FIO_decompressFilename(const char* dstFileName, const char* srcFileName,
 
 #define MAXSUFFIXSIZE 8
 int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles,
-                                    const char* suffix,
+                                    const char* outFileName,
                                     const char* dictFileName)
 {
     int skippedFiles = 0;
     int missingFiles = 0;
     dRess_t ress = FIO_createDResources(dictFileName);
 
-    if (suffix==NULL)
-        EXM_THROW(70, "zstd: decompression: unknown dst");   /* should never happen */
-
-    if (!strcmp(suffix, stdoutmark) || !strcmp(suffix, nulmark)) {  /* special cases : -c or -t */
+    if (outFileName) {
         unsigned u;
-        ress.dstFile = FIO_openDstFile(suffix);
-        if (ress.dstFile == 0) EXM_THROW(71, "cannot open %s", suffix);
+        ress.dstFile = FIO_openDstFile(outFileName);
+        if (ress.dstFile == 0) EXM_THROW(71, "cannot open %s", outFileName);
         for (u=0; u<nbFiles; u++)
-            missingFiles += FIO_decompressSrcFile(ress, suffix, srcNamesTable[u]);
+            missingFiles += FIO_decompressSrcFile(ress, outFileName, srcNamesTable[u]);
         if (fclose(ress.dstFile))
-            EXM_THROW(72, "Write error : cannot properly close stdout");
+            EXM_THROW(72, "Write error : cannot properly close output file");
     } else {
         size_t suffixSize;
         size_t dfnSize = FNSPACE;

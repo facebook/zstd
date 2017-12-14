@@ -76,16 +76,16 @@ allnothread: fullbench fuzzer paramgrill datagen decodecorpus
 dll: fuzzer-dll zstreamtest-dll
 
 zstd:
-	$(MAKE) -C $(PRGDIR) $@
+	$(MAKE) -C $(PRGDIR) $@ MOREFLAGS+="$(DEBUGFLAGS)"
 
 zstd32:
-	$(MAKE) -C $(PRGDIR) $@
+	$(MAKE) -C $(PRGDIR) $@ MOREFLAGS+="$(DEBUGFLAGS)"
 
 zstd-nolegacy:
-	$(MAKE) -C $(PRGDIR) $@
+	$(MAKE) -C $(PRGDIR) $@ MOREFLAGS+="$(DEBUGFLAGS)"
 
 gzstd:
-	$(MAKE) -C $(PRGDIR) zstd HAVE_ZLIB=1
+	$(MAKE) -C $(PRGDIR) zstd HAVE_ZLIB=1 MOREFLAGS="$(DEBUGFLAGS)"
 
 fullbench32: CPPFLAGS += -m32
 fullbench fullbench32 : CPPFLAGS += $(MULTITHREAD_CPP)

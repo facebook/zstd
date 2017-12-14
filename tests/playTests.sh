@@ -126,6 +126,8 @@ $ZSTD -d > $INTOVOID && die "should have refused : compressed data from terminal
 fi
 $ECHO "test : null-length file roundtrip"
 $ECHO -n '' | $ZSTD - --stdout | $ZSTD -d --stdout
+$ECHO "test : ensure small file doesn't add 3-bytes null block"
+./datagen -g1 | $ZSTD | wc -c | grep "14"
 $ECHO "test : decompress file with wrong suffix (must fail)"
 $ZSTD -d tmpCompressed && die "wrong suffix error not detected!"
 $ZSTD -df tmp && die "should have refused : wrong extension"
@@ -324,7 +326,7 @@ $DIFF $TESTFILE result
 if [ -n "$hasMT" ]
 then
     $ECHO "- Test dictionary compression with multithreading "
-    ./datagen -g5M | $ZSTD -T2 -D tmpDict | $ZSTD -t -D tmpDict   # fails with v1.3.2 
+    ./datagen -g5M | $ZSTD -T2 -D tmpDict | $ZSTD -t -D tmpDict   # fails with v1.3.2
 fi
 $ECHO "- Create second (different) dictionary "
 $ZSTD --train *.c ../programs/*.c ../programs/*.h -o tmpDictC

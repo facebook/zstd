@@ -2527,7 +2527,8 @@ static size_t ZSTD_resetCStream_internal(ZSTD_CStream* zcs,
 
     zcs->inToCompress = 0;
     zcs->inBuffPos = 0;
-    zcs->inBuffTarget = zcs->blockSize;
+    zcs->inBuffTarget = zcs->blockSize
+                      + (zcs->blockSize == pledgedSrcSize);   /* for small input: avoid automatic flush on reaching end of block, since it would require to add a 3-bytes null block to end frame */
     zcs->outBuffContentSize = zcs->outBuffFlushedSize = 0;
     zcs->streamStage = zcss_load;
     zcs->frameEnded = 0;
@@ -2679,9 +2680,9 @@ size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
     /* check expectations */
     DEBUGLOG(5, "ZSTD_compressStream_generic, flush=%u", (U32)flushMode);
     assert(zcs->inBuff != NULL);
-    assert(zcs->inBuffSize>0);
-    assert(zcs->outBuff!= NULL);
-    assert(zcs->outBuffSize>0);
+    assert(zcs->inBuffSize > 0);
+    assert(zcs->outBuff !=  NULL);
+    assert(zcs->outBuffSize > 0);
     assert(output->pos <= output->size);
     assert(input->pos <= input->size);
 

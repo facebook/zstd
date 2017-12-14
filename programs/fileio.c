@@ -454,7 +454,7 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
         DISPLAYLEVEL(5,"set nb threads = %u \n", g_nbThreads);
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_nbThreads, g_nbThreads) );
         /* dictionary */
-        CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, srcSize) );  /* just for dictionary loading, using good compression parameters */
+        CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, srcSize) );  /* just for dictionary loading, for compression parameters adaptation */
         CHECK( ZSTD_CCtx_loadDictionary(ress.cctx, dictBuffer, dictBuffSize) );
         CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, ZSTD_CONTENTSIZE_UNKNOWN) );  /* reset */
 
@@ -789,6 +789,8 @@ static int FIO_compressFilename_internal(cRess_t ress,
                         &outBuff, &inBuff, ZSTD_e_continue) );
 
             /* Write compressed stream */
+            DISPLAYLEVEL(6, "ZSTD_compress_generic,ZSTD_e_continue: generated %u bytes \n",
+                            (U32)outBuff.pos);
             if (outBuff.pos) {
                 size_t const sizeCheck = fwrite(ress.dstBuffer, 1, outBuff.pos, dstFile);
                 if (sizeCheck!=outBuff.pos)
@@ -824,6 +826,8 @@ static int FIO_compressFilename_internal(cRess_t ress,
                 EXM_THROW(26, "Compression error during frame end : %s",
                             ZSTD_getErrorName(result));
             }
+            DISPLAYLEVEL(6, "ZSTD_compress_generic,ZSTD_e_end: generated %u bytes \n",
+                            (U32)outBuff.pos);
             {   size_t const sizeCheck = fwrite(ress.dstBuffer, 1, outBuff.pos, dstFile);
                 if (sizeCheck != outBuff.pos)
                     EXM_THROW(27, "Write error : cannot write frame end into %s", dstFileName);

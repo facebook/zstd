@@ -144,6 +144,8 @@ const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx) { return &(ctx->seqStor
 static ZSTD_compressionParameters ZSTD_getCParamsFromCCtxParams(
         ZSTD_CCtx_params CCtxParams, U64 srcSizeHint, size_t dictSize)
 {
+    DEBUGLOG(4, "ZSTD_getCParamsFromCCtxParams: srcSize = %u, dictSize = %u",
+                (U32)srcSizeHint, (U32)dictSize);
     return (CCtxParams.compressionLevel == ZSTD_CLEVEL_CUSTOM) ?
                 CCtxParams.cParams :
                 ZSTD_getCParams(CCtxParams.compressionLevel, srcSizeHint, dictSize);
@@ -151,18 +153,22 @@ static ZSTD_compressionParameters ZSTD_getCParamsFromCCtxParams(
 
 static void ZSTD_cLevelToCCtxParams_srcSize(ZSTD_CCtx_params* CCtxParams, U64 srcSize)
 {
+    DEBUGLOG(4, "ZSTD_cLevelToCCtxParams_srcSize: srcSize = %u",
+                (U32)srcSize);
     CCtxParams->cParams = ZSTD_getCParamsFromCCtxParams(*CCtxParams, srcSize, 0);
     CCtxParams->compressionLevel = ZSTD_CLEVEL_CUSTOM;
 }
 
 static void ZSTD_cLevelToCParams(ZSTD_CCtx* cctx)
 {
+    DEBUGLOG(4, "ZSTD_cLevelToCParams");
     ZSTD_cLevelToCCtxParams_srcSize(
             &cctx->requestedParams, cctx->pledgedSrcSizePlusOne-1);
 }
 
 static void ZSTD_cLevelToCCtxParams(ZSTD_CCtx_params* CCtxParams)
 {
+    DEBUGLOG(4, "ZSTD_cLevelToCCtxParams");
     ZSTD_cLevelToCCtxParams_srcSize(CCtxParams, 0);
 }
 
@@ -261,7 +267,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
     case ZSTD_p_targetLength:
     case ZSTD_p_compressionStrategy:
         if (cctx->cdict) return ERROR(stage_wrong);
-        ZSTD_cLevelToCParams(cctx);  /* Can optimize if srcSize is known */
+        if (value>0) ZSTD_cLevelToCParams(cctx);  /* Can optimize if srcSize is known */
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
     case ZSTD_p_contentSizeFlag:
@@ -422,7 +428,7 @@ size_t ZSTD_CCtxParam_setParameter(
 #endif
 
     case ZSTD_p_enableLongDistanceMatching :
-        if (value != 0) {
+        if (value) {
             ZSTD_cLevelToCCtxParams(CCtxParams);
             CCtxParams->cParams.windowLog = ZSTD_LDM_DEFAULT_WINDOW_LOG;
         }
@@ -3056,6 +3062,8 @@ ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, unsigned long l
     size_t const addedSize = srcSizeHint ? 0 : 500;
     U64 const rSize = srcSizeHint+dictSize ? srcSizeHint+dictSize+addedSize : (U64)-1;
     U32 const tableID = (rSize <= 256 KB) + (rSize <= 128 KB) + (rSize <= 16 KB);   /* intentional underflow for srcSizeHint == 0 */
+    DEBUGLOG(4, "ZSTD_getCParams: cLevel=%i, srcSize=%u, dictSize=%u => table %u",
+                compressionLevel, (U32)srcSizeHint, (U32)dictSize, tableID);
 
 #if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=1)
     static int g_monotonicTest = 1;

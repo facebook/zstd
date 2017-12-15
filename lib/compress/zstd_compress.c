@@ -2955,12 +2955,12 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
     { 22, 20, 22,  5,  5, 16, ZSTD_lazy2   },  /* level 12 */
     { 22, 21, 22,  5,  5, 16, ZSTD_lazy2   },  /* level 13 */
     { 22, 21, 22,  6,  5, 16, ZSTD_lazy2   },  /* level 14 */
-    { 22, 21, 22,  5,  5, 16, ZSTD_btlazy2 },  /* level 15 */
-    { 23, 22, 22,  5,  5, 16, ZSTD_btlazy2 },  /* level 16 */
-    { 23, 22, 22,  4,  5, 24, ZSTD_btopt   },  /* level 17 */
-    { 23, 22, 22,  5,  4, 32, ZSTD_btopt   },  /* level 18 */
-    { 23, 23, 22,  6,  3, 48, ZSTD_btopt   },  /* level 19 */
-    { 25, 25, 23,  7,  3, 64, ZSTD_btultra },  /* level 20 */
+    { 22, 21, 22,  4,  5, 16, ZSTD_btlazy2 },  /* level 15 */
+    { 22, 21, 22,  4,  5, 48, ZSTD_btopt   },  /* level 16 */
+    { 23, 22, 22,  4,  4, 48, ZSTD_btopt   },  /* level 17 */
+    { 23, 22, 22,  5,  3, 64, ZSTD_btopt   },  /* level 18 */
+    { 23, 23, 22,  7,  3,128, ZSTD_btopt   },  /* level 19 */
+    { 25, 25, 23,  7,  3,128, ZSTD_btultra },  /* level 20 */
     { 26, 26, 24,  7,  3,256, ZSTD_btultra },  /* level 21 */
     { 27, 27, 25,  9,  3,512, ZSTD_btultra },  /* level 22 */
 },

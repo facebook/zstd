@@ -148,7 +148,3 @@ The "dev" branch is the one where all contributions are merged before reaching "
 If you plan to propose a patch, please commit into the "dev" branch, or its own feature branch.
 Direct commit to "master" are not permitted.
 For more information, please read [CONTRIBUTING](CONTRIBUTING.md).
-
-### Miscellaneous
-
-Zstd entropy stage is provided by [Huff0 and FSE, from Finite State Entropy library](https://github.com/Cyan4973/FiniteStateEntropy).

@@ -118,12 +118,13 @@ static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
     exit(error);                                                          \
 }
 
-#define CHECK(f) {                                   \
-    size_t const err = f;                            \
-    if (ZSTD_isError(err)) {                         \
+#define CHECK_V(v, f)                                \
+    v = f;                                           \
+    if (ZSTD_isError(v)) {                           \
         DEBUGLOG(1, "%s \n", #f);                    \
-        EXM_THROW(11, "%s", ZSTD_getErrorName(err)); \
-}   }
+        EXM_THROW(11, "%s", ZSTD_getErrorName(v));   \
+    }
+#define CHECK(f) { size_t err; CHECK_V(err, f); }
 
 
 /*-************************************
@@ -733,6 +734,7 @@ static int FIO_compressFilename_internal(cRess_t ress,
     U64 readsize = 0;
     U64 compressedfilesize = 0;
     U64 const fileSize = UTIL_getFileSize(srcFileName);
+    ZSTD_EndDirective directive = ZSTD_e_continue;
     DISPLAYLEVEL(5, "%s: %u bytes \n", srcFileName, (U32)fileSize);
 
     switch (g_compressionType) {
@@ -776,17 +778,20 @@ static int FIO_compressFilename_internal(cRess_t ress,
         ZSTD_CCtx_setPledgedSrcSize(ress.cctx, fileSize);
 
     /* Main compression loop */
-    while (1) {
+    do {
+        size_t result;
         /* Fill input Buffer */
         size_t const inSize = fread(ress.srcBuffer, (size_t)1, ress.srcBufferSize, srcFile);
         ZSTD_inBuffer inBuff = { ress.srcBuffer, inSize, 0 };
-        if (inSize==0) break;
         readsize += inSize;
 
-        while (inBuff.pos != inBuff.size) {
+        if (inSize == 0 || (fileSize != UTIL_FILESIZE_UNKNOWN && readsize == fileSize))
+            directive = ZSTD_e_end;
+
+        result = 1;
+        while (inBuff.pos != inBuff.size || (directive == ZSTD_e_end && result != 0)) {
             ZSTD_outBuffer outBuff = { ress.dstBuffer, ress.dstBufferSize, 0 };
-            CHECK( ZSTD_compress_generic(ress.cctx,
-                        &outBuff, &inBuff, ZSTD_e_continue) );
+            CHECK_V(result, ZSTD_compress_generic(ress.cctx, &outBuff, &inBuff, directive));
 
             /* Write compressed stream */
             DISPLAYLEVEL(6, "ZSTD_compress_generic,ZSTD_e_continue: generated %u bytes \n",
@@ -796,7 +801,8 @@ static int FIO_compressFilename_internal(cRess_t ress,
                 if (sizeCheck!=outBuff.pos)
                     EXM_THROW(25, "Write error : cannot write compressed block into %s", dstFileName);
                 compressedfilesize += outBuff.pos;
-        }   }
+            }
+        }
         if (g_nbThreads > 1) {
             if (fileSize == UTIL_FILESIZE_UNKNOWN)
                 DISPLAYUPDATE(2, "\rRead : %u MB", (U32)(readsize>>20))
@@ -813,28 +819,7 @@ static int FIO_compressFilename_internal(cRess_t ress,
                                 (U32)(readsize>>20), (U32)(fileSize>>20),
                                 (double)compressedfilesize/readsize*100);
         }
-    }
-
-    /* End of Frame */
-    {   size_t result = 1;
-        while (result != 0) {
-            ZSTD_outBuffer outBuff = { ress.dstBuffer, ress.dstBufferSize, 0 };
-            ZSTD_inBuffer inBuff = { NULL, 0, 0 };
-            result = ZSTD_compress_generic(ress.cctx,
-                        &outBuff, &inBuff, ZSTD_e_end);
-            if (ZSTD_isError(result)) {
-                EXM_THROW(26, "Compression error during frame end : %s",
-                            ZSTD_getErrorName(result));
-            }
-            DISPLAYLEVEL(6, "ZSTD_compress_generic,ZSTD_e_end: generated %u bytes \n",
-                            (U32)outBuff.pos);
-            {   size_t const sizeCheck = fwrite(ress.dstBuffer, 1, outBuff.pos, dstFile);
-                if (sizeCheck != outBuff.pos)
-                    EXM_THROW(27, "Write error : cannot write frame end into %s", dstFileName);
-            }
-            compressedfilesize += outBuff.pos;
-        }
-    }
+    } while (directive != ZSTD_e_end);
 
 finish:
     /* Status */

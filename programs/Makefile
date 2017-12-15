@@ -226,8 +226,8 @@ clean:
 MD2ROFF = ronn
 MD2ROFF_FLAGS = --roff --warnings --manual="User Commands" --organization="zstd $(ZSTD_VERSION)"
 
-zstd.1: zstd.1.md
-	cat $^ | $(MD2ROFF) $(MD2ROFF_FLAGS) | sed -n '/^\.\\\".*/!p' > $@
+zstd.1: zstd.1.md ../lib/zstd.h
+	cat $< | $(MD2ROFF) $(MD2ROFF_FLAGS) | sed -n '/^\.\\\".*/!p' > $@
 
 .PHONY: man
 man: zstd.1

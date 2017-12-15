@@ -1,3 +1,15 @@
+v1.3.3
+perf: faster zstd_opt strategy (levels 17-19)
+fix : bug #944 : multithreading with shared ditionary and large data, reported by @gsliepen
+cli : fix : content size written in header by default
+cli : fix : improved LZ4 format support, by @felixhandte
+cli : new : hidden command `-S`, to benchmark multiple files while generating one result per file
+api : fix : support large skippable frames, by @terrelln
+api : fix : streaming interface was adding a useless 3-bytes null block to small frames
+api : change : when setting `pledgedSrcSize`, use `ZSTD_CONTENTSIZE_UNKNOWN` macro value to mean "unknown"
+build: fix : compilation under rhel6 and centos6, reported by @pixelb
+build: added `check` target
+
 v1.3.2
 new : long range mode, using --long command, by Stella Lau (@stellamplau)
 new : ability to generate and decode magicless frames (#591)

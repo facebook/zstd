@@ -355,7 +355,7 @@ void ZSTDMT_compressChunk(void* jobDescription)
 
     if (job->cdict) {
         size_t const initError = ZSTD_compressBegin_advanced_internal(cctx, NULL, 0, ZSTD_dm_auto, job->cdict, job->params, job->fullFrameSize);
-        DEBUGLOG(4, "ZSTDMT_compressChunk: init using CDict");
+        DEBUGLOG(4, "ZSTDMT_compressChunk: init using CDict (windowLog=%u)", job->params.cParams.windowLog);
         assert(job->firstChunk);  /* only allowed for first job */
         if (ZSTD_isError(initError)) { job->cSize = initError; goto _endJob; }
     } else {  /* srcStart points at reloaded section */
@@ -367,9 +367,11 @@ void ZSTDMT_compressChunk(void* jobDescription)
             job->cSize = forceWindowError;
             goto _endJob;
         }
-        /* load dictionary in "content-only" mode (no header analysis) */
-        {   size_t const initError = ZSTD_compressBegin_advanced_internal(cctx, job->srcStart, job->prefixSize, ZSTD_dm_rawContent, NULL, jobParams, pledgedSrcSize);
-            DEBUGLOG(5, "ZSTD_compressBegin_advanced_internal called with windowLog = %u ", jobParams.cParams.windowLog);
+        DEBUGLOG(5, "ZSTDMT_compressChunk: invoking ZSTD_compressBegin_advanced_internal with windowLog = %u ", jobParams.cParams.windowLog);
+        {   size_t const initError = ZSTD_compressBegin_advanced_internal(cctx,
+                                        job->srcStart, job->prefixSize, ZSTD_dm_rawContent, /* load dictionary in "content-only" mode (no header analysis) */
+                                        NULL,
+                                        jobParams, pledgedSrcSize);
             if (ZSTD_isError(initError)) {
                 DEBUGLOG(5, "ZSTD_compressBegin_advanced_internal error : %s ", ZSTD_getErrorName(initError));
                 job->cSize = initError;
@@ -637,8 +639,7 @@ static size_t ZSTDMT_compress_advanced_internal(
     assert(jobParams.nbThreads == 0);
     assert(mtctx->cctxPool->totalCCtx == params.nbThreads);
 
-    DEBUGLOG(4, "ZSTDMT_compress_advanced_internal");
-    DEBUGLOG(4, "nbChunks  : %2u (raw chunkSize : %u bytes; fixed chunkSize: %u)   ",
+    DEBUGLOG(4, "ZSTDMT_compress_advanced_internal: nbChunks=%2u (rawSize=%u bytes; fixedSize=%u)  ",
                 nbChunks, (U32)proposedChunkSize, (U32)avgChunkSize);
     if (nbChunks==1) {   /* fallback to single-thread mode */
         ZSTD_CCtx* const cctx = mtctx->cctxPool->cctx[0];
@@ -688,7 +689,7 @@ static size_t ZSTDMT_compress_advanced_internal(
                 XXH64_update(&xxh64, srcStart + frameStartPos, chunkSize);
             }
 
-            DEBUGLOG(5, "posting job %u   (%u bytes)", u, (U32)chunkSize);
+            DEBUGLOG(5, "ZSTDMT_compress_advanced_internal: posting job %u  (%u bytes)", u, (U32)chunkSize);
             DEBUG_PRINTHEX(6, mtctx->jobs[u].srcStart, 12);
             POOL_add(mtctx->factory, ZSTDMT_compressChunk, &mtctx->jobs[u]);
 
@@ -893,8 +894,7 @@ static size_t ZSTDMT_createCompressionJob(ZSTDMT_CCtx* zcs, size_t srcSize, unsi
 {
     unsigned const jobID = zcs->nextJobID & zcs->jobIDMask;
 
-    DEBUGLOG(5, "ZSTDMT_createCompressionJob");
-    DEBUGLOG(5, "preparing job %u to compress %u bytes with %u preload ",
+    DEBUGLOG(5, "ZSTDMT_createCompressionJob: preparing job %u to compress %u bytes with %u preload ",
                 zcs->nextJobID, (U32)srcSize, (U32)zcs->dictSize);
     zcs->jobs[jobID].src = zcs->inBuff.buffer;
     zcs->jobs[jobID].srcStart = zcs->inBuff.buffer.start;
@@ -945,7 +945,7 @@ static size_t ZSTDMT_createCompressionJob(ZSTDMT_CCtx* zcs, size_t srcSize, unsi
             zcs->params.fParams.checksumFlag = 0;
     }   }
 
-    DEBUGLOG(4, "posting job %u : %u bytes  (end:%u) (note : doneJob = %u=>%u)",
+    DEBUGLOG(5, "ZSTDMT_createCompressionJob: posting job %u : %u bytes  (end:%u) (note : doneJob = %u=>%u)",
                 zcs->nextJobID,
                 (U32)zcs->jobs[jobID].srcSize,
                 zcs->jobs[jobID].lastChunk,

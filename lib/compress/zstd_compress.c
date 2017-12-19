@@ -2851,7 +2851,9 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
         if ((cctx->pledgedSrcSizePlusOne-1) <= ZSTDMT_JOBSIZE_MIN)
             params.nbThreads = 1; /* do not invoke multi-threading when src size is too small */
         if (params.nbThreads > 1) {
-            if (cctx->mtctx == NULL || cctx->appliedParams.nbThreads != params.nbThreads) {
+            if (cctx->mtctx == NULL || (params.nbThreads != ZSTDMT_getNbThreads(cctx->mtctx))) {
+                DEBUGLOG(4, "ZSTD_compress_generic: creating new mtctx for nbThreads=%u (previous: %u)",
+                            params.nbThreads, ZSTDMT_getNbThreads(cctx->mtctx));
                 ZSTDMT_freeCCtx(cctx->mtctx);
                 cctx->mtctx = ZSTDMT_createCCtx_advanced(params.nbThreads, cctx->customMem);
                 if (cctx->mtctx == NULL) return ERROR(memory_allocation);

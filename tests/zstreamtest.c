@@ -1527,7 +1527,7 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
                                (MAX(testLog, dictLog) / 2))) +
                                1;
             U32 const cLevel = MIN(cLevelCandidate, cLevelMax);
-            DISPLAYLEVEL(5, "t%u: cLevel : %u \n", testNb, cLevel);
+            DISPLAYLEVEL(5, "t%u: base cLevel : %u \n", testNb, cLevel);
             maxTestSize = FUZ_rLogLength(&lseed, testLog);
             DISPLAYLEVEL(5, "t%u: maxTestSize : %u \n", testNb, (U32)maxTestSize);
             oldTestLog = testLog;

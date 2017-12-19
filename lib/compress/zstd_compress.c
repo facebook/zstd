@@ -161,7 +161,7 @@ static void ZSTD_cLevelToCCtxParams_srcSize(ZSTD_CCtx_params* CCtxParams, U64 sr
 
 static void ZSTD_cLevelToCParams(ZSTD_CCtx* cctx)
 {
-    DEBUGLOG(4, "ZSTD_cLevelToCParams");
+    DEBUGLOG(4, "ZSTD_cLevelToCParams: level=%i", cctx->requestedParams.compressionLevel);
     ZSTD_cLevelToCCtxParams_srcSize(
             &cctx->requestedParams, cctx->pledgedSrcSizePlusOne-1);
 }
@@ -169,7 +169,7 @@ static void ZSTD_cLevelToCParams(ZSTD_CCtx* cctx)
 static void ZSTD_cLevelToCCtxParams(ZSTD_CCtx_params* CCtxParams)
 {
     DEBUGLOG(4, "ZSTD_cLevelToCCtxParams");
-    ZSTD_cLevelToCCtxParams_srcSize(CCtxParams, 0);
+    ZSTD_cLevelToCCtxParams_srcSize(CCtxParams, ZSTD_CONTENTSIZE_UNKNOWN);
 }
 
 static ZSTD_CCtx_params ZSTD_makeCCtxParamsFromCParams(
@@ -247,7 +247,7 @@ static ZSTD_CCtx_params ZSTD_assignParamsToCCtxParams(
 
 size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned value)
 {
-    DEBUGLOG(4, "ZSTD_CCtx_setParameter");
+    DEBUGLOG(4, "ZSTD_CCtx_setParameter (%u, %u)", (U32)param, value);
     if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
 
     switch(param)
@@ -311,6 +311,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
 size_t ZSTD_CCtxParam_setParameter(
         ZSTD_CCtx_params* CCtxParams, ZSTD_cParameter param, unsigned value)
 {
+    DEBUGLOG(4, "ZSTD_CCtxParam_setParameter (%u, %u)", (U32)param, value);
     switch(param)
     {
     case ZSTD_p_format :
@@ -326,7 +327,7 @@ size_t ZSTD_CCtxParam_setParameter(
         return CCtxParams->compressionLevel;
 
     case ZSTD_p_windowLog :
-        DEBUGLOG(4, "setting windowLog=%u", value);
+        DEBUGLOG(4, "ZSTD_CCtxParam_setParameter: set windowLog=%u", value);
         if (value) {  /* 0 : does not change current windowLog */
             CLAMPCHECK(value, ZSTD_WINDOWLOG_MIN, ZSTD_WINDOWLOG_MAX);
             ZSTD_cLevelToCCtxParams(CCtxParams);
@@ -760,6 +761,10 @@ static U32 ZSTD_sufficientBuff(size_t bufferSize1, size_t blockSize1,
     size_t const windowSize2 = MAX(1, (size_t)MIN(((U64)1 << cParams2.windowLog), pledgedSrcSize));
     size_t const blockSize2 = MIN(ZSTD_BLOCKSIZE_MAX, windowSize2);
     size_t const neededBufferSize2 = (buffPol2==ZSTDb_buffered) ? windowSize2 + blockSize2 : 0;
+    DEBUGLOG(4, "ZSTD_sufficientBuff: windowSize2=%u from wlog=%u",
+                (U32)windowSize2, cParams2.windowLog);
+    DEBUGLOG(4, "ZSTD_sufficientBuff: blockSize2 %u <=? blockSize1 %u",
+                (U32)blockSize2, (U32)blockSize1);
     return (blockSize2 <= blockSize1) /* seqStore space depends on blockSize */
          & (neededBufferSize2 <= bufferSize1);
 }
@@ -815,14 +820,15 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                                       ZSTD_compResetPolicy_e const crp,
                                       ZSTD_buffered_policy_e const zbuff)
 {
-    DEBUGLOG(4, "ZSTD_resetCCtx_internal: pledgedSrcSize=%u", (U32)pledgedSrcSize);
+    DEBUGLOG(4, "ZSTD_resetCCtx_internal: pledgedSrcSize=%u, wlog=%u",
+                (U32)pledgedSrcSize, params.cParams.windowLog);
     assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
 
     if (crp == ZSTDcrp_continue) {
-        if (ZSTD_equivalentParams(params, zc->appliedParams,
+        if (ZSTD_equivalentParams(zc->appliedParams, params,
                                 zc->inBuffSize, zc->blockSize,
                                 zbuff, pledgedSrcSize)) {
-            DEBUGLOG(4, "ZSTD_equivalentParams()==1 -> continue mode (wLog=%u, blockSize=%u)",
+            DEBUGLOG(4, "ZSTD_equivalentParams()==1 -> continue mode (wLog1=%u, blockSize1=%u)",
                         zc->appliedParams.cParams.windowLog, (U32)zc->blockSize);
             assert(!(params.ldmParams.enableLdm &&
                      params.ldmParams.hashEveryLog == ZSTD_LDM_HASHEVERYLOG_NOTSET));

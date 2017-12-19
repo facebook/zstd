@@ -757,11 +757,11 @@ static U32 ZSTD_sufficientBuff(size_t bufferSize1, size_t blockSize1,
                             ZSTD_compressionParameters cParams2,
                             U64 pledgedSrcSize)
 {
-    size_t const windowSize = MAX(1, (size_t)MIN(((U64)1 << cParams2.windowLog), pledgedSrcSize));
-    size_t const blockSize2 = MIN(ZSTD_BLOCKSIZE_MAX, windowSize);
-    size_t const neededBufferSize = (buffPol2==ZSTDb_buffered) ? windowSize + blockSize2 : 0;
+    size_t const windowSize2 = MAX(1, (size_t)MIN(((U64)1 << cParams2.windowLog), pledgedSrcSize));
+    size_t const blockSize2 = MIN(ZSTD_BLOCKSIZE_MAX, windowSize2);
+    size_t const neededBufferSize2 = (buffPol2==ZSTDb_buffered) ? windowSize2 + blockSize2 : 0;
     return (blockSize2 <= blockSize1) /* seqStore space depends on blockSize */
-         & (neededBufferSize <= bufferSize1);
+         & (neededBufferSize2 <= bufferSize1);
 }
 
 /** Equivalence for resetCCtx purposes */

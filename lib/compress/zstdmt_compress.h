@@ -114,8 +114,13 @@ size_t ZSTDMT_CCtxParam_setMTCtxParameter(ZSTD_CCtx_params* params, ZSTDMT_param
 
 /* ZSTDMT_CCtxParam_setNbThreads()
  * Set nbThreads, and clamp it correctly,
- * but also reset jobSize and overlapLog */
+ * also reset jobSize and overlapLog */
 size_t ZSTDMT_CCtxParam_setNbThreads(ZSTD_CCtx_params* params, unsigned nbThreads);
+
+/* ZSTDMT_getNbThreads():
+ * @return nb threads currently active in mtctx.
+ * mtctx must be valid */
+size_t ZSTDMT_getNbThreads(const ZSTDMT_CCtx* mtctx);
 
 /*! ZSTDMT_initCStream_internal() :
  *  Private use only. Init streaming operation.

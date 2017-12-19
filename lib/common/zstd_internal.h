@@ -57,20 +57,19 @@ extern "C" {
 extern int g_debuglog_enable;
 /* recommended values for ZSTD_DEBUG display levels :
  * 1 : no display, enables assert() only
- * 2 : reserved for currently active debugging path
- * 3 : events once per object lifetime (CCtx, CDict)
+ * 2 : reserved for currently active debug path
+ * 3 : events once per object lifetime (CCtx, CDict, etc.)
  * 4 : events once per frame
  * 5 : events once per block
  * 6 : events once per sequence (*very* verbose) */
-#  define RAWLOG(l, ...) {                                 \
-                if ((g_debuglog_enable) & (l<=ZSTD_DEBUG)) { \
-                    fprintf(stderr, __VA_ARGS__);            \
+#  define RAWLOG(l, ...) {                                      \
+                if ((g_debuglog_enable) & (l<=ZSTD_DEBUG)) {    \
+                    fprintf(stderr, __VA_ARGS__);               \
             }   }
-#  define DEBUGLOG(l, ...) {                                 \
-                if ((g_debuglog_enable) & (l<=ZSTD_DEBUG)) { \
-                    fprintf(stderr, __FILE__ ": ");          \
-                    fprintf(stderr, __VA_ARGS__);            \
-                    fprintf(stderr, " \n");                  \
+#  define DEBUGLOG(l, ...) {                                    \
+                if ((g_debuglog_enable) & (l<=ZSTD_DEBUG)) {    \
+                    fprintf(stderr, __FILE__ ": " __VA_ARGS__); \
+                    fprintf(stderr, " \n");                     \
             }   }
 #else
 #  define RAWLOG(l, ...)      {}    /* disabled */

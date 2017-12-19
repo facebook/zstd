@@ -728,10 +728,7 @@ size_t ZSTD_estimateCStreamSize(int compressionLevel) {
 static U32 ZSTD_equivalentCParams(ZSTD_compressionParameters cParams1,
                                   ZSTD_compressionParameters cParams2)
 {
-    U32 bslog1 = MIN(cParams1.windowLog, ZSTD_BLOCKSIZELOG_MAX);
-    U32 bslog2 = MIN(cParams2.windowLog, ZSTD_BLOCKSIZELOG_MAX);
-    return (bslog1 == bslog2)   /* same block size */
-         & (cParams1.hashLog  == cParams2.hashLog)
+    return (cParams1.hashLog  == cParams2.hashLog)
          & (cParams1.chainLog == cParams2.chainLog)
          & (cParams1.strategy == cParams2.strategy)   /* opt parser space */
          & ((cParams1.searchLength==3) == (cParams2.searchLength==3));  /* hashlog3 space */
@@ -755,24 +752,29 @@ typedef enum { ZSTDb_not_buffered, ZSTDb_buffered } ZSTD_buffered_policy_e;
 /* ZSTD_sufficientBuff() :
  * check internal buffers exist for streaming if buffPol == ZSTDb_buffered .
  * Note : they are assumed to be correctly sized if ZSTD_equivalentCParams()==1 */
-static U32 ZSTD_sufficientBuff(size_t bufferSize, ZSTD_buffered_policy_e buffPol, ZSTD_compressionParameters cParams2, U64 pledgedSrcSize)
+static U32 ZSTD_sufficientBuff(size_t bufferSize1, size_t blockSize1,
+                            ZSTD_buffered_policy_e buffPol2,
+                            ZSTD_compressionParameters cParams2,
+                            U64 pledgedSrcSize)
 {
     size_t const windowSize = MAX(1, (size_t)MIN(((U64)1 << cParams2.windowLog), pledgedSrcSize));
-    size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, windowSize);
-    size_t const neededBufferSize = (buffPol==ZSTDb_buffered) ? windowSize + blockSize : 0;
-    return (neededBufferSize <= bufferSize);
+    size_t const blockSize2 = MIN(ZSTD_BLOCKSIZE_MAX, windowSize);
+    size_t const neededBufferSize = (buffPol2==ZSTDb_buffered) ? windowSize + blockSize2 : 0;
+    return (blockSize2 <= blockSize1) /* seqStore space depends on blockSize */
+         & (neededBufferSize <= bufferSize1);
 }
 
 /** Equivalence for resetCCtx purposes */
 static U32 ZSTD_equivalentParams(ZSTD_CCtx_params params1,
                                  ZSTD_CCtx_params params2,
-                                 size_t buffSize1,
+                                 size_t buffSize1, size_t blockSize1,
                                  ZSTD_buffered_policy_e buffPol2,
                                  U64 pledgedSrcSize)
 {
+    DEBUGLOG(4, "ZSTD_equivalentParams: pledgedSrcSize=%u", (U32)pledgedSrcSize);
     return ZSTD_equivalentCParams(params1.cParams, params2.cParams) &&
            ZSTD_equivalentLdmParams(params1.ldmParams, params2.ldmParams) &&
-           ZSTD_sufficientBuff(buffSize1, buffPol2, params2.cParams, pledgedSrcSize);
+           ZSTD_sufficientBuff(buffSize1, blockSize1, buffPol2, params2.cParams, pledgedSrcSize);
 }
 
 /*! ZSTD_continueCCtx() :
@@ -780,7 +782,11 @@ static U32 ZSTD_equivalentParams(ZSTD_CCtx_params params1,
 static size_t ZSTD_continueCCtx(ZSTD_CCtx* cctx, ZSTD_CCtx_params params, U64 pledgedSrcSize)
 {
     U32 const end = (U32)(cctx->nextSrc - cctx->base);
-    DEBUGLOG(4, "continue mode");
+    size_t const windowSize = MAX(1, (size_t)MIN(((U64)1 << params.cParams.windowLog), pledgedSrcSize));
+    size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, windowSize);
+    DEBUGLOG(4, "ZSTD_continueCCtx");
+
+    cctx->blockSize = blockSize;   /* previous block size could be different even for same windowLog, due to pledgedSrcSize */
     cctx->appliedParams = params;
     cctx->pledgedSrcSizePlusOne = pledgedSrcSize+1;
     cctx->consumedSrcSize = 0;
@@ -813,8 +819,11 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
     assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
 
     if (crp == ZSTDcrp_continue) {
-        if (ZSTD_equivalentParams(params, zc->appliedParams, zc->inBuffSize, zbuff, pledgedSrcSize)) {
-            DEBUGLOG(4, "ZSTD_equivalentParams()==1 -> continue mode");
+        if (ZSTD_equivalentParams(params, zc->appliedParams,
+                                zc->inBuffSize, zc->blockSize,
+                                zbuff, pledgedSrcSize)) {
+            DEBUGLOG(4, "ZSTD_equivalentParams()==1 -> continue mode (wLog=%u, blockSize=%u)",
+                        zc->appliedParams.cParams.windowLog, (U32)zc->blockSize);
             assert(!(params.ldmParams.enableLdm &&
                      params.ldmParams.hashEveryLog == ZSTD_LDM_HASHEVERYLOG_NOTSET));
             zc->entropy->hufCTable_repeatMode = HUF_repeat_none;
@@ -865,8 +874,8 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                                        tableSpace + tokenSpace + bufferSpace;
             DEBUGLOG(4, "Need %uKB workspace, including %uKB for tables, and %uKB for buffers",
                         (U32)(neededSpace>>10), (U32)(tableSpace>>10), (U32)(bufferSpace>>10));
-            DEBUGLOG(4, "chainSize: %u - hSize: %u - h3Size: %u - windowSize: %u",
-                        (U32)chainSize, (U32)hSize, (U32)h3Size, (U32)windowSize);
+            DEBUGLOG(4, "chainSize: %u - hSize: %u - h3Size: %u - windowSize: %u - blockSize: %u",
+                        (U32)chainSize, (U32)hSize, (U32)h3Size, (U32)windowSize, (U32)blockSize);
 
             if (zc->workSpaceSize < neededSpace) {  /* too small : resize */
                 DEBUGLOG(4, "Need to update workSpaceSize from %uK to %uK",
@@ -1666,6 +1675,7 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
     U32 const maxDist = (U32)1 << cctx->appliedParams.cParams.windowLog;
     assert(cctx->appliedParams.cParams.windowLog <= 31);
 
+    DEBUGLOG(5, "ZSTD_compress_frameChunk (blockSize=%u)", (U32)blockSize);
     if (cctx->appliedParams.fParams.checksumFlag && srcSize)
         XXH64_update(&cctx->xxhState, src, srcSize);
 
@@ -1838,6 +1848,7 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* cctx,
         cctx->lowLimit = lowLimitMax;
     }
 
+    DEBUGLOG(5, "ZSTD_compressContinue_internal (blockSize=%u)", (U32)cctx->blockSize);
     {   size_t const cSize = frame ?
                              ZSTD_compress_frameChunk (cctx, dst, dstCapacity, src, srcSize, lastFrameChunk) :
                              ZSTD_compressBlock_internal (cctx, dst, dstCapacity, src, srcSize);
@@ -2062,7 +2073,7 @@ size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
                              ZSTD_CCtx_params params, U64 pledgedSrcSize,
                              ZSTD_buffered_policy_e zbuff)
 {
-    DEBUGLOG(4, "ZSTD_compressBegin_internal");
+    DEBUGLOG(4, "ZSTD_compressBegin_internal: wlog=%u", params.cParams.windowLog);
     /* params are supposed to be fully validated at this point */
     assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
     assert(!((dict) && (cdict)));  /* either dict or cdict, not both */
@@ -2086,7 +2097,7 @@ size_t ZSTD_compressBegin_advanced_internal(ZSTD_CCtx* cctx,
                                     ZSTD_CCtx_params params,
                                     unsigned long long pledgedSrcSize)
 {
-    DEBUGLOG(4, "ZSTD_compressBegin_advanced_internal");
+    DEBUGLOG(4, "ZSTD_compressBegin_advanced_internal: wlog=%u", params.cParams.windowLog);
     /* compression parameters verification and optimization */
     CHECK_F( ZSTD_checkCParams(params.cParams) );
     return ZSTD_compressBegin_internal(cctx,

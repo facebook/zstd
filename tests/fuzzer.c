@@ -96,6 +96,22 @@ static unsigned FUZ_highbit32(U32 v32)
 
 
 /*=============================================
+*   Test macros
+=============================================*/
+#define CHECK_Z(f) {                               \
+    size_t const err = f;                          \
+    if (ZSTD_isError(err)) {                       \
+        DISPLAY("Error => %s : %s ",               \
+                #f, ZSTD_getErrorName(err));       \
+        exit(1);                                   \
+}   }
+
+#define CHECK_V(var, fn)  size_t const var = fn; if (ZSTD_isError(var)) goto _output_error
+#define CHECK(fn)  { CHECK_V(err, fn); }
+#define CHECKPLUS(var, fn, more)  { CHECK_V(var, fn); more; }
+
+
+/*=============================================
 *   Memory Tests
 =============================================*/
 #if defined(__APPLE__) && defined(__MACH__)
@@ -143,14 +159,6 @@ static void FUZ_displayMallocStats(mallocCounter_t count)
         count.nbMalloc,
         (U32)(count.totalMalloc >> 10));
 }
-
-#define CHECK_Z(f) {                               \
-    size_t const err = f;                          \
-    if (ZSTD_isError(err)) {                       \
-        DISPLAY("Error => %s : %s ",               \
-                #f, ZSTD_getErrorName(err));       \
-        exit(1);                                   \
-}   }
 
 static int FUZ_mallocTests(unsigned seed, double compressibility, unsigned part)
 {
@@ -256,10 +264,6 @@ static int FUZ_mallocTests(unsigned seed, double compressibility, unsigned part)
 /*=============================================
 *   Unit tests
 =============================================*/
-
-#define CHECK_V(var, fn)  size_t const var = fn; if (ZSTD_isError(var)) goto _output_error
-#define CHECK(fn)  { CHECK_V(err, fn); }
-#define CHECKPLUS(var, fn, more)  { CHECK_V(var, fn); more; }
 
 static int basicUnitTests(U32 seed, double compressibility)
 {

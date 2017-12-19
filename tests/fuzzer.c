@@ -25,6 +25,7 @@
 #include <stdlib.h>       /* free */
 #include <stdio.h>        /* fgets, sscanf */
 #include <string.h>       /* strcmp */
+#include <assert.h>
 #define ZSTD_STATIC_LINKING_ONLY  /* ZSTD_compressContinue, ZSTD_compressBlock */
 #include "zstd.h"         /* ZSTD_VERSION_STRING */
 #include "zstd_errors.h"  /* ZSTD_getErrorCode */
@@ -95,6 +96,22 @@ static unsigned FUZ_highbit32(U32 v32)
 
 
 /*=============================================
+*   Test macros
+=============================================*/
+#define CHECK_Z(f) {                               \
+    size_t const err = f;                          \
+    if (ZSTD_isError(err)) {                       \
+        DISPLAY("Error => %s : %s ",               \
+                #f, ZSTD_getErrorName(err));       \
+        exit(1);                                   \
+}   }
+
+#define CHECK_V(var, fn)  size_t const var = fn; if (ZSTD_isError(var)) goto _output_error
+#define CHECK(fn)  { CHECK_V(err, fn); }
+#define CHECKPLUS(var, fn, more)  { CHECK_V(var, fn); more; }
+
+
+/*=============================================
 *   Memory Tests
 =============================================*/
 #if defined(__APPLE__) && defined(__MACH__)
@@ -142,14 +159,6 @@ static void FUZ_displayMallocStats(mallocCounter_t count)
         count.nbMalloc,
         (U32)(count.totalMalloc >> 10));
 }
-
-#define CHECK_Z(f) {                               \
-    size_t const err = f;                          \
-    if (ZSTD_isError(err)) {                       \
-        DISPLAY("Error => %s : %s ",               \
-                #f, ZSTD_getErrorName(err));       \
-        exit(1);                                   \
-}   }
 
 static int FUZ_mallocTests(unsigned seed, double compressibility, unsigned part)
 {
@@ -256,10 +265,6 @@ static int FUZ_mallocTests(unsigned seed, double compressibility, unsigned part)
 *   Unit tests
 =============================================*/
 
-#define CHECK_V(var, fn)  size_t const var = fn; if (ZSTD_isError(var)) goto _output_error
-#define CHECK(fn)  { CHECK_V(err, fn); }
-#define CHECKPLUS(var, fn, more)  { CHECK_V(var, fn); more; }
-
 static int basicUnitTests(U32 seed, double compressibility)
 {
     size_t const CNBuffSize = 5 MB;
@@ -361,6 +366,23 @@ static int basicUnitTests(U32 seed, double compressibility)
         size_t const r = ZSTD_compressCCtx(cctx, compressedBuffer, compressedBufferSize, NULL, 0, 19);
         if (ZSTD_isError(r)) goto _output_error;
         if (ZSTD_sizeof_CCtx(cctx) > (1U << 20)) goto _output_error;
+        ZSTD_freeCCtx(cctx);
+    }
+    DISPLAYLEVEL(4, "OK \n");
+
+    DISPLAYLEVEL(4, "test%di : re-use CCtx with expanding block size : ", testNb++);
+    {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        ZSTD_parameters const params = ZSTD_getParams(1, ZSTD_CONTENTSIZE_UNKNOWN, 0);
+        assert(params.fParams.contentSizeFlag == 1);  /* block size will be adapted if pledgedSrcSize is enabled */
+        CHECK_Z( ZSTD_compressBegin_advanced(cctx, NULL, 0, params, 1 /*pledgedSrcSize*/) );
+        CHECK_Z( ZSTD_compressEnd(cctx, compressedBuffer, compressedBufferSize, CNBuffer, 1) ); /* creates a block size of 1 */
+
+        CHECK_Z( ZSTD_compressBegin_advanced(cctx, NULL, 0, params, ZSTD_CONTENTSIZE_UNKNOWN) );  /* re-use same parameters */
+        {   size_t const inSize = 2* 128 KB;
+            size_t const outSize = ZSTD_compressBound(inSize);
+            CHECK_Z( ZSTD_compressEnd(cctx, compressedBuffer, outSize, CNBuffer, inSize) );
+            /* will fail if blockSize is not resized */
+        }
         ZSTD_freeCCtx(cctx);
     }
     DISPLAYLEVEL(4, "OK \n");

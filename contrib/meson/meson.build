@@ -38,21 +38,35 @@ libzstd_srcs = [
 
 libzstd_includes = [include_directories(common_dir, dictbuilder_dir, compress_dir, lib_dir)]
 
-if get_option('legacy_support')
-    message('Enabling legacy support')
-    libzstd_cflags = ['-DZSTD_LEGACY_SUPPORT=4']
+legacy = get_option('legacy_support')
+if legacy != 'false'
+    message('Enabling legacy support back to version 0.' + legacy)
+    legacy_int = legacy.to_int()
+    libzstd_cflags = ['-DZSTD_LEGACY_SUPPORT=' + legacy]
 
     legacy_dir = join_paths(lib_dir, 'legacy')
     libzstd_includes += [include_directories(legacy_dir)]
-    libzstd_srcs += [
-        join_paths(legacy_dir, 'zstd_v01.c'),
-        join_paths(legacy_dir, 'zstd_v02.c'),
-        join_paths(legacy_dir, 'zstd_v03.c'),
-        join_paths(legacy_dir, 'zstd_v04.c'),
-        join_paths(legacy_dir, 'zstd_v05.c'),
-        join_paths(legacy_dir, 'zstd_v06.c'),
-        join_paths(legacy_dir, 'zstd_v07.c')
-    ]
+    if legacy_int <= 1
+        libzstd_srcs += join_paths(legacy_dir, 'zstd_v01.c')
+    endif
+    if legacy_int <= 2
+        libzstd_srcs += join_paths(legacy_dir, 'zstd_v02.c')
+    endif
+    if legacy_int <= 3
+        libzstd_srcs += join_paths(legacy_dir, 'zstd_v03.c')
+    endif
+    if legacy_int <= 4
+        libzstd_srcs += join_paths(legacy_dir, 'zstd_v04.c')
+    endif
+    if legacy_int <= 5
+        libzstd_srcs += join_paths(legacy_dir, 'zstd_v05.c')
+    endif
+    if legacy_int <= 6
+        libzstd_srcs += join_paths(legacy_dir, 'zstd_v06.c')
+    endif
+    if legacy_int <= 7
+        libzstd_srcs += join_paths(legacy_dir, 'zstd_v07.c')
+    endif
 else
     libzstd_cflags = []
 endif

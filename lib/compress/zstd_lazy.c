@@ -432,6 +432,7 @@ size_t ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
 
     U32 const maxSearches = 1 << ctx->appliedParams.cParams.searchLog;
     U32 const mls = ctx->appliedParams.cParams.searchLength;
+    size_t const targetLength = ctx->appliedParams.cParams.targetLength;
 
     typedef size_t (*searchMax_f)(ZSTD_CCtx* zc, const BYTE* ip, const BYTE* iLimit,
                         size_t* offsetPtr,
@@ -473,6 +474,7 @@ size_t ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
         }
 
         /* let's try to find a better solution */
+        if (matchLength < targetLength)
         if (depth>=1)
         while (ip<ilimit) {
             ip ++;
@@ -482,6 +484,7 @@ size_t ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
                 int const gain1 = (int)(matchLength*3 - ZSTD_highbit32((U32)offset+1) + 1);
                 if ((mlRep >= 4) & (gain2 > gain1))
                     matchLength = mlRep, offset = 0, start = ip;
+                    if (matchLength > targetLength) break;
             }
             {   size_t offset2=99999999;
                 size_t const ml2 = searchMax(ctx, ip, iend, &offset2, maxSearches, mls);
@@ -489,6 +492,7 @@ size_t ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
                 int const gain1 = (int)(matchLength*4 - ZSTD_highbit32((U32)offset+1) + 4);
                 if ((ml2 >= 4) & (gain2 > gain1)) {
                     matchLength = ml2, offset = offset2, start = ip;
+                    if (matchLength > targetLength) break;
                     continue;   /* search a better one */
             }   }
 
@@ -501,6 +505,7 @@ size_t ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
                     int const gain1 = (int)(matchLength*4 - ZSTD_highbit32((U32)offset+1) + 1);
                     if ((ml2 >= 4) & (gain2 > gain1))
                         matchLength = ml2, offset = 0, start = ip;
+                        if (matchLength > targetLength) break;
                 }
                 {   size_t offset2=99999999;
                     size_t const ml2 = searchMax(ctx, ip, iend, &offset2, maxSearches, mls);
@@ -508,6 +513,7 @@ size_t ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
                     int const gain1 = (int)(matchLength*4 - ZSTD_highbit32((U32)offset+1) + 7);
                     if ((ml2 >= 4) & (gain2 > gain1)) {
                         matchLength = ml2, offset = offset2, start = ip;
+                        if (matchLength > targetLength) break;
                         continue;
             }   }   }
             break;  /* no better found : store last selected solution */

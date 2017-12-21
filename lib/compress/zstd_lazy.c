@@ -482,10 +482,10 @@ size_t ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
                 size_t const mlRep = ZSTD_count(ip+4, ip+4-offset_1, iend) + 4;
                 int const gain2 = (int)(mlRep * 3);
                 int const gain1 = (int)(matchLength*3 - ZSTD_highbit32((U32)offset+1) + 1);
-                if ((mlRep >= 4) & (gain2 > gain1))
+                if ((mlRep >= 4) & (gain2 > gain1)) {
                     matchLength = mlRep, offset = 0, start = ip;
                     if (matchLength > targetLength) break;
-            }
+            }   }
             {   size_t offset2=99999999;
                 size_t const ml2 = searchMax(ctx, ip, iend, &offset2, maxSearches, mls);
                 int const gain2 = (int)(ml2*4 - ZSTD_highbit32((U32)offset2+1));   /* raw approx */
@@ -503,10 +503,10 @@ size_t ZSTD_compressBlock_lazy_generic(ZSTD_CCtx* ctx,
                     size_t const ml2 = ZSTD_count(ip+4, ip+4-offset_1, iend) + 4;
                     int const gain2 = (int)(ml2 * 4);
                     int const gain1 = (int)(matchLength*4 - ZSTD_highbit32((U32)offset+1) + 1);
-                    if ((ml2 >= 4) & (gain2 > gain1))
+                    if ((ml2 >= 4) & (gain2 > gain1)) {
                         matchLength = ml2, offset = 0, start = ip;
                         if (matchLength > targetLength) break;
-                }
+                }   }
                 {   size_t offset2=99999999;
                     size_t const ml2 = searchMax(ctx, ip, iend, &offset2, maxSearches, mls);
                     int const gain2 = (int)(ml2*4 - ZSTD_highbit32((U32)offset2+1));   /* raw approx */

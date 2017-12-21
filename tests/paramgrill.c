@@ -17,13 +17,14 @@
 #include <stdio.h>     /* fprintf, fopen, ftello64 */
 #include <string.h>    /* strcmp */
 #include <math.h>      /* log */
-#include <time.h>      /* clock_t */
+#include <time.h>
 
 #include "mem.h"
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_parameters, ZSTD_estimateCCtxSize */
 #include "zstd.h"
 #include "datagen.h"
 #include "xxhash.h"
+#include "util.h"
 
 
 /*-************************************
@@ -39,7 +40,7 @@
 #define GB *(1ULL<<30)
 
 #define NBLOOPS    2
-#define TIMELOOP  (2 * CLOCKS_PER_SEC)
+#define TIMELOOP  (2 * SEC_TO_MICRO)
 
 #define NB_LEVELS_TRACKED 30
 
@@ -49,8 +50,8 @@ static const size_t maxMemory = (sizeof(size_t)==4)  ?  (2 GB - 64 MB) : (size_t
 static const size_t sampleSize = 10000000;
 
 static const double g_grillDuration_s = 90000;   /* about 24 hours */
-static const clock_t g_maxParamTime = 15 * CLOCKS_PER_SEC;
-static const clock_t g_maxVariationTime = 60 * CLOCKS_PER_SEC;
+static const U64 g_maxParamTime = 15 * SEC_TO_MICRO;
+static const U64 g_maxVariationTime = 60 * SEC_TO_MICRO;
 static const int g_maxNbVariations = 64;
 
 
@@ -88,12 +89,8 @@ void BMK_SetNbIterations(int nbLoops)
 *  Private functions
 *********************************************************/
 
-/* works even if overflow ; max span ~ 30 mn */
-static clock_t BMK_clockSpan(clock_t cStart) { return clock() - cStart; }
-
 /* accuracy in seconds only, span can be multiple years */
 static double BMK_timeSpan(time_t tStart) { return difftime(time(NULL), tStart); }
-
 
 static size_t BMK_findMaxMem(U64 requiredMem)
 {
@@ -221,7 +218,7 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
         size_t cSize = 0;
         double fastestC = 100000000., fastestD = 100000000.;
         double ratio = 0.;
-        clock_t const benchStart = clock();
+        UTIL_time_t const benchStart = UTIL_getTime();
 
         DISPLAY("\r%79s\r", "");
         memset(&params, 0, sizeof(params));
@@ -229,9 +226,10 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
         for (loopNb = 1; loopNb <= g_nbIterations; loopNb++) {
             int nbLoops;
             U32 blockNb;
-            clock_t roundStart, roundClock;
+            UTIL_time_t roundStart;
+            U64 roundClock;
 
-            { clock_t const benchTime = BMK_clockSpan(benchStart);
+            { U64 const benchTime = UTIL_clockSpanMicro(benchStart);
               if (benchTime > g_maxParamTime) break; }
 
             /* Compression */
@@ -239,10 +237,9 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
             memset(compressedBuffer, 0xE5, maxCompressedSize);
 
             nbLoops = 0;
-            roundStart = clock();
-            while (clock() == roundStart);
-            roundStart = clock();
-            while (BMK_clockSpan(roundStart) < TIMELOOP) {
+            UTIL_waitForNextTick();
+            roundStart = UTIL_getTime();
+            while (UTIL_clockSpanMicro(roundStart) < TIMELOOP) {
                 for (blockNb=0; blockNb<nbBlocks; blockNb++)
                     blockTable[blockNb].cSize = ZSTD_compress_advanced(ctx,
                                                     blockTable[blockNb].cPtr,  blockTable[blockNb].cRoom,
@@ -251,13 +248,13 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
                                                     params);
                 nbLoops++;
             }
-            roundClock = BMK_clockSpan(roundStart);
+            roundClock = UTIL_clockSpanMicro(roundStart);
 
             cSize = 0;
             for (blockNb=0; blockNb<nbBlocks; blockNb++)
                 cSize += blockTable[blockNb].cSize;
             ratio = (double)srcSize / (double)cSize;
-            if ((double)roundClock < fastestC * CLOCKS_PER_SEC * nbLoops) fastestC = ((double)roundClock / CLOCKS_PER_SEC) / nbLoops;
+            if ((double)roundClock < fastestC * SEC_TO_MICRO * nbLoops) fastestC = ((double)roundClock / SEC_TO_MICRO) / nbLoops;
             DISPLAY("\r");
             DISPLAY("%1u-%s : %9u ->", loopNb, name, (U32)srcSize);
             DISPLAY(" %9u (%4.3f),%7.1f MB/s", (U32)cSize, ratio, (double)srcSize / fastestC / 1000000.);
@@ -269,17 +266,16 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
             memset(resultBuffer, 0xD6, srcSize);
 
             nbLoops = 0;
-            roundStart = clock();
-            while (clock() == roundStart);
-            roundStart = clock();
-            for ( ; BMK_clockSpan(roundStart) < TIMELOOP; nbLoops++) {
+            UTIL_waitForNextTick();
+            roundStart = UTIL_getTime();
+            for ( ; UTIL_clockSpanMicro(roundStart) < TIMELOOP; nbLoops++) {
                 for (blockNb=0; blockNb<nbBlocks; blockNb++)
                     blockTable[blockNb].resSize = ZSTD_decompress(blockTable[blockNb].resPtr, blockTable[blockNb].srcSize,
                                                                   blockTable[blockNb].cPtr, blockTable[blockNb].cSize);
             }
-            roundClock = BMK_clockSpan(roundStart);
+            roundClock = UTIL_clockSpanMicro(roundStart);
 
-            if ((double)roundClock < fastestD * CLOCKS_PER_SEC * nbLoops) fastestD = ((double)roundClock / CLOCKS_PER_SEC) / nbLoops;
+            if ((double)roundClock < fastestD * SEC_TO_MICRO * nbLoops) fastestD = ((double)roundClock / SEC_TO_MICRO) / nbLoops;
             DISPLAY("\r");
             DISPLAY("%1u-%s : %9u -> ", loopNb, name, (U32)srcSize);
             DISPLAY("%9u (%4.3f),%7.1f MB/s, ", (U32)cSize, ratio, (double)srcSize / fastestC / 1000000.);
@@ -310,14 +306,10 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
 }
 
 
-const char* g_stratName[] = { "ZSTD_fast    ",
-                              "ZSTD_dfast   ",
-                              "ZSTD_greedy  ",
-                              "ZSTD_lazy    ",
-                              "ZSTD_lazy2   ",
-                              "ZSTD_btlazy2 ",
-                              "ZSTD_btopt   ",
-                              "ZSTD_btultra "};
+const char* g_stratName[ZSTD_btultra+1] = {
+                "(none)       ", "ZSTD_fast    ", "ZSTD_dfast   ",
+                "ZSTD_greedy  ", "ZSTD_lazy    ", "ZSTD_lazy2   ",
+                "ZSTD_btlazy2 ", "ZSTD_btopt   ", "ZSTD_btultra "};
 
 static void BMK_printWinner(FILE* f, U32 cLevel, BMK_result_t result, ZSTD_compressionParameters params, size_t srcSize)
 {
@@ -525,9 +517,9 @@ static void playAround(FILE* f, winnerInfo_t* winners,
                        ZSTD_CCtx* ctx)
 {
     int nbVariations = 0;
-    clock_t const clockStart = clock();
+    UTIL_time_t const clockStart = UTIL_getTime();
 
-    while (BMK_clockSpan(clockStart) < g_maxVariationTime) {
+    while (UTIL_clockSpanMicro(clockStart) < g_maxVariationTime) {
         ZSTD_compressionParameters p = params;
 
         if (nbVariations++ > g_maxNbVariations) break;
@@ -687,6 +679,11 @@ int benchFiles(const char** fileNamesTable, int nbFiles)
             DISPLAY( "Pb opening %s\n", inFileName);
             return 11;
         }
+        if (inFileSize == UTIL_FILESIZE_UNKNOWN) {
+            DISPLAY("Pb evaluatin size of %s \n", inFileName);
+            fclose(inFile);
+            return 11;
+        }
 
         /* Memory allocation */
         benchedSize = BMK_findMaxMem(inFileSize*3) / 3;
@@ -740,6 +737,11 @@ int optimizeForSize(const char* inFileName, U32 targetSpeed)
 
     /* Init */
     if (inFile==NULL) { DISPLAY( "Pb opening %s\n", inFileName); return 11; }
+    if (inFileSize == UTIL_FILESIZE_UNKNOWN) {
+        DISPLAY("Pb evaluatin size of %s \n", inFileName);
+        fclose(inFile);
+        return 11;
+    }
 
     /* Memory allocation & restrictions */
     if ((U64)benchedSize > inFileSize) benchedSize = (size_t)inFileSize;

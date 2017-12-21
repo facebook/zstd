@@ -1,5 +1,5 @@
 .
-.TH "ZSTD" "1" "September 2017" "zstd 1.3.1" "User Commands"
+.TH "ZSTD" "1" "December 2017" "zstd 1.3.3" "User Commands"
 .
 .SH "NAME"
 \fBzstd\fR \- zstd, zstdmt, unzstd, zstdcat \- Compress or decompress \.zst files
@@ -60,11 +60,11 @@ In most places where an integer argument is expected, an optional suffix is supp
 .
 .TP
 \fBKiB\fR
-Multiply the integer by 1,024 (2\e \fBKi\fR, \fBK\fR, and \fBKB\fR are accepted as synonyms for \fBKiB\fR\.
+Multiply the integer by 1,024 (2^10)\. \fBKi\fR, \fBK\fR, and \fBKB\fR are accepted as synonyms for \fBKiB\fR\.
 .
 .TP
 \fBMiB\fR
-Multiply the integer by 1,048,576 (2\e \fBMi\fR, \fBM\fR, and \fBMB\fR are accepted as synonyms for \fBMiB\fR\.
+Multiply the integer by 1,048,576 (2^20)\. \fBMi\fR, \fBM\fR, and \fBMB\fR are accepted as synonyms for \fBMiB\fR\.
 .
 .SS "Operation mode"
 If multiple operation mode options are given, the last one takes effect\.
@@ -260,6 +260,12 @@ cut file(s) into independent blocks of size # (default: no block)
 .TP
 \fB\-\-priority=rt\fR
 set process priority to real\-time
+.
+.P
+\fBOutput Format:\fR CompressionLevel#Filename : IntputSize \-> OutputSize (CompressionRatio), CompressionSpeed, DecompressionSpeed
+.
+.P
+\fBMethodology:\fR For both compression and decompression speed, the entire input is compressed/decompressed in\-memory to measure speed\. A run lasts at least 1 sec, so when files are small, they are compressed/decompressed several times per run, in order to improve measurement accuracy\.
 .
 .SH "ADVANCED COMPRESSION OPTIONS"
 .

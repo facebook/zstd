@@ -25,7 +25,7 @@
 #include <stdlib.h>       /* free */
 #include <stdio.h>        /* fgets, sscanf */
 #include <string.h>       /* strcmp */
-#include <time.h>         /* clock_t */
+#include <assert.h>
 #define ZSTD_STATIC_LINKING_ONLY  /* ZSTD_compressContinue, ZSTD_compressBlock */
 #include "zstd.h"         /* ZSTD_VERSION_STRING */
 #include "zstd_errors.h"  /* ZSTD_getErrorCode */
@@ -36,6 +36,7 @@
 #include "mem.h"
 #define XXH_STATIC_LINKING_ONLY
 #include "xxhash.h"       /* XXH64 */
+#include "util.h"
 
 
 /*-************************************
@@ -56,24 +57,21 @@ static const U32 nbTestsDefault = 30000;
 #define DISPLAYLEVEL(l, ...)  if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); }
 static U32 g_displayLevel = 2;
 
-#define DISPLAYUPDATE(l, ...) if (g_displayLevel>=l) { \
-            if ((FUZ_clockSpan(g_displayClock) > g_refreshRate) || (g_displayLevel>=4)) \
-            { g_displayClock = clock(); DISPLAY(__VA_ARGS__); \
-            if (g_displayLevel>=4) fflush(stdout); } }
-static const clock_t g_refreshRate = CLOCKS_PER_SEC / 6;
-static clock_t g_displayClock = 0;
+static const U64 g_refreshRate = SEC_TO_MICRO / 6;
+static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
 
+#define DISPLAYUPDATE(l, ...) if (g_displayLevel>=l) { \
+            if ((UTIL_clockSpanMicro(g_displayClock) > g_refreshRate) || (g_displayLevel>=4)) \
+            { g_displayClock = UTIL_getTime(); DISPLAY(__VA_ARGS__); \
+            if (g_displayLevel>=4) fflush(stderr); } }
 
 /*-*******************************************************
 *  Fuzzer functions
 *********************************************************/
+#undef MIN
+#undef MAX
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define MAX(a,b) ((a)>(b)?(a):(b))
-
-static clock_t FUZ_clockSpan(clock_t cStart)
-{
-    return clock() - cStart;   /* works even when overflow; max span ~ 30mn */
-}
 
 #define FUZ_rotl32(x,r) ((x << r) | (x >> (32 - r)))
 static unsigned FUZ_rand(unsigned* src)
@@ -95,6 +93,22 @@ static unsigned FUZ_highbit32(U32 v32)
     while (v32) v32 >>= 1, nbBits++;
     return nbBits;
 }
+
+
+/*=============================================
+*   Test macros
+=============================================*/
+#define CHECK_Z(f) {                               \
+    size_t const err = f;                          \
+    if (ZSTD_isError(err)) {                       \
+        DISPLAY("Error => %s : %s ",               \
+                #f, ZSTD_getErrorName(err));       \
+        exit(1);                                   \
+}   }
+
+#define CHECK_V(var, fn)  size_t const var = fn; if (ZSTD_isError(var)) goto _output_error
+#define CHECK(fn)  { CHECK_V(err, fn); }
+#define CHECKPLUS(var, fn, more)  { CHECK_V(var, fn); more; }
 
 
 /*=============================================
@@ -145,14 +159,6 @@ static void FUZ_displayMallocStats(mallocCounter_t count)
         count.nbMalloc,
         (U32)(count.totalMalloc >> 10));
 }
-
-#define CHECK_Z(f) {                               \
-    size_t const err = f;                          \
-    if (ZSTD_isError(err)) {                       \
-        DISPLAY("Error => %s : %s ",               \
-                #f, ZSTD_getErrorName(err));       \
-        exit(1);                                   \
-}   }
 
 static int FUZ_mallocTests(unsigned seed, double compressibility, unsigned part)
 {
@@ -259,10 +265,6 @@ static int FUZ_mallocTests(unsigned seed, double compressibility, unsigned part)
 *   Unit tests
 =============================================*/
 
-#define CHECK_V(var, fn)  size_t const var = fn; if (ZSTD_isError(var)) goto _output_error
-#define CHECK(fn)  { CHECK_V(err, fn); }
-#define CHECKPLUS(var, fn, more)  { CHECK_V(var, fn); more; }
-
 static int basicUnitTests(U32 seed, double compressibility)
 {
     size_t const CNBuffSize = 5 MB;
@@ -359,6 +361,31 @@ static int basicUnitTests(U32 seed, double compressibility)
       if (ZSTD_getErrorCode(r) != ZSTD_error_srcSize_wrong) goto _output_error; }
     DISPLAYLEVEL(4, "OK \n");
 
+    DISPLAYLEVEL(4, "test%di : check CCtx size after compressing empty input : ", testNb++);
+    {   ZSTD_CCtx* cctx = ZSTD_createCCtx();
+        size_t const r = ZSTD_compressCCtx(cctx, compressedBuffer, compressedBufferSize, NULL, 0, 19);
+        if (ZSTD_isError(r)) goto _output_error;
+        if (ZSTD_sizeof_CCtx(cctx) > (1U << 20)) goto _output_error;
+        ZSTD_freeCCtx(cctx);
+    }
+    DISPLAYLEVEL(4, "OK \n");
+
+    DISPLAYLEVEL(4, "test%di : re-use CCtx with expanding block size : ", testNb++);
+    {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        ZSTD_parameters const params = ZSTD_getParams(1, ZSTD_CONTENTSIZE_UNKNOWN, 0);
+        assert(params.fParams.contentSizeFlag == 1);  /* block size will be adapted if pledgedSrcSize is enabled */
+        CHECK_Z( ZSTD_compressBegin_advanced(cctx, NULL, 0, params, 1 /*pledgedSrcSize*/) );
+        CHECK_Z( ZSTD_compressEnd(cctx, compressedBuffer, compressedBufferSize, CNBuffer, 1) ); /* creates a block size of 1 */
+
+        CHECK_Z( ZSTD_compressBegin_advanced(cctx, NULL, 0, params, ZSTD_CONTENTSIZE_UNKNOWN) );  /* re-use same parameters */
+        {   size_t const inSize = 2* 128 KB;
+            size_t const outSize = ZSTD_compressBound(inSize);
+            CHECK_Z( ZSTD_compressEnd(cctx, compressedBuffer, outSize, CNBuffer, inSize) );
+            /* will fail if blockSize is not resized */
+        }
+        ZSTD_freeCCtx(cctx);
+    }
+    DISPLAYLEVEL(4, "OK \n");
 
     /* Static CCtx tests */
 #define STATIC_CCTX_LEVEL 3
@@ -517,7 +544,7 @@ static int basicUnitTests(U32 seed, double compressibility)
             off += r;
             if (i == segs/2) {
                 /* insert skippable frame */
-                const U32 skipLen = 128 KB;
+                const U32 skipLen = 129 KB;
                 MEM_writeLE32((BYTE*)compressedBuffer + off, ZSTD_MAGIC_SKIPPABLE_START);
                 MEM_writeLE32((BYTE*)compressedBuffer + off + 4, skipLen);
                 off += skipLen + ZSTD_skippableHeaderSize;
@@ -827,6 +854,50 @@ static int basicUnitTests(U32 seed, double compressibility)
             ret = ZSTD_CCtx_loadDictionary_advanced(
                     cctx, (const char*)dictBuffer+2, dictSize-2, ZSTD_dlm_byRef, ZSTD_dm_rawContent);
             if (ZSTD_isError(ret)) goto _output_error;
+        }
+        DISPLAYLEVEL(4, "OK \n");
+
+        DISPLAYLEVEL(4, "test%3i : Dictionary with non-default repcodes : ", testNb++);
+        { U32 u; for (u=0; u<nbSamples; u++) samplesSizes[u] = sampleUnitSize; }
+        dictSize = ZDICT_trainFromBuffer(dictBuffer, dictSize,
+                                         CNBuffer, samplesSizes, nbSamples);
+        if (ZDICT_isError(dictSize)) goto _output_error;
+        /* Set all the repcodes to non-default */
+        {
+            BYTE* dictPtr = (BYTE*)dictBuffer;
+            BYTE* dictLimit = dictPtr + dictSize - 12;
+            /* Find the repcodes */
+            while (dictPtr < dictLimit &&
+                   (MEM_readLE32(dictPtr) != 1 || MEM_readLE32(dictPtr + 4) != 4 ||
+                    MEM_readLE32(dictPtr + 8) != 8)) {
+                ++dictPtr;
+            }
+            if (dictPtr >= dictLimit) goto _output_error;
+            MEM_writeLE32(dictPtr + 0, 10);
+            MEM_writeLE32(dictPtr + 4, 10);
+            MEM_writeLE32(dictPtr + 8, 10);
+            /* Set the last 8 bytes to 'x' */
+            memset((BYTE*)dictBuffer + dictSize - 8, 'x', 8);
+        }
+        /* The optimal parser checks all the repcodes.
+         * Make sure at least one is a match >= targetLength so that it is
+         * immediately chosen. This will make sure that the compressor and
+         * decompressor agree on at least one of the repcodes.
+         */
+        {   size_t dSize;
+            BYTE data[1024];
+            ZSTD_compressionParameters const cParams = ZSTD_getCParams(19, CNBuffSize, dictSize);
+            ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dictBuffer, dictSize,
+                                            ZSTD_dlm_byRef, ZSTD_dm_auto,
+                                            cParams, ZSTD_defaultCMem);
+            memset(data, 'x', sizeof(data));
+            cSize = ZSTD_compress_usingCDict(cctx, compressedBuffer, compressedBufferSize,
+                                             data, sizeof(data), cdict);
+            ZSTD_freeCDict(cdict);
+            if (ZSTD_isError(cSize)) { DISPLAYLEVEL(5, "Compression error %s : ", ZSTD_getErrorName(cSize)); goto _output_error; }
+            dSize = ZSTD_decompress_usingDict(dctx, decodedBuffer, sizeof(data), compressedBuffer, cSize, dictBuffer, dictSize);
+            if (ZSTD_isError(dSize)) { DISPLAYLEVEL(5, "Decompression error %s : ", ZSTD_getErrorName(dSize)); goto _output_error; }
+            if (memcmp(data, decodedBuffer, sizeof(data))) { DISPLAYLEVEL(5, "Data corruption : "); goto _output_error; }
         }
         DISPLAYLEVEL(4, "OK \n");
 
@@ -1200,8 +1271,8 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
     U32 result = 0;
     U32 testNb = 0;
     U32 coreSeed = seed, lseed = 0;
-    clock_t const startClock = clock();
-    clock_t const maxClockSpan = maxDurationS * CLOCKS_PER_SEC;
+    UTIL_time_t const startClock = UTIL_getTime();
+    U64 const maxClockSpan = maxDurationS * SEC_TO_MICRO;
     int const cLevelLimiter = bigTests ? 3 : 2;
 
     /* allocation */
@@ -1226,7 +1297,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
     for (testNb=1; testNb < startTest; testNb++) FUZ_rand(&coreSeed);
 
     /* main test loop */
-    for ( ; (testNb <= nbTests) || (FUZ_clockSpan(startClock) < maxClockSpan); testNb++ ) {
+    for ( ; (testNb <= nbTests) || (UTIL_clockSpanMicro(startClock) < maxClockSpan); testNb++ ) {
         size_t sampleSize, maxTestSize, totalTestSize;
         size_t cSize, totalCSize, totalGenSize;
         U64 crcOrig;

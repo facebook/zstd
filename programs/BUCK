@@ -10,38 +10,19 @@ cxx_binary(
         '//lib:mem',
         '//lib:xxhash',
     ],
-)
-
-cxx_binary(
-    name='zstdmt',
-    headers=glob(['*.h'], excludes=['datagen.h', 'platform.h', 'util.h']),
-    srcs=glob(['*.c'], excludes=['datagen.c']),
-    deps=[
-        ':datagen',
-        ':util',
-        '//lib:zstd',
-        '//lib:zdict',
-        '//lib:mem',
-        '//lib:xxhash',
+    preprocessor_flags=[
+        '-DZSTD_GZCOMPRESS',
+        '-DZSTD_GZDECOMPRESS',
+        '-DZSTD_LZMACOMPRESS',
+        '-DZSTD_LZMADECOMPRES',
+        '-DZSTD_LZ4COMPRESS',
+        '-DZSTD_LZ4DECOMPRES',
     ],
-    preprocessor_flags=['-DZSTD_MULTITHREAD'],
-    linker_flags=['-lpthread'],
-)
-
-cxx_binary(
-    name='gzstd',
-    headers=glob(['*.h'], excludes=['datagen.h', 'platform.h', 'util.h']),
-    srcs=glob(['*.c'], excludes=['datagen.c']),
-    deps=[
-        ':datagen',
-        ':util',
-        '//lib:zstd',
-        '//lib:zdict',
-        '//lib:mem',
-        '//lib:xxhash',
+    linker_flags=[
+        '-lz',
+        '-llzma',
+        '-llz4',
     ],
-    preprocessor_flags=['-DZSTD_GZDECOMPRESS'],
-    linker_flags=['-lz'],
 )
 
 cxx_library(

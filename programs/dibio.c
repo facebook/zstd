@@ -26,7 +26,6 @@
 #include <stdlib.h>         /* malloc, free */
 #include <string.h>         /* memset */
 #include <stdio.h>          /* fprintf, fopen, ftello64 */
-#include <time.h>           /* clock_t, clock, CLOCKS_PER_SEC */
 #include <errno.h>          /* errno */
 
 #include "mem.h"            /* read */
@@ -55,15 +54,13 @@ static const size_t g_maxMemory = (sizeof(size_t) == 4) ? (2 GB - 64 MB) : ((siz
 #define DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
 #define DISPLAYLEVEL(l, ...) if (displayLevel>=l) { DISPLAY(__VA_ARGS__); }
 
-#define DISPLAYUPDATE(l, ...) if (displayLevel>=l) { \
-            if ((DIB_clockSpan(g_time) > refreshRate) || (displayLevel>=4)) \
-            { g_time = clock(); DISPLAY(__VA_ARGS__); \
-            if (displayLevel>=4) fflush(stderr); } }
-static const clock_t refreshRate = CLOCKS_PER_SEC * 2 / 10;
-static clock_t g_time = 0;
+static const U64 g_refreshRate = SEC_TO_MICRO / 6;
+static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
 
-static clock_t DIB_clockSpan(clock_t nPrevious) { return clock() - nPrevious; }
-
+#define DISPLAYUPDATE(l, ...) { if (displayLevel>=l) { \
+            if ((UTIL_clockSpanMicro(g_displayClock) > g_refreshRate) || (displayLevel>=4)) \
+            { g_displayClock = UTIL_getTime(); DISPLAY(__VA_ARGS__); \
+            if (displayLevel>=4) fflush(stderr); } } }
 
 /*-*************************************
 *  Exceptions
@@ -117,7 +114,7 @@ static unsigned DiB_loadFiles(void* buffer, size_t* bufferSizePtr,
     for (fileIndex=0; fileIndex<nbFiles; fileIndex++) {
         const char* const fileName = fileNamesTable[fileIndex];
         unsigned long long const fs64 = UTIL_getFileSize(fileName);
-        unsigned long long remainingToLoad = fs64;
+        unsigned long long remainingToLoad = (fs64 == UTIL_FILESIZE_UNKNOWN) ? 0 : fs64;
         U32 const nbChunks = targetChunkSize ? (U32)((fs64 + (targetChunkSize-1)) / targetChunkSize) : 1;
         U64 const chunkSize = targetChunkSize ? MIN(targetChunkSize, fs64) : fs64;
         size_t const maxChunkSize = (size_t)MIN(chunkSize, SAMPLESIZE_MAX);
@@ -245,8 +242,9 @@ static fileStats DiB_fileStats(const char** fileNamesTable, unsigned nbFiles, si
     memset(&fs, 0, sizeof(fs));
     for (n=0; n<nbFiles; n++) {
         U64 const fileSize = UTIL_getFileSize(fileNamesTable[n]);
-        U32 const nbSamples = (U32)(chunkSize ? (fileSize + (chunkSize-1)) / chunkSize : 1);
-        U64 const chunkToLoad = chunkSize ? MIN(chunkSize, fileSize) : fileSize;
+        U64 const srcSize = (fileSize == UTIL_FILESIZE_UNKNOWN) ? 0 : fileSize;
+        U32 const nbSamples = (U32)(chunkSize ? (srcSize + (chunkSize-1)) / chunkSize : 1);
+        U64 const chunkToLoad = chunkSize ? MIN(chunkSize, srcSize) : srcSize;
         size_t const cappedChunkSize = (size_t)MIN(chunkToLoad, SAMPLESIZE_MAX);
         fs.totalSizeToLoad += cappedChunkSize * nbSamples;
         fs.oneSampleTooLarge |= (chunkSize > 2*SAMPLESIZE_MAX);

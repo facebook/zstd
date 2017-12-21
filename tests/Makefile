@@ -76,16 +76,16 @@ allnothread: fullbench fuzzer paramgrill datagen decodecorpus
 dll: fuzzer-dll zstreamtest-dll
 
 zstd:
-	$(MAKE) -C $(PRGDIR) $@
+	$(MAKE) -C $(PRGDIR) $@ MOREFLAGS+="$(DEBUGFLAGS)"
 
 zstd32:
-	$(MAKE) -C $(PRGDIR) $@
+	$(MAKE) -C $(PRGDIR) $@ MOREFLAGS+="$(DEBUGFLAGS)"
 
 zstd-nolegacy:
-	$(MAKE) -C $(PRGDIR) $@
+	$(MAKE) -C $(PRGDIR) $@ MOREFLAGS+="$(DEBUGFLAGS)"
 
 gzstd:
-	$(MAKE) -C $(PRGDIR) zstd HAVE_ZLIB=1
+	$(MAKE) -C $(PRGDIR) zstd HAVE_ZLIB=1 MOREFLAGS="$(DEBUGFLAGS)"
 
 fullbench32: CPPFLAGS += -m32
 fullbench fullbench32 : CPPFLAGS += $(MULTITHREAD_CPP)
@@ -130,15 +130,12 @@ zbufftest-dll : $(ZSTDDIR)/common/xxhash.c $(PRGDIR)/datagen.c zbufftest.c
 	$(MAKE) -C $(ZSTDDIR) libzstd
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@$(EXT)
 
-ZSTREAMFILES := $(ZSTD_FILES) $(ZDICT_FILES) $(PRGDIR)/datagen.c zstreamtest.c
-zstreamtest : CPPFLAGS += $(MULTITHREAD_CPP)
-zstreamtest : LDFLAGS += $(MULTITHREAD_LD)
-zstreamtest : $(ZSTREAMFILES)
-	$(CC) $(FLAGS) $^ -o $@$(EXT)
-
+ZSTREAMFILES := $(ZSTD_FILES) $(ZDICT_FILES) $(PRGDIR)/datagen.c seqgen.c zstreamtest.c
 zstreamtest32 : CFLAGS += -m32
-zstreamtest32 : $(ZSTREAMFILES)
-	$(CC) $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
+zstreamtest zstreamtest32 : CPPFLAGS += $(MULTITHREAD_CPP)
+zstreamtest zstreamtest32 : LDFLAGS += $(MULTITHREAD_LD)
+zstreamtest zstreamtest32 : $(ZSTREAMFILES)
+	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
 zstreamtest_asan : CFLAGS += -fsanitize=address
 zstreamtest_asan : $(ZSTREAMFILES)
@@ -303,10 +300,10 @@ test-fullbench32: fullbench32 datagen
 	$(QEMU_SYS) ./fullbench32 -i1 -P0
 
 test-fuzzer: fuzzer
-	$(QEMU_SYS) ./fuzzer $(FUZZERTEST) $(FUZZER_FLAGS)
+	$(QEMU_SYS) ./fuzzer -v $(FUZZERTEST) $(FUZZER_FLAGS)
 
 test-fuzzer32: fuzzer32
-	$(QEMU_SYS) ./fuzzer32 $(FUZZERTEST) $(FUZZER_FLAGS)
+	$(QEMU_SYS) ./fuzzer32 -v $(FUZZERTEST) $(FUZZER_FLAGS)
 
 test-zbuff: zbufftest
 	$(QEMU_SYS) ./zbufftest $(ZSTREAM_TESTTIME)
@@ -315,7 +312,7 @@ test-zbuff32: zbufftest32
 	$(QEMU_SYS) ./zbufftest32 $(ZSTREAM_TESTTIME)
 
 test-zstream: zstreamtest
-	$(QEMU_SYS) ./zstreamtest $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
+	$(QEMU_SYS) ./zstreamtest -v $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
 	$(QEMU_SYS) ./zstreamtest --mt -t1 $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
 	$(QEMU_SYS) ./zstreamtest --newapi -t1 $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
 	$(QEMU_SYS) ./zstreamtest --opaqueapi -t1 $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
@@ -377,9 +374,9 @@ test-pool: poolTests
 test-lz4: ZSTD = LD_LIBRARY_PATH=/usr/local/lib $(PRGDIR)/zstd
 test-lz4: ZSTD_LZ4 = LD_LIBRARY_PATH=/usr/local/lib ./lz4
 test-lz4: ZSTD_UNLZ4 = LD_LIBRARY_PATH=/usr/local/lib ./unlz4
-test-lz4: zstd decodecorpus
-	ln -s $(PRGDIR)/zstd lz4
-	ln -s $(PRGDIR)/zstd unlz4
+test-lz4: zstd decodecorpus datagen
+	[ -f lz4 ] || ln -s $(PRGDIR)/zstd lz4
+	[ -f unlz4 ] || ln -s $(PRGDIR)/zstd unlz4
 
 	./decodecorpus -ptmp
 	# lz4 -> zstd
@@ -404,6 +401,8 @@ test-lz4: zstd decodecorpus
 	$(ZSTD) < tmp | \
 	$(ZSTD) -d | \
 	cmp - tmp
+
+	./datagen -g384KB | $(ZSTD) --format=lz4 | $(ZSTD) -d > /dev/null
 
 	rm tmp lz4 unlz4
 

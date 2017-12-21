@@ -3,13 +3,11 @@ dependencies:
     - sudo dpkg --add-architecture i386
     - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test; sudo apt-get -y -qq update
     - sudo apt-get -y install gcc-powerpc-linux-gnu gcc-arm-linux-gnueabi libc6-dev-armel-cross gcc-aarch64-linux-gnu libc6-dev-arm64-cross
-    - sudo apt-get -y install libstdc++-7-dev clang gcc g++ gcc-5 gcc-6 gcc-7 zlib1g-dev liblzma-dev
-    - sudo apt-get -y install linux-libc-dev:i386 libc6-dev-i386
 
 test:
   override:
     - ? |
-        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then cc -v; make all   && make clean && make -C lib libzstd-nomt && make clean; fi &&
+        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then cc -v; CFLAGS="-O0 -Werror" make all && make clean; fi &&
         if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make gnu90build   && make clean; fi
       :
         parallel: true
@@ -20,22 +18,7 @@ test:
         parallel: true
     - ? |
         if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make c11build     && make clean; fi &&
-        if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make cmakebuild   && make clean; fi
-      :
-        parallel: true
-    - ? |
-        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make gppbuild     && make clean; fi &&
-        if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make gcc5build    && make clean; fi
-      :
-        parallel: true
-    - ? |
-        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make gcc6build    && make clean; fi &&
-        if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make clangbuild   && make clean; fi
-      :
-        parallel: true
-    - ? |
-        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make m32build     && make clean; fi &&
-        if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make armbuild     && make clean; fi
+        if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make ppc64build   && make clean; fi
       :
         parallel: true
     - ? |
@@ -44,8 +27,8 @@ test:
       :
         parallel: true
     - ? |
-        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make ppc64build   && make clean; fi &&
-        if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make gcc7build    && make clean; fi
+        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make -j regressiontest && make clean; fi &&
+        if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make armbuild     && make clean; fi
       :
         parallel: true
     - ? |
@@ -54,8 +37,8 @@ test:
       :
         parallel: true
     - ? |
-        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make -j regressiontest && make clean; fi &&
-        if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then true; fi # Could add another test here
+        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then make cxxtest      && make clean; fi &&
+        if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make -C lib libzstd-nomt && make clean; fi
       :
         parallel: true
 

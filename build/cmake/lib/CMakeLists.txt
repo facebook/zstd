@@ -63,7 +63,7 @@ SET(Headers
         ${LIBRARY_DIR}/common/huf.h
         ${LIBRARY_DIR}/common/mem.h
         ${LIBRARY_DIR}/common/zstd_internal.h
-        ${LIBRARY_DIR}/compress/zstd_compress.h
+        ${LIBRARY_DIR}/compress/zstd_compress_internal.h
         ${LIBRARY_DIR}/compress/zstd_fast.h
         ${LIBRARY_DIR}/compress/zstd_double_fast.h
         ${LIBRARY_DIR}/compress/zstd_lazy.h

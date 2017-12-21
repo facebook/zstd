@@ -233,7 +233,7 @@ static ZSTD_CCtx* g_zcc = NULL;
 size_t local_ZSTD_compressContinue(void* dst, size_t dstCapacity, void* buff2, const void* src, size_t srcSize)
 {
     (void)buff2;
-    ZSTD_compressBegin(g_zcc, 1);
+    ZSTD_compressBegin(g_zcc, 1 /* compressionLevel */);
     return ZSTD_compressEnd(g_zcc, dst, dstCapacity, src, srcSize);
 }
 
@@ -484,8 +484,8 @@ static int benchFiles(const char** fileNamesTable, const int nbFiles, U32 benchN
     /* Loop for each file */
     int fileIdx;
     for (fileIdx=0; fileIdx<nbFiles; fileIdx++) {
-        const char* inFileName = fileNamesTable[fileIdx];
-        FILE* inFile = fopen( inFileName, "rb" );
+        const char* const inFileName = fileNamesTable[fileIdx];
+        FILE* const inFile = fopen( inFileName, "rb" );
         U64   inFileSize;
         size_t benchedSize;
         void* origBuff;
@@ -495,6 +495,11 @@ static int benchFiles(const char** fileNamesTable, const int nbFiles, U32 benchN
 
         /* Memory allocation & restrictions */
         inFileSize = UTIL_getFileSize(inFileName);
+        if (inFileSize == UTIL_FILESIZE_UNKNOWN) {
+            DISPLAY( "Cannot measure size of %s\n", inFileName);
+            fclose(inFile);
+            return 11;
+        }
         benchedSize = BMK_findMaxMem(inFileSize*3) / 3;
         if ((U64)benchedSize > inFileSize) benchedSize = (size_t)inFileSize;
         if (benchedSize < inFileSize)

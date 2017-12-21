@@ -377,6 +377,7 @@ int main(int argCount, const char* argv[])
         lastCommand = 0,
         nbThreads = 1,
         setRealTimePrio = 0,
+        separateFiles = 0,
         ldmFlag = 0;
     unsigned bench_nbSeconds = 3;   /* would be better if this value was synchronized from bench */
     size_t blockSize = 0;
@@ -633,6 +634,12 @@ int main(int argCount, const char* argv[])
                         blockSize = readU32FromChar(&argument);
                         break;
 
+                        /* benchmark files separately (hidden option) */
+                    case 'S':
+                        argument++;
+                        separateFiles = 1;
+                        break;
+
 #endif   /* ZSTD_NOBENCH */
 
                         /* nb of threads (hidden option) */
@@ -751,8 +758,10 @@ int main(int argCount, const char* argv[])
     if (operation==zom_bench) {
 #ifndef ZSTD_NOBENCH
         BMK_setNotificationLevel(g_displayLevel);
+        BMK_setSeparateFiles(separateFiles);
         BMK_setBlockSize(blockSize);
         BMK_setNbThreads(nbThreads);
+        BMK_setRealTime(setRealTimePrio);
         BMK_setNbSeconds(bench_nbSeconds);
         BMK_setLdmFlag(ldmFlag);
         BMK_setLdmMinMatch(g_ldmMinMatch);
@@ -763,9 +772,10 @@ int main(int argCount, const char* argv[])
         if (g_ldmHashEveryLog != LDM_PARAM_DEFAULT) {
             BMK_setLdmHashEveryLog(g_ldmHashEveryLog);
         }
-        BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast, &compressionParams, setRealTimePrio);
+        BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast, &compressionParams);
+#else
+        (void)bench_nbSeconds; (void)blockSize; (void)setRealTimePrio; (void)separateFiles;
 #endif
-        (void)bench_nbSeconds; (void)blockSize; (void)setRealTimePrio;
         goto _end;
     }
 
@@ -805,12 +815,6 @@ int main(int argCount, const char* argv[])
     if (outFileName && !strcmp(outFileName, stdoutmark) && IS_CONSOLE(stdout) && !strcmp(filenameTable[0], stdinmark) && !forceStdout && operation!=zom_decompress)
         CLEAN_RETURN(badusage(programName));
 
-    /* user-selected output filename, only possible with a single file */
-    if (outFileName && strcmp(outFileName,stdoutmark) && strcmp(outFileName,nulmark) && (filenameIdx>1)) {
-        DISPLAY("Too many files (%u) on the command line. \n", filenameIdx);
-        CLEAN_RETURN(filenameIdx);
-    }
-
 #ifndef ZSTD_NOCOMPRESS
     /* check compression level limits */
     {   int const maxCLevel = ultra ? ZSTD_maxCLevel() : ZSTDCLI_CLEVEL_MAX;
@@ -844,7 +848,7 @@ int main(int argCount, const char* argv[])
         if ((filenameIdx==1) && outFileName)
           operationResult = FIO_compressFilename(outFileName, filenameTable[0], dictFileName, cLevel, &compressionParams);
         else
-          operationResult = FIO_compressMultipleFilenames(filenameTable, filenameIdx, outFileName ? outFileName : suffix, dictFileName, cLevel, &compressionParams);
+          operationResult = FIO_compressMultipleFilenames(filenameTable, filenameIdx, outFileName, suffix, dictFileName, cLevel, &compressionParams);
 #else
         (void)suffix;
         DISPLAY("Compression not supported\n");
@@ -862,7 +866,7 @@ int main(int argCount, const char* argv[])
         if (filenameIdx==1 && outFileName)
             operationResult = FIO_decompressFilename(outFileName, filenameTable[0], dictFileName);
         else
-            operationResult = FIO_decompressMultipleFilenames(filenameTable, filenameIdx, outFileName ? outFileName : ZSTD_EXTENSION, dictFileName);
+            operationResult = FIO_decompressMultipleFilenames(filenameTable, filenameIdx, outFileName, dictFileName);
 #else
         DISPLAY("Decompression not supported\n");
 #endif

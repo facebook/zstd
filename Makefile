@@ -72,9 +72,12 @@ zstdmt:
 zlibwrapper:
 	$(MAKE) -C $(ZWRAPDIR) test
 
+.PHONY: check
+check: shortest
+
 .PHONY: test shortest
 test shortest:
-	$(MAKE) -C $(PRGDIR) allVariants
+	$(MAKE) -C $(PRGDIR) allVariants MOREFLAGS="-g -DZSTD_DEBUG=1"
 	$(MAKE) -C $(TESTDIR) $@
 
 .PHONY: examples
@@ -127,11 +130,6 @@ uninstall:
 travis-install:
 	$(MAKE) install PREFIX=~/install_test_dir
 
-.PHONY: gppbuild
-gppbuild: clean
-	g++ -v
-	CC=g++ $(MAKE) -C programs all CFLAGS="-O3 -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror"
-
 .PHONY: gcc5build
 gcc5build: clean
 	gcc-5 -v
@@ -163,7 +161,7 @@ aarch64build: clean
 	CC=aarch64-linux-gnu-gcc CFLAGS="-Werror" $(MAKE) allzstd
 
 ppcbuild: clean
-	CC=powerpc-linux-gnu-gcc CLAGS="-m32 -Wno-attributes -Werror" $(MAKE) allzstd
+	CC=powerpc-linux-gnu-gcc CFLAGS="-m32 -Wno-attributes -Werror" $(MAKE) allzstd
 
 ppc64build: clean
 	CC=powerpc-linux-gnu-gcc CFLAGS="-m64 -Werror" $(MAKE) allzstd

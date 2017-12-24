@@ -84,7 +84,9 @@ libzstd = library('zstd',
                   include_directories: libzstd_includes,
                   c_args: libzstd_cflags,
                   dependencies: libzstd_deps,
-                  install: true)
+                  install: true,
+                  soversion: '1',
+                 )
 
 programs_dir = join_paths('..', '..', 'programs')
 

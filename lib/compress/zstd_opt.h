@@ -15,7 +15,10 @@
 extern "C" {
 #endif
 
+#include "mem.h"    /* U32 */
 #include "zstd.h"   /* ZSTD_CCtx, size_t */
+
+void ZSTD_updateTree(ZSTD_CCtx* ctx, const BYTE* ip, const BYTE* iend, U32 nbCompares, U32 mls);  /* used in ZSTD_loadDictionaryContent() */
 
 size_t ZSTD_compressBlock_btopt(ZSTD_CCtx* ctx, const void* src, size_t srcSize);
 size_t ZSTD_compressBlock_btultra(ZSTD_CCtx* ctx, const void* src, size_t srcSize);

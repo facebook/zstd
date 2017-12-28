@@ -18,9 +18,8 @@ extern "C" {
 #include "mem.h"    /* U32 */
 #include "zstd.h"   /* ZSTD_CCtx, size_t */
 
-U32 ZSTD_insertAndFindFirstIndex (ZSTD_CCtx* zc, const BYTE* ip, U32 mls);
-void ZSTD_updateTree(ZSTD_CCtx* zc, const BYTE* const ip, const BYTE* const iend, const U32 nbCompares, const U32 mls);
-void ZSTD_updateTree_extDict(ZSTD_CCtx* zc, const BYTE* const ip, const BYTE* const iend, const U32 nbCompares, const U32 mls);
+U32 ZSTD_insertAndFindFirstIndex (ZSTD_CCtx* zc, const BYTE* ip, U32 mls);   /* used in ZSTD_loadDictionaryContent() */
+void ZSTD_updateDUBT(ZSTD_CCtx* zc, const BYTE* ip, const BYTE* iend, U32 mls);  /* used in ZSTD_loadDictionaryContent() */
 
 size_t ZSTD_compressBlock_btlazy2(ZSTD_CCtx* ctx, const void* src, size_t srcSize);
 size_t ZSTD_compressBlock_lazy2(ZSTD_CCtx* ctx, const void* src, size_t srcSize);

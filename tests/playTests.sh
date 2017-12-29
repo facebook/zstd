@@ -322,7 +322,12 @@ $ECHO "- Create first dictionary "
 TESTFILE=../programs/zstdcli.c
 $ZSTD --train *.c ../programs/*.c -o tmpDict
 cp $TESTFILE tmp
+$ECHO "- Dictionary compression roundtrip"
 $ZSTD -f tmp -D tmpDict
+$ZSTD -d tmp.zst -D tmpDict -fo result
+$DIFF $TESTFILE result
+$ECHO "- Dictionary compression with btlazy2 strategy"
+$ZSTD -f tmp -D tmpDict --zstd=strategy=6
 $ZSTD -d tmp.zst -D tmpDict -fo result
 $DIFF $TESTFILE result
 if [ -n "$hasMT" ]

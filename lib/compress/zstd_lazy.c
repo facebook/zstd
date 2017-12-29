@@ -15,7 +15,36 @@
 /*-*************************************
 *  Binary Tree search
 ***************************************/
-#define ZSTD_DUBT_UNSORTED ((U32)(-1))
+#define ZSTD_DUBT_UNSORTED_MARK 1   /* note : index 1 will now be confused with "unsorted" if sorted as larger than its predecessor.
+                                       It's not a big deal though : the candidate will just be considered unsorted, and be sorted again.
+                                       Additionnally, candidate position 1 will be lost.
+                                       But candidate 1 cannot hide a large tree of candidates, so it's a moderate loss.
+                                       The benefit is that ZSTD_DUBT_UNSORTED_MARK cannot be misdhandled by a table re-use using a different strategy */
+
+#define ZSTD_ROWSIZE 16
+/*! ZSTD_preserveUnsortedMark_internal() :
+ *  Helps auto-vectorization */
+static void ZSTD_preserveUnsortedMark_internal (U32* const table, int const nbRows, U32 const reducerValue)
+{
+    int cellNb = 0;
+    int rowNb;
+    for (rowNb=0 ; rowNb < nbRows ; rowNb++) {
+        int column;
+        for (column=0; column<ZSTD_ROWSIZE; column++) {
+            if (table[cellNb] == ZSTD_DUBT_UNSORTED_MARK)
+                table[cellNb] = ZSTD_DUBT_UNSORTED_MARK + reducerValue;
+    }   }
+}
+
+/*! ZSTD_preserveUnsortedMark() :
+ *  pre-emptively increase value of ZSTD_DUBT_UNSORTED_MARK
+ *  to preserve it since table is going to be offset by ZSTD_reduceTable() */
+void ZSTD_preserveUnsortedMark (U32* const table, U32 const size, U32 const reducerValue)
+{
+    assert((size & (ZSTD_ROWSIZE-1)) == 0);  /* multiple of ZSTD_ROWSIZE */
+    assert(size < (1U<<31));   /* can be casted to int */
+    ZSTD_preserveUnsortedMark_internal(table, size/ZSTD_ROWSIZE, reducerValue);
+}
 
 void ZSTD_updateDUBT(ZSTD_CCtx* zc,
                 const BYTE* ip, const BYTE* iend,
@@ -33,7 +62,7 @@ void ZSTD_updateDUBT(ZSTD_CCtx* zc,
     U32 idx = zc->nextToUpdate;
 
     if (idx != target)
-        DEBUGLOG(2, "ZSTD_updateDUBT, from %u to %u (dictLimit:%u)",
+        DEBUGLOG(7, "ZSTD_updateDUBT, from %u to %u (dictLimit:%u)",
                     idx, target, zc->dictLimit);
     assert(ip + 8 <= iend);   /* condition for ZSTD_hashPtr */
     (void)iend;
@@ -48,7 +77,7 @@ void ZSTD_updateDUBT(ZSTD_CCtx* zc,
 
         hashTable[h] = idx;   /* Update Hash Table */
         *nextCandidatePtr = matchIndex;   /* update BT like a chain */
-        *sortMarkPtr = ZSTD_DUBT_UNSORTED;
+        *sortMarkPtr = ZSTD_DUBT_UNSORTED_MARK;
     }
     zc->nextToUpdate = target;
 }
@@ -166,7 +195,7 @@ static size_t ZSTD_insertBtAndFindBestMatch (
 
     /* reach end of unsorted candidates list */
     while ( (matchIndex > unsortLimit)
-         && (*unsortedMark == ZSTD_DUBT_UNSORTED)
+         && (*unsortedMark == ZSTD_DUBT_UNSORTED_MARK)
          && (nbCandidates > 1) ) {
         DEBUGLOG(8, "ZSTD_insertBtAndFindBestMatch: candidate %u is unsorted",
                     matchIndex);
@@ -179,7 +208,7 @@ static size_t ZSTD_insertBtAndFindBestMatch (
     }
 
     if ( (matchIndex > unsortLimit)
-      && (*unsortedMark==ZSTD_DUBT_UNSORTED) ) {
+      && (*unsortedMark==ZSTD_DUBT_UNSORTED_MARK) ) {
         DEBUGLOG(8, "ZSTD_insertBtAndFindBestMatch: nullify last unsorted candidate %u",
                     matchIndex);
         *nextCandidate = *unsortedMark = 0;   /* nullify next candidate if it's still unsorted (note : simplification, detrimental to compression ratio, beneficial for speed) */

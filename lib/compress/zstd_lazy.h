@@ -20,6 +20,7 @@ extern "C" {
 
 U32 ZSTD_insertAndFindFirstIndex (ZSTD_CCtx* zc, const BYTE* ip, U32 mls);   /* used in ZSTD_loadDictionaryContent() */
 void ZSTD_updateDUBT(ZSTD_CCtx* zc, const BYTE* ip, const BYTE* iend, U32 mls);  /* used in ZSTD_loadDictionaryContent() */
+void ZSTD_preserveUnsortedMark (U32* const table, U32 const size, U32 const reducerValue);  /*! used in ZSTD_reduceIndex(). pre-emptively increase value of ZSTD_DUBT_UNSORTED_MARK */
 
 size_t ZSTD_compressBlock_btlazy2(ZSTD_CCtx* ctx, const void* src, size_t srcSize);
 size_t ZSTD_compressBlock_lazy2(ZSTD_CCtx* ctx, const void* src, size_t srcSize);

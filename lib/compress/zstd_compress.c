@@ -1125,8 +1125,15 @@ static void ZSTD_reduceIndex (ZSTD_CCtx* zc, const U32 reducerValue)
         ZSTD_reduceTable(zc->hashTable, hSize, reducerValue);
     }
 
+    if (zc->appliedParams.cParams.strategy != ZSTD_btlazy2) {
+        U32 const chainSize = (U32)1 << zc->appliedParams.cParams.chainLog;
+        ZSTD_reduceTable(zc->chainTable, chainSize, reducerValue);
+    }
+
     if (zc->appliedParams.cParams.strategy != ZSTD_fast) {
         U32 const chainSize = (U32)1 << zc->appliedParams.cParams.chainLog;
+        if (zc->appliedParams.cParams.strategy != ZSTD_btlazy2)
+            ZSTD_preserveUnsortedMark(zc->chainTable, chainSize, reducerValue);
         ZSTD_reduceTable(zc->chainTable, chainSize, reducerValue);
     }
 
@@ -1749,7 +1756,7 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
             U32 const newLowLimit = (U32)(ip+blockSize - cctx->base) - maxDist;
             if (cctx->lowLimit < newLowLimit) cctx->lowLimit = newLowLimit;
             if (cctx->dictLimit < cctx->lowLimit)
-                DEBUGLOG(2, "ZSTD_compress_frameChunk : update dictLimit from %u to %u ",
+                DEBUGLOG(5, "ZSTD_compress_frameChunk : update dictLimit from %u to %u ",
                     cctx->dictLimit, cctx->lowLimit);
             if (cctx->dictLimit < cctx->lowLimit) cctx->dictLimit = cctx->lowLimit;
             if (cctx->nextToUpdate < cctx->lowLimit) cctx->nextToUpdate = cctx->lowLimit;
@@ -2209,7 +2216,6 @@ static size_t ZSTD_writeEpilogue(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity)
     cctx->stage = ZSTDcs_created;  /* return to "created but no init" status */
     return op-ostart;
 }
-
 
 size_t ZSTD_compressEnd (ZSTD_CCtx* cctx,
                          void* dst, size_t dstCapacity,

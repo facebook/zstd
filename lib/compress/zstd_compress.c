@@ -752,9 +752,9 @@ static U32 ZSTD_sufficientBuff(size_t bufferSize1, size_t blockSize1,
     size_t const windowSize2 = MAX(1, (size_t)MIN(((U64)1 << cParams2.windowLog), pledgedSrcSize));
     size_t const blockSize2 = MIN(ZSTD_BLOCKSIZE_MAX, windowSize2);
     size_t const neededBufferSize2 = (buffPol2==ZSTDb_buffered) ? windowSize2 + blockSize2 : 0;
-    DEBUGLOG(4, "ZSTD_sufficientBuff: windowSize2=%u from wlog=%u",
+    DEBUGLOG(4, "ZSTD_sufficientBuff: is windowSize2=%u <= wlog1=%u",
                 (U32)windowSize2, cParams2.windowLog);
-    DEBUGLOG(4, "ZSTD_sufficientBuff: blockSize2 %u <=? blockSize1 %u",
+    DEBUGLOG(4, "ZSTD_sufficientBuff: is blockSize2=%u <= blockSize1=%u",
                 (U32)blockSize2, (U32)blockSize1);
     return (blockSize2 <= blockSize1) /* seqStore space depends on blockSize */
          & (neededBufferSize2 <= bufferSize1);
@@ -777,10 +777,12 @@ static U32 ZSTD_equivalentParams(ZSTD_CCtx_params params1,
  *  reuse CCtx without reset (note : requires no dictionary) */
 static size_t ZSTD_continueCCtx(ZSTD_CCtx* cctx, ZSTD_CCtx_params params, U64 pledgedSrcSize)
 {
-    U32 const end = (U32)(cctx->nextSrc - cctx->base);
+    size_t const endT = (size_t)(cctx->nextSrc - cctx->base);
+    U32 const end = (U32)endT;
     size_t const windowSize = MAX(1, (size_t)MIN(((U64)1 << params.cParams.windowLog), pledgedSrcSize));
     size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, windowSize);
-    DEBUGLOG(4, "ZSTD_continueCCtx");
+    DEBUGLOG(4, "ZSTD_continueCCtx: re-use context in place");
+    assert(endT < (3U<<30));
 
     cctx->blockSize = blockSize;   /* previous block size could be different even for same windowLog, due to pledgedSrcSize */
     cctx->appliedParams = params;
@@ -912,12 +914,12 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         zc->entropy->offcode_repeatMode = FSE_repeat_none;
         zc->entropy->matchlength_repeatMode = FSE_repeat_none;
         zc->entropy->litlength_repeatMode = FSE_repeat_none;
-        zc->nextToUpdate = 1;
-        zc->nextSrc = NULL;
         zc->base = NULL;
         zc->dictBase = NULL;
-        zc->dictLimit = 0;
         zc->lowLimit = 0;
+        zc->dictLimit = 0;
+        zc->nextToUpdate = 1;
+        zc->nextSrc = NULL;
         { int i; for (i=0; i<ZSTD_REP_NUM; i++) zc->seqStore.rep[i] = repStartValue[i]; }
         zc->hashLog3 = hashLog3;
         zc->optState.litLengthSum = 0;
@@ -925,7 +927,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         ptr = zc->entropy + 1;
 
         /* opt parser space */
-        if ((params.cParams.strategy == ZSTD_btopt) || (params.cParams.strategy == ZSTD_btultra)) {
+        if ((params.cParams.strategy == ZSTD_btopt) | (params.cParams.strategy == ZSTD_btultra)) {
             DEBUGLOG(4, "reserving optimal parser space");
             assert(((size_t)ptr & 3) == 0);  /* ensure ptr is properly aligned */
             zc->optState.litFreq = (U32*)ptr;
@@ -1643,9 +1645,12 @@ static void ZSTD_resetSeqStore(seqStore_t* ssPtr)
     ssPtr->longLengthID = 0;
 }
 
-static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc, void* dst, size_t dstCapacity, const void* src, size_t srcSize)
+static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
+                                        void* dst, size_t dstCapacity,
+                                        const void* src, size_t srcSize)
 {
-    DEBUGLOG(5, "ZSTD_compressBlock_internal : dstCapacity = %u", (U32)dstCapacity);
+    DEBUGLOG(5, "ZSTD_compressBlock_internal (dstCapacity=%u) (dictLimit=%u, nextToUpdate=%u)",
+                (U32)dstCapacity, zc->dictLimit, zc->nextToUpdate);
     if (srcSize < MIN_CBLOCK_SIZE+ZSTD_blockHeaderSize+1)
         return 0;   /* don't even attempt compression below a certain srcSize */
     ZSTD_resetSeqStore(&(zc->seqStore));
@@ -1737,13 +1742,17 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
             cctx->dictLimit -= correction;
             if (cctx->nextToUpdate < correction) cctx->nextToUpdate = 0;
             else cctx->nextToUpdate -= correction;
-            DEBUGLOG(4, "Correction of 0x%x bytes to lowLimit=0x%x\n", correction, cctx->lowLimit);
+            DEBUGLOG(4, "Correction of 0x%x bytes to lowLimit=0x%x", correction, cctx->lowLimit);
         }
         /* enforce maxDist */
         if ((U32)(ip+blockSize - cctx->base) > cctx->loadedDictEnd + maxDist) {
             U32 const newLowLimit = (U32)(ip+blockSize - cctx->base) - maxDist;
             if (cctx->lowLimit < newLowLimit) cctx->lowLimit = newLowLimit;
+            if (cctx->dictLimit < cctx->lowLimit)
+                DEBUGLOG(2, "ZSTD_compress_frameChunk : update dictLimit from %u to %u ",
+                    cctx->dictLimit, cctx->lowLimit);
             if (cctx->dictLimit < cctx->lowLimit) cctx->dictLimit = cctx->lowLimit;
+            if (cctx->nextToUpdate < cctx->lowLimit) cctx->nextToUpdate = cctx->lowLimit;
         }
 
         {   size_t cSize = ZSTD_compressBlock_internal(cctx,
@@ -1846,8 +1855,9 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* cctx,
 
     /* Check if blocks follow each other */
     if (src != cctx->nextSrc) {
-        /* not contiguous */
         size_t const distanceFromBase = (size_t)(cctx->nextSrc - cctx->base);
+        DEBUGLOG(5, "ZSTD_compressContinue_internal: non contiguous blocks, new segment starts at %u",
+                    cctx->dictLimit);
         cctx->lowLimit = cctx->dictLimit;
         assert(distanceFromBase == (size_t)(U32)distanceFromBase);  /* should never overflow */
         cctx->dictLimit = (U32)distanceFromBase;
@@ -1879,6 +1889,7 @@ size_t ZSTD_compressContinue (ZSTD_CCtx* cctx,
                               void* dst, size_t dstCapacity,
                         const void* src, size_t srcSize)
 {
+    DEBUGLOG(5, "ZSTD_compressContinue (srcSize=%u)", (U32)srcSize);
     return ZSTD_compressContinue_internal(cctx, dst, dstCapacity, src, srcSize, 1 /* frame mode */, 0 /* last chunk */);
 }
 
@@ -2144,10 +2155,10 @@ size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* cctx,
 
 size_t ZSTD_compressBegin_usingDict(ZSTD_CCtx* cctx, const void* dict, size_t dictSize, int compressionLevel)
 {
-    ZSTD_parameters const params = ZSTD_getParams(compressionLevel, 0, dictSize);
+    ZSTD_parameters const params = ZSTD_getParams(compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, dictSize);
     ZSTD_CCtx_params const cctxParams =
             ZSTD_assignParamsToCCtxParams(cctx->requestedParams, params);
-    DEBUGLOG(4, "ZSTD_compressBegin_usingDict");
+    DEBUGLOG(4, "ZSTD_compressBegin_usingDict (dictSize=%u)", (U32)dictSize);
     return ZSTD_compressBegin_internal(cctx, dict, dictSize, ZSTD_dm_auto, NULL,
                                        cctxParams, ZSTD_CONTENTSIZE_UNKNOWN, ZSTDb_not_buffered);
 }
@@ -2275,6 +2286,7 @@ size_t ZSTD_compress_usingDict(ZSTD_CCtx* ctx, void* dst, size_t dstCapacity, co
 
 size_t ZSTD_compressCCtx (ZSTD_CCtx* ctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize, int compressionLevel)
 {
+    DEBUGLOG(4, "ZSTD_compressCCtx (srcSize=%u)", (U32)srcSize);
     return ZSTD_compress_usingDict(ctx, dst, dstCapacity, src, srcSize, NULL, 0, compressionLevel);
 }
 
@@ -2885,7 +2897,7 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
         if (params.nbThreads > 1) {
             if (cctx->mtctx == NULL || (params.nbThreads != ZSTDMT_getNbThreads(cctx->mtctx))) {
                 DEBUGLOG(4, "ZSTD_compress_generic: creating new mtctx for nbThreads=%u (previous: %u)",
-                            params.nbThreads, ZSTDMT_getNbThreads(cctx->mtctx));
+                            params.nbThreads, (unsigned)ZSTDMT_getNbThreads(cctx->mtctx));
                 ZSTDMT_freeCCtx(cctx->mtctx);
                 cctx->mtctx = ZSTDMT_createCCtx_advanced(params.nbThreads, cctx->customMem);
                 if (cctx->mtctx == NULL) return ERROR(memory_allocation);

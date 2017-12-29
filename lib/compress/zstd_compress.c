@@ -59,18 +59,16 @@ ZSTD_CCtx* ZSTD_createCCtx(void)
 
 ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem)
 {
-    ZSTD_CCtx* cctx;
-
-    if (!customMem.customAlloc ^ !customMem.customFree) return NULL;
-
-    cctx = (ZSTD_CCtx*) ZSTD_calloc(sizeof(ZSTD_CCtx), customMem);
-    if (!cctx) return NULL;
-    cctx->customMem = customMem;
-    cctx->requestedParams.compressionLevel = ZSTD_CLEVEL_DEFAULT;
-    cctx->requestedParams.fParams.contentSizeFlag = 1;
     ZSTD_STATIC_ASSERT(zcss_init==0);
     ZSTD_STATIC_ASSERT(ZSTD_CONTENTSIZE_UNKNOWN==(0ULL - 1));
-    return cctx;
+    if (!customMem.customAlloc ^ !customMem.customFree) return NULL;
+    {   ZSTD_CCtx* const cctx = (ZSTD_CCtx*)ZSTD_calloc(sizeof(ZSTD_CCtx), customMem);
+        if (!cctx) return NULL;
+        cctx->customMem = customMem;
+        cctx->requestedParams.compressionLevel = ZSTD_CLEVEL_DEFAULT;
+        cctx->requestedParams.fParams.contentSizeFlag = 1;
+        return cctx;
+    }
 }
 
 ZSTD_CCtx* ZSTD_initStaticCCtx(void *workspace, size_t workspaceSize)
@@ -95,13 +93,10 @@ size_t ZSTD_freeCCtx(ZSTD_CCtx* cctx)
 {
     if (cctx==NULL) return 0;   /* support free on NULL */
     if (cctx->staticSize) return ERROR(memory_allocation);   /* not compatible with static CCtx */
-    ZSTD_free(cctx->workSpace, cctx->customMem);
-    cctx->workSpace = NULL;
-    ZSTD_freeCDict(cctx->cdictLocal);
-    cctx->cdictLocal = NULL;
+    ZSTD_free(cctx->workSpace, cctx->customMem); cctx->workSpace = NULL;
+    ZSTD_freeCDict(cctx->cdictLocal); cctx->cdictLocal = NULL;
 #ifdef ZSTD_MULTITHREAD
-    ZSTDMT_freeCCtx(cctx->mtctx);
-    cctx->mtctx = NULL;
+    ZSTDMT_freeCCtx(cctx->mtctx); cctx->mtctx = NULL;
 #endif
     ZSTD_free(cctx, cctx->customMem);
     return 0;   /* reserved as a potential error code in the future */
@@ -122,10 +117,6 @@ static size_t ZSTD_sizeof_mtctx(const ZSTD_CCtx* cctx)
 size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx)
 {
     if (cctx==NULL) return 0;   /* support sizeof on NULL */
-    DEBUGLOG(3, "sizeof(*cctx) : %u", (U32)sizeof(*cctx));
-    DEBUGLOG(3, "workSpaceSize (including streaming buffers): %u", (U32)cctx->workSpaceSize);
-    DEBUGLOG(3, "inner cdict : %u", (U32)ZSTD_sizeof_CDict(cctx->cdictLocal));
-    DEBUGLOG(3, "inner MTCTX : %u", (U32)ZSTD_sizeof_mtctx(cctx));
     return sizeof(*cctx) + cctx->workSpaceSize
            + ZSTD_sizeof_CDict(cctx->cdictLocal)
            + ZSTD_sizeof_mtctx(cctx);
@@ -1085,15 +1076,31 @@ size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx, unsigned long
 }
 
 
+#define ZSTD_ROWSIZE 16
+/*! ZSTD_reduceTable_internal() :
+ *  reduce table indexes by `reducerValue`
+ *  presume table size is a multiple of ZSTD_ROWSIZE.
+ *  Helps auto-vectorization */
+static void ZSTD_reduceTable_internal (U32* const table, int const nbRows, U32 const reducerValue)
+{
+    int cellNb = 0;
+    int rowNb;
+    for (rowNb=0 ; rowNb < nbRows ; rowNb++) {
+        int column;
+        for (column=0; column<ZSTD_ROWSIZE; column++) {
+            if (table[cellNb] < reducerValue) table[cellNb] = 0;
+            else table[cellNb] -= reducerValue;
+            cellNb++;
+    }   }
+}
+
 /*! ZSTD_reduceTable() :
  *  reduce table indexes by `reducerValue` */
 static void ZSTD_reduceTable (U32* const table, U32 const size, U32 const reducerValue)
 {
-    U32 u;
-    for (u=0 ; u < size ; u++) {
-        if (table[u] < reducerValue) table[u] = 0;
-        else table[u] -= reducerValue;
-    }
+    assert((size & (ZSTD_ROWSIZE-1)) == 0);  /* multiple of ZSTD_ROWSIZE */
+    assert(size < (1U<<31));   /* can be casted to int */
+    ZSTD_reduceTable_internal(table, size/ZSTD_ROWSIZE, reducerValue);
 }
 
 /*! ZSTD_ldm_reduceTable() :
@@ -1112,19 +1119,23 @@ static void ZSTD_ldm_reduceTable(ldmEntry_t* const table, U32 const size,
 *   rescale all indexes to avoid future overflow (indexes are U32) */
 static void ZSTD_reduceIndex (ZSTD_CCtx* zc, const U32 reducerValue)
 {
-    { U32 const hSize = (U32)1 << zc->appliedParams.cParams.hashLog;
-      ZSTD_reduceTable(zc->hashTable, hSize, reducerValue); }
+    {   U32 const hSize = (U32)1 << zc->appliedParams.cParams.hashLog;
+        ZSTD_reduceTable(zc->hashTable, hSize, reducerValue);
+    }
 
-    { U32 const chainSize = (zc->appliedParams.cParams.strategy == ZSTD_fast) ? 0 : ((U32)1 << zc->appliedParams.cParams.chainLog);
-      ZSTD_reduceTable(zc->chainTable, chainSize, reducerValue); }
+    if (zc->appliedParams.cParams.strategy != ZSTD_fast) {
+        U32 const chainSize = (U32)1 << zc->appliedParams.cParams.chainLog;
+        ZSTD_reduceTable(zc->chainTable, chainSize, reducerValue);
+    }
 
-    { U32 const h3Size = (zc->hashLog3) ? (U32)1 << zc->hashLog3 : 0;
-      ZSTD_reduceTable(zc->hashTable3, h3Size, reducerValue); }
+    if (zc->hashLog3) {
+        U32 const h3Size = (U32)1 << zc->hashLog3;
+        ZSTD_reduceTable(zc->hashTable3, h3Size, reducerValue);
+    }
 
-    { if (zc->appliedParams.ldmParams.enableLdm) {
-          U32 const ldmHSize = (U32)1 << zc->appliedParams.ldmParams.hashLog;
-          ZSTD_ldm_reduceTable(zc->ldmState.hashTable, ldmHSize, reducerValue);
-      }
+    if (zc->appliedParams.ldmParams.enableLdm) {
+        U32 const ldmHSize = (U32)1 << zc->appliedParams.ldmParams.hashLog;
+        ZSTD_ldm_reduceTable(zc->ldmState.hashTable, ldmHSize, reducerValue);
     }
 }
 

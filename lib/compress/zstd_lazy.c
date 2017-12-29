@@ -32,11 +32,11 @@ void ZSTD_updateDUBT(ZSTD_CCtx* zc,
     U32 const target = (U32)(ip - base);
     U32 idx = zc->nextToUpdate;
 
-    DEBUGLOG(7, "ZSTD_updateDUBT, from %u to %u ",
-                idx, target);
+    if (idx != target)
+        DEBUGLOG(2, "ZSTD_updateDUBT, from %u to %u (dictLimit:%u)",
+                    idx, target, zc->dictLimit);
     assert(ip + 8 <= iend);   /* condition for ZSTD_hashPtr */
     (void)iend;
-
 
     assert(idx >= zc->dictLimit);   /* condition for valid base+idx */
     for ( ; idx < target ; idx++) {
@@ -79,10 +79,11 @@ static void ZSTD_insertDUBT1(ZSTD_CCtx* zc,
     U32 dummy32;   /* to be nullified at the end */
     U32 const windowLow = zc->lowLimit;
 
-    DEBUGLOG(8, "ZSTD_insertDUBT1 (%u)", current);
+    DEBUGLOG(8, "ZSTD_insertDUBT1(%u) (dictLimit=%u, lowLimit=%u)",
+                current, dictLimit, windowLow);
     assert(current >= btLow);
 
-    if (extDict && (current < dictLimit)) {   /* do not sort candidates in _extDict (simplification, for easier ZSTD_count, detrimental to compression ratio in streaming mode) */
+    if (extDict && (current < dictLimit)) { /* candidates in _extDict are not sorted (simplification, for easier ZSTD_count, detrimental to compression ratio in streaming mode) */
         *largerPtr = *smallerPtr = 0;
         return;
     }
@@ -147,11 +148,13 @@ static size_t ZSTD_insertBtAndFindBestMatch (
 
     const BYTE* const base = zc->base;
     U32    const current = (U32)(ip-base);
+    U32    const windowLow = zc->lowLimit;
 
     U32*   const bt = zc->chainTable;
     U32    const btLog  = zc->appliedParams.cParams.chainLog - 1;
     U32    const btMask = (1 << btLog) - 1;
     U32    const btLow = (btMask >= current) ? 0 : current - btMask;
+    U32    const unsortLimit = MAX(btLow, windowLow);
 
     U32*         nextCandidate = bt + 2*(matchIndex&btMask);
     U32*         unsortedMark = bt + 2*(matchIndex&btMask) + 1;
@@ -162,7 +165,7 @@ static size_t ZSTD_insertBtAndFindBestMatch (
     assert(ip <= iend-8);   /* required for h calculation */
 
     /* reach end of unsorted candidates list */
-    while ( (matchIndex > btLow)
+    while ( (matchIndex > unsortLimit)
          && (*unsortedMark == ZSTD_DUBT_UNSORTED)
          && (nbCandidates > 1) ) {
         DEBUGLOG(8, "ZSTD_insertBtAndFindBestMatch: candidate %u is unsorted",
@@ -175,11 +178,11 @@ static size_t ZSTD_insertBtAndFindBestMatch (
         nbCandidates --;
     }
 
-    if ( (matchIndex > btLow)
+    if ( (matchIndex > unsortLimit)
       && (*unsortedMark==ZSTD_DUBT_UNSORTED) ) {
         DEBUGLOG(8, "ZSTD_insertBtAndFindBestMatch: nullify last unsorted candidate %u",
                     matchIndex);
-        *nextCandidate = *unsortedMark = 0;   /* nullify last candidate if it's still unsorted (note : detrimental to compression ratio) */
+        *nextCandidate = *unsortedMark = 0;   /* nullify next candidate if it's still unsorted (note : simplification, detrimental to compression ratio, beneficial for speed) */
     }
 
     /* batch sort stacked candidates */
@@ -188,7 +191,7 @@ static size_t ZSTD_insertBtAndFindBestMatch (
         U32* const nextCandidateIdxPtr = bt + 2*(matchIndex&btMask) + 1;
         U32 const nextCandidateIdx = *nextCandidateIdxPtr;
         ZSTD_insertDUBT1(zc, matchIndex, iend,
-                         nbCandidates, btLow, extDict);
+                         nbCandidates, unsortLimit, extDict);
         matchIndex = nextCandidateIdx;
         nbCandidates++;
     }
@@ -199,7 +202,6 @@ static size_t ZSTD_insertBtAndFindBestMatch (
         const U32 dictLimit = zc->dictLimit;
         const BYTE* const dictEnd = dictBase + dictLimit;
         const BYTE* const prefixStart = base + dictLimit;
-        const U32 windowLow = zc->lowLimit;
         U32* smallerPtr = bt + 2*(current&btMask);
         U32* largerPtr  = bt + 2*(current&btMask) + 1;
         U32 matchEndIdx = current+8+1;

@@ -63,7 +63,7 @@ static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
 #define DISPLAYUPDATE(l, ...) if (g_displayLevel>=l) { \
             if ((UTIL_clockSpanMicro(g_displayClock) > g_refreshRate) || (g_displayLevel>=4)) \
             { g_displayClock = UTIL_getTime(); DISPLAY(__VA_ARGS__); \
-            if (g_displayLevel>=4) fflush(stderr); } }
+            if (g_displayLevel>=4) fflush(stdout); } }
 
 /*-*******************************************************
 *  Fuzzer functions
@@ -1337,10 +1337,11 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
         crcOrig = XXH64(sampleBuffer, sampleSize, 0);
 
         /* compression tests */
-        {   unsigned const cLevel =
+        {   int const cLevel =
                     ( FUZ_rand(&lseed) %
                      (ZSTD_maxCLevel() - (FUZ_highbit32((U32)sampleSize) / cLevelLimiter)) )
-                     + 1;
+                    + 1;
+            DISPLAYLEVEL(5, "fuzzer t%u: Simple compression test (level %i) \n", testNb, cLevel);
             cSize = ZSTD_compressCCtx(ctx, cBuffer, cBufferSize, sampleBuffer, sampleSize, cLevel);
             CHECK(ZSTD_isError(cSize), "ZSTD_compressCCtx failed : %s", ZSTD_getErrorName(cSize));
 

@@ -1950,11 +1950,7 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_CCtx* zc, const void* src, size_t 
             ZSTD_insertAndFindFirstIndex(zc, iend-HASH_READ_SIZE, zc->appliedParams.cParams.searchLength);
         break;
 
-    case ZSTD_btlazy2:
-        if (srcSize >= HASH_READ_SIZE)
-            ZSTD_updateDUBT(zc, iend-HASH_READ_SIZE, iend, zc->appliedParams.cParams.searchLength);
-        break;
-
+    case ZSTD_btlazy2:   /* we want the dictionary table fully sorted */
     case ZSTD_btopt:
     case ZSTD_btultra:
         if (srcSize >= HASH_READ_SIZE)

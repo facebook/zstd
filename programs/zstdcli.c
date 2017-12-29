@@ -318,12 +318,13 @@ static unsigned parseCompressionParameters(const char* stringPtr, ZSTD_compressi
         if (longCommandWArg(&stringPtr, "ldmSearchLength=") || longCommandWArg(&stringPtr, "ldmslen=")) { g_ldmMinMatch = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "ldmBucketSizeLog=") || longCommandWArg(&stringPtr, "ldmblog=")) { g_ldmBucketSizeLog = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "ldmHashEveryLog=") || longCommandWArg(&stringPtr, "ldmhevery=")) { g_ldmHashEveryLog = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        DISPLAYLEVEL(4, "invalid compression parameter \n");
         return 0;
     }
 
+    DISPLAYLEVEL(4, "windowLog=%d, chainLog=%d, hashLog=%d, searchLog=%d \n", params->windowLog, params->chainLog, params->hashLog, params->searchLog);
+    DISPLAYLEVEL(4, "searchLength=%d, targetLength=%d, strategy=%d \n", params->searchLength, params->targetLength, params->strategy);
     if (stringPtr[0] != 0) return 0; /* check the end of string */
-    DISPLAYLEVEL(4, "windowLog=%d\nchainLog=%d\nhashLog=%d\nsearchLog=%d\n", params->windowLog, params->chainLog, params->hashLog, params->searchLog);
-    DISPLAYLEVEL(4, "searchLength=%d\ntargetLength=%d\nstrategy=%d\n", params->searchLength, params->targetLength, params->strategy);
     return 1;
 }
 

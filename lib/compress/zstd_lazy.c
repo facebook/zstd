@@ -21,29 +21,16 @@
                                        But candidate 1 cannot hide a large tree of candidates, so it's a moderate loss.
                                        The benefit is that ZSTD_DUBT_UNSORTED_MARK cannot be misdhandled by a table re-use using a different strategy */
 
-#define ZSTD_ROWSIZE 16
-/*! ZSTD_preserveUnsortedMark_internal() :
- *  Helps auto-vectorization */
-static void ZSTD_preserveUnsortedMark_internal (U32* const table, int const nbRows, U32 const reducerValue)
-{
-    int cellNb = 0;
-    int rowNb;
-    for (rowNb=0 ; rowNb < nbRows ; rowNb++) {
-        int column;
-        for (column=0; column<ZSTD_ROWSIZE; column++) {
-            if (table[cellNb] == ZSTD_DUBT_UNSORTED_MARK)
-                table[cellNb] = ZSTD_DUBT_UNSORTED_MARK + reducerValue;
-    }   }
-}
-
 /*! ZSTD_preserveUnsortedMark() :
  *  pre-emptively increase value of ZSTD_DUBT_UNSORTED_MARK
- *  to preserve it since table is going to be offset by ZSTD_reduceTable() */
+ *  before ZSTD_reduceTable()
+ *  sp that final operation preserves its value */
 void ZSTD_preserveUnsortedMark (U32* const table, U32 const size, U32 const reducerValue)
 {
-    assert((size & (ZSTD_ROWSIZE-1)) == 0);  /* multiple of ZSTD_ROWSIZE */
-    assert(size < (1U<<31));   /* can be casted to int */
-    ZSTD_preserveUnsortedMark_internal(table, size/ZSTD_ROWSIZE, reducerValue);
+    U32 u;
+    for (u=0; u<size; u++)
+        if (table[u] == ZSTD_DUBT_UNSORTED_MARK)
+            table[u] = ZSTD_DUBT_UNSORTED_MARK + reducerValue;
 }
 
 void ZSTD_updateDUBT(ZSTD_CCtx* zc,

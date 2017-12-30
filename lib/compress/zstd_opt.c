@@ -10,7 +10,6 @@
 
 #include "zstd_compress_internal.h"
 #include "zstd_opt.h"
-#include "zstd_lazy.h"   /* ZSTD_updateTree, ZSTD_updateTree_extDict */
 
 
 #define ZSTD_LITFREQ_ADD    2   /* scaling factor for litFreq, so that frequencies adapt faster to new stats. Also used for matchSum (?) */
@@ -392,13 +391,13 @@ void ZSTD_updateTree_internal(ZSTD_CCtx* zc,
 }
 
 void ZSTD_updateTree(ZSTD_CCtx* zc,
-                const BYTE* const ip, const BYTE* const iend,
-                const U32 nbCompares, const U32 mls)
+                const BYTE* ip, const BYTE* iend,
+                U32 nbCompares, U32 mls)
 {
     ZSTD_updateTree_internal(zc, ip, iend, nbCompares, mls, 0 /*extDict*/);
 }
 
-void ZSTD_updateTree_extDict(ZSTD_CCtx* zc,
+static void ZSTD_updateTree_extDict(ZSTD_CCtx* zc,
                 const BYTE* const ip, const BYTE* const iend,
                 const U32 nbCompares, const U32 mls)
 {

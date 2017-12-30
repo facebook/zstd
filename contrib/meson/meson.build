@@ -39,9 +39,19 @@ libzstd_srcs = [
 libzstd_includes = [include_directories(common_dir, dictbuilder_dir, compress_dir, lib_dir)]
 
 legacy = get_option('legacy_support')
+if legacy == '0'
+    legacy = 'false'
+endif
 if legacy != 'false'
+    if legacy == 'true'
+        legacy = '1'
+    endif
+    #See ZSTD_LEGACY_SUPPORT of programs/README.md
     message('Enabling legacy support back to version 0.' + legacy)
     legacy_int = legacy.to_int()
+    if legacy_int > 7
+        legacy_int = 7
+    endif
     libzstd_cflags = ['-DZSTD_LEGACY_SUPPORT=' + legacy]
 
     legacy_dir = join_paths(lib_dir, 'legacy')
@@ -84,7 +94,9 @@ libzstd = library('zstd',
                   include_directories: libzstd_includes,
                   c_args: libzstd_cflags,
                   dependencies: libzstd_deps,
-                  install: true)
+                  install: true,
+                  soversion: '1',
+                 )
 
 programs_dir = join_paths('..', '..', 'programs')
 

@@ -62,6 +62,7 @@ void ZSTD_updateDUBT(ZSTD_CCtx* zc,
         U32*   const nextCandidatePtr = bt + 2*(idx&btMask);
         U32*   const sortMarkPtr  = nextCandidatePtr + 1;
 
+        DEBUGLOG(8, "ZSTD_updateDUBT: insert %u", idx);
         hashTable[h] = idx;   /* Update Hash Table */
         *nextCandidatePtr = matchIndex;   /* update BT like a chain */
         *sortMarkPtr = ZSTD_DUBT_UNSORTED_MARK;
@@ -75,7 +76,7 @@ void ZSTD_updateDUBT(ZSTD_CCtx* zc,
  *  assumption : current >= btlow == (current - btmask)
  *  doesn't fail */
 static void ZSTD_insertDUBT1(ZSTD_CCtx* zc,
-                 U32 current, const BYTE* iend,
+                 U32 current, const BYTE* inputEnd,
                  U32 nbCompares, U32 btLow, int extDict)
 {
     U32*   const bt = zc->chainTable;
@@ -83,9 +84,10 @@ static void ZSTD_insertDUBT1(ZSTD_CCtx* zc,
     U32    const btMask = (1 << btLog) - 1;
     size_t commonLengthSmaller=0, commonLengthLarger=0;
     const BYTE* const base = zc->base;
-    const BYTE* const ip = base + current;
     const BYTE* const dictBase = zc->dictBase;
     const U32 dictLimit = zc->dictLimit;
+    const BYTE* const ip = (current>=dictLimit) ? base + current : dictBase + current;
+    const BYTE* const iend = (current>=dictLimit) ? inputEnd : dictBase + dictLimit;
     const BYTE* const dictEnd = dictBase + dictLimit;
     const BYTE* const prefixStart = base + dictLimit;
     const BYTE* match;
@@ -98,22 +100,20 @@ static void ZSTD_insertDUBT1(ZSTD_CCtx* zc,
     DEBUGLOG(8, "ZSTD_insertDUBT1(%u) (dictLimit=%u, lowLimit=%u)",
                 current, dictLimit, windowLow);
     assert(current >= btLow);
-
-    if (extDict && (current < dictLimit)) { /* candidates in _extDict are not sorted (simplification, for easier ZSTD_count, detrimental to compression ratio in streaming mode) */
-        *largerPtr = *smallerPtr = 0;
-        return;
-    }
-    assert(current >= dictLimit);   /* ip=base+current within current memory segment */
+    assert(ip < iend);   /* condition for ZSTD_count */
 
     while (nbCompares-- && (matchIndex > windowLow)) {
         U32* const nextPtr = bt + 2*(matchIndex & btMask);
         size_t matchLength = MIN(commonLengthSmaller, commonLengthLarger);   /* guaranteed minimum nb of common bytes */
-        DEBUGLOG(8, "ZSTD_insertDUBT1: comparing %u with %u", current, matchIndex);
         assert(matchIndex < current);
 
-        if ((!extDict) || (matchIndex+matchLength >= dictLimit)) {
-            assert(matchIndex+matchLength >= dictLimit);   /* might be wrong if extDict is incorrectly set to 0 */
-            match = base + matchIndex;
+        if ( (!extDict)
+          || (matchIndex+matchLength >= dictLimit)  /* both in current segment*/
+          || (current < dictLimit) /* both in extDict */) {
+            const BYTE* const mBase = !extDict || (matchIndex >= dictLimit) ? base : dictBase;
+            assert( (matchIndex+matchLength >= dictLimit)   /* might be wrong if extDict is incorrectly set to 0 */
+                 || (current < dictLimit) );
+            match = mBase + matchIndex;
             matchLength += ZSTD_count(ip+matchLength, match+matchLength, iend);
         } else {
             match = dictBase + matchIndex;
@@ -121,6 +121,9 @@ static void ZSTD_insertDUBT1(ZSTD_CCtx* zc,
             if (matchIndex+matchLength >= dictLimit)
                 match = base + matchIndex;   /* to prepare for next usage of match[matchLength] */
         }
+
+        DEBUGLOG(8, "ZSTD_insertDUBT1: comparing %u with %u : found %u common bytes ",
+                    current, matchIndex, (U32)matchLength);
 
         if (ip+matchLength == iend) {   /* equal : no way to know if inf or sup */
             break;   /* drop , to guarantee consistency ; miss a bit of compression, but other solutions can corrupt tree */
@@ -131,7 +134,7 @@ static void ZSTD_insertDUBT1(ZSTD_CCtx* zc,
             *smallerPtr = matchIndex;             /* update smaller idx */
             commonLengthSmaller = matchLength;    /* all smaller will now have at least this guaranteed common length */
             if (matchIndex <= btLow) { smallerPtr=&dummy32; break; }   /* beyond tree size, stop searching */
-            DEBUGLOG(8, "ZSTD_insertDUBT1: selecting next candidate from %u (>btLow=%u) => %u",
+            DEBUGLOG(8, "ZSTD_insertDUBT1: %u (>btLow=%u) is smaller : next => %u",
                         matchIndex, btLow, nextPtr[1]);
             smallerPtr = nextPtr+1;               /* new "candidate" => larger than match, which was smaller than target */
             matchIndex = nextPtr[1];              /* new matchIndex, larger than previous and closer to current */
@@ -140,7 +143,7 @@ static void ZSTD_insertDUBT1(ZSTD_CCtx* zc,
             *largerPtr = matchIndex;
             commonLengthLarger = matchLength;
             if (matchIndex <= btLow) { largerPtr=&dummy32; break; }   /* beyond tree size, stop searching */
-            DEBUGLOG(8, "ZSTD_insertDUBT1: selecting next candidate from %u (>btLow=%u) => %u",
+            DEBUGLOG(8, "ZSTD_insertDUBT1: %u (>btLow=%u) is larger => %u",
                         matchIndex, btLow, nextPtr[0]);
             largerPtr = nextPtr;
             matchIndex = nextPtr[0];
@@ -196,7 +199,7 @@ static size_t ZSTD_insertBtAndFindBestMatch (
 
     if ( (matchIndex > unsortLimit)
       && (*unsortedMark==ZSTD_DUBT_UNSORTED_MARK) ) {
-        DEBUGLOG(8, "ZSTD_insertBtAndFindBestMatch: nullify last unsorted candidate %u",
+        DEBUGLOG(7, "ZSTD_insertBtAndFindBestMatch: nullify last unsorted candidate %u",
                     matchIndex);
         *nextCandidate = *unsortedMark = 0;   /* nullify next candidate if it's still unsorted (note : simplification, detrimental to compression ratio, beneficial for speed) */
     }
@@ -272,9 +275,11 @@ static size_t ZSTD_insertBtAndFindBestMatch (
 
         assert(matchEndIdx > current+8); /* ensure nextToUpdate is increased */
         zc->nextToUpdate = matchEndIdx - 8;   /* skip repetitive patterns */
-        if (bestLength)
-            DEBUGLOG(7, "ZSTD_insertBtAndFindBestMatch(%u) : found match of length %u",
-                        current, (U32)bestLength);
+        if (bestLength >= MINMATCH) {
+            U32 const mIndex = current - ((U32)*offsetPtr - ZSTD_REP_MOVE); (void)mIndex;
+            DEBUGLOG(8, "ZSTD_insertBtAndFindBestMatch(%u) : found match of length %u and offsetCode %u (pos %u)",
+                        current, (U32)bestLength, (U32)*offsetPtr, mIndex);
+        }
         return bestLength;
     }
 }
@@ -287,6 +292,7 @@ static size_t ZSTD_BtFindBestMatch (
                         size_t* offsetPtr,
                         const U32 maxNbAttempts, const U32 mls)
 {
+    DEBUGLOG(7, "ZSTD_BtFindBestMatch");
     if (ip < zc->base + zc->nextToUpdate) return 0;   /* skipped area */
     ZSTD_updateDUBT(zc, ip, iLimit, mls);
     return ZSTD_insertBtAndFindBestMatch(zc, ip, iLimit, offsetPtr, maxNbAttempts, mls, 0);
@@ -317,6 +323,7 @@ static size_t ZSTD_BtFindBestMatch_extDict (
                         size_t* offsetPtr,
                         const U32 maxNbAttempts, const U32 mls)
 {
+    DEBUGLOG(7, "ZSTD_BtFindBestMatch_extDict");
     if (ip < zc->base + zc->nextToUpdate) return 0;   /* skipped area */
     ZSTD_updateDUBT(zc, ip, iLimit, mls);
     return ZSTD_insertBtAndFindBestMatch(zc, ip, iLimit, offsetPtr, maxNbAttempts, mls, 1);

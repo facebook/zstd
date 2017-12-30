@@ -687,10 +687,21 @@ size_t ZSTD_estimateCCtxSize_usingCParams(ZSTD_compressionParameters cParams)
     return ZSTD_estimateCCtxSize_usingCCtxParams(&params);
 }
 
-size_t ZSTD_estimateCCtxSize(int compressionLevel)
+static size_t ZSTD_estimateCCtxSize_internal(int compressionLevel)
 {
     ZSTD_compressionParameters const cParams = ZSTD_getCParams(compressionLevel, 0, 0);
     return ZSTD_estimateCCtxSize_usingCParams(cParams);
+}
+
+size_t ZSTD_estimateCCtxSize(int compressionLevel)
+{
+    int level;
+    size_t memBudget = 0;
+    for (level=1; level<=compressionLevel; level++) {
+        size_t const newMB = ZSTD_estimateCCtxSize_internal(level);
+        if (newMB > memBudget) memBudget = newMB;
+    }
+    return memBudget;
 }
 
 size_t ZSTD_estimateCStreamSize_usingCCtxParams(const ZSTD_CCtx_params* params)
@@ -712,9 +723,19 @@ size_t ZSTD_estimateCStreamSize_usingCParams(ZSTD_compressionParameters cParams)
     return ZSTD_estimateCStreamSize_usingCCtxParams(&params);
 }
 
-size_t ZSTD_estimateCStreamSize(int compressionLevel) {
+static size_t ZSTD_estimateCStreamSize_internal(int compressionLevel) {
     ZSTD_compressionParameters const cParams = ZSTD_getCParams(compressionLevel, 0, 0);
     return ZSTD_estimateCStreamSize_usingCParams(cParams);
+}
+
+size_t ZSTD_estimateCStreamSize(int compressionLevel) {
+    int level;
+    size_t memBudget = 0;
+    for (level=1; level<=compressionLevel; level++) {
+        size_t const newMB = ZSTD_estimateCStreamSize_internal(level);
+        if (newMB > memBudget) memBudget = newMB;
+    }
+    return memBudget;
 }
 
 static U32 ZSTD_equivalentCParams(ZSTD_compressionParameters cParams1,
@@ -3001,9 +3022,9 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
     { 21, 19, 21,  4,  5, 16, ZSTD_lazy2   },  /* level 10 */
     { 22, 20, 22,  4,  5, 16, ZSTD_lazy2   },  /* level 11 */
     { 22, 20, 22,  5,  5, 16, ZSTD_lazy2   },  /* level 12 */
-    { 22, 21, 22,  5,  5, 16, ZSTD_lazy2   },  /* level 13 */
-    { 22, 21, 22,  6,  5, 16, ZSTD_lazy2   },  /* level 14 */
-    { 22, 21, 22,  5,  5, 16, ZSTD_btlazy2 },  /* level 15 */
+    { 22, 21, 22,  4,  5, 16, ZSTD_btlazy2 },  /* level 13 */
+    { 22, 21, 22,  5,  5, 16, ZSTD_btlazy2 },  /* level 14 */
+    { 22, 22, 22,  6,  5, 16, ZSTD_btlazy2 },  /* level 15 */
     { 22, 21, 22,  4,  5, 48, ZSTD_btopt   },  /* level 16 */
     { 23, 22, 22,  4,  4, 48, ZSTD_btopt   },  /* level 17 */
     { 23, 22, 22,  5,  3, 64, ZSTD_btopt   },  /* level 18 */
@@ -3092,24 +3113,6 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
 },
 };
 
-#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=1)
-/* This function just controls
- * the monotonic memory budget increase of ZSTD_defaultCParameters[0].
- * Run once, on first ZSTD_getCParams() usage, if ZSTD_DEBUG is enabled
- */
-MEM_STATIC void ZSTD_check_compressionLevel_monotonicIncrease_memoryBudget(void)
-{
-    int level;
-    for (level=1; level<ZSTD_maxCLevel(); level++) {
-        ZSTD_compressionParameters const c1 = ZSTD_defaultCParameters[0][level];
-        ZSTD_compressionParameters const c2 = ZSTD_defaultCParameters[0][level+1];
-        assert(c1.windowLog <= c2.windowLog);
-#       define ZSTD_TABLECOST(h,c) ((1<<(h)) + (1<<(c)))
-        assert(ZSTD_TABLECOST(c1.hashLog, c1.chainLog) <= ZSTD_TABLECOST(c2.hashLog, c2.chainLog));
-    }
-}
-#endif
-
 /*! ZSTD_getCParams() :
 *   @return ZSTD_compressionParameters structure for a selected compression level, `srcSize` and `dictSize`.
 *   Size values are optional, provide 0 if not known or unused */
@@ -3118,15 +3121,6 @@ ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, unsigned long l
     size_t const addedSize = srcSizeHint ? 0 : 500;
     U64 const rSize = srcSizeHint+dictSize ? srcSizeHint+dictSize+addedSize : (U64)-1;
     U32 const tableID = (rSize <= 256 KB) + (rSize <= 128 KB) + (rSize <= 16 KB);   /* intentional underflow for srcSizeHint == 0 */
-
-#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=1)
-    static int g_monotonicTest = 1;
-    if (g_monotonicTest) {
-        ZSTD_check_compressionLevel_monotonicIncrease_memoryBudget();
-        g_monotonicTest=0;
-    }
-#endif
-
     DEBUGLOG(4, "ZSTD_getCParams: cLevel=%i, srcSize=%u, dictSize=%u => table %u",
                 compressionLevel, (U32)srcSizeHint, (U32)dictSize, tableID);
     if (compressionLevel <= 0) compressionLevel = ZSTD_CLEVEL_DEFAULT;   /* 0 == default; no negative compressionLevel yet */

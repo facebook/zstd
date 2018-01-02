@@ -951,10 +951,14 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
     if (outFileName != NULL) {
         unsigned u;
         ress.dstFile = FIO_openDstFile(outFileName);
-        for (u=0; u<nbFiles; u++)
-            missed_files += FIO_compressFilename_srcFile(ress, outFileName, inFileNamesTable[u], compressionLevel);
-        if (fclose(ress.dstFile))
-            EXM_THROW(29, "Write error : cannot properly close stdout");
+        if (ress.dstFile==NULL) {  /* could not open outFileName */
+            missed_files = nbFiles;
+        } else {
+            for (u=0; u<nbFiles; u++)
+                missed_files += FIO_compressFilename_srcFile(ress, outFileName, inFileNamesTable[u], compressionLevel);
+            if (fclose(ress.dstFile))
+                EXM_THROW(29, "Write error : cannot properly close stdout");
+        }
     } else {
         unsigned u;
         for (u=0; u<nbFiles; u++) {

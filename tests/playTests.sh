@@ -190,6 +190,13 @@ $ZSTD -t tmp1.zst tmp2.zst
 $ZSTD -dc tmp1.zst tmp2.zst
 $ZSTD tmp1.zst tmp2.zst -o "$INTOVOID"
 $ZSTD -d tmp1.zst tmp2.zst -o tmp
+touch tmpexists
+$ZSTD tmp1 tmp2 -f -o tmpexists
+$ZSTD tmp1 tmp2 -o tmpexists && die "should have refused to overwrite"
+# Bug: PR #972
+if [ "$?" -eq 139 ]; then
+  die "should not have segfaulted"
+fi
 rm tmp*
 
 

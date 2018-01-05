@@ -901,10 +901,10 @@ static int FIO_compressFilename_dstFile(cRess_t ress,
         DISPLAYLEVEL(1, "zstd: %s: %s \n", dstFileName, strerror(errno));
         result=1;
     }
-    if (result!=0) {  /* remove operation artefact */
-        if (FIO_remove(dstFileName))
-            EXM_THROW(1, "zstd: %s: %s", dstFileName, strerror(errno));
-    }
+    if ( (result != 0)  /* operation failure */
+      && strcmp(dstFileName, nulmark)      /* special case : don't remove() /dev/null */
+      && strcmp(dstFileName, stdoutmark) ) /* special case : don't remove() stdout */
+        FIO_remove(dstFileName); /* remove compression artefact; note don't do anything special if remove() fails */
     else if ( strcmp(dstFileName, stdoutmark)
            && strcmp(dstFileName, nulmark)
            && stat_result)

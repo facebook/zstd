@@ -139,7 +139,10 @@ static void INThandler(int sig)
 #if !defined(_MSC_VER)
     signal(sig, SIG_IGN);  /* this invocation generates a buggy warning in Visual Studio */
 #endif
-    if (g_artefact) remove(g_artefact);
+    if (g_artefact) {
+        assert(UTIL_isRegularFile(g_artefact));
+        remove(g_artefact);
+    }
     DISPLAY("\n");
     exit(2);
 }
@@ -861,7 +864,7 @@ static int FIO_compressFilename_srcFile(cRess_t ress,
          * delete both the source and destination files.
          */
         clearHandler();
-        if (remove(srcFileName))
+        if (FIO_remove(srcFileName))
             EXM_THROW(1, "zstd: %s: %s", srcFileName, strerror(errno));
     }
     return result;
@@ -899,10 +902,12 @@ static int FIO_compressFilename_dstFile(cRess_t ress,
         result=1;
     }
     if (result!=0) {  /* remove operation artefact */
-        if (remove(dstFileName))
+        if (FIO_remove(dstFileName))
             EXM_THROW(1, "zstd: %s: %s", dstFileName, strerror(errno));
     }
-    else if (strcmp (dstFileName, stdoutmark) && stat_result)
+    else if ( strcmp(dstFileName, stdoutmark)
+           && strcmp(dstFileName, nulmark)
+           && stat_result)
         UTIL_setFileStat(dstFileName, &statbuf);
 
     return result;
@@ -1575,7 +1580,7 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* dstFileName, const ch
          * delete both the source and destination files.
          */
         clearHandler();
-        if (remove(srcFileName)) {
+        if (FIO_remove(srcFileName)) {
             /* failed to remove src file */
             DISPLAYLEVEL(1, "zstd: %s: %s \n", srcFileName, strerror(errno));
             return 1;
@@ -1618,7 +1623,7 @@ static int FIO_decompressDstFile(dRess_t ress,
     if ( (result != 0)  /* operation failure */
       && strcmp(dstFileName, nulmark)      /* special case : don't remove() /dev/null (#316) */
       && strcmp(dstFileName, stdoutmark) ) /* special case : don't remove() stdout */
-        remove(dstFileName);  /* remove decompression artefact; note don't do anything special if remove() fails */
+        FIO_remove(dstFileName);  /* remove decompression artefact; note don't do anything special if remove() fails */
     else {  /* operation success */
         if ( strcmp(dstFileName, stdoutmark) /* special case : don't chmod stdout */
           && strcmp(dstFileName, nulmark)    /* special case : don't chmod /dev/null */

@@ -1146,14 +1146,9 @@ static void ZSTD_reduceIndex (ZSTD_CCtx* zc, const U32 reducerValue)
         ZSTD_reduceTable(zc->hashTable, hSize, reducerValue);
     }
 
-    if (zc->appliedParams.cParams.strategy != ZSTD_btlazy2) {
-        U32 const chainSize = (U32)1 << zc->appliedParams.cParams.chainLog;
-        ZSTD_reduceTable(zc->chainTable, chainSize, reducerValue);
-    }
-
     if (zc->appliedParams.cParams.strategy != ZSTD_fast) {
         U32 const chainSize = (U32)1 << zc->appliedParams.cParams.chainLog;
-        if (zc->appliedParams.cParams.strategy != ZSTD_btlazy2)
+        if (zc->appliedParams.cParams.strategy == ZSTD_btlazy2)
             ZSTD_preserveUnsortedMark(zc->chainTable, chainSize, reducerValue);
         ZSTD_reduceTable(zc->chainTable, chainSize, reducerValue);
     }

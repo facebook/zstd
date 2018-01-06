@@ -22,9 +22,21 @@
                                        The benefit is that ZSTD_DUBT_UNSORTED_MARK cannot be misdhandled by a table re-use using a different strategy */
 
 /*! ZSTD_preserveUnsortedMark() :
- *  pre-emptively increase value of ZSTD_DUBT_UNSORTED_MARK
- *  before ZSTD_reduceTable()
- *  sp that final operation preserves its value */
+ *  pre-emptively increase value of ZSTD_DUBT_UNSORTED_MARK before ZSTD_reduceTable()
+ *  so that combined operation preserves its value.
+ *  Without it, ZSTD_DUBT_UNSORTED_MARK==1 would be squashed to 0.
+ *  As a consequence, the list of unsorted elements would stop on the first element,
+ *  removing candidates, resulting in a negligible loss to compression ratio
+ *  (since overflow protection with ZSTD_reduceTable() is relatively rare).
+ *  Another potential risk is that a position will be promoted from *unsorted*
+ *  to *sorted=>smaller:0*, meaning the next candidate will be considered smaller.
+ *  This could be wrong, and result in data corruption.
+ *  On second thought, this corruption might be impossible,
+ *  because unsorted elements are always at the beginning of the list,
+ *  and squashing to zero reduce the list to a single element,
+ *  which needs to be sorted anyway.
+ *  I haven't spent much thoughts into this possible scenario,
+ *  and just felt it was safer to implement ZSTD_preserveUnsortedMark() */
 void ZSTD_preserveUnsortedMark (U32* const table, U32 const size, U32 const reducerValue)
 {
     U32 u;

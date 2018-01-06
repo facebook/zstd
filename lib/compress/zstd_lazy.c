@@ -122,7 +122,7 @@ static void ZSTD_insertDUBT1(ZSTD_CCtx* zc,
         if ( (!extDict)
           || (matchIndex+matchLength >= dictLimit)  /* both in current segment*/
           || (current < dictLimit) /* both in extDict */) {
-            const BYTE* const mBase = !extDict || (matchIndex >= dictLimit) ? base : dictBase;
+            const BYTE* const mBase = !extDict || ((matchIndex+matchLength) >= dictLimit) ? base : dictBase;
             assert( (matchIndex+matchLength >= dictLimit)   /* might be wrong if extDict is incorrectly set to 0 */
                  || (current < dictLimit) );
             match = mBase + matchIndex;

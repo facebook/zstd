@@ -115,7 +115,7 @@ zstdc_%.o : $(ZSTDDIR)/compress/%.c
 zstdd_%.o : $(ZSTDDIR)/decompress/%.c
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
 
-zstdmt%.o : CPPFLAGS += -DZSTD_MULTITHREAD=1
+zstdmt%.o : CPPFLAGS += $(MULTITHREAD_CPP)
 
 zstdmt_m_%.o : $(ZSTDDIR)/common/%.c
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@

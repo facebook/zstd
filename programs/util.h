@@ -246,10 +246,16 @@ UTIL_STATIC void UTIL_waitForNextTick(void)
 #endif
 
 
+UTIL_STATIC int UTIL_isRegularFile(const char* infilename);
+
+
 UTIL_STATIC int UTIL_setFileStat(const char *filename, stat_t *statbuf)
 {
     int res = 0;
     struct utimbuf timebuf;
+
+    if (!UTIL_isRegularFile(filename))
+        return -1;
 
     timebuf.actime = time(NULL);
     timebuf.modtime = statbuf->st_mtime;

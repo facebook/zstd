@@ -2416,7 +2416,6 @@ ZSTD_CDict* ZSTD_initStaticCDict(void* workspace, size_t workspaceSize,
                             + cctxSize;
     ZSTD_CDict* const cdict = (ZSTD_CDict*) workspace;
     void* ptr;
-    DEBUGLOG(4, "(size_t)workspace & 7 : %u", (U32)(size_t)workspace & 7);
     if ((size_t)workspace & 7) return NULL;  /* 8-aligned */
     DEBUGLOG(4, "(workspaceSize < neededSize) : (%u < %u) => %u",
         (U32)workspaceSize, (U32)neededSize, (U32)(workspaceSize < neededSize));

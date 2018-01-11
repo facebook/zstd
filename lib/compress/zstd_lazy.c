@@ -165,7 +165,7 @@ static void ZSTD_insertDUBT1(ZSTD_CCtx* zc,
 }
 
 
-static size_t ZSTD_insertBtAndFindBestMatch (
+static size_t ZSTD_DUBT_findBestMatch (
                             ZSTD_CCtx* zc,
                             const BYTE* const ip, const BYTE* const iend,
                             size_t* offsetPtr,
@@ -192,14 +192,14 @@ static size_t ZSTD_insertBtAndFindBestMatch (
     U32          nbCandidates = nbCompares;
     U32          previousCandidate = 0;
 
-    DEBUGLOG(7, "ZSTD_insertBtAndFindBestMatch (%u) ", current);
+    DEBUGLOG(7, "ZSTD_DUBT_findBestMatch (%u) ", current);
     assert(ip <= iend-8);   /* required for h calculation */
 
     /* reach end of unsorted candidates list */
     while ( (matchIndex > unsortLimit)
          && (*unsortedMark == ZSTD_DUBT_UNSORTED_MARK)
          && (nbCandidates > 1) ) {
-        DEBUGLOG(8, "ZSTD_insertBtAndFindBestMatch: candidate %u is unsorted",
+        DEBUGLOG(8, "ZSTD_DUBT_findBestMatch: candidate %u is unsorted",
                     matchIndex);
         *unsortedMark = previousCandidate;
         previousCandidate = matchIndex;
@@ -211,7 +211,7 @@ static size_t ZSTD_insertBtAndFindBestMatch (
 
     if ( (matchIndex > unsortLimit)
       && (*unsortedMark==ZSTD_DUBT_UNSORTED_MARK) ) {
-        DEBUGLOG(7, "ZSTD_insertBtAndFindBestMatch: nullify last unsorted candidate %u",
+        DEBUGLOG(7, "ZSTD_DUBT_findBestMatch: nullify last unsorted candidate %u",
                     matchIndex);
         *nextCandidate = *unsortedMark = 0;   /* nullify next candidate if it's still unsorted (note : simplification, detrimental to compression ratio, beneficial for speed) */
     }
@@ -289,7 +289,7 @@ static size_t ZSTD_insertBtAndFindBestMatch (
         zc->nextToUpdate = matchEndIdx - 8;   /* skip repetitive patterns */
         if (bestLength >= MINMATCH) {
             U32 const mIndex = current - ((U32)*offsetPtr - ZSTD_REP_MOVE); (void)mIndex;
-            DEBUGLOG(8, "ZSTD_insertBtAndFindBestMatch(%u) : found match of length %u and offsetCode %u (pos %u)",
+            DEBUGLOG(8, "ZSTD_DUBT_findBestMatch(%u) : found match of length %u and offsetCode %u (pos %u)",
                         current, (U32)bestLength, (U32)*offsetPtr, mIndex);
         }
         return bestLength;
@@ -307,7 +307,7 @@ static size_t ZSTD_BtFindBestMatch (
     DEBUGLOG(7, "ZSTD_BtFindBestMatch");
     if (ip < zc->base + zc->nextToUpdate) return 0;   /* skipped area */
     ZSTD_updateDUBT(zc, ip, iLimit, mls);
-    return ZSTD_insertBtAndFindBestMatch(zc, ip, iLimit, offsetPtr, maxNbAttempts, mls, 0);
+    return ZSTD_DUBT_findBestMatch(zc, ip, iLimit, offsetPtr, maxNbAttempts, mls, 0);
 }
 
 
@@ -338,7 +338,7 @@ static size_t ZSTD_BtFindBestMatch_extDict (
     DEBUGLOG(7, "ZSTD_BtFindBestMatch_extDict");
     if (ip < zc->base + zc->nextToUpdate) return 0;   /* skipped area */
     ZSTD_updateDUBT(zc, ip, iLimit, mls);
-    return ZSTD_insertBtAndFindBestMatch(zc, ip, iLimit, offsetPtr, maxNbAttempts, mls, 1);
+    return ZSTD_DUBT_findBestMatch(zc, ip, iLimit, offsetPtr, maxNbAttempts, mls, 1);
 }
 
 

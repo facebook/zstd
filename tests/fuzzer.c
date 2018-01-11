@@ -68,7 +68,7 @@ static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
 
 #undef MIN
 #undef MAX
-void FUZ_bug976()
+void FUZ_bug976(void)
 {   /* these constants shall not depend on MIN() macro */
     assert(ZSTD_HASHLOG_MAX < 31);
     assert(ZSTD_CHAINLOG_MAX < 31);

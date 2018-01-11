@@ -1412,7 +1412,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
                         size_t const skipLength = FUZ_rand(&lseed) & mask;
                         pos += skipLength;
                     }
-                    if (pos <= cSize) break;
+                    if (pos >= cSize) break;
                     /* add noise */
                     {   U32 const nbBitsCodes = FUZ_rand(&lseed) % maxNbBits;
                         U32 const nbBits = nbBitsCodes ? nbBitsCodes-1 : 0;

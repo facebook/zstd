@@ -750,6 +750,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
             goto _cleanup;
         }
         if (maxNbBits==8) {  /* not compressible : will fail on HUF_writeCTable() */
+            DISPLAYLEVEL(2, "warning : pathological dataset : literals are not compressible : samples are noisy or too regular \n");
             ZDICT_flatLit(countLit);  /* replace distribution by a fake "mostly flat but still compressible" distribution, that HUF_writeCTable() can encode */
             maxNbBits = HUF_buildCTable (hufTable, countLit, 255, huffLog);
             assert(maxNbBits==9);
@@ -1052,8 +1053,9 @@ size_t ZDICT_trainFromBuffer_unsafe_legacy(
 }
 
 
-/* issue : samplesBuffer need to be followed by a noisy guard band.
-*  work around : duplicate the buffer, and add the noise */
+/* ZDICT_trainFromBuffer_legacy() :
+ * issue : samplesBuffer need to be followed by a noisy guard band.
+ * work around : duplicate the buffer, and add the noise */
 size_t ZDICT_trainFromBuffer_legacy(void* dictBuffer, size_t dictBufferCapacity,
                               const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
                               ZDICT_legacy_params_t params)

@@ -673,6 +673,15 @@ static int basicUnitTests(U32 seed, double compressibility)
             goto _output_error;
         }
 
+        DISPLAYLEVEL(4, "test%3i : dictBuilder on cyclic data : ", testNb++);
+        assert(compressedBufferSize >= totalSampleSize);
+        { U32 u; for (u=0; u<totalSampleSize; u++) ((BYTE*)compressedBuffer)[u] = (BYTE)u; }
+        { U32 u; for (u=0; u<nbSamples; u++) samplesSizes[u] = sampleUnitSize; }
+        dictSize = ZDICT_trainFromBuffer(dictBuffer, dictSize,
+                                         compressedBuffer, samplesSizes, nbSamples);
+        if (ZDICT_isError(dictSize)) goto _output_error;
+        DISPLAYLEVEL(4, "OK, created dictionary of size %u \n", (U32)dictSize);
+
         DISPLAYLEVEL(4, "test%3i : dictBuilder : ", testNb++);
         { U32 u; for (u=0; u<nbSamples; u++) samplesSizes[u] = sampleUnitSize; }
         dictSize = ZDICT_trainFromBuffer(dictBuffer, dictSize,

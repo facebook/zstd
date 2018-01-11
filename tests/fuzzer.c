@@ -666,12 +666,13 @@ static int basicUnitTests(U32 seed, double compressibility)
 
     /* Dictionary and dictBuilder tests */
     {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
-        size_t dictSize = 16 KB;
-        void* dictBuffer = malloc(dictSize);
+        size_t const dictBufferCapacity = 16 KB;
+        void* dictBuffer = malloc(dictBufferCapacity);
         size_t const totalSampleSize = 1 MB;
         size_t const sampleUnitSize = 8 KB;
         U32 const nbSamples = (U32)(totalSampleSize / sampleUnitSize);
         size_t* const samplesSizes = (size_t*) malloc(nbSamples * sizeof(size_t));
+        size_t dictSize;
         U32 dictID;
 
         if (dictBuffer==NULL || samplesSizes==NULL) {
@@ -680,9 +681,19 @@ static int basicUnitTests(U32 seed, double compressibility)
             goto _output_error;
         }
 
+        DISPLAYLEVEL(4, "test%3i : dictBuilder on cyclic data : ", testNb++);
+        assert(compressedBufferSize >= totalSampleSize);
+        { U32 u; for (u=0; u<totalSampleSize; u++) ((BYTE*)decodedBuffer)[u] = (BYTE)u; }
+        { U32 u; for (u=0; u<nbSamples; u++) samplesSizes[u] = sampleUnitSize; }
+        {   size_t const sDictSize = ZDICT_trainFromBuffer(dictBuffer, dictBufferCapacity,
+                                         decodedBuffer, samplesSizes, nbSamples);
+            if (ZDICT_isError(sDictSize)) goto _output_error;
+            DISPLAYLEVEL(4, "OK, created dictionary of size %u \n", (U32)sDictSize);
+        }
+
         DISPLAYLEVEL(4, "test%3i : dictBuilder : ", testNb++);
         { U32 u; for (u=0; u<nbSamples; u++) samplesSizes[u] = sampleUnitSize; }
-        dictSize = ZDICT_trainFromBuffer(dictBuffer, dictSize,
+        dictSize = ZDICT_trainFromBuffer(dictBuffer, dictBufferCapacity,
                                          CNBuffer, samplesSizes, nbSamples);
         if (ZDICT_isError(dictSize)) goto _output_error;
         DISPLAYLEVEL(4, "OK, created dictionary of size %u \n", (U32)dictSize);

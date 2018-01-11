@@ -405,6 +405,7 @@ size_t HUF_buildCTable_wksp (HUF_CElt* tree, const U32* count, U32 maxSymbolValu
 }
 
 /** HUF_buildCTable() :
+ * @return : maxNbBits
  *  Note : count is used before tree is written, so they can safely overlap
  */
 size_t HUF_buildCTable (HUF_CElt* tree, const U32* count, U32 maxSymbolValue, U32 maxNbBits)

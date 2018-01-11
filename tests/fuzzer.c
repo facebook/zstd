@@ -65,11 +65,18 @@ static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
             { g_displayClock = UTIL_getTime(); DISPLAY(__VA_ARGS__); \
             if (g_displayLevel>=4) fflush(stderr); } }
 
-/*-*******************************************************
-*  Fuzzer functions
-*********************************************************/
+
 #undef MIN
 #undef MAX
+void FUZ_bug976()
+{   /* these constants shall not depend on MIN() macro */
+    assert(ZSTD_HASHLOG_MAX < 31);
+    assert(ZSTD_CHAINLOG_MAX < 31);
+}
+
+/*-*******************************************************
+*  Internal functions
+*********************************************************/
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define MAX(a,b) ((a)>(b)?(a):(b))
 

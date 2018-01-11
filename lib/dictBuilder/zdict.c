@@ -666,6 +666,18 @@ static void ZDICT_insertSortCount(offsetCount_t table[ZSTD_REP_NUM+1], U32 val, 
     }
 }
 
+/* ZDICT_flatLit() :
+ * rewrite `countLit` to contain a mostly flat but still compressible distribution of literals.
+ * necessary to avoid generating a non-compressible distribution that HUF_writeCTable() cannot encode.
+ */
+static void ZDICT_flatLit(U32* countLit)
+{
+    int u;
+    for (u=1; u<256; u++) countLit[u] = 2;
+    countLit[0]   = 4;
+    countLit[253] = 1;
+    countLit[254] = 1;
+}
 
 #define OFFCODE_MAX 30  /* only applicable to first block */
 static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
@@ -730,14 +742,20 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
         pos += fileSizes[u];
     }
 
-    /* analyze */
-    errorCode = HUF_buildCTable (hufTable, countLit, 255, huffLog);
-    if (HUF_isError(errorCode)) {
-        eSize = ERROR(GENERIC);
-        DISPLAYLEVEL(1, " HUF_buildCTable error \n");
-        goto _cleanup;
+    /* analyze, build stats, starting with literals */
+    {   size_t maxNbBits = HUF_buildCTable (hufTable, countLit, 255, huffLog);
+        if (HUF_isError(maxNbBits)) {
+            eSize = ERROR(GENERIC);
+            DISPLAYLEVEL(1, " HUF_buildCTable error \n");
+            goto _cleanup;
+        }
+        if (maxNbBits==8) {  /* not compressible : will fail on HUF_writeCTable() */
+            ZDICT_flatLit(countLit);  /* replace distribution by a fake "mostly flat but still compressible" distribution, that HUF_writeCTable() can encode */
+            maxNbBits = HUF_buildCTable (hufTable, countLit, 255, huffLog);
+            assert(maxNbBits==9);
+        }
+        huffLog = (U32)maxNbBits;
     }
-    huffLog = (U32)errorCode;
 
     /* looking for most common first offsets */
     {   U32 offset;

@@ -9,7 +9,7 @@
     - COMPILER: "gcc"
       HOST:     "mingw"
       PLATFORM: "x64"
-      SCRIPT:   "make allzstd MOREFLAGS=-static && make -C tests test-symbols fullbench-dll fullbench-lib"
+      SCRIPT:   "make allzstd MOREFLAGS=-static && make -C tests test-symbols fullbench-lib"
       ARTIFACT: "true"
       BUILD:    "true"
     - COMPILER: "gcc"

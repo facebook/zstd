@@ -65,11 +65,18 @@ static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
             { g_displayClock = UTIL_getTime(); DISPLAY(__VA_ARGS__); \
             if (g_displayLevel>=4) fflush(stdout); } }
 
-/*-*******************************************************
-*  Fuzzer functions
-*********************************************************/
+
 #undef MIN
 #undef MAX
+void FUZ_bug976(void)
+{   /* these constants shall not depend on MIN() macro */
+    assert(ZSTD_HASHLOG_MAX < 31);
+    assert(ZSTD_CHAINLOG_MAX < 31);
+}
+
+/*-*******************************************************
+*  Internal functions
+*********************************************************/
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define MAX(a,b) ((a)>(b)?(a):(b))
 
@@ -658,12 +665,13 @@ static int basicUnitTests(U32 seed, double compressibility)
 
     /* Dictionary and dictBuilder tests */
     {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
-        size_t dictSize = 16 KB;
-        void* dictBuffer = malloc(dictSize);
+        size_t const dictBufferCapacity = 16 KB;
+        void* dictBuffer = malloc(dictBufferCapacity);
         size_t const totalSampleSize = 1 MB;
         size_t const sampleUnitSize = 8 KB;
         U32 const nbSamples = (U32)(totalSampleSize / sampleUnitSize);
         size_t* const samplesSizes = (size_t*) malloc(nbSamples * sizeof(size_t));
+        size_t dictSize;
         U32 dictID;
 
         if (dictBuffer==NULL || samplesSizes==NULL) {
@@ -672,9 +680,19 @@ static int basicUnitTests(U32 seed, double compressibility)
             goto _output_error;
         }
 
+        DISPLAYLEVEL(3, "test%3i : dictBuilder on cyclic data : ", testNb++);
+        assert(compressedBufferSize >= totalSampleSize);
+        { U32 u; for (u=0; u<totalSampleSize; u++) ((BYTE*)decodedBuffer)[u] = (BYTE)u; }
+        { U32 u; for (u=0; u<nbSamples; u++) samplesSizes[u] = sampleUnitSize; }
+        {   size_t const sDictSize = ZDICT_trainFromBuffer(dictBuffer, dictBufferCapacity,
+                                         decodedBuffer, samplesSizes, nbSamples);
+            if (ZDICT_isError(sDictSize)) goto _output_error;
+            DISPLAYLEVEL(3, "OK, created dictionary of size %u \n", (U32)sDictSize);
+        }
+
         DISPLAYLEVEL(3, "test%3i : dictBuilder : ", testNb++);
         { U32 u; for (u=0; u<nbSamples; u++) samplesSizes[u] = sampleUnitSize; }
-        dictSize = ZDICT_trainFromBuffer(dictBuffer, dictSize,
+        dictSize = ZDICT_trainFromBuffer(dictBuffer, dictBufferCapacity,
                                          CNBuffer, samplesSizes, nbSamples);
         if (ZDICT_isError(dictSize)) goto _output_error;
         DISPLAYLEVEL(3, "OK, created dictionary of size %u \n", (U32)dictSize);
@@ -1415,7 +1433,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
                         size_t const skipLength = FUZ_rand(&lseed) & mask;
                         pos += skipLength;
                     }
-                    if (pos <= cSize) break;
+                    if (pos >= cSize) break;
                     /* add noise */
                     {   U32 const nbBitsCodes = FUZ_rand(&lseed) % maxNbBits;
                         U32 const nbBits = nbBitsCodes ? nbBitsCodes-1 : 0;

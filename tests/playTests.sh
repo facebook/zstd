@@ -93,6 +93,7 @@ else
     hasMT="true"
 fi
 
+
 $ECHO "\n===>  simple tests "
 
 ./datagen > tmp
@@ -329,7 +330,12 @@ $ECHO "- Create first dictionary "
 TESTFILE=../programs/zstdcli.c
 $ZSTD --train *.c ../programs/*.c -o tmpDict
 cp $TESTFILE tmp
+$ECHO "- Dictionary compression roundtrip"
 $ZSTD -f tmp -D tmpDict
+$ZSTD -d tmp.zst -D tmpDict -fo result
+$DIFF $TESTFILE result
+$ECHO "- Dictionary compression with btlazy2 strategy"
+$ZSTD -f tmp -D tmpDict --zstd=strategy=6
 $ZSTD -d tmp.zst -D tmpDict -fo result
 $DIFF $TESTFILE result
 if [ -n "$hasMT" ]
@@ -719,6 +725,7 @@ roundTripTest -g18000018 -P94 18
 roundTripTest -g18000019 -P96 19
 
 roundTripTest -g5000000000 -P99 1
+roundTripTest -g1700000000 -P0 "1 --zstd=strategy=6"   # ensure btlazy2 can survive an overflow rescale
 
 fileRoundTripTest -g4193M -P99 1
 

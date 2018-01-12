@@ -21,12 +21,23 @@ void ZSTD_fillDoubleHashTable(ZSTD_CCtx* cctx, const void* end, const U32 mls)
     const BYTE* const base = cctx->base;
     const BYTE* ip = base + cctx->nextToUpdate;
     const BYTE* const iend = ((const BYTE*)end) - HASH_READ_SIZE;
-    const size_t fastHashFillStep = 3;
+    const U32 fastHashFillStep = 3;
 
-    while(ip <= iend) {
-        hashSmall[ZSTD_hashPtr(ip, hBitsS, mls)] = (U32)(ip - base);
-        hashLarge[ZSTD_hashPtr(ip, hBitsL, 8)] = (U32)(ip - base);
-        ip += fastHashFillStep;
+    /* Always insert every fastHashFillStep position into the hash tables.
+     * Insert the other positions into the large hash table if their entry
+     * is empty.
+     */
+    for (; ip + fastHashFillStep - 1 <= iend; ip += fastHashFillStep) {
+        U32 const current = (U32)(ip - base);
+        U32 i;
+        for (i = 0; i < fastHashFillStep; ++i) {
+            size_t const smHash = ZSTD_hashPtr(ip + i, hBitsS, mls);
+            size_t const lgHash = ZSTD_hashPtr(ip + i, hBitsL, 8);
+            if (i == 0)
+                hashSmall[smHash] = current + i;
+            if (i == 0 || hashLarge[lgHash] == 0)
+                hashLarge[lgHash] = current + i;
+        }
     }
 }
 

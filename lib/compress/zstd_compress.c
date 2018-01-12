@@ -2498,6 +2498,15 @@ size_t ZSTD_compressBegin_usingCDict_advanced(
     if (cdict==NULL) return ERROR(dictionary_wrong);
     {   ZSTD_CCtx_params params = cctx->requestedParams;
         params.cParams = ZSTD_getCParamsFromCDict(cdict);
+        /* Increase window log to fit the entire dictionary and source if the
+         * source size is known. Limit the increase to 19, which is the
+         * window log for compression level 1 with the largest source size.
+         */
+        if (pledgedSrcSize != ZSTD_CONTENTSIZE_UNKNOWN) {
+            U32 const limitedSrcSize = (U32)MIN(pledgedSrcSize, 1U << 19);
+            U32 const limitedSrcLog = limitedSrcSize > 1 ? ZSTD_highbit32(limitedSrcSize - 1) + 1 : 1;
+            params.cParams.windowLog = MAX(params.cParams.windowLog, limitedSrcLog);
+        }
         params.fParams = fParams;
         return ZSTD_compressBegin_internal(cctx,
                                            NULL, 0, ZSTD_dm_auto,

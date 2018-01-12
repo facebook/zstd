@@ -1205,6 +1205,28 @@ static int basicUnitTests(U32 seed, double compressibility)
     if (strcmp("No error detected", ZSTD_getErrorName(ZSTD_error_GENERIC)) != 0) goto _output_error;
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(4, "test%3i : testing ZSTD dictionary sizes : ", testNb++);
+    RDG_genBuffer(CNBuffer, CNBuffSize, compressibility, 0., seed);
+    {
+        size_t const size = MIN(128 KB, CNBuffSize);
+        ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        ZSTD_CDict* const lgCDict = ZSTD_createCDict(CNBuffer, size, 1);
+        ZSTD_CDict* const smCDict = ZSTD_createCDict(CNBuffer, 1 KB, 1);
+        ZSTD_frameHeader lgHeader;
+        ZSTD_frameHeader smHeader;
+
+        CHECK_Z(ZSTD_compress_usingCDict(cctx, compressedBuffer, compressedBufferSize, CNBuffer, size, lgCDict));
+        CHECK_Z(ZSTD_getFrameHeader(&lgHeader, compressedBuffer, compressedBufferSize));
+        CHECK_Z(ZSTD_compress_usingCDict(cctx, compressedBuffer, compressedBufferSize, CNBuffer, size, smCDict));
+        CHECK_Z(ZSTD_getFrameHeader(&smHeader, compressedBuffer, compressedBufferSize));
+
+        if (lgHeader.windowSize != smHeader.windowSize) goto _output_error;
+
+        ZSTD_freeCDict(smCDict);
+        ZSTD_freeCDict(lgCDict);
+        ZSTD_freeCCtx(cctx);
+    }
+
 _end:
     free(CNBuffer);
     free(compressedBuffer);

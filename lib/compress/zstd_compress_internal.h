@@ -58,11 +58,6 @@ typedef struct {
 } ZSTD_entropyCTables_t;
 
 typedef struct {
-  ZSTD_entropyCTables_t entropy;
-  U32 rep[ZSTD_REP_NUM];
-} ZSTD_blockState_t;
-
-typedef struct {
     U32 off;
     U32 len;
 } ZSTD_match_t;
@@ -98,7 +93,12 @@ typedef struct {
 } optState_t;
 
 typedef struct {
-    BYTE const* nextSrc;    /* next block here to continue on current prefix */ /* TODO: Does this belong here? */
+  ZSTD_entropyCTables_t entropy;
+  U32 rep[ZSTD_REP_NUM];
+} ZSTD_compressedBlockState_t;
+
+typedef struct {
+    BYTE const* nextSrc;    /* next block here to continue on current prefix */
     BYTE const* base;       /* All regular indexes relative to this position */
     BYTE const* dictBase;   /* extDict indexes relative to this position */
     U32 dictLimit;          /* below that point, need extDict */
@@ -106,12 +106,18 @@ typedef struct {
     U32 nextToUpdate;       /* index from which to continue table update */
     U32 nextToUpdate3;      /* index from which to continue table update */
     U32 hashLog3;           /* dispatch table : larger == faster, more memory */
-    U32 loadedDictEnd;      /* index of end of dictionary */                    /* TODO: Does this belong here? */
+    U32 loadedDictEnd;      /* index of end of dictionary */
     U32* hashTable;
     U32* hashTable3;
     U32* chainTable;
     optState_t opt;         /* optimal parser state */
 } ZSTD_matchState_t;
+
+typedef struct {
+    ZSTD_compressedBlockState_t* prevCBlock;
+    ZSTD_compressedBlockState_t* nextCBlock;
+    ZSTD_matchState_t matchState;
+} ZSTD_blockState_t;
 
 typedef struct {
     U32 offset;
@@ -171,9 +177,7 @@ struct ZSTD_CCtx_s {
 
     seqStore_t seqStore;    /* sequences storage ptrs */
     ldmState_t ldmState;    /* long distance matching state */
-    ZSTD_matchState_t matchState;
-    ZSTD_blockState_t* prevBlock;
-    ZSTD_blockState_t* nextBlock;
+    ZSTD_blockState_t blockState;
     U32* entropyWorkspace;  /* entropy workspace of HUF_WORKSPACE_SIZE bytes */
 
     /* streaming */
@@ -202,7 +206,7 @@ struct ZSTD_CCtx_s {
 
 
 typedef size_t (*ZSTD_blockCompressor) (
-        ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
+        ZSTD_matchState_t* bs, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize);
 ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, int extDict);
 

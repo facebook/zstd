@@ -204,6 +204,7 @@ ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem)
 
 ZSTD_DCtx* ZSTD_createDCtx(void)
 {
+    DEBUGLOG(3, "ZSTD_createDCtx");
     return ZSTD_createDCtx_advanced(ZSTD_defaultCMem);
 }
 
@@ -2247,6 +2248,7 @@ size_t ZSTD_decompress_usingDDict(ZSTD_DCtx* dctx,
 
 ZSTD_DStream* ZSTD_createDStream(void)
 {
+    DEBUGLOG(3, "ZSTD_createDStream");
     return ZSTD_createDStream_advanced(ZSTD_defaultCMem);
 }
 
@@ -2273,6 +2275,7 @@ size_t ZSTD_DStreamOutSize(void) { return ZSTD_BLOCKSIZE_MAX; }
 
 size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t dictSize)
 {
+    DEBUGLOG(4, "ZSTD_initDStream_usingDict");
     zds->streamStage = zdss_loadHeader;
     zds->lhSize = zds->inPos = zds->outStart = zds->outEnd = 0;
     ZSTD_freeDDict(zds->ddictLocal);
@@ -2289,6 +2292,7 @@ size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t di
 /* note : this variant can't fail */
 size_t ZSTD_initDStream(ZSTD_DStream* zds)
 {
+    DEBUGLOG(4, "ZSTD_initDStream");
     return ZSTD_initDStream_usingDict(zds, NULL, 0);
 }
 
@@ -2304,6 +2308,7 @@ size_t ZSTD_initDStream_usingDDict(ZSTD_DStream* zds, const ZSTD_DDict* ddict)
 
 size_t ZSTD_resetDStream(ZSTD_DStream* zds)
 {
+    DEBUGLOG(4, "ZSTD_resetDStream");
     zds->streamStage = zdss_loadHeader;
     zds->lhSize = zds->inPos = zds->outStart = zds->outEnd = 0;
     zds->legacyVersion = 0;

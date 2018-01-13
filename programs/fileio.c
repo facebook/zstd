@@ -828,7 +828,7 @@ finish:
     /* Status */
     DISPLAYLEVEL(2, "\r%79s\r", "");
     DISPLAYLEVEL(2,"%-20s :%6.2f%%   (%6llu => %6llu bytes, %s) \n", srcFileName,
-        (double)compressedfilesize/(readsize+(!readsize) /* avoid div by zero */ )*100,
+        (double)compressedfilesize / (readsize+(!readsize)/*avoid div by zero*/) * 100,
         (unsigned long long)readsize, (unsigned long long) compressedfilesize,
          dstFileName);
 

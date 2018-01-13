@@ -19,11 +19,19 @@ void ZSTD_fillHashTable (ZSTD_CCtx* zc, const void* end, const U32 mls)
     const BYTE* const base = zc->base;
     const BYTE* ip = base + zc->nextToUpdate;
     const BYTE* const iend = ((const BYTE*)end) - HASH_READ_SIZE;
-    const size_t fastHashFillStep = 3;
+    const U32 fastHashFillStep = 3;
 
-    while(ip <= iend) {
-        hashTable[ZSTD_hashPtr(ip, hBits, mls)] = (U32)(ip - base);
-        ip += fastHashFillStep;
+    /* Always insert every fastHashFillStep position into the hash table.
+     * Insert the other positions if their hash entry is empty.
+     */
+    for (; ip + fastHashFillStep - 1 <= iend; ip += fastHashFillStep) {
+        U32 const current = (U32)(ip - base);
+        U32 i;
+        for (i = 0; i < fastHashFillStep; ++i) {
+            size_t const hash = ZSTD_hashPtr(ip + i, hBits, mls);
+            if (i == 0 || hashTable[hash] == 0)
+                hashTable[hash] = current + i;
+        }
     }
 }
 

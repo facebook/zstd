@@ -292,15 +292,23 @@ ifneq (,$(filter $(shell uname),SunOS))
 DIFF:=gdiff
 endif
 
+.PHONY: list
+list:
+	@$(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null | awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' | sort | egrep -v -e '^[^[:alnum:]]' -e '^$@$$' | xargs
+
+.PHONY: zstd-playTests
 zstd-playTests: datagen
 	file $(ZSTD)
 	ZSTD="$(QEMU_SYS) $(ZSTD)" ./playTests.sh $(ZSTDRTTEST)
 
+.PHONY: shortest
 shortest: ZSTDRTTEST=
 shortest: test-zstd
 
+.PHONY: fuzztest
 fuzztest: test-fuzzer test-zstream test-decodecorpus
 
+.PHONY: test
 test: test-zstd test-fullbench test-fuzzer test-zstream test-invalidDictionaries test-legacy test-decodecorpus
 ifeq ($(QEMU_SYS),)
 test: test-pool

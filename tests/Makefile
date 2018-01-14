@@ -218,8 +218,7 @@ longmatch  : $(ZSTD_OBJECTS) longmatch.c
 invalidDictionaries : $(ZSTD_OBJECTS) invalidDictionaries.c
 	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
-legacy : CFLAGS+= -DZSTD_LEGACY_SUPPORT=4
-legacy : CPPFLAGS+= -I$(ZSTDDIR)/legacy
+legacy : CPPFLAGS += -I$(ZSTDDIR)/legacy -DZSTD_LEGACY_SUPPORT=4
 legacy : $(ZSTD_FILES) $(wildcard $(ZSTDDIR)/legacy/*.c) legacy.c
 	$(CC) $(FLAGS) $^ -o $@$(EXT)
 

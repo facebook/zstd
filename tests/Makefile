@@ -82,6 +82,8 @@ all: fullbench fuzzer zstreamtest paramgrill datagen decodecorpus roundTripCrash
 
 all32: fullbench32 fuzzer32 zstreamtest32
 
+allnothread: MULTITHREAD_CPP=
+allnothread: MULTITHREAD_LD=
 allnothread: fullbench fuzzer paramgrill datagen decodecorpus
 
 dll: fuzzer-dll zstreamtest-dll

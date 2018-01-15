@@ -22,6 +22,13 @@ ADD_ZSTD_COMPILATION_FLAGS()
 ADD_DEFINITIONS(-DXXH_NAMESPACE=ZSTD_)
 
 #-----------------------------------------------------------------------------
+# Installation variables
+#-----------------------------------------------------------------------------
+SET(INSTALL_LIB_DIR "lib" CACHE STRING "Directory name for libraries")
+MESSAGE(STATUS "CMAKE_INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}")
+MESSAGE(STATUS "INSTALL_LIB_DIR: ${INSTALL_LIB_DIR}")
+
+#-----------------------------------------------------------------------------
 # Options
 #-----------------------------------------------------------------------------
 OPTION(ZSTD_LEGACY_SUPPORT "LEGACY SUPPORT" OFF)

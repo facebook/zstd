@@ -228,8 +228,6 @@ typedef struct {
     BYTE* ofCode;
     U32   longLengthID;   /* 0 == no longLength; 1 == Lit.longLength; 2 == Match.longLength; */
     U32   longLengthPos;
-    U32   rep[ZSTD_REP_NUM];
-    U32   repToConfirm[ZSTD_REP_NUM];
 } seqStore_t;
 
 const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx);   /* compress & dictBuilder */

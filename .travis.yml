@@ -8,6 +8,7 @@ matrix:
     # Ubuntu 14.04
     - env: Cmd='make gcc6install && CC=gcc-6 make clean uasan-test-zstd'
     - env: Cmd='make gcc6install libc6install && CC=gcc-6 make clean uasan-test-zstd32'
+    - env: Cmd='make gcc7install && CC=gcc-7 make clean uasan-test-zstd'
     - env: Cmd='make clang38install && CC=clang-3.8 make clean msan-test-zstd'
 
     - env: Cmd='make gcc6install && CC=gcc-6 make clean uasan-fuzztest'
@@ -25,6 +26,10 @@ matrix:
     - env: Cmd='make -j msanregressiontest'
 
     - env: Cmd='make lz4install && make -C tests test-lz4'
+
+    # tag-specific test
+    - if: tag =~ ^v[0-9]\.[0-9]
+      env: Cmd='make -C tests checkTag && tests/checkTag $TRAVIS_BRANCH'
 
 git:
   depth: 1

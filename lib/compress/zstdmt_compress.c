@@ -346,7 +346,7 @@ void ZSTDMT_compressChunk(void* jobDescription)
         assert(job->firstChunk);  /* only allowed for first job */
         if (ZSTD_isError(initError)) { job->cSize = initError; goto _endJob; }
     } else {  /* srcStart points at reloaded section */
-        U64 const pledgedSrcSize = job->firstChunk ? job->fullFrameSize : ZSTD_CONTENTSIZE_UNKNOWN;
+        U64 const pledgedSrcSize = job->firstChunk ? job->fullFrameSize : job->srcSize;
         ZSTD_CCtx_params jobParams = job->params;   /* do not modify job->params ! copy it, modify the copy */
         {   size_t const forceWindowError = ZSTD_CCtxParam_setParameter(&jobParams, ZSTD_p_forceMaxWindow, !job->firstChunk);
             if (ZSTD_isError(forceWindowError)) {
@@ -355,7 +355,7 @@ void ZSTDMT_compressChunk(void* jobDescription)
         }   }
         {   size_t const initError = ZSTD_compressBegin_advanced_internal(cctx,
                                         job->srcStart, job->prefixSize, ZSTD_dm_rawContent, /* load dictionary in "content-only" mode (no header analysis) */
-                                        NULL,
+                                        NULL, /*cdict*/
                                         jobParams, pledgedSrcSize);
             if (ZSTD_isError(initError)) {
                 job->cSize = initError;
@@ -404,8 +404,8 @@ void ZSTDMT_compressChunk(void* jobDescription)
             if (ZSTD_isError(cSize)) { job->cSize = cSize; goto _endJob; }
             /* stats */
             job->cSize += cSize;
-            job->readSize = job->srcSize;
         }
+        job->readSize = job->srcSize;
     }
 #endif
 

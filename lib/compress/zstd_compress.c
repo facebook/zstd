@@ -1962,7 +1962,8 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* cctx,
 {
     size_t fhSize = 0;
 
-    DEBUGLOG(5, "ZSTD_compressContinue_internal, stage: %u", cctx->stage);
+    DEBUGLOG(5, "ZSTD_compressContinue_internal, stage: %u, srcSize: %u",
+                cctx->stage, (U32)srcSize);
     if (cctx->stage==ZSTDcs_created) return ERROR(stage_wrong);   /* missing init (ZSTD_compressBegin) */
 
     if (frame && (cctx->stage==ZSTDcs_init)) {

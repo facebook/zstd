@@ -23,6 +23,7 @@ decodecorpus
 pool
 poolTests
 invalidDictionaries
+checkTag
 
 # Tmp test directory
 zstdtest

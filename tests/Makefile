@@ -98,7 +98,7 @@ zstd-nolegacy:
 	$(MAKE) -C $(PRGDIR) $@ MOREFLAGS+="$(DEBUGFLAGS)"
 
 gzstd:
-	$(MAKE) -C $(PRGDIR) zstd HAVE_ZLIB=1 MOREFLAGS="$(DEBUGFLAGS)"
+	$(MAKE) -C $(PRGDIR) zstd HAVE_ZLIB=1 MOREFLAGS+="$(DEBUGFLAGS)"
 
 .PHONY:
 zstd-dll :

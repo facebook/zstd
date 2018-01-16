@@ -1243,6 +1243,7 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double comp
             maxTestSize = FUZ_randomLength(&lseed, oldTestLog+2);
             if (maxTestSize >= srcBufferSize) maxTestSize = srcBufferSize-1;
             {   int const compressionLevel = (FUZ_rand(&lseed) % 5) + 1;
+                DISPLAYLEVEL(5, "Init with compression level = %i \n", compressionLevel);
                 CHECK_Z( ZSTDMT_initCStream(zc, compressionLevel) );
             }
         } else {
@@ -1301,9 +1302,12 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double comp
                 if ((FUZ_rand(&lseed) & 15) == 0) {
                     size_t const randomDstSize = FUZ_randomLength(&lseed, maxSampleLog);
                     size_t const adjustedDstSize = MIN(cBufferSize - cSize, randomDstSize);
+                    size_t const previousPos = outBuff.pos;
                     outBuff.size = outBuff.pos + adjustedDstSize;
                     DISPLAYLEVEL(5, "Flushing into dst buffer of size %u \n", (U32)adjustedDstSize);
                     CHECK_Z( ZSTDMT_flushStream(zc, &outBuff) );
+                    assert(outBuff.pos >= previousPos);
+                    DISPLAYLEVEL(6, "%u bytes flushed by ZSTDMT_flushStream \n", (U32)(outBuff.pos-previousPos));
             }   }
 
             /* final frame epilogue */
@@ -1311,10 +1315,13 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double comp
                 while (remainingToFlush) {
                     size_t const randomDstSize = FUZ_randomLength(&lseed, maxSampleLog);
                     size_t const adjustedDstSize = MIN(cBufferSize - cSize, randomDstSize);
+                    size_t const previousPos = outBuff.pos;
                     outBuff.size = outBuff.pos + adjustedDstSize;
                     DISPLAYLEVEL(5, "Ending into dst buffer of size %u \n", (U32)adjustedDstSize);
                     remainingToFlush = ZSTDMT_endStream(zc, &outBuff);
                     CHECK (ZSTD_isError(remainingToFlush), "ZSTDMT_endStream error : %s", ZSTD_getErrorName(remainingToFlush));
+                    assert(outBuff.pos >= previousPos);
+                    DISPLAYLEVEL(6, "%u bytes flushed by ZSTDMT_endStream \n", (U32)(outBuff.pos-previousPos));
                     DISPLAYLEVEL(5, "endStream : remainingToFlush : %u \n", (U32)remainingToFlush);
             }   }
             crcOrig = XXH64_digest(&xxhState);

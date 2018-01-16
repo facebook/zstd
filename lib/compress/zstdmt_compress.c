@@ -365,11 +365,12 @@ void ZSTDMT_compressChunk(void* jobDescription)
     if (!job->firstChunk) {  /* flush and overwrite frame header when it's not first job */
         size_t const hSize = ZSTD_compressContinue(cctx, dstBuff.start, dstBuff.size, src, 0);
         if (ZSTD_isError(hSize)) { job->cSize = hSize; /* save error code */ goto _endJob; }
+        DEBUGLOG(5, "ZSTDMT_compressChunk: flush and overwrite %u bytes of frame header (not first chunk)", (U32)hSize);
         ZSTD_invalidateRepCodes(cctx);
     }
 
     /* compress */
-#if 1
+#if 0
     job->cSize = (job->lastChunk) ?
                  ZSTD_compressEnd     (cctx, dstBuff.start, dstBuff.size, src, job->srcSize) :
                  ZSTD_compressContinue(cctx, dstBuff.start, dstBuff.size, src, job->srcSize);
@@ -382,26 +383,28 @@ void ZSTDMT_compressChunk(void* jobDescription)
         BYTE* op = ostart;
         BYTE* oend = op + dstBuff.size;
         int blockNb;
+        DEBUGLOG(5, "ZSTDMT_compressChunk: compress %u bytes in %i blocks", (U32)job->srcSize, nbBlocks);
         job->cSize = 0;
-        for (blockNb = 0; blockNb < nbBlocks-1; blockNb++) {
+        for (blockNb = 1; blockNb < nbBlocks; blockNb++) {
             size_t const cSize = ZSTD_compressContinue(cctx, op, oend-op, ip, ZSTD_BLOCKSIZE_MAX);
             if (ZSTD_isError(cSize)) { job->cSize = cSize; goto _endJob; }
             ip += ZSTD_BLOCKSIZE_MAX;
             op += cSize; assert(op < oend);
             /* stats */
             job->cSize += cSize;
-            job->readSize = ZSTD_BLOCKSIZE_MAX * (blockNb+1);
+            job->readSize = ZSTD_BLOCKSIZE_MAX * blockNb;
         }
         /* last block */
-        {   size_t const lastBlockSize1 = job->srcSize & (ZSTD_BLOCKSIZE_MAX-1);
-            size_t const lastBlockSize = (lastBlockSize1==0) ? ZSTD_BLOCKSIZE_MAX : lastBlockSize1;
+        if ((nbBlocks > 0) | job->lastChunk /*need to output a "last block" flag*/ ) {
+            size_t const lastBlockSize1 = job->srcSize & (ZSTD_BLOCKSIZE_MAX-1);
+            size_t const lastBlockSize = ((lastBlockSize1==0) & (job->srcSize>=ZSTD_BLOCKSIZE_MAX)) ? ZSTD_BLOCKSIZE_MAX : lastBlockSize1;
             size_t const cSize = (job->lastChunk) ?
                  ZSTD_compressEnd     (cctx, op, oend-op, ip, lastBlockSize) :
                  ZSTD_compressContinue(cctx, op, oend-op, ip, lastBlockSize);
             if (ZSTD_isError(cSize)) { job->cSize = cSize; goto _endJob; }
             /* stats */
             job->cSize += cSize;
-            job->readSize = ZSTD_BLOCKSIZE_MAX * (blockNb+1);
+            job->readSize = job->srcSize;
         }
     }
 #endif
@@ -443,7 +446,7 @@ struct ZSTDMT_CCtx_s {
     size_t targetDictSize;
     inBuff_t inBuff;
     XXH64_state_t xxhState;
-    unsigned singleThreaded;
+    unsigned singleBlockingThread;
     unsigned jobIDMask;
     unsigned doneJobID;
     unsigned nextJobID;
@@ -457,7 +460,7 @@ struct ZSTDMT_CCtx_s {
 
 /* Sets parameters relevant to the compression job, initializing others to
  * default values. Notably, nbThreads should probably be zero. */
-static ZSTD_CCtx_params ZSTDMT_makeJobCCtxParams(ZSTD_CCtx_params const params)
+static ZSTD_CCtx_params ZSTDMT_initJobCCtxParams(ZSTD_CCtx_params const params)
 {
     ZSTD_CCtx_params jobParams;
     memset(&jobParams, 0, sizeof(jobParams));
@@ -646,17 +649,21 @@ size_t ZSTDMT_setMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSTDMT_parameter parameter, 
 /* =====   Multi-threaded compression   ===== */
 /* ------------------------------------------ */
 
-static unsigned computeNbChunks(size_t srcSize, unsigned windowLog, unsigned nbThreads) {
-    size_t const chunkSizeTarget = (size_t)1 << (windowLog + 2);
-    size_t const chunkMaxSize = chunkSizeTarget << 2;
-    size_t const passSizeMax = chunkMaxSize * nbThreads;
-    unsigned const multiplier = (unsigned)(srcSize / passSizeMax) + 1;
-    unsigned const nbChunksLarge = multiplier * nbThreads;
-    unsigned const nbChunksMax = (unsigned)(srcSize / chunkSizeTarget) + 1;
-    unsigned const nbChunksSmall = MIN(nbChunksMax, nbThreads);
-    return (multiplier>1) ? nbChunksLarge : nbChunksSmall;
-}
+static unsigned ZSTDMT_computeNbChunks(size_t srcSize, unsigned windowLog, unsigned nbThreads) {
+    assert(nbThreads>0);
+    {   size_t const chunkSizeTarget = (size_t)1 << (windowLog + 2);
+        size_t const chunkMaxSize = chunkSizeTarget << 2;
+        size_t const passSizeMax = chunkMaxSize * nbThreads;
+        unsigned const multiplier = (unsigned)(srcSize / passSizeMax) + 1;
+        unsigned const nbChunksLarge = multiplier * nbThreads;
+        unsigned const nbChunksMax = (unsigned)(srcSize / chunkSizeTarget) + 1;
+        unsigned const nbChunksSmall = MIN(nbChunksMax, nbThreads);
+        return (multiplier>1) ? nbChunksLarge : nbChunksSmall;
+}   }
 
+/* ZSTDMT_compress_advanced_internal() :
+ * This is a blocking function : it will only give back control to caller after finishing its compression job.
+ */
 static size_t ZSTDMT_compress_advanced_internal(
                 ZSTDMT_CCtx* mtctx,
                 void* dst, size_t dstCapacity,
@@ -664,10 +671,10 @@ static size_t ZSTDMT_compress_advanced_internal(
           const ZSTD_CDict* cdict,
                 ZSTD_CCtx_params const params)
 {
-    ZSTD_CCtx_params const jobParams = ZSTDMT_makeJobCCtxParams(params);
+    ZSTD_CCtx_params const jobParams = ZSTDMT_initJobCCtxParams(params);
     unsigned const overlapRLog = (params.overlapSizeLog>9) ? 0 : 9-params.overlapSizeLog;
     size_t const overlapSize = (overlapRLog>=9) ? 0 : (size_t)1 << (params.cParams.windowLog - overlapRLog);
-    unsigned nbChunks = computeNbChunks(srcSize, params.cParams.windowLog, params.nbThreads);
+    unsigned nbChunks = ZSTDMT_computeNbChunks(srcSize, params.cParams.windowLog, params.nbThreads);
     size_t const proposedChunkSize = (srcSize + (nbChunks-1)) / nbChunks;
     size_t const avgChunkSize = (((proposedChunkSize-1) & 0x1FFFF) < 0x7FFF) ? proposedChunkSize + 0xFFFF : proposedChunkSize;   /* avoid too small last block */
     const char* const srcStart = (const char*)src;
@@ -678,14 +685,16 @@ static size_t ZSTDMT_compress_advanced_internal(
     assert(jobParams.nbThreads == 0);
     assert(mtctx->cctxPool->totalCCtx == params.nbThreads);
 
-    DEBUGLOG(4, "ZSTDMT_compress_advanced_internal: nbChunks=%2u (rawSize=%u bytes; fixedSize=%u)  ",
+    DEBUGLOG(4, "ZSTDMT_compress_advanced_internal: nbChunks=%2u (rawSize=%u bytes; fixedSize=%u) ",
                 nbChunks, (U32)proposedChunkSize, (U32)avgChunkSize);
-    if (nbChunks==1) {   /* fallback to single-thread mode */
+
+    if ((nbChunks==1) | (params.nbThreads<=1)) {   /* fallback to single-thread mode : this is a blocking invocation anyway */
         ZSTD_CCtx* const cctx = mtctx->cctxPool->cctx[0];
         if (cdict) return ZSTD_compress_usingCDict_advanced(cctx, dst, dstCapacity, src, srcSize, cdict, jobParams.fParams);
         return ZSTD_compress_advanced_internal(cctx, dst, dstCapacity, src, srcSize, NULL, 0, jobParams);
     }
-    assert(avgChunkSize >= 256 KB);  /* condition for ZSTD_compressBound(A) + ZSTD_compressBound(B) <= ZSTD_compressBound(A+B), which is required for compressWithinDst */
+
+    assert(avgChunkSize >= 256 KB);  /* condition for ZSTD_compressBound(A) + ZSTD_compressBound(B) <= ZSTD_compressBound(A+B), required to compress directly into Dst (no additional buffer) */
     ZSTDMT_setBufferSize(mtctx->bufPool, ZSTD_compressBound(avgChunkSize) );
     XXH64_reset(&xxh64, 0);
 
@@ -695,6 +704,7 @@ static size_t ZSTDMT_compress_advanced_internal(
         mtctx->jobIDMask = 0;
         mtctx->jobs = ZSTDMT_allocJobsTable(&nbJobs, mtctx->cMem);
         if (mtctx->jobs==NULL) return ERROR(memory_allocation);
+        assert((nbJobs != 0) && ((nbJobs & (nbJobs - 1)) == 0));  /* ensure nbJobs is a power of 2 */
         mtctx->jobIDMask = nbJobs - 1;
     }
 
@@ -827,10 +837,10 @@ size_t ZSTDMT_initCStream_internal(
     assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
     assert(!((dict) && (cdict)));  /* either dict or cdict, not both */
     assert(zcs->cctxPool->totalCCtx == params.nbThreads);
-    zcs->singleThreaded = (params.nbThreads==1) | (pledgedSrcSize <= ZSTDMT_JOBSIZE_MIN);  /* do not trigger multi-threading when srcSize is too small */
+    zcs->singleBlockingThread = pledgedSrcSize <= ZSTDMT_JOBSIZE_MIN;  /* do not trigger multi-threading when srcSize is too small */
 
-    if (zcs->singleThreaded) {
-        ZSTD_CCtx_params const singleThreadParams = ZSTDMT_makeJobCCtxParams(params);
+    if (zcs->singleBlockingThread) {
+        ZSTD_CCtx_params const singleThreadParams = ZSTDMT_initJobCCtxParams(params);
         DEBUGLOG(4, "single thread mode");
         assert(singleThreadParams.nbThreads == 0);
         return ZSTD_initCStream_internal(zcs->cctxPool->cctx[0],
@@ -921,10 +931,11 @@ size_t ZSTDMT_resetCStream(ZSTDMT_CCtx* zcs, unsigned long long pledgedSrcSize)
 }
 
 size_t ZSTDMT_initCStream(ZSTDMT_CCtx* zcs, int compressionLevel) {
-    ZSTD_parameters const params = ZSTD_getParams(compressionLevel, 0, 0);
+    ZSTD_parameters const params = ZSTD_getParams(compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, 0);
     ZSTD_CCtx_params cctxParams = zcs->params;
     cctxParams.cParams = params.cParams;
     cctxParams.fParams = params.fParams;
+    DEBUGLOG(4, "ZSTDMT_initCStream (cLevel=%i)", compressionLevel);
     return ZSTDMT_initCStream_internal(zcs, NULL, 0, ZSTD_dm_auto, NULL, cctxParams, ZSTD_CONTENTSIZE_UNKNOWN);
 }
 
@@ -1071,7 +1082,7 @@ size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
     assert(output->pos <= output->size);
     assert(input->pos  <= input->size);
 
-    if (mtctx->singleThreaded) {  /* delegate to single-thread (synchronous) */
+    if (mtctx->singleBlockingThread) {  /* delegate to single-thread (synchronous) */
         return ZSTD_compressStream_generic(mtctx->cctxPool->cctx[0], output, input, endOp);
     }
 
@@ -1166,7 +1177,7 @@ static size_t ZSTDMT_flushStream_internal(ZSTDMT_CCtx* mtctx, ZSTD_outBuffer* ou
 size_t ZSTDMT_flushStream(ZSTDMT_CCtx* mtctx, ZSTD_outBuffer* output)
 {
     DEBUGLOG(5, "ZSTDMT_flushStream");
-    if (mtctx->singleThreaded)
+    if (mtctx->singleBlockingThread)
         return ZSTD_flushStream(mtctx->cctxPool->cctx[0], output);
     return ZSTDMT_flushStream_internal(mtctx, output, 0 /* endFrame */);
 }
@@ -1174,7 +1185,7 @@ size_t ZSTDMT_flushStream(ZSTDMT_CCtx* mtctx, ZSTD_outBuffer* output)
 size_t ZSTDMT_endStream(ZSTDMT_CCtx* mtctx, ZSTD_outBuffer* output)
 {
     DEBUGLOG(4, "ZSTDMT_endStream");
-    if (mtctx->singleThreaded)
+    if (mtctx->singleBlockingThread)
         return ZSTD_endStream(mtctx->cctxPool->cctx[0], output);
     return ZSTDMT_flushStream_internal(mtctx, output, 1 /* endFrame */);
 }

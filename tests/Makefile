@@ -82,6 +82,8 @@ all: fullbench fuzzer zstreamtest paramgrill datagen decodecorpus roundTripCrash
 
 all32: fullbench32 fuzzer32 zstreamtest32
 
+allnothread: MULTITHREAD_CPP=
+allnothread: MULTITHREAD_LD=
 allnothread: fullbench fuzzer paramgrill datagen decodecorpus
 
 dll: fuzzer-dll zstreamtest-dll
@@ -96,7 +98,7 @@ zstd-nolegacy:
 	$(MAKE) -C $(PRGDIR) $@ MOREFLAGS+="$(DEBUGFLAGS)"
 
 gzstd:
-	$(MAKE) -C $(PRGDIR) zstd HAVE_ZLIB=1 MOREFLAGS="$(DEBUGFLAGS)"
+	$(MAKE) -C $(PRGDIR) zstd HAVE_ZLIB=1 MOREFLAGS+="$(DEBUGFLAGS)"
 
 .PHONY:
 zstd-dll :
@@ -216,8 +218,7 @@ longmatch  : $(ZSTD_OBJECTS) longmatch.c
 invalidDictionaries : $(ZSTD_OBJECTS) invalidDictionaries.c
 	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
-legacy : CFLAGS+= -DZSTD_LEGACY_SUPPORT=4
-legacy : CPPFLAGS+= -I$(ZSTDDIR)/legacy
+legacy : CPPFLAGS += -I$(ZSTDDIR)/legacy -DZSTD_LEGACY_SUPPORT=4
 legacy : $(ZSTD_FILES) $(wildcard $(ZSTDDIR)/legacy/*.c) legacy.c
 	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
@@ -235,8 +236,12 @@ endif
 poolTests : poolTests.c $(ZSTDDIR)/common/pool.c $(ZSTDDIR)/common/threading.c $(ZSTDDIR)/common/zstd_common.c $(ZSTDDIR)/common/error_private.c
 	$(CC) $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
 
+.PHONY: versionsTest
 versionsTest: clean
 	$(PYTHON) test-zstd-versions.py
+
+checkTag: checkTag.c $(ZSTDDIR)/zstd.h
+	$(CC) $(FLAGS) $< -o $@$(EXT)
 
 clean:
 	$(MAKE) -C $(ZSTDDIR) clean
@@ -250,7 +255,7 @@ clean:
         zstreamtest$(EXT) zstreamtest32$(EXT) \
         datagen$(EXT) paramgrill$(EXT) roundTripCrash$(EXT) longmatch$(EXT) \
         symbols$(EXT) invalidDictionaries$(EXT) legacy$(EXT) poolTests$(EXT) \
-        decodecorpus$(EXT)
+        decodecorpus$(EXT) checkTag$(EXT)
 	@echo Cleaning completed
 
 
@@ -292,15 +297,23 @@ ifneq (,$(filter $(shell uname),SunOS))
 DIFF:=gdiff
 endif
 
+.PHONY: list
+list:
+	@$(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null | awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' | sort | egrep -v -e '^[^[:alnum:]]' -e '^$@$$' | xargs
+
+.PHONY: zstd-playTests
 zstd-playTests: datagen
 	file $(ZSTD)
 	ZSTD="$(QEMU_SYS) $(ZSTD)" ./playTests.sh $(ZSTDRTTEST)
 
+.PHONY: shortest
 shortest: ZSTDRTTEST=
 shortest: test-zstd
 
+.PHONY: fuzztest
 fuzztest: test-fuzzer test-zstream test-decodecorpus
 
+.PHONY: test
 test: test-zstd test-fullbench test-fuzzer test-zstream test-invalidDictionaries test-legacy test-decodecorpus
 ifeq ($(QEMU_SYS),)
 test: test-pool

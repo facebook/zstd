@@ -236,8 +236,12 @@ endif
 poolTests : poolTests.c $(ZSTDDIR)/common/pool.c $(ZSTDDIR)/common/threading.c $(ZSTDDIR)/common/zstd_common.c $(ZSTDDIR)/common/error_private.c
 	$(CC) $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
 
+.PHONY: versionsTest
 versionsTest: clean
 	$(PYTHON) test-zstd-versions.py
+
+checkTag: checkTag.c $(ZSTDDIR)/zstd.h
+	$(CC) $(FLAGS) $< -o $@$(EXT)
 
 clean:
 	$(MAKE) -C $(ZSTDDIR) clean
@@ -251,7 +255,7 @@ clean:
         zstreamtest$(EXT) zstreamtest32$(EXT) \
         datagen$(EXT) paramgrill$(EXT) roundTripCrash$(EXT) longmatch$(EXT) \
         symbols$(EXT) invalidDictionaries$(EXT) legacy$(EXT) poolTests$(EXT) \
-        decodecorpus$(EXT)
+        decodecorpus$(EXT) checkTag$(EXT)
 	@echo Cleaning completed
 
 

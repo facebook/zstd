@@ -11,6 +11,7 @@ PROJECT(zstd)
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.9)
 SET(ZSTD_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../..")
 LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules")
+INCLUDE(GNUInstallDirs)
 
 #-----------------------------------------------------------------------------
 # Add extra compilation flags
@@ -20,6 +21,12 @@ ADD_ZSTD_COMPILATION_FLAGS()
 
 # Always hide XXHash symbols
 ADD_DEFINITIONS(-DXXH_NAMESPACE=ZSTD_)
+
+#-----------------------------------------------------------------------------
+# Installation variables
+#-----------------------------------------------------------------------------
+MESSAGE(STATUS "CMAKE_INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}")
+MESSAGE(STATUS "CMAKE_INSTALL_LIBDIR: ${CMAKE_INSTALL_LIBDIR}")
 
 #-----------------------------------------------------------------------------
 # Options

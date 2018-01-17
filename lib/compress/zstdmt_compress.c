@@ -150,7 +150,9 @@ static void ZSTDMT_setBufferSize(ZSTDMT_bufferPool* const bufPool, size_t const 
 }
 
 /** ZSTDMT_getBuffer() :
- *  assumption : bufPool must be valid */
+ *  assumption : bufPool must be valid
+ * @return : a buffer, with start pointer and size
+ *  note: allocation may fail, in this case, start==NULL and size==0 */
 static buffer_t ZSTDMT_getBuffer(ZSTDMT_bufferPool* bufPool)
 {
     size_t const bSize = bufPool->bufferSize;
@@ -178,7 +180,11 @@ static buffer_t ZSTDMT_getBuffer(ZSTDMT_bufferPool* bufPool)
         void* const start = ZSTD_malloc(bSize, bufPool->cMem);
         buffer.start = start;   /* note : start can be NULL if malloc fails ! */
         buffer.size = (start==NULL) ? 0 : bSize;
-        DEBUGLOG(5, "ZSTDMT_getBuffer: created buffer of size %u", (U32)bSize);
+        if (start==NULL) {
+            DEBUGLOG(5, "ZSTDMT_getBuffer: buffer allocation failure !!");
+        } else {
+            DEBUGLOG(5, "ZSTDMT_getBuffer: created buffer of size %u", (U32)bSize);
+        }
         return buffer;
     }
 }
@@ -1015,7 +1021,7 @@ static size_t ZSTDMT_createCompressionJob(ZSTDMT_CCtx* zcs, size_t srcSize, unsi
 static size_t ZSTDMT_flushNextJob(ZSTDMT_CCtx* zcs, ZSTD_outBuffer* output, unsigned blockToFlush)
 {
     unsigned const wJobID = zcs->doneJobID & zcs->jobIDMask;
-    DEBUGLOG(5, "ZSTDMT_flushNextJob");
+    DEBUGLOG(5, "ZSTDMT_flushNextJob (blocking:%u)", blockToFlush);
     if (zcs->doneJobID == zcs->nextJobID) return 0;   /* all flushed ! */
     ZSTD_PTHREAD_MUTEX_LOCK(&zcs->jobCompleted_mutex);
     while (zcs->jobs[wJobID].jobCompleted==0) {
@@ -1112,10 +1118,13 @@ size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
     /* fill input buffer */
     if (input->size > input->pos) {   /* support NULL input */
         if (mtctx->inBuff.buffer.start == NULL) {
-            mtctx->inBuff.buffer = ZSTDMT_getBuffer(mtctx->bufPool);  /* note : may fail, in which case, no forward input progress */
+            mtctx->inBuff.buffer = ZSTDMT_getBuffer(mtctx->bufPool);  /* note : allocation can fail, in which case, no forward input progress */
             mtctx->inBuff.filled = 0;
-        }
-        if (mtctx->inBuff.buffer.start) {
+            if ( (mtctx->inBuff.buffer.start == NULL)    /* allocation failure */
+              && (mtctx->doneJobID == mtctx->nextJobID) ) {  /* and nothing to flush */
+                return ERROR(memory_allocation);   /* no forward progress possible => output an error */
+        }   }
+        if (mtctx->inBuff.buffer.start != NULL) {
             size_t const toLoad = MIN(input->size - input->pos, mtctx->inBuffSize - mtctx->inBuff.filled);
             DEBUGLOG(5, "inBuff:%08X;  inBuffSize=%u;  ToCopy=%u", (U32)(size_t)mtctx->inBuff.buffer.start, (U32)mtctx->inBuffSize, (U32)toLoad);
             memcpy((char*)mtctx->inBuff.buffer.start + mtctx->inBuff.filled, (const char*)input->src + input->pos, toLoad);

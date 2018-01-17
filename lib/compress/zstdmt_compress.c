@@ -442,8 +442,8 @@ struct ZSTDMT_CCtx_s {
     ZSTD_CCtx_params params;
     size_t targetSectionSize;
     size_t inBuffSize;
-    size_t dictSize;
-    size_t targetDictSize;
+    size_t prefixSize;
+    size_t targetPrefixSize;
     inBuff_t inBuff;
     XXH64_state_t xxhState;
     unsigned singleBlockingThread;
@@ -841,13 +841,13 @@ size_t ZSTDMT_initCStream_internal(
 
     if (zcs->singleBlockingThread) {
         ZSTD_CCtx_params const singleThreadParams = ZSTDMT_initJobCCtxParams(params);
-        DEBUGLOG(4, "single thread mode");
+        DEBUGLOG(4, "ZSTDMT_initCStream_internal: switch to single blocking thread mode");
         assert(singleThreadParams.nbThreads == 0);
         return ZSTD_initCStream_internal(zcs->cctxPool->cctx[0],
                                          dict, dictSize, cdict,
                                          singleThreadParams, pledgedSrcSize);
     }
-    DEBUGLOG(4, "multi-threading mode (%u threads)", params.nbThreads);
+    DEBUGLOG(4, "ZSTDMT_initCStream_internal: %u threads", params.nbThreads);
 
     if (zcs->allJobsCompleted == 0) {   /* previous compression not correctly finished */
         ZSTDMT_waitForAllJobsCompleted(zcs);
@@ -871,17 +871,17 @@ size_t ZSTDMT_initCStream_internal(
     }
 
     assert(params.overlapSizeLog <= 9);
-    zcs->targetDictSize = (params.overlapSizeLog==0) ? 0 : (size_t)1 << (params.cParams.windowLog - (9 - params.overlapSizeLog));
-    DEBUGLOG(4, "overlapLog=%u => %u KB", params.overlapSizeLog, (U32)(zcs->targetDictSize>>10));
+    zcs->targetPrefixSize = (params.overlapSizeLog==0) ? 0 : (size_t)1 << (params.cParams.windowLog - (9 - params.overlapSizeLog));
+    DEBUGLOG(4, "overlapLog=%u => %u KB", params.overlapSizeLog, (U32)(zcs->targetPrefixSize>>10));
     zcs->targetSectionSize = params.jobSize ? params.jobSize : (size_t)1 << (params.cParams.windowLog + 2);
     if (zcs->targetSectionSize < ZSTDMT_JOBSIZE_MIN) zcs->targetSectionSize = ZSTDMT_JOBSIZE_MIN;
-    if (zcs->targetSectionSize < zcs->targetDictSize) zcs->targetSectionSize = zcs->targetDictSize;  /* job size must be >= overlap size */
+    if (zcs->targetSectionSize < zcs->targetPrefixSize) zcs->targetSectionSize = zcs->targetPrefixSize;  /* job size must be >= overlap size */
     DEBUGLOG(4, "Job Size : %u KB (note : set to %u)", (U32)(zcs->targetSectionSize>>10), params.jobSize);
-    zcs->inBuffSize = zcs->targetDictSize + zcs->targetSectionSize;
+    zcs->inBuffSize = zcs->targetPrefixSize + zcs->targetSectionSize;
     DEBUGLOG(4, "inBuff Size : %u KB", (U32)(zcs->inBuffSize>>10));
     ZSTDMT_setBufferSize(zcs->bufPool, MAX(zcs->inBuffSize, ZSTD_compressBound(zcs->targetSectionSize)) );
     zcs->inBuff.buffer = g_nullBuffer;
-    zcs->dictSize = 0;
+    zcs->prefixSize = 0;
     zcs->doneJobID = 0;
     zcs->nextJobID = 0;
     zcs->frameEnded = 0;
@@ -895,8 +895,8 @@ size_t ZSTDMT_initCStream_advanced(ZSTDMT_CCtx* mtctx,
                                    ZSTD_parameters params,
                                    unsigned long long pledgedSrcSize)
 {
-    ZSTD_CCtx_params cctxParams = mtctx->params;
-    DEBUGLOG(5, "ZSTDMT_initCStream_advanced (pledgedSrcSize=%u)", (U32)pledgedSrcSize);
+    ZSTD_CCtx_params cctxParams = mtctx->params;  /* retrieve sticky params */
+    DEBUGLOG(4, "ZSTDMT_initCStream_advanced (pledgedSrcSize=%u)", (U32)pledgedSrcSize);
     cctxParams.cParams = params.cParams;
     cctxParams.fParams = params.fParams;
     return ZSTDMT_initCStream_internal(mtctx, dict, dictSize, ZSTD_dm_auto, NULL,
@@ -909,9 +909,9 @@ size_t ZSTDMT_initCStream_usingCDict(ZSTDMT_CCtx* mtctx,
                                      unsigned long long pledgedSrcSize)
 {
     ZSTD_CCtx_params cctxParams = mtctx->params;
+    if (cdict==NULL) return ERROR(dictionary_wrong);   /* method incompatible with NULL cdict */
     cctxParams.cParams = ZSTD_getCParamsFromCDict(cdict);
     cctxParams.fParams = fParams;
-    if (cdict==NULL) return ERROR(dictionary_wrong);   /* method incompatible with NULL cdict */
     return ZSTDMT_initCStream_internal(mtctx, NULL, 0 /*dictSize*/, ZSTD_dm_auto, cdict,
                                        cctxParams, pledgedSrcSize);
 }
@@ -932,10 +932,10 @@ size_t ZSTDMT_resetCStream(ZSTDMT_CCtx* zcs, unsigned long long pledgedSrcSize)
 
 size_t ZSTDMT_initCStream(ZSTDMT_CCtx* zcs, int compressionLevel) {
     ZSTD_parameters const params = ZSTD_getParams(compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, 0);
-    ZSTD_CCtx_params cctxParams = zcs->params;
+    ZSTD_CCtx_params cctxParams = zcs->params;   /* retrieve sticky params */
+    DEBUGLOG(4, "ZSTDMT_initCStream (cLevel=%i)", compressionLevel);
     cctxParams.cParams = params.cParams;
     cctxParams.fParams = params.fParams;
-    DEBUGLOG(4, "ZSTDMT_initCStream (cLevel=%i)", compressionLevel);
     return ZSTDMT_initCStream_internal(zcs, NULL, 0, ZSTD_dm_auto, NULL, cctxParams, ZSTD_CONTENTSIZE_UNKNOWN);
 }
 
@@ -945,13 +945,13 @@ static size_t ZSTDMT_createCompressionJob(ZSTDMT_CCtx* zcs, size_t srcSize, unsi
     unsigned const jobID = zcs->nextJobID & zcs->jobIDMask;
 
     DEBUGLOG(5, "ZSTDMT_createCompressionJob: preparing job %u to compress %u bytes with %u preload ",
-                zcs->nextJobID, (U32)srcSize, (U32)zcs->dictSize);
+                zcs->nextJobID, (U32)srcSize, (U32)zcs->prefixSize);
     zcs->jobs[jobID].src = zcs->inBuff.buffer;
     zcs->jobs[jobID].srcStart = zcs->inBuff.buffer.start;
     zcs->jobs[jobID].srcSize = srcSize;
     zcs->jobs[jobID].readSize = 0;
-    zcs->jobs[jobID].prefixSize = zcs->dictSize;
-    assert(zcs->inBuff.filled >= srcSize + zcs->dictSize);
+    zcs->jobs[jobID].prefixSize = zcs->prefixSize;
+    assert(zcs->inBuff.filled >= srcSize + zcs->prefixSize);
     zcs->jobs[jobID].params = zcs->params;
     /* do not calculate checksum within sections, but write it in header for first section */
     if (zcs->nextJobID) zcs->jobs[jobID].params.fParams.checksumFlag = 0;
@@ -968,11 +968,11 @@ static size_t ZSTDMT_createCompressionJob(ZSTDMT_CCtx* zcs, size_t srcSize, unsi
     zcs->jobs[jobID].jobCompleted_cond = &zcs->jobCompleted_cond;
 
     if (zcs->params.fParams.checksumFlag)
-        XXH64_update(&zcs->xxhState, (const char*)zcs->inBuff.buffer.start + zcs->dictSize, srcSize);
+        XXH64_update(&zcs->xxhState, (const char*)zcs->inBuff.buffer.start + zcs->prefixSize, srcSize);
 
     /* get a new buffer for next input */
     if (!endFrame) {
-        size_t const newDictSize = MIN(srcSize + zcs->dictSize, zcs->targetDictSize);
+        size_t const newPrefixSize = MIN(srcSize + zcs->prefixSize, zcs->targetPrefixSize);
         zcs->inBuff.buffer = ZSTDMT_getBuffer(zcs->bufPool);
         if (zcs->inBuff.buffer.start == NULL) {   /* not enough memory to allocate next input buffer */
             zcs->jobs[jobID].jobCompleted = 1;
@@ -981,15 +981,15 @@ static size_t ZSTDMT_createCompressionJob(ZSTDMT_CCtx* zcs, size_t srcSize, unsi
             ZSTDMT_releaseAllJobResources(zcs);
             return ERROR(memory_allocation);
         }
-        zcs->inBuff.filled -= srcSize + zcs->dictSize - newDictSize;
+        zcs->inBuff.filled -= srcSize + zcs->prefixSize - newPrefixSize;
         memmove(zcs->inBuff.buffer.start,
-            (const char*)zcs->jobs[jobID].srcStart + zcs->dictSize + srcSize - newDictSize,
+            (const char*)zcs->jobs[jobID].srcStart + zcs->prefixSize + srcSize - newPrefixSize,
             zcs->inBuff.filled);
-        zcs->dictSize = newDictSize;
+        zcs->prefixSize = newPrefixSize;
     } else {   /* if (endFrame==1) */
         zcs->inBuff.buffer = g_nullBuffer;
         zcs->inBuff.filled = 0;
-        zcs->dictSize = 0;
+        zcs->prefixSize = 0;
         zcs->frameEnded = 1;
         if (zcs->nextJobID == 0) {
             /* single chunk exception : checksum is calculated directly within worker thread */
@@ -1028,17 +1028,17 @@ static size_t ZSTDMT_flushNextJob(ZSTDMT_CCtx* zcs, ZSTD_outBuffer* output, unsi
     {   ZSTDMT_jobDescription job = zcs->jobs[wJobID];
         if (!job.jobScanned) {
             if (ZSTD_isError(job.cSize)) {
-                DEBUGLOG(5, "job %u : compression error detected : %s",
+                DEBUGLOG(5, "ZSTDMT_flushNextJob: job %u : compression error detected : %s",
                             zcs->doneJobID, ZSTD_getErrorName(job.cSize));
                 ZSTDMT_waitForAllJobsCompleted(zcs);
                 ZSTDMT_releaseAllJobResources(zcs);
                 return job.cSize;
             }
-            DEBUGLOG(5, "zcs->params.fParams.checksumFlag : %u ", zcs->params.fParams.checksumFlag);
+            DEBUGLOG(5, "ZSTDMT_flushNextJob: zcs->params.fParams.checksumFlag : %u ", zcs->params.fParams.checksumFlag);
             if (zcs->params.fParams.checksumFlag) {
                 if (zcs->frameEnded && (zcs->doneJobID+1 == zcs->nextJobID)) {  /* write checksum at end of last section */
                     U32 const checksum = (U32)XXH64_digest(&zcs->xxhState);
-                    DEBUGLOG(5, "writing checksum : %08X \n", checksum);
+                    DEBUGLOG(5, "ZSTDMT_flushNextJob: writing checksum : %08X \n", checksum);
                     MEM_writeLE32((char*)job.dstBuff.start + job.cSize, checksum);
                     job.cSize += 4;
                     zcs->jobs[wJobID].cSize += 4;
@@ -1046,7 +1046,7 @@ static size_t ZSTDMT_flushNextJob(ZSTDMT_CCtx* zcs, ZSTD_outBuffer* output, unsi
             zcs->jobs[wJobID].jobScanned = 1;
         }
         {   size_t const toWrite = MIN(job.cSize - job.dstFlushed, output->size - output->pos);
-            DEBUGLOG(5, "Flushing %u bytes from job %u ", (U32)toWrite, zcs->doneJobID);
+            DEBUGLOG(5, "ZSTDMT_flushNextJob: Flushing %u bytes from job %u ", (U32)toWrite, zcs->doneJobID);
             memcpy((char*)output->dst + output->pos, (const char*)job.dstBuff.start + job.dstFlushed, toWrite);
             output->pos += toWrite;
             job.dstFlushed += toWrite;
@@ -1076,7 +1076,7 @@ size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
                                      ZSTD_inBuffer* input,
                                      ZSTD_EndDirective endOp)
 {
-    size_t const newJobThreshold = mtctx->dictSize + mtctx->targetSectionSize;
+    size_t const newJobThreshold = mtctx->prefixSize + mtctx->targetSectionSize;
     unsigned forwardInputProgress = 0;
     DEBUGLOG(5, "ZSTDMT_compressStream_generic ");
     assert(output->pos <= output->size);
@@ -1160,7 +1160,7 @@ size_t ZSTDMT_compressStream(ZSTDMT_CCtx* zcs, ZSTD_outBuffer* output, ZSTD_inBu
 
 static size_t ZSTDMT_flushStream_internal(ZSTDMT_CCtx* mtctx, ZSTD_outBuffer* output, unsigned endFrame)
 {
-    size_t const srcSize = mtctx->inBuff.filled - mtctx->dictSize;
+    size_t const srcSize = mtctx->inBuff.filled - mtctx->prefixSize;
     DEBUGLOG(5, "ZSTDMT_flushStream_internal");
 
     if ( ((srcSize > 0) || (endFrame && !mtctx->frameEnded))

@@ -809,21 +809,11 @@ static int FIO_compressFilename_internal(cRess_t ress,
                 compressedfilesize += outBuff.pos;
             }
         }
-        if (g_nbThreads > 1) {
-            if (fileSize == UTIL_FILESIZE_UNKNOWN)
-                DISPLAYUPDATE(2, "\rRead : %u MB", (U32)(readsize>>20))
-            else
-                DISPLAYUPDATE(2, "\rRead : %u / %u MB",
-                                    (U32)(readsize>>20), (U32)(fileSize>>20));
+        if (fileSize == UTIL_FILESIZE_UNKNOWN) {
+            DISPLAYUPDATE(2, "\rRead : %u MB", (U32)(readsize>>20));
         } else {
-            if (fileSize == UTIL_FILESIZE_UNKNOWN)
-                DISPLAYUPDATE(2, "\rRead : %u MB ==> %.2f%%",
-                                (U32)(readsize>>20),
-                                (double)compressedfilesize/readsize*100)
-            else
-                DISPLAYUPDATE(2, "\rRead : %u / %u MB ==> %.2f%%",
-                                (U32)(readsize>>20), (U32)(fileSize>>20),
-                                (double)compressedfilesize/readsize*100);
+            DISPLAYUPDATE(2, "\rRead : %u / %u MB",
+                                (U32)(readsize>>20), (U32)(fileSize>>20));
         }
     } while (directive != ZSTD_e_end);
 

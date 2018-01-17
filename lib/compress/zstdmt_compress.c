@@ -497,7 +497,7 @@ size_t ZSTDMT_CCtxParam_setNbThreads(ZSTD_CCtx_params* params, unsigned nbThread
 /* ZSTDMT_getNbThreads():
  * @return nb threads currently active in mtctx.
  * mtctx must be valid */
-size_t ZSTDMT_getNbThreads(const ZSTDMT_CCtx* mtctx)
+unsigned ZSTDMT_getNbThreads(const ZSTDMT_CCtx* mtctx)
 {
     assert(mtctx != NULL);
     return mtctx->params.nbThreads;

@@ -568,15 +568,17 @@ ZSTDLIB_API ZSTD_CStream* ZSTD_initStaticCStream(void* workspace, size_t workspa
 ZSTDLIB_API ZSTD_DCtx*    ZSTD_initStaticDCtx(void* workspace, size_t workspaceSize);
 ZSTDLIB_API ZSTD_DStream* ZSTD_initStaticDStream(void* workspace, size_t workspaceSize);    /**< same as ZSTD_initStaticDCtx() */
 
-ZSTDLIB_API ZSTD_CDict* ZSTD_initStaticCDict(void* workspace, size_t workspaceSize,
-                                             const void* dict, size_t dictSize,
-                                             ZSTD_dictLoadMethod_e dictLoadMethod,
-                                             ZSTD_dictMode_e dictMode,
-                                             ZSTD_compressionParameters cParams);
+ZSTDLIB_API const ZSTD_CDict* ZSTD_initStaticCDict(
+                                        void* workspace, size_t workspaceSize,
+                                        const void* dict, size_t dictSize,
+                                        ZSTD_dictLoadMethod_e dictLoadMethod,
+                                        ZSTD_dictMode_e dictMode,
+                                        ZSTD_compressionParameters cParams);
 
-ZSTDLIB_API ZSTD_DDict* ZSTD_initStaticDDict(void* workspace, size_t workspaceSize,
-                                             const void* dict, size_t dictSize,
-                                             ZSTD_dictLoadMethod_e dictLoadMethod);
+ZSTDLIB_API const ZSTD_DDict* ZSTD_initStaticDDict(
+                                        void* workspace, size_t workspaceSize,
+                                        const void* dict, size_t dictSize,
+                                        ZSTD_dictLoadMethod_e dictLoadMethod);
 
 /*! Custom memory allocation :
  *  These prototypes make it possible to pass your own allocation/free functions.

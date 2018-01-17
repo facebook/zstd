@@ -2634,7 +2634,8 @@ size_t ZSTD_freeCDict(ZSTD_CDict* cdict)
  *  Note : there is no corresponding "free" function.
  *         Since workspace was allocated externally, it must be freed externally.
  */
-ZSTD_CDict* ZSTD_initStaticCDict(void* workspace, size_t workspaceSize,
+const ZSTD_CDict* ZSTD_initStaticCDict(
+                                 void* workspace, size_t workspaceSize,
                            const void* dict, size_t dictSize,
                                  ZSTD_dictLoadMethod_e dictLoadMethod,
                                  ZSTD_dictMode_e dictMode,

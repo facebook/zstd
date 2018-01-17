@@ -24,7 +24,7 @@ INCLUDE_DIRECTORIES(${LIBRARY_DIR} ${LIBRARY_DIR}/common)
 # Parse version
 INCLUDE(GetZstdLibraryVersion)
 GetZstdLibraryVersion(${LIBRARY_DIR}/zstd.h LIBVER_MAJOR LIBVER_MINOR LIBVER_RELEASE)
-MESSAGE("ZSTD VERSION ${LIBVER_MAJOR}.${LIBVER_MINOR}.${LIBVER_RELEASE}")
+MESSAGE(STATUS "ZSTD VERSION ${LIBVER_MAJOR}.${LIBVER_MINOR}.${LIBVER_RELEASE}")
 
 SET(Sources
         ${LIBRARY_DIR}/common/entropy_common.c
@@ -119,6 +119,17 @@ IF (MSVC)
         SET_PROPERTY(TARGET libzstd_static APPEND PROPERTY COMPILE_DEFINITIONS "ZSTD_HEAPMODE=0;_CRT_SECURE_NO_WARNINGS")
     ENDIF (ZSTD_BUILD_STATIC)
 ENDIF (MSVC)
+
+# Add multi-threading support definitions
+
+IF (ZSTD_MULTITHREAD_SUPPORT)
+    SET_PROPERTY(TARGET libzstd_shared libzstd_static APPEND PROPERTY COMPILE_DEFINITIONS "ZSTD_MULTITHREAD")
+
+    IF (UNIX)
+        TARGET_LINK_LIBRARIES(libzstd_shared ${THREADS_LIBS})
+        TARGET_LINK_LIBRARIES(libzstd_static ${THREADS_LIBS})
+    ENDIF ()
+ENDIF (ZSTD_MULTITHREAD_SUPPORT)
 
 # With MSVC static library needs to be renamed to avoid conflict with import library
 IF (MSVC)

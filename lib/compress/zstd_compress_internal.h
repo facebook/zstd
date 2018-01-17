@@ -150,6 +150,7 @@ struct ZSTD_CCtx_params_s {
 
     /* Multithreading: used to pass parameters to mtctx */
     U32 nbThreads;
+    int nonBlockingMode;      /* will trigger ZSTDMT even with nbThreads==1 */
     unsigned jobSize;
     unsigned overlapSizeLog;
 

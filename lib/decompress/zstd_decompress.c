@@ -1759,7 +1759,7 @@ static int ZSTD_isSkipFrame(ZSTD_DCtx* dctx) { return dctx->stage == ZSTDds_skip
  *            or an error code, which can be tested using ZSTD_isError() */
 size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
-    DEBUGLOG(5, "ZSTD_decompressContinue");
+    DEBUGLOG(5, "ZSTD_decompressContinue (srcSize:%u)", (U32)srcSize);
     /* Sanity check */
     if (srcSize != dctx->expected) return ERROR(srcSize_wrong);  /* not allowed */
     if (dstCapacity) ZSTD_checkContinuity(dctx, dst);
@@ -1820,12 +1820,12 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
 
     case ZSTDds_decompressLastBlock:
     case ZSTDds_decompressBlock:
-        DEBUGLOG(5, "case ZSTDds_decompressBlock");
+        DEBUGLOG(5, "ZSTD_decompressContinue: case ZSTDds_decompressBlock");
         {   size_t rSize;
             switch(dctx->bType)
             {
             case bt_compressed:
-                DEBUGLOG(5, "case bt_compressed");
+                DEBUGLOG(5, "ZSTD_decompressContinue: case bt_compressed");
                 rSize = ZSTD_decompressBlock_internal(dctx, dst, dstCapacity, src, srcSize, /* frame */ 1);
                 break;
             case bt_raw :
@@ -1839,12 +1839,12 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
                 return ERROR(corruption_detected);
             }
             if (ZSTD_isError(rSize)) return rSize;
-            DEBUGLOG(5, "decoded size from block : %u", (U32)rSize);
+            DEBUGLOG(5, "ZSTD_decompressContinue: decoded size from block : %u", (U32)rSize);
             dctx->decodedSize += rSize;
             if (dctx->fParams.checksumFlag) XXH64_update(&dctx->xxhState, dst, rSize);
 
             if (dctx->stage == ZSTDds_decompressLastBlock) {   /* end of frame */
-                DEBUGLOG(4, "decoded size from frame : %u", (U32)dctx->decodedSize);
+                DEBUGLOG(4, "ZSTD_decompressContinue: decoded size from frame : %u", (U32)dctx->decodedSize);
                 if (dctx->fParams.frameContentSize != ZSTD_CONTENTSIZE_UNKNOWN) {
                     if (dctx->decodedSize != dctx->fParams.frameContentSize) {
                         return ERROR(corruption_detected);
@@ -1868,7 +1868,7 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
         assert(srcSize == 4);  /* guaranteed by dctx->expected */
         {   U32 const h32 = (U32)XXH64_digest(&dctx->xxhState);
             U32 const check32 = MEM_readLE32(src);
-            DEBUGLOG(4, "checksum : calculated %08X :: %08X read", h32, check32);
+            DEBUGLOG(4, "ZSTD_decompressContinue: checksum : calculated %08X :: %08X read", h32, check32);
             if (check32 != h32) return ERROR(checksum_wrong);
             dctx->expected = 0;
             dctx->stage = ZSTDds_getFrameHeaderSize;

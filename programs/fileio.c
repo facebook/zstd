@@ -457,6 +457,9 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
         /* multi-threading */
         DISPLAYLEVEL(5,"set nb threads = %u \n", g_nbThreads);
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_nbThreads, g_nbThreads) );
+#ifdef ZSTD_MULTITHREAD
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_nonBlockingMode, 1) );
+#endif
         /* dictionary */
         CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, srcSize) );  /* just for dictionary loading, for compression parameters adaptation */
         CHECK( ZSTD_CCtx_loadDictionary(ress.cctx, dictBuffer, dictBuffSize) );
@@ -806,21 +809,11 @@ static int FIO_compressFilename_internal(cRess_t ress,
                 compressedfilesize += outBuff.pos;
             }
         }
-        if (g_nbThreads > 1) {
-            if (fileSize == UTIL_FILESIZE_UNKNOWN)
-                DISPLAYUPDATE(2, "\rRead : %u MB", (U32)(readsize>>20))
-            else
-                DISPLAYUPDATE(2, "\rRead : %u / %u MB",
-                                    (U32)(readsize>>20), (U32)(fileSize>>20));
+        if (fileSize == UTIL_FILESIZE_UNKNOWN) {
+            DISPLAYUPDATE(2, "\rRead : %u MB", (U32)(readsize>>20));
         } else {
-            if (fileSize == UTIL_FILESIZE_UNKNOWN)
-                DISPLAYUPDATE(2, "\rRead : %u MB ==> %.2f%%",
-                                (U32)(readsize>>20),
-                                (double)compressedfilesize/readsize*100)
-            else
-                DISPLAYUPDATE(2, "\rRead : %u / %u MB ==> %.2f%%",
-                                (U32)(readsize>>20), (U32)(fileSize>>20),
-                                (double)compressedfilesize/readsize*100);
+            DISPLAYUPDATE(2, "\rRead : %u / %u MB",
+                                (U32)(readsize>>20), (U32)(fileSize>>20));
         }
     } while (directive != ZSTD_e_end);
 
@@ -828,7 +821,7 @@ finish:
     /* Status */
     DISPLAYLEVEL(2, "\r%79s\r", "");
     DISPLAYLEVEL(2,"%-20s :%6.2f%%   (%6llu => %6llu bytes, %s) \n", srcFileName,
-        (double)compressedfilesize/(readsize+(!readsize) /* avoid div by zero */ )*100,
+        (double)compressedfilesize / (readsize+(!readsize)/*avoid div by zero*/) * 100,
         (unsigned long long)readsize, (unsigned long long) compressedfilesize,
          dstFileName);
 

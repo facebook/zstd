@@ -85,7 +85,7 @@ ZSTDLIB_API size_t ZSTDMT_initCStream_usingCDict(ZSTDMT_CCtx* mtctx,
  * List of parameters that can be set using ZSTDMT_setMTCtxParameter() */
 typedef enum {
     ZSTDMT_p_jobSize,           /* Each job is compressed in parallel. By default, this value is dynamically determined depending on compression parameters. Can be set explicitly here. */
-    ZSTDMT_p_overlapSectionLog  /* Each job may reload a part of previous job to enhance compressionr ratio; 0 == no overlap, 6(default) == use 1/8th of window, >=9 == use full window */
+    ZSTDMT_p_overlapSectionLog  /* Each job may reload a part of previous job to enhance compressionr ratio; 0 == no overlap, 6(default) == use 1/8th of window, >=9 == use full window. This is a "sticky" parameter : its value will be re-used on next compression job */
 } ZSTDMT_parameter;
 
 /* ZSTDMT_setMTCtxParameter() :
@@ -120,7 +120,7 @@ size_t ZSTDMT_CCtxParam_setNbThreads(ZSTD_CCtx_params* params, unsigned nbThread
 /* ZSTDMT_getNbThreads():
  * @return nb threads currently active in mtctx.
  * mtctx must be valid */
-size_t ZSTDMT_getNbThreads(const ZSTDMT_CCtx* mtctx);
+unsigned ZSTDMT_getNbThreads(const ZSTDMT_CCtx* mtctx);
 
 /*! ZSTDMT_initCStream_internal() :
  *  Private use only. Init streaming operation.

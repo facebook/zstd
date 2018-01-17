@@ -11,6 +11,7 @@
 
 /* ======   Tuning parameters   ====== */
 #define ZSTDMT_NBTHREADS_MAX 200
+#define ZSTDMT_JOBSIZE_MAX  (MEM_32bits() ? (512 MB) : (2 GB))  /* note : limited by `jobSize` type, which is `unsigned` */
 #define ZSTDMT_OVERLAPLOG_DEFAULT 6
 
 
@@ -843,7 +844,14 @@ size_t ZSTDMT_initCStream_internal(
     assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
     assert(!((dict) && (cdict)));  /* either dict or cdict, not both */
     assert(zcs->cctxPool->totalCCtx == params.nbThreads);
-    zcs->singleBlockingThread = pledgedSrcSize <= ZSTDMT_JOBSIZE_MIN;  /* do not trigger multi-threading when srcSize is too small */
+    zcs->singleBlockingThread = (pledgedSrcSize <= ZSTDMT_JOBSIZE_MIN);  /* do not trigger multi-threading when srcSize is too small */
+    if (params.jobSize == 0) {
+        if (params.cParams.windowLog >= 29)
+            params.jobSize = ZSTDMT_JOBSIZE_MAX;
+        else
+            params.jobSize = 1 << (params.cParams.windowLog + 2);
+    }
+    if (params.jobSize > ZSTDMT_JOBSIZE_MAX) params.jobSize = ZSTDMT_JOBSIZE_MAX;
 
     if (zcs->singleBlockingThread) {
         ZSTD_CCtx_params const singleThreadParams = ZSTDMT_initJobCCtxParams(params);
@@ -879,7 +887,7 @@ size_t ZSTDMT_initCStream_internal(
     assert(params.overlapSizeLog <= 9);
     zcs->targetPrefixSize = (params.overlapSizeLog==0) ? 0 : (size_t)1 << (params.cParams.windowLog - (9 - params.overlapSizeLog));
     DEBUGLOG(4, "overlapLog=%u => %u KB", params.overlapSizeLog, (U32)(zcs->targetPrefixSize>>10));
-    zcs->targetSectionSize = params.jobSize ? params.jobSize : (size_t)1 << (params.cParams.windowLog + 2);
+    zcs->targetSectionSize = params.jobSize;
     if (zcs->targetSectionSize < ZSTDMT_JOBSIZE_MIN) zcs->targetSectionSize = ZSTDMT_JOBSIZE_MIN;
     if (zcs->targetSectionSize < zcs->targetPrefixSize) zcs->targetSectionSize = zcs->targetPrefixSize;  /* job size must be >= overlap size */
     DEBUGLOG(4, "Job Size : %u KB (note : set to %u)", (U32)(zcs->targetSectionSize>>10), params.jobSize);

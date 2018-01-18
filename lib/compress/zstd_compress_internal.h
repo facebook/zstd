@@ -172,6 +172,7 @@ struct ZSTD_CCtx_s {
     size_t blockSize;
     U64 pledgedSrcSizePlusOne;  /* this way, 0 (default) == unknown */
     U64 consumedSrcSize;
+    U64 producedCSize;
     XXH64_state_t xxhState;
     ZSTD_customMem customMem;
     size_t staticSize;

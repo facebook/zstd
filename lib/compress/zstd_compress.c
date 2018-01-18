@@ -754,6 +754,29 @@ size_t ZSTD_estimateCStreamSize(int compressionLevel) {
     return memBudget;
 }
 
+/* ZSTD_getFrameProgression():
+ * tells how much data has been consumed (input) and produced (output) for current frame.
+ * able to count progression inside worker threads (non-blocking mode).
+ */
+ZSTD_frameProgression ZSTD_getFrameProgression(const ZSTD_CCtx* cctx)
+{
+#ifdef ZSTD_MULTITHREAD
+    if ((cctx->appliedParams.nbThreads > 1) || (cctx->appliedParams.nonBlockingMode)) {
+        return ZSTDMT_getFrameProgression(cctx->mtctx);
+    }
+#endif
+    {   ZSTD_frameProgression fp;
+        size_t const buffered = (cctx->inBuff == NULL) ? 0 :
+                                cctx->inBuffPos - cctx->inToCompress;
+        if (buffered) assert(cctx->inBuffPos >= cctx->inToCompress);
+        assert(buffered <= ZSTD_BLOCKSIZE_MAX);
+        fp.ingested = cctx->consumedSrcSize + buffered;
+        fp.consumed = cctx->consumedSrcSize;
+        fp.produced = cctx->producedCSize;
+        return fp;
+}   }
+
+
 static U32 ZSTD_equivalentCParams(ZSTD_compressionParameters cParams1,
                                   ZSTD_compressionParameters cParams2)
 {
@@ -850,6 +873,7 @@ static size_t ZSTD_continueCCtx(ZSTD_CCtx* cctx, ZSTD_CCtx_params params, U64 pl
     cctx->appliedParams = params;
     cctx->pledgedSrcSizePlusOne = pledgedSrcSize+1;
     cctx->consumedSrcSize = 0;
+    cctx->producedCSize = 0;
     if (pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN)
         cctx->appliedParams.fParams.contentSizeFlag = 0;
     DEBUGLOG(4, "pledged content size : %u ; flag : %u",
@@ -1007,6 +1031,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         zc->appliedParams = params;
         zc->pledgedSrcSizePlusOne = pledgedSrcSize+1;
         zc->consumedSrcSize = 0;
+        zc->producedCSize = 0;
         if (pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN)
             zc->appliedParams.fParams.contentSizeFlag = 0;
         DEBUGLOG(4, "pledged content size : %u ; flag : %u",
@@ -2063,6 +2088,7 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* cctx,
                              ZSTD_compressBlock_internal (cctx, dst, dstCapacity, src, srcSize);
         if (ZSTD_isError(cSize)) return cSize;
         cctx->consumedSrcSize += srcSize;
+        cctx->producedCSize += (cSize + fhSize);
         return cSize + fhSize;
     }
 }

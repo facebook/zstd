@@ -2540,6 +2540,8 @@ static size_t ZSTD_initCDict_internal(
     }
     cdict->dictContentSize = dictSize;
 
+    /* Reset the state to no dictionary */
+    ZSTD_reset_compressedBlockState(&cdict->cBlockState);
     {
         void* const end = ZSTD_reset_matchState(
                 &cdict->matchState,
@@ -2548,6 +2550,9 @@ static size_t ZSTD_initCDict_internal(
         assert(end == (char*)cdict->workspace + cdict->workspaceSize);
         (void)end;
     }
+    /* (Maybe) load the dictionary
+     * Skips loading the dictionary if it is <= 8 bytes.
+     */
     {
         ZSTD_CCtx_params params;
         memset(&params, 0, sizeof(params));

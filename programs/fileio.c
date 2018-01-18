@@ -84,10 +84,10 @@ void FIO_setNotificationLevel(unsigned level) { g_displayLevel=level; }
 static const U64 g_refreshRate = SEC_TO_MICRO / 6;
 static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
 
-#define READY_FOR_UPDATE (UTIL_clockSpanMicro(g_displayClock) > g_refreshRate)
+#define READY_FOR_UPDATE() (UTIL_clockSpanMicro(g_displayClock) > g_refreshRate)
 #define DISPLAYUPDATE(l, ...) {                              \
         if (g_displayLevel>=l) {                             \
-            if (READY_FOR_UPDATE || (g_displayLevel>=4)) {   \
+            if (READY_FOR_UPDATE() || (g_displayLevel>=4)) {   \
                 g_displayClock = UTIL_getTime(); DISPLAY(__VA_ARGS__); \
                 if (g_displayLevel>=4) fflush(stderr);       \
     }   }   }
@@ -813,7 +813,7 @@ static int FIO_compressFilename_internal(cRess_t ress,
             }
         }
 #if 1
-    if (READY_FOR_UPDATE) {
+    if (READY_FOR_UPDATE()) {
         ZSTD_frameProgression const zfp = ZSTD_getFrameProgression(ress.cctx);
         DISPLAYUPDATE(2, "\rRead :%6u MB - Consumed :%6u MB - Compressed :%6u MB => %.2f%%",
                         (U32)(zfp.ingested >> 20),

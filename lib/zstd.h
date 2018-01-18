@@ -723,8 +723,10 @@ typedef struct {
 } ZSTD_frameProgression;
 
 /* ZSTD_getFrameProgression():
- * tells how much data has been consumed (input) and produced (output) for current frame.
- * able to count progression inside worker threads (non-blocking mode).
+ * tells how much data has been ingested (read from input)
+ * consumed (input actually compressed) and produced (output) for current frame.
+ * Therefore, (ingested - consumed) is amount of input data buffered internally, not yet compressed.
+ * Can report progression inside worker threads (multi-threading and non-blocking mode).
  */
 ZSTD_frameProgression ZSTD_getFrameProgression(const ZSTD_CCtx* cctx);
 

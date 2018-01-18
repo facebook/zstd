@@ -662,7 +662,7 @@ unsigned ZSTDMT_getNbThreads(const ZSTDMT_CCtx* mtctx)
 /* ZSTDMT_getFrameProgression():
  * tells how much data has been consumed (input) and produced (output) for current frame.
  * able to count progression inside worker threads.
- * Note : mutex will be triggered during statistics collection. */
+ * Note : mutex will be acquired during statistics collection. */
 ZSTD_frameProgression ZSTDMT_getFrameProgression(ZSTDMT_CCtx* mtctx)
 {
     ZSTD_frameProgression fs;

@@ -813,8 +813,8 @@ static int FIO_compressFilename_internal(cRess_t ress,
             }
         }
 #if 1
-    if (READY_FOR_UPDATE)
-    {   ZSTD_frameProgression const zfp = ZSTD_getFrameProgression(ress.cctx);
+    if (READY_FOR_UPDATE) {
+        ZSTD_frameProgression const zfp = ZSTD_getFrameProgression(ress.cctx);
         DISPLAYUPDATE(2, "\rRead :%6u MB - Consumed :%6u MB - Compressed :%6u MB => %.2f%%",
                         (U32)(zfp.ingested >> 20),
                         (U32)(zfp.consumed >> 20),

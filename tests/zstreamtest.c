@@ -863,6 +863,10 @@ static size_t findDiff(const void* buf1, const void* buf2, size_t max)
     for (u=0; u<max; u++) {
         if (b1[u] != b2[u]) break;
     }
+    if (u==max) {
+        DISPLAY("=> No difference detected within %u bytes \n", (U32)max);
+        return u;
+    }
     DISPLAY("Error at position %u / %u \n", (U32)u, (U32)max);
     if (u>=3)
         DISPLAY(" %02X %02X %02X ",
@@ -1352,8 +1356,8 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double comp
                 outBuff.size = outBuff.pos + dstBuffSize;
                 DISPLAYLEVEL(6, "ZSTD_decompressStream input %u bytes \n", (U32)readCSrcSize);
                 decompressionResult = ZSTD_decompressStream(zd, &outBuff, &inBuff);
-                if (ZSTD_getErrorCode(decompressionResult) == ZSTD_error_corruption_detected) {
-                    DISPLAY("ZSTD_decompressStream: checksum error : \n");
+                if (ZSTD_isError(decompressionResult)) {
+                    DISPLAY("ZSTD_decompressStream error : %s \n", ZSTD_getErrorName(decompressionResult));
                     findDiff(copyBuffer, dstBuffer, totalTestSize);
                 }
                 CHECK (ZSTD_isError(decompressionResult), "decompression error : %s", ZSTD_getErrorName(decompressionResult));

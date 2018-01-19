@@ -239,8 +239,18 @@ $ZSTD -c hello.tmp > hello.zstd --no-check
 $ZSTD -c world.tmp > world.zstd --no-check
 cat hello.zstd world.zstd > helloworld.zstd
 $ZSTD -dc helloworld.zstd > result.tmp
-cat result.tmp
 $DIFF helloworld.tmp result.tmp
+$ECHO "testing zstdcat symlink"
+ln -sf $ZSTD zstdcat
+./zstdcat helloworld.zstd > result.tmp
+$DIFF helloworld.tmp result.tmp
+rm zstdcat
+rm result.tmp
+$ECHO "testing zcat symlink"
+ln -sf $ZSTD zcat
+./zcat helloworld.zstd > result.tmp
+$DIFF helloworld.tmp result.tmp
+rm zcat
 rm ./*.tmp ./*.zstd
 $ECHO "frame concatenation tests completed"
 

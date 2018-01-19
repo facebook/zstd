@@ -24,6 +24,8 @@ pool
 poolTests
 invalidDictionaries
 checkTag
+zcat
+zstdcat
 
 # Tmp test directory
 zstdtest
@@ -53,6 +55,7 @@ tmp*
 *.gz
 result
 out
+*.zstd
 
 # fuzzer
 afl

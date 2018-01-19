@@ -308,7 +308,7 @@ typedef struct {
     const void* srcStart;
     size_t   prefixSize;
     size_t   srcSize;
-    size_t   readSize;
+    size_t   consumed;
     buffer_t dstBuff;
     size_t   cSize;
     size_t   dstFlushed;
@@ -382,8 +382,7 @@ void ZSTDMT_compressChunk(void* jobDescription)
                  ZSTD_compressEnd     (cctx, dstBuff.start, dstBuff.size, src, job->srcSize) :
                  ZSTD_compressContinue(cctx, dstBuff.start, dstBuff.size, src, job->srcSize);
 #else
-    if (sizeof(size_t) > sizeof(int))
-        assert(job->srcSize < ((size_t)INT_MAX) * ZSTD_BLOCKSIZE_MAX);   /* check overflow */
+    if (sizeof(size_t) > sizeof(int)) assert(job->srcSize < ((size_t)INT_MAX) * ZSTD_BLOCKSIZE_MAX);   /* check overflow */
     {   int const nbBlocks = (int)((job->srcSize + (ZSTD_BLOCKSIZE_MAX-1)) / ZSTD_BLOCKSIZE_MAX);
         const BYTE* ip = (const BYTE*) src;
         BYTE* const ostart = (BYTE*)dstBuff.start;
@@ -391,15 +390,17 @@ void ZSTDMT_compressChunk(void* jobDescription)
         BYTE* oend = op + dstBuff.size;
         int blockNb;
         DEBUGLOG(5, "ZSTDMT_compressChunk: compress %u bytes in %i blocks", (U32)job->srcSize, nbBlocks);
-        job->cSize = 0;
+        assert(job->cSize == 0);
         for (blockNb = 1; blockNb < nbBlocks; blockNb++) {
             size_t const cSize = ZSTD_compressContinue(cctx, op, oend-op, ip, ZSTD_BLOCKSIZE_MAX);
             if (ZSTD_isError(cSize)) { job->cSize = cSize; goto _endJob; }
             ip += ZSTD_BLOCKSIZE_MAX;
             op += cSize; assert(op < oend);
             /* stats */
+            ZSTD_PTHREAD_MUTEX_LOCK(job->jobCompleted_mutex);   /* note : it's a mtctx mutex */
             job->cSize += cSize;
-            job->readSize = ZSTD_BLOCKSIZE_MAX * blockNb;
+            job->consumed = ZSTD_BLOCKSIZE_MAX * blockNb;
+            ZSTD_pthread_mutex_unlock(job->jobCompleted_mutex);
         }
         /* last block */
         if ((nbBlocks > 0) | job->lastChunk /*need to output a "last block" flag*/ ) {
@@ -410,9 +411,11 @@ void ZSTDMT_compressChunk(void* jobDescription)
                  ZSTD_compressContinue(cctx, op, oend-op, ip, lastBlockSize);
             if (ZSTD_isError(cSize)) { job->cSize = cSize; goto _endJob; }
             /* stats */
+            ZSTD_PTHREAD_MUTEX_LOCK(job->jobCompleted_mutex);   /* note : it's a mtctx mutex */
             job->cSize += cSize;
+            job->consumed = job->srcSize;
+            ZSTD_pthread_mutex_unlock(job->jobCompleted_mutex);
         }
-        job->readSize = job->srcSize;
     }
 #endif
 
@@ -423,6 +426,7 @@ _endJob:
     job->src = g_nullBuffer; job->srcStart = NULL;
     /* report */
     ZSTD_PTHREAD_MUTEX_LOCK(job->jobCompleted_mutex);
+    job->consumed = job->srcSize;
     job->jobCompleted = 1;
     job->jobScanned = 0;
     ZSTD_pthread_cond_signal(job->jobCompleted_cond);
@@ -460,6 +464,8 @@ struct ZSTDMT_CCtx_s {
     unsigned frameEnded;
     unsigned allJobsCompleted;
     unsigned long long frameContentSize;
+    unsigned long long consumed;
+    unsigned long long produced;
     ZSTD_customMem cMem;
     ZSTD_CDict* cdictLocal;
     const ZSTD_CDict* cdict;
@@ -499,15 +505,6 @@ size_t ZSTDMT_CCtxParam_setNbThreads(ZSTD_CCtx_params* params, unsigned nbThread
     params->overlapSizeLog = ZSTDMT_OVERLAPLOG_DEFAULT;
     params->jobSize = 0;
     return nbThreads;
-}
-
-/* ZSTDMT_getNbThreads():
- * @return nb threads currently active in mtctx.
- * mtctx must be valid */
-unsigned ZSTDMT_getNbThreads(const ZSTDMT_CCtx* mtctx)
-{
-    assert(mtctx != NULL);
-    return mtctx->params.nbThreads;
 }
 
 ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced(unsigned nbThreads, ZSTD_customMem cMem)
@@ -552,6 +549,7 @@ ZSTDMT_CCtx* ZSTDMT_createCCtx(unsigned nbThreads)
 {
     return ZSTDMT_createCCtx_advanced(nbThreads, ZSTD_defaultCMem);
 }
+
 
 /* ZSTDMT_releaseAllJobResources() :
  * note : ensure all workers are killed first ! */
@@ -652,6 +650,43 @@ size_t ZSTDMT_setMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSTDMT_parameter parameter, 
     }
 }
 
+/* ZSTDMT_getNbThreads():
+ * @return nb threads currently active in mtctx.
+ * mtctx must be valid */
+unsigned ZSTDMT_getNbThreads(const ZSTDMT_CCtx* mtctx)
+{
+    assert(mtctx != NULL);
+    return mtctx->params.nbThreads;
+}
+
+/* ZSTDMT_getFrameProgression():
+ * tells how much data has been consumed (input) and produced (output) for current frame.
+ * able to count progression inside worker threads.
+ * Note : mutex will be acquired during statistics collection. */
+ZSTD_frameProgression ZSTDMT_getFrameProgression(ZSTDMT_CCtx* mtctx)
+{
+    ZSTD_frameProgression fs;
+    DEBUGLOG(5, "ZSTDMT_getFrameProgression");
+    ZSTD_PTHREAD_MUTEX_LOCK(&mtctx->jobCompleted_mutex);
+    fs.consumed = mtctx->consumed;
+    fs.produced = mtctx->produced;
+    assert(mtctx->inBuff.filled >= mtctx->prefixSize);
+    fs.ingested = mtctx->consumed + (mtctx->inBuff.filled - mtctx->prefixSize);
+    {   unsigned jobNb;
+        for (jobNb = mtctx->doneJobID ; jobNb < mtctx->nextJobID ; jobNb++) {
+            unsigned const wJobID = jobNb & mtctx->jobIDMask;
+            size_t const cResult = mtctx->jobs[wJobID].cSize;
+            size_t const produced = ZSTD_isError(cResult) ? 0 : cResult;
+            fs.consumed += mtctx->jobs[wJobID].consumed;
+            fs.ingested += mtctx->jobs[wJobID].srcSize;
+            fs.produced += produced;
+        }
+    }
+    ZSTD_pthread_mutex_unlock(&mtctx->jobCompleted_mutex);
+    return fs;
+}
+
+
 /* ------------------------------------------ */
 /* =====   Multi-threaded compression   ===== */
 /* ------------------------------------------ */
@@ -727,6 +762,8 @@ static size_t ZSTDMT_compress_advanced_internal(
             mtctx->jobs[u].srcStart = srcStart + frameStartPos - dictSize;
             mtctx->jobs[u].prefixSize = dictSize;
             mtctx->jobs[u].srcSize = chunkSize;
+            mtctx->jobs[u].consumed = 0;
+            mtctx->jobs[u].cSize = 0;
             mtctx->jobs[u].cdict = (u==0) ? cdict : NULL;
             mtctx->jobs[u].fullFrameSize = srcSize;
             mtctx->jobs[u].params = jobParams;
@@ -900,6 +937,8 @@ size_t ZSTDMT_initCStream_internal(
     zcs->nextJobID = 0;
     zcs->frameEnded = 0;
     zcs->allJobsCompleted = 0;
+    zcs->consumed = 0;
+    zcs->produced = 0;
     if (params.fParams.checksumFlag) XXH64_reset(&zcs->xxhState, 0);
     return 0;
 }
@@ -963,7 +1002,8 @@ static size_t ZSTDMT_createCompressionJob(ZSTDMT_CCtx* zcs, size_t srcSize, unsi
     zcs->jobs[jobID].src = zcs->inBuff.buffer;
     zcs->jobs[jobID].srcStart = zcs->inBuff.buffer.start;
     zcs->jobs[jobID].srcSize = srcSize;
-    zcs->jobs[jobID].readSize = 0;
+    zcs->jobs[jobID].consumed = 0;
+    zcs->jobs[jobID].cSize = 0;
     zcs->jobs[jobID].prefixSize = zcs->prefixSize;
     assert(zcs->inBuff.filled >= srcSize + zcs->prefixSize);
     zcs->jobs[jobID].params = zcs->params;
@@ -1070,6 +1110,8 @@ static size_t ZSTDMT_flushNextJob(ZSTDMT_CCtx* zcs, ZSTD_outBuffer* output, unsi
             zcs->jobs[wJobID].dstBuff = g_nullBuffer;
             zcs->jobs[wJobID].jobCompleted = 0;
             zcs->doneJobID++;
+            zcs->consumed += job.srcSize;
+            zcs->produced += job.cSize;
         } else {
             zcs->jobs[wJobID].dstFlushed = job.dstFlushed;
         }

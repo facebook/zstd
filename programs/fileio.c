@@ -792,6 +792,7 @@ static int FIO_compressFilename_internal(cRess_t ress,
         /* Fill input Buffer */
         size_t const inSize = fread(ress.srcBuffer, (size_t)1, ress.srcBufferSize, srcFile);
         ZSTD_inBuffer inBuff = { ress.srcBuffer, inSize, 0 };
+        DISPLAYLEVEL(6, "fread %u bytes from source \n", (U32)inSize);
         readsize += inSize;
 
         if (inSize == 0 || (fileSize != UTIL_FILESIZE_UNKNOWN && readsize == fileSize))
@@ -803,32 +804,23 @@ static int FIO_compressFilename_internal(cRess_t ress,
             CHECK_V(result, ZSTD_compress_generic(ress.cctx, &outBuff, &inBuff, directive));
 
             /* Write compressed stream */
-            DISPLAYLEVEL(6, "ZSTD_compress_generic,ZSTD_e_continue: generated %u bytes \n",
-                            (U32)outBuff.pos);
+            DISPLAYLEVEL(6, "ZSTD_compress_generic(end:%u) => intput pos(%u)<=(%u)size ; output generated %u bytes \n",
+                            (U32)directive, (U32)inBuff.pos, (U32)inBuff.size, (U32)outBuff.pos);
             if (outBuff.pos) {
                 size_t const sizeCheck = fwrite(ress.dstBuffer, 1, outBuff.pos, dstFile);
                 if (sizeCheck!=outBuff.pos)
                     EXM_THROW(25, "Write error : cannot write compressed block into %s", dstFileName);
                 compressedfilesize += outBuff.pos;
             }
+            if (READY_FOR_UPDATE()) {
+                ZSTD_frameProgression const zfp = ZSTD_getFrameProgression(ress.cctx);
+                DISPLAYUPDATE(2, "\rRead :%6u MB - Consumed :%6u MB - Compressed :%6u MB => %.2f%%",
+                                (U32)(zfp.ingested >> 20),
+                                (U32)(zfp.consumed >> 20),
+                                (U32)(zfp.produced >> 20),
+                                (double)zfp.produced / (zfp.consumed + !zfp.consumed/*avoid div0*/) * 100 );
+            }
         }
-#if 1
-    if (READY_FOR_UPDATE()) {
-        ZSTD_frameProgression const zfp = ZSTD_getFrameProgression(ress.cctx);
-        DISPLAYUPDATE(2, "\rRead :%6u MB - Consumed :%6u MB - Compressed :%6u MB => %.2f%%",
-                        (U32)(zfp.ingested >> 20),
-                        (U32)(zfp.consumed >> 20),
-                        (U32)(zfp.produced >> 20),
-                        (double)zfp.produced / (zfp.consumed + !zfp.consumed/*avoid div0*/) * 100 );
-    }
-#else
-        if (fileSize == UTIL_FILESIZE_UNKNOWN) {
-            DISPLAYUPDATE(2, "\rRead : %u MB", (U32)(readsize>>20));
-        } else {
-            DISPLAYUPDATE(2, "\rRead : %u / %u MB",
-                                (U32)(readsize>>20), (U32)(fileSize>>20));
-        }
-#endif
     } while (directive != ZSTD_e_end);
 
 finish:

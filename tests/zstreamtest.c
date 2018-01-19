@@ -1346,8 +1346,12 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double comp
                 outBuff.size = outBuff.pos + dstBuffSize;
                 DISPLAYLEVEL(6, "ZSTD_decompressStream input %u bytes \n", (U32)readCSrcSize);
                 decompressionResult = ZSTD_decompressStream(zd, &outBuff, &inBuff);
+                if (ZSTD_getErrorCode(decompressionResult) == ZSTD_error_corruption_detected) {
+                    DISPLAY("ZSTD_decompressStream: checksum error : \n");
+                    findDiff(copyBuffer, dstBuffer, totalTestSize);
+                }
                 CHECK (ZSTD_isError(decompressionResult), "decompression error : %s", ZSTD_getErrorName(decompressionResult));
-                DISPLAYLEVEL(6, "inBuff.pos = %u \n", (U32)readCSrcSize);
+                DISPLAYLEVEL(6, "total ingested (inBuff.pos) = %u \n", (U32)inBuff.pos);
             }
             CHECK (outBuff.pos != totalTestSize, "decompressed data : wrong size (%u != %u)", (U32)outBuff.pos, (U32)totalTestSize);
             CHECK (inBuff.pos != cSize, "compressed data should be fully read (%u != %u)", (U32)inBuff.pos, (U32)cSize);

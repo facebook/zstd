@@ -2139,9 +2139,10 @@ ZSTD_DDict* ZSTD_createDDict_byReference(const void* dictBuffer, size_t dictSize
 }
 
 
-ZSTD_DDict* ZSTD_initStaticDDict(void* workspace, size_t workspaceSize,
-                                 const void* dict, size_t dictSize,
-                                 ZSTD_dictLoadMethod_e dictLoadMethod)
+const ZSTD_DDict* ZSTD_initStaticDDict(
+                                void* workspace, size_t workspaceSize,
+                                const void* dict, size_t dictSize,
+                                ZSTD_dictLoadMethod_e dictLoadMethod)
 {
     size_t const neededSpace =
             sizeof(ZSTD_DDict) + (dictLoadMethod == ZSTD_dlm_byRef ? 0 : dictSize);

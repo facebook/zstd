@@ -634,7 +634,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         {   size_t const ddictBufferSize = ZSTD_estimateDDictSize(dictSize, ZSTD_dlm_byCopy);
             void* ddictBuffer = malloc(ddictBufferSize);
             if (ddictBuffer == NULL) goto _output_error;
-            {   ZSTD_DDict* const ddict = ZSTD_initStaticDDict(ddictBuffer, ddictBufferSize, CNBuffer, dictSize, ZSTD_dlm_byCopy);
+            {   const ZSTD_DDict* const ddict = ZSTD_initStaticDDict(ddictBuffer, ddictBufferSize, CNBuffer, dictSize, ZSTD_dlm_byCopy);
                 size_t const r = ZSTD_decompress_usingDDict(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize, ddict);
                 if (r != CNBuffSize - dictSize) goto _output_error;
             }
@@ -767,7 +767,8 @@ static int basicUnitTests(U32 seed, double compressibility)
             size_t const cdictSize = ZSTD_estimateCDictSize_advanced(dictSize, cParams, ZSTD_dlm_byCopy);
             void* const cdictBuffer = malloc(cdictSize);
             if (cdictBuffer==NULL) goto _output_error;
-            {   ZSTD_CDict* const cdict = ZSTD_initStaticCDict(cdictBuffer, cdictSize,
+            {   const ZSTD_CDict* const cdict = ZSTD_initStaticCDict(
+                                            cdictBuffer, cdictSize,
                                             dictBuffer, dictSize,
                                             ZSTD_dlm_byCopy, ZSTD_dm_auto,
                                             cParams);

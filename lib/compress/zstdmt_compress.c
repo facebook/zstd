@@ -1249,7 +1249,7 @@ static size_t ZSTDMT_flushStream_internal(ZSTDMT_CCtx* mtctx, ZSTD_outBuffer* ou
     size_t const srcSize = mtctx->inBuff.filled - mtctx->prefixSize;
     DEBUGLOG(5, "ZSTDMT_flushStream_internal");
 
-    if ( ((srcSize > 0) || (endFrame && !mtctx->frameEnded))
+    if ( (mtctx->jobReady || (srcSize > 0) || (endFrame && !mtctx->frameEnded))
        && (mtctx->nextJobID <= mtctx->doneJobID + mtctx->jobIDMask) ) {
            DEBUGLOG(5, "ZSTDMT_flushStream_internal : create a new job");
         CHECK_F( ZSTDMT_createCompressionJob(mtctx, srcSize, endFrame) );

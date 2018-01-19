@@ -864,10 +864,16 @@ static size_t findDiff(const void* buf1, const void* buf2, size_t max)
         if (b1[u] != b2[u]) break;
     }
     DISPLAY("Error at position %u / %u \n", (U32)u, (U32)max);
-    DISPLAY(" %02X %02X %02X  :%02X:  %02X %02X %02X %02X %02X \n",
-            b1[u-3], b1[u-2], b1[u-1], b1[u-0], b1[u+1], b1[u+2], b1[u+3], b1[u+4], b1[u+5]);
-    DISPLAY(" %02X %02X %02X  :%02X:  %02X %02X %02X %02X %02X \n",
-            b2[u-3], b2[u-2], b2[u-1], b2[u-0], b2[u+1], b2[u+2], b2[u+3], b2[u+4], b2[u+5]);
+    if (u>=3)
+        DISPLAY(" %02X %02X %02X ",
+                b1[u-3], b1[u-2], b1[u-1]);
+    DISPLAY(" :%02X:  %02X %02X %02X %02X %02X \n",
+            b1[u], b1[u+1], b1[u+2], b1[u+3], b1[u+4], b1[u+5]);
+    if (u>=3)
+        DISPLAY(" %02X %02X %02X ",
+                b2[u-3], b2[u-2], b2[u-1]);
+    DISPLAY(" :%02X:  %02X %02X %02X %02X %02X \n",
+            b2[u], b2[u+1], b2[u+2], b2[u+3], b2[u+4], b2[u+5]);
     return u;
 }
 

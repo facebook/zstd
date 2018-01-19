@@ -122,6 +122,13 @@ size_t ZSTDMT_CCtxParam_setNbThreads(ZSTD_CCtx_params* params, unsigned nbThread
  * mtctx must be valid */
 unsigned ZSTDMT_getNbThreads(const ZSTDMT_CCtx* mtctx);
 
+/* ZSTDMT_getFrameProgression():
+ * tells how much data has been consumed (input) and produced (output) for current frame.
+ * able to count progression inside worker threads.
+ */
+ZSTD_frameProgression ZSTDMT_getFrameProgression(ZSTDMT_CCtx* mtctx);
+
+
 /*! ZSTDMT_initCStream_internal() :
  *  Private use only. Init streaming operation.
  *  expects params to be valid.

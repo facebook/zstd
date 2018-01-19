@@ -84,10 +84,13 @@ void FIO_setNotificationLevel(unsigned level) { g_displayLevel=level; }
 static const U64 g_refreshRate = SEC_TO_MICRO / 6;
 static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
 
-#define DISPLAYUPDATE(l, ...) { if (g_displayLevel>=l) { \
-            if ((UTIL_clockSpanMicro(g_displayClock) > g_refreshRate) || (g_displayLevel>=4)) \
-            { g_displayClock = UTIL_getTime(); DISPLAY(__VA_ARGS__); \
-            if (g_displayLevel>=4) fflush(stderr); } } }
+#define READY_FOR_UPDATE() (UTIL_clockSpanMicro(g_displayClock) > g_refreshRate)
+#define DISPLAYUPDATE(l, ...) {                              \
+        if (g_displayLevel>=l) {                             \
+            if (READY_FOR_UPDATE() || (g_displayLevel>=4)) {   \
+                g_displayClock = UTIL_getTime(); DISPLAY(__VA_ARGS__); \
+                if (g_displayLevel>=4) fflush(stderr);       \
+    }   }   }
 
 #undef MIN  /* in case it would be already defined */
 #define MIN(a,b)    ((a) < (b) ? (a) : (b))
@@ -809,12 +812,23 @@ static int FIO_compressFilename_internal(cRess_t ress,
                 compressedfilesize += outBuff.pos;
             }
         }
+#if 1
+    if (READY_FOR_UPDATE()) {
+        ZSTD_frameProgression const zfp = ZSTD_getFrameProgression(ress.cctx);
+        DISPLAYUPDATE(2, "\rRead :%6u MB - Consumed :%6u MB - Compressed :%6u MB => %.2f%%",
+                        (U32)(zfp.ingested >> 20),
+                        (U32)(zfp.consumed >> 20),
+                        (U32)(zfp.produced >> 20),
+                        (double)zfp.produced / (zfp.consumed + !zfp.consumed/*avoid div0*/) * 100 );
+    }
+#else
         if (fileSize == UTIL_FILESIZE_UNKNOWN) {
             DISPLAYUPDATE(2, "\rRead : %u MB", (U32)(readsize>>20));
         } else {
             DISPLAYUPDATE(2, "\rRead : %u / %u MB",
                                 (U32)(readsize>>20), (U32)(fileSize>>20));
         }
+#endif
     } while (directive != ZSTD_e_end);
 
 finish:

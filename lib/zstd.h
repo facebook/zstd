@@ -713,9 +713,25 @@ ZSTDLIB_API size_t ZSTD_initCStream_usingCDict_advanced(ZSTD_CStream* zcs, const
  *  If pledgedSrcSize is not known at reset time, use macro ZSTD_CONTENTSIZE_UNKNOWN.
  *  If pledgedSrcSize > 0, its value must be correct, as it will be written in header, and controlled at the end.
  *  For the time being, pledgedSrcSize==0 is interpreted as "srcSize unknown" for compatibility with older programs,
- *  but it may change to mean "empty" in some future version, so prefer using macro ZSTD_CONTENTSIZE_UNKNOWN.
+ *  but it will change to mean "empty" in future version, so use macro ZSTD_CONTENTSIZE_UNKNOWN instead.
  * @return : 0, or an error code (which can be tested using ZSTD_isError()) */
 ZSTDLIB_API size_t ZSTD_resetCStream(ZSTD_CStream* zcs, unsigned long long pledgedSrcSize);
+
+
+typedef struct {
+    unsigned long long ingested;
+    unsigned long long consumed;
+    unsigned long long produced;
+} ZSTD_frameProgression;
+
+/* ZSTD_getFrameProgression():
+ * tells how much data has been ingested (read from input)
+ * consumed (input actually compressed) and produced (output) for current frame.
+ * Therefore, (ingested - consumed) is amount of input data buffered internally, not yet compressed.
+ * Can report progression inside worker threads (multi-threading and non-blocking mode).
+ */
+ZSTD_frameProgression ZSTD_getFrameProgression(const ZSTD_CCtx* cctx);
+
 
 
 /*=====   Advanced Streaming decompression functions  =====*/

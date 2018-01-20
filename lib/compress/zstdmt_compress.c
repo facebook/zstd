@@ -1220,7 +1220,8 @@ size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
     if ( (mtctx->jobReady)
       || (mtctx->inBuff.filled >= newJobThreshold)  /* filled enough : let's compress */
       || ( (endOp != ZSTD_e_continue) && (mtctx->inBuff.filled > 0) ) ) {   /* avoid overwriting job round buffer */
-        CHECK_F( ZSTDMT_createCompressionJob(mtctx, mtctx->targetSectionSize, 0 /* endFrame */) );
+        size_t const jobSize = MIN(mtctx->inBuff.filled - mtctx->prefixSize, mtctx->targetSectionSize);
+        CHECK_F( ZSTDMT_createCompressionJob(mtctx, jobSize, endOp==ZSTD_e_end) );
     }
 
     /* check for potential compressed data ready to be flushed */

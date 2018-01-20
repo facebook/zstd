@@ -219,7 +219,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     size_t cSize;
     int testResult = 0;
     U32 testNb = 1;
-    U32 coreSeed = 0;  /* just to conform with CHECK_Z macro display */
+    U32 coreSeed = 0;  /* this name to conform with CHECK_Z macro display */
     ZSTD_CStream* zc = ZSTD_createCStream();
     ZSTD_DStream* zd = ZSTD_createDStream();
     ZSTDMT_CCtx* mtctx = ZSTDMT_createCCtx(2);
@@ -373,7 +373,7 @@ static int basicUnitTests(U32 seed, double compressibility)
       DISPLAYLEVEL(3, "OK (%u bytes) \n", (U32)s);
     }
 
-    /* Byte-by-byte decompression test */
+    /* Decompression by small increment */
     DISPLAYLEVEL(3, "test%3i : decompress byte-by-byte : ", testNb++);
     {   /* skippable frame */
         size_t r = 1;
@@ -383,8 +383,10 @@ static int basicUnitTests(U32 seed, double compressibility)
         inBuff.pos = 0;
         outBuff.pos = 0;
         while (r) {   /* skippable frame */
-            inBuff.size = inBuff.pos + 1;
-            outBuff.size = outBuff.pos + 1;
+            size_t const inSize = FUZ_rand(&coreSeed) & 15;
+            size_t const outSize = FUZ_rand(&coreSeed) & 15;
+            inBuff.size = inBuff.pos + inSize;
+            outBuff.size = outBuff.pos + outSize;
             r = ZSTD_decompressStream(zd, &outBuff, &inBuff);
             if (ZSTD_isError(r)) goto _output_error;
         }
@@ -392,8 +394,10 @@ static int basicUnitTests(U32 seed, double compressibility)
         ZSTD_initDStream_usingDict(zd, CNBuffer, dictSize);
         r=1;
         while (r) {
-            inBuff.size = inBuff.pos + 1;
-            outBuff.size = outBuff.pos + 1;
+            size_t const inSize = FUZ_rand(&coreSeed) & 15;
+            size_t const outSize = FUZ_rand(&coreSeed) & 15;
+            inBuff.size = inBuff.pos + inSize;
+            outBuff.size = outBuff.pos + outSize;
             r = ZSTD_decompressStream(zd, &outBuff, &inBuff);
             if (ZSTD_isError(r)) goto _output_error;
         }
@@ -695,10 +699,13 @@ static int basicUnitTests(U32 seed, double compressibility)
     inBuff.src = CNBuffer;
     inBuff.size = CNBufferSize;
     inBuff.pos = 0;
-    CHECK_Z( ZSTDMT_compressStream_generic(mtctx, &outBuff, &inBuff, ZSTD_e_end) );
+    {   size_t const compressResult = ZSTDMT_compressStream_generic(mtctx, &outBuff, &inBuff, ZSTD_e_end);
+        if (compressResult != 0) goto _output_error;  /* compression must be completed in a single round */
+    }
     if (inBuff.pos != inBuff.size) goto _output_error;   /* entire input should be consumed */
-    { size_t const r = ZSTDMT_endStream(mtctx, &outBuff);
-      if (r != 0) goto _output_error; }  /* error, or some data not flushed */
+    {   size_t const compressedSize = ZSTD_findFrameCompressedSize(compressedBuffer, outBuff.pos);
+        if (compressedSize != outBuff.pos) goto _output_error;  /* must be a full valid frame */
+    }
     DISPLAYLEVEL(3, "OK \n");
 
     /* Complex multithreading + dictionary test */

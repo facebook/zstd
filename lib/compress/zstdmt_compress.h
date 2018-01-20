@@ -97,11 +97,12 @@ ZSTDLIB_API size_t ZSTDMT_setMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSTDMT_parameter
 
 
 /*! ZSTDMT_compressStream_generic() :
- *  Combines ZSTDMT_compressStream() with ZSTDMT_flushStream() or ZSTDMT_endStream()
+ *  Combines ZSTDMT_compressStream() with optional ZSTDMT_flushStream() or ZSTDMT_endStream()
  *  depending on flush directive.
  * @return : minimum amount of data still to be flushed
  *           0 if fully flushed
- *           or an error code */
+ *           or an error code
+ *  note : needs to be init using any ZSTD_initCStream*() variant */
 ZSTDLIB_API size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
                                                 ZSTD_outBuffer* output,
                                                 ZSTD_inBuffer* input,

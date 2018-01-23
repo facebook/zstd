@@ -1001,9 +1001,10 @@ size_t ZSTDMT_initCStream(ZSTDMT_CCtx* zcs, int compressionLevel) {
 }
 
 
-static size_t ZSTDMT_createCompressionJob(ZSTDMT_CCtx* zcs, size_t srcSize, unsigned endFrame)
+static size_t ZSTDMT_createCompressionJob(ZSTDMT_CCtx* zcs, size_t srcSize, ZSTD_EndDirective endOp)
 {
     unsigned const jobID = zcs->nextJobID & zcs->jobIDMask;
+    int const endFrame = (endOp == ZSTD_e_end);
 
     if (zcs->nextJobID > zcs->doneJobID + zcs->jobIDMask) {
         DEBUGLOG(5, "ZSTDMT_createCompressionJob: will not create new job : table is full");
@@ -1060,7 +1061,7 @@ static size_t ZSTDMT_createCompressionJob(ZSTDMT_CCtx* zcs, size_t srcSize, unsi
             zcs->inBuff.buffer = g_nullBuffer;
             zcs->inBuff.filled = 0;
             zcs->prefixSize = 0;
-            zcs->frameEnded = 1;
+            zcs->frameEnded = endFrame;
             if (zcs->nextJobID == 0) {
                 /* single chunk exception : checksum is calculated directly within worker thread */
                 zcs->params.fParams.checksumFlag = 0;
@@ -1228,7 +1229,7 @@ size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
       || ((endOp != ZSTD_e_continue) && (mtctx->inBuff.filled > 0))  /* something to flush : let's go */
       || ((endOp == ZSTD_e_end) && (!mtctx->frameEnded)) ) {   /* must finish the frame with a zero-size block */
         size_t const jobSize = MIN(mtctx->inBuff.filled - mtctx->prefixSize, mtctx->targetSectionSize);
-        CHECK_F( ZSTDMT_createCompressionJob(mtctx, jobSize, endOp==ZSTD_e_end) );
+        CHECK_F( ZSTDMT_createCompressionJob(mtctx, jobSize, endOp) );
     }
 
     /* check for potential compressed data ready to be flushed */

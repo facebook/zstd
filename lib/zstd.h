@@ -1120,7 +1120,7 @@ ZSTDLIB_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* pre
 
 
 typedef enum {
-    ZSTD_e_continue=0, /* collect more data, encoder transparently decides when to output result, for optimal conditions */
+    ZSTD_e_continue=0, /* collect more data, encoder decides when to output compressed result, for optimal conditions */
     ZSTD_e_flush,      /* flush any data provided so far - frame will continue, future data can still reference previous data for better compression */
     ZSTD_e_end         /* flush any remaining data and close current frame. Any additional data starts a new frame. */
 } ZSTD_EndDirective;

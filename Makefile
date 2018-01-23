@@ -72,13 +72,17 @@ zstdmt:
 zlibwrapper:
 	$(MAKE) -C $(ZWRAPDIR) test
 
-.PHONY: check
-check: shortest
-
-.PHONY: test shortest
-test shortest:
+.PHONY: test
+test:
 	$(MAKE) -C $(PRGDIR) allVariants MOREFLAGS+="-g -DZSTD_DEBUG=1"
 	$(MAKE) -C $(TESTDIR) $@
+
+.PHONY: shortest
+shortest:
+	$(MAKE) -C $(TESTDIR) $@
+
+.PHONY: check
+check: shortest
 
 .PHONY: examples
 examples:

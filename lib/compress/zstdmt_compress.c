@@ -1166,7 +1166,7 @@ size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
 {
     size_t const newJobThreshold = mtctx->prefixSize + mtctx->targetSectionSize;
     unsigned forwardInputProgress = 0;
-    DEBUGLOG(5, "ZSTDMT_compressStream_generic ");
+    DEBUGLOG(5, "ZSTDMT_compressStream_generic (endOp=%u)", (U32)endOp);
     assert(output->pos <= output->size);
     assert(input->pos  <= input->size);
 
@@ -1215,11 +1215,15 @@ size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
             input->pos += toLoad;
             mtctx->inBuff.filled += toLoad;
             forwardInputProgress = toLoad>0;
-    }   }
+        }
+        if ((input->pos < input->size) && (endOp == ZSTD_e_end))
+            endOp = ZSTD_e_flush;   /* can't end now : not all input consumed */
+    }
 
     if ( (mtctx->jobReady)
       || (mtctx->inBuff.filled >= newJobThreshold)  /* filled enough : let's compress */
-      || ( (endOp != ZSTD_e_continue) && (mtctx->inBuff.filled > 0) ) ) {   /* avoid overwriting job round buffer */
+      || ((endOp != ZSTD_e_continue) && (mtctx->inBuff.filled > 0))  /* something to flush : let's go */
+      || ((endOp == ZSTD_e_end) && (!mtctx->frameEnded)) ) {   /* must finish the frame with a zero-size block */
         size_t const jobSize = MIN(mtctx->inBuff.filled - mtctx->prefixSize, mtctx->targetSectionSize);
         CHECK_F( ZSTDMT_createCompressionJob(mtctx, jobSize, endOp==ZSTD_e_end) );
     }

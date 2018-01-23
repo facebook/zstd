@@ -344,7 +344,9 @@ void ZSTDMT_compressChunk(void* jobDescription)
             job->cSize = ERROR(memory_allocation);
             goto _endJob;
         }
+        ZSTD_PTHREAD_MUTEX_LOCK(job->jobCompleted_mutex);   /* note : it's a mtctx mutex */
         job->dstBuff = dstBuff;
+        ZSTD_pthread_mutex_unlock(job->jobCompleted_mutex);
     }
 
     /* init */

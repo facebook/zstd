@@ -1136,10 +1136,11 @@ typedef enum {
  *                                                     and then immediately returns, just indicating that there is some data remaining to be flushed.
  *                                                     The function nonetheless guarantees forward progress : it will return only after it reads or write at least 1+ byte.
  *  - Exception : in multi-threading mode, if the first call requests a ZSTD_e_end directive, it is blocking : it will complete compression before giving back control to caller.
- *  - @return provides the minimum amount of data remaining to be flushed from internal buffers
+ *  - @return provides a minimum amount of data remaining to be flushed from internal buffers
  *            or an error code, which can be tested using ZSTD_isError().
  *            if @return != 0, flush is not fully completed, there is still some data left within internal buffers.
- *            This is useful to determine if a ZSTD_e_flush or ZSTD_e_end directive is completed.
+ *            This is useful for ZSTD_e_flush, since in this case more flushes are necessary to empty all buffers.
+ *            For ZSTD_e_end, @return == 0 when internal buffers are fully flushed and frame is completed.
  *  - after a ZSTD_e_end directive, if internal buffer is not fully flushed (@return != 0),
  *            only ZSTD_e_end or ZSTD_e_flush operations are allowed.
  *            Before starting a new compression job, or changing compression parameters,

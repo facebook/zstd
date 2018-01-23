@@ -1695,8 +1695,9 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
                     size_t const randomDstSize = FUZ_randomLength(&lseed, maxSampleLog+1);
                     size_t const adjustedDstSize = MIN(cBufferSize - cSize, randomDstSize);
                     outBuff.size = outBuff.pos + adjustedDstSize;
-                    DISPLAYLEVEL(6, "End-flush into dst buffer of size %u \n", (U32)adjustedDstSize);
+                    DISPLAYLEVEL(6, "t%u: End-flush into dst buffer of size %u \n", testNb, (U32)adjustedDstSize);
                     remainingToFlush = ZSTD_compress_generic(zc, &outBuff, &inBuff, ZSTD_e_end);
+                    DISPLAYLEVEL(6, "t%u: Total flushed so far : %u bytes \n", testNb, (U32)outBuff.pos);
                     CHECK( ZSTD_isError(remainingToFlush),
                           "ZSTD_compress_generic w/ ZSTD_e_end error : %s",
                            ZSTD_getErrorName(remainingToFlush) );

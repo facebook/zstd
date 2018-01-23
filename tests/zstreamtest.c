@@ -99,8 +99,8 @@ unsigned int FUZ_rand(unsigned int* seedPtr)
     if (cond) {                                              \
         DISPLAY("Error => ");                                \
         DISPLAY(__VA_ARGS__);                                \
-        DISPLAY(" (seed %u, test nb %u, line %u (sig %08X) \n", \
-                seed, testNb, __LINE__, coreSeed);           \
+        DISPLAY(" (seed %u, test nb %u, line %u) \n",        \
+                seed, testNb, __LINE__);                     \
         goto _output_error;                                  \
 }   }
 
@@ -1611,7 +1611,11 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
                 }
 
                 /* mess with frame parameters */
-                if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_checksumFlag, FUZ_rand(&lseed) & 1, useOpaqueAPI) );
+                if (FUZ_rand(&lseed) & 1) {
+                    U32 const checksumFlag = FUZ_rand(&lseed) & 1;
+                    DISPLAYLEVEL(5, "t%u: frame checksum : %u \n", testNb, checksumFlag);
+                    CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_checksumFlag, checksumFlag, useOpaqueAPI) );
+                }
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_dictIDFlag, FUZ_rand(&lseed) & 1, useOpaqueAPI) );
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_contentSizeFlag, FUZ_rand(&lseed) & 1, useOpaqueAPI) );
                 if (FUZ_rand(&lseed) & 1) {
@@ -1676,8 +1680,8 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
                 outBuff.size = outBuff.pos + dstBuffSize;
 
                 CHECK_Z( ZSTD_compress_generic(zc, &outBuff, &inBuff, flush) );
-                DISPLAYLEVEL(6, "t%u: compress consumed %u bytes (total : %u) \n",
-                    testNb, (U32)inBuff.pos, (U32)(totalTestSize + inBuff.pos));
+                DISPLAYLEVEL(6, "t%u: compress consumed %u bytes (total : %u) ; flush: %u (total : %u) \n",
+                    testNb, (U32)inBuff.pos, (U32)(totalTestSize + inBuff.pos), (U32)flush, (U32)outBuff.pos);
 
                 XXH64_update(&xxhState, srcBuffer+srcStart, inBuff.pos);
                 memcpy(copyBuffer+totalTestSize, srcBuffer+srcStart, inBuff.pos);
@@ -1685,7 +1689,7 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
             }
 
             /* final frame epilogue */
-            {   size_t remainingToFlush = (size_t)(-1);
+            {   size_t remainingToFlush = 1;
                 while (remainingToFlush) {
                     ZSTD_inBuffer inBuff = { NULL, 0, 0 };
                     size_t const randomDstSize = FUZ_randomLength(&lseed, maxSampleLog+1);
@@ -1722,8 +1726,12 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
                 DISPLAYLEVEL(6, "ZSTD_decompressStream input %u bytes (pos:%u/%u)\n",
                             (U32)readCSrcSize, (U32)inBuff.pos, (U32)cSize);
                 decompressionResult = ZSTD_decompressStream(zd, &outBuff, &inBuff);
+                if (ZSTD_isError(decompressionResult)) {
+                    DISPLAY("ZSTD_decompressStream error : %s \n", ZSTD_getErrorName(decompressionResult));
+                    findDiff(copyBuffer, dstBuffer, totalTestSize);
+                }
                 CHECK (ZSTD_isError(decompressionResult), "decompression error : %s", ZSTD_getErrorName(decompressionResult));
-                DISPLAYLEVEL(6, "inBuff.pos = %u \n", (U32)readCSrcSize);
+                CHECK (inBuff.pos > cSize, "ZSTD_decompressStream consumes too much input : %u > %u ", (U32)inBuff.pos, (U32)cSize);
             }
             CHECK (outBuff.pos != totalTestSize, "decompressed data : wrong size (%u != %u)", (U32)outBuff.pos, (U32)totalTestSize);
             CHECK (inBuff.pos != cSize, "compressed data should be fully read (%u != %u)", (U32)inBuff.pos, (U32)cSize);

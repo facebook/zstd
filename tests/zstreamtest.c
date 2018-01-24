@@ -1724,9 +1724,11 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
                 size_t const dstBuffSize = MIN(dstBufferSize - totalGenSize, randomDstSize);
                 inBuff.size = inBuff.pos + readCSrcSize;
                 outBuff.size = outBuff.pos + dstBuffSize;
-                DISPLAYLEVEL(6, "ZSTD_decompressStream input %u bytes (pos:%u/%u)\n",
-                            (U32)readCSrcSize, (U32)inBuff.pos, (U32)cSize);
+                DISPLAYLEVEL(6, "decompression presented %u new bytes (pos:%u/%u)\n",
+                                (U32)readCSrcSize, (U32)inBuff.pos, (U32)cSize);
                 decompressionResult = ZSTD_decompressStream(zd, &outBuff, &inBuff);
+                DISPLAYLEVEL(6, "so far: consumed = %u, produced = %u \n",
+                                (U32)inBuff.pos, (U32)outBuff.pos);
                 if (ZSTD_isError(decompressionResult)) {
                     DISPLAY("ZSTD_decompressStream error : %s \n", ZSTD_getErrorName(decompressionResult));
                     findDiff(copyBuffer, dstBuffer, totalTestSize);
@@ -1734,8 +1736,8 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
                 CHECK (ZSTD_isError(decompressionResult), "decompression error : %s", ZSTD_getErrorName(decompressionResult));
                 CHECK (inBuff.pos > cSize, "ZSTD_decompressStream consumes too much input : %u > %u ", (U32)inBuff.pos, (U32)cSize);
             }
-            CHECK (outBuff.pos != totalTestSize, "decompressed data : wrong size (%u != %u)", (U32)outBuff.pos, (U32)totalTestSize);
             CHECK (inBuff.pos != cSize, "compressed data should be fully read (%u != %u)", (U32)inBuff.pos, (U32)cSize);
+            CHECK (outBuff.pos != totalTestSize, "decompressed data : wrong size (%u != %u)", (U32)outBuff.pos, (U32)totalTestSize);
             {   U64 const crcDest = XXH64(dstBuffer, totalTestSize, 0);
                 if (crcDest!=crcOrig) findDiff(copyBuffer, dstBuffer, totalTestSize);
                 CHECK (crcDest!=crcOrig, "decompressed data corrupted");

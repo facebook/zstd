@@ -137,7 +137,7 @@ the last one takes effect.
     to make files with many zeroes smaller on disk.
     Creating sparse files may save disk space and speed up decompression by
     reducing the amount of disk I/O.
-    default : enabled when output is into a file,
+    default: enabled when output is into a file,
     and disabled when output is stdout.
     This setting overrides default and can force sparse mode over stdout.
 * `--rm`:
@@ -163,7 +163,7 @@ the last one takes effect.
     suppress warnings, interactivity, and notifications.
     specify twice to suppress errors too.
 * `-C`, `--[no-]check`:
-    add integrity check computed from uncompressed data (default : enabled)
+    add integrity check computed from uncompressed data (default: enabled)
 * `--`:
     All arguments after `--` are treated as files
 
@@ -252,7 +252,7 @@ BENCHMARK
 * `-e#`:
     benchmark file(s) using multiple compression levels, from `-b#` to `-e#` (inclusive)
 * `-i#`:
-    minimum evaluation time, in seconds (default : 3s), benchmark mode only
+    minimum evaluation time, in seconds (default: 3s), benchmark mode only
 * `-B#`, `--block-size=#`:
     cut file(s) into independent blocks of size # (default: no block)
 * `--priority=rt`:

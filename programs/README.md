@@ -120,7 +120,7 @@ Usage :
 FILE    : a filename
           with no FILE, or when FILE is - , read standard input
 Arguments :
- -#     : # compression level (1-19, default:3)
+ -#     : # compression level (1-19, default: 3)
  -d     : decompression
  -D file: use `file` as Dictionary
  -o file: result stored into `file` (only if 1 input file)
@@ -138,13 +138,13 @@ Advanced arguments :
 --ultra : enable levels beyond 19, up to 22 (requires more memory)
 --long  : enable long distance matching (requires more memory)
 --no-dictID : don't write dictID into header (dictionary compression)
---[no-]check : integrity check (default:enabled)
+--[no-]check : integrity check (default: enabled)
  -r     : operate recursively on directories
 --format=gzip : compress files to the .gz format
 --format=xz : compress files to the .xz format
 --format=lzma : compress files to the .lzma format
 --test  : test compressed file integrity
---[no-]sparse : sparse mode (default:disabled)
+--[no-]sparse : sparse mode (default: disabled)
  -M#    : Set a memory usage limit for decompression
 --      : All arguments after "--" are treated as files
 
@@ -153,13 +153,13 @@ Dictionary builder :
 --train-cover[=k=#,d=#,steps=#] : use the cover algorithm with optional args
 --train-legacy[=s=#] : use the legacy algorithm with selectivity (default: 9)
  -o file : `file` is dictionary name (default: dictionary)
---maxdict=# : limit dictionary to specified size (default : 112640)
+--maxdict=# : limit dictionary to specified size (default: 112640)
 --dictID=# : force dictionary ID to specified value (default: random)
 
 Benchmark arguments :
- -b#    : benchmark file(s), using # compression level (default : 1)
+ -b#    : benchmark file(s), using # compression level (default: 3)
  -e#    : test all compression levels from -bX to # (default: 1)
- -i#    : minimum evaluation time in seconds (default : 3s)
+ -i#    : minimum evaluation time in seconds (default: 3s)
  -B#    : cut file into independent blocks of size # (default: no block)
 --priority=rt : set process priority to real-time
 ```

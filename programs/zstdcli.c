@@ -106,7 +106,7 @@ static int usage(const char* programName)
     DISPLAY( "          with no FILE, or when FILE is - , read standard input\n");
     DISPLAY( "Arguments : \n");
 #ifndef ZSTD_NOCOMPRESS
-    DISPLAY( " -#     : # compression level (1-%d, default:%d) \n", ZSTDCLI_CLEVEL_MAX, ZSTDCLI_CLEVEL_DEFAULT);
+    DISPLAY( " -#     : # compression level (1-%d, default: %d) \n", ZSTDCLI_CLEVEL_MAX, ZSTDCLI_CLEVEL_DEFAULT);
 #endif
 #ifndef ZSTD_NODECOMPRESS
     DISPLAY( " -d     : decompression \n");
@@ -133,13 +133,13 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -l     : print information about zstd compressed files \n");
 #ifndef ZSTD_NOCOMPRESS
     DISPLAY( "--ultra : enable levels beyond %i, up to %i (requires more memory)\n", ZSTDCLI_CLEVEL_MAX, ZSTD_maxCLevel());
-    DISPLAY( "--long[=#]  : enable long distance matching with given window log (default : %u)\n", g_defaultMaxWindowLog);
+    DISPLAY( "--long[=#]  : enable long distance matching with given window log (default: %u)\n", g_defaultMaxWindowLog);
 #ifdef ZSTD_MULTITHREAD
-    DISPLAY( " -T#    : use # threads for compression (default:1) \n");
-    DISPLAY( " -B#    : select size of each job (default:0==automatic) \n");
+    DISPLAY( " -T#    : use # threads for compression (default: 1) \n");
+    DISPLAY( " -B#    : select size of each job (default: 0==automatic) \n");
 #endif
     DISPLAY( "--no-dictID : don't write dictID into header (dictionary compression)\n");
-    DISPLAY( "--[no-]check : integrity check (default:enabled) \n");
+    DISPLAY( "--[no-]check : integrity check (default: enabled) \n");
 #endif
 #ifdef UTIL_HAS_CREATEFILELIST
     DISPLAY( " -r     : operate recursively on directories \n");
@@ -157,9 +157,9 @@ static int usage_advanced(const char* programName)
 #ifndef ZSTD_NODECOMPRESS
     DISPLAY( "--test  : test compressed file integrity \n");
 #if ZSTD_SPARSE_DEFAULT
-    DISPLAY( "--[no-]sparse : sparse mode (default:enabled on file, disabled on stdout)\n");
+    DISPLAY( "--[no-]sparse : sparse mode (default: enabled on file, disabled on stdout)\n");
 #else
-    DISPLAY( "--[no-]sparse : sparse mode (default:disabled)\n");
+    DISPLAY( "--[no-]sparse : sparse mode (default: disabled)\n");
 #endif
 #endif
     DISPLAY( " -M#    : Set a memory usage limit for decompression \n");
@@ -171,15 +171,15 @@ static int usage_advanced(const char* programName)
     DISPLAY( "--train-cover[=k=#,d=#,steps=#] : use the cover algorithm with optional args\n");
     DISPLAY( "--train-legacy[=s=#] : use the legacy algorithm with selectivity (default: %u)\n", g_defaultSelectivityLevel);
     DISPLAY( " -o file : `file` is dictionary name (default: %s) \n", g_defaultDictName);
-    DISPLAY( "--maxdict=# : limit dictionary to specified size (default : %u) \n", g_defaultMaxDictSize);
+    DISPLAY( "--maxdict=# : limit dictionary to specified size (default: %u) \n", g_defaultMaxDictSize);
     DISPLAY( "--dictID=# : force dictionary ID to specified value (default: random)\n");
 #endif
 #ifndef ZSTD_NOBENCH
     DISPLAY( "\n");
     DISPLAY( "Benchmark arguments : \n");
-    DISPLAY( " -b#    : benchmark file(s), using # compression level (default : 1) \n");
+    DISPLAY( " -b#    : benchmark file(s), using # compression level (default: %d) \n", ZSTDCLI_CLEVEL_DEFAULT);
     DISPLAY( " -e#    : test all compression levels from -bX to # (default: 1)\n");
-    DISPLAY( " -i#    : minimum evaluation time in seconds (default : 3s) \n");
+    DISPLAY( " -i#    : minimum evaluation time in seconds (default: 3s) \n");
     DISPLAY( " -B#    : cut file into independent blocks of size # (default: no block)\n");
     DISPLAY( "--priority=rt : set process priority to real-time \n");
 #endif

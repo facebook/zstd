@@ -1824,7 +1824,7 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
                                         void* dst, size_t dstCapacity,
                                         const void* src, size_t srcSize)
 {
-    DEBUGLOG(5, "ZSTD_compressBlock_internal (dstCapacity=%u) (dictLimit=%u, nextToUpdate=%u)",
+    DEBUGLOG(5, "ZSTD_compressBlock_internal (dstCapacity=%u, dictLimit=%u, nextToUpdate=%u)",
                 (U32)dstCapacity, zc->blockState.matchState.dictLimit, zc->blockState.matchState.nextToUpdate);
     if (srcSize < MIN_CBLOCK_SIZE+ZSTD_blockHeaderSize+1)
         return 0;   /* don't even attempt compression below a certain srcSize */
@@ -1837,9 +1837,9 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
         if (current > zc->blockState.matchState.nextToUpdate + 384)
             zc->blockState.matchState.nextToUpdate = current - MIN(192, (U32)(current - zc->blockState.matchState.nextToUpdate - 384));
     }
-    /* find and store sequences */
-    {
-        U32 const extDict = zc->blockState.matchState.lowLimit < zc->blockState.matchState.dictLimit;
+
+    /* select and store sequences */
+    {   U32 const extDict = zc->blockState.matchState.lowLimit < zc->blockState.matchState.dictLimit;
         size_t lastLLSize;
         { int i; for (i = 0; i < ZSTD_REP_NUM; ++i) zc->blockState.nextCBlock->rep[i] = zc->blockState.prevCBlock->rep[i]; }
         if (zc->appliedParams.ldmParams.enableLdm) {
@@ -1848,26 +1848,20 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
                     U32 rep[ZSTD_REP_NUM], ZSTD_CCtx_params const* params,
                     void const* src, size_t srcSize);
             ZSTD_ldmBlockCompressor const ldmBlockCompressor = extDict ? ZSTD_compressBlock_ldm_extDict : ZSTD_compressBlock_ldm;
-
             lastLLSize = ldmBlockCompressor(&zc->ldmState, &zc->blockState.matchState, &zc->seqStore, zc->blockState.nextCBlock->rep, &zc->appliedParams, src, srcSize);
-        } else {
+        } else {   /* not long range mode */
             ZSTD_blockCompressor const blockCompressor = ZSTD_selectBlockCompressor(zc->appliedParams.cParams.strategy, extDict);
-
             lastLLSize = blockCompressor(&zc->blockState.matchState, &zc->seqStore, zc->blockState.nextCBlock->rep, &zc->appliedParams.cParams, src, srcSize);
         }
-        {
-            const BYTE* const anchor = (const BYTE*)src + srcSize - lastLLSize;
-            ZSTD_storeLastLiterals(&zc->seqStore, anchor, lastLLSize);
-        }
-    }
-    /* encode */
-    {
-        size_t const cSize = ZSTD_compressSequences(&zc->seqStore, &zc->blockState.prevCBlock->entropy, &zc->blockState.nextCBlock->entropy, &zc->appliedParams.cParams, dst, dstCapacity, srcSize, zc->entropyWorkspace);
-        if (ZSTD_isError(cSize) || cSize == 0)
-            return cSize;
+        {   const BYTE* const lastLiterals = (const BYTE*)src + srcSize - lastLLSize;
+            ZSTD_storeLastLiterals(&zc->seqStore, lastLiterals, lastLLSize);
+    }   }
+
+    /* encode sequences and literals */
+    {   size_t const cSize = ZSTD_compressSequences(&zc->seqStore, &zc->blockState.prevCBlock->entropy, &zc->blockState.nextCBlock->entropy, &zc->appliedParams.cParams, dst, dstCapacity, srcSize, zc->entropyWorkspace);
+        if (ZSTD_isError(cSize) || cSize == 0) return cSize;
         /* confirm repcodes and entropy tables */
-        {
-            ZSTD_compressedBlockState_t* const tmp = zc->blockState.prevCBlock;
+        {   ZSTD_compressedBlockState_t* const tmp = zc->blockState.prevCBlock;
             zc->blockState.prevCBlock = zc->blockState.nextCBlock;
             zc->blockState.nextCBlock = tmp;
         }
@@ -2028,6 +2022,19 @@ static size_t ZSTD_writeFrameHeader(void* dst, size_t dstCapacity,
         case 3 : MEM_writeLE64(op+pos, (U64)(pledgedSrcSize)); pos+=8; break;
     }
     return pos;
+}
+
+/* ZSTD_writeLastEmptyBlock() :
+ * output an empty Block with end-of-frame mark to complete a frame
+ * @return : size of data written into `dst` (== ZSTD_blockHeaderSize (defined in zstd_internal.h))
+ *           or an error code if `dstCapcity` is too small (<ZSTD_blockHeaderSize)
+ */
+size_t ZSTD_writeLastEmptyBlock(void* dst, size_t dstCapacity)
+{
+    if (dstCapacity < ZSTD_blockHeaderSize) return ERROR(dstSize_tooSmall);
+    U32 const cBlockHeader24 = 1 /*lastBlock*/ + (((U32)bt_raw)<<1);  /* 0 size */
+    MEM_writeLE24(dst, cBlockHeader24);
+    return ZSTD_blockHeaderSize;
 }
 
 

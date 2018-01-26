@@ -300,28 +300,28 @@ static void ZSTDMT_releaseCCtx(ZSTDMT_CCtxPool* pool, ZSTD_CCtx* cctx)
 
 
 /* ------------------------------------------ */
-/* =====          Thread worker         ===== */
+/* =====          Worker thread         ===== */
 /* ------------------------------------------ */
 
 typedef struct {
-    buffer_t src;
-    const void* srcStart;
-    size_t   prefixSize;
-    size_t   srcSize;
-    size_t   consumed;
-    buffer_t dstBuff;
-    size_t   cSize;
-    size_t   dstFlushed;
-    unsigned firstChunk;
-    unsigned lastChunk;
-    unsigned frameChecksumNeeded;
-    ZSTD_pthread_mutex_t* mtctx_mutex;
-    ZSTD_pthread_cond_t* mtctx_cond;
-    ZSTD_CCtx_params params;
-    const ZSTD_CDict* cdict;
-    ZSTDMT_CCtxPool* cctxPool;
-    ZSTDMT_bufferPool* bufPool;
-    unsigned long long fullFrameSize;
+    size_t   consumed;       /* SHARED - init0 by mtctx, then modified by worker AND read by mtctx */
+    size_t   cSize;          /* SHARED - init0 by mtctx, then modified by worker AND read by mtctx */
+    ZSTD_pthread_mutex_t* mtctx_mutex;   /* Thread-safe - used by mtctx and (all) worker */
+    ZSTD_pthread_cond_t* mtctx_cond;     /* Thread-safe - used by mtctx and (all) worker */
+    ZSTDMT_CCtxPool* cctxPool;           /* Thread-safe - used by mtctx and (all) worker */
+    ZSTDMT_bufferPool* bufPool;          /* Thread-safe - used by mtctx and (all) worker */
+    buffer_t dstBuff;        /* set by worker (or mtctx), then read by worker, then modified by mtctx => no barrier */
+    buffer_t src;            /* set by mtctx, then modified by worker => no barrier */
+    const void* srcStart;    /* set by mtctx, then read by worker => no barrier */
+    size_t   prefixSize;     /* set by mtctx, then read by worker => no barrier */
+    size_t   srcSize;        /* set by mtctx, then read by worker => no barrier */
+    unsigned firstChunk;     /* set by mtctx, then read by worker => no barrier */
+    unsigned lastChunk;      /* set by mtctx, then read by worker => no barrier */
+    ZSTD_CCtx_params params;             /* set by mtctx, then read by worker => no barrier */
+    const ZSTD_CDict* cdict;             /* set by mtctx, then read by worker => no barrier */
+    unsigned long long fullFrameSize;    /* set by mtctx, then read by worker => no barrier */
+    size_t   dstFlushed;                 /* used only by mtctx */
+    unsigned frameChecksumNeeded;        /* used only by mtctx */
 } ZSTDMT_jobDescription;
 
 /* ZSTDMT_compressChunk() is a POOL_function type */

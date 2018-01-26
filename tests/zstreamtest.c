@@ -1220,9 +1220,9 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest, double comp
 
         FUZ_rand(&coreSeed);
         if (nbTests >= testNb) {
-            DISPLAYUPDATE(2, "\r%6u/%6u (%08X)   ", testNb, nbTests, coreSeed);
+            DISPLAYUPDATE(2, "\r%6u/%6u    ", testNb, nbTests);
         } else {
-            DISPLAYUPDATE(2, "\r%6u  (%08X)        ", testNb, coreSeed);
+            DISPLAYUPDATE(2, "\r%6u         ", testNb);
         }
         lseed = coreSeed ^ prime32;
 

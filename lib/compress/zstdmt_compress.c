@@ -486,8 +486,8 @@ static ZSTDMT_jobDescription* ZSTDMT_createJobsTable(U32* nbJobsPtr, ZSTD_custom
     U32 const nbJobsLog2 = ZSTD_highbit32(*nbJobsPtr) + 1;
     U32 const nbJobs = 1 << nbJobsLog2;
     U32 jobNb;
-    ZSTDMT_jobDescription* const jobTable = ZSTD_calloc(
-                            nbJobs * sizeof(ZSTDMT_jobDescription), cMem);
+    ZSTDMT_jobDescription* const jobTable = (ZSTDMT_jobDescription*)
+                ZSTD_calloc(nbJobs * sizeof(ZSTDMT_jobDescription), cMem);
     int initError = 0;
     if (jobTable==NULL) return NULL;
     *nbJobsPtr = nbJobs;

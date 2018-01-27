@@ -969,9 +969,9 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, double compres
         FUZ_rand(&coreSeed);
         lseed = coreSeed ^ prime32;
         if (nbTests >= testNb) {
-            DISPLAYUPDATE(2, "\r%6u/%6u (%08X)   ", testNb, nbTests, lseed);
+            DISPLAYUPDATE(2, "\r%6u/%6u    ", testNb, nbTests);
         } else {
-            DISPLAYUPDATE(2, "\r%6u  (%08X)        ", testNb, lseed);
+            DISPLAYUPDATE(2, "\r%6u        ", testNb);
         }
 
         /* states full reset (deliberately not synchronized) */

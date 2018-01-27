@@ -467,26 +467,6 @@ struct ZSTDMT_CCtx_s {
     const ZSTD_CDict* cdict;
 };
 
-/* ZSTDMT_allocJobsTable()
- * allocate and init a job table.
- * update *nbJobsPtr to next power of 2 value, as size of table
- * No reverse free() function is provided : just use ZSTD_free() */
-static ZSTDMT_jobDescription* ZSTDMT_createJobsTable(U32* nbJobsPtr, ZSTD_customMem cMem)
-{
-    U32 const nbJobsLog2 = ZSTD_highbit32(*nbJobsPtr) + 1;
-    U32 const nbJobs = 1 << nbJobsLog2;
-    ZSTDMT_jobDescription* const jobTable = ZSTD_calloc(
-                            nbJobs * sizeof(ZSTDMT_jobDescription), cMem);
-    U32 jobNb;
-    if (jobTable==NULL) return NULL;
-    *nbJobsPtr = nbJobs;
-    for (jobNb=0; jobNb<nbJobs; jobNb++) {
-        ZSTD_pthread_mutex_init(&jobTable[jobNb].job_mutex, NULL);   /* <======== should check init result */
-        ZSTD_pthread_cond_init(&jobTable[jobNb].job_cond, NULL);  /* <======== should check init result */
-    }
-    return jobTable;
-}
-
 static void ZSTDMT_freeJobsTable(ZSTDMT_jobDescription* jobTable, U32 nbJobs, ZSTD_customMem cMem)
 {
     U32 jobNb;
@@ -496,6 +476,30 @@ static void ZSTDMT_freeJobsTable(ZSTDMT_jobDescription* jobTable, U32 nbJobs, ZS
         ZSTD_pthread_cond_destroy(&jobTable[jobNb].job_cond);
     }
     ZSTD_free(jobTable, cMem);
+}
+
+/* ZSTDMT_allocJobsTable()
+ * allocate and init a job table.
+ * update *nbJobsPtr to next power of 2 value, as size of table */
+static ZSTDMT_jobDescription* ZSTDMT_createJobsTable(U32* nbJobsPtr, ZSTD_customMem cMem)
+{
+    U32 const nbJobsLog2 = ZSTD_highbit32(*nbJobsPtr) + 1;
+    U32 const nbJobs = 1 << nbJobsLog2;
+    U32 jobNb;
+    ZSTDMT_jobDescription* const jobTable = ZSTD_calloc(
+                            nbJobs * sizeof(ZSTDMT_jobDescription), cMem);
+    int initError = 0;
+    if (jobTable==NULL) return NULL;
+    *nbJobsPtr = nbJobs;
+    for (jobNb=0; jobNb<nbJobs; jobNb++) {
+        initError |= ZSTD_pthread_mutex_init(&jobTable[jobNb].job_mutex, NULL);
+        initError |= ZSTD_pthread_cond_init(&jobTable[jobNb].job_cond, NULL);
+    }
+    if (initError != 0) {
+        ZSTDMT_freeJobsTable(jobTable, nbJobs, cMem);
+        return NULL;
+    }
+    return jobTable;
 }
 
 /* ZSTDMT_CCtxParam_setNbThreads():

@@ -171,12 +171,12 @@ the last one takes effect.
 DICTIONARY BUILDER
 ------------------
 `zstd` offers _dictionary_ compression,
-useful for very small files and messages.
-It's possible to train `zstd` with some samples,
+which greatly improves efficiency on small files and messages.
+It's possible to train `zstd` with a set of samples,
 the result of which is saved into a file called a `dictionary`.
-Then during compression and decompression, reference the same dictionary.
-It will improve compression ratio of small files.
-Typical gains range from 10% (at 64KB) to x5 better (at <1KB).
+Then during compression and decompression, reference the same dictionary,
+using command `-D dictionaryFileName`.
+Compression of small files similar to the sample set will be greatly improved.
 
 * `--train FILEs`:
     Use FILEs as training set to create a dictionary.
@@ -192,6 +192,10 @@ Typical gains range from 10% (at 64KB) to x5 better (at <1KB).
     Dictionary saved into `file` (default name: dictionary).
 * `--maxdict=#`:
     Limit dictionary to specified size (default: 112640).
+* `-#`:
+    Use `#` compression level during training (optional).
+    Will generate statistics more tuned for selected compression level,
+    resulting in a _small_ compression ratio improvement for this level.
 * `-B#`:
     Split input files in blocks of size # (default: no split)
 * `--dictID=#`:

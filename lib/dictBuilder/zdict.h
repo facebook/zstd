@@ -104,9 +104,9 @@ typedef struct {
  *        It's recommended that total size of all samples be about ~x100 times the target size of dictionary.
  */
 ZDICTLIB_API size_t ZDICT_trainFromBuffer_cover(
-    void *dictBuffer, size_t dictBufferCapacity,
+          void *dictBuffer, size_t dictBufferCapacity,
     const void *samplesBuffer, const size_t *samplesSizes, unsigned nbSamples,
-    ZDICT_cover_params_t parameters);
+          ZDICT_cover_params_t parameters);
 
 /*! ZDICT_optimizeTrainFromBuffer_cover():
  * The same requirements as above hold for all the parameters except `parameters`.
@@ -125,9 +125,9 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_cover(
  * Note: ZDICT_optimizeTrainFromBuffer_cover() requires about 8 bytes of memory for each input byte and additionally another 5 bytes of memory for each byte of memory for each thread.
  */
 ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
-    void* dictBuffer, size_t dictBufferCapacity,
+          void* dictBuffer, size_t dictBufferCapacity,
     const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
-    ZDICT_cover_params_t* parameters);
+          ZDICT_cover_params_t* parameters);
 
 /*! ZDICT_finalizeDictionary():
  * Given a custom content as a basis for dictionary, and a set of samples,

@@ -251,6 +251,7 @@ static U32 ZSTD_insertAndFindFirstIndexHash3 (ZSTD_matchState_t* ms, const BYTE*
     U32 idx = ms->nextToUpdate3;
     U32 const target = ms->nextToUpdate3 = (U32)(ip - base);
     size_t const hash3 = ZSTD_hash3Ptr(ip, hashLog3);
+    assert(hashLog3 > 0);
 
     while(idx < target) {
         hashTable3[ZSTD_hash3Ptr(base+idx, hashLog3)] = idx;

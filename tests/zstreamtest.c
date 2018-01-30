@@ -558,6 +558,36 @@ static int basicUnitTests(U32 seed, double compressibility)
       if (!ZSTD_isError(r)) goto _output_error;  /* must fail : frame requires > 100 bytes */
       DISPLAYLEVEL(3, "OK (%s)\n", ZSTD_getErrorName(r)); }
 
+    DISPLAYLEVEL(3, "test%3i : dictionary source size and level : ", testNb++);
+    {   ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+        ZSTD_DDict* const ddict = ZSTD_createDDict(dictionary.start, dictionary.filled);
+        int const maxLevel = ZSTD_maxCLevel();
+        int level;
+        for (level = 1; level <= maxLevel; ++level) {
+            ZSTD_CDict* const cdict = ZSTD_createCDict(dictionary.start, dictionary.filled, level);
+            int const maxSize = MIN(1 MB, CNBufferSize);
+            int size;
+            for (size = 512; size <= maxSize; size <<= 1) {
+                ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+                outBuff.dst = compressedBuffer;
+                outBuff.size = compressedBufferSize;
+                outBuff.pos = 0;
+                inBuff.src = CNBuffer;
+                inBuff.size = size;
+                inBuff.pos = 0;
+                CHECK_Z(ZSTD_CCtx_refCDict(cctx, cdict));
+                CHECK_Z(ZSTD_compress_generic(cctx, &outBuff, &inBuff, ZSTD_e_end));
+                if (inBuff.pos != inBuff.size) goto _output_error;
+                CHECK_Z(ZSTD_decompress_usingDDict(dctx, decodedBuffer, size, outBuff.dst, outBuff.pos, ddict));
+                ZSTD_freeCCtx(cctx);
+            }
+            ZSTD_freeCDict(cdict);
+        }
+        ZSTD_freeDDict(ddict);
+        ZSTD_freeDCtx(dctx);
+    }
+    DISPLAYLEVEL(3, "OK\n");
+
     DISPLAYLEVEL(3, "test%3i : ZSTD_initCStream_usingCDict_advanced with masked dictID : ", testNb++);
     {   ZSTD_compressionParameters const cParams = ZSTD_getCParams(1, CNBufferSize, dictionary.filled);
         ZSTD_frameParameters const fParams = { 1 /* contentSize */, 1 /* checksum */, 1 /* noDictID */};

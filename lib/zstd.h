@@ -1373,7 +1373,7 @@ ZSTDLIB_API void ZSTD_DCtx_reset(ZSTD_DCtx* dctx);
 #define ZSTD_BLOCKSIZELOG_MAX 17
 #define ZSTD_BLOCKSIZE_MAX   (1<<ZSTD_BLOCKSIZELOG_MAX)   /* define, for static allocation */
 /*=====   Raw zstd block functions  =====*/
-ZSTDLIB_API size_t ZSTD_getBlockSizeMax(const ZSTD_CCtx* cctx);
+ZSTDLIB_API size_t ZSTD_getBlockSize   (const ZSTD_CCtx* cctx);
 ZSTDLIB_API size_t ZSTD_compressBlock  (ZSTD_CCtx* cctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 ZSTDLIB_API size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 ZSTDLIB_API size_t ZSTD_insertBlock    (ZSTD_DCtx* dctx, const void* blockStart, size_t blockSize);  /**< insert uncompressed block into `dctx` history. Useful for multi-blocks decompression. */

@@ -481,4 +481,13 @@ size_t ZSTD_compress_advanced_internal(ZSTD_CCtx* cctx,
                                  const void* dict,size_t dictSize,
                                  ZSTD_CCtx_params params);
 
+
+/* ZSTD_writeLastEmptyBlock() :
+ * output an empty Block with end-of-frame mark to complete a frame
+ * @return : size of data written into `dst` (== ZSTD_blockHeaderSize (defined in zstd_internal.h))
+ *           or an error code if `dstCapcity` is too small (<ZSTD_blockHeaderSize)
+ */
+size_t ZSTD_writeLastEmptyBlock(void* dst, size_t dstCapacity);
+
+
 #endif /* ZSTD_COMPRESS_H */

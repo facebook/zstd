@@ -2096,6 +2096,13 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* cctx,
         if (ZSTD_isError(cSize)) return cSize;
         cctx->consumedSrcSize += srcSize;
         cctx->producedCSize += (cSize + fhSize);
+        if (cctx->appliedParams.fParams.contentSizeFlag) {  /* control src size */
+            if (cctx->consumedSrcSize+1 > cctx->pledgedSrcSizePlusOne) {
+                DEBUGLOG(4, "error : pledgedSrcSize = %u, while realSrcSize >= %u",
+                    (U32)cctx->pledgedSrcSizePlusOne-1, (U32)cctx->consumedSrcSize);
+                return ERROR(srcSize_wrong);
+            }
+        }
         return cSize + fhSize;
     }
 }

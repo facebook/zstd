@@ -432,8 +432,8 @@ static int basicUnitTests(U32 seed, double compressibility)
     DISPLAYLEVEL(3, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/COMPRESSIBLE_NOISE_LENGTH*100);
 
     /* wrong _srcSize compression test */
-    DISPLAYLEVEL(3, "test%3i : wrong srcSize : %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH-1);
-    ZSTD_initCStream_srcSize(zc, 1, CNBufferSize-1);
+    DISPLAYLEVEL(3, "test%3i : too large srcSize : %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH-1);
+    ZSTD_initCStream_srcSize(zc, 1, CNBufferSize+1);
     outBuff.dst = (char*)(compressedBuffer);
     outBuff.size = compressedBufferSize;
     outBuff.pos = 0;
@@ -445,6 +445,20 @@ static int basicUnitTests(U32 seed, double compressibility)
     { size_t const r = ZSTD_endStream(zc, &outBuff);
       if (ZSTD_getErrorCode(r) != ZSTD_error_srcSize_wrong) goto _output_error;    /* must fail : wrong srcSize */
       DISPLAYLEVEL(3, "OK (error detected : %s) \n", ZSTD_getErrorName(r)); }
+
+    /* wrong _srcSize compression test */
+    DISPLAYLEVEL(3, "test%3i : too small srcSize : %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH-1);
+    ZSTD_initCStream_srcSize(zc, 1, CNBufferSize-1);
+    outBuff.dst = (char*)(compressedBuffer);
+    outBuff.size = compressedBufferSize;
+    outBuff.pos = 0;
+    inBuff.src = CNBuffer;
+    inBuff.size = CNBufferSize;
+    inBuff.pos = 0;
+    {   size_t const r = ZSTD_compressStream(zc, &outBuff, &inBuff);
+        if (ZSTD_getErrorCode(r) != ZSTD_error_srcSize_wrong) goto _output_error;    /* must fail : wrong srcSize */
+        DISPLAYLEVEL(3, "OK (error detected : %s) \n", ZSTD_getErrorName(r));
+    }
 
     /* Complex context re-use scenario */
     DISPLAYLEVEL(3, "test%3i : context re-use : ", testNb++);

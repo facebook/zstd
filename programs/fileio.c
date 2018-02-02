@@ -1169,7 +1169,7 @@ static void FIO_zstdErrorHelp(dRess_t* ress, size_t err, char const* srcFileName
     /* Try to decode the frame header */
     err = ZSTD_getFrameHeader(&header, ress->srcBuffer, ress->srcBufferLoaded);
     if (err == 0) {
-        U64 const windowSize = header.windowSize;
+        unsigned long long const windowSize = header.windowSize;
         U32 const windowLog = FIO_highbit64(windowSize) + ((windowSize & (windowSize - 1)) != 0);
         U32 const windowMB = (U32)((windowSize >> 20) + ((windowSize & ((1 MB) - 1)) != 0));
         assert(windowSize < (U64)(1ULL << 52));

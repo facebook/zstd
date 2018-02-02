@@ -430,7 +430,7 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
     if (!ress.srcBuffer || !ress.dstBuffer)
         EXM_THROW(31, "allocation error : not enough memory");
 
-    /* Advances parameters, including dictionary */
+    /* Advanced parameters, including dictionary */
     {   void* dictBuffer;
         size_t const dictBuffSize = FIO_createDictBuffer(&dictBuffer, dictFileName);   /* works with dictFileName==NULL */
         if (dictFileName && (dictBuffer==NULL))
@@ -442,8 +442,7 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
         /* compression level */
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionLevel, cLevel) );
         /* long distance matching */
-        CHECK( ZSTD_CCtx_setParameter(
-                      ress.cctx, ZSTD_p_enableLongDistanceMatching, g_ldmFlag) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_enableLongDistanceMatching, g_ldmFlag) );
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_ldmHashLog, g_ldmHashLog) );
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_ldmMinMatch, g_ldmMinMatch) );
         if (g_ldmBucketSizeLog != FIO_LDM_PARAM_NOTSET) {
@@ -461,13 +460,13 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_targetLength, comprParams->targetLength) );
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionStrategy, (U32)comprParams->strategy) );
         /* multi-threading */
+#ifdef ZSTD_MULTITHREAD
         DISPLAYLEVEL(5,"set nb threads = %u \n", g_nbThreads);
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_nbThreads, g_nbThreads) );
-#ifdef ZSTD_MULTITHREAD
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_nonBlockingMode, 1) );
 #endif
         /* dictionary */
-        CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, srcSize) );  /* just for dictionary loading, for compression parameters adaptation */
+        CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, srcSize) );  /* set the value temporarily for dictionary loading, to adapt compression parameters */
         CHECK( ZSTD_CCtx_loadDictionary(ress.cctx, dictBuffer, dictBuffSize) );
         CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, ZSTD_CONTENTSIZE_UNKNOWN) );  /* reset */
 

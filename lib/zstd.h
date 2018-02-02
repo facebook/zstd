@@ -1015,7 +1015,7 @@ typedef enum {
     /* advanced parameters - may not remain available after API update */
     ZSTD_p_forceMaxWindow=1100, /* Force back-reference distances to remain < windowSize,
                               * even when referencing into Dictionary content (default:0) */
-    ZSTD_p_enableLongDistanceMatching=1200,  /* Enable long distance matching.
+    ZSTD_p_enableLongDistanceMatching=1200, /* Enable long distance matching.
                                          * This parameter is designed to improve the compression
                                          * ratio for large inputs with long distance matches.
                                          * This increases the memory usage as well as window size.
@@ -1025,25 +1025,29 @@ typedef enum {
                                          * other LDM parameters. Setting the compression level
                                          * after this parameter overrides the window log, though LDM
                                          * will remain enabled until explicitly disabled. */
-    ZSTD_p_ldmHashLog,   /* Size of the table for long distance matching, as a power of 2.
-                          * Larger values increase memory usage and compression ratio, but decrease
-                          * compression speed.
-                          * Must be clamped between ZSTD_HASHLOG_MIN and ZSTD_HASHLOG_MAX
-                          * (default: windowlog - 7). */
-    ZSTD_p_ldmMinMatch,  /* Minimum size of searched matches for long distance matcher.
-                          * Larger/too small values usually decrease compression ratio.
-                          * Must be clamped between ZSTD_LDM_MINMATCH_MIN
-                          * and ZSTD_LDM_MINMATCH_MAX (default: 64). */
-    ZSTD_p_ldmBucketSizeLog,  /* Log size of each bucket in the LDM hash table for collision resolution.
-                               * Larger values usually improve collision resolution but may decrease
-                               * compression speed.
-                               * The maximum value is ZSTD_LDM_BUCKETSIZELOG_MAX (default: 3). */
+    ZSTD_p_ldmHashLog,       /* Size of the table for long distance matching, as a power of 2.
+                              * Larger values increase memory usage and compression ratio, but decrease
+                              * compression speed.
+                              * Must be clamped between ZSTD_HASHLOG_MIN and ZSTD_HASHLOG_MAX
+                              * (default: windowlog - 7).
+                              * Special: value 0 means "do not change ldmHashLog". */
+    ZSTD_p_ldmMinMatch,      /* Minimum size of searched matches for long distance matcher.
+                              * Larger/too small values usually decrease compression ratio.
+                              * Must be clamped between ZSTD_LDM_MINMATCH_MIN
+                              * and ZSTD_LDM_MINMATCH_MAX (default: 64).
+                              * Special: value 0 means "do not change ldmMinMatch". */
+    ZSTD_p_ldmBucketSizeLog, /* Log size of each bucket in the LDM hash table for collision resolution.
+                              * Larger values usually improve collision resolution but may decrease
+                              * compression speed.
+                              * The maximum value is ZSTD_LDM_BUCKETSIZELOG_MAX (default: 3).
+                              * note : 0 is a valid value */
     ZSTD_p_ldmHashEveryLog,  /* Frequency of inserting/looking up entries in the LDM hash table.
                               * The default is MAX(0, (windowLog - ldmHashLog)) to
                               * optimize hash table usage.
                               * Larger values improve compression speed. Deviating far from the
                               * default value will likely result in a decrease in compression ratio.
-                              * Must be clamped between 0 and ZSTD_WINDOWLOG_MAX - ZSTD_HASHLOG_MIN. */
+                              * Must be clamped between 0 and ZSTD_WINDOWLOG_MAX - ZSTD_HASHLOG_MIN.
+                              * note : 0 is a valid value */
 
 } ZSTD_cParameter;
 

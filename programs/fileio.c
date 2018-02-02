@@ -736,56 +736,22 @@ static unsigned long long FIO_compressLz4Frame(cRess_t* ress,
  *  @return : 0 : compression completed correctly,
  *            1 : missing or pb opening srcFileName
  */
-static int FIO_compressFilename_internal(cRess_t ress,
-                                         const char* dstFileName, const char* srcFileName, int compressionLevel)
+static unsigned long long
+FIO_compressZstdFrame(const cRess_t* ressPtr,
+                      const char* srcFileName, U64 fileSize,
+                      int compressionLevel, U64* readsize)
 {
+    cRess_t const ress = *ressPtr;
     FILE* const srcFile = ress.srcFile;
     FILE* const dstFile = ress.dstFile;
-    U64 readsize = 0;
     U64 compressedfilesize = 0;
-    U64 const fileSize = UTIL_getFileSize(srcFileName);
     ZSTD_EndDirective directive = ZSTD_e_continue;
-    DISPLAYLEVEL(5, "%s: %u bytes \n", srcFileName, (U32)fileSize);
-
-    switch (g_compressionType) {
-        case FIO_zstdCompression:
-            break;
-
-        case FIO_gzipCompression:
-#ifdef ZSTD_GZCOMPRESS
-            compressedfilesize = FIO_compressGzFrame(&ress, srcFileName, fileSize, compressionLevel, &readsize);
-#else
-            (void)compressionLevel;
-            EXM_THROW(20, "zstd: %s: file cannot be compressed as gzip (zstd compiled without ZSTD_GZCOMPRESS) -- ignored \n",
-                            srcFileName);
-#endif
-            goto finish;
-
-        case FIO_xzCompression:
-        case FIO_lzmaCompression:
-#ifdef ZSTD_LZMACOMPRESS
-            compressedfilesize = FIO_compressLzmaFrame(&ress, srcFileName, fileSize, compressionLevel, &readsize, g_compressionType==FIO_lzmaCompression);
-#else
-            (void)compressionLevel;
-            EXM_THROW(20, "zstd: %s: file cannot be compressed as xz/lzma (zstd compiled without ZSTD_LZMACOMPRESS) -- ignored \n",
-                            srcFileName);
-#endif
-            goto finish;
-
-        case FIO_lz4Compression:
-#ifdef ZSTD_LZ4COMPRESS
-            compressedfilesize = FIO_compressLz4Frame(&ress, srcFileName, fileSize, compressionLevel, &readsize);
-#else
-            (void)compressionLevel;
-            EXM_THROW(20, "zstd: %s: file cannot be compressed as lz4 (zstd compiled without ZSTD_LZ4COMPRESS) -- ignored \n",
-                            srcFileName);
-#endif
-            goto finish;
-    }
+    DISPLAYLEVEL(6, "compression using zstd format \n");
 
     /* init */
     if (fileSize != UTIL_FILESIZE_UNKNOWN)
         ZSTD_CCtx_setPledgedSrcSize(ress.cctx, fileSize);
+    (void)compressionLevel; (void)srcFileName;
 
     /* Main compression loop */
     do {
@@ -794,9 +760,9 @@ static int FIO_compressFilename_internal(cRess_t ress,
         size_t const inSize = fread(ress.srcBuffer, (size_t)1, ress.srcBufferSize, srcFile);
         ZSTD_inBuffer inBuff = { ress.srcBuffer, inSize, 0 };
         DISPLAYLEVEL(6, "fread %u bytes from source \n", (U32)inSize);
-        readsize += inSize;
+        *readsize += inSize;
 
-        if (inSize == 0 || (fileSize != UTIL_FILESIZE_UNKNOWN && readsize == fileSize))
+        if ((inSize == 0) || (*readsize == fileSize))
             directive = ZSTD_e_end;
 
         result = 1;
@@ -810,7 +776,7 @@ static int FIO_compressFilename_internal(cRess_t ress,
             if (outBuff.pos) {
                 size_t const sizeCheck = fwrite(ress.dstBuffer, 1, outBuff.pos, dstFile);
                 if (sizeCheck!=outBuff.pos)
-                    EXM_THROW(25, "Write error : cannot write compressed block into %s", dstFileName);
+                    EXM_THROW(25, "Write error : cannot write compressed block");
                 compressedfilesize += outBuff.pos;
             }
             if (READY_FOR_UPDATE()) {
@@ -824,10 +790,67 @@ static int FIO_compressFilename_internal(cRess_t ress,
         }
     } while (directive != ZSTD_e_end);
 
-finish:
+    return compressedfilesize;
+}
+
+/*! FIO_compressFilename_internal() :
+ *  same as FIO_compressFilename_extRess(), with `ress.desFile` already opened.
+ *  @return : 0 : compression completed correctly,
+ *            1 : missing or pb opening srcFileName
+ */
+static int
+FIO_compressFilename_internal(cRess_t ress,
+                              const char* dstFileName, const char* srcFileName,
+                              int compressionLevel)
+{
+    U64 readsize = 0;
+    U64 compressedfilesize = 0;
+    U64 const fileSize = UTIL_getFileSize(srcFileName);
+    DISPLAYLEVEL(5, "%s: %u bytes \n", srcFileName, (U32)fileSize);
+
+    /* compression format selection */
+    switch (g_compressionType) {
+        default:
+        case FIO_zstdCompression:
+            compressedfilesize = FIO_compressZstdFrame(&ress, srcFileName, fileSize, compressionLevel, &readsize);
+            break;
+
+        case FIO_gzipCompression:
+#ifdef ZSTD_GZCOMPRESS
+            compressedfilesize = FIO_compressGzFrame(&ress, srcFileName, fileSize, compressionLevel, &readsize);
+#else
+            (void)compressionLevel;
+            EXM_THROW(20, "zstd: %s: file cannot be compressed as gzip (zstd compiled without ZSTD_GZCOMPRESS) -- ignored \n",
+                            srcFileName);
+#endif
+            break;
+
+        case FIO_xzCompression:
+        case FIO_lzmaCompression:
+#ifdef ZSTD_LZMACOMPRESS
+            compressedfilesize = FIO_compressLzmaFrame(&ress, srcFileName, fileSize, compressionLevel, &readsize, g_compressionType==FIO_lzmaCompression);
+#else
+            (void)compressionLevel;
+            EXM_THROW(20, "zstd: %s: file cannot be compressed as xz/lzma (zstd compiled without ZSTD_LZMACOMPRESS) -- ignored \n",
+                            srcFileName);
+#endif
+            break;
+
+        case FIO_lz4Compression:
+#ifdef ZSTD_LZ4COMPRESS
+            compressedfilesize = FIO_compressLz4Frame(&ress, srcFileName, fileSize, compressionLevel, &readsize);
+#else
+            (void)compressionLevel;
+            EXM_THROW(20, "zstd: %s: file cannot be compressed as lz4 (zstd compiled without ZSTD_LZ4COMPRESS) -- ignored \n",
+                            srcFileName);
+#endif
+            break;
+    }
+
     /* Status */
     DISPLAYLEVEL(2, "\r%79s\r", "");
-    DISPLAYLEVEL(2,"%-20s :%6.2f%%   (%6llu => %6llu bytes, %s) \n", srcFileName,
+    DISPLAYLEVEL(2,"%-20s :%6.2f%%   (%6llu => %6llu bytes, %s) \n",
+        srcFileName,
         (double)compressedfilesize / (readsize+(!readsize)/*avoid div by zero*/) * 100,
         (unsigned long long)readsize, (unsigned long long) compressedfilesize,
          dstFileName);

@@ -121,17 +121,11 @@ size_t ZSTDMT_CCtxParam_setMTCtxParameter(ZSTD_CCtx_params* params, ZSTDMT_param
  * Also reset jobSize and overlapLog */
 size_t ZSTDMT_CCtxParam_setNbWorkers(ZSTD_CCtx_params* params, unsigned nbWorkers);
 
-/*! ZSTDMT_MTCtx_setParametersUsingCCtxParams_whileCompressing() :
- *  Apply a ZSTD_CCtx_params to the compression context.
- *  This works even during compression, and will be applied to next compression job.
- *  However, the following parameters will NOT be updated after compression has been started :
- *  - window size
- *  - pledgedSrcSize
- *  - nb threads
- *  - job size
- *  - overlap size
- */
-void ZSTDMT_MTCtx_setParametersUsingCCtxParams_whileCompressing(ZSTDMT_CCtx* mtctx, const ZSTD_CCtx_params* params);
+/*! ZSTDMT_MTCtx_updateParametersWhileCompressing() :
+ *  Update compression level and parameters (except wlog)
+ *  while compression is ongoing.
+ *  New parameters will be applied to next compression job. */
+void ZSTDMT_MTCtx_updateParametersWhileCompressing(ZSTDMT_CCtx* mtctx, int compressionLevel, ZSTD_compressionParameters cParams);
 
 /* ZSTDMT_getNbWorkers():
  * @return nb threads currently active in mtctx.

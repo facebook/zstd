@@ -122,12 +122,12 @@ void BMK_setBlockSize(size_t blockSize)
 
 void BMK_setDecodeOnlyMode(unsigned decodeFlag) { g_decodeOnly = (decodeFlag>0); }
 
-static U32 g_nbThreads = 1;
-void BMK_setNbThreads(unsigned nbThreads) {
+static U32 g_nbWorkers = 0;
+void BMK_setNbWorkers(unsigned nbWorkers) {
 #ifndef ZSTD_MULTITHREAD
-    if (nbThreads > 1) DISPLAYLEVEL(2, "Note : multi-threading is disabled \n");
+    if (nbWorkers > 0) DISPLAYLEVEL(2, "Note : multi-threading is disabled \n");
 #endif
-    g_nbThreads = nbThreads;
+    g_nbWorkers = nbWorkers;
 }
 
 static U32 g_realTime = 0;
@@ -295,7 +295,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                 if (!cCompleted) {   /* still some time to do compression tests */
                     U64 const clockLoop = g_nbSeconds ? TIMELOOP_MICROSEC : 1;
                     U32 nbLoops = 0;
-                    ZSTD_CCtx_setParameter(ctx, ZSTD_p_nbThreads, g_nbThreads);
+                    ZSTD_CCtx_setParameter(ctx, ZSTD_p_nbWorkers, g_nbWorkers);
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_compressionLevel, cLevel);
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_enableLongDistanceMatching, g_ldmFlag);
                     ZSTD_CCtx_setParameter(ctx, ZSTD_p_ldmMinMatch, g_ldmMinMatch);

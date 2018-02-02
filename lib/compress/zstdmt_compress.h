@@ -30,8 +30,8 @@
 
 /* ===   Memory management   === */
 typedef struct ZSTDMT_CCtx_s ZSTDMT_CCtx;
-ZSTDLIB_API ZSTDMT_CCtx* ZSTDMT_createCCtx(unsigned nbThreads);
-ZSTDLIB_API ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced(unsigned nbThreads,
+ZSTDLIB_API ZSTDMT_CCtx* ZSTDMT_createCCtx(unsigned nbWorkers);
+ZSTDLIB_API ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced(unsigned nbWorkers,
                                                     ZSTD_customMem cMem);
 ZSTDLIB_API size_t ZSTDMT_freeCCtx(ZSTDMT_CCtx* mtctx);
 
@@ -116,12 +116,12 @@ ZSTDLIB_API size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
 
 size_t ZSTDMT_CCtxParam_setMTCtxParameter(ZSTD_CCtx_params* params, ZSTDMT_parameter parameter, unsigned value);
 
-/* ZSTDMT_CCtxParam_setNbThreads()
- * Set nbThreads, and clamp it.
+/* ZSTDMT_CCtxParam_setNbWorkers()
+ * Set nbWorkers, and clamp it.
  * Also reset jobSize and overlapLog */
-size_t ZSTDMT_CCtxParam_setNbThreads(ZSTD_CCtx_params* params, unsigned nbThreads);
+size_t ZSTDMT_CCtxParam_setNbWorkers(ZSTD_CCtx_params* params, unsigned nbWorkers);
 
-/*! ZSTDMT_MTCtx_setParametersUsingCCtxParams() :
+/*! ZSTDMT_MTCtx_setParametersUsingCCtxParams_whileCompressing() :
  *  Apply a ZSTD_CCtx_params to the compression context.
  *  This works even during compression, and will be applied to next compression job.
  *  However, the following parameters will NOT be updated after compression has been started :
@@ -131,12 +131,12 @@ size_t ZSTDMT_CCtxParam_setNbThreads(ZSTD_CCtx_params* params, unsigned nbThread
  *  - job size
  *  - overlap size
  */
-void ZSTDMT_MTCtx_setParametersUsingCCtxParams(ZSTDMT_CCtx* mtctx, const ZSTD_CCtx_params* params);
+void ZSTDMT_MTCtx_setParametersUsingCCtxParams_whileCompressing(ZSTDMT_CCtx* mtctx, const ZSTD_CCtx_params* params);
 
-/* ZSTDMT_getNbThreads():
+/* ZSTDMT_getNbWorkers():
  * @return nb threads currently active in mtctx.
  * mtctx must be valid */
-unsigned ZSTDMT_getNbThreads(const ZSTDMT_CCtx* mtctx);
+unsigned ZSTDMT_getNbWorkers(const ZSTDMT_CCtx* mtctx);
 
 /* ZSTDMT_getFrameProgression():
  * tells how much data has been consumed (input) and produced (output) for current frame.

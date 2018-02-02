@@ -1198,7 +1198,7 @@ ZSTDLIB_API size_t ZSTD_compress_generic_simpleArgs (
 ZSTDLIB_API ZSTD_CCtx_params* ZSTD_createCCtxParams(void);
 
 /*! ZSTD_resetCCtxParams() :
- *  Reset params to default, with the default compression level.
+ *  Reset params to default values.
  */
 ZSTDLIB_API size_t ZSTD_resetCCtxParams(ZSTD_CCtx_params* params);
 

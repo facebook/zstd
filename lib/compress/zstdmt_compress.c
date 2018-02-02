@@ -664,6 +664,25 @@ static ZSTD_CCtx_params ZSTDMT_initJobCCtxParams(ZSTD_CCtx_params const params)
     return jobParams;
 }
 
+/*! ZSTDMT_MTCtx_setParametersUsingCCtxParams() :
+ *  Apply a ZSTD_CCtx_params to the compression context.
+ *  This entry point is accessed while compression is ongoing,
+ *  new parameters will be applied to next compression job.
+ *  However, following parameters are NOT updated :
+ *  - window size
+ *  - pledgedSrcSize
+ *  - nb threads
+ *  - job size
+ *  - overlap size
+ */
+void ZSTDMT_MTCtx_setParametersUsingCCtxParams(ZSTDMT_CCtx* mtctx, const ZSTD_CCtx_params* params)
+{
+    U32 const wlog = mtctx->params.cParams.windowLog;
+    mtctx->params = *params;
+    mtctx->params.cParams.windowLog = wlog;  /* Do not modify windowLog ! */
+    /* note : other parameters not updated are simply not used beyond initialization */
+}
+
 /* ZSTDMT_getNbThreads():
  * @return nb threads currently active in mtctx.
  * mtctx must be valid */
@@ -856,7 +875,7 @@ size_t ZSTDMT_compress_advanced(ZSTDMT_CCtx* mtctx,
                                void* dst, size_t dstCapacity,
                          const void* src, size_t srcSize,
                          const ZSTD_CDict* cdict,
-                               ZSTD_parameters const params,
+                               ZSTD_parameters params,
                                unsigned overlapLog)
 {
     ZSTD_CCtx_params cctxParams = mtctx->params;

@@ -476,6 +476,9 @@ size_t ZSTD_CCtxParam_setParameter(
 /** ZSTD_CCtx_setParametersUsingCCtxParams() :
  *  just applies `params` into `cctx`
  *  no action is performed, parameters are merely stored.
+ *  If ZSTDMT is enabled, parameters are pushed to cctx->mtctx.
+ *    This is possible even if a compression is ongoing.
+ *    In which case, new parameters will be applied on the fly, starting with next compression job.
  */
 size_t ZSTD_CCtx_setParametersUsingCCtxParams(
         ZSTD_CCtx* cctx, const ZSTD_CCtx_params* params)
@@ -484,6 +487,10 @@ size_t ZSTD_CCtx_setParametersUsingCCtxParams(
     if (cctx->cdict) return ERROR(stage_wrong);
 
     cctx->requestedParams = *params;
+#ifdef ZSTD_MULTITHREAD
+    if (cctx->mtctx)
+        ZSTDMT_MTCtx_setParametersUsingCCtxParams(cctx->mtctx, params);
+#endif
 
     return 0;
 }

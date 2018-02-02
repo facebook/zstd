@@ -36,18 +36,21 @@
 #  include <io.h>
 #endif
 
-#include "bitstream.h"
 #include "mem.h"
 #include "fileio.h"
 #include "util.h"
+
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_magicNumber, ZSTD_frameHeaderSize_max */
 #include "zstd.h"
+#include "zstd_errors.h"           /* ZSTD_error_frameParameter_windowTooLarge */
+
 #if defined(ZSTD_GZCOMPRESS) || defined(ZSTD_GZDECOMPRESS)
 #  include <zlib.h>
 #  if !defined(z_const)
 #    define z_const
 #  endif
 #endif
+
 #if defined(ZSTD_LZMACOMPRESS) || defined(ZSTD_LZMADECOMPRESS)
 #  include <lzma.h>
 #endif
@@ -1142,33 +1145,46 @@ static unsigned FIO_passThrough(FILE* foutput, FILE* finput, void* buffer, size_
     return 0;
 }
 
-static void FIO_zstdErrorHelp(dRess_t* ress, size_t ret, char const* srcFileName)
+/* FIO_highbit64() :
+ * gives position of highest bit.
+ * note : only works for v > 0 !
+ */
+static unsigned FIO_highbit64(unsigned long long v)
+{
+    unsigned count = 0;
+    assert(v != 0);
+    v >>= 1;
+    while (v) { v >>= 1; count++; }
+    return count;
+}
+
+/* FIO_zstdErrorHelp() :
+ * detailed error message when requested window size is too large */
+static void FIO_zstdErrorHelp(dRess_t* ress, size_t err, char const* srcFileName)
 {
     ZSTD_frameHeader header;
-    /* No special help for these errors */
-    if (ZSTD_getErrorCode(ret) != ZSTD_error_frameParameter_windowTooLarge)
+
+    /* Help message only for one specific error */
+    if (ZSTD_getErrorCode(err) != ZSTD_error_frameParameter_windowTooLarge)
         return;
+
     /* Try to decode the frame header */
-    ret = ZSTD_getFrameHeader(&header, ress->srcBuffer, ress->srcBufferLoaded);
-    if (ret == 0) {
-        U32 const windowSize = (U32)header.windowSize;
-        U32 const windowLog = BIT_highbit32(windowSize) + ((windowSize & (windowSize - 1)) != 0);
-        U32 const windowMB = (windowSize >> 20) + ((windowSize & ((1 MB) - 1)) != 0);
-        assert(header.windowSize <= (U64)((U32)-1));
+    err = ZSTD_getFrameHeader(&header, ress->srcBuffer, ress->srcBufferLoaded);
+    if (err == 0) {
+        U64 const windowSize = header.windowSize;
+        U32 const windowLog = FIO_highbit64(windowSize) + ((windowSize & (windowSize - 1)) != 0);
+        U32 const windowMB = (U32)((windowSize >> 20) + ((windowSize & ((1 MB) - 1)) != 0));
+        assert(windowSize < (U64)(1ULL << 52));
         assert(g_memLimit > 0);
         DISPLAYLEVEL(1, "%s : Window size larger than maximum : %llu > %u\n",
-                        srcFileName, header.windowSize, g_memLimit);
+                        srcFileName, windowSize, g_memLimit);
         if (windowLog <= ZSTD_WINDOWLOG_MAX) {
             DISPLAYLEVEL(1, "%s : Use --long=%u or --memory=%uMB\n",
                             srcFileName, windowLog, windowMB);
             return;
         }
-    } else if (ZSTD_getErrorCode(ret) != ZSTD_error_frameParameter_windowTooLarge) {
-        DISPLAYLEVEL(1, "%s : Error decoding frame header to read window size : %s\n",
-                        srcFileName, ZSTD_getErrorName(ret));
-        return;
     }
-    DISPLAYLEVEL(1, "%s : Window log larger than ZSTD_WINDOWLOG_MAX=%u not supported\n",
+    DISPLAYLEVEL(1, "%s : Window log larger than ZSTD_WINDOWLOG_MAX=%u; not supported\n",
                     srcFileName, ZSTD_WINDOWLOG_MAX);
 }
 

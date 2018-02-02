@@ -781,7 +781,8 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
             }
             if (READY_FOR_UPDATE()) {
                 ZSTD_frameProgression const zfp = ZSTD_getFrameProgression(ress.cctx);
-                DISPLAYUPDATE(2, "\rRead :%6u MB - Consumed :%6u MB - Compressed :%6u MB => %.2f%%",
+                DISPLAYUPDATE(2, "\r(%i) Read :%6u MB - Consumed :%6u MB - Compressed :%6u MB => %.2f%%",
+                                compressionLevel,
                                 (U32)(zfp.ingested >> 20),
                                 (U32)(zfp.consumed >> 20),
                                 (U32)(zfp.produced >> 20),

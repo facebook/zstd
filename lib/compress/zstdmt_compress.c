@@ -666,11 +666,11 @@ static ZSTD_CCtx_params ZSTDMT_initJobCCtxParams(ZSTD_CCtx_params const params)
     return jobParams;
 }
 
-/*! ZSTDMT_MTCtx_updateParametersWhileCompressing() :
+/*! ZSTDMT_updateCParams_whileCompressing() :
  *  Update compression level and parameters (except wlog)
  *  while compression is ongoing.
  *  New parameters will be applied to next compression job. */
-void ZSTDMT_MTCtx_updateParametersWhileCompressing(ZSTDMT_CCtx* mtctx, int compressionLevel, ZSTD_compressionParameters cParams)
+void ZSTDMT_updateCParams_whileCompressing(ZSTDMT_CCtx* mtctx, int compressionLevel, ZSTD_compressionParameters cParams)
 {
     U32 const wlog = cParams.windowLog;
     mtctx->params.cParams = cParams;

@@ -3222,13 +3222,17 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
     /* compression stage */
 #ifdef ZSTD_MULTITHREAD
     if (cctx->appliedParams.nbWorkers > 0) {
-        size_t const flushMin = ZSTDMT_compressStream_generic(cctx->mtctx, output, input, endOp);
-        if ( ZSTD_isError(flushMin)
-          || (endOp == ZSTD_e_end && flushMin == 0) ) { /* compression completed */
-            ZSTD_startNewCompression(cctx);
+        if (cctx->cParamsChanged) {
+            ZSTDMT_updateCParams_whileCompressing(cctx->mtctx, cctx->requestedParams.compressionLevel, cctx->requestedParams.cParams);
+            cctx->cParamsChanged = 0;
         }
-        return flushMin;
-    }
+        {   size_t const flushMin = ZSTDMT_compressStream_generic(cctx->mtctx, output, input, endOp);
+            if ( ZSTD_isError(flushMin)
+              || (endOp == ZSTD_e_end && flushMin == 0) ) { /* compression completed */
+                ZSTD_startNewCompression(cctx);
+            }
+            return flushMin;
+    }   }
 #endif
     CHECK_F( ZSTD_compressStream_generic(cctx, output, input, endOp) );
     DEBUGLOG(5, "completed ZSTD_compress_generic");

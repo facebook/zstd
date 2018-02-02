@@ -218,23 +218,23 @@ static U32 g_removeSrcFile = 0;
 void FIO_setRemoveSrcFile(unsigned flag) { g_removeSrcFile = (flag>0); }
 static U32 g_memLimit = 0;
 void FIO_setMemLimit(unsigned memLimit) { g_memLimit = memLimit; }
-static U32 g_nbThreads = 1;
-void FIO_setNbThreads(unsigned nbThreads) {
+static U32 g_nbWorkers = 1;
+void FIO_setNbWorkers(unsigned nbWorkers) {
 #ifndef ZSTD_MULTITHREAD
-    if (nbThreads > 1) DISPLAYLEVEL(2, "Note : multi-threading is disabled \n");
+    if (nbWorkers > 0) DISPLAYLEVEL(2, "Note : multi-threading is disabled \n");
 #endif
-    g_nbThreads = nbThreads;
+    g_nbWorkers = nbWorkers;
 }
 static U32 g_blockSize = 0;
 void FIO_setBlockSize(unsigned blockSize) {
-    if (blockSize && g_nbThreads==1)
+    if (blockSize && g_nbWorkers==0)
         DISPLAYLEVEL(2, "Setting block size is useless in single-thread mode \n");
     g_blockSize = blockSize;
 }
 #define FIO_OVERLAP_LOG_NOTSET 9999
 static U32 g_overlapLog = FIO_OVERLAP_LOG_NOTSET;
 void FIO_setOverlapLog(unsigned overlapLog){
-    if (overlapLog && g_nbThreads==1)
+    if (overlapLog && g_nbWorkers==0)
         DISPLAYLEVEL(2, "Setting overlapLog is useless in single-thread mode \n");
     g_overlapLog = overlapLog;
 }
@@ -461,9 +461,8 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionStrategy, (U32)comprParams->strategy) );
         /* multi-threading */
 #ifdef ZSTD_MULTITHREAD
-        DISPLAYLEVEL(5,"set nb threads = %u \n", g_nbThreads);
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_nbThreads, g_nbThreads) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_nonBlockingMode, 1) );
+        DISPLAYLEVEL(5,"set nb threads = %u \n", g_nbWorkers);
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_nbWorkers, g_nbWorkers) );
 #endif
         /* dictionary */
         CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, srcSize) );  /* set the value temporarily for dictionary loading, to adapt compression parameters */

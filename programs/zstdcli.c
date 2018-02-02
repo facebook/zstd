@@ -377,7 +377,7 @@ int main(int argCount, const char* argv[])
         nextArgumentsAreFiles=0,
         ultra=0,
         lastCommand = 0,
-        nbThreads = 1,
+        nbWorkers = 1,
         setRealTimePrio = 0,
         separateFiles = 0,
         ldmFlag = 0;
@@ -422,7 +422,7 @@ int main(int argCount, const char* argv[])
     programName = lastNameFromPath(programName);
 
     /* preset behaviors */
-    if (exeNameMatch(programName, ZSTD_ZSTDMT)) nbThreads=0;
+    if (exeNameMatch(programName, ZSTD_ZSTDMT)) nbWorkers=0;
     if (exeNameMatch(programName, ZSTD_UNZSTD)) operation=zom_decompress;
     if (exeNameMatch(programName, ZSTD_CAT)) { operation=zom_decompress; forceStdout=1; FIO_overwriteMode(); outFileName=stdoutmark; g_displayLevel=1; }   /* supports multiple formats */
     if (exeNameMatch(programName, ZSTD_ZCAT)) { operation=zom_decompress; forceStdout=1; FIO_overwriteMode(); outFileName=stdoutmark; g_displayLevel=1; }  /* behave like zcat, also supports multiple formats */
@@ -515,7 +515,7 @@ int main(int argCount, const char* argv[])
                       continue;
                     }
 #endif
-                    if (longCommandWArg(&argument, "--threads=")) { nbThreads = readU32FromChar(&argument); continue; }
+                    if (longCommandWArg(&argument, "--threads=")) { nbWorkers = readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--memlimit=")) { memLimit = readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--memory=")) { memLimit = readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--memlimit-decompress=")) { memLimit = readU32FromChar(&argument); continue; }
@@ -648,7 +648,7 @@ int main(int argCount, const char* argv[])
                         /* nb of threads (hidden option) */
                     case 'T':
                         argument++;
-                        nbThreads = readU32FromChar(&argument);
+                        nbWorkers = readU32FromChar(&argument);
                         break;
 
                         /* Dictionary Selection level */
@@ -716,10 +716,10 @@ int main(int argCount, const char* argv[])
     /* Welcome message (if verbose) */
     DISPLAYLEVEL(3, WELCOME_MESSAGE);
 
-    if (nbThreads == 0) {
-        /* try to guess */
-        nbThreads = UTIL_countPhysicalCores();
-        DISPLAYLEVEL(3, "Note: %d physical core(s) detected \n", nbThreads);
+    if (nbWorkers == 0) {
+        /* automatically set # workers based on # of reported cpus */
+        nbWorkers = UTIL_countPhysicalCores();
+        DISPLAYLEVEL(3, "Note: %d physical core(s) detected \n", nbWorkers);
     }
 
     g_utilDisplayLevel = g_displayLevel;
@@ -763,7 +763,7 @@ int main(int argCount, const char* argv[])
         BMK_setNotificationLevel(g_displayLevel);
         BMK_setSeparateFiles(separateFiles);
         BMK_setBlockSize(blockSize);
-        BMK_setNbThreads(nbThreads);
+        BMK_setNbWorkers(nbWorkers);
         BMK_setRealTime(setRealTimePrio);
         BMK_setNbSeconds(bench_nbSeconds);
         BMK_setLdmFlag(ldmFlag);
@@ -791,7 +791,7 @@ int main(int argCount, const char* argv[])
         zParams.dictID = dictID;
         if (cover) {
             int const optimize = !coverParams.k || !coverParams.d;
-            coverParams.nbThreads = nbThreads;
+            coverParams.nbThreads = nbWorkers;
             coverParams.zParams = zParams;
             operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenameTable, filenameIdx, blockSize, NULL, &coverParams, optimize);
         } else {
@@ -835,7 +835,7 @@ int main(int argCount, const char* argv[])
     FIO_setNotificationLevel(g_displayLevel);
     if (operation==zom_compress) {
 #ifndef ZSTD_NOCOMPRESS
-        FIO_setNbThreads(nbThreads);
+        FIO_setNbWorkers(nbWorkers);
         FIO_setBlockSize((U32)blockSize);
         FIO_setLdmFlag(ldmFlag);
         FIO_setLdmHashLog(g_ldmHashLog);

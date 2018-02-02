@@ -506,7 +506,7 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
  *  It will also consider src size to be arbitrarily "large", which is worst case.
  *  If srcSize is known to always be small, ZSTD_estimateCCtxSize_usingCParams() can provide a tighter estimation.
  *  ZSTD_estimateCCtxSize_usingCParams() can be used in tandem with ZSTD_getCParams() to create cParams from compressionLevel.
- *  ZSTD_estimateCCtxSize_usingCCtxParams() can be used in tandem with ZSTD_CCtxParam_setParameter(). Only single-threaded compression is supported. This function will return an error code if ZSTD_p_nbThreads is > 1.
+ *  ZSTD_estimateCCtxSize_usingCCtxParams() can be used in tandem with ZSTD_CCtxParam_setParameter(). Only single-threaded compression is supported. This function will return an error code if ZSTD_p_nbWorkers is >= 1.
  *  Note : CCtx size estimation is only correct for single-threaded compression. */
 ZSTDLIB_API size_t ZSTD_estimateCCtxSize(int compressionLevel);
 ZSTDLIB_API size_t ZSTD_estimateCCtxSize_usingCParams(ZSTD_compressionParameters cParams);
@@ -518,7 +518,7 @@ ZSTDLIB_API size_t ZSTD_estimateDCtxSize(void);
  *  It will also consider src size to be arbitrarily "large", which is worst case.
  *  If srcSize is known to always be small, ZSTD_estimateCStreamSize_usingCParams() can provide a tighter estimation.
  *  ZSTD_estimateCStreamSize_usingCParams() can be used in tandem with ZSTD_getCParams() to create cParams from compressionLevel.
- *  ZSTD_estimateCStreamSize_usingCCtxParams() can be used in tandem with ZSTD_CCtxParam_setParameter(). Only single-threaded compression is supported. This function will return an error code if ZSTD_p_nbThreads is set to a value > 1.
+ *  ZSTD_estimateCStreamSize_usingCCtxParams() can be used in tandem with ZSTD_CCtxParam_setParameter(). Only single-threaded compression is supported. This function will return an error code if ZSTD_p_nbWorkers is >= 1.
  *  Note : CStream size estimation is only correct for single-threaded compression.
  *  ZSTD_DStream memory budget depends on window Size.
  *  This information can be passed manually, using ZSTD_estimateDStreamSize,
@@ -992,18 +992,13 @@ typedef enum {
     /* multi-threading parameters */
     /* These parameters are only useful if multi-threading is enabled (ZSTD_MULTITHREAD).
      * They return an error otherwise. */
-    ZSTD_p_nbThreads=400,    /* Select how many threads a compression job can spawn (default:1)
-                              * More threads improve speed, but also increase memory usage.
-                              * Can only receive a value > 1 if ZSTD_MULTITHREAD is enabled.
-                              * Special: value 0 means "do not change nbThreads" */
-    ZSTD_p_nonBlockingMode,  /* Single thread mode is by default "blocking" :
-                              * it finishes its job as much as possible, and only then gives back control to caller.
-                              * In contrast, multi-thread is by default "non-blocking" :
-                              * it takes some input, flush some output if available, and immediately gives back control to caller.
-                              * Compression work is performed in parallel, within worker threads.
-                              * (note : a strong exception to this rule is when first job is called with ZSTD_e_end : it becomes blocking)
-                              * Setting this parameter to 1 will enforce non-blocking mode even when only 1 thread is selected.
-                              * It allows the caller to do other tasks while the worker thread compresses in parallel. */
+    ZSTD_p_nbWorkers=400,    /* Select how many threads will be spawned to compress in parallel.
+                              * When nbWorkers >= 1, triggers asynchronous mode :
+                              * ZSTD_compress_generic() consumes some input, flush some output if possible, and immediately gives back control to caller,
+                              * while compression work is performed in parallel, within worker threads.
+                              * (note : a strong exception to this rule is when first invocation sets ZSTD_e_end : it becomes a blocking call).
+                              * More workers improve speed, but also increase memory usage.
+                              * Default value is `0`, aka "single-threaded mode" : no worker is spawned, compression is performed inside Caller's thread, all invocations are blocking */
     ZSTD_p_jobSize,          /* Size of a compression job. This value is only enforced in streaming (non-blocking) mode.
                               * Each compression job is completed in parallel, so indirectly controls the nb of active threads.
                               * 0 means default, which is dynamically determined based on compression parameters.
@@ -1231,9 +1226,10 @@ ZSTDLIB_API size_t ZSTD_CCtxParam_setParameter(ZSTD_CCtx_params* params, ZSTD_cP
 
 /*! ZSTD_CCtx_setParametersUsingCCtxParams() :
  *  Apply a set of ZSTD_CCtx_params to the compression context.
- *  This must be done before the dictionary is loaded.
- *  The pledgedSrcSize is treated as unknown.
- *  Multithreading parameters are applied only if nbThreads > 1.
+ *  This can be done even after compression is started,
+ *    if nbWorkers==0, this will have no impact until a new compression is started.
+ *    if nbWorkers>=1, new parameters will be picked up at next job,
+ *       with a few restrictions (windowLog, pledgedSrcSize, nbWorkers, jobSize, and overlapLog are not updated).
  */
 ZSTDLIB_API size_t ZSTD_CCtx_setParametersUsingCCtxParams(
         ZSTD_CCtx* cctx, const ZSTD_CCtx_params* params);

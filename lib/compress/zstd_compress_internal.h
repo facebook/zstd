@@ -145,12 +145,11 @@ struct ZSTD_CCtx_params_s {
     ZSTD_frameParameters fParams;
 
     int compressionLevel;
-    U32 forceWindow;           /* force back-references to respect limit of
+    int forceWindow;           /* force back-references to respect limit of
                                 * 1<<wLog, even for dictionary */
 
     /* Multithreading: used to pass parameters to mtctx */
-    U32 nbThreads;
-    int nonBlockingMode;      /* will trigger ZSTDMT even with nbThreads==1 */
+    unsigned nbWorkers;
     unsigned jobSize;
     unsigned overlapSizeLog;
 

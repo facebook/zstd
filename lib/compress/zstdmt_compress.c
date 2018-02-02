@@ -666,25 +666,16 @@ static ZSTD_CCtx_params ZSTDMT_initJobCCtxParams(ZSTD_CCtx_params const params)
     return jobParams;
 }
 
-/*! ZSTDMT_MTCtx_setParametersUsingCCtxParams_whileCompressing() :
- *  Apply a ZSTD_CCtx_params to the compression context.
- *  This entry point is accessed while compression is ongoing,
- *  new parameters will be applied to next compression job.
- *  However, following parameters are NOT updated :
- *  - window size
- *  - pledgedSrcSize
- *  - nb threads
- *  - job size
- *  - overlap size
- */
-void ZSTDMT_MTCtx_setParametersUsingCCtxParams_whileCompressing(ZSTDMT_CCtx* mtctx, const ZSTD_CCtx_params* params)
+/*! ZSTDMT_MTCtx_updateParametersWhileCompressing() :
+ *  Update compression level and parameters (except wlog)
+ *  while compression is ongoing.
+ *  New parameters will be applied to next compression job. */
+void ZSTDMT_MTCtx_updateParametersWhileCompressing(ZSTDMT_CCtx* mtctx, int compressionLevel, ZSTD_compressionParameters cParams)
 {
-    U32 const wlog = mtctx->params.cParams.windowLog;
-    U32 const nbWorkers = mtctx->params.nbWorkers;
-    mtctx->params = *params;
+    U32 const wlog = cParams.windowLog;
+    mtctx->params.cParams = cParams;
     mtctx->params.cParams.windowLog = wlog;  /* Do not modify windowLog ! Frame must keep same wlog during the whole process ! */
-    mtctx->params.nbWorkers = nbWorkers;     /* Do not modify nbWorkers, it must remain synchronized with CCtx Pool ! */
-    /* note : other parameters not updated are simply not used beyond initialization */
+    mtctx->params.compressionLevel = compressionLevel;
 }
 
 /* ZSTDMT_getNbWorkers():
@@ -915,7 +906,7 @@ size_t ZSTDMT_initCStream_internal(
         const ZSTD_CDict* cdict, ZSTD_CCtx_params params,
         unsigned long long pledgedSrcSize)
 {
-    DEBUGLOG(2, "ZSTDMT_initCStream_internal (pledgedSrcSize=%u, nbWorkers=%u, cctxPool=%u)",
+    DEBUGLOG(4, "ZSTDMT_initCStream_internal (pledgedSrcSize=%u, nbWorkers=%u, cctxPool=%u)",
                 (U32)pledgedSrcSize, params.nbWorkers, mtctx->cctxPool->totalCCtx);
     /* params are supposed to be fully validated at this point */
     assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));

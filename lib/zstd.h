@@ -1049,8 +1049,10 @@ typedef enum {
 
 /*! ZSTD_CCtx_setParameter() :
  *  Set one compression parameter, selected by enum ZSTD_cParameter.
+ *  Setting a parameter is generally only possible during frame initialization (before starting compression),
+ *  except for a few exceptions which can be updated during compression: compressionLevel, hashLog, chainLog, searchLog, minMatch, targetLength and strategy.
  *  Note : when `value` is an enum, cast it to unsigned for proper type checking.
- *  @result : informational value (typically, the one being set, possibly corrected),
+ *  @result : informational value (typically, value being set clamped correctly),
  *            or an error code (which can be tested with ZSTD_isError()). */
 ZSTDLIB_API size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned value);
 

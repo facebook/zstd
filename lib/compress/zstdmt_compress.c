@@ -672,10 +672,14 @@ static ZSTD_CCtx_params ZSTDMT_initJobCCtxParams(ZSTD_CCtx_params const params)
  *  New parameters will be applied to next compression job. */
 void ZSTDMT_updateCParams_whileCompressing(ZSTDMT_CCtx* mtctx, int compressionLevel, ZSTD_compressionParameters cParams)
 {
-    U32 const wlog = cParams.windowLog;
-    mtctx->params.cParams = cParams;
-    mtctx->params.cParams.windowLog = wlog;  /* Do not modify windowLog ! Frame must keep same wlog during the whole process ! */
+    U32 const saved_wlog = mtctx->params.cParams.windowLog;   /* Do not modify windowLog while compressing */
+    DEBUGLOG(5, "ZSTDMT_updateCParams_whileCompressing (level:%i)",
+                compressionLevel);
     mtctx->params.compressionLevel = compressionLevel;
+    if (compressionLevel != ZSTD_CLEVEL_CUSTOM)
+        cParams = ZSTD_getCParams(compressionLevel, mtctx->frameContentSize, 0 /* should be dictSize */ );
+    cParams. windowLog = saved_wlog;
+    mtctx->params.cParams = cParams;
 }
 
 /* ZSTDMT_getNbWorkers():
@@ -912,7 +916,8 @@ size_t ZSTDMT_initCStream_internal(
     assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
     assert(!((dict) && (cdict)));  /* either dict or cdict, not both */
     assert(mtctx->cctxPool->totalCCtx == params.nbWorkers);
-    mtctx->singleBlockingThread = (pledgedSrcSize <= ZSTDMT_JOBSIZE_MIN);  /* do not trigger multi-threading when srcSize is too small */
+
+    /* init */
     if (params.jobSize == 0) {
         if (params.cParams.windowLog >= 29)
             params.jobSize = ZSTDMT_JOBSIZE_MAX;
@@ -921,6 +926,7 @@ size_t ZSTDMT_initCStream_internal(
     }
     if (params.jobSize > ZSTDMT_JOBSIZE_MAX) params.jobSize = ZSTDMT_JOBSIZE_MAX;
 
+    mtctx->singleBlockingThread = (pledgedSrcSize <= ZSTDMT_JOBSIZE_MIN);  /* do not trigger multi-threading when srcSize is too small */
     if (mtctx->singleBlockingThread) {
         ZSTD_CCtx_params const singleThreadParams = ZSTDMT_initJobCCtxParams(params);
         DEBUGLOG(4, "ZSTDMT_initCStream_internal: switch to single blocking thread mode");
@@ -929,6 +935,7 @@ size_t ZSTDMT_initCStream_internal(
                                          dict, dictSize, cdict,
                                          singleThreadParams, pledgedSrcSize);
     }
+
     DEBUGLOG(4, "ZSTDMT_initCStream_internal: %u workers", params.nbWorkers);
 
     if (mtctx->allJobsCompleted == 0) {   /* previous compression not correctly finished */

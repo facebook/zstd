@@ -30,8 +30,9 @@ extern "C" {
 /*-*************************************
 *  Constants
 ***************************************/
-static const U32 g_searchStrength = 8;
-#define HASH_READ_SIZE 8
+#define kSearchStrength      8
+#define HASH_READ_SIZE       8
+#define ZSTD_CLEVEL_CUSTOM 999
 
 
 /*-*************************************

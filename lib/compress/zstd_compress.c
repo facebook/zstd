@@ -140,8 +140,6 @@ size_t ZSTD_sizeof_CStream(const ZSTD_CStream* zcs)
 /* private API call, for dictBuilder only */
 const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx) { return &(ctx->seqStore); }
 
-#define ZSTD_CLEVEL_CUSTOM 999
-
 static ZSTD_compressionParameters ZSTD_getCParamsFromCCtxParams(
         ZSTD_CCtx_params CCtxParams, U64 srcSizeHint, size_t dictSize)
 {
@@ -3010,7 +3008,7 @@ MEM_STATIC size_t ZSTD_limitCopy(void* dst, size_t dstCapacity,
 
 /** ZSTD_compressStream_generic():
  *  internal function for all *compressStream*() variants and *compress_generic()
- *  non-static, because can be called from zstdmt.c
+ *  non-static, because can be called from zstdmt_compress.c
  * @return : hint size for next input */
 size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                                    ZSTD_outBuffer* output,
@@ -3192,6 +3190,7 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
             params.nbWorkers = 0; /* do not invoke multi-threading when src size is too small */
         }
         if (params.nbWorkers > 0) {
+            /* mt context creation */
             if (cctx->mtctx == NULL || (params.nbWorkers != ZSTDMT_getNbWorkers(cctx->mtctx))) {
                 DEBUGLOG(4, "ZSTD_compress_generic: creating new mtctx for nbWorkers=%u",
                             params.nbWorkers);
@@ -3202,6 +3201,7 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
                 cctx->mtctx = ZSTDMT_createCCtx_advanced(params.nbWorkers, cctx->customMem);
                 if (cctx->mtctx == NULL) return ERROR(memory_allocation);
             }
+            /* mt compression */
             DEBUGLOG(4, "call ZSTDMT_initCStream_internal as nbWorkers=%u", params.nbWorkers);
             CHECK_F( ZSTDMT_initCStream_internal(
                         cctx->mtctx,
@@ -3258,7 +3258,7 @@ size_t ZSTD_compress_generic_simpleArgs (
 /*======   Finalize   ======*/
 
 /*! ZSTD_flushStream() :
-*   @return : amount of data remaining to flush */
+ * @return : amount of data remaining to flush */
 size_t ZSTD_flushStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
 {
     ZSTD_inBuffer input = { NULL, 0, 0 };

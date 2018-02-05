@@ -655,6 +655,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
 
 typedef union {
     FSE_decode_t realData;
+    FSE_DTable dtable;
     U32 alignedBy4;
 } FSE_decode_t4;
 
@@ -733,7 +734,6 @@ static size_t ZSTD_buildSeqTable(FSE_DTable* DTableSpace, const FSE_DTable** DTa
                                  const void* src, size_t srcSize,
                                  const FSE_decode_t4* defaultTable, U32 flagRepeatTable)
 {
-    const void* const tmpPtr = defaultTable;   /* bypass strict aliasing */
     switch(type)
     {
     case set_rle :
@@ -743,7 +743,7 @@ static size_t ZSTD_buildSeqTable(FSE_DTable* DTableSpace, const FSE_DTable** DTa
         *DTablePtr = DTableSpace;
         return 1;
     case set_basic :
-        *DTablePtr = (const FSE_DTable*)tmpPtr;
+        *DTablePtr = &defaultTable->dtable;
         return 0;
     case set_repeat:
         if (!flagRepeatTable) return ERROR(corruption_detected);

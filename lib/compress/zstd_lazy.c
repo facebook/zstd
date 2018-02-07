@@ -15,48 +15,6 @@
 /*-*************************************
 *  Binary Tree search
 ***************************************/
-#define ZSTD_DUBT_UNSORTED_MARK 1   /* note : index 1 will now be confused with "unsorted" if sorted as larger than its predecessor.
-                                       It's not a big deal though : the candidate will just be considered unsorted, and be sorted again.
-                                       Additionnally, candidate position 1 will be lost.
-                                       But candidate 1 cannot hide a large tree of candidates, so it's a minimal loss.
-                                       The benefit is that ZSTD_DUBT_UNSORTED_MARK cannot be misdhandled after table re-use with a different strategy */
-
-/*! ZSTD_preserveUnsortedMark() :
- *  pre-emptively increase value of ZSTD_DUBT_UNSORTED_MARK before ZSTD_reduceTable()
- *  so that combined operation preserves its value.
- *  Without it, ZSTD_DUBT_UNSORTED_MARK==1 would be squashed to 0.
- *  As a consequence, the list of unsorted elements would stop at first element,
- *  removing candidates, resulting in a very small loss to compression ratio
- *  (since overflow protection with ZSTD_reduceTable() is relatively rare).
- *
- *  Another potential risk is that a position will be promoted from *unsorted*
- *  to *sorted=>smaller:0*, meaning next candidate will be considered smaller.
- *  This could be wrong, and result in data corruption.
- *
- *  On second thought, this corruption might be impossible,
- *  because unsorted elements stand at the beginning of the list,
- *  and squashing to zero reduces the list to a single element,
- *  which needs to be sorted anyway.
- *  I haven't spent much thoughts into this possible scenario,
- *  and just felt it was safer to implement ZSTD_preserveUnsortedMark()
- *
- * `size` : must be a positive multiple of ZSTD_ROWSIZE */
-#define ZSTD_ROWSIZE 16
-void ZSTD_preserveUnsortedMark (U32* const table, U32 const size, U32 const reducerValue)
-{
-    int cellNb = 0;
-    U32 const nbRows = size / ZSTD_ROWSIZE;
-    U32 rowNb;
-    assert((size % ZSTD_ROWSIZE) == 0);
-    for (rowNb=0 ; rowNb < nbRows ; rowNb++) {
-        int column;
-        for (column=0; column<ZSTD_ROWSIZE; column++) {
-            U32 const adder = (table[cellNb] == ZSTD_DUBT_UNSORTED_MARK) ? reducerValue : 0;
-            table[cellNb] += adder;
-            cellNb++;
-    }   }
-}
-
 
 void ZSTD_updateDUBT(
                 ZSTD_matchState_t* ms, ZSTD_compressionParameters const* cParams,

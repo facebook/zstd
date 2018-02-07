@@ -1223,31 +1223,43 @@ size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx, unsigned long
 
 
 #define ZSTD_ROWSIZE 16
-/*! ZSTD_reduceTable_internal() :
- *  reduce table indexes by `reducerValue`
- *  presume table size is a multiple of ZSTD_ROWSIZE.
- *  Helps auto-vectorization */
-static void ZSTD_reduceTable_internal (U32* const table, int const nbRows, U32 const reducerValue)
+/*! ZSTD_reduceTable() :
+ *  reduce table indexes by `reducerValue`, or squash to zero.
+ *  PreserveMark preserves "unsorted mark" for btlazy2 strategy.
+ *  It must be set to a clear 0/1 value, to remove branch during inlining.
+ *  Presume table size is a multiple of ZSTD_ROWSIZE
+ *  to help auto-vectorization */
+FORCE_INLINE_TEMPLATE void
+ZSTD_reduceTable_internal (U32* const table, U32 const size, U32 const reducerValue, int const preserveMark)
 {
+    int const nbRows = (int)size / ZSTD_ROWSIZE;
     int cellNb = 0;
     int rowNb;
+    assert((size & (ZSTD_ROWSIZE-1)) == 0);  /* multiple of ZSTD_ROWSIZE */
+    assert(size < (1U<<31));   /* can be casted to int */
     for (rowNb=0 ; rowNb < nbRows ; rowNb++) {
         int column;
         for (column=0; column<ZSTD_ROWSIZE; column++) {
+            if (preserveMark) {
+                U32 const adder = (table[cellNb] == ZSTD_DUBT_UNSORTED_MARK) ? reducerValue : 0;
+                table[cellNb] += adder;
+            }
             if (table[cellNb] < reducerValue) table[cellNb] = 0;
             else table[cellNb] -= reducerValue;
             cellNb++;
     }   }
 }
 
-/*! ZSTD_reduceTable() :
- *  reduce table indexes by `reducerValue` */
-static void ZSTD_reduceTable (U32* const table, U32 const size, U32 const reducerValue)
+static void ZSTD_reduceTable(U32* const table, U32 const size, U32 const reducerValue)
 {
-    assert((size & (ZSTD_ROWSIZE-1)) == 0);  /* multiple of ZSTD_ROWSIZE */
-    assert(size < (1U<<31));   /* can be casted to int */
-    ZSTD_reduceTable_internal(table, size/ZSTD_ROWSIZE, reducerValue);
+    ZSTD_reduceTable_internal(table, size, reducerValue, 0);
 }
+
+static void ZSTD_reduceTable_btlazy2(U32* const table, U32 const size, U32 const reducerValue)
+{
+    ZSTD_reduceTable_internal(table, size, reducerValue, 1);
+}
+
 
 /*! ZSTD_ldm_reduceTable() :
  *  reduce table indexes by `reducerValue` */
@@ -1273,8 +1285,9 @@ static void ZSTD_reduceIndex (ZSTD_CCtx* zc, const U32 reducerValue)
     if (zc->appliedParams.cParams.strategy != ZSTD_fast) {
         U32 const chainSize = (U32)1 << zc->appliedParams.cParams.chainLog;
         if (zc->appliedParams.cParams.strategy == ZSTD_btlazy2)
-            ZSTD_preserveUnsortedMark(ms->chainTable, chainSize, reducerValue);
-        ZSTD_reduceTable(ms->chainTable, chainSize, reducerValue);
+            ZSTD_reduceTable_btlazy2(ms->chainTable, chainSize, reducerValue);
+        else
+            ZSTD_reduceTable(ms->chainTable, chainSize, reducerValue);
     }
 
     if (ms->hashLog3) {

@@ -734,7 +734,7 @@ static const FSE_decode_t4 OF_defaultDTable[(1<<OF_DEFAULTNORMLOG)+1] = {
 
 #endif
 
-static void ZSTD_buildSeqTable_rle(ZSTD_seqSymbol* dt, BYTE symbolValue)
+static void ZSTD_buildSeqTable_rle(ZSTD_seqSymbol* dt, U32 baseValue, U32 nbAddBits)
 {
     void* ptr = dt;
     ZSTD_seqSymbol_header* const DTableH = (ZSTD_seqSymbol_header*)ptr;
@@ -745,8 +745,9 @@ static void ZSTD_buildSeqTable_rle(ZSTD_seqSymbol* dt, BYTE symbolValue)
 
     cell->nbBits = 0;
     cell->nextState = 0;
-    cell->nbAdditionalBits = 0;
-    cell->baseValue = symbolValue;
+    assert(nbAddBits < 255);
+    cell->nbAdditionalBits = (BYTE)nbAddBits;
+    cell->baseValue = baseValue;
 }
 
 
@@ -828,12 +829,15 @@ static size_t ZSTD_buildSeqTable(ZSTD_seqSymbol* DTableSpace, const ZSTD_seqSymb
     case set_rle :
         if (!srcSize) return ERROR(srcSize_wrong);
         if ( (*(const BYTE*)src) > max) return ERROR(corruption_detected);
-        ZSTD_buildSeqTable_rle(DTableSpace, *(const BYTE*)src);
+        {   U32 const symbol = *(const BYTE*)src;
+            U32 const baseline = baseValue[symbol];
+            U32 const nbBits = nbAdditionalBits[symbol];
+            ZSTD_buildSeqTable_rle(DTableSpace, baseline, nbBits);
+        }
         *DTablePtr = DTableSpace;
         return 1;
     case set_basic :
-        assert(0);   /* need to rebuild all default tables */
-        //*DTablePtr = &defaultTable->dtable;
+        //*DTablePtr = &defaultTable->dtable;  // when default tables will be pre-built
         ZSTD_buildFSETable(DTableSpace, defaultNorm, max, baseValue, nbAdditionalBits, defaultLog);
         *DTablePtr = DTableSpace;
         return 0;

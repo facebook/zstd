@@ -461,7 +461,7 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionStrategy, (U32)comprParams->strategy) );
         /* multi-threading */
 #ifdef ZSTD_MULTITHREAD
-        DISPLAYLEVEL(5,"set nb threads = %u \n", g_nbWorkers);
+        DISPLAYLEVEL(5,"set nb workers = %u \n", g_nbWorkers);
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_nbWorkers, g_nbWorkers) );
 #endif
         /* dictionary */

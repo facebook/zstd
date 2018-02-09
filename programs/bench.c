@@ -461,8 +461,8 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
         }   /* for (testNb = 1; testNb <= (g_nbSeconds + !g_nbSeconds); testNb++) */
 
         if (g_displayLevel == 1) {   /* hidden display mode -q, used by python speed benchmark */
-            double cSpeed = (double)srcSize / fastestC;
-            double dSpeed = (double)srcSize / fastestD;
+            double const cSpeed = (double)srcSize / fastestC;
+            double const dSpeed = (double)srcSize / fastestD;
             if (g_additionalParam)
                 DISPLAY("-%-3i%11i (%5.3f) %6.2f MB/s %6.1f MB/s  %s (param=%d)\n", cLevel, (int)cSize, ratio, cSpeed, dSpeed, displayName, g_additionalParam);
             else

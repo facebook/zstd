@@ -677,8 +677,8 @@ void ZSTDMT_updateCParams_whileCompressing(ZSTDMT_CCtx* mtctx, int compressionLe
                 compressionLevel);
     mtctx->params.compressionLevel = compressionLevel;
     if (compressionLevel != ZSTD_CLEVEL_CUSTOM)
-        cParams = ZSTD_getCParams(compressionLevel, mtctx->frameContentSize, 0 /* should be dictSize */ );
-    cParams. windowLog = saved_wlog;
+        cParams = ZSTD_getCParams(compressionLevel, mtctx->frameContentSize, 0 /* dictSize */ );
+    cParams.windowLog = saved_wlog;
     mtctx->params.cParams = cParams;
 }
 

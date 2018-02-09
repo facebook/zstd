@@ -1607,7 +1607,8 @@ size_t ZSTD_encodeSequences(
             DEBUGLOG(6, "encoding: litlen:%2u - matchlen:%2u - offCode:%7u",
                         sequences[n].litLength,
                         sequences[n].matchLength + MINMATCH,
-                        sequences[n].offset);                               /* 32b*/  /* 64b*/
+                        sequences[n].offset);
+                                                                            /* 32b*/  /* 64b*/
                                                                             /* (7)*/  /* (7)*/
             FSE_encodeSymbol(&blockStream, &stateOffsetBits, ofCode);       /* 15 */  /* 15 */
             FSE_encodeSymbol(&blockStream, &stateMatchLength, mlCode);      /* 24 */  /* 24 */
@@ -1633,8 +1634,11 @@ size_t ZSTD_encodeSequences(
             BIT_flushBits(&blockStream);                                    /* (7)*/
     }   }
 
+    DEBUGLOG(6, "ZSTD_encodeSequences: flushing ML state with %u bits", stateMatchLength.stateLog);
     FSE_flushCState(&blockStream, &stateMatchLength);
+    DEBUGLOG(6, "ZSTD_encodeSequences: flushing Off state with %u bits", stateOffsetBits.stateLog);
     FSE_flushCState(&blockStream, &stateOffsetBits);
+    DEBUGLOG(6, "ZSTD_encodeSequences: flushing LL state with %u bits", stateLitLength.stateLog);
     FSE_flushCState(&blockStream, &stateLitLength);
 
     {   size_t const streamSize = BIT_closeCStream(&blockStream);

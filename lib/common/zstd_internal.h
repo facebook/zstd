@@ -132,14 +132,15 @@ typedef enum { set_basic, set_rle, set_compressed, set_repeat } symbolEncodingTy
 
 #define Litbits  8
 #define MaxLit ((1<<Litbits) - 1)
-#define MaxML  52
-#define MaxLL  35
+#define MaxML   52
+#define MaxLL   35
 #define DefaultMaxOff 28
-#define MaxOff 31
+#define MaxOff  31
 #define MaxSeq MAX(MaxLL, MaxML)   /* Assumption : MaxOff < MaxLL,MaxML */
 #define MLFSELog    9
 #define LLFSELog    9
 #define OffFSELog   8
+#define MaxFSELog  MAX(MAX(MLFSELog, LLFSELog), OffFSELog)
 
 static const U32 LL_bits[MaxLL+1] = { 0, 0, 0, 0, 0, 0, 0, 0,
                                       0, 0, 0, 0, 0, 0, 0, 0,

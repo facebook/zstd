@@ -251,7 +251,7 @@ static int ZSTD_isUpdateAuthorized(ZSTD_cParameter param)
     case ZSTD_p_compressionStrategy:
         return 1;
 
-    case ZSTD_p_format :
+    case ZSTD_p_format:
     case ZSTD_p_windowLog:
     case ZSTD_p_contentSizeFlag:
     case ZSTD_p_checksumFlag:
@@ -265,10 +265,7 @@ static int ZSTD_isUpdateAuthorized(ZSTD_cParameter param)
     case ZSTD_p_ldmMinMatch:
     case ZSTD_p_ldmBucketSizeLog:
     case ZSTD_p_ldmHashEveryLog:
-        return 0;
-
     default:
-        assert(0);
         return 0;
     }
 }

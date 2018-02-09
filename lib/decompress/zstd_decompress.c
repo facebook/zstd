@@ -82,8 +82,8 @@ typedef enum { zdss_init=0, zdss_loadHeader,
 
 
 typedef struct {
-    U32 tableLog;
     U32 fastMode;
+    U32 tableLog;
 } ZSTD_seqSymbol_header;
 
 typedef struct {
@@ -665,28 +665,22 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
     }
 }
 
-
-typedef union {
-    FSE_decode_t realData;
-    FSE_DTable dtable;
-    U32 alignedBy4;
-} FSE_decode_t4;
-
+#if 0
 /* Default FSE distribution table for Literal Lengths */
-static const FSE_decode_t4 LL_defaultDTable[(1<<LL_DEFAULTNORMLOG)+1] = {
-    { { LL_DEFAULTNORMLOG, 1, 1 } }, /* header : tableLog, fastMode, fastMode */
+static const ZSTD_seqSymbol LL_defaultDTable[(1<<LL_DEFAULTNORMLOG)+1] = {
+    { 1, 0, 1, LL_DEFAULTNORMLOG },  /* header : tableLog, fastMode, fastMode */
      /* base, symbol, bits */
-    { {  0,  0,  4 } }, { { 16,  0,  4 } }, { { 32,  1,  5 } }, { {  0,  3,  5 } },
+    {  0,  0,  4,  0 }, { 16,  0,  4,  0 }, { 32,  1,  5 }, {  0,  3,  5 },
     { {  0,  4,  5 } }, { {  0,  6,  5 } }, { {  0,  7,  5 } }, { {  0,  9,  5 } },
     { {  0, 10,  5 } }, { {  0, 12,  5 } }, { {  0, 14,  6 } }, { {  0, 16,  5 } },
     { {  0, 18,  5 } }, { {  0, 19,  5 } }, { {  0, 21,  5 } }, { {  0, 22,  5 } },
     { {  0, 24,  5 } }, { { 32, 25,  5 } }, { {  0, 26,  5 } }, { {  0, 27,  6 } },
-    { {  0, 29,  6 } }, { {  0, 31,  6 } }, { { 32,  0,  4 } }, { {  0,  1,  4 } },
+    { {  0, 29,  6 } }, { {  0, 31,  6 } }, { { 32,  0,  4,  0 } }, { {  0,  1,  4 } },
     { {  0,  2,  5 } }, { { 32,  4,  5 } }, { {  0,  5,  5 } }, { { 32,  7,  5 } },
     { {  0,  8,  5 } }, { { 32, 10,  5 } }, { {  0, 11,  5 } }, { {  0, 13,  6 } },
     { { 32, 16,  5 } }, { {  0, 17,  5 } }, { { 32, 19,  5 } }, { {  0, 20,  5 } },
     { { 32, 22,  5 } }, { {  0, 23,  5 } }, { {  0, 25,  4 } }, { { 16, 25,  4 } },
-    { { 32, 26,  5 } }, { {  0, 28,  6 } }, { {  0, 30,  6 } }, { { 48,  0,  4 } },
+    { { 32, 26,  5 } }, { {  0, 28,  6 } }, { {  0, 30,  6 } }, { { 48,  0,  4,  0 } },
     { { 16,  1,  4 } }, { { 32,  2,  5 } }, { { 32,  3,  5 } }, { { 32,  5,  5 } },
     { { 32,  6,  5 } }, { { 32,  8,  5 } }, { { 32,  9,  5 } }, { { 32, 11,  5 } },
     { { 32, 12,  5 } }, { {  0, 15,  6 } }, { { 32, 17,  5 } }, { { 32, 18,  5 } },
@@ -738,6 +732,7 @@ static const FSE_decode_t4 OF_defaultDTable[(1<<OF_DEFAULTNORMLOG)+1] = {
     { {  0, 25,  5 } }, { {  0, 24,  5 } },
 };   /* OF_defaultDTable */
 
+#endif
 
 static void ZSTD_buildSeqTable_rle(ZSTD_seqSymbol* dt, BYTE symbolValue)
 {
@@ -826,7 +821,7 @@ static size_t ZSTD_buildSeqTable(ZSTD_seqSymbol* DTableSpace, const ZSTD_seqSymb
                                  symbolEncodingType_e type, U32 max, U32 maxLog,
                                  const void* src, size_t srcSize,
                                  const U32* baseValue, const U32* nbAdditionalBits,
-                                 const FSE_decode_t4* defaultTable, U32 flagRepeatTable)
+                                 const S16* defaultNorm, U32 defaultLog, U32 flagRepeatTable)
 {
     switch(type)
     {
@@ -838,7 +833,9 @@ static size_t ZSTD_buildSeqTable(ZSTD_seqSymbol* DTableSpace, const ZSTD_seqSymb
         return 1;
     case set_basic :
         assert(0);   /* need to rebuild all default tables */
-        *DTablePtr = &defaultTable->dtable;
+        //*DTablePtr = &defaultTable->dtable;
+        ZSTD_buildFSETable(DTableSpace, defaultNorm, max, baseValue, nbAdditionalBits, defaultLog);
+        *DTablePtr = DTableSpace;
         return 0;
     case set_repeat:
         if (!flagRepeatTable) return ERROR(corruption_detected);
@@ -922,7 +919,7 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
                                                       LLtype, MaxLL, LLFSELog,
                                                       ip, iend-ip,
                                                       LL_base, LL_bits,
-                                                      LL_defaultDTable, dctx->fseEntropy);
+                                                      LL_defaultNorm, LL_defaultNormLog, dctx->fseEntropy);
             if (ZSTD_isError(llhSize)) return ERROR(corruption_detected);
             ip += llhSize;
         }
@@ -931,7 +928,7 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
                                                       OFtype, MaxOff, OffFSELog,
                                                       ip, iend-ip,
                                                       OF_base, OF_bits,
-                                                      OF_defaultDTable, dctx->fseEntropy);
+                                                      OF_defaultNorm, OF_defaultNormLog, dctx->fseEntropy);
             if (ZSTD_isError(ofhSize)) return ERROR(corruption_detected);
             ip += ofhSize;
         }
@@ -940,7 +937,7 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
                                                       MLtype, MaxML, MLFSELog,
                                                       ip, iend-ip,
                                                       ML_base, ML_bits,
-                                                      ML_defaultDTable, dctx->fseEntropy);
+                                                      ML_defaultNorm, ML_defaultNormLog, dctx->fseEntropy);
             if (ZSTD_isError(mlhSize)) return ERROR(corruption_detected);
             ip += mlhSize;
         }

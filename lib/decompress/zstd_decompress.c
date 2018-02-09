@@ -1394,10 +1394,11 @@ static size_t ZSTD_decompressSequencesLong(
 
 
 static unsigned
-ZSTD_shareLongOffsets(const FSE_DTable* offTable)
+ZSTD_getLongOffsetsShare(const FSE_DTable* offTable)
 {
-    U32 const tableLog = ((const FSE_DTableHeader*)offTable)[0].tableLog;
-    const FSE_decode_t* table = (const FSE_decode_t*)(offTable + 1);
+    const void* ptr = offTable;
+    U32 const tableLog = ((const FSE_DTableHeader*)ptr)[0].tableLog;
+    const FSE_decode_t* table = ((const FSE_decode_t*)ptr) + 1;
     U32 const max = 1 << tableLog;
     U32 u, total = 0;
 
@@ -1442,8 +1443,8 @@ static size_t ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
         srcSize -= seqHSize;
 
         if (dctx->fParams.windowSize > (1<<24)) {
-            U32 const shareLongOffsets = ZSTD_shareLongOffsets(dctx->entropy.OFTable);
-            U32 const minShare = MEM_64bits() ? 12 : 20;
+            U32 const shareLongOffsets = ZSTD_getLongOffsetsShare(dctx->entropy.OFTable);
+            U32 const minShare = MEM_64bits() ? 5 : 13;
             if (shareLongOffsets >= minShare)
                 return ZSTD_decompressSequencesLong(dctx, dst, dstCapacity, ip, srcSize, nbSeq, isLongOffset);
         }

@@ -748,7 +748,6 @@ static size_t ZSTD_buildSeqTable(FSE_DTable* DTableSpace, const FSE_DTable** DTa
     case set_repeat:
         if (!flagRepeatTable) return ERROR(corruption_detected);
         return 0;
-    default :   /* impossible */
     case set_compressed :
         {   U32 tableLog;
             S16 norm[MaxSeq+1];
@@ -758,7 +757,10 @@ static size_t ZSTD_buildSeqTable(FSE_DTable* DTableSpace, const FSE_DTable** DTa
             FSE_buildDTable(DTableSpace, norm, max, tableLog);
             *DTablePtr = DTableSpace;
             return headerSize;
-    }   }
+        }
+    default :   /* impossible */
+        assert(0);
+    }
 }
 
 size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
@@ -1443,7 +1445,7 @@ static size_t ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
         srcSize -= seqHSize;
 
         if (dctx->fParams.windowSize > (1<<24)) {
-            U32 const shareLongOffsets = ZSTD_getLongOffsetsShare(dctx->entropy.OFTable);
+            U32 const shareLongOffsets = ZSTD_getLongOffsetsShare(dctx->OFTptr);
             U32 const minShare = MEM_64bits() ? 5 : 13;
             if (shareLongOffsets >= minShare)
                 return ZSTD_decompressSequencesLong(dctx, dst, dstCapacity, ip, srcSize, nbSeq, isLongOffset);

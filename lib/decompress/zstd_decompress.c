@@ -1082,7 +1082,7 @@ size_t ZSTD_execSequence(BYTE* op,
 static size_t ZSTD_decompressSequences(
                                ZSTD_DCtx* dctx,
                                void* dst, size_t maxDstSize,
-                         const void* seqStart, size_t seqSize,
+                         const void* seqStart, size_t seqSize, int nbSeq,
                          const ZSTD_longOffset_e isLongOffset)
 {
     const BYTE* ip = (const BYTE*)seqStart;
@@ -1095,16 +1095,8 @@ static size_t ZSTD_decompressSequences(
     const BYTE* const base = (const BYTE*) (dctx->base);
     const BYTE* const vBase = (const BYTE*) (dctx->vBase);
     const BYTE* const dictEnd = (const BYTE*) (dctx->dictEnd);
-    int nbSeq;
-    DEBUGLOG(5, "ZSTD_decompressSequences");
 
-    /* Build Decoding Tables */
-    {   size_t const seqHSize = ZSTD_decodeSeqHeaders(dctx, &nbSeq, ip, seqSize);
-        DEBUGLOG(5, "ZSTD_decodeSeqHeaders: size=%u, nbSeq=%i",
-                    (U32)seqHSize, nbSeq);
-        if (ZSTD_isError(seqHSize)) return seqHSize;
-        ip += seqHSize;
-    }
+    DEBUGLOG(5, "ZSTD_decompressSequences");
 
     /* Regen sequences */
     if (nbSeq) {
@@ -1328,7 +1320,7 @@ size_t ZSTD_execSequenceLong(BYTE* op,
 static size_t ZSTD_decompressSequencesLong(
                                ZSTD_DCtx* dctx,
                                void* dst, size_t maxDstSize,
-                         const void* seqStart, size_t seqSize,
+                         const void* seqStart, size_t seqSize, int nbSeq,
                          const ZSTD_longOffset_e isLongOffset)
 {
     const BYTE* ip = (const BYTE*)seqStart;
@@ -1341,13 +1333,6 @@ static size_t ZSTD_decompressSequencesLong(
     const BYTE* const prefixStart = (const BYTE*) (dctx->base);
     const BYTE* const dictStart = (const BYTE*) (dctx->vBase);
     const BYTE* const dictEnd = (const BYTE*) (dctx->dictEnd);
-    int nbSeq;
-
-    /* Build Decoding Tables */
-    {   size_t const seqHSize = ZSTD_decodeSeqHeaders(dctx, &nbSeq, ip, seqSize);
-        if (ZSTD_isError(seqHSize)) return seqHSize;
-        ip += seqHSize;
-    }
 
     /* Regen sequences */
     if (nbSeq) {
@@ -1408,6 +1393,24 @@ static size_t ZSTD_decompressSequencesLong(
 }
 
 
+static unsigned
+ZSTD_shareLongOffsets(const FSE_DTable* offTable)
+{
+    U32 const tableLog = ((const FSE_DTableHeader*)offTable)[0].tableLog;
+    const FSE_decode_t* table = (const FSE_decode_t*)(offTable + 1);
+    U32 const max = 1 << tableLog;
+    U32 u, total = 0;
+
+    assert(tableLog <= OffFSELog);
+    for (u=0; u<max; u++)
+        if (table[u].symbol > 23) total += 1;
+
+    total <<= (OffFSELog - tableLog);
+
+    return total;
+}
+
+
 static size_t ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
                             void* dst, size_t dstCapacity,
                       const void* src, size_t srcSize, const int frame)
@@ -1430,11 +1433,23 @@ static size_t ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
         ip += litCSize;
         srcSize -= litCSize;
     }
-    if ( frame /* windowSize exists */
-      && (dctx->fParams.windowSize > (1<<24))
-      && MEM_64bits() /* x86 benefits less from long mode than x64 */ )
-        return ZSTD_decompressSequencesLong(dctx, dst, dstCapacity, ip, srcSize, isLongOffset);
-    return ZSTD_decompressSequences(dctx, dst, dstCapacity, ip, srcSize, isLongOffset);
+
+    /* Build Decoding Tables */
+    {   int nbSeq;
+        size_t const seqHSize = ZSTD_decodeSeqHeaders(dctx, &nbSeq, ip, srcSize);
+        if (ZSTD_isError(seqHSize)) return seqHSize;
+        ip += seqHSize;
+        srcSize -= seqHSize;
+
+        if (dctx->fParams.windowSize > (1<<24)) {
+            U32 const shareLongOffsets = ZSTD_shareLongOffsets(dctx->entropy.OFTable);
+            U32 const minShare = MEM_64bits() ? 12 : 20;
+            if (shareLongOffsets >= minShare)
+                return ZSTD_decompressSequencesLong(dctx, dst, dstCapacity, ip, srcSize, nbSeq, isLongOffset);
+        }
+
+        return ZSTD_decompressSequences(dctx, dst, dstCapacity, ip, srcSize, nbSeq, isLongOffset);
+    }
 }
 
 

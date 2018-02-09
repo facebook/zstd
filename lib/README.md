@@ -31,7 +31,7 @@ Optional advanced features are exposed via :
                           it unlocks access to advanced experimental API,
                           exposed in second part of `zstd.h`.
                           These APIs are not "stable", their definition may change in the future.
-                          As a consequencem, it shall ___never be used with dynamic library___ !
+                          As a consequence, it shall ___never be used with dynamic library___ !
                           Only static linking is allowed.
 
 

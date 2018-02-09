@@ -9,6 +9,7 @@
 
 # This Makefile presumes libzstd is installed, using `sudo make install`
 
+CPPFLAGS += -I../lib
 LIB = ../lib/libzstd.a
 
 .PHONY: default all clean test

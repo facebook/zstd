@@ -665,74 +665,105 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
     }
 }
 
-#if 0
 /* Default FSE distribution table for Literal Lengths */
 static const ZSTD_seqSymbol LL_defaultDTable[(1<<LL_DEFAULTNORMLOG)+1] = {
-    { 1, 0, 1, LL_DEFAULTNORMLOG },  /* header : tableLog, fastMode, fastMode */
-     /* base, symbol, bits */
-    {  0,  0,  4,  0 }, { 16,  0,  4,  0 }, { 32,  1,  5 }, {  0,  3,  5 },
-    { {  0,  4,  5 } }, { {  0,  6,  5 } }, { {  0,  7,  5 } }, { {  0,  9,  5 } },
-    { {  0, 10,  5 } }, { {  0, 12,  5 } }, { {  0, 14,  6 } }, { {  0, 16,  5 } },
-    { {  0, 18,  5 } }, { {  0, 19,  5 } }, { {  0, 21,  5 } }, { {  0, 22,  5 } },
-    { {  0, 24,  5 } }, { { 32, 25,  5 } }, { {  0, 26,  5 } }, { {  0, 27,  6 } },
-    { {  0, 29,  6 } }, { {  0, 31,  6 } }, { { 32,  0,  4,  0 } }, { {  0,  1,  4 } },
-    { {  0,  2,  5 } }, { { 32,  4,  5 } }, { {  0,  5,  5 } }, { { 32,  7,  5 } },
-    { {  0,  8,  5 } }, { { 32, 10,  5 } }, { {  0, 11,  5 } }, { {  0, 13,  6 } },
-    { { 32, 16,  5 } }, { {  0, 17,  5 } }, { { 32, 19,  5 } }, { {  0, 20,  5 } },
-    { { 32, 22,  5 } }, { {  0, 23,  5 } }, { {  0, 25,  4 } }, { { 16, 25,  4 } },
-    { { 32, 26,  5 } }, { {  0, 28,  6 } }, { {  0, 30,  6 } }, { { 48,  0,  4,  0 } },
-    { { 16,  1,  4 } }, { { 32,  2,  5 } }, { { 32,  3,  5 } }, { { 32,  5,  5 } },
-    { { 32,  6,  5 } }, { { 32,  8,  5 } }, { { 32,  9,  5 } }, { { 32, 11,  5 } },
-    { { 32, 12,  5 } }, { {  0, 15,  6 } }, { { 32, 17,  5 } }, { { 32, 18,  5 } },
-    { { 32, 20,  5 } }, { { 32, 21,  5 } }, { { 32, 23,  5 } }, { { 32, 24,  5 } },
-    { {  0, 35,  6 } }, { {  0, 34,  6 } }, { {  0, 33,  6 } }, { {  0, 32,  6 } },
+     {  1,  1,  1, LL_DEFAULTNORMLOG},  /* header : fastMode, tableLog */
+     /* nextState, nbAddBits, nbBits, baseVal */
+     {  0,  0,  4,    0},  { 16,  0,  4,    0},
+     { 32,  0,  5,    1},  {  0,  0,  5,    3},
+     {  0,  0,  5,    4},  {  0,  0,  5,    6},
+     {  0,  0,  5,    7},  {  0,  0,  5,    9},
+     {  0,  0,  5,   10},  {  0,  0,  5,   12},
+     {  0,  0,  6,   14},  {  0,  1,  5,   16},
+     {  0,  1,  5,   20},  {  0,  1,  5,   22},
+     {  0,  2,  5,   28},  {  0,  3,  5,   32},
+     {  0,  4,  5,   48},  { 32,  6,  5,   64},
+     {  0,  7,  5,  128},  {  0,  8,  6,  256},
+     {  0, 10,  6, 1024},  {  0, 12,  6, 4096},
+     { 32,  0,  4,    0},  {  0,  0,  4,    1},
+     {  0,  0,  5,    2},  { 32,  0,  5,    4},
+     {  0,  0,  5,    5},  { 32,  0,  5,    7},
+     {  0,  0,  5,    8},  { 32,  0,  5,   10},
+     {  0,  0,  5,   11},  {  0,  0,  6,   13},
+     { 32,  1,  5,   16},  {  0,  1,  5,   18},
+     { 32,  1,  5,   22},  {  0,  2,  5,   24},
+     { 32,  3,  5,   32},  {  0,  3,  5,   40},
+     {  0,  6,  4,   64},  { 16,  6,  4,   64},
+     { 32,  7,  5,  128},  {  0,  9,  6,  512},
+     {  0, 11,  6, 2048},  { 48,  0,  4,    0},
+     { 16,  0,  4,    1},  { 32,  0,  5,    2},
+     { 32,  0,  5,    3},  { 32,  0,  5,    5},
+     { 32,  0,  5,    6},  { 32,  0,  5,    8},
+     { 32,  0,  5,    9},  { 32,  0,  5,   11},
+     { 32,  0,  5,   12},  {  0,  0,  6,   15},
+     { 32,  1,  5,   18},  { 32,  1,  5,   20},
+     { 32,  2,  5,   24},  { 32,  2,  5,   28},
+     { 32,  3,  5,   40},  { 32,  4,  5,   48},
+     {  0, 16,  6,65536},  {  0, 15,  6,32768},
+     {  0, 14,  6,16384},  {  0, 13,  6, 8192},
 };   /* LL_defaultDTable */
 
-/* Default FSE distribution table for Match Lengths */
-static const FSE_decode_t4 ML_defaultDTable[(1<<ML_DEFAULTNORMLOG)+1] = {
-    { { ML_DEFAULTNORMLOG, 1, 1 } }, /* header : tableLog, fastMode, fastMode */
-    /* base, symbol, bits */
-    { {  0,  0,  6 } }, { {  0,  1,  4 } }, { { 32,  2,  5 } }, { {  0,  3,  5 } },
-    { {  0,  5,  5 } }, { {  0,  6,  5 } }, { {  0,  8,  5 } }, { {  0, 10,  6 } },
-    { {  0, 13,  6 } }, { {  0, 16,  6 } }, { {  0, 19,  6 } }, { {  0, 22,  6 } },
-    { {  0, 25,  6 } }, { {  0, 28,  6 } }, { {  0, 31,  6 } }, { {  0, 33,  6 } },
-    { {  0, 35,  6 } }, { {  0, 37,  6 } }, { {  0, 39,  6 } }, { {  0, 41,  6 } },
-    { {  0, 43,  6 } }, { {  0, 45,  6 } }, { { 16,  1,  4 } }, { {  0,  2,  4 } },
-    { { 32,  3,  5 } }, { {  0,  4,  5 } }, { { 32,  6,  5 } }, { {  0,  7,  5 } },
-    { {  0,  9,  6 } }, { {  0, 12,  6 } }, { {  0, 15,  6 } }, { {  0, 18,  6 } },
-    { {  0, 21,  6 } }, { {  0, 24,  6 } }, { {  0, 27,  6 } }, { {  0, 30,  6 } },
-    { {  0, 32,  6 } }, { {  0, 34,  6 } }, { {  0, 36,  6 } }, { {  0, 38,  6 } },
-    { {  0, 40,  6 } }, { {  0, 42,  6 } }, { {  0, 44,  6 } }, { { 32,  1,  4 } },
-    { { 48,  1,  4 } }, { { 16,  2,  4 } }, { { 32,  4,  5 } }, { { 32,  5,  5 } },
-    { { 32,  7,  5 } }, { { 32,  8,  5 } }, { {  0, 11,  6 } }, { {  0, 14,  6 } },
-    { {  0, 17,  6 } }, { {  0, 20,  6 } }, { {  0, 23,  6 } }, { {  0, 26,  6 } },
-    { {  0, 29,  6 } }, { {  0, 52,  6 } }, { {  0, 51,  6 } }, { {  0, 50,  6 } },
-    { {  0, 49,  6 } }, { {  0, 48,  6 } }, { {  0, 47,  6 } }, { {  0, 46,  6 } },
-};   /* ML_defaultDTable */
-
 /* Default FSE distribution table for Offset Codes */
-static const FSE_decode_t4 OF_defaultDTable[(1<<OF_DEFAULTNORMLOG)+1] = {
-    { { OF_DEFAULTNORMLOG, 1, 1 } }, /* header : tableLog, fastMode, fastMode */
-    /* base, symbol, bits */
-    { {  0,  0,  5 } }, { {  0,  6,  4 } },
-    { {  0,  9,  5 } }, { {  0, 15,  5 } },
-    { {  0, 21,  5 } }, { {  0,  3,  5 } },
-    { {  0,  7,  4 } }, { {  0, 12,  5 } },
-    { {  0, 18,  5 } }, { {  0, 23,  5 } },
-    { {  0,  5,  5 } }, { {  0,  8,  4 } },
-    { {  0, 14,  5 } }, { {  0, 20,  5 } },
-    { {  0,  2,  5 } }, { { 16,  7,  4 } },
-    { {  0, 11,  5 } }, { {  0, 17,  5 } },
-    { {  0, 22,  5 } }, { {  0,  4,  5 } },
-    { { 16,  8,  4 } }, { {  0, 13,  5 } },
-    { {  0, 19,  5 } }, { {  0,  1,  5 } },
-    { { 16,  6,  4 } }, { {  0, 10,  5 } },
-    { {  0, 16,  5 } }, { {  0, 28,  5 } },
-    { {  0, 27,  5 } }, { {  0, 26,  5 } },
-    { {  0, 25,  5 } }, { {  0, 24,  5 } },
+static const ZSTD_seqSymbol OF_defaultDTable[(1<<OF_DEFAULTNORMLOG)+1] = {
+    {  1,  1,  1, OF_DEFAULTNORMLOG},  /* header : fastMode, tableLog */
+    /* nextState, nbAddBits, nbBits, baseVal */
+    {  0,  0,  5,    0},     {  0,  6,  4,   61},
+    {  0,  9,  5,  509},     {  0, 15,  5,32765},
+    {  0, 21,  5,2097149},   {  0,  3,  5,    5},
+    {  0,  7,  4,  125},     {  0, 12,  5, 4093},
+    {  0, 18,  5,262141},    {  0, 23,  5,8388605},
+    {  0,  5,  5,   29},     {  0,  8,  4,  253},
+    {  0, 14,  5,16381},     {  0, 20,  5,1048573},
+    {  0,  2,  5,    1},     { 16,  7,  4,  125},
+    {  0, 11,  5, 2045},     {  0, 17,  5,131069},
+    {  0, 22,  5,4194301},   {  0,  4,  5,   13},
+    { 16,  8,  4,  253},     {  0, 13,  5, 8189},
+    {  0, 19,  5,524285},    {  0,  1,  5,    1},
+    { 16,  6,  4,   61},     {  0, 10,  5, 1021},
+    {  0, 16,  5,65533},     {  0, 28,  5,268435453},
+    {  0, 27,  5,134217725}, {  0, 26,  5,67108861},
+    {  0, 25,  5,33554429},  {  0, 24,  5,16777213},
 };   /* OF_defaultDTable */
 
-#endif
+
+/* Default FSE distribution table for Match Lengths */
+static const ZSTD_seqSymbol ML_defaultDTable[(1<<ML_DEFAULTNORMLOG)+1] = {
+    {  1,  1,  1, ML_DEFAULTNORMLOG},  /* header : fastMode, tableLog */
+    /* nextState, nbAddBits, nbBits, baseVal */
+    {  0,  0,  6,    3},  {  0,  0,  4,    4},
+    { 32,  0,  5,    5},  {  0,  0,  5,    6},
+    {  0,  0,  5,    8},  {  0,  0,  5,    9},
+    {  0,  0,  5,   11},  {  0,  0,  6,   13},
+    {  0,  0,  6,   16},  {  0,  0,  6,   19},
+    {  0,  0,  6,   22},  {  0,  0,  6,   25},
+    {  0,  0,  6,   28},  {  0,  0,  6,   31},
+    {  0,  0,  6,   34},  {  0,  1,  6,   37},
+    {  0,  1,  6,   41},  {  0,  2,  6,   47},
+    {  0,  3,  6,   59},  {  0,  4,  6,   83},
+    {  0,  7,  6,  131},  {  0,  9,  6,  515},
+    { 16,  0,  4,    4},  {  0,  0,  4,    5},
+    { 32,  0,  5,    6},  {  0,  0,  5,    7},
+    { 32,  0,  5,    9},  {  0,  0,  5,   10},
+    {  0,  0,  6,   12},  {  0,  0,  6,   15},
+    {  0,  0,  6,   18},  {  0,  0,  6,   21},
+    {  0,  0,  6,   24},  {  0,  0,  6,   27},
+    {  0,  0,  6,   30},  {  0,  0,  6,   33},
+    {  0,  1,  6,   35},  {  0,  1,  6,   39},
+    {  0,  2,  6,   43},  {  0,  3,  6,   51},
+    {  0,  4,  6,   67},  {  0,  5,  6,   99},
+    {  0,  8,  6,  259},  { 32,  0,  4,    4},
+    { 48,  0,  4,    4},  { 16,  0,  4,    5},
+    { 32,  0,  5,    7},  { 32,  0,  5,    8},
+    { 32,  0,  5,   10},  { 32,  0,  5,   11},
+    {  0,  0,  6,   14},  {  0,  0,  6,   17},
+    {  0,  0,  6,   20},  {  0,  0,  6,   23},
+    {  0,  0,  6,   26},  {  0,  0,  6,   29},
+    {  0,  0,  6,   32},  {  0, 16,  6,65539},
+    {  0, 15,  6,32771},  {  0, 14,  6,16387},
+    {  0, 13,  6, 8195},  {  0, 12,  6, 4099},
+    {  0, 11,  6, 2051},  {  0, 10,  6, 1027},
+};   /* ML_defaultDTable */
+
 
 static void ZSTD_buildSeqTable_rle(ZSTD_seqSymbol* dt, U32 baseValue, U32 nbAddBits)
 {
@@ -822,7 +853,7 @@ static size_t ZSTD_buildSeqTable(ZSTD_seqSymbol* DTableSpace, const ZSTD_seqSymb
                                  symbolEncodingType_e type, U32 max, U32 maxLog,
                                  const void* src, size_t srcSize,
                                  const U32* baseValue, const U32* nbAdditionalBits,
-                                 const S16* defaultNorm, U32 defaultLog, U32 flagRepeatTable)
+                                 const ZSTD_seqSymbol* defaultTable, U32 flagRepeatTable)
 {
     switch(type)
     {
@@ -837,9 +868,7 @@ static size_t ZSTD_buildSeqTable(ZSTD_seqSymbol* DTableSpace, const ZSTD_seqSymb
         *DTablePtr = DTableSpace;
         return 1;
     case set_basic :
-        //*DTablePtr = &defaultTable->dtable;  // when default tables will be pre-built
-        ZSTD_buildFSETable(DTableSpace, defaultNorm, max, baseValue, nbAdditionalBits, defaultLog);
-        *DTablePtr = DTableSpace;
+        *DTablePtr = defaultTable;
         return 0;
     case set_repeat:
         if (!flagRepeatTable) return ERROR(corruption_detected);
@@ -885,6 +914,7 @@ static const U32 ML_base[MaxML+1] = {
                     67, 83, 99, 0x83, 0x103, 0x203, 0x403, 0x803,
                     0x1003, 0x2003, 0x4003, 0x8003, 0x10003 };
 
+
 size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
                              const void* src, size_t srcSize)
 {
@@ -923,7 +953,7 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
                                                       LLtype, MaxLL, LLFSELog,
                                                       ip, iend-ip,
                                                       LL_base, LL_bits,
-                                                      LL_defaultNorm, LL_defaultNormLog, dctx->fseEntropy);
+                                                      LL_defaultDTable, dctx->fseEntropy);
             if (ZSTD_isError(llhSize)) return ERROR(corruption_detected);
             ip += llhSize;
         }
@@ -932,7 +962,7 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
                                                       OFtype, MaxOff, OffFSELog,
                                                       ip, iend-ip,
                                                       OF_base, OF_bits,
-                                                      OF_defaultNorm, OF_defaultNormLog, dctx->fseEntropy);
+                                                      OF_defaultDTable, dctx->fseEntropy);
             if (ZSTD_isError(ofhSize)) return ERROR(corruption_detected);
             ip += ofhSize;
         }
@@ -941,7 +971,7 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
                                                       MLtype, MaxML, MLFSELog,
                                                       ip, iend-ip,
                                                       ML_base, ML_bits,
-                                                      ML_defaultNorm, ML_defaultNormLog, dctx->fseEntropy);
+                                                      ML_defaultDTable, dctx->fseEntropy);
             if (ZSTD_isError(mlhSize)) return ERROR(corruption_detected);
             ip += mlhSize;
         }

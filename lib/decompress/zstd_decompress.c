@@ -760,6 +760,7 @@ static size_t ZSTD_buildSeqTable(FSE_DTable* DTableSpace, const FSE_DTable** DTa
         }
     default :   /* impossible */
         assert(0);
+        return ERROR(GENERIC);
     }
 }
 

@@ -113,7 +113,7 @@ size_t ZSTD_compressBlock_doubleFast_generic(
                     while (((ip>anchor) & (match>lowest)) && (ip[-1] == match[-1])) { ip--; match--; mLength++; } /* catch up */
                 }
             } else {
-                ip += ((ip-anchor) >> g_searchStrength) + 1;
+                ip += ((ip-anchor) >> kSearchStrength) + 1;
                 continue;
             }
 
@@ -264,7 +264,7 @@ static size_t ZSTD_compressBlock_doubleFast_extDict_generic(
                 ZSTD_storeSeq(seqStore, ip-anchor, anchor, offset + ZSTD_REP_MOVE, mLength-MINMATCH);
 
             } else {
-                ip += ((ip-anchor) >> g_searchStrength) + 1;
+                ip += ((ip-anchor) >> kSearchStrength) + 1;
                 continue;
         }   }
 

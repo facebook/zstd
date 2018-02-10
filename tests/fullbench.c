@@ -181,7 +181,7 @@ static size_t local_ZSTD_compress_generic_T2_end(void* dst, size_t dstCapacity, 
     ZSTD_inBuffer buffIn;
     (void)buff2;
     ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_compressionLevel, 1);
-    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_nbThreads, 2);
+    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_nbWorkers, 2);
     buffOut.dst = dst;
     buffOut.size = dstCapacity;
     buffOut.pos = 0;
@@ -198,7 +198,7 @@ static size_t local_ZSTD_compress_generic_T2_continue(void* dst, size_t dstCapac
     ZSTD_inBuffer buffIn;
     (void)buff2;
     ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_compressionLevel, 1);
-    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_nbThreads, 2);
+    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_nbWorkers, 2);
     buffOut.dst = dst;
     buffOut.size = dstCapacity;
     buffOut.pos = 0;

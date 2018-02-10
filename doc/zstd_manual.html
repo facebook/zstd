@@ -801,10 +801,12 @@ size_t ZSTD_decodingBufferSize_min(unsigned long long windowSize, unsigned long 
     </b>/* These parameters are only useful if multi-threading is enabled (ZSTD_MULTITHREAD).<b>
      * They return an error otherwise. */
     ZSTD_p_nbWorkers=400,    </b>/* Select how many threads will be spawned to compress in parallel.<b>
-                              * Triggers asynchronous mode, even with nbWorkers = 1.
-                              * Can only be set to a value >= 1 if ZSTD_MULTITHREAD is enabled.
-                              * More threads improve speed, but also increase memory usage.
-                              * Default value is `0`, aka "blocking mode" : no worker is spawned, compression is performed inside Caller's thread */
+                              * When nbWorkers >= 1, triggers asynchronous mode :
+                              * ZSTD_compress_generic() consumes some input, flush some output if possible, and immediately gives back control to caller,
+                              * while compression work is performed in parallel, within worker threads.
+                              * (note : a strong exception to this rule is when first invocation sets ZSTD_e_end : it becomes a blocking call).
+                              * More workers improve speed, but also increase memory usage.
+                              * Default value is `0`, aka "single-threaded mode" : no worker is spawned, compression is performed inside Caller's thread, all invocations are blocking */
     ZSTD_p_jobSize,          </b>/* Size of a compression job. This value is only enforced in streaming (non-blocking) mode.<b>
                               * Each compression job is completed in parallel, so indirectly controls the nb of active threads.
                               * 0 means default, which is dynamically determined based on compression parameters.
@@ -854,8 +856,10 @@ size_t ZSTD_decodingBufferSize_min(unsigned long long windowSize, unsigned long 
 </b></pre><BR>
 <pre><b>size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned value);
 </b><p>  Set one compression parameter, selected by enum ZSTD_cParameter.
+  Setting a parameter is generally only possible during frame initialization (before starting compression),
+  except for a few exceptions which can be updated during compression: compressionLevel, hashLog, chainLog, searchLog, minMatch, targetLength and strategy.
   Note : when `value` is an enum, cast it to unsigned for proper type checking.
-  @result : informational value (typically, the one being set, possibly corrected),
+  @result : informational value (typically, value being set clamped correctly),
             or an error code (which can be tested with ZSTD_isError()). 
 </p></pre><BR>
 
@@ -1025,9 +1029,10 @@ size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* prefix, size_t 
 <pre><b>size_t ZSTD_CCtx_setParametersUsingCCtxParams(
         ZSTD_CCtx* cctx, const ZSTD_CCtx_params* params);
 </b><p>  Apply a set of ZSTD_CCtx_params to the compression context.
-  This must be done before the dictionary is loaded.
-  The pledgedSrcSize is treated as unknown.
-  Multithreading parameters are applied only if nbWorkers >= 1.
+  This can be done even after compression is started,
+    if nbWorkers==0, this will have no impact until a new compression is started.
+    if nbWorkers>=1, new parameters will be picked up at next job,
+       with a few restrictions (windowLog, pledgedSrcSize, nbWorkers, jobSize, and overlapLog are not updated).
  
 </p></pre><BR>
 

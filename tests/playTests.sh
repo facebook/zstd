@@ -634,6 +634,7 @@ roundTripTest -g518K "19 --long"
 fileRoundTripTest -g5M "3 --long"
 
 
+roundTripTest -g96K "5 --single-thread"
 if [ -n "$hasMT" ]
 then
     $ECHO "\n===>  zstdmt round-trip tests "

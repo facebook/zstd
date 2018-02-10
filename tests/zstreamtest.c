@@ -753,9 +753,9 @@ static int basicUnitTests(U32 seed, double compressibility)
     DISPLAYLEVEL(3, "OK \n");
 
     /* Complex multithreading + dictionary test */
-    {   U32 const nbThreads = 2;
+    {   U32 const nbWorkers = 2;
         size_t const jobSize = 4 * 1 MB;
-        size_t const srcSize = jobSize * nbThreads;  /* we want each job to have predictable size */
+        size_t const srcSize = jobSize * nbWorkers;  /* we want each job to have predictable size */
         size_t const segLength = 2 KB;
         size_t const offset = 600 KB;   /* must be larger than window defined in cdict */
         size_t const start = jobSize + (offset-1);
@@ -763,7 +763,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         BYTE* const dst = (BYTE*)CNBuffer + start - offset;
         DISPLAYLEVEL(3, "test%3i : compress %u bytes with multiple threads + dictionary : ", testNb++, (U32)srcSize);
         CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_compressionLevel, 3) );
-        CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_nbThreads, 2) );
+        CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_nbWorkers, nbWorkers) );
         CHECK_Z( ZSTD_CCtx_setParameter(zc, ZSTD_p_jobSize, jobSize) );
         assert(start > offset);
         assert(start + segLength < COMPRESSIBLE_NOISE_LENGTH);
@@ -1672,7 +1672,7 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
                     U32 const nbThreadsAdjusted = (windowLogMalus < nbThreadsCandidate) ? nbThreadsCandidate - windowLogMalus : 1;
                     U32 const nbThreads = MIN(nbThreadsAdjusted, nbThreadsMax);
                     DISPLAYLEVEL(5, "t%u: nbThreads : %u \n", testNb, nbThreads);
-                    CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_nbThreads, nbThreads, useOpaqueAPI) );
+                    CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_nbWorkers, nbThreads, useOpaqueAPI) );
                     if (nbThreads > 1) {
                         U32 const jobLog = FUZ_rand(&lseed) % (testLog+1);
                         CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_overlapSizeLog, FUZ_rand(&lseed) % 10, useOpaqueAPI) );

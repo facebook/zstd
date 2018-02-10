@@ -36,18 +36,21 @@
 #  include <io.h>
 #endif
 
-#include "bitstream.h"
 #include "mem.h"
 #include "fileio.h"
 #include "util.h"
+
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_magicNumber, ZSTD_frameHeaderSize_max */
 #include "zstd.h"
+#include "zstd_errors.h"           /* ZSTD_error_frameParameter_windowTooLarge */
+
 #if defined(ZSTD_GZCOMPRESS) || defined(ZSTD_GZDECOMPRESS)
 #  include <zlib.h>
 #  if !defined(z_const)
 #    define z_const
 #  endif
 #endif
+
 #if defined(ZSTD_LZMACOMPRESS) || defined(ZSTD_LZMADECOMPRESS)
 #  include <lzma.h>
 #endif
@@ -215,23 +218,23 @@ static U32 g_removeSrcFile = 0;
 void FIO_setRemoveSrcFile(unsigned flag) { g_removeSrcFile = (flag>0); }
 static U32 g_memLimit = 0;
 void FIO_setMemLimit(unsigned memLimit) { g_memLimit = memLimit; }
-static U32 g_nbThreads = 1;
-void FIO_setNbThreads(unsigned nbThreads) {
+static U32 g_nbWorkers = 1;
+void FIO_setNbWorkers(unsigned nbWorkers) {
 #ifndef ZSTD_MULTITHREAD
-    if (nbThreads > 1) DISPLAYLEVEL(2, "Note : multi-threading is disabled \n");
+    if (nbWorkers > 0) DISPLAYLEVEL(2, "Note : multi-threading is disabled \n");
 #endif
-    g_nbThreads = nbThreads;
+    g_nbWorkers = nbWorkers;
 }
 static U32 g_blockSize = 0;
 void FIO_setBlockSize(unsigned blockSize) {
-    if (blockSize && g_nbThreads==1)
+    if (blockSize && g_nbWorkers==0)
         DISPLAYLEVEL(2, "Setting block size is useless in single-thread mode \n");
     g_blockSize = blockSize;
 }
 #define FIO_OVERLAP_LOG_NOTSET 9999
 static U32 g_overlapLog = FIO_OVERLAP_LOG_NOTSET;
 void FIO_setOverlapLog(unsigned overlapLog){
-    if (overlapLog && g_nbThreads==1)
+    if (overlapLog && g_nbWorkers==0)
         DISPLAYLEVEL(2, "Setting overlapLog is useless in single-thread mode \n");
     g_overlapLog = overlapLog;
 }
@@ -427,7 +430,7 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
     if (!ress.srcBuffer || !ress.dstBuffer)
         EXM_THROW(31, "allocation error : not enough memory");
 
-    /* Advances parameters, including dictionary */
+    /* Advanced parameters, including dictionary */
     {   void* dictBuffer;
         size_t const dictBuffSize = FIO_createDictBuffer(&dictBuffer, dictFileName);   /* works with dictFileName==NULL */
         if (dictFileName && (dictBuffer==NULL))
@@ -439,8 +442,7 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
         /* compression level */
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionLevel, cLevel) );
         /* long distance matching */
-        CHECK( ZSTD_CCtx_setParameter(
-                      ress.cctx, ZSTD_p_enableLongDistanceMatching, g_ldmFlag) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_enableLongDistanceMatching, g_ldmFlag) );
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_ldmHashLog, g_ldmHashLog) );
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_ldmMinMatch, g_ldmMinMatch) );
         if (g_ldmBucketSizeLog != FIO_LDM_PARAM_NOTSET) {
@@ -458,13 +460,12 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_targetLength, comprParams->targetLength) );
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionStrategy, (U32)comprParams->strategy) );
         /* multi-threading */
-        DISPLAYLEVEL(5,"set nb threads = %u \n", g_nbThreads);
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_nbThreads, g_nbThreads) );
 #ifdef ZSTD_MULTITHREAD
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_nonBlockingMode, 1) );
+        DISPLAYLEVEL(5,"set nb workers = %u \n", g_nbWorkers);
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_nbWorkers, g_nbWorkers) );
 #endif
         /* dictionary */
-        CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, srcSize) );  /* just for dictionary loading, for compression parameters adaptation */
+        CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, srcSize) );  /* set the value temporarily for dictionary loading, to adapt compression parameters */
         CHECK( ZSTD_CCtx_loadDictionary(ress.cctx, dictBuffer, dictBuffSize) );
         CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, ZSTD_CONTENTSIZE_UNKNOWN) );  /* reset */
 
@@ -735,56 +736,22 @@ static unsigned long long FIO_compressLz4Frame(cRess_t* ress,
  *  @return : 0 : compression completed correctly,
  *            1 : missing or pb opening srcFileName
  */
-static int FIO_compressFilename_internal(cRess_t ress,
-                                         const char* dstFileName, const char* srcFileName, int compressionLevel)
+static unsigned long long
+FIO_compressZstdFrame(const cRess_t* ressPtr,
+                      const char* srcFileName, U64 fileSize,
+                      int compressionLevel, U64* readsize)
 {
+    cRess_t const ress = *ressPtr;
     FILE* const srcFile = ress.srcFile;
     FILE* const dstFile = ress.dstFile;
-    U64 readsize = 0;
     U64 compressedfilesize = 0;
-    U64 const fileSize = UTIL_getFileSize(srcFileName);
     ZSTD_EndDirective directive = ZSTD_e_continue;
-    DISPLAYLEVEL(5, "%s: %u bytes \n", srcFileName, (U32)fileSize);
-
-    switch (g_compressionType) {
-        case FIO_zstdCompression:
-            break;
-
-        case FIO_gzipCompression:
-#ifdef ZSTD_GZCOMPRESS
-            compressedfilesize = FIO_compressGzFrame(&ress, srcFileName, fileSize, compressionLevel, &readsize);
-#else
-            (void)compressionLevel;
-            EXM_THROW(20, "zstd: %s: file cannot be compressed as gzip (zstd compiled without ZSTD_GZCOMPRESS) -- ignored \n",
-                            srcFileName);
-#endif
-            goto finish;
-
-        case FIO_xzCompression:
-        case FIO_lzmaCompression:
-#ifdef ZSTD_LZMACOMPRESS
-            compressedfilesize = FIO_compressLzmaFrame(&ress, srcFileName, fileSize, compressionLevel, &readsize, g_compressionType==FIO_lzmaCompression);
-#else
-            (void)compressionLevel;
-            EXM_THROW(20, "zstd: %s: file cannot be compressed as xz/lzma (zstd compiled without ZSTD_LZMACOMPRESS) -- ignored \n",
-                            srcFileName);
-#endif
-            goto finish;
-
-        case FIO_lz4Compression:
-#ifdef ZSTD_LZ4COMPRESS
-            compressedfilesize = FIO_compressLz4Frame(&ress, srcFileName, fileSize, compressionLevel, &readsize);
-#else
-            (void)compressionLevel;
-            EXM_THROW(20, "zstd: %s: file cannot be compressed as lz4 (zstd compiled without ZSTD_LZ4COMPRESS) -- ignored \n",
-                            srcFileName);
-#endif
-            goto finish;
-    }
+    DISPLAYLEVEL(6, "compression using zstd format \n");
 
     /* init */
     if (fileSize != UTIL_FILESIZE_UNKNOWN)
         ZSTD_CCtx_setPledgedSrcSize(ress.cctx, fileSize);
+    (void)compressionLevel; (void)srcFileName;
 
     /* Main compression loop */
     do {
@@ -793,9 +760,9 @@ static int FIO_compressFilename_internal(cRess_t ress,
         size_t const inSize = fread(ress.srcBuffer, (size_t)1, ress.srcBufferSize, srcFile);
         ZSTD_inBuffer inBuff = { ress.srcBuffer, inSize, 0 };
         DISPLAYLEVEL(6, "fread %u bytes from source \n", (U32)inSize);
-        readsize += inSize;
+        *readsize += inSize;
 
-        if (inSize == 0 || (fileSize != UTIL_FILESIZE_UNKNOWN && readsize == fileSize))
+        if ((inSize == 0) || (*readsize == fileSize))
             directive = ZSTD_e_end;
 
         result = 1;
@@ -809,12 +776,13 @@ static int FIO_compressFilename_internal(cRess_t ress,
             if (outBuff.pos) {
                 size_t const sizeCheck = fwrite(ress.dstBuffer, 1, outBuff.pos, dstFile);
                 if (sizeCheck!=outBuff.pos)
-                    EXM_THROW(25, "Write error : cannot write compressed block into %s", dstFileName);
+                    EXM_THROW(25, "Write error : cannot write compressed block");
                 compressedfilesize += outBuff.pos;
             }
             if (READY_FOR_UPDATE()) {
                 ZSTD_frameProgression const zfp = ZSTD_getFrameProgression(ress.cctx);
-                DISPLAYUPDATE(2, "\rRead :%6u MB - Consumed :%6u MB - Compressed :%6u MB => %.2f%%",
+                DISPLAYUPDATE(2, "\r(%i) Read :%6u MB - Consumed :%6u MB - Compressed :%6u MB => %.2f%%",
+                                compressionLevel,
                                 (U32)(zfp.ingested >> 20),
                                 (U32)(zfp.consumed >> 20),
                                 (U32)(zfp.produced >> 20),
@@ -823,10 +791,67 @@ static int FIO_compressFilename_internal(cRess_t ress,
         }
     } while (directive != ZSTD_e_end);
 
-finish:
+    return compressedfilesize;
+}
+
+/*! FIO_compressFilename_internal() :
+ *  same as FIO_compressFilename_extRess(), with `ress.desFile` already opened.
+ *  @return : 0 : compression completed correctly,
+ *            1 : missing or pb opening srcFileName
+ */
+static int
+FIO_compressFilename_internal(cRess_t ress,
+                              const char* dstFileName, const char* srcFileName,
+                              int compressionLevel)
+{
+    U64 readsize = 0;
+    U64 compressedfilesize = 0;
+    U64 const fileSize = UTIL_getFileSize(srcFileName);
+    DISPLAYLEVEL(5, "%s: %u bytes \n", srcFileName, (U32)fileSize);
+
+    /* compression format selection */
+    switch (g_compressionType) {
+        default:
+        case FIO_zstdCompression:
+            compressedfilesize = FIO_compressZstdFrame(&ress, srcFileName, fileSize, compressionLevel, &readsize);
+            break;
+
+        case FIO_gzipCompression:
+#ifdef ZSTD_GZCOMPRESS
+            compressedfilesize = FIO_compressGzFrame(&ress, srcFileName, fileSize, compressionLevel, &readsize);
+#else
+            (void)compressionLevel;
+            EXM_THROW(20, "zstd: %s: file cannot be compressed as gzip (zstd compiled without ZSTD_GZCOMPRESS) -- ignored \n",
+                            srcFileName);
+#endif
+            break;
+
+        case FIO_xzCompression:
+        case FIO_lzmaCompression:
+#ifdef ZSTD_LZMACOMPRESS
+            compressedfilesize = FIO_compressLzmaFrame(&ress, srcFileName, fileSize, compressionLevel, &readsize, g_compressionType==FIO_lzmaCompression);
+#else
+            (void)compressionLevel;
+            EXM_THROW(20, "zstd: %s: file cannot be compressed as xz/lzma (zstd compiled without ZSTD_LZMACOMPRESS) -- ignored \n",
+                            srcFileName);
+#endif
+            break;
+
+        case FIO_lz4Compression:
+#ifdef ZSTD_LZ4COMPRESS
+            compressedfilesize = FIO_compressLz4Frame(&ress, srcFileName, fileSize, compressionLevel, &readsize);
+#else
+            (void)compressionLevel;
+            EXM_THROW(20, "zstd: %s: file cannot be compressed as lz4 (zstd compiled without ZSTD_LZ4COMPRESS) -- ignored \n",
+                            srcFileName);
+#endif
+            break;
+    }
+
     /* Status */
     DISPLAYLEVEL(2, "\r%79s\r", "");
-    DISPLAYLEVEL(2,"%-20s :%6.2f%%   (%6llu => %6llu bytes, %s) \n", srcFileName,
+    DISPLAYLEVEL(2,"%-20s :%6.2f%%   (%6llu => %6llu bytes, %s) \n",
+        srcFileName,
         (double)compressedfilesize / (readsize+(!readsize)/*avoid div by zero*/) * 100,
         (unsigned long long)readsize, (unsigned long long) compressedfilesize,
          dstFileName);
@@ -1142,33 +1167,46 @@ static unsigned FIO_passThrough(FILE* foutput, FILE* finput, void* buffer, size_
     return 0;
 }
 
-static void FIO_zstdErrorHelp(dRess_t* ress, size_t ret, char const* srcFileName)
+/* FIO_highbit64() :
+ * gives position of highest bit.
+ * note : only works for v > 0 !
+ */
+static unsigned FIO_highbit64(unsigned long long v)
+{
+    unsigned count = 0;
+    assert(v != 0);
+    v >>= 1;
+    while (v) { v >>= 1; count++; }
+    return count;
+}
+
+/* FIO_zstdErrorHelp() :
+ * detailed error message when requested window size is too large */
+static void FIO_zstdErrorHelp(dRess_t* ress, size_t err, char const* srcFileName)
 {
     ZSTD_frameHeader header;
-    /* No special help for these errors */
-    if (ZSTD_getErrorCode(ret) != ZSTD_error_frameParameter_windowTooLarge)
+
+    /* Help message only for one specific error */
+    if (ZSTD_getErrorCode(err) != ZSTD_error_frameParameter_windowTooLarge)
         return;
+
     /* Try to decode the frame header */
-    ret = ZSTD_getFrameHeader(&header, ress->srcBuffer, ress->srcBufferLoaded);
-    if (ret == 0) {
-        U32 const windowSize = (U32)header.windowSize;
-        U32 const windowLog = BIT_highbit32(windowSize) + ((windowSize & (windowSize - 1)) != 0);
-        U32 const windowMB = (windowSize >> 20) + ((windowSize & ((1 MB) - 1)) != 0);
-        assert(header.windowSize <= (U64)((U32)-1));
+    err = ZSTD_getFrameHeader(&header, ress->srcBuffer, ress->srcBufferLoaded);
+    if (err == 0) {
+        unsigned long long const windowSize = header.windowSize;
+        U32 const windowLog = FIO_highbit64(windowSize) + ((windowSize & (windowSize - 1)) != 0);
+        U32 const windowMB = (U32)((windowSize >> 20) + ((windowSize & ((1 MB) - 1)) != 0));
+        assert(windowSize < (U64)(1ULL << 52));
         assert(g_memLimit > 0);
         DISPLAYLEVEL(1, "%s : Window size larger than maximum : %llu > %u\n",
-                        srcFileName, header.windowSize, g_memLimit);
+                        srcFileName, windowSize, g_memLimit);
         if (windowLog <= ZSTD_WINDOWLOG_MAX) {
             DISPLAYLEVEL(1, "%s : Use --long=%u or --memory=%uMB\n",
                             srcFileName, windowLog, windowMB);
             return;
         }
-    } else if (ZSTD_getErrorCode(ret) != ZSTD_error_frameParameter_windowTooLarge) {
-        DISPLAYLEVEL(1, "%s : Error decoding frame header to read window size : %s\n",
-                        srcFileName, ZSTD_getErrorName(ret));
-        return;
     }
-    DISPLAYLEVEL(1, "%s : Window log larger than ZSTD_WINDOWLOG_MAX=%u not supported\n",
+    DISPLAYLEVEL(1, "%s : Window log larger than ZSTD_WINDOWLOG_MAX=%u; not supported\n",
                     srcFileName, ZSTD_WINDOWLOG_MAX);
 }
 

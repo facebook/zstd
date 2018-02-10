@@ -508,7 +508,7 @@ size_t ZSTD_compressBlock_lazy_generic(
         }
 
         if (matchLength < 4) {
-            ip += ((ip-anchor) >> g_searchStrength) + 1;   /* jump faster over incompressible sections */
+            ip += ((ip-anchor) >> kSearchStrength) + 1;   /* jump faster over incompressible sections */
             continue;
         }
 
@@ -681,7 +681,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
         }
 
          if (matchLength < 4) {
-            ip += ((ip-anchor) >> g_searchStrength) + 1;   /* jump faster over incompressible sections */
+            ip += ((ip-anchor) >> kSearchStrength) + 1;   /* jump faster over incompressible sections */
             continue;
         }
 

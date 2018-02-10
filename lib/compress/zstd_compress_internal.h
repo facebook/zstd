@@ -30,8 +30,9 @@ extern "C" {
 /*-*************************************
 *  Constants
 ***************************************/
-static const U32 g_searchStrength = 8;
-#define HASH_READ_SIZE 8
+#define kSearchStrength      8
+#define HASH_READ_SIZE       8
+#define ZSTD_CLEVEL_CUSTOM 999
 #define ZSTD_DUBT_UNSORTED_MARK 1   /* For btlazy2 strategy, index 1 now means "unsorted".
                                        It could be confused for a real successor at index "1", if sorted as larger than its predecessor.
                                        It's not a big deal though : candidate will just be sorted again.
@@ -151,12 +152,11 @@ struct ZSTD_CCtx_params_s {
     ZSTD_frameParameters fParams;
 
     int compressionLevel;
-    U32 forceWindow;           /* force back-references to respect limit of
+    int forceWindow;           /* force back-references to respect limit of
                                 * 1<<wLog, even for dictionary */
 
     /* Multithreading: used to pass parameters to mtctx */
-    U32 nbThreads;
-    int nonBlockingMode;      /* will trigger ZSTDMT even with nbThreads==1 */
+    unsigned nbWorkers;
     unsigned jobSize;
     unsigned overlapSizeLog;
 
@@ -165,14 +165,14 @@ struct ZSTD_CCtx_params_s {
 
     /* For use with createCCtxParams() and freeCCtxParams() only */
     ZSTD_customMem customMem;
-
 };  /* typedef'd to ZSTD_CCtx_params within "zstd.h" */
 
 struct ZSTD_CCtx_s {
     ZSTD_compressionStage_e stage;
-    U32   dictID;
+    int cParamsChanged;                  /* == 1 if cParams(except wlog) or compression level are changed in requestedParams. Triggers transmission of new params to ZSTDMT (if available) then reset to 0. */
     ZSTD_CCtx_params requestedParams;
     ZSTD_CCtx_params appliedParams;
+    U32   dictID;
     void* workSpace;
     size_t workSpaceSize;
     size_t blockSize;

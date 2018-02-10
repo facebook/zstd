@@ -116,10 +116,16 @@ the last one takes effect.
     Note: If `windowLog` is set to larger than 27, `--long=windowLog` or
     `--memory=windowSize` needs to be passed to the decompressor.
 * `-T#`, `--threads=#`:
-    Compress using `#` threads (default: 1).
+    Compress using `#` working threads (default: 1).
     If `#` is 0, attempt to detect and use the number of physical CPU cores.
-    In all cases, the nb of threads is capped to ZSTDMT_NBTHREADS_MAX==256.
+    In all cases, the nb of threads is capped to ZSTDMT_NBTHREADS_MAX==200.
     This modifier does nothing if `zstd` is compiled without multithread support.
+* `--single-thread`:
+    Does not spawn a thread for compression, use caller thread instead.
+    This is the only available mode when multithread support is disabled.
+    In this mode, compression is serialized with I/O.
+    (This is different from `-T1`, which spawns 1 compression thread in parallel of I/O).
+    Single-thread mode also features lower memory usage.
 * `-D file`:
     use `file` as Dictionary to compress or decompress FILE(s)
 * `--nodictID`:

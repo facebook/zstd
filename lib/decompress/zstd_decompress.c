@@ -667,6 +667,15 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
     }
 }
 
+/* Default FSE distribution tables.
+ * These are pre-calculated FSE decoding tables using default distributions as defined in specification :
+ * https://github.com/facebook/zstd/blob/master/doc/zstd_compression_format.md#default-distributions
+ * They were generated programmatically with following method :
+ * - start from default distributions, present in /lib/common/zstd_internal.h
+ * - generate tables normally, using ZSTD_buildFSETable()
+ * - printout the content of tables
+ * - pretify output, report below, test with fuzzer to ensure it's correct */
+
 /* Default FSE distribution table for Literal Lengths */
 static const ZSTD_seqSymbol LL_defaultDTable[(1<<LL_DEFAULTNORMLOG)+1] = {
      {  1,  1,  1, LL_DEFAULTNORMLOG},  /* header : fastMode, tableLog */

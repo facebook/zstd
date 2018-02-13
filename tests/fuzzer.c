@@ -1209,7 +1209,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     if (strcmp("No error detected", ZSTD_getErrorName(ZSTD_error_GENERIC)) != 0) goto _output_error;
     DISPLAYLEVEL(3, "OK \n");
 
-    DISPLAYLEVEL(4, "test%3i : testing ZSTD dictionary sizes : ", testNb++);
+    DISPLAYLEVEL(3, "test%3i : testing ZSTD dictionary sizes : ", testNb++);
     RDG_genBuffer(CNBuffer, CNBuffSize, compressibility, 0., seed);
     {
         size_t const size = MIN(128 KB, CNBuffSize);
@@ -1230,6 +1230,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         ZSTD_freeCDict(lgCDict);
         ZSTD_freeCCtx(cctx);
     }
+    DISPLAYLEVEL(3, "OK \n");
 
 _end:
     free(CNBuffer);

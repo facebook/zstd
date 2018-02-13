@@ -366,20 +366,21 @@ typedef enum { zom_compress, zom_decompress, zom_test, zom_bench, zom_train, zom
 int main(int argCount, const char* argv[])
 {
     int argNb,
-        followLinks=0,
-        forceStdout=0,
+        followLinks = 0,
+        forceStdout = 0,
         lastCommand = 0,
         ldmFlag = 0,
-        main_pause=0,
-        nbWorkers = 1,
-        nextArgumentIsOutFileName=0,
-        nextArgumentIsMaxDict=0,
-        nextArgumentIsDictID=0,
-        nextArgumentsAreFiles=0,
-        nextEntryIsDictionary=0,
-        operationResult=0,
+        main_pause = 0,
+        nbWorkers = 0,
+        nextArgumentIsOutFileName = 0,
+        nextArgumentIsMaxDict = 0,
+        nextArgumentIsDictID = 0,
+        nextArgumentsAreFiles = 0,
+        nextEntryIsDictionary = 0,
+        operationResult = 0,
         separateFiles = 0,
         setRealTimePrio = 0,
+        singleThread = 0,
         ultra=0;
     unsigned bench_nbSeconds = 3;   /* would be better if this value was synchronized from bench */
     size_t blockSize = 0;
@@ -418,8 +419,10 @@ int main(int argCount, const char* argv[])
     if (filenameTable==NULL) { DISPLAY("zstd: %s \n", strerror(errno)); exit(1); }
     filenameTable[0] = stdinmark;
     g_displayOut = stderr;
-
     programName = lastNameFromPath(programName);
+#ifdef ZSTD_MULTITHREAD
+    nbWorkers = 1;
+#endif
 
     /* preset behaviors */
     if (exeNameMatch(programName, ZSTD_ZSTDMT)) nbWorkers=0;
@@ -481,7 +484,7 @@ int main(int argCount, const char* argv[])
                     if (!strcmp(argument, "--keep")) { FIO_setRemoveSrcFile(0); continue; }
                     if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(1); continue; }
                     if (!strcmp(argument, "--priority=rt")) { setRealTimePrio = 1; continue; }
-                    if (!strcmp(argument, "--single-thread")) { nbWorkers = 0; continue; }
+                    if (!strcmp(argument, "--single-thread")) { nbWorkers = 0; singleThread = 1; continue; }
 #ifdef ZSTD_GZCOMPRESS
                     if (!strcmp(argument, "--format=gzip")) { suffix = GZ_EXTENSION; FIO_setCompressionType(FIO_gzipCompression); continue; }
 #endif
@@ -717,11 +720,13 @@ int main(int argCount, const char* argv[])
     /* Welcome message (if verbose) */
     DISPLAYLEVEL(3, WELCOME_MESSAGE);
 
-    if (nbWorkers == 0) {
+#ifdef ZSTD_MULTITHREAD
+    if ((nbWorkers==0) && (!singleThread)) {
         /* automatically set # workers based on # of reported cpus */
         nbWorkers = UTIL_countPhysicalCores();
         DISPLAYLEVEL(3, "Note: %d physical core(s) detected \n", nbWorkers);
     }
+#endif
 
     g_utilDisplayLevel = g_displayLevel;
     if (!followLinks) {

@@ -509,7 +509,6 @@ static ZSTDMT_jobDescription* ZSTDMT_createJobsTable(U32* nbJobsPtr, ZSTD_custom
 size_t ZSTDMT_CCtxParam_setNbWorkers(ZSTD_CCtx_params* params, unsigned nbWorkers)
 {
     if (nbWorkers > ZSTDMT_NBWORKERS_MAX) nbWorkers = ZSTDMT_NBWORKERS_MAX;
-    if (nbWorkers < 1) nbWorkers = 1;
     params->nbWorkers = nbWorkers;
     params->overlapSizeLog = ZSTDMT_OVERLAPLOG_DEFAULT;
     params->jobSize = 0;

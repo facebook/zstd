@@ -93,10 +93,12 @@ typedef struct {
     U32  baseValue;
 } ZSTD_seqSymbol;
 
+#define SEQSYMBOL_TABLE_SIZE(log)   (1 + (1<<log))
+
 typedef struct {
-    ZSTD_seqSymbol LLTable[FSE_DTABLE_SIZE_U32(LLFSELog)];
-    ZSTD_seqSymbol OFTable[FSE_DTABLE_SIZE_U32(OffFSELog)];
-    ZSTD_seqSymbol MLTable[FSE_DTABLE_SIZE_U32(MLFSELog)];
+    ZSTD_seqSymbol LLTable[SEQSYMBOL_TABLE_SIZE(LLFSELog)];
+    ZSTD_seqSymbol OFTable[SEQSYMBOL_TABLE_SIZE(OffFSELog)];
+    ZSTD_seqSymbol MLTable[SEQSYMBOL_TABLE_SIZE(MLFSELog)];
     HUF_DTable hufTable[HUF_DTABLE_SIZE(HufLog)];  /* can accommodate HUF_decompress4X */
     U32 workspace[HUF_DECOMPRESS_WORKSPACE_SIZE_U32];
     U32 rep[ZSTD_REP_NUM];
@@ -1069,9 +1071,9 @@ typedef enum { ZSTD_lo_isRegularOffset, ZSTD_lo_isLongOffset=1 } ZSTD_longOffset
  * bits before reloading. This value is the maximum number of bytes we read
  * after reloading when we are decoding long offets.
  */
-#define LONG_OFFSETS_MAX_EXTRA_BITS_32                                         \
-    (ZSTD_WINDOWLOG_MAX_32 > STREAM_ACCUMULATOR_MIN_32                         \
-        ? ZSTD_WINDOWLOG_MAX_32 - STREAM_ACCUMULATOR_MIN_32                    \
+#define LONG_OFFSETS_MAX_EXTRA_BITS_32                       \
+    (ZSTD_WINDOWLOG_MAX_32 > STREAM_ACCUMULATOR_MIN_32       \
+        ? ZSTD_WINDOWLOG_MAX_32 - STREAM_ACCUMULATOR_MIN_32  \
         : 0)
 
 static seq_t ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e longOffsets)

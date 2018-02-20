@@ -170,6 +170,7 @@ struct ZSTD_CCtx_params_s {
 struct ZSTD_CCtx_s {
     ZSTD_compressionStage_e stage;
     int cParamsChanged;                  /* == 1 if cParams(except wlog) or compression level are changed in requestedParams. Triggers transmission of new params to ZSTDMT (if available) then reset to 0. */
+    int bmi2;                            /* == 1 if the CPU supports BMI2 and 0 otherwise. CPU support is determined dynamically once per context lifetime. */
     ZSTD_CCtx_params requestedParams;
     ZSTD_CCtx_params appliedParams;
     U32   dictID;

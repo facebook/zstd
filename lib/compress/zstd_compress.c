@@ -718,12 +718,11 @@ size_t ZSTD_estimateCCtxSize_usingCCtxParams(const ZSTD_CCtx_params* params)
         size_t const blockStateSpace = 2 * sizeof(ZSTD_compressedBlockState_t);
         size_t const matchStateSize = ZSTD_sizeof_matchState(&params->cParams, /* forCCtx */ 1);
 
-        size_t const ldmSpace = params->ldmParams.enableLdm ?
-            ZSTD_ldm_getTableSize(params->ldmParams.hashLog,
-                                  params->ldmParams.bucketSizeLog) : 0;
+        size_t const ldmSpace = ZSTD_ldm_getTableSize(params->ldmParams);
+        size_t const ldmSeqSpace = ZSTD_ldm_getMaxNbSeq(params->ldmParams, blockSize) * sizeof(rawSeq);
 
         size_t const neededSpace = entropySpace + blockStateSpace + tokenSpace +
-                                   matchStateSize + ldmSpace;
+                                   matchStateSize + ldmSpace + ldmSeqSpace;
 
         DEBUGLOG(5, "sizeof(ZSTD_CCtx) : %u", (U32)sizeof(ZSTD_CCtx));
         DEBUGLOG(5, "estimate workSpace : %u", (U32)neededSpace);
@@ -990,7 +989,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
 
     if (params.ldmParams.enableLdm) {
         /* Adjust long distance matching parameters */
-        ZSTD_ldm_adjustParameters(&params.ldmParams, params.cParams.windowLog);
+        ZSTD_ldm_adjustParameters(&params.ldmParams, &params.cParams);
         assert(params.ldmParams.hashLog >= params.ldmParams.bucketSizeLog);
         assert(params.ldmParams.hashEveryLog < 32);
         zc->ldmState.hashPower =
@@ -1005,17 +1004,19 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         size_t const buffOutSize = (zbuff==ZSTDb_buffered) ? ZSTD_compressBound(blockSize)+1 : 0;
         size_t const buffInSize = (zbuff==ZSTDb_buffered) ? windowSize + blockSize : 0;
         size_t const matchStateSize = ZSTD_sizeof_matchState(&params.cParams, /* forCCtx */ 1);
+        size_t const maxNbLdmSeq = ZSTD_ldm_getMaxNbSeq(params.ldmParams, blockSize);
         void* ptr;
 
         /* Check if workSpace is large enough, alloc a new one if needed */
         {   size_t const entropySpace = HUF_WORKSPACE_SIZE;
             size_t const blockStateSpace = 2 * sizeof(ZSTD_compressedBlockState_t);
             size_t const bufferSpace = buffInSize + buffOutSize;
-            size_t const ldmSpace = params.ldmParams.enableLdm
-                ? ZSTD_ldm_getTableSize(params.ldmParams.hashLog, params.ldmParams.bucketSizeLog)
-                : 0;
+            size_t const ldmSpace = ZSTD_ldm_getTableSize(params.ldmParams);
+            size_t const ldmSeqSpace = maxNbLdmSeq * sizeof(rawSeq);
+
             size_t const neededSpace = entropySpace + blockStateSpace + ldmSpace +
-                                       matchStateSize + tokenSpace + bufferSpace;
+                                       ldmSeqSpace + matchStateSize + tokenSpace +
+                                       bufferSpace;
             DEBUGLOG(4, "Need %uKB workspace, including %uKB for match state, and %uKB for buffers",
                         (U32)(neededSpace>>10), (U32)(matchStateSize>>10), (U32)(bufferSpace>>10));
             DEBUGLOG(4, "windowSize: %u - blockSize: %u", (U32)windowSize, (U32)blockSize);
@@ -1070,7 +1071,10 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             assert(((size_t)ptr & 3) == 0); /* ensure ptr is properly aligned */
             zc->ldmState.hashTable = (ldmEntry_t*)ptr;
             ptr = zc->ldmState.hashTable + ldmHSize;
+            zc->ldmSequences = (rawSeq*)ptr;
+            ptr = zc->ldmSequences + maxNbLdmSeq;
         }
+        assert(((size_t)ptr & 3) == 0); /* ensure ptr is properly aligned */
 
         ptr = ZSTD_reset_matchState(&zc->blockState.matchState, ptr, &params.cParams, crp, /* forCCtx */ 1);
 
@@ -1820,34 +1824,39 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
                                         void* dst, size_t dstCapacity,
                                         const void* src, size_t srcSize)
 {
+    ZSTD_matchState_t* const ms = &zc->blockState.matchState;
     DEBUGLOG(5, "ZSTD_compressBlock_internal (dstCapacity=%u, dictLimit=%u, nextToUpdate=%u)",
-                (U32)dstCapacity, zc->blockState.matchState.dictLimit, zc->blockState.matchState.nextToUpdate);
+                (U32)dstCapacity, ms->dictLimit, ms->nextToUpdate);
     if (srcSize < MIN_CBLOCK_SIZE+ZSTD_blockHeaderSize+1)
         return 0;   /* don't even attempt compression below a certain srcSize */
     ZSTD_resetSeqStore(&(zc->seqStore));
 
     /* limited update after a very long match */
-    {   const BYTE* const base = zc->blockState.matchState.base;
+    {   const BYTE* const base = ms->base;
         const BYTE* const istart = (const BYTE*)src;
         const U32 current = (U32)(istart-base);
-        if (current > zc->blockState.matchState.nextToUpdate + 384)
-            zc->blockState.matchState.nextToUpdate = current - MIN(192, (U32)(current - zc->blockState.matchState.nextToUpdate - 384));
+        if (current > ms->nextToUpdate + 384)
+            ms->nextToUpdate = current - MIN(192, (U32)(current - ms->nextToUpdate - 384));
     }
 
     /* select and store sequences */
-    {   U32 const extDict = zc->blockState.matchState.lowLimit < zc->blockState.matchState.dictLimit;
+    {   U32 const extDict = ms->lowLimit < ms->dictLimit;
         size_t lastLLSize;
         { int i; for (i = 0; i < ZSTD_REP_NUM; ++i) zc->blockState.nextCBlock->rep[i] = zc->blockState.prevCBlock->rep[i]; }
         if (zc->appliedParams.ldmParams.enableLdm) {
-            typedef size_t (*ZSTD_ldmBlockCompressor)(
-                    ldmState_t* ldms, ZSTD_matchState_t* ms, seqStore_t* seqStore,
-                    U32 rep[ZSTD_REP_NUM], ZSTD_CCtx_params const* params,
-                    void const* src, size_t srcSize);
-            ZSTD_ldmBlockCompressor const ldmBlockCompressor = extDict ? ZSTD_compressBlock_ldm_extDict : ZSTD_compressBlock_ldm;
-            lastLLSize = ldmBlockCompressor(&zc->ldmState, &zc->blockState.matchState, &zc->seqStore, zc->blockState.nextCBlock->rep, &zc->appliedParams, src, srcSize);
+            size_t const nbSeq =
+                ZSTD_ldm_generateSequences(&zc->ldmState, zc->ldmSequences,
+                                           ms, &zc->appliedParams.ldmParams,
+                                           src, srcSize, extDict);
+            lastLLSize =
+                ZSTD_ldm_blockCompress(zc->ldmSequences, nbSeq,
+                                       ms, &zc->seqStore,
+                                       zc->blockState.nextCBlock->rep,
+                                       &zc->appliedParams.cParams,
+                                       src, srcSize, extDict);
         } else {   /* not long range mode */
             ZSTD_blockCompressor const blockCompressor = ZSTD_selectBlockCompressor(zc->appliedParams.cParams.strategy, extDict);
-            lastLLSize = blockCompressor(&zc->blockState.matchState, &zc->seqStore, zc->blockState.nextCBlock->rep, &zc->appliedParams.cParams, src, srcSize);
+            lastLLSize = blockCompressor(ms, &zc->seqStore, zc->blockState.nextCBlock->rep, &zc->appliedParams.cParams, src, srcSize);
         }
         {   const BYTE* const lastLiterals = (const BYTE*)src + srcSize - lastLLSize;
             ZSTD_storeLastLiterals(&zc->seqStore, lastLiterals, lastLLSize);

@@ -413,33 +413,48 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
         break;
 
     /* test functions */
-    /* by convention, test functions can be added > 100 */
+    /* convention: test functions have ID > 100 */
 
     default : ;
     }
 
-    { size_t i; for (i=0; i<dstBuffSize; i++) dstBuff[i]=(BYTE)i; }     /* warming up memory */
+     /* warming up memory */
+    { size_t i; for (i=0; i<dstBuffSize; i++) dstBuff[i]=(BYTE)i; }
 
+    /* benchmark loop */
     {   U32 loopNb;
-#       define TIME_SEC_MICROSEC     (1*1000000ULL) /* 1 second */
-        U64 const clockLoop = TIMELOOP_S * TIME_SEC_MICROSEC;
+        U32 nbRounds = (U32)((50 MB) / (srcSize+1)) + 1;   /* initial conservative speed estimate */
+#       define TIME_SEC_MICROSEC    (1*1000000ULL) /* 1 second */
+#       define TIME_SEC_NANOSEC     (1*1000000000ULL) /* 1 second */
         DISPLAY("%2i- %-30.30s : \r", benchNb, benchName);
         for (loopNb = 1; loopNb <= g_nbIterations; loopNb++) {
             UTIL_time_t clockStart;
             size_t benchResult=0;
-            U32 nbRounds;
+            U32 roundNb;
 
-            UTIL_sleepMilli(1);  /* give processor time to other processes */
+            UTIL_sleepMilli(5);  /* give processor time to other processes */
             UTIL_waitForNextTick();
             clockStart = UTIL_getTime();
-            for (nbRounds=0; UTIL_clockSpanMicro(clockStart) < clockLoop; nbRounds++) {
+            for (roundNb=0; roundNb < nbRounds; roundNb++) {
                 benchResult = benchFunction(dstBuff, dstBuffSize, buff2, src, srcSize);
-                if (ZSTD_isError(benchResult)) { DISPLAY("ERROR ! %s() => %s !! \n", benchName, ZSTD_getErrorName(benchResult)); exit(1); }
-            }
-            {   U64 const clockSpanMicro = UTIL_clockSpanMicro(clockStart);
-                double const averageTime = (double)clockSpanMicro / TIME_SEC_MICROSEC / nbRounds;
-                if (averageTime < bestTime) bestTime = averageTime;
-                DISPLAY("%2i- %-30.30s : %7.1f MB/s  (%9u)\r", loopNb, benchName, (double)srcSize / (1 MB) / bestTime, (U32)benchResult);
+                if (ZSTD_isError(benchResult)) {
+                    DISPLAY("ERROR ! %s() => %s !! \n", benchName, ZSTD_getErrorName(benchResult));
+                    exit(1);
+            }   }
+            {   U64 const clockSpanNano = UTIL_clockSpanNano(clockStart);
+                double const averageTime = (double)clockSpanNano / TIME_SEC_NANOSEC / nbRounds;
+                if (clockSpanNano > 0) {
+                    if (averageTime < bestTime) bestTime = averageTime;
+                    assert(bestTime > (1./2000000000));
+                    nbRounds = (U32)(1. / bestTime);   /* aim for 1 sec */
+                    DISPLAY("%2i- %-30.30s : %7.1f MB/s  (%9u)\r",
+                            loopNb, benchName,
+                            (double)srcSize / (1 MB) / bestTime,
+                            (U32)benchResult);
+                } else {
+                    assert(nbRounds < 40000000);  /* avoid overflow */
+                    nbRounds *= 100;
+                }
     }   }   }
     DISPLAY("%2u\n", benchNb);
 
@@ -573,7 +588,7 @@ int main(int argc, const char** argv)
 
     for(i=1; i<argc; i++) {
         const char* argument = argv[i];
-        if(!argument) continue;   /* Protection if argument empty */
+        assert(argument != NULL);
 
         /* Commands (note : aggregated commands are allowed) */
         if (argument[0]=='-') {

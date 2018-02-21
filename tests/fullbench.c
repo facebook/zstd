@@ -15,6 +15,7 @@
 #include "util.h"        /* Compiler options, UTIL_GetFileSize */
 #include <stdlib.h>      /* malloc */
 #include <stdio.h>       /* fprintf, fopen, ftello64 */
+#include <assert.h>      /* assert */
 
 #include "mem.h"         /* U32 */
 #ifndef ZSTD_DLL_IMPORT

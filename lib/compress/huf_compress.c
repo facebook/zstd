@@ -323,7 +323,10 @@ static void HUF_sort(nodeElt* huffNode, const U32* count, U32 maxSymbolValue)
         U32 const c = count[n];
         U32 const r = BIT_highbit32(c+1) + 1;
         U32 pos = rank[r].current++;
-        while ((pos > rank[r].base) && (c > huffNode[pos-1].count)) huffNode[pos]=huffNode[pos-1], pos--;
+        while ((pos > rank[r].base) && (c > huffNode[pos-1].count)) {
+            huffNode[pos] = huffNode[pos-1];
+            pos--;
+        }
         huffNode[pos].count = c;
         huffNode[pos].byte  = (BYTE)n;
     }

@@ -514,14 +514,7 @@ size_t ZSTD_ldm_blockCompress(rawSeq const* sequences, size_t nbSeq,
 {
     ZSTD_blockCompressor const blockCompressor =
         ZSTD_selectBlockCompressor(cParams->strategy, extDict);
-    int const doImmediateRepCheck = cParams->strategy < ZSTD_btopt;
-    /* Prefix and extDict parameters */
-    U32 const dictLimit = ms->dictLimit;
-    U32 const lowestIndex = extDict ? ms->lowLimit : dictLimit;
     BYTE const* const base = ms->base;
-    BYTE const* const dictBase = extDict ? ms->dictBase : NULL;
-    BYTE const* const dictEnd = extDict ? dictBase + dictLimit : NULL;
-    BYTE const* const lowPrefixPtr = base + dictLimit;
     /* Input bounds */
     BYTE const* const istart = (BYTE const*)src;
     BYTE const* const iend = istart + srcSize;
@@ -557,69 +550,6 @@ size_t ZSTD_ldm_blockCompress(rawSeq const* sequences, size_t nbSeq,
                           sequence.offset + ZSTD_REP_MOVE,
                           sequence.matchLength - MINMATCH);
             ip += sequence.matchLength;
-        }
-        /* Check immediate repcode */
-        if (doImmediateRepCheck) {
-            rawSeq* nextSeq = (seq + 1 < *nbSeq) ? &sequences[seq + 1] : NULL;
-            /* Allow repcodes up to the next predefined sequence */
-            BYTE const* const repCheckEnd = nextSeq
-                ? ip + nextSeq->litLength
-                : iend;
-            BYTE const* const repCheckLimit = repCheckEnd - HASH_READ_SIZE;
-
-            assert(repCheckEnd <= iend);
-
-            if (extDict) {
-              while (ip < repCheckLimit) {
-                  U32 const current = (U32)(ip-base);
-                  U32 const repIndex = current - rep[1];
-                  const BYTE* repMatch = repIndex < dictLimit ?
-                                          dictBase + repIndex : base + repIndex;
-                  if ( (((U32)((dictLimit-1) - repIndex) >= 3) &
-                              (repIndex > lowestIndex))  /* intentional overflow */
-                     && (MEM_read32(repMatch) == MEM_read32(ip)) ) {
-                      const BYTE* const repEnd = repIndex < dictLimit ?
-                                                  dictEnd : repCheckEnd;
-                      size_t const rLength = ZSTD_count_2segments(
-                          ip+4, repMatch+4, repCheckEnd, repEnd,
-                          lowPrefixPtr) + 4;
-                      /* Swap rep[1] <=> rep[0] */
-                      U32 const tmpOffset = rep[1];
-                      rep[1] = rep[0];
-                      rep[0] = tmpOffset;
-
-                      ZSTD_storeSeq(seqStore, 0, ip, 0, rLength-MINMATCH);
-                      ip += rLength;
-                      if (nextSeq) {
-                          assert(nextSeq->litLength >= rLength);
-                          nextSeq->litLength -= rLength;
-                      }
-                      continue;
-                  }
-                  break;
-              }
-            } else {
-                while ( (ip < repCheckLimit)
-                     && ( (rep[1] > 0) && (rep[1] <= (U32)(ip - lowPrefixPtr))
-                     && (MEM_read32(ip) == MEM_read32(ip - rep[1])) )) {
-
-                    size_t const rLength = ZSTD_count(ip+4, ip+4-rep[1],
-                                                      repCheckEnd) + 4;
-                    /* Swap rep[1] <=> rep[0] */
-                    {
-                        U32 const tmpOff = rep[1];
-                        rep[1] = rep[0];
-                        rep[0] = tmpOff;
-                    }
-
-                    ZSTD_storeSeq(seqStore, 0, ip, 0, rLength-MINMATCH);
-                    ip += rLength;
-                    if (nextSeq) {
-                        assert(nextSeq->litLength >= rLength);
-                        nextSeq->litLength -= rLength;
-                    }
-                }
-            }
         }
     }
     ZSTD_ldm_limitTableUpdate(ms, ip);

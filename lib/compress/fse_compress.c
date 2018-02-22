@@ -248,7 +248,7 @@ static size_t FSE_writeNCount_generic (void* header, size_t headerBufferSize,
             bitCount  -= (count<max);
             previous0  = (count==1);
             if (remaining<1) return ERROR(GENERIC);
-            while (remaining<threshold) nbBits--, threshold>>=1;
+            while (remaining<threshold) { nbBits--; threshold>>=1; }
         }
         if (bitCount>16) {
             if ((!writeIsSafe) && (out > oend - 2)) return ERROR(dstSize_tooSmall);   /* Buffer overflow */
@@ -540,7 +540,7 @@ static size_t FSE_normalizeM2(short* norm, U32 tableLog, const unsigned* count, 
            find max, then give all remaining points to max */
         U32 maxV = 0, maxC = 0;
         for (s=0; s<=maxSymbolValue; s++)
-            if (count[s] > maxC) maxV=s, maxC=count[s];
+            if (count[s] > maxC) { maxV=s; maxC=count[s]; }
         norm[maxV] += (short)ToDistribute;
         return 0;
     }
@@ -548,7 +548,7 @@ static size_t FSE_normalizeM2(short* norm, U32 tableLog, const unsigned* count, 
     if (total == 0) {
         /* all of the symbols were low enough for the lowOne or lowThreshold */
         for (s=0; ToDistribute > 0; s = (s+1)%(maxSymbolValue+1))
-            if (norm[s] > 0) ToDistribute--, norm[s]++;
+            if (norm[s] > 0) { ToDistribute--; norm[s]++; }
         return 0;
     }
 
@@ -604,7 +604,7 @@ size_t FSE_normalizeCount (short* normalizedCounter, unsigned tableLog,
                     U64 restToBeat = vStep * rtbTable[proba];
                     proba += (count[s]*step) - ((U64)proba<<scale) > restToBeat;
                 }
-                if (proba > largestP) largestP=proba, largest=s;
+                if (proba > largestP) { largestP=proba; largest=s; }
                 normalizedCounter[s] = proba;
                 stillToDistribute -= proba;
         }   }

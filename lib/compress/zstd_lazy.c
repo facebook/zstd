@@ -28,17 +28,17 @@ void ZSTD_updateDUBT(
     U32  const btLog  = cParams->chainLog - 1;
     U32  const btMask = (1 << btLog) - 1;
 
-    const BYTE* const base = ms->base;
+    const BYTE* const base = ms->window.base;
     U32 const target = (U32)(ip - base);
     U32 idx = ms->nextToUpdate;
 
     if (idx != target)
         DEBUGLOG(7, "ZSTD_updateDUBT, from %u to %u (dictLimit:%u)",
-                    idx, target, ms->dictLimit);
+                    idx, target, ms->window.dictLimit);
     assert(ip + 8 <= iend);   /* condition for ZSTD_hashPtr */
     (void)iend;
 
-    assert(idx >= ms->dictLimit);   /* condition for valid base+idx */
+    assert(idx >= ms->window.dictLimit);   /* condition for valid base+idx */
     for ( ; idx < target ; idx++) {
         size_t const h  = ZSTD_hashPtr(base + idx, hashLog, mls);   /* assumption : ip + 8 <= iend */
         U32    const matchIndex = hashTable[h];
@@ -68,9 +68,9 @@ static void ZSTD_insertDUBT1(
     U32    const btLog  = cParams->chainLog - 1;
     U32    const btMask = (1 << btLog) - 1;
     size_t commonLengthSmaller=0, commonLengthLarger=0;
-    const BYTE* const base = ms->base;
-    const BYTE* const dictBase = ms->dictBase;
-    const U32 dictLimit = ms->dictLimit;
+    const BYTE* const base = ms->window.base;
+    const BYTE* const dictBase = ms->window.dictBase;
+    const U32 dictLimit = ms->window.dictLimit;
     const BYTE* const ip = (current>=dictLimit) ? base + current : dictBase + current;
     const BYTE* const iend = (current>=dictLimit) ? inputEnd : dictBase + dictLimit;
     const BYTE* const dictEnd = dictBase + dictLimit;
@@ -80,7 +80,7 @@ static void ZSTD_insertDUBT1(
     U32* largerPtr  = smallerPtr + 1;
     U32 matchIndex = *smallerPtr;
     U32 dummy32;   /* to be nullified at the end */
-    U32 const windowLow = ms->lowLimit;
+    U32 const windowLow = ms->window.lowLimit;
 
     DEBUGLOG(8, "ZSTD_insertDUBT1(%u) (dictLimit=%u, lowLimit=%u)",
                 current, dictLimit, windowLow);
@@ -150,9 +150,9 @@ static size_t ZSTD_DUBT_findBestMatch (
     size_t const h  = ZSTD_hashPtr(ip, hashLog, mls);
     U32          matchIndex  = hashTable[h];
 
-    const BYTE* const base = ms->base;
+    const BYTE* const base = ms->window.base;
     U32    const current = (U32)(ip-base);
-    U32    const windowLow = ms->lowLimit;
+    U32    const windowLow = ms->window.lowLimit;
 
     U32*   const bt = ms->chainTable;
     U32    const btLog  = cParams->chainLog - 1;
@@ -203,8 +203,8 @@ static size_t ZSTD_DUBT_findBestMatch (
 
     /* find longest match */
     {   size_t commonLengthSmaller=0, commonLengthLarger=0;
-        const BYTE* const dictBase = ms->dictBase;
-        const U32 dictLimit = ms->dictLimit;
+        const BYTE* const dictBase = ms->window.dictBase;
+        const U32 dictLimit = ms->window.dictLimit;
         const BYTE* const dictEnd = dictBase + dictLimit;
         const BYTE* const prefixStart = base + dictLimit;
         U32* smallerPtr = bt + 2*(current&btMask);
@@ -279,7 +279,7 @@ static size_t ZSTD_BtFindBestMatch (
                         const U32 mls /* template */)
 {
     DEBUGLOG(7, "ZSTD_BtFindBestMatch");
-    if (ip < ms->base + ms->nextToUpdate) return 0;   /* skipped area */
+    if (ip < ms->window.base + ms->nextToUpdate) return 0;   /* skipped area */
     ZSTD_updateDUBT(ms, cParams, ip, iLimit, mls);
     return ZSTD_DUBT_findBestMatch(ms, cParams, ip, iLimit, offsetPtr, mls, 0);
 }
@@ -309,7 +309,7 @@ static size_t ZSTD_BtFindBestMatch_extDict (
                         const U32 mls)
 {
     DEBUGLOG(7, "ZSTD_BtFindBestMatch_extDict");
-    if (ip < ms->base + ms->nextToUpdate) return 0;   /* skipped area */
+    if (ip < ms->window.base + ms->nextToUpdate) return 0;   /* skipped area */
     ZSTD_updateDUBT(ms, cParams, ip, iLimit, mls);
     return ZSTD_DUBT_findBestMatch(ms, cParams, ip, iLimit, offsetPtr, mls, 1);
 }
@@ -347,7 +347,7 @@ static U32 ZSTD_insertAndFindFirstIndex_internal(
     const U32 hashLog = cParams->hashLog;
     U32* const chainTable = ms->chainTable;
     const U32 chainMask = (1 << cParams->chainLog) - 1;
-    const BYTE* const base = ms->base;
+    const BYTE* const base = ms->window.base;
     const U32 target = (U32)(ip - base);
     U32 idx = ms->nextToUpdate;
 
@@ -381,12 +381,12 @@ size_t ZSTD_HcFindBestMatch_generic (
     U32* const chainTable = ms->chainTable;
     const U32 chainSize = (1 << cParams->chainLog);
     const U32 chainMask = chainSize-1;
-    const BYTE* const base = ms->base;
-    const BYTE* const dictBase = ms->dictBase;
-    const U32 dictLimit = ms->dictLimit;
+    const BYTE* const base = ms->window.base;
+    const BYTE* const dictBase = ms->window.dictBase;
+    const U32 dictLimit = ms->window.dictLimit;
     const BYTE* const prefixStart = base + dictLimit;
     const BYTE* const dictEnd = dictBase + dictLimit;
-    const U32 lowLimit = ms->lowLimit;
+    const U32 lowLimit = ms->window.lowLimit;
     const U32 current = (U32)(ip-base);
     const U32 minChain = current > chainSize ? current - chainSize : 0;
     U32 nbAttempts = 1U << cParams->searchLog;
@@ -471,7 +471,7 @@ size_t ZSTD_compressBlock_lazy_generic(
     const BYTE* anchor = istart;
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - 8;
-    const BYTE* const base = ms->base + ms->dictLimit;
+    const BYTE* const base = ms->window.base + ms->window.dictLimit;
 
     typedef size_t (*searchMax_f)(
                         ZSTD_matchState_t* ms, ZSTD_compressionParameters const* cParams,
@@ -635,13 +635,13 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
     const BYTE* anchor = istart;
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - 8;
-    const BYTE* const base = ms->base;
-    const U32 dictLimit = ms->dictLimit;
-    const U32 lowestIndex = ms->lowLimit;
+    const BYTE* const base = ms->window.base;
+    const U32 dictLimit = ms->window.dictLimit;
+    const U32 lowestIndex = ms->window.lowLimit;
     const BYTE* const prefixStart = base + dictLimit;
-    const BYTE* const dictBase = ms->dictBase;
+    const BYTE* const dictBase = ms->window.dictBase;
     const BYTE* const dictEnd  = dictBase + dictLimit;
-    const BYTE* const dictStart  = dictBase + ms->lowLimit;
+    const BYTE* const dictStart  = dictBase + lowestIndex;
 
     typedef size_t (*searchMax_f)(
                         ZSTD_matchState_t* ms, ZSTD_compressionParameters const* cParams,

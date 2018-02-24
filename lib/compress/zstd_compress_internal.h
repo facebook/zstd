@@ -186,6 +186,7 @@ struct ZSTD_CCtx_s {
 
     seqStore_t seqStore;    /* sequences storage ptrs */
     ldmState_t ldmState;    /* long distance matching state */
+    rawSeq* ldmSequences;   /* Storage for the ldm output sequences */
     ZSTD_blockState_t blockState;
     U32* entropyWorkspace;  /* entropy workspace of HUF_WORKSPACE_SIZE bytes */
 

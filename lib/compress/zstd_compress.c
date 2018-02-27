@@ -883,13 +883,9 @@ static void ZSTD_reset_compressedBlockState(ZSTD_compressedBlockState_t* bs)
  */
 static void ZSTD_invalidateMatchState(ZSTD_matchState_t* ms)
 {
-    size_t const endT = (size_t)(ms->nextSrc - ms->base);
-    U32 const end = (U32)endT;
-    assert(endT < (3U<<30));
+    ZSTD_window_clear(&ms->window);
 
-    ms->lowLimit = end;
-    ms->dictLimit = end;
-    ms->nextToUpdate = end + 1;
+    ms->nextToUpdate = ms->window.dictLimit + 1;
     ms->loadedDictEnd = 0;
     ms->opt.litLengthSum = 0;  /* force reset of btopt stats */
 }
@@ -931,10 +927,8 @@ static void* ZSTD_reset_matchState(ZSTD_matchState_t* ms, void* ptr, ZSTD_compre
 
     assert(((size_t)ptr & 3) == 0);
 
-    ms->nextSrc = NULL;
-    ms->base = NULL;
-    ms->dictBase = NULL;
     ms->hashLog3 = hashLog3;
+    memset(&ms->window, 0, sizeof(ms->window));
     ZSTD_invalidateMatchState(ms);
 
     /* opt parser space */
@@ -1114,7 +1108,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
 void ZSTD_invalidateRepCodes(ZSTD_CCtx* cctx) {
     int i;
     for (i=0; i<ZSTD_REP_NUM; i++) cctx->blockState.prevCBlock->rep[i] = 0;
-    assert(/* !extDict */ cctx->blockState.matchState.lowLimit == cctx->blockState.matchState.dictLimit);
+    assert(!ZSTD_window_hasExtDict(cctx->blockState.matchState.window));
 }
 
 static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
@@ -1156,13 +1150,9 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
     {
         ZSTD_matchState_t const* srcMatchState = &cdict->matchState;
         ZSTD_matchState_t* dstMatchState = &cctx->blockState.matchState;
+        dstMatchState->window       = srcMatchState->window;
         dstMatchState->nextToUpdate = srcMatchState->nextToUpdate;
         dstMatchState->nextToUpdate3= srcMatchState->nextToUpdate3;
-        dstMatchState->nextSrc      = srcMatchState->nextSrc;
-        dstMatchState->base         = srcMatchState->base;
-        dstMatchState->dictBase     = srcMatchState->dictBase;
-        dstMatchState->dictLimit    = srcMatchState->dictLimit;
-        dstMatchState->lowLimit     = srcMatchState->lowLimit;
         dstMatchState->loadedDictEnd= srcMatchState->loadedDictEnd;
     }
     cctx->dictID = cdict->dictID;
@@ -1217,13 +1207,9 @@ static size_t ZSTD_copyCCtx_internal(ZSTD_CCtx* dstCCtx,
     {
         ZSTD_matchState_t const* srcMatchState = &srcCCtx->blockState.matchState;
         ZSTD_matchState_t* dstMatchState = &dstCCtx->blockState.matchState;
+        dstMatchState->window       = srcMatchState->window;
         dstMatchState->nextToUpdate = srcMatchState->nextToUpdate;
         dstMatchState->nextToUpdate3= srcMatchState->nextToUpdate3;
-        dstMatchState->nextSrc      = srcMatchState->nextSrc;
-        dstMatchState->base         = srcMatchState->base;
-        dstMatchState->dictBase     = srcMatchState->dictBase;
-        dstMatchState->dictLimit    = srcMatchState->dictLimit;
-        dstMatchState->lowLimit     = srcMatchState->lowLimit;
         dstMatchState->loadedDictEnd= srcMatchState->loadedDictEnd;
     }
     dstCCtx->dictID = srcCCtx->dictID;
@@ -1826,13 +1812,13 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
 {
     ZSTD_matchState_t* const ms = &zc->blockState.matchState;
     DEBUGLOG(5, "ZSTD_compressBlock_internal (dstCapacity=%u, dictLimit=%u, nextToUpdate=%u)",
-                (U32)dstCapacity, ms->dictLimit, ms->nextToUpdate);
+                (U32)dstCapacity, ms->window.dictLimit, ms->nextToUpdate);
     if (srcSize < MIN_CBLOCK_SIZE+ZSTD_blockHeaderSize+1)
         return 0;   /* don't even attempt compression below a certain srcSize */
     ZSTD_resetSeqStore(&(zc->seqStore));
 
     /* limited update after a very long match */
-    {   const BYTE* const base = ms->base;
+    {   const BYTE* const base = ms->window.base;
         const BYTE* const istart = (const BYTE*)src;
         const U32 current = (U32)(istart-base);
         if (current > ms->nextToUpdate + 384)
@@ -1840,7 +1826,7 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
     }
 
     /* select and store sequences */
-    {   U32 const extDict = ms->lowLimit < ms->dictLimit;
+    {   U32 const extDict = ZSTD_window_hasExtDict(ms->window);
         size_t lastLLSize;
         { int i; for (i = 0; i < ZSTD_REP_NUM; ++i) zc->blockState.nextCBlock->rep[i] = zc->blockState.prevCBlock->rep[i]; }
         if (zc->appliedParams.ldmParams.enableLdm) {
@@ -1907,52 +1893,19 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
             return ERROR(dstSize_tooSmall);   /* not enough space to store compressed block */
         if (remaining < blockSize) blockSize = remaining;
 
-        /* preemptive overflow correction:
-         * 1. correction is large enough:
-         *    lowLimit > (3<<29) ==> current > 3<<29 + 1<<windowLog - blockSize
-         *    1<<windowLog <= newCurrent < 1<<chainLog + 1<<windowLog
-         *
-         *    current - newCurrent
-         *    > (3<<29 + 1<<windowLog - blockSize) - (1<<windowLog + 1<<chainLog)
-         *    > (3<<29 - blockSize) - (1<<chainLog)
-         *    > (3<<29 - blockSize) - (1<<30)             (NOTE: chainLog <= 30)
-         *    > 1<<29 - 1<<17
-         *
-         * 2. (ip+blockSize - cctx->base) doesn't overflow:
-         *    In 32 bit mode we limit windowLog to 30 so we don't get
-         *    differences larger than 1<<31-1.
-         * 3. cctx->lowLimit < 1<<32:
-         *    windowLog <= 31 ==> 3<<29 + 1<<windowLog < 7<<29 < 1<<32.
-         */
-        if (ms->lowLimit > (3U<<29)) {
-            U32 const cycleMask = ((U32)1 << ZSTD_cycleLog(cctx->appliedParams.cParams.chainLog, cctx->appliedParams.cParams.strategy)) - 1;
-            U32 const current = (U32)(ip - cctx->blockState.matchState.base);
-            U32 const newCurrent = (current & cycleMask) + ((U32)1 << cctx->appliedParams.cParams.windowLog);
-            U32 const correction = current - newCurrent;
+        if (ZSTD_window_needOverflowCorrection(ms->window)) {
+            U32 const cycleLog = ZSTD_cycleLog(cctx->appliedParams.cParams.chainLog, cctx->appliedParams.cParams.strategy);
+            U32 const correction = ZSTD_window_correctOverflow(&ms->window, cycleLog, maxDist, ip);
             ZSTD_STATIC_ASSERT(ZSTD_CHAINLOG_MAX <= 30);
             ZSTD_STATIC_ASSERT(ZSTD_WINDOWLOG_MAX_32 <= 30);
             ZSTD_STATIC_ASSERT(ZSTD_WINDOWLOG_MAX <= 31);
-            assert(current > newCurrent);
-            assert(correction > 1<<28); /* Loose bound, should be about 1<<29 */
+
             ZSTD_reduceIndex(cctx, correction);
-            ms->base += correction;
-            ms->dictBase += correction;
-            ms->lowLimit -= correction;
-            ms->dictLimit -= correction;
             if (ms->nextToUpdate < correction) ms->nextToUpdate = 0;
             else ms->nextToUpdate -= correction;
-            DEBUGLOG(4, "Correction of 0x%x bytes to lowLimit=0x%x", correction, ms->lowLimit);
         }
-        /* enforce maxDist */
-        if ((U32)(ip+blockSize - ms->base) > ms->loadedDictEnd + maxDist) {
-            U32 const newLowLimit = (U32)(ip+blockSize - ms->base) - maxDist;
-            if (ms->lowLimit < newLowLimit) ms->lowLimit = newLowLimit;
-            if (ms->dictLimit < ms->lowLimit)
-                DEBUGLOG(5, "ZSTD_compress_frameChunk : update dictLimit from %u to %u ",
-                    ms->dictLimit, ms->lowLimit);
-            if (ms->dictLimit < ms->lowLimit) ms->dictLimit = ms->lowLimit;
-            if (ms->nextToUpdate < ms->lowLimit) ms->nextToUpdate = ms->lowLimit;
-        }
+        ZSTD_window_enforceMaxDist(&ms->window, ip + blockSize, ms->loadedDictEnd + maxDist);
+        if (ms->nextToUpdate < ms->window.lowLimit) ms->nextToUpdate = ms->window.lowLimit;
 
         {   size_t cSize = ZSTD_compressBlock_internal(cctx,
                                 op+ZSTD_blockHeaderSize, dstCapacity-ZSTD_blockHeaderSize,
@@ -2044,38 +1997,12 @@ size_t ZSTD_writeLastEmptyBlock(void* dst, size_t dstCapacity)
 }
 
 
-static void ZSTD_manageWindowContinuity(ZSTD_matchState_t* ms, void const* src, size_t srcSize)
-{
-    const BYTE* const ip = (const BYTE*) src;
-
-    /* Check if blocks follow each other */
-    if (src != ms->nextSrc) {
-        /* not contiguous */
-        size_t const distanceFromBase = (size_t)(ms->nextSrc - ms->base);
-        DEBUGLOG(5, "ZSTD_manageWindowContinuity: non contiguous blocks, new segment starts at %u", ms->dictLimit);
-        ms->lowLimit = ms->dictLimit;
-        assert(distanceFromBase == (size_t)(U32)distanceFromBase);  /* should never overflow */
-        ms->dictLimit = (U32)distanceFromBase;
-        ms->dictBase = ms->base;
-        ms->base = ip - distanceFromBase;
-        ms->nextToUpdate = ms->dictLimit;
-        if (ms->dictLimit - ms->lowLimit < HASH_READ_SIZE) ms->lowLimit = ms->dictLimit;   /* too small extDict */
-    }
-    ms->nextSrc = ip + srcSize;
-    /* if input and dictionary overlap : reduce dictionary (area presumed modified by input) */
-    if ((ip+srcSize > ms->dictBase + ms->lowLimit) & (ip < ms->dictBase + ms->dictLimit)) {
-        ptrdiff_t const highInputIdx = (ip + srcSize) - ms->dictBase;
-        U32 const lowLimitMax = (highInputIdx > (ptrdiff_t)ms->dictLimit) ? ms->dictLimit : (U32)highInputIdx;
-        ms->lowLimit = lowLimitMax;
-    }
-}
-
-
 static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* cctx,
                               void* dst, size_t dstCapacity,
                         const void* src, size_t srcSize,
                                U32 frame, U32 lastFrameChunk)
 {
+    ZSTD_matchState_t* ms = &cctx->blockState.matchState;
     size_t fhSize = 0;
 
     DEBUGLOG(5, "ZSTD_compressContinue_internal, stage: %u, srcSize: %u",
@@ -2093,7 +2020,9 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* cctx,
 
     if (!srcSize) return fhSize;  /* do not generate an empty block if no input */
 
-    ZSTD_manageWindowContinuity(&cctx->blockState.matchState, src, srcSize);
+    if (!ZSTD_window_update(&ms->window, src, srcSize)) {
+        ms->nextToUpdate = ms->window.dictLimit;
+    }
 
     DEBUGLOG(5, "ZSTD_compressContinue_internal (blockSize=%u)", (U32)cctx->blockSize);
     {   size_t const cSize = frame ?
@@ -2145,15 +2074,8 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms, ZSTD_CCtx_params
     const BYTE* const iend = ip + srcSize;
     ZSTD_compressionParameters const* cParams = &params->cParams;
 
-    /* input becomes current prefix */
-    ms->lowLimit = ms->dictLimit;
-    ms->dictLimit = (U32)(ms->nextSrc - ms->base);
-    ms->dictBase = ms->base;
-    ms->base = ip - ms->dictLimit;
-    ms->nextToUpdate = ms->dictLimit;
-    ms->loadedDictEnd = params->forceWindow ? 0 : (U32)(iend - ms->base);
+    ZSTD_window_update(&ms->window, src, srcSize);
 
-    ms->nextSrc = iend;
     if (srcSize <= HASH_READ_SIZE) return 0;
 
     switch(params->cParams.strategy)
@@ -2183,7 +2105,7 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms, ZSTD_CCtx_params
         assert(0);  /* not possible : not a valid strategy id */
     }
 
-    ms->nextToUpdate = (U32)(iend - ms->base);
+    ms->nextToUpdate = (U32)(iend - ms->window.base);
     return 0;
 }
 

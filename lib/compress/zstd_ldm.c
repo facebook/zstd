@@ -231,12 +231,12 @@ static size_t ZSTD_ldm_fillFastTables(ZSTD_matchState_t* ms,
     {
     case ZSTD_fast:
         ZSTD_fillHashTable(ms, cParams, iend);
-        ms->nextToUpdate = (U32)(iend - ms->base);
+        ms->nextToUpdate = (U32)(iend - ms->window.base);
         break;
 
     case ZSTD_dfast:
         ZSTD_fillDoubleHashTable(ms, cParams, iend);
-        ms->nextToUpdate = (U32)(iend - ms->base);
+        ms->nextToUpdate = (U32)(iend - ms->window.base);
         break;
 
     case ZSTD_greedy:
@@ -287,7 +287,7 @@ static U64 ZSTD_ldm_fillLdmHashTable(ldmState_t* state,
  *  (after a long match, only update tables a limited amount). */
 static void ZSTD_ldm_limitTableUpdate(ZSTD_matchState_t* ms, const BYTE* anchor)
 {
-    U32 const current = (U32)(anchor - ms->base);
+    U32 const current = (U32)(anchor - ms->window.base);
     if (current > ms->nextToUpdate + 1024) {
         ms->nextToUpdate =
             current - MIN(512, current - ms->nextToUpdate - 1024);
@@ -308,10 +308,10 @@ size_t ZSTD_ldm_generateSequences(
     U32 const hashEveryLog = params->hashEveryLog;
     U32 const ldmTagMask = (1U << params->hashEveryLog) - 1;
     /* Prefix and extDict parameters */
-    U32 const dictLimit = ms->dictLimit;
-    U32 const lowestIndex = extDict ? ms->lowLimit : dictLimit;
-    BYTE const* const base = ms->base;
-    BYTE const* const dictBase = extDict ? ms->dictBase : NULL;
+    U32 const dictLimit = ms->window.dictLimit;
+    U32 const lowestIndex = extDict ? ms->window.lowLimit : dictLimit;
+    BYTE const* const base = ms->window.base;
+    BYTE const* const dictBase = extDict ? ms->window.dictBase : NULL;
     BYTE const* const dictStart = extDict ? dictBase + lowestIndex : NULL;
     BYTE const* const dictEnd = extDict ? dictBase + dictLimit : NULL;
     BYTE const* const lowPrefixPtr = base + dictLimit;
@@ -514,7 +514,7 @@ size_t ZSTD_ldm_blockCompress(rawSeq const* sequences, size_t nbSeq,
 {
     ZSTD_blockCompressor const blockCompressor =
         ZSTD_selectBlockCompressor(cParams->strategy, extDict);
-    BYTE const* const base = ms->base;
+    BYTE const* const base = ms->window.base;
     /* Input bounds */
     BYTE const* const istart = (BYTE const*)src;
     BYTE const* const iend = istart + srcSize;

@@ -69,6 +69,7 @@ typedef enum {
   ZSTD_error_stage_wrong       = 60,
   ZSTD_error_init_missing      = 62,
   ZSTD_error_memory_allocation = 64,
+  ZSTD_error_workSpace_tooSmall= 66,
   ZSTD_error_dstSize_tooSmall = 70,
   ZSTD_error_srcSize_wrong    = 72,
   /* following error codes are __NOT STABLE__, they can be removed or changed in future versions */

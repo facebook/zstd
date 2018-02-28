@@ -213,8 +213,8 @@ roundTripTest -g512K
 roundTripTest -g512K " --zstd=slen=3,tlen=48,strat=6"
 roundTripTest -g512K " --zstd=strat=6,wlog=23,clog=23,hlog=22,slog=6"
 roundTripTest -g512K " --zstd=windowLog=23,chainLog=23,hashLog=22,searchLog=6,searchLength=3,targetLength=48,strategy=6"
-roundTripTest -g512K " --long --zstd=ldmHashLog=20,ldmSearchLength=64,ldmBucketSizeLog=1,ldmHashEveryLog=7"
-roundTripTest -g512K " --long --zstd=ldmhlog=20,ldmslen=64,ldmblog=1,ldmhevery=7"
+roundTripTest -g512K " --single-thread --long --zstd=ldmHashLog=20,ldmSearchLength=64,ldmBucketSizeLog=1,ldmHashEveryLog=7"
+roundTripTest -g512K " --single-thread --long --zstd=ldmhlog=20,ldmslen=64,ldmblog=1,ldmhevery=7"
 roundTripTest -g512K 19
 
 
@@ -630,12 +630,12 @@ roundTripTest -g516K 19   # btopt
 fileRoundTripTest -g500K
 
 $ECHO "\n===>  zstd long distance matching round-trip tests "
-roundTripTest -g0 "2 --long"
-roundTripTest -g1000K "1 --long"
-roundTripTest -g517K "6 --long"
-roundTripTest -g516K "16 --long"
-roundTripTest -g518K "19 --long"
-fileRoundTripTest -g5M "3 --long"
+roundTripTest -g0 "2 --single-thread --long"
+roundTripTest -g1000K "1 --single-thread --long"
+roundTripTest -g517K "6 --single-thread --long"
+roundTripTest -g516K "16 --single-thread --long"
+roundTripTest -g518K "19 --single-thread --long"
+fileRoundTripTest -g5M "3 --single-thread --long"
 
 
 roundTripTest -g96K "5 --single-thread"
@@ -648,7 +648,7 @@ then
     fileRoundTripTest -g4M "19 -T2 -B1M"
 
     $ECHO "\n===>  zstdmt long distance matching round-trip tests "
-    roundTripTest -g8M "3 --long -T2"
+    roundTripTest -g8M "3 --long=24 -T2"
 else
     $ECHO "\n===>  no multithreading, skipping zstdmt tests "
 fi
@@ -699,13 +699,13 @@ rm tmp*
 
 
 $ECHO "\n===>   zstd long distance matching tests "
-roundTripTest -g0 " --long"
-roundTripTest -g9M "2 --long"
+roundTripTest -g0 " --single-thread --long"
+roundTripTest -g9M "2 --single-thread --long"
 # Test parameter parsing
-roundTripTest -g1M -P50 "1 --long=29" " --memory=512MB"
-roundTripTest -g1M -P50 "1 --long=29 --zstd=wlog=28" " --memory=256MB"
-roundTripTest -g1M -P50 "1 --long=29" " --long=28 --memory=512MB"
-roundTripTest -g1M -P50 "1 --long=29" " --zstd=wlog=28 --memory=512MB"
+roundTripTest -g1M -P50 "1 --single-thread --long=29" " --memory=512MB"
+roundTripTest -g1M -P50 "1 --single-thread --long=29 --zstd=wlog=28" " --memory=256MB"
+roundTripTest -g1M -P50 "1 --single-thread --long=29" " --long=28 --memory=512MB"
+roundTripTest -g1M -P50 "1 --single-thread --long=29" " --zstd=wlog=28 --memory=512MB"
 
 
 if [ "$1" != "--test-large-data" ]; then
@@ -746,13 +746,13 @@ fileRoundTripTest -g4193M -P99 1
 
 
 $ECHO "\n===>   zstd long, long distance matching round-trip tests "
-roundTripTest -g270000000 "1 --long"
-roundTripTest -g130000000 -P60 "5 --long"
-roundTripTest -g35000000 -P70 "8 --long"
-roundTripTest -g18000001 -P80  "18 --long"
+roundTripTest -g270000000 "1 --single-thread --long"
+roundTripTest -g130000000 -P60 "5 --single-thread --long"
+roundTripTest -g35000000 -P70 "8 --single-thread --long"
+roundTripTest -g18000001 -P80  "18 --single-thread --long"
 # Test large window logs
-roundTripTest -g700M -P50 "1 --long=29"
-roundTripTest -g600M -P50 "1 --long --zstd=wlog=29,clog=28"
+roundTripTest -g700M -P50 "1 --single-thread --long=29"
+roundTripTest -g600M -P50 "1 --single-thread --long --zstd=wlog=29,clog=28"
 
 
 if [ -n "$hasMT" ]

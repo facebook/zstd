@@ -29,13 +29,15 @@ extern "C" {
  *
  * Generates the sequences using the long distance match finder.
  * The sequences completely parse a prefix of the source, but leave off the last
- * literals. Returns the number of sequences generated into `sequences`.
+ * literals. Returns the number of sequences generated into `sequences`. The
+ * user must have called ZSTD_window_update() for all of the input they have,
+ * even if they pass it to ZSTD_ldm_generateSequences() in chunks.
  *
  * NOTE: The source may be any size, assuming it doesn't overflow the hash table
  * indices, and the output sequences table is large enough..
  */
 size_t ZSTD_ldm_generateSequences(
-        ldmState_t* ldms, rawSeq* sequences, ZSTD_matchState_t const* ms,
+        ldmState_t* ldms, rawSeq* sequences,
         ldmParams_t const* params, void const* src, size_t srcSize,
         int const extDict);
 

@@ -136,6 +136,7 @@ typedef struct {
 } ldmEntry_t;
 
 typedef struct {
+    ZSTD_window_t window;   /* State for the window round buffer management */
     ldmEntry_t* hashTable;
     BYTE* bucketOffsets;    /* Next position in bucket to insert entry */
     U64 hashPower;          /* Used to compute the rolling hash.
@@ -148,6 +149,7 @@ typedef struct {
     U32 bucketSizeLog;      /* Log bucket size for collision resolution, at most 8 */
     U32 minMatchLength;     /* Minimum match length */
     U32 hashEveryLog;       /* Log number of entries to skip */
+    U32 windowLog;          /* Window log for the LDM */
 } ldmParams_t;
 
 struct ZSTD_CCtx_params_s {

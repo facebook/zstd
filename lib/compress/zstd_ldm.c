@@ -294,8 +294,8 @@ static void ZSTD_ldm_limitTableUpdate(ZSTD_matchState_t* ms, const BYTE* anchor)
     }
 }
 
-size_t ZSTD_ldm_generateSequences(
-        ldmState_t* ldmState, rawSeq* sequences, ZSTD_matchState_t const* ms,
+static size_t ZSTD_ldm_generateSequences_internal(
+        ldmState_t* ldmState, rawSeq* sequences,
         ldmParams_t const* params, void const* src, size_t srcSize,
         int const extDict)
 {
@@ -308,10 +308,10 @@ size_t ZSTD_ldm_generateSequences(
     U32 const hashEveryLog = params->hashEveryLog;
     U32 const ldmTagMask = (1U << params->hashEveryLog) - 1;
     /* Prefix and extDict parameters */
-    U32 const dictLimit = ms->window.dictLimit;
-    U32 const lowestIndex = extDict ? ms->window.lowLimit : dictLimit;
-    BYTE const* const base = ms->window.base;
-    BYTE const* const dictBase = extDict ? ms->window.dictBase : NULL;
+    U32 const dictLimit = ldmState->window.dictLimit;
+    U32 const lowestIndex = extDict ? ldmState->window.lowLimit : dictLimit;
+    BYTE const* const base = ldmState->window.base;
+    BYTE const* const dictBase = extDict ? ldmState->window.dictBase : NULL;
     BYTE const* const dictStart = extDict ? dictBase + lowestIndex : NULL;
     BYTE const* const dictEnd = extDict ? dictBase + dictLimit : NULL;
     BYTE const* const lowPrefixPtr = base + dictLimit;
@@ -451,6 +451,62 @@ size_t ZSTD_ldm_generateSequences(
     }
     /* Return the number of sequences generated */
     return sequences - sequencesStart;
+}
+
+/*! ZSTD_ldm_reduceTable() :
+ *  reduce table indexes by `reducerValue` */
+static void ZSTD_ldm_reduceTable(ldmEntry_t* const table, U32 const size,
+                                 U32 const reducerValue)
+{
+    U32 u;
+    for (u = 0; u < size; u++) {
+        if (table[u].offset < reducerValue) table[u].offset = 0;
+        else table[u].offset -= reducerValue;
+    }
+}
+
+size_t ZSTD_ldm_generateSequences(
+        ldmState_t* ldmState, rawSeq* sequences,
+        ldmParams_t const* params, void const* src, size_t srcSize,
+        int const extDict)
+{
+    U32 const maxDist = 1U << params->windowLog;
+    BYTE const* const istart = (BYTE const*)src;
+    size_t const kMaxChunkSize = 1 << 20;
+    size_t const nbChunks = (srcSize / kMaxChunkSize) + ((srcSize % kMaxChunkSize) != 0);
+    size_t nbSeq = 0;
+    size_t chunk;
+
+    assert(ZSTD_CHUNKSIZE_MAX >= kMaxChunkSize);
+    /* Check that ZSTD_window_update() has been called for this chunk prior
+     * to passing it to this function.
+     */
+    assert(ldmState->window.nextSrc >= (BYTE const*)src + srcSize);
+    for (chunk = 0; chunk < nbChunks; ++chunk) {
+        size_t const chunkStart = chunk * kMaxChunkSize;
+        size_t const chunkEnd = MIN(chunkStart + kMaxChunkSize, srcSize);
+        size_t const chunkSize = chunkEnd - chunkStart;
+
+        assert(chunkStart < srcSize);
+        if (ZSTD_window_needOverflowCorrection(ldmState->window)) {
+            U32 const ldmHSize = 1U << params->hashLog;
+            U32 const correction = ZSTD_window_correctOverflow(
+                &ldmState->window, /* cycleLog */ 0, maxDist, src);
+            ZSTD_ldm_reduceTable(ldmState->hashTable, ldmHSize, correction);
+        }
+        /* kMaxChunkSize should be small enough that we don't lose too much of
+         * the window through early invalidation.
+         * TODO: * Test the chunk size.
+         *       * Try invalidation after the sequence generation and test the
+         *         the offset against maxDist directly.
+         */
+        ZSTD_window_enforceMaxDist(&ldmState->window, istart + chunkEnd,
+                                   maxDist);
+        nbSeq += ZSTD_ldm_generateSequences_internal(
+            ldmState, sequences + nbSeq, params, istart + chunkStart, chunkSize,
+            extDict);
+    }
+    return nbSeq;
 }
 
 #if 0

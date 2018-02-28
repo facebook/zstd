@@ -983,6 +983,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
 
     if (params.ldmParams.enableLdm) {
         /* Adjust long distance matching parameters */
+        params.ldmParams.windowLog = params.cParams.windowLog;
         ZSTD_ldm_adjustParameters(&params.ldmParams, &params.cParams);
         assert(params.ldmParams.hashLog >= params.ldmParams.bucketSizeLog);
         assert(params.ldmParams.hashEveryLog < 32);
@@ -1067,6 +1068,8 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             ptr = zc->ldmState.hashTable + ldmHSize;
             zc->ldmSequences = (rawSeq*)ptr;
             ptr = zc->ldmSequences + maxNbLdmSeq;
+
+            memset(&zc->ldmState.window, 0, sizeof(zc->ldmState.window));
         }
         assert(((size_t)ptr & 3) == 0); /* ensure ptr is properly aligned */
 
@@ -1277,19 +1280,6 @@ static void ZSTD_reduceTable_btlazy2(U32* const table, U32 const size, U32 const
     ZSTD_reduceTable_internal(table, size, reducerValue, 1);
 }
 
-
-/*! ZSTD_ldm_reduceTable() :
- *  reduce table indexes by `reducerValue` */
-static void ZSTD_ldm_reduceTable(ldmEntry_t* const table, U32 const size,
-                                 U32 const reducerValue)
-{
-    U32 u;
-    for (u = 0; u < size; u++) {
-        if (table[u].offset < reducerValue) table[u].offset = 0;
-        else table[u].offset -= reducerValue;
-    }
-}
-
 /*! ZSTD_reduceIndex() :
 *   rescale all indexes to avoid future overflow (indexes are U32) */
 static void ZSTD_reduceIndex (ZSTD_CCtx* zc, const U32 reducerValue)
@@ -1310,11 +1300,6 @@ static void ZSTD_reduceIndex (ZSTD_CCtx* zc, const U32 reducerValue)
     if (ms->hashLog3) {
         U32 const h3Size = (U32)1 << ms->hashLog3;
         ZSTD_reduceTable(ms->hashTable3, h3Size, reducerValue);
-    }
-
-    if (zc->appliedParams.ldmParams.enableLdm) {
-        U32 const ldmHSize = (U32)1 << zc->appliedParams.ldmParams.hashLog;
-        ZSTD_ldm_reduceTable(zc->ldmState.hashTable, ldmHSize, reducerValue);
     }
 }
 
@@ -1832,7 +1817,7 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
         if (zc->appliedParams.ldmParams.enableLdm) {
             size_t const nbSeq =
                 ZSTD_ldm_generateSequences(&zc->ldmState, zc->ldmSequences,
-                                           ms, &zc->appliedParams.ldmParams,
+                                           &zc->appliedParams.ldmParams,
                                            src, srcSize, extDict);
             lastLLSize =
                 ZSTD_ldm_blockCompress(zc->ldmSequences, nbSeq,
@@ -2023,6 +2008,8 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* cctx,
     if (!ZSTD_window_update(&ms->window, src, srcSize)) {
         ms->nextToUpdate = ms->window.dictLimit;
     }
+    if (cctx->appliedParams.ldmParams.enableLdm)
+        ZSTD_window_update(&cctx->ldmState.window, src, srcSize);
 
     DEBUGLOG(5, "ZSTD_compressContinue_internal (blockSize=%u)", (U32)cctx->blockSize);
     {   size_t const cSize = frame ?

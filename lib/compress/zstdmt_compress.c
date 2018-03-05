@@ -10,7 +10,7 @@
 
 
 /* ======   Tuning parameters   ====== */
-#define ZSTDMT_NBTHREADS_MAX 200
+#define ZSTDMT_NBWORKERS_MAX 200
 #define ZSTDMT_JOBSIZE_MAX  (MEM_32bits() ? (512 MB) : (2 GB))  /* note : limited by `jobSize` type, which is `unsigned` */
 #define ZSTDMT_OVERLAPLOG_DEFAULT 6
 
@@ -97,9 +97,9 @@ typedef struct ZSTDMT_bufferPool_s {
     buffer_t bTable[1];   /* variable size */
 } ZSTDMT_bufferPool;
 
-static ZSTDMT_bufferPool* ZSTDMT_createBufferPool(unsigned nbThreads, ZSTD_customMem cMem)
+static ZSTDMT_bufferPool* ZSTDMT_createBufferPool(unsigned nbWorkers, ZSTD_customMem cMem)
 {
-    unsigned const maxNbBuffers = 2*nbThreads + 3;
+    unsigned const maxNbBuffers = 2*nbWorkers + 3;
     ZSTDMT_bufferPool* const bufPool = (ZSTDMT_bufferPool*)ZSTD_calloc(
         sizeof(ZSTDMT_bufferPool) + (maxNbBuffers-1) * sizeof(buffer_t), cMem);
     if (bufPool==NULL) return NULL;
@@ -236,23 +236,24 @@ static void ZSTDMT_freeCCtxPool(ZSTDMT_CCtxPool* pool)
 }
 
 /* ZSTDMT_createCCtxPool() :
- * implies nbThreads >= 1 , checked by caller ZSTDMT_createCCtx() */
-static ZSTDMT_CCtxPool* ZSTDMT_createCCtxPool(unsigned nbThreads,
+ * implies nbWorkers >= 1 , checked by caller ZSTDMT_createCCtx() */
+static ZSTDMT_CCtxPool* ZSTDMT_createCCtxPool(unsigned nbWorkers,
                                               ZSTD_customMem cMem)
 {
     ZSTDMT_CCtxPool* const cctxPool = (ZSTDMT_CCtxPool*) ZSTD_calloc(
-        sizeof(ZSTDMT_CCtxPool) + (nbThreads-1)*sizeof(ZSTD_CCtx*), cMem);
+        sizeof(ZSTDMT_CCtxPool) + (nbWorkers-1)*sizeof(ZSTD_CCtx*), cMem);
+    assert(nbWorkers > 0);
     if (!cctxPool) return NULL;
     if (ZSTD_pthread_mutex_init(&cctxPool->poolMutex, NULL)) {
         ZSTD_free(cctxPool, cMem);
         return NULL;
     }
     cctxPool->cMem = cMem;
-    cctxPool->totalCCtx = nbThreads;
+    cctxPool->totalCCtx = nbWorkers;
     cctxPool->availCCtx = 1;   /* at least one cctx for single-thread mode */
     cctxPool->cctx[0] = ZSTD_createCCtx_advanced(cMem);
     if (!cctxPool->cctx[0]) { ZSTDMT_freeCCtxPool(cctxPool); return NULL; }
-    DEBUGLOG(3, "cctxPool created, with %u threads", nbThreads);
+    DEBUGLOG(3, "cctxPool created, with %u workers", nbWorkers);
     return cctxPool;
 }
 
@@ -260,15 +261,16 @@ static ZSTDMT_CCtxPool* ZSTDMT_createCCtxPool(unsigned nbThreads,
 static size_t ZSTDMT_sizeof_CCtxPool(ZSTDMT_CCtxPool* cctxPool)
 {
     ZSTD_pthread_mutex_lock(&cctxPool->poolMutex);
-    {   unsigned const nbThreads = cctxPool->totalCCtx;
+    {   unsigned const nbWorkers = cctxPool->totalCCtx;
         size_t const poolSize = sizeof(*cctxPool)
-                                + (nbThreads-1)*sizeof(ZSTD_CCtx*);
+                                + (nbWorkers-1) * sizeof(ZSTD_CCtx*);
         unsigned u;
         size_t totalCCtxSize = 0;
-        for (u=0; u<nbThreads; u++) {
+        for (u=0; u<nbWorkers; u++) {
             totalCCtxSize += ZSTD_sizeof_CCtx(cctxPool->cctx[u]);
         }
         ZSTD_pthread_mutex_unlock(&cctxPool->poolMutex);
+        assert(nbWorkers > 0);
         return poolSize + totalCCtxSize;
     }
 }
@@ -295,8 +297,8 @@ static void ZSTDMT_releaseCCtx(ZSTDMT_CCtxPool* pool, ZSTD_CCtx* cctx)
     if (pool->availCCtx < pool->totalCCtx)
         pool->cctx[pool->availCCtx++] = cctx;
     else {
-        /* pool overflow : should not happen, since totalCCtx==nbThreads */
-        DEBUGLOG(5, "CCtx pool overflow : free cctx");
+        /* pool overflow : should not happen, since totalCCtx==nbWorkers */
+        DEBUGLOG(4, "CCtx pool overflow : free cctx");
         ZSTD_freeCCtx(cctx);
     }
     ZSTD_pthread_mutex_unlock(&pool->poolMutex);
@@ -502,52 +504,51 @@ static ZSTDMT_jobDescription* ZSTDMT_createJobsTable(U32* nbJobsPtr, ZSTD_custom
     return jobTable;
 }
 
-/* ZSTDMT_CCtxParam_setNbThreads():
+/* ZSTDMT_CCtxParam_setNbWorkers():
  * Internal use only */
-size_t ZSTDMT_CCtxParam_setNbThreads(ZSTD_CCtx_params* params, unsigned nbThreads)
+size_t ZSTDMT_CCtxParam_setNbWorkers(ZSTD_CCtx_params* params, unsigned nbWorkers)
 {
-    if (nbThreads > ZSTDMT_NBTHREADS_MAX) nbThreads = ZSTDMT_NBTHREADS_MAX;
-    if (nbThreads < 1) nbThreads = 1;
-    params->nbThreads = nbThreads;
+    if (nbWorkers > ZSTDMT_NBWORKERS_MAX) nbWorkers = ZSTDMT_NBWORKERS_MAX;
+    params->nbWorkers = nbWorkers;
     params->overlapSizeLog = ZSTDMT_OVERLAPLOG_DEFAULT;
     params->jobSize = 0;
-    return nbThreads;
+    return nbWorkers;
 }
 
-ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced(unsigned nbThreads, ZSTD_customMem cMem)
+ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced(unsigned nbWorkers, ZSTD_customMem cMem)
 {
     ZSTDMT_CCtx* mtctx;
-    U32 nbJobs = nbThreads + 2;
-    DEBUGLOG(3, "ZSTDMT_createCCtx_advanced (nbThreads = %u)", nbThreads);
+    U32 nbJobs = nbWorkers + 2;
+    DEBUGLOG(3, "ZSTDMT_createCCtx_advanced (nbWorkers = %u)", nbWorkers);
 
-    if (nbThreads < 1) return NULL;
-    nbThreads = MIN(nbThreads , ZSTDMT_NBTHREADS_MAX);
+    if (nbWorkers < 1) return NULL;
+    nbWorkers = MIN(nbWorkers , ZSTDMT_NBWORKERS_MAX);
     if ((cMem.customAlloc!=NULL) ^ (cMem.customFree!=NULL))
         /* invalid custom allocator */
         return NULL;
 
     mtctx = (ZSTDMT_CCtx*) ZSTD_calloc(sizeof(ZSTDMT_CCtx), cMem);
     if (!mtctx) return NULL;
-    ZSTDMT_CCtxParam_setNbThreads(&mtctx->params, nbThreads);
+    ZSTDMT_CCtxParam_setNbWorkers(&mtctx->params, nbWorkers);
     mtctx->cMem = cMem;
     mtctx->allJobsCompleted = 1;
-    mtctx->factory = POOL_create_advanced(nbThreads, 0, cMem);
+    mtctx->factory = POOL_create_advanced(nbWorkers, 0, cMem);
     mtctx->jobs = ZSTDMT_createJobsTable(&nbJobs, cMem);
     assert(nbJobs > 0); assert((nbJobs & (nbJobs - 1)) == 0);  /* ensure nbJobs is a power of 2 */
     mtctx->jobIDMask = nbJobs - 1;
-    mtctx->bufPool = ZSTDMT_createBufferPool(nbThreads, cMem);
-    mtctx->cctxPool = ZSTDMT_createCCtxPool(nbThreads, cMem);
+    mtctx->bufPool = ZSTDMT_createBufferPool(nbWorkers, cMem);
+    mtctx->cctxPool = ZSTDMT_createCCtxPool(nbWorkers, cMem);
     if (!mtctx->factory | !mtctx->jobs | !mtctx->bufPool | !mtctx->cctxPool) {
         ZSTDMT_freeCCtx(mtctx);
         return NULL;
     }
-    DEBUGLOG(3, "mt_cctx created, for %u threads", nbThreads);
+    DEBUGLOG(3, "mt_cctx created, for %u threads", nbWorkers);
     return mtctx;
 }
 
-ZSTDMT_CCtx* ZSTDMT_createCCtx(unsigned nbThreads)
+ZSTDMT_CCtx* ZSTDMT_createCCtx(unsigned nbWorkers)
 {
-    return ZSTDMT_createCCtx_advanced(nbThreads, ZSTD_defaultCMem);
+    return ZSTDMT_createCCtx_advanced(nbWorkers, ZSTD_defaultCMem);
 }
 
 
@@ -649,8 +650,8 @@ size_t ZSTDMT_setMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSTDMT_parameter parameter, 
     }
 }
 
-/* Sets parameters relevant to the compression job, initializing others to
- * default values. Notably, nbThreads should probably be zero. */
+/* Sets parameters relevant to the compression job,
+ * initializing others to default values. */
 static ZSTD_CCtx_params ZSTDMT_initJobCCtxParams(ZSTD_CCtx_params const params)
 {
     ZSTD_CCtx_params jobParams;
@@ -664,13 +665,29 @@ static ZSTD_CCtx_params ZSTDMT_initJobCCtxParams(ZSTD_CCtx_params const params)
     return jobParams;
 }
 
-/* ZSTDMT_getNbThreads():
+/*! ZSTDMT_updateCParams_whileCompressing() :
+ *  Update compression level and parameters (except wlog)
+ *  while compression is ongoing.
+ *  New parameters will be applied to next compression job. */
+void ZSTDMT_updateCParams_whileCompressing(ZSTDMT_CCtx* mtctx, int compressionLevel, ZSTD_compressionParameters cParams)
+{
+    U32 const saved_wlog = mtctx->params.cParams.windowLog;   /* Do not modify windowLog while compressing */
+    DEBUGLOG(5, "ZSTDMT_updateCParams_whileCompressing (level:%i)",
+                compressionLevel);
+    mtctx->params.compressionLevel = compressionLevel;
+    if (compressionLevel != ZSTD_CLEVEL_CUSTOM)
+        cParams = ZSTD_getCParams(compressionLevel, mtctx->frameContentSize, 0 /* dictSize */ );
+    cParams.windowLog = saved_wlog;
+    mtctx->params.cParams = cParams;
+}
+
+/* ZSTDMT_getNbWorkers():
  * @return nb threads currently active in mtctx.
  * mtctx must be valid */
-unsigned ZSTDMT_getNbThreads(const ZSTDMT_CCtx* mtctx)
+unsigned ZSTDMT_getNbWorkers(const ZSTDMT_CCtx* mtctx)
 {
     assert(mtctx != NULL);
-    return mtctx->params.nbThreads;
+    return mtctx->params.nbWorkers;
 }
 
 /* ZSTDMT_getFrameProgression():
@@ -709,15 +726,15 @@ ZSTD_frameProgression ZSTDMT_getFrameProgression(ZSTDMT_CCtx* mtctx)
 /* =====   Multi-threaded compression   ===== */
 /* ------------------------------------------ */
 
-static unsigned ZSTDMT_computeNbJobs(size_t srcSize, unsigned windowLog, unsigned nbThreads) {
-    assert(nbThreads>0);
+static unsigned ZSTDMT_computeNbJobs(size_t srcSize, unsigned windowLog, unsigned nbWorkers) {
+    assert(nbWorkers>0);
     {   size_t const jobSizeTarget = (size_t)1 << (windowLog + 2);
         size_t const jobMaxSize = jobSizeTarget << 2;
-        size_t const passSizeMax = jobMaxSize * nbThreads;
+        size_t const passSizeMax = jobMaxSize * nbWorkers;
         unsigned const multiplier = (unsigned)(srcSize / passSizeMax) + 1;
-        unsigned const nbJobsLarge = multiplier * nbThreads;
+        unsigned const nbJobsLarge = multiplier * nbWorkers;
         unsigned const nbJobsMax = (unsigned)(srcSize / jobSizeTarget) + 1;
-        unsigned const nbJobsSmall = MIN(nbJobsMax, nbThreads);
+        unsigned const nbJobsSmall = MIN(nbJobsMax, nbWorkers);
         return (multiplier>1) ? nbJobsLarge : nbJobsSmall;
 }   }
 
@@ -734,7 +751,7 @@ static size_t ZSTDMT_compress_advanced_internal(
     ZSTD_CCtx_params const jobParams = ZSTDMT_initJobCCtxParams(params);
     unsigned const overlapRLog = (params.overlapSizeLog>9) ? 0 : 9-params.overlapSizeLog;
     size_t const overlapSize = (overlapRLog>=9) ? 0 : (size_t)1 << (params.cParams.windowLog - overlapRLog);
-    unsigned const nbJobs = ZSTDMT_computeNbJobs(srcSize, params.cParams.windowLog, params.nbThreads);
+    unsigned const nbJobs = ZSTDMT_computeNbJobs(srcSize, params.cParams.windowLog, params.nbWorkers);
     size_t const proposedJobSize = (srcSize + (nbJobs-1)) / nbJobs;
     size_t const avgJobSize = (((proposedJobSize-1) & 0x1FFFF) < 0x7FFF) ? proposedJobSize + 0xFFFF : proposedJobSize;   /* avoid too small last block */
     const char* const srcStart = (const char*)src;
@@ -742,13 +759,13 @@ static size_t ZSTDMT_compress_advanced_internal(
     unsigned const compressWithinDst = (dstCapacity >= ZSTD_compressBound(srcSize)) ? nbJobs : (unsigned)(dstCapacity / ZSTD_compressBound(avgJobSize));  /* presumes avgJobSize >= 256 KB, which should be the case */
     size_t frameStartPos = 0, dstBufferPos = 0;
     XXH64_state_t xxh64;
-    assert(jobParams.nbThreads == 0);
-    assert(mtctx->cctxPool->totalCCtx == params.nbThreads);
+    assert(jobParams.nbWorkers == 0);
+    assert(mtctx->cctxPool->totalCCtx == params.nbWorkers);
 
     DEBUGLOG(4, "ZSTDMT_compress_advanced_internal: nbJobs=%2u (rawSize=%u bytes; fixedSize=%u) ",
                 nbJobs, (U32)proposedJobSize, (U32)avgJobSize);
 
-    if ((nbJobs==1) | (params.nbThreads<=1)) {   /* fallback to single-thread mode : this is a blocking invocation anyway */
+    if ((nbJobs==1) | (params.nbWorkers<=1)) {   /* fallback to single-thread mode : this is a blocking invocation anyway */
         ZSTD_CCtx* const cctx = mtctx->cctxPool->cctx[0];
         if (cdict) return ZSTD_compress_usingCDict_advanced(cctx, dst, dstCapacity, src, srcSize, cdict, jobParams.fParams);
         return ZSTD_compress_advanced_internal(cctx, dst, dstCapacity, src, srcSize, NULL, 0, jobParams);
@@ -856,7 +873,7 @@ size_t ZSTDMT_compress_advanced(ZSTDMT_CCtx* mtctx,
                                void* dst, size_t dstCapacity,
                          const void* src, size_t srcSize,
                          const ZSTD_CDict* cdict,
-                               ZSTD_parameters const params,
+                               ZSTD_parameters params,
                                unsigned overlapLog)
 {
     ZSTD_CCtx_params cctxParams = mtctx->params;
@@ -892,12 +909,14 @@ size_t ZSTDMT_initCStream_internal(
         const ZSTD_CDict* cdict, ZSTD_CCtx_params params,
         unsigned long long pledgedSrcSize)
 {
-    DEBUGLOG(4, "ZSTDMT_initCStream_internal (pledgedSrcSize=%u)", (U32)pledgedSrcSize);
+    DEBUGLOG(4, "ZSTDMT_initCStream_internal (pledgedSrcSize=%u, nbWorkers=%u, cctxPool=%u)",
+                (U32)pledgedSrcSize, params.nbWorkers, mtctx->cctxPool->totalCCtx);
     /* params are supposed to be fully validated at this point */
     assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
     assert(!((dict) && (cdict)));  /* either dict or cdict, not both */
-    assert(mtctx->cctxPool->totalCCtx == params.nbThreads);
-    mtctx->singleBlockingThread = (pledgedSrcSize <= ZSTDMT_JOBSIZE_MIN);  /* do not trigger multi-threading when srcSize is too small */
+    assert(mtctx->cctxPool->totalCCtx == params.nbWorkers);
+
+    /* init */
     if (params.jobSize == 0) {
         if (params.cParams.windowLog >= 29)
             params.jobSize = ZSTDMT_JOBSIZE_MAX;
@@ -906,15 +925,17 @@ size_t ZSTDMT_initCStream_internal(
     }
     if (params.jobSize > ZSTDMT_JOBSIZE_MAX) params.jobSize = ZSTDMT_JOBSIZE_MAX;
 
+    mtctx->singleBlockingThread = (pledgedSrcSize <= ZSTDMT_JOBSIZE_MIN);  /* do not trigger multi-threading when srcSize is too small */
     if (mtctx->singleBlockingThread) {
         ZSTD_CCtx_params const singleThreadParams = ZSTDMT_initJobCCtxParams(params);
         DEBUGLOG(4, "ZSTDMT_initCStream_internal: switch to single blocking thread mode");
-        assert(singleThreadParams.nbThreads == 0);
+        assert(singleThreadParams.nbWorkers == 0);
         return ZSTD_initCStream_internal(mtctx->cctxPool->cctx[0],
                                          dict, dictSize, cdict,
                                          singleThreadParams, pledgedSrcSize);
     }
-    DEBUGLOG(4, "ZSTDMT_initCStream_internal: %u threads", params.nbThreads);
+
+    DEBUGLOG(4, "ZSTDMT_initCStream_internal: %u workers", params.nbWorkers);
 
     if (mtctx->allJobsCompleted == 0) {   /* previous compression not correctly finished */
         ZSTDMT_waitForAllJobsCompleted(mtctx);
@@ -993,8 +1014,6 @@ size_t ZSTDMT_initCStream_usingCDict(ZSTDMT_CCtx* mtctx,
 size_t ZSTDMT_resetCStream(ZSTDMT_CCtx* mtctx, unsigned long long pledgedSrcSize)
 {
     if (!pledgedSrcSize) pledgedSrcSize = ZSTD_CONTENTSIZE_UNKNOWN;
-    if (mtctx->params.nbThreads==1)
-        return ZSTD_resetCStream(mtctx->cctxPool->cctx[0], pledgedSrcSize);
     return ZSTDMT_initCStream_internal(mtctx, NULL, 0, ZSTD_dm_auto, 0, mtctx->params,
                                        pledgedSrcSize);
 }

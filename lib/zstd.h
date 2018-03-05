@@ -381,7 +381,9 @@ ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output
 #define ZSTD_WINDOWLOG_MIN      10
 #define ZSTD_HASHLOG_MAX      ((ZSTD_WINDOWLOG_MAX < 30) ? ZSTD_WINDOWLOG_MAX : 30)
 #define ZSTD_HASHLOG_MIN         6
-#define ZSTD_CHAINLOG_MAX     ((ZSTD_WINDOWLOG_MAX < 29) ? ZSTD_WINDOWLOG_MAX+1 : 30)
+#define ZSTD_CHAINLOG_MAX_32    29
+#define ZSTD_CHAINLOG_MAX_64    30
+#define ZSTD_CHAINLOG_MAX     ((unsigned)(sizeof(size_t) == 4 ? ZSTD_CHAINLOG_MAX_32 : ZSTD_CHAINLOG_MAX_64))
 #define ZSTD_CHAINLOG_MIN       ZSTD_HASHLOG_MIN
 #define ZSTD_HASHLOG3_MAX       17
 #define ZSTD_SEARCHLOG_MAX     (ZSTD_WINDOWLOG_MAX-1)
@@ -506,7 +508,7 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
  *  It will also consider src size to be arbitrarily "large", which is worst case.
  *  If srcSize is known to always be small, ZSTD_estimateCCtxSize_usingCParams() can provide a tighter estimation.
  *  ZSTD_estimateCCtxSize_usingCParams() can be used in tandem with ZSTD_getCParams() to create cParams from compressionLevel.
- *  ZSTD_estimateCCtxSize_usingCCtxParams() can be used in tandem with ZSTD_CCtxParam_setParameter(). Only single-threaded compression is supported. This function will return an error code if ZSTD_p_nbThreads is > 1.
+ *  ZSTD_estimateCCtxSize_usingCCtxParams() can be used in tandem with ZSTD_CCtxParam_setParameter(). Only single-threaded compression is supported. This function will return an error code if ZSTD_p_nbWorkers is >= 1.
  *  Note : CCtx size estimation is only correct for single-threaded compression. */
 ZSTDLIB_API size_t ZSTD_estimateCCtxSize(int compressionLevel);
 ZSTDLIB_API size_t ZSTD_estimateCCtxSize_usingCParams(ZSTD_compressionParameters cParams);
@@ -518,7 +520,7 @@ ZSTDLIB_API size_t ZSTD_estimateDCtxSize(void);
  *  It will also consider src size to be arbitrarily "large", which is worst case.
  *  If srcSize is known to always be small, ZSTD_estimateCStreamSize_usingCParams() can provide a tighter estimation.
  *  ZSTD_estimateCStreamSize_usingCParams() can be used in tandem with ZSTD_getCParams() to create cParams from compressionLevel.
- *  ZSTD_estimateCStreamSize_usingCCtxParams() can be used in tandem with ZSTD_CCtxParam_setParameter(). Only single-threaded compression is supported. This function will return an error code if ZSTD_p_nbThreads is set to a value > 1.
+ *  ZSTD_estimateCStreamSize_usingCCtxParams() can be used in tandem with ZSTD_CCtxParam_setParameter(). Only single-threaded compression is supported. This function will return an error code if ZSTD_p_nbWorkers is >= 1.
  *  Note : CStream size estimation is only correct for single-threaded compression.
  *  ZSTD_DStream memory budget depends on window Size.
  *  This information can be passed manually, using ZSTD_estimateDStreamSize,
@@ -992,18 +994,13 @@ typedef enum {
     /* multi-threading parameters */
     /* These parameters are only useful if multi-threading is enabled (ZSTD_MULTITHREAD).
      * They return an error otherwise. */
-    ZSTD_p_nbThreads=400,    /* Select how many threads a compression job can spawn (default:1)
-                              * More threads improve speed, but also increase memory usage.
-                              * Can only receive a value > 1 if ZSTD_MULTITHREAD is enabled.
-                              * Special: value 0 means "do not change nbThreads" */
-    ZSTD_p_nonBlockingMode,  /* Single thread mode is by default "blocking" :
-                              * it finishes its job as much as possible, and only then gives back control to caller.
-                              * In contrast, multi-thread is by default "non-blocking" :
-                              * it takes some input, flush some output if available, and immediately gives back control to caller.
-                              * Compression work is performed in parallel, within worker threads.
-                              * (note : a strong exception to this rule is when first job is called with ZSTD_e_end : it becomes blocking)
-                              * Setting this parameter to 1 will enforce non-blocking mode even when only 1 thread is selected.
-                              * It allows the caller to do other tasks while the worker thread compresses in parallel. */
+    ZSTD_p_nbWorkers=400,    /* Select how many threads will be spawned to compress in parallel.
+                              * When nbWorkers >= 1, triggers asynchronous mode :
+                              * ZSTD_compress_generic() consumes some input, flush some output if possible, and immediately gives back control to caller,
+                              * while compression work is performed in parallel, within worker threads.
+                              * (note : a strong exception to this rule is when first invocation sets ZSTD_e_end : it becomes a blocking call).
+                              * More workers improve speed, but also increase memory usage.
+                              * Default value is `0`, aka "single-threaded mode" : no worker is spawned, compression is performed inside Caller's thread, all invocations are blocking */
     ZSTD_p_jobSize,          /* Size of a compression job. This value is only enforced in streaming (non-blocking) mode.
                               * Each compression job is completed in parallel, so indirectly controls the nb of active threads.
                               * 0 means default, which is dynamically determined based on compression parameters.
@@ -1015,7 +1012,7 @@ typedef enum {
     /* advanced parameters - may not remain available after API update */
     ZSTD_p_forceMaxWindow=1100, /* Force back-reference distances to remain < windowSize,
                               * even when referencing into Dictionary content (default:0) */
-    ZSTD_p_enableLongDistanceMatching=1200,  /* Enable long distance matching.
+    ZSTD_p_enableLongDistanceMatching=1200, /* Enable long distance matching.
                                          * This parameter is designed to improve the compression
                                          * ratio for large inputs with long distance matches.
                                          * This increases the memory usage as well as window size.
@@ -1025,33 +1022,39 @@ typedef enum {
                                          * other LDM parameters. Setting the compression level
                                          * after this parameter overrides the window log, though LDM
                                          * will remain enabled until explicitly disabled. */
-    ZSTD_p_ldmHashLog,   /* Size of the table for long distance matching, as a power of 2.
-                          * Larger values increase memory usage and compression ratio, but decrease
-                          * compression speed.
-                          * Must be clamped between ZSTD_HASHLOG_MIN and ZSTD_HASHLOG_MAX
-                          * (default: windowlog - 7). */
-    ZSTD_p_ldmMinMatch,  /* Minimum size of searched matches for long distance matcher.
-                          * Larger/too small values usually decrease compression ratio.
-                          * Must be clamped between ZSTD_LDM_MINMATCH_MIN
-                          * and ZSTD_LDM_MINMATCH_MAX (default: 64). */
-    ZSTD_p_ldmBucketSizeLog,  /* Log size of each bucket in the LDM hash table for collision resolution.
-                               * Larger values usually improve collision resolution but may decrease
-                               * compression speed.
-                               * The maximum value is ZSTD_LDM_BUCKETSIZELOG_MAX (default: 3). */
+    ZSTD_p_ldmHashLog,       /* Size of the table for long distance matching, as a power of 2.
+                              * Larger values increase memory usage and compression ratio, but decrease
+                              * compression speed.
+                              * Must be clamped between ZSTD_HASHLOG_MIN and ZSTD_HASHLOG_MAX
+                              * (default: windowlog - 7).
+                              * Special: value 0 means "do not change ldmHashLog". */
+    ZSTD_p_ldmMinMatch,      /* Minimum size of searched matches for long distance matcher.
+                              * Larger/too small values usually decrease compression ratio.
+                              * Must be clamped between ZSTD_LDM_MINMATCH_MIN
+                              * and ZSTD_LDM_MINMATCH_MAX (default: 64).
+                              * Special: value 0 means "do not change ldmMinMatch". */
+    ZSTD_p_ldmBucketSizeLog, /* Log size of each bucket in the LDM hash table for collision resolution.
+                              * Larger values usually improve collision resolution but may decrease
+                              * compression speed.
+                              * The maximum value is ZSTD_LDM_BUCKETSIZELOG_MAX (default: 3).
+                              * note : 0 is a valid value */
     ZSTD_p_ldmHashEveryLog,  /* Frequency of inserting/looking up entries in the LDM hash table.
                               * The default is MAX(0, (windowLog - ldmHashLog)) to
                               * optimize hash table usage.
                               * Larger values improve compression speed. Deviating far from the
                               * default value will likely result in a decrease in compression ratio.
-                              * Must be clamped between 0 and ZSTD_WINDOWLOG_MAX - ZSTD_HASHLOG_MIN. */
+                              * Must be clamped between 0 and ZSTD_WINDOWLOG_MAX - ZSTD_HASHLOG_MIN.
+                              * note : 0 is a valid value */
 
 } ZSTD_cParameter;
 
 
 /*! ZSTD_CCtx_setParameter() :
  *  Set one compression parameter, selected by enum ZSTD_cParameter.
+ *  Setting a parameter is generally only possible during frame initialization (before starting compression),
+ *  except for a few exceptions which can be updated during compression: compressionLevel, hashLog, chainLog, searchLog, minMatch, targetLength and strategy.
  *  Note : when `value` is an enum, cast it to unsigned for proper type checking.
- *  @result : informational value (typically, the one being set, possibly corrected),
+ *  @result : informational value (typically, value being set clamped correctly),
  *            or an error code (which can be tested with ZSTD_isError()). */
 ZSTDLIB_API size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned value);
 
@@ -1198,7 +1201,7 @@ ZSTDLIB_API size_t ZSTD_compress_generic_simpleArgs (
 ZSTDLIB_API ZSTD_CCtx_params* ZSTD_createCCtxParams(void);
 
 /*! ZSTD_resetCCtxParams() :
- *  Reset params to default, with the default compression level.
+ *  Reset params to default values.
  */
 ZSTDLIB_API size_t ZSTD_resetCCtxParams(ZSTD_CCtx_params* params);
 
@@ -1227,9 +1230,10 @@ ZSTDLIB_API size_t ZSTD_CCtxParam_setParameter(ZSTD_CCtx_params* params, ZSTD_cP
 
 /*! ZSTD_CCtx_setParametersUsingCCtxParams() :
  *  Apply a set of ZSTD_CCtx_params to the compression context.
- *  This must be done before the dictionary is loaded.
- *  The pledgedSrcSize is treated as unknown.
- *  Multithreading parameters are applied only if nbThreads > 1.
+ *  This can be done even after compression is started,
+ *    if nbWorkers==0, this will have no impact until a new compression is started.
+ *    if nbWorkers>=1, new parameters will be picked up at next job,
+ *       with a few restrictions (windowLog, pledgedSrcSize, nbWorkers, jobSize, and overlapLog are not updated).
  */
 ZSTDLIB_API size_t ZSTD_CCtx_setParametersUsingCCtxParams(
         ZSTD_CCtx* cctx, const ZSTD_CCtx_params* params);

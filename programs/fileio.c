@@ -1963,6 +1963,7 @@ static void displayInfo(const char* inFileName, const fileInfo_t* info, int disp
 static fileInfo_t FIO_addFInfo(fileInfo_t fi1, fileInfo_t fi2)
 {
     fileInfo_t total;
+    memset(&total, 0, sizeof(total));
     total.numActualFrames = fi1.numActualFrames + fi2.numActualFrames;
     total.numSkippableFrames = fi1.numSkippableFrames + fi2.numSkippableFrames;
     total.compressedSize = fi1.compressedSize + fi2.compressedSize;

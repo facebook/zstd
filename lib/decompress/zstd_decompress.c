@@ -94,7 +94,7 @@ typedef struct {
     U32  baseValue;
 } ZSTD_seqSymbol;
 
-#define SEQSYMBOL_TABLE_SIZE(log)   (1 + (1<<log))
+#define SEQSYMBOL_TABLE_SIZE(log)   (1 + (1 << (log)))
 
 typedef struct {
     ZSTD_seqSymbol LLTable[SEQSYMBOL_TABLE_SIZE(LLFSELog)];
@@ -1256,6 +1256,7 @@ static size_t ZSTD_decompressSequences(ZSTD_DCtx* dctx, void* dst, size_t maxDst
                                 const void* seqStart, size_t seqSize, int nbSeq,
                                 const ZSTD_longOffset_e isLongOffset)
 {
+    DEBUGLOG(5, "ZSTD_decompressSequences");
 #if DYNAMIC_BMI2
     if (dctx->bmi2) {
         return ZSTD_decompressSequences_bmi2(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
@@ -1269,6 +1270,7 @@ static size_t ZSTD_decompressSequencesLong(ZSTD_DCtx* dctx,
                                 const void* seqStart, size_t seqSize, int nbSeq,
                                 const ZSTD_longOffset_e isLongOffset)
 {
+    DEBUGLOG(5, "ZSTD_decompressSequencesLong");
 #if DYNAMIC_BMI2
     if (dctx->bmi2) {
         return ZSTD_decompressSequencesLong_bmi2(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
@@ -1281,13 +1283,16 @@ static unsigned
 ZSTD_getLongOffsetsShare(const ZSTD_seqSymbol* offTable)
 {
     const void* ptr = offTable;
-    U32 const tableLog = ((const FSE_DTableHeader*)ptr)[0].tableLog;
+    U32 const tableLog = ((const ZSTD_seqSymbol_header*)ptr)[0].tableLog;
     const ZSTD_seqSymbol* table = offTable + 1;
     U32 const max = 1 << tableLog;
     U32 u, total = 0;
+    DEBUGLOG(5, "ZSTD_getLongOffsetsShare: (tableLog=%u)", tableLog);
 
-    for (u=0; u<max; u++)
-        if (table[u].nbAdditionalBits > 23) total += 1;
+    assert(max <= (1 << OffFSELog));  /* max not too large */
+    for (u=0; u<max; u++) {
+        if (table[u].nbAdditionalBits > 22) total += 1;
+    }
 
     assert(tableLog <= OffFSELog);
     total <<= (OffFSELog - tableLog);  /* scale to OffFSELog */

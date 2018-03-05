@@ -1248,47 +1248,49 @@ typedef enum { ZSTD_lo_isRegularOffset, ZSTD_lo_isLongOffset=1 } ZSTD_longOffset
 #endif
 
 typedef size_t (*ZSTD_decompressSequences_t)(
-    ZSTD_DCtx *dctx, void *dst, size_t maxDstSize, const void *seqStart,
-    size_t seqSize, const ZSTD_longOffset_e isLongOffset);
+    ZSTD_DCtx *dctx, void *dst, size_t maxDstSize,
+    const void *seqStart, size_t seqSize, int nbSeq,
+    const ZSTD_longOffset_e isLongOffset);
 
 static size_t ZSTD_decompressSequences(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize,
-                                const void* seqStart, size_t seqSize,
+                                const void* seqStart, size_t seqSize, int nbSeq,
                                 const ZSTD_longOffset_e isLongOffset)
 {
 #if DYNAMIC_BMI2
     if (dctx->bmi2) {
-        return ZSTD_decompressSequences_bmi2(dctx, dst, maxDstSize, seqStart, seqSize, isLongOffset);
+        return ZSTD_decompressSequences_bmi2(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
     }
 #endif
-  return ZSTD_decompressSequences_default(dctx, dst, maxDstSize, seqStart, seqSize, isLongOffset);
+  return ZSTD_decompressSequences_default(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
 }
 
-static size_t ZSTD_decompressSequencesLong(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize,
-                                    const void* seqStart, size_t seqSize,
-                                    const ZSTD_longOffset_e isLongOffset)
+static size_t ZSTD_decompressSequencesLong(ZSTD_DCtx* dctx,
+                                void* dst, size_t maxDstSize,
+                                const void* seqStart, size_t seqSize, int nbSeq,
+                                const ZSTD_longOffset_e isLongOffset)
 {
 #if DYNAMIC_BMI2
     if (dctx->bmi2) {
-        return ZSTD_decompressSequencesLong_bmi2(dctx, dst, maxDstSize, seqStart, seqSize, isLongOffset);
+        return ZSTD_decompressSequencesLong_bmi2(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
     }
 #endif
-  return ZSTD_decompressSequencesLong_default(dctx, dst, maxDstSize, seqStart, seqSize, isLongOffset);
+  return ZSTD_decompressSequencesLong_default(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
 }
 
 static unsigned
-ZSTD_getLongOffsetsShare(const FSE_DTable* offTable)
+ZSTD_getLongOffsetsShare(const ZSTD_seqSymbol* offTable)
 {
     const void* ptr = offTable;
     U32 const tableLog = ((const FSE_DTableHeader*)ptr)[0].tableLog;
-    const FSE_decode_t* table = ((const FSE_decode_t*)ptr) + 1;
+    const ZSTD_seqSymbol* table = offTable + 1;
     U32 const max = 1 << tableLog;
     U32 u, total = 0;
 
-    assert(tableLog <= OffFSELog);
     for (u=0; u<max; u++)
-        if (table[u].symbol > 23) total += 1;
+        if (table[u].nbAdditionalBits > 23) total += 1;
 
-    total <<= (OffFSELog - tableLog);
+    assert(tableLog <= OffFSELog);
+    total <<= (OffFSELog - tableLog);  /* scale to OffFSELog */
 
     return total;
 }
@@ -1317,12 +1319,22 @@ static size_t ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
         srcSize -= litCSize;
     }
 
-    if ( frame /* windowSize exists */
-      && (dctx->fParams.windowSize > (1<<24))
-      && MEM_64bits() /* x86 benefits less from long mode than x64 */ )
-        return ZSTD_decompressSequencesLong(dctx, dst, dstCapacity, ip, srcSize, isLongOffset);
+    /* Build Decoding Tables */
+    {   int nbSeq;
+        size_t const seqHSize = ZSTD_decodeSeqHeaders(dctx, &nbSeq, ip, srcSize);
+        if (ZSTD_isError(seqHSize)) return seqHSize;
+        ip += seqHSize;
+        srcSize -= seqHSize;
 
-    return ZSTD_decompressSequences(dctx, dst, dstCapacity, ip, srcSize, isLongOffset);
+        if (dctx->fParams.windowSize > (1<<24)) {
+            U32 const shareLongOffsets = ZSTD_getLongOffsetsShare(dctx->OFTptr);
+            U32 const minShare = MEM_64bits() ? 5 : 13;
+            if (shareLongOffsets >= minShare)
+                return ZSTD_decompressSequencesLong(dctx, dst, dstCapacity, ip, srcSize, nbSeq, isLongOffset);
+        }
+
+        return ZSTD_decompressSequences(dctx, dst, dstCapacity, ip, srcSize, nbSeq, isLongOffset);
+    }
 }
 
 

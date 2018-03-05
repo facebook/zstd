@@ -247,7 +247,7 @@ static U32 ZSTD_insertAndFindFirstIndexHash3 (ZSTD_matchState_t* ms, const BYTE*
 {
     U32* const hashTable3 = ms->hashTable3;
     U32 const hashLog3 = ms->hashLog3;
-    const BYTE* const base = ms->base;
+    const BYTE* const base = ms->window.base;
     U32 idx = ms->nextToUpdate3;
     U32 const target = ms->nextToUpdate3 = (U32)(ip - base);
     size_t const hash3 = ZSTD_hash3Ptr(ip, hashLog3);
@@ -281,9 +281,9 @@ static U32 ZSTD_insertBt1(
     U32    const btMask = (1 << btLog) - 1;
     U32 matchIndex = hashTable[h];
     size_t commonLengthSmaller=0, commonLengthLarger=0;
-    const BYTE* const base = ms->base;
-    const BYTE* const dictBase = ms->dictBase;
-    const U32 dictLimit = ms->dictLimit;
+    const BYTE* const base = ms->window.base;
+    const BYTE* const dictBase = ms->window.dictBase;
+    const U32 dictLimit = ms->window.dictLimit;
     const BYTE* const dictEnd = dictBase + dictLimit;
     const BYTE* const prefixStart = base + dictLimit;
     const BYTE* match;
@@ -292,7 +292,7 @@ static U32 ZSTD_insertBt1(
     U32* smallerPtr = bt + 2*(current&btMask);
     U32* largerPtr  = smallerPtr + 1;
     U32 dummy32;   /* to be nullified at the end */
-    U32 const windowLow = ms->lowLimit;
+    U32 const windowLow = ms->window.lowLimit;
     U32 matchEndIdx = current+8+1;
     size_t bestLength = 8;
     U32 nbCompares = 1U << cParams->searchLog;
@@ -383,7 +383,7 @@ void ZSTD_updateTree_internal(
                 const BYTE* const ip, const BYTE* const iend,
                 const U32 mls, const U32 extDict)
 {
-    const BYTE* const base = ms->base;
+    const BYTE* const base = ms->window.base;
     U32 const target = (U32)(ip - base);
     U32 idx = ms->nextToUpdate;
     DEBUGLOG(7, "ZSTD_updateTree_internal, from %u to %u  (extDict:%u)",
@@ -409,7 +409,7 @@ U32 ZSTD_insertBtAndGetAllMatches (
                     ZSTD_match_t* matches, const U32 lengthToBeat, U32 const mls /* template */)
 {
     U32 const sufficient_len = MIN(cParams->targetLength, ZSTD_OPT_NUM -1);
-    const BYTE* const base = ms->base;
+    const BYTE* const base = ms->window.base;
     U32 const current = (U32)(ip-base);
     U32 const hashLog = cParams->hashLog;
     U32 const minMatch = (mls==3) ? 3 : 4;
@@ -420,12 +420,12 @@ U32 ZSTD_insertBtAndGetAllMatches (
     U32 const btLog = cParams->chainLog - 1;
     U32 const btMask= (1U << btLog) - 1;
     size_t commonLengthSmaller=0, commonLengthLarger=0;
-    const BYTE* const dictBase = ms->dictBase;
-    U32 const dictLimit = ms->dictLimit;
+    const BYTE* const dictBase = ms->window.dictBase;
+    U32 const dictLimit = ms->window.dictLimit;
     const BYTE* const dictEnd = dictBase + dictLimit;
     const BYTE* const prefixStart = base + dictLimit;
     U32 const btLow = btMask >= current ? 0 : current - btMask;
-    U32 const windowLow = ms->lowLimit;
+    U32 const windowLow = ms->window.lowLimit;
     U32* smallerPtr = bt + 2*(current&btMask);
     U32* largerPtr  = bt + 2*(current&btMask) + 1;
     U32 matchEndIdx = current+8+1;   /* farthest referenced position of any match => detects repetitive patterns */
@@ -566,7 +566,7 @@ FORCE_INLINE_TEMPLATE U32 ZSTD_BtGetAllMatches (
 {
     U32 const matchLengthSearch = cParams->searchLength;
     DEBUGLOG(7, "ZSTD_BtGetAllMatches");
-    if (ip < ms->base + ms->nextToUpdate) return 0;   /* skipped area */
+    if (ip < ms->window.base + ms->nextToUpdate) return 0;   /* skipped area */
     ZSTD_updateTree_internal(ms, cParams, ip, iHighLimit, matchLengthSearch, extDict);
     switch(matchLengthSearch)
     {
@@ -675,8 +675,8 @@ size_t ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,seqStore_t* seqStore
     const BYTE* anchor = istart;
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - 8;
-    const BYTE* const base = ms->base;
-    const BYTE* const prefixStart = base + ms->dictLimit;
+    const BYTE* const base = ms->window.base;
+    const BYTE* const prefixStart = base + ms->window.dictLimit;
 
     U32 const sufficient_len = MIN(cParams->targetLength, ZSTD_OPT_NUM -1);
     U32 const minMatch = (cParams->searchLength == 3) ? 3 : 4;

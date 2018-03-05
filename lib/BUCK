@@ -25,6 +25,9 @@ cxx_library(
     name='decompress',
     header_namespace='',
     visibility=['PUBLIC'],
+    headers=subdir_glob([
+        ('decompress', '*_impl.h'),
+    ]),
     srcs=glob(['decompress/zstd*.c']),
     deps=[
         ':common',
@@ -77,6 +80,15 @@ cxx_library(
     visibility=['PUBLIC'],
     exported_headers=subdir_glob([
         ('common', 'compiler.h'),
+    ]),
+)
+
+cxx_library(
+    name='cpu',
+    header_namespace='',
+    visibility=['PUBLIC'],
+    exported_headers=subdir_glob([
+        ('common', 'cpu.h'),
     ]),
 )
 
@@ -196,6 +208,7 @@ cxx_library(
     deps=[
         ':bitstream',
         ':compiler',
+        ':cpu',
         ':entropy',
         ':errors',
         ':mem',

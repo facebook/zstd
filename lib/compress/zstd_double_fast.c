@@ -21,7 +21,7 @@ void ZSTD_fillDoubleHashTable(ZSTD_matchState_t* ms,
     U32  const mls = cParams->searchLength;
     U32* const hashSmall = ms->chainTable;
     U32  const hBitsS = cParams->chainLog;
-    const BYTE* const base = ms->base;
+    const BYTE* const base = ms->window.base;
     const BYTE* ip = base + ms->nextToUpdate;
     const BYTE* const iend = ((const BYTE*)end) - HASH_READ_SIZE;
     const U32 fastHashFillStep = 3;
@@ -55,11 +55,11 @@ size_t ZSTD_compressBlock_doubleFast_generic(
     const U32 hBitsL = cParams->hashLog;
     U32* const hashSmall = ms->chainTable;
     const U32 hBitsS = cParams->chainLog;
-    const BYTE* const base = ms->base;
+    const BYTE* const base = ms->window.base;
     const BYTE* const istart = (const BYTE*)src;
     const BYTE* ip = istart;
     const BYTE* anchor = istart;
-    const U32 lowestIndex = ms->dictLimit;
+    const U32 lowestIndex = ms->window.dictLimit;
     const BYTE* const lowest = base + lowestIndex;
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - HASH_READ_SIZE;
@@ -113,7 +113,7 @@ size_t ZSTD_compressBlock_doubleFast_generic(
                     while (((ip>anchor) & (match>lowest)) && (ip[-1] == match[-1])) { ip--; match--; mLength++; } /* catch up */
                 }
             } else {
-                ip += ((ip-anchor) >> g_searchStrength) + 1;
+                ip += ((ip-anchor) >> kSearchStrength) + 1;
                 continue;
             }
 
@@ -187,14 +187,14 @@ static size_t ZSTD_compressBlock_doubleFast_extDict_generic(
     U32  const hBitsL = cParams->hashLog;
     U32* const hashSmall = ms->chainTable;
     U32  const hBitsS = cParams->chainLog;
-    const BYTE* const base = ms->base;
-    const BYTE* const dictBase = ms->dictBase;
+    const BYTE* const base = ms->window.base;
+    const BYTE* const dictBase = ms->window.dictBase;
     const BYTE* const istart = (const BYTE*)src;
     const BYTE* ip = istart;
     const BYTE* anchor = istart;
-    const U32   lowestIndex = ms->lowLimit;
+    const U32   lowestIndex = ms->window.lowLimit;
     const BYTE* const dictStart = dictBase + lowestIndex;
-    const U32   dictLimit = ms->dictLimit;
+    const U32   dictLimit = ms->window.dictLimit;
     const BYTE* const lowPrefixPtr = base + dictLimit;
     const BYTE* const dictEnd = dictBase + dictLimit;
     const BYTE* const iend = istart + srcSize;
@@ -264,7 +264,7 @@ static size_t ZSTD_compressBlock_doubleFast_extDict_generic(
                 ZSTD_storeSeq(seqStore, ip-anchor, anchor, offset + ZSTD_REP_MOVE, mLength-MINMATCH);
 
             } else {
-                ip += ((ip-anchor) >> g_searchStrength) + 1;
+                ip += ((ip-anchor) >> kSearchStrength) + 1;
                 continue;
         }   }
 

@@ -74,8 +74,11 @@
  * Enabled for clang & gcc >=4.8 on x86 when BMI2 isn't enabled by default.
  */
 #ifndef DYNAMIC_BMI2
-  #if defined(__GNUC__) && (__GNUC__ >= 5 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8)) \
-      && (defined(__x86_64__) || defined(_M_X86)) && !defined(__BMI2__)
+  #if defined(__clang__)    \
+      || (defined(__GNUC__) \
+          && (__GNUC__ >= 5 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8))) \
+      && (defined(__x86_64__) || defined(_M_X86)) \
+      && !defined(__BMI2__)
   #  define DYNAMIC_BMI2 1
   #else
   #  define DYNAMIC_BMI2 0

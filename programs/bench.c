@@ -260,7 +260,11 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
     }   }   }
 
     /* warmimg up memory */
-    RDG_genBuffer(compressedBuffer, maxCompressedSize, 0.10, 0.50, 1);
+    if (g_decodeOnly) {
+        memcpy(compressedBuffer, srcBuffer, loadedCompressedSize);
+    } else {
+        RDG_genBuffer(compressedBuffer, maxCompressedSize, 0.10, 0.50, 1);
+    }
 
     /* Bench */
     {   U64 fastestC = (U64)(-1LL), fastestD = (U64)(-1LL);
@@ -373,9 +377,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
                             ratioAccuracy, ratio,
                             cSpeedAccuracy, compressionSpeed );
                 }
-            } else {   /* g_decodeOnly */
-                memcpy(compressedBuffer, srcBuffer, loadedCompressedSize);
-            }
+            }  /* if (!g_decodeOnly) */
 
 #if 0       /* disable decompression test */
             dCompleted=1;

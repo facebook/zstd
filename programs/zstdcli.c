@@ -573,7 +573,8 @@ int main(int argCount, const char* argv[])
                          /* Decoding */
                     case 'd':
 #ifndef ZSTD_NOBENCH
-                            if (operation==zom_bench) { BMK_setDecodeOnlyMode(1); argument++; break; }  /* benchmark decode (hidden option) */
+                            BMK_setDecodeOnlyMode(1);
+                            if (operation==zom_bench) { argument++; break; }  /* benchmark decode (hidden option) */
 #endif
                             operation=zom_decompress; argument++; break;
 

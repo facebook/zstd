@@ -1333,7 +1333,7 @@ static size_t ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
 
         if (dctx->fParams.windowSize > (1<<24)) {
             U32 const shareLongOffsets = ZSTD_getLongOffsetsShare(dctx->OFTptr);
-            U32 const minShare = MEM_64bits() ? 5 : 13;
+            U32 const minShare = MEM_64bits() ? 7 : 13;
             if (shareLongOffsets >= minShare)
                 return ZSTD_decompressSequencesLong(dctx, dst, dstCapacity, ip, srcSize, nbSeq, isLongOffset);
         }

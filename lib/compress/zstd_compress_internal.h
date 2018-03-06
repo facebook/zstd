@@ -453,13 +453,12 @@ MEM_STATIC size_t ZSTD_hashPtr(const void* p, U32 hBits, U32 mls)
 /*-*************************************
 *  Round buffer management
 ***************************************/
-
-#define ZSTD_LOWLIMIT_MAX (3U << 29) /* Max lowLimit allowed */
+/* Max current allowed */
+#define ZSTD_CURRENT_MAX ((3U << 29) + (1U << ZSTD_WINDOWLOG_MAX))
 /* Maximum chunk size before overflow correction needs to be called again */
-#define ZSTD_CHUNKSIZE_MAX                                                   \
-    ( ((U32)-1)                  /* Maximum ending current index */          \
-    - (1U << ZSTD_WINDOWLOG_MAX) /* Max distance from lowLimit to current */ \
-    - ZSTD_LOWLIMIT_MAX)         /* Maximum beginning lowLimit */
+#define ZSTD_CHUNKSIZE_MAX                                                     \
+    ( ((U32)-1)                  /* Maximum ending current index */            \
+    - ZSTD_CURRENT_MAX)          /* Maximum beginning lowLimit */
 
 /**
  * ZSTD_window_clear():
@@ -488,9 +487,11 @@ MEM_STATIC U32 ZSTD_window_hasExtDict(ZSTD_window_t const window)
  * Returns non-zero if the indices are getting too large and need overflow
  * protection.
  */
-MEM_STATIC U32 ZSTD_window_needOverflowCorrection(ZSTD_window_t const window)
+MEM_STATIC U32 ZSTD_window_needOverflowCorrection(ZSTD_window_t const window,
+                                                  void const* srcEnd)
 {
-    return window.lowLimit > ZSTD_LOWLIMIT_MAX;
+    U32 const current = (U32)((BYTE const*)srcEnd - window.base);
+    return current > ZSTD_CURRENT_MAX;
 }
 
 /**

@@ -394,6 +394,21 @@ static int basicUnitTests(U32 seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3d : large window log smaller data : ", testNb++);
+    {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        ZSTD_parameters params = ZSTD_getParams(1, ZSTD_CONTENTSIZE_UNKNOWN, 0);
+        size_t const nbCompressions = (1U << 31) / CNBuffSize + 1;
+        size_t i;
+        params.fParams.contentSizeFlag = 0;
+        params.cParams.windowLog = ZSTD_WINDOWLOG_MAX;
+        for (i = 0; i < nbCompressions; ++i) {
+            CHECK_Z( ZSTD_compressBegin_advanced(cctx, NULL, 0, params, ZSTD_CONTENTSIZE_UNKNOWN) );  /* re-use same parameters */
+            CHECK_Z( ZSTD_compressEnd(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize) );
+        }
+        ZSTD_freeCCtx(cctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     /* Static CCtx tests */
 #define STATIC_CCTX_LEVEL 3
     DISPLAYLEVEL(3, "test%3i : create static CCtx for level %u :", testNb++, STATIC_CCTX_LEVEL);

@@ -1331,7 +1331,8 @@ static size_t ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
         ip += seqHSize;
         srcSize -= seqHSize;
 
-        if (dctx->fParams.windowSize > (1<<24)) {
+        if ( (dctx->fParams.windowSize > (1<<24) || !frame)
+          && (nbSeq>0) ) {  /* could probably use a larger nbSeq limit */
             U32 const shareLongOffsets = ZSTD_getLongOffsetsShare(dctx->OFTptr);
             U32 const minShare = MEM_64bits() ? 7 : 20;
             if (shareLongOffsets >= minShare)

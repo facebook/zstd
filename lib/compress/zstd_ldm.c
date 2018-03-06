@@ -472,6 +472,7 @@ size_t ZSTD_ldm_generateSequences(
 {
     U32 const maxDist = 1U << params->windowLog;
     BYTE const* const istart = (BYTE const*)src;
+    BYTE const* const iend = istart + srcSize;
     size_t const kMaxChunkSize = 1 << 20;
     size_t const nbChunks = (srcSize / kMaxChunkSize) + ((srcSize % kMaxChunkSize) != 0);
     size_t nbSeq = 0;
@@ -483,12 +484,14 @@ size_t ZSTD_ldm_generateSequences(
      */
     assert(ldmState->window.nextSrc >= (BYTE const*)src + srcSize);
     for (chunk = 0; chunk < nbChunks; ++chunk) {
-        size_t const chunkStart = chunk * kMaxChunkSize;
-        size_t const chunkEnd = MIN(chunkStart + kMaxChunkSize, srcSize);
+        BYTE const* const chunkStart = istart + chunk * kMaxChunkSize;
+        size_t const remaining = (size_t)(iend - chunkStart);
+        BYTE const *const chunkEnd =
+            (remaining < kMaxChunkSize) ? iend : chunkStart + kMaxChunkSize;
         size_t const chunkSize = chunkEnd - chunkStart;
 
-        assert(chunkStart < srcSize);
-        if (ZSTD_window_needOverflowCorrection(ldmState->window)) {
+        assert(chunkStart < iend);
+        if (ZSTD_window_needOverflowCorrection(ldmState->window, chunkEnd)) {
             U32 const ldmHSize = 1U << params->hashLog;
             U32 const correction = ZSTD_window_correctOverflow(
                 &ldmState->window, /* cycleLog */ 0, maxDist, src);
@@ -500,10 +503,9 @@ size_t ZSTD_ldm_generateSequences(
          *       * Try invalidation after the sequence generation and test the
          *         the offset against maxDist directly.
          */
-        ZSTD_window_enforceMaxDist(&ldmState->window, istart + chunkEnd,
-                                   maxDist);
+        ZSTD_window_enforceMaxDist(&ldmState->window, chunkEnd, maxDist);
         nbSeq += ZSTD_ldm_generateSequences_internal(
-            ldmState, sequences + nbSeq, params, istart + chunkStart, chunkSize,
+            ldmState, sequences + nbSeq, params, chunkStart, chunkSize,
             extDict);
     }
     return nbSeq;

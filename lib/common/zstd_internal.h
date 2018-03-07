@@ -213,12 +213,6 @@ MEM_STATIC void ZSTD_wildcopy_e(void* dst, const void* src, void* dstEnd)   /* s
 /*-*******************************************
 *  Private declarations
 *********************************************/
-typedef struct rawSeq_s {
-    U32 offset;
-    U32 litLength;
-    U32 matchLength;
-} rawSeq;
-
 typedef struct seqDef_s {
     U32 offset;
     U16 litLength;

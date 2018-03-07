@@ -1279,6 +1279,10 @@ static size_t ZSTD_decompressSequencesLong(ZSTD_DCtx* dctx,
   return ZSTD_decompressSequencesLong_default(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
 }
 
+/* ZSTD_getLongOffsetsShare() :
+ * condition : offTable must be valid
+ * @return : "share" of long offsets (arbitrarily defined as > (1<<23))
+ *           compared to maximum possible of (1<<OffFSELog) */
 static unsigned
 ZSTD_getLongOffsetsShare(const ZSTD_seqSymbol* offTable)
 {
@@ -1331,10 +1335,10 @@ static size_t ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
         ip += seqHSize;
         srcSize -= seqHSize;
 
-        if ( (dctx->fParams.windowSize > (1<<24) || !frame)
+        if ( (!frame || dctx->fParams.windowSize > (1<<24))
           && (nbSeq>0) ) {  /* could probably use a larger nbSeq limit */
             U32 const shareLongOffsets = ZSTD_getLongOffsetsShare(dctx->OFTptr);
-            U32 const minShare = MEM_64bits() ? 7 : 20;
+            U32 const minShare = MEM_64bits() ? 7 : 20; /* heuristic values, correspond to 2.73% and 7.81% */
             if (shareLongOffsets >= minShare)
                 return ZSTD_decompressSequencesLong(dctx, dst, dstCapacity, ip, srcSize, nbSeq, isLongOffset);
         }

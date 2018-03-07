@@ -209,7 +209,7 @@ static TARGET
 size_t FUNCTION(ZSTD_decompressSequences)(
                                ZSTD_DCtx* dctx,
                                void* dst, size_t maxDstSize,
-                         const void* seqStart, size_t seqSize,
+                         const void* seqStart, size_t seqSize, int nbSeq,
                          const ZSTD_longOffset_e isLongOffset)
 {
     const BYTE* ip = (const BYTE*)seqStart;
@@ -222,16 +222,7 @@ size_t FUNCTION(ZSTD_decompressSequences)(
     const BYTE* const base = (const BYTE*) (dctx->base);
     const BYTE* const vBase = (const BYTE*) (dctx->vBase);
     const BYTE* const dictEnd = (const BYTE*) (dctx->dictEnd);
-    int nbSeq;
     DEBUGLOG(5, "ZSTD_decompressSequences");
-
-    /* Build Decoding Tables */
-    {   size_t const seqHSize = ZSTD_decodeSeqHeaders(dctx, &nbSeq, ip, seqSize);
-        DEBUGLOG(5, "ZSTD_decodeSeqHeaders: size=%u, nbSeq=%i",
-                    (U32)seqHSize, nbSeq);
-        if (ZSTD_isError(seqHSize)) return seqHSize;
-        ip += seqHSize;
-    }
 
     /* Regen sequences */
     if (nbSeq) {
@@ -273,7 +264,7 @@ static TARGET
 size_t FUNCTION(ZSTD_decompressSequencesLong)(
                                ZSTD_DCtx* dctx,
                                void* dst, size_t maxDstSize,
-                         const void* seqStart, size_t seqSize,
+                         const void* seqStart, size_t seqSize, int nbSeq,
                          const ZSTD_longOffset_e isLongOffset)
 {
     const BYTE* ip = (const BYTE*)seqStart;
@@ -286,13 +277,6 @@ size_t FUNCTION(ZSTD_decompressSequencesLong)(
     const BYTE* const prefixStart = (const BYTE*) (dctx->base);
     const BYTE* const dictStart = (const BYTE*) (dctx->vBase);
     const BYTE* const dictEnd = (const BYTE*) (dctx->dictEnd);
-    int nbSeq;
-
-    /* Build Decoding Tables */
-    {   size_t const seqHSize = ZSTD_decodeSeqHeaders(dctx, &nbSeq, ip, seqSize);
-        if (ZSTD_isError(seqHSize)) return seqHSize;
-        ip += seqHSize;
-    }
 
     /* Regen sequences */
     if (nbSeq) {

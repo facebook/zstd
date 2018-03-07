@@ -152,6 +152,19 @@ typedef struct {
     U32 windowLog;          /* Window log for the LDM */
 } ldmParams_t;
 
+typedef struct {
+    U32 offset;
+    U32 litLength;
+    U32 matchLength;
+} rawSeq;
+
+typedef struct {
+  rawSeq* seq;     /* The start of the sequences */
+  size_t pos;      /* The position where reading stopped. <= size. */
+  size_t size;     /* The number of sequences. <= capacity. */
+  size_t capacity; /* The capacity of the `seq` pointer */
+} rawSeqStore_t;
+
 struct ZSTD_CCtx_params_s {
     ZSTD_format_e format;
     ZSTD_compressionParameters cParams;
@@ -191,9 +204,11 @@ struct ZSTD_CCtx_s {
     ZSTD_customMem customMem;
     size_t staticSize;
 
-    seqStore_t seqStore;    /* sequences storage ptrs */
-    ldmState_t ldmState;    /* long distance matching state */
-    rawSeq* ldmSequences;   /* Storage for the ldm output sequences */
+    seqStore_t seqStore;      /* sequences storage ptrs */
+    ldmState_t ldmState;      /* long distance matching state */
+    rawSeq* ldmSequences;     /* Storage for the ldm output sequences */
+    size_t maxNbLdmSequences;
+    rawSeqStore_t externSeqStore; /* Mutable reference to external sequences */
     ZSTD_blockState_t blockState;
     U32* entropyWorkspace;  /* entropy workspace of HUF_WORKSPACE_SIZE bytes */
 
@@ -658,6 +673,19 @@ size_t ZSTD_compress_advanced_internal(ZSTD_CCtx* cctx,
  *           or an error code if `dstCapcity` is too small (<ZSTD_blockHeaderSize)
  */
 size_t ZSTD_writeLastEmptyBlock(void* dst, size_t dstCapacity);
+
+
+/* ZSTD_referenceExternalSequences() :
+ * Must be called before starting a compression operation.
+ * seqs must parse a prefix of the source.
+ * This cannot be used when long range matching is enabled.
+ * Zstd will use these sequences, and pass the literals to a secondary block
+ * compressor.
+ * @return : An error code on failure.
+ * NOTE: seqs are not verified! Invalid sequences can cause out-of-bounds memory
+ * access and data corruption.
+ */
+size_t ZSTD_referenceExternalSequences(ZSTD_CCtx* cctx, rawSeq* seq, size_t nbSeq);
 
 
 #endif /* ZSTD_COMPRESS_H */

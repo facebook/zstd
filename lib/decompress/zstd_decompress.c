@@ -94,7 +94,7 @@ typedef struct {
     U32  baseValue;
 } ZSTD_seqSymbol;
 
-#define SEQSYMBOL_TABLE_SIZE(log)   (1 + (1<<log))
+#define SEQSYMBOL_TABLE_SIZE(log)   (1 + (1 << (log)))
 
 typedef struct {
     ZSTD_seqSymbol LLTable[SEQSYMBOL_TABLE_SIZE(LLFSELog)];
@@ -887,7 +887,6 @@ static size_t ZSTD_buildSeqTable(ZSTD_seqSymbol* DTableSpace, const ZSTD_seqSymb
     case set_repeat:
         if (!flagRepeatTable) return ERROR(corruption_detected);
         return 0;
-    default :   /* impossible */
     case set_compressed :
         {   U32 tableLog;
             S16 norm[MaxSeq+1];
@@ -897,7 +896,11 @@ static size_t ZSTD_buildSeqTable(ZSTD_seqSymbol* DTableSpace, const ZSTD_seqSymb
             ZSTD_buildFSETable(DTableSpace, norm, max, baseValue, nbAdditionalBits, tableLog);
             *DTablePtr = DTableSpace;
             return headerSize;
-    }   }
+        }
+    default :   /* impossible */
+        assert(0);
+        return ERROR(GENERIC);
+    }
 }
 
 static const U32 LL_base[MaxLL+1] = {
@@ -1245,32 +1248,62 @@ typedef enum { ZSTD_lo_isRegularOffset, ZSTD_lo_isLongOffset=1 } ZSTD_longOffset
 #endif
 
 typedef size_t (*ZSTD_decompressSequences_t)(
-    ZSTD_DCtx *dctx, void *dst, size_t maxDstSize, const void *seqStart,
-    size_t seqSize, const ZSTD_longOffset_e isLongOffset);
+    ZSTD_DCtx *dctx, void *dst, size_t maxDstSize,
+    const void *seqStart, size_t seqSize, int nbSeq,
+    const ZSTD_longOffset_e isLongOffset);
 
 static size_t ZSTD_decompressSequences(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize,
-                                const void* seqStart, size_t seqSize,
+                                const void* seqStart, size_t seqSize, int nbSeq,
                                 const ZSTD_longOffset_e isLongOffset)
 {
+    DEBUGLOG(5, "ZSTD_decompressSequences");
 #if DYNAMIC_BMI2
     if (dctx->bmi2) {
-        return ZSTD_decompressSequences_bmi2(dctx, dst, maxDstSize, seqStart, seqSize, isLongOffset);
+        return ZSTD_decompressSequences_bmi2(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
     }
 #endif
-  return ZSTD_decompressSequences_default(dctx, dst, maxDstSize, seqStart, seqSize, isLongOffset);
+  return ZSTD_decompressSequences_default(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
 }
 
-static size_t ZSTD_decompressSequencesLong(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize,
-                                    const void* seqStart, size_t seqSize,
-                                    const ZSTD_longOffset_e isLongOffset)
+static size_t ZSTD_decompressSequencesLong(ZSTD_DCtx* dctx,
+                                void* dst, size_t maxDstSize,
+                                const void* seqStart, size_t seqSize, int nbSeq,
+                                const ZSTD_longOffset_e isLongOffset)
 {
+    DEBUGLOG(5, "ZSTD_decompressSequencesLong");
 #if DYNAMIC_BMI2
     if (dctx->bmi2) {
-        return ZSTD_decompressSequencesLong_bmi2(dctx, dst, maxDstSize, seqStart, seqSize, isLongOffset);
+        return ZSTD_decompressSequencesLong_bmi2(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
     }
 #endif
-  return ZSTD_decompressSequencesLong_default(dctx, dst, maxDstSize, seqStart, seqSize, isLongOffset);
+  return ZSTD_decompressSequencesLong_default(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
 }
+
+/* ZSTD_getLongOffsetsShare() :
+ * condition : offTable must be valid
+ * @return : "share" of long offsets (arbitrarily defined as > (1<<23))
+ *           compared to maximum possible of (1<<OffFSELog) */
+static unsigned
+ZSTD_getLongOffsetsShare(const ZSTD_seqSymbol* offTable)
+{
+    const void* ptr = offTable;
+    U32 const tableLog = ((const ZSTD_seqSymbol_header*)ptr)[0].tableLog;
+    const ZSTD_seqSymbol* table = offTable + 1;
+    U32 const max = 1 << tableLog;
+    U32 u, total = 0;
+    DEBUGLOG(5, "ZSTD_getLongOffsetsShare: (tableLog=%u)", tableLog);
+
+    assert(max <= (1 << OffFSELog));  /* max not too large */
+    for (u=0; u<max; u++) {
+        if (table[u].nbAdditionalBits > 22) total += 1;
+    }
+
+    assert(tableLog <= OffFSELog);
+    total <<= (OffFSELog - tableLog);  /* scale to OffFSELog */
+
+    return total;
+}
+
 
 static size_t ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
                             void* dst, size_t dstCapacity,
@@ -1295,12 +1328,23 @@ static size_t ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
         srcSize -= litCSize;
     }
 
-    if ( frame /* windowSize exists */
-      && (dctx->fParams.windowSize > (1<<24))
-      && MEM_64bits() /* x86 benefits less from long mode than x64 */ )
-        return ZSTD_decompressSequencesLong(dctx, dst, dstCapacity, ip, srcSize, isLongOffset);
+    /* Build Decoding Tables */
+    {   int nbSeq;
+        size_t const seqHSize = ZSTD_decodeSeqHeaders(dctx, &nbSeq, ip, srcSize);
+        if (ZSTD_isError(seqHSize)) return seqHSize;
+        ip += seqHSize;
+        srcSize -= seqHSize;
 
-    return ZSTD_decompressSequences(dctx, dst, dstCapacity, ip, srcSize, isLongOffset);
+        if ( (!frame || dctx->fParams.windowSize > (1<<24))
+          && (nbSeq>0) ) {  /* could probably use a larger nbSeq limit */
+            U32 const shareLongOffsets = ZSTD_getLongOffsetsShare(dctx->OFTptr);
+            U32 const minShare = MEM_64bits() ? 7 : 20; /* heuristic values, correspond to 2.73% and 7.81% */
+            if (shareLongOffsets >= minShare)
+                return ZSTD_decompressSequencesLong(dctx, dst, dstCapacity, ip, srcSize, nbSeq, isLongOffset);
+        }
+
+        return ZSTD_decompressSequences(dctx, dst, dstCapacity, ip, srcSize, nbSeq, isLongOffset);
+    }
 }
 
 

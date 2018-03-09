@@ -7,10 +7,10 @@
 # in the COPYING file in the root directory of this source tree).
 # ################################################################
 
-CFLAGS ?= -O3
-CFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 -Wswitch-enum -Wno-comment
-CFLAGS += $(MOREFLAGS)
-FLAGS   = $(CPPFLAGS) $(CFLAGS) $(CXXFLAGS) $(LDFLAGS)
+CXXFLAGS ?= -O3
+CXXFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 -Wswitch-enum -Wno-comment
+CXXFLAGS += $(MOREFLAGS)
+FLAGS   = $(CPPFLAGS) $(CXXFLAGS) $(CXXFLAGS) $(LDFLAGS)
 
 ZSTDAPI = ../../lib/zstd.h
 ZSTDMANUAL = ../../doc/zstd_manual.html

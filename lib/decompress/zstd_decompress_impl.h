@@ -19,61 +19,6 @@
 
 
 static TARGET
-size_t FUNCTION(ZSTD_decompressSequences)(
-                               ZSTD_DCtx* dctx,
-                               void* dst, size_t maxDstSize,
-                         const void* seqStart, size_t seqSize, int nbSeq,
-                         const ZSTD_longOffset_e isLongOffset)
-{
-    const BYTE* ip = (const BYTE*)seqStart;
-    const BYTE* const iend = ip + seqSize;
-    BYTE* const ostart = (BYTE* const)dst;
-    BYTE* const oend = ostart + maxDstSize;
-    BYTE* op = ostart;
-    const BYTE* litPtr = dctx->litPtr;
-    const BYTE* const litEnd = litPtr + dctx->litSize;
-    const BYTE* const base = (const BYTE*) (dctx->base);
-    const BYTE* const vBase = (const BYTE*) (dctx->vBase);
-    const BYTE* const dictEnd = (const BYTE*) (dctx->dictEnd);
-    DEBUGLOG(5, "ZSTD_decompressSequences");
-
-    /* Regen sequences */
-    if (nbSeq) {
-        seqState_t seqState;
-        dctx->fseEntropy = 1;
-        { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) seqState.prevOffset[i] = dctx->entropy.rep[i]; }
-        CHECK_E(BIT_initDStream(&seqState.DStream, ip, iend-ip), corruption_detected);
-        ZSTD_initFseState(&seqState.stateLL, &seqState.DStream, dctx->LLTptr);
-        ZSTD_initFseState(&seqState.stateOffb, &seqState.DStream, dctx->OFTptr);
-        ZSTD_initFseState(&seqState.stateML, &seqState.DStream, dctx->MLTptr);
-
-        for ( ; (BIT_reloadDStream(&(seqState.DStream)) <= BIT_DStream_completed) && nbSeq ; ) {
-            nbSeq--;
-            {   seq_t const sequence = FUNCTION(ZSTD_decodeSequence)(&seqState, isLongOffset);
-                size_t const oneSeqSize = ZSTD_execSequence(op, oend, sequence, &litPtr, litEnd, base, vBase, dictEnd);
-                DEBUGLOG(6, "regenerated sequence size : %u", (U32)oneSeqSize);
-                if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
-                op += oneSeqSize;
-        }   }
-
-        /* check if reached exact end */
-        DEBUGLOG(5, "ZSTD_decompressSequences: after decode loop, remaining nbSeq : %i", nbSeq);
-        if (nbSeq) return ERROR(corruption_detected);
-        /* save reps for next block */
-        { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) dctx->entropy.rep[i] = (U32)(seqState.prevOffset[i]); }
-    }
-
-    /* last literal segment */
-    {   size_t const lastLLSize = litEnd - litPtr;
-        if (lastLLSize > (size_t)(oend-op)) return ERROR(dstSize_tooSmall);
-        memcpy(op, litPtr, lastLLSize);
-        op += lastLLSize;
-    }
-
-    return op-ostart;
-}
-
-static TARGET
 size_t FUNCTION(ZSTD_decompressSequencesLong)(
                                ZSTD_DCtx* dctx,
                                void* dst, size_t maxDstSize,

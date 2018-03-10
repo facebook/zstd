@@ -1339,11 +1339,70 @@ ZSTD_decodeSequence_body(seqState_t* seqState, const ZSTD_longOffset_e longOffse
     return seq;
 }
 
-static seq_t
-ZSTD_decodeSequence_default(seqState_t* seqState, const ZSTD_longOffset_e longOffsets)
+FORCE_INLINE_TEMPLATE size_t
+ZSTD_decompressSequences_body( ZSTD_DCtx* dctx,
+                               void* dst, size_t maxDstSize,
+                         const void* seqStart, size_t seqSize, int nbSeq,
+                         const ZSTD_longOffset_e isLongOffset)
 {
-    return ZSTD_decodeSequence_body(seqState, longOffsets);
+    const BYTE* ip = (const BYTE*)seqStart;
+    const BYTE* const iend = ip + seqSize;
+    BYTE* const ostart = (BYTE* const)dst;
+    BYTE* const oend = ostart + maxDstSize;
+    BYTE* op = ostart;
+    const BYTE* litPtr = dctx->litPtr;
+    const BYTE* const litEnd = litPtr + dctx->litSize;
+    const BYTE* const base = (const BYTE*) (dctx->base);
+    const BYTE* const vBase = (const BYTE*) (dctx->vBase);
+    const BYTE* const dictEnd = (const BYTE*) (dctx->dictEnd);
+    DEBUGLOG(5, "ZSTD_decompressSequences");
+
+    /* Regen sequences */
+    if (nbSeq) {
+        seqState_t seqState;
+        dctx->fseEntropy = 1;
+        { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) seqState.prevOffset[i] = dctx->entropy.rep[i]; }
+        CHECK_E(BIT_initDStream(&seqState.DStream, ip, iend-ip), corruption_detected);
+        ZSTD_initFseState(&seqState.stateLL, &seqState.DStream, dctx->LLTptr);
+        ZSTD_initFseState(&seqState.stateOffb, &seqState.DStream, dctx->OFTptr);
+        ZSTD_initFseState(&seqState.stateML, &seqState.DStream, dctx->MLTptr);
+
+        for ( ; (BIT_reloadDStream(&(seqState.DStream)) <= BIT_DStream_completed) && nbSeq ; ) {
+            nbSeq--;
+            {   seq_t const sequence = ZSTD_decodeSequence_body(&seqState, isLongOffset);
+                size_t const oneSeqSize = ZSTD_execSequence(op, oend, sequence, &litPtr, litEnd, base, vBase, dictEnd);
+                DEBUGLOG(6, "regenerated sequence size : %u", (U32)oneSeqSize);
+                if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
+                op += oneSeqSize;
+        }   }
+
+        /* check if reached exact end */
+        DEBUGLOG(5, "ZSTD_decompressSequences: after decode loop, remaining nbSeq : %i", nbSeq);
+        if (nbSeq) return ERROR(corruption_detected);
+        /* save reps for next block */
+        { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) dctx->entropy.rep[i] = (U32)(seqState.prevOffset[i]); }
+    }
+
+    /* last literal segment */
+    {   size_t const lastLLSize = litEnd - litPtr;
+        if (lastLLSize > (size_t)(oend-op)) return ERROR(dstSize_tooSmall);
+        memcpy(op, litPtr, lastLLSize);
+        op += lastLLSize;
+    }
+
+    return op-ostart;
 }
+
+static size_t
+ZSTD_decompressSequences_default(ZSTD_DCtx* dctx,
+                                 void* dst, size_t maxDstSize,
+                           const void* seqStart, size_t seqSize, int nbSeq,
+                           const ZSTD_longOffset_e isLongOffset)
+{
+    return ZSTD_decompressSequences_body(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
+}
+
+
 
 FORCE_INLINE_TEMPLATE seq_t
 ZSTD_decodeSequenceLong_body(seqState_t* seqState, ZSTD_longOffset_e const longOffsets)
@@ -1439,15 +1498,18 @@ ZSTD_decodeSequenceLong_default(seqState_t* seqState, ZSTD_longOffset_e const lo
 #if DYNAMIC_BMI2
 
 static TARGET_ATTRIBUTE("bmi2") seq_t
-ZSTD_decodeSequence_bmi2(seqState_t* seqState, const ZSTD_longOffset_e longOffsets)
-{
-    return ZSTD_decodeSequence_body(seqState, longOffsets);
-}
-
-static TARGET_ATTRIBUTE("bmi2") seq_t
 ZSTD_decodeSequenceLong_bmi2(seqState_t* seqState, ZSTD_longOffset_e const longOffsets)
 {
     return ZSTD_decodeSequenceLong_body(seqState, longOffsets);
+}
+
+static TARGET_ATTRIBUTE("bmi2") size_t
+ZSTD_decompressSequences_bmi2(ZSTD_DCtx* dctx,
+                                 void* dst, size_t maxDstSize,
+                           const void* seqStart, size_t seqSize, int nbSeq,
+                           const ZSTD_longOffset_e isLongOffset)
+{
+    return ZSTD_decompressSequences_body(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
 }
 
 #define FUNCTION(fn) fn##_bmi2

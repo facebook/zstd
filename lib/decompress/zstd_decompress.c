@@ -1263,7 +1263,7 @@ ZSTD_updateFseState(ZSTD_fseState* DStatePtr, BIT_DStream_t* bitD)
 typedef enum { ZSTD_lo_isRegularOffset, ZSTD_lo_isLongOffset=1 } ZSTD_longOffset_e;
 
 FORCE_INLINE_TEMPLATE seq_t
-ZSTD_decodeSequence_body(seqState_t* seqState, const ZSTD_longOffset_e longOffsets)
+ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e longOffsets)
 {
     seq_t seq;
     U32 const llBits = seqState->stateLL.table[seqState->stateLL.state].nbAdditionalBits;
@@ -1369,7 +1369,7 @@ ZSTD_decompressSequences_body( ZSTD_DCtx* dctx,
 
         for ( ; (BIT_reloadDStream(&(seqState.DStream)) <= BIT_DStream_completed) && nbSeq ; ) {
             nbSeq--;
-            {   seq_t const sequence = ZSTD_decodeSequence_body(&seqState, isLongOffset);
+            {   seq_t const sequence = ZSTD_decodeSequence(&seqState, isLongOffset);
                 size_t const oneSeqSize = ZSTD_execSequence(op, oend, sequence, &litPtr, litEnd, base, vBase, dictEnd);
                 DEBUGLOG(6, "regenerated sequence size : %u", (U32)oneSeqSize);
                 if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
@@ -1405,7 +1405,7 @@ ZSTD_decompressSequences_default(ZSTD_DCtx* dctx,
 
 
 FORCE_INLINE_TEMPLATE seq_t
-ZSTD_decodeSequenceLong_body(seqState_t* seqState, ZSTD_longOffset_e const longOffsets)
+ZSTD_decodeSequenceLong(seqState_t* seqState, ZSTD_longOffset_e const longOffsets)
 {
     seq_t seq;
     U32 const llBits = seqState->stateLL.table[seqState->stateLL.state].nbAdditionalBits;
@@ -1482,26 +1482,97 @@ ZSTD_decodeSequenceLong_body(seqState_t* seqState, ZSTD_longOffset_e const longO
     return seq;
 }
 
-static seq_t
-ZSTD_decodeSequenceLong_default(seqState_t* seqState, ZSTD_longOffset_e const longOffsets)
+FORCE_INLINE_TEMPLATE size_t
+ZSTD_decompressSequencesLong_body(
+                               ZSTD_DCtx* dctx,
+                               void* dst, size_t maxDstSize,
+                         const void* seqStart, size_t seqSize, int nbSeq,
+                         const ZSTD_longOffset_e isLongOffset)
 {
-    return ZSTD_decodeSequenceLong_body(seqState, longOffsets);
+    const BYTE* ip = (const BYTE*)seqStart;
+    const BYTE* const iend = ip + seqSize;
+    BYTE* const ostart = (BYTE* const)dst;
+    BYTE* const oend = ostart + maxDstSize;
+    BYTE* op = ostart;
+    const BYTE* litPtr = dctx->litPtr;
+    const BYTE* const litEnd = litPtr + dctx->litSize;
+    const BYTE* const prefixStart = (const BYTE*) (dctx->base);
+    const BYTE* const dictStart = (const BYTE*) (dctx->vBase);
+    const BYTE* const dictEnd = (const BYTE*) (dctx->dictEnd);
+
+    /* Regen sequences */
+    if (nbSeq) {
+#define STORED_SEQS 4
+#define STOSEQ_MASK (STORED_SEQS-1)
+#define ADVANCED_SEQS 4
+        seq_t sequences[STORED_SEQS];
+        int const seqAdvance = MIN(nbSeq, ADVANCED_SEQS);
+        seqState_t seqState;
+        int seqNb;
+        dctx->fseEntropy = 1;
+        { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) seqState.prevOffset[i] = dctx->entropy.rep[i]; }
+        seqState.prefixStart = prefixStart;
+        seqState.pos = (size_t)(op-prefixStart);
+        seqState.dictEnd = dictEnd;
+        CHECK_E(BIT_initDStream(&seqState.DStream, ip, iend-ip), corruption_detected);
+        ZSTD_initFseState(&seqState.stateLL, &seqState.DStream, dctx->LLTptr);
+        ZSTD_initFseState(&seqState.stateOffb, &seqState.DStream, dctx->OFTptr);
+        ZSTD_initFseState(&seqState.stateML, &seqState.DStream, dctx->MLTptr);
+
+        /* prepare in advance */
+        for (seqNb=0; (BIT_reloadDStream(&seqState.DStream) <= BIT_DStream_completed) && (seqNb<seqAdvance); seqNb++) {
+            sequences[seqNb] = ZSTD_decodeSequenceLong(&seqState, isLongOffset);
+        }
+        if (seqNb<seqAdvance) return ERROR(corruption_detected);
+
+        /* decode and decompress */
+        for ( ; (BIT_reloadDStream(&(seqState.DStream)) <= BIT_DStream_completed) && (seqNb<nbSeq) ; seqNb++) {
+            seq_t const sequence = ZSTD_decodeSequenceLong(&seqState, isLongOffset);
+            size_t const oneSeqSize = ZSTD_execSequenceLong(op, oend, sequences[(seqNb-ADVANCED_SEQS) & STOSEQ_MASK], &litPtr, litEnd, prefixStart, dictStart, dictEnd);
+            if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
+            PREFETCH(sequence.match);  /* note : it's safe to invoke PREFETCH() on any memory address, including invalid ones */
+            sequences[seqNb&STOSEQ_MASK] = sequence;
+            op += oneSeqSize;
+        }
+        if (seqNb<nbSeq) return ERROR(corruption_detected);
+
+        /* finish queue */
+        seqNb -= seqAdvance;
+        for ( ; seqNb<nbSeq ; seqNb++) {
+            size_t const oneSeqSize = ZSTD_execSequenceLong(op, oend, sequences[seqNb&STOSEQ_MASK], &litPtr, litEnd, prefixStart, dictStart, dictEnd);
+            if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
+            op += oneSeqSize;
+        }
+
+        /* save reps for next block */
+        { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) dctx->entropy.rep[i] = (U32)(seqState.prevOffset[i]); }
+#undef STORED_SEQS
+#undef STOSEQ_MASK
+#undef ADVANCED_SEQS
+    }
+
+    /* last literal segment */
+    {   size_t const lastLLSize = litEnd - litPtr;
+        if (lastLLSize > (size_t)(oend-op)) return ERROR(dstSize_tooSmall);
+        memcpy(op, litPtr, lastLLSize);
+        op += lastLLSize;
+    }
+
+    return op-ostart;
+}
+
+static size_t
+ZSTD_decompressSequencesLong_default(ZSTD_DCtx* dctx,
+                                 void* dst, size_t maxDstSize,
+                           const void* seqStart, size_t seqSize, int nbSeq,
+                           const ZSTD_longOffset_e isLongOffset)
+{
+    return ZSTD_decompressSequencesLong_body(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
 }
 
 
-#define FUNCTION(fn) fn##_default
-#define TARGET
-#include "zstd_decompress_impl.h"
-#undef TARGET
-#undef FUNCTION
 
 #if DYNAMIC_BMI2
-
-static TARGET_ATTRIBUTE("bmi2") seq_t
-ZSTD_decodeSequenceLong_bmi2(seqState_t* seqState, ZSTD_longOffset_e const longOffsets)
-{
-    return ZSTD_decodeSequenceLong_body(seqState, longOffsets);
-}
 
 static TARGET_ATTRIBUTE("bmi2") size_t
 ZSTD_decompressSequences_bmi2(ZSTD_DCtx* dctx,
@@ -1512,11 +1583,14 @@ ZSTD_decompressSequences_bmi2(ZSTD_DCtx* dctx,
     return ZSTD_decompressSequences_body(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
 }
 
-#define FUNCTION(fn) fn##_bmi2
-#define TARGET TARGET_ATTRIBUTE("bmi2")
-#include "zstd_decompress_impl.h"
-#undef TARGET
-#undef FUNCTION
+static TARGET_ATTRIBUTE("bmi2") size_t
+ZSTD_decompressSequencesLong_bmi2(ZSTD_DCtx* dctx,
+                                 void* dst, size_t maxDstSize,
+                           const void* seqStart, size_t seqSize, int nbSeq,
+                           const ZSTD_longOffset_e isLongOffset)
+{
+    return ZSTD_decompressSequencesLong_body(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
+}
 
 #endif
 

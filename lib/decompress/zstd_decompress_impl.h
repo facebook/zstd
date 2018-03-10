@@ -18,18 +18,6 @@
 
 
 
-static TARGET void
-FUNCTION(ZSTD_initFseState)(ZSTD_fseState* DStatePtr, BIT_DStream_t* bitD, const ZSTD_seqSymbol* dt)
-{
-    const void* ptr = dt;
-    const ZSTD_seqSymbol_header* const DTableH = (const ZSTD_seqSymbol_header*)ptr;
-    DStatePtr->state = BIT_readBits(bitD, DTableH->tableLog);
-    DEBUGLOG(6, "ZSTD_initFseState : val=%u using %u bits",
-                (U32)DStatePtr->state, DTableH->tableLog);
-    BIT_reloadDStream(bitD);
-    DStatePtr->table = dt + 1;
-}
-
 static TARGET
 size_t FUNCTION(ZSTD_decompressSequences)(
                                ZSTD_DCtx* dctx,
@@ -55,9 +43,9 @@ size_t FUNCTION(ZSTD_decompressSequences)(
         dctx->fseEntropy = 1;
         { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) seqState.prevOffset[i] = dctx->entropy.rep[i]; }
         CHECK_E(BIT_initDStream(&seqState.DStream, ip, iend-ip), corruption_detected);
-        FUNCTION(ZSTD_initFseState)(&seqState.stateLL, &seqState.DStream, dctx->LLTptr);
-        FUNCTION(ZSTD_initFseState)(&seqState.stateOffb, &seqState.DStream, dctx->OFTptr);
-        FUNCTION(ZSTD_initFseState)(&seqState.stateML, &seqState.DStream, dctx->MLTptr);
+        ZSTD_initFseState(&seqState.stateLL, &seqState.DStream, dctx->LLTptr);
+        ZSTD_initFseState(&seqState.stateOffb, &seqState.DStream, dctx->OFTptr);
+        ZSTD_initFseState(&seqState.stateML, &seqState.DStream, dctx->MLTptr);
 
         for ( ; (BIT_reloadDStream(&(seqState.DStream)) <= BIT_DStream_completed) && nbSeq ; ) {
             nbSeq--;
@@ -118,9 +106,9 @@ size_t FUNCTION(ZSTD_decompressSequencesLong)(
         seqState.pos = (size_t)(op-prefixStart);
         seqState.dictEnd = dictEnd;
         CHECK_E(BIT_initDStream(&seqState.DStream, ip, iend-ip), corruption_detected);
-        FUNCTION(ZSTD_initFseState)(&seqState.stateLL, &seqState.DStream, dctx->LLTptr);
-        FUNCTION(ZSTD_initFseState)(&seqState.stateOffb, &seqState.DStream, dctx->OFTptr);
-        FUNCTION(ZSTD_initFseState)(&seqState.stateML, &seqState.DStream, dctx->MLTptr);
+        ZSTD_initFseState(&seqState.stateLL, &seqState.DStream, dctx->LLTptr);
+        ZSTD_initFseState(&seqState.stateOffb, &seqState.DStream, dctx->OFTptr);
+        ZSTD_initFseState(&seqState.stateML, &seqState.DStream, dctx->MLTptr);
 
         /* prepare in advance */
         for (seqNb=0; (BIT_reloadDStream(&seqState.DStream) <= BIT_DStream_completed) && (seqNb<seqAdvance); seqNb++) {

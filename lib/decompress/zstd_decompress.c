@@ -1229,6 +1229,18 @@ size_t ZSTD_execSequenceLong(BYTE* op,
     return sequenceLength;
 }
 
+static void
+ZSTD_initFseState(ZSTD_fseState* DStatePtr, BIT_DStream_t* bitD, const ZSTD_seqSymbol* dt)
+{
+    const void* ptr = dt;
+    const ZSTD_seqSymbol_header* const DTableH = (const ZSTD_seqSymbol_header*)ptr;
+    DStatePtr->state = BIT_readBits(bitD, DTableH->tableLog);
+    DEBUGLOG(6, "ZSTD_initFseState : val=%u using %u bits",
+                (U32)DStatePtr->state, DTableH->tableLog);
+    BIT_reloadDStream(bitD);
+    DStatePtr->table = dt + 1;
+}
+
 FORCE_INLINE_TEMPLATE void
 ZSTD_updateFseState(ZSTD_fseState* DStatePtr, BIT_DStream_t* bitD)
 {

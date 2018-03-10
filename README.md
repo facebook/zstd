@@ -128,8 +128,8 @@ A Meson project is provided within `contrib/meson`.
 
 Going into `build` directory, you will find additional possibilities:
 - Projects for Visual Studio 2005, 2008 and 2010.
-  + VS2010 project is compatible with VS2012, VS2013 and VS2015.
-- Automated build scripts for Visual compiler by @KrzysFR , in `build/VS_scripts`,
+  + VS2010 project is compatible with VS2012, VS2013, VS2015 and VS2017.
+- Automated build scripts for Visual compiler by [@KrzysFR](https://github.com/KrzysFR) and [@HaydnTrigg](https://github.com/HaydnTrigg) , in `build/VS_scripts`,
   which will build `zstd` cli and `libzstd` library without any need to open Visual Studio solution.
 
 

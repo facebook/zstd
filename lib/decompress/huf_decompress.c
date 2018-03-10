@@ -493,41 +493,41 @@ typedef size_t (*HUF_decompress_usingDTable_t)(void *dst, size_t dstSize,
                                                const HUF_DTable *DTable);
 #if DYNAMIC_BMI2
 
-#define X(fn)                                                                 \
-                                                                              \
-    static size_t fn##_default(                                               \
-                  void* dst,  size_t dstSize,                                 \
-            const void* cSrc, size_t cSrcSize,                                \
-            const HUF_DTable* DTable)                                         \
-    {                                                                         \
-        return fn##_body(dst, dstSize, cSrc, cSrcSize, DTable);               \
-    }                                                                         \
-                                                                              \
-    static TARGET_ATTRIBUTE("bmi2") size_t fn##_bmi2(                         \
-                  void* dst,  size_t dstSize,                                 \
-            const void* cSrc, size_t cSrcSize,                                \
-            const HUF_DTable* DTable)                                         \
-    {                                                                         \
-        return fn##_body(dst, dstSize, cSrc, cSrcSize, DTable);               \
-    }                                                                         \
-                                                                              \
-    static size_t fn(void* dst, size_t dstSize, void const* cSrc,             \
-                     size_t cSrcSize, HUF_DTable const* DTable, int bmi2)     \
-    {                                                                         \
-        if (bmi2) {                                                           \
-            return fn##_bmi2(dst, dstSize, cSrc, cSrcSize, DTable);           \
-        }                                                                     \
-        return fn##_default(dst, dstSize, cSrc, cSrcSize, DTable);            \
+#define X(fn)                                                               \
+                                                                            \
+    static size_t fn##_default(                                             \
+                  void* dst,  size_t dstSize,                               \
+            const void* cSrc, size_t cSrcSize,                              \
+            const HUF_DTable* DTable)                                       \
+    {                                                                       \
+        return fn##_body(dst, dstSize, cSrc, cSrcSize, DTable);             \
+    }                                                                       \
+                                                                            \
+    static TARGET_ATTRIBUTE("bmi2") size_t fn##_bmi2(                       \
+                  void* dst,  size_t dstSize,                               \
+            const void* cSrc, size_t cSrcSize,                              \
+            const HUF_DTable* DTable)                                       \
+    {                                                                       \
+        return fn##_body(dst, dstSize, cSrc, cSrcSize, DTable);             \
+    }                                                                       \
+                                                                            \
+    static size_t fn(void* dst, size_t dstSize, void const* cSrc,           \
+                     size_t cSrcSize, HUF_DTable const* DTable, int bmi2)   \
+    {                                                                       \
+        if (bmi2) {                                                         \
+            return fn##_bmi2(dst, dstSize, cSrc, cSrcSize, DTable);         \
+        }                                                                   \
+        return fn##_default(dst, dstSize, cSrc, cSrcSize, DTable);          \
     }
 
 #else
 
-#define X(fn)                                                                 \
-    static size_t fn(void* dst, size_t dstSize, void const* cSrc,             \
-                     size_t cSrcSize, HUF_DTable const* DTable, int bmi2)     \
-    {                                                                         \
-        (void)bmi2;                                                           \
-        return fn##_body(dst, dstSize, cSrc, cSrcSize, DTable);               \
+#define X(fn)                                                               \
+    static size_t fn(void* dst, size_t dstSize, void const* cSrc,           \
+                     size_t cSrcSize, HUF_DTable const* DTable, int bmi2)   \
+    {                                                                       \
+        (void)bmi2;                                                         \
+        return fn##_body(dst, dstSize, cSrc, cSrcSize, DTable);             \
     }
 
 #endif

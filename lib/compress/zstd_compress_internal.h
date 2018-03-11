@@ -158,6 +158,7 @@ struct ZSTD_CCtx_params_s {
     ZSTD_frameParameters fParams;
 
     int compressionLevel;
+    int disableLiteralCompression;
     int forceWindow;           /* force back-references to respect limit of
                                 * 1<<wLog, even for dictionary */
 
@@ -395,10 +396,12 @@ MEM_STATIC size_t ZSTD_count(const BYTE* pIn, const BYTE* pMatch, const BYTE* co
 }
 
 /** ZSTD_count_2segments() :
-*   can count match length with `ip` & `match` in 2 different segments.
-*   convention : on reaching mEnd, match count continue starting from iStart
-*/
-MEM_STATIC size_t ZSTD_count_2segments(const BYTE* ip, const BYTE* match, const BYTE* iEnd, const BYTE* mEnd, const BYTE* iStart)
+ *  can count match length with `ip` & `match` in 2 different segments.
+ *  convention : on reaching mEnd, match count continue starting from iStart
+ */
+MEM_STATIC size_t
+ZSTD_count_2segments(const BYTE* ip, const BYTE* match,
+                     const BYTE* iEnd, const BYTE* mEnd, const BYTE* iStart)
 {
     const BYTE* const vEnd = MIN( ip + (mEnd - match), iEnd);
     size_t const matchLength = ZSTD_count(ip, match, vEnd);
@@ -408,8 +411,8 @@ MEM_STATIC size_t ZSTD_count_2segments(const BYTE* ip, const BYTE* match, const 
 
 
 /*-*************************************
-*  Hashes
-***************************************/
+ *  Hashes
+ ***************************************/
 static const U32 prime3bytes = 506832829U;
 static U32    ZSTD_hash3(U32 u, U32 h) { return ((u << (32-24)) * prime3bytes)  >> (32-h) ; }
 MEM_STATIC size_t ZSTD_hash3Ptr(const void* ptr, U32 h) { return ZSTD_hash3(MEM_readLE32(ptr), h); } /* only in zstd_opt.h */
@@ -453,9 +456,9 @@ MEM_STATIC size_t ZSTD_hashPtr(const void* p, U32 hBits, U32 mls)
 
 #define ZSTD_LOWLIMIT_MAX (3U << 29) /* Max lowLimit allowed */
 /* Maximum chunk size before overflow correction needs to be called again */
-#define ZSTD_CHUNKSIZE_MAX                                                     \
-    ( ((U32)-1)                  /* Maximum ending current index */            \
-    - (1U << ZSTD_WINDOWLOG_MAX) /* Max distance from lowLimit to current */   \
+#define ZSTD_CHUNKSIZE_MAX                                                   \
+    ( ((U32)-1)                  /* Maximum ending current index */          \
+    - (1U << ZSTD_WINDOWLOG_MAX) /* Max distance from lowLimit to current */ \
     - ZSTD_LOWLIMIT_MAX)         /* Maximum beginning lowLimit */
 
 /**

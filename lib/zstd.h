@@ -390,7 +390,7 @@ ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output
 #define ZSTD_SEARCHLOG_MIN       1
 #define ZSTD_SEARCHLENGTH_MAX    7   /* only for ZSTD_fast, other strategies are limited to 6 */
 #define ZSTD_SEARCHLENGTH_MIN    3   /* only for ZSTD_btopt, other strategies are limited to 4 */
-#define ZSTD_TARGETLENGTH_MIN    4   /* only useful for btopt */
+#define ZSTD_TARGETLENGTH_MIN    1   /* only useful for btopt */
 #define ZSTD_TARGETLENGTH_MAX  999   /* only useful for btopt */
 #define ZSTD_LDM_MINMATCH_MIN    4
 #define ZSTD_LDM_MINMATCH_MAX 4096
@@ -1001,15 +1001,17 @@ typedef enum {
                               * (note : a strong exception to this rule is when first invocation sets ZSTD_e_end : it becomes a blocking call).
                               * More workers improve speed, but also increase memory usage.
                               * Default value is `0`, aka "single-threaded mode" : no worker is spawned, compression is performed inside Caller's thread, all invocations are blocking */
-    ZSTD_p_jobSize,          /* Size of a compression job. This value is only enforced in streaming (non-blocking) mode.
-                              * Each compression job is completed in parallel, so indirectly controls the nb of active threads.
+    ZSTD_p_jobSize,          /* Size of a compression job. This value is enforced only in non-blocking mode.
+                              * Each compression job is completed in parallel, so this value indirectly controls the nb of active threads.
                               * 0 means default, which is dynamically determined based on compression parameters.
-                              * Job size must be a minimum of overlapSize, or 1 KB, whichever is largest
+                              * Job size must be a minimum of overlapSize, or 1 MB, whichever is largest.
                               * The minimum size is automatically and transparently enforced */
     ZSTD_p_overlapSizeLog,   /* Size of previous input reloaded at the beginning of each job.
                               * 0 => no overlap, 6(default) => use 1/8th of windowSize, >=9 => use full windowSize */
 
     /* advanced parameters - may not remain available after API update */
+    ZSTD_p_literalCompression=1000, /* control huffman compression of literals (enabled) by default.
+                              * disabling it improves speed and decreases compression ratio by a large amount. */
     ZSTD_p_forceMaxWindow=1100, /* Force back-reference distances to remain < windowSize,
                               * even when referencing into Dictionary content (default:0) */
     ZSTD_p_enableLongDistanceMatching=1200, /* Enable long distance matching.
@@ -1070,23 +1072,21 @@ ZSTDLIB_API size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param
 ZSTDLIB_API size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long long pledgedSrcSize);
 
 /*! ZSTD_CCtx_loadDictionary() :
- *  Create an internal CDict from dict buffer.
- *  Decompression will have to use same buffer.
+ *  Create an internal CDict from `dict` buffer.
+ *  Decompression will have to use same dictionary.
  * @result : 0, or an error code (which can be tested with ZSTD_isError()).
- *  Special : Adding a NULL (or 0-size) dictionary invalidates any previous dictionary,
- *            meaning "return to no-dictionary mode".
- *  Note 1 : `dict` content will be copied internally. Use
- *            ZSTD_CCtx_loadDictionary_byReference() to reference dictionary
- *            content instead. The dictionary buffer must then outlive its
- *            users.
+ *  Special: Adding a NULL (or 0-size) dictionary invalidates previous dictionary,
+ *           meaning "return to no-dictionary mode".
+ *  Note 1 : Dictionary will be used for all future compression jobs.
+ *           To return to "no-dictionary" situation, load a NULL dictionary
  *  Note 2 : Loading a dictionary involves building tables, which are dependent on compression parameters.
  *           For this reason, compression parameters cannot be changed anymore after loading a dictionary.
- *           It's also a CPU-heavy operation, with non-negligible impact on latency.
- *  Note 3 : Dictionary will be used for all future compression jobs.
- *           To return to "no-dictionary" situation, load a NULL dictionary
- *  Note 5 : Use ZSTD_CCtx_loadDictionary_advanced() to select how dictionary
- *           content will be interpreted.
- */
+ *           It's also a CPU consuming operation, with non-negligible impact on latency.
+ *  Note 3 :`dict` content will be copied internally.
+ *           Use ZSTD_CCtx_loadDictionary_byReference() to reference dictionary content instead.
+ *           In such a case, dictionary buffer must outlive its users.
+ *  Note 4 : Use ZSTD_CCtx_loadDictionary_advanced()
+ *           to precisely select how dictionary content must be interpreted. */
 ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, size_t dictSize);
 ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary_byReference(ZSTD_CCtx* cctx, const void* dict, size_t dictSize);
 ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary_advanced(ZSTD_CCtx* cctx, const void* dict, size_t dictSize, ZSTD_dictLoadMethod_e dictLoadMethod, ZSTD_dictMode_e dictMode);
@@ -1101,8 +1101,7 @@ ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary_advanced(ZSTD_CCtx* cctx, const void
  *  Special : adding a NULL CDict means "return to no-dictionary mode".
  *  Note 1 : Currently, only one dictionary can be managed.
  *           Adding a new dictionary effectively "discards" any previous one.
- *  Note 2 : CDict is just referenced, its lifetime must outlive CCtx.
- */
+ *  Note 2 : CDict is just referenced, its lifetime must outlive CCtx. */
 ZSTDLIB_API size_t ZSTD_CCtx_refCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict);
 
 /*! ZSTD_CCtx_refPrefix() :
@@ -1112,13 +1111,12 @@ ZSTDLIB_API size_t ZSTD_CCtx_refCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict);
  *  Subsequent compression jobs will be done without prefix (if none is explicitly referenced).
  *  If there is a need to use same prefix multiple times, consider embedding it into a ZSTD_CDict instead.
  * @result : 0, or an error code (which can be tested with ZSTD_isError()).
- *  Special : Adding any prefix (including NULL) invalidates any previous prefix or dictionary
+ *  Special: Adding any prefix (including NULL) invalidates any previous prefix or dictionary
  *  Note 1 : Prefix buffer is referenced. It must outlive compression job.
  *  Note 2 : Referencing a prefix involves building tables, which are dependent on compression parameters.
- *           It's a CPU-heavy operation, with non-negligible impact on latency.
- *  Note 3 : By default, the prefix is treated as raw content
- *           (ZSTD_dm_rawContent). Use ZSTD_CCtx_refPrefix_advanced() to alter
- *           dictMode. */
+ *           It's a CPU consuming operation, with non-negligible impact on latency.
+ *  Note 3 : By default, the prefix is treated as raw content (ZSTD_dm_rawContent).
+ *           Use ZSTD_CCtx_refPrefix_advanced() to alter dictMode. */
 ZSTDLIB_API size_t ZSTD_CCtx_refPrefix(ZSTD_CCtx* cctx, const void* prefix, size_t prefixSize);
 ZSTDLIB_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* prefix, size_t prefixSize, ZSTD_dictMode_e dictMode);
 

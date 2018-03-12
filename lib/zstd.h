@@ -949,7 +949,7 @@ typedef enum {
                               * Default level is ZSTD_CLEVEL_DEFAULT==3.
                               * Special: value 0 means "do not change cLevel".
                               * Note 1 : it's possible to pass a negative compression level by casting it to unsigned type.
-                              * Note 2 : setting compressionLevel automatically updates ZSTD_p_literalCompression. */
+                              * Note 2 : setting compressionLevel automatically updates ZSTD_p_compressLiterals. */
     ZSTD_p_windowLog,        /* Maximum allowed back-reference distance, expressed as power of 2.
                               * Must be clamped between ZSTD_WINDOWLOG_MIN and ZSTD_WINDOWLOG_MAX.
                               * Special: value 0 means "do not change windowLog".
@@ -1017,7 +1017,7 @@ typedef enum {
 
     /* advanced parameters - may not remain available after API update */
 
-    ZSTD_p_literalCompression=1000, /* control huffman compression of literals (enabled) by default.
+    ZSTD_p_compressLiterals=1000, /* control huffman compression of literals (enabled) by default.
                               * disabling it improves speed and decreases compression ratio by a large amount.
                               * note : this setting is updated when changing compression level.
                               *        positive compression levels set literalCompression to 1.

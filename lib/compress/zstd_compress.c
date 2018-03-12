@@ -252,7 +252,7 @@ static int ZSTD_isUpdateAuthorized(ZSTD_cParameter param)
     case ZSTD_p_minMatch:
     case ZSTD_p_targetLength:
     case ZSTD_p_compressionStrategy:
-    case ZSTD_p_literalCompression:
+    case ZSTD_p_compressLiterals:
         return 1;
 
     case ZSTD_p_format:
@@ -306,7 +306,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
         }
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
-    case ZSTD_p_literalCompression:
+    case ZSTD_p_compressLiterals:
     case ZSTD_p_contentSizeFlag:
     case ZSTD_p_checksumFlag:
     case ZSTD_p_dictIDFlag:
@@ -425,7 +425,7 @@ size_t ZSTD_CCtxParam_setParameter(
         }
         return (size_t)CCtxParams->cParams.strategy;
 
-    case ZSTD_p_literalCompression:
+    case ZSTD_p_compressLiterals:
         CCtxParams->disableLiteralCompression = !value;
         return !!value;
 
@@ -2453,7 +2453,7 @@ size_t ZSTD_compress_usingDict(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity, c
     ZSTD_parameters const params = ZSTD_getParams(compressionLevel, srcSize ? srcSize : 1, dict ? dictSize : 0);
     ZSTD_CCtx_params cctxParams = ZSTD_assignParamsToCCtxParams(cctx->requestedParams, params);
     assert(params.fParams.contentSizeFlag == 1);
-    ZSTD_CCtxParam_setParameter(&cctxParams, ZSTD_p_literalCompression, compressionLevel>=0);
+    ZSTD_CCtxParam_setParameter(&cctxParams, ZSTD_p_compressLiterals, compressionLevel>=0);
     return ZSTD_compress_advanced_internal(cctx, dst, dstCapacity, src, srcSize, dict, dictSize, cctxParams);
 }
 

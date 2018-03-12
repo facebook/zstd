@@ -976,9 +976,13 @@ typedef enum {
                               * Note that currently, for all strategies < btopt, effective minimum is 4.
                               * Note that currently, for all strategies > fast, effective maximum is 6.
                               * Special: value 0 means "do not change minMatchLength". */
-    ZSTD_p_targetLength,     /* Only useful for strategies >= btopt.
-                              * Length of Match considered "good enough" to stop search.
-                              * Larger values make compression stronger and slower.
+    ZSTD_p_targetLength,     /* Impact of this field depends on strategy.
+                              * For strategies btopt & btultra:
+                              *     Length of Match considered "good enough" to stop search.
+                              *     Larger values make compression stronger, and slower.
+                              * For strategy fast:
+                              *     Distance between match sampling.
+                              *     Larger values make compression faster, and weaker.
                               * Special: value 0 means "do not change targetLength". */
     ZSTD_p_compressionStrategy, /* See ZSTD_strategy enum definition.
                               * Cast selected strategy as unsigned for ZSTD_CCtx_setParameter() compatibility.

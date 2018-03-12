@@ -347,14 +347,21 @@ The list of available _options_:
     The minimum _slen_ is 3 and the maximum is 7.
 
 - `targetLen`=_tlen_, `tlen`=_tlen_:
-    Specify the minimum match length that causes a match finder to stop
-    searching for better matches.
+    The impact of this field vary depending on selected strategy.
 
-    A larger minimum match length usually improves compression ratio but
-    decreases compression speed.
-    This option is only used with strategies ZSTD_btopt and ZSTD_btultra.
+    For ZSTD\_btopt and ZSTD\_btultra, it specifies the minimum match length
+    that causes match finder to stop searching for better matches.
+    A larger `targetLen` usually improves compression ratio
+    but decreases compression speed.
 
-    The minimum _tlen_ is 4 and the maximum is 999.
+    For ZSTD\_fast, it specifies
+    the amount of data skipped between match sampling.
+    Impact is reversed : a larger `targetLen` increases compression speed
+    but decreases compression ratio.
+
+    For all other strategies, this field has no impact.
+
+    The minimum _tlen_ is 1 and the maximum is 999.
 
 - `overlapLog`=_ovlog_,  `ovlog`=_ovlog_:
     Determine `overlapSize`, amount of data reloaded from previous job.

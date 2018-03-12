@@ -214,6 +214,7 @@ static int BMK_benchMem(const void* srcBuffer, size_t srcSize,
 
     /* init */
     if (strlen(displayName)>17) displayName += strlen(displayName)-17;   /* display last 17 characters */
+    if (g_nbWorkers==1) g_nbWorkers=0;   /* prefer synchronous mode */
 
     if (g_decodeOnly) {  /* benchmark only decompression : source must be already compressed */
         const char* srcPtr = (const char*)srcBuffer;
@@ -534,7 +535,7 @@ static void BMK_benchCLevel(const void* srcBuffer, size_t benchedSize,
         DISPLAY("bench %s %s: input %u bytes, %u seconds, %u KB blocks\n", ZSTD_VERSION_STRING, ZSTD_GIT_COMMIT_STRING, (U32)benchedSize, g_nbSeconds, (U32)(g_blockSize>>10));
 
     for (l=cLevel; l <= cLevelLast; l++) {
-        DISPLAYLEVEL(6, "BMK_benchCLevel: level %i", l);
+        if (l==0) continue;  /* skip level 0 */
         BMK_benchMem(srcBuffer, benchedSize,
                      displayName, l,
                      fileSizes, nbFiles,

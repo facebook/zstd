@@ -947,7 +947,9 @@ typedef enum {
     /* compression parameters */
     ZSTD_p_compressionLevel=100, /* Update all compression parameters according to pre-defined cLevel table
                               * Default level is ZSTD_CLEVEL_DEFAULT==3.
-                              * Special: value 0 means "do not change cLevel". */
+                              * Special: value 0 means "do not change cLevel".
+                              * Note 1 : it's possible to pass a negative compression level by casting it to unsigned type.
+                              * Note 2 : setting compressionLevel automatically updates ZSTD_p_literalCompression. */
     ZSTD_p_windowLog,        /* Maximum allowed back-reference distance, expressed as power of 2.
                               * Must be clamped between ZSTD_WINDOWLOG_MIN and ZSTD_WINDOWLOG_MAX.
                               * Special: value 0 means "do not change windowLog".
@@ -1010,10 +1012,16 @@ typedef enum {
                               * 0 => no overlap, 6(default) => use 1/8th of windowSize, >=9 => use full windowSize */
 
     /* advanced parameters - may not remain available after API update */
+
     ZSTD_p_literalCompression=1000, /* control huffman compression of literals (enabled) by default.
-                              * disabling it improves speed and decreases compression ratio by a large amount. */
+                              * disabling it improves speed and decreases compression ratio by a large amount.
+                              * note : this setting is updated when changing compression level.
+                              *        positive compression levels set literalCompression to 1.
+                              *        negative compression levels set literalCompression to 0. */
+
     ZSTD_p_forceMaxWindow=1100, /* Force back-reference distances to remain < windowSize,
                               * even when referencing into Dictionary content (default:0) */
+
     ZSTD_p_enableLongDistanceMatching=1200, /* Enable long distance matching.
                                          * This parameter is designed to improve the compression
                                          * ratio for large inputs with long distance matches.

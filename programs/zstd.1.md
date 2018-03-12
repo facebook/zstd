@@ -115,6 +115,14 @@ the last one takes effect.
 
     Note: If `windowLog` is set to larger than 27, `--long=windowLog` or
     `--memory=windowSize` needs to be passed to the decompressor.
+* `--fast[=#]`:
+    switch to ultra-fast compression levels.
+    If `=#` is not present, it defaults to `1`.
+    The higher the value, the faster the compression speed,
+    at the cost of some compression ratio.
+    This setting overwrites compression level if one was set previously.
+    Similarly, if a compression level is set after `--fast`, it overrides it.
+
 * `-T#`, `--threads=#`:
     Compress using `#` working threads (default: 1).
     If `#` is 0, attempt to detect and use the number of physical CPU cores.

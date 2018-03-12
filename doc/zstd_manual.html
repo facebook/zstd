@@ -753,7 +753,9 @@ size_t ZSTD_decodingBufferSize_min(unsigned long long windowSize, unsigned long 
     </b>/* compression parameters */<b>
     ZSTD_p_compressionLevel=100, </b>/* Update all compression parameters according to pre-defined cLevel table<b>
                               * Default level is ZSTD_CLEVEL_DEFAULT==3.
-                              * Special: value 0 means "do not change cLevel". */
+                              * Special: value 0 means "do not change cLevel".
+                              * Note 1 : it's possible to pass a negative compression level by casting it to unsigned type.
+                              * Note 2 : setting compressionLevel automatically updates ZSTD_p_literalCompression. */
     ZSTD_p_windowLog,        </b>/* Maximum allowed back-reference distance, expressed as power of 2.<b>
                               * Must be clamped between ZSTD_WINDOWLOG_MIN and ZSTD_WINDOWLOG_MAX.
                               * Special: value 0 means "do not change windowLog".
@@ -780,9 +782,13 @@ size_t ZSTD_decodingBufferSize_min(unsigned long long windowSize, unsigned long 
                               * Note that currently, for all strategies < btopt, effective minimum is 4.
                               * Note that currently, for all strategies > fast, effective maximum is 6.
                               * Special: value 0 means "do not change minMatchLength". */
-    ZSTD_p_targetLength,     </b>/* Only useful for strategies >= btopt.<b>
-                              * Length of Match considered "good enough" to stop search.
-                              * Larger values make compression stronger and slower.
+    ZSTD_p_targetLength,     </b>/* Impact of this field depends on strategy.<b>
+                              * For strategies btopt & btultra:
+                              *     Length of Match considered "good enough" to stop search.
+                              *     Larger values make compression stronger, and slower.
+                              * For strategy fast:
+                              *     Distance between match sampling.
+                              *     Larger values make compression faster, and weaker.
                               * Special: value 0 means "do not change targetLength". */
     ZSTD_p_compressionStrategy, </b>/* See ZSTD_strategy enum definition.<b>
                               * Cast selected strategy as unsigned for ZSTD_CCtx_setParameter() compatibility.
@@ -807,17 +813,25 @@ size_t ZSTD_decodingBufferSize_min(unsigned long long windowSize, unsigned long 
                               * (note : a strong exception to this rule is when first invocation sets ZSTD_e_end : it becomes a blocking call).
                               * More workers improve speed, but also increase memory usage.
                               * Default value is `0`, aka "single-threaded mode" : no worker is spawned, compression is performed inside Caller's thread, all invocations are blocking */
-    ZSTD_p_jobSize,          </b>/* Size of a compression job. This value is only enforced in streaming (non-blocking) mode.<b>
-                              * Each compression job is completed in parallel, so indirectly controls the nb of active threads.
+    ZSTD_p_jobSize,          </b>/* Size of a compression job. This value is enforced only in non-blocking mode.<b>
+                              * Each compression job is completed in parallel, so this value indirectly controls the nb of active threads.
                               * 0 means default, which is dynamically determined based on compression parameters.
-                              * Job size must be a minimum of overlapSize, or 1 KB, whichever is largest
+                              * Job size must be a minimum of overlapSize, or 1 MB, whichever is largest.
                               * The minimum size is automatically and transparently enforced */
     ZSTD_p_overlapSizeLog,   </b>/* Size of previous input reloaded at the beginning of each job.<b>
                               * 0 => no overlap, 6(default) => use 1/8th of windowSize, >=9 => use full windowSize */
 
     </b>/* advanced parameters - may not remain available after API update */<b>
+
+    ZSTD_p_literalCompression=1000, </b>/* control huffman compression of literals (enabled) by default.<b>
+                              * disabling it improves speed and decreases compression ratio by a large amount.
+                              * note : this setting is updated when changing compression level.
+                              *        positive compression levels set literalCompression to 1.
+                              *        negative compression levels set literalCompression to 0. */
+
     ZSTD_p_forceMaxWindow=1100, </b>/* Force back-reference distances to remain < windowSize,<b>
                               * even when referencing into Dictionary content (default:0) */
+
     ZSTD_p_enableLongDistanceMatching=1200, </b>/* Enable long distance matching.<b>
                                          * This parameter is designed to improve the compression
                                          * ratio for large inputs with long distance matches.
@@ -877,23 +891,21 @@ size_t ZSTD_decodingBufferSize_min(unsigned long long windowSize, unsigned long 
 <pre><b>size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, size_t dictSize);
 size_t ZSTD_CCtx_loadDictionary_byReference(ZSTD_CCtx* cctx, const void* dict, size_t dictSize);
 size_t ZSTD_CCtx_loadDictionary_advanced(ZSTD_CCtx* cctx, const void* dict, size_t dictSize, ZSTD_dictLoadMethod_e dictLoadMethod, ZSTD_dictMode_e dictMode);
-</b><p>  Create an internal CDict from dict buffer.
-  Decompression will have to use same buffer.
+</b><p>  Create an internal CDict from `dict` buffer.
+  Decompression will have to use same dictionary.
  @result : 0, or an error code (which can be tested with ZSTD_isError()).
-  Special : Adding a NULL (or 0-size) dictionary invalidates any previous dictionary,
-            meaning "return to no-dictionary mode".
-  Note 1 : `dict` content will be copied internally. Use
-            ZSTD_CCtx_loadDictionary_byReference() to reference dictionary
-            content instead. The dictionary buffer must then outlive its
-            users.
+  Special: Adding a NULL (or 0-size) dictionary invalidates previous dictionary,
+           meaning "return to no-dictionary mode".
+  Note 1 : Dictionary will be used for all future compression jobs.
+           To return to "no-dictionary" situation, load a NULL dictionary
   Note 2 : Loading a dictionary involves building tables, which are dependent on compression parameters.
            For this reason, compression parameters cannot be changed anymore after loading a dictionary.
-           It's also a CPU-heavy operation, with non-negligible impact on latency.
-  Note 3 : Dictionary will be used for all future compression jobs.
-           To return to "no-dictionary" situation, load a NULL dictionary
-  Note 5 : Use ZSTD_CCtx_loadDictionary_advanced() to select how dictionary
-           content will be interpreted.
- 
+           It's also a CPU consuming operation, with non-negligible impact on latency.
+  Note 3 :`dict` content will be copied internally.
+           Use ZSTD_CCtx_loadDictionary_byReference() to reference dictionary content instead.
+           In such a case, dictionary buffer must outlive its users.
+  Note 4 : Use ZSTD_CCtx_loadDictionary_advanced()
+           to precisely select how dictionary content must be interpreted. 
 </p></pre><BR>
 
 <pre><b>size_t ZSTD_CCtx_refCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict);
@@ -905,8 +917,7 @@ size_t ZSTD_CCtx_loadDictionary_advanced(ZSTD_CCtx* cctx, const void* dict, size
   Special : adding a NULL CDict means "return to no-dictionary mode".
   Note 1 : Currently, only one dictionary can be managed.
            Adding a new dictionary effectively "discards" any previous one.
-  Note 2 : CDict is just referenced, its lifetime must outlive CCtx.
- 
+  Note 2 : CDict is just referenced, its lifetime must outlive CCtx. 
 </p></pre><BR>
 
 <pre><b>size_t ZSTD_CCtx_refPrefix(ZSTD_CCtx* cctx, const void* prefix, size_t prefixSize);
@@ -917,13 +928,12 @@ size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* prefix, size_t 
   Subsequent compression jobs will be done without prefix (if none is explicitly referenced).
   If there is a need to use same prefix multiple times, consider embedding it into a ZSTD_CDict instead.
  @result : 0, or an error code (which can be tested with ZSTD_isError()).
-  Special : Adding any prefix (including NULL) invalidates any previous prefix or dictionary
+  Special: Adding any prefix (including NULL) invalidates any previous prefix or dictionary
   Note 1 : Prefix buffer is referenced. It must outlive compression job.
   Note 2 : Referencing a prefix involves building tables, which are dependent on compression parameters.
-           It's a CPU-heavy operation, with non-negligible impact on latency.
-  Note 3 : By default, the prefix is treated as raw content
-           (ZSTD_dm_rawContent). Use ZSTD_CCtx_refPrefix_advanced() to alter
-           dictMode. 
+           It's a CPU consuming operation, with non-negligible impact on latency.
+  Note 3 : By default, the prefix is treated as raw content (ZSTD_dm_rawContent).
+           Use ZSTD_CCtx_refPrefix_advanced() to alter dictMode. 
 </p></pre><BR>
 
 <pre><b>typedef enum {

@@ -390,8 +390,8 @@ ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output
 #define ZSTD_SEARCHLOG_MIN       1
 #define ZSTD_SEARCHLENGTH_MAX    7   /* only for ZSTD_fast, other strategies are limited to 6 */
 #define ZSTD_SEARCHLENGTH_MIN    3   /* only for ZSTD_btopt, other strategies are limited to 4 */
-#define ZSTD_TARGETLENGTH_MIN    1   /* only useful for btopt */
-#define ZSTD_TARGETLENGTH_MAX  999   /* only useful for btopt */
+#define ZSTD_TARGETLENGTH_MIN    1   /* only used by btopt, btultra and btfast */
+#define ZSTD_TARGETLENGTH_MAX  999   /* only used by btopt, btultra and btfast */
 #define ZSTD_LDM_MINMATCH_MIN    4
 #define ZSTD_LDM_MINMATCH_MAX 4096
 #define ZSTD_LDM_BUCKETSIZELOG_MAX 8
@@ -1019,9 +1019,9 @@ typedef enum {
 
     ZSTD_p_compressLiterals=1000, /* control huffman compression of literals (enabled) by default.
                               * disabling it improves speed and decreases compression ratio by a large amount.
-                              * note : this setting is updated when changing compression level.
-                              *        positive compression levels set literalCompression to 1.
-                              *        negative compression levels set literalCompression to 0. */
+                              * note : this setting is automatically updated when changing compression level.
+                              *        positive compression levels set ZSTD_p_compressLiterals to 1.
+                              *        negative compression levels set ZSTD_p_compressLiterals to 0. */
 
     ZSTD_p_forceMaxWindow=1100, /* Force back-reference distances to remain < windowSize,
                               * even when referencing into Dictionary content (default:0) */

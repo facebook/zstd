@@ -135,7 +135,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( "--ultra : enable levels beyond %i, up to %i (requires more memory)\n", ZSTDCLI_CLEVEL_MAX, ZSTD_maxCLevel());
     DISPLAY( "--long[=#]  : enable long distance matching with given window log (default: %u)\n", g_defaultMaxWindowLog);
 #ifdef ZSTD_MULTITHREAD
-    DISPLAY( " -T#    : spawns # compression threads (default: 1) \n");
+    DISPLAY( " -T#    : spawns # compression threads (default: 1, 0==# cores) \n");
     DISPLAY( " -B#    : select size of each job (default: 0==automatic) \n");
 #endif
     DISPLAY( "--no-dictID : don't write dictID into header (dictionary compression)\n");

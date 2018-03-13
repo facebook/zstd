@@ -1394,8 +1394,8 @@ static size_t ZSTD_compressLiterals (ZSTD_entropyCTables_t const* prevEntropy,
            sizeof(prevEntropy->hufCTable));
 
     /* small ? don't even attempt compression (speed opt) */
-#   define LITERAL_NOENTROPY 63
-    {   size_t const minLitSize = prevEntropy->hufCTable_repeatMode == HUF_repeat_valid ? 6 : LITERAL_NOENTROPY;
+#   define COMPRESS_LITERALS_SIZE_MIN 63
+    {   size_t const minLitSize = (prevEntropy->hufCTable_repeatMode == HUF_repeat_valid) ? 6 : COMPRESS_LITERALS_SIZE_MIN;
         if (srcSize <= minLitSize) return ZSTD_noCompressLiterals(dst, dstCapacity, src, srcSize);
     }
 

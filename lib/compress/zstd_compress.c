@@ -146,7 +146,7 @@ const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx) { return &(ctx->seqStor
 static ZSTD_compressionParameters ZSTD_getCParamsFromCCtxParams(
         ZSTD_CCtx_params CCtxParams, U64 srcSizeHint, size_t dictSize)
 {
-    DEBUGLOG(2, "ZSTD_getCParamsFromCCtxParams: srcSize = %u, dictSize = %u",
+    DEBUGLOG(5, "ZSTD_getCParamsFromCCtxParams: srcSize = %u, dictSize = %u",
                 (U32)srcSizeHint, (U32)dictSize);
     return (CCtxParams.compressionLevel == ZSTD_CLEVEL_CUSTOM) ?
                 CCtxParams.cParams :
@@ -359,7 +359,6 @@ size_t ZSTD_CCtxParam_setParameter(
     case ZSTD_p_compressionLevel : {
         int cLevel = (int)value;  /* cast expected to restore negative sign */
         if (cLevel > ZSTD_maxCLevel()) cLevel = ZSTD_maxCLevel();
-        DEBUGLOG(2, "ZSTD_CCtxParam_setParameter: set cLevel=%i", cLevel);
         if (cLevel) {  /* 0 : does not change current level */
             CCtxParams->disableLiteralCompression = (cLevel<0);  /* negative levels disable huffman */
             CCtxParams->compressionLevel = cLevel;
@@ -1400,7 +1399,7 @@ static size_t ZSTD_compressLiterals (ZSTD_entropyCTables_t const* prevEntropy,
     symbolEncodingType_e hType = set_compressed;
     size_t cLitSize;
 
-    DEBUGLOG(2,"ZSTD_compressLiterals (disableLiteralCompression=%i)",
+    DEBUGLOG(5,"ZSTD_compressLiterals (disableLiteralCompression=%i)",
                 disableLiteralCompression);
 
     /* Prepare nextEntropy assuming reusing the existing table */
@@ -2773,7 +2772,7 @@ static size_t ZSTD_resetCStream_internal(ZSTD_CStream* cctx,
                     const ZSTD_CDict* const cdict,
                     ZSTD_CCtx_params const params, unsigned long long const pledgedSrcSize)
 {
-    DEBUGLOG(2, "ZSTD_resetCStream_internal (disableLiteralCompression=%i)",
+    DEBUGLOG(4, "ZSTD_resetCStream_internal (disableLiteralCompression=%i)",
                 params.disableLiteralCompression);
     /* params are supposed to be fully validated at this point */
     assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
@@ -3094,9 +3093,7 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
         ZSTD_prefixDict const prefixDict = cctx->prefixDict;
         memset(&cctx->prefixDict, 0, sizeof(cctx->prefixDict));  /* single usage */
         assert(prefixDict.dict==NULL || cctx->cdict==NULL);   /* only one can be set */
-        DEBUGLOG(2, "ZSTD_compress_generic : transparent init stage");
-        DEBUGLOG(2, "ZSTD_compress_generic: disableLiteralCompression=%i",
-                    params.disableLiteralCompression);
+        DEBUGLOG(4, "ZSTD_compress_generic : transparent init stage");
         if (endOp == ZSTD_e_end) cctx->pledgedSrcSizePlusOne = input->size + 1;  /* auto-fix pledgedSrcSize */
         params.cParams = ZSTD_getCParamsFromCCtxParams(
                 cctx->requestedParams, cctx->pledgedSrcSizePlusOne-1, 0 /*dictSize*/);
@@ -3319,7 +3316,7 @@ ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, unsigned long l
     U64 const rSize = srcSizeHint+dictSize ? srcSizeHint+dictSize+addedSize : (U64)-1;
     U32 const tableID = (rSize <= 256 KB) + (rSize <= 128 KB) + (rSize <= 16 KB);   /* intentional underflow for srcSizeHint == 0 */
     int row = compressionLevel;
-    DEBUGLOG(2, "ZSTD_getCParams (cLevel=%i)", compressionLevel);
+    DEBUGLOG(5, "ZSTD_getCParams (cLevel=%i)", compressionLevel);
     if (compressionLevel == 0) row = ZSTD_CLEVEL_DEFAULT;   /* 0 == default */
     if (compressionLevel < 0) row = 0;   /* entry 0 is baseline for fast mode */
     if (compressionLevel > ZSTD_MAX_CLEVEL) row = ZSTD_MAX_CLEVEL;
@@ -3335,7 +3332,7 @@ ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, unsigned long l
 ZSTD_parameters ZSTD_getParams(int compressionLevel, unsigned long long srcSizeHint, size_t dictSize) {
     ZSTD_parameters params;
     ZSTD_compressionParameters const cParams = ZSTD_getCParams(compressionLevel, srcSizeHint, dictSize);
-    DEBUGLOG(2, "ZSTD_getParams (cLevel=%i)", compressionLevel);
+    DEBUGLOG(5, "ZSTD_getParams (cLevel=%i)", compressionLevel);
     memset(&params, 0, sizeof(params));
     params.cParams = cParams;
     params.fParams.contentSizeFlag = 1;

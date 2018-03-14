@@ -420,6 +420,7 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
     cRess_t ress;
     memset(&ress, 0, sizeof(ress));
 
+    DISPLAYLEVEL(6, "FIO_createCResources \n");
     ress.cctx = ZSTD_createCCtx();
     if (ress.cctx == NULL)
         EXM_THROW(30, "allocation error : can't create ZSTD_CCtx");
@@ -440,7 +441,7 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_dictIDFlag, g_dictIDFlag) );
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_checksumFlag, g_checksumFlag) );
         /* compression level */
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionLevel, cLevel) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionLevel, (unsigned)cLevel) );
         /* long distance matching */
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_enableLongDistanceMatching, g_ldmFlag) );
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_ldmHashLog, g_ldmHashLog) );
@@ -908,6 +909,7 @@ static int FIO_compressFilename_dstFile(cRess_t ress,
     stat_t statbuf;
     int stat_result = 0;
 
+    DISPLAYLEVEL(6, "FIO_compressFilename_dstFile: opening dst: %s", dstFileName);
     ress.dstFile = FIO_openDstFile(dstFileName);
     if (ress.dstFile==NULL) return 1;  /* could not open dstFileName */
     /* Must ony be added after FIO_openDstFile() succeeds.

@@ -133,9 +133,10 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -l     : print information about zstd compressed files \n");
 #ifndef ZSTD_NOCOMPRESS
     DISPLAY( "--ultra : enable levels beyond %i, up to %i (requires more memory)\n", ZSTDCLI_CLEVEL_MAX, ZSTD_maxCLevel());
-    DISPLAY( "--long[=#]  : enable long distance matching with given window log (default: %u)\n", g_defaultMaxWindowLog);
+    DISPLAY( "--long[=#]: enable long distance matching with given window log (default: %u)\n", g_defaultMaxWindowLog);
+    DISPLAY( "--fast[=#]: switch to ultra fast compression level (default: %u)\n", 1);
 #ifdef ZSTD_MULTITHREAD
-    DISPLAY( " -T#    : spawns # compression threads (default: 1) \n");
+    DISPLAY( " -T#    : spawns # compression threads (default: 1, 0==# cores) \n");
     DISPLAY( " -B#    : select size of each job (default: 0==automatic) \n");
 #endif
     DISPLAY( "--no-dictID : don't write dictID into header (dictionary compression)\n");
@@ -219,10 +220,10 @@ static int exeNameMatch(const char* exeName, const char* test)
 }
 
 /*! readU32FromChar() :
-    @return : unsigned integer value read from input in `char` format
-    allows and interprets K, KB, KiB, M, MB and MiB suffix.
-    Will also modify `*stringPtr`, advancing it to position where it stopped reading.
-    Note : function result can overflow if digit string > MAX_UINT */
+ * @return : unsigned integer value read from input in `char` format.
+ *  allows and interprets K, KB, KiB, M, MB and MiB suffix.
+ *  Will also modify `*stringPtr`, advancing it to position where it stopped reading.
+ *  Note : function result can overflow if digit string > MAX_UINT */
 static unsigned readU32FromChar(const char** stringPtr)
 {
     unsigned result = 0;
@@ -241,7 +242,7 @@ static unsigned readU32FromChar(const char** stringPtr)
 /** longCommandWArg() :
  *  check if *stringPtr is the same as longCommand.
  *  If yes, @return 1 and advances *stringPtr to the position which immediately follows longCommand.
- *  @return 0 and doesn't modify *stringPtr otherwise.
+ * @return 0 and doesn't modify *stringPtr otherwise.
  */
 static unsigned longCommandWArg(const char** stringPtr, const char* longCommand)
 {
@@ -387,7 +388,7 @@ int main(int argCount, const char* argv[])
     zstd_operation_mode operation = zom_compress;
     ZSTD_compressionParameters compressionParams;
     int cLevel = ZSTDCLI_CLEVEL_DEFAULT;
-    int cLevelLast = 1;
+    int cLevelLast = -10000;
     unsigned recursive = 0;
     unsigned memLimit = 0;
     const char** filenameTable = (const char**)malloc(argCount * sizeof(const char*));   /* argCount >= 1 */
@@ -541,6 +542,21 @@ int main(int argCount, const char* argv[])
                         /* Only set windowLog if not already set by --zstd */
                         if (compressionParams.windowLog == 0)
                             compressionParams.windowLog = ldmWindowLog;
+                        continue;
+                    }
+                    if (longCommandWArg(&argument, "--fast")) {
+                        /* Parse optional window log */
+                        if (*argument == '=') {
+                            U32 fastLevel;
+                            ++argument;
+                            fastLevel = readU32FromChar(&argument);
+                            if (fastLevel) cLevel = - (int)fastLevel;
+                        } else if (*argument != 0) {
+                            /* Invalid character following --fast */
+                            CLEAN_RETURN(badusage(programName));
+                        } else {
+                            cLevel = -1;  /* default for --fast */
+                        }
                         continue;
                     }
                     /* fall-through, will trigger bad_usage() later on */
@@ -813,16 +829,22 @@ int main(int argCount, const char* argv[])
     }
 
 #ifndef ZSTD_NODECOMPRESS
-    if (operation==zom_test) { outFileName=nulmark; FIO_setRemoveSrcFile(0); } /* test mode */
+    if (operation==zom_test) { outFileName=nulmark; FIO_setRemoveSrcFile(0); }  /* test mode */
 #endif
 
     /* No input filename ==> use stdin and stdout */
     filenameIdx += !filenameIdx;   /* filenameTable[0] is stdin by default */
-    if (!strcmp(filenameTable[0], stdinmark) && !outFileName) outFileName = stdoutmark;   /* when input is stdin, default output is stdout */
+    if (!strcmp(filenameTable[0], stdinmark) && !outFileName)
+        outFileName = stdoutmark;  /* when input is stdin, default output is stdout */
 
     /* Check if input/output defined as console; trigger an error in this case */
-    if (!strcmp(filenameTable[0], stdinmark) && IS_CONSOLE(stdin) ) CLEAN_RETURN(badusage(programName));
-    if (outFileName && !strcmp(outFileName, stdoutmark) && IS_CONSOLE(stdout) && !strcmp(filenameTable[0], stdinmark) && !forceStdout && operation!=zom_decompress)
+    if (!strcmp(filenameTable[0], stdinmark) && IS_CONSOLE(stdin) )
+        CLEAN_RETURN(badusage(programName));
+    if ( outFileName && !strcmp(outFileName, stdoutmark)
+      && IS_CONSOLE(stdout)
+      && !strcmp(filenameTable[0], stdinmark)
+      && !forceStdout
+      && operation!=zom_decompress )
         CLEAN_RETURN(badusage(programName));
 
 #ifndef ZSTD_NOCOMPRESS

@@ -34,7 +34,7 @@
 #include "zdict.h"        /* ZDICT_trainFromBuffer */
 #include "datagen.h"      /* RDG_genBuffer */
 #include "mem.h"
-#define XXH_STATIC_LINKING_ONLY
+#define XXH_STATIC_LINKING_ONLY   /* XXH64_state_t */
 #include "xxhash.h"       /* XXH64 */
 #include "util.h"
 
@@ -1382,10 +1382,13 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
         crcOrig = XXH64(sampleBuffer, sampleSize, 0);
 
         /* compression tests */
-        {   int const cLevel =
+        {   int const cLevelPositive =
                     ( FUZ_rand(&lseed) %
                      (ZSTD_maxCLevel() - (FUZ_highbit32((U32)sampleSize) / cLevelLimiter)) )
                     + 1;
+            int const cLevel = ((FUZ_rand(&lseed) & 15) == 3) ?
+                             - (int)((FUZ_rand(&lseed) & 7) + 1) :   /* test negative cLevel */
+                             cLevelPositive;
             DISPLAYLEVEL(5, "fuzzer t%u: Simple compression test (level %i) \n", testNb, cLevel);
             cSize = ZSTD_compressCCtx(ctx, cBuffer, cBufferSize, sampleBuffer, sampleSize, cLevel);
             CHECK(ZSTD_isError(cSize), "ZSTD_compressCCtx failed : %s", ZSTD_getErrorName(cSize));

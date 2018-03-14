@@ -660,6 +660,7 @@ static ZSTD_CCtx_params ZSTDMT_initJobCCtxParams(ZSTD_CCtx_params const params)
     jobParams.cParams = params.cParams;
     jobParams.fParams = params.fParams;
     jobParams.compressionLevel = params.compressionLevel;
+    jobParams.disableLiteralCompression = params.disableLiteralCompression;
 
     jobParams.ldmParams = params.ldmParams;
     return jobParams;
@@ -767,6 +768,7 @@ static size_t ZSTDMT_compress_advanced_internal(
 
     if ((nbJobs==1) | (params.nbWorkers<=1)) {   /* fallback to single-thread mode : this is a blocking invocation anyway */
         ZSTD_CCtx* const cctx = mtctx->cctxPool->cctx[0];
+        DEBUGLOG(4, "ZSTDMT_compress_advanced_internal: fallback to single-thread mode");
         if (cdict) return ZSTD_compress_usingCDict_advanced(cctx, dst, dstCapacity, src, srcSize, cdict, jobParams.fParams);
         return ZSTD_compress_advanced_internal(cctx, dst, dstCapacity, src, srcSize, NULL, 0, jobParams);
     }
@@ -909,8 +911,8 @@ size_t ZSTDMT_initCStream_internal(
         const ZSTD_CDict* cdict, ZSTD_CCtx_params params,
         unsigned long long pledgedSrcSize)
 {
-    DEBUGLOG(4, "ZSTDMT_initCStream_internal (pledgedSrcSize=%u, nbWorkers=%u, cctxPool=%u)",
-                (U32)pledgedSrcSize, params.nbWorkers, mtctx->cctxPool->totalCCtx);
+    DEBUGLOG(4, "ZSTDMT_initCStream_internal (pledgedSrcSize=%u, nbWorkers=%u, cctxPool=%u, disableLiteralCompression=%i)",
+                (U32)pledgedSrcSize, params.nbWorkers, mtctx->cctxPool->totalCCtx, params.disableLiteralCompression);
     /* params are supposed to be fully validated at this point */
     assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
     assert(!((dict) && (cdict)));  /* either dict or cdict, not both */
@@ -928,7 +930,7 @@ size_t ZSTDMT_initCStream_internal(
     mtctx->singleBlockingThread = (pledgedSrcSize <= ZSTDMT_JOBSIZE_MIN);  /* do not trigger multi-threading when srcSize is too small */
     if (mtctx->singleBlockingThread) {
         ZSTD_CCtx_params const singleThreadParams = ZSTDMT_initJobCCtxParams(params);
-        DEBUGLOG(4, "ZSTDMT_initCStream_internal: switch to single blocking thread mode");
+        DEBUGLOG(5, "ZSTDMT_initCStream_internal: switch to single blocking thread mode");
         assert(singleThreadParams.nbWorkers == 0);
         return ZSTD_initCStream_internal(mtctx->cctxPool->cctx[0],
                                          dict, dictSize, cdict,

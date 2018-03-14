@@ -115,6 +115,14 @@ the last one takes effect.
 
     Note: If `windowLog` is set to larger than 27, `--long=windowLog` or
     `--memory=windowSize` needs to be passed to the decompressor.
+* `--fast[=#]`:
+    switch to ultra-fast compression levels.
+    If `=#` is not present, it defaults to `1`.
+    The higher the value, the faster the compression speed,
+    at the cost of some compression ratio.
+    This setting overwrites compression level if one was set previously.
+    Similarly, if a compression level is set after `--fast`, it overrides it.
+
 * `-T#`, `--threads=#`:
     Compress using `#` working threads (default: 1).
     If `#` is 0, attempt to detect and use the number of physical CPU cores.
@@ -339,14 +347,21 @@ The list of available _options_:
     The minimum _slen_ is 3 and the maximum is 7.
 
 - `targetLen`=_tlen_, `tlen`=_tlen_:
-    Specify the minimum match length that causes a match finder to stop
-    searching for better matches.
+    The impact of this field vary depending on selected strategy.
 
-    A larger minimum match length usually improves compression ratio but
-    decreases compression speed.
-    This option is only used with strategies ZSTD_btopt and ZSTD_btultra.
+    For ZSTD\_btopt and ZSTD\_btultra, it specifies the minimum match length
+    that causes match finder to stop searching for better matches.
+    A larger `targetLen` usually improves compression ratio
+    but decreases compression speed.
 
-    The minimum _tlen_ is 4 and the maximum is 999.
+    For ZSTD\_fast, it specifies
+    the amount of data skipped between match sampling.
+    Impact is reversed : a larger `targetLen` increases compression speed
+    but decreases compression ratio.
+
+    For all other strategies, this field has no impact.
+
+    The minimum _tlen_ is 1 and the maximum is 999.
 
 - `overlapLog`=_ovlog_,  `ovlog`=_ovlog_:
     Determine `overlapSize`, amount of data reloaded from previous job.

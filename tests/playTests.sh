@@ -101,8 +101,11 @@ $ECHO "test : basic compression "
 $ZSTD -f tmp                      # trivial compression case, creates tmp.zst
 $ECHO "test : basic decompression"
 $ZSTD -df tmp.zst                 # trivial decompression case (overwrites tmp)
-$ECHO "test : too large compression level (must fail)"
+$ECHO "test : too large compression level => auto-fix"
 $ZSTD -99 -f tmp  # too large compression level, automatic sized down
+$ECHO "test : --fast aka negative compression levels"
+$ZSTD --fast -f tmp  # == -1
+$ZSTD --fast=3 -f tmp  # == -3
 $ECHO "test : compress to stdout"
 $ZSTD tmp -c > tmpCompressed
 $ZSTD tmp --stdout > tmpCompressed       # long command format
@@ -199,7 +202,6 @@ if [ "$?" -eq 139 ]; then
   die "should not have segfaulted"
 fi
 rm tmp*
-
 
 
 $ECHO "\n===>  Advanced compression parameters "
@@ -474,6 +476,8 @@ $ECHO "bench one file"
 $ZSTD -bi0 tmp1
 $ECHO "bench multiple levels"
 $ZSTD -i0b0e3 tmp1
+$ECHO "bench negative level"
+$ZSTD -bi0 --fast tmp1
 $ECHO "with recursive and quiet modes"
 $ZSTD -rqi1b1e2 tmp1
 

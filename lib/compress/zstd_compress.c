@@ -1922,7 +1922,7 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
             return ERROR(dstSize_tooSmall);   /* not enough space to store compressed block */
         if (remaining < blockSize) blockSize = remaining;
 
-        if (ZSTD_window_needOverflowCorrection(ms->window)) {
+        if (ZSTD_window_needOverflowCorrection(ms->window, ip + blockSize)) {
             U32 const cycleLog = ZSTD_cycleLog(cctx->appliedParams.cParams.chainLog, cctx->appliedParams.cParams.strategy);
             U32 const correction = ZSTD_window_correctOverflow(&ms->window, cycleLog, maxDist, ip);
             ZSTD_STATIC_ASSERT(ZSTD_CHAINLOG_MAX <= 30);

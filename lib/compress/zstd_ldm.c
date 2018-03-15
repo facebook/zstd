@@ -473,6 +473,7 @@ size_t ZSTD_ldm_generateSequences(
 {
     U32 const maxDist = 1U << params->windowLog;
     BYTE const* const istart = (BYTE const*)src;
+    BYTE const* const iend = istart + srcSize;
     size_t const kMaxChunkSize = 1 << 20;
     size_t const nbChunks = (srcSize / kMaxChunkSize) + ((srcSize % kMaxChunkSize) != 0);
     size_t chunk;
@@ -489,15 +490,17 @@ size_t ZSTD_ldm_generateSequences(
     assert(sequences->pos <= sequences->size);
     assert(sequences->size <= sequences->capacity);
     for (chunk = 0; chunk < nbChunks && sequences->size < sequences->capacity; ++chunk) {
-        size_t const chunkStart = chunk * kMaxChunkSize;
-        size_t const chunkEnd = MIN(chunkStart + kMaxChunkSize, srcSize);
+        BYTE const* const chunkStart = istart + chunk * kMaxChunkSize;
+        size_t const remaining = (size_t)(iend - chunkStart);
+        BYTE const *const chunkEnd =
+            (remaining < kMaxChunkSize) ? iend : chunkStart + kMaxChunkSize;
         size_t const chunkSize = chunkEnd - chunkStart;
         size_t newLeftoverSize;
         size_t const prevSize = sequences->size;
 
-        assert(chunkStart < srcSize);
+        assert(chunkStart < iend);
         /* 1. Perform overflow correction if necessary. */
-        if (ZSTD_window_needOverflowCorrection(ldmState->window)) {
+        if (ZSTD_window_needOverflowCorrection(ldmState->window, chunkEnd)) {
             U32 const ldmHSize = 1U << params->hashLog;
             U32 const correction = ZSTD_window_correctOverflow(
                 &ldmState->window, /* cycleLog */ 0, maxDist, src);
@@ -511,12 +514,10 @@ size_t ZSTD_ldm_generateSequences(
          *       * Try invalidation after the sequence generation and test the
          *         the offset against maxDist directly.
          */
-        ZSTD_window_enforceMaxDist(&ldmState->window, istart + chunkEnd,
-                                   maxDist);
+        ZSTD_window_enforceMaxDist(&ldmState->window, chunkEnd, maxDist);
         /* 3. Generate the sequences for the chunk, and get newLeftoverSize. */
         newLeftoverSize = ZSTD_ldm_generateSequences_internal(
-            ldmState, sequences, params, istart + chunkStart,
-            chunkSize);
+            ldmState, sequences, params, chunkStart, chunkSize);
         if (ZSTD_isError(newLeftoverSize))
             return newLeftoverSize;
         /* 4. We add the leftover literals from previous iterations to the first

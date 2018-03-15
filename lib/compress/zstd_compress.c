@@ -920,6 +920,8 @@ static size_t ZSTD_continueCCtx(ZSTD_CCtx* cctx, ZSTD_CCtx_params params, U64 pl
         (U32)pledgedSrcSize, cctx->appliedParams.fParams.contentSizeFlag);
     cctx->stage = ZSTDcs_init;
     cctx->dictID = 0;
+    if (params.ldmParams.enableLdm)
+        ZSTD_window_clear(&cctx->ldmState.window);
     ZSTD_invalidateMatchState(&cctx->blockState.matchState);
     ZSTD_reset_compressedBlockState(cctx->blockState.prevCBlock);
     XXH64_reset(&cctx->xxhState, 0);
@@ -1079,6 +1081,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             ptr = zc->ldmState.hashTable + ldmHSize;
             zc->ldmSequences = (rawSeq*)ptr;
             ptr = zc->ldmSequences + maxNbLdmSeq;
+            zc->maxNbLdmSequences = maxNbLdmSeq;
 
             memset(&zc->ldmState.window, 0, sizeof(zc->ldmState.window));
         }
@@ -1103,6 +1106,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             memset(ptr, 0, ldmBucketSize);
             zc->ldmState.bucketOffsets = (BYTE*)ptr;
             ptr = zc->ldmState.bucketOffsets + ldmBucketSize;
+            ZSTD_window_clear(&zc->ldmState.window);
         }
 
         /* buffers */
@@ -1834,17 +1838,33 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
             for (i = 0; i < ZSTD_REP_NUM; ++i)
                 zc->blockState.nextCBlock->rep[i] = zc->blockState.prevCBlock->rep[i];
         }
-        if (zc->appliedParams.ldmParams.enableLdm) {
-            size_t const nbSeq =
-                ZSTD_ldm_generateSequences(&zc->ldmState, zc->ldmSequences,
-                                           &zc->appliedParams.ldmParams,
-                                           src, srcSize, extDict);
+        if (zc->externSeqStore.pos < zc->externSeqStore.size) {
+            assert(!zc->appliedParams.ldmParams.enableLdm);
+            /* Updates ldmSeqStore.pos */
             lastLLSize =
-                ZSTD_ldm_blockCompress(zc->ldmSequences, nbSeq,
+                ZSTD_ldm_blockCompress(&zc->externSeqStore,
                                        ms, &zc->seqStore,
                                        zc->blockState.nextCBlock->rep,
                                        &zc->appliedParams.cParams,
                                        src, srcSize, extDict);
+            assert(zc->externSeqStore.pos <= zc->externSeqStore.size);
+        } else if (zc->appliedParams.ldmParams.enableLdm) {
+            rawSeqStore_t ldmSeqStore = {NULL, 0, 0, 0};
+
+            ldmSeqStore.seq = zc->ldmSequences;
+            ldmSeqStore.capacity = zc->maxNbLdmSequences;
+            /* Updates ldmSeqStore.size */
+            CHECK_F(ZSTD_ldm_generateSequences(&zc->ldmState, &ldmSeqStore,
+                                               &zc->appliedParams.ldmParams,
+                                               src, srcSize));
+            /* Updates ldmSeqStore.pos */
+            lastLLSize =
+                ZSTD_ldm_blockCompress(&ldmSeqStore,
+                                       ms, &zc->seqStore,
+                                       zc->blockState.nextCBlock->rep,
+                                       &zc->appliedParams.cParams,
+                                       src, srcSize, extDict);
+            assert(ldmSeqStore.pos == ldmSeqStore.size);
         } else {   /* not long range mode */
             ZSTD_blockCompressor const blockCompressor = ZSTD_selectBlockCompressor(zc->appliedParams.cParams.strategy, extDict);
             lastLLSize = blockCompressor(ms, &zc->seqStore, zc->blockState.nextCBlock->rep, &zc->appliedParams.cParams, src, srcSize);
@@ -2003,6 +2023,19 @@ size_t ZSTD_writeLastEmptyBlock(void* dst, size_t dstCapacity)
         MEM_writeLE24(dst, cBlockHeader24);
         return ZSTD_blockHeaderSize;
     }
+}
+
+size_t ZSTD_referenceExternalSequences(ZSTD_CCtx* cctx, rawSeq* seq, size_t nbSeq)
+{
+    if (cctx->stage != ZSTDcs_init)
+        return ERROR(stage_wrong);
+    if (cctx->appliedParams.ldmParams.enableLdm)
+        return ERROR(parameter_unsupported);
+    cctx->externSeqStore.seq = seq;
+    cctx->externSeqStore.size = nbSeq;
+    cctx->externSeqStore.capacity = nbSeq;
+    cctx->externSeqStore.pos = 0;
+    return 0;
 }
 
 

@@ -28,18 +28,19 @@ extern "C" {
  * ZSTD_ldm_generateSequences():
  *
  * Generates the sequences using the long distance match finder.
- * The sequences completely parse a prefix of the source, but leave off the last
- * literals. Returns the number of sequences generated into `sequences`. The
- * user must have called ZSTD_window_update() for all of the input they have,
- * even if they pass it to ZSTD_ldm_generateSequences() in chunks.
+ * Generates long range matching sequences in `sequences`, which parse a prefix
+ * of the source. `sequences` must be large enough to store every sequence,
+ * which can be checked with `ZSTD_ldm_getMaxNbSeq()`.
+ * @returns 0 or an error code.
  *
- * NOTE: The source may be any size, assuming it doesn't overflow the hash table
- * indices, and the output sequences table is large enough..
+ * NOTE: The user must have called ZSTD_window_update() for all of the input
+ * they have, even if they pass it to ZSTD_ldm_generateSequences() in chunks.
+ * NOTE: This function returns an error if it runs out of space to store
+ *       sequences.
  */
 size_t ZSTD_ldm_generateSequences(
-        ldmState_t* ldms, rawSeq* sequences,
-        ldmParams_t const* params, void const* src, size_t srcSize,
-        int const extDict);
+        ldmState_t* ldms, rawSeqStore_t* sequences,
+        ldmParams_t const* params, void const* src, size_t srcSize);
 
 /**
  * ZSTD_ldm_blockCompress():
@@ -48,15 +49,18 @@ size_t ZSTD_ldm_generateSequences(
  * block compressor. The literals section of every sequence is passed to the
  * secondary block compressor, and those sequences are interspersed with the
  * predefined sequences. Returns the length of the last literals.
- * `nbSeq` is the number of sequences available in `sequences`.
+ * Updates `rawSeqStore.pos` to indicate how many sequences have been consumed.
+ * `rawSeqStore.seq` may also be updated to split the last sequence between two
+ * blocks.
+ * @return The length of the last literals.
  *
  * NOTE: The source must be at most the maximum block size, but the predefined
  * sequences can be any size, and may be longer than the block. In the case that
  * they are longer than the block, the last sequences may need to be split into
- * two. We handle that case correctly, and update `sequences` and `nbSeq`
- * appropriately.
+ * two. We handle that case correctly, and update `rawSeqStore` appropriately.
+ * NOTE: This function does not return any errors.
  */
-size_t ZSTD_ldm_blockCompress(rawSeq const* sequences, size_t nbSeq,
+size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
     ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
     ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize,
     int const extDict);

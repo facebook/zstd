@@ -147,7 +147,7 @@ size_t ZSTD_seekable_initCStream(ZSTD_seekable_CStream* zcs,
 
     /* make sure maxFrameSize has a reasonable value */
     if (maxFrameSize > ZSTD_SEEKABLE_MAX_FRAME_DECOMPRESSED_SIZE) {
-        return ERROR(compressionParameter_unsupported);
+        return ERROR(frameParameter_unsupported);
     }
 
     zcs->maxFrameSize = maxFrameSize

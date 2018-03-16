@@ -1931,8 +1931,9 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
             ZSTD_reduceIndex(cctx, correction);
             if (ms->nextToUpdate < correction) ms->nextToUpdate = 0;
             else ms->nextToUpdate -= correction;
+            ms->loadedDictEnd = 0;
         }
-        ZSTD_window_enforceMaxDist(&ms->window, ip + blockSize, ms->loadedDictEnd + maxDist);
+        ZSTD_window_enforceMaxDist(&ms->window, ip + blockSize, maxDist, &ms->loadedDictEnd);
         if (ms->nextToUpdate < ms->window.lowLimit) ms->nextToUpdate = ms->window.lowLimit;
 
         {   size_t cSize = ZSTD_compressBlock_internal(cctx,
@@ -2118,6 +2119,7 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms, ZSTD_CCtx_params
     ZSTD_compressionParameters const* cParams = &params->cParams;
 
     ZSTD_window_update(&ms->window, src, srcSize);
+    ms->loadedDictEnd = params->forceWindow ? 0 : (U32)(iend - ms->window.base);
 
     if (srcSize <= HASH_READ_SIZE) return 0;
 

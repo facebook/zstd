@@ -562,15 +562,24 @@ MEM_STATIC U32 ZSTD_window_correctOverflow(ZSTD_window_t* window, U32 cycleLog,
 
 /**
  * ZSTD_window_enforceMaxDist():
- * Sets lowLimit such that indices earlier than (srcEnd - base) - lowLimit are
- * invalid. This allows a simple check index >= lowLimit to see if it is valid.
- * Source pointers past srcEnd are not guaranteed to be valid.
+ * Updates lowLimit so that:
+ *    (srcEnd - base) - lowLimit == maxDist + loadedDictEnd
+ * This allows a simple check that index >= lowLimit to see if index is valid.
+ * This must be called before a block compression call, with srcEnd as the block
+ * source end.
+ * If loadedDictEndPtr is not NULL, we set it to zero once we update lowLimit.
+ * This is because dictionaries are allowed to be referenced as long as the last
+ * byte of the dictionary is in the window, but once they are out of range,
+ * they cannot be referenced. If loadedDictEndPtr is NULL, we use
+ * loadedDictEnd == 0.
  */
 MEM_STATIC void ZSTD_window_enforceMaxDist(ZSTD_window_t* window,
-                                           void const* srcEnd, U32 maxDist)
+                                           void const* srcEnd, U32 maxDist,
+                                           U32* loadedDictEndPtr)
 {
     U32 const current = (U32)((BYTE const*)srcEnd - window->base);
-    if (current > maxDist) {
+    U32 loadedDictEnd = loadedDictEndPtr != NULL ? *loadedDictEndPtr : 0;
+    if (current > maxDist + loadedDictEnd) {
         U32 const newLowLimit = current - maxDist;
         if (window->lowLimit < newLowLimit) window->lowLimit = newLowLimit;
         if (window->dictLimit < window->lowLimit) {
@@ -578,6 +587,8 @@ MEM_STATIC void ZSTD_window_enforceMaxDist(ZSTD_window_t* window,
                      window->lowLimit);
             window->dictLimit = window->lowLimit;
         }
+        if (loadedDictEndPtr)
+            *loadedDictEndPtr = 0;
     }
 }
 

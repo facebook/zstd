@@ -1415,10 +1415,9 @@ static size_t ZSTD_compressLiterals (ZSTD_entropyCTables_t const* prevEntropy,
         return ZSTD_noCompressLiterals(dst, dstCapacity, src, srcSize);
 
     /* small ? don't even attempt compression (speed opt) */
-#   define LITERAL_NOENTROPY 63
-    {   size_t const minLitSize = (prevEntropy->hufCTable_repeatMode == HUF_repeat_valid) ? 6 : LITERAL_NOENTROPY;
-        if (srcSize <= minLitSize)
-            return ZSTD_noCompressLiterals(dst, dstCapacity, src, srcSize);
+#   define COMPRESS_LITERALS_SIZE_MIN 63
+    {   size_t const minLitSize = (prevEntropy->hufCTable_repeatMode == HUF_repeat_valid) ? 6 : COMPRESS_LITERALS_SIZE_MIN;
+        if (srcSize <= minLitSize) return ZSTD_noCompressLiterals(dst, dstCapacity, src, srcSize);
     }
 
     if (dstCapacity < lhSize+1) return ERROR(dstSize_tooSmall);   /* not enough space for compression */
@@ -1932,8 +1931,9 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
             ZSTD_reduceIndex(cctx, correction);
             if (ms->nextToUpdate < correction) ms->nextToUpdate = 0;
             else ms->nextToUpdate -= correction;
+            ms->loadedDictEnd = 0;
         }
-        ZSTD_window_enforceMaxDist(&ms->window, ip + blockSize, ms->loadedDictEnd + maxDist);
+        ZSTD_window_enforceMaxDist(&ms->window, ip + blockSize, maxDist, &ms->loadedDictEnd);
         if (ms->nextToUpdate < ms->window.lowLimit) ms->nextToUpdate = ms->window.lowLimit;
 
         {   size_t cSize = ZSTD_compressBlock_internal(cctx,
@@ -2119,6 +2119,7 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms, ZSTD_CCtx_params
     ZSTD_compressionParameters const* cParams = &params->cParams;
 
     ZSTD_window_update(&ms->window, src, srcSize);
+    ms->loadedDictEnd = params->forceWindow ? 0 : (U32)(iend - ms->window.base);
 
     if (srcSize <= HASH_READ_SIZE) return 0;
 

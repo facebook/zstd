@@ -514,7 +514,7 @@ size_t ZSTD_ldm_generateSequences(
          *       * Try invalidation after the sequence generation and test the
          *         the offset against maxDist directly.
          */
-        ZSTD_window_enforceMaxDist(&ldmState->window, chunkEnd, maxDist);
+        ZSTD_window_enforceMaxDist(&ldmState->window, chunkEnd, maxDist, NULL);
         /* 3. Generate the sequences for the chunk, and get newLeftoverSize. */
         newLeftoverSize = ZSTD_ldm_generateSequences_internal(
             ldmState, sequences, params, chunkStart, chunkSize);

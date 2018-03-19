@@ -478,17 +478,15 @@ size_t ZSTD_CCtxParam_setParameter(
         return ZSTD_ldm_initializeParameters(&CCtxParams->ldmParams, value);
 
     case ZSTD_p_ldmHashLog :
-        if (value) { /* 0 : does not change current ldmHashLog */
+        if (value>0)   /* 0 ==> auto */
             CLAMPCHECK(value, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
-            CCtxParams->ldmParams.hashLog = value;
-        }
+        CCtxParams->ldmParams.hashLog = value;
         return CCtxParams->ldmParams.hashLog;
 
     case ZSTD_p_ldmMinMatch :
-        if (value) { /* 0 : does not change current ldmMinMatch */
+        if (value>0)   /* 0 ==> default */
             CLAMPCHECK(value, ZSTD_LDM_MINMATCH_MIN, ZSTD_LDM_MINMATCH_MAX);
-            CCtxParams->ldmParams.minMatchLength = value;
-        }
+        CCtxParams->ldmParams.minMatchLength = value;
         return CCtxParams->ldmParams.minMatchLength;
 
     case ZSTD_p_ldmBucketSizeLog :
@@ -988,8 +986,6 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                                 zbuff, pledgedSrcSize)) {
             DEBUGLOG(4, "ZSTD_equivalentParams()==1 -> continue mode (wLog1=%u, blockSize1=%u)",
                         zc->appliedParams.cParams.windowLog, (U32)zc->blockSize);
-            assert(!(params.ldmParams.enableLdm &&
-                     params.ldmParams.hashEveryLog == ZSTD_LDM_HASHEVERYLOG_NOTSET));
             return ZSTD_continueCCtx(zc, params, pledgedSrcSize);
     }   }
     DEBUGLOG(4, "ZSTD_equivalentParams()==0 -> reset CCtx");

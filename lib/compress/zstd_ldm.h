@@ -66,10 +66,6 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
         int const extDict);
 
 
-/** ZSTD_ldm_initializeParameters() :
- *  Initialize the long distance matching parameters to their default values. */
-size_t ZSTD_ldm_initializeParameters(ldmParams_t* params, U32 enableLdm);
-
 /** ZSTD_ldm_getTableSize() :
  *  Estimate the space needed for long distance matching tables or 0 if LDM is
  *  disabled.

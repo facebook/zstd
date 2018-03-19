@@ -905,9 +905,8 @@ ZSTDLIB_API ZSTD_nextInputType_e ZSTD_nextInputType(ZSTD_DCtx* dctx);
  *   and then applied on all subsequent compression jobs.
  *   When no parameter is ever provided, CCtx is created with compression level ZSTD_CLEVEL_DEFAULT.
  *
- *   This API is intended to replace all others experimental API.
- *   It can basically do all other use cases, and even new ones.
- *   It stands a reasonable chance to become "stable", after a good testing period.
+ *   This API is intended to replace all others advanced / experimental API entry points.
+ *   But it stands a reasonable chance to become "stable", after a reasonable testing period.
  */
 
 /* note on naming convention :
@@ -924,12 +923,12 @@ ZSTDLIB_API ZSTD_nextInputType_e ZSTD_nextInputType(ZSTD_DCtx* dctx);
  * All enum will be pinned to explicit values before reaching "stable API" status */
 
 typedef enum {
-    /* Question : should we have a format ZSTD_f_auto ?
-     * For the time being, it would mean exactly the same as ZSTD_f_zstd1.
-     * But, in the future, should several formats be supported,
+    /* Opened question : should we have a format ZSTD_f_auto ?
+     * Today, it would mean exactly the same as ZSTD_f_zstd1.
+     * But, in the future, should several formats become supported,
      * on the compression side, it would mean "default format".
-     * On the decompression side, it would mean "multi format",
-     * and ZSTD_f_zstd1 could be reserved to mean "accept *only* zstd frames".
+     * On the decompression side, it would mean "automatic format detection",
+     * so that ZSTD_f_zstd1 would mean "accept *only* zstd frames".
      * Since meaning is a little different, another option could be to define different enums for compression and decompression.
      * This question could be kept for later, when there are actually multiple formats to support,
      * but there is also the question of pinning enum values, and pinning value `0` is especially important */
@@ -949,33 +948,34 @@ typedef enum {
                               * Default level is ZSTD_CLEVEL_DEFAULT==3.
                               * Special: value 0 means "do not change cLevel".
                               * Note 1 : it's possible to pass a negative compression level by casting it to unsigned type.
-                              * Note 2 : setting compressionLevel automatically updates ZSTD_p_compressLiterals. */
+                              * Note 2 : setting a level sets all default values of other compression parameters.
+                              * Note 3 : setting compressionLevel automatically updates ZSTD_p_compressLiterals. */
     ZSTD_p_windowLog,        /* Maximum allowed back-reference distance, expressed as power of 2.
                               * Must be clamped between ZSTD_WINDOWLOG_MIN and ZSTD_WINDOWLOG_MAX.
-                              * Special: value 0 means "do not change windowLog".
+                              * Special: value 0 means "use default windowLog".
                               * Note: Using a window size greater than ZSTD_MAXWINDOWSIZE_DEFAULT (default: 2^27)
-                              * requires setting the maximum window size at least as large during decompression. */
+                              *       requires explicitly allowing such window size during decompression stage. */
     ZSTD_p_hashLog,          /* Size of the probe table, as a power of 2.
                               * Resulting table size is (1 << (hashLog+2)).
                               * Must be clamped between ZSTD_HASHLOG_MIN and ZSTD_HASHLOG_MAX.
                               * Larger tables improve compression ratio of strategies <= dFast,
                               * and improve speed of strategies > dFast.
-                              * Special: value 0 means "do not change hashLog". */
+                              * Special: value 0 means "use default hashLog". */
     ZSTD_p_chainLog,         /* Size of the full-search table, as a power of 2.
                               * Resulting table size is (1 << (chainLog+2)).
                               * Larger tables result in better and slower compression.
                               * This parameter is useless when using "fast" strategy.
-                              * Special: value 0 means "do not change chainLog". */
+                              * Special: value 0 means "use default chainLog". */
     ZSTD_p_searchLog,        /* Number of search attempts, as a power of 2.
                               * More attempts result in better and slower compression.
                               * This parameter is useless when using "fast" and "dFast" strategies.
-                              * Special: value 0 means "do not change searchLog". */
+                              * Special: value 0 means "use default searchLog". */
     ZSTD_p_minMatch,         /* Minimum size of searched matches (note : repCode matches can be smaller).
                               * Larger values make faster compression and decompression, but decrease ratio.
                               * Must be clamped between ZSTD_SEARCHLENGTH_MIN and ZSTD_SEARCHLENGTH_MAX.
                               * Note that currently, for all strategies < btopt, effective minimum is 4.
-                              * Note that currently, for all strategies > fast, effective maximum is 6.
-                              * Special: value 0 means "do not change minMatchLength". */
+                              *                    , for all strategies > fast, effective maximum is 6.
+                              * Special: value 0 means "use default minMatchLength". */
     ZSTD_p_targetLength,     /* Impact of this field depends on strategy.
                               * For strategies btopt & btultra:
                               *     Length of Match considered "good enough" to stop search.
@@ -983,27 +983,26 @@ typedef enum {
                               * For strategy fast:
                               *     Distance between match sampling.
                               *     Larger values make compression faster, and weaker.
-                              * Special: value 0 means "do not change targetLength". */
+                              * Special: value 0 means "use default targetLength". */
     ZSTD_p_compressionStrategy, /* See ZSTD_strategy enum definition.
                               * Cast selected strategy as unsigned for ZSTD_CCtx_setParameter() compatibility.
                               * The higher the value of selected strategy, the more complex it is,
                               * resulting in stronger and slower compression.
-                              * Special: value 0 means "do not change strategy". */
+                              * Special: value 0 means "use default strategy". */
 
     ZSTD_p_enableLongDistanceMatching=160, /* Enable long distance matching.
                                          * This parameter is designed to improve compression ratio
-                                         * for large inputs, thanks to long distance matches.
+                                         * for large inputs, by finding large matches at long distance.
                                          * It increases memory usage and window size.
-                                         * Note: setting this parameter sets ZSTD_p_windowLog.
-                                         * Setting compression level after LDM overrides the window log,
-                                         * though LDM will remain enabled until explicitly disabled. */
+                                         * Note: enabling this parameter increases ZSTD_p_windowLog to 128 MB
+                                         * except when expressly set to a different value. */
     ZSTD_p_ldmHashLog,       /* Size of the table for long distance matching, as a power of 2.
-                              * Larger values increase memory usage and compression ratio, but decrease
-                              * compression speed.
+                              * Larger values increase memory usage and compression ratio,
+                              * but decrease compression speed.
                               * Must be clamped between ZSTD_HASHLOG_MIN and ZSTD_HASHLOG_MAX
-                              * (default: windowlog - 7).
+                              * default: windowlog - 7.
                               * Special: value 0 means "automatically determine hashlog". */
-    ZSTD_p_ldmMinMatch,      /* Minimum size of searched matches for long distance matcher.
+    ZSTD_p_ldmMinMatch,      /* Minimum match size for long distance matcher.
                               * Larger/too small values usually decrease compression ratio.
                               * Must be clamped between ZSTD_LDM_MINMATCH_MIN and ZSTD_LDM_MINMATCH_MAX.
                               * Special: value 0 means "use default value" (default: 64). */
@@ -1012,11 +1011,10 @@ typedef enum {
                               * The maximum value is ZSTD_LDM_BUCKETSIZELOG_MAX .
                               * Special: value 0 means "use default value" (default: 3). */
     ZSTD_p_ldmHashEveryLog,  /* Frequency of inserting/looking up entries in the LDM hash table.
-                              * The default is MAX(0, (windowLog - ldmHashLog)) to
-                              * optimize hash table usage.
+                              * Must be clamped between 0 and (ZSTD_WINDOWLOG_MAX - ZSTD_HASHLOG_MIN).
+                              * Default is MAX(0, (windowLog - ldmHashLog)), optimizing hash table usage.
                               * Larger values improve compression speed.
                               * Deviating far from default value will likely result in a compression ratio decrease.
-                              * Must be clamped between 0 and (ZSTD_WINDOWLOG_MAX - ZSTD_HASHLOG_MIN).
                               * Special: value 0 means "automatically determine hashEveryLog". */
 
     /* frame parameters */
@@ -1044,7 +1042,9 @@ typedef enum {
     ZSTD_p_overlapSizeLog,   /* Size of previous input reloaded at the beginning of each job.
                               * 0 => no overlap, 6(default) => use 1/8th of windowSize, >=9 => use full windowSize */
 
-    /* advanced parameters - may not remain available after API update */
+    /* =================================================================== */
+    /* experimental parameters - no stability guaranteed                   */
+    /* =================================================================== */
 
     ZSTD_p_compressLiterals=1000, /* control huffman compression of literals (enabled) by default.
                               * disabling it improves speed and decreases compression ratio by a large amount.
@@ -1054,7 +1054,6 @@ typedef enum {
 
     ZSTD_p_forceMaxWindow=1100, /* Force back-reference distances to remain < windowSize,
                               * even when referencing into Dictionary content (default:0) */
-
 
 } ZSTD_cParameter;
 

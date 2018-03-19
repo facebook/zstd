@@ -1132,6 +1132,16 @@ ZSTDLIB_API size_t ZSTD_CCtx_refCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict);
 ZSTDLIB_API size_t ZSTD_CCtx_refPrefix(ZSTD_CCtx* cctx, const void* prefix, size_t prefixSize);
 ZSTDLIB_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* prefix, size_t prefixSize, ZSTD_dictMode_e dictMode);
 
+/*! ZSTD_CCtx_reset() :
+ *  Return a CCtx to clean state.
+ *  Useful after an error, or to interrupt an ongoing compression job and start a new one.
+ *  Any internal data not yet flushed is cancelled.
+ *  Dictionary (if any) is dropped.
+ *  All parameters are back to default values.
+ *  It's possible to modify compression parameters after a reset.
+ */
+ZSTDLIB_API void ZSTD_CCtx_reset(ZSTD_CCtx* cctx);
+
 
 
 typedef enum {
@@ -1166,16 +1176,6 @@ ZSTDLIB_API size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
                                           ZSTD_inBuffer* input,
                                           ZSTD_EndDirective endOp);
 
-/*! ZSTD_CCtx_reset() :
- *  Return a CCtx to clean state.
- *  Useful after an error, or to interrupt an ongoing compression job and start a new one.
- *  Any internal data not yet flushed is cancelled.
- *  Dictionary (if any) is dropped.
- *  All parameters are back to default values.
- *  It's possible to modify compression parameters after a reset.
- */
-ZSTDLIB_API void ZSTD_CCtx_reset(ZSTD_CCtx* cctx);
-
 
 /*! ZSTD_compress_generic_simpleArgs() :
  *  Same as ZSTD_compress_generic(),
@@ -1209,25 +1209,26 @@ ZSTDLIB_API size_t ZSTD_compress_generic_simpleArgs (
  *  for static allocation for single-threaded compression.
  */
 ZSTDLIB_API ZSTD_CCtx_params* ZSTD_createCCtxParams(void);
+ZSTDLIB_API size_t ZSTD_freeCCtxParams(ZSTD_CCtx_params* params);
 
-/*! ZSTD_resetCCtxParams() :
+
+/*! ZSTD_CCtxParams_reset() :
  *  Reset params to default values.
  */
-ZSTDLIB_API size_t ZSTD_resetCCtxParams(ZSTD_CCtx_params* params);
+ZSTDLIB_API size_t ZSTD_CCtxParams_reset(ZSTD_CCtx_params* params);
 
-/*! ZSTD_initCCtxParams() :
+/*! ZSTD_CCtxParams_init() :
  *  Initializes the compression parameters of cctxParams according to
  *  compression level. All other parameters are reset to their default values.
  */
-ZSTDLIB_API size_t ZSTD_initCCtxParams(ZSTD_CCtx_params* cctxParams, int compressionLevel);
+ZSTDLIB_API size_t ZSTD_CCtxParams_init(ZSTD_CCtx_params* cctxParams, int compressionLevel);
 
-/*! ZSTD_initCCtxParams_advanced() :
+/*! ZSTD_CCtxParams_init_advanced() :
  *  Initializes the compression and frame parameters of cctxParams according to
  *  params. All other parameters are reset to their default values.
  */
-ZSTDLIB_API size_t ZSTD_initCCtxParams_advanced(ZSTD_CCtx_params* cctxParams, ZSTD_parameters params);
+ZSTDLIB_API size_t ZSTD_CCtxParams_init_advanced(ZSTD_CCtx_params* cctxParams, ZSTD_parameters params);
 
-ZSTDLIB_API size_t ZSTD_freeCCtxParams(ZSTD_CCtx_params* params);
 
 /*! ZSTD_CCtxParam_setParameter() :
  *  Similar to ZSTD_CCtx_setParameter.

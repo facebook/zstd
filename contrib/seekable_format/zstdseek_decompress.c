@@ -125,7 +125,7 @@ static int ZSTD_seekable_seek_buff(void* opaque, S64 offset, int origin)
         newOffset = (unsigned long long)buff->size - offset;
         break;
     }
-    if (newOffset < 0 || newOffset > buff->size) {
+    if (newOffset > buff->size) {
         return -1;
     }
     buff->pos = newOffset;
@@ -145,7 +145,7 @@ typedef struct {
     int checksumFlag;
 } seekTable_t;
 
-#define SEEKABLE_BUFF_SIZE ZSTD_BLOCKSIZE_ABSOLUTEMAX
+#define SEEKABLE_BUFF_SIZE ZSTD_BLOCKSIZE_MAX
 
 struct ZSTD_seekable_s {
     ZSTD_DStream* dstream;

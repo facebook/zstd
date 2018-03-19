@@ -202,19 +202,19 @@ size_t ZSTD_freeCCtxParams(ZSTD_CCtx_params* params)
     return 0;
 }
 
-size_t ZSTD_resetCCtxParams(ZSTD_CCtx_params* params)
+size_t ZSTD_CCtxParams_reset(ZSTD_CCtx_params* params)
 {
-    return ZSTD_initCCtxParams(params, ZSTD_CLEVEL_DEFAULT);
+    return ZSTD_CCtxParams_init(params, ZSTD_CLEVEL_DEFAULT);
 }
 
-size_t ZSTD_initCCtxParams(ZSTD_CCtx_params* cctxParams, int compressionLevel) {
+size_t ZSTD_CCtxParams_init(ZSTD_CCtx_params* cctxParams, int compressionLevel) {
     if (!cctxParams) { return ERROR(GENERIC); }
     memset(cctxParams, 0, sizeof(*cctxParams));
     cctxParams->compressionLevel = compressionLevel;
     return 0;
 }
 
-size_t ZSTD_initCCtxParams_advanced(ZSTD_CCtx_params* cctxParams, ZSTD_parameters params)
+size_t ZSTD_CCtxParams_init_advanced(ZSTD_CCtx_params* cctxParams, ZSTD_parameters params)
 {
     if (!cctxParams) { return ERROR(GENERIC); }
     CHECK_F( ZSTD_checkCParams(params.cParams) );

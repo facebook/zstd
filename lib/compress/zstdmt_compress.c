@@ -952,7 +952,7 @@ size_t ZSTDMT_initCStream_internal(
         if (params.cParams.windowLog >= 29)
             params.jobSize = ZSTDMT_JOBSIZE_MAX;
         else
-            params.jobSize = (size_t)1 << ZSTDMT_computeTargetJobLog(params);
+            params.jobSize = 1U << ZSTDMT_computeTargetJobLog(params);
     }
     if (params.jobSize > ZSTDMT_JOBSIZE_MAX) params.jobSize = ZSTDMT_JOBSIZE_MAX;
 

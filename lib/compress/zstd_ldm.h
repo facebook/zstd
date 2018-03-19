@@ -22,7 +22,6 @@ extern "C" {
 ***************************************/
 
 #define ZSTD_LDM_DEFAULT_WINDOW_LOG ZSTD_WINDOWLOG_DEFAULTMAX
-#define ZSTD_LDM_HASHEVERYLOG_NOTSET 9999
 
 /**
  * ZSTD_ldm_generateSequences():
@@ -39,8 +38,8 @@ extern "C" {
  *       sequences.
  */
 size_t ZSTD_ldm_generateSequences(
-        ldmState_t* ldms, rawSeqStore_t* sequences,
-        ldmParams_t const* params, void const* src, size_t srcSize);
+            ldmState_t* ldms, rawSeqStore_t* sequences,
+            ldmParams_t const* params, void const* src, size_t srcSize);
 
 /**
  * ZSTD_ldm_blockCompress():
@@ -61,9 +60,10 @@ size_t ZSTD_ldm_generateSequences(
  * NOTE: This function does not return any errors.
  */
 size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
-    ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
-    ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize,
-    int const extDict);
+        ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
+        ZSTD_compressionParameters const* cParams,
+        void const* src, size_t srcSize,
+        int const extDict);
 
 
 /** ZSTD_ldm_initializeParameters() :

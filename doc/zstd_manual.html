@@ -825,9 +825,9 @@ size_t ZSTD_decodingBufferSize_min(unsigned long long windowSize, unsigned long 
 
     ZSTD_p_compressLiterals=1000, </b>/* control huffman compression of literals (enabled) by default.<b>
                               * disabling it improves speed and decreases compression ratio by a large amount.
-                              * note : this setting is updated when changing compression level.
-                              *        positive compression levels set literalCompression to 1.
-                              *        negative compression levels set literalCompression to 0. */
+                              * note : this setting is automatically updated when changing compression level.
+                              *        positive compression levels set ZSTD_p_compressLiterals to 1.
+                              *        negative compression levels set ZSTD_p_compressLiterals to 0. */
 
     ZSTD_p_forceMaxWindow=1100, </b>/* Force back-reference distances to remain < windowSize,<b>
                               * even when referencing into Dictionary content (default:0) */

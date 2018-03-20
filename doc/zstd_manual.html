@@ -345,10 +345,10 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
 } ZSTD_parameters;
 </b></pre><BR>
 <pre><b>typedef enum {
-    ZSTD_dm_auto=0,      </b>/* dictionary is "full" if it starts with ZSTD_MAGIC_DICTIONARY, otherwise it is "rawContent" */<b>
-    ZSTD_dm_rawContent,  </b>/* ensures dictionary is always loaded as rawContent, even if it starts with ZSTD_MAGIC_DICTIONARY */<b>
-    ZSTD_dm_fullDict     </b>/* refuses to load a dictionary if it does not respect Zstandard's specification */<b>
-} ZSTD_dictMode_e;
+    ZSTD_dct_auto=0,      </b>/* dictionary is "full" when starting with ZSTD_MAGIC_DICTIONARY, otherwise it is "rawContent" */<b>
+    ZSTD_dct_rawContent,  </b>/* ensures dictionary is always loaded as rawContent, even if it starts with ZSTD_MAGIC_DICTIONARY */<b>
+    ZSTD_dct_fullDict     </b>/* refuses to load a dictionary if it does not respect Zstandard's specification */<b>
+} ZSTD_dictContentType_e;
 </b></pre><BR>
 <pre><b>typedef enum {
     ZSTD_dlm_byCopy = 0, </b>/**< Copy dictionary content internally */<b>
@@ -890,7 +890,7 @@ size_t ZSTD_decodingBufferSize_min(unsigned long long windowSize, unsigned long 
 
 <pre><b>size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, size_t dictSize);
 size_t ZSTD_CCtx_loadDictionary_byReference(ZSTD_CCtx* cctx, const void* dict, size_t dictSize);
-size_t ZSTD_CCtx_loadDictionary_advanced(ZSTD_CCtx* cctx, const void* dict, size_t dictSize, ZSTD_dictLoadMethod_e dictLoadMethod, ZSTD_dictMode_e dictMode);
+size_t ZSTD_CCtx_loadDictionary_advanced(ZSTD_CCtx* cctx, const void* dict, size_t dictSize, ZSTD_dictLoadMethod_e dictLoadMethod, ZSTD_dictContentType_e dictContentType);
 </b><p>  Create an internal CDict from `dict` buffer.
   Decompression will have to use same dictionary.
  @result : 0, or an error code (which can be tested with ZSTD_isError()).
@@ -921,7 +921,7 @@ size_t ZSTD_CCtx_loadDictionary_advanced(ZSTD_CCtx* cctx, const void* dict, size
 </p></pre><BR>
 
 <pre><b>size_t ZSTD_CCtx_refPrefix(ZSTD_CCtx* cctx, const void* prefix, size_t prefixSize);
-size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* prefix, size_t prefixSize, ZSTD_dictMode_e dictMode);
+size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* prefix, size_t prefixSize, ZSTD_dictContentType_e dictContentType);
 </b><p>  Reference a prefix (single-usage dictionary) for next compression job.
   Decompression need same prefix to properly regenerate data.
   Prefix is **only used once**. Tables are discarded at end of compression job.
@@ -1049,7 +1049,7 @@ size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* prefix, size_t 
 <h3>Advanced parameters for decompression API</h3><pre></pre><b><pre></pre></b><BR>
 <pre><b>size_t ZSTD_DCtx_loadDictionary(ZSTD_DCtx* dctx, const void* dict, size_t dictSize);
 size_t ZSTD_DCtx_loadDictionary_byReference(ZSTD_DCtx* dctx, const void* dict, size_t dictSize);
-size_t ZSTD_DCtx_loadDictionary_advanced(ZSTD_DCtx* dctx, const void* dict, size_t dictSize, ZSTD_dictLoadMethod_e dictLoadMethod, ZSTD_dictMode_e dictMode);
+size_t ZSTD_DCtx_loadDictionary_advanced(ZSTD_DCtx* dctx, const void* dict, size_t dictSize, ZSTD_dictLoadMethod_e dictLoadMethod, ZSTD_dictContentType_e dictContentType);
 </b><p>  Create an internal DDict from dict buffer,
   to be used to decompress next frames.
  @result : 0, or an error code (which can be tested with ZSTD_isError()).
@@ -1078,7 +1078,7 @@ size_t ZSTD_DCtx_loadDictionary_advanced(ZSTD_DCtx* dctx, const void* dict, size
 </p></pre><BR>
 
 <pre><b>size_t ZSTD_DCtx_refPrefix(ZSTD_DCtx* dctx, const void* prefix, size_t prefixSize);   </b>/* not implemented */<b>
-size_t ZSTD_DCtx_refPrefix_advanced(ZSTD_DCtx* dctx, const void* prefix, size_t prefixSize, ZSTD_dictMode_e dictMode);   </b>/* not implemented */<b>
+size_t ZSTD_DCtx_refPrefix_advanced(ZSTD_DCtx* dctx, const void* prefix, size_t prefixSize, ZSTD_dictContentType_e dictContentType);   </b>/* not implemented */<b>
 </b><p>  Reference a prefix (single-usage dictionary) for next compression job.
   Prefix is **only used once**. It must be explicitly referenced before each frame.
   If there is a need to use same prefix multiple times, consider embedding it into a ZSTD_DDict instead.

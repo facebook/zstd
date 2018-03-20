@@ -2608,7 +2608,7 @@ size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t di
     DEBUGLOG(4, "ZSTD_initDStream_usingDict");
     zds->streamStage = zdss_init;
     CHECK_F( ZSTD_DCtx_loadDictionary(zds, dict, dictSize) );
-    return ZSTD_resetDStream(zds);
+    return ZSTD_frameHeaderSize_prefix;
 }
 
 /* note : this variant can't fail */
@@ -2628,38 +2628,36 @@ size_t ZSTD_DCtx_refDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict)
 /* ZSTD_initDStream_usingDDict() :
  * ddict will just be referenced, and must outlive decompression session
  * this function cannot fail */
-size_t ZSTD_initDStream_usingDDict(ZSTD_DStream* zds, const ZSTD_DDict* ddict)
+size_t ZSTD_initDStream_usingDDict(ZSTD_DStream* dctx, const ZSTD_DDict* ddict)
 {
-    size_t const initResult = ZSTD_initDStream(zds);
-    zds->ddict = ddict;
+    size_t const initResult = ZSTD_initDStream(dctx);
+    dctx->ddict = ddict;
     return initResult;
 }
 
 /* ZSTD_resetDStream() :
  * return : expected size, aka ZSTD_frameHeaderSize_prefix.
  * this function cannot fail */
-size_t ZSTD_resetDStream(ZSTD_DStream* zds)
+size_t ZSTD_resetDStream(ZSTD_DStream* dctx)
 {
     DEBUGLOG(4, "ZSTD_resetDStream");
-    zds->streamStage = zdss_loadHeader;
-    zds->lhSize = zds->inPos = zds->outStart = zds->outEnd = 0;
-    zds->legacyVersion = 0;
-    zds->hostageByte = 0;
+    dctx->streamStage = zdss_loadHeader;
+    dctx->lhSize = dctx->inPos = dctx->outStart = dctx->outEnd = 0;
+    dctx->legacyVersion = 0;
+    dctx->hostageByte = 0;
     return ZSTD_frameHeaderSize_prefix;
 }
 
-size_t ZSTD_setDStreamParameter(ZSTD_DStream* zds,
+size_t ZSTD_setDStreamParameter(ZSTD_DStream* dctx,
                                 ZSTD_DStreamParameter_e paramType, unsigned paramValue)
 {
-    ZSTD_STATIC_ASSERT((unsigned)zdss_loadHeader >= (unsigned)zdss_init);
-    if ((unsigned)zds->streamStage > (unsigned)zdss_loadHeader)
-        return ERROR(stage_wrong);
+    if (dctx->streamStage != zdss_init) return ERROR(stage_wrong);
     switch(paramType)
     {
         default : return ERROR(parameter_unsupported);
         case DStream_p_maxWindowSize :
             DEBUGLOG(4, "setting maxWindowSize = %u KB", paramValue >> 10);
-            zds->maxWindowSize = paramValue ? paramValue : (U32)(-1);
+            dctx->maxWindowSize = paramValue ? paramValue : (U32)(-1);
             break;
     }
     return 0;
@@ -2667,9 +2665,7 @@ size_t ZSTD_setDStreamParameter(ZSTD_DStream* zds,
 
 size_t ZSTD_DCtx_setMaxWindowSize(ZSTD_DCtx* dctx, size_t maxWindowSize)
 {
-    ZSTD_STATIC_ASSERT((unsigned)zdss_loadHeader >= (unsigned)zdss_init);
-    if ((unsigned)dctx->streamStage > (unsigned)zdss_loadHeader)
-        return ERROR(stage_wrong);
+    if (dctx->streamStage != zdss_init) return ERROR(stage_wrong);
     dctx->maxWindowSize = maxWindowSize;
     return 0;
 }
@@ -2677,17 +2673,15 @@ size_t ZSTD_DCtx_setMaxWindowSize(ZSTD_DCtx* dctx, size_t maxWindowSize)
 size_t ZSTD_DCtx_setFormat(ZSTD_DCtx* dctx, ZSTD_format_e format)
 {
     DEBUGLOG(4, "ZSTD_DCtx_setFormat : %u", (unsigned)format);
-    ZSTD_STATIC_ASSERT((unsigned)zdss_loadHeader >= (unsigned)zdss_init);
-    if ((unsigned)dctx->streamStage > (unsigned)zdss_loadHeader)
-        return ERROR(stage_wrong);
+    if (dctx->streamStage != zdss_init) return ERROR(stage_wrong);
     dctx->format = format;
     return 0;
 }
 
 
-size_t ZSTD_sizeof_DStream(const ZSTD_DStream* zds)
+size_t ZSTD_sizeof_DStream(const ZSTD_DStream* dctx)
 {
-    return ZSTD_sizeof_DCtx(zds);
+    return ZSTD_sizeof_DCtx(dctx);
 }
 
 size_t ZSTD_decodingBufferSize_min(unsigned long long windowSize, unsigned long long frameContentSize)
@@ -2968,8 +2962,8 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             return 1;
         }  /* nextSrcSizeHint==0 */
         nextSrcSizeHint += ZSTD_blockHeaderSize * (ZSTD_nextInputType(zds) == ZSTDnit_block);   /* preload header of next block */
-        if (zds->inPos > nextSrcSizeHint) return ERROR(GENERIC);   /* should never happen */
-        nextSrcSizeHint -= zds->inPos;   /* already loaded*/
+        assert(zds->inPos <= nextSrcSizeHint);
+        nextSrcSizeHint -= zds->inPos;   /* part already loaded*/
         return nextSrcSizeHint;
     }
 }

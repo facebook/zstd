@@ -2432,7 +2432,8 @@ ZSTD_DDict* ZSTD_createDDict_byReference(const void* dictBuffer, size_t dictSize
 const ZSTD_DDict* ZSTD_initStaticDDict(
                                 void* workspace, size_t workspaceSize,
                                 const void* dict, size_t dictSize,
-                                ZSTD_dictLoadMethod_e dictLoadMethod)
+                                ZSTD_dictLoadMethod_e dictLoadMethod,
+                                ZSTD_dictMode_e dictContentType)
 {
     size_t const neededSpace =
             sizeof(ZSTD_DDict) + (dictLoadMethod == ZSTD_dlm_byRef ? 0 : dictSize);
@@ -2445,7 +2446,7 @@ const ZSTD_DDict* ZSTD_initStaticDDict(
         memcpy(ddict+1, dict, dictSize);  /* local copy */
         dict = ddict+1;
     }
-    if (ZSTD_isError( ZSTD_initDDict_internal(ddict, dict, dictSize, ZSTD_dlm_byRef, ZSTD_dm_auto) ))
+    if (ZSTD_isError( ZSTD_initDDict_internal(ddict, dict, dictSize, ZSTD_dlm_byRef, dictContentType) ))
         return NULL;
     return ddict;
 }

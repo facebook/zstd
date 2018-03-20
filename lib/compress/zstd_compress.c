@@ -922,6 +922,7 @@ static size_t ZSTD_continueCCtx(ZSTD_CCtx* cctx, ZSTD_CCtx_params params, U64 pl
     cctx->dictID = 0;
     if (params.ldmParams.enableLdm)
         ZSTD_window_clear(&cctx->ldmState.window);
+    ZSTD_referenceExternalSequences(cctx, NULL, 0);
     ZSTD_invalidateMatchState(&cctx->blockState.matchState);
     ZSTD_reset_compressedBlockState(cctx->blockState.prevCBlock);
     XXH64_reset(&cctx->xxhState, 0);
@@ -1108,6 +1109,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             ptr = zc->ldmState.bucketOffsets + ldmBucketSize;
             ZSTD_window_clear(&zc->ldmState.window);
         }
+        ZSTD_referenceExternalSequences(zc, NULL, 0);
 
         /* buffers */
         zc->inBuffSize = buffInSize;
@@ -1818,8 +1820,10 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
     ZSTD_matchState_t* const ms = &zc->blockState.matchState;
     DEBUGLOG(5, "ZSTD_compressBlock_internal (dstCapacity=%u, dictLimit=%u, nextToUpdate=%u)",
                 (U32)dstCapacity, ms->window.dictLimit, ms->nextToUpdate);
-    if (srcSize < MIN_CBLOCK_SIZE+ZSTD_blockHeaderSize+1)
+    if (srcSize < MIN_CBLOCK_SIZE+ZSTD_blockHeaderSize+1) {
+        ZSTD_ldm_skipSequences(&zc->externSeqStore, srcSize, zc->appliedParams.cParams.searchLength);
         return 0;   /* don't even attempt compression below a certain srcSize */
+    }
     ZSTD_resetSeqStore(&(zc->seqStore));
 
     /* limited update after a very long match */

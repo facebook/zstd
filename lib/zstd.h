@@ -580,7 +580,8 @@ ZSTDLIB_API const ZSTD_CDict* ZSTD_initStaticCDict(
 ZSTDLIB_API const ZSTD_DDict* ZSTD_initStaticDDict(
                                         void* workspace, size_t workspaceSize,
                                         const void* dict, size_t dictSize,
-                                        ZSTD_dictLoadMethod_e dictLoadMethod);
+                                        ZSTD_dictLoadMethod_e dictLoadMethod,
+                                        ZSTD_dictMode_e dictMode);
 
 /*! Custom memory allocation :
  *  These prototypes make it possible to pass your own allocation/free functions.

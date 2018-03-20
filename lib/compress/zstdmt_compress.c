@@ -1278,11 +1278,16 @@ size_t ZSTDMT_initCStream_internal(
     {
         /* If ldm is enabled we need windowSize space. */
         size_t const windowSize = mtctx->params.ldmParams.enableLdm ? (1U << mtctx->params.cParams.windowLog) : 0;
-        /* Two buffers of slack, plus extra space for the overlap */
-        size_t const nbWorkers = MAX(mtctx->params.nbWorkers, 1);
-        size_t const nbSlackBuffers = MIN(nbWorkers, 2) + (mtctx->targetPrefixSize > 0);
+        /* Two buffers of slack, plus extra space for the overlap
+         * This is the minimum slack that LDM works with. One extra because
+         * flush might waste up to targetSectionSize-1 bytes. Another extra
+         * for the overlap (if > 0), then one to fill which doesn't overlap
+         * with the LDM window.
+         */
+        size_t const nbSlackBuffers = 2 + (mtctx->targetPrefixSize > 0);
         size_t const slackSize = mtctx->targetSectionSize * nbSlackBuffers;
         /* Compute the total size, and always have enough slack */
+        size_t const nbWorkers = MAX(mtctx->params.nbWorkers, 1);
         size_t const sectionsSize = mtctx->targetSectionSize * nbWorkers;
         size_t const capacity = MAX(windowSize, sectionsSize) + slackSize;
         if (mtctx->roundBuff.capacity < capacity) {

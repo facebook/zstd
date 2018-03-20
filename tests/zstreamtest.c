@@ -239,7 +239,7 @@ static int basicUnitTests(U32 seed, double compressibility)
 
     /* Create dictionary */
     DISPLAYLEVEL(3, "creating dictionary for unit tests \n");
-    dictionary = FUZ_createDictionary(CNBuffer, CNBufferSize / 2, 8 KB, 40 KB);
+    dictionary = FUZ_createDictionary(CNBuffer, CNBufferSize / 3, 16 KB, 48 KB);
     if (!dictionary.start) {
         DISPLAY("Error creating dictionary, aborting \n");
         goto _output_error;

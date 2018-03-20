@@ -605,6 +605,7 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictS
 
 ZSTDLIB_API ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize,
                                                   ZSTD_dictLoadMethod_e dictLoadMethod,
+                                                  ZSTD_dictMode_e dictContentType,
                                                   ZSTD_customMem customMem);
 
 
@@ -1270,9 +1271,9 @@ ZSTDLIB_API size_t ZSTD_CCtx_setParametersUsingCCtxParams(
  *  Note 3 : Use ZSTD_DCtx_loadDictionary_advanced() to select
  *           how dictionary content will be interpreted and loaded.
  */
-ZSTDLIB_API size_t ZSTD_DCtx_loadDictionary(ZSTD_DCtx* dctx, const void* dict, size_t dictSize);   /* not implemented */
-ZSTDLIB_API size_t ZSTD_DCtx_loadDictionary_byReference(ZSTD_DCtx* dctx, const void* dict, size_t dictSize);   /* not implemented */
-ZSTDLIB_API size_t ZSTD_DCtx_loadDictionary_advanced(ZSTD_DCtx* dctx, const void* dict, size_t dictSize, ZSTD_dictLoadMethod_e dictLoadMethod, ZSTD_dictMode_e dictMode);   /* not implemented */
+ZSTDLIB_API size_t ZSTD_DCtx_loadDictionary(ZSTD_DCtx* dctx, const void* dict, size_t dictSize);
+ZSTDLIB_API size_t ZSTD_DCtx_loadDictionary_byReference(ZSTD_DCtx* dctx, const void* dict, size_t dictSize);
+ZSTDLIB_API size_t ZSTD_DCtx_loadDictionary_advanced(ZSTD_DCtx* dctx, const void* dict, size_t dictSize, ZSTD_dictLoadMethod_e dictLoadMethod, ZSTD_dictMode_e dictMode);
 
 
 /*! ZSTD_DCtx_refDDict() :

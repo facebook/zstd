@@ -14,8 +14,9 @@
 *****************************************************************/
 /*!
  * HEAPMODE :
- * Select how default decompression function ZSTD_decompress() will allocate memory,
- * in memory stack (0), or in memory heap (1, requires malloc())
+ * Select how default decompression function ZSTD_decompress() allocates its context,
+ * on stack (0), or into heap (1, default; requires malloc()).
+ * Note that functions with explicit context such as ZSTD_decompressDCtx() are unaffected.
  */
 #ifndef ZSTD_HEAPMODE
 #  define ZSTD_HEAPMODE 1
@@ -30,10 +31,11 @@
 #endif
 
 /*!
-*  MAXWINDOWSIZE_DEFAULT :
-*  maximum window size accepted by DStream, by default.
-*  Frames requiring more memory will be rejected.
-*/
+ *  MAXWINDOWSIZE_DEFAULT :
+ *  maximum window size accepted by DStream __by default__.
+ *  Frames requiring more memory will be rejected.
+ *  It's possible to set a different limit using ZSTD_DCtx_setMaxWindowSize().
+ */
 #ifndef ZSTD_MAXWINDOWSIZE_DEFAULT
 #  define ZSTD_MAXWINDOWSIZE_DEFAULT (((U32)1 << ZSTD_WINDOWLOG_DEFAULTMAX) + 1)
 #endif
@@ -2335,13 +2337,23 @@ size_t ZSTD_decompressBegin_usingDDict(ZSTD_DCtx* dstDCtx, const ZSTD_DDict* ddi
     return 0;
 }
 
-static size_t ZSTD_loadEntropy_inDDict(ZSTD_DDict* ddict)
+static size_t ZSTD_loadEntropy_inDDict(ZSTD_DDict* ddict, ZSTD_dictMode_e dictContentType)
 {
     ddict->dictID = 0;
     ddict->entropyPresent = 0;
-    if (ddict->dictSize < 8) return 0;
+    if (dictContentType == ZSTD_dm_rawContent) return 0;
+
+    if (ddict->dictSize < 8) {
+        if (dictContentType == ZSTD_dm_fullDict)
+            return ERROR(dictionary_corrupted);   /* only accept specified dictionaries */
+        return 0;   /* pure content mode */
+    }
     {   U32 const magic = MEM_readLE32(ddict->dictContent);
-        if (magic != ZSTD_MAGIC_DICTIONARY) return 0;   /* pure content mode */
+        if (magic != ZSTD_MAGIC_DICTIONARY) {
+            if (dictContentType == ZSTD_dm_fullDict)
+                return ERROR(dictionary_corrupted);   /* only accept specified dictionaries */
+            return 0;   /* pure content mode */
+        }
     }
     ddict->dictID = MEM_readLE32((const char*)ddict->dictContent + ZSTD_frameIdSize);
 
@@ -2352,7 +2364,10 @@ static size_t ZSTD_loadEntropy_inDDict(ZSTD_DDict* ddict)
 }
 
 
-static size_t ZSTD_initDDict_internal(ZSTD_DDict* ddict, const void* dict, size_t dictSize, ZSTD_dictLoadMethod_e dictLoadMethod)
+static size_t ZSTD_initDDict_internal(ZSTD_DDict* ddict,
+                                      const void* dict, size_t dictSize,
+                                      ZSTD_dictLoadMethod_e dictLoadMethod,
+                                      ZSTD_dictMode_e dictContentType)
 {
     if ((dictLoadMethod == ZSTD_dlm_byRef) || (!dict) || (!dictSize)) {
         ddict->dictBuffer = NULL;
@@ -2368,12 +2383,15 @@ static size_t ZSTD_initDDict_internal(ZSTD_DDict* ddict, const void* dict, size_
     ddict->entropy.hufTable[0] = (HUF_DTable)((HufLog)*0x1000001);  /* cover both little and big endian */
 
     /* parse dictionary content */
-    CHECK_F( ZSTD_loadEntropy_inDDict(ddict) );
+    CHECK_F( ZSTD_loadEntropy_inDDict(ddict, dictContentType) );
 
     return 0;
 }
 
-ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize, ZSTD_dictLoadMethod_e dictLoadMethod, ZSTD_customMem customMem)
+ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize,
+                                      ZSTD_dictLoadMethod_e dictLoadMethod,
+                                      ZSTD_dictMode_e dictContentType,
+                                      ZSTD_customMem customMem)
 {
     if (!customMem.customAlloc ^ !customMem.customFree) return NULL;
 
@@ -2381,7 +2399,7 @@ ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize, ZSTD_di
         if (!ddict) return NULL;
         ddict->cMem = customMem;
 
-        if (ZSTD_isError( ZSTD_initDDict_internal(ddict, dict, dictSize, dictLoadMethod) )) {
+        if (ZSTD_isError( ZSTD_initDDict_internal(ddict, dict, dictSize, dictLoadMethod, dictContentType) )) {
             ZSTD_freeDDict(ddict);
             return NULL;
         }
@@ -2397,7 +2415,7 @@ ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize, ZSTD_di
 ZSTD_DDict* ZSTD_createDDict(const void* dict, size_t dictSize)
 {
     ZSTD_customMem const allocator = { NULL, NULL, NULL };
-    return ZSTD_createDDict_advanced(dict, dictSize, ZSTD_dlm_byCopy, allocator);
+    return ZSTD_createDDict_advanced(dict, dictSize, ZSTD_dlm_byCopy, ZSTD_dm_auto, allocator);
 }
 
 /*! ZSTD_createDDict_byReference() :
@@ -2407,7 +2425,7 @@ ZSTD_DDict* ZSTD_createDDict(const void* dict, size_t dictSize)
 ZSTD_DDict* ZSTD_createDDict_byReference(const void* dictBuffer, size_t dictSize)
 {
     ZSTD_customMem const allocator = { NULL, NULL, NULL };
-    return ZSTD_createDDict_advanced(dictBuffer, dictSize, ZSTD_dlm_byRef, allocator);
+    return ZSTD_createDDict_advanced(dictBuffer, dictSize, ZSTD_dlm_byRef, ZSTD_dm_auto, allocator);
 }
 
 
@@ -2427,7 +2445,7 @@ const ZSTD_DDict* ZSTD_initStaticDDict(
         memcpy(ddict+1, dict, dictSize);  /* local copy */
         dict = ddict+1;
     }
-    if (ZSTD_isError( ZSTD_initDDict_internal(ddict, dict, dictSize, ZSTD_dlm_byRef) ))
+    if (ZSTD_isError( ZSTD_initDDict_internal(ddict, dict, dictSize, ZSTD_dlm_byRef, ZSTD_dm_auto) ))
         return NULL;
     return ddict;
 }
@@ -2546,17 +2564,35 @@ size_t ZSTD_freeDStream(ZSTD_DStream* zds)
 size_t ZSTD_DStreamInSize(void)  { return ZSTD_BLOCKSIZE_MAX + ZSTD_blockHeaderSize; }
 size_t ZSTD_DStreamOutSize(void) { return ZSTD_BLOCKSIZE_MAX; }
 
+size_t ZSTD_DCtx_loadDictionary_advanced(ZSTD_DCtx* dctx, const void* dict, size_t dictSize, ZSTD_dictLoadMethod_e dictLoadMethod, ZSTD_dictMode_e dictMode)
+{
+    ZSTD_freeDDict(dctx->ddictLocal);
+    if (dict && dictSize >= 8) {
+        dctx->ddictLocal = ZSTD_createDDict_advanced(dict, dictSize, dictLoadMethod, dictMode, dctx->customMem);
+        if (dctx->ddictLocal == NULL) return ERROR(memory_allocation);
+    } else {
+        dctx->ddictLocal = NULL;
+    }
+    dctx->ddict = dctx->ddictLocal;
+    return 0;
+}
+
+size_t ZSTD_DCtx_loadDictionary_byReference(ZSTD_DCtx* dctx, const void* dict, size_t dictSize)
+{
+    return ZSTD_DCtx_loadDictionary_advanced(dctx, dict, dictSize, ZSTD_dlm_byRef, ZSTD_dm_auto);
+}
+
+size_t ZSTD_DCtx_loadDictionary(ZSTD_DCtx* dctx, const void* dict, size_t dictSize)
+{
+    return ZSTD_DCtx_loadDictionary_advanced(dctx, dict, dictSize, ZSTD_dlm_byCopy, ZSTD_dm_auto);
+}
+
 size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t dictSize)
 {
     DEBUGLOG(4, "ZSTD_initDStream_usingDict");
     zds->streamStage = zdss_loadHeader;
     zds->lhSize = zds->inPos = zds->outStart = zds->outEnd = 0;
-    ZSTD_freeDDict(zds->ddictLocal);
-    if (dict && dictSize >= 8) {
-        zds->ddictLocal = ZSTD_createDDict(dict, dictSize);
-        if (zds->ddictLocal == NULL) return ERROR(memory_allocation);
-    } else zds->ddictLocal = NULL;
-    zds->ddict = zds->ddictLocal;
+    CHECK_F( ZSTD_DCtx_loadDictionary(zds, dict, dictSize) );
     zds->legacyVersion = 0;
     zds->hostageByte = 0;
     return ZSTD_frameHeaderSize_prefix;

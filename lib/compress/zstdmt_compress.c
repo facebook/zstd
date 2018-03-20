@@ -436,6 +436,8 @@ static int ZSTDMT_serialState_reset(serialState_t* serialState, ZSTDMT_seqPool* 
         assert(params.ldmParams.hashEveryLog < 32);
         serialState->ldmState.hashPower =
                 ZSTD_ldm_getHashPower(params.ldmParams.minMatchLength);
+    } else {
+        memset(&params.ldmParams, 0, sizeof(params.ldmParams));
     }
     serialState->nextJobID = 0;
     if (params.fParams.checksumFlag)

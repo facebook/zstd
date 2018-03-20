@@ -359,43 +359,43 @@ size_t ZSTD_CCtxParam_setParameter(
     }
 
     case ZSTD_p_windowLog :
-        if (value)   /* 0 => use default */
+        if (value>0)   /* 0 => use default */
             CLAMPCHECK(value, ZSTD_WINDOWLOG_MIN, ZSTD_WINDOWLOG_MAX);
         CCtxParams->cParams.windowLog = value;
         return CCtxParams->cParams.windowLog;
 
     case ZSTD_p_hashLog :
-        if (value)   /* 0 => use default */
+        if (value>0)   /* 0 => use default */
             CLAMPCHECK(value, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
         CCtxParams->cParams.hashLog = value;
         return CCtxParams->cParams.hashLog;
 
     case ZSTD_p_chainLog :
-        if (value)   /* 0 => use default */
+        if (value>0)   /* 0 => use default */
             CLAMPCHECK(value, ZSTD_CHAINLOG_MIN, ZSTD_CHAINLOG_MAX);
         CCtxParams->cParams.chainLog = value;
         return CCtxParams->cParams.chainLog;
 
     case ZSTD_p_searchLog :
-        if (value)   /* 0 => use default */
+        if (value>0)   /* 0 => use default */
             CLAMPCHECK(value, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
         CCtxParams->cParams.searchLog = value;
         return value;
 
     case ZSTD_p_minMatch :
-        if (value)   /* 0 => use default */
+        if (value>0)   /* 0 => use default */
             CLAMPCHECK(value, ZSTD_SEARCHLENGTH_MIN, ZSTD_SEARCHLENGTH_MAX);
         CCtxParams->cParams.searchLength = value;
         return CCtxParams->cParams.searchLength;
 
     case ZSTD_p_targetLength :
-        if (value)   /* 0 => use default */
+        if (value>0)   /* 0 => use default */
             CLAMPCHECK(value, ZSTD_TARGETLENGTH_MIN, ZSTD_TARGETLENGTH_MAX);
         CCtxParams->cParams.targetLength = value;
         return CCtxParams->cParams.targetLength;
 
     case ZSTD_p_compressionStrategy :
-        if (value)   /* 0 => use default */
+        if (value>0)   /* 0 => use default */
             CLAMPCHECK(value, (unsigned)ZSTD_fast, (unsigned)ZSTD_btultra);
         CCtxParams->cParams.strategy = (ZSTD_strategy)value;
         return (size_t)CCtxParams->cParams.strategy;
@@ -426,7 +426,7 @@ size_t ZSTD_CCtxParam_setParameter(
 
     case ZSTD_p_nbWorkers :
 #ifndef ZSTD_MULTITHREAD
-        if (value > 0) return ERROR(parameter_unsupported);
+        if (value>0) return ERROR(parameter_unsupported);
         return 0;
 #else
         return ZSTDMT_CCtxParam_setNbWorkers(CCtxParams, value);
@@ -2063,8 +2063,8 @@ size_t ZSTD_compressContinue (ZSTD_CCtx* cctx,
 
 size_t ZSTD_getBlockSize(const ZSTD_CCtx* cctx)
 {
-    ZSTD_compressionParameters const cParams =
-            ZSTD_getCParamsFromCCtxParams(&(cctx->appliedParams), 0, 0);
+    ZSTD_compressionParameters const cParams = cctx->appliedParams.cParams;
+    assert(!ZSTD_checkCParams(cParams));
     return MIN (ZSTD_BLOCKSIZE_MAX, (U32)1 << cParams.windowLog);
 }
 

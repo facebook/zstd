@@ -541,14 +541,14 @@ void ZSTD_ldm_skipSequences(rawSeqStore_t* rawSeqStore, size_t srcSize, U32 cons
         rawSeq* seq = rawSeqStore->seq + rawSeqStore->pos;
         if (srcSize <= seq->litLength) {
             /* Skip past srcSize literals */
-            seq->litLength -= srcSize;
+            seq->litLength -= (U32)srcSize;
             return;
         }
         srcSize -= seq->litLength;
         seq->litLength = 0;
         if (srcSize < seq->matchLength) {
             /* Skip past the first srcSize of the match */
-            seq->matchLength -= srcSize;
+            seq->matchLength -= (U32)srcSize;
             if (seq->matchLength < minMatch) {
                 /* The match is too short, omit it */
                 if (rawSeqStore->pos + 1 < rawSeqStore->size) {

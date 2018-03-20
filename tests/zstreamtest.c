@@ -579,14 +579,16 @@ static int basicUnitTests(U32 seed, double compressibility)
 
     DISPLAYLEVEL(3, "test%3i : dictionary source size and level : ", testNb++);
     {   ZSTD_DCtx* const dctx = ZSTD_createDCtx();
-        ZSTD_DDict* const ddict = ZSTD_createDDict(dictionary.start, dictionary.filled);
-        int const maxLevel = ZSTD_maxCLevel();
+        int const maxLevel = 15;
         int level;
+        assert(maxLevel < ZSTD_maxCLevel());
+        CHECK_Z( ZSTD_DCtx_loadDictionary_byReference(dctx, dictionary.start, dictionary.filled) );
         for (level = 1; level <= maxLevel; ++level) {
             ZSTD_CDict* const cdict = ZSTD_createCDict(dictionary.start, dictionary.filled, level);
-            int const maxSize = MIN(1 MB, CNBufferSize);
-            int size;
+            size_t const maxSize = MIN(1 MB, CNBufferSize);
+            size_t size;
             for (size = 512; size <= maxSize; size <<= 1) {
+                U64 const crcOrig = XXH64(CNBuffer, size, 0);
                 ZSTD_CCtx* const cctx = ZSTD_createCCtx();
                 outBuff.dst = compressedBuffer;
                 outBuff.size = compressedBufferSize;
@@ -597,12 +599,18 @@ static int basicUnitTests(U32 seed, double compressibility)
                 CHECK_Z(ZSTD_CCtx_refCDict(cctx, cdict));
                 CHECK_Z(ZSTD_compress_generic(cctx, &outBuff, &inBuff, ZSTD_e_end));
                 if (inBuff.pos != inBuff.size) goto _output_error;
-                CHECK_Z(ZSTD_decompress_usingDDict(dctx, decodedBuffer, size, outBuff.dst, outBuff.pos, ddict));
+                {   ZSTD_outBuffer decOut = {decodedBuffer, size, 0};
+                    ZSTD_inBuffer decIn = {outBuff.dst, outBuff.pos, 0};
+                    CHECK_Z( ZSTD_decompress_generic(dctx, &decOut, &decIn) );
+                    if (decIn.pos != decIn.size) goto _output_error;
+                    if (decOut.pos != size) goto _output_error;
+                    {   U64 const crcDec = XXH64(decOut.dst, decOut.pos, 0);
+                        if (crcDec != crcOrig) goto _output_error;
+                }   }
                 ZSTD_freeCCtx(cctx);
             }
             ZSTD_freeCDict(cdict);
         }
-        ZSTD_freeDDict(ddict);
         ZSTD_freeDCtx(dctx);
     }
     DISPLAYLEVEL(3, "OK\n");

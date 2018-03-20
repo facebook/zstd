@@ -2567,6 +2567,7 @@ size_t ZSTD_DStreamOutSize(void) { return ZSTD_BLOCKSIZE_MAX; }
 
 size_t ZSTD_DCtx_loadDictionary_advanced(ZSTD_DCtx* dctx, const void* dict, size_t dictSize, ZSTD_dictLoadMethod_e dictLoadMethod, ZSTD_dictContentType_e dictContentType)
 {
+    if (dctx->streamStage != zdss_init) return ERROR(stage_wrong);
     ZSTD_freeDDict(dctx->ddictLocal);
     if (dict && dictSize >= 8) {
         dctx->ddictLocal = ZSTD_createDDict_advanced(dict, dictSize, dictLoadMethod, dictContentType, dctx->customMem);
@@ -2588,15 +2589,15 @@ size_t ZSTD_DCtx_loadDictionary(ZSTD_DCtx* dctx, const void* dict, size_t dictSi
     return ZSTD_DCtx_loadDictionary_advanced(dctx, dict, dictSize, ZSTD_dlm_byCopy, ZSTD_dct_auto);
 }
 
+/* ZSTD_initDStream_usingDict() :
+ * return : expected size, aka ZSTD_frameHeaderSize_prefix.
+ * this function cannot fail */
 size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t dictSize)
 {
     DEBUGLOG(4, "ZSTD_initDStream_usingDict");
-    zds->streamStage = zdss_loadHeader;
-    zds->lhSize = zds->inPos = zds->outStart = zds->outEnd = 0;
+    zds->streamStage = zdss_init;
     CHECK_F( ZSTD_DCtx_loadDictionary(zds, dict, dictSize) );
-    zds->legacyVersion = 0;
-    zds->hostageByte = 0;
-    return ZSTD_frameHeaderSize_prefix;
+    return ZSTD_resetDStream(zds);
 }
 
 /* note : this variant can't fail */
@@ -2604,6 +2605,13 @@ size_t ZSTD_initDStream(ZSTD_DStream* zds)
 {
     DEBUGLOG(4, "ZSTD_initDStream");
     return ZSTD_initDStream_usingDict(zds, NULL, 0);
+}
+
+size_t ZSTD_DCtx_refDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict)
+{
+    if (dctx->streamStage != zdss_init) return ERROR(stage_wrong);
+    dctx->ddict = ddict;
+    return 0;
 }
 
 /* ZSTD_initDStream_usingDDict() :
@@ -2616,6 +2624,9 @@ size_t ZSTD_initDStream_usingDDict(ZSTD_DStream* zds, const ZSTD_DDict* ddict)
     return initResult;
 }
 
+/* ZSTD_resetDStream() :
+ * return : expected size, aka ZSTD_frameHeaderSize_prefix.
+ * this function cannot fail */
 size_t ZSTD_resetDStream(ZSTD_DStream* zds)
 {
     DEBUGLOG(4, "ZSTD_resetDStream");

@@ -576,10 +576,11 @@ static int basicUnitTests(U32 seed, double compressibility)
     { size_t const r = ZSTD_decompressStream(zd, &outBuff, &inBuff);
       if (!ZSTD_isError(r)) goto _output_error;  /* must fail : frame requires > 100 bytes */
       DISPLAYLEVEL(3, "OK (%s)\n", ZSTD_getErrorName(r)); }
+    ZSTD_DCtx_reset(zd);   /* leave zd in good shape for next tests */
 
     DISPLAYLEVEL(3, "test%3i : dictionary source size and level : ", testNb++);
     {   ZSTD_DCtx* const dctx = ZSTD_createDCtx();
-        int const maxLevel = 15;
+        int const maxLevel = 16;   /* first level with zstd_opt */
         int level;
         assert(maxLevel < ZSTD_maxCLevel());
         CHECK_Z( ZSTD_DCtx_loadDictionary_byReference(dctx, dictionary.start, dictionary.filled) );
@@ -662,14 +663,18 @@ static int basicUnitTests(U32 seed, double compressibility)
     cSize = outBuff.pos;
     DISPLAYLEVEL(3, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/CNBufferSize*100);
 
-    DISPLAYLEVEL(3, "test%3i : decompress with dictionary : ", testNb++);
-    {   size_t const r = ZSTD_decompress_usingDict(zd,
-                                        decodedBuffer, CNBufferSize,
-                                        compressedBuffer, cSize,
-                                        dictionary.start, dictionary.filled);
-        if (ZSTD_isError(r)) goto _output_error;  /* must fail : dictionary not used */
-        DISPLAYLEVEL(3, "OK \n");
-    }
+    DISPLAYLEVEL(3, "test%3i : decompress with ZSTD_DCtx_refPrefix : ", testNb++);
+    CHECK_Z( ZSTD_DCtx_refPrefix(zd, dictionary.start, dictionary.filled) );
+    outBuff.dst = decodedBuffer;
+    outBuff.size = CNBufferSize;
+    outBuff.pos = 0;
+    inBuff.src = compressedBuffer;
+    inBuff.size = cSize;
+    inBuff.pos = 0;
+    CHECK_Z( ZSTD_decompress_generic(zd, &outBuff, &inBuff) );
+    if (inBuff.pos != inBuff.size) goto _output_error;  /* entire input should be consumed */
+    if (outBuff.pos != CNBufferSize) goto _output_error;  /* must regenerate whole input */
+    DISPLAYLEVEL(3, "OK \n");
 
     DISPLAYLEVEL(3, "test%3i : decompress without dictionary (should fail): ", testNb++);
     {   size_t const r = ZSTD_decompress(decodedBuffer, CNBufferSize, compressedBuffer, cSize);

@@ -2337,20 +2337,20 @@ size_t ZSTD_decompressBegin_usingDDict(ZSTD_DCtx* dstDCtx, const ZSTD_DDict* ddi
     return 0;
 }
 
-static size_t ZSTD_loadEntropy_inDDict(ZSTD_DDict* ddict, ZSTD_dictMode_e dictContentType)
+static size_t ZSTD_loadEntropy_inDDict(ZSTD_DDict* ddict, ZSTD_dictContentType_e dictContentType)
 {
     ddict->dictID = 0;
     ddict->entropyPresent = 0;
-    if (dictContentType == ZSTD_dm_rawContent) return 0;
+    if (dictContentType == ZSTD_dct_rawContent) return 0;
 
     if (ddict->dictSize < 8) {
-        if (dictContentType == ZSTD_dm_fullDict)
+        if (dictContentType == ZSTD_dct_fullDict)
             return ERROR(dictionary_corrupted);   /* only accept specified dictionaries */
         return 0;   /* pure content mode */
     }
     {   U32 const magic = MEM_readLE32(ddict->dictContent);
         if (magic != ZSTD_MAGIC_DICTIONARY) {
-            if (dictContentType == ZSTD_dm_fullDict)
+            if (dictContentType == ZSTD_dct_fullDict)
                 return ERROR(dictionary_corrupted);   /* only accept specified dictionaries */
             return 0;   /* pure content mode */
         }
@@ -2367,7 +2367,7 @@ static size_t ZSTD_loadEntropy_inDDict(ZSTD_DDict* ddict, ZSTD_dictMode_e dictCo
 static size_t ZSTD_initDDict_internal(ZSTD_DDict* ddict,
                                       const void* dict, size_t dictSize,
                                       ZSTD_dictLoadMethod_e dictLoadMethod,
-                                      ZSTD_dictMode_e dictContentType)
+                                      ZSTD_dictContentType_e dictContentType)
 {
     if ((dictLoadMethod == ZSTD_dlm_byRef) || (!dict) || (!dictSize)) {
         ddict->dictBuffer = NULL;
@@ -2390,7 +2390,7 @@ static size_t ZSTD_initDDict_internal(ZSTD_DDict* ddict,
 
 ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize,
                                       ZSTD_dictLoadMethod_e dictLoadMethod,
-                                      ZSTD_dictMode_e dictContentType,
+                                      ZSTD_dictContentType_e dictContentType,
                                       ZSTD_customMem customMem)
 {
     if (!customMem.customAlloc ^ !customMem.customFree) return NULL;
@@ -2415,7 +2415,7 @@ ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize,
 ZSTD_DDict* ZSTD_createDDict(const void* dict, size_t dictSize)
 {
     ZSTD_customMem const allocator = { NULL, NULL, NULL };
-    return ZSTD_createDDict_advanced(dict, dictSize, ZSTD_dlm_byCopy, ZSTD_dm_auto, allocator);
+    return ZSTD_createDDict_advanced(dict, dictSize, ZSTD_dlm_byCopy, ZSTD_dct_auto, allocator);
 }
 
 /*! ZSTD_createDDict_byReference() :
@@ -2425,7 +2425,7 @@ ZSTD_DDict* ZSTD_createDDict(const void* dict, size_t dictSize)
 ZSTD_DDict* ZSTD_createDDict_byReference(const void* dictBuffer, size_t dictSize)
 {
     ZSTD_customMem const allocator = { NULL, NULL, NULL };
-    return ZSTD_createDDict_advanced(dictBuffer, dictSize, ZSTD_dlm_byRef, ZSTD_dm_auto, allocator);
+    return ZSTD_createDDict_advanced(dictBuffer, dictSize, ZSTD_dlm_byRef, ZSTD_dct_auto, allocator);
 }
 
 
@@ -2433,7 +2433,7 @@ const ZSTD_DDict* ZSTD_initStaticDDict(
                                 void* workspace, size_t workspaceSize,
                                 const void* dict, size_t dictSize,
                                 ZSTD_dictLoadMethod_e dictLoadMethod,
-                                ZSTD_dictMode_e dictContentType)
+                                ZSTD_dictContentType_e dictContentType)
 {
     size_t const neededSpace =
             sizeof(ZSTD_DDict) + (dictLoadMethod == ZSTD_dlm_byRef ? 0 : dictSize);
@@ -2565,11 +2565,11 @@ size_t ZSTD_freeDStream(ZSTD_DStream* zds)
 size_t ZSTD_DStreamInSize(void)  { return ZSTD_BLOCKSIZE_MAX + ZSTD_blockHeaderSize; }
 size_t ZSTD_DStreamOutSize(void) { return ZSTD_BLOCKSIZE_MAX; }
 
-size_t ZSTD_DCtx_loadDictionary_advanced(ZSTD_DCtx* dctx, const void* dict, size_t dictSize, ZSTD_dictLoadMethod_e dictLoadMethod, ZSTD_dictMode_e dictMode)
+size_t ZSTD_DCtx_loadDictionary_advanced(ZSTD_DCtx* dctx, const void* dict, size_t dictSize, ZSTD_dictLoadMethod_e dictLoadMethod, ZSTD_dictContentType_e dictContentType)
 {
     ZSTD_freeDDict(dctx->ddictLocal);
     if (dict && dictSize >= 8) {
-        dctx->ddictLocal = ZSTD_createDDict_advanced(dict, dictSize, dictLoadMethod, dictMode, dctx->customMem);
+        dctx->ddictLocal = ZSTD_createDDict_advanced(dict, dictSize, dictLoadMethod, dictContentType, dctx->customMem);
         if (dctx->ddictLocal == NULL) return ERROR(memory_allocation);
     } else {
         dctx->ddictLocal = NULL;
@@ -2580,12 +2580,12 @@ size_t ZSTD_DCtx_loadDictionary_advanced(ZSTD_DCtx* dctx, const void* dict, size
 
 size_t ZSTD_DCtx_loadDictionary_byReference(ZSTD_DCtx* dctx, const void* dict, size_t dictSize)
 {
-    return ZSTD_DCtx_loadDictionary_advanced(dctx, dict, dictSize, ZSTD_dlm_byRef, ZSTD_dm_auto);
+    return ZSTD_DCtx_loadDictionary_advanced(dctx, dict, dictSize, ZSTD_dlm_byRef, ZSTD_dct_auto);
 }
 
 size_t ZSTD_DCtx_loadDictionary(ZSTD_DCtx* dctx, const void* dict, size_t dictSize)
 {
-    return ZSTD_DCtx_loadDictionary_advanced(dctx, dict, dictSize, ZSTD_dlm_byCopy, ZSTD_dm_auto);
+    return ZSTD_DCtx_loadDictionary_advanced(dctx, dict, dictSize, ZSTD_dlm_byCopy, ZSTD_dct_auto);
 }
 
 size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t dictSize)

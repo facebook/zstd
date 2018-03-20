@@ -50,7 +50,7 @@ typedef enum { zcss_init=0, zcss_load, zcss_flush } ZSTD_cStreamStage;
 typedef struct ZSTD_prefixDict_s {
     const void* dict;
     size_t dictSize;
-    ZSTD_dictMode_e dictMode;
+    ZSTD_dictContentType_e dictContentType;
 } ZSTD_prefixDict;
 
 typedef struct {
@@ -665,7 +665,7 @@ ZSTD_compressionParameters ZSTD_getCParamsFromCDict(const ZSTD_CDict* cdict);
  * Private use only. To be called from zstdmt_compress.c. */
 size_t ZSTD_compressBegin_advanced_internal(ZSTD_CCtx* cctx,
                                     const void* dict, size_t dictSize,
-                                    ZSTD_dictMode_e dictMode,
+                                    ZSTD_dictContentType_e dictContentType,
                                     const ZSTD_CDict* cdict,
                                     ZSTD_CCtx_params params,
                                     unsigned long long pledgedSrcSize);

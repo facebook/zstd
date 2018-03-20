@@ -65,6 +65,16 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
     ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize,
     int const extDict);
 
+/**
+ * ZSTD_ldm_skipSequences():
+ *
+ * Skip past `srcSize` bytes worth of sequences in `rawSeqStore`.
+ * Avoids emitting matches less than `minMatch` bytes.
+ * Must be called for data with is not passed to ZSTD_ldm_blockCompress().
+ */
+void ZSTD_ldm_skipSequences(rawSeqStore_t* rawSeqStore, size_t srcSize,
+    U32 const minMatch);
+
 
 /** ZSTD_ldm_initializeParameters() :
  *  Initialize the long distance matching parameters to their default values. */

@@ -456,11 +456,11 @@ static int ZSTDMT_serialState_reset(serialState_t* serialState, ZSTDMT_seqPool* 
         ZSTD_window_clear(&serialState->ldmState.window);
         serialState->ldmWindow = serialState->ldmState.window;
         /* Resize tables and output space if necessary. */
-        if (serialState->params.ldmParams.hashLog < hashLog) {
+        if (serialState->ldmState.hashTable == NULL || serialState->params.ldmParams.hashLog < hashLog) {
             ZSTD_free(serialState->ldmState.hashTable, cMem);
             serialState->ldmState.hashTable = (ldmEntry_t*)ZSTD_malloc(hashSize, cMem);
         }
-        if (prevBucketLog < bucketLog) {
+        if (serialState->ldmState.bucketOffsets == NULL || prevBucketLog < bucketLog) {
             ZSTD_free(serialState->ldmState.bucketOffsets, cMem);
             serialState->ldmState.bucketOffsets = (BYTE*)ZSTD_malloc(bucketSize, cMem);
         }
@@ -1590,6 +1590,9 @@ static int ZSTDMT_isOverlapped(buffer_t buffer, range_t range)
     BYTE const* const rangeEnd = rangeStart + range.size;
 
     if (rangeStart == NULL || bufferStart == NULL)
+        return 0;
+    /* Empty ranges cannot overlap */
+    if (bufferStart == bufferEnd || rangeStart == rangeEnd)
         return 0;
 
     return bufferStart < rangeEnd && rangeStart < bufferEnd;

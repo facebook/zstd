@@ -60,10 +60,10 @@ size_t ZSTD_ldm_generateSequences(
  * NOTE: This function does not return any errors.
  */
 size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
-        ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
-        ZSTD_compressionParameters const* cParams,
-        void const* src, size_t srcSize,
-        int const extDict);
+            ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
+            ZSTD_compressionParameters const* cParams,
+            void const* src, size_t srcSize,
+            int const extDict);
 
 
 /** ZSTD_ldm_getTableSize() :

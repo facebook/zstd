@@ -1024,6 +1024,45 @@ static int basicUnitTests(U32 seed, double compressibility)
         ZSTD_freeCCtx(cctx);
     }
 
+    /* parameters order test */
+    {   size_t const inputSize = CNBuffSize / 2;
+        U64 xxh64;
+
+        {   ZSTD_CCtx* cctx = ZSTD_createCCtx();
+            DISPLAYLEVEL(3, "test%3i : parameters in order : ", testNb++);
+            CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_p_compressionLevel, 2) );
+            CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_p_enableLongDistanceMatching, 1) );
+            CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_p_windowLog, 18) );
+            {   ZSTD_inBuffer in = { CNBuffer, inputSize, 0 };
+                ZSTD_outBuffer out = { compressedBuffer, ZSTD_compressBound(inputSize), 0 };
+                size_t const result = ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_end);
+                if (result != 0) goto _output_error;
+                if (in.pos != in.size) goto _output_error;
+                cSize = out.pos;
+                xxh64 = XXH64(out.dst, out.pos, 0);
+            }
+            DISPLAYLEVEL(3, "OK (compress : %u -> %u bytes)\n", (U32)inputSize, (U32)cSize);
+            ZSTD_freeCCtx(cctx);
+        }
+
+        {   ZSTD_CCtx* cctx = ZSTD_createCCtx();
+            DISPLAYLEVEL(3, "test%3i : parameters disordered : ", testNb++);
+            CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_p_windowLog, 18) );
+            CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_p_enableLongDistanceMatching, 1) );
+            CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_p_compressionLevel, 2) );
+            {   ZSTD_inBuffer in = { CNBuffer, inputSize, 0 };
+                ZSTD_outBuffer out = { compressedBuffer, ZSTD_compressBound(inputSize), 0 };
+                size_t const result = ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_end);
+                if (result != 0) goto _output_error;
+                if (in.pos != in.size) goto _output_error;
+                if (out.pos != cSize) goto _output_error;   /* must result in same compressed result, hence same size */
+                if (XXH64(out.dst, out.pos, 0) != xxh64) goto _output_error;  /* must result in exactly same content, hence same hash */
+                DISPLAYLEVEL(3, "OK (compress : %u -> %u bytes)\n", (U32)inputSize, (U32)out.pos);
+            }
+            ZSTD_freeCCtx(cctx);
+        }
+    }
+
     /* custom formats tests */
     {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
         size_t const inputSize = CNBuffSize / 2;   /* won't cause pb with small dict size */

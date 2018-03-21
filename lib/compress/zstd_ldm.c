@@ -17,21 +17,14 @@
 #define LDM_HASH_RLOG 7
 #define LDM_HASH_CHAR_OFFSET 10
 
-size_t ZSTD_ldm_initializeParameters(ldmParams_t* params, U32 enableLdm)
-{
-    ZSTD_STATIC_ASSERT(LDM_BUCKET_SIZE_LOG <= ZSTD_LDM_BUCKETSIZELOG_MAX);
-    params->enableLdm = enableLdm>0;
-    params->hashLog = 0;
-    params->bucketSizeLog = LDM_BUCKET_SIZE_LOG;
-    params->minMatchLength = LDM_MIN_MATCH_LENGTH;
-    params->hashEveryLog = ZSTD_LDM_HASHEVERYLOG_NOTSET;
-    return 0;
-}
-
 void ZSTD_ldm_adjustParameters(ldmParams_t* params,
                                ZSTD_compressionParameters const* cParams)
 {
     U32 const windowLog = cParams->windowLog;
+    ZSTD_STATIC_ASSERT(LDM_BUCKET_SIZE_LOG <= ZSTD_LDM_BUCKETSIZELOG_MAX);
+    DEBUGLOG(4, "ZSTD_ldm_adjustParameters");
+    if (!params->bucketSizeLog) params->bucketSizeLog = LDM_BUCKET_SIZE_LOG;
+    if (!params->minMatchLength) params->minMatchLength = LDM_MIN_MATCH_LENGTH;
     if (cParams->strategy >= ZSTD_btopt) {
       /* Get out of the way of the optimal parser */
       U32 const minMatch = MAX(cParams->targetLength, params->minMatchLength);
@@ -43,7 +36,7 @@ void ZSTD_ldm_adjustParameters(ldmParams_t* params,
         params->hashLog = MAX(ZSTD_HASHLOG_MIN, windowLog - LDM_HASH_RLOG);
         assert(params->hashLog <= ZSTD_HASHLOG_MAX);
     }
-    if (params->hashEveryLog == ZSTD_LDM_HASHEVERYLOG_NOTSET) {
+    if (params->hashEveryLog == 0) {
         params->hashEveryLog =
                 windowLog < params->hashLog ? 0 : windowLog - params->hashLog;
     }
@@ -183,6 +176,7 @@ static U64 ZSTD_ldm_ipow(U64 base, U64 exp)
 }
 
 U64 ZSTD_ldm_getHashPower(U32 minMatchLength) {
+    DEBUGLOG(4, "ZSTD_ldm_getHashPower: mml=%u", minMatchLength);
     assert(minMatchLength >= ZSTD_LDM_MINMATCH_MIN);
     return ZSTD_ldm_ipow(prime8bytes, minMatchLength - 1);
 }
@@ -536,6 +530,34 @@ size_t ZSTD_ldm_generateSequences(
     return 0;
 }
 
+void ZSTD_ldm_skipSequences(rawSeqStore_t* rawSeqStore, size_t srcSize, U32 const minMatch) {
+    while (srcSize > 0 && rawSeqStore->pos < rawSeqStore->size) {
+        rawSeq* seq = rawSeqStore->seq + rawSeqStore->pos;
+        if (srcSize <= seq->litLength) {
+            /* Skip past srcSize literals */
+            seq->litLength -= (U32)srcSize;
+            return;
+        }
+        srcSize -= seq->litLength;
+        seq->litLength = 0;
+        if (srcSize < seq->matchLength) {
+            /* Skip past the first srcSize of the match */
+            seq->matchLength -= (U32)srcSize;
+            if (seq->matchLength < minMatch) {
+                /* The match is too short, omit it */
+                if (rawSeqStore->pos + 1 < rawSeqStore->size) {
+                    seq[1].litLength += seq[0].matchLength;
+                }
+                rawSeqStore->pos++;
+            }
+            return;
+        }
+        srcSize -= seq->matchLength;
+        seq->matchLength = 0;
+        rawSeqStore->pos++;
+    }
+}
+
 /**
  * If the sequence length is longer than remaining then the sequence is split
  * between this block and the next.
@@ -546,51 +568,24 @@ size_t ZSTD_ldm_generateSequences(
 static rawSeq maybeSplitSequence(rawSeqStore_t* rawSeqStore,
                                  U32 const remaining, U32 const minMatch)
 {
-    size_t const pos = rawSeqStore->pos;
     rawSeq sequence = rawSeqStore->seq[rawSeqStore->pos];
     assert(sequence.offset > 0);
-    /* Handle partial sequences */
+    /* Likely: No partial sequence */
+    if (remaining >= sequence.litLength + sequence.matchLength) {
+        rawSeqStore->pos++;
+        return sequence;
+    }
+    /* Cut the sequence short (offset == 0 ==> rest is literals). */
     if (remaining <= sequence.litLength) {
-        /* Split the literals that we have out of the sequence.
-         * They will become the last literals of this block.
-         * The next block starts off with the remaining literals.
-         */
-        rawSeqStore->seq[pos].litLength -= remaining;
         sequence.offset = 0;
     } else if (remaining < sequence.litLength + sequence.matchLength) {
-        /* Split the match up into two sequences. One in this block, and one
-         * in the next with no literals. If either match would be shorter
-         * than searchLength we omit it.
-         */
-        U32 const matchPrefix = remaining - sequence.litLength;
-        U32 const matchSuffix = sequence.matchLength - matchPrefix;
-
-        assert(remaining > sequence.litLength);
-        assert(matchPrefix < sequence.matchLength);
-        assert(matchPrefix + matchSuffix == sequence.matchLength);
-        /* Update the first sequence */
-        sequence.matchLength = matchPrefix;
-        /* Update the second sequence */
-        if (matchSuffix >= minMatch) {
-            /* Update the second sequence, since the suffix is long enough */
-            rawSeqStore->seq[pos].litLength = 0;
-            rawSeqStore->seq[pos].matchLength = matchSuffix;
-        } else {
-            /* Omit the second sequence since the match suffix is too short.
-             * Add to the next sequences literals (if any).
-             */
-            if (pos + 1 < rawSeqStore->size)
-                rawSeqStore->seq[pos + 1].litLength += matchSuffix;
-            rawSeqStore->pos++; /* Consume the sequence */
-        }
+        sequence.matchLength = remaining - sequence.litLength;
         if (sequence.matchLength < minMatch) {
-            /* Skip the current sequence if it is too short */
             sequence.offset = 0;
         }
-    } else {
-      /* No partial sequence */
-      rawSeqStore->pos++; /* Consume the sequence */
     }
+    /* Skip past `remaining` bytes for the future sequences. */
+    ZSTD_ldm_skipSequences(rawSeqStore, remaining, minMatch);
     return sequence;
 }
 

@@ -22,7 +22,6 @@ extern "C" {
 ***************************************/
 
 #define ZSTD_LDM_DEFAULT_WINDOW_LOG ZSTD_WINDOWLOG_DEFAULTMAX
-#define ZSTD_LDM_HASHEVERYLOG_NOTSET 9999
 
 /**
  * ZSTD_ldm_generateSequences():
@@ -39,8 +38,8 @@ extern "C" {
  *       sequences.
  */
 size_t ZSTD_ldm_generateSequences(
-        ldmState_t* ldms, rawSeqStore_t* sequences,
-        ldmParams_t const* params, void const* src, size_t srcSize);
+            ldmState_t* ldms, rawSeqStore_t* sequences,
+            ldmParams_t const* params, void const* src, size_t srcSize);
 
 /**
  * ZSTD_ldm_blockCompress():
@@ -61,14 +60,21 @@ size_t ZSTD_ldm_generateSequences(
  * NOTE: This function does not return any errors.
  */
 size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
-    ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
-    ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize,
-    int const extDict);
+            ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
+            ZSTD_compressionParameters const* cParams,
+            void const* src, size_t srcSize,
+            int const extDict);
 
+/**
+ * ZSTD_ldm_skipSequences():
+ *
+ * Skip past `srcSize` bytes worth of sequences in `rawSeqStore`.
+ * Avoids emitting matches less than `minMatch` bytes.
+ * Must be called for data with is not passed to ZSTD_ldm_blockCompress().
+ */
+void ZSTD_ldm_skipSequences(rawSeqStore_t* rawSeqStore, size_t srcSize,
+    U32 const minMatch);
 
-/** ZSTD_ldm_initializeParameters() :
- *  Initialize the long distance matching parameters to their default values. */
-size_t ZSTD_ldm_initializeParameters(ldmParams_t* params, U32 enableLdm);
 
 /** ZSTD_ldm_getTableSize() :
  *  Estimate the space needed for long distance matching tables or 0 if LDM is

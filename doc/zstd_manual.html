@@ -936,6 +936,16 @@ size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* prefix, size_t 
            Use ZSTD_CCtx_refPrefix_advanced() to alter dictMode. 
 </p></pre><BR>
 
+<pre><b>void ZSTD_CCtx_reset(ZSTD_CCtx* cctx);
+</b><p>  Return a CCtx to clean state.
+  Useful after an error, or to interrupt an ongoing compression job and start a new one.
+  Any internal data not yet flushed is cancelled.
+  Dictionary (if any) is dropped.
+  All parameters are back to default values.
+  It's possible to modify compression parameters after a reset.
+ 
+</p></pre><BR>
+
 <pre><b>typedef enum {
     ZSTD_e_continue=0, </b>/* collect more data, encoder decides when to output compressed result, for optimal conditions */<b>
     ZSTD_e_flush,      </b>/* flush any data provided so far - frame will continue, future data can still reference previous data for better compression */<b>
@@ -968,16 +978,6 @@ size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* prefix, size_t 
  
 </p></pre><BR>
 
-<pre><b>void ZSTD_CCtx_reset(ZSTD_CCtx* cctx);
-</b><p>  Return a CCtx to clean state.
-  Useful after an error, or to interrupt an ongoing compression job and start a new one.
-  Any internal data not yet flushed is cancelled.
-  Dictionary (if any) is dropped.
-  All parameters are back to default values.
-  It's possible to modify compression parameters after a reset.
- 
-</p></pre><BR>
-
 <pre><b>size_t ZSTD_compress_generic_simpleArgs (
                 ZSTD_CCtx* cctx,
                 void* dst, size_t dstCapacity, size_t* dstPos,
@@ -992,6 +992,7 @@ size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* prefix, size_t 
 </p></pre><BR>
 
 <pre><b>ZSTD_CCtx_params* ZSTD_createCCtxParams(void);
+size_t ZSTD_freeCCtxParams(ZSTD_CCtx_params* params);
 </b><p>  Quick howto :
   - ZSTD_createCCtxParams() : Create a ZSTD_CCtx_params structure
   - ZSTD_CCtxParam_setParameter() : Push parameters one by one into
@@ -1010,18 +1011,18 @@ size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* prefix, size_t 
  
 </p></pre><BR>
 
-<pre><b>size_t ZSTD_resetCCtxParams(ZSTD_CCtx_params* params);
+<pre><b>size_t ZSTD_CCtxParams_reset(ZSTD_CCtx_params* params);
 </b><p>  Reset params to default values.
  
 </p></pre><BR>
 
-<pre><b>size_t ZSTD_initCCtxParams(ZSTD_CCtx_params* cctxParams, int compressionLevel);
+<pre><b>size_t ZSTD_CCtxParams_init(ZSTD_CCtx_params* cctxParams, int compressionLevel);
 </b><p>  Initializes the compression parameters of cctxParams according to
   compression level. All other parameters are reset to their default values.
  
 </p></pre><BR>
 
-<pre><b>size_t ZSTD_initCCtxParams_advanced(ZSTD_CCtx_params* cctxParams, ZSTD_parameters params);
+<pre><b>size_t ZSTD_CCtxParams_init_advanced(ZSTD_CCtx_params* cctxParams, ZSTD_parameters params);
 </b><p>  Initializes the compression and frame parameters of cctxParams according to
   params. All other parameters are reset to their default values.
  

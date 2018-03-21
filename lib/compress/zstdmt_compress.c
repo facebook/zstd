@@ -966,19 +966,19 @@ static ZSTD_CCtx_params ZSTDMT_initJobCCtxParams(ZSTD_CCtx_params const params)
 }
 
 /*! ZSTDMT_updateCParams_whileCompressing() :
- *  Update compression level and parameters (except wlog)
- *  while compression is ongoing.
+ *  Updates only a selected set of compression parameters, to remain compatible with current frame.
  *  New parameters will be applied to next compression job. */
-void ZSTDMT_updateCParams_whileCompressing(ZSTDMT_CCtx* mtctx, int compressionLevel, ZSTD_compressionParameters cParams)
+void ZSTDMT_updateCParams_whileCompressing(ZSTDMT_CCtx* mtctx, const ZSTD_CCtx_params* cctxParams)
 {
     U32 const saved_wlog = mtctx->params.cParams.windowLog;   /* Do not modify windowLog while compressing */
+    int const compressionLevel = cctxParams->compressionLevel;
     DEBUGLOG(5, "ZSTDMT_updateCParams_whileCompressing (level:%i)",
                 compressionLevel);
     mtctx->params.compressionLevel = compressionLevel;
-    if (compressionLevel != ZSTD_CLEVEL_CUSTOM)
-        cParams = ZSTD_getCParams(compressionLevel, mtctx->frameContentSize, 0 /* dictSize */ );
-    cParams.windowLog = saved_wlog;
-    mtctx->params.cParams = cParams;
+    {   ZSTD_compressionParameters cParams = ZSTD_getCParamsFromCCtxParams(cctxParams, 0, 0);
+        cParams.windowLog = saved_wlog;
+        mtctx->params.cParams = cParams;
+    }
 }
 
 /* ZSTDMT_getNbWorkers():

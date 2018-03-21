@@ -1029,7 +1029,7 @@ static size_t ZSTDMT_computeTargetJobLog(ZSTD_CCtx_params const params)
 {
     if (params.ldmParams.enableLdm)
         return MAX(21, params.cParams.chainLog + 4);
-    return params.cParams.windowLog + 2;
+    return MAX(20, params.cParams.windowLog + 2);
 }
 
 static size_t ZSTDMT_computeOverlapLog(ZSTD_CCtx_params const params)

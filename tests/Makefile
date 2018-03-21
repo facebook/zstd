@@ -100,11 +100,11 @@ zstd-nolegacy:
 gzstd:
 	$(MAKE) -C $(PRGDIR) zstd HAVE_ZLIB=1 MOREFLAGS+="$(DEBUGFLAGS)"
 
-.PHONY:
+.PHONY: zstd-dll
 zstd-dll :
 	$(MAKE) -C $(ZSTDDIR) libzstd
 
-.PHONY:
+.PHONY: zstd-staticLib
 zstd-staticLib :
 	$(MAKE) -C $(ZSTDDIR) libzstd.a
 

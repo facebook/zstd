@@ -536,6 +536,34 @@ size_t ZSTD_ldm_generateSequences(
     return 0;
 }
 
+void ZSTD_ldm_skipSequences(rawSeqStore_t* rawSeqStore, size_t srcSize, U32 const minMatch) {
+    while (srcSize > 0 && rawSeqStore->pos < rawSeqStore->size) {
+        rawSeq* seq = rawSeqStore->seq + rawSeqStore->pos;
+        if (srcSize <= seq->litLength) {
+            /* Skip past srcSize literals */
+            seq->litLength -= (U32)srcSize;
+            return;
+        }
+        srcSize -= seq->litLength;
+        seq->litLength = 0;
+        if (srcSize < seq->matchLength) {
+            /* Skip past the first srcSize of the match */
+            seq->matchLength -= (U32)srcSize;
+            if (seq->matchLength < minMatch) {
+                /* The match is too short, omit it */
+                if (rawSeqStore->pos + 1 < rawSeqStore->size) {
+                    seq[1].litLength += seq[0].matchLength;
+                }
+                rawSeqStore->pos++;
+            }
+            return;
+        }
+        srcSize -= seq->matchLength;
+        seq->matchLength = 0;
+        rawSeqStore->pos++;
+    }
+}
+
 /**
  * If the sequence length is longer than remaining then the sequence is split
  * between this block and the next.
@@ -546,51 +574,24 @@ size_t ZSTD_ldm_generateSequences(
 static rawSeq maybeSplitSequence(rawSeqStore_t* rawSeqStore,
                                  U32 const remaining, U32 const minMatch)
 {
-    size_t const pos = rawSeqStore->pos;
     rawSeq sequence = rawSeqStore->seq[rawSeqStore->pos];
     assert(sequence.offset > 0);
-    /* Handle partial sequences */
+    /* Likely: No partial sequence */
+    if (remaining >= sequence.litLength + sequence.matchLength) {
+        rawSeqStore->pos++;
+        return sequence;
+    }
+    /* Cut the sequence short (offset == 0 ==> rest is literals). */
     if (remaining <= sequence.litLength) {
-        /* Split the literals that we have out of the sequence.
-         * They will become the last literals of this block.
-         * The next block starts off with the remaining literals.
-         */
-        rawSeqStore->seq[pos].litLength -= remaining;
         sequence.offset = 0;
     } else if (remaining < sequence.litLength + sequence.matchLength) {
-        /* Split the match up into two sequences. One in this block, and one
-         * in the next with no literals. If either match would be shorter
-         * than searchLength we omit it.
-         */
-        U32 const matchPrefix = remaining - sequence.litLength;
-        U32 const matchSuffix = sequence.matchLength - matchPrefix;
-
-        assert(remaining > sequence.litLength);
-        assert(matchPrefix < sequence.matchLength);
-        assert(matchPrefix + matchSuffix == sequence.matchLength);
-        /* Update the first sequence */
-        sequence.matchLength = matchPrefix;
-        /* Update the second sequence */
-        if (matchSuffix >= minMatch) {
-            /* Update the second sequence, since the suffix is long enough */
-            rawSeqStore->seq[pos].litLength = 0;
-            rawSeqStore->seq[pos].matchLength = matchSuffix;
-        } else {
-            /* Omit the second sequence since the match suffix is too short.
-             * Add to the next sequences literals (if any).
-             */
-            if (pos + 1 < rawSeqStore->size)
-                rawSeqStore->seq[pos + 1].litLength += matchSuffix;
-            rawSeqStore->pos++; /* Consume the sequence */
-        }
+        sequence.matchLength = remaining - sequence.litLength;
         if (sequence.matchLength < minMatch) {
-            /* Skip the current sequence if it is too short */
             sequence.offset = 0;
         }
-    } else {
-      /* No partial sequence */
-      rawSeqStore->pos++; /* Consume the sequence */
     }
+    /* Skip past `remaining` bytes for the future sequences. */
+    ZSTD_ldm_skipSequences(rawSeqStore, remaining, minMatch);
     return sequence;
 }
 

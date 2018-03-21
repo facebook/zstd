@@ -233,7 +233,7 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
                 if (compressor == BMK_ZSTD) {
                     ZSTD_parameters const zparams = ZSTD_getParams(cLevel, avgSize, dictBufferSize);
                     ZSTD_customMem const cmem = { NULL, NULL, NULL };
-                    ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dictBuffer, dictBufferSize, ZSTD_dlm_byRef, ZSTD_dm_auto, zparams.cParams, cmem);
+                    ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dictBuffer, dictBufferSize, ZSTD_dlm_byRef, ZSTD_dct_auto, zparams.cParams, cmem);
                     if (cdict==NULL) EXM_THROW(1, "ZSTD_createCDict_advanced() allocation failure");
 
                     do {

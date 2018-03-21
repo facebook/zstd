@@ -106,6 +106,7 @@ $ZSTD -99 -f tmp  # too large compression level, automatic sized down
 $ECHO "test : --fast aka negative compression levels"
 $ZSTD --fast -f tmp  # == -1
 $ZSTD --fast=3 -f tmp  # == -3
+$ZSTD --fast=200000 -f tmp  # == no compression
 $ECHO "test : compress to stdout"
 $ZSTD tmp -c > tmpCompressed
 $ZSTD tmp --stdout > tmpCompressed       # long command format

@@ -29,11 +29,23 @@ EXIT /B 1
 :build
 
 SET msbuild="%windir%\Microsoft.NET\Framework\v4.0.30319\MSBuild.exe"
+SET msbuild_vs2017community="%programfiles(x86)%\Microsoft Visual Studio\2017\Community\MSBuild\15.0\Bin\MSBuild.exe"
+SET msbuild_vs2017professional="%programfiles(x86)%\Microsoft Visual Studio\2017\Professional\MSBuild\15.0\Bin\MSBuild.exe"
+SET msbuild_vs2017enterprise="%programfiles(x86)%\Microsoft Visual Studio\2017\Enterprise\MSBuild\15.0\Bin\MSBuild.exe"
 IF %msbuild_version% == VS2013 SET msbuild="%programfiles(x86)%\MSBuild\12.0\Bin\MSBuild.exe"
 IF %msbuild_version% == VS2015 SET msbuild="%programfiles(x86)%\MSBuild\14.0\Bin\MSBuild.exe"
 IF %msbuild_version% == VS2017Community SET msbuild="%programfiles(x86)%\Microsoft Visual Studio\2017\Community\MSBuild\15.0\Bin\MSBuild.exe"
 IF %msbuild_version% == VS2017Professional SET msbuild="%programfiles(x86)%\Microsoft Visual Studio\2017\Professional\MSBuild\15.0\Bin\MSBuild.exe"
 IF %msbuild_version% == VS2017Enterprise SET msbuild="%programfiles(x86)%\Microsoft Visual Studio\2017\Enterprise\MSBuild\15.0\Bin\MSBuild.exe"
+if exist %msbuild_vs2017enterprise% (
+    IF %msbuild_version% == VS2017 SET msbuild=%msbuild_vs2017enterprise%
+)
+if exist %msbuild_vs2017professional% (
+    IF %msbuild_version% == VS2017 SET msbuild=%msbuild_vs2017professional%
+)
+if exist %msbuild_vs2017community% (
+    IF %msbuild_version% == VS2017 SET msbuild=%msbuild_vs2017community%
+)
 
 SET project="%~p0\..\VS2010\zstd.sln"
 

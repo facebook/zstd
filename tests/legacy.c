@@ -92,14 +92,12 @@ int testStreamingAPI(void)
     while (1) {
         ZSTD_outBuffer output = {outBuff, outBuffSize, 0};
         if (needsInit) {
-            DISPLAY("needsInit: ZSTD_initDStream(stream)\n");
             size_t const ret = ZSTD_initDStream(stream);
             if (ZSTD_isError(ret)) {
                 DISPLAY("ERROR: ZSTD_initDStream: %s\n", ZSTD_getErrorName(ret));
                 return 1;
         }   }
 
-        DISPLAY("ZSTD_decompressStream(stream, output, input)\n");
         {   size_t const ret = ZSTD_decompressStream(stream, &output, &input);
             if (ZSTD_isError(ret)) {
                 DISPLAY("ERROR: ZSTD_decompressStream: %s\n", ZSTD_getErrorName(ret));

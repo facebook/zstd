@@ -246,6 +246,7 @@ MEM_STATIC size_t ZSTD_freeLegacyStreamContext(void* legacyContext, U32 version)
 MEM_STATIC size_t ZSTD_initLegacyStream(void** legacyContext, U32 prevVersion, U32 newVersion,
                                         const void* dict, size_t dictSize)
 {
+    DEBUGLOG(5, "ZSTD_initLegacyStream for v0.%u", newVersion);
     if (prevVersion != newVersion) ZSTD_freeLegacyStreamContext(*legacyContext, prevVersion);
     switch(newVersion)
     {
@@ -304,6 +305,7 @@ MEM_STATIC size_t ZSTD_initLegacyStream(void** legacyContext, U32 prevVersion, U
 MEM_STATIC size_t ZSTD_decompressLegacyStream(void* legacyContext, U32 version,
                                               ZSTD_outBuffer* output, ZSTD_inBuffer* input)
 {
+    DEBUGLOG(5, "ZSTD_decompressLegacyStream for v0.%u", version);
     switch(version)
     {
         default :

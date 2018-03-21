@@ -2748,23 +2748,25 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
     }
     DEBUGLOG(5, "input size : %u", (U32)(input->size - input->pos));
 
-#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
-    if (zds->legacyVersion) {
-        /* legacy support is incompatible with static dctx */
-        if (zds->staticSize) return ERROR(memory_allocation);
-        return ZSTD_decompressLegacyStream(zds->legacyContext, zds->legacyVersion, output, input);
-    }
-#endif
-
     while (someMoreWork) {
         switch(zds->streamStage)
         {
         case zdss_init :
+            DEBUGLOG(5, "stage zdss_init => transparent reset ");
             ZSTD_resetDStream(zds);   /* transparent reset on starting decoding a new frame */
             /* fall-through */
 
         case zdss_loadHeader :
             DEBUGLOG(5, "stage zdss_loadHeader (srcSize : %u)", (U32)(iend - ip));
+#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
+            if (zds->legacyVersion) {
+                /* legacy support is incompatible with static dctx */
+                if (zds->staticSize) return ERROR(memory_allocation);
+                {   size_t const hint = ZSTD_decompressLegacyStream(zds->legacyContext, zds->legacyVersion, output, input);
+                    if (hint==0) zds->streamStage = zdss_init;
+                    return hint;
+            }   }
+#endif
             {   size_t const hSize = ZSTD_getFrameHeader_internal(&zds->fParams, zds->headerBuffer, zds->lhSize, zds->format);
                 DEBUGLOG(5, "header size : %u", (U32)hSize);
                 if (ZSTD_isError(hSize)) {
@@ -2773,14 +2775,17 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                     if (legacyVersion) {
                         const void* const dict = zds->ddict ? zds->ddict->dictContent : NULL;
                         size_t const dictSize = zds->ddict ? zds->ddict->dictSize : 0;
+                        DEBUGLOG(5, "ZSTD_decompressStream: detected legacy version v0.%u", legacyVersion);
                         /* legacy support is incompatible with static dctx */
                         if (zds->staticSize) return ERROR(memory_allocation);
                         CHECK_F(ZSTD_initLegacyStream(&zds->legacyContext,
                                     zds->previousLegacyVersion, legacyVersion,
                                     dict, dictSize));
                         zds->legacyVersion = zds->previousLegacyVersion = legacyVersion;
-                        return ZSTD_decompressLegacyStream(zds->legacyContext, legacyVersion, output, input);
-                    }
+                        {   size_t const hint = ZSTD_decompressLegacyStream(zds->legacyContext, legacyVersion, output, input);
+                            if (hint==0) zds->streamStage = zdss_init;   /* or stay in stage zdss_loadHeader */
+                            return hint;
+                    }   }
 #endif
                     return hSize;   /* error */
                 }
@@ -2890,6 +2895,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             if (ip==iend) { someMoreWork = 0; break; }   /* no more input */
             zds->streamStage = zdss_load;
             /* fall-through */
+
         case zdss_load:
             {   size_t const neededInSize = ZSTD_nextSrcSizeToDecompress(zds);
                 size_t const toLoad = neededInSize - zds->inPos;
@@ -2916,6 +2922,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             }   }
             zds->streamStage = zdss_flush;
             /* fall-through */
+
         case zdss_flush:
             {   size_t const toFlushSize = zds->outEnd - zds->outStart;
                 size_t const flushedSize = ZSTD_limitCopy(op, oend-op, zds->outBuff + zds->outStart, toFlushSize);

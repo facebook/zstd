@@ -92,23 +92,23 @@ int testStreamingAPI(void)
     while (1) {
         ZSTD_outBuffer output = {outBuff, outBuffSize, 0};
         if (needsInit) {
+            DISPLAY("needsInit: ZSTD_initDStream(stream)\n");
             size_t const ret = ZSTD_initDStream(stream);
             if (ZSTD_isError(ret)) {
-                DISPLAY("ERROR: %s\n", ZSTD_getErrorName(ret));
+                DISPLAY("ERROR: ZSTD_initDStream: %s\n", ZSTD_getErrorName(ret));
                 return 1;
-            }
-        }
-        {
-            size_t const ret = ZSTD_decompressStream(stream, &output, &input);
+        }   }
+
+        DISPLAY("ZSTD_decompressStream(stream, output, input)\n");
+        {   size_t const ret = ZSTD_decompressStream(stream, &output, &input);
             if (ZSTD_isError(ret)) {
-                DISPLAY("ERROR: %s\n", ZSTD_getErrorName(ret));
+                DISPLAY("ERROR: ZSTD_decompressStream: %s\n", ZSTD_getErrorName(ret));
                 return 1;
             }
 
             if (ret == 0) {
                 needsInit = 1;
-            }
-        }
+        }   }
 
         if (memcmp(outBuff, EXPECTED + outputPos, output.pos) != 0) {
             DISPLAY("ERROR: Wrong decoded output produced\n");
@@ -128,15 +128,12 @@ int testStreamingAPI(void)
 
 int main(void)
 {
-    int ret;
-
-    ret = testSimpleAPI();
-    if (ret) return ret;
-    ret = testStreamingAPI();
-    if (ret) return ret;
+    {   int const ret = testSimpleAPI();
+        if (ret) return ret; }
+    {   int const ret = testStreamingAPI();
+        if (ret) return ret; }
 
     DISPLAY("OK\n");
-
     return 0;
 }
 

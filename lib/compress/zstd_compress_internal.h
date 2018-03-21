@@ -32,7 +32,6 @@ extern "C" {
 ***************************************/
 #define kSearchStrength      8
 #define HASH_READ_SIZE       8
-#define ZSTD_CLEVEL_CUSTOM 999
 #define ZSTD_DUBT_UNSORTED_MARK 1   /* For btlazy2 strategy, index 1 now means "unsorted".
                                        It could be confused for a real successor at index "1", if sorted as larger than its predecessor.
                                        It's not a big deal though : candidate will just be sorted again.
@@ -183,7 +182,7 @@ struct ZSTD_CCtx_params_s {
     /* Long distance matching parameters */
     ldmParams_t ldmParams;
 
-    /* For use with createCCtxParams() and freeCCtxParams() only */
+    /* Internal use, for createCCtxParams() and freeCCtxParams() only */
     ZSTD_customMem customMem;
 };  /* typedef'd to ZSTD_CCtx_params within "zstd.h" */
 
@@ -639,6 +638,13 @@ MEM_STATIC U32 ZSTD_window_update(ZSTD_window_t* window,
  * Private declarations
  * These prototypes shall only be called from within lib/compress
  * ============================================================== */
+
+/* ZSTD_getCParamsFromCCtxParams() :
+ * cParams are built depending on compressionLevel, src size hints, 
+ * LDM and manually set compression parameters.
+ */
+ZSTD_compressionParameters ZSTD_getCParamsFromCCtxParams(
+        const ZSTD_CCtx_params* CCtxParams, U64 srcSizeHint, size_t dictSize);
 
 /*! ZSTD_initCStream_internal() :
  *  Private use only. Init streaming operation.

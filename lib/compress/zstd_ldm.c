@@ -17,21 +17,14 @@
 #define LDM_HASH_RLOG 7
 #define LDM_HASH_CHAR_OFFSET 10
 
-size_t ZSTD_ldm_initializeParameters(ldmParams_t* params, U32 enableLdm)
-{
-    ZSTD_STATIC_ASSERT(LDM_BUCKET_SIZE_LOG <= ZSTD_LDM_BUCKETSIZELOG_MAX);
-    params->enableLdm = enableLdm>0;
-    params->hashLog = 0;
-    params->bucketSizeLog = LDM_BUCKET_SIZE_LOG;
-    params->minMatchLength = LDM_MIN_MATCH_LENGTH;
-    params->hashEveryLog = ZSTD_LDM_HASHEVERYLOG_NOTSET;
-    return 0;
-}
-
 void ZSTD_ldm_adjustParameters(ldmParams_t* params,
                                ZSTD_compressionParameters const* cParams)
 {
     U32 const windowLog = cParams->windowLog;
+    ZSTD_STATIC_ASSERT(LDM_BUCKET_SIZE_LOG <= ZSTD_LDM_BUCKETSIZELOG_MAX);
+    DEBUGLOG(4, "ZSTD_ldm_adjustParameters");
+    if (!params->bucketSizeLog) params->bucketSizeLog = LDM_BUCKET_SIZE_LOG;
+    if (!params->minMatchLength) params->minMatchLength = LDM_MIN_MATCH_LENGTH;
     if (cParams->strategy >= ZSTD_btopt) {
       /* Get out of the way of the optimal parser */
       U32 const minMatch = MAX(cParams->targetLength, params->minMatchLength);
@@ -43,7 +36,7 @@ void ZSTD_ldm_adjustParameters(ldmParams_t* params,
         params->hashLog = MAX(ZSTD_HASHLOG_MIN, windowLog - LDM_HASH_RLOG);
         assert(params->hashLog <= ZSTD_HASHLOG_MAX);
     }
-    if (params->hashEveryLog == ZSTD_LDM_HASHEVERYLOG_NOTSET) {
+    if (params->hashEveryLog == 0) {
         params->hashEveryLog =
                 windowLog < params->hashLog ? 0 : windowLog - params->hashLog;
     }
@@ -183,6 +176,7 @@ static U64 ZSTD_ldm_ipow(U64 base, U64 exp)
 }
 
 U64 ZSTD_ldm_getHashPower(U32 minMatchLength) {
+    DEBUGLOG(4, "ZSTD_ldm_getHashPower: mml=%u", minMatchLength);
     assert(minMatchLength >= ZSTD_LDM_MINMATCH_MIN);
     return ZSTD_ldm_ipow(prime8bytes, minMatchLength - 1);
 }

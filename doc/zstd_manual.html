@@ -730,12 +730,12 @@ size_t ZSTD_decodingBufferSize_min(unsigned long long windowSize, unsigned long 
 <a name="Chapter20"></a><h2>New advanced API (experimental)</h2><pre></pre>
 
 <pre><b>typedef enum {
-    </b>/* Question : should we have a format ZSTD_f_auto ?<b>
-     * For the time being, it would mean exactly the same as ZSTD_f_zstd1.
-     * But, in the future, should several formats be supported,
+    </b>/* Opened question : should we have a format ZSTD_f_auto ?<b>
+     * Today, it would mean exactly the same as ZSTD_f_zstd1.
+     * But, in the future, should several formats become supported,
      * on the compression side, it would mean "default format".
-     * On the decompression side, it would mean "multi format",
-     * and ZSTD_f_zstd1 could be reserved to mean "accept *only* zstd frames".
+     * On the decompression side, it would mean "automatic format detection",
+     * so that ZSTD_f_zstd1 would mean "accept *only* zstd frames".
      * Since meaning is a little different, another option could be to define different enums for compression and decompression.
      * This question could be kept for later, when there are actually multiple formats to support,
      * but there is also the question of pinning enum values, and pinning value `0` is especially important */
@@ -755,33 +755,34 @@ size_t ZSTD_decodingBufferSize_min(unsigned long long windowSize, unsigned long 
                               * Default level is ZSTD_CLEVEL_DEFAULT==3.
                               * Special: value 0 means "do not change cLevel".
                               * Note 1 : it's possible to pass a negative compression level by casting it to unsigned type.
-                              * Note 2 : setting compressionLevel automatically updates ZSTD_p_compressLiterals. */
+                              * Note 2 : setting a level sets all default values of other compression parameters.
+                              * Note 3 : setting compressionLevel automatically updates ZSTD_p_compressLiterals. */
     ZSTD_p_windowLog,        </b>/* Maximum allowed back-reference distance, expressed as power of 2.<b>
                               * Must be clamped between ZSTD_WINDOWLOG_MIN and ZSTD_WINDOWLOG_MAX.
-                              * Special: value 0 means "do not change windowLog".
+                              * Special: value 0 means "use default windowLog".
                               * Note: Using a window size greater than ZSTD_MAXWINDOWSIZE_DEFAULT (default: 2^27)
-                              * requires setting the maximum window size at least as large during decompression. */
+                              *       requires explicitly allowing such window size during decompression stage. */
     ZSTD_p_hashLog,          </b>/* Size of the probe table, as a power of 2.<b>
                               * Resulting table size is (1 << (hashLog+2)).
                               * Must be clamped between ZSTD_HASHLOG_MIN and ZSTD_HASHLOG_MAX.
                               * Larger tables improve compression ratio of strategies <= dFast,
                               * and improve speed of strategies > dFast.
-                              * Special: value 0 means "do not change hashLog". */
+                              * Special: value 0 means "use default hashLog". */
     ZSTD_p_chainLog,         </b>/* Size of the full-search table, as a power of 2.<b>
                               * Resulting table size is (1 << (chainLog+2)).
                               * Larger tables result in better and slower compression.
                               * This parameter is useless when using "fast" strategy.
-                              * Special: value 0 means "do not change chainLog". */
+                              * Special: value 0 means "use default chainLog". */
     ZSTD_p_searchLog,        </b>/* Number of search attempts, as a power of 2.<b>
                               * More attempts result in better and slower compression.
                               * This parameter is useless when using "fast" and "dFast" strategies.
-                              * Special: value 0 means "do not change searchLog". */
+                              * Special: value 0 means "use default searchLog". */
     ZSTD_p_minMatch,         </b>/* Minimum size of searched matches (note : repCode matches can be smaller).<b>
                               * Larger values make faster compression and decompression, but decrease ratio.
                               * Must be clamped between ZSTD_SEARCHLENGTH_MIN and ZSTD_SEARCHLENGTH_MAX.
                               * Note that currently, for all strategies < btopt, effective minimum is 4.
-                              * Note that currently, for all strategies > fast, effective maximum is 6.
-                              * Special: value 0 means "do not change minMatchLength". */
+                              *                    , for all strategies > fast, effective maximum is 6.
+                              * Special: value 0 means "use default minMatchLength". */
     ZSTD_p_targetLength,     </b>/* Impact of this field depends on strategy.<b>
                               * For strategies btopt & btultra:
                               *     Length of Match considered "good enough" to stop search.
@@ -789,12 +790,39 @@ size_t ZSTD_decodingBufferSize_min(unsigned long long windowSize, unsigned long 
                               * For strategy fast:
                               *     Distance between match sampling.
                               *     Larger values make compression faster, and weaker.
-                              * Special: value 0 means "do not change targetLength". */
+                              * Special: value 0 means "use default targetLength". */
     ZSTD_p_compressionStrategy, </b>/* See ZSTD_strategy enum definition.<b>
                               * Cast selected strategy as unsigned for ZSTD_CCtx_setParameter() compatibility.
                               * The higher the value of selected strategy, the more complex it is,
                               * resulting in stronger and slower compression.
-                              * Special: value 0 means "do not change strategy". */
+                              * Special: value 0 means "use default strategy". */
+
+    ZSTD_p_enableLongDistanceMatching=160, </b>/* Enable long distance matching.<b>
+                                         * This parameter is designed to improve compression ratio
+                                         * for large inputs, by finding large matches at long distance.
+                                         * It increases memory usage and window size.
+                                         * Note: enabling this parameter increases ZSTD_p_windowLog to 128 MB
+                                         * except when expressly set to a different value. */
+    ZSTD_p_ldmHashLog,       </b>/* Size of the table for long distance matching, as a power of 2.<b>
+                              * Larger values increase memory usage and compression ratio,
+                              * but decrease compression speed.
+                              * Must be clamped between ZSTD_HASHLOG_MIN and ZSTD_HASHLOG_MAX
+                              * default: windowlog - 7.
+                              * Special: value 0 means "automatically determine hashlog". */
+    ZSTD_p_ldmMinMatch,      </b>/* Minimum match size for long distance matcher.<b>
+                              * Larger/too small values usually decrease compression ratio.
+                              * Must be clamped between ZSTD_LDM_MINMATCH_MIN and ZSTD_LDM_MINMATCH_MAX.
+                              * Special: value 0 means "use default value" (default: 64). */
+    ZSTD_p_ldmBucketSizeLog, </b>/* Log size of each bucket in the LDM hash table for collision resolution.<b>
+                              * Larger values improve collision resolution but decrease compression speed.
+                              * The maximum value is ZSTD_LDM_BUCKETSIZELOG_MAX .
+                              * Special: value 0 means "use default value" (default: 3). */
+    ZSTD_p_ldmHashEveryLog,  </b>/* Frequency of inserting/looking up entries in the LDM hash table.<b>
+                              * Must be clamped between 0 and (ZSTD_WINDOWLOG_MAX - ZSTD_HASHLOG_MIN).
+                              * Default is MAX(0, (windowLog - ldmHashLog)), optimizing hash table usage.
+                              * Larger values improve compression speed.
+                              * Deviating far from default value will likely result in a compression ratio decrease.
+                              * Special: value 0 means "automatically determine hashEveryLog". */
 
     </b>/* frame parameters */<b>
     ZSTD_p_contentSizeFlag=200, </b>/* Content size will be written into frame header _whenever known_ (default:1)<b>
@@ -821,7 +849,9 @@ size_t ZSTD_decodingBufferSize_min(unsigned long long windowSize, unsigned long 
     ZSTD_p_overlapSizeLog,   </b>/* Size of previous input reloaded at the beginning of each job.<b>
                               * 0 => no overlap, 6(default) => use 1/8th of windowSize, >=9 => use full windowSize */
 
-    </b>/* advanced parameters - may not remain available after API update */<b>
+    </b>/* =================================================================== */<b>
+    </b>/* experimental parameters - no stability guaranteed                   */<b>
+    </b>/* =================================================================== */<b>
 
     ZSTD_p_compressLiterals=1000, </b>/* control huffman compression of literals (enabled) by default.<b>
                               * disabling it improves speed and decreases compression ratio by a large amount.
@@ -831,40 +861,6 @@ size_t ZSTD_decodingBufferSize_min(unsigned long long windowSize, unsigned long 
 
     ZSTD_p_forceMaxWindow=1100, </b>/* Force back-reference distances to remain < windowSize,<b>
                               * even when referencing into Dictionary content (default:0) */
-
-    ZSTD_p_enableLongDistanceMatching=1200, </b>/* Enable long distance matching.<b>
-                                         * This parameter is designed to improve the compression
-                                         * ratio for large inputs with long distance matches.
-                                         * This increases the memory usage as well as window size.
-                                         * Note: setting this parameter sets all the LDM parameters
-                                         * as well as ZSTD_p_windowLog. It should be set after
-                                         * ZSTD_p_compressionLevel and before ZSTD_p_windowLog and
-                                         * other LDM parameters. Setting the compression level
-                                         * after this parameter overrides the window log, though LDM
-                                         * will remain enabled until explicitly disabled. */
-    ZSTD_p_ldmHashLog,       </b>/* Size of the table for long distance matching, as a power of 2.<b>
-                              * Larger values increase memory usage and compression ratio, but decrease
-                              * compression speed.
-                              * Must be clamped between ZSTD_HASHLOG_MIN and ZSTD_HASHLOG_MAX
-                              * (default: windowlog - 7).
-                              * Special: value 0 means "do not change ldmHashLog". */
-    ZSTD_p_ldmMinMatch,      </b>/* Minimum size of searched matches for long distance matcher.<b>
-                              * Larger/too small values usually decrease compression ratio.
-                              * Must be clamped between ZSTD_LDM_MINMATCH_MIN
-                              * and ZSTD_LDM_MINMATCH_MAX (default: 64).
-                              * Special: value 0 means "do not change ldmMinMatch". */
-    ZSTD_p_ldmBucketSizeLog, </b>/* Log size of each bucket in the LDM hash table for collision resolution.<b>
-                              * Larger values usually improve collision resolution but may decrease
-                              * compression speed.
-                              * The maximum value is ZSTD_LDM_BUCKETSIZELOG_MAX (default: 3).
-                              * note : 0 is a valid value */
-    ZSTD_p_ldmHashEveryLog,  </b>/* Frequency of inserting/looking up entries in the LDM hash table.<b>
-                              * The default is MAX(0, (windowLog - ldmHashLog)) to
-                              * optimize hash table usage.
-                              * Larger values improve compression speed. Deviating far from the
-                              * default value will likely result in a decrease in compression ratio.
-                              * Must be clamped between 0 and ZSTD_WINDOWLOG_MAX - ZSTD_HASHLOG_MIN.
-                              * note : 0 is a valid value */
 
 } ZSTD_cParameter;
 </b></pre><BR>
@@ -1067,7 +1063,7 @@ size_t ZSTD_DCtx_loadDictionary_advanced(ZSTD_DCtx* dctx, const void* dict, size
  
 </p></pre><BR>
 
-<pre><b>size_t ZSTD_DCtx_refDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict);   </b>/* not implemented */<b>
+<pre><b>size_t ZSTD_DCtx_refDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict);
 </b><p>  Reference a prepared dictionary, to be used to decompress next frames.
   The dictionary remains active for decompression of future frames using same DCtx.
  @result : 0, or an error code (which can be tested with ZSTD_isError()).
@@ -1078,8 +1074,8 @@ size_t ZSTD_DCtx_loadDictionary_advanced(ZSTD_DCtx* dctx, const void* dict, size
  
 </p></pre><BR>
 
-<pre><b>size_t ZSTD_DCtx_refPrefix(ZSTD_DCtx* dctx, const void* prefix, size_t prefixSize);   </b>/* not implemented */<b>
-size_t ZSTD_DCtx_refPrefix_advanced(ZSTD_DCtx* dctx, const void* prefix, size_t prefixSize, ZSTD_dictContentType_e dictContentType);   </b>/* not implemented */<b>
+<pre><b>size_t ZSTD_DCtx_refPrefix(ZSTD_DCtx* dctx, const void* prefix, size_t prefixSize);
+size_t ZSTD_DCtx_refPrefix_advanced(ZSTD_DCtx* dctx, const void* prefix, size_t prefixSize, ZSTD_dictContentType_e dictContentType);
 </b><p>  Reference a prefix (single-usage dictionary) for next compression job.
   Prefix is **only used once**. It must be explicitly referenced before each frame.
   If there is a need to use same prefix multiple times, consider embedding it into a ZSTD_DDict instead.

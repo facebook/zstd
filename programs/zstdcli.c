@@ -388,7 +388,7 @@ int main(int argCount, const char* argv[])
     zstd_operation_mode operation = zom_compress;
     ZSTD_compressionParameters compressionParams;
     int cLevel = ZSTDCLI_CLEVEL_DEFAULT;
-    int cLevelLast = -10000;
+    int cLevelLast = -1000000000;
     unsigned recursive = 0;
     unsigned memLimit = 0;
     const char** filenameTable = (const char**)malloc(argCount * sizeof(const char*));   /* argCount >= 1 */

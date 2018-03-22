@@ -35,7 +35,7 @@ ZSTD_compressionParameters FUZZ_randomCParams(size_t srcSize, uint32_t *state)
     cParams.searchLength = FUZZ_rand32(state, ZSTD_SEARCHLENGTH_MIN,
                                               ZSTD_SEARCHLENGTH_MAX);
     cParams.targetLength = FUZZ_rand32(state, ZSTD_TARGETLENGTH_MIN,
-                                              ZSTD_TARGETLENGTH_MAX);
+                                              512);
     cParams.strategy = FUZZ_rand32(state, ZSTD_fast, ZSTD_btultra);
     return ZSTD_adjustCParams(cParams, srcSize, 0);
 }

@@ -88,23 +88,25 @@ Benchmarks
 ----------
 
 For comparison, several fast compression algorithms were tested and compared
-on a Linux Mint Debian edition server (`Linux version 4.8.0-1-amd64`),
+on a server running Linux Debian (`Linux version 4.14.0-3-amd64`),
 with a Core i7-6700K CPU @ 4.0GHz,
 using [lzbench], an open-source in-memory benchmark by @inikep
-compiled with gcc 6.3.0, on the [Silesia compression corpus].
+compiled with [gcc] 7.3.0,
+on the [Silesia compression corpus].
 
 [lzbench]: https://github.com/inikep/lzbench
 [Silesia compression corpus]: http://sun.aei.polsl.pl/~sdeor/index.php?page=silesia
+[gcc]: https://gcc.gnu.org/
 
 | Compressor name         | Ratio | Compression| Decompress.|
 | ---------------         | ------| -----------| ---------- |
-| **zstd 1.1.3 -1**       | 2.877 |   430 MB/s |  1110 MB/s |
-| zlib 1.2.8 -1           | 2.743 |   110 MB/s |   400 MB/s |
-| brotli 0.5.2 -0         | 2.708 |   400 MB/s |   430 MB/s |
+| **zstd 1.3.4 -1**       | 2.877 |   470 MB/s |  1380 MB/s |
+| zlib 1.2.11 -1          | 2.743 |   110 MB/s |   400 MB/s |
+| brotli 1.0.2 -0         | 2.701 |   410 MB/s |   430 MB/s |
 | quicklz 1.5.0 -1        | 2.238 |   550 MB/s |   710 MB/s |
 | lzo1x 2.09 -1           | 2.108 |   650 MB/s |   830 MB/s |
-| lz4 1.7.5               | 2.101 |   720 MB/s |  3600 MB/s |
-| snappy 1.1.3            | 2.091 |   500 MB/s |  1650 MB/s |
+| lz4 1.8.1               | 2.101 |   750 MB/s |  3700 MB/s |
+| snappy 1.1.4            | 2.091 |   530 MB/s |  1800 MB/s |
 | lzf 3.6 -1              | 2.077 |   400 MB/s |   860 MB/s |
 
 [zlib]:http://www.zlib.net/
@@ -121,7 +123,7 @@ compiled with gcc 5.2.1, on the [Silesia compression corpus].
 
 | Compression Speed vs Ratio | Decompression Speed |
 | ---------------------------|-------------------- |
-| <img src="https://raw.githubusercontent.com/facebook/zstd/master/doc/images/Cspeed4.png" alt="Compression Speed vs Ratio" style="height:500px;"> | <img src="https://raw.githubusercontent.com/facebook/zstd/master/doc/images/Dspeed4.png" alt="Decompression Speed" style="height:500px;">
+| <img src="https://raw.githubusercontent.com/facebook/zstd/master/doc/images/Cspeed2.png" alt="Compression Speed vs Ratio" style="height:500px;"> | <img src="https://raw.githubusercontent.com/facebook/zstd/master/doc/images/Dspeed3.png" alt="Decompression Speed" style="height:500px;">
 
 Several algorithms can produce higher compression ratio but at slower speed, falling outside of the graph.
 For a larger picture including very slow modes, [click on this link](https://raw.githubusercontent.com/facebook/zstd/master/doc/images/DCspeed5.png) .
@@ -150,20 +152,6 @@ These compression gains are achieved while simultaneously providing _faster_ com
 Training works if there is some correlation in a family of small data samples. The more data-specific a dictionary is, the more efficient it is (there is no _universal dictionary_).
 Hence, deploying one dictionary per type of data will provide the greatest benefits.
 Dictionary gains are mostly effective in the first few KB. Then, the compression algorithm will gradually use previously decoded content to better compress the rest of the file.
-
-#### Dictionary compression How To :
-
-1) Create the dictionary
-
-`zstd --train FullPathToTrainingSet/* -o dictionaryName`
-
-2) Compress with dictionary
-
-`zstd -D dictionaryName FILE`
-
-3) Decompress with dictionary
-
-`zstd -D dictionaryName --decompress FILE.zst`
 
 
 ### A rich API set :

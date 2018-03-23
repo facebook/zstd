@@ -88,10 +88,12 @@ static const U64 g_refreshRate = SEC_TO_MICRO / 6;
 static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
 
 #define READY_FOR_UPDATE() (UTIL_clockSpanMicro(g_displayClock) > g_refreshRate)
+#define DELAY_NEXT_UPDATE() { g_displayClock = UTIL_getTime(); }
 #define DISPLAYUPDATE(l, ...) {                              \
         if (g_displayLevel>=l) {                             \
-            if (READY_FOR_UPDATE() || (g_displayLevel>=4)) {   \
-                g_displayClock = UTIL_getTime(); DISPLAY(__VA_ARGS__); \
+            if (READY_FOR_UPDATE() || (g_displayLevel>=4)) { \
+                DELAY_NEXT_UPDATE();                         \
+                DISPLAY(__VA_ARGS__);                        \
                 if (g_displayLevel>=4) fflush(stderr);       \
     }   }   }
 
@@ -401,9 +403,9 @@ static size_t FIO_createDictBuffer(void** bufferPtr, const char* fileName)
 
 #ifndef ZSTD_NOCOMPRESS
 
-/*-**********************************************************************
-*  Compression
-************************************************************************/
+/* **********************************************************************
+ *  Compression
+ ************************************************************************/
 typedef struct {
     FILE* srcFile;
     FILE* dstFile;
@@ -782,12 +784,21 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
             }
             if (READY_FOR_UPDATE()) {
                 ZSTD_frameProgression const zfp = ZSTD_getFrameProgression(ress.cctx);
-                DISPLAYUPDATE(2, "\r(%i) Read :%6u MB - Consumed :%6u MB - Compressed :%6u MB => %.2f%%",
+                double const cShare = (double)zfp.produced / (zfp.consumed + !zfp.consumed/*avoid div0*/) * 100;
+                if (g_displayLevel >= 3) {
+                    DISPLAYUPDATE(3, "\r(L%i) Buffered :%4u MB - Consumed :%4u MB - Compressed :%4u MB => %.2f%%",
                                 compressionLevel,
-                                (U32)(zfp.ingested >> 20),
+                                (U32)((zfp.ingested - zfp.consumed) >> 20),
                                 (U32)(zfp.consumed >> 20),
                                 (U32)(zfp.produced >> 20),
-                                (double)zfp.produced / (zfp.consumed + !zfp.consumed/*avoid div0*/) * 100 );
+                                cShare );
+                } else {   /* g_displayLevel == 2 */
+                    DISPLAYLEVEL(2, "\rRead : %u ", (U32)(zfp.consumed >> 20));
+                    if (fileSize != UTIL_FILESIZE_UNKNOWN)
+                        DISPLAYLEVEL(2, "/ %u ", (U32)(fileSize >> 20));
+                    DISPLAYLEVEL(2, "MB ==> %2.f%% ", cShare);
+                    DELAY_NEXT_UPDATE();
+                }
             }
         }
     } while (directive != ZSTD_e_end);

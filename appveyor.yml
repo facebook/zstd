@@ -82,6 +82,7 @@
       sh -c "%SCRIPT%" &&
       ( if [%COMPILER%]==[gcc] if [%ARTIFACT%]==[true]
           ECHO Creating artifacts &&
+          ECHO %cd% &&
           lib\dll\example\build_package.bat &&
           cd programs\ && make DEBUGFLAGS= clean zstd &&
           7z a -tzip -mx9 zstd-win-binary-%PLATFORM%.zip zstd.exe &&

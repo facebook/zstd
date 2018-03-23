@@ -4,6 +4,7 @@
     only:
     - dev
     - master
+    - srcPackage
   environment:
     matrix:
     - COMPILER: "gcc"

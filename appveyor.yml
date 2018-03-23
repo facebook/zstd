@@ -82,17 +82,12 @@
       sh -c "%SCRIPT%" &&
       ( if [%COMPILER%]==[gcc] if [%ARTIFACT%]==[true]
           ECHO Creating artifacts &&
-          REM ECHO %cd% &&
-          REM make clean &&
-          REM 7z a -ttar -so zstd-src.tar * &&
           lib\dll\example\build_package.bat &&
           cd programs\ && make DEBUGFLAGS= clean zstd &&
           7z a -tzip -mx9 zstd-win-binary-%PLATFORM%.zip zstd.exe &&
           appveyor PushArtifact zstd-win-binary-%PLATFORM%.zip &&
           cp zstd.exe ..\bin\zstd.exe &&
           cd .. &&
-          REM programs\zstd --ultra -22 zstd-src.tar &&
-          REM appveyor PushArtifact zstd-src.tar.zst &&
           cd bin\ && 7z a -tzip -mx9 zstd-win-release-%PLATFORM%.zip * &&
           appveyor PushArtifact zstd-win-release-%PLATFORM%.zip
       )

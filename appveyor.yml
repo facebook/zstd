@@ -2,9 +2,7 @@
   version: 1.0.{build}
   branches:
     only:
-    - dev
     - master
-    - srcPackage
   environment:
     matrix:
     - COMPILER: "gcc"

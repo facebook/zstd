@@ -93,7 +93,7 @@
           git archive --format=tar master -o zstd-src.tar &&
           ..\zstd -19 zstd-src.tar &&
           appveyor PushArtifact zstd-src.tar.zst &&
-          certUtil -hashfile zstd-src.tar.zst SHA256 > zstd-src.sig.sha256 &&
+          $(CertUtil -hashfile zstd-src.tar.zst SHA256)[1] -replace " ","" > zstd-src.sig.sha256 &&
           appveyor PushArtifact zstd-src.sig.sha256 &&
           cd ..\..\bin\ &&
           7z a -tzip -mx9 zstd-win-release-%PLATFORM%.zip * &&

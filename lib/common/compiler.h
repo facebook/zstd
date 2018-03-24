@@ -64,6 +64,9 @@
 #endif
 
 /* target attribute */
+#ifndef __has_attribute
+  #define __has_attribute(x) 0  /* Compatibility with non-clang compilers. */
+#endif
 #if defined(__GNUC__)
 #  define TARGET_ATTRIBUTE(target) __attribute__((__target__(target)))
 #else

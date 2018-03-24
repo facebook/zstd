@@ -83,8 +83,8 @@
       ( if [%COMPILER%]==[gcc] if [%ARTIFACT%]==[true]
           ECHO Creating artifacts &&
           ECHO %cd% &&
-          git clone --depth 1 --branch master https://github.com/facebook/zstd"
-          7z a -ttar zstd-src.tar zstd &&
+          svn export https://github.com/facebook/zstd/branches/master &&
+          7z a -ttar zstd-src.tar master &&
           lib\dll\example\build_package.bat &&
           cd programs\ && make DEBUGFLAGS= clean zstd &&
           7z a -tzip -mx9 zstd-win-binary-%PLATFORM%.zip zstd.exe &&

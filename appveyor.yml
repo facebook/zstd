@@ -83,15 +83,18 @@
       ( if [%COMPILER%]==[gcc] if [%ARTIFACT%]==[true]
           ECHO Creating artifacts &&
           ECHO %cd% &&
-          svn export https://github.com/facebook/zstd/branches/master &&
-          7z a -ttar zstd-src.tar master &&
           lib\dll\example\build_package.bat &&
           cd programs\ && make DEBUGFLAGS= clean zstd &&
           7z a -tzip -mx9 zstd-win-binary-%PLATFORM%.zip zstd.exe &&
           appveyor PushArtifact zstd-win-binary-%PLATFORM%.zip &&
           cp zstd.exe ..\bin\zstd.exe &&
-          cd .. &&
-          cd bin\ && 7z a -tzip -mx9 zstd-win-release-%PLATFORM%.zip * &&
+          git clone --depth 1 --branch master https://github.com/facebook/zstd &&
+          cd zstd &&
+          git archive --format=tar master -o zstd-src.tar &&
+          ..\zstd -19 zstd-src.tar &&
+          appveyor PushArtifact zstd-src.tar.zst &&
+          cd ..\..\bin\ &&
+          7z a -tzip -mx9 zstd-win-release-%PLATFORM%.zip * &&
           appveyor PushArtifact zstd-win-release-%PLATFORM%.zip
       )
     )

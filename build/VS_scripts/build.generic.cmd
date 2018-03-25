@@ -38,9 +38,9 @@ IF %msbuild_version% == VS2017Community SET msbuild="%msbuild_vs2017community%
 IF %msbuild_version% == VS2017Professional SET msbuild=%msbuild_vs2017professional%
 IF %msbuild_version% == VS2017Enterprise SET msbuild=%msbuild_vs2017enterprise%
 IF %msbuild_version% == VS2017 (
-	IF EXIST %msbuild_vs2017enterprise% SET msbuild=%msbuild_vs2017enterprise%
-	IF EXIST %msbuild_vs2017professional% SET msbuild=%msbuild_vs2017professional%
 	IF EXIST %msbuild_vs2017community% SET msbuild=%msbuild_vs2017community%
+	IF EXIST %msbuild_vs2017professional% SET msbuild=%msbuild_vs2017professional%
+	IF EXIST %msbuild_vs2017enterprise% SET msbuild=%msbuild_vs2017enterprise%
 )
 
 SET project="%~p0\..\VS2010\zstd.sln"

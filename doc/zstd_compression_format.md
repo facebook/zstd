@@ -257,7 +257,7 @@ a decoder is allowed to reject a compressed frame
 which requests a memory size beyond decoder's authorized range.
 
 For improved interoperability,
-decoders are recommended to be compatible with `Window_Size >= 8 MB`,
+decoders are recommended to be compatible with `Window_Size <= 8 MB`,
 and encoders are recommended to not request more than 8 MB.
 It's merely a recommendation though,
 decoders are free to support larger or lower limits,

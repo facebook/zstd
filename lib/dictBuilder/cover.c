@@ -537,8 +537,8 @@ static int COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
   /* Checks */
   if (totalSamplesSize < MAX(d, sizeof(U64)) ||
       totalSamplesSize >= (size_t)COVER_MAX_SAMPLES_SIZE) {
-    DISPLAYLEVEL(1, "Total samples size is too large, maximum size is %u MB\n",
-                 (COVER_MAX_SAMPLES_SIZE >> 20));
+    DISPLAYLEVEL(1, "Total samples size is too large (%u MB), maximum size is %u MB\n",
+                 (U32)(totalSamplesSize>>20), (COVER_MAX_SAMPLES_SIZE >> 20));
     return 0;
   }
   /* Zero the context */
@@ -651,12 +651,16 @@ static size_t COVER_buildDictionary(const COVER_ctx_t *ctx, U32 *freqs,
 }
 
 ZDICTLIB_API size_t ZDICT_trainFromBuffer_cover(
-    void *dictBuffer, size_t dictBufferCapacity, const void *samplesBuffer,
-    const size_t *samplesSizes, unsigned nbSamples,
-    ZDICT_cover_params_t parameters) {
-  BYTE *const dict = (BYTE *)dictBuffer;
+    void *dictBuffer, size_t dictBufferCapacity,
+    const void *samplesBuffer, const size_t *samplesSizes, unsigned nbSamples,
+    ZDICT_cover_params_t parameters)
+{
+  BYTE* const dict = (BYTE*)dictBuffer;
   COVER_ctx_t ctx;
   COVER_map_t activeDmers;
+
+  /* Initialize global data */
+  g_displayLevel = parameters.zParams.notificationLevel;
   /* Checks */
   if (!COVER_checkParameters(parameters, dictBufferCapacity)) {
     DISPLAYLEVEL(1, "Cover parameters incorrect\n");
@@ -671,8 +675,6 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_cover(
                  ZDICT_DICTSIZE_MIN);
     return ERROR(dstSize_tooSmall);
   }
-  /* Initialize global data */
-  g_displayLevel = parameters.zParams.notificationLevel;
   /* Initialize context and activeDmers */
   if (!COVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples,
                       parameters.d)) {
@@ -947,6 +949,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
   unsigned k;
   COVER_best_t best;
   POOL_ctx *pool = NULL;
+
   /* Checks */
   if (kMinK < kMaxD || kMaxK < kMinK) {
     LOCALDISPLAYLEVEL(displayLevel, 1, "Incorrect parameters\n");

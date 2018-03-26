@@ -6,13 +6,14 @@ dist: trusty
 matrix:
   include:
     # Ubuntu 14.04
-    - env: Cmd="make cxxtest && make clean && make gnu90build && make clean && make cmakebuild && make clean && make travis-install"
-
     - env: Cmd='make gcc6install && CC=gcc-6 make clean uasan-test'
     - env: Cmd='make gcc6install libc6install && CC=gcc-6 make clean uasan-test32'
+    - env: Cmd='make gcc6install libc6install && CC=gcc-6 make clean uasan-test-zstd32'
     - env: Cmd='make clang38install && CC=clang-3.8 make clean msan-test'
     - env: Cmd='make clang38install && CC=clang-3.8 make clean tsan-test-zstream'
     - env: Cmd='make valgrindinstall && make -C tests clean valgrindTest'
+
+    - env: Cmd="make cxxtest && make clean && make gnu90build && make clean && make cmakebuild && make clean && make travis-install"
 
     - env: Cmd='make arminstall && make armtest'
     - env: Cmd='make arminstall && make aarch64test'
@@ -37,6 +38,10 @@ before_install:
 
 install:
   - if [ `uname` = "Darwin" ]; then brew install xz; fi
+
+    # tag-specific test
+    - if: tag =~ ^v[0-9]\.[0-9]
+      env: Cmd='make -C tests checkTag && tests/checkTag $TRAVIS_BRANCH'
 
 git:
   depth: 1

@@ -21,7 +21,7 @@
 ZSTDDIR = ../lib
 PRGDIR  = ../programs
 PYTHON ?= python3
-TESTARTEFACT := versionsTest namespaceTest
+TESTARTEFACT := versionsTest
 
 DEBUGLEVEL ?= 1
 DEBUGFLAGS  = -g -DZSTD_DEBUG=$(DEBUGLEVEL)
@@ -44,6 +44,16 @@ ZSTD_FILES  := $(ZSTDDECOMP_FILES) $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES)
 ZBUFF_FILES := $(ZSTDDIR)/deprecated/*.c
 ZDICT_FILES := $(ZSTDDIR)/dictBuilder/*.c
 
+ZSTD_F1 := $(wildcard $(ZSTD_FILES))
+ZSTD_OBJ1 := $(subst $(ZSTDDIR)/common/,zstdm_,$(ZSTD_F1))
+ZSTD_OBJ2 := $(subst $(ZSTDDIR)/compress/,zstdc_,$(ZSTD_OBJ1))
+ZSTD_OBJ3 := $(subst $(ZSTDDIR)/decompress/,zstdd_,$(ZSTD_OBJ2))
+ZSTD_OBJECTS := $(ZSTD_OBJ3:.c=.o)
+
+ZSTDMT_OBJ1 := $(subst $(ZSTDDIR)/common/,zstdmt_m_,$(ZSTD_F1))
+ZSTDMT_OBJ2 := $(subst $(ZSTDDIR)/compress/,zstdmt_c_,$(ZSTDMT_OBJ1))
+ZSTDMT_OBJ3 := $(subst $(ZSTDDIR)/decompress/,zstdmt_d_,$(ZSTDMT_OBJ2))
+ZSTDMT_OBJECTS := $(ZSTDMT_OBJ3:.c=.o)
 
 # Define *.exe as extension for Windows systems
 ifneq (,$(filter Windows%,$(OS)))
@@ -63,14 +73,17 @@ FUZZERTEST ?= -T200s
 ZSTDRTTEST = --test-large-data
 DECODECORPUS_TESTTIME ?= -T30
 
-.PHONY: default all all32 allnothread dll clean test test32 test-all namespaceTest versionsTest
+.PHONY: default all all32 allnothread dll clean test test32 test-all versionsTest
 
 default: fullbench
+	@echo $(ZSTDMT_OBJECTS)
 
-all: fullbench fuzzer zstreamtest paramgrill datagen decodecorpus
+all: fullbench fuzzer zstreamtest paramgrill datagen decodecorpus roundTripCrash
 
 all32: fullbench32 fuzzer32 zstreamtest32
 
+allnothread: MULTITHREAD_CPP=
+allnothread: MULTITHREAD_LD=
 allnothread: fullbench fuzzer paramgrill datagen decodecorpus
 
 dll: fuzzer-dll zstreamtest-dll
@@ -85,37 +98,71 @@ zstd-nolegacy:
 	$(MAKE) -C $(PRGDIR) $@ MOREFLAGS+="$(DEBUGFLAGS)"
 
 gzstd:
-	$(MAKE) -C $(PRGDIR) zstd HAVE_ZLIB=1 MOREFLAGS="$(DEBUGFLAGS)"
+	$(MAKE) -C $(PRGDIR) zstd HAVE_ZLIB=1 MOREFLAGS+="$(DEBUGFLAGS)"
+
+.PHONY: zstd-dll
+zstd-dll :
+	$(MAKE) -C $(ZSTDDIR) libzstd
+
+.PHONY: zstd-staticLib
+zstd-staticLib :
+	$(MAKE) -C $(ZSTDDIR) libzstd.a
+
+zstdm_%.o : $(ZSTDDIR)/common/%.c
+	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
+
+zstdc_%.o : $(ZSTDDIR)/compress/%.c
+	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
+
+zstdd_%.o : $(ZSTDDIR)/decompress/%.c
+	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
+
+zstdmt%.o : CPPFLAGS += $(MULTITHREAD_CPP)
+
+zstdmt_m_%.o : $(ZSTDDIR)/common/%.c
+	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
+
+zstdmt_c_%.o : $(ZSTDDIR)/compress/%.c
+	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
+
+zstdmt_d_%.o : $(ZSTDDIR)/decompress/%.c
+	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
 
 fullbench32: CPPFLAGS += -m32
 fullbench fullbench32 : CPPFLAGS += $(MULTITHREAD_CPP)
 fullbench fullbench32 : LDFLAGS += $(MULTITHREAD_LD)
 fullbench fullbench32 : DEBUGFLAGS =   # turn off assert() for speed measurements
-fullbench fullbench32 : $(ZSTD_FILES) $(PRGDIR)/datagen.c fullbench.c
+fullbench fullbench32 : $(ZSTD_FILES)
+fullbench fullbench32 : $(PRGDIR)/datagen.c fullbench.c
 	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
-fullbench-lib: $(PRGDIR)/datagen.c fullbench.c
-	$(MAKE) -C $(ZSTDDIR) libzstd.a
-	$(CC) $(FLAGS) $^ -o $@$(EXT) $(ZSTDDIR)/libzstd.a
+fullbench-lib : zstd-staticLib
+fullbench-lib : $(PRGDIR)/datagen.c fullbench.c
+	$(CC) $(FLAGS) $(filter %.c,$^) -o $@$(EXT) $(ZSTDDIR)/libzstd.a
 
+# note : broken : requires unavailable symbols
+fullbench-dll : zstd-dll
+fullbench-dll : LDFLAGS+= -L$(ZSTDDIR) -lzstd
 fullbench-dll: $(PRGDIR)/datagen.c fullbench.c
-	$(MAKE) -C $(ZSTDDIR) libzstd
-	$(CC) $(FLAGS) $^ -o $@$(EXT) -DZSTD_DLL_IMPORT=1 $(ZSTDDIR)/dll/libzstd.dll
+#	$(CC) $(FLAGS) $(filter %.c,$^) -o $@$(EXT) -DZSTD_DLL_IMPORT=1 $(ZSTDDIR)/dll/libzstd.dll
+	$(CC) $(FLAGS) $(filter %.c,$^) -o $@$(EXT)
 
-fuzzer : CPPFLAGS += $(MULTITHREAD_CPP)
-fuzzer : LDFLAGS += $(MULTITHREAD_LD)
+fuzzer  : CPPFLAGS += $(MULTITHREAD_CPP)
+fuzzer  : LDFLAGS += $(MULTITHREAD_LD)
 fuzzer32: CFLAGS += -m32
-fuzzer fuzzer32 : $(ZSTD_FILES) $(ZDICT_FILES) $(PRGDIR)/datagen.c fuzzer.c
+fuzzer  : $(ZSTDMT_OBJECTS)
+fuzzer32: $(ZSTD_FILES)
+fuzzer fuzzer32 : $(ZDICT_FILES) $(PRGDIR)/datagen.c fuzzer.c
 	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
+fuzzer-dll : zstd-dll
 fuzzer-dll : LDFLAGS+= -L$(ZSTDDIR) -lzstd
 fuzzer-dll : $(ZSTDDIR)/common/xxhash.c $(PRGDIR)/datagen.c fuzzer.c
-	$(MAKE) -C $(ZSTDDIR) libzstd
-	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@$(EXT)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(filter %.c,$^) $(LDFLAGS) -o $@$(EXT)
 
 zbufftest : CPPFLAGS += -I$(ZSTDDIR)/deprecated
 zbufftest : CFLAGS += -Wno-deprecated-declarations   # required to silence deprecation warnings
-zbufftest : $(ZSTD_FILES) $(ZBUFF_FILES) $(PRGDIR)/datagen.c zbufftest.c
+zbufftest : $(ZSTD_OBJECTS) $(ZBUFF_FILES) $(PRGDIR)/datagen.c zbufftest.c
 	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
 zbufftest32 : CPPFLAGS += -I$(ZSTDDIR)/deprecated
@@ -123,18 +170,22 @@ zbufftest32 : CFLAGS += -Wno-deprecated-declarations -m32
 zbufftest32 : $(ZSTD_FILES) $(ZBUFF_FILES) $(PRGDIR)/datagen.c zbufftest.c
 	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
+zbufftest-dll : zstd-dll
 zbufftest-dll : CPPFLAGS += -I$(ZSTDDIR)/deprecated
 zbufftest-dll : CFLAGS += -Wno-deprecated-declarations   # required to silence deprecation warnings
 zbufftest-dll : LDFLAGS+= -L$(ZSTDDIR) -lzstd
 zbufftest-dll : $(ZSTDDIR)/common/xxhash.c $(PRGDIR)/datagen.c zbufftest.c
-	$(MAKE) -C $(ZSTDDIR) libzstd
-	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@$(EXT)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(filter %.c,$^) $(LDFLAGS) -o $@$(EXT)
 
-ZSTREAMFILES := $(ZSTD_FILES) $(ZDICT_FILES) $(PRGDIR)/datagen.c seqgen.c zstreamtest.c
+ZSTREAM_LOCAL_FILES := $(PRGDIR)/datagen.c seqgen.c zstreamtest.c
+ZSTREAM_PROPER_FILES := $(ZDICT_FILES) $(ZSTREAM_LOCAL_FILES)
+ZSTREAMFILES := $(ZSTD_FILES) $(ZSTREAM_PROPER_FILES)
 zstreamtest32 : CFLAGS += -m32
 zstreamtest zstreamtest32 : CPPFLAGS += $(MULTITHREAD_CPP)
 zstreamtest zstreamtest32 : LDFLAGS += $(MULTITHREAD_LD)
-zstreamtest zstreamtest32 : $(ZSTREAMFILES)
+zstreamtest : $(ZSTDMT_OBJECTS) $(ZSTREAM_PROPER_FILES)
+zstreamtest32 : $(ZSTREAMFILES)
+zstreamtest zstreamtest32 :
 	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
 zstreamtest_asan : CFLAGS += -fsanitize=address
@@ -145,53 +196,52 @@ zstreamtest_tsan : CFLAGS += -fsanitize=thread
 zstreamtest_tsan : $(ZSTREAMFILES)
 	$(CC) $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
 
+zstreamtest-dll : zstd-dll
 zstreamtest-dll : LDFLAGS+= -L$(ZSTDDIR) -lzstd
-zstreamtest-dll : $(ZSTDDIR)/common/xxhash.c $(PRGDIR)/datagen.c zstreamtest.c
-	$(MAKE) -C $(ZSTDDIR) libzstd
-	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@$(EXT)
+zstreamtest-dll : $(ZSTDDIR)/common/xxhash.c  # xxh symbols not exposed from dll
+zstreamtest-dll : $(ZSTREAM_LOCAL_FILES)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(filter %.c,$^) $(LDFLAGS) -o $@$(EXT)
 
-paramgrill : DEBUGFLAGS =
+paramgrill : DEBUGFLAGS =   # turn off assert() for speed measurements
 paramgrill : $(ZSTD_FILES) $(PRGDIR)/datagen.c paramgrill.c
-	$(CC)      $(FLAGS) $^ -lm -o $@$(EXT)
+	$(CC) $(FLAGS) $^ -lm -o $@$(EXT)
 
 datagen : $(PRGDIR)/datagen.c datagencli.c
-	$(CC)      $(FLAGS) $^ -o $@$(EXT)
+	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
-roundTripCrash : $(ZSTD_FILES) roundTripCrash.c
-	$(CC)      $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
+roundTripCrash : $(ZSTD_OBJECTS) roundTripCrash.c
+	$(CC) $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
 
-longmatch  : $(ZSTD_FILES) longmatch.c
-	$(CC)      $(FLAGS) $^ -o $@$(EXT)
+longmatch  : $(ZSTD_OBJECTS) longmatch.c
+	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
-invalidDictionaries  : $(ZSTD_FILES) invalidDictionaries.c
-	$(CC)      $(FLAGS) $^ -o $@$(EXT)
+invalidDictionaries : $(ZSTD_OBJECTS) invalidDictionaries.c
+	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
-legacy : CFLAGS+= -DZSTD_LEGACY_SUPPORT=4
-legacy : CPPFLAGS+= -I$(ZSTDDIR)/legacy
+legacy : CPPFLAGS += -I$(ZSTDDIR)/legacy -DZSTD_LEGACY_SUPPORT=4
 legacy : $(ZSTD_FILES) $(wildcard $(ZSTDDIR)/legacy/*.c) legacy.c
-	$(CC)      $(FLAGS) $^ -o $@$(EXT)
+	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
-decodecorpus	: $(filter-out $(ZSTDDIR)/compress/zstd_compress.c, $(wildcard $(ZSTD_FILES))) $(ZDICT_FILES) decodecorpus.c
-	$(CC)      $(FLAGS) $^ -o $@$(EXT) -lm
+decodecorpus : $(filter-out zstdc_zstd_compress.o, $(ZSTD_OBJECTS)) $(ZDICT_FILES) decodecorpus.c
+	$(CC) $(FLAGS) $^ -o $@$(EXT) -lm
 
-symbols  : symbols.c
-	$(MAKE) -C $(ZSTDDIR) libzstd
+symbols  : symbols.c zstd-dll
 ifneq (,$(filter Windows%,$(OS)))
 	cp $(ZSTDDIR)/dll/libzstd.dll .
-	$(CC) $(FLAGS) $^ -o $@$(EXT) -DZSTD_DLL_IMPORT=1 libzstd.dll
+	$(CC) $(FLAGS) $< -o $@$(EXT) -DZSTD_DLL_IMPORT=1 libzstd.dll
 else
-	$(CC) $(FLAGS) $^ -o $@$(EXT) -Wl,-rpath=$(ZSTDDIR) $(ZSTDDIR)/libzstd.so
+	$(CC) $(FLAGS) $< -o $@$(EXT) -Wl,-rpath=$(ZSTDDIR) $(ZSTDDIR)/libzstd.so   # broken on Mac
 endif
 
 poolTests : poolTests.c $(ZSTDDIR)/common/pool.c $(ZSTDDIR)/common/threading.c $(ZSTDDIR)/common/zstd_common.c $(ZSTDDIR)/common/error_private.c
 	$(CC) $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
 
-namespaceTest:
-	if $(CC) namespaceTest.c ../lib/common/xxhash.c -o $@ ; then echo compilation should fail; exit 1 ; fi
-	$(RM) $@
-
+.PHONY: versionsTest
 versionsTest: clean
 	$(PYTHON) test-zstd-versions.py
+
+checkTag: checkTag.c $(ZSTDDIR)/zstd.h
+	$(CC) $(FLAGS) $< -o $@$(EXT)
 
 clean:
 	$(MAKE) -C $(ZSTDDIR) clean
@@ -205,7 +255,7 @@ clean:
         zstreamtest$(EXT) zstreamtest32$(EXT) \
         datagen$(EXT) paramgrill$(EXT) roundTripCrash$(EXT) longmatch$(EXT) \
         symbols$(EXT) invalidDictionaries$(EXT) legacy$(EXT) poolTests$(EXT) \
-        decodecorpus$(EXT)
+        decodecorpus$(EXT) checkTag$(EXT)
 	@echo Cleaning completed
 
 
@@ -247,15 +297,23 @@ ifneq (,$(filter $(shell uname),SunOS))
 DIFF:=gdiff
 endif
 
+.PHONY: list
+list:
+	@$(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null | awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' | sort | egrep -v -e '^[^[:alnum:]]' -e '^$@$$' | xargs
+
+.PHONY: zstd-playTests
 zstd-playTests: datagen
 	file $(ZSTD)
 	ZSTD="$(QEMU_SYS) $(ZSTD)" ./playTests.sh $(ZSTDRTTEST)
 
+.PHONY: shortest
 shortest: ZSTDRTTEST=
 shortest: test-zstd
 
+.PHONY: fuzztest
 fuzztest: test-fuzzer test-zstream test-decodecorpus
 
+.PHONY: test
 test: test-zstd test-fullbench test-fuzzer test-zstream test-invalidDictionaries test-legacy test-decodecorpus
 ifeq ($(QEMU_SYS),)
 test: test-pool

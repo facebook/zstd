@@ -142,7 +142,9 @@ static int g_utilDisplayLevel;
         }
         return 1000000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart;
     }
+
 #elif defined(__APPLE__) && defined(__MACH__)
+
     #include <mach/mach_time.h>
     #define UTIL_TIME_INITIALIZER 0
     typedef U64 UTIL_time_t;
@@ -167,7 +169,9 @@ static int g_utilDisplayLevel;
         }
         return ((clockEnd - clockStart) * (U64)rate.numer) / ((U64)rate.denom);
     }
+
 #elif (PLATFORM_POSIX_VERSION >= 200112L) && (defined __UCLIBC__ || ((__GLIBC__ == 2 && __GLIBC_MINOR__ >= 17) || __GLIBC__ > 2))
+
     #define UTIL_TIME_INITIALIZER { 0, 0 }
     typedef struct timespec UTIL_freq_t;
     typedef struct timespec UTIL_time_t;
@@ -217,12 +221,18 @@ static int g_utilDisplayLevel;
 #define SEC_TO_MICRO 1000000
 
 /* returns time span in microseconds */
-UTIL_STATIC U64 UTIL_clockSpanMicro( UTIL_time_t clockStart )
+UTIL_STATIC U64 UTIL_clockSpanMicro(UTIL_time_t clockStart )
 {
     UTIL_time_t const clockEnd = UTIL_getTime();
     return UTIL_getSpanTimeMicro(clockStart, clockEnd);
 }
 
+/* returns time span in microseconds */
+UTIL_STATIC U64 UTIL_clockSpanNano(UTIL_time_t clockStart )
+{
+    UTIL_time_t const clockEnd = UTIL_getTime();
+    return UTIL_getSpanTimeNano(clockStart, clockEnd);
+}
 
 UTIL_STATIC void UTIL_waitForNextTick(void)
 {
@@ -246,10 +256,16 @@ UTIL_STATIC void UTIL_waitForNextTick(void)
 #endif
 
 
+UTIL_STATIC int UTIL_isRegularFile(const char* infilename);
+
+
 UTIL_STATIC int UTIL_setFileStat(const char *filename, stat_t *statbuf)
 {
     int res = 0;
     struct utimbuf timebuf;
+
+    if (!UTIL_isRegularFile(filename))
+        return -1;
 
     timebuf.actime = time(NULL);
     timebuf.modtime = statbuf->st_mtime;

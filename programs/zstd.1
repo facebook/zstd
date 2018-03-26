@@ -1,5 +1,5 @@
 .
-.TH "ZSTD" "1" "December 2017" "zstd 1.3.3" "User Commands"
+.TH "ZSTD" "1" "2018-01-27" "zstd 1.3.4" "User Commands"
 .
 .SH "NAME"
 \fBzstd\fR \- zstd, zstdmt, unzstd, zstdcat \- Compress or decompress \.zst files
@@ -136,7 +136,7 @@ force write to standard output, even if it is the console
 .
 .TP
 \fB\-\-[no\-]sparse\fR
-enable / disable sparse FS support, to make files with many zeroes smaller on disk\. Creating sparse files may save disk space and speed up decompression by reducing the amount of disk I/O\. default : enabled when output is into a file, and disabled when output is stdout\. This setting overrides default and can force sparse mode over stdout\.
+enable / disable sparse FS support, to make files with many zeroes smaller on disk\. Creating sparse files may save disk space and speed up decompression by reducing the amount of disk I/O\. default: enabled when output is into a file, and disabled when output is stdout\. This setting overrides default and can force sparse mode over stdout\.
 .
 .TP
 \fB\-\-rm\fR
@@ -172,14 +172,14 @@ suppress warnings, interactivity, and notifications\. specify twice to suppress 
 .
 .TP
 \fB\-C\fR, \fB\-\-[no\-]check\fR
-add integrity check computed from uncompressed data (default : enabled)
+add integrity check computed from uncompressed data (default: enabled)
 .
 .TP
 \fB\-\-\fR
 All arguments after \fB\-\-\fR are treated as files
 .
 .SH "DICTIONARY BUILDER"
-\fBzstd\fR offers \fIdictionary\fR compression, useful for very small files and messages\. It\'s possible to train \fBzstd\fR with some samples, the result of which is saved into a file called a \fBdictionary\fR\. Then during compression and decompression, reference the same dictionary\. It will improve compression ratio of small files\. Typical gains range from 10% (at 64KB) to x5 better (at <1KB)\.
+\fBzstd\fR offers \fIdictionary\fR compression, which greatly improves efficiency on small files and messages\. It\'s possible to train \fBzstd\fR with a set of samples, the result of which is saved into a file called a \fBdictionary\fR\. Then during compression and decompression, reference the same dictionary, using command \fB\-D dictionaryFileName\fR\. Compression of small files similar to the sample set will be greatly improved\.
 .
 .TP
 \fB\-\-train FILEs\fR
@@ -195,6 +195,10 @@ Dictionary saved into \fBfile\fR (default name: dictionary)\.
 .TP
 \fB\-\-maxdict=#\fR
 Limit dictionary to specified size (default: 112640)\.
+.
+.TP
+\fB\-#\fR
+Use \fB#\fR compression level during training (optional)\. Will generate statistics more tuned for selected compression level, resulting in a \fIsmall\fR compression ratio improvement for this level\.
 .
 .TP
 \fB\-B#\fR
@@ -251,7 +255,7 @@ benchmark file(s) using multiple compression levels, from \fB\-b#\fR to \fB\-e#\
 .
 .TP
 \fB\-i#\fR
-minimum evaluation time, in seconds (default : 3s), benchmark mode only
+minimum evaluation time, in seconds (default: 3s), benchmark mode only
 .
 .TP
 \fB\-B#\fR, \fB\-\-block\-size=#\fR

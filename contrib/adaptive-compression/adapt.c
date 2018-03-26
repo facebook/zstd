@@ -40,7 +40,6 @@ static unsigned g_compressionLevel = DEFAULT_COMPRESSION_LEVEL;
 static UTIL_time_t g_startTime;
 static size_t g_streamedSize = 0;
 static unsigned g_useProgressBar = 1;
-static UTIL_freq_t g_ticksPerSecond;
 static unsigned g_forceCompressionLevel = 0;
 static unsigned g_minCLevel = 1;
 static unsigned g_maxCLevel;
@@ -576,13 +575,12 @@ static void* compressionThread(void* arg)
             /* begin compression */
             {
                 size_t const useDictSize = MIN(getUseableDictSize(cLevel), job->dictSize);
-                size_t const dictModeError = ZSTD_setCCtxParameter(ctx->cctx, ZSTD_p_forceRawDict, 1);
                 ZSTD_parameters params = ZSTD_getParams(cLevel, 0, useDictSize);
                 params.cParams.windowLog = 23;
                 {
                     size_t const initError = ZSTD_compressBegin_advanced(ctx->cctx, job->src.start + job->dictSize - useDictSize, useDictSize, params, 0);
-                    size_t const windowSizeError = ZSTD_setCCtxParameter(ctx->cctx, ZSTD_p_forceWindow, 1);
-                    if (ZSTD_isError(dictModeError) || ZSTD_isError(initError) || ZSTD_isError(windowSizeError)) {
+                    size_t const windowSizeError = ZSTD_CCtx_setParameter(ctx->cctx, ZSTD_p_forceMaxWindow, 1);
+                    if (ZSTD_isError(initError) || ZSTD_isError(windowSizeError)) {
                         DISPLAY("Error: something went wrong while starting compression\n");
                         signalErrorToThreads(ctx);
                         return arg;
@@ -644,21 +642,17 @@ static void* compressionThread(void* arg)
 
 static void displayProgress(unsigned cLevel, unsigned last)
 {
-    UTIL_time_t currTime;
-    UTIL_getTime(&currTime);
+    UTIL_time_t currTime = UTIL_getTime();
     if (!g_useProgressBar) return;
-    {
-        double const timeElapsed = (double)(UTIL_getSpanTimeMicro(g_ticksPerSecond, g_startTime, currTime) / 1000.0);
+    {   double const timeElapsed = (double)(UTIL_getSpanTimeMicro(g_startTime, currTime) / 1000.0);
         double const sizeMB = (double)g_streamedSize / (1 << 20);
         double const avgCompRate = sizeMB * 1000 / timeElapsed;
         fprintf(stderr, "\r| Comp. Level: %2u | Time Elapsed: %7.2f s | Data Size: %7.1f MB | Avg Comp. Rate: %6.2f MB/s |", cLevel, timeElapsed/1000.0, sizeMB, avgCompRate);
         if (last) {
             fprintf(stderr, "\n");
-        }
-        else {
+        } else {
             fflush(stderr);
-        }
-    }
+    }   }
 }
 
 static void* outputThread(void* arg)
@@ -971,7 +965,6 @@ static int compressFilename(const char* const srcFilename, const char* const dst
 {
     int ret = 0;
     fcResources fcr = createFileCompressionResources(srcFilename, dstFilenameOrNull);
-    UTIL_getTime(&g_startTime);
     g_streamedSize = 0;
     ret |= performCompression(fcr.ctx, fcr.srcFile, fcr.otArg);
     ret |= freeFileCompressionResources(&fcr);
@@ -1043,8 +1036,6 @@ int main(int argCount, const char* argv[])
     int argNum;
     filenameTable[0] = stdinmark;
     g_maxCLevel = ZSTD_maxCLevel();
-
-    UTIL_initTimer(&g_ticksPerSecond);
 
     if (filenameTable == NULL) {
         DISPLAY("Error: could not allocate sapce for filename table.\n");

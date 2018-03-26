@@ -27,7 +27,7 @@ endif
 default: lib-release zstd-release
 
 .PHONY: all
-all: | allmost examples manual
+all: | allmost examples manual contrib
 
 .PHONY: allmost
 allmost: allzstd
@@ -72,13 +72,17 @@ zstdmt:
 zlibwrapper:
 	$(MAKE) -C $(ZWRAPDIR) test
 
+.PHONY: test
+test:
+	$(MAKE) -C $(PRGDIR) allVariants MOREFLAGS+="-g -DZSTD_DEBUG=1"
+	$(MAKE) -C $(TESTDIR) $@
+
+.PHONY: shortest
+shortest:
+	$(MAKE) -C $(TESTDIR) $@
+
 .PHONY: check
 check: shortest
-
-.PHONY: test shortest
-test shortest:
-	$(MAKE) -C $(PRGDIR) allVariants MOREFLAGS="-g -DZSTD_DEBUG=1"
-	$(MAKE) -C $(TESTDIR) $@
 
 .PHONY: examples
 examples:
@@ -87,6 +91,12 @@ examples:
 .PHONY: manual
 manual:
 	$(MAKE) -C contrib/gen_html $@
+
+.PHONY: contrib
+contrib: lib
+	$(MAKE) -C contrib/pzstd all
+	$(MAKE) -C contrib/seekable_format/examples all
+	$(MAKE) -C contrib/adaptive-compression all
 
 .PHONY: cleanTabs
 cleanTabs:
@@ -100,6 +110,9 @@ clean:
 	@$(MAKE) -C $(ZWRAPDIR) $@ > $(VOID)
 	@$(MAKE) -C examples/ $@ > $(VOID)
 	@$(MAKE) -C contrib/gen_html $@ > $(VOID)
+	@$(MAKE) -C contrib/pzstd $@ > $(VOID)
+	@$(MAKE) -C contrib/seekable_format/examples $@ > $(VOID)
+	@$(MAKE) -C contrib/adaptive-compression $@ > $(VOID)
 	@$(RM) zstd$(EXT) zstdmt$(EXT) tmp*
 	@$(RM) -r lz4
 	@echo Cleaning completed
@@ -231,31 +244,31 @@ msanregressiontest:
 # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=63303
 
 usan: clean
-	$(MAKE) test CC=clang MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize-recover=signed-integer-overflow -fsanitize=undefined"
+	$(MAKE) test CC=clang MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize-recover=signed-integer-overflow -fsanitize=undefined -Werror"
 
 asan: clean
-	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=address"
+	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=address -Werror"
 
 asan-%: clean
-	LDFLAGS=-fuse-ld=gold MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize=address" $(MAKE) -C $(TESTDIR) $*
+	LDFLAGS=-fuse-ld=gold MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize=address -Werror" $(MAKE) -C $(TESTDIR) $*
 
 msan: clean
-	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=memory -fno-omit-frame-pointer" HAVE_LZMA=0   # datagen.c fails this test for no obvious reason
+	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=memory -fno-omit-frame-pointer -Werror" HAVE_LZMA=0   # datagen.c fails this test for no obvious reason
 
 msan-%: clean
-	LDFLAGS=-fuse-ld=gold MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize=memory -fno-omit-frame-pointer" FUZZER_FLAGS=--no-big-tests $(MAKE) -C $(TESTDIR) HAVE_LZMA=0 $*
+	LDFLAGS=-fuse-ld=gold MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize=memory -fno-omit-frame-pointer -Werror" FUZZER_FLAGS=--no-big-tests $(MAKE) -C $(TESTDIR) HAVE_LZMA=0 $*
 
 asan32: clean
 	$(MAKE) -C $(TESTDIR) test32 CC=clang MOREFLAGS="-g -fsanitize=address"
 
 uasan: clean
-	$(MAKE) test CC=clang MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize-recover=signed-integer-overflow -fsanitize=address,undefined"
+	$(MAKE) test CC=clang MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize-recover=signed-integer-overflow -fsanitize=address,undefined -Werror"
 
 uasan-%: clean
-	LDFLAGS=-fuse-ld=gold MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize-recover=signed-integer-overflow -fsanitize=address,undefined" $(MAKE) -C $(TESTDIR) $*
+	LDFLAGS=-fuse-ld=gold MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize-recover=signed-integer-overflow -fsanitize=address,undefined -Werror" $(MAKE) -C $(TESTDIR) $*
 
 tsan-%: clean
-	LDFLAGS=-fuse-ld=gold MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize=thread" $(MAKE) -C $(TESTDIR) $* FUZZER_FLAGS=--no-big-tests
+	LDFLAGS=-fuse-ld=gold MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize=thread -Werror" $(MAKE) -C $(TESTDIR) $* FUZZER_FLAGS=--no-big-tests
 
 apt-install:
 	sudo apt-get -yq --no-install-suggests --no-install-recommends --force-yes install $(APT_PACKAGES)
@@ -278,6 +291,9 @@ libc6install:
 
 gcc6install: apt-add-repo
 	APT_PACKAGES="libc6-dev-i386 gcc-multilib gcc-6 gcc-6-multilib" $(MAKE) apt-install
+
+gcc7install: apt-add-repo
+	APT_PACKAGES="libc6-dev-i386 gcc-multilib gcc-7 gcc-7-multilib" $(MAKE) apt-install
 
 gpp6install: apt-add-repo
 	APT_PACKAGES="libc6-dev-i386 g++-multilib gcc-6 g++-6 g++-6-multilib" $(MAKE) apt-install

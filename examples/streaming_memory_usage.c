@@ -46,7 +46,7 @@ static unsigned readU32FromChar(const char** stringPtr)
 
 int main(int argc, char const *argv[]) {
 
-    printf("\n Zstandard (v%u) memory usage for streaming contexts : \n\n", ZSTD_versionNumber());
+    printf("\n Zstandard (v%s) memory usage for streaming : \n\n", ZSTD_versionString());
 
     unsigned wLog = 0;
     if (argc > 1) {
@@ -69,11 +69,13 @@ int main(int argc, char const *argv[]) {
 
         /* forces compressor to use maximum memory size for given compression level,
          * by not providing any information on input size */
-        ZSTD_parameters params = ZSTD_getParams(compressionLevel, 0, 0);
+        ZSTD_parameters params = ZSTD_getParams(compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, 0);
         if (wLog) { /* special mode : specific wLog */
             printf("Using custom compression parameter : level 1 + wLog=%u \n", wLog);
-            params = ZSTD_getParams(1, 1 << wLog, 0);
-            size_t const error = ZSTD_initCStream_advanced(cstream, NULL, 0, params, 0);
+            params = ZSTD_getParams(1 /*compressionLevel*/,
+                                    1 << wLog /*estimatedSrcSize*/,
+                                    0 /*no dictionary*/);
+            size_t const error = ZSTD_initCStream_advanced(cstream, NULL, 0, params, ZSTD_CONTENTSIZE_UNKNOWN);
             if (ZSTD_isError(error)) {
                 printf("ZSTD_initCStream_advanced error : %s \n", ZSTD_getErrorName(error));
                 return 1;

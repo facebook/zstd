@@ -2,4 +2,7 @@
 corpora
 block_decompress
 block_round_trip
+simple_decompress
 simple_round_trip
+stream_decompress
+stream_round_trip

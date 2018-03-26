@@ -2,14 +2,13 @@
   version: 1.0.{build}
   branches:
     only:
-    - dev
     - master
   environment:
     matrix:
     - COMPILER: "gcc"
       HOST:     "mingw"
       PLATFORM: "x64"
-      SCRIPT:   "make allzstd MOREFLAGS=-static && make -C tests test-symbols fullbench-dll fullbench-lib"
+      SCRIPT:   "make allzstd MOREFLAGS=-static && make -C tests test-symbols fullbench-lib"
       ARTIFACT: "true"
       BUILD:    "true"
     - COMPILER: "gcc"
@@ -80,12 +79,22 @@
       SET "LDFLAGS=../../zlib/libz.a" &&
       sh -c "%SCRIPT%" &&
       ( if [%COMPILER%]==[gcc] if [%ARTIFACT%]==[true]
+          ECHO Creating artifacts &&
+          ECHO %cd% &&
           lib\dll\example\build_package.bat &&
           make -C programs DEBUGFLAGS= clean zstd &&
           cd programs\ && 7z a -tzip -mx9 zstd-win-binary-%PLATFORM%.zip zstd.exe &&
           appveyor PushArtifact zstd-win-binary-%PLATFORM%.zip &&
           cp zstd.exe ..\bin\zstd.exe &&
-          cd ..\bin\ && 7z a -tzip -mx9 zstd-win-release-%PLATFORM%.zip * &&
+          git clone --depth 1 --branch master https://github.com/facebook/zstd &&
+          cd zstd &&
+          git archive --format=tar master -o zstd-src.tar &&
+          ..\zstd -19 zstd-src.tar &&
+          appveyor PushArtifact zstd-src.tar.zst &&
+          certUtil -hashfile zstd-src.tar.zst SHA256 > zstd-src.tar.zst.sha256.sig &&
+          appveyor PushArtifact zstd-src.tar.zst.sha256.sig &&
+          cd ..\..\bin\ &&
+          7z a -tzip -mx9 zstd-win-release-%PLATFORM%.zip * &&
           appveyor PushArtifact zstd-win-release-%PLATFORM%.zip
       )
     )

@@ -1,4 +1,4 @@
-<p align="center"><img src="https://raw.githubusercontent.com/facebook/zstd/readme/doc/images/zstd_logo86.png" alt="Zstandard"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/facebook/zstd/dev/doc/images/zstd_logo86.png" alt="Zstandard"></p>
 
 __Zstandard__, or `zstd` as short version, is a fast lossless compression algorithm,
 targeting real-time compression scenarios at zlib-level and better compression ratios.
@@ -21,24 +21,25 @@ Development branch status : [![Build Status][travisDevBadge]][travisLink]   [![B
 ### Benchmarks
 
 For reference, several fast compression algorithms were tested and compared
-on a server running Linux Debian (`Linux version 4.8.0-1-amd64`),
+on a server running Linux Debian (`Linux version 4.14.0-3-amd64`),
 with a Core i7-6700K CPU @ 4.0GHz,
 using [lzbench], an open-source in-memory benchmark by @inikep
-compiled with GCC 6.3.0,
+compiled with [gcc] 7.3.0,
 on the [Silesia compression corpus].
 
 [lzbench]: https://github.com/inikep/lzbench
 [Silesia compression corpus]: http://sun.aei.polsl.pl/~sdeor/index.php?page=silesia
+[gcc]: https://gcc.gnu.org/
 
 | Compressor name         | Ratio | Compression| Decompress.|
 | ---------------         | ------| -----------| ---------- |
-| **zstd 1.1.3 -1**       | 2.877 |   430 MB/s |  1110 MB/s |
-| zlib 1.2.8 -1           | 2.743 |   110 MB/s |   400 MB/s |
-| brotli 0.5.2 -0         | 2.708 |   400 MB/s |   430 MB/s |
+| **zstd 1.3.4 -1**       | 2.877 |   470 MB/s |  1380 MB/s |
+| zlib 1.2.11 -1          | 2.743 |   110 MB/s |   400 MB/s |
+| brotli 1.0.2 -0         | 2.701 |   410 MB/s |   430 MB/s |
 | quicklz 1.5.0 -1        | 2.238 |   550 MB/s |   710 MB/s |
 | lzo1x 2.09 -1           | 2.108 |   650 MB/s |   830 MB/s |
-| lz4 1.7.5               | 2.101 |   720 MB/s |  3600 MB/s |
-| snappy 1.1.3            | 2.091 |   500 MB/s |  1650 MB/s |
+| lz4 1.8.1               | 2.101 |   750 MB/s |  3700 MB/s |
+| snappy 1.1.4            | 2.091 |   530 MB/s |  1800 MB/s |
 | lzf 3.6 -1              | 2.077 |   400 MB/s |   860 MB/s |
 
 [zlib]:http://www.zlib.net/
@@ -50,15 +51,15 @@ Decompression speed is preserved and remains roughly the same at all settings,
 a property shared by most LZ compression algorithms, such as [zlib] or lzma.
 
 The following tests were run
-on a server running Linux Debian (`Linux version 4.8.0-1-amd64`)
+on a server running Linux Debian (`Linux version 4.14.0-3-amd64`)
 with a Core i7-6700K CPU @ 4.0GHz,
 using [lzbench], an open-source in-memory benchmark by @inikep
-compiled with GCC 6.3.0,
+compiled with [gcc] 7.3.0,
 on the [Silesia compression corpus].
 
 Compression Speed vs Ratio | Decompression Speed
 ---------------------------|--------------------
-![Compression Speed vs Ratio](doc/images/Cspeed4.png "Compression Speed vs Ratio") | ![Decompression Speed](doc/images/Dspeed4.png "Decompression Speed")
+![Compression Speed vs Ratio](doc/images/CSpeed2.png "Compression Speed vs Ratio") | ![Decompression Speed](doc/images/DSpeed3.png "Decompression Speed")
 
 A few other algorithms can produce higher compression ratios at slower speeds, falling outside of the graph.
 For a larger picture including slow modes, [click on this link](doc/images/DCspeed5.png).
@@ -128,8 +129,8 @@ A Meson project is provided within `contrib/meson`.
 
 Going into `build` directory, you will find additional possibilities:
 - Projects for Visual Studio 2005, 2008 and 2010.
-  + VS2010 project is compatible with VS2012, VS2013 and VS2015.
-- Automated build scripts for Visual compiler by @KrzysFR , in `build/VS_scripts`,
+  + VS2010 project is compatible with VS2012, VS2013, VS2015 and VS2017.
+- Automated build scripts for Visual compiler by [@KrzysFR](https://github.com/KrzysFR), in `build/VS_scripts`,
   which will build `zstd` cli and `libzstd` library without any need to open Visual Studio solution.
 
 

@@ -1,5 +1,23 @@
+v1.3.4
+perf: faster speed (especially decoding speed) on recent cpus (haswell+)
+perf: much better performance associating --long with multi-threading, by @terrelln
+perf: better compression at levels 13-15
+cli : asynchronous compression by default, for faster experience (use --single-thread for former behavior)
+cli : smoother status report in multi-threading mode
+cli : added command --fast=#, for faster compression modes
+cli : fix crash when not overwriting existing files, by Pádraig Brady (@pixelb)
+api : `nbThreads` becomes `nbWorkers` : 1 triggers asynchronous mode
+api : compression levels can be negative, for even more speed
+api : ZSTD_getFrameProgression() : get precise progress status of ZSTDMT anytime
+api : ZSTDMT can accept new compression parameters during compression
+api : implemented all advanced dictionary decompression prototypes
+build: improved meson recipe, by Shawn Landden (@shawnl)
+build: VS2017 scripts, by @HaydnTrigg
+misc: all /contrib projects fixed
+misc: added /contrib/docker script by @gyscos
+
 v1.3.3
-perf: faster zstd_opt strategy (levels 17-19)
+perf: faster zstd_opt strategy (levels 16-19)
 fix : bug #944 : multithreading with shared ditionary and large data, reported by @gsliepen
 cli : fix : content size written in header by default
 cli : fix : improved LZ4 format support, by @felixhandte

@@ -71,7 +71,7 @@ extern "C" {
 ***************************************************************/
 #if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)) /* UNIX-like OS */ \
    || defined(__midipix__) || defined(__VMS))
-#  if (defined(__APPLE__) && defined(__MACH__)) || defined(__SVR4) || defined(_AIX) || defined(__hpux) /* POSIX.1–2001 (SUSv3) conformant */ \
+#  if (defined(__APPLE__) && defined(__MACH__)) || defined(__SVR4) || defined(_AIX) || defined(__hpux) /* POSIX.1-2001 (SUSv3) conformant */ \
      || defined(__DragonFly__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)  /* BSD distros */
 #    define PLATFORM_POSIX_VERSION 200112L
 #  else
@@ -106,8 +106,7 @@ extern "C" {
 #  include <io.h>      /* _isatty */
 #  include <windows.h> /* DeviceIoControl, HANDLE, FSCTL_SET_SPARSE */
 #  include <stdio.h>   /* FILE */
-static __inline int IS_CONSOLE(FILE* stdStream)
-{
+static __inline int IS_CONSOLE(FILE* stdStream) {
     DWORD dummy;
     return _isatty(_fileno(stdStream)) && GetConsoleMode((HANDLE)_get_osfhandle(_fileno(stdStream)), &dummy);
 }

@@ -1251,10 +1251,13 @@ ZSTDLIB_API size_t ZSTD_CCtx_setParametersUsingCCtxParams(
         ZSTD_CCtx* cctx, const ZSTD_CCtx_params* params);
 
 
-/*===   Advanced parameters for decompression API  ===*/
+/* ==================================== */
+/*===   Advanced decompression API   ===*/
+/* ==================================== */
 
-/* The following parameters must be set after creating a ZSTD_DCtx* (or ZSTD_DStream*) object,
- * but before starting decompression of a frame.
+/* The following API works the same way as the advanced compression API :
+ * a context is created, parameters are pushed into it one by one,
+ * then the context can be used to decompress data using an interface similar to the straming API.
  */
 
 /*! ZSTD_DCtx_loadDictionary() :
@@ -1321,6 +1324,13 @@ ZSTDLIB_API size_t ZSTD_DCtx_setMaxWindowSize(ZSTD_DCtx* dctx, size_t maxWindowS
  * @return : 0, or an error code (which can be tested using ZSTD_isError()).
  */
 ZSTDLIB_API size_t ZSTD_DCtx_setFormat(ZSTD_DCtx* dctx, ZSTD_format_e format);
+
+
+/** ZSTD_getFrameHeader_advanced() :
+ *  same as ZSTD_getFrameHeader(),
+ *  with added capability to select a format (like ZSTD_f_zstd1_magicless) */
+ZSTDLIB_API size_t ZSTD_getFrameHeader_advanced(ZSTD_frameHeader* zfhPtr,
+                        const void* src, size_t srcSize, ZSTD_format_e format);
 
 
 /*! ZSTD_decompress_generic() :

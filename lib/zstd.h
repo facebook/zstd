@@ -880,6 +880,11 @@ typedef struct {
     unsigned dictID;
     unsigned checksumFlag;
 } ZSTD_frameHeader;
+/** ZSTD_getFrameHeader() :
+ *  decode Frame Header, or requires larger `srcSize`.
+ * @return : 0, `zfhPtr` is correctly filled,
+ *          >0, `srcSize` is too small, value is wanted `srcSize` amount,
+ *           or an error code, which can be tested using ZSTD_isError() */
 ZSTDLIB_API size_t ZSTD_getFrameHeader(ZSTD_frameHeader* zfhPtr, const void* src, size_t srcSize);   /**< doesn't consume input */
 ZSTDLIB_API size_t ZSTD_decodingBufferSize_min(unsigned long long windowSize, unsigned long long frameContentSize);  /**< when frame content size is not known, pass in frameContentSize == ZSTD_CONTENTSIZE_UNKNOWN */
 

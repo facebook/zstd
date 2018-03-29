@@ -650,6 +650,25 @@ then
 
     $ECHO "\n===>  zstdmt long distance matching round-trip tests "
     roundTripTest -g8M "3 --long=24 -T2"
+
+    $ECHO "\n===>  ovLog tests "
+    ./datagen -g2MB > tmp
+    refSize=$($ZSTD tmp -6 -c --zstd=wlog=18         | wc -c)
+    ov9Size=$($ZSTD tmp -6 -c --zstd=wlog=18,ovlog=9 | wc -c)
+    ov0Size=$($ZSTD tmp -6 -c --zstd=wlog=18,ovlog=0 | wc -c)
+    if [ $refSize -eq $ov9Size ]; then
+        echo ov9Size should be different from refSize
+        exit 1
+    fi
+    if [ $refSize -eq $ov0Size ]; then
+        echo ov0Size should be different from refSize
+        exit 1
+    fi
+    if [ $ov9Size -ge $ov0Size ]; then
+        echo ov9Size=$ov9Size should be smaller than ov0Size=$ov0Size
+        exit 1
+    fi
+
 else
     $ECHO "\n===>  no multithreading, skipping zstdmt tests "
 fi

@@ -466,6 +466,13 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
 #ifdef ZSTD_MULTITHREAD
         DISPLAYLEVEL(5,"set nb workers = %u \n", g_nbWorkers);
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_nbWorkers, g_nbWorkers) );
+        if ( (g_overlapLog == FIO_OVERLAP_LOG_NOTSET)
+          && (cLevel == ZSTD_maxCLevel()) )
+            g_overlapLog = 9;   /* full overlap */
+        if (g_overlapLog != FIO_OVERLAP_LOG_NOTSET) {
+            DISPLAYLEVEL(3,"set overlapLog = %u \n", g_overlapLog);
+            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_overlapSizeLog, g_overlapLog) );
+        }
 #endif
         /* dictionary */
         CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, srcSize) );  /* set the value temporarily for dictionary loading, to adapt compression parameters */

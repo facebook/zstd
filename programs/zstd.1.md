@@ -19,7 +19,7 @@ DESCRIPTION
 with command line syntax similar to `gzip (1)` and `xz (1)`.
 It is based on the **LZ77** family, with further FSE & huff0 entropy stages.
 `zstd` offers highly configurable compression speed,
-with fast modes at > 200 MB/s per code,
+with fast modes at > 200 MB/s per core,
 and strong modes nearing lzma compression ratios.
 It also features a very fast decoder, with speeds > 500 MB/s per core.
 

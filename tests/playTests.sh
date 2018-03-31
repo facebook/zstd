@@ -69,6 +69,7 @@ UNAME=$(uname)
 case "$UNAME" in
   Darwin) MD5SUM="md5 -r" ;;
   FreeBSD) MD5SUM="gmd5sum" ;;
+  OpenBSD) MD5SUM="md5" ;;
   *) MD5SUM="md5sum" ;;
 esac
 
@@ -258,7 +259,7 @@ rm ./*.tmp ./*.zstd
 $ECHO "frame concatenation tests completed"
 
 
-if [ "$isWindows" = false ] && [ "$UNAME" != 'SunOS' ] ; then
+if [ "$isWindows" = false ] && [ "$UNAME" != 'SunOS' ] && [ "$UNAME" != "OpenBSD" ] ; then
 $ECHO "\n**** flush write error test **** "
 
 $ECHO "$ECHO foo | $ZSTD > /dev/full"

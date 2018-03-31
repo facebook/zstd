@@ -134,7 +134,7 @@ LIBDIR      ?= $(libdir)
 includedir  ?= $(PREFIX)/include
 INCLUDEDIR  ?= $(includedir)
 
-ifneq (,$(filter $(shell uname),OpenBSD FreeBSD NetBSD DragonFly))
+ifneq (,$(filter $(shell uname),FreeBSD NetBSD DragonFly))
 PKGCONFIGDIR ?= $(PREFIX)/libdata/pkgconfig
 else
 PKGCONFIGDIR ?= $(LIBDIR)/pkgconfig

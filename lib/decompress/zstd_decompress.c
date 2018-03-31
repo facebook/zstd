@@ -298,14 +298,15 @@ static size_t ZSTD_frameHeaderSize_internal(const void* src, size_t srcSize, ZST
 
 /** ZSTD_frameHeaderSize() :
  *  srcSize must be >= ZSTD_frameHeaderSize_prefix.
- * @return : size of the Frame Header */
+ * @return : size of the Frame Header,
+ *           or an error code (if srcSize is too small) */
 size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize)
 {
     return ZSTD_frameHeaderSize_internal(src, srcSize, ZSTD_f_zstd1);
 }
 
 
-/** ZSTD_getFrameHeader_advanced`() :
+/** ZSTD_getFrameHeader_advanced() :
  *  decode Frame Header, or require larger `srcSize`.
  *  note : only works for formats ZSTD_f_zstd1 and ZSTD_f_zstd1_magicless
  * @return : 0, `zfhPtr` is correctly filled,

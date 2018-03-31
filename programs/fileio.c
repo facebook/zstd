@@ -813,6 +813,57 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
     return compressedfilesize;
 }
 
+static void
+FIO_checkSupport_internal(int die,
+                          const FIO_compressionType_t type,
+                          const char* srcFileName,
+                          const char** returnSuffix, const char** returnMacro)
+{
+    const char* error = "zstd: %s: file cannot be (de)compressed as %s "
+                        "(zstd compiled without %s) -- ignored \n";
+    const char* suffix;
+    const char* macro;
+    switch (type) {
+#ifndef ZSTD_GZCOMPRESS
+        case FIO_gzipCompression:
+            suffix = "gzip";
+            macro = "ZSTD_GZCOMPRESS";
+            break;
+#endif
+
+#ifndef ZSTD_LZMACOMPRESS
+        case FIO_xzCompression:
+            suffix = "xz";
+            macro = "ZSTD_LZMACOMPRESS";
+            break;
+
+        case FIO_lzmaCompression:
+            suffix = "lzma";
+            macro = "ZSTD_LZMACOMPRESS";
+            break;
+#endif
+
+#ifndef ZSTD_LZ4COMPRESS
+        case FIO_lz4Compression:
+            suffix = "lz4";
+            macro = "ZSTD_LZ4COMPRESS";
+            break;
+#endif
+
+        default:
+            suffix = die ? "<unknown compression suffix>" : NULL;
+            macro = die ? "<unknown compression macro>" : NULL;
+            break;
+    }
+
+    if (die) {
+        EXM_THROW(20, error, srcFileName, suffix, macro);
+    } else {
+        if (returnSuffix) *returnSuffix = suffix;
+        if (returnMacro) *returnMacro = macro;
+    }
+}
+
 /*! FIO_compressFilename_internal() :
  *  same as FIO_compressFilename_extRess(), with `ress.desFile` already opened.
  *  @return : 0 : compression completed correctly,
@@ -830,40 +881,32 @@ FIO_compressFilename_internal(cRess_t ress,
 
     /* compression format selection */
     switch (g_compressionType) {
-        default:
         case FIO_zstdCompression:
             compressedfilesize = FIO_compressZstdFrame(&ress, srcFileName, fileSize, compressionLevel, &readsize);
             break;
 
-        case FIO_gzipCompression:
 #ifdef ZSTD_GZCOMPRESS
+        case FIO_gzipCompression:
             compressedfilesize = FIO_compressGzFrame(&ress, srcFileName, fileSize, compressionLevel, &readsize);
-#else
-            (void)compressionLevel;
-            EXM_THROW(20, "zstd: %s: file cannot be compressed as gzip (zstd compiled without ZSTD_GZCOMPRESS) -- ignored \n",
-                            srcFileName);
-#endif
             break;
+#endif
 
+#ifdef ZSTD_LZMACOMPRESS
         case FIO_xzCompression:
         case FIO_lzmaCompression:
-#ifdef ZSTD_LZMACOMPRESS
             compressedfilesize = FIO_compressLzmaFrame(&ress, srcFileName, fileSize, compressionLevel, &readsize, g_compressionType==FIO_lzmaCompression);
-#else
-            (void)compressionLevel;
-            EXM_THROW(20, "zstd: %s: file cannot be compressed as xz/lzma (zstd compiled without ZSTD_LZMACOMPRESS) -- ignored \n",
-                            srcFileName);
-#endif
             break;
-
-        case FIO_lz4Compression:
-#ifdef ZSTD_LZ4COMPRESS
-            compressedfilesize = FIO_compressLz4Frame(&ress, srcFileName, fileSize, compressionLevel, &readsize);
-#else
-            (void)compressionLevel;
-            EXM_THROW(20, "zstd: %s: file cannot be compressed as lz4 (zstd compiled without ZSTD_LZ4COMPRESS) -- ignored \n",
-                            srcFileName);
 #endif
+
+#ifdef ZSTD_LZ4COMPRESS
+        case FIO_lz4Compression:
+            compressedfilesize = FIO_compressLz4Frame(&ress, srcFileName, fileSize, compressionLevel, &readsize);
+            break;
+#endif
+
+        default:
+            (void)compressionLevel;
+            FIO_checkSupport_internal(1, g_compressionType, srcFileName, NULL, NULL);
             break;
     }
 

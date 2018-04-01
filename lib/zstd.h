@@ -479,10 +479,10 @@ ZSTDLIB_API size_t ZSTD_findFrameCompressedSize(const void* src, size_t srcSize)
  *            however it does mean that all frame data must be present and valid. */
 ZSTDLIB_API unsigned long long ZSTD_findDecompressedSize(const void* src, size_t srcSize);
 
-/*! ZSTD_frameHeaderSize() :
-*   `src` should point to the start of a ZSTD frame
-*   `srcSize` must be >= ZSTD_frameHeaderSize_prefix.
-*   @return : size of the Frame Header */
+/** ZSTD_frameHeaderSize() :
+ *  srcSize must be >= ZSTD_frameHeaderSize_prefix.
+ * @return : size of the Frame Header,
+ *           or an error code (if srcSize is too small) */
 ZSTDLIB_API size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize);
 
 
@@ -880,6 +880,11 @@ typedef struct {
     unsigned dictID;
     unsigned checksumFlag;
 } ZSTD_frameHeader;
+/** ZSTD_getFrameHeader() :
+ *  decode Frame Header, or requires larger `srcSize`.
+ * @return : 0, `zfhPtr` is correctly filled,
+ *          >0, `srcSize` is too small, value is wanted `srcSize` amount,
+ *           or an error code, which can be tested using ZSTD_isError() */
 ZSTDLIB_API size_t ZSTD_getFrameHeader(ZSTD_frameHeader* zfhPtr, const void* src, size_t srcSize);   /**< doesn't consume input */
 ZSTDLIB_API size_t ZSTD_decodingBufferSize_min(unsigned long long windowSize, unsigned long long frameContentSize);  /**< when frame content size is not known, pass in frameContentSize == ZSTD_CONTENTSIZE_UNKNOWN */
 
@@ -1246,10 +1251,13 @@ ZSTDLIB_API size_t ZSTD_CCtx_setParametersUsingCCtxParams(
         ZSTD_CCtx* cctx, const ZSTD_CCtx_params* params);
 
 
-/*===   Advanced parameters for decompression API  ===*/
+/* ==================================== */
+/*===   Advanced decompression API   ===*/
+/* ==================================== */
 
-/* The following parameters must be set after creating a ZSTD_DCtx* (or ZSTD_DStream*) object,
- * but before starting decompression of a frame.
+/* The following API works the same way as the advanced compression API :
+ * a context is created, parameters are pushed into it one by one,
+ * then the context can be used to decompress data using an interface similar to the straming API.
  */
 
 /*! ZSTD_DCtx_loadDictionary() :
@@ -1316,6 +1324,13 @@ ZSTDLIB_API size_t ZSTD_DCtx_setMaxWindowSize(ZSTD_DCtx* dctx, size_t maxWindowS
  * @return : 0, or an error code (which can be tested using ZSTD_isError()).
  */
 ZSTDLIB_API size_t ZSTD_DCtx_setFormat(ZSTD_DCtx* dctx, ZSTD_format_e format);
+
+
+/** ZSTD_getFrameHeader_advanced() :
+ *  same as ZSTD_getFrameHeader(),
+ *  with added capability to select a format (like ZSTD_f_zstd1_magicless) */
+ZSTDLIB_API size_t ZSTD_getFrameHeader_advanced(ZSTD_frameHeader* zfhPtr,
+                        const void* src, size_t srcSize, ZSTD_format_e format);
 
 
 /*! ZSTD_decompress_generic() :

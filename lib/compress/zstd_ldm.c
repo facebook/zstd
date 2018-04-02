@@ -224,12 +224,12 @@ static size_t ZSTD_ldm_fillFastTables(ZSTD_matchState_t* ms,
     switch(cParams->strategy)
     {
     case ZSTD_fast:
-        ZSTD_fillHashTable(ms, cParams, iend);
+        ZSTD_fillHashTable(ms, cParams, iend, ZSTD_dtlm_fast);
         ms->nextToUpdate = (U32)(iend - ms->window.base);
         break;
 
     case ZSTD_dfast:
-        ZSTD_fillDoubleHashTable(ms, cParams, iend);
+        ZSTD_fillDoubleHashTable(ms, cParams, iend, ZSTD_dtlm_fast);
         ms->nextToUpdate = (U32)(iend - ms->window.base);
         break;
 

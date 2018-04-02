@@ -885,13 +885,13 @@ FIO_compressFilename_internal(cRess_t ress,
                               const char* dstFileName, const char* srcFileName,
                               int compressionLevel)
 {
+    int unsupported = 0;
     U64 readsize = 0;
     U64 compressedfilesize = 0;
     U64 const fileSize = UTIL_getFileSize(srcFileName);
     DISPLAYLEVEL(5, "%s: %u bytes \n", srcFileName, (U32)fileSize);
 
     /* compression format selection */
-    int unsupported = 0;
     switch (g_compressionType) {
         case FIO_zstdCompression:
             compressedfilesize = FIO_compressZstdFrame(&ress, srcFileName, fileSize, compressionLevel, &readsize);

@@ -14,7 +14,7 @@
 
 void ZSTD_fillDoubleHashTable(ZSTD_matchState_t* ms,
                               ZSTD_compressionParameters const* cParams,
-                              void const* end)
+                              void const* end, ZSTD_dictTableLoadMethod_e dtlm)
 {
     U32* const hashLarge = ms->hashTable;
     U32  const hBitsL = cParams->hashLog;
@@ -40,6 +40,9 @@ void ZSTD_fillDoubleHashTable(ZSTD_matchState_t* ms,
                 hashSmall[smHash] = current + i;
             if (i == 0 || hashLarge[lgHash] == 0)
                 hashLarge[lgHash] = current + i;
+            /* Only load extra positions for ZSTD_dtlm_full */
+            if (dtlm == ZSTD_dtlm_fast)
+                break;
         }
     }
 }

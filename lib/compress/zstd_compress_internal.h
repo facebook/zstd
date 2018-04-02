@@ -235,6 +235,7 @@ struct ZSTD_CCtx_s {
 #endif
 };
 
+typedef enum { ZSTD_dtlm_fast, ZSTD_dtlm_full } ZSTD_dictTableLoadMethod_e;
 
 typedef size_t (*ZSTD_blockCompressor) (
         ZSTD_matchState_t* bs, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
@@ -640,7 +641,7 @@ MEM_STATIC U32 ZSTD_window_update(ZSTD_window_t* window,
  * ============================================================== */
 
 /* ZSTD_getCParamsFromCCtxParams() :
- * cParams are built depending on compressionLevel, src size hints, 
+ * cParams are built depending on compressionLevel, src size hints,
  * LDM and manually set compression parameters.
  */
 ZSTD_compressionParameters ZSTD_getCParamsFromCCtxParams(
@@ -672,6 +673,7 @@ ZSTD_compressionParameters ZSTD_getCParamsFromCDict(const ZSTD_CDict* cdict);
 size_t ZSTD_compressBegin_advanced_internal(ZSTD_CCtx* cctx,
                                     const void* dict, size_t dictSize,
                                     ZSTD_dictContentType_e dictContentType,
+                                    ZSTD_dictTableLoadMethod_e dtlm,
                                     const ZSTD_CDict* cdict,
                                     ZSTD_CCtx_params params,
                                     unsigned long long pledgedSrcSize);

@@ -819,8 +819,8 @@ FIO_checkSupport_internal(int die,
                           const char* srcFileName,
                           const char** returnSuffix, const char** returnMacro)
 {
-    const char* const error = "zstd: %s: file cannot be (de)compressed as %s "
-                        "(zstd compiled without %s) -- ignored \n";
+#define error "zstd: %s: file cannot be (de)compressed as %s (zstd compiled without %s) -- ignored \n"
+
     const char* suffix = NULL;
     const char* macro = NULL;
     switch (type) {
@@ -873,6 +873,8 @@ FIO_checkSupport_internal(int die,
         if (returnSuffix) *returnSuffix = suffix;
         if (returnMacro) *returnMacro = macro;
     }
+
+#undef error
 }
 
 /*! FIO_compressFilename_internal() :

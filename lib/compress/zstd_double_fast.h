@@ -20,7 +20,7 @@ extern "C" {
 
 void ZSTD_fillDoubleHashTable(ZSTD_matchState_t* ms,
                               ZSTD_compressionParameters const* cParams,
-                              void const* end);
+                              void const* end, ZSTD_dictTableLoadMethod_e dtlm);
 size_t ZSTD_compressBlock_doubleFast(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize);

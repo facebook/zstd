@@ -854,6 +854,7 @@ FIO_checkSupport_internal(int die,
 #endif
             break;
 
+        case FIO_zstdCompression:
         default:
             break;
     }
@@ -863,7 +864,11 @@ FIO_checkSupport_internal(int die,
     macro = !macro && die ? "<unknown compression macro>" : macro;
 
     if (die) {
-        EXM_THROW(20, error, srcFileName, suffix, macro);
+        /* manually provide `const` guarantees */
+        const char* const csuffix = suffix;
+        const char* const cmacro = macro;
+
+        EXM_THROW(20, error, srcFileName, csuffix, cmacro);
     } else {
         if (returnSuffix) *returnSuffix = suffix;
         if (returnMacro) *returnMacro = macro;

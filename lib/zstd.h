@@ -961,16 +961,19 @@ typedef enum {
                               * Special: value 0 means "use default windowLog".
                               * Note: Using a window size greater than ZSTD_MAXWINDOWSIZE_DEFAULT (default: 2^27)
                               *       requires explicitly allowing such window size during decompression stage. */
-    ZSTD_p_hashLog,          /* Size of the probe table, as a power of 2.
+    ZSTD_p_hashLog,          /* Size of the initial probe table, as a power of 2.
                               * Resulting table size is (1 << (hashLog+2)).
                               * Must be clamped between ZSTD_HASHLOG_MIN and ZSTD_HASHLOG_MAX.
                               * Larger tables improve compression ratio of strategies <= dFast,
                               * and improve speed of strategies > dFast.
                               * Special: value 0 means "use default hashLog". */
-    ZSTD_p_chainLog,         /* Size of the full-search table, as a power of 2.
+    ZSTD_p_chainLog,         /* Size of the multi-probe search table, as a power of 2.
                               * Resulting table size is (1 << (chainLog+2)).
+                              * Must be clamped between ZSTD_CHAINLOG_MIN and ZSTD_CHAINLOG_MAX.
                               * Larger tables result in better and slower compression.
                               * This parameter is useless when using "fast" strategy.
+                              * Note it's still useful when using "dfast" strategy,
+                              * in which case it defines a secondary probe table.
                               * Special: value 0 means "use default chainLog". */
     ZSTD_p_searchLog,        /* Number of search attempts, as a power of 2.
                               * More attempts result in better and slower compression.

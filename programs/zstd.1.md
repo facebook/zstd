@@ -136,7 +136,7 @@ the last one takes effect.
     Single-thread mode also features lower memory usage.
 * `-D file`:
     use `file` as Dictionary to compress or decompress FILE(s)
-* `--nodictID`:
+* `--no-dictID`:
     do not store dictionary ID within frame header (dictionary compression).
     The decoder will have to rely on implicit knowledge about which dictionary to use,
     it won't be able to check if it's correct.

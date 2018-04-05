@@ -581,10 +581,17 @@ static int COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
     for (i = 0; i < ctx->suffixSize; ++i) {
       ctx->suffix[i] = i;
     }
-    /* qsort doesn't take an opaque pointer, so pass as a global */
+    /* qsort doesn't take an opaque pointer, so pass as a global.
+     * On OpenBSD qsort() is not guaranteed to be stable, their mergesort() is.
+     */
     g_ctx = ctx;
+#if defined(__OpenBSD__)
+    mergesort(ctx->suffix, ctx->suffixSize, sizeof(U32),
+          (ctx->d <= 8 ? &COVER_strict_cmp8 : &COVER_strict_cmp));
+#else
     qsort(ctx->suffix, ctx->suffixSize, sizeof(U32),
           (ctx->d <= 8 ? &COVER_strict_cmp8 : &COVER_strict_cmp));
+#endif
   }
   DISPLAYLEVEL(2, "Computing frequencies\n");
   /* For each dmer group (group of positions with the same first d bytes):

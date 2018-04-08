@@ -50,7 +50,7 @@ GTEST_LIB  = -L googletest/build/googlemock/gtest
 LIBS       =
 
 # Compilation commands
-LD_COMMAND  = $(CXX) $^          $(ALL_LDFLAGS) $(LIBS) -lpthread -o $@
+LD_COMMAND  = $(CXX) $^          $(ALL_LDFLAGS) $(LIBS) -pthread -o $@
 CC_COMMAND  = $(CC)  $(DEPFLAGS) $(ALL_CFLAGS)   -c $<  -o $@
 CXX_COMMAND = $(CXX) $(DEPFLAGS) $(ALL_CXXFLAGS) -c $<  -o $@
 

@@ -550,7 +550,9 @@ int main(int argCount, const char* argv[])
                             U32 fastLevel;
                             ++argument;
                             fastLevel = readU32FromChar(&argument);
-                            if (fastLevel) cLevel = - (int)fastLevel;
+                            if (fastLevel) {
+                              dictCLevel = cLevel = -(int)fastLevel;
+                            }
                         } else if (*argument != 0) {
                             /* Invalid character following --fast */
                             CLEAN_RETURN(badusage(programName));

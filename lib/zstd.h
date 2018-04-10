@@ -906,22 +906,15 @@ ZSTDLIB_API ZSTD_nextInputType_e ZSTD_nextInputType(ZSTD_DCtx* dctx);
 /**       New advanced API (experimental)       */
 /* ============================================ */
 
-/* notes on API design :
- *   In this proposal, parameters are pushed one by one into an existing context,
- *   and then applied on all subsequent compression jobs.
- *   When no parameter is ever provided, CCtx is created with compression level ZSTD_CLEVEL_DEFAULT.
+/* API design :
+ *   In this advanced API, parameters are pushed one by one into an existing context,
+ *   using ZSTD_CCtx_set*() functions.
+ *   Pushed parameters are sticky : they are applied to next job, and any subsequent job.
+ *   It's possible to reset parameters to "default" using ZSTD_CCtx_reset().
+ *   Important : "sticky" parameters only work with `ZSTD_compress_generic()` !
+ *               For any other entry point, "sticky" parameters are ignored !
  *
  *   This API is intended to replace all others advanced / experimental API entry points.
- */
-
-/* note on naming convention :
- *   Initially, the API favored names like ZSTD_setCCtxParameter() .
- *   In this proposal, convention is changed towards ZSTD_CCtx_setParameter() .
- *   The main driver is that it identifies more clearly the target object type.
- *   It feels clearer when considering multiple targets :
- *   ZSTD_CDict_setParameter() (rather than ZSTD_setCDictParameter())
- *   ZSTD_CCtxParams_setParameter()  (rather than ZSTD_setCCtxParamsParameter() )
- *   etc...
  */
 
 /* note on enum design :
@@ -1143,8 +1136,8 @@ ZSTDLIB_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* pre
  *  Useful after an error, or to interrupt an ongoing compression job and start a new one.
  *  Any internal data not yet flushed is cancelled.
  *  Dictionary (if any) is dropped.
- *  All parameters are back to default values.
- *  It's possible to modify compression parameters after a reset.
+ *  All parameters are back to default values (compression level is ZSTD_CLEVEL_DEFAULT).
+ *  After a reset, all compression parameters can be modified again.
  */
 ZSTDLIB_API void ZSTD_CCtx_reset(ZSTD_CCtx* cctx);
 

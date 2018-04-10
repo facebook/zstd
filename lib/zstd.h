@@ -912,7 +912,6 @@ ZSTDLIB_API ZSTD_nextInputType_e ZSTD_nextInputType(ZSTD_DCtx* dctx);
  *   When no parameter is ever provided, CCtx is created with compression level ZSTD_CLEVEL_DEFAULT.
  *
  *   This API is intended to replace all others advanced / experimental API entry points.
- *   But it stands a reasonable chance to become "stable", after a reasonable testing period.
  */
 
 /* note on naming convention :
@@ -1069,10 +1068,13 @@ typedef enum {
 
 /*! ZSTD_CCtx_setParameter() :
  *  Set one compression parameter, selected by enum ZSTD_cParameter.
- *  Setting a parameter is generally only possible during frame initialization (before starting compression),
- *  except for a few exceptions which can be updated during compression: compressionLevel, hashLog, chainLog, searchLog, minMatch, targetLength and strategy.
- *  Note : when `value` is an enum, cast it to unsigned for proper type checking.
- *  @result : informational value (typically, value being set clamped correctly),
+ *  Setting a parameter is generally only possible during frame initialization (before starting compression).
+ *  Exception : when using multi-threading mode (nbThreads >= 1),
+ *              following parameters can be updated _during_ compression (within same frame):
+ *              => compressionLevel, hashLog, chainLog, searchLog, minMatch, targetLength and strategy.
+ *              new parameters will be active on next job, or after a flush().
+ *  Note : when `value` type is not unsigned (int, or enum), cast it to unsigned for proper type checking.
+ *  @result : informational value (typically, value being set, correctly clamped),
  *            or an error code (which can be tested with ZSTD_isError()). */
 ZSTDLIB_API size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned value);
 

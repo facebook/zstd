@@ -1071,6 +1071,12 @@ typedef enum {
  *            or an error code (which can be tested with ZSTD_isError()). */
 ZSTDLIB_API size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned value);
 
+/*! ZSTD_CCtx_getParameter() :
+ * Get the requested value of one compression parameter, selected by enum ZSTD_cParameter.
+ * @result : 0, or an error code (which can be tested with ZSTD_isError()).
+ */
+ZSTDLIB_API size_t ZSTD_CCtx_getParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned* value);
+
 /*! ZSTD_CCtx_setPledgedSrcSize() :
  *  Total input data size to be compressed as a single frame.
  *  This value will be controlled at the end, and result in error if not respected.
@@ -1237,6 +1243,13 @@ ZSTDLIB_API size_t ZSTD_CCtxParams_init_advanced(ZSTD_CCtx_params* cctxParams, Z
  * @result : 0, or an error code (which can be tested with ZSTD_isError()).
  */
 ZSTDLIB_API size_t ZSTD_CCtxParam_setParameter(ZSTD_CCtx_params* params, ZSTD_cParameter param, unsigned value);
+
+/*! ZSTD_CCtxParam_getParameter() :
+ * Similar to ZSTD_CCtx_getParameter.
+ * Get the requested value of one compression parameter, selected by enum ZSTD_cParameter.
+ * @result : 0, or an error code (which can be tested with ZSTD_isError()).
+ */
+ZSTDLIB_API size_t ZSTD_CCtxParam_getParameter(ZSTD_CCtx_params* params, ZSTD_cParameter param, unsigned* value);
 
 /*! ZSTD_CCtx_setParametersUsingCCtxParams() :
  *  Apply a set of ZSTD_CCtx_params to the compression context.

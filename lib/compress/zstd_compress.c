@@ -2152,6 +2152,7 @@ static size_t ZSTD_writeFrameHeader(void* dst, size_t dstCapacity,
     BYTE  const frameHeaderDecriptionByte = (BYTE)(dictIDSizeCode + (checksumFlag<<2) + (singleSegment<<5) + (fcsCode<<6) );
     size_t pos=0;
 
+    assert(!(params.fParams.contentSizeFlag && pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN));
     if (dstCapacity < ZSTD_frameHeaderSize_max) return ERROR(dstSize_tooSmall);
     DEBUGLOG(4, "ZSTD_writeFrameHeader : dictIDFlag : %u ; dictID : %u ; dictIDSizeCode : %u",
                 !params.fParams.noDictIDFlag, dictID,  dictIDSizeCode);
@@ -2245,7 +2246,9 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* cctx,
         if (ZSTD_isError(cSize)) return cSize;
         cctx->consumedSrcSize += srcSize;
         cctx->producedCSize += (cSize + fhSize);
-        if (cctx->appliedParams.fParams.contentSizeFlag) {  /* control src size */
+        assert(!(cctx->appliedParams.fParams.contentSizeFlag && cctx->pledgedSrcSizePlusOne == 0));
+        if (cctx->pledgedSrcSizePlusOne != 0) {  /* control src size */
+            ZSTD_STATIC_ASSERT(ZSTD_CONTENTSIZE_UNKNOWN == (unsigned long long)-1);
             if (cctx->consumedSrcSize+1 > cctx->pledgedSrcSizePlusOne) {
                 DEBUGLOG(4, "error : pledgedSrcSize = %u, while realSrcSize >= %u",
                     (U32)cctx->pledgedSrcSizePlusOne-1, (U32)cctx->consumedSrcSize);
@@ -2608,7 +2611,9 @@ size_t ZSTD_compressEnd (ZSTD_CCtx* cctx,
     if (ZSTD_isError(cSize)) return cSize;
     endResult = ZSTD_writeEpilogue(cctx, (char*)dst + cSize, dstCapacity-cSize);
     if (ZSTD_isError(endResult)) return endResult;
-    if (cctx->appliedParams.fParams.contentSizeFlag) {  /* control src size */
+    assert(!(cctx->appliedParams.fParams.contentSizeFlag && cctx->pledgedSrcSizePlusOne == 0));
+    if (cctx->pledgedSrcSizePlusOne != 0) {  /* control src size */
+        ZSTD_STATIC_ASSERT(ZSTD_CONTENTSIZE_UNKNOWN == (unsigned long long)-1);
         DEBUGLOG(4, "end of frame : controlling src size");
         if (cctx->pledgedSrcSizePlusOne != cctx->consumedSrcSize+1) {
             DEBUGLOG(4, "error : pledgedSrcSize = %u, while realSrcSize = %u",

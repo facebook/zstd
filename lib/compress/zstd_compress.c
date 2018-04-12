@@ -72,9 +72,11 @@ ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem)
     {   ZSTD_CCtx* const cctx = (ZSTD_CCtx*)ZSTD_calloc(sizeof(ZSTD_CCtx), customMem);
         if (!cctx) return NULL;
         cctx->customMem = customMem;
-        cctx->requestedParams.compressionLevel = ZSTD_CLEVEL_DEFAULT;
-        cctx->requestedParams.fParams.contentSizeFlag = 1;
         cctx->bmi2 = ZSTD_cpuid_bmi2(ZSTD_cpuid());
+        {   size_t const err = ZSTD_CCtx_resetParameters(cctx);
+            assert(!ZSTD_isError(err));
+            (void)err;
+        }
         return cctx;
     }
 }
@@ -669,6 +671,12 @@ void ZSTD_CCtx_reset(ZSTD_CCtx* cctx)
 {
     ZSTD_startNewCompression(cctx);
     cctx->cdict = NULL;
+}
+
+size_t ZSTD_CCtx_resetParameters(ZSTD_CCtx* cctx)
+{
+    if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
+    return ZSTD_CCtxParams_reset(&cctx->requestedParams);
 }
 
 /** ZSTD_checkCParams() :

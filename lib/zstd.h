@@ -1142,10 +1142,15 @@ ZSTDLIB_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* pre
  *  Useful after an error, or to interrupt an ongoing compression job and start a new one.
  *  Any internal data not yet flushed is cancelled.
  *  Dictionary (if any) is dropped.
- *  All parameters are back to default values (compression level is ZSTD_CLEVEL_DEFAULT).
- *  After a reset, all compression parameters can be modified again.
  */
 ZSTDLIB_API void ZSTD_CCtx_reset(ZSTD_CCtx* cctx);
+
+/*! ZSTD_CCtx_resetParameters() :
+ *  All parameters are back to default values (compression level is ZSTD_CLEVEL_DEFAULT).
+ *  Resetting parameters is only possible during frame initialization (before starting compression).
+ *  @return 0 or an error code (which can be checked with ZSTD_isError()).
+ */
+ZSTDLIB_API size_t ZSTD_CCtx_resetParameters(ZSTD_CCtx* cctx);
 
 
 

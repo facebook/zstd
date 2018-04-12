@@ -460,6 +460,21 @@ static int basicUnitTests(U32 seed, double compressibility)
         DISPLAYLEVEL(3, "OK (error detected : %s) \n", ZSTD_getErrorName(r));
     }
 
+    DISPLAYLEVEL(3, "test%3i : wrong srcSize !contentSizeFlag : %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH-1);
+    {   ZSTD_parameters params = ZSTD_getParams(1, CNBufferSize, 0);
+        params.fParams.contentSizeFlag = 0;
+        CHECK_Z(ZSTD_initCStream_advanced(zc, NULL, 0, params, CNBufferSize - MIN(CNBufferSize, 200 KB)));
+        outBuff.dst = (char*)compressedBuffer;
+        outBuff.size = compressedBufferSize;
+        outBuff.pos = 0;
+        inBuff.src = CNBuffer;
+        inBuff.size = CNBufferSize;
+        inBuff.pos = 0;
+        {   size_t const r = ZSTD_compressStream(zc, &outBuff, &inBuff);
+            if (ZSTD_getErrorCode(r) != ZSTD_error_srcSize_wrong) goto _output_error;    /* must fail : wrong srcSize */
+            DISPLAYLEVEL(3, "OK (error detected : %s) \n", ZSTD_getErrorName(r));
+    }   }
+
     /* Complex context re-use scenario */
     DISPLAYLEVEL(3, "test%3i : context re-use : ", testNb++);
     ZSTD_freeCStream(zc);

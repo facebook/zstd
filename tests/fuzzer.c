@@ -117,6 +117,13 @@ static unsigned FUZ_highbit32(U32 v32)
 #define CHECK(fn)  { CHECK_V(err, fn); }
 #define CHECKPLUS(var, fn, more)  { CHECK_V(var, fn); more; }
 
+#define CHECK_EQ(lhs, rhs) {                                      \
+    if ((lhs) != (rhs)) {                                         \
+        DISPLAY("Error L%u => %s != %s ", __LINE__, #lhs, #rhs);  \
+        goto _output_error;                                       \
+    }                                                             \
+}
+
 
 /*=============================================
 *   Memory Tests
@@ -390,6 +397,43 @@ static int basicUnitTests(U32 seed, double compressibility)
             CHECK_Z( ZSTD_compressEnd(cctx, compressedBuffer, outSize, CNBuffer, inSize) );
             /* will fail if blockSize is not resized */
         }
+        ZSTD_freeCCtx(cctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3d : ZSTD_CCtx_getParameter() : ", testNb++);
+    {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        ZSTD_outBuffer out = {NULL, 0, 0};
+        ZSTD_inBuffer in = {NULL, 0, 0};
+        unsigned value;
+
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_compressionLevel, &value));
+        CHECK_EQ(value, 3);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_hashLog, &value));
+        CHECK_EQ(value, 0);
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_p_hashLog, ZSTD_HASHLOG_MIN));
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_compressionLevel, &value));
+        CHECK_EQ(value, 3);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_hashLog, &value));
+        CHECK_EQ(value, ZSTD_HASHLOG_MIN);
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_p_compressionLevel, 7));
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_compressionLevel, &value));
+        CHECK_EQ(value, 7);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_hashLog, &value));
+        CHECK_EQ(value, ZSTD_HASHLOG_MIN);
+        /* Start a compression job */
+        ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_continue);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_compressionLevel, &value));
+        CHECK_EQ(value, 7);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_hashLog, &value));
+        CHECK_EQ(value, ZSTD_HASHLOG_MIN);
+        /* Reset the CCtx */
+        ZSTD_CCtx_reset(cctx);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_compressionLevel, &value));
+        CHECK_EQ(value, 7);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_hashLog, &value));
+        CHECK_EQ(value, ZSTD_HASHLOG_MIN);
+
         ZSTD_freeCCtx(cctx);
     }
     DISPLAYLEVEL(3, "OK \n");

@@ -659,23 +659,18 @@ size_t ZSTD_CCtx_refPrefix_advanced(
     return 0;
 }
 
-static void ZSTD_startNewCompression(ZSTD_CCtx* cctx)
+/*! ZSTD_CCtx_reset() :
+ *  Also dumps dictionary */
+void ZSTD_CCtx_reset(ZSTD_CCtx* cctx)
 {
     cctx->streamStage = zcss_init;
     cctx->pledgedSrcSizePlusOne = 0;
 }
 
-/*! ZSTD_CCtx_reset() :
- *  Also dumps dictionary */
-void ZSTD_CCtx_reset(ZSTD_CCtx* cctx)
-{
-    ZSTD_startNewCompression(cctx);
-    cctx->cdict = NULL;
-}
-
 size_t ZSTD_CCtx_resetParameters(ZSTD_CCtx* cctx)
 {
     if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
+    cctx->cdict = NULL;
     return ZSTD_CCtxParams_reset(&cctx->requestedParams);
 }
 
@@ -3189,7 +3184,7 @@ size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                 ip = iend;
                 op += cSize;
                 zcs->frameEnded = 1;
-                ZSTD_startNewCompression(zcs);
+                ZSTD_CCtx_reset(zcs);
                 someMoreWork = 0; break;
             }
             /* complete loading into inBuffer */
@@ -3242,7 +3237,7 @@ size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                     if (zcs->frameEnded) {
                         DEBUGLOG(5, "Frame completed directly in outBuffer");
                         someMoreWork = 0;
-                        ZSTD_startNewCompression(zcs);
+                        ZSTD_CCtx_reset(zcs);
                     }
                     break;
                 }
@@ -3270,7 +3265,7 @@ size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                 if (zcs->frameEnded) {
                     DEBUGLOG(5, "Frame completed on flush");
                     someMoreWork = 0;
-                    ZSTD_startNewCompression(zcs);
+                    ZSTD_CCtx_reset(zcs);
                     break;
                 }
                 zcs->streamStage = zcss_load;
@@ -3367,7 +3362,7 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
         {   size_t const flushMin = ZSTDMT_compressStream_generic(cctx->mtctx, output, input, endOp);
             if ( ZSTD_isError(flushMin)
               || (endOp == ZSTD_e_end && flushMin == 0) ) { /* compression completed */
-                ZSTD_startNewCompression(cctx);
+                ZSTD_CCtx_reset(cctx);
             }
             return flushMin;
     }   }

@@ -402,6 +402,7 @@ typedef struct {
     const void* stateTable;
     const void* symbolTT;
     unsigned    stateLog;
+    unsigned    maxSymbolValue;
 } FSE_CState_t;
 
 static void FSE_initCState(FSE_CState_t* CStatePtr, const FSE_CTable* ct);
@@ -538,11 +539,13 @@ MEM_STATIC void FSE_initCState(FSE_CState_t* statePtr, const FSE_CTable* ct)
 {
     const void* ptr = ct;
     const U16* u16ptr = (const U16*) ptr;
-    const U32 tableLog = MEM_read16(ptr);
+    const U32 tableLog = MEM_read16(u16ptr);
+    const U32 maxSymbolValue = MEM_read16(u16ptr + 1);
     statePtr->value = (ptrdiff_t)1<<tableLog;
     statePtr->stateTable = u16ptr+2;
     statePtr->symbolTT = ((const U32*)ct + 1 + (tableLog ? (1<<(tableLog-1)) : 1));
     statePtr->stateLog = tableLog;
+    statePtr->maxSymbolValue = maxSymbolValue;
 }
 
 
@@ -581,12 +584,13 @@ MEM_STATIC U32 FSE_getMaxNbBits(const void* symbolTTPtr, U32 symbolValue)
     return (symbolTT[symbolValue].deltaNbBits + ((1<<16)-1)) >> 16;
 }
 
-/* FSE_bitCost_b256() :
+/* FSE_bitCost() :
  * Approximate symbol cost,
  * provide fractional value, using fixed-point format (accuracyLog fractional bits)
  * note: assume symbolValue is valid */
-MEM_STATIC U32 FSE_bitCost(const FSE_symbolCompressionTransform* symbolTT, U32 tableLog, U32 symbolValue, U32 accuracyLog)
+MEM_STATIC U32 FSE_bitCost(const void* symbolTTPtr, U32 tableLog, U32 symbolValue, U32 accuracyLog)
 {
+    const FSE_symbolCompressionTransform* symbolTT = (const FSE_symbolCompressionTransform*) symbolTTPtr;
     U32 const minNbBits = symbolTT[symbolValue].deltaNbBits >> 16;
     U32 const threshold = (minNbBits+1) << 16;
     assert(tableLog < 16);

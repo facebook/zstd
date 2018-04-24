@@ -1487,7 +1487,7 @@ static unsigned long long FIO_decompressLz4Frame(dRess_t* ress,
             if (LZ4F_isError(nextToLoad)) {
                 DISPLAYLEVEL(1, "zstd: %s: lz4 decompression error : %s \n",
                                 srcFileName, LZ4F_getErrorName(nextToLoad));
-                decodingError = 1; break;
+                decodingError = 1; nextToLoad = 0; break;
             }
             pos += remaining;
 
@@ -1495,7 +1495,7 @@ static unsigned long long FIO_decompressLz4Frame(dRess_t* ress,
             if (decodedBytes) {
                 if (fwrite(ress->dstBuffer, 1, decodedBytes, ress->dstFile) != decodedBytes) {
                     DISPLAYLEVEL(1, "zstd: %s \n", strerror(errno));
-                    decodingError = 1; break;
+                    decodingError = 1; nextToLoad = 0; break;
                 }
                 filesize += decodedBytes;
                 DISPLAYUPDATE(2, "\rDecompressed : %u MB  ", (unsigned)(filesize>>20));

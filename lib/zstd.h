@@ -1129,18 +1129,21 @@ ZSTDLIB_API size_t ZSTD_CCtx_refCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict);
 /*! ZSTD_CCtx_refPrefix() :
  *  Reference a prefix (single-usage dictionary) for next compression job.
  *  Decompression need same prefix to properly regenerate data.
- *  Prefix is **only used once**. Tables are discarded at end of compression job.
- *  Subsequent compression jobs will be done without prefix (if none is explicitly referenced).
- *  If there is a need to use same prefix multiple times, consider embedding it into a ZSTD_CDict instead.
+ *  Prefix is **only used once**. Tables are discarded at end of compression job (ZSTD_e_end).
  * @result : 0, or an error code (which can be tested with ZSTD_isError()).
  *  Special: Adding any prefix (including NULL) invalidates any previous prefix or dictionary
- *  Note 1 : Prefix buffer is referenced. It must outlive compression job.
+ *  Note 1 : Prefix buffer is referenced. It **must** outlive compression job.
+ *           Its contain must remain unmodified up to end of compression (ZSTD_e_end).
  *  Note 2 : Referencing a prefix involves building tables, which are dependent on compression parameters.
  *           It's a CPU consuming operation, with non-negligible impact on latency.
+ *           If there is a need to use same prefix multiple times, consider loadDictionary instead.
  *  Note 3 : By default, the prefix is treated as raw content (ZSTD_dm_rawContent).
  *           Use ZSTD_CCtx_refPrefix_advanced() to alter dictMode. */
-ZSTDLIB_API size_t ZSTD_CCtx_refPrefix(ZSTD_CCtx* cctx, const void* prefix, size_t prefixSize);
-ZSTDLIB_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* prefix, size_t prefixSize, ZSTD_dictContentType_e dictContentType);
+ZSTDLIB_API size_t ZSTD_CCtx_refPrefix(ZSTD_CCtx* cctx,
+                                       const void* prefix, size_t prefixSize);
+ZSTDLIB_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx,
+                                       const void* prefix, size_t prefixSize,
+                                       ZSTD_dictContentType_e dictContentType);
 
 /*! ZSTD_CCtx_reset() :
  *  Return a CCtx to clean state.
@@ -1317,17 +1320,23 @@ ZSTDLIB_API size_t ZSTD_DCtx_refDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict);
 
 /*! ZSTD_DCtx_refPrefix() :
  *  Reference a prefix (single-usage dictionary) for next compression job.
- *  Prefix is **only used once**. It must be explicitly referenced before each frame.
- *  If there is a need to use same prefix multiple times, consider embedding it into a ZSTD_DDict instead.
+ *  Prefix is **only used once**. Reference is discarded at end of frame.
+ *  End of frame is reached when ZSTD_DCtx_decompress_generic() returns 0.
  * @result : 0, or an error code (which can be tested with ZSTD_isError()).
  *  Note 1 : Adding any prefix (including NULL) invalidates any previously set prefix or dictionary
- *  Note 2 : Prefix buffer is referenced. It must outlive compression job.
+ *  Note 2 : Prefix buffer is referenced. It **must** outlive decompression job.
+ *           Prefix buffer must remain unmodified up to the end of frame,
+ *           reached when ZSTD_DCtx_decompress_generic() returns 0.
  *  Note 3 : By default, the prefix is treated as raw content (ZSTD_dm_rawContent).
  *           Use ZSTD_CCtx_refPrefix_advanced() to alter dictMode.
  *  Note 4 : Referencing a raw content prefix has almost no cpu nor memory cost.
+ *           A fulldict prefix is more costly though.
  */
-ZSTDLIB_API size_t ZSTD_DCtx_refPrefix(ZSTD_DCtx* dctx, const void* prefix, size_t prefixSize);
-ZSTDLIB_API size_t ZSTD_DCtx_refPrefix_advanced(ZSTD_DCtx* dctx, const void* prefix, size_t prefixSize, ZSTD_dictContentType_e dictContentType);
+ZSTDLIB_API size_t ZSTD_DCtx_refPrefix(ZSTD_DCtx* dctx,
+                                    const void* prefix, size_t prefixSize);
+ZSTDLIB_API size_t ZSTD_DCtx_refPrefix_advanced(ZSTD_DCtx* dctx,
+                                    const void* prefix, size_t prefixSize,
+                                    ZSTD_dictContentType_e dictContentType);
 
 
 /*! ZSTD_DCtx_setMaxWindowSize() :

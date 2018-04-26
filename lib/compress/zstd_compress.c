@@ -1195,18 +1195,16 @@ void ZSTD_invalidateRepCodes(ZSTD_CCtx* cctx) {
 
 static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
                             const ZSTD_CDict* cdict,
-                            unsigned windowLog,
-                            ZSTD_frameParameters fParams,
+                            ZSTD_CCtx_params params,
                             U64 pledgedSrcSize,
                             ZSTD_buffered_policy_e zbuff)
 {
-    {   ZSTD_CCtx_params params = cctx->requestedParams;
+    {   unsigned const windowLog = params.cParams.windowLog;
+        assert(windowLog != 0);
         /* Copy only compression parameters related to tables. */
         params.cParams = cdict->cParams;
-        if (windowLog) params.cParams.windowLog = windowLog;
-        params.fParams = fParams;
-        ZSTD_resetCCtx_internal(cctx, params, pledgedSrcSize,
-                                ZSTDcrp_noMemset, zbuff);
+        params.cParams.windowLog = windowLog;
+        ZSTD_resetCCtx_internal(cctx, params, pledgedSrcSize, ZSTDcrp_noMemset, zbuff);
         assert(cctx->appliedParams.cParams.strategy == cdict->cParams.strategy);
         assert(cctx->appliedParams.cParams.hashLog == cdict->cParams.hashLog);
         assert(cctx->appliedParams.cParams.chainLog == cdict->cParams.chainLog);
@@ -2495,9 +2493,7 @@ size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
     assert(!((dict) && (cdict)));  /* either dict or cdict, not both */
 
     if (cdict && cdict->dictContentSize>0) {
-        cctx->requestedParams = params;
-        return ZSTD_resetCCtx_usingCDict(cctx, cdict, params.cParams.windowLog,
-                                         params.fParams, pledgedSrcSize, zbuff);
+        return ZSTD_resetCCtx_usingCDict(cctx, cdict, params, pledgedSrcSize, zbuff);
     }
 
     CHECK_F( ZSTD_resetCCtx_internal(cctx, params, pledgedSrcSize,

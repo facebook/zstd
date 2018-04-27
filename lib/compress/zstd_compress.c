@@ -963,6 +963,7 @@ static void ZSTD_invalidateMatchState(ZSTD_matchState_t* ms)
     ms->nextToUpdate = ms->window.dictLimit + 1;
     ms->loadedDictEnd = 0;
     ms->opt.litLengthSum = 0;  /* force reset of btopt stats */
+    ms->dictMatchState = NULL;
 }
 
 /*! ZSTD_continueCCtx() :
@@ -1203,42 +1204,61 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
                             U64 pledgedSrcSize,
                             ZSTD_buffered_policy_e zbuff)
 {
+    /* We have a choice between copying the dictionary context into the working
+     * context, or referencing the dictionary context from the working context
+     * in-place. We decide here which strategy to use. */
+    /* TODO: pick reasonable cut-off size, handle ZSTD_CONTENTSIZE_UNKNOWN */
+    int attachDict = pledgedSrcSize < 64 KB
+                  && cdict->cParams.strategy == ZSTD_fast
+                  && ZSTD_equivalentCParams(cctx->appliedParams.cParams,
+                                            cdict->cParams);
+
     {   unsigned const windowLog = params.cParams.windowLog;
         assert(windowLog != 0);
         /* Copy only compression parameters related to tables. */
         params.cParams = cdict->cParams;
         params.cParams.windowLog = windowLog;
-        ZSTD_resetCCtx_internal(cctx, params, pledgedSrcSize, ZSTDcrp_noMemset, zbuff);
+        ZSTD_resetCCtx_internal(cctx, params, pledgedSrcSize,
+                                attachDict ? ZSTDcrp_continue : ZSTDcrp_noMemset,
+                                zbuff);
         assert(cctx->appliedParams.cParams.strategy == cdict->cParams.strategy);
         assert(cctx->appliedParams.cParams.hashLog == cdict->cParams.hashLog);
         assert(cctx->appliedParams.cParams.chainLog == cdict->cParams.chainLog);
     }
 
-    /* copy tables */
-    {   size_t const chainSize = (cdict->cParams.strategy == ZSTD_fast) ? 0 : ((size_t)1 << cdict->cParams.chainLog);
-        size_t const hSize =  (size_t)1 << cdict->cParams.hashLog;
-        size_t const tableSpace = (chainSize + hSize) * sizeof(U32);
-        assert((U32*)cctx->blockState.matchState.chainTable == (U32*)cctx->blockState.matchState.hashTable + hSize);  /* chainTable must follow hashTable */
-        assert((U32*)cctx->blockState.matchState.hashTable3 == (U32*)cctx->blockState.matchState.chainTable + chainSize);
-        assert((U32*)cdict->matchState.chainTable == (U32*)cdict->matchState.hashTable + hSize);  /* chainTable must follow hashTable */
-        assert((U32*)cdict->matchState.hashTable3 == (U32*)cdict->matchState.chainTable + chainSize);
-        memcpy(cctx->blockState.matchState.hashTable, cdict->matchState.hashTable, tableSpace);   /* presumes all tables follow each other */
-    }
-    /* Zero the hashTable3, since the cdict never fills it */
-    {   size_t const h3Size = (size_t)1 << cctx->blockState.matchState.hashLog3;
-        assert(cdict->matchState.hashLog3 == 0);
-        memset(cctx->blockState.matchState.hashTable3, 0, h3Size * sizeof(U32));
+    if (attachDict) {
+        DEBUGLOG(4, "attaching dictionary into context");
+        cctx->blockState.matchState.dictMatchState = &cdict->matchState;
+    } else {
+        DEBUGLOG(4, "copying dictionary into context");
+        /* copy tables */
+        {   size_t const chainSize = (cdict->cParams.strategy == ZSTD_fast) ? 0 : ((size_t)1 << cdict->cParams.chainLog);
+            size_t const hSize =  (size_t)1 << cdict->cParams.hashLog;
+            size_t const tableSpace = (chainSize + hSize) * sizeof(U32);
+            assert((U32*)cctx->blockState.matchState.chainTable == (U32*)cctx->blockState.matchState.hashTable + hSize);  /* chainTable must follow hashTable */
+            assert((U32*)cctx->blockState.matchState.hashTable3 == (U32*)cctx->blockState.matchState.chainTable + chainSize);
+            assert((U32*)cdict->matchState.chainTable == (U32*)cdict->matchState.hashTable + hSize);  /* chainTable must follow hashTable */
+            assert((U32*)cdict->matchState.hashTable3 == (U32*)cdict->matchState.chainTable + chainSize);
+            memcpy(cctx->blockState.matchState.hashTable, cdict->matchState.hashTable, tableSpace);   /* presumes all tables follow each other */
+        }
+
+        /* Zero the hashTable3, since the cdict never fills it */
+        {   size_t const h3Size = (size_t)1 << cctx->blockState.matchState.hashLog3;
+            assert(cdict->matchState.hashLog3 == 0);
+            memset(cctx->blockState.matchState.hashTable3, 0, h3Size * sizeof(U32));
+        }
+
+        /* copy dictionary offsets */
+        {
+            ZSTD_matchState_t const* srcMatchState = &cdict->matchState;
+            ZSTD_matchState_t* dstMatchState = &cctx->blockState.matchState;
+            dstMatchState->window       = srcMatchState->window;
+            dstMatchState->nextToUpdate = srcMatchState->nextToUpdate;
+            dstMatchState->nextToUpdate3= srcMatchState->nextToUpdate3;
+            dstMatchState->loadedDictEnd= srcMatchState->loadedDictEnd;
+        }
     }
 
-    /* copy dictionary offsets */
-    {
-        ZSTD_matchState_t const* srcMatchState = &cdict->matchState;
-        ZSTD_matchState_t* dstMatchState = &cctx->blockState.matchState;
-        dstMatchState->window       = srcMatchState->window;
-        dstMatchState->nextToUpdate = srcMatchState->nextToUpdate;
-        dstMatchState->nextToUpdate3= srcMatchState->nextToUpdate3;
-        dstMatchState->loadedDictEnd= srcMatchState->loadedDictEnd;
-    }
     cctx->dictID = cdict->dictID;
 
     /* copy block state */

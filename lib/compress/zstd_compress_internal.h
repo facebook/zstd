@@ -122,7 +122,8 @@ typedef struct {
     U32 lowLimit;           /* below that point, no more data */
 } ZSTD_window_t;
 
-typedef struct {
+typedef struct ZSTD_matchState_t ZSTD_matchState_t;
+struct ZSTD_matchState_t {
     ZSTD_window_t window;   /* State for window round buffer management */
     U32 loadedDictEnd;      /* index of end of dictionary */
     U32 nextToUpdate;       /* index from which to continue table update */
@@ -132,7 +133,8 @@ typedef struct {
     U32* hashTable3;
     U32* chainTable;
     optState_t opt;         /* optimal parser state */
-} ZSTD_matchState_t;
+    const ZSTD_matchState_t *dictMatchState;
+};
 
 typedef struct {
     ZSTD_compressedBlockState_t* prevCBlock;

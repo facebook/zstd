@@ -250,6 +250,8 @@ struct ZSTD_CCtx_s {
 
 typedef enum { ZSTD_dtlm_fast, ZSTD_dtlm_full } ZSTD_dictTableLoadMethod_e;
 
+typedef enum { ZSTD_noDictMatchState, ZSTD_hasDictMatchState } ZSTD_hasDictMatchState_e;
+
 typedef size_t (*ZSTD_blockCompressor) (
         ZSTD_matchState_t* bs, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize);

@@ -16,7 +16,7 @@ Distribution of this document is unlimited.
 
 ### Version
 
-0.2.6 (19/08/17)
+0.2.7 (30/04/18)
 
 
 Introduction
@@ -112,6 +112,11 @@ __`Magic_Number`__
 
 4 Bytes, __little-endian__ format.
 Value : 0xFD2FB528
+Note: This value was selected to be less probable to find at the beginning of some random file.
+It avoids trivial patterns (0x00, 0xFF, repeated bytes, increasing bytes, etc.),
+contains byte values outside of ASCII range,
+and doesn't map into UTF8 space.
+It reduces the chances that a text file represent this value by accident.
 
 __`Frame_Header`__
 
@@ -171,8 +176,8 @@ according to the following table:
 |`FCS_Field_Size`| 0 or 1 |  2  |  4  |  8  |
 
 When `Flag_Value` is `0`, `FCS_Field_Size` depends on `Single_Segment_flag` :
-if `Single_Segment_flag` is set, `Field_Size` is 1.
-Otherwise, `Field_Size` is 0 : `Frame_Content_Size` is not provided.
+if `Single_Segment_flag` is set, `FCS_Field_Size` is 1.
+Otherwise, `FCS_Field_Size` is 0 : `Frame_Content_Size` is not provided.
 
 __`Single_Segment_flag`__
 
@@ -218,11 +223,11 @@ __`Dictionary_ID_flag`__
 
 This is a 2-bits flag (`= FHD & 3`),
 telling if a dictionary ID is provided within the header.
-It also specifies the size of this field as `Field_Size`.
+It also specifies the size of this field as `DID_Field_Size`.
 
-|`Flag_Value`|  0  |  1  |  2  |  3  |
-| ---------- | --- | --- | --- | --- |
-|`Field_Size`|  0  |  1  |  2  |  4  |
+|`Flag_Value`    |  0  |  1  |  2  |  3  |
+| -------------- | --- | --- | --- | --- |
+|`DID_Field_Size`|  0  |  1  |  2  |  4  |
 
 #### `Window_Descriptor`
 
@@ -270,7 +275,8 @@ the ID of the dictionary required to properly decode the frame.
 `Dictionary_ID` field is optional. When it's not present,
 it's up to the decoder to make sure it uses the correct dictionary.
 
-Field size depends on `Dictionary_ID_flag`.
+`Dictionary_ID` field size is provided by `DID_Field_Size`.
+`DID_Field_Size` is directly derived from value of `Dictionary_ID_flag`.
 1 byte can represent an ID 0-255.
 2 bytes can represent an ID 0-65535.
 4 bytes can represent an ID 0-4294967295.
@@ -363,16 +369,14 @@ There are 4 block types :
 __`Block_Size`__
 
 The upper 21 bits of `Block_Header` represent the `Block_Size`.
+`Block_Size` is the size of the block excluding the header.
+A block can contain any number of bytes (even zero), up to
+`Block_Maximum_Decompressed_Size`, which is the smallest of:
+-  Window_Size
+-  128 KB
 
-Block sizes must respect a few rules :
-- For `Compressed_Block`, `Block_Size` is always strictly less than decompressed size.
-- Block decompressed size is always <= `Window_Size`
-- Block decompressed size is always <= 128 KB.
-
-A block can contain any number of bytes (even empty),
-up to `Block_Maximum_Decompressed_Size`, which is the smallest of :
-- `Window_Size`
-- 128 KB
+A `Compressed_Block` has the extra restriction that `Block_Size` is always
+strictly less than the decompressed size.
 
 
 Compressed Blocks
@@ -392,8 +396,14 @@ To decode a compressed block, the following elements are necessary :
 - Previous decoded data, up to a distance of `Window_Size`,
   or all previously decoded data when `Single_Segment_flag` is set.
 - List of "recent offsets" from previous `Compressed_Block`.
-- Decoding tables of previous `Compressed_Block` for each symbol type
-  (literals, literals lengths, match lengths, offsets).
+- The previous Huffman tree, required by `Treeless_Literals_Block` type
+- Previous FSE decoding tables, required by `Repeat_Mode`
+  for each symbol type (literals lengths, match lengths, offsets)
+
+Note that decoding tables aren't always from the previous `Compressed_Block`.
+
+- Every decoding table can come from a dictionary.
+- The Huffman tree comes from the previous `Compressed_Literals_Block`.
 
 Literals Section
 ----------------
@@ -460,17 +470,20 @@ For values spanning several bytes, convention is __little-endian__.
 
 __`Size_Format` for `Raw_Literals_Block` and `RLE_Literals_Block`__ :
 
-- Value ?0 : `Size_Format` uses 1 bit.
+`Size_Format` uses 1 _or_ 2 bits.
+Its value is : `Size_Format = (Header[0]>>2) & 3`
+
+- `Size_Format` == 00 or 10 : `Size_Format` uses 1 bit.
                `Regenerated_Size` uses 5 bits (0-31).
-               `Literals_Section_Header` has 1 byte.
+               `Literals_Section_Header` uses 1 byte.
                `Regenerated_Size = Header[0]>>3`
-- Value 01 : `Size_Format` uses 2 bits.
+- `Size_Format` == 01 : `Size_Format` uses 2 bits.
                `Regenerated_Size` uses 12 bits (0-4095).
-               `Literals_Section_Header` has 2 bytes.
+               `Literals_Section_Header` uses 2 bytes.
                `Regenerated_Size = (Header[0]>>4) + (Header[1]<<4)`
-- Value 11 : `Size_Format` uses 2 bits.
+- `Size_Format` == 11 : `Size_Format` uses 2 bits.
                `Regenerated_Size` uses 20 bits (0-1048575).
-               `Literals_Section_Header` has 3 bytes.
+               `Literals_Section_Header` uses 3 bytes.
                `Regenerated_Size = (Header[0]>>4) + (Header[1]<<4) + (Header[2]<<12)`
 
 Only Stream1 is present for these cases.
@@ -479,18 +492,20 @@ using a long format, even if it's less efficient.
 
 __`Size_Format` for `Compressed_Literals_Block` and `Treeless_Literals_Block`__ :
 
-- Value 00 : _A single stream_.
+`Size_Format` always uses 2 bits.
+
+- `Size_Format` == 00 : _A single stream_.
                Both `Regenerated_Size` and `Compressed_Size` use 10 bits (0-1023).
-               `Literals_Section_Header` has 3 bytes.
-- Value 01 : 4 streams.
+               `Literals_Section_Header` uses 3 bytes.
+- `Size_Format` == 01 : 4 streams.
                Both `Regenerated_Size` and `Compressed_Size` use 10 bits (0-1023).
-               `Literals_Section_Header` has 3 bytes.
-- Value 10 : 4 streams.
+               `Literals_Section_Header` uses 3 bytes.
+- `Size_Format` == 10 : 4 streams.
                Both `Regenerated_Size` and `Compressed_Size` use 14 bits (0-16383).
-               `Literals_Section_Header` has 4 bytes.
-- Value 11 : 4 streams.
+               `Literals_Section_Header` uses 4 bytes.
+- `Size_Format` == 11 : 4 streams.
                Both `Regenerated_Size` and `Compressed_Size` use 18 bits (0-262143).
-               `Literals_Section_Header` has 5 bytes.
+               `Literals_Section_Header` uses 5 bytes.
 
 Both `Compressed_Size` and `Regenerated_Size` fields follow __little-endian__ convention.
 Note: `Compressed_Size` __includes__ the size of the Huffman Tree description
@@ -516,7 +531,8 @@ it must be used to determine where streams begin.
 `Total_Streams_Size = Compressed_Size - Huffman_Tree_Description_Size`.
 
 For `Treeless_Literals_Block`,
-the Huffman table comes from previously compressed literals block.
+the Huffman table comes from previously compressed literals block,
+or from a dictionary.
 
 Huffman compressed data consists of either 1 or 4 Huffman-coded streams.
 
@@ -570,7 +586,8 @@ followed by the bitstream.
 | -------------------------- | ------------------------- | ---------------- | ---------------------- | --------- |
 
 To decode the `Sequences_Section`, it's required to know its size.
-This size is deduced from `Block_Size - Literals_Section_Size`.
+This size is deduced from the literals section size:
+`Sequences_Section_Size = Block_Size - Literals_Section_Size`.
 
 
 #### `Sequences_Section_Header`
@@ -614,9 +631,11 @@ They follow the same enumeration :
           No distribution table will be present.
 - `RLE_Mode` : The table description consists of a single byte.
           This code will be repeated for all sequences.
-- `Repeat_Mode` : The table used in the previous compressed block will be used again.
+- `Repeat_Mode` : The table used in the previous `Compressed_Block` will be used again,
+          or if this is the first block, table in the dictionary will be used
           No distribution table will be present.
-          Note: this includes RLE mode, so if `Repeat_Mode` follows `RLE_Mode`, the same symbol will be repeated.
+          Note that this includes `RLE_mode`, so if `Repeat_Mode` follows `RLE_Mode`, the same symbol will be repeated.
+          Note that this also includes `Predefined_Mode`.
           If this mode is used without any previous sequence table in the frame
           (or [dictionary](#dictionary-format)) to repeat, this should be treated as corruption.
 - `FSE_Compressed_Mode` : standard FSE compression.
@@ -624,6 +643,8 @@ They follow the same enumeration :
           The format of this distribution table is described in [FSE Table Description](#fse-table-description).
           Note that the maximum allowed accuracy log for literals length and match length tables is 9,
           and the maximum accuracy log for the offsets table is 8.
+          `FSE_Compressed_Mode` must not be used when only one symbol is present,
+          `RLE_Mode` should be used instead (although any other mode will work).
 
 #### The codes for literals lengths, match lengths, and offsets.
 
@@ -696,7 +717,7 @@ Offset codes are values ranging from `0` to `N`.
 A decoder is free to limit its maximum `N` supported.
 Recommendation is to support at least up to `22`.
 For information, at the time of this writing.
-the reference decoder supports a maximum `N` value of `28` in 64-bits mode.
+the reference decoder supports a maximum `N` value of `31` in 64-bits mode.
 
 An offset code is also the number of additional bits to read in __little-endian__ fashion,
 and can be translated into an `Offset_Value` using the following formulas :
@@ -856,7 +877,8 @@ so an `offset_value` of 1 means `Repeated_Offset2`,
 an `offset_value` of 2 means `Repeated_Offset3`,
 and an `offset_value` of 3 means `Repeated_Offset1 - 1_byte`.
 
-For the first block, the starting offset history is populated with the following values : 1, 4 and 8 (in order).
+For the first block, the starting offset history is populated with the following values : 1, 4 and 8 (in order),
+unless a dictionary is used, in which case they come from the dictionary.
 
 Then each block gets its starting offset history from the ending values of the most recent `Compressed_Block`.
 Note that blocks which are not `Compressed_Block` are skipped, they do not contribute to offset history.
@@ -919,6 +941,8 @@ FSE, short for Finite State Entropy, is an entropy codec based on [ANS].
 FSE encoding/decoding involves a state that is carried over between symbols,
 so decoding must be done in the opposite direction as encoding.
 Therefore, all FSE bitstreams are read from end to beginning.
+Note that the order of the bits in the stream is not reversed,
+we just read the elements in the reverse order they are written.
 
 For additional details on FSE, see [Finite State Entropy].
 
@@ -943,6 +967,7 @@ The Zstandard format encodes FSE table descriptions as follows:
 An FSE distribution table describes the probabilities of all symbols
 from `0` to the last present one (included)
 on a normalized scale of `1 << Accuracy_Log` .
+Note that there must be two or more symbols with nonzero probability.
 
 It's a bitstream which is read forward, in __little-endian__ fashion.
 It's not necessary to know its exact size,
@@ -959,24 +984,24 @@ It depends on :
   __example__ :
   Presuming an `Accuracy_Log` of 8,
   and presuming 100 probabilities points have already been distributed,
-  the decoder may read any value from `0` to `255 - 100 + 1 == 156` (inclusive).
-  Therefore, it must read `log2sup(156) == 8` bits.
+  the decoder may read any value from `0` to `256 - 100 + 1 == 157` (inclusive).
+  Therefore, it must read `log2sup(157) == 8` bits.
 
 - Value decoded : small values use 1 less bit :
   __example__ :
-  Presuming values from 0 to 156 (inclusive) are possible,
-  255-156 = 99 values are remaining in an 8-bits field.
+  Presuming values from 0 to 157 (inclusive) are possible,
+  255-157 = 98 values are remaining in an 8-bits field.
   They are used this way :
-  first 99 values (hence from 0 to 98) use only 7 bits,
-  values from 99 to 156 use 8 bits.
+  first 98 values (hence from 0 to 97) use only 7 bits,
+  values from 98 to 157 use 8 bits.
   This is achieved through this scheme :
 
   | Value read | Value decoded | Number of bits used |
   | ---------- | ------------- | ------------------- |
-  |   0 -  98  |   0 -  98     |  7                  |
-  |  99 - 127  |  99 - 127     |  8                  |
-  | 128 - 226  |   0 -  98     |  7                  |
-  | 227 - 255  | 128 - 156     |  8                  |
+  |   0 -  97  |   0 -  97     |  7                  |
+  |  98 - 127  |  98 - 127     |  8                  |
+  | 128 - 225  |   0 -  97     |  7                  |
+  | 226 - 255  | 128 - 157     |  8                  |
 
 Symbols probabilities are read one by one, in order.
 
@@ -1019,12 +1044,12 @@ and instructions to get the next state.
 
 Symbols are scanned in their natural order for "less than 1" probabilities.
 Symbols with this probability are being attributed a single cell,
-starting from the end of the table.
+starting from the end of the table and retreating.
 These symbols define a full state reset, reading `Accuracy_Log` bits.
 
-All remaining symbols are sorted in their natural order.
+All remaining symbols are allocated in their natural order.
 Starting from symbol `0` and table position `0`,
-each symbol gets attributed as many cells as its probability.
+each symbol gets allocated as many cells as its probability.
 Cell allocation is spreaded, not linear :
 each successor position follow this rule :
 
@@ -1044,6 +1069,7 @@ Each state will decode the current symbol.
 To get the `Number_of_Bits` and `Baseline` required for next state,
 it's first necessary to sort all states in their natural order.
 The lower states will need 1 more bit than higher ones.
+The process is repeated for each symbol.
 
 __Example__ :
 Presuming a symbol has a probability of 5.
@@ -1055,10 +1081,12 @@ Presuming the `Accuracy_Log` is 7, it defines 128 states.
 Divided by 8, each share is 16 large.
 
 In order to reach 8, 8-5=3 lowest states will count "double",
-taking shares twice larger,
+doubling the number of shares (32 in width),
 requiring one more bit in the process.
 
-Numbering starts from higher states using less bits.
+Baseline is assigned starting from the higher states using fewer bits,
+and proceeding naturally, then resuming at the first state,
+each takes its allocated width from Baseline.
 
 | state order      |   0   |   1   |    2   |   3  |   4   |
 | ---------------- | ----- | ----- | ------ | ---- | ----- |
@@ -1074,6 +1102,7 @@ by reading the required `Number_of_Bits`, and adding the specified `Baseline`.
 See [Appendix A] for the results of this process applied to the default distributions.
 
 [Appendix A]: #appendix-a---decoding-tables-for-predefined-codes
+
 
 Huffman Coding
 --------------
@@ -1096,6 +1125,7 @@ The bitstream contains Huffman-coded symbols in __little-endian__ order,
 with the codes defined by the method below.
 
 ### Huffman Tree Description
+
 Prefix coding represents symbols from an a priori known alphabet
 by bit sequences (codewords), one codeword for each symbol,
 in a manner such that different symbols may be represented
@@ -1111,7 +1141,6 @@ Prefix code must not exceed a maximum code length.
 More bits improve accuracy but cost more header size,
 and require more memory or more complex decoding operations.
 This specification limits maximum code length to 11 bits.
-
 
 ##### Representation
 
@@ -1190,7 +1219,7 @@ and last symbol's weight is not represented.
 
 An FSE bitstream starts by a header, describing probabilities distribution.
 It will create a Decoding Table.
-For a list of Huffman weights, the maximum accuracy log is 7 bits.
+For a list of Huffman weights, the maximum accuracy log is 6 bits.
 For more description see the [FSE header description](#fse-table-description)
 
 The Huffman header compression uses 2 states,
@@ -1330,7 +1359,8 @@ __`Content`__ : The rest of the dictionary is its content.
               As long as the amount of data decoded from this frame is less than or
               equal to `Window_Size`, sequence commands may specify offsets longer
               than the total length of decoded output so far to reference back to the
-              dictionary.  After the total output has surpassed `Window_Size` however,
+              dictionary, even parts of the dictionary with offsets larger than `Window_Size`.  
+              After the total output has surpassed `Window_Size` however,
               this is no longer allowed and the dictionary is no longer accessible.
 
 [compressed blocks]: #the-format-of-compressed_block
@@ -1523,6 +1553,7 @@ to crosscheck that an implementation build its decoding tables correctly.
 
 Version changes
 ---------------
+- 0.2.7 : clarifications from IETF RFC review, by Vijay Gurbani and Nick Terrell
 - 0.2.6 : fixed an error in huffman example, by Ulrich Kunitz
 - 0.2.5 : minor typos and clarifications
 - 0.2.4 : section restructuring, by Sean Purcell

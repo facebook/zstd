@@ -87,10 +87,20 @@ size_t ZSTD_compressBlock_fast_generic(
         U32 const current = (U32)(ip-base);
         U32 const matchIndex = hashTable[h];
         const BYTE* match = base + matchIndex;
+        const int repIndex = current + 1 - offset_1;
+        const BYTE* repBase = hasDict == ZSTD_hasDictMatchState && repIndex < lowestIndex ? dictBase - dictIndexDelta : base;
+        const BYTE* repMatch = repBase + repIndex;
         hashTable[h] = current;   /* update hash table */
 
-        if ((hasDict != ZSTD_hasDictMatchState || current >= lowestIndex + offset_1)
-            && (offset_1 > 0) & (MEM_read32(ip+1-offset_1) == MEM_read32(ip+1))) {
+        if (hasDict == ZSTD_hasDictMatchState
+            && (((U32)((lowestIndex-1) - (U32)repIndex) >= 3) /* intentional underflow */)
+            && (MEM_read32(repMatch) == MEM_read32(ip+1)) ) {
+            const BYTE* repMatchEnd = repIndex < lowestIndex ? dictEnd : iend;
+            mLength = ZSTD_count_2segments(ip+1+4, repMatch+4, iend, repMatchEnd, istart) + 4;
+            ip++;
+            ZSTD_storeSeq(seqStore, ip-anchor, anchor, 0, mLength-MINMATCH);
+        } else if (hasDict == ZSTD_noDictMatchState
+                   && (offset_1 > 0) & (MEM_read32(repMatch) == MEM_read32(ip+1))) {
             mLength = ZSTD_count(ip+1+4, ip+1+4-offset_1, iend) + 4;
             ip++;
             ZSTD_storeSeq(seqStore, ip-anchor, anchor, 0, mLength-MINMATCH);
@@ -109,7 +119,6 @@ size_t ZSTD_compressBlock_fast_generic(
 
                     mLength = ZSTD_count_2segments(ip+4, dictMatch+4, iend, dictEnd, istart) + 4;
                     {   U32 const offset = (U32)(current-dictMatchIndex-dictIndexDelta);
-                        DEBUGLOG(6, "ip %p (%u) dictMatch %p (%u) idxDelta %u", ip, current, dictMatch, dictMatchIndex, dictIndexDelta);
                         while (((ip>anchor) & (dictMatch>dictLowest)) && (ip[-1] == dictMatch[-1])) { ip--; dictMatch--; mLength++; } /* catch up */
                         offset_2 = offset_1;
                         offset_1 = offset;
@@ -139,6 +148,31 @@ size_t ZSTD_compressBlock_fast_generic(
             hashTable[ZSTD_hashPtr(base+current+2, hlog, mls)] = current+2;  /* here because current+2 could be > iend-8 */
             hashTable[ZSTD_hashPtr(ip-2, hlog, mls)] = (U32)(ip-2-base);
             /* check immediate repcode */
+
+            if (hasDict == ZSTD_hasDictMatchState) {
+            while (ip <= ilimit) {
+                U32 const current2 = (U32)(ip-base);
+                int const repIndex2 = current2 - offset_2;
+                const BYTE* repMatch2 = hasDict == ZSTD_hasDictMatchState
+                                        && repIndex2 < lowestIndex ?
+                                        dictBase - dictIndexDelta + repIndex2 :
+                                        base + repIndex2;
+                if ( (((U32)((lowestIndex-1) - (U32)repIndex2) >= 3))  /* intentional overflow */
+                   && (MEM_read32(repMatch2) == MEM_read32(ip)) ) {
+                    const BYTE* const repEnd2 = repIndex2 < lowestIndex ? dictEnd : iend;
+                    size_t const repLength2 = ZSTD_count_2segments(ip+4, repMatch2+4, iend, repEnd2, istart) + 4;
+                    U32 tmpOffset = offset_2; offset_2 = offset_1; offset_1 = tmpOffset;   /* swap offset_2 <=> offset_1 */
+                    ZSTD_storeSeq(seqStore, 0, anchor, 0, repLength2-MINMATCH);
+                    hashTable[ZSTD_hashPtr(ip, hlog, mls)] = current2;
+                    ip += repLength2;
+                    anchor = ip;
+                    continue;
+                }
+                break;
+            }
+            }
+
+            if (hasDict == ZSTD_noDictMatchState) {
             while ( (ip <= ilimit)
                  && (hasDict != ZSTD_hasDictMatchState || ip - offset_2 >= istart)
                  && ( (offset_2>0)
@@ -151,7 +185,7 @@ size_t ZSTD_compressBlock_fast_generic(
                 ip += rLength;
                 anchor = ip;
                 continue;   /* faster when present ... (?) */
-    }   }   }
+    }   }   }   }
 
     /* save reps for next block */
     rep[0] = offset_1 ? offset_1 : offsetSaved;

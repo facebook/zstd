@@ -8,13 +8,13 @@
 *.user
 *.opendb
 
-VS2005/
-VS2008/
+VS2008/bin/
 VS2010/bin/
 VS2010/zwrapbench/
-VS2012/bin/
-VS2013/bin/
-VS2015/bin/
+VS2012/
+VS2013/
+VS2015/
+Studio*
 
 # CMake
 cmake/build/

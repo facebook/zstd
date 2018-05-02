@@ -596,7 +596,8 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
 {
     unsigned const minMatch = cParams->searchLength;
     ZSTD_blockCompressor const blockCompressor =
-        ZSTD_selectBlockCompressor(cParams->strategy, extDict);
+        ZSTD_selectBlockCompressor(cParams->strategy, extDict,
+            ZSTD_matchState_hasDictMatchState(ms));
     BYTE const* const base = ms->window.base;
     /* Input bounds */
     BYTE const* const istart = (BYTE const*)src;

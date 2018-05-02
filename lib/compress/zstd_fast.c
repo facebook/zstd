@@ -218,34 +218,40 @@ size_t ZSTD_compressBlock_fast(
     U32 const hlog = cParams->hashLog;
     U32 const mls = cParams->searchLength;
     U32 const stepSize = cParams->targetLength;
-    if (ms->dictMatchState != NULL) {
-        ZSTD_hasDictMatchState_e const hdms = ZSTD_hasDictMatchState;
-        switch(mls)
-        {
-        default: /* includes case 3 */
-        case 4 :
-            return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, hlog, stepSize, 4, hdms);
-        case 5 :
-            return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, hlog, stepSize, 5, hdms);
-        case 6 :
-            return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, hlog, stepSize, 6, hdms);
-        case 7 :
-            return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, hlog, stepSize, 7, hdms);
-        }
-    } else {
-        ZSTD_hasDictMatchState_e const hdms = ZSTD_noDictMatchState;
-        switch(mls)
-        {
-        default: /* includes case 3 */
-        case 4 :
-            return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, hlog, stepSize, 4, hdms);
-        case 5 :
-            return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, hlog, stepSize, 5, hdms);
-        case 6 :
-            return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, hlog, stepSize, 6, hdms);
-        case 7 :
-            return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, hlog, stepSize, 7, hdms);
-        }
+    assert(ms->dictMatchState == NULL);
+    switch(mls)
+    {
+    default: /* includes case 3 */
+    case 4 :
+        return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, hlog, stepSize, 4, ZSTD_noDictMatchState);
+    case 5 :
+        return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, hlog, stepSize, 5, ZSTD_noDictMatchState);
+    case 6 :
+        return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, hlog, stepSize, 6, ZSTD_noDictMatchState);
+    case 7 :
+        return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, hlog, stepSize, 7, ZSTD_noDictMatchState);
+    }
+}
+
+size_t ZSTD_compressBlock_fast_extDictMatchState(
+        ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
+        ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize)
+{
+    U32 const hlog = cParams->hashLog;
+    U32 const mls = cParams->searchLength;
+    U32 const stepSize = cParams->targetLength;
+    assert(ms->dictMatchState != NULL);
+    switch(mls)
+    {
+    default: /* includes case 3 */
+    case 4 :
+        return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, hlog, stepSize, 4, ZSTD_hasDictMatchState);
+    case 5 :
+        return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, hlog, stepSize, 5, ZSTD_hasDictMatchState);
+    case 6 :
+        return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, hlog, stepSize, 6, ZSTD_hasDictMatchState);
+    case 7 :
+        return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, hlog, stepSize, 7, ZSTD_hasDictMatchState);
     }
 }
 

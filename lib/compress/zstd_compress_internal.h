@@ -250,22 +250,13 @@ struct ZSTD_CCtx_s {
 
 typedef enum { ZSTD_dtlm_fast, ZSTD_dtlm_full } ZSTD_dictTableLoadMethod_e;
 
-typedef enum { ZSTD_noDictMatchState, ZSTD_hasDictMatchState } ZSTD_hasDictMatchState_e;
-
-/**
- * ZSTD_matchState_hasDictMatchState():
- * Does what the label says.
- */
-MEM_STATIC ZSTD_hasDictMatchState_e ZSTD_matchState_hasDictMatchState(const ZSTD_matchState_t *ms)
-{
-    return ms->dictMatchState != NULL ? ZSTD_hasDictMatchState : ZSTD_noDictMatchState;
-}
+typedef enum { ZSTD_noDict = 0, ZSTD_extDict = 1, ZSTD_dictMatchState = 2 } ZSTD_dictMode_e;
 
 
 typedef size_t (*ZSTD_blockCompressor) (
         ZSTD_matchState_t* bs, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize);
-ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, int extDict, ZSTD_hasDictMatchState_e hdms);
+ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMode_e hdms);
 
 
 MEM_STATIC U32 ZSTD_LLcode(U32 litLength)
@@ -522,7 +513,15 @@ MEM_STATIC U32 ZSTD_window_hasExtDict(ZSTD_window_t const window)
     return window.lowLimit < window.dictLimit;
 }
 
-
+/**
+ * ZSTD_matchState_dictMode():
+ * Does what the label says.
+ */
+MEM_STATIC ZSTD_dictMode_e ZSTD_matchState_dictMode(const ZSTD_matchState_t *ms)
+{
+    return ms->dictMatchState != NULL ? ZSTD_dictMatchState :
+        ZSTD_window_hasExtDict(ms->window) ? ZSTD_extDict : ZSTD_noDict;
+}
 
 /**
  * ZSTD_window_needOverflowCorrection():

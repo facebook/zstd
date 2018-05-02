@@ -2137,9 +2137,9 @@ MEM_STATIC size_t ZSTD_compressSequences(seqStore_t* seqStorePtr,
 /* ZSTD_selectBlockCompressor() :
  * Not static, but internal use only (used by long distance matcher)
  * assumption : strat is a valid strategy */
-ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, int extDict)
+ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, int extDict, ZSTD_hasDictMatchState_e hdms)
 {
-    static const ZSTD_blockCompressor blockCompressor[2][(unsigned)ZSTD_btultra+1] = {
+    static const ZSTD_blockCompressor blockCompressor[3][(unsigned)ZSTD_btultra+1] = {
         { ZSTD_compressBlock_fast  /* default for 0 */,
           ZSTD_compressBlock_fast, ZSTD_compressBlock_doubleFast, ZSTD_compressBlock_greedy,
           ZSTD_compressBlock_lazy, ZSTD_compressBlock_lazy2, ZSTD_compressBlock_btlazy2,
@@ -2147,13 +2147,16 @@ ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, int extDict
         { ZSTD_compressBlock_fast_extDict  /* default for 0 */,
           ZSTD_compressBlock_fast_extDict, ZSTD_compressBlock_doubleFast_extDict, ZSTD_compressBlock_greedy_extDict,
           ZSTD_compressBlock_lazy_extDict,ZSTD_compressBlock_lazy2_extDict, ZSTD_compressBlock_btlazy2_extDict,
-          ZSTD_compressBlock_btopt_extDict, ZSTD_compressBlock_btultra_extDict }
+          ZSTD_compressBlock_btopt_extDict, ZSTD_compressBlock_btultra_extDict },
+        { ZSTD_compressBlock_fast_extDictMatchState  /* default for 0 */,
+          ZSTD_compressBlock_fast_extDictMatchState,
+          NULL, NULL, NULL, NULL, NULL, NULL, NULL }
     };
     ZSTD_STATIC_ASSERT((unsigned)ZSTD_fast == 1);
 
     assert((U32)strat >= (U32)ZSTD_fast);
     assert((U32)strat <= (U32)ZSTD_btultra);
-    return blockCompressor[extDict!=0][(U32)strat];
+    return blockCompressor[hdms == ZSTD_hasDictMatchState ? 2 : (extDict!=0)][(U32)strat];
 }
 
 static void ZSTD_storeLastLiterals(seqStore_t* seqStorePtr,
@@ -2196,6 +2199,8 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
 
     /* select and store sequences */
     {   U32 const extDict = ZSTD_window_hasExtDict(ms->window);
+        ZSTD_hasDictMatchState_e const hdms =
+            ZSTD_matchState_hasDictMatchState(ms);
         size_t lastLLSize;
         {   int i;
             for (i = 0; i < ZSTD_REP_NUM; ++i)
@@ -2229,7 +2234,7 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
                                        src, srcSize, extDict);
             assert(ldmSeqStore.pos == ldmSeqStore.size);
         } else {   /* not long range mode */
-            ZSTD_blockCompressor const blockCompressor = ZSTD_selectBlockCompressor(zc->appliedParams.cParams.strategy, extDict);
+            ZSTD_blockCompressor const blockCompressor = ZSTD_selectBlockCompressor(zc->appliedParams.cParams.strategy, extDict, hdms);
             lastLLSize = blockCompressor(ms, &zc->seqStore, zc->blockState.nextCBlock->rep, &zc->appliedParams.cParams, src, srcSize);
         }
         {   const BYTE* const lastLiterals = (const BYTE*)src + srcSize - lastLLSize;

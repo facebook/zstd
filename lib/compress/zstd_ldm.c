@@ -591,13 +591,12 @@ static rawSeq maybeSplitSequence(rawSeqStore_t* rawSeqStore,
 
 size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
     ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
-    ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize,
-    int const extDict)
+    ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize)
 {
     unsigned const minMatch = cParams->searchLength;
     ZSTD_blockCompressor const blockCompressor =
-        ZSTD_selectBlockCompressor(cParams->strategy, extDict,
-            ZSTD_matchState_hasDictMatchState(ms));
+        ZSTD_selectBlockCompressor(cParams->strategy,
+            ZSTD_matchState_dictMode(ms));
     BYTE const* const base = ms->window.base;
     /* Input bounds */
     BYTE const* const istart = (BYTE const*)src;

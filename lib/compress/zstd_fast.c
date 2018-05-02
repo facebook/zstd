@@ -46,7 +46,7 @@ size_t ZSTD_compressBlock_fast_generic(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         void const* src, size_t srcSize,
         U32 const hlog, U32 const stepSize, U32 const mls,
-        ZSTD_hasDictMatchState_e const hasDict)
+        ZSTD_dictMode_e const hasDict)
 {
     U32* const hashTable = ms->hashTable;
     const BYTE* const base = ms->window.base;
@@ -71,22 +71,24 @@ size_t ZSTD_compressBlock_fast_generic(
      */
 
     const ZSTD_matchState_t* const dms = ms->dictMatchState;
-    const U32* const dictHashTable = hasDict == ZSTD_hasDictMatchState ?
+    const U32* const dictHashTable = hasDict == ZSTD_dictMatchState ?
                                      dms->hashTable : NULL;
-    const U32 lowestDictIndex      = hasDict == ZSTD_hasDictMatchState ?
+    const U32 lowestDictIndex      = hasDict == ZSTD_dictMatchState ?
                                      dms->window.dictLimit : 0;
-    const BYTE* const dictBase     = hasDict == ZSTD_hasDictMatchState ?
+    const BYTE* const dictBase     = hasDict == ZSTD_dictMatchState ?
                                      dms->window.base : NULL;
-    const BYTE* const dictLowest   = hasDict == ZSTD_hasDictMatchState ?
+    const BYTE* const dictLowest   = hasDict == ZSTD_dictMatchState ?
                                      dictBase + lowestDictIndex : NULL;
-    const BYTE* const dictEnd      = hasDict == ZSTD_hasDictMatchState ?
+    const BYTE* const dictEnd      = hasDict == ZSTD_dictMatchState ?
                                      dms->window.nextSrc : NULL;
-    const U32 dictIndexDelta       = hasDict == ZSTD_hasDictMatchState ?
+    const U32 dictIndexDelta       = hasDict == ZSTD_dictMatchState ?
                                      lowestIndex - (dictEnd - dictBase) :
                                      0;
-    ptrdiff_t dictLowestIndex      = hasDict == ZSTD_hasDictMatchState ?
+    ptrdiff_t dictLowestIndex      = hasDict == ZSTD_dictMatchState ?
                                      lowestDictIndex + dictIndexDelta :
                                      lowestIndex;
+
+    assert(hasDict == ZSTD_noDict || hasDict == ZSTD_dictMatchState);
 
     /* init */
     ip += (ip==lowest);
@@ -103,18 +105,18 @@ size_t ZSTD_compressBlock_fast_generic(
         U32 const matchIndex = hashTable[h];
         const BYTE* match = base + matchIndex;
         const ptrdiff_t repIndex = current + 1 - offset_1;
-        const BYTE* repBase = hasDict == ZSTD_hasDictMatchState && repIndex < (ptrdiff_t)lowestIndex ? dictBase - dictIndexDelta : base;
+        const BYTE* repBase = hasDict == ZSTD_dictMatchState && repIndex < (ptrdiff_t)lowestIndex ? dictBase - dictIndexDelta : base;
         const BYTE* repMatch = repBase + repIndex;
         hashTable[h] = current;   /* update hash table */
 
-        if (hasDict == ZSTD_hasDictMatchState
+        if (hasDict == ZSTD_dictMatchState
             && (((U32)((lowestIndex-1) - repIndex) >= 3) & (repIndex > dictLowestIndex) /* intentional underflow */)
             && (MEM_read32(repMatch) == MEM_read32(ip+1)) ) {
             const BYTE* repMatchEnd = repIndex < (ptrdiff_t)lowestIndex ? dictEnd : iend;
             mLength = ZSTD_count_2segments(ip+1+4, repMatch+4, iend, repMatchEnd, istart) + 4;
             ip++;
             ZSTD_storeSeq(seqStore, ip-anchor, anchor, 0, mLength-MINMATCH);
-        } else if (hasDict == ZSTD_noDictMatchState
+        } else if (hasDict == ZSTD_noDict
                    && (offset_1 > 0) & (MEM_read32(repMatch) == MEM_read32(ip+1))) {
             mLength = ZSTD_count(ip+1+4, ip+1+4-offset_1, iend) + 4;
             ip++;
@@ -122,7 +124,7 @@ size_t ZSTD_compressBlock_fast_generic(
         } else {
             if ( (matchIndex <= lowestIndex)
               || (MEM_read32(match) != MEM_read32(ip)) ) {
-                if (hasDict == ZSTD_hasDictMatchState) {
+                if (hasDict == ZSTD_dictMatchState) {
                     U32 const dictMatchIndex = dictHashTable[h];
                     const BYTE* dictMatch = dictBase + dictMatchIndex;
                     if (dictMatchIndex <= lowestDictIndex ||
@@ -164,11 +166,11 @@ size_t ZSTD_compressBlock_fast_generic(
             hashTable[ZSTD_hashPtr(ip-2, hlog, mls)] = (U32)(ip-2-base);
             /* check immediate repcode */
 
-            if (hasDict == ZSTD_hasDictMatchState) {
+            if (hasDict == ZSTD_dictMatchState) {
             while (ip <= ilimit) {
                 U32 const current2 = (U32)(ip-base);
                 ptrdiff_t const repIndex2 = current2 - offset_2;
-                const BYTE* repMatch2 = hasDict == ZSTD_hasDictMatchState
+                const BYTE* repMatch2 = hasDict == ZSTD_dictMatchState
                                         && repIndex2 < (ptrdiff_t)lowestIndex ?
                                         dictBase - dictIndexDelta + repIndex2 :
                                         base + repIndex2;
@@ -187,9 +189,9 @@ size_t ZSTD_compressBlock_fast_generic(
             }
             }
 
-            if (hasDict == ZSTD_noDictMatchState) {
+            if (hasDict == ZSTD_noDict) {
             while ( (ip <= ilimit)
-                 && (hasDict != ZSTD_hasDictMatchState || ip - offset_2 >= istart)
+                 && (hasDict != ZSTD_dictMatchState || ip - offset_2 >= istart)
                  && ( (offset_2>0)
                  & (MEM_read32(ip) == MEM_read32(ip - offset_2)) )) {
                 /* store sequence */
@@ -223,17 +225,17 @@ size_t ZSTD_compressBlock_fast(
     {
     default: /* includes case 3 */
     case 4 :
-        return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, hlog, stepSize, 4, ZSTD_noDictMatchState);
+        return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, hlog, stepSize, 4, ZSTD_noDict);
     case 5 :
-        return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, hlog, stepSize, 5, ZSTD_noDictMatchState);
+        return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, hlog, stepSize, 5, ZSTD_noDict);
     case 6 :
-        return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, hlog, stepSize, 6, ZSTD_noDictMatchState);
+        return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, hlog, stepSize, 6, ZSTD_noDict);
     case 7 :
-        return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, hlog, stepSize, 7, ZSTD_noDictMatchState);
+        return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, hlog, stepSize, 7, ZSTD_noDict);
     }
 }
 
-size_t ZSTD_compressBlock_fast_extDictMatchState(
+size_t ZSTD_compressBlock_fast_dictMatchState(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize)
 {
@@ -245,13 +247,13 @@ size_t ZSTD_compressBlock_fast_extDictMatchState(
     {
     default: /* includes case 3 */
     case 4 :
-        return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, hlog, stepSize, 4, ZSTD_hasDictMatchState);
+        return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, hlog, stepSize, 4, ZSTD_dictMatchState);
     case 5 :
-        return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, hlog, stepSize, 5, ZSTD_hasDictMatchState);
+        return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, hlog, stepSize, 5, ZSTD_dictMatchState);
     case 6 :
-        return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, hlog, stepSize, 6, ZSTD_hasDictMatchState);
+        return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, hlog, stepSize, 6, ZSTD_dictMatchState);
     case 7 :
-        return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, hlog, stepSize, 7, ZSTD_hasDictMatchState);
+        return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, hlog, stepSize, 7, ZSTD_dictMatchState);
     }
 }
 

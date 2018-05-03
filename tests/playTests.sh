@@ -176,7 +176,7 @@ $ECHO hello > tmp
 $ZSTD tmp -f -o "$DEVDEVICE" 2>tmplog > "$INTOVOID"
 grep -v "Refusing to remove non-regular file" tmplog
 rm -f tmplog
-$ZSTD tmp -f -o "$INTONULL" 2>&1 | grep -v "Refusing to remove non-regular file"
+$ZSTD tmp -f -o "$INTOVOID" 2>&1 | grep -v "Refusing to remove non-regular file"
 $ECHO "test : --rm on stdin"
 $ECHO a | $ZSTD --rm > $INTOVOID   # --rm should remain silent
 rm tmp

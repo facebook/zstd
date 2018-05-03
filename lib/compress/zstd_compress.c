@@ -1208,7 +1208,7 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
      * context, or referencing the dictionary context from the working context
      * in-place. We decide here which strategy to use. */
     /* TODO: pick reasonable cut-off size, handle ZSTD_CONTENTSIZE_UNKNOWN */
-    int attachDict = pledgedSrcSize < 64 KB
+    int attachDict = pledgedSrcSize <= 8 KB
                   && cdict->cParams.strategy == ZSTD_fast
                   && ZSTD_equivalentCParams(cctx->appliedParams.cParams,
                                             cdict->cParams);

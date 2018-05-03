@@ -91,8 +91,10 @@ size_t ZSTD_compressBlock_fast_generic(
     assert(hasDict == ZSTD_noDict || hasDict == ZSTD_dictMatchState);
 
     /* init */
-    ip += (ip==lowest);
-    {   U32 const maxRep = (U32)(ip-lowest);
+    ip += (hasDict == ZSTD_noDict && ip == lowest);
+    {   U32 const maxRep = hasDict == ZSTD_dictMatchState ?
+                           (U32)(ip - dictLowest) :
+                           (U32)(ip - lowest);
         if (offset_2 > maxRep) offsetSaved = offset_2, offset_2 = 0;
         if (offset_1 > maxRep) offsetSaved = offset_1, offset_1 = 0;
     }

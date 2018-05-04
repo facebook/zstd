@@ -52,7 +52,7 @@ FORCE_INLINE_TEMPLATE
 size_t ZSTD_compressBlock_doubleFast_generic(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize,
-        U32 const mls /* template */)
+        U32 const mls /* template */, ZSTD_dictMode_e const dictMode)
 {
     U32* const hashLong = ms->hashTable;
     const U32 hBitsL = cParams->hashLog;
@@ -68,6 +68,8 @@ size_t ZSTD_compressBlock_doubleFast_generic(
     const BYTE* const ilimit = iend - HASH_READ_SIZE;
     U32 offset_1=rep[0], offset_2=rep[1];
     U32 offsetSaved = 0;
+
+    (void)dictMode;
 
     /* init */
     ip += (ip==lowest);
@@ -170,13 +172,33 @@ size_t ZSTD_compressBlock_doubleFast(
     {
     default: /* includes case 3 */
     case 4 :
-        return ZSTD_compressBlock_doubleFast_generic(ms, seqStore, rep, cParams, src, srcSize, 4);
+        return ZSTD_compressBlock_doubleFast_generic(ms, seqStore, rep, cParams, src, srcSize, 4, ZSTD_noDict);
     case 5 :
-        return ZSTD_compressBlock_doubleFast_generic(ms, seqStore, rep, cParams, src, srcSize, 5);
+        return ZSTD_compressBlock_doubleFast_generic(ms, seqStore, rep, cParams, src, srcSize, 5, ZSTD_noDict);
     case 6 :
-        return ZSTD_compressBlock_doubleFast_generic(ms, seqStore, rep, cParams, src, srcSize, 6);
+        return ZSTD_compressBlock_doubleFast_generic(ms, seqStore, rep, cParams, src, srcSize, 6, ZSTD_noDict);
     case 7 :
-        return ZSTD_compressBlock_doubleFast_generic(ms, seqStore, rep, cParams, src, srcSize, 7);
+        return ZSTD_compressBlock_doubleFast_generic(ms, seqStore, rep, cParams, src, srcSize, 7, ZSTD_noDict);
+    }
+}
+
+
+size_t ZSTD_compressBlock_doubleFast_dictMatchState(
+        ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
+        ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize)
+{
+    const U32 mls = cParams->searchLength;
+    switch(mls)
+    {
+    default: /* includes case 3 */
+    case 4 :
+        return ZSTD_compressBlock_doubleFast_generic(ms, seqStore, rep, cParams, src, srcSize, 4, ZSTD_dictMatchState);
+    case 5 :
+        return ZSTD_compressBlock_doubleFast_generic(ms, seqStore, rep, cParams, src, srcSize, 5, ZSTD_dictMatchState);
+    case 6 :
+        return ZSTD_compressBlock_doubleFast_generic(ms, seqStore, rep, cParams, src, srcSize, 6, ZSTD_dictMatchState);
+    case 7 :
+        return ZSTD_compressBlock_doubleFast_generic(ms, seqStore, rep, cParams, src, srcSize, 7, ZSTD_dictMatchState);
     }
 }
 

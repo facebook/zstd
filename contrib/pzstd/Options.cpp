@@ -85,7 +85,7 @@ void usage() {
   std::fprintf(stderr, "Usage:\n");
   std::fprintf(stderr, "  pzstd [args] [FILE(s)]\n");
   std::fprintf(stderr, "Parallel ZSTD options:\n");
-  std::fprintf(stderr, "  -p, --processes   #    : number of threads to use for (de)compression (default:%d)\n", defaultNumThreads());
+  std::fprintf(stderr, "  -p, --processes   #    : number of threads to use for (de)compression (default:<numcpus>)\n");
 
   std::fprintf(stderr, "ZSTD options:\n");
   std::fprintf(stderr, "  -#                     : # compression level (1-%d, default:%d)\n", kMaxNonUltraCompressionLevel, kDefaultCompressionLevel);

@@ -1211,7 +1211,7 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
                           || pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN )
                         && !params.forceWindow /* dictMatchState isn't correctly
                                                 * handled in _enforceMaxDist */
-                        && cdict->cParams.strategy == ZSTD_fast
+                        && cdict->cParams.strategy <= ZSTD_dfast
                         && ZSTD_equivalentCParams(cctx->appliedParams.cParams,
                                                   cdict->cParams);
 
@@ -2192,7 +2192,8 @@ ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMo
           ZSTD_compressBlock_btopt_extDict, ZSTD_compressBlock_btultra_extDict },
         { ZSTD_compressBlock_fast_dictMatchState  /* default for 0 */,
           ZSTD_compressBlock_fast_dictMatchState,
-          NULL, NULL, NULL, NULL, NULL, NULL, NULL /* unimplemented as of yet */ }
+          ZSTD_compressBlock_doubleFast_dictMatchState,
+          NULL, NULL, NULL, NULL, NULL, NULL /* unimplemented as of yet */ }
     };
     ZSTD_blockCompressor selectedCompressor;
     ZSTD_STATIC_ASSERT((unsigned)ZSTD_fast == 1);

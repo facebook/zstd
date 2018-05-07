@@ -204,6 +204,8 @@ static size_t ZSTD_compressBlock_doubleFast_extDict_generic(
     const BYTE* const ilimit = iend - 8;
     U32 offset_1=rep[0], offset_2=rep[1];
 
+    DEBUGLOG(5, "ZSTD_compressBlock_doubleFast_extDict_generic (srcSize=%zu)", srcSize);
+
     /* Search Loop */
     while (ip < ilimit) {  /* < instead of <=, because (ip+1) */
         const size_t hSmall = ZSTD_hashPtr(ip, hBitsS, mls);

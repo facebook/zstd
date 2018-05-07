@@ -1196,6 +1196,15 @@ static int basicUnitTests(U32 seed, double compressibility)
           if (r != blockSize) goto _output_error; }
         DISPLAYLEVEL(3, "OK \n");
 
+        DISPLAYLEVEL(3, "test%3i : Block compression with CDict : ", testNb++);
+        {   ZSTD_CDict* const cdict = ZSTD_createCDict(CNBuffer, dictSize, 3);
+            if (cdict==NULL) goto _output_error;
+            CHECK( ZSTD_compressBegin_usingCDict(cctx, cdict) );
+            CHECK( ZSTD_compressBlock(cctx, compressedBuffer, ZSTD_compressBound(blockSize), (char*)CNBuffer+dictSize, blockSize) );
+            ZSTD_freeCDict(cdict);
+        }
+        DISPLAYLEVEL(3, "OK \n");
+
         ZSTD_freeCCtx(cctx);
     }
     ZSTD_freeDCtx(dctx);

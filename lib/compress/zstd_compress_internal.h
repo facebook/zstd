@@ -95,7 +95,7 @@ typedef struct {
     U32  log2matchLengthSum;     /* pow2 to compare log2(mlfreq) to */
     U32  log2offCodeSum;         /* pow2 to compare log2(offreq) to */
     /* end : updated by ZSTD_setLog2Prices */
-    U32  staticPrices;           /* prices follow a pre-defined cost structure, statistics are irrelevant */
+    U32  predefPrices;           /* prices follow a pre-defined cost structure, statistics are irrelevant */
 } optState_t;
 
 typedef struct {
@@ -112,11 +112,11 @@ typedef struct {
 } ZSTD_window_t;
 
 typedef struct {
-    ZSTD_window_t window;      /* State for window round buffer management */
-    U32 loadedDictEnd;         /* index of end of dictionary */
-    U32 nextToUpdate;          /* index from which to continue table update */
-    U32 nextToUpdate3;         /* index from which to continue table update */
-    U32 hashLog3;              /* dispatch table : larger == faster, more memory */
+    ZSTD_window_t window;   /* State for window round buffer management */
+    U32 loadedDictEnd;      /* index of end of dictionary */
+    U32 nextToUpdate;       /* index from which to continue table update */
+    U32 nextToUpdate3;      /* index from which to continue table update */
+    U32 hashLog3;           /* dispatch table : larger == faster, more memory */
     U32* hashTable;
     U32* hashTable3;
     U32* chainTable;
@@ -161,7 +161,7 @@ typedef struct {
   rawSeq* seq;     /* The start of the sequences */
   size_t pos;      /* The position where reading stopped. <= size. */
   size_t size;     /* The number of sequences. <= capacity. */
-  size_t capacity; /* The capacity of the `seq` pointer */
+  size_t capacity; /* The capacity starting from `seq` pointer */
 } rawSeqStore_t;
 
 struct ZSTD_CCtx_params_s {

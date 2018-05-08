@@ -995,7 +995,11 @@ static size_t ZSTD_continueCCtx(ZSTD_CCtx* cctx, ZSTD_CCtx_params params, U64 pl
 
 typedef enum { ZSTDcrp_continue, ZSTDcrp_noMemset } ZSTD_compResetPolicy_e;
 
-static void* ZSTD_reset_matchState(ZSTD_matchState_t* ms, void* ptr, ZSTD_compressionParameters const* cParams, ZSTD_compResetPolicy_e const crp, U32 const forCCtx)
+static void*
+ZSTD_reset_matchState(ZSTD_matchState_t* ms,
+                      void* ptr,
+                const ZSTD_compressionParameters* cParams,
+                      ZSTD_compResetPolicy_e const crp, U32 const forCCtx)
 {
     size_t const chainSize = (cParams->strategy == ZSTD_fast) ? 0 : ((size_t)1 << cParams->chainLog);
     size_t const hSize = ((size_t)1) << cParams->hashLog;
@@ -1285,7 +1289,7 @@ static size_t ZSTD_copyCCtx_internal(ZSTD_CCtx* dstCCtx,
 
     /* copy dictionary offsets */
     {
-        ZSTD_matchState_t const* srcMatchState = &srcCCtx->blockState.matchState;
+        const ZSTD_matchState_t* srcMatchState = &srcCCtx->blockState.matchState;
         ZSTD_matchState_t* dstMatchState = &dstCCtx->blockState.matchState;
         dstMatchState->window       = srcMatchState->window;
         dstMatchState->nextToUpdate = srcMatchState->nextToUpdate;
@@ -1985,8 +1989,9 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
                                         const void* src, size_t srcSize)
 {
     ZSTD_matchState_t* const ms = &zc->blockState.matchState;
-    DEBUGLOG(5, "ZSTD_compressBlock_internal (dstCapacity=%u, dictLimit=%u, nextToUpdate=%u)",
-                (U32)dstCapacity, ms->window.dictLimit, ms->nextToUpdate);
+    DEBUGLOG(5, "ZSTD_compressBlock_internal (dstCapacity=%zu, dictLimit=%u, nextToUpdate=%u)",
+                dstCapacity, ms->window.dictLimit, ms->nextToUpdate);
+
     if (srcSize < MIN_CBLOCK_SIZE+ZSTD_blockHeaderSize+1) {
         ZSTD_ldm_skipSequences(&zc->externSeqStore, srcSize, zc->appliedParams.cParams.searchLength);
         return 0;   /* don't even attempt compression below a certain srcSize */
@@ -1997,6 +2002,8 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
     {   const BYTE* const base = ms->window.base;
         const BYTE* const istart = (const BYTE*)src;
         const U32 current = (U32)(istart-base);
+        assert(istart >= base);
+        if (sizeof(ptrdiff_t)==8) assert(istart - base < (ptrdiff_t)(U32)(-1));   /* ensure no overflow */
         if (current > ms->nextToUpdate + 384)
             ms->nextToUpdate = current - MIN(192, (U32)(current - ms->nextToUpdate - 384));
     }
@@ -2369,6 +2376,8 @@ static size_t ZSTD_loadZstdDictionary(ZSTD_compressedBlockState_t* bs,
     size_t dictID;
 
     ZSTD_STATIC_ASSERT(HUF_WORKSPACE_SIZE >= (1<<MAX(MLFSELog,LLFSELog)));
+    assert(dictSize > 8);
+    assert(MEM_readLE32(dictPtr) == ZSTD_MAGIC_DICTIONARY);
 
     dictPtr += 4;   /* skip magic number */
     dictID = params->fParams.noDictIDFlag ? 0 :  MEM_readLE32(dictPtr);
@@ -2447,12 +2456,14 @@ static size_t ZSTD_loadZstdDictionary(ZSTD_compressedBlockState_t* bs,
 
 /** ZSTD_compress_insertDictionary() :
 *   @return : dictID, or an error code */
-static size_t ZSTD_compress_insertDictionary(ZSTD_compressedBlockState_t* bs, ZSTD_matchState_t* ms,
-                                             ZSTD_CCtx_params const* params,
-                                       const void* dict, size_t dictSize,
-                                             ZSTD_dictContentType_e dictContentType,
-                                             ZSTD_dictTableLoadMethod_e dtlm,
-                                             void* workspace)
+static size_t
+ZSTD_compress_insertDictionary(ZSTD_compressedBlockState_t* bs,
+                               ZSTD_matchState_t* ms,
+                         const ZSTD_CCtx_params* params,
+                         const void* dict, size_t dictSize,
+                               ZSTD_dictContentType_e dictContentType,
+                               ZSTD_dictTableLoadMethod_e dtlm,
+                               void* workspace)
 {
     DEBUGLOG(4, "ZSTD_compress_insertDictionary (dictSize=%u)", (U32)dictSize);
     if ((dict==NULL) || (dictSize<=8)) return 0;
@@ -2726,7 +2737,7 @@ static size_t ZSTD_initCDict_internal(
                     ZSTD_dictContentType_e dictContentType,
                     ZSTD_compressionParameters cParams)
 {
-    DEBUGLOG(3, "ZSTD_initCDict_internal, dictContentType %u", (U32)dictContentType);
+    DEBUGLOG(3, "ZSTD_initCDict_internal (dictContentType:%u)", (U32)dictContentType);
     assert(!ZSTD_checkCParams(cParams));
     cdict->cParams = cParams;
     if ((dictLoadMethod == ZSTD_dlm_byRef) || (!dictBuffer) || (!dictSize)) {

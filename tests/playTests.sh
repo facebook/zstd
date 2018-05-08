@@ -56,7 +56,7 @@ fi
 
 isWindows=false
 INTOVOID="/dev/null"
-DEVDEVICE="/dev/zero"
+DEVDEVICE="/dev/random"
 case "$OS" in
   Windows*)
     isWindows=true

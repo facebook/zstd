@@ -163,7 +163,7 @@ install: install-pc install-static install-shared install-includes
 	@echo zstd static and shared library installed
 
 install-pc: libzstd.pc
-	@$(INSTALL) -d -m 755 $(DESTDIR)$(PKGCONFIGDIR)/ $(DESTDIR)$(INCLUDEDIR)/
+	@$(INSTALL) -d -m 755 $(DESTDIR)$(PKGCONFIGDIR)/
 	@$(INSTALL_DATA) libzstd.pc $(DESTDIR)$(PKGCONFIGDIR)/
 
 install-static: libzstd.a
@@ -178,6 +178,7 @@ install-shared: libzstd
 
 install-includes:
 	@echo Installing includes
+	@$(INSTALL) -d -m 755 $(DESTDIR)$(INCLUDEDIR)/
 	@$(INSTALL_DATA) zstd.h $(DESTDIR)$(INCLUDEDIR)
 	@$(INSTALL_DATA) common/zstd_errors.h $(DESTDIR)$(INCLUDEDIR)
 	@$(INSTALL_DATA) deprecated/zbuff.h $(DESTDIR)$(INCLUDEDIR)     # prototypes generate deprecation warnings

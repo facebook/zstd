@@ -76,6 +76,8 @@ typedef struct {
     U32 rep[ZSTD_REP_NUM];
 } ZSTD_optimal_t;
 
+typedef enum { zop_none=0, zop_predef, zop_static } ZSTD_OptPrice_e;
+
 typedef struct {
     /* All tables are allocated inside cctx->workspace by ZSTD_resetCCtx_internal() */
     U32* litFreq;               /* table of literals statistics, of size 256 */
@@ -95,7 +97,8 @@ typedef struct {
     U32  log2matchLengthSum;     /* pow2 to compare log2(mlfreq) to */
     U32  log2offCodeSum;         /* pow2 to compare log2(offreq) to */
     /* end : updated by ZSTD_setLog2Prices */
-    U32  predefPrices;           /* prices follow a pre-defined cost structure, statistics are irrelevant */
+    ZSTD_OptPrice_e priceType;   /* prices follow a pre-defined cost structure, statistics are irrelevant */
+    const ZSTD_entropyCTables_t* symbolCosts;  /* pre-calculated symbol costs, from dictionary */
 } optState_t;
 
 typedef struct {

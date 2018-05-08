@@ -1997,6 +1997,7 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
         return 0;   /* don't even attempt compression below a certain srcSize */
     }
     ZSTD_resetSeqStore(&(zc->seqStore));
+    ms->opt.symbolCosts = &zc->blockState.prevCBlock->entropy;   /* required for optimal parser to read stats from dictionary */
 
     /* limited update after a very long match */
     {   const BYTE* const base = ms->window.base;

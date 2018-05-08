@@ -104,7 +104,7 @@ static U32 ZSTD_rawLiteralsCost(const BYTE* const literals, U32 const litLength,
         assert(optPtr->symbolCosts->hufCTable_repeatMode == HUF_repeat_valid);
         for (u=0, cost=0; u < litLength; u++)
             cost += HUF_getNbBits(optPtr->symbolCosts->hufCTable, literals[u]);
-        return cost;
+        return cost << 8;
     }
     if (optPtr->priceType == zop_predef) return (litLength*6);  /* 6 bit per literal - no statistic used */
     if (litLength == 0) return 0;
@@ -114,7 +114,7 @@ static U32 ZSTD_rawLiteralsCost(const BYTE* const literals, U32 const litLength,
         U32 cost = litLength * optPtr->log2litSum;
         for (u=0; u < litLength; u++)
             cost -= ZSTD_highbit32(optPtr->litFreq[literals[u]]+1);
-        return cost;
+        return cost << 8;
     }
 }
 
@@ -126,13 +126,13 @@ static U32 ZSTD_litLengthPrice(U32 const litLength, const optState_t* const optP
         U32 const llCode = ZSTD_LLcode(litLength);
         FSE_CState_t cstate;
         FSE_initCState(&cstate, optPtr->symbolCosts->litlengthCTable);
-        return LL_bits[llCode] + FSE_getMaxNbBits(cstate.symbolTT, llCode);
+        return (LL_bits[llCode] + FSE_getMaxNbBits(cstate.symbolTT, llCode)) << 8;
     }
     if (optPtr->priceType == zop_predef) return ZSTD_highbit32((U32)litLength+1);
 
     /* literal Length */
     {   U32 const llCode = ZSTD_LLcode(litLength);
-        return LL_bits[llCode] + optPtr->log2litLengthSum - ZSTD_highbit32(optPtr->litLengthFreq[llCode]+1);
+        return (LL_bits[llCode] + optPtr->log2litLengthSum - ZSTD_highbit32(optPtr->litLengthFreq[llCode]+1)) << 8;
     }
 }
 
@@ -156,15 +156,16 @@ static int ZSTD_litLengthContribution(U32 const litLength, const optState_t* con
         U32 const llCode = ZSTD_LLcode(litLength);
         FSE_CState_t cstate;
         FSE_initCState(&cstate, optPtr->symbolCosts->litlengthCTable);
-        return (int)(LL_bits[llCode] + FSE_getMaxNbBits(cstate.symbolTT, llCode)) - FSE_getMaxNbBits(cstate.symbolTT, 0);
+        return ((int)(LL_bits[llCode] + FSE_getMaxNbBits(cstate.symbolTT, llCode)) - FSE_getMaxNbBits(cstate.symbolTT, 0)) * 256;
     }
     if (optPtr->priceType >= zop_predef) return ZSTD_highbit32(litLength+1);
 
     /* literal Length */
     {   U32 const llCode = ZSTD_LLcode(litLength);
-        int const contribution = LL_bits[llCode]
+        int const contribution = (LL_bits[llCode]
                         + ZSTD_highbit32(optPtr->litLengthFreq[0]+1)
-                        - ZSTD_highbit32(optPtr->litLengthFreq[llCode]+1);
+                        - ZSTD_highbit32(optPtr->litLengthFreq[llCode]+1))
+                        * 256;
 #if 1
         return contribution;
 #else
@@ -204,8 +205,9 @@ ZSTD_getMatchPrice(U32 const offset, U32 const matchLength,
         FSE_CState_t mlstate, offstate;
         FSE_initCState(&mlstate, optPtr->symbolCosts->matchlengthCTable);
         FSE_initCState(&offstate, optPtr->symbolCosts->offcodeCTable);
-        return FSE_getMaxNbBits(offstate.symbolTT, offCode) + offCode
-             + FSE_getMaxNbBits(mlstate.symbolTT, mlCode) + ML_bits[mlCode];
+        return (FSE_getMaxNbBits(offstate.symbolTT, offCode) + offCode
+             + FSE_getMaxNbBits(mlstate.symbolTT, mlCode) + ML_bits[mlCode])
+             * 256;
     }
 
     if (optPtr->priceType == zop_predef)  /* fixed scheme, do not use statistics */
@@ -220,7 +222,7 @@ ZSTD_getMatchPrice(U32 const offset, U32 const matchLength,
     }
 
     DEBUGLOG(8, "ZSTD_getMatchPrice(ml:%u) = %u", matchLength, price);
-    return price;
+    return price << 8;
 }
 
 static void ZSTD_updateStats(optState_t* const optPtr,

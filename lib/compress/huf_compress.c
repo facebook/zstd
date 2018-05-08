@@ -216,6 +216,13 @@ size_t HUF_readCTable (HUF_CElt* CTable, U32* maxSymbolValuePtr, const void* src
     return readSize;
 }
 
+U32 HUF_getNbBits(const void* symbolTable, U32 symbolValue)
+{
+    const HUF_CElt* table = (const HUF_CElt*)symbolTable;
+    assert(symbolValue <= HUF_SYMBOLVALUE_MAX);
+    return table[symbolValue].nbBits;
+}
+
 
 typedef struct nodeElt_s {
     U32 count;

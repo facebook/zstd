@@ -3450,7 +3450,7 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
     { 22, 21, 22,  4,  5, 48, ZSTD_btopt   },  /* level 16 */
     { 23, 22, 22,  4,  4, 48, ZSTD_btopt   },  /* level 17 */
     { 23, 22, 22,  5,  3, 64, ZSTD_btopt   },  /* level 18 */
-    { 23, 23, 22,  7,  3,128, ZSTD_btopt   },  /* level 19 */
+    { 23, 23, 22,  7,  3,128, ZSTD_btultra },  /* level 19 */
     { 25, 25, 23,  7,  3,128, ZSTD_btultra },  /* level 20 */
     { 26, 26, 24,  7,  3,256, ZSTD_btultra },  /* level 21 */
     { 27, 27, 25,  9,  3,512, ZSTD_btultra },  /* level 22 */
@@ -3476,7 +3476,7 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
     { 18, 19, 18,  6,  3, 32, ZSTD_btopt   },  /* level 16.*/
     { 18, 19, 18,  8,  3, 64, ZSTD_btopt   },  /* level 17.*/
     { 18, 19, 18,  9,  3,128, ZSTD_btopt   },  /* level 18.*/
-    { 18, 19, 18, 10,  3,256, ZSTD_btopt   },  /* level 19.*/
+    { 18, 19, 18,  9,  3,256, ZSTD_btultra },  /* level 19.*/
     { 18, 19, 18, 11,  3,512, ZSTD_btultra },  /* level 20.*/
     { 18, 19, 18, 12,  3,512, ZSTD_btultra },  /* level 21.*/
     { 18, 19, 18, 13,  3,512, ZSTD_btultra },  /* level 22.*/
@@ -3502,7 +3502,7 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
     { 17, 18, 17,  7,  3, 32, ZSTD_btopt   },  /* level 16.*/
     { 17, 18, 17,  7,  3, 64, ZSTD_btopt   },  /* level 17.*/
     { 17, 18, 17,  7,  3,256, ZSTD_btopt   },  /* level 18.*/
-    { 17, 18, 17,  8,  3,256, ZSTD_btopt   },  /* level 19.*/
+    { 17, 18, 17,  7,  3,256, ZSTD_btultra },  /* level 19.*/
     { 17, 18, 17,  9,  3,256, ZSTD_btultra },  /* level 20.*/
     { 17, 18, 17, 10,  3,256, ZSTD_btultra },  /* level 21.*/
     { 17, 18, 17, 11,  3,512, ZSTD_btultra },  /* level 22.*/
@@ -3528,7 +3528,7 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
     { 14, 15, 15,  6,  3, 96, ZSTD_btopt   },  /* level 16.*/
     { 14, 15, 15,  6,  3,128, ZSTD_btopt   },  /* level 17.*/
     { 14, 15, 15,  6,  3,256, ZSTD_btopt   },  /* level 18.*/
-    { 14, 15, 15,  7,  3,256, ZSTD_btopt   },  /* level 19.*/
+    { 14, 15, 15,  6,  3,256, ZSTD_btultra },  /* level 19.*/
     { 14, 15, 15,  8,  3,256, ZSTD_btultra },  /* level 20.*/
     { 14, 15, 15,  9,  3,256, ZSTD_btultra },  /* level 21.*/
     { 14, 15, 15, 10,  3,256, ZSTD_btultra },  /* level 22.*/

@@ -160,6 +160,18 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct, const short* normalizedCounter, unsi
                     total +=  normalizedCounter[s];
     }   }   }   }
 
+#if 0  /* debug : symbol costs */
+    DEBUGLOG(2, "\n --- table statistics : ");
+    {   U32 symbol;
+        for (symbol=0; symbol<=maxSymbolValue; symbol++) {
+            DEBUGLOG(2, "%3u: w=%3i,   maxBits=%u, fracBits=%.2f",
+                symbol, normalizedCounter[symbol],
+                FSE_getMaxNbBits(symbolTT, symbol),
+                (double)FSE_bitCost(symbolTT, tableLog, symbol, 8) / 256);
+        }
+    }
+#endif
+
     return 0;
 }
 

@@ -135,10 +135,10 @@ static U32 ZSTD_litLengthPrice(U32 const litLength, const optState_t* const optP
         U32 const llCode = ZSTD_LLcode(litLength);
         FSE_CState_t cstate;
         FSE_initCState(&cstate, optPtr->symbolCosts->litlengthCTable);
-        U32 const price = LL_bits[llCode]*BITCOST_MULTIPLIER + BITCOST_SYMBOL(cstate.symbolTT, cstate.stateLog, llCode);
-        DEBUGLOG(8, "ZSTD_litLengthPrice: ll=%u, bitCost=%.2f", litLength, (double)price / BITCOST_MULTIPLIER);
-        return price;
-    }
+        {   U32 const price = LL_bits[llCode]*BITCOST_MULTIPLIER + BITCOST_SYMBOL(cstate.symbolTT, cstate.stateLog, llCode);
+            DEBUGLOG(8, "ZSTD_litLengthPrice: ll=%u, bitCost=%.2f", litLength, (double)price / BITCOST_MULTIPLIER);
+            return price;
+    }   }
     if (optPtr->priceType == zop_predef) return ZSTD_highbit32((U32)litLength+1);
 
     /* dynamic statistics */

@@ -46,7 +46,7 @@ size_t ZSTD_compressBlock_fast_generic(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         void const* src, size_t srcSize,
         U32 const hlog, U32 const stepSize, U32 const mls,
-        ZSTD_dictMode_e const hasDict)
+        ZSTD_dictMode_e const dictMode)
 {
     U32* const hashTable = ms->hashTable;
     const BYTE* const base = ms->window.base;
@@ -61,28 +61,28 @@ size_t ZSTD_compressBlock_fast_generic(
     U32 offsetSaved = 0;
 
     const ZSTD_matchState_t* const dms = ms->dictMatchState;
-    const U32* const dictHashTable = hasDict == ZSTD_dictMatchState ?
+    const U32* const dictHashTable = dictMode == ZSTD_dictMatchState ?
                                      dms->hashTable : NULL;
-    const U32 lowestDictIndex      = hasDict == ZSTD_dictMatchState ?
+    const U32 lowestDictIndex      = dictMode == ZSTD_dictMatchState ?
                                      dms->window.dictLimit : 0;
-    const BYTE* const dictBase     = hasDict == ZSTD_dictMatchState ?
+    const BYTE* const dictBase     = dictMode == ZSTD_dictMatchState ?
                                      dms->window.base : NULL;
-    const BYTE* const dictLowest   = hasDict == ZSTD_dictMatchState ?
+    const BYTE* const dictLowest   = dictMode == ZSTD_dictMatchState ?
                                      dictBase + lowestDictIndex : NULL;
-    const BYTE* const dictEnd      = hasDict == ZSTD_dictMatchState ?
+    const BYTE* const dictEnd      = dictMode == ZSTD_dictMatchState ?
                                      dms->window.nextSrc : NULL;
-    const U32 dictIndexDelta       = hasDict == ZSTD_dictMatchState ?
+    const U32 dictIndexDelta       = dictMode == ZSTD_dictMatchState ?
                                      localLowestIndex - (U32)(dictEnd - dictBase) :
                                      0;
-    ptrdiff_t dictLowestLocalIndex = hasDict == ZSTD_dictMatchState ?
+    ptrdiff_t dictLowestLocalIndex = dictMode == ZSTD_dictMatchState ?
                                      lowestDictIndex + dictIndexDelta :
                                      localLowestIndex;
 
-    assert(hasDict == ZSTD_noDict || hasDict == ZSTD_dictMatchState);
+    assert(dictMode == ZSTD_noDict || dictMode == ZSTD_dictMatchState);
 
     /* init */
-    ip += (hasDict == ZSTD_noDict && ip == localLowest);
-    {   U32 const maxRep = hasDict == ZSTD_dictMatchState ?
+    ip += (dictMode == ZSTD_noDict && ip == localLowest);
+    {   U32 const maxRep = dictMode == ZSTD_dictMatchState ?
                            (U32)(ip - dictLowest) :
                            (U32)(ip - localLowest);
         if (offset_2 > maxRep) offsetSaved = offset_2, offset_2 = 0;
@@ -97,13 +97,13 @@ size_t ZSTD_compressBlock_fast_generic(
         U32 const matchIndex = hashTable[h];
         const BYTE* match = base + matchIndex;
         const ptrdiff_t repIndex = (ptrdiff_t)current + 1 - offset_1;
-        const BYTE* repBase = (hasDict == ZSTD_dictMatchState
+        const BYTE* repBase = (dictMode == ZSTD_dictMatchState
                             && repIndex < (ptrdiff_t)localLowestIndex) ?
                                dictBase - dictIndexDelta : base;
         const BYTE* repMatch = repBase + repIndex;
         hashTable[h] = current;   /* update hash table */
 
-        if (hasDict == ZSTD_dictMatchState
+        if (dictMode == ZSTD_dictMatchState
             && (((U32)((localLowestIndex-1) - repIndex) >= 3 /* intentional underflow */)
                 & (repIndex > dictLowestLocalIndex))
             && (MEM_read32(repMatch) == MEM_read32(ip+1)) ) {
@@ -111,14 +111,14 @@ size_t ZSTD_compressBlock_fast_generic(
             mLength = ZSTD_count_2segments(ip+1+4, repMatch+4, iend, repMatchEnd, istart) + 4;
             ip++;
             ZSTD_storeSeq(seqStore, ip-anchor, anchor, 0, mLength-MINMATCH);
-        } else if ( hasDict == ZSTD_noDict
+        } else if ( dictMode == ZSTD_noDict
                  && (offset_1 > 0) & (MEM_read32(repMatch) == MEM_read32(ip+1))) {
             mLength = ZSTD_count(ip+1+4, ip+1+4-offset_1, iend) + 4;
             ip++;
             ZSTD_storeSeq(seqStore, ip-anchor, anchor, 0, mLength-MINMATCH);
         } else if ( (matchIndex <= localLowestIndex)
                  || (MEM_read32(match) != MEM_read32(ip)) ) {
-            if (hasDict == ZSTD_dictMatchState) {
+            if (dictMode == ZSTD_dictMatchState) {
                 U32 const dictMatchIndex = dictHashTable[h];
                 const BYTE* dictMatch = dictBase + dictMatchIndex;
                 if (dictMatchIndex <= lowestDictIndex ||
@@ -164,11 +164,11 @@ size_t ZSTD_compressBlock_fast_generic(
             hashTable[ZSTD_hashPtr(ip-2, hlog, mls)] = (U32)(ip-2-base);
             /* check immediate repcode */
 
-            if (hasDict == ZSTD_dictMatchState) {
+            if (dictMode == ZSTD_dictMatchState) {
                 while (ip <= ilimit) {
                     U32 const current2 = (U32)(ip-base);
                     ptrdiff_t const repIndex2 = (ptrdiff_t)current2 - offset_2;
-                    const BYTE* repMatch2 = hasDict == ZSTD_dictMatchState
+                    const BYTE* repMatch2 = dictMode == ZSTD_dictMatchState
                         && repIndex2 < (ptrdiff_t)localLowestIndex ?
                             dictBase - dictIndexDelta + repIndex2 :
                             base + repIndex2;
@@ -188,7 +188,7 @@ size_t ZSTD_compressBlock_fast_generic(
                 }
             }
 
-            if (hasDict == ZSTD_noDict) {
+            if (dictMode == ZSTD_noDict) {
                 while ( (ip <= ilimit)
                      && (ip - offset_2 >= istart)
                      && ( (offset_2>0)

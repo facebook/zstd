@@ -112,7 +112,7 @@ size_t ZSTD_compressBlock_fast_generic(
             ip++;
             ZSTD_storeSeq(seqStore, ip-anchor, anchor, 0, mLength-MINMATCH);
         } else if ( dictMode == ZSTD_noDict
-                 && (offset_1 > 0) & (MEM_read32(repMatch) == MEM_read32(ip+1))) {
+                 && (offset_1 > 0) & (MEM_read32(ip+1-offset_1) == MEM_read32(ip+1))) {
             mLength = ZSTD_count(ip+1+4, ip+1+4-offset_1, iend) + 4;
             ip++;
             ZSTD_storeSeq(seqStore, ip-anchor, anchor, 0, mLength-MINMATCH);

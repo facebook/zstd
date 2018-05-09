@@ -256,7 +256,7 @@ typedef enum { ZSTD_noDict = 0, ZSTD_extDict = 1, ZSTD_dictMatchState = 2 } ZSTD
 typedef size_t (*ZSTD_blockCompressor) (
         ZSTD_matchState_t* bs, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize);
-ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMode_e hdms);
+ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMode_e dictMode);
 
 
 MEM_STATIC U32 ZSTD_LLcode(U32 litLength)

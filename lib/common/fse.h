@@ -577,8 +577,21 @@ MEM_STATIC void FSE_flushCState(BIT_CStream_t* bitC, const FSE_CState_t* statePt
 
 MEM_STATIC U32 FSE_getMaxNbBits(const FSE_symbolCompressionTransform* symbolTT, U32 symbolValue)
 {
-    assert(symbolValue <= FSE_MAX_SYMBOL_VALUE);
     return (symbolTT[symbolValue].deltaNbBits + ((1<<16)-1)) >> 16;
+}
+
+/* FSE_bitCost_b256() :
+ * Approximate symbol cost,
+ * provide fractional value, using fixed-point format (8 bit) */
+MEM_STATIC U32 FSE_bitCost_b256(const FSE_symbolCompressionTransform* symbolTT, U32 tableLog, U32 symbolValue)
+{
+    U32 const minNbBits = symbolTT[symbolValue].deltaNbBits >> 16;
+    U32 const threshold = (minNbBits+1) << 16;
+    assert(symbolTT[symbolValue].deltaNbBits + (1<<tableLog) <= threshold);
+    U32 const deltaFromThreshold = threshold - (symbolTT[symbolValue].deltaNbBits + (1 << tableLog));
+    U32 const normalizedDeltaFromThreshold = (deltaFromThreshold << 8) >> tableLog;   /* linear interpolation (very approximate) */
+    assert(normalizedDeltaFromThreshold <= 256);
+    return (minNbBits+1)*256 - normalizedDeltaFromThreshold;
 }
 
 

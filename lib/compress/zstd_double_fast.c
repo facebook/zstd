@@ -139,6 +139,36 @@ size_t ZSTD_compressBlock_doubleFast_generic(
                     offset = (U32)(ip-match);
                     while (((ip>anchor) & (match>localLowest)) && (ip[-1] == match[-1])) { ip--; match--; mLength++; } /* catch up */
                 }
+            } else if (dictMode == ZSTD_dictMatchState) {
+                U32 const dictMatchIndexL = dictHashLong[h2];
+                U32 const dictMatchIndexS = dictHashSmall[h];
+                const BYTE* dictMatchL = dictBase + dictMatchIndexL;
+                const BYTE* dictMatchS = dictBase + dictMatchIndexS;
+                assert(dictMatchL < dictEnd);
+                assert(dictMatchS < dictEnd);
+                if (dictMatchL > dictLowest && MEM_read64(dictMatchL) == MEM_read64(ip)) {
+                    mLength = ZSTD_count_2segments(ip+8, dictMatchL+8, iend, dictEnd, localLowest) + 8;
+                    offset = (U32)(current - dictMatchIndexL - dictIndexDelta);
+                    while (((ip>anchor) & (dictMatchL>dictLowest)) && (ip[-1] == dictMatchL[-1])) { ip--; dictMatchL--; mLength++; } /* catch up */
+                } else if (dictMatchS > dictLowest && MEM_read32(dictMatchS) == MEM_read32(ip)) {
+                    size_t const hl3 = ZSTD_hashPtr(ip+1, hBitsL, 8);
+                    U32 const dictMatchIndexL3 = dictHashLong[hl3];
+                    const BYTE* dictMatchL3 = dictBase + dictMatchIndexL3;
+                    assert(dictMatchL3 < dictEnd);
+                    if (dictMatchL3 > dictLowest && MEM_read64(dictMatchL3) == MEM_read64(ip)) {
+                        mLength = ZSTD_count_2segments(ip+1+8, dictMatchL3+8, iend, dictEnd, localLowest) + 8;
+                        ip++;
+                        offset = (U32)(current + 1 - dictMatchIndexL3 - dictIndexDelta);
+                        while (((ip>anchor) & (dictMatchL3>dictLowest)) && (ip[-1] == dictMatchL3[-1])) { ip--; dictMatchL3--; mLength++; } /* catch up */
+                    } else {
+                        mLength = ZSTD_count_2segments(ip+4, dictMatchS+4, iend, dictEnd, istart) + 4;
+                        offset = (U32)(current - dictMatchIndexS - dictIndexDelta);
+                        while (((ip>anchor) & (dictMatchS>dictLowest)) && (ip[-1] == dictMatchS[-1])) { ip--; dictMatchS--; mLength++; } /* catch up */
+                    }
+                } else {
+                    ip += ((ip-anchor) >> kSearchStrength) + 1;
+                    continue;
+                }
             } else {
                 ip += ((ip-anchor) >> kSearchStrength) + 1;
                 continue;

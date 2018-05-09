@@ -2152,11 +2152,14 @@ ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMo
           ZSTD_compressBlock_fast_dictMatchState,
           NULL, NULL, NULL, NULL, NULL, NULL, NULL /* unimplemented as of yet */ }
     };
+    ZSTD_blockCompressor selectedCompressor;
     ZSTD_STATIC_ASSERT((unsigned)ZSTD_fast == 1);
 
     assert((U32)strat >= (U32)ZSTD_fast);
     assert((U32)strat <= (U32)ZSTD_btultra);
-    return blockCompressor[(int)dictMode][(U32)strat];
+    selectedCompressor = blockCompressor[(int)dictMode][(U32)strat];
+    assert(selectedCompressor != NULL);
+    return selectedCompressor;
 }
 
 static void ZSTD_storeLastLiterals(seqStore_t* seqStorePtr,

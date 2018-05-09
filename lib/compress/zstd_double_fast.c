@@ -112,8 +112,8 @@ size_t ZSTD_compressBlock_doubleFast_generic(
         const BYTE* match = base + matchIndexS;
         hashLong[h2] = hashSmall[h] = current;   /* update hash tables */
 
-        assert(offset_1 <= current);   /* supposed guaranteed by construction */
-        if ((offset_1 > 0) & (MEM_read32(ip+1-offset_1) == MEM_read32(ip+1))) {
+        if (dictMode == ZSTD_noDict && ((offset_1 > 0) & (MEM_read32(ip+1-offset_1) == MEM_read32(ip+1)))) {
+            assert(offset_1 <= current);   /* supposed guaranteed by construction */
             /* favor repcode */
             mLength = ZSTD_count(ip+1+4, ip+1+4-offset_1, iend) + 4;
             ip++;
@@ -162,7 +162,8 @@ size_t ZSTD_compressBlock_doubleFast_generic(
                 hashSmall[ZSTD_hashPtr(ip-2, hBitsS, mls)] = (U32)(ip-2-base);
 
             /* check immediate repcode */
-            while ( (ip <= ilimit)
+            while ( dictMode == ZSTD_noDict
+                 && (ip <= ilimit)
                  && ( (offset_2>0)
                  & (MEM_read32(ip) == MEM_read32(ip - offset_2)) )) {
                 /* store sequence */

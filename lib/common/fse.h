@@ -582,16 +582,20 @@ MEM_STATIC U32 FSE_getMaxNbBits(const FSE_symbolCompressionTransform* symbolTT, 
 
 /* FSE_bitCost_b256() :
  * Approximate symbol cost,
- * provide fractional value, using fixed-point format (8 bit) */
-MEM_STATIC U32 FSE_bitCost_b256(const FSE_symbolCompressionTransform* symbolTT, U32 tableLog, U32 symbolValue)
+ * provide fractional value, using fixed-point format (accuracyLog fractional bits) */
+MEM_STATIC U32 FSE_bitCost(const FSE_symbolCompressionTransform* symbolTT, U32 tableLog, U32 symbolValue, U32 accuracyLog)
 {
     U32 const minNbBits = symbolTT[symbolValue].deltaNbBits >> 16;
     U32 const threshold = (minNbBits+1) << 16;
-    assert(symbolTT[symbolValue].deltaNbBits + (1<<tableLog) <= threshold);
-    U32 const deltaFromThreshold = threshold - (symbolTT[symbolValue].deltaNbBits + (1 << tableLog));
-    U32 const normalizedDeltaFromThreshold = (deltaFromThreshold << 8) >> tableLog;   /* linear interpolation (very approximate) */
-    assert(normalizedDeltaFromThreshold <= 256);
-    return (minNbBits+1)*256 - normalizedDeltaFromThreshold;
+    assert(tableLog < 16);
+    U32 const tableSize = 1 << tableLog;
+    assert(symbolTT[symbolValue].deltaNbBits + tableSize <= threshold);
+    U32 const deltaFromThreshold = threshold - (symbolTT[symbolValue].deltaNbBits + tableSize);
+    assert(accuracyLog < 31-tableLog);  /* ensure enough room for renormalization double shift */
+    U32 const normalizedDeltaFromThreshold = (deltaFromThreshold << accuracyLog) >> tableLog;   /* linear interpolation (very approximate) */
+    U32 const bitMultiplier = 1 << accuracyLog;
+    assert(normalizedDeltaFromThreshold <= bitMultiplier);
+    return (minNbBits+1)*bitMultiplier - normalizedDeltaFromThreshold;
 }
 
 

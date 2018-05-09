@@ -515,12 +515,16 @@ MEM_STATIC U32 ZSTD_window_hasExtDict(ZSTD_window_t const window)
 
 /**
  * ZSTD_matchState_dictMode():
- * Does what the label says.
+ * Inspects the provided matchState and figures out what dictMode should be
+ * passed to the compressor.
  */
 MEM_STATIC ZSTD_dictMode_e ZSTD_matchState_dictMode(const ZSTD_matchState_t *ms)
 {
-    return ms->dictMatchState != NULL ? ZSTD_dictMatchState :
-        ZSTD_window_hasExtDict(ms->window) ? ZSTD_extDict : ZSTD_noDict;
+    return ms->dictMatchState != NULL ?
+        ZSTD_dictMatchState :
+        ZSTD_window_hasExtDict(ms->window) ?
+            ZSTD_extDict :
+            ZSTD_noDict;
 }
 
 /**

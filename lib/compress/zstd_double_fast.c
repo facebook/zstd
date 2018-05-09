@@ -110,9 +110,23 @@ size_t ZSTD_compressBlock_doubleFast_generic(
         U32 const matchIndexS = hashSmall[h];
         const BYTE* matchLong = base + matchIndexL;
         const BYTE* match = base + matchIndexS;
+        const ptrdiff_t repIndex = (ptrdiff_t)current + 1 - offset_1;
+        const BYTE* repBase = (dictMode == ZSTD_dictMatchState
+                            && repIndex < (ptrdiff_t)localLowestIndex) ?
+                               dictBase - dictIndexDelta : base;
+        const BYTE* repMatch = repBase + repIndex;
         hashLong[h2] = hashSmall[h] = current;   /* update hash tables */
 
-        if (dictMode == ZSTD_noDict && ((offset_1 > 0) & (MEM_read32(ip+1-offset_1) == MEM_read32(ip+1)))) {
+        if (dictMode == ZSTD_dictMatchState
+            && (((U32)((localLowestIndex-1) - repIndex) >= 3 /* intentional underflow */)
+                & (repIndex > dictLowestLocalIndex))
+            && (MEM_read32(repMatch) == MEM_read32(ip+1)) ) {
+            const BYTE* repMatchEnd = repIndex < (ptrdiff_t)localLowestIndex ? dictEnd : iend;
+            mLength = ZSTD_count_2segments(ip+1+4, repMatch+4, iend, repMatchEnd, istart) + 4;
+            ip++;
+            ZSTD_storeSeq(seqStore, ip-anchor, anchor, 0, mLength-MINMATCH);
+        } else if ( dictMode == ZSTD_noDict
+                 && (offset_1 > 0) & (MEM_read32(ip+1-offset_1) == MEM_read32(ip+1))) {
             assert(offset_1 <= current);   /* supposed guaranteed by construction */
             /* favor repcode */
             mLength = ZSTD_count(ip+1+4, ip+1+4-offset_1, iend) + 4;

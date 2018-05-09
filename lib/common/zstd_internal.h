@@ -52,6 +52,8 @@ extern "C" {
 
 #define ZSTD_STATIC_ASSERT(c) { enum { ZSTD_static_assert = 1/(int)(!!(c)) }; }
 
+#undef RAWLOG
+#undef DEBUGLOG
 #if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=2)
 #  include <stdio.h>
 extern int g_debuglog_enable;

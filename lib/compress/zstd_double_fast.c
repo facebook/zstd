@@ -69,6 +69,26 @@ size_t ZSTD_compressBlock_doubleFast_generic(
     U32 offset_1=rep[0], offset_2=rep[1];
     U32 offsetSaved = 0;
 
+    const ZSTD_matchState_t* const dms = ms->dictMatchState;
+    const U32* const dictHashLong  = dictMode == ZSTD_dictMatchState ?
+                                     dms->hashTable : NULL;
+    const U32* const dictHashSmall = dictMode == ZSTD_dictMatchState ?
+                                     dms->hashTable : NULL;
+    const U32 lowestDictIndex      = dictMode == ZSTD_dictMatchState ?
+                                     dms->window.dictLimit : 0;
+    const BYTE* const dictBase     = dictMode == ZSTD_dictMatchState ?
+                                     dms->window.base : NULL;
+    const BYTE* const dictLowest   = dictMode == ZSTD_dictMatchState ?
+                                     dictBase + lowestDictIndex : NULL;
+    const BYTE* const dictEnd      = dictMode == ZSTD_dictMatchState ?
+                                     dms->window.nextSrc : NULL;
+    const U32 dictIndexDelta       = dictMode == ZSTD_dictMatchState ?
+                                     localLowestIndex - (U32)(dictEnd - dictBase) :
+                                     0;
+    ptrdiff_t dictLowestLocalIndex = dictMode == ZSTD_dictMatchState ?
+                                     lowestDictIndex + dictIndexDelta :
+                                     localLowestIndex;
+
     (void)dictMode;
 
     /* init */

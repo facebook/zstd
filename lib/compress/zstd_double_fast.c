@@ -89,11 +89,13 @@ size_t ZSTD_compressBlock_doubleFast_generic(
                                      lowestDictIndex + dictIndexDelta :
                                      localLowestIndex;
 
-    (void)dictMode;
+    assert(dictMode == ZSTD_noDict || dictMode == ZSTD_dictMatchState);
 
     /* init */
-    ip += (ip==localLowest);
-    {   U32 const maxRep = (U32)(ip-localLowest);
+    ip += (dictMode == ZSTD_noDict && ip == localLowest);
+    {   U32 const maxRep = dictMode == ZSTD_dictMatchState ?
+                           (U32)(ip - dictLowest) :
+                           (U32)(ip - localLowest);
         if (offset_2 > maxRep) offsetSaved = offset_2, offset_2 = 0;
         if (offset_1 > maxRep) offsetSaved = offset_1, offset_1 = 0;
     }

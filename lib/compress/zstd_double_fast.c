@@ -62,8 +62,8 @@ size_t ZSTD_compressBlock_doubleFast_generic(
     const BYTE* const istart = (const BYTE*)src;
     const BYTE* ip = istart;
     const BYTE* anchor = istart;
-    const U32 lowestIndex = ms->window.dictLimit;
-    const BYTE* const lowest = base + lowestIndex;
+    const U32 localLowestIndex = ms->window.dictLimit;
+    const BYTE* const localLowest = base + localLowestIndex;
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - HASH_READ_SIZE;
     U32 offset_1=rep[0], offset_2=rep[1];
@@ -72,8 +72,8 @@ size_t ZSTD_compressBlock_doubleFast_generic(
     (void)dictMode;
 
     /* init */
-    ip += (ip==lowest);
-    {   U32 const maxRep = (U32)(ip-lowest);
+    ip += (ip==localLowest);
+    {   U32 const maxRep = (U32)(ip-localLowest);
         if (offset_2 > maxRep) offsetSaved = offset_2, offset_2 = 0;
         if (offset_1 > maxRep) offsetSaved = offset_1, offset_1 = 0;
     }
@@ -98,24 +98,24 @@ size_t ZSTD_compressBlock_doubleFast_generic(
             ZSTD_storeSeq(seqStore, ip-anchor, anchor, 0, mLength-MINMATCH);
         } else {
             U32 offset;
-            if ( (matchIndexL > lowestIndex) && (MEM_read64(matchLong) == MEM_read64(ip)) ) {
+            if ( (matchIndexL > localLowestIndex) && (MEM_read64(matchLong) == MEM_read64(ip)) ) {
                 mLength = ZSTD_count(ip+8, matchLong+8, iend) + 8;
                 offset = (U32)(ip-matchLong);
-                while (((ip>anchor) & (matchLong>lowest)) && (ip[-1] == matchLong[-1])) { ip--; matchLong--; mLength++; } /* catch up */
-            } else if ( (matchIndexS > lowestIndex) && (MEM_read32(match) == MEM_read32(ip)) ) {
+                while (((ip>anchor) & (matchLong>localLowest)) && (ip[-1] == matchLong[-1])) { ip--; matchLong--; mLength++; } /* catch up */
+            } else if ( (matchIndexS > localLowestIndex) && (MEM_read32(match) == MEM_read32(ip)) ) {
                 size_t const hl3 = ZSTD_hashPtr(ip+1, hBitsL, 8);
                 U32 const matchIndexL3 = hashLong[hl3];
                 const BYTE* matchL3 = base + matchIndexL3;
                 hashLong[hl3] = current + 1;
-                if ( (matchIndexL3 > lowestIndex) && (MEM_read64(matchL3) == MEM_read64(ip+1)) ) {
+                if ( (matchIndexL3 > localLowestIndex) && (MEM_read64(matchL3) == MEM_read64(ip+1)) ) {
                     mLength = ZSTD_count(ip+9, matchL3+8, iend) + 8;
                     ip++;
                     offset = (U32)(ip-matchL3);
-                    while (((ip>anchor) & (matchL3>lowest)) && (ip[-1] == matchL3[-1])) { ip--; matchL3--; mLength++; } /* catch up */
+                    while (((ip>anchor) & (matchL3>localLowest)) && (ip[-1] == matchL3[-1])) { ip--; matchL3--; mLength++; } /* catch up */
                 } else {
                     mLength = ZSTD_count(ip+4, match+4, iend) + 4;
                     offset = (U32)(ip-match);
-                    while (((ip>anchor) & (match>lowest)) && (ip[-1] == match[-1])) { ip--; match--; mLength++; } /* catch up */
+                    while (((ip>anchor) & (match>localLowest)) && (ip[-1] == match[-1])) { ip--; match--; mLength++; } /* catch up */
                 }
             } else {
                 ip += ((ip-anchor) >> kSearchStrength) + 1;

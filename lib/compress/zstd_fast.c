@@ -130,7 +130,7 @@ size_t ZSTD_compressBlock_fast_generic(
                     /* found a dict match */
                     U32 const offset = (U32)(current-dictMatchIndex-dictIndexDelta);
                     mLength = ZSTD_count_2segments(ip+4, dictMatch+4, iend, dictEnd, istart) + 4;
-                    while (((ip>anchor) & (dictMatch>dictLowest)) 
+                    while (((ip>anchor) & (dictMatch>dictLowest))
                          && (ip[-1] == dictMatch[-1])) {
                         ip--; dictMatch--; mLength++;
                     } /* catch up */
@@ -162,8 +162,8 @@ size_t ZSTD_compressBlock_fast_generic(
             /* Fill Table */
             hashTable[ZSTD_hashPtr(base+current+2, hlog, mls)] = current+2;  /* here because current+2 could be > iend-8 */
             hashTable[ZSTD_hashPtr(ip-2, hlog, mls)] = (U32)(ip-2-base);
-            /* check immediate repcode */
 
+            /* check immediate repcode */
             if (dictMode == ZSTD_dictMatchState) {
                 while (ip <= ilimit) {
                     U32 const current2 = (U32)(ip-base);

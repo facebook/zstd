@@ -1229,6 +1229,17 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
     if (attachDict) {
         DEBUGLOG(4, "attaching dictionary into context");
         cctx->blockState.matchState.dictMatchState = &cdict->matchState;
+
+        /* prep working match state so dict matches never have negative indices
+         * when they are translated to the working context's index space. */
+        if (cctx->blockState.matchState.window.dictLimit <
+            (U32)(cdict->matchState.window.nextSrc - cdict->matchState.window.base)) {
+            cctx->blockState.matchState.window.nextSrc =
+                cctx->blockState.matchState.window.base +
+                ( cdict->matchState.window.nextSrc
+                - cdict->matchState.window.base);
+            ZSTD_window_clear(&cctx->blockState.matchState.window);
+        }
     } else {
         DEBUGLOG(4, "copying dictionary into context");
         /* copy tables */

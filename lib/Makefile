@@ -168,10 +168,12 @@ install-pc: libzstd.pc
 
 install-static: libzstd.a
 	@echo Installing static library
+	@$(INSTALL) -d -m 755 $(DESTDIR)$(LIBDIR)/
 	@$(INSTALL_DATA) libzstd.a $(DESTDIR)$(LIBDIR)
 
 install-shared: libzstd
 	@echo Installing shared library
+	@$(INSTALL) -d -m 755 $(DESTDIR)$(LIBDIR)/
 	@$(INSTALL_PROGRAM) $(LIBZSTD) $(DESTDIR)$(LIBDIR)
 	@ln -sf $(LIBZSTD) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_MAJOR)
 	@ln -sf $(LIBZSTD) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT)

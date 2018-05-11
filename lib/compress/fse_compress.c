@@ -143,7 +143,10 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct, const short* normalizedCounter, unsi
         for (s=0; s<=maxSymbolValue; s++) {
             switch (normalizedCounter[s])
             {
-            case  0: break;
+            case  0:
+                /* filling nonetheless, for compatibility with FSE_getMaxNbBits() */
+                symbolTT[s].deltaNbBits = (tableLog+1) << 16;
+                break;
 
             case -1:
             case  1:

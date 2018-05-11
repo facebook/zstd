@@ -2396,7 +2396,8 @@ static size_t ZSTD_loadZstdDictionary(ZSTD_compressedBlockState_t* bs,
         if (FSE_isError(offcodeHeaderSize)) return ERROR(dictionary_corrupted);
         if (offcodeLog > OffFSELog) return ERROR(dictionary_corrupted);
         /* Defer checking offcodeMaxValue because we need to know the size of the dictionary content */
-        CHECK_E( FSE_buildCTable_wksp(bs->entropy.offcodeCTable, offcodeNCount, offcodeMaxValue, offcodeLog, workspace, HUF_WORKSPACE_SIZE),
+        /* fill all offset symbols to avoid garbage at end of table */
+        CHECK_E( FSE_buildCTable_wksp(bs->entropy.offcodeCTable, offcodeNCount, MaxOff, offcodeLog, workspace, HUF_WORKSPACE_SIZE),
                  dictionary_corrupted);
         dictPtr += offcodeHeaderSize;
     }

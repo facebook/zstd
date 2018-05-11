@@ -97,9 +97,9 @@ static void ZSTD_rescaleFreqs(optState_t* const optPtr,
         } else {  /* not a dictionary */
 
             assert(optPtr->litFreq != NULL);
-            optPtr->litSum = 0;
             {   unsigned lit = MaxLit;
-                FSE_count(optPtr->litFreq, &lit, src, srcSize);   /* use raw first block to init statistics */
+                FSE_count_simple(optPtr->litFreq, &lit, src, srcSize);   /* use raw first block to init statistics */
+                optPtr->litSum = 0;
                 for (lit=0; lit<=MaxLit; lit++) {
                     optPtr->litFreq[lit] = 1 + (optPtr->litFreq[lit] >> (ZSTD_FREQ_DIV+1));
                     optPtr->litSum += optPtr->litFreq[lit];
@@ -244,7 +244,7 @@ static int ZSTD_litLengthContribution(U32 const litLength, const optState_t* con
     /* dynamic statistics */
     {   U32 const llCode = ZSTD_LLcode(litLength);
         int const contribution = (LL_bits[llCode]
-                        + ZSTD_highbit32(optPtr->litLengthFreq[0]+1)
+                        + ZSTD_highbit32(optPtr->litLengthFreq[0]+1) /* note: log2litLengthSum cancels out with following one */
                         - ZSTD_highbit32(optPtr->litLengthFreq[llCode]+1))
                         * BITCOST_MULTIPLIER;
 #if 1

@@ -97,8 +97,8 @@ typedef struct {
     U32  log2matchLengthSum;     /* pow2 to compare log2(mlfreq) to */
     U32  log2offCodeSum;         /* pow2 to compare log2(offreq) to */
     /* end : updated by ZSTD_setLog2Prices */
-    ZSTD_OptPrice_e priceType;   /* prices follow a pre-defined cost structure, statistics are irrelevant */
-    const ZSTD_entropyCTables_t* symbolCosts;  /* pre-calculated symbol costs, from dictionary */
+    ZSTD_OptPrice_e priceType;   /* prices can be determined dynamically, or follow dictionary statistics, or a pre-defined cost structure */
+    const ZSTD_entropyCTables_t* symbolCosts;  /* pre-calculated dictionary statistics */
 } optState_t;
 
 typedef struct {

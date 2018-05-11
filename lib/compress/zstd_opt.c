@@ -51,7 +51,7 @@ static void ZSTD_rescaleFreqs(optState_t* const optPtr,
             optPtr->litSum = 0;
             {   unsigned lit;
                 for (lit=0; lit<=MaxLit; lit++) {
-                    U32 const scaleLog = 12;   /* scale to 4K */
+                    U32 const scaleLog = 11;   /* scale to 2K */
                     U32 const bitCost = HUF_getNbBits(optPtr->symbolCosts->hufCTable, lit);
                     assert(bitCost < scaleLog);
                     optPtr->litFreq[lit] = bitCost ? 1 << (scaleLog-bitCost) : 1 /*minimum to calculate cost*/;
@@ -63,7 +63,7 @@ static void ZSTD_rescaleFreqs(optState_t* const optPtr,
                 FSE_initCState(&llstate, optPtr->symbolCosts->litlengthCTable);
                 optPtr->litLengthSum = 0;
                 for (ll=0; ll<=MaxLL; ll++) {
-                    U32 const scaleLog = 11;   /* scale to 2K */
+                    U32 const scaleLog = 10;   /* scale to 1K */
                     U32 const bitCost = FSE_getMaxNbBits(llstate.symbolTT, ll);
                     assert(bitCost < scaleLog);
                     optPtr->litLengthFreq[ll] = bitCost ? 1 << (scaleLog-bitCost) : 1 /*minimum to calculate cost*/;
@@ -75,7 +75,7 @@ static void ZSTD_rescaleFreqs(optState_t* const optPtr,
                 FSE_initCState(&mlstate, optPtr->symbolCosts->matchlengthCTable);
                 optPtr->matchLengthSum = 0;
                 for (ml=0; ml<=MaxML; ml++) {
-                    U32 const scaleLog = 11;   /* scale to 2K */
+                    U32 const scaleLog = 10;
                     U32 const bitCost = FSE_getMaxNbBits(mlstate.symbolTT, ml);
                     assert(bitCost < scaleLog);
                     optPtr->matchLengthFreq[ml] = bitCost ? 1 << (scaleLog-bitCost) : 1 /*minimum to calculate cost*/;
@@ -87,7 +87,7 @@ static void ZSTD_rescaleFreqs(optState_t* const optPtr,
                 FSE_initCState(&ofstate, optPtr->symbolCosts->offcodeCTable);
                 optPtr->offCodeSum = 0;
                 for (of=0; of<=MaxOff; of++) {
-                    U32 const scaleLog = 11;   /* scale to 2K */
+                    U32 const scaleLog = 10;
                     U32 const bitCost = FSE_getMaxNbBits(ofstate.symbolTT, of);
                     assert(bitCost < scaleLog);
                     optPtr->offCodeFreq[of] = bitCost ? 1 << (scaleLog-bitCost) : 1 /*minimum to calculate cost*/;

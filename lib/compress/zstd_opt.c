@@ -35,7 +35,6 @@ static void ZSTD_rescaleFreqs(optState_t* const optPtr,
     optPtr->priceType = zop_dynamic;
 
     if (optPtr->litLengthSum == 0) {  /* first block : init */
-        unsigned u;
         if (srcSize <= 1024)   /* heuristic */
             optPtr->priceType = zop_predef;
 
@@ -47,28 +46,84 @@ static void ZSTD_rescaleFreqs(optState_t* const optPtr,
                 assert(optPtr->priceType == zop_dynamic);
             }
 
+            assert(optPtr->litFreq != NULL);
+            assert(optPtr->symbolCosts != NULL);
+            optPtr->litSum = 0;
+            {   unsigned lit;
+                for (lit=0; lit<=MaxLit; lit++) {
+                    U32 const scaleLog = 12;   /* scale to 4K */
+                    U32 const bitCost = HUF_getNbBits(optPtr->symbolCosts->hufCTable, lit);
+                    assert(bitCost < scaleLog);
+                    optPtr->litFreq[lit] = bitCost ? 1 << (scaleLog-bitCost) : 1 /*minimum to calculate cost*/;
+                    optPtr->litSum += optPtr->litFreq[lit];
+            }   }
+
+            {   unsigned ll;
+                FSE_CState_t llstate;
+                FSE_initCState(&llstate, optPtr->symbolCosts->litlengthCTable);
+                optPtr->litLengthSum = 0;
+                for (ll=0; ll<=MaxLL; ll++) {
+                    U32 const scaleLog = 11;   /* scale to 2K */
+                    U32 const bitCost = FSE_getMaxNbBits(llstate.symbolTT, ll);
+                    assert(bitCost < scaleLog);
+                    optPtr->litLengthFreq[ll] = bitCost ? 1 << (scaleLog-bitCost) : 1 /*minimum to calculate cost*/;
+                    optPtr->litLengthSum += optPtr->litLengthFreq[ll];
+            }   }
+
+            {   unsigned ml;
+                FSE_CState_t mlstate;
+                FSE_initCState(&mlstate, optPtr->symbolCosts->matchlengthCTable);
+                optPtr->matchLengthSum = 0;
+                for (ml=0; ml<=MaxML; ml++) {
+                    U32 const scaleLog = 11;   /* scale to 2K */
+                    U32 const bitCost = FSE_getMaxNbBits(mlstate.symbolTT, ml);
+                    assert(bitCost < scaleLog);
+                    optPtr->matchLengthFreq[ml] = bitCost ? 1 << (scaleLog-bitCost) : 1 /*minimum to calculate cost*/;
+                    optPtr->matchLengthSum += optPtr->matchLengthFreq[ml];
+            }   }
+
+            {   unsigned of;
+                FSE_CState_t ofstate;
+                FSE_initCState(&ofstate, optPtr->symbolCosts->offcodeCTable);
+                optPtr->offCodeSum = 0;
+                for (of=0; of<=MaxOff; of++) {
+                    U32 const scaleLog = 11;   /* scale to 2K */
+                    U32 const bitCost = FSE_getMaxNbBits(ofstate.symbolTT, of);
+                    assert(bitCost < scaleLog);
+                    optPtr->offCodeFreq[of] = bitCost ? 1 << (scaleLog-bitCost) : 1 /*minimum to calculate cost*/;
+                    optPtr->offCodeSum += optPtr->offCodeFreq[of];
+            }   }
+
+        } else {  /* not a dictionary */
+
+            assert(optPtr->litFreq != NULL);
+            optPtr->litSum = 0;
+            {   unsigned lit = MaxLit;
+                FSE_count(optPtr->litFreq, &lit, src, srcSize);   /* use raw first block to init statistics */
+                for (lit=0; lit<=MaxLit; lit++) {
+                    optPtr->litFreq[lit] = 1 + (optPtr->litFreq[lit] >> (ZSTD_FREQ_DIV+1));
+                    optPtr->litSum += optPtr->litFreq[lit];
+            }   }
+
+            {   unsigned ll;
+                for (ll=0; ll<=MaxLL; ll++)
+                    optPtr->litLengthFreq[ll] = 1;
+                optPtr->litLengthSum = MaxLL+1;
+            }
+
+            {   unsigned ml;
+                for (ml=0; ml<=MaxML; ml++)
+                    optPtr->matchLengthFreq[ml] = 1;
+                optPtr->matchLengthSum = MaxML+1;
+            }
+
+            {   unsigned of;
+                for (of=0; of<=MaxOff; of++)
+                    optPtr->offCodeFreq[of] = 1;
+                optPtr->offCodeSum = MaxOff+1;
+            }
 
         }
-
-        assert(optPtr->litFreq != NULL);
-        {   unsigned max = MaxLit;
-            FSE_count(optPtr->litFreq, &max, src, srcSize);   /* use raw first block to init statistics */
-        }
-        optPtr->litSum = 0;
-        for (u=0; u<=MaxLit; u++) {
-            optPtr->litFreq[u] = 1 + (optPtr->litFreq[u] >> (ZSTD_FREQ_DIV+1));
-            optPtr->litSum += optPtr->litFreq[u];
-        }
-
-        for (u=0; u<=MaxLL; u++)
-            optPtr->litLengthFreq[u] = 1;
-        optPtr->litLengthSum = MaxLL+1;
-        for (u=0; u<=MaxML; u++)
-            optPtr->matchLengthFreq[u] = 1;
-        optPtr->matchLengthSum = MaxML+1;
-        for (u=0; u<=MaxOff; u++)
-            optPtr->offCodeFreq[u] = 1;
-        optPtr->offCodeSum = (MaxOff+1);
 
     } else {   /* new block : re-use previous statistics, scaled down */
         unsigned u;

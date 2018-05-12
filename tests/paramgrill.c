@@ -43,8 +43,6 @@
 #define NBLOOPS    2
 #define TIMELOOP  (2 * SEC_TO_MICRO)
 
-#define NB_LEVELS_TRACKED 30
-
 static const size_t maxMemory = (sizeof(size_t)==4)  ?  (2 GB - 64 MB) : (size_t)(1ULL << ((sizeof(size_t)*8)-31));
 
 #define COMPRESSIBILITY_DEFAULT 0.50
@@ -150,10 +148,11 @@ typedef struct
 } blockParam_t;
 
 
-static size_t BMK_benchParam(BMK_result_t* resultPtr,
-                             const void* srcBuffer, size_t srcSize,
-                             ZSTD_CCtx* ctx,
-                             const ZSTD_compressionParameters cParams)
+static size_t
+BMK_benchParam(BMK_result_t* resultPtr,
+               const void* srcBuffer, size_t srcSize,
+               ZSTD_CCtx* ctx,
+               const ZSTD_compressionParameters cParams)
 {
     const size_t blockSize = g_blockSize ? g_blockSize : srcSize;
     const U32 nbBlocks = (U32) ((srcSize + (blockSize-1)) / blockSize);
@@ -191,8 +190,7 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
     crcOrig = XXH64(srcBuffer, srcSize, 0);
 
     /* Init blockTable data */
-    {
-        U32 i;
+    {   U32 i;
         size_t remaining = srcSize;
         const char* srcPtr = (const char*)srcBuffer;
         char* cPtr = (char*)compressedBuffer;
@@ -323,8 +321,6 @@ static void BMK_printWinner(FILE* f, U32 cLevel, BMK_result_t result, ZSTD_compr
 }
 
 
-static double g_cSpeedTarget[NB_LEVELS_TRACKED] = { 0. };   /* NB_LEVELS_TRACKED : checked at main() */
-
 typedef struct {
     BMK_result_t result;
     ZSTD_compressionParameters params;
@@ -350,6 +346,36 @@ static void BMK_printWinners(FILE* f, const winnerInfo_t* winners, size_t srcSiz
     BMK_printWinners2(stdout, winners, srcSize);
 }
 
+
+typedef struct {
+    double cSpeed_min;
+    double dSpeed_min;
+    U32 windowLog_max;
+    ZSTD_strategy strategy_max;
+} level_constraints_t;
+
+#define NB_LEVELS_TRACKED 23
+static level_constraints_t g_level_constraint[NB_LEVELS_TRACKED];
+
+static void BMK_init_level_constraints(int bytePerSec_level1)
+{
+    assert(NB_LEVELS_TRACKED == ZSTD_maxCLevel()+1);
+    memset(g_level_constraint, 0, sizeof(g_level_constraint));
+    g_level_constraint[1].cSpeed_min = bytePerSec_level1;
+    g_level_constraint[1].dSpeed_min = 0.;
+    g_level_constraint[1].windowLog_max = 19;
+    g_level_constraint[1].strategy_max = ZSTD_fast;
+
+    /* establish speed objectives (relative to level 1) */
+    {   int l;
+        for (l=2; l<NB_LEVELS_TRACKED; l++) {
+            g_level_constraint[l].cSpeed_min = (g_level_constraint[l-1].cSpeed_min * 25) / 32;
+            g_level_constraint[l].dSpeed_min = 0.;
+            g_level_constraint[l].windowLog_max = (l<20) ? 23 : l+5;   /* only --ultra levels >= 20 may use windowlog > 23 */
+            g_level_constraint[l].strategy_max = (l<19) ? ZSTD_btopt : ZSTD_btultra;   /* level 19 is allowed to use btultra */
+    }   }
+}
+
 static int BMK_seed(winnerInfo_t* winners, const ZSTD_compressionParameters params,
               const void* srcBuffer, size_t srcSize,
                     ZSTD_CCtx* ctx)
@@ -360,9 +386,16 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_compressionParameters para
 
     BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, params);
 
+
     for (cLevel = 1; cLevel <= ZSTD_maxCLevel(); cLevel++) {
-        if (testResult.cSpeed < g_cSpeedTarget[cLevel])
+        if (testResult.cSpeed < g_level_constraint[cLevel].cSpeed_min)
             continue;   /* not fast enough for this level */
+        if (testResult.dSpeed < g_level_constraint[cLevel].dSpeed_min)
+            continue;   /* not fast enough for this level */
+        if (params.windowLog > g_level_constraint[cLevel].windowLog_max)
+            continue;   /* too much memory for this level */
+        if (params.strategy > g_level_constraint[cLevel].strategy_max)
+            continue;   /* forbidden strategy for this level */
         if (winners[cLevel].result.cSize==0) {
             /* first solution for this cLevel */
             winners[cLevel].result = testResult;
@@ -575,40 +608,36 @@ static void BMK_selectRandomStart(
 }
 
 
-static void BMK_benchMem_usingCCtx(ZSTD_CCtx* cctx, const void* srcBuffer, size_t srcSize)
+static void BMK_benchOnce(ZSTD_CCtx* cctx, const void* srcBuffer, size_t srcSize)
+{
+    BMK_result_t testResult;
+    g_params = ZSTD_adjustCParams(g_params, srcSize, 0);
+    BMK_benchParam(&testResult, srcBuffer, srcSize, cctx, g_params);
+    DISPLAY("\n");
+    return;
+}
+
+static void BMK_benchFullTable(ZSTD_CCtx* cctx, const void* srcBuffer, size_t srcSize)
 {
     ZSTD_compressionParameters params;
     winnerInfo_t winners[NB_LEVELS_TRACKED];
     const char* const rfName = "grillResults.txt";
     FILE* const f = fopen(rfName, "w");
-    const size_t blockSize = g_blockSize ? g_blockSize : srcSize;
+    const size_t blockSize = g_blockSize ? g_blockSize : srcSize;   /* cut by block or not ? */
 
     /* init */
+    assert(g_singleRun==0);
     memset(winners, 0, sizeof(winners));
     if (f==NULL) { DISPLAY("error opening %s \n", rfName); exit(1); }
 
-    if (g_singleRun) {
-        BMK_result_t testResult;
-        g_params = ZSTD_adjustCParams(g_params, srcSize, 0);
-        BMK_benchParam(&testResult, srcBuffer, srcSize, cctx, g_params);
-        DISPLAY("\n");
-        return;
-    }
-
     if (g_target) {
-        g_cSpeedTarget[1] = g_target * 1000000;
+        BMK_init_level_constraints(g_target*1000000);
     } else {
         /* baseline config for level 1 */
+        ZSTD_compressionParameters const l1params = ZSTD_getCParams(1, blockSize, 0);
         BMK_result_t testResult;
-        params = ZSTD_getCParams(1, blockSize, 0);
-        BMK_benchParam(&testResult, srcBuffer, srcSize, cctx, params);
-        g_cSpeedTarget[1] = (testResult.cSpeed * 31) / 32;
-    }
-
-    /* establish speed objectives (relative to level 1) */
-    {   int i;
-        for (i=2; i<=ZSTD_maxCLevel(); i++)
-            g_cSpeedTarget[i] = (g_cSpeedTarget[i-1] * 25) / 32;
+        BMK_benchParam(&testResult, srcBuffer, srcSize, cctx, l1params);
+        BMK_init_level_constraints((int)((testResult.cSpeed * 31) / 32));
     }
 
     /* populate initial solution */
@@ -633,6 +662,14 @@ static void BMK_benchMem_usingCCtx(ZSTD_CCtx* cctx, const void* srcBuffer, size_
 
     /* clean up*/
     fclose(f);
+}
+
+static void BMK_benchMem_usingCCtx(ZSTD_CCtx* cctx, const void* srcBuffer, size_t srcSize)
+{
+    if (g_singleRun)
+        return BMK_benchOnce(cctx, srcBuffer, srcSize);
+    else
+        return BMK_benchFullTable(cctx, srcBuffer, srcSize);
 }
 
 static void BMK_benchMem(const void* srcBuffer, size_t srcSize)
@@ -922,16 +959,10 @@ int main(int argc, const char** argv)
     U32 main_pause = 0;
     U32 targetSpeed = 0;
 
-    /* checks */
-    if (NB_LEVELS_TRACKED <= ZSTD_maxCLevel()) {
-        DISPLAY("Error : NB_LEVELS_TRACKED <= ZSTD_maxCLevel() \n");
-        exit(1);
-    }
+    assert(argc>=1);   /* for exename */
 
     /* Welcome message */
     DISPLAY(WELCOME_MESSAGE);
-
-    if (argc<2) { assert(argc==1); badusage(exename); return 1; }
 
     for(i=1; i<argc; i++) {
         const char* argument = argv[i];
@@ -1008,7 +1039,7 @@ int main(int argc, const char** argv)
                             continue;
                         case 'S':  /* strategy */
                             argument++;
-                            g_params.strategy = readU32FromChar(&argument);
+                            g_params.strategy = (ZSTD_strategy)readU32FromChar(&argument);
                             continue;
                         case 'L':
                             {   int const cLevel = readU32FromChar(&argument);
@@ -1045,14 +1076,14 @@ int main(int argc, const char** argv)
         if (!input_filename) { input_filename=argument; filenamesStart=i; continue; }
     }
 
-    if (filenamesStart==0)
+    if (filenamesStart==0) {
         result = benchSample();
-    else {
-        if (optimizer)
+    } else {
+        if (optimizer) {
             result = optimizeForSize(input_filename, targetSpeed);
-        else
+        } else {
             result = benchFiles(argv+filenamesStart, argc-filenamesStart);
-    }
+    }   }
 
     if (main_pause) { int unused; printf("press enter...\n"); unused = getchar(); (void)unused; }
 

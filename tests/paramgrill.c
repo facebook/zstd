@@ -47,7 +47,7 @@ static const size_t maxMemory = (sizeof(size_t)==4)  ?  (2 GB - 64 MB) : (size_t
 
 #define COMPRESSIBILITY_DEFAULT 0.50
 
-static const double g_grillDuration_s = 90000;   /* about 24 hours */
+static const double g_grillDuration_s = 99999;   /* about 27 hours */
 static const U64 g_maxParamTime = 15 * SEC_TO_MICRO;
 static const U64 g_maxVariationTime = 60 * SEC_TO_MICRO;
 static const int g_maxNbVariations = 64;
@@ -369,9 +369,9 @@ static void BMK_init_level_constraints(int bytePerSec_level1)
     /* establish speed objectives (relative to level 1) */
     {   int l;
         for (l=2; l<NB_LEVELS_TRACKED; l++) {
-            g_level_constraint[l].cSpeed_min = (g_level_constraint[l-1].cSpeed_min * 25) / 32;
+            g_level_constraint[l].cSpeed_min = (g_level_constraint[l-1].cSpeed_min * 49) / 64;
             g_level_constraint[l].dSpeed_min = 0.;
-            g_level_constraint[l].windowLog_max = (l<20) ? 23 : l+5;   /* only --ultra levels >= 20 may use windowlog > 23 */
+            g_level_constraint[l].windowLog_max = (l<20) ? 23 : l+5;   /* only --ultra levels >= 20 can use windowlog > 23 */
             g_level_constraint[l].strategy_max = (l<19) ? ZSTD_btopt : ZSTD_btultra;   /* level 19 is allowed to use btultra */
     }   }
 }

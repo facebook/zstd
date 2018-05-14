@@ -42,6 +42,7 @@
 
 #define NBLOOPS    2
 #define TIMELOOP  (2 * SEC_TO_MICRO)
+#define NB_LEVELS_TRACKED 22   /* ensured being >= ZSTD_maxCLevel() in BMK_init_level_constraints() */
 
 static const size_t maxMemory = (sizeof(size_t)==4)  ?  (2 GB - 64 MB) : (size_t)(1ULL << ((sizeof(size_t)*8)-31));
 
@@ -333,7 +334,7 @@ static void BMK_printWinners2(FILE* f, const winnerInfo_t* winners, size_t srcSi
     fprintf(f, "\n /* Proposed configurations : */ \n");
     fprintf(f, "    /* W,  C,  H,  S,  L,  T, strat */ \n");
 
-    for (cLevel=0; cLevel <= ZSTD_maxCLevel(); cLevel++)
+    for (cLevel=0; cLevel <= NB_LEVELS_TRACKED; cLevel++)
         BMK_printWinner(f, cLevel, winners[cLevel].result, winners[cLevel].params, srcSize);
 }
 
@@ -354,12 +355,11 @@ typedef struct {
     ZSTD_strategy strategy_max;
 } level_constraints_t;
 
-#define NB_LEVELS_TRACKED 23
-static level_constraints_t g_level_constraint[NB_LEVELS_TRACKED];
+static level_constraints_t g_level_constraint[NB_LEVELS_TRACKED+1];
 
 static void BMK_init_level_constraints(int bytePerSec_level1)
 {
-    assert(NB_LEVELS_TRACKED == ZSTD_maxCLevel()+1);
+    assert(NB_LEVELS_TRACKED >= ZSTD_maxCLevel());
     memset(g_level_constraint, 0, sizeof(g_level_constraint));
     g_level_constraint[1].cSpeed_min = bytePerSec_level1;
     g_level_constraint[1].dSpeed_min = 0.;
@@ -368,7 +368,7 @@ static void BMK_init_level_constraints(int bytePerSec_level1)
 
     /* establish speed objectives (relative to level 1) */
     {   int l;
-        for (l=2; l<NB_LEVELS_TRACKED; l++) {
+        for (l=2; l<=NB_LEVELS_TRACKED; l++) {
             g_level_constraint[l].cSpeed_min = (g_level_constraint[l-1].cSpeed_min * 49) / 64;
             g_level_constraint[l].dSpeed_min = 0.;
             g_level_constraint[l].windowLog_max = (l<20) ? 23 : l+5;   /* only --ultra levels >= 20 can use windowlog > 23 */
@@ -387,7 +387,7 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_compressionParameters para
     BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, params);
 
 
-    for (cLevel = 1; cLevel <= ZSTD_maxCLevel(); cLevel++) {
+    for (cLevel = 1; cLevel <= NB_LEVELS_TRACKED; cLevel++) {
         if (testResult.cSpeed < g_level_constraint[cLevel].cSpeed_min)
             continue;   /* not fast enough for this level */
         if (testResult.dSpeed < g_level_constraint[cLevel].dSpeed_min)
@@ -597,7 +597,7 @@ static void BMK_selectRandomStart(
                        const void* srcBuffer, size_t srcSize,
                        ZSTD_CCtx* ctx)
 {
-    U32 const id = (FUZ_rand(&g_rand) % (ZSTD_maxCLevel()+1));
+    U32 const id = FUZ_rand(&g_rand) % (NB_LEVELS_TRACKED+1);
     if ((id==0) || (winners[id].params.windowLog==0)) {
         /* use some random entry */
         ZSTD_compressionParameters const p = ZSTD_adjustCParams(randomParams(), srcSize, 0);
@@ -620,7 +620,7 @@ static void BMK_benchOnce(ZSTD_CCtx* cctx, const void* srcBuffer, size_t srcSize
 static void BMK_benchFullTable(ZSTD_CCtx* cctx, const void* srcBuffer, size_t srcSize)
 {
     ZSTD_compressionParameters params;
-    winnerInfo_t winners[NB_LEVELS_TRACKED];
+    winnerInfo_t winners[NB_LEVELS_TRACKED+1];
     const char* const rfName = "grillResults.txt";
     FILE* const f = fopen(rfName, "w");
     const size_t blockSize = g_blockSize ? g_blockSize : srcSize;   /* cut by block or not ? */

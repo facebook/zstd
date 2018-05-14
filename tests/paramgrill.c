@@ -18,6 +18,7 @@
 #include <string.h>    /* strcmp */
 #include <math.h>      /* log */
 #include <time.h>
+#include <assert.h>
 
 #include "mem.h"
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_parameters, ZSTD_estimateCCtxSize */
@@ -32,7 +33,7 @@
 **************************************/
 #define PROGRAM_DESCRIPTION "ZSTD parameters tester"
 #define AUTHOR "Yann Collet"
-#define WELCOME_MESSAGE "*** %s %s %i-bits, by %s (%s) ***\n", PROGRAM_DESCRIPTION, ZSTD_VERSION_STRING, (int)(sizeof(void*)*8), AUTHOR, __DATE__
+#define WELCOME_MESSAGE "*** %s %s %i-bits, by %s ***\n", PROGRAM_DESCRIPTION, ZSTD_VERSION_STRING, (int)(sizeof(void*)*8), AUTHOR
 
 
 #define KB *(1<<10)
@@ -41,15 +42,13 @@
 
 #define NBLOOPS    2
 #define TIMELOOP  (2 * SEC_TO_MICRO)
-
-#define NB_LEVELS_TRACKED 30
+#define NB_LEVELS_TRACKED 22   /* ensured being >= ZSTD_maxCLevel() in BMK_init_level_constraints() */
 
 static const size_t maxMemory = (sizeof(size_t)==4)  ?  (2 GB - 64 MB) : (size_t)(1ULL << ((sizeof(size_t)*8)-31));
 
 #define COMPRESSIBILITY_DEFAULT 0.50
-static const size_t sampleSize = 10000000;
 
-static const double g_grillDuration_s = 90000;   /* about 24 hours */
+static const double g_grillDuration_s = 99999;   /* about 27 hours */
 static const U64 g_maxParamTime = 15 * SEC_TO_MICRO;
 static const U64 g_maxVariationTime = 60 * SEC_TO_MICRO;
 static const int g_maxNbVariations = 64;
@@ -150,10 +149,11 @@ typedef struct
 } blockParam_t;
 
 
-static size_t BMK_benchParam(BMK_result_t* resultPtr,
-                             const void* srcBuffer, size_t srcSize,
-                             ZSTD_CCtx* ctx,
-                             const ZSTD_compressionParameters cParams)
+static size_t
+BMK_benchParam(BMK_result_t* resultPtr,
+               const void* srcBuffer, size_t srcSize,
+               ZSTD_CCtx* ctx,
+               const ZSTD_compressionParameters cParams)
 {
     const size_t blockSize = g_blockSize ? g_blockSize : srcSize;
     const U32 nbBlocks = (U32) ((srcSize + (blockSize-1)) / blockSize);
@@ -191,8 +191,7 @@ static size_t BMK_benchParam(BMK_result_t* resultPtr,
     crcOrig = XXH64(srcBuffer, srcSize, 0);
 
     /* Init blockTable data */
-    {
-        U32 i;
+    {   U32 i;
         size_t remaining = srcSize;
         const char* srcPtr = (const char*)srcBuffer;
         char* cPtr = (char*)compressedBuffer;
@@ -323,8 +322,6 @@ static void BMK_printWinner(FILE* f, U32 cLevel, BMK_result_t result, ZSTD_compr
 }
 
 
-static double g_cSpeedTarget[NB_LEVELS_TRACKED] = { 0. };   /* NB_LEVELS_TRACKED : checked at main() */
-
 typedef struct {
     BMK_result_t result;
     ZSTD_compressionParameters params;
@@ -337,7 +334,7 @@ static void BMK_printWinners2(FILE* f, const winnerInfo_t* winners, size_t srcSi
     fprintf(f, "\n /* Proposed configurations : */ \n");
     fprintf(f, "    /* W,  C,  H,  S,  L,  T, strat */ \n");
 
-    for (cLevel=0; cLevel <= ZSTD_maxCLevel(); cLevel++)
+    for (cLevel=0; cLevel <= NB_LEVELS_TRACKED; cLevel++)
         BMK_printWinner(f, cLevel, winners[cLevel].result, winners[cLevel].params, srcSize);
 }
 
@@ -350,6 +347,35 @@ static void BMK_printWinners(FILE* f, const winnerInfo_t* winners, size_t srcSiz
     BMK_printWinners2(stdout, winners, srcSize);
 }
 
+
+typedef struct {
+    double cSpeed_min;
+    double dSpeed_min;
+    U32 windowLog_max;
+    ZSTD_strategy strategy_max;
+} level_constraints_t;
+
+static level_constraints_t g_level_constraint[NB_LEVELS_TRACKED+1];
+
+static void BMK_init_level_constraints(int bytePerSec_level1)
+{
+    assert(NB_LEVELS_TRACKED >= ZSTD_maxCLevel());
+    memset(g_level_constraint, 0, sizeof(g_level_constraint));
+    g_level_constraint[1].cSpeed_min = bytePerSec_level1;
+    g_level_constraint[1].dSpeed_min = 0.;
+    g_level_constraint[1].windowLog_max = 19;
+    g_level_constraint[1].strategy_max = ZSTD_fast;
+
+    /* establish speed objectives (relative to level 1) */
+    {   int l;
+        for (l=2; l<=NB_LEVELS_TRACKED; l++) {
+            g_level_constraint[l].cSpeed_min = (g_level_constraint[l-1].cSpeed_min * 49) / 64;
+            g_level_constraint[l].dSpeed_min = 0.;
+            g_level_constraint[l].windowLog_max = (l<20) ? 23 : l+5;   /* only --ultra levels >= 20 can use windowlog > 23 */
+            g_level_constraint[l].strategy_max = (l<19) ? ZSTD_btopt : ZSTD_btultra;   /* level 19 is allowed to use btultra */
+    }   }
+}
+
 static int BMK_seed(winnerInfo_t* winners, const ZSTD_compressionParameters params,
               const void* srcBuffer, size_t srcSize,
                     ZSTD_CCtx* ctx)
@@ -360,9 +386,16 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_compressionParameters para
 
     BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, params);
 
-    for (cLevel = 1; cLevel <= ZSTD_maxCLevel(); cLevel++) {
-        if (testResult.cSpeed < g_cSpeedTarget[cLevel])
+
+    for (cLevel = 1; cLevel <= NB_LEVELS_TRACKED; cLevel++) {
+        if (testResult.cSpeed < g_level_constraint[cLevel].cSpeed_min)
             continue;   /* not fast enough for this level */
+        if (testResult.dSpeed < g_level_constraint[cLevel].dSpeed_min)
+            continue;   /* not fast enough for this level */
+        if (params.windowLog > g_level_constraint[cLevel].windowLog_max)
+            continue;   /* too much memory for this level */
+        if (params.strategy > g_level_constraint[cLevel].strategy_max)
+            continue;   /* forbidden strategy for this level */
         if (winners[cLevel].result.cSize==0) {
             /* first solution for this cLevel */
             winners[cLevel].result = testResult;
@@ -564,53 +597,47 @@ static void BMK_selectRandomStart(
                        const void* srcBuffer, size_t srcSize,
                        ZSTD_CCtx* ctx)
 {
-    U32 const id = (FUZ_rand(&g_rand) % (ZSTD_maxCLevel()+1));
+    U32 const id = FUZ_rand(&g_rand) % (NB_LEVELS_TRACKED+1);
     if ((id==0) || (winners[id].params.windowLog==0)) {
-        /* totally random entry */
+        /* use some random entry */
         ZSTD_compressionParameters const p = ZSTD_adjustCParams(randomParams(), srcSize, 0);
         playAround(f, winners, p, srcBuffer, srcSize, ctx);
-    }
-    else
+    } else {
         playAround(f, winners, winners[id].params, srcBuffer, srcSize, ctx);
+    }
 }
 
 
-static void BMK_benchMem(void* srcBuffer, size_t srcSize)
+static void BMK_benchOnce(ZSTD_CCtx* cctx, const void* srcBuffer, size_t srcSize)
 {
-    ZSTD_CCtx* const ctx = ZSTD_createCCtx();
+    BMK_result_t testResult;
+    g_params = ZSTD_adjustCParams(g_params, srcSize, 0);
+    BMK_benchParam(&testResult, srcBuffer, srcSize, cctx, g_params);
+    DISPLAY("\n");
+    return;
+}
+
+static void BMK_benchFullTable(ZSTD_CCtx* cctx, const void* srcBuffer, size_t srcSize)
+{
     ZSTD_compressionParameters params;
-    winnerInfo_t winners[NB_LEVELS_TRACKED];
+    winnerInfo_t winners[NB_LEVELS_TRACKED+1];
     const char* const rfName = "grillResults.txt";
     FILE* const f = fopen(rfName, "w");
-    const size_t blockSize = g_blockSize ? g_blockSize : srcSize;
+    const size_t blockSize = g_blockSize ? g_blockSize : srcSize;   /* cut by block or not ? */
 
     /* init */
-    if (ctx==NULL) { DISPLAY("ZSTD_createCCtx() failed \n"); exit(1); }
+    assert(g_singleRun==0);
     memset(winners, 0, sizeof(winners));
     if (f==NULL) { DISPLAY("error opening %s \n", rfName); exit(1); }
 
-    if (g_singleRun) {
-        BMK_result_t testResult;
-        g_params = ZSTD_adjustCParams(g_params, srcSize, 0);
-        BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, g_params);
-        DISPLAY("\n");
-        return;
-    }
-
-    if (g_target)
-        g_cSpeedTarget[1] = g_target * 1000000;
-    else {
+    if (g_target) {
+        BMK_init_level_constraints(g_target*1000000);
+    } else {
         /* baseline config for level 1 */
+        ZSTD_compressionParameters const l1params = ZSTD_getCParams(1, blockSize, 0);
         BMK_result_t testResult;
-        params = ZSTD_getCParams(1, blockSize, 0);
-        BMK_benchParam(&testResult, srcBuffer, srcSize, ctx, params);
-        g_cSpeedTarget[1] = (testResult.cSpeed * 31) / 32;
-    }
-
-    /* establish speed objectives (relative to level 1) */
-    {   int i;
-        for (i=2; i<=ZSTD_maxCLevel(); i++)
-            g_cSpeedTarget[i] = (g_cSpeedTarget[i-1] * 25) / 32;
+        BMK_benchParam(&testResult, srcBuffer, srcSize, cctx, l1params);
+        BMK_init_level_constraints((int)((testResult.cSpeed * 31) / 32));
     }
 
     /* populate initial solution */
@@ -618,14 +645,14 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
         int i;
         for (i=0; i<=maxSeeds; i++) {
             params = ZSTD_getCParams(i, blockSize, 0);
-            BMK_seed(winners, params, srcBuffer, srcSize, ctx);
+            BMK_seed(winners, params, srcBuffer, srcSize, cctx);
     }   }
     BMK_printWinners(f, winners, srcSize);
 
     /* start tests */
     {   const time_t grillStart = time(NULL);
         do {
-            BMK_selectRandomStart(f, winners, srcBuffer, srcSize, ctx);
+            BMK_selectRandomStart(f, winners, srcBuffer, srcSize, cctx);
         } while (BMK_timeSpan(grillStart) < g_grillDuration_s);
     }
 
@@ -635,19 +662,32 @@ static void BMK_benchMem(void* srcBuffer, size_t srcSize)
 
     /* clean up*/
     fclose(f);
-    ZSTD_freeCCtx(ctx);
+}
+
+static void BMK_benchMem_usingCCtx(ZSTD_CCtx* cctx, const void* srcBuffer, size_t srcSize)
+{
+    if (g_singleRun)
+        return BMK_benchOnce(cctx, srcBuffer, srcSize);
+    else
+        return BMK_benchFullTable(cctx, srcBuffer, srcSize);
+}
+
+static void BMK_benchMem(const void* srcBuffer, size_t srcSize)
+{
+    ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+    if (cctx==NULL) { DISPLAY("ZSTD_createCCtx() failed \n"); exit(1); }
+    BMK_benchMem_usingCCtx(cctx, srcBuffer, srcSize);
+    ZSTD_freeCCtx(cctx);
 }
 
 
 static int benchSample(void)
 {
-    void* origBuff;
-    size_t const benchedSize = sampleSize;
-    const char* const name = "Sample 10MiB";
+    const char* const name = "Sample 10MB";
+    size_t const benchedSize = 10000000;
 
-    /* Allocation */
-    origBuff = malloc(benchedSize);
-    if (!origBuff) { DISPLAY("\nError: not enough memory!\n"); return 12; }
+    void* origBuff = malloc(benchedSize);
+    if (!origBuff) { perror("not enough memory"); return 12; }
 
     /* Fill buffer */
     RDG_genBuffer(origBuff, benchedSize, g_compressibility, 0.0, 0);
@@ -662,6 +702,9 @@ static int benchSample(void)
 }
 
 
+/* benchFiles() :
+ * note: while this function takes a table of filenames,
+ * in practice, only the first filename will be used */
 int benchFiles(const char** fileNamesTable, int nbFiles)
 {
     int fileIdx=0;
@@ -680,7 +723,7 @@ int benchFiles(const char** fileNamesTable, int nbFiles)
             return 11;
         }
         if (inFileSize == UTIL_FILESIZE_UNKNOWN) {
-            DISPLAY("Pb evaluatin size of %s \n", inFileName);
+            DISPLAY("Pb evaluating size of %s \n", inFileName);
             fclose(inFile);
             return 11;
         }
@@ -843,6 +886,39 @@ int optimizeForSize(const char* inFileName, U32 targetSpeed)
     return 0;
 }
 
+static void errorOut(const char* msg)
+{
+    DISPLAY("%s \n", msg); exit(1);
+}
+
+/*! readU32FromChar() :
+ * @return : unsigned integer value read from input in `char` format.
+ *  allows and interprets K, KB, KiB, M, MB and MiB suffix.
+ *  Will also modify `*stringPtr`, advancing it to position where it stopped reading.
+ *  Note : function will exit() program if digit sequence overflows */
+static unsigned readU32FromChar(const char** stringPtr)
+{
+    const char errorMsg[] = "error: numeric value too large";
+    unsigned result = 0;
+    while ((**stringPtr >='0') && (**stringPtr <='9')) {
+        unsigned const max = (((unsigned)(-1)) / 10) - 1;
+        if (result > max) errorOut(errorMsg);
+        result *= 10, result += **stringPtr - '0', (*stringPtr)++ ;
+    }
+    if ((**stringPtr=='K') || (**stringPtr=='M')) {
+        unsigned const maxK = ((unsigned)(-1)) >> 10;
+        if (result > maxK) errorOut(errorMsg);
+        result <<= 10;
+        if (**stringPtr=='M') {
+            if (result > maxK) errorOut(errorMsg);
+            result <<= 10;
+        }
+        (*stringPtr)++;  /* skip `K` or `M` */
+        if (**stringPtr=='i') (*stringPtr)++;
+        if (**stringPtr=='B') (*stringPtr)++;
+    }
+    return result;
+}
 
 static int usage(const char* exename)
 {
@@ -884,21 +960,14 @@ int main(int argc, const char** argv)
     U32 main_pause = 0;
     U32 targetSpeed = 0;
 
-    /* checks */
-    if (NB_LEVELS_TRACKED <= ZSTD_maxCLevel()) {
-        DISPLAY("Error : NB_LEVELS_TRACKED <= ZSTD_maxCLevel() \n");
-        exit(1);
-    }
+    assert(argc>=1);   /* for exename */
 
     /* Welcome message */
     DISPLAY(WELCOME_MESSAGE);
 
-    if (argc<1) { badusage(exename); return 1; }
-
     for(i=1; i<argc; i++) {
         const char* argument = argv[i];
-
-        if(!argument) continue;   /* Protection if argument empty */
+        assert(argument != NULL);
 
         if(!strcmp(argument,"--no-seed")) { g_noSeed = 1; continue; }
 
@@ -920,26 +989,21 @@ int main(int argc, const char** argv)
                     /* Modify Nb Iterations */
                 case 'i':
                     argument++;
-                    if ((argument[0] >='0') & (argument[0] <='9'))
-                        g_nbIterations = *argument++ - '0';
+                    g_nbIterations = readU32FromChar(&argument);
                     break;
 
                     /* Sample compressibility (when no file provided) */
                 case 'P':
                     argument++;
-                    {   U32 proba32 = 0;
-                        while ((argument[0]>= '0') & (argument[0]<= '9'))
-                            proba32 = (proba32*10) + (*argument++ - '0');
+                    {   U32 const proba32 = readU32FromChar(&argument);
                         g_compressibility = (double)proba32 / 100.;
                     }
                     break;
 
                 case 'O':
                     argument++;
-                    optimizer=1;
-                    targetSpeed = 0;
-                    while ((*argument >= '0') & (*argument <= '9'))
-                        targetSpeed = (targetSpeed*10) + (*argument++ - '0');
+                    optimizer = 1;
+                    targetSpeed = readU32FromChar(&argument);
                     break;
 
                     /* Run Single conf */
@@ -951,51 +1015,35 @@ int main(int argc, const char** argv)
                         switch(*argument)
                         {
                         case 'w':
-                            g_params.windowLog = 0;
                             argument++;
-                            while ((*argument>= '0') && (*argument<='9'))
-                                g_params.windowLog *= 10, g_params.windowLog += *argument++ - '0';
+                            g_params.windowLog = readU32FromChar(&argument);
                             continue;
                         case 'c':
-                            g_params.chainLog = 0;
                             argument++;
-                            while ((*argument>= '0') && (*argument<='9'))
-                                g_params.chainLog *= 10, g_params.chainLog += *argument++ - '0';
+                            g_params.chainLog = readU32FromChar(&argument);
                             continue;
                         case 'h':
-                            g_params.hashLog = 0;
                             argument++;
-                            while ((*argument>= '0') && (*argument<='9'))
-                                g_params.hashLog *= 10, g_params.hashLog += *argument++ - '0';
+                            g_params.hashLog = readU32FromChar(&argument);
                             continue;
                         case 's':
-                            g_params.searchLog = 0;
                             argument++;
-                            while ((*argument>= '0') && (*argument<='9'))
-                                g_params.searchLog *= 10, g_params.searchLog += *argument++ - '0';
+                            g_params.searchLog = readU32FromChar(&argument);
                             continue;
                         case 'l':  /* search length */
-                            g_params.searchLength = 0;
                             argument++;
-                            while ((*argument>= '0') && (*argument<='9'))
-                                g_params.searchLength *= 10, g_params.searchLength += *argument++ - '0';
+                            g_params.searchLength = readU32FromChar(&argument);
                             continue;
                         case 't':  /* target length */
-                            g_params.targetLength = 0;
                             argument++;
-                            while ((*argument>= '0') && (*argument<='9'))
-                                g_params.targetLength *= 10, g_params.targetLength += *argument++ - '0';
+                            g_params.targetLength = readU32FromChar(&argument);
                             continue;
                         case 'S':  /* strategy */
                             argument++;
-                            while ((*argument>= '0') && (*argument<='9'))
-                                g_params.strategy = (ZSTD_strategy)(*argument++ - '0');
+                            g_params.strategy = (ZSTD_strategy)readU32FromChar(&argument);
                             continue;
                         case 'L':
-                            {   int cLevel = 0;
-                                argument++;
-                                while ((*argument>= '0') && (*argument<='9'))
-                                    cLevel *= 10, cLevel += *argument++ - '0';
+                            {   int const cLevel = readU32FromChar(&argument);
                                 g_params = ZSTD_getCParams(cLevel, g_blockSize, 0);
                                 continue;
                             }
@@ -1008,20 +1056,13 @@ int main(int argc, const char** argv)
                     /* target level1 speed objective, in MB/s */
                 case 'T':
                     argument++;
-                    g_target = 0;
-                    while ((*argument >= '0') && (*argument <= '9'))
-                        g_target = (g_target*10) + (*argument++ - '0');
+                    g_target = readU32FromChar(&argument);
                     break;
 
                     /* cut input into blocks */
                 case 'B':
-                    g_blockSize = 0;
                     argument++;
-                    while ((*argument >='0') & (*argument <='9'))
-                        g_blockSize = (g_blockSize*10) + (*argument++ - '0');
-                    if (*argument=='K') g_blockSize<<=10, argument++;  /* allows using KB notation */
-                    if (*argument=='M') g_blockSize<<=20, argument++;
-                    if (*argument=='B') argument++;
+                    g_blockSize = readU32FromChar(&argument);
                     DISPLAY("using %u KB block size \n", g_blockSize>>10);
                     break;
 
@@ -1036,14 +1077,14 @@ int main(int argc, const char** argv)
         if (!input_filename) { input_filename=argument; filenamesStart=i; continue; }
     }
 
-    if (filenamesStart==0)
+    if (filenamesStart==0) {
         result = benchSample();
-    else {
-        if (optimizer)
+    } else {
+        if (optimizer) {
             result = optimizeForSize(input_filename, targetSpeed);
-        else
+        } else {
             result = benchFiles(argv+filenamesStart, argc-filenamesStart);
-    }
+    }   }
 
     if (main_pause) { int unused; printf("press enter...\n"); unused = getchar(); (void)unused; }
 

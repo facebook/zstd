@@ -392,7 +392,7 @@ The list of available _options_:
 
     Larger/very small values usually decrease compression ratio.
 
-    The minumum _ldmslen_ is 4 and the maximum is 4096 (default: 64).
+    The minimum _ldmslen_ is 4 and the maximum is 4096 (default: 64).
 
 - `ldmBucketSizeLog`=_ldmblog_, `ldmblog`=_ldmblog_:
     Specify the size of each bucket for the hash table used for long distance
@@ -416,6 +416,12 @@ The list of available _options_:
 
     The default value is `wlog - ldmhlog`.
 
+### Example
+The following parameters sets advanced compression options to something
+similar to predefined level 19 for files bigger than 256 KB:
+
+`--zstd`=wlog=23,clog=23,hlog=22,slog=6,slen=3,tlen=48,strat=6
+
 ### -B#:
 Select the size of each compression job.
 This parameter is available only when multi-threading is enabled.
@@ -423,12 +429,6 @@ Default value is `4 * windowSize`, which means it varies depending on compressio
 `-B#` makes it possible to select a custom value.
 Note that job size must respect a minimum value which is enforced transparently.
 This minimum is either 1 MB, or `overlapSize`, whichever is largest.
-
-### Example
-The following parameters sets advanced compression options to those of
-predefined level 19 for files bigger than 256 KB:
-
-`--zstd`=windowLog=23,chainLog=23,hashLog=22,searchLog=6,searchLength=3,targetLength=48,strategy=6
 
 BUGS
 ----

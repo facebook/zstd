@@ -1,8 +1,12 @@
 # Medium Tests: Run on all commits/PRs to dev branch
 
 language: c
-sudo: required
 dist: trusty
+sudo: required
+addons:
+  apt:
+    update: true
+
 matrix:
   include:
     # Ubuntu 14.04

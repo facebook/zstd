@@ -219,20 +219,34 @@ static int exeNameMatch(const char* exeName, const char* test)
         (exeName[strlen(test)] == '\0' || exeName[strlen(test)] == '.');
 }
 
+static void errorOut(const char* msg)
+{
+    DISPLAY("%s \n", msg); exit(1);
+}
+
 /*! readU32FromChar() :
  * @return : unsigned integer value read from input in `char` format.
  *  allows and interprets K, KB, KiB, M, MB and MiB suffix.
  *  Will also modify `*stringPtr`, advancing it to position where it stopped reading.
- *  Note : function result can overflow if digit string > MAX_UINT */
+ *  Note : function will exit() program if digit sequence overflows */
 static unsigned readU32FromChar(const char** stringPtr)
 {
+    const char errorMsg[] = "error: numeric value too large";
     unsigned result = 0;
-    while ((**stringPtr >='0') && (**stringPtr <='9'))
+    while ((**stringPtr >='0') && (**stringPtr <='9')) {
+        unsigned const max = (((unsigned)(-1)) / 10) - 1;
+        if (result > max) errorOut(errorMsg);
         result *= 10, result += **stringPtr - '0', (*stringPtr)++ ;
+    }
     if ((**stringPtr=='K') || (**stringPtr=='M')) {
+        unsigned const maxK = ((unsigned)(-1)) >> 10;
+        if (result > maxK) errorOut(errorMsg);
         result <<= 10;
-        if (**stringPtr=='M') result <<= 10;
-        (*stringPtr)++ ;
+        if (**stringPtr=='M') {
+            if (result > maxK) errorOut(errorMsg);
+            result <<= 10;
+        }
+        (*stringPtr)++;  /* skip `K` or `M` */
         if (**stringPtr=='i') (*stringPtr)++;
         if (**stringPtr=='B') (*stringPtr)++;
     }

@@ -83,7 +83,7 @@ size_t ZSTD_compressBlock_fast_generic(
         || localLowestIndex >= (U32)(dictEnd - dictBase));
 
     /* init */
-    ip += (dictMode == ZSTD_noDict && ip == localLowest);
+    ip += (ip - localLowest + dictEnd - dictLowest == 0);
     {   U32 const maxRep = dictMode == ZSTD_dictMatchState ?
                            (U32)(ip - localLowest + dictEnd - dictLowest) :
                            (U32)(ip - localLowest);

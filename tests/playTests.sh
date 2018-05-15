@@ -56,7 +56,7 @@ fi
 
 isWindows=false
 INTOVOID="/dev/null"
-DEVDEVICE="/dev/zero"
+DEVDEVICE="/dev/random"
 case "$OS" in
   Windows*)
     isWindows=true
@@ -108,6 +108,8 @@ $ECHO "test : --fast aka negative compression levels"
 $ZSTD --fast -f tmp  # == -1
 $ZSTD --fast=3 -f tmp  # == -3
 $ZSTD --fast=200000 -f tmp  # == no compression
+$ECHO "test : too large numeric argument"
+$ZSTD --fast=9999999999 -f tmp  && die "should have refused numeric value"
 $ECHO "test : compress to stdout"
 $ZSTD tmp -c > tmpCompressed
 $ZSTD tmp --stdout > tmpCompressed       # long command format

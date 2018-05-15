@@ -53,7 +53,7 @@ static void ZSTD_rescaleFreqs(optState_t* const optPtr,
                 for (lit=0; lit<=MaxLit; lit++) {
                     U32 const scaleLog = 11;   /* scale to 2K */
                     U32 const bitCost = HUF_getNbBits(optPtr->symbolCosts->hufCTable, lit);
-                    assert(bitCost < scaleLog);
+                    assert(bitCost <= scaleLog);
                     optPtr->litFreq[lit] = bitCost ? 1 << (scaleLog-bitCost) : 1 /*minimum to calculate cost*/;
                     optPtr->litSum += optPtr->litFreq[lit];
             }   }

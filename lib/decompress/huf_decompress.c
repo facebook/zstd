@@ -965,7 +965,7 @@ static const algo_time_t algoTime[16 /* Quantization */][3 /* single, double, qu
 U32 HUF_selectDecoder (size_t dstSize, size_t cSrcSize)
 {
     assert(dstSize > 0);
-    assert(dstSize <= 128 KB);
+    assert(dstSize <= 128*1024);
     /* decoder timing evaluation */
     {   U32 const Q = (cSrcSize >= dstSize) ? 15 : (U32)(cSrcSize * 16 / dstSize);   /* Q < 16 */
         U32 const D256 = (U32)(dstSize >> 8);

@@ -1207,7 +1207,6 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
     /* We have a choice between copying the dictionary context into the working
      * context, or referencing the dictionary context from the working context
      * in-place. We decide here which strategy to use. */
-    /* TODO: pick reasonable cut-off size, handle ZSTD_CONTENTSIZE_UNKNOWN */
     int attachDict = ( pledgedSrcSize <= 8 KB
                     || pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN )
                   && cdict->cParams.strategy == ZSTD_fast

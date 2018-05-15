@@ -520,10 +520,10 @@ MEM_STATIC U32 ZSTD_window_hasExtDict(ZSTD_window_t const window)
  */
 MEM_STATIC ZSTD_dictMode_e ZSTD_matchState_dictMode(const ZSTD_matchState_t *ms)
 {
-    return ms->dictMatchState != NULL ?
-        ZSTD_dictMatchState :
-        ZSTD_window_hasExtDict(ms->window) ?
-            ZSTD_extDict :
+    return ZSTD_window_hasExtDict(ms->window) ?
+        ZSTD_extDict :
+        ms->dictMatchState != NULL ?
+            ZSTD_dictMatchState :
             ZSTD_noDict;
 }
 
@@ -605,7 +605,8 @@ MEM_STATIC U32 ZSTD_window_correctOverflow(ZSTD_window_t* window, U32 cycleLog,
  */
 MEM_STATIC void ZSTD_window_enforceMaxDist(ZSTD_window_t* window,
                                            void const* srcEnd, U32 maxDist,
-                                           U32* loadedDictEndPtr)
+                                           U32* loadedDictEndPtr,
+                                           const ZSTD_matchState_t** dictMatchStatePtr)
 {
     U32 const current = (U32)((BYTE const*)srcEnd - window->base);
     U32 loadedDictEnd = loadedDictEndPtr != NULL ? *loadedDictEndPtr : 0;
@@ -619,6 +620,8 @@ MEM_STATIC void ZSTD_window_enforceMaxDist(ZSTD_window_t* window,
         }
         if (loadedDictEndPtr)
             *loadedDictEndPtr = 0;
+        if (dictMatchStatePtr)
+            *dictMatchStatePtr = NULL;
     }
 }
 

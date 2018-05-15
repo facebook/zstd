@@ -1240,6 +1240,7 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
                 - cdict->matchState.window.base);
             ZSTD_window_clear(&cctx->blockState.matchState.window);
         }
+        cctx->blockState.matchState.loadedDictEnd = cctx->blockState.matchState.window.dictLimit;
     } else {
         DEBUGLOG(4, "copying dictionary into context");
         /* copy tables */
@@ -2313,8 +2314,9 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
             if (ms->nextToUpdate < correction) ms->nextToUpdate = 0;
             else ms->nextToUpdate -= correction;
             ms->loadedDictEnd = 0;
+            ms->dictMatchState = NULL;
         }
-        ZSTD_window_enforceMaxDist(&ms->window, ip + blockSize, maxDist, &ms->loadedDictEnd);
+        ZSTD_window_enforceMaxDist(&ms->window, ip + blockSize, maxDist, &ms->loadedDictEnd, &ms->dictMatchState);
         if (ms->nextToUpdate < ms->window.lowLimit) ms->nextToUpdate = ms->window.lowLimit;
 
         {   size_t cSize = ZSTD_compressBlock_internal(cctx,

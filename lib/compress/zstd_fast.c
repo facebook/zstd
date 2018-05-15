@@ -99,10 +99,10 @@ size_t ZSTD_compressBlock_fast_generic(
         U32 const matchIndex = hashTable[h];
         const BYTE* match = base + matchIndex;
         const U32 repIndex = current + 1 - offset_1;
-        const BYTE* repBase = (dictMode == ZSTD_dictMatchState
+        const BYTE* repMatch = (dictMode == ZSTD_dictMatchState
                             && repIndex < prefixLowestIndex) ?
-                               dictBase - dictIndexDelta : base;
-        const BYTE* repMatch = repBase + repIndex;
+                               dictBase + (repIndex - dictIndexDelta) :
+                               base + repIndex;
         hashTable[h] = current;   /* update hash table */
 
         if (dictMode == ZSTD_dictMatchState

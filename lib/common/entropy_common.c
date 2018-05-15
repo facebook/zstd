@@ -143,6 +143,11 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
     }   }   /* while ((remaining>1) & (charnum<=*maxSVPtr)) */
     if (remaining != 1) return ERROR(corruption_detected);
     if (bitCount > 32) return ERROR(corruption_detected);
+    /* zeroise the rest */
+    {   unsigned symbNb = charnum;
+        for (symbNb=charnum; symbNb <= *maxSVPtr; symbNb++)
+            normalizedCounter[symbNb] = 0;
+    }
     *maxSVPtr = charnum-1;
 
     ip += (bitCount+7)>>3;

@@ -813,6 +813,70 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
     return compressedfilesize;
 }
 
+static void
+FIO_checkSupport_internal(int die,
+                          const FIO_compressionType_t type,
+                          const char* srcFileName,
+                          const char** returnSuffix, const char** returnMacro)
+{
+#define error "zstd: %s: file cannot be (de)compressed as %s (zstd compiled without %s) -- ignored \n"
+
+    const char* suffix = NULL;
+    const char* macro = NULL;
+    switch (type) {
+        case FIO_gzipCompression:
+#ifndef ZSTD_GZCOMPRESS
+            suffix = "gzip";
+            macro = "ZSTD_GZCOMPRESS";
+#endif
+            break;
+
+#ifndef ZSTD_LZMACOMPRESS
+        case FIO_xzCompression:
+            suffix = "xz";
+            macro = "ZSTD_LZMACOMPRESS";
+            break;
+
+        case FIO_lzmaCompression:
+            suffix = "lzma";
+            macro = "ZSTD_LZMACOMPRESS";
+            break;
+#else
+        case FIO_xzCompression:
+        case FIO_lzmaCompression:
+            break;
+#endif
+
+        case FIO_lz4Compression:
+#ifndef ZSTD_LZ4COMPRESS
+            suffix = "lz4";
+            macro = "ZSTD_LZ4COMPRESS";
+#endif
+            break;
+
+        case FIO_zstdCompression:
+        default:
+            break;
+    }
+
+    /* handle unknown (default) */
+    suffix = !suffix && die ? "<unknown compression suffix>" : suffix;
+    macro = !macro && die ? "<unknown compression macro>" : macro;
+
+    if (die) {
+        /* manually provide `const` guarantees */
+        const char* const csuffix = suffix;
+        const char* const cmacro = macro;
+
+        EXM_THROW(20, error, srcFileName, csuffix, cmacro);
+    } else {
+        if (returnSuffix) *returnSuffix = suffix;
+        if (returnMacro) *returnMacro = macro;
+    }
+
+#undef error
+}
+
 /*! FIO_compressFilename_internal() :
  *  same as FIO_compressFilename_extRess(), with `ress.desFile` already opened.
  *  @return : 0 : compression completed correctly,
@@ -823,6 +887,7 @@ FIO_compressFilename_internal(cRess_t ress,
                               const char* dstFileName, const char* srcFileName,
                               int compressionLevel)
 {
+    int unsupported = 0;
     U64 readsize = 0;
     U64 compressedfilesize = 0;
     U64 const fileSize = UTIL_getFileSize(srcFileName);
@@ -830,7 +895,6 @@ FIO_compressFilename_internal(cRess_t ress,
 
     /* compression format selection */
     switch (g_compressionType) {
-        default:
         case FIO_zstdCompression:
             compressedfilesize = FIO_compressZstdFrame(&ress, srcFileName, fileSize, compressionLevel, &readsize);
             break;
@@ -839,9 +903,7 @@ FIO_compressFilename_internal(cRess_t ress,
 #ifdef ZSTD_GZCOMPRESS
             compressedfilesize = FIO_compressGzFrame(&ress, srcFileName, fileSize, compressionLevel, &readsize);
 #else
-            (void)compressionLevel;
-            EXM_THROW(20, "zstd: %s: file cannot be compressed as gzip (zstd compiled without ZSTD_GZCOMPRESS) -- ignored \n",
-                            srcFileName);
+            unsupported = 1;
 #endif
             break;
 
@@ -850,9 +912,7 @@ FIO_compressFilename_internal(cRess_t ress,
 #ifdef ZSTD_LZMACOMPRESS
             compressedfilesize = FIO_compressLzmaFrame(&ress, srcFileName, fileSize, compressionLevel, &readsize, g_compressionType==FIO_lzmaCompression);
 #else
-            (void)compressionLevel;
-            EXM_THROW(20, "zstd: %s: file cannot be compressed as xz/lzma (zstd compiled without ZSTD_LZMACOMPRESS) -- ignored \n",
-                            srcFileName);
+            unsupported = 1;
 #endif
             break;
 
@@ -860,11 +920,19 @@ FIO_compressFilename_internal(cRess_t ress,
 #ifdef ZSTD_LZ4COMPRESS
             compressedfilesize = FIO_compressLz4Frame(&ress, srcFileName, fileSize, compressionLevel, &readsize);
 #else
-            (void)compressionLevel;
-            EXM_THROW(20, "zstd: %s: file cannot be compressed as lz4 (zstd compiled without ZSTD_LZ4COMPRESS) -- ignored \n",
-                            srcFileName);
+            unsupported = 1;
 #endif
             break;
+
+        default:
+            unsupported = 1;
+            break;
+    }
+
+    /* die if format not supported */
+    if (unsupported) {
+        (void)compressionLevel;
+        FIO_checkSupport_internal(1, g_compressionType, srcFileName, NULL, NULL);
     }
 
     /* Status */
@@ -1754,8 +1822,26 @@ int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles
                     && strcmp(suffixPtr, ZSTD_EXTENSION)
                     && strcmp(suffixPtr, LZMA_EXTENSION)
                     && strcmp(suffixPtr, LZ4_EXTENSION)) ) {
-                DISPLAYLEVEL(1, "zstd: %s: unknown suffix (%s/%s/%s/%s/%s expected) -- ignored \n",
-                             srcFileName, GZ_EXTENSION, XZ_EXTENSION, ZSTD_EXTENSION, LZMA_EXTENSION, LZ4_EXTENSION);
+                DISPLAYLEVEL(1, "zstd: %s: unknown suffix ("
+                                ZSTD_EXTENSION
+#ifdef ZSTD_GZCOMPRESS
+                                "/"
+                                GZ_EXTENSION
+#endif
+
+#ifdef ZSTD_LZMACOMPRESS
+                                "/"
+                                XZ_EXTENSION
+                                "/"
+                                LZMA_EXTENSION
+#endif
+
+#ifdef ZSTD_LZ4COMPRESS
+                                "/"
+                                LZ4_EXTENSION
+#endif
+                                " expected) -- ignored \n",
+                             srcFileName);
                 skippedFiles++;
                 continue;
             } else {

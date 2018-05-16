@@ -624,6 +624,34 @@ size_t ZSTD_compressBlock_greedy(
     return ZSTD_compressBlock_lazy_generic(ms, seqStore, rep, cParams, src, srcSize, 0, 0, ZSTD_noDict);
 }
 
+size_t ZSTD_compressBlock_btlazy2_dictMatchState(
+        ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
+        ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize)
+{
+    return ZSTD_compressBlock_lazy_generic(ms, seqStore, rep, cParams, src, srcSize, 1, 2, ZSTD_dictMatchState);
+}
+
+size_t ZSTD_compressBlock_lazy2_dictMatchState(
+        ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
+        ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize)
+{
+    return ZSTD_compressBlock_lazy_generic(ms, seqStore, rep, cParams, src, srcSize, 0, 2, ZSTD_dictMatchState);
+}
+
+size_t ZSTD_compressBlock_lazy_dictMatchState(
+        ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
+        ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize)
+{
+    return ZSTD_compressBlock_lazy_generic(ms, seqStore, rep, cParams, src, srcSize, 0, 1, ZSTD_dictMatchState);
+}
+
+size_t ZSTD_compressBlock_greedy_dictMatchState(
+        ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
+        ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize)
+{
+    return ZSTD_compressBlock_lazy_generic(ms, seqStore, rep, cParams, src, srcSize, 0, 0, ZSTD_dictMatchState);
+}
+
 
 FORCE_INLINE_TEMPLATE
 size_t ZSTD_compressBlock_lazy_extDict_generic(

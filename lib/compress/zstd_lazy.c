@@ -464,7 +464,8 @@ size_t ZSTD_compressBlock_lazy_generic(
                         U32 rep[ZSTD_REP_NUM],
                         ZSTD_compressionParameters const* cParams,
                         const void* src, size_t srcSize,
-                        const U32 searchMethod, const U32 depth)
+                        const U32 searchMethod, const U32 depth,
+                        ZSTD_dictMode_e const dictMode)
 {
     const BYTE* const istart = (const BYTE*)src;
     const BYTE* ip = istart;
@@ -478,6 +479,8 @@ size_t ZSTD_compressBlock_lazy_generic(
                         const BYTE* ip, const BYTE* iLimit, size_t* offsetPtr);
     searchMax_f const searchMax = searchMethod ? ZSTD_BtFindBestMatch_selectMLS : ZSTD_HcFindBestMatch_selectMLS;
     U32 offset_1 = rep[0], offset_2 = rep[1], savedOffset=0;
+
+    (void)dictMode;
 
     /* init */
     ip += (ip==base);
@@ -597,28 +600,28 @@ size_t ZSTD_compressBlock_btlazy2(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize)
 {
-    return ZSTD_compressBlock_lazy_generic(ms, seqStore, rep, cParams, src, srcSize, 1, 2);
+    return ZSTD_compressBlock_lazy_generic(ms, seqStore, rep, cParams, src, srcSize, 1, 2, ZSTD_noDict);
 }
 
 size_t ZSTD_compressBlock_lazy2(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize)
 {
-    return ZSTD_compressBlock_lazy_generic(ms, seqStore, rep, cParams, src, srcSize, 0, 2);
+    return ZSTD_compressBlock_lazy_generic(ms, seqStore, rep, cParams, src, srcSize, 0, 2, ZSTD_noDict);
 }
 
 size_t ZSTD_compressBlock_lazy(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize)
 {
-    return ZSTD_compressBlock_lazy_generic(ms, seqStore, rep, cParams, src, srcSize, 0, 1);
+    return ZSTD_compressBlock_lazy_generic(ms, seqStore, rep, cParams, src, srcSize, 0, 1, ZSTD_noDict);
 }
 
 size_t ZSTD_compressBlock_greedy(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize)
 {
-    return ZSTD_compressBlock_lazy_generic(ms, seqStore, rep, cParams, src, srcSize, 0, 0);
+    return ZSTD_compressBlock_lazy_generic(ms, seqStore, rep, cParams, src, srcSize, 0, 0, ZSTD_noDict);
 }
 
 

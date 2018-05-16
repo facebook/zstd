@@ -91,13 +91,11 @@ typedef struct {
     U32  litLengthSum;           /* nb of litLength codes */
     U32  matchLengthSum;         /* nb of matchLength codes */
     U32  offCodeSum;             /* nb of offset codes */
-    /* begin updated by ZSTD_setLog2Prices */
-    U32  log2litSum;             /* pow2 to compare log2(litfreq) to */
-    U32  log2litLengthSum;       /* pow2 to compare log2(llfreq) to */
-    U32  log2matchLengthSum;     /* pow2 to compare log2(mlfreq) to */
-    U32  log2offCodeSum;         /* pow2 to compare log2(offreq) to */
-    /* end : updated by ZSTD_setLog2Prices */
-    ZSTD_OptPrice_e priceType;   /* prices can be determined dynamically, or follow dictionary statistics, or a pre-defined cost structure */
+    U32  litSumBasePrice;        /* to compare to log2(litfreq) */
+    U32  litLengthSumBasePrice;  /* to compare to log2(llfreq)  */
+    U32  matchLengthSumBasePrice;/* to compare to log2(mlfreq)  */
+    U32  offCodeSumBasePrice;    /* to compare to log2(offreq)  */
+    ZSTD_OptPrice_e priceType;   /* prices can be determined dynamically, or follow a pre-defined cost structure */
     const ZSTD_entropyCTables_t* symbolCosts;  /* pre-calculated dictionary statistics */
 } optState_t;
 

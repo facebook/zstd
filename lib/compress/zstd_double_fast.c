@@ -149,6 +149,20 @@ size_t ZSTD_compressBlock_doubleFast_generic(
             goto _match_found;
         }
 
+        /* check dictMatchState long match */
+        if (dictMode == ZSTD_dictMatchState) {
+            U32 const dictMatchIndexL = dictHashLong[h2];
+            const BYTE* dictMatchL = dictBase + dictMatchIndexL;
+            assert(dictMatchL < dictEnd);
+
+            if (dictMatchL > dictLowest && MEM_read64(dictMatchL) == MEM_read64(ip)) {
+                mLength = ZSTD_count_2segments(ip+8, dictMatchL+8, iend, dictEnd, prefixLowest) + 8;
+                offset = (U32)(current - dictMatchIndexL - dictIndexDelta);
+                while (((ip>anchor) & (dictMatchL>dictLowest)) && (ip[-1] == dictMatchL[-1])) { ip--; dictMatchL--; mLength++; } /* catch up */
+                goto _match_found;
+            }
+        }
+
         /* check prefix short match */
         if ( (matchIndexS > prefixLowestIndex) && (MEM_read32(match) == MEM_read32(ip)) ) {
             size_t const hl3 = ZSTD_hashPtr(ip+1, hBitsL, 8);
@@ -170,21 +184,11 @@ size_t ZSTD_compressBlock_doubleFast_generic(
             goto _match_found;
         }
 
-        /* check dictMatchState matches */
+        /* check dictMatchState short match */
         if (dictMode == ZSTD_dictMatchState) {
-            U32 const dictMatchIndexL = dictHashLong[h2];
             U32 const dictMatchIndexS = dictHashSmall[h];
-            const BYTE* dictMatchL = dictBase + dictMatchIndexL;
             const BYTE* dictMatchS = dictBase + dictMatchIndexS;
-            assert(dictMatchL < dictEnd);
             assert(dictMatchS < dictEnd);
-
-            if (dictMatchL > dictLowest && MEM_read64(dictMatchL) == MEM_read64(ip)) {
-                mLength = ZSTD_count_2segments(ip+8, dictMatchL+8, iend, dictEnd, prefixLowest) + 8;
-                offset = (U32)(current - dictMatchIndexL - dictIndexDelta);
-                while (((ip>anchor) & (dictMatchL>dictLowest)) && (ip[-1] == dictMatchL[-1])) { ip--; dictMatchL--; mLength++; } /* catch up */
-                goto _match_found;
-            }
 
             if (dictMatchS > dictLowest && MEM_read32(dictMatchS) == MEM_read32(ip)) {
                 size_t const hl3 = ZSTD_hashPtr(ip+1, hBitsL, 8);

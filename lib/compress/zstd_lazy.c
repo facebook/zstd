@@ -62,7 +62,7 @@ void ZSTD_updateDUBT(
 static void ZSTD_insertDUBT1(
                  ZSTD_matchState_t* ms, ZSTD_compressionParameters const* cParams,
                  U32 current, const BYTE* inputEnd,
-                 U32 nbCompares, U32 btLow, int extDict)
+                 U32 nbCompares, U32 btLow, const ZSTD_dictMode_e dictMode)
 {
     U32*   const bt = ms->chainTable;
     U32    const btLog  = cParams->chainLog - 1;
@@ -92,10 +92,12 @@ static void ZSTD_insertDUBT1(
         size_t matchLength = MIN(commonLengthSmaller, commonLengthLarger);   /* guaranteed minimum nb of common bytes */
         assert(matchIndex < current);
 
-        if ( (!extDict)
+        if ( (dictMode != ZSTD_extDict)
           || (matchIndex+matchLength >= dictLimit)  /* both in current segment*/
           || (current < dictLimit) /* both in extDict */) {
-            const BYTE* const mBase = !extDict || ((matchIndex+matchLength) >= dictLimit) ? base : dictBase;
+            const BYTE* const mBase = ( (dictMode != ZSTD_extDict)
+                                     || (matchIndex+matchLength >= dictLimit)) ?
+                                        base : dictBase;
             assert( (matchIndex+matchLength >= dictLimit)   /* might be wrong if extDict is incorrectly set to 0 */
                  || (current < dictLimit) );
             match = mBase + matchIndex;
@@ -143,7 +145,7 @@ static size_t ZSTD_DUBT_findBestMatch (
                             const BYTE* const ip, const BYTE* const iend,
                             size_t* offsetPtr,
                             U32 const mls,
-                            U32 const extDict)
+                            const ZSTD_dictMode_e dictMode)
 {
     U32*   const hashTable = ms->hashTable;
     U32    const hashLog = cParams->hashLog;
@@ -196,7 +198,7 @@ static size_t ZSTD_DUBT_findBestMatch (
         U32* const nextCandidateIdxPtr = bt + 2*(matchIndex&btMask) + 1;
         U32 const nextCandidateIdx = *nextCandidateIdxPtr;
         ZSTD_insertDUBT1(ms, cParams, matchIndex, iend,
-                         nbCandidates, unsortLimit, extDict);
+                         nbCandidates, unsortLimit, dictMode);
         matchIndex = nextCandidateIdx;
         nbCandidates++;
     }
@@ -221,7 +223,7 @@ static size_t ZSTD_DUBT_findBestMatch (
             size_t matchLength = MIN(commonLengthSmaller, commonLengthLarger);   /* guaranteed minimum nb of common bytes */
             const BYTE* match;
 
-            if ((!extDict) || (matchIndex+matchLength >= dictLimit)) {
+            if ((dictMode != ZSTD_extDict) || (matchIndex+matchLength >= dictLimit)) {
                 match = base + matchIndex;
                 matchLength += ZSTD_count(ip+matchLength, match+matchLength, iend);
             } else {
@@ -281,7 +283,7 @@ static size_t ZSTD_BtFindBestMatch (
     DEBUGLOG(7, "ZSTD_BtFindBestMatch");
     if (ip < ms->window.base + ms->nextToUpdate) return 0;   /* skipped area */
     ZSTD_updateDUBT(ms, cParams, ip, iLimit, mls);
-    return ZSTD_DUBT_findBestMatch(ms, cParams, ip, iLimit, offsetPtr, mls, 0);
+    return ZSTD_DUBT_findBestMatch(ms, cParams, ip, iLimit, offsetPtr, mls, ZSTD_noDict);
 }
 
 
@@ -311,7 +313,7 @@ static size_t ZSTD_BtFindBestMatch_extDict (
     DEBUGLOG(7, "ZSTD_BtFindBestMatch_extDict");
     if (ip < ms->window.base + ms->nextToUpdate) return 0;   /* skipped area */
     ZSTD_updateDUBT(ms, cParams, ip, iLimit, mls);
-    return ZSTD_DUBT_findBestMatch(ms, cParams, ip, iLimit, offsetPtr, mls, 1);
+    return ZSTD_DUBT_findBestMatch(ms, cParams, ip, iLimit, offsetPtr, mls, ZSTD_extDict);
 }
 
 
@@ -376,7 +378,7 @@ size_t ZSTD_HcFindBestMatch_generic (
                         ZSTD_matchState_t* ms, ZSTD_compressionParameters const* cParams,
                         const BYTE* const ip, const BYTE* const iLimit,
                         size_t* offsetPtr,
-                        const U32 mls, const U32 extDict)
+                        const U32 mls, const ZSTD_dictMode_e dictMode)
 {
     U32* const chainTable = ms->chainTable;
     const U32 chainSize = (1 << cParams->chainLog);
@@ -397,7 +399,7 @@ size_t ZSTD_HcFindBestMatch_generic (
 
     for ( ; (matchIndex>lowLimit) & (nbAttempts>0) ; nbAttempts--) {
         size_t currentMl=0;
-        if ((!extDict) || matchIndex >= dictLimit) {
+        if ((dictMode != ZSTD_extDict) || matchIndex >= dictLimit) {
             const BYTE* const match = base + matchIndex;
             if (match[ml] == ip[ml])   /* potentially better */
                 currentMl = ZSTD_count(ip, match, iLimit);
@@ -431,10 +433,10 @@ FORCE_INLINE_TEMPLATE size_t ZSTD_HcFindBestMatch_selectMLS (
     switch(cParams->searchLength)
     {
     default : /* includes case 3 */
-    case 4 : return ZSTD_HcFindBestMatch_generic(ms, cParams, ip, iLimit, offsetPtr, 4, 0);
-    case 5 : return ZSTD_HcFindBestMatch_generic(ms, cParams, ip, iLimit, offsetPtr, 5, 0);
+    case 4 : return ZSTD_HcFindBestMatch_generic(ms, cParams, ip, iLimit, offsetPtr, 4, ZSTD_noDict);
+    case 5 : return ZSTD_HcFindBestMatch_generic(ms, cParams, ip, iLimit, offsetPtr, 5, ZSTD_noDict);
     case 7 :
-    case 6 : return ZSTD_HcFindBestMatch_generic(ms, cParams, ip, iLimit, offsetPtr, 6, 0);
+    case 6 : return ZSTD_HcFindBestMatch_generic(ms, cParams, ip, iLimit, offsetPtr, 6, ZSTD_noDict);
     }
 }
 
@@ -447,10 +449,10 @@ FORCE_INLINE_TEMPLATE size_t ZSTD_HcFindBestMatch_extDict_selectMLS (
     switch(cParams->searchLength)
     {
     default : /* includes case 3 */
-    case 4 : return ZSTD_HcFindBestMatch_generic(ms, cParams, ip, iLimit, offsetPtr, 4, 1);
-    case 5 : return ZSTD_HcFindBestMatch_generic(ms, cParams, ip, iLimit, offsetPtr, 5, 1);
+    case 4 : return ZSTD_HcFindBestMatch_generic(ms, cParams, ip, iLimit, offsetPtr, 4, ZSTD_extDict);
+    case 5 : return ZSTD_HcFindBestMatch_generic(ms, cParams, ip, iLimit, offsetPtr, 5, ZSTD_extDict);
     case 7 :
-    case 6 : return ZSTD_HcFindBestMatch_generic(ms, cParams, ip, iLimit, offsetPtr, 6, 1);
+    case 6 : return ZSTD_HcFindBestMatch_generic(ms, cParams, ip, iLimit, offsetPtr, 6, ZSTD_extDict);
     }
 }
 

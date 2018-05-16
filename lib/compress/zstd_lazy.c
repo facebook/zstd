@@ -278,57 +278,29 @@ static size_t ZSTD_BtFindBestMatch (
                         ZSTD_matchState_t* ms, ZSTD_compressionParameters const* cParams,
                         const BYTE* const ip, const BYTE* const iLimit,
                         size_t* offsetPtr,
-                        const U32 mls /* template */)
+                        const U32 mls /* template */,
+                        const ZSTD_dictMode_e dictMode)
 {
     DEBUGLOG(7, "ZSTD_BtFindBestMatch");
     if (ip < ms->window.base + ms->nextToUpdate) return 0;   /* skipped area */
     ZSTD_updateDUBT(ms, cParams, ip, iLimit, mls);
-    return ZSTD_DUBT_findBestMatch(ms, cParams, ip, iLimit, offsetPtr, mls, ZSTD_noDict);
+    return ZSTD_DUBT_findBestMatch(ms, cParams, ip, iLimit, offsetPtr, mls, dictMode);
 }
 
 
 static size_t ZSTD_BtFindBestMatch_selectMLS (
                         ZSTD_matchState_t* ms, ZSTD_compressionParameters const* cParams,
                         const BYTE* ip, const BYTE* const iLimit,
-                        size_t* offsetPtr)
-{
-    switch(cParams->searchLength)
-    {
-    default : /* includes case 3 */
-    case 4 : return ZSTD_BtFindBestMatch(ms, cParams, ip, iLimit, offsetPtr, 4);
-    case 5 : return ZSTD_BtFindBestMatch(ms, cParams, ip, iLimit, offsetPtr, 5);
-    case 7 :
-    case 6 : return ZSTD_BtFindBestMatch(ms, cParams, ip, iLimit, offsetPtr, 6);
-    }
-}
-
-
-/** Tree updater, providing best match */
-static size_t ZSTD_BtFindBestMatch_extDict (
-                        ZSTD_matchState_t* ms, ZSTD_compressionParameters const* cParams,
-                        const BYTE* const ip, const BYTE* const iLimit,
                         size_t* offsetPtr,
-                        const U32 mls)
-{
-    DEBUGLOG(7, "ZSTD_BtFindBestMatch_extDict");
-    if (ip < ms->window.base + ms->nextToUpdate) return 0;   /* skipped area */
-    ZSTD_updateDUBT(ms, cParams, ip, iLimit, mls);
-    return ZSTD_DUBT_findBestMatch(ms, cParams, ip, iLimit, offsetPtr, mls, ZSTD_extDict);
-}
-
-
-static size_t ZSTD_BtFindBestMatch_selectMLS_extDict (
-                        ZSTD_matchState_t* ms, ZSTD_compressionParameters const* cParams,
-                        const BYTE* ip, const BYTE* const iLimit,
-                        size_t* offsetPtr)
+                        const ZSTD_dictMode_e dictMode)
 {
     switch(cParams->searchLength)
     {
     default : /* includes case 3 */
-    case 4 : return ZSTD_BtFindBestMatch_extDict(ms, cParams, ip, iLimit, offsetPtr, 4);
-    case 5 : return ZSTD_BtFindBestMatch_extDict(ms, cParams, ip, iLimit, offsetPtr, 5);
+    case 4 : return ZSTD_BtFindBestMatch(ms, cParams, ip, iLimit, offsetPtr, 4, dictMode);
+    case 5 : return ZSTD_BtFindBestMatch(ms, cParams, ip, iLimit, offsetPtr, 5, dictMode);
     case 7 :
-    case 6 : return ZSTD_BtFindBestMatch_extDict(ms, cParams, ip, iLimit, offsetPtr, 6);
+    case 6 : return ZSTD_BtFindBestMatch(ms, cParams, ip, iLimit, offsetPtr, 6, dictMode);
     }
 }
 
@@ -428,31 +400,15 @@ size_t ZSTD_HcFindBestMatch_generic (
 FORCE_INLINE_TEMPLATE size_t ZSTD_HcFindBestMatch_selectMLS (
                         ZSTD_matchState_t* ms, ZSTD_compressionParameters const* cParams,
                         const BYTE* ip, const BYTE* const iLimit,
-                        size_t* offsetPtr)
+                        size_t* offsetPtr, const ZSTD_dictMode_e dictMode)
 {
     switch(cParams->searchLength)
     {
     default : /* includes case 3 */
-    case 4 : return ZSTD_HcFindBestMatch_generic(ms, cParams, ip, iLimit, offsetPtr, 4, ZSTD_noDict);
-    case 5 : return ZSTD_HcFindBestMatch_generic(ms, cParams, ip, iLimit, offsetPtr, 5, ZSTD_noDict);
+    case 4 : return ZSTD_HcFindBestMatch_generic(ms, cParams, ip, iLimit, offsetPtr, 4, dictMode);
+    case 5 : return ZSTD_HcFindBestMatch_generic(ms, cParams, ip, iLimit, offsetPtr, 5, dictMode);
     case 7 :
-    case 6 : return ZSTD_HcFindBestMatch_generic(ms, cParams, ip, iLimit, offsetPtr, 6, ZSTD_noDict);
-    }
-}
-
-
-FORCE_INLINE_TEMPLATE size_t ZSTD_HcFindBestMatch_extDict_selectMLS (
-                        ZSTD_matchState_t* ms, ZSTD_compressionParameters const* cParams,
-                        const BYTE* ip, const BYTE* const iLimit,
-                        size_t* const offsetPtr)
-{
-    switch(cParams->searchLength)
-    {
-    default : /* includes case 3 */
-    case 4 : return ZSTD_HcFindBestMatch_generic(ms, cParams, ip, iLimit, offsetPtr, 4, ZSTD_extDict);
-    case 5 : return ZSTD_HcFindBestMatch_generic(ms, cParams, ip, iLimit, offsetPtr, 5, ZSTD_extDict);
-    case 7 :
-    case 6 : return ZSTD_HcFindBestMatch_generic(ms, cParams, ip, iLimit, offsetPtr, 6, ZSTD_extDict);
+    case 6 : return ZSTD_HcFindBestMatch_generic(ms, cParams, ip, iLimit, offsetPtr, 6, dictMode);
     }
 }
 
@@ -478,7 +434,7 @@ size_t ZSTD_compressBlock_lazy_generic(
 
     typedef size_t (*searchMax_f)(
                         ZSTD_matchState_t* ms, ZSTD_compressionParameters const* cParams,
-                        const BYTE* ip, const BYTE* iLimit, size_t* offsetPtr);
+                        const BYTE* ip, const BYTE* iLimit, size_t* offsetPtr, const ZSTD_dictMode_e dictMode);
     searchMax_f const searchMax = searchMethod ? ZSTD_BtFindBestMatch_selectMLS : ZSTD_HcFindBestMatch_selectMLS;
     U32 offset_1 = rep[0], offset_2 = rep[1], savedOffset=0;
 
@@ -507,7 +463,7 @@ size_t ZSTD_compressBlock_lazy_generic(
 
         /* first search (depth 0) */
         {   size_t offsetFound = 99999999;
-            size_t const ml2 = searchMax(ms, cParams, ip, iend, &offsetFound);
+            size_t const ml2 = searchMax(ms, cParams, ip, iend, &offsetFound, dictMode);
             if (ml2 > matchLength)
                 matchLength = ml2, start = ip, offset=offsetFound;
         }
@@ -529,7 +485,7 @@ size_t ZSTD_compressBlock_lazy_generic(
                     matchLength = mlRep, offset = 0, start = ip;
             }
             {   size_t offset2=99999999;
-                size_t const ml2 = searchMax(ms, cParams, ip, iend, &offset2);
+                size_t const ml2 = searchMax(ms, cParams, ip, iend, &offset2, dictMode);
                 int const gain2 = (int)(ml2*4 - ZSTD_highbit32((U32)offset2+1));   /* raw approx */
                 int const gain1 = (int)(matchLength*4 - ZSTD_highbit32((U32)offset+1) + 4);
                 if ((ml2 >= 4) && (gain2 > gain1)) {
@@ -548,7 +504,7 @@ size_t ZSTD_compressBlock_lazy_generic(
                         matchLength = ml2, offset = 0, start = ip;
                 }
                 {   size_t offset2=99999999;
-                    size_t const ml2 = searchMax(ms, cParams, ip, iend, &offset2);
+                    size_t const ml2 = searchMax(ms, cParams, ip, iend, &offset2, dictMode);
                     int const gain2 = (int)(ml2*4 - ZSTD_highbit32((U32)offset2+1));   /* raw approx */
                     int const gain1 = (int)(matchLength*4 - ZSTD_highbit32((U32)offset+1) + 7);
                     if ((ml2 >= 4) && (gain2 > gain1)) {
@@ -663,6 +619,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
                         const void* src, size_t srcSize,
                         const U32 searchMethod, const U32 depth)
 {
+    const ZSTD_dictMode_e dictMode = ZSTD_extDict;
     const BYTE* const istart = (const BYTE*)src;
     const BYTE* ip = istart;
     const BYTE* anchor = istart;
@@ -678,8 +635,8 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
 
     typedef size_t (*searchMax_f)(
                         ZSTD_matchState_t* ms, ZSTD_compressionParameters const* cParams,
-                        const BYTE* ip, const BYTE* iLimit, size_t* offsetPtr);
-    searchMax_f searchMax = searchMethod ? ZSTD_BtFindBestMatch_selectMLS_extDict : ZSTD_HcFindBestMatch_extDict_selectMLS;
+                        const BYTE* ip, const BYTE* iLimit, size_t* offsetPtr, const ZSTD_dictMode_e dictMode);
+    searchMax_f searchMax = searchMethod ? ZSTD_BtFindBestMatch_selectMLS : ZSTD_HcFindBestMatch_selectMLS;
 
     U32 offset_1 = rep[0], offset_2 = rep[1];
 
@@ -708,7 +665,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
 
         /* first search (depth 0) */
         {   size_t offsetFound = 99999999;
-            size_t const ml2 = searchMax(ms, cParams, ip, iend, &offsetFound);
+            size_t const ml2 = searchMax(ms, cParams, ip, iend, &offsetFound, dictMode);
             if (ml2 > matchLength)
                 matchLength = ml2, start = ip, offset=offsetFound;
         }
@@ -741,7 +698,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
 
             /* search match, depth 1 */
             {   size_t offset2=99999999;
-                size_t const ml2 = searchMax(ms, cParams, ip, iend, &offset2);
+                size_t const ml2 = searchMax(ms, cParams, ip, iend, &offset2, dictMode);
                 int const gain2 = (int)(ml2*4 - ZSTD_highbit32((U32)offset2+1));   /* raw approx */
                 int const gain1 = (int)(matchLength*4 - ZSTD_highbit32((U32)offset+1) + 4);
                 if ((ml2 >= 4) && (gain2 > gain1)) {
@@ -771,7 +728,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
 
                 /* search match, depth 2 */
                 {   size_t offset2=99999999;
-                    size_t const ml2 = searchMax(ms, cParams, ip, iend, &offset2);
+                    size_t const ml2 = searchMax(ms, cParams, ip, iend, &offset2, dictMode);
                     int const gain2 = (int)(ml2*4 - ZSTD_highbit32((U32)offset2+1));   /* raw approx */
                     int const gain1 = (int)(matchLength*4 - ZSTD_highbit32((U32)offset+1) + 7);
                     if ((ml2 >= 4) && (gain2 > gain1)) {

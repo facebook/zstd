@@ -580,12 +580,13 @@ MEM_STATIC void ZSTD_window_enforceMaxDist(ZSTD_window_t* window,
 {
     U32 const current = (U32)((BYTE const*)srcEnd - window->base);
     U32 loadedDictEnd = loadedDictEndPtr != NULL ? *loadedDictEndPtr : 0;
+    DEBUGLOG(5, "ZSTD_window_enforceMaxDist: current=%u, maxDist=%u", current, maxDist);
     if (current > maxDist + loadedDictEnd) {
         U32 const newLowLimit = current - maxDist;
         if (window->lowLimit < newLowLimit) window->lowLimit = newLowLimit;
         if (window->dictLimit < window->lowLimit) {
-            DEBUGLOG(5, "Update dictLimit from %u to %u", window->dictLimit,
-                     window->lowLimit);
+            DEBUGLOG(5, "Update dictLimit to match lowLimit, from %u to %u",
+                        window->dictLimit, window->lowLimit);
             window->dictLimit = window->lowLimit;
         }
         if (loadedDictEndPtr)
@@ -605,12 +606,12 @@ MEM_STATIC U32 ZSTD_window_update(ZSTD_window_t* window,
 {
     BYTE const* const ip = (BYTE const*)src;
     U32 contiguous = 1;
+    DEBUGLOG(5, "ZSTD_window_update");
     /* Check if blocks follow each other */
     if (src != window->nextSrc) {
         /* not contiguous */
         size_t const distanceFromBase = (size_t)(window->nextSrc - window->base);
-        DEBUGLOG(5, "Non contiguous blocks, new segment starts at %u",
-                 window->dictLimit);
+        DEBUGLOG(5, "Non contiguous blocks, new segment starts at %u", window->dictLimit);
         window->lowLimit = window->dictLimit;
         assert(distanceFromBase == (size_t)(U32)distanceFromBase);  /* should never overflow */
         window->dictLimit = (U32)distanceFromBase;
@@ -627,6 +628,7 @@ MEM_STATIC U32 ZSTD_window_update(ZSTD_window_t* window,
         ptrdiff_t const highInputIdx = (ip + srcSize) - window->dictBase;
         U32 const lowLimitMax = (highInputIdx > (ptrdiff_t)window->dictLimit) ? window->dictLimit : (U32)highInputIdx;
         window->lowLimit = lowLimitMax;
+        DEBUGLOG(5, "Overlapping extDict and input : new lowLimit = %u", window->lowLimit);
     }
     return contiguous;
 }

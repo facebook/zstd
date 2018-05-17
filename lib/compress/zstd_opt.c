@@ -481,7 +481,7 @@ void ZSTD_updateTree_internal(
     const BYTE* const base = ms->window.base;
     U32 const target = (U32)(ip - base);
     U32 idx = ms->nextToUpdate;
-    DEBUGLOG(8, "ZSTD_updateTree_internal, from %u to %u  (extDict:%u)",
+    DEBUGLOG(5, "ZSTD_updateTree_internal, from %u to %u  (extDict:%u)",
                 idx, target, extDict);
 
     while(idx < target)
@@ -529,7 +529,7 @@ U32 ZSTD_insertBtAndGetAllMatches (
     U32 nbCompares = 1U << cParams->searchLog;
 
     size_t bestLength = lengthToBeat-1;
-    DEBUGLOG(8, "ZSTD_insertBtAndGetAllMatches");
+    DEBUGLOG(8, "ZSTD_insertBtAndGetAllMatches: current=%u", current);
 
     /* check repCode */
     {   U32 const lastR = ZSTD_REP_NUM + ll0;
@@ -1036,17 +1036,28 @@ size_t ZSTD_compressBlock_btultra(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         const ZSTD_compressionParameters* cParams, const void* src, size_t srcSize)
 {
-    if (ms->opt.litLengthSum==0) {  /* first block */
+    DEBUGLOG(5, "ZSTD_compressBlock_btultra (srcSize=%zu)", srcSize);
+    assert(srcSize <= ZSTD_BLOCKSIZE_MAX);
+    if ( (ms->opt.litLengthSum==0)   /* first block */
+      && (seqStore->sequences == seqStore->sequencesStart)   /* no ldm */
+      && (ms->window.dictLimit == ms->window.lowLimit) ) {   /* no dictionary */
         U32 tmpRep[ZSTD_REP_NUM];
+        DEBUGLOG(5, "ZSTD_compressBlock_btultra: first block: collecting statistics");
         assert(ms->nextToUpdate >= ms->window.dictLimit
             && ms->nextToUpdate <= ms->window.dictLimit + 1);
         memcpy(tmpRep, rep, sizeof(tmpRep));
         ZSTD_compressBlock_opt_generic(ms, seqStore, tmpRep, cParams, src, srcSize, 2 /*optLevel*/, 0 /*extDict*/);   /* generate stats into ms->opt*/
         ZSTD_resetSeqStore(seqStore);
-        ZSTD_window_update(&ms->window, src, srcSize);   /* invalidate first scan from history, since it overlaps perfectly */
+        /* invalidate first scan from history */
+        ms->window.base -= srcSize;
+        ms->window.dictLimit += srcSize;
+        ms->window.lowLimit = ms->window.dictLimit;
         ms->nextToUpdate = ms->window.dictLimit;
+        ms->nextToUpdate3 = ms->window.dictLimit;
+        /* re-inforce weight of collected statistics */
         ZSTD_upscaleStats(&ms->opt);
     }
+    DEBUGLOG(5, "base=%p,  src=%p,  src-base=%zi", ms->window.base, src, (const BYTE*)src - (const BYTE*)ms->window.base);
     return ZSTD_compressBlock_opt_generic(ms, seqStore, rep, cParams, src, srcSize, 2 /*optLevel*/, 0 /*extDict*/);
 }
 

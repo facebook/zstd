@@ -225,12 +225,10 @@ static size_t ZSTD_ldm_fillFastTables(ZSTD_matchState_t* ms,
     {
     case ZSTD_fast:
         ZSTD_fillHashTable(ms, cParams, iend, ZSTD_dtlm_fast);
-        ms->nextToUpdate = (U32)(iend - ms->window.base);
         break;
 
     case ZSTD_dfast:
         ZSTD_fillDoubleHashTable(ms, cParams, iend, ZSTD_dtlm_fast);
-        ms->nextToUpdate = (U32)(iend - ms->window.base);
         break;
 
     case ZSTD_greedy:
@@ -597,13 +595,13 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
     unsigned const minMatch = cParams->searchLength;
     ZSTD_blockCompressor const blockCompressor =
         ZSTD_selectBlockCompressor(cParams->strategy, extDict);
-    BYTE const* const base = ms->window.base;
     /* Input bounds */
     BYTE const* const istart = (BYTE const*)src;
     BYTE const* const iend = istart + srcSize;
     /* Input positions */
     BYTE const* ip = istart;
 
+    DEBUGLOG(5, "ZSTD_ldm_blockCompress: srcSize=%zu", srcSize);
     assert(rawSeqStore->pos <= rawSeqStore->size);
     assert(rawSeqStore->size <= rawSeqStore->capacity);
     /* Loop through each sequence and apply the block compressor to the lits */
@@ -623,12 +621,12 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
         ZSTD_ldm_limitTableUpdate(ms, ip);
         ZSTD_ldm_fillFastTables(ms, cParams, ip);
         /* Run the block compressor */
+        DEBUGLOG(5, "calling block compressor on segment of size %u", sequence.litLength);
         {
             size_t const newLitLength =
                 blockCompressor(ms, seqStore, rep, cParams, ip,
                                 sequence.litLength);
             ip += sequence.litLength;
-            ms->nextToUpdate = (U32)(ip - base);
             /* Update the repcodes */
             for (i = ZSTD_REP_NUM - 1; i > 0; i--)
                 rep[i] = rep[i-1];
@@ -644,10 +642,8 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
     ZSTD_ldm_limitTableUpdate(ms, ip);
     ZSTD_ldm_fillFastTables(ms, cParams, ip);
     /* Compress the last literals */
-    {
-        size_t const lastLiterals = blockCompressor(ms, seqStore, rep, cParams,
+    {   size_t const lastLiterals = blockCompressor(ms, seqStore, rep, cParams,
                                                     ip, iend - ip);
-        ms->nextToUpdate = (U32)(iend - base);
         return lastLiterals;
     }
 }

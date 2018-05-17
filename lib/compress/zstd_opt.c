@@ -25,29 +25,29 @@
 #  define BITCOST_ACCURACY 0
 #  define BITCOST_MULTIPLIER (1 << BITCOST_ACCURACY)
 #  define WEIGHT(stat)  ((void)opt, ZSTD_bitWeight(stat))
-#elif 0  /* fractional bit accuracy */
+#elif 1  /* fractional bit accuracy */
 #  define BITCOST_ACCURACY 8
 #  define BITCOST_MULTIPLIER (1 << BITCOST_ACCURACY)
 #  define WEIGHT(stat,opt) ((void)opt, ZSTD_fracWeight(stat))
-#else   /* opt==approx, ultra==accurate */
+#else    /* opt==approx, ultra==accurate */
 #  define BITCOST_ACCURACY 8
 #  define BITCOST_MULTIPLIER (1 << BITCOST_ACCURACY)
-#  define WEIGHT(stat,opt) (opt ? ZSTD_fracWeight(stat) : ZSTD_bitWeight(stat) )
+#  define WEIGHT(stat,opt) (opt ? ZSTD_fracWeight(stat) : ZSTD_bitWeight(stat))
 #endif
 
 MEM_STATIC U32 ZSTD_bitWeight(U32 stat)
 {
-    return (ZSTD_highbit32((stat)+1) * BITCOST_MULTIPLIER);
+    return (ZSTD_highbit32(stat+1) * BITCOST_MULTIPLIER);
 }
 
-MEM_STATIC U32 ZSTD_fracWeight(U32 stat)
+MEM_STATIC U32 ZSTD_fracWeight(U32 rawStat)
 {
-    U32 const hb = stat ? ZSTD_highbit32(stat) : 0;
+    U32 const stat = rawStat + 1;
+    U32 const hb = ZSTD_highbit32(stat);
     U32 const BWeight = hb * BITCOST_MULTIPLIER;
     U32 const FWeight = (stat << BITCOST_ACCURACY) >> hb;
     U32 const weight = BWeight + FWeight;
     assert(hb + BITCOST_ACCURACY < 31);
-    DEBUGLOG(2, "stat=%u, hb=%u, weight=%u", stat, hb, weight)
     return weight;
 }
 

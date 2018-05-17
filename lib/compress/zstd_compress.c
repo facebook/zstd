@@ -1977,7 +1977,7 @@ static void ZSTD_storeLastLiterals(seqStore_t* seqStorePtr,
     seqStorePtr->lit += lastLLSize;
 }
 
-static void ZSTD_resetSeqStore(seqStore_t* ssPtr)
+void ZSTD_resetSeqStore(seqStore_t* ssPtr)
 {
     ssPtr->lit = ssPtr->litStart;
     ssPtr->sequences = ssPtr->sequencesStart;

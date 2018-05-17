@@ -25,7 +25,7 @@
 #  define BITCOST_ACCURACY 0
 #  define BITCOST_MULTIPLIER (1 << BITCOST_ACCURACY)
 #  define WEIGHT(stat)  ((void)opt, ZSTD_bitWeight(stat))
-#elif 1  /* fractional bit accuracy */
+#elif 0  /* fractional bit accuracy */
 #  define BITCOST_ACCURACY 8
 #  define BITCOST_MULTIPLIER (1 << BITCOST_ACCURACY)
 #  define WEIGHT(stat,opt) ((void)opt, ZSTD_fracWeight(stat))
@@ -65,6 +65,17 @@ static void ZSTD_setBasePrices(optState_t* optPtr, int optLevel)
     optPtr->offCodeSumBasePrice = WEIGHT(optPtr->offCodeSum, optLevel);
 }
 
+
+static U32 ZSTD_downscaleStat(U32* table, U32 lastEltIndex, int malus)
+{
+    U32 s, sum=0;
+    assert(ZSTD_FREQ_DIV+malus > 0 && ZSTD_FREQ_DIV+malus < 31);
+    for (s=0; s<=lastEltIndex; s++) {
+        table[s] = 1 + (table[s] >> (ZSTD_FREQ_DIV+malus));
+        sum += table[s];
+    }
+    return sum;
+}
 
 static void ZSTD_rescaleFreqs(optState_t* const optPtr,
                               const BYTE* const src, size_t const srcSize,
@@ -132,11 +143,8 @@ static void ZSTD_rescaleFreqs(optState_t* const optPtr,
             assert(optPtr->litFreq != NULL);
             {   unsigned lit = MaxLit;
                 FSE_count_simple(optPtr->litFreq, &lit, src, srcSize);   /* use raw first block to init statistics */
-                optPtr->litSum = 0;
-                for (lit=0; lit<=MaxLit; lit++) {
-                    optPtr->litFreq[lit] = 1 + (optPtr->litFreq[lit] >> (ZSTD_FREQ_DIV+1));
-                    optPtr->litSum += optPtr->litFreq[lit];
-            }   }
+            }
+            optPtr->litSum = ZSTD_downscaleStat(optPtr->litFreq, MaxLit, 1);
 
             {   unsigned ll;
                 for (ll=0; ll<=MaxLL; ll++)
@@ -159,28 +167,11 @@ static void ZSTD_rescaleFreqs(optState_t* const optPtr,
         }
 
     } else {   /* new block : re-use previous statistics, scaled down */
-        unsigned u;
 
-        optPtr->litSum = 0;
-        for (u=0; u<=MaxLit; u++) {
-            optPtr->litFreq[u] = 1 + (optPtr->litFreq[u] >> (ZSTD_FREQ_DIV+1));
-            optPtr->litSum += optPtr->litFreq[u];
-        }
-        optPtr->litLengthSum = 0;
-        for (u=0; u<=MaxLL; u++) {
-            optPtr->litLengthFreq[u] = 1 + (optPtr->litLengthFreq[u] >> ZSTD_FREQ_DIV);
-            optPtr->litLengthSum += optPtr->litLengthFreq[u];
-        }
-        optPtr->matchLengthSum = 0;
-        for (u=0; u<=MaxML; u++) {
-            optPtr->matchLengthFreq[u] = 1 + (optPtr->matchLengthFreq[u] >> ZSTD_FREQ_DIV);
-            optPtr->matchLengthSum += optPtr->matchLengthFreq[u];
-        }
-        optPtr->offCodeSum = 0;
-        for (u=0; u<=MaxOff; u++) {
-            optPtr->offCodeFreq[u] = 1 + (optPtr->offCodeFreq[u] >> ZSTD_FREQ_DIV);
-            optPtr->offCodeSum += optPtr->offCodeFreq[u];
-        }
+        optPtr->litSum = ZSTD_downscaleStat(optPtr->litFreq, MaxLit, 1);
+        optPtr->litLengthSum = ZSTD_downscaleStat(optPtr->litLengthFreq, MaxLL, 0);
+        optPtr->matchLengthSum = ZSTD_downscaleStat(optPtr->matchLengthFreq, MaxML, 0);
+        optPtr->offCodeSum = ZSTD_downscaleStat(optPtr->offCodeFreq, MaxOff, 0);
     }
 
     ZSTD_setBasePrices(optPtr, optLevel);
@@ -194,7 +185,8 @@ static U32 ZSTD_rawLiteralsCost(const BYTE* const literals, U32 const litLength,
                                 int optLevel)
 {
     if (litLength == 0) return 0;
-    if (optPtr->priceType == zop_predef) return (litLength*6) * BITCOST_MULTIPLIER;  /* 6 bit per literal - no statistic used */
+    if (optPtr->priceType == zop_predef)
+        return (litLength*6) * BITCOST_MULTIPLIER;  /* 6 bit per literal - no statistic used */
 
     /* dynamic statistics */
     {   U32 price = litLength * optPtr->litSumBasePrice;
@@ -1013,29 +1005,61 @@ _shortestPath:   /* cur, last_pos, best_mlen, best_off have to be set */
 
 size_t ZSTD_compressBlock_btopt(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
-        ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize)
+        const ZSTD_compressionParameters* cParams, const void* src, size_t srcSize)
 {
     DEBUGLOG(5, "ZSTD_compressBlock_btopt");
     return ZSTD_compressBlock_opt_generic(ms, seqStore, rep, cParams, src, srcSize, 0 /*optLevel*/, 0 /*extDict*/);
 }
 
+
+static U32 ZSTD_upscaleStat(U32* table, U32 lastEltIndex, int bonus)
+{
+    U32 s, sum=0;
+    assert(ZSTD_FREQ_DIV+bonus > 0);
+    for (s=0; s<=lastEltIndex; s++) {
+        table[s] <<= ZSTD_FREQ_DIV+bonus;
+        table[s]--;
+        sum += table[s];
+    }
+    return sum;
+}
+
+static void ZSTD_upscaleStats(optState_t* optPtr)
+{
+    optPtr->litSum = ZSTD_upscaleStat(optPtr->litFreq, MaxLit, 0);
+    optPtr->litLengthSum = ZSTD_upscaleStat(optPtr->litLengthFreq, MaxLL, 1);
+    optPtr->matchLengthSum = ZSTD_upscaleStat(optPtr->matchLengthFreq, MaxML, 1);
+    optPtr->offCodeSum = ZSTD_upscaleStat(optPtr->offCodeFreq, MaxOff, 1);
+}
+
 size_t ZSTD_compressBlock_btultra(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
-        ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize)
+        const ZSTD_compressionParameters* cParams, const void* src, size_t srcSize)
 {
+    if (ms->opt.litLengthSum==0) {  /* first block */
+        U32 tmpRep[ZSTD_REP_NUM];
+        assert(ms->nextToUpdate >= ms->window.dictLimit
+            && ms->nextToUpdate <= ms->window.dictLimit + 1);
+        memcpy(tmpRep, rep, sizeof(tmpRep));
+        ZSTD_compressBlock_opt_generic(ms, seqStore, tmpRep, cParams, src, srcSize, 2 /*optLevel*/, 0 /*extDict*/);   /* generate stats into ms->opt*/
+        ZSTD_resetSeqStore(seqStore);
+        ZSTD_window_update(&ms->window, src, srcSize);   /* invalidate first scan from history, since it overlaps perfectly */
+        ms->nextToUpdate = ms->window.dictLimit;
+        ZSTD_upscaleStats(&ms->opt);
+    }
     return ZSTD_compressBlock_opt_generic(ms, seqStore, rep, cParams, src, srcSize, 2 /*optLevel*/, 0 /*extDict*/);
 }
 
 size_t ZSTD_compressBlock_btopt_extDict(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
-        ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize)
+        const ZSTD_compressionParameters* cParams, const void* src, size_t srcSize)
 {
     return ZSTD_compressBlock_opt_generic(ms, seqStore, rep, cParams, src, srcSize, 0 /*optLevel*/, 1 /*extDict*/);
 }
 
 size_t ZSTD_compressBlock_btultra_extDict(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
-        ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize)
+        const ZSTD_compressionParameters* cParams, const void* src, size_t srcSize)
 {
     return ZSTD_compressBlock_opt_generic(ms, seqStore, rep, cParams, src, srcSize, 2 /*optLevel*/, 1 /*extDict*/);
 }

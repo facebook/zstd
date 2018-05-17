@@ -80,12 +80,12 @@ typedef enum { zop_dynamic=0, zop_predef } ZSTD_OptPrice_e;
 
 typedef struct {
     /* All tables are allocated inside cctx->workspace by ZSTD_resetCCtx_internal() */
-    U32* litFreq;               /* table of literals statistics, of size 256 */
-    U32* litLengthFreq;         /* table of litLength statistics, of size (MaxLL+1) */
-    U32* matchLengthFreq;       /* table of matchLength statistics, of size (MaxML+1) */
-    U32* offCodeFreq;           /* table of offCode statistics, of size (MaxOff+1) */
-    ZSTD_match_t* matchTable;   /* list of found matches, of size ZSTD_OPT_NUM+1 */
-    ZSTD_optimal_t* priceTable; /* All positions tracked by optimal parser, of size ZSTD_OPT_NUM+1 */
+    U32* litFreq;                /* table of literals statistics, of size 256 */
+    U32* litLengthFreq;          /* table of litLength statistics, of size (MaxLL+1) */
+    U32* matchLengthFreq;        /* table of matchLength statistics, of size (MaxML+1) */
+    U32* offCodeFreq;            /* table of offCode statistics, of size (MaxOff+1) */
+    ZSTD_match_t* matchTable;    /* list of found matches, of size ZSTD_OPT_NUM+1 */
+    ZSTD_optimal_t* priceTable;  /* All positions tracked by optimal parser, of size ZSTD_OPT_NUM+1 */
 
     U32  litSum;                 /* nb of literals */
     U32  litLengthSum;           /* nb of litLength codes */
@@ -657,6 +657,8 @@ size_t ZSTD_initCStream_internal(ZSTD_CStream* zcs,
                      const void* dict, size_t dictSize,
                      const ZSTD_CDict* cdict,
                      ZSTD_CCtx_params  params, unsigned long long pledgedSrcSize);
+
+void ZSTD_resetSeqStore(seqStore_t* ssPtr);
 
 /*! ZSTD_compressStream_generic() :
  *  Private use only. To be called from zstdmt_compress.c in single-thread mode. */

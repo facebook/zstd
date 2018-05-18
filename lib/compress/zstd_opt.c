@@ -1050,7 +1050,7 @@ size_t ZSTD_compressBlock_btultra(
         ZSTD_resetSeqStore(seqStore);
         /* invalidate first scan from history */
         ms->window.base -= srcSize;
-        ms->window.dictLimit += srcSize;
+        ms->window.dictLimit += (U32)srcSize;
         ms->window.lowLimit = ms->window.dictLimit;
         ms->nextToUpdate = ms->window.dictLimit;
         ms->nextToUpdate3 = ms->window.dictLimit;

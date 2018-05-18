@@ -1561,15 +1561,16 @@ void ZSTD_seqToCodes(const seqStore_t* seqStorePtr)
         mlCodeTable[seqStorePtr->longLengthPos] = MaxML;
 }
 
+
 typedef enum {
     ZSTD_defaultDisallowed = 0,
     ZSTD_defaultAllowed = 1
 } ZSTD_defaultPolicy_e;
 
-MEM_STATIC
-symbolEncodingType_e ZSTD_selectEncodingType(
-        FSE_repeat* repeatMode, size_t const mostFrequent, size_t nbSeq,
-        U32 defaultNormLog, ZSTD_defaultPolicy_e const isDefaultAllowed)
+MEM_STATIC symbolEncodingType_e
+ZSTD_selectEncodingType(
+            FSE_repeat* repeatMode, size_t const mostFrequent, size_t nbSeq,
+            U32 defaultNormLog, ZSTD_defaultPolicy_e const isDefaultAllowed)
 {
 #define MIN_SEQ_FOR_DYNAMIC_FSE   64
 #define MAX_SEQ_FOR_STATIC_FSE  1000
@@ -1605,17 +1606,17 @@ symbolEncodingType_e ZSTD_selectEncodingType(
     return set_compressed;
 }
 
-MEM_STATIC
-size_t ZSTD_buildCTable(void* dst, size_t dstCapacity,
-        FSE_CTable* nextCTable, U32 FSELog, symbolEncodingType_e type,
-        U32* count, U32 max,
-        BYTE const* codeTable, size_t nbSeq,
-        S16 const* defaultNorm, U32 defaultNormLog, U32 defaultMax,
-        FSE_CTable const* prevCTable, size_t prevCTableSize,
-        void* workspace, size_t workspaceSize)
+MEM_STATIC size_t
+ZSTD_buildCTable(void* dst, size_t dstCapacity,
+                FSE_CTable* nextCTable, U32 FSELog, symbolEncodingType_e type,
+                U32* count, U32 max,
+                const BYTE* codeTable, size_t nbSeq,
+                const S16* defaultNorm, U32 defaultNormLog, U32 defaultMax,
+                const FSE_CTable* prevCTable, size_t prevCTableSize,
+                void* workspace, size_t workspaceSize)
 {
     BYTE* op = (BYTE*)dst;
-    BYTE const* const oend = op + dstCapacity;
+    const BYTE* const oend = op + dstCapacity;
 
     switch (type) {
     case set_rle:
@@ -1865,9 +1866,9 @@ MEM_STATIC size_t ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
         nextEntropy->litlength_repeatMode = prevEntropy->litlength_repeatMode;
         LLtype = ZSTD_selectEncodingType(&nextEntropy->litlength_repeatMode, mostFrequent, nbSeq, LL_defaultNormLog, ZSTD_defaultAllowed);
         {   size_t const countSize = ZSTD_buildCTable(op, oend - op, CTable_LitLength, LLFSELog, (symbolEncodingType_e)LLtype,
-                    count, max, llCodeTable, nbSeq, LL_defaultNorm, LL_defaultNormLog, MaxLL,
-                    prevEntropy->litlengthCTable, sizeof(prevEntropy->litlengthCTable),
-                    workspace, HUF_WORKSPACE_SIZE);
+                                                    count, max, llCodeTable, nbSeq, LL_defaultNorm, LL_defaultNormLog, MaxLL,
+                                                    prevEntropy->litlengthCTable, sizeof(prevEntropy->litlengthCTable),
+                                                    workspace, HUF_WORKSPACE_SIZE);
             if (ZSTD_isError(countSize)) return countSize;
             op += countSize;
     }   }
@@ -1880,9 +1881,9 @@ MEM_STATIC size_t ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
         nextEntropy->offcode_repeatMode = prevEntropy->offcode_repeatMode;
         Offtype = ZSTD_selectEncodingType(&nextEntropy->offcode_repeatMode, mostFrequent, nbSeq, OF_defaultNormLog, defaultPolicy);
         {   size_t const countSize = ZSTD_buildCTable(op, oend - op, CTable_OffsetBits, OffFSELog, (symbolEncodingType_e)Offtype,
-                    count, max, ofCodeTable, nbSeq, OF_defaultNorm, OF_defaultNormLog, DefaultMaxOff,
-                    prevEntropy->offcodeCTable, sizeof(prevEntropy->offcodeCTable),
-                    workspace, HUF_WORKSPACE_SIZE);
+                                                    count, max, ofCodeTable, nbSeq, OF_defaultNorm, OF_defaultNormLog, DefaultMaxOff,
+                                                    prevEntropy->offcodeCTable, sizeof(prevEntropy->offcodeCTable),
+                                                    workspace, HUF_WORKSPACE_SIZE);
             if (ZSTD_isError(countSize)) return countSize;
             op += countSize;
     }   }
@@ -1893,9 +1894,9 @@ MEM_STATIC size_t ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
         nextEntropy->matchlength_repeatMode = prevEntropy->matchlength_repeatMode;
         MLtype = ZSTD_selectEncodingType(&nextEntropy->matchlength_repeatMode, mostFrequent, nbSeq, ML_defaultNormLog, ZSTD_defaultAllowed);
         {   size_t const countSize = ZSTD_buildCTable(op, oend - op, CTable_MatchLength, MLFSELog, (symbolEncodingType_e)MLtype,
-                    count, max, mlCodeTable, nbSeq, ML_defaultNorm, ML_defaultNormLog, MaxML,
-                    prevEntropy->matchlengthCTable, sizeof(prevEntropy->matchlengthCTable),
-                    workspace, HUF_WORKSPACE_SIZE);
+                                                    count, max, mlCodeTable, nbSeq, ML_defaultNorm, ML_defaultNormLog, MaxML,
+                                                    prevEntropy->matchlengthCTable, sizeof(prevEntropy->matchlengthCTable),
+                                                    workspace, HUF_WORKSPACE_SIZE);
             if (ZSTD_isError(countSize)) return countSize;
             op += countSize;
     }   }
@@ -1917,9 +1918,9 @@ MEM_STATIC size_t ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
 }
 
 MEM_STATIC size_t ZSTD_compressSequences(seqStore_t* seqStorePtr,
-                              ZSTD_entropyCTables_t const* prevEntropy,
+                        const ZSTD_entropyCTables_t* prevEntropy,
                               ZSTD_entropyCTables_t* nextEntropy,
-                              ZSTD_CCtx_params const* cctxParams,
+                        const ZSTD_CCtx_params* cctxParams,
                               void* dst, size_t dstCapacity,
                               size_t srcSize, U32* workspace, int bmi2)
 {
@@ -1934,7 +1935,7 @@ MEM_STATIC size_t ZSTD_compressSequences(seqStore_t* seqStorePtr,
     if (ZSTD_isError(cSize)) return cSize;
 
     /* Check compressibility */
-    {   size_t const maxCSize = srcSize - ZSTD_minGain(srcSize);  /* note : fixed formula, maybe should depend on compression level, or strategy */
+    {   size_t const maxCSize = srcSize - ZSTD_minGain(srcSize);  /* note : fixed formula; to be refined, depending on compression level, or strategy */
         if (cSize >= maxCSize) return 0;  /* block not compressed */
     }
 

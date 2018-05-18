@@ -1057,7 +1057,6 @@ size_t ZSTD_compressBlock_btultra(
         /* re-inforce weight of collected statistics */
         ZSTD_upscaleStats(&ms->opt);
     }
-    DEBUGLOG(5, "base=%p,  src=%p,  src-base=%zi", ms->window.base, src, (const BYTE*)src - (const BYTE*)ms->window.base);
     return ZSTD_compressBlock_opt_generic(ms, seqStore, rep, cParams, src, srcSize, 2 /*optLevel*/, 0 /*extDict*/);
 }
 

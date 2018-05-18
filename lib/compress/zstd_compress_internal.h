@@ -633,6 +633,33 @@ MEM_STATIC U32 ZSTD_window_update(ZSTD_window_t* window,
     return contiguous;
 }
 
+
+/* debug functions */
+
+MEM_STATIC double ZSTD_fWeight(U32 rawStat)
+{
+    U32 const fp_accuracy = 8;
+    U32 const fp_multiplier = (1 << fp_accuracy);
+    U32 const stat = rawStat + 1;
+    U32 const hb = ZSTD_highbit32(stat);
+    U32 const BWeight = hb * fp_multiplier;
+    U32 const FWeight = (stat << fp_accuracy) >> hb;
+    U32 const weight = BWeight + FWeight;
+    assert(hb + fp_accuracy < 31);
+    return (double)weight / fp_multiplier;
+}
+
+MEM_STATIC void ZSTD_debugTable(const U32* table, U32 max)
+{
+    unsigned u, sum;
+    for (u=0, sum=0; u<=max; u++) sum += table[u];
+    DEBUGLOG(2, "total nb elts: %u", sum);
+    for (u=0; u<=max; u++) {
+        DEBUGLOG(2, "%2u: %5u  (%.2f)",
+                u, table[u], ZSTD_fWeight(sum) - ZSTD_fWeight(table[u]) );
+    }
+}
+
 #if defined (__cplusplus)
 }
 #endif

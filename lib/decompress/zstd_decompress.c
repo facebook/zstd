@@ -1882,6 +1882,7 @@ static size_t ZSTD_decompressMultiFrame(ZSTD_DCtx* dctx,
                                   const ZSTD_DDict* ddict)
 {
     void* const dststart = dst;
+    int moreThan1Frame = 0;
     assert(dict==NULL || ddict==NULL);  /* either dict or ddict set, not both */
 
     if (ddict) {
@@ -1890,7 +1891,6 @@ static size_t ZSTD_decompressMultiFrame(ZSTD_DCtx* dctx,
     }
 
     while (srcSize >= ZSTD_frameHeaderSize_prefix) {
-        U32 magicNumber;
 
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
         if (ZSTD_isLegacy(src, srcSize)) {
@@ -1912,10 +1912,9 @@ static size_t ZSTD_decompressMultiFrame(ZSTD_DCtx* dctx,
         }
 #endif
 
-        magicNumber = MEM_readLE32(src);
-        DEBUGLOG(4, "reading magic number %08X (expecting %08X)",
-                    (U32)magicNumber, (U32)ZSTD_MAGICNUMBER);
-        if (magicNumber != ZSTD_MAGICNUMBER) {
+        {   U32 const magicNumber = MEM_readLE32(src);
+            DEBUGLOG(4, "reading magic number %08X (expecting %08X)",
+                        (U32)magicNumber, (U32)ZSTD_MAGICNUMBER);
             if ((magicNumber & 0xFFFFFFF0U) == ZSTD_MAGIC_SKIPPABLE_START) {
                 size_t skippableSize;
                 if (srcSize < ZSTD_skippableHeaderSize)
@@ -1927,9 +1926,7 @@ static size_t ZSTD_decompressMultiFrame(ZSTD_DCtx* dctx,
                 src = (const BYTE *)src + skippableSize;
                 srcSize -= skippableSize;
                 continue;
-            }
-            return ERROR(prefix_unknown);
-        }
+        }   }
 
         if (ddict) {
             /* we were called from ZSTD_decompress_usingDDict */
@@ -1943,11 +1940,25 @@ static size_t ZSTD_decompressMultiFrame(ZSTD_DCtx* dctx,
 
         {   const size_t res = ZSTD_decompressFrame(dctx, dst, dstCapacity,
                                                     &src, &srcSize);
+            if ( (ZSTD_getErrorCode(res) == ZSTD_error_prefix_unknown)
+              && (moreThan1Frame==1) ) {
+                /* at least one frame successfully completed,
+                 * but following bytes are garbage :
+                 * it's more likely to be a srcSize error,
+                 * specifying more bytes than compressed size of frame(s).
+                 * This error message replaces ERROR(prefix_unknown),
+                 * which would be confusing, as the first header is actually correct.
+                 * Note that one could be unlucky, it might be a corruption error instead,
+                 * happening right at the place where we expect zstd magic bytes.
+                 * But this is _much_ less likely than a srcSize field error. */
+                return ERROR(srcSize_wrong);
+            }
             if (ZSTD_isError(res)) return res;
             /* no need to bound check, ZSTD_decompressFrame already has */
             dst = (BYTE*)dst + res;
             dstCapacity -= res;
         }
+        moreThan1Frame = 1;
     }  /* while (srcSize >= ZSTD_frameHeaderSize_prefix) */
 
     if (srcSize) return ERROR(srcSize_wrong); /* input not entirely consumed */

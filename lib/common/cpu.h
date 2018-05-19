@@ -72,8 +72,7 @@ MEM_STATIC ZSTD_cpuid_t ZSTD_cpuid(void) {
           "cpuid\n\t"
           "popl %%ebx\n\t"
           : "=a"(f1a), "=c"(f1c), "=d"(f1d)
-          : "a"(1)
-          :);
+          : "a"(1));
     }
     if (n >= 7) {
       __asm__(

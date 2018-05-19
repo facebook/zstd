@@ -208,7 +208,7 @@ size_t HUF_compress4X_usingCTable(void* dst, size_t dstSize, const void* src, si
 typedef enum {
    HUF_repeat_none,  /**< Cannot use the previous table */
    HUF_repeat_check, /**< Can use the previous table but it must be checked. Note : The previous table must have been constructed by HUF_compress{1, 4}X_repeat */
-   HUF_repeat_valid  /**< Can use the previous table and it is asumed to be valid */
+   HUF_repeat_valid  /**< Can use the previous table and it is assumed to be valid */
  } HUF_repeat;
 /** HUF_compress4X_repeat() :
  *  Same as HUF_compress4X_wksp(), but considers using hufTable if *repeat != HUF_repeat_none.
@@ -227,7 +227,9 @@ size_t HUF_compress4X_repeat(void* dst, size_t dstSize,
  */
 #define HUF_CTABLE_WORKSPACE_SIZE_U32 (2*HUF_SYMBOLVALUE_MAX +1 +1)
 #define HUF_CTABLE_WORKSPACE_SIZE (HUF_CTABLE_WORKSPACE_SIZE_U32 * sizeof(unsigned))
-size_t HUF_buildCTable_wksp (HUF_CElt* tree, const U32* count, U32 maxSymbolValue, U32 maxNbBits, void* workSpace, size_t wkspSize);
+size_t HUF_buildCTable_wksp (HUF_CElt* tree,
+                       const U32* count, U32 maxSymbolValue, U32 maxNbBits,
+                             void* workSpace, size_t wkspSize);
 
 /*! HUF_readStats() :
  *  Read compact Huffman tree, saved by HUF_writeCTable().
@@ -242,6 +244,11 @@ size_t HUF_readStats(BYTE* huffWeight, size_t hwSize,
  *  Loading a CTable saved with HUF_writeCTable() */
 size_t HUF_readCTable (HUF_CElt* CTable, unsigned* maxSymbolValuePtr, const void* src, size_t srcSize);
 
+/** HUF_getNbBits() :
+ *  Read nbBits from CTable symbolTable, for symbol `symbolValue` presumed <= HUF_SYMBOLVALUE_MAX
+ *  Note 1 : is not inlined, as HUF_CElt definition is private
+ *  Note 2 : const void* used, so that it can provide a statically allocated table as argument (which uses type U32) */
+U32 HUF_getNbBits(const void* symbolTable, U32 symbolValue);
 
 /*
  * HUF_decompress() does the following:

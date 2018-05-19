@@ -143,7 +143,10 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct, const short* normalizedCounter, unsi
         for (s=0; s<=maxSymbolValue; s++) {
             switch (normalizedCounter[s])
             {
-            case  0: break;
+            case  0:
+                /* filling nonetheless, for compatibility with FSE_getMaxNbBits() */
+                symbolTT[s].deltaNbBits = (tableLog+1) << 16;
+                break;
 
             case -1:
             case  1:
@@ -159,6 +162,18 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct, const short* normalizedCounter, unsi
                     symbolTT[s].deltaFindState = total - normalizedCounter[s];
                     total +=  normalizedCounter[s];
     }   }   }   }
+
+#if 0  /* debug : symbol costs */
+    DEBUGLOG(5, "\n --- table statistics : ");
+    {   U32 symbol;
+        for (symbol=0; symbol<=maxSymbolValue; symbol++) {
+            DEBUGLOG(5, "%3u: w=%3i,   maxBits=%u, fracBits=%.2f",
+                symbol, normalizedCounter[symbol],
+                FSE_getMaxNbBits(symbolTT, symbol),
+                (double)FSE_bitCost(symbolTT, tableLog, symbol, 8) / 256);
+        }
+    }
+#endif
 
     return 0;
 }

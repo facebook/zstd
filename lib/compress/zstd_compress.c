@@ -1207,11 +1207,12 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
     /* We have a choice between copying the dictionary context into the working
      * context, or referencing the dictionary context from the working context
      * in-place. We decide here which strategy to use. */
-    int attachDict = ( pledgedSrcSize <= 8 KB
-                    || pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN )
-                  && cdict->cParams.strategy == ZSTD_fast
-                  && ZSTD_equivalentCParams(cctx->appliedParams.cParams,
-                                            cdict->cParams);
+    const int attachDict = ( pledgedSrcSize <= 8 KB
+                          || pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN )
+                        && cdict->cParams.strategy == ZSTD_fast
+                        && ZSTD_equivalentCParams(cctx->appliedParams.cParams,
+                                                  cdict->cParams);
+
 
     {   unsigned const windowLog = params.cParams.windowLog;
         assert(windowLog != 0);
@@ -1227,7 +1228,9 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
     }
 
     if (attachDict) {
-        if (cdict->matchState.window.nextSrc - cdict->matchState.window.base == 0) {
+        const U32 cdictLen = (U32)( cdict->matchState.window.nextSrc
+                                  - cdict->matchState.window.base);
+        if (cdictLen == 0) {
             /* don't even attach dictionaries with no contents */
             DEBUGLOG(4, "skipping attaching empty dictionary");
         } else {
@@ -1236,15 +1239,12 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
 
             /* prep working match state so dict matches never have negative indices
              * when they are translated to the working context's index space. */
-            if (cctx->blockState.matchState.window.dictLimit <
-                (U32)(cdict->matchState.window.nextSrc - cdict->matchState.window.base)) {
+            if (cctx->blockState.matchState.window.dictLimit < cdictLen) {
                 cctx->blockState.matchState.window.nextSrc =
-                    cctx->blockState.matchState.window.base +
-                    ( cdict->matchState.window.nextSrc
-                    - cdict->matchState.window.base);
+                    cctx->blockState.matchState.window.base + cdictLen;
                 ZSTD_window_clear(&cctx->blockState.matchState.window);
             }
-            cctx->blockState.matchState.loadedDictEnd = cctx->blockState.matchState.window.dictLimit;
+            cctx->blockState.matchState.loadedDictEnd = params.forceWindow ? 0 : cdictLen;
         }
     } else {
         DEBUGLOG(4, "copying dictionary into context");

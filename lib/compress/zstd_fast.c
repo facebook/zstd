@@ -74,6 +74,7 @@ size_t ZSTD_compressBlock_fast_generic(
     const U32 dictIndexDelta       = dictMode == ZSTD_dictMatchState ?
                                      prefixLowestIndex - (U32)(dictEnd - dictBase) :
                                      0;
+    const U32 dictAndPrefixLength  = (U32)(ip - prefixLowest + dictEnd - dictLowest);
 
     assert(dictMode == ZSTD_noDict || dictMode == ZSTD_dictMatchState);
 
@@ -83,12 +84,17 @@ size_t ZSTD_compressBlock_fast_generic(
         || prefixLowestIndex >= (U32)(dictEnd - dictBase));
 
     /* init */
-    ip += (ip - prefixLowest + dictEnd - dictLowest == 0);
-    {   U32 const maxRep = dictMode == ZSTD_dictMatchState ?
-                           (U32)(ip - prefixLowest + dictEnd - dictLowest) :
-                           (U32)(ip - prefixLowest);
+    ip += (dictAndPrefixLength == 0);
+    if (dictMode == ZSTD_noDict) {
+        U32 const maxRep = (U32)(ip - prefixLowest);
         if (offset_2 > maxRep) offsetSaved = offset_2, offset_2 = 0;
         if (offset_1 > maxRep) offsetSaved = offset_1, offset_1 = 0;
+    }
+    if (dictMode == ZSTD_dictMatchState) {
+        /* dictMatchState repCode checks don't currently handle repCode == 0
+         * disabling. */
+        assert(offset_1 <= dictAndPrefixLength);
+        assert(offset_2 <= dictAndPrefixLength);
     }
 
     /* Main Search Loop */
@@ -169,8 +175,7 @@ size_t ZSTD_compressBlock_fast_generic(
                 while (ip <= ilimit) {
                     U32 const current2 = (U32)(ip-base);
                     U32 const repIndex2 = current2 - offset_2;
-                    const BYTE* repMatch2 = dictMode == ZSTD_dictMatchState
-                        && repIndex2 < prefixLowestIndex ?
+                    const BYTE* repMatch2 = repIndex2 < prefixLowestIndex ?
                             dictBase - dictIndexDelta + repIndex2 :
                             base + repIndex2;
                     if ( ((U32)((prefixLowestIndex-1) - (U32)repIndex2) >= 3 /* intentional overflow */)

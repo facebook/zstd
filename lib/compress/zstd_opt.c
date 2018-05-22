@@ -1012,6 +1012,7 @@ size_t ZSTD_compressBlock_btopt(
 }
 
 
+/* used in 2-pass strategy */
 static U32 ZSTD_upscaleStat(U32* table, U32 lastEltIndex, int bonus)
 {
     U32 s, sum=0;
@@ -1024,7 +1025,8 @@ static U32 ZSTD_upscaleStat(U32* table, U32 lastEltIndex, int bonus)
     return sum;
 }
 
-static void ZSTD_upscaleStats(optState_t* optPtr)
+/* used in 2-pass strategy */
+MEM_STATIC void ZSTD_upscaleStats(optState_t* optPtr)
 {
     optPtr->litSum = ZSTD_upscaleStat(optPtr->litFreq, MaxLit, 0);
     optPtr->litLengthSum = ZSTD_upscaleStat(optPtr->litLengthFreq, MaxLL, 1);
@@ -1037,6 +1039,12 @@ size_t ZSTD_compressBlock_btultra(
         const ZSTD_compressionParameters* cParams, const void* src, size_t srcSize)
 {
     DEBUGLOG(5, "ZSTD_compressBlock_btultra (srcSize=%zu)", srcSize);
+#if 0
+    /* 2-pass strategy (disabled)
+     * this strategy makes a first pass over first block to collect statistics
+     * and seed next round's statistics with it.
+     * The compression ratio gain is generally small (~0.5% on first block),
+     * the cost is 2x cpu time on first block. */
     assert(srcSize <= ZSTD_BLOCKSIZE_MAX);
     if ( (ms->opt.litLengthSum==0)   /* first block */
       && (seqStore->sequences == seqStore->sequencesStart)   /* no ldm */
@@ -1057,6 +1065,7 @@ size_t ZSTD_compressBlock_btultra(
         /* re-inforce weight of collected statistics */
         ZSTD_upscaleStats(&ms->opt);
     }
+#endif
     return ZSTD_compressBlock_opt_generic(ms, seqStore, rep, cParams, src, srcSize, 2 /*optLevel*/, 0 /*extDict*/);
 }
 

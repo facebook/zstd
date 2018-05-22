@@ -642,8 +642,6 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
     ZSTD_ldm_limitTableUpdate(ms, ip);
     ZSTD_ldm_fillFastTables(ms, cParams, ip);
     /* Compress the last literals */
-    {   size_t const lastLiterals = blockCompressor(ms, seqStore, rep, cParams,
-                                                    ip, iend - ip);
-        return lastLiterals;
-    }
+    return blockCompressor(ms, seqStore, rep, cParams,
+                           ip, iend - ip);
 }

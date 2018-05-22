@@ -603,6 +603,7 @@ Let's call its first byte `byte0`.
 - `if (byte0 == 0)` : there are no sequences.
             The sequence section stops there.
             Decompressed content is defined entirely as Literals Section content.
+            The FSE tables used in `Repeat_Mode` aren't updated.
 - `if (byte0 < 128)` : `Number_of_Sequences = byte0` . Uses 1 byte.
 - `if (byte0 < 255)` : `Number_of_Sequences = ((byte0-128) << 8) + byte1` . Uses 2 bytes.
 - `if (byte0 == 255)`: `Number_of_Sequences = byte1 + (byte2<<8) + 0x7F00` . Uses 3 bytes.
@@ -631,7 +632,7 @@ They follow the same enumeration :
           No distribution table will be present.
 - `RLE_Mode` : The table description consists of a single byte.
           This code will be repeated for all sequences.
-- `Repeat_Mode` : The table used in the previous `Compressed_Block` will be used again,
+- `Repeat_Mode` : The table used in the previous `Compressed_Block` with `Number_of_Sequences > 0` will be used again,
           or if this is the first block, table in the dictionary will be used
           No distribution table will be present.
           Note that this includes `RLE_mode`, so if `Repeat_Mode` follows `RLE_Mode`, the same symbol will be repeated.

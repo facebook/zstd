@@ -72,7 +72,7 @@ size_t ZSTD_compressBlock_fast_generic(
     const BYTE* const dictEnd      = dictMode == ZSTD_dictMatchState ?
                                      dms->window.nextSrc : NULL;
     const U32 dictIndexDelta       = dictMode == ZSTD_dictMatchState ?
-                                     prefixLowestIndex - (U32)(dictEnd - dictBase) :
+                                     ms->loadedDictEnd - (U32)(dictEnd - dictBase) :
                                      0;
     const U32 dictAndPrefixLength  = (U32)(ip - prefixLowest + dictEnd - dictLowest);
 

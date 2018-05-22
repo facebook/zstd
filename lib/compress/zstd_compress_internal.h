@@ -53,18 +53,22 @@ typedef struct ZSTD_prefixDict_s {
 } ZSTD_prefixDict;
 
 typedef struct {
-    /* Huffman data
-     * Must be before the FSE data.
-     */
-    U32 hufCTable[HUF_CTABLE_SIZE_U32(255)];
-    HUF_repeat hufCTable_repeatMode;
-    /* FSE data */
+    U32 CTable[HUF_CTABLE_SIZE_U32(255)];
+    HUF_repeat repeatMode;
+} ZSTD_hufCTables_t;
+
+typedef struct {
     FSE_CTable offcodeCTable[FSE_CTABLE_SIZE_U32(OffFSELog, MaxOff)];
     FSE_CTable matchlengthCTable[FSE_CTABLE_SIZE_U32(MLFSELog, MaxML)];
     FSE_CTable litlengthCTable[FSE_CTABLE_SIZE_U32(LLFSELog, MaxLL)];
     FSE_repeat offcode_repeatMode;
     FSE_repeat matchlength_repeatMode;
     FSE_repeat litlength_repeatMode;
+} ZSTD_fseCTables_t;
+
+typedef struct {
+    ZSTD_hufCTables_t huf;
+    ZSTD_fseCTables_t fse;
 } ZSTD_entropyCTables_t;
 
 typedef struct {

@@ -402,7 +402,6 @@ typedef struct {
     const void* stateTable;
     const void* symbolTT;
     unsigned    stateLog;
-    unsigned    maxSymbolValue;
 } FSE_CState_t;
 
 static void FSE_initCState(FSE_CState_t* CStatePtr, const FSE_CTable* ct);
@@ -539,13 +538,11 @@ MEM_STATIC void FSE_initCState(FSE_CState_t* statePtr, const FSE_CTable* ct)
 {
     const void* ptr = ct;
     const U16* u16ptr = (const U16*) ptr;
-    const U32 tableLog = MEM_read16(u16ptr);
-    const U32 maxSymbolValue = MEM_read16(u16ptr + 1);
+    const U32 tableLog = MEM_read16(ptr);
     statePtr->value = (ptrdiff_t)1<<tableLog;
     statePtr->stateTable = u16ptr+2;
     statePtr->symbolTT = ((const U32*)ct + 1 + (tableLog ? (1<<(tableLog-1)) : 1));
     statePtr->stateLog = tableLog;
-    statePtr->maxSymbolValue = maxSymbolValue;
 }
 
 

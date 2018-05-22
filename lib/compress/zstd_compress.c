@@ -1209,6 +1209,8 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
      * in-place. We decide here which strategy to use. */
     const int attachDict = ( pledgedSrcSize <= 8 KB
                           || pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN )
+                        && !params.forceWindow /* dictMatchState isn't correctly
+                                                * handled in _enforceMaxDist */
                         && cdict->cParams.strategy == ZSTD_fast
                         && ZSTD_equivalentCParams(cctx->appliedParams.cParams,
                                                   cdict->cParams);
@@ -1244,7 +1246,7 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
                     cctx->blockState.matchState.window.base + cdictLen;
                 ZSTD_window_clear(&cctx->blockState.matchState.window);
             }
-            cctx->blockState.matchState.loadedDictEnd = params.forceWindow ? 0 : cdictLen;
+            cctx->blockState.matchState.loadedDictEnd = cctx->blockState.matchState.window.dictLimit;
         }
     } else {
         DEBUGLOG(4, "copying dictionary into context");

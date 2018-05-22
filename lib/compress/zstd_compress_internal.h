@@ -594,14 +594,20 @@ MEM_STATIC U32 ZSTD_window_correctOverflow(ZSTD_window_t* window, U32 cycleLog,
  * ZSTD_window_enforceMaxDist():
  * Updates lowLimit so that:
  *    (srcEnd - base) - lowLimit == maxDist + loadedDictEnd
+ *
  * This allows a simple check that index >= lowLimit to see if index is valid.
  * This must be called before a block compression call, with srcEnd as the block
  * source end.
+ *
  * If loadedDictEndPtr is not NULL, we set it to zero once we update lowLimit.
  * This is because dictionaries are allowed to be referenced as long as the last
  * byte of the dictionary is in the window, but once they are out of range,
  * they cannot be referenced. If loadedDictEndPtr is NULL, we use
  * loadedDictEnd == 0.
+ *
+ * In normal dict mode, the dict is between lowLimit and dictLimit. In
+ * dictMatchState mode, lowLimit and dictLimit are the same, and the dictionary
+ * is below them. forceWindow and dictMatchState are therefore incompatible.
  */
 MEM_STATIC void ZSTD_window_enforceMaxDist(ZSTD_window_t* window,
                                            void const* srcEnd, U32 maxDist,

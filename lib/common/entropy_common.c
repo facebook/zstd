@@ -73,16 +73,16 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
     int previous0 = 0;
 
     if (hbSize < 4) {
-      /* This function only works when hbSize >= 4 */
-      char buffer[4];
-      memset(buffer, 0, sizeof(buffer));
-      memcpy(buffer, headerBuffer, hbSize);
-      size_t const countSize = FSE_readNCount(normalizedCounter, maxSVPtr, tableLogPtr,
-                                              buffer, sizeof(buffer));
-      if (FSE_isError(countSize)) return countSize;
-      if (countSize > hbSize) return ERROR(corruption_detected);
-      return countSize;
-    }
+        /* This function only works when hbSize >= 4 */
+        char buffer[4];
+        memset(buffer, 0, sizeof(buffer));
+        memcpy(buffer, headerBuffer, hbSize);
+        {   size_t const countSize = FSE_readNCount(normalizedCounter, maxSVPtr, tableLogPtr,
+                                                    buffer, sizeof(buffer));
+            if (FSE_isError(countSize)) return countSize;
+            if (countSize > hbSize) return ERROR(corruption_detected);
+            return countSize;
+    }   }
     assert(hbSize >= 4);
 
     bitStream = MEM_readLE32(ip);

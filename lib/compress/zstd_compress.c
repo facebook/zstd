@@ -1983,7 +1983,8 @@ MEM_STATIC size_t ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
     BYTE* op = ostart;
     size_t const nbSeq = seqStorePtr->sequences - seqStorePtr->sequencesStart;
     BYTE* seqHead;
-    size_t lastCountSize = 0;
+    size_t const kMinLastCountSize = 4;
+    size_t lastCountSize = kMinLastCountSize;
 
     ZSTD_STATIC_ASSERT(HUF_WORKSPACE_SIZE >= (1<<MAX(MLFSELog,LLFSELog)));
 
@@ -2055,8 +2056,8 @@ MEM_STATIC size_t ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
             op += countSize;
             if (Offtype == set_compressed)
                 lastCountSize = countSize;
-            else if (countSize > 0)
-                lastCountSize = 0;
+            else
+                lastCountSize += countSize;
     }   }
     /* build CTable for MatchLengths */
     {   U32 max = MaxML;
@@ -2073,8 +2074,8 @@ MEM_STATIC size_t ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
             op += countSize;
             if (MLtype == set_compressed)
                 lastCountSize = countSize;
-            else if (countSize > 0)
-                lastCountSize = 0;
+            else
+                lastCountSize += countSize;
     }   }
 
     *seqHead = (BYTE)((LLtype<<6) + (Offtype<<4) + (MLtype<<2));
@@ -2088,14 +2089,7 @@ MEM_STATIC size_t ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
                                         longOffsets, bmi2);
         if (ZSTD_isError(bitstreamSize)) return bitstreamSize;
         op += bitstreamSize;
-        /* Our check only works when NCountSize >= 2, since we assume that if
-         * another table is >= 1 byte the previous table can't error.
-         */
-        assert(lastCountSize == 0 || lastCountSize >= 2);
-        /* If at least one table is set_compressed there must be at least one
-         * byte in the bitstream.
-         */
-        assert(lastCountSize == 0 || bitstreamSize > 0);
+        lastCountSize += bitstreamSize;
         /* zstd versions <= 1.3.4 mistakenly report corruption when
          * FSE_readNCount() recieves a buffer < 4 bytes.
          * Fixed by https://github.com/facebook/zstd/pull/1146.
@@ -2104,7 +2098,9 @@ MEM_STATIC size_t ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
          * In this exceedingly rare case, we will simply emit an uncompressed
          * block, since it isn't worth optimizing.
          */
-        if (bitstreamSize == 1 && lastCountSize == 2) {
+        if (lastCountSize < kMinLastCountSize) {
+            /* NCountSize >= 2 && bitstreamSize > 0 ==> lastCountSize == 3 */
+            assert(lastCountSize == 3);
             DEBUGLOG(5, "Avoiding bug in zstd decoder in versions <= 1.3.4 by "
                         "emitting an uncompressed block.");
             return 0;

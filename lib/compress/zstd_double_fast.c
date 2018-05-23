@@ -111,7 +111,7 @@ size_t ZSTD_compressBlock_doubleFast_generic(
         size_t const h = ZSTD_hashPtr(ip, hBitsS, mls);
         U32 const current = (U32)(ip-base);
         U32 const matchIndexL = hashLong[h2];
-        U32 const matchIndexS = hashSmall[h];
+        U32 matchIndexS = hashSmall[h];
         const BYTE* matchLong = base + matchIndexL;
         const BYTE* match = base + matchIndexS;
         const U32 repIndex = current + 1 - offset_1;
@@ -165,53 +165,67 @@ size_t ZSTD_compressBlock_doubleFast_generic(
 
         /* check prefix short match */
         if ( (matchIndexS > prefixLowestIndex) && (MEM_read32(match) == MEM_read32(ip)) ) {
-            size_t const hl3 = ZSTD_hashPtr(ip+1, hBitsL, 8);
-            U32 const matchIndexL3 = hashLong[hl3];
-            const BYTE* matchL3 = base + matchIndexL3;
-            hashLong[hl3] = current + 1;
-
-            /* check prefix + 1 long match */
-            if ( (matchIndexL3 > prefixLowestIndex) && (MEM_read64(matchL3) == MEM_read64(ip+1)) ) {
-                mLength = ZSTD_count(ip+9, matchL3+8, iend) + 8;
-                ip++;
-                offset = (U32)(ip-matchL3);
-                while (((ip>anchor) & (matchL3>prefixLowest)) && (ip[-1] == matchL3[-1])) { ip--; matchL3--; mLength++; } /* catch up */
-            } else {
-                mLength = ZSTD_count(ip+4, match+4, iend) + 4;
-                offset = (U32)(ip-match);
-                while (((ip>anchor) & (match>prefixLowest)) && (ip[-1] == match[-1])) { ip--; match--; mLength++; } /* catch up */
-            }
-            goto _match_found;
+            goto _search_next_long;
         }
 
         /* check dictMatchState short match */
         if (dictMode == ZSTD_dictMatchState) {
             U32 const dictMatchIndexS = dictHashSmall[h];
-            const BYTE* dictMatchS = dictBase + dictMatchIndexS;
-            assert(dictMatchS < dictEnd);
+            match = dictBase + dictMatchIndexS;
+            matchIndexS = dictMatchIndexS + dictIndexDelta;
 
-            if (dictMatchS > dictLowest && MEM_read32(dictMatchS) == MEM_read32(ip)) {
-                size_t const hl3 = ZSTD_hashPtr(ip+1, hBitsL, 8);
-                U32 const dictMatchIndexL3 = dictHashLong[hl3];
-                const BYTE* dictMatchL3 = dictBase + dictMatchIndexL3;
-                assert(dictMatchL3 < dictEnd);
-                if (dictMatchL3 > dictLowest && MEM_read64(dictMatchL3) == MEM_read64(ip)) {
-                    mLength = ZSTD_count_2segments(ip+1+8, dictMatchL3+8, iend, dictEnd, prefixLowest) + 8;
-                    ip++;
-                    offset = (U32)(current + 1 - dictMatchIndexL3 - dictIndexDelta);
-                    while (((ip>anchor) & (dictMatchL3>dictLowest)) && (ip[-1] == dictMatchL3[-1])) { ip--; dictMatchL3--; mLength++; } /* catch up */
-                } else {
-                    mLength = ZSTD_count_2segments(ip+4, dictMatchS+4, iend, dictEnd, istart) + 4;
-                    offset = (U32)(current - dictMatchIndexS - dictIndexDelta);
-                    while (((ip>anchor) & (dictMatchS>dictLowest)) && (ip[-1] == dictMatchS[-1])) { ip--; dictMatchS--; mLength++; } /* catch up */
-                }
-
-                goto _match_found;
+            if (match > dictLowest && MEM_read32(match) == MEM_read32(ip)) {
+                goto _search_next_long;
             }
         }
 
         ip += ((ip-anchor) >> kSearchStrength) + 1;
         continue;
+
+_search_next_long:
+        
+        {
+            size_t const hl3 = ZSTD_hashPtr(ip+1, hBitsL, 8);
+            U32 const matchIndexL3 = hashLong[hl3];
+            const BYTE* matchL3 = base + matchIndexL3;
+            hashLong[hl3] = current + 1;
+
+            /* check prefix long +1 match */
+            if ( (matchIndexL3 > prefixLowestIndex) && (MEM_read64(matchL3) == MEM_read64(ip+1)) ) {
+                mLength = ZSTD_count(ip+9, matchL3+8, iend) + 8;
+                ip++;
+                offset = (U32)(ip-matchL3);
+                while (((ip>anchor) & (matchL3>prefixLowest)) && (ip[-1] == matchL3[-1])) { ip--; matchL3--; mLength++; } /* catch up */
+                goto _match_found;
+            }
+
+            /* check dict long +1 match */
+            if (dictMode == ZSTD_dictMatchState) {
+                U32 const dictMatchIndexL3 = dictHashLong[hl3];
+                const BYTE* dictMatchL3 = dictBase + dictMatchIndexL3;
+                assert(dictMatchL3 < dictEnd);
+                if (dictMatchL3 > dictLowest && MEM_read64(dictMatchL3) == MEM_read64(ip+1)) {
+                    mLength = ZSTD_count_2segments(ip+1+8, dictMatchL3+8, iend, dictEnd, prefixLowest) + 8;
+                    ip++;
+                    offset = (U32)(current + 1 - dictMatchIndexL3 - dictIndexDelta);
+                    while (((ip>anchor) & (dictMatchL3>dictLowest)) && (ip[-1] == dictMatchL3[-1])) { ip--; dictMatchL3--; mLength++; } /* catch up */
+                    goto _match_found;
+                }
+            }
+        }
+        
+        /* if no long +1 match, explore the short match we found */
+        if (dictMode == ZSTD_dictMatchState && matchIndexS < prefixLowestIndex) {
+            mLength = ZSTD_count_2segments(ip+4, match+4, iend, dictEnd, istart) + 4;
+            offset = (U32)(current - matchIndexS);
+            while (((ip>anchor) & (match>dictLowest)) && (ip[-1] == match[-1])) { ip--; match--; mLength++; } /* catch up */
+        } else {
+            mLength = ZSTD_count(ip+4, match+4, iend) + 4;
+            offset = (U32)(ip - match);
+            while (((ip>anchor) & (match>prefixLowest)) && (ip[-1] == match[-1])) { ip--; match--; mLength++; } /* catch up */
+        }
+
+        /* fall-through */
 
 _match_found:
         offset_2 = offset_1;

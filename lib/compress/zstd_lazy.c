@@ -503,14 +503,32 @@ size_t ZSTD_compressBlock_lazy_generic(
         (searchMethod ? ZSTD_BtFindBestMatch_selectMLS : ZSTD_HcFindBestMatch_selectMLS);
     U32 offset_1 = rep[0], offset_2 = rep[1], savedOffset=0;
 
+    const ZSTD_matchState_t* const dms = ms->dictMatchState;
+    const U32 dictLowestIndex      = dictMode == ZSTD_dictMatchState ?
+                                     dms->window.dictLimit : 0;
+    const BYTE* const dictBase     = dictMode == ZSTD_dictMatchState ?
+                                     dms->window.base : NULL;
+    const BYTE* const dictLowest   = dictMode == ZSTD_dictMatchState ?
+                                     dictBase + dictLowestIndex : NULL;
+    const BYTE* const dictEnd      = dictMode == ZSTD_dictMatchState ?
+                                     dms->window.nextSrc : NULL;
+    const U32 dictAndPrefixLength = (U32)(ip - prefixLowest + dictEnd - dictLowest);
+
     (void)dictMode;
 
     /* init */
-    ip += (ip==prefixLowest);
+    ip += (dictAndPrefixLength == 0);
     ms->nextToUpdate3 = ms->nextToUpdate;
-    {   U32 const maxRep = (U32)(ip-prefixLowest);
+    if (dictMode == ZSTD_noDict) {
+        U32 const maxRep = (U32)(ip - prefixLowest);
         if (offset_2 > maxRep) savedOffset = offset_2, offset_2 = 0;
         if (offset_1 > maxRep) savedOffset = offset_1, offset_1 = 0;
+    }
+    if (dictMode == ZSTD_dictMatchState) {
+        /* dictMatchState repCode checks don't currently handle repCode == 0
+         * disabling. */
+        assert(offset_1 <= dictAndPrefixLength);
+        assert(offset_2 <= dictAndPrefixLength);
     }
 
     /* Match Loop */

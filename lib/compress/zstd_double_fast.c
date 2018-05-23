@@ -73,7 +73,7 @@ size_t ZSTD_compressBlock_doubleFast_generic(
     const U32* const dictHashLong  = dictMode == ZSTD_dictMatchState ?
                                      dms->hashTable : NULL;
     const U32* const dictHashSmall = dictMode == ZSTD_dictMatchState ?
-                                     dms->hashTable : NULL;
+                                     dms->chainTable : NULL;
     const U32 dictLowestIndex      = dictMode == ZSTD_dictMatchState ?
                                      dms->window.dictLimit : 0;
     const BYTE* const dictBase     = dictMode == ZSTD_dictMatchState ?

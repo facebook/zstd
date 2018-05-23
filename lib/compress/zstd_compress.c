@@ -1983,8 +1983,7 @@ MEM_STATIC size_t ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
     BYTE* op = ostart;
     size_t const nbSeq = seqStorePtr->sequences - seqStorePtr->sequencesStart;
     BYTE* seqHead;
-    size_t const kMinLastCountSize = 4;
-    size_t lastCountSize = kMinLastCountSize;
+    BYTE* lastNCount = NULL;
 
     ZSTD_STATIC_ASSERT(HUF_WORKSPACE_SIZE >= (1<<MAX(MLFSELog,LLFSELog)));
 
@@ -2035,9 +2034,9 @@ MEM_STATIC size_t ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
                     prevEntropy->fse.litlengthCTable, sizeof(prevEntropy->fse.litlengthCTable),
                     workspace, HUF_WORKSPACE_SIZE);
             if (ZSTD_isError(countSize)) return countSize;
-            op += countSize;
             if (LLtype == set_compressed)
-                lastCountSize = countSize;
+                lastNCount = op;
+            op += countSize;
     }   }
     /* build CTable for Offsets */
     {   U32 max = MaxOff;
@@ -2053,11 +2052,9 @@ MEM_STATIC size_t ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
                     prevEntropy->fse.offcodeCTable, sizeof(prevEntropy->fse.offcodeCTable),
                     workspace, HUF_WORKSPACE_SIZE);
             if (ZSTD_isError(countSize)) return countSize;
-            op += countSize;
             if (Offtype == set_compressed)
-                lastCountSize = countSize;
-            else
-                lastCountSize += countSize;
+                lastNCount = op;
+            op += countSize;
     }   }
     /* build CTable for MatchLengths */
     {   U32 max = MaxML;
@@ -2071,11 +2068,9 @@ MEM_STATIC size_t ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
                     prevEntropy->fse.matchlengthCTable, sizeof(prevEntropy->fse.matchlengthCTable),
                     workspace, HUF_WORKSPACE_SIZE);
             if (ZSTD_isError(countSize)) return countSize;
-            op += countSize;
             if (MLtype == set_compressed)
-                lastCountSize = countSize;
-            else
-                lastCountSize += countSize;
+                lastNCount = op;
+            op += countSize;
     }   }
 
     *seqHead = (BYTE)((LLtype<<6) + (Offtype<<4) + (MLtype<<2));
@@ -2089,7 +2084,6 @@ MEM_STATIC size_t ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
                                         longOffsets, bmi2);
         if (ZSTD_isError(bitstreamSize)) return bitstreamSize;
         op += bitstreamSize;
-        lastCountSize += bitstreamSize;
         /* zstd versions <= 1.3.4 mistakenly report corruption when
          * FSE_readNCount() recieves a buffer < 4 bytes.
          * Fixed by https://github.com/facebook/zstd/pull/1146.
@@ -2098,9 +2092,9 @@ MEM_STATIC size_t ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
          * In this exceedingly rare case, we will simply emit an uncompressed
          * block, since it isn't worth optimizing.
          */
-        if (lastCountSize < kMinLastCountSize) {
+        if (lastNCount && (op - lastNCount) < 4) {
             /* NCountSize >= 2 && bitstreamSize > 0 ==> lastCountSize == 3 */
-            assert(lastCountSize == 3);
+            assert(op - lastNCount == 3);
             DEBUGLOG(5, "Avoiding bug in zstd decoder in versions <= 1.3.4 by "
                         "emitting an uncompressed block.");
             return 0;

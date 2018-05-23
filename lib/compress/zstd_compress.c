@@ -2210,6 +2210,11 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
     ZSTD_resetSeqStore(&(zc->seqStore));
     ms->opt.symbolCosts = &zc->blockState.prevCBlock->entropy;   /* required for optimal parser to read stats from dictionary */
 
+    /* a gap between an attached dict and the current window is not safe,
+     * they must remain adjacent, and when that stops being the case, the dict
+     * must be unset */
+    assert(ms->dictMatchState == NULL || ms->loadedDictEnd == ms->window.dictLimit);
+
     /* limited update after a very long match */
     {   const BYTE* const base = ms->window.base;
         const BYTE* const istart = (const BYTE*)src;

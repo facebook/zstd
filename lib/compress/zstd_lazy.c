@@ -493,7 +493,9 @@ size_t ZSTD_compressBlock_lazy_generic(
     const BYTE* anchor = istart;
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - 8;
-    const BYTE* const prefixLowest = ms->window.base + ms->window.dictLimit;
+    const BYTE* const base = ms->window.base;
+    const U32 prefixLowestIndex = ms->window.dictLimit;
+    const BYTE* const prefixLowest = base + prefixLowestIndex;
 
     typedef size_t (*searchMax_f)(
                         ZSTD_matchState_t* ms, ZSTD_compressionParameters const* cParams,
@@ -512,6 +514,9 @@ size_t ZSTD_compressBlock_lazy_generic(
                                      dictBase + dictLowestIndex : NULL;
     const BYTE* const dictEnd      = dictMode == ZSTD_dictMatchState ?
                                      dms->window.nextSrc : NULL;
+    const U32 dictIndexDelta       = dictMode == ZSTD_dictMatchState ?
+                                     prefixLowestIndex - (U32)(dictEnd - dictBase) :
+                                     0;
     const U32 dictAndPrefixLength = (U32)(ip - prefixLowest + dictEnd - dictLowest);
 
     (void)dictMode;
@@ -537,9 +542,27 @@ size_t ZSTD_compressBlock_lazy_generic(
         size_t offset=0;
         const BYTE* start=ip+1;
 
+        const U32 repIndex = (U32)(ip - base) + 1 - offset_1;
+        const BYTE* repMatch = (dictMode == ZSTD_dictMatchState
+                            && repIndex < prefixLowestIndex) ?
+                               dictBase + (repIndex - dictIndexDelta) :
+                               base + repIndex;
+
         /* check repCode */
         if ((offset_1>0) & (MEM_read32(ip+1) == MEM_read32(ip+1 - offset_1))) {
             /* repcode : we take it */
+            matchLength = ZSTD_count(ip+1+4, ip+1+4-offset_1, iend) + 4;
+            if (depth==0) goto _storeSequence;
+        }
+
+        if (dictMode == ZSTD_dictMatchState
+            && ((U32)((prefixLowestIndex-1) - repIndex) >= 3 /* intentional underflow */)
+            && (MEM_read32(repMatch) == MEM_read32(ip+1)) ) {
+            const BYTE* repMatchEnd = repIndex < prefixLowestIndex ? dictEnd : iend;
+            matchLength = ZSTD_count_2segments(ip+1+4, repMatch+4, iend, repMatchEnd, istart) + 4;
+            if (depth==0) goto _storeSequence;
+        } else if ( dictMode == ZSTD_noDict
+                 && ((offset_1 > 0) & (MEM_read32(ip+1-offset_1) == MEM_read32(ip+1)))) {
             matchLength = ZSTD_count(ip+1+4, ip+1+4-offset_1, iend) + 4;
             if (depth==0) goto _storeSequence;
         }

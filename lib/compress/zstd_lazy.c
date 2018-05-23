@@ -640,16 +640,39 @@ _storeSequence:
         }
 
         /* check immediate repcode */
-        while ( ((ip <= ilimit) & (offset_2>0))
-             && (MEM_read32(ip) == MEM_read32(ip - offset_2)) ) {
-            /* store sequence */
-            matchLength = ZSTD_count(ip+4, ip+4-offset_2, iend) + 4;
-            offset = offset_2; offset_2 = offset_1; offset_1 = (U32)offset; /* swap repcodes */
-            ZSTD_storeSeq(seqStore, 0, anchor, 0, matchLength-MINMATCH);
-            ip += matchLength;
-            anchor = ip;
-            continue;   /* faster when present ... (?) */
-    }   }
+        if (dictMode == ZSTD_dictMatchState) {
+            while (ip <= ilimit) {
+                U32 const current2 = (U32)(ip-base);
+                U32 const repIndex2 = current2 - offset_2;
+                const BYTE* repMatch2 = dictMode == ZSTD_dictMatchState
+                    && repIndex2 < prefixLowestIndex ?
+                        dictBase - dictIndexDelta + repIndex2 :
+                        base + repIndex2;
+                if ( ((U32)((prefixLowestIndex-1) - (U32)repIndex2) >= 3 /* intentional overflow */)
+                   && (MEM_read32(repMatch2) == MEM_read32(ip)) ) {
+                    const BYTE* const repEnd2 = repIndex2 < prefixLowestIndex ? dictEnd : iend;
+                    matchLength = ZSTD_count_2segments(ip+4, repMatch2+4, iend, repEnd2, istart) + 4;
+                    offset = offset_2; offset_2 = offset_1; offset_1 = offset;   /* swap offset_2 <=> offset_1 */
+                    ZSTD_storeSeq(seqStore, 0, anchor, 0, matchLength-MINMATCH);
+                    ip += matchLength;
+                    anchor = ip;
+                    continue;
+                }
+                break;
+            }
+        }
+
+        if (dictMode == ZSTD_noDict) {
+            while ( ((ip <= ilimit) & (offset_2>0))
+                 && (MEM_read32(ip) == MEM_read32(ip - offset_2)) ) {
+                /* store sequence */
+                matchLength = ZSTD_count(ip+4, ip+4-offset_2, iend) + 4;
+                offset = offset_2; offset_2 = offset_1; offset_1 = (U32)offset; /* swap repcodes */
+                ZSTD_storeSeq(seqStore, 0, anchor, 0, matchLength-MINMATCH);
+                ip += matchLength;
+                anchor = ip;
+                continue;   /* faster when present ... (?) */
+    }   }   }
 
     /* Save reps for next block */
     rep[0] = offset_1 ? offset_1 : savedOffset;

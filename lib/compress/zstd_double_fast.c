@@ -85,16 +85,22 @@ size_t ZSTD_compressBlock_doubleFast_generic(
     const U32 dictIndexDelta       = dictMode == ZSTD_dictMatchState ?
                                      prefixLowestIndex - (U32)(dictEnd - dictBase) :
                                      0;
+    const U32 dictAndPrefixLength  = (U32)(ip - prefixLowest + dictEnd - dictLowest);
 
     assert(dictMode == ZSTD_noDict || dictMode == ZSTD_dictMatchState);
 
     /* init */
-    ip += (dictMode == ZSTD_noDict && ip == prefixLowest);
-    {   U32 const maxRep = dictMode == ZSTD_dictMatchState ?
-                           (U32)(ip - dictLowest) :
-                           (U32)(ip - prefixLowest);
+    ip += (dictAndPrefixLength == 0);
+    if (dictMode == ZSTD_noDict) {
+        U32 const maxRep = (U32)(ip - prefixLowest);
         if (offset_2 > maxRep) offsetSaved = offset_2, offset_2 = 0;
         if (offset_1 > maxRep) offsetSaved = offset_1, offset_1 = 0;
+    }
+    if (dictMode == ZSTD_dictMatchState) {
+        /* dictMatchState repCode checks don't currently handle repCode == 0
+         * disabling. */
+        assert(offset_1 <= dictAndPrefixLength);
+        assert(offset_2 <= dictAndPrefixLength);
     }
 
     /* Main Search Loop */

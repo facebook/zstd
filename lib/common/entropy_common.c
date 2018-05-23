@@ -77,8 +77,13 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
       char buffer[4];
       memset(buffer, 0, sizeof(buffer));
       memcpy(buffer, headerBuffer, hbSize);
-      return FSE_readNCount(normalizedCounter, maxSVPtr, tableLogPtr, buffer, sizeof(buffer));
+      size_t const countSize = FSE_readNCount(normalizedCounter, maxSVPtr, tableLogPtr,
+                                              buffer, sizeof(buffer));
+      if (FSE_isError(countSize)) return countSize;
+      if (countSize > hbSize) return ERROR(corruption_detected);
+      return countSize;
     }
+    assert(hbSize >= 4);
 
     bitStream = MEM_readLE32(ip);
     nbBits = (bitStream & 0xF) + FSE_MIN_TABLELOG;   /* extract tableLog */

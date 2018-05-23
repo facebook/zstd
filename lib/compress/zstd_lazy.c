@@ -493,7 +493,7 @@ size_t ZSTD_compressBlock_lazy_generic(
     const BYTE* anchor = istart;
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - 8;
-    const BYTE* const base = ms->window.base + ms->window.dictLimit;
+    const BYTE* const prefixLowest = ms->window.base + ms->window.dictLimit;
 
     typedef size_t (*searchMax_f)(
                         ZSTD_matchState_t* ms, ZSTD_compressionParameters const* cParams,
@@ -506,9 +506,9 @@ size_t ZSTD_compressBlock_lazy_generic(
     (void)dictMode;
 
     /* init */
-    ip += (ip==base);
+    ip += (ip==prefixLowest);
     ms->nextToUpdate3 = ms->nextToUpdate;
-    {   U32 const maxRep = (U32)(ip-base);
+    {   U32 const maxRep = (U32)(ip-prefixLowest);
         if (offset_2 > maxRep) savedOffset = offset_2, offset_2 = 0;
         if (offset_1 > maxRep) savedOffset = offset_1, offset_1 = 0;
     }
@@ -586,7 +586,7 @@ size_t ZSTD_compressBlock_lazy_generic(
          */
         /* catch up */
         if (offset) {
-            while ( ((start > anchor) & (start - (offset-ZSTD_REP_MOVE) > base))
+            while ( ((start > anchor) & (start - (offset-ZSTD_REP_MOVE) > prefixLowest))
                  && (start[-1] == (start-(offset-ZSTD_REP_MOVE))[-1]) )  /* only search for offset within prefix */
                 { start--; matchLength++; }
             offset_2 = offset_1; offset_1 = (U32)(offset - ZSTD_REP_MOVE);

@@ -169,7 +169,7 @@ size_t ZSTD_compressBlock_doubleFast_generic(
                     U32 const dictMatchIndexL3 = dictHashLong[hl3];
                     const BYTE* dictMatchL3 = dictBase + dictMatchIndexL3;
                     assert(dictMatchL3 < dictEnd);
-                    if (dictMatchL3 > dictLowest && MEM_read64(dictMatchL3) == MEM_read64(ip)) {
+                    if (dictMatchL3 > dictLowest && MEM_read64(dictMatchL3) == MEM_read64(ip+1)) {
                         mLength = ZSTD_count_2segments(ip+1+8, dictMatchL3+8, iend, dictEnd, prefixLowest) + 8;
                         ip++;
                         offset = (U32)(current + 1 - dictMatchIndexL3 - dictIndexDelta);

@@ -100,6 +100,7 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct, const short* normalizedCounter, unsi
     if (((size_t)1 << tableLog) * sizeof(FSE_FUNCTION_TYPE) > wkspSize) return ERROR(tableLog_tooLarge);
     tableU16[-2] = (U16) tableLog;
     tableU16[-1] = (U16) maxSymbolValue;
+    assert(tableLog < 16);   /* required for the threshold strategy to work */
 
     /* For explanations on how to distribute symbol values over the table :
     *  http://fastcompression.blogspot.fr/2014/02/fse-distributing-symbol-values.html */
@@ -145,7 +146,7 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct, const short* normalizedCounter, unsi
             {
             case  0:
                 /* filling nonetheless, for compatibility with FSE_getMaxNbBits() */
-                symbolTT[s].deltaNbBits = (tableLog+1) << 16;
+                symbolTT[s].deltaNbBits = ((tableLog+1) << 16) - (1<<tableLog);
                 break;
 
             case -1:

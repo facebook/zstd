@@ -248,7 +248,7 @@ def build_parser(args):
         dest='debug',
         type=int,
         default=1,
-        help='Set ZSTD_DEBUG (default: 1)')
+        help='Set ZSTD_DEBUG and BIT_DEBUG (default: 1)')
     parser.add_argument(
         '--force-memory-access',
         dest='memory_access',
@@ -356,6 +356,7 @@ def build(args):
 
     cppflags += [
         '-DZSTD_DEBUG={}'.format(args.debug),
+        '-DBIT_DEBUG={}'.format(args.debug),
         '-DMEM_FORCE_MEMORY_ACCESS={}'.format(args.memory_access),
         '-DFUZZ_RNG_SEED_SIZE={}'.format(args.fuzz_rng_seed_size),
     ]

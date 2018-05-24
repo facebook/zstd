@@ -506,7 +506,7 @@ size_t ZSTD_ldm_generateSequences(
          *       * Try invalidation after the sequence generation and test the
          *         the offset against maxDist directly.
          */
-        ZSTD_window_enforceMaxDist(&ldmState->window, chunkEnd, maxDist, NULL);
+        ZSTD_window_enforceMaxDist(&ldmState->window, chunkEnd, maxDist, NULL, NULL);
         /* 3. Generate the sequences for the chunk, and get newLeftoverSize. */
         newLeftoverSize = ZSTD_ldm_generateSequences_internal(
             ldmState, sequences, params, chunkStart, chunkSize);
@@ -589,12 +589,11 @@ static rawSeq maybeSplitSequence(rawSeqStore_t* rawSeqStore,
 
 size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
     ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
-    ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize,
-    int const extDict)
+    ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize)
 {
     unsigned const minMatch = cParams->searchLength;
     ZSTD_blockCompressor const blockCompressor =
-        ZSTD_selectBlockCompressor(cParams->strategy, extDict);
+        ZSTD_selectBlockCompressor(cParams->strategy, ZSTD_matchState_dictMode(ms));
     /* Input bounds */
     BYTE const* const istart = (BYTE const*)src;
     BYTE const* const iend = istart + srcSize;

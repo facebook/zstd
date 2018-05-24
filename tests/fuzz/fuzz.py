@@ -147,15 +147,18 @@ def compiler_version(cc, cxx):
     """
     cc_version_bytes = subprocess.check_output([cc, "--version"])
     cxx_version_bytes = subprocess.check_output([cxx, "--version"])
-    if cc_version_bytes.startswith(b'clang'):
-        assert(cxx_version_bytes.startswith(b'clang'))
+    compiler = None
+    version = None
+    if b'clang' in cc_version_bytes:
+        assert(b'clang' in cxx_version_bytes)
         compiler = 'clang'
-    if cc_version_bytes.startswith(b'gcc'):
-        assert(cxx_version_bytes.startswith(b'g++'))
+    elif b'gcc' in cc_version_bytes:
+        assert(b'gcc' in cxx_version_bytes)
         compiler = 'gcc'
-    version_regex = b'([0-9])+\.([0-9])+\.([0-9])+'
-    version_match = re.search(version_regex, cc_version_bytes)
-    version = tuple(int(version_match.group(i)) for i in range(1, 4))
+    if compiler is not None:
+        version_regex = b'([0-9])+\.([0-9])+\.([0-9])+'
+        version_match = re.search(version_regex, cc_version_bytes)
+        version = tuple(int(version_match.group(i)) for i in range(1, 4))
     return compiler, version
 
 

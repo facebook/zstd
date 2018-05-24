@@ -591,8 +591,9 @@ MEM_STATIC U32 FSE_getMaxNbBits(const void* symbolTTPtr, U32 symbolValue)
  * Approximate symbol cost, as fractional value, using fixed-point format (accuracyLog fractional bits)
  * note 1 : assume symbolValue is valid (<= maxSymbolValue)
  * note 2 : if freq[symbolValue]==0, @return a fake cost of tableLog+1 bits */
-MEM_STATIC U32 FSE_bitCost(const FSE_symbolCompressionTransform* symbolTT, U32 tableLog, U32 symbolValue, U32 accuracyLog)
+MEM_STATIC U32 FSE_bitCost(const void* symbolTTPtr, U32 tableLog, U32 symbolValue, U32 accuracyLog)
 {
+    const FSE_symbolCompressionTransform* symbolTT = (const FSE_symbolCompressionTransform*) symbolTTPtr;
     U32 const minNbBits = symbolTT[symbolValue].deltaNbBits >> 16;
     U32 const threshold = (minNbBits+1) << 16;
     assert(tableLog < 16);

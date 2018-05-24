@@ -575,30 +575,37 @@ MEM_STATIC void FSE_flushCState(BIT_CStream_t* bitC, const FSE_CState_t* statePt
     BIT_flushBits(bitC);
 }
 
+
+/* FSE_getMaxNbBits() :
+ * Approximate maximum cost of a symbol, in bits.
+ * Fractional get rounded up (i.e : a symbol with a normalized frequency of 3 gives the same result as a frequency of 2)
+ * note 1 : assume symbolValue is valid (<= maxSymbolValue)
+ * note 2 : if freq[symbolValue]==0, @return a fake cost of tableLog+1 bits */
 MEM_STATIC U32 FSE_getMaxNbBits(const void* symbolTTPtr, U32 symbolValue)
 {
     const FSE_symbolCompressionTransform* symbolTT = (const FSE_symbolCompressionTransform*) symbolTTPtr;
     return (symbolTT[symbolValue].deltaNbBits + ((1<<16)-1)) >> 16;
 }
 
-/* FSE_bitCost_b256() :
- * Approximate symbol cost,
- * provide fractional value, using fixed-point format (accuracyLog fractional bits)
- * note: assume symbolValue is valid */
-MEM_STATIC U32 FSE_bitCost(const FSE_symbolCompressionTransform* symbolTT, U32 tableLog, U32 symbolValue, U32 accuracyLog)
+/* FSE_bitCost() :
+ * Approximate symbol cost, as fractional value, using fixed-point format (accuracyLog fractional bits)
+ * note 1 : assume symbolValue is valid (<= maxSymbolValue)
+ * note 2 : if freq[symbolValue]==0, @return a fake cost of tableLog+1 bits */
+MEM_STATIC U32 FSE_bitCost(const void* symbolTTPtr, U32 tableLog, U32 symbolValue, U32 accuracyLog)
 {
+    const FSE_symbolCompressionTransform* symbolTT = (const FSE_symbolCompressionTransform*) symbolTTPtr;
     U32 const minNbBits = symbolTT[symbolValue].deltaNbBits >> 16;
     U32 const threshold = (minNbBits+1) << 16;
     assert(tableLog < 16);
     assert(accuracyLog < 31-tableLog);  /* ensure enough room for renormalization double shift */
     {   U32 const tableSize = 1 << tableLog;
+        U32 const deltaFromThreshold = threshold - (symbolTT[symbolValue].deltaNbBits + tableSize);
+        U32 const normalizedDeltaFromThreshold = (deltaFromThreshold << accuracyLog) >> tableLog;   /* linear interpolation (very approximate) */
+        U32 const bitMultiplier = 1 << accuracyLog;
         assert(symbolTT[symbolValue].deltaNbBits + tableSize <= threshold);
-        {   U32 const deltaFromThreshold = threshold - (symbolTT[symbolValue].deltaNbBits + tableSize);
-            U32 const normalizedDeltaFromThreshold = (deltaFromThreshold << accuracyLog) >> tableLog;   /* linear interpolation (very approximate) */
-            U32 const bitMultiplier = 1 << accuracyLog;
-            assert(normalizedDeltaFromThreshold <= bitMultiplier);
-            return (minNbBits+1)*bitMultiplier - normalizedDeltaFromThreshold;
-    }   }
+        assert(normalizedDeltaFromThreshold <= bitMultiplier);
+        return (minNbBits+1)*bitMultiplier - normalizedDeltaFromThreshold;
+    }
 }
 
 

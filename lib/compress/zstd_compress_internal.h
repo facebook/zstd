@@ -122,7 +122,8 @@ typedef struct {
     U32 lowLimit;           /* below that point, no more data */
 } ZSTD_window_t;
 
-typedef struct {
+typedef struct ZSTD_matchState_t ZSTD_matchState_t;
+struct ZSTD_matchState_t {
     ZSTD_window_t window;   /* State for window round buffer management */
     U32 loadedDictEnd;      /* index of end of dictionary */
     U32 nextToUpdate;       /* index from which to continue table update */
@@ -132,7 +133,8 @@ typedef struct {
     U32* hashTable3;
     U32* chainTable;
     optState_t opt;         /* optimal parser state */
-} ZSTD_matchState_t;
+    const ZSTD_matchState_t *dictMatchState;
+};
 
 typedef struct {
     ZSTD_compressedBlockState_t* prevCBlock;
@@ -248,10 +250,13 @@ struct ZSTD_CCtx_s {
 
 typedef enum { ZSTD_dtlm_fast, ZSTD_dtlm_full } ZSTD_dictTableLoadMethod_e;
 
+typedef enum { ZSTD_noDict = 0, ZSTD_extDict = 1, ZSTD_dictMatchState = 2 } ZSTD_dictMode_e;
+
+
 typedef size_t (*ZSTD_blockCompressor) (
         ZSTD_matchState_t* bs, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize);
-ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, int extDict);
+ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMode_e dictMode);
 
 
 MEM_STATIC U32 ZSTD_LLcode(U32 litLength)
@@ -509,6 +514,20 @@ MEM_STATIC U32 ZSTD_window_hasExtDict(ZSTD_window_t const window)
 }
 
 /**
+ * ZSTD_matchState_dictMode():
+ * Inspects the provided matchState and figures out what dictMode should be
+ * passed to the compressor.
+ */
+MEM_STATIC ZSTD_dictMode_e ZSTD_matchState_dictMode(const ZSTD_matchState_t *ms)
+{
+    return ZSTD_window_hasExtDict(ms->window) ?
+        ZSTD_extDict :
+        ms->dictMatchState != NULL ?
+            ZSTD_dictMatchState :
+            ZSTD_noDict;
+}
+
+/**
  * ZSTD_window_needOverflowCorrection():
  * Returns non-zero if the indices are getting too large and need overflow
  * protection.
@@ -575,18 +594,25 @@ MEM_STATIC U32 ZSTD_window_correctOverflow(ZSTD_window_t* window, U32 cycleLog,
  * ZSTD_window_enforceMaxDist():
  * Updates lowLimit so that:
  *    (srcEnd - base) - lowLimit == maxDist + loadedDictEnd
+ *
  * This allows a simple check that index >= lowLimit to see if index is valid.
  * This must be called before a block compression call, with srcEnd as the block
  * source end.
+ *
  * If loadedDictEndPtr is not NULL, we set it to zero once we update lowLimit.
  * This is because dictionaries are allowed to be referenced as long as the last
  * byte of the dictionary is in the window, but once they are out of range,
  * they cannot be referenced. If loadedDictEndPtr is NULL, we use
  * loadedDictEnd == 0.
+ *
+ * In normal dict mode, the dict is between lowLimit and dictLimit. In
+ * dictMatchState mode, lowLimit and dictLimit are the same, and the dictionary
+ * is below them. forceWindow and dictMatchState are therefore incompatible.
  */
 MEM_STATIC void ZSTD_window_enforceMaxDist(ZSTD_window_t* window,
                                            void const* srcEnd, U32 maxDist,
-                                           U32* loadedDictEndPtr)
+                                           U32* loadedDictEndPtr,
+                                           const ZSTD_matchState_t** dictMatchStatePtr)
 {
     U32 const current = (U32)((BYTE const*)srcEnd - window->base);
     U32 loadedDictEnd = loadedDictEndPtr != NULL ? *loadedDictEndPtr : 0;
@@ -600,6 +626,8 @@ MEM_STATIC void ZSTD_window_enforceMaxDist(ZSTD_window_t* window,
         }
         if (loadedDictEndPtr)
             *loadedDictEndPtr = 0;
+        if (dictMatchStatePtr)
+            *dictMatchStatePtr = NULL;
     }
 }
 

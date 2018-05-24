@@ -963,6 +963,7 @@ static void ZSTD_invalidateMatchState(ZSTD_matchState_t* ms)
     ms->nextToUpdate = ms->window.dictLimit + 1;
     ms->loadedDictEnd = 0;
     ms->opt.litLengthSum = 0;  /* force reset of btopt stats */
+    ms->dictMatchState = NULL;
 }
 
 /*! ZSTD_continueCCtx() :
@@ -1203,42 +1204,80 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
                             U64 pledgedSrcSize,
                             ZSTD_buffered_policy_e zbuff)
 {
+    /* We have a choice between copying the dictionary context into the working
+     * context, or referencing the dictionary context from the working context
+     * in-place. We decide here which strategy to use. */
+    const int attachDict = ( pledgedSrcSize <= 8 KB
+                          || pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN )
+                        && !params.forceWindow /* dictMatchState isn't correctly
+                                                * handled in _enforceMaxDist */
+                        && cdict->cParams.strategy == ZSTD_fast
+                        && ZSTD_equivalentCParams(cctx->appliedParams.cParams,
+                                                  cdict->cParams);
+
+
     {   unsigned const windowLog = params.cParams.windowLog;
         assert(windowLog != 0);
         /* Copy only compression parameters related to tables. */
         params.cParams = cdict->cParams;
         params.cParams.windowLog = windowLog;
-        ZSTD_resetCCtx_internal(cctx, params, pledgedSrcSize, ZSTDcrp_noMemset, zbuff);
+        ZSTD_resetCCtx_internal(cctx, params, pledgedSrcSize,
+                                attachDict ? ZSTDcrp_continue : ZSTDcrp_noMemset,
+                                zbuff);
         assert(cctx->appliedParams.cParams.strategy == cdict->cParams.strategy);
         assert(cctx->appliedParams.cParams.hashLog == cdict->cParams.hashLog);
         assert(cctx->appliedParams.cParams.chainLog == cdict->cParams.chainLog);
     }
 
-    /* copy tables */
-    {   size_t const chainSize = (cdict->cParams.strategy == ZSTD_fast) ? 0 : ((size_t)1 << cdict->cParams.chainLog);
-        size_t const hSize =  (size_t)1 << cdict->cParams.hashLog;
-        size_t const tableSpace = (chainSize + hSize) * sizeof(U32);
-        assert((U32*)cctx->blockState.matchState.chainTable == (U32*)cctx->blockState.matchState.hashTable + hSize);  /* chainTable must follow hashTable */
-        assert((U32*)cctx->blockState.matchState.hashTable3 == (U32*)cctx->blockState.matchState.chainTable + chainSize);
-        assert((U32*)cdict->matchState.chainTable == (U32*)cdict->matchState.hashTable + hSize);  /* chainTable must follow hashTable */
-        assert((U32*)cdict->matchState.hashTable3 == (U32*)cdict->matchState.chainTable + chainSize);
-        memcpy(cctx->blockState.matchState.hashTable, cdict->matchState.hashTable, tableSpace);   /* presumes all tables follow each other */
-    }
-    /* Zero the hashTable3, since the cdict never fills it */
-    {   size_t const h3Size = (size_t)1 << cctx->blockState.matchState.hashLog3;
-        assert(cdict->matchState.hashLog3 == 0);
-        memset(cctx->blockState.matchState.hashTable3, 0, h3Size * sizeof(U32));
+    if (attachDict) {
+        const U32 cdictLen = (U32)( cdict->matchState.window.nextSrc
+                                  - cdict->matchState.window.base);
+        if (cdictLen == 0) {
+            /* don't even attach dictionaries with no contents */
+            DEBUGLOG(4, "skipping attaching empty dictionary");
+        } else {
+            DEBUGLOG(4, "attaching dictionary into context");
+            cctx->blockState.matchState.dictMatchState = &cdict->matchState;
+
+            /* prep working match state so dict matches never have negative indices
+             * when they are translated to the working context's index space. */
+            if (cctx->blockState.matchState.window.dictLimit < cdictLen) {
+                cctx->blockState.matchState.window.nextSrc =
+                    cctx->blockState.matchState.window.base + cdictLen;
+                ZSTD_window_clear(&cctx->blockState.matchState.window);
+            }
+            cctx->blockState.matchState.loadedDictEnd = cctx->blockState.matchState.window.dictLimit;
+        }
+    } else {
+        DEBUGLOG(4, "copying dictionary into context");
+        /* copy tables */
+        {   size_t const chainSize = (cdict->cParams.strategy == ZSTD_fast) ? 0 : ((size_t)1 << cdict->cParams.chainLog);
+            size_t const hSize =  (size_t)1 << cdict->cParams.hashLog;
+            size_t const tableSpace = (chainSize + hSize) * sizeof(U32);
+            assert((U32*)cctx->blockState.matchState.chainTable == (U32*)cctx->blockState.matchState.hashTable + hSize);  /* chainTable must follow hashTable */
+            assert((U32*)cctx->blockState.matchState.hashTable3 == (U32*)cctx->blockState.matchState.chainTable + chainSize);
+            assert((U32*)cdict->matchState.chainTable == (U32*)cdict->matchState.hashTable + hSize);  /* chainTable must follow hashTable */
+            assert((U32*)cdict->matchState.hashTable3 == (U32*)cdict->matchState.chainTable + chainSize);
+            memcpy(cctx->blockState.matchState.hashTable, cdict->matchState.hashTable, tableSpace);   /* presumes all tables follow each other */
+        }
+
+        /* Zero the hashTable3, since the cdict never fills it */
+        {   size_t const h3Size = (size_t)1 << cctx->blockState.matchState.hashLog3;
+            assert(cdict->matchState.hashLog3 == 0);
+            memset(cctx->blockState.matchState.hashTable3, 0, h3Size * sizeof(U32));
+        }
+
+        /* copy dictionary offsets */
+        {
+            ZSTD_matchState_t const* srcMatchState = &cdict->matchState;
+            ZSTD_matchState_t* dstMatchState = &cctx->blockState.matchState;
+            dstMatchState->window       = srcMatchState->window;
+            dstMatchState->nextToUpdate = srcMatchState->nextToUpdate;
+            dstMatchState->nextToUpdate3= srcMatchState->nextToUpdate3;
+            dstMatchState->loadedDictEnd= srcMatchState->loadedDictEnd;
+        }
     }
 
-    /* copy dictionary offsets */
-    {
-        ZSTD_matchState_t const* srcMatchState = &cdict->matchState;
-        ZSTD_matchState_t* dstMatchState = &cctx->blockState.matchState;
-        dstMatchState->window       = srcMatchState->window;
-        dstMatchState->nextToUpdate = srcMatchState->nextToUpdate;
-        dstMatchState->nextToUpdate3= srcMatchState->nextToUpdate3;
-        dstMatchState->loadedDictEnd= srcMatchState->loadedDictEnd;
-    }
     cctx->dictID = cdict->dictID;
 
     /* copy block state */
@@ -2140,9 +2179,9 @@ MEM_STATIC size_t ZSTD_compressSequences(seqStore_t* seqStorePtr,
 /* ZSTD_selectBlockCompressor() :
  * Not static, but internal use only (used by long distance matcher)
  * assumption : strat is a valid strategy */
-ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, int extDict)
+ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMode_e dictMode)
 {
-    static const ZSTD_blockCompressor blockCompressor[2][(unsigned)ZSTD_btultra+1] = {
+    static const ZSTD_blockCompressor blockCompressor[3][(unsigned)ZSTD_btultra+1] = {
         { ZSTD_compressBlock_fast  /* default for 0 */,
           ZSTD_compressBlock_fast, ZSTD_compressBlock_doubleFast, ZSTD_compressBlock_greedy,
           ZSTD_compressBlock_lazy, ZSTD_compressBlock_lazy2, ZSTD_compressBlock_btlazy2,
@@ -2150,13 +2189,19 @@ ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, int extDict
         { ZSTD_compressBlock_fast_extDict  /* default for 0 */,
           ZSTD_compressBlock_fast_extDict, ZSTD_compressBlock_doubleFast_extDict, ZSTD_compressBlock_greedy_extDict,
           ZSTD_compressBlock_lazy_extDict,ZSTD_compressBlock_lazy2_extDict, ZSTD_compressBlock_btlazy2_extDict,
-          ZSTD_compressBlock_btopt_extDict, ZSTD_compressBlock_btultra_extDict }
+          ZSTD_compressBlock_btopt_extDict, ZSTD_compressBlock_btultra_extDict },
+        { ZSTD_compressBlock_fast_dictMatchState  /* default for 0 */,
+          ZSTD_compressBlock_fast_dictMatchState,
+          NULL, NULL, NULL, NULL, NULL, NULL, NULL /* unimplemented as of yet */ }
     };
+    ZSTD_blockCompressor selectedCompressor;
     ZSTD_STATIC_ASSERT((unsigned)ZSTD_fast == 1);
 
     assert((U32)strat >= (U32)ZSTD_fast);
     assert((U32)strat <= (U32)ZSTD_btultra);
-    return blockCompressor[extDict!=0][(U32)strat];
+    selectedCompressor = blockCompressor[(int)dictMode][(U32)strat];
+    assert(selectedCompressor != NULL);
+    return selectedCompressor;
 }
 
 static void ZSTD_storeLastLiterals(seqStore_t* seqStorePtr,
@@ -2188,6 +2233,11 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
     ZSTD_resetSeqStore(&(zc->seqStore));
     ms->opt.symbolCosts = &zc->blockState.prevCBlock->entropy;   /* required for optimal parser to read stats from dictionary */
 
+    /* a gap between an attached dict and the current window is not safe,
+     * they must remain adjacent, and when that stops being the case, the dict
+     * must be unset */
+    assert(ms->dictMatchState == NULL || ms->loadedDictEnd == ms->window.dictLimit);
+
     /* limited update after a very long match */
     {   const BYTE* const base = ms->window.base;
         const BYTE* const istart = (const BYTE*)src;
@@ -2198,7 +2248,7 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
     }
 
     /* select and store sequences */
-    {   U32 const extDict = ZSTD_window_hasExtDict(ms->window);
+    {   ZSTD_dictMode_e const dictMode = ZSTD_matchState_dictMode(ms);
         size_t lastLLSize;
         {   int i;
             for (i = 0; i < ZSTD_REP_NUM; ++i)
@@ -2212,7 +2262,7 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
                                        ms, &zc->seqStore,
                                        zc->blockState.nextCBlock->rep,
                                        &zc->appliedParams.cParams,
-                                       src, srcSize, extDict);
+                                       src, srcSize);
             assert(zc->externSeqStore.pos <= zc->externSeqStore.size);
         } else if (zc->appliedParams.ldmParams.enableLdm) {
             rawSeqStore_t ldmSeqStore = {NULL, 0, 0, 0};
@@ -2229,10 +2279,10 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
                                        ms, &zc->seqStore,
                                        zc->blockState.nextCBlock->rep,
                                        &zc->appliedParams.cParams,
-                                       src, srcSize, extDict);
+                                       src, srcSize);
             assert(ldmSeqStore.pos == ldmSeqStore.size);
         } else {   /* not long range mode */
-            ZSTD_blockCompressor const blockCompressor = ZSTD_selectBlockCompressor(zc->appliedParams.cParams.strategy, extDict);
+            ZSTD_blockCompressor const blockCompressor = ZSTD_selectBlockCompressor(zc->appliedParams.cParams.strategy, dictMode);
             lastLLSize = blockCompressor(ms, &zc->seqStore, zc->blockState.nextCBlock->rep, &zc->appliedParams.cParams, src, srcSize);
         }
         {   const BYTE* const lastLiterals = (const BYTE*)src + srcSize - lastLLSize;
@@ -2299,8 +2349,9 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
             if (ms->nextToUpdate < correction) ms->nextToUpdate = 0;
             else ms->nextToUpdate -= correction;
             ms->loadedDictEnd = 0;
+            ms->dictMatchState = NULL;
         }
-        ZSTD_window_enforceMaxDist(&ms->window, ip + blockSize, maxDist, &ms->loadedDictEnd);
+        ZSTD_window_enforceMaxDist(&ms->window, ip + blockSize, maxDist, &ms->loadedDictEnd, &ms->dictMatchState);
         if (ms->nextToUpdate < ms->window.lowLimit) ms->nextToUpdate = ms->window.lowLimit;
 
         {   size_t cSize = ZSTD_compressBlock_internal(cctx,

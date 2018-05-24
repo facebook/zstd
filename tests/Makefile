@@ -24,7 +24,7 @@ PYTHON ?= python3
 TESTARTEFACT := versionsTest
 
 DEBUGLEVEL ?= 1
-DEBUGFLAGS  = -g -DZSTD_DEBUG=$(DEBUGLEVEL)
+DEBUGFLAGS  = -g -DZSTD_DEBUG=$(DEBUGLEVEL) -DBIT_DEBUG=$(DEBUGLEVEL)
 CPPFLAGS   += -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
               -I$(ZSTDDIR)/dictBuilder -I$(ZSTDDIR)/deprecated -I$(PRGDIR)
 CFLAGS     ?= -O3

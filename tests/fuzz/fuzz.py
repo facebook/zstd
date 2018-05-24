@@ -265,7 +265,7 @@ def build_parser(args):
         '--disable-fuzzing-mode',
         dest='fuzzing_mode',
         action='store_false',
-        help='Do not define FUZZING_BUILD_MORE_UNSAFE_FOR_PRODUCTION')
+        help='Do not define FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION')
     parser.add_argument(
         '--enable-stateful-fuzzing',
         dest='stateful_fuzzing',
@@ -399,7 +399,7 @@ def build(args):
         cppflags += ['-DSTATEFUL_FUZZING']
 
     if args.fuzzing_mode:
-        cppflags += ['-DFUZZING_BUILD_MORE_UNSAFE_FOR_PRODUCTION']
+        cppflags += ['-DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION']
 
     if args.lib_fuzzing_engine == 'libregression.a':
         targets = ['libregression.a'] + targets
@@ -750,11 +750,10 @@ def zip_cmd(args):
     for target in args.TARGET:
         # Zip the seed_corpus
         seed_corpus = abs_join(CORPORA_DIR, "{}_seed_corpus".format(target))
-        seeds = [abs_join(seed_corpus, f) for f in os.listdir(seed_corpus)]
         zip_file = "{}.zip".format(seed_corpus)
-        cmd = ["zip", "-q", "-j", "-9", zip_file]
-        print(' '.join(cmd + [abs_join(seed_corpus, '*')]))
-        subprocess.check_call(cmd + seeds)
+        cmd = ["zip", "-r", "-q", "-j", "-9", zip_file, "."]
+        print(' '.join(cmd))
+        subprocess.check_call(cmd, cwd=seed_corpus)
 
 
 def list_cmd(args):

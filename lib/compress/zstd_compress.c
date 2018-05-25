@@ -1207,7 +1207,18 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
     /* We have a choice between copying the dictionary context into the working
      * context, or referencing the dictionary context from the working context
      * in-place. We decide here which strategy to use. */
-    const int attachDict = ( pledgedSrcSize <= 8 KB
+    const U64 attachDictSizeCutoffs[(unsigned)ZSTD_btultra+1] = {
+        8 KB, /* unused */
+        8 KB, /* ZSTD_fast */
+        16 KB, /* ZSTD_dfast */
+        16 KB, /* ZSTD_greedy */
+        16 KB, /* ZSTD_lazy */
+        16 KB, /* ZSTD_lazy2 */
+        16 KB, /* ZSTD_btlazy2 */
+        16 KB, /* ZSTD_btopt */
+        16 KB /* ZSTD_btultra */
+    };
+    const int attachDict = ( pledgedSrcSize <= attachDictSizeCutoffs[cdict->cParams.strategy]
                           || pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN )
                         && !params.forceWindow /* dictMatchState isn't correctly
                                                 * handled in _enforceMaxDist */

@@ -1742,8 +1742,8 @@ typedef enum {
     ZSTD_defaultAllowed = 1
 } ZSTD_defaultPolicy_e;
 
-MEM_STATIC
-symbolEncodingType_e ZSTD_selectEncodingType(
+MEM_STATIC symbolEncodingType_e
+ZSTD_selectEncodingType(
         FSE_repeat* repeatMode, unsigned const* count, unsigned const max,
         size_t const mostFrequent, size_t nbSeq, unsigned const FSELog,
         FSE_CTable const* prevCTable,
@@ -1817,17 +1817,17 @@ symbolEncodingType_e ZSTD_selectEncodingType(
     return set_compressed;
 }
 
-MEM_STATIC
-size_t ZSTD_buildCTable(void* dst, size_t dstCapacity,
-        FSE_CTable* nextCTable, U32 FSELog, symbolEncodingType_e type,
-        U32* count, U32 max,
-        BYTE const* codeTable, size_t nbSeq,
-        S16 const* defaultNorm, U32 defaultNormLog, U32 defaultMax,
-        FSE_CTable const* prevCTable, size_t prevCTableSize,
-        void* workspace, size_t workspaceSize)
+MEM_STATIC size_t
+ZSTD_buildCTable(void* dst, size_t dstCapacity,
+                FSE_CTable* nextCTable, U32 FSELog, symbolEncodingType_e type,
+                U32* count, U32 max,
+                const BYTE* codeTable, size_t nbSeq,
+                const S16* defaultNorm, U32 defaultNormLog, U32 defaultMax,
+                const FSE_CTable* prevCTable, size_t prevCTableSize,
+                void* workspace, size_t workspaceSize)
 {
     BYTE* op = (BYTE*)dst;
-    BYTE const* const oend = op + dstCapacity;
+    const BYTE* const oend = op + dstCapacity;
 
     switch (type) {
     case set_rle:
@@ -2077,9 +2077,9 @@ MEM_STATIC size_t ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
         assert(set_basic < set_compressed && set_rle < set_compressed);
         assert(!(LLtype < set_compressed && nextEntropy->fse.litlength_repeatMode != FSE_repeat_none)); /* We don't copy tables */
         {   size_t const countSize = ZSTD_buildCTable(op, oend - op, CTable_LitLength, LLFSELog, (symbolEncodingType_e)LLtype,
-                    count, max, llCodeTable, nbSeq, LL_defaultNorm, LL_defaultNormLog, MaxLL,
-                    prevEntropy->fse.litlengthCTable, sizeof(prevEntropy->fse.litlengthCTable),
-                    workspace, HUF_WORKSPACE_SIZE);
+                                                    count, max, llCodeTable, nbSeq, LL_defaultNorm, LL_defaultNormLog, MaxLL,
+                                                    prevEntropy->fse.litlengthCTable, sizeof(prevEntropy->fse.litlengthCTable),
+                                                    workspace, HUF_WORKSPACE_SIZE);
             if (ZSTD_isError(countSize)) return countSize;
             if (LLtype == set_compressed)
                 lastNCount = op;
@@ -2095,9 +2095,9 @@ MEM_STATIC size_t ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
         Offtype = ZSTD_selectEncodingType(&nextEntropy->fse.offcode_repeatMode, count, max, mostFrequent, nbSeq, OffFSELog, prevEntropy->fse.offcodeCTable, OF_defaultNorm, OF_defaultNormLog, defaultPolicy, strategy);
         assert(!(Offtype < set_compressed && nextEntropy->fse.offcode_repeatMode != FSE_repeat_none)); /* We don't copy tables */
         {   size_t const countSize = ZSTD_buildCTable(op, oend - op, CTable_OffsetBits, OffFSELog, (symbolEncodingType_e)Offtype,
-                    count, max, ofCodeTable, nbSeq, OF_defaultNorm, OF_defaultNormLog, DefaultMaxOff,
-                    prevEntropy->fse.offcodeCTable, sizeof(prevEntropy->fse.offcodeCTable),
-                    workspace, HUF_WORKSPACE_SIZE);
+                                                    count, max, ofCodeTable, nbSeq, OF_defaultNorm, OF_defaultNormLog, DefaultMaxOff,
+                                                    prevEntropy->fse.offcodeCTable, sizeof(prevEntropy->fse.offcodeCTable),
+                                                    workspace, HUF_WORKSPACE_SIZE);
             if (ZSTD_isError(countSize)) return countSize;
             if (Offtype == set_compressed)
                 lastNCount = op;
@@ -2111,9 +2111,9 @@ MEM_STATIC size_t ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
         MLtype = ZSTD_selectEncodingType(&nextEntropy->fse.matchlength_repeatMode, count, max, mostFrequent, nbSeq, MLFSELog, prevEntropy->fse.matchlengthCTable, ML_defaultNorm, ML_defaultNormLog, ZSTD_defaultAllowed, strategy);
         assert(!(MLtype < set_compressed && nextEntropy->fse.matchlength_repeatMode != FSE_repeat_none)); /* We don't copy tables */
         {   size_t const countSize = ZSTD_buildCTable(op, oend - op, CTable_MatchLength, MLFSELog, (symbolEncodingType_e)MLtype,
-                    count, max, mlCodeTable, nbSeq, ML_defaultNorm, ML_defaultNormLog, MaxML,
-                    prevEntropy->fse.matchlengthCTable, sizeof(prevEntropy->fse.matchlengthCTable),
-                    workspace, HUF_WORKSPACE_SIZE);
+                                                    count, max, mlCodeTable, nbSeq, ML_defaultNorm, ML_defaultNormLog, MaxML,
+                                                    prevEntropy->fse.matchlengthCTable, sizeof(prevEntropy->fse.matchlengthCTable),
+                                                    workspace, HUF_WORKSPACE_SIZE);
             if (ZSTD_isError(countSize)) return countSize;
             if (MLtype == set_compressed)
                 lastNCount = op;
@@ -2152,9 +2152,9 @@ MEM_STATIC size_t ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
 }
 
 MEM_STATIC size_t ZSTD_compressSequences(seqStore_t* seqStorePtr,
-                              ZSTD_entropyCTables_t const* prevEntropy,
+                        const ZSTD_entropyCTables_t* prevEntropy,
                               ZSTD_entropyCTables_t* nextEntropy,
-                              ZSTD_CCtx_params const* cctxParams,
+                        const ZSTD_CCtx_params* cctxParams,
                               void* dst, size_t dstCapacity,
                               size_t srcSize, U32* workspace, int bmi2)
 {
@@ -2219,7 +2219,7 @@ static void ZSTD_storeLastLiterals(seqStore_t* seqStorePtr,
     seqStorePtr->lit += lastLLSize;
 }
 
-static void ZSTD_resetSeqStore(seqStore_t* ssPtr)
+void ZSTD_resetSeqStore(seqStore_t* ssPtr)
 {
     ssPtr->lit = ssPtr->litStart;
     ssPtr->sequences = ssPtr->sequencesStart;

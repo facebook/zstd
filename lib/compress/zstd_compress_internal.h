@@ -84,28 +84,26 @@ typedef struct {
     U32 rep[ZSTD_REP_NUM];
 } ZSTD_optimal_t;
 
-typedef enum { zop_dynamic=0, zop_predef, zop_static } ZSTD_OptPrice_e;
+typedef enum { zop_dynamic=0, zop_predef } ZSTD_OptPrice_e;
 
 typedef struct {
     /* All tables are allocated inside cctx->workspace by ZSTD_resetCCtx_internal() */
-    U32* litFreq;               /* table of literals statistics, of size 256 */
-    U32* litLengthFreq;         /* table of litLength statistics, of size (MaxLL+1) */
-    U32* matchLengthFreq;       /* table of matchLength statistics, of size (MaxML+1) */
-    U32* offCodeFreq;           /* table of offCode statistics, of size (MaxOff+1) */
-    ZSTD_match_t* matchTable;   /* list of found matches, of size ZSTD_OPT_NUM+1 */
-    ZSTD_optimal_t* priceTable; /* All positions tracked by optimal parser, of size ZSTD_OPT_NUM+1 */
+    U32* litFreq;                /* table of literals statistics, of size 256 */
+    U32* litLengthFreq;          /* table of litLength statistics, of size (MaxLL+1) */
+    U32* matchLengthFreq;        /* table of matchLength statistics, of size (MaxML+1) */
+    U32* offCodeFreq;            /* table of offCode statistics, of size (MaxOff+1) */
+    ZSTD_match_t* matchTable;    /* list of found matches, of size ZSTD_OPT_NUM+1 */
+    ZSTD_optimal_t* priceTable;  /* All positions tracked by optimal parser, of size ZSTD_OPT_NUM+1 */
 
     U32  litSum;                 /* nb of literals */
     U32  litLengthSum;           /* nb of litLength codes */
     U32  matchLengthSum;         /* nb of matchLength codes */
     U32  offCodeSum;             /* nb of offset codes */
-    /* begin updated by ZSTD_setLog2Prices */
-    U32  log2litSum;             /* pow2 to compare log2(litfreq) to */
-    U32  log2litLengthSum;       /* pow2 to compare log2(llfreq) to */
-    U32  log2matchLengthSum;     /* pow2 to compare log2(mlfreq) to */
-    U32  log2offCodeSum;         /* pow2 to compare log2(offreq) to */
-    /* end : updated by ZSTD_setLog2Prices */
-    ZSTD_OptPrice_e priceType;   /* prices can be determined dynamically, or follow dictionary statistics, or a pre-defined cost structure */
+    U32  litSumBasePrice;        /* to compare to log2(litfreq) */
+    U32  litLengthSumBasePrice;  /* to compare to log2(llfreq)  */
+    U32  matchLengthSumBasePrice;/* to compare to log2(mlfreq)  */
+    U32  offCodeSumBasePrice;    /* to compare to log2(offreq)  */
+    ZSTD_OptPrice_e priceType;   /* prices can be determined dynamically, or follow a pre-defined cost structure */
     const ZSTD_entropyCTables_t* symbolCosts;  /* pre-calculated dictionary statistics */
 } optState_t;
 
@@ -616,12 +614,13 @@ MEM_STATIC void ZSTD_window_enforceMaxDist(ZSTD_window_t* window,
 {
     U32 const current = (U32)((BYTE const*)srcEnd - window->base);
     U32 loadedDictEnd = loadedDictEndPtr != NULL ? *loadedDictEndPtr : 0;
+    DEBUGLOG(5, "ZSTD_window_enforceMaxDist: current=%u, maxDist=%u", current, maxDist);
     if (current > maxDist + loadedDictEnd) {
         U32 const newLowLimit = current - maxDist;
         if (window->lowLimit < newLowLimit) window->lowLimit = newLowLimit;
         if (window->dictLimit < window->lowLimit) {
-            DEBUGLOG(5, "Update dictLimit from %u to %u", window->dictLimit,
-                     window->lowLimit);
+            DEBUGLOG(5, "Update dictLimit to match lowLimit, from %u to %u",
+                        window->dictLimit, window->lowLimit);
             window->dictLimit = window->lowLimit;
         }
         if (loadedDictEndPtr)
@@ -643,12 +642,12 @@ MEM_STATIC U32 ZSTD_window_update(ZSTD_window_t* window,
 {
     BYTE const* const ip = (BYTE const*)src;
     U32 contiguous = 1;
+    DEBUGLOG(5, "ZSTD_window_update");
     /* Check if blocks follow each other */
     if (src != window->nextSrc) {
         /* not contiguous */
         size_t const distanceFromBase = (size_t)(window->nextSrc - window->base);
-        DEBUGLOG(5, "Non contiguous blocks, new segment starts at %u",
-                 window->dictLimit);
+        DEBUGLOG(5, "Non contiguous blocks, new segment starts at %u", window->dictLimit);
         window->lowLimit = window->dictLimit;
         assert(distanceFromBase == (size_t)(U32)distanceFromBase);  /* should never overflow */
         window->dictLimit = (U32)distanceFromBase;
@@ -665,8 +664,36 @@ MEM_STATIC U32 ZSTD_window_update(ZSTD_window_t* window,
         ptrdiff_t const highInputIdx = (ip + srcSize) - window->dictBase;
         U32 const lowLimitMax = (highInputIdx > (ptrdiff_t)window->dictLimit) ? window->dictLimit : (U32)highInputIdx;
         window->lowLimit = lowLimitMax;
+        DEBUGLOG(5, "Overlapping extDict and input : new lowLimit = %u", window->lowLimit);
     }
     return contiguous;
+}
+
+
+/* debug functions */
+
+MEM_STATIC double ZSTD_fWeight(U32 rawStat)
+{
+    U32 const fp_accuracy = 8;
+    U32 const fp_multiplier = (1 << fp_accuracy);
+    U32 const stat = rawStat + 1;
+    U32 const hb = ZSTD_highbit32(stat);
+    U32 const BWeight = hb * fp_multiplier;
+    U32 const FWeight = (stat << fp_accuracy) >> hb;
+    U32 const weight = BWeight + FWeight;
+    assert(hb + fp_accuracy < 31);
+    return (double)weight / fp_multiplier;
+}
+
+MEM_STATIC void ZSTD_debugTable(const U32* table, U32 max)
+{
+    unsigned u, sum;
+    for (u=0, sum=0; u<=max; u++) sum += table[u];
+    DEBUGLOG(2, "total nb elts: %u", sum);
+    for (u=0; u<=max; u++) {
+        DEBUGLOG(2, "%2u: %5u  (%.2f)",
+                u, table[u], ZSTD_fWeight(sum) - ZSTD_fWeight(table[u]) );
+    }
 }
 
 #if defined (__cplusplus)
@@ -695,6 +722,8 @@ size_t ZSTD_initCStream_internal(ZSTD_CStream* zcs,
                      const void* dict, size_t dictSize,
                      const ZSTD_CDict* cdict,
                      ZSTD_CCtx_params  params, unsigned long long pledgedSrcSize);
+
+void ZSTD_resetSeqStore(seqStore_t* ssPtr);
 
 /*! ZSTD_compressStream_generic() :
  *  Private use only. To be called from zstdmt_compress.c in single-thread mode. */

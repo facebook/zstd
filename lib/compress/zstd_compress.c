@@ -1492,7 +1492,15 @@ static size_t ZSTD_compressRleLiteralsBlock (void* dst, size_t dstCapacity, cons
 }
 
 
-static size_t ZSTD_minGain(size_t srcSize) { return (srcSize >> 6) + 2; }
+/* ZSTD_minGain() :
+ * minimum compression required
+ * to generate a compress block or a compressed literals section.
+ * note : use same formula for both situations */
+static size_t ZSTD_minGain(size_t srcSize, ZSTD_strategy strat)
+{
+    U32 const minlog = (strat==ZSTD_btultra) ? 7 : 6;
+    return (srcSize >> minlog) + 2;
+}
 
 static size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
                                      ZSTD_hufCTables_t* nextHuf,
@@ -1501,7 +1509,7 @@ static size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
                                const void* src, size_t srcSize,
                                      U32* workspace, const int bmi2)
 {
-    size_t const minGain = ZSTD_minGain(srcSize);
+    size_t const minGain = ZSTD_minGain(srcSize, strategy);
     size_t const lhSize = 3 + (srcSize >= 1 KB) + (srcSize >= 16 KB);
     BYTE*  const ostart = (BYTE*)dst;
     U32 singleStream = srcSize < 256;
@@ -2162,7 +2170,7 @@ MEM_STATIC size_t ZSTD_compressSequences(seqStore_t* seqStorePtr,
     if (ZSTD_isError(cSize)) return cSize;
 
     /* Check compressibility */
-    {   size_t const maxCSize = srcSize - ZSTD_minGain(srcSize);  /* note : fixed formula, maybe should depend on compression level, or strategy */
+    {   size_t const maxCSize = srcSize - ZSTD_minGain(srcSize, cctxParams->cParams.strategy);
         if (cSize >= maxCSize) return 0;  /* block not compressed */
     }
 

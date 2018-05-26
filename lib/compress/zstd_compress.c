@@ -1751,8 +1751,6 @@ ZSTD_selectEncodingType(
         ZSTD_defaultPolicy_e const isDefaultAllowed,
         ZSTD_strategy const strategy)
 {
-#define MIN_SEQ_FOR_DYNAMIC_FSE   64
-#define MAX_SEQ_FOR_STATIC_FSE  1000
     ZSTD_STATIC_ASSERT(ZSTD_defaultDisallowed == 0 && ZSTD_defaultAllowed != 0);
     if (mostFrequent == nbSeq) {
         *repeatMode = FSE_repeat_none;
@@ -1769,11 +1767,16 @@ ZSTD_selectEncodingType(
     }
     if (strategy < ZSTD_lazy) {
         if (isDefaultAllowed) {
-            if ((*repeatMode == FSE_repeat_valid) && (nbSeq < MAX_SEQ_FOR_STATIC_FSE)) {
+            size_t const staticFse_nbSeq_max = 1000;
+            size_t const dynamicFse_nbSeq_min = (size_t)1 << defaultNormLog;  /* 32 for offset, 64 for lengths */
+            assert(defaultNormLog >= 5 && defaultNormLog <= 6);  /* xx_DEFAULTNORMLOG */
+            if ( (*repeatMode == FSE_repeat_valid)
+              && (nbSeq < staticFse_nbSeq_max) ) {
                 DEBUGLOG(5, "Selected set_repeat");
                 return set_repeat;
             }
-            if ((nbSeq < MIN_SEQ_FOR_DYNAMIC_FSE) || (mostFrequent < (nbSeq >> (defaultNormLog-1)))) {
+            if ( (nbSeq < dynamicFse_nbSeq_min)
+              || (mostFrequent < (nbSeq >> (defaultNormLog-1))) ) {
                 DEBUGLOG(5, "Selected set_basic");
                 /* The format allows default tables to be repeated, but it isn't useful.
                  * When using simple heuristics to select encoding type, we don't want

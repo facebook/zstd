@@ -49,7 +49,7 @@ const char* ZSTD_getErrorString(ZSTD_ErrorCode code) { return ERR_getErrorString
 /*! g_debuglog_enable :
  *  turn on/off debug traces (global switch) */
 #if defined(ZSTD_DEBUG) && (ZSTD_DEBUG >= 2)
-int g_debuglog_enable = 1;
+int g_debuglevel = ZSTD_DEBUG;
 #endif
 
 

@@ -1244,7 +1244,7 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
                           || pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN )
                         && !params.forceWindow /* dictMatchState isn't correctly
                                                 * handled in _enforceMaxDist */
-                        && cdict->cParams.strategy <= ZSTD_btlazy2
+                        && cdict->cParams.strategy <= ZSTD_lazy2
                         && ZSTD_equivalentCParams(cctx->appliedParams.cParams,
                                                   cdict->cParams);
 

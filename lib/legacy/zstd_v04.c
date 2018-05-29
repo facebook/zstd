@@ -9,26 +9,25 @@
  */
 
 
-/*- Dependencies -*/
+ /******************************************
+ *  Includes
+ ******************************************/
+#include <stddef.h>    /* size_t, ptrdiff_t */
+#include <string.h>    /* memcpy */
+
 #include "zstd_v04.h"
 #include "error_private.h"
 
 
 /* ******************************************************************
-   mem.h
-****************************************************************** */
+ *   mem.h
+ *******************************************************************/
 #ifndef MEM_H_MODULE
 #define MEM_H_MODULE
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
-
-/******************************************
-*  Includes
-******************************************/
-#include <stddef.h>    /* size_t, ptrdiff_t */
-#include <string.h>    /* memcpy */
 
 
 /******************************************
@@ -87,7 +86,7 @@ extern "C" {
 
 #if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=2)
 #  include <stdio.h>
-extern int g_debuglog_enable;
+extern int g_debuglevel;
 /* recommended values for ZSTD_DEBUG display levels :
  * 1 : no display, enables assert() only
  * 2 : reserved for currently active debug path
@@ -96,11 +95,11 @@ extern int g_debuglog_enable;
  * 5 : events once per block
  * 6 : events once per sequence (*very* verbose) */
 #  define RAWLOG(l, ...) {                                      \
-                if ((g_debuglog_enable) & (l<=ZSTD_DEBUG)) {    \
+                if (l<=g_debuglevel) {                          \
                     fprintf(stderr, __VA_ARGS__);               \
             }   }
 #  define DEBUGLOG(l, ...) {                                    \
-                if ((g_debuglog_enable) & (l<=ZSTD_DEBUG)) {    \
+                if (l<=g_debuglevel) {                          \
                     fprintf(stderr, __FILE__ ": " __VA_ARGS__); \
                     fprintf(stderr, " \n");                     \
             }   }
@@ -266,14 +265,6 @@ MEM_STATIC size_t MEM_readLEST(const void* memPtr)
 #ifndef ZSTD_STATIC_H
 #define ZSTD_STATIC_H
 
-/* The objects defined into this file shall be considered experimental.
- * They are not considered stable, as their prototype may change in the future.
- * You can use them for tests, provide feedback, or if you can endure risks of future changes.
- */
-
-#if defined (__cplusplus)
-extern "C" {
-#endif
 
 /* *************************************
 *  Types
@@ -360,9 +351,6 @@ static size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t maxDstS
 */
 
 
-#if defined (__cplusplus)
-}
-#endif
 
 
 #endif  /* ZSTD_STATIC_H */
@@ -374,10 +362,6 @@ static size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t maxDstS
 */
 #ifndef ZSTD_CCOMMON_H_MODULE
 #define ZSTD_CCOMMON_H_MODULE
-
-#if defined (__cplusplus)
-extern "C" {
-#endif
 
 /* *************************************
 *  Common macros
@@ -449,10 +433,6 @@ static void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length)
     while (op < oend);
 }
 
-
-#if defined (__cplusplus)
-}
-#endif
 
 
 /* ******************************************************************
@@ -2991,7 +2971,7 @@ static size_t ZSTD_execSequence(BYTE* op,
     }
     else
     {
-        ZSTD_wildcopy(op, match, (ptrdiff_t)sequence.matchLength-8);   /* works even if matchLength < 8 */
+        ZSTD_wildcopy(op, match, (ptrdiff_t)sequence.matchLength-8);   /* works even if matchLength < 8, but must be signed */
     }
     return sequenceLength;
 }

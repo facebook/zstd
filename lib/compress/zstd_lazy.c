@@ -549,12 +549,6 @@ size_t ZSTD_compressBlock_lazy_generic(
                                base + repIndex;
 
         /* check repCode */
-        if ((offset_1>0) & (MEM_read32(ip+1) == MEM_read32(ip+1 - offset_1))) {
-            /* repcode : we take it */
-            matchLength = ZSTD_count(ip+1+4, ip+1+4-offset_1, iend) + 4;
-            if (depth==0) goto _storeSequence;
-        }
-
         if (dictMode == ZSTD_dictMatchState
             && ((U32)((prefixLowestIndex-1) - repIndex) >= 3 /* intentional underflow */)
             && (MEM_read32(repMatch) == MEM_read32(ip+1)) ) {

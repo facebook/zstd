@@ -189,12 +189,11 @@ static U32 ZSTD_rawLiteralsCost(const BYTE* const literals, U32 const litLength,
         return (litLength*6) * BITCOST_MULTIPLIER;  /* 6 bit per literal - no statistic used */
 
     /* dynamic statistics */
-    {   U32 price, u;
-        for (u=0, price=0; u < litLength; u++) {
-            U32 const litWeight = WEIGHT(optPtr->litFreq[literals[u]], optLevel);
-            U32 litCost = optPtr->litSumBasePrice - litWeight;
-            //if (litCost < BITCOST_MULTIPLIER) litCost = BITCOST_MULTIPLIER;   /* minimum 1 bit per symbol (huffman) */
-            price += litCost;
+    {   U32 price = litLength * optPtr->litSumBasePrice;
+        U32 u;
+        for (u=0; u < litLength; u++) {
+            assert(WEIGHT(optPtr->litFreq[literals[u]], optLevel) <= optPtr->litSumBasePrice);   /* literal cost should never be negative */
+            price -= WEIGHT(optPtr->litFreq[literals[u]], optLevel);
         }
         return price;
     }

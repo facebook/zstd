@@ -299,7 +299,7 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const v
     static const BYTE* g_start = NULL;
     if (g_start==NULL) g_start = (const BYTE*)literals;  /* note : index only works for compression within a single segment */
     {   U32 const pos = (U32)((const BYTE*)literals - g_start);
-        DEBUGLOG(6, "Cpos%7u :%3u literals, match%3u bytes at dist.code%7u",
+        DEBUGLOG(6, "Cpos%7u :%3u literals, match%4u bytes at offCode%7u",
                pos, (U32)litLength, (U32)mlBase+MINMATCH, (U32)offsetCode);
     }
 #endif

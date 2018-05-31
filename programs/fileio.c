@@ -83,6 +83,8 @@
 #define DISPLAYLEVEL(l, ...) { if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); } }
 static int g_displayLevel = 2;   /* 0 : no display;  1: errors;  2: + result + interaction + warnings;  3: + progression;  4: + information */
 void FIO_setNotificationLevel(unsigned level) { g_displayLevel=level; }
+static int g_displaySummary = 0; /* 0 : no summary; 1: show summary */
+void FIO_setDisplaySummary(unsigned summary) { g_displaySummary=summary; }
 
 static const U64 g_refreshRate = SEC_TO_MICRO / 6;
 static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
@@ -875,6 +877,14 @@ FIO_compressFilename_internal(cRess_t ress,
         (unsigned long long)readsize, (unsigned long long) compressedfilesize,
          dstFileName);
 
+    if ( g_displaySummary == 1 ) {
+      DISPLAYLEVEL(1,"%-20s :%6.2f%%   (%6llu => %6llu bytes, %s) \n",
+        srcFileName,
+        (double)compressedfilesize / (readsize+(!readsize)/*avoid div by zero*/) * 100,
+        (unsigned long long)readsize, (unsigned long long) compressedfilesize,
+         dstFileName);
+    }
+    
     return 0;
 }
 

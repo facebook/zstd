@@ -1754,8 +1754,18 @@ int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles
                     && strcmp(suffixPtr, ZSTD_EXTENSION)
                     && strcmp(suffixPtr, LZMA_EXTENSION)
                     && strcmp(suffixPtr, LZ4_EXTENSION)) ) {
-                DISPLAYLEVEL(1, "zstd: %s: unknown suffix (%s/%s/%s/%s/%s expected) -- ignored \n",
-                             srcFileName, GZ_EXTENSION, XZ_EXTENSION, ZSTD_EXTENSION, LZMA_EXTENSION, LZ4_EXTENSION);
+                char suffixlist[50] = ZSTD_EXTENSION;
+                #ifdef ZSTD_GZCOMPRESS
+                    strcat(suffixlist, "/" GZ_EXTENSION);
+                #endif
+                #ifdef ZSTD_LZMACOMPRESS
+                    strcat(suffixlist, "/" XZ_EXTENSION "/" LZMA_EXTENSION);
+                #endif
+                #ifdef ZSTD_LZ4COMPRESS
+                    strcat(suffixlist, "/" LZ4_EXTENSION);
+                #endif
+                DISPLAYLEVEL(1, "zstd: %s: unknown suffix (%s expected) -- ignored \n",
+                             srcFileName, suffixlist);
                 skippedFiles++;
                 continue;
             } else {

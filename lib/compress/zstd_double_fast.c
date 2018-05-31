@@ -272,7 +272,6 @@ _match_stored:
 
             if (dictMode == ZSTD_noDict) {
                 while ( (ip <= ilimit)
-                     && (ip - offset_2 >= istart)
                      && ( (offset_2>0)
                         & (MEM_read32(ip) == MEM_read32(ip - offset_2)) )) {
                     /* store sequence */

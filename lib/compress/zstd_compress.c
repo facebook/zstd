@@ -1233,12 +1233,12 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
         8 KB, /* unused */
         8 KB, /* ZSTD_fast */
         16 KB, /* ZSTD_dfast */
-        16 KB, /* ZSTD_greedy */
-        16 KB, /* ZSTD_lazy */
-        16 KB, /* ZSTD_lazy2 */
-        16 KB, /* ZSTD_btlazy2 */
-        16 KB, /* ZSTD_btopt */
-        16 KB /* ZSTD_btultra */
+        128 KB, /* ZSTD_greedy */
+        128 KB, /* ZSTD_lazy */
+        128 KB, /* ZSTD_lazy2 */
+        128 KB, /* ZSTD_btlazy2 */
+        128 KB, /* ZSTD_btopt */
+        128 KB /* ZSTD_btultra */
     };
     const int attachDict = ( pledgedSrcSize <= attachDictSizeCutoffs[cdict->cParams.strategy]
                           || pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN )

@@ -16,7 +16,7 @@ Distribution of this document is unlimited.
 
 ### Version
 
-0.2.7 (30/04/18)
+0.2.8 (30/05/18)
 
 
 Introduction
@@ -27,6 +27,8 @@ that is independent of CPU type, operating system,
 file system and character set, suitable for
 file compression, pipe and streaming compression,
 using the [Zstandard algorithm](http://www.zstandard.org).
+The text of the specification assumes a basic background in programming
+at the level of bits and other primitive data representations.
 
 The data can be produced or consumed,
 even for an arbitrarily long sequentially presented input data stream,
@@ -38,11 +40,6 @@ for detection of data corruption.
 
 The data format defined by this specification
 does not attempt to allow random access to compressed data.
-
-This specification is intended for use by implementers of software
-to compress data into Zstandard format and/or decompress data from Zstandard format.
-The text of the specification assumes a basic background in programming
-at the level of bits and other primitive data representations.
 
 Unless otherwise indicated below,
 a compliant compressor must produce data sets
@@ -56,6 +53,16 @@ It may also ignore informative fields, such as checksum.
 Whenever it does not support a parameter defined in the compressed stream,
 it must produce a non-ambiguous error code and associated error message
 explaining which parameter is unsupported.
+
+This specification is intended for use by implementers of software
+to compress data into Zstandard format and/or decompress data from Zstandard format.
+The Zstandard format is supported by an open source reference implementation,
+which also contains some useful validation tool,
+such as `decodeCorpus`, which generate random valid frames,
+that a compliant decoder should be able to decode,
+or provide a meaningful error code explaining why it cannot.
+
+
 
 ### Overall conventions
 In this document:
@@ -92,14 +99,14 @@ Overview
 Frames
 ------
 Zstandard compressed data is made of one or more __frames__.
-Each frame is independent and can be decompressed indepedently of other frames.
+Each frame is independent and can be decompressed independently of other frames.
 The decompressed content of multiple concatenated frames is the concatenation of
 each frame decompressed content.
 
 There are two frame formats defined by Zstandard:
   Zstandard frames and Skippable frames.
 Zstandard frames contain compressed data, while
-skippable frames contain no data and can be used for metadata.
+skippable frames contain custom user metadata.
 
 ## Zstandard frames
 The structure of a single Zstandard frame is following:
@@ -630,15 +637,8 @@ They follow the same enumeration :
 - `Predefined_Mode` : A predefined FSE distribution table is used, defined in
           [default distributions](#default-distributions).
           No distribution table will be present.
-- `RLE_Mode` : The table description consists of a single byte.
-          This code will be repeated for all sequences.
-- `Repeat_Mode` : The table used in the previous `Compressed_Block` with `Number_of_Sequences > 0` will be used again,
-          or if this is the first block, table in the dictionary will be used
-          No distribution table will be present.
-          Note that this includes `RLE_mode`, so if `Repeat_Mode` follows `RLE_Mode`, the same symbol will be repeated.
-          Note that this also includes `Predefined_Mode`.
-          If this mode is used without any previous sequence table in the frame
-          (or [dictionary](#dictionary-format)) to repeat, this should be treated as corruption.
+- `RLE_Mode` : The table description consists of a single byte, which contain symbol's value.
+          This symbol will be used for all sequences.
 - `FSE_Compressed_Mode` : standard FSE compression.
           A distribution table will be present.
           The format of this distribution table is described in [FSE Table Description](#fse-table-description).
@@ -646,6 +646,13 @@ They follow the same enumeration :
           and the maximum accuracy log for the offsets table is 8.
           `FSE_Compressed_Mode` must not be used when only one symbol is present,
           `RLE_Mode` should be used instead (although any other mode will work).
+- `Repeat_Mode` : The table used in the previous `Compressed_Block` with `Number_of_Sequences > 0` will be used again,
+          or if this is the first block, table in the dictionary will be used.
+          Note that this includes `RLE_mode`, so if `Repeat_Mode` follows `RLE_Mode`, the same symbol will be repeated.
+          It also includes `Predefined_Mode`, in which case `Repeat_Mode` will have same outcome as `Predefined_Mode`.
+          No distribution table will be present.
+          If this mode is used without any previous sequence table in the frame
+          (nor [dictionary](#dictionary-format)) to repeat, this should be treated as corruption.
 
 #### The codes for literals lengths, match lengths, and offsets.
 
@@ -903,15 +910,21 @@ Skippable Frames
 |:--------------:|:------------:|:-----------:|
 |   4 bytes      |  4 bytes     |   n bytes   |
 
-Skippable frames allow the insertion of user-defined data
+Skippable frames allow the insertion of user-defined metadata
 into a flow of concatenated frames.
-Its design is pretty straightforward,
-with the sole objective to allow the decoder to quickly skip
-over user-defined data and continue decoding.
 
 Skippable frames defined in this specification are compatible with [LZ4] ones.
 
 [LZ4]:http://www.lz4.org
+
+From a compliant decoder perspective, skippable frames need just be skipped,
+and their content ignored, resuming decoding after the skippable frame.
+
+It can be noted that a skippable frame
+can be used to watermark a stream of concatenated frames
+embedding any kind of tracking information (even just an UUID).
+User wary of such usage should scan the stream of concatenated frames
+in an attempt to detect such frame for analysis or removal.
 
 __`Magic_Number`__
 
@@ -1196,14 +1209,15 @@ which describes how to decode the list of weights.
   the top four bits and the second taking the bottom four (e.g. the following
   operations could be used to read the weights:
   `Weight[0] = (Byte[0] >> 4), Weight[1] = (Byte[0] & 0xf)`, etc.).
-  The full representation occupies `((Number_of_Symbols+1)/2)` bytes,
-  meaning it uses a last full byte even if `Number_of_Symbols` is odd.
+  The full representation occupies `Ceiling(Number_of_Symbols/2)` bytes,
+  meaning it uses only full bytes even if `Number_of_Symbols` is odd.
   `Number_of_Symbols = headerByte - 127`.
   Note that maximum `Number_of_Symbols` is 255-127 = 128.
-  A larger series must necessarily use FSE compression.
+  If any present literal has a value > 128, raw header mode is not possible.
+  It's necessary to use FSE compression.
 
 - if `headerByte` < 128 :
-  the series of weights is compressed by FSE.
+  the series of weights is compressed using FSE.
   The length of the FSE-compressed series is equal to `headerByte` (0-127).
 
 ##### Finite State Entropy (FSE) compression of Huffman weights
@@ -1235,18 +1249,19 @@ The number of symbols to decode is determined
 by tracking bitStream overflow condition:
 If updating state after decoding a symbol would require more bits than
 remain in the stream, it is assumed that extra bits are 0.  Then,
-the symbols for each of the final states are decoded and the process is complete.
+symbols for each of the final states are decoded and the process is complete.
 
 ##### Conversion from weights to Huffman prefix codes
 
 All present symbols shall now have a `Weight` value.
-It is possible to transform weights into Number_of_Bits, using this formula:
+It is possible to transform weights into` Number_of_Bits`, using this formula:
 ```
-Number_of_Bits = Number_of_Bits ? Max_Number_of_Bits + 1 - Weight : 0
+Number_of_Bits = Weight ? Max_Number_of_Bits + 1 - Weight : 0
 ```
-Symbols are sorted by `Weight`. Within same `Weight`, symbols keep natural order.
+Symbols are sorted by `Weight`.
+Within same `Weight`, symbols keep natural sequential order.
 Symbols with a `Weight` of zero are removed.
-Then, starting from lowest weight, prefix codes are distributed in order.
+Then, starting from lowest weight, prefix codes are distributed in sequential order.
 
 __Example__ :
 Let's presume the following list of weights has been decoded :
@@ -1255,7 +1270,7 @@ Let's presume the following list of weights has been decoded :
 | -------- | --- | --- | --- | --- | --- | --- |
 | `Weight` |  4  |  3  |  2  |  0  |  1  |  1  |
 
-Sorted by weight and then natural order,
+Sorted by weight and then natural sequential order,
 it gives the following distribution :
 
 | Literal          |  3  |  4  |  5  |  2  |  1  |   0  |
@@ -1265,6 +1280,7 @@ it gives the following distribution :
 | prefix codes     | N/A | 0000| 0001| 001 | 01  |   1  |
 
 ### Huffman-coded Streams
+
 Given a Huffman decoding table,
 it's possible to decode a Huffman-coded stream.
 
@@ -1554,6 +1570,7 @@ to crosscheck that an implementation build its decoding tables correctly.
 
 Version changes
 ---------------
+- 0.2.8 : clarifications for IETF RFC discuss
 - 0.2.7 : clarifications from IETF RFC review, by Vijay Gurbani and Nick Terrell
 - 0.2.6 : fixed an error in huffman example, by Ulrich Kunitz
 - 0.2.5 : minor typos and clarifications

@@ -622,7 +622,7 @@ fi
 
 $ECHO "\n===> suffix list test"
 
-$ZSTD -d tmp.abc 2> tmplg || echo 
+! $ZSTD -d tmp.abc 2> tmplg
 
 if [ $GZIPMODE -ne 1 ]; then 
     grep ".gz" tmplg > $INTOVOID && die "Unsupported suffix listed"

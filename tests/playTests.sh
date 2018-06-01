@@ -632,6 +632,23 @@ else
     $ECHO "lz4 mode not supported"
 fi
 
+$ECHO "\n===> suffix list test"
+
+! $ZSTD -d tmp.abc 2> tmplg
+
+if [ $GZIPMODE -ne 1 ]; then 
+    grep ".gz" tmplg > $INTOVOID && die "Unsupported suffix listed"
+fi
+
+if [ $LZMAMODE -ne 1 ]; then 
+    grep ".lzma" tmplg > $INTOVOID && die "Unsupported suffix listed"
+    grep ".xz" tmplg > $INTOVOID && die "Unsupported suffix listed"
+fi
+
+if [ $LZ4MODE -ne 1 ]; then
+    grep ".lz4" tmplg > $INTOVOID && die "Unsupported suffix listed"
+fi
+
 $ECHO "\n===>  zstd round-trip tests "
 
 roundTripTest

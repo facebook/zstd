@@ -485,6 +485,11 @@ $ZSTD -bi0 --fast tmp1
 $ECHO "with recursive and quiet modes"
 $ZSTD -rqi1b1e2 tmp1
 
+$ECHO "\n===>  zstd compatibility tests "
+
+./datagen > tmp
+$ZSTD --format=zstd tmp 2> tmplog
+grep "zst" tmplog > $INTOVOID || die "--format=zstd not supported"
 
 $ECHO "\n===>  gzip compatibility tests "
 

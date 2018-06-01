@@ -145,6 +145,7 @@ static int usage_advanced(const char* programName)
 #ifdef UTIL_HAS_CREATEFILELIST
     DISPLAY( " -r     : operate recursively on directories \n");
 #endif
+    DISPLAY( "--format=zstd : compress files to the .zstd format (default) \n");
 #ifdef ZSTD_GZCOMPRESS
     DISPLAY( "--format=gzip : compress files to the .gz format \n");
 #endif
@@ -500,6 +501,7 @@ int main(int argCount, const char* argv[])
                     if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(1); continue; }
                     if (!strcmp(argument, "--priority=rt")) { setRealTimePrio = 1; continue; }
                     if (!strcmp(argument, "--single-thread")) { nbWorkers = 0; singleThread = 1; continue; }
+                    if (!strcmp(argument, "--format=zstd")) { suffix = ZSTD_EXTENSION; FIO_setCompressionType(FIO_zstdCompression); continue; }
 #ifdef ZSTD_GZCOMPRESS
                     if (!strcmp(argument, "--format=gzip")) { suffix = GZ_EXTENSION; FIO_setCompressionType(FIO_gzipCompression); continue; }
 #endif

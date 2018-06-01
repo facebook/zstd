@@ -485,6 +485,12 @@ $ZSTD -bi0 --fast tmp1
 $ECHO "with recursive and quiet modes"
 $ZSTD -rqi1b1e2 tmp1
 
+$ECHO "\n===>  zstd compatibility tests "
+
+./datagen > tmp
+rm -f tmp.zst
+$ZSTD --format=zstd -f tmp
+test -f tmp.zst
 
 $ECHO "\n===>  gzip compatibility tests "
 
@@ -522,6 +528,12 @@ else
     $ECHO "gzip mode not supported"
 fi
 
+if [ $GZIPMODE -eq 1 ]; then
+    ./datagen > tmp
+    rm -f tmp.zst
+    $ZSTD --format=gzip --format=zstd -f tmp 
+    test -f tmp.zst
+fi
 
 $ECHO "\n===>  xz compatibility tests "
 

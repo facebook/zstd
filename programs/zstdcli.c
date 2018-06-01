@@ -145,7 +145,7 @@ static int usage_advanced(const char* programName)
 #ifdef UTIL_HAS_CREATEFILELIST
     DISPLAY( " -r     : operate recursively on directories \n");
 #endif
-    DISPLAY( "--format=zstd : compress files to the .zstd format \n");
+    DISPLAY( "--format=zstd : compress files to the .zstd format (default) \n");
 #ifdef ZSTD_GZCOMPRESS
     DISPLAY( "--format=gzip : compress files to the .gz format \n");
 #endif

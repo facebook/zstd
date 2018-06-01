@@ -488,8 +488,9 @@ $ZSTD -rqi1b1e2 tmp1
 $ECHO "\n===>  zstd compatibility tests "
 
 ./datagen > tmp
-$ZSTD --format=zstd tmp 2> tmplog
-grep "zst" tmplog > $INTOVOID || die "--format=zstd not supported"
+rm -f tmp.zst
+$ZSTD --format=zstd -f tmp
+test -f tmp.zst
 
 $ECHO "\n===>  gzip compatibility tests "
 
@@ -527,6 +528,12 @@ else
     $ECHO "gzip mode not supported"
 fi
 
+if [ $GZIPMODE -eq 1 ]; then
+    ./datagen > tmp
+    rm -f tmp.zst
+    $ZSTD --format=gzip --format=zstd -f tmp 
+    test -f tmp.zst
+fi
 
 $ECHO "\n===>  xz compatibility tests "
 

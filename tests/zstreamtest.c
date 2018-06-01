@@ -1671,10 +1671,13 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
         /* compression init */
         CHECK_Z( ZSTD_CCtx_loadDictionary(zc, NULL, 0) );   /* cancel previous dict /*/
         if ((FUZ_rand(&lseed)&1) /* at beginning, to keep same nb of rand */
-            && oldTestLog /* at least one test happened */ && resetAllowed) {
+          && oldTestLog   /* at least one test happened */
+          && resetAllowed) {
+            /* just set a compression level */
             maxTestSize = FUZ_randomLength(&lseed, oldTestLog+2);
             if (maxTestSize >= srcBufferSize) maxTestSize = srcBufferSize-1;
             {   int const compressionLevel = (FUZ_rand(&lseed) % 5) + 1;
+                DISPLAYLEVEL(5, "t%u : compression level : %i \n", testNb, compressionLevel);
                 CHECK_Z (setCCtxParameter(zc, cctxParams, ZSTD_p_compressionLevel, compressionLevel, useOpaqueAPI) );
             }
         } else {
@@ -1698,6 +1701,8 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
             {   U64 const pledgedSrcSize = (FUZ_rand(&lseed) & 3) ? ZSTD_CONTENTSIZE_UNKNOWN : maxTestSize;
                 ZSTD_compressionParameters cParams = ZSTD_getCParams(cLevel, pledgedSrcSize, dictSize);
                 static const U32 windowLogMax = 24;
+                if (dictSize)
+                    DISPLAYLEVEL(5, "t%u: with dictionary of size : %zu \n", testNb, dictSize);
 
                 /* mess with compression parameters */
                 cParams.windowLog += (FUZ_rand(&lseed) & 3) - 1;
@@ -1707,7 +1712,7 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
                 cParams.searchLog += (FUZ_rand(&lseed) & 3) - 1;
                 cParams.searchLength += (FUZ_rand(&lseed) & 3) - 1;
                 cParams.targetLength = (U32)((cParams.targetLength + 1 ) * (0.5 + ((double)(FUZ_rand(&lseed) & 127) / 128)));
-                cParams = ZSTD_adjustCParams(cParams, 0, 0);
+                cParams = ZSTD_adjustCParams(cParams, pledgedSrcSize, dictSize);
 
                 if (FUZ_rand(&lseed) & 1) {
                     DISPLAYLEVEL(5, "t%u: windowLog : %u \n", testNb, cParams.windowLog);
@@ -1766,7 +1771,7 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
 
                 /* Apply parameters */
                 if (useOpaqueAPI) {
-                    DISPLAYLEVEL(6," t%u: applying CCtxParams \n", testNb);
+                    DISPLAYLEVEL(5, "t%u: applying CCtxParams \n", testNb);
                     CHECK_Z (ZSTD_CCtx_setParametersUsingCCtxParams(zc, cctxParams) );
                 }
 
@@ -1832,7 +1837,7 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
             }   }
             crcOrig = XXH64_digest(&xxhState);
             cSize = outBuff.pos;
-            DISPLAYLEVEL(5, "Frame completed : %u bytes \n", (U32)cSize);
+            DISPLAYLEVEL(5, "Frame completed : %zu bytes \n", cSize);
         }
 
         CHECK(badParameters(zc, savedParams), "CCtx params are wrong");
@@ -1842,7 +1847,8 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
             DISPLAYLEVEL(5, "resetting DCtx (dict:%08X) \n", (U32)(size_t)dict);
             CHECK_Z( ZSTD_resetDStream(zd) );
         } else {
-            DISPLAYLEVEL(5, "using dict of size %u \n", (U32)dictSize);
+            if (dictSize)
+                DISPLAYLEVEL(5, "using dictionary of size %zu \n", dictSize);
             CHECK_Z( ZSTD_initDStream_usingDict(zd, dict, dictSize) );
         }
         {   size_t decompressionResult = 1;

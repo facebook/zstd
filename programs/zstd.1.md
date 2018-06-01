@@ -164,7 +164,8 @@ the last one takes effect.
 * `--format=FORMAT`:
     compress and decompress in other formats. If compiled with
     support, zstd can compress to or decompress from other compression algorithm
-    formats. Possibly available options are `gzip`, `xz`, `lzma`, and `lz4`.
+    formats. Possibly available options are `zstd`, `gzip`, `xz`, `lzma`, and `lz4`.
+    If no such format is provided, `zstd` is the default.
 * `-h`/`-H`, `--help`:
     display help/long help and exit
 * `-V`, `--version`:

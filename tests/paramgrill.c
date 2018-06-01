@@ -1000,7 +1000,10 @@ int main(int argc, const char** argv)
                 return 1;
             }
 
-            if (argument[0] != 0) return 1; /* check the end of string */
+            if (argument[0] != 0) {
+                DISPLAY("invvalid --zstd= format\n");
+                return 1; /* check the end of string */
+            }
             break;
             //if not return, success
         } else if (argument[0]=='-') {

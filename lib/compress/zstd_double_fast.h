@@ -24,6 +24,9 @@ void ZSTD_fillDoubleHashTable(ZSTD_matchState_t* ms,
 size_t ZSTD_compressBlock_doubleFast(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize);
+size_t ZSTD_compressBlock_doubleFast_dictMatchState(
+        ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
+        ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize);
 size_t ZSTD_compressBlock_doubleFast_extDict(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize);

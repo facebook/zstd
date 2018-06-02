@@ -889,6 +889,7 @@ int optimizeForSize(const char* inFileName, U32 targetSpeed)
 
         /* end summary */
         BMK_printWinner(stdout, 99, winner.result, winner.params, benchedSize);
+        BMK_translateAdvancedParams(winner.params);
         DISPLAY("grillParams size - optimizer completed \n");
 
         /* clean up*/
@@ -1005,7 +1006,6 @@ int main(int argc, const char** argv)
                 DISPLAY("invalid --zstd= format\n");
                 return 1; /* check the end of string */
             }
-            break;
             //if not return, success
         } else if (argument[0]=='-') {
             argument++;
@@ -1114,7 +1114,12 @@ int main(int argc, const char** argv)
     }
 
     if (filenamesStart==0) {
-        result = benchSample();
+        if (optimizer) {
+            DISPLAY("Optimizer Expects File")
+            return 1;
+        } else {
+            result = benchSample();
+        }
     } else {
         if (optimizer) {
             result = optimizeForSize(input_filename, targetSpeed);

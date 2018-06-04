@@ -127,6 +127,19 @@ U32 FUZ_rand(U32* src)
     return rand32 >> 5;
 }
 
+/** longCommandWArg() :
+ *  check if *stringPtr is the same as longCommand.
+ *  If yes, @return 1 and advances *stringPtr to the position which immediately follows longCommand.
+ * @return 0 and doesn't modify *stringPtr otherwise.
+ * from zstdcli.c
+ */
+static unsigned longCommandWArg(const char** stringPtr, const char* longCommand)
+{
+    size_t const comSize = strlen(longCommand);
+    int const result = !strncmp(*stringPtr, longCommand, comSize);
+    if (result) *stringPtr += comSize;
+    return result;
+}
 
 /*-*******************************************************
 *  Bench functions
@@ -876,6 +889,7 @@ int optimizeForSize(const char* inFileName, U32 targetSpeed)
 
         /* end summary */
         BMK_printWinner(stdout, 99, winner.result, winner.params, benchedSize);
+        BMK_translateAdvancedParams(winner.params);
         DISPLAY("grillParams size - optimizer completed \n");
 
         /* clean up*/
@@ -938,6 +952,7 @@ static int usage_advanced(void)
     DISPLAY( " -i#    : iteration loops [1-9](default : %i) \n", NBLOOPS);
     DISPLAY( " -O#    : find Optimized parameters for # MB/s compression speed (default : 0) \n");
     DISPLAY( " -S     : Single run \n");
+    DISPLAY( " --zstd : Single run, parameter selection same as zstdcli \n");
     DISPLAY( " -P#    : generated sample compressibility (default : %.1f%%) \n", COMPRESSIBILITY_DEFAULT * 100);
     return 0;
 }
@@ -972,7 +987,28 @@ int main(int argc, const char** argv)
         if(!strcmp(argument,"--no-seed")) { g_noSeed = 1; continue; }
 
         /* Decode command (note : aggregated commands are allowed) */
-        if (argument[0]=='-') {
+        if (longCommandWArg(&argument, "--zstd=")) {
+            g_singleRun = 1;
+            g_params = ZSTD_getCParams(2, g_blockSize, 0);
+            for ( ; ;) {
+                if (longCommandWArg(&argument, "windowLog=") || longCommandWArg(&argument, "wlog=")) { g_params.windowLog = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
+                if (longCommandWArg(&argument, "chainLog=") || longCommandWArg(&argument, "clog=")) { g_params.chainLog = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
+                if (longCommandWArg(&argument, "hashLog=") || longCommandWArg(&argument, "hlog=")) { g_params.hashLog = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
+                if (longCommandWArg(&argument, "searchLog=") || longCommandWArg(&argument, "slog=")) { g_params.searchLog = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
+                if (longCommandWArg(&argument, "searchLength=") || longCommandWArg(&argument, "slen=")) { g_params.searchLength = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
+                if (longCommandWArg(&argument, "targetLength=") || longCommandWArg(&argument, "tlen=")) { g_params.targetLength = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
+                if (longCommandWArg(&argument, "strategy=") || longCommandWArg(&argument, "strat=")) { g_params.strategy = (ZSTD_strategy)(readU32FromChar(&argument)); if (argument[0]==',') { argument++; continue; } else break; }
+                if (longCommandWArg(&argument, "level=") || longCommandWArg(&argument, "lvl=")) { g_params = ZSTD_getCParams(readU32FromChar(&argument), g_blockSize, 0); if (argument[0]==',') { argument++; continue; } else break; }
+                DISPLAY("invalid compression parameter \n");
+                return 1;
+            }
+
+            if (argument[0] != 0) {
+                DISPLAY("invalid --zstd= format\n");
+                return 1; /* check the end of string */
+            }
+            //if not return, success
+        } else if (argument[0]=='-') {
             argument++;
 
             while (argument[0]!=0) {
@@ -1051,6 +1087,7 @@ int main(int argc, const char** argv)
                         }
                         break;
                     }
+
                     break;
 
                     /* target level1 speed objective, in MB/s */
@@ -1078,7 +1115,12 @@ int main(int argc, const char** argv)
     }
 
     if (filenamesStart==0) {
-        result = benchSample();
+        if (optimizer) {
+            DISPLAY("Optimizer Expects File\n");
+            return 1;
+        } else {
+            result = benchSample();
+        }
     } else {
         if (optimizer) {
             result = optimizeForSize(input_filename, targetSpeed);

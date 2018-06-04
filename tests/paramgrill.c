@@ -1116,7 +1116,7 @@ int main(int argc, const char** argv)
 
     if (filenamesStart==0) {
         if (optimizer) {
-            DISPLAY("Optimizer Expects File")
+            DISPLAY("Optimizer Expects File\n");
             return 1;
         } else {
             result = benchSample();

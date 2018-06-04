@@ -186,6 +186,7 @@ $ZSTD -f tmp && die "tmp not present : should have failed"
 test ! -f tmp.zst  # tmp.zst should not be created
 
 $ECHO "test : compress multiple files"
+rm tmp*
 $ECHO hello > tmp1
 $ECHO world > tmp2
 $ZSTD tmp1 tmp2 -o "$INTOVOID"

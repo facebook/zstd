@@ -952,6 +952,7 @@ static int usage_advanced(void)
     DISPLAY( " -i#    : iteration loops [1-9](default : %i) \n", NBLOOPS);
     DISPLAY( " -O#    : find Optimized parameters for # MB/s compression speed (default : 0) \n");
     DISPLAY( " -S     : Single run \n");
+    DISPLAY( " --zstd : Single run, parameter selection same as zstdcli \n");
     DISPLAY( " -P#    : generated sample compressibility (default : %.1f%%) \n", COMPRESSIBILITY_DEFAULT * 100);
     return 0;
 }

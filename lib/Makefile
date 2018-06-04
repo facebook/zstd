@@ -31,7 +31,41 @@ FLAGS    = $(CPPFLAGS) $(CFLAGS)
 
 ZSTD_FILES := $(sort $(wildcard common/*.c compress/*.c decompress/*.c dictBuilder/*.c deprecated/*.c))
 
+ZSTDCOMMON_FILES := $(sort $(wildcard common/*.c))
+ZSTDCOMP_FILES := $(sort $(wildcard compress/*.c))
+ZSTDDECOMP_FILES := $(sort $(wildcard decompress/*.c))
+ZDICT_FILES := $(sort $(wildcard dictBuilder/*.c))
+ZDEPR_FILES := $(sort $(wildcard deprecated/*.c))
+ZSTD_FILES := $(ZSTDCOMMON_FILES)
+
 ZSTD_LEGACY_SUPPORT ?= 4
+ZSTD_LIB_COMPRESSION ?= 1
+ZSTD_LIB_DECOMPRESSION ?= 1
+ZSTD_LIB_DICTBUILDER ?= 1
+ZSTD_LIB_DEPRECATED ?= 1
+ifeq ($(ZSTD_LIB_COMPRESSION), 0)
+	ZSTD_LIB_DICTBUILDER = 0
+endif
+
+ifeq ($(ZSTD_LIB_DECOMPRESSION), 0)
+	ZSTD_LEGACY_SUPPORT = 0
+endif
+
+ifneq ($(ZSTD_LIB_COMPRESSION), 0)
+	ZSTD_FILES += $(ZSTDCOMP_FILES) 
+endif
+
+ifneq ($(ZSTD_LIB_DECOMPRESSION), 0)
+	ZSTD_FILES += $(ZSTDDECOMP_FILES) 
+endif
+
+ifneq ($(ZSTD_DEPRECATED), 0)
+	ZSTD_FILE += $(ZDEPR_FILES)
+endif
+
+ifneq ($(ZSTD_LIB_DICTBUILDER), 0)
+	ZSTD_FILE += $(ZDICT_FILES)
+endif
 
 ifneq ($(ZSTD_LEGACY_SUPPORT), 0)
 ifeq ($(shell test $(ZSTD_LEGACY_SUPPORT) -lt 8; echo $$?), 0)

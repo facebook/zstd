@@ -16,8 +16,27 @@
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_compressionParameters */
 #include "zstd.h"     /* ZSTD_compressionParameters */
 
+typedef struct {
+    size_t cSize;
+    double cSpeed;   /* bytes / sec */
+    double dSpeed;
+} BMK_result_t;
+
+/* called in cli */
 int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles, const char* dictFileName,
                    int cLevel, int cLevelLast, const ZSTD_compressionParameters* compressionParams);
+
+/* more options */
+BMK_result_t BMK_benchFilesFull(const char** fileNamesTable, unsigned nbFiles, const char* dictFileName,
+                   int cLevel, int cLevelLast, const ZSTD_compressionParameters* compressionParams,
+                   int printable);
+
+/* basic benchmarking function, called in paramgrill
+ * results, cctx, dctx, dictbuffer can be null or passed in */
+BMK_result_t BMK_benchMem(const void* srcBuffer, size_t srcSize, const char* displayName, int cLevel,
+                 const size_t* fileSizes, unsigned nbFiles, const void* dictBuffer, size_t dictBufferSize,
+                 const ZSTD_compressionParameters* const comprParams, ZSTD_CCtx* ctx, ZSTD_DCtx* dctx,
+                 int printable);
 
 /* Set Parameters */
 void BMK_setNbSeconds(unsigned nbLoops);

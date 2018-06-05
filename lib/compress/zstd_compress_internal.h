@@ -27,6 +27,7 @@
 extern "C" {
 #endif
 
+
 /*-*************************************
 *  Constants
 ***************************************/
@@ -37,7 +38,8 @@ extern "C" {
                                        It's not a big deal though : candidate will just be sorted again.
                                        Additionnally, candidate position 1 will be lost.
                                        But candidate 1 cannot hide a large tree of candidates, so it's a minimal loss.
-                                       The benefit is that ZSTD_DUBT_UNSORTED_MARK cannot be misdhandled after table re-use with a different strategy */
+                                       The benefit is that ZSTD_DUBT_UNSORTED_MARK cannot be misdhandled after table re-use with a different strategy
+                                       Constant required by ZSTD_compressBlock_btlazy2() and ZSTD_reduceTable_internal() */
 
 
 /*-*************************************
@@ -204,6 +206,8 @@ struct ZSTD_CCtx_s {
     ZSTD_CCtx_params requestedParams;
     ZSTD_CCtx_params appliedParams;
     U32   dictID;
+
+    int workSpaceTooLarge;
     void* workSpace;
     size_t workSpaceSize;
     size_t blockSize;

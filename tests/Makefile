@@ -233,14 +233,6 @@ else
 	$(CC) $(FLAGS) $< -o $@$(EXT) -Wl,-rpath=$(ZSTDDIR) $(ZSTDDIR)/libzstd.so   # broken on Mac
 endif
 
-partial  : partial.c zstd-dll
-ifneq (,$(filter Windows%,$(OS)))
-	cp $(ZSTDDIR)/dll/libzstd.dll .
-	$(CC) $(FLAGS) $< -o $@$(EXT) -DZSTD_DLL_IMPORT=1 libzstd.dll
-else
-	$(CC) $(FLAGS) $< -o $@$(EXT) -Wl,-rpath=$(ZSTDDIR) $(ZSTDDIR)/libzstd.so   # broken on Mac
-endif
-
 poolTests : poolTests.c $(ZSTDDIR)/common/pool.c $(ZSTDDIR)/common/threading.c $(ZSTDDIR)/common/zstd_common.c $(ZSTDDIR)/common/error_private.c
 	$(CC) $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
 
@@ -263,7 +255,7 @@ clean:
         zstreamtest$(EXT) zstreamtest32$(EXT) \
         datagen$(EXT) paramgrill$(EXT) roundTripCrash$(EXT) longmatch$(EXT) \
         symbols$(EXT) invalidDictionaries$(EXT) legacy$(EXT) poolTests$(EXT) \
-        decodecorpus$(EXT) checkTag$(EXT) partial$(EXT)
+        decodecorpus$(EXT) checkTag$(EXT)
 	@echo Cleaning completed
 
 
@@ -394,9 +386,6 @@ test-invalidDictionaries: invalidDictionaries
 
 test-symbols: symbols
 	$(QEMU_SYS) ./symbols
-
-test-partial: partial
-	$(QEMU_SYS) ./partial
 
 test-legacy: legacy
 	$(QEMU_SYS) ./legacy

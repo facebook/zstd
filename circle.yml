@@ -41,6 +41,15 @@ test:
         if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then make -C lib libzstd-nomt && make clean; fi
       :
         parallel: true
+    - ? |
+        if [[ "$CIRCLE_NODE_INDEX" == "0" ]]                                    ; then ZSTD_LIB_COMPRESSION=0 make -C lib libzstd.a; nm lib/libzstd.a | grep ".*\.o:" > tmplog; 
+                                                                                  ! grep "zstd_compress" tmplog && grep "zstd_decompress" tmplog && ! grep "dict" tmplog \
+                                                                                  && grep "zstd_v" tmplog && make clean && rm tmplog; fi &&
+        if [[ "$CIRCLE_NODE_TOTAL" < "2" ]] || [[ "$CIRCLE_NODE_INDEX" == "1" ]]; then ZSTD_LIB_DECOMPRESSION=0 make -C lib libzstd.a; nm lib/libzstd.a | grep ".*\.o:" > tmplog; 
+                                                                                  grep "zstd_compress" tmplog && ! grep "zstd_decompress" tmplog && grep "dict" tmplog && \
+                                                                                  ! grep "zstd_v" tmplog && make clean && rm tmplog; fi
+      :
+        parallel: true
 
   post:
     - echo Circle CI tests finished

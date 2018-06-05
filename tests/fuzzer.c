@@ -450,14 +450,16 @@ static int basicUnitTests(U32 seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
-    DISPLAYLEVEL(3, "test%3d : large window log smaller data : ", testNb++);
+    DISPLAYLEVEL(3, "test%3d : overflow protection with large windowLog : ", testNb++);
     {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
-        ZSTD_parameters params = ZSTD_getParams(1, ZSTD_CONTENTSIZE_UNKNOWN, 0);
-        size_t const nbCompressions = (1U << 31) / CNBuffSize + 1;
-        size_t i;
+        ZSTD_parameters params = ZSTD_getParams(-9, ZSTD_CONTENTSIZE_UNKNOWN, 0);
+        size_t const nbCompressions = ((1U << 31) / CNBuffSize) + 1;   /* ensure U32 overflow protection is triggered */
+        size_t cnb;
+        assert(cctx != NULL);
         params.fParams.contentSizeFlag = 0;
         params.cParams.windowLog = ZSTD_WINDOWLOG_MAX;
-        for (i = 0; i < nbCompressions; ++i) {
+        for (cnb = 0; cnb < nbCompressions; ++cnb) {
+            DISPLAYLEVEL(6, "run %zu / %zu \n", cnb, nbCompressions);
             CHECK_Z( ZSTD_compressBegin_advanced(cctx, NULL, 0, params, ZSTD_CONTENTSIZE_UNKNOWN) );  /* re-use same parameters */
             CHECK_Z( ZSTD_compressEnd(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize) );
         }

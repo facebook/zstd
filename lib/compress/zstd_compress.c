@@ -581,6 +581,7 @@ size_t ZSTD_CCtxParam_getParameter(
 size_t ZSTD_CCtx_setParametersUsingCCtxParams(
         ZSTD_CCtx* cctx, const ZSTD_CCtx_params* params)
 {
+    DEBUGLOG(4, "ZSTD_CCtx_setParametersUsingCCtxParams");
     if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
     if (cctx->cdict) return ERROR(stage_wrong);
 
@@ -1225,6 +1226,8 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
                         && cdict->cParams.strategy <= ZSTD_dfast
                         && ZSTD_equivalentCParams(cctx->appliedParams.cParams,
                                                   cdict->cParams);
+
+    DEBUGLOG(4, "ZSTD_resetCCtx_usingCDict (pledgedSrcSize=%u)", (U32)pledgedSrcSize);
 
 
     {   unsigned const windowLog = params.cParams.windowLog;

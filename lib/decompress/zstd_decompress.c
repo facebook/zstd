@@ -115,8 +115,8 @@ struct ZSTD_DCtx_s
     const HUF_DTable* HUFptr;
     ZSTD_entropyDTables_t entropy;
     const void* previousDstEnd;   /* detect continuity */
-    const void* base;             /* start of current segment */
-    const void* vBase;            /* virtual start of previous segment if it was just before current one */
+    const void* prefixStart;      /* start of current segment */
+    const void* virtualStart;     /* virtual start of previous segment if it was just before current one */
     const void* dictEnd;          /* end of previous segment */
     size_t expected;
     ZSTD_frameHeader fParams;
@@ -1076,7 +1076,7 @@ HINT_INLINE
 size_t ZSTD_execSequence(BYTE* op,
                          BYTE* const oend, seq_t sequence,
                          const BYTE** litPtr, const BYTE* const litLimit,
-                         const BYTE* const base, const BYTE* const vBase, const BYTE* const dictEnd)
+                         const BYTE* const prefixStart, const BYTE* const virtualStart, const BYTE* const dictEnd)
 {
     BYTE* const oLitEnd = op + sequence.litLength;
     size_t const sequenceLength = sequence.litLength + sequence.matchLength;
@@ -1088,7 +1088,7 @@ size_t ZSTD_execSequence(BYTE* op,
     /* check */
     if (oMatchEnd>oend) return ERROR(dstSize_tooSmall); /* last match must start at a minimum distance of WILDCOPY_OVERLENGTH from oend */
     if (iLitEnd > litLimit) return ERROR(corruption_detected);   /* over-read beyond lit buffer */
-    if (oLitEnd>oend_w) return ZSTD_execSequenceLast7(op, oend, sequence, litPtr, litLimit, base, vBase, dictEnd);
+    if (oLitEnd>oend_w) return ZSTD_execSequenceLast7(op, oend, sequence, litPtr, litLimit, prefixStart, virtualStart, dictEnd);
 
     /* copy Literals */
     ZSTD_copy8(op, *litPtr);
@@ -1098,21 +1098,25 @@ size_t ZSTD_execSequence(BYTE* op,
     *litPtr = iLitEnd;   /* update for next sequence */
 
     /* copy Match */
-    if (sequence.offset > (size_t)(oLitEnd - base)) {
+    if (sequence.offset > (size_t)(oLitEnd - prefixStart)) {
         /* offset beyond prefix -> go into extDict */
-        if (sequence.offset > (size_t)(oLitEnd - vBase))
+        if (sequence.offset > (size_t)(oLitEnd - virtualStart))
             return ERROR(corruption_detected);
-        match = dictEnd + (match - base);
+        match = dictEnd + (match - prefixStart);
         if (match + sequence.matchLength <= dictEnd) {
             memmove(oLitEnd, match, sequence.matchLength);
             return sequenceLength;
         }
         /* span extDict & currentPrefixSegment */
+        DEBUGLOG(2, "ZSTD_execSequence: found a 2-segments match")
         {   size_t const length1 = dictEnd - match;
+            DEBUGLOG(2, "first part (extDict) is %zu bytes long", length1);
             memmove(oLitEnd, match, length1);
             op = oLitEnd + length1;
             sequence.matchLength -= length1;
-            match = base;
+            DEBUGLOG(2, "second part (prefix) is %zu bytes long", sequence.matchLength);
+            match = prefixStart;
+            DEBUGLOG(2, "first byte of 2nd part : %02X", *prefixStart);
             if (op > oend_w || sequence.matchLength < MINMATCH) {
               U32 i;
               for (i = 0; i < sequence.matchLength; ++i) op[i] = match[i];
@@ -1355,10 +1359,10 @@ ZSTD_decompressSequences_body( ZSTD_DCtx* dctx,
     BYTE* op = ostart;
     const BYTE* litPtr = dctx->litPtr;
     const BYTE* const litEnd = litPtr + dctx->litSize;
-    const BYTE* const base = (const BYTE*) (dctx->base);
-    const BYTE* const vBase = (const BYTE*) (dctx->vBase);
+    const BYTE* const prefixStart = (const BYTE*) (dctx->prefixStart);
+    const BYTE* const vBase = (const BYTE*) (dctx->virtualStart);
     const BYTE* const dictEnd = (const BYTE*) (dctx->dictEnd);
-    DEBUGLOG(5, "ZSTD_decompressSequences");
+    DEBUGLOG(5, "ZSTD_decompressSequences_body");
 
     /* Regen sequences */
     if (nbSeq) {
@@ -1373,14 +1377,14 @@ ZSTD_decompressSequences_body( ZSTD_DCtx* dctx,
         for ( ; (BIT_reloadDStream(&(seqState.DStream)) <= BIT_DStream_completed) && nbSeq ; ) {
             nbSeq--;
             {   seq_t const sequence = ZSTD_decodeSequence(&seqState, isLongOffset);
-                size_t const oneSeqSize = ZSTD_execSequence(op, oend, sequence, &litPtr, litEnd, base, vBase, dictEnd);
+                size_t const oneSeqSize = ZSTD_execSequence(op, oend, sequence, &litPtr, litEnd, prefixStart, vBase, dictEnd);
                 DEBUGLOG(6, "regenerated sequence size : %u", (U32)oneSeqSize);
                 if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
                 op += oneSeqSize;
         }   }
 
         /* check if reached exact end */
-        DEBUGLOG(5, "ZSTD_decompressSequences: after decode loop, remaining nbSeq : %i", nbSeq);
+        DEBUGLOG(5, "ZSTD_decompressSequences_body: after decode loop, remaining nbSeq : %i", nbSeq);
         if (nbSeq) return ERROR(corruption_detected);
         /* save reps for next block */
         { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) dctx->entropy.rep[i] = (U32)(seqState.prevOffset[i]); }
@@ -1499,8 +1503,8 @@ ZSTD_decompressSequencesLong_body(
     BYTE* op = ostart;
     const BYTE* litPtr = dctx->litPtr;
     const BYTE* const litEnd = litPtr + dctx->litSize;
-    const BYTE* const prefixStart = (const BYTE*) (dctx->base);
-    const BYTE* const dictStart = (const BYTE*) (dctx->vBase);
+    const BYTE* const prefixStart = (const BYTE*) (dctx->prefixStart);
+    const BYTE* const dictStart = (const BYTE*) (dctx->virtualStart);
     const BYTE* const dictEnd = (const BYTE*) (dctx->dictEnd);
 
     /* Regen sequences */
@@ -1702,8 +1706,8 @@ static void ZSTD_checkContinuity(ZSTD_DCtx* dctx, const void* dst)
 {
     if (dst != dctx->previousDstEnd) {   /* not contiguous */
         dctx->dictEnd = dctx->previousDstEnd;
-        dctx->vBase = (const char*)dst - ((const char*)(dctx->previousDstEnd) - (const char*)(dctx->base));
-        dctx->base = dst;
+        dctx->virtualStart = (const char*)dst - ((const char*)(dctx->previousDstEnd) - (const char*)(dctx->prefixStart));
+        dctx->prefixStart = dst;
         dctx->previousDstEnd = dst;
     }
 }
@@ -2171,8 +2175,8 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
 static size_t ZSTD_refDictContent(ZSTD_DCtx* dctx, const void* dict, size_t dictSize)
 {
     dctx->dictEnd = dctx->previousDstEnd;
-    dctx->vBase = (const char*)dict - ((const char*)(dctx->previousDstEnd) - (const char*)(dctx->base));
-    dctx->base = dict;
+    dctx->virtualStart = (const char*)dict - ((const char*)(dctx->previousDstEnd) - (const char*)(dctx->prefixStart));
+    dctx->prefixStart = dict;
     dctx->previousDstEnd = (const char*)dict + dictSize;
     return 0;
 }
@@ -2276,8 +2280,8 @@ size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx)
     dctx->stage = ZSTDds_getFrameHeaderSize;
     dctx->decodedSize = 0;
     dctx->previousDstEnd = NULL;
-    dctx->base = NULL;
-    dctx->vBase = NULL;
+    dctx->prefixStart = NULL;
+    dctx->virtualStart = NULL;
     dctx->dictEnd = NULL;
     dctx->entropy.hufTable[0] = (HUF_DTable)((HufLog)*0x1000001);  /* cover both little and big endian */
     dctx->litEntropy = dctx->fseEntropy = 0;
@@ -2327,8 +2331,8 @@ size_t ZSTD_decompressBegin_usingDDict(ZSTD_DCtx* dstDCtx, const ZSTD_DDict* ddi
     CHECK_F( ZSTD_decompressBegin(dstDCtx) );
     if (ddict) {   /* support begin on NULL */
         dstDCtx->dictID = ddict->dictID;
-        dstDCtx->base = ddict->dictContent;
-        dstDCtx->vBase = ddict->dictContent;
+        dstDCtx->prefixStart = ddict->dictContent;
+        dstDCtx->virtualStart = ddict->dictContent;
         dstDCtx->dictEnd = (const BYTE*)ddict->dictContent + ddict->dictSize;
         dstDCtx->previousDstEnd = dstDCtx->dictEnd;
         if (ddict->entropyPresent) {

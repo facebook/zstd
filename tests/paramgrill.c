@@ -63,6 +63,16 @@ static const int g_maxNbVariations = 64;
 #define MAX(a,b)   ( (a) > (b) ? (a) : (b) )
 #define CUSTOM_LEVEL 99
 
+/* indices for each of the variables */
+#define WLOG_IND 0
+#define CLOG_IND 1
+#define HLOG_IND 2
+#define SLOG_IND 3
+#define SLEN_IND 4
+#define TLEN_IND 5
+#define STRT_IND 6
+#define NUM_PARAMS 7
+
 /*-************************************
 *  Benchmark Parameters
 **************************************/
@@ -139,6 +149,13 @@ static unsigned longCommandWArg(const char** stringPtr, const char* longCommand)
     if (result) *stringPtr += comSize;
     return result;
 }
+
+
+typedef struct {
+    U32 cSpeed; /* bytes / sec */
+    U32 dSpeed;
+    U32 Mem;    /* bytes */    
+} constraint_t;
 
 /*-*******************************************************
 *  Bench functions
@@ -340,7 +357,6 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_compressionParameters para
     return better;
 }
 
-
 /* nullified useless params, to ensure count stats */
 static ZSTD_compressionParameters* sanitizeParams(ZSTD_compressionParameters params)
 {
@@ -354,8 +370,114 @@ static ZSTD_compressionParameters* sanitizeParams(ZSTD_compressionParameters par
     return &g_params;
 }
 
+/* res should be NUM_PARAMS size */
+static int variableParams(const ZSTD_compressionParameters paramConstraints, U32* res) {
+    int j = 0;
+    if(!paramConstraints.windowLog) {
+        res[j] = WLOG_IND;
+        j++;
+    }
+    if(!paramConstraints.chainLog) {
+        res[j] = CLOG_IND;
+        j++;
+    }
+    if(!paramConstraints.hashLog) {
+        res[j] = HLOG_IND;
+        j++;
+    }
+    if(!paramConstraints.searchLog) {
+        res[j] = SLOG_IND;
+        j++;
+    }
+    if(!paramConstraints.searchLength) {
+        res[j] = SLEN_IND;
+        j++;
+    }
+    if(!paramConstraints.targetLength) {
+        res[j] = TLEN_IND;
+        j++;
+    }
+    if(!(U32)paramConstraints.strategy) {
+        res[j] = STRT_IND;
+        j++;
+    }
+    return j;
+}
 
-static void paramVariation(ZSTD_compressionParameters* ptr)
+/* computes inverse of above array, returns same number, -1 = unused ind */
+static int inverseVariableParams(const ZSTD_compressionParameters paramConstraints, U32* res) {
+    int j = 0;
+    if(!paramConstraints.windowLog) {
+        res[WLOG_IND] = j;
+        j++;
+    } else {
+        res[WLOG_IND] = -1;
+    }
+    if(!paramConstraints.chainLog) {
+        res[j] = CLOG_IND;
+        j++;
+    } else {
+        res[WLOG_IND] = -1;
+    }
+    if(!paramConstraints.hashLog) {
+        res[j] = HLOG_IND;
+        j++;
+    } else {
+        res[WLOG_IND] = -1;
+    }
+    if(!paramConstraints.searchLog) {
+        res[j] = SLOG_IND;
+        j++;
+    } else {
+        res[WLOG_IND] = -1;
+    }
+    if(!paramConstraints.searchLength) {
+        res[j] = SLEN_IND;
+        j++;
+    } else {
+        res[WLOG_IND] = -1;
+    }
+    if(!paramConstraints.targetLength) {
+        res[j] = TLEN_IND;
+        j++;
+    } else {
+        res[WLOG_IND] = -1;
+    }
+    if(!(U32)paramConstraints.strategy) {
+        res[j] = STRT_IND;
+        j++;
+    } else {
+        res[WLOG_IND] = -1;
+    }
+    return j;
+}
+
+/* amt will probably always be \pm 1? */
+/* slight change from old paramVariation, targetLength can only take on powers of 2 now (999 ~= 1024?) */
+static void paramVaryOnce(U32 paramIndex, int amt, ZSTD_compressionParameters* ptr) {
+    switch(paramIndex)
+    {
+        case WLOG_IND: ptr->windowLog    += amt; break;
+        case CLOG_IND: ptr->chainLog     += amt; break;
+        case HLOG_IND: ptr->hashLog      += amt; break;
+        case SLOG_IND: ptr->searchLog    += amt; break;
+        case SLEN_IND: ptr->searchLength += amt; break;
+        case TLEN_IND: 
+            if(amt > 0) { 
+                ptr->targetLength <<= amt; 
+            } else { 
+                ptr->targetLength >>= -amt; 
+            } 
+            break;
+        case STRT_IND: ptr->strategy     += amt; break;
+        default: break;
+    }
+}
+
+//Don't fuzz fixed variables.
+//turn pcs to pcs array with macro for params. 
+//pass in variation array from variableParams
+static void paramVariation(ZSTD_compressionParameters* ptr, const U32* varyParams, const int varyLen)
 {
     ZSTD_compressionParameters p;
     U32 validated = 0;
@@ -363,40 +485,13 @@ static void paramVariation(ZSTD_compressionParameters* ptr)
         U32 nbChanges = (FUZ_rand(&g_rand) & 3) + 1;
         p = *ptr;
         for ( ; nbChanges ; nbChanges--) {
-            const U32 changeID = FUZ_rand(&g_rand) % 14;
-            switch(changeID)
-            {
-            case 0:
-                p.chainLog++; break;
-            case 1:
-                p.chainLog--; break;
-            case 2:
-                p.hashLog++; break;
-            case 3:
-                p.hashLog--; break;
-            case 4:
-                p.searchLog++; break;
-            case 5:
-                p.searchLog--; break;
-            case 6:
-                p.windowLog++; break;
-            case 7:
-                p.windowLog--; break;
-            case 8:
-                p.searchLength++; break;
-            case 9:
-                p.searchLength--; break;
-            case 10:
-                p.strategy = (ZSTD_strategy)(((U32)p.strategy)+1); break;
-            case 11:
-                p.strategy = (ZSTD_strategy)(((U32)p.strategy)-1); break;
-            case 12:
-                p.targetLength *= 1 + ((double)(FUZ_rand(&g_rand)&255)) / 256.; break;
-            case 13:
-                p.targetLength /= 1 + ((double)(FUZ_rand(&g_rand)&255)) / 256.; break;
-            }
+            const U32 changeID = FUZ_rand(&g_rand) % (2 * varyLen);
+            paramVaryOnce(varyParams[changeID >> 1], ((changeID & 1) << 1) - 1, &p);
         }
         validated = !ZSTD_isError(ZSTD_checkCParams(p));
+        
+        //Make sure memory is at least close to feasible?
+        //ZSTD_estimateCCtxSize thing.
     }
     *ptr = p;
 }
@@ -418,12 +513,14 @@ static void playAround(FILE* f, winnerInfo_t* winners,
 {
     int nbVariations = 0;
     UTIL_time_t const clockStart = UTIL_getTime();
+    const U32 unconstrained[NUM_PARAMS] = { 0, 1, 2, 3, 4, 5, 6 };
+
 
     while (UTIL_clockSpanMicro(clockStart) < g_maxVariationTime) {
         ZSTD_compressionParameters p = params;
 
         if (nbVariations++ > g_maxNbVariations) break;
-        paramVariation(&p);
+        paramVariation(&p, unconstrained, 7);
 
         /* exclude faster if already played params */
         if (FUZ_rand(&g_rand) & ((1 << NB_TESTS_PLAYED(p))-1))
@@ -454,6 +551,24 @@ static ZSTD_compressionParameters randomParams(void)
         p.searchLength=(FUZ_rand(&g_rand) % (ZSTD_SEARCHLENGTH_MAX+1 - ZSTD_SEARCHLENGTH_MIN)) + ZSTD_SEARCHLENGTH_MIN;
         p.targetLength=(FUZ_rand(&g_rand) % (512));
         p.strategy   = (ZSTD_strategy) (FUZ_rand(&g_rand) % (ZSTD_btultra +1));
+        validated = !ZSTD_isError(ZSTD_checkCParams(p));
+    }
+    return p;
+}
+
+static ZSTD_compressionParameters randomConstrainedParams(ZSTD_compressionParameters pc)
+{
+    ZSTD_compressionParameters p;
+    U32 validated = 0;
+    while (!validated) {
+        /* totally random entry */
+        if(!pc.chainLog) p.chainLog   = (FUZ_rand(&g_rand) % (ZSTD_CHAINLOG_MAX+1 - ZSTD_CHAINLOG_MIN)) + ZSTD_CHAINLOG_MIN;
+        if(!pc.chainLog) p.hashLog    = (FUZ_rand(&g_rand) % (ZSTD_HASHLOG_MAX+1 - ZSTD_HASHLOG_MIN)) + ZSTD_HASHLOG_MIN;
+        if(!pc.chainLog) p.searchLog  = (FUZ_rand(&g_rand) % (ZSTD_SEARCHLOG_MAX+1 - ZSTD_SEARCHLOG_MIN)) + ZSTD_SEARCHLOG_MIN;
+        if(!pc.chainLog) p.windowLog  = (FUZ_rand(&g_rand) % (ZSTD_WINDOWLOG_MAX+1 - ZSTD_WINDOWLOG_MIN)) + ZSTD_WINDOWLOG_MIN;
+        if(!pc.chainLog) p.searchLength=(FUZ_rand(&g_rand) % (ZSTD_SEARCHLENGTH_MAX+1 - ZSTD_SEARCHLENGTH_MIN)) + ZSTD_SEARCHLENGTH_MIN;
+        if(!pc.chainLog) p.targetLength=(FUZ_rand(&g_rand) % (512)) + 1; //ZSTD_TARGETLENGTH_MIN; //change to 2^[0,10?]
+        if(!pc.chainLog) p.strategy   = (ZSTD_strategy) (FUZ_rand(&g_rand) % (ZSTD_btultra +1));
         validated = !ZSTD_isError(ZSTD_checkCParams(p));
     }
     return p;
@@ -638,14 +753,86 @@ static void BMK_translateAdvancedParams(ZSTD_compressionParameters params)
              params.windowLog, params.chainLog, params.hashLog, params.searchLog, params.searchLength, params.targetLength, (U32)(params.strategy));
 }
 
+//Results currently don't capture memory usage or anything.
+//parameter feasibility is not checked, should just be restricted from use.
+static int feasible(BMK_result_t results, constraint_t target) {
+    return (results.cSpeed >= target.cSpeed) && (results.dSpeed >= target.dSpeed) && (results.cMem <= target.Mem || !target.Mem);
+}
+
+/* returns 1 if result2 is strictly 'better' than result1 */
+static int objective_lt(BMK_result_t result1, BMK_result_t result2) {
+    return (result1.cSize > result2.cSize) || (result1.cSize == result2.cSize && result2.cSpeed > result1.cSpeed);
+}
+
+/* res gives array dimensions, should be size NUM_PARAMS */ 
+static size_t computeStateSize(const ZSTD_compressionParameters paramConstraints, U32* res) {
+    int ind = 0;
+    size_t base = 1;
+    if(!paramConstraints.windowLog) { res[ind] = ZSTD_WINDOWLOG_MAX - ZSTD_WINDOWLOG_MIN + 1; base *= res[ind]; ind++; }
+    if(!paramConstraints.chainLog) { res[ind] =  ZSTD_CHAINLOG_MAX - ZSTD_CHAINLOG_MIN + 1; base *= res[ind]; ind++; }
+    if(!paramConstraints.hashLog) { res[ind] = ZSTD_HASHLOG_MAX - ZSTD_HASHLOG_MIN + 1; base *= res[ind]; ind++; }
+    if(!paramConstraints.searchLog) { res[ind] = ZSTD_SEARCHLOG_MAX - ZSTD_SEARCHLOG_MIN + 1; base *= res[ind]; ind++; }
+    if(!paramConstraints.searchLength) { res[ind] = ZSTD_SEARCHLENGTH_MAX - ZSTD_SEARCHLENGTH_MIN + 1; base *= res[ind]; ind++; }
+    if(!paramConstraints.targetLength) { res[ind] = 11; base *= res[ind]; ind++; } //restricting from 2^[0,10], no such macros
+    if(!(U32)paramConstraints.strategy) { res[ind] = 8; base *= 8; } //not strictly true, maybe would want to case on this. 
+
+    return base;
+}
+
+
+static unsigned calcViolation(BMK_result_t results, constraint_t target) {
+    int diffcSpeed = MAX(target.cSpeed - results.cSpeed, 0);
+    int diffdSpeed = MAX(target.dSpeed - results.dSpeed, 0);
+    int diffcMem = MAX(results.cMem - target.Mem, 0);
+    return diffcSpeed + diffdSpeed + diffcMem;
+}
+
+/* finds some set of parameters which fulfills req's 
+ * Prioritize highest / try to locally minimize sum?
+ * Is it ever useful to go out of the param constraints? ?
+ * random / perturb when revisit? 
+ * momentum? 
+ */
+static ZSTD_compressionParameters findFeasible(constraint_t target, ZSTD_compressionParameters paramTarget) {
+    unsigned violation;
+
+    ZSTD_compressionParameters winner = randomConstrainedParams(paramTarget);
+    //just use g_alreadyTested and xxhash? 
+    BYTE* memotable;
+    do {
+        //prioritize memory
+        if(diffcMem >= diffcSpeed && diffcMem >= diffdSpeed) {
+
+        //prioritize compression Speed
+        } else if (diffcSpeeed >= diffdSpeed && diffcSpeed >= diffcMem) {
+
+        //prioritize decompressionSpeed 
+        } else {
+
+        }
+        violation = calcViolation(result, target);
+    } while(objective);
+    if(validate) {
+        DISPLAY("Feasible Point Found\n");
+        return winner;
+    } else {
+        DISPLAY("No solution found\n");
+        ZSTD_compressionParameters ret = { 0, 0, 0, 0, 0, 0, 0 };
+        return ret;
+    }
+}
+
 /* optimizeForSize():
- * targetSpeed : expressed in MB/s */
-int optimizeForSize(const char* inFileName, U32 targetSpeed)
+ * targetSpeed : expressed in B/s */
+/* if state space is small (from paramTarget) */
+int optimizeForSize(const char* inFileName, constraint_t target, ZSTD_compressionParameters paramTarget)
 {
     FILE* const inFile = fopen( inFileName, "rb" );
     U64 const inFileSize = UTIL_getFileSize(inFileName);
     size_t benchedSize = BMK_findMaxMem(inFileSize*3) / 3;
     void* origBuff;
+    U32 paramVarArray [NUM_PARAMS];
+    int paramCount = variableParams(paramTarget, paramVarArray);
     /* Init */
     if (inFile==NULL) { DISPLAY( "Pb opening %s\n", inFileName); return 11; }
     if (inFileSize == UTIL_FILESIZE_UNKNOWN) {
@@ -682,8 +869,11 @@ int optimizeForSize(const char* inFileName, U32 targetSpeed)
 
     /* bench */
     DISPLAY("\r%79s\r", "");
-    DISPLAY("optimizing for %s - limit speed %u MB/s \n", inFileName, targetSpeed);
-    targetSpeed *= 1000000;
+    DISPLAY("optimizing for %s", inFileName);
+    if(target.cSpeed != 0) { DISPLAY(" - limit compression speed %u MB/s", target.cSpeed / 1000000); }
+    if(target.dSpeed != 0) { DISPLAY(" - limit decompression speed %u MB/s", target.dSpeed / 1000000); }
+    if(target.Mem != 0) { DISPLAY(" - limit memory %u MB", target.Mem / 1000000); }
+    DISPLAY("\n");
     {   ZSTD_CCtx* const ctx = ZSTD_createCCtx();
         ZSTD_DCtx* const dctx = ZSTD_createDCtx();
         winnerInfo_t winner;
@@ -696,23 +886,22 @@ int optimizeForSize(const char* inFileName, U32 targetSpeed)
         winner.result.cSize = (size_t)(-1);
 
         /* find best solution from default params */
+        //Can't do this iteration normally w/ cparameter constraints 
         {   const int maxSeeds = g_noSeed ? 1 : ZSTD_maxCLevel();
             int i;
             for (i=1; i<=maxSeeds; i++) {
                 ZSTD_compressionParameters const CParams = ZSTD_getCParams(i, blockSize, 0);
                 BMK_benchParam(&candidate, origBuff, benchedSize, ctx, dctx, CParams);
-                if (candidate.cSpeed < (double)targetSpeed) {
+                if (!feasible(candidate, target) ) {
                     break;
                 }
-                if ( (candidate.cSize < winner.result.cSize)
-                   | ((candidate.cSize == winner.result.cSize) & (candidate.cSpeed > winner.result.cSpeed)) )
+                if (feasible(candidate,target) && objective_lt(winner.result, candidate))
                 {
                     winner.params = CParams;
                     winner.result = candidate;
                     BMK_printWinner(stdout, i, winner.result, winner.params, benchedSize);
             }   }
         }
-
         BMK_printWinner(stdout, CUSTOM_LEVEL, winner.result, winner.params, benchedSize);
 
         BMK_translateAdvancedParams(winner.params);
@@ -721,7 +910,7 @@ int optimizeForSize(const char* inFileName, U32 targetSpeed)
         {   time_t const grillStart = time(NULL);
             do {
                 ZSTD_compressionParameters params = winner.params;
-                paramVariation(&params);
+                paramVariation(&params, paramVarArray, paramCount);
                 if ((FUZ_rand(&g_rand) & 31) == 3) params = randomParams();  /* totally random config to improve search space */
                 params = ZSTD_adjustCParams(params, blockSize, 0);
 
@@ -733,9 +922,7 @@ int optimizeForSize(const char* inFileName, U32 targetSpeed)
                 BMK_benchParam(&candidate, origBuff, benchedSize, ctx, dctx, params);
 
                 /* improvement found => new winner */
-                if ( (candidate.cSpeed > targetSpeed)
-                   & ( (candidate.cSize < winner.result.cSize)
-                     | ((candidate.cSize == winner.result.cSize) & (candidate.cSpeed > winner.result.cSpeed)) )  )
+                if (feasible(candidate,target) && objective_lt(winner.result, candidate))
                 {
                     winner.params = params;
                     winner.result = candidate;
@@ -744,8 +931,13 @@ int optimizeForSize(const char* inFileName, U32 targetSpeed)
                 }
             } while (BMK_timeSpan(grillStart) < g_grillDuration_s);
         }
-        /* end summary */
 
+        /* no solution found */
+        if(winner.result.cSize == (size_t)-1) {
+            DISPLAY("No feasible solution found\n");
+            return 1;
+        }
+        /* end summary */
         BMK_printWinner(stdout, CUSTOM_LEVEL, winner.result, winner.params, benchedSize);
         BMK_translateAdvancedParams(winner.params);
         DISPLAY("grillParams size - optimizer completed \n");
@@ -834,7 +1026,9 @@ int main(int argc, const char** argv)
     const char* input_filename=0;
     U32 optimizer = 0;
     U32 main_pause = 0;
-    U32 targetSpeed = 0;
+
+    constraint_t target = { 0 , 0, 0 }; //0 for anything unset
+    ZSTD_compressionParameters paramTarget = { 0, 0, 0, 0, 0, 0, 0 };
 
     assert(argc>=1);   /* for exename */
 
@@ -847,8 +1041,31 @@ int main(int argc, const char** argv)
 
         if(!strcmp(argument,"--no-seed")) { g_noSeed = 1; continue; }
 
+        if (longCommandWArg(&argument, "--optimize=")) {
+            optimizer = 1;
+            for ( ; ;) {
+                if (longCommandWArg(&argument, "windowLog=") || longCommandWArg(&argument, "wlog=")) { paramTarget.windowLog = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
+                if (longCommandWArg(&argument, "chainLog=") || longCommandWArg(&argument, "clog=")) { paramTarget.chainLog = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
+                if (longCommandWArg(&argument, "hashLog=") || longCommandWArg(&argument, "hlog=")) { paramTarget.hashLog = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
+                if (longCommandWArg(&argument, "searchLog=") || longCommandWArg(&argument, "slog=")) { paramTarget.searchLog = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
+                if (longCommandWArg(&argument, "searchLength=") || longCommandWArg(&argument, "slen=")) { paramTarget.searchLength = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
+                if (longCommandWArg(&argument, "targetLength=") || longCommandWArg(&argument, "tlen=")) { paramTarget.targetLength = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
+                if (longCommandWArg(&argument, "strategy=") || longCommandWArg(&argument, "strat=")) { paramTarget.strategy = (ZSTD_strategy)(readU32FromChar(&argument)); if (argument[0]==',') { argument++; continue; } else break; }
+                if (longCommandWArg(&argument, "compressionSpeed=") || longCommandWArg(&argument, "cSpeed=")) { target.cSpeed = readU32FromChar(&argument) * 1000000; if (argument[0]==',') { argument++; continue; } else break; }
+                if (longCommandWArg(&argument, "decompressionSpeed=") || longCommandWArg(&argument, "dSpeed=")) { target.dSpeed = readU32FromChar(&argument) * 1000000; if (argument[0]==',') { argument++; continue; } else break; }
+                if (longCommandWArg(&argument, "compressionMemory=") || longCommandWArg(&argument, "cMem=")) { target.Mem = readU32FromChar(&argument) * 1000000; if (argument[0]==',') { argument++; continue; } else break; }
+                /* in MB or MB/s */
+                DISPLAY("invalid optimization parameter \n");
+                return 1;
+            }
+
+            if (argument[0] != 0) {
+                DISPLAY("invalid --optimize= format\n");
+                return 1; /* check the end of string */
+            }
+            continue;
+        } else if (longCommandWArg(&argument, "--zstd=")) {
         /* Decode command (note : aggregated commands are allowed) */
-        if (longCommandWArg(&argument, "--zstd=")) {
             g_singleRun = 1;
             g_params = ZSTD_getCParams(2, g_blockSize, 0);
             for ( ; ;) {
@@ -868,6 +1085,7 @@ int main(int argc, const char** argv)
                 DISPLAY("invalid --zstd= format\n");
                 return 1; /* check the end of string */
             }
+            continue;
             /* if not return, success */
         } else if (argument[0]=='-') {
             argument++;
@@ -900,7 +1118,54 @@ int main(int argc, const char** argv)
                 case 'O':
                     argument++;
                     optimizer = 1;
-                    targetSpeed = readU32FromChar(&argument);
+                    for ( ; ; ) {
+                        switch(*argument)
+                        {
+                        /* Inputs in MB or MB/s */
+                        case 'C':
+                            argument++;
+                            target.cSpeed = readU32FromChar(&argument) * 1000000;
+                            continue;
+                        case 'D':
+                            argument++;
+                            target.dSpeed = readU32FromChar(&argument) * 1000000;
+                            continue;
+                        case 'M':
+                            argument++;
+                            target.Mem = readU32FromChar(&argument) * 1000000;
+                            continue;
+                        case 'w':
+                            argument++;
+                            paramTarget.windowLog = readU32FromChar(&argument);
+                            continue;
+                        case 'c':
+                            argument++;
+                            paramTarget.chainLog = readU32FromChar(&argument);
+                            continue;
+                        case 'h':
+                            argument++;
+                            paramTarget.hashLog = readU32FromChar(&argument);
+                            continue;
+                        case 's':
+                            argument++;
+                            paramTarget.searchLog = readU32FromChar(&argument);
+                            continue;
+                        case 'l':  /* search length */
+                            argument++;
+                            paramTarget.searchLength = readU32FromChar(&argument);
+                            continue;
+                        case 't':  /* target length */
+                            argument++;
+                            paramTarget.targetLength = readU32FromChar(&argument);
+                            continue;
+                        case 'S':  /* strategy */
+                            argument++;
+                            paramTarget.strategy = (ZSTD_strategy)readU32FromChar(&argument);
+                            continue;
+                        default : ;
+                        }
+                        break;
+                    }
                     break;
 
                     /* Run Single conf */
@@ -990,7 +1255,7 @@ int main(int argc, const char** argv)
         }
     } else {
         if (optimizer) {
-            result = optimizeForSize(input_filename, targetSpeed);
+            result = optimizeForSize(input_filename, target, paramTarget);
         } else {
             result = benchFiles(argv+filenamesStart, argc-filenamesStart);
     }   }

@@ -490,8 +490,7 @@ static int basicUnitTests(U32 seed, double compressibility)
                                                    * make this test long enough so that it's not too much tied to the current definition within zstd_compress.c */
                 U32 u;
                 for (u=0; u<maxNbAttempts; u++) {
-                    size_t const srcSize = (FUZ_rand(&seed) & 4095) + 200;
-                    CHECK_Z(ZSTD_compressCCtx(largeCCtx, compressedBuffer, compressedBufferSize, CNBuffer, srcSize, -9));
+                    CHECK_Z(ZSTD_compressCCtx(largeCCtx, compressedBuffer, compressedBufferSize, CNBuffer, 1, 1));
                     if (ZSTD_sizeof_CCtx(largeCCtx) < largeCCtxSize) break;   /* sized down */
                 }
                 DISPLAYLEVEL(5, "size down after %u attempts : ", u);

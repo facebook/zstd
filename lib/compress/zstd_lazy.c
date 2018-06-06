@@ -573,21 +573,22 @@ size_t ZSTD_compressBlock_lazy_generic(
         size_t offset=0;
         const BYTE* start=ip+1;
 
-        const U32 repIndex = (U32)(ip - base) + 1 - offset_1;
-        const BYTE* repMatch = (dictMode == ZSTD_dictMatchState
-                            && repIndex < prefixLowestIndex) ?
-                               dictBase + (repIndex - dictIndexDelta) :
-                               base + repIndex;
-
         /* check repCode */
-        if (dictMode == ZSTD_dictMatchState
-            && ((U32)((prefixLowestIndex-1) - repIndex) >= 3 /* intentional underflow */)
-            && (MEM_read32(repMatch) == MEM_read32(ip+1)) ) {
-            const BYTE* repMatchEnd = repIndex < prefixLowestIndex ? dictEnd : iend;
-            matchLength = ZSTD_count_2segments(ip+1+4, repMatch+4, iend, repMatchEnd, prefixLowest) + 4;
-            if (depth==0) goto _storeSequence;
-        } else if ( dictMode == ZSTD_noDict
-                 && ((offset_1 > 0) & (MEM_read32(ip+1-offset_1) == MEM_read32(ip+1)))) {
+        if (dictMode == ZSTD_dictMatchState) {
+            const U32 repIndex = (U32)(ip - base) + 1 - offset_1;
+            const BYTE* repMatch = (dictMode == ZSTD_dictMatchState
+                                && repIndex < prefixLowestIndex) ?
+                                   dictBase + (repIndex - dictIndexDelta) :
+                                   base + repIndex;
+            if (((U32)((prefixLowestIndex-1) - repIndex) >= 3 /* intentional underflow */)
+                && (MEM_read32(repMatch) == MEM_read32(ip+1)) ) {
+                const BYTE* repMatchEnd = repIndex < prefixLowestIndex ? dictEnd : iend;
+                matchLength = ZSTD_count_2segments(ip+1+4, repMatch+4, iend, repMatchEnd, prefixLowest) + 4;
+                if (depth==0) goto _storeSequence;
+            }
+        }
+        if ( dictMode == ZSTD_noDict
+          && ((offset_1 > 0) & (MEM_read32(ip+1-offset_1) == MEM_read32(ip+1)))) {
             matchLength = ZSTD_count(ip+1+4, ip+1+4-offset_1, iend) + 4;
             if (depth==0) goto _storeSequence;
         }
@@ -608,12 +609,28 @@ size_t ZSTD_compressBlock_lazy_generic(
         if (depth>=1)
         while (ip<ilimit) {
             ip ++;
-            if ((offset) && ((offset_1>0) & (MEM_read32(ip) == MEM_read32(ip - offset_1)))) {
+            if ( (dictMode == ZSTD_noDict)
+              && (offset) && ((offset_1>0) & (MEM_read32(ip) == MEM_read32(ip - offset_1)))) {
                 size_t const mlRep = ZSTD_count(ip+4, ip+4-offset_1, iend) + 4;
                 int const gain2 = (int)(mlRep * 3);
                 int const gain1 = (int)(matchLength*3 - ZSTD_highbit32((U32)offset+1) + 1);
                 if ((mlRep >= 4) && (gain2 > gain1))
                     matchLength = mlRep, offset = 0, start = ip;
+            }
+            if (dictMode == ZSTD_dictMatchState) {
+                const U32 repIndex = (U32)(ip - base) - offset_1;
+                const BYTE* repMatch = repIndex < prefixLowestIndex ?
+                               dictBase + (repIndex - dictIndexDelta) :
+                               base + repIndex;
+                if (((U32)((prefixLowestIndex-1) - repIndex) >= 3 /* intentional underflow */)
+                    && (MEM_read32(repMatch) == MEM_read32(ip)) ) {
+                    const BYTE* repMatchEnd = repIndex < prefixLowestIndex ? dictEnd : iend;
+                    size_t const mlRep = ZSTD_count_2segments(ip+4, repMatch+4, iend, repMatchEnd, prefixLowest) + 4;
+                    int const gain2 = (int)(mlRep * 3);
+                    int const gain1 = (int)(matchLength*3 - ZSTD_highbit32((U32)offset+1) + 1);
+                    if ((mlRep >= 4) && (gain2 > gain1))
+                        matchLength = mlRep, offset = 0, start = ip;
+                }
             }
             {   size_t offset2=99999999;
                 size_t const ml2 = searchMax(ms, cParams, ip, iend, &offset2);
@@ -627,12 +644,28 @@ size_t ZSTD_compressBlock_lazy_generic(
             /* let's find an even better one */
             if ((depth==2) && (ip<ilimit)) {
                 ip ++;
-                if ((offset) && ((offset_1>0) & (MEM_read32(ip) == MEM_read32(ip - offset_1)))) {
-                    size_t const ml2 = ZSTD_count(ip+4, ip+4-offset_1, iend) + 4;
-                    int const gain2 = (int)(ml2 * 4);
+                if ( (dictMode == ZSTD_noDict)
+                  && (offset) && ((offset_1>0) & (MEM_read32(ip) == MEM_read32(ip - offset_1)))) {
+                    size_t const mlRep = ZSTD_count(ip+4, ip+4-offset_1, iend) + 4;
+                    int const gain2 = (int)(mlRep * 4);
                     int const gain1 = (int)(matchLength*4 - ZSTD_highbit32((U32)offset+1) + 1);
-                    if ((ml2 >= 4) && (gain2 > gain1))
-                        matchLength = ml2, offset = 0, start = ip;
+                    if ((mlRep >= 4) && (gain2 > gain1))
+                        matchLength = mlRep, offset = 0, start = ip;
+                }
+                if (dictMode == ZSTD_dictMatchState) {
+                    const U32 repIndex = (U32)(ip - base) - offset_1;
+                    const BYTE* repMatch = repIndex < prefixLowestIndex ?
+                                   dictBase + (repIndex - dictIndexDelta) :
+                                   base + repIndex;
+                    if (((U32)((prefixLowestIndex-1) - repIndex) >= 3 /* intentional underflow */)
+                        && (MEM_read32(repMatch) == MEM_read32(ip)) ) {
+                        const BYTE* repMatchEnd = repIndex < prefixLowestIndex ? dictEnd : iend;
+                        size_t const mlRep = ZSTD_count_2segments(ip+4, repMatch+4, iend, repMatchEnd, prefixLowest) + 4;
+                        int const gain2 = (int)(mlRep * 4);
+                        int const gain1 = (int)(matchLength*4 - ZSTD_highbit32((U32)offset+1) + 1);
+                        if ((mlRep >= 4) && (gain2 > gain1))
+                            matchLength = mlRep, offset = 0, start = ip;
+                    }
                 }
                 {   size_t offset2=99999999;
                     size_t const ml2 = searchMax(ms, cParams, ip, iend, &offset2);
@@ -668,15 +701,15 @@ _storeSequence:
         if (dictMode == ZSTD_dictMatchState) {
             while (ip <= ilimit) {
                 U32 const current2 = (U32)(ip-base);
-                U32 const repIndex2 = current2 - offset_2;
-                const BYTE* repMatch2 = dictMode == ZSTD_dictMatchState
-                    && repIndex2 < prefixLowestIndex ?
-                        dictBase - dictIndexDelta + repIndex2 :
-                        base + repIndex2;
-                if ( ((U32)((prefixLowestIndex-1) - (U32)repIndex2) >= 3 /* intentional overflow */)
-                   && (MEM_read32(repMatch2) == MEM_read32(ip)) ) {
-                    const BYTE* const repEnd2 = repIndex2 < prefixLowestIndex ? dictEnd : iend;
-                    matchLength = ZSTD_count_2segments(ip+4, repMatch2+4, iend, repEnd2, prefixLowest) + 4;
+                U32 const repIndex = current2 - offset_2;
+                const BYTE* repMatch = dictMode == ZSTD_dictMatchState
+                    && repIndex < prefixLowestIndex ?
+                        dictBase - dictIndexDelta + repIndex :
+                        base + repIndex;
+                if ( ((U32)((prefixLowestIndex-1) - (U32)repIndex) >= 3 /* intentional overflow */)
+                   && (MEM_read32(repMatch) == MEM_read32(ip)) ) {
+                    const BYTE* const repEnd2 = repIndex < prefixLowestIndex ? dictEnd : iend;
+                    matchLength = ZSTD_count_2segments(ip+4, repMatch+4, iend, repEnd2, prefixLowest) + 4;
                     offset = offset_2; offset_2 = offset_1; offset_1 = offset;   /* swap offset_2 <=> offset_1 */
                     ZSTD_storeSeq(seqStore, 0, anchor, 0, matchLength-MINMATCH);
                     ip += matchLength;

@@ -27,7 +27,7 @@ endif
 default: lib-release zstd-release
 
 .PHONY: all
-all: | allmost examples manual contrib
+all: allmost examples manual contrib
 
 .PHONY: allmost
 allmost: allzstd
@@ -35,8 +35,7 @@ allmost: allzstd
 
 #skip zwrapper, can't build that on alternate architectures without the proper zlib installed
 .PHONY: allzstd
-allzstd:
-	$(MAKE) -C $(ZSTDDIR) all
+allzstd: lib
 	$(MAKE) -C $(PRGDIR) all
 	$(MAKE) -C $(TESTDIR) all
 
@@ -45,22 +44,13 @@ all32:
 	$(MAKE) -C $(PRGDIR) zstd32
 	$(MAKE) -C $(TESTDIR) all32
 
-.PHONY: lib
-lib:
+.PHONY: lib lib-release
+lib lib-release:
 	@$(MAKE) -C $(ZSTDDIR) $@
 
-.PHONY: lib-release
-lib-release:
-	@$(MAKE) -C $(ZSTDDIR)
-
-.PHONY: zstd
-zstd:
+.PHONY: zstd zstd-release
+zstd zstd-release:
 	@$(MAKE) -C $(PRGDIR) $@
-	cp $(PRGDIR)/zstd$(EXT) .
-
-.PHONY: zstd-release
-zstd-release:
-	@$(MAKE) -C $(PRGDIR)
 	cp $(PRGDIR)/zstd$(EXT) .
 
 .PHONY: zstdmt
@@ -85,7 +75,7 @@ shortest:
 check: shortest
 
 .PHONY: examples
-examples:
+examples: lib
 	CPPFLAGS=-I../lib LDFLAGS=-L../lib $(MAKE) -C examples/ all
 
 .PHONY: manual

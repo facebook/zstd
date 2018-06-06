@@ -1054,10 +1054,10 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
     return ptr;
 }
 
-#define ZSTD_WORKSPACETOOLARGE_FACTOR 3 /* define "workspace is too large" as ZSTD_WORKSPACETOOLARGE_FACTOR times larger than needed */
-#define ZSTD_WORKSPACETOOLARGE_MAX 128  /* when workspace is continuously too large
-                                         * at least that number of times,
-                                         * context's memory usage is actually wasteful,
+#define ZSTD_WORKSPACETOOLARGE_FACTOR 3 /* define "workspace is too large" as this number of times larger than needed */
+#define ZSTD_WORKSPACETOOLARGE_MAXDURATION 128  /* when workspace is continuously too large
+                                         * during at least this number of times,
+                                         * context's memory usage is considered wasteful,
                                          * because it's sized to handle a worst case scenario which rarely happens.
                                          * In which case, resize it down to free some memory */
 
@@ -1080,7 +1080,8 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             DEBUGLOG(4, "ZSTD_equivalentParams()==1 -> continue mode (wLog1=%u, blockSize1=%zu)",
                         zc->appliedParams.cParams.windowLog, zc->blockSize);
             zc->workSpaceOversizedDuration += (zc->workSpaceOversizedDuration > 0);   /* if it was too large, it still is */
-            return ZSTD_continueCCtx(zc, params, pledgedSrcSize);
+            if (zc->workSpaceOversizedDuration <= ZSTD_WORKSPACETOOLARGE_MAXDURATION)
+                return ZSTD_continueCCtx(zc, params, pledgedSrcSize);
     }   }
     DEBUGLOG(4, "ZSTD_equivalentParams()==0 -> reset CCtx");
 
@@ -1117,7 +1118,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
 
             int const workSpaceTooSmall = zc->workSpaceSize < neededSpace;
             int const workSpaceTooLarge = zc->workSpaceSize > ZSTD_WORKSPACETOOLARGE_FACTOR * neededSpace;
-            int const workSpaceWasteful = workSpaceTooLarge && (zc->workSpaceOversizedDuration > ZSTD_WORKSPACETOOLARGE_MAX);
+            int const workSpaceWasteful = workSpaceTooLarge && (zc->workSpaceOversizedDuration > ZSTD_WORKSPACETOOLARGE_MAXDURATION);
             zc->workSpaceOversizedDuration = workSpaceTooLarge ? zc->workSpaceOversizedDuration+1 : 0;
 
             DEBUGLOG(4, "Need %zuKB workspace, including %zuKB for match state, and %zuKB for buffers",

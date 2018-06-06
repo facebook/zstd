@@ -34,6 +34,7 @@ typedef struct {
     size_t cSize;
     double cSpeed;   /* bytes / sec */
     double dSpeed;
+    size_t cMem;
 } BMK_result_t;
 
 ERROR_STRUCT(BMK_result_t, BMK_return_t);

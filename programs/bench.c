@@ -692,6 +692,7 @@ static BMK_return_t BMK_benchMemAdvancedNoAlloc(
     }
     DISPLAYLEVEL(2, "%2i#\n", cLevel);
     }   /* Bench */
+    results.result.cMem = ZSTD_sizeof_CCtx(ctx);
     return results;
 }
 
@@ -731,6 +732,7 @@ BMK_return_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
             srcBuffer, srcSize, fileSizes, nbFiles, cLevel, comprParams,
             dictBuffer, dictBufferSize, ctx, dctx, displayLevel, displayName, adv);
     }
+    
     /* clean up */
     BMK_freeTimeState(timeStateCompress);
     BMK_freeTimeState(timeStateDecompress);

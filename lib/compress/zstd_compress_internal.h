@@ -207,7 +207,7 @@ struct ZSTD_CCtx_s {
     ZSTD_CCtx_params appliedParams;
     U32   dictID;
 
-    int workSpaceTooLarge;
+    int workSpaceOversizedDuration;
     void* workSpace;
     size_t workSpaceSize;
     size_t blockSize;

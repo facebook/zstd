@@ -1,3 +1,18 @@
+v1.3.5
+perf: much faster dictionary compression, by @felixhandte
+perf: small quality improvement for dictionary generation, by @terrelln
+perf: slightly improved high compression levels (notably level 19)
+mem : automatic memory release for long duration contexts
+cli : fix : overlapLog can be manually set
+cli : fix : decoding invalid lz4 frames
+api : fix : performance degradation for dictionary compression when using advanced API, by @terrelln
+api : change : clarify ZSTD_CCtx_reset() vs ZSTD_CCtx_resetParameters(), by @terrelln
+build: select custom libzstd scope through control macros, by @GeorgeLu97
+build: OpenBSD patch, by @bket
+build: make and make all are compatible with -j
+doc : clarify zstd_compression_format.md, updated for IETF RFC process
+misc: pzstd compatible with reproducible compilation, by @lamby
+
 v1.3.4
 perf: faster speed (especially decoding speed) on recent cpus (haswell+)
 perf: much better performance associating --long with multi-threading, by @terrelln

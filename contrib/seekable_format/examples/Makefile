@@ -9,19 +9,25 @@
 
 # This Makefile presumes libzstd is built, using `make` in / or /lib/
 
-LDFLAGS += ../../../lib/libzstd.a
+ZSTDLIB_PATH = ../../../lib
+ZSTDLIB_NAME = libzstd.a
+ZSTDLIB = $(ZSTDLIB_PATH)/$(ZSTDLIB_NAME)
+
 CPPFLAGS += -I../ -I../../../lib -I../../../lib/common
 
 CFLAGS ?= -O3
 CFLAGS += -g
 
-SEEKABLE_OBJS = ../zstdseek_compress.c ../zstdseek_decompress.c
+SEEKABLE_OBJS = ../zstdseek_compress.c ../zstdseek_decompress.c $(ZSTDLIB)
 
 .PHONY: default all clean test
 
 default: all
 
 all: seekable_compression seekable_decompression parallel_processing
+
+$(ZSTDLIB):
+	make -C $(ZSTDLIB_PATH) $(ZSTDLIB_NAME)
 
 seekable_compression : seekable_compression.c $(SEEKABLE_OBJS)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@

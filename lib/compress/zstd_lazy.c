@@ -584,7 +584,7 @@ size_t ZSTD_compressBlock_lazy_generic(
             && ((U32)((prefixLowestIndex-1) - repIndex) >= 3 /* intentional underflow */)
             && (MEM_read32(repMatch) == MEM_read32(ip+1)) ) {
             const BYTE* repMatchEnd = repIndex < prefixLowestIndex ? dictEnd : iend;
-            matchLength = ZSTD_count_2segments(ip+1+4, repMatch+4, iend, repMatchEnd, istart) + 4;
+            matchLength = ZSTD_count_2segments(ip+1+4, repMatch+4, iend, repMatchEnd, prefixLowest) + 4;
             if (depth==0) goto _storeSequence;
         } else if ( dictMode == ZSTD_noDict
                  && ((offset_1 > 0) & (MEM_read32(ip+1-offset_1) == MEM_read32(ip+1)))) {
@@ -676,7 +676,7 @@ _storeSequence:
                 if ( ((U32)((prefixLowestIndex-1) - (U32)repIndex2) >= 3 /* intentional overflow */)
                    && (MEM_read32(repMatch2) == MEM_read32(ip)) ) {
                     const BYTE* const repEnd2 = repIndex2 < prefixLowestIndex ? dictEnd : iend;
-                    matchLength = ZSTD_count_2segments(ip+4, repMatch2+4, iend, repEnd2, istart) + 4;
+                    matchLength = ZSTD_count_2segments(ip+4, repMatch2+4, iend, repEnd2, prefixLowest) + 4;
                     offset = offset_2; offset_2 = offset_1; offset_1 = offset;   /* swap offset_2 <=> offset_1 */
                     ZSTD_storeSeq(seqStore, 0, anchor, 0, matchLength-MINMATCH);
                     ip += matchLength;

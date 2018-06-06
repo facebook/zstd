@@ -1079,7 +1079,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                                 zbuff, pledgedSrcSize)) {
             DEBUGLOG(4, "ZSTD_equivalentParams()==1 -> continue mode (wLog1=%u, blockSize1=%zu)",
                         zc->appliedParams.cParams.windowLog, zc->blockSize);
-            zc->workSpaceTooLarge += (zc->workSpaceTooLarge > 0);   /* if it was too large, it still is */
+            zc->workSpaceOversizedDuration += (zc->workSpaceOversizedDuration > 0);   /* if it was too large, it still is */
             return ZSTD_continueCCtx(zc, params, pledgedSrcSize);
     }   }
     DEBUGLOG(4, "ZSTD_equivalentParams()==0 -> reset CCtx");
@@ -1117,8 +1117,8 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
 
             int const workSpaceTooSmall = zc->workSpaceSize < neededSpace;
             int const workSpaceTooLarge = zc->workSpaceSize > ZSTD_WORKSPACETOOLARGE_FACTOR * neededSpace;
-            int const workSpaceWasteful = workSpaceTooLarge && (zc->workSpaceTooLarge > ZSTD_WORKSPACETOOLARGE_MAX);
-            zc->workSpaceTooLarge = workSpaceTooLarge ? zc->workSpaceTooLarge+1 : 0;
+            int const workSpaceWasteful = workSpaceTooLarge && (zc->workSpaceOversizedDuration > ZSTD_WORKSPACETOOLARGE_MAX);
+            zc->workSpaceOversizedDuration = workSpaceTooLarge ? zc->workSpaceOversizedDuration+1 : 0;
 
             DEBUGLOG(4, "Need %zuKB workspace, including %zuKB for match state, and %zuKB for buffers",
                         neededSpace>>10, matchStateSize>>10, bufferSpace>>10);
@@ -1136,7 +1136,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                 zc->workSpace = ZSTD_malloc(neededSpace, zc->customMem);
                 if (zc->workSpace == NULL) return ERROR(memory_allocation);
                 zc->workSpaceSize = neededSpace;
-                zc->workSpaceTooLarge = 0;
+                zc->workSpaceOversizedDuration = 0;
                 ptr = zc->workSpace;
 
                 /* Statically sized space.

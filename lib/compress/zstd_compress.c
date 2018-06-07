@@ -2916,22 +2916,22 @@ size_t ZSTD_compressEnd (ZSTD_CCtx* cctx,
 
 
 static size_t ZSTD_compress_internal (ZSTD_CCtx* cctx,
-                               void* dst, size_t dstCapacity,
-                         const void* src, size_t srcSize,
-                         const void* dict,size_t dictSize,
-                               ZSTD_parameters params)
+                                      void* dst, size_t dstCapacity,
+                                const void* src, size_t srcSize,
+                                const void* dict,size_t dictSize,
+                                      ZSTD_parameters params)
 {
     ZSTD_CCtx_params const cctxParams =
             ZSTD_assignParamsToCCtxParams(cctx->requestedParams, params);
     DEBUGLOG(4, "ZSTD_compress_internal");
     return ZSTD_compress_advanced_internal(cctx,
-                                          dst, dstCapacity,
-                                          src, srcSize,
-                                          dict, dictSize,
-                                          cctxParams);
+                                           dst, dstCapacity,
+                                           src, srcSize,
+                                           dict, dictSize,
+                                           cctxParams);
 }
 
-size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
+size_t ZSTD_compress_advanced (ZSTD_CCtx* cctx,
                                void* dst, size_t dstCapacity,
                          const void* src, size_t srcSize,
                          const void* dict,size_t dictSize,
@@ -2939,7 +2939,11 @@ size_t ZSTD_compress_advanced (ZSTD_CCtx* ctx,
 {
     DEBUGLOG(4, "ZSTD_compress_advanced");
     CHECK_F(ZSTD_checkCParams(params.cParams));
-    return ZSTD_compress_internal(ctx, dst, dstCapacity, src, srcSize, dict, dictSize, params);
+    return ZSTD_compress_internal(cctx,
+                                  dst, dstCapacity,
+                                  src, srcSize,
+                                  dict, dictSize,
+                                  params);
 }
 
 /* Internal */
@@ -2950,15 +2954,18 @@ size_t ZSTD_compress_advanced_internal(
         const void* dict,size_t dictSize,
         ZSTD_CCtx_params params)
 {
-    DEBUGLOG(4, "ZSTD_compress_advanced_internal (srcSize:%u)",
-                (U32)srcSize);
-    CHECK_F( ZSTD_compressBegin_internal(cctx, dict, dictSize, ZSTD_dct_auto, ZSTD_dtlm_fast, NULL,
-                                         params, srcSize, ZSTDb_not_buffered) );
+    DEBUGLOG(4, "ZSTD_compress_advanced_internal (srcSize:%u)", (U32)srcSize);
+    CHECK_F( ZSTD_compressBegin_internal(cctx,
+                         dict, dictSize, ZSTD_dct_auto, ZSTD_dtlm_fast, NULL,
+                         params, srcSize, ZSTDb_not_buffered) );
     return ZSTD_compressEnd(cctx, dst, dstCapacity, src, srcSize);
 }
 
-size_t ZSTD_compress_usingDict(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize,
-                               const void* dict, size_t dictSize, int compressionLevel)
+size_t ZSTD_compress_usingDict(ZSTD_CCtx* cctx,
+                               void* dst, size_t dstCapacity,
+                         const void* src, size_t srcSize,
+                         const void* dict, size_t dictSize,
+                               int compressionLevel)
 {
     ZSTD_parameters const params = ZSTD_getParams(compressionLevel, srcSize ? srcSize : 1, dict ? dictSize : 0);
     ZSTD_CCtx_params cctxParams = ZSTD_assignParamsToCCtxParams(cctx->requestedParams, params);
@@ -2967,13 +2974,19 @@ size_t ZSTD_compress_usingDict(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity, c
     return ZSTD_compress_advanced_internal(cctx, dst, dstCapacity, src, srcSize, dict, dictSize, cctxParams);
 }
 
-size_t ZSTD_compressCCtx (ZSTD_CCtx* cctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize, int compressionLevel)
+size_t ZSTD_compressCCtx(ZSTD_CCtx* cctx,
+                         void* dst, size_t dstCapacity,
+                   const void* src, size_t srcSize,
+                         int compressionLevel)
 {
     DEBUGLOG(4, "ZSTD_compressCCtx (srcSize=%u)", (U32)srcSize);
+    assert(cctx != NULL);
     return ZSTD_compress_usingDict(cctx, dst, dstCapacity, src, srcSize, NULL, 0, compressionLevel);
 }
 
-size_t ZSTD_compress(void* dst, size_t dstCapacity, const void* src, size_t srcSize, int compressionLevel)
+size_t ZSTD_compress(void* dst, size_t dstCapacity,
+               const void* src, size_t srcSize,
+                     int compressionLevel)
 {
     size_t result;
     ZSTD_CCtx ctxBody;

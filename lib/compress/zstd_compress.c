@@ -267,7 +267,6 @@ static int ZSTD_isUpdateAuthorized(ZSTD_cParameter param)
     case ZSTD_p_minMatch:
     case ZSTD_p_targetLength:
     case ZSTD_p_compressionStrategy:
-    case ZSTD_p_compressLiterals:
         return 1;
 
     case ZSTD_p_format:
@@ -318,7 +317,6 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
         if (cctx->cdict) return ERROR(stage_wrong);
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
-    case ZSTD_p_compressLiterals:
     case ZSTD_p_contentSizeFlag:
     case ZSTD_p_checksumFlag:
     case ZSTD_p_dictIDFlag:
@@ -367,7 +365,6 @@ size_t ZSTD_CCtxParam_setParameter(
         int cLevel = (int)value;  /* cast expected to restore negative sign */
         if (cLevel > ZSTD_maxCLevel()) cLevel = ZSTD_maxCLevel();
         if (cLevel) {  /* 0 : does not change current level */
-            CCtxParams->disableLiteralCompression = (cLevel<0);  /* negative levels disable huffman */
             CCtxParams->compressionLevel = cLevel;
         }
         if (CCtxParams->compressionLevel >= 0) return CCtxParams->compressionLevel;
@@ -414,10 +411,6 @@ size_t ZSTD_CCtxParam_setParameter(
             CLAMPCHECK(value, (unsigned)ZSTD_fast, (unsigned)ZSTD_btultra);
         CCtxParams->cParams.strategy = (ZSTD_strategy)value;
         return (size_t)CCtxParams->cParams.strategy;
-
-    case ZSTD_p_compressLiterals:
-        CCtxParams->disableLiteralCompression = !value;
-        return !CCtxParams->disableLiteralCompression;
 
     case ZSTD_p_contentSizeFlag :
         /* Content size written in frame header _when known_ (default:1) */
@@ -529,9 +522,6 @@ size_t ZSTD_CCtxParam_getParameter(
         break;
     case ZSTD_p_compressionStrategy :
         *value = (unsigned)CCtxParams->cParams.strategy;
-        break;
-    case ZSTD_p_compressLiterals:
-        *value = !CCtxParams->disableLiteralCompression;
         break;
     case ZSTD_p_contentSizeFlag :
         *value = CCtxParams->fParams.contentSizeFlag;
@@ -2068,9 +2058,10 @@ MEM_STATIC size_t ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
     /* Compress literals */
     {   const BYTE* const literals = seqStorePtr->litStart;
         size_t const litSize = seqStorePtr->lit - literals;
+        int const disableLiteralCompression = (cctxParams->cParams.strategy == ZSTD_fast) && (cctxParams->cParams.targetLength > 0);
         size_t const cSize = ZSTD_compressLiterals(
                                     &prevEntropy->huf, &nextEntropy->huf,
-                                    cctxParams->cParams.strategy, cctxParams->disableLiteralCompression,
+                                    cctxParams->cParams.strategy, disableLiteralCompression,
                                     op, dstCapacity,
                                     literals, litSize,
                                     workspace, bmi2);
@@ -2967,10 +2958,9 @@ size_t ZSTD_compress_usingDict(ZSTD_CCtx* cctx,
                          const void* dict, size_t dictSize,
                                int compressionLevel)
 {
-    ZSTD_parameters const params = ZSTD_getParams(compressionLevel, srcSize ? srcSize : 1, dict ? dictSize : 0);
+    ZSTD_parameters const params = ZSTD_getParams(compressionLevel, srcSize + (!srcSize), dict ? dictSize : 0);
     ZSTD_CCtx_params cctxParams = ZSTD_assignParamsToCCtxParams(cctx->requestedParams, params);
     assert(params.fParams.contentSizeFlag == 1);
-    ZSTD_CCtxParam_setParameter(&cctxParams, ZSTD_p_compressLiterals, compressionLevel>=0);
     return ZSTD_compress_advanced_internal(cctx, dst, dstCapacity, src, srcSize, dict, dictSize, cctxParams);
 }
 
@@ -3293,8 +3283,7 @@ static size_t ZSTD_resetCStream_internal(ZSTD_CStream* cctx,
                     const ZSTD_CDict* const cdict,
                     ZSTD_CCtx_params const params, unsigned long long const pledgedSrcSize)
 {
-    DEBUGLOG(4, "ZSTD_resetCStream_internal (disableLiteralCompression=%i)",
-                params.disableLiteralCompression);
+    DEBUGLOG(4, "ZSTD_resetCStream_internal");
     /* params are supposed to be fully validated at this point */
     assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
     assert(!((dict) && (cdict)));  /* either dict or cdict, not both */

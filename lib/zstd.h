@@ -1052,12 +1052,6 @@ typedef enum {
     /* experimental parameters - no stability guaranteed                   */
     /* =================================================================== */
 
-    ZSTD_p_compressLiterals=1000, /* control huffman compression of literals (enabled) by default.
-                              * disabling it improves speed and decreases compression ratio by a large amount.
-                              * note : this setting is automatically updated when changing compression level.
-                              *        positive compression levels set ZSTD_p_compressLiterals to 1.
-                              *        negative compression levels set ZSTD_p_compressLiterals to 0. */
-
     ZSTD_p_forceMaxWindow=1100, /* Force back-reference distances to remain < windowSize,
                               * even when referencing into Dictionary content (default:0) */
 

@@ -1131,7 +1131,7 @@ static int basicUnitTests(U32 seed, double compressibility)
                                         params);
             if (ZSTD_isError(cSize_1pass)) goto _output_error;
 
-            CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_p_compressionLevel, compressionLevel) );
+            CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_p_compressionLevel, (unsigned)compressionLevel) );
             {   ZSTD_inBuffer in = { CNBuffer, srcSize, 0 };
                 ZSTD_outBuffer out = { compressedBuffer, compressedBufferSize, 0 };
                 size_t const compressionResult = ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_end);

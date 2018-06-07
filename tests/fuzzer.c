@@ -1082,14 +1082,19 @@ static int basicUnitTests(U32 seed, double compressibility)
 
     /* negative compression level test : ensure simple API and advanced API produce same result */
     DISPLAYLEVEL(3, "test%3i : negative compression level : ", testNb++);
-    {   size_t const srcSize = CNBuffSize / 5;
-        int const compressionLevel = -2;
-        size_t const cSize_1pass = ZSTD_compress(compressedBuffer, compressedBufferSize,
-                                                CNBuffer, srcSize,
-                                                compressionLevel);
-        if (ZSTD_isError(cSize_1pass)) goto _output_error;
-        {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
-            assert(cctx != NULL);
+    {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        size_t const srcSize = CNBuffSize / 5;
+        int const compressionLevel = -1;
+
+        assert(cctx != NULL);
+        {   ZSTD_parameters const params = ZSTD_getParams(compressionLevel, srcSize, 0);
+            size_t const cSize_1pass = ZSTD_compress_advanced(cctx,
+                                        compressedBuffer, compressedBufferSize,
+                                        CNBuffer, srcSize,
+                                        NULL, 0,
+                                        params);
+            if (ZSTD_isError(cSize_1pass)) goto _output_error;
+
             CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_p_compressionLevel, compressionLevel) );
             {   ZSTD_inBuffer in = { CNBuffer, srcSize, 0 };
                 ZSTD_outBuffer out = { compressedBuffer, compressedBufferSize, 0 };
@@ -1097,9 +1102,8 @@ static int basicUnitTests(U32 seed, double compressibility)
                 DISPLAYLEVEL(5, "simple=%zu vs %zu=advanced : ", cSize_1pass, out.pos);
                 if (ZSTD_isError(compressionResult)) goto _output_error;
                 if (out.pos != cSize_1pass) goto _output_error;
-            }
-            ZSTD_freeCCtx(cctx);
-        }
+        }   }
+        ZSTD_freeCCtx(cctx);
     }
     DISPLAYLEVEL(3, "OK \n");
 

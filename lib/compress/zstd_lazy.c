@@ -475,7 +475,7 @@ FORCE_INLINE_TEMPLATE size_t ZSTD_HcFindBestMatch_selectMLS (
 }
 
 
-FORCE_INLINE_TEMPLATE size_t ZSTD_HcFindBestMatch_dictMatchState_selectMLS (
+static size_t ZSTD_HcFindBestMatch_dictMatchState_selectMLS (
                         ZSTD_matchState_t* ms, ZSTD_compressionParameters const* cParams,
                         const BYTE* ip, const BYTE* const iLimit,
                         size_t* offsetPtr)

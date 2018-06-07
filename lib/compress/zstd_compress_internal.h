@@ -181,7 +181,6 @@ struct ZSTD_CCtx_params_s {
     ZSTD_frameParameters fParams;
 
     int compressionLevel;
-    int disableLiteralCompression;
     int forceWindow;           /* force back-references to respect limit of
                                 * 1<<wLog, even for dictionary */
 

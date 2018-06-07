@@ -64,19 +64,26 @@ ZSTD_CCtx* ZSTD_createCCtx(void)
     return ZSTD_createCCtx_advanced(ZSTD_defaultCMem);
 }
 
+static void ZSTD_initCCtx(ZSTD_CCtx* cctx, ZSTD_customMem memManager)
+{
+    assert(cctx != NULL);
+    memset(cctx, 0, sizeof(*cctx));
+    cctx->customMem = memManager;
+    cctx->bmi2 = ZSTD_cpuid_bmi2(ZSTD_cpuid());
+    {   size_t const err = ZSTD_CCtx_resetParameters(cctx);
+        assert(!ZSTD_isError(err));
+        (void)err;
+    }
+}
+
 ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem)
 {
     ZSTD_STATIC_ASSERT(zcss_init==0);
     ZSTD_STATIC_ASSERT(ZSTD_CONTENTSIZE_UNKNOWN==(0ULL - 1));
     if (!customMem.customAlloc ^ !customMem.customFree) return NULL;
-    {   ZSTD_CCtx* const cctx = (ZSTD_CCtx*)ZSTD_calloc(sizeof(ZSTD_CCtx), customMem);
+    {   ZSTD_CCtx* const cctx = (ZSTD_CCtx*)ZSTD_malloc(sizeof(ZSTD_CCtx), customMem);
         if (!cctx) return NULL;
-        cctx->customMem = customMem;
-        cctx->bmi2 = ZSTD_cpuid_bmi2(ZSTD_cpuid());
-        {   size_t const err = ZSTD_CCtx_resetParameters(cctx);
-            assert(!ZSTD_isError(err));
-            (void)err;
-        }
+        ZSTD_initCCtx(cctx, customMem);
         return cctx;
     }
 }
@@ -104,17 +111,24 @@ ZSTD_CCtx* ZSTD_initStaticCCtx(void *workspace, size_t workspaceSize)
     return cctx;
 }
 
-size_t ZSTD_freeCCtx(ZSTD_CCtx* cctx)
+static void ZSTD_freeCCtxContent(ZSTD_CCtx* cctx)
 {
-    if (cctx==NULL) return 0;   /* support free on NULL */
-    if (cctx->staticSize) return ERROR(memory_allocation);   /* not compatible with static CCtx */
+    assert(cctx != NULL);
+    assert(cctx->staticSize == 0);
     ZSTD_free(cctx->workSpace, cctx->customMem); cctx->workSpace = NULL;
     ZSTD_freeCDict(cctx->cdictLocal); cctx->cdictLocal = NULL;
 #ifdef ZSTD_MULTITHREAD
     ZSTDMT_freeCCtx(cctx->mtctx); cctx->mtctx = NULL;
 #endif
+}
+
+size_t ZSTD_freeCCtx(ZSTD_CCtx* cctx)
+{
+    if (cctx==NULL) return 0;   /* support free on NULL */
+    if (cctx->staticSize) return ERROR(memory_allocation);   /* not compatible with static CCtx */
+    ZSTD_freeCCtxContent(cctx);
     ZSTD_free(cctx, cctx->customMem);
-    return 0;   /* reserved as a potential error code in the future */
+    return 0;
 }
 
 
@@ -2963,10 +2977,9 @@ size_t ZSTD_compress(void* dst, size_t dstCapacity, const void* src, size_t srcS
 {
     size_t result;
     ZSTD_CCtx ctxBody;
-    memset(&ctxBody, 0, sizeof(ctxBody));
-    ctxBody.customMem = ZSTD_defaultCMem;
+    ZSTD_initCCtx(&ctxBody, ZSTD_defaultCMem);
     result = ZSTD_compressCCtx(&ctxBody, dst, dstCapacity, src, srcSize, compressionLevel);
-    ZSTD_free(ctxBody.workSpace, ZSTD_defaultCMem);  /* can't free ctxBody itself, as it's on stack; free only heap content */
+    ZSTD_freeCCtxContent(&ctxBody);   /* can't free ctxBody itself, as it's on stack; free only heap content */
     return result;
 }
 

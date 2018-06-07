@@ -697,7 +697,8 @@ size_t ZSTD_checkCParams(ZSTD_compressionParameters cParams)
 /** ZSTD_clampCParams() :
  *  make CParam values within valid range.
  *  @return : valid CParams */
-static ZSTD_compressionParameters ZSTD_clampCParams(ZSTD_compressionParameters cParams)
+static ZSTD_compressionParameters
+ZSTD_clampCParams(ZSTD_compressionParameters cParams)
 {
 #   define CLAMP(val,min,max) {      \
         if (val<min) val=min;        \
@@ -708,7 +709,7 @@ static ZSTD_compressionParameters ZSTD_clampCParams(ZSTD_compressionParameters c
     CLAMP(cParams.hashLog, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
     CLAMP(cParams.searchLog, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
     CLAMP(cParams.searchLength, ZSTD_SEARCHLENGTH_MIN, ZSTD_SEARCHLENGTH_MAX);
-    if ((U32)(cParams.strategy) > (U32)ZSTD_btultra) cParams.strategy = ZSTD_btultra;
+    CLAMP(cParams.strategy, ZSTD_fast, ZSTD_btultra);
     return cParams;
 }
 
@@ -724,8 +725,11 @@ static U32 ZSTD_cycleLog(U32 hashLog, ZSTD_strategy strat)
     optimize `cPar` for a given input (`srcSize` and `dictSize`).
     mostly downsizing to reduce memory consumption and initialization latency.
     Both `srcSize` and `dictSize` are optional (use 0 if unknown).
-    Note : cPar is considered validated at this stage. Use ZSTD_checkCParams() to ensure that condition. */
-ZSTD_compressionParameters ZSTD_adjustCParams_internal(ZSTD_compressionParameters cPar, unsigned long long srcSize, size_t dictSize)
+    Note : cPar is assumed validated. Use ZSTD_checkCParams() to ensure this condition. */
+static ZSTD_compressionParameters
+ZSTD_adjustCParams_internal(ZSTD_compressionParameters cPar,
+                            unsigned long long srcSize,
+                            size_t dictSize)
 {
     static const U64 minSrcSize = 513; /* (1<<9) + 1 */
     static const U64 maxWindowResize = 1ULL << (ZSTD_WINDOWLOG_MAX-1);
@@ -757,13 +761,18 @@ ZSTD_compressionParameters ZSTD_adjustCParams_internal(ZSTD_compressionParameter
     return cPar;
 }
 
-ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, unsigned long long srcSize, size_t dictSize)
+ZSTD_compressionParameters
+ZSTD_adjustCParams(ZSTD_compressionParameters cPar,
+                   unsigned long long srcSize,
+                   size_t dictSize)
 {
     cPar = ZSTD_clampCParams(cPar);
     return ZSTD_adjustCParams_internal(cPar, srcSize, dictSize);
 }
 
-static size_t ZSTD_sizeof_matchState(ZSTD_compressionParameters const* cParams, const U32 forCCtx)
+static size_t
+ZSTD_sizeof_matchState(const ZSTD_compressionParameters* const cParams,
+                       const U32 forCCtx)
 {
     size_t const chainSize = (cParams->strategy == ZSTD_fast) ? 0 : ((size_t)1 << cParams->chainLog);
     size_t const hSize = ((size_t)1) << cParams->hashLog;
@@ -849,12 +858,14 @@ size_t ZSTD_estimateCStreamSize_usingCParams(ZSTD_compressionParameters cParams)
     return ZSTD_estimateCStreamSize_usingCCtxParams(&params);
 }
 
-static size_t ZSTD_estimateCStreamSize_internal(int compressionLevel) {
+static size_t ZSTD_estimateCStreamSize_internal(int compressionLevel)
+{
     ZSTD_compressionParameters const cParams = ZSTD_getCParams(compressionLevel, 0, 0);
     return ZSTD_estimateCStreamSize_usingCParams(cParams);
 }
 
-size_t ZSTD_estimateCStreamSize(int compressionLevel) {
+size_t ZSTD_estimateCStreamSize(int compressionLevel)
+{
     int level;
     size_t memBudget = 0;
     for (level=1; level<=compressionLevel; level++) {
@@ -1043,10 +1054,18 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
     return ptr;
 }
 
+#define ZSTD_WORKSPACETOOLARGE_FACTOR 3 /* define "workspace is too large" as this number of times larger than needed */
+#define ZSTD_WORKSPACETOOLARGE_MAXDURATION 128  /* when workspace is continuously too large
+                                         * during at least this number of times,
+                                         * context's memory usage is considered wasteful,
+                                         * because it's sized to handle a worst case scenario which rarely happens.
+                                         * In which case, resize it down to free some memory */
+
 /*! ZSTD_resetCCtx_internal() :
     note : `params` are assumed fully validated at this stage */
 static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
-                                      ZSTD_CCtx_params params, U64 pledgedSrcSize,
+                                      ZSTD_CCtx_params params,
+                                      U64 pledgedSrcSize,
                                       ZSTD_compResetPolicy_e const crp,
                                       ZSTD_buffered_policy_e const zbuff)
 {
@@ -1058,9 +1077,11 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         if (ZSTD_equivalentParams(zc->appliedParams, params,
                                 zc->inBuffSize, zc->blockSize,
                                 zbuff, pledgedSrcSize)) {
-            DEBUGLOG(4, "ZSTD_equivalentParams()==1 -> continue mode (wLog1=%u, blockSize1=%u)",
-                        zc->appliedParams.cParams.windowLog, (U32)zc->blockSize);
-            return ZSTD_continueCCtx(zc, params, pledgedSrcSize);
+            DEBUGLOG(4, "ZSTD_equivalentParams()==1 -> continue mode (wLog1=%u, blockSize1=%zu)",
+                        zc->appliedParams.cParams.windowLog, zc->blockSize);
+            zc->workSpaceOversizedDuration += (zc->workSpaceOversizedDuration > 0);   /* if it was too large, it still is */
+            if (zc->workSpaceOversizedDuration <= ZSTD_WORKSPACETOOLARGE_MAXDURATION)
+                return ZSTD_continueCCtx(zc, params, pledgedSrcSize);
     }   }
     DEBUGLOG(4, "ZSTD_equivalentParams()==0 -> reset CCtx");
 
@@ -1070,8 +1091,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         ZSTD_ldm_adjustParameters(&params.ldmParams, &params.cParams);
         assert(params.ldmParams.hashLog >= params.ldmParams.bucketSizeLog);
         assert(params.ldmParams.hashEveryLog < 32);
-        zc->ldmState.hashPower =
-                ZSTD_ldm_getHashPower(params.ldmParams.minMatchLength);
+        zc->ldmState.hashPower = ZSTD_ldm_getHashPower(params.ldmParams.minMatchLength);
     }
 
     {   size_t const windowSize = MAX(1, (size_t)MIN(((U64)1 << params.cParams.windowLog), pledgedSrcSize));
@@ -1083,7 +1103,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         size_t const buffInSize = (zbuff==ZSTDb_buffered) ? windowSize + blockSize : 0;
         size_t const matchStateSize = ZSTD_sizeof_matchState(&params.cParams, /* forCCtx */ 1);
         size_t const maxNbLdmSeq = ZSTD_ldm_getMaxNbSeq(params.ldmParams, blockSize);
-        void* ptr;
+        void* ptr;   /* used to partition workSpace */
 
         /* Check if workSpace is large enough, alloc a new one if needed */
         {   size_t const entropySpace = HUF_WORKSPACE_SIZE;
@@ -1095,14 +1115,20 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             size_t const neededSpace = entropySpace + blockStateSpace + ldmSpace +
                                        ldmSeqSpace + matchStateSize + tokenSpace +
                                        bufferSpace;
-            DEBUGLOG(4, "Need %uKB workspace, including %uKB for match state, and %uKB for buffers",
-                        (U32)(neededSpace>>10), (U32)(matchStateSize>>10), (U32)(bufferSpace>>10));
-            DEBUGLOG(4, "windowSize: %u - blockSize: %u", (U32)windowSize, (U32)blockSize);
 
-            if (zc->workSpaceSize < neededSpace) {  /* too small : resize */
-                DEBUGLOG(4, "Need to update workSpaceSize from %uK to %uK",
-                            (unsigned)(zc->workSpaceSize>>10),
-                            (unsigned)(neededSpace>>10));
+            int const workSpaceTooSmall = zc->workSpaceSize < neededSpace;
+            int const workSpaceTooLarge = zc->workSpaceSize > ZSTD_WORKSPACETOOLARGE_FACTOR * neededSpace;
+            int const workSpaceWasteful = workSpaceTooLarge && (zc->workSpaceOversizedDuration > ZSTD_WORKSPACETOOLARGE_MAXDURATION);
+            zc->workSpaceOversizedDuration = workSpaceTooLarge ? zc->workSpaceOversizedDuration+1 : 0;
+
+            DEBUGLOG(4, "Need %zuKB workspace, including %zuKB for match state, and %zuKB for buffers",
+                        neededSpace>>10, matchStateSize>>10, bufferSpace>>10);
+            DEBUGLOG(4, "windowSize: %zu - blockSize: %zu", windowSize, blockSize);
+
+            if (workSpaceTooSmall || workSpaceWasteful) {
+                DEBUGLOG(4, "Need to resize workSpaceSize from %zuKB to %zuKB",
+                            zc->workSpaceSize >> 10,
+                            neededSpace >> 10);
                 /* static cctx : no resize, error out */
                 if (zc->staticSize) return ERROR(memory_allocation);
 
@@ -1111,9 +1137,12 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                 zc->workSpace = ZSTD_malloc(neededSpace, zc->customMem);
                 if (zc->workSpace == NULL) return ERROR(memory_allocation);
                 zc->workSpaceSize = neededSpace;
+                zc->workSpaceOversizedDuration = 0;
                 ptr = zc->workSpace;
 
-                /* Statically sized space. entropyWorkspace never moves (but prev/next block swap places) */
+                /* Statically sized space.
+                 * entropyWorkspace never moves,
+                 * though prev/next block swap places */
                 assert(((size_t)zc->workSpace & 3) == 0);   /* ensure correct alignment */
                 assert(zc->workSpaceSize >= 2 * sizeof(ZSTD_compressedBlockState_t));
                 zc->blockState.prevCBlock = (ZSTD_compressedBlockState_t*)zc->workSpace;

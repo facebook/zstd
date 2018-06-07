@@ -689,8 +689,6 @@ size_t ZSTD_checkCParams(ZSTD_compressionParameters cParams)
     CLAMPCHECK(cParams.hashLog, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
     CLAMPCHECK(cParams.searchLog, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
     CLAMPCHECK(cParams.searchLength, ZSTD_SEARCHLENGTH_MIN, ZSTD_SEARCHLENGTH_MAX);
-    if ((U32)(cParams.targetLength) < ZSTD_TARGETLENGTH_MIN)
-        return ERROR(parameter_unsupported);
     if ((U32)(cParams.strategy) > (U32)ZSTD_btultra)
         return ERROR(parameter_unsupported);
     return 0;
@@ -710,7 +708,6 @@ static ZSTD_compressionParameters ZSTD_clampCParams(ZSTD_compressionParameters c
     CLAMP(cParams.hashLog, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
     CLAMP(cParams.searchLog, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
     CLAMP(cParams.searchLength, ZSTD_SEARCHLENGTH_MIN, ZSTD_SEARCHLENGTH_MAX);
-    if ((U32)(cParams.targetLength) < ZSTD_TARGETLENGTH_MIN) cParams.targetLength = ZSTD_TARGETLENGTH_MIN;
     if ((U32)(cParams.strategy) > (U32)ZSTD_btultra) cParams.strategy = ZSTD_btultra;
     return cParams;
 }
@@ -3713,8 +3710,8 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
 {   /* "default" - guarantees a monotonically increasing memory budget */
     /* W,  C,  H,  S,  L, TL, strat */
     { 19, 12, 13,  1,  6,  1, ZSTD_fast    },  /* base for negative levels */
-    { 19, 13, 14,  1,  7,  1, ZSTD_fast    },  /* level  1 */
-    { 19, 15, 16,  1,  6,  1, ZSTD_fast    },  /* level  2 */
+    { 19, 13, 14,  1,  7,  0, ZSTD_fast    },  /* level  1 */
+    { 19, 15, 16,  1,  6,  0, ZSTD_fast    },  /* level  2 */
     { 20, 16, 17,  1,  5,  1, ZSTD_dfast   },  /* level  3 */
     { 20, 18, 18,  1,  5,  1, ZSTD_dfast   },  /* level  4 */
     { 20, 18, 18,  2,  5,  2, ZSTD_greedy  },  /* level  5 */
@@ -3739,7 +3736,7 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
 {   /* for srcSize <= 256 KB */
     /* W,  C,  H,  S,  L,  T, strat */
     { 18, 12, 13,  1,  5,  1, ZSTD_fast    },  /* base for negative levels */
-    { 18, 13, 14,  1,  6,  1, ZSTD_fast    },  /* level  1 */
+    { 18, 13, 14,  1,  6,  0, ZSTD_fast    },  /* level  1 */
     { 18, 14, 14,  1,  5,  1, ZSTD_dfast   },  /* level  2 */
     { 18, 16, 16,  1,  4,  1, ZSTD_dfast   },  /* level  3 */
     { 18, 16, 17,  2,  5,  2, ZSTD_greedy  },  /* level  4.*/
@@ -3765,8 +3762,8 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
 {   /* for srcSize <= 128 KB */
     /* W,  C,  H,  S,  L,  T, strat */
     { 17, 12, 12,  1,  5,  1, ZSTD_fast    },  /* base for negative levels */
-    { 17, 12, 13,  1,  6,  1, ZSTD_fast    },  /* level  1 */
-    { 17, 13, 15,  1,  5,  1, ZSTD_fast    },  /* level  2 */
+    { 17, 12, 13,  1,  6,  0, ZSTD_fast    },  /* level  1 */
+    { 17, 13, 15,  1,  5,  0, ZSTD_fast    },  /* level  2 */
     { 17, 15, 16,  2,  5,  1, ZSTD_dfast   },  /* level  3 */
     { 17, 17, 17,  2,  4,  1, ZSTD_dfast   },  /* level  4 */
     { 17, 16, 17,  3,  4,  2, ZSTD_greedy  },  /* level  5 */
@@ -3791,8 +3788,8 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
 {   /* for srcSize <= 16 KB */
     /* W,  C,  H,  S,  L,  T, strat */
     { 14, 12, 13,  1,  5,  1, ZSTD_fast    },  /* base for negative levels */
-    { 14, 14, 15,  1,  5,  1, ZSTD_fast    },  /* level  1 */
-    { 14, 14, 15,  1,  4,  1, ZSTD_fast    },  /* level  2 */
+    { 14, 14, 15,  1,  5,  0, ZSTD_fast    },  /* level  1 */
+    { 14, 14, 15,  1,  4,  0, ZSTD_fast    },  /* level  2 */
     { 14, 14, 14,  2,  4,  1, ZSTD_dfast   },  /* level  3.*/
     { 14, 14, 14,  4,  4,  2, ZSTD_greedy  },  /* level  4.*/
     { 14, 14, 14,  3,  4,  4, ZSTD_lazy    },  /* level  5.*/

@@ -685,9 +685,17 @@ size_t ZSTD_compressBlock_lazy_generic(
          */
         /* catch up */
         if (offset) {
-            while ( ((start > anchor) & (start - (offset-ZSTD_REP_MOVE) > prefixLowest))
-                 && (start[-1] == (start-(offset-ZSTD_REP_MOVE))[-1]) )  /* only search for offset within prefix */
-                { start--; matchLength++; }
+            if (dictMode == ZSTD_noDict) {
+                while ( ((start > anchor) & (start - (offset-ZSTD_REP_MOVE) > prefixLowest))
+                     && (start[-1] == (start-(offset-ZSTD_REP_MOVE))[-1]) )  /* only search for offset within prefix */
+                    { start--; matchLength++; }
+            }
+            if (dictMode == ZSTD_dictMatchState) {
+                U32 const matchIndex = (U32)((start-base) - (offset - ZSTD_REP_MOVE));
+                const BYTE* match = (matchIndex < prefixLowestIndex) ? dictBase + matchIndex - dictIndexDelta : base + matchIndex;
+                const BYTE* const mStart = (matchIndex < prefixLowestIndex) ? dictLowest : prefixLowest;
+                while ((start>anchor) && (match>mStart) && (start[-1] == match[-1])) { start--; match--; matchLength++; }  /* catch up */
+            }
             offset_2 = offset_1; offset_1 = (U32)(offset - ZSTD_REP_MOVE);
         }
         /* store sequence */

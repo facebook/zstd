@@ -1116,12 +1116,40 @@ static int basicUnitTests(U32 seed, double compressibility)
         ZSTD_freeCCtx(cctx);
     }
 
+    /* negative compression level test : ensure simple API and advanced API produce same result */
+    DISPLAYLEVEL(3, "test%3i : negative compression level : ", testNb++);
+    {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        size_t const srcSize = CNBuffSize / 5;
+        int const compressionLevel = -1;
+
+        assert(cctx != NULL);
+        {   ZSTD_parameters const params = ZSTD_getParams(compressionLevel, srcSize, 0);
+            size_t const cSize_1pass = ZSTD_compress_advanced(cctx,
+                                        compressedBuffer, compressedBufferSize,
+                                        CNBuffer, srcSize,
+                                        NULL, 0,
+                                        params);
+            if (ZSTD_isError(cSize_1pass)) goto _output_error;
+
+            CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_p_compressionLevel, (unsigned)compressionLevel) );
+            {   ZSTD_inBuffer in = { CNBuffer, srcSize, 0 };
+                ZSTD_outBuffer out = { compressedBuffer, compressedBufferSize, 0 };
+                size_t const compressionResult = ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_end);
+                DISPLAYLEVEL(5, "simple=%zu vs %zu=advanced : ", cSize_1pass, out.pos);
+                if (ZSTD_isError(compressionResult)) goto _output_error;
+                if (out.pos != cSize_1pass) goto _output_error;
+        }   }
+        ZSTD_freeCCtx(cctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     /* parameters order test */
     {   size_t const inputSize = CNBuffSize / 2;
         U64 xxh64;
 
-        {   ZSTD_CCtx* cctx = ZSTD_createCCtx();
+        {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
             DISPLAYLEVEL(3, "test%3i : parameters in order : ", testNb++);
+            assert(cctx != NULL);
             CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_p_compressionLevel, 2) );
             CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_p_enableLongDistanceMatching, 1) );
             CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_p_windowLog, 18) );

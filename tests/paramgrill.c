@@ -598,7 +598,7 @@ static ZSTD_compressionParameters randomParams(void)
         p.searchLog  = (FUZ_rand(&g_rand) % (ZSTD_SEARCHLOG_MAX+1 - ZSTD_SEARCHLOG_MIN)) + ZSTD_SEARCHLOG_MIN;
         p.windowLog  = (FUZ_rand(&g_rand) % (ZSTD_WINDOWLOG_MAX+1 - ZSTD_WINDOWLOG_MIN)) + ZSTD_WINDOWLOG_MIN;
         p.searchLength=(FUZ_rand(&g_rand) % (ZSTD_SEARCHLENGTH_MAX+1 - ZSTD_SEARCHLENGTH_MIN)) + ZSTD_SEARCHLENGTH_MIN;
-        p.targetLength=(FUZ_rand(&g_rand) % (512)) + ZSTD_TARGETLENGTH_MIN;
+        p.targetLength=(FUZ_rand(&g_rand) % (512));
         p.strategy   = (ZSTD_strategy) (FUZ_rand(&g_rand) % (ZSTD_btultra +1));
         validated = !ZSTD_isError(ZSTD_checkCParams(p));
     }

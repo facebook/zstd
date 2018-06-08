@@ -35,6 +35,14 @@ extern "C" {
 #endif
 
 
+/*-*************************************
+*  Tuning parameters
+***************************************/
+#ifndef ZSTD_CLEVEL_DEFAULT
+#  define ZSTD_CLEVEL_DEFAULT 3
+#endif
+
+
 /*******************************************************************************************************
   Introduction
 
@@ -949,7 +957,7 @@ typedef enum {
     /* compression parameters */
     ZSTD_p_compressionLevel=100, /* Update all compression parameters according to pre-defined cLevel table
                               * Default level is ZSTD_CLEVEL_DEFAULT==3.
-                              * Special: value 0 means "do not change cLevel".
+                              * Special: value 0 means default, which is controlled by ZSTD_CLEVEL_DEFAULT.
                               * Note 1 : it's possible to pass a negative compression level by casting it to unsigned type.
                               * Note 2 : setting a level sets all default values of other compression parameters.
                               * Note 3 : setting compressionLevel automatically updates ZSTD_p_compressLiterals. */

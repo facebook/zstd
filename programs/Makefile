@@ -243,7 +243,7 @@ preview-man: clean-man man
 	man ./zstd.1
 
 #-----------------------------------------------------------------------------
-# make install is validated only for Linux, OSX, BSD, Hurd and Solaris targets
+# make install is validated only for Linux, macOS, BSD, Hurd and Solaris targets
 #-----------------------------------------------------------------------------
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS))
 

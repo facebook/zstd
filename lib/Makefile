@@ -77,7 +77,7 @@ CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 
 ZSTD_OBJ   := $(patsubst %.c,%.o,$(ZSTD_FILES))
 
-# OS X linker doesn't support -soname, and use different extension
+# macOS linker doesn't support -soname, and use different extension
 # see : https://developer.apple.com/library/mac/documentation/DeveloperTools/Conceptual/DynamicLibraries/100-Articles/DynamicLibraryDesignGuidelines.html
 ifeq ($(shell uname), Darwin)
 	SHARED_EXT = dylib
@@ -145,14 +145,14 @@ libzstd-nomt: $(ZSTD_NOMT_FILES)
 	@$(CC) $(FLAGS) $^ $(LDFLAGS) $(SONAME_FLAGS) -o $@
 
 clean:
-	@$(RM) -r *.dSYM   # Mac OS-X specific
+	@$(RM) -r *.dSYM   # macOS-specific
 	@$(RM) core *.o *.a *.gcda *.$(SHARED_EXT) *.$(SHARED_EXT).* libzstd.pc
 	@$(RM) dll/libzstd.dll dll/libzstd.lib libzstd-nomt*
 	@$(RM) common/*.o compress/*.o decompress/*.o dictBuilder/*.o legacy/*.o deprecated/*.o
 	@echo Cleaning library completed
 
 #-----------------------------------------------------------------------------
-# make install is validated only for Linux, OSX, BSD, Hurd and Solaris targets
+# make install is validated only for Linux, macOS, BSD, Hurd and Solaris targets
 #-----------------------------------------------------------------------------
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS))
 

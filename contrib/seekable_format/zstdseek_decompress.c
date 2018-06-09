@@ -24,7 +24,7 @@
 #endif
 
 /* ************************************************************
-* Avoid fseek()'s 2GiB barrier with MSVC, MacOS, *BSD, MinGW
+* Avoid fseek()'s 2GiB barrier with MSVC, macOS, *BSD, MinGW
 ***************************************************************/
 #if defined(_MSC_VER) && _MSC_VER >= 1400
 #   define LONG_SEEK _fseeki64

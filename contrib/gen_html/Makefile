@@ -10,7 +10,7 @@
 CXXFLAGS ?= -O3
 CXXFLAGS += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wstrict-aliasing=1 -Wswitch-enum -Wno-comment
 CXXFLAGS += $(MOREFLAGS)
-FLAGS   = $(CPPFLAGS) $(CXXFLAGS) $(CXXFLAGS) $(LDFLAGS)
+FLAGS   = $(CPPFLAGS) $(CXXFLAGS) $(LDFLAGS)
 
 ZSTDAPI = ../../lib/zstd.h
 ZSTDMANUAL = ../../doc/zstd_manual.html

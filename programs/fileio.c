@@ -27,7 +27,6 @@
 #include "platform.h"   /* Large Files support, SET_BINARY_MODE */
 #include "util.h"       /* UTIL_getFileSize, UTIL_isRegularFile */
 #include <stdio.h>      /* fprintf, fopen, fread, _fileno, stdin, stdout */
-#include <unistd.h>     /* isatty */
 #include <stdlib.h>     /* malloc, free */
 #include <string.h>     /* strcmp, strlen */
 #include <errno.h>      /* errno */
@@ -35,6 +34,8 @@
 #if defined (_MSC_VER)
 #  include <sys/stat.h>
 #  include <io.h>
+#else
+#  include <unistd.h>     /* isatty */
 #endif
 
 #include "mem.h"
@@ -2031,10 +2032,14 @@ static int FIO_listFile(fileInfo_t* total, const char* inFileName, int displayLe
 }
 
 int FIO_listMultipleFiles(unsigned numFiles, const char** filenameTable, int displayLevel){
+    // isatty comes from the header unistd.h
+    // windows has no equilivant
+    #if !defined(_MSC_VER)
     if (!isatty(0)) {
         DISPLAYOUT("zstd: --list does not support reading from standard input\n");
         return 1;
     }
+    #endif
 
     if (numFiles == 0) {
         DISPLAYOUT("No files given\n");

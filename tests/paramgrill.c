@@ -170,7 +170,6 @@ BMK_benchParam(BMK_result_t* resultPtr,
                ZSTD_CCtx* ctx, ZSTD_DCtx* dctx, 
                const ZSTD_compressionParameters cParams) {
 
-
     BMK_return_t res = BMK_benchMem(srcBuffer,srcSize, &srcSize, 1, 0, &cParams, NULL, 0, ctx, dctx, 0, "File");
     *resultPtr = res.result;
     return res.errorCode;

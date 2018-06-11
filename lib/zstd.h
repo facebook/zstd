@@ -34,15 +34,6 @@ extern "C" {
 #  define ZSTDLIB_API ZSTDLIB_VISIBILITY
 #endif
 
-
-/*-*************************************
-*  Tuning parameters
-***************************************/
-#ifndef ZSTD_CLEVEL_DEFAULT
-#  define ZSTD_CLEVEL_DEFAULT 3
-#endif
-
-
 /*******************************************************************************************************
   Introduction
 
@@ -78,6 +69,12 @@ ZSTDLIB_API unsigned ZSTD_versionNumber(void);   /**< useful to check dll versio
 #define ZSTD_VERSION_STRING ZSTD_EXPAND_AND_QUOTE(ZSTD_LIB_VERSION)
 ZSTDLIB_API const char* ZSTD_versionString(void);   /* added in v1.3.0 */
 
+/***************************************
+*  Default constant
+***************************************/
+#ifndef ZSTD_CLEVEL_DEFAULT
+#  define ZSTD_CLEVEL_DEFAULT 3
+#endif
 
 /***************************************
 *  Simple API

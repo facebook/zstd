@@ -8,15 +8,6 @@
  * You may select, at your option, one of the above-listed licenses.
  */
 
-
-/*-*************************************
-*  Tuning parameters
-***************************************/
-#ifndef ZSTD_CLEVEL_DEFAULT
-#  define ZSTD_CLEVEL_DEFAULT 3
-#endif
-
-
 /*-*************************************
 *  Dependencies
 ***************************************/

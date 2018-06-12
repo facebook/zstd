@@ -70,6 +70,12 @@ ZSTDLIB_API unsigned ZSTD_versionNumber(void);   /**< useful to check dll versio
 #define ZSTD_VERSION_STRING ZSTD_EXPAND_AND_QUOTE(ZSTD_LIB_VERSION)
 ZSTDLIB_API const char* ZSTD_versionString(void);   /* added in v1.3.0 */
 
+/***************************************
+*  Default constant
+***************************************/
+#ifndef ZSTD_CLEVEL_DEFAULT
+#  define ZSTD_CLEVEL_DEFAULT 3
+#endif
 
 /***************************************
 *  Simple API
@@ -948,7 +954,7 @@ typedef enum {
     /* compression parameters */
     ZSTD_p_compressionLevel=100, /* Update all compression parameters according to pre-defined cLevel table
                               * Default level is ZSTD_CLEVEL_DEFAULT==3.
-                              * Special: value 0 means "do not change cLevel".
+                              * Special: value 0 means default, which is controlled by ZSTD_CLEVEL_DEFAULT.
                               * Note 1 : it's possible to pass a negative compression level by casting it to unsigned type.
                               * Note 2 : setting a level sets all default values of other compression parameters.
                               * Note 3 : setting compressionLevel automatically updates ZSTD_p_compressLiterals. */

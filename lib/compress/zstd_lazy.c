@@ -140,6 +140,84 @@ static void ZSTD_insertDUBT1(
 }
 
 
+static size_t ZSTD_DUBT_findBetterDictMatch (
+        ZSTD_matchState_t* ms, ZSTD_compressionParameters const* cParams,
+        const BYTE* const ip, const BYTE* const iend,
+        size_t* offsetPtr,
+        size_t bestLength,
+        U32 nbCompares,
+        U32 const mls,
+        const ZSTD_dictMode_e dictMode) {
+    const ZSTD_matchState_t * const dms = ms->dictMatchState;
+    const U32 * const dictHashTable = dms->hashTable;
+    U32         const hashLog = cParams->hashLog;
+    size_t      const h  = ZSTD_hashPtr(ip, hashLog, mls);
+    U32               dictMatchIndex = dictHashTable[h];
+
+    const BYTE* const base = ms->window.base;
+    const BYTE* const prefixStart = base + ms->window.dictLimit;
+    U32         const current = (U32)(ip-base);
+    const BYTE* const dictBase = dms->window.base;
+    const BYTE* const dictEnd = dms->window.nextSrc;
+    U32         const dictHighLimit = (U32)(dms->window.nextSrc - dms->window.base);
+    U32         const dictLowLimit = dms->window.lowLimit;
+    U32         const dictIndexDelta = ms->window.lowLimit - dictHighLimit;
+
+    U32*        const dictBt = dms->chainTable;
+    U32         const btLog  = cParams->chainLog - 1;
+    U32         const btMask = (1 << btLog) - 1;
+    U32         const btLow = (btMask >= dictHighLimit - dictLowLimit) ? 0 : dictHighLimit - btMask;
+
+    size_t commonLengthSmaller=0, commonLengthLarger=0;
+    U32 matchEndIdx = current+8+1;
+
+    (void)dictMode;
+    assert(dictMode == ZSTD_dictMatchState);
+
+    while (nbCompares-- && (dictMatchIndex > dictLowLimit)) {
+        U32* const nextPtr = dictBt + 2*(dictMatchIndex & btMask);
+        size_t matchLength = MIN(commonLengthSmaller, commonLengthLarger);   /* guaranteed minimum nb of common bytes */
+        const BYTE* match = dictBase + dictMatchIndex;
+        matchLength += ZSTD_count_2segments(ip+matchLength, match+matchLength, iend, dictEnd, prefixStart);
+        if (dictMatchIndex+matchLength >= dictHighLimit)
+            match = base + dictMatchIndex + dictIndexDelta;   /* to prepare for next usage of match[matchLength] */
+
+        if (matchLength > bestLength) {
+            U32 matchIndex = dictMatchIndex + dictIndexDelta;
+            if (matchLength > matchEndIdx - matchIndex)
+                matchEndIdx = matchIndex + (U32)matchLength;
+            if ( (4*(int)(matchLength-bestLength)) > (int)(ZSTD_highbit32(current-matchIndex+1) - ZSTD_highbit32((U32)offsetPtr[0]+1)) ) {
+                DEBUGLOG(9, "ZSTD_DUBT_findBestDictMatch(%u) : found better match length %u -> %u and offsetCode %u -> %u (dictMatchIndex %u, matchIndex %u)",
+                    current, (U32)bestLength, (U32)matchLength, (U32)*offsetPtr, ZSTD_REP_MOVE + current - matchIndex, dictMatchIndex, matchIndex);
+                bestLength = matchLength, *offsetPtr = ZSTD_REP_MOVE + current - matchIndex;
+            }
+            if (ip+matchLength == iend) {   /* equal : no way to know if inf or sup */
+                break;   /* drop, to guarantee consistency (miss a little bit of compression) */
+            }
+        }
+
+        if (match[matchLength] < ip[matchLength]) {
+            if (dictMatchIndex <= btLow) { break; }   /* beyond tree size, stop the search */
+            commonLengthSmaller = matchLength;    /* all smaller will now have at least this guaranteed common length */
+            dictMatchIndex = nextPtr[1];              /* new matchIndex larger than previous (closer to current) */
+        } else {
+            /* match is larger than current */
+            if (dictMatchIndex <= btLow) { break; }   /* beyond tree size, stop the search */
+            commonLengthLarger = matchLength;
+            dictMatchIndex = nextPtr[0];
+        }
+    }
+
+    if (bestLength >= MINMATCH) {
+        U32 const mIndex = current - ((U32)*offsetPtr - ZSTD_REP_MOVE); (void)mIndex;
+        DEBUGLOG(8, "ZSTD_DUBT_findBestDictMatch(%u) : found match of length %u and offsetCode %u (pos %u)",
+                    current, (U32)bestLength, (U32)*offsetPtr, mIndex);
+    }
+    return bestLength;
+
+}
+
+
 static size_t ZSTD_DUBT_findBestMatch (
                             ZSTD_matchState_t* ms, ZSTD_compressionParameters const* cParams,
                             const BYTE* const ip, const BYTE* const iend,
@@ -260,6 +338,10 @@ static size_t ZSTD_DUBT_findBestMatch (
         }   }
 
         *smallerPtr = *largerPtr = 0;
+
+        if (dictMode == ZSTD_dictMatchState && nbCompares) {
+            bestLength = ZSTD_DUBT_findBetterDictMatch(ms, cParams, ip, iend, offsetPtr, bestLength, nbCompares, mls, dictMode);
+        }
 
         assert(matchEndIdx > current+8); /* ensure nextToUpdate is increased */
         ms->nextToUpdate = matchEndIdx - 8;   /* skip repetitive patterns */

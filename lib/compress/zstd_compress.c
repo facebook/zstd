@@ -1236,7 +1236,7 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
         32 KB, /* ZSTD_greedy */
         32 KB, /* ZSTD_lazy */
         32 KB, /* ZSTD_lazy2 */
-        256 KB, /* ZSTD_btlazy2 */
+        32 KB, /* ZSTD_btlazy2 */
         256 KB, /* ZSTD_btopt */
         256 KB /* ZSTD_btultra */
     };
@@ -1244,7 +1244,7 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
                           || pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN )
                         && !params.forceWindow /* dictMatchState isn't correctly
                                                 * handled in _enforceMaxDist */
-                        && cdict->cParams.strategy <= ZSTD_lazy2
+                        && cdict->cParams.strategy <= ZSTD_btlazy2
                         && ZSTD_equivalentCParams(cctx->appliedParams.cParams,
                                                   cdict->cParams);
 

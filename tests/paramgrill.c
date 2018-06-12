@@ -162,8 +162,6 @@ const char* g_stratName[ZSTD_btultra+1] = {
                 "ZSTD_btlazy2 ", "ZSTD_btopt   ", "ZSTD_btultra "};
 
 /* TODO: support additional parameters (more files, fileSizes) */
-
-//TODO: benchMem dctx can't = NULL in new system
 static size_t
 BMK_benchParam(BMK_result_t* resultPtr,
                const void* srcBuffer, size_t srcSize,
@@ -172,7 +170,7 @@ BMK_benchParam(BMK_result_t* resultPtr,
 
     BMK_return_t res = BMK_benchMem(srcBuffer,srcSize, &srcSize, 1, 0, &cParams, NULL, 0, ctx, dctx, 0, "File");
     *resultPtr = res.result;
-    return res.errorCode;
+    return res.error;
 }
 
 static void BMK_printWinner(FILE* f, U32 cLevel, BMK_result_t result, ZSTD_compressionParameters params, size_t srcSize)

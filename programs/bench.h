@@ -19,25 +19,97 @@ extern "C" {
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_compressionParameters */
 #include "zstd.h"     /* ZSTD_compressionParameters */
 
+#define BMK_COMPRESS_ONLY 2
+#define BMK_DECODE_ONLY 1
+
+#define TIME_MODE = 0
+#define ITER_MODE = 1
+
+#define ERROR_STRUCT(baseType, typeName) typedef struct { \
+    int error;       \
+    baseType result; \
+} typeName
+
 typedef struct {
     size_t cSize;
     double cSpeed;   /* bytes / sec */
     double dSpeed;
 } BMK_result_t;
 
-/* 0 = no Error */
 typedef struct {
-	int errorCode;
-	BMK_result_t result;
-} BMK_return_t;
+    int cLevel;
+    int cLevelLast;
+    unsigned nbFiles;
+    BMK_result_t** results;
+} BMK_resultSet_t;
 
-/* called in cli */
-int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles, const char* dictFileName,
-                   int cLevel, int cLevelLast, const ZSTD_compressionParameters* compressionParams, 
-                   int displayLevel);
+typedef struct {
+    size_t size;
+    U64 time;
+} BMK_customResult_t;
 
-/* basic benchmarking function, called in paramgrill
- * ctx, dctx must be valid */
+
+ERROR_STRUCT(BMK_result_t, BMK_return_t);
+ERROR_STRUCT(BMK_resultSet_t, BMK_returnSet_t);
+ERROR_STRUCT(BMK_customResult_t, BMK_customReturn_t);
+
+/* want all 0 to be default, but wb ldmBucketSizeLog/ldmHashEveryLog */
+typedef struct {
+    unsigned mode; /* 0: all, 1: compress only 2: decode only */
+    int loopMode; /* if loopmode, then nbSeconds = nbLoops */
+    unsigned nbSeconds; /* default timing is in nbSeconds. If nbCycles != 0 then use that */
+    size_t blockSize; /* Maximum allowable size of a block*/
+    unsigned nbWorkers; /* multithreading */
+    unsigned realTime;
+    unsigned separateFiles;
+    int additionalParam;
+    unsigned ldmFlag;
+    unsigned ldmMinMatch;
+    unsigned ldmHashLog;
+    unsigned ldmBucketSizeLog;
+    unsigned ldmHashEveryLog;
+} BMK_advancedParams_t;
+
+/* returns default parameters used by nonAdvanced functions */
+BMK_advancedParams_t BMK_defaultAdvancedParams(void);
+
+/* functionName - name of function
+ * blockCount - number of blocks (size of srcBuffers, srcSizes, dstBuffers, dstSizes)
+ * initFn - (*initFn)(initPayload) is run once per benchmark
+ * benchFn - (*benchFn)(srcBuffers[i], srcSizes[i], dstBuffers[i], dstSizes[i], benchPayload)
+ *      is run a variable number of times, specified by mode and iter args
+ * mode - if 0, iter will be interpreted as the minimum number of seconds to run
+ * iter - see mode
+ * displayLevel - what gets printed
+ *      0 : no display;   
+ *      1 : errors;   
+ *      2 : + result + interaction + warnings;   
+ *      3 : + progression;   
+ *      4 : + information
+ * return 
+ *      .error will give a nonzero value if any error has occured
+ *      .result will contain the speed (B/s) and time per loop (ns)
+ */
+BMK_customReturn_t BMK_benchCustom(const char* functionName, size_t blockCount,
+                        const void* const * const srcBuffers, size_t* srcSizes,
+                        void* const * const dstBuffers, size_t* dstSizes,
+                        size_t (*initFn)(void*), size_t (*benchFn)(const void*, size_t, void*, size_t, void*), 
+                        void* initPayload, void* benchPayload,
+                        unsigned mode, unsigned iter,
+                        int displayLevel);
+
+/* basic benchmarking function, called in paramgrill ctx, dctx must be provided */
+/* srcBuffer - data source, expected to be valid compressed data if in Decode Only Mode
+ * srcSize - size of data in srcBuffer
+ * cLevel - compression level  
+ * comprParams - basic compression parameters
+ * dictBuffer - a dictionary if used, null otherwise
+ * dictBufferSize - size of dictBuffer, 0 otherwise
+ * ctx - Compression Context
+ * dctx - Decompression Context
+ * diplayLevel - see BMK_benchCustom
+ * displayName - name used in display
+ */
 BMK_return_t BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         const size_t* fileSizes, unsigned nbFiles,
                         const int cLevel, const ZSTD_compressionParameters* comprParams,
@@ -45,20 +117,37 @@ BMK_return_t BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         ZSTD_CCtx* ctx, ZSTD_DCtx* dctx,
                         int displayLevel, const char* displayName);
 
-/* Set Parameters */
-void BMK_setNbSeconds(unsigned nbLoops);
-void BMK_setBlockSize(size_t blockSize);
-void BMK_setNbWorkers(unsigned nbWorkers);
-void BMK_setRealTime(unsigned priority);
-void BMK_setNotificationLevel(unsigned level);
-void BMK_setSeparateFiles(unsigned separate);
-void BMK_setAdditionalParam(int additionalParam);
-void BMK_setDecodeOnlyMode(unsigned decodeFlag);
-void BMK_setLdmFlag(unsigned ldmFlag);
-void BMK_setLdmMinMatch(unsigned ldmMinMatch);
-void BMK_setLdmHashLog(unsigned ldmHashLog);
-void BMK_setLdmBucketSizeLog(unsigned ldmBucketSizeLog);
-void BMK_setLdmHashEveryLog(unsigned ldmHashEveryLog);
+BMK_return_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
+                        const size_t* fileSizes, unsigned nbFiles,
+                        const int cLevel, const ZSTD_compressionParameters* comprParams,
+                        const void* dictBuffer, size_t dictBufferSize,
+                        ZSTD_CCtx* ctx, ZSTD_DCtx* dctx,
+                        int displayLevel, const char* displayName,
+                        const BMK_advancedParams_t* adv);
+
+/* called in cli */
+/* fileNamesTable - name of files to benchmark
+ * nbFiles - number of files (size of fileNamesTable)
+ * dictFileName - name of dictionary file to load
+ * cLevel - lowest compression level to benchmark
+ * cLevellast - highest compression level to benchmark (everything in the range [cLevel, cLevellast]) will be benchmarked
+ * compressionParams - basic compression Parameters
+ * displayLevel - see BMK_benchCustom
+ */
+int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles, const char* dictFileName,
+                   int cLevel, int cLevelLast, const ZSTD_compressionParameters* compressionParams, 
+                   int displayLevel);
+
+BMK_returnSet_t BMK_benchFilesAdvanced(const char** fileNamesTable, unsigned nbFiles,
+                   const char* dictFileName, 
+                   int cLevel, int cLevelLast, 
+                   const ZSTD_compressionParameters* compressionParams, 
+                   int displayLevel, const BMK_advancedParams_t* adv);
+
+/* get data from resultSet */
+/* when aggregated (separateFiles = 0), just be getResult(r,0,cl) */
+BMK_result_t BMK_getResult(BMK_resultSet_t results, unsigned fileIdx, int cLevel);
+void BMK_freeResultSet(BMK_resultSet_t src);
 
 #endif   /* BENCH_H_121279284357 */
 

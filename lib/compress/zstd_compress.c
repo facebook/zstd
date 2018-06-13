@@ -2254,7 +2254,8 @@ ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMo
           ZSTD_compressBlock_lazy_dictMatchState,
           ZSTD_compressBlock_lazy2_dictMatchState,
           ZSTD_compressBlock_btlazy2_dictMatchState,
-          NULL, NULL /* unimplemented as of yet */ }
+          ZSTD_compressBlock_btopt_dictMatchState,
+          ZSTD_compressBlock_btultra_dictMatchState }
     };
     ZSTD_blockCompressor selectedCompressor;
     ZSTD_STATIC_ASSERT((unsigned)ZSTD_fast == 1);

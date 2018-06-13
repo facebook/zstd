@@ -31,6 +31,11 @@
 #include <string.h>     /* strcmp, strlen */
 #include <errno.h>      /* errno */
 
+#if defined (_MSC_VER)
+#  include <sys/stat.h>
+#  include <io.h>
+#endif
+
 #include "mem.h"
 #include "fileio.h"
 #include "util.h"
@@ -57,10 +62,6 @@
 #  include <lz4.h>
 #endif
 
-#if defined (_MSC_VER)
-#  include <sys/stat.h>
-#  include <io.h>
-#endif
 
 /*-*************************************
 *  Constants

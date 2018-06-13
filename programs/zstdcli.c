@@ -801,7 +801,6 @@ int main(int argCount, const char* argv[])
     /* Check if benchmark is selected */
     if (operation==zom_bench) {
 #ifndef ZSTD_NOBENCH
-        BMK_setNotificationLevel(g_displayLevel);
         BMK_setSeparateFiles(separateFiles);
         BMK_setBlockSize(blockSize);
         BMK_setNbWorkers(nbWorkers);
@@ -816,7 +815,7 @@ int main(int argCount, const char* argv[])
         if (g_ldmHashEveryLog != LDM_PARAM_DEFAULT) {
             BMK_setLdmHashEveryLog(g_ldmHashEveryLog);
         }
-        BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast, &compressionParams);
+        BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast, &compressionParams, g_displayLevel);
 #else
         (void)bench_nbSeconds; (void)blockSize; (void)setRealTimePrio; (void)separateFiles;
 #endif

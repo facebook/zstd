@@ -45,8 +45,9 @@
 ****************************************************************/
 #include <string.h>     /* memcpy, memset */
 #include <stdio.h>      /* printf (debug) */
-#include "bitstream.h"
 #include "compiler.h"
+#include "bitstream.h"
+#include "hist.h"
 #define FSE_STATIC_LINKING_ONLY   /* FSE_optimalTableLog_internal */
 #include "fse.h"        /* header compression */
 #define HUF_STATIC_LINKING_ONLY
@@ -100,9 +101,9 @@ size_t HUF_compressWeights (void* dst, size_t dstSize, const void* weightTable, 
     if (wtSize <= 1) return 0;  /* Not compressible */
 
     /* Scan input and build symbol stats */
-    {   CHECK_V_F(maxCount, FSE_count_simple(count, &maxSymbolValue, weightTable, wtSize) );
+    {   unsigned const maxCount = HIST_count_simple(count, &maxSymbolValue, weightTable, wtSize);   /* never fails */
         if (maxCount == wtSize) return 1;   /* only a single symbol in src : rle */
-        if (maxCount == 1) return 0;         /* each symbol present maximum once => not compressible */
+        if (maxCount == 1) return 0;        /* each symbol present maximum once => not compressible */
     }
 
     tableLog = FSE_optimalTableLog(tableLog, wtSize, maxSymbolValue);
@@ -667,7 +668,7 @@ static size_t HUF_compress_internal (
     }
 
     /* Scan input and build symbol stats */
-    {   CHECK_V_F(largest, FSE_count_wksp (table->count, &maxSymbolValue, (const BYTE*)src, srcSize, table->count) );
+    {   CHECK_V_F(largest, HIST_count_wksp (table->count, &maxSymbolValue, (const BYTE*)src, srcSize, table->count) );
         if (largest == srcSize) { *ostart = ((const BYTE*)src)[0]; return 1; }   /* single symbol, rle */
         if (largest <= (srcSize >> 7)+1) return 0;   /* heuristic : probably not compressible enough */
     }

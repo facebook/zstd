@@ -14,6 +14,7 @@
 #include <string.h>         /* memset */
 #include "cpu.h"
 #include "mem.h"
+#include "hist.h"           /* HIST_countFast_wksp */
 #define FSE_STATIC_LINKING_ONLY   /* FSE_encodeSymbol */
 #include "fse.h"
 #define HUF_STATIC_LINKING_ONLY
@@ -2109,7 +2110,7 @@ MEM_STATIC size_t ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
     ZSTD_seqToCodes(seqStorePtr);
     /* build CTable for Literal Lengths */
     {   U32 max = MaxLL;
-        size_t const mostFrequent = FSE_countFast_wksp(count, &max, llCodeTable, nbSeq, workspace);
+        size_t const mostFrequent = HIST_countFast_wksp(count, &max, llCodeTable, nbSeq, workspace);   /* can't fail */
         DEBUGLOG(5, "Building LL table");
         nextEntropy->fse.litlength_repeatMode = prevEntropy->fse.litlength_repeatMode;
         LLtype = ZSTD_selectEncodingType(&nextEntropy->fse.litlength_repeatMode, count, max, mostFrequent, nbSeq, LLFSELog, prevEntropy->fse.litlengthCTable, LL_defaultNorm, LL_defaultNormLog, ZSTD_defaultAllowed, strategy);
@@ -2126,7 +2127,7 @@ MEM_STATIC size_t ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
     }   }
     /* build CTable for Offsets */
     {   U32 max = MaxOff;
-        size_t const mostFrequent = FSE_countFast_wksp(count, &max, ofCodeTable, nbSeq, workspace);
+        size_t const mostFrequent = HIST_countFast_wksp(count, &max, ofCodeTable, nbSeq, workspace);  /* can't fail */
         /* We can only use the basic table if max <= DefaultMaxOff, otherwise the offsets are too large */
         ZSTD_defaultPolicy_e const defaultPolicy = (max <= DefaultMaxOff) ? ZSTD_defaultAllowed : ZSTD_defaultDisallowed;
         DEBUGLOG(5, "Building OF table");
@@ -2144,7 +2145,7 @@ MEM_STATIC size_t ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
     }   }
     /* build CTable for MatchLengths */
     {   U32 max = MaxML;
-        size_t const mostFrequent = FSE_countFast_wksp(count, &max, mlCodeTable, nbSeq, workspace);
+        size_t const mostFrequent = HIST_countFast_wksp(count, &max, mlCodeTable, nbSeq, workspace);   /* can't fail */
         DEBUGLOG(5, "Building ML table");
         nextEntropy->fse.matchlength_repeatMode = prevEntropy->fse.matchlength_repeatMode;
         MLtype = ZSTD_selectEncodingType(&nextEntropy->fse.matchlength_repeatMode, count, max, mostFrequent, nbSeq, MLFSELog, prevEntropy->fse.matchlengthCTable, ML_defaultNorm, ML_defaultNormLog, ZSTD_defaultAllowed, strategy);

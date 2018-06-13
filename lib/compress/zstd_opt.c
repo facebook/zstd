@@ -9,6 +9,7 @@
  */
 
 #include "zstd_compress_internal.h"
+#include "hist.h"
 #include "zstd_opt.h"
 
 
@@ -142,7 +143,7 @@ static void ZSTD_rescaleFreqs(optState_t* const optPtr,
 
             assert(optPtr->litFreq != NULL);
             {   unsigned lit = MaxLit;
-                FSE_count_simple(optPtr->litFreq, &lit, src, srcSize);   /* use raw first block to init statistics */
+                HIST_count_simple(optPtr->litFreq, &lit, src, srcSize);   /* use raw first block to init statistics */
             }
             optPtr->litSum = ZSTD_downscaleStat(optPtr->litFreq, MaxLit, 1);
 

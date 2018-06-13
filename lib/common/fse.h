@@ -72,6 +72,7 @@ extern "C" {
 #define FSE_VERSION_NUMBER  (FSE_VERSION_MAJOR *100*100 + FSE_VERSION_MINOR *100 + FSE_VERSION_RELEASE)
 FSE_PUBLIC_API unsigned FSE_versionNumber(void);   /**< library version number; to be used when checking dll version */
 
+
 /*-****************************************
 *  FSE simple functions
 ******************************************/
@@ -129,7 +130,7 @@ FSE_PUBLIC_API size_t FSE_compress2 (void* dst, size_t dstSize, const void* src,
 ******************************************/
 /*!
 FSE_compress() does the following:
-1. count symbol occurrence from source[] into table count[]
+1. count symbol occurrence from source[] into table count[] (see hist.h)
 2. normalize counters so that sum(count[]) == Power_of_2 (2^tableLog)
 3. save normalized counters to memory buffer using writeNCount()
 4. build encoding table 'CTable' from normalized counters
@@ -147,15 +148,6 @@ or to save and provide normalized distribution using external method.
 
 /* *** COMPRESSION *** */
 
-/*! FSE_count():
-    Provides the precise count of each byte within a table 'count'.
-    'count' is a table of unsigned int, of minimum size (*maxSymbolValuePtr+1).
-    *maxSymbolValuePtr will be updated if detected smaller than initial value.
-    @return : the count of the most frequent symbol (which is not identified).
-              if return == srcSize, there is only one symbol.
-              Can also return an error code, which can be tested with FSE_isError(). */
-FSE_PUBLIC_API size_t FSE_count(unsigned* count, unsigned* maxSymbolValuePtr, const void* src, size_t srcSize);
-
 /*! FSE_optimalTableLog():
     dynamically downsize 'tableLog' when conditions are met.
     It saves CPU time, by using smaller tables, while preserving or even improving compression ratio.
@@ -167,7 +159,8 @@ FSE_PUBLIC_API unsigned FSE_optimalTableLog(unsigned maxTableLog, size_t srcSize
     'normalizedCounter' is a table of short, of minimum size (maxSymbolValue+1).
     @return : tableLog,
               or an errorCode, which can be tested using FSE_isError() */
-FSE_PUBLIC_API size_t FSE_normalizeCount(short* normalizedCounter, unsigned tableLog, const unsigned* count, size_t srcSize, unsigned maxSymbolValue);
+FSE_PUBLIC_API size_t FSE_normalizeCount(short* normalizedCounter, unsigned tableLog,
+                    const unsigned* count, size_t srcSize, unsigned maxSymbolValue);
 
 /*! FSE_NCountWriteBound():
     Provides the maximum possible size of an FSE normalized table, given 'maxSymbolValue' and 'tableLog'.
@@ -178,8 +171,9 @@ FSE_PUBLIC_API size_t FSE_NCountWriteBound(unsigned maxSymbolValue, unsigned tab
     Compactly save 'normalizedCounter' into 'buffer'.
     @return : size of the compressed table,
               or an errorCode, which can be tested using FSE_isError(). */
-FSE_PUBLIC_API size_t FSE_writeNCount (void* buffer, size_t bufferSize, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog);
-
+FSE_PUBLIC_API size_t FSE_writeNCount (void* buffer, size_t bufferSize,
+                                 const short* normalizedCounter,
+                                 unsigned maxSymbolValue, unsigned tableLog);
 
 /*! Constructor and Destructor of FSE_CTable.
     Note that FSE_CTable size depends on 'tableLog' and 'maxSymbolValue' */
@@ -250,7 +244,9 @@ If there is an error, the function will return an ErrorCode (which can be tested
     @return : size read from 'rBuffer',
               or an errorCode, which can be tested using FSE_isError().
               maxSymbolValuePtr[0] and tableLogPtr[0] will also be updated with their respective values */
-FSE_PUBLIC_API size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSymbolValuePtr, unsigned* tableLogPtr, const void* rBuffer, size_t rBuffSize);
+FSE_PUBLIC_API size_t FSE_readNCount (short* normalizedCounter,
+                           unsigned* maxSymbolValuePtr, unsigned* tableLogPtr,
+                           const void* rBuffer, size_t rBuffSize);
 
 /*! Constructor and Destructor of FSE_DTable.
     Note that its size depends on 'tableLog' */
@@ -325,33 +321,8 @@ If there is an error, the function will return an error code, which can be teste
 
 
 /* *****************************************
-*  FSE advanced API
-*******************************************/
-/* FSE_count_wksp() :
- * Same as FSE_count(), but using an externally provided scratch buffer.
- * `workSpace` size must be table of >= `1024` unsigned
- */
-size_t FSE_count_wksp(unsigned* count, unsigned* maxSymbolValuePtr,
-                 const void* source, size_t sourceSize, unsigned* workSpace);
-
-/** FSE_countFast() :
- *  same as FSE_count(), but blindly trusts that all byte values within src are <= *maxSymbolValuePtr
- */
-size_t FSE_countFast(unsigned* count, unsigned* maxSymbolValuePtr, const void* src, size_t srcSize);
-
-/* FSE_countFast_wksp() :
- * Same as FSE_countFast(), but using an externally provided scratch buffer.
- * `workSpace` must be a table of minimum `1024` unsigned
- */
-size_t FSE_countFast_wksp(unsigned* count, unsigned* maxSymbolValuePtr, const void* src, size_t srcSize, unsigned* workSpace);
-
-/*! FSE_count_simple() :
- * Same as FSE_countFast(), but does not use any additional memory (not even on stack).
- * This function is unsafe, and will segfault if any value within `src` is `> *maxSymbolValuePtr` (presuming it's also the size of `count`).
-*/
-size_t FSE_count_simple(unsigned* count, unsigned* maxSymbolValuePtr, const void* src, size_t srcSize);
-
-
+ *  FSE advanced API
+ ***************************************** */
 
 unsigned FSE_optimalTableLog_internal(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue, unsigned minus);
 /**< same as FSE_optimalTableLog(), which used `minus==2` */

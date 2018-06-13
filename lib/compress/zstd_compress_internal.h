@@ -298,7 +298,7 @@ MEM_STATIC U32 ZSTD_MLcode(U32 mlBase)
 */
 MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const void* literals, U32 offsetCode, size_t mlBase)
 {
-#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG >= 6)
+#if defined(DEBUGLEVEL) && (DEBUGLEVEL >= 6)
     static const BYTE* g_start = NULL;
     if (g_start==NULL) g_start = (const BYTE*)literals;  /* note : index only works for compression within a single segment */
     {   U32 const pos = (U32)((const BYTE*)literals - g_start);

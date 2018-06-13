@@ -1034,6 +1034,20 @@ size_t ZSTD_compressBlock_btultra(
     return ZSTD_compressBlock_opt_generic(ms, seqStore, rep, cParams, src, srcSize, 2 /*optLevel*/, ZSTD_noDict);
 }
 
+size_t ZSTD_compressBlock_btopt_dictMatchState(
+        ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
+        const ZSTD_compressionParameters* cParams, const void* src, size_t srcSize)
+{
+    return ZSTD_compressBlock_opt_generic(ms, seqStore, rep, cParams, src, srcSize, 0 /*optLevel*/, ZSTD_dictMatchState);
+}
+
+size_t ZSTD_compressBlock_btultra_dictMatchState(
+        ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
+        const ZSTD_compressionParameters* cParams, const void* src, size_t srcSize)
+{
+    return ZSTD_compressBlock_opt_generic(ms, seqStore, rep, cParams, src, srcSize, 2 /*optLevel*/, ZSTD_dictMatchState);
+}
+
 size_t ZSTD_compressBlock_btopt_extDict(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         const ZSTD_compressionParameters* cParams, const void* src, size_t srcSize)

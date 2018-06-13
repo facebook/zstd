@@ -203,7 +203,7 @@ zstreamtest-dll : $(ZSTREAM_LOCAL_FILES)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(filter %.c,$^) $(LDFLAGS) -o $@$(EXT)
 
 paramgrill : DEBUGFLAGS =   # turn off assert() for speed measurements
-paramgrill : $(ZSTD_FILES) $(PRGDIR)/datagen.c paramgrill.c
+paramgrill : $(ZSTD_FILES) $(PRGDIR)/bench.c $(PRGDIR)/datagen.c paramgrill.c
 	$(CC) $(FLAGS) $^ -lm -o $@$(EXT)
 
 datagen : $(PRGDIR)/datagen.c datagencli.c

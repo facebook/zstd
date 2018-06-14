@@ -356,7 +356,7 @@ static size_t ZSTD_DUBT_findBestMatch (
 
 
 /** ZSTD_BtFindBestMatch() : Tree updater, providing best match */
-static size_t ZSTD_BtFindBestMatch (
+FORCE_INLINE_TEMPLATE size_t ZSTD_BtFindBestMatch (
                         ZSTD_matchState_t* ms, ZSTD_compressionParameters const* cParams,
                         const BYTE* const ip, const BYTE* const iLimit,
                         size_t* offsetPtr,

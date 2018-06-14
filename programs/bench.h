@@ -19,11 +19,16 @@ extern "C" {
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_compressionParameters */
 #include "zstd.h"     /* ZSTD_compressionParameters */
 
-#define BMK_COMPRESS_ONLY 2
-#define BMK_DECODE_ONLY 1
+typedef enum {
+    BMK_timeMode = 0,
+    BMK_iterMode = 1
+} BMK_loopMode_t;
 
-#define TIME_MODE = 0
-#define ITER_MODE = 1
+typedef enum {
+    BMK_both = 0,
+    BMK_decodeOnly = 1,
+    BMK_compressOnly = 2
+} BMK_mode_t;
 
 #define ERROR_STRUCT(baseType, typeName) typedef struct { \
     int error;       \
@@ -55,8 +60,8 @@ ERROR_STRUCT(BMK_customResult_t, BMK_customReturn_t);
 
 /* want all 0 to be default, but wb ldmBucketSizeLog/ldmHashEveryLog */
 typedef struct {
-    unsigned mode; /* 0: all, 1: compress only 2: decode only */
-    int loopMode; /* if loopmode, then nbSeconds = nbLoops */
+    BMK_mode_t mode; /* 0: all, 1: compress only 2: decode only */
+    BMK_loopMode_t loopMode; /* if loopmode, then nbSeconds = nbLoops */
     unsigned nbSeconds; /* default timing is in nbSeconds. If nbCycles != 0 then use that */
     size_t blockSize; /* Maximum allowable size of a block*/
     unsigned nbWorkers; /* multithreading */
@@ -91,8 +96,8 @@ BMK_advancedParams_t BMK_defaultAdvancedParams(void);
  *      .result will contain the speed (B/s) and time per loop (ns)
  */
 BMK_customReturn_t BMK_benchCustom(const char* functionName, size_t blockCount,
-                        const void* const * const srcBuffers, size_t* srcSizes,
-                        void* const * const dstBuffers, size_t* dstSizes,
+                        const void* const * const srcBuffers, const size_t* srcSizes,
+                        void* const * const dstBuffers, const size_t* dstSizes,
                         size_t (*initFn)(void*), size_t (*benchFn)(const void*, size_t, void*, size_t, void*), 
                         void* initPayload, void* benchPayload,
                         unsigned mode, unsigned iter,

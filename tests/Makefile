@@ -133,7 +133,7 @@ fullbench fullbench32 : CPPFLAGS += $(MULTITHREAD_CPP)
 fullbench fullbench32 : LDFLAGS += $(MULTITHREAD_LD)
 fullbench fullbench32 : DEBUGFLAGS =   # turn off assert() for speed measurements
 fullbench fullbench32 : $(ZSTD_FILES)
-fullbench fullbench32 : $(PRGDIR)/datagen.c fullbench.c
+fullbench fullbench32 : $(PRGDIR)/datagen.c $(PRGDIR)/bench.c fullbench.c
 	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
 fullbench-lib : zstd-staticLib

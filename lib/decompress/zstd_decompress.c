@@ -2193,7 +2193,7 @@ static size_t ZSTD_loadEntropy(ZSTD_entropyDTables_t* entropy, const void* const
     dictPtr += 8;   /* skip header = magic + dictID */
 
 
-    {   size_t const hSize = HUF_readDTableX4_wksp(
+    {   size_t const hSize = HUF_readDTableX2_wksp(
             entropy->hufTable, dictPtr, dictEnd - dictPtr,
             entropy->workspace, sizeof(entropy->workspace));
         if (HUF_isError(hSize)) return ERROR(dictionary_corrupted);

@@ -608,7 +608,7 @@ int main(int argCount, const char* argv[])
                          /* Decoding */
                     case 'd':
 #ifndef ZSTD_NOBENCH
-                            adv.mode = BMK_DECODE_ONLY;
+                            adv.mode = BMK_decodeOnly;
                             if (operation==zom_bench) { argument++; break; }  /* benchmark decode (hidden option) */
 #endif
                             operation=zom_decompress; argument++; break;
@@ -816,7 +816,7 @@ int main(int argCount, const char* argv[])
         if (g_ldmHashEveryLog != LDM_PARAM_DEFAULT) {
             adv.ldmHashEveryLog = g_ldmHashEveryLog;
         }
-        BMK_benchFilesAdvanced(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast, &compressionParams, g_displayLevel, &adv);
+        BMK_freeResultSet(BMK_benchFilesAdvanced(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast, &compressionParams, g_displayLevel, &adv).result);
 #else
         (void)bench_nbSeconds; (void)blockSize; (void)setRealTimePrio; (void)separateFiles;
 #endif

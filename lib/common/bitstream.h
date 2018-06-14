@@ -1,8 +1,7 @@
 /* ******************************************************************
    bitstream
    Part of FSE library
-   header file (to include)
-   Copyright (C) 2013-2017, Yann Collet.
+   Copyright (C) 2013-present, Yann Collet.
 
    BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
 
@@ -49,43 +48,8 @@ extern "C" {
 *  Dependencies
 ******************************************/
 #include "mem.h"            /* unaligned access routines */
+#include "debug.h"          /* assert(), DEBUGLOG(), RAWLOG() */
 #include "error_private.h"  /* error codes and messages */
-
-
-/*-*************************************
-*  Debug
-***************************************/
-#if defined(BIT_DEBUG) && (BIT_DEBUG>=1)
-#  include <assert.h>
-#else
-#  ifndef assert
-#    define assert(condition) ((void)0)
-#  endif
-#endif
-
-#if defined(BIT_DEBUG) && (BIT_DEBUG>=2)
-#  include <stdio.h>
-extern int g_debuglog_enable;
-/* recommended values for BIT_DEBUG display levels :
- * 1 : no display, enables assert() only
- * 2 : reserved for currently active debug path
- * 3 : events once per object lifetime (CCtx, CDict, etc.)
- * 4 : events once per frame
- * 5 : events once per block
- * 6 : events once per sequence (*very* verbose) */
-#  define RAWLOG(l, ...) {                                      \
-                if ((g_debuglog_enable) & (l<=BIT_DEBUG)) {    \
-                    fprintf(stderr, __VA_ARGS__);               \
-            }   }
-#  define DEBUGLOG(l, ...) {                                    \
-                if ((g_debuglog_enable) & (l<=BIT_DEBUG)) {    \
-                    fprintf(stderr, __FILE__ ": " __VA_ARGS__); \
-                    fprintf(stderr, " \n");                     \
-            }   }
-#else
-#  define RAWLOG(l, ...)      {}    /* disabled */
-#  define DEBUGLOG(l, ...)    {}    /* disabled */
-#endif
 
 
 /*=========================================
@@ -107,8 +71,7 @@ extern int g_debuglog_enable;
  * A critical property of these streams is that they encode and decode in **reverse** direction.
  * So the first bit sequence you add will be the last to be read, like a LIFO stack.
  */
-typedef struct
-{
+typedef struct {
     size_t bitContainer;
     unsigned bitPos;
     char*  startPtr;
@@ -142,8 +105,7 @@ MEM_STATIC size_t BIT_closeCStream(BIT_CStream_t* bitC);
 /*-********************************************
 *  bitStream decoding API (read backward)
 **********************************************/
-typedef struct
-{
+typedef struct {
     size_t   bitContainer;
     unsigned bitsConsumed;
     const char* ptr;
@@ -260,7 +222,8 @@ MEM_STATIC void BIT_addBits(BIT_CStream_t* bitC,
 }
 
 /*! BIT_addBitsFast() :
- *  works only if `value` is _clean_, meaning all high bits above nbBits are 0 */
+ *  works only if `value` is _clean_,
+ *  meaning all high bits above nbBits are 0 */
 MEM_STATIC void BIT_addBitsFast(BIT_CStream_t* bitC,
                                 size_t value, unsigned nbBits)
 {

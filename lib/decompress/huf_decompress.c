@@ -48,7 +48,7 @@
 *  Error Management
 ****************************************************************/
 #define HUF_isError ERR_isError
-#define HUF_STATIC_ASSERT(c) { enum { HUF_static_assert = 1/(int)(!!(c)) }; }   /* use only *after* variable declarations */
+#define HUF_STATIC_ASSERT(c) DEBUG_STATIC_ASSERT(c)   /* use only *after* variable declarations */
 #define CHECK_F(f) { size_t const err_ = (f); if (HUF_isError(err_)) return err_; }
 
 

@@ -524,6 +524,13 @@ U32 ZSTD_insertBtAndGetAllMatches (
     U32 mnum = 0;
     U32 nbCompares = 1U << cParams->searchLog;
 
+    const ZSTD_matchState_t* dms = ms->dictMatchState;
+    const BYTE* const dmsBase       = dictMode == ZSTD_dictMatchState ? dms->window.base : NULL;
+    const BYTE* const dmsEnd        = dictMode == ZSTD_dictMatchState ? dms->window.nextSrc : NULL;
+    U32         const dmsHighLimit  = dictMode == ZSTD_dictMatchState ? (U32)(dmsEnd - dmsBase) : 0;
+    U32         const dmsLowLimit   = dictMode == ZSTD_dictMatchState ? dms->window.lowLimit : 0;
+    U32         const dmsIndexDelta = dictMode == ZSTD_dictMatchState ? windowLow - dmsHighLimit : 0;
+
     size_t bestLength = lengthToBeat-1;
     DEBUGLOG(8, "ZSTD_insertBtAndGetAllMatches: current=%u", current);
 
@@ -547,7 +554,14 @@ U32 ZSTD_insertBtAndGetAllMatches (
                      & (((U32)((dictLimit-1) - repIndex) >= 3) ) /* intentional overflow : do not test positions overlapping 2 memory segments */)
                   && (ZSTD_readMINMATCH(ip, minMatch) == ZSTD_readMINMATCH(repMatch, minMatch)) ) {
                     repLen = (U32)ZSTD_count_2segments(ip+minMatch, repMatch+minMatch, iLimit, dictEnd, prefixStart) + minMatch;
-            }   }
+                }
+                if (dictMode == ZSTD_dictMatchState
+                  && ( ((repOffset-1) /*intentional overflow*/ < current - windowLow)  /* equivalent to `current > repIndex >= windowLow` */
+                     & (((U32)((dictLimit-1) - repIndex) >= 3) ) /* intentional overflow : do not test positions overlapping 2 memory segments */)) {
+                    const BYTE* const repMatch = dmsBase + repIndex - dmsIndexDelta;
+                    if (ZSTD_readMINMATCH(ip, minMatch) == ZSTD_readMINMATCH(repMatch, minMatch)) {
+                        repLen = (U32)ZSTD_count_2segments(ip+minMatch, repMatch+minMatch, iLimit, dictEnd, prefixStart) + minMatch;
+            }   }   }
             /* save longer solution */
             if (repLen > bestLength) {
                 DEBUGLOG(8, "found repCode %u (ll0:%u, offset:%u) of length %u",

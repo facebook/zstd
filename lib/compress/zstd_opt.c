@@ -603,7 +603,36 @@ U32 ZSTD_insertBtAndGetAllMatches (
                      (ip+mlen == iLimit) ) {  /* best possible length */
                     ms->nextToUpdate = current+1;  /* skip insertion */
                     return 1;
-    }   }   }   }
+                }
+            }
+        } else if (dictMode == ZSTD_dictMatchState) {
+            /* should we perform this search even if the working ctx search
+             * found a match? */
+            U32 const hashLog3 = ms->hashLog3;
+            size_t const hash3 = ZSTD_hash3Ptr(ip, hashLog3);
+            U32 const dmsMatchIndex3 = dms->hashTable3[hash3];
+            if (dmsMatchIndex3 >= dmsLowLimit) {
+                const BYTE* const match = dmsBase + dmsMatchIndex3;
+                size_t mlen = ZSTD_count_2segments(ip, match, iLimit, dmsEnd, prefixStart);
+                if (mlen >= mls) {
+                    U32 const matchIndex3 = dmsMatchIndex3 + dmsIndexDelta;
+                    DEBUGLOG(8, "found small dms match with hlog3, of length %u",
+                                (U32)mlen);
+                    bestLength = mlen;
+                    assert(current > matchIndex3);
+                    assert(mnum==0);  /* no prior solution */
+                    matches[0].off = (current - matchIndex3) + ZSTD_REP_MOVE;
+                    matches[0].len = (U32)mlen;
+                    mnum = 1;
+                    if ( (mlen > sufficient_len) |
+                         (ip+mlen == iLimit) ) {  /* best possible length */
+                        ms->nextToUpdate = current+1;  /* skip insertion */
+                        return 1;
+                    }
+                }
+            }
+        }
+    }
 
     hashTable[h] = current;   /* Update Hash Table */
 

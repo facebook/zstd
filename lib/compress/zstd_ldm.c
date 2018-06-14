@@ -9,6 +9,7 @@
 
 #include "zstd_ldm.h"
 
+#include "debug.h"
 #include "zstd_fast.h"          /* ZSTD_fillHashTable() */
 #include "zstd_double_fast.h"   /* ZSTD_fillDoubleHashTable() */
 
@@ -20,7 +21,7 @@
 void ZSTD_ldm_adjustParameters(ldmParams_t* params,
                                ZSTD_compressionParameters const* cParams)
 {
-    U32 const windowLog = cParams->windowLog;
+    params->windowLog = cParams->windowLog;
     ZSTD_STATIC_ASSERT(LDM_BUCKET_SIZE_LOG <= ZSTD_LDM_BUCKETSIZELOG_MAX);
     DEBUGLOG(4, "ZSTD_ldm_adjustParameters");
     if (!params->bucketSizeLog) params->bucketSizeLog = LDM_BUCKET_SIZE_LOG;
@@ -33,12 +34,13 @@ void ZSTD_ldm_adjustParameters(ldmParams_t* params,
       params->minMatchLength = minMatch;
     }
     if (params->hashLog == 0) {
-        params->hashLog = MAX(ZSTD_HASHLOG_MIN, windowLog - LDM_HASH_RLOG);
+        params->hashLog = MAX(ZSTD_HASHLOG_MIN, params->windowLog - LDM_HASH_RLOG);
         assert(params->hashLog <= ZSTD_HASHLOG_MAX);
     }
     if (params->hashEveryLog == 0) {
-        params->hashEveryLog =
-                windowLog < params->hashLog ? 0 : windowLog - params->hashLog;
+        params->hashEveryLog = params->windowLog < params->hashLog
+                                   ? 0
+                                   : params->windowLog - params->hashLog;
     }
     params->bucketSizeLog = MIN(params->bucketSizeLog, params->hashLog);
 }

@@ -759,8 +759,9 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
     DISPLAYLEVEL(6, "compression using zstd format \n");
 
     /* init */
-    if (fileSize != UTIL_FILESIZE_UNKNOWN)
-        ZSTD_CCtx_setPledgedSrcSize(ress.cctx, fileSize);
+    if (fileSize != UTIL_FILESIZE_UNKNOWN) {
+        CHECK(ZSTD_CCtx_setPledgedSrcSize(ress.cctx, fileSize));
+    }
     (void)compressionLevel; (void)srcFileName;
 
     /* Main compression loop */
@@ -1755,7 +1756,7 @@ int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles
                     && strcmp(suffixPtr, LZMA_EXTENSION)
                     && strcmp(suffixPtr, LZ4_EXTENSION)) ) {
                 const char* suffixlist = ZSTD_EXTENSION
-                #ifdef ZSTD_GZCOMPRESS 
+                #ifdef ZSTD_GZCOMPRESS
                     "/" GZ_EXTENSION
                 #endif
                 #ifdef ZSTD_LZMACOMPRESS

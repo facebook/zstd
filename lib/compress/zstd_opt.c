@@ -612,7 +612,8 @@ U32 ZSTD_insertBtAndGetAllMatches (
             U32 const hashLog3 = ms->hashLog3;
             size_t const hash3 = ZSTD_hash3Ptr(ip, hashLog3);
             U32 const dmsMatchIndex3 = dms->hashTable3[hash3];
-            if (dmsMatchIndex3 >= dmsLowLimit) {
+            matchIndex3 = dmsMatchIndex3 + dmsIndexDelta;
+            if ((dmsMatchIndex3 >= dmsLowLimit) & (current - matchIndex3 < (1<<18))) {
                 const BYTE* const match = dmsBase + dmsMatchIndex3;
                 size_t mlen = ZSTD_count_2segments(ip, match, iLimit, dmsEnd, prefixStart);
                 if (mlen >= mls) {
@@ -664,8 +665,8 @@ U32 ZSTD_insertBtAndGetAllMatches (
             matches[mnum].off = (current - matchIndex) + ZSTD_REP_MOVE;
             matches[mnum].len = (U32)matchLength;
             mnum++;
-            if ( matchLength > ZSTD_OPT_NUM
-               | ip+matchLength == iLimit /* equal : no way to know if inf or sup */) {
+            if ( (matchLength > ZSTD_OPT_NUM)
+               | (ip+matchLength == iLimit) /* equal : no way to know if inf or sup */) {
                 if (dictMode == ZSTD_dictMatchState) nbCompares = 0; /* break should also skip searching dms */
                 break; /* drop, to preserve bt consistency (miss a little bit of compression) */
             }
@@ -709,19 +710,18 @@ U32 ZSTD_insertBtAndGetAllMatches (
                 matches[mnum].off = (current - matchIndex) + ZSTD_REP_MOVE;
                 matches[mnum].len = (U32)matchLength;
                 mnum++;
-                if ( matchLength > ZSTD_OPT_NUM
-                   | ip+matchLength == iLimit /* equal : no way to know if inf or sup */) {
+                if ( (matchLength > ZSTD_OPT_NUM)
+                   | (ip+matchLength == iLimit) /* equal : no way to know if inf or sup */) {
                     break;   /* drop, to guarantee consistency (miss a little bit of compression) */
                 }
             }
 
+            if (dictMatchIndex <= btLow) { break; }   /* beyond tree size, stop the search */
             if (match[matchLength] < ip[matchLength]) {
-                if (dictMatchIndex <= btLow) { break; }   /* beyond tree size, stop the search */
                 commonLengthSmaller = matchLength;    /* all smaller will now have at least this guaranteed common length */
                 dictMatchIndex = nextPtr[1];              /* new matchIndex larger than previous (closer to current) */
             } else {
                 /* match is larger than current */
-                if (dictMatchIndex <= btLow) { break; }   /* beyond tree size, stop the search */
                 commonLengthLarger = matchLength;
                 dictMatchIndex = nextPtr[0];
             }

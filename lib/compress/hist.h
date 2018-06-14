@@ -81,10 +81,12 @@ size_t HIST_countFast_wksp(unsigned* count, unsigned* maxSymbolValuePtr,
                            unsigned* workSpace);
 
 /*! HIST_count_simple() :
- *  Same as HIST_countFast(), but does not use any additional memory (not even on stack).
- *  This function is unsafe, and will segfault if any value within `src` is `> *maxSymbolValuePtr`.
+ *  Same as HIST_countFast(), this function is unsafe,
+ *  and will segfault if any value within `src` is `> *maxSymbolValuePtr`.
  *  It is also a bit slower for large inputs.
- *  This function doesn't produce any error (i.e. it must succeed).
+ *  However, it does not need any additional memory (not even on stack).
+ * @return : count of the most frequent symbol.
+ *  Note this function doesn't produce any error (i.e. it must succeed).
  */
 unsigned HIST_count_simple(unsigned* count, unsigned* maxSymbolValuePtr,
                            const void* src, size_t srcSize);

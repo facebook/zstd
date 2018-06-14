@@ -547,7 +547,9 @@ U32 ZSTD_insertBtAndGetAllMatches (
                     repLen = (U32)ZSTD_count(ip+minMatch, ip+minMatch-repOffset, iLimit) + minMatch;
                 }
             } else {  /* repIndex < dictLimit || repIndex >= current */
-                const BYTE* const repMatch = dictBase + repIndex;
+                const BYTE* const repMatch = dictMode == ZSTD_dictMatchState ?
+                                             dmsBase + repIndex - dmsIndexDelta :
+                                             dictBase + repIndex;
                 assert(current >= windowLow);
                 if ( dictMode == ZSTD_extDict /* this case only valid in extDict mode */
                   && ( ((repOffset-1) /*intentional overflow*/ < current - windowLow)  /* equivalent to `current > repIndex >= windowLow` */
@@ -557,11 +559,10 @@ U32 ZSTD_insertBtAndGetAllMatches (
                 }
                 if (dictMode == ZSTD_dictMatchState
                   && ( ((repOffset-1) /*intentional overflow*/ < current - windowLow)  /* equivalent to `current > repIndex >= windowLow` */
-                     & (((U32)((dictLimit-1) - repIndex) >= 3) ) /* intentional overflow : do not test positions overlapping 2 memory segments */)) {
-                    const BYTE* const repMatch = dmsBase + repIndex - dmsIndexDelta;
-                    if (ZSTD_readMINMATCH(ip, minMatch) == ZSTD_readMINMATCH(repMatch, minMatch)) {
-                        repLen = (U32)ZSTD_count_2segments(ip+minMatch, repMatch+minMatch, iLimit, dmsEnd, prefixStart) + minMatch;
-            }   }   }
+                     & (((U32)((dictLimit-1) - repIndex) >= 3) ) /* intentional overflow : do not test positions overlapping 2 memory segments */)
+                  && (ZSTD_readMINMATCH(ip, minMatch) == ZSTD_readMINMATCH(repMatch, minMatch)) ) {
+                    repLen = (U32)ZSTD_count_2segments(ip+minMatch, repMatch+minMatch, iLimit, dmsEnd, prefixStart) + minMatch;
+            }   }
             /* save longer solution */
             if (repLen > bestLength) {
                 DEBUGLOG(8, "found repCode %u (ll0:%u, offset:%u) of length %u",
@@ -577,7 +578,7 @@ U32 ZSTD_insertBtAndGetAllMatches (
 
     /* HC3 match finder */
     if ((mls == 3) /*static*/ && (bestLength < mls)) {
-        U32 const matchIndex3 = ZSTD_insertAndFindFirstIndexHash3(ms, ip);
+        U32 matchIndex3 = ZSTD_insertAndFindFirstIndexHash3(ms, ip);
         if ((matchIndex3 > windowLow)
           & (current - matchIndex3 < (1<<18)) /*heuristic : longer distance likely too expensive*/ ) {
             size_t mlen;
@@ -615,7 +616,7 @@ U32 ZSTD_insertBtAndGetAllMatches (
                 const BYTE* const match = dmsBase + dmsMatchIndex3;
                 size_t mlen = ZSTD_count_2segments(ip, match, iLimit, dmsEnd, prefixStart);
                 if (mlen >= mls) {
-                    U32 const matchIndex3 = dmsMatchIndex3 + dmsIndexDelta;
+                    matchIndex3 = dmsMatchIndex3 + dmsIndexDelta;
                     DEBUGLOG(8, "found small dms match with hlog3, of length %u",
                                 (U32)mlen);
                     bestLength = mlen;
@@ -642,7 +643,7 @@ U32 ZSTD_insertBtAndGetAllMatches (
         const BYTE* match;
         assert(current > matchIndex);
 
-        if ((dictMode == ZSTD_noDict) || (matchIndex+matchLength >= dictLimit)) {
+        if ((dictMode == ZSTD_noDict) || (dictMode == ZSTD_dictMatchState) || (matchIndex+matchLength >= dictLimit)) {
             assert(matchIndex+matchLength >= dictLimit);  /* ensure the condition is correct when !extDict */
             match = base + matchIndex;
             matchLength += ZSTD_count(ip+matchLength, match+matchLength, iLimit);

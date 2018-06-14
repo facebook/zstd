@@ -560,7 +560,7 @@ U32 ZSTD_insertBtAndGetAllMatches (
                      & (((U32)((dictLimit-1) - repIndex) >= 3) ) /* intentional overflow : do not test positions overlapping 2 memory segments */)) {
                     const BYTE* const repMatch = dmsBase + repIndex - dmsIndexDelta;
                     if (ZSTD_readMINMATCH(ip, minMatch) == ZSTD_readMINMATCH(repMatch, minMatch)) {
-                        repLen = (U32)ZSTD_count_2segments(ip+minMatch, repMatch+minMatch, iLimit, dictEnd, prefixStart) + minMatch;
+                        repLen = (U32)ZSTD_count_2segments(ip+minMatch, repMatch+minMatch, iLimit, dmsEnd, prefixStart) + minMatch;
             }   }   }
             /* save longer solution */
             if (repLen > bestLength) {

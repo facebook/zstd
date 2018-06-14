@@ -425,7 +425,7 @@ static U32 ZSTD_insertBt1(
         }
 #endif
 
-        if ((dictMode != ZSTD_extDict) || (matchIndex+matchLength >= dictLimit)) {
+        if ((dictMode == ZSTD_noDict) || (matchIndex+matchLength >= dictLimit)) {
             assert(matchIndex+matchLength >= dictLimit);   /* might be wrong if actually extDict */
             match = base + matchIndex;
             matchLength += ZSTD_count(ip+matchLength, match+matchLength, iend);
@@ -581,7 +581,7 @@ U32 ZSTD_insertBtAndGetAllMatches (
         if ((matchIndex3 > windowLow)
           & (current - matchIndex3 < (1<<18)) /*heuristic : longer distance likely too expensive*/ ) {
             size_t mlen;
-            if ((dictMode != ZSTD_extDict) /*static*/ || (matchIndex3 >= dictLimit)) {
+            if ((dictMode == ZSTD_noDict) /*static*/ || (matchIndex3 >= dictLimit)) {
                 const BYTE* const match = base + matchIndex3;
                 mlen = ZSTD_count(ip, match, iLimit);
             } else {
@@ -613,7 +613,7 @@ U32 ZSTD_insertBtAndGetAllMatches (
         const BYTE* match;
         assert(current > matchIndex);
 
-        if ((dictMode != ZSTD_extDict) || (matchIndex+matchLength >= dictLimit)) {
+        if ((dictMode == ZSTD_noDict) || (matchIndex+matchLength >= dictLimit)) {
             assert(matchIndex+matchLength >= dictLimit);  /* ensure the condition is correct when !extDict */
             match = base + matchIndex;
             matchLength += ZSTD_count(ip+matchLength, match+matchLength, iLimit);

@@ -46,14 +46,6 @@ unsigned HIST_isError(size_t code) { return ERR_isError(code); }
 /*-**************************************************************
  *  Histogram functions
  ****************************************************************/
-/*! HIST_count_simple :
-    Counts byte values within `src`, storing histogram into table `count`.
-    Doesn't use any additional memory, very limited stack usage.
-    But unsafe : doesn't check that all values within `src` fit into `count`.
-    For this reason, prefer using a table `count` of size 256.
-    @return : count of most numerous element.
-              this function doesn't produce any error (i.e. it must succeed).
-*/
 unsigned HIST_count_simple(unsigned* count, unsigned* maxSymbolValuePtr,
                            const void* src, size_t srcSize)
 {
@@ -83,7 +75,10 @@ unsigned HIST_count_simple(unsigned* count, unsigned* maxSymbolValuePtr,
 
 
 /* HIST_count_parallel_wksp() :
- * Same as HIST_count_parallel(), but using an externally provided scratch buffer.
+ * store histogram into 4 intermediate tables, recombined at the end.
+ * this design makes better use of OoO cpus,
+ * and is noticeably faster when some values are heavily repeated.
+ * But it needs some additional workspace for intermediate tables.
  * `workSpace` size must be a table of size >= HIST_WKSP_SIZE_U32.
  * @return : largest histogram frequency,
  *           or an error code (notably when histogram would be larger than *maxSymbolValuePtr). */

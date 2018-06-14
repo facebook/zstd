@@ -664,9 +664,10 @@ U32 ZSTD_insertBtAndGetAllMatches (
             matches[mnum].off = (current - matchIndex) + ZSTD_REP_MOVE;
             matches[mnum].len = (U32)matchLength;
             mnum++;
-            if (matchLength > ZSTD_OPT_NUM) break;
-            if (ip+matchLength == iLimit) {  /* equal : no way to know if inf or sup */
-                break;   /* drop, to preserve bt consistency (miss a little bit of compression) */
+            if ( matchLength > ZSTD_OPT_NUM
+               | ip+matchLength == iLimit /* equal : no way to know if inf or sup */) {
+                if (dictMode == ZSTD_dictMatchState) nbCompares = 0; /* break should also skip searching dms */
+                break; /* drop, to preserve bt consistency (miss a little bit of compression) */
             }
         }
 
@@ -686,6 +687,46 @@ U32 ZSTD_insertBtAndGetAllMatches (
     }   }
 
     *smallerPtr = *largerPtr = 0;
+
+    commonLengthSmaller = commonLengthLarger = 0;
+
+    if (dictMode == ZSTD_dictMatchState && nbCompares) {
+        U32 dictMatchIndex = dms->hashTable[h];
+        const U32* const dmsBt = dms->chainTable;
+        while (nbCompares-- && (dictMatchIndex > dmsLowLimit)) {
+            const U32* const nextPtr = dmsBt + 2*(dictMatchIndex & btMask);
+            size_t matchLength = MIN(commonLengthSmaller, commonLengthLarger);   /* guaranteed minimum nb of common bytes */
+            const BYTE* match = dmsBase + dictMatchIndex;
+            matchLength += ZSTD_count_2segments(ip+matchLength, match+matchLength, iLimit, dmsEnd, prefixStart);
+            if (dictMatchIndex+matchLength >= dmsHighLimit)
+                match = base + dictMatchIndex + dmsIndexDelta;   /* to prepare for next usage of match[matchLength] */
+
+            if (matchLength > bestLength) {
+                matchIndex = dictMatchIndex + dmsIndexDelta;
+                if (matchLength > matchEndIdx - matchIndex)
+                    matchEndIdx = matchIndex + (U32)matchLength;
+                bestLength = matchLength;
+                matches[mnum].off = (current - matchIndex) + ZSTD_REP_MOVE;
+                matches[mnum].len = (U32)matchLength;
+                mnum++;
+                if ( matchLength > ZSTD_OPT_NUM
+                   | ip+matchLength == iLimit /* equal : no way to know if inf or sup */) {
+                    break;   /* drop, to guarantee consistency (miss a little bit of compression) */
+                }
+            }
+
+            if (match[matchLength] < ip[matchLength]) {
+                if (dictMatchIndex <= btLow) { break; }   /* beyond tree size, stop the search */
+                commonLengthSmaller = matchLength;    /* all smaller will now have at least this guaranteed common length */
+                dictMatchIndex = nextPtr[1];              /* new matchIndex larger than previous (closer to current) */
+            } else {
+                /* match is larger than current */
+                if (dictMatchIndex <= btLow) { break; }   /* beyond tree size, stop the search */
+                commonLengthLarger = matchLength;
+                dictMatchIndex = nextPtr[0];
+            }
+        }
+    }
 
     assert(matchEndIdx > current+8);
     ms->nextToUpdate = matchEndIdx - 8;  /* skip repetitive patterns */

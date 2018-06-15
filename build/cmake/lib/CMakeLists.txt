@@ -55,6 +55,7 @@ SET(Sources
 
 SET(Headers
         ${LIBRARY_DIR}/zstd.h
+        ${LIBRARY_DIR}/common/debug.h
         ${LIBRARY_DIR}/common/pool.h
         ${LIBRARY_DIR}/common/threading.h
         ${LIBRARY_DIR}/common/bitstream.h

@@ -360,6 +360,9 @@ test-fullbench32: fullbench32 datagen
 test-fuzzer: fuzzer
 	$(QEMU_SYS) ./fuzzer -v $(FUZZERTEST) $(FUZZER_FLAGS)
 
+test-fuzzer-stackmode: MOREFLAGS += -DZSTD_HEAPMODE=0
+test-fuzzer-stackmode: test-fuzzer
+
 test-fuzzer32: fuzzer32
 	$(QEMU_SYS) ./fuzzer32 -v $(FUZZERTEST) $(FUZZER_FLAGS)
 

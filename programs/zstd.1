@@ -185,7 +185,14 @@ add integrity check computed from uncompressed data (default: enabled)
 .TP
 \fB\-\-\fR
 All arguments after \fB\-\-\fR are treated as files
-.
+
+.SH Parallel Zstd OPTIONS
+Additional options for the pzstd utility
+.TP
+.BR \-p ", " --processes
+ number of threads to use for (de)compression (default:4)
+
+
 .SH "DICTIONARY BUILDER"
 \fBzstd\fR offers \fIdictionary\fR compression, which greatly improves efficiency on small files and messages\. It\'s possible to train \fBzstd\fR with a set of samples, the result of which is saved into a file called a \fBdictionary\fR\. Then during compression and decompression, reference the same dictionary, using command \fB\-D dictionaryFileName\fR\. Compression of small files similar to the sample set will be greatly improved\.
 .

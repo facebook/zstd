@@ -384,6 +384,7 @@ static U32 ZSTD_insertBt1(
     U32* largerPtr  = smallerPtr + 1;
     U32 dummy32;   /* to be nullified at the end */
     U32 const windowLow = ms->window.lowLimit;
+    U32 const matchLow = windowLow ? windowLow : 1;
     U32 matchEndIdx = current+8+1;
     size_t bestLength = 8;
     U32 nbCompares = 1U << cParams->searchLog;
@@ -399,7 +400,7 @@ static U32 ZSTD_insertBt1(
     assert(ip <= iend-8);   /* required for h calculation */
     hashTable[h] = current;   /* Update Hash Table */
 
-    while (nbCompares-- && (matchIndex > windowLow)) {
+    while (nbCompares-- && (matchIndex >= matchLow)) {
         U32* const nextPtr = bt + 2*(matchIndex & btMask);
         size_t matchLength = MIN(commonLengthSmaller, commonLengthLarger);   /* guaranteed minimum nb of common bytes */
         assert(matchIndex < current);
@@ -517,6 +518,7 @@ U32 ZSTD_insertBtAndGetAllMatches (
     const BYTE* const prefixStart = base + dictLimit;
     U32 const btLow = btMask >= current ? 0 : current - btMask;
     U32 const windowLow = ms->window.lowLimit;
+    U32 const matchLow = windowLow ? windowLow : 1;
     U32* smallerPtr = bt + 2*(current&btMask);
     U32* largerPtr  = bt + 2*(current&btMask) + 1;
     U32 matchEndIdx = current+8+1;   /* farthest referenced position of any match => detects repetitive patterns */
@@ -638,7 +640,7 @@ U32 ZSTD_insertBtAndGetAllMatches (
 
     hashTable[h] = current;   /* Update Hash Table */
 
-    while (nbCompares-- && (matchIndex > windowLow)) {
+    while (nbCompares-- && (matchIndex >= matchLow)) {
         U32* const nextPtr = bt + 2*(matchIndex & btMask);
         size_t matchLength = MIN(commonLengthSmaller, commonLengthLarger);   /* guaranteed minimum nb of common bytes */
         const BYTE* match;

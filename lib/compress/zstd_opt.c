@@ -425,7 +425,7 @@ static U32 ZSTD_insertBt1(
         }
 #endif
 
-        if ((dictMode == ZSTD_noDict) || (matchIndex+matchLength >= dictLimit)) {
+        if ((dictMode == ZSTD_noDict) || (dictMode == ZSTD_dictMatchState) || (matchIndex+matchLength >= dictLimit)) {
             assert(matchIndex+matchLength >= dictLimit);   /* might be wrong if actually extDict */
             match = base + matchIndex;
             matchLength += ZSTD_count(ip+matchLength, match+matchLength, iend);
@@ -530,6 +530,7 @@ U32 ZSTD_insertBtAndGetAllMatches (
     U32         const dmsHighLimit  = dictMode == ZSTD_dictMatchState ? (U32)(dmsEnd - dmsBase) : 0;
     U32         const dmsLowLimit   = dictMode == ZSTD_dictMatchState ? dms->window.lowLimit : 0;
     U32         const dmsIndexDelta = dictMode == ZSTD_dictMatchState ? windowLow - dmsHighLimit : 0;
+    U32         const dmsBtLow      = dictMode == ZSTD_dictMatchState || btMask >= dmsHighLimit ? 0 : dmsHighLimit - btMask;
 
     size_t bestLength = lengthToBeat-1;
     DEBUGLOG(8, "ZSTD_insertBtAndGetAllMatches: current=%u", current);
@@ -551,15 +552,14 @@ U32 ZSTD_insertBtAndGetAllMatches (
                                              dmsBase + repIndex - dmsIndexDelta :
                                              dictBase + repIndex;
                 assert(current >= windowLow);
-                if ( dictMode == ZSTD_extDict /* this case only valid in extDict mode */
+                if ( dictMode == ZSTD_extDict
                   && ( ((repOffset-1) /*intentional overflow*/ < current - windowLow)  /* equivalent to `current > repIndex >= windowLow` */
                      & (((U32)((dictLimit-1) - repIndex) >= 3) ) /* intentional overflow : do not test positions overlapping 2 memory segments */)
                   && (ZSTD_readMINMATCH(ip, minMatch) == ZSTD_readMINMATCH(repMatch, minMatch)) ) {
                     repLen = (U32)ZSTD_count_2segments(ip+minMatch, repMatch+minMatch, iLimit, dictEnd, prefixStart) + minMatch;
                 }
                 if (dictMode == ZSTD_dictMatchState
-                  && ( ((repOffset-1) /*intentional overflow*/ < current - windowLow)  /* equivalent to `current > repIndex >= windowLow` */
-                     & (((U32)((dictLimit-1) - repIndex) >= 3) ) /* intentional overflow : do not test positions overlapping 2 memory segments */)
+                  && ((U32)((dictLimit-1) - repIndex) >= 3) /* intentional overflow : do not test positions overlapping 2 memory segments */
                   && (ZSTD_readMINMATCH(ip, minMatch) == ZSTD_readMINMATCH(repMatch, minMatch)) ) {
                     repLen = (U32)ZSTD_count_2segments(ip+minMatch, repMatch+minMatch, iLimit, dmsEnd, prefixStart) + minMatch;
             }   }
@@ -582,7 +582,7 @@ U32 ZSTD_insertBtAndGetAllMatches (
         if ((matchIndex3 > windowLow)
           & (current - matchIndex3 < (1<<18)) /*heuristic : longer distance likely too expensive*/ ) {
             size_t mlen;
-            if ((dictMode == ZSTD_noDict) /*static*/ || (matchIndex3 >= dictLimit)) {
+            if ((dictMode == ZSTD_noDict) /*static*/ || (dictMode == ZSTD_dictMatchState) /*static*/ || (matchIndex3 >= dictLimit)) {
                 const BYTE* const match = base + matchIndex3;
                 mlen = ZSTD_count(ip, match, iLimit);
             } else {
@@ -716,7 +716,7 @@ U32 ZSTD_insertBtAndGetAllMatches (
                 }
             }
 
-            if (dictMatchIndex <= btLow) { break; }   /* beyond tree size, stop the search */
+            if (dictMatchIndex <= dmsBtLow) { break; }   /* beyond tree size, stop the search */
             if (match[matchLength] < ip[matchLength]) {
                 commonLengthSmaller = matchLength;    /* all smaller will now have at least this guaranteed common length */
                 dictMatchIndex = nextPtr[1];              /* new matchIndex larger than previous (closer to current) */

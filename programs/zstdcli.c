@@ -398,7 +398,7 @@ int main(int argCount, const char* argv[])
         setRealTimePrio = 0,
         singleThread = 0,
         ultra=0;
-    BMK_advancedParams_t adv = BMK_defaultAdvancedParams();
+    BMK_advancedParams_t adv = BMK_initAdvancedParams();
     unsigned bench_nbSeconds = 3;   /* would be better if this value was synchronized from bench */
     size_t blockSize = 0;
     zstd_operation_mode operation = zom_compress;
@@ -802,7 +802,6 @@ int main(int argCount, const char* argv[])
     /* Check if benchmark is selected */
     if (operation==zom_bench) {
 #ifndef ZSTD_NOBENCH
-        adv.separateFiles = separateFiles;
         adv.blockSize = blockSize;
         adv.nbWorkers = nbWorkers;
         adv.realTime = setRealTimePrio;
@@ -816,7 +815,18 @@ int main(int argCount, const char* argv[])
         if (g_ldmHashEveryLog != LDM_PARAM_DEFAULT) {
             adv.ldmHashEveryLog = g_ldmHashEveryLog;
         }
-        BMK_freeResultSet(BMK_benchFilesAdvanced(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast, &compressionParams, g_displayLevel, &adv).result);
+
+        for(; cLevel <= cLevelLast; cLevel++) {
+            if(separateFiles) {
+                unsigned i;
+                for(i = 0; i < filenameIdx; i++) {
+                    BMK_benchFilesAdvanced(&filenameTable[i], 1, dictFileName, cLevel, &compressionParams, g_displayLevel, &adv);
+                }
+            } else {
+                BMK_benchFilesAdvanced(filenameTable, filenameIdx, dictFileName, cLevel, &compressionParams, g_displayLevel, &adv);
+            }
+        }
+
 #else
         (void)bench_nbSeconds; (void)blockSize; (void)setRealTimePrio; (void)separateFiles;
 #endif

@@ -431,14 +431,16 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
 
     /* benchmark loop */
     {
-        BMK_customReturn_t r = BMK_benchCustom(benchName, 1, &src, &srcSize, (void * const * const)&dstBuff, &dstBuffSize, &local_nothing, benchFunction, 
-            NULL, buff2, BMK_timeMode, 1, 2);
+        BMK_customReturn_t r = BMK_benchFunction(1, &src, &srcSize, 
+            (void * const * const)&dstBuff, &dstBuffSize, 
+            &local_nothing, NULL, 
+            benchFunction, buff2, BMK_timeMode, 1);
         if(r.error) {
             DISPLAY("ERROR %d ! ! \n", r.error);
             exit(1);
         }
 
-        DISPLAY("%2u#Speed: %f MB/s - Size: %f MB\n", benchNb, (double)srcSize / r.result.time * 1000, (double)r.result.size / 1000000);
+        DISPLAY("%2u#Speed: %f MB/s - Size: %f MB - %s\n", benchNb, (double)srcSize / r.result.nanoSecPerRun * 1000, (double)r.result.sumOfReturn / 1000000, benchName);
     }
     
 _cleanOut:

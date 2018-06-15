@@ -34,6 +34,7 @@ SET(Sources
         ${LIBRARY_DIR}/common/zstd_common.c
         ${LIBRARY_DIR}/common/error_private.c
         ${LIBRARY_DIR}/common/xxhash.c
+        ${LIBRARY_DIR}/compress/hist.c
         ${LIBRARY_DIR}/compress/fse_compress.c
         ${LIBRARY_DIR}/compress/huf_compress.c
         ${LIBRARY_DIR}/compress/zstd_compress.c
@@ -54,6 +55,7 @@ SET(Sources
 
 SET(Headers
         ${LIBRARY_DIR}/zstd.h
+        ${LIBRARY_DIR}/common/debug.h
         ${LIBRARY_DIR}/common/pool.h
         ${LIBRARY_DIR}/common/threading.h
         ${LIBRARY_DIR}/common/bitstream.h
@@ -63,6 +65,7 @@ SET(Headers
         ${LIBRARY_DIR}/common/huf.h
         ${LIBRARY_DIR}/common/mem.h
         ${LIBRARY_DIR}/common/zstd_internal.h
+        ${LIBRARY_DIR}/compress/hist.h
         ${LIBRARY_DIR}/compress/zstd_compress_internal.h
         ${LIBRARY_DIR}/compress/zstd_fast.h
         ${LIBRARY_DIR}/compress/zstd_double_fast.h

@@ -192,6 +192,8 @@ static void ZSTD_initDCtx_internal(ZSTD_DCtx* dctx)
     dctx->inBuffSize  = 0;
     dctx->outBuffSize = 0;
     dctx->streamStage = zdss_init;
+    dctx->legacyContext = NULL;
+    dctx->previousLegacyVersion = 0;
     dctx->bmi2 = ZSTD_cpuid_bmi2(ZSTD_cpuid());
 }
 
@@ -215,8 +217,6 @@ ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem)
     {   ZSTD_DCtx* const dctx = (ZSTD_DCtx*)ZSTD_malloc(sizeof(*dctx), customMem);
         if (!dctx) return NULL;
         dctx->customMem = customMem;
-        dctx->legacyContext = NULL;
-        dctx->previousLegacyVersion = 0;
         ZSTD_initDCtx_internal(dctx);
         return dctx;
     }
@@ -1996,6 +1996,7 @@ size_t ZSTD_decompress(void* dst, size_t dstCapacity, const void* src, size_t sr
     return regenSize;
 #else   /* stack mode */
     ZSTD_DCtx dctx;
+    ZSTD_initDCtx_internal(&dctx);
     return ZSTD_decompressDCtx(&dctx, dst, dstCapacity, src, srcSize);
 #endif
 }

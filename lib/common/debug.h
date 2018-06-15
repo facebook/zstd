@@ -93,18 +93,18 @@ extern "C" {
 
 #if (DEBUGLEVEL>=2)
 #  include <stdio.h>
-extern int g_debug_level; /* here, this variable is only declared,
+extern int g_debuglevel; /* here, this variable is only declared,
                            it actually lives in debug.c,
                            and is shared by the whole process.
                            It's typically used to enable very verbose levels
                            on selective conditions (such as position in src) */
 
 #  define RAWLOG(l, ...) {                                      \
-                if (l<=g_debug_level) {                         \
+                if (l<=g_debuglevel) {                          \
                     fprintf(stderr, __VA_ARGS__);               \
             }   }
 #  define DEBUGLOG(l, ...) {                                    \
-                if (l<=g_debug_level) {                         \
+                if (l<=g_debuglevel) {                          \
                     fprintf(stderr, __FILE__ ": " __VA_ARGS__); \
                     fprintf(stderr, " \n");                     \
             }   }

@@ -408,10 +408,12 @@ ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output
 #define ZSTD_FRAMEHEADERSIZE_PREFIX 5   /* minimum input size to know frame header size */
 #define ZSTD_FRAMEHEADERSIZE_MIN    6
 #define ZSTD_FRAMEHEADERSIZE_MAX   18   /* for static allocation */
-static const size_t ZSTD_frameHeaderSize_prefix = ZSTD_FRAMEHEADERSIZE_PREFIX;
-static const size_t ZSTD_frameHeaderSize_min = ZSTD_FRAMEHEADERSIZE_MIN;
-static const size_t ZSTD_frameHeaderSize_max = ZSTD_FRAMEHEADERSIZE_MAX;
-static const size_t ZSTD_skippableHeaderSize = 8;  /* magic number + skippable frame length */
+
+#define ZSTD_frameHeaderSize_prefix ZSTD_FRAMEHEADERSIZE_PREFIX
+#define ZSTD_frameHeaderSize_min    ZSTD_FRAMEHEADERSIZE_MIN
+#define ZSTD_frameHeaderSize_max    ZSTD_FRAMEHEADERSIZE_MAX
+#define ZSTD_skippableHeaderSize    8
+
 
 
 /*--- Advanced types ---*/
@@ -600,7 +602,7 @@ ZSTDLIB_API const ZSTD_DDict* ZSTD_initStaticDDict(
 typedef void* (*ZSTD_allocFunction) (void* opaque, size_t size);
 typedef void  (*ZSTD_freeFunction) (void* opaque, void* address);
 typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; void* opaque; } ZSTD_customMem;
-static ZSTD_customMem const ZSTD_defaultCMem = { NULL, NULL, NULL };  /**< this constant defers to stdlib's functions */
+#define ZSTD_defaultCMem ((ZSTD_customMem){ NULL, NULL, NULL})   /**< this defers memory management to stdlib's functions */
 
 ZSTDLIB_API ZSTD_CCtx*    ZSTD_createCCtx_advanced(ZSTD_customMem customMem);
 ZSTDLIB_API ZSTD_CStream* ZSTD_createCStream_advanced(ZSTD_customMem customMem);

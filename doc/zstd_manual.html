@@ -486,7 +486,7 @@ ZSTD_CStream* ZSTD_initStaticCStream(void* workspace, size_t workspaceSize);    
 <pre><b>typedef void* (*ZSTD_allocFunction) (void* opaque, size_t size);
 typedef void  (*ZSTD_freeFunction) (void* opaque, void* address);
 typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; void* opaque; } ZSTD_customMem;
-static ZSTD_customMem const ZSTD_defaultCMem = { NULL, NULL, NULL };  </b>/**< this constant defers to stdlib's functions */<b>
+#define ZSTD_defaultCMem ((ZSTD_customMem){ NULL, NULL, NULL})   </b>/**< this defers memory management to stdlib's functions */<b>
 </b><p>  These prototypes make it possible to pass your own allocation/free functions.
   ZSTD_customMem is provided at creation time, using ZSTD_create*_advanced() variants listed below.
   All allocation/free operations will be completed using these custom variants instead of regular <stdlib.h> ones.

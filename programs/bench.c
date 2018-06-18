@@ -818,30 +818,6 @@ static BMK_return_t BMK_benchFileTable(const char* const * const fileNamesTable,
         }
     }
     /* Bench */
-    /*
-    if (adv->separateFiles) {
-        const BYTE* srcPtr = (const BYTE*)srcBuffer;
-        U32 fileNb;
-        res.result.results = (BMK_result_t**)malloc(sizeof(BMK_result_t*) * nbFiles);
-        res.result.nbFiles = nbFiles;
-        if(res.result.results == NULL) EXM_THROW(12, BMK_return_t, "not enough memory");
-        for (fileNb=0; fileNb<nbFiles; fileNb++) {
-            size_t const fileSize = fileSizes[fileNb];
-            BMK_return_t errorOrPtr = BMK_benchCLevel(srcPtr, fileSize,
-                            fileSizes+fileNb, 1, 
-                            cLevel, compressionParams,
-                            dictBuffer, dictBufferSize, 
-                            displayLevel, fileNamesTable[fileNb], 
-                            adv);
-            if(errorOrPtr.error) {
-                res.error = errorOrPtr.error;
-                return res;
-            }
-            res.result.results[fileNb] = errorOrPtr.result;
-            srcPtr += fileSize;
-        }
-
-    } else */
     {
         char mfName[20] = {0};
         snprintf (mfName, sizeof(mfName), " %u files", nbFiles);
@@ -899,12 +875,9 @@ BMK_return_t BMK_benchFilesAdvanced(const char** fileNamesTable, unsigned nbFile
 {
     double const compressibility = (double)g_compressibilityDefault / 100;
 
-    if (cLevel > ZSTD_maxCLevel()) cLevel = ZSTD_maxCLevel();
-    /* if (cLevelLast > ZSTD_maxCLevel()) cLevelLast = ZSTD_maxCLevel();
-    if (cLevelLast < cLevel) cLevelLast = cLevel;
-    if (cLevelLast > cLevel) 
-        DISPLAYLEVEL(2, "Benchmarking levels from %d to %d\n", cLevel, cLevelLast); */
-
+    if (cLevel > ZSTD_maxCLevel()) {
+        EXM_THROW(15, BMK_return_t, "Invalid Compression Level");
+    }
     if (nbFiles == 0) {
         return BMK_syntheticTest(cLevel, compressibility, compressionParams, displayLevel, adv);
     }

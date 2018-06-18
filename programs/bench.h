@@ -75,11 +75,12 @@ typedef struct {
 BMK_advancedParams_t BMK_initAdvancedParams(void);
 
 /* called in cli */
+/* Loads files in fileNamesTable into memory, as well as a dictionary 
+ * from dictFileName, and then uses benchMem */
 /* fileNamesTable - name of files to benchmark
  * nbFiles - number of files (size of fileNamesTable)
  * dictFileName - name of dictionary file to load
- * cLevel - lowest compression level to benchmark
- * cLevellast - highest compression level to benchmark (everything in the range [cLevel, cLevellast]) will be benchmarked
+ * cLevel - compression level to benchmark, errors if invalid
  * compressionParams - basic compression Parameters
  * displayLevel - what gets printed
  *      0 : no display;   
@@ -103,15 +104,18 @@ BMK_return_t BMK_benchFilesAdvanced(const char** fileNamesTable, unsigned nbFile
                    int cLevel, const ZSTD_compressionParameters* compressionParams, 
                    int displayLevel, const BMK_advancedParams_t* const adv);
 
-/* basic benchmarking function, called in paramgrill ctx, dctx must be provided */
+/* basic benchmarking function, called in paramgrill 
+ * applies ZSTD_compress_generic() and ZSTD_decompress_generic() on data in srcBuffer
+ * with specific compression parameters specified by other arguments using benchFunction
+ * (cLevel, comprParams + adv in advanced Mode) */
 /* srcBuffer - data source, expected to be valid compressed data if in Decode Only Mode
  * srcSize - size of data in srcBuffer
  * cLevel - compression level  
  * comprParams - basic compression parameters
  * dictBuffer - a dictionary if used, null otherwise
  * dictBufferSize - size of dictBuffer, 0 otherwise
- * ctx - Compression Context
- * dctx - Decompression Context
+ * ctx - Compression Context (must be provided)
+ * dctx - Decompression Context (must be provided)
  * diplayLevel - see BMK_benchFiles
  * displayName - name used by display
  * return
@@ -135,7 +139,7 @@ BMK_return_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
                         int displayLevel, const char* displayName,
                         const BMK_advancedParams_t* adv);
 
-/* This function benchmarks the running time two functions (function specifics described */
+/* This function times the execution of 2 argument functions, benchFn and initFn  */
 
 /* benchFn - (*benchFn)(srcBuffers[i], srcSizes[i], dstBuffers[i], dstCapacities[i], benchPayload)
  *      is run a variable number of times, specified by mode and iter args

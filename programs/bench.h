@@ -137,14 +137,15 @@ BMK_return_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
 
 /* This function benchmarks the running time two functions (function specifics described */
 
-/* blockCount - number of blocks (size of srcBuffers, srcSizes, dstBuffers, dstCapacities)
+/* benchFn - (*benchFn)(srcBuffers[i], srcSizes[i], dstBuffers[i], dstCapacities[i], benchPayload)
+ *      is run a variable number of times, specified by mode and iter args
+ * initFn - (*initFn)(initPayload) is run once per benchmark at the beginning. This argument can 
+ *          be NULL, in which case nothing is run.
+ * blockCount - number of blocks (size of srcBuffers, srcSizes, dstBuffers, dstCapacities)
  * srcBuffers - an array of buffers to be operated on by benchFn
  * srcSizes - an array of the sizes of above buffers
  * dstBuffers - an array of buffers to be written into by benchFn
  * dstCapacities - an array of the capacities of above buffers.
- * initFn - (*initFn)(initPayload) is run once per benchmark
- * benchFn - (*benchFn)(srcBuffers[i], srcSizes[i], dstBuffers[i], dstCapacities[i], benchPayload)
- *      is run a variable number of times, specified by mode and iter args
  * mode - if 0, iter will be interpreted as the minimum number of seconds to run
  * iter - see mode
  * return 
@@ -157,11 +158,12 @@ BMK_return_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
  *          into dstBuffer, hence this value will be the total amount of bytes written to 
  *          dstBuffer.
  */
-BMK_customReturn_t BMK_benchFunction(size_t blockCount,
+BMK_customReturn_t BMK_benchFunction(                        
+                        size_t (*benchFn)(const void*, size_t, void*, size_t, void*), void* benchPayload,
+                        size_t (*initFn)(void*), void* initPayload,
+                        size_t blockCount,
                         const void* const * const srcBuffers, const size_t* srcSizes,
                         void* const * const dstBuffers, const size_t* dstCapacities,
-                        size_t (*initFn)(void*), void* initPayload,
-                        size_t (*benchFn)(const void*, size_t, void*, size_t, void*), void* benchPayload,
                         unsigned mode, unsigned iter);
 
 #endif   /* BENCH_H_121279284357 */

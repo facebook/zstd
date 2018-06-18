@@ -94,10 +94,6 @@ static size_t BMK_findMaxMem(U64 requiredMem)
 /*_*******************************************************
 *  Benchmark wrappers
 *********************************************************/
-size_t local_nothing(void* x) {
-    (void)x;
-    return 0;
-}
 
 size_t local_ZSTD_compress(const void* src, size_t srcSize, void* dst, size_t dstSize, void* buff2)
 {
@@ -431,10 +427,12 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
 
     /* benchmark loop */
     {
-        BMK_customReturn_t r = BMK_benchFunction(1, &src, &srcSize, 
+        BMK_customReturn_t r = BMK_benchFunction(
+            benchFunction, buff2, 
+            NULL, NULL, 
+            1, &src, &srcSize, 
             (void * const * const)&dstBuff, &dstBuffSize, 
-            &local_nothing, NULL, 
-            benchFunction, buff2, BMK_timeMode, 1);
+            BMK_timeMode, 1);
         if(r.error) {
             DISPLAY("ERROR %d ! ! \n", r.error);
             exit(1);

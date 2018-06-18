@@ -281,11 +281,11 @@ static size_t local_defaultDecompress(
 /* benchFn should return error value or out Size */
 /* takes # of blocks and list of size & stuff for each. */
 BMK_customReturn_t BMK_benchFunction(
+    size_t (*benchFn)(const void*, size_t, void*, size_t, void*), void* benchPayload,
+    size_t (*initFn)(void*), void* initPayload,
     size_t blockCount,
     const void* const * const srcBlockBuffers, const size_t* srcBlockSizes,
     void* const * const dstBlockBuffers, const size_t* dstBlockCapacities,
-    size_t (*initFn)(void*), void* initPayload,
-    size_t (*benchFn)(const void*, size_t, void*, size_t, void*), void* benchPayload,
     unsigned mode, unsigned iter) {
     size_t srcSize = 0, dstSize = 0, ind = 0;
     unsigned toAdd = 1;
@@ -336,7 +336,7 @@ BMK_customReturn_t BMK_benchFunction(
                 }
 
                 clockStart = UTIL_getTime();
-                (*initFn)(initPayload);
+                if(initFn != NULL) { (*initFn)(initPayload); }
 
                 for(i = 0; i < nbLoops; i++) {
                     for(j = 0; j < blockCount; j++) {
@@ -368,6 +368,7 @@ BMK_customReturn_t BMK_benchFunction(
         {        
             unsigned i, j;
             clockStart = UTIL_getTime();
+            if(initFn != NULL) { (*initFn)(initPayload); }
             for(i = 0; i < iter; i++) {
                 for(j = 0; j < blockCount; j++) {
                     size_t res = (*benchFn)(srcBlockBuffers[j], srcBlockSizes[j], dstBlockBuffers[j], dstBlockCapacities[j], benchPayload);
@@ -511,10 +512,11 @@ BMK_return_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
             cctxprep.adv = adv;
             /* Compression */
             DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->\r", marks[markNb], displayName, (U32)srcSize);
-            compressionResults = BMK_benchFunction(nbBlocks, 
-                srcPtrs, srcSizes, cPtrs, cSizes, 
-                &local_initCCtx, (void*)&cctxprep,
+            compressionResults = BMK_benchFunction(
                 &local_defaultCompress, (void*)(ctx),
+                &local_initCCtx, (void*)&cctxprep,
+                nbBlocks, 
+                srcPtrs, srcSizes, cPtrs, cSizes, 
                 adv->loopMode, adv->nbSeconds);
 
             if(compressionResults.error) {
@@ -544,10 +546,11 @@ BMK_return_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
             dctxprep.dctx = dctx;
             dctxprep.dictBuffer = dictBuffer;
             dctxprep.dictBufferSize = dictBufferSize;
-            decompressionResults = BMK_benchFunction(nbBlocks, 
-                (const void * const *)cPtrs, cSizes, resPtrs, resSizes, 
-                &local_initDCtx, (void*)&dctxprep, 
+            decompressionResults = BMK_benchFunction(
                 &local_defaultDecompress, (void*)(dctx),
+                &local_initDCtx, (void*)&dctxprep, 
+                nbBlocks, 
+                (const void * const *)cPtrs, cSizes, resPtrs, resSizes, 
                 adv->loopMode, adv->nbSeconds);
 
             if(decompressionResults.error) {

@@ -32,7 +32,7 @@
 #include <errno.h>    /* errno */
 #include "fileio.h"   /* stdinmark, stdoutmark, ZSTD_EXTENSION */
 #ifndef ZSTD_NOBENCH
-#  include "bench.h"  /* BMK_benchFiles, BMK_SetNbSeconds */
+#  include "bench.h"  /* BMK_benchFiles */
 #endif
 #ifndef ZSTD_NODICT
 #  include "dibio.h"  /* ZDICT_cover_params_t, DiB_trainFromFiles() */
@@ -816,15 +816,25 @@ int main(int argCount, const char* argv[])
             adv.ldmHashEveryLog = g_ldmHashEveryLog;
         }
 
-        for(; cLevel <= cLevelLast; cLevel++) {
-            if(separateFiles) {
-                unsigned i;
-                for(i = 0; i < filenameIdx; i++) {
-                    BMK_benchFilesAdvanced(&filenameTable[i], 1, dictFileName, cLevel, &compressionParams, g_displayLevel, &adv);
+        if (cLevel > ZSTD_maxCLevel()) cLevel = ZSTD_maxCLevel();
+        if (cLevelLast > ZSTD_maxCLevel()) cLevelLast = ZSTD_maxCLevel();
+        if (cLevelLast < cLevel) cLevelLast = cLevel;
+        if (cLevelLast > cLevel) 
+            DISPLAYLEVEL(2, "Benchmarking levels from %d to %d\n", cLevel, cLevelLast);
+
+        if(separateFiles) {
+            unsigned i;
+            for(i = 0; i < filenameIdx; i++) {
+                DISPLAYLEVEL(2, "Benchmarking %s \n", filenameTable[i]);
+                int c;
+                for(c = cLevel; c <= cLevelLast; c++) {
+                    BMK_benchFilesAdvanced(&filenameTable[i], 1, dictFileName, c, &compressionParams, g_displayLevel, &adv);
                 }
-            } else {
-                BMK_benchFilesAdvanced(filenameTable, filenameIdx, dictFileName, cLevel, &compressionParams, g_displayLevel, &adv);
             }
+        } else {
+            for(; cLevel <= cLevelLast; cLevel++) {
+                BMK_benchFilesAdvanced(filenameTable, filenameIdx, dictFileName, cLevel, &compressionParams, g_displayLevel, &adv);
+            }            
         }
 
 #else

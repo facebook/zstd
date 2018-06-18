@@ -122,6 +122,8 @@ BMK_return_t BMK_syntheticTest(int cLevel, double compressibility,
  * (cLevel, comprParams + adv in advanced Mode) */
 /* srcBuffer - data source, expected to be valid compressed data if in Decode Only Mode
  * srcSize - size of data in srcBuffer
+ * dstBuffer - destination buffer to write compressed output in, optional (NULL)
+ * dstCapacity - capacity of destination buffer, give 0 if dstBuffer = NULL
  * cLevel - compression level  
  * comprParams - basic compression parameters
  * dictBuffer - a dictionary if used, null otherwise
@@ -144,6 +146,7 @@ BMK_return_t BMK_benchMem(const void* srcBuffer, size_t srcSize,
 
 /* See benchMem for normal parameter uses and return, see advancedParams_t for adv */
 BMK_return_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
+                        void* dstBuffer, size_t dstCapacity, 
                         const size_t* fileSizes, unsigned nbFiles,
                         const int cLevel, const ZSTD_compressionParameters* comprParams,
                         const void* dictBuffer, size_t dictBufferSize,

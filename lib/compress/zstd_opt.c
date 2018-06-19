@@ -1060,7 +1060,7 @@ size_t ZSTD_compressBlock_btopt(
         const ZSTD_compressionParameters* cParams, const void* src, size_t srcSize)
 {
     DEBUGLOG(5, "ZSTD_compressBlock_btopt");
-    return ZSTD_compressBlock_opt_generic(ms, seqStore, rep, cParams, src, srcSize, 0 /*optLevel*/, ZSTD_extDict);
+    return ZSTD_compressBlock_opt_generic(ms, seqStore, rep, cParams, src, srcSize, 0 /*optLevel*/, ZSTD_noDict);
 }
 
 

@@ -398,6 +398,7 @@ int main(int argCount, const char* argv[])
         setRealTimePrio = 0,
         singleThread = 0,
         ultra=0;
+    double compressibility = 0.5;
     BMK_advancedParams_t adv = BMK_initAdvancedParams();
     unsigned bench_nbSeconds = 3;   /* would be better if this value was synchronized from bench */
     size_t blockSize = 0;
@@ -706,6 +707,19 @@ int main(int argCount, const char* argv[])
 #endif
                             main_pause=1;
                         break;
+
+                        /* Select compressibility of synthetic sample */
+                    case 'P': 
+                    {   U32 proba32 = 0;
+                        while ((argument[1]>= '0') && (argument[1]<= '9')) {
+                            proba32 *= 10;
+                            proba32 += argument[1] - '0';
+                            argument++;
+                        }
+                        compressibility = (double)proba32 / 100;
+                    }
+                    break;
+
                         /* unknown command */
                     default : CLEAN_RETURN(badusage(programName));
                     }
@@ -821,20 +835,25 @@ int main(int argCount, const char* argv[])
         if (cLevelLast < cLevel) cLevelLast = cLevel;
         if (cLevelLast > cLevel) 
             DISPLAYLEVEL(2, "Benchmarking levels from %d to %d\n", cLevel, cLevelLast);
-
-        if(separateFiles) {
-            unsigned i;
-            for(i = 0; i < filenameIdx; i++) {
-                DISPLAYLEVEL(2, "Benchmarking %s \n", filenameTable[i]);
-                int c;
-                for(c = cLevel; c <= cLevelLast; c++) {
-                    BMK_benchFilesAdvanced(&filenameTable[i], 1, dictFileName, c, &compressionParams, g_displayLevel, &adv);
+        if(filenameIdx) {
+            if(separateFiles) {
+                unsigned i;
+                for(i = 0; i < filenameIdx; i++) {
+                    int c;
+                    DISPLAYLEVEL(2, "Benchmarking %s \n", filenameTable[i]);
+                    for(c = cLevel; c <= cLevelLast; c++) {
+                        BMK_benchFilesAdvanced(&filenameTable[i], 1, dictFileName, c, &compressionParams, g_displayLevel, &adv);
+                    }
                 }
+            } else {
+                for(; cLevel <= cLevelLast; cLevel++) {
+                    BMK_benchFilesAdvanced(filenameTable, filenameIdx, dictFileName, cLevel, &compressionParams, g_displayLevel, &adv);
+                }            
             }
         } else {
             for(; cLevel <= cLevelLast; cLevel++) {
-                BMK_benchFilesAdvanced(filenameTable, filenameIdx, dictFileName, cLevel, &compressionParams, g_displayLevel, &adv);
-            }            
+                BMK_syntheticTest(cLevel, compressibility, &compressionParams, g_displayLevel, &adv);
+            }
         }
 
 #else

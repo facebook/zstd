@@ -291,6 +291,8 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
     void*  buff2;
     const char* benchName;
     size_t (*benchFunction)(const void* src, size_t srcSize, void* dst, size_t dstSize, void* verifBuff);
+    BMK_customReturn_t r;
+    int errorcode = 0;
 
     /* Selection */
     switch(benchNb)
@@ -427,15 +429,13 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
 
     /* benchmark loop */
     {
-        BMK_customReturn_t r = BMK_benchFunction(
-            benchFunction, buff2, 
-            NULL, NULL, 
-            1, &src, &srcSize, 
-            (void * const * const)&dstBuff, &dstBuffSize, 
-            BMK_timeMode, 1);
+        r = BMK_benchFunction(benchFunction, buff2, 
+            NULL, NULL,  1, &src, &srcSize, 
+            (void * const * const)&dstBuff, &dstBuffSize, g_nbIterations);
         if(r.error) {
             DISPLAY("ERROR %d ! ! \n", r.error);
-            exit(1);
+            errorcode = r.error;
+            goto _cleanOut;
         }
 
         DISPLAY("%2u#Speed: %f MB/s - Size: %f MB - %s\n", benchNb, (double)srcSize / r.result.nanoSecPerRun * 1000, (double)r.result.sumOfReturn / 1000000, benchName);
@@ -448,7 +448,7 @@ _cleanOut:
     ZSTD_freeDCtx(g_zdc); g_zdc=NULL;
     ZSTD_freeCStream(g_cstream); g_cstream=NULL;
     ZSTD_freeDStream(g_dstream); g_dstream=NULL;
-    return 0;
+    return errorcode;
 }
 
 

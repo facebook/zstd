@@ -40,7 +40,8 @@ typedef struct {
     size_t sumOfReturn;    /* sum of return values */
     U64 nanoSecPerRun;     /* time per iteration */
 } BMK_customResult_t;
-
+//we might need a nbRuns or nbSecs if we're keeping timeMode / iterMode respectively.
+//give benchMem responsibility to incrementally update display.
 
 ERROR_STRUCT(BMK_result_t, BMK_return_t);
 ERROR_STRUCT(BMK_customResult_t, BMK_customReturn_t);
@@ -78,7 +79,7 @@ BMK_advancedParams_t BMK_initAdvancedParams(void);
 /* Loads files in fileNamesTable into memory, as well as a dictionary 
  * from dictFileName, and then uses benchMem */
 /* fileNamesTable - name of files to benchmark
- * nbFiles - number of files (size of fileNamesTable)
+ * nbFiles - number of files (size of fileNamesTable), must be > 0
  * dictFileName - name of dictionary file to load
  * cLevel - compression level to benchmark, errors if invalid
  * compressionParams - basic compression Parameters
@@ -91,18 +92,36 @@ BMK_advancedParams_t BMK_initAdvancedParams(void);
  * return 
  *      .error will give a nonzero error value if an error has occured
  *      .result - if .error = 0, .result will return the time taken to compression speed
- *          (.cSpeed), decompression speed (.dSpeed), and copmressed size (.cSize) of the original
+ *          (.cSpeed), decompression speed (.dSpeed), and compressed size (.cSize) of the original
  *          file
  */
-BMK_return_t BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles, const char* dictFileName,
-                   int cLevel, const ZSTD_compressionParameters* compressionParams, 
+BMK_return_t BMK_benchFiles(const char* const * const fileNamesTable, unsigned const nbFiles,
+                   const char* const dictFileName, 
+                   int const cLevel, const ZSTD_compressionParameters* const compressionParams, 
                    int displayLevel);
 
 /* See benchFiles for normal parameter uses and return, see advancedParams_t for adv */
-BMK_return_t BMK_benchFilesAdvanced(const char** fileNamesTable, unsigned nbFiles,
-                   const char* dictFileName, 
-                   int cLevel, const ZSTD_compressionParameters* compressionParams, 
+BMK_return_t BMK_benchFilesAdvanced(const char* const * const fileNamesTable, unsigned const nbFiles,
+                   const char* const dictFileName, 
+                   int const cLevel, const ZSTD_compressionParameters* const compressionParams, 
                    int displayLevel, const BMK_advancedParams_t* const adv);
+
+/* called in cli */
+/* Generates a sample with datagen with the compressibility argument*/
+/* cLevel - compression level to benchmark, errors if invalid
+ * compressibility - determines compressibility of sample
+ * compressionParams - basic compression Parameters
+ * displayLevel - see benchFiles
+ * adv - see advanced_Params_t
+ * return 
+ *      .error will give a nonzero error value if an error has occured
+ *      .result - if .error = 0, .result will return the time taken to compression speed
+ *          (.cSpeed), decompression speed (.dSpeed), and compressed size (.cSize) of the original
+ *          file
+ */
+BMK_return_t BMK_syntheticTest(int cLevel, double compressibility,
+                              const ZSTD_compressionParameters* compressionParams,
+                              int displayLevel, const BMK_advancedParams_t * const adv);
 
 /* basic benchmarking function, called in paramgrill 
  * applies ZSTD_compress_generic() and ZSTD_decompress_generic() on data in srcBuffer
@@ -150,8 +169,7 @@ BMK_return_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
  * srcSizes - an array of the sizes of above buffers
  * dstBuffers - an array of buffers to be written into by benchFn
  * dstCapacities - an array of the capacities of above buffers.
- * mode - if 0, iter will be interpreted as the minimum number of seconds to run
- * iter - see mode
+ * iter - defines number of times benchFn is run.
  * return 
  *      .error will give a nonzero value if ZSTD_isError() is nonzero for any of the return
  *          of the calls to initFn and benchFn, or if benchFunction errors internally
@@ -168,7 +186,7 @@ BMK_customReturn_t BMK_benchFunction(
                         size_t blockCount,
                         const void* const * const srcBuffers, const size_t* srcSizes,
                         void* const * const dstBuffers, const size_t* dstCapacities,
-                        unsigned mode, unsigned iter);
+                        unsigned sec);
 
 #endif   /* BENCH_H_121279284357 */
 

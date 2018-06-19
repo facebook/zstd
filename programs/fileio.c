@@ -36,6 +36,7 @@
 #  include <io.h>
 #endif
 
+#include "debug.h"
 #include "mem.h"
 #include "fileio.h"
 #include "util.h"
@@ -101,21 +102,6 @@ static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
 #define MIN(a,b)    ((a) < (b) ? (a) : (b))
 
 
-/*-*************************************
-*  Debug
-***************************************/
-#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=1)
-#  include <assert.h>
-#else
-#  ifndef assert
-#    define assert(condition) ((void)0)
-#  endif
-#endif
-
-#ifndef ZSTD_DEBUG
-#  define ZSTD_DEBUG 0
-#endif
-#define DEBUGLOG(l,...) if (l<=ZSTD_DEBUG) DISPLAY(__VA_ARGS__);
 #define EXM_THROW(error, ...)                                             \
 {                                                                         \
     DISPLAYLEVEL(1, "zstd: ");                                            \
@@ -759,8 +745,9 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
     DISPLAYLEVEL(6, "compression using zstd format \n");
 
     /* init */
-    if (fileSize != UTIL_FILESIZE_UNKNOWN)
-        ZSTD_CCtx_setPledgedSrcSize(ress.cctx, fileSize);
+    if (fileSize != UTIL_FILESIZE_UNKNOWN) {
+        CHECK(ZSTD_CCtx_setPledgedSrcSize(ress.cctx, fileSize));
+    }
     (void)compressionLevel; (void)srcFileName;
 
     /* Main compression loop */
@@ -1755,7 +1742,7 @@ int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles
                     && strcmp(suffixPtr, LZMA_EXTENSION)
                     && strcmp(suffixPtr, LZ4_EXTENSION)) ) {
                 const char* suffixlist = ZSTD_EXTENSION
-                #ifdef ZSTD_GZCOMPRESS 
+                #ifdef ZSTD_GZCOMPRESS
                     "/" GZ_EXTENSION
                 #endif
                 #ifdef ZSTD_LZMACOMPRESS

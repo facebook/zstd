@@ -2030,6 +2030,12 @@ static int FIO_listFile(fileInfo_t* total, const char* inFileName, int displayLe
 }
 
 int FIO_listMultipleFiles(unsigned numFiles, const char** filenameTable, int displayLevel){
+
+    if (!IS_CONSOLE(stdin)) {
+        DISPLAYOUT("zstd: --list does not support reading from standard input\n");
+        return 1;
+    }
+
     if (numFiles == 0) {
         DISPLAYOUT("No files given\n");
         return 0;

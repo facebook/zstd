@@ -730,6 +730,9 @@ $ECHO "\n===>  zstd --list/-l error detection tests "
 ! $ZSTD -lv tmp1*
 ! $ZSTD --list -v tmp2 tmp12.zst
 
+$ECHO "\n===>  zstd --list/-l exits 1 when stdin is piped in"
+! echo "piped STDIN" | $ZSTD --list
+
 $ECHO "\n===>  zstd --list/-l test with null files "
 ./datagen -g0 > tmp5
 $ZSTD tmp5

@@ -1280,7 +1280,7 @@ size_t ZSTDMT_initCStream_internal(
 
     /* init */
     if (params.nbWorkers != mtctx->params.nbWorkers)
-        ZSTDMT_resize(mtctx, params.nbWorkers);
+        CHECK_F( ZSTDMT_resize(mtctx, params.nbWorkers) );
 
     if (params.jobSize == 0) {
         params.jobSize = 1U << ZSTDMT_computeTargetJobLog(params);

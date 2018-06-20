@@ -188,7 +188,6 @@ size_t POOL_sizeof(POOL_ctx *ctx) {
 /* note : only works if no job is running ! */
 static POOL_ctx* POOL_resize_internal(POOL_ctx* ctx, size_t numThreads)
 {
-    if (ctx->numThreadsBusy > 0) return NULL;
     if (numThreads <= ctx->threadCapacity) {
         ctx->threadLimit = numThreads;
         return ctx;

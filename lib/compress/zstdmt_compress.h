@@ -126,11 +126,6 @@ size_t ZSTDMT_CCtxParam_setNbWorkers(ZSTD_CCtx_params* params, unsigned nbWorker
  *  New parameters will be applied to next compression job. */
 void ZSTDMT_updateCParams_whileCompressing(ZSTDMT_CCtx* mtctx, const ZSTD_CCtx_params* cctxParams);
 
-/* ZSTDMT_getNbWorkers():
- * @return nb threads currently active in mtctx.
- * mtctx must be valid */
-unsigned ZSTDMT_getNbWorkers(const ZSTDMT_CCtx* mtctx);
-
 /* ZSTDMT_getFrameProgression():
  * tells how much data has been consumed (input) and produced (output) for current frame.
  * able to count progression inside worker threads.

@@ -37,7 +37,7 @@
 #define ZSTD_RESIZE_SEQPOOL 0
 
 /* ======   Debug   ====== */
-#if defined(DEBUGLEVEL) && (DEBUGLEVEL>=2)
+#if defined(DEBUGLEVEL) && (DEBUGLEVEL>=2) && !defined(_MSC_VER)
 
 #  include <stdio.h>
 #  include <unistd.h>
@@ -47,7 +47,7 @@
     unsigned debug_u;                        \
     for (debug_u=0; debug_u<(n); debug_u++)  \
         RAWLOG(l, "%02X ", ((const unsigned char*)(p))[debug_u]); \
-    RAWLOG(l, " \n");                   \
+    RAWLOG(l, " \n");                        \
 }
 
 static unsigned long long GetCurrentClockTimeMicroseconds(void)

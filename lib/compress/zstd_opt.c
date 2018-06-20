@@ -359,7 +359,7 @@ static U32 ZSTD_insertAndFindFirstIndexHash3 (ZSTD_matchState_t* ms, const BYTE*
 /** ZSTD_insertBt1() : add one or multiple positions to tree.
  *  ip : assumed <= iend-8 .
  * @return : nb of positions added */
-static U32 ZSTD_insertBt1(
+FORCE_INLINE_TEMPLATE U32 ZSTD_insertBt1(
                 ZSTD_matchState_t* ms, ZSTD_compressionParameters const* cParams,
                 const BYTE* const ip, const BYTE* const iend,
                 U32 const mls, const ZSTD_dictMode_e dictMode)
@@ -665,11 +665,10 @@ U32 ZSTD_insertBtAndGetAllMatches (
 
     *smallerPtr = *largerPtr = 0;
 
-    commonLengthSmaller = commonLengthLarger = 0;
-
     if (dictMode == ZSTD_dictMatchState && nbCompares) {
         U32 dictMatchIndex = dms->hashTable[h];
         const U32* const dmsBt = dms->chainTable;
+        commonLengthSmaller = commonLengthLarger = 0;
         while (nbCompares-- && (dictMatchIndex > dmsLowLimit)) {
             const U32* const nextPtr = dmsBt + 2*(dictMatchIndex & btMask);
             size_t matchLength = MIN(commonLengthSmaller, commonLengthLarger);   /* guaranteed minimum nb of common bytes */

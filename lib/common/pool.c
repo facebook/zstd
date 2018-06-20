@@ -196,19 +196,18 @@ static POOL_ctx* POOL_resize_internal(POOL_ctx* ctx, size_t numThreads)
     {   ZSTD_pthread_t* const threadPool = (ZSTD_pthread_t*)ZSTD_malloc(numThreads * sizeof(ZSTD_pthread_t), ctx->customMem);
         if (!threadPool) return NULL;
         /* replace existing thread pool */
-        memcpy(threadPool, ctx->threads, ctx->threadCapacity);
+        memcpy(threadPool, ctx->threads, ctx->threadCapacity * sizeof(ctx->threads[0]));
         ZSTD_free(ctx->threads, ctx->customMem);
         ctx->threads = threadPool;
         /* Initialize additional threads */
         {   size_t threadId;
             for (threadId = ctx->threadCapacity; threadId < numThreads; ++threadId) {
                 if (ZSTD_pthread_create(&threadPool[threadId], NULL, &POOL_thread, ctx)) {
-                    break;
+                    ctx->threadCapacity = threadId;
+                    ctx->threadLimit = threadId;
+                    return NULL;   /* will release the pool */
             }   }
-            if (threadId != numThreads) {  /* not all threads successfully init */
-                ctx->threadCapacity = threadId;
-                return NULL;   /* will release the pool */
-    }   }   }
+    }   }
     /* successfully expanded */
     ctx->threadCapacity = numThreads;
     ctx->threadLimit = numThreads;

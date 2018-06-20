@@ -1643,13 +1643,13 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest, double 
             DISPLAYLEVEL(5, "Creating new context \n");
             ZSTD_freeCCtx(zc);
             zc = ZSTD_createCCtx();
-            CHECK(zc==NULL, "ZSTD_createCCtx allocation error");
-            resetAllowed=0;
+            CHECK(zc == NULL, "ZSTD_createCCtx allocation error");
+            resetAllowed = 0;
         }
         if ((FUZ_rand(&lseed) & 0xFF) == 132) {
             ZSTD_freeDStream(zd);
             zd = ZSTD_createDStream();
-            CHECK(zd==NULL, "ZSTD_createDStream allocation error");
+            CHECK(zd == NULL, "ZSTD_createDStream allocation error");
             ZSTD_initDStream_usingDict(zd, NULL, 0);  /* ensure at least one init */
         }
 

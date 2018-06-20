@@ -526,7 +526,7 @@ U32 ZSTD_insertBtAndGetAllMatches (
     U32 mnum = 0;
     U32 nbCompares = 1U << cParams->searchLog;
 
-    const ZSTD_matchState_t* dms = ms->dictMatchState;
+    const ZSTD_matchState_t* dms    = dictMode == ZSTD_dictMatchState ? ms->dictMatchState : NULL;
     const BYTE* const dmsBase       = dictMode == ZSTD_dictMatchState ? dms->window.base : NULL;
     const BYTE* const dmsEnd        = dictMode == ZSTD_dictMatchState ? dms->window.nextSrc : NULL;
     U32         const dmsHighLimit  = dictMode == ZSTD_dictMatchState ? (U32)(dmsEnd - dmsBase) : 0;

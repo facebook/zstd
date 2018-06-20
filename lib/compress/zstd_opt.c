@@ -580,7 +580,7 @@ U32 ZSTD_insertBtAndGetAllMatches (
 
     /* HC3 match finder */
     if ((mls == 3) /*static*/ && (bestLength < mls)) {
-        U32 matchIndex3 = ZSTD_insertAndFindFirstIndexHash3(ms, ip);
+        U32 const matchIndex3 = ZSTD_insertAndFindFirstIndexHash3(ms, ip);
         if ((matchIndex3 > windowLow)
           & (current - matchIndex3 < (1<<18)) /*heuristic : longer distance likely too expensive*/ ) {
             size_t mlen;
@@ -608,34 +608,8 @@ U32 ZSTD_insertBtAndGetAllMatches (
                     return 1;
                 }
             }
-        } else if (dictMode == ZSTD_dictMatchState) {
-            /* should we perform this search even if the working ctx search
-             * found a match? */
-            U32 const hashLog3 = ms->hashLog3;
-            size_t const hash3 = ZSTD_hash3Ptr(ip, hashLog3);
-            U32 const dmsMatchIndex3 = dms->hashTable3[hash3];
-            matchIndex3 = dmsMatchIndex3 + dmsIndexDelta;
-            if ((dmsMatchIndex3 >= dmsLowLimit) & (current - matchIndex3 < (1<<18))) {
-                const BYTE* const match = dmsBase + dmsMatchIndex3;
-                size_t mlen = ZSTD_count_2segments(ip, match, iLimit, dmsEnd, prefixStart);
-                if (mlen >= mls) {
-                    matchIndex3 = dmsMatchIndex3 + dmsIndexDelta;
-                    DEBUGLOG(8, "found small dms match with hlog3, of length %u",
-                                (U32)mlen);
-                    bestLength = mlen;
-                    assert(current > matchIndex3);
-                    assert(mnum==0);  /* no prior solution */
-                    matches[0].off = (current - matchIndex3) + ZSTD_REP_MOVE;
-                    matches[0].len = (U32)mlen;
-                    mnum = 1;
-                    if ( (mlen > sufficient_len) |
-                         (ip+mlen == iLimit) ) {  /* best possible length */
-                        ms->nextToUpdate = current+1;  /* skip insertion */
-                        return 1;
-                    }
-                }
-            }
         }
+        /* no dictMatchState lookup: dicts don't have a populated HC3 table */
     }
 
     hashTable[h] = current;   /* Update Hash Table */

@@ -679,6 +679,8 @@ U32 ZSTD_insertBtAndGetAllMatches (
 
             if (matchLength > bestLength) {
                 matchIndex = dictMatchIndex + dmsIndexDelta;
+                DEBUGLOG(8, "found dms match of length %u at distance %u (offCode=%u)",
+                        (U32)matchLength, current - matchIndex, current - matchIndex + ZSTD_REP_MOVE);
                 if (matchLength > matchEndIdx - matchIndex)
                     matchEndIdx = matchIndex + (U32)matchLength;
                 bestLength = matchLength;

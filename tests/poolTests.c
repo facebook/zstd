@@ -90,10 +90,10 @@ typedef struct {
     int val;
     int max;
     ZSTD_pthread_cond_t cond;
-} test_t;
+} poolTest_t;
 
 void waitLongFn(void *opaque) {
-  test_t* test = (test_t*) opaque;
+  poolTest_t* test = (poolTest_t*) opaque;
   UTIL_sleepMilli(10);
   ZSTD_pthread_mutex_lock(&test->mut);
   test->val = test->val + 1;
@@ -102,7 +102,7 @@ void waitLongFn(void *opaque) {
   ZSTD_pthread_mutex_unlock(&test->mut);
 }
 
-static int testThreadReduction_internal(POOL_ctx* ctx, test_t test)
+static int testThreadReduction_internal(POOL_ctx* ctx, poolTest_t test)
 {
     int const nbWaits = 16;
     UTIL_time_t startTime, time4threads, time2threads;
@@ -117,7 +117,7 @@ static int testThreadReduction_internal(POOL_ctx* ctx, test_t test)
     }
     ZSTD_pthread_mutex_lock(&test.mut);
     ZSTD_pthread_cond_wait(&test.cond, &test.mut);
-    ASSERT_TRUE(test.val == nbWaits);
+    ASSERT_EQ(test.val, nbWaits);
     ZSTD_pthread_mutex_unlock(&test.mut);
     time4threads = UTIL_clockSpanNano(startTime);
 
@@ -131,7 +131,7 @@ static int testThreadReduction_internal(POOL_ctx* ctx, test_t test)
     }
     ZSTD_pthread_mutex_lock(&test.mut);
     ZSTD_pthread_cond_wait(&test.cond, &test.mut);
-    ASSERT_TRUE(test.val == nbWaits);
+    ASSERT_EQ(test.val, nbWaits);
     ZSTD_pthread_mutex_unlock(&test.mut);
     time2threads = UTIL_clockSpanNano(startTime);
 
@@ -141,7 +141,7 @@ static int testThreadReduction_internal(POOL_ctx* ctx, test_t test)
 
 static int testThreadReduction(void) {
     int result;
-    test_t test;
+    poolTest_t test;
     POOL_ctx* ctx = POOL_create(4 /*nbThreads*/, 2 /*queueSize*/);
 
     ASSERT_TRUE(ctx);
@@ -155,8 +155,57 @@ static int testThreadReduction(void) {
     ZSTD_pthread_mutex_destroy(&test.mut);
     ZSTD_pthread_cond_destroy(&test.cond);
     POOL_free(ctx);
+
     return result;
 }
+
+
+/* --- test abrupt ending --- */
+
+typedef struct {
+    ZSTD_pthread_mutex_t mut;
+    int val;
+} abruptEndCanary_t;
+
+void waitIncFn(void *opaque) {
+  abruptEndCanary_t* test = (abruptEndCanary_t*) opaque;
+  UTIL_sleepMilli(1);
+  ZSTD_pthread_mutex_lock(&test->mut);
+  test->val = test->val + 1;
+  ZSTD_pthread_mutex_unlock(&test->mut);
+}
+
+static int testAbruptEnding_internal(abruptEndCanary_t test)
+{
+    int const nbWaits = 16;
+
+    POOL_ctx* const ctx = POOL_create(2 /*numThreads*/, nbWaits /*queueSize*/);
+    ASSERT_TRUE(ctx);
+    test.val = 0;
+
+    {   int i;
+        for (i=0; i<nbWaits; i++)
+            POOL_add(ctx, &waitLongFn, &test);   /* all jobs either processed on in the queue */
+    }
+
+    POOL_free(ctx);  /* must finish all jobs in queue before giving back control */
+    ASSERT_EQ(test.val, nbWaits);
+    return 0;
+}
+
+static int testAbruptEnding(void) {
+    int result;
+    abruptEndCanary_t test;
+
+    memset(&test, 0, sizeof(test));
+    ASSERT_FALSE( ZSTD_pthread_mutex_init(&test.mut, NULL) );
+
+    result = testAbruptEnding_internal(test);
+
+    ZSTD_pthread_mutex_destroy(&test.mut);
+    return result;
+}
+
 
 
 /* --- test launcher --- */
@@ -189,7 +238,20 @@ int main(int argc, const char **argv) {
     }
   }
 
-  if (testThreadReduction()) return 1;
+  if (testThreadReduction()) {
+      printf("FAIL: thread reduction not effective \n");
+      return 1;
+  } else {
+      printf("SUCCESS: thread reduction effective (slower execution) \n");
+  }
+
+  if (testAbruptEnding()) {
+      printf("FAIL: jobs in queue not completed on early end \n");
+      return 1;
+  } else {
+      printf("SUCCESS: all jobs in queue completed on early end \n");
+  }
+
   printf("PASS: all POOL tests\n");
 
   return 0;

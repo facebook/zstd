@@ -161,7 +161,7 @@ BMK_return_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
 /* This function times the execution of 2 argument functions, benchFn and initFn  */
 
 /* benchFn - (*benchFn)(srcBuffers[i], srcSizes[i], dstBuffers[i], dstCapacities[i], benchPayload)
- *      is run a variable number of times, specified by mode and iter args
+ *      is run iter times
  * initFn - (*initFn)(initPayload) is run once per benchmark at the beginning. This argument can 
  *          be NULL, in which case nothing is run.
  * blockCount - number of blocks (size of srcBuffers, srcSizes, dstBuffers, dstCapacities)
@@ -187,6 +187,38 @@ BMK_customReturn_t BMK_benchFunction(
                         const void* const * const srcBuffers, const size_t* srcSizes,
                         void* const * const dstBuffers, const size_t* dstCapacities,
                         unsigned sec);
+
+typedef struct {
+    unsigned nbLoops;
+    U64 timeRemaining;
+    UTIL_time_t coolTime;
+} BMK_timeState_t;
+
+typedef struct {
+    int completed;
+    BMK_customReturn_t intermediateResult; /* since the wrapper can't err, don't need ERROR_STRUCT(cRC, just check here) */
+    BMK_timeState_t state; 
+} BMK_customResultContinuation_t;
+
+/* 
+ * initializes the last argument of benchFunctionTimed, with iter being the number of seconds to bench (see below)
+ */
+BMK_customResultContinuation_t BMK_init_customResultContinuation(unsigned iter);
+
+/* 
+ * Benchmarks custom functions like BMK_benchFunction(), but runs for iter seconds rather than a fixed number of iterations
+ * arguments mostly the same other than BMK_benchFunction()
+ * Usage - benchFunctionTimed will return in approximately one second, where the intermediate results can be found in 
+ * the *cont passed in and be displayed/used as wanted. Keep calling BMK_benchFunctionTimed() until cont->completed = 1 
+ * to continue updating intermediate result. 
+ */
+void BMK_benchFunctionTimed(
+    size_t (*benchFn)(const void*, size_t, void*, size_t, void*), void* benchPayload,
+    size_t (*initFn)(void*), void* initPayload,
+    size_t blockCount,
+    const void* const * const srcBlockBuffers, const size_t* srcBlockSizes,
+    void* const * const dstBlockBuffers, const size_t* dstBlockCapacities,
+    BMK_customResultContinuation_t* cont);
 
 #endif   /* BENCH_H_121279284357 */
 

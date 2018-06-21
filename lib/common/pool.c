@@ -91,12 +91,13 @@ static void* POOL_thread(void* opaque) {
             job.function(job.opaque);
 
             /* If the intended queue size was 0, signal after finishing job */
+            ZSTD_pthread_mutex_lock(&ctx->queueMutex);
+            ctx->numThreadsBusy--;
             if (ctx->queueSize == 1) {
-                ZSTD_pthread_mutex_lock(&ctx->queueMutex);
-                ctx->numThreadsBusy--;
-                ZSTD_pthread_mutex_unlock(&ctx->queueMutex);
                 ZSTD_pthread_cond_signal(&ctx->queuePushCond);
-        }   }
+            }
+            ZSTD_pthread_mutex_unlock(&ctx->queueMutex);
+        }
     }  /* for (;;) */
     assert(0); /* Unreachable */
 }

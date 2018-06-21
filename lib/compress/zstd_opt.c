@@ -359,10 +359,10 @@ static U32 ZSTD_insertAndFindFirstIndexHash3 (ZSTD_matchState_t* ms, const BYTE*
 /** ZSTD_insertBt1() : add one or multiple positions to tree.
  *  ip : assumed <= iend-8 .
  * @return : nb of positions added */
-FORCE_INLINE_TEMPLATE U32 ZSTD_insertBt1(
+static U32 ZSTD_insertBt1(
                 ZSTD_matchState_t* ms, ZSTD_compressionParameters const* cParams,
                 const BYTE* const ip, const BYTE* const iend,
-                U32 const mls, const ZSTD_dictMode_e dictMode)
+                U32 const mls, const int extDict)
 {
     U32*   const hashTable = ms->hashTable;
     U32    const hashLog = cParams->hashLog;
@@ -426,7 +426,7 @@ FORCE_INLINE_TEMPLATE U32 ZSTD_insertBt1(
         }
 #endif
 
-        if ((dictMode == ZSTD_noDict) || (dictMode == ZSTD_dictMatchState) || (matchIndex+matchLength >= dictLimit)) {
+        if (!extDict || (matchIndex+matchLength >= dictLimit)) {
             assert(matchIndex+matchLength >= dictLimit);   /* might be wrong if actually extDict */
             match = base + matchIndex;
             matchLength += ZSTD_count(ip+matchLength, match+matchLength, iend);
@@ -482,7 +482,7 @@ void ZSTD_updateTree_internal(
                 idx, target, dictMode);
 
     while(idx < target)
-        idx += ZSTD_insertBt1(ms, cParams, base+idx, iend, mls, dictMode);
+        idx += ZSTD_insertBt1(ms, cParams, base+idx, iend, mls, dictMode == ZSTD_extDict);
     ms->nextToUpdate = target;
 }
 

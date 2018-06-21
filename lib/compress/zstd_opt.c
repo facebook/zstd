@@ -532,7 +532,7 @@ U32 ZSTD_insertBtAndGetAllMatches (
     U32         const dmsHighLimit  = dictMode == ZSTD_dictMatchState ? (U32)(dmsEnd - dmsBase) : 0;
     U32         const dmsLowLimit   = dictMode == ZSTD_dictMatchState ? dms->window.lowLimit : 0;
     U32         const dmsIndexDelta = dictMode == ZSTD_dictMatchState ? windowLow - dmsHighLimit : 0;
-    U32         const dmsBtLow      = dictMode == ZSTD_dictMatchState || btMask >= dmsHighLimit ? 0 : dmsHighLimit - btMask;
+    U32         const dmsBtLow      = dictMode == ZSTD_dictMatchState && btMask < dmsHighLimit - dmsLowLimit ? dmsHighLimit - btMask : dmsLowLimit;
 
     size_t bestLength = lengthToBeat-1;
     DEBUGLOG(8, "ZSTD_insertBtAndGetAllMatches: current=%u", current);

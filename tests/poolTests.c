@@ -169,7 +169,7 @@ typedef struct {
 
 void waitIncFn(void *opaque) {
   abruptEndCanary_t* test = (abruptEndCanary_t*) opaque;
-  UTIL_sleepMilli(1);
+  UTIL_sleepMilli(10);
   ZSTD_pthread_mutex_lock(&test->mut);
   test->val = test->val + 1;
   ZSTD_pthread_mutex_unlock(&test->mut);
@@ -179,14 +179,15 @@ static int testAbruptEnding_internal(abruptEndCanary_t test)
 {
     int const nbWaits = 16;
 
-    POOL_ctx* const ctx = POOL_create(2 /*numThreads*/, nbWaits /*queueSize*/);
+    POOL_ctx* ctx = POOL_create(3 /*numThreads*/, nbWaits /*queueSize*/);
     ASSERT_TRUE(ctx);
     test.val = 0;
 
     {   int i;
         for (i=0; i<nbWaits; i++)
-            POOL_add(ctx, &waitLongFn, &test);   /* all jobs either processed on in the queue */
+            POOL_add(ctx, &waitIncFn, &test);  /* all jobs pushed into queue */
     }
+    ctx = POOL_resize(ctx, 1 /*numThreads*/);   /* downsize numThreads, to try to break end condition */
 
     POOL_free(ctx);  /* must finish all jobs in queue before giving back control */
     ASSERT_EQ(test.val, nbWaits);

@@ -73,10 +73,13 @@ static void* POOL_thread(void* opaque) {
 
         while ( ctx->queueEmpty
             || (ctx->numThreadsBusy >= ctx->threadLimit) ) {
-             if (ctx->shutdown) {
-                 ZSTD_pthread_mutex_unlock(&ctx->queueMutex);
-                 return opaque;
-             }
+            if (ctx->shutdown) {
+                /* even if !queueEmpty, (possible if numThreadsBusy >= threadLimit),
+                 * a few threads will be shutdown while !queueEmpty,
+                 * but enough threads will remain active to finish the queue */
+                ZSTD_pthread_mutex_unlock(&ctx->queueMutex);
+                return opaque;
+            }
             ZSTD_pthread_cond_wait(&ctx->queuePopCond, &ctx->queueMutex);
         }
         /* Pop a job off the queue */
@@ -99,7 +102,7 @@ static void* POOL_thread(void* opaque) {
             ZSTD_pthread_mutex_unlock(&ctx->queueMutex);
         }
     }  /* for (;;) */
-    assert(0); /* Unreachable */
+    assert(0);  /* Unreachable */
 }
 
 POOL_ctx* POOL_create(size_t numThreads, size_t queueSize) {
@@ -187,10 +190,12 @@ size_t POOL_sizeof(POOL_ctx *ctx) {
 }
 
 
-/* note : only works if no job is running ! */
+/* @return : a working pool on success, NULL on failure
+ *    note : starting context is considered consumed. */
 static POOL_ctx* POOL_resize_internal(POOL_ctx* ctx, size_t numThreads)
 {
     if (numThreads <= ctx->threadCapacity) {
+        if (!numThreads) return NULL;
         ctx->threadLimit = numThreads;
         return ctx;
     }

@@ -121,8 +121,7 @@ static int testThreadReduction_internal(POOL_ctx* ctx, poolTest_t test)
     ZSTD_pthread_mutex_unlock(&test.mut);
     time4threads = UTIL_clockSpanNano(startTime);
 
-    ctx = POOL_resize(ctx, 2/*nbThreads*/);
-    ASSERT_TRUE(ctx);
+    ASSERT_EQ( POOL_resize(ctx, 2/*nbThreads*/) , 0 );
     test.val = 0;
     startTime = UTIL_getTime();
     {   int i;
@@ -142,7 +141,7 @@ static int testThreadReduction_internal(POOL_ctx* ctx, poolTest_t test)
 static int testThreadReduction(void) {
     int result;
     poolTest_t test;
-    POOL_ctx* ctx = POOL_create(4 /*nbThreads*/, 2 /*queueSize*/);
+    POOL_ctx* const ctx = POOL_create(4 /*nbThreads*/, 2 /*queueSize*/);
 
     ASSERT_TRUE(ctx);
 
@@ -179,7 +178,7 @@ static int testAbruptEnding_internal(abruptEndCanary_t test)
 {
     int const nbWaits = 16;
 
-    POOL_ctx* ctx = POOL_create(3 /*numThreads*/, nbWaits /*queueSize*/);
+    POOL_ctx* const ctx = POOL_create(3 /*numThreads*/, nbWaits /*queueSize*/);
     ASSERT_TRUE(ctx);
     test.val = 0;
 
@@ -187,7 +186,7 @@ static int testAbruptEnding_internal(abruptEndCanary_t test)
         for (i=0; i<nbWaits; i++)
             POOL_add(ctx, &waitIncFn, &test);  /* all jobs pushed into queue */
     }
-    ctx = POOL_resize(ctx, 1 /*numThreads*/);   /* downsize numThreads, to try to break end condition */
+    ASSERT_EQ( POOL_resize(ctx, 1 /*numThreads*/) , 0 );   /* downsize numThreads, to try to break end condition */
 
     POOL_free(ctx);  /* must finish all jobs in queue before giving back control */
     ASSERT_EQ(test.val, nbWaits);

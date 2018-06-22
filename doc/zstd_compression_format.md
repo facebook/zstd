@@ -57,11 +57,7 @@ explaining which parameter is unsupported.
 This specification is intended for use by implementers of software
 to compress data into Zstandard format and/or decompress data from Zstandard format.
 The Zstandard format is supported by an open source reference implementation,
-which also contains some useful validation tool,
-such as `decodeCorpus`, which generate random valid frames,
-that a compliant decoder should be able to decode,
-or provide a meaningful error code explaining why it cannot.
-
+written in portable C, and available at : https://github.com/facebook/zstd .
 
 
 ### Overall conventions
@@ -208,10 +204,10 @@ depending on local limitations.
 
 __`Unused_bit`__
 
-The value of this bit should be set to zero.
-A decoder compliant with this specification version shall not interpret it.
-It might be used in a future version,
-to signal a property which is not mandatory to properly decode the frame.
+A decoder compliant with this specification version shall not interpret this bit.
+It might be used in any future version,
+to signal a property which is transparent to properly decode the frame.
+An encoder compliant with this specification version must set this bit to zero.
 
 __`Reserved_bit`__
 
@@ -261,6 +257,9 @@ Window_Size = windowBase + windowAdd;
 The minimum `Window_Size` is 1 KB.
 The maximum `Window_Size` is `(1<<41) + 7*(1<<38)` bytes, which is 3.75 TB.
 
+In general, larger `Window_Size` tend to improve compression ratio,
+but at the cost of memory usage.
+
 To properly decode compressed data,
 a decoder will need to allocate a buffer of at least `Window_Size` bytes.
 
@@ -269,8 +268,8 @@ a decoder is allowed to reject a compressed frame
 which requests a memory size beyond decoder's authorized range.
 
 For improved interoperability,
-decoders are recommended to be compatible with `Window_Size <= 8 MB`,
-and encoders are recommended to not request more than 8 MB.
+it's recommended for decoders to support `Window_Size` of up to 8 MB,
+and it's recommended for encoders to not generate frame requiring `Window_Size` larger than 8 MB.
 It's merely a recommendation though,
 decoders are free to support larger or lower limits,
 depending on local limitations.
@@ -280,7 +279,7 @@ depending on local limitations.
 This is a variable size field, which contains
 the ID of the dictionary required to properly decode the frame.
 `Dictionary_ID` field is optional. When it's not present,
-it's up to the decoder to make sure it uses the correct dictionary.
+it's up to the decoder to know which dictionary to use.
 
 `Dictionary_ID` field size is provided by `DID_Field_Size`.
 `DID_Field_Size` is directly derived from value of `Dictionary_ID_flag`.
@@ -293,12 +292,20 @@ It's allowed to represent a small ID (for example `13`)
 with a large 4-bytes dictionary ID, even if it is less efficient.
 
 _Reserved ranges :_
-If the frame is going to be distributed in a private environment,
-any dictionary ID can be used.
-However, for public distribution of compressed frames using a dictionary,
-the following ranges are reserved and shall not be used :
+Within private environments, any `Dictionary_ID` can be used.
+
+However, for frames and dictionaries distributed in public space,
+`Dictionary_ID` must be attributed carefully.
+Rules for public environment are not yet decided,
+but the following ranges are reserved for some future registrar :
 - low range  : `<= 32767`
 - high range : `>= (1 << 31)`
+
+Outside of these ranges, any value of `Dictionary_ID`
+which is both `>= 32768` and `< (1<<31)` can be used freely,
+even in public environment.
+
+
 
 #### `Frame_Content_Size`
 
@@ -372,6 +379,7 @@ There are 4 block types :
 
 - `Reserved` - this is not a block.
   This value cannot be used with current version of this specification.
+  If such a value is present, it is considered corrupted data.
 
 __`Block_Size`__
 
@@ -384,6 +392,8 @@ A block can contain any number of bytes (even zero), up to
 
 A `Compressed_Block` has the extra restriction that `Block_Size` is always
 strictly less than the decompressed size.
+If this condition cannot be respected,
+the block must be sent uncompressed instead (`Raw_Block`).
 
 
 Compressed Blocks
@@ -401,7 +411,7 @@ data in [Sequence Execution](#sequence-execution)
 #### Prerequisites
 To decode a compressed block, the following elements are necessary :
 - Previous decoded data, up to a distance of `Window_Size`,
-  or all previously decoded data when `Single_Segment_flag` is set.
+  or beginning of the Frame, whichever is smaller.
 - List of "recent offsets" from previous `Compressed_Block`.
 - The previous Huffman tree, required by `Treeless_Literals_Block` type
 - Previous FSE decoding tables, required by `Repeat_Mode`
@@ -422,11 +432,11 @@ Literals can be stored uncompressed or compressed using Huffman prefix codes.
 When compressed, an optional tree description can be present,
 followed by 1 or 4 streams.
 
-| `Literals_Section_Header` | [`Huffman_Tree_Description`] | Stream1 | [Stream2] | [Stream3] | [Stream4] |
-| ------------------------- | ---------------------------- | ------- | --------- | --------- | --------- |
+| `Literals_Section_Header` | [`Huffman_Tree_Description`] | [jumpTable] | Stream1 | [Stream2] | [Stream3] | [Stream4] |
+| ------------------------- | ---------------------------- | ----------- | ------- | --------- | --------- | --------- |
 
 
-#### `Literals_Section_Header`
+### `Literals_Section_Header`
 
 Header is in charge of describing how literals are packed.
 It's a byte-aligned variable-size bitfield, ranging from 1 to 5 bytes,
@@ -518,50 +528,55 @@ Both `Compressed_Size` and `Regenerated_Size` fields follow __little-endian__ co
 Note: `Compressed_Size` __includes__ the size of the Huffman Tree description
 _when_ it is present.
 
-### Raw Literals Block
+#### Raw Literals Block
 The data in Stream1 is `Regenerated_Size` bytes long,
 it contains the raw literals data to be used during [Sequence Execution].
 
-### RLE Literals Block
+#### RLE Literals Block
 Stream1 consists of a single byte which should be repeated `Regenerated_Size` times
 to generate the decoded literals.
 
-### Compressed Literals Block and Treeless Literals Block
+#### Compressed Literals Block and Treeless Literals Block
 Both of these modes contain Huffman encoded data.
-`Treeless_Literals_Block` does not have a `Huffman_Tree_Description`.
 
-#### `Huffman_Tree_Description`
+For `Treeless_Literals_Block`,
+the Huffman table comes from previously compressed literals block,
+or from a dictionary.
+
+
+### `Huffman_Tree_Description`
 This section is only present when `Literals_Block_Type` type is `Compressed_Literals_Block` (`2`).
 The format of the Huffman tree description can be found at [Huffman Tree description](#huffman-tree-description).
 The size of `Huffman_Tree_Description` is determined during decoding process,
 it must be used to determine where streams begin.
 `Total_Streams_Size = Compressed_Size - Huffman_Tree_Description_Size`.
 
-For `Treeless_Literals_Block`,
-the Huffman table comes from previously compressed literals block,
-or from a dictionary.
 
-Huffman compressed data consists of either 1 or 4 Huffman-coded streams.
+### Jump Table
+The Jump Table is only present when there are 4 Huffman-coded streams.
+
+Reminder : Huffman compressed data consists of either 1 or 4 Huffman-coded streams.
 
 If only one stream is present, it is a single bitstream occupying the entire
 remaining portion of the literals block, encoded as described within
 [Huffman-Coded Streams](#huffman-coded-streams).
 
-If there are four streams, the literals section header only provides enough
-information to know the decompressed and compressed sizes of all four streams _combined_.
-The decompressed size of each stream is equal to `(Regenerated_Size+3)/4`,
+If there are four streams, `Literals_Section_Header` only provided
+enough information to know the decompressed and compressed sizes
+of all four streams _combined_.
+The decompressed size of _each_ stream is equal to `(Regenerated_Size+3)/4`,
 except for the last stream which may be up to 3 bytes smaller,
 to reach a total decompressed size as specified in `Regenerated_Size`.
 
-The compressed size of each stream is provided explicitly:
-the first 6 bytes of the compressed data consist of three 2-byte __little-endian__ fields,
+The compressed size of each stream is provided explicitly in the Jump Table.
+Jump Table is 6 bytes long, and consist of three 2-byte __little-endian__ fields,
 describing the compressed sizes of the first three streams.
 `Stream4_Size` is computed from total `Total_Streams_Size` minus sizes of other streams.
 
 `Stream4_Size = Total_Streams_Size - 6 - Stream1_Size - Stream2_Size - Stream3_Size`.
 
-Note: remember that `Total_Streams_Size` can be smaller than `Compressed_Size` in header,
-because `Compressed_Size` also contains `Huffman_Tree_Description_Size` when it is present.
+Note: if `Stream1_Size + Stream2_Size + Stream3_Size > Total_Streams_Size`,
+data is considered corrupted.
 
 Each of these 4 bitstreams is then decoded independently as a Huffman-Coded stream,
 as described at [Huffman-Coded Streams](#huffman-coded-streams)
@@ -579,7 +594,7 @@ When all _sequences_ are decoded,
 if there are literals left in the _literal section_,
 these bytes are added at the end of the block.
 
-This is described in more detail in [Sequence Execution](#sequence-execution)
+This is described in more detail in [Sequence Execution](#sequence-execution).
 
 The `Sequences_Section` regroup all symbols required to decode commands.
 There are 3 symbol types : literals lengths, offsets and match lengths.
@@ -725,7 +740,7 @@ Offset codes are values ranging from `0` to `N`.
 A decoder is free to limit its maximum `N` supported.
 Recommendation is to support at least up to `22`.
 For information, at the time of this writing.
-the reference decoder supports a maximum `N` value of `31` in 64-bits mode.
+the reference decoder supports a maximum `N` value of `31`.
 
 An offset code is also the number of additional bits to read in __little-endian__ fashion,
 and can be translated into an `Offset_Value` using the following formulas :
@@ -734,11 +749,12 @@ and can be translated into an `Offset_Value` using the following formulas :
 Offset_Value = (1 << offsetCode) + readNBits(offsetCode);
 if (Offset_Value > 3) offset = Offset_Value - 3;
 ```
-It means that maximum `Offset_Value` is `(2^(N+1))-1` and it supports back-reference distance up to `(2^(N+1))-4`
+It means that maximum `Offset_Value` is `(2^(N+1))-1`
+supporting back-reference distances up to `(2^(N+1))-4`,
 but is limited by [maximum back-reference distance](#window_descriptor).
 
 `Offset_Value` from 1 to 3 are special : they define "repeat codes".
-This is described in more detail in [Repeat Offsets](#repeat-offsets).
+This is described in more details in [Repeat Offsets](#repeat-offsets).
 
 #### Decoding Sequences
 FSE bitstreams are read in reverse direction than written. In zstd,
@@ -885,7 +901,8 @@ so an `offset_value` of 1 means `Repeated_Offset2`,
 an `offset_value` of 2 means `Repeated_Offset3`,
 and an `offset_value` of 3 means `Repeated_Offset1 - 1_byte`.
 
-For the first block, the starting offset history is populated with the following values : 1, 4 and 8 (in order),
+For the first block, the starting offset history is populated with following values :
+`Repeated_Offset1`=1, `Repeated_Offset2`=4, `Repeated_Offset3`=8,
 unless a dictionary is used, in which case they come from the dictionary.
 
 Then each block gets its starting offset history from the ending values of the most recent `Compressed_Block`.
@@ -923,7 +940,7 @@ and their content ignored, resuming decoding after the skippable frame.
 It can be noted that a skippable frame
 can be used to watermark a stream of concatenated frames
 embedding any kind of tracking information (even just an UUID).
-User wary of such usage should scan the stream of concatenated frames
+Users wary of such possibility should scan the stream of concatenated frames
 in an attempt to detect such frame for analysis or removal.
 
 __`Magic_Number`__
@@ -931,6 +948,7 @@ __`Magic_Number`__
 4 Bytes, __little-endian__ format.
 Value : 0x184D2A5?, which means any value from 0x184D2A50 to 0x184D2A5F.
 All 16 values are valid to identify a skippable frame.
+This specification doesn't detail any specific tagging for skippable frames.
 
 __`Frame_Size`__
 
@@ -944,10 +962,16 @@ __`User_Data`__
 The `User_Data` can be anything. Data will just be skipped by the decoder.
 
 
+
 Entropy Encoding
 ----------------
 Two types of entropy encoding are used by the Zstandard format:
 FSE, and Huffman coding.
+Huffman is used to compress literals,
+while FSE is used for all other symbols
+(`Literals_Length_Code`, `Match_Length_Code`, offset codes)
+and to compress Huffman headers.
+
 
 FSE
 ---
@@ -965,7 +989,7 @@ For additional details on FSE, see [Finite State Entropy].
 FSE decoding involves a decoding table which has a power of 2 size, and contain three elements:
 `Symbol`, `Num_Bits`, and `Baseline`.
 The `log2` of the table size is its `Accuracy_Log`.
-The FSE state represents an index in this table.
+An FSE state value represents an index in this table.
 
 To obtain the initial state value, consume `Accuracy_Log` bits from the stream as a __little-endian__ value.
 The next symbol in the stream is the `Symbol` indicated in the table for that state.
@@ -984,10 +1008,11 @@ on a normalized scale of `1 << Accuracy_Log` .
 Note that there must be two or more symbols with nonzero probability.
 
 It's a bitstream which is read forward, in __little-endian__ fashion.
-It's not necessary to know its exact size,
-since it will be discovered and reported by the decoding process.
+It's not necessary to know bitstream exact size,
+it will be discovered and reported by the decoding process.
 
 The bitstream starts by reporting on which scale it operates.
+Let's `low4Bits` designate the lowest 4 bits of the first byte :
 `Accuracy_Log = low4bits + 5`.
 
 Then follows each symbol value, from `0` to last present one.
@@ -1045,7 +1070,7 @@ and how many symbols are present.
 The bitstream consumes a round number of bytes.
 Any remaining bit within the last byte is just unused.
 
-##### From normalized distribution to decoding tables
+#### From normalized distribution to decoding tables
 
 The distribution of normalized probabilities is enough
 to create a unique decoding table.
@@ -1156,7 +1181,7 @@ More bits improve accuracy but cost more header size,
 and require more memory or more complex decoding operations.
 This specification limits maximum code length to 11 bits.
 
-##### Representation
+#### Representation
 
 All literal values from zero (included) to last present one (excluded)
 are represented by `Weight` with values from `0` to `Max_Number_of_Bits`.
@@ -1171,12 +1196,13 @@ This power of 2 gives `Max_Number_of_Bits`, the depth of the current tree.
 __Example__ :
 Let's presume the following Huffman tree must be described :
 
-|     literal      |  0  |  1  |  2  |  3  |  4  |  5  |
+|  literal value   |  0  |  1  |  2  |  3  |  4  |  5  |
 | ---------------- | --- | --- | --- | --- | --- | --- |
 | `Number_of_Bits` |  1  |  2  |  3  |  0  |  4  |  4  |
 
-The tree depth is 4, since its smallest element uses 4 bits.
-Value `5` will not be listed as it can be determined from the values for 0-4,
+The tree depth is 4, since its longest elements uses 4 bits
+(longest elements are the one with smallest frequency).
+Value `5` will not be listed, as it can be determined from values for 0-4,
 nor will values above `5` as they are all 0.
 Values from `0` to `4` will be listed using `Weight` instead of `Number_of_Bits`.
 Weight formula is :
@@ -1185,9 +1211,9 @@ Weight = Number_of_Bits ? (Max_Number_of_Bits + 1 - Number_of_Bits) : 0
 ```
 It gives the following series of weights :
 
-| literal  |  0  |  1  |  2  |  3  |  4  |
-| -------- | --- | --- | --- | --- | --- |
-| `Weight` |  4  |  3  |  2  |  0  |  1  |
+| literal value |  0  |  1  |  2  |  3  |  4  |
+| ------------- | --- | --- | --- | --- | --- |
+|   `Weight`    |  4  |  3  |  2  |  0  |  1  |
 
 The decoder will do the inverse operation :
 having collected weights of literals from `0` to `4`,
@@ -1196,12 +1222,16 @@ The weight of `5` can be determined by advancing to the next power of 2.
 The sum of `2^(Weight-1)` (excluding 0's) is :
 `8 + 4 + 2 + 0 + 1 = 15`.
 Nearest power of 2 is 16.
-Therefore, `Max_Number_of_Bits = 4` and `Weight[5] = 1`.
+Therefore, `Max_Number_of_Bits = 4` and `Weight[5] = 16-15 = 1`.
 
-##### Huffman Tree header
+#### Huffman Tree header
 
 This is a single byte value (0-255),
-which describes how to decode the list of weights.
+which describes how the series of weights is encoded.
+
+- if `headerByte` < 128 :
+  the series of weights is compressed using FSE (see below).
+  The length of the FSE-compressed series is equal to `headerByte` (0-127).
 
 - if `headerByte` >= 128 : this is a direct representation,
   where each `Weight` is written directly as a 4 bits field (0-15).
@@ -1213,14 +1243,11 @@ which describes how to decode the list of weights.
   meaning it uses only full bytes even if `Number_of_Symbols` is odd.
   `Number_of_Symbols = headerByte - 127`.
   Note that maximum `Number_of_Symbols` is 255-127 = 128.
-  If any present literal has a value > 128, raw header mode is not possible.
-  It's necessary to use FSE compression.
+  If any literal has a value > 128, raw header mode is not possible.
+  In such case, it's necessary to use FSE compression.
 
-- if `headerByte` < 128 :
-  the series of weights is compressed using FSE.
-  The length of the FSE-compressed series is equal to `headerByte` (0-127).
 
-##### Finite State Entropy (FSE) compression of Huffman weights
+#### Finite State Entropy (FSE) compression of Huffman weights
 
 In this case, the series of Huffman weights is compressed using FSE compression.
 It's a single bitstream with 2 interleaved states,
@@ -1251,12 +1278,12 @@ If updating state after decoding a symbol would require more bits than
 remain in the stream, it is assumed that extra bits are 0.  Then,
 symbols for each of the final states are decoded and the process is complete.
 
-##### Conversion from weights to Huffman prefix codes
+#### Conversion from weights to Huffman prefix codes
 
 All present symbols shall now have a `Weight` value.
 It is possible to transform weights into` Number_of_Bits`, using this formula:
 ```
-Number_of_Bits = Weight ? Max_Number_of_Bits + 1 - Weight : 0
+Number_of_Bits = (Weight>0) ? Max_Number_of_Bits + 1 - Weight : 0
 ```
 Symbols are sorted by `Weight`.
 Within same `Weight`, symbols keep natural sequential order.
@@ -1358,7 +1385,7 @@ _Reserved ranges :_
               - low range  : <= 32767
               - high range : >= (2^31)
 
-__`Entropy_Tables`__ : following the same format as the tables in compressed blocks.
+__`Entropy_Tables`__ : follow the same format as tables in [compressed blocks].
               See the relevant [FSE](#fse-table-description)
               and [Huffman](#huffman-tree-description) sections for how to decode these tables.
               They are stored in following order :
@@ -1381,6 +1408,10 @@ __`Content`__ : The rest of the dictionary is its content.
               this is no longer allowed and the dictionary is no longer accessible.
 
 [compressed blocks]: #the-format-of-compressed_block
+
+If a dictionary is provided by an external source,
+it should be loaded with great care, its content considered untrusted.
+
 
 
 Appendix A - Decoding tables for predefined codes
@@ -1567,6 +1598,26 @@ to crosscheck that an implementation build its decoding tables correctly.
 |    29 |     26 |              5 |    0 |
 |    30 |     25 |              5 |    0 |
 |    31 |     24 |              5 |    0 |
+
+
+
+Appendix B - Resources for implementers
+-------------------------------------------------
+
+An open source reference implementation is available on :
+https://github.com/facebook/zstd
+
+The project contains a frame generator, called [decodeCorpus],
+which can be used by any 3rd-party implementation
+to verify that a tested decoder is compliant with the specification.
+
+[decodeCorpus]: https://github.com/facebook/zstd/tree/v1.3.4/tests#decodecorpus---tool-to-generate-zstandard-frames-for-decoder-testing
+
+`decodeCorpus` generates random valid frames.
+A compliant decoder should be able to decode them all,
+or at least provide a meaningful error code explaining for which reason it cannot
+(memory limit restrictions for example).
+
 
 Version changes
 ---------------

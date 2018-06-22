@@ -225,13 +225,16 @@ static POOL_ctx* POOL_resize_internal(POOL_ctx* ctx, size_t numThreads)
  *    note : starting context is considered consumed. */
 POOL_ctx* POOL_resize(POOL_ctx* ctx, size_t numThreads)
 {
-    POOL_ctx* newCtx;
     if (ctx==NULL) return NULL;
     ZSTD_pthread_mutex_lock(&ctx->queueMutex);
-    newCtx = POOL_resize_internal(ctx, numThreads);
+    {   POOL_ctx* const newCtx = POOL_resize_internal(ctx, numThreads);
+        if (newCtx!=ctx) {
+            POOL_free(ctx);
+            return newCtx;
+    }   }
+    ZSTD_pthread_cond_broadcast(&ctx->queuePopCond);
     ZSTD_pthread_mutex_unlock(&ctx->queueMutex);
-    if (newCtx!=ctx) POOL_free(ctx);
-    return newCtx;
+    return ctx;
 }
 
 /**

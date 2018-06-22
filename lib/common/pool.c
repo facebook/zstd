@@ -190,20 +190,19 @@ size_t POOL_sizeof(POOL_ctx *ctx) {
 }
 
 
-/* @return : a working pool on success, NULL on failure
- *    note : starting context is considered consumed. */
-static POOL_ctx* POOL_resize_internal(POOL_ctx* ctx, size_t numThreads)
+/* @return : 0 on success, 1 on error */
+static int POOL_resize_internal(POOL_ctx* ctx, size_t numThreads)
 {
     if (numThreads <= ctx->threadCapacity) {
-        if (!numThreads) return NULL;
+        if (!numThreads) return 1;
         ctx->threadLimit = numThreads;
-        return ctx;
+        return 0;
     }
     /* numThreads > threadCapacity */
     {   ZSTD_pthread_t* const threadPool = (ZSTD_pthread_t*)ZSTD_malloc(numThreads * sizeof(ZSTD_pthread_t), ctx->customMem);
-        if (!threadPool) return NULL;
+        if (!threadPool) return 1;
         /* replace existing thread pool */
-        memcpy(threadPool, ctx->threads, ctx->threadCapacity * sizeof(ctx->threads[0]));
+        memcpy(threadPool, ctx->threads, ctx->threadCapacity * sizeof(*threadPool));
         ZSTD_free(ctx->threads, ctx->customMem);
         ctx->threads = threadPool;
         /* Initialize additional threads */
@@ -211,30 +210,25 @@ static POOL_ctx* POOL_resize_internal(POOL_ctx* ctx, size_t numThreads)
             for (threadId = ctx->threadCapacity; threadId < numThreads; ++threadId) {
                 if (ZSTD_pthread_create(&threadPool[threadId], NULL, &POOL_thread, ctx)) {
                     ctx->threadCapacity = threadId;
-                    ctx->threadLimit = threadId;
-                    return NULL;   /* will release the pool */
+                    return 1;
             }   }
     }   }
     /* successfully expanded */
     ctx->threadCapacity = numThreads;
     ctx->threadLimit = numThreads;
-    return ctx;
+    return 0;
 }
 
-/* @return : a working pool on success, NULL on failure
- *    note : starting context is considered consumed. */
-POOL_ctx* POOL_resize(POOL_ctx* ctx, size_t numThreads)
+/* @return : 0 on success, 1 on error */
+int POOL_resize(POOL_ctx* ctx, size_t numThreads)
 {
-    if (ctx==NULL) return NULL;
+    int result;
+    if (ctx==NULL) return 1;
     ZSTD_pthread_mutex_lock(&ctx->queueMutex);
-    {   POOL_ctx* const newCtx = POOL_resize_internal(ctx, numThreads);
-        if (newCtx!=ctx) {
-            POOL_free(ctx);
-            return newCtx;
-    }   }
+    result = POOL_resize_internal(ctx, numThreads);
     ZSTD_pthread_cond_broadcast(&ctx->queuePopCond);
     ZSTD_pthread_mutex_unlock(&ctx->queueMutex);
-    return ctx;
+    return result;
 }
 
 /**
@@ -321,9 +315,9 @@ void POOL_free(POOL_ctx* ctx) {
     (void)ctx;
 }
 
-POOL_ctx* POOL_resize(POOL_ctx* ctx, size_t numThreads) {
-    (void)numThreads;
-    return ctx;
+int POOL_resize(POOL_ctx* ctx, size_t numThreads) {
+    (void)ctx; (void)numThreads;
+    return 0;
 }
 
 void POOL_add(POOL_ctx* ctx, POOL_function function, void* opaque) {

@@ -1018,8 +1018,7 @@ static ZSTD_CCtx_params ZSTDMT_initJobCCtxParams(ZSTD_CCtx_params const params)
  * @return : error code if fails, 0 on success */
 static size_t ZSTDMT_resize(ZSTDMT_CCtx* mtctx, unsigned nbWorkers)
 {
-    mtctx->factory = POOL_resize(mtctx->factory, nbWorkers);
-    if (mtctx->factory == NULL) return ERROR(memory_allocation);
+    if (POOL_resize(mtctx->factory, nbWorkers)) return ERROR(memory_allocation);
     CHECK_F( ZSTDMT_expandJobsTable(mtctx, nbWorkers) );
     mtctx->bufPool = ZSTDMT_expandBufferPool(mtctx->bufPool, nbWorkers);
     if (mtctx->bufPool == NULL) return ERROR(memory_allocation);

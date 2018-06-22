@@ -40,14 +40,14 @@ void POOL_free(POOL_ctx* ctx);
 
 /*! POOL_resize() :
  *  Expands or shrinks pool's number of threads.
- *  This is more efficient than releasing and creating a new context.
- * @return : a new pool context on success, NULL on failure
- *    note : new pool context might have same address as original one, but it's not guaranteed.
- *           consider starting context as consumed, only rely on returned one.
- *    note 2 : only numThreads can be resized, queueSize is unchanged.
- *    note 3 : `numThreads` must be at least 1
+ *  This is more efficient than releasing + creating a new context,
+ *  since it tries to preserve and re-use existing threads.
+ * `numThreads` must be at least 1.
+ * @return : 0 when resize was successful,
+ *           !0 (typically 1) if there is an error.
+ *    note : only numThreads can be resized, queueSize remains unchanged.
  */
-POOL_ctx* POOL_resize(POOL_ctx* ctx, size_t numThreads);
+int POOL_resize(POOL_ctx* ctx, size_t numThreads);
 
 /*! POOL_sizeof() :
  * @return threadpool memory usage

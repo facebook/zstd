@@ -652,7 +652,7 @@ They follow the same enumeration :
 - `Predefined_Mode` : A predefined FSE distribution table is used, defined in
           [default distributions](#default-distributions).
           No distribution table will be present.
-- `RLE_Mode` : The table description consists of a single byte, which contain symbol's value.
+- `RLE_Mode` : The table description consists of a single byte, which contains the symbol's value.
           This symbol will be used for all sequences.
 - `FSE_Compressed_Mode` : standard FSE compression.
           A distribution table will be present.
@@ -754,7 +754,7 @@ supporting back-reference distances up to `(2^(N+1))-4`,
 but is limited by [maximum back-reference distance](#window_descriptor).
 
 `Offset_Value` from 1 to 3 are special : they define "repeat codes".
-This is described in more details in [Repeat Offsets](#repeat-offsets).
+This is described in more detail in [Repeat Offsets](#repeat-offsets).
 
 #### Decoding Sequences
 FSE bitstreams are read in reverse direction than written. In zstd,
@@ -1281,7 +1281,7 @@ symbols for each of the final states are decoded and the process is complete.
 #### Conversion from weights to Huffman prefix codes
 
 All present symbols shall now have a `Weight` value.
-It is possible to transform weights into` Number_of_Bits`, using this formula:
+It is possible to transform weights into `Number_of_Bits`, using this formula:
 ```
 Number_of_Bits = (Weight>0) ? Max_Number_of_Bits + 1 - Weight : 0
 ```

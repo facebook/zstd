@@ -166,7 +166,7 @@ static size_t ZSTD_DUBT_findBetterDictMatch (
     U32*        const dictBt = dms->chainTable;
     U32         const btLog  = cParams->chainLog - 1;
     U32         const btMask = (1 << btLog) - 1;
-    U32         const btLow = (btMask >= dictHighLimit - dictLowLimit) ? 0 : dictHighLimit - btMask;
+    U32         const btLow = (btMask >= dictHighLimit - dictLowLimit) ? dictLowLimit : dictHighLimit - btMask;
 
     size_t commonLengthSmaller=0, commonLengthLarger=0;
     U32 matchEndIdx = current+8+1;

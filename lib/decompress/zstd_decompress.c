@@ -1108,15 +1108,11 @@ size_t ZSTD_execSequence(BYTE* op,
             return sequenceLength;
         }
         /* span extDict & currentPrefixSegment */
-        DEBUGLOG(2, "ZSTD_execSequence: found a 2-segments match")
         {   size_t const length1 = dictEnd - match;
-            DEBUGLOG(2, "first part (extDict) is %zu bytes long", length1);
             memmove(oLitEnd, match, length1);
             op = oLitEnd + length1;
             sequence.matchLength -= length1;
-            DEBUGLOG(2, "second part (prefix) is %zu bytes long", sequence.matchLength);
             match = prefixStart;
-            DEBUGLOG(2, "first byte of 2nd part : %02X", *prefixStart);
             if (op > oend_w || sequence.matchLength < MINMATCH) {
               U32 i;
               for (i = 0; i < sequence.matchLength; ++i) op[i] = match[i];

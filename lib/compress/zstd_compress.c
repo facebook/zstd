@@ -3647,13 +3647,9 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
         }
         if (params.nbWorkers > 0) {
             /* mt context creation */
-            if (cctx->mtctx == NULL || (params.nbWorkers != ZSTDMT_getNbWorkers(cctx->mtctx))) {
+            if (cctx->mtctx == NULL) {
                 DEBUGLOG(4, "ZSTD_compress_generic: creating new mtctx for nbWorkers=%u",
                             params.nbWorkers);
-                if (cctx->mtctx != NULL)
-                    DEBUGLOG(4, "ZSTD_compress_generic: previous nbWorkers was %u",
-                                ZSTDMT_getNbWorkers(cctx->mtctx));
-                ZSTDMT_freeCCtx(cctx->mtctx);
                 cctx->mtctx = ZSTDMT_createCCtx_advanced(params.nbWorkers, cctx->customMem);
                 if (cctx->mtctx == NULL) return ERROR(memory_allocation);
             }

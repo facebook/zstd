@@ -710,13 +710,8 @@ int main(int argCount, const char* argv[])
 
                         /* Select compressibility of synthetic sample */
                     case 'P': 
-                    {   U32 proba32 = 0;
-                        while ((argument[1]>= '0') && (argument[1]<= '9')) {
-                            proba32 *= 10;
-                            proba32 += argument[1] - '0';
-                            argument++;
-                        }
-                        compressibility = (double)proba32 / 100;
+                    {   argument++;
+                        compressibility = (double)readU32FromChar(&argument) / 100;
                     }
                     break;
 

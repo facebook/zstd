@@ -290,7 +290,7 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
     size_t const dstBuffSize = ZSTD_compressBound(srcSize);
     void*  buff2;
     const char* benchName;
-    size_t (*benchFunction)(const void* src, size_t srcSize, void* dst, size_t dstSize, void* verifBuff);
+    BMK_benchFn_t benchFunction;
     BMK_customReturn_t r;
     int errorcode = 0;
 

@@ -26,8 +26,8 @@ extern "C" {
  * in .error != 0. 
  */
 #define ERROR_STRUCT(baseType, typeName) typedef struct { \
-    int error;       \
     baseType result; \
+    int error;       \
 } typeName
 
 typedef struct {
@@ -36,44 +36,7 @@ typedef struct {
     double dSpeed;
 } BMK_result_t;
 
-typedef struct {
-    size_t sumOfReturn;    /* sum of return values */
-    U64 nanoSecPerRun;     /* time per iteration */
-} BMK_customResult_t;
-//we might need a nbRuns or nbSecs if we're keeping timeMode / iterMode respectively.
-//give benchMem responsibility to incrementally update display.
-
 ERROR_STRUCT(BMK_result_t, BMK_return_t);
-ERROR_STRUCT(BMK_customResult_t, BMK_customReturn_t);
-
-typedef enum {
-    BMK_timeMode = 0,
-    BMK_iterMode = 1
-} BMK_loopMode_t;
-
-typedef enum {
-    BMK_both = 0,
-    BMK_decodeOnly = 1,
-    BMK_compressOnly = 2
-} BMK_mode_t;
-
-typedef struct {
-    BMK_mode_t mode; /* 0: all, 1: compress only 2: decode only */
-    BMK_loopMode_t loopMode; /* if loopmode, then nbSeconds = nbLoops */
-    unsigned nbSeconds; /* default timing is in nbSeconds */
-    size_t blockSize; /* Maximum allowable size of a block*/
-    unsigned nbWorkers; /* multithreading */
-    unsigned realTime; /* real time priority */
-    int additionalParam; /* used by python speed benchmark */
-    unsigned ldmFlag; /* enables long distance matching */
-    unsigned ldmMinMatch; /* below: parameters for long distance matching, see zstd.1.md for meaning */
-    unsigned ldmHashLog; 
-    unsigned ldmBucketSizeLog;
-    unsigned ldmHashEveryLog;
-} BMK_advancedParams_t;
-
-/* returns default parameters used by nonAdvanced functions */
-BMK_advancedParams_t BMK_initAdvancedParams(void);
 
 /* called in cli */
 /* Loads files in fileNamesTable into memory, as well as a dictionary 
@@ -99,6 +62,35 @@ BMK_return_t BMK_benchFiles(const char* const * const fileNamesTable, unsigned c
                    const char* const dictFileName, 
                    int const cLevel, const ZSTD_compressionParameters* const compressionParams, 
                    int displayLevel);
+
+typedef enum {
+    BMK_timeMode = 0,
+    BMK_iterMode = 1
+} BMK_loopMode_t;
+
+typedef enum {
+    BMK_both = 0,
+    BMK_decodeOnly = 1,
+    BMK_compressOnly = 2
+} BMK_mode_t;
+
+typedef struct {
+    BMK_mode_t mode;            /* 0: all, 1: compress only 2: decode only */
+    BMK_loopMode_t loopMode;    /* if loopmode, then nbSeconds = nbLoops */
+    unsigned nbSeconds;         /* default timing is in nbSeconds */
+    size_t blockSize;           /* Maximum allowable size of a block*/
+    unsigned nbWorkers;         /* multithreading */
+    unsigned realTime;          /* real time priority */
+    int additionalParam;        /* used by python speed benchmark */
+    unsigned ldmFlag;           /* enables long distance matching */
+    unsigned ldmMinMatch;       /* below: parameters for long distance matching, see zstd.1.md for meaning */
+    unsigned ldmHashLog; 
+    unsigned ldmBucketSizeLog;
+    unsigned ldmHashEveryLog;
+} BMK_advancedParams_t;
+
+/* returns default parameters used by nonAdvanced functions */
+BMK_advancedParams_t BMK_initAdvancedParams(void);
 
 /* See benchFiles for normal parameter uses and return, see advancedParams_t for adv */
 BMK_return_t BMK_benchFilesAdvanced(const char* const * const fileNamesTable, unsigned const nbFiles,
@@ -158,10 +150,20 @@ BMK_return_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
                         int displayLevel, const char* displayName,
                         const BMK_advancedParams_t* adv);
 
+typedef struct {
+    size_t sumOfReturn;    /* sum of return values */
+    U64 nanoSecPerRun;     /* time per iteration */
+} BMK_customResult_t;
+
+ERROR_STRUCT(BMK_customResult_t, BMK_customReturn_t);
+
+typedef size_t (*BMK_benchFn_t)(const void*, size_t, void*, size_t, void*);
+typedef size_t (*BMK_initFn_t)(void*);
+
 /* This function times the execution of 2 argument functions, benchFn and initFn  */
 
 /* benchFn - (*benchFn)(srcBuffers[i], srcSizes[i], dstBuffers[i], dstCapacities[i], benchPayload)
- *      is run iter times
+ *      is run nbLoops times
  * initFn - (*initFn)(initPayload) is run once per benchmark at the beginning. This argument can 
  *          be NULL, in which case nothing is run.
  * blockCount - number of blocks (size of srcBuffers, srcSizes, dstBuffers, dstCapacities)
@@ -169,7 +171,7 @@ BMK_return_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
  * srcSizes - an array of the sizes of above buffers
  * dstBuffers - an array of buffers to be written into by benchFn
  * dstCapacities - an array of the capacities of above buffers.
- * iter - defines number of times benchFn is run.
+ * nbLoops - defines number of times benchFn is run.
  * return 
  *      .error will give a nonzero value if ZSTD_isError() is nonzero for any of the return
  *          of the calls to initFn and benchFn, or if benchFunction errors internally
@@ -181,44 +183,40 @@ BMK_return_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
  *          dstBuffer.
  */
 BMK_customReturn_t BMK_benchFunction(                        
-                        size_t (*benchFn)(const void*, size_t, void*, size_t, void*), void* benchPayload,
-                        size_t (*initFn)(void*), void* initPayload,
+                        BMK_benchFn_t benchFn, void* benchPayload,
+                        BMK_initFn_t initFn, void* initPayload,
                         size_t blockCount,
                         const void* const * const srcBuffers, const size_t* srcSizes,
                         void* const * const dstBuffers, const size_t* dstCapacities,
-                        unsigned sec);
+                        unsigned nbLoops);
+
+
+/* state information needed to advance computation for benchFunctionTimed */
+typedef struct BMK_timeState_t BMK_timedFnState_t;
+/* initializes timeState object with desired number of seconds */
+BMK_timedFnState_t* BMK_createTimeState(unsigned nbSeconds);
+/* resets existing timeState object */
+void BMK_resetTimeState(BMK_timedFnState_t*, unsigned nbSeconds);
+/* deletes timeState object */
+void BMK_freeTimeState(BMK_timedFnState_t* state);
 
 typedef struct {
-    unsigned nbLoops;
-    U64 timeRemaining;
-    UTIL_time_t coolTime;
-} BMK_timeState_t;
-
-typedef struct {
+    BMK_customReturn_t result;
     int completed;
-    BMK_customReturn_t intermediateResult; /* since the wrapper can't err, don't need ERROR_STRUCT(cRC, just check here) */
-    BMK_timeState_t state; 
-} BMK_customResultContinuation_t;
+} BMK_customTimedReturn_t;
 
 /* 
- * initializes the last argument of benchFunctionTimed, with iter being the number of seconds to bench (see below)
- */
-BMK_customResultContinuation_t BMK_init_customResultContinuation(unsigned iter);
-
-/* 
- * Benchmarks custom functions like BMK_benchFunction(), but runs for iter seconds rather than a fixed number of iterations
+ * Benchmarks custom functions like BMK_benchFunction(), but runs for nbSeconds seconds rather than a fixed number of loops
  * arguments mostly the same other than BMK_benchFunction()
- * Usage - benchFunctionTimed will return in approximately one second, where the intermediate results can be found in 
- * the *cont passed in and be displayed/used as wanted. Keep calling BMK_benchFunctionTimed() until cont->completed = 1 
- * to continue updating intermediate result. 
+ * Usage - benchFunctionTimed will return in approximately one second. Keep calling BMK_benchFunctionTimed() until the return's completed field = 1. 
+ * to continue updating intermediate result. Intermediate return values are returned by the function.
  */
-void BMK_benchFunctionTimed(
-    size_t (*benchFn)(const void*, size_t, void*, size_t, void*), void* benchPayload,
-    size_t (*initFn)(void*), void* initPayload,
+BMK_customTimedReturn_t BMK_benchFunctionTimed(BMK_timedFnState_t* cont,
+    BMK_benchFn_t benchFn, void* benchPayload,
+    BMK_initFn_t initFn, void* initPayload,
     size_t blockCount,
     const void* const * const srcBlockBuffers, const size_t* srcBlockSizes,
-    void* const * const dstBlockBuffers, const size_t* dstBlockCapacities,
-    BMK_customResultContinuation_t* cont);
+    void* const * const dstBlockBuffers, const size_t* dstBlockCapacities);
 
 #endif   /* BENCH_H_121279284357 */
 

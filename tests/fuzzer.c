@@ -66,6 +66,9 @@ static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
             if (g_displayLevel>=4) fflush(stderr); } }
 
 
+/*-*******************************************************
+*  Compile time test
+*********************************************************/
 #undef MIN
 #undef MAX
 void FUZ_bug976(void)
@@ -73,6 +76,7 @@ void FUZ_bug976(void)
     assert(ZSTD_HASHLOG_MAX < 31);
     assert(ZSTD_CHAINLOG_MAX < 31);
 }
+
 
 /*-*******************************************************
 *  Internal functions

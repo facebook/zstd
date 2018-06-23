@@ -433,11 +433,12 @@ static int basicUnitTests(U32 seed, double compressibility)
         inBuff.pos = 0;
         outBuff.pos = 0;
         while (r) {   /* skippable frame */
-            size_t const inSize = FUZ_rand(&coreSeed) & 15;
-            size_t const outSize = FUZ_rand(&coreSeed) & 15;
+            size_t const inSize = (FUZ_rand(&coreSeed) & 15) + 1;
+            size_t const outSize = (FUZ_rand(&coreSeed) & 15) + 1;
             inBuff.size = inBuff.pos + inSize;
             outBuff.size = outBuff.pos + outSize;
             r = ZSTD_decompressStream(zd, &outBuff, &inBuff);
+            if (ZSTD_isError(r)) DISPLAYLEVEL(4, "ZSTD_decompressStream on skippable frame error : %s \n", ZSTD_getErrorName(r));
             if (ZSTD_isError(r)) goto _output_error;
         }
         /* normal frame */
@@ -445,14 +446,17 @@ static int basicUnitTests(U32 seed, double compressibility)
         r=1;
         while (r) {
             size_t const inSize = FUZ_rand(&coreSeed) & 15;
-            size_t const outSize = FUZ_rand(&coreSeed) & 15;
+            size_t const outSize = (FUZ_rand(&coreSeed) & 15) + (!inSize);   /* avoid having both sizes at 0 => would trigger a no_forward_progress error */
             inBuff.size = inBuff.pos + inSize;
             outBuff.size = outBuff.pos + outSize;
             r = ZSTD_decompressStream(zd, &outBuff, &inBuff);
+            if (ZSTD_isError(r)) DISPLAYLEVEL(4, "ZSTD_decompressStream error : %s \n", ZSTD_getErrorName(r));
             if (ZSTD_isError(r)) goto _output_error;
         }
     }
+    if (outBuff.pos != CNBufferSize) DISPLAYLEVEL(4, "outBuff.pos != CNBufferSize : should have regenerated same amount ! \n");
     if (outBuff.pos != CNBufferSize) goto _output_error;   /* should regenerate the same amount */
+    if (inBuff.pos != cSize) DISPLAYLEVEL(4, "inBuff.pos != cSize : should have real all input ! \n");
     if (inBuff.pos != cSize) goto _output_error;   /* should have read the entire frame */
     DISPLAYLEVEL(3, "OK \n");
 
@@ -462,6 +466,30 @@ static int basicUnitTests(U32 seed, double compressibility)
         for (i=0; i<CNBufferSize; i++) {
             if (((BYTE*)decodedBuffer)[i] != ((BYTE*)CNBuffer)[i]) goto _output_error;;
     }   }
+    DISPLAYLEVEL(3, "OK \n");
+
+    /* Decompression forward progress */
+    DISPLAYLEVEL(3, "test%3i : generate error when ZSTD_decompressStream() doesn't progress : ", testNb++);
+    {   /* skippable frame */
+        size_t r = 0;
+        int decNb = 0;
+        int const maxDec = 100;
+        inBuff.src = compressedBuffer;
+        inBuff.size = cSize;
+        inBuff.pos = 0;
+
+        outBuff.dst = decodedBuffer;
+        outBuff.pos = 0;
+        outBuff.size = CNBufferSize-1;   /* 1 byte missing */
+
+        for (decNb=0; decNb<maxDec; decNb++) {
+            if (r==0) ZSTD_initDStream_usingDict(zd, CNBuffer, dictSize);
+            r = ZSTD_decompressStream(zd, &outBuff, &inBuff);
+            if (ZSTD_isError(r)) break;
+        }
+        if (!ZSTD_isError(r)) DISPLAYLEVEL(4, "ZSTD_decompressStream should have triggered a no_forward_progress error \n");
+        if (!ZSTD_isError(r)) goto _output_error;   /* should have triggered no_forward_progress error */
+    }
     DISPLAYLEVEL(3, "OK \n");
 
     /* _srcSize compression test */

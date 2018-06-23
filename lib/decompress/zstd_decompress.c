@@ -41,6 +41,17 @@
 #endif
 
 
+/*!
+ *  NO_FORWARD_PROGRESS_MAX :
+ *  maximum allowed nb of calls to ZSTD_decompressStream() and ZSTD_decompress_generic()
+ *  without any forward progress
+ *  (defined as: no byte read from input, and no byte flushed to output)
+ *  before triggering an error.
+ */
+#ifndef ZSTD_NO_FORWARD_PROGRESS_MAX
+#  define ZSTD_NO_FORWARD_PROGRESS_MAX 16
+#endif
+
 /*-*******************************************************
 *  Dependencies
 *********************************************************/
@@ -153,6 +164,7 @@ struct ZSTD_DCtx_s
     U32 previousLegacyVersion;
     U32 legacyVersion;
     U32 hostageByte;
+    int noForwardProgress;
 
     /* workspace */
     BYTE litBuffer[ZSTD_BLOCKSIZE_MAX + WILDCOPY_OVERLENGTH];
@@ -194,6 +206,7 @@ static void ZSTD_initDCtx_internal(ZSTD_DCtx* dctx)
     dctx->streamStage = zdss_init;
     dctx->legacyContext = NULL;
     dctx->previousLegacyVersion = 0;
+    dctx->noForwardProgress = 0;
     dctx->bmi2 = ZSTD_cpuid_bmi2(ZSTD_cpuid());
 }
 
@@ -2620,6 +2633,7 @@ size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t di
 {
     DEBUGLOG(4, "ZSTD_initDStream_usingDict");
     zds->streamStage = zdss_init;
+    zds->noForwardProgress = 0;
     CHECK_F( ZSTD_DCtx_loadDictionary(zds, dict, dictSize) );
     return ZSTD_frameHeaderSize_prefix;
 }
@@ -2960,8 +2974,18 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
     }   }
 
     /* result */
-    input->pos += (size_t)(ip-istart);
-    output->pos += (size_t)(op-ostart);
+    input->pos = (size_t)(ip - (const char*)(input->src));
+    output->pos = (size_t)(op - (char*)(output->dst));
+    if ((ip==istart) && (op==ostart)) {  /* no forward progress */
+        zds->noForwardProgress ++;
+        if (zds->noForwardProgress >= ZSTD_NO_FORWARD_PROGRESS_MAX) {
+            if (op==oend) return ERROR(dstSize_tooSmall);
+            if (ip==iend) return ERROR(srcSize_wrong);
+            assert(0);
+        }
+    } else {
+        zds->noForwardProgress = 0;
+    }
     {   size_t nextSrcSizeHint = ZSTD_nextSrcSizeToDecompress(zds);
         if (!nextSrcSizeHint) {   /* frame fully decoded */
             if (zds->outEnd == zds->outStart) {  /* output fully flushed */

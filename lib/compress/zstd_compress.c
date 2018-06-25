@@ -260,6 +260,7 @@ static int ZSTD_isUpdateAuthorized(ZSTD_cParameter param)
     case ZSTD_p_ldmMinMatch:
     case ZSTD_p_ldmBucketSizeLog:
     case ZSTD_p_ldmHashEveryLog:
+    case ZSTD_p_forceAttachDict:
     default:
         return 0;
     }
@@ -302,6 +303,9 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
     case ZSTD_p_forceMaxWindow :  /* Force back-references to remain < windowSize,
                                    * even when referencing into Dictionary content.
                                    * default : 0 when using a CDict, 1 when using a Prefix */
+        return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
+
+    case ZSTD_p_forceAttachDict:
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
     case ZSTD_p_nbWorkers:
@@ -409,6 +413,12 @@ size_t ZSTD_CCtxParam_setParameter(
         CCtxParams->forceWindow = (value > 0);
         return CCtxParams->forceWindow;
 
+    case ZSTD_p_forceAttachDict :
+        CCtxParams->attachDictPref = value ?
+                                    (value > 0 ? ZSTD_dictForceAttach : ZSTD_dictForceCopy) :
+                                     ZSTD_dictDefaultAttach;
+        return CCtxParams->attachDictPref;
+
     case ZSTD_p_nbWorkers :
 #ifndef ZSTD_MULTITHREAD
         if (value>0) return ERROR(parameter_unsupported);
@@ -511,6 +521,9 @@ size_t ZSTD_CCtxParam_getParameter(
         break;
     case ZSTD_p_forceMaxWindow :
         *value = CCtxParams->forceWindow;
+        break;
+    case ZSTD_p_forceAttachDict :
+        *value = CCtxParams->attachDictPref;
         break;
     case ZSTD_p_nbWorkers :
 #ifndef ZSTD_MULTITHREAD
@@ -1243,7 +1256,9 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
         8 KB /* ZSTD_btultra */
     };
     const int attachDict = ( pledgedSrcSize <= attachDictSizeCutoffs[cdict->cParams.strategy]
-                          || pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN )
+                          || pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN
+                          || params.attachDictPref == ZSTD_dictForceAttach )
+                        && params.attachDictPref != ZSTD_dictForceCopy
                         && !params.forceWindow /* dictMatchState isn't correctly
                                                 * handled in _enforceMaxDist */
                         && ZSTD_equivalentCParams(cctx->appliedParams.cParams,

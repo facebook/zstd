@@ -1007,6 +1007,21 @@ size_t ZSTDMT_setMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSTDMT_parameter parameter, 
     }
 }
 
+size_t ZSTDMT_getMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSTDMT_parameter parameter, unsigned* value)
+{
+    switch (parameter) {
+    case ZSTDMT_p_jobSize:
+        *value = mtctx->params.jobSize;
+        break;
+    case ZSTDMT_p_overlapSectionLog:
+        *value = mtctx->params.overlapSizeLog;
+        break;
+    default:
+        return ERROR(parameter_unsupported);
+    }
+    return 0;
+}
+
 /* Sets parameters relevant to the compression job,
  * initializing others to default values. */
 static ZSTD_CCtx_params ZSTDMT_initJobCCtxParams(ZSTD_CCtx_params const params)

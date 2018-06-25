@@ -95,6 +95,11 @@ typedef enum {
  * @return : 0, or an error code (which can be tested using ZSTD_isError()) */
 ZSTDLIB_API size_t ZSTDMT_setMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSTDMT_parameter parameter, unsigned value);
 
+/* ZSTDMT_getMTCtxParameter() :
+ * Query the ZSTDMT_CCtx for a parameter value.
+ * @return : 0, or an error code (which can be tested using ZSTD_isError()) */
+ZSTDLIB_API size_t ZSTDMT_getMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSTDMT_parameter parameter, unsigned* value);
+
 
 /*! ZSTDMT_compressStream_generic() :
  *  Combines ZSTDMT_compressStream() with optional ZSTDMT_flushStream() or ZSTDMT_endStream()

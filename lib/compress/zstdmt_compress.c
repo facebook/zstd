@@ -459,7 +459,7 @@ typedef struct {
     ZSTD_window_t ldmWindow;  /* A thread-safe copy of ldmState.window */
 } serialState_t;
 
-static int ZSTDMT_serialState_reset(serialState_t* serialState, ZSTDMT_seqPool* seqPool, ZSTD_CCtx_params params)
+static int ZSTDMT_serialState_reset(serialState_t* serialState, ZSTDMT_seqPool* seqPool, ZSTD_CCtx_params params, size_t jobSize)
 {
     /* Adjust parameters */
     if (params.ldmParams.enableLdm) {
@@ -486,7 +486,7 @@ static int ZSTDMT_serialState_reset(serialState_t* serialState, ZSTDMT_seqPool* 
             serialState->params.ldmParams.hashLog -
             serialState->params.ldmParams.bucketSizeLog;
         /* Size the seq pool tables */
-        ZSTDMT_setNbSeq(seqPool, ZSTD_ldm_getMaxNbSeq(params.ldmParams, params.jobSize));
+        ZSTDMT_setNbSeq(seqPool, ZSTD_ldm_getMaxNbSeq(params.ldmParams, jobSize));
         /* Reset the window */
         ZSTD_window_clear(&serialState->ldmState.window);
         serialState->ldmWindow = serialState->ldmState.window;
@@ -506,6 +506,7 @@ static int ZSTDMT_serialState_reset(serialState_t* serialState, ZSTDMT_seqPool* 
         memset(serialState->ldmState.bucketOffsets, 0, bucketSize);
     }
     serialState->params = params;
+    serialState->params.jobSize = (U32)jobSize;
     return 0;
 }
 
@@ -547,6 +548,7 @@ static void ZSTDMT_serialState_update(serialState_t* serialState,
             size_t error;
             assert(seqStore.seq != NULL && seqStore.pos == 0 &&
                    seqStore.size == 0 && seqStore.capacity > 0);
+            assert(src.size <= serialState->params.jobSize);
             ZSTD_window_update(&serialState->ldmState.window, src.start, src.size);
             error = ZSTD_ldm_generateSequences(
                 &serialState->ldmState, &seqStore,
@@ -635,13 +637,6 @@ void ZSTDMT_compressionJob(void* jobDescription)
     rawSeqStore_t rawSeqStore = ZSTDMT_getSeq(job->seqPool);
     buffer_t dstBuff = job->dstBuff;
 
-    /* Don't compute the checksum for chunks, since we compute it externally,
-     * but write it in the header.
-     */
-    if (job->jobID != 0) jobParams.fParams.checksumFlag = 0;
-    /* Don't run LDM for the chunks, since we handle it externally */
-    jobParams.ldmParams.enableLdm = 0;
-
     /* ressources */
     if (cctx==NULL) {
         job->cSize = ERROR(memory_allocation);
@@ -655,6 +650,18 @@ void ZSTDMT_compressionJob(void* jobDescription)
         }
         job->dstBuff = dstBuff;   /* this value can be read in ZSTDMT_flush, when it copies the whole job */
     }
+    if (jobParams.ldmParams.enableLdm && rawSeqStore.seq == NULL) {
+        job->cSize = ERROR(memory_allocation);
+        goto _endJob;
+    }
+
+    /* Don't compute the checksum for chunks, since we compute it externally,
+     * but write it in the header.
+     */
+    if (job->jobID != 0) jobParams.fParams.checksumFlag = 0;
+    /* Don't run LDM for the chunks, since we handle it externally */
+    jobParams.ldmParams.enableLdm = 0;
+
 
     /* init */
     if (job->cdict) {
@@ -972,6 +979,8 @@ size_t ZSTDMT_CCtxParam_setMTCtxParameter(ZSTD_CCtx_params* params,
         if ( (value > 0)  /* value==0 => automatic job size */
            & (value < ZSTDMT_JOBSIZE_MIN) )
             value = ZSTDMT_JOBSIZE_MIN;
+        if (value > ZSTDMT_JOBSIZE_MAX)
+            value = ZSTDMT_JOBSIZE_MAX;
         params->jobSize = value;
         return value;
     case ZSTDMT_p_overlapSectionLog :
@@ -996,6 +1005,21 @@ size_t ZSTDMT_setMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSTDMT_parameter parameter, 
     default :
         return ERROR(parameter_unsupported);
     }
+}
+
+size_t ZSTDMT_getMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSTDMT_parameter parameter, unsigned* value)
+{
+    switch (parameter) {
+    case ZSTDMT_p_jobSize:
+        *value = mtctx->params.jobSize;
+        break;
+    case ZSTDMT_p_overlapSectionLog:
+        *value = mtctx->params.overlapSizeLog;
+        break;
+    default:
+        return ERROR(parameter_unsupported);
+    }
+    return 0;
 }
 
 /* Sets parameters relevant to the compression job,
@@ -1143,7 +1167,7 @@ static size_t ZSTDMT_compress_advanced_internal(
 
     assert(avgJobSize >= 256 KB);  /* condition for ZSTD_compressBound(A) + ZSTD_compressBound(B) <= ZSTD_compressBound(A+B), required to compress directly into Dst (no additional buffer) */
     ZSTDMT_setBufferSize(mtctx->bufPool, ZSTD_compressBound(avgJobSize) );
-    if (ZSTDMT_serialState_reset(&mtctx->serial, mtctx->seqPool, params))
+    if (ZSTDMT_serialState_reset(&mtctx->serial, mtctx->seqPool, params, avgJobSize))
         return ERROR(memory_allocation);
 
     CHECK_F( ZSTDMT_expandJobsTable(mtctx, nbJobs) );  /* only expands if necessary */
@@ -1280,9 +1304,7 @@ size_t ZSTDMT_initCStream_internal(
     if (params.nbWorkers != mtctx->params.nbWorkers)
         CHECK_F( ZSTDMT_resize(mtctx, params.nbWorkers) );
 
-    if (params.jobSize == 0) {
-        params.jobSize = 1U << ZSTDMT_computeTargetJobLog(params);
-    }
+    if (params.jobSize > 0 && params.jobSize < ZSTDMT_JOBSIZE_MIN) params.jobSize = ZSTDMT_JOBSIZE_MIN;
     if (params.jobSize > ZSTDMT_JOBSIZE_MAX) params.jobSize = ZSTDMT_JOBSIZE_MAX;
 
     mtctx->singleBlockingThread = (pledgedSrcSize <= ZSTDMT_JOBSIZE_MIN);  /* do not trigger multi-threading when srcSize is too small */
@@ -1321,7 +1343,9 @@ size_t ZSTDMT_initCStream_internal(
     mtctx->targetPrefixSize = (size_t)1 << ZSTDMT_computeOverlapLog(params);
     DEBUGLOG(4, "overlapLog=%u => %u KB", params.overlapSizeLog, (U32)(mtctx->targetPrefixSize>>10));
     mtctx->targetSectionSize = params.jobSize;
-    if (mtctx->targetSectionSize < ZSTDMT_JOBSIZE_MIN) mtctx->targetSectionSize = ZSTDMT_JOBSIZE_MIN;
+    if (mtctx->targetSectionSize == 0) {
+        mtctx->targetSectionSize = 1ULL << ZSTDMT_computeTargetJobLog(params);
+    }
     if (mtctx->targetSectionSize < mtctx->targetPrefixSize) mtctx->targetSectionSize = mtctx->targetPrefixSize;  /* job size must be >= overlap size */
     DEBUGLOG(4, "Job Size : %u KB (note : set to %u)", (U32)(mtctx->targetSectionSize>>10), params.jobSize);
     DEBUGLOG(4, "inBuff Size : %u KB", (U32)(mtctx->targetSectionSize>>10));
@@ -1363,7 +1387,7 @@ size_t ZSTDMT_initCStream_internal(
     mtctx->allJobsCompleted = 0;
     mtctx->consumed = 0;
     mtctx->produced = 0;
-    if (ZSTDMT_serialState_reset(&mtctx->serial, mtctx->seqPool, params))
+    if (ZSTDMT_serialState_reset(&mtctx->serial, mtctx->seqPool, params, mtctx->targetSectionSize))
         return ERROR(memory_allocation);
     return 0;
 }

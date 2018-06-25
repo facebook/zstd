@@ -1329,7 +1329,7 @@ size_t ZSTDMT_initCStream_internal(
     DEBUGLOG(4, "overlapLog=%u => %u KB", params.overlapSizeLog, (U32)(mtctx->targetPrefixSize>>10));
     mtctx->targetSectionSize = params.jobSize;
     if (mtctx->targetSectionSize == 0) {
-        mtctx->targetSectionSize = 1U << ZSTDMT_computeTargetJobLog(params);
+        mtctx->targetSectionSize = 1ULL << ZSTDMT_computeTargetJobLog(params);
     }
     if (mtctx->targetSectionSize < mtctx->targetPrefixSize) mtctx->targetSectionSize = mtctx->targetPrefixSize;  /* job size must be >= overlap size */
     DEBUGLOG(4, "Job Size : %u KB (note : set to %u)", (U32)(mtctx->targetSectionSize>>10), params.jobSize);

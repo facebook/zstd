@@ -48,6 +48,12 @@ extern "C" {
 typedef enum { ZSTDcs_created=0, ZSTDcs_init, ZSTDcs_ongoing, ZSTDcs_ending } ZSTD_compressionStage_e;
 typedef enum { zcss_init=0, zcss_load, zcss_flush } ZSTD_cStreamStage;
 
+typedef enum {
+    ZSTD_dictDefaultAttach = 0,
+    ZSTD_dictForceAttach = 1,
+    ZSTD_dictForceCopy = -1,
+} ZSTD_dictAttachPref_e;
+
 typedef struct ZSTD_prefixDict_s {
     const void* dict;
     size_t dictSize;
@@ -185,6 +191,8 @@ struct ZSTD_CCtx_params_s {
     int compressionLevel;
     int forceWindow;           /* force back-references to respect limit of
                                 * 1<<wLog, even for dictionary */
+
+    ZSTD_dictAttachPref_e attachDictPref;
 
     /* Multithreading: used to pass parameters to mtctx */
     unsigned nbWorkers;

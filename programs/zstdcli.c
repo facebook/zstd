@@ -761,8 +761,11 @@ int main(int argCount, const char* argv[])
         nbWorkers = UTIL_countPhysicalCores();
         DISPLAYLEVEL(3, "Note: %d physical core(s) detected \n", nbWorkers);
     }
+#else
+    (void)singleThread;
 #endif
 
+#ifdef UTIL_HAS_CREATEFILELIST
     g_utilDisplayLevel = g_displayLevel;
     if (!followLinks) {
         unsigned u;
@@ -775,7 +778,6 @@ int main(int argCount, const char* argv[])
         }
         filenameIdx = fileNamesNb;
     }
-#ifdef UTIL_HAS_CREATEFILELIST
     if (recursive) {  /* at this stage, filenameTable is a list of paths, which can contain both files and directories */
         extendedFileList = UTIL_createFileList(filenameTable, filenameIdx, &fileNamesBuf, &fileNamesNb, followLinks);
         if (extendedFileList) {
@@ -786,6 +788,8 @@ int main(int argCount, const char* argv[])
             filenameIdx = fileNamesNb;
         }
     }
+#else
+    (void)followLinks;
 #endif
 
     if (operation == zom_list) {

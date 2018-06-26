@@ -96,7 +96,10 @@ extern "C" {
 /*-*********************************************
 *  Detect if isatty() and fileno() are available
 ************************************************/
-#if (defined(__linux__) && (PLATFORM_POSIX_VERSION >= 1)) || (PLATFORM_POSIX_VERSION >= 200112L) || defined(__DJGPP__)
+#if (defined(__linux__) && (PLATFORM_POSIX_VERSION >= 1)) \
+ || (PLATFORM_POSIX_VERSION >= 200112L) \
+ || defined(__DJGPP__) \
+ || defined(__MSYS__)
 #  include <unistd.h>   /* isatty */
 #  define IS_CONSOLE(stdStream) isatty(fileno(stdStream))
 #elif defined(MSDOS) || defined(OS2) || defined(__CYGWIN__)

@@ -513,7 +513,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
 
 UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd, int followLinks)
 {
-    (void)bufStart; (void)bufEnd; (void)pos;
+    (void)bufStart; (void)bufEnd; (void)pos; (void)followLinks;
     UTIL_DISPLAYLEVEL(1, "Directory %s ignored (compiled without _WIN32 or _POSIX_C_SOURCE)\n", dirName);
     return 0;
 }

@@ -108,9 +108,21 @@ ENDIF (MSVC)
 # Split project to static and shared libraries build
 IF (ZSTD_BUILD_SHARED)
     ADD_LIBRARY(libzstd_shared SHARED ${Sources} ${Headers} ${PlatformDependResources})
+    IF (ZSTD_MULTITHREAD_SUPPORT)
+        SET_PROPERTY(TARGET libzstd_shared APPEND PROPERTY COMPILE_DEFINITIONS "ZSTD_MULTITHREAD")
+        IF (UNIX)
+            TARGET_LINK_LIBRARIES(libzstd_shared ${THREADS_LIBS})
+        ENDIF ()
+    ENDIF()
 ENDIF (ZSTD_BUILD_SHARED)
 IF (ZSTD_BUILD_STATIC)
     ADD_LIBRARY(libzstd_static STATIC ${Sources} ${Headers})
+    IF (ZSTD_MULTITHREAD_SUPPORT)
+        SET_PROPERTY(TARGET libzstd_static APPEND PROPERTY COMPILE_DEFINITIONS "ZSTD_MULTITHREAD")
+        IF (UNIX)
+            TARGET_LINK_LIBRARIES(libzstd_static ${THREADS_LIBS})
+        ENDIF ()
+    ENDIF ()
 ENDIF (ZSTD_BUILD_STATIC)
 
 # Add specific compile definitions for MSVC project
@@ -122,17 +134,6 @@ IF (MSVC)
         SET_PROPERTY(TARGET libzstd_static APPEND PROPERTY COMPILE_DEFINITIONS "ZSTD_HEAPMODE=0;_CRT_SECURE_NO_WARNINGS")
     ENDIF (ZSTD_BUILD_STATIC)
 ENDIF (MSVC)
-
-# Add multi-threading support definitions
-
-IF (ZSTD_MULTITHREAD_SUPPORT AND ZSTD_BUILD_SHARED AND ZSTD_BUILD_STATIC)
-    SET_PROPERTY(TARGET libzstd_shared libzstd_static APPEND PROPERTY COMPILE_DEFINITIONS "ZSTD_MULTITHREAD")
-
-    IF (UNIX)
-        TARGET_LINK_LIBRARIES(libzstd_shared ${THREADS_LIBS})
-        TARGET_LINK_LIBRARIES(libzstd_static ${THREADS_LIBS})
-    ENDIF ()
-ENDIF (ZSTD_MULTITHREAD_SUPPORT AND ZSTD_BUILD_SHARED AND ZSTD_BUILD_STATIC)
 
 # With MSVC static library needs to be renamed to avoid conflict with import library
 IF (MSVC)

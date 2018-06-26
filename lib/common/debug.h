@@ -58,8 +58,9 @@ extern "C" {
 
 
 /* static assert is triggered at compile time, leaving no runtime artefact,
- * but can only work with compile-time constants */
-#define DEBUG_STATIC_ASSERT(c) { extern char DEBUG_static_assert[(c) ? 1 : -1]; }
+ * but can only work with compile-time constants.
+ * This variant can only be used inside a function. */
+#define DEBUG_STATIC_ASSERT(c) (void)sizeof(char[(c) ? 1 : -1])
 
 
 /* DEBUGLEVEL is expected to be defined externally,

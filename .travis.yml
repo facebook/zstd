@@ -39,6 +39,14 @@ matrix:
     - if: tag =~ ^v[0-9]\.[0-9]
       env: Cmd='make -C tests checkTag && tests/checkTag $TRAVIS_BRANCH'
 
+    # additional tests for master branch and cron job
+    - env: Cmd="make test"
+      os: osx
+    - env: Cmd='make clang38install && CC=clang-3.8 make clean tsan-test-zstream'
+    - env: Cmd='make cxxtest && make clean && make gnu90build && make clean && make cmakebuild && make clean && make travis-install'
+    - env: Cmd='make gpp6install valgrindinstall && make -C zlibWrapper test && make -C zlibWrapper valgrindTest'
+
+
 git:
   depth: 1
 

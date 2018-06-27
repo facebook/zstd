@@ -46,11 +46,6 @@ ZSTD_ErrorCode ZSTD_getErrorCode(size_t code) { return ERR_getErrorCode(code); }
  *  provides error code string from enum */
 const char* ZSTD_getErrorString(ZSTD_ErrorCode code) { return ERR_getErrorString(code); }
 
-/*! g_debuglog_enable :
- *  turn on/off debug traces (global switch) */
-#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG >= 2)
-int g_debuglog_enable = 1;
-#endif
 
 
 /*=**************************************************************

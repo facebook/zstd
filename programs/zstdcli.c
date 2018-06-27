@@ -145,6 +145,7 @@ static int usage_advanced(const char* programName)
 #ifdef UTIL_HAS_CREATEFILELIST
     DISPLAY( " -r     : operate recursively on directories \n");
 #endif
+    DISPLAY( "--format=zstd : compress files to the .zstd format (default) \n");
 #ifdef ZSTD_GZCOMPRESS
     DISPLAY( "--format=gzip : compress files to the .gz format \n");
 #endif
@@ -219,20 +220,34 @@ static int exeNameMatch(const char* exeName, const char* test)
         (exeName[strlen(test)] == '\0' || exeName[strlen(test)] == '.');
 }
 
+static void errorOut(const char* msg)
+{
+    DISPLAY("%s \n", msg); exit(1);
+}
+
 /*! readU32FromChar() :
  * @return : unsigned integer value read from input in `char` format.
  *  allows and interprets K, KB, KiB, M, MB and MiB suffix.
  *  Will also modify `*stringPtr`, advancing it to position where it stopped reading.
- *  Note : function result can overflow if digit string > MAX_UINT */
+ *  Note : function will exit() program if digit sequence overflows */
 static unsigned readU32FromChar(const char** stringPtr)
 {
+    const char errorMsg[] = "error: numeric value too large";
     unsigned result = 0;
-    while ((**stringPtr >='0') && (**stringPtr <='9'))
+    while ((**stringPtr >='0') && (**stringPtr <='9')) {
+        unsigned const max = (((unsigned)(-1)) / 10) - 1;
+        if (result > max) errorOut(errorMsg);
         result *= 10, result += **stringPtr - '0', (*stringPtr)++ ;
+    }
     if ((**stringPtr=='K') || (**stringPtr=='M')) {
+        unsigned const maxK = ((unsigned)(-1)) >> 10;
+        if (result > maxK) errorOut(errorMsg);
         result <<= 10;
-        if (**stringPtr=='M') result <<= 10;
-        (*stringPtr)++ ;
+        if (**stringPtr=='M') {
+            if (result > maxK) errorOut(errorMsg);
+            result <<= 10;
+        }
+        (*stringPtr)++;  /* skip `K` or `M` */
         if (**stringPtr=='i') (*stringPtr)++;
         if (**stringPtr=='B') (*stringPtr)++;
     }
@@ -486,6 +501,7 @@ int main(int argCount, const char* argv[])
                     if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(1); continue; }
                     if (!strcmp(argument, "--priority=rt")) { setRealTimePrio = 1; continue; }
                     if (!strcmp(argument, "--single-thread")) { nbWorkers = 0; singleThread = 1; continue; }
+                    if (!strcmp(argument, "--format=zstd")) { suffix = ZSTD_EXTENSION; FIO_setCompressionType(FIO_zstdCompression); continue; }
 #ifdef ZSTD_GZCOMPRESS
                     if (!strcmp(argument, "--format=gzip")) { suffix = GZ_EXTENSION; FIO_setCompressionType(FIO_gzipCompression); continue; }
 #endif
@@ -550,7 +566,9 @@ int main(int argCount, const char* argv[])
                             U32 fastLevel;
                             ++argument;
                             fastLevel = readU32FromChar(&argument);
-                            if (fastLevel) cLevel = - (int)fastLevel;
+                            if (fastLevel) {
+                              dictCLevel = cLevel = -(int)fastLevel;
+                            }
                         } else if (*argument != 0) {
                             /* Invalid character following --fast */
                             CLEAN_RETURN(badusage(programName));
@@ -743,8 +761,11 @@ int main(int argCount, const char* argv[])
         nbWorkers = UTIL_countPhysicalCores();
         DISPLAYLEVEL(3, "Note: %d physical core(s) detected \n", nbWorkers);
     }
+#else
+    (void)singleThread;
 #endif
 
+#ifdef UTIL_HAS_CREATEFILELIST
     g_utilDisplayLevel = g_displayLevel;
     if (!followLinks) {
         unsigned u;
@@ -757,7 +778,6 @@ int main(int argCount, const char* argv[])
         }
         filenameIdx = fileNamesNb;
     }
-#ifdef UTIL_HAS_CREATEFILELIST
     if (recursive) {  /* at this stage, filenameTable is a list of paths, which can contain both files and directories */
         extendedFileList = UTIL_createFileList(filenameTable, filenameIdx, &fileNamesBuf, &fileNamesNb, followLinks);
         if (extendedFileList) {
@@ -768,6 +788,8 @@ int main(int argCount, const char* argv[])
             filenameIdx = fileNamesNb;
         }
     }
+#else
+    (void)followLinks;
 #endif
 
     if (operation == zom_list) {
@@ -783,7 +805,6 @@ int main(int argCount, const char* argv[])
     /* Check if benchmark is selected */
     if (operation==zom_bench) {
 #ifndef ZSTD_NOBENCH
-        BMK_setNotificationLevel(g_displayLevel);
         BMK_setSeparateFiles(separateFiles);
         BMK_setBlockSize(blockSize);
         BMK_setNbWorkers(nbWorkers);
@@ -798,7 +819,7 @@ int main(int argCount, const char* argv[])
         if (g_ldmHashEveryLog != LDM_PARAM_DEFAULT) {
             BMK_setLdmHashEveryLog(g_ldmHashEveryLog);
         }
-        BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast, &compressionParams);
+        BMK_benchFiles(filenameTable, filenameIdx, dictFileName, cLevel, cLevelLast, &compressionParams, g_displayLevel);
 #else
         (void)bench_nbSeconds; (void)blockSize; (void)setRealTimePrio; (void)separateFiles;
 #endif

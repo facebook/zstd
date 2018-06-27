@@ -77,9 +77,9 @@
  * Enabled for clang & gcc >=4.8 on x86 when BMI2 isn't enabled by default.
  */
 #ifndef DYNAMIC_BMI2
-  #if (defined(__clang__) && __has_attribute(__target__)) \
+  #if ((defined(__clang__) && __has_attribute(__target__)) \
       || (defined(__GNUC__) \
-          && (__GNUC__ >= 5 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8))) \
+          && (__GNUC__ >= 5 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8)))) \
       && (defined(__x86_64__) || defined(_M_X86)) \
       && !defined(__BMI2__)
   #  define DYNAMIC_BMI2 1
@@ -92,7 +92,7 @@
 #if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_I86))  /* _mm_prefetch() is not defined outside of x86/x64 */
 #  include <mmintrin.h>   /* https://msdn.microsoft.com/fr-fr/library/84szxsww(v=vs.90).aspx */
 #  define PREFETCH(ptr)   _mm_prefetch((const char*)ptr, _MM_HINT_T0)
-#elif defined(__GNUC__)
+#elif defined(__GNUC__) && ( (__GNUC__ >= 4) || ( (__GNUC__ == 3) && (__GNUC_MINOR__ >= 1) ) )
 #  define PREFETCH(ptr)   __builtin_prefetch(ptr, 0, 0)
 #else
 #  define PREFETCH(ptr)   /* disabled */

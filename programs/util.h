@@ -40,7 +40,7 @@ extern "C" {
 
 
 /* ************************************************************
-* Avoid fseek()'s 2GiB barrier with MSVC, MacOS, *BSD, MinGW
+* Avoid fseek()'s 2GiB barrier with MSVC, macOS, *BSD, MinGW
 ***************************************************************/
 #if defined(_MSC_VER) && (_MSC_VER >= 1400)
 #   define UTIL_fseek _fseeki64
@@ -513,7 +513,7 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
 
 UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd, int followLinks)
 {
-    (void)bufStart; (void)bufEnd; (void)pos;
+    (void)bufStart; (void)bufEnd; (void)pos; (void)followLinks;
     UTIL_DISPLAYLEVEL(1, "Directory %s ignored (compiled without _WIN32 or _POSIX_C_SOURCE)\n", dirName);
     return 0;
 }

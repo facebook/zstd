@@ -147,15 +147,18 @@ def compiler_version(cc, cxx):
     """
     cc_version_bytes = subprocess.check_output([cc, "--version"])
     cxx_version_bytes = subprocess.check_output([cxx, "--version"])
-    if cc_version_bytes.startswith(b'clang'):
-        assert(cxx_version_bytes.startswith(b'clang'))
+    compiler = None
+    version = None
+    if b'clang' in cc_version_bytes:
+        assert(b'clang' in cxx_version_bytes)
         compiler = 'clang'
-    if cc_version_bytes.startswith(b'gcc'):
-        assert(cxx_version_bytes.startswith(b'g++'))
+    elif b'gcc' in cc_version_bytes:
+        assert(b'gcc' in cxx_version_bytes)
         compiler = 'gcc'
-    version_regex = b'([0-9])+\.([0-9])+\.([0-9])+'
-    version_match = re.search(version_regex, cc_version_bytes)
-    version = tuple(int(version_match.group(i)) for i in range(1, 4))
+    if compiler is not None:
+        version_regex = b'([0-9])+\.([0-9])+\.([0-9])+'
+        version_match = re.search(version_regex, cc_version_bytes)
+        version = tuple(int(version_match.group(i)) for i in range(1, 4))
     return compiler, version
 
 
@@ -248,7 +251,7 @@ def build_parser(args):
         dest='debug',
         type=int,
         default=1,
-        help='Set ZSTD_DEBUG (default: 1)')
+        help='Set DEBUGLEVEL (default: 1)')
     parser.add_argument(
         '--force-memory-access',
         dest='memory_access',
@@ -265,7 +268,7 @@ def build_parser(args):
         '--disable-fuzzing-mode',
         dest='fuzzing_mode',
         action='store_false',
-        help='Do not define FUZZING_BUILD_MORE_UNSAFE_FOR_PRODUCTION')
+        help='Do not define FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION')
     parser.add_argument(
         '--enable-stateful-fuzzing',
         dest='stateful_fuzzing',
@@ -355,7 +358,7 @@ def build(args):
     common_flags = []
 
     cppflags += [
-        '-DZSTD_DEBUG={}'.format(args.debug),
+        '-DDEBUGLEVEL={}'.format(args.debug),
         '-DMEM_FORCE_MEMORY_ACCESS={}'.format(args.memory_access),
         '-DFUZZ_RNG_SEED_SIZE={}'.format(args.fuzz_rng_seed_size),
     ]
@@ -399,7 +402,7 @@ def build(args):
         cppflags += ['-DSTATEFUL_FUZZING']
 
     if args.fuzzing_mode:
-        cppflags += ['-DFUZZING_BUILD_MORE_UNSAFE_FOR_PRODUCTION']
+        cppflags += ['-DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION']
 
     if args.lib_fuzzing_engine == 'libregression.a':
         targets = ['libregression.a'] + targets
@@ -750,11 +753,10 @@ def zip_cmd(args):
     for target in args.TARGET:
         # Zip the seed_corpus
         seed_corpus = abs_join(CORPORA_DIR, "{}_seed_corpus".format(target))
-        seeds = [abs_join(seed_corpus, f) for f in os.listdir(seed_corpus)]
         zip_file = "{}.zip".format(seed_corpus)
-        cmd = ["zip", "-q", "-j", "-9", zip_file]
-        print(' '.join(cmd + [abs_join(seed_corpus, '*')]))
-        subprocess.check_call(cmd + seeds)
+        cmd = ["zip", "-r", "-q", "-j", "-9", zip_file, "."]
+        print(' '.join(cmd))
+        subprocess.check_call(cmd, cwd=seed_corpus)
 
 
 def list_cmd(args):

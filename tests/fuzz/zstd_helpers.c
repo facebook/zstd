@@ -34,8 +34,7 @@ ZSTD_compressionParameters FUZZ_randomCParams(size_t srcSize, uint32_t *state)
     cParams.searchLog = FUZZ_rand32(state, ZSTD_SEARCHLOG_MIN, 9);
     cParams.searchLength = FUZZ_rand32(state, ZSTD_SEARCHLENGTH_MIN,
                                               ZSTD_SEARCHLENGTH_MAX);
-    cParams.targetLength = FUZZ_rand32(state, ZSTD_TARGETLENGTH_MIN,
-                                              512);
+    cParams.targetLength = FUZZ_rand32(state, 0, 512);
     cParams.strategy = FUZZ_rand32(state, ZSTD_fast, ZSTD_btultra);
     return ZSTD_adjustCParams(cParams, srcSize, 0);
 }
@@ -72,6 +71,7 @@ void FUZZ_setRandomParameters(ZSTD_CCtx *cctx, size_t srcSize, uint32_t *state)
     setRand(cctx, ZSTD_p_contentSizeFlag, 0, 1, state);
     setRand(cctx, ZSTD_p_checksumFlag, 0, 1, state);
     setRand(cctx, ZSTD_p_dictIDFlag, 0, 1, state);
+    setRand(cctx, ZSTD_p_forceAttachDict, -2, 2, state);
     /* Select long distance matchig parameters */
     setRand(cctx, ZSTD_p_enableLongDistanceMatching, 0, 1, state);
     setRand(cctx, ZSTD_p_ldmHashLog, ZSTD_HASHLOG_MIN, 16, state);

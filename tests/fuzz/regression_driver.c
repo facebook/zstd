@@ -16,7 +16,7 @@
 #include <stdlib.h>
 
 int main(int argc, char const **argv) {
-  size_t const kMaxFileSize = (size_t)1 << 20;
+  size_t const kMaxFileSize = (size_t)1 << 27;
   int const kFollowLinks = 1;
   char *fileNamesBuf = NULL;
   char const **files = argv + 1;

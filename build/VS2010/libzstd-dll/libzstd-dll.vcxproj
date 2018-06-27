@@ -20,8 +20,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\lib\common\pool.c" />
+    <ClCompile Include="..\..\..\lib\common\debug.c" />
     <ClCompile Include="..\..\..\lib\common\threading.c" />
     <ClCompile Include="..\..\..\lib\common\entropy_common.c" />
+    <ClCompile Include="..\..\..\lib\compress\hist.c" />
     <ClCompile Include="..\..\..\lib\common\error_private.c" />
     <ClCompile Include="..\..\..\lib\common\xxhash.c" />
     <ClCompile Include="..\..\..\lib\common\zstd_common.c" />

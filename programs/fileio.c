@@ -36,6 +36,7 @@
 #  include <io.h>
 #endif
 
+#include "debug.h"
 #include "mem.h"
 #include "fileio.h"
 #include "util.h"
@@ -101,21 +102,6 @@ static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
 #define MIN(a,b)    ((a) < (b) ? (a) : (b))
 
 
-/*-*************************************
-*  Debug
-***************************************/
-#if defined(ZSTD_DEBUG) && (ZSTD_DEBUG>=1)
-#  include <assert.h>
-#else
-#  ifndef assert
-#    define assert(condition) ((void)0)
-#  endif
-#endif
-
-#ifndef ZSTD_DEBUG
-#  define ZSTD_DEBUG 0
-#endif
-#define DEBUGLOG(l,...) if (l<=ZSTD_DEBUG) DISPLAY(__VA_ARGS__);
 #define EXM_THROW(error, ...)                                             \
 {                                                                         \
     DISPLAYLEVEL(1, "zstd: ");                                            \
@@ -172,7 +158,7 @@ static void clearHandler(void)
 
 
 /* ************************************************************
-* Avoid fseek()'s 2GiB barrier with MSVC, MacOS, *BSD, MinGW
+* Avoid fseek()'s 2GiB barrier with MSVC, macOS, *BSD, MinGW
 ***************************************************************/
 #if defined(_MSC_VER) && _MSC_VER >= 1400
 #   define LONG_SEEK _fseeki64
@@ -466,6 +452,13 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
 #ifdef ZSTD_MULTITHREAD
         DISPLAYLEVEL(5,"set nb workers = %u \n", g_nbWorkers);
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_nbWorkers, g_nbWorkers) );
+        if ( (g_overlapLog == FIO_OVERLAP_LOG_NOTSET)
+          && (cLevel == ZSTD_maxCLevel()) )
+            g_overlapLog = 9;   /* full overlap */
+        if (g_overlapLog != FIO_OVERLAP_LOG_NOTSET) {
+            DISPLAYLEVEL(3,"set overlapLog = %u \n", g_overlapLog);
+            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_overlapSizeLog, g_overlapLog) );
+        }
 #endif
         /* dictionary */
         CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, srcSize) );  /* set the value temporarily for dictionary loading, to adapt compression parameters */
@@ -752,8 +745,9 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
     DISPLAYLEVEL(6, "compression using zstd format \n");
 
     /* init */
-    if (fileSize != UTIL_FILESIZE_UNKNOWN)
-        ZSTD_CCtx_setPledgedSrcSize(ress.cctx, fileSize);
+    if (fileSize != UTIL_FILESIZE_UNKNOWN) {
+        CHECK(ZSTD_CCtx_setPledgedSrcSize(ress.cctx, fileSize));
+    }
     (void)compressionLevel; (void)srcFileName;
 
     /* Main compression loop */
@@ -1480,7 +1474,7 @@ static unsigned long long FIO_decompressLz4Frame(dRess_t* ress,
             if (LZ4F_isError(nextToLoad)) {
                 DISPLAYLEVEL(1, "zstd: %s: lz4 decompression error : %s \n",
                                 srcFileName, LZ4F_getErrorName(nextToLoad));
-                decodingError = 1; break;
+                decodingError = 1; nextToLoad = 0; break;
             }
             pos += remaining;
 
@@ -1488,7 +1482,7 @@ static unsigned long long FIO_decompressLz4Frame(dRess_t* ress,
             if (decodedBytes) {
                 if (fwrite(ress->dstBuffer, 1, decodedBytes, ress->dstFile) != decodedBytes) {
                     DISPLAYLEVEL(1, "zstd: %s \n", strerror(errno));
-                    decodingError = 1; break;
+                    decodingError = 1; nextToLoad = 0; break;
                 }
                 filesize += decodedBytes;
                 DISPLAYUPDATE(2, "\rDecompressed : %u MB  ", (unsigned)(filesize>>20));
@@ -1747,8 +1741,19 @@ int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles
                     && strcmp(suffixPtr, ZSTD_EXTENSION)
                     && strcmp(suffixPtr, LZMA_EXTENSION)
                     && strcmp(suffixPtr, LZ4_EXTENSION)) ) {
-                DISPLAYLEVEL(1, "zstd: %s: unknown suffix (%s/%s/%s/%s/%s expected) -- ignored \n",
-                             srcFileName, GZ_EXTENSION, XZ_EXTENSION, ZSTD_EXTENSION, LZMA_EXTENSION, LZ4_EXTENSION);
+                const char* suffixlist = ZSTD_EXTENSION
+                #ifdef ZSTD_GZCOMPRESS
+                    "/" GZ_EXTENSION
+                #endif
+                #ifdef ZSTD_LZMACOMPRESS
+                    "/" XZ_EXTENSION "/" LZMA_EXTENSION
+                #endif
+                #ifdef ZSTD_LZ4COMPRESS
+                    "/" LZ4_EXTENSION
+                #endif
+                ;
+                DISPLAYLEVEL(1, "zstd: %s: unknown suffix (%s expected) -- ignored \n",
+                             srcFileName, suffixlist);
                 skippedFiles++;
                 continue;
             } else {
@@ -2012,6 +2017,12 @@ static int FIO_listFile(fileInfo_t* total, const char* inFileName, int displayLe
 }
 
 int FIO_listMultipleFiles(unsigned numFiles, const char** filenameTable, int displayLevel){
+
+    if (!IS_CONSOLE(stdin)) {
+        DISPLAYOUT("zstd: --list does not support reading from standard input\n");
+        return 1;
+    }
+
     if (numFiles == 0) {
         DISPLAYOUT("No files given\n");
         return 0;

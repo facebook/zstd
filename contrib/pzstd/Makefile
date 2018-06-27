@@ -42,7 +42,7 @@ PZSTD_LDFLAGS   =
 EXTRA_FLAGS     =
 ALL_CFLAGS      = $(EXTRA_FLAGS) $(CPPFLAGS) $(PZSTD_CPPFLAGS) $(CFLAGS)   $(PZSTD_CFLAGS)
 ALL_CXXFLAGS    = $(EXTRA_FLAGS) $(CPPFLAGS) $(PZSTD_CPPFLAGS) $(CXXFLAGS) $(PZSTD_CXXFLAGS)
-ALL_LDFLAGS     = $(EXTRA_FLAGS) $(LDFLAGS) $(PZSTD_LDFLAGS)
+ALL_LDFLAGS     = $(EXTRA_FLAGS) $(CXXFLAGS) $(LDFLAGS) $(PZSTD_LDFLAGS)
 
 
 # gtest libraries need to go before "-lpthread" because they depend on it.
@@ -50,7 +50,7 @@ GTEST_LIB  = -L googletest/build/googlemock/gtest
 LIBS       =
 
 # Compilation commands
-LD_COMMAND  = $(CXX) $^          $(ALL_LDFLAGS) $(LIBS) -lpthread -o $@
+LD_COMMAND  = $(CXX) $^          $(ALL_LDFLAGS) $(LIBS) -pthread -o $@
 CC_COMMAND  = $(CC)  $(DEPFLAGS) $(ALL_CFLAGS)   -c $<  -o $@
 CXX_COMMAND = $(CXX) $(DEPFLAGS) $(ALL_CXXFLAGS) -c $<  -o $@
 

@@ -9,6 +9,7 @@
 
 #include "zstd_ldm.h"
 
+#include "debug.h"
 #include "zstd_fast.h"          /* ZSTD_fillHashTable() */
 #include "zstd_double_fast.h"   /* ZSTD_fillDoubleHashTable() */
 
@@ -20,7 +21,7 @@
 void ZSTD_ldm_adjustParameters(ldmParams_t* params,
                                ZSTD_compressionParameters const* cParams)
 {
-    U32 const windowLog = cParams->windowLog;
+    params->windowLog = cParams->windowLog;
     ZSTD_STATIC_ASSERT(LDM_BUCKET_SIZE_LOG <= ZSTD_LDM_BUCKETSIZELOG_MAX);
     DEBUGLOG(4, "ZSTD_ldm_adjustParameters");
     if (!params->bucketSizeLog) params->bucketSizeLog = LDM_BUCKET_SIZE_LOG;
@@ -33,12 +34,13 @@ void ZSTD_ldm_adjustParameters(ldmParams_t* params,
       params->minMatchLength = minMatch;
     }
     if (params->hashLog == 0) {
-        params->hashLog = MAX(ZSTD_HASHLOG_MIN, windowLog - LDM_HASH_RLOG);
+        params->hashLog = MAX(ZSTD_HASHLOG_MIN, params->windowLog - LDM_HASH_RLOG);
         assert(params->hashLog <= ZSTD_HASHLOG_MAX);
     }
     if (params->hashEveryLog == 0) {
-        params->hashEveryLog =
-                windowLog < params->hashLog ? 0 : windowLog - params->hashLog;
+        params->hashEveryLog = params->windowLog < params->hashLog
+                                   ? 0
+                                   : params->windowLog - params->hashLog;
     }
     params->bucketSizeLog = MIN(params->bucketSizeLog, params->hashLog);
 }
@@ -224,13 +226,11 @@ static size_t ZSTD_ldm_fillFastTables(ZSTD_matchState_t* ms,
     switch(cParams->strategy)
     {
     case ZSTD_fast:
-        ZSTD_fillHashTable(ms, cParams, iend);
-        ms->nextToUpdate = (U32)(iend - ms->window.base);
+        ZSTD_fillHashTable(ms, cParams, iend, ZSTD_dtlm_fast);
         break;
 
     case ZSTD_dfast:
-        ZSTD_fillDoubleHashTable(ms, cParams, iend);
-        ms->nextToUpdate = (U32)(iend - ms->window.base);
+        ZSTD_fillDoubleHashTable(ms, cParams, iend, ZSTD_dtlm_fast);
         break;
 
     case ZSTD_greedy:
@@ -508,7 +508,7 @@ size_t ZSTD_ldm_generateSequences(
          *       * Try invalidation after the sequence generation and test the
          *         the offset against maxDist directly.
          */
-        ZSTD_window_enforceMaxDist(&ldmState->window, chunkEnd, maxDist, NULL);
+        ZSTD_window_enforceMaxDist(&ldmState->window, chunkEnd, maxDist, NULL, NULL);
         /* 3. Generate the sequences for the chunk, and get newLeftoverSize. */
         newLeftoverSize = ZSTD_ldm_generateSequences_internal(
             ldmState, sequences, params, chunkStart, chunkSize);
@@ -591,19 +591,18 @@ static rawSeq maybeSplitSequence(rawSeqStore_t* rawSeqStore,
 
 size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
     ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
-    ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize,
-    int const extDict)
+    ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize)
 {
     unsigned const minMatch = cParams->searchLength;
     ZSTD_blockCompressor const blockCompressor =
-        ZSTD_selectBlockCompressor(cParams->strategy, extDict);
-    BYTE const* const base = ms->window.base;
+        ZSTD_selectBlockCompressor(cParams->strategy, ZSTD_matchState_dictMode(ms));
     /* Input bounds */
     BYTE const* const istart = (BYTE const*)src;
     BYTE const* const iend = istart + srcSize;
     /* Input positions */
     BYTE const* ip = istart;
 
+    DEBUGLOG(5, "ZSTD_ldm_blockCompress: srcSize=%zu", srcSize);
     assert(rawSeqStore->pos <= rawSeqStore->size);
     assert(rawSeqStore->size <= rawSeqStore->capacity);
     /* Loop through each sequence and apply the block compressor to the lits */
@@ -623,12 +622,12 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
         ZSTD_ldm_limitTableUpdate(ms, ip);
         ZSTD_ldm_fillFastTables(ms, cParams, ip);
         /* Run the block compressor */
+        DEBUGLOG(5, "calling block compressor on segment of size %u", sequence.litLength);
         {
             size_t const newLitLength =
                 blockCompressor(ms, seqStore, rep, cParams, ip,
                                 sequence.litLength);
             ip += sequence.litLength;
-            ms->nextToUpdate = (U32)(ip - base);
             /* Update the repcodes */
             for (i = ZSTD_REP_NUM - 1; i > 0; i--)
                 rep[i] = rep[i-1];
@@ -644,10 +643,6 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
     ZSTD_ldm_limitTableUpdate(ms, ip);
     ZSTD_ldm_fillFastTables(ms, cParams, ip);
     /* Compress the last literals */
-    {
-        size_t const lastLiterals = blockCompressor(ms, seqStore, rep, cParams,
-                                                    ip, iend - ip);
-        ms->nextToUpdate = (U32)(iend - base);
-        return lastLiterals;
-    }
+    return blockCompressor(ms, seqStore, rep, cParams,
+                           ip, iend - ip);
 }

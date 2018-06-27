@@ -19,7 +19,7 @@ DESCRIPTION
 with command line syntax similar to `gzip (1)` and `xz (1)`.
 It is based on the **LZ77** family, with further FSE & huff0 entropy stages.
 `zstd` offers highly configurable compression speed,
-with fast modes at > 200 MB/s per code,
+with fast modes at > 200 MB/s per core,
 and strong modes nearing lzma compression ratios.
 It also features a very fast decoder, with speeds > 500 MB/s per core.
 
@@ -136,7 +136,7 @@ the last one takes effect.
     Single-thread mode also features lower memory usage.
 * `-D file`:
     use `file` as Dictionary to compress or decompress FILE(s)
-* `--nodictID`:
+* `--no-dictID`:
     do not store dictionary ID within frame header (dictionary compression).
     The decoder will have to rely on implicit knowledge about which dictionary to use,
     it won't be able to check if it's correct.
@@ -164,7 +164,8 @@ the last one takes effect.
 * `--format=FORMAT`:
     compress and decompress in other formats. If compiled with
     support, zstd can compress to or decompress from other compression algorithm
-    formats. Possibly available options are `gzip`, `xz`, `lzma`, and `lz4`.
+    formats. Possibly available options are `zstd`, `gzip`, `xz`, `lzma`, and `lz4`.
+    If no such format is provided, `zstd` is the default.
 * `-h`/`-H`, `--help`:
     display help/long help and exit
 * `-V`, `--version`:
@@ -392,7 +393,7 @@ The list of available _options_:
 
     Larger/very small values usually decrease compression ratio.
 
-    The minumum _ldmslen_ is 4 and the maximum is 4096 (default: 64).
+    The minimum _ldmslen_ is 4 and the maximum is 4096 (default: 64).
 
 - `ldmBucketSizeLog`=_ldmblog_, `ldmblog`=_ldmblog_:
     Specify the size of each bucket for the hash table used for long distance
@@ -416,6 +417,12 @@ The list of available _options_:
 
     The default value is `wlog - ldmhlog`.
 
+### Example
+The following parameters sets advanced compression options to something
+similar to predefined level 19 for files bigger than 256 KB:
+
+`--zstd`=wlog=23,clog=23,hlog=22,slog=6,slen=3,tlen=48,strat=6
+
 ### -B#:
 Select the size of each compression job.
 This parameter is available only when multi-threading is enabled.
@@ -423,12 +430,6 @@ Default value is `4 * windowSize`, which means it varies depending on compressio
 `-B#` makes it possible to select a custom value.
 Note that job size must respect a minimum value which is enforced transparently.
 This minimum is either 1 MB, or `overlapSize`, whichever is largest.
-
-### Example
-The following parameters sets advanced compression options to those of
-predefined level 19 for files bigger than 256 KB:
-
-`--zstd`=windowLog=23,chainLog=23,hashLog=22,searchLog=6,searchLength=3,targetLength=48,strategy=6
 
 BUGS
 ----

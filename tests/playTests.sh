@@ -56,7 +56,7 @@ fi
 
 isWindows=false
 INTOVOID="/dev/null"
-DEVDEVICE="/dev/zero"
+DEVDEVICE="/dev/random"
 case "$OS" in
   Windows*)
     isWindows=true
@@ -69,6 +69,7 @@ UNAME=$(uname)
 case "$UNAME" in
   Darwin) MD5SUM="md5 -r" ;;
   FreeBSD) MD5SUM="gmd5sum" ;;
+  OpenBSD) MD5SUM="md5" ;;
   *) MD5SUM="md5sum" ;;
 esac
 
@@ -107,6 +108,8 @@ $ECHO "test : --fast aka negative compression levels"
 $ZSTD --fast -f tmp  # == -1
 $ZSTD --fast=3 -f tmp  # == -3
 $ZSTD --fast=200000 -f tmp  # == no compression
+$ECHO "test : too large numeric argument"
+$ZSTD --fast=9999999999 -f tmp  && die "should have refused numeric value"
 $ECHO "test : compress to stdout"
 $ZSTD tmp -c > tmpCompressed
 $ZSTD tmp --stdout > tmpCompressed       # long command format
@@ -175,7 +178,7 @@ $ECHO hello > tmp
 $ZSTD tmp -f -o "$DEVDEVICE" 2>tmplog > "$INTOVOID"
 grep -v "Refusing to remove non-regular file" tmplog
 rm -f tmplog
-$ZSTD tmp -f -o "$INTONULL" 2>&1 | grep -v "Refusing to remove non-regular file"
+$ZSTD tmp -f -o "$INTOVOID" 2>&1 | grep -v "Refusing to remove non-regular file"
 $ECHO "test : --rm on stdin"
 $ECHO a | $ZSTD --rm > $INTOVOID   # --rm should remain silent
 rm tmp
@@ -183,6 +186,7 @@ $ZSTD -f tmp && die "tmp not present : should have failed"
 test ! -f tmp.zst  # tmp.zst should not be created
 
 $ECHO "test : compress multiple files"
+rm tmp*
 $ECHO hello > tmp1
 $ECHO world > tmp2
 $ZSTD tmp1 tmp2 -o "$INTOVOID"
@@ -258,7 +262,7 @@ rm ./*.tmp ./*.zstd
 $ECHO "frame concatenation tests completed"
 
 
-if [ "$isWindows" = false ] && [ "$UNAME" != 'SunOS' ] ; then
+if [ "$isWindows" = false ] && [ "$UNAME" != 'SunOS' ] && [ "$UNAME" != "OpenBSD" ] ; then
 $ECHO "\n**** flush write error test **** "
 
 $ECHO "$ECHO foo | $ZSTD > /dev/full"
@@ -482,6 +486,12 @@ $ZSTD -bi0 --fast tmp1
 $ECHO "with recursive and quiet modes"
 $ZSTD -rqi1b1e2 tmp1
 
+$ECHO "\n===>  zstd compatibility tests "
+
+./datagen > tmp
+rm -f tmp.zst
+$ZSTD --format=zstd -f tmp
+test -f tmp.zst
 
 $ECHO "\n===>  gzip compatibility tests "
 
@@ -519,6 +529,12 @@ else
     $ECHO "gzip mode not supported"
 fi
 
+if [ $GZIPMODE -eq 1 ]; then
+    ./datagen > tmp
+    rm -f tmp.zst
+    $ZSTD --format=gzip --format=zstd -f tmp 
+    test -f tmp.zst
+fi
 
 $ECHO "\n===>  xz compatibility tests "
 
@@ -617,6 +633,23 @@ else
     $ECHO "lz4 mode not supported"
 fi
 
+$ECHO "\n===> suffix list test"
+
+! $ZSTD -d tmp.abc 2> tmplg
+
+if [ $GZIPMODE -ne 1 ]; then 
+    grep ".gz" tmplg > $INTOVOID && die "Unsupported suffix listed"
+fi
+
+if [ $LZMAMODE -ne 1 ]; then 
+    grep ".lzma" tmplg > $INTOVOID && die "Unsupported suffix listed"
+    grep ".xz" tmplg > $INTOVOID && die "Unsupported suffix listed"
+fi
+
+if [ $LZ4MODE -ne 1 ]; then
+    grep ".lz4" tmplg > $INTOVOID && die "Unsupported suffix listed"
+fi
+
 $ECHO "\n===>  zstd round-trip tests "
 
 roundTripTest
@@ -650,6 +683,25 @@ then
 
     $ECHO "\n===>  zstdmt long distance matching round-trip tests "
     roundTripTest -g8M "3 --long=24 -T2"
+
+    $ECHO "\n===>  ovLog tests "
+    ./datagen -g2MB > tmp
+    refSize=$($ZSTD tmp -6 -c --zstd=wlog=18         | wc -c)
+    ov9Size=$($ZSTD tmp -6 -c --zstd=wlog=18,ovlog=9 | wc -c)
+    ov0Size=$($ZSTD tmp -6 -c --zstd=wlog=18,ovlog=0 | wc -c)
+    if [ $refSize -eq $ov9Size ]; then
+        echo ov9Size should be different from refSize
+        exit 1
+    fi
+    if [ $refSize -eq $ov0Size ]; then
+        echo ov0Size should be different from refSize
+        exit 1
+    fi
+    if [ $ov9Size -ge $ov0Size ]; then
+        echo ov9Size=$ov9Size should be smaller than ov0Size=$ov0Size
+        exit 1
+    fi
+
 else
     $ECHO "\n===>  no multithreading, skipping zstdmt tests "
 fi
@@ -677,6 +729,9 @@ $ECHO "\n===>  zstd --list/-l error detection tests "
 ! $ZSTD --list tmp*
 ! $ZSTD -lv tmp1*
 ! $ZSTD --list -v tmp2 tmp12.zst
+
+$ECHO "\n===>  zstd --list/-l exits 1 when stdin is piped in"
+! echo "piped STDIN" | $ZSTD --list
 
 $ECHO "\n===>  zstd --list/-l test with null files "
 ./datagen -g0 > tmp5

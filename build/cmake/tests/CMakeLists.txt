@@ -1,6 +1,6 @@
 # ################################################################
 # zstd - Makefile
-# Copyright (C) Yann Collet 2014-2016
+# Copyright (C) Yann Collet 2014-present
 # All rights reserved.
 #
 # BSD license
@@ -47,7 +47,7 @@ ADD_EXECUTABLE(fuzzer ${PROGRAMS_DIR}/datagen.c ${TESTS_DIR}/fuzzer.c)
 TARGET_LINK_LIBRARIES(fuzzer libzstd_static)
 
 IF (UNIX)
-    ADD_EXECUTABLE(paramgrill ${PROGRAMS_DIR}/datagen.c ${TESTS_DIR}/paramgrill.c)
+    ADD_EXECUTABLE(paramgrill ${PROGRAMS_DIR}/bench.c ${PROGRAMS_DIR}/datagen.c ${TESTS_DIR}/paramgrill.c)
     TARGET_LINK_LIBRARIES(paramgrill libzstd_static m) #m is math library
 
     ADD_EXECUTABLE(datagen ${PROGRAMS_DIR}/datagen.c ${TESTS_DIR}/datagencli.c)

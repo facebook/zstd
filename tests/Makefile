@@ -24,7 +24,7 @@ PYTHON ?= python3
 TESTARTEFACT := versionsTest
 
 DEBUGLEVEL ?= 1
-DEBUGFLAGS  = -g -DZSTD_DEBUG=$(DEBUGLEVEL)
+DEBUGFLAGS  = -g -DDEBUGLEVEL=$(DEBUGLEVEL)
 CPPFLAGS   += -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
               -I$(ZSTDDIR)/dictBuilder -I$(ZSTDDIR)/deprecated -I$(PRGDIR)
 CFLAGS     ?= -O3
@@ -203,7 +203,7 @@ zstreamtest-dll : $(ZSTREAM_LOCAL_FILES)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(filter %.c,$^) $(LDFLAGS) -o $@$(EXT)
 
 paramgrill : DEBUGFLAGS =   # turn off assert() for speed measurements
-paramgrill : $(ZSTD_FILES) $(PRGDIR)/datagen.c paramgrill.c
+paramgrill : $(ZSTD_FILES) $(PRGDIR)/bench.c $(PRGDIR)/datagen.c paramgrill.c
 	$(CC) $(FLAGS) $^ -lm -o $@$(EXT)
 
 datagen : $(PRGDIR)/datagen.c datagencli.c
@@ -260,7 +260,7 @@ clean:
 
 
 #----------------------------------------------------------------------------------
-#make valgrindTest is validated only for Linux, OSX, BSD, Hurd and Solaris targets
+#make valgrindTest is validated only for Linux, macOS, BSD, Hurd and Solaris targets
 #----------------------------------------------------------------------------------
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS))
 HOST_OS = POSIX
@@ -360,6 +360,9 @@ test-fullbench32: fullbench32 datagen
 test-fuzzer: fuzzer
 	$(QEMU_SYS) ./fuzzer -v $(FUZZERTEST) $(FUZZER_FLAGS)
 
+test-fuzzer-stackmode: MOREFLAGS += -DZSTD_HEAPMODE=0
+test-fuzzer-stackmode: test-fuzzer
+
 test-fuzzer32: fuzzer32
 	$(QEMU_SYS) ./fuzzer32 -v $(FUZZERTEST) $(FUZZER_FLAGS)
 
@@ -373,7 +376,6 @@ test-zstream: zstreamtest
 	$(QEMU_SYS) ./zstreamtest -v $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
 	$(QEMU_SYS) ./zstreamtest --mt -t1 $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
 	$(QEMU_SYS) ./zstreamtest --newapi -t1 $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
-	$(QEMU_SYS) ./zstreamtest --opaqueapi -t1 $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
 
 test-zstream32: zstreamtest32
 	$(QEMU_SYS) ./zstreamtest32 $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)

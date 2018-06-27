@@ -27,7 +27,7 @@ endif
 default: lib-release zstd-release
 
 .PHONY: all
-all: | allmost examples manual contrib
+all: allmost examples manual contrib
 
 .PHONY: allmost
 allmost: allzstd
@@ -35,8 +35,7 @@ allmost: allzstd
 
 #skip zwrapper, can't build that on alternate architectures without the proper zlib installed
 .PHONY: allzstd
-allzstd:
-	$(MAKE) -C $(ZSTDDIR) all
+allzstd: lib
 	$(MAKE) -C $(PRGDIR) all
 	$(MAKE) -C $(TESTDIR) all
 
@@ -45,22 +44,13 @@ all32:
 	$(MAKE) -C $(PRGDIR) zstd32
 	$(MAKE) -C $(TESTDIR) all32
 
-.PHONY: lib
-lib:
+.PHONY: lib lib-release
+lib lib-release:
 	@$(MAKE) -C $(ZSTDDIR) $@
 
-.PHONY: lib-release
-lib-release:
-	@$(MAKE) -C $(ZSTDDIR)
-
-.PHONY: zstd
-zstd:
+.PHONY: zstd zstd-release
+zstd zstd-release:
 	@$(MAKE) -C $(PRGDIR) $@
-	cp $(PRGDIR)/zstd$(EXT) .
-
-.PHONY: zstd-release
-zstd-release:
-	@$(MAKE) -C $(PRGDIR)
 	cp $(PRGDIR)/zstd$(EXT) .
 
 .PHONY: zstdmt
@@ -74,7 +64,7 @@ zlibwrapper:
 
 .PHONY: test
 test:
-	$(MAKE) -C $(PRGDIR) allVariants MOREFLAGS+="-g -DZSTD_DEBUG=1"
+	$(MAKE) -C $(PRGDIR) allVariants MOREFLAGS+="-g -DDEBUGLEVEL=1"
 	$(MAKE) -C $(TESTDIR) $@
 
 .PHONY: shortest
@@ -85,7 +75,7 @@ shortest:
 check: shortest
 
 .PHONY: examples
-examples:
+examples: lib
 	CPPFLAGS=-I../lib LDFLAGS=-L../lib $(MAKE) -C examples/ all
 
 .PHONY: manual
@@ -118,9 +108,9 @@ clean:
 	@echo Cleaning completed
 
 #------------------------------------------------------------------------------
-# make install is validated only for Linux, OSX, Hurd and some BSD targets
+# make install is validated only for Linux, macOS, Hurd and some BSD targets
 #------------------------------------------------------------------------------
-ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU FreeBSD DragonFly NetBSD MSYS_NT))
+ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD DragonFly NetBSD MSYS_NT))
 
 HOST_OS = POSIX
 CMAKE_PARAMS = -DZSTD_BUILD_CONTRIB:BOOL=ON -DZSTD_BUILD_STATIC:BOOL=ON -DZSTD_BUILD_TESTS:BOOL=ON -DZSTD_ZLIB_SUPPORT:BOOL=ON -DZSTD_LZMA_SUPPORT:BOOL=ON
@@ -183,6 +173,7 @@ armfuzz: clean
 	CC=arm-linux-gnueabi-gcc QEMU_SYS=qemu-arm-static MOREFLAGS="-static" FUZZER_FLAGS=--no-big-tests $(MAKE) -C $(TESTDIR) fuzztest
 
 aarch64fuzz: clean
+	ld -v
 	CC=aarch64-linux-gnu-gcc QEMU_SYS=qemu-aarch64-static MOREFLAGS="-static" FUZZER_FLAGS=--no-big-tests $(MAKE) -C $(TESTDIR) fuzztest
 
 ppcfuzz: clean

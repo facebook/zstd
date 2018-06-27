@@ -6,8 +6,10 @@ extern "C" {
 #endif
 
 #include <stdio.h>
+#include "zstd.h"   /* ZSTDLIB_API */
 
-static const unsigned ZSTD_seekTableFooterSize = 9;
+
+#define ZSTD_seekTableFooterSize 9
 
 #define ZSTD_SEEKABLE_MAGICNUMBER 0x8F92EAB1
 

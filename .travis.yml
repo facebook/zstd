@@ -31,7 +31,7 @@ matrix:
     - env: Cmd='make ppcinstall && make ppc64fuzz'
     - env: Cmd='make -j uasanregressiontest && make clean && make -j msanregressiontest'
 
-    - env: Cmd='make lz4install && make -C tests test-lz4'
+    - env: Cmd='make lz4install && make -C tests test-lz4 test-pool'
 
     - env: Cmd='bash tests/libzstd_partial_builds.sh'
 

@@ -1819,8 +1819,11 @@ ZSTD_selectEncodingType(
     if (strategy < ZSTD_lazy) {
         if (isDefaultAllowed) {
             size_t const staticFse_nbSeq_max = 1000;
-            size_t const dynamicFse_nbSeq_min = (size_t)1 << defaultNormLog;  /* 32 for offset, 64 for lengths */
+            size_t const mult = 10 - strategy;
+            size_t const baseLog = 3;
+            size_t const dynamicFse_nbSeq_min = (((size_t)1 << defaultNormLog) * mult) >> baseLog;  /* 28-36 for offset, 56-72 for lengths */
             assert(defaultNormLog >= 5 && defaultNormLog <= 6);  /* xx_DEFAULTNORMLOG */
+            assert(mult <= 9 && mult >= 7);
             if ( (*repeatMode == FSE_repeat_valid)
               && (nbSeq < staticFse_nbSeq_max) ) {
                 DEBUGLOG(5, "Selected set_repeat");

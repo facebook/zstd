@@ -105,7 +105,8 @@ void waitLongFn(void *opaque) {
 static int testThreadReduction_internal(POOL_ctx* ctx, poolTest_t test)
 {
     int const nbWaits = 16;
-    UTIL_time_t startTime, time4threads, time2threads;
+    UTIL_time_t startTime;
+    U64 time4threads, time2threads;
 
     test.val = 0;
     test.max = nbWaits;

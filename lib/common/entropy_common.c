@@ -85,6 +85,8 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
     }   }
     assert(hbSize >= 4);
 
+    /* init */
+    memset(normalizedCounter, 0, (*maxSVPtr+1) * sizeof(normalizedCounter[0]));   /* all symbols not present in NCount have a frequency of 0 */
     bitStream = MEM_readLE32(ip);
     nbBits = (bitStream & 0xF) + FSE_MIN_TABLELOG;   /* extract tableLog */
     if (nbBits > FSE_TABLELOG_ABSOLUTE_MAX) return ERROR(tableLog_tooLarge);
@@ -156,11 +158,6 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
     }   }   /* while ((remaining>1) & (charnum<=*maxSVPtr)) */
     if (remaining != 1) return ERROR(corruption_detected);
     if (bitCount > 32) return ERROR(corruption_detected);
-    /* zeroise the rest */
-    {   unsigned symbNb = charnum;
-        for (symbNb=charnum; symbNb <= *maxSVPtr; symbNb++)
-            normalizedCounter[symbNb] = 0;
-    }
     *maxSVPtr = charnum-1;
 
     ip += (bitCount+7)>>3;

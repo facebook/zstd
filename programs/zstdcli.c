@@ -561,7 +561,7 @@ int main(int argCount, const char* argv[])
                         continue;
                     }
                     if (longCommandWArg(&argument, "--fast")) {
-                        /* Parse optional window log */
+                        /* Parse optional acceleration factor */
                         if (*argument == '=') {
                             U32 fastLevel;
                             ++argument;

@@ -108,7 +108,7 @@ $ECHO "test : --fast aka negative compression levels"
 $ZSTD --fast -f tmp  # == -1
 $ZSTD --fast=3 -f tmp  # == -3
 $ZSTD --fast=200000 -f tmp  # == no compression
-! $ZSTD -c --fast=0  tmp # should fail
+! $ZSTD -c --fast=0 tmp > $INTOVOID # should fail
 $ECHO "test : too large numeric argument"
 $ZSTD --fast=9999999999 -f tmp  && die "should have refused numeric value"
 $ECHO "test : compress to stdout"

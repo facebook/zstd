@@ -35,9 +35,10 @@
 
 /*
  * The purpose of this header is to enable debug functions.
- * They regroup assert(), DEBUGLOG() and RAWLOG().
+ * They regroup assert(), DEBUGLOG() and RAWLOG() for run-time,
+ * and DEBUG_STATIC_ASSERT() for compile-time.
  *
- * By default, DEBUGLEVEL==0, which means debug is disabled.
+ * By default, DEBUGLEVEL==0, which means run-time debug is disabled.
  *
  * Level 1 enables assert() only.
  * Starting level 2, traces can be generated and pushed to stderr.
@@ -57,8 +58,9 @@ extern "C" {
 
 
 /* static assert is triggered at compile time, leaving no runtime artefact,
- * but can only work with compile-time constants */
-#define DEBUG_STATIC_ASSERT(c) { enum { DEBUG_static_assert = 1/(int)(!!(c)) }; }
+ * but can only work with compile-time constants.
+ * This variant can only be used inside a function. */
+#define DEBUG_STATIC_ASSERT(c) (void)sizeof(char[(c) ? 1 : -1])
 
 
 /* DEBUGLEVEL is expected to be defined externally,
@@ -69,7 +71,7 @@ extern "C" {
 #endif
 
 /* recommended values for DEBUGLEVEL :
- * 0 : no debug, all functions disabled (except DEBUG_STATIC_ASSERT)
+ * 0 : no debug, all run-time functions disabled
  * 1 : no display, enables assert() only
  * 2 : reserved, for currently active debug path
  * 3 : events once per object lifetime (CCtx, CDict, etc.)

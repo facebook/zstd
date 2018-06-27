@@ -31,9 +31,7 @@ matrix:
     - env: Cmd='make ppcinstall && make ppc64fuzz'
     - env: Cmd='make -j uasanregressiontest && make clean && make -j msanregressiontest'
 
-    - env: Cmd='make lz4install && make -C tests test-lz4 test-pool'
-
-    - env: Cmd='bash tests/libzstd_partial_builds.sh'
+    - env: Cmd='make lz4install && make -C tests test-lz4 test-pool && make clean && bash tests/libzstd_partial_builds.sh'
 
     # tag-specific test
     - if: tag =~ ^v[0-9]\.[0-9]

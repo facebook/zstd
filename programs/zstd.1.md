@@ -355,14 +355,14 @@ The list of available _options_:
     A larger `targetLen` usually improves compression ratio
     but decreases compression speed.
 
-    For ZSTD\_fast, it specifies
-    the amount of data skipped between match sampling.
+    For ZSTD\_fast, it triggers ultra-fast mode when > 0.
+    The value represents the amount of data skipped between match sampling.
     Impact is reversed : a larger `targetLen` increases compression speed
     but decreases compression ratio.
 
     For all other strategies, this field has no impact.
 
-    The minimum _tlen_ is 1 and the maximum is 999.
+    The minimum _tlen_ is 0 and the maximum is 999.
 
 - `overlapLog`=_ovlog_,  `ovlog`=_ovlog_:
     Determine `overlapSize`, amount of data reloaded from previous job.

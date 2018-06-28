@@ -108,6 +108,7 @@ $ECHO "test : --fast aka negative compression levels"
 $ZSTD --fast -f tmp  # == -1
 $ZSTD --fast=3 -f tmp  # == -3
 $ZSTD --fast=200000 -f tmp  # == no compression
+! $ZSTD -c --fast=0 tmp > $INTOVOID # should fail
 $ECHO "test : too large numeric argument"
 $ZSTD --fast=9999999999 -f tmp  && die "should have refused numeric value"
 $ECHO "test : compress to stdout"
@@ -532,7 +533,7 @@ fi
 if [ $GZIPMODE -eq 1 ]; then
     ./datagen > tmp
     rm -f tmp.zst
-    $ZSTD --format=gzip --format=zstd -f tmp 
+    $ZSTD --format=gzip --format=zstd -f tmp
     test -f tmp.zst
 fi
 
@@ -637,11 +638,11 @@ $ECHO "\n===> suffix list test"
 
 ! $ZSTD -d tmp.abc 2> tmplg
 
-if [ $GZIPMODE -ne 1 ]; then 
+if [ $GZIPMODE -ne 1 ]; then
     grep ".gz" tmplg > $INTOVOID && die "Unsupported suffix listed"
 fi
 
-if [ $LZMAMODE -ne 1 ]; then 
+if [ $LZMAMODE -ne 1 ]; then
     grep ".lzma" tmplg > $INTOVOID && die "Unsupported suffix listed"
     grep ".xz" tmplg > $INTOVOID && die "Unsupported suffix listed"
 fi

@@ -1,5 +1,5 @@
 .
-.TH "ZSTD" "1" "2018-05-12" "zstd 1.3.4" "User Commands"
+.TH "ZSTD" "1" "2018-06-27" "zstd 1.3.5" "User Commands"
 .
 .SH "NAME"
 \fBzstd\fR \- zstd, zstdmt, unzstd, zstdcat \- Compress or decompress \.zst files
@@ -160,7 +160,7 @@ operate recursively on dictionaries
 .
 .TP
 \fB\-\-format=FORMAT\fR
-compress and decompress in other formats\. If compiled with support, zstd can compress to or decompress from other compression algorithm formats\. Possibly available options are \fBgzip\fR, \fBxz\fR, \fBlzma\fR, and \fBlz4\fR\.
+compress and decompress in other formats\. If compiled with support, zstd can compress to or decompress from other compression algorithm formats\. Possibly available options are \fBzstd\fR, \fBgzip\fR, \fBxz\fR, \fBlzma\fR, and \fBlz4\fR\. If no such format is provided, \fBzstd\fR is the default\.
 .
 .TP
 \fB\-h\fR/\fB\-H\fR, \fB\-\-help\fR
@@ -349,13 +349,13 @@ The impact of this field vary depending on selected strategy\.
 For ZSTD_btopt and ZSTD_btultra, it specifies the minimum match length that causes match finder to stop searching for better matches\. A larger \fBtargetLen\fR usually improves compression ratio but decreases compression speed\.
 .
 .IP
-For ZSTD_fast, it specifies the amount of data skipped between match sampling\. Impact is reversed : a larger \fBtargetLen\fR increases compression speed but decreases compression ratio\.
+For ZSTD_fast, it triggers ultra\-fast mode when > 0\. The value represents the amount of data skipped between match sampling\. Impact is reversed : a larger \fBtargetLen\fR increases compression speed but decreases compression ratio\.
 .
 .IP
 For all other strategies, this field has no impact\.
 .
 .IP
-The minimum \fItlen\fR is 1 and the maximum is 999\.
+The minimum \fItlen\fR is 0 and the maximum is 999\.
 .
 .TP
 \fBoverlapLog\fR=\fIovlog\fR, \fBovlog\fR=\fIovlog\fR

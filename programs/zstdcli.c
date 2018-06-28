@@ -561,13 +561,15 @@ int main(int argCount, const char* argv[])
                         continue;
                     }
                     if (longCommandWArg(&argument, "--fast")) {
-                        /* Parse optional window log */
+                        /* Parse optional acceleration factor */
                         if (*argument == '=') {
                             U32 fastLevel;
                             ++argument;
                             fastLevel = readU32FromChar(&argument);
                             if (fastLevel) {
                               dictCLevel = cLevel = -(int)fastLevel;
+                            } else {
+                              CLEAN_RETURN(badusage(programName));
                             }
                         } else if (*argument != 0) {
                             /* Invalid character following --fast */

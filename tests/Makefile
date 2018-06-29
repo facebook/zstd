@@ -88,13 +88,8 @@ allnothread: fullbench fuzzer paramgrill datagen decodecorpus
 
 dll: fuzzer-dll zstreamtest-dll
 
-zstd:
-	$(MAKE) -C $(PRGDIR) $@ MOREFLAGS+="$(DEBUGFLAGS)"
-
-zstd32:
-	$(MAKE) -C $(PRGDIR) $@ MOREFLAGS+="$(DEBUGFLAGS)"
-
-zstd-nolegacy:
+PHONY: zstd zstd32 zstd-nolegacy  # must be phony, only external makefile knows how to build them, or if they need an update
+zstd zstd32 zstd-nolegacy:
 	$(MAKE) -C $(PRGDIR) $@ MOREFLAGS+="$(DEBUGFLAGS)"
 
 gzstd:
@@ -245,13 +240,14 @@ checkTag: checkTag.c $(ZSTDDIR)/zstd.h
 
 clean:
 	$(MAKE) -C $(ZSTDDIR) clean
+	$(MAKE) -C $(PRGDIR) clean
 	@$(RM) -fR $(TESTARTEFACT)
 	@$(RM) -f core *.o tmp* result* *.gcda dictionary *.zst \
         $(PRGDIR)/zstd$(EXT) $(PRGDIR)/zstd32$(EXT) \
         fullbench$(EXT) fullbench32$(EXT) \
         fullbench-lib$(EXT) fullbench-dll$(EXT) \
         fuzzer$(EXT) fuzzer32$(EXT) zbufftest$(EXT) zbufftest32$(EXT) \
-        fuzzer-dll$(EXT) zstreamtest-dll$(EXT) zbufftest-dll$(EXT)\
+        fuzzer-dll$(EXT) zstreamtest-dll$(EXT) zbufftest-dll$(EXT) \
         zstreamtest$(EXT) zstreamtest32$(EXT) \
         datagen$(EXT) paramgrill$(EXT) roundTripCrash$(EXT) longmatch$(EXT) \
         symbols$(EXT) invalidDictionaries$(EXT) legacy$(EXT) poolTests$(EXT) \
@@ -301,11 +297,6 @@ endif
 list:
 	@$(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null | awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' | sort | egrep -v -e '^[^[:alnum:]]' -e '^$@$$' | xargs
 
-.PHONY: zstd-playTests
-zstd-playTests: datagen
-	file $(ZSTD)
-	ZSTD="$(QEMU_SYS) $(ZSTD)" ./playTests.sh $(ZSTDRTTEST)
-
 .PHONY: shortest
 shortest: ZSTDRTTEST=
 shortest: test-zstd
@@ -323,14 +314,21 @@ test32: test-zstd32 test-fullbench32 test-fuzzer32 test-zstream32
 
 test-all: test test32 valgrindTest test-decodecorpus-cli
 
+
+.PHONY: test-zstd test-zstd32 test-zstd-nolegacy
 test-zstd: ZSTD = $(PRGDIR)/zstd
-test-zstd: zstd zstd-playTests
+test-zstd: zstd
 
 test-zstd32: ZSTD = $(PRGDIR)/zstd32
-test-zstd32: zstd32 zstd-playTests
+test-zstd32: zstd32
 
 test-zstd-nolegacy: ZSTD = $(PRGDIR)/zstd-nolegacy
-test-zstd-nolegacy: zstd-nolegacy zstd-playTests
+test-zstd-nolegacy: zstd-nolegacy
+
+test-zstd test-zstd32 test-zstd-nolegacy: datagen
+	file $(ZSTD)
+	ZSTD="$(QEMU_SYS) $(ZSTD)" ./playTests.sh $(ZSTDRTTEST)
+
 
 test-gzstd: gzstd
 	$(PRGDIR)/zstd -f README.md test-zstd-speed.py

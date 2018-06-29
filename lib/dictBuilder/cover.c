@@ -560,7 +560,7 @@ static int COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
     return 0;
   }
   /* Check if there's testing sample when splitPoint is nonzero */
-  if (nbTestSamples < 1 && splitPoint != 1.0) {
+  if (nbTestSamples < 1 && splitPoint < 1.0) {
     DISPLAYLEVEL(1, "Total number of testing samples is %u and is invalid.", nbTestSamples);
     DISPLAYLEVEL(1, "splitPoint is %i", (int)(splitPoint*100));
     DISPLAYLEVEL(1, "nbSamples is %u", nbSamples);
@@ -973,7 +973,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
   /* constants */
   const unsigned nbThreads = parameters->nbThreads;
   const double splitPoint =
-      parameters->splitPoint == 0.0 ? DEFAULT_SPLITPOINT : parameters->splitPoint;
+      parameters->splitPoint <= 0.0 ? DEFAULT_SPLITPOINT : parameters->splitPoint;
   const unsigned kMinD = parameters->d == 0 ? 6 : parameters->d;
   const unsigned kMaxD = parameters->d == 0 ? 8 : parameters->d;
   const unsigned kMinK = parameters->k == 0 ? 50 : parameters->k;

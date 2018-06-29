@@ -731,8 +731,14 @@ $ECHO "\n===>  zstd --list/-l error detection tests "
 ! $ZSTD -lv tmp1*
 ! $ZSTD --list -v tmp2 tmp12.zst
 
-$ECHO "\n===>  zstd --list/-l exits 1 when stdin is piped in"
-! echo "piped STDIN" | $ZSTD --list
+$ECHO "\n===>  zstd --list/-l errors when presented with stdin / no files"
+! $ZSTD -l
+! $ZSTD -l -
+! $ZSTD -l < tmp1.zst
+! $ZSTD -l - < tmp1.zst
+! $ZSTD -l - tmp1.zst
+! $ZSTD -l - tmp1.zst < tmp1.zst
+$ZSTD -l tmp1.zst < tmp1.zst # but doesn't error just because stdin is not a tty
 
 $ECHO "\n===>  zstd --list/-l test with null files "
 ./datagen -g0 > tmp5

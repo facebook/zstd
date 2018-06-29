@@ -543,7 +543,8 @@ static int COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
   const unsigned first = 0;
   const size_t totalSamplesSize = COVER_sum(samplesSizes, first, nbSamples);
   /* Split samples into testing and training sets */
-  const unsigned nbTrainSamples = nbSamples * splitPoint;
+  double tmp = (double)nbSamples * splitPoint;
+  const unsigned nbTrainSamples = (unsigned)tmp;
   const unsigned nbTestSamples = nbSamples - nbTrainSamples;
   const size_t trainingSamplesSize = COVER_sum(samplesSizes, first, nbTrainSamples);
   const size_t testSamplesSize = COVER_sum(samplesSizes, nbTrainSamples, nbSamples);

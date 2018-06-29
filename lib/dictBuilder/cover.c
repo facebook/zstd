@@ -714,9 +714,8 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_cover(
     return ERROR(dstSize_tooSmall);
   }
   /* Initialize context and activeDmers */
-  const double all = 1.0;
   if (!COVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples,
-                      parameters.d, all)) {
+                      parameters.d, parameters.splitPoint)) {
     return ERROR(GENERIC);
   }
   if (!COVER_map_init(&activeDmers, parameters.k - parameters.d + 1)) {
@@ -974,7 +973,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
   /* constants */
   const unsigned nbThreads = parameters->nbThreads;
   const double splitPoint =
-      parameters->splitPoint == 0 ? DEFAULT_SPLITPOINT : parameters->splitPoint;
+      parameters->splitPoint == 0.0 ? DEFAULT_SPLITPOINT : parameters->splitPoint;
   const unsigned kMinD = parameters->d == 0 ? 6 : parameters->d;
   const unsigned kMaxD = parameters->d == 0 ? 8 : parameters->d;
   const unsigned kMinK = parameters->k == 0 ? 50 : parameters->k;

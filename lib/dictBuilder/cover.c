@@ -542,6 +542,11 @@ static int COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
   const BYTE *const samples = (const BYTE *)samplesBuffer;
   const unsigned first = 0;
   const size_t totalSamplesSize = COVER_sum(samplesSizes, first, nbSamples);
+  /* Split samples into testing and training sets */
+  const unsigned nbTrainSamples = nbSamples * splitPoint;
+  const unsigned nbTestSamples = nbSamples - nbTrainSamples;
+  const size_t trainingSamplesSize = COVER_sum(samplesSizes, first, nbTrainSamples);
+  const size_t testSamplesSize = COVER_sum(samplesSizes, nbTrainSamples, nbSamples);
   /* Checks */
   if (totalSamplesSize < MAX(d, sizeof(U64)) ||
       totalSamplesSize >= (size_t)COVER_MAX_SAMPLES_SIZE) {
@@ -549,9 +554,6 @@ static int COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
                  (U32)(totalSamplesSize>>20), (COVER_MAX_SAMPLES_SIZE >> 20));
     return 0;
   }
-  /* Split samples into testing and training sets */
-  const unsigned nbTrainSamples = nbSamples * splitPoint;
-  const unsigned nbTestSamples = nbSamples - nbTrainSamples;
   /* Check if there's training sample */
   if (nbTrainSamples < 1) {
     DISPLAYLEVEL(1, "Total number of training samples is %u and is invalid.", nbTrainSamples);
@@ -566,8 +568,6 @@ static int COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
     DISPLAYLEVEL(1, "nbSamples is %u", nbSamples);
     return 0;
   }
-  const size_t trainingSamplesSize = COVER_sum(samplesSizes, first, nbTrainSamples);
-  const size_t testSamplesSize = COVER_sum(samplesSizes, nbTrainSamples, nbSamples);
   /* Zero the context */
   memset(ctx, 0, sizeof(*ctx));
   DISPLAYLEVEL(2, "Training on %u samples of total size %u\n", nbTrainSamples,

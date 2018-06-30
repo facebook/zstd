@@ -48,6 +48,8 @@ fileRoundTripTest() {
     $DIFF -q tmp.md5.1 tmp.md5.2
 }
 
+UNAME=$(uname)
+
 isTerminal=false
 if [ -t 0 ] && [ -t 1 ]
 then
@@ -56,7 +58,10 @@ fi
 
 isWindows=false
 INTOVOID="/dev/null"
-DEVDEVICE="/dev/random"
+case "$UNAME" in
+  OpenBSD) DEVDEVICE="/dev/zero" ;;
+  *) DEVDEVICE="/dev/random" ;;
+esac
 case "$OS" in
   Windows*)
     isWindows=true
@@ -65,7 +70,6 @@ case "$OS" in
     ;;
 esac
 
-UNAME=$(uname)
 case "$UNAME" in
   Darwin) MD5SUM="md5 -r" ;;
   FreeBSD) MD5SUM="gmd5sum" ;;

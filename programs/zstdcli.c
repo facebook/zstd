@@ -441,7 +441,7 @@ int main(int argCount, const char* argv[])
 #endif
 
     /* preset behaviors */
-    if (exeNameMatch(programName, ZSTD_ZSTDMT)) nbWorkers=0;
+    if (exeNameMatch(programName, ZSTD_ZSTDMT)) nbWorkers=0, singleThread=0;
     if (exeNameMatch(programName, ZSTD_UNZSTD)) operation=zom_decompress;
     if (exeNameMatch(programName, ZSTD_CAT)) { operation=zom_decompress; forceStdout=1; FIO_overwriteMode(); outFileName=stdoutmark; g_displayLevel=1; }   /* supports multiple formats */
     if (exeNameMatch(programName, ZSTD_ZCAT)) { operation=zom_decompress; forceStdout=1; FIO_overwriteMode(); outFileName=stdoutmark; g_displayLevel=1; }  /* behave like zcat, also supports multiple formats */
@@ -764,7 +764,7 @@ int main(int argCount, const char* argv[])
         DISPLAYLEVEL(3, "Note: %d physical core(s) detected \n", nbWorkers);
     }
 #else
-    (void)singleThread;
+    (void)singleThread; (void)nbWorkers;
 #endif
 
 #ifdef UTIL_HAS_CREATEFILELIST

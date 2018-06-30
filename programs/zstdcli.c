@@ -277,8 +277,8 @@ static unsigned longCommandWArg(const char** stringPtr, const char* longCommand)
  */
 static unsigned parseCoverParameters(const char* stringPtr, ZDICT_cover_params_t* params)
 {
-    memset(params, 0, sizeof(*params));
     unsigned splitPercentage = 100;
+    memset(params, 0, sizeof(*params));
     for (; ;) {
         if (longCommandWArg(&stringPtr, "k=")) { params->k = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "d=")) { params->d = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }

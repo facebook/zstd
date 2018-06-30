@@ -558,15 +558,15 @@ static int COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
   /* Check if there's training sample */
   if (nbTrainSamples < 1) {
     DISPLAYLEVEL(1, "Total number of training samples is %u and is invalid.", nbTrainSamples);
-    DISPLAYLEVEL(1, "splitPoint is %i", (int)(splitPoint*100));
-    DISPLAYLEVEL(1, "nbSamples is %u", nbSamples);
     return 0;
   }
   /* Check if there's testing sample when splitPoint is nonzero */
   if (nbTestSamples < 1 && splitPoint < 1.0) {
     DISPLAYLEVEL(1, "Total number of testing samples is %u and is invalid.", nbTestSamples);
-    DISPLAYLEVEL(1, "splitPoint is %i", (int)(splitPoint*100));
-    DISPLAYLEVEL(1, "nbSamples is %u", nbSamples);
+    return 0;
+  }
+  if (nbTrainSamples + nbTestSamples != nbSamples) {
+    DISPLAYLEVEL(1, "nbTrainSamples plus nbTestSamples don't add up to nbSamples");
     return 0;
   }
   /* Zero the context */

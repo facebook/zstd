@@ -278,14 +278,20 @@ static unsigned longCommandWArg(const char** stringPtr, const char* longCommand)
 static unsigned parseCoverParameters(const char* stringPtr, ZDICT_cover_params_t* params)
 {
     memset(params, 0, sizeof(*params));
+    unsigned splitPercentage = 100;
     for (; ;) {
         if (longCommandWArg(&stringPtr, "k=")) { params->k = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "d=")) { params->d = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "steps=")) { params->steps = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        if (longCommandWArg(&stringPtr, "split=")) {
+          splitPercentage = readU32FromChar(&stringPtr);
+          params->splitPoint = (double)splitPercentage / 100.0;
+          if (stringPtr[0]==',') { stringPtr++; continue; } else break;
+        }
         return 0;
     }
     if (stringPtr[0] != 0) return 0;
-    DISPLAYLEVEL(4, "cover: k=%u\nd=%u\nsteps=%u\n", params->k, params->d, params->steps);
+    DISPLAYLEVEL(4, "cover: k=%u\nd=%u\nsteps=%u\nsplitPoint=%d\n", params->k, params->d, params->steps, splitPercentage);
     return 1;
 }
 

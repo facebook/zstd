@@ -223,11 +223,12 @@ Compression of small files similar to the sample set will be greatly improved.
     This compares favorably to 4 bytes default.
     However, it's up to the dictionary manager to not assign twice the same ID to
     2 different dictionaries.
-* `--train-cover[=k#,d=#,steps=#]`:
+* `--train-cover[=k#,d=#,steps=#,split=#]`:
     Select parameters for the default dictionary builder algorithm named cover.
     If _d_ is not specified, then it tries _d_ = 6 and _d_ = 8.
     If _k_ is not specified, then it tries _steps_ values in the range [50, 2000].
     If _steps_ is not specified, then the default value of 40 is used.
+    If _split_ is not specified, then the default value of 80 is used.
     Requires that _d_ <= _k_.
 
     Selects segments of size _k_ with highest score to put in the dictionary.
@@ -248,6 +249,8 @@ Compression of small files similar to the sample set will be greatly improved.
     `zstd --train-cover=d=8,steps=500 FILEs`
 
     `zstd --train-cover=k=50 FILEs`
+
+    `zstd --train-cover=k=50,split=60 FILEs`
 
 * `--train-legacy[=selectivity=#]`:
     Use legacy dictionary builder algorithm with the given dictionary

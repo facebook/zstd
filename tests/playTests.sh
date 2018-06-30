@@ -548,16 +548,16 @@ $ZSTD --format=xz -V || LZMAMODE=0
 if [ $LZMAMODE -eq 1 ]; then
     $ECHO "xz support detected"
     XZEXE=1
-    xz -V && lzma -V || XZEXE=0
+    xz -Q -V && lzma -Q -V || XZEXE=0
     if [ $XZEXE -eq 1 ]; then
         $ECHO "Testing zstd xz and lzma support"
         ./datagen > tmp
         $ZSTD --format=lzma -f tmp
         $ZSTD --format=xz -f tmp
-        xz -t -v tmp.xz
-        xz -t -v tmp.lzma
-        xz -f -k tmp
-        lzma -f -k --lzma1 tmp
+        xz -Q -t -v tmp.xz
+        xz -Q -t -v tmp.lzma
+        xz -Q -f -k tmp
+        lzma -Q -f -k --lzma1 tmp
         $ZSTD -d -f -v tmp.xz
         $ZSTD -d -f -v tmp.lzma
         rm tmp*
@@ -569,13 +569,13 @@ if [ $LZMAMODE -eq 1 ]; then
         $ECHO "Testing xz and lzma symlinks"
         ./datagen > tmp
         ./xz tmp
-        xz -d tmp.xz
+        xz -Q -d tmp.xz
         ./lzma tmp
-        lzma -d tmp.lzma
+        lzma -Q -d tmp.lzma
         $ECHO "Testing unxz and unlzma symlinks"
-        xz tmp
+        xz -Q tmp
         ./xz -d tmp.xz
-        lzma tmp
+        lzma -Q tmp
         ./lzma -d tmp.lzma
         rm xz unxz lzma unlzma
         rm tmp*

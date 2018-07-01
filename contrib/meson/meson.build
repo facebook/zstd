@@ -18,6 +18,7 @@ libzstd_srcs = [
     join_paths(common_dir, 'error_private.c'),
     join_paths(common_dir, 'xxhash.c'),
     join_paths(compress_dir, 'fse_compress.c'),
+    join_paths(compress_dir, 'hist.c'),
     join_paths(compress_dir, 'huf_compress.c'),
     join_paths(compress_dir, 'zstd_compress.c'),
     join_paths(compress_dir, 'zstd_fast.c'),
@@ -130,6 +131,7 @@ test('fuzzer', fuzzer)
 if target_machine.system() != 'windows'
     paramgrill = executable('paramgrill',
                             datagen_c, join_paths(tests_dir, 'paramgrill.c'),
+                            join_paths(programs_dir, 'bench.c'),
                             include_directories: test_includes,
                             link_with: libzstd,
                             dependencies: libm)

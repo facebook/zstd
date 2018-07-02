@@ -30,6 +30,7 @@
 #include "zstd.h"        /* ZSTD_versionString */
 #include "util.h"        /* time functions */
 #include "datagen.h"
+#include "bench.h"       /* CustomBench*/
 
 
 /*_************************************
@@ -93,14 +94,15 @@ static size_t BMK_findMaxMem(U64 requiredMem)
 /*_*******************************************************
 *  Benchmark wrappers
 *********************************************************/
-size_t local_ZSTD_compress(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
+
+size_t local_ZSTD_compress(const void* src, size_t srcSize, void* dst, size_t dstSize, void* buff2)
 {
     (void)buff2;
     return ZSTD_compress(dst, dstSize, src, srcSize, 1);
 }
 
 static size_t g_cSize = 0;
-size_t local_ZSTD_decompress(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
+size_t local_ZSTD_decompress(const void* src, size_t srcSize, void* dst, size_t dstSize, void* buff2)
 {
     (void)src; (void)srcSize;
     return ZSTD_decompress(dst, dstSize, buff2, g_cSize);
@@ -110,14 +112,14 @@ static ZSTD_DCtx* g_zdc = NULL;
 
 #ifndef ZSTD_DLL_IMPORT
 extern size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* ctx, const void* src, size_t srcSize);
-size_t local_ZSTD_decodeLiteralsBlock(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
+size_t local_ZSTD_decodeLiteralsBlock(const void* src, size_t srcSize, void* dst, size_t dstSize, void* buff2)
 {
     (void)src; (void)srcSize; (void)dst; (void)dstSize;
     return ZSTD_decodeLiteralsBlock((ZSTD_DCtx*)g_zdc, buff2, g_cSize);
 }
 
 extern size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeq, const void* src, size_t srcSize);
-size_t local_ZSTD_decodeSeqHeaders(void* dst, size_t dstSize, void* buff2, const void* src, size_t srcSize)
+size_t local_ZSTD_decodeSeqHeaders(const void* src, size_t srcSize, void* dst, size_t dstSize, void* buff2)
 {
     int nbSeq;
     (void)src; (void)srcSize; (void)dst; (void)dstSize;
@@ -126,7 +128,7 @@ size_t local_ZSTD_decodeSeqHeaders(void* dst, size_t dstSize, void* buff2, const
 #endif
 
 static ZSTD_CStream* g_cstream= NULL;
-size_t local_ZSTD_compressStream(void* dst, size_t dstCapacity, void* buff2, const void* src, size_t srcSize)
+size_t local_ZSTD_compressStream(const void* src, size_t srcSize, void* dst, size_t dstCapacity, void* buff2)
 {
     ZSTD_outBuffer buffOut;
     ZSTD_inBuffer buffIn;
@@ -143,7 +145,7 @@ size_t local_ZSTD_compressStream(void* dst, size_t dstCapacity, void* buff2, con
     return buffOut.pos;
 }
 
-static size_t local_ZSTD_compress_generic_end(void* dst, size_t dstCapacity, void* buff2, const void* src, size_t srcSize)
+static size_t local_ZSTD_compress_generic_end(const void* src, size_t srcSize, void* dst, size_t dstCapacity, void* buff2)
 {
     ZSTD_outBuffer buffOut;
     ZSTD_inBuffer buffIn;
@@ -159,7 +161,7 @@ static size_t local_ZSTD_compress_generic_end(void* dst, size_t dstCapacity, voi
     return buffOut.pos;
 }
 
-static size_t local_ZSTD_compress_generic_continue(void* dst, size_t dstCapacity, void* buff2, const void* src, size_t srcSize)
+static size_t local_ZSTD_compress_generic_continue(const void* src, size_t srcSize, void* dst, size_t dstCapacity, void* buff2)
 {
     ZSTD_outBuffer buffOut;
     ZSTD_inBuffer buffIn;
@@ -176,7 +178,7 @@ static size_t local_ZSTD_compress_generic_continue(void* dst, size_t dstCapacity
     return buffOut.pos;
 }
 
-static size_t local_ZSTD_compress_generic_T2_end(void* dst, size_t dstCapacity, void* buff2, const void* src, size_t srcSize)
+static size_t local_ZSTD_compress_generic_T2_end(const void* src, size_t srcSize, void* dst, size_t dstCapacity, void* buff2)
 {
     ZSTD_outBuffer buffOut;
     ZSTD_inBuffer buffIn;
@@ -193,7 +195,7 @@ static size_t local_ZSTD_compress_generic_T2_end(void* dst, size_t dstCapacity, 
     return buffOut.pos;
 }
 
-static size_t local_ZSTD_compress_generic_T2_continue(void* dst, size_t dstCapacity, void* buff2, const void* src, size_t srcSize)
+static size_t local_ZSTD_compress_generic_T2_continue(const void* src, size_t srcSize, void* dst, size_t dstCapacity, void* buff2)
 {
     ZSTD_outBuffer buffOut;
     ZSTD_inBuffer buffIn;
@@ -212,7 +214,7 @@ static size_t local_ZSTD_compress_generic_T2_continue(void* dst, size_t dstCapac
 }
 
 static ZSTD_DStream* g_dstream= NULL;
-static size_t local_ZSTD_decompressStream(void* dst, size_t dstCapacity, void* buff2, const void* src, size_t srcSize)
+static size_t local_ZSTD_decompressStream(const void* src, size_t srcSize, void* dst, size_t dstCapacity, void* buff2)
 {
     ZSTD_outBuffer buffOut;
     ZSTD_inBuffer buffIn;
@@ -231,7 +233,7 @@ static size_t local_ZSTD_decompressStream(void* dst, size_t dstCapacity, void* b
 static ZSTD_CCtx* g_zcc = NULL;
 
 #ifndef ZSTD_DLL_IMPORT
-size_t local_ZSTD_compressContinue(void* dst, size_t dstCapacity, void* buff2, const void* src, size_t srcSize)
+size_t local_ZSTD_compressContinue(const void* src, size_t srcSize, void* dst, size_t dstCapacity, void* buff2)
 {
     (void)buff2;
     ZSTD_compressBegin(g_zcc, 1 /* compressionLevel */);
@@ -239,7 +241,7 @@ size_t local_ZSTD_compressContinue(void* dst, size_t dstCapacity, void* buff2, c
 }
 
 #define FIRST_BLOCK_SIZE 8
-size_t local_ZSTD_compressContinue_extDict(void* dst, size_t dstCapacity, void* buff2, const void* src, size_t srcSize)
+size_t local_ZSTD_compressContinue_extDict(const void* src, size_t srcSize, void* dst, size_t dstCapacity, void* buff2)
 {
     BYTE firstBlockBuf[FIRST_BLOCK_SIZE];
 
@@ -255,7 +257,7 @@ size_t local_ZSTD_compressContinue_extDict(void* dst, size_t dstCapacity, void* 
     return ZSTD_compressEnd(g_zcc, dst, dstCapacity, (const BYTE*)src + FIRST_BLOCK_SIZE, srcSize - FIRST_BLOCK_SIZE);
 }
 
-size_t local_ZSTD_decompressContinue(void* dst, size_t dstCapacity, void* buff2, const void* src, size_t srcSize)
+size_t local_ZSTD_decompressContinue(const void* src, size_t srcSize, void* dst, size_t dstCapacity, void* buff2)
 {
     size_t regeneratedSize = 0;
     const BYTE* ip = (const BYTE*)buff2;
@@ -288,8 +290,9 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
     size_t const dstBuffSize = ZSTD_compressBound(srcSize);
     void*  buff2;
     const char* benchName;
-    size_t (*benchFunction)(void* dst, size_t dstSize, void* verifBuff, const void* src, size_t srcSize);
-    double bestTime = 100000000.;
+    BMK_benchFn_t benchFunction;
+    BMK_customReturn_t r;
+    int errorcode = 0;
 
     /* Selection */
     switch(benchNb)
@@ -419,46 +422,25 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb)
     default : ;
     }
 
+
      /* warming up memory */
     { size_t i; for (i=0; i<dstBuffSize; i++) dstBuff[i]=(BYTE)i; }
 
+
     /* benchmark loop */
-    {   U32 loopNb;
-        U32 nbRounds = (U32)((50 MB) / (srcSize+1)) + 1;   /* initial conservative speed estimate */
-#       define TIME_SEC_MICROSEC    (1*1000000ULL) /* 1 second */
-#       define TIME_SEC_NANOSEC     (1*1000000000ULL) /* 1 second */
-        DISPLAY("%2i- %-30.30s : \r", benchNb, benchName);
-        for (loopNb = 1; loopNb <= g_nbIterations; loopNb++) {
-            UTIL_time_t clockStart;
-            size_t benchResult=0;
-            U32 roundNb;
+    {
+        r = BMK_benchFunction(benchFunction, buff2, 
+            NULL, NULL,  1, &src, &srcSize, 
+            (void * const * const)&dstBuff, &dstBuffSize, g_nbIterations);
+        if(r.error) {
+            DISPLAY("ERROR %d ! ! \n", r.error);
+            errorcode = r.error;
+            goto _cleanOut;
+        }
 
-            UTIL_sleepMilli(5);  /* give processor time to other processes */
-            UTIL_waitForNextTick();
-            clockStart = UTIL_getTime();
-            for (roundNb=0; roundNb < nbRounds; roundNb++) {
-                benchResult = benchFunction(dstBuff, dstBuffSize, buff2, src, srcSize);
-                if (ZSTD_isError(benchResult)) {
-                    DISPLAY("ERROR ! %s() => %s !! \n", benchName, ZSTD_getErrorName(benchResult));
-                    exit(1);
-            }   }
-            {   U64 const clockSpanNano = UTIL_clockSpanNano(clockStart);
-                double const averageTime = (double)clockSpanNano / TIME_SEC_NANOSEC / nbRounds;
-                if (clockSpanNano > 0) {
-                    if (averageTime < bestTime) bestTime = averageTime;
-                    assert(bestTime > (1./2000000000));
-                    nbRounds = (U32)(1. / bestTime);   /* aim for 1 sec */
-                    DISPLAY("%2i- %-30.30s : %7.1f MB/s  (%9u)\r",
-                            loopNb, benchName,
-                            (double)srcSize / (1 MB) / bestTime,
-                            (U32)benchResult);
-                } else {
-                    assert(nbRounds < 40000000);  /* avoid overflow */
-                    nbRounds *= 100;
-                }
-    }   }   }
-    DISPLAY("%2u\n", benchNb);
-
+        DISPLAY("%2u#Speed: %f MB/s - Size: %f MB - %s\n", benchNb, (double)srcSize / r.result.nanoSecPerRun * 1000, (double)r.result.sumOfReturn / 1000000, benchName);
+    }
+    
 _cleanOut:
     free(dstBuff);
     free(buff2);
@@ -466,7 +448,7 @@ _cleanOut:
     ZSTD_freeDCtx(g_zdc); g_zdc=NULL;
     ZSTD_freeCStream(g_cstream); g_cstream=NULL;
     ZSTD_freeDStream(g_dstream); g_dstream=NULL;
-    return 0;
+    return errorcode;
 }
 
 

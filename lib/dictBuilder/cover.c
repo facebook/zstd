@@ -555,8 +555,8 @@ static int COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
                  (U32)(totalSamplesSize>>20), (COVER_MAX_SAMPLES_SIZE >> 20));
     return 0;
   }
-  /* Check if there's training sample */
-  if (nbTrainSamples < 1) {
+  /* Check if there are at least 5 training samples */
+  if (nbTrainSamples < 5) {
     DISPLAYLEVEL(1, "Total number of training samples is %u and is invalid.", nbTrainSamples);
     return 0;
   }

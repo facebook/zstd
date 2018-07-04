@@ -225,7 +225,7 @@ static COVER_ctx_t *g_ctx = NULL;
  */
 static size_t COVER_sum(const size_t *samplesSizes, unsigned firstSample, unsigned lastSample) {
   size_t sum = 0;
-  size_t i;
+  unsigned i;
   for (i = firstSample; i < lastSample; ++i) {
     sum += samplesSizes[i];
   }
@@ -540,13 +540,12 @@ static int COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
                           const size_t *samplesSizes, unsigned nbSamples,
                           unsigned d, double splitPoint) {
   const BYTE *const samples = (const BYTE *)samplesBuffer;
-  const unsigned first = 0;
-  const size_t totalSamplesSize = COVER_sum(samplesSizes, first, nbSamples);
+  const unsigned kFirst = 0;
+  const size_t totalSamplesSize = COVER_sum(samplesSizes, kFirst, nbSamples);
   /* Split samples into testing and training sets */
-  double tmp = (double)nbSamples * splitPoint;
-  const unsigned nbTrainSamples = (unsigned)tmp;
+  const unsigned nbTrainSamples = (unsigned)((double)nbSamples * splitPoint);
   const unsigned nbTestSamples = nbSamples - nbTrainSamples;
-  const size_t trainingSamplesSize = COVER_sum(samplesSizes, first, nbTrainSamples);
+  const size_t trainingSamplesSize = COVER_sum(samplesSizes, kFirst, nbTrainSamples);
   const size_t testSamplesSize = COVER_sum(samplesSizes, nbTrainSamples, nbSamples);
   /* Checks */
   if (totalSamplesSize < MAX(d, sizeof(U64)) ||
@@ -560,7 +559,7 @@ static int COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
     DISPLAYLEVEL(1, "Total number of training samples is %u and is invalid.", nbTrainSamples);
     return 0;
   }
-  /* Check if there's testing sample when splitPoint is nonzero */
+  /* Check if there's testing sample when splitPoint is not 1.0 */
   if (nbTestSamples < 1 && splitPoint < 1.0) {
     DISPLAYLEVEL(1, "Total number of testing samples is %u and is invalid.", nbTestSamples);
     return 0;

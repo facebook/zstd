@@ -84,6 +84,7 @@ static U32 g_ldmMinMatch = 0;
 static U32 g_ldmHashEveryLog = LDM_PARAM_DEFAULT;
 static U32 g_ldmBucketSizeLog = LDM_PARAM_DEFAULT;
 
+#define DEFAULT_SPLITPOINT 0.8
 
 /*-************************************
 *  Display Macros
@@ -277,21 +278,20 @@ static unsigned longCommandWArg(const char** stringPtr, const char* longCommand)
  */
 static unsigned parseCoverParameters(const char* stringPtr, ZDICT_cover_params_t* params)
 {
-    unsigned splitPercentage = 100;
     memset(params, 0, sizeof(*params));
     for (; ;) {
         if (longCommandWArg(&stringPtr, "k=")) { params->k = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "d=")) { params->d = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "steps=")) { params->steps = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "split=")) {
-          splitPercentage = readU32FromChar(&stringPtr);
+          unsigned splitPercentage = readU32FromChar(&stringPtr);
           params->splitPoint = (double)splitPercentage / 100.0;
           if (stringPtr[0]==',') { stringPtr++; continue; } else break;
         }
         return 0;
     }
     if (stringPtr[0] != 0) return 0;
-    DISPLAYLEVEL(4, "cover: k=%u\nd=%u\nsteps=%u\nsplitPoint=%d\n", params->k, params->d, params->steps, splitPercentage);
+    DISPLAYLEVEL(4, "cover: k=%u\nd=%u\nsteps=%u\nsplit=%u\n", params->k, params->d, params->steps, (unsigned)(params->splitPoint * 100));
     return 1;
 }
 
@@ -316,6 +316,7 @@ static ZDICT_cover_params_t defaultCoverParams(void)
     memset(&params, 0, sizeof(params));
     params.d = 8;
     params.steps = 4;
+    params.splitPoint = DEFAULT_SPLITPOINT;
     return params;
 }
 #endif

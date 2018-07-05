@@ -228,7 +228,7 @@ Compression of small files similar to the sample set will be greatly improved.
     If _d_ is not specified, then it tries _d_ = 6 and _d_ = 8.
     If _k_ is not specified, then it tries _steps_ values in the range [50, 2000].
     If _steps_ is not specified, then the default value of 40 is used.
-    If _split_ is not specified, then the default value of 80 is used.
+    If _split_ is not specified or split <= 0 or split > 100, then the default value of 80 is used.
     Requires that _d_ <= _k_.
 
     Selects segments of size _k_ with highest score to put in the dictionary.

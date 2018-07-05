@@ -425,6 +425,8 @@ rm tmp*
 $ECHO "- Compare size of dictionary from 90% training samples with 80% training samples"
 $ZSTD --train-cover=split=90 -r *.c ../programs/*.c
 $ZSTD --train-cover=split=80 -r *.c ../programs/*.c
+$ECHO "- Create dictionary using all samples for both training and testing"
+$ZSTD --train-cover=split=100 -r *.c ../programs/*.c
 
 $ECHO "\n===>  legacy dictionary builder "
 

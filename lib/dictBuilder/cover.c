@@ -937,7 +937,8 @@ static void COVER_tryParameters(void *opaque) {
     }
     /* Compress each sample and sum their sizes (or error) */
     totalCompressedSize = dictBufferCapacity;
-    for (i = ctx->nbTrainSamples; i < ctx->nbSamples; ++i) {
+    i = parameters.splitPoint < 1.0 ? ctx->nbTrainSamples : 0;
+    for (; i < ctx->nbSamples; ++i) {
       const size_t size = ZSTD_compress_usingCDict(
           cctx, dst, dstCapacity, ctx->samples + ctx->offsets[i],
           ctx->samplesSizes[i], cdict);

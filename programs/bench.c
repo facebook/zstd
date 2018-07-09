@@ -288,7 +288,7 @@ volatile char g_touched;
 /* takes # of blocks and list of size & stuff for each. */
 /* only does looping */
 /* note time per loop could be zero if interval too short */
-BMK_customReturn_t __attribute__((optimize("O0"))) BMK_benchFunction(
+BMK_customReturn_t BMK_benchFunction(
     BMK_benchFn_t benchFn, void* benchPayload,
     BMK_initFn_t initFn, void* initPayload,
     size_t blockCount,
@@ -310,6 +310,7 @@ BMK_customReturn_t __attribute__((optimize("O0"))) BMK_benchFunction(
     }
 
     {
+
         unsigned i, j;
         for(i = 0; i < blockCount; i++) {
             for(j = 0; j < srcBlockSizes[i]; j++) {
@@ -318,11 +319,11 @@ BMK_customReturn_t __attribute__((optimize("O0"))) BMK_benchFunction(
         }
         for(i = 0; i < blockCount; i++) {
             memset(dstBlockBuffers[i], 0xE5, dstBlockCapacities[i]);  /* warm up and erase result buffer */
-            //this is written at end proc? where did compressed data get overwritten ny this?
         }
 
-        UTIL_sleepMilli(5);  /* give processor time to other processes */
-        UTIL_waitForNextTick();
+        //UTIL_sleepMilli(5);  /* give processor time to other processes */
+        //UTIL_waitForNextTick();
+
     }
 
     {      
@@ -463,7 +464,6 @@ static BMK_return_t BMK_benchMemAdvancedNoAlloc(
         }
         {   size_t const decodedSize = (size_t)totalDSize64;
             free(*resultBufferPtr);
-            //TODO: decodedSize corrupted? 
             *resultBufferPtr = malloc(decodedSize);
             if (!(*resultBufferPtr)) {
                 EXM_THROW(33, BMK_return_t, "not enough memory"); 

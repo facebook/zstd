@@ -598,8 +598,8 @@ static void paramVariation(ZSTD_compressionParameters* ptr, const U32* varyParam
             const U32 changeID = FUZ_rand(&g_rand) % (varyLen << 1);
             paramVaryOnce(varyParams[changeID >> 1], ((changeID & 1) << 1) - 1, &p);
         }
-        //validated = !ZSTD_isError(ZSTD_checkCParams(p));
-        validated = cParamValid(p);
+        validated = !ZSTD_isError(ZSTD_checkCParams(p));
+        //validated = cParamValid(p);
 
         //Make sure memory is at least close to feasible?
         //ZSTD_estimateCCtxSize thing.
@@ -669,22 +669,26 @@ static void memoTableIndInv(ZSTD_compressionParameters* ptr, const U32* varyPara
 
 //initializing memoTable
 /* */
-static void memoTableInit(U8* memoTable, ZSTD_compressionParameters paramConstraints, constraint_t target, const U32* varyParams, const int varyLen) {
+static void memoTableInit(U8* memoTable, ZSTD_compressionParameters paramConstraints, constraint_t target, const U32* varyParams, const int varyLen, const size_t srcSize) {
     size_t i;
     size_t arrayLen = memoTableLen(varyParams, varyLen);
     int cwFixed = !paramConstraints.chainLog || !paramConstraints.windowLog;
     int scFixed = !paramConstraints.searchLog || !paramConstraints.chainLog;
+    int wFixed = !paramConstraints.windowLog;
     int j = 0;
     memset(memoTable, 0, arrayLen);
-
+    cParamZeroMin(&paramConstraints);
 
     for(i = 0; i < arrayLen; i++) {
         memoTableIndInv(&paramConstraints, varyParams, varyLen, i);
-        BMK_translateAdvancedParams(paramConstraints);
         if(ZSTD_estimateCCtxSize_usingCParams(paramConstraints) + (1 << paramConstraints.windowLog) > target.cMem) {
             //infeasible; 
             memoTable[i] = 255;
             j++;
+        }
+        //TODO: remove any where memoTable wlog is mark any where windowlog is too big for data. 
+        if(wFixed && (1 << paramConstraints.windowLog) > (srcSize << 1)) {
+            memoTable[i] = 255;
         }
         /* nil out parameter sets equivalent to others. */
         if(cwFixed/* at most least 1 param fixed. */) {
@@ -771,8 +775,8 @@ static ZSTD_compressionParameters randomParams(void)
         p.searchLength=(FUZ_rand(&g_rand) % (ZSTD_SEARCHLENGTH_MAX+1 - ZSTD_SEARCHLENGTH_MIN)) + ZSTD_SEARCHLENGTH_MIN;
         p.targetLength=(FUZ_rand(&g_rand) % (512));
         p.strategy   = (ZSTD_strategy) (FUZ_rand(&g_rand) % (ZSTD_btultra +1));
-        //validated = !ZSTD_isError(ZSTD_checkCParams(p));
-        validated = cParamValid(p);
+        validated = !ZSTD_isError(ZSTD_checkCParams(p));
+        //validated = cParamValid(p);
     }
     return p;
 }
@@ -1201,7 +1205,7 @@ static int feasibleBench(BMK_result_t* resultPtr,
                 if(loopDurationD < TIMELOOP_NANOSEC) {
                     BMK_return_t benchres2;
                     adv.mode = BMK_decodeOnly;
-                    benchres2 = BMK_benchMemAdvanced(dstBuffer,dstSize, NULL, 0, &srcSize, 1, 0, &cParams, NULL, 0, ctx, dctx, 0, "File", &adv);
+                    benchres2 = BMK_benchMemAdvanced(dstBuffer,dstSize, NULL, 0, &benchres.result.cSize, 1, 0, &cParams, NULL, 0, ctx, dctx, 0, "File", &adv);
                     if(benchres2.error) {
                         return ERROR_RESULT;
                     } else {
@@ -1230,7 +1234,7 @@ static int feasibleBench(BMK_result_t* resultPtr,
                 if(loopDurationD < TIMELOOP_NANOSEC) {
                     BMK_return_t benchres2;
                     adv.mode = BMK_decodeOnly;
-                    benchres2 = BMK_benchMemAdvanced(dstBuffer,dstSize, NULL, 0, &srcSize, 1, 0, &cParams, NULL, 0, ctx, dctx, 0, "File", &adv);
+                    benchres2 = BMK_benchMemAdvanced(dstBuffer,dstSize, NULL, 0, &benchres.result.cSize, 1, 0, &cParams, NULL, 0, ctx, dctx, 0, "File", &adv);
                     if(benchres2.error) {
                         return ERROR_RESULT;
                     } else {
@@ -1275,18 +1279,21 @@ static int infeasibleBench(BMK_result_t* resultPtr,
     BMK_advancedParams_t adv = BMK_initAdvancedParams();
     BMK_return_t benchres;
     BMK_result_t resultMin, resultMax;
-    UTIL_time_t startTime;
     U64 loopDurationC = 0, loopDurationD = 0;
     double uncertaintyConstantC, uncertaintyConstantD;
     double winnerRS = resultScore(*winnerResult, srcSize, target);
     adv.loopMode = BMK_iterMode; //can only use this for ratio measurement then, super inaccurate timing 
     adv.nbSeconds = 1; //get ratio and 2x approx speed? //maybe run until twice MIN(minloopinterval * clockDuration)
 
-    (void)startTime; //TODO: actually use this to adjust timing
     DISPLAY("WinnerScore: %f\n ", winnerRS);
     /*
     adv.loopMode = BMK_timeMode;
     adv.nbSeconds = 1; */
+    benchres = BMK_benchMemAdvanced(srcBuffer,srcSize, dstBuffer, dstSize, &srcSize, 1, 0, &cParams, NULL, 0, ctx, dctx, 0, "File", &adv);
+    BMK_printWinner(stdout, CUSTOM_LEVEL, benchres.result, cParams, srcSize); 
+
+    adv.loopMode = BMK_timeMode;
+    adv.nbSeconds = 1;
     benchres = BMK_benchMemAdvanced(srcBuffer,srcSize, dstBuffer, dstSize, &srcSize, 1, 0, &cParams, NULL, 0, ctx, dctx, 0, "File", &adv);
     BMK_printWinner(stdout, CUSTOM_LEVEL, benchres.result, cParams, srcSize); 
 
@@ -1372,6 +1379,7 @@ static int feasibleBenchMemo(BMK_result_t* resultPtr,
                U32* varyParams, const int varyLen) {
 
     size_t memind = memoTableInd(&cParams, varyParams, varyLen);
+
     //BMK_translateAdvancedParams(cParams);
     if(memoTable[memind] >= INFEASIBLE_THRESHOLD) {
         return INFEASIBLE_RESULT; //probably pick a different code for already tested?
@@ -1397,6 +1405,7 @@ static int infeasibleBenchMemo(BMK_result_t* resultPtr,
                BMK_result_t* winnerResult, U8* memoTable,
                U32* varyParams, const int varyLen) {
     size_t memind = memoTableInd(&cParams, varyParams, varyLen);
+
     //BMK_translateAdvancedParams(cParams);
     if(memoTable[memind] >= INFEASIBLE_THRESHOLD) {
         return INFEASIBLE_RESULT; //see feasibleBenchMemo for concerns
@@ -1422,7 +1431,6 @@ typedef int (*BMK_benchMemo_t)(BMK_result_t*, const void*, size_t, void*, size_t
 // *actually if it performs too 
 //sanitize all params here. 
 //all generation after random should be sanitized. (maybe sanitize random)
-//TODO: paramTarget uneeded at this point w/ varArray and init;
 static winnerInfo_t climbOnce(constraint_t target, U32* varArray, const int varLen, U8* memoTable,
     const void* srcBuffer, size_t srcSize, void* dstBuffer, size_t dstSize, ZSTD_CCtx* ctx, ZSTD_DCtx* dctx, ZSTD_compressionParameters init) {
     //pick later initializations non-randomly? high dist from explored nodes.
@@ -1470,12 +1478,13 @@ static winnerInfo_t climbOnce(constraint_t target, U32* varArray, const int varL
             BMK_printWinner(stdout, CUSTOM_LEVEL, winnerInfo.result, winnerInfo.params, srcSize);
             candidateInfo.params = cparam;
             //all dist-1 targets
+            //if we early end this, we should also randomize the order these are picked. 
             for(i = 0; i < varLen; i++) {
                 paramVaryOnce(varArray[i], 1, &candidateInfo.params); /* +1 */
                 candidateInfo.params = sanitizeParams(candidateInfo.params);
                 //evaluate
-                //if(!ZSTD_isError(ZSTD_checkCParams(candidateInfo.params))) {
-                if(cParamValid(candidateInfo.params)) {
+                if(!ZSTD_isError(ZSTD_checkCParams(candidateInfo.params))) {
+                //if(cParamValid(candidateInfo.params)) {
                     int res = infeasibleBenchMemo(&candidateInfo.result,
                        srcBuffer, srcSize,
                        dstBuffer, dstSize, 
@@ -1498,8 +1507,8 @@ static winnerInfo_t climbOnce(constraint_t target, U32* varArray, const int varL
                 paramVaryOnce(varArray[i], -1, &candidateInfo.params); /* -1 */
                 candidateInfo.params = sanitizeParams(candidateInfo.params);
                 //evaluate
-                //if(!ZSTD_isError(ZSTD_checkCParams(candidateInfo.params))) {
-                if(cParamValid(candidateInfo.params)) {
+                if(!ZSTD_isError(ZSTD_checkCParams(candidateInfo.params))) {
+                //if(cParamValid(candidateInfo.params)) {
                     int res = infeasibleBenchMemo(&candidateInfo.result,
                        srcBuffer, srcSize,
                        dstBuffer, dstSize, 
@@ -1587,8 +1596,8 @@ static winnerInfo_t climbOnce(constraint_t target, U32* varArray, const int varL
                 candidateInfo.params = sanitizeParams(candidateInfo.params);
 
                 //evaluate
-                //if(!ZSTD_isError(ZSTD_checkCParams(candidateInfo.params))) {
-                if(cParamValid(candidateInfo.params)) {
+                if(!ZSTD_isError(ZSTD_checkCParams(candidateInfo.params))) {
+                //if(cParamValid(candidateInfo.params)) {
                     int res = feasibleBenchMemo(&candidateInfo.result,
                        srcBuffer, srcSize,
                        dstBuffer, dstSize, 
@@ -1605,8 +1614,8 @@ static winnerInfo_t climbOnce(constraint_t target, U32* varArray, const int varL
                 paramVaryOnce(varArray[i], -1, &candidateInfo.params);
                 candidateInfo.params = sanitizeParams(candidateInfo.params);
                 //evaluate
-                //if(!ZSTD_isError(ZSTD_checkCParams(candidateInfo.params))) {
-                if(cParamValid(candidateInfo.params)) {
+                if(!ZSTD_isError(ZSTD_checkCParams(candidateInfo.params))) {
+                //if(cParamValid(candidateInfo.params)) {
                     int res = feasibleBenchMemo(&candidateInfo.result,
                        srcBuffer, srcSize,
                        dstBuffer, dstSize, 
@@ -1681,9 +1690,11 @@ static winnerInfo_t optimizeFixedStrategy(
     /* so climb is given the right fixed strategy */
     paramTarget.strategy = strat;
     /* to pass ZSTD_checkCParams */
-    cParamZeroMin(&paramTarget);
-    memoTableInit(memoTable, paramTarget, target, varNew, varLenNew);
 
+    memoTableInit(memoTable, paramTarget, target, varNew, varLenNew, srcSize);
+
+    //needs to happen after memoTableInit as that assumes 0 = undefined. 
+    cParamZeroMin(&paramTarget);
 
     init = paramTarget;
 
@@ -1699,7 +1710,7 @@ static winnerInfo_t optimizeFixedStrategy(
         candidateInfo = climbOnce(target, varNew, varLenNew, memoTable, srcBuffer, srcSize, dstBuffer, dstSize, ctx, dctx, init);
         if(objective_lt(winnerInfo.result, candidateInfo.result)) {
             winnerInfo = candidateInfo;
-            DISPLAY("Climb Winner: ");
+            DISPLAY("New Winner: ");
             BMK_printWinner(stdout, CUSTOM_LEVEL, winnerInfo.result, winnerInfo.params, srcSize);
         }
         i++;
@@ -1714,7 +1725,7 @@ _cleanUp:
 }
 
 // bigger and (hopefully) better* than optimizeForSize
-// TODO: Change level bm'ing to respect constraints. 
+// TODO: allow accept multiple files like benchFiles or bench.c fn's 
 static int optimizeForSize2(const char* inFileName, constraint_t target, ZSTD_compressionParameters paramTarget)
 {
     FILE* const inFile = fopen( inFileName, "rb" );

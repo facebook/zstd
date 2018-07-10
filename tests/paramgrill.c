@@ -114,6 +114,7 @@ static U32 g_singleRun = 0;
 static U32 g_target = 0;
 static U32 g_noSeed = 0;
 static ZSTD_compressionParameters g_params = { 0, 0, 0, 0, 0, 0, ZSTD_greedy };
+static UTIL_time_t g_time; /* to be used to compare solution finding speeds to compare to original */
 
 void BMK_SetNbIterations(int nbLoops)
 {
@@ -1141,6 +1142,7 @@ static double calcUncertainty(double speed, size_t srcSize) {
 static int feasibleBench(BMK_result_t* resultPtr,
                const void* srcBuffer, size_t srcSize,
                void* dstBuffer, size_t dstSize, 
+               void* dictBuffer, size_t dictSize, 
                ZSTD_CCtx* ctx, ZSTD_DCtx* dctx, 
                const ZSTD_compressionParameters cParams,
                const constraint_t target,
@@ -1155,7 +1157,7 @@ static int feasibleBench(BMK_result_t* resultPtr,
     //alternative - test 1 iter for ratio, (possibility of error 3 which is fine),
     //maybe iter this until 2x measurable for better guarantee? 
     DISPLAY("Feas:\n");
-    benchres = BMK_benchMemAdvanced(srcBuffer,srcSize, dstBuffer, dstSize, &srcSize, 1, 0, &cParams, NULL, 0, ctx, dctx, 0, "File", &adv);
+    benchres = BMK_benchMemAdvanced(srcBuffer,srcSize, dstBuffer, dstSize, &srcSize, 1, 0, &cParams, dictBuffer, dictSize, ctx, dctx, 0, "File", &adv);
     if(benchres.error) {
         DISPLAY("ERROR %d !!\n", benchres.error);
     }
@@ -1195,7 +1197,7 @@ static int feasibleBench(BMK_result_t* resultPtr,
                 if(loopDurationC < TIMELOOP_NANOSEC) {
                     BMK_return_t benchres2;
                     adv.mode = BMK_compressOnly;
-                    benchres2 = BMK_benchMemAdvanced(srcBuffer,srcSize, dstBuffer, dstSize, &srcSize, 1, 0, &cParams, NULL, 0, ctx, dctx, 0, "File", &adv);
+                    benchres2 = BMK_benchMemAdvanced(srcBuffer,srcSize, dstBuffer, dstSize, &srcSize, 1, 0, &cParams, dictBuffer, dictSize, ctx, dctx, 0, "File", &adv);
                     if(benchres2.error) {
                         return ERROR_RESULT;
                     } else {
@@ -1205,7 +1207,7 @@ static int feasibleBench(BMK_result_t* resultPtr,
                 if(loopDurationD < TIMELOOP_NANOSEC) {
                     BMK_return_t benchres2;
                     adv.mode = BMK_decodeOnly;
-                    benchres2 = BMK_benchMemAdvanced(dstBuffer,dstSize, NULL, 0, &benchres.result.cSize, 1, 0, &cParams, NULL, 0, ctx, dctx, 0, "File", &adv);
+                    benchres2 = BMK_benchMemAdvanced(dstBuffer,dstSize, NULL, 0, &benchres.result.cSize, 1, 0, &cParams, dictBuffer, dictSize, ctx, dctx, 0, "File", &adv);
                     if(benchres2.error) {
                         return ERROR_RESULT;
                     } else {
@@ -1224,7 +1226,7 @@ static int feasibleBench(BMK_result_t* resultPtr,
                 if(loopDurationC < TIMELOOP_NANOSEC) {
                     BMK_return_t benchres2;
                     adv.mode = BMK_compressOnly;
-                    benchres2 = BMK_benchMemAdvanced(srcBuffer,srcSize, dstBuffer, dstSize, &srcSize, 1, 0, &cParams, NULL, 0, ctx, dctx, 0, "File", &adv);
+                    benchres2 = BMK_benchMemAdvanced(srcBuffer,srcSize, dstBuffer, dstSize, &srcSize, 1, 0, &cParams, dictBuffer, dictSize, ctx, dctx, 0, "File", &adv);
                     if(benchres2.error) {
                         return ERROR_RESULT;
                     } else {
@@ -1234,7 +1236,7 @@ static int feasibleBench(BMK_result_t* resultPtr,
                 if(loopDurationD < TIMELOOP_NANOSEC) {
                     BMK_return_t benchres2;
                     adv.mode = BMK_decodeOnly;
-                    benchres2 = BMK_benchMemAdvanced(dstBuffer,dstSize, NULL, 0, &benchres.result.cSize, 1, 0, &cParams, NULL, 0, ctx, dctx, 0, "File", &adv);
+                    benchres2 = BMK_benchMemAdvanced(dstBuffer,dstSize, NULL, 0, &benchres.result.cSize, 1, 0, &cParams,  dictBuffer, dictSize, ctx, dctx, 0, "File", &adv);
                     if(benchres2.error) {
                         return ERROR_RESULT;
                     } else {
@@ -1250,7 +1252,7 @@ static int feasibleBench(BMK_result_t* resultPtr,
                     return INFEASIBLE_RESULT;
                 } else { //possibly better, benchmark and find out
                     adv.loopMode = BMK_timeMode;
-                    benchres = BMK_benchMemAdvanced(srcBuffer, srcSize, dstBuffer, dstSize, &srcSize, 1, 0, &cParams, NULL, 0, ctx, dctx, 0, "File", &adv);
+                    benchres = BMK_benchMemAdvanced(srcBuffer, srcSize, dstBuffer, dstSize, &srcSize, 1, 0, &cParams,  dictBuffer, dictSize, ctx, dctx, 0, "File", &adv);
                     *resultPtr = benchres.result;
                     return objective_lt(*winnerResult, benchres.result);
                 }
@@ -1272,6 +1274,7 @@ static int feasibleBench(BMK_result_t* resultPtr,
 static int infeasibleBench(BMK_result_t* resultPtr,
                const void* srcBuffer, size_t srcSize,
                void* dstBuffer, size_t dstSize, 
+               void* dictBuffer, size_t dictSize, 
                ZSTD_CCtx* ctx, ZSTD_DCtx* dctx, 
                const ZSTD_compressionParameters cParams,
                const constraint_t target,
@@ -1289,12 +1292,14 @@ static int infeasibleBench(BMK_result_t* resultPtr,
     /*
     adv.loopMode = BMK_timeMode;
     adv.nbSeconds = 1; */
-    benchres = BMK_benchMemAdvanced(srcBuffer,srcSize, dstBuffer, dstSize, &srcSize, 1, 0, &cParams, NULL, 0, ctx, dctx, 0, "File", &adv);
+    benchres = BMK_benchMemAdvanced(srcBuffer,srcSize, dstBuffer, dstSize, &srcSize, 1, 0, &cParams, dictBuffer, dictSize, ctx, dctx, 0, "File", &adv);
+    BMK_printWinner(stdout, CUSTOM_LEVEL, benchres.result, cParams, srcSize);
+    benchres = BMK_benchMemAdvanced(srcBuffer,srcSize, dstBuffer, dstSize, &srcSize, 1, 0, &cParams, dictBuffer, dictSize, ctx, dctx, 0, "File", &adv);
     BMK_printWinner(stdout, CUSTOM_LEVEL, benchres.result, cParams, srcSize); 
 
     adv.loopMode = BMK_timeMode;
     adv.nbSeconds = 1;
-    benchres = BMK_benchMemAdvanced(srcBuffer,srcSize, dstBuffer, dstSize, &srcSize, 1, 0, &cParams, NULL, 0, ctx, dctx, 0, "File", &adv);
+    benchres = BMK_benchMemAdvanced(srcBuffer,srcSize, dstBuffer, dstSize, &srcSize, 1, 0, &cParams,  dictBuffer, dictSize, ctx, dctx, 0, "File", &adv);
     BMK_printWinner(stdout, CUSTOM_LEVEL, benchres.result, cParams, srcSize); 
 
     if(!benchres.error) { 
@@ -1336,7 +1341,7 @@ static int infeasibleBench(BMK_result_t* resultPtr,
             if(loopDurationC < TIMELOOP_NANOSEC) {
                 BMK_return_t benchres2;
                 adv.mode = BMK_compressOnly;
-                benchres2 = BMK_benchMemAdvanced(srcBuffer,srcSize, dstBuffer, dstSize, &srcSize, 1, 0, &cParams, NULL, 0, ctx, dctx, 0, "File", &adv);
+                benchres2 = BMK_benchMemAdvanced(srcBuffer,srcSize, dstBuffer, dstSize, &srcSize, 1, 0, &cParams,  dictBuffer, dictSize, ctx, dctx, 0, "File", &adv);
                 if(benchres2.error) {
                     return ERROR_RESULT;
                 } else {
@@ -1348,7 +1353,7 @@ static int infeasibleBench(BMK_result_t* resultPtr,
                 adv.mode = BMK_decodeOnly;
                 //TODO: dstBuffer corrupted sometime between top and now
                 //probably occuring in feasible bench too.
-                benchres2 = BMK_benchMemAdvanced(dstBuffer, dstSize, NULL, 0, &benchres.result.cSize, 1, 0, &cParams, NULL, 0, ctx, dctx, 0, "File", &adv);
+                benchres2 = BMK_benchMemAdvanced(dstBuffer, dstSize, NULL, 0, &benchres.result.cSize, 1, 0, &cParams, dictBuffer, dictSize, ctx, dctx, 0, "File", &adv);
                 if(benchres2.error) {
                     return ERROR_RESULT;
                 } else {
@@ -1372,6 +1377,7 @@ static int infeasibleBench(BMK_result_t* resultPtr,
 static int feasibleBenchMemo(BMK_result_t* resultPtr,
                const void* srcBuffer, size_t srcSize,
                void* dstBuffer, size_t dstSize, 
+               void* dictBuffer, size_t dictSize, 
                ZSTD_CCtx* ctx, ZSTD_DCtx* dctx, 
                const ZSTD_compressionParameters cParams,
                const constraint_t target,
@@ -1387,7 +1393,7 @@ static int feasibleBenchMemo(BMK_result_t* resultPtr,
         //what is the intended behavior in this case? 
         //ignore? stop iterating completely? other?
     } else {
-        int res = feasibleBench(resultPtr, srcBuffer, srcSize, dstBuffer, dstSize, ctx, dctx, 
+        int res = feasibleBench(resultPtr, srcBuffer, srcSize, dstBuffer, dstSize, dictBuffer, dictSize, ctx, dctx, 
                cParams, target, winnerResult);
         memoTable[memind] = 255; //tested are all infeasible (other possible values for opti)
         return res;
@@ -1399,6 +1405,7 @@ static int feasibleBenchMemo(BMK_result_t* resultPtr,
 static int infeasibleBenchMemo(BMK_result_t* resultPtr,
                const void* srcBuffer, size_t srcSize,
                void* dstBuffer, size_t dstSize, 
+               void* dictBuffer, size_t dictSize, 
                ZSTD_CCtx* ctx, ZSTD_DCtx* dctx, 
                const ZSTD_compressionParameters cParams,
                const constraint_t target,
@@ -1410,7 +1417,7 @@ static int infeasibleBenchMemo(BMK_result_t* resultPtr,
     if(memoTable[memind] >= INFEASIBLE_THRESHOLD) {
         return INFEASIBLE_RESULT; //see feasibleBenchMemo for concerns
     } else {
-        int res = infeasibleBench(resultPtr, srcBuffer, srcSize, dstBuffer, dstSize, ctx, dctx, 
+        int res = infeasibleBench(resultPtr, srcBuffer, srcSize, dstBuffer, dstSize, dictBuffer, dictSize, ctx, dctx, 
                cParams, target, winnerResult);
         if(res == FEASIBLE_RESULT) {
             memoTable[memind] = 255; //infeasible resultscores could still be normal feasible. 
@@ -1432,7 +1439,7 @@ typedef int (*BMK_benchMemo_t)(BMK_result_t*, const void*, size_t, void*, size_t
 //sanitize all params here. 
 //all generation after random should be sanitized. (maybe sanitize random)
 static winnerInfo_t climbOnce(constraint_t target, U32* varArray, const int varLen, U8* memoTable,
-    const void* srcBuffer, size_t srcSize, void* dstBuffer, size_t dstSize, ZSTD_CCtx* ctx, ZSTD_DCtx* dctx, ZSTD_compressionParameters init) {
+    const void* srcBuffer, size_t srcSize, void* dstBuffer, size_t dstSize, void* dictBuffer, size_t dictSize, ZSTD_CCtx* ctx, ZSTD_DCtx* dctx, ZSTD_compressionParameters init) {
     //pick later initializations non-randomly? high dist from explored nodes.
     //how to do this efficiently? (might not be too much of a problem, happens rarely, running time probably dominated by benchmarking)
     //distance maximizing selection? 
@@ -1488,6 +1495,7 @@ static winnerInfo_t climbOnce(constraint_t target, U32* varArray, const int varL
                     int res = infeasibleBenchMemo(&candidateInfo.result,
                        srcBuffer, srcSize,
                        dstBuffer, dstSize, 
+                       dictBuffer, dictSize, 
                        ctx, dctx, 
                        candidateInfo.params, target, &winnerInfo.result, memoTable,
                        varArray, varLen);
@@ -1512,6 +1520,7 @@ static winnerInfo_t climbOnce(constraint_t target, U32* varArray, const int varL
                     int res = infeasibleBenchMemo(&candidateInfo.result,
                        srcBuffer, srcSize,
                        dstBuffer, dstSize, 
+                       dictBuffer, dictSize, 
                        ctx, dctx, 
                        candidateInfo.params, target, &winnerInfo.result, memoTable,
                        varArray, varLen);
@@ -1519,7 +1528,7 @@ static winnerInfo_t climbOnce(constraint_t target, U32* varArray, const int varL
                         winnerInfo = candidateInfo;
                         //BMK_printWinner(stdout, CUSTOM_LEVEL, winnerInfo.result, winnerInfo.params, srcSize);
                         better = 1;
-                        if(feasible(candidateInfo.result, target)) {
+                        if(feasible(candidateInfo.result, target)) { //TODO: maybe just break here and move on to part 2? 
                             bestFeasible2 = winnerInfo;
                             if(objective_lt(bestFeasible1.result, bestFeasible2.result)) {
                                 bestFeasible1 = bestFeasible2;
@@ -1535,14 +1544,15 @@ static winnerInfo_t climbOnce(constraint_t target, U32* varArray, const int varL
             //if 'better' enough, skip further parameter search, center there?
             //possible improvement - guide direction here w/ knowledge rather than completely random variation. 
             for(d = 2; d < varLen + 2; d++) { /* varLen is # dimensions */
-                for(i = 0; i < 5; i++) { //make ? relative to # of free dimensions.
+                for(i = 0; i < 2 * varLen + 2; i++) {
                     int res;
                     candidateInfo.params = cparam;
                     /* param error checking already done here */
                     paramVariation(&candidateInfo.params, varArray, varLen, d);
                     res = infeasibleBenchMemo(&candidateInfo.result,
                        srcBuffer, srcSize,
-                       dstBuffer, dstSize, 
+                       dstBuffer, dstSize,
+                       dictBuffer, dictSize, 
                        ctx, dctx, 
                        candidateInfo.params, target, &winnerInfo.result, memoTable,
                        varArray, varLen);
@@ -1601,6 +1611,7 @@ static winnerInfo_t climbOnce(constraint_t target, U32* varArray, const int varL
                     int res = feasibleBenchMemo(&candidateInfo.result,
                        srcBuffer, srcSize,
                        dstBuffer, dstSize, 
+                       dictBuffer, dictSize, 
                        ctx, dctx, 
                        candidateInfo.params, target, &winnerInfo.result, memoTable,
                        varArray, varLen);
@@ -1619,6 +1630,7 @@ static winnerInfo_t climbOnce(constraint_t target, U32* varArray, const int varL
                     int res = feasibleBenchMemo(&candidateInfo.result,
                        srcBuffer, srcSize,
                        dstBuffer, dstSize, 
+                       dictBuffer, dictSize, 
                        ctx, dctx, 
                        candidateInfo.params, target, &winnerInfo.result, memoTable,
                        varArray, varLen);
@@ -1632,7 +1644,7 @@ static winnerInfo_t climbOnce(constraint_t target, U32* varArray, const int varL
             //if 'better' enough, skip further parameter search, center there?
             //possible improvement - guide direction here w/ knowledge rather than completely random variation. 
             for(d = 2; d < varLen + 2; d++) { /* varLen is # dimensions */
-                for(i = 0; i < 5; i++) { //TODO: make ? relative to # of free dimensions.
+                for(i = 0; i < 2 * varLen + 2; i++) {
                     int res;
                     candidateInfo.params = cparam;
                     /* param error checking already done here */
@@ -1640,6 +1652,7 @@ static winnerInfo_t climbOnce(constraint_t target, U32* varArray, const int varL
                     res = feasibleBenchMemo(&candidateInfo.result,
                        srcBuffer, srcSize,
                        dstBuffer, dstSize, 
+                       dictBuffer, dictSize, 
                        ctx, dctx, 
                        candidateInfo.params, target, &winnerInfo.result, memoTable,
                        varArray, varLen);
@@ -1672,6 +1685,7 @@ static winnerInfo_t climbOnce(constraint_t target, U32* varArray, const int varL
 static winnerInfo_t optimizeFixedStrategy(
     const void* srcBuffer, const size_t srcSize, 
     void* dstBuffer, size_t dstSize, 
+    void* dictBuffer, size_t dictSize, 
     constraint_t target, ZSTD_compressionParameters paramTarget, 
     ZSTD_strategy strat, U32* varArray, int varLen) {
     int i = 0; //TODO: Temp fix 10 iters, check effects of changing this? 
@@ -1706,12 +1720,14 @@ static winnerInfo_t optimizeFixedStrategy(
 
     while(i < 10) {
         DISPLAY("Restart\n");
+        //TODO: look into improving this to maximize distance from searched infeasible stuff / towards promising regions? 
         randomConstrainedParams(&init, varNew, varLenNew, memoTable);
-        candidateInfo = climbOnce(target, varNew, varLenNew, memoTable, srcBuffer, srcSize, dstBuffer, dstSize, ctx, dctx, init);
+        candidateInfo = climbOnce(target, varNew, varLenNew, memoTable, srcBuffer, srcSize, dstBuffer, dstSize, dictBuffer, dictSize, ctx, dctx, init);
         if(objective_lt(winnerInfo.result, candidateInfo.result)) {
             winnerInfo = candidateInfo;
             DISPLAY("New Winner: ");
             BMK_printWinner(stdout, CUSTOM_LEVEL, winnerInfo.result, winnerInfo.params, srcSize);
+            i = 0;
         }
         i++;
     }
@@ -1724,59 +1740,125 @@ _cleanUp:
     return winnerInfo;
 }
 
+static int BMK_loadFiles(void* buffer, size_t bufferSize,
+                          size_t* fileSizes, const char* const * const fileNamesTable, 
+                          unsigned nbFiles)
+{
+    size_t pos = 0, totalSize = 0;
+    unsigned n;
+    for (n=0; n<nbFiles; n++) {
+        FILE* f;
+        U64 fileSize = UTIL_getFileSize(fileNamesTable[n]);
+        if (UTIL_isDirectory(fileNamesTable[n])) {
+            DISPLAY("Ignoring %s directory...       \n", fileNamesTable[n]);
+            fileSizes[n] = 0;
+            continue;
+        }
+        if (fileSize == UTIL_FILESIZE_UNKNOWN) {
+            DISPLAY("Cannot evaluate size of %s, ignoring ... \n", fileNamesTable[n]);
+            fileSizes[n] = 0;
+            continue;
+        }
+        f = fopen(fileNamesTable[n], "rb");
+        if (f==NULL) {
+            DISPLAY("impossible to open file %s", fileNamesTable[n]);
+            return 10;
+        }
+        DISPLAY("Loading %s...       \r", fileNamesTable[n]);
+        if (fileSize > bufferSize-pos) fileSize = bufferSize-pos, nbFiles=n;   /* buffer too small - stop after this file */
+        { size_t const readSize = fread(((char*)buffer)+pos, 1, (size_t)fileSize, f);
+            if (readSize != (size_t)fileSize) {
+                DISPLAY("could not read %s", fileNamesTable[n]);
+                return 11;
+            }
+          pos += readSize; }
+        fileSizes[n] = (size_t)fileSize;
+        totalSize += (size_t)fileSize;
+        fclose(f);
+    }
+
+    if (totalSize == 0) { DISPLAY("no data to bench\n"); return 12; }
+    return 0;
+}
+
 // bigger and (hopefully) better* than optimizeForSize
 // TODO: allow accept multiple files like benchFiles or bench.c fn's 
-static int optimizeForSize2(const char* inFileName, constraint_t target, ZSTD_compressionParameters paramTarget)
+static int optimizeForSize2(const char* const * const fileNamesTable, const size_t nbFiles, const char* dictFileName, constraint_t target, ZSTD_compressionParameters paramTarget)
 {
-    FILE* const inFile = fopen( inFileName, "rb" );
-    U64 const inFileSize = UTIL_getFileSize(inFileName);
-    size_t benchedSize = BMK_findMaxMem(inFileSize*3) / 3;
+    size_t benchedSize;
     void* origBuff;
+    void* dictBuffer;
+    size_t dictBufferSize;
     U32 varArray [NUM_PARAMS];
     int varLen = variableParams(paramTarget, varArray);
     /* Init */
-
-
     if(!cParamValid(paramTarget)) {
         return 10;
     }
 
-    if (inFile==NULL) { DISPLAY( "Pb opening %s\n", inFileName); return 11; }
-    if (inFileSize == UTIL_FILESIZE_UNKNOWN) {
-        DISPLAY("Pb evaluatin size of %s \n", inFileName);
-        fclose(inFile);
-        return 11;
-    }
-
-    /* Memory allocation & restrictions */
-    if ((U64)benchedSize > inFileSize) benchedSize = (size_t)inFileSize;
-    if (benchedSize < inFileSize) {
-        DISPLAY("Not enough memory for '%s' \n", inFileName);
-        fclose(inFile);
-        return 11;
-    }
-
-    /* Alloc */
-    origBuff = malloc(benchedSize);
-    if(!origBuff) {
-        DISPLAY("\nError: not enough memory!\n");
-        fclose(inFile);
-        return 12;
+    /* load dictionary*/
+    if (dictFileName != NULL) {
+        U64 const dictFileSize = UTIL_getFileSize(dictFileName);
+        if (dictFileSize > 64 MB) {
+            DISPLAY("dictionary file %s too large", dictFileName);
+            return 10;
+        }
+        dictBufferSize = (size_t)dictFileSize;
+        dictBuffer = malloc(dictBufferSize);
+        if (dictBuffer==NULL) {
+            DISPLAY("not enough memory for dictionary (%u bytes)",
+                            (U32)dictBufferSize);
+            return 11;
+        }
+        {
+            int errorCode = BMK_loadFiles(dictBuffer, dictBufferSize, &dictBufferSize, &dictFileName, 1);
+            if(errorCode) {
+                free(dictBuffer);
+                return errorCode;
+            }
+        }
     }
 
     /* Fill input buffer */
-    DISPLAY("Loading %s...       \r", inFileName);
-    {   size_t const readSize = fread(origBuff, 1, benchedSize, inFile);
-        fclose(inFile);
-        if(readSize != benchedSize) {
-            DISPLAY("\nError: problem reading file '%s' !!    \n", inFileName);
+    if(nbFiles == 1) {
+        DISPLAY("Loading %s...       \r", fileNamesTable[0]);
+    } else {
+        DISPLAY("Loading %zd Files...       \r", nbFiles);
+    }
+
+    {   
+        U64 const totalSizeToLoad = UTIL_getTotalFileSize(fileNamesTable, nbFiles);
+        int ec;
+        size_t* fileSizes = calloc(sizeof(size_t),nbFiles);
+        benchedSize = BMK_findMaxMem(totalSizeToLoad * 3) / 3;
+        origBuff = malloc(benchedSize);
+        if(!origBuff || !fileSizes) {
+            DISPLAY("Not enough memory for stuff\n");
             free(origBuff);
-            return 13;
-    }   }
+            free(fileSizes);
+            free(dictBuffer);
+            return 1;
+        }
+        ec = BMK_loadFiles(origBuff, benchedSize, fileSizes, fileNamesTable, nbFiles);
+        if(ec) {
+            DISPLAY("Error Loading Files");
+            free(origBuff);
+            free(fileSizes);
+            free(dictBuffer);
+            return ec;
+        }
+        free(fileSizes);
+    }
+
+
 
     /* bench */
     DISPLAY("\r%79s\r", "");
-    DISPLAY("optimizing for %s", inFileName);
+    if(nbFiles == 1) {
+        DISPLAY("optimizing for %s", fileNamesTable[0]);
+    } else {
+        DISPLAY("optimizing for %zd Files", nbFiles);
+    }
     if(target.cSpeed != 0) { DISPLAY(" - limit compression speed %u MB/s", target.cSpeed / 1000000); }
     if(target.dSpeed != 0) { DISPLAY(" - limit decompression speed %u MB/s", target.dSpeed / 1000000); }
     if(target.cMem != (U32)-1) { DISPLAY(" - limit memory %u MB", target.cMem / 1000000); }
@@ -1828,7 +1910,7 @@ static int optimizeForSize2(const char* inFileName, constraint_t target, ZSTD_co
             if(paramTarget.strategy == 0) {
                 int st;
                 for(st = 1; st <= 8; st++) {
-                    winnerInfo_t wc = optimizeFixedStrategy(origBuff, benchedSize, compressedBuffer, maxCompressedSize, 
+                    winnerInfo_t wc = optimizeFixedStrategy(origBuff, benchedSize, compressedBuffer, maxCompressedSize, dictBuffer, dictBufferSize, 
                     target, paramTarget, st, varArray, varLen);
                     DISPLAY("StratNum %d\n", st);
                     if(objective_lt(winner.result, wc.result)) {
@@ -1836,7 +1918,7 @@ static int optimizeForSize2(const char* inFileName, constraint_t target, ZSTD_co
                     }
                 }
             } else {
-                winner = optimizeFixedStrategy(origBuff, benchedSize, compressedBuffer, maxCompressedSize,
+                winner = optimizeFixedStrategy(origBuff, benchedSize, compressedBuffer, maxCompressedSize, dictBuffer, dictBufferSize, 
                     target, paramTarget, paramTarget.strategy, varArray, varLen);
             }
 
@@ -2070,7 +2152,8 @@ int main(int argc, const char** argv)
         filenamesStart=0,
         result;
     const char* exename=argv[0];
-    const char* input_filename=0;
+    const char* input_filename = 0;
+    const char* dictFileName = 0;
     U32 optimizer = 0;
     U32 main_pause = 0;
 
@@ -2283,6 +2366,17 @@ int main(int argc, const char** argv)
                     g_grillDuration_s = (double)readU32FromChar(&argument);
                     break;
 
+                /* load dictionary file (only applicable for optimizer rn) */
+                case 'D':
+                    if(i == argc - 1) { //last argument, return error. 
+                        DISPLAY("Dictionary file expected but not given\n");
+                        return 1;
+                    } else {
+                        i++;
+                        dictFileName = argv[i];
+                    }
+                    break;
+
                     /* Unknown command */
                 default : return badusage(exename);
                 }
@@ -2303,8 +2397,7 @@ int main(int argc, const char** argv)
         }
     } else {
         if (optimizer) {
-            result = optimizeForSize2(input_filename, target, paramTarget);
-            //optimizeForSize(input_filename, target, paramTarget);
+            result = optimizeForSize2(argv+filenamesStart, argc-filenamesStart, dictFileName, target, paramTarget);
         } else {
             result = benchFiles(argv+filenamesStart, argc-filenamesStart);
     }   }

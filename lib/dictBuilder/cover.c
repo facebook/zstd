@@ -39,7 +39,7 @@
 *  Constants
 ***************************************/
 #define COVER_MAX_SAMPLES_SIZE (sizeof(size_t) == 8 ? ((U32)-1) : ((U32)1 GB))
-#define DEFAULT_SPLITPOINT 0.8
+#define DEFAULT_SPLITPOINT 1.0
 
 /*-*************************************
 *  Console display
@@ -497,7 +497,7 @@ static int COVER_checkParameters(ZDICT_cover_params_t parameters,
   if (parameters.d > parameters.k) {
     return 0;
   }
-  /* 0 < splitPoint < 1 */
+  /* 0 < splitPoint <= 1 */
   if (parameters.splitPoint <= 0 || parameters.splitPoint > 1){
     return 0;
   }

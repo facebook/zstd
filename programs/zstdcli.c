@@ -84,7 +84,7 @@ static U32 g_ldmMinMatch = 0;
 static U32 g_ldmHashEveryLog = LDM_PARAM_DEFAULT;
 static U32 g_ldmBucketSizeLog = LDM_PARAM_DEFAULT;
 
-#define DEFAULT_SPLITPOINT 0.8
+#define DEFAULT_SPLITPOINT 1.0
 
 /*-************************************
 *  Display Macros

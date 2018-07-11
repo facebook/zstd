@@ -228,7 +228,7 @@ Compression of small files similar to the sample set will be greatly improved.
     If _d_ is not specified, then it tries _d_ = 6 and _d_ = 8.
     If _k_ is not specified, then it tries _steps_ values in the range [50, 2000].
     If _steps_ is not specified, then the default value of 40 is used.
-    If _split_ is not specified or split <= 0 or split > 100, then the default value of 100 is used.
+    If _split_ is not specified or split <= 0, then the default value of 100 is used.
     Requires that _d_ <= _k_.
 
     Selects segments of size _k_ with highest score to put in the dictionary.
@@ -238,6 +238,8 @@ Compression of small files similar to the sample set will be greatly improved.
     algorithm will run faster with d <= _8_.
     Good values for _k_ vary widely based on the input data, but a safe range is
     [2 * _d_, 2000].
+    If _split_ is 100, all input samples are used for both training and testing
+    to find optimal _d_ and _k_ to build dictionary.
     Supports multithreading if `zstd` is compiled with threading support.
 
     Examples:

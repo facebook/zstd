@@ -59,8 +59,8 @@ fi
 isWindows=false
 INTOVOID="/dev/null"
 case "$UNAME" in
-  OpenBSD) DEVDEVICE="/dev/zero" ;;
-  *) DEVDEVICE="/dev/random" ;;
+  GNU) DEVDEVICE="/dev/random" ;;
+  *) DEVDEVICE="/dev/zero" ;;
 esac
 case "$OS" in
   Windows*)

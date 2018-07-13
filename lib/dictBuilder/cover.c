@@ -39,6 +39,7 @@
 *  Constants
 ***************************************/
 #define COVER_MAX_SAMPLES_SIZE (sizeof(size_t) == 8 ? ((U32)-1) : ((U32)1 GB))
+#define DEFAULT_SPLITPOINT 1.0
 
 /*-*************************************
 *  Console display
@@ -203,6 +204,8 @@ typedef struct {
   size_t *offsets;
   const size_t *samplesSizes;
   size_t nbSamples;
+  size_t nbTrainSamples;
+  size_t nbTestSamples;
   U32 *suffix;
   size_t suffixSize;
   U32 *freqs;
@@ -222,7 +225,7 @@ static COVER_ctx_t *g_ctx = NULL;
  */
 static size_t COVER_sum(const size_t *samplesSizes, unsigned nbSamples) {
   size_t sum = 0;
-  size_t i;
+  unsigned i;
   for (i = 0; i < nbSamples; ++i) {
     sum += samplesSizes[i];
   }
@@ -494,6 +497,10 @@ static int COVER_checkParameters(ZDICT_cover_params_t parameters,
   if (parameters.d > parameters.k) {
     return 0;
   }
+  /* 0 < splitPoint <= 1 */
+  if (parameters.splitPoint <= 0 || parameters.splitPoint > 1){
+    return 0;
+  }
   return 1;
 }
 
@@ -531,9 +538,14 @@ static void COVER_ctx_destroy(COVER_ctx_t *ctx) {
  */
 static int COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
                           const size_t *samplesSizes, unsigned nbSamples,
-                          unsigned d) {
+                          unsigned d, double splitPoint) {
   const BYTE *const samples = (const BYTE *)samplesBuffer;
   const size_t totalSamplesSize = COVER_sum(samplesSizes, nbSamples);
+  /* Split samples into testing and training sets */
+  const unsigned nbTrainSamples = splitPoint < 1.0 ? (unsigned)((double)nbSamples * splitPoint) : nbSamples;
+  const unsigned nbTestSamples = splitPoint < 1.0 ? nbSamples - nbTrainSamples : nbSamples;
+  const size_t trainingSamplesSize = splitPoint < 1.0 ? COVER_sum(samplesSizes, nbTrainSamples) : totalSamplesSize;
+  const size_t testSamplesSize = splitPoint < 1.0 ? COVER_sum(samplesSizes + nbTrainSamples, nbTestSamples) : totalSamplesSize;
   /* Checks */
   if (totalSamplesSize < MAX(d, sizeof(U64)) ||
       totalSamplesSize >= (size_t)COVER_MAX_SAMPLES_SIZE) {
@@ -541,15 +553,29 @@ static int COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
                  (U32)(totalSamplesSize>>20), (COVER_MAX_SAMPLES_SIZE >> 20));
     return 0;
   }
+  /* Check if there are at least 5 training samples */
+  if (nbTrainSamples < 5) {
+    DISPLAYLEVEL(1, "Total number of training samples is %u and is invalid.", nbTrainSamples);
+    return 0;
+  }
+  /* Check if there's testing sample */
+  if (nbTestSamples < 1) {
+    DISPLAYLEVEL(1, "Total number of testing samples is %u and is invalid.", nbTestSamples);
+    return 0;
+  }
   /* Zero the context */
   memset(ctx, 0, sizeof(*ctx));
-  DISPLAYLEVEL(2, "Training on %u samples of total size %u\n", nbSamples,
-               (U32)totalSamplesSize);
+  DISPLAYLEVEL(2, "Training on %u samples of total size %u\n", nbTrainSamples,
+               (U32)trainingSamplesSize);
+  DISPLAYLEVEL(2, "Testing on %u samples of total size %u\n", nbTestSamples,
+               (U32)testSamplesSize);
   ctx->samples = samples;
   ctx->samplesSizes = samplesSizes;
   ctx->nbSamples = nbSamples;
+  ctx->nbTrainSamples = nbTrainSamples;
+  ctx->nbTestSamples = nbTestSamples;
   /* Partial suffix array */
-  ctx->suffixSize = totalSamplesSize - MAX(d, sizeof(U64)) + 1;
+  ctx->suffixSize = trainingSamplesSize - MAX(d, sizeof(U64)) + 1;
   ctx->suffix = (U32 *)malloc(ctx->suffixSize * sizeof(U32));
   /* Maps index to the dmerID */
   ctx->dmerAt = (U32 *)malloc(ctx->suffixSize * sizeof(U32));
@@ -563,7 +589,7 @@ static int COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
   ctx->freqs = NULL;
   ctx->d = d;
 
-  /* Fill offsets from the samlesSizes */
+  /* Fill offsets from the samplesSizes */
   {
     U32 i;
     ctx->offsets[0] = 0;
@@ -665,7 +691,7 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_cover(
   BYTE* const dict = (BYTE*)dictBuffer;
   COVER_ctx_t ctx;
   COVER_map_t activeDmers;
-
+  parameters.splitPoint = 1.0;
   /* Initialize global data */
   g_displayLevel = parameters.zParams.notificationLevel;
   /* Checks */
@@ -684,7 +710,7 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_cover(
   }
   /* Initialize context and activeDmers */
   if (!COVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples,
-                      parameters.d)) {
+                      parameters.d, parameters.splitPoint)) {
     return ERROR(GENERIC);
   }
   if (!COVER_map_init(&activeDmers, parameters.k - parameters.d + 1)) {
@@ -839,7 +865,7 @@ typedef struct COVER_tryParameters_data_s {
 } COVER_tryParameters_data_t;
 
 /**
- * Tries a set of parameters and upates the COVER_best_t with the results.
+ * Tries a set of parameters and updates the COVER_best_t with the results.
  * This function is thread safe if zstd is compiled with multithreaded support.
  * It takes its parameters as an *OWNING* opaque pointer to support threading.
  */
@@ -870,7 +896,7 @@ static void COVER_tryParameters(void *opaque) {
                                               dictBufferCapacity, parameters);
     dictBufferCapacity = ZDICT_finalizeDictionary(
         dict, dictBufferCapacity, dict + tail, dictBufferCapacity - tail,
-        ctx->samples, ctx->samplesSizes, (unsigned)ctx->nbSamples,
+        ctx->samples, ctx->samplesSizes, (unsigned)ctx->nbTrainSamples,
         parameters.zParams);
     if (ZDICT_isError(dictBufferCapacity)) {
       DISPLAYLEVEL(1, "Failed to finalize dictionary\n");
@@ -889,7 +915,8 @@ static void COVER_tryParameters(void *opaque) {
     /* Allocate dst with enough space to compress the maximum sized sample */
     {
       size_t maxSampleSize = 0;
-      for (i = 0; i < ctx->nbSamples; ++i) {
+      i = parameters.splitPoint < 1.0 ? ctx->nbTrainSamples : 0;
+      for (; i < ctx->nbSamples; ++i) {
         maxSampleSize = MAX(ctx->samplesSizes[i], maxSampleSize);
       }
       dstCapacity = ZSTD_compressBound(maxSampleSize);
@@ -904,7 +931,8 @@ static void COVER_tryParameters(void *opaque) {
     }
     /* Compress each sample and sum their sizes (or error) */
     totalCompressedSize = dictBufferCapacity;
-    for (i = 0; i < ctx->nbSamples; ++i) {
+    i = parameters.splitPoint < 1.0 ? ctx->nbTrainSamples : 0;
+    for (; i < ctx->nbSamples; ++i) {
       const size_t size = ZSTD_compress_usingCDict(
           cctx, dst, dstCapacity, ctx->samples + ctx->offsets[i],
           ctx->samplesSizes[i], cdict);
@@ -941,6 +969,8 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
     ZDICT_cover_params_t *parameters) {
   /* constants */
   const unsigned nbThreads = parameters->nbThreads;
+  const double splitPoint =
+      parameters->splitPoint <= 0.0 ? DEFAULT_SPLITPOINT : parameters->splitPoint;
   const unsigned kMinD = parameters->d == 0 ? 6 : parameters->d;
   const unsigned kMaxD = parameters->d == 0 ? 8 : parameters->d;
   const unsigned kMinK = parameters->k == 0 ? 50 : parameters->k;
@@ -958,6 +988,10 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
   POOL_ctx *pool = NULL;
 
   /* Checks */
+  if (splitPoint <= 0 || splitPoint > 1) {
+    LOCALDISPLAYLEVEL(displayLevel, 1, "Incorrect parameters\n");
+    return ERROR(GENERIC);
+  }
   if (kMinK < kMaxD || kMaxK < kMinK) {
     LOCALDISPLAYLEVEL(displayLevel, 1, "Incorrect parameters\n");
     return ERROR(GENERIC);
@@ -988,7 +1022,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
     /* Initialize the context for this value of d */
     COVER_ctx_t ctx;
     LOCALDISPLAYLEVEL(displayLevel, 3, "d=%u\n", d);
-    if (!COVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples, d)) {
+    if (!COVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples, d, splitPoint)) {
       LOCALDISPLAYLEVEL(displayLevel, 1, "Failed to initialize context\n");
       COVER_best_destroy(&best);
       POOL_free(pool);
@@ -1013,6 +1047,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
       data->parameters = *parameters;
       data->parameters.k = k;
       data->parameters.d = d;
+      data->parameters.splitPoint = splitPoint;
       data->parameters.steps = kSteps;
       data->parameters.zParams.notificationLevel = g_displayLevel;
       /* Check the parameters */

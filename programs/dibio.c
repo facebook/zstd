@@ -323,7 +323,8 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
                                                            srcBuffer, sampleSizes, fs.nbSamples,
                                                            coverParams);
             if (!ZDICT_isError(dictSize)) {
-                DISPLAYLEVEL(2, "k=%u\nd=%u\nsteps=%u\n", coverParams->k, coverParams->d, coverParams->steps);
+                unsigned splitPercentage = (unsigned)(coverParams->splitPoint * 100);
+                DISPLAYLEVEL(2, "k=%u\nd=%u\nsteps=%u\nsplit=%u\n", coverParams->k, coverParams->d, coverParams->steps, splitPercentage);
             }
         } else {
             dictSize = ZDICT_trainFromBuffer_cover(dictBuffer, maxDictSize, srcBuffer,

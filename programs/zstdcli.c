@@ -84,6 +84,7 @@ static U32 g_ldmMinMatch = 0;
 static U32 g_ldmHashEveryLog = LDM_PARAM_DEFAULT;
 static U32 g_ldmBucketSizeLog = LDM_PARAM_DEFAULT;
 
+#define DEFAULT_SPLITPOINT 1.0
 
 /*-************************************
 *  Display Macros
@@ -170,7 +171,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( "\n");
     DISPLAY( "Dictionary builder : \n");
     DISPLAY( "--train ## : create a dictionary from a training set of files \n");
-    DISPLAY( "--train-cover[=k=#,d=#,steps=#] : use the cover algorithm with optional args\n");
+    DISPLAY( "--train-cover[=k=#,d=#,steps=#,split=#] : use the cover algorithm with optional args\n");
     DISPLAY( "--train-legacy[=s=#] : use the legacy algorithm with selectivity (default: %u)\n", g_defaultSelectivityLevel);
     DISPLAY( " -o file : `file` is dictionary name (default: %s) \n", g_defaultDictName);
     DISPLAY( "--maxdict=# : limit dictionary to specified size (default: %u) \n", g_defaultMaxDictSize);
@@ -282,10 +283,15 @@ static unsigned parseCoverParameters(const char* stringPtr, ZDICT_cover_params_t
         if (longCommandWArg(&stringPtr, "k=")) { params->k = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "d=")) { params->d = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "steps=")) { params->steps = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        if (longCommandWArg(&stringPtr, "split=")) {
+          unsigned splitPercentage = readU32FromChar(&stringPtr);
+          params->splitPoint = (double)splitPercentage / 100.0;
+          if (stringPtr[0]==',') { stringPtr++; continue; } else break;
+        }
         return 0;
     }
     if (stringPtr[0] != 0) return 0;
-    DISPLAYLEVEL(4, "cover: k=%u\nd=%u\nsteps=%u\n", params->k, params->d, params->steps);
+    DISPLAYLEVEL(4, "cover: k=%u\nd=%u\nsteps=%u\nsplit=%u\n", params->k, params->d, params->steps, (unsigned)(params->splitPoint * 100));
     return 1;
 }
 
@@ -310,6 +316,7 @@ static ZDICT_cover_params_t defaultCoverParams(void)
     memset(&params, 0, sizeof(params));
     params.d = 8;
     params.steps = 4;
+    params.splitPoint = DEFAULT_SPLITPOINT;
     return params;
 }
 #endif

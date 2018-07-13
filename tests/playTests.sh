@@ -412,7 +412,7 @@ $ECHO "\n===>  cover dictionary builder : advanced options "
 TESTFILE=../programs/zstdcli.c
 ./datagen > tmpDict
 $ECHO "- Create first dictionary"
-$ZSTD --train-cover=k=46,d=8 *.c ../programs/*.c -o tmpDict
+$ZSTD --train-cover=k=46,d=8,split=80 *.c ../programs/*.c -o tmpDict
 cp $TESTFILE tmp
 $ZSTD -f tmp -D tmpDict
 $ZSTD -d tmp.zst -D tmpDict -fo result
@@ -426,6 +426,11 @@ cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
 $ECHO "- Create dictionary with size limit"
 $ZSTD --train-cover=steps=8 *.c ../programs/*.c -o tmpDict2 --maxdict=4K
 rm tmp*
+$ECHO "- Compare size of dictionary from 90% training samples with 80% training samples"
+$ZSTD --train-cover=split=90 -r *.c ../programs/*.c
+$ZSTD --train-cover=split=80 -r *.c ../programs/*.c
+$ECHO "- Create dictionary using all samples for both training and testing"
+$ZSTD --train-cover=split=100 -r *.c ../programs/*.c
 
 $ECHO "\n===>  legacy dictionary builder "
 

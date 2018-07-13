@@ -85,7 +85,7 @@ static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
 *  Exceptions
 ***************************************/
 #ifndef DEBUG
-#  define DEBUG 1
+#  define DEBUG 0
 #endif
 #define DEBUGOUTPUT(...) { if (DEBUG) DISPLAY(__VA_ARGS__); }
 
@@ -188,7 +188,7 @@ static void BMK_initCCtx(ZSTD_CCtx* ctx,
     ZSTD_CCtx_setParameter(ctx, ZSTD_p_searchLog, comprParams->searchLog);
     ZSTD_CCtx_setParameter(ctx, ZSTD_p_minMatch, comprParams->searchLength);
     ZSTD_CCtx_setParameter(ctx, ZSTD_p_targetLength, comprParams->targetLength);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_p_compressionStrategy, comprParams->strategy);
+    ZSTD_CCtx_setParameter(ctx, ZSTD_p_compressionStrategy , comprParams->strategy);
     ZSTD_CCtx_loadDictionary(ctx, dictBuffer, dictBufferSize);
 }
 
@@ -293,7 +293,7 @@ BMK_customReturn_t BMK_benchFunction(
     BMK_initFn_t initFn, void* initPayload,
     size_t blockCount,
     const void* const * const srcBlockBuffers, const size_t* srcBlockSizes,
-    void* const * const dstBlockBuffers, const size_t* dstBlockCapacities,
+    void** const dstBlockBuffers, size_t* dstBlockCapacities,
     unsigned nbLoops) {
     size_t srcSize = 0, dstSize = 0, ind = 0;
     U64 totalTime;
@@ -338,6 +338,11 @@ BMK_customReturn_t BMK_benchFunction(
                         j, (U32)dstBlockCapacities[j], ZSTD_getErrorName(res));
                 }  else if(firstIter) {
                     dstSize += res;
+                    //Make compressed blocks continuous
+                    if(j != blockCount - 1) {
+                        dstBlockBuffers[j+1] = (void*)((char*)dstBlockBuffers[j] + res);
+                        dstBlockCapacities[j] = res;
+                    }
                 } 
             }
             firstIter = 0;
@@ -370,13 +375,14 @@ void BMK_freeTimeState(BMK_timedFnState_t* state) {
     free(state);
 }
 
+/* make option for dstBlocks to be */
 BMK_customTimedReturn_t BMK_benchFunctionTimed(
     BMK_timedFnState_t* cont,
     BMK_benchFn_t benchFn, void* benchPayload,
     BMK_initFn_t initFn, void* initPayload,
     size_t blockCount,
     const void* const* const srcBlockBuffers, const size_t* srcBlockSizes,
-    void* const* const dstBlockBuffers, const size_t* dstBlockCapacities) 
+    void** const dstBlockBuffers, size_t* dstBlockCapacities) 
 {
     U64 fastest = cont->fastestTime;
     int completed = 0;

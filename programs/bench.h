@@ -191,7 +191,7 @@ BMK_customReturn_t BMK_benchFunction(
                         BMK_initFn_t initFn, void* initPayload,
                         size_t blockCount,
                         const void* const * const srcBuffers, const size_t* srcSizes,
-                        void* const * const dstBuffers, const size_t* dstCapacities,
+                        void** const dstBuffers, size_t* dstCapacities,
                         unsigned nbLoops);
 
 
@@ -220,7 +220,7 @@ BMK_customTimedReturn_t BMK_benchFunctionTimed(BMK_timedFnState_t* cont,
     BMK_initFn_t initFn, void* initPayload,
     size_t blockCount,
     const void* const * const srcBlockBuffers, const size_t* srcBlockSizes,
-    void* const * const dstBlockBuffers, const size_t* dstBlockCapacities);
+    void** const dstBlockBuffers, size_t* dstBlockCapacities);
 
 #endif   /* BENCH_H_121279284357 */
 

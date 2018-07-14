@@ -6,7 +6,6 @@ Output Dictionary (out=dictName): if not provided, default to defaultDict
 Dictionary ID (dictID=#): nonnegative number; if not provided, default to 0
 Maximum Dictionary Size (maxdict=#): positive number; in bytes, if not provided, default to 110KB
 Size of Randomly Selected Segment (k=#): positive number; in bytes; if not provided, default to 200
-Compression Level (c=#): positive number; if not provided, default to 3
 
 
 ###Usage:

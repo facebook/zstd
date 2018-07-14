@@ -57,11 +57,12 @@ function project_zstd(dir, compression, decompression, deprecated, dictbuilder, 
 			}
 		end
 
-		if legacy < 8 then
-			files {
-				dir .. 'legacy/zstd_v0' .. (legacy - 7) .. '.*'
-			}
-		else
+		if legacy ~= 0 then
+			if legacy >= 8 then
+				files {
+					dir .. 'legacy/zstd_v0' .. (legacy - 7) .. '.*'
+				}
+			end
 			includedirs {
 				dir .. 'legacy'
 			}

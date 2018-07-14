@@ -9,12 +9,12 @@ function project_zstd(dir, compression, decompression, deprecated, dictbuilder, 
 
 	if legacy == nil then legacy = 0 end
 
-	if compression then
+	if not compression then
 		dictbuilder = false
 		deprecated = false
 	end
 
-	if decompression then
+	if not decompression then
 		legacy = 0
 		deprecated = false
 	end

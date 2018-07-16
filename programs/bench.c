@@ -188,7 +188,7 @@ static void BMK_initCCtx(ZSTD_CCtx* ctx,
     ZSTD_CCtx_setParameter(ctx, ZSTD_p_searchLog, comprParams->searchLog);
     ZSTD_CCtx_setParameter(ctx, ZSTD_p_minMatch, comprParams->searchLength);
     ZSTD_CCtx_setParameter(ctx, ZSTD_p_targetLength, comprParams->targetLength);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_p_compressionStrategy , comprParams->strategy);
+    ZSTD_CCtx_setParameter(ctx, ZSTD_p_compressionStrategy, comprParams->strategy);
     ZSTD_CCtx_loadDictionary(ctx, dictBuffer, dictBufferSize);
 }
 
@@ -281,8 +281,6 @@ static size_t local_defaultDecompress(
 
 }
 
-volatile char g_touched;
-
 /* initFn will be measured once, bench fn will be measured x times */
 /* benchFn should return error value or out Size */
 /* takes # of blocks and list of size & stuff for each. */
@@ -293,7 +291,7 @@ BMK_customReturn_t BMK_benchFunction(
     BMK_initFn_t initFn, void* initPayload,
     size_t blockCount,
     const void* const * const srcBlockBuffers, const size_t* srcBlockSizes,
-    void** const dstBlockBuffers, size_t* dstBlockCapacities,
+    void* const * const dstBlockBuffers, size_t* dstBlockCapacitiesToSizes,
     unsigned nbLoops) {
     size_t srcSize = 0, dstSize = 0, ind = 0;
     U64 totalTime;
@@ -310,20 +308,13 @@ BMK_customReturn_t BMK_benchFunction(
     }
 
     {
-
-        unsigned i, j;
+        size_t i;
         for(i = 0; i < blockCount; i++) {
-            for(j = 0; j < srcBlockSizes[i]; j++) {
-                g_touched = ((const char*)srcBlockBuffers[i])[j]; /* touch */
-            }
-        }
-        for(i = 0; i < blockCount; i++) {
-            memset(dstBlockBuffers[i], 0xE5, dstBlockCapacities[i]);  /* warm up and erase result buffer */
+            memset(dstBlockBuffers[i], 0xE5, dstBlockCapacitiesToSizes[i]);  /* warm up and erase result buffer */
         }
 
         //UTIL_sleepMilli(5);  /* give processor time to other processes */
         //UTIL_waitForNextTick();
-
     }
 
     {      
@@ -332,17 +323,13 @@ BMK_customReturn_t BMK_benchFunction(
         if(initFn != NULL) { initFn(initPayload); }
         for(i = 0; i < nbLoops; i++) {
             for(j = 0; j < blockCount; j++) {
-                size_t res = benchFn(srcBlockBuffers[j], srcBlockSizes[j], dstBlockBuffers[j], dstBlockCapacities[j], benchPayload);
+                size_t res = benchFn(srcBlockBuffers[j], srcBlockSizes[j], dstBlockBuffers[j], dstBlockCapacitiesToSizes[j], benchPayload);
                 if(ZSTD_isError(res)) {
                     EXM_THROW_ND(2, BMK_customReturn_t, "Function benchmarking failed on block %u of size %u : %s  \n",
-                        j, (U32)dstBlockCapacities[j], ZSTD_getErrorName(res));
+                        j, (U32)dstBlockCapacitiesToSizes[j], ZSTD_getErrorName(res));
                 }  else if(firstIter) {
                     dstSize += res;
-                    //Make compressed blocks continuous
-                    if(j != blockCount - 1) {
-                        dstBlockBuffers[j+1] = (void*)((char*)dstBlockBuffers[j] + res);
-                        dstBlockCapacities[j] = res;
-                    }
+                    dstBlockCapacitiesToSizes[j] = res;
                 } 
             }
             firstIter = 0;
@@ -382,7 +369,7 @@ BMK_customTimedReturn_t BMK_benchFunctionTimed(
     BMK_initFn_t initFn, void* initPayload,
     size_t blockCount,
     const void* const* const srcBlockBuffers, const size_t* srcBlockSizes,
-    void** const dstBlockBuffers, size_t* dstBlockCapacities) 
+    void * const * const dstBlockBuffers, size_t * dstBlockCapacitiesToSizes) 
 {
     U64 fastest = cont->fastestTime;
     int completed = 0;
@@ -399,7 +386,7 @@ BMK_customTimedReturn_t BMK_benchFunctionTimed(
         }
 
         r.result = BMK_benchFunction(benchFn, benchPayload, initFn, initPayload,
-        blockCount, srcBlockBuffers, srcBlockSizes, dstBlockBuffers, dstBlockCapacities, cont->nbLoops);
+        blockCount, srcBlockBuffers, srcBlockSizes, dstBlockBuffers, dstBlockCapacitiesToSizes, cont->nbLoops);
         if(r.result.error) { /* completed w/ error */
             r.completed = 1;
             return r;

@@ -14,14 +14,14 @@ rand:
 	./main $(ARG)
 
 
-main: random.o main.o libzstd.a
-	gcc random.o main.o libzstd.a -o main
+main: main.o random.o libzstd.a
+	gcc main.o random.o libzstd.a -o main
 
-main.o: main.c
-	gcc -c main.c -I ../../programs -I ../../lib/common -I ../../lib -I ../../lib/dictBuilder -I random.h
+main.o: main.c $(PROGRAM_FILES)
+	gcc -c main.c $(PROGRAM_FILES) -I random.h -I ../../programs -I ../../lib/common -I ../../lib -I ../../lib/dictBuilder
 
-random.o: $(PROGRAM_FILES) random.c
-	gcc -c $(PROGRAM_FILES) -I ../../programs -I ../../lib/common -I random.h random.c
+random.o: random.c
+	gcc -c random.c -I random.h -I ../../lib/common -I ../../lib/dictBuilder
 
 libzstd.a:
 	$(MAKE) -C ../../lib libzstd.a

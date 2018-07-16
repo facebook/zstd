@@ -122,8 +122,6 @@ BMK_return_t BMK_syntheticTest(int cLevel, double compressibility,
  * (cLevel, comprParams + adv in advanced Mode) */
 /* srcBuffer - data source, expected to be valid compressed data if in Decode Only Mode
  * srcSize - size of data in srcBuffer
- * dstBuffer - destination buffer to write compressed output in, optional (NULL)
- * dstCapacity - capacity of destination buffer, give 0 if dstBuffer = NULL
  * cLevel - compression level  
  * comprParams - basic compression parameters
  * dictBuffer - a dictionary if used, null otherwise
@@ -144,7 +142,10 @@ BMK_return_t BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         ZSTD_CCtx* ctx, ZSTD_DCtx* dctx,
                         int displayLevel, const char* displayName);
 
-/* See benchMem for normal parameter uses and return, see advancedParams_t for adv */
+/* See benchMem for normal parameter uses and return, see advancedParams_t for adv 
+ * dstBuffer - destination buffer to write compressed output in, NULL if none provided.
+ * dstCapacity - capacity of destination buffer, give 0 if dstBuffer = NULL
+ */
 BMK_return_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
                         void* dstBuffer, size_t dstCapacity, 
                         const size_t* fileSizes, unsigned nbFiles,
@@ -174,7 +175,7 @@ typedef size_t (*BMK_initFn_t)(void*);
  * srcBuffers - an array of buffers to be operated on by benchFn
  * srcSizes - an array of the sizes of above buffers
  * dstBuffers - an array of buffers to be written into by benchFn
- * dstCapacities - an array of the capacities of above buffers.
+ * dstCapacitiesToSizes - an array of the capacities of above buffers. Output modified to compressed sizes of those blocks.
  * nbLoops - defines number of times benchFn is run.
  * return 
  *      .error will give a nonzero value if ZSTD_isError() is nonzero for any of the return
@@ -191,7 +192,7 @@ BMK_customReturn_t BMK_benchFunction(
                         BMK_initFn_t initFn, void* initPayload,
                         size_t blockCount,
                         const void* const * const srcBuffers, const size_t* srcSizes,
-                        void** const dstBuffers, size_t* dstCapacities,
+                        void * const * const dstBuffers, size_t* dstCapacitiesToSizes,
                         unsigned nbLoops);
 
 
@@ -220,7 +221,7 @@ BMK_customTimedReturn_t BMK_benchFunctionTimed(BMK_timedFnState_t* cont,
     BMK_initFn_t initFn, void* initPayload,
     size_t blockCount,
     const void* const * const srcBlockBuffers, const size_t* srcBlockSizes,
-    void** const dstBlockBuffers, size_t* dstBlockCapacities);
+    void* const * const dstBlockBuffers, size_t* dstBlockCapacitiesToSizes);
 
 #endif   /* BENCH_H_121279284357 */
 

@@ -18,13 +18,12 @@ typedef struct {
 
 
 typedef struct {
-    unsigned k;                  /* Segment size : constraint: 0 < k : Reasonable range [16, 2048+]; Default to 200 */
+    unsigned k; /* Segment size : constraint: 0 < k : Reasonable range [16, 2048+]; Default to 200 */
     ZDICT_params_t zParams;
 } ZDICT_random_params_t;
 
 
 
-ZDICTLIB_API size_t ZDICT_trainFromBuffer_random(
-    void *dictBuffer, size_t dictBufferCapacity,
+ZDICTLIB_API size_t ZDICT_trainFromBuffer_random( void *dictBuffer, size_t dictBufferCapacity,
     const void *samplesBuffer, const size_t *samplesSizes, unsigned nbSamples,
     ZDICT_random_params_t parameters);

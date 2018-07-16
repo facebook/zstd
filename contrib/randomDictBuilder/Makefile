@@ -4,15 +4,14 @@ TEST_INPUT := ../../lib
 TEST_OUTPUT := randomDict
 ARG :=
 
-all: main testrun test clean
+all: main run clean
 
-run: main rand clean
+test: main testrun testshell clean
 
-.PHONY: rand
-rand:
+.PHONY: run
+run:
 	echo "Building a random dictionary with given arguments"
 	./main $(ARG)
-
 
 main: main.o random.o libzstd.a
 	gcc main.o random.o libzstd.a -o main
@@ -34,8 +33,8 @@ testrun: main
 	zstd -be3 -D $(TEST_OUTPUT) -r $(TEST_INPUT) -q
 	rm -f $(TEST_OUTPUT)
 
-.PHONY: test
-test: test.sh
+.PHONY: testshell
+testshell: test.sh
 	sh test.sh
 	echo "Finish running test.sh"
 

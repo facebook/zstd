@@ -52,7 +52,8 @@ static const unsigned g_defaultMaxDictSize = 110 KB;
 #define SAMPLESIZE_MAX (128 KB)
 #define RANDOM_MAX_SAMPLES_SIZE (sizeof(size_t) == 8 ? ((U32)-1) : ((U32)1 GB))
 #define RANDOM_MEMMULT 9
-static const size_t g_maxMemory = (sizeof(size_t) == 4) ? (2 GB - 64 MB) : ((size_t)(512 MB) << sizeof(size_t));
+static const size_t g_maxMemory = (sizeof(size_t) == 4) ?
+                          (2 GB - 64 MB) : ((size_t)(512 MB) << sizeof(size_t));
 
 #define NOISELENGTH 32
 
@@ -76,8 +77,7 @@ typedef struct {
 /*-*************************************
 *  Commandline related functions
 ***************************************/
-static unsigned readU32FromChar(const char** stringPtr)
-{
+static unsigned readU32FromChar(const char** stringPtr){
     const char errorMsg[] = "error: numeric value too large";
     unsigned result = 0;
     while ((**stringPtr >='0') && (**stringPtr <='9')) {
@@ -105,8 +105,7 @@ static unsigned readU32FromChar(const char** stringPtr)
  *  If yes, @return 1 and advances *stringPtr to the position which immediately follows longCommand.
  * @return 0 and doesn't modify *stringPtr otherwise.
  */
-static unsigned longCommandWArg(const char** stringPtr, const char* longCommand)
-{
+static unsigned longCommandWArg(const char** stringPtr, const char* longCommand){
     size_t const comSize = strlen(longCommand);
     int const result = !strncmp(*stringPtr, longCommand, comSize);
     if (result) *stringPtr += comSize;
@@ -125,11 +124,9 @@ static unsigned longCommandWArg(const char** stringPtr, const char* longCommand)
  * *bufferSizePtr is modified, it provides the amount data loaded within buffer.
  *  sampleSizes is filled with the size of each sample.
  */
-static unsigned loadFiles(void* buffer, size_t* bufferSizePtr,
-                              size_t* sampleSizes, unsigned sstSize,
-                              const char** fileNamesTable, unsigned nbFiles, size_t targetChunkSize,
-                              unsigned displayLevel)
-{
+static unsigned loadFiles(void* buffer, size_t* bufferSizePtr, size_t* sampleSizes,
+                          unsigned sstSize, const char** fileNamesTable, unsigned nbFiles,
+                          size_t targetChunkSize, unsigned displayLevel) {
     char* const buff = (char*)buffer;
     size_t pos = 0;
     unsigned nbLoadedChunks = 0, fileIndex;
@@ -200,8 +197,7 @@ static void shuffle(const char** fileNamesTable, unsigned nbFiles) {
 /*-********************************************************
 *  Dictionary training functions
 **********************************************************/
-static size_t findMaxMem(unsigned long long requiredMem)
-{
+static size_t findMaxMem(unsigned long long requiredMem) {
     size_t const step = 8 MB;
     void* testmem = NULL;
 
@@ -219,8 +215,7 @@ static size_t findMaxMem(unsigned long long requiredMem)
 }
 
 static void saveDict(const char* dictFileName,
-                         const void* buff, size_t buffSize)
-{
+                         const void* buff, size_t buffSize) {
     FILE* const f = fopen(dictFileName, "wb");
     if (f==NULL) EXM_THROW(3, "cannot open %s ", dictFileName);
 
@@ -236,8 +231,8 @@ static void saveDict(const char* dictFileName,
  *  provides the amount of data to be loaded and the resulting nb of samples.
  *  This is useful primarily for allocation purpose => sample buffer, and sample sizes table.
  */
-static fileStats getFileStats(const char** fileNamesTable, unsigned nbFiles, size_t chunkSize, unsigned displayLevel)
-{
+static fileStats getFileStats(const char** fileNamesTable, unsigned nbFiles,
+                              size_t chunkSize, unsigned displayLevel) {
     fileStats fs;
     unsigned n;
     memset(&fs, 0, sizeof(fs));
@@ -255,8 +250,9 @@ static fileStats getFileStats(const char** fileNamesTable, unsigned nbFiles, siz
     return fs;
 }
 
-int RANDOM_trainFromFiles(const char* dictFileName, sampleInfo *info, unsigned maxDictSize,
-                       ZDICT_random_params_t *params){
+int RANDOM_trainFromFiles(const char* dictFileName, sampleInfo *info,
+                          unsigned maxDictSize,
+                          ZDICT_random_params_t *params) {
     unsigned const displayLevel = params->zParams.notificationLevel;
     void* const dictBuffer = malloc(maxDictSize);
 
@@ -285,8 +281,8 @@ int RANDOM_trainFromFiles(const char* dictFileName, sampleInfo *info, unsigned m
     return result;
 }
 
-sampleInfo* getSampleInfo(const char** fileNamesTable,
-                  unsigned nbFiles, size_t chunkSize, unsigned maxDictSize, const unsigned displayLevel){
+sampleInfo* getSampleInfo(const char** fileNamesTable, unsigned nbFiles, size_t chunkSize,
+                          unsigned maxDictSize, const unsigned displayLevel) {
     fileStats const fs = getFileStats(fileNamesTable, nbFiles, chunkSize, displayLevel);
     size_t* const sampleSizes = (size_t*)malloc(fs.nbSamples * sizeof(size_t));
     size_t const memMult = RANDOM_MEMMULT;
@@ -320,7 +316,8 @@ sampleInfo* getSampleInfo(const char** fileNamesTable,
     /* Load input buffer */
     DISPLAYLEVEL(3, "Shuffling input files\n");
     shuffle(fileNamesTable, nbFiles);
-    nbFiles = loadFiles(srcBuffer, &loadedSize, sampleSizes, fs.nbSamples, fileNamesTable, nbFiles, chunkSize, displayLevel);
+    nbFiles = loadFiles(srcBuffer, &loadedSize, sampleSizes, fs.nbSamples,
+                        fileNamesTable, nbFiles, chunkSize, displayLevel);
 
     sampleInfo *info = (sampleInfo *)malloc(sizeof(sampleInfo));
 
@@ -376,7 +373,8 @@ int main(int argCount, const char* argv[])
   unsigned fileNamesNb = filenameIdx;
   int followLinks = 0;
   const char** extendedFileList = NULL;
-  extendedFileList = UTIL_createFileList(filenameTable, filenameIdx, &fileNamesBuf, &fileNamesNb, followLinks);
+  extendedFileList = UTIL_createFileList(filenameTable, filenameIdx, &fileNamesBuf,
+                                        &fileNamesNb, followLinks);
   if (extendedFileList) {
       unsigned u;
       for (u=0; u<fileNamesNb; u++) DISPLAYLEVEL(4, "%u %s\n", u, extendedFileList[u]);

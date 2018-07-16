@@ -71,7 +71,8 @@ static RANDOM_segment_t RANDOM_selectSegment(const size_t totalSamplesSize,
  * Check the validity of the parameters.
  * Returns non-zero if the parameters are valid and 0 otherwise.
  */
-static int RANDOM_checkParameters(ZDICT_random_params_t parameters, size_t maxDictSize) {
+static int RANDOM_checkParameters(ZDICT_random_params_t parameters,
+                                  size_t maxDictSize) {
     /* k is a required parameter */
     if (parameters.k == 0) {
       return 0;
@@ -115,7 +116,8 @@ static size_t RANDOM_buildDictionary(const size_t totalSamplesSize, const BYTE *
 /*! ZDICT_trainFromBuffer_random():
  *  Train a dictionary from an array of samples using the RANDOM algorithm.
  *  Samples must be stored concatenated in a single flat buffer `samplesBuffer`,
- *  supplied with an array of sizes `samplesSizes`, providing the size of each sample, in order.
+ *  supplied with an array of sizes `samplesSizes`, providing the size of each
+ *  sample, in order.
  *  The resulting dictionary will be saved into `dictBuffer`.
  * @return: size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`)
  *          or an error code, which can be tested with ZDICT_isError().
@@ -145,7 +147,8 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_random(
 
       DISPLAYLEVEL(2, "Building dictionary\n");
       {
-        const size_t tail = RANDOM_buildDictionary(totalSamplesSize, samples, dictBuffer, dictBufferCapacity, parameters);
+        const size_t tail = RANDOM_buildDictionary(totalSamplesSize, samples,
+                                  dictBuffer, dictBufferCapacity, parameters);
         const size_t dictSize = ZDICT_finalizeDictionary(
             dict, dictBufferCapacity, dict + tail, dictBufferCapacity - tail,
             samplesBuffer, samplesSizes, nbSamples, parameters.zParams);

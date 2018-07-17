@@ -46,7 +46,6 @@ static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
 ***************************************/
 static const unsigned g_defaultMaxDictSize = 110 KB;
 #define DEFAULT_CLEVEL 3
-#define DEFAULT_INPUTFILE ""
 #define DEFAULT_k 200
 #define DEFAULT_OUTPUTFILE "defaultDict"
 #define DEFAULT_DICTID 0
@@ -135,30 +134,29 @@ int main(int argCount, const char* argv[])
   const char* programName = argv[0];
   int operationResult = 0;
 
-  char* inputFile = DEFAULT_INPUTFILE;
+  /* Initialize arguments to default values */
   unsigned k = DEFAULT_k;
-  char* outputFile = DEFAULT_OUTPUTFILE;
+  const char* outputFile = DEFAULT_OUTPUTFILE;
   unsigned dictID = DEFAULT_DICTID;
   unsigned maxDictSize = g_defaultMaxDictSize;
 
+  /* Initialize table to store input files */
   const char** filenameTable = (const char**)malloc(argCount * sizeof(const char*));
   unsigned filenameIdx = 0;
 
+  /* Parse arguments */
   for (int i = 1; i < argCount; i++) {
     const char* argument = argv[i];
     if (longCommandWArg(&argument, "k=")) { k = readU32FromChar(&argument); continue; }
     if (longCommandWArg(&argument, "dictID=")) { dictID = readU32FromChar(&argument); continue; }
     if (longCommandWArg(&argument, "maxdict=")) { maxDictSize = readU32FromChar(&argument); continue; }
     if (longCommandWArg(&argument, "in=")) {
-      inputFile = malloc(strlen(argument) + 1);
-      strcpy(inputFile, argument);
-      filenameTable[filenameIdx] = inputFile;
+      filenameTable[filenameIdx] = argument;
       filenameIdx++;
       continue;
     }
     if (longCommandWArg(&argument, "out=")) {
-      outputFile = malloc(strlen(argument) + 1);
-      strcpy(outputFile, argument);
+      outputFile = argument;
       continue;
     }
     DISPLAYLEVEL(1, "Incorrect parameters\n");
@@ -168,7 +166,7 @@ int main(int argCount, const char* argv[])
 
   char* fileNamesBuf = NULL;
   unsigned fileNamesNb = filenameIdx;
-  int followLinks = 0;
+  int followLinks = 0; /* follow directory recursively */
   const char** extendedFileList = NULL;
   extendedFileList = UTIL_createFileList(filenameTable, filenameIdx, &fileNamesBuf,
                                         &fileNamesNb, followLinks);
@@ -193,6 +191,10 @@ int main(int argCount, const char* argv[])
   sampleInfo* info= getSampleInfo(filenameTable,
                     filenameIdx, blockSize, maxDictSize, zParams.notificationLevel);
   operationResult = RANDOM_trainFromFiles(outputFile, info, maxDictSize, &params);
+
+  /* Free allocated memory */
+  UTIL_freeFileList(extendedFileList, fileNamesBuf);
+  freeSampleInfo(info);
 
   return operationResult;
 }

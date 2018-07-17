@@ -113,15 +113,8 @@ static size_t RANDOM_buildDictionary(const size_t totalSamplesSize, const BYTE *
 }
 
 
-/*! ZDICT_trainFromBuffer_random():
- *  Train a dictionary from an array of samples using the RANDOM algorithm.
- *  Samples must be stored concatenated in a single flat buffer `samplesBuffer`,
- *  supplied with an array of sizes `samplesSizes`, providing the size of each
- *  sample, in order.
- *  The resulting dictionary will be saved into `dictBuffer`.
- * @return: size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`)
- *          or an error code, which can be tested with ZDICT_isError().
- */
+
+
 ZDICTLIB_API size_t ZDICT_trainFromBuffer_random(
     void *dictBuffer, size_t dictBufferCapacity,
     const void *samplesBuffer, const size_t *samplesSizes, unsigned nbSamples,

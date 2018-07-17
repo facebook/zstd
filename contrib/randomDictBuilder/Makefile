@@ -6,6 +6,7 @@ ARG :=
 
 all: main run clean
 
+.PHONY: test
 test: main testrun testshell clean
 
 .PHONY: run

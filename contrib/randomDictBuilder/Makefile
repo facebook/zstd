@@ -13,14 +13,17 @@ run:
 	echo "Building a random dictionary with given arguments"
 	./main $(ARG)
 
-main: main.o random.o libzstd.a
-	gcc main.o random.o libzstd.a -o main
+main: main.o io.o random.o libzstd.a
+	gcc main.o io.o random.o libzstd.a -o main
 
-main.o: main.c $(PROGRAM_FILES)
-	gcc -c main.c $(PROGRAM_FILES) -I random.h -I ../../programs -I ../../lib/common -I ../../lib -I ../../lib/dictBuilder
+main.o: main.c
+	gcc -c main.c -I io.h -I random.h -I ../../programs -I ../../lib/common -I ../../lib -I ../../lib/dictBuilder
 
 random.o: random.c
 	gcc -c random.c -I random.h -I ../../lib/common -I ../../lib/dictBuilder
+
+io.o: io.c $(PROGRAM_FILES)
+	gcc -c io.c $(PROGRAM_FILES) -I io.h -I ../../programs -I ../../lib/common -I ../../lib -I ../../lib/dictBuilder
 
 libzstd.a:
 	$(MAKE) -C ../../lib libzstd.a

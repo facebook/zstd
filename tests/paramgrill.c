@@ -56,7 +56,7 @@ static const int g_maxNbVariations = 64;
 #define DISPLAY(...)  fprintf(stderr, __VA_ARGS__)
 #define TIMED 0
 #ifndef DEBUG
-#  define DEBUG 0
+#  define DEBUG 1
 #endif
 #define DEBUGOUTPUT(...) { if (DEBUG) DISPLAY(__VA_ARGS__); }
 
@@ -2227,7 +2227,7 @@ static int nextStrategy(const int currentStrategy, const int bestStrategy) {
 }
 
 //optimize fixed strategy. 
-static int optimizeForSize(const char* const * const fileNamesTable, const size_t nbFiles, const char* dictFileName, constraint_t target, ZSTD_compressionParameters paramTarget)
+static int optimizeForSize(const char* const * const fileNamesTable, const size_t nbFiles, const char* dictFileName, constraint_t target, ZSTD_compressionParameters paramTarget, int cLevel)
 {
     size_t benchedSize;
     void* origBuff = NULL;
@@ -2238,7 +2238,6 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
     size_t* fileSizes = calloc(sizeof(size_t),nbFiles);
     const int varLen = variableParams(paramTarget, varArray);
     U8** allMT = NULL;
-    g_targetConstraints = target;
     g_winner.result.cSize = (size_t)-1;
     /* Init */
     if(!cParamValid(paramTarget)) {
@@ -2310,6 +2309,30 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
         goto _cleanUp;
     }
 
+    //TODO: cLevel Stuff. 
+    if(cLevel) {
+        BMK_result_t candidate;
+        const size_t blockSize = g_blockSize ? g_blockSize : benchedSize;
+        ZSTD_CCtx* const ctx = ZSTD_createCCtx();
+        ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+        ZSTD_compressionParameters const CParams = ZSTD_getCParams(cLevel, blockSize, dictBufferSize);
+        if(BMK_benchParam(&candidate, origBuff, benchedSize, fileSizes, nbFiles, ctx, dctx, CParams)) {
+            ZSTD_freeCCtx(ctx);
+            ZSTD_freeDCtx(dctx);
+            ret = 3;
+            goto _cleanUp;
+        }
+
+        target.cSpeed = candidate.cSpeed; //TODO: maybe have a small bit of slack here, like x.99?  
+        target.dSpeed = candidate.dSpeed;
+        BMK_printWinner(stdout, cLevel, candidate, CParams, benchedSize);
+
+        ZSTD_freeCCtx(ctx);
+        ZSTD_freeDCtx(dctx);
+    }
+
+    g_targetConstraints = target;
+
     /* bench */
     DISPLAY("\r%79s\r", "");
     if(nbFiles == 1) {
@@ -2348,7 +2371,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
                 BMK_result_t candidate;
                 int feas = 0, i;
                 for (i=1; i<=maxSeeds; i++) {
-                    ZSTD_compressionParameters const CParams = ZSTD_getCParams(i, blockSize, 0);
+                    ZSTD_compressionParameters const CParams = ZSTD_getCParams(i, blockSize, dictBufferSize);
                     int ec = BMK_benchParam(&candidate, origBuff, benchedSize, fileSizes, nbFiles, ctx, dctx, CParams);
                     BMK_printWinner(stdout, i, candidate, CParams, benchedSize);
 
@@ -2553,6 +2576,7 @@ int main(int argc, const char** argv)
     const char* dictFileName = 0;
     U32 optimizer = 0;
     U32 main_pause = 0;
+    int optimizerCLevel = 0;
 
 
     constraint_t target = { 0, 0, (U32)-1 }; //0 for anything unset
@@ -2584,6 +2608,7 @@ int main(int argc, const char** argv)
                 if (longCommandWArg(&argument, "compressionSpeed=") || longCommandWArg(&argument, "cSpeed=")) { target.cSpeed = readU32FromChar(&argument) * 1000000; if (argument[0]==',') { argument++; continue; } else break; }
                 if (longCommandWArg(&argument, "decompressionSpeed=") || longCommandWArg(&argument, "dSpeed=")) { target.dSpeed = readU32FromChar(&argument) * 1000000; if (argument[0]==',') { argument++; continue; } else break; }
                 if (longCommandWArg(&argument, "compressionMemory=") || longCommandWArg(&argument, "cMem=")) { target.cMem = readU32FromChar(&argument) * 1000000; if (argument[0]==',') { argument++; continue; } else break; }
+                //TODO: add Level;
                 /* in MB or MB/s */
                 DISPLAY("invalid optimization parameter \n");
                 return 1;
@@ -2692,6 +2717,10 @@ int main(int argc, const char** argv)
                             argument++;
                             paramTarget.strategy = (ZSTD_strategy)readU32FromChar(&argument);
                             continue;
+                        case 'L': /* level centers around a level */
+                            argument++;
+                            optimizerCLevel = (int)readU32FromChar(&argument);
+                            continue;
                         default : ;
                         }
                         break;
@@ -2796,7 +2825,7 @@ int main(int argc, const char** argv)
         }
     } else {
         if (optimizer) {
-            result = optimizeForSize(argv+filenamesStart, argc-filenamesStart, dictFileName, target, paramTarget);
+            result = optimizeForSize(argv+filenamesStart, argc-filenamesStart, dictFileName, target, paramTarget, optimizerCLevel);
         } else {
             result = benchFiles(argv+filenamesStart, argc-filenamesStart);
     }   }

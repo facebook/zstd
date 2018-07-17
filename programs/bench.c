@@ -696,7 +696,7 @@ static BMK_return_t BMK_benchMemAdvancedNoAlloc(
     }
     DISPLAYLEVEL(2, "%2i#\n", cLevel);
     }   /* Bench */
-    results.result.cMem = (1 << (comprParams->windowLog)) + ZSTD_sizeof_CCtx(ctx);
+    results.result.cMem = (1ULL << (comprParams->windowLog)) + ZSTD_sizeof_CCtx(ctx);
     results.error = 0;
     return results;
 }
@@ -731,7 +731,7 @@ BMK_return_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
     void* resultBuffer = malloc(srcSize);
 
 
-    BMK_return_t results;
+    BMK_return_t results = { { 0, 0, 0, 0 }, 0 };
     int allocationincomplete;
 
     if(!dstCapacity) {

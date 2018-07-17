@@ -263,7 +263,9 @@ static int epsilonEqual(const double c1, const double c2) {
 
 /* checks exact equivalence to 0, to stop compiler complaining fpeq */
 static int eqZero(const double c1) {
-    return (U64)c1 == (U64)0.0 || (U64)c1 == (U64)-0.0;
+    const double z1 = 0.0;
+    const double z2 = -0.0;
+    return !(memcmp(&c1, &z1, sizeof(double))) || !(memcmp(&c1, &z2, sizeof(double)));
 }
 
 /* returns 1 if result2 is strictly 'better' than result1 */
@@ -318,7 +320,7 @@ const char* g_stratName[ZSTD_btultra+1] = {
                 "ZSTD_greedy  ", "ZSTD_lazy    ", "ZSTD_lazy2   ",
                 "ZSTD_btlazy2 ", "ZSTD_btopt   ", "ZSTD_btultra "};
 
-static size_t
+static int
 BMK_benchParam(BMK_result_t* resultPtr,
                const void* srcBuffer, const size_t srcSize,
                const size_t* fileSizes, const unsigned nbFiles,
@@ -331,7 +333,7 @@ BMK_benchParam(BMK_result_t* resultPtr,
 }
 
 /* benchParam but only takes in one file. */
-static size_t
+static int
 BMK_benchParam1(BMK_result_t* resultPtr,
                const void* srcBuffer, size_t srcSize,
                ZSTD_CCtx* ctx, ZSTD_DCtx* dctx, 
@@ -1204,7 +1206,7 @@ static ZSTD_compressionParameters randomParams(void)
 /* Sets pc to random unmeasured set of parameters */
 static void randomConstrainedParams(ZSTD_compressionParameters* pc, U32* varArray, int varLen, U8* memoTable)
 {
-    int tries = memoTableLen(varArray, varLen); //configurable, 
+    size_t tries = memoTableLen(varArray, varLen); //configurable, 
     const size_t maxSize = memoTableLen(varArray, varLen);
     size_t ind;
     do {
@@ -1470,7 +1472,7 @@ static int feasibleBench(BMK_result_t* resultPtr,
             loopDurationC = 0;
             uncertaintyConstantC = 2;
         } else {
-            loopDurationC = ((srcSize * TIMELOOP_NANOSEC) / benchres.result.cSpeed); 
+            loopDurationC = (U64)((double)(srcSize * TIMELOOP_NANOSEC) / benchres.result.cSpeed); 
             //problem - tested in fullbench, saw speed vary 3x between iters, maybe raise uncertaintyConstraint up? 
             //possibly has to do with initCCtx? or system stuff?
             //asymmetric +/- constant needed? 
@@ -1480,7 +1482,7 @@ static int feasibleBench(BMK_result_t* resultPtr,
             loopDurationD = 0;
             uncertaintyConstantD = 2;
         } else {
-            loopDurationD = ((srcSize * TIMELOOP_NANOSEC) / benchres.result.dSpeed); 
+            loopDurationD = (U64)((double)(srcSize * TIMELOOP_NANOSEC) / benchres.result.dSpeed); 
             //problem - tested in fullbench, saw speed vary 3x between iters, maybe raise uncertaintyConstraint up? 
             //possibly has to do with initCCtx? or system stuff?
             //asymmetric +/- constant needed? 
@@ -1635,7 +1637,7 @@ static int infeasibleBench(BMK_result_t* resultPtr,
             loopDurationC = 0;
             uncertaintyConstantC = 2;
         } else {
-            loopDurationC = ((srcSize * TIMELOOP_NANOSEC) / benchres.result.cSpeed); 
+            loopDurationC = (U64)((double)(srcSize * TIMELOOP_NANOSEC) / benchres.result.cSpeed); 
             uncertaintyConstantC = MIN((loopDurationC + (double)(2 * g_clockGranularity)/loopDurationC * 1.1), 3); //.02 seconds 
         }
 
@@ -1643,7 +1645,7 @@ static int infeasibleBench(BMK_result_t* resultPtr,
             loopDurationD = 0;
             uncertaintyConstantD = 2;
         } else {
-            loopDurationD = ((srcSize * TIMELOOP_NANOSEC) / benchres.result.dSpeed); 
+            loopDurationD = (U64)((double)(srcSize * TIMELOOP_NANOSEC) / benchres.result.dSpeed); 
             uncertaintyConstantD = MIN((loopDurationD + (double)(2 * g_clockGranularity)/loopDurationD) * 1.1 , 3); //.02 seconds 
         }
 
@@ -1725,7 +1727,7 @@ static int feasibleBenchMemo(BMK_result_t* resultPtr,
         return INFEASIBLE_RESULT; 
     } else {
         const size_t blockSize = g_blockSize ? g_blockSize : srcSize;
-        U32 const maxNbBlocks = (U32) ((srcSize + (blockSize-1)) / blockSize) + nbFiles;
+        U32 const maxNbBlocks = (U32) ((srcSize + (blockSize-1)) / blockSize) + (U32)nbFiles;
         const void ** const srcPtrs = (const void** const)malloc(maxNbBlocks * sizeof(void*));
         size_t* const srcSizes = (size_t* const)malloc(maxNbBlocks * sizeof(size_t));
         void ** const dstPtrs = (void** const)malloc(maxNbBlocks * sizeof(void*));
@@ -1798,7 +1800,7 @@ static int infeasibleBenchMemo(BMK_result_t* resultPtr,
         return INFEASIBLE_RESULT; //see feasibleBenchMemo for concerns
     } else {
         const size_t blockSize = g_blockSize ? g_blockSize : srcSize;
-        U32 const maxNbBlocks = (U32) ((srcSize + (blockSize-1)) / blockSize) + nbFiles;
+        U32 const maxNbBlocks = (U32) ((srcSize + (blockSize-1)) / blockSize) + (U32)nbFiles;
         const void ** const srcPtrs = (const void** const)malloc(maxNbBlocks * sizeof(void*));
         size_t* const srcSizes = (size_t* const)malloc(maxNbBlocks * sizeof(size_t));
         void ** const dstPtrs = (void** const)malloc(maxNbBlocks * sizeof(void*));
@@ -2279,7 +2281,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
     }
 
     {   
-        U64 const totalSizeToLoad = UTIL_getTotalFileSize(fileNamesTable, nbFiles);
+        U64 const totalSizeToLoad = UTIL_getTotalFileSize(fileNamesTable, (U32)nbFiles);
         int ec;
         unsigned i;
         benchedSize = BMK_findMaxMem(totalSizeToLoad * 3) / 3;
@@ -2290,7 +2292,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
             ret = 1;
             goto _cleanUp;
         }
-        ec = BMK_loadFiles(origBuff, benchedSize, fileSizes, fileNamesTable, nbFiles);
+        ec = BMK_loadFiles(origBuff, benchedSize, fileSizes, fileNamesTable, (U32)nbFiles);
         if(ec) {
             DISPLAY("Error Loading Files");
             ret = ec;
@@ -2308,23 +2310,21 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
         ret = 2;
         goto _cleanUp;
     }
-
-    //TODO: cLevel Stuff. 
+ 
     if(cLevel) {
         BMK_result_t candidate;
         const size_t blockSize = g_blockSize ? g_blockSize : benchedSize;
         ZSTD_CCtx* const ctx = ZSTD_createCCtx();
         ZSTD_DCtx* const dctx = ZSTD_createDCtx();
         ZSTD_compressionParameters const CParams = ZSTD_getCParams(cLevel, blockSize, dictBufferSize);
-        if(BMK_benchParam(&candidate, origBuff, benchedSize, fileSizes, nbFiles, ctx, dctx, CParams)) {
+        if(BMK_benchParam(&candidate, origBuff, benchedSize, fileSizes, (U32)nbFiles, ctx, dctx, CParams)) {
             ZSTD_freeCCtx(ctx);
             ZSTD_freeDCtx(dctx);
             ret = 3;
             goto _cleanUp;
         }
 
-        target.cSpeed = candidate.cSpeed; //TODO: maybe have a small bit of slack here, like x.99?  
-        target.dSpeed = candidate.dSpeed;
+        target.cSpeed = (U32)candidate.cSpeed; //Maybe have a small bit of slack here, like x.99? 
         BMK_printWinner(stdout, cLevel, candidate, CParams, benchedSize);
 
         ZSTD_freeCCtx(ctx);
@@ -2372,7 +2372,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
                 int feas = 0, i;
                 for (i=1; i<=maxSeeds; i++) {
                     ZSTD_compressionParameters const CParams = ZSTD_getCParams(i, blockSize, dictBufferSize);
-                    int ec = BMK_benchParam(&candidate, origBuff, benchedSize, fileSizes, nbFiles, ctx, dctx, CParams);
+                    int ec = BMK_benchParam(&candidate, origBuff, benchedSize, fileSizes, (U32)nbFiles, ctx, dctx, CParams);
                     BMK_printWinner(stdout, i, candidate, CParams, benchedSize);
 
                     if(!ec) {
@@ -2408,7 +2408,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
                         randomConstrainedParams(&candidateParams, varNew, varLenNew, allMT[i]);
                         cParamZeroMin(&candidateParams);
                         candidateParams = sanitizeParams(candidateParams);
-                        ec = BMK_benchParam(&candidate, origBuff, benchedSize, fileSizes, nbFiles, ctx, dctx, candidateParams);
+                        ec = BMK_benchParam(&candidate, origBuff, benchedSize, fileSizes, (U32)nbFiles, ctx, dctx, candidateParams);
                         
                         if(!ec) {
                             if(feas) {
@@ -2608,7 +2608,7 @@ int main(int argc, const char** argv)
                 if (longCommandWArg(&argument, "compressionSpeed=") || longCommandWArg(&argument, "cSpeed=")) { target.cSpeed = readU32FromChar(&argument) * 1000000; if (argument[0]==',') { argument++; continue; } else break; }
                 if (longCommandWArg(&argument, "decompressionSpeed=") || longCommandWArg(&argument, "dSpeed=")) { target.dSpeed = readU32FromChar(&argument) * 1000000; if (argument[0]==',') { argument++; continue; } else break; }
                 if (longCommandWArg(&argument, "compressionMemory=") || longCommandWArg(&argument, "cMem=")) { target.cMem = readU32FromChar(&argument) * 1000000; if (argument[0]==',') { argument++; continue; } else break; }
-                //TODO: add Level;
+                if (longCommandWArg(&argument, "level=") || longCommandWArg(&argument, "lvl=")) { optimizerCLevel = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
                 /* in MB or MB/s */
                 DISPLAY("invalid optimization parameter \n");
                 return 1;

@@ -244,6 +244,7 @@ sampleInfo* getSampleInfo(const char** fileNamesTable, unsigned nbFiles, size_t 
 
 
 void freeSampleInfo(sampleInfo *info) {
+    if (!info) return;
     if (info->samplesSizes) free((void*)(info->samplesSizes));
     if (info->srcBuffer) free((void*)(info->srcBuffer));
     free(info);

@@ -26,8 +26,25 @@ typedef struct {
 }sampleInfo;
 
 
+
+/*! getSampleInfo():
+ *  Load from input files and add samples to buffer
+ * @return: a sampleInfo struct containing infomation about buffer where samples are stored,
+ *          size of each sample, and total number of samples
+ */
 sampleInfo* getSampleInfo(const char** fileNamesTable, unsigned nbFiles, size_t chunkSize,
                           unsigned maxDictSize, const unsigned displayLevel);
 
 
+
+/*! freeSampleInfo():
+ *  Free memory allocated for info
+ */
+void freeSampleInfo(sampleInfo *info);
+
+
+
+/*! saveDict():
+ *  Save data stored on buff to dictFileName
+ */
 void saveDict(const char* dictFileName, const void* buff, size_t buffSize);

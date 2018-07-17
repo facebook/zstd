@@ -336,7 +336,6 @@ int main(int argCount, const char* argv[])
   const char* programName = argv[0];
   int operationResult = 0;
 
-  unsigned cLevel = DEFAULT_CLEVEL;
   char* inputFile = DEFAULT_INPUTFILE;
   unsigned k = DEFAULT_k;
   char* outputFile = DEFAULT_OUTPUTFILE;
@@ -349,7 +348,6 @@ int main(int argCount, const char* argv[])
   for (int i = 1; i < argCount; i++) {
     const char* argument = argv[i];
     if (longCommandWArg(&argument, "k=")) { k = readU32FromChar(&argument); continue; }
-    if (longCommandWArg(&argument, "c=")) { cLevel = readU32FromChar(&argument); continue; }
     if (longCommandWArg(&argument, "dictID=")) { dictID = readU32FromChar(&argument); continue; }
     if (longCommandWArg(&argument, "maxdict=")) { maxDictSize = readU32FromChar(&argument); continue; }
     if (longCommandWArg(&argument, "in=")) {
@@ -387,7 +385,7 @@ int main(int argCount, const char* argv[])
 
   ZDICT_random_params_t params;
   ZDICT_params_t zParams;
-  zParams.compressionLevel = cLevel;
+  zParams.compressionLevel = DEFAULT_CLEVEL;
   zParams.notificationLevel = displayLevel;
   zParams.dictID = dictID;
   params.zParams = zParams;

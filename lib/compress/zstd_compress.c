@@ -1032,6 +1032,9 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
 
     ms->hashLog3 = hashLog3;
     memset(&ms->window, 0, sizeof(ms->window));
+    ms->window.dictLimit = 1;    /* start from 1, so that 1st position is valid */
+    ms->window.lowLimit = 1;     /* it ensures first and later CCtx usages compress the same */
+    ms->window.nextSrc = ms->window.base + 1;   /* see issue #1241 */
     ZSTD_invalidateMatchState(ms);
 
     /* opt parser space */

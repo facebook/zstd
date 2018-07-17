@@ -10,6 +10,7 @@ addons:
 matrix:
   include:
     # Ubuntu 14.04
+    - env: Cmd='make test'
     - env: Cmd='make gcc6install && CC=gcc-6 make -j all && make clean && CC=gcc-6 make clean uasan-test-zstd </dev/null' # also test when stdin is not a tty
     - env: Cmd='make gcc6install libc6install && CC=gcc-6 make clean uasan-test-zstd32'
     - env: Cmd='make gcc7install && CC=gcc-7 make clean uasan-test-zstd'
@@ -44,6 +45,7 @@ branches:
   only:
   - dev
   - master
+  - travisTest
 
 script:
   - JOB_NUMBER=$(echo $TRAVIS_JOB_NUMBER | sed -e 's:[0-9][0-9]*\.\(.*\):\1:')

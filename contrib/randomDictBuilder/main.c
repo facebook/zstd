@@ -114,7 +114,7 @@ int RANDOM_trainFromFiles(const char* dictFileName, sampleInfo *info,
         if (ZDICT_isError(dictSize)) {
             DISPLAYLEVEL(1, "dictionary training failed : %s \n", ZDICT_getErrorName(dictSize));   /* should not happen */
             result = 1;
-            free(dictBuffer);
+            goto _cleanup;
         }
         /* save dict */
         DISPLAYLEVEL(2, "Save dictionary of size %u into file %s \n", (U32)dictSize, dictFileName);
@@ -122,6 +122,7 @@ int RANDOM_trainFromFiles(const char* dictFileName, sampleInfo *info,
     }
 
     /* clean up */
+_cleanup:
     free(dictBuffer);
     return result;
 }

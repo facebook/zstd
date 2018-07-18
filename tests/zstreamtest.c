@@ -969,6 +969,26 @@ static int basicUnitTests(U32 seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : ZSTD_initCStream_srcSize sets requestedParams : ", testNb++);
+    {   unsigned level;
+        CHECK_Z(ZSTD_initCStream_srcSize(zc, 11, ZSTD_CONTENTSIZE_UNKNOWN));
+        CHECK_Z(ZSTD_CCtx_getParameter(zc, ZSTD_p_compressionLevel, &level));
+        CHECK(level != 11, "Compression level does not match");
+        ZSTD_resetCStream(zc, ZSTD_CONTENTSIZE_UNKNOWN);
+        CHECK_Z(ZSTD_CCtx_getParameter(zc, ZSTD_p_compressionLevel, &level));
+        CHECK(level != 11, "Compression level does not match");
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : ZSTD_initCStream_advanced sets requestedParams : ", testNb++);
+    {   ZSTD_parameters const params = ZSTD_getParams(9, 0, 0);
+        CHECK_Z(ZSTD_initCStream_advanced(zc, NULL, 0, params, ZSTD_CONTENTSIZE_UNKNOWN));
+        CHECK(badParameters(zc, params), "Compression parameters do not match");
+        ZSTD_resetCStream(zc, ZSTD_CONTENTSIZE_UNKNOWN);
+        CHECK(badParameters(zc, params), "Compression parameters do not match");
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     /* Overlen overwriting window data bug */
     DISPLAYLEVEL(3, "test%3i : wildcopy doesn't overwrite potential match data : ", testNb++);
     {   /* This test has a window size of 1024 bytes and consists of 3 blocks:

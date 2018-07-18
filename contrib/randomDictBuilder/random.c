@@ -48,6 +48,15 @@ static size_t RANDOM_sum(const size_t *samplesSizes, unsigned nbSamples) {
 
 
 /**
+ * A segment is an inclusive range in the source.
+ */
+typedef struct {
+  U32 begin;
+  U32 end;
+} RANDOM_segment_t;
+
+
+/**
  * Selects a random segment from totalSamplesSize - k + 1 possible segments
  */
 static RANDOM_segment_t RANDOM_selectSegment(const size_t totalSamplesSize,

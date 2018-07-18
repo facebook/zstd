@@ -8,13 +8,6 @@
 #endif
 #include "zdict.h"
 
-/**
- * A segment is an inclusive range in the source.
- */
-typedef struct {
-  U32 begin;
-  U32 end;
-} RANDOM_segment_t;
 
 
 typedef struct {

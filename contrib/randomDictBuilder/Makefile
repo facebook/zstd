@@ -1,8 +1,11 @@
-PROGRAM_FILES := ../../programs/fileio.c
+ARG :=
+
+CC ?= gcc
+CFLAGS ?= -O3
+INCLUDES := -I ../../programs -I ../../lib/common -I ../../lib -I ../../lib/dictBuilder
 
 TEST_INPUT := ../../lib
 TEST_OUTPUT := randomDict
-ARG :=
 
 all: main run clean
 
@@ -15,16 +18,16 @@ run:
 	./main $(ARG)
 
 main: main.o io.o random.o libzstd.a
-	gcc main.o io.o random.o libzstd.a -o main
+	$(CC) $(CFLAGS) main.o io.o random.o libzstd.a -o main
 
 main.o: main.c
-	gcc -c main.c -I io.h -I random.h -I ../../programs -I ../../lib/common -I ../../lib -I ../../lib/dictBuilder
+	$(CC) $(CFLAGS) $(INCLUDES) -c main.c
 
 random.o: random.c
-	gcc -c random.c -I random.h -I ../../lib/common -I ../../lib/dictBuilder
+	$(CC) $(CFLAGS) $(INCLUDES) -c random.c
 
-io.o: io.c $(PROGRAM_FILES)
-	gcc -c io.c $(PROGRAM_FILES) -I io.h -I ../../programs -I ../../lib/common -I ../../lib -I ../../lib/dictBuilder
+io.o: io.c
+	$(CC) $(CFLAGS) $(INCLUDES) -c io.c
 
 libzstd.a:
 	$(MAKE) -C ../../lib libzstd.a
@@ -44,8 +47,6 @@ testshell: test.sh
 
 .PHONY: clean
 clean:
-	rm -f libzstd.a main
-	rm -f ../../lib/*/*.o
-	rm -f ../../programs/*.o
-	rm -f *.o
+	rm -f *.o main libzstd.a
+	$(MAKE) -C ../../lib clean
 	echo "Cleaning is completed"

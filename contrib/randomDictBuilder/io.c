@@ -139,7 +139,7 @@ static void shuffle(const char** fileNamesTable, unsigned nbFiles) {
 /*-********************************************************
 *  Dictionary training functions
 **********************************************************/
-static size_t findMaxMem(unsigned long long requiredMem) {
+size_t findMaxMem(unsigned long long requiredMem) {
     size_t const step = 8 MB;
     void* testmem = NULL;
 

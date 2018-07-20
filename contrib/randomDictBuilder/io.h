@@ -48,3 +48,7 @@ void freeSampleInfo(sampleInfo *info);
  *  Save data stored on buff to dictFileName
  */
 void saveDict(const char* dictFileName, const void* buff, size_t buffSize);
+
+
+
+size_t findMaxMem(unsigned long long requiredMem);

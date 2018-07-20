@@ -171,6 +171,8 @@ struct  BMK_timeState_t{
 static void BMK_initCCtx(ZSTD_CCtx* ctx, 
     const void* dictBuffer, size_t dictBufferSize, int cLevel, 
     const ZSTD_compressionParameters* comprParams, const BMK_advancedParams_t* adv) {
+    ZSTD_CCtx_reset(ctx);
+    ZSTD_CCtx_resetParameters(ctx);
     if (adv->nbWorkers==1) {
         ZSTD_CCtx_setParameter(ctx, ZSTD_p_nbWorkers, 0);
     } else {
@@ -195,6 +197,7 @@ static void BMK_initCCtx(ZSTD_CCtx* ctx,
 
 static void BMK_initDCtx(ZSTD_DCtx* dctx, 
     const void* dictBuffer, size_t dictBufferSize) {
+    ZSTD_DCtx_reset(dctx);
     ZSTD_DCtx_loadDictionary(dctx, dictBuffer, dictBufferSize);
 }
 
@@ -291,9 +294,9 @@ BMK_customReturn_t BMK_benchFunction(
     BMK_initFn_t initFn, void* initPayload,
     size_t blockCount,
     const void* const * const srcBlockBuffers, const size_t* srcBlockSizes,
-    void* const * const dstBlockBuffers, size_t* dstBlockCapacitiesToSizes,
+    void* const * const dstBlockBuffers, const size_t* dstBlockCapacities, size_t* cSizes, 
     unsigned nbLoops) {
-    size_t srcSize = 0, dstSize = 0, ind = 0;
+    size_t dstSize = 0;
     U64 totalTime;
 
     BMK_customReturn_t retval;
@@ -303,36 +306,37 @@ BMK_customReturn_t BMK_benchFunction(
         EXM_THROW_ND(1, BMK_customReturn_t, "nbLoops must be nonzero \n");
     }
 
-    for(ind = 0; ind < blockCount; ind++) {
-        srcSize += srcBlockSizes[ind];
-    }
-
     {
         size_t i;
         for(i = 0; i < blockCount; i++) {
-            memset(dstBlockBuffers[i], 0xE5, dstBlockCapacitiesToSizes[i]);  /* warm up and erase result buffer */
+            memset(dstBlockBuffers[i], 0xE5, dstBlockCapacities[i]);  /* warm up and erase result buffer */
         }
-
-        //UTIL_sleepMilli(5);  /* give processor time to other processes */
-        //UTIL_waitForNextTick();
+#if 0
+        /* based on testing these seem to lower accuracy of multiple calls of 1 nbLoops vs 1 call of multiple nbLoops 
+         * (Makes former slower)   
+         */
+        UTIL_sleepMilli(5);  /* give processor time to other processes */
+        UTIL_waitForNextTick();
+#endif
     }
 
     {      
-        unsigned i, j, firstIter = 1;
+        unsigned i, j;
         clockStart = UTIL_getTime();
         if(initFn != NULL) { initFn(initPayload); }
         for(i = 0; i < nbLoops; i++) {
             for(j = 0; j < blockCount; j++) {
-                size_t res = benchFn(srcBlockBuffers[j], srcBlockSizes[j], dstBlockBuffers[j], dstBlockCapacitiesToSizes[j], benchPayload);
+                size_t res = benchFn(srcBlockBuffers[j], srcBlockSizes[j], dstBlockBuffers[j], dstBlockCapacities[j], benchPayload);
                 if(ZSTD_isError(res)) {
                     EXM_THROW_ND(2, BMK_customReturn_t, "Function benchmarking failed on block %u of size %u : %s  \n",
-                        j, (U32)dstBlockCapacitiesToSizes[j], ZSTD_getErrorName(res));
-                }  else if(firstIter) {
+                        j, (U32)dstBlockCapacities[j], ZSTD_getErrorName(res));
+                } else if(i == nbLoops - 1) {
                     dstSize += res;
-                    dstBlockCapacitiesToSizes[j] = res;
+                    if(cSizes != NULL) {
+                        cSizes[j] = res;
+                    }
                 } 
             }
-            firstIter = 0;
         }
         totalTime = UTIL_clockSpanNano(clockStart);
     }
@@ -369,7 +373,7 @@ BMK_customTimedReturn_t BMK_benchFunctionTimed(
     BMK_initFn_t initFn, void* initPayload,
     size_t blockCount,
     const void* const* const srcBlockBuffers, const size_t* srcBlockSizes,
-    void * const * const dstBlockBuffers, size_t * dstBlockCapacitiesToSizes) 
+    void * const * const dstBlockBuffers, const size_t * dstBlockCapacities, size_t* dstSizes) 
 {
     U64 fastest = cont->fastestTime;
     int completed = 0;
@@ -384,9 +388,9 @@ BMK_customTimedReturn_t BMK_benchFunctionTimed(
             UTIL_sleep(COOLPERIOD_SEC);
             cont->coolTime = UTIL_getTime();
         }
-
+        /* reinitialize capacity */
         r.result = BMK_benchFunction(benchFn, benchPayload, initFn, initPayload,
-        blockCount, srcBlockBuffers, srcBlockSizes, dstBlockBuffers, dstBlockCapacitiesToSizes, cont->nbLoops);
+        blockCount, srcBlockBuffers, srcBlockSizes, dstBlockBuffers, dstBlockCapacities, dstSizes, cont->nbLoops);
         if(r.result.error) { /* completed w/ error */
             r.completed = 1;
             return r;
@@ -420,7 +424,7 @@ BMK_customTimedReturn_t BMK_benchFunctionTimed(
 /* benchMem with no allocation */
 static BMK_return_t BMK_benchMemAdvancedNoAlloc(
     const void ** const srcPtrs, size_t* const srcSizes,
-    void** const cPtrs, size_t* const cSizes,
+    void** const cPtrs, size_t* const cCapacities, size_t* const cSizes, 
     void** const resPtrs, size_t* const resSizes,
     void** resultBufferPtr, void* compressedBuffer,
     const size_t maxCompressedSize,
@@ -485,11 +489,11 @@ static BMK_return_t BMK_benchMemAdvancedNoAlloc(
                 srcPtrs[nbBlocks] = (const void*)srcPtr;
                 srcSizes[nbBlocks] = thisBlockSize;
                 cPtrs[nbBlocks] = (void*)cPtr;
-                cSizes[nbBlocks] = (adv->mode == BMK_decodeOnly) ? thisBlockSize : ZSTD_compressBound(thisBlockSize);
+                cCapacities[nbBlocks] = (adv->mode == BMK_decodeOnly) ? thisBlockSize : ZSTD_compressBound(thisBlockSize);
                 resPtrs[nbBlocks] = (void*)resPtr;
                 resSizes[nbBlocks] = (adv->mode == BMK_decodeOnly) ? (size_t) ZSTD_findDecompressedSize(srcPtr, thisBlockSize) : thisBlockSize;
                 srcPtr += thisBlockSize;
-                cPtr += cSizes[nbBlocks];
+                cPtr += cCapacities[nbBlocks];
                 resPtr += thisBlockSize;
                 remaining -= thisBlockSize;
             }   
@@ -540,7 +544,7 @@ static BMK_return_t BMK_benchMemAdvancedNoAlloc(
                 while(!(intermediateResultCompress.completed && intermediateResultDecompress.completed)) {
                     if(!intermediateResultCompress.completed) { 
                         intermediateResultCompress = BMK_benchFunctionTimed(timeStateCompress, &local_defaultCompress, (void*)ctx, &local_initCCtx, (void*)&cctxprep,
-                        nbBlocks, srcPtrs, srcSizes, cPtrs, cSizes);
+                        nbBlocks, srcPtrs, srcSizes, cPtrs, cCapacities, cSizes);
                         if(intermediateResultCompress.result.error) {
                             results.error = intermediateResultCompress.result.error;
                             return results;
@@ -564,7 +568,7 @@ static BMK_return_t BMK_benchMemAdvancedNoAlloc(
 
                     if(!intermediateResultDecompress.completed) {
                         intermediateResultDecompress = BMK_benchFunctionTimed(timeStateDecompress, &local_defaultDecompress, (void*)(dctx), &local_initDCtx, (void*)&dctxprep,
-                        nbBlocks, (const void* const*)cPtrs, cSizes, resPtrs, resSizes);
+                        nbBlocks, (const void* const*)cPtrs, cSizes, resPtrs, resSizes, NULL);
                         if(intermediateResultDecompress.result.error) {
                             results.error = intermediateResultDecompress.result.error;
                             return results;
@@ -590,7 +594,7 @@ static BMK_return_t BMK_benchMemAdvancedNoAlloc(
                 if(adv->mode != BMK_decodeOnly) {
 
                     BMK_customReturn_t compressionResults = BMK_benchFunction(&local_defaultCompress, (void*)ctx, &local_initCCtx, (void*)&cctxprep,
-                        nbBlocks, srcPtrs, srcSizes, cPtrs, cSizes, adv->nbSeconds); 
+                        nbBlocks, srcPtrs, srcSizes, cPtrs, cCapacities, cSizes, adv->nbSeconds); 
                     if(compressionResults.error) {
                         results.error = compressionResults.error;
                         return results;
@@ -617,7 +621,7 @@ static BMK_return_t BMK_benchMemAdvancedNoAlloc(
                     BMK_customReturn_t decompressionResults = BMK_benchFunction(
                         &local_defaultDecompress, (void*)(dctx),
                         &local_initDCtx, (void*)&dctxprep, nbBlocks,
-                        (const void* const*)cPtrs, cSizes, resPtrs, resSizes, 
+                        (const void* const*)cPtrs, cSizes, resPtrs, resSizes, NULL, 
                         adv->nbSeconds);
                     if(decompressionResults.error) {
                         results.error = decompressionResults.error;
@@ -717,8 +721,10 @@ BMK_return_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
     const void ** const srcPtrs = (const void** const)malloc(maxNbBlocks * sizeof(void*));
     size_t* const srcSizes = (size_t* const)malloc(maxNbBlocks * sizeof(size_t));
 
+
     void ** const cPtrs = (void** const)malloc(maxNbBlocks * sizeof(void*));
     size_t* const cSizes = (size_t* const)malloc(maxNbBlocks * sizeof(size_t));
+    size_t* const cCapacities = (size_t* const)malloc(maxNbBlocks * sizeof(size_t));
 
     void ** const resPtrs = (void** const)malloc(maxNbBlocks * sizeof(void*));
     size_t* const resSizes = (size_t* const)malloc(maxNbBlocks * sizeof(size_t));
@@ -744,13 +750,11 @@ BMK_return_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
         !srcPtrs || !srcSizes || !cPtrs || !cSizes || !resPtrs || !resSizes;
 
     if (!allocationincomplete) {
-        results = BMK_benchMemAdvancedNoAlloc(srcPtrs, srcSizes, cPtrs, cSizes,
+        results = BMK_benchMemAdvancedNoAlloc(srcPtrs, srcSizes, cPtrs, cCapacities, cSizes,
             resPtrs, resSizes, &resultBuffer, compressedBuffer, maxCompressedSize, timeStateCompress, timeStateDecompress,
             srcBuffer, srcSize, fileSizes, nbFiles, cLevel, comprParams,
             dictBuffer, dictBufferSize, ctx, dctx, displayLevel, displayName, adv);
     }
-
-
     
     /* clean up */
     BMK_freeTimeState(timeStateCompress);
@@ -764,6 +768,7 @@ BMK_return_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
     free(srcSizes); 
     free(cPtrs); 
     free(cSizes);
+    free(cCapacities);
     free(resPtrs);
     free(resSizes);
 

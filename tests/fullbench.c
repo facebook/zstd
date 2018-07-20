@@ -516,7 +516,7 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb, int cLevel,
     {
         r = BMK_benchFunction(benchFunction, buff2, 
             NULL, NULL,  1, &src, &srcSize, 
-            (void **)&dstBuff, &dstBuffSize, g_nbIterations);
+            (void **)&dstBuff, &dstBuffSize, NULL, g_nbIterations);
         if(r.error) {
             DISPLAY("ERROR %d ! ! \n", r.error);
             errorcode = r.error;

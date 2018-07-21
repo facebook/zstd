@@ -2,7 +2,7 @@ ARG :=
 
 CC ?= gcc
 CFLAGS ?= -O3
-INCLUDES := -I ../randomDictBuilder -I ../../programs -I ../../lib/common -I ../../lib -I ../../lib/dictBuilder
+INCLUDES := -I ../randomDictBuilder -I ../../../programs -I ../../../lib/common -I ../../../lib -I ../../../lib/dictBuilder
 
 RANDOM_FILE := ../randomDictBuilder/random.c
 IO_FILE := ../randomDictBuilder/io.c
@@ -34,11 +34,11 @@ io.o: $(IO_FILE)
 	$(CC) $(CFLAGS) $(INCLUDES) -c $(IO_FILE)
 
 libzstd.a:
-	$(MAKE) -C ../../lib libzstd.a
-	mv ../../lib/libzstd.a .
+	$(MAKE) -C ../../../lib libzstd.a
+	mv ../../../lib/libzstd.a .
 
 .PHONY: clean
 clean:
 	rm -f *.o benchmark libzstd.a
-	$(MAKE) -C ../../lib clean
+	$(MAKE) -C ../../../lib clean
 	echo "Cleaning is completed"

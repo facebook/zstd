@@ -50,5 +50,11 @@ void freeSampleInfo(sampleInfo *info);
 void saveDict(const char* dictFileName, const void* buff, size_t buffSize);
 
 
+unsigned readU32FromChar(const char** stringPtr);
 
-size_t findMaxMem(unsigned long long requiredMem);
+/** longCommandWArg() :
+ *  check if *stringPtr is the same as longCommand.
+ *  If yes, @return 1 and advances *stringPtr to the position which immediately follows longCommand.
+ * @return 0 and doesn't modify *stringPtr otherwise.
+ */
+unsigned longCommandWArg(const char** stringPtr, const char* longCommand);

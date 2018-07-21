@@ -44,12 +44,14 @@ static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
     exit(error);                                                          \
 }
 
+
 /*-*************************************
 *  Constants
 ***************************************/
 static const unsigned g_defaultMaxDictSize = 110 KB;
-#define MEMMULT 11
-#define NOISELENGTH 32
+#define DEFAULT_CLEVEL 3
+#define DEFAULT_DISPLAYLEVEL 2
+
 
 /*-*************************************
 *  Struct
@@ -59,57 +61,6 @@ typedef struct {
   size_t dictSize;
 } dictInfo;
 
-
-/*-*************************************
-*  Commandline related functions
-***************************************/
-static unsigned readU32FromChar(const char** stringPtr){
-    const char errorMsg[] = "error: numeric value too large";
-    unsigned result = 0;
-    while ((**stringPtr >='0') && (**stringPtr <='9')) {
-        unsigned const max = (((unsigned)(-1)) / 10) - 1;
-        if (result > max) exit(1);
-        result *= 10, result += **stringPtr - '0', (*stringPtr)++ ;
-    }
-    if ((**stringPtr=='K') || (**stringPtr=='M')) {
-        unsigned const maxK = ((unsigned)(-1)) >> 10;
-        if (result > maxK) exit(1);
-        result <<= 10;
-        if (**stringPtr=='M') {
-            if (result > maxK) exit(1);
-            result <<= 10;
-        }
-        (*stringPtr)++;  /* skip `K` or `M` */
-        if (**stringPtr=='i') (*stringPtr)++;
-        if (**stringPtr=='B') (*stringPtr)++;
-    }
-    return result;
-}
-
-/** longCommandWArg() :
- *  check if *stringPtr is the same as longCommand.
- *  If yes, @return 1 and advances *stringPtr to the position which immediately follows longCommand.
- * @return 0 and doesn't modify *stringPtr otherwise.
- */
-static unsigned longCommandWArg(const char** stringPtr, const char* longCommand){
-    size_t const comSize = strlen(longCommand);
-    int const result = !strncmp(*stringPtr, longCommand, comSize);
-    if (result) *stringPtr += comSize;
-    return result;
-}
-
-static void fillNoise(void* buffer, size_t length)
-{
-    unsigned const prime1 = 2654435761U;
-    unsigned const prime2 = 2246822519U;
-    unsigned acc = prime1;
-    size_t p=0;;
-
-    for (p=0; p<length; p++) {
-        acc *= prime2;
-        ((unsigned char*)buffer)[p] = (unsigned char)(acc >> 21);
-    }
-}
 
 /*-*************************************
 * Dictionary related operations
@@ -122,9 +73,9 @@ dictInfo* createDictFromFiles(sampleInfo *info, unsigned maxDictSize,
                   ZDICT_random_params_t *randomParams, ZDICT_cover_params_t *coverParams,
                   ZDICT_legacy_params_t *legacyParams) {
     unsigned const displayLevel = randomParams ? randomParams->zParams.notificationLevel :
-                        coverParams ? coverParams->zParams.notificationLevel :
-                        legacyParams ? legacyParams->zParams.notificationLevel :
-                        0;   /* should never happen */
+                                  coverParams ? coverParams->zParams.notificationLevel :
+                                  legacyParams ? legacyParams->zParams.notificationLevel :
+                                  DEFAULT_DISPLAYLEVEL;   /* no dict */
     void* const dictBuffer = malloc(maxDictSize);
 
     dictInfo* dInfo;
@@ -140,21 +91,15 @@ dictInfo* createDictFromFiles(sampleInfo *info, unsigned maxDictSize,
         }else if(coverParams) {
           dictSize = ZDICT_optimizeTrainFromBuffer_cover(dictBuffer, maxDictSize, info->srcBuffer,
                                                 info->samplesSizes, info->nbSamples, coverParams);
-        } else {
-          size_t totalSize= 0;
-          for (int i = 0; i < info->nbSamples; i++) {
-            totalSize += info->samplesSizes[i];
-          }
-          size_t const maxMem = findMaxMem(totalSize * MEMMULT) / MEMMULT;
-          size_t loadedSize = (size_t) MIN ((unsigned long long)maxMem, totalSize);
-          fillNoise((char*)(info->srcBuffer) + loadedSize, NOISELENGTH);
-          dictSize = ZDICT_trainFromBuffer_unsafe_legacy(dictBuffer, maxDictSize, info->srcBuffer,
+        } else if(legacyParams) {
+          dictSize = ZDICT_trainFromBuffer_legacy(dictBuffer, maxDictSize, info->srcBuffer,
                                                info->samplesSizes, info->nbSamples, *legacyParams);
+        } else {
+          dictSize = 0;
         }
         if (ZDICT_isError(dictSize)) {
             DISPLAYLEVEL(1, "dictionary training failed : %s \n", ZDICT_getErrorName(dictSize));   /* should not happen */
             free(dictBuffer);
-            freeSampleInfo(info);
             return dInfo;
         }
         dInfo = (dictInfo *)malloc(sizeof(dictInfo));
@@ -173,6 +118,7 @@ double compressWithDict(sampleInfo *srcInfo, dictInfo* dInfo, int compressionLev
   /* Local variables */
   size_t totalCompressedSize = 0;
   size_t totalOriginalSize = 0;
+  unsigned hasDict = dInfo->dictSize > 0 ? 1 : 0;
   double cRatio;
   size_t dstCapacity;
   int i;
@@ -193,15 +139,6 @@ double compressWithDict(sampleInfo *srcInfo, dictInfo* dInfo, int compressionLev
     dst = malloc(dstCapacity);
   }
 
-  /* Create the cctx and cdict */
-  cctx = ZSTD_createCCtx();
-  cdict = ZSTD_createCDict(dInfo->dictBuffer, dInfo->dictSize, compressionLevel);
-
-  if(!cctx || !cdict || !dst) {
-    cRatio = -1;
-    goto _cleanup;
-  }
-
   /* Calculate offset for each sample */
   offsets = (size_t *)malloc((srcInfo->nbSamples + 1) * sizeof(size_t));
   offsets[0] = 0;
@@ -209,13 +146,35 @@ double compressWithDict(sampleInfo *srcInfo, dictInfo* dInfo, int compressionLev
     offsets[i] = offsets[i - 1] + srcInfo->samplesSizes[i - 1];
   }
 
+  /* Create the cctx */
+  cctx = ZSTD_createCCtx();
+  if(!cctx || !dst) {
+    cRatio = -1;
+    goto _nodictCleanup;
+  }
+
+  /* Create CDict if there's a dictionary stored on buffer */
+  if (hasDict) {
+    cdict = ZSTD_createCDict(dInfo->dictBuffer, dInfo->dictSize, compressionLevel);
+    if(!cdict) {
+      cRatio = -1;
+      goto _dictCleanup;
+    }
+  }
+
   /* Compress each sample and sum their sizes*/
   const BYTE *const samples = (const BYTE *)srcInfo->srcBuffer;
   for (i = 0; i < srcInfo->nbSamples; i++) {
-    const size_t compressedSize = ZSTD_compress_usingCDict(cctx, dst, dstCapacity, samples + offsets[i], srcInfo->samplesSizes[i], cdict);
+    size_t compressedSize;
+    if(hasDict) {
+      compressedSize = ZSTD_compress_usingCDict(cctx, dst, dstCapacity, samples + offsets[i], srcInfo->samplesSizes[i], cdict);
+    } else {
+      compressedSize = ZSTD_compressCCtx(cctx, dst, dstCapacity,samples + offsets[i], srcInfo->samplesSizes[i], compressionLevel);
+    }
     if (ZSTD_isError(compressedSize)) {
       cRatio = -1;
-      goto _cleanup;
+      if(hasDict) goto _dictCleanup;
+      else goto _nodictCleanup;
     }
     totalCompressedSize += compressedSize;
   }
@@ -230,15 +189,14 @@ double compressWithDict(sampleInfo *srcInfo, dictInfo* dInfo, int compressionLev
   DISPLAYLEVEL(2, "compressed size is %lu\n", totalCompressedSize);
   cRatio = (double)totalOriginalSize/(double)totalCompressedSize;
 
-_cleanup:
-  if(dst) {
-    free(dst);
-  }
-  if(offsets) {
-    free(offsets);
-  }
-  ZSTD_freeCCtx(cctx);
+_dictCleanup:
   ZSTD_freeCDict(cdict);
+
+_nodictCleanup:
+  free(dst);
+  free(offsets);
+  ZSTD_freeCCtx(cctx);
+
   return cRatio;
 }
 
@@ -257,102 +215,48 @@ void freeDictInfo(dictInfo* info) {
 /*-********************************************************
   *  Benchmarking functions
 **********************************************************/
-/** benchmarkRandom() :
- *  Measure how long random dictionary builder takes and compression ratio with the random dictionary
+/** benchmarkDictBuilder() :
+ *  Measure how long a dictionary builder takes and compression ratio with the dictionary built
  *  @return 0 if benchmark successfully, 1 otherwise
  */
-int benchmarkRandom(sampleInfo *srcInfo, unsigned maxDictSize, ZDICT_random_params_t *randomParam) {
-  const int displayLevel = randomParam->zParams.notificationLevel;
+int benchmarkDictBuilder(sampleInfo *srcInfo, unsigned maxDictSize, ZDICT_random_params_t *randomParam,
+                        ZDICT_cover_params_t *coverParam, ZDICT_legacy_params_t *legacyParam) {
+  /* Local variables */
+  const unsigned displayLevel = randomParam ? randomParam->zParams.notificationLevel :
+                                coverParam ? coverParam->zParams.notificationLevel :
+                                legacyParam ? legacyParam->zParams.notificationLevel :
+                                DEFAULT_DISPLAYLEVEL;   /* no dict */
+  const char* name = randomParam ? "RANDOM" :
+                    coverParam ? "COVER" :
+                    legacyParam ? "LEGACY" :
+                    "NODICT";    /* no dict */
+  const unsigned cLevel = randomParam ? randomParam->zParams.compressionLevel :
+                          coverParam ? coverParam->zParams.compressionLevel :
+                          legacyParam ? legacyParam->zParams.compressionLevel :
+                          DEFAULT_CLEVEL;   /* no dict */
   int result = 0;
-  clock_t t;
-  t = clock();
-  dictInfo* dInfo = createDictFromFiles(srcInfo, maxDictSize, randomParam, NULL, NULL);
-  t = clock() - t;
-  double time_taken = ((double)t)/CLOCKS_PER_SEC;
+
+  /* Calculate speed */
+  const UTIL_time_t begin = UTIL_getTime();
+  dictInfo* dInfo = createDictFromFiles(srcInfo, maxDictSize, randomParam, coverParam, legacyParam);
+  const U64 timeMicro = UTIL_clockSpanMicro(begin);
+  const double timeSec = timeMicro / (double)SEC_TO_MICRO;
   if (!dInfo) {
-    DISPLAYLEVEL(1, "RANDOM does not train successfully\n");
+    DISPLAYLEVEL(1, "%s does not train successfully\n", name);
     result = 1;
     goto _cleanup;
   }
-  DISPLAYLEVEL(2, "RANDOM took %f seconds to execute \n", time_taken);
+  DISPLAYLEVEL(2, "%s took %f seconds to execute \n", name, timeSec);
 
-  double cRatio = compressWithDict(srcInfo, dInfo, randomParam->zParams.compressionLevel, displayLevel);
+  /* Calculate compression ratio */
+  double cRatio = compressWithDict(srcInfo, dInfo, cLevel, displayLevel);
   if (cRatio < 0) {
-    DISPLAYLEVEL(1, "Compressing with RANDOM dictionary does not work\n");
-    result = 1;
-    goto _cleanup;
-  }
-  DISPLAYLEVEL(2, "Compression ratio with random dictionary is %f\n", cRatio);
-
-
-_cleanup:
-  freeDictInfo(dInfo);
-  return result;
-}
-
-/** benchmarkCover() :
- *  Measure how long random dictionary builder takes and compression ratio with the cover dictionary
- *  @return 0 if benchmark successfully, 1 otherwise
- */
-int benchmarkCover(sampleInfo *srcInfo, unsigned maxDictSize,
-                ZDICT_cover_params_t *coverParam) {
-  const int displayLevel = coverParam->zParams.notificationLevel;
-  int result = 0;
-  clock_t t;
-  t = clock();
-  dictInfo* dInfo = createDictFromFiles(srcInfo, maxDictSize, NULL, coverParam, NULL);
-  t = clock() - t;
-  double time_taken = ((double)t)/CLOCKS_PER_SEC;
-  if (!dInfo) {
-    DISPLAYLEVEL(1, "COVER does not train successfully\n");
-    result = 1;
-    goto _cleanup;
-  }
-  DISPLAYLEVEL(2, "COVER took %f seconds to execute \n", time_taken);
-
-  double cRatio = compressWithDict(srcInfo, dInfo, coverParam->zParams.compressionLevel, displayLevel);
-  if (cRatio < 0) {
-    DISPLAYLEVEL(1, "Compressing with COVER dictionary does not work\n");
-    result = 1;
-    goto _cleanup;
-  }
-  DISPLAYLEVEL(2, "Compression ratio with cover dictionary is %f\n", cRatio);
-
-_cleanup:
-  freeDictInfo(dInfo);
-  return result;
-}
-
-
-
-/** benchmarkLegacy() :
- *  Measure how long legacy dictionary builder takes and compression ratio with the legacy dictionary
- *  @return 0 if benchmark successfully, 1 otherwise
- */
-int benchmarkLegacy(sampleInfo *srcInfo, unsigned maxDictSize, ZDICT_legacy_params_t *legacyParam) {
-  const int displayLevel = legacyParam->zParams.notificationLevel;
-  int result = 0;
-  clock_t t;
-  t = clock();
-  dictInfo* dInfo = createDictFromFiles(srcInfo, maxDictSize, NULL, NULL, legacyParam);
-  t = clock() - t;
-  double time_taken = ((double)t)/CLOCKS_PER_SEC;
-  if (!dInfo) {
-    DISPLAYLEVEL(1, "LEGACY does not train successfully\n");
+    DISPLAYLEVEL(1, "Compressing with %s dictionary does not work\n", name);
     result = 1;
     goto _cleanup;
 
   }
-  DISPLAYLEVEL(2, "LEGACY took %f seconds to execute \n", time_taken);
-
-  double cRatio = compressWithDict(srcInfo, dInfo, legacyParam->zParams.compressionLevel, displayLevel);
-  if (cRatio < 0) {
-    DISPLAYLEVEL(1, "Compressing with LEGACY dictionary does not work\n");
-    result = 1;
-    goto _cleanup;
-
-  }
-  DISPLAYLEVEL(2, "Compression ratio with legacy dictionary is %f\n", cRatio);
+  DISPLAYLEVEL(2, "Compression ratio with %s dictionary is %f\n", name, cRatio);
 
 _cleanup:
   freeDictInfo(dInfo);
@@ -363,15 +267,16 @@ _cleanup:
 
 int main(int argCount, const char* argv[])
 {
-  int displayLevel = 2;
+  const int displayLevel = DEFAULT_DISPLAYLEVEL;
   const char* programName = argv[0];
   int result = 0;
+
   /* Initialize arguments to default values */
-  unsigned k = 200;
-  unsigned d = 6;
-  unsigned cLevel = 3;
-  unsigned dictID = 0;
-  unsigned maxDictSize = g_defaultMaxDictSize;
+  const unsigned k = 200;
+  const unsigned d = 6;
+  const unsigned cLevel = DEFAULT_CLEVEL;
+  const unsigned dictID = 0;
+  const unsigned maxDictSize = g_defaultMaxDictSize;
 
   /* Initialize table to store input files */
   const char** filenameTable = (const char**)malloc(argCount * sizeof(const char*));
@@ -379,7 +284,7 @@ int main(int argCount, const char* argv[])
 
   char* fileNamesBuf = NULL;
   unsigned fileNamesNb = filenameIdx;
-  int followLinks = 0;
+  const int followLinks = 0;
   const char** extendedFileList = NULL;
 
   /* Parse arguments */
@@ -394,7 +299,6 @@ int main(int argCount, const char* argv[])
     return 1;
   }
 
-
   /* Get the list of all files recursively (because followLinks==0)*/
   extendedFileList = UTIL_createFileList(filenameTable, filenameIdx, &fileNamesBuf,
                                         &fileNamesNb, followLinks);
@@ -406,6 +310,7 @@ int main(int argCount, const char* argv[])
     filenameIdx = fileNamesNb;
   }
 
+  /* get sampleInfo */
   size_t blockSize = 0;
   sampleInfo* srcInfo= getSampleInfo(filenameTable,
                     filenameIdx, blockSize, maxDictSize, displayLevel);
@@ -416,38 +321,53 @@ int main(int argCount, const char* argv[])
   zParams.notificationLevel = displayLevel;
   zParams.dictID = dictID;
 
+  /* with no dict */
+  {
+    const int noDictResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, NULL, NULL);
+    if(noDictResult) {
+      result = 1;
+      goto _cleanup;
+    }
+  }
+
   /* for random */
-  ZDICT_random_params_t randomParam;
-  randomParam.zParams = zParams;
-  randomParam.k = k;
-  int randomResult = benchmarkRandom(srcInfo, maxDictSize, &randomParam);
-  if(randomResult) {
-    result = 1;
-    goto _cleanup;
+  {
+    ZDICT_random_params_t randomParam;
+    randomParam.zParams = zParams;
+    randomParam.k = k;
+    const int randomResult = benchmarkDictBuilder(srcInfo, maxDictSize, &randomParam, NULL, NULL);
+    if(randomResult) {
+      result = 1;
+      goto _cleanup;
+    }
   }
 
   /* for cover */
-  ZDICT_cover_params_t coverParam;
-  memset(&coverParam, 0, sizeof(coverParam));
-  coverParam.zParams = zParams;
-  coverParam.splitPoint = 1.0;
-  coverParam.d = d;
-  coverParam.steps = 40;
-  coverParam.nbThreads = 1;
-  int coverOptResult = benchmarkCover(srcInfo, maxDictSize, &coverParam);
-  if(coverOptResult) {
-    result = 1;
-    goto _cleanup;
+  {
+    ZDICT_cover_params_t coverParam;
+    memset(&coverParam, 0, sizeof(coverParam));
+    coverParam.zParams = zParams;
+    coverParam.splitPoint = 1.0;
+    coverParam.d = d;
+    coverParam.steps = 40;
+    coverParam.nbThreads = 1;
+    const int coverOptResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, &coverParam, NULL);
+    if(coverOptResult) {
+      result = 1;
+      goto _cleanup;
+    }
   }
 
   /* for legacy */
-  ZDICT_legacy_params_t legacyParam;
-  legacyParam.zParams = zParams;
-  legacyParam.selectivityLevel = 9;
-  int legacyResult = benchmarkLegacy(srcInfo, maxDictSize, &legacyParam);
-  if(legacyResult) {
-    result = 1;
-    goto _cleanup;
+  {
+    ZDICT_legacy_params_t legacyParam;
+    legacyParam.zParams = zParams;
+    legacyParam.selectivityLevel = 9;
+    const int legacyResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, NULL, &legacyParam);
+    if(legacyResult) {
+      result = 1;
+      goto _cleanup;
+    }
   }
 
   /* Free allocated memory */

@@ -53,6 +53,39 @@ static const size_t g_maxMemory = (sizeof(size_t) == 4) ?
 #define NOISELENGTH 32
 
 
+/*-*************************************
+*  Commandline related functions
+***************************************/
+unsigned readU32FromChar(const char** stringPtr){
+    const char errorMsg[] = "error: numeric value too large";
+    unsigned result = 0;
+    while ((**stringPtr >='0') && (**stringPtr <='9')) {
+        unsigned const max = (((unsigned)(-1)) / 10) - 1;
+        if (result > max) exit(1);
+        result *= 10, result += **stringPtr - '0', (*stringPtr)++ ;
+    }
+    if ((**stringPtr=='K') || (**stringPtr=='M')) {
+        unsigned const maxK = ((unsigned)(-1)) >> 10;
+        if (result > maxK) exit(1);
+        result <<= 10;
+        if (**stringPtr=='M') {
+            if (result > maxK) exit(1);
+            result <<= 10;
+        }
+        (*stringPtr)++;  /* skip `K` or `M` */
+        if (**stringPtr=='i') (*stringPtr)++;
+        if (**stringPtr=='B') (*stringPtr)++;
+    }
+    return result;
+}
+
+unsigned longCommandWArg(const char** stringPtr, const char* longCommand){
+    size_t const comSize = strlen(longCommand);
+    int const result = !strncmp(*stringPtr, longCommand, comSize);
+    if (result) *stringPtr += comSize;
+    return result;
+}
+
 
 /* ********************************************************
 *  File related operations

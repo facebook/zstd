@@ -16,5 +16,5 @@ To build a random dictionary with the provided arguments: make ARG= followed by 
 
 
 ### Examples:
-make ARG="in=../../lib/dictBuilder out=dict100 dictID=520"
-make ARG="in=../../lib/dictBuilder in=../../lib/compress"
+make ARG="in=../../../lib/dictBuilder out=dict100 dictID=520"
+make ARG="in=../../../lib/dictBuilder in=../../../lib/compress"

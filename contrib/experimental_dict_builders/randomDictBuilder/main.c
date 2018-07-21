@@ -53,46 +53,6 @@ static const unsigned g_defaultMaxDictSize = 110 KB;
 
 
 /*-*************************************
-*  Commandline related functions
-***************************************/
-static unsigned readU32FromChar(const char** stringPtr){
-    const char errorMsg[] = "error: numeric value too large";
-    unsigned result = 0;
-    while ((**stringPtr >='0') && (**stringPtr <='9')) {
-        unsigned const max = (((unsigned)(-1)) / 10) - 1;
-        if (result > max) exit(1);
-        result *= 10, result += **stringPtr - '0', (*stringPtr)++ ;
-    }
-    if ((**stringPtr=='K') || (**stringPtr=='M')) {
-        unsigned const maxK = ((unsigned)(-1)) >> 10;
-        if (result > maxK) exit(1);
-        result <<= 10;
-        if (**stringPtr=='M') {
-            if (result > maxK) exit(1);
-            result <<= 10;
-        }
-        (*stringPtr)++;  /* skip `K` or `M` */
-        if (**stringPtr=='i') (*stringPtr)++;
-        if (**stringPtr=='B') (*stringPtr)++;
-    }
-    return result;
-}
-
-/** longCommandWArg() :
- *  check if *stringPtr is the same as longCommand.
- *  If yes, @return 1 and advances *stringPtr to the position which immediately follows longCommand.
- * @return 0 and doesn't modify *stringPtr otherwise.
- */
-static unsigned longCommandWArg(const char** stringPtr, const char* longCommand){
-    size_t const comSize = strlen(longCommand);
-    int const result = !strncmp(*stringPtr, longCommand, comSize);
-    if (result) *stringPtr += comSize;
-    return result;
-}
-
-
-
-/*-*************************************
 *  RANDOM
 ***************************************/
 int RANDOM_trainFromFiles(const char* dictFileName, sampleInfo *info,

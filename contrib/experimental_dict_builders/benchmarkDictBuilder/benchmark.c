@@ -78,7 +78,7 @@ dictInfo* createDictFromFiles(sampleInfo *info, unsigned maxDictSize,
                                   DEFAULT_DISPLAYLEVEL;   /* no dict */
     void* const dictBuffer = malloc(maxDictSize);
 
-    dictInfo* dInfo;
+    dictInfo* dInfo = NULL;
 
     /* Checks */
     if (!dictBuffer)
@@ -118,16 +118,16 @@ double compressWithDict(sampleInfo *srcInfo, dictInfo* dInfo, int compressionLev
   /* Local variables */
   size_t totalCompressedSize = 0;
   size_t totalOriginalSize = 0;
-  unsigned hasDict = dInfo->dictSize > 0 ? 1 : 0;
+  const unsigned hasDict = dInfo->dictSize > 0 ? 1 : 0;
   double cRatio;
   size_t dstCapacity;
   int i;
 
   /* Pointers */
-  ZSTD_CCtx* cctx;
-  ZSTD_CDict *cdict;
-  size_t *offsets;
-  void* dst;
+  ZSTD_CDict *cdict = NULL;
+  ZSTD_CCtx* cctx = NULL;
+  size_t *offsets = NULL;
+  void* dst = NULL;
 
   /* Allocate dst with enough space to compress the maximum sized sample */
   {
@@ -150,7 +150,7 @@ double compressWithDict(sampleInfo *srcInfo, dictInfo* dInfo, int compressionLev
   cctx = ZSTD_createCCtx();
   if(!cctx || !dst) {
     cRatio = -1;
-    goto _nodictCleanup;
+    goto _cleanup;
   }
 
   /* Create CDict if there's a dictionary stored on buffer */
@@ -158,7 +158,7 @@ double compressWithDict(sampleInfo *srcInfo, dictInfo* dInfo, int compressionLev
     cdict = ZSTD_createCDict(dInfo->dictBuffer, dInfo->dictSize, compressionLevel);
     if(!cdict) {
       cRatio = -1;
-      goto _dictCleanup;
+      goto _cleanup;
     }
   }
 
@@ -173,8 +173,7 @@ double compressWithDict(sampleInfo *srcInfo, dictInfo* dInfo, int compressionLev
     }
     if (ZSTD_isError(compressedSize)) {
       cRatio = -1;
-      if(hasDict) goto _dictCleanup;
-      else goto _nodictCleanup;
+      goto _cleanup;
     }
     totalCompressedSize += compressedSize;
   }
@@ -189,14 +188,11 @@ double compressWithDict(sampleInfo *srcInfo, dictInfo* dInfo, int compressionLev
   DISPLAYLEVEL(2, "compressed size is %lu\n", totalCompressedSize);
   cRatio = (double)totalOriginalSize/(double)totalCompressedSize;
 
-_dictCleanup:
-  ZSTD_freeCDict(cdict);
-
-_nodictCleanup:
+_cleanup:
   free(dst);
   free(offsets);
   ZSTD_freeCCtx(cctx);
-
+  ZSTD_freeCDict(cdict);
   return cRatio;
 }
 
@@ -249,7 +245,7 @@ int benchmarkDictBuilder(sampleInfo *srcInfo, unsigned maxDictSize, ZDICT_random
   DISPLAYLEVEL(2, "%s took %f seconds to execute \n", name, timeSec);
 
   /* Calculate compression ratio */
-  double cRatio = compressWithDict(srcInfo, dInfo, cLevel, displayLevel);
+  const double cRatio = compressWithDict(srcInfo, dInfo, cLevel, displayLevel);
   if (cRatio < 0) {
     DISPLAYLEVEL(1, "Compressing with %s dictionary does not work\n", name);
     result = 1;

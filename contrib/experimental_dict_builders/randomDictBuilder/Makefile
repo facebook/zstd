@@ -2,9 +2,9 @@ ARG :=
 
 CC ?= gcc
 CFLAGS ?= -O3
-INCLUDES := -I ../../programs -I ../../lib/common -I ../../lib -I ../../lib/dictBuilder
+INCLUDES := -I ../../../programs -I ../../../lib/common -I ../../../lib -I ../../../lib/dictBuilder
 
-TEST_INPUT := ../../lib
+TEST_INPUT := ../../../lib
 TEST_OUTPUT := randomDict
 
 all: main run clean
@@ -30,8 +30,8 @@ io.o: io.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c io.c
 
 libzstd.a:
-	$(MAKE) -C ../../lib libzstd.a
-	mv ../../lib/libzstd.a .
+	$(MAKE) -C ../../../lib libzstd.a
+	mv ../../../lib/libzstd.a .
 
 .PHONY: testrun
 testrun: main
@@ -48,5 +48,5 @@ testshell: test.sh
 .PHONY: clean
 clean:
 	rm -f *.o main libzstd.a
-	$(MAKE) -C ../../lib clean
+	$(MAKE) -C ../../../lib clean
 	echo "Cleaning is completed"

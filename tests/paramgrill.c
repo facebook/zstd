@@ -293,7 +293,7 @@ static double resultScore(const BMK_result_t res, const size_t srcSize, const co
     return ret;
 }
 
-/* calculates normalized euclidean distance of result1 if it is in the first quadrant relative to lvlRes */
+/* calculates normalized squared euclidean distance of result1 if it is in the first quadrant relative to lvlRes */
 static double resultDistLvl(const BMK_result_t result1, const BMK_result_t lvlRes) {
     double normalizedCSpeedGain1 = (result1.cSpeed / lvlRes.cSpeed) - 1;
     double normalizedRatioGain1 = ((double)lvlRes.cSize / result1.cSize) - 1;
@@ -668,6 +668,7 @@ static BMK_return_t BMK_benchMemInvertible(const buffers_t buf, const contexts_t
 
 #define SPEED_RESULT 4
 #define SIZE_RESULT 5
+/* maybe have epsilon-eq to limit table size? */
 static int speedSizeCompare(BMK_result_t r1, BMK_result_t r2) {
     if(r1.cSpeed > r2.cSpeed) {
         if(r1.cSize <= r2.cSize) {
@@ -853,11 +854,11 @@ static void BMK_printWinnerOpt(FILE* f, const U32 cLevel, const BMK_result_t res
         w.result = result;
         w.params = params;
         i = insertWinner(w);
-        if(i) return;
+        //if(i) return;
 
         if(!DEBUG) { fprintf(f, "\033c"); }
         fprintf(f, "\n"); 
-
+        
         /* the table */
         fprintf(f, "================================\n");
         for(n = g_winners; n != NULL; n = n->next) {
@@ -871,6 +872,27 @@ static void BMK_printWinnerOpt(FILE* f, const U32 cLevel, const BMK_result_t res
             (double)srcSize / n->res.result.cSize, n->res.result.cSpeed / (1 << 20), n->res.result.dSpeed / (1 << 20));
         }
         fprintf(f, "================================\n");
+        fprintf(f, "Level Bounds: R: > %.3f AND C: < %.1f MB/s \n\n",
+            (double)srcSize / g_lvltarget.cSize, g_lvltarget.cSpeed / (1 << 20));
+
+
+        fprintf(f, "Overall Winner: \n");
+        fprintf(f,"    {%3u,%3u,%3u,%3u,%3u,%3u, %s },  ",
+            g_winner.params.windowLog, g_winner.params.chainLog, g_winner.params.hashLog, g_winner.params.searchLog, g_winner.params.searchLength,
+            g_winner.params.targetLength, g_stratName[(U32)(g_winner.params.strategy)]);
+        fprintf(f,
+        "   /* R:%5.3f at %5.1f MB/s - %5.1f MB/s */\n",
+        (double)srcSize / g_winner.result.cSize, g_winner.result.cSpeed / (1 << 20), g_winner.result.dSpeed / (1 << 20));
+
+
+        fprintf(f, "Latest BMK: \n");
+        fprintf(f,"    {%3u,%3u,%3u,%3u,%3u,%3u, %s },  ",
+            params.windowLog, params.chainLog, params.hashLog, params.searchLog, params.searchLength,
+            params.targetLength, g_stratName[(U32)(params.strategy)]);
+        fprintf(f,
+            "   /* R:%5.3f at %5.1f MB/s - %5.1f MB/s */\n",
+            (double)srcSize / result.cSize, result.cSpeed / (1 << 20), result.dSpeed / (1 << 20));
+
     }
 }
 
@@ -1707,7 +1729,7 @@ static winnerInfo_t climbOnce(const constraint_t target,
 
     {
         winnerInfo_t bestFeasible1 = initWinnerInfo(cparam);
-        DISPLAY("Climb Part 1\n");
+        DEBUGOUTPUT("Climb Part 1\n");
         while(better) {
 
             int i, dist, offset;
@@ -1774,7 +1796,7 @@ static winnerInfo_t climbOnce(const constraint_t target,
                 feas = 1;
                 better = 1;
                 winnerInfo = bestFeasible1; /* note with change, bestFeasible may not necessarily be feasible, but if one has been benchmarked, it will be. */
-                DISPLAY("Climb Part 2\n");
+                DEBUGOUTPUT("Climb Part 2\n");
             }
         }
         winnerInfo = bestFeasible1;
@@ -2218,9 +2240,9 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
                 }
 
                 while(st && tries) {
+                    DEBUGOUTPUT("StrategySwitch: %s\n", g_stratName[st]);
                     winnerInfo_t wc = optimizeFixedStrategy(buf, ctx, target, paramTarget, 
                         st, varArray, varLen, allMT[st], tries);
-                    DEBUGOUTPUT("StratNum %d\n", st);
                     if(compareResultLT(winner.result, wc.result, target, buf.srcSize)) {
                         winner = wc;
                     }

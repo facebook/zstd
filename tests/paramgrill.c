@@ -112,6 +112,36 @@ static U32 g_noSeed = 0;
 static ZSTD_compressionParameters g_params = { 0, 0, 0, 0, 0, 0, ZSTD_greedy };
 static UTIL_time_t g_time; /* to be used to compare solution finding speeds to compare to original */
 
+
+typedef struct {
+    BMK_result_t result;
+    ZSTD_compressionParameters params;
+} winnerInfo_t;
+
+/* global winner used for display. */
+//Should be totally 0 initialized? 
+static winnerInfo_t g_winner = { { 0, 0, (size_t)-1, (size_t)-1 } , { 0, 0, 0, 0, 0, 0, ZSTD_fast } }; 
+
+typedef struct {
+    U32 cSpeed; /* bytes / sec */
+    U32 dSpeed;
+    U32 cMem;    /* bytes */    
+} constraint_t;
+
+static constraint_t g_targetConstraints; 
+
+typedef struct ll_node ll_node;
+struct ll_node {
+    winnerInfo_t res;
+    ll_node* next;
+};
+
+static ll_node* g_winners; /* linked list sorted ascending by cSize & cSpeed */
+static BMK_result_t g_lvltarget;
+
+/* range 0 - 99 */
+static U32 g_strictness = 99;
+
 void BMK_SetNbIterations(int nbLoops)
 {
     g_nbIterations = nbLoops;
@@ -197,12 +227,6 @@ static void findClockGranularity(void) {
     DEBUGOUTPUT("Granularity: %llu\n", (unsigned long long)g_clockGranularity);
 }
 
-typedef struct {
-    U32 cSpeed; /* bytes / sec */
-    U32 dSpeed;
-    U32 cMem;    /* bytes */    
-} constraint_t;
-
 #define CLAMPCHECK(val,min,max) {                     \
     if (val && (((val)<(min)) | ((val)>(max)))) {     \
         DISPLAY("INVALID PARAMETER CONSTRAINTS\n");   \
@@ -246,7 +270,7 @@ static void BMK_translateAdvancedParams(const ZSTD_compressionParameters params)
 
 /* checks results are feasible */
 static int feasible(const BMK_result_t results, const constraint_t target) {
-    return (results.cSpeed >= target.cSpeed) && (results.dSpeed >= target.dSpeed) && (results.cMem <= target.cMem);
+    return (results.cSpeed >= target.cSpeed) && (results.dSpeed >= target.dSpeed) && (results.cMem <= target.cMem) && (!g_lvltarget.cSize || results.cSize <= g_lvltarget.cSize);
 }
 
 /* hill climbing value for part 1 */
@@ -269,44 +293,33 @@ static double resultScore(const BMK_result_t res, const size_t srcSize, const co
     return ret;
 }
 
-/* return true if r2 strictly better than r1 */ 
-static int compareResultLT(const BMK_result_t result1, const BMK_result_t result2, const constraint_t target, size_t srcSize) {
-    if(feasible(result1, target) && feasible(result2, target)) {
-        return (result1.cSize > result2.cSize) || (result1.cSize == result2.cSize && result2.cSpeed > result1.cSpeed)
-        || (result1.cSize == result2.cSize && result2.cSpeed == result1.cSpeed && result2.dSpeed > result1.dSpeed);
-    }
-    return feasible(result2, target) || (!feasible(result1, target) && (resultScore(result1, srcSize, target) < resultScore(result2, srcSize, target)));
-
-}
-
 /* calculates normalized euclidean distance of result1 if it is in the first quadrant relative to lvlRes */
 static double resultDistLvl(const BMK_result_t result1, const BMK_result_t lvlRes) {
-    double normalizedCSpeedGain1 = result1.cSpeed / lvlRes.cSpeed - 1;
-    double normalizedRatioGain1 = lvlRes.cSize / result1.cSize - 1;
-    if(normalizedRatioGain1 < 0 || normalizedRatioGain1 < 0) {
+    double normalizedCSpeedGain1 = (result1.cSpeed / lvlRes.cSpeed) - 1;
+    double normalizedRatioGain1 = ((double)lvlRes.cSize / result1.cSize) - 1;
+    if(normalizedRatioGain1 < 0 || normalizedCSpeedGain1 < 0) {
         return 0.0;
     }
     return normalizedRatioGain1 * normalizedRatioGain1 + normalizedCSpeedGain1 * normalizedCSpeedGain1;
 }
 
-static int lvlFeasible(const BMK_result_t result, const BMK_result_t lvlRes) {
-    return lvlRes.cSpeed < result.cSpeed && lvlRes.cSize > result.cSize;
-}
-
-/* redefines feasibility for lvl mode */
-static int compareResultLT2(const BMK_result_t result1, const BMK_result_t result2, const BMK_result_t lvltarget, size_t srcSize) {
-    constraint_t target = { (U32)lvltarget.cSpeed, 0, (U32)-1 };
-    if(lvlFeasible(result1, lvltarget) && lvlFeasible(result2, lvltarget)) {
-        return resultDistLvl(result1, lvltarget) < resultDistLvl(result2, lvltarget);
+/* return true if r2 strictly better than r1 */ 
+static int compareResultLT(const BMK_result_t result1, const BMK_result_t result2, const constraint_t target, size_t srcSize) {
+    if(feasible(result1, target) && feasible(result2, target)) {
+        if(g_lvltarget.cSize == 0) {
+            return (result1.cSize > result2.cSize) || (result1.cSize == result2.cSize && result2.cSpeed > result1.cSpeed)
+            || (result1.cSize == result2.cSize && result2.cSpeed == result1.cSpeed && result2.dSpeed > result1.dSpeed);
+        } else {
+            return resultDistLvl(result1, g_lvltarget) < resultDistLvl(result2, g_lvltarget);
+        }
     }
-    return lvlFeasible(result2, lvltarget) || (!lvlFeasible(result1, lvltarget) && (resultScore(result1, srcSize, target) < resultScore(result2, srcSize, target)));
+    return feasible(result2, target) || (!feasible(result1, target) && (resultScore(result1, srcSize, target) < resultScore(result2, srcSize, target)));
 }
 
-/* factor sort of arbitrary */
 static constraint_t relaxTarget(constraint_t target) {
     target.cMem = (U32)-1;
-    target.cSpeed *= 0.9; 
-    target.dSpeed *= 0.9;
+    target.cSpeed *= ((double)(g_strictness + 1) / 100); 
+    target.dSpeed *= ((double)(g_strictness + 1) / 100);
     return target;
 }
 
@@ -329,11 +342,6 @@ BMK_benchParam1(BMK_result_t* resultPtr,
     *resultPtr = res.result;
     return res.error;
 }
-
-typedef struct {
-    BMK_result_t result;
-    ZSTD_compressionParameters params;
-} winnerInfo_t;
 
 static ZSTD_compressionParameters emptyParams(void) {
     ZSTD_compressionParameters p = { 0, 0, 0, 0, 0, 0, (ZSTD_strategy)0 };
@@ -651,16 +659,6 @@ static BMK_return_t BMK_benchMemInvertible(const buffers_t buf, const contexts_t
     return results;
 }
 
-
-typedef struct ll_node ll_node;
-struct ll_node {
-    winnerInfo_t res;
-    ll_node* next;
-};
-
-static ll_node* g_winners; /* linked list sorted ascending by cSize & cSpeed */
-static BMK_result_t g_lvltarget;
-
 /* comparison function: */
 /* strictly better, strictly worse, equal, speed-side adv, size-side adv */
 //Maybe use compress_only for benchmark first run?
@@ -691,7 +689,7 @@ static int insertWinner(winnerInfo_t w) {
     BMK_result_t r = w.result;
     ll_node* cur_node = g_winners;
     /* first node to insert */
-    if(!lvlFeasible(r, g_lvltarget)) {
+    if(!feasible(r, g_targetConstraints)) {
         return 1;
     }
 
@@ -722,7 +720,10 @@ static int insertWinner(winnerInfo_t w) {
                 break; 
             }
             case SPEED_RESULT:
+            {
                 cur_node = cur_node->next;
+                break;
+            }
             case SIZE_RESULT: /* insert after first size result, then return */
             {
                 ll_node* newnode = malloc(sizeof(ll_node));
@@ -843,6 +844,34 @@ static void BMK_printWinnerOpt(FILE* f, const U32 cLevel, const BMK_result_t res
             g_winner.params = params;
         }
     }  
+
+    //prints out tradeoff table if using lvl
+    if(g_lvltarget.cSize != 0) {
+        winnerInfo_t w;
+        ll_node* n;
+        int i;
+        w.result = result;
+        w.params = params;
+        i = insertWinner(w);
+        if(i) return;
+
+        if(!DEBUG) { fprintf(f, "\033c"); }
+        fprintf(f, "\n"); 
+
+        /* the table */
+        fprintf(f, "================================\n");
+        for(n = g_winners; n != NULL; n = n->next) {
+            DISPLAY("\r%79s\r", "");
+
+            fprintf(f,"    {%3u,%3u,%3u,%3u,%3u,%3u, %s },  ",
+                n->res.params.windowLog, n->res.params.chainLog, n->res.params.hashLog, n->res.params.searchLog, n->res.params.searchLength,
+                n->res.params.targetLength, g_stratName[(U32)(n->res.params.strategy)]);
+            fprintf(f,
+            "   /* R:%5.3f at %5.1f MB/s - %5.1f MB/s */\n",
+            (double)srcSize / n->res.result.cSize, n->res.result.cSpeed / (1 << 20), n->res.result.dSpeed / (1 << 20));
+        }
+        fprintf(f, "================================\n");
+    }
 }
 
 static void BMK_printWinners2(FILE* f, const winnerInfo_t* winners, size_t srcSize)
@@ -1518,7 +1547,6 @@ static int allBench(BMK_result_t* resultPtr,
     U64 loopDurationC = 0, loopDurationD = 0;
     double uncertaintyConstantC, uncertaintyConstantD;
     double winnerRS;
-    int lvlmode = g_lvltarget.cSize != 0;
 
     /* initial benchmarking, gives exact ratio and memory, warms up future runs */
     benchres = BMK_benchMemInvertible(buf, ctx, 0, &cParams, BMK_both, BMK_iterMode, 1);
@@ -1549,11 +1577,9 @@ static int allBench(BMK_result_t* resultPtr,
         uncertaintyConstantD = 3;
     }
 
-    if(!lvlmode) {
     /* anything with worse ratio in feas is definitely worse, discard */
-        if(feas && benchres.result.cSize < winnerResult->cSize) {
-            return WORSE_RESULT;
-        }
+    if(feas && benchres.result.cSize < winnerResult->cSize && g_lvltarget.cSize == 0) {
+        return WORSE_RESULT;
     }
 
     /* second run, if first run is too short, gives approximate cSpeed + dSpeed */
@@ -1581,9 +1607,8 @@ static int allBench(BMK_result_t* resultPtr,
 
     /* disregard infeasible results in feas mode */
     /* disregard if resultMax < winner in infeas mode */
-    if((feas && (!lvlmode && !feasible(resultMax, target))) ||
-      (!feas && ((!lvlmode && winnerRS > resultScore(resultMax, buf.srcSize, target)) || 
-        (lvlmode && resultDistLvl(*winnerResult, g_lvltarget) > resultDistLvl(resultMax, g_lvltarget))))) {
+    if((feas && !feasible(resultMax, target)) ||
+      (!feas && (winnerRS > resultScore(resultMax, buf.srcSize, target)))) {
         return WORSE_RESULT;
     }
 
@@ -1608,22 +1633,12 @@ static int allBench(BMK_result_t* resultPtr,
 
     /* compare by resultScore when in infeas */
     /* compare by compareResultLT when in feas */
-    if(!lvlmode) {
-        if((!feas && (resultScore(benchres.result, buf.srcSize, target) > resultScore(*winnerResult, buf.srcSize, target))) || 
-           (feas && (compareResultLT(*winnerResult, benchres.result, target, buf.srcSize))) )  { 
-            return BETTER_RESULT; 
-        } else { 
-            return WORSE_RESULT; 
-        }
-    } else {
-        if((feas && (compareResultLT2(*winnerResult, benchres.result, g_lvltarget, buf.srcSize))) || 
-            (!feas && (resultScore(benchres.result, buf.srcSize, target) > resultScore(*winnerResult, buf.srcSize, target)))) {
-            return BETTER_RESULT;
-        } else {
-            return WORSE_RESULT;
-        }
+    if((!feas && (resultScore(benchres.result, buf.srcSize, target) > resultScore(*winnerResult, buf.srcSize, target))) || 
+       (feas && (compareResultLT(*winnerResult, benchres.result, target, buf.srcSize))) )  { 
+        return BETTER_RESULT; 
+    } else { 
+        return WORSE_RESULT; 
     }
-
 }
 
 #define INFEASIBLE_THRESHOLD 200
@@ -1655,6 +1670,7 @@ static int benchMemo(BMK_result_t* resultPtr,
     return res;
 }
 
+
 /* One iteration of hill climbing. Specifically, it first tries all 
  * valid parameter configurations w/ manhattan distance 1 and picks the best one
  * failing that, it progressively tries candidates further and further away (up to #dim + 2)
@@ -1666,6 +1682,10 @@ static int benchMemo(BMK_result_t* resultPtr,
  * This aims to find some constraint-satisfying point.
  * Phase 2 optimizes in accordance with what the original function sets out to maximize, with
  * all feasible solutions valued over all infeasible solutions.
+ */
+
+/* sanitize all params here. 
+ * all generation after random should be sanitized. (maybe sanitize random)
  */
 static winnerInfo_t climbOnce(const constraint_t target, 
                 const varInds_t* varArray, const int varLen, 
@@ -1800,6 +1820,7 @@ static winnerInfo_t optimizeFixedStrategy(
             BMK_printWinnerOpt(stdout, CUSTOM_LEVEL, winnerInfo.result, winnerInfo.params, target, buf.srcSize);
             i = 0;
         }
+
         i++;
     }
     return winnerInfo;
@@ -2129,8 +2150,10 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
         target.cSpeed = (U32)winner.result.cSpeed;
 
         g_targetConstraints = target;
-        
-        g_lvltarget = winner.result;
+
+        g_lvltarget = winner.result; 
+        g_lvltarget.cSpeed *= ((double)(g_strictness + 1) / 100);
+        g_lvltarget.cSize /= ((double)(g_strictness + 1) / 100);
 
         BMK_printWinnerOpt(stdout, cLevel, winner.result, winner.params, target, buf.srcSize);
     }
@@ -2299,15 +2322,16 @@ static int badusage(const char* exename)
 }
 
 #define PARSE_SUB_ARGS(stringLong, stringShort, variable) { if (longCommandWArg(&argument, stringLong) || longCommandWArg(&argument, stringShort)) { variable = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; } }
-#define PARSE_CPARAMS(variable)                                          \
-{                                                                        \
-    PARSE_SUB_ARGS("windowLog=",     "wlog=",  variable.windowLog);      \
-    PARSE_SUB_ARGS("chainLog=" ,     "clog=",  variable.chainLog);       \
-    PARSE_SUB_ARGS("hashLog=",       "hlog=",  variable.hashLog);        \
-    PARSE_SUB_ARGS("searchLog=" ,    "slog=",  variable.searchLog);      \
-    PARSE_SUB_ARGS("searchLength=",  "slen=",  variable.searchLength);   \
-    PARSE_SUB_ARGS("targetLength=" , "tlen=",  variable.targetLength);   \
-    PARSE_SUB_ARGS("strategy=",      "strat=", variable.strategy);       \
+#define PARSE_CPARAMS(variable)                                            \
+{                                                                          \
+    PARSE_SUB_ARGS("windowLog=",       "wlog=",  variable.vals[wlog_ind]); \
+    PARSE_SUB_ARGS("chainLog=" ,       "clog=",  variable.vals[clog_ind]); \
+    PARSE_SUB_ARGS("hashLog=",         "hlog=",  variable.vals[hlog_ind]); \
+    PARSE_SUB_ARGS("searchLog=" ,      "slog=",  variable.vals[slog_ind]); \
+    PARSE_SUB_ARGS("searchLength=",    "slen=",  variable.vals[slen_ind]); \
+    PARSE_SUB_ARGS("targetLength=" ,   "tlen=",  variable.vals[tlen_ind]); \
+    PARSE_SUB_ARGS("strategy=",        "strat=", variable.vals[strt_ind]); \
+    PARSE_SUB_ARGS("forceAttachDict=", "fad="  , variable.vals[strt_ind]); \
 }
 
 int main(int argc, const char** argv)
@@ -2350,6 +2374,7 @@ int main(int argc, const char** argv)
                 PARSE_SUB_ARGS("decompressionSpeed=", "dSpeed=", target.dSpeed); 
                 PARSE_SUB_ARGS("compressionMemory=" , "cMem=", target.cMem);
                 PARSE_SUB_ARGS("level=", "lvl=", optimizerCLevel);
+                PARSE_SUB_ARGS("strict=", "stc=", g_strictness);
                 DISPLAY("invalid optimization parameter \n");
                 return 1;
             }

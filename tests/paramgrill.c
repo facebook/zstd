@@ -1518,6 +1518,7 @@ static int allBench(BMK_result_t* resultPtr,
     U64 loopDurationC = 0, loopDurationD = 0;
     double uncertaintyConstantC, uncertaintyConstantD;
     double winnerRS;
+    int lvlmode = g_lvltarget.cSize != 0;
 
     /* initial benchmarking, gives exact ratio and memory, warms up future runs */
     benchres = BMK_benchMemInvertible(buf, ctx, 0, &cParams, BMK_both, BMK_iterMode, 1);
@@ -1548,9 +1549,11 @@ static int allBench(BMK_result_t* resultPtr,
         uncertaintyConstantD = 3;
     }
 
+    if(!lvlmode) {
     /* anything with worse ratio in feas is definitely worse, discard */
-    if(feas && benchres.result.cSize < winnerResult->cSize) {
-        return WORSE_RESULT;
+        if(feas && benchres.result.cSize < winnerResult->cSize) {
+            return WORSE_RESULT;
+        }
     }
 
     /* second run, if first run is too short, gives approximate cSpeed + dSpeed */
@@ -1578,8 +1581,9 @@ static int allBench(BMK_result_t* resultPtr,
 
     /* disregard infeasible results in feas mode */
     /* disregard if resultMax < winner in infeas mode */
-    if((feas && !feasible(resultMax, target)) || 
-      (!feas && (winnerRS > resultScore(resultMax, buf.srcSize, target)))) {
+    if((feas && (!lvlmode && !feasible(resultMax, target))) ||
+      (!feas && ((!lvlmode && winnerRS > resultScore(resultMax, buf.srcSize, target)) || 
+        (lvlmode && resultDistLvl(*winnerResult, g_lvltarget) > resultDistLvl(resultMax, g_lvltarget))))) {
         return WORSE_RESULT;
     }
 
@@ -1604,11 +1608,20 @@ static int allBench(BMK_result_t* resultPtr,
 
     /* compare by resultScore when in infeas */
     /* compare by compareResultLT when in feas */
-    if((!feas && (resultScore(benchres.result, buf.srcSize, target) > resultScore(*winnerResult, buf.srcSize, target))) || 
-       (feas && (compareResultLT(*winnerResult, benchres.result, target, buf.srcSize))) )  { 
-        return BETTER_RESULT; 
-    } else { 
-        return WORSE_RESULT; 
+    if(!lvlmode) {
+        if((!feas && (resultScore(benchres.result, buf.srcSize, target) > resultScore(*winnerResult, buf.srcSize, target))) || 
+           (feas && (compareResultLT(*winnerResult, benchres.result, target, buf.srcSize))) )  { 
+            return BETTER_RESULT; 
+        } else { 
+            return WORSE_RESULT; 
+        }
+    } else {
+        if((feas && (compareResultLT2(*winnerResult, benchres.result, g_lvltarget, buf.srcSize))) || 
+            (!feas && (resultScore(benchres.result, buf.srcSize, target) > resultScore(*winnerResult, buf.srcSize, target)))) {
+            return BETTER_RESULT;
+        } else {
+            return WORSE_RESULT;
+        }
     }
 
 }

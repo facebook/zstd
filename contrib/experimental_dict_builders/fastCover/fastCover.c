@@ -138,7 +138,7 @@ static FASTCOVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
    */
   while (activeSegment.end < end) {
     /* Get hash value of current dmer  */
-    size_t index = FASTCOVER_hash8PtrToIndex(ctx->samples + activeSegment.end, parameters.f);
+    const size_t index = FASTCOVER_hash8PtrToIndex(ctx->samples + activeSegment.end, parameters.f);
     /* Add frequency of this index to score */
     activeSegment.score += freqs[index];
     /* Increment end of segment */
@@ -146,7 +146,7 @@ static FASTCOVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
     /* If the window is now too large, drop the first position */
     if (activeSegment.end - activeSegment.begin == dmersInK + 1) {
       /* Get hash value of the dmer to be eliminated from active segment */
-      size_t delIndex = FASTCOVER_hash8PtrToIndex(ctx->samples + activeSegment.begin, parameters.f);
+      const size_t delIndex = FASTCOVER_hash8PtrToIndex(ctx->samples + activeSegment.begin, parameters.f);
       /* Subtract frequency of this index from score */
       activeSegment.score -= freqs[delIndex];
       /* Increment start of segment */
@@ -163,7 +163,7 @@ static FASTCOVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
     U32 newEnd = bestSegment.begin;
     U32 pos;
     for (pos = bestSegment.begin; pos != bestSegment.end; ++pos) {
-      size_t index = FASTCOVER_hash8PtrToIndex(ctx->samples + pos, parameters.f);
+      const size_t index = FASTCOVER_hash8PtrToIndex(ctx->samples + pos, parameters.f);
       U32 freq = freqs[index];
       if (freq != 0) {
         newBegin = MIN(newBegin, pos);
@@ -177,7 +177,7 @@ static FASTCOVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
     /* Half the frequency of hash value of each dmer covered by the chosen segment. */
     U32 pos;
     for (pos = bestSegment.begin; pos != bestSegment.end; ++pos) {
-      size_t i = FASTCOVER_hash8PtrToIndex(ctx->samples + pos, parameters.f);
+      const size_t i = FASTCOVER_hash8PtrToIndex(ctx->samples + pos, parameters.f);
       freqs[i] = freqs[i]/2;
     }
   }
@@ -244,7 +244,7 @@ static void FASTCOVER_getFrequency(U32 *freqs, unsigned f, FASTCOVER_ctx_t *ctx)
     size_t currSampleEnd = ctx->offsets[i+1];
     start = currSampleStart;
     while (start + f < currSampleEnd) {
-      size_t dmerIndex = FASTCOVER_hash8PtrToIndex(ctx->samples + start, f);
+      const size_t dmerIndex = FASTCOVER_hash8PtrToIndex(ctx->samples + start, f);
       /* if no dmer with same hash value has been seen in current sample */
       if (inCurrSample[dmerIndex] == 0) {
         inCurrSample[dmerIndex]++;

@@ -279,6 +279,29 @@ static int compareResultLT(const BMK_result_t result1, const BMK_result_t result
 
 }
 
+/* calculates normalized euclidean distance of result1 if it is in the first quadrant relative to lvlRes */
+static double resultDistLvl(const BMK_result_t result1, const BMK_result_t lvlRes) {
+    double normalizedCSpeedGain1 = result1.cSpeed / lvlRes.cSpeed - 1;
+    double normalizedRatioGain1 = lvlRes.cSize / result1.cSize - 1;
+    if(normalizedRatioGain1 < 0 || normalizedRatioGain1 < 0) {
+        return 0.0;
+    }
+    return normalizedRatioGain1 * normalizedRatioGain1 + normalizedCSpeedGain1 * normalizedCSpeedGain1;
+}
+
+static int lvlFeasible(const BMK_result_t result, const BMK_result_t lvlRes) {
+    return lvlRes.cSpeed < result.cSpeed && lvlRes.cSize > result.cSize;
+}
+
+/* redefines feasibility for lvl mode */
+static int compareResultLT2(const BMK_result_t result1, const BMK_result_t result2, const BMK_result_t lvltarget, size_t srcSize) {
+    constraint_t target = { (U32)lvltarget.cSpeed, 0, (U32)-1 };
+    if(lvlFeasible(result1, lvltarget) && lvlFeasible(result2, lvltarget)) {
+        return resultDistLvl(result1, lvltarget) < resultDistLvl(result2, lvltarget);
+    }
+    return lvlFeasible(result2, lvltarget) || (!lvlFeasible(result1, lvltarget) && (resultScore(result1, srcSize, target) < resultScore(result2, srcSize, target)));
+}
+
 /* factor sort of arbitrary */
 static constraint_t relaxTarget(constraint_t target) {
     target.cMem = (U32)-1;
@@ -629,6 +652,132 @@ static BMK_return_t BMK_benchMemInvertible(const buffers_t buf, const contexts_t
 }
 
 
+typedef struct ll_node ll_node;
+struct ll_node {
+    winnerInfo_t res;
+    ll_node* next;
+};
+
+static ll_node* g_winners; /* linked list sorted ascending by cSize & cSpeed */
+static BMK_result_t g_lvltarget;
+
+/* comparison function: */
+/* strictly better, strictly worse, equal, speed-side adv, size-side adv */
+//Maybe use compress_only for benchmark first run?
+#define WORSE_RESULT 0
+#define BETTER_RESULT 1
+#define ERROR_RESULT 2
+
+#define SPEED_RESULT 4
+#define SIZE_RESULT 5
+static int speedSizeCompare(BMK_result_t r1, BMK_result_t r2) {
+    if(r1.cSpeed > r2.cSpeed) {
+        if(r1.cSize <= r2.cSize) {
+            return WORSE_RESULT;
+        }
+        return SIZE_RESULT; /* r2 is smaller but not faster. */
+    } else {
+        if(r1.cSize >= r2.cSize) {
+            return BETTER_RESULT;
+        }
+        return SPEED_RESULT; /* r2 is faster but not smaller */
+    }
+}
+/* assumes candidate is already strictly better than old winner. */
+/* 0 for success, 1 for no insert */
+/* indicate whether inserted as well? */
+/* maintain invariant speedSizeCompare(n, n->next) = SPEED_RESULT */
+static int insertWinner(winnerInfo_t w) {
+    BMK_result_t r = w.result;
+    ll_node* cur_node = g_winners;
+    /* first node to insert */
+    if(!lvlFeasible(r, g_lvltarget)) {
+        return 1;
+    }
+
+    if(g_winners == NULL) {
+        ll_node* first_node = malloc(sizeof(ll_node));
+        if(first_node == NULL) {
+            return 1;
+        }
+        first_node->next = NULL;
+        first_node->res = w;
+        g_winners = first_node;
+        return 0;
+    }
+
+    while(cur_node->next != NULL) {
+        switch(speedSizeCompare(r, cur_node->res.result)) {
+            case BETTER_RESULT:
+            {
+                return 1; /* never insert if better */
+            }
+            case WORSE_RESULT:
+            {
+                ll_node* tmp;
+                cur_node->res = cur_node->next->res;
+                tmp = cur_node->next;
+                cur_node->next = cur_node->next->next;
+                free(tmp);
+                break; 
+            }
+            case SPEED_RESULT:
+                cur_node = cur_node->next;
+            case SIZE_RESULT: /* insert after first size result, then return */
+            {
+                ll_node* newnode = malloc(sizeof(ll_node));
+                if(newnode == NULL) {
+                    return 1;
+                }
+                newnode->res = cur_node->res;
+                cur_node->res = w;
+                newnode->next = cur_node->next;
+                cur_node->next = newnode;
+                return 0;
+            }
+        } 
+
+    }
+
+    //assert(cur_node->next == NULL)
+    switch(speedSizeCompare(r, cur_node->res.result)) {
+        case BETTER_RESULT:
+        {
+            return 1; /* never insert if better */
+        }
+        case WORSE_RESULT:
+        {
+            cur_node->res = w;
+            return 0;
+        }
+        case SPEED_RESULT:
+        {
+            ll_node* newnode = malloc(sizeof(ll_node));
+            if(newnode == NULL) {
+                return 1;
+            }
+            newnode->res = w;
+            newnode->next = NULL;
+            cur_node->next = newnode;
+            return 0;
+        }
+        case SIZE_RESULT: /* insert before first size result, then return */
+        {
+            ll_node* newnode = malloc(sizeof(ll_node));
+            if(newnode == NULL) {
+                return 1;
+            }
+            newnode->res = cur_node->res;
+            cur_node->res = w;
+            newnode->next = cur_node->next;
+            cur_node->next = newnode;
+            return 0;
+        }
+        default: 
+            return 1;
+    } 
+}
+
 static void BMK_printWinner(FILE* f, const U32 cLevel, const BMK_result_t result, const ZSTD_compressionParameters params, const size_t srcSize)
 {
     char lvlstr[15] = "Custom Level";
@@ -658,6 +807,29 @@ static void BMK_printWinnerOpt(FILE* f, const U32 cLevel, const BMK_result_t res
     /* global winner used for constraints */
     static winnerInfo_t g_winner = { { 0, 0, (size_t)-1, (size_t)-1 } , { 0, 0, 0, 0, 0, 0, ZSTD_fast } }; 
     
+    /* print lvl if optmode */
+    if(g_lvltarget.cSize != 0) {
+        winnerInfo_t w;
+        ll_node* n;
+        int i;
+        w.result = result;
+        w.params = params;
+        i = insertWinner(w);
+        if(i) return;
+
+        fprintf(f, "\033c"); 
+        for(n = g_winners; n != NULL; n = n->next) {
+             DISPLAY("\r%79s\r", "");
+             fprintf(f,"    {%3u,%3u,%3u,%3u,%3u,%3u, %s },  ",
+                params.windowLog, params.chainLog, params.hashLog, params.searchLog, params.searchLength,
+                params.targetLength, g_stratName[(U32)(params.strategy)]);
+            fprintf(f,
+            "   /* R:%5.3f at %5.1f MB/s - %5.1f MB/s */\n",
+            (double)srcSize / result.cSize, result.cSpeed / (1 << 20), result.dSpeed / (1 << 20));
+        }
+        return;
+    }
+
     if(DEBUG || compareResultLT(g_winner.result, result, targetConstraints, srcSize)) {
         if(DEBUG && compareResultLT(g_winner.result, result, targetConstraints, srcSize)) {
             DISPLAY("New Winner: \n");
@@ -1334,12 +1506,6 @@ int benchFiles(const char** fileNamesTable, int nbFiles)
     return 0;
 }
 
-
-
-#define WORSE_RESULT 0
-#define BETTER_RESULT 1
-#define ERROR_RESULT 2
-
 /* Benchmarking which stops when we are sufficiently sure the solution is infeasible / worse than the winner */
 #define VARIANCE 1.1 
 static int allBench(BMK_result_t* resultPtr,
@@ -1939,6 +2105,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
         goto _cleanUp;
     }
  
+    /* use level'ing mode instead of normal target mode */
     if(cLevel) {
         winner.params = ZSTD_getCParams(cLevel, maxBlockSize, ctx.dictSize);
         if(BMK_benchParam(&winner.result, buf, ctx, winner.params)) {
@@ -1947,6 +2114,11 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
         }
 
         target.cSpeed = (U32)winner.result.cSpeed;
+
+        g_targetConstraints = target;
+        
+        g_lvltarget = winner.result;
+
         BMK_printWinnerOpt(stdout, cLevel, winner.result, winner.params, target, buf.srcSize);
     }
 
@@ -2137,8 +2309,8 @@ int main(int argc, const char** argv)
     U32 main_pause = 0;
     int optimizerCLevel = 0;
 
-
     constraint_t target = { 0, 0, (U32)-1 }; 
+
     ZSTD_compressionParameters paramTarget = { 0, 0, 0, 0, 0, 0, 0 };
 
     assert(argc>=1);   /* for exename */

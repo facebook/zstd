@@ -340,9 +340,64 @@ int main(int argCount, const char* argv[])
     randomParam.zParams = zParams;
     randomParam.k = k;
     const int randomResult = benchmarkDictBuilder(srcInfo, maxDictSize, &randomParam, NULL, NULL, NULL);
+    DISPLAYLEVEL(2, "k=%u\n", randomParam.k);
     if(randomResult) {
       result = 1;
       goto _cleanup;
+    }
+  }
+
+  /* for legacy */
+  {
+    ZDICT_legacy_params_t legacyParam;
+    legacyParam.zParams = zParams;
+    legacyParam.selectivityLevel = 9;
+    const int legacyResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, NULL, &legacyParam, NULL);
+    DISPLAYLEVEL(2, "selectivityLevel=%u\n", legacyParam.selectivityLevel);
+    if(legacyResult) {
+      result = 1;
+      goto _cleanup;
+    }
+  }
+
+  /* for fastCover */
+  for (unsigned f = 15; f < 25; f++){
+    DISPLAYLEVEL(2, "current f is %u\n", f);
+    /* for fastCover (optimizing k) */
+    {
+      ZDICT_fastCover_params_t fastParam;
+      memset(&fastParam, 0, sizeof(fastParam));
+      fastParam.zParams = zParams;
+      fastParam.splitPoint = 1.0;
+      fastParam.d = 8;
+      fastParam.f = f;
+      fastParam.steps = 40;
+      fastParam.nbThreads = 1;
+      const int fastOptResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, NULL, NULL, &fastParam);
+      DISPLAYLEVEL(2, "k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\n", fastParam.k, fastParam.d, fastParam.f, fastParam.steps, (unsigned)(fastParam.splitPoint * 100));
+      if(fastOptResult) {
+        result = 1;
+        goto _cleanup;
+      }
+    }
+
+    /* for fastCover (with k provided) */
+    {
+      ZDICT_fastCover_params_t fastParam;
+      memset(&fastParam, 0, sizeof(fastParam));
+      fastParam.zParams = zParams;
+      fastParam.splitPoint = 1.0;
+      fastParam.d = 8;
+      fastParam.f = f;
+      fastParam.k = 200;
+      fastParam.steps = 40;
+      fastParam.nbThreads = 1;
+      const int fastOptResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, NULL, NULL, &fastParam);
+      DISPLAYLEVEL(2, "k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\n", fastParam.k, fastParam.d, fastParam.f, fastParam.steps, (unsigned)(fastParam.splitPoint * 100));
+      if(fastOptResult) {
+        result = 1;
+        goto _cleanup;
+      }
     }
   }
 
@@ -355,55 +410,8 @@ int main(int argCount, const char* argv[])
     coverParam.steps = 40;
     coverParam.nbThreads = 1;
     const int coverOptResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, &coverParam, NULL, NULL);
+    DISPLAYLEVEL(2, "k=%u\nd=%u\nsteps=%u\nsplit=%u\n", coverParam.k, coverParam.d, coverParam.steps, (unsigned)(coverParam.splitPoint * 100));
     if(coverOptResult) {
-      result = 1;
-      goto _cleanup;
-    }
-  }
-
-  /* for legacy */
-  {
-    ZDICT_legacy_params_t legacyParam;
-    legacyParam.zParams = zParams;
-    legacyParam.selectivityLevel = 9;
-    const int legacyResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, NULL, &legacyParam, NULL);
-    if(legacyResult) {
-      result = 1;
-      goto _cleanup;
-    }
-  }
-
-
-  /* for fastCover (optimizing k) */
-  {
-    ZDICT_fastCover_params_t fastParam;
-    memset(&fastParam, 0, sizeof(fastParam));
-    fastParam.zParams = zParams;
-    fastParam.splitPoint = 1.0;
-    fastParam.d = 8;
-    fastParam.f = 23;
-    fastParam.steps = 40;
-    fastParam.nbThreads = 1;
-    const int fastOptResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, NULL, NULL, &fastParam);
-    if(fastOptResult) {
-      result = 1;
-      goto _cleanup;
-    }
-  }
-
-  /* for fastCover (with k provided) */
-  {
-    ZDICT_fastCover_params_t fastParam;
-    memset(&fastParam, 0, sizeof(fastParam));
-    fastParam.zParams = zParams;
-    fastParam.splitPoint = 1.0;
-    fastParam.d = 8;
-    fastParam.f = 23;
-    fastParam.k = 200;
-    fastParam.steps = 40;
-    fastParam.nbThreads = 1;
-    const int fastOptResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, NULL, NULL, &fastParam);
-    if(fastOptResult) {
       result = 1;
       goto _cleanup;
     }

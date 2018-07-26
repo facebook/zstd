@@ -15,37 +15,41 @@ make ARG="in=../../../lib/dictBuilder in=../../../lib/compress"
 ###Benchmarking Result:
 
 github:
-| Algorithm     | Speed(sec)    | Compression Ratio  |
-| ------------- |:-------------:| ------------------:|
-| nodict        | 0.000004      |  2.999642          |
-| random        | 0.135459      |  8.786957          |
-| cover         | 50.341079     |  10.641263         |
-| legacy        | 0.866283      |  8.989482          |
-| fastCover     | 13.450947     |  10.215174         |
+| Algorithm         | Speed(sec)    | Compression Ratio  |
+| ------------------|:-------------:| ------------------:|
+| nodict            | 0.000004      |  2.999642          |
+| random            | 0.148247      |  8.786957          |
+| cover             | 56.331553     |  10.641263         |
+| legacy            | 0.917595      |  8.989482          |
+| fastCover(opt)    | 13.169979     |  10.215174         |
+| fastCover(k=200)  | 2.692406      |  8.657219          |
 
 hg-commands
-| Algorithm     | Speed(sec)    | Compression Ratio  |
-| ------------- |:-------------:| ------------------:|
-| nodict        | 0.000020      |  2.425291          |
-| random        | 0.088828      |  3.489515          |
-| cover         | 60.028672     |  4.131136          |
-| legacy        | 0.852481      |  3.911896          |
-| fastCover     | 9.524284      |  3.977229          |
+| Algorithm         | Speed(sec)    | Compression Ratio  |
+| ----------------- |:-------------:| ------------------:|
+| nodict            | 0.000007      |  2.425291          |
+| random            | 0.093990      |  3.489515          |
+| cover             | 58.602385     |  4.131136          |
+| legacy            | 0.865683      |  3.911896          |
+| fastCover(opt)    | 9.404134      |  3.977229          |
+| fastCover(k=200)  | 1.037434      |  3.810326          |
 
 hg-changelog
-| Algorithm     | Speed(sec)    | Compression Ratio  |
-| ------------- |:-------------:| ------------------:|
-| nodict        | 0.000004      |  1.377613          |
-| random        | 0.621812      |  2.096785          |
-| cover         | 217.510962    |  2.188654          |
-| legacy        | 2.559194      |  2.058273          |
-| fastCover     | 51.132516     |  2.124185          |
+| Algorithm         | Speed(sec)    | Compression Ratio  |
+| ----------------- |:-------------:| ------------------:|
+| nodict            | 0.000022      |  1.377613          |
+| random            | 0.551539      |  2.096785          |
+| cover             | 221.370056    |  2.188654          |
+| legacy            | 2.405923      |  2.058273          |
+| fastCover(opt)    | 49.526246     |  2.124185          |
+| fastCover(k=200)  | 9.746872      |  2.114674          |
 
 hg-manifest
-| Algorithm     | Speed(sec)    | Compression Ratio  |
-| ------------- |:-------------:| ------------------:|
-| nodict        | 0.000005      |  1.866385          |
-| random        | 1.035220      |  2.309485          |
-| cover         | 930.480173    |  2.582597          |
-| legacy        | 8.916513      |  2.506775          |
-| fastCover     | 116.871089    |  2.525689          |
+| Algorithm         | Speed(sec)    | Compression Ratio  |
+| ----------------- |:-------------:| ------------------:|
+| nodict            | 0.000019      |  1.866385          |
+| random            | 1.083536      |  2.309485          |
+| cover             | 928.894887    |  2.582597          |
+| legacy            | 9.110371      |  2.506775          |
+| fastCover(opt)    | 116.508270    |  2.525689          |
+| fastCover(k=200)  | 12.176555     |  2.472221          |

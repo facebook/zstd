@@ -373,7 +373,8 @@ int main(int argCount, const char* argv[])
     }
   }
 
-  /* for fastCover */
+
+  /* for fastCover (optimizing k) */
   {
     ZDICT_fastCover_params_t fastParam;
     memset(&fastParam, 0, sizeof(fastParam));
@@ -389,6 +390,25 @@ int main(int argCount, const char* argv[])
       goto _cleanup;
     }
   }
+
+  /* for fastCover (with k provided) */
+  {
+    ZDICT_fastCover_params_t fastParam;
+    memset(&fastParam, 0, sizeof(fastParam));
+    fastParam.zParams = zParams;
+    fastParam.splitPoint = 1.0;
+    fastParam.d = 8;
+    fastParam.f = 23;
+    fastParam.k = 200;
+    fastParam.steps = 40;
+    fastParam.nbThreads = 1;
+    const int fastOptResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, NULL, NULL, &fastParam);
+    if(fastOptResult) {
+      result = 1;
+      goto _cleanup;
+    }
+  }
+
 
   /* Free allocated memory */
 _cleanup:

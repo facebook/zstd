@@ -11,4 +11,5 @@ echo "Removing dict1 dict2 dict3"
 rm -f dict1 dict2 dict3
 
 echo "Testing with invalid parameters, should fail"
-! ./main r=10
+! ./main in=../../../lib/common r=10
+! ./main in=../../../lib/common d=10

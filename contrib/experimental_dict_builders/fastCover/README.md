@@ -6,7 +6,7 @@ Output Dictionary (out=dictName): if not provided, default to fastCoverDict
 Dictionary ID (dictID=#): nonnegative number; if not provided, default to 0
 Maximum Dictionary Size (maxdict=#): positive number; in bytes, if not provided, default to 110KB
 Size of Selected Segment (k=#): positive number; in bytes; if not provided, default to 200
-Size of Dmer (d=#): positive number; in bytes; if not provided, default to 8
+Size of Dmer (d=#): either 6 or 8; if not provided, default to 8
 Number of steps (steps=#): positive number, if not provided, default to 32
 Percentage of samples used for training(split=#): positive number; if not provided, default to 100
 

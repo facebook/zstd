@@ -50,14 +50,21 @@ static clock_t g_time = 0;
 /*-*************************************
 * Hash Function
 ***************************************/
+static const U64 prime6bytes = 227718039650203ULL;
+static size_t ZSTD_hash6(U64 u, U32 h) { return (size_t)(((u  << (64-48)) * prime6bytes) >> (64-h)) ; }
+static size_t ZSTD_hash6Ptr(const void* p, U32 h) { return ZSTD_hash6(MEM_readLE64(p), h); }
+
 static const U64 prime8bytes = 0xCF1BBCDCB7A56463ULL;
 static size_t ZSTD_hash8(U64 u, U32 h) { return (size_t)(((u) * prime8bytes) >> (64-h)) ; }
 static size_t ZSTD_hash8Ptr(const void* p, U32 h) { return ZSTD_hash8(MEM_readLE64(p), h); }
 
 /**
- * Hash the 8-byte value pointed to by p and mod 2^f
+ * Hash the d-byte value pointed to by p and mod 2^f
  */
-static size_t FASTCOVER_hash8PtrToIndex(const void* p, U32 h) {
+static size_t FASTCOVER_hashPtrToIndex(const void* p, U32 h, unsigned d) {
+  if (d == 6) {
+    return ZSTD_hash6Ptr(p, h) & ((1 << h) - 1);
+  }
   return ZSTD_hash8Ptr(p, h) & ((1 << h) - 1);
 }
 
@@ -138,7 +145,7 @@ static FASTCOVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
    */
   while (activeSegment.end < end) {
     /* Get hash value of current dmer  */
-    const size_t index = FASTCOVER_hash8PtrToIndex(ctx->samples + activeSegment.end, parameters.f);
+    const size_t index = FASTCOVER_hashPtrToIndex(ctx->samples + activeSegment.end, parameters.f, ctx->d);
     /* Add frequency of this index to score */
     activeSegment.score += freqs[index];
     /* Increment end of segment */
@@ -146,7 +153,7 @@ static FASTCOVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
     /* If the window is now too large, drop the first position */
     if (activeSegment.end - activeSegment.begin == dmersInK + 1) {
       /* Get hash value of the dmer to be eliminated from active segment */
-      const size_t delIndex = FASTCOVER_hash8PtrToIndex(ctx->samples + activeSegment.begin, parameters.f);
+      const size_t delIndex = FASTCOVER_hashPtrToIndex(ctx->samples + activeSegment.begin, parameters.f, ctx->d);
       /* Subtract frequency of this index from score */
       activeSegment.score -= freqs[delIndex];
       /* Increment start of segment */
@@ -163,7 +170,7 @@ static FASTCOVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
     U32 newEnd = bestSegment.begin;
     U32 pos;
     for (pos = bestSegment.begin; pos != bestSegment.end; ++pos) {
-      const size_t index = FASTCOVER_hash8PtrToIndex(ctx->samples + pos, parameters.f);
+      const size_t index = FASTCOVER_hashPtrToIndex(ctx->samples + pos, parameters.f, ctx->d);
       U32 freq = freqs[index];
       if (freq != 0) {
         newBegin = MIN(newBegin, pos);
@@ -177,7 +184,7 @@ static FASTCOVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
     /* Half the frequency of hash value of each dmer covered by the chosen segment. */
     U32 pos;
     for (pos = bestSegment.begin; pos != bestSegment.end; ++pos) {
-      const size_t i = FASTCOVER_hash8PtrToIndex(ctx->samples + pos, parameters.f);
+      const size_t i = FASTCOVER_hashPtrToIndex(ctx->samples + pos, parameters.f, ctx->d);
       freqs[i] = freqs[i]/2;
     }
   }
@@ -192,6 +199,10 @@ static int FASTCOVER_checkParameters(ZDICT_fastCover_params_t parameters,
                                  size_t maxDictSize) {
   /* k, d, and f are required parameters */
   if (parameters.d == 0 || parameters.k == 0 || parameters.f == 0) {
+    return 0;
+  }
+  /* d has to be 6 or 8 */
+  if (parameters.d != 6 && parameters.d != 8) {
     return 0;
   }
   /* 0 < f <= FASTCOVER_MAX_F */
@@ -244,7 +255,7 @@ static void FASTCOVER_getFrequency(U32 *freqs, unsigned f, FASTCOVER_ctx_t *ctx)
     size_t currSampleEnd = ctx->offsets[i+1];
     start = currSampleStart;
     while (start + f < currSampleEnd) {
-      const size_t dmerIndex = FASTCOVER_hash8PtrToIndex(ctx->samples + start, f);
+      const size_t dmerIndex = FASTCOVER_hashPtrToIndex(ctx->samples + start, f, ctx->d);
       /* if no dmer with same hash value has been seen in current sample */
       if (inCurrSample[dmerIndex] == 0) {
         inCurrSample[dmerIndex]++;
@@ -615,7 +626,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_fastCover(
     const unsigned nbThreads = parameters->nbThreads;
     const double splitPoint =
         parameters->splitPoint <= 0.0 ? DEFAULT_SPLITPOINT : parameters->splitPoint;
-    const unsigned kMinD = parameters->d == 0 ? 8 : parameters->d;
+    const unsigned kMinD = parameters->d == 0 ? 6 : parameters->d;
     const unsigned kMaxD = parameters->d == 0 ? 8 : parameters->d;
     const unsigned kMinK = parameters->k == 0 ? 50 : parameters->k;
     const unsigned kMaxK = parameters->k == 0 ? 2000 : parameters->k;

@@ -149,7 +149,7 @@ int main(int argCount, const char* argv[])
   params.zParams = zParams;
   params.k = k;
 
-  sampleInfo* info= getSampleInfo(filenameTable,
+  sampleInfo* info = getSampleInfo(filenameTable,
                     filenameIdx, blockSize, maxDictSize, zParams.notificationLevel);
   operationResult = RANDOM_trainFromFiles(outputFile, info, maxDictSize, &params);
 

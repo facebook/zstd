@@ -2079,7 +2079,9 @@ static ZSTD_compressionParameters maskParams(ZSTD_compressionParameters base, ZS
     return base;
 }
 
+/* experiment with playing with this and decay value */
 #define MAX_TRIES 8
+#define TRY_DECAY 3
 /* main fn called when using --optimize */
 /* Does strategy selection by benchmarking default compression levels
  * then optimizes by strategy, starting with the best one and moving 
@@ -2092,6 +2094,7 @@ static ZSTD_compressionParameters maskParams(ZSTD_compressionParameters base, ZS
  * paramTarget - parameter constraints (i.e. restriction search space to where strategy = ZSTD_fast)
  * cLevel - compression level to exceed (all solutions must be > lvl in cSpeed + ratio)
  */
+
 static int optimizeForSize(const char* const * const fileNamesTable, const size_t nbFiles, const char* dictFileName, constraint_t target, ZSTD_compressionParameters paramTarget, int cLevel)
 {
     varInds_t varArray [NUM_PARAMS];
@@ -2202,7 +2205,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
             /* strategy selection */
             const int maxSeeds = g_noSeed ? 1 : ZSTD_maxCLevel();
             DEBUGOUTPUT("Strategy Selection\n");
-            if(paramTarget.strategy == 0) { /* no variable based constraints */  
+            if(paramTarget.strategy == 0) {
                 BMK_result_t candidate;
                 int i;
                 for (i=1; i<=maxSeeds; i++) {
@@ -2215,6 +2218,11 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
                     if(!ec && compareResultLT(winner.result, candidate, relaxTarget(target), buf.srcSize)) {
                         winner.result = candidate;
                         winner.params = CParams;
+                    }
+
+                    /* if the current params are too slow, just stop. */
+                    if(target.cSpeed != 0 && target.cSpeed > winner.result.cSpeed / 2) {
+                        break;
                     }
                 }
             }
@@ -2248,7 +2256,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
                     }
 
                     st = nextStrategy(st, bestStrategy);
-                    tries--;
+                    tries -= TRY_DECAY;
                 }
             } else {
                 winner = optimizeFixedStrategy(buf, ctx, target, paramTarget, paramTarget.strategy, 

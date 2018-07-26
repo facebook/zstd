@@ -165,7 +165,7 @@ int main(int argCount, const char* argv[])
   params.splitPoint = (double)split/100;
 
   /* Build dictionary */
-  sampleInfo* info= getSampleInfo(filenameTable,
+  sampleInfo* info = getSampleInfo(filenameTable,
                     filenameIdx, blockSize, maxDictSize, zParams.notificationLevel);
   operationResult = FASTCOVER_trainFromFiles(outputFile, info, maxDictSize, &params);
 

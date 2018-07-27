@@ -292,7 +292,7 @@ static unsigned parseCoverParameters(const char* stringPtr, ZDICT_cover_params_t
         return 0;
     }
     if (stringPtr[0] != 0) return 0;
-    DISPLAYLEVEL(4, "cover: k=%u\nd=%u\nsteps=%u\nsplit=%u\nlimit=%lu\n", params->k, params->d, params->steps, (unsigned)(params->splitPoint * 100), params->splitLimit);
+    DISPLAYLEVEL(4, "cover: k=%u\nd=%u\nsteps=%u\nsplit=%u\nlimit=%u\n", params->k, params->d, params->steps, (unsigned)(params->splitPoint * 100), (unsigned)params->splitLimit);
     return 1;
 }
 

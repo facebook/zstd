@@ -9,7 +9,7 @@ IO_FILE := ../randomDictBuilder/io.c
 TEST_INPUT := ../../../lib
 TEST_OUTPUT := fastCoverDict
 
-all: main run
+all: main run clean
 
 .PHONY: test
 test: main testrun testshell clean

@@ -139,8 +139,9 @@ struct ll_node {
 static ll_node* g_winners; /* linked list sorted ascending by cSize & cSpeed */
 static BMK_result_t g_lvltarget;
 
-/* range 0 - 99 */
-static U32 g_strictness = 99;
+/* range 0 - 99, measure of how strict  */
+#define DEFAULT_STRICTNESS 99999
+static U32 g_strictness = DEFAULT_STRICTNESS;
 
 void BMK_SetNbIterations(int nbLoops)
 {
@@ -318,8 +319,8 @@ static int compareResultLT(const BMK_result_t result1, const BMK_result_t result
 
 static constraint_t relaxTarget(constraint_t target) {
     target.cMem = (U32)-1;
-    target.cSpeed *= ((double)(g_strictness + 1) / 100); 
-    target.dSpeed *= ((double)(g_strictness + 1) / 100);
+    target.cSpeed *= ((double)(g_strictness) / 100); 
+    target.dSpeed *= ((double)(g_strictness) / 100);
     return target;
 }
 
@@ -2080,8 +2081,7 @@ static ZSTD_compressionParameters maskParams(ZSTD_compressionParameters base, ZS
 }
 
 /* experiment with playing with this and decay value */
-#define MAX_TRIES 8
-#define TRY_DECAY 3
+
 /* main fn called when using --optimize */
 /* Does strategy selection by benchmarking default compression levels
  * then optimizes by strategy, starting with the best one and moving 
@@ -2094,6 +2094,9 @@ static ZSTD_compressionParameters maskParams(ZSTD_compressionParameters base, ZS
  * paramTarget - parameter constraints (i.e. restriction search space to where strategy = ZSTD_fast)
  * cLevel - compression level to exceed (all solutions must be > lvl in cSpeed + ratio)
  */
+
+#define MAX_TRIES 3
+#define TRY_DECAY 1
 
 static int optimizeForSize(const char* const * const fileNamesTable, const size_t nbFiles, const char* dictFileName, constraint_t target, ZSTD_compressionParameters paramTarget, int cLevel)
 {
@@ -2164,6 +2167,21 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
         goto _cleanUp;
     }
  
+    /* default strictness = Maximum for */
+    if(g_strictness == DEFAULT_STRICTNESS) {
+        if(cLevel) {
+            g_strictness = 99;
+        } else {
+            g_strictness = 90;
+        }
+    } else {
+        if(0 >= g_strictness || g_strictness > 100) {
+            DISPLAY("Strictness Outside of Bounds\n");
+            ret = 4;
+            goto _cleanUp;
+        }
+    }
+
     /* use level'ing mode instead of normal target mode */
     if(cLevel) {
         winner.params = ZSTD_getCParams(cLevel, maxBlockSize, ctx.dictSize);
@@ -2177,8 +2195,8 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
         g_targetConstraints = target;
 
         g_lvltarget = winner.result; 
-        g_lvltarget.cSpeed *= ((double)(g_strictness + 1) / 100);
-        g_lvltarget.cSize /= ((double)(g_strictness + 1) / 100);
+        g_lvltarget.cSpeed *= ((double)(g_strictness) / 100);
+        g_lvltarget.cSize /= ((double)(g_strictness) / 100);
 
         BMK_printWinnerOpt(stdout, cLevel, winner.result, winner.params, target, buf.srcSize);
     }
@@ -2199,6 +2217,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
 
     {   
         varInds_t varNew[NUM_PARAMS];
+        ZSTD_compressionParameters CParams;
 
         /* find best solution from default params */
         {
@@ -2210,8 +2229,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
                 int i;
                 for (i=1; i<=maxSeeds; i++) {
                     int ec;
-                    ZSTD_compressionParameters CParams = ZSTD_getCParams(i, maxBlockSize, ctx.dictSize);
-                    CParams = maskParams(CParams, paramTarget);
+                    CParams = maskParams(ZSTD_getCParams(i, maxBlockSize, ctx.dictSize), paramTarget);
                     ec = BMK_benchParam(&candidate, buf, ctx, CParams);
                     BMK_printWinnerOpt(stdout, i, candidate, CParams, target, buf.srcSize);
 
@@ -2221,9 +2239,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
                     }
 
                     /* if the current params are too slow, just stop. */
-                    if(target.cSpeed != 0 && target.cSpeed > winner.result.cSpeed / 2) {
-                        break;
-                    }
+                    if(target.cSpeed > candidate.cSpeed * 2) { break; }
                 }
             }
         }
@@ -2239,6 +2255,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
                 int tries = MAX_TRIES;
 
                 { 
+                    /* one iterations of hill climbing with the level-defined parameters. */
                     int varLenNew = sanitizeVarArray(varNew, varLen, varArray, st);
                     winnerInfo_t w1 = climbOnce(target, varNew, varLenNew, allMT[st], 
                         buf, ctx, winner.params);
@@ -2247,16 +2264,19 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
                     }
                 }
 
-                while(st && tries) {
+                while(st && tries > 0) {
                     DEBUGOUTPUT("StrategySwitch: %s\n", g_stratName[st]);
                     winnerInfo_t wc = optimizeFixedStrategy(buf, ctx, target, paramTarget, 
                         st, varArray, varLen, allMT[st], tries);
+
                     if(compareResultLT(winner.result, wc.result, target, buf.srcSize)) {
                         winner = wc;
+                        tries = MAX_TRIES;
+                        bestStrategy = st;
+                    } else {
+                        st = nextStrategy(st, bestStrategy);
+                        tries -= TRY_DECAY;
                     }
-
-                    st = nextStrategy(st, bestStrategy);
-                    tries -= TRY_DECAY;
                 }
             } else {
                 winner = optimizeFixedStrategy(buf, ctx, target, paramTarget, paramTarget.strategy, 

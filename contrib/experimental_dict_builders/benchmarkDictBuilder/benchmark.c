@@ -5,7 +5,6 @@
 #include <ctype.h>
 #include <time.h>
 #include "random.h"
-#include "fastCover.h"
 #include "dictBuilder.h"
 #include "zstd_internal.h" /* includes zstd.h */
 #include "io.h"
@@ -72,11 +71,10 @@ typedef struct {
  */
 dictInfo* createDictFromFiles(sampleInfo *info, unsigned maxDictSize,
                   ZDICT_random_params_t *randomParams, ZDICT_cover_params_t *coverParams,
-                  ZDICT_legacy_params_t *legacyParams, ZDICT_fastCover_params_t *fastParams) {
+                  ZDICT_legacy_params_t *legacyParams) {
     unsigned const displayLevel = randomParams ? randomParams->zParams.notificationLevel :
                                   coverParams ? coverParams->zParams.notificationLevel :
                                   legacyParams ? legacyParams->zParams.notificationLevel :
-                                  fastParams ? fastParams->zParams.notificationLevel :
                                   DEFAULT_DISPLAYLEVEL;   /* no dict */
     void* const dictBuffer = malloc(maxDictSize);
 
@@ -96,9 +94,6 @@ dictInfo* createDictFromFiles(sampleInfo *info, unsigned maxDictSize,
         } else if(legacyParams) {
           dictSize = ZDICT_trainFromBuffer_legacy(dictBuffer, maxDictSize, info->srcBuffer,
                                                info->samplesSizes, info->nbSamples, *legacyParams);
-        } else if(fastParams) {
-          dictSize = ZDICT_optimizeTrainFromBuffer_fastCover(dictBuffer, maxDictSize, info->srcBuffer,
-                                                info->samplesSizes, info->nbSamples, fastParams);
         } else {
           dictSize = 0;
         }
@@ -221,29 +216,25 @@ void freeDictInfo(dictInfo* info) {
  *  @return 0 if benchmark successfully, 1 otherwise
  */
 int benchmarkDictBuilder(sampleInfo *srcInfo, unsigned maxDictSize, ZDICT_random_params_t *randomParam,
-                        ZDICT_cover_params_t *coverParam, ZDICT_legacy_params_t *legacyParam,
-                        ZDICT_fastCover_params_t *fastParam) {
+                        ZDICT_cover_params_t *coverParam, ZDICT_legacy_params_t *legacyParam) {
   /* Local variables */
   const unsigned displayLevel = randomParam ? randomParam->zParams.notificationLevel :
                                 coverParam ? coverParam->zParams.notificationLevel :
                                 legacyParam ? legacyParam->zParams.notificationLevel :
-                                fastParam ? fastParam->zParams.notificationLevel:
                                 DEFAULT_DISPLAYLEVEL;   /* no dict */
   const char* name = randomParam ? "RANDOM" :
                     coverParam ? "COVER" :
                     legacyParam ? "LEGACY" :
-                    fastParam ? "FAST":
                     "NODICT";    /* no dict */
   const unsigned cLevel = randomParam ? randomParam->zParams.compressionLevel :
                           coverParam ? coverParam->zParams.compressionLevel :
                           legacyParam ? legacyParam->zParams.compressionLevel :
-                          fastParam ? fastParam->zParams.compressionLevel:
                           DEFAULT_CLEVEL;   /* no dict */
   int result = 0;
 
   /* Calculate speed */
   const UTIL_time_t begin = UTIL_getTime();
-  dictInfo* dInfo = createDictFromFiles(srcInfo, maxDictSize, randomParam, coverParam, legacyParam, fastParam);
+  dictInfo* dInfo = createDictFromFiles(srcInfo, maxDictSize, randomParam, coverParam, legacyParam);
   const U64 timeMicro = UTIL_clockSpanMicro(begin);
   const double timeSec = timeMicro / (double)SEC_TO_MICRO;
   if (!dInfo) {
@@ -277,8 +268,8 @@ int main(int argCount, const char* argv[])
   int result = 0;
 
   /* Initialize arguments to default values */
-  unsigned k = 200;
-  unsigned d = 8;
+  const unsigned k = 200;
+  const unsigned d = 6;
   const unsigned cLevel = DEFAULT_CLEVEL;
   const unsigned dictID = 0;
   const unsigned maxDictSize = g_defaultMaxDictSize;
@@ -328,7 +319,7 @@ int main(int argCount, const char* argv[])
 
   /* with no dict */
   {
-    const int noDictResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, NULL, NULL, NULL);
+    const int noDictResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, NULL, NULL);
     if(noDictResult) {
       result = 1;
       goto _cleanup;
@@ -340,22 +331,8 @@ int main(int argCount, const char* argv[])
     ZDICT_random_params_t randomParam;
     randomParam.zParams = zParams;
     randomParam.k = k;
-    const int randomResult = benchmarkDictBuilder(srcInfo, maxDictSize, &randomParam, NULL, NULL, NULL);
-    DISPLAYLEVEL(2, "k=%u\n", randomParam.k);
+    const int randomResult = benchmarkDictBuilder(srcInfo, maxDictSize, &randomParam, NULL, NULL);
     if(randomResult) {
-      result = 1;
-      goto _cleanup;
-    }
-  }
-
-  /* for legacy */
-  {
-    ZDICT_legacy_params_t legacyParam;
-    legacyParam.zParams = zParams;
-    legacyParam.selectivityLevel = 9;
-    const int legacyResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, NULL, &legacyParam, NULL);
-    DISPLAYLEVEL(2, "selectivityLevel=%u\n", legacyParam.selectivityLevel);
-    if(legacyResult) {
       result = 1;
       goto _cleanup;
     }
@@ -367,81 +344,27 @@ int main(int argCount, const char* argv[])
     memset(&coverParam, 0, sizeof(coverParam));
     coverParam.zParams = zParams;
     coverParam.splitPoint = 1.0;
+    coverParam.d = d;
     coverParam.steps = 40;
     coverParam.nbThreads = 1;
-    const int coverOptResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, &coverParam, NULL, NULL);
-    DISPLAYLEVEL(2, "k=%u\nd=%u\nsteps=%u\nsplit=%u\n", coverParam.k, coverParam.d, coverParam.steps, (unsigned)(coverParam.splitPoint * 100));
+    const int coverOptResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, &coverParam, NULL);
     if(coverOptResult) {
       result = 1;
       goto _cleanup;
     }
+  }
 
-    k = coverParam.k;
-    d = coverParam.d;
-
-    /* for COVER with k and d provided */
-    ZDICT_cover_params_t covernParam;
-    memset(&covernParam, 0, sizeof(covernParam));
-    covernParam.zParams = zParams;
-    covernParam.splitPoint = 1.0;
-    covernParam.steps = 40;
-    covernParam.nbThreads = 1;
-    covernParam.k = k;
-    covernParam.d = d;
-    const int coverResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, &covernParam, NULL, NULL);
-    DISPLAYLEVEL(2, "k=%u\nd=%u\nsteps=%u\nsplit=%u\n", covernParam.k, covernParam.d, covernParam.steps, (unsigned)(covernParam.splitPoint * 100));
-    if(coverResult) {
+  /* for legacy */
+  {
+    ZDICT_legacy_params_t legacyParam;
+    legacyParam.zParams = zParams;
+    legacyParam.selectivityLevel = 9;
+    const int legacyResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, NULL, &legacyParam);
+    if(legacyResult) {
       result = 1;
       goto _cleanup;
     }
   }
-
-  /* for fastCover */
-  for (unsigned f = 15; f < 25; f++){
-    DISPLAYLEVEL(2, "current f is %u\n", f);
-    /* for fastCover (optimizing k and d) */
-    {
-      ZDICT_fastCover_params_t fastParam;
-      memset(&fastParam, 0, sizeof(fastParam));
-      fastParam.zParams = zParams;
-      fastParam.splitPoint = 1.0;
-      fastParam.f = f;
-      fastParam.steps = 40;
-      fastParam.nbThreads = 1;
-      const int fastOptResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, NULL, NULL, &fastParam);
-      DISPLAYLEVEL(2, "k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\n", fastParam.k, fastParam.d, fastParam.f, fastParam.steps, (unsigned)(fastParam.splitPoint * 100));
-      if(fastOptResult) {
-        result = 1;
-        goto _cleanup;
-      }
-
-      k = fastParam.k;
-      d = fastParam.d;
-    }
-
-
-    /* for fastCover (with k and d provided) */
-    {
-      ZDICT_fastCover_params_t fastParam;
-      memset(&fastParam, 0, sizeof(fastParam));
-      fastParam.zParams = zParams;
-      fastParam.splitPoint = 1.0;
-      fastParam.d = d;
-      fastParam.f = f;
-      fastParam.k = k;
-      fastParam.steps = 40;
-      fastParam.nbThreads = 1;
-      const int fastOptResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, NULL, NULL, &fastParam);
-      DISPLAYLEVEL(2, "k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\n", fastParam.k, fastParam.d, fastParam.f, fastParam.steps, (unsigned)(fastParam.splitPoint * 100));
-      if(fastOptResult) {
-        result = 1;
-        goto _cleanup;
-      }
-    }
-  }
-
-
-
 
   /* Free allocated memory */
 _cleanup:

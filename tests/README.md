@@ -111,9 +111,11 @@ Full list of arguments
     cSpeed= - Minimum compression speed
     dSpeed= - Minimum decompression speed
     cMem= - compression memory
-    lvl= - Automatically sets compression speed constraint to the speed of that level
-    stc= - In lvl mode, represents slack in ratio/cSpeed allowed for a solution to be considered
+    lvl= - Searches for solutions which are strictly better than that compression lvl in ratio and cSpeed, 
+    stc= - When invoked with lvl=, represents slack in ratio/cSpeed allowed for a solution to be considered
          - In normal operation, represents slack in strategy selection in choosing the default parameters
+    prefer[Speed/Ratio]= - Only affects lvl= invocations. Defines value placed on compression speed or ratio
+          when determining overall winner (default 1 for both).
  --optimize=  : same as -O with more verbose syntax 
  -P#          : generated sample compressibility 
  -t#          : Caps runtime of operation in seconds (default : 99999 seconds (about 27 hours )) 

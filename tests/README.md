@@ -112,6 +112,9 @@ Full list of arguments
     dSpeed= - Minimum decompression speed
     cMem= - compression memory
     lvl= - Automatically sets compression speed constraint to the speed of that level
+    stc= - In lvl mode, represents slack in ratio/cSpeed allowed for a solution to be considered
+         - In normal operation, represents slack in strategy selection in choosing the default parameters
+ --optimize=  : same as -O with more verbose syntax 
  -P#          : generated sample compressibility 
  -t#          : Caps runtime of operation in seconds (default : 99999 seconds (about 27 hours )) 
  -v           : Prints Benchmarking output

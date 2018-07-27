@@ -267,7 +267,7 @@ static void FASTCOVER_computeFrequency(U32 *freqs, unsigned f, FASTCOVER_ctx_t *
     size_t currSampleStart = ctx->offsets[i];
     size_t currSampleEnd = ctx->offsets[i+1];
     start = currSampleStart;
-    while (start + f < currSampleEnd) {
+    while (start + ctx->d <= currSampleEnd) {
       const size_t dmerIndex = FASTCOVER_hashPtrToIndex(ctx->samples + start, f, ctx->d);
       /* if no dmer with same hash value has been seen in current sample */
       if (inCurrSample[dmerIndex] == 0) {

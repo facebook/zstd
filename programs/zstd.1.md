@@ -223,12 +223,13 @@ Compression of small files similar to the sample set will be greatly improved.
     This compares favorably to 4 bytes default.
     However, it's up to the dictionary manager to not assign twice the same ID to
     2 different dictionaries.
-* `--train-cover[=k#,d=#,steps=#,split=#]`:
+* `--train-cover[=k#,d=#,steps=#,split=#,limit=#]`:
     Select parameters for the default dictionary builder algorithm named cover.
     If _d_ is not specified, then it tries _d_ = 6 and _d_ = 8.
     If _k_ is not specified, then it tries _steps_ values in the range [50, 2000].
     If _steps_ is not specified, then the default value of 40 is used.
     If _split_ is not specified or split <= 0, then the default value of 100 is used.
+    If _limit_ is not specified or limit == 0, then the default value of 512 * maxDictSize is used.
     Requires that _d_ <= _k_.
 
     Selects segments of size _k_ with highest score to put in the dictionary.
@@ -238,8 +239,11 @@ Compression of small files similar to the sample set will be greatly improved.
     algorithm will run faster with d <= _8_.
     Good values for _k_ vary widely based on the input data, but a safe range is
     [2 * _d_, 2000].
-    If _split_ is 100, all input samples are used for both training and testing
+    If _split_ is 100, the same input samples are used for both training and testing
     to find optimal _d_ and _k_ to build dictionary.
+    If training sample size exceeds _limit_, the first i samples summing up to
+    _limit_ are used for training and the rest are used for testing (when _split_ is not 100)
+    or the same first i samples are used for testing (when _split_ is 100)
     Supports multithreading if `zstd` is compiled with threading support.
 
     Examples:
@@ -252,7 +256,7 @@ Compression of small files similar to the sample set will be greatly improved.
 
     `zstd --train-cover=k=50 FILEs`
 
-    `zstd --train-cover=k=50,split=60 FILEs`
+    `zstd --train-cover=k=50,split=60,limit=524288 FILEs`
 
 * `--train-legacy[=selectivity=#]`:
     Use legacy dictionary builder algorithm with the given dictionary

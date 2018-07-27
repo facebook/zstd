@@ -125,15 +125,13 @@ typedef struct {
     U32 cMem;    /* bytes */    
 } constraint_t;
 
-static constraint_t g_targetConstraints; 
-
-typedef struct ll_node ll_node;
-struct ll_node {
+typedef struct winner_ll_node winner_ll_node;
+struct winner_ll_node {
     winnerInfo_t res;
-    ll_node* next;
+    winner_ll_node* next;
 };
 
-static ll_node* g_winners; /* linked list sorted ascending by cSize & cSpeed */
+static winner_ll_node* g_winners; /* linked list sorted ascending by cSize & cSpeed */
 static BMK_result_t g_lvltarget;
 static int g_optmode = 0;
 
@@ -323,8 +321,8 @@ static int compareResultLT(const BMK_result_t result1, const BMK_result_t result
 
 static constraint_t relaxTarget(constraint_t target) {
     target.cMem = (U32)-1;
-    target.cSpeed *= ((double)(g_strictness) / 100); 
-    target.dSpeed *= ((double)(g_strictness) / 100);
+    target.cSpeed *= ((double)g_strictness) / 100; 
+    target.dSpeed *= ((double)g_strictness) / 100;
     return target;
 }
 
@@ -855,20 +853,19 @@ static int speedSizeCompare(BMK_result_t r1, BMK_result_t r2) {
         return SPEED_RESULT; /* r2 is faster but not smaller */
     }
 }
-/* assumes candidate is already strictly better than old winner. */
-/* 0 for success, 1 for no insert */
-/* indicate whether inserted as well? */
+
+/* 0 for insertion, 1 for no insert */
 /* maintain invariant speedSizeCompare(n, n->next) = SPEED_RESULT */
-static int insertWinner(winnerInfo_t w) {
+static int insertWinner(winnerInfo_t w, constraint_t targetConstraints) {
     BMK_result_t r = w.result;
-    ll_node* cur_node = g_winners;
+    winner_ll_node* cur_node = g_winners;
     /* first node to insert */
-    if(!feasible(r, g_targetConstraints)) {
+    if(!feasible(r, targetConstraints)) {
         return 1;
     }
 
     if(g_winners == NULL) {
-        ll_node* first_node = malloc(sizeof(ll_node));
+        winner_ll_node* first_node = malloc(sizeof(winner_ll_node));
         if(first_node == NULL) {
             return 1;
         }
@@ -886,7 +883,7 @@ static int insertWinner(winnerInfo_t w) {
             }
             case WORSE_RESULT:
             {
-                ll_node* tmp;
+                winner_ll_node* tmp;
                 cur_node->res = cur_node->next->res;
                 tmp = cur_node->next;
                 cur_node->next = cur_node->next->next;
@@ -900,7 +897,7 @@ static int insertWinner(winnerInfo_t w) {
             }
             case SIZE_RESULT: /* insert after first size result, then return */
             {
-                ll_node* newnode = malloc(sizeof(ll_node));
+                winner_ll_node* newnode = malloc(sizeof(winner_ll_node));
                 if(newnode == NULL) {
                     return 1;
                 }
@@ -927,7 +924,7 @@ static int insertWinner(winnerInfo_t w) {
         }
         case SPEED_RESULT:
         {
-            ll_node* newnode = malloc(sizeof(ll_node));
+            winner_ll_node* newnode = malloc(sizeof(winner_ll_node));
             if(newnode == NULL) {
                 return 1;
             }
@@ -938,7 +935,7 @@ static int insertWinner(winnerInfo_t w) {
         }
         case SIZE_RESULT: /* insert before first size result, then return */
         {
-            ll_node* newnode = malloc(sizeof(ll_node));
+            winner_ll_node* newnode = malloc(sizeof(winner_ll_node));
             if(newnode == NULL) {
                 return 1;
             }
@@ -961,7 +958,7 @@ static void BMK_printWinner(FILE* f, const U32 cLevel, const BMK_result_t result
     const U64 time = UTIL_clockSpanNano(g_time);
     const U64 minutes = time / (60ULL * TIMELOOP_NANOSEC);
 
-    DISPLAY("\r%79s\r", "");
+    fprintf(f, "\r%79s\r", "");
 
     fprintf(f,"    {%3u,%3u,%3u,%3u,%3u,%3u, %s },  ",
         params.windowLog, params.chainLog, params.hashLog, params.searchLog, params.searchLength,
@@ -1001,10 +998,10 @@ static void BMK_printWinnerOpt(FILE* f, const U32 cLevel, const BMK_result_t res
     //prints out tradeoff table if using lvl
     if(g_optmode && g_optimizer) {
         winnerInfo_t w;
-        ll_node* n;
+        winner_ll_node* n;
         w.result = result;
         w.params = params;
-        insertWinner(w);
+        insertWinner(w, targetConstraints);
 
         if(!DEBUG) { fprintf(f, "\033c"); }
         fprintf(f, "\n"); 
@@ -1012,7 +1009,7 @@ static void BMK_printWinnerOpt(FILE* f, const U32 cLevel, const BMK_result_t res
         /* the table */
         fprintf(f, "================================\n");
         for(n = g_winners; n != NULL; n = n->next) {
-            DISPLAY("\r%79s\r", "");
+            fprintf(f, "\r%79s\r", "");
 
             fprintf(f,"    {%3u,%3u,%3u,%3u,%3u,%3u, %s },  ",
                 n->res.params.windowLog, n->res.params.chainLog, n->res.params.hashLog, n->res.params.searchLog, n->res.params.searchLength,
@@ -1045,6 +1042,12 @@ static void BMK_printWinnerOpt(FILE* f, const U32 cLevel, const BMK_result_t res
             (double)srcSize / result.cSize, (double)result.cSpeed / (1 MB), (double)result.dSpeed / (1 MB));
 
     }
+
+#if 0
+    if(BMK_timeSpan(g_time) > g_grillDuration_s) {
+        exit(0);
+    }
+#endif
 }
 
 static void BMK_printWinners2(FILE* f, const winnerInfo_t* winners, size_t srcSize)
@@ -2097,7 +2100,7 @@ static ZSTD_compressionParameters maskParams(ZSTD_compressionParameters base, ZS
  * cLevel - compression level to exceed (all solutions must be > lvl in cSpeed + ratio)
  */
 
-#define MAX_TRIES 5
+static int g_maxTries = 5;
 #define TRY_DECAY 1
 
 static int optimizeForSize(const char* const * const fileNamesTable, const size_t nbFiles, const char* dictFileName, constraint_t target, ZSTD_compressionParameters paramTarget, int cLevel)
@@ -2185,20 +2188,21 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
     }
 
     /* use level'ing mode instead of normal target mode */
+    /* Should lvl be parameter-masked here? */
     if(g_optmode) {
         winner.params = ZSTD_getCParams(cLevel, maxBlockSize, ctx.dictSize);
         if(BMK_benchParam(&winner.result, buf, ctx, winner.params)) {
             ret = 3;
             goto _cleanUp;
         }
-
-        target.cSpeed = (U32)winner.result.cSpeed;
-
-        g_targetConstraints = target;
-
+ 
         g_lvltarget = winner.result; 
-        g_lvltarget.cSpeed *= ((double)(g_strictness) / 100);
-        g_lvltarget.cSize /= ((double)(g_strictness) / 100);
+        g_lvltarget.cSpeed *= ((double)g_strictness) / 100;
+        g_lvltarget.dSpeed *= ((double)g_strictness) / 100;
+        g_lvltarget.cSize /= ((double)g_strictness) / 100;
+
+        target.cSpeed = (U32)g_lvltarget.cSpeed;  
+        target.dSpeed = (U32)g_lvltarget.dSpeed; //See if this is worth
 
         BMK_printWinnerOpt(stdout, cLevel, winner.result, winner.params, target, buf.srcSize);
     }
@@ -2241,7 +2245,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
                     }
 
                     /* if the current params are too slow, just stop. */
-                    if(target.cSpeed > candidate.cSpeed * 2) { break; }
+                    if(target.cSpeed > candidate.cSpeed * 3 / 2) { break; }
                 }
             }
         }
@@ -2254,7 +2258,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
             int bestStrategy = (int)winner.params.strategy;
             if(paramTarget.strategy == 0) {
                 int st = (int)winner.params.strategy;
-                int tries = MAX_TRIES;
+                int tries = g_maxTries;
 
                 { 
                     /* one iterations of hill climbing with the level-defined parameters. */
@@ -2269,12 +2273,13 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
                 while(st && tries > 0) {
                     winnerInfo_t wc;
                     DEBUGOUTPUT("StrategySwitch: %s\n", g_stratName[st]);
+                    
                     wc = optimizeFixedStrategy(buf, ctx, target, paramTarget, 
                         st, varArray, varLen, allMT[st], tries);
 
                     if(compareResultLT(winner.result, wc.result, target, buf.srcSize)) {
                         winner = wc;
-                        tries = MAX_TRIES;
+                        tries = g_maxTries;
                         bestStrategy = st;
                     } else {
                         st = nextStrategy(st, bestStrategy);
@@ -2283,7 +2288,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
                 }
             } else {
                 winner = optimizeFixedStrategy(buf, ctx, target, paramTarget, paramTarget.strategy, 
-                    varArray, varLen, allMT[paramTarget.strategy], 10);
+                    varArray, varLen, allMT[paramTarget.strategy], g_maxTries);
             }
 
         }
@@ -2402,17 +2407,17 @@ int main(int argc, const char** argv)
 
     ZSTD_compressionParameters paramTarget = { 0, 0, 0, 0, 0, 0, 0 };
 
-    assert(argc>=1);   /* for exename */
-
     g_time = UTIL_getTime();
+
+    assert(argc>=1);   /* for exename */
 
     /* Welcome message */
     DISPLAY(WELCOME_MESSAGE);
 
     for(i=1; i<argc; i++) {
         const char* argument = argv[i];
-        DISPLAY("%d: ", i);
-        DISPLAY("%s\n", argument);
+        DEBUGOUTPUT("%d: ", i);
+        DEBUGOUTPUT("%s\n", argument);
 
         assert(argument != NULL);
 
@@ -2429,6 +2434,7 @@ int main(int argc, const char** argv)
                 PARSE_SUB_ARGS("strict=", "stc=", g_strictness);
                 PARSE_SUB_ARGS("preferSpeed=", "prfSpd=", g_speedMultiplier);
                 PARSE_SUB_ARGS("preferRatio=", "prfRto=", g_ratioMultiplier);
+                PARSE_SUB_ARGS("maxTries", "tries", g_maxTries);
 
                 DISPLAY("invalid optimization parameter \n");
                 return 1;

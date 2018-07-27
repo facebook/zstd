@@ -251,7 +251,7 @@ int benchmarkDictBuilder(sampleInfo *srcInfo, unsigned maxDictSize, ZDICT_random
     result = 1;
     goto _cleanup;
   }
-  DISPLAYLEVEL(2, "%s took %f seconds to execute \n", name, timeSec);
+  DISPLAYLEVEL(1, "%s took %f seconds to execute \n", name, timeSec);
 
   /* Calculate compression ratio */
   const double cRatio = compressWithDict(srcInfo, dInfo, cLevel, displayLevel);
@@ -261,7 +261,7 @@ int benchmarkDictBuilder(sampleInfo *srcInfo, unsigned maxDictSize, ZDICT_random
     goto _cleanup;
 
   }
-  DISPLAYLEVEL(2, "Compression ratio with %s dictionary is %f\n", name, cRatio);
+  DISPLAYLEVEL(1, "Compression ratio with %s dictionary is %f\n", name, cRatio);
 
 _cleanup:
   freeDictInfo(dInfo);
@@ -376,71 +376,43 @@ int main(int argCount, const char* argv[])
       goto _cleanup;
     }
 
-    k = coverParam.k;
-    d = coverParam.d;
-
-    /* for COVER with k and d provided */
-    ZDICT_cover_params_t covernParam;
-    memset(&covernParam, 0, sizeof(covernParam));
-    covernParam.zParams = zParams;
-    covernParam.splitPoint = 1.0;
-    covernParam.steps = 40;
-    covernParam.nbThreads = 1;
-    covernParam.k = k;
-    covernParam.d = d;
-    const int coverResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, &covernParam, NULL, NULL);
-    DISPLAYLEVEL(2, "k=%u\nd=%u\nsteps=%u\nsplit=%u\n", covernParam.k, covernParam.d, covernParam.steps, (unsigned)(covernParam.splitPoint * 100));
+    const int coverResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, &coverParam, NULL, NULL);
+    DISPLAYLEVEL(2, "k=%u\nd=%u\nsteps=%u\nsplit=%u\n", coverParam.k, coverParam.d, coverParam.steps, (unsigned)(coverParam.splitPoint * 100));
     if(coverResult) {
       result = 1;
       goto _cleanup;
     }
+
   }
 
   /* for fastCover */
   for (unsigned f = 15; f < 25; f++){
     DISPLAYLEVEL(2, "current f is %u\n", f);
     /* for fastCover (optimizing k and d) */
-    {
-      ZDICT_fastCover_params_t fastParam;
-      memset(&fastParam, 0, sizeof(fastParam));
-      fastParam.zParams = zParams;
-      fastParam.splitPoint = 1.0;
-      fastParam.f = f;
-      fastParam.steps = 40;
-      fastParam.nbThreads = 1;
-      const int fastOptResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, NULL, NULL, &fastParam);
-      DISPLAYLEVEL(2, "k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\n", fastParam.k, fastParam.d, fastParam.f, fastParam.steps, (unsigned)(fastParam.splitPoint * 100));
-      if(fastOptResult) {
-        result = 1;
-        goto _cleanup;
-      }
-
-      k = fastParam.k;
-      d = fastParam.d;
+    ZDICT_fastCover_params_t fastParam;
+    memset(&fastParam, 0, sizeof(fastParam));
+    fastParam.zParams = zParams;
+    fastParam.splitPoint = 1.0;
+    fastParam.f = f;
+    fastParam.steps = 40;
+    fastParam.nbThreads = 1;
+    const int fastOptResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, NULL, NULL, &fastParam);
+    DISPLAYLEVEL(2, "k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\n", fastParam.k, fastParam.d, fastParam.f, fastParam.steps, (unsigned)(fastParam.splitPoint * 100));
+    if(fastOptResult) {
+      result = 1;
+      goto _cleanup;
     }
 
 
     /* for fastCover (with k and d provided) */
-    {
-      ZDICT_fastCover_params_t fastParam;
-      memset(&fastParam, 0, sizeof(fastParam));
-      fastParam.zParams = zParams;
-      fastParam.splitPoint = 1.0;
-      fastParam.d = d;
-      fastParam.f = f;
-      fastParam.k = k;
-      fastParam.steps = 40;
-      fastParam.nbThreads = 1;
-      const int fastOptResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, NULL, NULL, &fastParam);
-      DISPLAYLEVEL(2, "k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\n", fastParam.k, fastParam.d, fastParam.f, fastParam.steps, (unsigned)(fastParam.splitPoint * 100));
-      if(fastOptResult) {
-        result = 1;
-        goto _cleanup;
-      }
+    const int fastResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, NULL, NULL, &fastParam);
+    DISPLAYLEVEL(2, "k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\n", fastParam.k, fastParam.d, fastParam.f, fastParam.steps, (unsigned)(fastParam.splitPoint * 100));
+    if(fastResult) {
+      result = 1;
+      goto _cleanup;
     }
+
   }
-
-
 
 
   /* Free allocated memory */

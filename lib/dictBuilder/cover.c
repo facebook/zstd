@@ -501,6 +501,10 @@ static int COVER_checkParameters(ZDICT_cover_params_t parameters,
   if (parameters.splitPoint <= 0 || parameters.splitPoint > 1){
     return 0;
   }
+  /* 0 < splitLimit */
+  if (parameters.splitLimit == 0){
+    return 0;
+  }
   return 1;
 }
 
@@ -530,6 +534,23 @@ static void COVER_ctx_destroy(COVER_ctx_t *ctx) {
 }
 
 /**
+ * Recalculate number of training samples given splitLimit
+ */
+static unsigned COVER_computeNewNbSamples(const size_t *sampleSizes,
+                                        unsigned nbSamples, size_t splitLimit) {
+  unsigned i = 0;
+  size_t totalSize = 0;
+  for (i = 0; i < nbSamples; i++) {
+    totalSize += sampleSizes[i];
+    /* If adding this sample will exceed splitLimit, return index of this sample */
+    if (totalSize > splitLimit) {
+      break;
+    }
+  }
+  return i;
+}
+
+/**
  * Prepare a context for dictionary building.
  * The context is only dependent on the parameter `d` and can used multiple
  * times.
@@ -538,14 +559,22 @@ static void COVER_ctx_destroy(COVER_ctx_t *ctx) {
  */
 static int COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
                           const size_t *samplesSizes, unsigned nbSamples,
-                          unsigned d, double splitPoint) {
+                          unsigned d, double splitPoint, size_t splitLimit) {
   const BYTE *const samples = (const BYTE *)samplesBuffer;
   const size_t totalSamplesSize = COVER_sum(samplesSizes, nbSamples);
   /* Split samples into testing and training sets */
-  const unsigned nbTrainSamples = splitPoint < 1.0 ? (unsigned)((double)nbSamples * splitPoint) : nbSamples;
-  const unsigned nbTestSamples = splitPoint < 1.0 ? nbSamples - nbTrainSamples : nbSamples;
-  const size_t trainingSamplesSize = splitPoint < 1.0 ? COVER_sum(samplesSizes, nbTrainSamples) : totalSamplesSize;
-  const size_t testSamplesSize = splitPoint < 1.0 ? COVER_sum(samplesSizes + nbTrainSamples, nbTestSamples) : totalSamplesSize;
+  unsigned nbTrainSamples = splitPoint < 1.0 ? (unsigned)((double)nbSamples * splitPoint) : nbSamples;
+  size_t trainingSamplesSize = splitPoint < 1.0 ? COVER_sum(samplesSizes, nbTrainSamples) : totalSamplesSize;
+  unsigned nbTestSamples;
+  size_t testSamplesSize;
+  /* Recalculate number of training samples if size is greater than splitLimit */
+  if (trainingSamplesSize > splitLimit) {
+    nbTrainSamples = COVER_computeNewNbSamples(samplesSizes, nbSamples, splitLimit);
+    trainingSamplesSize = COVER_sum(samplesSizes, nbTrainSamples);
+  }
+  /* If splitPoint == 1.0, the same training samples are used for testing; otherwise, use remaining samples for testing */
+  nbTestSamples = splitPoint < 1.0 ? nbSamples - nbTrainSamples : nbTrainSamples;
+  testSamplesSize = splitPoint < 1.0 ? COVER_sum(samplesSizes + nbTrainSamples, nbTestSamples) : trainingSamplesSize;
   /* Checks */
   if (totalSamplesSize < MAX(d, sizeof(U64)) ||
       totalSamplesSize >= (size_t)COVER_MAX_SAMPLES_SIZE) {
@@ -692,6 +721,7 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_cover(
   COVER_ctx_t ctx;
   COVER_map_t activeDmers;
   parameters.splitPoint = 1.0;
+  parameters.splitLimit = 512 * dictBufferCapacity;
   /* Initialize global data */
   g_displayLevel = parameters.zParams.notificationLevel;
   /* Checks */
@@ -710,7 +740,7 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_cover(
   }
   /* Initialize context and activeDmers */
   if (!COVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples,
-                      parameters.d, parameters.splitPoint)) {
+                      parameters.d, parameters.splitPoint, parameters.splitLimit)) {
     return ERROR(GENERIC);
   }
   if (!COVER_map_init(&activeDmers, parameters.k - parameters.d + 1)) {
@@ -912,11 +942,14 @@ static void COVER_tryParameters(void *opaque) {
     /* Local variables */
     size_t dstCapacity;
     size_t i;
+    /* If splitPoint == 1.0, testing samples are indexed 0 to nbTestSamples-1 */
+    /* Otherwise, testing samples are indexed nbTrainSamples to nbSamples-1 */
+    const size_t lastTrainingSample = parameters.splitPoint < 1.0 ? ctx->nbSamples : ctx->nbTestSamples;
     /* Allocate dst with enough space to compress the maximum sized sample */
     {
       size_t maxSampleSize = 0;
       i = parameters.splitPoint < 1.0 ? ctx->nbTrainSamples : 0;
-      for (; i < ctx->nbSamples; ++i) {
+      for (; i < lastTrainingSample; ++i) {
         maxSampleSize = MAX(ctx->samplesSizes[i], maxSampleSize);
       }
       dstCapacity = ZSTD_compressBound(maxSampleSize);
@@ -932,7 +965,7 @@ static void COVER_tryParameters(void *opaque) {
     /* Compress each sample and sum their sizes (or error) */
     totalCompressedSize = dictBufferCapacity;
     i = parameters.splitPoint < 1.0 ? ctx->nbTrainSamples : 0;
-    for (; i < ctx->nbSamples; ++i) {
+    for (; i < lastTrainingSample; ++i) {
       const size_t size = ZSTD_compress_usingCDict(
           cctx, dst, dstCapacity, ctx->samples + ctx->offsets[i],
           ctx->samplesSizes[i], cdict);
@@ -971,6 +1004,8 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
   const unsigned nbThreads = parameters->nbThreads;
   const double splitPoint =
       parameters->splitPoint <= 0.0 ? DEFAULT_SPLITPOINT : parameters->splitPoint;
+  const size_t splitLimit =
+      parameters->splitLimit == 0 ? (512 * dictBufferCapacity) : parameters->splitLimit;
   const unsigned kMinD = parameters->d == 0 ? 6 : parameters->d;
   const unsigned kMaxD = parameters->d == 0 ? 8 : parameters->d;
   const unsigned kMinK = parameters->k == 0 ? 50 : parameters->k;
@@ -988,7 +1023,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
   POOL_ctx *pool = NULL;
 
   /* Checks */
-  if (splitPoint <= 0 || splitPoint > 1) {
+  if (splitPoint <= 0 || splitPoint > 1 || splitLimit == 0) {
     LOCALDISPLAYLEVEL(displayLevel, 1, "Incorrect parameters\n");
     return ERROR(GENERIC);
   }
@@ -1022,7 +1057,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
     /* Initialize the context for this value of d */
     COVER_ctx_t ctx;
     LOCALDISPLAYLEVEL(displayLevel, 3, "d=%u\n", d);
-    if (!COVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples, d, splitPoint)) {
+    if (!COVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples, d, splitPoint, splitLimit)) {
       LOCALDISPLAYLEVEL(displayLevel, 1, "Failed to initialize context\n");
       COVER_best_destroy(&best);
       POOL_free(pool);
@@ -1048,6 +1083,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
       data->parameters.k = k;
       data->parameters.d = d;
       data->parameters.splitPoint = splitPoint;
+      data->parameters.splitLimit = splitLimit;
       data->parameters.steps = kSteps;
       data->parameters.zParams.notificationLevel = g_displayLevel;
       /* Check the parameters */

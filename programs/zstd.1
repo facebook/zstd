@@ -218,8 +218,10 @@ A dictionary ID is a locally unique ID that a decoder can use to verify it is us
 .
 .TP
 \fB\-\-train\-cover[=k#,d=#,steps=#,split=#]\fR
-Select parameters for the default dictionary builder algorithm named cover\. If \fId\fR is not specified, then it tries \fId\fR = 6 and \fId\fR = 8\. If \fIk\fR is not specified, then it tries \fIsteps\fR values in the range [50, 2000]\. If \fIsteps\fR is not specified, then the default value of 40 is used\. If \fIsplit\fR is not specified or \fIsplit\fR <= 0, then the default value of 100 is used\. If \fIsplit\fR is 100, all input samples are used for both training and testing
-to find optimal _d_ and _k_ to build dictionary.Requires that \fId\fR <= \fIk\fR\.
+Select parameters for the default dictionary builder algorithm named cover\. If \fId\fR is not specified, then it tries \fId\fR = 6 and \fId\fR = 8\. If \fIk\fR is not specified, then it tries \fIsteps\fR values in the range [50, 2000]\.
+If \fIsteps\fR is not specified, then the default value of 40 is used\. If \fIsplit\fR is not specified or \fIsplit\fR <= 0, then the default value of 100 is used\. If \fIsplit\fR is 100, the same input samples are used for both training and testing
+to find optimal _d_ and _k_ to build dictionary. If \fIlimit\fR is not specified or \fIlimit\fR == 0, then the default value of 512 * maxDictSize is used. If training sample size exceeds \fIlimit\fR, the first i samples summing up to
+\fIlimit\fR are used for training and the rest are used for testing (when \fIsplit\fR is not 100) or the same first i samples are used for testing (when \fIsplit\fR is 100). Requires that \fId\fR <= \fIk\fR\.
 .
 .IP
 Selects segments of size \fIk\fR with highest score to put in the dictionary\. The score of a segment is computed by the sum of the frequencies of all the subsegments of size \fId\fR\. Generally \fId\fR should be in the range [6, 8], occasionally up to 16, but the algorithm will run faster with d <= \fI8\fR\. Good values for \fIk\fR vary widely based on the input data, but a safe range is [2 * \fId\fR, 2000]\. Supports multithreading if \fBzstd\fR is compiled with threading support\.

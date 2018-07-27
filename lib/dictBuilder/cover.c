@@ -941,7 +941,7 @@ static void COVER_tryParameters(void *opaque) {
     /* Local variables */
     size_t dstCapacity;
     size_t i;
-    unsigned maxNbSamples = parameters.splitPoint < 1.0 ? ctx->nbSamples : ctx->nbTestSamples;
+    const size_t maxNbSamples = parameters.splitPoint < 1.0 ? ctx->nbSamples : ctx->nbTestSamples;
     /* Allocate dst with enough space to compress the maximum sized sample */
     {
       size_t maxSampleSize = 0;

@@ -565,13 +565,15 @@ static int COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
   /* Split samples into testing and training sets */
   unsigned nbTrainSamples = splitPoint < 1.0 ? (unsigned)((double)nbSamples * splitPoint) : nbSamples;
   size_t trainingSamplesSize = splitPoint < 1.0 ? COVER_sum(samplesSizes, nbTrainSamples) : totalSamplesSize;
+  unsigned nbTestSamples;
+  size_t testSamplesSize;
   /* recalculate number of training samples if size is greater than splitLimit */
   if (trainingSamplesSize > splitLimit) {
     nbTrainSamples = COVER_computeNewNbSamples(samplesSizes, nbSamples, splitLimit);
     trainingSamplesSize = COVER_sum(samplesSizes, nbTrainSamples);
   }
-  unsigned nbTestSamples = splitPoint < 1.0 ? nbSamples - nbTrainSamples : nbTrainSamples;
-  size_t testSamplesSize = splitPoint < 1.0 ? COVER_sum(samplesSizes + nbTrainSamples, nbTestSamples) : trainingSamplesSize;
+  nbTestSamples = splitPoint < 1.0 ? nbSamples - nbTrainSamples : nbTrainSamples;
+  testSamplesSize = splitPoint < 1.0 ? COVER_sum(samplesSizes + nbTrainSamples, nbTestSamples) : trainingSamplesSize;
   /* Checks */
   if (totalSamplesSize < MAX(d, sizeof(U64)) ||
       totalSamplesSize >= (size_t)COVER_MAX_SAMPLES_SIZE) {

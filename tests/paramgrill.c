@@ -123,7 +123,7 @@ typedef struct {
 static winnerInfo_t g_winner = { { 0, 0, (size_t)-1, (size_t)-1 } , { 0, 0, 0, 0, 0, 0, ZSTD_fast } }; 
 
 typedef struct {
-    U32 cSpeed; /* bytes / sec */
+    U32 cSpeed;  /* bytes / sec */
     U32 dSpeed;
     U32 cMem;    /* bytes */    
 } constraint_t;
@@ -138,6 +138,12 @@ struct ll_node {
 
 static ll_node* g_winners; /* linked list sorted ascending by cSize & cSpeed */
 static BMK_result_t g_lvltarget;
+static int g_optmode = 0;
+
+static U32 g_speedMultiplier = 1;
+static U32 g_ratioMultiplier = 1;
+
+/* g_mode? */
 
 /* range 0 - 99, measure of how strict  */
 #define DEFAULT_STRICTNESS 99999
@@ -271,7 +277,7 @@ static void BMK_translateAdvancedParams(const ZSTD_compressionParameters params)
 
 /* checks results are feasible */
 static int feasible(const BMK_result_t results, const constraint_t target) {
-    return (results.cSpeed >= target.cSpeed) && (results.dSpeed >= target.dSpeed) && (results.cMem <= target.cMem) && (!g_lvltarget.cSize || results.cSize <= g_lvltarget.cSize);
+    return (results.cSpeed >= target.cSpeed) && (results.dSpeed >= target.dSpeed) && (results.cMem <= target.cMem) && (!g_optmode || results.cSize <= g_lvltarget.cSize);
 }
 
 /* hill climbing value for part 1 */
@@ -291,6 +297,7 @@ static double resultScore(const BMK_result_t res, const size_t srcSize, const co
 
     ret = (MIN(1, cs) + MIN(1, ds)  + MIN(1, cm))*r1 + rt * rtr + 
          (MAX(0, log(cs))+ MAX(0, log(ds))+ MAX(0, log(cm))) * r2;
+
     return ret;
 }
 
@@ -301,17 +308,17 @@ static double resultDistLvl(const BMK_result_t result1, const BMK_result_t lvlRe
     if(normalizedRatioGain1 < 0 || normalizedCSpeedGain1 < 0) {
         return 0.0;
     }
-    return normalizedRatioGain1 * normalizedRatioGain1 + normalizedCSpeedGain1 * normalizedCSpeedGain1;
+    return normalizedRatioGain1 * g_ratioMultiplier + normalizedCSpeedGain1 * g_speedMultiplier;
 }
 
 /* return true if r2 strictly better than r1 */ 
 static int compareResultLT(const BMK_result_t result1, const BMK_result_t result2, const constraint_t target, size_t srcSize) {
     if(feasible(result1, target) && feasible(result2, target)) {
-        if(g_lvltarget.cSize == 0) {
+        if(g_optmode) {
+            return resultDistLvl(result1, g_lvltarget) < resultDistLvl(result2, g_lvltarget);
+        } else {
             return (result1.cSize > result2.cSize) || (result1.cSize == result2.cSize && result2.cSpeed > result1.cSpeed)
             || (result1.cSize == result2.cSize && result2.cSpeed == result1.cSpeed && result2.dSpeed > result1.dSpeed);
-        } else {
-            return resultDistLvl(result1, g_lvltarget) < resultDistLvl(result2, g_lvltarget);
         }
     }
     return feasible(result2, target) || (!feasible(result1, target) && (resultScore(result1, srcSize, target) < resultScore(result2, srcSize, target)));
@@ -848,7 +855,7 @@ static void BMK_printWinnerOpt(FILE* f, const U32 cLevel, const BMK_result_t res
     }  
 
     //prints out tradeoff table if using lvl
-    if(g_lvltarget.cSize != 0) {
+    if(g_optmode) {
         winnerInfo_t w;
         ll_node* n;
         int i;
@@ -1601,7 +1608,7 @@ static int allBench(BMK_result_t* resultPtr,
     }
 
     /* anything with worse ratio in feas is definitely worse, discard */
-    if(feas && benchres.result.cSize < winnerResult->cSize && g_lvltarget.cSize == 0) {
+    if(feas && benchres.result.cSize < winnerResult->cSize && !g_optmode) {
         return WORSE_RESULT;
     }
 
@@ -2169,7 +2176,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
  
     /* default strictness = Maximum for */
     if(g_strictness == DEFAULT_STRICTNESS) {
-        if(cLevel) {
+        if(g_optmode) {
             g_strictness = 99;
         } else {
             g_strictness = 90;
@@ -2183,7 +2190,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
     }
 
     /* use level'ing mode instead of normal target mode */
-    if(cLevel) {
+    if(g_optmode) {
         winner.params = ZSTD_getCParams(cLevel, maxBlockSize, ctx.dictSize);
         if(BMK_benchParam(&winner.result, buf, ctx, winner.params)) {
             ret = 3;
@@ -2425,6 +2432,9 @@ int main(int argc, const char** argv)
                 PARSE_SUB_ARGS("compressionMemory=" , "cMem=", target.cMem);
                 PARSE_SUB_ARGS("level=", "lvl=", optimizerCLevel);
                 PARSE_SUB_ARGS("strict=", "stc=", g_strictness);
+                PARSE_SUB_ARGS("preferSpeed=", "prfSpd=", g_speedMultiplier);
+                PARSE_SUB_ARGS("preferRatio=", "prfRto=", g_ratioMultiplier);
+
                 DISPLAY("invalid optimization parameter \n");
                 return 1;
             }

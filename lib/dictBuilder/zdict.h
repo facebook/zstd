@@ -86,8 +86,8 @@ typedef struct {
     unsigned d;                  /* dmer size : constraint: 0 < d <= k : Reasonable range [6, 16] */
     unsigned steps;              /* Number of steps : Only used for optimization : 0 means default (32) : Higher means more parameters checked */
     unsigned nbThreads;          /* Number of threads : constraint: 0 < nbThreads : 1 means single-threaded : Only used for optimization : Ignored if ZSTD_MULTITHREAD is not defined */
-    size_t splitLimit;         /* Maximum number of bytes used for training: 0 means default(512*maxDictSize); minimum of splitLimit and splitPoint used for training */
     double splitPoint;           /* Percentage of samples used for training: the first nbSamples * splitPoint samples will be used to training, the last nbSamples * (1 - splitPoint) samples will be used for testing, 0 means default (1.0), 1.0 when all samples are used for both training and testing */
+    size_t splitLimit;           /* Maximum number of bytes used for training: 0 means default (512 * maxDictSize); minimum of splitLimit and splitPoint used for training */
     ZDICT_params_t zParams;
 } ZDICT_cover_params_t;
 

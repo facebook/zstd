@@ -567,11 +567,12 @@ static int COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
   size_t trainingSamplesSize = splitPoint < 1.0 ? COVER_sum(samplesSizes, nbTrainSamples) : totalSamplesSize;
   unsigned nbTestSamples;
   size_t testSamplesSize;
-  /* recalculate number of training samples if size is greater than splitLimit */
+  /* Recalculate number of training samples if size is greater than splitLimit */
   if (trainingSamplesSize > splitLimit) {
     nbTrainSamples = COVER_computeNewNbSamples(samplesSizes, nbSamples, splitLimit);
     trainingSamplesSize = COVER_sum(samplesSizes, nbTrainSamples);
   }
+  /* If splitPoint == 1.0, the same training samples are used for testing; otherwise, use remaining samples for testing */
   nbTestSamples = splitPoint < 1.0 ? nbSamples - nbTrainSamples : nbTrainSamples;
   testSamplesSize = splitPoint < 1.0 ? COVER_sum(samplesSizes + nbTrainSamples, nbTestSamples) : trainingSamplesSize;
   /* Checks */
@@ -941,12 +942,14 @@ static void COVER_tryParameters(void *opaque) {
     /* Local variables */
     size_t dstCapacity;
     size_t i;
-    const size_t maxNbSamples = parameters.splitPoint < 1.0 ? ctx->nbSamples : ctx->nbTestSamples;
+    /* If splitPoint == 1.0, testing samples are indexed 0 to nbTestSamples-1 */
+    /* Otherwise, testing samples are indexed nbTrainSamples to nbSamples-1 */
+    const size_t lastTrainingSample = parameters.splitPoint < 1.0 ? ctx->nbSamples : ctx->nbTestSamples;
     /* Allocate dst with enough space to compress the maximum sized sample */
     {
       size_t maxSampleSize = 0;
       i = parameters.splitPoint < 1.0 ? ctx->nbTrainSamples : 0;
-      for (; i < maxNbSamples; ++i) {
+      for (; i < lastTrainingSample; ++i) {
         maxSampleSize = MAX(ctx->samplesSizes[i], maxSampleSize);
       }
       dstCapacity = ZSTD_compressBound(maxSampleSize);
@@ -962,7 +965,7 @@ static void COVER_tryParameters(void *opaque) {
     /* Compress each sample and sum their sizes (or error) */
     totalCompressedSize = dictBufferCapacity;
     i = parameters.splitPoint < 1.0 ? ctx->nbTrainSamples : 0;
-    for (; i < maxNbSamples; ++i) {
+    for (; i < lastTrainingSample; ++i) {
       const size_t size = ZSTD_compress_usingCDict(
           cctx, dst, dstCapacity, ctx->samples + ctx->offsets[i],
           ctx->samplesSizes[i], cdict);

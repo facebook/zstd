@@ -3,7 +3,7 @@
 #include <string.h>   /* strcmp, strlen */
 #include <errno.h>    /* errno */
 #include <ctype.h>
-#include "random.h"
+#include "fastCover.h"
 #include "io.h"
 #include "util.h"
 #include "zdict.h"
@@ -46,18 +46,14 @@ static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
 ***************************************/
 static const unsigned g_defaultMaxDictSize = 110 KB;
 #define DEFAULT_CLEVEL 3
-#define DEFAULT_k 200
-#define DEFAULT_OUTPUTFILE "defaultDict"
-#define DEFAULT_DICTID 0
-
 
 
 /*-*************************************
-*  RANDOM
+*  FASTCOVER
 ***************************************/
-int RANDOM_trainFromFiles(const char* dictFileName, sampleInfo *info,
+int FASTCOVER_trainFromFiles(const char* dictFileName, sampleInfo *info,
                           unsigned maxDictSize,
-                          ZDICT_random_params_t *params) {
+                          ZDICT_fastCover_params_t *params) {
     unsigned const displayLevel = params->zParams.notificationLevel;
     void* const dictBuffer = malloc(maxDictSize);
 
@@ -68,9 +64,9 @@ int RANDOM_trainFromFiles(const char* dictFileName, sampleInfo *info,
         EXM_THROW(12, "not enough memory for trainFromFiles");   /* should not happen */
 
     {   size_t dictSize;
-        dictSize = ZDICT_trainFromBuffer_random(dictBuffer, maxDictSize, info->srcBuffer,
-                                             info->samplesSizes, info->nbSamples, *params);
-        DISPLAYLEVEL(2, "k=%u\n", params->k);
+        dictSize = ZDICT_optimizeTrainFromBuffer_fastCover(dictBuffer, maxDictSize, info->srcBuffer,
+                                             info->samplesSizes, info->nbSamples, params);
+        DISPLAYLEVEL(2, "k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\n", params->k, params->d, params->f, params->steps, (unsigned)(params->splitPoint*100));
         if (ZDICT_isError(dictSize)) {
             DISPLAYLEVEL(1, "dictionary training failed : %s \n", ZDICT_getErrorName(dictSize));   /* should not happen */
             result = 1;
@@ -96,19 +92,33 @@ int main(int argCount, const char* argv[])
   int operationResult = 0;
 
   /* Initialize arguments to default values */
-  unsigned k = DEFAULT_k;
-  const char* outputFile = DEFAULT_OUTPUTFILE;
-  unsigned dictID = DEFAULT_DICTID;
+  unsigned k = 200;
+  unsigned d = 8;
+  unsigned f = 23;
+  unsigned steps = 32;
+  unsigned nbThreads = 1;
+  unsigned split = 100;
+  const char* outputFile = "fastCoverDict";
+  unsigned dictID = 0;
   unsigned maxDictSize = g_defaultMaxDictSize;
 
   /* Initialize table to store input files */
   const char** filenameTable = (const char**)malloc(argCount * sizeof(const char*));
   unsigned filenameIdx = 0;
 
+  char* fileNamesBuf = NULL;
+  unsigned fileNamesNb = filenameIdx;
+  int followLinks = 0; /* follow directory recursively */
+  const char** extendedFileList = NULL;
+
   /* Parse arguments */
   for (int i = 1; i < argCount; i++) {
     const char* argument = argv[i];
     if (longCommandWArg(&argument, "k=")) { k = readU32FromChar(&argument); continue; }
+    if (longCommandWArg(&argument, "d=")) { d = readU32FromChar(&argument); continue; }
+    if (longCommandWArg(&argument, "f=")) { f = readU32FromChar(&argument); continue; }
+    if (longCommandWArg(&argument, "steps=")) { steps = readU32FromChar(&argument); continue; }
+    if (longCommandWArg(&argument, "split=")) { split = readU32FromChar(&argument); continue; }
     if (longCommandWArg(&argument, "dictID=")) { dictID = readU32FromChar(&argument); continue; }
     if (longCommandWArg(&argument, "maxdict=")) { maxDictSize = readU32FromChar(&argument); continue; }
     if (longCommandWArg(&argument, "in=")) {
@@ -125,10 +135,7 @@ int main(int argCount, const char* argv[])
     return operationResult;
   }
 
-  char* fileNamesBuf = NULL;
-  unsigned fileNamesNb = filenameIdx;
-  int followLinks = 0; /* follow directory recursively */
-  const char** extendedFileList = NULL;
+  /* Get the list of all files recursively (because followLinks==0)*/
   extendedFileList = UTIL_createFileList(filenameTable, filenameIdx, &fileNamesBuf,
                                         &fileNamesNb, followLinks);
   if (extendedFileList) {
@@ -141,17 +148,26 @@ int main(int argCount, const char* argv[])
 
   size_t blockSize = 0;
 
-  ZDICT_random_params_t params;
+  /* Set up zParams */
   ZDICT_params_t zParams;
   zParams.compressionLevel = DEFAULT_CLEVEL;
   zParams.notificationLevel = displayLevel;
   zParams.dictID = dictID;
+
+  /* Set up fastCover params */
+  ZDICT_fastCover_params_t params;
   params.zParams = zParams;
   params.k = k;
+  params.d = d;
+  params.f = f;
+  params.steps = steps;
+  params.nbThreads = nbThreads;
+  params.splitPoint = (double)split/100;
 
+  /* Build dictionary */
   sampleInfo* info = getSampleInfo(filenameTable,
                     filenameIdx, blockSize, maxDictSize, zParams.notificationLevel);
-  operationResult = RANDOM_trainFromFiles(outputFile, info, maxDictSize, &params);
+  operationResult = FASTCOVER_trainFromFiles(outputFile, info, maxDictSize, &params);
 
   /* Free allocated memory */
   UTIL_freeFileList(extendedFileList, fileNamesBuf);

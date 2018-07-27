@@ -107,6 +107,7 @@ static double g_compressibility = COMPRESSIBILITY_DEFAULT;
 static U32 g_blockSize = 0;
 static U32 g_rand = 1;
 static U32 g_singleRun = 0;
+static U32 g_optimizer = 0;
 static U32 g_target = 0;
 static U32 g_noSeed = 0;
 static ZSTD_compressionParameters g_params = { 0, 0, 0, 0, 0, 0, ZSTD_greedy };
@@ -117,10 +118,6 @@ typedef struct {
     BMK_result_t result;
     ZSTD_compressionParameters params;
 } winnerInfo_t;
-
-/* global winner used for display. */
-//Should be totally 0 initialized? 
-static winnerInfo_t g_winner = { { 0, 0, (size_t)-1, (size_t)-1 } , { 0, 0, 0, 0, 0, 0, ZSTD_fast } }; 
 
 typedef struct {
     U32 cSpeed;  /* bytes / sec */
@@ -386,8 +383,7 @@ typedef struct {
     ZSTD_DCtx* dctx;
 } contexts_t;
 
-static int
-BMK_benchParam(BMK_result_t* resultPtr,
+static int BMK_benchParam(BMK_result_t* resultPtr,
                 const buffers_t buf, const contexts_t ctx,
                 const ZSTD_compressionParameters cParams) {
     BMK_return_t res = BMK_benchMem(buf.srcPtrs[0], buf.srcSize, buf.srcSizes, (unsigned)buf.nbBlocks, 0, &cParams, ctx.dictBuffer, ctx.dictSize, 0, "Files");
@@ -519,6 +515,175 @@ static size_t local_defaultDecompress(
 /*-*******************************************************
 *  From Paramgrill End
 *********************************************************/
+
+static void freeBuffers(const buffers_t b) {
+    if(b.srcPtrs != NULL) {
+        free(b.srcBuffer);
+    }
+    free(b.srcPtrs);
+    free(b.srcSizes);
+
+    if(b.dstPtrs != NULL) {
+        free(b.dstPtrs[0]);
+    }
+    free(b.dstPtrs);
+    free(b.dstCapacities);
+    free(b.dstSizes);
+
+    if(b.resPtrs != NULL) {
+        free(b.resPtrs[0]);
+    }
+    free(b.resPtrs);
+}
+
+/* allocates buffer's arguments. returns success / failuere */
+static int createBuffers(buffers_t* buff, const char* const * const fileNamesTable, 
+                          const size_t nbFiles)
+{
+    size_t pos = 0;
+    size_t n;
+    U64 const totalSizeToLoad = UTIL_getTotalFileSize(fileNamesTable, (U32)nbFiles);
+    size_t benchedSize = MIN(BMK_findMaxMem(totalSizeToLoad * 3) / 3, totalSizeToLoad);
+    const size_t blockSize = g_blockSize ? g_blockSize : totalSizeToLoad; //(largest fileSize or total fileSize)
+    U32 const maxNbBlocks = (U32) ((totalSizeToLoad + (blockSize-1)) / blockSize) + (U32)nbFiles;
+    U32 blockNb = 0;
+
+    buff->srcPtrs = (const void**)calloc(maxNbBlocks, sizeof(void*));
+    buff->srcSizes = (size_t*)malloc(maxNbBlocks * sizeof(size_t));
+
+    buff->dstPtrs = (void**)calloc(maxNbBlocks, sizeof(void*));
+    buff->dstCapacities = (size_t*)malloc(maxNbBlocks * sizeof(size_t));
+    buff->dstSizes = (size_t*)malloc(maxNbBlocks * sizeof(size_t));
+
+    buff->resPtrs = (void**)calloc(maxNbBlocks, sizeof(void*));
+    buff->resSizes = (size_t*)malloc(maxNbBlocks * sizeof(size_t)); 
+
+    if(!buff->srcPtrs || !buff->srcSizes || !buff->dstPtrs || !buff->dstCapacities || !buff->dstSizes || !buff->resPtrs || !buff->resSizes) {
+        DISPLAY("alloc error\n");
+        freeBuffers(*buff);
+        return 1;
+    }
+
+    buff->srcBuffer = malloc(benchedSize);
+    buff->srcPtrs[0] = (const void*)buff->srcBuffer;
+    buff->dstPtrs[0] = malloc(ZSTD_compressBound(benchedSize) + (maxNbBlocks * 1024));
+    buff->resPtrs[0] = malloc(benchedSize);
+
+    if(!buff->srcPtrs[0] || !buff->dstPtrs[0] || !buff->resPtrs[0]) {
+        DISPLAY("alloc error\n");
+        freeBuffers(*buff);
+        return 1;
+    }
+
+    for(n = 0; n < nbFiles; n++) {
+        FILE* f;
+        U64 fileSize = UTIL_getFileSize(fileNamesTable[n]);
+        if (UTIL_isDirectory(fileNamesTable[n])) {
+            DISPLAY("Ignoring %s directory...       \n", fileNamesTable[n]);
+            continue;
+        }
+        if (fileSize == UTIL_FILESIZE_UNKNOWN) {
+            DISPLAY("Cannot evaluate size of %s, ignoring ... \n", fileNamesTable[n]);
+            continue;
+        }
+        f = fopen(fileNamesTable[n], "rb");
+        if (f==NULL) {
+            DISPLAY("impossible to open file %s\n", fileNamesTable[n]);
+            freeBuffers(*buff);
+            fclose(f);
+            return 10;
+        }
+
+        DISPLAY("Loading %s...       \r", fileNamesTable[n]);
+
+        if (fileSize + pos > benchedSize) fileSize = benchedSize - pos, n=nbFiles;   /* buffer too small - stop after this file */
+        {
+            char* buffer = (char*)(buff->srcBuffer); 
+            size_t const readSize = fread((buffer)+pos, 1, (size_t)fileSize, f);
+            size_t blocked = 0;
+            while(blocked < readSize) {
+                buff->srcPtrs[blockNb] = (const void*)((buffer) + (pos + blocked));
+                buff->srcSizes[blockNb] = blockSize;
+                blocked += blockSize;
+                blockNb++;
+            }
+            if(readSize > 0) { buff->srcSizes[blockNb - 1] = ((readSize - 1) % blockSize) + 1; }
+
+            if (readSize != (size_t)fileSize) {
+                DISPLAY("could not read %s", fileNamesTable[n]);
+                freeBuffers(*buff);
+                fclose(f);
+                return 1;
+            }
+
+            pos += readSize;
+
+        }
+        fclose(f);
+    }
+
+    buff->dstCapacities[0] = ZSTD_compressBound(buff->srcSizes[0]);
+    buff->dstSizes[0] = buff->dstCapacities[0];
+    buff->resSizes[0] = buff->srcSizes[0];
+
+    for(n = 1; n < blockNb; n++) {
+        buff->dstPtrs[n] = ((char*)buff->dstPtrs[n-1]) + buff->dstCapacities[n-1];
+        buff->resPtrs[n] = ((char*)buff->resPtrs[n-1]) + buff->resSizes[n-1];
+        buff->dstCapacities[n] = ZSTD_compressBound(buff->srcSizes[n]);
+        buff->dstSizes[n] = buff->dstCapacities[n];
+        buff->resSizes[n] = buff->srcSizes[n];
+    }
+    buff->srcSize = pos;
+    buff->nbBlocks = blockNb;
+
+    if (pos == 0) { DISPLAY("\nno data to bench\n"); return 1; }
+
+    return 0;
+}
+
+static void freeContexts(const contexts_t ctx) {
+    free(ctx.dictBuffer);
+    ZSTD_freeCCtx(ctx.cctx);
+    ZSTD_freeDCtx(ctx.dctx);
+}
+
+static int createContexts(contexts_t* ctx, const char* dictFileName) {
+    FILE* f;
+    size_t readSize;
+    ctx->cctx = ZSTD_createCCtx();
+    ctx->dctx = ZSTD_createDCtx();
+    if(dictFileName == NULL) {
+        ctx->dictSize = 0;
+        ctx->dictBuffer = NULL;
+        return 0;
+    }
+    ctx->dictSize = UTIL_getFileSize(dictFileName);
+    ctx->dictBuffer = malloc(ctx->dictSize);
+
+    f = fopen(dictFileName, "rb");
+    
+    if(!f) {
+        DISPLAY("unable to open file\n");
+        fclose(f);
+        freeContexts(*ctx);
+        return 1;
+    }
+    
+    if(ctx->dictSize > 64 MB || !(ctx->dictBuffer)) {
+        DISPLAY("dictionary too large\n");
+        fclose(f);
+        freeContexts(*ctx);
+        return 1;
+    }
+    readSize = fread(ctx->dictBuffer, 1, ctx->dictSize, f);
+    if(readSize != ctx->dictSize) {
+        DISPLAY("unable to read file\n");
+        fclose(f);
+        freeContexts(*ctx);
+        return 1;
+    }
+    return 0;
+}
 
 /* Replicate functionality of benchMemAdvanced, but with pre-split src / dst buffers */
 /* The purpose is so that sufficient information is returned so that a decompression call to benchMemInvertible is possible */
@@ -788,6 +953,8 @@ static int insertWinner(winnerInfo_t w) {
     } 
 }
 
+/* Writes to f the results of a parameter benchmark */
+/* when used with --optimize, will only print results better than previously discovered */
 static void BMK_printWinner(FILE* f, const U32 cLevel, const BMK_result_t result, const ZSTD_compressionParameters params, const size_t srcSize)
 {
     char lvlstr[15] = "Custom Level";
@@ -806,7 +973,7 @@ static void BMK_printWinner(FILE* f, const U32 cLevel, const BMK_result_t result
 
     fprintf(f,
         "/* %s */   /* R:%5.3f at %5.1f MB/s - %5.1f MB/s */",
-        lvlstr, (double)srcSize / result.cSize, (double)result.cSpeed / (1 << 20), (double)result.dSpeed / (1 << 20));
+        lvlstr, (double)srcSize / result.cSize, (double)result.cSpeed / (1 MB), (double)result.dSpeed / (1 MB));
 
     if(TIMED) { fprintf(f, " - %1lu:%2lu:%05.2f", (unsigned long) minutes / 60,(unsigned long) minutes % 60, (double)(time - minutes * TIMELOOP_NANOSEC * 60ULL)/TIMELOOP_NANOSEC); }
     fprintf(f, "\n"); 
@@ -816,29 +983,6 @@ static void BMK_printWinnerOpt(FILE* f, const U32 cLevel, const BMK_result_t res
 {
     /* global winner used for constraints */
     static winnerInfo_t g_winner = { { 0, 0, (size_t)-1, (size_t)-1 } , { 0, 0, 0, 0, 0, 0, ZSTD_fast } }; 
-    
-    /* print lvl if optmode */
-    if(g_lvltarget.cSize != 0) {
-        winnerInfo_t w;
-        ll_node* n;
-        int i;
-        w.result = result;
-        w.params = params;
-        i = insertWinner(w);
-        if(i) return;
-
-        fprintf(f, "\033c"); 
-        for(n = g_winners; n != NULL; n = n->next) {
-             DISPLAY("\r%79s\r", "");
-             fprintf(f,"    {%3u,%3u,%3u,%3u,%3u,%3u, %s },  ",
-                params.windowLog, params.chainLog, params.hashLog, params.searchLog, params.searchLength,
-                params.targetLength, g_stratName[(U32)(params.strategy)]);
-            fprintf(f,
-            "   /* R:%5.3f at %5.1f MB/s - %5.1f MB/s */\n",
-            (double)srcSize / result.cSize, result.cSpeed / (1 << 20), result.dSpeed / (1 << 20));
-        }
-        return;
-    }
 
     if(DEBUG || compareResultLT(g_winner.result, result, targetConstraints, srcSize)) {
         if(DEBUG && compareResultLT(g_winner.result, result, targetConstraints, srcSize)) {
@@ -855,14 +999,12 @@ static void BMK_printWinnerOpt(FILE* f, const U32 cLevel, const BMK_result_t res
     }  
 
     //prints out tradeoff table if using lvl
-    if(g_optmode) {
+    if(g_optmode && g_optimizer) {
         winnerInfo_t w;
         ll_node* n;
-        int i;
         w.result = result;
         w.params = params;
-        i = insertWinner(w);
-        //if(i) return;
+        insertWinner(w);
 
         if(!DEBUG) { fprintf(f, "\033c"); }
         fprintf(f, "\n"); 
@@ -877,11 +1019,11 @@ static void BMK_printWinnerOpt(FILE* f, const U32 cLevel, const BMK_result_t res
                 n->res.params.targetLength, g_stratName[(U32)(n->res.params.strategy)]);
             fprintf(f,
             "   /* R:%5.3f at %5.1f MB/s - %5.1f MB/s */\n",
-            (double)srcSize / n->res.result.cSize, n->res.result.cSpeed / (1 << 20), n->res.result.dSpeed / (1 << 20));
+            (double)srcSize / n->res.result.cSize, (double)n->res.result.cSpeed / (1 MB), (double)n->res.result.dSpeed / (1 MB));
         }
         fprintf(f, "================================\n");
         fprintf(f, "Level Bounds: R: > %.3f AND C: < %.1f MB/s \n\n",
-            (double)srcSize / g_lvltarget.cSize, g_lvltarget.cSpeed / (1 << 20));
+            (double)srcSize / g_lvltarget.cSize, (double)g_lvltarget.cSpeed / (1 MB));
 
 
         fprintf(f, "Overall Winner: \n");
@@ -890,8 +1032,9 @@ static void BMK_printWinnerOpt(FILE* f, const U32 cLevel, const BMK_result_t res
             g_winner.params.targetLength, g_stratName[(U32)(g_winner.params.strategy)]);
         fprintf(f,
         "   /* R:%5.3f at %5.1f MB/s - %5.1f MB/s */\n",
-        (double)srcSize / g_winner.result.cSize, g_winner.result.cSpeed / (1 << 20), g_winner.result.dSpeed / (1 << 20));
+        (double)srcSize / g_winner.result.cSize, (double)g_winner.result.cSpeed / (1 MB), (double)g_winner.result.dSpeed / (1 MB));
 
+        BMK_translateAdvancedParams(g_winner.params);
 
         fprintf(f, "Latest BMK: \n");
         fprintf(f,"    {%3u,%3u,%3u,%3u,%3u,%3u, %s },  ",
@@ -899,7 +1042,7 @@ static void BMK_printWinnerOpt(FILE* f, const U32 cLevel, const BMK_result_t res
             params.targetLength, g_stratName[(U32)(params.strategy)]);
         fprintf(f,
             "   /* R:%5.3f at %5.1f MB/s - %5.1f MB/s */\n",
-            (double)srcSize / result.cSize, result.cSpeed / (1 << 20), result.dSpeed / (1 << 20));
+            (double)srcSize / result.cSize, (double)result.cSpeed / (1 MB), (double)result.dSpeed / (1 MB));
 
     }
 }
@@ -1023,16 +1166,16 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_compressionParameters para
                 /* too large compression speed difference for the compression benefit */
                 if (W_ratio > O_ratio)
                 DISPLAY ("Compression Speed : %5.3f @ %4.1f MB/s  vs  %5.3f @ %4.1f MB/s   : not enough for level %i\n",
-                         W_ratio, (double)testResult.cSpeed / 1000000,
-                         O_ratio, (double)winners[cLevel].result.cSpeed / 1000000.,   cLevel);
+                         W_ratio, (double)testResult.cSpeed / (1 MB),
+                         O_ratio, (double)winners[cLevel].result.cSpeed / (1 MB),   cLevel);
                 continue;
             }
             if (W_DSpeed_note   < O_DSpeed_note  ) {
                 /* too large decompression speed difference for the compression benefit */
                 if (W_ratio > O_ratio)
                 DISPLAY ("Decompression Speed : %5.3f @ %4.1f MB/s  vs  %5.3f @ %4.1f MB/s   : not enough for level %i\n",
-                         W_ratio, (double)testResult.dSpeed / 1000000.,
-                         O_ratio, (double)winners[cLevel].result.dSpeed / 1000000.,   cLevel);
+                         W_ratio, (double)testResult.dSpeed / (1 MB),
+                         O_ratio, (double)winners[cLevel].result.dSpeed / (1 MB),   cLevel);
                 continue;
             }
 
@@ -1417,7 +1560,6 @@ static void BMK_selectRandomStart(
     }
 }
 
-
 static void BMK_benchOnce(const void* srcBuffer, size_t srcSize)
 {
     BMK_result_t testResult;
@@ -1442,7 +1584,7 @@ static void BMK_benchFullTable(const void* srcBuffer, size_t srcSize)
     if (f==NULL) { DISPLAY("error opening %s \n", rfName); exit(1); }
 
     if (g_target) {
-        BMK_init_level_constraints(g_target*1000000);
+        BMK_init_level_constraints(g_target * (1 MB));
     } else {
         /* baseline config for level 1 */
         ZSTD_compressionParameters const l1params = ZSTD_getCParams(1, blockSize, 0);
@@ -1487,7 +1629,7 @@ static void BMK_benchMemInit(const void* srcBuffer, size_t srcSize)
 static int benchSample(void)
 {
     const char* const name = "Sample 10MB";
-    size_t const benchedSize = 10000000;
+    size_t const benchedSize = 10 MB;
 
     void* origBuff = malloc(benchedSize);
     if (!origBuff) { perror("not enough memory"); return 12; }
@@ -1505,12 +1647,55 @@ static int benchSample(void)
 }
 
 
+static int benchOnce(const char** fileNamesTable, int nbFiles, const char* dictFileName) {
+    buffers_t buf;
+    contexts_t ctx;
+    BMK_result_t testResult;
+    size_t maxBlockSize = 0, i;
+
+    if(createBuffers(&buf, fileNamesTable, nbFiles)) {
+        DISPLAY("unable to load files\n");
+        return 1;
+    }
+
+    if(createContexts(&ctx, dictFileName)) {
+        DISPLAY("unable to load dictionary\n");
+        freeBuffers(buf);
+        return 2;
+    }
+
+    for(i = 0; i < buf.nbBlocks; i++) {
+        maxBlockSize = MAX(maxBlockSize, buf.srcSizes[i]);
+    }
+
+    g_params = ZSTD_adjustCParams(g_params, maxBlockSize, 0);
+
+    if(BMK_benchParam(&testResult, buf, ctx, g_params)) {
+        DISPLAY("Error during benchmarking\n");
+        freeBuffers(buf);
+        freeContexts(ctx);
+        return 3;
+    }
+
+    DISPLAY("Compression Ratio: %.3f  Compress Speed: %.1f MB/s Decompress Speed: %.1f MB/s\n", (double)buf.srcSize / testResult.cSize, 
+        (double)testResult.cSpeed / (1 MB), (double)testResult.dSpeed / (1 MB));
+
+    freeBuffers(buf);
+    freeContexts(ctx);
+    return 0;
+}
+
 /* benchFiles() :
  * note: while this function takes a table of filenames,
  * in practice, only the first filename will be used */
-int benchFiles(const char** fileNamesTable, int nbFiles)
+//TODO: dictionaries still not supported in fullTable mode
+int benchFiles(const char** fileNamesTable, int nbFiles, const char* dictFileName)
 {
     int fileIdx=0;
+
+    if(g_singleRun) {
+        return benchOnce(fileNamesTable, nbFiles, dictFileName);
+    }
 
     /* Loop for each file */
     while (fileIdx<nbFiles) {
@@ -1856,196 +2041,6 @@ static winnerInfo_t optimizeFixedStrategy(
     return winnerInfo;
 }
 
-static void freeBuffers(const buffers_t b) {
-    if(b.srcPtrs != NULL) {
-        free(b.srcBuffer);
-    }
-    free(b.srcPtrs);
-    free(b.srcSizes);
-
-    if(b.dstPtrs != NULL) {
-        free(b.dstPtrs[0]);
-    }
-    free(b.dstPtrs);
-    free(b.dstCapacities);
-    free(b.dstSizes);
-
-    if(b.resPtrs != NULL) {
-        free(b.resPtrs[0]);
-    }
-    free(b.resPtrs);
-}
-
-/* allocates buffer's arguments. returns 0 = success / 1 = failuere */
-static int createBuffers(buffers_t* const buff, const char* const * const fileNamesTable, 
-                          const size_t nbFiles)
-{
-    size_t pos = 0;
-    size_t n;
-    U64 const totalSizeToLoad = UTIL_getTotalFileSize(fileNamesTable, (U32)nbFiles);
-    size_t benchedSize = MIN(BMK_findMaxMem(totalSizeToLoad * 3) / 3, totalSizeToLoad);
-    const size_t blockSize = g_blockSize ? g_blockSize : totalSizeToLoad; //(largest fileSize or total fileSize)
-    U32 const maxNbBlocks = (U32) ((totalSizeToLoad + (blockSize-1)) / blockSize) + (U32)nbFiles;
-    U32 blockNb = 0;
-
-    memset(buff, 0, sizeof(buffers_t));
-
-    buff->srcPtrs = (const void**)calloc(maxNbBlocks, sizeof(void*));
-    buff->srcSizes = (size_t*)malloc(maxNbBlocks * sizeof(size_t));
-
-    buff->dstPtrs = (void**)calloc(maxNbBlocks, sizeof(void*));
-    buff->dstCapacities = (size_t*)malloc(maxNbBlocks * sizeof(size_t));
-    buff->dstSizes = (size_t*)malloc(maxNbBlocks * sizeof(size_t));
-
-    buff->resPtrs = (void**)calloc(maxNbBlocks, sizeof(void*));
-    buff->resSizes = (size_t*)malloc(maxNbBlocks * sizeof(size_t)); 
-
-    if(!buff->srcPtrs || !buff->srcSizes || !buff->dstPtrs || !buff->dstCapacities || !buff->dstSizes || !buff->resPtrs || !buff->resSizes) {
-        DISPLAY("alloc error\n");
-        freeBuffers(*buff);
-        return 1;
-    }
-
-    buff->srcBuffer = malloc(benchedSize);
-    buff->srcPtrs[0] = (const void*)buff->srcBuffer;
-    buff->dstPtrs[0] = malloc(ZSTD_compressBound(benchedSize) + (maxNbBlocks * 1024));
-    buff->resPtrs[0] = malloc(benchedSize);
-
-    if(!buff->srcPtrs[0] || !buff->dstPtrs[0] || !buff->resPtrs[0]) {
-        DISPLAY("alloc error\n");
-        freeBuffers(*buff);
-        return 1;
-    }
-
-    for(n = 0; n < nbFiles; n++) {
-        FILE* f;
-        U64 fileSize = UTIL_getFileSize(fileNamesTable[n]);
-        if (UTIL_isDirectory(fileNamesTable[n])) {
-            DISPLAY("Ignoring %s directory...       \n", fileNamesTable[n]);
-            continue;
-        }
-        if (fileSize == UTIL_FILESIZE_UNKNOWN) {
-            DISPLAY("Cannot evaluate size of %s, ignoring ... \n", fileNamesTable[n]);
-            continue;
-        }
-        f = fopen(fileNamesTable[n], "rb");
-        if (f==NULL) {
-            DISPLAY("impossible to open file %s\n", fileNamesTable[n]);
-            freeBuffers(*buff);
-            fclose(f);
-            return 10;
-        }
-
-        DISPLAY("Loading %s...       \r", fileNamesTable[n]);
-
-        if (fileSize + pos > benchedSize) fileSize = benchedSize - pos, n = nbFiles;   /* buffer too small - stop after this file */
-        {
-            char* buffer = (char*)(buff->srcBuffer); 
-            size_t const readSize = fread(((buffer)+pos), 1, (size_t)fileSize, f);
-            size_t blocked = 0;
-            while(blocked < readSize) {
-                buff->srcPtrs[blockNb] = (const void*)((buffer) + (pos + blocked));
-                buff->srcSizes[blockNb] = blockSize;
-                blocked += blockSize;
-                blockNb++;
-            }
-            if(readSize > 0) { buff->srcSizes[blockNb - 1] = ((readSize - 1) % blockSize) + 1; }
-
-            if (readSize != (size_t)fileSize) {
-                DISPLAY("could not read %s", fileNamesTable[n]);
-                freeBuffers(*buff);
-                fclose(f);
-                return 1;
-            }
-
-            pos += readSize;
-
-        }
-        fclose(f);
-    }
-
-    buff->dstCapacities[0] = ZSTD_compressBound(buff->srcSizes[0]);
-    buff->dstSizes[0] = buff->dstCapacities[0];
-    buff->resSizes[0] = buff->srcSizes[0];
-
-    for(n = 1; n < blockNb; n++) {
-        buff->dstPtrs[n] = ((char*)buff->dstPtrs[n-1]) + buff->dstCapacities[n-1];
-        buff->resPtrs[n] = ((char*)buff->resPtrs[n-1]) + buff->resSizes[n-1];
-        buff->dstCapacities[n] = ZSTD_compressBound(buff->srcSizes[n]);
-        buff->dstSizes[n] = buff->dstCapacities[n];
-        buff->resSizes[n] = buff->srcSizes[n];
-    }
-    buff->srcSize = pos;
-    buff->nbBlocks = blockNb;
-
-    if (pos == 0) { DISPLAY("\nno data to bench\n"); return 1; }
-
-    return 0;
-}
-
-static void freeContexts(const contexts_t ctx) {
-    free(ctx.dictBuffer);
-    ZSTD_freeCCtx(ctx.cctx);
-    ZSTD_freeDCtx(ctx.dctx);
-}
-
-/* Creates struct holding contexts and dictionary buffers. returns 0 on success, 1 on failure. */
-static int createContexts(contexts_t* const ctx, const char* dictFileName) {
-    FILE* f;
-    size_t readSize;
-    U64 dictSize;
-    ctx->cctx = ZSTD_createCCtx();
-    ctx->dctx = ZSTD_createDCtx();
-    ctx->dictSize = 0;
-    ctx->dictBuffer = NULL;
-
-    if(!ctx->cctx || !ctx->dctx) {
-        DISPLAY("context allocation error\n");
-        freeContexts(*ctx);
-        return 1;
-    }
-
-    if(dictFileName == NULL) {
-        return 0;
-    }
-
-    dictSize = UTIL_getFileSize(dictFileName);
-
-    if(dictSize == UTIL_FILESIZE_UNKNOWN) {
-        DISPLAY("Unable to get dictionary size\n");
-        freeContexts(*ctx);
-        return 1;
-    } else {
-        ctx->dictSize = (size_t)dictSize;
-    }
-
-    ctx->dictBuffer = malloc(ctx->dictSize);
-
-    f = fopen(dictFileName, "rb");
-    
-    if(!f) {
-        DISPLAY("unable to open file\n");
-        fclose(f);
-        freeContexts(*ctx);
-        return 1;
-    }
-    
-    if(ctx->dictSize > 64 MB || !(ctx->dictBuffer)) {
-        DISPLAY("dictionary too large\n");
-        fclose(f);
-        freeContexts(*ctx);
-        return 1;
-    }
-    readSize = fread(ctx->dictBuffer, 1, ctx->dictSize, f);
-    if(readSize != ctx->dictSize) {
-        DISPLAY("unable to read file\n");
-        fclose(f);
-        freeContexts(*ctx);
-        return 1;
-    }
-    return 0;
-}
-
 /* goes best, best-1, best+1, best-2, ... */
 /* return 0 if nothing remaining */
 static int nextStrategy(const int currentStrategy, const int bestStrategy) {
@@ -2102,7 +2097,7 @@ static ZSTD_compressionParameters maskParams(ZSTD_compressionParameters base, ZS
  * cLevel - compression level to exceed (all solutions must be > lvl in cSpeed + ratio)
  */
 
-#define MAX_TRIES 3
+#define MAX_TRIES 5
 #define TRY_DECAY 1
 
 static int optimizeForSize(const char* const * const fileNamesTable, const size_t nbFiles, const char* dictFileName, constraint_t target, ZSTD_compressionParameters paramTarget, int cLevel)
@@ -2272,8 +2267,9 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
                 }
 
                 while(st && tries > 0) {
+                    winnerInfo_t wc;
                     DEBUGOUTPUT("StrategySwitch: %s\n", g_stratName[st]);
-                    winnerInfo_t wc = optimizeFixedStrategy(buf, ctx, target, paramTarget, 
+                    wc = optimizeFixedStrategy(buf, ctx, target, paramTarget, 
                         st, varArray, varLen, allMT[st], tries);
 
                     if(compareResultLT(winner.result, wc.result, target, buf.srcSize)) {
@@ -2399,7 +2395,6 @@ int main(int argc, const char** argv)
     const char* exename=argv[0];
     const char* input_filename = NULL;
     const char* dictFileName = NULL;
-    U32 optimizer = 0;
     U32 main_pause = 0;
     int optimizerCLevel = 0;
 
@@ -2424,7 +2419,7 @@ int main(int argc, const char** argv)
         if(!strcmp(argument,"--no-seed")) { g_noSeed = 1; continue; }
 
         if (longCommandWArg(&argument, "--optimize=")) {
-            optimizer = 1;
+            g_optimizer = 1;
             for ( ; ;) {
                 PARSE_CPARAMS(paramTarget);
                 PARSE_SUB_ARGS("compressionSpeed=" ,  "cSpeed=", target.cSpeed);
@@ -2580,17 +2575,17 @@ int main(int argc, const char** argv)
         if (!input_filename) { input_filename=argument; filenamesStart=i; continue; }
     }
     if (filenamesStart==0) {
-        if (optimizer) {
+        if (g_optimizer) {
             DISPLAY("Optimizer Expects File\n");
             return 1;
         } else {
             result = benchSample();
         }
     } else {
-        if (optimizer) {
+        if (g_optimizer) {
             result = optimizeForSize(argv+filenamesStart, argc-filenamesStart, dictFileName, target, paramTarget, optimizerCLevel);
         } else {
-            result = benchFiles(argv+filenamesStart, argc-filenamesStart);
+            result = benchFiles(argv+filenamesStart, argc-filenamesStart, dictFileName);
     }   }
 
     if (main_pause) { int unused; printf("press enter...\n"); unused = getchar(); (void)unused; }

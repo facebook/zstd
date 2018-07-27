@@ -294,7 +294,7 @@ BMK_customReturn_t BMK_benchFunction(
     BMK_initFn_t initFn, void* initPayload,
     size_t blockCount,
     const void* const * const srcBlockBuffers, const size_t* srcBlockSizes,
-    void* const * const dstBlockBuffers, const size_t* dstBlockCapacities, size_t* cSizes, 
+    void* const * const dstBlockBuffers, const size_t* dstBlockCapacities, size_t* blockResult, 
     unsigned nbLoops) {
     size_t dstSize = 0;
     U64 totalTime;
@@ -332,8 +332,8 @@ BMK_customReturn_t BMK_benchFunction(
                         j, (U32)dstBlockCapacities[j], ZSTD_getErrorName(res));
                 } else if(i == nbLoops - 1) {
                     dstSize += res;
-                    if(cSizes != NULL) {
-                        cSizes[j] = res;
+                    if(blockResult != NULL) {
+                        blockResult[j] = res;
                     }
                 } 
             }
@@ -358,6 +358,9 @@ void BMK_resetTimeState(BMK_timedFnState_t* r, unsigned nbSeconds) {
 
 BMK_timedFnState_t* BMK_createTimeState(unsigned nbSeconds) {
     BMK_timedFnState_t* r = (BMK_timedFnState_t*)malloc(sizeof(struct BMK_timeState_t));
+    if(r == NULL) {
+        return r;
+    }
     BMK_resetTimeState(r, nbSeconds);
     return r;
 }
@@ -373,7 +376,7 @@ BMK_customTimedReturn_t BMK_benchFunctionTimed(
     BMK_initFn_t initFn, void* initPayload,
     size_t blockCount,
     const void* const* const srcBlockBuffers, const size_t* srcBlockSizes,
-    void * const * const dstBlockBuffers, const size_t * dstBlockCapacities, size_t* dstSizes) 
+    void * const * const dstBlockBuffers, const size_t * dstBlockCapacities, size_t* blockResults) 
 {
     U64 fastest = cont->fastestTime;
     int completed = 0;
@@ -390,7 +393,7 @@ BMK_customTimedReturn_t BMK_benchFunctionTimed(
         }
         /* reinitialize capacity */
         r.result = BMK_benchFunction(benchFn, benchPayload, initFn, initPayload,
-        blockCount, srcBlockBuffers, srcBlockSizes, dstBlockBuffers, dstBlockCapacities, dstSizes, cont->nbLoops);
+        blockCount, srcBlockBuffers, srcBlockSizes, dstBlockBuffers, dstBlockCapacities, blockResults, cont->nbLoops);
         if(r.result.error) { /* completed w/ error */
             r.completed = 1;
             return r;
@@ -718,38 +721,36 @@ BMK_return_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
     U32 const maxNbBlocks = (U32) ((srcSize + (blockSize-1)) / blockSize) + nbFiles;
 
     /* these are the blockTable parameters, just split up */
-    const void ** const srcPtrs = (const void** const)malloc(maxNbBlocks * sizeof(void*));
-    size_t* const srcSizes = (size_t* const)malloc(maxNbBlocks * sizeof(size_t));
+    const void ** const srcPtrs = (const void**)malloc(maxNbBlocks * sizeof(void*));
+    size_t* const srcSizes = (size_t*)malloc(maxNbBlocks * sizeof(size_t));
 
 
-    void ** const cPtrs = (void** const)malloc(maxNbBlocks * sizeof(void*));
-    size_t* const cSizes = (size_t* const)malloc(maxNbBlocks * sizeof(size_t));
-    size_t* const cCapacities = (size_t* const)malloc(maxNbBlocks * sizeof(size_t));
+    void ** const cPtrs = (void**)malloc(maxNbBlocks * sizeof(void*));
+    size_t* const cSizes = (size_t*)malloc(maxNbBlocks * sizeof(size_t));
+    size_t* const cCapacities = (size_t*)malloc(maxNbBlocks * sizeof(size_t));
 
-    void ** const resPtrs = (void** const)malloc(maxNbBlocks * sizeof(void*));
-    size_t* const resSizes = (size_t* const)malloc(maxNbBlocks * sizeof(size_t));
+    void ** const resPtrs = (void**)malloc(maxNbBlocks * sizeof(void*));
+    size_t* const resSizes = (size_t*)malloc(maxNbBlocks * sizeof(size_t));
 
     BMK_timedFnState_t* timeStateCompress = BMK_createTimeState(adv->nbSeconds);
     BMK_timedFnState_t* timeStateDecompress = BMK_createTimeState(adv->nbSeconds);
 
-    void* compressedBuffer;
     const size_t maxCompressedSize = dstCapacity ? dstCapacity : ZSTD_compressBound(srcSize) + (maxNbBlocks * 1024);
+
+    void* const internalDstBuffer = dstBuffer ? NULL : malloc(maxCompressedSize);
+    void* const compressedBuffer = dstBuffer ? dstBuffer : internalDstBuffer;
+
     void* resultBuffer = malloc(srcSize);
 
-
     BMK_return_t results = { { 0, 0, 0, 0 }, 0 };
-    int allocationincomplete;
+    int allocationincomplete = !srcPtrs || !srcSizes || !cPtrs || 
+        !cSizes || !cCapacities || !resPtrs || !resSizes || 
+        !timeStateCompress || !timeStateDecompress || !compressedBuffer || !resultBuffer;
 
-    if(!dstCapacity) {
-        compressedBuffer = malloc(maxCompressedSize);
-    } else {
-        compressedBuffer = dstBuffer;
-    }
+    int parametersConflict = !dstBuffer ^ !dstCapacity;
 
-    allocationincomplete = !compressedBuffer || !resultBuffer ||  
-        !srcPtrs || !srcSizes || !cPtrs || !cSizes || !resPtrs || !resSizes;
 
-    if (!allocationincomplete) {
+    if (!allocationincomplete && !parametersConflict) {
         results = BMK_benchMemAdvancedNoAlloc(srcPtrs, srcSizes, cPtrs, cCapacities, cSizes,
             resPtrs, resSizes, &resultBuffer, compressedBuffer, maxCompressedSize, timeStateCompress, timeStateDecompress,
             srcBuffer, srcSize, fileSizes, nbFiles, cLevel, comprParams,
@@ -759,9 +760,8 @@ BMK_return_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
     /* clean up */
     BMK_freeTimeState(timeStateCompress);
     BMK_freeTimeState(timeStateDecompress);
-    if(!dstCapacity) { /* only free if not given */
-        free(compressedBuffer);
-    }
+    
+    free(internalDstBuffer);
     free(resultBuffer);
 
     free((void*)srcPtrs); 
@@ -774,6 +774,10 @@ BMK_return_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
 
     if(allocationincomplete) {
         EXM_THROW(31, BMK_return_t, "allocation error : not enough memory");
+    }
+    
+    if(parametersConflict) {
+        EXM_THROW(32, BMK_return_t, "Conflicting input results");   
     }
     return results;
 }

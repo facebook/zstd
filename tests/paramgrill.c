@@ -986,7 +986,7 @@ static void memoTableIndInv(ZSTD_compressionParameters* ptr, const varInds_t* va
 }
 
 /* Initialize memotable, immediately mark redundant / obviously infeasible params as */
-static void memoTableInit(U8* memoTable, ZSTD_compressionParameters paramConstraints, const constraint_t target, const varInds_t* varyParams, const int varyLen, const size_t srcSize) {
+static void createMemoTable(U8* memoTable, ZSTD_compressionParameters paramConstraints, const constraint_t target, const varInds_t* varyParams, const int varyLen, const size_t srcSize) {
     size_t i;
     size_t arrayLen = memoTableLen(varyParams, varyLen);
     int cwFixed = !paramConstraints.chainLog || !paramConstraints.windowLog;
@@ -1053,23 +1053,24 @@ static void memoTableFreeAll(U8** mtAll) {
 
 /* inits memotables for all (including mallocs), all strategies */
 /* takes unsanitized varyParams */
-static U8** memoTableInitAll(ZSTD_compressionParameters paramConstraints, constraint_t target, const varInds_t* varyParams, const int varyLen, const size_t srcSize) {
+static U8** createMemoTableArray(ZSTD_compressionParameters paramConstraints, constraint_t target, const varInds_t* varyParams, const int varyLen, const size_t srcSize) {
     varInds_t varNew[NUM_PARAMS];
-    int varLenNew;
     U8** mtAll = calloc(sizeof(U8*),(ZSTD_btultra + 1));
     int i;
     if(mtAll == NULL) {
         return NULL;
     }
+
     for(i = 1; i <= (int)ZSTD_btultra; i++) {
-        varLenNew = sanitizeVarArray(varNew, varyLen, varyParams, i);
+        const int varLenNew = sanitizeVarArray(varNew, varyLen, varyParams, i);
         mtAll[i] = malloc(sizeof(U8) * memoTableLen(varNew, varLenNew));
         if(mtAll[i] == NULL) {
             memoTableFreeAll(mtAll);
             return NULL;
         }
-        memoTableInit(mtAll[i], paramConstraints, target, varNew, varLenNew, srcSize);
+        createMemoTable(mtAll[i], paramConstraints, target, varNew, varLenNew, srcSize);
     }
+    
     return mtAll;
 }
 
@@ -1187,7 +1188,7 @@ static void BMK_benchFullTable(ZSTD_CCtx* cctx, ZSTD_DCtx* dctx, const void* src
     winnerInfo_t winners[NB_LEVELS_TRACKED+1];
     const char* const rfName = "grillResults.txt";
     FILE* const f = fopen(rfName, "w");
-    const size_t blockSize = g_blockSize ? g_blockSize : ZSTD_BLOCKSIZE_MAX;   /* cut by block or not ? */
+    const size_t blockSize = g_blockSize ? g_blockSize : srcSize;   /* cut by block or not ? */
 
     /* init */
     assert(g_singleRun==0);
@@ -1638,7 +1639,7 @@ static void freeBuffers(buffers_t b) {
 }
 
 /* allocates buffer's arguments. returns success / failuere */
-static int initBuffers(buffers_t* buff, const char* const * const fileNamesTable, 
+static int createBuffers(buffers_t* buff, const char* const * const fileNamesTable, 
                           size_t nbFiles)
 {
     size_t pos = 0;
@@ -1659,7 +1660,7 @@ static int initBuffers(buffers_t* buff, const char* const * const fileNamesTable
     buff->resPtrs = (void**)calloc(maxNbBlocks, sizeof(void*));
     buff->resSizes = (size_t*)malloc(maxNbBlocks * sizeof(size_t)); 
 
-    if(!buff->srcPtrs || !buff->srcSizes || !buff->dstPtrs || !buff->dstCapacities || !buff->dstCapacities || !buff->resPtrs || !buff->resSizes) {
+    if(!buff->srcPtrs || !buff->srcSizes || !buff->dstPtrs || !buff->dstCapacities || !buff->dstSizes || !buff->resPtrs || !buff->resSizes) {
         DISPLAY("alloc error\n");
         freeBuffers(*buff);
         return 1;
@@ -1747,7 +1748,7 @@ static void freeContexts(contexts_t ctx) {
     ZSTD_freeDCtx(ctx.dctx);
 }
 
-static int initContexts(contexts_t* ctx, const char* dictFileName) {
+static int createContexts(contexts_t* ctx, const char* dictFileName) {
     FILE* f;
     size_t readSize;
     ctx->cctx = ZSTD_createCCtx();
@@ -1846,12 +1847,12 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
     }
 
     /* load dictionary*/
-    if(initBuffers(&buf, fileNamesTable, nbFiles)) {
+    if(createBuffers(&buf, fileNamesTable, nbFiles)) {
         DISPLAY("unable to load files\n");
         return 1;
     }
 
-    if(initContexts(&ctx, dictFileName)) {
+    if(createContexts(&ctx, dictFileName)) {
         DISPLAY("unable to load dictionary\n");
         freeBuffers(buf);
         return 2;
@@ -1885,9 +1886,9 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
             goto _cleanUp;
         }
         
-        memoTableInit(allMT[paramTarget.strategy], paramTarget, target, varNew, varLenNew, maxBlockSize);
+        createMemoTable(allMT[paramTarget.strategy], paramTarget, target, varNew, varLenNew, maxBlockSize);
     } else {
-         allMT = memoTableInitAll(paramTarget, target, varArray, varLen, maxBlockSize);
+         allMT = createMemoTableArray(paramTarget, target, varArray, varLen, maxBlockSize);
     }
    
 

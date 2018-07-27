@@ -175,7 +175,8 @@ typedef size_t (*BMK_initFn_t)(void*);
  * srcBuffers - an array of buffers to be operated on by benchFn
  * srcSizes - an array of the sizes of above buffers
  * dstBuffers - an array of buffers to be written into by benchFn
- * dstCapacitiesToSizes - an array of the capacities of above buffers. Output modified to compressed sizes of those blocks.
+ * dstCapacities - an array of the capacities of above buffers
+ * blockResults - the return value of benchFn called on each block.
  * nbLoops - defines number of times benchFn is run.
  * assumed array of size blockCount, will have compressed size of each block written to it.
  * return 
@@ -192,7 +193,7 @@ BMK_customReturn_t BMK_benchFunction(BMK_benchFn_t benchFn, void* benchPayload,
                         BMK_initFn_t initFn, void* initPayload,
                         size_t blockCount,
                         const void* const * const srcBuffers, const size_t* srcSizes,
-                        void * const * const dstBuffers, const size_t* dstCapacities, size_t* cSizes,  
+                        void * const * const dstBuffers, const size_t* dstCapacities, size_t* blockResults,  
                         unsigned nbLoops);
 
 
@@ -221,7 +222,7 @@ BMK_customTimedReturn_t BMK_benchFunctionTimed(BMK_timedFnState_t* cont,
     BMK_initFn_t initFn, void* initPayload,
     size_t blockCount,
     const void* const * const srcBlockBuffers, const size_t* srcBlockSizes,
-    void* const * const dstBlockBuffers, const size_t* dstBlockCapacities, size_t* cSizes);
+    void* const * const dstBlockBuffers, const size_t* dstBlockCapacities, size_t* blockResults);
 
 #endif   /* BENCH_H_121279284357 */
 

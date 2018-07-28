@@ -394,6 +394,9 @@ static size_t FSE_normalizeM2(short* norm, U32 tableLog, const unsigned* count, 
     }
     ToDistribute = (1 << tableLog) - distributed;
 
+    if (ToDistribute == 0)
+        return 0;
+
     if ((total / ToDistribute) > lowOne) {
         /* risk of rounding to zero */
         lowOne = (U32)((total * 3) / (ToDistribute * 2));

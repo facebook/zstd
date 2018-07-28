@@ -1,7 +1,7 @@
 ARG :=
 
 CC ?= gcc
-CFLAGS ?= -O3
+CFLAGS ?= -O3 -g
 INCLUDES := -I ../../../programs -I ../randomDictBuilder -I ../../../lib/common -I ../../../lib -I ../../../lib/dictBuilder
 
 IO_FILE := ../randomDictBuilder/io.c
@@ -32,7 +32,7 @@ io.o: $(IO_FILE)
 	$(CC) $(CFLAGS) $(INCLUDES) -c $(IO_FILE)
 
 libzstd.a:
-	$(MAKE) -C ../../../lib libzstd.a
+	$(MAKE) MOREFLAGS=-g -C ../../../lib libzstd.a
 	mv ../../../lib/libzstd.a .
 
 .PHONY: testrun

@@ -37,7 +37,9 @@
 #define ZSTD_RESIZE_SEQPOOL 0
 
 /* ======   Debug   ====== */
-#if defined(DEBUGLEVEL) && (DEBUGLEVEL>=2) && !defined(_MSC_VER)
+#if defined(DEBUGLEVEL) && (DEBUGLEVEL>=2) \
+    && !defined(_MSC_VER) \
+    && !defined(__MINGW32__)
 
 #  include <stdio.h>
 #  include <unistd.h>

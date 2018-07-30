@@ -28,7 +28,7 @@ DEBUGFLAGS  = -g -DDEBUGLEVEL=$(DEBUGLEVEL)
 CPPFLAGS   += -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
               -I$(ZSTDDIR)/dictBuilder -I$(ZSTDDIR)/deprecated -I$(PRGDIR)
 ifeq ($(OS),Windows_NT)   # MinGW assumed
-CPPFLAGS   += -D__USE_MINGW_ANSI_STDIO
+CPPFLAGS   += -D__USE_MINGW_ANSI_STDIO   # compatibility with %zu formatting
 endif
 CFLAGS     ?= -O3
 CFLAGS     += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow                 \

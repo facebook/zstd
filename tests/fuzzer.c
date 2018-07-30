@@ -27,6 +27,7 @@
 #include <string.h>       /* strcmp */
 #include <assert.h>
 #define ZSTD_STATIC_LINKING_ONLY  /* ZSTD_compressContinue, ZSTD_compressBlock */
+#include "fse.h"
 #include "zstd.h"         /* ZSTD_VERSION_STRING */
 #include "zstd_errors.h"  /* ZSTD_getErrorCode */
 #include "zstdmt_compress.h"
@@ -1420,6 +1421,24 @@ static int basicUnitTests(U32 seed, double compressibility)
         ZSTD_freeCDict(smCDict);
         ZSTD_freeCDict(lgCDict);
         ZSTD_freeCCtx(cctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : testing FSE_normalizeCount() PR#1255: ", testNb++);
+    {
+        short norm[32];
+        unsigned count[32];
+        unsigned const tableLog = 5;
+        size_t const nbSeq = 32;
+        unsigned const maxSymbolValue = 31;
+        size_t i;
+
+        for (i = 0; i < 32; ++i)
+            count[i] = 1;
+        /* Calling FSE_normalizeCount() on a uniform distribution should not
+         * cause a division by zero.
+         */
+        FSE_normalizeCount(norm, tableLog, count, nbSeq, maxSymbolValue);
     }
     DISPLAYLEVEL(3, "OK \n");
 

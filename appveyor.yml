@@ -181,7 +181,7 @@
     - COMPILER: "gcc"
       HOST:     "mingw"
       PLATFORM: "x64"
-      SCRIPT:   "make allzstd"
+      SCRIPT:   "CPPFLAGS=-DDEBUGLEVEL=2 CFLAGS=-Werror make -j allzstd"
     - COMPILER: "gcc"
       HOST:     "mingw"
       PLATFORM: "x86"

@@ -77,12 +77,11 @@ typedef enum {
 } varInds_t;
 
 #define NUM_PARAMS 6
-//just don't use strategy as a param. 
+/* just don't use strategy as a param. */ 
 
 #undef ZSTD_WINDOWLOG_MAX
 #define ZSTD_WINDOWLOG_MAX 27 //no long range stuff for now. 
 
-//make 2^[0,10] w/ 999 
 #define ZSTD_TARGETLENGTH_MIN 0 
 #define ZSTD_TARGETLENGTH_MAX 999
 
@@ -274,7 +273,6 @@ static double resultScore(const BMK_result_t res, const size_t srcSize, const co
 
     ret = (MIN(1, cs) + MIN(1, ds)  + MIN(1, cm))*r1 + rt * rtr + 
          (MAX(0, log(cs))+ MAX(0, log(ds))+ MAX(0, log(cm))) * r2;
-    //DISPLAY("resultScore: %f\n", ret);
     return ret;
 }
 
@@ -593,7 +591,7 @@ static BMK_return_t BMK_benchMemInvertible(buffers_t buf, contexts_t ctx,
             BMK_freeTimeState(timeStateCompress);
             BMK_freeTimeState(timeStateDecompress);
 
-        } else { //iterMode;
+        } else { /* iterMode; */
             if(mode != BMK_decodeOnly) {
 
                 BMK_customReturn_t compressionResults = BMK_benchFunction(&local_defaultCompress, (void*)cctx, &local_initCCtx, (void*)&cctxprep,
@@ -636,8 +634,7 @@ static BMK_return_t BMK_benchMemInvertible(buffers_t buf, contexts_t ctx,
     return results;
 }
 
-/* global winner used for display. */
-//Should be totally 0 initialized? 
+/* global winner used for display. */ 
 static winnerInfo_t g_winner = { { 0, 0, (size_t)-1, (size_t)-1 } , { 0, 0, 0, 0, 0, 0, ZSTD_fast } }; 
 static constraint_t g_targetConstraints; 
 
@@ -940,7 +937,7 @@ static void paramVariation(ZSTD_compressionParameters* ptr, const varInds_t* var
         }
         validated = !ZSTD_isError(ZSTD_checkCParams(p));
     }
-    *ptr = p;//sanitizeParams(p);
+    *ptr = p;
 }
 
 /* length of memo table given free variables */
@@ -953,7 +950,7 @@ static size_t memoTableLen(const varInds_t* varyParams, const int varyLen) {
     return arrayLen;
 }
 
-/* returns unique index of compression parameters */
+/* returns unique index in memotable of compression parameters */
 static unsigned memoTableInd(const ZSTD_compressionParameters* ptr, const varInds_t* varyParams, const int varyLen) {
     int i;
     unsigned ind = 0;
@@ -985,7 +982,7 @@ static void memoTableIndInv(ZSTD_compressionParameters* ptr, const varInds_t* va
     }
 }
 
-/* Initialize memotable, immediately mark redundant / obviously infeasible params as */
+/* Initialize memotable, immediately mark redundant / obviously infeasible params as such */
 static void createMemoTable(U8* memoTable, ZSTD_compressionParameters paramConstraints, const constraint_t target, const varInds_t* varyParams, const int varyLen, const size_t srcSize) {
     size_t i;
     size_t arrayLen = memoTableLen(varyParams, varyLen);
@@ -1003,7 +1000,7 @@ static void createMemoTable(U8* memoTable, ZSTD_compressionParameters paramConst
             memoTable[i] = 255;
             j++;
         }
-        if(wFixed && (1ULL << paramConstraints.windowLog) > (srcSize << 2)) {
+        if(wFixed && (1ULL << paramConstraints.windowLog) > srcSize) {
             memoTable[i] = 255;
         }
         /* nil out parameter sets equivalent to others. */
@@ -1121,7 +1118,7 @@ static void playAround(FILE* f, winnerInfo_t* winners,
 
 }
 
-
+/* Completely random parameter selection */
 static ZSTD_compressionParameters randomParams(void)
 {
     ZSTD_compressionParameters p;
@@ -1136,7 +1133,6 @@ static ZSTD_compressionParameters randomParams(void)
         p.targetLength=(FUZ_rand(&g_rand) % (512));
         p.strategy   = (ZSTD_strategy) (FUZ_rand(&g_rand) % (ZSTD_btultra +1));
         validated = !ZSTD_isError(ZSTD_checkCParams(p));
-        //validated = cParamValid(p);
     }
     return p;
 }
@@ -1144,7 +1140,7 @@ static ZSTD_compressionParameters randomParams(void)
 /* Sets pc to random unmeasured set of parameters */
 static void randomConstrainedParams(ZSTD_compressionParameters* pc, varInds_t* varArray, int varLen, U8* memoTable)
 {
-    size_t tries = memoTableLen(varArray, varLen); //configurable, 
+    size_t tries = memoTableLen(varArray, varLen); 
     const size_t maxSize = memoTableLen(varArray, varLen);
     size_t ind;
     do {
@@ -1153,7 +1149,6 @@ static void randomConstrainedParams(ZSTD_compressionParameters* pc, varInds_t* v
     } while(memoTable[ind] > 0 && tries > 0); 
 
     memoTableIndInv(pc, varArray, varLen, (unsigned)ind);
-    //*pc = sanitizeParams(*pc);
 }
 
 static void BMK_selectRandomStart(
@@ -1328,19 +1323,13 @@ int benchFiles(const char** fileNamesTable, int nbFiles)
     return 0;
 }
 
-/*benchmarks and tests feasibility together
- 1 = true = better
- 0 = false = not better
- if true then resultPtr will give results.
- 2+ on error? */
 
-//Maybe use compress_only for benchmark first run?
+
 #define WORSE_RESULT 0
 #define BETTER_RESULT 1
 #define ERROR_RESULT 2
-//add worse result complete for worse results of length > 1 sec? 
 
-/* variation between 2nd run and full second bmk */
+/* Benchmarking which stops when we are sufficiently sure the solution is infeasible / worse than the winner */
 #define VARIANCE 1.1 
 static int allBench(BMK_result_t* resultPtr,
                 buffers_t buf, contexts_t ctx,
@@ -1447,8 +1436,9 @@ static int allBench(BMK_result_t* resultPtr,
 
 }
 
-/* wrap feasibleBench w/ memotable */
 #define INFEASIBLE_THRESHOLD 200
+
+/* Memoized benchmarking, won't benchmark anything which has already been benchmarked before. */
 static int benchMemo(BMK_result_t* resultPtr,
                 buffers_t buf, contexts_t ctx, 
                 const ZSTD_compressionParameters cParams,
@@ -1475,18 +1465,28 @@ static int benchMemo(BMK_result_t* resultPtr,
     return res;
 }
 
-
-//sanitize all params here. 
-//all generation after random should be sanitized. (maybe sanitize random)
+/* One iteration of hill climbing. Specifically, it first tries all 
+ * valid parameter configurations w/ manhattan distance 1 and picks the best one
+ * failing that, it progressively tries candidates further and further away (up to #dim + 2)
+ * if it finds a candidate exceeding winnerInfo, it will repeat. Otherwise, it will stop the 
+ * current stage of hill climbing. 
+ * Each iteration of hill climbing proceeds in 2 'phases'. Phase 1 climbs according to 
+ * the resultScore function, which is effectively a linear increase in reward until it reaches
+ * the constraint-satisfying value, it which point any excess results in only logarithmic reward.
+ * This aims to find some constraint-satisfying point.
+ * Phase 2 optimizes in accordance with what the original function sets out to maximize, with
+ * all feasible solutions valued over all infeasible solutions.
+ */
 static winnerInfo_t climbOnce(const constraint_t target, 
                 const varInds_t* varArray, const int varLen, 
                 U8* memoTable,
                 buffers_t buf, contexts_t ctx,
                 const ZSTD_compressionParameters init) {
-    //distance maximizing selection? 
-    //cparam - currently considered 'center'
-    //candidate - params to benchmark/results
-    //winner - best option found so far.
+    /* 
+     * cparam - currently considered 'center'
+     * candidate - params to benchmark/results
+     * winner - best option found so far.
+     */
     ZSTD_compressionParameters cparam = init;
     winnerInfo_t candidateInfo, winnerInfo;
     int better = 1;
@@ -1506,14 +1506,12 @@ static winnerInfo_t climbOnce(const constraint_t target,
             cparam = winnerInfo.params;
             BMK_printWinner(stdout, CUSTOM_LEVEL, winnerInfo.result, winnerInfo.params, buf.srcSize);
             candidateInfo.params = cparam;
-            //all dist-1 targets
-            //if we early end this, we should also randomize the order these are picked. 
+             /* all dist-1 candidates */
             for(i = 0; i < varLen; i++) {
                 for(offset = -1; offset <= 1; offset += 2) {
                     candidateInfo.params = cparam;
-                    paramVaryOnce(varArray[i], offset, &candidateInfo.params); /* +1 */
+                    paramVaryOnce(varArray[i], offset, &candidateInfo.params); 
                     candidateInfo.params = sanitizeParams(candidateInfo.params);
-                    //evaluate
                     if(!ZSTD_isError(ZSTD_checkCParams(candidateInfo.params))) {
                         int res = benchMemo(&candidateInfo.result,
                             buf, ctx,
@@ -1560,7 +1558,7 @@ static winnerInfo_t climbOnce(const constraint_t target,
                 }
             }
 
-            if(!better) { //infeas -> feas -> stop. 
+            if(!better) { /* infeas -> feas -> stop */ 
                 if(feas) { return winnerInfo; } 
 
                 feas = 1;
@@ -1575,14 +1573,14 @@ static winnerInfo_t climbOnce(const constraint_t target,
     return winnerInfo;
 }
 
-//optimizeForSize but with fixed strategy
-//place to configure/filter out strategy specific parameters.
+/* Optimizes for a fixed strategy */
 
-//flexible parameters: iterations of (failed?) climbing (or if we do non-random, maybe this is when everything is close to visitied)
-//weight more on visit for bad results, less on good results/more on later results / ones with more failures.
-//allocate memoTable here. 
-//only real use for paramTarget is to get the fixed values, right? 
-//maybe allow giving it a first init? 
+/* flexible parameters: iterations of (failed?) climbing (or if we do non-random, maybe this is when everything is close to visitied)
+   weight more on visit for bad results, less on good results/more on later results / ones with more failures.
+   allocate memoTable here. 
+   only real use for paramTarget is to get the fixed values, right? 
+   maybe allow giving it a first init? 
+ */
 static winnerInfo_t optimizeFixedStrategy(
     buffers_t buf, contexts_t ctx, 
     const constraint_t target, ZSTD_compressionParameters paramTarget,
@@ -1603,9 +1601,8 @@ static winnerInfo_t optimizeFixedStrategy(
 
     init = paramTarget;
 
-    while(i < tries) { //make i adjustable (user input?) depending on how much time they have. 
+    while(i < tries) {
         DEBUGOUTPUT("Restart\n"); 
-        //look into improving this to maximize distance from searched infeasible stuff / towards promising regions? 
         randomConstrainedParams(&init, varNew, varLenNew, memoTable);
         candidateInfo = climbOnce(target, varNew, varLenNew, memoTable, buf, ctx, init);
         if(compareResultLT(winnerInfo.result, candidateInfo.result, target, buf.srcSize)) {
@@ -1638,7 +1635,7 @@ static void freeBuffers(buffers_t b) {
     free(b.resPtrs);
 }
 
-/* allocates buffer's arguments. returns success / failuere */
+/* allocates buffer's arguments. returns 0 = success / 1 = failuere */
 static int createBuffers(buffers_t* buff, const char* const * const fileNamesTable, 
                           size_t nbFiles)
 {
@@ -1748,16 +1745,25 @@ static void freeContexts(contexts_t ctx) {
     ZSTD_freeDCtx(ctx.dctx);
 }
 
+/* Creates struct holding contexts and dictionary buffers. returns 0 on success, 1 on failure. */
 static int createContexts(contexts_t* ctx, const char* dictFileName) {
     FILE* f;
     size_t readSize;
     ctx->cctx = ZSTD_createCCtx();
     ctx->dctx = ZSTD_createDCtx();
+    ctx->dictSize = 0;
+    ctx->dictBuffer = NULL;
+
+    if(!ctx->cctx || !ctx->dctx) {
+        DISPLAY("context allocation error\n");
+        freeContexts(*ctx);
+        return 1;
+    }
+
     if(dictFileName == NULL) {
-        ctx->dictSize = 0;
-        ctx->dictBuffer = NULL;
         return 0;
     }
+
     ctx->dictSize = UTIL_getFileSize(dictFileName);
     ctx->dictBuffer = malloc(ctx->dictSize);
 
@@ -1786,8 +1792,8 @@ static int createContexts(contexts_t* ctx, const char* dictFileName) {
     return 0;
 }
 
-//goes best, best-1, best+1, best-2, ...
-//return 0 if nothing remaining
+/* goes best, best-1, best+1, best-2, ... */
+/* return 0 if nothing remaining */
 static int nextStrategy(const int currentStrategy, const int bestStrategy) {
     if(bestStrategy <= currentStrategy) {
         int candidate = 2 * bestStrategy - currentStrategy - 1;
@@ -1828,7 +1834,10 @@ static ZSTD_compressionParameters maskParams(ZSTD_compressionParameters base, ZS
 }
 
 #define MAX_TRIES 8
-//optimize fixed strategy. 
+/* main fn called when using --optimize */
+/* Does strategy selection by benchmarking default compression levels
+ * then optimizes by strategy, starting with the best one and moving 
+ * progressively moving further away by number */
 static int optimizeForSize(const char* const * const fileNamesTable, const size_t nbFiles, const char* dictFileName, constraint_t target, ZSTD_compressionParameters paramTarget, int cLevel)
 {
     varInds_t varArray [NUM_PARAMS];
@@ -1905,7 +1914,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
             goto _cleanUp;
         }
 
-        target.cSpeed = (U32)winner.result.cSpeed; //Maybe have a small bit of slack here, like x.99? 
+        target.cSpeed = (U32)winner.result.cSpeed;
         g_targetConstraints = target;
         BMK_printWinner(stdout, cLevel, winner.result, winner.params, buf.srcSize);
     }
@@ -1978,7 +1987,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
                     if(compareResultLT(winner.result, wc.result, target, buf.srcSize)) {
                         winner = wc;
                     }
-                    //We could double back to increase search of 'better' strategies 
+
                     st = nextStrategy(st, bestStrategy);
                     tries--;
                 }
@@ -2088,7 +2097,7 @@ int main(int argc, const char** argv)
     int optimizerCLevel = 0;
 
 
-    constraint_t target = { 0, 0, (U32)-1 }; //0 for anything unset
+    constraint_t target = { 0, 0, (U32)-1 }; 
     ZSTD_compressionParameters paramTarget = { 0, 0, 0, 0, 0, 0, 0 };
 
     assert(argc>=1);   /* for exename */
@@ -2250,7 +2259,7 @@ int main(int argc, const char** argv)
 
                 /* load dictionary file (only applicable for optimizer rn) */
                 case 'D':
-                    if(i == argc - 1) { //last argument, return error. 
+                    if(i == argc - 1) { /* last argument, return error. */ 
                         DISPLAY("Dictionary file expected but not given : %d\n", i);
                         return 1;
                     } else {

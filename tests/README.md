@@ -125,6 +125,7 @@ Full list of arguments
  -t#          : Caps runtime of operation in seconds (default : 99999 seconds (about 27 hours )) 
  -v           : Prints Benchmarking output
  -D           : Next argument dictionary file
+ -s           : Benchmark all files separately
 
 ```
  Any inputs afterwards are treated as files to benchmark.

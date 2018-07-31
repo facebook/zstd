@@ -96,7 +96,7 @@ typedef enum {
 static const int rangetable[NUM_PARAMS] = { WLOG_RANGE, CLOG_RANGE, HLOG_RANGE, SLOG_RANGE, SLEN_RANGE, TLEN_RANGE };
 static const U32 tlen_table[TLEN_RANGE] = { 0, 1, 2, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128, 256, 512, 999 };
 /*-************************************
-*  Benchmark Parameters
+*  Benchmark Parameters/Global Variables
 **************************************/
 
 typedef BYTE U8;
@@ -110,7 +110,7 @@ static U32 g_singleRun = 0;
 static U32 g_optimizer = 0;
 static U32 g_target = 0;
 static U32 g_noSeed = 0;
-static ZSTD_compressionParameters g_params = { 0, 0, 0, 0, 0, 0, ZSTD_greedy };
+static ZSTD_compressionParameters g_params;
 static UTIL_time_t g_time; /* to be used to compare solution finding speeds to compare to original */
 
 
@@ -149,6 +149,14 @@ void BMK_SetNbIterations(int nbLoops)
     g_nbIterations = nbLoops;
     DISPLAY("- %u iterations -\n", g_nbIterations);
 }
+
+/*
+ * Additional Global Variables (Defined Above Use)
+ * g_stratName
+ * g_level_constraint
+ * g_alreadyTested
+ * g_maxTries
+ */
 
 /*-*******************************************************
 *  Private functions
@@ -335,17 +343,6 @@ const char* g_stratName[ZSTD_btultra+1] = {
                 "ZSTD_greedy  ", "ZSTD_lazy    ", "ZSTD_lazy2   ",
                 "ZSTD_btlazy2 ", "ZSTD_btopt   ", "ZSTD_btultra "};
 
-/* benchParam but only takes in one input buffer. */
-static int
-BMK_benchParam1(BMK_result_t* resultPtr,
-               const void* srcBuffer, size_t srcSize,
-               const ZSTD_compressionParameters cParams) {
-
-    BMK_return_t res = BMK_benchMem(srcBuffer,srcSize, &srcSize, 1, 0, &cParams, NULL, 0, 0, "File");
-    *resultPtr = res.result;
-    return res.error;
-}
-
 static ZSTD_compressionParameters emptyParams(void) {
     ZSTD_compressionParameters p = { 0, 0, 0, 0, 0, 0, (ZSTD_strategy)0 };
     return p;
@@ -380,14 +377,6 @@ typedef struct {
     ZSTD_CCtx* cctx;
     ZSTD_DCtx* dctx;
 } contexts_t;
-
-static int BMK_benchParam(BMK_result_t* resultPtr,
-                const buffers_t buf, const contexts_t ctx,
-                const ZSTD_compressionParameters cParams) {
-    BMK_return_t res = BMK_benchMem(buf.srcPtrs[0], buf.srcSize, buf.srcSizes, (unsigned)buf.nbBlocks, 0, &cParams, ctx.dictBuffer, ctx.dictSize, 0, "Files");
-    *resultPtr = res.result;
-    return res.error;
-}
 
 /*-*******************************************************
 *  From Paramgrill
@@ -542,7 +531,7 @@ static int createBuffers(buffers_t* buff, const char* const * const fileNamesTab
     size_t n;
     U64 const totalSizeToLoad = UTIL_getTotalFileSize(fileNamesTable, (U32)nbFiles);
     size_t benchedSize = MIN(BMK_findMaxMem(totalSizeToLoad * 3) / 3, totalSizeToLoad);
-    const size_t blockSize = g_blockSize ? g_blockSize : totalSizeToLoad; //(largest fileSize or total fileSize)
+    const size_t blockSize = g_blockSize ? g_blockSize : totalSizeToLoad;
     U32 const maxNbBlocks = (U32) ((totalSizeToLoad + (blockSize-1)) / blockSize) + (U32)nbFiles;
     U32 blockNb = 0;
 
@@ -830,6 +819,14 @@ static BMK_return_t BMK_benchMemInvertible(const buffers_t buf, const contexts_t
     return results;
 }
 
+static int BMK_benchParam(BMK_result_t* resultPtr,
+                buffers_t buf, contexts_t ctx,
+                const ZSTD_compressionParameters cParams) {
+    BMK_return_t res = BMK_benchMemInvertible(buf, ctx, 0, &cParams, BMK_both, BMK_timeMode, 3);
+    *resultPtr = res.result;
+    return res.error;
+}
+
 /* comparison function: */
 /* strictly better, strictly worse, equal, speed-side adv, size-side adv */
 //Maybe use compress_only for benchmark first run?
@@ -911,7 +908,7 @@ static int insertWinner(winnerInfo_t w, constraint_t targetConstraints) {
 
     }
 
-    //assert(cur_node->next == NULL)
+    assert(cur_node->next == NULL);
     switch(speedSizeCompare(r, cur_node->res.result)) {
         case BETTER_RESULT:
         {
@@ -995,7 +992,7 @@ static void BMK_printWinnerOpt(FILE* f, const U32 cLevel, const BMK_result_t res
         }
     }  
 
-    //prints out tradeoff table if using lvl
+    //prints out tradeoff table if using lvloptimize
     if(g_optmode && g_optimizer) {
         winnerInfo_t w;
         winner_ll_node* n;
@@ -1042,12 +1039,6 @@ static void BMK_printWinnerOpt(FILE* f, const U32 cLevel, const BMK_result_t res
             (double)srcSize / result.cSize, (double)result.cSpeed / (1 MB), (double)result.dSpeed / (1 MB));
 
     }
-
-#if 0
-    if(BMK_timeSpan(g_time) > g_grillDuration_s) {
-        exit(0);
-    }
-#endif
 }
 
 static void BMK_printWinners2(FILE* f, const winnerInfo_t* winners, size_t srcSize)
@@ -1099,14 +1090,14 @@ static void BMK_init_level_constraints(int bytePerSec_level1)
     }   }
 }
 
-static int BMK_seed(winnerInfo_t* winners, const ZSTD_compressionParameters params,
-              const void* srcBuffer, size_t srcSize)
+static int BMK_seed(winnerInfo_t* winners, const ZSTD_compressionParameters params, 
+                    buffers_t buf, contexts_t ctx)
 {
     BMK_result_t testResult;
     int better = 0;
     int cLevel;
 
-    BMK_benchParam1(&testResult, srcBuffer, srcSize, params);
+    BMK_benchParam(&testResult, buf, ctx, params);
 
 
     for (cLevel = 1; cLevel <= NB_LEVELS_TRACKED; cLevel++) {
@@ -1122,15 +1113,15 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_compressionParameters para
             /* first solution for this cLevel */
             winners[cLevel].result = testResult;
             winners[cLevel].params = params;
-            BMK_printWinner(stdout, cLevel, testResult, params, srcSize);
+            BMK_printWinner(stdout, cLevel, testResult, params, buf.srcSize);
             better = 1;
             continue;
         }
 
         if ((double)testResult.cSize <= ((double)winners[cLevel].result.cSize * (1. + (0.02 / cLevel))) ) {
             /* Validate solution is "good enough" */
-            double W_ratio = (double)srcSize / testResult.cSize;
-            double O_ratio = (double)srcSize / winners[cLevel].result.cSize;
+            double W_ratio = (double)buf.srcSize / testResult.cSize;
+            double O_ratio = (double)buf.srcSize / winners[cLevel].result.cSize;
             double W_ratioNote = log (W_ratio);
             double O_ratioNote = log (O_ratio);
             size_t W_DMemUsed = (1 << params.windowLog) + (16 KB);
@@ -1187,7 +1178,7 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_compressionParameters para
 
             winners[cLevel].result = testResult;
             winners[cLevel].params = params;
-            BMK_printWinner(stdout, cLevel, testResult, params, srcSize);
+            BMK_printWinner(stdout, cLevel, testResult, params, buf.srcSize);
 
             better = 1;
     }   }
@@ -1315,6 +1306,26 @@ static void paramVariation(ZSTD_compressionParameters* ptr, const varInds_t* var
     *ptr = p;
 }
 
+/* maybe put strategy back in */
+static void paramVariationWithStrategy(ZSTD_compressionParameters* ptr, const varInds_t* varyParams, const int varyLen, const U32 nbChanges)
+{
+    ZSTD_compressionParameters p;
+    U32 validated = 0;
+    while (!validated) {
+        U32 i;
+        p = *ptr;
+        for (i = 0 ; i < nbChanges ; i++) {
+            const U32 changeID = FUZ_rand(&g_rand) % ((varyLen + 1) << 1);
+            if(changeID < (U32)(varyLen << 1)) {
+                paramVaryOnce(varyParams[changeID >> 1], ((changeID & 1) << 1) - 1, &p);
+            } else {
+                p.strategy += ((FUZ_rand(&g_rand) % 2) << 1) - 1; /* +/- 1 */
+            }
+        }
+        validated = !ZSTD_isError(ZSTD_checkCParams(p));
+    }
+    *ptr = p;
+}
 /* length of memo table given free variables */
 static size_t memoTableLen(const varInds_t* varyParams, const int varyLen) {
     size_t arrayLen = 1;
@@ -1463,6 +1474,17 @@ static U8** createMemoTableArray(ZSTD_compressionParameters paramConstraints, co
     return mtAll;
 }
 
+static ZSTD_compressionParameters maskParams(ZSTD_compressionParameters base, ZSTD_compressionParameters mask) {
+    base.windowLog = mask.windowLog ? mask.windowLog : base.windowLog;
+    base.chainLog = mask.chainLog ? mask.chainLog : base.chainLog;
+    base.hashLog = mask.hashLog ? mask.hashLog : base.hashLog;
+    base.searchLog = mask.searchLog ? mask.searchLog : base.searchLog;
+    base.searchLength = mask.searchLength ? mask.searchLength : base.searchLength;
+    base.targetLength = mask.targetLength ? mask.targetLength : base.targetLength;
+    base.strategy = mask.strategy ? mask.strategy : base.strategy;
+    return base;
+}
+
 #define PARAMTABLELOG   25
 #define PARAMTABLESIZE (1<<PARAMTABLELOG)
 #define PARAMTABLEMASK (PARAMTABLESIZE-1)
@@ -1479,7 +1501,7 @@ static BYTE* NB_TESTS_PLAYED(ZSTD_compressionParameters p) {
 
 static void playAround(FILE* f, winnerInfo_t* winners,
                        ZSTD_compressionParameters params,
-                       const void* srcBuffer, size_t srcSize)
+                       buffers_t buf, contexts_t ctx)
 {
     int nbVariations = 0;
     UTIL_time_t const clockStart = UTIL_getTime();
@@ -1491,7 +1513,7 @@ static void playAround(FILE* f, winnerInfo_t* winners,
         BYTE* b;
 
         if (nbVariations++ > g_maxNbVariations) break;
-        paramVariation(&p, unconstrained, 7, 4);
+        paramVariationWithStrategy(&p, unconstrained, NUM_PARAMS, 4);
 
         /* exclude faster if already played params */
         if (FUZ_rand(&g_rand) & ((1 << *NB_TESTS_PLAYED(p))-1))
@@ -1500,11 +1522,11 @@ static void playAround(FILE* f, winnerInfo_t* winners,
         /* test */
         b = NB_TESTS_PLAYED(p);
         (*b)++;
-        if (!BMK_seed(winners, p, srcBuffer, srcSize)) continue;
+        if (!BMK_seed(winners, p, buf, ctx)) continue;
 
         /* improvement found => search more */
-        BMK_printWinners(f, winners, srcSize);
-        playAround(f, winners, p, srcBuffer, srcSize);
+        BMK_printWinners(f, winners, buf.srcSize);
+        playAround(f, winners, p, buf, ctx);
     }
 
 }
@@ -1551,35 +1573,24 @@ static void randomConstrainedParams(ZSTD_compressionParameters* pc, varInds_t* v
 
 static void BMK_selectRandomStart(
                        FILE* f, winnerInfo_t* winners,
-                       const void* srcBuffer, size_t srcSize)
+                       buffers_t buf, contexts_t ctx)
 {
     U32 const id = FUZ_rand(&g_rand) % (NB_LEVELS_TRACKED+1);
     if ((id==0) || (winners[id].params.windowLog==0)) {
         /* use some random entry */
-        ZSTD_compressionParameters const p = ZSTD_adjustCParams(randomParams(), srcSize, 0);
-        playAround(f, winners, p, srcBuffer, srcSize);
+        ZSTD_compressionParameters const p = ZSTD_adjustCParams(randomParams(), buf.srcSize, 0);
+        playAround(f, winners, p, buf, ctx);
     } else {
-        playAround(f, winners, winners[id].params, srcBuffer, srcSize);
+        playAround(f, winners, winners[id].params, buf, ctx);
     }
 }
 
-static void BMK_benchOnce(const void* srcBuffer, size_t srcSize)
-{
-    BMK_result_t testResult;
-    g_params = ZSTD_adjustCParams(g_params, srcSize, 0);
-    BMK_benchParam1(&testResult, srcBuffer, srcSize, g_params);
-    DISPLAY("Compression Ratio: %.3f  Compress Speed: %.1f MB/s Decompress Speed: %.1f MB/s\n", (double)srcSize / testResult.cSize, 
-        (double)testResult.cSpeed / 1000000, (double)testResult.dSpeed / 1000000);
-    return;
-}
-
-static void BMK_benchFullTable(const void* srcBuffer, size_t srcSize)
+static void BMK_benchFullTable(buffers_t buf, contexts_t ctx, const size_t maxBlockSize) 
 {
     ZSTD_compressionParameters params;
     winnerInfo_t winners[NB_LEVELS_TRACKED+1];
     const char* const rfName = "grillResults.txt";
     FILE* const f = fopen(rfName, "w");
-    const size_t blockSize = g_blockSize ? g_blockSize : srcSize;   /* cut by block or not ? */
 
     /* init */
     assert(g_singleRun==0);
@@ -1590,9 +1601,9 @@ static void BMK_benchFullTable(const void* srcBuffer, size_t srcSize)
         BMK_init_level_constraints(g_target * (1 MB));
     } else {
         /* baseline config for level 1 */
-        ZSTD_compressionParameters const l1params = ZSTD_getCParams(1, blockSize, 0);
+        ZSTD_compressionParameters const l1params = ZSTD_getCParams(1, maxBlockSize, ctx.dictSize); //is dictionary ever even useful here? 
         BMK_result_t testResult;
-        BMK_benchParam1(&testResult, srcBuffer, srcSize, l1params);
+        BMK_benchParam(&testResult, buf, ctx, l1params);
         BMK_init_level_constraints((int)((testResult.cSpeed * 31) / 32));
     }
 
@@ -1600,61 +1611,124 @@ static void BMK_benchFullTable(const void* srcBuffer, size_t srcSize)
     {   const int maxSeeds = g_noSeed ? 1 : ZSTD_maxCLevel();
         int i;
         for (i=0; i<=maxSeeds; i++) {
-            params = ZSTD_getCParams(i, blockSize, 0);
-            BMK_seed(winners, params, srcBuffer, srcSize);
+            params = ZSTD_getCParams(i, maxBlockSize, 0);
+            BMK_seed(winners, params, buf, ctx);
     }   }
-    BMK_printWinners(f, winners, srcSize);
+    BMK_printWinners(f, winners, buf.srcSize);
 
     /* start tests */
     {   const time_t grillStart = time(NULL);
         do {
-            BMK_selectRandomStart(f, winners, srcBuffer, srcSize);
+            BMK_selectRandomStart(f, winners, buf, ctx);
         } while (BMK_timeSpan(grillStart) < g_grillDuration_s);
     }
 
     /* end summary */
-    BMK_printWinners(f, winners, srcSize);
+    BMK_printWinners(f, winners, buf.srcSize);
     DISPLAY("grillParams operations completed \n");
 
     /* clean up*/
     fclose(f);
 }
 
-static void BMK_benchMemInit(const void* srcBuffer, size_t srcSize)
-{
-    if (g_singleRun)
-        return BMK_benchOnce(srcBuffer, srcSize);
-    else
-        return BMK_benchFullTable(srcBuffer, srcSize);
-}
-
-
 static int benchSample(void)
 {
     const char* const name = "Sample 10MB";
     size_t const benchedSize = 10 MB;
+    U32 blockSize = g_blockSize ? g_blockSize : benchedSize;
+    U32 const maxNbBlocks = (U32) ((benchedSize + (blockSize-1)) / blockSize) + 1;
+    size_t splitSize = 0;
 
-    void* origBuff = malloc(benchedSize);
-    if (!origBuff) { perror("not enough memory"); return 12; }
+    buffers_t buf;
+    contexts_t ctx;
 
-    /* Fill buffer */
-    RDG_genBuffer(origBuff, benchedSize, g_compressibility, 0.0, 0);
+    buf.srcPtrs = (const void**)calloc(maxNbBlocks, sizeof(void*));
+    buf.dstPtrs = (void**)calloc(maxNbBlocks, sizeof(void*));
+    buf.resPtrs = (void**)calloc(maxNbBlocks, sizeof(void*));
+    buf.srcSizes = (size_t*)malloc(maxNbBlocks * sizeof(size_t));
+    buf.dstSizes = (size_t*)malloc(maxNbBlocks * sizeof(size_t));
+    buf.dstCapacities = (size_t*)malloc(maxNbBlocks * sizeof(size_t));
+    buf.resSizes = (size_t*)malloc(maxNbBlocks * sizeof(size_t));
+    buf.srcSize = benchedSize;
+
+    if(!buf.srcPtrs || !buf.dstPtrs || !buf.resPtrs || !buf.srcSizes || !buf.dstSizes || !buf.dstCapacities || !buf.resSizes) {
+        DISPLAY("Allocation Error\n");
+        freeBuffers(buf);
+        return 1;
+    } 
+
+    buf.srcBuffer = malloc(benchedSize);
+    buf.srcPtrs[0] = (const void*)buf.srcBuffer;
+    buf.dstPtrs[0] = malloc(ZSTD_compressBound(benchedSize) + 1024 * maxNbBlocks);
+    buf.resPtrs[0] = malloc(benchedSize);
+
+    if(!buf.srcPtrs[0] || !buf.dstPtrs[0] || !buf.resPtrs[0]) {
+        DISPLAY("Allocation Error\n");
+        freeBuffers(buf);
+        return 1;
+    }
+
+
+    splitSize = MIN(benchedSize, blockSize);
+    buf.srcSizes[0] = splitSize;
+    buf.dstCapacities[0] = ZSTD_compressBound(splitSize);
+    buf.resSizes[0] = splitSize;
+
+    for(buf.nbBlocks = 1; splitSize < benchedSize; buf.nbBlocks++) {
+        const size_t i = buf.nbBlocks;
+        const size_t nextBlockSize = MIN(benchedSize - splitSize, blockSize);
+        buf.srcSizes[i] = nextBlockSize;
+        buf.dstCapacities[i] = ZSTD_compressBound(nextBlockSize);
+        buf.resSizes[i] = nextBlockSize;
+        buf.srcPtrs[i] = (const void*)(((const char*)buf.srcPtrs[i-1]) + buf.srcSizes[i-1]);
+        buf.dstPtrs[i] = (void*)(((char*)buf.dstPtrs[i-1]) + buf.dstSizes[i-1]);
+        buf.resPtrs[i] = (void*)(((char*)buf.resPtrs[i-1]) + buf.resSizes[i-1]);
+        splitSize += nextBlockSize;
+    }
+
+    if(createContexts(&ctx, NULL)) {
+        DISPLAY("Context Creation Error\n");
+        freeBuffers(buf);
+        return 1;
+    }
+
+    RDG_genBuffer(buf.srcBuffer, benchedSize, g_compressibility, 0.0, 0);
 
     /* bench */
     DISPLAY("\r%79s\r", "");
     DISPLAY("using %s %i%%: \n", name, (int)(g_compressibility*100));
-    BMK_benchMemInit(origBuff, benchedSize);
 
-    free(origBuff);
+    BMK_benchFullTable(buf, ctx, MIN(blockSize, benchedSize));
+
+    freeBuffers(buf);
+    freeContexts(ctx);
+
     return 0;
 }
 
 
-static int benchOnce(const char** fileNamesTable, int nbFiles, const char* dictFileName) {
+static int benchOnce(buffers_t buf, contexts_t ctx) {
+    BMK_result_t testResult;
+
+    if(BMK_benchParam(&testResult, buf, ctx, g_params)) {
+        DISPLAY("Error during benchmarking\n");
+        return 1;
+    }
+
+    DISPLAY("Compression Ratio: %.3f  Compress Speed: %.1f MB/s Decompress Speed: %.1f MB/s\n", (double)buf.srcSize / testResult.cSize, 
+        (double)testResult.cSpeed / (1 MB), (double)testResult.dSpeed / (1 MB));
+    return 0;
+}
+
+/* benchFiles() :
+ * note: while this function takes a table of filenames,
+ * in practice, only the first filename will be used */
+int benchFiles(const char** fileNamesTable, int nbFiles, const char* dictFileName, int cLevel)
+{
     buffers_t buf;
     contexts_t ctx;
-    BMK_result_t testResult;
     size_t maxBlockSize = 0, i;
+    int ret = 0;
 
     if(createBuffers(&buf, fileNamesTable, nbFiles)) {
         DISPLAY("unable to load files\n");
@@ -1671,86 +1745,24 @@ static int benchOnce(const char** fileNamesTable, int nbFiles, const char* dictF
         maxBlockSize = MAX(maxBlockSize, buf.srcSizes[i]);
     }
 
-    g_params = ZSTD_adjustCParams(g_params, maxBlockSize, 0);
-
-    if(BMK_benchParam(&testResult, buf, ctx, g_params)) {
-        DISPLAY("Error during benchmarking\n");
-        freeBuffers(buf);
-        freeContexts(ctx);
-        return 3;
+    DISPLAY("\r%79s\r", "");
+    if(nbFiles == 1) {
+        DISPLAY("using %s : \n", fileNamesTable[0]);
+    } else {
+        DISPLAY("using %d Files : \n", nbFiles);
     }
 
-    DISPLAY("Compression Ratio: %.3f  Compress Speed: %.1f MB/s Decompress Speed: %.1f MB/s\n", (double)buf.srcSize / testResult.cSize, 
-        (double)testResult.cSpeed / (1 MB), (double)testResult.dSpeed / (1 MB));
+    g_params = ZSTD_adjustCParams(maskParams(ZSTD_getCParams(cLevel, maxBlockSize, ctx.dictSize), g_params), maxBlockSize, ctx.dictSize);
+
+    if(g_singleRun) {
+        ret = benchOnce(buf, ctx);
+    } else {
+        BMK_benchFullTable(buf, ctx, maxBlockSize);
+    }
 
     freeBuffers(buf);
     freeContexts(ctx);
-    return 0;
-}
-
-/* benchFiles() :
- * note: while this function takes a table of filenames,
- * in practice, only the first filename will be used */
-//TODO: dictionaries still not supported in fullTable mode
-int benchFiles(const char** fileNamesTable, int nbFiles, const char* dictFileName)
-{
-    int fileIdx=0;
-
-    if(g_singleRun) {
-        return benchOnce(fileNamesTable, nbFiles, dictFileName);
-    }
-
-    /* Loop for each file */
-    while (fileIdx<nbFiles) {
-        const char* const inFileName = fileNamesTable[fileIdx++];
-        FILE* const inFile = fopen( inFileName, "rb" );
-        U64 const inFileSize = UTIL_getFileSize(inFileName);
-        size_t benchedSize;
-        void* origBuff;
-
-        /* Check file existence */
-        if (inFile==NULL) {
-            DISPLAY( "Pb opening %s\n", inFileName);
-            return 11;
-        }
-        if (inFileSize == UTIL_FILESIZE_UNKNOWN) {
-            DISPLAY("Pb evaluating size of %s \n", inFileName);
-            fclose(inFile);
-            return 11;
-        }
-
-        /* Memory allocation */
-        benchedSize = BMK_findMaxMem(inFileSize*3) / 3;
-        if ((U64)benchedSize > inFileSize) benchedSize = (size_t)inFileSize;
-        if (benchedSize < inFileSize)
-            DISPLAY("Not enough memory for '%s' full size; testing %i MB only...\n", inFileName, (int)(benchedSize>>20));
-        origBuff = malloc(benchedSize);
-        if (origBuff==NULL) {
-            DISPLAY("\nError: not enough memory!\n");
-            fclose(inFile);
-            return 12;
-        }
-
-        /* Fill input buffer */
-        DISPLAY("Loading %s...       \r", inFileName);
-        {   size_t const readSize = fread(origBuff, 1, benchedSize, inFile);
-            fclose(inFile);
-            if(readSize != benchedSize) {
-                DISPLAY("\nError: problem reading file '%s' !!    \n", inFileName);
-                free(origBuff);
-                return 13;
-        }   }
-
-        /* bench */
-        DISPLAY("\r%79s\r", "");
-        DISPLAY("using %s : \n", inFileName);
-        BMK_benchMemInit(origBuff, benchedSize);
-
-        /* clean */
-        free(origBuff);
-    }
-
-    return 0;
+    return ret;
 }
 
 /* Benchmarking which stops when we are sufficiently sure the solution is infeasible / worse than the winner */
@@ -2074,17 +2086,6 @@ static int nextStrategy(const int currentStrategy, const int bestStrategy) {
     }
 }
 
-static ZSTD_compressionParameters maskParams(ZSTD_compressionParameters base, ZSTD_compressionParameters mask) {
-    base.windowLog = mask.windowLog ? mask.windowLog : base.windowLog;
-    base.chainLog = mask.chainLog ? mask.chainLog : base.chainLog;
-    base.hashLog = mask.hashLog ? mask.hashLog : base.hashLog;
-    base.searchLog = mask.searchLog ? mask.searchLog : base.searchLog;
-    base.searchLength = mask.searchLength ? mask.searchLength : base.searchLength;
-    base.targetLength = mask.targetLength ? mask.targetLength : base.targetLength;
-    base.strategy = mask.strategy ? mask.strategy : base.strategy;
-    return base;
-}
-
 /* experiment with playing with this and decay value */
 
 /* main fn called when using --optimize */
@@ -2114,6 +2115,8 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
     size_t maxBlockSize = 0;
     contexts_t ctx;
     buffers_t buf;
+
+    g_time = UTIL_getTime();
 
     /* Init */
     if(!cParamValid(paramTarget)) {
@@ -2202,7 +2205,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
         g_lvltarget.cSize /= ((double)g_strictness) / 100;
 
         target.cSpeed = (U32)g_lvltarget.cSpeed;  
-        target.dSpeed = (U32)g_lvltarget.dSpeed; //See if this is worth
+        target.dSpeed = (U32)g_lvltarget.dSpeed; //See if this is reasonable. 
 
         BMK_printWinnerOpt(stdout, cLevel, winner.result, winner.params, target, buf.srcSize);
     }
@@ -2214,6 +2217,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
     } else {
         DISPLAY("optimizing for %lu Files", (unsigned long)nbFiles);
     }
+
     if(target.cSpeed != 0) { DISPLAY(" - limit compression speed %u MB/s", target.cSpeed >> 20); }
     if(target.dSpeed != 0) { DISPLAY(" - limit decompression speed %u MB/s", target.dSpeed >> 20); }
     if(target.cMem != (U32)-1) { DISPLAY(" - limit memory %u MB", target.cMem >> 20); }
@@ -2369,6 +2373,7 @@ static int usage_advanced(void)
     DISPLAY( " -t#          : Caps runtime of operation in seconds (default : %u seconds (%.1f hours)) \n", (U32)g_grillDuration_s, g_grillDuration_s / 3600);
     DISPLAY( " -v           : Prints Benchmarking output\n");
     DISPLAY( " -D           : Next argument dictionary file\n");
+    DISPLAY( " -s           : Seperate Files\n");
     return 0;
 }
 
@@ -2401,13 +2406,13 @@ int main(int argc, const char** argv)
     const char* input_filename = NULL;
     const char* dictFileName = NULL;
     U32 main_pause = 0;
-    int optimizerCLevel = 0;
+    int cLevel = 0;
+    int seperateFiles = 0;
 
     constraint_t target = { 0, 0, (U32)-1 }; 
 
-    ZSTD_compressionParameters paramTarget = { 0, 0, 0, 0, 0, 0, 0 };
-
-    g_time = UTIL_getTime();
+    ZSTD_compressionParameters paramTarget = emptyParams();
+    g_params = emptyParams();
 
     assert(argc>=1);   /* for exename */
 
@@ -2430,11 +2435,11 @@ int main(int argc, const char** argv)
                 PARSE_SUB_ARGS("compressionSpeed=" ,  "cSpeed=", target.cSpeed);
                 PARSE_SUB_ARGS("decompressionSpeed=", "dSpeed=", target.dSpeed); 
                 PARSE_SUB_ARGS("compressionMemory=" , "cMem=", target.cMem);
-                PARSE_SUB_ARGS("level=", "lvl=", optimizerCLevel);
+                PARSE_SUB_ARGS("level=", "lvl=", cLevel);
                 PARSE_SUB_ARGS("strict=", "stc=", g_strictness);
                 PARSE_SUB_ARGS("preferSpeed=", "prfSpd=", g_speedMultiplier);
                 PARSE_SUB_ARGS("preferRatio=", "prfRto=", g_ratioMultiplier);
-                PARSE_SUB_ARGS("maxTries", "tries", g_maxTries);
+                PARSE_SUB_ARGS("maxTries=", "tries=", g_maxTries);
 
                 DISPLAY("invalid optimization parameter \n");
                 return 1;
@@ -2448,10 +2453,11 @@ int main(int argc, const char** argv)
         } else if (longCommandWArg(&argument, "--zstd=")) {
         /* Decode command (note : aggregated commands are allowed) */
             g_singleRun = 1;
-            g_params = ZSTD_getCParams(2, g_blockSize, 0);
+            cLevel = 2;
             for ( ; ;) {
                 PARSE_CPARAMS(g_params)
-                if (longCommandWArg(&argument, "level=") || longCommandWArg(&argument, "lvl=")) { g_params = ZSTD_getCParams(readU32FromChar(&argument), g_blockSize, 0); if (argument[0]==',') { argument++; continue; } else break; }
+                if (longCommandWArg(&argument, "level=") || longCommandWArg(&argument, "lvl=")) { cLevel = readU32FromChar(&argument); g_params = emptyParams(); if (argument[0]==',') { argument++; continue; } else break; }
+
                 DISPLAY("invalid compression parameter \n");
                 return 1;
             }
@@ -2528,8 +2534,8 @@ int main(int argc, const char** argv)
                             continue;
                         case 'L':
                             {   argument++;
-                                int const cLevel = readU32FromChar(&argument);
-                                g_params = ZSTD_getCParams(cLevel, g_blockSize, 0);
+                                cLevel = readU32FromChar(&argument);
+                                g_params = emptyParams();
                                 continue;
                             }
                         default : ;
@@ -2556,6 +2562,10 @@ int main(int argc, const char** argv)
                 case 't':
                     argument++;
                     g_grillDuration_s = (double)readU32FromChar(&argument);
+                    break;
+
+                case 's':
+                    seperateFiles = 1;
                     break;
 
                 /* load dictionary file (only applicable for optimizer rn) */
@@ -2588,11 +2598,24 @@ int main(int argc, const char** argv)
             result = benchSample();
         }
     } else {
-        if (g_optimizer) {
-            result = optimizeForSize(argv+filenamesStart, argc-filenamesStart, dictFileName, target, paramTarget, optimizerCLevel);
+        if(seperateFiles) {
+            for(i = 0; i < argc - filenamesStart; i++) {
+                if (g_optimizer) {
+                    result = optimizeForSize(argv+filenamesStart + i, 1, dictFileName, target, paramTarget, cLevel);
+                    if(result) { DISPLAY("Error on File %d", i); return result; }
+                } else {
+                    result = benchFiles(argv+filenamesStart + i, 1, dictFileName, cLevel);
+                    if(result) { DISPLAY("Error on File %d", i); return result; }
+                }
+            }
         } else {
-            result = benchFiles(argv+filenamesStart, argc-filenamesStart, dictFileName);
-    }   }
+            if (g_optimizer) {
+                result = optimizeForSize(argv+filenamesStart, argc-filenamesStart, dictFileName, target, paramTarget, cLevel);
+            } else {
+                result = benchFiles(argv+filenamesStart, argc-filenamesStart, dictFileName, cLevel);
+            }
+        }   
+    }
 
     if (main_pause) { int unused; printf("press enter...\n"); unused = getchar(); (void)unused; }
 

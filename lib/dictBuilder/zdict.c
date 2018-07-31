@@ -581,7 +581,7 @@ static void ZDICT_fillNoise(void* buffer, size_t length)
 
 typedef struct
 {
-    ZSTD_CCtx* ref;    /* contains reference to dictionary */
+    ZSTD_CDict* ref;    /* contains reference to dictionary */
     ZSTD_CCtx* zc;     /* working context */
     void* workPlace;   /* must be ZSTD_BLOCKSIZE_MAX allocated */
 } EStats_ress_t;
@@ -597,8 +597,9 @@ static void ZDICT_countEStats(EStats_ress_t esr, ZSTD_parameters params,
     size_t cSize;
 
     if (srcSize > blockSizeMax) srcSize = blockSizeMax;   /* protection vs large samples */
-    {   size_t const errorCode = ZSTD_copyCCtx(esr.zc, esr.ref, 0);
-        if (ZSTD_isError(errorCode)) { DISPLAYLEVEL(1, "warning : ZSTD_copyCCtx failed \n"); return; }
+    {   size_t const errorCode = ZSTD_compressBegin_usingCDict(esr.zc, esr.ref);
+        if (ZSTD_isError(errorCode)) { DISPLAYLEVEL(1, "warning : ZSTD_compressBegin_usingCDict failed \n"); return; }
+
     }
     cSize = ZSTD_compressBlock(esr.zc, esr.workPlace, ZSTD_BLOCKSIZE_MAX, src, srcSize);
     if (ZSTD_isError(cSize)) { DISPLAYLEVEL(3, "warning : could not compress sample size %u \n", (U32)srcSize); return; }
@@ -708,14 +709,6 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
 
     /* init */
     DEBUGLOG(4, "ZDICT_analyzeEntropy");
-    esr.ref = ZSTD_createCCtx();
-    esr.zc = ZSTD_createCCtx();
-    esr.workPlace = malloc(ZSTD_BLOCKSIZE_MAX);
-    if (!esr.ref || !esr.zc || !esr.workPlace) {
-        eSize = ERROR(memory_allocation);
-        DISPLAYLEVEL(1, "Not enough memory \n");
-        goto _cleanup;
-    }
     if (offcodeMax>OFFCODE_MAX) { eSize = ERROR(dictionaryCreation_failed); goto _cleanup; }   /* too large dictionary */
     for (u=0; u<256; u++) countLit[u] = 1;   /* any character must be described */
     for (u=0; u<=offcodeMax; u++) offcodeCount[u] = 1;
@@ -726,12 +719,15 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     memset(bestRepOffset, 0, sizeof(bestRepOffset));
     if (compressionLevel==0) compressionLevel = g_compressionLevel_default;
     params = ZSTD_getParams(compressionLevel, averageSampleSize, dictBufferSize);
-    {   size_t const beginResult = ZSTD_compressBegin_advanced(esr.ref, dictBuffer, dictBufferSize, params, 0);
-        if (ZSTD_isError(beginResult)) {
-            DISPLAYLEVEL(1, "error : ZSTD_compressBegin_advanced() failed : %s \n", ZSTD_getErrorName(beginResult));
-            eSize = ERROR(GENERIC);
-            goto _cleanup;
-    }   }
+
+    esr.ref = ZSTD_createCDict_advanced(dictBuffer, dictBufferSize, ZSTD_dlm_byCopy, ZSTD_dct_auto, params.cParams, ZSTD_defaultCMem);
+    esr.zc = ZSTD_createCCtx();
+    esr.workPlace = malloc(ZSTD_BLOCKSIZE_MAX);
+    if (!esr.ref || !esr.zc || !esr.workPlace) {
+        eSize = ERROR(memory_allocation);
+        DISPLAYLEVEL(1, "Not enough memory \n");
+        goto _cleanup;
+    }
 
     /* collect stats on all samples */
     for (u=0; u<nbFiles; u++) {
@@ -856,7 +852,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     eSize += 12;
 
 _cleanup:
-    ZSTD_freeCCtx(esr.ref);
+    ZSTD_freeCDict(esr.ref);
     ZSTD_freeCCtx(esr.zc);
     free(esr.workPlace);
 

@@ -73,10 +73,11 @@ typedef enum {
     hlog_ind = 2,
     slog_ind = 3,
     slen_ind = 4,
-    tlen_ind = 5
+    tlen_ind = 5,
+    strt_ind = 6
 } varInds_t;
 
-#define NUM_PARAMS 6
+#define NUM_PARAMS 7
 /* just don't use strategy as a param. */ 
 
 #undef ZSTD_WINDOWLOG_MAX
@@ -91,9 +92,10 @@ typedef enum {
 #define SLOG_RANGE (ZSTD_SEARCHLOG_MAX - ZSTD_SEARCHLOG_MIN + 1)
 #define SLEN_RANGE (ZSTD_SEARCHLENGTH_MAX - ZSTD_SEARCHLENGTH_MIN + 1)
 #define TLEN_RANGE 17
+#define STRT_RANGE (ZSTD_btultra - ZSTD_fast + 1)
 /* TLEN_RANGE picked manually */
 
-static const int rangetable[NUM_PARAMS] = { WLOG_RANGE, CLOG_RANGE, HLOG_RANGE, SLOG_RANGE, SLEN_RANGE, TLEN_RANGE };
+static const int rangetable[NUM_PARAMS] = { WLOG_RANGE, CLOG_RANGE, HLOG_RANGE, SLOG_RANGE, SLEN_RANGE, TLEN_RANGE, STRT_RANGE };
 static const U32 tlen_table[TLEN_RANGE] = { 0, 1, 2, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128, 256, 512, 999 };
 /*-************************************
 *  Benchmark Parameters/Global Variables
@@ -1213,8 +1215,10 @@ static int sanitizeVarArray(varInds_t* varNew, const int varLength, const varInd
     int i, j = 0;
     for(i = 0; i < varLength; i++) {
         if( !((varArray[i] == clog_ind && strat == ZSTD_fast)
+            || (varArray[i] == slog_ind && strat == ZSTD_fast)
             || (varArray[i] == slog_ind && strat == ZSTD_dfast) 
-            || (varArray[i] == tlen_ind && strat != ZSTD_btopt && strat != ZSTD_btultra && strat != ZSTD_fast))) {
+            || (varArray[i] == tlen_ind && strat != ZSTD_btopt && strat != ZSTD_btultra && strat != ZSTD_fast)
+            /* || varArray[i] == strt_ind */ )) {
             varNew[j] = varArray[i];
             j++;
         }
@@ -1251,6 +1255,10 @@ static int variableParams(const ZSTD_compressionParameters paramConstraints, var
         res[j] = tlen_ind;
         j++;
     }
+    if(!paramConstraints.strategy) {
+        res[j] = strt_ind;
+        j++;
+    }
     return j;
 }
 
@@ -1285,6 +1293,7 @@ static void paramVaryOnce(const varInds_t paramIndex, const int amt, ZSTD_compre
         case tlen_ind: 
             ptr->targetLength = tlen_table[MAX(0, MIN(TLEN_RANGE - 1, tlen_inv(ptr->targetLength) + amt))];
             break;
+        case strt_ind: ptr->strategy     += amt; break;
         default: break;
     }
 }
@@ -1301,37 +1310,19 @@ static void paramVariation(ZSTD_compressionParameters* ptr, const varInds_t* var
             const U32 changeID = FUZ_rand(&g_rand) % (varyLen << 1);
             paramVaryOnce(varyParams[changeID >> 1], ((changeID & 1) << 1) - 1, &p);
         }
-        validated = !ZSTD_isError(ZSTD_checkCParams(p));
+        validated = !ZSTD_isError(ZSTD_checkCParams(p)) && p.strategy > 0;
     }
     *ptr = p;
 }
 
-/* maybe put strategy back in */
-static void paramVariationWithStrategy(ZSTD_compressionParameters* ptr, const varInds_t* varyParams, const int varyLen, const U32 nbChanges)
-{
-    ZSTD_compressionParameters p;
-    U32 validated = 0;
-    while (!validated) {
-        U32 i;
-        p = *ptr;
-        for (i = 0 ; i < nbChanges ; i++) {
-            const U32 changeID = FUZ_rand(&g_rand) % ((varyLen + 1) << 1);
-            if(changeID < (U32)(varyLen << 1)) {
-                paramVaryOnce(varyParams[changeID >> 1], ((changeID & 1) << 1) - 1, &p);
-            } else {
-                p.strategy += ((FUZ_rand(&g_rand) % 2) << 1) - 1; /* +/- 1 */
-            }
-        }
-        validated = !ZSTD_isError(ZSTD_checkCParams(p));
-    }
-    *ptr = p;
-}
 /* length of memo table given free variables */
 static size_t memoTableLen(const varInds_t* varyParams, const int varyLen) {
     size_t arrayLen = 1;
     int i;
     for(i = 0; i < varyLen; i++) {
-        arrayLen *= rangetable[varyParams[i]];
+        if(varyParams[i] != strt_ind) {
+            arrayLen *= rangetable[varyParams[i]];
+        }
     }
     return arrayLen;
 }
@@ -1354,6 +1345,7 @@ static unsigned memoTableInd(const ZSTD_compressionParameters* ptr, const varInd
                 - ZSTD_SEARCHLENGTH_MIN; break;
             case tlen_ind: ind *= TLEN_RANGE; ind += tlen_inv(ptr->targetLength) 
                 - ZSTD_TARGETLENGTH_MIN; break;
+            case strt_ind: break;
         }
     }
     return ind;
@@ -1376,6 +1368,7 @@ static void memoTableIndInv(ZSTD_compressionParameters* ptr, const varInds_t* va
                 ind /= SLEN_RANGE; break;
             case tlen_ind: ptr->targetLength = tlen_table[(ind % TLEN_RANGE)];
                 ind /= TLEN_RANGE; break;
+            case strt_ind: break;
         }
     }
 }
@@ -1505,7 +1498,7 @@ static void playAround(FILE* f, winnerInfo_t* winners,
 {
     int nbVariations = 0;
     UTIL_time_t const clockStart = UTIL_getTime();
-    const U32 unconstrained[NUM_PARAMS] = { 0, 1, 2, 3, 4, 5 };
+    const U32 unconstrained[NUM_PARAMS] = { 0, 1, 2, 3, 4, 5, 6 };
 
 
     while (UTIL_clockSpanMicro(clockStart) < g_maxVariationTime) {
@@ -1513,7 +1506,7 @@ static void playAround(FILE* f, winnerInfo_t* winners,
         BYTE* b;
 
         if (nbVariations++ > g_maxNbVariations) break;
-        paramVariationWithStrategy(&p, unconstrained, NUM_PARAMS, 4);
+        paramVariation(&p, unconstrained, NUM_PARAMS, 4);
 
         /* exclude faster if already played params */
         if (FUZ_rand(&g_rand) & ((1 << *NB_TESTS_PLAYED(p))-1))
@@ -1715,8 +1708,7 @@ static int benchOnce(buffers_t buf, contexts_t ctx) {
         return 1;
     }
 
-    DISPLAY("Compression Ratio: %.3f  Compress Speed: %.1f MB/s Decompress Speed: %.1f MB/s\n", (double)buf.srcSize / testResult.cSize, 
-        (double)testResult.cSpeed / (1 MB), (double)testResult.dSpeed / (1 MB));
+    BMK_printWinner(stdout, CUSTOM_LEVEL, testResult, g_params, buf.srcSize);
     return 0;
 }
 
@@ -1766,7 +1758,7 @@ int benchFiles(const char** fileNamesTable, int nbFiles, const char* dictFileNam
 }
 
 /* Benchmarking which stops when we are sufficiently sure the solution is infeasible / worse than the winner */
-#define VARIANCE 1.1 
+#define VARIANCE 1.2 
 static int allBench(BMK_result_t* resultPtr,
                 const buffers_t buf, const contexts_t ctx,
                 const ZSTD_compressionParameters cParams,
@@ -1918,9 +1910,9 @@ static int benchMemo(BMK_result_t* resultPtr,
  * all generation after random should be sanitized. (maybe sanitize random)
  */
 static winnerInfo_t climbOnce(const constraint_t target, 
-                const varInds_t* varArray, const int varLen, 
-                U8* const memoTable,
-                const buffers_t buf, const contexts_t ctx,
+                const varInds_t* varArray, const int varLen, ZSTD_strategy strat,
+                U8** memoTableArray, 
+                buffers_t buf, contexts_t ctx,
                 const ZSTD_compressionParameters init) {
     /* 
      * cparam - currently considered 'center'
@@ -1931,6 +1923,8 @@ static winnerInfo_t climbOnce(const constraint_t target,
     winnerInfo_t candidateInfo, winnerInfo;
     int better = 1;
     int feas = 0;
+    varInds_t varNew[NUM_PARAMS];
+    int varLenNew = sanitizeVarArray(varNew, varLen, varArray, strat);
 
     winnerInfo = initWinnerInfo(init);
     candidateInfo = winnerInfo;
@@ -1951,15 +1945,20 @@ static winnerInfo_t climbOnce(const constraint_t target,
                 for(offset = -1; offset <= 1; offset += 2) {
                     candidateInfo.params = cparam;
                     paramVaryOnce(varArray[i], offset, &candidateInfo.params); 
-                    candidateInfo.params = sanitizeParams(candidateInfo.params);
-                    if(!ZSTD_isError(ZSTD_checkCParams(candidateInfo.params))) {
-                        int res = benchMemo(&candidateInfo.result,
+                    
+                    if(!ZSTD_isError(ZSTD_checkCParams(candidateInfo.params)) && candidateInfo.params.strategy > 0) {
+                        int res;
+                        if(strat != candidateInfo.params.strategy) { /* maybe only try strategy switching after exhausting non-switching solutions? */
+                            strat = candidateInfo.params.strategy;
+                            varLenNew = sanitizeVarArray(varNew, varLen, varArray, strat);
+                        }
+                        res = benchMemo(&candidateInfo.result,
                             buf, ctx,
-                            candidateInfo.params, target, &winnerInfo.result, memoTable,
-                            varArray, varLen, feas);
+                            sanitizeParams(candidateInfo.params), target, &winnerInfo.result, memoTableArray[strat],
+                            varNew, varLenNew, feas);
                         if(res == BETTER_RESULT) { /* synonymous with better when called w/ infeasibleBM */
                             winnerInfo = candidateInfo;
-                            BMK_printWinnerOpt(stdout, CUSTOM_LEVEL, winnerInfo.result, winnerInfo.params, target, buf.srcSize);
+                            BMK_printWinnerOpt(stdout, CUSTOM_LEVEL, winnerInfo.result, sanitizeParams(winnerInfo.params), target, buf.srcSize);
                             better = 1;
                             if(compareResultLT(bestFeasible1.result, winnerInfo.result, target, buf.srcSize)) {
                                 bestFeasible1 = winnerInfo;
@@ -1974,22 +1973,29 @@ static winnerInfo_t climbOnce(const constraint_t target,
             }
 
             for(dist = 2; dist < varLen + 2; dist++) { /* varLen is # dimensions */
-                for(i = 0; i < 2 * varLen + 2; i++) {
+                for(i = 0; i < (1 << varLen) / varLen + 2; i++) {
                     int res;
                     candidateInfo.params = cparam;
                     /* param error checking already done here */
                     paramVariation(&candidateInfo.params, varArray, varLen, dist);
+
+                    if(strat != candidateInfo.params.strategy) {
+                        strat = candidateInfo.params.strategy;
+                        varLenNew = sanitizeVarArray(varNew, varLen, varArray, strat);
+                    }
+
                     res = benchMemo(&candidateInfo.result,
                         buf, ctx, 
-                        candidateInfo.params, target, &winnerInfo.result, memoTable,
-                        varArray, varLen, feas);
+                        sanitizeParams(candidateInfo.params), target, &winnerInfo.result, memoTableArray[strat],
+                        varNew, varLenNew, feas);
                     if(res == BETTER_RESULT) { /* synonymous with better in this case*/
                         winnerInfo = candidateInfo;
-                        BMK_printWinnerOpt(stdout, CUSTOM_LEVEL, winnerInfo.result, winnerInfo.params, target, buf.srcSize);
+                        BMK_printWinnerOpt(stdout, CUSTOM_LEVEL, winnerInfo.result, sanitizeParams(winnerInfo.params), target, buf.srcSize);
                         better = 1;
                         if(compareResultLT(bestFeasible1.result, winnerInfo.result, target, buf.srcSize)) {
                             bestFeasible1 = winnerInfo;
                         }
+                        break;
                     }
 
                 }
@@ -2026,10 +2032,11 @@ static winnerInfo_t optimizeFixedStrategy(
     const constraint_t target, ZSTD_compressionParameters paramTarget,
     const ZSTD_strategy strat, 
     const varInds_t* varArray, const int varLen,
-    U8* const memoTable, const int tries) {
+    U8** memoTableArray, const int tries) {
     int i = 0;
     varInds_t varNew[NUM_PARAMS];
     int varLenNew = sanitizeVarArray(varNew, varLen, varArray, strat);
+
     ZSTD_compressionParameters init;
     winnerInfo_t winnerInfo, candidateInfo; 
     winnerInfo = initWinnerInfo(emptyParams());
@@ -2043,8 +2050,8 @@ static winnerInfo_t optimizeFixedStrategy(
 
     while(i < tries) {
         DEBUGOUTPUT("Restart\n"); 
-        randomConstrainedParams(&init, varNew, varLenNew, memoTable);
-        candidateInfo = climbOnce(target, varNew, varLenNew, memoTable, buf, ctx, init);
+        randomConstrainedParams(&init, varNew, varLenNew, memoTableArray[strat]);
+        candidateInfo = climbOnce(target, varArray, varLen, strat, memoTableArray, buf, ctx, init);
         if(compareResultLT(winnerInfo.result, candidateInfo.result, target, buf.srcSize)) {
             winnerInfo = candidateInfo;
             BMK_printWinnerOpt(stdout, CUSTOM_LEVEL, winnerInfo.result, winnerInfo.params, target, buf.srcSize);
@@ -2226,7 +2233,6 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
     findClockGranularity();
 
     {   
-        varInds_t varNew[NUM_PARAMS];
         ZSTD_compressionParameters CParams;
 
         /* find best solution from default params */
@@ -2266,8 +2272,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
 
                 { 
                     /* one iterations of hill climbing with the level-defined parameters. */
-                    int varLenNew = sanitizeVarArray(varNew, varLen, varArray, st);
-                    winnerInfo_t w1 = climbOnce(target, varNew, varLenNew, allMT[st], 
+                    winnerInfo_t w1 = climbOnce(target, varArray, varLen, st, allMT, 
                         buf, ctx, winner.params);
                     if(compareResultLT(winner.result, w1.result, target, buf.srcSize)) {
                         winner = w1;
@@ -2279,7 +2284,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
                     DEBUGOUTPUT("StrategySwitch: %s\n", g_stratName[st]);
                     
                     wc = optimizeFixedStrategy(buf, ctx, target, paramTarget, 
-                        st, varArray, varLen, allMT[st], tries);
+                        st, varArray, varLen, allMT, tries);
 
                     if(compareResultLT(winner.result, wc.result, target, buf.srcSize)) {
                         winner = wc;
@@ -2292,7 +2297,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
                 }
             } else {
                 winner = optimizeFixedStrategy(buf, ctx, target, paramTarget, paramTarget.strategy, 
-                    varArray, varLen, allMT[paramTarget.strategy], g_maxTries);
+                    varArray, varLen, allMT, g_maxTries);
             }
 
         }
@@ -2387,14 +2392,13 @@ static int badusage(const char* exename)
 #define PARSE_SUB_ARGS(stringLong, stringShort, variable) { if (longCommandWArg(&argument, stringLong) || longCommandWArg(&argument, stringShort)) { variable = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; } }
 #define PARSE_CPARAMS(variable)                                            \
 {                                                                          \
-    PARSE_SUB_ARGS("windowLog=",       "wlog=",  variable.vals[wlog_ind]); \
-    PARSE_SUB_ARGS("chainLog=" ,       "clog=",  variable.vals[clog_ind]); \
-    PARSE_SUB_ARGS("hashLog=",         "hlog=",  variable.vals[hlog_ind]); \
-    PARSE_SUB_ARGS("searchLog=" ,      "slog=",  variable.vals[slog_ind]); \
-    PARSE_SUB_ARGS("searchLength=",    "slen=",  variable.vals[slen_ind]); \
-    PARSE_SUB_ARGS("targetLength=" ,   "tlen=",  variable.vals[tlen_ind]); \
-    PARSE_SUB_ARGS("strategy=",        "strat=", variable.vals[strt_ind]); \
-    PARSE_SUB_ARGS("forceAttachDict=", "fad="  , variable.vals[strt_ind]); \
+    PARSE_SUB_ARGS("windowLog=",       "wlog=",  variable.windowLog);      \
+    PARSE_SUB_ARGS("chainLog=" ,       "clog=",  variable.chainLog);       \
+    PARSE_SUB_ARGS("hashLog=",         "hlog=",  variable.hashLog);        \
+    PARSE_SUB_ARGS("searchLog=" ,      "slog=",  variable.searchLog);      \
+    PARSE_SUB_ARGS("searchLength=",    "slen=",  variable.searchLength);   \
+    PARSE_SUB_ARGS("targetLength=" ,   "tlen=",  variable.targetLength);   \
+    PARSE_SUB_ARGS("strategy=",        "strat=", variable.strategy);       \
 }
 
 int main(int argc, const char** argv)

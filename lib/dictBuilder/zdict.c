@@ -293,7 +293,7 @@ static dictItem ZDICT_analyzePos(
             refinedEnd = refinedStart + selectedCount;
         }
 
-        /* evaluate gain based on new ref */
+        /* evaluate gain based on new dict */
         start = refinedStart;
         pos = suffix[refinedStart];
         end = start;
@@ -341,7 +341,7 @@ static dictItem ZDICT_analyzePos(
         for (i=MINMATCHLENGTH; i<=(int)maxLength; i++)
             savings[i] = savings[i-1] + (lengthList[i] * (i-3));
 
-        DISPLAYLEVEL(4, "Selected ref at position %u, of length %u : saves %u (ratio: %.2f)  \n",
+        DISPLAYLEVEL(4, "Selected dict at position %u, of length %u : saves %u (ratio: %.2f)  \n",
                      (U32)pos, (U32)maxLength, savings[maxLength], (double)savings[maxLength] / maxLength);
 
         solution.pos = (U32)pos;
@@ -581,7 +581,7 @@ static void ZDICT_fillNoise(void* buffer, size_t length)
 
 typedef struct
 {
-    ZSTD_CDict* ref;    /* contains reference to dictionary */
+    ZSTD_CDict* dict;    /* dictionary */
     ZSTD_CCtx* zc;     /* working context */
     void* workPlace;   /* must be ZSTD_BLOCKSIZE_MAX allocated */
 } EStats_ress_t;
@@ -597,7 +597,7 @@ static void ZDICT_countEStats(EStats_ress_t esr, ZSTD_parameters params,
     size_t cSize;
 
     if (srcSize > blockSizeMax) srcSize = blockSizeMax;   /* protection vs large samples */
-    {   size_t const errorCode = ZSTD_compressBegin_usingCDict(esr.zc, esr.ref);
+    {   size_t const errorCode = ZSTD_compressBegin_usingCDict(esr.zc, esr.dict);
         if (ZSTD_isError(errorCode)) { DISPLAYLEVEL(1, "warning : ZSTD_compressBegin_usingCDict failed \n"); return; }
 
     }
@@ -720,10 +720,10 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     if (compressionLevel==0) compressionLevel = g_compressionLevel_default;
     params = ZSTD_getParams(compressionLevel, averageSampleSize, dictBufferSize);
 
-    esr.ref = ZSTD_createCDict_advanced(dictBuffer, dictBufferSize, ZSTD_dlm_byCopy, ZSTD_dct_auto, params.cParams, ZSTD_defaultCMem);
+    esr.dict = ZSTD_createCDict_advanced(dictBuffer, dictBufferSize, ZSTD_dlm_byRef, ZSTD_dct_rawContent, params.cParams, ZSTD_defaultCMem);
     esr.zc = ZSTD_createCCtx();
     esr.workPlace = malloc(ZSTD_BLOCKSIZE_MAX);
-    if (!esr.ref || !esr.zc || !esr.workPlace) {
+    if (!esr.dict || !esr.zc || !esr.workPlace) {
         eSize = ERROR(memory_allocation);
         DISPLAYLEVEL(1, "Not enough memory \n");
         goto _cleanup;
@@ -852,7 +852,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     eSize += 12;
 
 _cleanup:
-    ZSTD_freeCDict(esr.ref);
+    ZSTD_freeCDict(esr.dict);
     ZSTD_freeCCtx(esr.zc);
     free(esr.workPlace);
 

@@ -91,14 +91,26 @@ dictInfo* createDictFromFiles(sampleInfo *info, unsigned maxDictSize,
           dictSize = ZDICT_trainFromBuffer_random(dictBuffer, maxDictSize, info->srcBuffer,
                                                info->samplesSizes, info->nbSamples, *randomParams);
         }else if(coverParams) {
-          dictSize = ZDICT_optimizeTrainFromBuffer_cover(dictBuffer, maxDictSize, info->srcBuffer,
-                                                info->samplesSizes, info->nbSamples, coverParams);
+          /* Run the optimize version if either k or d is not provided */
+          if (!coverParams->d || !coverParams->k){
+            dictSize = ZDICT_optimizeTrainFromBuffer_cover(dictBuffer, maxDictSize, info->srcBuffer,
+                                                  info->samplesSizes, info->nbSamples, coverParams);
+          } else {
+            dictSize = ZDICT_trainFromBuffer_cover(dictBuffer, maxDictSize, info->srcBuffer,
+                                                  info->samplesSizes, info->nbSamples, *coverParams);
+          }
         } else if(legacyParams) {
           dictSize = ZDICT_trainFromBuffer_legacy(dictBuffer, maxDictSize, info->srcBuffer,
                                                info->samplesSizes, info->nbSamples, *legacyParams);
         } else if(fastParams) {
-          dictSize = ZDICT_optimizeTrainFromBuffer_fastCover(dictBuffer, maxDictSize, info->srcBuffer,
-                                                info->samplesSizes, info->nbSamples, fastParams);
+          /* Run the optimize version if either k or d is not provided */
+          if (!fastParams->d || !fastParams->k) {
+            dictSize = ZDICT_optimizeTrainFromBuffer_fastCover(dictBuffer, maxDictSize, info->srcBuffer,
+                                                  info->samplesSizes, info->nbSamples, fastParams);
+          } else {
+            dictSize = ZDICT_trainFromBuffer_fastCover(dictBuffer, maxDictSize, info->srcBuffer,
+                                                  info->samplesSizes, info->nbSamples, *fastParams);
+          }
         } else {
           dictSize = 0;
         }
@@ -403,7 +415,6 @@ int main(int argCount, const char* argv[])
       goto _cleanup;
     }
 
-
     /* for fastCover (with k and d provided) */
     const int fastResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, NULL, NULL, &fastParam);
     DISPLAYLEVEL(2, "k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\n", fastParam.k, fastParam.d, fastParam.f, fastParam.steps, (unsigned)(fastParam.splitPoint * 100));
@@ -411,7 +422,6 @@ int main(int argCount, const char* argv[])
       result = 1;
       goto _cleanup;
     }
-
   }
 
 

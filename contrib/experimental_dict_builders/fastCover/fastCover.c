@@ -629,6 +629,55 @@ _cleanup:
   }
 }
 
+ZDICTLIB_API size_t ZDICT_trainFromBuffer_fastCover(
+    void *dictBuffer, size_t dictBufferCapacity, const void *samplesBuffer,
+    const size_t *samplesSizes, unsigned nbSamples, ZDICT_fastCover_params_t parameters) {
+    BYTE* const dict = (BYTE*)dictBuffer;
+    FASTCOVER_ctx_t ctx;
+    parameters.splitPoint = 1.0;
+    /* Initialize global data */
+    g_displayLevel = parameters.zParams.notificationLevel;
+    /* Checks */
+    if (!FASTCOVER_checkParameters(parameters, dictBufferCapacity)) {
+      DISPLAYLEVEL(1, "FASTCOVER parameters incorrect\n");
+      return ERROR(GENERIC);
+    }
+    if (nbSamples == 0) {
+      DISPLAYLEVEL(1, "FASTCOVER must have at least one input file\n");
+      return ERROR(GENERIC);
+    }
+    if (dictBufferCapacity < ZDICT_DICTSIZE_MIN) {
+      DISPLAYLEVEL(1, "dictBufferCapacity must be at least %u\n",
+                   ZDICT_DICTSIZE_MIN);
+      return ERROR(dstSize_tooSmall);
+    }
+    /* Initialize context */
+    if (!FASTCOVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples,
+                            parameters.d, parameters.splitPoint, parameters.f)) {
+      DISPLAYLEVEL(1, "Failed to initialize context\n");
+      return ERROR(GENERIC);
+    }
+    /* Build the dictionary */
+    DISPLAYLEVEL(2, "Building dictionary\n");
+    {
+      const size_t tail = FASTCOVER_buildDictionary(&ctx, ctx.freqs, dictBuffer,
+                                                dictBufferCapacity, parameters);
+
+      const size_t dictionarySize = ZDICT_finalizeDictionary(
+          dict, dictBufferCapacity, dict + tail, dictBufferCapacity - tail,
+          samplesBuffer, samplesSizes, (unsigned)ctx.nbTrainSamples,
+          parameters.zParams);
+      if (!ZSTD_isError(dictionarySize)) {
+          DISPLAYLEVEL(2, "Constructed dictionary of size %u\n",
+                      (U32)dictionarySize);
+      }
+      FASTCOVER_ctx_destroy(&ctx);
+      return dictionarySize;
+    }
+}
+
+
+
 ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_fastCover(
     void *dictBuffer, size_t dictBufferCapacity, const void *samplesBuffer,
     const size_t *samplesSizes, unsigned nbSamples,
@@ -657,15 +706,15 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_fastCover(
 
     /* Checks */
     if (splitPoint <= 0 || splitPoint > 1) {
-      LOCALDISPLAYLEVEL(displayLevel, 1, "Incorrect parameters\n");
+      LOCALDISPLAYLEVEL(displayLevel, 1, "Incorrect splitPoint\n");
       return ERROR(GENERIC);
     }
     if (kMinK < kMaxD || kMaxK < kMinK) {
-      LOCALDISPLAYLEVEL(displayLevel, 1, "Incorrect parameters\n");
+      LOCALDISPLAYLEVEL(displayLevel, 1, "Incorrect k\n");
       return ERROR(GENERIC);
     }
     if (nbSamples == 0) {
-      DISPLAYLEVEL(1, "fast must have at least one input file\n");
+      DISPLAYLEVEL(1, "FASTCOVER must have at least one input file\n");
       return ERROR(GENERIC);
     }
     if (dictBufferCapacity < ZDICT_DICTSIZE_MIN) {

@@ -64,8 +64,13 @@ int FASTCOVER_trainFromFiles(const char* dictFileName, sampleInfo *info,
         EXM_THROW(12, "not enough memory for trainFromFiles");   /* should not happen */
 
     {   size_t dictSize;
-        dictSize = ZDICT_optimizeTrainFromBuffer_fastCover(dictBuffer, maxDictSize, info->srcBuffer,
-                                             info->samplesSizes, info->nbSamples, params);
+        if (!params->d || !params->k) {
+          dictSize = ZDICT_optimizeTrainFromBuffer_fastCover(dictBuffer, maxDictSize, info->srcBuffer,
+                                               info->samplesSizes, info->nbSamples, params);
+        } else {
+          dictSize = ZDICT_trainFromBuffer_fastCover(dictBuffer, maxDictSize, info->srcBuffer,
+                                               info->samplesSizes, info->nbSamples, params);
+        }
         DISPLAYLEVEL(2, "k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\n", params->k, params->d, params->f, params->steps, (unsigned)(params->splitPoint*100));
         if (ZDICT_isError(dictSize)) {
             DISPLAYLEVEL(1, "dictionary training failed : %s \n", ZDICT_getErrorName(dictSize));   /* should not happen */
@@ -92,8 +97,8 @@ int main(int argCount, const char* argv[])
   int operationResult = 0;
 
   /* Initialize arguments to default values */
-  unsigned k = 200;
-  unsigned d = 8;
+  unsigned k = 0;
+  unsigned d = 0;
   unsigned f = 23;
   unsigned steps = 32;
   unsigned nbThreads = 1;

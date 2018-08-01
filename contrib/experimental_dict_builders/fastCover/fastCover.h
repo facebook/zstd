@@ -12,9 +12,6 @@
 #include "zdict.h"
 
 
-
-
-
 typedef struct {
     unsigned k;                  /* Segment size : constraint: 0 < k : Reasonable range [16, 2048+] */
     unsigned d;                  /* dmer size : constraint: 0 < d <= k : Reasonable range [6, 16] */
@@ -24,7 +21,6 @@ typedef struct {
     double splitPoint;           /* Percentage of samples used for training: the first nbSamples * splitPoint samples will be used to training, the last nbSamples * (1 - splitPoint) samples will be used for testing, 0 means default (1.0), 1.0 when all samples are used for both training and testing */
     ZDICT_params_t zParams;
 } ZDICT_fastCover_params_t;
-
 
 
 /*! ZDICT_optimizeTrainFromBuffer_fastCover():
@@ -41,7 +37,21 @@ typedef struct {
  *           or an error code, which can be tested with ZDICT_isError().
  *           On success `*parameters` contains the parameters selected.
  */
-ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_fastCover(
+ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_fastCover(
+     void *dictBuffer, size_t dictBufferCapacity, const void *samplesBuffer,
+     const size_t *samplesSizes, unsigned nbSamples,
+     ZDICT_fastCover_params_t *parameters);
+
+
+/*! ZDICT_trainFromBuffer_fastCover():
+ *  Train a dictionary from an array of samples using a modified version of the COVER algorithm.
+ *  Samples must be stored concatenated in a single flat buffer `samplesBuffer`,
+ *  supplied with an array of sizes `samplesSizes`, providing the size of each sample, in order.
+ *  The resulting dictionary will be saved into `dictBuffer`.
+ *  d, k, and f are required.
+ *  @return: size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`)
+ *           or an error code, which can be tested with ZDICT_isError().
+ */
+ZDICTLIB_API size_t ZDICT_trainFromBuffer_fastCover(
     void *dictBuffer, size_t dictBufferCapacity, const void *samplesBuffer,
-    const size_t *samplesSizes, unsigned nbSamples,
-    ZDICT_fastCover_params_t *parameters);
+    const size_t *samplesSizes, unsigned nbSamples, ZDICT_fastCover_params_t *parameters);

@@ -2234,6 +2234,19 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
         BMK_printWinnerOpt(stdout, cLevel, winner.result, winner.params, target, buf.srcSize);
     }
 
+    if(g_singleRun) {
+        BMK_result_t res;
+        g_params = ZSTD_adjustCParams(maskParams(ZSTD_getCParams(cLevel, maxBlockSize, ctx.dictSize), g_params), maxBlockSize, ctx.dictSize);
+        if(BMK_benchParam(&res, buf, ctx, g_params)) {
+            ret = 45;
+            goto _cleanUp;
+        }
+        if(compareResultLT(winner.result, res, relaxTarget(target), buf.srcSize)) {
+            winner.result = res;
+            winner.params = g_params;
+        }
+    }
+
     /* bench */
     DISPLAY("\r%79s\r", "");
     if(nbFiles == 1) {

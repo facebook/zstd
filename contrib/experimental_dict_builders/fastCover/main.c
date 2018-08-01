@@ -64,6 +64,7 @@ int FASTCOVER_trainFromFiles(const char* dictFileName, sampleInfo *info,
         EXM_THROW(12, "not enough memory for trainFromFiles");   /* should not happen */
 
     {   size_t dictSize;
+        /* Run the optimize version if either k or d is not provided */
         if (!params->d || !params->k) {
           dictSize = ZDICT_optimizeTrainFromBuffer_fastCover(dictBuffer, maxDictSize, info->srcBuffer,
                                                info->samplesSizes, info->nbSamples, params);

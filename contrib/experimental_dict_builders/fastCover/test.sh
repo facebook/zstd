@@ -2,7 +2,7 @@ echo "Building fastCover dictionary with in=../../lib/common f=20 out=dict1"
 ./main in=../../../lib/common f=20 out=dict1
 zstd -be3 -D dict1 -r ../../../lib/common -q
 echo "Building fastCover dictionary with in=../../lib/common k=500 d=6 f=24 out=dict2 dictID=100 maxdict=140000"
-./main in=../../../lib/common k=500 k=500 d=6 f=24 out=dict2 dictID=100 maxdict=140000
+./main in=../../../lib/common k=500 d=6 f=24 out=dict2 dictID=100 maxdict=140000
 zstd -be3 -D dict2 -r ../../../lib/common -q
 echo "Building fastCover dictionary with 2 sample sources"
 ./main in=../../../lib/common in=../../../lib/compress out=dict3

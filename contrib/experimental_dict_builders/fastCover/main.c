@@ -70,7 +70,7 @@ int FASTCOVER_trainFromFiles(const char* dictFileName, sampleInfo *info,
                                                info->samplesSizes, info->nbSamples, params);
         } else {
           dictSize = ZDICT_trainFromBuffer_fastCover(dictBuffer, maxDictSize, info->srcBuffer,
-                                               info->samplesSizes, info->nbSamples, params);
+                                               info->samplesSizes, info->nbSamples, *params);
         }
         DISPLAYLEVEL(2, "k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\n", params->k, params->d, params->f, params->steps, (unsigned)(params->splitPoint*100));
         if (ZDICT_isError(dictSize)) {

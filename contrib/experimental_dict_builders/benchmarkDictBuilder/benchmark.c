@@ -109,7 +109,7 @@ dictInfo* createDictFromFiles(sampleInfo *info, unsigned maxDictSize,
                                                   info->samplesSizes, info->nbSamples, fastParams);
           } else {
             dictSize = ZDICT_trainFromBuffer_fastCover(dictBuffer, maxDictSize, info->srcBuffer,
-                                                  info->samplesSizes, info->nbSamples, fastParams);
+                                                  info->samplesSizes, info->nbSamples, *fastParams);
           }
         } else {
           dictSize = 0;

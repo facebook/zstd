@@ -631,14 +631,14 @@ _cleanup:
 
 ZDICTLIB_API size_t ZDICT_trainFromBuffer_fastCover(
     void *dictBuffer, size_t dictBufferCapacity, const void *samplesBuffer,
-    const size_t *samplesSizes, unsigned nbSamples, ZDICT_fastCover_params_t *parameters) {
+    const size_t *samplesSizes, unsigned nbSamples, ZDICT_fastCover_params_t parameters) {
     BYTE* const dict = (BYTE*)dictBuffer;
     FASTCOVER_ctx_t ctx;
-    parameters->splitPoint = 1.0;
+    parameters.splitPoint = 1.0;
     /* Initialize global data */
-    g_displayLevel = parameters->zParams.notificationLevel;
+    g_displayLevel = parameters.zParams.notificationLevel;
     /* Checks */
-    if (!FASTCOVER_checkParameters(*parameters, dictBufferCapacity)) {
+    if (!FASTCOVER_checkParameters(parameters, dictBufferCapacity)) {
       DISPLAYLEVEL(1, "FASTCOVER parameters incorrect\n");
       return ERROR(GENERIC);
     }
@@ -653,7 +653,7 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_fastCover(
     }
     /* Initialize context */
     if (!FASTCOVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples,
-                            parameters->d, parameters->splitPoint, parameters->f)) {
+                            parameters.d, parameters.splitPoint, parameters.f)) {
       DISPLAYLEVEL(1, "Failed to initialize context\n");
       return ERROR(GENERIC);
     }
@@ -661,12 +661,12 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_fastCover(
     DISPLAYLEVEL(2, "Building dictionary\n");
     {
       const size_t tail = FASTCOVER_buildDictionary(&ctx, ctx.freqs, dictBuffer,
-                                                dictBufferCapacity, *parameters);
+                                                dictBufferCapacity, parameters);
 
       const size_t dictionarySize = ZDICT_finalizeDictionary(
           dict, dictBufferCapacity, dict + tail, dictBufferCapacity - tail,
           samplesBuffer, samplesSizes, (unsigned)ctx.nbTrainSamples,
-          parameters->zParams);
+          parameters.zParams);
       if (!ZSTD_isError(dictionarySize)) {
           DISPLAYLEVEL(2, "Constructed dictionary of size %u\n",
                       (U32)dictionarySize);

@@ -16,8 +16,8 @@ make test
 
 
 ###Usage:
-To build a random dictionary with the provided arguments: make ARG= followed by arguments
-
+To build a FASTCOVER dictionary with the provided arguments: make ARG= followed by arguments
+If k or d is not provided, the optimize version of FASTCOVER is run.
 
 ### Examples:
 make ARG="in=../../../lib/dictBuilder out=dict100 dictID=520"

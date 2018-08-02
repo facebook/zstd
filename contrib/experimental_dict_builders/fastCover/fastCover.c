@@ -197,7 +197,7 @@ static FASTCOVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
     bestSegment.end = newEnd;
   }
   {
-    /* Half the frequency of hash value of each dmer covered by the chosen segment. */
+    /*  Zero the frequency of hash value of each dmer covered by the chosen segment. */
     U32 pos;
     for (pos = bestSegment.begin; pos != bestSegment.end; ++pos) {
       const size_t i = FASTCOVER_hashPtrToIndex(ctx->samples + pos, parameters.f, ctx->d);
@@ -300,7 +300,7 @@ static int FASTCOVER_ctx_init(FASTCOVER_ctx_t *ctx, const void *samplesBuffer,
   if (totalSamplesSize < MAX(d, sizeof(U64)) ||
       totalSamplesSize >= (size_t)FASTCOVER_MAX_SAMPLES_SIZE) {
     DISPLAYLEVEL(1, "Total samples size is too large (%u MB), maximum size is %u MB\n",
-                 (U32)(totalSamplesSize>>20), (FASTCOVER_MAX_SAMPLES_SIZE >> 20));
+                 (U32)(totalSamplesSize >> 20), (FASTCOVER_MAX_SAMPLES_SIZE >> 20));
     return 0;
   }
   /* Check if there are at least 5 training samples */

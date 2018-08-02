@@ -2017,21 +2017,25 @@ static int FIO_listFile(fileInfo_t* total, const char* inFileName, int displayLe
 }
 
 int FIO_listMultipleFiles(unsigned numFiles, const char** filenameTable, int displayLevel){
-
-    if (!IS_CONSOLE(stdin)) {
-        DISPLAYOUT("zstd: --list does not support reading from standard input\n");
-        return 1;
+    unsigned u;
+    for (u=0; u<numFiles;u++) {
+        if (!strcmp (filenameTable[u], stdinmark)) {
+            DISPLAYOUT("zstd: --list does not support reading from standard input\n");
+            return 1;
+        }
     }
 
     if (numFiles == 0) {
+        if (!IS_CONSOLE(stdin)) {
+            DISPLAYOUT("zstd: --list does not support reading from standard input\n");
+        }
         DISPLAYOUT("No files given\n");
-        return 0;
+        return 1;
     }
     if (displayLevel <= 2) {
         DISPLAYOUT("Frames  Skips  Compressed  Uncompressed  Ratio  Check  Filename\n");
     }
     {   int error = 0;
-        unsigned u;
         fileInfo_t total;
         memset(&total, 0, sizeof(total));
         total.usesCheck = 1;

@@ -63,8 +63,9 @@ zlibwrapper:
 	$(MAKE) -C $(ZWRAPDIR) test
 
 .PHONY: test
+test: MOREFLAGS += -g -DDEBUGLEVEL=1 -Werror
 test:
-	$(MAKE) -C $(PRGDIR) allVariants MOREFLAGS+="-g -DDEBUGLEVEL=1"
+	MOREFLAGS="$(MOREFLAGS)" $(MAKE) -C $(PRGDIR) allVariants
 	$(MAKE) -C $(TESTDIR) $@
 
 .PHONY: shortest

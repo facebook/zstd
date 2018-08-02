@@ -150,7 +150,7 @@ Advanced arguments :
 
 Dictionary builder :
 --train ## : create a dictionary from a training set of files
---train-cover[=k=#,d=#,steps=#] : use the cover algorithm with optional args
+--train-cover[=k=#,d=#,steps=#,split=#] : use the cover algorithm with optional args
 --train-legacy[=s=#] : use the legacy algorithm with selectivity (default: 9)
  -o file : `file` is dictionary name (default: dictionary)
 --maxdict=# : limit dictionary to specified size (default: 112640)

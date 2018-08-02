@@ -502,7 +502,7 @@ int main(int argCount, const char* argv[])
                     if (!strcmp(argument, "--sparse")) { FIO_setSparseWrite(2); continue; }
                     if (!strcmp(argument, "--no-sparse")) { FIO_setSparseWrite(0); continue; }
                     if (!strcmp(argument, "--test")) { operation=zom_test; continue; }
-                    if (!strcmp(argument, "--train")) { operation=zom_train; outFileName=g_defaultDictName; continue; }
+                    if (!strcmp(argument, "--train")) { operation=zom_train; if (outFileName==NULL) outFileName=g_defaultDictName; continue; }
                     if (!strcmp(argument, "--maxdict")) { nextArgumentIsMaxDict=1; lastCommand=1; continue; }  /* kept available for compatibility with old syntax ; will be removed one day */
                     if (!strcmp(argument, "--dictID")) { nextArgumentIsDictID=1; lastCommand=1; continue; }  /* kept available for compatibility with old syntax ; will be removed one day */
                     if (!strcmp(argument, "--no-dictID")) { FIO_setDictIDFlag(0); continue; }
@@ -526,7 +526,8 @@ int main(int argCount, const char* argv[])
 #ifndef ZSTD_NODICT
                     if (longCommandWArg(&argument, "--train-cover")) {
                       operation = zom_train;
-                      outFileName = g_defaultDictName;
+                      if (outFileName == NULL)
+                          outFileName = g_defaultDictName;
                       cover = 1;
                       /* Allow optional arguments following an = */
                       if (*argument == 0) { memset(&coverParams, 0, sizeof(coverParams)); }
@@ -536,7 +537,8 @@ int main(int argCount, const char* argv[])
                     }
                     if (longCommandWArg(&argument, "--train-legacy")) {
                       operation = zom_train;
-                      outFileName = g_defaultDictName;
+                      if (outFileName == NULL)
+                          outFileName = g_defaultDictName;
                       cover = 0;
                       /* Allow optional arguments following an = */
                       if (*argument == 0) { continue; }
@@ -718,7 +720,7 @@ int main(int argCount, const char* argv[])
                         break;
 
                         /* Select compressibility of synthetic sample */
-                    case 'P': 
+                    case 'P':
                     {   argument++;
                         compressibility = (double)readU32FromChar(&argument) / 100;
                     }
@@ -841,7 +843,7 @@ int main(int argCount, const char* argv[])
         if (cLevel > ZSTD_maxCLevel()) cLevel = ZSTD_maxCLevel();
         if (cLevelLast > ZSTD_maxCLevel()) cLevelLast = ZSTD_maxCLevel();
         if (cLevelLast < cLevel) cLevelLast = cLevel;
-        if (cLevelLast > cLevel) 
+        if (cLevelLast > cLevel)
             DISPLAYLEVEL(2, "Benchmarking levels from %d to %d\n", cLevel, cLevelLast);
         if(filenameIdx) {
             if(separateFiles) {
@@ -856,7 +858,7 @@ int main(int argCount, const char* argv[])
             } else {
                 for(; cLevel <= cLevelLast; cLevel++) {
                     BMK_benchFilesAdvanced(filenameTable, filenameIdx, dictFileName, cLevel, &compressionParams, g_displayLevel, &adv);
-                }            
+                }
             }
         } else {
             for(; cLevel <= cLevelLast; cLevel++) {

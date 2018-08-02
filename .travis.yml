@@ -28,7 +28,17 @@ matrix:
     - env: Cmd='make clang38install && CC=clang-3.8 make clean tsan-test-zstream'
 
     - env: Cmd='make arminstall && make armfuzz'
+<<<<<<< HEAD
     - env: Cmd='make arminstall && make aarch64fuzz'
+=======
+
+# Following test is disabled, as there is a bug in Travis' ld
+# preventing aarch64 compilation to complete.
+# > collect2: error: ld terminated with signal 11 [Segmentation fault], core dumped
+# to be re-enabled in a few commit, as it's possible that a random code change circumvent the ld bug
+#    - env: Cmd='make arminstall && make aarch64fuzz'
+
+>>>>>>> dev
     - env: Cmd='make ppcinstall && make ppcfuzz'
     - env: Cmd='make ppcinstall && make ppc64fuzz'
 

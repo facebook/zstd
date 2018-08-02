@@ -549,7 +549,8 @@ static BMK_return_t BMK_benchMemAdvancedNoAlloc(
                             double const compressionSpeed = ((double)srcSize / intermediateResultCompress.result.result.nanoSecPerRun) * 1000;
                             int const cSpeedAccuracy = (compressionSpeed < 10.) ? 2 : 1;
                             results.result.cSpeed = compressionSpeed * 1000000;
-                            results.result.cSize = intermediateResultCompress.result.result.sumOfReturn;
+                            cSize = intermediateResultCompress.result.result.sumOfReturn;
+                            results.result.cSize = cSize;
                             ratio = (double)srcSize / results.result.cSize;
                             markNb = (markNb+1) % NB_MARKS;
                             DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.*f),%6.*f MB/s\r",

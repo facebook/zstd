@@ -10,8 +10,13 @@ addons:
 matrix:
   include:
     # Ubuntu 14.04
+<<<<<<< HEAD
     - env: Cmd='make gcc6install && CC=gcc-6 make -j all
              && make clean && CC=gcc-6 make clean uasan-test-zstd'
+=======
+    - env: Cmd='make test'
+    - env: Cmd='make gcc6install && CC=gcc-6 make -j all && make clean && CC=gcc-6 make clean uasan-test-zstd </dev/null' # also test when stdin is not a tty
+>>>>>>> 0840d02ecf74eae656e0df0d900000d9b0154cde
     - env: Cmd='make gcc6install libc6install && CC=gcc-6 make clean uasan-test-zstd32'
     - env: Cmd='make gcc7install && CC=gcc-7 make clean uasan-test-zstd'
     - env: Cmd='make clang38install && CC=clang-3.8 make clean msan-test-zstd'

@@ -488,20 +488,20 @@ For values spanning several bytes, convention is __little-endian__.
 __`Size_Format` for `Raw_Literals_Block` and `RLE_Literals_Block`__ :
 
 `Size_Format` uses 1 _or_ 2 bits.
-Its value is : `Size_Format = (Header[0]>>2) & 3`
+Its value is : `Size_Format = (Literals_Section_Header[0]>>2) & 3`
 
 - `Size_Format` == 00 or 10 : `Size_Format` uses 1 bit.
                `Regenerated_Size` uses 5 bits (0-31).
                `Literals_Section_Header` uses 1 byte.
-               `Regenerated_Size = Header[0]>>3`
+               `Regenerated_Size = Literals_Section_Header[0]>>3`
 - `Size_Format` == 01 : `Size_Format` uses 2 bits.
                `Regenerated_Size` uses 12 bits (0-4095).
                `Literals_Section_Header` uses 2 bytes.
-               `Regenerated_Size = (Header[0]>>4) + (Header[1]<<4)`
+               `Regenerated_Size = (Literals_Section_Header[0]>>4) + (Literals_Section_Header[1]<<4)`
 - `Size_Format` == 11 : `Size_Format` uses 2 bits.
                `Regenerated_Size` uses 20 bits (0-1048575).
                `Literals_Section_Header` uses 3 bytes.
-               `Regenerated_Size = (Header[0]>>4) + (Header[1]<<4) + (Header[2]<<12)`
+               `Regenerated_Size = (Literals_Section_Header[0]>>4) + (Literals_Section_Header[1]<<4) + (Literals_Section_Header[2]<<12)`
 
 Only Stream1 is present for these cases.
 Note : it's allowed to represent a short value (for example `13`)

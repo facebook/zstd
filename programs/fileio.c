@@ -797,6 +797,14 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
         }
     } while (directive != ZSTD_e_end);
 
+    if (ferror(srcFile)) {
+        EXM_THROW(26, "Read error : I/O error");
+    }
+    if (fileSize != UTIL_FILESIZE_UNKNOWN && *readsize != fileSize) {
+        EXM_THROW(27, "Read error : Incomplete read : %llu / %llu B",
+                (unsigned long long)*readsize, (unsigned long long)fileSize);
+    }
+
     return compressedfilesize;
 }
 

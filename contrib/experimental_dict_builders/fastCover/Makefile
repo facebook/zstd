@@ -11,6 +11,9 @@ TEST_OUTPUT := fastCoverDict
 
 all: main run clean
 
+.PHONY: stride
+stride: stridetest striderun
+
 .PHONY: test
 test: main testrun testshell clean
 
@@ -18,6 +21,16 @@ test: main testrun testshell clean
 run:
 	echo "Building a fastCover dictionary with given arguments"
 	./main $(ARG)
+
+.PHONY: striderun
+striderun:
+	./stridetest $(ARG)
+
+stridetest: stridetest.o io.o fastCover.o libzstd.a
+	$(CC) $(CFLAGS) stridetest.o io.o fastCover.o libzstd.a -o stridetest
+
+stridetest.o: stridetest.c
+	$(CC) $(CFLAGS) $(INCLUDES) -c stridetest.c
 
 main: main.o io.o fastCover.o libzstd.a
 	$(CC) $(CFLAGS) main.o io.o fastCover.o libzstd.a -o main
@@ -49,6 +62,6 @@ testshell: test.sh
 
 .PHONY: clean
 clean:
-	rm -f *.o main libzstd.a
+	rm -f *.o main stridetest libzstd.a
 	$(MAKE) -C ../../../lib clean
 	echo "Cleaning is completed"

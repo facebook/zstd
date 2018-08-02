@@ -267,10 +267,30 @@ static void FASTCOVER_ctx_destroy(FASTCOVER_ctx_t *ctx) {
  */
 static void FASTCOVER_computeFrequency(U32 *freqs, unsigned f, FASTCOVER_ctx_t *ctx){
   size_t start; /* start of current dmer */
+  const unsigned stride = 8;
   for (unsigned i = 0; i < ctx->nbTrainSamples; i++) {
     size_t currSampleStart = ctx->offsets[i];
     size_t currSampleEnd = ctx->offsets[i+1];
     start = currSampleStart;
+    while (start + ctx->d + stride - 1 <= currSampleEnd) {
+      const size_t dmerIndex0 = FASTCOVER_hashPtrToIndex(ctx->samples + start + 0, f, ctx->d);
+      const size_t dmerIndex1 = FASTCOVER_hashPtrToIndex(ctx->samples + start + 1, f, ctx->d);
+      const size_t dmerIndex2 = FASTCOVER_hashPtrToIndex(ctx->samples + start + 2, f, ctx->d);
+      const size_t dmerIndex3 = FASTCOVER_hashPtrToIndex(ctx->samples + start + 3, f, ctx->d);
+      const size_t dmerIndex4 = FASTCOVER_hashPtrToIndex(ctx->samples + start + 4, f, ctx->d);
+      const size_t dmerIndex5 = FASTCOVER_hashPtrToIndex(ctx->samples + start + 5, f, ctx->d);
+      const size_t dmerIndex6 = FASTCOVER_hashPtrToIndex(ctx->samples + start + 6, f, ctx->d);
+      const size_t dmerIndex7 = FASTCOVER_hashPtrToIndex(ctx->samples + start + 7, f, ctx->d);
+      freqs[dmerIndex0]++;
+      freqs[dmerIndex1]++;
+      freqs[dmerIndex2]++;
+      freqs[dmerIndex3]++;
+      freqs[dmerIndex4]++;
+      freqs[dmerIndex5]++;
+      freqs[dmerIndex6]++;
+      freqs[dmerIndex7]++;
+      start += stride;
+    }
     while (start + ctx->d <= currSampleEnd) {
       const size_t dmerIndex = FASTCOVER_hashPtrToIndex(ctx->samples + start, f, ctx->d);
       freqs[dmerIndex]++;

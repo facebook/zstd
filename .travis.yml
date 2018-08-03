@@ -10,13 +10,10 @@ addons:
 matrix:
   include:
     # Ubuntu 14.04
-<<<<<<< HEAD
-    - env: Cmd='make gcc6install && CC=gcc-6 make -j all
-             && make clean && CC=gcc-6 make clean uasan-test-zstd'
-=======
     - env: Cmd='make test'
-    - env: Cmd='make gcc6install && CC=gcc-6 make -j all && make clean && CC=gcc-6 make clean uasan-test-zstd </dev/null' # also test when stdin is not a tty
->>>>>>> 0840d02ecf74eae656e0df0d900000d9b0154cde
+
+    - env: Cmd='make gcc6install && CC=gcc-6 make -j all
+             && make clean && CC=gcc-6 make clean uasan-test-zstd </dev/null' # also test when stdin is not a tty
     - env: Cmd='make gcc6install libc6install && CC=gcc-6 make clean uasan-test-zstd32'
     - env: Cmd='make gcc7install && CC=gcc-7 make clean uasan-test-zstd'
     - env: Cmd='make clang38install && CC=clang-3.8 make clean msan-test-zstd'
@@ -28,17 +25,7 @@ matrix:
     - env: Cmd='make clang38install && CC=clang-3.8 make clean tsan-test-zstream'
 
     - env: Cmd='make arminstall && make armfuzz'
-<<<<<<< HEAD
     - env: Cmd='make arminstall && make aarch64fuzz'
-=======
-
-# Following test is disabled, as there is a bug in Travis' ld
-# preventing aarch64 compilation to complete.
-# > collect2: error: ld terminated with signal 11 [Segmentation fault], core dumped
-# to be re-enabled in a few commit, as it's possible that a random code change circumvent the ld bug
-#    - env: Cmd='make arminstall && make aarch64fuzz'
-
->>>>>>> dev
     - env: Cmd='make ppcinstall && make ppcfuzz'
     - env: Cmd='make ppcinstall && make ppc64fuzz'
 

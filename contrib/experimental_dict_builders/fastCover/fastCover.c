@@ -197,7 +197,7 @@ static FASTCOVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
     bestSegment.end = newEnd;
   }
   {
-    /* Half the frequency of hash value of each dmer covered by the chosen segment. */
+    /*  Zero the frequency of hash value of each dmer covered by the chosen segment. */
     U32 pos;
     for (pos = bestSegment.begin; pos != bestSegment.end; ++pos) {
       const size_t i = FASTCOVER_hashPtrToIndex(ctx->samples + pos, parameters.f, ctx->d);
@@ -267,10 +267,30 @@ static void FASTCOVER_ctx_destroy(FASTCOVER_ctx_t *ctx) {
  */
 static void FASTCOVER_computeFrequency(U32 *freqs, unsigned f, FASTCOVER_ctx_t *ctx){
   size_t start; /* start of current dmer */
+  const unsigned stride = 8;
   for (unsigned i = 0; i < ctx->nbTrainSamples; i++) {
     size_t currSampleStart = ctx->offsets[i];
     size_t currSampleEnd = ctx->offsets[i+1];
     start = currSampleStart;
+    while (start + ctx->d + stride - 1 <= currSampleEnd) {
+      const size_t dmerIndex0 = FASTCOVER_hashPtrToIndex(ctx->samples + start + 0, f, ctx->d);
+      const size_t dmerIndex1 = FASTCOVER_hashPtrToIndex(ctx->samples + start + 1, f, ctx->d);
+      const size_t dmerIndex2 = FASTCOVER_hashPtrToIndex(ctx->samples + start + 2, f, ctx->d);
+      const size_t dmerIndex3 = FASTCOVER_hashPtrToIndex(ctx->samples + start + 3, f, ctx->d);
+      const size_t dmerIndex4 = FASTCOVER_hashPtrToIndex(ctx->samples + start + 4, f, ctx->d);
+      const size_t dmerIndex5 = FASTCOVER_hashPtrToIndex(ctx->samples + start + 5, f, ctx->d);
+      const size_t dmerIndex6 = FASTCOVER_hashPtrToIndex(ctx->samples + start + 6, f, ctx->d);
+      const size_t dmerIndex7 = FASTCOVER_hashPtrToIndex(ctx->samples + start + 7, f, ctx->d);
+      freqs[dmerIndex0]++;
+      freqs[dmerIndex1]++;
+      freqs[dmerIndex2]++;
+      freqs[dmerIndex3]++;
+      freqs[dmerIndex4]++;
+      freqs[dmerIndex5]++;
+      freqs[dmerIndex6]++;
+      freqs[dmerIndex7]++;
+      start += stride;
+    }
     while (start + ctx->d <= currSampleEnd) {
       const size_t dmerIndex = FASTCOVER_hashPtrToIndex(ctx->samples + start, f, ctx->d);
       freqs[dmerIndex]++;
@@ -300,7 +320,7 @@ static int FASTCOVER_ctx_init(FASTCOVER_ctx_t *ctx, const void *samplesBuffer,
   if (totalSamplesSize < MAX(d, sizeof(U64)) ||
       totalSamplesSize >= (size_t)FASTCOVER_MAX_SAMPLES_SIZE) {
     DISPLAYLEVEL(1, "Total samples size is too large (%u MB), maximum size is %u MB\n",
-                 (U32)(totalSamplesSize>>20), (FASTCOVER_MAX_SAMPLES_SIZE >> 20));
+                 (U32)(totalSamplesSize >> 20), (FASTCOVER_MAX_SAMPLES_SIZE >> 20));
     return 0;
   }
   /* Check if there are at least 5 training samples */

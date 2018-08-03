@@ -406,7 +406,6 @@ int main(int argCount, const char* argv[])
         singleThread = 0,
         ultra=0;
     double compressibility = 0.5;
-    BMK_advancedParams_t adv = BMK_initAdvancedParams();
     unsigned bench_nbSeconds = 3;   /* would be better if this value was synchronized from bench */
     size_t blockSize = 0;
     zstd_operation_mode operation = zom_compress;
@@ -433,6 +432,9 @@ int main(int argCount, const char* argv[])
 #ifndef ZSTD_NODICT
     ZDICT_cover_params_t coverParams = defaultCoverParams();
     int cover = 1;
+#endif
+#ifndef ZSTD_NOBENCH
+    BMK_advancedParams_t benchParams = BMK_initAdvancedParams();
 #endif
 
 
@@ -620,7 +622,7 @@ int main(int argCount, const char* argv[])
                          /* Decoding */
                     case 'd':
 #ifndef ZSTD_NOBENCH
-                            adv.mode = BMK_decodeOnly;
+                            benchParams.mode = BMK_decodeOnly;
                             if (operation==zom_bench) { argument++; break; }  /* benchmark decode (hidden option) */
 #endif
                             operation=zom_decompress; argument++; break;
@@ -713,7 +715,7 @@ int main(int argCount, const char* argv[])
                     case 'p': argument++;
 #ifndef ZSTD_NOBENCH
                         if ((*argument>='0') && (*argument<='9')) {
-                            adv.additionalParam = (int)readU32FromChar(&argument);
+                            benchParams.additionalParam = (int)readU32FromChar(&argument);
                         } else
 #endif
                             main_pause=1;
@@ -826,18 +828,18 @@ int main(int argCount, const char* argv[])
     /* Check if benchmark is selected */
     if (operation==zom_bench) {
 #ifndef ZSTD_NOBENCH
-        adv.blockSize = blockSize;
-        adv.nbWorkers = nbWorkers;
-        adv.realTime = setRealTimePrio;
-        adv.nbSeconds = bench_nbSeconds;
-        adv.ldmFlag = ldmFlag;
-        adv.ldmMinMatch = g_ldmMinMatch;
-        adv.ldmHashLog = g_ldmHashLog;
+        benchParams.blockSize = blockSize;
+        benchParams.nbWorkers = nbWorkers;
+        benchParams.realTime = setRealTimePrio;
+        benchParams.nbSeconds = bench_nbSeconds;
+        benchParams.ldmFlag = ldmFlag;
+        benchParams.ldmMinMatch = g_ldmMinMatch;
+        benchParams.ldmHashLog = g_ldmHashLog;
         if (g_ldmBucketSizeLog != LDM_PARAM_DEFAULT) {
-            adv.ldmBucketSizeLog = g_ldmBucketSizeLog;
+            benchParams.ldmBucketSizeLog = g_ldmBucketSizeLog;
         }
         if (g_ldmHashEveryLog != LDM_PARAM_DEFAULT) {
-            adv.ldmHashEveryLog = g_ldmHashEveryLog;
+            benchParams.ldmHashEveryLog = g_ldmHashEveryLog;
         }
 
         if (cLevel > ZSTD_maxCLevel()) cLevel = ZSTD_maxCLevel();
@@ -852,17 +854,17 @@ int main(int argCount, const char* argv[])
                     int c;
                     DISPLAYLEVEL(2, "Benchmarking %s \n", filenameTable[i]);
                     for(c = cLevel; c <= cLevelLast; c++) {
-                        BMK_benchFilesAdvanced(&filenameTable[i], 1, dictFileName, c, &compressionParams, g_displayLevel, &adv);
+                        BMK_benchFilesAdvanced(&filenameTable[i], 1, dictFileName, c, &compressionParams, g_displayLevel, &benchParams);
                     }
                 }
             } else {
                 for(; cLevel <= cLevelLast; cLevel++) {
-                    BMK_benchFilesAdvanced(filenameTable, filenameIdx, dictFileName, cLevel, &compressionParams, g_displayLevel, &adv);
+                    BMK_benchFilesAdvanced(filenameTable, filenameIdx, dictFileName, cLevel, &compressionParams, g_displayLevel, &benchParams);
                 }
             }
         } else {
             for(; cLevel <= cLevelLast; cLevel++) {
-                BMK_syntheticTest(cLevel, compressibility, &compressionParams, g_displayLevel, &adv);
+                BMK_syntheticTest(cLevel, compressibility, &compressionParams, g_displayLevel, &benchParams);
             }
         }
 

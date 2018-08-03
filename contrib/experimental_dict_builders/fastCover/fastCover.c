@@ -268,7 +268,7 @@ static void FASTCOVER_ctx_destroy(FASTCOVER_ctx_t *ctx) {
 static void FASTCOVER_computeFrequency(U32 *freqs, unsigned f, FASTCOVER_ctx_t *ctx){
   size_t start = 0; /* start of current dmer */
   const size_t end = ctx->offsets[ctx->nbTrainSamples];
-  while (start + ctx->d < end) {
+  while (start + ctx->d <= end) {
     const size_t dmerIndex = FASTCOVER_hashPtrToIndex(ctx->samples + start, f, ctx->d);
     freqs[dmerIndex]++;
     start++;

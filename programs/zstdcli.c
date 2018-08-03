@@ -869,7 +869,7 @@ int main(int argCount, const char* argv[])
         }
 
 #else
-        (void)bench_nbSeconds; (void)blockSize; (void)setRealTimePrio; (void)separateFiles;
+        (void)bench_nbSeconds; (void)blockSize; (void)setRealTimePrio; (void)separateFiles; (void)compressibility;
 #endif
         goto _end;
     }

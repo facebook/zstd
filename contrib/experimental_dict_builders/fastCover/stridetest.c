@@ -156,6 +156,7 @@ static void FASTCOVER_computeFrequency(U32 *freqs, unsigned f, FASTCOVER_ctx_t *
   }
 }
 
+
 static int FASTCOVER_ctx_init(FASTCOVER_ctx_t *ctx, const void *samplesBuffer,
                           const size_t *samplesSizes, unsigned nbSamples,
                           unsigned d, double splitPoint, unsigned f) {
@@ -316,25 +317,25 @@ int main(int argCount, const char* argv[])
     printf("Failed to initialize context\n");
     return 1;
   }
-  const int last = 50;
-  double sum = 0;
+  const size_t kRunsPerTrial = 100;
+  const size_t kTrials = 200;
   double min = DBL_MAX;
   double max = 0;
-  for (int i = 0; i < last; i++) {
+  for (size_t i = 0; i < kTrials; ++i) {
     memset(ctx.freqs, 0, (1 << f) * sizeof(U32));
     const UTIL_time_t begin = UTIL_getTime();
-    FASTCOVER_computeFrequency(ctx.freqs, params.f, &ctx);
+    for (size_t j = 0; j < kRunsPerTrial; ++j) {
+      FASTCOVER_computeFrequency(ctx.freqs, params.f, &ctx);
+    }
     const U64 timeMicro = UTIL_clockSpanMicro(begin);
     const double timeSec = timeMicro / (double)SEC_TO_MICRO;
     DISPLAYLEVEL(1, "computeFrequency took %f seconds to execute \n", timeSec);
-    sum += timeSec;
     if (timeSec < min) min = timeSec;
     if (timeSec > max) max = timeSec;
   }
-  double average = sum/last;
-  printf("average is %f\n", average);
   printf("min is %f\n", min);
   printf("max is %f\n", max);
+
 
   FASTCOVER_ctx_destroy(&ctx);
 

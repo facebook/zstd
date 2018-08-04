@@ -416,12 +416,15 @@ int main(int argCount, const char* argv[])
     }
 
     /* for fastCover (with k and d provided) */
-    const int fastResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, NULL, NULL, &fastParam);
-    DISPLAYLEVEL(2, "k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\n", fastParam.k, fastParam.d, fastParam.f, fastParam.steps, (unsigned)(fastParam.splitPoint * 100));
-    if(fastResult) {
-      result = 1;
-      goto _cleanup;
+    for (unsigned i = 0; i < 5; i++) {
+      const int fastResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, NULL, NULL, &fastParam);
+      DISPLAYLEVEL(2, "k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\n", fastParam.k, fastParam.d, fastParam.f, fastParam.steps, (unsigned)(fastParam.splitPoint * 100));
+      if(fastResult) {
+        result = 1;
+        goto _cleanup;
+      }
     }
+
   }
 
 

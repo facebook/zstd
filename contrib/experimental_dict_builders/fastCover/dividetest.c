@@ -122,30 +122,15 @@ static void FASTCOVER_ctx_destroy(FASTCOVER_ctx_t *ctx) {
   }
 }
 
-// static void FASTCOVER_computeFrequency(U32 *freqs, unsigned f, FASTCOVER_ctx_t *ctx){
-//   size_t start = 0; /* start of current dmer */
-//   const size_t end = ctx->offsets[ctx->nbTrainSamples];
-//   while (start + ctx->d <= end) {
-//     const size_t dmerIndex = FASTCOVER_hashPtrToIndex(ctx->samples + start, f, ctx->d);
-//     freqs[dmerIndex]++;
-//     start++;
-//   }
-// }
-
 static void FASTCOVER_computeFrequency(U32 *freqs, unsigned f, FASTCOVER_ctx_t *ctx){
-  size_t start; /* start of current dmer */
-  for (unsigned i = 0; i < ctx->nbTrainSamples; i++) {
-    size_t currSampleStart = ctx->offsets[i];
-    size_t currSampleEnd = ctx->offsets[i+1];
-    start = currSampleStart;
-    while (start + ctx->d <= currSampleEnd) {
-      const size_t dmerIndex = FASTCOVER_hashPtrToIndex(ctx->samples + start, f, ctx->d);
-      freqs[dmerIndex]++;
-      start++;
-    }
+  size_t start = 0; /* start of current dmer */
+  const size_t end = ctx->offsets[ctx->nbTrainSamples];
+  while (start + ctx->d <= end) {
+    const size_t dmerIndex = FASTCOVER_hashPtrToIndex(ctx->samples + start, f, ctx->d);
+    freqs[dmerIndex]++;
+    start++;
   }
 }
-
 
 static int FASTCOVER_ctx_init(FASTCOVER_ctx_t *ctx, const void *samplesBuffer,
                           const size_t *samplesSizes, unsigned nbSamples,

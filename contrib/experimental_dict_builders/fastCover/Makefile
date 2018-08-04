@@ -11,6 +11,9 @@ TEST_OUTPUT := fastCoverDict
 
 all: main run clean
 
+.PHONY: divide
+divide: dividetest dividerun
+
 .PHONY: test
 test: main testrun testshell clean
 
@@ -18,6 +21,16 @@ test: main testrun testshell clean
 run:
 	echo "Building a fastCover dictionary with given arguments"
 	./main $(ARG)
+
+.PHONY: dividerun
+dividerun:
+	./dividetest $(ARG)
+
+dividetest: dividetest.o io.o fastCover.o libzstd.a
+	$(CC) $(CFLAGS) dividetest.o io.o fastCover.o libzstd.a -o dividetest
+
+dividetest.o: dividetest.c
+	$(CC) $(CFLAGS) $(INCLUDES) -c dividetest.c
 
 main: main.o io.o fastCover.o libzstd.a
 	$(CC) $(CFLAGS) main.o io.o fastCover.o libzstd.a -o main
@@ -49,6 +62,6 @@ testshell: test.sh
 
 .PHONY: clean
 clean:
-	rm -f *.o main libzstd.a
+	rm -f *.o main dividetest libzstd.a
 	$(MAKE) -C ../../../lib clean
 	echo "Cleaning is completed"

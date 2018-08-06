@@ -560,10 +560,10 @@ static void FASTCOVER_tryParameters(void *opaque) {
   {
     const size_t tail = FASTCOVER_buildDictionary(ctx, freqs, dict,
                                               dictBufferCapacity, parameters);
-
+    const unsigned half =(unsigned)(ctx->nbTrainSamples / 2);
     dictBufferCapacity = ZDICT_finalizeDictionary(
         dict, dictBufferCapacity, dict + tail, dictBufferCapacity - tail,
-        ctx->samples, ctx->samplesSizes, (unsigned)ctx->nbTrainSamples,
+        ctx->samples, ctx->samplesSizes, half,
         parameters.zParams);
     if (ZDICT_isError(dictBufferCapacity)) {
       DISPLAYLEVEL(1, "Failed to finalize dictionary\n");

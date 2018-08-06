@@ -127,7 +127,7 @@ typedef struct {
  *
  * Once the dmer with hash value d is in the dictionay we set F(d) = F(d)/2.
  */
-static FASTCOVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
+static FASTCOVER_segment_t __attribute__((noinline)) FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
                                                   U32 *freqs, U32 begin,U32 end,
                                                   ZDICT_fastCover_params_t parameters) {
   /* Constants */
@@ -265,7 +265,7 @@ static void FASTCOVER_ctx_destroy(FASTCOVER_ctx_t *ctx) {
 /**
  * Calculate for frequency of hash value of each dmer in ctx->samples
  */
-static void FASTCOVER_computeFrequency(U32 *freqs, unsigned f, FASTCOVER_ctx_t *ctx){
+static void __attribute__((noinline)) FASTCOVER_computeFrequency(U32 *freqs, unsigned f, FASTCOVER_ctx_t *ctx){
   size_t start; /* start of current dmer */
   for (unsigned i = 0; i < ctx->nbTrainSamples; i++) {
     size_t currSampleStart = ctx->offsets[i];
@@ -274,7 +274,7 @@ static void FASTCOVER_computeFrequency(U32 *freqs, unsigned f, FASTCOVER_ctx_t *
     while (start + ctx->d <= currSampleEnd) {
       const size_t dmerIndex = FASTCOVER_hashPtrToIndex(ctx->samples + start, f, ctx->d);
       freqs[dmerIndex]++;
-      start++;
+      start = start + 2;
     }
   }
 }

@@ -139,7 +139,7 @@ static BMK_result_t g_lvltarget;
 static int g_optmode = 0;
 
 static U32 g_speedMultiplier = 1;
-static U32 g_ratioMultiplier = 1;
+static U32 g_ratioMultiplier = 5;
 
 /* g_mode? */
 
@@ -382,7 +382,7 @@ typedef struct {
 } contexts_t;
 
 /*-*******************************************************
-*  From Paramgrill
+*  From bench.c
 *********************************************************/
 
 static void BMK_initCCtx(ZSTD_CCtx* ctx, 
@@ -410,7 +410,6 @@ static void BMK_initCCtx(ZSTD_CCtx* ctx,
     ZSTD_CCtx_setParameter(ctx, ZSTD_p_compressionStrategy, comprParams->strategy);
     ZSTD_CCtx_loadDictionary(ctx, dictBuffer, dictBufferSize);
 }
-
 
 static void BMK_initDCtx(ZSTD_DCtx* dctx, 
     const void* dictBuffer, const size_t dictBufferSize) {
@@ -503,7 +502,7 @@ static size_t local_defaultDecompress(
 }
 
 /*-*******************************************************
-*  From Paramgrill End
+*  From bench.c End
 *********************************************************/
 
 static void freeBuffers(const buffers_t b) {
@@ -527,23 +526,25 @@ static void freeBuffers(const buffers_t b) {
     free(b.resSizes);
 }
 
-/* allocates buffer's arguments. returns success / failuere */
-static int createBuffers(buffers_t* buff, const char* const * const fileNamesTable, 
-                          const size_t nbFiles)
+/* srcBuffer will be freed by freeBuffers now */
+static int createBuffersFromMemory(buffers_t* buff, void * srcBuffer, size_t nbFiles,
+    const size_t* fileSizes)
 {
-    size_t pos = 0;
-    size_t n;
-    U64 const totalSizeToLoad = UTIL_getTotalFileSize(fileNamesTable, (U32)nbFiles);
-    const size_t benchedSize = MIN(BMK_findMaxMem(totalSizeToLoad * 3) / 3, totalSizeToLoad);
-    const size_t blockSize = g_blockSize ? g_blockSize : totalSizeToLoad;
-    U32 const maxNbBlocks = (U32) ((totalSizeToLoad + (blockSize-1)) / MAX(blockSize, 1)) + (U32)nbFiles;
-    U32 blockNb = 0;
+    size_t pos = 0, n, blockSize;
+    U32 maxNbBlocks, blockNb = 0;
+    buff->srcSize = 0;
+    for(n = 0; n < nbFiles; n++) {
+        buff->srcSize += fileSizes[n];
+    }
 
-    if(!totalSizeToLoad || !benchedSize) {
-        DISPLAY("Nothing to Bench\n");
+    if(buff->srcSize == 0) {
+        DISPLAY("No data to bench\n");
         return 1;
     }
-    
+
+    blockSize = g_blockSize ? g_blockSize : buff->srcSize;
+    maxNbBlocks = (U32) ((buff->srcSize + (blockSize-1)) / blockSize) + (U32)nbFiles;
+
     buff->srcPtrs = (const void**)calloc(maxNbBlocks, sizeof(void*));
     buff->srcSizes = (size_t*)malloc(maxNbBlocks * sizeof(size_t));
 
@@ -560,15 +561,59 @@ static int createBuffers(buffers_t* buff, const char* const * const fileNamesTab
         return 1;
     }
 
-
-    buff->srcBuffer = malloc(benchedSize);
+    buff->srcBuffer = srcBuffer;
     buff->srcPtrs[0] = (const void*)buff->srcBuffer;
-    buff->dstPtrs[0] = malloc(ZSTD_compressBound(benchedSize) + (maxNbBlocks * 1024));
-    buff->resPtrs[0] = malloc(benchedSize);
+    buff->dstPtrs[0] = malloc(ZSTD_compressBound(buff->srcSize) + (maxNbBlocks * 1024));
+    buff->resPtrs[0] = malloc(buff->srcSize);
 
-    if(!buff->srcPtrs[0] || !buff->dstPtrs[0] || !buff->resPtrs[0]) {
+    if(!buff->dstPtrs[0] || !buff->resPtrs[0]) {
         DISPLAY("alloc error\n");
         freeBuffers(*buff);
+        return 1;
+    }
+
+    for(n = 0; n < nbFiles; n++) {
+        size_t pos_end = pos + fileSizes[n];
+        for(; pos < pos_end; blockNb++) {
+            buff->srcPtrs[blockNb] = (const void*)((char*)srcBuffer + pos);
+            buff->srcSizes[blockNb] = blockSize;
+            pos += blockSize;
+        }
+
+        if(fileSizes[n] > 0) { buff->srcSizes[blockNb - 1] = ((fileSizes[n] - 1) % blockSize) + 1; }
+        pos = pos_end;
+    }
+
+    buff->dstCapacities[0] = ZSTD_compressBound(buff->srcSizes[0]);
+    buff->dstSizes[0] = buff->dstCapacities[0];
+    buff->resSizes[0] = buff->srcSizes[0];
+
+    for(n = 1; n < blockNb; n++) {
+        buff->dstPtrs[n] = ((char*)buff->dstPtrs[n-1]) + buff->dstCapacities[n-1];
+        buff->resPtrs[n] = ((char*)buff->resPtrs[n-1]) + buff->resSizes[n-1];
+        buff->dstCapacities[n] = ZSTD_compressBound(buff->srcSizes[n]);
+        buff->dstSizes[n] = buff->dstCapacities[n];
+        buff->resSizes[n] = buff->srcSizes[n];
+    }
+
+    buff->nbBlocks = blockNb;
+
+    return 0;
+} 
+
+/* allocates buffer's arguments. returns success / failuere */
+static int createBuffers(buffers_t* buff, const char* const * const fileNamesTable, 
+                          size_t nbFiles) {
+    size_t pos = 0;
+    size_t n;
+    size_t totalSizeToLoad = UTIL_getTotalFileSize(fileNamesTable, (U32)nbFiles);
+    size_t benchedSize = MIN(BMK_findMaxMem(totalSizeToLoad * 3) / 3, totalSizeToLoad);
+    size_t* fileSizes = calloc(sizeof(size_t), nbFiles);
+    void* srcBuffer = malloc(benchedSize);
+    int ret = 0;  
+
+
+    if(!fileSizes || !srcBuffer) {
         return 1;
     }
 
@@ -586,62 +631,35 @@ static int createBuffers(buffers_t* buff, const char* const * const fileNamesTab
         f = fopen(fileNamesTable[n], "rb");
         if (f==NULL) {
             DISPLAY("impossible to open file %s\n", fileNamesTable[n]);
-            freeBuffers(*buff);
+            free(fileSizes);
+            free(srcBuffer);
             fclose(f);
             return 10;
         }
 
         DISPLAY("Loading %s...       \r", fileNamesTable[n]);
 
-        if (fileSize + pos > benchedSize) fileSize = benchedSize - pos, n=nbFiles;   /* buffer too small - stop after this file */
+        if (fileSize + pos > benchedSize) fileSize = benchedSize - pos, nbFiles=n;   /* buffer too small - stop after this file */
         {
-            char* buffer = (char*)(buff->srcBuffer); 
+            char* buffer = (char*)(srcBuffer); 
             size_t const readSize = fread((buffer)+pos, 1, (size_t)fileSize, f);
-            size_t blocked = 0;
-            while(blocked < readSize) {
-                buff->srcPtrs[blockNb] = (const void*)((buffer) + (pos + blocked));
-                buff->srcSizes[blockNb] = blockSize;
-                blocked += blockSize;
-                blockNb++;
-            }
-            if(readSize > 0) { buff->srcSizes[blockNb - 1] = ((readSize - 1) % blockSize) + 1; }
 
-            if (readSize != (size_t)fileSize) {
+            if (readSize != (size_t)fileSize) { /* should we accept partial read? */
                 DISPLAY("could not read %s", fileNamesTable[n]);
-                freeBuffers(*buff);
-                fclose(f);
+                free(fileSizes);
+                free(srcBuffer);
                 return 1;
             }
 
+            fileSizes[n] = readSize;
             pos += readSize;
-
         }
         fclose(f);
     }
 
-    if(!blockNb) {
-        DISPLAY("Failed to load any files\n");
-        freeBuffers(*buff);
-        return 1;
-    }
-
-    buff->dstCapacities[0] = ZSTD_compressBound(buff->srcSizes[0]);
-    buff->dstSizes[0] = buff->dstCapacities[0];
-    buff->resSizes[0] = buff->srcSizes[0];
-
-    for(n = 1; n < blockNb; n++) {
-        buff->dstPtrs[n] = ((char*)buff->dstPtrs[n-1]) + buff->dstCapacities[n-1];
-        buff->resPtrs[n] = ((char*)buff->resPtrs[n-1]) + buff->resSizes[n-1];
-        buff->dstCapacities[n] = ZSTD_compressBound(buff->srcSizes[n]);
-        buff->dstSizes[n] = buff->dstCapacities[n];
-        buff->resSizes[n] = buff->srcSizes[n];
-    }
-    buff->srcSize = pos;
-    buff->nbBlocks = blockNb;
-
-    if (pos == 0) { DISPLAY("\nno data to bench\n"); return 1; }
-
-    return 0;
+    ret = createBuffersFromMemory(buff, srcBuffer, nbFiles, fileSizes);
+    free(fileSizes);
+    return ret;
 }
 
 static void freeContexts(const contexts_t ctx) {
@@ -1611,7 +1629,7 @@ static void BMK_benchFullTable(buffers_t buf, contexts_t ctx, const size_t maxBl
         BMK_init_level_constraints(g_target * (1 MB));
     } else {
         /* baseline config for level 1 */
-        ZSTD_compressionParameters const l1params = ZSTD_getCParams(1, maxBlockSize, ctx.dictSize); //is dictionary ever even useful here? 
+        ZSTD_compressionParameters const l1params = ZSTD_getCParams(1, maxBlockSize, ctx.dictSize);
         BMK_result_t testResult;
         BMK_benchParam(&testResult, buf, ctx, l1params);
         BMK_init_level_constraints((int)((testResult.cSpeed * 31) / 32));
@@ -1641,82 +1659,6 @@ static void BMK_benchFullTable(buffers_t buf, contexts_t ctx, const size_t maxBl
     fclose(f);
 }
 
-static int benchSample(void)
-{
-    const char* const name = "Sample 10MB";
-    size_t const benchedSize = 10 MB;
-    U32 blockSize = g_blockSize ? g_blockSize : benchedSize;
-    U32 const maxNbBlocks = (U32) ((benchedSize + (blockSize-1)) / blockSize) + 1;
-    size_t splitSize = 0;
-
-    buffers_t buf;
-    contexts_t ctx;
-
-    buf.srcPtrs = (const void**)calloc(maxNbBlocks, sizeof(void*));
-    buf.dstPtrs = (void**)calloc(maxNbBlocks, sizeof(void*));
-    buf.resPtrs = (void**)calloc(maxNbBlocks, sizeof(void*));
-    buf.srcSizes = (size_t*)malloc(maxNbBlocks * sizeof(size_t));
-    buf.dstSizes = (size_t*)malloc(maxNbBlocks * sizeof(size_t));
-    buf.dstCapacities = (size_t*)malloc(maxNbBlocks * sizeof(size_t));
-    buf.resSizes = (size_t*)malloc(maxNbBlocks * sizeof(size_t));
-    buf.srcSize = benchedSize;
-
-    if(!buf.srcPtrs || !buf.dstPtrs || !buf.resPtrs || !buf.srcSizes || !buf.dstSizes || !buf.dstCapacities || !buf.resSizes) {
-        DISPLAY("Allocation Error\n");
-        freeBuffers(buf);
-        return 1;
-    } 
-
-    buf.srcBuffer = malloc(benchedSize);
-    buf.srcPtrs[0] = (const void*)buf.srcBuffer;
-    buf.dstPtrs[0] = malloc(ZSTD_compressBound(benchedSize) + 1024 * maxNbBlocks);
-    buf.resPtrs[0] = malloc(benchedSize);
-
-    if(!buf.srcPtrs[0] || !buf.dstPtrs[0] || !buf.resPtrs[0]) {
-        DISPLAY("Allocation Error\n");
-        freeBuffers(buf);
-        return 1;
-    }
-
-
-    splitSize = MIN(benchedSize, blockSize);
-    buf.srcSizes[0] = splitSize;
-    buf.dstCapacities[0] = ZSTD_compressBound(splitSize);
-    buf.resSizes[0] = splitSize;
-
-    for(buf.nbBlocks = 1; splitSize < benchedSize; buf.nbBlocks++) {
-        const size_t i = buf.nbBlocks;
-        const size_t nextBlockSize = MIN(benchedSize - splitSize, blockSize);
-        buf.srcSizes[i] = nextBlockSize;
-        buf.dstCapacities[i] = ZSTD_compressBound(nextBlockSize);
-        buf.resSizes[i] = nextBlockSize;
-        buf.srcPtrs[i] = (const void*)(((const char*)buf.srcPtrs[i-1]) + buf.srcSizes[i-1]);
-        buf.dstPtrs[i] = (void*)(((char*)buf.dstPtrs[i-1]) + buf.dstSizes[i-1]);
-        buf.resPtrs[i] = (void*)(((char*)buf.resPtrs[i-1]) + buf.resSizes[i-1]);
-        splitSize += nextBlockSize;
-    }
-
-    if(createContexts(&ctx, NULL)) {
-        DISPLAY("Context Creation Error\n");
-        freeBuffers(buf);
-        return 1;
-    }
-
-    RDG_genBuffer(buf.srcBuffer, benchedSize, g_compressibility, 0.0, 0);
-
-    /* bench */
-    DISPLAY("\r%79s\r", "");
-    DISPLAY("using %s %i%%: \n", name, (int)(g_compressibility*100));
-
-    BMK_benchFullTable(buf, ctx, MIN(blockSize, benchedSize));
-
-    freeBuffers(buf);
-    freeContexts(ctx);
-
-    return 0;
-}
-
-
 static int benchOnce(buffers_t buf, contexts_t ctx) {
     BMK_result_t testResult;
 
@@ -1726,7 +1668,54 @@ static int benchOnce(buffers_t buf, contexts_t ctx) {
     }
 
     BMK_printWinner(stdout, CUSTOM_LEVEL, testResult, g_params, buf.srcSize);
+
     return 0;
+}
+
+static int benchSample(void)
+{
+    const char* const name = "Sample 10MB";
+    size_t const benchedSize = 10 MB;
+    U32 blockSize = g_blockSize ? g_blockSize : benchedSize;
+    void* srcBuffer = malloc(benchedSize);
+    int ret = 0;
+
+    buffers_t buf;
+    contexts_t ctx;
+    
+    if(srcBuffer == NULL) {
+        DISPLAY("Out of Memory\n");
+        return 2;
+    }
+
+    RDG_genBuffer(srcBuffer, benchedSize, g_compressibility, 0.0, 0);
+
+    if(createBuffersFromMemory(&buf, srcBuffer, 1, &benchedSize)) {
+        DISPLAY("Buffer Creation Error\n");
+        free(srcBuffer);
+        return 3;
+    }
+
+    if(createContexts(&ctx, NULL)) {
+        DISPLAY("Context Creation Error\n");
+        freeBuffers(buf);
+        return 1;
+    }
+
+    /* bench */
+    DISPLAY("\r%79s\r", "");
+    DISPLAY("using %s %i%%: \n", name, (int)(g_compressibility*100));
+
+    if(g_singleRun) {
+        ret = benchOnce(buf, ctx);
+    } else {
+        BMK_benchFullTable(buf, ctx, MIN(blockSize, benchedSize));
+    }
+
+    freeBuffers(buf);
+    freeContexts(ctx);
+
+    return ret;
 }
 
 /* benchFiles() :
@@ -1776,6 +1765,7 @@ int benchFiles(const char** fileNamesTable, int nbFiles, const char* dictFileNam
 
 /* Benchmarking which stops when we are sufficiently sure the solution is infeasible / worse than the winner */
 #define VARIANCE 1.2 
+#define HIGH_VARIANCE 100.0
 static int allBench(BMK_result_t* resultPtr,
                 const buffers_t buf, const contexts_t ctx,
                 const ZSTD_compressionParameters cParams,
@@ -1784,7 +1774,7 @@ static int allBench(BMK_result_t* resultPtr,
     BMK_return_t benchres;
     BMK_result_t resultMax;
     U64 loopDurationC = 0, loopDurationD = 0;
-    double uncertaintyConstantC, uncertaintyConstantD;
+    double uncertaintyConstantC = 3., uncertaintyConstantD = 3.;
     double winnerRS;
 
     /* initial benchmarking, gives exact ratio and memory, warms up future runs */
@@ -1802,18 +1792,12 @@ static int allBench(BMK_result_t* resultPtr,
     /* calculate uncertainty in compression / decompression runs */
     if(benchres.result.cSpeed) {
         loopDurationC = ((buf.srcSize * TIMELOOP_NANOSEC) / benchres.result.cSpeed); 
-        uncertaintyConstantC = ((loopDurationC + (double)(2 * g_clockGranularity))/loopDurationC) * VARIANCE; 
-    } else {
-        loopDurationC = 0;
-        uncertaintyConstantC = 3;
+        uncertaintyConstantC = ((loopDurationC + (double)(2 * g_clockGranularity))/loopDurationC); 
     }
 
     if(benchres.result.dSpeed) {
         loopDurationD = ((buf.srcSize * TIMELOOP_NANOSEC) / benchres.result.dSpeed); 
-        uncertaintyConstantD = ((loopDurationD + (double)(2 * g_clockGranularity))/loopDurationD) * VARIANCE;  
-    } else {
-        loopDurationD = 0;
-        uncertaintyConstantD = 3;
+        uncertaintyConstantD = ((loopDurationD + (double)(2 * g_clockGranularity))/loopDurationD);  
     }
 
     /* anything with worse ratio in feas is definitely worse, discard */
@@ -1841,8 +1825,8 @@ static int allBench(BMK_result_t* resultPtr,
 
     /* optimistic assumption of benchres.result */
     resultMax = benchres.result;
-    resultMax.cSpeed *= uncertaintyConstantC;
-    resultMax.dSpeed *= uncertaintyConstantD;
+    resultMax.cSpeed *= uncertaintyConstantC * VARIANCE;
+    resultMax.dSpeed *= uncertaintyConstantD * VARIANCE;
 
     /* disregard infeasible results in feas mode */
     /* disregard if resultMax < winner in infeas mode */
@@ -2125,7 +2109,7 @@ static int nextStrategy(const int currentStrategy, const int bestStrategy) {
  * cLevel - compression level to exceed (all solutions must be > lvl in cSpeed + ratio)
  */
 
-static int g_maxTries = 5;
+static int g_maxTries = 3;
 #define TRY_DECAY 1
 
 static int optimizeForSize(const char* const * const fileNamesTable, const size_t nbFiles, const char* dictFileName, constraint_t target, ZSTD_compressionParameters paramTarget, int cLevel)
@@ -2139,8 +2123,6 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
     size_t maxBlockSize = 0;
     contexts_t ctx;
     buffers_t buf;
-
-    g_time = UTIL_getTime();
 
     /* Init */
     if(!cParamValid(paramTarget)) {
@@ -2234,6 +2216,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
         BMK_printWinnerOpt(stdout, cLevel, winner.result, winner.params, target, buf.srcSize);
     }
 
+    /* Don't want it to return anything worse than the best known result */
     if(g_singleRun) {
         BMK_result_t res;
         g_params = ZSTD_adjustCParams(maskParams(ZSTD_getCParams(cLevel, maxBlockSize, ctx.dictSize), g_params), maxBlockSize, ctx.dictSize);
@@ -2449,6 +2432,8 @@ int main(int argc, const char** argv)
     g_params = emptyParams();
 
     assert(argc>=1);   /* for exename */
+
+    g_time = UTIL_getTime();
 
     /* Welcome message */
     DISPLAY(WELCOME_MESSAGE);

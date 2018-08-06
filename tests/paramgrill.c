@@ -17,7 +17,6 @@
 #include <stdio.h>     /* fprintf, fopen, ftello64 */
 #include <string.h>    /* strcmp */
 #include <math.h>      /* log */
-#include <time.h>
 #include <assert.h>
 
 #include "mem.h"
@@ -96,6 +95,9 @@ typedef enum {
 #define STRT_RANGE (ZSTD_btultra - ZSTD_fast + 1)
 /* TLEN_RANGE picked manually */
 
+#define CHECKTIME(r) { if(BMK_timeSpan(g_time) > g_timeLimit_s) { DEBUGOUTPUT("Time Limit Reached\n"); return r; } }
+#define CHECKTIMEGT(ret, val, _gototag) {if(BMK_timeSpan(g_time) > g_timeLimit_s) { DEBUGOUTPUT("Time Limit Reached\n"); ret = val; goto _gototag; } }
+
 static const int rangetable[NUM_PARAMS] = { WLOG_RANGE, CLOG_RANGE, HLOG_RANGE, SLOG_RANGE, SLEN_RANGE, TLEN_RANGE, STRT_RANGE };
 static const U32 tlen_table[TLEN_RANGE] = { 0, 1, 2, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128, 256, 512, 999 };
 /*-************************************
@@ -104,7 +106,7 @@ static const U32 tlen_table[TLEN_RANGE] = { 0, 1, 2, 4, 6, 8, 12, 16, 24, 32, 48
 
 typedef BYTE U8;
 
-static double g_grillDuration_s = 99999;   /* about 27 hours */
+static U32 g_timeLimit_s = 99999;   /* about 27 hours */
 static U32 g_nbIterations = NBLOOPS;
 static double g_compressibility = COMPRESSIBILITY_DEFAULT;
 static U32 g_blockSize = 0;
@@ -166,7 +168,7 @@ void BMK_SetNbIterations(int nbLoops)
 *********************************************************/
 
 /* accuracy in seconds only, span can be multiple years */
-static double BMK_timeSpan(time_t tStart) { return difftime(time(NULL), tStart); }
+static U32 BMK_timeSpan(UTIL_time_t tStart) { return (U32)(UTIL_clockSpanMicro(tStart) / 1000000ULL); }
 
 static size_t BMK_findMaxMem(U64 requiredMem)
 {
@@ -1252,8 +1254,7 @@ static int sanitizeVarArray(varInds_t* varNew, const int varLength, const varInd
         if( !((varArray[i] == clog_ind && strat == ZSTD_fast)
             || (varArray[i] == slog_ind && strat == ZSTD_fast)
             || (varArray[i] == slog_ind && strat == ZSTD_dfast) 
-            || (varArray[i] == tlen_ind && strat != ZSTD_btopt && strat != ZSTD_btultra && strat != ZSTD_fast)
-            /* || varArray[i] == strt_ind */ )) {
+            || (varArray[i] == tlen_ind && strat != ZSTD_btopt && strat != ZSTD_btultra && strat != ZSTD_fast))) {
             varNew[j] = varArray[i];
             j++;
         }
@@ -1645,10 +1646,10 @@ static void BMK_benchFullTable(buffers_t buf, contexts_t ctx, const size_t maxBl
     BMK_printWinners(f, winners, buf.srcSize);
 
     /* start tests */
-    {   const time_t grillStart = time(NULL);
+    {   const UTIL_time_t grillStart = UTIL_getTime();
         do {
             BMK_selectRandomStart(f, winners, buf, ctx);
-        } while (BMK_timeSpan(grillStart) < g_grillDuration_s);
+        } while (BMK_timeSpan(grillStart) < g_timeLimit_s);
     }
 
     /* end summary */
@@ -1893,7 +1894,6 @@ static int benchMemo(BMK_result_t* resultPtr,
     return res;
 }
 
-
 /* One iteration of hill climbing. Specifically, it first tries all 
  * valid parameter configurations w/ manhattan distance 1 and picks the best one
  * failing that, it progressively tries candidates further and further away (up to #dim + 2)
@@ -1944,6 +1944,7 @@ static winnerInfo_t climbOnce(const constraint_t target,
              /* all dist-1 candidates */
             for(i = 0; i < varLen; i++) {
                 for(offset = -1; offset <= 1; offset += 2) {
+                    CHECKTIME(winnerInfo);
                     candidateInfo.params = cparam;
                     paramVaryOnce(varArray[i], offset, &candidateInfo.params); 
                     
@@ -1953,8 +1954,7 @@ static winnerInfo_t climbOnce(const constraint_t target,
                             strat = candidateInfo.params.strategy;
                             varLenNew = sanitizeVarArray(varNew, varLen, varArray, strat);
                         }
-                        res = benchMemo(&candidateInfo.result,
-                            buf, ctx,
+                        res = benchMemo(&candidateInfo.result, buf, ctx,
                             sanitizeParams(candidateInfo.params), target, &winnerInfo.result, memoTableArray[strat],
                             varNew, varLenNew, feas);
                         if(res == BETTER_RESULT) { /* synonymous with better when called w/ infeasibleBM */
@@ -1976,6 +1976,7 @@ static winnerInfo_t climbOnce(const constraint_t target,
             for(dist = 2; dist < varLen + 2; dist++) { /* varLen is # dimensions */
                 for(i = 0; i < (1 << varLen) / varLen + 2; i++) {
                     int res;
+                    CHECKTIME(winnerInfo);
                     candidateInfo.params = cparam;
                     /* param error checking already done here */
                     paramVariation(&candidateInfo.params, varArray, varLen, dist);
@@ -1985,8 +1986,7 @@ static winnerInfo_t climbOnce(const constraint_t target,
                         varLenNew = sanitizeVarArray(varNew, varLen, varArray, strat);
                     }
 
-                    res = benchMemo(&candidateInfo.result,
-                        buf, ctx, 
+                    res = benchMemo(&candidateInfo.result, buf, ctx, 
                         sanitizeParams(candidateInfo.params), target, &winnerInfo.result, memoTableArray[strat],
                         varNew, varLenNew, feas);
                     if(res == BETTER_RESULT) { /* synonymous with better in this case*/
@@ -2058,7 +2058,7 @@ static winnerInfo_t optimizeFixedStrategy(
             BMK_printWinnerOpt(stdout, CUSTOM_LEVEL, winnerInfo.result, winnerInfo.params, target, buf.srcSize);
             i = 0;
         }
-
+        CHECKTIME(winnerInfo);
         i++;
     }
     return winnerInfo;
@@ -2123,6 +2123,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
     size_t maxBlockSize = 0;
     contexts_t ctx;
     buffers_t buf;
+    g_time = UTIL_getTime();
 
     /* Init */
     if(!cParamValid(paramTarget)) {
@@ -2174,7 +2175,6 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
          allMT = createMemoTableArray(paramTarget, target, varArray, varLen, maxBlockSize);
     }
    
-
     if(!allMT) {
         DISPLAY("MemoTable Init Error\n");
         ret = 2;
@@ -2267,6 +2267,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
                         winner.params = CParams;
                     }
 
+                    CHECKTIMEGT(ret, 0, _cleanUp); /* if pass time limit, stop */
                     /* if the current params are too slow, just stop. */
                     if(target.cSpeed > candidate.cSpeed * 3 / 2) { break; }
                 }
@@ -2290,6 +2291,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
                     if(compareResultLT(winner.result, w1.result, target, buf.srcSize)) {
                         winner = w1;
                     }
+                    CHECKTIMEGT(ret, 0, _cleanUp);
                 }
 
                 while(st && tries > 0) {
@@ -2307,6 +2309,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
                         st = nextStrategy(st, bestStrategy);
                         tries -= TRY_DECAY;
                     }
+                    CHECKTIMEGT(ret, 0, _cleanUp);
                 }
             } else {
                 winner = optimizeFixedStrategy(buf, ctx, target, paramTarget, paramTarget.strategy, 
@@ -2388,7 +2391,7 @@ static int usage_advanced(void)
     DISPLAY( " -S           : Single run \n");
     DISPLAY( " --zstd       : Single run, parameter selection same as zstdcli \n");
     DISPLAY( " -P#          : generated sample compressibility (default : %.1f%%) \n", COMPRESSIBILITY_DEFAULT * 100);
-    DISPLAY( " -t#          : Caps runtime of operation in seconds (default : %u seconds (%.1f hours)) \n", (U32)g_grillDuration_s, g_grillDuration_s / 3600);
+    DISPLAY( " -t#          : Caps runtime of operation in seconds (default : %u seconds (%.1f hours)) \n", g_timeLimit_s, (double)g_timeLimit_s / 3600);
     DISPLAY( " -v           : Prints Benchmarking output\n");
     DISPLAY( " -D           : Next argument dictionary file\n");
     DISPLAY( " -s           : Seperate Files\n");
@@ -2432,8 +2435,6 @@ int main(int argc, const char** argv)
     g_params = emptyParams();
 
     assert(argc>=1);   /* for exename */
-
-    g_time = UTIL_getTime();
 
     /* Welcome message */
     DISPLAY(WELCOME_MESSAGE);
@@ -2580,7 +2581,7 @@ int main(int argc, const char** argv)
                     /* caps runtime (in seconds) */
                 case 't':
                     argument++;
-                    g_grillDuration_s = (double)readU32FromChar(&argument);
+                    g_timeLimit_s = readU32FromChar(&argument);
                     break;
 
                 case 's':
@@ -2609,6 +2610,7 @@ int main(int argc, const char** argv)
         /* first provided filename is input */
         if (!input_filename) { input_filename=argument; filenamesStart=i; continue; }
     }
+
     if (filenamesStart==0) {
         if (g_optimizer) {
             DISPLAY("Optimizer Expects File\n");

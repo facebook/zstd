@@ -560,10 +560,10 @@ static void FASTCOVER_tryParameters(void *opaque) {
   {
     const size_t tail = FASTCOVER_buildDictionary(ctx, freqs, dict,
                                               dictBufferCapacity, parameters);
-    const unsigned half =(unsigned)(ctx->nbTrainSamples / 2);
+    const unsigned halfNbSamples =(unsigned)(ctx->nbTrainSamples / 2);
     dictBufferCapacity = ZDICT_finalizeDictionary(
         dict, dictBufferCapacity, dict + tail, dictBufferCapacity - tail,
-        ctx->samples, ctx->samplesSizes, half,
+        ctx->samples, ctx->samplesSizes, halfNbSamples,
         parameters.zParams);
     if (ZDICT_isError(dictBufferCapacity)) {
       DISPLAYLEVEL(1, "Failed to finalize dictionary\n");
@@ -663,9 +663,10 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_fastCover(
       const size_t tail = FASTCOVER_buildDictionary(&ctx, ctx.freqs, dictBuffer,
                                                 dictBufferCapacity, parameters);
 
+      const unsigned halfNbSamples =(unsigned)(ctx.nbTrainSamples / 2);
       const size_t dictionarySize = ZDICT_finalizeDictionary(
           dict, dictBufferCapacity, dict + tail, dictBufferCapacity - tail,
-          samplesBuffer, samplesSizes, (unsigned)ctx.nbTrainSamples,
+          samplesBuffer, samplesSizes, halfNbSamples,
           parameters.zParams);
       if (!ZSTD_isError(dictionarySize)) {
           DISPLAYLEVEL(2, "Constructed dictionary of size %u\n",

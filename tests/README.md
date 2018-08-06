@@ -118,8 +118,8 @@ Full list of arguments
                 (Lower value will begin with stronger strategies) (Default 90%)
     preferSpeed= / preferRatio=
               : Only affects lvl = invocations. Defines value placed on compression speed or ratio
-                when determining overall winner (default 1 for both, higher = more valued).
-    tries=    : Maximum number of random restarts on a single strategy before switching (Default 5)
+                when determining overall winner (default speed = 1, ratio = 5 for both, higher = more valued).
+    tries=    : Maximum number of random restarts on a single strategy before switching (Default 3)
                 Higher values will make optimizer run longer, more chances to find better solution.
  -P#          : generated sample compressibility 
  -t#          : Caps runtime of operation in seconds (default : 99999 seconds (about 27 hours )) 

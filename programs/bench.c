@@ -441,7 +441,7 @@ static BMK_return_t BMK_benchMemAdvancedNoAlloc(
     int displayLevel, const char* displayName, const BMK_advancedParams_t* adv) 
 {
     size_t const blockSize = ((adv->blockSize>=32 && (adv->mode != BMK_decodeOnly)) ? adv->blockSize : srcSize) + (!srcSize); /* avoid div by 0 */
-    BMK_return_t results = { { 0, 0., 0., 0 }, 0 } ;
+    BMK_return_t results = { { 0, 0, 0, 0 }, 0 } ;
     size_t const loadedCompressedSize = srcSize;
     size_t cSize = 0;
     double ratio = 0.;

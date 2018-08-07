@@ -80,15 +80,11 @@ typedef struct {
   size_t nbSamples;
   size_t nbTrainSamples;
   size_t nbTestSamples;
-  U32 *suffix;
-  size_t suffixSize;
-  U32 *dmerAt;
   size_t nbDmers;
   U32 *freqs;
   unsigned d;
 } FASTCOVER_ctx_t;
 
-static FASTCOVER_ctx_t *g_ctx = NULL;
 
 /*-*************************************
 * Hash table
@@ -208,7 +204,7 @@ static void COVER_map_remove(COVER_map_t *map, U32 key) {
 }
 
 /**
- * Destroyes a map that is inited with COVER_map_init().
+ * Destroys a map that is inited with COVER_map_init().
  */
 static void COVER_map_destroy(COVER_map_t *map) {
   if (map->data) {
@@ -218,153 +214,6 @@ static void COVER_map_destroy(COVER_map_t *map) {
   map->size = 0;
 }
 
-/**
- * Returns -1 if the dmer at lp is less than the dmer at rp.
- * Return 0 if the dmers at lp and rp are equal.
- * Returns 1 if the dmer at lp is greater than the dmer at rp.
- */
-static int COVER_cmp(FASTCOVER_ctx_t *ctx, const void *lp, const void *rp) {
-  U32 const lhs = *(U32 const *)lp;
-  U32 const rhs = *(U32 const *)rp;
-  return memcmp(ctx->samples + lhs, ctx->samples + rhs, ctx->d);
-}
-/**
- * Faster version for d <= 8.
- */
-static int COVER_cmp8(FASTCOVER_ctx_t *ctx, const void *lp, const void *rp) {
-  U64 const mask = (ctx->d == 8) ? (U64)-1 : (((U64)1 << (8 * ctx->d)) - 1);
-  U64 const lhs = MEM_readLE64(ctx->samples + *(U32 const *)lp) & mask;
-  U64 const rhs = MEM_readLE64(ctx->samples + *(U32 const *)rp) & mask;
-  if (lhs < rhs) {
-    return -1;
-  }
-  return (lhs > rhs);
-}
-
-/**
- * Same as COVER_cmp() except ties are broken by pointer value
- * NOTE: g_ctx must be set to call this function.  A global is required because
- * qsort doesn't take an opaque pointer.
- */
-static int COVER_strict_cmp(const void *lp, const void *rp) {
-  int result = COVER_cmp(g_ctx, lp, rp);
-  if (result == 0) {
-    result = lp < rp ? -1 : 1;
-  }
-  return result;
-}
-/**
- * Faster version for d <= 8.
- */
-static int COVER_strict_cmp8(const void *lp, const void *rp) {
-  int result = COVER_cmp8(g_ctx, lp, rp);
-  if (result == 0) {
-    result = lp < rp ? -1 : 1;
-  }
-  return result;
-}
-
-/**
- * Returns the first pointer in [first, last) whose element does not compare
- * less than value.  If no such element exists it returns last.
- */
-static const size_t *COVER_lower_bound(const size_t *first, const size_t *last,
-                                       size_t value) {
-  size_t count = last - first;
-  while (count != 0) {
-    size_t step = count / 2;
-    const size_t *ptr = first;
-    ptr += step;
-    if (*ptr < value) {
-      first = ++ptr;
-      count -= step + 1;
-    } else {
-      count = step;
-    }
-  }
-  return first;
-}
-
-/**
- * Generic groupBy function.
- * Groups an array sorted by cmp into groups with equivalent values.
- * Calls grp for each group.
- */
-static void
-COVER_groupBy(const void *data, size_t count, size_t size, FASTCOVER_ctx_t *ctx,
-              int (*cmp)(FASTCOVER_ctx_t *, const void *, const void *),
-              void (*grp)(FASTCOVER_ctx_t *, const void *, const void *)) {
-  const BYTE *ptr = (const BYTE *)data;
-  size_t num = 0;
-  while (num < count) {
-    const BYTE *grpEnd = ptr + size;
-    ++num;
-    while (num < count && cmp(ctx, ptr, grpEnd) == 0) {
-      grpEnd += size;
-      ++num;
-    }
-    grp(ctx, ptr, grpEnd);
-    ptr = grpEnd;
-  }
-}
-
-/*-*************************************
-*  Cover functions
-***************************************/
-
-/**
- * Called on each group of positions with the same dmer.
- * Counts the frequency of each dmer and saves it in the suffix array.
- * Fills `ctx->dmerAt`.
- */
-static void COVER_group(FASTCOVER_ctx_t *ctx, const void *group,
-                        const void *groupEnd) {
-  /* The group consists of all the positions with the same first d bytes. */
-  const U32 *grpPtr = (const U32 *)group;
-  const U32 *grpEnd = (const U32 *)groupEnd;
-  /* The dmerId is how we will reference this dmer.
-   * This allows us to map the whole dmer space to a much smaller space, the
-   * size of the suffix array.
-   */
-  const U32 dmerId = (U32)(grpPtr - ctx->suffix);
-  /* Count the number of samples this dmer shows up in */
-  U32 freq = 0;
-  /* Details */
-  const size_t *curOffsetPtr = ctx->offsets;
-  const size_t *offsetsEnd = ctx->offsets + ctx->nbSamples;
-  /* Once *grpPtr >= curSampleEnd this occurrence of the dmer is in a
-   * different sample than the last.
-   */
-  size_t curSampleEnd = ctx->offsets[0];
-  for (; grpPtr != grpEnd; ++grpPtr) {
-    /* Save the dmerId for this position so we can get back to it. */
-    ctx->dmerAt[*grpPtr] = dmerId;
-    /* Dictionaries only help for the first reference to the dmer.
-     * After that zstd can reference the match from the previous reference.
-     * So only count each dmer once for each sample it is in.
-     */
-    if (*grpPtr < curSampleEnd) {
-      continue;
-    }
-    freq += 1;
-    /* Binary search to find the end of the sample *grpPtr is in.
-     * In the common case that grpPtr + 1 == grpEnd we can skip the binary
-     * search because the loop is over.
-     */
-    if (grpPtr + 1 != grpEnd) {
-      const size_t *sampleEndPtr =
-          COVER_lower_bound(curOffsetPtr, offsetsEnd, *grpPtr);
-      curSampleEnd = *sampleEndPtr;
-      curOffsetPtr = sampleEndPtr + 1;
-    }
-  }
-  /* At this point we are never going to look at this segment of the suffix
-   * array again.  We take advantage of this fact to save memory.
-   * We store the frequency of the dmer in the first position of the group,
-   * which is dmerId.
-   */
-  ctx->suffix[dmerId] = freq;
-}
 
 /*-*************************************
 *  Helper functions
@@ -431,8 +280,7 @@ static FASTCOVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
       /* Get hash value of current dmer */
       const size_t index = FASTCOVER_hashPtrToIndex(ctx->samples + activeSegment.end, parameters.f, ctx->d);
       /* Add frequency of this index to score if this is the first occurence of index in active segment */
-      U32 newDmer = ctx->dmerAt[activeSegment.end];
-      U32 *newDmerOcc = COVER_map_at(activeDmers, newDmer);
+      U32 *newDmerOcc = COVER_map_at(activeDmers, index);
       if (*newDmerOcc == 0) {
         activeSegment.score += freqs[index];
       }
@@ -443,12 +291,11 @@ static FASTCOVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
       if (activeSegment.end - activeSegment.begin == dmersInK + 1) {
         /* Get hash value of the dmer to be eliminated from active segment */
         const size_t delIndex = FASTCOVER_hashPtrToIndex(ctx->samples + activeSegment.begin, parameters.f, ctx->d);
-        U32 delDmer = ctx->dmerAt[activeSegment.begin];
-        U32 *delDmerOcc = COVER_map_at(activeDmers, delDmer);
+        U32 *delDmerOcc = COVER_map_at(activeDmers, delIndex);
         *delDmerOcc -= 1;
         /* Subtract frequency of this index from score if this is the last occurrence of this index in active segment */
         if (*delDmerOcc == 0) {
-          COVER_map_remove(activeDmers, delDmer);
+          COVER_map_remove(activeDmers, delIndex);
           activeSegment.score -= freqs[delIndex];
         }
         /* Increment start of segment */
@@ -528,14 +375,6 @@ static void FASTCOVER_ctx_destroy(FASTCOVER_ctx_t *ctx) {
   if (!ctx) {
     return;
   }
-  if (ctx->suffix) {
-    free(ctx->suffix);
-    ctx->suffix = NULL;
-  }
-  if (ctx->dmerAt) {
-    free(ctx->dmerAt);
-    ctx->dmerAt = NULL;
-  }
   if (ctx->freqs) {
     free(ctx->freqs);
     ctx->freqs = NULL;
@@ -611,13 +450,10 @@ static int FASTCOVER_ctx_init(FASTCOVER_ctx_t *ctx, const void *samplesBuffer,
   ctx->nbTestSamples = nbTestSamples;
   ctx->nbDmers = trainingSamplesSize - d + 1;
   ctx->d = d;
-  ctx->suffixSize = trainingSamplesSize - MAX(d, sizeof(U64)) + 1;
-  ctx->suffix = (U32 *)malloc(ctx->suffixSize * sizeof(U32));
-  /* Maps index to the dmerID */
-  ctx->dmerAt = (U32 *)malloc(ctx->suffixSize * sizeof(U32));
+
   /* The offsets of each file */
   ctx->offsets = (size_t *)malloc((nbSamples + 1) * sizeof(size_t));
-  if (!ctx->suffix || !ctx->dmerAt || !ctx->offsets) {
+  if (!ctx->offsets) {
     DISPLAYLEVEL(1, "Failed to allocate scratch buffers\n");
     FASTCOVER_ctx_destroy(ctx);
     return 0;
@@ -636,40 +472,6 @@ static int FASTCOVER_ctx_init(FASTCOVER_ctx_t *ctx, const void *samplesBuffer,
   ctx->freqs = (U32 *)calloc((1 << f), sizeof(U32));
   DISPLAYLEVEL(2, "Computing frequencies\n");
   FASTCOVER_computeFrequency(ctx->freqs, f, ctx);
-
-  DISPLAYLEVEL(2, "Constructing partial suffix array\n");
-  {
-    /* suffix is a partial suffix array.
-     * It only sorts suffixes by their first parameters.d bytes.
-     * The sort is stable, so each dmer group is sorted by position in input.
-     */
-    U32 i;
-    for (i = 0; i < ctx->suffixSize; ++i) {
-      ctx->suffix[i] = i;
-    }
-    /* qsort doesn't take an opaque pointer, so pass as a global.
-     * On OpenBSD qsort() is not guaranteed to be stable, their mergesort() is.
-     */
-    g_ctx = ctx;
-#if defined(__OpenBSD__)
-    mergesort(ctx->suffix, ctx->suffixSize, sizeof(U32),
-          (ctx->d <= 8 ? &COVER_strict_cmp8 : &COVER_strict_cmp));
-#else
-    qsort(ctx->suffix, ctx->suffixSize, sizeof(U32),
-          (ctx->d <= 8 ? &COVER_strict_cmp8 : &COVER_strict_cmp));
-#endif
-  }
-  DISPLAYLEVEL(2, "Computing frequencies\n");
-  /* For each dmer group (group of positions with the same first d bytes):
-   * 1. For each position we set dmerAt[position] = dmerID.  The dmerID is
-   *    (groupBeginPtr - suffix).  This allows us to go from position to
-   *    dmerID so we can look up values in freq.
-   * 2. We calculate how many samples the dmer occurs in and save it in
-   *    freqs[dmerId].
-   */
-  COVER_groupBy(ctx->suffix, ctx->suffixSize, sizeof(U32), ctx,
-                (ctx->d <= 8 ? &COVER_cmp8 : &COVER_cmp), &COVER_group);
-  ctx->suffix = NULL;
   return 1;
 }
 

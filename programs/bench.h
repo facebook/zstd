@@ -32,8 +32,8 @@ extern "C" {
 
 typedef struct {
     size_t cSize;
-    double cSpeed;   /* bytes / sec */
-    double dSpeed;
+    U64 cSpeed;   /* bytes / sec */
+    U64 dSpeed;
     size_t cMem;
 } BMK_result_t;
 

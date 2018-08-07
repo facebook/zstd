@@ -249,18 +249,6 @@ static int feasible(const BMK_result_t results, const constraint_t target) {
     return (results.cSpeed >= target.cSpeed) && (results.dSpeed >= target.dSpeed) && (results.cMem <= target.cMem);
 }
 
-#define EPSILON 0.001
-static int epsilonEqual(const double c1, const double c2) {
-    return MAX(c1/c2,c2/c1) < 1 + EPSILON;
-}
-
-/* checks exact equivalence to 0, to stop compiler complaining fpeq */
-static int eqZero(const double c1) {
-    const double z1 = 0.0;
-    const double z2 = -0.0;
-    return !(memcmp(&c1, &z1, sizeof(double))) || !(memcmp(&c1, &z2, sizeof(double)));
-}
-
 /* hill climbing value for part 1 */
 static double resultScore(const BMK_result_t res, const size_t srcSize, const constraint_t target) {
     double cs = 0., ds = 0., rt, cm = 0.;
@@ -280,7 +268,7 @@ static double resultScore(const BMK_result_t res, const size_t srcSize, const co
 static int compareResultLT(const BMK_result_t result1, const BMK_result_t result2, const constraint_t target, size_t srcSize) {
     if(feasible(result1, target) && feasible(result2, target)) {
         return (result1.cSize > result2.cSize) || (result1.cSize == result2.cSize && result2.cSpeed > result1.cSpeed)
-        || (result1.cSize == result2.cSize && epsilonEqual(result2.cSpeed, result1.cSpeed) && result2.dSpeed > result1.dSpeed);
+        || (result1.cSize == result2.cSize && result2.cSpeed == result1.cSpeed && result2.dSpeed > result1.dSpeed);
     }
     return feasible(result2, target) || (!feasible(result1, target) && (resultScore(result1, srcSize, target) < resultScore(result2, srcSize, target)));
 
@@ -661,7 +649,7 @@ static void BMK_printWinner(FILE* f, const U32 cLevel, const BMK_result_t result
 
         fprintf(f,
             "/* %s */   /* R:%5.3f at %5.1f MB/s - %5.1f MB/s */",
-            lvlstr, (double)srcSize / result.cSize, result.cSpeed / (1 << 20), result.dSpeed / (1 << 20));
+            lvlstr, (double)srcSize / result.cSize, (double)result.cSpeed / (1 << 20), (double)result.dSpeed / (1 << 20));
 
         if(TIMED) { fprintf(f, " - %1lu:%2lu:%05.2f", (unsigned long) minutes / 60,(unsigned long) minutes % 60, (double)(time - minutes * TIMELOOP_NANOSEC * 60ULL)/TIMELOOP_NANOSEC); }
         fprintf(f, "\n");
@@ -696,8 +684,8 @@ static void BMK_printWinners(FILE* f, const winnerInfo_t* winners, size_t srcSiz
 
 
 typedef struct {
-    double cSpeed_min;
-    double dSpeed_min;
+    U64 cSpeed_min;
+    U64 dSpeed_min;
     U32 windowLog_max;
     ZSTD_strategy strategy_max;
 } level_constraints_t;
@@ -794,16 +782,16 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_compressionParameters para
                 /* too large compression speed difference for the compression benefit */
                 if (W_ratio > O_ratio)
                 DISPLAY ("Compression Speed : %5.3f @ %4.1f MB/s  vs  %5.3f @ %4.1f MB/s   : not enough for level %i\n",
-                         W_ratio, testResult.cSpeed / 1000000,
-                         O_ratio, winners[cLevel].result.cSpeed / 1000000.,   cLevel);
+                         W_ratio, (double)testResult.cSpeed / 1000000,
+                         O_ratio, (double)winners[cLevel].result.cSpeed / 1000000.,   cLevel);
                 continue;
             }
             if (W_DSpeed_note   < O_DSpeed_note  ) {
                 /* too large decompression speed difference for the compression benefit */
                 if (W_ratio > O_ratio)
                 DISPLAY ("Decompression Speed : %5.3f @ %4.1f MB/s  vs  %5.3f @ %4.1f MB/s   : not enough for level %i\n",
-                         W_ratio, testResult.dSpeed / 1000000.,
-                         O_ratio, winners[cLevel].result.dSpeed / 1000000.,   cLevel);
+                         W_ratio, (double)testResult.dSpeed / 1000000.,
+                         O_ratio, (double)winners[cLevel].result.dSpeed / 1000000.,   cLevel);
                 continue;
             }
 
@@ -1173,7 +1161,7 @@ static void BMK_benchOnce(ZSTD_CCtx* cctx, ZSTD_DCtx* dctx, const void* srcBuffe
     g_params = ZSTD_adjustCParams(g_params, srcSize, 0);
     BMK_benchParam1(&testResult, srcBuffer, srcSize, cctx, dctx, g_params);
     DISPLAY("Compression Ratio: %.3f  Compress Speed: %.1f MB/s Decompress Speed: %.1f MB/s\n", (double)srcSize / testResult.cSize, 
-        testResult.cSpeed / 1000000, testResult.dSpeed / 1000000);
+        (double)testResult.cSpeed / 1000000, (double)testResult.dSpeed / 1000000);
     return;
 }
 
@@ -1355,20 +1343,20 @@ static int allBench(BMK_result_t* resultPtr,
     *resultPtr = benchres.result;
 
     /* calculate uncertainty in compression / decompression runs */
-    if(eqZero(benchres.result.cSpeed)) {
+    if(benchres.result.cSpeed) {
+        loopDurationC = ((buf.srcSize * TIMELOOP_NANOSEC) / benchres.result.cSpeed); 
+        uncertaintyConstantC = ((loopDurationC + (double)(2 * g_clockGranularity))/loopDurationC) * VARIANCE; 
+    } else {
         loopDurationC = 0;
         uncertaintyConstantC = 3;
-    } else {
-        loopDurationC = (U64)((double)(buf.srcSize * TIMELOOP_NANOSEC) / benchres.result.cSpeed); 
-        uncertaintyConstantC = ((loopDurationC + (double)(2 * g_clockGranularity))/loopDurationC) * VARIANCE; 
     }
 
-    if(eqZero(benchres.result.dSpeed)) {
+    if(benchres.result.dSpeed) {
+        loopDurationD = ((buf.srcSize * TIMELOOP_NANOSEC) / benchres.result.dSpeed); 
+        uncertaintyConstantD = ((loopDurationD + (double)(2 * g_clockGranularity))/loopDurationD) * VARIANCE;  
+    } else {
         loopDurationD = 0;
         uncertaintyConstantD = 3;
-    } else {
-        loopDurationD = (U64)((double)(buf.srcSize * TIMELOOP_NANOSEC) / benchres.result.dSpeed); 
-        uncertaintyConstantD = ((loopDurationD + (double)(2 * g_clockGranularity))/loopDurationD) * VARIANCE;  
     }
 
     /* anything with worse ratio in feas is definitely worse, discard */

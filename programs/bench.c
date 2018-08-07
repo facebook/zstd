@@ -555,9 +555,7 @@ static BMK_return_t BMK_benchMemAdvancedNoAlloc(
                         ratio = (double)(srcSize / intermediateResultCompress.result.result.sumOfReturn);
                         {   
                             int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
-                            double const compressionSpeed = ((double)srcSize / intermediateResultCompress.result.result.nanoSecPerRun) * 1000;
-                            int const cSpeedAccuracy = (compressionSpeed < 10.) ? 2 : 1;
-                            results.result.cSpeed = compressionSpeed * 1000000;
+                            results.result.cSpeed = (srcSize * TIMELOOP_NANOSEC / intermediateResultCompress.result.result.nanoSecPerRun);
                             cSize = intermediateResultCompress.result.result.sumOfReturn;
                             results.result.cSize = cSize;
                             ratio = (double)srcSize / results.result.cSize;
@@ -565,7 +563,7 @@ static BMK_return_t BMK_benchMemAdvancedNoAlloc(
                             DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.*f),%6.*f MB/s\r",
                                     marks[markNb], displayName, (U32)srcSize, (U32)results.result.cSize,
                                     ratioAccuracy, ratio,
-                                    cSpeedAccuracy, compressionSpeed);
+                                    results.result.cSpeed < (10 MB) ? 2 : 1, (double)results.result.cSpeed / (1 MB));
                         }
                     }
 
@@ -579,16 +577,13 @@ static BMK_return_t BMK_benchMemAdvancedNoAlloc(
       
                         {   
                             int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
-                            double const compressionSpeed = results.result.cSpeed / 1000000;
-                            int const cSpeedAccuracy = (compressionSpeed < 10.) ? 2 : 1;
-                            double const decompressionSpeed = ((double)srcSize / intermediateResultDecompress.result.result.nanoSecPerRun) * 1000;
-                            results.result.dSpeed = decompressionSpeed * 1000000;
+                            results.result.dSpeed = (srcSize * TIMELOOP_NANOSEC/ intermediateResultDecompress.result.result.nanoSecPerRun);
                             markNb = (markNb+1) % NB_MARKS;
                             DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.*f),%6.*f MB/s ,%6.1f MB/s \r",
                                     marks[markNb], displayName, (U32)srcSize, (U32)results.result.cSize,
                                     ratioAccuracy, ratio,
-                                    cSpeedAccuracy, compressionSpeed,
-                                    decompressionSpeed);
+                                    results.result.cSpeed < (10 MB) ? 2 : 1, (double)results.result.cSpeed / (1 MB),
+                                    (double)results.result.dSpeed / (1 MB));
                         }
                     }
                 }
@@ -605,19 +600,20 @@ static BMK_return_t BMK_benchMemAdvancedNoAlloc(
                     if(compressionResults.result.nanoSecPerRun == 0) {
                         results.result.cSpeed = 0;
                     } else {
-                        results.result.cSpeed = (double)srcSize / compressionResults.result.nanoSecPerRun * TIMELOOP_NANOSEC;
+                        results.result.cSpeed = srcSize * TIMELOOP_NANOSEC / compressionResults.result.nanoSecPerRun;
                     }
                     results.result.cSize = compressionResults.result.sumOfReturn;
                     {   
                         int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
-                        double const compressionSpeed = results.result.cSpeed / 1000000;
-                        int const cSpeedAccuracy = (compressionSpeed < 10.) ? 2 : 1;
+                        results.result.cSpeed = (srcSize * TIMELOOP_NANOSEC / compressionResults.result.nanoSecPerRun);
+                        cSize = compressionResults.result.sumOfReturn;
+                        results.result.cSize = cSize;
                         ratio = (double)srcSize / results.result.cSize;
                         markNb = (markNb+1) % NB_MARKS;
                         DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.*f),%6.*f MB/s\r",
                                 marks[markNb], displayName, (U32)srcSize, (U32)results.result.cSize,
                                 ratioAccuracy, ratio,
-                                cSpeedAccuracy, compressionSpeed);
+                                results.result.cSpeed < (10 MB) ? 2 : 1, (double)results.result.cSpeed / (1 MB));
                     }
                 }
                 if(adv->mode != BMK_compressOnly) {
@@ -633,19 +629,18 @@ static BMK_return_t BMK_benchMemAdvancedNoAlloc(
                     if(decompressionResults.result.nanoSecPerRun == 0) {
                         results.result.dSpeed = 0;
                     } else {
-                        results.result.dSpeed = (double)srcSize / decompressionResults.result.nanoSecPerRun * TIMELOOP_NANOSEC;
+                        results.result.dSpeed = srcSize * TIMELOOP_NANOSEC / decompressionResults.result.nanoSecPerRun;
                     }
-                    {   int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
-                        double const compressionSpeed = results.result.cSpeed / 1000000;
-                        int const cSpeedAccuracy = (compressionSpeed < 10.) ? 2 : 1;
-                        double const decompressionSpeed = ((double)srcSize / decompressionResults.result.nanoSecPerRun) * 1000;
-                        results.result.dSpeed = decompressionSpeed * 1000000;
+
+                    {   
+                        int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
+                        results.result.dSpeed = (srcSize * TIMELOOP_NANOSEC/ decompressionResults.result.nanoSecPerRun);
                         markNb = (markNb+1) % NB_MARKS;
                         DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.*f),%6.*f MB/s ,%6.1f MB/s \r",
                                 marks[markNb], displayName, (U32)srcSize, (U32)results.result.cSize,
                                 ratioAccuracy, ratio,
-                                cSpeedAccuracy, compressionSpeed,
-                                decompressionSpeed);
+                                results.result.cSpeed < (10 MB) ? 2 : 1, (double)results.result.cSpeed / (1 MB),
+                                (double)results.result.dSpeed / (1 MB));
                     }
                 }
             }
@@ -693,8 +688,8 @@ static BMK_return_t BMK_benchMemAdvancedNoAlloc(
         }   /* CRC Checking */
 
     if (displayLevel == 1) {   /* hidden display mode -q, used by python speed benchmark */
-        double const cSpeed = results.result.cSpeed / 1000000;
-        double const dSpeed = results.result.dSpeed / 1000000;
+        double const cSpeed = (double)results.result.cSpeed / (1 MB);
+        double const dSpeed = (double)results.result.dSpeed / (1 MB);
         if (adv->additionalParam) {
             DISPLAY("-%-3i%11i (%5.3f) %6.2f MB/s %6.1f MB/s  %s (param=%d)\n", cLevel, (int)cSize, ratio, cSpeed, dSpeed, displayName, adv->additionalParam);
         } else {

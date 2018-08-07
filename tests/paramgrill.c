@@ -977,12 +977,18 @@ static void memoTableIndInv(ZSTD_compressionParameters* ptr, const varInds_t* va
     int i;
     for(i = varyLen - 1; i >= 0; i--) {
         switch(varyParams[i]) {
-            case wlog_ind: ptr->windowLog    = ind % WLOG_RANGE + ZSTD_WINDOWLOG_MIN;                             ind /= WLOG_RANGE; break;
-            case clog_ind: ptr->chainLog     = ind % CLOG_RANGE + ZSTD_CHAINLOG_MIN;                              ind /= CLOG_RANGE; break;
-            case hlog_ind: ptr->hashLog      = ind % HLOG_RANGE + ZSTD_HASHLOG_MIN;                               ind /= HLOG_RANGE; break;
-            case slog_ind: ptr->searchLog    = ind % SLOG_RANGE + ZSTD_SEARCHLOG_MIN;                             ind /= SLOG_RANGE; break;
-            case slen_ind: ptr->searchLength = ind % SLEN_RANGE + ZSTD_SEARCHLENGTH_MIN;                          ind /= SLEN_RANGE; break;
-            case tlen_ind: ptr->targetLength = tlen_table[(ind % TLEN_RANGE)];                                    ind /= TLEN_RANGE; break;
+            case wlog_ind: ptr->windowLog    = ind % WLOG_RANGE + ZSTD_WINDOWLOG_MIN;
+                ind /= WLOG_RANGE; break;
+            case clog_ind: ptr->chainLog     = ind % CLOG_RANGE + ZSTD_CHAINLOG_MIN;
+                ind /= CLOG_RANGE; break;
+            case hlog_ind: ptr->hashLog      = ind % HLOG_RANGE + ZSTD_HASHLOG_MIN;
+                ind /= HLOG_RANGE; break;
+            case slog_ind: ptr->searchLog    = ind % SLOG_RANGE + ZSTD_SEARCHLOG_MIN;
+                ind /= SLOG_RANGE; break;
+            case slen_ind: ptr->searchLength = ind % SLEN_RANGE + ZSTD_SEARCHLENGTH_MIN;
+                ind /= SLEN_RANGE; break;
+            case tlen_ind: ptr->targetLength = tlen_table[(ind % TLEN_RANGE)];
+                ind /= TLEN_RANGE; break;
         }
     }
 }
@@ -1135,13 +1141,20 @@ static ZSTD_compressionParameters randomParams(void)
     U32 validated = 0;
     while (!validated) {
         /* totally random entry */
-        p.chainLog   = (FUZ_rand(&g_rand) % (ZSTD_CHAINLOG_MAX+1 - ZSTD_CHAINLOG_MIN))         + ZSTD_CHAINLOG_MIN;
-        p.hashLog    = (FUZ_rand(&g_rand) % (ZSTD_HASHLOG_MAX+1 - ZSTD_HASHLOG_MIN))           + ZSTD_HASHLOG_MIN;
-        p.searchLog  = (FUZ_rand(&g_rand) % (ZSTD_SEARCHLOG_MAX+1 - ZSTD_SEARCHLOG_MIN))       + ZSTD_SEARCHLOG_MIN;
-        p.windowLog  = (FUZ_rand(&g_rand) % (ZSTD_WINDOWLOG_MAX+1 - ZSTD_WINDOWLOG_MIN))       + ZSTD_WINDOWLOG_MIN;
-        p.searchLength=(FUZ_rand(&g_rand) % (ZSTD_SEARCHLENGTH_MAX+1 - ZSTD_SEARCHLENGTH_MIN)) + ZSTD_SEARCHLENGTH_MIN;
+        p.chainLog   = (FUZ_rand(&g_rand) % (ZSTD_CHAINLOG_MAX+1 - ZSTD_CHAINLOG_MIN))         
+            + ZSTD_CHAINLOG_MIN;
+        p.hashLog    = (FUZ_rand(&g_rand) % (ZSTD_HASHLOG_MAX+1 - ZSTD_HASHLOG_MIN))           
+            + ZSTD_HASHLOG_MIN;
+        p.searchLog  = (FUZ_rand(&g_rand) % (ZSTD_SEARCHLOG_MAX+1 - ZSTD_SEARCHLOG_MIN))       
+            + ZSTD_SEARCHLOG_MIN;
+        p.windowLog  = (FUZ_rand(&g_rand) % (ZSTD_WINDOWLOG_MAX+1 - ZSTD_WINDOWLOG_MIN))       
+            + ZSTD_WINDOWLOG_MIN;
+        p.searchLength=(FUZ_rand(&g_rand) % (ZSTD_SEARCHLENGTH_MAX+1 - ZSTD_SEARCHLENGTH_MIN)) 
+            + ZSTD_SEARCHLENGTH_MIN;
         p.targetLength=(FUZ_rand(&g_rand) % (512));
+
         p.strategy   = (ZSTD_strategy) (FUZ_rand(&g_rand) % (ZSTD_btultra +1));
+        
         validated = !ZSTD_isError(ZSTD_checkCParams(p));
     }
     return p;
@@ -1657,6 +1670,8 @@ static int createBuffers(buffers_t* buff, const char* const * const fileNamesTab
     U32 const maxNbBlocks = (U32) ((totalSizeToLoad + (blockSize-1)) / blockSize) + (U32)nbFiles;
     U32 blockNb = 0;
 
+    memset(buff, 0, sizeof(buffers_t));
+
     buff->srcPtrs = (const void**)calloc(maxNbBlocks, sizeof(void*));
     buff->srcSizes = (size_t*)malloc(maxNbBlocks * sizeof(size_t));
 
@@ -1760,6 +1775,7 @@ static void freeContexts(contexts_t ctx) {
 static int createContexts(contexts_t* ctx, const char* dictFileName) {
     FILE* f;
     size_t readSize;
+    U64 dictSize;
     ctx->cctx = ZSTD_createCCtx();
     ctx->dctx = ZSTD_createDCtx();
     ctx->dictSize = 0;
@@ -1775,7 +1791,16 @@ static int createContexts(contexts_t* ctx, const char* dictFileName) {
         return 0;
     }
 
-    ctx->dictSize = UTIL_getFileSize(dictFileName);
+    dictSize = UTIL_getFileSize(dictFileName);
+
+    if(dictSize == UTIL_FILESIZE_UNKNOWN) {
+        DISPLAY("Unable to get dictionary size\n");
+        freeContexts(*ctx);
+        return 1;
+    } else {
+        ctx->dictSize = (size_t)dictSize;
+    }
+
     ctx->dictBuffer = malloc(ctx->dictSize);
 
     f = fopen(dictFileName, "rb");
@@ -1848,7 +1873,15 @@ static ZSTD_compressionParameters maskParams(ZSTD_compressionParameters base, ZS
 /* main fn called when using --optimize */
 /* Does strategy selection by benchmarking default compression levels
  * then optimizes by strategy, starting with the best one and moving 
- * progressively moving further away by number */
+ * progressively moving further away by number
+ * args: 
+ * fileNamesTable - list of files to benchmark
+ * nbFiles - length of fileNamesTable
+ * dictFileName - name of dictionary file if one, else NULL
+ * target - performance constraints (cSpeed, dSpeed, cMem)
+ * paramTarget - parameter constraints (i.e. restriction search space to where strategy = ZSTD_fast)
+ * cLevel - compression level to exceed (all solutions must be > lvl in cSpeed + ratio)
+ */
 static int optimizeForSize(const char* const * const fileNamesTable, const size_t nbFiles, const char* dictFileName, constraint_t target, ZSTD_compressionParameters paramTarget, int cLevel)
 {
     varInds_t varArray [NUM_PARAMS];
@@ -2092,6 +2125,18 @@ static int badusage(const char* exename)
     return 1;
 }
 
+#define PARSE_SUB_ARGS(stringLong, stringShort, variable) { if (longCommandWArg(&argument, stringLong) || longCommandWArg(&argument, stringShort)) { variable = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; } }
+#define PARSE_CPARAMS(variable)                                          \
+{                                                                        \
+    PARSE_SUB_ARGS("windowLog=",     "wlog=",  variable.windowLog);      \
+    PARSE_SUB_ARGS("chainLog=" ,     "clog=",  variable.chainLog);       \
+    PARSE_SUB_ARGS("hashLog=",       "hlog=",  variable.hashLog);        \
+    PARSE_SUB_ARGS("searchLog=" ,    "slog=",  variable.searchLog);      \
+    PARSE_SUB_ARGS("searchLength=",  "slen=",  variable.searchLength);   \
+    PARSE_SUB_ARGS("targetLength=" , "tlen=",  variable.targetLength);   \
+    PARSE_SUB_ARGS("strategy=",      "strat=", variable.strategy);       \
+}
+
 int main(int argc, const char** argv)
 {
     int i,
@@ -2127,17 +2172,11 @@ int main(int argc, const char** argv)
         if (longCommandWArg(&argument, "--optimize=")) {
             optimizer = 1;
             for ( ; ;) {
-                if (longCommandWArg(&argument, "windowLog=") || longCommandWArg(&argument, "wlog=")) { paramTarget.windowLog = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
-                if (longCommandWArg(&argument, "chainLog=") || longCommandWArg(&argument, "clog=")) { paramTarget.chainLog = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
-                if (longCommandWArg(&argument, "hashLog=") || longCommandWArg(&argument, "hlog=")) { paramTarget.hashLog = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
-                if (longCommandWArg(&argument, "searchLog=") || longCommandWArg(&argument, "slog=")) { paramTarget.searchLog = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
-                if (longCommandWArg(&argument, "searchLength=") || longCommandWArg(&argument, "slen=")) { paramTarget.searchLength = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
-                if (longCommandWArg(&argument, "targetLength=") || longCommandWArg(&argument, "tlen=")) { paramTarget.targetLength = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
-                if (longCommandWArg(&argument, "strategy=") || longCommandWArg(&argument, "strat=")) { paramTarget.strategy = (ZSTD_strategy)(readU32FromChar(&argument)); if (argument[0]==',') { argument++; continue; } else break; }
-                if (longCommandWArg(&argument, "compressionSpeed=") || longCommandWArg(&argument, "cSpeed=")) { target.cSpeed = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
-                if (longCommandWArg(&argument, "decompressionSpeed=") || longCommandWArg(&argument, "dSpeed=")) { target.dSpeed = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
-                if (longCommandWArg(&argument, "compressionMemory=") || longCommandWArg(&argument, "cMem=")) { target.cMem = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
-                if (longCommandWArg(&argument, "level=") || longCommandWArg(&argument, "lvl=")) { optimizerCLevel = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
+                PARSE_CPARAMS(paramTarget);
+                PARSE_SUB_ARGS("compressionSpeed=" ,  "cSpeed=", target.cSpeed);
+                PARSE_SUB_ARGS("decompressionSpeed=", "dSpeed=", target.dSpeed); 
+                PARSE_SUB_ARGS("compressionMemory=" , "cMem=", target.cMem);
+                PARSE_SUB_ARGS("level=", "lvl=", optimizerCLevel);
                 DISPLAY("invalid optimization parameter \n");
                 return 1;
             }
@@ -2152,13 +2191,7 @@ int main(int argc, const char** argv)
             g_singleRun = 1;
             g_params = ZSTD_getCParams(2, g_blockSize, 0);
             for ( ; ;) {
-                if (longCommandWArg(&argument, "windowLog=") || longCommandWArg(&argument, "wlog=")) { g_params.windowLog = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
-                if (longCommandWArg(&argument, "chainLog=") || longCommandWArg(&argument, "clog=")) { g_params.chainLog = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
-                if (longCommandWArg(&argument, "hashLog=") || longCommandWArg(&argument, "hlog=")) { g_params.hashLog = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
-                if (longCommandWArg(&argument, "searchLog=") || longCommandWArg(&argument, "slog=")) { g_params.searchLog = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
-                if (longCommandWArg(&argument, "searchLength=") || longCommandWArg(&argument, "slen=")) { g_params.searchLength = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
-                if (longCommandWArg(&argument, "targetLength=") || longCommandWArg(&argument, "tlen=")) { g_params.targetLength = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
-                if (longCommandWArg(&argument, "strategy=") || longCommandWArg(&argument, "strat=")) { g_params.strategy = (ZSTD_strategy)(readU32FromChar(&argument)); if (argument[0]==',') { argument++; continue; } else break; }
+                PARSE_CPARAMS(g_params)
                 if (longCommandWArg(&argument, "level=") || longCommandWArg(&argument, "lvl=")) { g_params = ZSTD_getCParams(readU32FromChar(&argument), g_blockSize, 0); if (argument[0]==',') { argument++; continue; } else break; }
                 DISPLAY("invalid compression parameter \n");
                 return 1;

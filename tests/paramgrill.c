@@ -250,6 +250,11 @@ static int feasible(const BMK_result_t results, const constraint_t target) {
 }
 
 /* hill climbing value for part 1 */
+/* Scoring here is a linear reward for all set constraints normalized between 0 to 1 
+ * (with 0 at 0 and 1 being fully fulfilling the constraint), summed with a logarithmic 
+ * bonus to exceeding the constraint value. We also give linear ratio for compression ratio.
+ * The constant factors are experimental. 
+ */
 static double resultScore(const BMK_result_t res, const size_t srcSize, const constraint_t target) {
     double cs = 0., ds = 0., rt, cm = 0.;
     const double r1 = 1, r2 = 0.1, rtr = 0.5;
@@ -291,7 +296,7 @@ const char* g_stratName[ZSTD_btultra+1] = {
                 "ZSTD_greedy  ", "ZSTD_lazy    ", "ZSTD_lazy2   ",
                 "ZSTD_btlazy2 ", "ZSTD_btopt   ", "ZSTD_btultra "};
 
-/* benchParam but only takes in one file. */
+/* benchParam but only takes in one input buffer. */
 static int
 BMK_benchParam1(BMK_result_t* resultPtr,
                const void* srcBuffer, size_t srcSize,
@@ -324,8 +329,9 @@ static winnerInfo_t initWinnerInfo(ZSTD_compressionParameters p) {
 }
 
 typedef struct {
+    void* srcBuffer;
     size_t srcSize;
-    void** srcPtrs;
+    const void** srcPtrs;
     size_t* srcSizes;
     void** dstPtrs;
     size_t* dstCapacities;
@@ -1605,7 +1611,7 @@ static winnerInfo_t optimizeFixedStrategy(
 
 static void freeBuffers(buffers_t b) {
     if(b.srcPtrs != NULL) {
-        free(b.srcPtrs[0]);
+        free(b.srcBuffer);
     }
     free(b.srcPtrs);
     free(b.srcSizes);
@@ -1635,7 +1641,7 @@ static int createBuffers(buffers_t* buff, const char* const * const fileNamesTab
     U32 const maxNbBlocks = (U32) ((totalSizeToLoad + (blockSize-1)) / blockSize) + (U32)nbFiles;
     U32 blockNb = 0;
 
-    buff->srcPtrs = (void**)calloc(maxNbBlocks, sizeof(void*));
+    buff->srcPtrs = (const void**)calloc(maxNbBlocks, sizeof(void*));
     buff->srcSizes = (size_t*)malloc(maxNbBlocks * sizeof(size_t));
 
     buff->dstPtrs = (void**)calloc(maxNbBlocks, sizeof(void*));
@@ -1651,7 +1657,8 @@ static int createBuffers(buffers_t* buff, const char* const * const fileNamesTab
         return 1;
     }
 
-    buff->srcPtrs[0] = malloc(benchedSize);
+    buff->srcBuffer = malloc(benchedSize);
+    buff->srcPtrs[0] = (const void*)buff->srcBuffer;
     buff->dstPtrs[0] = malloc(ZSTD_compressBound(benchedSize) + (maxNbBlocks * 1024));
     buff->resPtrs[0] = malloc(benchedSize);
 
@@ -1684,11 +1691,11 @@ static int createBuffers(buffers_t* buff, const char* const * const fileNamesTab
 
         if (fileSize + pos > benchedSize) fileSize = benchedSize - pos, nbFiles=n;   /* buffer too small - stop after this file */
         {
-            char* buffer = (char*)(buff->srcPtrs[0]); 
-            size_t const readSize = fread((buffer)+pos, 1, (size_t)fileSize, f);
+            char* buffer = (char*)(buff->srcBuffer); 
+            size_t const readSize = fread(((buffer)+pos), 1, (size_t)fileSize, f);
             size_t blocked = 0;
             while(blocked < readSize) {
-                buff->srcPtrs[blockNb] = (buffer) + (pos + blocked);
+                buff->srcPtrs[blockNb] = (const void*)((buffer) + (pos + blocked));
                 buff->srcSizes[blockNb] = blockSize;
                 blocked += blockSize;
                 blockNb++;

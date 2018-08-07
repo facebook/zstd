@@ -82,9 +82,137 @@ typedef struct {
   size_t nbTestSamples;
   size_t nbDmers;
   U32 *freqs;
-  U16 *segmentFreqs;
   unsigned d;
 } FASTCOVER_ctx_t;
+
+
+/*-*************************************
+* Hash table
+***************************************
+* A small specialized hash map for storing activeDmers.
+* The map does not resize, so if it becomes full it will loop forever.
+* Thus, the map must be large enough to store every value.
+* The map implements linear probing and keeps its load less than 0.5.
+*/
+
+#define MAP_EMPTY_VALUE ((U32)-1)
+typedef struct COVER_map_pair_t_s {
+  U32 key;
+  U32 value;
+} COVER_map_pair_t;
+
+typedef struct COVER_map_s {
+  COVER_map_pair_t *data;
+  U32 sizeLog;
+  U32 size;
+  U32 sizeMask;
+} COVER_map_t;
+
+/**
+ * Clear the map.
+ */
+static void COVER_map_clear(COVER_map_t *map) {
+  memset(map->data, MAP_EMPTY_VALUE, map->size * sizeof(COVER_map_pair_t));
+}
+
+/**
+ * Initializes a map of the given size.
+ * Returns 1 on success and 0 on failure.
+ * The map must be destroyed with COVER_map_destroy().
+ * The map is only guaranteed to be large enough to hold size elements.
+ */
+static int COVER_map_init(COVER_map_t *map, U32 size) {
+  map->sizeLog = ZSTD_highbit32(size) + 2;
+  map->size = (U32)1 << map->sizeLog;
+  map->sizeMask = map->size - 1;
+  map->data = (COVER_map_pair_t *)malloc(map->size * sizeof(COVER_map_pair_t));
+  if (!map->data) {
+    map->sizeLog = 0;
+    map->size = 0;
+    return 0;
+  }
+  COVER_map_clear(map);
+  return 1;
+}
+
+/**
+ * Internal hash function
+ */
+static const U32 prime4bytes = 2654435761U;
+static U32 COVER_map_hash(COVER_map_t *map, U32 key) {
+  return (key * prime4bytes) >> (32 - map->sizeLog);
+}
+
+/**
+ * Helper function that returns the index that a key should be placed into.
+ */
+static U32 COVER_map_index(COVER_map_t *map, U32 key) {
+  const U32 hash = COVER_map_hash(map, key);
+  U32 i;
+  for (i = hash;; i = (i + 1) & map->sizeMask) {
+    COVER_map_pair_t *pos = &map->data[i];
+    if (pos->value == MAP_EMPTY_VALUE) {
+      return i;
+    }
+    if (pos->key == key) {
+      return i;
+    }
+  }
+}
+
+/**
+ * Returns the pointer to the value for key.
+ * If key is not in the map, it is inserted and the value is set to 0.
+ * The map must not be full.
+ */
+static U32 *COVER_map_at(COVER_map_t *map, U32 key) {
+  COVER_map_pair_t *pos = &map->data[COVER_map_index(map, key)];
+  if (pos->value == MAP_EMPTY_VALUE) {
+    pos->key = key;
+    pos->value = 0;
+  }
+  return &pos->value;
+}
+
+/**
+ * Deletes key from the map if present.
+ */
+static void COVER_map_remove(COVER_map_t *map, U32 key) {
+  U32 i = COVER_map_index(map, key);
+  COVER_map_pair_t *del = &map->data[i];
+  U32 shift = 1;
+  if (del->value == MAP_EMPTY_VALUE) {
+    return;
+  }
+  for (i = (i + 1) & map->sizeMask;; i = (i + 1) & map->sizeMask) {
+    COVER_map_pair_t *const pos = &map->data[i];
+    /* If the position is empty we are done */
+    if (pos->value == MAP_EMPTY_VALUE) {
+      del->value = MAP_EMPTY_VALUE;
+      return;
+    }
+    /* If pos can be moved to del do so */
+    if (((i - COVER_map_hash(map, pos->key)) & map->sizeMask) >= shift) {
+      del->key = pos->key;
+      del->value = pos->value;
+      del = pos;
+      shift = 1;
+    } else {
+      ++shift;
+    }
+  }
+}
+
+/**
+ * Destroys a map that is inited with COVER_map_init().
+ */
+static void COVER_map_destroy(COVER_map_t *map) {
+  if (map->data) {
+    free(map->data);
+  }
+  map->data = NULL;
+  map->size = 0;
+}
 
 
 /*-*************************************
@@ -128,7 +256,8 @@ typedef struct {
  * Once the dmer with hash value d is in the dictionay we set F(d) = F(d)/2.
  */
 static FASTCOVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
-                                                  U32 *freqs, U32 begin,U32 end,
+                                                  U32 *freqs, COVER_map_t *activeDmers,
+                                                  U32 begin, U32 end,
                                                   ZDICT_fastCover_params_t parameters) {
   /* Constants */
   const U32 k = parameters.k;
@@ -137,6 +266,7 @@ static FASTCOVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
   /* Try each segment (activeSegment) and save the best (bestSegment) */
   FASTCOVER_segment_t bestSegment = {0, 0, 0};
   FASTCOVER_segment_t activeSegment;
+  COVER_map_clear(activeDmers);
   /* Reset the activeDmers in the segment */
   /* The activeSegment starts at the beginning of the epoch. */
   activeSegment.begin = begin;
@@ -150,19 +280,22 @@ static FASTCOVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
       /* Get hash value of current dmer */
       const size_t index = FASTCOVER_hashPtrToIndex(ctx->samples + activeSegment.end, parameters.f, ctx->d);
       /* Add frequency of this index to score if this is the first occurence of index in active segment */
-      if (ctx->segmentFreqs[index] == 0) {
+      U32 *newDmerOcc = COVER_map_at(activeDmers, index);
+      if (*newDmerOcc == 0) {
         activeSegment.score += freqs[index];
       }
-      ctx->segmentFreqs[index] += 1;
+      *newDmerOcc += 1;
       /* Increment end of segment */
       activeSegment.end += 1;
       /* If the window is now too large, drop the first position */
       if (activeSegment.end - activeSegment.begin == dmersInK + 1) {
         /* Get hash value of the dmer to be eliminated from active segment */
         const size_t delIndex = FASTCOVER_hashPtrToIndex(ctx->samples + activeSegment.begin, parameters.f, ctx->d);
-        ctx->segmentFreqs[delIndex] -= 1;
+        U32 *delDmerOcc = COVER_map_at(activeDmers, delIndex);
+        *delDmerOcc -= 1;
         /* Subtract frequency of this index from score if this is the last occurrence of this index in active segment */
-        if (ctx->segmentFreqs[delIndex] == 0) {
+        if (*delDmerOcc == 0) {
+          COVER_map_remove(activeDmers, delIndex);
           activeSegment.score -= freqs[delIndex];
         }
         /* Increment start of segment */
@@ -172,12 +305,6 @@ static FASTCOVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
       if (activeSegment.score > bestSegment.score) {
         bestSegment = activeSegment;
       }
-    }
-    /* Zero out rest of segmentFreqs array */
-    while (activeSegment.begin < end) {
-      const size_t delIndex = FASTCOVER_hashPtrToIndex(ctx->samples + activeSegment.begin, parameters.f, ctx->d);
-      ctx->segmentFreqs[delIndex] -= 1;
-      activeSegment.begin += 1;
     }
   }
   {
@@ -197,7 +324,7 @@ static FASTCOVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
     bestSegment.end = newEnd;
   }
   {
-    /* Half the frequency of hash value of each dmer covered by the chosen segment. */
+    /*  Zero the frequency of hash value of each dmer covered by the chosen segment. */
     U32 pos;
     for (pos = bestSegment.begin; pos != bestSegment.end; ++pos) {
       const size_t i = FASTCOVER_hashPtrToIndex(ctx->samples + pos, parameters.f, ctx->d);
@@ -248,10 +375,6 @@ static void FASTCOVER_ctx_destroy(FASTCOVER_ctx_t *ctx) {
   if (!ctx) {
     return;
   }
-  if (ctx->segmentFreqs) {
-    free(ctx->segmentFreqs);
-    ctx->segmentFreqs = NULL;
-  }
   if (ctx->freqs) {
     free(ctx->freqs);
     ctx->freqs = NULL;
@@ -300,7 +423,7 @@ static int FASTCOVER_ctx_init(FASTCOVER_ctx_t *ctx, const void *samplesBuffer,
   if (totalSamplesSize < MAX(d, sizeof(U64)) ||
       totalSamplesSize >= (size_t)FASTCOVER_MAX_SAMPLES_SIZE) {
     DISPLAYLEVEL(1, "Total samples size is too large (%u MB), maximum size is %u MB\n",
-                 (U32)(totalSamplesSize>>20), (FASTCOVER_MAX_SAMPLES_SIZE >> 20));
+                 (U32)(totalSamplesSize >> 20), (FASTCOVER_MAX_SAMPLES_SIZE >> 20));
     return 0;
   }
   /* Check if there are at least 5 training samples */
@@ -347,10 +470,8 @@ static int FASTCOVER_ctx_init(FASTCOVER_ctx_t *ctx, const void *samplesBuffer,
 
   /* Initialize frequency array of size 2^f */
   ctx->freqs = (U32 *)calloc((1 << f), sizeof(U32));
-  ctx->segmentFreqs = (U16 *)calloc((1 << f), sizeof(U16));
   DISPLAYLEVEL(2, "Computing frequencies\n");
   FASTCOVER_computeFrequency(ctx->freqs, f, ctx);
-
   return 1;
 }
 
@@ -359,7 +480,7 @@ static int FASTCOVER_ctx_init(FASTCOVER_ctx_t *ctx, const void *samplesBuffer,
  * Given the prepared context build the dictionary.
  */
 static size_t FASTCOVER_buildDictionary(const FASTCOVER_ctx_t *ctx, U32 *freqs,
-                                    void *dictBuffer,
+                                    COVER_map_t *activeDmers, void *dictBuffer,
                                     size_t dictBufferCapacity,
                                     ZDICT_fastCover_params_t parameters){
   BYTE *const dict = (BYTE *)dictBuffer;
@@ -381,7 +502,7 @@ static size_t FASTCOVER_buildDictionary(const FASTCOVER_ctx_t *ctx, U32 *freqs,
     size_t segmentSize;
     /* Select a segment */
     FASTCOVER_segment_t segment = FASTCOVER_selectSegment(
-        ctx, freqs, epochBegin, epochEnd, parameters);
+        ctx, freqs, activeDmers, epochBegin, epochEnd, parameters);
 
     /* If the segment covers no dmers, then we are out of content */
     if (segment.score == 0) {
@@ -548,8 +669,14 @@ static void FASTCOVER_tryParameters(void *opaque) {
   size_t dictBufferCapacity = data->dictBufferCapacity;
   size_t totalCompressedSize = ERROR(GENERIC);
   /* Allocate space for hash table, dict, and freqs */
+  COVER_map_t activeDmers;
   BYTE *const dict = (BYTE * const)malloc(dictBufferCapacity);
   U32 *freqs = (U32*) malloc((1 << parameters.f) * sizeof(U32));
+
+  if (!COVER_map_init(&activeDmers, parameters.k - parameters.d + 1)) {
+    DISPLAYLEVEL(1, "Failed to allocate dmer map: out of memory\n");
+    goto _cleanup;
+  }
   if (!dict || !freqs) {
     DISPLAYLEVEL(1, "Failed to allocate buffers: out of memory\n");
     goto _cleanup;
@@ -558,7 +685,7 @@ static void FASTCOVER_tryParameters(void *opaque) {
   memcpy(freqs, ctx->freqs, (1 << parameters.f) * sizeof(U32));
   /* Build the dictionary */
   {
-    const size_t tail = FASTCOVER_buildDictionary(ctx, freqs, dict,
+    const size_t tail = FASTCOVER_buildDictionary(ctx, freqs, &activeDmers, dict,
                                               dictBufferCapacity, parameters);
 
     dictBufferCapacity = ZDICT_finalizeDictionary(
@@ -634,6 +761,7 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_fastCover(
     const size_t *samplesSizes, unsigned nbSamples, ZDICT_fastCover_params_t parameters) {
     BYTE* const dict = (BYTE*)dictBuffer;
     FASTCOVER_ctx_t ctx;
+    COVER_map_t activeDmers;
     parameters.splitPoint = 1.0;
     /* Initialize global data */
     g_displayLevel = parameters.zParams.notificationLevel;
@@ -657,10 +785,16 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_fastCover(
       DISPLAYLEVEL(1, "Failed to initialize context\n");
       return ERROR(GENERIC);
     }
+
+    if (!COVER_map_init(&activeDmers, parameters.k - parameters.d + 1)) {
+      DISPLAYLEVEL(1, "Failed to allocate dmer map: out of memory\n");
+      FASTCOVER_ctx_destroy(&ctx);
+      return ERROR(GENERIC);
+    }
     /* Build the dictionary */
     DISPLAYLEVEL(2, "Building dictionary\n");
     {
-      const size_t tail = FASTCOVER_buildDictionary(&ctx, ctx.freqs, dictBuffer,
+      const size_t tail = FASTCOVER_buildDictionary(&ctx, ctx.freqs, &activeDmers, dictBuffer,
                                                 dictBufferCapacity, parameters);
 
       const size_t dictionarySize = ZDICT_finalizeDictionary(
@@ -672,6 +806,7 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_fastCover(
                       (U32)dictionarySize);
       }
       FASTCOVER_ctx_destroy(&ctx);
+      COVER_map_destroy(&activeDmers);
       return dictionarySize;
     }
 }

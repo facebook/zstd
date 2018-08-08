@@ -1284,8 +1284,9 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
     }
 
     if (attachDict) {
-        const U32 cdictLen = (U32)( cdict->matchState.window.nextSrc
+        const U32 cdictEnd = (U32)( cdict->matchState.window.nextSrc
                                   - cdict->matchState.window.base);
+        const U32 cdictLen = cdictEnd - cdict->matchState.window.dictLimit;
         if (cdictLen == 0) {
             /* don't even attach dictionaries with no contents */
             DEBUGLOG(4, "skipping attaching empty dictionary");
@@ -1295,9 +1296,9 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
 
             /* prep working match state so dict matches never have negative indices
              * when they are translated to the working context's index space. */
-            if (cctx->blockState.matchState.window.dictLimit < cdictLen) {
+            if (cctx->blockState.matchState.window.dictLimit < cdictEnd) {
                 cctx->blockState.matchState.window.nextSrc =
-                    cctx->blockState.matchState.window.base + cdictLen;
+                    cctx->blockState.matchState.window.base + cdictEnd;
                 ZSTD_window_clear(&cctx->blockState.matchState.window);
             }
             cctx->blockState.matchState.loadedDictEnd = cctx->blockState.matchState.window.dictLimit;

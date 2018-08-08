@@ -412,6 +412,26 @@ static int basicUnitTests(U32 seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3d : re-using a CCtx should compress the same : ", testNb++);
+    {   int i;
+        for (i=0; i<20; i++)
+            ((char*)CNBuffer)[i] = (char)i;   /* ensure no match during initial section */
+        memcpy((char*)CNBuffer + 20, CNBuffer, 10);   /* create one match, starting from beginning of sample, which is the difficult case (see #1241) */
+        for (i=1; i<=19; i++) {
+            ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+            size_t size1, size2;
+            DISPLAYLEVEL(5, "l%i ", i);
+            size1 = ZSTD_compressCCtx(cctx, compressedBuffer, compressedBufferSize, CNBuffer, 30, i);
+            CHECK_Z(size1);
+            size2 = ZSTD_compressCCtx(cctx, compressedBuffer, compressedBufferSize, CNBuffer, 30, i);
+            CHECK_Z(size2);
+            CHECK_EQ(size1, size2);
+
+            ZSTD_freeCCtx(cctx);
+        }
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     DISPLAYLEVEL(3, "test%3d : ZSTD_CCtx_getParameter() : ", testNb++);
     {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
         ZSTD_outBuffer out = {NULL, 0, 0};

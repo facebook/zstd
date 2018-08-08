@@ -12,10 +12,12 @@ matrix:
     # Ubuntu 14.04
     - env: Cmd='make test'
 
-    - env: Cmd='make gcc6install && CC=gcc-6 make -j all
-             && make clean && CC=gcc-6 make clean uasan-test-zstd </dev/null' # also test when stdin is not a tty
-    - env: Cmd='make gcc6install libc6install && CC=gcc-6 make clean uasan-test-zstd32'
-    - env: Cmd='make gcc7install && CC=gcc-7 make clean uasan-test-zstd'
+    - env: Cmd='make gcc6install && CC=gcc-6 CFLAGS=-Werror make -j all
+             && make clean && CC=gcc-6 make -j uasan-test-zstd </dev/null'   # test when stdin is not a tty
+    - env: Cmd='make gcc6install libc6install
+             && make clean && CC=gcc-6 make -j uasan-test-zstd32'
+    - env: Cmd='make gcc7install && make clean && CC=gcc-7 make -j uasan-test-zstd'
+    - env: Cmd='make gcc8install && CC=gcc-8 CFLAGS="-Werror -O3" make -j all'
     - env: Cmd='make clang38install && CC=clang-3.8 make clean msan-test-zstd'
 
     - env: Cmd='make gcc6install && CC=gcc-6 make clean uasan-fuzztest'

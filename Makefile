@@ -287,6 +287,9 @@ gcc6install: apt-add-repo
 gcc7install: apt-add-repo
 	APT_PACKAGES="libc6-dev-i386 gcc-multilib gcc-7 gcc-7-multilib" $(MAKE) apt-install
 
+gcc8install: apt-add-repo
+	APT_PACKAGES="libc6-dev-i386 gcc-multilib gcc-8 gcc-8-multilib" $(MAKE) apt-install
+
 gpp6install: apt-add-repo
 	APT_PACKAGES="libc6-dev-i386 g++-multilib gcc-6 g++-6 g++-6-multilib" $(MAKE) apt-install
 

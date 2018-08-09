@@ -185,9 +185,9 @@ typedef struct {
     U32 vals[NUM_PARAMS];
 } paramValues_t;
 
-//TODO: unset -> 0?
 static ZSTD_compressionParameters pvalsToCParams(paramValues_t p) {
     ZSTD_compressionParameters c;
+    memset(&c, 0, sizeof(ZSTD_compressionParameters));
     c.windowLog = p.vals[wlog_ind];
     c.chainLog = p.vals[clog_ind];
     c.hashLog = p.vals[hlog_ind];
@@ -383,11 +383,9 @@ static int paramValid(paramValues_t paramTarget) {
     for(i = 0; i < NUM_PARAMS; i++) {
         CLAMPCHECK(paramTarget.vals[i], mintable[i], maxtable[i]);
     }
-    //TODO: Strategy could be valid at 0 before, is that right?
     return 1;
 }
 
-//TODO: doesn't affect strategy?
 static paramValues_t cParamUnsetMin(paramValues_t paramTarget) {
     varInds_t i;
     for(i = 0; i < NUM_PARAMS; i++) {
@@ -1399,7 +1397,7 @@ static int variableParams(const paramValues_t paramConstraints, varInds_t* res, 
 /* slight change from old paramVariation, targetLength can only take on powers of 2 now (999 ~= 1024?) */
 /* take max/min bounds into account as well? */
 static void paramVaryOnce(const varInds_t paramIndex, const int amt, paramValues_t* ptr) {
-    ptr->vals[paramIndex] = rangeMap(paramIndex, invRangeMap(paramIndex, ptr->vals[paramIndex]) + amt); //TODO: bounds check. 
+    ptr->vals[paramIndex] = rangeMap(paramIndex, invRangeMap(paramIndex, ptr->vals[paramIndex]) + amt);
 }
 
 /* varies ptr by nbChanges respecting varyParams*/
@@ -1447,10 +1445,23 @@ static unsigned memoTableInd(const paramValues_t* ptr, const varInds_t* varyPara
 static void memoTableIndInv(paramValues_t* ptr, const varInds_t* varyParams, const int varyLen, size_t ind) {
     int i;
     for(i = varyLen - 1; i >= 0; i--) {
+        /* This is cleaner/easier to generalize but slower
         varInds_t v = varyParams[i];
         if(v == strt_ind) continue;
         ptr->vals[v] = rangeMap(v, ind % rangetable[v]);
-        ind /= rangetable[v];
+        ind /= rangetable[v]; */
+
+        switch(varyParams[i]) {
+            case wlog_ind: ptr->vals[wlog_ind] = ind % rangetable[wlog_ind] + mintable[wlog_ind];       ind /= rangetable[wlog_ind]; break;
+            case clog_ind: ptr->vals[clog_ind] = ind % rangetable[clog_ind] + mintable[clog_ind];       ind /= rangetable[clog_ind]; break;
+            case hlog_ind: ptr->vals[hlog_ind] = ind % rangetable[hlog_ind] + mintable[hlog_ind];       ind /= rangetable[hlog_ind]; break;
+            case slog_ind: ptr->vals[slog_ind] = ind % rangetable[slog_ind] + mintable[slog_ind];       ind /= rangetable[slog_ind]; break;
+            case slen_ind: ptr->vals[slen_ind] = ind % rangetable[slen_ind] + mintable[slen_ind];       ind /= rangetable[slen_ind]; break;
+            case tlen_ind: ptr->vals[tlen_ind] = tlen_table[(ind % rangetable[tlen_ind])];              ind /= rangetable[tlen_ind]; break;
+            case fadt_ind: ptr->vals[fadt_ind] = ind % rangetable[fadt_ind] - 1;                        ind /= rangetable[fadt_ind]; break;
+            case strt_ind:
+            case NUM_PARAMS: break;
+        }
     }
 }
 
@@ -1470,6 +1481,7 @@ static void initMemoTable(U8* memoTable, paramValues_t paramConstraints, const c
     assert(memoTable != NULL);
     memset(memoTable, 0, arrayLen);
     paramConstraints = cParamUnsetMin(paramConstraints);
+
 
     for(i = 0; i < arrayLen; i++) {
         memoTableIndInv(&paramConstraints, varyParams, varyLen, i);

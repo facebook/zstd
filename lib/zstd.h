@@ -735,6 +735,7 @@ typedef struct {
     unsigned long long ingested;
     unsigned long long consumed;
     unsigned long long produced;
+    unsigned currentJobID;
 } ZSTD_frameProgression;
 
 /* ZSTD_getFrameProgression():

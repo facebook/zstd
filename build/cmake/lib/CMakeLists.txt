@@ -47,7 +47,7 @@ SET(Sources
         ${LIBRARY_DIR}/decompress/huf_decompress.c
         ${LIBRARY_DIR}/decompress/zstd_decompress.c
         ${LIBRARY_DIR}/dictBuilder/cover.c
-        ${LIBRARY_DIR}/dictBuilder/fastCover.c
+        ${LIBRARY_DIR}/dictBuilder/fastcover.c
         ${LIBRARY_DIR}/dictBuilder/divsufsort.c
         ${LIBRARY_DIR}/dictBuilder/zdict.c
         ${LIBRARY_DIR}/deprecated/zbuff_common.c

@@ -802,7 +802,7 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
                                 (U32)(zfp.produced >> 20),
                                 cShare );
                 } else {
-                    assert(g_displayLevel == 2);
+                    /* g_displayLevel <= 2; only display notifications if == 2; */
                     DISPLAYLEVEL(2, "\rRead : %u ", (U32)(zfp.consumed >> 20));
                     if (fileSize != UTIL_FILESIZE_UNKNOWN)
                         DISPLAYLEVEL(2, "/ %u ", (U32)(fileSize >> 20));

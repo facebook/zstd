@@ -47,6 +47,7 @@ SET(Sources
         ${LIBRARY_DIR}/decompress/huf_decompress.c
         ${LIBRARY_DIR}/decompress/zstd_decompress.c
         ${LIBRARY_DIR}/dictBuilder/cover.c
+        ${LIBRARY_DIR}/dictBuilder/fastCover.c
         ${LIBRARY_DIR}/dictBuilder/divsufsort.c
         ${LIBRARY_DIR}/dictBuilder/zdict.c
         ${LIBRARY_DIR}/deprecated/zbuff_common.c
@@ -74,6 +75,7 @@ SET(Headers
         ${LIBRARY_DIR}/compress/zstd_ldm.h
         ${LIBRARY_DIR}/compress/zstdmt_compress.h
         ${LIBRARY_DIR}/dictBuilder/zdict.h
+        ${LIBRARY_DIR}/dictBuilder/cover.h
         ${LIBRARY_DIR}/deprecated/zbuff.h)
 
 IF (ZSTD_LEGACY_SUPPORT)
@@ -178,6 +180,7 @@ INSTALL(FILES
     ${LIBRARY_DIR}/zstd.h
     ${LIBRARY_DIR}/deprecated/zbuff.h
     ${LIBRARY_DIR}/dictBuilder/zdict.h
+    ${LIBRARY_DIR}/dictBuilder/cover.h
     ${LIBRARY_DIR}/common/zstd_errors.h
     DESTINATION "include")
 

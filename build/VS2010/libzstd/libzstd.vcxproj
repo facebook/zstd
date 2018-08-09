@@ -43,6 +43,7 @@
     <ClCompile Include="..\..\..\lib\deprecated\zbuff_compress.c" />
     <ClCompile Include="..\..\..\lib\deprecated\zbuff_decompress.c" />
     <ClCompile Include="..\..\..\lib\dictBuilder\cover.c" />
+    <ClCompile Include="..\..\..\lib\dictBuilder\fastCover.c" />
     <ClCompile Include="..\..\..\lib\dictBuilder\divsufsort.c" />
     <ClCompile Include="..\..\..\lib\dictBuilder\zdict.c" />
     <ClCompile Include="..\..\..\lib\legacy\zstd_v01.c" />

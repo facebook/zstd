@@ -5,7 +5,6 @@
 #include <ctype.h>
 #include <time.h>
 #include "random.h"
-#include "fastCover.h"
 #include "dictBuilder.h"
 #include "zstd_internal.h" /* includes zstd.h */
 #include "io.h"

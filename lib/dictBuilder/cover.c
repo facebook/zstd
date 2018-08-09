@@ -29,6 +29,7 @@
 #include "mem.h" /* read */
 #include "pool.h"
 #include "threading.h"
+#include "cover.h"
 #include "zstd_internal.h" /* includes zstd.h */
 #ifndef ZDICT_STATIC_LINKING_ONLY
 #define ZDICT_STATIC_LINKING_ONLY
@@ -185,7 +186,7 @@ static void COVER_map_remove(COVER_map_t *map, U32 key) {
 }
 
 /**
- * Destroyes a map that is inited with COVER_map_init().
+ * Destroys a map that is inited with COVER_map_init().
  */
 static void COVER_map_destroy(COVER_map_t *map) {
   if (map->data) {
@@ -223,7 +224,7 @@ static COVER_ctx_t *g_ctx = NULL;
 /**
  * Returns the sum of the sample sizes.
  */
-static size_t COVER_sum(const size_t *samplesSizes, unsigned nbSamples) {
+size_t COVER_sum(const size_t *samplesSizes, unsigned nbSamples) {
   size_t sum = 0;
   unsigned i;
   for (i = 0; i < nbSamples; ++i) {
@@ -380,14 +381,7 @@ static void COVER_group(COVER_ctx_t *ctx, const void *group,
   ctx->suffix[dmerId] = freq;
 }
 
-/**
- * A segment is a range in the source as well as the score of the segment.
- */
-typedef struct {
-  U32 begin;
-  U32 end;
-  U32 score;
-} COVER_segment_t;
+
 
 /**
  * Selects the best segment in an epoch.
@@ -483,7 +477,7 @@ static COVER_segment_t COVER_selectSegment(const COVER_ctx_t *ctx, U32 *freqs,
  * Check the validity of the parameters.
  * Returns non-zero if the parameters are valid and 0 otherwise.
  */
-static int COVER_checkParameters(ZDICT_cover_params_t parameters,
+int COVER_checkParameters(ZDICT_cover_params_t parameters,
                                  size_t maxDictSize) {
   /* k and d are required parameters */
   if (parameters.d == 0 || parameters.k == 0) {
@@ -737,28 +731,11 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_cover(
   }
 }
 
-/**
- * COVER_best_t is used for two purposes:
- * 1. Synchronizing threads.
- * 2. Saving the best parameters and dictionary.
- *
- * All of the methods except COVER_best_init() are thread safe if zstd is
- * compiled with multithreaded support.
- */
-typedef struct COVER_best_s {
-  ZSTD_pthread_mutex_t mutex;
-  ZSTD_pthread_cond_t cond;
-  size_t liveJobs;
-  void *dict;
-  size_t dictSize;
-  ZDICT_cover_params_t parameters;
-  size_t compressedSize;
-} COVER_best_t;
 
 /**
  * Initialize the `COVER_best_t`.
  */
-static void COVER_best_init(COVER_best_t *best) {
+void COVER_best_init(COVER_best_t *best) {
   if (best==NULL) return; /* compatible with init on NULL */
   (void)ZSTD_pthread_mutex_init(&best->mutex, NULL);
   (void)ZSTD_pthread_cond_init(&best->cond, NULL);
@@ -772,7 +749,7 @@ static void COVER_best_init(COVER_best_t *best) {
 /**
  * Wait until liveJobs == 0.
  */
-static void COVER_best_wait(COVER_best_t *best) {
+void COVER_best_wait(COVER_best_t *best) {
   if (!best) {
     return;
   }
@@ -786,7 +763,7 @@ static void COVER_best_wait(COVER_best_t *best) {
 /**
  * Call COVER_best_wait() and then destroy the COVER_best_t.
  */
-static void COVER_best_destroy(COVER_best_t *best) {
+void COVER_best_destroy(COVER_best_t *best) {
   if (!best) {
     return;
   }
@@ -802,7 +779,7 @@ static void COVER_best_destroy(COVER_best_t *best) {
  * Called when a thread is about to be launched.
  * Increments liveJobs.
  */
-static void COVER_best_start(COVER_best_t *best) {
+void COVER_best_start(COVER_best_t *best) {
   if (!best) {
     return;
   }
@@ -816,7 +793,7 @@ static void COVER_best_start(COVER_best_t *best) {
  * Decrements liveJobs and signals any waiting threads if liveJobs == 0.
  * If this dictionary is the best so far save it and its parameters.
  */
-static void COVER_best_finish(COVER_best_t *best, size_t compressedSize,
+void COVER_best_finish(COVER_best_t *best, size_t compressedSize,
                               ZDICT_cover_params_t parameters, void *dict,
                               size_t dictSize) {
   if (!best) {

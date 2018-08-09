@@ -172,6 +172,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( "Dictionary builder : \n");
     DISPLAY( "--train ## : create a dictionary from a training set of files \n");
     DISPLAY( "--train-cover[=k=#,d=#,steps=#,split=#] : use the cover algorithm with optional args\n");
+    DISPLAY( "--train-fastcover[=k=#,d=#,f=#,steps=#,split=#] : use the fast cover algorithm with optional args\n");
     DISPLAY( "--train-legacy[=s=#] : use the legacy algorithm with selectivity (default: %u)\n", g_defaultSelectivityLevel);
     DISPLAY( " -o file : `file` is dictionary name (default: %s) \n", g_defaultDictName);
     DISPLAY( "--maxdict=# : limit dictionary to specified size (default: %u) \n", g_defaultMaxDictSize);
@@ -296,6 +297,32 @@ static unsigned parseCoverParameters(const char* stringPtr, ZDICT_cover_params_t
 }
 
 /**
+ * parseFastCoverParameters() :
+ * reads fastcover parameters from *stringPtr (e.g. "--train-fastcover=k=48,d=8,f=20,steps=32") into *params
+ * @return 1 means that fastcover parameters were correct
+ * @return 0 in case of malformed parameters
+ */
+static unsigned parseFastCoverParameters(const char* stringPtr, ZDICT_fastCover_params_t* params)
+{
+    memset(params, 0, sizeof(*params));
+    for (; ;) {
+        if (longCommandWArg(&stringPtr, "k=")) { params->k = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        if (longCommandWArg(&stringPtr, "d=")) { params->d = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        if (longCommandWArg(&stringPtr, "f=")) { params->f = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        if (longCommandWArg(&stringPtr, "steps=")) { params->steps = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        if (longCommandWArg(&stringPtr, "split=")) {
+          unsigned splitPercentage = readU32FromChar(&stringPtr);
+          params->splitPoint = (double)splitPercentage / 100.0;
+          if (stringPtr[0]==',') { stringPtr++; continue; } else break;
+        }
+        return 0;
+    }
+    if (stringPtr[0] != 0) return 0;
+    DISPLAYLEVEL(4, "cover: k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\n", params->k, params->d, params->f, params->steps, (unsigned)(params->splitPoint * 100));
+    return 1;
+}
+
+/**
  * parseLegacyParameters() :
  * reads legacy dictioanry builter parameters from *stringPtr (e.g. "--train-legacy=selectivity=8") into *selectivity
  * @return 1 means that legacy dictionary builder parameters were correct
@@ -315,6 +342,17 @@ static ZDICT_cover_params_t defaultCoverParams(void)
     ZDICT_cover_params_t params;
     memset(&params, 0, sizeof(params));
     params.d = 8;
+    params.steps = 4;
+    params.splitPoint = DEFAULT_SPLITPOINT;
+    return params;
+}
+
+static ZDICT_fastCover_params_t defaultFastCoverParams(void)
+{
+    ZDICT_fastCover_params_t params;
+    memset(&params, 0, sizeof(params));
+    params.d = 8;
+    params.f = 20;
     params.steps = 4;
     params.splitPoint = DEFAULT_SPLITPOINT;
     return params;
@@ -432,7 +470,9 @@ int main(int argCount, const char* argv[])
 #endif
 #ifndef ZSTD_NODICT
     ZDICT_cover_params_t coverParams = defaultCoverParams();
+    ZDICT_fastCover_params_t fastCoverParams = defaultFastCoverParams();
     int cover = 1;
+    int fastCover = 1;
 #endif
 
 
@@ -529,10 +569,23 @@ int main(int argCount, const char* argv[])
                       if (outFileName == NULL)
                           outFileName = g_defaultDictName;
                       cover = 1;
+                      fastCover = 0;
                       /* Allow optional arguments following an = */
                       if (*argument == 0) { memset(&coverParams, 0, sizeof(coverParams)); }
                       else if (*argument++ != '=') { CLEAN_RETURN(badusage(programName)); }
                       else if (!parseCoverParameters(argument, &coverParams)) { CLEAN_RETURN(badusage(programName)); }
+                      continue;
+                    }
+                    if (longCommandWArg(&argument, "--train-fastcover")) {
+                      operation = zom_train;
+                      if (outFileName == NULL)
+                          outFileName = g_defaultDictName;
+                      cover = 0;
+                      fastCover = 1;
+                      /* Allow optional arguments following an = */
+                      if (*argument == 0) { memset(&fastCoverParams, 0, sizeof(fastCoverParams)); }
+                      else if (*argument++ != '=') { CLEAN_RETURN(badusage(programName)); }
+                      else if (!parseFastCoverParameters(argument, &fastCoverParams)) { CLEAN_RETURN(badusage(programName)); }
                       continue;
                     }
                     if (longCommandWArg(&argument, "--train-legacy")) {
@@ -540,6 +593,7 @@ int main(int argCount, const char* argv[])
                       if (outFileName == NULL)
                           outFileName = g_defaultDictName;
                       cover = 0;
+                      fastCover = 0;
                       /* Allow optional arguments following an = */
                       if (*argument == 0) { continue; }
                       else if (*argument++ != '=') { CLEAN_RETURN(badusage(programName)); }
@@ -879,17 +933,22 @@ int main(int argCount, const char* argv[])
         zParams.compressionLevel = dictCLevel;
         zParams.notificationLevel = g_displayLevel;
         zParams.dictID = dictID;
-        if (cover) {
+        if (cover && !fastCover) {
             int const optimize = !coverParams.k || !coverParams.d;
             coverParams.nbThreads = nbWorkers;
             coverParams.zParams = zParams;
-            operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenameTable, filenameIdx, blockSize, NULL, &coverParams, optimize);
+            operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenameTable, filenameIdx, blockSize, NULL, &coverParams, NULL, optimize);
+        } else if (!cover && fastCover) {
+            int const optimize = !fastCoverParams.k || !fastCoverParams.d;
+            fastCoverParams.nbThreads = nbWorkers;
+            fastCoverParams.zParams = zParams;
+            operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenameTable, filenameIdx, blockSize, NULL, NULL, &fastCoverParams, optimize);
         } else {
             ZDICT_legacy_params_t dictParams;
             memset(&dictParams, 0, sizeof(dictParams));
             dictParams.selectivityLevel = dictSelect;
             dictParams.zParams = zParams;
-            operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenameTable, filenameIdx, blockSize, &dictParams, NULL, 0);
+            operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenameTable, filenameIdx, blockSize, &dictParams, NULL, NULL, 0);
         }
 #endif
         goto _end;

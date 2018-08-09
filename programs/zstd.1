@@ -194,7 +194,7 @@ All arguments after \fB\-\-\fR are treated as files
 Use FILEs as training set to create a dictionary\. The training set should contain a lot of small files (> 100), and weight typically 100x the target dictionary size (for example, 10 MB for a 100 KB dictionary)\.
 .
 .IP
-Supports multithreading if \fBzstd\fR is compiled with threading support\. Additional parameters can be specified with \fB\-\-train\-cover\fR\. The legacy dictionary builder can be accessed with \fB\-\-train\-legacy\fR\. Equivalent to \fB\-\-train\-cover=d=8,steps=4\fR\.
+Supports multithreading if \fBzstd\fR is compiled with threading support\. Additional parameters can be specified with \fB\-\-train\-cover\fR\ or \fB\-\-train\-fastcover\fR\. The legacy dictionary builder can be accessed with \fB\-\-train\-legacy\fR\. Equivalent to \fB\-\-train\-cover=d=8,steps=4\fR\.
 .
 .TP
 \fB\-o file\fR
@@ -238,6 +238,22 @@ Examples:
 .
 .IP
 \fBzstd \-\-train\-cover=k=50 FILEs\fR
+.
+.TP
+\fB\-\-train\-fastcover[=k#,d=#,f=#,steps=#,split=#]\fR
+Same as cover but with an extra parameter \fIf\fR
+.
+.IP
+If \fIf\fR is not specified, then it tries \fIf\fR = 18. \fId\fR can only be 6 or 8.
+.
+.IP
+Examples:
+.
+.IP
+\fBzstd \-\-train\-fastcover FILEs\fR
+.
+.IP
+\fBzstd \-\-train\-fastcover=d=8,f=15 FILEs\fR
 .
 .TP
 \fB\-\-train\-legacy[=selectivity=#]\fR

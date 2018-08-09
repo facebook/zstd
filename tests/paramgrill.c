@@ -2256,8 +2256,9 @@ int main(int argc, const char** argv)
                             g_params.strategy = (ZSTD_strategy)readU32FromChar(&argument);
                             continue;
                         case 'L':
-                            {   argument++;
-                                int const cLevel = readU32FromChar(&argument);
+                            {   int cLevel;
+                                argument++;
+                                cLevel = readU32FromChar(&argument);
                                 g_params = ZSTD_getCParams(cLevel, g_blockSize, 0);
                                 continue;
                             }

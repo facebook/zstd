@@ -352,7 +352,7 @@ static ZDICT_fastCover_params_t defaultFastCoverParams(void)
     ZDICT_fastCover_params_t params;
     memset(&params, 0, sizeof(params));
     params.d = 8;
-    params.f = 20;
+    params.f = 18;
     params.steps = 4;
     params.splitPoint = DEFAULT_SPLITPOINT;
     return params;

@@ -459,7 +459,7 @@ $ECHO "- Create second (different) dictionary"
 $ZSTD --train-fastcover=k=56,d=8 *.c ../programs/*.c ../programs/*.h -o tmpDictC
 $ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
 $ECHO "- Create dictionary with short dictID"
-$ZSTD --train-fastcover=k=46,f=16 *.c ../programs/*.c --dictID=1 -o tmpDict1
+$ZSTD --train-fastcover=k=46,d=8 *.c ../programs/*.c --dictID=1 -o tmpDict1
 cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
 $ECHO "- Create dictionary with size limit"
 $ZSTD --train-fastcover=steps=8 *.c ../programs/*.c -o tmpDict2 --maxdict=4K
@@ -468,6 +468,8 @@ $ZSTD --train-fastcover=split=90 -r *.c ../programs/*.c
 $ZSTD --train-fastcover=split=80 -r *.c ../programs/*.c
 $ECHO "- Create dictionary using all samples for both training and testing"
 $ZSTD --train-fastcover=split=100 -r *.c ../programs/*.c
+$ECHO "- Create dictionary using f=16"
+$ZSTD --train-fastcover=f=16 -r *.c ../programs/*.c
 $ECHO "- Test -o before --train-fastcover"
 rm -f tmpDict dictionary
 $ZSTD -o tmpDict --train-fastcover *.c ../programs/*.c

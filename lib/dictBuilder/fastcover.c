@@ -222,7 +222,8 @@ static void FASTCOVER_ctx_destroy(FASTCOVER_ctx_t *ctx) {
  */
 static void FASTCOVER_computeFrequency(U32 *freqs, unsigned f, FASTCOVER_ctx_t *ctx){
   size_t start; /* start of current dmer */
-  for (unsigned i = 0; i < ctx->nbTrainSamples; i++) {
+  size_t i;
+  for (i = 0; i < ctx->nbTrainSamples; i++) {
     size_t currSampleStart = ctx->offsets[i];
     size_t currSampleEnd = ctx->offsets[i+1];
     start = currSampleStart;
@@ -500,11 +501,13 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_fastCover(
     const size_t *samplesSizes, unsigned nbSamples, ZDICT_fastCover_params_t parameters) {
     BYTE* const dict = (BYTE*)dictBuffer;
     FASTCOVER_ctx_t ctx;
-    parameters.splitPoint = parameters.splitPoint <= 0 ? 1.0 : parameters.splitPoint;
-    parameters.f = parameters.f == 0 ? DEFAULT_F : parameters.f;
+    ZDICT_cover_params_t coverParams;
     /* Initialize global data */
     g_displayLevel = parameters.zParams.notificationLevel;
-    ZDICT_cover_params_t coverParams;
+    /* Assign splitPoint and f if not provided */
+    parameters.splitPoint = parameters.splitPoint <= 0 ? 1.0 : parameters.splitPoint;
+    parameters.f = parameters.f == 0 ? DEFAULT_F : parameters.f;
+    /* convert to ZDICT_cover_params_t */
     FASTCOVER_convertToCoverParams(parameters, &coverParams);
     /* Checks */
     if (parameters.f > FASTCOVER_MAX_F) {
@@ -554,6 +557,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_fastCover(
     void *dictBuffer, size_t dictBufferCapacity, const void *samplesBuffer,
     const size_t *samplesSizes, unsigned nbSamples,
     ZDICT_fastCover_params_t *parameters) {
+    ZDICT_cover_params_t coverParams;
     /* constants */
     const unsigned nbThreads = parameters->nbThreads;
     const double splitPoint =
@@ -567,8 +571,6 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_fastCover(
     const unsigned kIterations =
         (1 + (kMaxD - kMinD) / 2) * (1 + (kMaxK - kMinK) / kStepSize);
     const unsigned f = parameters->f == 0 ? DEFAULT_F : parameters->f;
-    ZDICT_cover_params_t coverParams;
-    FASTCOVER_convertToCoverParams(*parameters, &coverParams);
     /* Local variables */
     const int displayLevel = parameters->zParams.notificationLevel;
     unsigned iteration = 1;
@@ -576,7 +578,8 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_fastCover(
     unsigned k;
     COVER_best_t best;
     POOL_ctx *pool = NULL;
-
+    /* convert to ZDICT_cover_params_t */
+    FASTCOVER_convertToCoverParams(*parameters, &coverParams);
     /* Checks */
     if (splitPoint <= 0 || splitPoint > 1) {
       LOCALDISPLAYLEVEL(displayLevel, 1, "Incorrect splitPoint\n");

@@ -350,7 +350,7 @@ typedef struct {
 
 static int
 BMK_benchParam(BMK_result_t* resultPtr,
-                buffers_t buf, contexts_t ctx,
+                const buffers_t buf, const contexts_t ctx,
                 const ZSTD_compressionParameters cParams) {
     BMK_return_t res = BMK_benchMem(buf.srcPtrs[0], buf.srcSize, buf.srcSizes, (unsigned)buf.nbBlocks, 0, &cParams, ctx.dictBuffer, ctx.dictSize, ctx.cctx, ctx.dctx, 0, "Files");
     *resultPtr = res.result;
@@ -482,13 +482,14 @@ static size_t local_defaultDecompress(
 *  From Paramgrill End
 *********************************************************/
 
-/* Replicate function of benchMemAdvanced, but with pre-split src / dst buffers, with relevant info to invert it (compressedSizes) passed out. */
+/* Replicate functionality of benchMemAdvanced, but with pre-split src / dst buffers */
+/* The purpose is so that sufficient information is returned so that a decompression call to benchMemInvertible is possible */
 /* BMK_benchMemAdvanced(srcBuffer,srcSize, dstBuffer, dstSize, fileSizes, nbFiles, 0, &cParams, dictBuffer, dictSize, ctx, dctx, 0, "File", &adv); */
 /* nbSeconds used in same way as in BMK_advancedParams_t, as nbIters when in iterMode */
 
 /* if in decodeOnly, then srcPtr's will be compressed blocks, and uncompressedBlocks will be written to dstPtrs? */
 /* dictionary nullable, nothing else though. */
-static BMK_return_t BMK_benchMemInvertible(buffers_t buf, contexts_t ctx, 
+static BMK_return_t BMK_benchMemInvertible(const buffers_t buf, const contexts_t ctx, 
                         const int cLevel, const ZSTD_compressionParameters* comprParams,
                         const BMK_mode_t mode, const BMK_loopMode_t loopMode, const unsigned nbSeconds) {
 
@@ -496,11 +497,11 @@ static BMK_return_t BMK_benchMemInvertible(buffers_t buf, contexts_t ctx,
     BMK_return_t results = { { 0, 0., 0., 0 }, 0 } ;
     const void *const *const srcPtrs = (const void *const *const)buf.srcPtrs;
     size_t const *const srcSizes = buf.srcSizes;
-    void** dstPtrs = buf.dstPtrs;
-    size_t* dstCapacities = buf.dstCapacities;
-    size_t* dstSizes = buf.dstSizes;
-    void** resPtrs = buf.resPtrs;
-    size_t* resSizes = buf.resSizes;
+    void** const dstPtrs = buf.dstPtrs;
+    size_t const *const dstCapacities = buf.dstCapacities;
+    size_t* const dstSizes = buf.dstSizes;
+    void** const resPtrs = buf.resPtrs;
+    size_t const *const resSizes = buf.resSizes;
     const void* dictBuffer = ctx.dictBuffer;
     const size_t dictBufferSize = ctx.dictSize;
     const size_t nbBlocks = buf.nbBlocks;
@@ -1355,7 +1356,7 @@ int benchFiles(const char** fileNamesTable, int nbFiles)
 /* Benchmarking which stops when we are sufficiently sure the solution is infeasible / worse than the winner */
 #define VARIANCE 1.1 
 static int allBench(BMK_result_t* resultPtr,
-                buffers_t buf, contexts_t ctx,
+                const buffers_t buf, const contexts_t ctx,
                 const ZSTD_compressionParameters cParams,
                 const constraint_t target,
                 BMK_result_t* winnerResult, int feas) {
@@ -1463,11 +1464,11 @@ static int allBench(BMK_result_t* resultPtr,
 
 /* Memoized benchmarking, won't benchmark anything which has already been benchmarked before. */
 static int benchMemo(BMK_result_t* resultPtr,
-                buffers_t buf, contexts_t ctx, 
+                const buffers_t buf, const contexts_t ctx, 
                 const ZSTD_compressionParameters cParams,
                 const constraint_t target,
-                BMK_result_t* winnerResult, U8* memoTable,
-                const varInds_t* varyParams, const int varyLen, int feas) {
+                BMK_result_t* winnerResult, U8* const memoTable,
+                const varInds_t* varyParams, const int varyLen, const int feas) {
     static int bmcount = 0;
     size_t memind = memoTableInd(&cParams, varyParams, varyLen);
     int res;
@@ -1502,8 +1503,8 @@ static int benchMemo(BMK_result_t* resultPtr,
  */
 static winnerInfo_t climbOnce(const constraint_t target, 
                 const varInds_t* varArray, const int varLen, 
-                U8* memoTable,
-                buffers_t buf, contexts_t ctx,
+                U8* const memoTable,
+                const buffers_t buf, const contexts_t ctx,
                 const ZSTD_compressionParameters init) {
     /* 
      * cparam - currently considered 'center'
@@ -1605,11 +1606,11 @@ static winnerInfo_t climbOnce(const constraint_t target,
    maybe allow giving it a first init? 
  */
 static winnerInfo_t optimizeFixedStrategy(
-    buffers_t buf, contexts_t ctx, 
+    const buffers_t buf, const contexts_t ctx, 
     const constraint_t target, ZSTD_compressionParameters paramTarget,
     const ZSTD_strategy strat, 
     const varInds_t* varArray, const int varLen,
-    U8* memoTable, const int tries) {
+    U8* const memoTable, const int tries) {
     int i = 0;
     varInds_t varNew[NUM_PARAMS];
     int varLenNew = sanitizeVarArray(varNew, varLen, varArray, strat);
@@ -1638,7 +1639,7 @@ static winnerInfo_t optimizeFixedStrategy(
     return winnerInfo;
 }
 
-static void freeBuffers(buffers_t b) {
+static void freeBuffers(const buffers_t b) {
     if(b.srcPtrs != NULL) {
         free(b.srcBuffer);
     }
@@ -1659,8 +1660,8 @@ static void freeBuffers(buffers_t b) {
 }
 
 /* allocates buffer's arguments. returns 0 = success / 1 = failuere */
-static int createBuffers(buffers_t* buff, const char* const * const fileNamesTable, 
-                          size_t nbFiles)
+static int createBuffers(buffers_t* const buff, const char* const * const fileNamesTable, 
+                          const size_t nbFiles)
 {
     size_t pos = 0;
     size_t n;
@@ -1720,7 +1721,7 @@ static int createBuffers(buffers_t* buff, const char* const * const fileNamesTab
 
         DISPLAY("Loading %s...       \r", fileNamesTable[n]);
 
-        if (fileSize + pos > benchedSize) fileSize = benchedSize - pos, nbFiles=n;   /* buffer too small - stop after this file */
+        if (fileSize + pos > benchedSize) fileSize = benchedSize - pos, n = nbFiles;   /* buffer too small - stop after this file */
         {
             char* buffer = (char*)(buff->srcBuffer); 
             size_t const readSize = fread(((buffer)+pos), 1, (size_t)fileSize, f);
@@ -1765,14 +1766,14 @@ static int createBuffers(buffers_t* buff, const char* const * const fileNamesTab
     return 0;
 }
 
-static void freeContexts(contexts_t ctx) {
+static void freeContexts(const contexts_t ctx) {
     free(ctx.dictBuffer);
     ZSTD_freeCCtx(ctx.cctx);
     ZSTD_freeDCtx(ctx.dctx);
 }
 
 /* Creates struct holding contexts and dictionary buffers. returns 0 on success, 1 on failure. */
-static int createContexts(contexts_t* ctx, const char* dictFileName) {
+static int createContexts(contexts_t* const ctx, const char* dictFileName) {
     FILE* f;
     size_t readSize;
     U64 dictSize;
@@ -2268,7 +2269,8 @@ int main(int argc, const char** argv)
                             g_params.strategy = (ZSTD_strategy)readU32FromChar(&argument);
                             continue;
                         case 'L':
-                            {   int const cLevel = readU32FromChar(&argument);
+                            {   argument++;
+                                int const cLevel = readU32FromChar(&argument);
                                 g_params = ZSTD_getCParams(cLevel, g_blockSize, 0);
                                 continue;
                             }

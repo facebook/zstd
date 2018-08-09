@@ -126,8 +126,6 @@ BMK_return_t BMK_syntheticTest(int cLevel, double compressibility,
  * comprParams - basic compression parameters
  * dictBuffer - a dictionary if used, null otherwise
  * dictBufferSize - size of dictBuffer, 0 otherwise
- * ctx - Compression Context (must be provided)
- * dctx - Decompression Context (must be provided)
  * diplayLevel - see BMK_benchFiles
  * displayName - name used by display
  * return
@@ -139,7 +137,6 @@ BMK_return_t BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         const size_t* fileSizes, unsigned nbFiles,
                         const int cLevel, const ZSTD_compressionParameters* comprParams,
                         const void* dictBuffer, size_t dictBufferSize,
-                        ZSTD_CCtx* ctx, ZSTD_DCtx* dctx,
                         int displayLevel, const char* displayName);
 
 /* See benchMem for normal parameter uses and return, see advancedParams_t for adv 
@@ -151,7 +148,6 @@ BMK_return_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
                         const size_t* fileSizes, unsigned nbFiles,
                         const int cLevel, const ZSTD_compressionParameters* comprParams,
                         const void* dictBuffer, size_t dictBufferSize,
-                        ZSTD_CCtx* ctx, ZSTD_DCtx* dctx,
                         int displayLevel, const char* displayName,
                         const BMK_advancedParams_t* adv);
 

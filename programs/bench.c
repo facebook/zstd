@@ -708,7 +708,6 @@ BMK_return_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
                         const size_t* fileSizes, unsigned nbFiles,
                         const int cLevel, const ZSTD_compressionParameters* comprParams,
                         const void* dictBuffer, size_t dictBufferSize,
-                        ZSTD_CCtx* ctx, ZSTD_DCtx* dctx,
                         int displayLevel, const char* displayName, const BMK_advancedParams_t* adv)
 
 {
@@ -729,6 +728,9 @@ BMK_return_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
 
     BMK_timedFnState_t* timeStateCompress = BMK_createTimeState(adv->nbSeconds);
     BMK_timedFnState_t* timeStateDecompress = BMK_createTimeState(adv->nbSeconds);
+
+    ZSTD_CCtx* ctx = ZSTD_createCCtx();
+    ZSTD_DCtx* dctx = ZSTD_createDCtx();
 
     const size_t maxCompressedSize = dstCapacity ? dstCapacity : ZSTD_compressBound(srcSize) + (maxNbBlocks * 1024);
 
@@ -756,6 +758,9 @@ BMK_return_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
     BMK_freeTimeState(timeStateCompress);
     BMK_freeTimeState(timeStateDecompress);
     
+    ZSTD_freeCCtx(ctx);
+    ZSTD_freeDCtx(dctx);
+
     free(internalDstBuffer);
     free(resultBuffer);
 
@@ -781,7 +786,6 @@ BMK_return_t BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         const size_t* fileSizes, unsigned nbFiles,
                         const int cLevel, const ZSTD_compressionParameters* comprParams,
                         const void* dictBuffer, size_t dictBufferSize,
-                        ZSTD_CCtx* ctx, ZSTD_DCtx* dctx,
                         int displayLevel, const char* displayName) {
 
     const BMK_advancedParams_t adv = BMK_initAdvancedParams();
@@ -790,33 +794,7 @@ BMK_return_t BMK_benchMem(const void* srcBuffer, size_t srcSize,
                                 fileSizes, nbFiles,
                                 cLevel, comprParams,
                                 dictBuffer, dictBufferSize,
-                                ctx, dctx,
                                 displayLevel, displayName, &adv);
-}
-
-static BMK_return_t BMK_benchMemCtxless(const void* srcBuffer, size_t srcSize,
-                        const size_t* fileSizes, unsigned nbFiles, 
-                        int cLevel, const ZSTD_compressionParameters* const comprParams,
-                        const void* dictBuffer, size_t dictBufferSize,
-                        int displayLevel, const char* displayName, 
-                        const BMK_advancedParams_t* const adv) 
-{
-    BMK_return_t res;
-    ZSTD_CCtx* ctx = ZSTD_createCCtx();
-    ZSTD_DCtx* dctx = ZSTD_createDCtx();
-    if(ctx == NULL || dctx == NULL) {
-        EXM_THROW(12, BMK_return_t, "not enough memory for contexts");
-    }
-    res = BMK_benchMemAdvanced(srcBuffer, srcSize, 
-                NULL, 0, 
-                fileSizes, nbFiles, 
-                cLevel, comprParams, 
-                dictBuffer, dictBufferSize, 
-                ctx, dctx, 
-                displayLevel, displayName, adv);
-    ZSTD_freeCCtx(ctx);
-    ZSTD_freeDCtx(dctx);
-    return res;
 }
 
 static size_t BMK_findMaxMem(U64 requiredMem)
@@ -859,12 +837,12 @@ static BMK_return_t BMK_benchCLevel(const void* srcBuffer, size_t benchedSize,
     if (displayLevel == 1 && !adv->additionalParam)
         DISPLAY("bench %s %s: input %u bytes, %u seconds, %u KB blocks\n", ZSTD_VERSION_STRING, ZSTD_GIT_COMMIT_STRING, (U32)benchedSize, adv->nbSeconds, (U32)(adv->blockSize>>10));
 
-    res = BMK_benchMemCtxless(srcBuffer, benchedSize,
-            fileSizes, nbFiles, 
-            cLevel, comprParams, 
-            dictBuffer, dictBufferSize, 
-            displayLevel, displayName, 
-            adv);
+    res = BMK_benchMemAdvanced(srcBuffer, benchedSize, 
+                NULL, 0, 
+                fileSizes, nbFiles, 
+                cLevel, comprParams, 
+                dictBuffer, dictBufferSize, 
+                displayLevel, displayName, adv);
 
     return res;
 }

@@ -336,8 +336,8 @@ static int FASTCOVER_ctx_init(FASTCOVER_ctx_t *ctx, const void *samplesBuffer,
   }
 
   /* Initialize frequency array of size 2^f */
-  ctx->freqs = (U32 *)calloc((1 << f), sizeof(U32));
-  ctx->segmentFreqs = (U16 *)calloc((1 << f), sizeof(U16));
+  ctx->freqs = (U32 *)calloc(((U64)1 << f), sizeof(U32));
+  ctx->segmentFreqs = (U16 *)calloc(((U64)1 << f), sizeof(U16));
   DISPLAYLEVEL(2, "Computing frequencies\n");
   FASTCOVER_computeFrequency(ctx->freqs, f, ctx);
 
@@ -542,13 +542,13 @@ static void FASTCOVER_tryParameters(void *opaque) {
   size_t totalCompressedSize = ERROR(GENERIC);
   /* Allocate space for hash table, dict, and freqs */
   BYTE *const dict = (BYTE * const)malloc(dictBufferCapacity);
-  U32 *freqs = (U32*) malloc((1 << data->f) * sizeof(U32));
+  U32 *freqs = (U32*) malloc(((U64)1 << data->f) * sizeof(U32));
   if (!dict || !freqs) {
     DISPLAYLEVEL(1, "Failed to allocate buffers: out of memory\n");
     goto _cleanup;
   }
   /* Copy the frequencies because we need to modify them */
-  memcpy(freqs, ctx->freqs, (1 << data->f) * sizeof(U32));
+  memcpy(freqs, ctx->freqs, ((U64)1 << data->f) * sizeof(U32));
   /* Build the dictionary */
   {
     const size_t tail = FASTCOVER_buildDictionary(ctx, freqs, dict,

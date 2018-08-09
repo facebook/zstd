@@ -707,7 +707,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_fastCover(
       LOCALDISPLAYLEVEL(displayLevel, 1, "Incorrect splitPoint\n");
       return ERROR(GENERIC);
     }
-    if (parameters->f > FASTCOVER_MAX_F) {
+    if (f > FASTCOVER_MAX_F) {
       LOCALDISPLAYLEVEL(displayLevel, 1, "f is too large\n");
       return ERROR(GENERIC);
     }
@@ -767,6 +767,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_fastCover(
         data->parameters = *parameters;
         data->parameters.k = k;
         data->parameters.d = d;
+        data->parameters.f = f;
         data->parameters.splitPoint = splitPoint;
         data->parameters.steps = kSteps;
         data->parameters.zParams.notificationLevel = g_displayLevel;

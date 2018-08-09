@@ -108,9 +108,9 @@ typedef struct {
  * Once the dmer with hash value d is in the dictionay we set F(d) = F(d)/2.
  */
 static COVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
-                                                  U32 *freqs, U32 begin,U32 end,
-                                                  ZDICT_fastCover_params_t parameters,
-                                                  unsigned f) {
+                                              U32 *freqs, U32 begin, U32 end,
+                                              ZDICT_fastCover_params_t parameters,
+                                              unsigned f) {
   /* Constants */
   const U32 k = parameters.k;
   const U32 d = parameters.d;
@@ -199,7 +199,7 @@ static COVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
  * Returns non-zero if the parameters are valid and 0 otherwise.
  */
 static int FASTCOVER_checkParameters(ZDICT_fastCover_params_t parameters,
-                                 size_t maxDictSize) {
+                                    size_t maxDictSize) {
   /* k, d, and f are required parameters */
   if (parameters.d == 0 || parameters.k == 0 || parameters.f == 0) {
     return 0;
@@ -277,8 +277,8 @@ static void FASTCOVER_computeFrequency(U32 *freqs, unsigned f, FASTCOVER_ctx_t *
  * The context must be destroyed with `FASTCOVER_ctx_destroy()`.
  */
 static int FASTCOVER_ctx_init(FASTCOVER_ctx_t *ctx, const void *samplesBuffer,
-                          const size_t *samplesSizes, unsigned nbSamples,
-                          unsigned d, double splitPoint, unsigned f) {
+                              const size_t *samplesSizes, unsigned nbSamples,
+                              unsigned d, double splitPoint, unsigned f) {
   const BYTE *const samples = (const BYTE *)samplesBuffer;
   const size_t totalSamplesSize = COVER_sum(samplesSizes, nbSamples);
   /* Split samples into testing and training sets */
@@ -349,10 +349,10 @@ static int FASTCOVER_ctx_init(FASTCOVER_ctx_t *ctx, const void *samplesBuffer,
  * Given the prepared context build the dictionary.
  */
 static size_t FASTCOVER_buildDictionary(const FASTCOVER_ctx_t *ctx, U32 *freqs,
-                                    void *dictBuffer,
-                                    size_t dictBufferCapacity,
-                                    ZDICT_fastCover_params_t parameters,
-                                    unsigned f){
+                                        void *dictBuffer,
+                                        size_t dictBufferCapacity,
+                                        ZDICT_fastCover_params_t parameters,
+                                        unsigned f){
   BYTE *const dict = (BYTE *)dictBuffer;
   size_t tail = dictBufferCapacity;
   /* Divide the data up into epochs of equal size.
@@ -479,8 +479,8 @@ static void FASTCOVER_best_start(FASTCOVER_best_t *best) {
  * If this dictionary is the best so far save it and its parameters.
  */
 static void FASTCOVER_best_finish(FASTCOVER_best_t *best, size_t compressedSize,
-                              ZDICT_fastCover_params_t parameters, void *dict,
-                              size_t dictSize) {
+                                  ZDICT_fastCover_params_t parameters, void *dict,
+                                  size_t dictSize) {
   if (!best) {
     return;
   }
@@ -624,41 +624,16 @@ _cleanup:
 }
 
 
-static void FASTCOVER_convertToCoverParams(ZDICT_fastCover_params_t fastCoverParams,
-                                          ZDICT_cover_params_t *coverParams) {
-    coverParams->k = fastCoverParams.k;
-    coverParams->d = fastCoverParams.d;
-    coverParams->steps = fastCoverParams.steps;
-    coverParams->nbThreads = fastCoverParams.nbThreads;
-    coverParams->splitPoint = fastCoverParams.splitPoint;
-}
-
-
-static void FASTCOVER_convertToFastCoverParams(ZDICT_cover_params_t coverParams,
-                                          ZDICT_fastCover_params_t *fastCoverParams,
-                                          unsigned f) {
-    fastCoverParams->k = coverParams.k;
-    fastCoverParams->d = coverParams.d;
-    fastCoverParams->steps = coverParams.steps;
-    fastCoverParams->nbThreads = coverParams.nbThreads;
-    fastCoverParams->splitPoint = coverParams.splitPoint;
-    fastCoverParams->f = f;
-}
-
-
 ZDICTLIB_API size_t ZDICT_trainFromBuffer_fastCover(
     void *dictBuffer, size_t dictBufferCapacity, const void *samplesBuffer,
     const size_t *samplesSizes, unsigned nbSamples, ZDICT_fastCover_params_t parameters) {
     BYTE* const dict = (BYTE*)dictBuffer;
     FASTCOVER_ctx_t ctx;
-    ZDICT_cover_params_t coverParams;
     /* Initialize global data */
     g_displayLevel = parameters.zParams.notificationLevel;
     /* Assign splitPoint and f if not provided */
     parameters.splitPoint = parameters.splitPoint <= 0 ? 1.0 : parameters.splitPoint;
     parameters.f = parameters.f == 0 ? DEFAULT_F : parameters.f;
-    /* convert to ZDICT_cover_params_t */
-    FASTCOVER_convertToCoverParams(parameters, &coverParams);
     /* Checks */
     if (parameters.f > FASTCOVER_MAX_F) {
       DISPLAYLEVEL(1, "FASTCOVER f is too large\n");
@@ -707,7 +682,6 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_fastCover(
     void *dictBuffer, size_t dictBufferCapacity, const void *samplesBuffer,
     const size_t *samplesSizes, unsigned nbSamples,
     ZDICT_fastCover_params_t *parameters) {
-    ZDICT_cover_params_t coverParams;
     /* constants */
     const unsigned nbThreads = parameters->nbThreads;
     const double splitPoint =
@@ -728,8 +702,6 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_fastCover(
     unsigned k;
     FASTCOVER_best_t best;
     POOL_ctx *pool = NULL;
-    /* convert to ZDICT_cover_params_t */
-    FASTCOVER_convertToCoverParams(*parameters, &coverParams);
     /* Checks */
     if (splitPoint <= 0 || splitPoint > 1) {
       LOCALDISPLAYLEVEL(displayLevel, 1, "Incorrect splitPoint\n");

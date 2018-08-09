@@ -300,10 +300,9 @@ const char* g_stratName[ZSTD_btultra+1] = {
 static int
 BMK_benchParam1(BMK_result_t* resultPtr,
                const void* srcBuffer, size_t srcSize,
-               ZSTD_CCtx* ctx, ZSTD_DCtx* dctx, 
                const ZSTD_compressionParameters cParams) {
 
-    BMK_return_t res = BMK_benchMem(srcBuffer,srcSize, &srcSize, 1, 0, &cParams, NULL, 0, ctx, dctx, 0, "File");
+    BMK_return_t res = BMK_benchMem(srcBuffer,srcSize, &srcSize, 1, 0, &cParams, NULL, 0, 0, "File");
     *resultPtr = res.result;
     return res.error;
 }
@@ -352,7 +351,7 @@ static int
 BMK_benchParam(BMK_result_t* resultPtr,
                 const buffers_t buf, const contexts_t ctx,
                 const ZSTD_compressionParameters cParams) {
-    BMK_return_t res = BMK_benchMem(buf.srcPtrs[0], buf.srcSize, buf.srcSizes, (unsigned)buf.nbBlocks, 0, &cParams, ctx.dictBuffer, ctx.dictSize, ctx.cctx, ctx.dctx, 0, "Files");
+    BMK_return_t res = BMK_benchMem(buf.srcPtrs[0], buf.srcSize, buf.srcSizes, (unsigned)buf.nbBlocks, 0, &cParams, ctx.dictBuffer, ctx.dictSize, 0, "Files");
     *resultPtr = res.result;
     return res.error;
 }
@@ -724,14 +723,13 @@ static void BMK_init_level_constraints(int bytePerSec_level1)
 }
 
 static int BMK_seed(winnerInfo_t* winners, const ZSTD_compressionParameters params,
-              const void* srcBuffer, size_t srcSize,
-                    ZSTD_CCtx* ctx, ZSTD_DCtx* dctx)
+              const void* srcBuffer, size_t srcSize)
 {
     BMK_result_t testResult;
     int better = 0;
     int cLevel;
 
-    BMK_benchParam1(&testResult, srcBuffer, srcSize, ctx, dctx, params);
+    BMK_benchParam1(&testResult, srcBuffer, srcSize, params);
 
 
     for (cLevel = 1; cLevel <= NB_LEVELS_TRACKED; cLevel++) {
@@ -1104,8 +1102,7 @@ static BYTE* NB_TESTS_PLAYED(ZSTD_compressionParameters p) {
 
 static void playAround(FILE* f, winnerInfo_t* winners,
                        ZSTD_compressionParameters params,
-                       const void* srcBuffer, size_t srcSize,
-                       ZSTD_CCtx* ctx, ZSTD_DCtx* dctx)
+                       const void* srcBuffer, size_t srcSize)
 {
     int nbVariations = 0;
     UTIL_time_t const clockStart = UTIL_getTime();
@@ -1126,11 +1123,11 @@ static void playAround(FILE* f, winnerInfo_t* winners,
         /* test */
         b = NB_TESTS_PLAYED(p);
         (*b)++;
-        if (!BMK_seed(winners, p, srcBuffer, srcSize, ctx, dctx)) continue;
+        if (!BMK_seed(winners, p, srcBuffer, srcSize)) continue;
 
         /* improvement found => search more */
         BMK_printWinners(f, winners, srcSize);
-        playAround(f, winners, p, srcBuffer, srcSize, ctx, dctx);
+        playAround(f, winners, p, srcBuffer, srcSize);
     }
 
 }
@@ -1177,31 +1174,30 @@ static void randomConstrainedParams(ZSTD_compressionParameters* pc, varInds_t* v
 
 static void BMK_selectRandomStart(
                        FILE* f, winnerInfo_t* winners,
-                       const void* srcBuffer, size_t srcSize,
-                       ZSTD_CCtx* ctx, ZSTD_DCtx* dctx)
+                       const void* srcBuffer, size_t srcSize)
 {
     U32 const id = FUZ_rand(&g_rand) % (NB_LEVELS_TRACKED+1);
     if ((id==0) || (winners[id].params.windowLog==0)) {
         /* use some random entry */
         ZSTD_compressionParameters const p = ZSTD_adjustCParams(randomParams(), srcSize, 0);
-        playAround(f, winners, p, srcBuffer, srcSize, ctx, dctx);
+        playAround(f, winners, p, srcBuffer, srcSize);
     } else {
-        playAround(f, winners, winners[id].params, srcBuffer, srcSize, ctx, dctx);
+        playAround(f, winners, winners[id].params, srcBuffer, srcSize);
     }
 }
 
 
-static void BMK_benchOnce(ZSTD_CCtx* cctx, ZSTD_DCtx* dctx, const void* srcBuffer, size_t srcSize)
+static void BMK_benchOnce(const void* srcBuffer, size_t srcSize)
 {
     BMK_result_t testResult;
     g_params = ZSTD_adjustCParams(g_params, srcSize, 0);
-    BMK_benchParam1(&testResult, srcBuffer, srcSize, cctx, dctx, g_params);
+    BMK_benchParam1(&testResult, srcBuffer, srcSize, g_params);
     DISPLAY("Compression Ratio: %.3f  Compress Speed: %.1f MB/s Decompress Speed: %.1f MB/s\n", (double)srcSize / testResult.cSize, 
         (double)testResult.cSpeed / 1000000, (double)testResult.dSpeed / 1000000);
     return;
 }
 
-static void BMK_benchFullTable(ZSTD_CCtx* cctx, ZSTD_DCtx* dctx, const void* srcBuffer, size_t srcSize)
+static void BMK_benchFullTable(const void* srcBuffer, size_t srcSize)
 {
     ZSTD_compressionParameters params;
     winnerInfo_t winners[NB_LEVELS_TRACKED+1];
@@ -1220,7 +1216,7 @@ static void BMK_benchFullTable(ZSTD_CCtx* cctx, ZSTD_DCtx* dctx, const void* src
         /* baseline config for level 1 */
         ZSTD_compressionParameters const l1params = ZSTD_getCParams(1, blockSize, 0);
         BMK_result_t testResult;
-        BMK_benchParam1(&testResult, srcBuffer, srcSize, cctx, dctx, l1params);
+        BMK_benchParam1(&testResult, srcBuffer, srcSize, l1params);
         BMK_init_level_constraints((int)((testResult.cSpeed * 31) / 32));
     }
 
@@ -1229,14 +1225,14 @@ static void BMK_benchFullTable(ZSTD_CCtx* cctx, ZSTD_DCtx* dctx, const void* src
         int i;
         for (i=0; i<=maxSeeds; i++) {
             params = ZSTD_getCParams(i, blockSize, 0);
-            BMK_seed(winners, params, srcBuffer, srcSize, cctx, dctx);
+            BMK_seed(winners, params, srcBuffer, srcSize);
     }   }
     BMK_printWinners(f, winners, srcSize);
 
     /* start tests */
     {   const time_t grillStart = time(NULL);
         do {
-            BMK_selectRandomStart(f, winners, srcBuffer, srcSize, cctx, dctx);
+            BMK_selectRandomStart(f, winners, srcBuffer, srcSize);
         } while (BMK_timeSpan(grillStart) < g_grillDuration_s);
     }
 
@@ -1248,21 +1244,12 @@ static void BMK_benchFullTable(ZSTD_CCtx* cctx, ZSTD_DCtx* dctx, const void* src
     fclose(f);
 }
 
-static void BMK_benchMem_usingCCtx(ZSTD_CCtx* const cctx, ZSTD_DCtx* const dctx, const void* srcBuffer, size_t srcSize)
+static void BMK_benchMemInit(const void* srcBuffer, size_t srcSize)
 {
     if (g_singleRun)
-        return BMK_benchOnce(cctx, dctx, srcBuffer, srcSize);
+        return BMK_benchOnce(srcBuffer, srcSize);
     else
-        return BMK_benchFullTable(cctx, dctx, srcBuffer, srcSize);
-}
-
-static void BMK_benchMemCCtxInit(const void* srcBuffer, size_t srcSize)
-{
-    ZSTD_CCtx* const cctx = ZSTD_createCCtx();
-    ZSTD_DCtx* const dctx = ZSTD_createDCtx();
-    if (cctx==NULL || dctx==NULL) { DISPLAY("Context Creation failed \n"); exit(1); }
-    BMK_benchMem_usingCCtx(cctx, dctx, srcBuffer, srcSize);
-    ZSTD_freeCCtx(cctx);
+        return BMK_benchFullTable(srcBuffer, srcSize);
 }
 
 
@@ -1280,7 +1267,7 @@ static int benchSample(void)
     /* bench */
     DISPLAY("\r%79s\r", "");
     DISPLAY("using %s %i%%: \n", name, (int)(g_compressibility*100));
-    BMK_benchMemCCtxInit(origBuff, benchedSize);
+    BMK_benchMemInit(origBuff, benchedSize);
 
     free(origBuff);
     return 0;
@@ -1338,7 +1325,7 @@ int benchFiles(const char** fileNamesTable, int nbFiles)
         /* bench */
         DISPLAY("\r%79s\r", "");
         DISPLAY("using %s : \n", inFileName);
-        BMK_benchMemCCtxInit(origBuff, benchedSize);
+        BMK_benchMemInit(origBuff, benchedSize);
 
         /* clean */
         free(origBuff);

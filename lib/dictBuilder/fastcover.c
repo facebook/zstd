@@ -167,23 +167,6 @@ static COVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
   }
 
   {
-    /* Trim off the zero frequency head and tail from the segment. */
-    U32 newBegin = bestSegment.end;
-    U32 newEnd = bestSegment.begin;
-    U32 pos;
-    for (pos = bestSegment.begin; pos != bestSegment.end; ++pos) {
-      const size_t index = FASTCOVER_hashPtrToIndex(ctx->samples + pos, f, ctx->d);
-      U32 freq = freqs[index];
-      if (freq != 0) {
-        newBegin = MIN(newBegin, pos);
-        newEnd = pos + 1;
-      }
-    }
-    bestSegment.begin = newBegin;
-    bestSegment.end = newEnd;
-
-  }
-  {
     /*  Zero the frequency of hash value of each dmer covered by the chosen segment. */
     U32 pos;
     for (pos = bestSegment.begin; pos != bestSegment.end; ++pos) {

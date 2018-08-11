@@ -236,13 +236,14 @@ static void FASTCOVER_ctx_destroy(FASTCOVER_ctx_t *ctx) {
  * Calculate for frequency of hash value of each dmer in ctx->samples
  */
 static void FASTCOVER_computeFrequency(U32 *freqs, unsigned f, FASTCOVER_ctx_t *ctx){
+  const unsigned readLength = MAX(ctx->d, 8);
   size_t start; /* start of current dmer */
   size_t i;
   for (i = 0; i < ctx->nbTrainSamples; i++) {
     size_t currSampleStart = ctx->offsets[i];
     size_t currSampleEnd = ctx->offsets[i+1];
     start = currSampleStart;
-    while (start + ctx->d <= currSampleEnd) {
+    while (start + readLength <= currSampleEnd) {
       const size_t dmerIndex = FASTCOVER_hashPtrToIndex(ctx->samples + start, f, ctx->d);
       freqs[dmerIndex]++;
       start++;

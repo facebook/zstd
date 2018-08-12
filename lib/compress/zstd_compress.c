@@ -3704,6 +3704,7 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
               || (endOp == ZSTD_e_end && flushMin == 0) ) { /* compression completed */
                 ZSTD_CCtx_reset(cctx);
             }
+            DEBUGLOG(5, "completed ZSTD_compress_generic delegating to ZSTDMT_compressStream_generic");
             return flushMin;
     }   }
 #endif

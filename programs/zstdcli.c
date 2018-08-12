@@ -135,6 +135,7 @@ static int usage_advanced(const char* programName)
 #ifndef ZSTD_NOCOMPRESS
     DISPLAY( "--ultra : enable levels beyond %i, up to %i (requires more memory)\n", ZSTDCLI_CLEVEL_MAX, ZSTD_maxCLevel());
     DISPLAY( "--long[=#]: enable long distance matching with given window log (default: %u)\n", g_defaultMaxWindowLog);
+    DISPLAY( "--adapt : automatically adapt compression level to I/O conditions \n");
     DISPLAY( "--fast[=#]: switch to ultra fast compression level (default: %u)\n", 1);
 #ifdef ZSTD_MULTITHREAD
     DISPLAY( " -T#    : spawns # compression threads (default: 1, 0==# cores) \n");
@@ -395,6 +396,7 @@ int main(int argCount, const char* argv[])
         ldmFlag = 0,
         main_pause = 0,
         nbWorkers = 0,
+        adapt = 0,
         nextArgumentIsOutFileName = 0,
         nextArgumentIsMaxDict = 0,
         nextArgumentIsDictID = 0,
@@ -511,6 +513,7 @@ int main(int argCount, const char* argv[])
                     if (!strcmp(argument, "--keep")) { FIO_setRemoveSrcFile(0); continue; }
                     if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(1); continue; }
                     if (!strcmp(argument, "--priority=rt")) { setRealTimePrio = 1; continue; }
+                    if (!strcmp(argument, "--adapt")) { adapt = 1; continue; }
                     if (!strcmp(argument, "--single-thread")) { nbWorkers = 0; singleThread = 1; continue; }
                     if (!strcmp(argument, "--format=zstd")) { suffix = ZSTD_EXTENSION; FIO_setCompressionType(FIO_zstdCompression); continue; }
 #ifdef ZSTD_GZCOMPRESS
@@ -935,17 +938,14 @@ int main(int argCount, const char* argv[])
 #ifndef ZSTD_NOCOMPRESS
         FIO_setNbWorkers(nbWorkers);
         FIO_setBlockSize((U32)blockSize);
+        if (g_overlapLog!=OVERLAP_LOG_DEFAULT) FIO_setOverlapLog(g_overlapLog);
         FIO_setLdmFlag(ldmFlag);
         FIO_setLdmHashLog(g_ldmHashLog);
         FIO_setLdmMinMatch(g_ldmMinMatch);
-        if (g_ldmBucketSizeLog != LDM_PARAM_DEFAULT) {
-            FIO_setLdmBucketSizeLog(g_ldmBucketSizeLog);
-        }
-        if (g_ldmHashEveryLog != LDM_PARAM_DEFAULT) {
-            FIO_setLdmHashEveryLog(g_ldmHashEveryLog);
-        }
+        if (g_ldmBucketSizeLog != LDM_PARAM_DEFAULT) FIO_setLdmBucketSizeLog(g_ldmBucketSizeLog);
+        if (g_ldmHashEveryLog != LDM_PARAM_DEFAULT) FIO_setLdmHashEveryLog(g_ldmHashEveryLog);
+        FIO_setAdaptiveMode(adapt);
 
-        if (g_overlapLog!=OVERLAP_LOG_DEFAULT) FIO_setOverlapLog(g_overlapLog);
         if ((filenameIdx==1) && outFileName)
           operationResult = FIO_compressFilename(outFileName, filenameTable[0], dictFileName, cLevel, &compressionParams);
         else

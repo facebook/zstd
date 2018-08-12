@@ -226,6 +226,8 @@ void FIO_setOverlapLog(unsigned overlapLog){
         DISPLAYLEVEL(2, "Setting overlapLog is useless in single-thread mode \n");
     g_overlapLog = overlapLog;
 }
+static U32 g_adaptiveMode = 0;
+void FIO_setAdaptiveMode(unsigned adapt) { g_adaptiveMode = adapt; }
 static U32 g_ldmFlag = 0;
 void FIO_setLdmFlag(unsigned ldmFlag) {
     g_ldmFlag = (ldmFlag>0);
@@ -738,12 +740,12 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
     U64 compressedfilesize = 0;
     ZSTD_EndDirective directive = ZSTD_e_continue;
 
+    /* stats */
     typedef enum { noChange, slower, faster } speedChange_e;
     speedChange_e speedChange = noChange;
+    unsigned inputPresented = 0;
     unsigned inputBlocked = 0;
     unsigned lastJobID = 0;
-    unsigned long long lastProduced = 0;
-    unsigned long long lastFlushedSize = 0;
 
     DISPLAYLEVEL(6, "compression using zstd format \n");
 
@@ -774,6 +776,7 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
             CHECK_V(stillToFlush, ZSTD_compress_generic(ress.cctx, &outBuff, &inBuff, directive));
 
             /* count stats */
+            inputPresented++;
             if (oldIPos == inBuff.pos) inputBlocked++;
 
             /* Write compressed stream */
@@ -792,41 +795,74 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
                 double const cShare = (double)zfp.produced / (zfp.consumed + !zfp.consumed/*avoid div0*/) * 100;
 
                 /* check output speed */
-                if (zfp.currentJobID > 0) {
-                    unsigned long long newlyProduced = zfp.produced - lastProduced;
+                if (zfp.currentJobID > 1) {
+                    static ZSTD_frameProgression cpszfp = { 0, 0, 0, 0 };
+                    static unsigned long long lastFlushedSize = 0;
+
+                    unsigned long long newlyProduced = zfp.produced - cpszfp.produced;
                     unsigned long long newlyFlushed = compressedfilesize - lastFlushedSize;
-                    assert(zfp.produced >= lastProduced);
-                    if (newlyProduced == 0) {
-                        DISPLAYLEVEL(6, "no more data compression generation => buffers are full, compression waiting => output (or input) too slow \n")
+                    assert(zfp.produced >= cpszfp.produced);
+
+                    if ( (zfp.ingested == cpszfp.ingested)
+                      && (zfp.consumed == cpszfp.consumed) ) {
+                        DISPLAYLEVEL(6, "no data read nor consumed : buffers are full (?) or compression is slow + input has reached its limit. If buffers full : output is too slow => slow down \n")
                         speedChange = slower;
                     }
 
                     if ( (newlyProduced > (newlyFlushed * 9 / 8))
                       && (stillToFlush > ZSTD_BLOCKSIZE_MAX) ) {
-                        DISPLAYLEVEL(6, "production faster than flushing (%llu > %llu) \n", newlyProduced, newlyFlushed);
+                        DISPLAYLEVEL(6, "production faster than flushing (%llu > %llu) but there is still %u bytes to flush => slow down \n", newlyProduced, newlyFlushed, (U32)stillToFlush);
                         speedChange = slower;
                     }
-                    lastProduced = zfp.produced;
+                    cpszfp = zfp;
                     lastFlushedSize = compressedfilesize;
                 }
 
-                /* course correct only if there is at least one job completed */
+                /* course correct only if there is at least one new job completed */
                 if (zfp.currentJobID > lastJobID) {
                     DISPLAYLEVEL(6, "compression level adaptation check \n")
 
                     /* check input speed */
                     if (zfp.currentJobID > g_nbWorkers+1) {   /* warm up period, to fill all workers */
-                        if (inputBlocked <= 1) {   /* small tolerance */
+                        if (inputBlocked <= 0) {
                             DISPLAYLEVEL(6, "input is never blocked => input is too slow \n");
                             speedChange = slower;
+                        } else if (speedChange == noChange) {
+                            static ZSTD_frameProgression csuzfp = { 0, 0, 0, 0 };
+                            static unsigned long long lastFlushedSize = 0;
+                            unsigned long long newlyIngested = zfp.ingested - csuzfp.ingested;
+                            unsigned long long newlyConsumed = zfp.consumed - csuzfp.consumed;
+                            unsigned long long newlyProduced = zfp.produced - csuzfp.produced;
+                            unsigned long long newlyFlushed = compressedfilesize - lastFlushedSize;
+                            csuzfp = zfp;
+                            lastFlushedSize = compressedfilesize;
+                            assert(inputPresented > 0);
+                            if ( (inputBlocked > inputPresented / 8)     /* input is waiting often, because input buffers is full : compression or output too slow */
+                              && (newlyFlushed * 17 / 16 > newlyProduced)  /* flush everything that is produced */
+                              && (newlyIngested * 17 / 16 > newlyConsumed) /* can't keep up with input speed */
+                            ) {
+                                DISPLAYLEVEL(6, "recommend faster as in(%llu) >= (%llu)comp(%llu) <= out(%llu) \n",
+                                                newlyIngested, newlyConsumed, newlyProduced, newlyFlushed);
+                                speedChange = faster;
+                            }
                         }
                         inputBlocked = 0;
+                        inputPresented = 0;
                     }
 
-                    if (speedChange == slower) {
-                        DISPLAYLEVEL(6, "slower speed , higher compression \n")
-                        compressionLevel ++;
-                        ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionLevel, (unsigned)compressionLevel);
+                    if (g_adaptiveMode) {
+                        if (speedChange == slower) {
+                            DISPLAYLEVEL(6, "slower speed , higher compression \n")
+                            compressionLevel ++;
+                            compressionLevel += (compressionLevel == 0);   /* skip 0 */
+                            ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionLevel, (unsigned)compressionLevel);
+                        }
+                        if (speedChange == faster) {
+                            DISPLAYLEVEL(6, "slower speed , higher compression \n")
+                            compressionLevel --;
+                            compressionLevel -= (compressionLevel == 0);   /* skip 0 */
+                            ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionLevel, (unsigned)compressionLevel);
+                        }
                         speedChange = noChange;
                     }
                     lastJobID = zfp.currentJobID;

@@ -249,8 +249,8 @@ static buffer_t ZSTDMT_resizeBuffer(ZSTDMT_bufferPool* bufPool, buffer_t buffer)
 /* store buffer for later re-use, up to pool capacity */
 static void ZSTDMT_releaseBuffer(ZSTDMT_bufferPool* bufPool, buffer_t buf)
 {
-    if (buf.start == NULL) return;   /* compatible with release on NULL */
     DEBUGLOG(5, "ZSTDMT_releaseBuffer");
+    if (buf.start == NULL) return;   /* compatible with release on NULL */
     ZSTD_pthread_mutex_lock(&bufPool->poolMutex);
     if (bufPool->nbBuffers < bufPool->totalBuffers) {
         bufPool->bTable[bufPool->nbBuffers++] = buf;  /* stored for later use */
@@ -541,6 +541,7 @@ static void ZSTDMT_serialState_update(serialState_t* serialState,
     /* Wait for our turn */
     ZSTD_PTHREAD_MUTEX_LOCK(&serialState->mutex);
     while (serialState->nextJobID < jobID) {
+        DEBUGLOG(5, "wait for serialState->cond");
         ZSTD_pthread_cond_wait(&serialState->cond, &serialState->mutex);
     }
     /* A future job may error and skip our job */
@@ -932,7 +933,7 @@ static void ZSTDMT_waitForAllJobsCompleted(ZSTDMT_CCtx* mtctx)
         unsigned const jobID = mtctx->doneJobID & mtctx->jobIDMask;
         ZSTD_PTHREAD_MUTEX_LOCK(&mtctx->jobs[jobID].job_mutex);
         while (mtctx->jobs[jobID].consumed < mtctx->jobs[jobID].src.size) {
-            DEBUGLOG(5, "waiting for jobCompleted signal from job %u", mtctx->doneJobID);   /* we want to block when waiting for data to flush */
+            DEBUGLOG(4, "waiting for jobCompleted signal from job %u", mtctx->doneJobID);   /* we want to block when waiting for data to flush */
             ZSTD_pthread_cond_wait(&mtctx->jobs[jobID].job_cond, &mtctx->jobs[jobID].job_mutex);
         }
         ZSTD_pthread_mutex_unlock(&mtctx->jobs[jobID].job_mutex);
@@ -1079,7 +1080,7 @@ void ZSTDMT_updateCParams_whileCompressing(ZSTDMT_CCtx* mtctx, const ZSTD_CCtx_p
 ZSTD_frameProgression ZSTDMT_getFrameProgression(ZSTDMT_CCtx* mtctx)
 {
     ZSTD_frameProgression fps;
-    DEBUGLOG(6, "ZSTDMT_getFrameProgression");
+    DEBUGLOG(5, "ZSTDMT_getFrameProgression");
     fps.ingested = mtctx->consumed + mtctx->inBuff.filled;
     fps.consumed = mtctx->consumed;
     fps.produced = mtctx->produced;
@@ -1100,6 +1101,7 @@ ZSTD_frameProgression ZSTDMT_getFrameProgression(ZSTDMT_CCtx* mtctx)
             ZSTD_pthread_mutex_unlock(&mtctx->jobs[wJobID].job_mutex);
         }
     }
+    DEBUGLOG(5, "ZSTDMT_getFrameProgression : completed");
     return fps;
 }
 
@@ -1576,7 +1578,7 @@ static size_t ZSTDMT_flushProduced(ZSTDMT_CCtx* mtctx, ZSTD_outBuffer* output, u
     /* try to flush something */
     {   size_t cSize = mtctx->jobs[wJobID].cSize;                  /* shared */
         size_t const srcConsumed = mtctx->jobs[wJobID].consumed;   /* shared */
-        size_t const srcSize = mtctx->jobs[wJobID].src.size;        /* read-only, could be done after mutex lock, but no-declaration-after-statement */
+        size_t const srcSize = mtctx->jobs[wJobID].src.size;       /* read-only, could be done after mutex lock, but no-declaration-after-statement */
         ZSTD_pthread_mutex_unlock(&mtctx->jobs[wJobID].job_mutex);
         if (ZSTD_isError(cSize)) {
             DEBUGLOG(5, "ZSTDMT_flushProduced: job %u : compression error detected : %s",
@@ -1615,6 +1617,7 @@ static size_t ZSTDMT_flushProduced(ZSTDMT_CCtx* mtctx, ZSTD_outBuffer* output, u
                 DEBUGLOG(5, "Job %u completed (%u bytes), moving to next one",
                         mtctx->doneJobID, (U32)mtctx->jobs[wJobID].dstFlushed);
                 ZSTDMT_releaseBuffer(mtctx->bufPool, mtctx->jobs[wJobID].dstBuff);
+                DEBUGLOG(5, "dstBuffer released")
                 mtctx->jobs[wJobID].dstBuff = g_nullBuffer;
                 mtctx->jobs[wJobID].cSize = 0;   /* ensure this job slot is considered "not started" in future check */
                 mtctx->consumed += srcSize;
@@ -1691,6 +1694,7 @@ static int ZSTDMT_doesOverlapWindow(buffer_t buffer, ZSTD_window_t window)
     range_t extDict;
     range_t prefix;
 
+    DEBUGLOG(5, "ZSTDMT_doesOverlapWindow");
     extDict.start = window.dictBase + window.lowLimit;
     extDict.size = window.dictLimit - window.lowLimit;
 
@@ -1711,12 +1715,13 @@ static void ZSTDMT_waitForLdmComplete(ZSTDMT_CCtx* mtctx, buffer_t buffer)
 {
     if (mtctx->params.ldmParams.enableLdm) {
         ZSTD_pthread_mutex_t* mutex = &mtctx->serial.ldmWindowMutex;
+        DEBUGLOG(5, "ZSTDMT_waitForLdmComplete");
         DEBUGLOG(5, "source  [0x%zx, 0x%zx)",
                     (size_t)buffer.start,
                     (size_t)buffer.start + buffer.capacity);
         ZSTD_PTHREAD_MUTEX_LOCK(mutex);
         while (ZSTDMT_doesOverlapWindow(buffer, mtctx->serial.ldmWindow)) {
-            DEBUGLOG(6, "Waiting for LDM to finish...");
+            DEBUGLOG(5, "Waiting for LDM to finish...");
             ZSTD_pthread_cond_wait(&mtctx->serial.ldmWindowCond, mutex);
         }
         DEBUGLOG(6, "Done waiting for LDM to finish");
@@ -1736,6 +1741,7 @@ static int ZSTDMT_tryGetInputRange(ZSTDMT_CCtx* mtctx)
     size_t const target = mtctx->targetSectionSize;
     buffer_t buffer;
 
+    DEBUGLOG(5, "ZSTDMT_tryGetInputRange");
     assert(mtctx->inBuff.buffer.start == NULL);
     assert(mtctx->roundBuff.capacity >= target);
 
@@ -1749,7 +1755,7 @@ static int ZSTDMT_tryGetInputRange(ZSTDMT_CCtx* mtctx)
         buffer.start = start;
         buffer.capacity = prefixSize;
         if (ZSTDMT_isOverlapped(buffer, inUse)) {
-            DEBUGLOG(6, "Waiting for buffer...");
+            DEBUGLOG(5, "Waiting for buffer...");
             return 0;
         }
         ZSTDMT_waitForLdmComplete(mtctx, buffer);
@@ -1761,7 +1767,7 @@ static int ZSTDMT_tryGetInputRange(ZSTDMT_CCtx* mtctx)
     buffer.capacity = target;
 
     if (ZSTDMT_isOverlapped(buffer, inUse)) {
-        DEBUGLOG(6, "Waiting for buffer...");
+        DEBUGLOG(5, "Waiting for buffer...");
         return 0;
     }
     assert(!ZSTDMT_isOverlapped(buffer, mtctx->inBuff.prefix));
@@ -1834,8 +1840,10 @@ size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
                 /* It is only possible for this operation to fail if there are
                  * still compression jobs ongoing.
                  */
+                DEBUGLOG(5, "ZSTDMT_tryGetInputRange failed")
                 assert(mtctx->doneJobID != mtctx->nextJobID);
-            }
+            } else
+                DEBUGLOG(5, "ZSTDMT_tryGetInputRange completed successfully : mtctx->inBuff.buffer.start = %p", mtctx->inBuff.buffer.start);
         }
         if (mtctx->inBuff.buffer.start != NULL) {
             size_t const toLoad = MIN(input->size - input->pos, mtctx->targetSectionSize - mtctx->inBuff.filled);
@@ -1863,6 +1871,7 @@ size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
     /* check for potential compressed data ready to be flushed */
     {   size_t const remainingToFlush = ZSTDMT_flushProduced(mtctx, output, !forwardInputProgress, endOp); /* block if there was no forward input progress */
         if (input->pos < input->size) return MAX(remainingToFlush, 1);  /* input not consumed : do not end flush yet */
+        DEBUGLOG(5, "end of ZSTDMT_compressStream_generic: remainingToFlush = %u", (U32)remainingToFlush);
         return remainingToFlush;
     }
 }

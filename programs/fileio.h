@@ -57,6 +57,7 @@ void FIO_setMemLimit(unsigned memLimit);
 void FIO_setNbWorkers(unsigned nbWorkers);
 void FIO_setBlockSize(unsigned blockSize);
 void FIO_setOverlapLog(unsigned overlapLog);
+void FIO_setAdaptiveMode(unsigned adapt);
 void FIO_setLdmFlag(unsigned ldmFlag);
 void FIO_setLdmHashLog(unsigned ldmHashLog);
 void FIO_setLdmMinMatch(unsigned ldmMinMatch);

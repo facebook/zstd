@@ -23,20 +23,26 @@ rate *= 1.4   # compensation for excluding i/o time (experimentally determined)
 start = time.time()
 total_read = 0
 
-buf = " "
-while len(buf):
-  now = time.time()
-  to_read = max(int(rate * (now - start) - total_read), 1)
-  max_buf_size = 1 * MB
-  to_read = min(to_read, max_buf_size)
+sys.stderr.close()  # remove error message, for Ctrl+C
 
-  read_start = time.time()
-  buf = sys.stdin.buffer.read(to_read)
+try:
+  buf = " "
+  while len(buf):
+    now = time.time()
+    to_read = max(int(rate * (now - start) - total_read), 1)
+    max_buf_size = 1 * MB
+    to_read = min(to_read, max_buf_size)
 
-  write_start = read_end = time.time()
-  sys.stdout.buffer.write(buf)
-  write_end = time.time()
+    read_start = time.time()
+    buf = sys.stdin.buffer.read(to_read)
 
-  wait_time = max(read_end - read_start, write_end - write_start)
-  start += wait_time   # exclude delay of the slowest
-  total_read += len(buf)
+    write_start = read_end = time.time()
+    sys.stdout.buffer.write(buf)
+    write_end = time.time()
+
+    wait_time = max(read_end - read_start, write_end - write_start)
+    start += wait_time   # exclude delay of the slowest
+    total_read += len(buf)
+
+except (KeyboardInterrupt, BrokenPipeError) as e:
+    pass

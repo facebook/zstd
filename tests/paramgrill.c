@@ -65,6 +65,7 @@ static const int g_maxNbVariations = 64;
 #define MIN(a,b)   ( (a) < (b) ? (a) : (b) )
 #define MAX(a,b)   ( (a) > (b) ? (a) : (b) )
 #define CUSTOM_LEVEL 99
+#define BASE_CLEVEL 1
 
 /* indices for each of the variables */
 typedef enum {
@@ -112,7 +113,7 @@ static U32 g_singleRun = 0;
 static U32 g_optimizer = 0;
 static U32 g_target = 0;
 static U32 g_noSeed = 0;
-static ZSTD_compressionParameters g_params;
+static ZSTD_compressionParameters g_params; /* Initialized at the beginning of main w/ emptyParams() function */
 static UTIL_time_t g_time; /* to be used to compare solution finding speeds to compare to original */
 
 
@@ -523,6 +524,7 @@ static void freeBuffers(const buffers_t b) {
         free(b.resPtrs[0]);
     }
     free(b.resPtrs);
+    free(b.resSizes);
 }
 
 /* allocates buffer's arguments. returns success / failuere */
@@ -532,7 +534,7 @@ static int createBuffers(buffers_t* buff, const char* const * const fileNamesTab
     size_t pos = 0;
     size_t n;
     U64 const totalSizeToLoad = UTIL_getTotalFileSize(fileNamesTable, (U32)nbFiles);
-    size_t benchedSize = MIN(BMK_findMaxMem(totalSizeToLoad * 3) / 3, totalSizeToLoad);
+    const size_t benchedSize = MIN(BMK_findMaxMem(totalSizeToLoad * 3) / 3, totalSizeToLoad);
     const size_t blockSize = g_blockSize ? g_blockSize : totalSizeToLoad;
     U32 const maxNbBlocks = (U32) ((totalSizeToLoad + (blockSize-1)) / blockSize) + (U32)nbFiles;
     U32 blockNb = 0;
@@ -671,6 +673,7 @@ static int createContexts(contexts_t* ctx, const char* dictFileName) {
         freeContexts(*ctx);
         return 1;
     }
+    fclose(f);
     return 0;
 }
 
@@ -824,7 +827,7 @@ static BMK_return_t BMK_benchMemInvertible(const buffers_t buf, const contexts_t
 static int BMK_benchParam(BMK_result_t* resultPtr,
                 buffers_t buf, contexts_t ctx,
                 const ZSTD_compressionParameters cParams) {
-    BMK_return_t res = BMK_benchMemInvertible(buf, ctx, 0, &cParams, BMK_both, BMK_timeMode, 3);
+    BMK_return_t res = BMK_benchMemInvertible(buf, ctx, BASE_CLEVEL, &cParams, BMK_both, BMK_timeMode, 3);
     *resultPtr = res.result;
     return res.error;
 }
@@ -840,16 +843,16 @@ static int BMK_benchParam(BMK_result_t* resultPtr,
 #define SIZE_RESULT 5
 /* maybe have epsilon-eq to limit table size? */
 static int speedSizeCompare(BMK_result_t r1, BMK_result_t r2) {
-    if(r1.cSpeed > r2.cSpeed) {
-        if(r1.cSize <= r2.cSize) {
-            return WORSE_RESULT;
-        }
-        return SIZE_RESULT; /* r2 is smaller but not faster. */
-    } else {
+    if(r1.cSpeed < r2.cSpeed) {
         if(r1.cSize >= r2.cSize) {
             return BETTER_RESULT;
         }
-        return SPEED_RESULT; /* r2 is faster but not smaller */
+        return SPEED_RESULT; /* r2 is smaller but not faster. */
+    } else {
+        if(r1.cSize <= r2.cSize) {
+            return WORSE_RESULT;
+        }
+        return SIZE_RESULT; /* r2 is faster but not smaller */
     }
 }
 
@@ -875,12 +878,12 @@ static int insertWinner(winnerInfo_t w, constraint_t targetConstraints) {
     }
 
     while(cur_node->next != NULL) {
-        switch(speedSizeCompare(r, cur_node->res.result)) {
-            case BETTER_RESULT:
+        switch(speedSizeCompare(cur_node->res.result, r)) {
+            case WORSE_RESULT:
             {
                 return 1; /* never insert if better */
             }
-            case WORSE_RESULT:
+            case BETTER_RESULT:
             {
                 winner_ll_node* tmp;
                 cur_node->res = cur_node->next->res;
@@ -889,12 +892,12 @@ static int insertWinner(winnerInfo_t w, constraint_t targetConstraints) {
                 free(tmp);
                 break; 
             }
-            case SPEED_RESULT:
+            case SIZE_RESULT:
             {
                 cur_node = cur_node->next;
                 break;
             }
-            case SIZE_RESULT: /* insert after first size result, then return */
+            case SPEED_RESULT: /* insert after first size result, then return */
             {
                 winner_ll_node* newnode = malloc(sizeof(winner_ll_node));
                 if(newnode == NULL) {
@@ -911,17 +914,17 @@ static int insertWinner(winnerInfo_t w, constraint_t targetConstraints) {
     }
 
     assert(cur_node->next == NULL);
-    switch(speedSizeCompare(r, cur_node->res.result)) {
-        case BETTER_RESULT:
+    switch(speedSizeCompare(cur_node->res.result, r)) {
+        case WORSE_RESULT:
         {
             return 1; /* never insert if better */
         }
-        case WORSE_RESULT:
+        case BETTER_RESULT:
         {
             cur_node->res = w;
             return 0;
         }
-        case SPEED_RESULT:
+        case SIZE_RESULT:
         {
             winner_ll_node* newnode = malloc(sizeof(winner_ll_node));
             if(newnode == NULL) {
@@ -932,7 +935,7 @@ static int insertWinner(winnerInfo_t w, constraint_t targetConstraints) {
             cur_node->next = newnode;
             return 0;
         }
-        case SIZE_RESULT: /* insert before first size result, then return */
+        case SPEED_RESULT: /* insert before first size result, then return */
         {
             winner_ll_node* newnode = malloc(sizeof(winner_ll_node));
             if(newnode == NULL) {
@@ -1448,7 +1451,7 @@ static void freeMemoTableArray(U8** mtAll) {
 /* takes unsanitized varyParams */
 static U8** createMemoTableArray(ZSTD_compressionParameters paramConstraints, constraint_t target, const varInds_t* varyParams, const int varyLen, const size_t srcSize) {
     varInds_t varNew[NUM_PARAMS];
-    U8** mtAll = calloc(sizeof(U8*),(ZSTD_btultra + 1));
+    U8** mtAll = (U8**)calloc(sizeof(U8*),(ZSTD_btultra + 1));
     int i;
     if(mtAll == NULL) {
         return NULL;
@@ -1467,7 +1470,7 @@ static U8** createMemoTableArray(ZSTD_compressionParameters paramConstraints, co
     return mtAll;
 }
 
-static ZSTD_compressionParameters maskParams(ZSTD_compressionParameters base, ZSTD_compressionParameters mask) {
+static ZSTD_compressionParameters overwriteParams(ZSTD_compressionParameters base, ZSTD_compressionParameters mask) {
     base.windowLog = mask.windowLog ? mask.windowLog : base.windowLog;
     base.chainLog = mask.chainLog ? mask.chainLog : base.chainLog;
     base.hashLog = mask.hashLog ? mask.hashLog : base.hashLog;
@@ -1744,7 +1747,7 @@ int benchFiles(const char** fileNamesTable, int nbFiles, const char* dictFileNam
         DISPLAY("using %d Files : \n", nbFiles);
     }
 
-    g_params = ZSTD_adjustCParams(maskParams(ZSTD_getCParams(cLevel, maxBlockSize, ctx.dictSize), g_params), maxBlockSize, ctx.dictSize);
+    g_params = ZSTD_adjustCParams(overwriteParams(ZSTD_getCParams(cLevel, maxBlockSize, ctx.dictSize), g_params), maxBlockSize, ctx.dictSize);
 
     if(g_singleRun) {
         ret = benchOnce(buf, ctx);
@@ -1771,7 +1774,7 @@ static int allBench(BMK_result_t* resultPtr,
     double winnerRS;
 
     /* initial benchmarking, gives exact ratio and memory, warms up future runs */
-    benchres = BMK_benchMemInvertible(buf, ctx, 0, &cParams, BMK_both, BMK_iterMode, 1);
+    benchres = BMK_benchMemInvertible(buf, ctx, BASE_CLEVEL, &cParams, BMK_both, BMK_iterMode, 1);
 
     winnerRS = resultScore(*winnerResult, buf.srcSize, target);
     DEBUGOUTPUT("WinnerScore: %f\n ", winnerRS);
@@ -1806,14 +1809,14 @@ static int allBench(BMK_result_t* resultPtr,
 
     /* second run, if first run is too short, gives approximate cSpeed + dSpeed */
     if(loopDurationC < TIMELOOP_NANOSEC / 10) {
-        BMK_return_t benchres2 = BMK_benchMemInvertible(buf, ctx, 0, &cParams, BMK_compressOnly, BMK_iterMode, 1);
+        BMK_return_t benchres2 = BMK_benchMemInvertible(buf, ctx, BASE_CLEVEL, &cParams, BMK_compressOnly, BMK_iterMode, 1);
         if(benchres2.error) {
             return ERROR_RESULT;
         }
         benchres = benchres2;
     }
     if(loopDurationD < TIMELOOP_NANOSEC / 10) {
-        BMK_return_t benchres2 = BMK_benchMemInvertible(buf, ctx, 0, &cParams, BMK_decodeOnly, BMK_iterMode, 1);
+        BMK_return_t benchres2 = BMK_benchMemInvertible(buf, ctx, BASE_CLEVEL, &cParams, BMK_decodeOnly, BMK_iterMode, 1);
         if(benchres2.error) {
             return ERROR_RESULT;
         }
@@ -1836,7 +1839,7 @@ static int allBench(BMK_result_t* resultPtr,
 
     /* Final full run if estimates are unclear */
     if(loopDurationC < TIMELOOP_NANOSEC) {
-        BMK_return_t benchres2 = BMK_benchMemInvertible(buf, ctx, 0, &cParams, BMK_compressOnly, BMK_timeMode, 1);
+        BMK_return_t benchres2 = BMK_benchMemInvertible(buf, ctx, BASE_CLEVEL, &cParams, BMK_compressOnly, BMK_timeMode, 1);
         if(benchres2.error) {
             return ERROR_RESULT;
         }
@@ -1844,7 +1847,7 @@ static int allBench(BMK_result_t* resultPtr,
     } 
 
     if(loopDurationD < TIMELOOP_NANOSEC) {
-        BMK_return_t benchres2 = BMK_benchMemInvertible(buf, ctx, 0, &cParams, BMK_decodeOnly, BMK_timeMode, 1);
+        BMK_return_t benchres2 = BMK_benchMemInvertible(buf, ctx, BASE_CLEVEL, &cParams, BMK_decodeOnly, BMK_timeMode, 1);
         if(benchres2.error) {
             return ERROR_RESULT;
         }
@@ -2245,7 +2248,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
                 int i;
                 for (i=1; i<=maxSeeds; i++) {
                     int ec;
-                    CParams = maskParams(ZSTD_getCParams(i, maxBlockSize, ctx.dictSize), paramTarget);
+                    CParams = overwriteParams(ZSTD_getCParams(i, maxBlockSize, ctx.dictSize), paramTarget);
                     ec = BMK_benchParam(&candidate, buf, ctx, CParams);
                     BMK_printWinnerOpt(stdout, i, candidate, CParams, target, buf.srcSize);
 
@@ -2439,11 +2442,11 @@ int main(int argc, const char** argv)
                 PARSE_SUB_ARGS("compressionSpeed=" ,  "cSpeed=", target.cSpeed);
                 PARSE_SUB_ARGS("decompressionSpeed=", "dSpeed=", target.dSpeed); 
                 PARSE_SUB_ARGS("compressionMemory=" , "cMem=", target.cMem);
-                PARSE_SUB_ARGS("level=", "lvl=", cLevel);
                 PARSE_SUB_ARGS("strict=", "stc=", g_strictness);
                 PARSE_SUB_ARGS("preferSpeed=", "prfSpd=", g_speedMultiplier);
                 PARSE_SUB_ARGS("preferRatio=", "prfRto=", g_ratioMultiplier);
                 PARSE_SUB_ARGS("maxTries=", "tries=", g_maxTries);
+                if (longCommandWArg(&argument, "level=") || longCommandWArg(&argument, "lvl=")) { cLevel = readU32FromChar(&argument); g_optmode = 1; if (argument[0]==',') { argument++; continue; } else break; }
 
                 DISPLAY("invalid optimization parameter \n");
                 return 1;

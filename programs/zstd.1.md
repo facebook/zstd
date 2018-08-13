@@ -139,6 +139,7 @@ the last one takes effect.
     The current compression level can be observed live by using command `-v`.
     Works with multi-threading and `--long` mode.
     Does not work with `--single-thread`.
+    Due to the chaotic nature of dynamic adaptation, compressed result is not reproducible.
 * `-D file`:
     use `file` as Dictionary to compress or decompress FILE(s)
 * `--no-dictID`:

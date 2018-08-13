@@ -837,9 +837,13 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
                             csuzfp = zfp;
                             lastFlushedSize = compressedfilesize;
                             assert(inputPresented > 0);
+                            DISPLAYLEVEL(6, "input blocked %u/%u(%.2f) - ingested:%u vs %u:consumed - flushed:%u vs %u:produced \n",
+                                            inputBlocked, inputPresented, (double)inputBlocked/inputPresented*100,
+                                            (U32)newlyIngested, (U32)newlyConsumed,
+                                            (U32)newlyFlushed, (U32)newlyProduced);
                             if ( (inputBlocked > inputPresented / 8)     /* input is waiting often, because input buffers is full : compression or output too slow */
-                              && (newlyFlushed * 17 / 16 > newlyProduced)  /* flush everything that is produced */
-                              && (newlyIngested * 17 / 16 > newlyConsumed) /* can't keep up with input speed */
+                              && (newlyFlushed * 33 / 32 > newlyProduced)  /* flush everything that is produced */
+                              && (newlyIngested * 33 / 32 > newlyConsumed) /* input speed as fast or faster than compression speed */
                             ) {
                                 DISPLAYLEVEL(6, "recommend faster as in(%llu) >= (%llu)comp(%llu) <= out(%llu) \n",
                                                 newlyIngested, newlyConsumed, newlyProduced, newlyFlushed);

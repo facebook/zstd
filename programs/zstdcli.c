@@ -947,9 +947,9 @@ int main(int argCount, const char* argv[])
         FIO_setAdaptiveMode(adapt);
 
         if ((filenameIdx==1) && outFileName)
-          operationResult = FIO_compressFilename(outFileName, filenameTable[0], dictFileName, cLevel, &compressionParams);
+          operationResult = FIO_compressFilename(outFileName, filenameTable[0], dictFileName, cLevel, compressionParams);
         else
-          operationResult = FIO_compressMultipleFilenames(filenameTable, filenameIdx, outFileName, suffix, dictFileName, cLevel, &compressionParams);
+          operationResult = FIO_compressMultipleFilenames(filenameTable, filenameIdx, outFileName, suffix, dictFileName, cLevel, compressionParams);
 #else
         (void)suffix;
         DISPLAY("Compression not supported\n");

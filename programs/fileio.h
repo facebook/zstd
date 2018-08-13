@@ -71,7 +71,7 @@ void FIO_setLdmHashEveryLog(unsigned ldmHashEveryLog);
 /** FIO_compressFilename() :
     @return : 0 == ok;  1 == pb with src file. */
 int FIO_compressFilename (const char* outfilename, const char* infilename, const char* dictFileName,
-                          int compressionLevel, ZSTD_compressionParameters* comprParams);
+                          int compressionLevel, ZSTD_compressionParameters comprParams);
 
 /** FIO_decompressFilename() :
     @return : 0 == ok;  1 == pb with src file. */
@@ -87,7 +87,7 @@ int FIO_listMultipleFiles(unsigned numFiles, const char** filenameTable, int dis
 int FIO_compressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles,
                                   const char* outFileName, const char* suffix,
                                   const char* dictFileName, int compressionLevel,
-                                  ZSTD_compressionParameters* comprParams);
+                                  ZSTD_compressionParameters comprParams);
 
 /** FIO_decompressMultipleFilenames() :
     @return : nb of missing or skipped files */

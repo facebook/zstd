@@ -406,7 +406,7 @@ typedef struct {
 
 static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
                                     U64 srcSize,
-                                    ZSTD_compressionParameters* comprParams) {
+                                    ZSTD_compressionParameters comprParams) {
     cRess_t ress;
     memset(&ress, 0, sizeof(ress));
 
@@ -443,13 +443,13 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_ldmHashEveryLog, g_ldmHashEveryLog) );
         }
         /* compression parameters */
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_windowLog, comprParams->windowLog) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_chainLog, comprParams->chainLog) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_hashLog, comprParams->hashLog) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_searchLog, comprParams->searchLog) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_minMatch, comprParams->searchLength) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_targetLength, comprParams->targetLength) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionStrategy, (U32)comprParams->strategy) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_windowLog, comprParams.windowLog) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_chainLog, comprParams.chainLog) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_hashLog, comprParams.hashLog) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_searchLog, comprParams.searchLog) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_minMatch, comprParams.searchLength) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_targetLength, comprParams.targetLength) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionStrategy, (U32)comprParams.strategy) );
         /* multi-threading */
 #ifdef ZSTD_MULTITHREAD
         DISPLAYLEVEL(5,"set nb workers = %u \n", g_nbWorkers);
@@ -1048,7 +1048,8 @@ static int FIO_compressFilename_dstFile(cRess_t ress,
 
 
 int FIO_compressFilename(const char* dstFileName, const char* srcFileName,
-                         const char* dictFileName, int compressionLevel, ZSTD_compressionParameters* comprParams)
+                         const char* dictFileName, int compressionLevel,
+                         ZSTD_compressionParameters comprParams)
 {
     clock_t const start = clock();
     U64 const fileSize = UTIL_getFileSize(srcFileName);
@@ -1068,7 +1069,7 @@ int FIO_compressFilename(const char* dstFileName, const char* srcFileName,
 int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFiles,
                                   const char* outFileName, const char* suffix,
                                   const char* dictFileName, int compressionLevel,
-                                  ZSTD_compressionParameters* comprParams)
+                                  ZSTD_compressionParameters comprParams)
 {
     int missed_files = 0;
     size_t dfnSize = FNSPACE;

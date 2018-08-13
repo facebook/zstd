@@ -599,6 +599,7 @@ size_t ZSTD_initCStream_usingCDict_advanced(ZSTD_CStream* zcs, const ZSTD_CDict*
     unsigned long long ingested;
     unsigned long long consumed;
     unsigned long long produced;
+    unsigned currentJobID;
 } ZSTD_frameProgression;
 </b></pre><BR>
 <h3>Advanced Streaming decompression functions</h3><pre></pre><b><pre>typedef enum { DStream_p_maxWindowSize } ZSTD_DStreamParameter_e;

@@ -71,6 +71,7 @@
 #define MB *(1<<20)
 #define GB *(1U<<30)
 
+#define ADAPT_WINDOWLOG_DEFAULT 23   /* 8 MB */
 #define DICTSIZE_MAX (32 MB)   /* protection against large input (attack scenario) */
 
 #define FNSPACE 30
@@ -426,6 +427,9 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
         size_t const dictBuffSize = FIO_createDictBuffer(&dictBuffer, dictFileName);   /* works with dictFileName==NULL */
         if (dictFileName && (dictBuffer==NULL))
             EXM_THROW(32, "allocation error : can't create dictBuffer");
+
+        if (g_adaptiveMode && !g_ldmFlag && !comprParams.windowLog)
+            comprParams.windowLog = ADAPT_WINDOWLOG_DEFAULT;
 
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_contentSizeFlag, 1) );  /* always enable content size when available (note: supposed to be default) */
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_dictIDFlag, g_dictIDFlag) );

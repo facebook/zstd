@@ -136,10 +136,11 @@ the last one takes effect.
     Final compressed result is slightly different from `-T1`.
 * `--adapt` :
     `zstd` will dynamically adapt compression level to perceived I/O conditions.
-    The current compression level can be observed live by using command `-v`.
+    Compression level adaptation can be observed live by using command `-v`.
     Works with multi-threading and `--long` mode.
-    Does not work with `--single-thread`.
+    When not specified otherwise, uses a window size of 8 MB.
     Due to the chaotic nature of dynamic adaptation, compressed result is not reproducible.
+    Adaptation does not work with `--single-thread`.
 * `-D file`:
     use `file` as Dictionary to compress or decompress FILE(s)
 * `--no-dictID`:

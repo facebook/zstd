@@ -65,7 +65,6 @@ static const int g_maxNbVariations = 64;
 #define MIN(a,b)   ( (a) < (b) ? (a) : (b) )
 #define MAX(a,b)   ( (a) > (b) ? (a) : (b) )
 #define CUSTOM_LEVEL 99
-#define BASE_CLEVEL 1
 
 /* indices for each of the variables */
 typedef enum {
@@ -303,7 +302,7 @@ BMK_benchParam1(BMK_result_t* resultPtr,
                const void* srcBuffer, size_t srcSize,
                const ZSTD_compressionParameters cParams) {
 
-    BMK_return_t res = BMK_benchMem(srcBuffer,srcSize, &srcSize, 1, BASE_CLEVEL, &cParams, NULL, 0, 0, "File");
+    BMK_return_t res = BMK_benchMem(srcBuffer,srcSize, &srcSize, 1, 0, &cParams, NULL, 0, 0, "File");
     *resultPtr = res.result;
     return res.error;
 }
@@ -793,16 +792,16 @@ static int BMK_seed(winnerInfo_t* winners, const ZSTD_compressionParameters para
                 /* too large compression speed difference for the compression benefit */
                 if (W_ratio > O_ratio)
                 DISPLAY ("Compression Speed : %5.3f @ %4.1f MB/s  vs  %5.3f @ %4.1f MB/s   : not enough for level %i\n",
-                         W_ratio, (double)testResult.cSpeed / (1 MB),
-                         O_ratio, (double)winners[cLevel].result.cSpeed / (1 MB),   cLevel);
+                         W_ratio, (double)testResult.cSpeed / 1000000,
+                         O_ratio, (double)winners[cLevel].result.cSpeed / 1000000.,   cLevel);
                 continue;
             }
             if (W_DSpeed_note   < O_DSpeed_note  ) {
                 /* too large decompression speed difference for the compression benefit */
                 if (W_ratio > O_ratio)
                 DISPLAY ("Decompression Speed : %5.3f @ %4.1f MB/s  vs  %5.3f @ %4.1f MB/s   : not enough for level %i\n",
-                         W_ratio, (double)testResult.dSpeed / (1 MB),
-                         O_ratio, (double)winners[cLevel].result.dSpeed / (1 MB),   cLevel);
+                         W_ratio, (double)testResult.dSpeed / 1000000.,
+                         O_ratio, (double)winners[cLevel].result.dSpeed / 1000000.,   cLevel);
                 continue;
             }
 
@@ -1194,7 +1193,7 @@ static void BMK_benchOnce(const void* srcBuffer, size_t srcSize)
     g_params = ZSTD_adjustCParams(g_params, srcSize, 0);
     BMK_benchParam1(&testResult, srcBuffer, srcSize, g_params);
     DISPLAY("Compression Ratio: %.3f  Compress Speed: %.1f MB/s Decompress Speed: %.1f MB/s\n", (double)srcSize / testResult.cSize, 
-        (double)testResult.cSpeed / (1 MB), (double)testResult.dSpeed / (1 MB));
+        (double)testResult.cSpeed / 1000000, (double)testResult.dSpeed / 1000000);
     return;
 }
 
@@ -1212,7 +1211,7 @@ static void BMK_benchFullTable(const void* srcBuffer, size_t srcSize)
     if (f==NULL) { DISPLAY("error opening %s \n", rfName); exit(1); }
 
     if (g_target) {
-        BMK_init_level_constraints(g_target*(1 MB));
+        BMK_init_level_constraints(g_target*1000000);
     } else {
         /* baseline config for level 1 */
         ZSTD_compressionParameters const l1params = ZSTD_getCParams(1, blockSize, 0);
@@ -1257,7 +1256,7 @@ static void BMK_benchMemInit(const void* srcBuffer, size_t srcSize)
 static int benchSample(void)
 {
     const char* const name = "Sample 10MB";
-    size_t const benchedSize = (10 MB);
+    size_t const benchedSize = 10000000;
 
     void* origBuff = malloc(benchedSize);
     if (!origBuff) { perror("not enough memory"); return 12; }
@@ -1355,7 +1354,7 @@ static int allBench(BMK_result_t* resultPtr,
     double winnerRS;
 
     /* initial benchmarking, gives exact ratio and memory, warms up future runs */
-    benchres = BMK_benchMemInvertible(buf, ctx, BASE_CLEVEL, &cParams, BMK_both, BMK_iterMode, 1);
+    benchres = BMK_benchMemInvertible(buf, ctx, 0, &cParams, BMK_both, BMK_iterMode, 1);
 
     winnerRS = resultScore(*winnerResult, buf.srcSize, target);
     DEBUGOUTPUT("WinnerScore: %f\n ", winnerRS);
@@ -1390,14 +1389,14 @@ static int allBench(BMK_result_t* resultPtr,
 
     /* second run, if first run is too short, gives approximate cSpeed + dSpeed */
     if(loopDurationC < TIMELOOP_NANOSEC / 10) {
-        BMK_return_t benchres2 = BMK_benchMemInvertible(buf, ctx, BASE_CLEVEL, &cParams, BMK_compressOnly, BMK_iterMode, 1);
+        BMK_return_t benchres2 = BMK_benchMemInvertible(buf, ctx, 0, &cParams, BMK_compressOnly, BMK_iterMode, 1);
         if(benchres2.error) {
             return ERROR_RESULT;
         }
         benchres = benchres2;
     }
     if(loopDurationD < TIMELOOP_NANOSEC / 10) {
-        BMK_return_t benchres2 = BMK_benchMemInvertible(buf, ctx, BASE_CLEVEL, &cParams, BMK_decodeOnly, BMK_iterMode, 1);
+        BMK_return_t benchres2 = BMK_benchMemInvertible(buf, ctx, 0, &cParams, BMK_decodeOnly, BMK_iterMode, 1);
         if(benchres2.error) {
             return ERROR_RESULT;
         }
@@ -1420,7 +1419,7 @@ static int allBench(BMK_result_t* resultPtr,
 
     /* Final full run if estimates are unclear */
     if(loopDurationC < TIMELOOP_NANOSEC) {
-        BMK_return_t benchres2 = BMK_benchMemInvertible(buf, ctx, BASE_CLEVEL, &cParams, BMK_compressOnly, BMK_timeMode, 1);
+        BMK_return_t benchres2 = BMK_benchMemInvertible(buf, ctx, 0, &cParams, BMK_compressOnly, BMK_timeMode, 1);
         if(benchres2.error) {
             return ERROR_RESULT;
         }
@@ -1428,7 +1427,7 @@ static int allBench(BMK_result_t* resultPtr,
     } 
 
     if(loopDurationD < TIMELOOP_NANOSEC) {
-        BMK_return_t benchres2 = BMK_benchMemInvertible(buf, ctx, BASE_CLEVEL, &cParams, BMK_decodeOnly, BMK_timeMode, 1);
+        BMK_return_t benchres2 = BMK_benchMemInvertible(buf, ctx, 0, &cParams, BMK_decodeOnly, BMK_timeMode, 1);
         if(benchres2.error) {
             return ERROR_RESULT;
         }

@@ -113,14 +113,15 @@ Full list of arguments
     dSpeed=   : Minimum decompression speed
     cMem=     : Maximum compression memory
     lvl=      : Searches for solutions which are strictly better than that compression lvl in ratio and cSpeed, 
-    stc=      : When invoked with lvl=, represents percentage slack in ratio/cSpeed allowed for a solution to be considered (Default 99%)
+    stc=      : When invoked with lvl=, represents percentage slack in ratio/cSpeed allowed for a solution to be considered (Default 100%)
               : In normal operation, represents percentage slack in choosing viable starting strategy selection in choosing the default parameters
                 (Lower value will begin with stronger strategies) (Default 90%)
-    preferSpeed= / preferRatio=
-              : Only affects lvl = invocations. Defines value placed on compression speed or ratio
-                when determining overall winner (default speed = 1, ratio = 5 for both, higher = more valued).
+    speedRatio=   (accepts decimals)
+              : determines value of gains in speed vs gains in ratio
+                when determining overall winner (default 5 (1% ratio = 5% speed)).
     tries=    : Maximum number of random restarts on a single strategy before switching (Default 3)
                 Higher values will make optimizer run longer, more chances to find better solution.
+    memLog    : Limits the log of the size of each memotable (1 per strategy). Setting memLog = 0 turns off memoization 
  -P#          : generated sample compressibility 
  -t#          : Caps runtime of operation in seconds (default : 99999 seconds (about 27 hours )) 
  -v           : Prints Benchmarking output

@@ -1257,22 +1257,22 @@ static void BMK_printWinnerOpt(FILE* f, const U32 cLevel, const BMK_result_t res
     /* global winner used for constraints */
                                     /* cSize, cSpeed, dSpeed, cMem */
     static winnerInfo_t g_winner = { { (size_t)-1LL, 0, 0, (size_t)-1LL }, { { PARAM_UNSET, PARAM_UNSET, PARAM_UNSET, PARAM_UNSET, PARAM_UNSET, PARAM_UNSET, PARAM_UNSET, PARAM_UNSET } } };
-    if(DEBUG || compareResultLT(g_winner.result, result, targetConstraints, srcSize)) {
+    if(DEBUG || compareResultLT(g_winner.result, result, targetConstraints, srcSize) || g_displayLevel >= 4) {
         if(DEBUG && compareResultLT(g_winner.result, result, targetConstraints, srcSize)) {
             DISPLAY("New Winner: \n");
         }
 
-        BMK_printWinner(f, cLevel, result, params, srcSize);
+        if(g_displayLevel >= 2) { BMK_printWinner(f, cLevel, result, params, srcSize); }
 
         if(compareResultLT(g_winner.result, result, targetConstraints, srcSize)) {
-            BMK_translateAdvancedParams(f, params);
+            if(g_displayLevel >= 1) { BMK_translateAdvancedParams(f, params); }
             g_winner.result = result;
             g_winner.params = params;
         }
     }  
 
     //prints out tradeoff table if using lvloptimize
-    if(g_optmode && g_optimizer) {
+    if(g_optmode && g_optimizer && (DEBUG || g_displayLevel == 3)) {
         winnerInfo_t w;
         winner_ll_node* n;
         w.result = result;
@@ -2205,9 +2205,9 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
     }
 
     if(nbFiles == 1) {
-        DISPLAY("Loading %s...       \r", fileNamesTable[0]);
+        DISPLAYLEVEL(2, "Loading %s...       \r", fileNamesTable[0]);
     } else {
-        DISPLAY("Loading %lu Files...       \r", (unsigned long)nbFiles); 
+        DISPLAYLEVEL(2, "Loading %lu Files...       \r", (unsigned long)nbFiles); 
     }
 
     /* sanitize paramTarget */
@@ -2273,16 +2273,16 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
     }
 
     /* bench */
-    DISPLAY("\r%79s\r", "");
+    DISPLAYLEVEL(2, "\r%79s\r", "");
     if(nbFiles == 1) {
-        DISPLAY("optimizing for %s", fileNamesTable[0]);
+        DISPLAYLEVEL(2, "optimizing for %s", fileNamesTable[0]);
     } else {
-        DISPLAY("optimizing for %lu Files", (unsigned long)nbFiles);
+        DISPLAYLEVEL(2, "optimizing for %lu Files", (unsigned long)nbFiles);
     }
 
-    if(target.cSpeed != 0) { DISPLAY(" - limit compression speed %u MB/s", target.cSpeed >> 20); }
-    if(target.dSpeed != 0) { DISPLAY(" - limit decompression speed %u MB/s", target.dSpeed >> 20); }
-    if(target.cMem != (U32)-1) { DISPLAY(" - limit memory %u MB", target.cMem >> 20); }
+    if(target.cSpeed != 0) { DISPLAYLEVEL(2," - limit compression speed %u MB/s", target.cSpeed >> 20); }
+    if(target.dSpeed != 0) { DISPLAYLEVEL(2, " - limit decompression speed %u MB/s", target.dSpeed >> 20); }
+    if(target.cMem != (U32)-1) { DISPLAYLEVEL(2, " - limit memory %u MB", target.cMem >> 20); }
 
     DISPLAY("\n");
     findClockGranularity();
@@ -2364,7 +2364,8 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
             goto _cleanUp;
         }
         /* end summary */
-        BMK_printWinnerOpt(stdout, CUSTOM_LEVEL, winner.result, winner.params, target, buf.srcSize);
+        BMK_displayOneResult(stdout, winner, buf.srcSize);
+        BMK_translateAdvancedParams(stdout, winner.params);
         DISPLAY("grillParams size - optimizer completed \n");
 
     }
@@ -2501,7 +2502,7 @@ int main(int argc, const char** argv)
     assert(argc>=1);   /* for exename */
 
     /* Welcome message */
-    DISPLAY(WELCOME_MESSAGE);
+    DISPLAYLEVEL(2, WELCOME_MESSAGE);
 
     for(i=1; i<argc; i++) {
         const char* argument = argv[i];
@@ -2654,10 +2655,12 @@ int main(int argc, const char** argv)
                     break;
 
                 case 'q':
+                    argument++;
                     g_displayLevel--;
                     break;
 
                 case 'v':
+                    argument++;
                     g_displayLevel++;
                     break;
 

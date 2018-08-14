@@ -127,6 +127,8 @@ Full list of arguments
  -v           : Prints Benchmarking output
  -D           : Next argument dictionary file
  -s           : Benchmark all files separately
+ -q           : Quiet, repeat for more quiet
+ -v           : Verbose, cancels quiet, repeat for more volume
 
 ```
  Any inputs afterwards are treated as files to benchmark.

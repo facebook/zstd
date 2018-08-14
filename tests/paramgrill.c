@@ -176,14 +176,14 @@ static size_t BMK_findMaxMem(U64 requiredMem)
     requiredMem = (((requiredMem >> 26) + 1) << 26);
     if (requiredMem > maxMemory) requiredMem = maxMemory;
 
-    requiredMem += 2*step;
-    while (!testmem) {
-        requiredMem -= step;
+    requiredMem += 2 * step;
+    while (!testmem && requiredMem > 0) {
         testmem = malloc ((size_t)requiredMem);
+        requiredMem -= step;
     }
 
     free (testmem);
-    return (size_t) (requiredMem - step);
+    return (size_t) requiredMem;
 }
 
 
@@ -536,9 +536,14 @@ static int createBuffers(buffers_t* buff, const char* const * const fileNamesTab
     U64 const totalSizeToLoad = UTIL_getTotalFileSize(fileNamesTable, (U32)nbFiles);
     const size_t benchedSize = MIN(BMK_findMaxMem(totalSizeToLoad * 3) / 3, totalSizeToLoad);
     const size_t blockSize = g_blockSize ? g_blockSize : totalSizeToLoad;
-    U32 const maxNbBlocks = (U32) ((totalSizeToLoad + (blockSize-1)) / blockSize) + (U32)nbFiles;
+    U32 const maxNbBlocks = (U32) ((totalSizeToLoad + (blockSize-1)) / MAX(blockSize, 1)) + (U32)nbFiles;
     U32 blockNb = 0;
 
+    if(!totalSizeToLoad || !benchedSize) {
+        DISPLAY("Nothing to Bench\n");
+        return 1;
+    }
+    
     buff->srcPtrs = (const void**)calloc(maxNbBlocks, sizeof(void*));
     buff->srcSizes = (size_t*)malloc(maxNbBlocks * sizeof(size_t));
 
@@ -554,6 +559,7 @@ static int createBuffers(buffers_t* buff, const char* const * const fileNamesTab
         freeBuffers(*buff);
         return 1;
     }
+
 
     buff->srcBuffer = malloc(benchedSize);
     buff->srcPtrs[0] = (const void*)buff->srcBuffer;
@@ -611,6 +617,12 @@ static int createBuffers(buffers_t* buff, const char* const * const fileNamesTab
 
         }
         fclose(f);
+    }
+
+    if(!blockNb) {
+        DISPLAY("Failed to load any files\n");
+        freeBuffers(*buff);
+        return 1;
     }
 
     buff->dstCapacities[0] = ZSTD_compressBound(buff->srcSizes[0]);
@@ -957,8 +969,6 @@ static int insertWinner(winnerInfo_t w, constraint_t targetConstraints) {
 static void BMK_printWinner(FILE* f, const U32 cLevel, const BMK_result_t result, const ZSTD_compressionParameters params, const size_t srcSize)
 {
     char lvlstr[15] = "Custom Level";
-    const U64 time = UTIL_clockSpanNano(g_time);
-    const U64 minutes = time / (60ULL * TIMELOOP_NANOSEC);
 
     fprintf(f, "\r%79s\r", "");
 
@@ -974,7 +984,11 @@ static void BMK_printWinner(FILE* f, const U32 cLevel, const BMK_result_t result
         "/* %s */   /* R:%5.3f at %5.1f MB/s - %5.1f MB/s */",
         lvlstr, (double)srcSize / result.cSize, (double)result.cSpeed / (1 MB), (double)result.dSpeed / (1 MB));
 
-    if(TIMED) { fprintf(f, " - %1lu:%2lu:%05.2f", (unsigned long) minutes / 60,(unsigned long) minutes % 60, (double)(time - minutes * TIMELOOP_NANOSEC * 60ULL)/TIMELOOP_NANOSEC); }
+    if(TIMED) {
+        const U64 time = UTIL_clockSpanNano(g_time);
+        const U64 minutes = time / (60ULL * TIMELOOP_NANOSEC);
+        fprintf(f, " - %1lu:%2lu:%05.2f", (unsigned long) minutes / 60,(unsigned long) minutes % 60, (double)(time - minutes * TIMELOOP_NANOSEC * 60ULL)/TIMELOOP_NANOSEC); 
+    }
     fprintf(f, "\n"); 
 }
 
@@ -2160,7 +2174,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
     if(paramTarget.strategy) {
         varInds_t varNew[NUM_PARAMS];
         int varLenNew = sanitizeVarArray(varNew, varLen, varArray, paramTarget.strategy);
-        allMT = calloc(sizeof(U8), (ZSTD_btultra + 1));
+        allMT = (U8**)calloc(sizeof(U8*), (ZSTD_btultra + 1));
         if(allMT == NULL) {
             ret = 57;
             goto _cleanUp;

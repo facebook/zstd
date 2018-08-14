@@ -900,7 +900,9 @@ ZSTD_frameProgression ZSTD_getFrameProgression(const ZSTD_CCtx* cctx)
         fp.ingested = cctx->consumedSrcSize + buffered;
         fp.consumed = cctx->consumedSrcSize;
         fp.produced = cctx->producedCSize;
+        fp.flushed  = cctx->producedCSize;   /* simplified; some data might still be left within streaming output buffer */
         fp.currentJobID = 0;
+        fp.nbActiveWorkers = 0;
         return fp;
 }   }
 

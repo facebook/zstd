@@ -800,16 +800,17 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
 
                 /* check output speed */
                 if (zfp.currentJobID > 1) {
-                    static ZSTD_frameProgression cpszfp = { 0, 0, 0, 0 };
-                    static unsigned long long lastFlushedSize = 0;
+                    static ZSTD_frameProgression cpszfp = { 0, 0, 0, 0, 0, 0 };
 
                     unsigned long long newlyProduced = zfp.produced - cpszfp.produced;
-                    unsigned long long newlyFlushed = compressedfilesize - lastFlushedSize;
+                    unsigned long long newlyFlushed = zfp.flushed - cpszfp.flushed;
                     assert(zfp.produced >= cpszfp.produced);
+
+                    cpszfp = zfp;
 
                     if ( (zfp.ingested == cpszfp.ingested)
                       && (zfp.consumed == cpszfp.consumed) ) {
-                        DISPLAYLEVEL(6, "no data read nor consumed : buffers are full (?) or compression is slow + input has reached its limit. If buffers full : output is too slow => slow down \n")
+                        DISPLAYLEVEL(2, "no data read nor consumed : buffers are full (?) output is too slow => slow down ; or compression is slow + input has reached its limit => can't tell \n")
                         speedChange = slower;
                     }
 
@@ -818,8 +819,6 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
                         DISPLAYLEVEL(6, "production faster than flushing (%llu > %llu) but there is still %u bytes to flush => slow down \n", newlyProduced, newlyFlushed, (U32)stillToFlush);
                         speedChange = slower;
                     }
-                    cpszfp = zfp;
-                    lastFlushedSize = compressedfilesize;
                 }
 
                 /* course correct only if there is at least one new job completed */
@@ -832,14 +831,12 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
                             DISPLAYLEVEL(6, "input is never blocked => input is too slow \n");
                             speedChange = slower;
                         } else if (speedChange == noChange) {
-                            static ZSTD_frameProgression csuzfp = { 0, 0, 0, 0 };
-                            static unsigned long long lastFlushedSize = 0;
+                            static ZSTD_frameProgression csuzfp = { 0, 0, 0, 0, 0, 0 };
                             unsigned long long newlyIngested = zfp.ingested - csuzfp.ingested;
                             unsigned long long newlyConsumed = zfp.consumed - csuzfp.consumed;
                             unsigned long long newlyProduced = zfp.produced - csuzfp.produced;
-                            unsigned long long newlyFlushed = compressedfilesize - lastFlushedSize;
+                            unsigned long long newlyFlushed = zfp.flushed - csuzfp.flushed;
                             csuzfp = zfp;
-                            lastFlushedSize = compressedfilesize;
                             assert(inputPresented > 0);
                             DISPLAYLEVEL(6, "input blocked %u/%u(%.2f) - ingested:%u vs %u:consumed - flushed:%u vs %u:produced \n",
                                             inputBlocked, inputPresented, (double)inputBlocked/inputPresented*100,

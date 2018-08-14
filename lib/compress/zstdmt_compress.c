@@ -1058,7 +1058,7 @@ static size_t ZSTDMT_resize(ZSTDMT_CCtx* mtctx, unsigned nbWorkers)
 
 
 /*! ZSTDMT_updateCParams_whileCompressing() :
- *  Updates only a selected set of compression parameters, to remain compatible with current frame.
+ *  Updates a selected set of compression parameters, remaining compatible with currently active frame.
  *  New parameters will be applied to next compression job. */
 void ZSTDMT_updateCParams_whileCompressing(ZSTDMT_CCtx* mtctx, const ZSTD_CCtx_params* cctxParams)
 {
@@ -1076,27 +1076,31 @@ void ZSTDMT_updateCParams_whileCompressing(ZSTDMT_CCtx* mtctx, const ZSTD_CCtx_p
 /* ZSTDMT_getFrameProgression():
  * tells how much data has been consumed (input) and produced (output) for current frame.
  * able to count progression inside worker threads.
- * Note : mutex will be acquired during statistics collection. */
+ * Note : mutex will be acquired during statistics collection inside workers. */
 ZSTD_frameProgression ZSTDMT_getFrameProgression(ZSTDMT_CCtx* mtctx)
 {
     ZSTD_frameProgression fps;
     DEBUGLOG(5, "ZSTDMT_getFrameProgression");
     fps.ingested = mtctx->consumed + mtctx->inBuff.filled;
     fps.consumed = mtctx->consumed;
-    fps.produced = mtctx->produced;
+    fps.produced = fps.flushed = mtctx->produced;
     fps.currentJobID = mtctx->nextJobID;
+    fps.nbActiveWorkers = 0;
     {   unsigned jobNb;
         unsigned lastJobNb = mtctx->nextJobID + mtctx->jobReady; assert(mtctx->jobReady <= 1);
         DEBUGLOG(6, "ZSTDMT_getFrameProgression: jobs: from %u to <%u (jobReady:%u)",
                     mtctx->doneJobID, lastJobNb, mtctx->jobReady)
         for (jobNb = mtctx->doneJobID ; jobNb < lastJobNb ; jobNb++) {
             unsigned const wJobID = jobNb & mtctx->jobIDMask;
-            ZSTD_pthread_mutex_lock(&mtctx->jobs[wJobID].job_mutex);
-            {   size_t const cResult = mtctx->jobs[wJobID].cSize;
+            ZSTDMT_jobDescription* jobPtr = &mtctx->jobs[wJobID];
+            ZSTD_pthread_mutex_lock(&jobPtr->job_mutex);
+            {   size_t const cResult = jobPtr->cSize;
                 size_t const produced = ZSTD_isError(cResult) ? 0 : cResult;
-                fps.ingested += mtctx->jobs[wJobID].src.size;
-                fps.consumed += mtctx->jobs[wJobID].consumed;
+                fps.ingested += jobPtr->src.size;
+                fps.consumed += jobPtr->consumed;
                 fps.produced += produced;
+                fps.flushed  += jobPtr->dstFlushed;
+                fps.nbActiveWorkers += (jobPtr->consumed < jobPtr->src.size);
             }
             ZSTD_pthread_mutex_unlock(&mtctx->jobs[wJobID].job_mutex);
         }

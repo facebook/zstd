@@ -732,10 +732,12 @@ ZSTDLIB_API size_t ZSTD_resetCStream(ZSTD_CStream* zcs, unsigned long long pledg
 
 
 typedef struct {
-    unsigned long long ingested;
-    unsigned long long consumed;
-    unsigned long long produced;
-    unsigned currentJobID;
+    unsigned long long ingested;   /* nb input bytes read and buffered */
+    unsigned long long consumed;   /* nb input bytes actually compressed */
+    unsigned long long produced;   /* nb of compressed bytes generated and buffered */
+    unsigned long long flushed;    /* nb of compressed bytes flushed : not provided; can be tracked from caller side */
+    unsigned currentJobID;         /* MT only : latest started job nb */
+    unsigned nbActiveWorkers;      /* MT only : nb of workers actively compressing at probe time */
 } ZSTD_frameProgression;
 
 /* ZSTD_getFrameProgression():

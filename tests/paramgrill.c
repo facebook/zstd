@@ -53,6 +53,8 @@ static const int g_maxNbVariations = 64;
 *  Macros
 **************************************/
 #define DISPLAY(...)  fprintf(stderr, __VA_ARGS__)
+#define DISPLAYLEVEL(n, ...) if(g_displayLevel >= n) { fprintf(stderr, __VA_ARGS__); }
+
 #define TIMED 0
 #ifndef DEBUG
 #  define DEBUG 0
@@ -233,6 +235,7 @@ static U32 g_noSeed = 0;
 static paramValues_t g_params; /* Initialized at the beginning of main w/ emptyParams() function */
 static UTIL_time_t g_time; /* to be used to compare solution finding speeds to compare to original */
 static U32 g_memoTableLog = PARAM_UNSET;
+static U32 g_displayLevel = 3;
 
 typedef enum {
     directMap,
@@ -1282,7 +1285,6 @@ static void BMK_printWinnerOpt(FILE* f, const U32 cLevel, const BMK_result_t res
         /* the table */
         fprintf(f, "================================\n");
         for(n = g_winners; n != NULL; n = n->next) {
-            fprintf(f, "\r%79s\r", "");
             BMK_displayOneResult(f, n->res, srcSize);
         }
         fprintf(f, "================================\n");
@@ -2313,7 +2315,6 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
                 }
 
                 BMK_printWinnerOpt(stdout, CUSTOM_LEVEL, winner.result, winner.params, target, buf.srcSize);
-                BMK_translateAdvancedParams(stdout, winner.params);
             }
         }
 
@@ -2364,7 +2365,6 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
         }
         /* end summary */
         BMK_printWinnerOpt(stdout, CUSTOM_LEVEL, winner.result, winner.params, target, buf.srcSize);
-        BMK_translateAdvancedParams(stdout, winner.params);
         DISPLAY("grillParams size - optimizer completed \n");
 
     }
@@ -2651,6 +2651,14 @@ int main(int argc, const char** argv)
                 case 's':
                     argument++;
                     seperateFiles = 1;
+                    break;
+
+                case 'q':
+                    g_displayLevel--;
+                    break;
+
+                case 'v':
+                    g_displayLevel++;
                     break;
 
                 /* load dictionary file (only applicable for optimizer rn) */

@@ -105,7 +105,8 @@ Full list of arguments
     t# - targetLength
     S# - strategy
     L# - level
- --zstd=      : Single run, parameter selection syntax same as zstdcli
+ --zstd=      : Single run, parameter selection syntax same as zstdcli. 
+                When invoked with --optimize, this represents the sample to exceed. 
  --optimize=  : find parameters to maximize compression ratio given parameters
                 Can use all --zstd= commands to constrain the type of solution found in addition to the following constraints
     cSpeed=   : Minimum compression speed
@@ -117,10 +118,9 @@ Full list of arguments
                 (Lower value will begin with stronger strategies) (Default 90%)
     preferSpeed= / preferRatio=
               : Only affects lvl = invocations. Defines value placed on compression speed or ratio
-                when determining overall winner (default 1 for both, higher = more valued).
-    tries=    : Maximum number of random restarts on a single strategy before switching (Default 5)
+                when determining overall winner (default speed = 1, ratio = 5 for both, higher = more valued).
+    tries=    : Maximum number of random restarts on a single strategy before switching (Default 3)
                 Higher values will make optimizer run longer, more chances to find better solution.
- --optimize=  : same as -O with more verbose syntax 
  -P#          : generated sample compressibility 
  -t#          : Caps runtime of operation in seconds (default : 99999 seconds (about 27 hours )) 
  -v           : Prints Benchmarking output

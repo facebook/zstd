@@ -1078,7 +1078,7 @@ size_t ZDICT_trainFromBuffer_legacy(void* dictBuffer, size_t dictBufferCapacity,
 size_t ZDICT_trainFromBuffer(void* dictBuffer, size_t dictBufferCapacity,
                              const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples)
 {
-    ZDICT_cover_params_t params;
+    ZDICT_fastCover_params_t params;
     DEBUGLOG(3, "ZDICT_trainFromBuffer");
     memset(&params, 0, sizeof(params));
     params.d = 8;
@@ -1088,7 +1088,7 @@ size_t ZDICT_trainFromBuffer(void* dictBuffer, size_t dictBufferCapacity,
 #if defined(DEBUGLEVEL) && (DEBUGLEVEL>=1)
     params.zParams.notificationLevel = DEBUGLEVEL;
 #endif
-    return ZDICT_optimizeTrainFromBuffer_cover(dictBuffer, dictBufferCapacity,
+    return ZDICT_optimizeTrainFromBuffer_fastCover(dictBuffer, dictBufferCapacity,
                                                samplesBuffer, samplesSizes, nbSamples,
                                                &params);
 }

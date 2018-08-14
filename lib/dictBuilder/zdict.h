@@ -39,7 +39,8 @@ extern "C" {
 
 /*! ZDICT_trainFromBuffer():
  *  Train a dictionary from an array of samples.
- *  Redirect towards ZDICT_optimizeTrainFromBuffer_cover() single-threaded, with d=8 and steps=4.
+ *  Redirect towards ZDICT_optimizeTrainFromBuffer_fastCover() single-threaded, with d=8, steps=4,
+ *  f=18, finalize=100, and skip=0.
  *  Samples must be stored concatenated in a single flat buffer `samplesBuffer`,
  *  supplied with an array of sizes `samplesSizes`, providing the size of each sample, in order.
  *  The resulting dictionary will be saved into `dictBuffer`.

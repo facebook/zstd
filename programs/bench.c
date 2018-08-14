@@ -597,15 +597,16 @@ static BMK_return_t BMK_benchMemAdvancedNoAlloc(
                         results.error = compressionResults.error;
                         return results;
                     }
+
                     if(compressionResults.result.nanoSecPerRun == 0) {
                         results.result.cSpeed = 0;
                     } else {
                         results.result.cSpeed = srcSize * TIMELOOP_NANOSEC / compressionResults.result.nanoSecPerRun;
                     }
+
                     results.result.cSize = compressionResults.result.sumOfReturn;
                     {   
                         int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
-                        results.result.cSpeed = (srcSize * TIMELOOP_NANOSEC / compressionResults.result.nanoSecPerRun);
                         cSize = compressionResults.result.sumOfReturn;
                         results.result.cSize = cSize;
                         ratio = (double)srcSize / results.result.cSize;
@@ -626,6 +627,7 @@ static BMK_return_t BMK_benchMemAdvancedNoAlloc(
                         results.error = decompressionResults.error;
                         return results;
                     }
+
                     if(decompressionResults.result.nanoSecPerRun == 0) {
                         results.result.dSpeed = 0;
                     } else {
@@ -634,7 +636,6 @@ static BMK_return_t BMK_benchMemAdvancedNoAlloc(
 
                     {   
                         int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
-                        results.result.dSpeed = (srcSize * TIMELOOP_NANOSEC/ decompressionResults.result.nanoSecPerRun);
                         markNb = (markNb+1) % NB_MARKS;
                         DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.*f),%6.*f MB/s ,%6.1f MB/s \r",
                                 marks[markNb], displayName, (U32)srcSize, (U32)results.result.cSize,
@@ -737,14 +738,16 @@ BMK_return_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
     void* const internalDstBuffer = dstBuffer ? NULL : malloc(maxCompressedSize);
     void* const compressedBuffer = dstBuffer ? dstBuffer : internalDstBuffer;
 
-    void* resultBuffer = malloc(srcSize);
-
     BMK_return_t results = { { 0, 0, 0, 0 }, 0 };
+
+    int parametersConflict = !dstBuffer ^ !dstCapacity;
+
+    void* resultBuffer = srcSize ? malloc(srcSize) : NULL;
+
     int allocationincomplete = !srcPtrs || !srcSizes || !cPtrs || 
         !cSizes || !cCapacities || !resPtrs || !resSizes || 
         !timeStateCompress || !timeStateDecompress || !compressedBuffer || !resultBuffer;
 
-    int parametersConflict = !dstBuffer ^ !dstCapacity;
 
 
     if (!allocationincomplete && !parametersConflict) {
@@ -809,7 +812,7 @@ static size_t BMK_findMaxMem(U64 requiredMem)
     do {
         testmem = (BYTE*)malloc((size_t)requiredMem);
         requiredMem -= step;
-    } while (!testmem);
+    } while (!testmem && requiredMem > 0);
 
     free(testmem);
     return (size_t)(requiredMem);
@@ -937,7 +940,8 @@ BMK_return_t BMK_benchFilesAdvanced(const char* const * const fileNamesTable, un
     if ((U64)benchedSize > totalSizeToLoad) benchedSize = (size_t)totalSizeToLoad;
     if (benchedSize < totalSizeToLoad)
         DISPLAY("Not enough memory; testing %u MB only...\n", (U32)(benchedSize >> 20));
-    srcBuffer = malloc(benchedSize);
+
+    srcBuffer = benchedSize ? malloc(benchedSize) : NULL;
     if (!srcBuffer) {
         free(dictBuffer);
         free(fileSizes);

@@ -85,6 +85,7 @@ static U32 g_ldmHashEveryLog = LDM_PARAM_DEFAULT;
 static U32 g_ldmBucketSizeLog = LDM_PARAM_DEFAULT;
 
 #define DEFAULT_SPLITPOINT 1.0
+#define DEFAULT_FINALIZE 100
 
 /*-************************************
 *  Display Macros
@@ -357,7 +358,7 @@ static ZDICT_fastCover_params_t defaultFastCoverParams(void)
     params.f = 18;
     params.steps = 4;
     params.splitPoint = DEFAULT_SPLITPOINT;
-    params.finalize = 100;
+    params.finalize = DEFAULT_FINALIZE;
     return params;
 }
 #endif

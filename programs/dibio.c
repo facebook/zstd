@@ -311,7 +311,8 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
     /* Load input buffer */
     DISPLAYLEVEL(3, "Shuffling input files\n");
     DiB_shuffle(fileNamesTable, nbFiles);
-    nbFiles = DiB_loadFiles(srcBuffer, &loadedSize, sampleSizes, fs.nbSamples, fileNamesTable, nbFiles, chunkSize, displayLevel);
+    nbFiles = DiB_loadFiles(srcBuffer, &loadedSize, sampleSizes, fs.nbSamples, fileNamesTable,
+                            nbFiles, chunkSize, displayLevel);
 
     {   size_t dictSize;
         if (params) {
@@ -346,7 +347,7 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
             }
           } else {
             dictSize = ZDICT_trainFromBuffer_fastCover(dictBuffer, maxDictSize, srcBuffer,
-                                                   sampleSizes, fs.nbSamples, *fastCoverParams);
+                                                       sampleSizes, fs.nbSamples, *fastCoverParams);
           }
         }
         if (ZDICT_isError(dictSize)) {

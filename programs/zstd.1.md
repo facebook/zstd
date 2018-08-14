@@ -257,10 +257,12 @@ Compression of small files similar to the sample set will be greatly improved.
 * `--train-fastcover[=k#,d=#,f=#,steps=#,split=#,finalize=#,skip=#]`:
     Same as cover but with extra parameters f, finalize, and skip
     If _f_ is not specified, then it tries _f_ = 18.
+    Requires that 0 < _f_ < 32.
     If _finalize_ is not specified, then it tries _finalize_ = 100.
+    Requires that 0 < _finalize_ <= 100.
     If _skip_ is not specified, then it tries _skip_ = 0.
+    Requires that 0 <= _skip_ < k.
     Requires that _d_ = 6 _d_ = 8.
-    Requires that _skip_ < k.
 
     Examples:
 

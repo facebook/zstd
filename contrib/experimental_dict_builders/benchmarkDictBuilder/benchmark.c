@@ -374,6 +374,7 @@ int main(int argCount, const char* argv[])
 
   /* for cover */
   {
+    /* for cover (optimizing k and d) */
     ZDICT_cover_params_t coverParam;
     memset(&coverParam, 0, sizeof(coverParam));
     coverParam.zParams = zParams;
@@ -387,6 +388,7 @@ int main(int argCount, const char* argv[])
       goto _cleanup;
     }
 
+    /* for cover (with k and d provided) */
     const int coverResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, &coverParam, NULL, NULL);
     DISPLAYLEVEL(2, "k=%u\nd=%u\nsteps=%u\nsplit=%u\n", coverParam.k, coverParam.d, coverParam.steps, (unsigned)(coverParam.splitPoint * 100));
     if(coverResult) {
@@ -408,7 +410,7 @@ int main(int argCount, const char* argv[])
     fastParam.steps = 40;
     fastParam.nbThreads = 1;
     const int fastOptResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, NULL, NULL, &fastParam);
-    DISPLAYLEVEL(2, "k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\n", fastParam.k, fastParam.d, fastParam.f, fastParam.steps, (unsigned)(fastParam.splitPoint * 100));
+    DISPLAYLEVEL(2, "k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\nfinalize=%u\nskip=%u\n", fastParam.k, fastParam.d, fastParam.f, fastParam.steps, (unsigned)(fastParam.splitPoint * 100), fastParam.finalize, fastParam.skip);
     if(fastOptResult) {
       result = 1;
       goto _cleanup;
@@ -417,7 +419,7 @@ int main(int argCount, const char* argv[])
     /* for fastCover (with k and d provided) */
     for (int i = 0; i < 5; i++) {
       const int fastResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, NULL, NULL, &fastParam);
-      DISPLAYLEVEL(2, "k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\n", fastParam.k, fastParam.d, fastParam.f, fastParam.steps, (unsigned)(fastParam.splitPoint * 100));
+      DISPLAYLEVEL(2, "k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\nfinalize=%u\nskip=%u\n", fastParam.k, fastParam.d, fastParam.f, fastParam.steps, (unsigned)(fastParam.splitPoint * 100), fastParam.finalize, fastParam.skip);
       if(fastResult) {
         result = 1;
         goto _cleanup;

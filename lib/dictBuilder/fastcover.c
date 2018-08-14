@@ -21,10 +21,10 @@
 *  Constants
 ***************************************/
 #define FASTCOVER_MAX_SAMPLES_SIZE (sizeof(size_t) == 8 ? ((U32)-1) : ((U32)1 GB))
-#define FASTCOVER_MAX_F 32
+#define FASTCOVER_MAX_F 31
 #define DEFAULT_SPLITPOINT 1.0
 #define DEFAULT_F 18
-#define DEFAULT_finalize 100
+#define DEFAULT_FINALIZE 100
 
 
 /*-*************************************
@@ -537,7 +537,7 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_fastCover(
     /* Assign splitPoint and f if not provided */
     parameters.splitPoint = parameters.splitPoint <= 0 ? 1.0 : parameters.splitPoint;
     parameters.f = parameters.f == 0 ? DEFAULT_F : parameters.f;
-    parameters.finalize = parameters.finalize == 0 ? DEFAULT_finalize : parameters.finalize;
+    parameters.finalize = parameters.finalize == 0 ? DEFAULT_FINALIZE : parameters.finalize;
     /* Convert to cover parameter */
     memset(&coverParams, 0 , sizeof(coverParams));
     FASTCOVER_convertToCoverParams(parameters, &coverParams);
@@ -600,7 +600,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_fastCover(
     const unsigned kIterations =
         (1 + (kMaxD - kMinD) / 2) * (1 + (kMaxK - kMinK) / kStepSize);
     const unsigned f = parameters->f == 0 ? DEFAULT_F : parameters->f;
-    const unsigned finalize = parameters->finalize == 0 ? DEFAULT_finalize : parameters->finalize;
+    const unsigned finalize = parameters->finalize == 0 ? DEFAULT_FINALIZE : parameters->finalize;
     const unsigned skip = parameters->skip;
     /* Local variables */
     const int displayLevel = parameters->zParams.notificationLevel;

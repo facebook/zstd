@@ -306,7 +306,7 @@ static int FASTCOVER_ctx_init(FASTCOVER_ctx_t *ctx, const void *samplesBuffer,
   ctx->nbSamples = nbSamples;
   ctx->nbTrainSamples = nbTrainSamples;
   ctx->nbTestSamples = nbTestSamples;
-  ctx->nbDmers = trainingSamplesSize - d + 1;
+  ctx->nbDmers = trainingSamplesSize - MAX(d, sizeof(U64)) + 1;
   ctx->d = d;
   ctx->f = f;
   ctx->finalize = finalize;

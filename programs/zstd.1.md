@@ -254,17 +254,19 @@ Compression of small files similar to the sample set will be greatly improved.
 
     `zstd --train-cover=k=50,split=60 FILEs`
 
-* `--train-fastcover[=k#,d=#,f=#,steps=#,split=#,finalize=#]`:
-    Same as cover but with extra parameters f and finalize
+* `--train-fastcover[=k#,d=#,f=#,steps=#,split=#,finalize=#,skip=#]`:
+    Same as cover but with extra parameters f, finalize, and skip
     If _f_ is not specified, then it tries _f_ = 18.
-    If _finalize_ is not specified, then it tries _finalize_ = 18.
-    _d_ can only be 6 or 8.
+    If _finalize_ is not specified, then it tries _finalize_ = 100.
+    If _skip_ is not specified, then it tries _skip_ = 0.
+    Requires that _d_ = 6 _d_ = 8.
+    Requires that _skip_ < k.
 
     Examples:
 
     `zstd --train-fastcover FILEs`
 
-    `zstd --train-fastcover=d=8,f=15 FILEs`
+    `zstd --train-fastcover=d=8,f=15,finalize=80,skip=1 FILEs`
 
 * `--train-legacy[=selectivity=#]`:
     Use legacy dictionary builder algorithm with the given dictionary

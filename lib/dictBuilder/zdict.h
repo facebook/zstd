@@ -98,6 +98,7 @@ typedef struct {
     unsigned nbThreads;          /* Number of threads : constraint: 0 < nbThreads : 1 means single-threaded : Only used for optimization : Ignored if ZSTD_MULTITHREAD is not defined */
     double splitPoint;           /* Percentage of samples used for training: the first nbSamples * splitPoint samples will be used to training, the last nbSamples * (1 - splitPoint) samples will be used for testing, 0 means default (1.0), 1.0 when all samples are used for both training and testing */
     unsigned finalize;           /* Percentage of training samples used for ZDICT_finalizeDictionary: 0 means default(100) */
+    unsigned skip;               /* Number of dmer skipped between each dmer counted in computeFrequency: constraint: 0 <= skip < k */
     ZDICT_params_t zParams;
 } ZDICT_fastCover_params_t;
 

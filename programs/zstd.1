@@ -240,11 +240,11 @@ Examples:
 \fBzstd \-\-train\-cover=k=50 FILEs\fR
 .
 .TP
-\fB\-\-train\-fastcover[=k#,d=#,f=#,steps=#,split=#,finalize=#]\fR
-Same as cover but with extra parameters \fIf\fR and \fIfinalize\fR
+\fB\-\-train\-fastcover[=k#,d=#,f=#,steps=#,split=#,finalize=#,skip=#]\fR
+Same as cover but with extra parameters \fIf\fR, \fIfinalize\fR, and \fIskip\fR
 .
 .IP
-If \fIf\fR is not specified, then it tries \fIf\fR = 18. If \fIfinalize\fR is not specified, then it tries \fIfinalize\fR = 100. \fId\fR can only be 6 or 8.
+If \fIf\fR is not specified, then it tries \fIf\fR = 18. If \fIfinalize\fR is not specified, then it tries \fIfinalize\fR = 100. If \fIskip\fR is not specified, then it tries \fIskip\fR = 100. \fId\fR can only be 6 or 8. Requires that \fIskip\fR < k.
 .
 .IP
 Examples:
@@ -253,7 +253,7 @@ Examples:
 \fBzstd \-\-train\-fastcover FILEs\fR
 .
 .IP
-\fBzstd \-\-train\-fastcover=d=8,f=15,finalize=80 FILEs\fR
+\fBzstd \-\-train\-fastcover=d=8,f=15,finalize=80,skip=1 FILEs\fR
 .
 .TP
 \fB\-\-train\-legacy[=selectivity=#]\fR

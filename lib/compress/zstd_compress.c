@@ -1147,7 +1147,6 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                 if (zc->workSpace == NULL) return ERROR(memory_allocation);
                 zc->workSpaceSize = neededSpace;
                 zc->workSpaceOversizedDuration = 0;
-                ptr = zc->workSpace;
 
                 /* Statically sized space.
                  * entropyWorkspace never moves,

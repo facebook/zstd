@@ -1224,6 +1224,7 @@ size_t FSEv05_buildDTable(FSEv05_DTable* dt, const short* normalizedCounter, uns
     if (tableLog > FSEv05_MAX_TABLELOG) return ERROR(tableLog_tooLarge);
 
     /* Init, lay down lowprob symbols */
+    memset(tableDecode, 0, sizeof(FSEv05_FUNCTION_TYPE) * (maxSymbolValue+1) );   /* useless init, but keep static analyzer happy, and we don't need to performance optimize legacy decoders */
     DTableH.tableLog = (U16)tableLog;
     for (s=0; s<=maxSymbolValue; s++) {
         if (normalizedCounter[s]==-1) {

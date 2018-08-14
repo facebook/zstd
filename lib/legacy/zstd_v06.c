@@ -4006,7 +4006,7 @@ size_t ZBUFFv06_decompressContinue(ZBUFFv06_DCtx* zbd,
                     if (ZSTDv06_isError(hSize)) return hSize;
                     if (toLoad > (size_t)(iend-ip)) {   /* not enough input to load full header */
                         memcpy(zbd->headerBuffer + zbd->lhSize, ip, iend-ip);
-                        zbd->lhSize += iend-ip; ip = iend; notDone = 0;
+                        zbd->lhSize += iend-ip;
                         *dstCapacityPtr = 0;
                         return (hSize - zbd->lhSize) + ZSTDv06_blockHeaderSize;   /* remaining header bytes + next block header */
                     }

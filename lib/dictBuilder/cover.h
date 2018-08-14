@@ -38,11 +38,6 @@ typedef struct {
   U32 score;
 } COVER_segment_t;
 
-/**
- * Check the validity of the parameters.
- * Returns non-zero if the parameters are valid and 0 otherwise.
- */
-int COVER_checkParameters(ZDICT_cover_params_t parameters, size_t maxDictSize);
 
 /**
  * Returns the sum of the sample sizes.

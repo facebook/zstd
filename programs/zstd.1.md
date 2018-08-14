@@ -254,10 +254,10 @@ Compression of small files similar to the sample set will be greatly improved.
 
     `zstd --train-cover=k=50,split=60 FILEs`
 
-* `--train-fastcover[=k#,d=#,f=#,steps=#,split=#]`:
-    Same as cover but with an extra parameter f
+* `--train-fastcover[=k#,d=#,f=#,steps=#,split=#,finalize=#]`:
+    Same as cover but with extra parameters f and finalize
     If _f_ is not specified, then it tries _f_ = 18.
-
+    If _finalize_ is not specified, then it tries _finalize_ = 18.
     _d_ can only be 6 or 8.
 
     Examples:

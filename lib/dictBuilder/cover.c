@@ -477,7 +477,7 @@ static COVER_segment_t COVER_selectSegment(const COVER_ctx_t *ctx, U32 *freqs,
  * Check the validity of the parameters.
  * Returns non-zero if the parameters are valid and 0 otherwise.
  */
-int COVER_checkParameters(ZDICT_cover_params_t parameters,
+static int COVER_checkParameters(ZDICT_cover_params_t parameters,
                                  size_t maxDictSize) {
   /* k and d are required parameters */
   if (parameters.d == 0 || parameters.k == 0) {

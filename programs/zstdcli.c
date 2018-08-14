@@ -172,7 +172,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( "Dictionary builder : \n");
     DISPLAY( "--train ## : create a dictionary from a training set of files \n");
     DISPLAY( "--train-cover[=k=#,d=#,steps=#,split=#] : use the cover algorithm with optional args\n");
-    DISPLAY( "--train-fastcover[=k=#,d=#,f=#,steps=#,split=#] : use the fast cover algorithm with optional args\n");
+    DISPLAY( "--train-fastcover[=k=#,d=#,f=#,steps=#,split=#,finalize=#] : use the fast cover algorithm with optional args\n");
     DISPLAY( "--train-legacy[=s=#] : use the legacy algorithm with selectivity (default: %u)\n", g_defaultSelectivityLevel);
     DISPLAY( " -o file : `file` is dictionary name (default: %s) \n", g_defaultDictName);
     DISPLAY( "--maxdict=# : limit dictionary to specified size (default: %u) \n", g_defaultMaxDictSize);
@@ -310,6 +310,7 @@ static unsigned parseFastCoverParameters(const char* stringPtr, ZDICT_fastCover_
         if (longCommandWArg(&stringPtr, "d=")) { params->d = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "f=")) { params->f = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "steps=")) { params->steps = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        if (longCommandWArg(&stringPtr, "finalize=")) { params->finalize = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "split=")) {
           unsigned splitPercentage = readU32FromChar(&stringPtr);
           params->splitPoint = (double)splitPercentage / 100.0;
@@ -318,7 +319,7 @@ static unsigned parseFastCoverParameters(const char* stringPtr, ZDICT_fastCover_
         return 0;
     }
     if (stringPtr[0] != 0) return 0;
-    DISPLAYLEVEL(4, "cover: k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\n", params->k, params->d, params->f, params->steps, (unsigned)(params->splitPoint * 100));
+    DISPLAYLEVEL(4, "cover: k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\nfinalize=%u\n", params->k, params->d, params->f, params->steps, (unsigned)(params->splitPoint * 100), params->finalize);
     return 1;
 }
 
@@ -355,6 +356,7 @@ static ZDICT_fastCover_params_t defaultFastCoverParams(void)
     params.f = 18;
     params.steps = 4;
     params.splitPoint = DEFAULT_SPLITPOINT;
+    params.finalize = 100;
     return params;
 }
 #endif

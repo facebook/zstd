@@ -470,6 +470,8 @@ $ECHO "- Create dictionary using all samples for both training and testing"
 $ZSTD --train-fastcover=split=100 -r *.c ../programs/*.c
 $ECHO "- Create dictionary using f=16"
 $ZSTD --train-fastcover=f=16 -r *.c ../programs/*.c
+$ECHO "- Create dictionary using finalize=50"
+$ZSTD --train-fastcover=finalize=50 -r *.c ../programs/*.c
 $ECHO "- Test -o before --train-fastcover"
 rm -f tmpDict dictionary
 $ZSTD -o tmpDict --train-fastcover *.c ../programs/*.c

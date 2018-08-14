@@ -326,7 +326,8 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
                                                              coverParams);
               if (!ZDICT_isError(dictSize)) {
                   unsigned splitPercentage = (unsigned)(coverParams->splitPoint * 100);
-                  DISPLAYLEVEL(2, "k=%u\nd=%u\nsteps=%u\nsplit=%u\n", coverParams->k, coverParams->d, coverParams->steps, splitPercentage);
+                  DISPLAYLEVEL(2, "k=%u\nd=%u\nsteps=%u\nsplit=%u\n", coverParams->k, coverParams->d,
+                              coverParams->steps, splitPercentage);
               }
             } else {
               dictSize = ZDICT_trainFromBuffer_cover(dictBuffer, maxDictSize, srcBuffer,
@@ -339,7 +340,9 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
                                                            fastCoverParams);
             if (!ZDICT_isError(dictSize)) {
                 unsigned splitPercentage = (unsigned)(fastCoverParams->splitPoint * 100);
-                DISPLAYLEVEL(2, "k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\n", fastCoverParams->k, fastCoverParams->d, fastCoverParams->f, fastCoverParams->steps, splitPercentage);
+                DISPLAYLEVEL(2, "k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\nfinalize=%u\n", fastCoverParams->k,
+                            fastCoverParams->d, fastCoverParams->f, fastCoverParams->steps, splitPercentage,
+                            fastCoverParams->finalize);
             }
           } else {
             dictSize = ZDICT_trainFromBuffer_fastCover(dictBuffer, maxDictSize, srcBuffer,

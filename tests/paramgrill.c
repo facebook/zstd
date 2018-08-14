@@ -235,7 +235,7 @@ static U32 g_noSeed = 0;
 static paramValues_t g_params; /* Initialized at the beginning of main w/ emptyParams() function */
 static UTIL_time_t g_time; /* to be used to compare solution finding speeds to compare to original */
 static U32 g_memoTableLog = PARAM_UNSET;
-static U32 g_displayLevel = 3;
+static int g_displayLevel = 3;
 
 typedef enum {
     directMap,
@@ -889,7 +889,7 @@ static int createBuffers(buffers_t* buff, const char* const * const fileNamesTab
             goto _cleanUp;
         }
 
-        DISPLAY("Loading %s...       \r", fileNamesTable[n]);
+        DISPLAYLEVEL(2, "Loading %s...       \r", fileNamesTable[n]);
 
         if (fileSize + pos > benchedSize) fileSize = benchedSize - pos, nbFiles=n;   /* buffer too small - stop after this file */
         {
@@ -2020,7 +2020,6 @@ static winnerInfo_t climbOnce(const constraint_t target,
             better = 0;
             DEBUGOUTPUT("Start\n");
             cparam = winnerInfo.params;
-            BMK_printWinnerOpt(stdout, CUSTOM_LEVEL, winnerInfo.result, winnerInfo.params, target, buf.srcSize);
             candidateInfo.params = cparam;
              /* all dist-1 candidates */
             for(i = 0; i < varLen; i++) {
@@ -2036,7 +2035,6 @@ static winnerInfo_t climbOnce(const constraint_t target,
                         DEBUGOUTPUT("Res: %d\n", res);
                         if(res == BETTER_RESULT) { /* synonymous with better when called w/ infeasibleBM */
                             winnerInfo = candidateInfo;
-                            BMK_printWinnerOpt(stdout, CUSTOM_LEVEL, winnerInfo.result, sanitizeParams(winnerInfo.params), target, buf.srcSize);
                             better = 1;
                             if(compareResultLT(bestFeasible1.result, winnerInfo.result, target, buf.srcSize)) {
                                 bestFeasible1 = winnerInfo;
@@ -2063,7 +2061,6 @@ static winnerInfo_t climbOnce(const constraint_t target,
                     DEBUGOUTPUT("Res: %d\n", res);
                     if(res == BETTER_RESULT) { /* synonymous with better in this case*/
                         winnerInfo = candidateInfo;
-                        BMK_printWinnerOpt(stdout, CUSTOM_LEVEL, winnerInfo.result, sanitizeParams(winnerInfo.params), target, buf.srcSize);
                         better = 1;
                         if(compareResultLT(bestFeasible1.result, winnerInfo.result, target, buf.srcSize)) {
                             bestFeasible1 = winnerInfo;
@@ -2284,7 +2281,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
     if(target.dSpeed != 0) { DISPLAYLEVEL(2, " - limit decompression speed %u MB/s", target.dSpeed >> 20); }
     if(target.cMem != (U32)-1) { DISPLAYLEVEL(2, " - limit memory %u MB", target.cMem >> 20); }
 
-    DISPLAY("\n");
+    DISPLAYLEVEL(2, "\n");
     findClockGranularity();
 
     {   
@@ -2309,7 +2306,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
                         winner.params = CParams;
                     }
 
-                    CHECKTIMEGT(ret, 0, _cleanUp); /* if pass time limit, stop */
+                    CHECKTIMEGT(ret, 0, _displayCleanUp); /* if pass time limit, stop */
                     /* if the current params are too slow, just stop. */
                     if(target.cSpeed > candidate.cSpeed * 3 / 2) { break; }
                 }
@@ -2332,7 +2329,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
                     if(compareResultLT(winner.result, w1.result, target, buf.srcSize)) {
                         winner = w1;
                     }
-                    CHECKTIMEGT(ret, 0, _cleanUp);
+                    CHECKTIMEGT(ret, 0, _displayCleanUp);
                 }
 
                 while(st && tries > 0) {
@@ -2349,7 +2346,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
                         st = nextStrategy(st, bestStrategy);
                         tries -= TRY_DECAY;
                     }
-                    CHECKTIMEGT(ret, 0, _cleanUp);
+                    CHECKTIMEGT(ret, 0, _displayCleanUp);
                 }
             } else {
                 winner = optimizeFixedStrategy(buf, ctx, target, paramBase, paramTarget.vals[strt_ind], allMT, g_maxTries);
@@ -2364,12 +2361,13 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
             goto _cleanUp;
         }
         /* end summary */
-        BMK_displayOneResult(stdout, winner, buf.srcSize);
+_displayCleanUp: 
+        if(g_displayLevel >= 0) { BMK_displayOneResult(stdout, winner, buf.srcSize); }
         BMK_translateAdvancedParams(stdout, winner.params);
-        DISPLAY("grillParams size - optimizer completed \n");
+        DISPLAYLEVEL(1, "grillParams size - optimizer completed \n");
 
     }
-_cleanUp: 
+_cleanUp:
     freeContexts(ctx);
     freeBuffers(buf);
     freeMemoTableArray(allMT);
@@ -2500,9 +2498,6 @@ int main(int argc, const char** argv)
     g_params = emptyParams();
 
     assert(argc>=1);   /* for exename */
-
-    /* Welcome message */
-    DISPLAYLEVEL(2, WELCOME_MESSAGE);
 
     for(i=1; i<argc; i++) {
         const char* argument = argv[i];
@@ -2686,6 +2681,9 @@ int main(int argc, const char** argv)
         /* first provided filename is input */
         if (!input_filename) { input_filename=argument; filenamesStart=i; continue; }
     }
+
+    /* Welcome message */
+    DISPLAYLEVEL(2, WELCOME_MESSAGE);
 
     if (filenamesStart==0) {
         if (g_optimizer) {

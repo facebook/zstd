@@ -510,6 +510,7 @@ static void FASTCOVER_convertToCoverParams(ZDICT_fastCover_params_t fastCoverPar
     coverParams->steps = fastCoverParams.steps;
     coverParams->nbThreads = fastCoverParams.nbThreads;
     coverParams->splitPoint = fastCoverParams.splitPoint;
+    coverParams->zParams = fastCoverParams.zParams;
 }
 
 
@@ -523,6 +524,7 @@ static void FASTCOVER_convertToFastCoverParams(ZDICT_cover_params_t coverParams,
     fastCoverParams->splitPoint = coverParams.splitPoint;
     fastCoverParams->f = f;
     fastCoverParams->finalize = finalize;
+    fastCoverParams->zParams = coverParams.zParams;
 }
 
 
@@ -636,6 +638,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_fastCover(
     /* Initialization */
     COVER_best_init(&best);
     memset(&coverParams, 0 , sizeof(coverParams));
+    FASTCOVER_convertToCoverParams(*parameters, &coverParams);
     /* Turn down global display level to clean up display at level 2 and below */
     g_displayLevel = displayLevel == 0 ? 0 : displayLevel - 1;
     /* Loop through d first because each new value needs a new context */

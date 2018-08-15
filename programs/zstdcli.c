@@ -87,6 +87,8 @@ static U32 g_ldmBucketSizeLog = LDM_PARAM_DEFAULT;
 #define DEFAULT_SPLITPOINT 1.0
 #define DEFAULT_FINALIZE 100
 
+typedef enum { cover, fastCover, legacy } dictType;
+
 /*-************************************
 *  Display Macros
 **************************************/
@@ -475,8 +477,7 @@ int main(int argCount, const char* argv[])
 #ifndef ZSTD_NODICT
     ZDICT_cover_params_t coverParams = defaultCoverParams();
     ZDICT_fastCover_params_t fastCoverParams = defaultFastCoverParams();
-    int cover = 1;
-    int fastCover = 1;
+    dictType dict = fastCover;
 #endif
 
 
@@ -572,8 +573,7 @@ int main(int argCount, const char* argv[])
                       operation = zom_train;
                       if (outFileName == NULL)
                           outFileName = g_defaultDictName;
-                      cover = 1;
-                      fastCover = 0;
+                      dict = cover;
                       /* Allow optional arguments following an = */
                       if (*argument == 0) { memset(&coverParams, 0, sizeof(coverParams)); }
                       else if (*argument++ != '=') { CLEAN_RETURN(badusage(programName)); }
@@ -584,8 +584,7 @@ int main(int argCount, const char* argv[])
                       operation = zom_train;
                       if (outFileName == NULL)
                           outFileName = g_defaultDictName;
-                      cover = 0;
-                      fastCover = 1;
+                      dict = fastCover;
                       /* Allow optional arguments following an = */
                       if (*argument == 0) { memset(&fastCoverParams, 0, sizeof(fastCoverParams)); }
                       else if (*argument++ != '=') { CLEAN_RETURN(badusage(programName)); }
@@ -596,8 +595,7 @@ int main(int argCount, const char* argv[])
                       operation = zom_train;
                       if (outFileName == NULL)
                           outFileName = g_defaultDictName;
-                      cover = 0;
-                      fastCover = 0;
+                      dict = legacy;
                       /* Allow optional arguments following an = */
                       if (*argument == 0) { continue; }
                       else if (*argument++ != '=') { CLEAN_RETURN(badusage(programName)); }
@@ -937,12 +935,12 @@ int main(int argCount, const char* argv[])
         zParams.compressionLevel = dictCLevel;
         zParams.notificationLevel = g_displayLevel;
         zParams.dictID = dictID;
-        if (cover && !fastCover) {
+        if (dict == cover) {
             int const optimize = !coverParams.k || !coverParams.d;
             coverParams.nbThreads = nbWorkers;
             coverParams.zParams = zParams;
             operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenameTable, filenameIdx, blockSize, NULL, &coverParams, NULL, optimize);
-        } else if (!cover && fastCover) {
+        } else if (dict == fastCover) {
             int const optimize = !fastCoverParams.k || !fastCoverParams.d;
             fastCoverParams.nbThreads = nbWorkers;
             fastCoverParams.zParams = zParams;

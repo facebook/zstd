@@ -427,7 +427,7 @@ $ECHO "- Create second (different) dictionary"
 $ZSTD --train-cover=k=56,d=8 *.c ../programs/*.c ../programs/*.h -o tmpDictC
 $ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
 $ECHO "- Create dictionary with short dictID"
-$ZSTD --train-cover=k=46,d=8 *.c ../programs/*.c --dictID=1 -o tmpDict1
+$ZSTD --train-cover=k=46,d=8,split=80 *.c ../programs/*.c --dictID=1 -o tmpDict1
 cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
 $ECHO "- Create dictionary with size limit"
 $ZSTD --train-cover=steps=8 *.c ../programs/*.c -o tmpDict2 --maxdict=4K
@@ -459,7 +459,7 @@ $ECHO "- Create second (different) dictionary"
 $ZSTD --train-fastcover=k=56,d=8 *.c ../programs/*.c ../programs/*.h -o tmpDictC
 $ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
 $ECHO "- Create dictionary with short dictID"
-$ZSTD --train-fastcover=k=46,d=8 *.c ../programs/*.c --dictID=1 -o tmpDict1
+$ZSTD --train-fastcover=k=46,d=8,f=15,split=80 *.c ../programs/*.c --dictID=1 -o tmpDict1
 cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
 $ECHO "- Create dictionary with size limit"
 $ZSTD --train-fastcover=steps=8 *.c ../programs/*.c -o tmpDict2 --maxdict=4K

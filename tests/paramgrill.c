@@ -144,8 +144,8 @@ static const char* g_shortParamNames[NUM_PARAMS] =
         { "wlog", "clog", "hlog","slog", "slen", "tlen", "strt", "fadt" };
 
 /* maps value from { 0 to rangetable[param] - 1 } to valid paramvalues */
-static U32 rangeMap(varInds_t param, U32 ind) {
-    ind = MIN(ind, rangetable[param] - 1);
+static U32 rangeMap(varInds_t param, int ind) {
+    ind = MAX(MIN(ind, (int)rangetable[param] - 1), 0);
     switch(param) {
         case tlen_ind:
             return tlen_table[ind];
@@ -166,7 +166,7 @@ static U32 rangeMap(varInds_t param, U32 ind) {
 }
 
 /* inverse of rangeMap */
-static U32 invRangeMap(varInds_t param, U32 value) {
+static int invRangeMap(varInds_t param, U32 value) {
     value = MIN(MAX(mintable[param], value), maxtable[param]);
     switch(param) {
         case tlen_ind: /* bin search */
@@ -186,7 +186,7 @@ static U32 invRangeMap(varInds_t param, U32 value) {
             return lo;    
         }
         case fadt_ind:
-            return value + 1;
+            return (int)value + 1;
         case wlog_ind:
         case clog_ind:
         case hlog_ind:
@@ -196,7 +196,7 @@ static U32 invRangeMap(varInds_t param, U32 value) {
             return value - mintable[param];
         case NUM_PARAMS:
             DISPLAY("Error, not a valid param\n ");
-            return (U32)-1;
+            return -2;
     }
     return 0; /* should never happen, stop compiler warnings */
 }
@@ -1545,7 +1545,7 @@ static unsigned memoTableIndDirect(const paramValues_t* ptr, const varInds_t* va
     for(i = 0; i < varyLen; i++) {
         varInds_t v = varyParams[i];
         if(v == strt_ind) continue; /* exclude strategy from memotable */
-        ind *= rangetable[v]; ind += invRangeMap(v, ptr->vals[v]);
+        ind *= rangetable[v]; ind += (unsigned)invRangeMap(v, ptr->vals[v]);
     }
     return ind;
 }

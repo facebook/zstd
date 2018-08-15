@@ -30,8 +30,7 @@ default: lib-release zstd-release
 all: allmost examples manual contrib
 
 .PHONY: allmost
-allmost: allzstd
-	$(MAKE) -C $(ZWRAPDIR) all
+allmost: allzstd zlibwrapper
 
 #skip zwrapper, can't build that on alternate architectures without the proper zlib installed
 .PHONY: allzstd
@@ -44,8 +43,9 @@ all32:
 	$(MAKE) -C $(PRGDIR) zstd32
 	$(MAKE) -C $(TESTDIR) all32
 
-.PHONY: lib lib-release
-lib lib-release:
+.PHONY: lib lib-release libzstd.a
+lib : libzstd.a
+lib lib-release libzstd.a:
 	@$(MAKE) -C $(ZSTDDIR) $@
 
 .PHONY: zstd zstd-release
@@ -59,8 +59,8 @@ zstdmt:
 	cp $(PRGDIR)/zstd$(EXT) ./zstdmt$(EXT)
 
 .PHONY: zlibwrapper
-zlibwrapper:
-	$(MAKE) -C $(ZWRAPDIR) test
+zlibwrapper: libzstd.a
+	$(MAKE) -C $(ZWRAPDIR) all
 
 .PHONY: test
 test: MOREFLAGS += -g -DDEBUGLEVEL=1 -Werror
@@ -353,5 +353,5 @@ bmi32build: clean
 
 staticAnalyze:
 	$(CC) -v
-	CPPFLAGS=-g scan-build --status-bugs -v $(MAKE) all
+	CC=$(CC) CPPFLAGS=-g scan-build --status-bugs -v $(MAKE) all
 endif

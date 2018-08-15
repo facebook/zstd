@@ -439,9 +439,6 @@ static paramValues_t overwriteParams(paramValues_t base, const paramValues_t mas
     return base;
 }
 
-/* amt will probably always be \pm 1? */
-/* slight change from old paramVariation, targetLength can only take on powers of 2 now (999 ~= 1024?) */
-/* take max/min bounds into account as well? */
 static void paramVaryOnce(const varInds_t paramIndex, const int amt, paramValues_t* ptr) {
     ptr->vals[paramIndex] = rangeMap(paramIndex, invRangeMap(paramIndex, ptr->vals[paramIndex]) + amt);
 }
@@ -610,7 +607,6 @@ static void optimizerAdjustInput(paramValues_t* pc, const size_t maxBlockSize) {
     }
 }
 
-/* what about low something like clog vs hlog in lvl 1?  */
 static int redundantParams(const paramValues_t paramValues, const constraint_t target, const size_t maxBlockSize) {
     return 
        (ZSTD_estimateCStreamSize_usingCParams(pvalsToCParams(paramValues)) > (size_t)target.cMem) /* Uses too much memory */
@@ -684,7 +680,6 @@ static void BMK_printWinner(FILE* f, const U32 cLevel, const BMK_result_t result
 
 /* comparison function: */
 /* strictly better, strictly worse, equal, speed-side adv, size-side adv */
-//Maybe use compress_only for benchmark first run?
 #define WORSE_RESULT 0
 #define BETTER_RESULT 1
 #define ERROR_RESULT 2
@@ -1385,7 +1380,7 @@ static void randomConstrainedParams(paramValues_t* pc, const memoTable_t* memoTa
 /* BMK_benchMemAdvanced(srcBuffer,srcSize, dstBuffer, dstSize, fileSizes, nbFiles, 0, &cParams, dictBuffer, dictSize, ctx, dctx, 0, "File", &adv); */
 /* nbSeconds used in same way as in BMK_advancedParams_t, as nbIters when in iterMode */
 
-/* if in decodeOnly, then srcPtr's will be compressed blocks, and uncompressedBlocks will be written to dstPtrs? */
+/* if in decodeOnly, then srcPtr's will be compressed blocks, and uncompressedBlocks will be written to dstPtrs */
 /* dictionary nullable, nothing else though. */
 static BMK_return_t BMK_benchMemInvertible(const buffers_t buf, const contexts_t ctx, 
                         const int cLevel, const paramValues_t* comprParams,
@@ -2088,11 +2083,9 @@ static winnerInfo_t climbOnce(const constraint_t target,
 
 /* Optimizes for a fixed strategy */
 
-/* flexible parameters: iterations of (failed?) climbing (or if we do non-random, maybe this is when everything is close to visitied)
+/* flexible parameters: iterations of failed climbing (or if we do non-random, maybe this is when everything is close to visitied)
    weight more on visit for bad results, less on good results/more on later results / ones with more failures.
    allocate memoTable here. 
-   only real use for paramTarget is to get the fixed values, right? 
-   maybe allow giving it a first init? 
  */
 static winnerInfo_t optimizeFixedStrategy(
     const buffers_t buf, const contexts_t ctx, 
@@ -2233,7 +2226,6 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
     }
 
     /* use level'ing mode instead of normal target mode */
-    /* Should lvl be parameter-masked here? */
     if(g_optmode) {
         winner.params = cParamsToPVals(ZSTD_getCParams(cLevelOpt, buf.maxBlockSize, ctx.dictSize));
         if(BMK_benchParam(&winner.result, buf, ctx, winner.params)) {
@@ -2247,7 +2239,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
         g_lvltarget.cSize /= ((double)g_strictness) / 100;
 
         target.cSpeed = (U32)g_lvltarget.cSpeed;  
-        target.dSpeed = (U32)g_lvltarget.dSpeed; //See if this is reasonable. 
+        target.dSpeed = (U32)g_lvltarget.dSpeed; 
 
         BMK_printWinnerOpt(stdout, cLevelOpt, winner.result, winner.params, target, buf.srcSize);
     }

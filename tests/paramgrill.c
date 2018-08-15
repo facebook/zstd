@@ -53,6 +53,8 @@ static const int g_maxNbVariations = 64;
 *  Macros
 **************************************/
 #define DISPLAY(...)  fprintf(stderr, __VA_ARGS__)
+#define DISPLAYLEVEL(n, ...) if(g_displayLevel >= n) { fprintf(stderr, __VA_ARGS__); }
+
 #define TIMED 0
 #ifndef DEBUG
 #  define DEBUG 0
@@ -142,8 +144,8 @@ static const char* g_shortParamNames[NUM_PARAMS] =
         { "wlog", "clog", "hlog","slog", "slen", "tlen", "strt", "fadt" };
 
 /* maps value from { 0 to rangetable[param] - 1 } to valid paramvalues */
-static U32 rangeMap(varInds_t param, U32 ind) {
-    ind = MIN(ind, rangetable[param] - 1);
+static U32 rangeMap(varInds_t param, int ind) {
+    ind = MAX(MIN(ind, (int)rangetable[param] - 1), 0);
     switch(param) {
         case tlen_ind:
             return tlen_table[ind];
@@ -164,7 +166,7 @@ static U32 rangeMap(varInds_t param, U32 ind) {
 }
 
 /* inverse of rangeMap */
-static U32 invRangeMap(varInds_t param, U32 value) {
+static int invRangeMap(varInds_t param, U32 value) {
     value = MIN(MAX(mintable[param], value), maxtable[param]);
     switch(param) {
         case tlen_ind: /* bin search */
@@ -184,7 +186,7 @@ static U32 invRangeMap(varInds_t param, U32 value) {
             return lo;    
         }
         case fadt_ind:
-            return value + 1;
+            return (int)value + 1;
         case wlog_ind:
         case clog_ind:
         case hlog_ind:
@@ -194,7 +196,7 @@ static U32 invRangeMap(varInds_t param, U32 value) {
             return value - mintable[param];
         case NUM_PARAMS:
             DISPLAY("Error, not a valid param\n ");
-            return (U32)-1;
+            return -2;
     }
     return 0; /* should never happen, stop compiler warnings */
 }
@@ -233,6 +235,9 @@ static U32 g_noSeed = 0;
 static paramValues_t g_params; /* Initialized at the beginning of main w/ emptyParams() function */
 static UTIL_time_t g_time; /* to be used to compare solution finding speeds to compare to original */
 static U32 g_memoTableLog = PARAM_UNSET;
+static int g_displayLevel = 3;
+
+static BYTE g_silenceParams[NUM_PARAMS];
 
 typedef enum {
     directMap,
@@ -444,31 +449,34 @@ static paramValues_t cParamUnsetMin(paramValues_t paramTarget) {
 }
 
 static void BMK_translateAdvancedParams(FILE* f, const paramValues_t params) {
-    U32 i;
+    varInds_t v;
+    int first = 1;
     fprintf(f,"--zstd=");
-    for(i = 0; i < NUM_PARAMS; i++) {
-        fprintf(f,"%s=", g_paramNames[i]);
+    for(v = 0; v < NUM_PARAMS; v++) {
+        if(g_silenceParams[v]) { continue; }
+        if(!first) { fprintf(f, ","); }
+        fprintf(f,"%s=", g_paramNames[v]);
         
-        if(i == strt_ind) { fprintf(f,"%u", params.vals[i]); }
-        else { displayParamVal(f, i, params.vals[i], 0); }
-
-        if(i != NUM_PARAMS - 1) {
-            fprintf(f, ",");
-        }
+        if(v == strt_ind) { fprintf(f,"%u", params.vals[v]); }
+        else { displayParamVal(f, v, params.vals[v], 0); }
+        first = 0;
     }
     fprintf(f, "\n");
 }
 
 static void BMK_displayOneResult(FILE* f, winnerInfo_t res, const size_t srcSize) {
             varInds_t v;
+            int first = 1;
             res.params = cParamUnsetMin(res.params);
             fprintf(f,"    {");
             for(v = 0; v < NUM_PARAMS; v++) {
-                if(v != 0) { fprintf(f, ","); }
+                if(g_silenceParams[v]) { continue; }
+                if(!first) { fprintf(f, ","); }
                 displayParamVal(f, v, res.params.vals[v], 3);
+                first = 0;
             }
 
-            fprintf(f, "},     /* R:%5.3f at %5.1f MB/s - %5.1f MB/s */\n",
+            fprintf(f, " },     /* R:%5.3f at %5.1f MB/s - %5.1f MB/s */\n",
             (double)srcSize / res.result.cSize, (double)res.result.cSpeed / (1 MB), (double)res.result.dSpeed / (1 MB));
 }
 
@@ -886,7 +894,7 @@ static int createBuffers(buffers_t* buff, const char* const * const fileNamesTab
             goto _cleanUp;
         }
 
-        DISPLAY("Loading %s...       \r", fileNamesTable[n]);
+        DISPLAYLEVEL(2, "Loading %s...       \r", fileNamesTable[n]);
 
         if (fileSize + pos > benchedSize) fileSize = benchedSize - pos, nbFiles=n;   /* buffer too small - stop after this file */
         {
@@ -1254,22 +1262,22 @@ static void BMK_printWinnerOpt(FILE* f, const U32 cLevel, const BMK_result_t res
     /* global winner used for constraints */
                                     /* cSize, cSpeed, dSpeed, cMem */
     static winnerInfo_t g_winner = { { (size_t)-1LL, 0, 0, (size_t)-1LL }, { { PARAM_UNSET, PARAM_UNSET, PARAM_UNSET, PARAM_UNSET, PARAM_UNSET, PARAM_UNSET, PARAM_UNSET, PARAM_UNSET } } };
-    if(DEBUG || compareResultLT(g_winner.result, result, targetConstraints, srcSize)) {
+    if(DEBUG || compareResultLT(g_winner.result, result, targetConstraints, srcSize) || g_displayLevel >= 4) {
         if(DEBUG && compareResultLT(g_winner.result, result, targetConstraints, srcSize)) {
             DISPLAY("New Winner: \n");
         }
 
-        BMK_printWinner(f, cLevel, result, params, srcSize);
+        if(g_displayLevel >= 2) { BMK_printWinner(f, cLevel, result, params, srcSize); }
 
         if(compareResultLT(g_winner.result, result, targetConstraints, srcSize)) {
-            BMK_translateAdvancedParams(f, params);
+            if(g_displayLevel >= 1) { BMK_translateAdvancedParams(f, params); }
             g_winner.result = result;
             g_winner.params = params;
         }
     }  
 
     //prints out tradeoff table if using lvloptimize
-    if(g_optmode && g_optimizer) {
+    if(g_optmode && g_optimizer && (DEBUG || g_displayLevel == 3)) {
         winnerInfo_t w;
         winner_ll_node* n;
         w.result = result;
@@ -1282,7 +1290,6 @@ static void BMK_printWinnerOpt(FILE* f, const U32 cLevel, const BMK_result_t res
         /* the table */
         fprintf(f, "================================\n");
         for(n = g_winners; n != NULL; n = n->next) {
-            fprintf(f, "\r%79s\r", "");
             BMK_displayOneResult(f, n->res, srcSize);
         }
         fprintf(f, "================================\n");
@@ -1538,7 +1545,7 @@ static unsigned memoTableIndDirect(const paramValues_t* ptr, const varInds_t* va
     for(i = 0; i < varyLen; i++) {
         varInds_t v = varyParams[i];
         if(v == strt_ind) continue; /* exclude strategy from memotable */
-        ind *= rangetable[v]; ind += invRangeMap(v, ptr->vals[v]);
+        ind *= rangetable[v]; ind += (unsigned)invRangeMap(v, ptr->vals[v]);
     }
     return ind;
 }
@@ -2018,7 +2025,6 @@ static winnerInfo_t climbOnce(const constraint_t target,
             better = 0;
             DEBUGOUTPUT("Start\n");
             cparam = winnerInfo.params;
-            BMK_printWinnerOpt(stdout, CUSTOM_LEVEL, winnerInfo.result, winnerInfo.params, target, buf.srcSize);
             candidateInfo.params = cparam;
              /* all dist-1 candidates */
             for(i = 0; i < varLen; i++) {
@@ -2034,7 +2040,6 @@ static winnerInfo_t climbOnce(const constraint_t target,
                         DEBUGOUTPUT("Res: %d\n", res);
                         if(res == BETTER_RESULT) { /* synonymous with better when called w/ infeasibleBM */
                             winnerInfo = candidateInfo;
-                            BMK_printWinnerOpt(stdout, CUSTOM_LEVEL, winnerInfo.result, sanitizeParams(winnerInfo.params), target, buf.srcSize);
                             better = 1;
                             if(compareResultLT(bestFeasible1.result, winnerInfo.result, target, buf.srcSize)) {
                                 bestFeasible1 = winnerInfo;
@@ -2061,7 +2066,6 @@ static winnerInfo_t climbOnce(const constraint_t target,
                     DEBUGOUTPUT("Res: %d\n", res);
                     if(res == BETTER_RESULT) { /* synonymous with better in this case*/
                         winnerInfo = candidateInfo;
-                        BMK_printWinnerOpt(stdout, CUSTOM_LEVEL, winnerInfo.result, sanitizeParams(winnerInfo.params), target, buf.srcSize);
                         better = 1;
                         if(compareResultLT(bestFeasible1.result, winnerInfo.result, target, buf.srcSize)) {
                             bestFeasible1 = winnerInfo;
@@ -2203,9 +2207,9 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
     }
 
     if(nbFiles == 1) {
-        DISPLAY("Loading %s...       \r", fileNamesTable[0]);
+        DISPLAYLEVEL(2, "Loading %s...       \r", fileNamesTable[0]);
     } else {
-        DISPLAY("Loading %lu Files...       \r", (unsigned long)nbFiles); 
+        DISPLAYLEVEL(2, "Loading %lu Files...       \r", (unsigned long)nbFiles); 
     }
 
     /* sanitize paramTarget */
@@ -2271,18 +2275,18 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
     }
 
     /* bench */
-    DISPLAY("\r%79s\r", "");
+    DISPLAYLEVEL(2, "\r%79s\r", "");
     if(nbFiles == 1) {
-        DISPLAY("optimizing for %s", fileNamesTable[0]);
+        DISPLAYLEVEL(2, "optimizing for %s", fileNamesTable[0]);
     } else {
-        DISPLAY("optimizing for %lu Files", (unsigned long)nbFiles);
+        DISPLAYLEVEL(2, "optimizing for %lu Files", (unsigned long)nbFiles);
     }
 
-    if(target.cSpeed != 0) { DISPLAY(" - limit compression speed %u MB/s", target.cSpeed >> 20); }
-    if(target.dSpeed != 0) { DISPLAY(" - limit decompression speed %u MB/s", target.dSpeed >> 20); }
-    if(target.cMem != (U32)-1) { DISPLAY(" - limit memory %u MB", target.cMem >> 20); }
+    if(target.cSpeed != 0) { DISPLAYLEVEL(2," - limit compression speed %u MB/s", target.cSpeed >> 20); }
+    if(target.dSpeed != 0) { DISPLAYLEVEL(2, " - limit decompression speed %u MB/s", target.dSpeed >> 20); }
+    if(target.cMem != (U32)-1) { DISPLAYLEVEL(2, " - limit memory %u MB", target.cMem >> 20); }
 
-    DISPLAY("\n");
+    DISPLAYLEVEL(2, "\n");
     findClockGranularity();
 
     {   
@@ -2307,13 +2311,12 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
                         winner.params = CParams;
                     }
 
-                    CHECKTIMEGT(ret, 0, _cleanUp); /* if pass time limit, stop */
+                    CHECKTIMEGT(ret, 0, _displayCleanUp); /* if pass time limit, stop */
                     /* if the current params are too slow, just stop. */
                     if(target.cSpeed > candidate.cSpeed * 3 / 2) { break; }
                 }
 
                 BMK_printWinnerOpt(stdout, CUSTOM_LEVEL, winner.result, winner.params, target, buf.srcSize);
-                BMK_translateAdvancedParams(stdout, winner.params);
             }
         }
 
@@ -2331,7 +2334,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
                     if(compareResultLT(winner.result, w1.result, target, buf.srcSize)) {
                         winner = w1;
                     }
-                    CHECKTIMEGT(ret, 0, _cleanUp);
+                    CHECKTIMEGT(ret, 0, _displayCleanUp);
                 }
 
                 while(st && tries > 0) {
@@ -2348,7 +2351,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
                         st = nextStrategy(st, bestStrategy);
                         tries -= TRY_DECAY;
                     }
-                    CHECKTIMEGT(ret, 0, _cleanUp);
+                    CHECKTIMEGT(ret, 0, _displayCleanUp);
                 }
             } else {
                 winner = optimizeFixedStrategy(buf, ctx, target, paramBase, paramTarget.vals[strt_ind], allMT, g_maxTries);
@@ -2363,12 +2366,13 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
             goto _cleanUp;
         }
         /* end summary */
-        BMK_printWinnerOpt(stdout, CUSTOM_LEVEL, winner.result, winner.params, target, buf.srcSize);
+_displayCleanUp: 
+        if(g_displayLevel >= 0) { BMK_displayOneResult(stdout, winner, buf.srcSize); }
         BMK_translateAdvancedParams(stdout, winner.params);
-        DISPLAY("grillParams size - optimizer completed \n");
+        DISPLAYLEVEL(1, "grillParams size - optimizer completed \n");
 
     }
-_cleanUp: 
+_cleanUp:
     freeContexts(ctx);
     freeBuffers(buf);
     freeMemoTableArray(allMT);
@@ -2500,9 +2504,6 @@ int main(int argc, const char** argv)
 
     assert(argc>=1);   /* for exename */
 
-    /* Welcome message */
-    DISPLAY(WELCOME_MESSAGE);
-
     for(i=1; i<argc; i++) {
         const char* argument = argv[i];
         DEBUGOUTPUT("%d: %s\n", i, argument);
@@ -2549,6 +2550,43 @@ int main(int argc, const char** argv)
             }
             continue;
             /* if not return, success */
+
+        } else if (longCommandWArg(&argument, "--display=")) {
+            /* Decode command (note : aggregated commands are allowed) */
+            memset(g_silenceParams, 1, sizeof(g_silenceParams));
+            for ( ; ;) {
+                int found = 0;
+                varInds_t v;
+                for(v = 0; v < NUM_PARAMS; v++) {
+                    if(longCommandWArg(&argument, g_shortParamNames[v]) || longCommandWArg(&argument, g_paramNames[v])) {
+                        g_silenceParams[v] = 0;
+                        found = 1;
+                    }
+                }
+                if(longCommandWArg(&argument, "compressionParameters") || longCommandWArg(&argument, "cParams")) {
+                    for(v = 0; v <= strt_ind; v++) {
+                        g_silenceParams[v] = 0;
+                    }
+                    found = 1;
+                }
+
+
+                if(found) {
+                    if(argument[0]==',') {
+                        continue;
+                    } else {
+                        break;
+                    }
+                }
+                DISPLAY("invalid parameter name parameter \n");
+                return 1;
+            }
+
+            if (argument[0] != 0) {
+                DISPLAY("invalid --display format\n");
+                return 1; /* check the end of string */
+            }
+            continue;
         } else if (argument[0]=='-') {
             argument++;
 
@@ -2653,6 +2691,14 @@ int main(int argc, const char** argv)
                     seperateFiles = 1;
                     break;
 
+                case 'q':
+                    while (argument[0] == 'q') { argument++; g_displayLevel--; }
+                    break;
+
+                case 'v':
+                    while (argument[0] == 'v') { argument++; g_displayLevel++; }
+                    break;
+
                 /* load dictionary file (only applicable for optimizer rn) */
                 case 'D':
                     if(i == argc - 1) { /* last argument, return error. */ 
@@ -2675,6 +2721,9 @@ int main(int argc, const char** argv)
         /* first provided filename is input */
         if (!input_filename) { input_filename=argument; filenamesStart=i; continue; }
     }
+
+    /* Welcome message */
+    DISPLAYLEVEL(2, WELCOME_MESSAGE);
 
     if (filenamesStart==0) {
         if (g_optimizer) {

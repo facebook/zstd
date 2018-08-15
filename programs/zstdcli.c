@@ -85,7 +85,7 @@ static U32 g_ldmHashEveryLog = LDM_PARAM_DEFAULT;
 static U32 g_ldmBucketSizeLog = LDM_PARAM_DEFAULT;
 
 #define DEFAULT_SPLITPOINT 1.0
-#define DEFAULT_FINALIZE 100
+#define DEFAULT_ACCEL 1
 
 typedef enum { cover, fastCover, legacy } dictType;
 
@@ -175,7 +175,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( "Dictionary builder : \n");
     DISPLAY( "--train ## : create a dictionary from a training set of files \n");
     DISPLAY( "--train-cover[=k=#,d=#,steps=#,split=#] : use the cover algorithm with optional args\n");
-    DISPLAY( "--train-fastcover[=k=#,d=#,f=#,steps=#,split=#,finalize=#,skip=#] : use the fast cover algorithm with optional args\n");
+    DISPLAY( "--train-fastcover[=k=#,d=#,f=#,steps=#,split=#,accel=#] : use the fast cover algorithm with optional args\n");
     DISPLAY( "--train-legacy[=s=#] : use the legacy algorithm with selectivity (default: %u)\n", g_defaultSelectivityLevel);
     DISPLAY( " -o file : `file` is dictionary name (default: %s) \n", g_defaultDictName);
     DISPLAY( "--maxdict=# : limit dictionary to specified size (default: %u) \n", g_defaultMaxDictSize);
@@ -301,7 +301,7 @@ static unsigned parseCoverParameters(const char* stringPtr, ZDICT_cover_params_t
 
 /**
  * parseFastCoverParameters() :
- * reads fastcover parameters from *stringPtr (e.g. "--train-fastcover=k=48,d=8,f=20,steps=32") into *params
+ * reads fastcover parameters from *stringPtr (e.g. "--train-fastcover=k=48,d=8,f=20,steps=32,accel=2") into *params
  * @return 1 means that fastcover parameters were correct
  * @return 0 in case of malformed parameters
  */
@@ -313,8 +313,7 @@ static unsigned parseFastCoverParameters(const char* stringPtr, ZDICT_fastCover_
         if (longCommandWArg(&stringPtr, "d=")) { params->d = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "f=")) { params->f = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "steps=")) { params->steps = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
-        if (longCommandWArg(&stringPtr, "finalize=")) { params->finalize = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
-        if (longCommandWArg(&stringPtr, "skip=")) { params->skip = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        if (longCommandWArg(&stringPtr, "accel=")) { params->accel = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "split=")) {
           unsigned splitPercentage = readU32FromChar(&stringPtr);
           params->splitPoint = (double)splitPercentage / 100.0;
@@ -323,7 +322,7 @@ static unsigned parseFastCoverParameters(const char* stringPtr, ZDICT_fastCover_
         return 0;
     }
     if (stringPtr[0] != 0) return 0;
-    DISPLAYLEVEL(4, "cover: k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\nfinalize=%u\nskip=%u\n", params->k, params->d, params->f, params->steps, (unsigned)(params->splitPoint * 100), params->finalize, params->skip);
+    DISPLAYLEVEL(4, "cover: k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\naccel=%u\n", params->k, params->d, params->f, params->steps, (unsigned)(params->splitPoint * 100), params->accel);
     return 1;
 }
 
@@ -360,7 +359,7 @@ static ZDICT_fastCover_params_t defaultFastCoverParams(void)
     params.f = 18;
     params.steps = 4;
     params.splitPoint = DEFAULT_SPLITPOINT;
-    params.finalize = DEFAULT_FINALIZE;
+    params.accel = DEFAULT_ACCEL;
     return params;
 }
 #endif

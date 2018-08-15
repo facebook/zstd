@@ -40,7 +40,7 @@ extern "C" {
 /*! ZDICT_trainFromBuffer():
  *  Train a dictionary from an array of samples.
  *  Redirect towards ZDICT_optimizeTrainFromBuffer_fastCover() single-threaded, with d=8, steps=4,
- *  f=18, finalize=100, and skip=0.
+ *  f=18, and accel=1.
  *  Samples must be stored concatenated in a single flat buffer `samplesBuffer`,
  *  supplied with an array of sizes `samplesSizes`, providing the size of each sample, in order.
  *  The resulting dictionary will be saved into `dictBuffer`.
@@ -98,8 +98,7 @@ typedef struct {
     unsigned steps;              /* Number of steps : Only used for optimization : 0 means default (32) : Higher means more parameters checked */
     unsigned nbThreads;          /* Number of threads : constraint: 0 < nbThreads : 1 means single-threaded : Only used for optimization : Ignored if ZSTD_MULTITHREAD is not defined */
     double splitPoint;           /* Percentage of samples used for training: the first nbSamples * splitPoint samples will be used to training, the last nbSamples * (1 - splitPoint) samples will be used for testing, 0 means default (1.0), 1.0 when all samples are used for both training and testing */
-    unsigned finalize;           /* Percentage of training samples used for ZDICT_finalizeDictionary: 0 means default(100) */
-    unsigned skip;               /* Number of dmer skipped between each dmer counted in computeFrequency: constraint: 0 <= skip < k */
+    unsigned accel;              /* Acceleration level: constraint: 0 < accel <= 10, higher means faster and less accurate, 0 means default(1) */
     ZDICT_params_t zParams;
 } ZDICT_fastCover_params_t;
 
@@ -167,13 +166,12 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_fastCover(void *dictBuffer,
  * This function tries many parameter combinations (specifically, k and d combinations)
  * and picks the best parameters. `*parameters` is filled with the best parameters found,
  * dictionary constructed with those parameters is stored in `dictBuffer`.
- * All of the parameters d, k, steps, f, finalize, and skip are optional.
+ * All of the parameters d, k, steps, f, and accel are optional.
  * If d is non-zero then we don't check multiple values of d, otherwise we check d = {6, 8, 10, 12, 14, 16}.
  * if steps is zero it defaults to its default value.
  * If k is non-zero then we don't check multiple values of k, otherwise we check steps values in [16, 2048].
  * If f is zero, default value of 18 is used.
- * If finalize is zero, default value of 100 is used.
- * Default value of skip is zero.
+ * If accel is zero, default value of 1 is used.
  *
  * @return: size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`)
  *           or an error code, which can be tested with ZDICT_isError().

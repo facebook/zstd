@@ -401,28 +401,32 @@ int main(int argCount, const char* argv[])
   /* for fastCover */
   for (unsigned f = 15; f < 25; f++){
     DISPLAYLEVEL(2, "current f is %u\n", f);
-    /* for fastCover (optimizing k and d) */
-    ZDICT_fastCover_params_t fastParam;
-    memset(&fastParam, 0, sizeof(fastParam));
-    fastParam.zParams = zParams;
-    fastParam.splitPoint = 1.0;
-    fastParam.f = f;
-    fastParam.steps = 40;
-    fastParam.nbThreads = 1;
-    const int fastOptResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, NULL, NULL, &fastParam);
-    DISPLAYLEVEL(2, "k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\nfinalize=%u\nskip=%u\n", fastParam.k, fastParam.d, fastParam.f, fastParam.steps, (unsigned)(fastParam.splitPoint * 100), fastParam.finalize, fastParam.skip);
-    if(fastOptResult) {
-      result = 1;
-      goto _cleanup;
-    }
-
-    /* for fastCover (with k and d provided) */
-    for (int i = 0; i < 5; i++) {
-      const int fastResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, NULL, NULL, &fastParam);
-      DISPLAYLEVEL(2, "k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\nfinalize=%u\nskip=%u\n", fastParam.k, fastParam.d, fastParam.f, fastParam.steps, (unsigned)(fastParam.splitPoint * 100), fastParam.finalize, fastParam.skip);
-      if(fastResult) {
+    for (unsigned accel = 1; accel < 11; accel++) {
+      DISPLAYLEVEL(2, "current accel is %u\n", accel);
+      /* for fastCover (optimizing k and d) */
+      ZDICT_fastCover_params_t fastParam;
+      memset(&fastParam, 0, sizeof(fastParam));
+      fastParam.zParams = zParams;
+      fastParam.splitPoint = 1.0;
+      fastParam.f = f;
+      fastParam.steps = 40;
+      fastParam.nbThreads = 1;
+      fastParam.accel = accel;
+      const int fastOptResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, NULL, NULL, &fastParam);
+      DISPLAYLEVEL(2, "k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\naccel=%u\n", fastParam.k, fastParam.d, fastParam.f, fastParam.steps, (unsigned)(fastParam.splitPoint * 100), fastParam.accel);
+      if(fastOptResult) {
         result = 1;
         goto _cleanup;
+      }
+
+      /* for fastCover (with k and d provided) */
+      for (int i = 0; i < 5; i++) {
+        const int fastResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, NULL, NULL, &fastParam);
+        DISPLAYLEVEL(2, "k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\naccel=%u\n", fastParam.k, fastParam.d, fastParam.f, fastParam.steps, (unsigned)(fastParam.splitPoint * 100), fastParam.accel);
+        if(fastResult) {
+          result = 1;
+          goto _cleanup;
+        }
       }
     }
   }

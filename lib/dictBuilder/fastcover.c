@@ -22,9 +22,10 @@
 ***************************************/
 #define FASTCOVER_MAX_SAMPLES_SIZE (sizeof(size_t) == 8 ? ((U32)-1) : ((U32)1 GB))
 #define FASTCOVER_MAX_F 31
+#define FASTCOVER_MAX_ACCEL 10
 #define DEFAULT_SPLITPOINT 1.0
 #define DEFAULT_F 18
-#define DEFAULT_FINALIZE 100
+#define DEFAULT_ACCEL 1
 
 
 /*-*************************************
@@ -78,6 +79,30 @@ static size_t FASTCOVER_hashPtrToIndex(const void* p, U32 h, unsigned d) {
 
 
 /*-*************************************
+* Acceleration
+***************************************/
+typedef struct {
+  unsigned finalize;    /* Percentage of training samples used for ZDICT_finalizeDictionary */
+  unsigned skip;        /* Number of dmer skipped between each dmer counted in computeFrequency */
+} FASTCOVER_accel_t;
+
+
+static const FASTCOVER_accel_t FASTCOVER_defaultAccelParameters[FASTCOVER_MAX_ACCEL+1] = {
+  { 100, 0 },   /* accel = 0, should not happen because accel = 0 defaults to accel = 1 */
+  { 100, 0 },   /* accel = 1 */
+  { 90, 0 },   /* accel = 2 */
+  { 70, 0 },   /* accel = 3 */
+  { 50, 0 },   /* accel = 4 */
+  { 50, 1 },   /* accel = 5 */
+  { 50, 2 },   /* accel = 6 */
+  { 40, 2 },   /* accel = 7 */
+  { 40, 3 },   /* accel = 8 */
+  { 40, 4 },   /* accel = 9 */
+  { 40, 5 },   /* accel = 10 */
+};
+
+
+/*-*************************************
 * Context
 ***************************************/
 typedef struct {
@@ -92,8 +117,7 @@ typedef struct {
   U16 *segmentFreqs;
   unsigned d;
   unsigned f;
-  unsigned finalize;
-  unsigned skip;
+  FASTCOVER_accel_t accelParams;
 } FASTCOVER_ctx_t;
 
 
@@ -183,7 +207,7 @@ static COVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
 
 static int FASTCOVER_checkParameters(ZDICT_cover_params_t parameters,
                                      size_t maxDictSize, unsigned f,
-                                     unsigned finalize, unsigned skip) {
+                                     unsigned accel) {
   /* k, d, and f are required parameters */
   if (parameters.d == 0 || parameters.k == 0) {
     return 0;
@@ -208,12 +232,8 @@ static int FASTCOVER_checkParameters(ZDICT_cover_params_t parameters,
   if (parameters.splitPoint <= 0 || parameters.splitPoint > 1) {
     return 0;
   }
-  /* 0 < finalize <= 100*/
-  if (finalize > 100 || finalize == 0) {
-    return 0;
-  }
-  /* 0 <= skip < k*/
-  if (skip >= parameters.k) {
+  /* 0 < accel <= 10 */
+  if (accel > 10 || accel == 0) {
     return 0;
   }
   return 1;
@@ -248,7 +268,7 @@ static void FASTCOVER_ctx_destroy(FASTCOVER_ctx_t *ctx) {
 static void FASTCOVER_computeFrequency(U32 *freqs, FASTCOVER_ctx_t *ctx){
   const unsigned f = ctx->f;
   const unsigned d = ctx->d;
-  const unsigned skip = ctx->skip;
+  const unsigned skip = ctx->accelParams.skip;
   const unsigned readLength = MAX(d, 8);
   size_t start; /* start of current dmer */
   size_t i;
@@ -275,7 +295,7 @@ static void FASTCOVER_computeFrequency(U32 *freqs, FASTCOVER_ctx_t *ctx){
 static int FASTCOVER_ctx_init(FASTCOVER_ctx_t *ctx, const void *samplesBuffer,
                               const size_t *samplesSizes, unsigned nbSamples,
                               unsigned d, double splitPoint, unsigned f,
-                              unsigned finalize, unsigned skip) {
+                              FASTCOVER_accel_t accelParams) {
   const BYTE *const samples = (const BYTE *)samplesBuffer;
   const size_t totalSamplesSize = COVER_sum(samplesSizes, nbSamples);
   /* Split samples into testing and training sets */
@@ -315,8 +335,7 @@ static int FASTCOVER_ctx_init(FASTCOVER_ctx_t *ctx, const void *samplesBuffer,
   ctx->nbDmers = trainingSamplesSize - MAX(d, sizeof(U64)) + 1;
   ctx->d = d;
   ctx->f = f;
-  ctx->finalize = finalize;
-  ctx->skip = skip;
+  ctx->accelParams = accelParams;
 
   /* The offsets of each file */
   ctx->offsets = (size_t *)malloc((nbSamples + 1) * sizeof(size_t));
@@ -434,7 +453,7 @@ static void FASTCOVER_tryParameters(void *opaque) {
   {
     const size_t tail = FASTCOVER_buildDictionary(ctx, freqs, dict,
                                                   dictBufferCapacity, parameters);
-    const unsigned nbFinalizeSamples = (unsigned)(ctx->nbTrainSamples * ctx->finalize / 100);
+    const unsigned nbFinalizeSamples = (unsigned)(ctx->nbTrainSamples * ctx->accelParams.finalize / 100);
     dictBufferCapacity = ZDICT_finalizeDictionary(
         dict, dictBufferCapacity, dict + tail, dictBufferCapacity - tail,
         ctx->samples, ctx->samplesSizes, nbFinalizeSamples, parameters.zParams);
@@ -516,14 +535,14 @@ static void FASTCOVER_convertToCoverParams(ZDICT_fastCover_params_t fastCoverPar
 
 static void FASTCOVER_convertToFastCoverParams(ZDICT_cover_params_t coverParams,
                                           ZDICT_fastCover_params_t *fastCoverParams,
-                                          unsigned f, unsigned finalize) {
+                                          unsigned f, unsigned accel) {
     fastCoverParams->k = coverParams.k;
     fastCoverParams->d = coverParams.d;
     fastCoverParams->steps = coverParams.steps;
     fastCoverParams->nbThreads = coverParams.nbThreads;
     fastCoverParams->splitPoint = coverParams.splitPoint;
     fastCoverParams->f = f;
-    fastCoverParams->finalize = finalize;
+    fastCoverParams->accel = accel;
     fastCoverParams->zParams = coverParams.zParams;
 }
 
@@ -534,18 +553,19 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_fastCover(
     BYTE* const dict = (BYTE*)dictBuffer;
     FASTCOVER_ctx_t ctx;
     ZDICT_cover_params_t coverParams;
+    FASTCOVER_accel_t accelParams;
     /* Initialize global data */
     g_displayLevel = parameters.zParams.notificationLevel;
     /* Assign splitPoint and f if not provided */
     parameters.splitPoint = parameters.splitPoint <= 0 ? 1.0 : parameters.splitPoint;
     parameters.f = parameters.f == 0 ? DEFAULT_F : parameters.f;
-    parameters.finalize = parameters.finalize == 0 ? DEFAULT_FINALIZE : parameters.finalize;
+    parameters.accel = parameters.accel == 0 ? DEFAULT_ACCEL : parameters.accel;
     /* Convert to cover parameter */
     memset(&coverParams, 0 , sizeof(coverParams));
     FASTCOVER_convertToCoverParams(parameters, &coverParams);
     /* Checks */
     if (!FASTCOVER_checkParameters(coverParams, dictBufferCapacity, parameters.f,
-                                   parameters.finalize, parameters.skip)) {
+                                   parameters.accel)) {
       DISPLAYLEVEL(1, "FASTCOVER parameters incorrect\n");
       return ERROR(GENERIC);
     }
@@ -558,10 +578,12 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_fastCover(
                    ZDICT_DICTSIZE_MIN);
       return ERROR(dstSize_tooSmall);
     }
+    /* Assign corresponding FASTCOVER_accel_t to accelParams*/
+    accelParams = FASTCOVER_defaultAccelParameters[parameters.accel];
     /* Initialize context */
     if (!FASTCOVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples,
                             coverParams.d, parameters.splitPoint, parameters.f,
-                            parameters.finalize, parameters.skip)) {
+                            accelParams)) {
       DISPLAYLEVEL(1, "Failed to initialize context\n");
       return ERROR(GENERIC);
     }
@@ -570,7 +592,7 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_fastCover(
     {
       const size_t tail = FASTCOVER_buildDictionary(&ctx, ctx.freqs, dictBuffer,
                                                 dictBufferCapacity, coverParams);
-      const unsigned nbFinalizeSamples = (unsigned)(ctx.nbTrainSamples * ctx.finalize / 100);
+      const unsigned nbFinalizeSamples = (unsigned)(ctx.nbTrainSamples * ctx.accelParams.finalize / 100);
       const size_t dictionarySize = ZDICT_finalizeDictionary(
           dict, dictBufferCapacity, dict + tail, dictBufferCapacity - tail,
           samplesBuffer, samplesSizes, nbFinalizeSamples, coverParams.zParams);
@@ -589,6 +611,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_fastCover(
     const size_t *samplesSizes, unsigned nbSamples,
     ZDICT_fastCover_params_t *parameters) {
     ZDICT_cover_params_t coverParams;
+    FASTCOVER_accel_t accelParams;
     /* constants */
     const unsigned nbThreads = parameters->nbThreads;
     const double splitPoint =
@@ -602,8 +625,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_fastCover(
     const unsigned kIterations =
         (1 + (kMaxD - kMinD) / 2) * (1 + (kMaxK - kMinK) / kStepSize);
     const unsigned f = parameters->f == 0 ? DEFAULT_F : parameters->f;
-    const unsigned finalize = parameters->finalize == 0 ? DEFAULT_FINALIZE : parameters->finalize;
-    const unsigned skip = parameters->skip;
+    const unsigned accel = parameters->accel == 0 ? DEFAULT_ACCEL : parameters->accel;
     /* Local variables */
     const int displayLevel = parameters->zParams.notificationLevel;
     unsigned iteration = 1;
@@ -614,6 +636,10 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_fastCover(
     /* Checks */
     if (splitPoint <= 0 || splitPoint > 1) {
       LOCALDISPLAYLEVEL(displayLevel, 1, "Incorrect splitPoint\n");
+      return ERROR(GENERIC);
+    }
+    if (accel == 0 || accel > FASTCOVER_MAX_ACCEL) {
+      LOCALDISPLAYLEVEL(displayLevel, 1, "Incorrect accel\n");
       return ERROR(GENERIC);
     }
     if (kMinK < kMaxD || kMaxK < kMinK) {
@@ -639,6 +665,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_fastCover(
     COVER_best_init(&best);
     memset(&coverParams, 0 , sizeof(coverParams));
     FASTCOVER_convertToCoverParams(*parameters, &coverParams);
+    accelParams = FASTCOVER_defaultAccelParameters[accel];
     /* Turn down global display level to clean up display at level 2 and below */
     g_displayLevel = displayLevel == 0 ? 0 : displayLevel - 1;
     /* Loop through d first because each new value needs a new context */
@@ -648,7 +675,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_fastCover(
       /* Initialize the context for this value of d */
       FASTCOVER_ctx_t ctx;
       LOCALDISPLAYLEVEL(displayLevel, 3, "d=%u\n", d);
-      if (!FASTCOVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples, d, splitPoint, f, finalize, skip)) {
+      if (!FASTCOVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples, d, splitPoint, f, accelParams)) {
         LOCALDISPLAYLEVEL(displayLevel, 1, "Failed to initialize context\n");
         COVER_best_destroy(&best);
         POOL_free(pool);
@@ -678,8 +705,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_fastCover(
         data->parameters.zParams.notificationLevel = g_displayLevel;
         /* Check the parameters */
         if (!FASTCOVER_checkParameters(data->parameters, dictBufferCapacity,
-                                       data->ctx->f, data->ctx->finalize,
-                                       data->ctx->skip)) {
+                                       data->ctx->f, accel)) {
           DISPLAYLEVEL(1, "FASTCOVER parameters incorrect\n");
           free(data);
           continue;
@@ -709,7 +735,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_fastCover(
         POOL_free(pool);
         return compressedSize;
       }
-      FASTCOVER_convertToFastCoverParams(best.parameters, parameters, f, finalize);
+      FASTCOVER_convertToFastCoverParams(best.parameters, parameters, f, accel);
       memcpy(dictBuffer, best.dict, dictSize);
       COVER_best_destroy(&best);
       POOL_free(pool);

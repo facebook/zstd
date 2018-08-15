@@ -1263,7 +1263,6 @@ static void BMK_printWinnerOpt(FILE* f, const U32 cLevel, const BMK_result_t res
         }
     }  
 
-    //prints out tradeoff table if using lvloptimize
     if(g_optmode && g_optimizer && (DEBUG || g_displayLevel == 3)) {
         winnerInfo_t w;
         winner_ll_node* n;
@@ -1574,9 +1573,9 @@ static void freeMemoTableArray(memoTable_t* const mtAll) {
 
 /* inits memotables for all (including mallocs), all strategies */
 /* takes unsanitized varyParams */
-static memoTable_t* createMemoTableArray(const varInds_t* const varyParams, const size_t varyLen, U32 memoTableLog) {
+static memoTable_t* createMemoTableArray(const paramValues_t p, const varInds_t* const varyParams, const size_t varyLen, const U32 memoTableLog) {
     memoTable_t* mtAll = (memoTable_t*)calloc(sizeof(memoTable_t),(ZSTD_btultra + 1));
-    int i;
+    ZSTD_strategy i, stratMin = ZSTD_fast, stratMax = ZSTD_btultra;
     
     if(mtAll == NULL) {
         return NULL;
@@ -1596,8 +1595,14 @@ static memoTable_t* createMemoTableArray(const varInds_t* const varyParams, cons
         return mtAll;
     }
 
-    /* hash table if normal table is too big */
-    for(i = 1; i <= (int)ZSTD_btultra; i++) {
+    
+    if(p.vals[strt_ind] != PARAM_UNSET) {
+        stratMin = p.vals[strt_ind];
+        stratMax = p.vals[strt_ind];
+    }
+
+
+    for(i = stratMin; i <= stratMax; i++) {
         size_t mtl = memoTableLen(mtAll[i].varArray, mtAll[i].varLen);
         mtAll[i].tableType = directMap;
 
@@ -1680,11 +1685,11 @@ static void randomConstrainedParams(paramValues_t* pc, const memoTable_t* memoTa
         int i;
         for(i = 0; i < NUM_PARAMS; i++) {
             varInds_t v = mt.varArray[i];
-            if(v == strt_ind) continue; //skip, already specified
+            if(v == strt_ind) continue; 
             pc->vals[v] = rangeMap(v, FUZ_rand(&g_rand) % rangetable[v]);
         }
 
-        if(!(memoTableGet(memoTableArray, *pc))) break; //only pick unpicked params. 
+        if(!(memoTableGet(memoTableArray, *pc))) break; /* only pick unpicked params. */
     }
 }
 
@@ -2105,7 +2110,7 @@ static winnerInfo_t optimizeFixedStrategy(
 
     for(i = 0; i < tries; i++) {
         DEBUGOUTPUT("Restart\n"); 
-        do { randomConstrainedParams(&init, memoTableArray, strat); } while(redundantParams(init, target, buf.maxBlockSize)); //only non-redundant params  
+        do { randomConstrainedParams(&init, memoTableArray, strat); } while(redundantParams(init, target, buf.maxBlockSize));
         candidateInfo = climbOnce(target, memoTableArray, buf, ctx, init);
         if(compareResultLT(winnerInfo.result, candidateInfo.result, target, buf.srcSize)) {
             winnerInfo = candidateInfo;
@@ -2168,7 +2173,7 @@ static int g_maxTries = 5;
 #define TRY_DECAY 1
 
 static int optimizeForSize(const char* const * const fileNamesTable, const size_t nbFiles, const char* dictFileName, constraint_t target, paramValues_t paramTarget, 
-    int cLevelOpt, int cLevelRun, U32 memoTableLog)
+    const int cLevelOpt, const int cLevelRun, const U32 memoTableLog)
 {
     varInds_t varArray [NUM_PARAMS];
     int ret = 0;
@@ -2201,8 +2206,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
     optimizerAdjustInput(&paramTarget, buf.maxBlockSize);
     paramBase = cParamUnsetMin(paramTarget);
 
-    // TODO: if strategy is fixed, only init that row
-    allMT = createMemoTableArray(varArray, varLen, memoTableLog);
+    allMT = createMemoTableArray(paramTarget, varArray, varLen, memoTableLog);
 
     if(!allMT) {
         DISPLAY("MemoTable Init Error\n");

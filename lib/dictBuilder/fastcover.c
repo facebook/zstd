@@ -90,15 +90,15 @@ typedef struct {
 static const FASTCOVER_accel_t FASTCOVER_defaultAccelParameters[FASTCOVER_MAX_ACCEL+1] = {
   { 100, 0 },   /* accel = 0, should not happen because accel = 0 defaults to accel = 1 */
   { 100, 0 },   /* accel = 1 */
-  { 90, 0 },   /* accel = 2 */
-  { 70, 0 },   /* accel = 3 */
-  { 50, 0 },   /* accel = 4 */
-  { 50, 1 },   /* accel = 5 */
-  { 50, 2 },   /* accel = 6 */
-  { 40, 2 },   /* accel = 7 */
-  { 40, 3 },   /* accel = 8 */
-  { 40, 4 },   /* accel = 9 */
-  { 40, 5 },   /* accel = 10 */
+  { 50, 1 },   /* accel = 2 */
+  { 34, 2 },   /* accel = 3 */
+  { 25, 3 },   /* accel = 4 */
+  { 20, 4 },   /* accel = 5 */
+  { 17, 5 },   /* accel = 6 */
+  { 14, 6 },   /* accel = 7 */
+  { 13, 7 },   /* accel = 8 */
+  { 11, 8 },   /* accel = 9 */
+  { 10, 9 },   /* accel = 10 */
 };
 
 

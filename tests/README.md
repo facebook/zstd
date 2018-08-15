@@ -122,6 +122,7 @@ Full list of arguments
     tries=    : Maximum number of random restarts on a single strategy before switching (Default 3)
                 Higher values will make optimizer run longer, more chances to find better solution.
     memLog    : Limits the log of the size of each memotable (1 per strategy). Setting memLog = 0 turns off memoization 
+ --display=   : which params to display, uses all --zstd parameter names and 'cParams' to display only compression parameters. 
  -P#          : generated sample compressibility 
  -t#          : Caps runtime of operation in seconds (default : 99999 seconds (about 27 hours )) 
  -v           : Prints Benchmarking output

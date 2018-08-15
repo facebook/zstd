@@ -237,6 +237,8 @@ static UTIL_time_t g_time; /* to be used to compare solution finding speeds to c
 static U32 g_memoTableLog = PARAM_UNSET;
 static int g_displayLevel = 3;
 
+static BYTE g_silenceParams[NUM_PARAMS];
+
 typedef enum {
     directMap,
     xxhashMap,
@@ -447,31 +449,34 @@ static paramValues_t cParamUnsetMin(paramValues_t paramTarget) {
 }
 
 static void BMK_translateAdvancedParams(FILE* f, const paramValues_t params) {
-    U32 i;
+    varInds_t v;
+    int first = 1;
     fprintf(f,"--zstd=");
-    for(i = 0; i < NUM_PARAMS; i++) {
-        fprintf(f,"%s=", g_paramNames[i]);
+    for(v = 0; v < NUM_PARAMS; v++) {
+        if(g_silenceParams[v]) { continue; }
+        if(!first) { fprintf(f, ","); }
+        fprintf(f,"%s=", g_paramNames[v]);
         
-        if(i == strt_ind) { fprintf(f,"%u", params.vals[i]); }
-        else { displayParamVal(f, i, params.vals[i], 0); }
-
-        if(i != NUM_PARAMS - 1) {
-            fprintf(f, ",");
-        }
+        if(v == strt_ind) { fprintf(f,"%u", params.vals[v]); }
+        else { displayParamVal(f, v, params.vals[v], 0); }
+        first = 0;
     }
     fprintf(f, "\n");
 }
 
 static void BMK_displayOneResult(FILE* f, winnerInfo_t res, const size_t srcSize) {
             varInds_t v;
+            int first = 1;
             res.params = cParamUnsetMin(res.params);
             fprintf(f,"    {");
             for(v = 0; v < NUM_PARAMS; v++) {
-                if(v != 0) { fprintf(f, ","); }
+                if(g_silenceParams[v]) { continue; }
+                if(!first) { fprintf(f, ","); }
                 displayParamVal(f, v, res.params.vals[v], 3);
+                first = 0;
             }
 
-            fprintf(f, "},     /* R:%5.3f at %5.1f MB/s - %5.1f MB/s */\n",
+            fprintf(f, " },     /* R:%5.3f at %5.1f MB/s - %5.1f MB/s */\n",
             (double)srcSize / res.result.cSize, (double)res.result.cSpeed / (1 MB), (double)res.result.dSpeed / (1 MB));
 }
 
@@ -2545,6 +2550,43 @@ int main(int argc, const char** argv)
             }
             continue;
             /* if not return, success */
+
+        } else if (longCommandWArg(&argument, "--display=")) {
+            /* Decode command (note : aggregated commands are allowed) */
+            memset(g_silenceParams, 1, sizeof(g_silenceParams));
+            for ( ; ;) {
+                int found = 0;
+                varInds_t v;
+                for(v = 0; v < NUM_PARAMS; v++) {
+                    if(longCommandWArg(&argument, g_shortParamNames[v]) || longCommandWArg(&argument, g_paramNames[v])) {
+                        g_silenceParams[v] = 0;
+                        found = 1;
+                    }
+                }
+                if(longCommandWArg(&argument, "compressionParameters") || longCommandWArg(&argument, "cParams")) {
+                    for(v = 0; v <= strt_ind; v++) {
+                        g_silenceParams[v] = 0;
+                    }
+                    found = 1;
+                }
+
+
+                if(found) {
+                    if(argument[0]==',') {
+                        continue;
+                    } else {
+                        break;
+                    }
+                }
+                DISPLAY("invalid parameter name parameter \n");
+                return 1;
+            }
+
+            if (argument[0] != 0) {
+                DISPLAY("invalid --display format\n");
+                return 1; /* check the end of string */
+            }
+            continue;
         } else if (argument[0]=='-') {
             argument++;
 
@@ -2650,13 +2692,11 @@ int main(int argc, const char** argv)
                     break;
 
                 case 'q':
-                    argument++;
-                    g_displayLevel--;
+                    while (argument[0] == 'q') { argument++; g_displayLevel--; }
                     break;
 
                 case 'v':
-                    argument++;
-                    g_displayLevel++;
+                    while (argument[0] == 'v') { argument++; g_displayLevel++; }
                     break;
 
                 /* load dictionary file (only applicable for optimizer rn) */

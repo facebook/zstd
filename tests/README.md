@@ -95,7 +95,6 @@ Full list of arguments
 ```
  -T#          : set level 1 speed objective
  -B#          : cut input into blocks of size # (default : single block)
- -i#          : iteration loops
  -S           : benchmarks a single run (example command: -Sl3w10h12)
     w# - windowLog
     h# - hashLog
@@ -119,7 +118,7 @@ Full list of arguments
     speedRatio=   (accepts decimals)
               : determines value of gains in speed vs gains in ratio
                 when determining overall winner (default 5 (1% ratio = 5% speed)).
-    tries=    : Maximum number of random restarts on a single strategy before switching (Default 3)
+    tries=    : Maximum number of random restarts on a single strategy before switching (Default 5)
                 Higher values will make optimizer run longer, more chances to find better solution.
     memLog    : Limits the log of the size of each memotable (1 per strategy). Setting memLog = 0 turns off memoization 
  --display=   : specifiy which parameters are included in the output

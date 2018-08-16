@@ -3041,6 +3041,7 @@ size_t ZSTDv06_getcBlockSize(const void* src, size_t srcSize, blockProperties_t*
 
 static size_t ZSTDv06_copyRawBlock(void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
+    if (dst==NULL) return ERROR(dstSize_tooSmall);
     if (srcSize > dstCapacity) return ERROR(dstSize_tooSmall);
     memcpy(dst, src, srcSize);
     return srcSize;

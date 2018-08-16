@@ -336,7 +336,7 @@ size_t local_ZSTD_decompressContinue(const void* src, size_t srcSize, void* dst,
 static size_t benchMem(const void* src, size_t srcSize, U32 benchNb, int cLevel, ZSTD_compressionParameters* cparams)
 {
     BYTE*  dstBuff;
-    size_t const dstBuffSize = ZSTD_compressBound(srcSize);
+    size_t dstBuffSize = ZSTD_compressBound(srcSize);
     void*  buff2, *buff1;
     const char* benchName;
     BMK_benchFn_t benchFunction;
@@ -514,9 +514,10 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb, int cLevel,
 
     /* benchmark loop */
     {
+        void* dstBuffv = (void*)dstBuff;
         r = BMK_benchFunction(benchFunction, buff2, 
             NULL, NULL,  1, &src, &srcSize, 
-            (void * const * const)&dstBuff, &dstBuffSize, g_nbIterations);
+            &dstBuffv, &dstBuffSize, NULL, g_nbIterations);
         if(r.error) {
             DISPLAY("ERROR %d ! ! \n", r.error);
             errorcode = r.error;

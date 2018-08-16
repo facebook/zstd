@@ -129,7 +129,7 @@ zstdmt_d_%.o : $(ZSTDDIR)/decompress/%.c
 fullbench32: CPPFLAGS += -m32
 fullbench fullbench32 : CPPFLAGS += $(MULTITHREAD_CPP)
 fullbench fullbench32 : LDFLAGS += $(MULTITHREAD_LD)
-fullbench fullbench32 : DEBUGFLAGS =   # turn off assert() for speed measurements
+fullbench fullbench32 : DEBUGFLAGS = -DNDEBUG  # turn off assert() for speed measurements
 fullbench fullbench32 : $(ZSTD_FILES)
 fullbench fullbench32 : $(PRGDIR)/datagen.c $(PRGDIR)/bench.c fullbench.c
 	$(CC) $(FLAGS) $^ -o $@$(EXT)
@@ -200,7 +200,7 @@ zstreamtest-dll : $(ZSTDDIR)/common/xxhash.c  # xxh symbols not exposed from dll
 zstreamtest-dll : $(ZSTREAM_LOCAL_FILES)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(filter %.c,$^) $(LDFLAGS) -o $@$(EXT)
 
-paramgrill : DEBUGFLAGS =   # turn off assert() for speed measurements
+paramgrill : DEBUGFLAGS = -DNDEBUG  # turn off assert() for speed measurements
 paramgrill : $(ZSTD_FILES) $(PRGDIR)/bench.c $(PRGDIR)/datagen.c paramgrill.c
 	$(CC) $(FLAGS) $^ -lm -o $@$(EXT)
 

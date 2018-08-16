@@ -88,3 +88,44 @@ as well as the 10,000 original files for more detailed comparison of decompressi
 will choose a random seed, and for 1 minute,
 generate random test frames and ensure that the
 zstd library correctly decompresses them in both simple and streaming modes.
+
+#### `paramgrill` - tool for generating compression table parameters and optimizing parameters on file given constraints
+
+Full list of arguments
+```
+ -T#          : set level 1 speed objective
+ -B#          : cut input into blocks of size # (default : single block)
+ -i#          : iteration loops
+ -S           : benchmarks a single run (example command: -Sl3w10h12)
+    w# - windowLog
+    h# - hashLog
+    c# - chainLog
+    s# - searchLog
+    l# - searchLength
+    t# - targetLength
+    S# - strategy
+    L# - level
+ --zstd=      : Single run, parameter selection syntax same as zstdcli. 
+                When invoked with --optimize, this represents the sample to exceed. 
+ --optimize=  : find parameters to maximize compression ratio given parameters
+                Can use all --zstd= commands to constrain the type of solution found in addition to the following constraints
+    cSpeed=   : Minimum compression speed
+    dSpeed=   : Minimum decompression speed
+    cMem=     : Maximum compression memory
+    lvl=      : Searches for solutions which are strictly better than that compression lvl in ratio and cSpeed, 
+    stc=      : When invoked with lvl=, represents percentage slack in ratio/cSpeed allowed for a solution to be considered (Default 99%)
+              : In normal operation, represents percentage slack in choosing viable starting strategy selection in choosing the default parameters
+                (Lower value will begin with stronger strategies) (Default 90%)
+    preferSpeed= / preferRatio=
+              : Only affects lvl = invocations. Defines value placed on compression speed or ratio
+                when determining overall winner (default speed = 1, ratio = 5 for both, higher = more valued).
+    tries=    : Maximum number of random restarts on a single strategy before switching (Default 3)
+                Higher values will make optimizer run longer, more chances to find better solution.
+ -P#          : generated sample compressibility 
+ -t#          : Caps runtime of operation in seconds (default : 99999 seconds (about 27 hours )) 
+ -v           : Prints Benchmarking output
+ -D           : Next argument dictionary file
+ -s           : Benchmark all files separately
+
+```
+ Any inputs afterwards are treated as files to benchmark.

@@ -23,7 +23,7 @@
 #define FASTCOVER_MAX_SAMPLES_SIZE (sizeof(size_t) == 8 ? ((U32)-1) : ((U32)1 GB))
 #define FASTCOVER_MAX_F 31
 #define FASTCOVER_MAX_ACCEL 10
-#define DEFAULT_SPLITPOINT 1.0
+#define DEFAULT_SPLITPOINT 0.75
 #define DEFAULT_F 18
 #define DEFAULT_ACCEL 1
 
@@ -557,7 +557,7 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_fastCover(
     /* Initialize global data */
     g_displayLevel = parameters.zParams.notificationLevel;
     /* Assign splitPoint and f if not provided */
-    parameters.splitPoint = parameters.splitPoint <= 0 ? 1.0 : parameters.splitPoint;
+    parameters.splitPoint = parameters.splitPoint <= 0.0 ? DEFAULT_SPLITPOINT : parameters.splitPoint;
     parameters.f = parameters.f == 0 ? DEFAULT_F : parameters.f;
     parameters.accel = parameters.accel == 0 ? DEFAULT_ACCEL : parameters.accel;
     /* Convert to cover parameter */

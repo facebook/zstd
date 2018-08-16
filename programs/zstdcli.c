@@ -84,7 +84,7 @@ static U32 g_ldmMinMatch = 0;
 static U32 g_ldmHashEveryLog = LDM_PARAM_DEFAULT;
 static U32 g_ldmBucketSizeLog = LDM_PARAM_DEFAULT;
 
-#define DEFAULT_SPLITPOINT 1.0
+
 #define DEFAULT_ACCEL 1
 
 typedef enum { cover, fastCover, legacy } dictType;
@@ -347,7 +347,7 @@ static ZDICT_cover_params_t defaultCoverParams(void)
     memset(&params, 0, sizeof(params));
     params.d = 8;
     params.steps = 4;
-    params.splitPoint = DEFAULT_SPLITPOINT;
+    params.splitPoint = 1.0;
     return params;
 }
 
@@ -358,7 +358,7 @@ static ZDICT_fastCover_params_t defaultFastCoverParams(void)
     params.d = 8;
     params.f = 18;
     params.steps = 4;
-    params.splitPoint = DEFAULT_SPLITPOINT;
+    params.splitPoint = 0.75; /* different from default splitPoint of cover */
     params.accel = DEFAULT_ACCEL;
     return params;
 }

@@ -407,7 +407,6 @@ int main(int argCount, const char* argv[])
       ZDICT_fastCover_params_t fastParam;
       memset(&fastParam, 0, sizeof(fastParam));
       fastParam.zParams = zParams;
-      fastParam.splitPoint = 1.0;
       fastParam.f = f;
       fastParam.steps = 40;
       fastParam.nbThreads = 1;

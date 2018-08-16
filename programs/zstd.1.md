@@ -255,7 +255,8 @@ Compression of small files similar to the sample set will be greatly improved.
     `zstd --train-cover=k=50,split=60 FILEs`
 
 * `--train-fastcover[=k#,d=#,f=#,steps=#,split=#,accel=#]`:
-    Same as cover but with extra parameters f, finalize, and skip
+    Same as cover but with extra parameters f and accel and different default value of split
+    If _split_ is not specified, then it tries _split_ = 75.
     If _f_ is not specified, then it tries _f_ = 18.
     Requires that 0 < _f_ < 32.
     If _accel_ is not specified, then it tries _accel_ = 1.

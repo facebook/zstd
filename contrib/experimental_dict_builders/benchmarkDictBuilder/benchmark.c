@@ -148,7 +148,7 @@ double compressWithDict(sampleInfo *srcInfo, dictInfo* dInfo, int compressionLev
   /* Allocate dst with enough space to compress the maximum sized sample */
   {
     size_t maxSampleSize = 0;
-    for (int i = 0; i < srcInfo->nbSamples; i++) {
+    for (i = 0; i < srcInfo->nbSamples; i++) {
       maxSampleSize = MAX(srcInfo->samplesSizes[i], maxSampleSize);
     }
     dstCapacity = ZSTD_compressBound(maxSampleSize);
@@ -290,6 +290,9 @@ int main(int argCount, const char* argv[])
   /* Initialize arguments to default values */
   unsigned k = 200;
   unsigned d = 8;
+  unsigned f;
+  unsigned accel;
+  unsigned i;
   const unsigned cLevel = DEFAULT_CLEVEL;
   const unsigned dictID = 0;
   const unsigned maxDictSize = g_defaultMaxDictSize;
@@ -304,7 +307,7 @@ int main(int argCount, const char* argv[])
   const char** extendedFileList = NULL;
 
   /* Parse arguments */
-  for (int i = 1; i < argCount; i++) {
+  for (i = 1; i < argCount; i++) {
     const char* argument = argv[i];
     if (longCommandWArg(&argument, "in=")) {
       filenameTable[filenameIdx] = argument;
@@ -399,9 +402,9 @@ int main(int argCount, const char* argv[])
   }
 
   /* for fastCover */
-  for (unsigned f = 15; f < 25; f++){
+  for (f = 15; f < 25; f++){
     DISPLAYLEVEL(2, "current f is %u\n", f);
-    for (unsigned accel = 1; accel < 11; accel++) {
+    for (accel = 1; accel < 11; accel++) {
       DISPLAYLEVEL(2, "current accel is %u\n", accel);
       /* for fastCover (optimizing k and d) */
       ZDICT_fastCover_params_t fastParam;
@@ -419,7 +422,7 @@ int main(int argCount, const char* argv[])
       }
 
       /* for fastCover (with k and d provided) */
-      for (int i = 0; i < 5; i++) {
+      for (i = 0; i < 5; i++) {
         const int fastResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, NULL, NULL, &fastParam);
         DISPLAYLEVEL(2, "k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\naccel=%u\n", fastParam.k, fastParam.d, fastParam.f, fastParam.steps, (unsigned)(fastParam.splitPoint * 100), fastParam.accel);
         if(fastResult) {

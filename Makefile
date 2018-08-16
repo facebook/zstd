@@ -32,7 +32,7 @@ all: allmost examples manual contrib
 .PHONY: allmost
 allmost: allzstd zlibwrapper
 
-#skip zwrapper, can't build that on alternate architectures without the proper zlib installed
+# skip zwrapper, can't build that on alternate architectures without the proper zlib installed
 .PHONY: allzstd
 allzstd: lib
 	$(MAKE) -C $(PRGDIR) all
@@ -44,8 +44,7 @@ all32:
 	$(MAKE) -C $(TESTDIR) all32
 
 .PHONY: lib lib-release libzstd.a
-lib : libzstd.a
-lib lib-release libzstd.a:
+lib lib-release :
 	@$(MAKE) -C $(ZSTDDIR) $@
 
 .PHONY: zstd zstd-release
@@ -59,7 +58,7 @@ zstdmt:
 	cp $(PRGDIR)/zstd$(EXT) ./zstdmt$(EXT)
 
 .PHONY: zlibwrapper
-zlibwrapper: libzstd.a
+zlibwrapper: lib
 	$(MAKE) -C $(ZWRAPDIR) all
 
 .PHONY: test
@@ -351,7 +350,9 @@ bmi32build: clean
 	$(CC) -v
 	CFLAGS="-O3 -mbmi -m32 -Werror" $(MAKE) -C $(TESTDIR) test
 
+# static analyzer test uses clang's scan-build
+# does not analyze zlibWrapper, due to detected issues in zlib source code
 staticAnalyze:
 	$(CC) -v
-	CC=$(CC) CPPFLAGS=-g scan-build --status-bugs -v $(MAKE) all
+	CC=$(CC) CPPFLAGS=-g scan-build --status-bugs -v $(MAKE) allzstd examples contrib
 endif

@@ -2399,6 +2399,7 @@ static size_t ZSTD_initDDict_internal(ZSTD_DDict* ddict,
     if ((dictLoadMethod == ZSTD_dlm_byRef) || (!dict) || (!dictSize)) {
         ddict->dictBuffer = NULL;
         ddict->dictContent = dict;
+        if (!dict) dictSize = 0;
     } else {
         void* const internalBuffer = ZSTD_malloc(dictSize, ddict->cMem);
         ddict->dictBuffer = internalBuffer;

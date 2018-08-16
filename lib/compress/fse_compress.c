@@ -240,10 +240,12 @@ FSE_writeNCount_generic (void* header, size_t headerBufferSize,
         if (previousIs0) {
             unsigned start = symbol;
             while ((symbol < alphabetSize) && !normalizedCounter[symbol]) symbol++;
+            if (symbol == alphabetSize) break;   /* incorrect distribution */
             while (symbol >= start+24) {
                 start+=24;
                 bitStream += 0xFFFFU << bitCount;
-                if ((!writeIsSafe) && (out > oend-2)) return ERROR(dstSize_tooSmall);   /* Buffer overflow */
+                if ((!writeIsSafe) && (out > oend-2))
+                    return ERROR(dstSize_tooSmall);   /* Buffer overflow */
                 out[0] = (BYTE) bitStream;
                 out[1] = (BYTE)(bitStream>>8);
                 out+=2;
@@ -257,7 +259,8 @@ FSE_writeNCount_generic (void* header, size_t headerBufferSize,
             bitStream += (symbol-start) << bitCount;
             bitCount += 2;
             if (bitCount>16) {
-                if ((!writeIsSafe) && (out > oend - 2)) return ERROR(dstSize_tooSmall);   /* Buffer overflow */
+                if ((!writeIsSafe) && (out > oend - 2))
+                    return ERROR(dstSize_tooSmall);   /* Buffer overflow */
                 out[0] = (BYTE)bitStream;
                 out[1] = (BYTE)(bitStream>>8);
                 out += 2;
@@ -268,7 +271,8 @@ FSE_writeNCount_generic (void* header, size_t headerBufferSize,
             int const max = (2*threshold-1) - remaining;
             remaining -= count < 0 ? -count : count;
             count++;   /* +1 for extra accuracy */
-            if (count>=threshold) count += max;   /* [0..max[ [max..threshold[ (...) [threshold+max 2*threshold[ */
+            if (count>=threshold)
+                count += max;   /* [0..max[ [max..threshold[ (...) [threshold+max 2*threshold[ */
             bitStream += count << bitCount;
             bitCount  += nbBits;
             bitCount  -= (count<max);
@@ -277,7 +281,8 @@ FSE_writeNCount_generic (void* header, size_t headerBufferSize,
             while (remaining<threshold) { nbBits--; threshold>>=1; }
         }
         if (bitCount>16) {
-            if ((!writeIsSafe) && (out > oend - 2)) return ERROR(dstSize_tooSmall);   /* Buffer overflow */
+            if ((!writeIsSafe) && (out > oend - 2))
+                return ERROR(dstSize_tooSmall);   /* Buffer overflow */
             out[0] = (BYTE)bitStream;
             out[1] = (BYTE)(bitStream>>8);
             out += 2;
@@ -285,11 +290,13 @@ FSE_writeNCount_generic (void* header, size_t headerBufferSize,
             bitCount -= 16;
     }   }
 
-    if (remaining != 1) return ERROR(GENERIC);  /* incorrect normalized distribution */
+    if (remaining != 1)
+        return ERROR(GENERIC);  /* incorrect normalized distribution */
     assert(symbol <= alphabetSize);
 
     /* flush remaining bitStream */
-    if ((!writeIsSafe) && (out > oend - 2)) return ERROR(dstSize_tooSmall);   /* Buffer overflow */
+    if ((!writeIsSafe) && (out > oend - 2))
+        return ERROR(dstSize_tooSmall);   /* Buffer overflow */
     out[0] = (BYTE)bitStream;
     out[1] = (BYTE)(bitStream>>8);
     out+= (bitCount+7) /8;
@@ -298,7 +305,8 @@ FSE_writeNCount_generic (void* header, size_t headerBufferSize,
 }
 
 
-size_t FSE_writeNCount (void* buffer, size_t bufferSize, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog)
+size_t FSE_writeNCount (void* buffer, size_t bufferSize,
+                  const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog)
 {
     if (tableLog > FSE_MAX_TABLELOG) return ERROR(tableLog_tooLarge);   /* Unsupported */
     if (tableLog < FSE_MIN_TABLELOG) return ERROR(GENERIC);   /* Unsupported */

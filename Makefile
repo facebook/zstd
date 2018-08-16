@@ -352,7 +352,8 @@ bmi32build: clean
 
 # static analyzer test uses clang's scan-build
 # does not analyze zlibWrapper, due to detected issues in zlib source code
+staticAnalyze: SCANBUILD ?= scan-build
 staticAnalyze:
 	$(CC) -v
-	CC=$(CC) CPPFLAGS=-g scan-build --status-bugs -v $(MAKE) allzstd examples contrib
+	CC=$(CC) CPPFLAGS=-g $(SCANBUILD) --status-bugs -v $(MAKE) allzstd examples contrib
 endif

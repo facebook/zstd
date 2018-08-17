@@ -808,9 +808,12 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
 
                     cpszfp = zfp;
 
-                    if ( (zfp.ingested == cpszfp.ingested)
-                      && (zfp.consumed == cpszfp.consumed) ) {
-                        DISPLAYLEVEL(2, "no data read nor consumed : buffers are full (?) output is too slow => slow down ; or compression is slow + input has reached its limit => can't tell \n")
+                    if ( (zfp.ingested == cpszfp.ingested)   /* no data read : input buffer full */
+                      && (zfp.consumed == cpszfp.consumed)   /* no data compressed : no more buffer to compress OR compression is really slow */
+                      && (zfp.nbActiveWorkers == 0)          /* confirmed : no compression : either no more buffer to compress OR not enough data to start first worker */
+                      && (zfp.currentJobID > 0)              /* first job started : only remaining reason is no more available buffer to start compression */
+                      ) {
+                        DISPLAYLEVEL(6, "all buffers full : compression stopped => slow down \n")
                         speedChange = slower;
                     }
 

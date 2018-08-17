@@ -573,10 +573,10 @@ static size_t BMK_findMaxMem(U64 requiredMem)
     do {
         testmem = (BYTE*)malloc((size_t)requiredMem);
         requiredMem -= step;
-    } while (!testmem);
+    } while (!testmem && requiredMem);   /* do not allocate zero bytes */
 
     free(testmem);
-    return (size_t)(requiredMem);
+    return (size_t)(requiredMem+1);  /* avoid zero */
 }
 
 static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
@@ -734,7 +734,7 @@ static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles,
     if ((U64)benchedSize > totalSizeToLoad) benchedSize = (size_t)totalSizeToLoad;
     if (benchedSize < totalSizeToLoad)
         DISPLAY("Not enough memory; testing %u MB only...\n", (U32)(benchedSize >> 20));
-    srcBuffer = malloc(benchedSize);
+    srcBuffer = malloc(benchedSize + !benchedSize);
     if (!srcBuffer) EXM_THROW(12, "not enough memory");
 
     /* Load input buffer */

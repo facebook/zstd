@@ -20,22 +20,24 @@ matrix:
     - env: Cmd='make gcc8install && CC=gcc-8 CFLAGS="-Werror -O3" make -j all'
     - env: Cmd='make clang38install && CC=clang-3.8 make clean msan-test-zstd'
 
+    - env: Cmd='make staticAnalyze'
+
     - env: Cmd='make gcc6install && CC=gcc-6 make clean uasan-fuzztest'
     - env: Cmd='make gcc6install libc6install
              && make clean && CC=gcc-6 CFLAGS=-m32 make uasan-fuzztest'
     - env: Cmd='make clang38install && CC=clang-3.8 make clean msan-fuzztest'
     - env: Cmd='make clang38install && CC=clang-3.8 make clean tsan-test-zstream'
 
-    - env: Cmd='make arminstall && make armfuzz'
-    - env: Cmd='make arminstall && make aarch64fuzz'
-    - env: Cmd='make ppcinstall && make ppcfuzz'
-    - env: Cmd='make ppcinstall && make ppc64fuzz'
-
     - env: Cmd='make -j uasanregressiontest
              && make clean && make -j msanregressiontest'
 
     - env: Cmd='make valgrindinstall && make -C tests clean valgrindTest
              && make clean && make -C tests test-fuzzer-stackmode'
+
+    - env: Cmd='make arminstall && make armfuzz'
+    - env: Cmd='make arminstall && make aarch64fuzz'
+    - env: Cmd='make ppcinstall && make ppcfuzz'
+    - env: Cmd='make ppcinstall && make ppc64fuzz'
 
     - env: Cmd='make lz4install && make -C tests test-lz4
              && make clean && make -C tests test-pool

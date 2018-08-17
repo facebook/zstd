@@ -27,6 +27,7 @@
 #include <string.h>         /* memset */
 #include <stdio.h>          /* fprintf, fopen, ftello64 */
 #include <errno.h>          /* errno */
+#include <assert.h>
 
 #include "mem.h"            /* read */
 #include "error_private.h"
@@ -165,6 +166,7 @@ static U32 DiB_rand(U32* src)
 static void DiB_shuffle(const char** fileNamesTable, unsigned nbFiles) {
     U32 seed = 0xFD2FB528;
     unsigned i;
+    assert(nbFiles >= 1);
     for (i = nbFiles - 1; i > 0; --i) {
         unsigned const j = DiB_rand(&seed) % (i + 1);
         const char* const tmp = fileNamesTable[j];
@@ -310,7 +312,7 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
     /* Load input buffer */
     DISPLAYLEVEL(3, "Shuffling input files\n");
     DiB_shuffle(fileNamesTable, nbFiles);
-    nbFiles = DiB_loadFiles(srcBuffer, &loadedSize, sampleSizes, fs.nbSamples, fileNamesTable, nbFiles, chunkSize, displayLevel);
+    DiB_loadFiles(srcBuffer, &loadedSize, sampleSizes, fs.nbSamples, fileNamesTable, nbFiles, chunkSize, displayLevel);
 
     {   size_t dictSize;
         if (params) {
@@ -319,6 +321,7 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
                                                            srcBuffer, sampleSizes, fs.nbSamples,
                                                            *params);
         } else if (optimizeCover) {
+            assert(coverParams != NULL);
             dictSize = ZDICT_optimizeTrainFromBuffer_cover(dictBuffer, maxDictSize,
                                                            srcBuffer, sampleSizes, fs.nbSamples,
                                                            coverParams);
@@ -327,6 +330,7 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
                 DISPLAYLEVEL(2, "k=%u\nd=%u\nsteps=%u\nsplit=%u\n", coverParams->k, coverParams->d, coverParams->steps, splitPercentage);
             }
         } else {
+            assert(coverParams != NULL);
             dictSize = ZDICT_trainFromBuffer_cover(dictBuffer, maxDictSize, srcBuffer,
                                                    sampleSizes, fs.nbSamples, *coverParams);
         }

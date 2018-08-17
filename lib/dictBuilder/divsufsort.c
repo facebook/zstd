@@ -1637,7 +1637,7 @@ construct_SA(const unsigned char *T, int *SA,
             if(0 <= c2) { BUCKET_B(c2, c1) = k - SA; }
             k = SA + BUCKET_B(c2 = c0, c1);
           }
-          assert(k < j);
+          assert(k < j); assert(k != NULL);
           *k-- = s;
         } else {
           assert(((s == 0) && (T[s] == c1)) || (s < 0));
@@ -1701,7 +1701,7 @@ construct_BWT(const unsigned char *T, int *SA,
             if(0 <= c2) { BUCKET_B(c2, c1) = k - SA; }
             k = SA + BUCKET_B(c2 = c0, c1);
           }
-          assert(k < j);
+          assert(k < j); assert(k != NULL);
           *k-- = s;
         } else if(s != 0) {
           *j = ~s;
@@ -1785,7 +1785,7 @@ construct_BWT_indexes(const unsigned char *T, int *SA,
             if(0 <= c2) { BUCKET_B(c2, c1) = k - SA; }
             k = SA + BUCKET_B(c2 = c0, c1);
           }
-          assert(k < j);
+          assert(k < j); assert(k != NULL);
           *k-- = s;
         } else if(s != 0) {
           *j = ~s;

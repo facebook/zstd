@@ -655,7 +655,7 @@ static void BMK_displayOneResult(FILE* f, winnerInfo_t res, const size_t srcSize
 
 /* Writes to f the results of a parameter benchmark */
 /* when used with --optimize, will only print results better than previously discovered */
-static void BMK_printWinner(FILE* f, const U32 cLevel, const BMK_result_t result, const paramValues_t params, const size_t srcSize)
+static void BMK_printWinner(FILE* f, const int cLevel, const BMK_result_t result, const paramValues_t params, const size_t srcSize)
 {
     char lvlstr[15] = "Custom Level";
     winnerInfo_t w;
@@ -665,7 +665,7 @@ static void BMK_printWinner(FILE* f, const U32 cLevel, const BMK_result_t result
     fprintf(f, "\r%79s\r", "");
 
     if(cLevel != CUSTOM_LEVEL) {
-        snprintf(lvlstr, 15, "  Level %2u  ", cLevel);
+        snprintf(lvlstr, 15, "  Level %2d  ", cLevel);
     }
 
     if(TIMED) { 
@@ -1865,8 +1865,9 @@ static void BMK_benchFullTable(const buffers_t buf, const contexts_t ctx)
 *  Single Benchmark Functions
 **************************************/
 
-static int benchOnce(const buffers_t buf, const contexts_t ctx) {
+static int benchOnce(const buffers_t buf, const contexts_t ctx, const int cLevel) {
     BMK_result_t testResult;
+    g_params = adjustParams(overwriteParams(cParamsToPVals(ZSTD_getCParams(cLevel, buf.maxBlockSize, ctx.dictSize)), g_params), buf.maxBlockSize, ctx.dictSize);
 
     if(BMK_benchParam(&testResult, buf, ctx, g_params)) {
         DISPLAY("Error during benchmarking\n");
@@ -1878,7 +1879,7 @@ static int benchOnce(const buffers_t buf, const contexts_t ctx) {
     return 0;
 }
 
-static int benchSample(double compressibility)
+static int benchSample(double compressibility, int cLevel)
 {
     const char* const name = "Sample 10MB";
     size_t const benchedSize = 10 MB;
@@ -1912,7 +1913,7 @@ static int benchSample(double compressibility)
     DISPLAY("using %s %i%%: \n", name, (int)(compressibility*100));
 
     if(g_singleRun) {
-        ret = benchOnce(buf, ctx);
+        ret = benchOnce(buf, ctx, cLevel);
     } else {
         BMK_benchFullTable(buf, ctx);
     }
@@ -1926,7 +1927,7 @@ static int benchSample(double compressibility)
 /* benchFiles() :
  * note: while this function takes a table of filenames,
  * in practice, only the first filename will be used */
-int benchFiles(const char** fileNamesTable, int nbFiles, const char* dictFileName, int cLevel)
+int benchFiles(const char** fileNamesTable, int nbFiles, const char* dictFileName, const int cLevel)
 {
     buffers_t buf;
     contexts_t ctx;
@@ -1950,10 +1951,8 @@ int benchFiles(const char** fileNamesTable, int nbFiles, const char* dictFileNam
         DISPLAY("using %d Files : \n", nbFiles);
     }
 
-    g_params = adjustParams(overwriteParams(cParamsToPVals(ZSTD_getCParams(cLevel, buf.maxBlockSize, ctx.dictSize)), g_params), buf.maxBlockSize, ctx.dictSize);
-
     if(g_singleRun) {
-        ret = benchOnce(buf, ctx);
+        ret = benchOnce(buf, ctx, cLevel);
     } else {
         BMK_benchFullTable(buf, ctx);
     }
@@ -2731,7 +2730,7 @@ int main(int argc, const char** argv)
             DISPLAY("Optimizer Expects File\n");
             return 1;
         } else {
-            result = benchSample(compressibility);
+            result = benchSample(compressibility, cLevelRun);
         }
     } else {
         if(seperateFiles) {

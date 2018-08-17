@@ -860,10 +860,11 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
                             DISPLAYLEVEL(6, "slower speed , higher compression \n")
                             compressionLevel ++;
                             compressionLevel += (compressionLevel == 0);   /* skip 0 */
+                            if (compressionLevel > ZSTD_maxCLevel()) compressionLevel = ZSTD_maxCLevel();
                             ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionLevel, (unsigned)compressionLevel);
                         }
                         if (speedChange == faster) {
-                            DISPLAYLEVEL(6, "slower speed , higher compression \n")
+                            DISPLAYLEVEL(6, "faster speed , lighter compression \n")
                             compressionLevel --;
                             compressionLevel -= (compressionLevel == 0);   /* skip 0 */
                             ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionLevel, (unsigned)compressionLevel);

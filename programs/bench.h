@@ -32,8 +32,9 @@ extern "C" {
 
 typedef struct {
     size_t cSize;
-    double cSpeed;   /* bytes / sec */
-    double dSpeed;
+    U64 cSpeed;   /* bytes / sec */
+    U64 dSpeed;
+    size_t cMem;
 } BMK_result_t;
 
 ERROR_STRUCT(BMK_result_t, BMK_return_t);
@@ -125,8 +126,6 @@ BMK_return_t BMK_syntheticTest(int cLevel, double compressibility,
  * comprParams - basic compression parameters
  * dictBuffer - a dictionary if used, null otherwise
  * dictBufferSize - size of dictBuffer, 0 otherwise
- * ctx - Compression Context (must be provided)
- * dctx - Decompression Context (must be provided)
  * diplayLevel - see BMK_benchFiles
  * displayName - name used by display
  * return
@@ -138,15 +137,17 @@ BMK_return_t BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         const size_t* fileSizes, unsigned nbFiles,
                         const int cLevel, const ZSTD_compressionParameters* comprParams,
                         const void* dictBuffer, size_t dictBufferSize,
-                        ZSTD_CCtx* ctx, ZSTD_DCtx* dctx,
                         int displayLevel, const char* displayName);
 
-/* See benchMem for normal parameter uses and return, see advancedParams_t for adv */
+/* See benchMem for normal parameter uses and return, see advancedParams_t for adv 
+ * dstBuffer - destination buffer to write compressed output in, NULL if none provided.
+ * dstCapacity - capacity of destination buffer, give 0 if dstBuffer = NULL
+ */
 BMK_return_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
+                        void* dstBuffer, size_t dstCapacity, 
                         const size_t* fileSizes, unsigned nbFiles,
                         const int cLevel, const ZSTD_compressionParameters* comprParams,
                         const void* dictBuffer, size_t dictBufferSize,
-                        ZSTD_CCtx* ctx, ZSTD_DCtx* dctx,
                         int displayLevel, const char* displayName,
                         const BMK_advancedParams_t* adv);
 
@@ -170,8 +171,10 @@ typedef size_t (*BMK_initFn_t)(void*);
  * srcBuffers - an array of buffers to be operated on by benchFn
  * srcSizes - an array of the sizes of above buffers
  * dstBuffers - an array of buffers to be written into by benchFn
- * dstCapacities - an array of the capacities of above buffers.
+ * dstCapacities - an array of the capacities of above buffers
+ * blockResults - the return value of benchFn called on each block.
  * nbLoops - defines number of times benchFn is run.
+ * assumed array of size blockCount, will have compressed size of each block written to it.
  * return 
  *      .error will give a nonzero value if ZSTD_isError() is nonzero for any of the return
  *          of the calls to initFn and benchFn, or if benchFunction errors internally
@@ -182,12 +185,11 @@ typedef size_t (*BMK_initFn_t)(void*);
  *          into dstBuffer, hence this value will be the total amount of bytes written to 
  *          dstBuffer.
  */
-BMK_customReturn_t BMK_benchFunction(                        
-                        BMK_benchFn_t benchFn, void* benchPayload,
+BMK_customReturn_t BMK_benchFunction(BMK_benchFn_t benchFn, void* benchPayload,
                         BMK_initFn_t initFn, void* initPayload,
                         size_t blockCount,
                         const void* const * const srcBuffers, const size_t* srcSizes,
-                        void* const * const dstBuffers, const size_t* dstCapacities,
+                        void * const * const dstBuffers, const size_t* dstCapacities, size_t* blockResults,  
                         unsigned nbLoops);
 
 
@@ -216,7 +218,7 @@ BMK_customTimedReturn_t BMK_benchFunctionTimed(BMK_timedFnState_t* cont,
     BMK_initFn_t initFn, void* initPayload,
     size_t blockCount,
     const void* const * const srcBlockBuffers, const size_t* srcBlockSizes,
-    void* const * const dstBlockBuffers, const size_t* dstBlockCapacities);
+    void* const * const dstBlockBuffers, const size_t* dstBlockCapacities, size_t* blockResults);
 
 #endif   /* BENCH_H_121279284357 */
 

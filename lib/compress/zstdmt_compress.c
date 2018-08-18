@@ -1096,17 +1096,42 @@ ZSTD_frameProgression ZSTDMT_getFrameProgression(ZSTDMT_CCtx* mtctx)
             ZSTD_pthread_mutex_lock(&jobPtr->job_mutex);
             {   size_t const cResult = jobPtr->cSize;
                 size_t const produced = ZSTD_isError(cResult) ? 0 : cResult;
+                size_t const flushed = ZSTD_isError(cResult) ? 0 : jobPtr->dstFlushed;
+                assert(flushed <= produced);
                 fps.ingested += jobPtr->src.size;
                 fps.consumed += jobPtr->consumed;
                 fps.produced += produced;
-                fps.flushed  += jobPtr->dstFlushed;
+                fps.flushed  += flushed;
                 fps.nbActiveWorkers += (jobPtr->consumed < jobPtr->src.size);
             }
             ZSTD_pthread_mutex_unlock(&mtctx->jobs[wJobID].job_mutex);
         }
     }
-    DEBUGLOG(5, "ZSTDMT_getFrameProgression : completed");
     return fps;
+}
+
+
+size_t ZSTDMT_toFlushNow(ZSTDMT_CCtx* mtctx)
+{
+    size_t toFlush;
+    unsigned const jobID = mtctx->doneJobID;
+    assert(jobID <= mtctx->nextJobID);
+    if (jobID == mtctx->nextJobID) return 0;   /* no active job => nothing to flush */
+
+    {   unsigned const wJobID = jobID & mtctx->jobIDMask;
+        ZSTDMT_jobDescription* jobPtr = &mtctx->jobs[wJobID];
+        ZSTD_pthread_mutex_lock(&jobPtr->job_mutex);
+        {   size_t const cResult = jobPtr->cSize;
+            size_t const produced = ZSTD_isError(cResult) ? 0 : cResult;
+            size_t const flushed = ZSTD_isError(cResult) ? 0 : jobPtr->dstFlushed;
+            assert(flushed <= produced);
+            toFlush = produced - flushed;
+            if (toFlush==0) assert(jobPtr->consumed < jobPtr->src.size);   /* if toFlush==0, doneJobID should still be active: if doneJobID is completed and fully flushed, ZSTDMT_flushProduced() should have already moved to next job */
+        }
+        ZSTD_pthread_mutex_unlock(&mtctx->jobs[wJobID].job_mutex);
+    }
+
+    return toFlush;
 }
 
 

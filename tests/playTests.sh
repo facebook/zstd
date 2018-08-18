@@ -418,7 +418,7 @@ $ECHO "\n===>  cover dictionary builder : advanced options "
 TESTFILE=../programs/zstdcli.c
 ./datagen > tmpDict
 $ECHO "- Create first dictionary"
-$ZSTD --train-cover=k=46,d=8,split=80 *.c ../programs/*.c -o tmpDict
+$ZSTD --train-cover=k=46,d=8,split=80,limit=524288 *.c ../programs/*.c -o tmpDict
 cp $TESTFILE tmp
 $ZSTD -f tmp -D tmpDict
 $ZSTD -d tmp.zst -D tmpDict -fo result

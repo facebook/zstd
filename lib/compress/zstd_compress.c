@@ -906,6 +906,20 @@ ZSTD_frameProgression ZSTD_getFrameProgression(const ZSTD_CCtx* cctx)
         return fp;
 }   }
 
+/*! ZSTD_toFlushNow()
+ *  Only useful for multithreading scenarios currently (nbWorkers >= 1).
+ */
+size_t ZSTD_toFlushNow(ZSTD_CCtx* cctx)
+{
+#ifdef ZSTD_MULTITHREAD
+    if (cctx->appliedParams.nbWorkers > 0) {
+        return ZSTDMT_toFlushNow(cctx->mtctx);
+    }
+#endif
+    return 0;   /* over-simplification; could also check if context is currently running in streaming mode, and in which case, report how many bytes are left to be flushed within output buffer */
+}
+
+
 
 static U32 ZSTD_equivalentCParams(ZSTD_compressionParameters cParams1,
                                   ZSTD_compressionParameters cParams2)

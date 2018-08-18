@@ -746,7 +746,16 @@ typedef struct {
  * Therefore, (ingested - consumed) is amount of input data buffered internally, not yet compressed.
  * Can report progression inside worker threads (multi-threading and non-blocking mode).
  */
-ZSTD_frameProgression ZSTD_getFrameProgression(const ZSTD_CCtx* cctx);
+ZSTDLIB_API ZSTD_frameProgression ZSTD_getFrameProgression(const ZSTD_CCtx* cctx);
+
+/*! ZSTD_toFlushNow()
+ *  Tell how many bytes are ready to be flushed immediately.
+ *  Useful for multithreading scenarios (nbWorkers >= 1).
+ *  Probe the oldest active job (not yet entirely flushed) and check its output buffer.
+ *  If return 0, it means there is no active job, or
+ *  it means oldest job is still active, but everything produced has been flushed so far,
+ *  therefore flushing is limited by speed of oldest job. */
+ZSTDLIB_API size_t ZSTD_toFlushNow(ZSTD_CCtx* cctx);
 
 
 

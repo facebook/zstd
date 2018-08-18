@@ -747,6 +747,7 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
     /* stats */
     typedef enum { noChange, slower, faster } speedChange_e;
     speedChange_e speedChange = noChange;
+    unsigned flushWaiting = 0;
     unsigned inputPresented = 0;
     unsigned inputBlocked = 0;
     unsigned lastJobID = 0;
@@ -777,11 +778,13 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
 
             size_t const oldIPos = inBuff.pos;
             ZSTD_outBuffer outBuff = { ress.dstBuffer, ress.dstBufferSize, 0 };
+            size_t const toFlushNow = ZSTD_toFlushNow(ress.cctx);
             CHECK_V(stillToFlush, ZSTD_compress_generic(ress.cctx, &outBuff, &inBuff, directive));
 
             /* count stats */
             inputPresented++;
             if (oldIPos == inBuff.pos) inputBlocked++;
+            if (!toFlushNow) flushWaiting = 1;
 
             /* Write compressed stream */
             DISPLAYLEVEL(6, "ZSTD_compress_generic(end:%u) => input pos(%u)<=(%u)size ; output generated %u bytes \n",
@@ -817,11 +820,13 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
                         speedChange = slower;
                     }
 
-                    if ( (newlyProduced > (newlyFlushed * 9 / 8))
-                      && (stillToFlush > ZSTD_BLOCKSIZE_MAX) ) {
-                        DISPLAYLEVEL(6, "production faster than flushing (%llu > %llu) but there is still %u bytes to flush => slow down \n", newlyProduced, newlyFlushed, (U32)stillToFlush);
+                    if ( (newlyProduced > (newlyFlushed * 9 / 8))   /* compression produces more data than output can flush (though production can be spiky, due to work unit : (N==4)*block sizes) */
+                      && (flushWaiting == 0)                        /* flush speed was never slowed by lack of production, so it's operating at max capacity */
+                      ) {
+                        DISPLAYLEVEL(6, "compression faster than flush (%llu > %llu), and flushed was never slowed down by lack of production => slow down \n", newlyProduced, newlyFlushed);
                         speedChange = slower;
                     }
+                    flushWaiting = 0;
                 }
 
                 /* course correct only if there is at least one new job completed */

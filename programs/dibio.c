@@ -337,20 +337,21 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
                                                      sampleSizes, fs.nbSamples, *coverParams);
             }
         } else {
-          if (optimize) {
-            dictSize = ZDICT_optimizeTrainFromBuffer_fastCover(dictBuffer, maxDictSize,
+            assert(fastCoverParams != NULL);
+            if (optimize) {
+              dictSize = ZDICT_optimizeTrainFromBuffer_fastCover(dictBuffer, maxDictSize,
                                                               srcBuffer, sampleSizes, fs.nbSamples,
                                                               fastCoverParams);
-            if (!ZDICT_isError(dictSize)) {
+              if (!ZDICT_isError(dictSize)) {
                 unsigned splitPercentage = (unsigned)(fastCoverParams->splitPoint * 100);
                 DISPLAYLEVEL(2, "k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\naccel=%u\n", fastCoverParams->k,
                             fastCoverParams->d, fastCoverParams->f, fastCoverParams->steps, splitPercentage,
                             fastCoverParams->accel);
+              }
+            } else {
+              dictSize = ZDICT_trainFromBuffer_fastCover(dictBuffer, maxDictSize, srcBuffer,
+                                                        sampleSizes, fs.nbSamples, *fastCoverParams);
             }
-          } else {
-            dictSize = ZDICT_trainFromBuffer_fastCover(dictBuffer, maxDictSize, srcBuffer,
-                                                       sampleSizes, fs.nbSamples, *fastCoverParams);
-          }
         }
         if (ZDICT_isError(dictSize)) {
             DISPLAYLEVEL(1, "dictionary training failed : %s \n", ZDICT_getErrorName(dictSize));   /* should not happen */

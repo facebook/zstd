@@ -1084,7 +1084,7 @@ size_t ZDICT_trainFromBuffer(void* dictBuffer, size_t dictBufferCapacity,
     params.d = 8;
     params.steps = 4;
     /* Default to level 6 since no compression level information is available */
-    params.zParams.compressionLevel = 6;
+    params.zParams.compressionLevel = 3;
 #if defined(DEBUGLEVEL) && (DEBUGLEVEL>=1)
     params.zParams.notificationLevel = DEBUGLEVEL;
 #endif

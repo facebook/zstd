@@ -14,7 +14,7 @@ OPTION(ZSTD_BUILD_STATIC "BUILD STATIC LIBRARIES" ON)
 OPTION(ZSTD_BUILD_SHARED "BUILD SHARED LIBRARIES" ON)
 
 IF(NOT ZSTD_BUILD_SHARED AND NOT ZSTD_BUILD_STATIC)
-    MESSAGE(SEND_ERROR "You need to build at least one flavor of libstd")
+    MESSAGE(SEND_ERROR "You need to build at least one flavor of libzstd")
 ENDIF()
 
 # Define library directory, where sources and header files are located

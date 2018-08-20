@@ -111,7 +111,7 @@ local gzFile gz_open(path, fd, mode)
         return NULL;
 
     /* allocate gzFile structure to return */
-    state = (gz_statep)(gz_state*)malloc(sizeof(gz_state));
+    state.state = (gz_state*)malloc(sizeof(gz_state));
     if (state.state == NULL)
         return NULL;
     state.state->size = 0;            /* no buffers allocated yet */
@@ -266,7 +266,7 @@ local gzFile gz_open(path, fd, mode)
     gz_reset(state);
 
     /* return stream */
-    return (gzFile)state.file;
+    return state.file;
 }
 
 /* -- see zlib.h -- */

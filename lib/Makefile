@@ -19,6 +19,9 @@ LIBVER := $(shell echo $(LIBVER_SCRIPT))
 VERSION?= $(LIBVER)
 
 CPPFLAGS+= -I. -I./common -DXXH_NAMESPACE=ZSTD_
+ifeq ($(OS),Windows_NT)   # MinGW assumed
+CPPFLAGS   += -D__USE_MINGW_ANSI_STDIO   # compatibility with %zu formatting
+endif
 CFLAGS  ?= -O3
 DEBUGFLAGS = -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
             -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \

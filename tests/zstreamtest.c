@@ -600,7 +600,6 @@ static int basicUnitTests(U32 seed, double compressibility)
         size_t const initError = ZSTD_initCStream_usingCDict(zc, cdict);
         DISPLAYLEVEL(5, "ZSTD_initCStream_usingCDict result : %u ", (U32)initError);
         if (ZSTD_isError(initError)) goto _output_error;
-        cSize = 0;
         outBuff.dst = compressedBuffer;
         outBuff.size = compressedBufferSize;
         outBuff.pos = 0;
@@ -718,7 +717,6 @@ static int basicUnitTests(U32 seed, double compressibility)
         ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dictionary.start, dictionary.filled, ZSTD_dlm_byRef, ZSTD_dct_auto, cParams, ZSTD_defaultCMem);
         size_t const initError = ZSTD_initCStream_usingCDict_advanced(zc, cdict, fParams, CNBufferSize);
         if (ZSTD_isError(initError)) goto _output_error;
-        cSize = 0;
         outBuff.dst = compressedBuffer;
         outBuff.size = compressedBufferSize;
         outBuff.pos = 0;

@@ -698,7 +698,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     short litLengthNCount[MaxLL+1];
     U32 repOffset[MAXREPOFFSET];
     offsetCount_t bestRepOffset[ZSTD_REP_NUM+1];
-    EStats_ress_t esr;
+    EStats_ress_t esr = { NULL, NULL, NULL };
     ZSTD_parameters params;
     U32 u, huffLog = 11, Offlog = OffFSELog, mlLog = MLFSELog, llLog = LLFSELog, total;
     size_t pos = 0, errorCode;

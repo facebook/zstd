@@ -38,6 +38,9 @@ endif
 CPPFLAGS+= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
            -I$(ZSTDDIR)/dictBuilder \
            -DXXH_NAMESPACE=ZSTD_
+ifeq ($(OS),Windows_NT)   # MinGW assumed
+CPPFLAGS   += -D__USE_MINGW_ANSI_STDIO   # compatibility with %zu formatting
+endif
 CFLAGS  ?= -O3
 DEBUGFLAGS+=-Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
             -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
@@ -158,7 +161,7 @@ zstd-release: DEBUGFLAGS :=
 zstd-release: zstd
 
 zstd32 : CPPFLAGS += $(THREAD_CPP)
-zstd32 : LDFLAGS += $(THREAD_LD) 
+zstd32 : LDFLAGS += $(THREAD_LD)
 zstd32 : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 zstd32 : $(ZSTDLIB_FILES) zstdcli.c fileio.c bench.c datagen.c dibio.c
 ifneq (,$(filter Windows%,$(OS)))

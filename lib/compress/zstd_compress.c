@@ -916,6 +916,7 @@ size_t ZSTD_toFlushNow(ZSTD_CCtx* cctx)
         return ZSTDMT_toFlushNow(cctx->mtctx);
     }
 #endif
+    (void)cctx;
     return 0;   /* over-simplification; could also check if context is currently running in streaming mode, and in which case, report how many bytes are left to be flushed within output buffer */
 }
 

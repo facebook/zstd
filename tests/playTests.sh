@@ -474,6 +474,8 @@ $ECHO "- Create dictionary using accel=2"
 $ZSTD --train-fastcover=accel=2 -r *.c ../programs/*.c
 $ECHO "- Create dictionary using accel=10"
 $ZSTD --train-fastcover=accel=10 -r *.c ../programs/*.c
+$ECHO "- Create dictionary with multithreading"
+$ZSTD --train-fastcover -T4 -r *.c ../programs/*.c
 $ECHO "- Test -o before --train-fastcover"
 rm -f tmpDict dictionary
 $ZSTD -o tmpDict --train-fastcover *.c ../programs/*.c

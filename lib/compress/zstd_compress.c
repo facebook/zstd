@@ -931,33 +931,44 @@ typedef enum { ZSTDb_not_buffered, ZSTDb_buffered } ZSTD_buffered_policy_e;
 /* ZSTD_sufficientBuff() :
  * check internal buffers exist for streaming if buffPol == ZSTDb_buffered .
  * Note : they are assumed to be correctly sized if ZSTD_equivalentCParams()==1 */
-static U32 ZSTD_sufficientBuff(size_t bufferSize1, size_t blockSize1,
+static U32 ZSTD_sufficientBuff(size_t bufferSize1, size_t maxNbSeq1,
                             ZSTD_buffered_policy_e buffPol2,
                             ZSTD_compressionParameters cParams2,
                             U64 pledgedSrcSize)
 {
     size_t const windowSize2 = MAX(1, (size_t)MIN(((U64)1 << cParams2.windowLog), pledgedSrcSize));
     size_t const blockSize2 = MIN(ZSTD_BLOCKSIZE_MAX, windowSize2);
+    size_t const maxNbSeq2 = blockSize2 / ((cParams2.searchLength == 3) ? 3 : 4);
     size_t const neededBufferSize2 = (buffPol2==ZSTDb_buffered) ? windowSize2 + blockSize2 : 0;
-    DEBUGLOG(4, "ZSTD_sufficientBuff: is windowSize2=%u <= wlog1=%u",
-                (U32)windowSize2, cParams2.windowLog);
-    DEBUGLOG(4, "ZSTD_sufficientBuff: is blockSize2=%u <= blockSize1=%u",
-                (U32)blockSize2, (U32)blockSize1);
-    return (blockSize2 <= blockSize1) /* seqStore space depends on blockSize */
-         & (neededBufferSize2 <= bufferSize1);
+    DEBUGLOG(4, "ZSTD_sufficientBuff: is neededBufferSize2=%u <= bufferSize1=%u",
+                (U32)neededBufferSize2, bufferSize1);
+    DEBUGLOG(4, "ZSTD_sufficientBuff: is maxNbSeq2=%u <= maxNbSeq1=%u",
+                (U32)maxNbSeq2, (U32)maxNbSeq1);
+    return (maxNbSeq2 <= maxNbSeq1) & (neededBufferSize2 <= bufferSize1);
 }
 
 /** Equivalence for resetCCtx purposes */
 static U32 ZSTD_equivalentParams(ZSTD_CCtx_params params1,
                                  ZSTD_CCtx_params params2,
-                                 size_t buffSize1, size_t blockSize1,
+                                 size_t buffSize1, size_t maxNbSeq1,
                                  ZSTD_buffered_policy_e buffPol2,
                                  U64 pledgedSrcSize)
 {
     DEBUGLOG(4, "ZSTD_equivalentParams: pledgedSrcSize=%u", (U32)pledgedSrcSize);
-    return ZSTD_equivalentCParams(params1.cParams, params2.cParams) &&
-           ZSTD_equivalentLdmParams(params1.ldmParams, params2.ldmParams) &&
-           ZSTD_sufficientBuff(buffSize1, blockSize1, buffPol2, params2.cParams, pledgedSrcSize);
+    if (!ZSTD_equivalentCParams(params1.cParams, params2.cParams)) {
+      DEBUGLOG(4, "ZSTD_equivalentCParams() == 0");
+      return 0;
+    }
+    if (!ZSTD_equivalentLdmParams(params1.ldmParams, params2.ldmParams)) {
+      DEBUGLOG(4, "ZSTD_equivalentLdmParams() == 0");
+      return 0;
+    }
+    if (!ZSTD_sufficientBuff(buffSize1, maxNbSeq1, buffPol2, params2.cParams,
+                             pledgedSrcSize)) {
+      DEBUGLOG(4, "ZSTD_sufficientBuff() == 0");
+      return 0;
+    }
+    return 1;
 }
 
 static void ZSTD_reset_compressedBlockState(ZSTD_compressedBlockState_t* bs)
@@ -1085,8 +1096,8 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
 
     if (crp == ZSTDcrp_continue) {
         if (ZSTD_equivalentParams(zc->appliedParams, params,
-                                zc->inBuffSize, zc->blockSize,
-                                zbuff, pledgedSrcSize)) {
+                                  zc->inBuffSize, zc->seqStore.maxNbSeq,
+                                  zbuff, pledgedSrcSize)) {
             DEBUGLOG(4, "ZSTD_equivalentParams()==1 -> continue mode (wLog1=%u, blockSize1=%zu)",
                         zc->appliedParams.cParams.windowLog, zc->blockSize);
             zc->workSpaceOversizedDuration += (zc->workSpaceOversizedDuration > 0);   /* if it was too large, it still is */
@@ -1197,6 +1208,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         ptr = ZSTD_reset_matchState(&zc->blockState.matchState, ptr, &params.cParams, crp, /* forCCtx */ 1);
 
         /* sequences storage */
+        zc->seqStore.maxNbSeq = maxNbSeq;
         zc->seqStore.sequencesStart = (seqDef*)ptr;
         ptr = zc->seqStore.sequencesStart + maxNbSeq;
         zc->seqStore.llCode = (BYTE*) ptr;
@@ -1647,6 +1659,7 @@ void ZSTD_seqToCodes(const seqStore_t* seqStorePtr)
     BYTE* const mlCodeTable = seqStorePtr->mlCode;
     U32 const nbSeq = (U32)(seqStorePtr->sequences - seqStorePtr->sequencesStart);
     U32 u;
+    assert(nbSeq <= seqStorePtr->maxNbSeq);
     for (u=0; u<nbSeq; u++) {
         U32 const llv = sequences[u].litLength;
         U32 const mlv = sequences[u].matchLength;

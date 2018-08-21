@@ -941,7 +941,7 @@ static U32 ZSTD_sufficientBuff(size_t bufferSize1, size_t maxNbSeq1,
     size_t const maxNbSeq2 = blockSize2 / ((cParams2.searchLength == 3) ? 3 : 4);
     size_t const neededBufferSize2 = (buffPol2==ZSTDb_buffered) ? windowSize2 + blockSize2 : 0;
     DEBUGLOG(4, "ZSTD_sufficientBuff: is neededBufferSize2=%u <= bufferSize1=%u",
-                (U32)neededBufferSize2, bufferSize1);
+                (U32)neededBufferSize2, (U32)bufferSize1);
     DEBUGLOG(4, "ZSTD_sufficientBuff: is maxNbSeq2=%u <= maxNbSeq1=%u",
                 (U32)maxNbSeq2, (U32)maxNbSeq1);
     return (maxNbSeq2 <= maxNbSeq1) & (neededBufferSize2 <= bufferSize1);

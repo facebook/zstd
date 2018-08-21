@@ -153,46 +153,47 @@ static COVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
   activeSegment.begin = begin;
   activeSegment.end = begin;
   activeSegment.score = 0;
-  {
-    /* Slide the activeSegment through the whole epoch.
-     * Save the best segment in bestSegment.
-     */
-    while (activeSegment.end < end) {
-      /* Get hash value of current dmer */
-      const size_t index = FASTCOVER_hashPtrToIndex(ctx->samples + activeSegment.end, f, d);
 
-      /* Add frequency of this index to score if this is the first occurence of index in active segment */
-      if (ctx->segmentFreqs[index] == 0) {
-        activeSegment.score += freqs[index];
-      }
-      ctx->segmentFreqs[index] += 1;
-      /* Increment end of segment */
-      activeSegment.end += 1;
-      /* If the window is now too large, drop the first position */
-      if (activeSegment.end - activeSegment.begin == dmersInK + 1) {
-        /* Get hash value of the dmer to be eliminated from active segment */
-        const size_t delIndex = FASTCOVER_hashPtrToIndex(ctx->samples + activeSegment.begin, f, d);
-        ctx->segmentFreqs[delIndex] -= 1;
-        /* Subtract frequency of this index from score if this is the last occurrence of this index in active segment */
-        if (ctx->segmentFreqs[delIndex] == 0) {
-          activeSegment.score -= freqs[delIndex];
-        }
-        /* Increment start of segment */
-        activeSegment.begin += 1;
-      }
+  /* Slide the activeSegment through the whole epoch.
+   * Save the best segment in bestSegment.
+   */
+  while (activeSegment.end < end) {
+    /* Get hash value of current dmer */
+    const size_t index = FASTCOVER_hashPtrToIndex(ctx->samples + activeSegment.end, f, d);
 
-      /* If this segment is the best so far save it */
-      if (activeSegment.score > bestSegment.score) {
-        bestSegment = activeSegment;
-      }
+    /* Add frequency of this index to score if this is the first occurence of index in active segment */
+    if (ctx->segmentFreqs[index] == 0) {
+      activeSegment.score += freqs[index];
     }
-    /* Zero out rest of segmentFreqs array */
-    while (activeSegment.begin < end) {
+    ctx->segmentFreqs[index] += 1;
+    /* Increment end of segment */
+    activeSegment.end += 1;
+    /* If the window is now too large, drop the first position */
+    if (activeSegment.end - activeSegment.begin == dmersInK + 1) {
+      /* Get hash value of the dmer to be eliminated from active segment */
       const size_t delIndex = FASTCOVER_hashPtrToIndex(ctx->samples + activeSegment.begin, f, d);
       ctx->segmentFreqs[delIndex] -= 1;
+      /* Subtract frequency of this index from score if this is the last occurrence of this index in active segment */
+      if (ctx->segmentFreqs[delIndex] == 0) {
+        activeSegment.score -= freqs[delIndex];
+      }
+      /* Increment start of segment */
       activeSegment.begin += 1;
     }
+
+    /* If this segment is the best so far save it */
+    if (activeSegment.score > bestSegment.score) {
+      bestSegment = activeSegment;
+    }
   }
+
+  /* Zero out rest of segmentFreqs array */
+  while (activeSegment.begin < end) {
+    const size_t delIndex = FASTCOVER_hashPtrToIndex(ctx->samples + activeSegment.begin, f, d);
+    ctx->segmentFreqs[delIndex] -= 1;
+    activeSegment.begin += 1;
+  }
+
   {
     /*  Zero the frequency of hash value of each dmer covered by the chosen segment. */
     U32 pos;
@@ -247,18 +248,15 @@ static void FASTCOVER_ctx_destroy(FASTCOVER_ctx_t *ctx) {
   if (!ctx) {
     return;
   }
-  if (ctx->segmentFreqs) {
-    free(ctx->segmentFreqs);
-    ctx->segmentFreqs = NULL;
-  }
-  if (ctx->freqs) {
-    free(ctx->freqs);
-    ctx->freqs = NULL;
-  }
-  if (ctx->offsets) {
-    free(ctx->offsets);
-    ctx->offsets = NULL;
-  }
+
+  free(ctx->segmentFreqs);
+  ctx->segmentFreqs = NULL;
+
+  free(ctx->freqs);
+  ctx->freqs = NULL;
+
+  free(ctx->offsets);
+  ctx->offsets = NULL;
 }
 
 
@@ -463,63 +461,18 @@ static void FASTCOVER_tryParameters(void *opaque) {
     }
   }
   /* Check total compressed size */
-  {
-    /* Pointers */
-    ZSTD_CCtx *cctx;
-    ZSTD_CDict *cdict;
-    void *dst;
-    /* Local variables */
-    size_t dstCapacity;
-    size_t i;
-    /* Allocate dst with enough space to compress the maximum sized sample */
-    {
-      size_t maxSampleSize = 0;
-      i = parameters.splitPoint < 1.0 ? ctx->nbTrainSamples : 0;
-      for (; i < ctx->nbSamples; ++i) {
-        maxSampleSize = MAX(ctx->samplesSizes[i], maxSampleSize);
-      }
-      dstCapacity = ZSTD_compressBound(maxSampleSize);
-      dst = malloc(dstCapacity);
-    }
-    /* Create the cctx and cdict */
-    cctx = ZSTD_createCCtx();
-    cdict = ZSTD_createCDict(dict, dictBufferCapacity,
-                             parameters.zParams.compressionLevel);
-    if (!dst || !cctx || !cdict) {
-      goto _compressCleanup;
-    }
-    /* Compress each sample and sum their sizes (or error) */
-    totalCompressedSize = dictBufferCapacity;
-    i = parameters.splitPoint < 1.0 ? ctx->nbTrainSamples : 0;
-    for (; i < ctx->nbSamples; ++i) {
-      const size_t size = ZSTD_compress_usingCDict(
-          cctx, dst, dstCapacity, ctx->samples + ctx->offsets[i],
-          ctx->samplesSizes[i], cdict);
-      if (ZSTD_isError(size)) {
-        totalCompressedSize = ERROR(GENERIC);
-        goto _compressCleanup;
-      }
-      totalCompressedSize += size;
-    }
-  _compressCleanup:
-    ZSTD_freeCCtx(cctx);
-    ZSTD_freeCDict(cdict);
-    if (dst) {
-      free(dst);
-    }
-  }
-
+  totalCompressedSize = COVER_checkTotalCompressedSize(parameters, ctx->samplesSizes,
+                                                       ctx->samples, ctx->offsets,
+                                                       ctx->nbTrainSamples, ctx->nbSamples,
+                                                       dict, dictBufferCapacity);
 _cleanup:
   COVER_best_finish(data->best, totalCompressedSize, parameters, dict,
                     dictBufferCapacity);
   free(data);
-  if (dict) {
-    free(dict);
-  }
-  if (freqs) {
-    free(freqs);
-  }
+  free(dict);
+  free(freqs);
 }
+
 
 
 static void FASTCOVER_convertToCoverParams(ZDICT_fastCover_params_t fastCoverParams,
@@ -647,11 +600,11 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_fastCover(
       return ERROR(GENERIC);
     }
     if (nbSamples == 0) {
-      DISPLAYLEVEL(1, "FASTCOVER must have at least one input file\n");
+      LOCALDISPLAYLEVEL(displayLevel, 1, "FASTCOVER must have at least one input file\n");
       return ERROR(GENERIC);
     }
     if (dictBufferCapacity < ZDICT_DICTSIZE_MIN) {
-      DISPLAYLEVEL(1, "dictBufferCapacity must be at least %u\n",
+      LOCALDISPLAYLEVEL(displayLevel, 1, "dictBufferCapacity must be at least %u\n",
                    ZDICT_DICTSIZE_MIN);
       return ERROR(dstSize_tooSmall);
     }

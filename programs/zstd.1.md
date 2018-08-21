@@ -261,7 +261,7 @@ Compression of small files similar to the sample set will be greatly improved.
     Requires that 0 < _f_ < 32.
     If _accel_ is not specified, then it tries _accel_ = 1.
     Requires that 0 < _accel_ <= 10.
-    Requires that _d_ = 6 _d_ = 8.
+    Requires that _d_ = 6 or _d_ = 8.
 
     _f_ is log of size of array that keeps track of frequency of subsegments of size _d_.
     The subsegment is hashed to an index in the range [0,2^_f_ - 1].

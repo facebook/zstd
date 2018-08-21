@@ -127,9 +127,9 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_cover(
  * dictionary constructed with those parameters is stored in `dictBuffer`.
  *
  * All of the parameters d, k, steps are optional.
- * If d is non-zero then we don't check multiple values of d, otherwise we check d = {6, 8, 10, 12, 14, 16}.
+ * If d is non-zero then we don't check multiple values of d, otherwise we check d = {6, 8}.
  * if steps is zero it defaults to its default value.
- * If k is non-zero then we don't check multiple values of k, otherwise we check steps values in [16, 2048].
+ * If k is non-zero then we don't check multiple values of k, otherwise we check steps values in [50, 2000].
  *
  * @return: size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`)
  *           or an error code, which can be tested with ZDICT_isError().
@@ -145,7 +145,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
  *  Train a dictionary from an array of samples using a modified version of COVER algorithm.
  *  Samples must be stored concatenated in a single flat buffer `samplesBuffer`,
  *  supplied with an array of sizes `samplesSizes`, providing the size of each sample, in order.
- *  d and k are requiredMem.
+ *  d and k are required.
  *  All other parameters are optional, will use default values if not provided
  *  The resulting dictionary will be saved into `dictBuffer`.
  * @return: size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`)
@@ -167,9 +167,9 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_fastCover(void *dictBuffer,
  * and picks the best parameters. `*parameters` is filled with the best parameters found,
  * dictionary constructed with those parameters is stored in `dictBuffer`.
  * All of the parameters d, k, steps, f, and accel are optional.
- * If d is non-zero then we don't check multiple values of d, otherwise we check d = {6, 8, 10, 12, 14, 16}.
+ * If d is non-zero then we don't check multiple values of d, otherwise we check d = {6, 8}.
  * if steps is zero it defaults to its default value.
- * If k is non-zero then we don't check multiple values of k, otherwise we check steps values in [16, 2048].
+ * If k is non-zero then we don't check multiple values of k, otherwise we check steps values in [50, 2000].
  * If f is zero, default value of 18 is used.
  * If accel is zero, default value of 1 is used.
  *

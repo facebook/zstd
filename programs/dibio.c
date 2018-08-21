@@ -271,8 +271,8 @@ size_t ZDICT_trainFromBuffer_unsafe_legacy(void* dictBuffer, size_t dictBufferCa
 
 int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
                        const char** fileNamesTable, unsigned nbFiles, size_t chunkSize,
-                       ZDICT_legacy_params_t *params, ZDICT_cover_params_t *coverParams,
-                       ZDICT_fastCover_params_t *fastCoverParams, int optimize)
+                       ZDICT_legacy_params_t* params, ZDICT_cover_params_t* coverParams,
+                       ZDICT_fastCover_params_t* fastCoverParams, int optimize)
 {
     unsigned const displayLevel = params ? params->zParams.notificationLevel :
                         coverParams ? coverParams->zParams.notificationLevel :

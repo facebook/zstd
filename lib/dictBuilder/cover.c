@@ -382,7 +382,6 @@ static void COVER_group(COVER_ctx_t *ctx, const void *group,
 }
 
 
-
 /**
  * Selects the best segment in an epoch.
  * Segments of are scored according to the function:
@@ -732,6 +731,60 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_cover(
 }
 
 
+
+size_t COVER_checkTotalCompressedSize(const ZDICT_cover_params_t parameters,
+                                    const size_t *samplesSizes, const BYTE *samples,
+                                    size_t *offsets,
+                                    size_t nbTrainSamples, size_t nbSamples,
+                                    BYTE *const dict, size_t dictBufferCapacity) {
+  size_t totalCompressedSize = ERROR(GENERIC);
+  /* Pointers */
+  ZSTD_CCtx *cctx;
+  ZSTD_CDict *cdict;
+  void *dst;
+  /* Local variables */
+  size_t dstCapacity;
+  size_t i;
+  /* Allocate dst with enough space to compress the maximum sized sample */
+  {
+    size_t maxSampleSize = 0;
+    i = parameters.splitPoint < 1.0 ? nbTrainSamples : 0;
+    for (; i < nbSamples; ++i) {
+      maxSampleSize = MAX(samplesSizes[i], maxSampleSize);
+    }
+    dstCapacity = ZSTD_compressBound(maxSampleSize);
+    dst = malloc(dstCapacity);
+  }
+  /* Create the cctx and cdict */
+  cctx = ZSTD_createCCtx();
+  cdict = ZSTD_createCDict(dict, dictBufferCapacity,
+                           parameters.zParams.compressionLevel);
+  if (!dst || !cctx || !cdict) {
+    goto _compressCleanup;
+  }
+  /* Compress each sample and sum their sizes (or error) */
+  totalCompressedSize = dictBufferCapacity;
+  i = parameters.splitPoint < 1.0 ? nbTrainSamples : 0;
+  for (; i < nbSamples; ++i) {
+    const size_t size = ZSTD_compress_usingCDict(
+        cctx, dst, dstCapacity, samples + offsets[i],
+        samplesSizes[i], cdict);
+    if (ZSTD_isError(size)) {
+      totalCompressedSize = ERROR(GENERIC);
+      goto _compressCleanup;
+    }
+    totalCompressedSize += size;
+  }
+_compressCleanup:
+  ZSTD_freeCCtx(cctx);
+  ZSTD_freeCDict(cdict);
+  if (dst) {
+    free(dst);
+  }
+  return totalCompressedSize;
+}
+
+
 /**
  * Initialize the `COVER_best_t`.
  */
@@ -881,51 +934,10 @@ static void COVER_tryParameters(void *opaque) {
     }
   }
   /* Check total compressed size */
-  {
-    /* Pointers */
-    ZSTD_CCtx *cctx;
-    ZSTD_CDict *cdict;
-    void *dst;
-    /* Local variables */
-    size_t dstCapacity;
-    size_t i;
-    /* Allocate dst with enough space to compress the maximum sized sample */
-    {
-      size_t maxSampleSize = 0;
-      i = parameters.splitPoint < 1.0 ? ctx->nbTrainSamples : 0;
-      for (; i < ctx->nbSamples; ++i) {
-        maxSampleSize = MAX(ctx->samplesSizes[i], maxSampleSize);
-      }
-      dstCapacity = ZSTD_compressBound(maxSampleSize);
-      dst = malloc(dstCapacity);
-    }
-    /* Create the cctx and cdict */
-    cctx = ZSTD_createCCtx();
-    cdict = ZSTD_createCDict(dict, dictBufferCapacity,
-                             parameters.zParams.compressionLevel);
-    if (!dst || !cctx || !cdict) {
-      goto _compressCleanup;
-    }
-    /* Compress each sample and sum their sizes (or error) */
-    totalCompressedSize = dictBufferCapacity;
-    i = parameters.splitPoint < 1.0 ? ctx->nbTrainSamples : 0;
-    for (; i < ctx->nbSamples; ++i) {
-      const size_t size = ZSTD_compress_usingCDict(
-          cctx, dst, dstCapacity, ctx->samples + ctx->offsets[i],
-          ctx->samplesSizes[i], cdict);
-      if (ZSTD_isError(size)) {
-        totalCompressedSize = ERROR(GENERIC);
-        goto _compressCleanup;
-      }
-      totalCompressedSize += size;
-    }
-  _compressCleanup:
-    ZSTD_freeCCtx(cctx);
-    ZSTD_freeCDict(cdict);
-    if (dst) {
-      free(dst);
-    }
-  }
+  totalCompressedSize = COVER_checkTotalCompressedSize(parameters, ctx->samplesSizes,
+                                                       ctx->samples, ctx->offsets,
+                                                       ctx->nbTrainSamples, ctx->nbSamples,
+                                                       dict, dictBufferCapacity);
 
 _cleanup:
   COVER_best_finish(data->best, totalCompressedSize, parameters, dict,

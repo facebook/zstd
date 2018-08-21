@@ -38,6 +38,14 @@ typedef struct {
   U32 score;
 } COVER_segment_t;
 
+/**
+ *  Checks total compressed size of a dictionary
+ */
+size_t COVER_checkTotalCompressedSize(const ZDICT_cover_params_t parameters,
+                                      const size_t *samplesSizes, const BYTE *samples,
+                                      size_t *offsets,
+                                      size_t nbTrainSamples, size_t nbSamples,
+                                      BYTE *const dict, size_t dictBufferCapacity);
 
 /**
  * Returns the sum of the sample sizes.
@@ -71,5 +79,5 @@ void COVER_best_start(COVER_best_t *best);
  * If this dictionary is the best so far save it and its parameters.
  */
 void COVER_best_finish(COVER_best_t *best, size_t compressedSize,
-                        ZDICT_cover_params_t parameters, void *dict,
-                        size_t dictSize);
+                       ZDICT_cover_params_t parameters, void *dict,
+                       size_t dictSize);

@@ -134,7 +134,7 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_cover(
  * @return: size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`)
  *           or an error code, which can be tested with ZDICT_isError().
  *           On success `*parameters` contains the parameters selected.
- * Note: ZDICT_optimizeTrainFromBuffer_cover() requires about 1 byte of memory for each input byte and additionally another 6 * 2^f bytes of memory for each thread.
+ * Note: ZDICT_optimizeTrainFromBuffer_cover() requires about 8 bytes of memory for each input byte and additionally another 5 bytes of memory for each byte of memory for each thread.
  */
 ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
           void* dictBuffer, size_t dictBufferCapacity,
@@ -176,7 +176,7 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_fastCover(void *dictBuffer,
  * @return: size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`)
  *           or an error code, which can be tested with ZDICT_isError().
  *           On success `*parameters` contains the parameters selected.
- * Note: ZDICT_optimizeTrainFromBuffer_fastCover() requires about 8 bytes of memory for each input byte and additionally another 5 bytes of memory for each byte of memory for each thread.
+ * Note: ZDICT_optimizeTrainFromBuffer_fastCover() requires about 1 byte of memory for each input byte and additionally another 6 * 2^f bytes of memory for each thread.
  */
 ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_fastCover(void* dictBuffer,
                     size_t dictBufferCapacity, const void* samplesBuffer,

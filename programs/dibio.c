@@ -44,6 +44,7 @@
 #define SAMPLESIZE_MAX (128 KB)
 #define MEMMULT 11    /* rough estimation : memory cost to analyze 1 byte of sample */
 #define COVER_MEMMULT 9    /* rough estimation : memory cost to analyze 1 byte of sample */
+#define FASTCOVER_MEMMULT 1    /* rough estimation : memory cost to analyze 1 byte of sample */
 static const size_t g_maxMemory = (sizeof(size_t) == 4) ? (2 GB - 64 MB) : ((size_t)(512 MB) << sizeof(size_t));
 
 #define NOISELENGTH 32
@@ -281,7 +282,9 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
     void* const dictBuffer = malloc(maxDictSize);
     fileStats const fs = DiB_fileStats(fileNamesTable, nbFiles, chunkSize, displayLevel);
     size_t* const sampleSizes = (size_t*)malloc(fs.nbSamples * sizeof(size_t));
-    size_t const memMult = params ? MEMMULT : COVER_MEMMULT;
+    size_t const memMult = params ? MEMMULT :
+                           coverParams ? COVER_MEMMULT:
+                           FASTCOVER_MEMMULT;
     size_t const maxMem =  DiB_findMaxMem(fs.totalSizeToLoad * memMult) / memMult;
     size_t loadedSize = (size_t) MIN ((unsigned long long)maxMem, fs.totalSizeToLoad);
     void* const srcBuffer = malloc(loadedSize+NOISELENGTH);

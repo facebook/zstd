@@ -877,10 +877,10 @@ void COVER_best_finish(COVER_best_t *best, size_t compressedSize,
       best->parameters = parameters;
       best->compressedSize = compressedSize;
     }
-    ZSTD_pthread_mutex_unlock(&best->mutex);
     if (liveJobs == 0) {
       ZSTD_pthread_cond_broadcast(&best->cond);
     }
+    ZSTD_pthread_mutex_unlock(&best->mutex);
   }
 }
 

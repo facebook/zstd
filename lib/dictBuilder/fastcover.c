@@ -114,7 +114,6 @@ typedef struct {
   size_t nbTestSamples;
   size_t nbDmers;
   U32 *freqs;
-  U16 *segmentFreqs;
   unsigned d;
   unsigned f;
   FASTCOVER_accel_t accelParams;
@@ -148,6 +147,9 @@ static COVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
   COVER_segment_t bestSegment = {0, 0, 0};
   COVER_segment_t activeSegment;
 
+  /* Initialize array to keep track of frequency of dmer within activeSegment */
+  U16* segmentFreqs = (U16 *)calloc(((U64)1 << f), sizeof(U16));
+
   /* Reset the activeDmers in the segment */
   /* The activeSegment starts at the beginning of the epoch. */
   activeSegment.begin = begin;
@@ -162,19 +164,19 @@ static COVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
     const size_t index = FASTCOVER_hashPtrToIndex(ctx->samples + activeSegment.end, f, d);
 
     /* Add frequency of this index to score if this is the first occurence of index in active segment */
-    if (ctx->segmentFreqs[index] == 0) {
+    if (segmentFreqs[index] == 0) {
       activeSegment.score += freqs[index];
     }
     /* Increment end of segment and segmentFreqs*/
     activeSegment.end += 1;
-    ctx->segmentFreqs[index] += 1;
+    segmentFreqs[index] += 1;
     /* If the window is now too large, drop the first position */
     if (activeSegment.end - activeSegment.begin == dmersInK + 1) {
       /* Get hash value of the dmer to be eliminated from active segment */
       const size_t delIndex = FASTCOVER_hashPtrToIndex(ctx->samples + activeSegment.begin, f, d);
-      ctx->segmentFreqs[delIndex] -= 1;
+      segmentFreqs[delIndex] -= 1;
       /* Subtract frequency of this index from score if this is the last occurrence of this index in active segment */
-      if (ctx->segmentFreqs[delIndex] == 0) {
+      if (segmentFreqs[delIndex] == 0) {
         activeSegment.score -= freqs[delIndex];
       }
       /* Increment start of segment */
@@ -186,14 +188,6 @@ static COVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
       bestSegment = activeSegment;
     }
   }
-
-  /* Zero out rest of segmentFreqs array */
-  while (activeSegment.begin < end) {
-    const size_t delIndex = FASTCOVER_hashPtrToIndex(ctx->samples + activeSegment.begin, f, d);
-    ctx->segmentFreqs[delIndex] -= 1;
-    activeSegment.begin += 1;
-  }
-
   {
     /*  Zero the frequency of hash value of each dmer covered by the chosen segment. */
     U32 pos;
@@ -248,9 +242,6 @@ static void FASTCOVER_ctx_destroy(FASTCOVER_ctx_t *ctx) {
   if (!ctx) {
     return;
   }
-
-  free(ctx->segmentFreqs);
-  ctx->segmentFreqs = NULL;
 
   free(ctx->freqs);
   ctx->freqs = NULL;
@@ -354,7 +345,7 @@ static int FASTCOVER_ctx_init(FASTCOVER_ctx_t *ctx, const void *samplesBuffer,
 
   /* Initialize frequency array of size 2^f */
   ctx->freqs = (U32 *)calloc(((U64)1 << f), sizeof(U32));
-  ctx->segmentFreqs = (U16 *)calloc(((U64)1 << f), sizeof(U16));
+
   DISPLAYLEVEL(2, "Computing frequencies\n");
   FASTCOVER_computeFrequency(ctx->freqs, ctx);
 

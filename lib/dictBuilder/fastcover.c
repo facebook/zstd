@@ -196,6 +196,7 @@ static COVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
       freqs[i] = 0;
     }
   }
+  free(segmentFreqs);
   return bestSegment;
 }
 

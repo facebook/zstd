@@ -140,6 +140,7 @@ struct ZSTD_matchState_t {
     U32* chainTable;
     optState_t opt;         /* optimal parser state */
     const ZSTD_matchState_t *dictMatchState;
+    ZSTD_compressionParameters cParams;
 };
 
 typedef struct {

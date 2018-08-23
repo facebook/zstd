@@ -590,8 +590,9 @@ static rawSeq maybeSplitSequence(rawSeqStore_t* rawSeqStore,
 
 size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
     ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
-    ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize)
+    void const* src, size_t srcSize)
 {
+    const ZSTD_compressionParameters* const cParams = &ms->cParams;
     unsigned const minMatch = cParams->searchLength;
     ZSTD_blockCompressor const blockCompressor =
         ZSTD_selectBlockCompressor(cParams->strategy, ZSTD_matchState_dictMode(ms));
@@ -624,8 +625,7 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
         DEBUGLOG(5, "calling block compressor on segment of size %u", sequence.litLength);
         {
             size_t const newLitLength =
-                blockCompressor(ms, seqStore, rep, ip,
-                                sequence.litLength);
+                blockCompressor(ms, seqStore, rep, ip, sequence.litLength);
             ip += sequence.litLength;
             /* Update the repcodes */
             for (i = ZSTD_REP_NUM - 1; i > 0; i--)
@@ -642,6 +642,5 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
     ZSTD_ldm_limitTableUpdate(ms, ip);
     ZSTD_ldm_fillFastTables(ms, ip);
     /* Compress the last literals */
-    return blockCompressor(ms, seqStore, rep,
-                           ip, iend - ip);
+    return blockCompressor(ms, seqStore, rep, ip, iend - ip);
 }

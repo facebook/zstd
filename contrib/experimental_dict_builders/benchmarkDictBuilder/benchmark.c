@@ -5,7 +5,6 @@
 #include <ctype.h>
 #include <time.h>
 #include "random.h"
-#include "fastCover.h"
 #include "dictBuilder.h"
 #include "zstd_internal.h" /* includes zstd.h */
 #include "io.h"
@@ -149,7 +148,7 @@ double compressWithDict(sampleInfo *srcInfo, dictInfo* dInfo, int compressionLev
   /* Allocate dst with enough space to compress the maximum sized sample */
   {
     size_t maxSampleSize = 0;
-    for (int i = 0; i < srcInfo->nbSamples; i++) {
+    for (i = 0; i < srcInfo->nbSamples; i++) {
       maxSampleSize = MAX(srcInfo->samplesSizes[i], maxSampleSize);
     }
     dstCapacity = ZSTD_compressBound(maxSampleSize);
@@ -291,6 +290,9 @@ int main(int argCount, const char* argv[])
   /* Initialize arguments to default values */
   unsigned k = 200;
   unsigned d = 8;
+  unsigned f;
+  unsigned accel;
+  unsigned i;
   const unsigned cLevel = DEFAULT_CLEVEL;
   const unsigned dictID = 0;
   const unsigned maxDictSize = g_defaultMaxDictSize;
@@ -305,7 +307,7 @@ int main(int argCount, const char* argv[])
   const char** extendedFileList = NULL;
 
   /* Parse arguments */
-  for (int i = 1; i < argCount; i++) {
+  for (i = 1; i < argCount; i++) {
     const char* argument = argv[i];
     if (longCommandWArg(&argument, "in=")) {
       filenameTable[filenameIdx] = argument;
@@ -375,6 +377,7 @@ int main(int argCount, const char* argv[])
 
   /* for cover */
   {
+    /* for cover (optimizing k and d) */
     ZDICT_cover_params_t coverParam;
     memset(&coverParam, 0, sizeof(coverParam));
     coverParam.zParams = zParams;
@@ -388,6 +391,7 @@ int main(int argCount, const char* argv[])
       goto _cleanup;
     }
 
+    /* for cover (with k and d provided) */
     const int coverResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, &coverParam, NULL, NULL);
     DISPLAYLEVEL(2, "k=%u\nd=%u\nsteps=%u\nsplit=%u\n", coverParam.k, coverParam.d, coverParam.steps, (unsigned)(coverParam.splitPoint * 100));
     if(coverResult) {
@@ -398,29 +402,34 @@ int main(int argCount, const char* argv[])
   }
 
   /* for fastCover */
-  for (unsigned f = 15; f < 25; f++){
+  for (f = 15; f < 25; f++){
     DISPLAYLEVEL(2, "current f is %u\n", f);
-    /* for fastCover (optimizing k and d) */
-    ZDICT_fastCover_params_t fastParam;
-    memset(&fastParam, 0, sizeof(fastParam));
-    fastParam.zParams = zParams;
-    fastParam.splitPoint = 1.0;
-    fastParam.f = f;
-    fastParam.steps = 40;
-    fastParam.nbThreads = 1;
-    const int fastOptResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, NULL, NULL, &fastParam);
-    DISPLAYLEVEL(2, "k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\n", fastParam.k, fastParam.d, fastParam.f, fastParam.steps, (unsigned)(fastParam.splitPoint * 100));
-    if(fastOptResult) {
-      result = 1;
-      goto _cleanup;
-    }
+    for (accel = 1; accel < 11; accel++) {
+      DISPLAYLEVEL(2, "current accel is %u\n", accel);
+      /* for fastCover (optimizing k and d) */
+      ZDICT_fastCover_params_t fastParam;
+      memset(&fastParam, 0, sizeof(fastParam));
+      fastParam.zParams = zParams;
+      fastParam.f = f;
+      fastParam.steps = 40;
+      fastParam.nbThreads = 1;
+      fastParam.accel = accel;
+      const int fastOptResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, NULL, NULL, &fastParam);
+      DISPLAYLEVEL(2, "k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\naccel=%u\n", fastParam.k, fastParam.d, fastParam.f, fastParam.steps, (unsigned)(fastParam.splitPoint * 100), fastParam.accel);
+      if(fastOptResult) {
+        result = 1;
+        goto _cleanup;
+      }
 
-    /* for fastCover (with k and d provided) */
-    const int fastResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, NULL, NULL, &fastParam);
-    DISPLAYLEVEL(2, "k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\n", fastParam.k, fastParam.d, fastParam.f, fastParam.steps, (unsigned)(fastParam.splitPoint * 100));
-    if(fastResult) {
-      result = 1;
-      goto _cleanup;
+      /* for fastCover (with k and d provided) */
+      for (i = 0; i < 5; i++) {
+        const int fastResult = benchmarkDictBuilder(srcInfo, maxDictSize, NULL, NULL, NULL, &fastParam);
+        DISPLAYLEVEL(2, "k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\naccel=%u\n", fastParam.k, fastParam.d, fastParam.f, fastParam.steps, (unsigned)(fastParam.splitPoint * 100), fastParam.accel);
+        if(fastResult) {
+          result = 1;
+          goto _cleanup;
+        }
+      }
     }
   }
 

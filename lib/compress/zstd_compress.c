@@ -46,7 +46,6 @@ struct ZSTD_CDict_s {
     size_t workspaceSize;
     ZSTD_matchState_t matchState;
     ZSTD_compressedBlockState_t cBlockState;
-    ZSTD_compressionParameters cParams;
     ZSTD_customMem customMem;
     U32 dictID;
 };  /* typedef'd to ZSTD_CDict within "zstd.h" */
@@ -1307,14 +1306,15 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
         32 KB, /* ZSTD_btopt */
         8 KB /* ZSTD_btultra */
     };
-    const int attachDict = ( pledgedSrcSize <= attachDictSizeCutoffs[cdict->cParams.strategy]
+    const ZSTD_compressionParameters *cdict_cParams = &cdict->matchState.cParams;
+    const int attachDict = ( pledgedSrcSize <= attachDictSizeCutoffs[cdict_cParams->strategy]
                           || pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN
                           || params.attachDictPref == ZSTD_dictForceAttach )
                         && params.attachDictPref != ZSTD_dictForceCopy
                         && !params.forceWindow /* dictMatchState isn't correctly
                                                 * handled in _enforceMaxDist */
                         && ZSTD_equivalentCParams(cctx->appliedParams.cParams,
-                                                  cdict->cParams);
+                                                  *cdict_cParams);
 
     DEBUGLOG(4, "ZSTD_resetCCtx_usingCDict (pledgedSrcSize=%u)", (U32)pledgedSrcSize);
 
@@ -1322,14 +1322,14 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
     {   unsigned const windowLog = params.cParams.windowLog;
         assert(windowLog != 0);
         /* Copy only compression parameters related to tables. */
-        params.cParams = cdict->cParams;
+        params.cParams = *cdict_cParams;
         params.cParams.windowLog = windowLog;
         ZSTD_resetCCtx_internal(cctx, params, pledgedSrcSize,
                                 attachDict ? ZSTDcrp_continue : ZSTDcrp_noMemset,
                                 zbuff);
-        assert(cctx->appliedParams.cParams.strategy == cdict->cParams.strategy);
-        assert(cctx->appliedParams.cParams.hashLog == cdict->cParams.hashLog);
-        assert(cctx->appliedParams.cParams.chainLog == cdict->cParams.chainLog);
+        assert(cctx->appliedParams.cParams.strategy == cdict_cParams->strategy);
+        assert(cctx->appliedParams.cParams.hashLog == cdict_cParams->hashLog);
+        assert(cctx->appliedParams.cParams.chainLog == cdict_cParams->chainLog);
     }
 
     if (attachDict) {
@@ -1355,8 +1355,8 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
     } else {
         DEBUGLOG(4, "copying dictionary into context");
         /* copy tables */
-        {   size_t const chainSize = (cdict->cParams.strategy == ZSTD_fast) ? 0 : ((size_t)1 << cdict->cParams.chainLog);
-            size_t const hSize =  (size_t)1 << cdict->cParams.hashLog;
+        {   size_t const chainSize = (cdict_cParams->strategy == ZSTD_fast) ? 0 : ((size_t)1 << cdict_cParams->chainLog);
+            size_t const hSize =  (size_t)1 << cdict_cParams->hashLog;
             size_t const tableSpace = (chainSize + hSize) * sizeof(U32);
             assert((U32*)cctx->blockState.matchState.chainTable == (U32*)cctx->blockState.matchState.hashTable + hSize);  /* chainTable must follow hashTable */
             assert((U32*)cctx->blockState.matchState.hashTable3 == (U32*)cctx->blockState.matchState.chainTable + chainSize);
@@ -3143,7 +3143,7 @@ static size_t ZSTD_initCDict_internal(
 {
     DEBUGLOG(3, "ZSTD_initCDict_internal (dictContentType:%u)", (U32)dictContentType);
     assert(!ZSTD_checkCParams(cParams));
-    cdict->cParams = cParams;
+    cdict->matchState.cParams = cParams;
     if ((dictLoadMethod == ZSTD_dlm_byRef) || (!dictBuffer) || (!dictSize)) {
         cdict->dictBuffer = NULL;
         cdict->dictContent = dictBuffer;
@@ -3297,7 +3297,7 @@ const ZSTD_CDict* ZSTD_initStaticCDict(
 ZSTD_compressionParameters ZSTD_getCParamsFromCDict(const ZSTD_CDict* cdict)
 {
     assert(cdict != NULL);
-    return cdict->cParams;
+    return cdict->matchState.cParams;
 }
 
 /* ZSTD_compressBegin_usingCDict_advanced() :

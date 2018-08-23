@@ -13,9 +13,9 @@
 
 
 void ZSTD_fillHashTable(ZSTD_matchState_t* ms,
-                        ZSTD_compressionParameters const* cParams,
                         void const* end, ZSTD_dictTableLoadMethod_e dtlm)
 {
+    const ZSTD_compressionParameters* const cParams = &ms->cParams;
     U32* const hashTable = ms->hashTable;
     U32  const hBits = cParams->hashLog;
     U32  const mls = cParams->searchLength;

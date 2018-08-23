@@ -471,10 +471,11 @@ static U32 ZSTD_insertBt1(
 
 FORCE_INLINE_TEMPLATE
 void ZSTD_updateTree_internal(
-                ZSTD_matchState_t* ms, ZSTD_compressionParameters const* cParams,
+                ZSTD_matchState_t* ms,
                 const BYTE* const ip, const BYTE* const iend,
                 const U32 mls, const ZSTD_dictMode_e dictMode)
 {
+    const ZSTD_compressionParameters* const cParams = &ms->cParams;
     const BYTE* const base = ms->window.base;
     U32 const target = (U32)(ip - base);
     U32 idx = ms->nextToUpdate;
@@ -486,11 +487,8 @@ void ZSTD_updateTree_internal(
     ms->nextToUpdate = target;
 }
 
-void ZSTD_updateTree(
-                ZSTD_matchState_t* ms, ZSTD_compressionParameters const* cParams,
-                const BYTE* ip, const BYTE* iend)
-{
-    ZSTD_updateTree_internal(ms, cParams, ip, iend, cParams->searchLength, ZSTD_noDict);
+void ZSTD_updateTree(ZSTD_matchState_t* ms, const BYTE* ip, const BYTE* iend) {
+    ZSTD_updateTree_internal(ms, ip, iend, ms->cParams.searchLength, ZSTD_noDict);
 }
 
 FORCE_INLINE_TEMPLATE
@@ -721,7 +719,7 @@ FORCE_INLINE_TEMPLATE U32 ZSTD_BtGetAllMatches (
     U32 const matchLengthSearch = cParams->searchLength;
     DEBUGLOG(8, "ZSTD_BtGetAllMatches");
     if (ip < ms->window.base + ms->nextToUpdate) return 0;   /* skipped area */
-    ZSTD_updateTree_internal(ms, cParams, ip, iHighLimit, matchLengthSearch, dictMode);
+    ZSTD_updateTree_internal(ms, ip, iHighLimit, matchLengthSearch, dictMode);
     switch(matchLengthSearch)
     {
     case 3 : return ZSTD_insertBtAndGetAllMatches(ms, cParams, ip, iHighLimit, dictMode, rep, ll0, matches, lengthToBeat, 3);

@@ -2394,7 +2394,6 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
                 ZSTD_ldm_blockCompress(&zc->externSeqStore,
                                        ms, &zc->seqStore,
                                        zc->blockState.nextCBlock->rep,
-                                       &zc->appliedParams.cParams,
                                        src, srcSize);
             assert(zc->externSeqStore.pos <= zc->externSeqStore.size);
         } else if (zc->appliedParams.ldmParams.enableLdm) {
@@ -2411,7 +2410,6 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
                 ZSTD_ldm_blockCompress(&ldmSeqStore,
                                        ms, &zc->seqStore,
                                        zc->blockState.nextCBlock->rep,
-                                       &zc->appliedParams.cParams,
                                        src, srcSize);
             assert(ldmSeqStore.pos == ldmSeqStore.size);
         } else {   /* not long range mode */

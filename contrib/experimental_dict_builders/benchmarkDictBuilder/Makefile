@@ -2,10 +2,9 @@ ARG :=
 
 CC ?= gcc
 CFLAGS ?= -O3
-INCLUDES := -I ../randomDictBuilder -I ../fastCover -I ../../../programs -I ../../../lib/common -I ../../../lib -I ../../../lib/dictBuilder
+INCLUDES := -I ../randomDictBuilder -I ../../../programs -I ../../../lib/common -I ../../../lib -I ../../../lib/dictBuilder
 
 RANDOM_FILE := ../randomDictBuilder/random.c
-FAST_FILE := ../fastCover/fastCover.c
 IO_FILE := ../randomDictBuilder/io.c
 
 all: run clean
@@ -22,17 +21,14 @@ test: benchmarkTest clean
 benchmarkTest: benchmark test.sh
 	sh test.sh
 
-benchmark: benchmark.o io.o random.o fastCover.o libzstd.a
-	$(CC) $(CFLAGS) benchmark.o io.o random.o fastCover.o libzstd.a -o benchmark
+benchmark: benchmark.o io.o random.o libzstd.a
+	$(CC) $(CFLAGS) benchmark.o io.o random.o libzstd.a -o benchmark
 
 benchmark.o: benchmark.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c benchmark.c
 
 random.o: $(RANDOM_FILE)
 	$(CC) $(CFLAGS) $(INCLUDES) -c $(RANDOM_FILE)
-
-fastCover.o: $(FAST_FILE)
-	$(CC) $(CFLAGS) $(INCLUDES) -c $(FAST_FILE)
 
 io.o: $(IO_FILE)
 	$(CC) $(CFLAGS) $(INCLUDES) -c $(IO_FILE)

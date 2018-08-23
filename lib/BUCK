@@ -69,6 +69,7 @@ cxx_library(
     ]),
     headers=subdir_glob([
         ('dictBuilder', 'divsufsort.h'),
+        ('dictBuilder', 'cover.h'),
     ]),
     srcs=glob(['dictBuilder/*.c']),
     deps=[':common'],

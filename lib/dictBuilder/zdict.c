@@ -863,8 +863,8 @@ _cleanup:
 
 size_t ZDICT_finalizeDictionary(void* dictBuffer, size_t dictBufferCapacity,
                           const void* customDictContent, size_t dictContentSize,
-                          const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
-                          ZDICT_params_t params)
+                          const void* samplesBuffer, const size_t* samplesSizes,
+                          unsigned nbSamples, ZDICT_params_t params)
 {
     size_t hSize;
 #define HBUFFSIZE 256   /* should prove large enough for all entropy headers */
@@ -1078,17 +1078,17 @@ size_t ZDICT_trainFromBuffer_legacy(void* dictBuffer, size_t dictBufferCapacity,
 size_t ZDICT_trainFromBuffer(void* dictBuffer, size_t dictBufferCapacity,
                              const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples)
 {
-    ZDICT_cover_params_t params;
+    ZDICT_fastCover_params_t params;
     DEBUGLOG(3, "ZDICT_trainFromBuffer");
     memset(&params, 0, sizeof(params));
     params.d = 8;
     params.steps = 4;
     /* Default to level 6 since no compression level information is available */
-    params.zParams.compressionLevel = 6;
+    params.zParams.compressionLevel = 3;
 #if defined(DEBUGLEVEL) && (DEBUGLEVEL>=1)
     params.zParams.notificationLevel = DEBUGLEVEL;
 #endif
-    return ZDICT_optimizeTrainFromBuffer_cover(dictBuffer, dictBufferCapacity,
+    return ZDICT_optimizeTrainFromBuffer_fastCover(dictBuffer, dictBufferCapacity,
                                                samplesBuffer, samplesSizes, nbSamples,
                                                &params);
 }

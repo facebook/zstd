@@ -194,7 +194,7 @@ All arguments after \fB\-\-\fR are treated as files
 Use FILEs as training set to create a dictionary\. The training set should contain a lot of small files (> 100), and weight typically 100x the target dictionary size (for example, 10 MB for a 100 KB dictionary)\.
 .
 .IP
-Supports multithreading if \fBzstd\fR is compiled with threading support\. Additional parameters can be specified with \fB\-\-train\-cover\fR\. The legacy dictionary builder can be accessed with \fB\-\-train\-legacy\fR\. Equivalent to \fB\-\-train\-cover=d=8,steps=4\fR\.
+Supports multithreading if \fBzstd\fR is compiled with threading support\. Additional parameters can be specified with \fB\-\-train\-cover\fR\ or \fB\-\-train\-fastcover\fR\. The legacy dictionary builder can be accessed with \fB\-\-train\-legacy\fR\. Equivalent to \fB\-\-train\-fastCover=d=8,steps=4\fR\.
 .
 .TP
 \fB\-o file\fR
@@ -238,6 +238,25 @@ Examples:
 .
 .IP
 \fBzstd \-\-train\-cover=k=50 FILEs\fR
+.
+.TP
+\fB\-\-train\-fastcover[=k#,d=#,f=#,steps=#,split=#,accel=#]\fR
+Same as cover but with extra parameters \fIf\fR and \fIaccel\fR and different default value of split
+.
+.IP
+If \fIsplit\fR is not specified, then it tries \fIsplit\fR = 75. If \fIf\fR is not specified, then it tries \fIf\fR = 18. Requires that 0 < \fIf\fR < 32. If \fIaccel\fR is not specified, then it tries \fIaccel\fR = 1. Requires that 0 < \fIaccel\fR <= 10. Requires that \fId\fR = 6 or \fId\fR = 8.
+.
+.IP
+\fIf\fR is log of size of array that keeps track of frequency of subsegments of size \fId\fR. The subsegment is hashed to an index in the range [0,2^\fIf\fR - 1]. It is possible that 2 different subsegments are hashed to the same index, and they are considered as the same subsegment when computing frequency. Using a higher \fIf\fR reduces collision but takes longer.
+.
+.IP
+Examples:
+.
+.IP
+\fBzstd \-\-train\-fastcover FILEs\fR
+.
+.IP
+\fBzstd \-\-train\-fastcover=d=8,f=15,accel=2 FILEs\fR
 .
 .TP
 \fB\-\-train\-legacy[=selectivity=#]\fR

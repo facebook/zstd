@@ -311,7 +311,7 @@ BMK_runOutcome_t BMK_benchFunction(
             size_t blockCount,
             const void* const * srcBlockBuffers, const size_t* srcBlockSizes,
             void* const * dstBlockBuffers, const size_t* dstBlockCapacities,
-            size_t* blockResult,
+            size_t* blockResults,
             unsigned nbLoops)
 {
     size_t dstSize = 0;
@@ -350,7 +350,7 @@ BMK_runOutcome_t BMK_benchFunction(
                         blockNb, (U32)dstBlockCapacities[blockNb], ZSTD_getErrorName(res));
                 } else if (loopNb == 0) {
                     dstSize += res;
-                    if (blockResult != NULL) blockResult[blockNb] = res;
+                    if (blockResults != NULL) blockResults[blockNb] = res;
                     dstSize += res;
             }   }
         }  /* for (loopNb = 0; loopNb < nbLoops; loopNb++) */

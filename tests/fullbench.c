@@ -290,7 +290,7 @@ size_t local_ZSTD_compressContinue(const void* src, size_t srcSize, void* dst, s
 size_t local_ZSTD_compressContinue_extDict(const void* src, size_t srcSize, void* dst, size_t dstCapacity, void* buff2)
 {
     BYTE firstBlockBuf[FIRST_BLOCK_SIZE];
-    
+
     ZSTD_parameters p;
     ZSTD_frameParameters f = {1 , 0, 0};
     p.fParams = f;
@@ -333,14 +333,16 @@ size_t local_ZSTD_decompressContinue(const void* src, size_t srcSize, void* dst,
 /*_*******************************************************
 *  Bench functions
 *********************************************************/
-static size_t benchMem(const void* src, size_t srcSize, U32 benchNb, int cLevel, ZSTD_compressionParameters* cparams)
+static size_t benchMem(U32 benchNb,
+                       const void* src, size_t srcSize,
+                       int cLevel, ZSTD_compressionParameters cparams)
 {
     BYTE*  dstBuff;
     size_t dstBuffSize = ZSTD_compressBound(srcSize);
-    void*  buff2, *buff1;
+    void*  buff1;
+    void*  buff2;
     const char* benchName;
     BMK_benchFn_t benchFunction;
-    BMK_customReturn_t r;
     int errorcode = 0;
 
     /* Selection */
@@ -405,44 +407,44 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb, int cLevel,
     if (g_cstream==NULL) g_cstream = ZSTD_createCStream();
     if (g_dstream==NULL) g_dstream = ZSTD_createDStream();
 
-    /* DISPLAY("params: cLevel %d, wlog %d hlog %d clog %d slog %d slen %d tlen %d strat %d \n"
-        , cLevel, cparams->windowLog, cparams->hashLog, cparams->chainLog, cparams->searchLog, 
-          cparams->searchLength, cparams->targetLength, cparams->strategy);*/
+    /* DISPLAY("params: cLevel %d, wlog %d hlog %d clog %d slog %d slen %d tlen %d strat %d \n",
+          cLevel, cparams->windowLog, cparams->hashLog, cparams->chainLog, cparams->searchLog,
+          cparams->searchLength, cparams->targetLength, cparams->strategy); */
 
     ZSTD_CCtx_setParameter(g_zcc, ZSTD_p_compressionLevel, cLevel);
-    ZSTD_CCtx_setParameter(g_zcc, ZSTD_p_windowLog, cparams->windowLog);
-    ZSTD_CCtx_setParameter(g_zcc, ZSTD_p_hashLog, cparams->hashLog);
-    ZSTD_CCtx_setParameter(g_zcc, ZSTD_p_chainLog, cparams->chainLog);
-    ZSTD_CCtx_setParameter(g_zcc, ZSTD_p_searchLog, cparams->searchLog);
-    ZSTD_CCtx_setParameter(g_zcc, ZSTD_p_minMatch, cparams->searchLength);
-    ZSTD_CCtx_setParameter(g_zcc, ZSTD_p_targetLength, cparams->targetLength);
-    ZSTD_CCtx_setParameter(g_zcc, ZSTD_p_compressionStrategy, cparams->strategy);
+    ZSTD_CCtx_setParameter(g_zcc, ZSTD_p_windowLog, cparams.windowLog);
+    ZSTD_CCtx_setParameter(g_zcc, ZSTD_p_hashLog, cparams.hashLog);
+    ZSTD_CCtx_setParameter(g_zcc, ZSTD_p_chainLog, cparams.chainLog);
+    ZSTD_CCtx_setParameter(g_zcc, ZSTD_p_searchLog, cparams.searchLog);
+    ZSTD_CCtx_setParameter(g_zcc, ZSTD_p_minMatch, cparams.searchLength);
+    ZSTD_CCtx_setParameter(g_zcc, ZSTD_p_targetLength, cparams.targetLength);
+    ZSTD_CCtx_setParameter(g_zcc, ZSTD_p_compressionStrategy, cparams.strategy);
 
 
     ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_compressionLevel, cLevel);
-    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_windowLog, cparams->windowLog);
-    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_hashLog, cparams->hashLog);
-    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_chainLog, cparams->chainLog);
-    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_searchLog, cparams->searchLog);
-    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_minMatch, cparams->searchLength);
-    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_targetLength, cparams->targetLength);
-    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_compressionStrategy, cparams->strategy);
+    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_windowLog, cparams.windowLog);
+    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_hashLog, cparams.hashLog);
+    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_chainLog, cparams.chainLog);
+    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_searchLog, cparams.searchLog);
+    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_minMatch, cparams.searchLength);
+    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_targetLength, cparams.targetLength);
+    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_compressionStrategy, cparams.strategy);
 
     /* Preparation */
     switch(benchNb)
     {
     case 1:
-        buff2 = (void*)cparams;
+        buff2 = &cparams;
         break;
     case 2:
         g_cSize = ZSTD_compress(buff2, dstBuffSize, src, srcSize, cLevel);
         break;
 #ifndef ZSTD_DLL_IMPORT
     case 11:
-        buff2 = (void*)cparams;
+        buff2 = &cparams;
         break;
     case 12:
-        buff2 = (void*)cparams;
+        buff2 = &cparams;
         break;
     case 13 :
         g_cSize = ZSTD_compress(buff2, dstBuffSize, src, srcSize, cLevel);
@@ -494,8 +496,8 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb, int cLevel,
     case 31:
         goto _cleanOut;
 #endif
-    case 41 : 
-        buff2 = (void*)cparams;
+    case 41 :
+        buff2 = &cparams;
         break;
     case 42 :
         g_cSize = ZSTD_compress(buff2, dstBuffSize, src, srcSize, cLevel);
@@ -507,26 +509,29 @@ static size_t benchMem(const void* src, size_t srcSize, U32 benchNb, int cLevel,
     default : ;
     }
 
-
-     /* warming up memory */
+     /* warming up dstBuff */
     { size_t i; for (i=0; i<dstBuffSize; i++) dstBuff[i]=(BYTE)i; }
 
-
     /* benchmark loop */
-    {
-        void* dstBuffv = (void*)dstBuff;
-        r = BMK_benchFunction(benchFunction, buff2, 
-            NULL, NULL,  1, &src, &srcSize, 
-            &dstBuffv, &dstBuffSize, NULL, g_nbIterations);
-        if(r.error) {
-            DISPLAY("ERROR %d ! ! \n", r.error);
-            errorcode = r.error;
+    {   void* dstBuffv = dstBuff;
+        BMK_runOutcome_t const outcome = BMK_benchFunction(
+                    benchFunction, buff2,
+                    NULL, NULL,   /* initFn */
+                    1,  /* blockCount */
+                    &src, &srcSize,
+                    &dstBuffv, &dstBuffSize,
+                    NULL,
+                    g_nbIterations);
+        if (!BMK_isSuccessful_runOutcome(outcome)) {
+            DISPLAY("ERROR benchmarking function ! ! \n");
+            errorcode = 1;
             goto _cleanOut;
         }
 
-        DISPLAY("%2u#Speed: %f MB/s - Size: %f MB - %s\n", benchNb, (double)srcSize / r.result.nanoSecPerRun * 1000, (double)r.result.sumOfReturn / 1000000, benchName);
-    }
-    
+        {   BMK_runTime_t const result = BMK_extract_runTime(outcome);
+            DISPLAY("%2u#%-25.25s:%7.1f MB/s (%7u) \n", benchNb, benchName, (double)srcSize / result.nanoSecPerRun * 1000000000 / 1000000, (unsigned)result.sumOfReturn );
+    }   }
+
 _cleanOut:
     free(buff1);
     free(dstBuff);
@@ -538,82 +543,89 @@ _cleanOut:
 }
 
 
-static int benchSample(U32 benchNb, int cLevel, ZSTD_compressionParameters* cparams)
+static int benchSample(U32 benchNb,
+                       int cLevel, ZSTD_compressionParameters cparams)
 {
     size_t const benchedSize = g_sampleSize;
     const char* name = "Sample 10MiB";
 
     /* Allocation */
-    void* origBuff = malloc(benchedSize);
+    void* const origBuff = malloc(benchedSize);
     if (!origBuff) { DISPLAY("\nError: not enough memory!\n"); return 12; }
 
     /* Fill buffer */
     RDG_genBuffer(origBuff, benchedSize, g_compressibility, 0.0, 0);
 
     /* bench */
-    DISPLAY("\r%79s\r", "");
+    DISPLAY("\r%70s\r", "");
     DISPLAY(" %s : \n", name);
-    if (benchNb)
-        benchMem(origBuff, benchedSize, benchNb, cLevel, cparams);
-    else
-        for (benchNb=0; benchNb<100; benchNb++) benchMem(origBuff, benchedSize, benchNb, cLevel, cparams);
+    if (benchNb) {
+        benchMem(benchNb, origBuff, benchedSize, cLevel, cparams);
+    } else {  /* 0 == run all tests */
+        for (benchNb=0; benchNb<100; benchNb++) {
+            benchMem(benchNb, origBuff, benchedSize, cLevel, cparams);
+    }   }
 
     free(origBuff);
     return 0;
 }
 
 
-static int benchFiles(const char** fileNamesTable, const int nbFiles, U32 benchNb, int cLevel, ZSTD_compressionParameters* cparams)
+static int benchFiles(U32 benchNb,
+                      const char** fileNamesTable, const int nbFiles,
+                      int cLevel, ZSTD_compressionParameters cparams)
 {
     /* Loop for each file */
     int fileIdx;
     for (fileIdx=0; fileIdx<nbFiles; fileIdx++) {
         const char* const inFileName = fileNamesTable[fileIdx];
         FILE* const inFile = fopen( inFileName, "rb" );
-        U64   inFileSize;
         size_t benchedSize;
-        void* origBuff;
 
         /* Check file existence */
         if (inFile==NULL) { DISPLAY( "Pb opening %s\n", inFileName); return 11; }
 
         /* Memory allocation & restrictions */
-        inFileSize = UTIL_getFileSize(inFileName);
-        if (inFileSize == UTIL_FILESIZE_UNKNOWN) {
-            DISPLAY( "Cannot measure size of %s\n", inFileName);
-            fclose(inFile);
-            return 11;
-        }
-        benchedSize = BMK_findMaxMem(inFileSize*3) / 3;
-        if ((U64)benchedSize > inFileSize) benchedSize = (size_t)inFileSize;
-        if (benchedSize < inFileSize)
-            DISPLAY("Not enough memory for '%s' full size; testing %u MB only...\n", inFileName, (U32)(benchedSize>>20));
-
-        /* Alloc */
-        origBuff = malloc(benchedSize);
-        if (!origBuff) { DISPLAY("\nError: not enough memory!\n"); fclose(inFile); return 12; }
-
-        /* Fill input buffer */
-        DISPLAY("Loading %s...       \r", inFileName);
-        {
-            size_t readSize = fread(origBuff, 1, benchedSize, inFile);
-            fclose(inFile);
-            if (readSize != benchedSize) {
-                DISPLAY("\nError: problem reading file '%s' !!    \n", inFileName);
-                free(origBuff);
-                return 13;
+        {   U64 const inFileSize = UTIL_getFileSize(inFileName);
+            if (inFileSize == UTIL_FILESIZE_UNKNOWN) {
+                DISPLAY( "Cannot measure size of %s\n", inFileName);
+                fclose(inFile);
+                return 11;
+            }
+            benchedSize = BMK_findMaxMem(inFileSize*3) / 3;
+            if ((U64)benchedSize > inFileSize)
+                benchedSize = (size_t)inFileSize;
+            if ((U64)benchedSize < inFileSize) {
+                DISPLAY("Not enough memory for '%s' full size; testing %u MB only...\n",
+                        inFileName, (U32)(benchedSize>>20));
         }   }
 
-        /* bench */
-        DISPLAY("\r%79s\r", "");
-        DISPLAY(" %s : \n", inFileName);
-        if (benchNb)
-            benchMem(origBuff, benchedSize, benchNb, cLevel, cparams);
-        else
-            for (benchNb=0; benchNb<100; benchNb++) benchMem(origBuff, benchedSize, benchNb, cLevel, cparams);
+        /* Alloc */
+        {   void* const origBuff = malloc(benchedSize);
+            if (!origBuff) { DISPLAY("\nError: not enough memory!\n"); fclose(inFile); return 12; }
 
-        free(origBuff);
-    }
+            /* Fill input buffer */
+            DISPLAY("Loading %s...       \r", inFileName);
+            {   size_t const readSize = fread(origBuff, 1, benchedSize, inFile);
+                fclose(inFile);
+                if (readSize != benchedSize) {
+                    DISPLAY("\nError: problem reading file '%s' !!    \n", inFileName);
+                    free(origBuff);
+                    return 13;
+            }   }
+
+            /* bench */
+            DISPLAY("\r%70s\r", "");   /* blank line */
+            DISPLAY(" %s : \n", inFileName);
+            if (benchNb) {
+                benchMem(benchNb, origBuff, benchedSize, cLevel, cparams);
+            } else {
+                for (benchNb=0; benchNb<100; benchNb++) {
+                    benchMem(benchNb, origBuff, benchedSize, cLevel, cparams);
+            }   }
+
+            free(origBuff);
+    }   }
 
     return 0;
 }
@@ -649,7 +661,7 @@ static int badusage(const char* exename)
 
 int main(int argc, const char** argv)
 {
-    int i, filenamesStart=0, result;
+    int argNb, filenamesStart=0, result;
     const char* exename = argv[0];
     const char* input_filename = NULL;
     U32 benchNb = 0, main_pause = 0;
@@ -659,8 +671,8 @@ int main(int argc, const char** argv)
     DISPLAY(WELCOME_MESSAGE);
     if (argc<1) return badusage(exename);
 
-    for(i=1; i<argc; i++) {
-        const char* argument = argv[i];
+    for(argNb=1; argNb<argc; argNb++) {
+        const char* argument = argv[argNb];
         assert(argument != NULL);
 
         if (longCommandWArg(&argument, "--zstd=")) {
@@ -677,12 +689,14 @@ int main(int argc, const char** argv)
                 return 1;
             }
 
+            /* check end of string */
             if (argument[0] != 0) {
-                DISPLAY("invalid --zstd= format\n");
-                return 1; // check the end of string 
+                DISPLAY("invalid --zstd= format \n");
+                return 1;
             } else {
                 continue;
             }
+
         } else if (argument[0]=='-') { /* Commands (note : aggregated commands are allowed) */
             argument++;
             while (argument[0]!=0) {
@@ -698,34 +712,26 @@ int main(int argc, const char** argv)
 
                     /* Select specific algorithm to bench */
                 case 'b':
-                    {
-                        argument++;
-                        benchNb = readU32FromChar(&argument);
-                        break;
-                    }
+                    argument++;
+                    benchNb = readU32FromChar(&argument);
+                    break;
 
                     /* Modify Nb Iterations */
                 case 'i':
-                    {
-                        argument++;
-                        BMK_SetNbIterations((int)readU32FromChar(&argument));
-                    }
+                    argument++;
+                    BMK_SetNbIterations((int)readU32FromChar(&argument));
                     break;
 
                     /* Select compressibility of synthetic sample */
                 case 'P':
-                    {   argument++;
-                        g_compressibility = (double)readU32FromChar(&argument) / 100.;
-                    }
+                    argument++;
+                    g_compressibility = (double)readU32FromChar(&argument) / 100.;
                     break;
                 case 'l':
-                    {   argument++;
-                        cLevel = readU32FromChar(&argument);
-                        cparams = ZSTD_getCParams(cLevel, 0, 0);
-                    }
+                    argument++;
+                    cLevel = readU32FromChar(&argument);
+                    cparams = ZSTD_getCParams(cLevel, 0, 0);
                     break;
-
-
 
                     /* Unknown command */
                 default : return badusage(exename);
@@ -735,15 +741,15 @@ int main(int argc, const char** argv)
         }
 
         /* first provided filename is input */
-        if (!input_filename) { input_filename=argument; filenamesStart=i; continue; }
+        if (!input_filename) { input_filename=argument; filenamesStart=argNb; continue; }
     }
 
 
 
     if (filenamesStart==0)   /* no input file */
-        result = benchSample(benchNb, cLevel, &cparams);
+        result = benchSample(benchNb, cLevel, cparams);
     else
-        result = benchFiles(argv+filenamesStart, argc-filenamesStart, benchNb, cLevel, &cparams);
+        result = benchFiles(benchNb, argv+filenamesStart, argc-filenamesStart, cLevel, cparams);
 
     if (main_pause) { int unused; printf("press enter...\n"); unused = getchar(); (void)unused; }
 

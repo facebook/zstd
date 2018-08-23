@@ -529,7 +529,7 @@ static size_t benchMem(U32 benchNb,
         }
 
         {   BMK_runTime_t const result = BMK_extract_runTime(outcome);
-            DISPLAY("%2u#%-25.25s:%7.1f MB/s (%7u) \n", benchNb, benchName, (double)srcSize / result.nanoSecPerRun * 1000000000 / 1000000, (unsigned)result.sumOfReturn );
+            DISPLAY("%2u#%-25.25s:%7.1f MB/s (%7u) \n", benchNb, benchName, (double)srcSize * 1000000000 / result.nanoSecPerRun / MB_UNIT, (unsigned)result.sumOfReturn );
     }   }
 
 _cleanOut:

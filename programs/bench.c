@@ -667,7 +667,7 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
                     DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.*f),%6.*f MB/s\r",
                             marks[markNb], displayName, (U32)srcSize, (U32)cSize,
                             ratioAccuracy, ratio,
-                            benchResult.cSpeed < (10 MB) ? 2 : 1, (double)benchResult.cSpeed / (1 MB));
+                            benchResult.cSpeed < (10 MB) ? 2 : 1, (double)benchResult.cSpeed / MB_UNIT);
                 }
             }
 
@@ -695,7 +695,7 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
                     DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.*f),%6.*f MB/s ,%6.1f MB/s \r",
                             marks[markNb], displayName, (U32)srcSize, (U32)benchResult.cSize,
                             ratioAccuracy, ratio,
-                            benchResult.cSpeed < (10 MB) ? 2 : 1, (double)benchResult.cSpeed / (1 MB),
+                            benchResult.cSpeed < (10 MB) ? 2 : 1, (double)benchResult.cSpeed / MB_UNIT,
                             (double)benchResult.dSpeed / (1 MB));
                 }
             }
@@ -742,8 +742,8 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
         }   /* CRC Checking */
 
         if (displayLevel == 1) {   /* hidden display mode -q, used by python speed benchmark */
-            double const cSpeed = (double)benchResult.cSpeed / (1 MB);
-            double const dSpeed = (double)benchResult.dSpeed / (1 MB);
+            double const cSpeed = (double)benchResult.cSpeed / MB_UNIT;
+            double const dSpeed = (double)benchResult.dSpeed / MB_UNIT;
             if (adv->additionalParam) {
                 DISPLAY("-%-3i%11i (%5.3f) %6.2f MB/s %6.1f MB/s  %s (param=%d)\n", cLevel, (int)cSize, ratio, cSpeed, dSpeed, displayName, adv->additionalParam);
             } else {

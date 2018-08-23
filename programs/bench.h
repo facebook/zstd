@@ -15,18 +15,25 @@ extern "C" {
 #ifndef BENCH_H_121279284357
 #define BENCH_H_121279284357
 
+/* ===  Dependencies  === */
 #include <stddef.h>   /* size_t */
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_compressionParameters */
 #include "zstd.h"     /* ZSTD_compressionParameters */
 
-/* Creates a struct type typeName, featuring:
- * - an .error field of type int
- * - a .result field of some baseType.
- * Functions with return type typeName
- * will either be successful, with .error = 0, providing a valid .result,
- * or return an error, with .error != 0, in which case .result is invalid.
+
+/* ===  Constants  === */
+
+#define MB_UNIT 1000000
+
+
+/* ===  Benchmark functions  === */
+
+/* Creates a variant `typeName`, able to express "error or valid result".
+ * Functions with return type `typeName`
+ * must first check if result is valid, using BMK_isSuccessful_*(),
+ * and only then can extract `baseType`.
  */
-#define SUMTYPE_ERROR_RESULT(baseType, variantName)  \
+#define VARIANT_ERROR_RESULT(baseType, variantName)  \
                                              \
 typedef struct {                             \
     baseType internal_never_use_directly;    \
@@ -41,38 +48,42 @@ typedef struct {
     size_t cMem;                 /* ? what is reported ? */
 } BMK_benchResult_t;
 
-SUMTYPE_ERROR_RESULT(BMK_benchResult_t, BMK_benchOutcome_t);
+VARIANT_ERROR_RESULT(BMK_benchResult_t, BMK_benchOutcome_t);
 
 /* check first if the return structure represents an error or a valid result */
-int BMK_isSuccessful_benchOutcome(BMK_benchOutcome_t errorOrResult);
+int BMK_isSuccessful_benchOutcome(BMK_benchOutcome_t outcome);
 
 /* extract result from variant type.
  * note : this function will abort() program execution if result is not valid
- *        check result validity first, by using BMK_isValid_benchResult()
+ *        check result validity first, by using BMK_isSuccessful_benchOutcome()
  */
-BMK_benchResult_t BMK_extract_benchResult(BMK_benchOutcome_t errorOrResult);
+BMK_benchResult_t BMK_extract_benchResult(BMK_benchOutcome_t outcome);
 
 
 /*! BMK_benchFiles() -- called by zstdcli */
 /*  Loads files from fileNamesTable into memory,
- *  loads dictionary from dictFileName,
+ *  and an optional dictionary from dictFileName (can be NULL),
  *  then uses benchMem().
- *  fileNamesTable - name of files to benchmark
- *  nbFiles - number of files (size of fileNamesTable), must be > 0  (what happens if not ?)
- *  dictFileName - name of dictionary file to load
- *  cLevel - compression level to benchmark, errors if invalid
- *  compressionParams - advanced compression Parameters
- *  displayLevel - what gets printed
+ *  fileNamesTable - name of files to benchmark.
+ *  nbFiles - number of files (size of fileNamesTable), must be > 0.
+ *  dictFileName - name of dictionary file to load.
+ *  cLevel - compression level to benchmark, errors if invalid.
+ *  compressionParams - advanced compression Parameters.
+ *  displayLevel - what gets printed:
  *      0 : no display;
  *      1 : errors;
  *      2 : + result + interaction + warnings;
- *      3 : + progression;
- *      4 : + information
- * @return
- *      .error will give a nonzero error value if an error has occured
- *      .result - only valid if .error = 0,
- *          .result will return compression speed (.cSpeed),
- *          decompression speed (.dSpeed), and compressed size (.cSize).
+ *      3 : + information;
+ *      4 : + debug
+ * @return:
+ *      a variant, which expresses either an error, or a valid result.
+ *      Use BMK_isSuccessful_benchOutcome() to check if function was successful.
+ *      If yes, extract the valid result with BMK_extract_benchResult(),
+ *      it will contain :
+ *          .cSpeed: compression speed in bytes per second,
+ *          .dSpeed: decompression speed in bytes per second,
+ *          .cSize : compressed size, in bytes
+ *          .cMem  : memory budget required for the compression context
  */
 BMK_benchOutcome_t BMK_benchFiles(
                    const char* const * fileNamesTable, unsigned nbFiles,
@@ -90,12 +101,12 @@ typedef enum {
 typedef struct {
     BMK_mode_t mode;            /* 0: all, 1: compress only 2: decode only */
     unsigned nbSeconds;         /* default timing is in nbSeconds */
-    size_t blockSize;           /* Maximum allowable size of a block*/
+    size_t blockSize;           /* Maximum size of each block*/
     unsigned nbWorkers;         /* multithreading */
     unsigned realTime;          /* real time priority */
     int additionalParam;        /* used by python speed benchmark */
     unsigned ldmFlag;           /* enables long distance matching */
-    unsigned ldmMinMatch;       /* below: parameters for long distance matching, see zstd.1.md for meaning */
+    unsigned ldmMinMatch;       /* below: parameters for long distance matching, see zstd.1.md */
     unsigned ldmHashLog;
     unsigned ldmBucketSizeLog;
     unsigned ldmHashEveryLog;
@@ -121,10 +132,14 @@ BMK_benchOutcome_t BMK_benchFilesAdvanced(
  *  displayLevel - see benchFiles
  *  adv - see advanced_Params_t
  * @return:
- *      .error will give a nonzero error value if an error has occured
- *      .result - only valid if .error = 0,
- *          .result will return the compression speed (.cSpeed),
- *          decompression speed (.dSpeed), and compressed size (.cSize).
+ *      a variant, which expresses either an error, or a valid result.
+ *      Use BMK_isSuccessful_benchOutcome() to check if function was successful.
+ *      If yes, extract the valid result with BMK_extract_benchResult(),
+ *      it will contain :
+ *          .cSpeed: compression speed in bytes per second,
+ *          .dSpeed: decompression speed in bytes per second,
+ *          .cSize : compressed size, in bytes
+ *          .cMem  : memory budget required for the compression context
  */
 BMK_benchOutcome_t BMK_syntheticTest(
                               int cLevel, double compressibility,
@@ -150,11 +165,15 @@ BMK_benchOutcome_t BMK_syntheticTest(
  *  dictBufferSize - size of dictBuffer, 0 otherwise
  *  diplayLevel - see BMK_benchFiles
  *  displayName - name used by display
- * @return
- *      .error will give a nonzero value if an error has occured
- *      .result - only valid if .error = 0,
- *          provide the same results as benchFiles()
- *          but for the data stored in srcBuffer
+ * @return:
+ *      a variant, which expresses either an error, or a valid result.
+ *      Use BMK_isSuccessful_benchOutcome() to check if function was successful.
+ *      If yes, extract the valid result with BMK_extract_benchResult(),
+ *      it will contain :
+ *          .cSpeed: compression speed in bytes per second,
+ *          .dSpeed: decompression speed in bytes per second,
+ *          .cSize : compressed size, in bytes
+ *          .cMem  : memory budget required for the compression context
  */
 BMK_benchOutcome_t BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         const size_t* fileSizes, unsigned nbFiles,
@@ -185,7 +204,7 @@ typedef struct {
     size_t sumOfReturn;       /* sum of return values */
 } BMK_runTime_t;
 
-SUMTYPE_ERROR_RESULT(BMK_runTime_t, BMK_runOutcome_t);
+VARIANT_ERROR_RESULT(BMK_runTime_t, BMK_runOutcome_t);
 
 /* check first if the return structure represents an error or a valid result */
 int BMK_isSuccessful_runOutcome(BMK_runOutcome_t outcome);
@@ -215,7 +234,7 @@ typedef size_t (*BMK_initFn_t)(void* initPayload);
  * dstCapacities - an array of the capacities of above buffers
  * blockResults - store the return value of benchFn for each block. Optional. Use NULL if this result is not requested.
  * nbLoops - defines number of times benchFn is run.
- * @return: a variant, which can be an error, or a BMK_runTime_t result.
+ * @return: a variant, which express either an error, or can generate a valid BMK_runTime_t result.
  *          Use BMK_isSuccessful_runOutcome() to check if function was successful.
  *          If yes, extract the result with BMK_extract_runTime(),
  *          it will contain :
@@ -245,7 +264,7 @@ void BMK_resetTimedFnState(BMK_timedFnState_t* timedFnState, unsigned nbSeconds)
 void BMK_freeTimedFnState(BMK_timedFnState_t* state);
 
 /* define timedFnOutcome */
-SUMTYPE_ERROR_RESULT(BMK_runTime_t, BMK_timedFnOutcome_t);
+VARIANT_ERROR_RESULT(BMK_runTime_t, BMK_timedFnOutcome_t);
 
 /* check first if the return structure represents an error or a valid result */
 int BMK_isSuccessful_timedFnOutcome(BMK_timedFnOutcome_t outcome);

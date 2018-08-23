@@ -936,6 +936,18 @@ static U32 ZSTD_equivalentCParams(ZSTD_compressionParameters cParams1,
          & ((cParams1.searchLength==3) == (cParams2.searchLength==3));  /* hashlog3 space */
 }
 
+static U32 ZSTD_equalCParams(ZSTD_compressionParameters cParams1,
+                             ZSTD_compressionParameters cParams2)
+{
+    return (cParams1.windowLog    == cParams2.windowLog)
+         & (cParams1.chainLog     == cParams2.chainLog)
+         & (cParams1.hashLog      == cParams2.hashLog)
+         & (cParams1.searchLog    == cParams2.searchLog)
+         & (cParams1.searchLength == cParams2.searchLength)
+         & (cParams1.targetLength == cParams2.targetLength)
+         & (cParams1.strategy     == cParams2.strategy);
+}
+
 /** The parameters are equivalent if ldm is not enabled in both sets or
  *  all the parameters are equivalent. */
 static U32 ZSTD_equivalentLdmParams(ldmParams_t ldmParams1,
@@ -2357,7 +2369,7 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
     assert(srcSize <= ZSTD_BLOCKSIZE_MAX);
 
     /* Assert that we have correctly flushed the ctx params into the ms's copy */
-    assert(ZSTD_equivalentCParams(zc->appliedParams.cParams, ms->cParams));
+    assert(ZSTD_equalCParams(zc->appliedParams.cParams, ms->cParams));
 
     if (srcSize < MIN_CBLOCK_SIZE+ZSTD_blockHeaderSize+1) {
         ZSTD_ldm_skipSequences(&zc->externSeqStore, srcSize, zc->appliedParams.cParams.searchLength);
@@ -2698,7 +2710,7 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
     ms->loadedDictEnd = params->forceWindow ? 0 : (U32)(iend - ms->window.base);
 
     /* Assert that we the ms params match the params we're being given */
-    assert(ZSTD_equivalentCParams(params->cParams, ms->cParams));
+    assert(ZSTD_equalCParams(params->cParams, ms->cParams));
 
     if (srcSize <= HASH_READ_SIZE) return 0;
 

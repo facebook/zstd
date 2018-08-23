@@ -625,7 +625,7 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
         DEBUGLOG(5, "calling block compressor on segment of size %u", sequence.litLength);
         {
             size_t const newLitLength =
-                blockCompressor(ms, seqStore, rep, cParams, ip,
+                blockCompressor(ms, seqStore, rep, ip,
                                 sequence.litLength);
             ip += sequence.litLength;
             /* Update the repcodes */
@@ -643,6 +643,6 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
     ZSTD_ldm_limitTableUpdate(ms, ip);
     ZSTD_ldm_fillFastTables(ms, cParams, ip);
     /* Compress the last literals */
-    return blockCompressor(ms, seqStore, rep, cParams,
+    return blockCompressor(ms, seqStore, rep,
                            ip, iend - ip);
 }

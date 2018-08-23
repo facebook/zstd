@@ -939,6 +939,8 @@ static U32 ZSTD_equivalentCParams(ZSTD_compressionParameters cParams1,
 static void ZSTD_assertEqualCParams(ZSTD_compressionParameters cParams1,
                                     ZSTD_compressionParameters cParams2)
 {
+    (void)cParams1;
+    (void)cParams2;
     assert(cParams1.windowLog    == cParams2.windowLog);
     assert(cParams1.chainLog     == cParams2.chainLog);
     assert(cParams1.hashLog      == cParams2.hashLog);

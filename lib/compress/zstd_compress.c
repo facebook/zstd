@@ -2700,6 +2700,9 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
     ZSTD_window_update(&ms->window, src, srcSize);
     ms->loadedDictEnd = params->forceWindow ? 0 : (U32)(iend - ms->window.base);
 
+    /* Assert that we the ms params match the params we're being given */
+    assert(ZSTD_equivalentCParams(params->cParams, ms->cParams));
+
     if (srcSize <= HASH_READ_SIZE) return 0;
 
     switch(params->cParams.strategy)

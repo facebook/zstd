@@ -224,8 +224,9 @@ size_t ZSTD_compressBlock_fast_generic(
 
 size_t ZSTD_compressBlock_fast(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
-        ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize)
+        void const* src, size_t srcSize)
 {
+    ZSTD_compressionParameters const* cParams = &ms->cParams;
     U32 const hlog = cParams->hashLog;
     U32 const mls = cParams->searchLength;
     U32 const stepSize = cParams->targetLength;
@@ -246,8 +247,9 @@ size_t ZSTD_compressBlock_fast(
 
 size_t ZSTD_compressBlock_fast_dictMatchState(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
-        ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize)
+        void const* src, size_t srcSize)
 {
+    ZSTD_compressionParameters const* cParams = &ms->cParams;
     U32 const hlog = cParams->hashLog;
     U32 const mls = cParams->searchLength;
     U32 const stepSize = cParams->targetLength;
@@ -365,8 +367,9 @@ static size_t ZSTD_compressBlock_fast_extDict_generic(
 
 size_t ZSTD_compressBlock_fast_extDict(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
-        ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize)
+        void const* src, size_t srcSize)
 {
+    ZSTD_compressionParameters const* cParams = &ms->cParams;
     U32 const hlog = cParams->hashLog;
     U32 const mls = cParams->searchLength;
     U32 const stepSize = cParams->targetLength;

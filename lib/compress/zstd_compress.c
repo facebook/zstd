@@ -1322,8 +1322,7 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
         }
 
         /* copy dictionary offsets */
-        {
-            ZSTD_matchState_t const* srcMatchState = &cdict->matchState;
+        {   ZSTD_matchState_t const* srcMatchState = &cdict->matchState;
             ZSTD_matchState_t* dstMatchState = &cctx->blockState.matchState;
             dstMatchState->window       = srcMatchState->window;
             dstMatchState->nextToUpdate = srcMatchState->nextToUpdate;

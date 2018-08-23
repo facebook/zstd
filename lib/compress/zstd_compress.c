@@ -1049,6 +1049,7 @@ static size_t ZSTD_continueCCtx(ZSTD_CCtx* cctx, ZSTD_CCtx_params params, U64 pl
 
     cctx->blockSize = blockSize;   /* previous block size could be different even for same windowLog, due to pledgedSrcSize */
     cctx->appliedParams = params;
+    cctx->blockState.matchState.cParams = params.cParams;
     cctx->pledgedSrcSizePlusOne = pledgedSrcSize+1;
     cctx->consumedSrcSize = 0;
     cctx->producedCSize = 0;
@@ -1217,6 +1218,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
 
         /* init params */
         zc->appliedParams = params;
+        zc->blockState.matchState.cParams = params.cParams;
         zc->pledgedSrcSizePlusOne = pledgedSrcSize+1;
         zc->consumedSrcSize = 0;
         zc->producedCSize = 0;
@@ -1390,7 +1392,6 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
             dstMatchState->nextToUpdate = srcMatchState->nextToUpdate;
             dstMatchState->nextToUpdate3= srcMatchState->nextToUpdate3;
             dstMatchState->loadedDictEnd= srcMatchState->loadedDictEnd;
-            dstMatchState->cParams      = srcMatchState->cParams;
         }
     }
 

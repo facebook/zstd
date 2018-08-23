@@ -2314,6 +2314,9 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
     DEBUGLOG(5, "ZSTD_compressBlock_internal (dstCapacity=%zu, dictLimit=%u, nextToUpdate=%u)",
                 dstCapacity, ms->window.dictLimit, ms->nextToUpdate);
 
+    /* Assert that we have correctly flushed the ctx params into the ms's copy */
+    assert(ZSTD_equivalentCParams(zc->appliedParams.cParams, ms->cParams));
+
     if (srcSize < MIN_CBLOCK_SIZE+ZSTD_blockHeaderSize+1) {
         ZSTD_ldm_skipSequences(&zc->externSeqStore, srcSize, zc->appliedParams.cParams.searchLength);
         return 0;   /* don't even attempt compression below a certain srcSize */

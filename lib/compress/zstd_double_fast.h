@@ -19,7 +19,6 @@ extern "C" {
 #include "zstd_compress_internal.h"     /* ZSTD_CCtx, size_t */
 
 void ZSTD_fillDoubleHashTable(ZSTD_matchState_t* ms,
-                              ZSTD_compressionParameters const* cParams,
                               void const* end, ZSTD_dictTableLoadMethod_e dtlm);
 size_t ZSTD_compressBlock_doubleFast(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],

@@ -2695,7 +2695,6 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
 {
     const BYTE* const ip = (const BYTE*) src;
     const BYTE* const iend = ip + srcSize;
-    ZSTD_compressionParameters const* cParams = &params->cParams;
 
     ZSTD_window_update(&ms->window, src, srcSize);
     ms->loadedDictEnd = params->forceWindow ? 0 : (U32)(iend - ms->window.base);
@@ -2708,24 +2707,24 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
     switch(params->cParams.strategy)
     {
     case ZSTD_fast:
-        ZSTD_fillHashTable(ms, cParams, iend, dtlm);
+        ZSTD_fillHashTable(ms, iend, dtlm);
         break;
     case ZSTD_dfast:
-        ZSTD_fillDoubleHashTable(ms, cParams, iend, dtlm);
+        ZSTD_fillDoubleHashTable(ms, iend, dtlm);
         break;
 
     case ZSTD_greedy:
     case ZSTD_lazy:
     case ZSTD_lazy2:
         if (srcSize >= HASH_READ_SIZE)
-            ZSTD_insertAndFindFirstIndex(ms, cParams, iend-HASH_READ_SIZE);
+            ZSTD_insertAndFindFirstIndex(ms, iend-HASH_READ_SIZE);
         break;
 
     case ZSTD_btlazy2:   /* we want the dictionary table fully sorted */
     case ZSTD_btopt:
     case ZSTD_btultra:
         if (srcSize >= HASH_READ_SIZE)
-            ZSTD_updateTree(ms, cParams, iend-HASH_READ_SIZE, iend);
+            ZSTD_updateTree(ms, iend-HASH_READ_SIZE, iend);
         break;
 
     default:

@@ -218,19 +218,18 @@ static size_t ZSTD_ldm_countBackwardsMatch(
  *  The tables for the other strategies are filled within their
  *  block compressors. */
 static size_t ZSTD_ldm_fillFastTables(ZSTD_matchState_t* ms,
-                                      ZSTD_compressionParameters const* cParams,
                                       void const* end)
 {
     const BYTE* const iend = (const BYTE*)end;
 
-    switch(cParams->strategy)
+    switch(ms->cParams.strategy)
     {
     case ZSTD_fast:
-        ZSTD_fillHashTable(ms, cParams, iend, ZSTD_dtlm_fast);
+        ZSTD_fillHashTable(ms, iend, ZSTD_dtlm_fast);
         break;
 
     case ZSTD_dfast:
-        ZSTD_fillDoubleHashTable(ms, cParams, iend, ZSTD_dtlm_fast);
+        ZSTD_fillDoubleHashTable(ms, iend, ZSTD_dtlm_fast);
         break;
 
     case ZSTD_greedy:
@@ -620,7 +619,7 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
 
         /* Fill tables for block compressor */
         ZSTD_ldm_limitTableUpdate(ms, ip);
-        ZSTD_ldm_fillFastTables(ms, cParams, ip);
+        ZSTD_ldm_fillFastTables(ms, ip);
         /* Run the block compressor */
         DEBUGLOG(5, "calling block compressor on segment of size %u", sequence.litLength);
         {
@@ -641,7 +640,7 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
     }
     /* Fill the tables for the block compressor */
     ZSTD_ldm_limitTableUpdate(ms, ip);
-    ZSTD_ldm_fillFastTables(ms, cParams, ip);
+    ZSTD_ldm_fillFastTables(ms, ip);
     /* Compress the last literals */
     return blockCompressor(ms, seqStore, rep,
                            ip, iend - ip);

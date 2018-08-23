@@ -144,6 +144,8 @@ static const void *symbols[] = {
 /* zdict.h: advanced functions */
   &ZDICT_trainFromBuffer_cover,
   &ZDICT_optimizeTrainFromBuffer_cover,
+  &ZDICT_trainFromBuffer_fastCover,
+  &ZDICT_optimizeTrainFromBuffer_fastCover,
   &ZDICT_finalizeDictionary,
   &ZDICT_trainFromBuffer_legacy,
   &ZDICT_addEntropyTablesFromBuffer,

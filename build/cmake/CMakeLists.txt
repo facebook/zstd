@@ -10,6 +10,10 @@
 PROJECT(zstd)
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.9)
 SET(ZSTD_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../..")
+
+# Ensure Release build even if not invoked via Makefile
+SET(CMAKE_BUILD_TYPE "Release")
+
 LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules")
 INCLUDE(GNUInstallDirs)
 

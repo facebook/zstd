@@ -970,7 +970,7 @@ _shortestPath:   /* cur, last_pos, best_mlen, best_off have to be set */
             U32 seqPos = cur;
 
             DEBUGLOG(6, "start reverse traversal (last_pos:%u, cur:%u)",
-                        last_pos, cur);
+                        last_pos, cur); (void)last_pos;
             assert(storeEnd < ZSTD_OPT_NUM);
             DEBUGLOG(6, "last sequence copied into pos=%u (llen=%u,mlen=%u,ofc=%u)",
                         storeEnd, lastSequence.litlen, lastSequence.mlen, lastSequence.off);

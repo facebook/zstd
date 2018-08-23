@@ -30,10 +30,9 @@ default: lib-release zstd-release
 all: allmost examples manual contrib
 
 .PHONY: allmost
-allmost: allzstd
-	$(MAKE) -C $(ZWRAPDIR) all
+allmost: allzstd zlibwrapper
 
-#skip zwrapper, can't build that on alternate architectures without the proper zlib installed
+# skip zwrapper, can't build that on alternate architectures without the proper zlib installed
 .PHONY: allzstd
 allzstd: lib
 	$(MAKE) -C $(PRGDIR) all
@@ -44,8 +43,8 @@ all32:
 	$(MAKE) -C $(PRGDIR) zstd32
 	$(MAKE) -C $(TESTDIR) all32
 
-.PHONY: lib lib-release
-lib lib-release:
+.PHONY: lib lib-release libzstd.a
+lib lib-release :
 	@$(MAKE) -C $(ZSTDDIR) $@
 
 .PHONY: zstd zstd-release
@@ -59,12 +58,13 @@ zstdmt:
 	cp $(PRGDIR)/zstd$(EXT) ./zstdmt$(EXT)
 
 .PHONY: zlibwrapper
-zlibwrapper:
-	$(MAKE) -C $(ZWRAPDIR) test
+zlibwrapper: lib
+	$(MAKE) -C $(ZWRAPDIR) all
 
 .PHONY: test
+test: MOREFLAGS += -g -DDEBUGLEVEL=1 -Werror
 test:
-	MOREFLAGS+="-g -DDEBUGLEVEL=1 -Werror" $(MAKE) -C $(PRGDIR) allVariants
+	MOREFLAGS="$(MOREFLAGS)" $(MAKE) -j -C $(PRGDIR) allVariants
 	$(MAKE) -C $(TESTDIR) $@
 
 .PHONY: shortest
@@ -113,7 +113,7 @@ clean:
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD DragonFly NetBSD MSYS_NT))
 
 HOST_OS = POSIX
-CMAKE_PARAMS = -DZSTD_BUILD_CONTRIB:BOOL=ON -DZSTD_BUILD_STATIC:BOOL=ON -DZSTD_BUILD_TESTS:BOOL=ON -DZSTD_ZLIB_SUPPORT:BOOL=ON -DZSTD_LZMA_SUPPORT:BOOL=ON
+CMAKE_PARAMS = -DZSTD_BUILD_CONTRIB:BOOL=ON -DZSTD_BUILD_STATIC:BOOL=ON -DZSTD_BUILD_TESTS:BOOL=ON -DZSTD_ZLIB_SUPPORT:BOOL=ON -DZSTD_LZMA_SUPPORT:BOOL=ON -DCMAKE_BUILD_TYPE=Release
 
 .PHONY: list
 list:
@@ -286,6 +286,9 @@ gcc6install: apt-add-repo
 gcc7install: apt-add-repo
 	APT_PACKAGES="libc6-dev-i386 gcc-multilib gcc-7 gcc-7-multilib" $(MAKE) apt-install
 
+gcc8install: apt-add-repo
+	APT_PACKAGES="libc6-dev-i386 gcc-multilib gcc-8 gcc-8-multilib" $(MAKE) apt-install
+
 gpp6install: apt-add-repo
 	APT_PACKAGES="libc6-dev-i386 g++-multilib gcc-6 g++-6 g++-6-multilib" $(MAKE) apt-install
 
@@ -347,7 +350,10 @@ bmi32build: clean
 	$(CC) -v
 	CFLAGS="-O3 -mbmi -m32 -Werror" $(MAKE) -C $(TESTDIR) test
 
-staticAnalyze: clean
+# static analyzer test uses clang's scan-build
+# does not analyze zlibWrapper, due to detected issues in zlib source code
+staticAnalyze: SCANBUILD ?= scan-build
+staticAnalyze:
 	$(CC) -v
-	CPPFLAGS=-g scan-build --status-bugs -v $(MAKE) all
+	CC=$(CC) CPPFLAGS=-g $(SCANBUILD) --status-bugs -v $(MAKE) allzstd examples contrib
 endif

@@ -33,7 +33,7 @@
 */
 int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
                        const char** fileNamesTable, unsigned nbFiles, size_t chunkSize,
-                       ZDICT_legacy_params_t *params, ZDICT_cover_params_t *coverParams,
-                       int optimizeCover);
+                       ZDICT_legacy_params_t* params, ZDICT_cover_params_t* coverParams,
+                       ZDICT_fastCover_params_t* fastCoverParams, int optimize);
 
 #endif

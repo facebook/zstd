@@ -27,6 +27,9 @@ DEBUGLEVEL ?= 1
 DEBUGFLAGS  = -g -DDEBUGLEVEL=$(DEBUGLEVEL)
 CPPFLAGS   += -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
               -I$(ZSTDDIR)/dictBuilder -I$(ZSTDDIR)/deprecated -I$(PRGDIR)
+ifeq ($(OS),Windows_NT)   # MinGW assumed
+CPPFLAGS   += -D__USE_MINGW_ANSI_STDIO   # compatibility with %zu formatting
+endif
 CFLAGS     ?= -O3
 CFLAGS     += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow                 \
               -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
@@ -126,7 +129,7 @@ zstdmt_d_%.o : $(ZSTDDIR)/decompress/%.c
 fullbench32: CPPFLAGS += -m32
 fullbench fullbench32 : CPPFLAGS += $(MULTITHREAD_CPP)
 fullbench fullbench32 : LDFLAGS += $(MULTITHREAD_LD)
-fullbench fullbench32 : DEBUGFLAGS =   # turn off assert() for speed measurements
+fullbench fullbench32 : DEBUGFLAGS = -DNDEBUG  # turn off assert() for speed measurements
 fullbench fullbench32 : $(ZSTD_FILES)
 fullbench fullbench32 : $(PRGDIR)/datagen.c $(PRGDIR)/bench.c fullbench.c
 	$(CC) $(FLAGS) $^ -o $@$(EXT)
@@ -197,7 +200,7 @@ zstreamtest-dll : $(ZSTDDIR)/common/xxhash.c  # xxh symbols not exposed from dll
 zstreamtest-dll : $(ZSTREAM_LOCAL_FILES)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(filter %.c,$^) $(LDFLAGS) -o $@$(EXT)
 
-paramgrill : DEBUGFLAGS =   # turn off assert() for speed measurements
+paramgrill : DEBUGFLAGS = -DNDEBUG  # turn off assert() for speed measurements
 paramgrill : $(ZSTD_FILES) $(PRGDIR)/bench.c $(PRGDIR)/datagen.c paramgrill.c
 	$(CC) $(FLAGS) $^ -lm -o $@$(EXT)
 

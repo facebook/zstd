@@ -56,6 +56,7 @@
 
 #include <stdlib.h> /* malloc, free */
 #include <stdio.h>  /* FILE* */
+#include <assert.h>
 
 #define XXH_STATIC_LINKING_ONLY
 #define XXH_NAMESPACE ZSTD_
@@ -112,7 +113,7 @@ static int ZSTD_seekable_read_buff(void* opaque, void* buffer, size_t n)
 
 static int ZSTD_seekable_seek_buff(void* opaque, long long offset, int origin)
 {
-    buffWrapper_t* buff = (buffWrapper_t*) opaque;
+    buffWrapper_t* const buff = (buffWrapper_t*) opaque;
     unsigned long long newOffset;
     switch (origin) {
     case SEEK_SET:
@@ -124,6 +125,8 @@ static int ZSTD_seekable_seek_buff(void* opaque, long long offset, int origin)
     case SEEK_END:
         newOffset = (unsigned long long)buff->size - offset;
         break;
+    default:
+        assert(0);  /* not possible */
     }
     if (newOffset > buff->size) {
         return -1;

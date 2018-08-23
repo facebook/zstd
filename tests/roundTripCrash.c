@@ -212,7 +212,7 @@ static void loadFile(void* buffer, const char* fileName, size_t fileSize)
 static void fileCheck(const char* fileName, int testCCtxParams)
 {
     size_t const fileSize = getFileSize(fileName);
-    void* buffer = malloc(fileSize);
+    void* const buffer = malloc(fileSize + !fileSize /* avoid 0 */);
     if (!buffer) {
         fprintf(stderr, "not enough memory \n");
         exit(4);

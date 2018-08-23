@@ -727,11 +727,6 @@ static unsigned long long FIO_compressLz4Frame(cRess_t* ress,
 #endif
 
 
-/*! FIO_compressFilename_internal() :
- *  same as FIO_compressFilename_extRess(), with `ress.desFile` already opened.
- *  @return : 0 : compression completed correctly,
- *            1 : missing or pb opening srcFileName
- */
 static unsigned long long
 FIO_compressZstdFrame(const cRess_t* ressPtr,
                       const char* srcFileName, U64 fileSize,
@@ -763,7 +758,8 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
             directive = ZSTD_e_end;
 
         result = 1;
-        while (inBuff.pos != inBuff.size || (directive == ZSTD_e_end && result != 0)) {
+        while ((inBuff.pos != inBuff.size)   /* input buffer must be entirely ingested */
+            || (directive == ZSTD_e_end && result != 0) ) {
             ZSTD_outBuffer outBuff = { ress.dstBuffer, ress.dstBufferSize, 0 };
             CHECK_V(result, ZSTD_compress_generic(ress.cctx, &outBuff, &inBuff, directive));
 
@@ -786,7 +782,8 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
                                 (U32)(zfp.consumed >> 20),
                                 (U32)(zfp.produced >> 20),
                                 cShare );
-                } else {   /* g_displayLevel == 2 */
+                } else {
+                    /* g_displayLevel <= 2; only display notifications if == 2; */
                     DISPLAYLEVEL(2, "\rRead : %u ", (U32)(zfp.consumed >> 20));
                     if (fileSize != UTIL_FILESIZE_UNKNOWN)
                         DISPLAYLEVEL(2, "/ %u ", (U32)(fileSize >> 20));
@@ -1014,8 +1011,8 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
                 if (!dstFileName) {
                     EXM_THROW(30, "zstd: %s", strerror(errno));
             }   }
-            strcpy(dstFileName, inFileNamesTable[u]);
-            strcat(dstFileName, suffix);
+            strncpy(dstFileName, inFileNamesTable[u], ifnSize+1 /* Include null */);
+            strncat(dstFileName, suffix, suffixSize);
             missed_files += FIO_compressFilename_dstFile(ress, dstFileName, inFileNamesTable[u], compressionLevel);
     }   }
 

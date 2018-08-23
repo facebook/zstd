@@ -26,19 +26,32 @@ extern "C" {
  * will either be successful, with .error = 0, providing a valid .result,
  * or return an error, with .error != 0, in which case .result is invalid.
  */
-#define ERROR_STRUCT(baseType, typeName) typedef struct { \
-    baseType result; \
-    int error;       \
-} typeName
+#define SUMTYPE_ERROR_RESULT(baseType, variantName)  \
+                                             \
+typedef struct {                             \
+    baseType internal_never_use_directly;    \
+    int tag;                                 \
+} variantName
+
 
 typedef struct {
     size_t cSize;
     unsigned long long cSpeed;   /* bytes / sec */
     unsigned long long dSpeed;
-    size_t cMem;                 /* ? what does it reports ? */
-} BMK_result_t;
+    size_t cMem;                 /* ? what is reported ? */
+} BMK_benchResult_t;
 
-ERROR_STRUCT(BMK_result_t, BMK_return_t);
+SUMTYPE_ERROR_RESULT(BMK_benchResult_t, BMK_benchOutcome_t);
+
+/* check first if the return structure represents an error or a valid result */
+int BMK_isSuccessful_benchOutcome(BMK_benchOutcome_t errorOrResult);
+
+/* extract result from variant type.
+ * note : this function will abort() program execution if result is not valid
+ *        check result validity first, by using BMK_isValid_benchResult()
+ */
+BMK_benchResult_t BMK_extract_benchResult(BMK_benchOutcome_t errorOrResult);
+
 
 /*! BMK_benchFiles() -- called by zstdcli */
 /*  Loads files from fileNamesTable into memory,
@@ -61,15 +74,12 @@ ERROR_STRUCT(BMK_result_t, BMK_return_t);
  *          .result will return compression speed (.cSpeed),
  *          decompression speed (.dSpeed), and compressed size (.cSize).
  */
-BMK_return_t BMK_benchFiles(const char* const * fileNamesTable, unsigned nbFiles,
+BMK_benchOutcome_t BMK_benchFiles(
+                   const char* const * fileNamesTable, unsigned nbFiles,
                    const char* dictFileName,
                    int cLevel, const ZSTD_compressionParameters* compressionParams,
                    int displayLevel);
 
-typedef enum {
-    BMK_timeMode = 0,
-    BMK_iterMode = 1
-} BMK_loopMode_t;
 
 typedef enum {
     BMK_both = 0,
@@ -79,7 +89,6 @@ typedef enum {
 
 typedef struct {
     BMK_mode_t mode;            /* 0: all, 1: compress only 2: decode only */
-    BMK_loopMode_t loopMode;    /* if loopmode, then nbSeconds = nbLoops */
     unsigned nbSeconds;         /* default timing is in nbSeconds */
     size_t blockSize;           /* Maximum allowable size of a block*/
     unsigned nbWorkers;         /* multithreading */
@@ -98,7 +107,8 @@ BMK_advancedParams_t BMK_initAdvancedParams(void);
 /*! BMK_benchFilesAdvanced():
  *  Same as BMK_benchFiles(),
  *  with more controls, provided through advancedParams_t structure */
-BMK_return_t BMK_benchFilesAdvanced(const char* const * fileNamesTable, unsigned nbFiles,
+BMK_benchOutcome_t BMK_benchFilesAdvanced(
+                   const char* const * fileNamesTable, unsigned nbFiles,
                    const char* dictFileName,
                    int cLevel, const ZSTD_compressionParameters* compressionParams,
                    int displayLevel, const BMK_advancedParams_t* adv);
@@ -116,9 +126,14 @@ BMK_return_t BMK_benchFilesAdvanced(const char* const * fileNamesTable, unsigned
  *          .result will return the compression speed (.cSpeed),
  *          decompression speed (.dSpeed), and compressed size (.cSize).
  */
-BMK_return_t BMK_syntheticTest(int cLevel, double compressibility,
+BMK_benchOutcome_t BMK_syntheticTest(
+                              int cLevel, double compressibility,
                               const ZSTD_compressionParameters* compressionParams,
                               int displayLevel, const BMK_advancedParams_t * const adv);
+
+
+
+/* ===  Benchmark Zstandard in a memory-to-memory scenario  === */
 
 /** BMK_benchMem() -- core benchmarking function, called in paramgrill
  *  applies ZSTD_compress_generic() and ZSTD_decompress_generic() on data in srcBuffer
@@ -141,7 +156,7 @@ BMK_return_t BMK_syntheticTest(int cLevel, double compressibility,
  *          provide the same results as benchFiles()
  *          but for the data stored in srcBuffer
  */
-BMK_return_t BMK_benchMem(const void* srcBuffer, size_t srcSize,
+BMK_benchOutcome_t BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         const size_t* fileSizes, unsigned nbFiles,
                         int cLevel, const ZSTD_compressionParameters* comprParams,
                         const void* dictBuffer, size_t dictBufferSize,
@@ -153,7 +168,7 @@ BMK_return_t BMK_benchMem(const void* srcBuffer, size_t srcSize,
  * dstCapacity - capacity of destination buffer, give 0 if dstBuffer = NULL
  * adv = see advancedParams_t
  */
-BMK_return_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
+BMK_benchOutcome_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
                         void* dstBuffer, size_t dstCapacity,
                         const size_t* fileSizes, unsigned nbFiles,
                         int cLevel, const ZSTD_compressionParameters* comprParams,
@@ -161,74 +176,107 @@ BMK_return_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
                         int displayLevel, const char* displayName,
                         const BMK_advancedParams_t* adv);
 
+
+
+/* ====  Benchmarking any function, iterated on a set of blocks  ==== */
+
 typedef struct {
-    size_t sumOfReturn;    /* sum of return values */
-    unsigned long long nanoSecPerRun;     /* time per iteration */
-} BMK_customResult_t;
+    unsigned long long nanoSecPerRun;  /* time per iteration */
+    size_t sumOfReturn;       /* sum of return values */
+} BMK_runTime_t;
 
-ERROR_STRUCT(BMK_customResult_t, BMK_customReturn_t);
+SUMTYPE_ERROR_RESULT(BMK_runTime_t, BMK_runOutcome_t);
 
-typedef size_t (*BMK_benchFn_t)(const void*, size_t, void*, size_t, void*);
-typedef size_t (*BMK_initFn_t)(void*);
+/* check first if the return structure represents an error or a valid result */
+int BMK_isSuccessful_runOutcome(BMK_runOutcome_t outcome);
 
-/* This function times the execution of 2 argument functions, benchFn and initFn  */
+/* extract result from variant type.
+ * note : this function will abort() program execution if result is not valid
+ *        check result validity first, by using BMK_isSuccessful_runOutcome()
+ */
+BMK_runTime_t BMK_extract_runTime(BMK_runOutcome_t outcome);
+
+
+typedef size_t (*BMK_benchFn_t)(const void* src, size_t srcSize, void* dst, size_t dstCapacity, void* customPayload);
+typedef size_t (*BMK_initFn_t)(void* initPayload);
+
+
+/* BMK_benchFunction() :
+ * This function times the execution of 2 argument functions, benchFn and initFn  */
 
 /* benchFn - (*benchFn)(srcBuffers[i], srcSizes[i], dstBuffers[i], dstCapacities[i], benchPayload)
  *      is run nbLoops times
- * initFn - (*initFn)(initPayload) is run once per benchmark at the beginning. This argument can
- *          be NULL, in which case nothing is run.
+ * initFn - (*initFn)(initPayload) is run once per benchmark, at the beginning.
+ *      This argument can be NULL, in which case nothing is run.
  * blockCount - number of blocks. Size of all array parameters : srcBuffers, srcSizes, dstBuffers, dstCapacities, blockResults
  * srcBuffers - an array of buffers to be operated on by benchFn
  * srcSizes - an array of the sizes of above buffers
  * dstBuffers - an array of buffers to be written into by benchFn
  * dstCapacities - an array of the capacities of above buffers
- * blockResults - the return value of benchFn called on each block.
+ * blockResults - store the return value of benchFn for each block. Optional. Use NULL if this result is not requested.
  * nbLoops - defines number of times benchFn is run.
- * @return:
- *      .error will give a nonzero value if ZSTD_isError() is nonzero for any of the return
- *          of the calls to initFn and benchFn, or if benchFunction errors internally
- *      .result - if .error = 0, then .result will contain
- *          the sum of all return values of benchFn on the first iteration through all of the blocks (.sumOfReturn)
- *          and also the time per run of benchFn (.nanoSecPerRun).
- *          For the former, this is generally intended to be used on functions which return the # of bytes written into dstBuffer,
- *          hence this value will be the total amount of bytes written into dstBuffer.
+ * @return: a variant, which can be an error, or a BMK_runTime_t result.
+ *          Use BMK_isSuccessful_runOutcome() to check if function was successful.
+ *          If yes, extract the result with BMK_extract_runTime(),
+ *          it will contain :
+ *              .sumOfReturn : the sum of all return values of benchFn through all of blocks
+ *              .nanoSecPerRun : time per run of benchFn + (time for initFn / nbLoops)
+ *          .sumOfReturn is generally intended for functions which return a # of bytes written into dstBuffer,
+ *              in which case, this value will be the total amount of bytes written into dstBuffer.
  */
-BMK_customReturn_t BMK_benchFunction(BMK_benchFn_t benchFn, void* benchPayload,
+BMK_runOutcome_t BMK_benchFunction(
+                        BMK_benchFn_t benchFn, void* benchPayload,
                         BMK_initFn_t initFn, void* initPayload,
                         size_t blockCount,
                         const void *const * srcBuffers, const size_t* srcSizes,
-                        void *const * dstBuffers, const size_t* dstCapacities, size_t* blockResults,
+                        void *const * dstBuffers, const size_t* dstCapacities,
+                        size_t* blockResults,
                         unsigned nbLoops);
 
 
-/* state information needed to advance computation for benchFunctionTimed */
-typedef struct BMK_timeState_t BMK_timedFnState_t;
-/* initializes timeState object with desired number of seconds */
+
+/* ====  Benchmarking any function, providing intermediate results  ==== */
+
+/* state information needed by benchFunctionTimed */
+typedef struct BMK_timedFnState_s BMK_timedFnState_t;
+
 BMK_timedFnState_t* BMK_createTimedFnState(unsigned nbSeconds);
-/* resets existing timeState object */
-void BMK_resetTimedFnState(BMK_timedFnState_t*, unsigned nbSeconds);
-/* deletes timeState object */
+void BMK_resetTimedFnState(BMK_timedFnState_t* timedFnState, unsigned nbSeconds);
 void BMK_freeTimedFnState(BMK_timedFnState_t* state);
 
-typedef struct {
-    BMK_customReturn_t result;
-    int completed;
-} BMK_customTimedReturn_t;
+/* define timedFnOutcome */
+SUMTYPE_ERROR_RESULT(BMK_runTime_t, BMK_timedFnOutcome_t);
+
+/* check first if the return structure represents an error or a valid result */
+int BMK_isSuccessful_timedFnOutcome(BMK_timedFnOutcome_t outcome);
+
+/* extract intermediate results from variant type.
+ * note : this function will abort() program execution if result is not valid.
+ *        check result validity first, by using BMK_isSuccessful_timedFnOutcome() */
+BMK_runTime_t BMK_extract_timedFnResult(BMK_timedFnOutcome_t outcome);
+
+/* Tells if nb of seconds set in timedFnState for all runs is spent.
+ * note : this function will return 1 if BMK_benchFunctionTimed() has actually errored. */
+int BMK_isCompleted_timedFnOutcome(BMK_timedFnOutcome_t outcome);
+
 
 /* BMK_benchFunctionTimed() :
- * Same as BMK_benchFunction(), but runs for nbSeconds seconds rather than a fixed number of loops.
- * Arguments are mostly the same other as BMK_benchFunction()
- * Usage - benchFunctionTimed will return in approximately one second.
- * Keep calling BMK_benchFunctionTimed() until @return.completed == 1,
- * to continue updating intermediate result.
- * Intermediate return values are returned by the function.
+ * Similar to BMK_benchFunction(),
+ * tries to find automatically `nbLoops`, so that each run lasts approximately 1 second.
+ * Note : minimum `nbLoops` is 1, a run may last more than 1 second if benchFn is slow.
+ * Most arguments are the same as BMK_benchFunction()
+ * Usage - initialize a timedFnState, selecting a total nbSeconds allocated for _all_ benchmarks run
+ *         call BMK_benchFunctionTimed() repetitively, collecting intermediate results (each run is supposed to last about 1 seconds)
+ *         Check if time budget is spent using BMK_isCompleted_timedFnOutcome()
  */
-BMK_customTimedReturn_t BMK_benchFunctionTimed(BMK_timedFnState_t* cont,
-    BMK_benchFn_t benchFn, void* benchPayload,
-    BMK_initFn_t initFn, void* initPayload,
-    size_t blockCount,
-    const void *const * srcBlockBuffers, const size_t* srcBlockSizes,
-    void *const * dstBlockBuffers, const size_t* dstBlockCapacities, size_t* blockResults);
+BMK_timedFnOutcome_t BMK_benchFunctionTimed(
+            BMK_timedFnState_t* timedFnState,
+            BMK_benchFn_t benchFn, void* benchPayload,
+            BMK_initFn_t initFn, void* initPayload,
+            size_t blockCount,
+            const void *const * srcBlockBuffers, const size_t* srcBlockSizes,
+            void *const * dstBlockBuffers, const size_t* dstBlockCapacities,
+            size_t* blockResults);
 
 #endif   /* BENCH_H_121279284357 */
 

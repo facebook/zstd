@@ -27,7 +27,8 @@
 #include "util.h"
 #include "bench.h"
 #include "zstd_errors.h"
-#include "zstd_internal.h"
+#include "zstd_internal.h"     /* should not be needed */
+
 
 /*-************************************
 *  Constants
@@ -45,6 +46,7 @@ static const size_t maxMemory = (sizeof(size_t)==4)  ?  (2 GB - 64 MB) : (size_t
 
 static const U64 g_maxVariationTime = 60 * SEC_TO_MICRO;
 static const int g_maxNbVariations = 64;
+
 
 /*-************************************
 *  Macros
@@ -90,8 +92,8 @@ static const char* g_stratName[ZSTD_btultra+1] = {
                 "ZSTD_greedy  ", "ZSTD_lazy    ", "ZSTD_lazy2   ",
                 "ZSTD_btlazy2 ", "ZSTD_btopt   ", "ZSTD_btultra "};
 
-
 static const U32 tlen_table[TLEN_RANGE] = { 0, 1, 2, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128, 256, 512, 999 };
+
 
 /*-************************************
 *  Setup for Adding new params
@@ -212,6 +214,7 @@ static void displayParamVal(FILE* f, varInds_t param, U32 value, int width) {
     }
 }
 
+
 /*-************************************
 *  Benchmark Parameters/Global Variables
 **************************************/
@@ -283,6 +286,7 @@ static winner_ll_node* g_winners; /* linked list sorted ascending by cSize & cSp
  * g_maxTries
  * g_clockGranularity
  */
+
 
 /*-*******************************************************
 *  General Util Functions
@@ -653,7 +657,7 @@ static void BMK_displayOneResult(FILE* f, winnerInfo_t res, const size_t srcSize
             }
 
             fprintf(f, " },     /* R:%5.3f at %5.1f MB/s - %5.1f MB/s */\n",
-            (double)srcSize / res.result.cSize, (double)res.result.cSpeed / (1 MB), (double)res.result.dSpeed / (1 MB));
+            (double)srcSize / res.result.cSize, (double)res.result.cSpeed / MB_UNIT, (double)res.result.dSpeed / MB_UNIT);
 }
 
 /* Writes to f the results of a parameter benchmark */
@@ -836,7 +840,7 @@ static void BMK_printWinnerOpt(FILE* f, const U32 cLevel, const BMK_benchResult_
         }
         fprintf(f, "================================\n");
         fprintf(f, "Level Bounds: R: > %.3f AND C: < %.1f MB/s \n\n",
-            (double)srcSize / g_lvltarget.cSize, (double)g_lvltarget.cSpeed / (1 MB));
+            (double)srcSize / g_lvltarget.cSize, (double)g_lvltarget.cSpeed / MB_UNIT);
 
 
         fprintf(f, "Overall Winner: \n");
@@ -1718,16 +1722,16 @@ static int BMK_seed(winnerInfo_t* winners, const paramValues_t params,
                 /* too large compression speed difference for the compression benefit */
                 if (W_ratio > O_ratio)
                 DISPLAY ("Compression Speed : %5.3f @ %4.1f MB/s  vs  %5.3f @ %4.1f MB/s   : not enough for level %i\n",
-                         W_ratio, (double)testResult.cSpeed / (1 MB),
-                         O_ratio, (double)winners[cLevel].result.cSpeed / (1 MB),   cLevel);
+                         W_ratio, (double)testResult.cSpeed / MB_UNIT,
+                         O_ratio, (double)winners[cLevel].result.cSpeed / MB_UNIT,   cLevel);
                 continue;
             }
             if (W_DSpeed_note   < O_DSpeed_note  ) {
                 /* too large decompression speed difference for the compression benefit */
                 if (W_ratio > O_ratio)
                 DISPLAY ("Decompression Speed : %5.3f @ %4.1f MB/s  vs  %5.3f @ %4.1f MB/s   : not enough for level %i\n",
-                         W_ratio, (double)testResult.dSpeed / (1 MB),
-                         O_ratio, (double)winners[cLevel].result.dSpeed / (1 MB),   cLevel);
+                         W_ratio, (double)testResult.dSpeed / MB_UNIT,
+                         O_ratio, (double)winners[cLevel].result.dSpeed / MB_UNIT,   cLevel);
                 continue;
             }
 
@@ -1817,7 +1821,7 @@ static void BMK_benchFullTable(const buffers_t buf, const contexts_t ctx)
     if (f==NULL) { DISPLAY("error opening %s \n", rfName); exit(1); }
 
     if (g_target) {
-        BMK_init_level_constraints(g_target * (1 MB));
+        BMK_init_level_constraints(g_target * MB_UNIT);
     } else {
         /* baseline config for level 1 */
         paramValues_t const l1params = cParamsToPVals(ZSTD_getCParams(1, buf.maxBlockSize, ctx.dictSize));

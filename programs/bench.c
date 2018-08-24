@@ -315,7 +315,6 @@ BMK_runOutcome_t BMK_benchFunction(
             unsigned nbLoops)
 {
     size_t dstSize = 0;
-    U64 totalTime;
 
     if(!nbLoops) {
         RETURN_QUIET_ERROR(1, BMK_runOutcome_t, "nbLoops must be nonzero ");
@@ -335,7 +334,7 @@ BMK_runOutcome_t BMK_benchFunction(
 #endif
     }
 
-    /* benchmark loop */
+    /* benchmark */
     {   UTIL_time_t const clockStart = UTIL_getTime();
         unsigned loopNb, blockNb;
         if (initFn != NULL) initFn(initPayload);
@@ -351,17 +350,15 @@ BMK_runOutcome_t BMK_benchFunction(
                 } else if (loopNb == 0) {
                     dstSize += res;
                     if (blockResults != NULL) blockResults[blockNb] = res;
-                    dstSize += res;
             }   }
         }  /* for (loopNb = 0; loopNb < nbLoops; loopNb++) */
-        totalTime = UTIL_clockSpanNano(clockStart);
-    }
 
-    {   BMK_runTime_t rt;
-        rt.nanoSecPerRun = totalTime / nbLoops;
-        rt.sumOfReturn = dstSize;
-        return BMK_setValid_runTime(rt);
-    }
+        {   U64 const totalTime = UTIL_clockSpanNano(clockStart);
+            BMK_runTime_t rt;
+            rt.nanoSecPerRun = totalTime / nbLoops;
+            rt.sumOfReturn = dstSize;
+            return BMK_setValid_runTime(rt);
+    }   }
 }
 
 
@@ -545,7 +542,7 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
             int displayLevel, const char* displayName,
             const BMK_advancedParams_t* adv)
 {
-    size_t const blockSize = ((adv->blockSize>=32 && (adv->mode != BMK_decodeOnly)) ? adv->blockSize : srcSize) + (!srcSize); /* avoid div by 0 */
+    size_t const blockSize = ((adv->blockSize>=32 && (adv->mode != BMK_decodeOnly)) ? adv->blockSize : srcSize) + (!srcSize);  /* avoid div by 0 */
     BMK_benchResult_t benchResult;
     size_t const loadedCompressedSize = srcSize;
     size_t cSize = 0;
@@ -555,6 +552,7 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
     assert(cctx != NULL); assert(dctx != NULL);
 
     /* init */
+    memset(&benchResult, 0, sizeof(benchResult));
     if (strlen(displayName)>17) displayName += strlen(displayName) - 17;   /* display last 17 characters */
     if (adv->mode == BMK_decodeOnly) {  /* benchmark only decompression : source must be already compressed */
         const char* srcPtr = (const char*)srcBuffer;
@@ -640,66 +638,72 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
         while (!(compressionCompleted && decompressionCompleted)) {
 
             if (!compressionCompleted) {
-                BMK_runTime_t cResult;
-
                 BMK_timedFnOutcome_t const cOutcome =
-                        BMK_benchFunctionTimed(timeStateCompress,
-                                    &local_defaultCompress, (void*)cctx,
-                                    &local_initCCtx, (void*)&cctxprep,
-                                    nbBlocks,
-                                    srcPtrs, srcSizes,
-                                    cPtrs, cCapacities,
-                                    cSizes);
+                        BMK_benchFunctionTimed( timeStateCompress,
+                                                &local_defaultCompress, cctx,
+                                                &local_initCCtx, &cctxprep,
+                                                nbBlocks,
+                                                srcPtrs, srcSizes,
+                                                cPtrs, cCapacities,
+                                                cSizes);
 
                 if (!BMK_isSuccessful_timedFnOutcome(cOutcome)) {
                     return BMK_benchOutcome_error();
                 }
 
-                cResult = BMK_extract_timedFnResult(cOutcome);
-                ratio = (double)(srcSize / cResult.sumOfReturn);
+                {   BMK_runTime_t const cResult = BMK_extract_timedFnResult(cOutcome);
+                    cSize = cResult.sumOfReturn;
+                    ratio = (double)srcSize / cSize;
+                    {   BMK_benchResult_t newResult;
+                        newResult.cSpeed = ((U64)srcSize * TIMELOOP_NANOSEC / cResult.nanoSecPerRun);
+                        benchResult.cSize = cSize;
+                        if (newResult.cSpeed > benchResult.cSpeed)
+                            benchResult.cSpeed = newResult.cSpeed;
+                }   }
 
                 {   int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
-                    cSize = cResult.sumOfReturn;
-                    benchResult.cSpeed = (srcSize * TIMELOOP_NANOSEC / cResult.nanoSecPerRun);
-                    benchResult.cSize = cSize;
-                    ratio = (double)srcSize / cSize;
                     markNb = (markNb+1) % NB_MARKS;
                     DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.*f),%6.*f MB/s\r",
-                            marks[markNb], displayName, (U32)srcSize, (U32)cSize,
+                            marks[markNb], displayName,
+                            (U32)srcSize, (U32)cSize,
                             ratioAccuracy, ratio,
                             benchResult.cSpeed < (10 MB) ? 2 : 1, (double)benchResult.cSpeed / MB_UNIT);
                 }
+                compressionCompleted = BMK_isCompleted_timedFnOutcome(cOutcome);
             }
 
             if(!decompressionCompleted) {
-                BMK_runTime_t dResult;
-
                 BMK_timedFnOutcome_t const dOutcome =
-                            BMK_benchFunctionTimed(timeStateDecompress,
-                                    &local_defaultDecompress, (void*)(dctx),
-                                    &local_initDCtx, (void*)&dctxprep,
-                                    nbBlocks,
-                                    (const void* const*)cPtrs, cSizes,
-                                    resPtrs, resSizes,
-                                    NULL);
+                        BMK_benchFunctionTimed(timeStateDecompress,
+                                            &local_defaultDecompress, dctx,
+                                            &local_initDCtx, &dctxprep,
+                                            nbBlocks,
+                                            (const void *const *)cPtrs, cSizes,
+                                            resPtrs, resSizes,
+                                            NULL);
 
                 if(!BMK_isSuccessful_timedFnOutcome(dOutcome)) {
                     return BMK_benchOutcome_error();
                 }
 
-                dResult = BMK_extract_timedFnResult(dOutcome);
+                {   BMK_runTime_t const dResult = BMK_extract_timedFnResult(dOutcome);
+                    U64 const newDSpeed = (srcSize * TIMELOOP_NANOSEC / dResult.nanoSecPerRun);
+                    if (newDSpeed > benchResult.dSpeed)
+                        benchResult.dSpeed = newDSpeed;
+                }
 
                 {   int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
-                    benchResult.dSpeed = (srcSize * TIMELOOP_NANOSEC / dResult.nanoSecPerRun);
                     markNb = (markNb+1) % NB_MARKS;
                     DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.*f),%6.*f MB/s ,%6.1f MB/s \r",
-                            marks[markNb], displayName, (U32)srcSize, (U32)benchResult.cSize,
+                            marks[markNb], displayName,
+                            (U32)srcSize, (U32)benchResult.cSize,
                             ratioAccuracy, ratio,
                             benchResult.cSpeed < (10 MB) ? 2 : 1, (double)benchResult.cSpeed / MB_UNIT,
-                            (double)benchResult.dSpeed / (1 MB));
+                            (double)benchResult.dSpeed / MB_UNIT);
                 }
+                decompressionCompleted = BMK_isCompleted_timedFnOutcome(dOutcome);
             }
-        }
+        }   /* while (!(compressionCompleted && decompressionCompleted)) */
 
         /* CRC Checking */
         {   const BYTE* resultBuffer = (const BYTE*)(*resultBufferPtr);

@@ -597,7 +597,7 @@ static int benchFiles(U32 benchNb,
             if ((U64)benchedSize > inFileSize)
                 benchedSize = (size_t)inFileSize;
             if ((U64)benchedSize < inFileSize) {
-                DISPLAY("Not enough memory for '%s' full size; testing %u MB only...\n",
+                DISPLAY("Not enough memory for '%s' full size; testing %u MB only... \n",
                         inFileName, (U32)(benchedSize>>20));
         }   }
 

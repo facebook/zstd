@@ -514,24 +514,39 @@ static size_t benchMem(U32 benchNb,
     { size_t i; for (i=0; i<dstBuffSize; i++) dstBuff[i]=(BYTE)i; }
 
     /* benchmark loop */
-    {   void* dstBuffv = dstBuff;
-        BMK_runOutcome_t const outcome = BMK_benchFunction(
-                    benchFunction, buff2,
-                    NULL, NULL,   /* initFn */
-                    1,  /* blockCount */
-                    &src, &srcSize,
-                    &dstBuffv, &dstBuffSize,
-                    NULL,
-                    g_nbIterations);
-        if (!BMK_isSuccessful_runOutcome(outcome)) {
-            DISPLAY("ERROR benchmarking function ! ! \n");
-            errorcode = 1;
-            goto _cleanOut;
-        }
+    {   BMK_timedFnState_t* const tfs = BMK_createTimedFnState(g_nbIterations);
+        BMK_runTime_t bestResult;
+        bestResult.sumOfReturn = 0;
+        bestResult.nanoSecPerRun = (unsigned long long)(-1LL);
+        for (;;) {
+            void* const dstBuffv = dstBuff;
+            BMK_timedFnOutcome_t const bOutcome =
+                    BMK_benchFunctionTimed( tfs,
+                            benchFunction, buff2,
+                            NULL, NULL,   /* initFn */
+                            1,  /* blockCount */
+                            &src, &srcSize,
+                            &dstBuffv, &dstBuffSize,
+                            NULL);
 
-        {   BMK_runTime_t const result = BMK_extract_runTime(outcome);
-            DISPLAY("%2u#%-25.25s:%7.1f MB/s (%7u) \n", benchNb, benchName, (double)srcSize * TIMELOOP_NANOSEC / result.nanoSecPerRun / MB_UNIT, (unsigned)result.sumOfReturn );
+            if (!BMK_isSuccessful_timedFnOutcome(bOutcome)) {
+                DISPLAY("ERROR benchmarking function ! ! \n");
+                errorcode = 1;
+                goto _cleanOut;
+            }
+
+            {   BMK_runTime_t const newResult = BMK_extract_timedFnResult(bOutcome);
+                if (newResult.nanoSecPerRun < bestResult.nanoSecPerRun )
+                    bestResult.nanoSecPerRun = newResult.nanoSecPerRun;
+                DISPLAY("\r%2u#%-29.29s:%8.1f MB/s  (%8u) ",
+                        benchNb, benchName,
+                        (double)srcSize * TIMELOOP_NANOSEC / bestResult.nanoSecPerRun / MB_UNIT,
+                        (unsigned)newResult.sumOfReturn );
+            }
+
+            if ( BMK_isCompleted_timedFnOutcome(bOutcome) ) break;
     }   }
+    DISPLAY("\n");
 
 _cleanOut:
     free(buff1);

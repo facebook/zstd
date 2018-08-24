@@ -1302,6 +1302,38 @@ void ZSTD_invalidateRepCodes(ZSTD_CCtx* cctx) {
     assert(!ZSTD_window_hasExtDict(cctx->blockState.matchState.window));
 }
 
+/* These are the approximate sizes for each strategy past which copying the
+ * dictionary tables into the working context is faster than using them
+ * in-place.
+ */
+static const size_t attachDictSizeCutoffs[(unsigned)ZSTD_btultra+1] = {
+    8 KB, /* unused */
+    8 KB, /* ZSTD_fast */
+    16 KB, /* ZSTD_dfast */
+    32 KB, /* ZSTD_greedy */
+    32 KB, /* ZSTD_lazy */
+    32 KB, /* ZSTD_lazy2 */
+    32 KB, /* ZSTD_btlazy2 */
+    32 KB, /* ZSTD_btopt */
+    8 KB /* ZSTD_btultra */
+};
+
+static int ZSTD_shouldAttachDict(ZSTD_CCtx* cctx,
+                            const ZSTD_CDict* cdict,
+                            ZSTD_CCtx_params params,
+                            U64 pledgedSrcSize)
+{
+    size_t cutoff = attachDictSizeCutoffs[cdict->matchState.cParams.strategy];
+    return ( pledgedSrcSize <= cutoff
+          || pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN
+          || params.attachDictPref == ZSTD_dictForceAttach )
+        && params.attachDictPref != ZSTD_dictForceCopy
+        && !params.forceWindow /* dictMatchState isn't correctly
+                                * handled in _enforceMaxDist */
+        && ZSTD_equivalentCParams(cctx->appliedParams.cParams,
+                                  cdict->matchState.cParams);
+}
+
 static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
                             const ZSTD_CDict* cdict,
                             ZSTD_CCtx_params params,
@@ -1311,26 +1343,8 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
     /* We have a choice between copying the dictionary context into the working
      * context, or referencing the dictionary context from the working context
      * in-place. We decide here which strategy to use. */
-    const U64 attachDictSizeCutoffs[(unsigned)ZSTD_btultra+1] = {
-        8 KB, /* unused */
-        8 KB, /* ZSTD_fast */
-        16 KB, /* ZSTD_dfast */
-        32 KB, /* ZSTD_greedy */
-        32 KB, /* ZSTD_lazy */
-        32 KB, /* ZSTD_lazy2 */
-        32 KB, /* ZSTD_btlazy2 */
-        32 KB, /* ZSTD_btopt */
-        8 KB /* ZSTD_btultra */
-    };
     const ZSTD_compressionParameters *cdict_cParams = &cdict->matchState.cParams;
-    const int attachDict = ( pledgedSrcSize <= attachDictSizeCutoffs[cdict_cParams->strategy]
-                          || pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN
-                          || params.attachDictPref == ZSTD_dictForceAttach )
-                        && params.attachDictPref != ZSTD_dictForceCopy
-                        && !params.forceWindow /* dictMatchState isn't correctly
-                                                * handled in _enforceMaxDist */
-                        && ZSTD_equivalentCParams(cctx->appliedParams.cParams,
-                                                  *cdict_cParams);
+    const int attachDict = ZSTD_shouldAttachDict(cctx, cdict, params, pledgedSrcSize);
 
     DEBUGLOG(4, "ZSTD_resetCCtx_usingCDict (pledgedSrcSize=%u)", (U32)pledgedSrcSize);
 

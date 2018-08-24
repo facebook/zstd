@@ -51,6 +51,8 @@
 #define COMPRESSIBILITY_DEFAULT 0.50
 static const size_t g_sampleSize = 10000000;
 
+#define TIMELOOP_NANOSEC      (1*1000000000ULL) /* 1 second */
+
 
 /*_************************************
 *  Macros
@@ -92,63 +94,30 @@ static size_t BMK_findMaxMem(U64 requiredMem)
     return (size_t) requiredMem;
 }
 
-/*_*******************************************************
-*  Argument Parsing
-*********************************************************/
-
-#define ERROR_OUT(msg) { DISPLAY("%s \n", msg); exit(1); }
-
- static unsigned readU32FromChar(const char** stringPtr)
-{
-    const char errorMsg[] = "error: numeric value too large";
-    unsigned result = 0;
-    while ((**stringPtr >='0') && (**stringPtr <='9')) {
-        unsigned const max = (((unsigned)(-1)) / 10) - 1;
-        if (result > max) ERROR_OUT(errorMsg);
-        result *= 10, result += **stringPtr - '0', (*stringPtr)++ ;
-    }
-    if ((**stringPtr=='K') || (**stringPtr=='M')) {
-        unsigned const maxK = ((unsigned)(-1)) >> 10;
-        if (result > maxK) ERROR_OUT(errorMsg);
-        result <<= 10;
-        if (**stringPtr=='M') {
-            if (result > maxK) ERROR_OUT(errorMsg);
-            result <<= 10;
-        }
-        (*stringPtr)++;  /* skip `K` or `M` */
-        if (**stringPtr=='i') (*stringPtr)++;
-        if (**stringPtr=='B') (*stringPtr)++;
-    }
-    return result;
-}
-
-static unsigned longCommandWArg(const char** stringPtr, const char* longCommand)
-{
-    size_t const comSize = strlen(longCommand);
-    int const result = !strncmp(*stringPtr, longCommand, comSize);
-    if (result) *stringPtr += comSize;
-    return result;
-}
 
 /*_*******************************************************
 *  Benchmark wrappers
 *********************************************************/
 
-
 static ZSTD_CCtx* g_zcc = NULL;
 
-size_t local_ZSTD_compress(const void* src, size_t srcSize, void* dst, size_t dstSize, void* buff2)
+static size_t
+local_ZSTD_compress(const void* src, size_t srcSize,
+                    void* dst, size_t dstSize,
+                    void* buff2)
 {
     ZSTD_parameters p;
-    ZSTD_frameParameters f = {1 /* contentSizeHeader*/, 0, 0};
+    ZSTD_frameParameters f = { 1 /* contentSizeHeader*/, 0, 0 };
     p.fParams = f;
     p.cParams = *(ZSTD_compressionParameters*)buff2;
-    return ZSTD_compress_advanced (g_zcc,dst, dstSize, src, srcSize, NULL ,0, p);
+    return ZSTD_compress_advanced (g_zcc, dst, dstSize, src, srcSize, NULL ,0, p);
     //return ZSTD_compress(dst, dstSize, src, srcSize, cLevel);
 }
 
 static size_t g_cSize = 0;
-size_t local_ZSTD_decompress(const void* src, size_t srcSize, void* dst, size_t dstSize, void* buff2)
+static size_t local_ZSTD_decompress(const void* src, size_t srcSize,
+                                    void* dst, size_t dstSize,
+                                    void* buff2)
 {
     (void)src; (void)srcSize;
     return ZSTD_decompress(dst, dstSize, buff2, g_cSize);
@@ -174,7 +143,10 @@ size_t local_ZSTD_decodeSeqHeaders(const void* src, size_t srcSize, void* dst, s
 #endif
 
 static ZSTD_CStream* g_cstream= NULL;
-size_t local_ZSTD_compressStream(const void* src, size_t srcSize, void* dst, size_t dstCapacity, void* buff2)
+static size_t
+local_ZSTD_compressStream(const void* src, size_t srcSize,
+                          void* dst, size_t dstCapacity,
+                          void* buff2)
 {
     ZSTD_outBuffer buffOut;
     ZSTD_inBuffer buffIn;
@@ -194,7 +166,10 @@ size_t local_ZSTD_compressStream(const void* src, size_t srcSize, void* dst, siz
     return buffOut.pos;
 }
 
-static size_t local_ZSTD_compress_generic_end(const void* src, size_t srcSize, void* dst, size_t dstCapacity, void* buff2)
+static size_t
+local_ZSTD_compress_generic_end(const void* src, size_t srcSize,
+                                void* dst, size_t dstCapacity,
+                                void* buff2)
 {
     ZSTD_outBuffer buffOut;
     ZSTD_inBuffer buffIn;
@@ -209,7 +184,10 @@ static size_t local_ZSTD_compress_generic_end(const void* src, size_t srcSize, v
     return buffOut.pos;
 }
 
-static size_t local_ZSTD_compress_generic_continue(const void* src, size_t srcSize, void* dst, size_t dstCapacity, void* buff2)
+static size_t
+local_ZSTD_compress_generic_continue(const void* src, size_t srcSize,
+                                     void* dst, size_t dstCapacity,
+                                     void* buff2)
 {
     ZSTD_outBuffer buffOut;
     ZSTD_inBuffer buffIn;
@@ -225,7 +203,10 @@ static size_t local_ZSTD_compress_generic_continue(const void* src, size_t srcSi
     return buffOut.pos;
 }
 
-static size_t local_ZSTD_compress_generic_T2_end(const void* src, size_t srcSize, void* dst, size_t dstCapacity, void* buff2)
+static size_t
+local_ZSTD_compress_generic_T2_end(const void* src, size_t srcSize,
+                                   void* dst, size_t dstCapacity,
+                                   void* buff2)
 {
     ZSTD_outBuffer buffOut;
     ZSTD_inBuffer buffIn;
@@ -241,7 +222,10 @@ static size_t local_ZSTD_compress_generic_T2_end(const void* src, size_t srcSize
     return buffOut.pos;
 }
 
-static size_t local_ZSTD_compress_generic_T2_continue(const void* src, size_t srcSize, void* dst, size_t dstCapacity, void* buff2)
+static size_t
+local_ZSTD_compress_generic_T2_continue(const void* src, size_t srcSize,
+                                        void* dst, size_t dstCapacity,
+                                        void* buff2)
 {
     ZSTD_outBuffer buffOut;
     ZSTD_inBuffer buffIn;
@@ -259,7 +243,10 @@ static size_t local_ZSTD_compress_generic_T2_continue(const void* src, size_t sr
 }
 
 static ZSTD_DStream* g_dstream= NULL;
-static size_t local_ZSTD_decompressStream(const void* src, size_t srcSize, void* dst, size_t dstCapacity, void* buff2)
+static size_t
+local_ZSTD_decompressStream(const void* src, size_t srcSize,
+                            void* dst, size_t dstCapacity,
+                            void* buff2)
 {
     ZSTD_outBuffer buffOut;
     ZSTD_inBuffer buffIn;
@@ -276,10 +263,12 @@ static size_t local_ZSTD_decompressStream(const void* src, size_t srcSize, void*
 }
 
 #ifndef ZSTD_DLL_IMPORT
-size_t local_ZSTD_compressContinue(const void* src, size_t srcSize, void* dst, size_t dstCapacity, void* buff2)
+size_t local_ZSTD_compressContinue(const void* src, size_t srcSize,
+                                   void* dst, size_t dstCapacity,
+                                   void* buff2)
 {
     ZSTD_parameters p;
-    ZSTD_frameParameters f = {1 /* contentSizeHeader*/, 0, 0};
+    ZSTD_frameParameters f = { 1 /* contentSizeHeader*/, 0, 0 };
     p.fParams = f;
     p.cParams = *(ZSTD_compressionParameters*)buff2;
     ZSTD_compressBegin_advanced(g_zcc, NULL, 0, p, srcSize);
@@ -287,26 +276,38 @@ size_t local_ZSTD_compressContinue(const void* src, size_t srcSize, void* dst, s
 }
 
 #define FIRST_BLOCK_SIZE 8
-size_t local_ZSTD_compressContinue_extDict(const void* src, size_t srcSize, void* dst, size_t dstCapacity, void* buff2)
+size_t local_ZSTD_compressContinue_extDict(const void* src, size_t srcSize,
+                                           void* dst, size_t dstCapacity,
+                                           void* buff2)
 {
     BYTE firstBlockBuf[FIRST_BLOCK_SIZE];
 
     ZSTD_parameters p;
-    ZSTD_frameParameters f = {1 , 0, 0};
+    ZSTD_frameParameters f = { 1, 0, 0 };
     p.fParams = f;
     p.cParams = *(ZSTD_compressionParameters*)buff2;
     ZSTD_compressBegin_advanced(g_zcc, NULL, 0, p, srcSize);
     memcpy(firstBlockBuf, src, FIRST_BLOCK_SIZE);
 
-    {   size_t const compressResult = ZSTD_compressContinue(g_zcc, dst, dstCapacity, firstBlockBuf, FIRST_BLOCK_SIZE);
-        if (ZSTD_isError(compressResult)) { DISPLAY("local_ZSTD_compressContinue_extDict error : %s\n", ZSTD_getErrorName(compressResult)); return compressResult; }
+    {   size_t const compressResult = ZSTD_compressContinue(g_zcc,
+                                            dst, dstCapacity,
+                                            firstBlockBuf, FIRST_BLOCK_SIZE);
+        if (ZSTD_isError(compressResult)) {
+            DISPLAY("local_ZSTD_compressContinue_extDict error : %s\n",
+                    ZSTD_getErrorName(compressResult));
+            return compressResult;
+        }
         dst = (BYTE*)dst + compressResult;
         dstCapacity -= compressResult;
     }
-    return ZSTD_compressEnd(g_zcc, dst, dstCapacity, (const BYTE*)src + FIRST_BLOCK_SIZE, srcSize - FIRST_BLOCK_SIZE);
+    return ZSTD_compressEnd(g_zcc, dst, dstCapacity,
+                            (const BYTE*)src + FIRST_BLOCK_SIZE,
+                            srcSize - FIRST_BLOCK_SIZE);
 }
 
-size_t local_ZSTD_decompressContinue(const void* src, size_t srcSize, void* dst, size_t dstCapacity, void* buff2)
+size_t local_ZSTD_decompressContinue(const void* src, size_t srcSize,
+                                           void* dst, size_t dstCapacity,
+                                           void* buff2)
 {
     size_t regeneratedSize = 0;
     const BYTE* ip = (const BYTE*)buff2;
@@ -314,7 +315,7 @@ size_t local_ZSTD_decompressContinue(const void* src, size_t srcSize, void* dst,
     BYTE* op = (BYTE*)dst;
     size_t remainingCapacity = dstCapacity;
 
-    (void)src; (void)srcSize;
+    (void)src; (void)srcSize;  /* unused */
     ZSTD_decompressBegin(g_zdc);
     while (ip < iend) {
         size_t const iSize = ZSTD_nextSrcSizeToDecompress(g_zdc);
@@ -529,7 +530,7 @@ static size_t benchMem(U32 benchNb,
         }
 
         {   BMK_runTime_t const result = BMK_extract_runTime(outcome);
-            DISPLAY("%2u#%-25.25s:%7.1f MB/s (%7u) \n", benchNb, benchName, (double)srcSize * 1000000000 / result.nanoSecPerRun / MB_UNIT, (unsigned)result.sumOfReturn );
+            DISPLAY("%2u#%-25.25s:%7.1f MB/s (%7u) \n", benchNb, benchName, (double)srcSize * TIMELOOP_NANOSEC / result.nanoSecPerRun / MB_UNIT, (unsigned)result.sumOfReturn );
     }   }
 
 _cleanOut:
@@ -547,7 +548,7 @@ static int benchSample(U32 benchNb,
                        int cLevel, ZSTD_compressionParameters cparams)
 {
     size_t const benchedSize = g_sampleSize;
-    const char* name = "Sample 10MiB";
+    const char* const name = "Sample 10MiB";
 
     /* Allocation */
     void* const origBuff = malloc(benchedSize);
@@ -631,6 +632,50 @@ static int benchFiles(U32 benchNb,
 }
 
 
+
+/*_*******************************************************
+*  Argument Parsing
+*********************************************************/
+
+#define ERROR_OUT(msg) { DISPLAY("%s \n", msg); exit(1); }
+
+ static unsigned readU32FromChar(const char** stringPtr)
+{
+    const char errorMsg[] = "error: numeric value too large";
+    unsigned result = 0;
+    while ((**stringPtr >='0') && (**stringPtr <='9')) {
+        unsigned const max = (((unsigned)(-1)) / 10) - 1;
+        if (result > max) ERROR_OUT(errorMsg);
+        result *= 10, result += **stringPtr - '0', (*stringPtr)++ ;
+    }
+    if ((**stringPtr=='K') || (**stringPtr=='M')) {
+        unsigned const maxK = ((unsigned)(-1)) >> 10;
+        if (result > maxK) ERROR_OUT(errorMsg);
+        result <<= 10;
+        if (**stringPtr=='M') {
+            if (result > maxK) ERROR_OUT(errorMsg);
+            result <<= 10;
+        }
+        (*stringPtr)++;  /* skip `K` or `M` */
+        if (**stringPtr=='i') (*stringPtr)++;
+        if (**stringPtr=='B') (*stringPtr)++;
+    }
+    return result;
+}
+
+static unsigned longCommandWArg(const char** stringPtr, const char* longCommand)
+{
+    size_t const comSize = strlen(longCommand);
+    int const result = !strncmp(*stringPtr, longCommand, comSize);
+    if (result) *stringPtr += comSize;
+    return result;
+}
+
+
+/*_*******************************************************
+*  Command line
+*********************************************************/
+
 static int usage(const char* exename)
 {
     DISPLAY( "Usage :\n");
@@ -662,7 +707,7 @@ static int badusage(const char* exename)
 int main(int argc, const char** argv)
 {
     int argNb, filenamesStart=0, result;
-    const char* exename = argv[0];
+    const char* const exename = argv[0];
     const char* input_filename = NULL;
     U32 benchNb = 0, main_pause = 0;
     int cLevel = DEFAULT_CLEVEL;
@@ -671,7 +716,7 @@ int main(int argc, const char** argv)
     DISPLAY(WELCOME_MESSAGE);
     if (argc<1) return badusage(exename);
 
-    for(argNb=1; argNb<argc; argNb++) {
+    for (argNb=1; argNb<argc; argNb++) {
         const char* argument = argv[argNb];
         assert(argument != NULL);
 

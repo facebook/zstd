@@ -507,7 +507,7 @@ BMK_benchResult_t BMK_extract_benchResult(BMK_benchOutcome_t outcome)
     return outcome.internal_never_use_directly;
 }
 
-static BMK_benchOutcome_t BMK_benchOutcome_error()
+static BMK_benchOutcome_t BMK_benchOutcome_error(void)
 {
     BMK_benchOutcome_t b;
     memset(&b, 0, sizeof(b));
@@ -765,7 +765,7 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
 BMK_benchOutcome_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
                         void* dstBuffer, size_t dstCapacity,
                         const size_t* fileSizes, unsigned nbFiles,
-                        const int cLevel, const ZSTD_compressionParameters* comprParams,
+                        int cLevel, const ZSTD_compressionParameters* comprParams,
                         const void* dictBuffer, size_t dictBufferSize,
                         int displayLevel, const char* displayName, const BMK_advancedParams_t* adv)
 

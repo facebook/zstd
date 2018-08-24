@@ -144,7 +144,7 @@ BMK_benchOutcome_t BMK_benchFilesAdvanced(
 BMK_benchOutcome_t BMK_syntheticTest(
                               int cLevel, double compressibility,
                               const ZSTD_compressionParameters* compressionParams,
-                              int displayLevel, const BMK_advancedParams_t * const adv);
+                              int displayLevel, const BMK_advancedParams_t* adv);
 
 
 

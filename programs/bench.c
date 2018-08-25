@@ -278,14 +278,14 @@ static size_t local_defaultDecompress(
 
 int BMK_isSuccessful_runOutcome(BMK_runOutcome_t outcome)
 {
-    return outcome.tag == 0;
+    return outcome.tag < 2;
 }
 
 /* warning : this function will stop program execution if outcome is invalid !
  *           check outcome validity first, using BMK_isValid_runResult() */
 BMK_runTime_t BMK_extract_runTime(BMK_runOutcome_t outcome)
 {
-    assert(outcome.tag == 0);
+    assert(outcome.tag < 2);
     return outcome.internal_never_use_directly;
 }
 
@@ -317,7 +317,7 @@ BMK_runOutcome_t BMK_benchFunction(
     size_t dstSize = 0;
 
     if(!nbLoops) {
-        RETURN_QUIET_ERROR(1, BMK_runOutcome_t, "nbLoops must be nonzero ");
+        RETURN_QUIET_ERROR(2, BMK_runOutcome_t, "nbLoops must be nonzero ");
     }
 
     /* init */
@@ -393,24 +393,9 @@ void BMK_freeTimedFnState(BMK_timedFnState_t* state) {
 }
 
 
-/* check first if the return structure represents an error or a valid result */
-int BMK_isSuccessful_timedFnOutcome(BMK_timedFnOutcome_t outcome)
-{
-    return (outcome.tag < 2);
-}
-
-/* extract intermediate results from variant type.
- * note : this function will abort() program execution if result is not valid.
- *        check result validity first, by using BMK_isSuccessful_timedFnOutcome() */
-BMK_runTime_t BMK_extract_timedFnResult(BMK_timedFnOutcome_t outcome)
-{
-    assert(outcome.tag < 2);
-    return outcome.internal_never_use_directly;
-}
-
 /* Tells if nb of seconds set in timedFnState for all runs is spent.
  * note : this function will return 1 if BMK_benchFunctionTimed() has actually errored. */
-int BMK_isCompleted_timedFnOutcome(BMK_timedFnOutcome_t outcome)
+int BMK_isCompleted_runOutcome(BMK_runOutcome_t outcome)
 {
     return (outcome.tag >= 1);
 }
@@ -418,7 +403,7 @@ int BMK_isCompleted_timedFnOutcome(BMK_timedFnOutcome_t outcome)
 
 #define MINUSABLETIME  (TIMELOOP_NANOSEC / 2)  /* 0.5 seconds */
 
-BMK_timedFnOutcome_t BMK_benchFunctionTimed(
+BMK_runOutcome_t BMK_benchFunctionTimed(
             BMK_timedFnState_t* cont,
             BMK_benchFn_t benchFn, void* benchPayload,
             BMK_initFn_t initFn, void* initPayload,
@@ -428,7 +413,7 @@ BMK_timedFnOutcome_t BMK_benchFunctionTimed(
             size_t* blockResults)
 {
     int completed = 0;
-    BMK_timedFnOutcome_t r;
+    BMK_runOutcome_t r;
     BMK_runTime_t bestRunTime = cont->fastestRun;
 
     r.tag = 2;  /* error by default */
@@ -638,7 +623,7 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
         while (!(compressionCompleted && decompressionCompleted)) {
 
             if (!compressionCompleted) {
-                BMK_timedFnOutcome_t const cOutcome =
+                BMK_runOutcome_t const cOutcome =
                         BMK_benchFunctionTimed( timeStateCompress,
                                                 &local_defaultCompress, cctx,
                                                 &local_initCCtx, &cctxprep,
@@ -647,11 +632,11 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
                                                 cPtrs, cCapacities,
                                                 cSizes);
 
-                if (!BMK_isSuccessful_timedFnOutcome(cOutcome)) {
+                if (!BMK_isSuccessful_runOutcome(cOutcome)) {
                     return BMK_benchOutcome_error();
                 }
 
-                {   BMK_runTime_t const cResult = BMK_extract_timedFnResult(cOutcome);
+                {   BMK_runTime_t const cResult = BMK_extract_runTime(cOutcome);
                     cSize = cResult.sumOfReturn;
                     ratio = (double)srcSize / cSize;
                     {   BMK_benchResult_t newResult;
@@ -669,11 +654,11 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
                             ratioAccuracy, ratio,
                             benchResult.cSpeed < (10 MB) ? 2 : 1, (double)benchResult.cSpeed / MB_UNIT);
                 }
-                compressionCompleted = BMK_isCompleted_timedFnOutcome(cOutcome);
+                compressionCompleted = BMK_isCompleted_runOutcome(cOutcome);
             }
 
             if(!decompressionCompleted) {
-                BMK_timedFnOutcome_t const dOutcome =
+                BMK_runOutcome_t const dOutcome =
                         BMK_benchFunctionTimed(timeStateDecompress,
                                             &local_defaultDecompress, dctx,
                                             &local_initDCtx, &dctxprep,
@@ -682,11 +667,11 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
                                             resPtrs, resSizes,
                                             NULL);
 
-                if(!BMK_isSuccessful_timedFnOutcome(dOutcome)) {
+                if(!BMK_isSuccessful_runOutcome(dOutcome)) {
                     return BMK_benchOutcome_error();
                 }
 
-                {   BMK_runTime_t const dResult = BMK_extract_timedFnResult(dOutcome);
+                {   BMK_runTime_t const dResult = BMK_extract_runTime(dOutcome);
                     U64 const newDSpeed = (srcSize * TIMELOOP_NANOSEC / dResult.nanoSecPerRun);
                     if (newDSpeed > benchResult.dSpeed)
                         benchResult.dSpeed = newDSpeed;
@@ -701,7 +686,7 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
                             benchResult.cSpeed < (10 MB) ? 2 : 1, (double)benchResult.cSpeed / MB_UNIT,
                             (double)benchResult.dSpeed / MB_UNIT);
                 }
-                decompressionCompleted = BMK_isCompleted_timedFnOutcome(dOutcome);
+                decompressionCompleted = BMK_isCompleted_runOutcome(dOutcome);
             }
         }   /* while (!(compressionCompleted && decompressionCompleted)) */
 

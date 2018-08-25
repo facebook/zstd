@@ -984,7 +984,7 @@ BMK_benchOutcome_t BMK_benchFilesAdvanced(
     void* dictBuffer = NULL;
     size_t dictBufferSize = 0;
     size_t* fileSizes = NULL;
-    BMK_benchOutcome_t res = BMK_benchOutcome_error();  /* error by default */
+    BMK_benchOutcome_t res;
     U64 const totalSizeToLoad = UTIL_getTotalFileSize(fileNamesTable, nbFiles);
 
     if (!nbFiles) {

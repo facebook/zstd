@@ -338,9 +338,9 @@ static size_t benchMem(U32 benchNb,
                        const void* src, size_t srcSize,
                        int cLevel, ZSTD_compressionParameters cparams)
 {
-    BYTE*  dstBuff;
     size_t dstBuffSize = ZSTD_compressBound(srcSize);
-    void*  buff1;
+    BYTE*  dstBuff;
+    void*  dstBuff2;
     void*  buff2;
     const char* benchName;
     BMK_benchFn_t benchFunction;
@@ -396,13 +396,13 @@ static size_t benchMem(U32 benchNb,
 
     /* Allocation */
     dstBuff = (BYTE*)malloc(dstBuffSize);
-    buff2 = malloc(dstBuffSize);
-    if ((!dstBuff) || (!buff2)) {
+    dstBuff2 = malloc(dstBuffSize);
+    if ((!dstBuff) || (!dstBuff2)) {
         DISPLAY("\nError: not enough memory!\n");
-        free(dstBuff); free(buff2);
+        free(dstBuff); free(dstBuff2);
         return 12;
     }
-    buff1 = buff2;
+    buff2 = dstBuff2;
     if (g_zcc==NULL) g_zcc = ZSTD_createCCtx();
     if (g_zdc==NULL) g_zdc = ZSTD_createDCtx();
     if (g_cstream==NULL) g_cstream = ZSTD_createCStream();
@@ -545,12 +545,14 @@ static size_t benchMem(U32 benchNb,
             }
 
             if ( BMK_isCompleted_runOutcome(bOutcome) ) break;
-    }   }
+        }
+        BMK_freeTimedFnState(tfs);
+    }
     DISPLAY("\n");
 
 _cleanOut:
-    free(buff1);
     free(dstBuff);
+    free(dstBuff2);
     ZSTD_freeCCtx(g_zcc); g_zcc=NULL;
     ZSTD_freeDCtx(g_zdc); g_zdc=NULL;
     ZSTD_freeCStream(g_cstream); g_cstream=NULL;
@@ -654,7 +656,7 @@ static int benchFiles(U32 benchNb,
 
 #define ERROR_OUT(msg) { DISPLAY("%s \n", msg); exit(1); }
 
- static unsigned readU32FromChar(const char** stringPtr)
+static unsigned readU32FromChar(const char** stringPtr)
 {
     const char errorMsg[] = "error: numeric value too large";
     unsigned result = 0;

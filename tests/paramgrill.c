@@ -1451,6 +1451,7 @@ BMK_benchMemInvertible( buffers_t buf, contexts_t ctx,
 
             if (!BMK_isSuccessful_runOutcome(cOutcome)) {
                 BMK_benchOutcome_t bOut;
+                memset(&bOut, 0, sizeof(bOut));
                 bOut.tag = 1;   /* should rather be a function or a constant */
                 BMK_freeTimedFnState(timeStateCompress);
                 BMK_freeTimedFnState(timeStateDecompress);
@@ -1474,6 +1475,7 @@ BMK_benchMemInvertible( buffers_t buf, contexts_t ctx,
 
             if (!BMK_isSuccessful_runOutcome(dOutcome)) {
                 BMK_benchOutcome_t bOut;
+                memset(&bOut, 0, sizeof(bOut));
                 bOut.tag = 1;   /* should rather be a function or a constant */
                 BMK_freeTimedFnState(timeStateCompress);
                 BMK_freeTimedFnState(timeStateDecompress);
@@ -1506,8 +1508,10 @@ static int BMK_benchParam ( BMK_benchResult_t* resultPtr,
     BMK_benchOutcome_t const outcome = BMK_benchMemInvertible(buf, ctx,
                                                         BASE_CLEVEL, &cParams,
                                                         BMK_both, 3);
-    *resultPtr = BMK_extract_benchResult(outcome);  /* note : will abort() if there is an error in BMK_benchMemInvertible() */
-    return !BMK_isSuccessful_benchOutcome(outcome);
+    int const success = BMK_isSuccessful_benchOutcome(outcome);
+    if (!success) return 1;
+    *resultPtr = BMK_extract_benchResult(outcome);
+    return 0;
 }
 
 

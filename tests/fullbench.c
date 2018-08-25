@@ -520,7 +520,7 @@ static size_t benchMem(U32 benchNb,
         bestResult.nanoSecPerRun = (unsigned long long)(-1LL);
         for (;;) {
             void* const dstBuffv = dstBuff;
-            BMK_timedFnOutcome_t const bOutcome =
+            BMK_runOutcome_t const bOutcome =
                     BMK_benchFunctionTimed( tfs,
                             benchFunction, buff2,
                             NULL, NULL,   /* initFn */
@@ -529,13 +529,13 @@ static size_t benchMem(U32 benchNb,
                             &dstBuffv, &dstBuffSize,
                             NULL);
 
-            if (!BMK_isSuccessful_timedFnOutcome(bOutcome)) {
+            if (!BMK_isSuccessful_runOutcome(bOutcome)) {
                 DISPLAY("ERROR benchmarking function ! ! \n");
                 errorcode = 1;
                 goto _cleanOut;
             }
 
-            {   BMK_runTime_t const newResult = BMK_extract_timedFnResult(bOutcome);
+            {   BMK_runTime_t const newResult = BMK_extract_runTime(bOutcome);
                 if (newResult.nanoSecPerRun < bestResult.nanoSecPerRun )
                     bestResult.nanoSecPerRun = newResult.nanoSecPerRun;
                 DISPLAY("\r%2u#%-29.29s:%8.1f MB/s  (%8u) ",
@@ -544,7 +544,7 @@ static size_t benchMem(U32 benchNb,
                         (unsigned)newResult.sumOfReturn );
             }
 
-            if ( BMK_isCompleted_timedFnOutcome(bOutcome) ) break;
+            if ( BMK_isCompleted_runOutcome(bOutcome) ) break;
     }   }
     DISPLAY("\n");
 

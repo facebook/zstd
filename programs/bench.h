@@ -216,6 +216,7 @@ int BMK_isSuccessful_runOutcome(BMK_runOutcome_t outcome);
 BMK_runTime_t BMK_extract_runTime(BMK_runOutcome_t outcome);
 
 
+
 typedef size_t (*BMK_benchFn_t)(const void* src, size_t srcSize, void* dst, size_t dstCapacity, void* customPayload);
 typedef size_t (*BMK_initFn_t)(void* initPayload);
 
@@ -263,21 +264,6 @@ BMK_timedFnState_t* BMK_createTimedFnState(unsigned nbSeconds);
 void BMK_resetTimedFnState(BMK_timedFnState_t* timedFnState, unsigned nbSeconds);
 void BMK_freeTimedFnState(BMK_timedFnState_t* state);
 
-/* define timedFnOutcome */
-VARIANT_ERROR_RESULT(BMK_runTime_t, BMK_timedFnOutcome_t);
-
-/* check first if the return structure represents an error or a valid result */
-int BMK_isSuccessful_timedFnOutcome(BMK_timedFnOutcome_t outcome);
-
-/* extract intermediate results from variant type.
- * note : this function will abort() program execution if result is not valid.
- *        check result validity first, by using BMK_isSuccessful_timedFnOutcome() */
-BMK_runTime_t BMK_extract_timedFnResult(BMK_timedFnOutcome_t outcome);
-
-/* Tells if nb of seconds set in timedFnState for all runs is spent.
- * note : this function will return 1 if BMK_benchFunctionTimed() has actually errored. */
-int BMK_isCompleted_timedFnOutcome(BMK_timedFnOutcome_t outcome);
-
 
 /* BMK_benchFunctionTimed() :
  * Similar to BMK_benchFunction(),
@@ -286,16 +272,23 @@ int BMK_isCompleted_timedFnOutcome(BMK_timedFnOutcome_t outcome);
  * Most arguments are the same as BMK_benchFunction()
  * Usage - initialize a timedFnState, selecting a total nbSeconds allocated for _all_ benchmarks run
  *         call BMK_benchFunctionTimed() repetitively, collecting intermediate results (each run is supposed to last about 1 seconds)
- *         Check if time budget is spent using BMK_isCompleted_timedFnOutcome()
+ *         Check if time budget is spent using BMK_isCompleted_runOutcome()
  */
-BMK_timedFnOutcome_t BMK_benchFunctionTimed(
-            BMK_timedFnState_t* timedFnState,
-            BMK_benchFn_t benchFn, void* benchPayload,
-            BMK_initFn_t initFn, void* initPayload,
-            size_t blockCount,
-            const void *const * srcBlockBuffers, const size_t* srcBlockSizes,
-            void *const * dstBlockBuffers, const size_t* dstBlockCapacities,
-            size_t* blockResults);
+BMK_runOutcome_t BMK_benchFunctionTimed(
+                    BMK_timedFnState_t* timedFnState,
+                    BMK_benchFn_t benchFn, void* benchPayload,
+                    BMK_initFn_t initFn, void* initPayload,
+                    size_t blockCount,
+                    const void *const * srcBlockBuffers, const size_t* srcBlockSizes,
+                    void *const * dstBlockBuffers, const size_t* dstBlockCapacities,
+                    size_t* blockResults);
+
+
+/* Tells if total nb of benchmark runs has exceeded amount of time set in timedFnState
+ */
+int BMK_isCompleted_runOutcome(BMK_runOutcome_t outcome);
+
+
 
 #endif   /* BENCH_H_121279284357 */
 

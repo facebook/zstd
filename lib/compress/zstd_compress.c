@@ -2248,13 +2248,6 @@ MEM_STATIC size_t ZSTD_compressSequences(seqStore_t* seqStorePtr,
         if (cSize >= maxCSize) return 0;  /* block not compressed */
     }
 
-    /* We check that dictionaries have offset codes available for the first
-     * block. After the first block, the offcode table might not have large
-     * enough codes to represent the offsets in the data.
-     */
-    if (nextEntropy->fse.offcode_repeatMode == FSE_repeat_valid)
-        nextEntropy->fse.offcode_repeatMode = FSE_repeat_check;
-
     return cSize;
 }
 
@@ -2393,12 +2386,20 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
                                 &zc->appliedParams,
                                 dst, dstCapacity,
                                 srcSize, zc->entropyWorkspace, zc->bmi2);
-        if (ZSTD_isError(cSize) || cSize == 0) return cSize;
-        /* confirm repcodes and entropy tables */
-        {   ZSTD_compressedBlockState_t* const tmp = zc->blockState.prevCBlock;
+        if (!ZSTD_isError(cSize) && cSize != 0) {
+            /* confirm repcodes and entropy tables */
+            ZSTD_compressedBlockState_t* const tmp = zc->blockState.prevCBlock;
             zc->blockState.prevCBlock = zc->blockState.nextCBlock;
             zc->blockState.nextCBlock = tmp;
         }
+
+        /* We check that dictionaries have offset codes available for the first
+         * block. After the first block, the offcode table might not have large
+         * enough codes to represent the offsets in the data.
+         */
+        if (zc->blockState.prevCBlock->entropy.fse.offcode_repeatMode == FSE_repeat_valid)
+            zc->blockState.prevCBlock->entropy.fse.offcode_repeatMode = FSE_repeat_check;
+
         return cSize;
     }
 }

@@ -1020,6 +1020,59 @@ static int basicUnitTests(U32 seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : dictionary + uncompressible block + reusing tables checks offset table validity: ", testNb++);
+    {   ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(
+            dictionary.start, dictionary.filled,
+            ZSTD_dlm_byRef, ZSTD_dct_fullDict,
+            ZSTD_getCParams(3, 0, dictionary.filled),
+            ZSTD_defaultCMem);
+        const size_t inbufsize = 2 * 128 * 1024; /* 2 blocks */
+        const size_t outbufsize = ZSTD_compressBound(inbufsize);
+        size_t inbufpos = 0;
+        size_t cursegmentlen;
+        BYTE *inbuf = (BYTE *)malloc(inbufsize);
+        BYTE *outbuf = (BYTE *)malloc(outbufsize);
+        BYTE *checkbuf = (BYTE *)malloc(inbufsize);
+        size_t ret;
+
+        CHECK(cdict == NULL, "failed to alloc cdict");
+        CHECK(inbuf == NULL, "failed to alloc input buffer");
+        
+        /* first block is uncompressible */
+        cursegmentlen = 128 * 1024;
+        RDG_genBuffer(inbuf + inbufpos, cursegmentlen, 0., 0., seed);
+        inbufpos += cursegmentlen;
+
+        /* second block is compressible */
+        cursegmentlen = 128 * 1024 - 256;
+        RDG_genBuffer(inbuf + inbufpos, cursegmentlen, 0.05, 0., seed);
+        inbufpos += cursegmentlen;
+
+        /* and includes a very long backref */
+        cursegmentlen = 128;
+        memcpy(inbuf + inbufpos, dictionary.start + 256, cursegmentlen);
+        inbufpos += cursegmentlen;
+
+        /* and includes a very long backref */
+        cursegmentlen = 128;
+        memcpy(inbuf + inbufpos, dictionary.start + 128, cursegmentlen);
+        inbufpos += cursegmentlen;
+
+        ret = ZSTD_compress_usingCDict(zc, outbuf, outbufsize, inbuf, inbufpos, cdict);
+        CHECK_Z(ret);
+
+        ret = ZSTD_decompress_usingDict(zd, checkbuf, inbufsize, outbuf, ret, dictionary.start, dictionary.filled);
+        CHECK_Z(ret);
+
+        CHECK(memcmp(inbuf, checkbuf, inbufpos), "start and finish buffers don't match");
+
+        ZSTD_freeCDict(cdict);
+        free(inbuf);
+        free(outbuf);
+        free(checkbuf);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
 _end:
     FUZ_freeDictionary(dictionary);
     ZSTD_freeCStream(zc);

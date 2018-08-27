@@ -1320,7 +1320,7 @@ static const size_t attachDictSizeCutoffs[(unsigned)ZSTD_btultra+1] = {
     8 KB /* ZSTD_btultra */
 };
 
-static const ZSTD_strategy splitLogCutoffStrategy = ZSTD_btlazy2;
+static const ZSTD_strategy splitLogCutoffStrategy = ZSTD_btultra;
 
 static int ZSTD_shouldAttachDict(ZSTD_CCtx* cctx,
                             const ZSTD_CDict* cdict,

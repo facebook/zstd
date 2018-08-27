@@ -1441,7 +1441,7 @@ BMK_benchMemInvertible( buffers_t buf, contexts_t ctx,
         dctxprep.dictBufferSize = dictBufferSize;
 
         while(!compressionCompleted) {
-            BMK_runOutcome_t const cOutcome = BMK_benchFunctionTimed(timeStateCompress,
+            BMK_runOutcome_t const cOutcome = BMK_benchTimedFn(timeStateCompress,
                                             &local_defaultCompress, cctx,
                                             &local_initCCtx, &cctxprep,
                                             nbBlocks,
@@ -1461,11 +1461,11 @@ BMK_benchMemInvertible( buffers_t buf, contexts_t ctx,
                 bResult.cSpeed = (srcSize * TIMELOOP_NANOSEC) / rResult.nanoSecPerRun;
                 bResult.cSize = rResult.sumOfReturn;
             }
-            compressionCompleted = BMK_isCompleted_runOutcome(cOutcome);
+            compressionCompleted = BMK_isCompleted_TimedFn(timeStateCompress);
         }
 
         while (!decompressionCompleted) {
-            BMK_runOutcome_t const dOutcome = BMK_benchFunctionTimed(timeStateDecompress,
+            BMK_runOutcome_t const dOutcome = BMK_benchTimedFn(timeStateDecompress,
                                         &local_defaultDecompress, dctx,
                                         &local_initDCtx, &dctxprep,
                                         nbBlocks,
@@ -1484,7 +1484,7 @@ BMK_benchMemInvertible( buffers_t buf, contexts_t ctx,
             {   BMK_runTime_t const rResult = BMK_extract_runTime(dOutcome);
                 bResult.dSpeed = (srcSize * TIMELOOP_NANOSEC) / rResult.nanoSecPerRun;
             }
-            decompressionCompleted = BMK_isCompleted_runOutcome(dOutcome);
+            decompressionCompleted = BMK_isCompleted_TimedFn(timeStateDecompress);
         }
 
         BMK_freeTimedFnState(timeStateCompress);

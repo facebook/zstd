@@ -278,15 +278,23 @@ static size_t local_defaultDecompress(
 
 int BMK_isSuccessful_runOutcome(BMK_runOutcome_t outcome)
 {
-    return outcome.tag < 2;
+    return outcome.tag == 0;
 }
 
 /* warning : this function will stop program execution if outcome is invalid !
  *           check outcome validity first, using BMK_isValid_runResult() */
 BMK_runTime_t BMK_extract_runTime(BMK_runOutcome_t outcome)
 {
-    assert(outcome.tag < 2);
+    assert(outcome.tag == 0);
     return outcome.internal_never_use_directly;
+}
+
+static BMK_runOutcome_t BMK_runOutcome_error(void)
+{
+    BMK_runOutcome_t b;
+    memset(&b, 0, sizeof(b));
+    b.tag = 1;
+    return b;
 }
 
 static BMK_runOutcome_t BMK_setValid_runTime(BMK_runTime_t runTime)
@@ -382,6 +390,7 @@ BMK_timedFnState_t* BMK_createTimedFnState(unsigned nbSeconds) {
 void BMK_resetTimedFnState(BMK_timedFnState_t* r, unsigned nbSeconds) {
     r->timeSpent_ns = 0;
     r->timeBudget_ns = (U64)nbSeconds * TIMELOOP_NANOSEC;
+    if (!nbSeconds) r->timeBudget_ns = 1;
     r->fastestRun.nanoSecPerRun = (U64)(-1LL);
     r->fastestRun.sumOfReturn = (size_t)(-1LL);
     r->nbLoops = 1;
@@ -395,15 +404,15 @@ void BMK_freeTimedFnState(BMK_timedFnState_t* state) {
 
 /* Tells if nb of seconds set in timedFnState for all runs is spent.
  * note : this function will return 1 if BMK_benchFunctionTimed() has actually errored. */
-int BMK_isCompleted_runOutcome(BMK_runOutcome_t outcome)
+int BMK_isCompleted_TimedFn(const BMK_timedFnState_t* timedFnState)
 {
-    return (outcome.tag >= 1);
+    return (timedFnState->timeSpent_ns >= timedFnState->timeBudget_ns);
 }
 
 
 #define MINUSABLETIME  (TIMELOOP_NANOSEC / 2)  /* 0.5 seconds */
 
-BMK_runOutcome_t BMK_benchFunctionTimed(
+BMK_runOutcome_t BMK_benchTimedFn(
             BMK_timedFnState_t* cont,
             BMK_benchFn_t benchFn, void* benchPayload,
             BMK_initFn_t initFn, void* initPayload,
@@ -413,10 +422,7 @@ BMK_runOutcome_t BMK_benchFunctionTimed(
             size_t* blockResults)
 {
     int completed = 0;
-    BMK_runOutcome_t r;
     BMK_runTime_t bestRunTime = cont->fastestRun;
-
-    r.tag = 2;  /* error by default */
 
     while (!completed) {
         BMK_runOutcome_t runResult;
@@ -438,8 +444,7 @@ BMK_runOutcome_t BMK_benchFunctionTimed(
                                     cont->nbLoops);
 
         if(!BMK_isSuccessful_runOutcome(runResult)) { /* error : move out */
-            r.tag = 2;
-            return r;
+            return BMK_runOutcome_error();
         }
 
         {   BMK_runTime_t const newRunTime = BMK_extract_runTime(runResult);
@@ -471,9 +476,7 @@ BMK_runOutcome_t BMK_benchFunctionTimed(
         }
     }   /* while (!completed) */
 
-    r.tag = (cont->timeSpent_ns >= cont->timeBudget_ns);  /* report if time budget is spent */
-    r.internal_never_use_directly = bestRunTime;
-    return r;
+    return BMK_setValid_runTime(bestRunTime);
 }
 
 
@@ -624,13 +627,13 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
 
             if (!compressionCompleted) {
                 BMK_runOutcome_t const cOutcome =
-                        BMK_benchFunctionTimed( timeStateCompress,
-                                                &local_defaultCompress, cctx,
-                                                &local_initCCtx, &cctxprep,
-                                                nbBlocks,
-                                                srcPtrs, srcSizes,
-                                                cPtrs, cCapacities,
-                                                cSizes);
+                        BMK_benchTimedFn( timeStateCompress,
+                                        &local_defaultCompress, cctx,
+                                        &local_initCCtx, &cctxprep,
+                                        nbBlocks,
+                                        srcPtrs, srcSizes,
+                                        cPtrs, cCapacities,
+                                        cSizes);
 
                 if (!BMK_isSuccessful_runOutcome(cOutcome)) {
                     return BMK_benchOutcome_error();
@@ -654,18 +657,18 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
                             ratioAccuracy, ratio,
                             benchResult.cSpeed < (10 MB) ? 2 : 1, (double)benchResult.cSpeed / MB_UNIT);
                 }
-                compressionCompleted = BMK_isCompleted_runOutcome(cOutcome);
+                compressionCompleted = BMK_isCompleted_TimedFn(timeStateCompress);
             }
 
             if(!decompressionCompleted) {
                 BMK_runOutcome_t const dOutcome =
-                        BMK_benchFunctionTimed(timeStateDecompress,
-                                            &local_defaultDecompress, dctx,
-                                            &local_initDCtx, &dctxprep,
-                                            nbBlocks,
-                                            (const void *const *)cPtrs, cSizes,
-                                            resPtrs, resSizes,
-                                            NULL);
+                        BMK_benchTimedFn(timeStateDecompress,
+                                        &local_defaultDecompress, dctx,
+                                        &local_initDCtx, &dctxprep,
+                                        nbBlocks,
+                                        (const void *const *)cPtrs, cSizes,
+                                        resPtrs, resSizes,
+                                        NULL);
 
                 if(!BMK_isSuccessful_runOutcome(dOutcome)) {
                     return BMK_benchOutcome_error();
@@ -686,7 +689,7 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
                             benchResult.cSpeed < (10 MB) ? 2 : 1, (double)benchResult.cSpeed / MB_UNIT,
                             (double)benchResult.dSpeed / MB_UNIT);
                 }
-                decompressionCompleted = BMK_isCompleted_runOutcome(dOutcome);
+                decompressionCompleted = BMK_isCompleted_TimedFn(timeStateDecompress);
             }
         }   /* while (!(compressionCompleted && decompressionCompleted)) */
 

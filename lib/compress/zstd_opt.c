@@ -526,12 +526,17 @@ U32 ZSTD_insertBtAndGetAllMatches (
     U32 nbCompares = 1U << cParams->searchLog;
 
     const ZSTD_matchState_t* dms    = dictMode == ZSTD_dictMatchState ? ms->dictMatchState : NULL;
+    const ZSTD_compressionParameters* const dmsCParams =
+                                      dictMode == ZSTD_dictMatchState ? &dms->cParams : NULL;
     const BYTE* const dmsBase       = dictMode == ZSTD_dictMatchState ? dms->window.base : NULL;
     const BYTE* const dmsEnd        = dictMode == ZSTD_dictMatchState ? dms->window.nextSrc : NULL;
     U32         const dmsHighLimit  = dictMode == ZSTD_dictMatchState ? (U32)(dmsEnd - dmsBase) : 0;
     U32         const dmsLowLimit   = dictMode == ZSTD_dictMatchState ? dms->window.lowLimit : 0;
     U32         const dmsIndexDelta = dictMode == ZSTD_dictMatchState ? windowLow - dmsHighLimit : 0;
-    U32         const dmsBtLow      = dictMode == ZSTD_dictMatchState && btMask < dmsHighLimit - dmsLowLimit ? dmsHighLimit - btMask : dmsLowLimit;
+    U32         const dmsHashLog    = dictMode == ZSTD_dictMatchState ? dmsCParams->hashLog : 0;
+    U32         const dmsBtLog      = dictMode == ZSTD_dictMatchState ? dmsCParams->chainLog - 1 : 0;
+    U32         const dmsBtMask     = dictMode == ZSTD_dictMatchState ? (1U << dmsBtLog) - 1 : 0;
+    U32         const dmsBtLow      = dictMode == ZSTD_dictMatchState && dmsBtMask < dmsHighLimit - dmsLowLimit ? dmsHighLimit - dmsBtMask : dmsLowLimit;
 
     size_t bestLength = lengthToBeat-1;
     DEBUGLOG(8, "ZSTD_insertBtAndGetAllMatches: current=%u", current);
@@ -666,11 +671,12 @@ U32 ZSTD_insertBtAndGetAllMatches (
     *smallerPtr = *largerPtr = 0;
 
     if (dictMode == ZSTD_dictMatchState && nbCompares) {
-        U32 dictMatchIndex = dms->hashTable[h];
+        size_t const dmsH = ZSTD_hashPtr(ip, dmsHashLog, mls);
+        U32 dictMatchIndex = dms->hashTable[dmsH];
         const U32* const dmsBt = dms->chainTable;
         commonLengthSmaller = commonLengthLarger = 0;
         while (nbCompares-- && (dictMatchIndex > dmsLowLimit)) {
-            const U32* const nextPtr = dmsBt + 2*(dictMatchIndex & btMask);
+            const U32* const nextPtr = dmsBt + 2*(dictMatchIndex & dmsBtMask);
             size_t matchLength = MIN(commonLengthSmaller, commonLengthLarger);   /* guaranteed minimum nb of common bytes */
             const BYTE* match = dmsBase + dictMatchIndex;
             matchLength += ZSTD_count_2segments(ip+matchLength, match+matchLength, iLimit, dmsEnd, prefixStart);

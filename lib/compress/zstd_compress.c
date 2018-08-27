@@ -1330,8 +1330,10 @@ static int ZSTD_shouldAttachDict(ZSTD_CCtx* cctx,
         && params.attachDictPref != ZSTD_dictForceCopy
         && !params.forceWindow /* dictMatchState isn't correctly
                                 * handled in _enforceMaxDist */
-        && ZSTD_equivalentCParams(cctx->appliedParams.cParams,
-                                  cdict->matchState.cParams);
+        && ( (cdict->matchState.cParams.strategy <= ZSTD_fast)
+          || (cdict->matchState.cParams.strategy > ZSTD_fast &&
+              ZSTD_equivalentCParams(cctx->appliedParams.cParams,
+                                     cdict->matchState.cParams)));
 }
 
 static size_t ZSTD_resetCCtx_byAttachingCDict(ZSTD_CCtx* cctx,

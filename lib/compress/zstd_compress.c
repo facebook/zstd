@@ -1351,11 +1351,21 @@ static size_t ZSTD_resetCCtx_byAttachingCDict(ZSTD_CCtx* cctx,
         /* Copy only compression parameters related to tables. */
         params.cParams = *cdict_cParams;
         params.cParams.windowLog = windowLog;
+        if (params.cParams.strategy <= ZSTD_fast) {
+            DEBUGLOG(4, "Overriding hashLog from %d to %d", params.cParams.hashLog, cctx->requestedParams.cParams.hashLog);
+            DEBUGLOG(4, "Overriding chainLog from %d to %d", params.cParams.chainLog, cctx->requestedParams.cParams.chainLog);
+            if (cctx->requestedParams.cParams.hashLog)
+                params.cParams.hashLog = cctx->requestedParams.cParams.hashLog;
+            if (cctx->requestedParams.cParams.chainLog)
+                params.cParams.chainLog = cctx->requestedParams.cParams.chainLog;
+        }
         ZSTD_resetCCtx_internal(cctx, params, pledgedSrcSize,
                                 ZSTDcrp_continue, zbuff);
         assert(cctx->appliedParams.cParams.strategy == cdict_cParams->strategy);
-        assert(cctx->appliedParams.cParams.hashLog == cdict_cParams->hashLog);
-        assert(cctx->appliedParams.cParams.chainLog == cdict_cParams->chainLog);
+        if (params.cParams.strategy > ZSTD_fast) {
+            assert(cctx->appliedParams.cParams.hashLog == cdict_cParams->hashLog);
+            assert(cctx->appliedParams.cParams.chainLog == cdict_cParams->chainLog);
+        }
     }
 
     {

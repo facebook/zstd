@@ -150,10 +150,10 @@ static size_t ZSTD_DUBT_findBetterDictMatch (
         U32 nbCompares,
         U32 const mls,
         const ZSTD_dictMode_e dictMode) {
-    const ZSTD_compressionParameters* const cParams = &ms->cParams;
     const ZSTD_matchState_t * const dms = ms->dictMatchState;
+    const ZSTD_compressionParameters* const dmsCParams = &dms->cParams;
     const U32 * const dictHashTable = dms->hashTable;
-    U32         const hashLog = cParams->hashLog;
+    U32         const hashLog = dmsCParams->hashLog;
     size_t      const h  = ZSTD_hashPtr(ip, hashLog, mls);
     U32               dictMatchIndex = dictHashTable[h];
 
@@ -167,7 +167,7 @@ static size_t ZSTD_DUBT_findBetterDictMatch (
     U32         const dictIndexDelta = ms->window.lowLimit - dictHighLimit;
 
     U32*        const dictBt = dms->chainTable;
-    U32         const btLog  = cParams->chainLog - 1;
+    U32         const btLog  = dmsCParams->chainLog - 1;
     U32         const btMask = (1 << btLog) - 1;
     U32         const btLow = (btMask >= dictHighLimit - dictLowLimit) ? dictLowLimit : dictHighLimit - btMask;
 
@@ -512,14 +512,16 @@ size_t ZSTD_HcFindBestMatch_generic (
     if (dictMode == ZSTD_dictMatchState) {
         const ZSTD_matchState_t* const dms = ms->dictMatchState;
         const U32* const dmsChainTable = dms->chainTable;
+        const U32 dmsChainSize         = (1 << dms->cParams.chainLog);
+        const U32 dmsChainMask         = dmsChainSize - 1;
         const U32 dmsLowestIndex       = dms->window.dictLimit;
         const BYTE* const dmsBase      = dms->window.base;
         const BYTE* const dmsEnd       = dms->window.nextSrc;
         const U32 dmsSize              = (U32)(dmsEnd - dmsBase);
         const U32 dmsIndexDelta        = dictLimit - dmsSize;
-        const U32 dmsMinChain = dmsSize > chainSize ? dmsSize - chainSize : 0;
+        const U32 dmsMinChain = dmsSize > dmsChainSize ? dmsSize - dmsChainSize : 0;
 
-        matchIndex = dms->hashTable[ZSTD_hashPtr(ip, cParams->hashLog, mls)];
+        matchIndex = dms->hashTable[ZSTD_hashPtr(ip, dms->cParams.hashLog, mls)];
 
         for ( ; (matchIndex>dmsLowestIndex) & (nbAttempts>0) ; nbAttempts--) {
             size_t currentMl=0;
@@ -536,7 +538,7 @@ size_t ZSTD_HcFindBestMatch_generic (
             }
 
             if (matchIndex <= dmsMinChain) break;
-            matchIndex = dmsChainTable[matchIndex & chainMask];
+            matchIndex = dmsChainTable[matchIndex & dmsChainMask];
         }
     }
 

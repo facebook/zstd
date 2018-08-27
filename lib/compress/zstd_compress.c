@@ -284,9 +284,11 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
         if (cctx->cdict) return ERROR(stage_wrong);
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
-    case ZSTD_p_windowLog:
     case ZSTD_p_hashLog:
     case ZSTD_p_chainLog:
+        return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
+
+    case ZSTD_p_windowLog:
     case ZSTD_p_searchLog:
     case ZSTD_p_minMatch:
     case ZSTD_p_targetLength:

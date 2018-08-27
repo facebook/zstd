@@ -521,7 +521,7 @@ static size_t benchMem(U32 benchNb,
         for (;;) {
             void* const dstBuffv = dstBuff;
             BMK_runOutcome_t const bOutcome =
-                    BMK_benchFunctionTimed( tfs,
+                    BMK_benchTimedFn( tfs,
                             benchFunction, buff2,
                             NULL, NULL,   /* initFn */
                             1,  /* blockCount */
@@ -544,7 +544,7 @@ static size_t benchMem(U32 benchNb,
                         (unsigned)newResult.sumOfReturn );
             }
 
-            if ( BMK_isCompleted_runOutcome(bOutcome) ) break;
+            if ( BMK_isCompleted_TimedFn(tfs) ) break;
         }
         BMK_freeTimedFnState(tfs);
     }

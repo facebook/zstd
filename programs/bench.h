@@ -265,16 +265,16 @@ void BMK_resetTimedFnState(BMK_timedFnState_t* timedFnState, unsigned nbSeconds)
 void BMK_freeTimedFnState(BMK_timedFnState_t* state);
 
 
-/* BMK_benchFunctionTimed() :
+/* BMK_benchTimedFn() :
  * Similar to BMK_benchFunction(),
  * tries to find automatically `nbLoops`, so that each run lasts approximately 1 second.
  * Note : minimum `nbLoops` is 1, a run may last more than 1 second if benchFn is slow.
  * Most arguments are the same as BMK_benchFunction()
  * Usage - initialize a timedFnState, selecting a total nbSeconds allocated for _all_ benchmarks run
- *         call BMK_benchFunctionTimed() repetitively, collecting intermediate results (each run is supposed to last about 1 seconds)
- *         Check if time budget is spent using BMK_isCompleted_runOutcome()
+ *         call BMK_benchTimedFn() repetitively, collecting intermediate results (each run is supposed to last about 1 seconds)
+ *         Check if time budget is spent using BMK_isCompleted_TimedFn()
  */
-BMK_runOutcome_t BMK_benchFunctionTimed(
+BMK_runOutcome_t BMK_benchTimedFn(
                     BMK_timedFnState_t* timedFnState,
                     BMK_benchFn_t benchFn, void* benchPayload,
                     BMK_initFn_t initFn, void* initPayload,
@@ -286,7 +286,7 @@ BMK_runOutcome_t BMK_benchFunctionTimed(
 
 /* Tells if total nb of benchmark runs has exceeded amount of time set in timedFnState
  */
-int BMK_isCompleted_runOutcome(BMK_runOutcome_t outcome);
+int BMK_isCompleted_TimedFn(const BMK_timedFnState_t* timedFnState);
 
 
 

@@ -1434,8 +1434,8 @@ BMK_benchMemInvertible( buffers_t buf, contexts_t ctx,
         /* init args */
         int compressionCompleted = (mode == BMK_decodeOnly);
         int decompressionCompleted = (mode == BMK_compressOnly);
-        BMK_timedFnState_t* timeStateCompress = BMK_createTimedFnState(nbSeconds);
-        BMK_timedFnState_t* timeStateDecompress = BMK_createTimedFnState(nbSeconds);
+        BMK_timedFnState_t* timeStateCompress = BMK_createTimedFnState(nbSeconds * 1000, 1000);
+        BMK_timedFnState_t* timeStateDecompress = BMK_createTimedFnState(nbSeconds * 1000, 1000);
         BMK_initCCtxArgs cctxprep;
         BMK_initDCtxArgs dctxprep;
         cctxprep.cctx = cctx;
@@ -1447,6 +1447,8 @@ BMK_benchMemInvertible( buffers_t buf, contexts_t ctx,
         dctxprep.dictBuffer = dictBuffer;
         dctxprep.dictBufferSize = dictBufferSize;
 
+        assert(timeStateCompress != NULL);
+        assert(timeStateDecompress != NULL);
         while(!compressionCompleted) {
             BMK_runOutcome_t const cOutcome = BMK_benchTimedFn(timeStateCompress,
                                             &local_defaultCompress, cctx,

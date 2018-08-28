@@ -514,10 +514,11 @@ static size_t benchMem(U32 benchNb,
     { size_t i; for (i=0; i<dstBuffSize; i++) dstBuff[i]=(BYTE)i; }
 
     /* benchmark loop */
-    {   BMK_timedFnState_t* const tfs = BMK_createTimedFnState(g_nbIterations);
+    {   BMK_timedFnState_t* const tfs = BMK_createTimedFnState(g_nbIterations * 1000, 1000);
         BMK_runTime_t bestResult;
         bestResult.sumOfReturn = 0;
         bestResult.nanoSecPerRun = (unsigned long long)(-1LL);
+        assert(tfs != NULL);
         for (;;) {
             void* const dstBuffv = dstBuff;
             BMK_runOutcome_t const bOutcome =

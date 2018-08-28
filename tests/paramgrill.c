@@ -1547,13 +1547,13 @@ static int allBench(BMK_benchResult_t* resultPtr,
                 const constraint_t target,
                 BMK_benchResult_t* winnerResult, int feas)
 {
-    BMK_benchResult_t resultMax, benchres;
+    BMK_benchResult_t benchres;
     U64 loopDurationC = 0, loopDurationD = 0;
     double uncertaintyConstantC = 3., uncertaintyConstantD = 3.;
     double winnerRS;
 
     /* initial benchmarking, gives exact ratio and memory, warms up future runs */
-    CBENCHMARK(1, benchres, tmp, BMK_both, 1);
+    CBENCHMARK(1, benchres, tmp, BMK_both, 2);
 
     winnerRS = resultScore(*winnerResult, buf.srcSize, target);
     DEBUGOUTPUT("WinnerScore: %f\n ", winnerRS);
@@ -1562,12 +1562,12 @@ static int allBench(BMK_benchResult_t* resultPtr,
 
     /* calculate uncertainty in compression / decompression runs */
     if(benchres.cSpeed) {
-        loopDurationC = ((buf.srcSize * TIMELOOP_NANOSEC) / benchres.cSpeed);
+        loopDurationC = (((U64)buf.srcSize * TIMELOOP_NANOSEC) / benchres.cSpeed);
         uncertaintyConstantC = ((loopDurationC + (double)(2 * g_clockGranularity))/loopDurationC);
     }
 
     if(benchres.dSpeed) {
-        loopDurationD = ((buf.srcSize * TIMELOOP_NANOSEC) / benchres.dSpeed);
+        loopDurationD = (((U64)buf.srcSize * TIMELOOP_NANOSEC) / benchres.dSpeed);
         uncertaintyConstantD = ((loopDurationD + (double)(2 * g_clockGranularity))/loopDurationD);
     }
 
@@ -1576,29 +1576,24 @@ static int allBench(BMK_benchResult_t* resultPtr,
         return WORSE_RESULT;
     }
 
+    /* ensure all measurements last a minimum time, to reduce measurement errors */
     assert(loopDurationC >= TIMELOOP_NANOSEC / 10);
     assert(loopDurationD >= TIMELOOP_NANOSEC / 10);
-
-    /* second run, if first run is too short, gives approximate cSpeed + dSpeed */
-    CBENCHMARK(loopDurationC < TIMELOOP_NANOSEC / 10, benchres, tmp, BMK_compressOnly, 1);
-    CBENCHMARK(loopDurationD < TIMELOOP_NANOSEC / 10, benchres, tmp, BMK_decodeOnly,   1);
 
     *resultPtr = benchres;
 
     /* optimistic assumption of benchres */
-    resultMax = benchres;
-    resultMax.cSpeed *= uncertaintyConstantC * VARIANCE;
-    resultMax.dSpeed *= uncertaintyConstantD * VARIANCE;
+    {   BMK_benchResult_t resultMax = benchres;
+        resultMax.cSpeed *= uncertaintyConstantC * VARIANCE;
+        resultMax.dSpeed *= uncertaintyConstantD * VARIANCE;
 
-    /* disregard infeasible results in feas mode */
-    /* disregard if resultMax < winner in infeas mode */
-    if((feas && !feasible(resultMax, target)) ||
-      (!feas && (winnerRS > resultScore(resultMax, buf.srcSize, target)))) {
-        return WORSE_RESULT;
+        /* disregard infeasible results in feas mode */
+        /* disregard if resultMax < winner in infeas mode */
+        if((feas && !feasible(resultMax, target)) ||
+          (!feas && (winnerRS > resultScore(resultMax, buf.srcSize, target)))) {
+            return WORSE_RESULT;
+        }
     }
-
-    CBENCHMARK(loopDurationC < TIMELOOP_NANOSEC, benchres, tmp, BMK_compressOnly, 1);
-    CBENCHMARK(loopDurationD < TIMELOOP_NANOSEC, benchres, tmp, BMK_decodeOnly,   1);
 
     *resultPtr = benchres;
 
@@ -1611,6 +1606,7 @@ static int allBench(BMK_benchResult_t* resultPtr,
         return WORSE_RESULT;
     }
 }
+
 
 #define INFEASIBLE_THRESHOLD 200
 /* Memoized benchmarking, won't benchmark anything which has already been benchmarked before. */
@@ -1638,6 +1634,7 @@ static int benchMemo(BMK_benchResult_t* resultPtr,
     }
     return res;
 }
+
 
 typedef struct {
     U64 cSpeed_min;

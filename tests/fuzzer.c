@@ -1381,7 +1381,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         size_t const bound = ZSTD_compressBound(_3BYTESTESTLENGTH);
         size_t nbSeq = 1;
         while (nbSeq <= maxNbSeq) {
-          CHECK(ZSTD_compressCCtx(cctx, compressedBuffer, bound, CNBuffer, nbSeq * 3, 3));
+          CHECK(ZSTD_compressCCtx(cctx, compressedBuffer, bound, CNBuffer, nbSeq * 3, 19));
           /* Check every sequence for the first 100, then skip more rapidly. */
           if (nbSeq < 100) {
             ++nbSeq;
@@ -1405,7 +1405,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     DISPLAYLEVEL(3, "OK \n");
 
 
-    DISPLAYLEVEL(3, "test%3i : incompressible data and ill suited dictionary : ", testNb++);
+    DISPLAYLEVEL(3, "test%3i : growing literals buffer : ", testNb++);
     RDG_genBuffer(CNBuffer, CNBuffSize, 0.0, 0.1, seed);
     {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
         size_t const bound = ZSTD_compressBound(CNBuffSize);

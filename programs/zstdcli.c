@@ -901,13 +901,13 @@ int main(int argCount, const char* argv[])
         if (cLevelLast > ZSTD_maxCLevel()) cLevelLast = ZSTD_maxCLevel();
         if (cLevelLast < cLevel) cLevelLast = cLevel;
         if (cLevelLast > cLevel)
-            DISPLAYLEVEL(2, "Benchmarking levels from %d to %d\n", cLevel, cLevelLast);
+            DISPLAYLEVEL(3, "Benchmarking levels from %d to %d\n", cLevel, cLevelLast);
         if(filenameIdx) {
             if(separateFiles) {
                 unsigned i;
                 for(i = 0; i < filenameIdx; i++) {
                     int c;
-                    DISPLAYLEVEL(2, "Benchmarking %s \n", filenameTable[i]);
+                    DISPLAYLEVEL(3, "Benchmarking %s \n", filenameTable[i]);
                     for(c = cLevel; c <= cLevelLast; c++) {
                         BMK_benchFilesAdvanced(&filenameTable[i], 1, dictFileName, c, &compressionParams, g_displayLevel, &benchParams);
                     }

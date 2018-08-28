@@ -987,8 +987,10 @@ size_t ZDICT_trainFromBuffer_unsafe_legacy(
             U32 const pos = dictList[u].pos;
             U32 const length = dictList[u].length;
             U32 const printedLength = MIN(40, length);
-            if ((pos > samplesBuffSize) || ((pos + length) > samplesBuffSize))
+            if ((pos > samplesBuffSize) || ((pos + length) > samplesBuffSize)) {
+                free(dictList);
                 return ERROR(GENERIC);   /* should never happen */
+            }
             DISPLAYLEVEL(3, "%3u:%3u bytes at pos %8u, savings %7u bytes |",
                          u, length, pos, dictList[u].savings);
             ZDICT_printHex((const char*)samplesBuffer+pos, printedLength);

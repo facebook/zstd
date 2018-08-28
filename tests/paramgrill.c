@@ -468,7 +468,7 @@ static void paramVariation(paramValues_t* ptr, memoTable_t* mtAll, const U32 nbC
 static paramValues_t randomParams(void)
 {
     varInds_t v; paramValues_t p;
-    for(v = 0; v <= NUM_PARAMS; v++) {
+    for(v = 0; v < NUM_PARAMS; v++) {
         p.vals[v] = rangeMap(v, FUZ_rand(&g_rand) % rangetable[v]);
     }
     return p;
@@ -632,32 +632,39 @@ static void BMK_translateAdvancedParams(FILE* f, const paramValues_t params) {
     varInds_t v;
     int first = 1;
     fprintf(f,"--zstd=");
-    for(v = 0; v < NUM_PARAMS; v++) {
-        if(g_silenceParams[v]) { continue; }
-        if(!first) { fprintf(f, ","); }
+    for (v = 0; v < NUM_PARAMS; v++) {
+        if (g_silenceParams[v]) { continue; }
+        if (!first) { fprintf(f, ","); }
         fprintf(f,"%s=", g_paramNames[v]);
 
-        if(v == strt_ind) { fprintf(f,"%u", params.vals[v]); }
+        if (v == strt_ind) { fprintf(f,"%u", params.vals[v]); }
         else { displayParamVal(f, v, params.vals[v], 0); }
         first = 0;
     }
     fprintf(f, "\n");
 }
 
-static void BMK_displayOneResult(FILE* f, winnerInfo_t res, const size_t srcSize) {
-            varInds_t v;
-            int first = 1;
-            res.params = cParamUnsetMin(res.params);
-            fprintf(f,"    {");
-            for(v = 0; v < NUM_PARAMS; v++) {
-                if(g_silenceParams[v]) { continue; }
-                if(!first) { fprintf(f, ","); }
-                displayParamVal(f, v, res.params.vals[v], 3);
-                first = 0;
-            }
+static void BMK_displayOneResult(FILE* f, winnerInfo_t res, const size_t srcSize)
+{
+    varInds_t v;
+    int first = 1;
+    res.params = cParamUnsetMin(res.params);
+    fprintf(f, "    {");
+    for (v = 0; v < NUM_PARAMS; v++) {
+        if (g_silenceParams[v]) { continue; }
+        if (!first) { fprintf(f, ","); }
+        displayParamVal(f, v, res.params.vals[v], 3);
+        first = 0;
+    }
 
-            fprintf(f, " },     /* R:%5.3f at %5.1f MB/s - %5.1f MB/s */\n",
-            (double)srcSize / res.result.cSize, (double)res.result.cSpeed / MB_UNIT, (double)res.result.dSpeed / MB_UNIT);
+    {   double const ratio = res.result.cSize ?
+                            (double)srcSize / res.result.cSize : 0;
+        double const cSpeedMBps = (double)res.result.cSpeed / MB_UNIT;
+        double const dSpeedMBps = (double)res.result.dSpeed / MB_UNIT;
+
+        fprintf(f, " },     /* R:%5.3f at %5.1f MB/s - %5.1f MB/s */\n",
+                            ratio, cSpeedMBps, dSpeedMBps);
+    }
 }
 
 /* Writes to f the results of a parameter benchmark */

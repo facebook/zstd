@@ -63,6 +63,8 @@
 #define MB *(1 <<20)
 #define GB *(1U<<30)
 
+#define BMK_RUNTEST_DEFAULT_MS 1000
+
 static const size_t maxMemory = (sizeof(size_t)==4)  ?
                     /* 32-bit */ (2 GB - 64 MB) :
                     /* 64-bit */ (size_t)(1ULL << ((sizeof(size_t)*8)-31));
@@ -375,32 +377,37 @@ BMK_runOutcome_t BMK_benchFunction(
 struct BMK_timedFnState_s {
     U64 timeSpent_ns;
     U64 timeBudget_ns;
+    U64 runBudget_ns;
     BMK_runTime_t fastestRun;
     unsigned nbLoops;
     UTIL_time_t coolTime;
 };  /* typedef'd to BMK_timedFnState_t within bench.h */
 
-BMK_timedFnState_t* BMK_createTimedFnState(unsigned nbSeconds) {
+BMK_timedFnState_t* BMK_createTimedFnState(unsigned total_ms, unsigned run_ms)
+{
     BMK_timedFnState_t* const r = (BMK_timedFnState_t*)malloc(sizeof(*r));
     if (r == NULL) return NULL;   /* malloc() error */
-    BMK_resetTimedFnState(r, nbSeconds);
+    BMK_resetTimedFnState(r, total_ms, run_ms);
     return r;
-}
-
-void BMK_resetTimedFnState(BMK_timedFnState_t* r, unsigned nbSeconds) {
-    r->timeSpent_ns = 0;
-    r->timeBudget_ns = (U64)nbSeconds * TIMELOOP_NANOSEC;
-    if (!nbSeconds) r->timeBudget_ns = 1;
-    r->fastestRun.nanoSecPerRun = (U64)(-1LL);
-    r->fastestRun.sumOfReturn = (size_t)(-1LL);
-    r->nbLoops = 1;
-    r->coolTime = UTIL_getTime();
 }
 
 void BMK_freeTimedFnState(BMK_timedFnState_t* state) {
     free(state);
 }
 
+void BMK_resetTimedFnState(BMK_timedFnState_t* timedFnState, unsigned total_ms, unsigned run_ms)
+{
+    if (!total_ms) total_ms = 1 ;
+    if (!run_ms) run_ms = 1;
+    if (run_ms > total_ms) run_ms = total_ms;
+    timedFnState->timeSpent_ns = 0;
+    timedFnState->timeBudget_ns = (U64)total_ms * TIMELOOP_NANOSEC / 1000;
+    timedFnState->runBudget_ns = (U64)run_ms * TIMELOOP_NANOSEC / 1000;
+    timedFnState->fastestRun.nanoSecPerRun = (U64)(-1LL);
+    timedFnState->fastestRun.sumOfReturn = (size_t)(-1LL);
+    timedFnState->nbLoops = 1;
+    timedFnState->coolTime = UTIL_getTime();
+}
 
 /* Tells if nb of seconds set in timedFnState for all runs is spent.
  * note : this function will return 1 if BMK_benchFunctionTimed() has actually errored. */
@@ -421,6 +428,8 @@ BMK_runOutcome_t BMK_benchTimedFn(
             void * const * dstBlockBuffers, const size_t * dstBlockCapacities,
             size_t* blockResults)
 {
+    U64 const runBudget_ns = cont->runBudget_ns;
+    U64 const runTimeMin_ns = runBudget_ns / 2;
     int completed = 0;
     BMK_runTime_t bestRunTime = cont->fastestRun;
 
@@ -453,9 +462,9 @@ BMK_runOutcome_t BMK_benchTimedFn(
             cont->timeSpent_ns += loopDuration_ns;
 
             /* estimate nbLoops for next run to last approximately 1 second */
-            if (loopDuration_ns > (TIMELOOP_NANOSEC / 50)) {
+            if (loopDuration_ns > (runBudget_ns / 50)) {
                 U64 const fastestRun_ns = MIN(bestRunTime.nanoSecPerRun, newRunTime.nanoSecPerRun);
-                cont->nbLoops = (U32)(TIMELOOP_NANOSEC / fastestRun_ns) + 1;
+                cont->nbLoops = (U32)(runBudget_ns / fastestRun_ns) + 1;
             } else {
                 /* previous run was too short : blindly increase workload by x multiplier */
                 const unsigned multiplier = 10;
@@ -463,7 +472,7 @@ BMK_runOutcome_t BMK_benchTimedFn(
                 cont->nbLoops *= multiplier;
             }
 
-            if(loopDuration_ns < MINUSABLETIME) {
+            if(loopDuration_ns < runTimeMin_ns) {
                 /* don't report results for which benchmark run time was too small : increased risks of rounding errors */
                 assert(completed == 0);
                 continue;
@@ -775,8 +784,8 @@ BMK_benchOutcome_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
     void ** const resPtrs = (void**)malloc(maxNbBlocks * sizeof(void*));
     size_t* const resSizes = (size_t*)malloc(maxNbBlocks * sizeof(size_t));
 
-    BMK_timedFnState_t* timeStateCompress = BMK_createTimedFnState(adv->nbSeconds);
-    BMK_timedFnState_t* timeStateDecompress = BMK_createTimedFnState(adv->nbSeconds);
+    BMK_timedFnState_t* timeStateCompress = BMK_createTimedFnState(adv->nbSeconds * 1000, BMK_RUNTEST_DEFAULT_MS);
+    BMK_timedFnState_t* timeStateDecompress = BMK_createTimedFnState(adv->nbSeconds * 1000, BMK_RUNTEST_DEFAULT_MS);
 
     ZSTD_CCtx* const cctx = ZSTD_createCCtx();
     ZSTD_DCtx* const dctx = ZSTD_createDCtx();

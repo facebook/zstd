@@ -468,7 +468,7 @@ static void paramVariation(paramValues_t* ptr, memoTable_t* mtAll, const U32 nbC
 static paramValues_t randomParams(void)
 {
     varInds_t v; paramValues_t p;
-    for(v = 0; v <= NUM_PARAMS; v++) {
+    for(v = 0; v < NUM_PARAMS; v++) {
         p.vals[v] = rangeMap(v, FUZ_rand(&g_rand) % rangetable[v]);
     }
     return p;
@@ -632,32 +632,39 @@ static void BMK_translateAdvancedParams(FILE* f, const paramValues_t params) {
     varInds_t v;
     int first = 1;
     fprintf(f,"--zstd=");
-    for(v = 0; v < NUM_PARAMS; v++) {
-        if(g_silenceParams[v]) { continue; }
-        if(!first) { fprintf(f, ","); }
+    for (v = 0; v < NUM_PARAMS; v++) {
+        if (g_silenceParams[v]) { continue; }
+        if (!first) { fprintf(f, ","); }
         fprintf(f,"%s=", g_paramNames[v]);
 
-        if(v == strt_ind) { fprintf(f,"%u", params.vals[v]); }
+        if (v == strt_ind) { fprintf(f,"%u", params.vals[v]); }
         else { displayParamVal(f, v, params.vals[v], 0); }
         first = 0;
     }
     fprintf(f, "\n");
 }
 
-static void BMK_displayOneResult(FILE* f, winnerInfo_t res, const size_t srcSize) {
-            varInds_t v;
-            int first = 1;
-            res.params = cParamUnsetMin(res.params);
-            fprintf(f,"    {");
-            for(v = 0; v < NUM_PARAMS; v++) {
-                if(g_silenceParams[v]) { continue; }
-                if(!first) { fprintf(f, ","); }
-                displayParamVal(f, v, res.params.vals[v], 3);
-                first = 0;
-            }
+static void BMK_displayOneResult(FILE* f, winnerInfo_t res, const size_t srcSize)
+{
+    varInds_t v;
+    int first = 1;
+    res.params = cParamUnsetMin(res.params);
+    fprintf(f, "    {");
+    for (v = 0; v < NUM_PARAMS; v++) {
+        if (g_silenceParams[v]) { continue; }
+        if (!first) { fprintf(f, ","); }
+        displayParamVal(f, v, res.params.vals[v], 3);
+        first = 0;
+    }
 
-            fprintf(f, " },     /* R:%5.3f at %5.1f MB/s - %5.1f MB/s */\n",
-            (double)srcSize / res.result.cSize, (double)res.result.cSpeed / MB_UNIT, (double)res.result.dSpeed / MB_UNIT);
+    {   double const ratio = res.result.cSize ?
+                            (double)srcSize / res.result.cSize : 0;
+        double const cSpeedMBps = (double)res.result.cSpeed / MB_UNIT;
+        double const dSpeedMBps = (double)res.result.dSpeed / MB_UNIT;
+
+        fprintf(f, " },     /* R:%5.3f at %5.1f MB/s - %5.1f MB/s */\n",
+                            ratio, cSpeedMBps, dSpeedMBps);
+    }
 }
 
 /* Writes to f the results of a parameter benchmark */
@@ -1427,8 +1434,8 @@ BMK_benchMemInvertible( buffers_t buf, contexts_t ctx,
         /* init args */
         int compressionCompleted = (mode == BMK_decodeOnly);
         int decompressionCompleted = (mode == BMK_compressOnly);
-        BMK_timedFnState_t* timeStateCompress = BMK_createTimedFnState(nbSeconds);
-        BMK_timedFnState_t* timeStateDecompress = BMK_createTimedFnState(nbSeconds);
+        BMK_timedFnState_t* timeStateCompress = BMK_createTimedFnState(nbSeconds * 1000, 1000);
+        BMK_timedFnState_t* timeStateDecompress = BMK_createTimedFnState(nbSeconds * 1000, 1000);
         BMK_initCCtxArgs cctxprep;
         BMK_initDCtxArgs dctxprep;
         cctxprep.cctx = cctx;
@@ -1440,6 +1447,8 @@ BMK_benchMemInvertible( buffers_t buf, contexts_t ctx,
         dctxprep.dictBuffer = dictBuffer;
         dctxprep.dictBufferSize = dictBufferSize;
 
+        assert(timeStateCompress != NULL);
+        assert(timeStateDecompress != NULL);
         while(!compressionCompleted) {
             BMK_runOutcome_t const cOutcome = BMK_benchTimedFn(timeStateCompress,
                                             &local_defaultCompress, cctx,
@@ -1540,12 +1549,13 @@ static int allBench(BMK_benchResult_t* resultPtr,
                 const constraint_t target,
                 BMK_benchResult_t* winnerResult, int feas)
 {
-    BMK_benchResult_t resultMax, benchres;
+    BMK_benchResult_t benchres;
     U64 loopDurationC = 0, loopDurationD = 0;
     double uncertaintyConstantC = 3., uncertaintyConstantD = 3.;
     double winnerRS;
+
     /* initial benchmarking, gives exact ratio and memory, warms up future runs */
-    CBENCHMARK(1, benchres, tmp, BMK_both, 1);
+    CBENCHMARK(1, benchres, tmp, BMK_both, 2);
 
     winnerRS = resultScore(*winnerResult, buf.srcSize, target);
     DEBUGOUTPUT("WinnerScore: %f\n ", winnerRS);
@@ -1554,12 +1564,12 @@ static int allBench(BMK_benchResult_t* resultPtr,
 
     /* calculate uncertainty in compression / decompression runs */
     if(benchres.cSpeed) {
-        loopDurationC = ((buf.srcSize * TIMELOOP_NANOSEC) / benchres.cSpeed);
+        loopDurationC = (((U64)buf.srcSize * TIMELOOP_NANOSEC) / benchres.cSpeed);
         uncertaintyConstantC = ((loopDurationC + (double)(2 * g_clockGranularity))/loopDurationC);
     }
 
     if(benchres.dSpeed) {
-        loopDurationD = ((buf.srcSize * TIMELOOP_NANOSEC) / benchres.dSpeed);
+        loopDurationD = (((U64)buf.srcSize * TIMELOOP_NANOSEC) / benchres.dSpeed);
         uncertaintyConstantD = ((loopDurationD + (double)(2 * g_clockGranularity))/loopDurationD);
     }
 
@@ -1568,26 +1578,24 @@ static int allBench(BMK_benchResult_t* resultPtr,
         return WORSE_RESULT;
     }
 
-    /* second run, if first run is too short, gives approximate cSpeed + dSpeed */
-    CBENCHMARK(loopDurationC < TIMELOOP_NANOSEC / 10, benchres, tmp, BMK_compressOnly, 1);
-    CBENCHMARK(loopDurationD < TIMELOOP_NANOSEC / 10, benchres, tmp, BMK_decodeOnly,   1);
+    /* ensure all measurements last a minimum time, to reduce measurement errors */
+    assert(loopDurationC >= TIMELOOP_NANOSEC / 10);
+    assert(loopDurationD >= TIMELOOP_NANOSEC / 10);
 
     *resultPtr = benchres;
 
     /* optimistic assumption of benchres */
-    resultMax = benchres;
-    resultMax.cSpeed *= uncertaintyConstantC * VARIANCE;
-    resultMax.dSpeed *= uncertaintyConstantD * VARIANCE;
+    {   BMK_benchResult_t resultMax = benchres;
+        resultMax.cSpeed *= uncertaintyConstantC * VARIANCE;
+        resultMax.dSpeed *= uncertaintyConstantD * VARIANCE;
 
-    /* disregard infeasible results in feas mode */
-    /* disregard if resultMax < winner in infeas mode */
-    if((feas && !feasible(resultMax, target)) ||
-      (!feas && (winnerRS > resultScore(resultMax, buf.srcSize, target)))) {
-        return WORSE_RESULT;
+        /* disregard infeasible results in feas mode */
+        /* disregard if resultMax < winner in infeas mode */
+        if((feas && !feasible(resultMax, target)) ||
+          (!feas && (winnerRS > resultScore(resultMax, buf.srcSize, target)))) {
+            return WORSE_RESULT;
+        }
     }
-
-    CBENCHMARK(loopDurationC < TIMELOOP_NANOSEC, benchres, tmp, BMK_compressOnly, 1);
-    CBENCHMARK(loopDurationD < TIMELOOP_NANOSEC, benchres, tmp, BMK_decodeOnly,   1);
 
     *resultPtr = benchres;
 
@@ -1600,6 +1608,7 @@ static int allBench(BMK_benchResult_t* resultPtr,
         return WORSE_RESULT;
     }
 }
+
 
 #define INFEASIBLE_THRESHOLD 200
 /* Memoized benchmarking, won't benchmark anything which has already been benchmarked before. */
@@ -1627,6 +1636,7 @@ static int benchMemo(BMK_benchResult_t* resultPtr,
     }
     return res;
 }
+
 
 typedef struct {
     U64 cSpeed_min;

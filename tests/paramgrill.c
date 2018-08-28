@@ -1544,6 +1544,7 @@ static int allBench(BMK_benchResult_t* resultPtr,
     U64 loopDurationC = 0, loopDurationD = 0;
     double uncertaintyConstantC = 3., uncertaintyConstantD = 3.;
     double winnerRS;
+
     /* initial benchmarking, gives exact ratio and memory, warms up future runs */
     CBENCHMARK(1, benchres, tmp, BMK_both, 1);
 
@@ -1567,6 +1568,9 @@ static int allBench(BMK_benchResult_t* resultPtr,
     if(feas && benchres.cSize < winnerResult->cSize && !g_optmode) {
         return WORSE_RESULT;
     }
+
+    assert(loopDurationC >= TIMELOOP_NANOSEC / 10);
+    assert(loopDurationD >= TIMELOOP_NANOSEC / 10);
 
     /* second run, if first run is too short, gives approximate cSpeed + dSpeed */
     CBENCHMARK(loopDurationC < TIMELOOP_NANOSEC / 10, benchres, tmp, BMK_compressOnly, 1);

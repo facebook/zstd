@@ -159,6 +159,33 @@ buffer_collection_t splitBuffer(buffer_t srcBuffer, size_t blockSize)
 }
 
 
+/*---  dictionary creation  ---*/
+
+buffer_t createDictionary(const char* dictionary,
+                        const void* srcBuffer, size_t* srcBlockSizes, unsigned nbBlocks)
+{
+    if (dictionary) {
+        DISPLAYLEVEL(3, "loading dictionary %s \n", dictionary);
+        return createBuffer_fromFile(dictionary);
+    } else {
+        DISPLAYLEVEL(3, "creating dictionary, of target size %u bytes \n", DICTSIZE);
+        void* const dictBuffer = malloc(DICTSIZE);
+        assert(dictBuffer != NULL);
+
+        size_t const dictSize = ZDICT_trainFromBuffer(dictBuffer, DICTSIZE,
+                                                    srcBuffer,
+                                                    srcBlockSizes,
+                                                    nbBlocks);
+        assert(!ZSTD_isError(dictSize));
+
+        buffer_t result;
+        result.ptr = dictBuffer;
+        result.capacity = DICTSIZE;
+        result.size = dictSize;
+        return result;
+    }
+}
+
 
 /*---  ddict_collection_t  ---*/
 
@@ -181,6 +208,7 @@ static void freeDDictCollection(ddict_collection_t ddictc)
 static ddict_collection_t createDDictCollection(const void* dictBuffer, size_t dictSize, size_t nbDDict)
 {
     ZSTD_DDict** const ddicts = malloc(nbDDict * sizeof(ZSTD_DDict*));
+    assert(ddicts != NULL);
     if (ddicts==NULL) return kNullDDictCollection;
     for (size_t dictNb=0; dictNb < nbDDict; dictNb++) {
         ddicts[dictNb] = ZSTD_createDDict(dictBuffer, dictSize);
@@ -193,29 +221,64 @@ static ddict_collection_t createDDictCollection(const void* dictBuffer, size_t d
 }
 
 
+/* ---   Compression  --- */
 
-/*---  Benchmark  --- */
+/* compressBlocks() :
+ * @return : total compressed size of all blocks,
+ *        or 0 if error.
+ */
+static size_t compressBlocks(buffer_collection_t dstBlockBuffers, buffer_collection_t srcBlockBuffers, ZSTD_CDict* cdict, int cLevel)
+{
+    size_t const nbBlocks = srcBlockBuffers.nbBuffers;
+    assert(dstBlockBuffers.nbBuffers == srcBlockBuffers.nbBuffers);
+
+    ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+    assert(cctx != NULL);
+
+    size_t totalCSize = 0;
+    for (size_t blockNb=0; blockNb < nbBlocks; blockNb++) {
+        size_t cBlockSize;
+        if (cdict == NULL) {
+            cBlockSize = ZSTD_compressCCtx(cctx,
+                            dstBlockBuffers.buffers[blockNb], dstBlockBuffers.capacities[blockNb],
+                            srcBlockBuffers.buffers[blockNb], srcBlockBuffers.capacities[blockNb],
+                            cLevel);
+            assert(!ZSTD_isError(cBlockSize));
+        } else {
+            cBlockSize = ZSTD_compress_usingCDict(cctx,
+                            dstBlockBuffers.buffers[blockNb], dstBlockBuffers.capacities[blockNb],
+                            srcBlockBuffers.buffers[blockNb], srcBlockBuffers.capacities[blockNb],
+                            cdict);
+            assert(!ZSTD_isError(cBlockSize));
+        }
+        totalCSize += cBlockSize;
+    }
+    return totalCSize;
+}
+
+
+/* ---  Benchmark  --- */
 
 
 /* bench() :
+ * fileName : file to load for benchmarking purpose
+ * dictionary : optional (can be NULL), file to load as dictionary,
+ *              if none provided : will be calculated on the fly by the program.
  * @return : 0 is success, 1+ otherwise */
-int bench(const char* fileName)
+int bench(const char* fileName, const char* dictionary)
 {
     int result = 0;
 
     DISPLAYLEVEL(3, "loading %s... \n", fileName);
     buffer_t const srcBuffer = createBuffer_fromFile(fileName);
-    if (srcBuffer.ptr == NULL) {
-        DISPLAYLEVEL(1," error reading file %s \n", fileName);
-        return 1;
-    }
+    assert(srcBuffer.ptr != NULL);
     DISPLAYLEVEL(3, "created src buffer of size %.1f MB \n",
                     (double)(srcBuffer.size) / (1 MB));
 
     buffer_collection_t const srcBlockBuffers = splitBuffer(srcBuffer, BLOCKSIZE);
     assert(srcBlockBuffers.buffers != NULL);
     unsigned const nbBlocks = (unsigned)srcBlockBuffers.nbBuffers;
-    DISPLAYLEVEL(3, "splitting input into %u blocks of max size %u bytes \n",
+    DISPLAYLEVEL(3, "split input into %u blocks of max size %u bytes \n",
                     nbBlocks, BLOCKSIZE);
 
     size_t const dstBlockSize = ZSTD_compressBound(BLOCKSIZE);
@@ -230,36 +293,44 @@ int bench(const char* fileName)
     buffer_collection_t const dstBlockBuffers = splitBuffer(dstBuffer, dstBlockSize);
     assert(dstBlockBuffers.buffers != NULL);
 
-    DISPLAYLEVEL(3, "creating dictionary, of target size %u bytes \n", DICTSIZE);
-    void* const dictBuffer = malloc(DICTSIZE);
-    if (dictBuffer == NULL) { result = 1; goto _cleanup; }
+    /* dictionary determination */
+    buffer_t const dictBuffer = createDictionary(dictionary,
+                                srcBuffer.ptr,
+                                srcBlockBuffers.capacities, nbBlocks);
+    assert(dictBuffer.ptr != NULL);
 
-    size_t const dictSize = ZDICT_trainFromBuffer(dictBuffer, DICTSIZE,
-                                                srcBuffer.ptr,
-                                                srcBlockBuffers.capacities,
-                                                nbBlocks);
-    if (ZSTD_isError(dictSize)) {
-        DISPLAYLEVEL(1, "error creating dictionary \n");
-        result = 1;
-        goto _cleanup;
-    }
+    ZSTD_CDict* const cdict = ZSTD_createCDict(dictBuffer.ptr, dictBuffer.size, COMP_LEVEL);
+    assert(cdict != NULL);
 
-    size_t const dictMem = ZSTD_estimateDDictSize(dictSize, ZSTD_dlm_byCopy);
+    size_t const cTotalSizeNoDict = compressBlocks(dstBlockBuffers, srcBlockBuffers, NULL, COMP_LEVEL);
+    assert(cTotalSizeNoDict != 0);
+    DISPLAYLEVEL(3, "compressing at level %u without dictionary : Ratio=%.2f  (%u bytes) \n",
+                    COMP_LEVEL,
+                    (double)srcBuffer.size / cTotalSizeNoDict, (unsigned)cTotalSizeNoDict);
+
+    size_t const cTotalSize = compressBlocks(dstBlockBuffers, srcBlockBuffers, cdict, COMP_LEVEL);
+    assert(cTotalSize != 0);
+    DISPLAYLEVEL(3, "compressed using a %u bytes dictionary : Ratio=%.2f  (%u bytes) \n",
+                    (unsigned)dictBuffer.size,
+                    (double)srcBuffer.size / cTotalSize, (unsigned)cTotalSize);
+
+    size_t const dictMem = ZSTD_estimateDDictSize(dictBuffer.size, ZSTD_dlm_byCopy);
     size_t const allDictMem = dictMem * nbBlocks;
     DISPLAYLEVEL(3, "generating %u dictionaries, using %.1f MB of memory \n",
                     nbBlocks, (double)allDictMem / (1 MB));
 
-    ZSTD_CDict* const cdict = ZSTD_createCDict(dictBuffer, dictSize, COMP_LEVEL);
-    do {
-        ddict_collection_t const dictionaries = createDDictCollection(dictBuffer, dictSize, nbBlocks);
-        assert(dictionaries.ddicts != NULL);
+    ddict_collection_t const dictionaries = createDDictCollection(dictBuffer.ptr, dictBuffer.size, nbBlocks);
+    assert(dictionaries.ddicts != NULL);
 
-        freeDDictCollection(dictionaries);
-    } while(0);
+
+
+    //result = benchMem(srcBlockBuffers, dstBlockBuffers, dictionaries);;
+
+
+
+    freeDDictCollection(dictionaries);
     ZSTD_freeCDict(cdict);
-
-_cleanup:
-    free(dictBuffer);
+    freeBuffer(dictBuffer);
     freeCollection(dstBlockBuffers);
     freeBuffer(dstBuffer);
     freeCollection(srcBlockBuffers);
@@ -276,7 +347,7 @@ _cleanup:
 int bad_usage(const char* exeName)
 {
     DISPLAY (" bad usage : \n");
-    DISPLAY (" %s filename \n", exeName);
+    DISPLAY (" %s filename [-D dictionary] \n", exeName);
     return 1;
 }
 
@@ -284,6 +355,15 @@ int main (int argc, const char** argv)
 {
     const char* const exeName = argv[0];
 
-    if (argc != 2) return bad_usage(exeName);
-    return bench(argv[1]);
+    if (argc < 2) return bad_usage(exeName);
+    const char* const fileName = argv[1];
+
+    const char* dictionary = NULL;
+    if (argc > 2) {
+        if (argc != 4) return bad_usage(exeName);
+        if (strcmp(argv[2], "-D")) return bad_usage(exeName);
+        dictionary = argv[3];
+    }
+
+    return bench(fileName, dictionary);
 }

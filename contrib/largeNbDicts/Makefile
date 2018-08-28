@@ -21,6 +21,8 @@ CFLAGS  += $(DEBUGFLAGS) $(MOREFLAGS)
 
 default: largeNbDicts
 
+all : largeNbDicts
+
 largeNbDicts: LDFLAGS += -lzstd
 largeNbDicts: largeNbDicts.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@

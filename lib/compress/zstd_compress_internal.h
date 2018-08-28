@@ -316,7 +316,8 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const v
 #endif
     assert((size_t)(seqStorePtr->sequences - seqStorePtr->sequencesStart) < seqStorePtr->maxNbSeq);
     /* copy Literals */
-    assert(seqStorePtr->lit + litLength <= seqStorePtr->litStart + 128 KB);
+    assert(seqStorePtr->maxNbLit <= 128 KB);
+    assert(seqStorePtr->lit + litLength <= seqStorePtr->litStart + seqStorePtr->maxNbLit);
     ZSTD_wildcopy(seqStorePtr->lit, literals, litLength);
     seqStorePtr->lit += litLength;
 

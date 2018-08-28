@@ -7,8 +7,10 @@
 # in the COPYING file in the root directory of this source tree).
 # ################################################################
 
+PROGDIR = ../../programs
+LIBDIR  = ../../lib
 
-CPPFLAGS+= -I../../lib -I../../lib/common -I../../lib/dictBuilder -I../../programs
+CPPFLAGS+= -I$(LIBDIR) -I$(LIBDIR)/common -I$(LIBDIR)/dictBuilder -I$(PROGDIR)
 
 CFLAGS  ?= -O3
 DEBUGFLAGS= -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
@@ -24,9 +26,18 @@ default: largeNbDicts
 all : largeNbDicts
 
 largeNbDicts: LDFLAGS += -lzstd
-largeNbDicts: largeNbDicts.c
+largeNbDicts: bench.o datagen.o xxhash.o largeNbDicts.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
+bench.o  : $(PROGDIR)/bench.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -c
+
+datagen.o: $(PROGDIR)/datagen.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -c
+
+xxhash.o : $(LIBDIR)/common/xxhash.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -c
 
 clean:
+	$(RM) *.o
 	$(RM) largeNbDicts

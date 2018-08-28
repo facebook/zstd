@@ -12,7 +12,7 @@
  * This is a benchmark test tool
  * dedicated to the specific case of dictionary decompression
  * using a very large nb of dictionaries
- * thus generating many cache-misses.
+ * thus suffering latency from lots of cache misses.
  * It's created in a bid to investigate performance and find optimizations. */
 
 
@@ -24,6 +24,7 @@
 #include <assert.h>   /* assert */
 
 #include "util.h"
+#include "bench.h"
 #define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
 #include "zdict.h"
@@ -158,6 +159,17 @@ buffer_collection_t splitBuffer(buffer_t srcBuffer, size_t blockSize)
     return result;
 }
 
+/* shrinkSizes() :
+ * update sizes in buffer collection */
+void shrinkSizes(buffer_collection_t collection,
+                 const size_t* sizes)  /* presumed same size as collection */
+{
+    size_t const nbBlocks = collection.nbBuffers;
+    for (size_t blockNb = 0; blockNb < nbBlocks; blockNb++) {
+        assert(sizes[blockNb] <= collection.capacities[blockNb]);
+        collection.capacities[blockNb] = sizes[blockNb];
+    }
+}
 
 /*---  dictionary creation  ---*/
 
@@ -221,13 +233,30 @@ static ddict_collection_t createDDictCollection(const void* dictBuffer, size_t d
 }
 
 
+/* mess with adresses, so that linear scanning dictionaries != linear address scanning */
+void shuffleDictionaries(ddict_collection_t dicts)
+{
+    size_t const nbDicts = dicts.nbDDict;
+    for (size_t r=0; r<nbDicts; r++) {
+        size_t const d1 = rand() % nbDicts;
+        size_t const d2 = rand() % nbDicts;
+        ZSTD_DDict* tmpd = dicts.ddicts[d1];
+        dicts.ddicts[d1] = dicts.ddicts[d2];
+        dicts.ddicts[d2] = tmpd;
+    }
+}
+
+
 /* ---   Compression  --- */
 
 /* compressBlocks() :
  * @return : total compressed size of all blocks,
  *        or 0 if error.
  */
-static size_t compressBlocks(buffer_collection_t dstBlockBuffers, buffer_collection_t srcBlockBuffers, ZSTD_CDict* cdict, int cLevel)
+static size_t compressBlocks(size_t* cSizes,   /* optional (can be NULL). If present, must contain at least nbBlocks fields */
+                             buffer_collection_t dstBlockBuffers,
+                             buffer_collection_t srcBlockBuffers,
+                             ZSTD_CDict* cdict, int cLevel)
 {
     size_t const nbBlocks = srcBlockBuffers.nbBuffers;
     assert(dstBlockBuffers.nbBuffers == srcBlockBuffers.nbBuffers);
@@ -243,14 +272,14 @@ static size_t compressBlocks(buffer_collection_t dstBlockBuffers, buffer_collect
                             dstBlockBuffers.buffers[blockNb], dstBlockBuffers.capacities[blockNb],
                             srcBlockBuffers.buffers[blockNb], srcBlockBuffers.capacities[blockNb],
                             cLevel);
-            assert(!ZSTD_isError(cBlockSize));
         } else {
             cBlockSize = ZSTD_compress_usingCDict(cctx,
                             dstBlockBuffers.buffers[blockNb], dstBlockBuffers.capacities[blockNb],
                             srcBlockBuffers.buffers[blockNb], srcBlockBuffers.capacities[blockNb],
                             cdict);
-            assert(!ZSTD_isError(cBlockSize));
         }
+        assert(!ZSTD_isError(cBlockSize));
+        if (cSizes) cSizes[blockNb] = cBlockSize;
         totalCSize += cBlockSize;
     }
     return totalCSize;
@@ -258,6 +287,92 @@ static size_t compressBlocks(buffer_collection_t dstBlockBuffers, buffer_collect
 
 
 /* ---  Benchmark  --- */
+
+typedef size_t (*BMK_benchFn_t)(const void* src, size_t srcSize, void* dst, size_t dstCapacity, void* customPayload);
+typedef size_t (*BMK_initFn_t)(void* initPayload);
+
+typedef struct {
+    ZSTD_DCtx* dctx;
+    size_t nbBlocks;
+    size_t blockNb;
+    ddict_collection_t dictionaries;
+} decompressInstructions;
+
+decompressInstructions createDecompressInstructions(ddict_collection_t dictionaries)
+{
+    decompressInstructions di;
+    di.dctx = ZSTD_createDCtx();
+    assert(di.dctx != NULL);
+    di.nbBlocks = dictionaries.nbDDict;
+    di.blockNb = 0;
+    di.dictionaries = dictionaries;
+    return di;
+}
+
+void freeDecompressInstructions(decompressInstructions di)
+{
+    ZSTD_freeDCtx(di.dctx);
+}
+
+/* benched function */
+size_t decompress(const void* src, size_t srcSize, void* dst, size_t dstCapacity, void* payload)
+{
+    decompressInstructions* const di = (decompressInstructions*) payload;
+
+    size_t const result = ZSTD_decompress_usingDDict(di->dctx,
+                                        dst, dstCapacity,
+                                        src, srcSize,
+                                        di->dictionaries.ddicts[di->blockNb]);
+
+    di->blockNb = di->blockNb + 1;
+    if (di->blockNb >= di->nbBlocks) di->blockNb = 0;
+
+    return result;
+}
+
+
+#define BENCH_TIME_DEFAULT_MS 6000
+#define RUN_TIME_DEFAULT_MS   1000
+
+static int benchMem(buffer_collection_t dstBlocks,
+                    buffer_collection_t srcBlocks,
+                    ddict_collection_t dictionaries)
+{
+    assert(dstBlocks.nbBuffers == srcBlocks.nbBuffers);
+    assert(dstBlocks.nbBuffers == dictionaries.nbDDict);
+
+    double bestSpeed = 0.;
+
+    BMK_timedFnState_t* const benchState =
+            BMK_createTimedFnState(BENCH_TIME_DEFAULT_MS, RUN_TIME_DEFAULT_MS);
+    decompressInstructions di = createDecompressInstructions(dictionaries);
+
+    for (;;) {
+        BMK_runOutcome_t const outcome = BMK_benchTimedFn(benchState,
+                                decompress, &di,
+                                NULL, NULL,
+                                dstBlocks.nbBuffers,
+                                (const void* const *)srcBlocks.buffers, srcBlocks.capacities,
+                                dstBlocks.buffers, dstBlocks.capacities,
+                                NULL);
+
+        assert(BMK_isSuccessful_runOutcome(outcome));
+        BMK_runTime_t const result = BMK_extract_runTime(outcome);
+        U64 const dTime_ns = result.nanoSecPerRun;
+        double const dTime_sec = (double)dTime_ns / 1000000000;
+        size_t const srcSize = result.sumOfReturn;
+        double const dSpeed_MBps = (double)srcSize / dTime_sec / (1 MB);
+        if (dSpeed_MBps > bestSpeed) bestSpeed = dSpeed_MBps;
+        DISPLAY("Decompression Speed : %.1f MB/s \r", bestSpeed);
+        if (BMK_isCompleted_TimedFn(benchState)) break;
+    }
+    DISPLAY("\n");
+
+    freeDecompressInstructions(di);
+    BMK_freeTimedFnState(benchState);
+
+    return 0;   /* success */
+}
 
 
 /* bench() :
@@ -272,8 +387,9 @@ int bench(const char* fileName, const char* dictionary)
     DISPLAYLEVEL(3, "loading %s... \n", fileName);
     buffer_t const srcBuffer = createBuffer_fromFile(fileName);
     assert(srcBuffer.ptr != NULL);
+    size_t const srcSize = srcBuffer.size;
     DISPLAYLEVEL(3, "created src buffer of size %.1f MB \n",
-                    (double)(srcBuffer.size) / (1 MB));
+                    (double)srcSize / (1 MB));
 
     buffer_collection_t const srcBlockBuffers = splitBuffer(srcBuffer, BLOCKSIZE);
     assert(srcBlockBuffers.buffers != NULL);
@@ -302,17 +418,20 @@ int bench(const char* fileName, const char* dictionary)
     ZSTD_CDict* const cdict = ZSTD_createCDict(dictBuffer.ptr, dictBuffer.size, COMP_LEVEL);
     assert(cdict != NULL);
 
-    size_t const cTotalSizeNoDict = compressBlocks(dstBlockBuffers, srcBlockBuffers, NULL, COMP_LEVEL);
+    size_t const cTotalSizeNoDict = compressBlocks(NULL, dstBlockBuffers, srcBlockBuffers, NULL, COMP_LEVEL);
     assert(cTotalSizeNoDict != 0);
     DISPLAYLEVEL(3, "compressing at level %u without dictionary : Ratio=%.2f  (%u bytes) \n",
                     COMP_LEVEL,
-                    (double)srcBuffer.size / cTotalSizeNoDict, (unsigned)cTotalSizeNoDict);
+                    (double)srcSize / cTotalSizeNoDict, (unsigned)cTotalSizeNoDict);
 
-    size_t const cTotalSize = compressBlocks(dstBlockBuffers, srcBlockBuffers, cdict, COMP_LEVEL);
+    size_t* const cSizes = malloc(nbBlocks * sizeof(size_t));
+    assert(cSizes != NULL);
+
+    size_t const cTotalSize = compressBlocks(cSizes, dstBlockBuffers, srcBlockBuffers, cdict, COMP_LEVEL);
     assert(cTotalSize != 0);
     DISPLAYLEVEL(3, "compressed using a %u bytes dictionary : Ratio=%.2f  (%u bytes) \n",
                     (unsigned)dictBuffer.size,
-                    (double)srcBuffer.size / cTotalSize, (unsigned)cTotalSize);
+                    (double)srcSize / cTotalSize, (unsigned)cTotalSize);
 
     size_t const dictMem = ZSTD_estimateDDictSize(dictBuffer.size, ZSTD_dlm_byCopy);
     size_t const allDictMem = dictMem * nbBlocks;
@@ -322,13 +441,28 @@ int bench(const char* fileName, const char* dictionary)
     ddict_collection_t const dictionaries = createDDictCollection(dictBuffer.ptr, dictBuffer.size, nbBlocks);
     assert(dictionaries.ddicts != NULL);
 
+    shuffleDictionaries(dictionaries);
+    // for (size_t u = 0; u < dictionaries.nbDDict; u++) DISPLAY("dict address : %p \n", dictionaries.ddicts[u]);   /* check dictionary addresses */
 
+    void* const resultPtr = malloc(srcSize);
+    assert(resultPtr != NULL);
+    buffer_t resultBuffer;
+    resultBuffer.ptr = resultPtr;
+    resultBuffer.capacity = srcSize;
+    resultBuffer.size = srcSize;
 
-    //result = benchMem(srcBlockBuffers, dstBlockBuffers, dictionaries);;
+    buffer_collection_t const resultBlockBuffers = splitBuffer(resultBuffer, BLOCKSIZE);
+    assert(resultBlockBuffers.buffers != NULL);
 
+    shrinkSizes(dstBlockBuffers, cSizes);
 
+    result = benchMem(resultBlockBuffers, dstBlockBuffers, dictionaries);
 
+    /* free all heap objects in reverse order */
+    freeCollection(resultBlockBuffers);
+    free(resultPtr);
     freeDDictCollection(dictionaries);
+    free(cSizes);
     ZSTD_freeCDict(cdict);
     freeBuffer(dictBuffer);
     freeCollection(dstBlockBuffers);
@@ -342,7 +476,7 @@ int bench(const char* fileName, const char* dictionary)
 
 
 
-/*---  Command Line ---*/
+/* ---  Command Line  --- */
 
 int bad_usage(const char* exeName)
 {

@@ -253,7 +253,7 @@ static size_t local_defaultCompress(
 /* `addArgs` is the context */
 static size_t local_defaultDecompress(
                     const void* srcBuffer, size_t srcSize,
-                    void* dstBuffer, size_t dstSize,
+                    void* dstBuffer, size_t dstCapacity,
                     void* addArgs)
 {
     size_t moreToFlush = 1;
@@ -261,7 +261,7 @@ static size_t local_defaultDecompress(
     ZSTD_inBuffer in;
     ZSTD_outBuffer out;
     in.src = srcBuffer; in.size = srcSize; in.pos = 0;
-    out.dst = dstBuffer; out.size = dstSize; out.pos = 0;
+    out.dst = dstBuffer; out.size = dstCapacity; out.pos = 0;
     while (moreToFlush) {
         if(out.pos == out.size) {
             return (size_t)-ZSTD_error_dstSize_tooSmall;

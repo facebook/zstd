@@ -193,6 +193,7 @@ typedef struct {
     BYTE* mlCode;
     BYTE* ofCode;
     size_t maxNbSeq;
+    size_t maxNbLit;
     U32   longLengthID;   /* 0 == no longLength; 1 == Lit.longLength; 2 == Match.longLength; */
     U32   longLengthPos;
 } seqStore_t;

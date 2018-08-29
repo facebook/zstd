@@ -238,6 +238,12 @@ void shuffleDictionaries(ddict_collection_t dicts)
 {
     size_t const nbDicts = dicts.nbDDict;
     for (size_t r=0; r<nbDicts; r++) {
+        size_t const d = rand() % nbDicts;
+        ZSTD_DDict* tmpd = dicts.ddicts[d];
+        dicts.ddicts[d] = dicts.ddicts[r];
+        dicts.ddicts[r] = tmpd;
+    }
+    for (size_t r=0; r<nbDicts; r++) {
         size_t const d1 = rand() % nbDicts;
         size_t const d2 = rand() % nbDicts;
         ZSTD_DDict* tmpd = dicts.ddicts[d1];
@@ -537,14 +543,15 @@ int bad_usage(const char* exeName)
 int main (int argc, const char** argv)
 {
     const char* const exeName = argv[0];
-    int cLevel = CLEVEL_DEFAULT;
-    size_t blockSize = BLOCKSIZE_DEFAULT;
-    size_t nbDicts = 0;
 
     if (argc < 2) return bad_usage(exeName);
     const char* const fileName = argv[1];
 
     const char* dictionary = NULL;
+    int cLevel = CLEVEL_DEFAULT;
+    size_t blockSize = BLOCKSIZE_DEFAULT;
+    size_t nbDicts = 0;  /* auto, 1 dict per block */
+
     for (int argNb = 2; argNb < argc ; argNb++) {
         const char* argument = argv[argNb];
         if (longCommandWArg(&argument, "--clevel=")) { cLevel = readU32FromChar(&argument); continue; }

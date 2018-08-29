@@ -35,9 +35,9 @@
 #define KB  *(1<<10)
 #define MB  *(1<<20)
 
-#define BLOCKSIZE (4 KB)
+#define BLOCKSIZE_DEFAULT (4 KB)
 #define DICTSIZE  (4 KB)
-#define COMP_LEVEL 3
+#define CLEVEL_DEFAULT 3
 
 #define DISPLAY_LEVEL_DEFAULT 3
 
@@ -293,8 +293,8 @@ typedef size_t (*BMK_initFn_t)(void* initPayload);
 
 typedef struct {
     ZSTD_DCtx* dctx;
-    size_t nbBlocks;
-    size_t blockNb;
+    size_t nbDicts;
+    size_t dictNb;
     ddict_collection_t dictionaries;
 } decompressInstructions;
 
@@ -303,8 +303,8 @@ decompressInstructions createDecompressInstructions(ddict_collection_t dictionar
     decompressInstructions di;
     di.dctx = ZSTD_createDCtx();
     assert(di.dctx != NULL);
-    di.nbBlocks = dictionaries.nbDDict;
-    di.blockNb = 0;
+    di.nbDicts = dictionaries.nbDDict;
+    di.dictNb = 0;
     di.dictionaries = dictionaries;
     return di;
 }
@@ -322,10 +322,10 @@ size_t decompress(const void* src, size_t srcSize, void* dst, size_t dstCapacity
     size_t const result = ZSTD_decompress_usingDDict(di->dctx,
                                         dst, dstCapacity,
                                         src, srcSize,
-                                        di->dictionaries.ddicts[di->blockNb]);
+                                        di->dictionaries.ddicts[di->dictNb]);
 
-    di->blockNb = di->blockNb + 1;
-    if (di->blockNb >= di->nbBlocks) di->blockNb = 0;
+    di->dictNb = di->dictNb + 1;
+    if (di->dictNb >= di->nbDicts) di->dictNb = 0;
 
     return result;
 }
@@ -339,7 +339,6 @@ static int benchMem(buffer_collection_t dstBlocks,
                     ddict_collection_t dictionaries)
 {
     assert(dstBlocks.nbBuffers == srcBlocks.nbBuffers);
-    assert(dstBlocks.nbBuffers == dictionaries.nbDDict);
 
     double bestSpeed = 0.;
 
@@ -364,6 +363,7 @@ static int benchMem(buffer_collection_t dstBlocks,
         double const dSpeed_MBps = (double)srcSize / dTime_sec / (1 MB);
         if (dSpeed_MBps > bestSpeed) bestSpeed = dSpeed_MBps;
         DISPLAY("Decompression Speed : %.1f MB/s \r", bestSpeed);
+        fflush(stdout);
         if (BMK_isCompleted_TimedFn(benchState)) break;
     }
     DISPLAY("\n");
@@ -380,7 +380,8 @@ static int benchMem(buffer_collection_t dstBlocks,
  * dictionary : optional (can be NULL), file to load as dictionary,
  *              if none provided : will be calculated on the fly by the program.
  * @return : 0 is success, 1+ otherwise */
-int bench(const char* fileName, const char* dictionary)
+int bench(const char* fileName, const char* dictionary,
+          size_t blockSize, int clevel, unsigned nbDictMax)
 {
     int result = 0;
 
@@ -391,13 +392,13 @@ int bench(const char* fileName, const char* dictionary)
     DISPLAYLEVEL(3, "created src buffer of size %.1f MB \n",
                     (double)srcSize / (1 MB));
 
-    buffer_collection_t const srcBlockBuffers = splitBuffer(srcBuffer, BLOCKSIZE);
+    buffer_collection_t const srcBlockBuffers = splitBuffer(srcBuffer, blockSize);
     assert(srcBlockBuffers.buffers != NULL);
     unsigned const nbBlocks = (unsigned)srcBlockBuffers.nbBuffers;
     DISPLAYLEVEL(3, "split input into %u blocks of max size %u bytes \n",
-                    nbBlocks, BLOCKSIZE);
+                    nbBlocks, (unsigned)blockSize);
 
-    size_t const dstBlockSize = ZSTD_compressBound(BLOCKSIZE);
+    size_t const dstBlockSize = ZSTD_compressBound(blockSize);
     size_t const dstBufferCapacity = nbBlocks * dstBlockSize;
     void* const dstPtr = malloc(dstBufferCapacity);
     assert(dstPtr != NULL);
@@ -415,30 +416,31 @@ int bench(const char* fileName, const char* dictionary)
                                 srcBlockBuffers.capacities, nbBlocks);
     assert(dictBuffer.ptr != NULL);
 
-    ZSTD_CDict* const cdict = ZSTD_createCDict(dictBuffer.ptr, dictBuffer.size, COMP_LEVEL);
+    ZSTD_CDict* const cdict = ZSTD_createCDict(dictBuffer.ptr, dictBuffer.size, clevel);
     assert(cdict != NULL);
 
-    size_t const cTotalSizeNoDict = compressBlocks(NULL, dstBlockBuffers, srcBlockBuffers, NULL, COMP_LEVEL);
+    size_t const cTotalSizeNoDict = compressBlocks(NULL, dstBlockBuffers, srcBlockBuffers, NULL, clevel);
     assert(cTotalSizeNoDict != 0);
     DISPLAYLEVEL(3, "compressing at level %u without dictionary : Ratio=%.2f  (%u bytes) \n",
-                    COMP_LEVEL,
+                    clevel,
                     (double)srcSize / cTotalSizeNoDict, (unsigned)cTotalSizeNoDict);
 
     size_t* const cSizes = malloc(nbBlocks * sizeof(size_t));
     assert(cSizes != NULL);
 
-    size_t const cTotalSize = compressBlocks(cSizes, dstBlockBuffers, srcBlockBuffers, cdict, COMP_LEVEL);
+    size_t const cTotalSize = compressBlocks(cSizes, dstBlockBuffers, srcBlockBuffers, cdict, clevel);
     assert(cTotalSize != 0);
     DISPLAYLEVEL(3, "compressed using a %u bytes dictionary : Ratio=%.2f  (%u bytes) \n",
                     (unsigned)dictBuffer.size,
                     (double)srcSize / cTotalSize, (unsigned)cTotalSize);
 
     size_t const dictMem = ZSTD_estimateDDictSize(dictBuffer.size, ZSTD_dlm_byCopy);
-    size_t const allDictMem = dictMem * nbBlocks;
+    unsigned const nbDicts = nbDictMax ? nbDictMax : nbBlocks;
+    size_t const allDictMem = dictMem * nbDicts;
     DISPLAYLEVEL(3, "generating %u dictionaries, using %.1f MB of memory \n",
-                    nbBlocks, (double)allDictMem / (1 MB));
+                    nbDicts, (double)allDictMem / (1 MB));
 
-    ddict_collection_t const dictionaries = createDDictCollection(dictBuffer.ptr, dictBuffer.size, nbBlocks);
+    ddict_collection_t const dictionaries = createDDictCollection(dictBuffer.ptr, dictBuffer.size, nbDicts);
     assert(dictionaries.ddicts != NULL);
 
     shuffleDictionaries(dictionaries);
@@ -451,7 +453,7 @@ int bench(const char* fileName, const char* dictionary)
     resultBuffer.capacity = srcSize;
     resultBuffer.size = srcSize;
 
-    buffer_collection_t const resultBlockBuffers = splitBuffer(resultBuffer, BLOCKSIZE);
+    buffer_collection_t const resultBlockBuffers = splitBuffer(resultBuffer, blockSize);
     assert(resultBlockBuffers.buffers != NULL);
 
     shrinkSizes(dstBlockBuffers, cSizes);
@@ -478,26 +480,79 @@ int bench(const char* fileName, const char* dictionary)
 
 /* ---  Command Line  --- */
 
+/*! readU32FromChar() :
+ * @return : unsigned integer value read from input in `char` format.
+ *  allows and interprets K, KB, KiB, M, MB and MiB suffix.
+ *  Will also modify `*stringPtr`, advancing it to position where it stopped reading.
+ *  Note : function will exit() program if digit sequence overflows */
+static unsigned readU32FromChar(const char** stringPtr)
+{
+    unsigned result = 0;
+    while ((**stringPtr >='0') && (**stringPtr <='9')) {
+        unsigned const max = (((unsigned)(-1)) / 10) - 1;
+        assert(result <= max);   /* check overflow */
+        result *= 10, result += **stringPtr - '0', (*stringPtr)++ ;
+    }
+    if ((**stringPtr=='K') || (**stringPtr=='M')) {
+        unsigned const maxK = ((unsigned)(-1)) >> 10;
+        assert(result <= maxK);   /* check overflow */
+        result <<= 10;
+        if (**stringPtr=='M') {
+            assert(result <= maxK);   /* check overflow */
+            result <<= 10;
+        }
+        (*stringPtr)++;  /* skip `K` or `M` */
+        if (**stringPtr=='i') (*stringPtr)++;
+        if (**stringPtr=='B') (*stringPtr)++;
+    }
+    return result;
+}
+
+/** longCommandWArg() :
+ *  check if *stringPtr is the same as longCommand.
+ *  If yes, @return 1 and advances *stringPtr to the position which immediately follows longCommand.
+ * @return 0 and doesn't modify *stringPtr otherwise.
+ */
+static unsigned longCommandWArg(const char** stringPtr, const char* longCommand)
+{
+    size_t const comSize = strlen(longCommand);
+    int const result = !strncmp(*stringPtr, longCommand, comSize);
+    if (result) *stringPtr += comSize;
+    return result;
+}
+
+
 int bad_usage(const char* exeName)
 {
     DISPLAY (" bad usage : \n");
-    DISPLAY (" %s filename [-D dictionary] \n", exeName);
+    DISPLAY (" %s filename [Options] \n", exeName);
+    DISPLAY ("Options : \n");
+    DISPLAY ("--clevel=#     : use compression level # (default: %u) \n", CLEVEL_DEFAULT);
+    DISPLAY ("--blockSize=#  : cut input into blocks of size # (default: %u) \n", BLOCKSIZE_DEFAULT);
+    DISPLAY ("--dictionary=# : use # as a dictionary (default: create one) \n");
+    DISPLAY ("--nbDicts=#    : set nb of dictionaries to # (default: one per block) \n");
     return 1;
 }
 
 int main (int argc, const char** argv)
 {
     const char* const exeName = argv[0];
+    int cLevel = CLEVEL_DEFAULT;
+    size_t blockSize = BLOCKSIZE_DEFAULT;
+    size_t nbDicts = 0;
 
     if (argc < 2) return bad_usage(exeName);
     const char* const fileName = argv[1];
 
     const char* dictionary = NULL;
-    if (argc > 2) {
-        if (argc != 4) return bad_usage(exeName);
-        if (strcmp(argv[2], "-D")) return bad_usage(exeName);
-        dictionary = argv[3];
+    for (int argNb = 2; argNb < argc ; argNb++) {
+        const char* argument = argv[argNb];
+        if (longCommandWArg(&argument, "--clevel=")) { cLevel = readU32FromChar(&argument); continue; }
+        if (longCommandWArg(&argument, "--blockSize=")) { blockSize = readU32FromChar(&argument); continue; }
+        if (longCommandWArg(&argument, "--dictionary=")) { dictionary = argument; continue; }
+        if (longCommandWArg(&argument, "--nbDicts=")) { nbDicts = readU32FromChar(&argument); continue; }
+        return bad_usage(exeName);
     }
 
-    return bench(fileName, dictionary);
+    return bench(fileName, dictionary, blockSize, cLevel, nbDicts);
 }

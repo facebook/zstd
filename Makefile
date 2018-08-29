@@ -87,6 +87,7 @@ contrib: lib
 	$(MAKE) -C contrib/pzstd all
 	$(MAKE) -C contrib/seekable_format/examples all
 	$(MAKE) -C contrib/adaptive-compression all
+	$(MAKE) -C contrib/largeNbDicts all
 
 .PHONY: cleanTabs
 cleanTabs:

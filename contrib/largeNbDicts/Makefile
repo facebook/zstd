@@ -10,6 +10,8 @@
 PROGDIR = ../../programs
 LIBDIR  = ../../lib
 
+LIBZSTD = $(LIBDIR)/libzstd.a
+
 CPPFLAGS+= -I$(LIBDIR) -I$(LIBDIR)/common -I$(LIBDIR)/dictBuilder -I$(PROGDIR)
 
 CFLAGS  ?= -O3
@@ -25,9 +27,12 @@ default: largeNbDicts
 
 all : largeNbDicts
 
-largeNbDicts: LDFLAGS += -lzstd
-largeNbDicts: bench.o datagen.o xxhash.o largeNbDicts.c
+largeNbDicts: bench.o datagen.o xxhash.o $(LIBZSTD) largeNbDicts.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
+
+.PHONY: $(LIBZSTD)
+$(LIBZSTD):
+	$(MAKE) -C $(LIBDIR) libzstd.a
 
 bench.o  : $(PROGDIR)/bench.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -c

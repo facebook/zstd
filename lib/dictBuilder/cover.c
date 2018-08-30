@@ -684,7 +684,7 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_cover(
   BYTE* const dict = (BYTE*)dictBuffer;
   COVER_ctx_t ctx;
   COVER_map_t activeDmers;
-  parameters.splitPoint = parameters.splitPoint <= 0.0 ? DEFAULT_SPLITPOINT : parameters.splitPoint;
+  parameters.splitPoint = 1.0;
   /* Initialize global data */
   g_displayLevel = parameters.zParams.notificationLevel;
   /* Checks */

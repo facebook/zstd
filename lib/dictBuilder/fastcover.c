@@ -510,7 +510,7 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_fastCover(
     /* Initialize global data */
     g_displayLevel = parameters.zParams.notificationLevel;
     /* Assign splitPoint and f if not provided */
-    parameters.splitPoint = parameters.splitPoint <= 0.0 ? DEFAULT_SPLITPOINT : parameters.splitPoint;
+    parameters.splitPoint = 1.0;
     parameters.f = parameters.f == 0 ? DEFAULT_F : parameters.f;
     parameters.accel = parameters.accel == 0 ? DEFAULT_ACCEL : parameters.accel;
     /* Convert to cover parameter */

@@ -63,7 +63,12 @@
 #define MB *(1 <<20)
 #define GB *(1U<<30)
 
-static const size_t maxMemory = (sizeof(size_t)==4)  ?  (2 GB - 64 MB) : (size_t)(1ULL << ((sizeof(size_t)*8)-31));
+#define BMK_RUNTEST_DEFAULT_MS 1000
+
+static const size_t maxMemory = (sizeof(size_t)==4)  ?
+                    /* 32-bit */ (2 GB - 64 MB) :
+                    /* 64-bit */ (size_t)(1ULL << ((sizeof(size_t)*8)-31));
+
 
 /* *************************************
 *  console display
@@ -97,26 +102,26 @@ static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
     return errorNum;                                  \
 }
 
-#define EXM_THROW(errorNum, retType, ...)  {          \
+#define RETURN_ERROR(errorNum, retType, ...)  {       \
     retType r;                                        \
     memset(&r, 0, sizeof(retType));                   \
     DEBUGOUTPUT("%s: %i: \n", __FILE__, __LINE__);    \
     DISPLAYLEVEL(1, "Error %i : ", errorNum);         \
     DISPLAYLEVEL(1, __VA_ARGS__);                     \
     DISPLAYLEVEL(1, " \n");                           \
-    r.error = errorNum;                               \
+    r.tag = errorNum;                                 \
     return r;                                         \
 }
 
 /* error without displaying */
-#define EXM_THROW_ND(errorNum, retType, ...)  {       \
+#define RETURN_QUIET_ERROR(errorNum, retType, ...)  { \
     retType r;                                        \
     memset(&r, 0, sizeof(retType));                   \
     DEBUGOUTPUT("%s: %i: \n", __FILE__, __LINE__);    \
     DEBUGOUTPUT("Error %i : ", errorNum);             \
     DEBUGOUTPUT(__VA_ARGS__);                         \
     DEBUGOUTPUT(" \n");                               \
-    r.error = errorNum;                               \
+    r.tag = errorNum;                                 \
     return r;                                         \
 }
 
@@ -124,16 +129,15 @@ static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
 *  Benchmark Parameters
 ***************************************/
 
-BMK_advancedParams_t BMK_initAdvancedParams(void) { 
-    BMK_advancedParams_t res = { 
+BMK_advancedParams_t BMK_initAdvancedParams(void) {
+    BMK_advancedParams_t const res = {
         BMK_both, /* mode */
-        BMK_timeMode, /* loopMode */
         BMK_TIMETEST_DEFAULT_S, /* nbSeconds */
         0, /* blockSize */
         0, /* nbWorkers */
         0, /* realTime */
         0, /* additionalParam */
-        0, /* ldmFlag */ 
+        0, /* ldmFlag */
         0, /* ldmMinMatch */
         0, /* ldmHashLog */
         0, /* ldmBuckSizeLog */
@@ -156,20 +160,13 @@ typedef struct {
     size_t resSize;
 } blockParam_t;
 
-struct  BMK_timeState_t{
-    unsigned nbLoops;
-    U64 timeRemaining;
-    UTIL_time_t coolTime;
-    U64 fastestTime;
-};
-
 #undef MIN
 #undef MAX
 #define MIN(a,b)    ((a) < (b) ? (a) : (b))
 #define MAX(a,b)    ((a) > (b) ? (a) : (b))
 
-static void BMK_initCCtx(ZSTD_CCtx* ctx, 
-    const void* dictBuffer, size_t dictBufferSize, int cLevel, 
+static void BMK_initCCtx(ZSTD_CCtx* ctx,
+    const void* dictBuffer, size_t dictBufferSize, int cLevel,
     const ZSTD_compressionParameters* comprParams, const BMK_advancedParams_t* adv) {
     ZSTD_CCtx_reset(ctx);
     ZSTD_CCtx_resetParameters(ctx);
@@ -194,15 +191,15 @@ static void BMK_initCCtx(ZSTD_CCtx* ctx,
     ZSTD_CCtx_loadDictionary(ctx, dictBuffer, dictBufferSize);
 }
 
-
-static void BMK_initDCtx(ZSTD_DCtx* dctx, 
+static void BMK_initDCtx(ZSTD_DCtx* dctx,
     const void* dictBuffer, size_t dictBufferSize) {
     ZSTD_DCtx_reset(dctx);
     ZSTD_DCtx_loadDictionary(dctx, dictBuffer, dictBufferSize);
 }
 
+
 typedef struct {
-    ZSTD_CCtx* ctx;
+    ZSTD_CCtx* cctx;
     const void* dictBuffer;
     size_t dictBufferSize;
     int cLevel;
@@ -212,7 +209,7 @@ typedef struct {
 
 static size_t local_initCCtx(void* payload) {
     BMK_initCCtxArgs* ag = (BMK_initCCtxArgs*)payload;
-    BMK_initCCtx(ag->ctx, ag->dictBuffer, ag->dictBufferSize, ag->cLevel, ag->comprParams, ag->adv);
+    BMK_initCCtx(ag->cctx, ag->dictBuffer, ag->dictBufferSize, ag->cLevel, ag->comprParams, ag->adv);
     return 0;
 }
 
@@ -228,26 +225,24 @@ static size_t local_initDCtx(void* payload) {
     return 0;
 }
 
-/* additional argument is just the context */
+
+/* `addArgs` is the context */
 static size_t local_defaultCompress(
-    const void* srcBuffer, size_t srcSize, 
-    void* dstBuffer, size_t dstSize, 
-    void* addArgs) {
+                    const void* srcBuffer, size_t srcSize,
+                    void* dstBuffer, size_t dstSize,
+                    void* addArgs)
+{
     size_t moreToFlush = 1;
-    ZSTD_CCtx* ctx = (ZSTD_CCtx*)addArgs;
+    ZSTD_CCtx* const cctx = (ZSTD_CCtx*)addArgs;
     ZSTD_inBuffer in;
     ZSTD_outBuffer out;
-    in.src = srcBuffer;
-    in.size = srcSize;
-    in.pos = 0;
-    out.dst = dstBuffer;
-    out.size = dstSize;
-    out.pos = 0;
+    in.src = srcBuffer; in.size = srcSize; in.pos = 0;
+    out.dst = dstBuffer; out.size = dstSize; out.pos = 0;
     while (moreToFlush) {
         if(out.pos == out.size) {
             return (size_t)-ZSTD_error_dstSize_tooSmall;
         }
-        moreToFlush = ZSTD_compress_generic(ctx, &out, &in, ZSTD_e_end);
+        moreToFlush = ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_end);
         if (ZSTD_isError(moreToFlush)) {
             return moreToFlush;
         }
@@ -255,27 +250,23 @@ static size_t local_defaultCompress(
     return out.pos;
 }
 
-/* additional argument is just the context */
+/* `addArgs` is the context */
 static size_t local_defaultDecompress(
-    const void* srcBuffer, size_t srcSize, 
-    void* dstBuffer, size_t dstSize, 
-    void* addArgs) {
+                    const void* srcBuffer, size_t srcSize,
+                    void* dstBuffer, size_t dstSize,
+                    void* addArgs)
+{
     size_t moreToFlush = 1;
-    ZSTD_DCtx* dctx = (ZSTD_DCtx*)addArgs;
+    ZSTD_DCtx* const dctx = (ZSTD_DCtx*)addArgs;
     ZSTD_inBuffer in;
     ZSTD_outBuffer out;
-    in.src = srcBuffer;
-    in.size = srcSize;
-    in.pos = 0;
-    out.dst = dstBuffer;
-    out.size = dstSize;
-    out.pos = 0;
+    in.src = srcBuffer; in.size = srcSize; in.pos = 0;
+    out.dst = dstBuffer; out.size = dstSize; out.pos = 0;
     while (moreToFlush) {
         if(out.pos == out.size) {
             return (size_t)-ZSTD_error_dstSize_tooSmall;
         }
-        moreToFlush = ZSTD_decompress_generic(dctx,
-                            &out, &in);
+        moreToFlush = ZSTD_decompress_generic(dctx, &out, &in);
         if (ZSTD_isError(moreToFlush)) {
             return moreToFlush;
         }
@@ -284,198 +275,307 @@ static size_t local_defaultDecompress(
 
 }
 
-/* initFn will be measured once, bench fn will be measured x times */
-/* benchFn should return error value or out Size */
-/* takes # of blocks and list of size & stuff for each. */
-/* only does looping */
-/* note time per loop could be zero if interval too short */
-BMK_customReturn_t BMK_benchFunction(
-    BMK_benchFn_t benchFn, void* benchPayload,
-    BMK_initFn_t initFn, void* initPayload,
-    size_t blockCount,
-    const void* const * const srcBlockBuffers, const size_t* srcBlockSizes,
-    void* const * const dstBlockBuffers, const size_t* dstBlockCapacities, size_t* blockResult, 
-    unsigned nbLoops) {
-    size_t dstSize = 0;
-    U64 totalTime;
 
-    BMK_customReturn_t retval;
-    UTIL_time_t clockStart;
+/*===  Benchmarking an arbitrary function  ===*/
+
+int BMK_isSuccessful_runOutcome(BMK_runOutcome_t outcome)
+{
+    return outcome.tag == 0;
+}
+
+/* warning : this function will stop program execution if outcome is invalid !
+ *           check outcome validity first, using BMK_isValid_runResult() */
+BMK_runTime_t BMK_extract_runTime(BMK_runOutcome_t outcome)
+{
+    assert(outcome.tag == 0);
+    return outcome.internal_never_use_directly;
+}
+
+static BMK_runOutcome_t BMK_runOutcome_error(void)
+{
+    BMK_runOutcome_t b;
+    memset(&b, 0, sizeof(b));
+    b.tag = 1;
+    return b;
+}
+
+static BMK_runOutcome_t BMK_setValid_runTime(BMK_runTime_t runTime)
+{
+    BMK_runOutcome_t outcome;
+    outcome.tag = 0;
+    outcome.internal_never_use_directly = runTime;
+    return outcome;
+}
+
+
+/* initFn will be measured once, benchFn will be measured `nbLoops` times */
+/* initFn is optional, provide NULL if none */
+/* benchFn must return size_t field compliant with ZSTD_isError for error valuee */
+/* takes # of blocks and list of size & stuff for each. */
+/* can report result of benchFn for each block into blockResult. */
+/* blockResult is optional, provide NULL if this information is not required */
+/* note : time per loop could be zero if run time < timer resolution */
+BMK_runOutcome_t BMK_benchFunction(
+            BMK_benchFn_t benchFn, void* benchPayload,
+            BMK_initFn_t initFn, void* initPayload,
+            size_t blockCount,
+            const void* const * srcBlockBuffers, const size_t* srcBlockSizes,
+            void* const * dstBlockBuffers, const size_t* dstBlockCapacities,
+            size_t* blockResults,
+            unsigned nbLoops)
+{
+    size_t dstSize = 0;
 
     if(!nbLoops) {
-        EXM_THROW_ND(1, BMK_customReturn_t, "nbLoops must be nonzero \n");
+        RETURN_QUIET_ERROR(2, BMK_runOutcome_t, "nbLoops must be nonzero ");
     }
 
-    {
-        size_t i;
+    /* init */
+    {   size_t i;
         for(i = 0; i < blockCount; i++) {
             memset(dstBlockBuffers[i], 0xE5, dstBlockCapacities[i]);  /* warm up and erase result buffer */
         }
 #if 0
-        /* based on testing these seem to lower accuracy of multiple calls of 1 nbLoops vs 1 call of multiple nbLoops 
-         * (Makes former slower)   
+        /* based on testing these seem to lower accuracy of multiple calls of 1 nbLoops vs 1 call of multiple nbLoops
+         * (Makes former slower)
          */
         UTIL_sleepMilli(5);  /* give processor time to other processes */
         UTIL_waitForNextTick();
 #endif
     }
 
-    {      
-        unsigned i, j;
-        clockStart = UTIL_getTime();
-        if(initFn != NULL) { initFn(initPayload); }
-        for(i = 0; i < nbLoops; i++) {
-            for(j = 0; j < blockCount; j++) {
-                size_t res = benchFn(srcBlockBuffers[j], srcBlockSizes[j], dstBlockBuffers[j], dstBlockCapacities[j], benchPayload);
+    /* benchmark */
+    {   UTIL_time_t const clockStart = UTIL_getTime();
+        unsigned loopNb, blockNb;
+        if (initFn != NULL) initFn(initPayload);
+        for (loopNb = 0; loopNb < nbLoops; loopNb++) {
+            for (blockNb = 0; blockNb < blockCount; blockNb++) {
+                size_t const res = benchFn(srcBlockBuffers[blockNb], srcBlockSizes[blockNb],
+                                    dstBlockBuffers[blockNb], dstBlockCapacities[blockNb],
+                                    benchPayload);
                 if(ZSTD_isError(res)) {
-                    EXM_THROW_ND(2, BMK_customReturn_t, "Function benchmarking failed on block %u of size %u : %s  \n",
-                        j, (U32)dstBlockCapacities[j], ZSTD_getErrorName(res));
-                } else if(i == nbLoops - 1) {
+                    RETURN_QUIET_ERROR(2, BMK_runOutcome_t,
+                        "Function benchmark failed on block %u of size %u : %s",
+                        blockNb, (U32)dstBlockCapacities[blockNb], ZSTD_getErrorName(res));
+                } else if (loopNb == 0) {
                     dstSize += res;
-                    if(blockResult != NULL) {
-                        blockResult[j] = res;
-                    }
-                } 
-            }
-        }
-        totalTime = UTIL_clockSpanNano(clockStart);
-    }
+                    if (blockResults != NULL) blockResults[blockNb] = res;
+            }   }
+        }  /* for (loopNb = 0; loopNb < nbLoops; loopNb++) */
 
-    retval.error = 0;
-    retval.result.nanoSecPerRun = totalTime / nbLoops;
-    retval.result.sumOfReturn = dstSize;
-    return retval;
-} 
-
-#define MINUSABLETIME 500000000ULL /* 0.5 seconds in ns */
-
-void BMK_resetTimeState(BMK_timedFnState_t* r, unsigned nbSeconds) {
-    r->nbLoops = 1;
-    r->timeRemaining = (U64)nbSeconds * TIMELOOP_NANOSEC;
-    r->coolTime = UTIL_getTime();
-    r->fastestTime = (U64)(-1LL);
+        {   U64 const totalTime = UTIL_clockSpanNano(clockStart);
+            BMK_runTime_t rt;
+            rt.nanoSecPerRun = totalTime / nbLoops;
+            rt.sumOfReturn = dstSize;
+            return BMK_setValid_runTime(rt);
+    }   }
 }
 
-BMK_timedFnState_t* BMK_createTimeState(unsigned nbSeconds) {
-    BMK_timedFnState_t* r = (BMK_timedFnState_t*)malloc(sizeof(struct BMK_timeState_t));
-    if(r == NULL) {
-        return r;
-    }
-    BMK_resetTimeState(r, nbSeconds);
+
+/* ====  Benchmarking any function, providing intermediate results  ==== */
+
+struct BMK_timedFnState_s {
+    U64 timeSpent_ns;
+    U64 timeBudget_ns;
+    U64 runBudget_ns;
+    BMK_runTime_t fastestRun;
+    unsigned nbLoops;
+    UTIL_time_t coolTime;
+};  /* typedef'd to BMK_timedFnState_t within bench.h */
+
+BMK_timedFnState_t* BMK_createTimedFnState(unsigned total_ms, unsigned run_ms)
+{
+    BMK_timedFnState_t* const r = (BMK_timedFnState_t*)malloc(sizeof(*r));
+    if (r == NULL) return NULL;   /* malloc() error */
+    BMK_resetTimedFnState(r, total_ms, run_ms);
     return r;
 }
 
-void BMK_freeTimeState(BMK_timedFnState_t* state) {
+void BMK_freeTimedFnState(BMK_timedFnState_t* state) {
     free(state);
 }
 
-/* make option for dstBlocks to be */
-BMK_customTimedReturn_t BMK_benchFunctionTimed(
-    BMK_timedFnState_t* cont,
-    BMK_benchFn_t benchFn, void* benchPayload,
-    BMK_initFn_t initFn, void* initPayload,
-    size_t blockCount,
-    const void* const* const srcBlockBuffers, const size_t* srcBlockSizes,
-    void * const * const dstBlockBuffers, const size_t * dstBlockCapacities, size_t* blockResults) 
+void BMK_resetTimedFnState(BMK_timedFnState_t* timedFnState, unsigned total_ms, unsigned run_ms)
 {
-    U64 fastest = cont->fastestTime;
-    int completed = 0;
-    BMK_customTimedReturn_t r;
-    r.completed = 0;
+    if (!total_ms) total_ms = 1 ;
+    if (!run_ms) run_ms = 1;
+    if (run_ms > total_ms) run_ms = total_ms;
+    timedFnState->timeSpent_ns = 0;
+    timedFnState->timeBudget_ns = (U64)total_ms * TIMELOOP_NANOSEC / 1000;
+    timedFnState->runBudget_ns = (U64)run_ms * TIMELOOP_NANOSEC / 1000;
+    timedFnState->fastestRun.nanoSecPerRun = (U64)(-1LL);
+    timedFnState->fastestRun.sumOfReturn = (size_t)(-1LL);
+    timedFnState->nbLoops = 1;
+    timedFnState->coolTime = UTIL_getTime();
+}
 
-    while(!r.completed && !completed)
-    {
+/* Tells if nb of seconds set in timedFnState for all runs is spent.
+ * note : this function will return 1 if BMK_benchFunctionTimed() has actually errored. */
+int BMK_isCompleted_TimedFn(const BMK_timedFnState_t* timedFnState)
+{
+    return (timedFnState->timeSpent_ns >= timedFnState->timeBudget_ns);
+}
+
+
+#define MINUSABLETIME  (TIMELOOP_NANOSEC / 2)  /* 0.5 seconds */
+
+BMK_runOutcome_t BMK_benchTimedFn(
+            BMK_timedFnState_t* cont,
+            BMK_benchFn_t benchFn, void* benchPayload,
+            BMK_initFn_t initFn, void* initPayload,
+            size_t blockCount,
+            const void* const* srcBlockBuffers, const size_t* srcBlockSizes,
+            void * const * dstBlockBuffers, const size_t * dstBlockCapacities,
+            size_t* blockResults)
+{
+    U64 const runBudget_ns = cont->runBudget_ns;
+    U64 const runTimeMin_ns = runBudget_ns / 2;
+    int completed = 0;
+    BMK_runTime_t bestRunTime = cont->fastestRun;
+
+    while (!completed) {
+        BMK_runOutcome_t runResult;
+
         /* Overheat protection */
         if (UTIL_clockSpanMicro(cont->coolTime) > ACTIVEPERIOD_MICROSEC) {
             DEBUGOUTPUT("\rcooling down ...    \r");
             UTIL_sleep(COOLPERIOD_SEC);
             cont->coolTime = UTIL_getTime();
         }
+
         /* reinitialize capacity */
-        r.result = BMK_benchFunction(benchFn, benchPayload, initFn, initPayload,
-        blockCount, srcBlockBuffers, srcBlockSizes, dstBlockBuffers, dstBlockCapacities, blockResults, cont->nbLoops);
-        if(r.result.error) { /* completed w/ error */
-            r.completed = 1;
-            return r;
+        runResult = BMK_benchFunction(benchFn, benchPayload,
+                                    initFn, initPayload,
+                                    blockCount,
+                                    srcBlockBuffers, srcBlockSizes,
+                                    dstBlockBuffers, dstBlockCapacities,
+                                    blockResults,
+                                    cont->nbLoops);
+
+        if(!BMK_isSuccessful_runOutcome(runResult)) { /* error : move out */
+            return BMK_runOutcome_error();
         }
 
-        {   U64 const loopDuration = r.result.result.nanoSecPerRun * cont->nbLoops;
-            r.completed = (cont->timeRemaining <= loopDuration);
-            cont->timeRemaining -= loopDuration;
-            if (loopDuration > (TIMELOOP_NANOSEC / 100)) { 
-                fastest = MIN(fastest, r.result.result.nanoSecPerRun);
-                if(loopDuration >= MINUSABLETIME) {
-                    r.result.result.nanoSecPerRun = fastest;
-                    cont->fastestTime = fastest;
-                }
-                cont->nbLoops = (U32)(TIMELOOP_NANOSEC / r.result.result.nanoSecPerRun) + 1;
+        {   BMK_runTime_t const newRunTime = BMK_extract_runTime(runResult);
+            U64 const loopDuration_ns = newRunTime.nanoSecPerRun * cont->nbLoops;
+
+            cont->timeSpent_ns += loopDuration_ns;
+
+            /* estimate nbLoops for next run to last approximately 1 second */
+            if (loopDuration_ns > (runBudget_ns / 50)) {
+                U64 const fastestRun_ns = MIN(bestRunTime.nanoSecPerRun, newRunTime.nanoSecPerRun);
+                cont->nbLoops = (U32)(runBudget_ns / fastestRun_ns) + 1;
             } else {
-                const unsigned multiplier = 2;
+                /* previous run was too short : blindly increase workload by x multiplier */
+                const unsigned multiplier = 10;
                 assert(cont->nbLoops < ((unsigned)-1) / multiplier);  /* avoid overflow */
                 cont->nbLoops *= multiplier;
             }
-            if(loopDuration < MINUSABLETIME) { /* don't report results which have time too low */
-                continue;
-            }
 
+            if(loopDuration_ns < runTimeMin_ns) {
+                /* don't report results for which benchmark run time was too small : increased risks of rounding errors */
+                assert(completed == 0);
+                continue;
+            } else {
+                if(newRunTime.nanoSecPerRun < bestRunTime.nanoSecPerRun) {
+                    bestRunTime = newRunTime;
+                }
+                completed = 1;
+            }
         }
-        completed = 1;
-    }
-    return r;
+    }   /* while (!completed) */
+
+    return BMK_setValid_runTime(bestRunTime);
 }
 
-/* benchMem with no allocation */
-static BMK_return_t BMK_benchMemAdvancedNoAlloc(
-    const void ** const srcPtrs, size_t* const srcSizes,
-    void** const cPtrs, size_t* const cCapacities, size_t* const cSizes, 
-    void** const resPtrs, size_t* const resSizes,
-    void** resultBufferPtr, void* compressedBuffer,
-    const size_t maxCompressedSize,
-    BMK_timedFnState_t* timeStateCompress, BMK_timedFnState_t* timeStateDecompress,
 
-    const void* srcBuffer, size_t srcSize,
-    const size_t* fileSizes, unsigned nbFiles,
-    const int cLevel, const ZSTD_compressionParameters* comprParams,
-    const void* dictBuffer, size_t dictBufferSize,
-    ZSTD_CCtx* ctx, ZSTD_DCtx* dctx,
-    int displayLevel, const char* displayName, const BMK_advancedParams_t* adv) 
+/* ================================================================= */
+/*      Benchmark Zstandard, mem-to-mem scenarios                    */
+/* ================================================================= */
+
+int BMK_isSuccessful_benchOutcome(BMK_benchOutcome_t outcome)
 {
-    size_t const blockSize = ((adv->blockSize>=32 && (adv->mode != BMK_decodeOnly)) ? adv->blockSize : srcSize) + (!srcSize); /* avoid div by 0 */
-    BMK_return_t results = { { 0, 0, 0, 0 }, 0 } ;
+    return outcome.tag == 0;
+}
+
+BMK_benchResult_t BMK_extract_benchResult(BMK_benchOutcome_t outcome)
+{
+    assert(outcome.tag == 0);
+    return outcome.internal_never_use_directly;
+}
+
+static BMK_benchOutcome_t BMK_benchOutcome_error(void)
+{
+    BMK_benchOutcome_t b;
+    memset(&b, 0, sizeof(b));
+    b.tag = 1;
+    return b;
+}
+
+static BMK_benchOutcome_t BMK_benchOutcome_setValidResult(BMK_benchResult_t result)
+{
+    BMK_benchOutcome_t b;
+    b.tag = 0;
+    b.internal_never_use_directly = result;
+    return b;
+}
+
+
+/* benchMem with no allocation */
+static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
+            const void** srcPtrs, size_t* srcSizes,
+            void** cPtrs, size_t* cCapacities, size_t* cSizes,
+            void** resPtrs, size_t* resSizes,
+            void** resultBufferPtr, void* compressedBuffer,
+            size_t maxCompressedSize,
+            BMK_timedFnState_t* timeStateCompress,
+            BMK_timedFnState_t* timeStateDecompress,
+
+            const void* srcBuffer, size_t srcSize,
+            const size_t* fileSizes, unsigned nbFiles,
+            const int cLevel, const ZSTD_compressionParameters* comprParams,
+            const void* dictBuffer, size_t dictBufferSize,
+            ZSTD_CCtx* cctx, ZSTD_DCtx* dctx,
+            int displayLevel, const char* displayName,
+            const BMK_advancedParams_t* adv)
+{
+    size_t const blockSize = ((adv->blockSize>=32 && (adv->mode != BMK_decodeOnly)) ? adv->blockSize : srcSize) + (!srcSize);  /* avoid div by 0 */
+    BMK_benchResult_t benchResult;
     size_t const loadedCompressedSize = srcSize;
     size_t cSize = 0;
     double ratio = 0.;
     U32 nbBlocks;
 
-    if(!ctx || !dctx) 
-        EXM_THROW(31, BMK_return_t, "error: passed in null context");
+    assert(cctx != NULL); assert(dctx != NULL);
 
     /* init */
-    if (strlen(displayName)>17) displayName += strlen(displayName)-17;   /* display last 17 characters */
+    memset(&benchResult, 0, sizeof(benchResult));
+    if (strlen(displayName)>17) displayName += strlen(displayName) - 17;   /* display last 17 characters */
     if (adv->mode == BMK_decodeOnly) {  /* benchmark only decompression : source must be already compressed */
         const char* srcPtr = (const char*)srcBuffer;
         U64 totalDSize64 = 0;
         U32 fileNb;
         for (fileNb=0; fileNb<nbFiles; fileNb++) {
             U64 const fSize64 = ZSTD_findDecompressedSize(srcPtr, fileSizes[fileNb]);
-            if (fSize64==0) EXM_THROW(32, BMK_return_t, "Impossible to determine original size ");
+            if (fSize64==0) RETURN_ERROR(32, BMK_benchOutcome_t, "Impossible to determine original size ");
             totalDSize64 += fSize64;
             srcPtr += fileSizes[fileNb];
         }
         {   size_t const decodedSize = (size_t)totalDSize64;
+            assert((U64)decodedSize == totalDSize64);   /* check overflow */
             free(*resultBufferPtr);
             *resultBufferPtr = malloc(decodedSize);
             if (!(*resultBufferPtr)) {
-                EXM_THROW(33, BMK_return_t, "not enough memory"); 
+                RETURN_ERROR(33, BMK_benchOutcome_t, "not enough memory");
             }
-            if (totalDSize64 > decodedSize) {
-                free(*resultBufferPtr); 
-                EXM_THROW(32, BMK_return_t, "original size is too large");   /* size_t overflow */
+            if (totalDSize64 > decodedSize) {  /* size_t overflow */
+                free(*resultBufferPtr);
+                RETURN_ERROR(32, BMK_benchOutcome_t, "original size is too large");
             }
             cSize = srcSize;
             srcSize = decodedSize;
             ratio = (double)srcSize / (double)cSize;
-        }   
+        }
     }
 
     /* Init data blocks  */
@@ -489,21 +589,21 @@ static BMK_return_t BMK_benchMemAdvancedNoAlloc(
             U32 const blockEnd = nbBlocks + nbBlocksforThisFile;
             for ( ; nbBlocks<blockEnd; nbBlocks++) {
                 size_t const thisBlockSize = MIN(remaining, blockSize);
-                srcPtrs[nbBlocks] = (const void*)srcPtr;
+                srcPtrs[nbBlocks] = srcPtr;
                 srcSizes[nbBlocks] = thisBlockSize;
-                cPtrs[nbBlocks] = (void*)cPtr;
+                cPtrs[nbBlocks] = cPtr;
                 cCapacities[nbBlocks] = (adv->mode == BMK_decodeOnly) ? thisBlockSize : ZSTD_compressBound(thisBlockSize);
-                resPtrs[nbBlocks] = (void*)resPtr;
+                resPtrs[nbBlocks] = resPtr;
                 resSizes[nbBlocks] = (adv->mode == BMK_decodeOnly) ? (size_t) ZSTD_findDecompressedSize(srcPtr, thisBlockSize) : thisBlockSize;
                 srcPtr += thisBlockSize;
                 cPtr += cCapacities[nbBlocks];
                 resPtr += thisBlockSize;
                 remaining -= thisBlockSize;
-            }   
-        }   
+            }
+        }
     }
 
-    /* warmimg up memory */
+    /* warmimg up `compressedBuffer` */
     if (adv->mode == BMK_decodeOnly) {
         memcpy(compressedBuffer, srcBuffer, loadedCompressedSize);
     } else {
@@ -511,151 +611,105 @@ static BMK_return_t BMK_benchMemAdvancedNoAlloc(
     }
 
     /* Bench */
-    {   
-        U64 const crcOrig = (adv->mode == BMK_decodeOnly) ? 0 : XXH64(srcBuffer, srcSize, 0);
+    {   U64 const crcOrig = (adv->mode == BMK_decodeOnly) ? 0 : XXH64(srcBuffer, srcSize, 0);
 #       define NB_MARKS 4
-        const char* const marks[NB_MARKS] = { " |", " /", " =",  "\\" };
+        const char* marks[NB_MARKS] = { " |", " /", " =", " \\" };
         U32 markNb = 0;
-        DISPLAYLEVEL(2, "\r%79s\r", "");
+        int compressionCompleted = (adv->mode == BMK_decodeOnly);
+        int decompressionCompleted = (adv->mode == BMK_compressOnly);
+        BMK_initCCtxArgs cctxprep;
+        BMK_initDCtxArgs dctxprep;
+        cctxprep.cctx = cctx;
+        cctxprep.dictBuffer = dictBuffer;
+        cctxprep.dictBufferSize = dictBufferSize;
+        cctxprep.cLevel = cLevel;
+        cctxprep.comprParams = comprParams;
+        cctxprep.adv = adv;
+        dctxprep.dctx = dctx;
+        dctxprep.dictBuffer = dictBuffer;
+        dctxprep.dictBufferSize = dictBufferSize;
 
+        DISPLAYLEVEL(2, "\r%70s\r", "");   /* blank line */
         DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->\r", marks[markNb], displayName, (U32)srcSize);
-        {
-            BMK_initCCtxArgs cctxprep;
-            BMK_initDCtxArgs dctxprep;
-            cctxprep.ctx = ctx;
-            cctxprep.dictBuffer = dictBuffer;
-            cctxprep.dictBufferSize = dictBufferSize;
-            cctxprep.cLevel = cLevel;
-            cctxprep.comprParams = comprParams;
-            cctxprep.adv = adv;
-            dctxprep.dctx = dctx;
-            dctxprep.dictBuffer = dictBuffer;
-            dctxprep.dictBufferSize = dictBufferSize;
-            if(adv->loopMode == BMK_timeMode) {
-                BMK_customTimedReturn_t intermediateResultCompress;
-                BMK_customTimedReturn_t intermediateResultDecompress;
-                if(adv->mode == BMK_compressOnly) {
-                    intermediateResultCompress.completed = 0;
-                    intermediateResultDecompress.completed = 1;
-                } else if (adv->mode == BMK_decodeOnly) {
-                    intermediateResultCompress.completed = 1;
-                    intermediateResultDecompress.completed = 0;
-                } else { /* both */
-                    intermediateResultCompress.completed = 0;
-                    intermediateResultDecompress.completed = 0;
-                }
-                while(!(intermediateResultCompress.completed && intermediateResultDecompress.completed)) {
-                    if(!intermediateResultCompress.completed) { 
-                        intermediateResultCompress = BMK_benchFunctionTimed(timeStateCompress, &local_defaultCompress, (void*)ctx, &local_initCCtx, (void*)&cctxprep,
-                        nbBlocks, srcPtrs, srcSizes, cPtrs, cCapacities, cSizes);
-                        if(intermediateResultCompress.result.error) {
-                            results.error = intermediateResultCompress.result.error;
-                            return results;
-                        }
-                        ratio = (double)(srcSize / intermediateResultCompress.result.result.sumOfReturn);
-                        {   
-                            int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
-                            results.result.cSpeed = (srcSize * TIMELOOP_NANOSEC / intermediateResultCompress.result.result.nanoSecPerRun);
-                            cSize = intermediateResultCompress.result.result.sumOfReturn;
-                            results.result.cSize = cSize;
-                            ratio = (double)srcSize / results.result.cSize;
-                            markNb = (markNb+1) % NB_MARKS;
-                            DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.*f),%6.*f MB/s\r",
-                                    marks[markNb], displayName, (U32)srcSize, (U32)results.result.cSize,
-                                    ratioAccuracy, ratio,
-                                    results.result.cSpeed < (10 MB) ? 2 : 1, (double)results.result.cSpeed / (1 MB));
-                        }
-                    }
 
-                    if(!intermediateResultDecompress.completed) {
-                        intermediateResultDecompress = BMK_benchFunctionTimed(timeStateDecompress, &local_defaultDecompress, (void*)(dctx), &local_initDCtx, (void*)&dctxprep,
-                        nbBlocks, (const void* const*)cPtrs, cSizes, resPtrs, resSizes, NULL);
-                        if(intermediateResultDecompress.result.error) {
-                            results.error = intermediateResultDecompress.result.error;
-                            return results;
-                        }
-      
-                        {   
-                            int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
-                            results.result.dSpeed = (srcSize * TIMELOOP_NANOSEC/ intermediateResultDecompress.result.result.nanoSecPerRun);
-                            markNb = (markNb+1) % NB_MARKS;
-                            DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.*f),%6.*f MB/s ,%6.1f MB/s \r",
-                                    marks[markNb], displayName, (U32)srcSize, (U32)results.result.cSize,
-                                    ratioAccuracy, ratio,
-                                    results.result.cSpeed < (10 MB) ? 2 : 1, (double)results.result.cSpeed / (1 MB),
-                                    (double)results.result.dSpeed / (1 MB));
-                        }
-                    }
+        while (!(compressionCompleted && decompressionCompleted)) {
+
+            if (!compressionCompleted) {
+                BMK_runOutcome_t const cOutcome =
+                        BMK_benchTimedFn( timeStateCompress,
+                                        &local_defaultCompress, cctx,
+                                        &local_initCCtx, &cctxprep,
+                                        nbBlocks,
+                                        srcPtrs, srcSizes,
+                                        cPtrs, cCapacities,
+                                        cSizes);
+
+                if (!BMK_isSuccessful_runOutcome(cOutcome)) {
+                    return BMK_benchOutcome_error();
                 }
 
-            } else { //iterMode;
-                if(adv->mode != BMK_decodeOnly) {
+                {   BMK_runTime_t const cResult = BMK_extract_runTime(cOutcome);
+                    cSize = cResult.sumOfReturn;
+                    ratio = (double)srcSize / cSize;
+                    {   BMK_benchResult_t newResult;
+                        newResult.cSpeed = ((U64)srcSize * TIMELOOP_NANOSEC / cResult.nanoSecPerRun);
+                        benchResult.cSize = cSize;
+                        if (newResult.cSpeed > benchResult.cSpeed)
+                            benchResult.cSpeed = newResult.cSpeed;
+                }   }
 
-                    BMK_customReturn_t compressionResults = BMK_benchFunction(&local_defaultCompress, (void*)ctx, &local_initCCtx, (void*)&cctxprep,
-                        nbBlocks, srcPtrs, srcSizes, cPtrs, cCapacities, cSizes, adv->nbSeconds); 
-                    if(compressionResults.error) {
-                        results.error = compressionResults.error;
-                        return results;
-                    }
-
-                    if(compressionResults.result.nanoSecPerRun == 0) {
-                        results.result.cSpeed = 0;
-                    } else {
-                        results.result.cSpeed = srcSize * TIMELOOP_NANOSEC / compressionResults.result.nanoSecPerRun;
-                    }
-
-                    results.result.cSize = compressionResults.result.sumOfReturn;
-                    {   
-                        int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
-                        cSize = compressionResults.result.sumOfReturn;
-                        results.result.cSize = cSize;
-                        ratio = (double)srcSize / results.result.cSize;
-                        markNb = (markNb+1) % NB_MARKS;
-                        DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.*f),%6.*f MB/s\r",
-                                marks[markNb], displayName, (U32)srcSize, (U32)results.result.cSize,
-                                ratioAccuracy, ratio,
-                                results.result.cSpeed < (10 MB) ? 2 : 1, (double)results.result.cSpeed / (1 MB));
-                    }
+                {   int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
+                    markNb = (markNb+1) % NB_MARKS;
+                    DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.*f),%6.*f MB/s\r",
+                            marks[markNb], displayName,
+                            (U32)srcSize, (U32)cSize,
+                            ratioAccuracy, ratio,
+                            benchResult.cSpeed < (10 MB) ? 2 : 1, (double)benchResult.cSpeed / MB_UNIT);
                 }
-                if(adv->mode != BMK_compressOnly) {
-                    BMK_customReturn_t decompressionResults = BMK_benchFunction(
-                        &local_defaultDecompress, (void*)(dctx),
-                        &local_initDCtx, (void*)&dctxprep, nbBlocks,
-                        (const void* const*)cPtrs, cSizes, resPtrs, resSizes, NULL, 
-                        adv->nbSeconds);
-                    if(decompressionResults.error) {
-                        results.error = decompressionResults.error;
-                        return results;
-                    }
-
-                    if(decompressionResults.result.nanoSecPerRun == 0) {
-                        results.result.dSpeed = 0;
-                    } else {
-                        results.result.dSpeed = srcSize * TIMELOOP_NANOSEC / decompressionResults.result.nanoSecPerRun;
-                    }
-
-                    {   
-                        int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
-                        markNb = (markNb+1) % NB_MARKS;
-                        DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.*f),%6.*f MB/s ,%6.1f MB/s \r",
-                                marks[markNb], displayName, (U32)srcSize, (U32)results.result.cSize,
-                                ratioAccuracy, ratio,
-                                results.result.cSpeed < (10 MB) ? 2 : 1, (double)results.result.cSpeed / (1 MB),
-                                (double)results.result.dSpeed / (1 MB));
-                    }
-                }
+                compressionCompleted = BMK_isCompleted_TimedFn(timeStateCompress);
             }
-        }
+
+            if(!decompressionCompleted) {
+                BMK_runOutcome_t const dOutcome =
+                        BMK_benchTimedFn(timeStateDecompress,
+                                        &local_defaultDecompress, dctx,
+                                        &local_initDCtx, &dctxprep,
+                                        nbBlocks,
+                                        (const void *const *)cPtrs, cSizes,
+                                        resPtrs, resSizes,
+                                        NULL);
+
+                if(!BMK_isSuccessful_runOutcome(dOutcome)) {
+                    return BMK_benchOutcome_error();
+                }
+
+                {   BMK_runTime_t const dResult = BMK_extract_runTime(dOutcome);
+                    U64 const newDSpeed = (srcSize * TIMELOOP_NANOSEC / dResult.nanoSecPerRun);
+                    if (newDSpeed > benchResult.dSpeed)
+                        benchResult.dSpeed = newDSpeed;
+                }
+
+                {   int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
+                    markNb = (markNb+1) % NB_MARKS;
+                    DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.*f),%6.*f MB/s ,%6.1f MB/s \r",
+                            marks[markNb], displayName,
+                            (U32)srcSize, (U32)benchResult.cSize,
+                            ratioAccuracy, ratio,
+                            benchResult.cSpeed < (10 MB) ? 2 : 1, (double)benchResult.cSpeed / MB_UNIT,
+                            (double)benchResult.dSpeed / MB_UNIT);
+                }
+                decompressionCompleted = BMK_isCompleted_TimedFn(timeStateDecompress);
+            }
+        }   /* while (!(compressionCompleted && decompressionCompleted)) */
 
         /* CRC Checking */
-        {   void* resultBuffer = *resultBufferPtr;
+        {   const BYTE* resultBuffer = (const BYTE*)(*resultBufferPtr);
             U64 const crcCheck = XXH64(resultBuffer, srcSize, 0);
-            /* adv->mode == 0 -> compress + decompress */
             if ((adv->mode == BMK_both) && (crcOrig!=crcCheck)) {
                 size_t u;
                 DISPLAY("!!! WARNING !!! %14s : Invalid Checksum : %x != %x   \n", displayName, (unsigned)crcOrig, (unsigned)crcCheck);
                 for (u=0; u<srcSize; u++) {
-                    if (((const BYTE*)srcBuffer)[u] != ((const BYTE*)resultBuffer)[u]) {
+                    if (((const BYTE*)srcBuffer)[u] != resultBuffer[u]) {
                         U32 segNb, bNb, pos;
                         size_t bacc = 0;
                         DISPLAY("Decoding error at pos %u ", (U32)u);
@@ -674,44 +728,47 @@ static BMK_return_t BMK_benchMemAdvancedNoAlloc(
                             for (n=1; n<3; n++) DISPLAY("%02X ", ((const BYTE*)srcBuffer)[u+n]);
                             DISPLAY(" \n");
                             DISPLAY("decode: ");
-                            for (n=-5; n<0; n++) DISPLAY("%02X ", ((const BYTE*)resultBuffer)[u+n]);
-                            DISPLAY(" :%02X:  ", ((const BYTE*)resultBuffer)[u]);
-                            for (n=1; n<3; n++) DISPLAY("%02X ", ((const BYTE*)resultBuffer)[u+n]);
+                            for (n=-5; n<0; n++) DISPLAY("%02X ", resultBuffer[u+n]);
+                            DISPLAY(" :%02X:  ", resultBuffer[u]);
+                            for (n=1; n<3; n++) DISPLAY("%02X ", resultBuffer[u+n]);
                             DISPLAY(" \n");
                         }
                         break;
                     }
                     if (u==srcSize-1) {  /* should never happen */
                         DISPLAY("no difference detected\n");
-                    }   
+                    }
                 }
-            }   
+            }
         }   /* CRC Checking */
 
-    if (displayLevel == 1) {   /* hidden display mode -q, used by python speed benchmark */
-        double const cSpeed = (double)results.result.cSpeed / (1 MB);
-        double const dSpeed = (double)results.result.dSpeed / (1 MB);
-        if (adv->additionalParam) {
-            DISPLAY("-%-3i%11i (%5.3f) %6.2f MB/s %6.1f MB/s  %s (param=%d)\n", cLevel, (int)cSize, ratio, cSpeed, dSpeed, displayName, adv->additionalParam);
-        } else {
-            DISPLAY("-%-3i%11i (%5.3f) %6.2f MB/s %6.1f MB/s  %s\n", cLevel, (int)cSize, ratio, cSpeed, dSpeed, displayName);
+        if (displayLevel == 1) {   /* hidden display mode -q, used by python speed benchmark */
+            double const cSpeed = (double)benchResult.cSpeed / MB_UNIT;
+            double const dSpeed = (double)benchResult.dSpeed / MB_UNIT;
+            if (adv->additionalParam) {
+                DISPLAY("-%-3i%11i (%5.3f) %6.2f MB/s %6.1f MB/s  %s (param=%d)\n", cLevel, (int)cSize, ratio, cSpeed, dSpeed, displayName, adv->additionalParam);
+            } else {
+                DISPLAY("-%-3i%11i (%5.3f) %6.2f MB/s %6.1f MB/s  %s\n", cLevel, (int)cSize, ratio, cSpeed, dSpeed, displayName);
+            }
         }
-    }
-    DISPLAYLEVEL(2, "%2i#\n", cLevel);
+
+        DISPLAYLEVEL(2, "%2i#\n", cLevel);
     }   /* Bench */
-    results.result.cMem = (1ULL << (comprParams->windowLog)) + ZSTD_sizeof_CCtx(ctx);
-    results.error = 0;
-    return results;
+
+    benchResult.cMem = (1ULL << (comprParams->windowLog)) + ZSTD_sizeof_CCtx(cctx);
+    return BMK_benchOutcome_setValidResult(benchResult);
 }
 
-BMK_return_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
-                        void* dstBuffer, size_t dstCapacity, 
+BMK_benchOutcome_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
+                        void* dstBuffer, size_t dstCapacity,
                         const size_t* fileSizes, unsigned nbFiles,
-                        const int cLevel, const ZSTD_compressionParameters* comprParams,
+                        int cLevel, const ZSTD_compressionParameters* comprParams,
                         const void* dictBuffer, size_t dictBufferSize,
                         int displayLevel, const char* displayName, const BMK_advancedParams_t* adv)
 
 {
+    int const dstParamsError = !dstBuffer ^ !dstCapacity;  /* must be both NULL or none */
+
     size_t const blockSize = ((adv->blockSize>=32 && (adv->mode != BMK_decodeOnly)) ? adv->blockSize : srcSize) + (!srcSize) /* avoid div by 0 */ ;
     U32 const maxNbBlocks = (U32) ((srcSize + (blockSize-1)) / blockSize) + nbFiles;
 
@@ -727,71 +784,78 @@ BMK_return_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
     void ** const resPtrs = (void**)malloc(maxNbBlocks * sizeof(void*));
     size_t* const resSizes = (size_t*)malloc(maxNbBlocks * sizeof(size_t));
 
-    BMK_timedFnState_t* timeStateCompress = BMK_createTimeState(adv->nbSeconds);
-    BMK_timedFnState_t* timeStateDecompress = BMK_createTimeState(adv->nbSeconds);
+    BMK_timedFnState_t* timeStateCompress = BMK_createTimedFnState(adv->nbSeconds * 1000, BMK_RUNTEST_DEFAULT_MS);
+    BMK_timedFnState_t* timeStateDecompress = BMK_createTimedFnState(adv->nbSeconds * 1000, BMK_RUNTEST_DEFAULT_MS);
 
-    ZSTD_CCtx* ctx = ZSTD_createCCtx();
-    ZSTD_DCtx* dctx = ZSTD_createDCtx();
+    ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+    ZSTD_DCtx* const dctx = ZSTD_createDCtx();
 
     const size_t maxCompressedSize = dstCapacity ? dstCapacity : ZSTD_compressBound(srcSize) + (maxNbBlocks * 1024);
 
     void* const internalDstBuffer = dstBuffer ? NULL : malloc(maxCompressedSize);
     void* const compressedBuffer = dstBuffer ? dstBuffer : internalDstBuffer;
 
-    BMK_return_t results = { { 0, 0, 0, 0 }, 0 };
-
-    int parametersConflict = !dstBuffer ^ !dstCapacity;
+    BMK_benchOutcome_t outcome = BMK_benchOutcome_error();  /* error by default */
 
     void* resultBuffer = srcSize ? malloc(srcSize) : NULL;
 
-    int allocationincomplete = !srcPtrs || !srcSizes || !cPtrs || 
-        !cSizes || !cCapacities || !resPtrs || !resSizes || 
-        !timeStateCompress || !timeStateDecompress || !compressedBuffer || !resultBuffer;
+    int allocationincomplete = !srcPtrs || !srcSizes || !cPtrs ||
+        !cSizes || !cCapacities || !resPtrs || !resSizes ||
+        !timeStateCompress || !timeStateDecompress ||
+        !cctx || !dctx ||
+        !compressedBuffer || !resultBuffer;
 
 
-
-    if (!allocationincomplete && !parametersConflict) {
-        results = BMK_benchMemAdvancedNoAlloc(srcPtrs, srcSizes, cPtrs, cCapacities, cSizes,
-            resPtrs, resSizes, &resultBuffer, compressedBuffer, maxCompressedSize, timeStateCompress, timeStateDecompress,
-            srcBuffer, srcSize, fileSizes, nbFiles, cLevel, comprParams,
-            dictBuffer, dictBufferSize, ctx, dctx, displayLevel, displayName, adv);
+    if (!allocationincomplete && !dstParamsError) {
+        outcome = BMK_benchMemAdvancedNoAlloc(srcPtrs, srcSizes,
+                                            cPtrs, cCapacities, cSizes,
+                                            resPtrs, resSizes,
+                                            &resultBuffer,
+                                            compressedBuffer, maxCompressedSize,
+                                            timeStateCompress, timeStateDecompress,
+                                            srcBuffer, srcSize,
+                                            fileSizes, nbFiles,
+                                            cLevel, comprParams,
+                                            dictBuffer, dictBufferSize,
+                                            cctx, dctx,
+                                            displayLevel, displayName, adv);
     }
-    
+
     /* clean up */
-    BMK_freeTimeState(timeStateCompress);
-    BMK_freeTimeState(timeStateDecompress);
-    
-    ZSTD_freeCCtx(ctx);
+    BMK_freeTimedFnState(timeStateCompress);
+    BMK_freeTimedFnState(timeStateDecompress);
+
+    ZSTD_freeCCtx(cctx);
     ZSTD_freeDCtx(dctx);
 
     free(internalDstBuffer);
     free(resultBuffer);
 
-    free((void*)srcPtrs); 
-    free(srcSizes); 
-    free(cPtrs); 
+    free((void*)srcPtrs);
+    free(srcSizes);
+    free(cPtrs);
     free(cSizes);
     free(cCapacities);
     free(resPtrs);
     free(resSizes);
 
     if(allocationincomplete) {
-        EXM_THROW(31, BMK_return_t, "allocation error : not enough memory");
+        RETURN_ERROR(31, BMK_benchOutcome_t, "allocation error : not enough memory");
     }
-    
-    if(parametersConflict) {
-        EXM_THROW(32, BMK_return_t, "Conflicting input results");   
+
+    if(dstParamsError) {
+        RETURN_ERROR(32, BMK_benchOutcome_t, "Dst parameters not coherent");
     }
-    return results;
+    return outcome;
 }
 
-BMK_return_t BMK_benchMem(const void* srcBuffer, size_t srcSize,
+BMK_benchOutcome_t BMK_benchMem(const void* srcBuffer, size_t srcSize,
                         const size_t* fileSizes, unsigned nbFiles,
-                        const int cLevel, const ZSTD_compressionParameters* comprParams,
+                        int cLevel, const ZSTD_compressionParameters* comprParams,
                         const void* dictBuffer, size_t dictBufferSize,
                         int displayLevel, const char* displayName) {
 
-    const BMK_advancedParams_t adv = BMK_initAdvancedParams();
+    BMK_advancedParams_t const adv = BMK_initAdvancedParams();
     return BMK_benchMemAdvanced(srcBuffer, srcSize,
                                 NULL, 0,
                                 fileSizes, nbFiles,
@@ -799,6 +863,71 @@ BMK_return_t BMK_benchMem(const void* srcBuffer, size_t srcSize,
                                 dictBuffer, dictBufferSize,
                                 displayLevel, displayName, &adv);
 }
+
+static BMK_benchOutcome_t BMK_benchCLevel(const void* srcBuffer, size_t benchedSize,
+                            const size_t* fileSizes, unsigned nbFiles,
+                            int cLevel, const ZSTD_compressionParameters* comprParams,
+                            const void* dictBuffer, size_t dictBufferSize,
+                            int displayLevel, const char* displayName,
+                            BMK_advancedParams_t const * const adv)
+{
+    const char* pch = strrchr(displayName, '\\'); /* Windows */
+    if (!pch) pch = strrchr(displayName, '/');    /* Linux */
+    if (pch) displayName = pch+1;
+
+    if (adv->realTime) {
+        DISPLAYLEVEL(2, "Note : switching to real-time priority \n");
+        SET_REALTIME_PRIORITY;
+    }
+
+    if (displayLevel == 1 && !adv->additionalParam)   /* --quiet mode */
+        DISPLAY("bench %s %s: input %u bytes, %u seconds, %u KB blocks\n",
+                ZSTD_VERSION_STRING, ZSTD_GIT_COMMIT_STRING,
+                (U32)benchedSize, adv->nbSeconds, (U32)(adv->blockSize>>10));
+
+    return BMK_benchMemAdvanced(srcBuffer, benchedSize,
+                                NULL, 0,
+                                fileSizes, nbFiles,
+                                cLevel, comprParams,
+                                dictBuffer, dictBufferSize,
+                                displayLevel, displayName, adv);
+}
+
+BMK_benchOutcome_t BMK_syntheticTest(int cLevel, double compressibility,
+                          const ZSTD_compressionParameters* compressionParams,
+                          int displayLevel, const BMK_advancedParams_t* adv)
+{
+    char name[20] = {0};
+    size_t const benchedSize = 10000000;
+    void* srcBuffer;
+    BMK_benchOutcome_t res;
+
+    if (cLevel > ZSTD_maxCLevel()) {
+        RETURN_ERROR(15, BMK_benchOutcome_t, "Invalid Compression Level");
+    }
+
+    /* Memory allocation */
+    srcBuffer = malloc(benchedSize);
+    if (!srcBuffer) RETURN_ERROR(21, BMK_benchOutcome_t, "not enough memory");
+
+    /* Fill input buffer */
+    RDG_genBuffer(srcBuffer, benchedSize, compressibility, 0.0, 0);
+
+    /* Bench */
+    snprintf (name, sizeof(name), "Synthetic %2u%%", (unsigned)(compressibility*100));
+    res = BMK_benchCLevel(srcBuffer, benchedSize,
+                    &benchedSize /* ? */, 1 /* ? */,
+                    cLevel, compressionParams,
+                    NULL, 0,  /* dictionary */
+                    displayLevel, name, adv);
+
+    /* clean up */
+    free(srcBuffer);
+
+    return res;
+}
+
+
 
 static size_t BMK_findMaxMem(U64 requiredMem)
 {
@@ -818,44 +947,11 @@ static size_t BMK_findMaxMem(U64 requiredMem)
     return (size_t)(requiredMem);
 }
 
-static BMK_return_t BMK_benchCLevel(const void* srcBuffer, size_t benchedSize,
-                            const size_t* fileSizes, unsigned nbFiles,
-                            const int cLevel, const ZSTD_compressionParameters* comprParams,
-                            const void* dictBuffer, size_t dictBufferSize,
-                            int displayLevel, const char* displayName,
-                            BMK_advancedParams_t const * const adv)
-{
-    BMK_return_t res;
-
-    const char* pch = strrchr(displayName, '\\'); /* Windows */
-
-    if (!pch) pch = strrchr(displayName, '/'); /* Linux */
-    if (pch) displayName = pch+1;
-
-    if (adv->realTime) {
-        DISPLAYLEVEL(2, "Note : switching to real-time priority \n");
-        SET_REALTIME_PRIORITY;
-    }
-
-    if (displayLevel == 1 && !adv->additionalParam)
-        DISPLAY("bench %s %s: input %u bytes, %u seconds, %u KB blocks\n", ZSTD_VERSION_STRING, ZSTD_GIT_COMMIT_STRING, (U32)benchedSize, adv->nbSeconds, (U32)(adv->blockSize>>10));
-
-    res = BMK_benchMemAdvanced(srcBuffer, benchedSize, 
-                NULL, 0, 
-                fileSizes, nbFiles, 
-                cLevel, comprParams, 
-                dictBuffer, dictBufferSize, 
-                displayLevel, displayName, adv);
-
-    return res;
-}
-
-
 /*! BMK_loadFiles() :
  *  Loads `buffer` with content of files listed within `fileNamesTable`.
  *  At most, fills `buffer` entirely. */
 static int BMK_loadFiles(void* buffer, size_t bufferSize,
-                          size_t* fileSizes, const char* const * const fileNamesTable, 
+                          size_t* fileSizes, const char* const * const fileNamesTable,
                           unsigned nbFiles, int displayLevel)
 {
     size_t pos = 0, totalSize = 0;
@@ -889,50 +985,53 @@ static int BMK_loadFiles(void* buffer, size_t bufferSize,
     return 0;
 }
 
-BMK_return_t BMK_benchFilesAdvanced(const char* const * const fileNamesTable, unsigned const nbFiles,
-                               const char* const dictFileName, int const cLevel, 
-                               const ZSTD_compressionParameters* const compressionParams, 
-                               int displayLevel, const BMK_advancedParams_t * const adv)
+BMK_benchOutcome_t BMK_benchFilesAdvanced(
+                        const char* const * fileNamesTable, unsigned nbFiles,
+                        const char* dictFileName, int cLevel,
+                        const ZSTD_compressionParameters* compressionParams,
+                        int displayLevel, const BMK_advancedParams_t* adv)
 {
     void* srcBuffer = NULL;
     size_t benchedSize;
     void* dictBuffer = NULL;
     size_t dictBufferSize = 0;
     size_t* fileSizes = NULL;
-    BMK_return_t res;
+    BMK_benchOutcome_t res;
     U64 const totalSizeToLoad = UTIL_getTotalFileSize(fileNamesTable, nbFiles);
 
-    if(!nbFiles) {
-        EXM_THROW(14, BMK_return_t, "No Files to Benchmark");
+    if (!nbFiles) {
+        RETURN_ERROR(14, BMK_benchOutcome_t, "No Files to Benchmark");
     }
 
     if (cLevel > ZSTD_maxCLevel()) {
-        EXM_THROW(15, BMK_return_t, "Invalid Compression Level");
+        RETURN_ERROR(15, BMK_benchOutcome_t, "Invalid Compression Level");
     }
 
     fileSizes = (size_t*)calloc(nbFiles, sizeof(size_t));
-    if (!fileSizes) EXM_THROW(12, BMK_return_t, "not enough memory for fileSizes");
+    if (!fileSizes) RETURN_ERROR(12, BMK_benchOutcome_t, "not enough memory for fileSizes");
+
     /* Load dictionary */
     if (dictFileName != NULL) {
         U64 const dictFileSize = UTIL_getFileSize(dictFileName);
         if (dictFileSize > 64 MB) {
             free(fileSizes);
-            EXM_THROW(10, BMK_return_t, "dictionary file %s too large", dictFileName);
+            RETURN_ERROR(10, BMK_benchOutcome_t, "dictionary file %s too large", dictFileName);
         }
         dictBufferSize = (size_t)dictFileSize;
         dictBuffer = malloc(dictBufferSize);
         if (dictBuffer==NULL) {
             free(fileSizes);
-            EXM_THROW(11, BMK_return_t, "not enough memory for dictionary (%u bytes)",
+            RETURN_ERROR(11, BMK_benchOutcome_t, "not enough memory for dictionary (%u bytes)",
                             (U32)dictBufferSize);
         }
-        {
-            int errorCode = BMK_loadFiles(dictBuffer, dictBufferSize, fileSizes, &dictFileName, 1, displayLevel);
-            if(errorCode) {
-                res.error = errorCode;
+
+        {   int const errorCode = BMK_loadFiles(dictBuffer, dictBufferSize,
+                                                fileSizes, &dictFileName /*?*/,
+                                                1 /*?*/, displayLevel);
+            if (errorCode) {
+                res = BMK_benchOutcome_error();
                 goto _cleanUp;
-            }
-        }
+        }   }
     }
 
     /* Memory allocation & restrictions */
@@ -945,29 +1044,28 @@ BMK_return_t BMK_benchFilesAdvanced(const char* const * const fileNamesTable, un
     if (!srcBuffer) {
         free(dictBuffer);
         free(fileSizes);
-        EXM_THROW(12, BMK_return_t, "not enough memory");
+        RETURN_ERROR(12, BMK_benchOutcome_t, "not enough memory");
     }
 
     /* Load input buffer */
-    {
-        int errorCode = BMK_loadFiles(srcBuffer, benchedSize, fileSizes, fileNamesTable, nbFiles, displayLevel);
-        if(errorCode) {
-            res.error = errorCode;
+    {   int const errorCode = BMK_loadFiles(srcBuffer, benchedSize,
+                                        fileSizes, fileNamesTable, nbFiles,
+                                        displayLevel);
+        if (errorCode) {
+            res = BMK_benchOutcome_error();
             goto _cleanUp;
-        }
-    }
+    }   }
+
     /* Bench */
-    {
-        char mfName[20] = {0};
+    {   char mfName[20] = {0};
         snprintf (mfName, sizeof(mfName), " %u files", nbFiles);
-        {   
-            const char* const displayName = (nbFiles > 1) ? mfName : fileNamesTable[0];
-            res = BMK_benchCLevel(srcBuffer, benchedSize, 
-                            fileSizes, nbFiles, 
-                            cLevel, compressionParams,
-                            dictBuffer, dictBufferSize, 
-                            displayLevel, displayName, 
-                            adv);
+        {   const char* const displayName = (nbFiles > 1) ? mfName : fileNamesTable[0];
+            res = BMK_benchCLevel(srcBuffer, benchedSize,
+                                fileSizes, nbFiles,
+                                cLevel, compressionParams,
+                                dictBuffer, dictBufferSize,
+                                displayLevel, displayName,
+                                adv);
     }   }
 
 _cleanUp:
@@ -978,44 +1076,12 @@ _cleanUp:
 }
 
 
-BMK_return_t BMK_syntheticTest(int cLevel, double compressibility,
-                              const ZSTD_compressionParameters* compressionParams,
-                              int displayLevel, const BMK_advancedParams_t * const adv)
+BMK_benchOutcome_t BMK_benchFiles(
+                    const char* const * fileNamesTable, unsigned nbFiles,
+                    const char* dictFileName,
+                    int cLevel, const ZSTD_compressionParameters* compressionParams,
+                    int displayLevel)
 {
-    char name[20] = {0};
-    size_t benchedSize = 10000000;
-    void* srcBuffer;
-    BMK_return_t res;
-
-    if (cLevel > ZSTD_maxCLevel()) {
-        EXM_THROW(15, BMK_return_t, "Invalid Compression Level");
-    }
-
-    /* Memory allocation */
-    srcBuffer = malloc(benchedSize);
-    if (!srcBuffer) EXM_THROW(21, BMK_return_t, "not enough memory");
-
-    /* Fill input buffer */
-    RDG_genBuffer(srcBuffer, benchedSize, compressibility, 0.0, 0);
-
-    /* Bench */
-    snprintf (name, sizeof(name), "Synthetic %2u%%", (unsigned)(compressibility*100));
-    res = BMK_benchCLevel(srcBuffer, benchedSize, 
-                    &benchedSize, 1, 
-                    cLevel, compressionParams, 
-                    NULL, 0, 
-                    displayLevel, name, adv);
-
-    /* clean up */
-    free(srcBuffer);
-
-    return res;
-}
-
-BMK_return_t BMK_benchFiles(const char* const * const fileNamesTable, unsigned const nbFiles,
-                   const char* const dictFileName, 
-                   int const cLevel, const ZSTD_compressionParameters* const compressionParams, 
-                   int displayLevel) {
-    const BMK_advancedParams_t adv = BMK_initAdvancedParams();
+    BMK_advancedParams_t const adv = BMK_initAdvancedParams();
     return BMK_benchFilesAdvanced(fileNamesTable, nbFiles, dictFileName, cLevel, compressionParams, displayLevel, &adv);
 }

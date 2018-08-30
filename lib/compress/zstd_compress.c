@@ -805,7 +805,7 @@ size_t ZSTD_estimateCCtxSize_usingCCtxParams(const ZSTD_CCtx_params* params)
         size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << cParams.windowLog);
         U32    const divider = (cParams.searchLength==3) ? 3 : 4;
         size_t const maxNbSeq = blockSize / divider;
-        size_t const tokenSpace = blockSize + 11*maxNbSeq;
+        size_t const tokenSpace = WILDCOPY_OVERLENGTH + blockSize + 11*maxNbSeq;
         size_t const entropySpace = HUF_WORKSPACE_SIZE;
         size_t const blockStateSpace = 2 * sizeof(ZSTD_compressedBlockState_t);
         size_t const matchStateSize = ZSTD_sizeof_matchState(&cParams, /* forCCtx */ 1);
@@ -931,33 +931,51 @@ typedef enum { ZSTDb_not_buffered, ZSTDb_buffered } ZSTD_buffered_policy_e;
 /* ZSTD_sufficientBuff() :
  * check internal buffers exist for streaming if buffPol == ZSTDb_buffered .
  * Note : they are assumed to be correctly sized if ZSTD_equivalentCParams()==1 */
-static U32 ZSTD_sufficientBuff(size_t bufferSize1, size_t blockSize1,
+static U32 ZSTD_sufficientBuff(size_t bufferSize1, size_t maxNbSeq1,
+                            size_t maxNbLit1,
                             ZSTD_buffered_policy_e buffPol2,
                             ZSTD_compressionParameters cParams2,
                             U64 pledgedSrcSize)
 {
     size_t const windowSize2 = MAX(1, (size_t)MIN(((U64)1 << cParams2.windowLog), pledgedSrcSize));
     size_t const blockSize2 = MIN(ZSTD_BLOCKSIZE_MAX, windowSize2);
+    size_t const maxNbSeq2 = blockSize2 / ((cParams2.searchLength == 3) ? 3 : 4);
+    size_t const maxNbLit2 = blockSize2;
     size_t const neededBufferSize2 = (buffPol2==ZSTDb_buffered) ? windowSize2 + blockSize2 : 0;
-    DEBUGLOG(4, "ZSTD_sufficientBuff: is windowSize2=%u <= wlog1=%u",
-                (U32)windowSize2, cParams2.windowLog);
-    DEBUGLOG(4, "ZSTD_sufficientBuff: is blockSize2=%u <= blockSize1=%u",
-                (U32)blockSize2, (U32)blockSize1);
-    return (blockSize2 <= blockSize1) /* seqStore space depends on blockSize */
+    DEBUGLOG(4, "ZSTD_sufficientBuff: is neededBufferSize2=%u <= bufferSize1=%u",
+                (U32)neededBufferSize2, (U32)bufferSize1);
+    DEBUGLOG(4, "ZSTD_sufficientBuff: is maxNbSeq2=%u <= maxNbSeq1=%u",
+                (U32)maxNbSeq2, (U32)maxNbSeq1);
+    DEBUGLOG(4, "ZSTD_sufficientBuff: is maxNbLit2=%u <= maxNbLit1=%u",
+                (U32)maxNbLit2, (U32)maxNbLit1);
+    return (maxNbLit2 <= maxNbLit1)
+         & (maxNbSeq2 <= maxNbSeq1)
          & (neededBufferSize2 <= bufferSize1);
 }
 
 /** Equivalence for resetCCtx purposes */
 static U32 ZSTD_equivalentParams(ZSTD_CCtx_params params1,
                                  ZSTD_CCtx_params params2,
-                                 size_t buffSize1, size_t blockSize1,
+                                 size_t buffSize1,
+                                 size_t maxNbSeq1, size_t maxNbLit1,
                                  ZSTD_buffered_policy_e buffPol2,
                                  U64 pledgedSrcSize)
 {
     DEBUGLOG(4, "ZSTD_equivalentParams: pledgedSrcSize=%u", (U32)pledgedSrcSize);
-    return ZSTD_equivalentCParams(params1.cParams, params2.cParams) &&
-           ZSTD_equivalentLdmParams(params1.ldmParams, params2.ldmParams) &&
-           ZSTD_sufficientBuff(buffSize1, blockSize1, buffPol2, params2.cParams, pledgedSrcSize);
+    if (!ZSTD_equivalentCParams(params1.cParams, params2.cParams)) {
+      DEBUGLOG(4, "ZSTD_equivalentCParams() == 0");
+      return 0;
+    }
+    if (!ZSTD_equivalentLdmParams(params1.ldmParams, params2.ldmParams)) {
+      DEBUGLOG(4, "ZSTD_equivalentLdmParams() == 0");
+      return 0;
+    }
+    if (!ZSTD_sufficientBuff(buffSize1, maxNbSeq1, maxNbLit1, buffPol2,
+                             params2.cParams, pledgedSrcSize)) {
+      DEBUGLOG(4, "ZSTD_sufficientBuff() == 0");
+      return 0;
+    }
+    return 1;
 }
 
 static void ZSTD_reset_compressedBlockState(ZSTD_compressedBlockState_t* bs)
@@ -1085,8 +1103,9 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
 
     if (crp == ZSTDcrp_continue) {
         if (ZSTD_equivalentParams(zc->appliedParams, params,
-                                zc->inBuffSize, zc->blockSize,
-                                zbuff, pledgedSrcSize)) {
+                                  zc->inBuffSize,
+                                  zc->seqStore.maxNbSeq, zc->seqStore.maxNbLit,
+                                  zbuff, pledgedSrcSize)) {
             DEBUGLOG(4, "ZSTD_equivalentParams()==1 -> continue mode (wLog1=%u, blockSize1=%zu)",
                         zc->appliedParams.cParams.windowLog, zc->blockSize);
             zc->workSpaceOversizedDuration += (zc->workSpaceOversizedDuration > 0);   /* if it was too large, it still is */
@@ -1107,7 +1126,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, windowSize);
         U32    const divider = (params.cParams.searchLength==3) ? 3 : 4;
         size_t const maxNbSeq = blockSize / divider;
-        size_t const tokenSpace = blockSize + 11*maxNbSeq;
+        size_t const tokenSpace = WILDCOPY_OVERLENGTH + blockSize + 11*maxNbSeq;
         size_t const buffOutSize = (zbuff==ZSTDb_buffered) ? ZSTD_compressBound(blockSize)+1 : 0;
         size_t const buffInSize = (zbuff==ZSTDb_buffered) ? windowSize + blockSize : 0;
         size_t const matchStateSize = ZSTD_sizeof_matchState(&params.cParams, /* forCCtx */ 1);
@@ -1197,13 +1216,18 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         ptr = ZSTD_reset_matchState(&zc->blockState.matchState, ptr, &params.cParams, crp, /* forCCtx */ 1);
 
         /* sequences storage */
+        zc->seqStore.maxNbSeq = maxNbSeq;
         zc->seqStore.sequencesStart = (seqDef*)ptr;
         ptr = zc->seqStore.sequencesStart + maxNbSeq;
         zc->seqStore.llCode = (BYTE*) ptr;
         zc->seqStore.mlCode = zc->seqStore.llCode + maxNbSeq;
         zc->seqStore.ofCode = zc->seqStore.mlCode + maxNbSeq;
         zc->seqStore.litStart = zc->seqStore.ofCode + maxNbSeq;
-        ptr = zc->seqStore.litStart + blockSize;
+        /* ZSTD_wildcopy() is used to copy into the literals buffer,
+         * so we have to oversize the buffer by WILDCOPY_OVERLENGTH bytes.
+         */
+        zc->seqStore.maxNbLit = blockSize;
+        ptr = zc->seqStore.litStart + blockSize + WILDCOPY_OVERLENGTH;
 
         /* ldm bucketOffsets table */
         if (params.ldmParams.enableLdm) {
@@ -1322,8 +1346,7 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
         }
 
         /* copy dictionary offsets */
-        {
-            ZSTD_matchState_t const* srcMatchState = &cdict->matchState;
+        {   ZSTD_matchState_t const* srcMatchState = &cdict->matchState;
             ZSTD_matchState_t* dstMatchState = &cctx->blockState.matchState;
             dstMatchState->window       = srcMatchState->window;
             dstMatchState->nextToUpdate = srcMatchState->nextToUpdate;
@@ -1647,6 +1670,7 @@ void ZSTD_seqToCodes(const seqStore_t* seqStorePtr)
     BYTE* const mlCodeTable = seqStorePtr->mlCode;
     U32 const nbSeq = (U32)(seqStorePtr->sequences - seqStorePtr->sequencesStart);
     U32 u;
+    assert(nbSeq <= seqStorePtr->maxNbSeq);
     for (u=0; u<nbSeq; u++) {
         U32 const llv = sequences[u].litLength;
         U32 const mlv = sequences[u].matchLength;
@@ -2235,13 +2259,6 @@ MEM_STATIC size_t ZSTD_compressSequences(seqStore_t* seqStorePtr,
         if (cSize >= maxCSize) return 0;  /* block not compressed */
     }
 
-    /* We check that dictionaries have offset codes available for the first
-     * block. After the first block, the offcode table might not have large
-     * enough codes to represent the offsets in the data.
-     */
-    if (nextEntropy->fse.offcode_repeatMode == FSE_repeat_valid)
-        nextEntropy->fse.offcode_repeatMode = FSE_repeat_check;
-
     return cSize;
 }
 
@@ -2380,12 +2397,20 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
                                 &zc->appliedParams,
                                 dst, dstCapacity,
                                 srcSize, zc->entropyWorkspace, zc->bmi2);
-        if (ZSTD_isError(cSize) || cSize == 0) return cSize;
-        /* confirm repcodes and entropy tables */
-        {   ZSTD_compressedBlockState_t* const tmp = zc->blockState.prevCBlock;
+        if (!ZSTD_isError(cSize) && cSize != 0) {
+            /* confirm repcodes and entropy tables */
+            ZSTD_compressedBlockState_t* const tmp = zc->blockState.prevCBlock;
             zc->blockState.prevCBlock = zc->blockState.nextCBlock;
             zc->blockState.nextCBlock = tmp;
         }
+
+        /* We check that dictionaries have offset codes available for the first
+         * block. After the first block, the offcode table might not have large
+         * enough codes to represent the offsets in the data.
+         */
+        if (zc->blockState.prevCBlock->entropy.fse.offcode_repeatMode == FSE_repeat_valid)
+            zc->blockState.prevCBlock->entropy.fse.offcode_repeatMode = FSE_repeat_check;
+
         return cSize;
     }
 }

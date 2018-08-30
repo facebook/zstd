@@ -951,8 +951,9 @@ static size_t BMK_findMaxMem(U64 requiredMem)
  *  Loads `buffer` with content of files listed within `fileNamesTable`.
  *  At most, fills `buffer` entirely. */
 static int BMK_loadFiles(void* buffer, size_t bufferSize,
-                          size_t* fileSizes, const char* const * const fileNamesTable,
-                          unsigned nbFiles, int displayLevel)
+                         size_t* fileSizes,
+                         const char* const * fileNamesTable, unsigned nbFiles,
+                         int displayLevel)
 {
     size_t pos = 0, totalSize = 0;
     unsigned n;
@@ -973,9 +974,10 @@ static int BMK_loadFiles(void* buffer, size_t bufferSize,
         if (f==NULL) EXM_THROW_INT(10, "impossible to open file %s", fileNamesTable[n]);
         DISPLAYUPDATE(2, "Loading %s...       \r", fileNamesTable[n]);
         if (fileSize > bufferSize-pos) fileSize = bufferSize-pos, nbFiles=n;   /* buffer too small - stop after this file */
-        { size_t const readSize = fread(((char*)buffer)+pos, 1, (size_t)fileSize, f);
-          if (readSize != (size_t)fileSize) EXM_THROW_INT(11, "could not read %s", fileNamesTable[n]);
-          pos += readSize; }
+        {   size_t const readSize = fread(((char*)buffer)+pos, 1, (size_t)fileSize, f);
+            if (readSize != (size_t)fileSize) EXM_THROW_INT(11, "could not read %s", fileNamesTable[n]);
+            pos += readSize;
+        }
         fileSizes[n] = (size_t)fileSize;
         totalSize += (size_t)fileSize;
         fclose(f);

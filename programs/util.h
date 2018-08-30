@@ -526,7 +526,10 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
  * After finishing usage of the list the structures should be freed with UTIL_freeFileList(params: return value, allocatedBuffer)
  * In case of error UTIL_createFileList returns NULL and UTIL_freeFileList should not be called.
  */
-UTIL_STATIC const char** UTIL_createFileList(const char **inputNames, unsigned inputNamesNb, char** allocatedBuffer, unsigned* allocatedNamesNb, int followLinks)
+UTIL_STATIC const char**
+UTIL_createFileList(const char **inputNames, unsigned inputNamesNb,
+                    char** allocatedBuffer, unsigned* allocatedNamesNb,
+                    int followLinks)
 {
     size_t pos;
     unsigned i, nbFiles;

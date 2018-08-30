@@ -200,9 +200,10 @@ Compression of small files similar to the sample set will be greatly improved.
     (for example, 10 MB for a 100 KB dictionary).
 
     Supports multithreading if `zstd` is compiled with threading support.
-    Additional parameters can be specified with `--train-cover`.
+    Additional parameters can be specified with `--train-fastcover`.
     The legacy dictionary builder can be accessed with `--train-legacy`.
-    Equivalent to `--train-cover=d=8,steps=4`.
+    The cover dictionary builder can be accessed with `--train-cover`.
+    Equivalent to `--train-fastcover=d=8,steps=4`.
 * `-o file`:
     Dictionary saved into `file` (default name: dictionary).
 * `--maxdict=#`:

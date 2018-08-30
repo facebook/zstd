@@ -194,7 +194,7 @@ All arguments after \fB\-\-\fR are treated as files
 Use FILEs as training set to create a dictionary\. The training set should contain a lot of small files (> 100), and weight typically 100x the target dictionary size (for example, 10 MB for a 100 KB dictionary)\.
 .
 .IP
-Supports multithreading if \fBzstd\fR is compiled with threading support\. Additional parameters can be specified with \fB\-\-train\-cover\fR\ or \fB\-\-train\-fastcover\fR\. The legacy dictionary builder can be accessed with \fB\-\-train\-legacy\fR\. Equivalent to \fB\-\-train\-fastCover=d=8,steps=4\fR\.
+Supports multithreading if \fBzstd\fR is compiled with threading support\. Additional parameters can be specified with \fB\-\-train\-fastcover\fR\. The legacy dictionary builder can be accessed with \fB\-\-train\-legacy\fR\.  The cover dictionary builder can be accessed with \fB\-\-train\-cover\fR\. Equivalent to \fB\-\-train\-fastCover=d=8,steps=4\fR\.
 .
 .TP
 \fB\-o file\fR

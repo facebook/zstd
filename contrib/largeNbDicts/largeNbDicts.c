@@ -50,6 +50,8 @@
 
 /*---  Macros  ---*/
 #define CONTROL(c)   assert(c)
+#undef MIN
+#define MIN(a,b)   ((a) < (b) ? (a) : (b))
 
 
 /*---  Display Macros  ---*/
@@ -471,9 +473,6 @@ static size_t compressBlocks(size_t* cSizes,   /* optional (can be NULL). If pre
 
 
 /* ---  Benchmark  --- */
-
-typedef size_t (*BMK_benchFn_t)(const void* src, size_t srcSize, void* dst, size_t dstCapacity, void* customPayload);
-typedef size_t (*BMK_initFn_t)(void* initPayload);
 
 typedef struct {
     ZSTD_DCtx* dctx;

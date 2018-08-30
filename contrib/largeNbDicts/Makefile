@@ -15,7 +15,7 @@ LIBZSTD = $(LIBDIR)/libzstd.a
 CPPFLAGS+= -I$(LIBDIR) -I$(LIBDIR)/common -I$(LIBDIR)/dictBuilder -I$(PROGDIR)
 
 CFLAGS  ?= -O3
-CFLAGS  += -std=c99
+CFLAGS  += -std=gnu99
 DEBUGFLAGS= -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
             -Wstrict-aliasing=1 -Wswitch-enum \
             -Wstrict-prototypes -Wundef -Wpointer-arith -Wformat-security \

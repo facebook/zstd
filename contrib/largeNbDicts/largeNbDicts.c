@@ -131,25 +131,28 @@ static buffer_t createBuffer_fromFile(const char* fileName)
 static buffer_t
 createDictionaryBuffer(const char* dictionaryName,
                        const void* srcBuffer,
-                       const size_t* srcBlockSizes, unsigned nbBlocks)
+                       const size_t* srcBlockSizes, unsigned nbBlocks,
+                       size_t requestedDictSize)
 {
     if (dictionaryName) {
         DISPLAYLEVEL(3, "loading dictionary %s \n", dictionaryName);
         return createBuffer_fromFile(dictionaryName);
-    } else {
-        DISPLAYLEVEL(3, "creating dictionary, of target size %u bytes \n", DICTSIZE);
-        void* const dictBuffer = malloc(DICTSIZE);
-        assert(dictBuffer != NULL);
 
-        size_t const dictSize = ZDICT_trainFromBuffer(dictBuffer, DICTSIZE,
-                                                    srcBuffer,
-                                                    srcBlockSizes,
-                                                    nbBlocks);
-        assert(!ZSTD_isError(dictSize));
+    } else {
+
+        DISPLAYLEVEL(3, "creating dictionary, of target size %u bytes \n",
+                        (unsigned)requestedDictSize);
+        void* const dictBuffer = malloc(requestedDictSize);
+        CONTROL(dictBuffer != NULL);
+
+        size_t const dictSize = ZDICT_trainFromBuffer(dictBuffer, requestedDictSize,
+                                                      srcBuffer,
+                                                      srcBlockSizes, nbBlocks);
+        CONTROL(!ZSTD_isError(dictSize));
 
         buffer_t result;
         result.ptr = dictBuffer;
-        result.capacity = DICTSIZE;
+        result.capacity = requestedDictSize;
         result.size = dictSize;
         return result;
     }
@@ -616,7 +619,8 @@ int bench(const char** fileNameTable, unsigned nbFiles,
     /* dictionary determination */
     buffer_t const dictBuffer = createDictionaryBuffer(dictionary,
                                 srcBuffer.ptr,
-                                srcSlices.capacities, nbBlocks);
+                                srcSlices.capacities, nbBlocks,
+                                DICTSIZE);
     CONTROL(dictBuffer.ptr != NULL);
 
     ZSTD_CDict* const cdict = ZSTD_createCDict(dictBuffer.ptr, dictBuffer.size, clevel);

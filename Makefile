@@ -104,6 +104,7 @@ clean:
 	@$(MAKE) -C contrib/pzstd $@ > $(VOID)
 	@$(MAKE) -C contrib/seekable_format/examples $@ > $(VOID)
 	@$(MAKE) -C contrib/adaptive-compression $@ > $(VOID)
+	@$(MAKE) -C contrib/largeNbDicts $@ > $(VOID)
 	@$(RM) zstd$(EXT) zstdmt$(EXT) tmp*
 	@$(RM) -r lz4
 	@echo Cleaning completed

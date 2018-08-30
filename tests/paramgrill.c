@@ -27,7 +27,8 @@
 #include "util.h"
 #include "bench.h"
 #include "zstd_errors.h"
-#include "zstd_internal.h"
+#include "zstd_internal.h"     /* should not be needed */
+
 
 /*-************************************
 *  Constants
@@ -45,6 +46,7 @@ static const size_t maxMemory = (sizeof(size_t)==4)  ?  (2 GB - 64 MB) : (size_t
 
 static const U64 g_maxVariationTime = 60 * SEC_TO_MICRO;
 static const int g_maxNbVariations = 64;
+
 
 /*-************************************
 *  Macros
@@ -68,7 +70,7 @@ static const int g_maxNbVariations = 64;
 #define FADT_MIN 0
 #define FADT_MAX ((U32)-1)
 
-#define ZSTD_TARGETLENGTH_MIN 0 
+#define ZSTD_TARGETLENGTH_MIN 0
 #define ZSTD_TARGETLENGTH_MAX 999
 
 #define WLOG_RANGE (ZSTD_WINDOWLOG_MAX - ZSTD_WINDOWLOG_MIN + 1)
@@ -90,8 +92,8 @@ static const char* g_stratName[ZSTD_btultra+1] = {
                 "ZSTD_greedy  ", "ZSTD_lazy    ", "ZSTD_lazy2   ",
                 "ZSTD_btlazy2 ", "ZSTD_btopt   ", "ZSTD_btultra "};
 
-
 static const U32 tlen_table[TLEN_RANGE] = { 0, 1, 2, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128, 256, 512, 999 };
+
 
 /*-************************************
 *  Setup for Adding new params
@@ -115,27 +117,27 @@ typedef struct {
 } paramValues_t;
 
 /* maximum value of parameters */
-static const U32 mintable[NUM_PARAMS] = 
+static const U32 mintable[NUM_PARAMS] =
         { ZSTD_WINDOWLOG_MIN, ZSTD_CHAINLOG_MIN, ZSTD_HASHLOG_MIN, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLENGTH_MIN, ZSTD_TARGETLENGTH_MIN, ZSTD_fast, FADT_MIN };
 
 /* minimum value of parameters */
-static const U32 maxtable[NUM_PARAMS] = 
+static const U32 maxtable[NUM_PARAMS] =
         { ZSTD_WINDOWLOG_MAX, ZSTD_CHAINLOG_MAX, ZSTD_HASHLOG_MAX, ZSTD_SEARCHLOG_MAX, ZSTD_SEARCHLENGTH_MAX, ZSTD_TARGETLENGTH_MAX, ZSTD_btultra, FADT_MAX };
 
 /* # of values parameters can take on */
-static const U32 rangetable[NUM_PARAMS] = 
+static const U32 rangetable[NUM_PARAMS] =
         { WLOG_RANGE, CLOG_RANGE, HLOG_RANGE, SLOG_RANGE, SLEN_RANGE, TLEN_RANGE, STRT_RANGE, FADT_RANGE };
 
 /* ZSTD_cctxSetParameter() index to set */
-static const ZSTD_cParameter cctxSetParamTable[NUM_PARAMS] = 
+static const ZSTD_cParameter cctxSetParamTable[NUM_PARAMS] =
         { ZSTD_p_windowLog, ZSTD_p_chainLog, ZSTD_p_hashLog, ZSTD_p_searchLog, ZSTD_p_minMatch, ZSTD_p_targetLength, ZSTD_p_compressionStrategy, ZSTD_p_forceAttachDict };
 
 /* names of parameters */
-static const char* g_paramNames[NUM_PARAMS] = 
+static const char* g_paramNames[NUM_PARAMS] =
         { "windowLog", "chainLog", "hashLog","searchLog", "searchLength", "targetLength", "strategy", "forceAttachDict" };
 
 /* shortened names of parameters */
-static const char* g_shortParamNames[NUM_PARAMS] = 
+static const char* g_shortParamNames[NUM_PARAMS] =
         { "wlog", "clog", "hlog","slog", "slen", "tlen", "strt", "fadt" };
 
 /* maps value from { 0 to rangetable[param] - 1 } to valid paramvalues */
@@ -178,7 +180,7 @@ static int invRangeMap(varInds_t param, U32 value) {
                     hi = mid;
                 }
             }
-            return lo;    
+            return lo;
         }
         case fadt_ind:
             return (int)value + 1;
@@ -201,16 +203,17 @@ static void displayParamVal(FILE* f, varInds_t param, U32 value, int width) {
     switch(param) {
         case fadt_ind: if(width) { fprintf(f, "%*d", width, (int)value); } else { fprintf(f, "%d", (int)value); } break;
         case strt_ind: if(width) { fprintf(f, "%*s", width, g_stratName[value]); } else { fprintf(f, "%s", g_stratName[value]); } break;
-        case wlog_ind: 
-        case clog_ind: 
-        case hlog_ind: 
-        case slog_ind: 
-        case slen_ind: 
+        case wlog_ind:
+        case clog_ind:
+        case hlog_ind:
+        case slog_ind:
+        case slen_ind:
         case tlen_ind: if(width) { fprintf(f, "%*u", width, value); } else { fprintf(f, "%u", value); } break;
         case NUM_PARAMS:
             DISPLAY("Error, not a valid param\n "); break;
     }
 }
+
 
 /*-************************************
 *  Benchmark Parameters/Global Variables
@@ -241,7 +244,7 @@ static U32 g_noSeed = 0;
 static paramValues_t g_params; /* Initialized at the beginning of main w/ emptyParams() function */
 static double g_ratioMultiplier = 5.;
 static U32 g_strictness = PARAM_UNSET; /* range 1 - 100, measure of how strict  */
-static BMK_result_t g_lvltarget;
+static BMK_benchResult_t g_lvltarget;
 
 typedef enum {
     directMap,
@@ -258,14 +261,14 @@ typedef struct {
 } memoTable_t;
 
 typedef struct {
-    BMK_result_t result;
+    BMK_benchResult_t result;
     paramValues_t params;
 } winnerInfo_t;
 
 typedef struct {
     U32 cSpeed;  /* bytes / sec */
     U32 dSpeed;
-    U32 cMem;    /* bytes */    
+    U32 cMem;    /* bytes */
 } constraint_t;
 
 typedef struct winner_ll_node winner_ll_node;
@@ -284,8 +287,9 @@ static winner_ll_node* g_winners; /* linked list sorted ascending by cSize & cSp
  * g_clockGranularity
  */
 
+
 /*-*******************************************************
-*  General Util Functions 
+*  General Util Functions
 *********************************************************/
 
 /* nullified useless params, to ensure count stats */
@@ -464,7 +468,7 @@ static void paramVariation(paramValues_t* ptr, memoTable_t* mtAll, const U32 nbC
 static paramValues_t randomParams(void)
 {
     varInds_t v; paramValues_t p;
-    for(v = 0; v <= NUM_PARAMS; v++) {
+    for(v = 0; v < NUM_PARAMS; v++) {
         p.vals[v] = rangeMap(v, FUZ_rand(&g_rand) % rangetable[v]);
     }
     return p;
@@ -497,17 +501,20 @@ static void findClockGranularity(void) {
 **************************************/
 
 /* checks results are feasible */
-static int feasible(const BMK_result_t results, const constraint_t target) {
-    return (results.cSpeed >= target.cSpeed) && (results.dSpeed >= target.dSpeed) && (results.cMem <= target.cMem) && (!g_optmode || results.cSize <= g_lvltarget.cSize);
+static int feasible(const BMK_benchResult_t results, const constraint_t target) {
+    return (results.cSpeed >= target.cSpeed)
+        && (results.dSpeed >= target.dSpeed)
+        && (results.cMem <= target.cMem)
+        && (!g_optmode || results.cSize <= g_lvltarget.cSize);
 }
 
 /* hill climbing value for part 1 */
-/* Scoring here is a linear reward for all set constraints normalized between 0 to 1 
- * (with 0 at 0 and 1 being fully fulfilling the constraint), summed with a logarithmic 
+/* Scoring here is a linear reward for all set constraints normalized between 0 to 1
+ * (with 0 at 0 and 1 being fully fulfilling the constraint), summed with a logarithmic
  * bonus to exceeding the constraint value. We also give linear ratio for compression ratio.
- * The constant factors are experimental. 
+ * The constant factors are experimental.
  */
-static double resultScore(const BMK_result_t res, const size_t srcSize, const constraint_t target) {
+static double resultScore(const BMK_benchResult_t res, const size_t srcSize, const constraint_t target) {
     double cs = 0., ds = 0., rt, cm = 0.;
     const double r1 = 1, r2 = 0.1, rtr = 0.5;
     double ret;
@@ -516,14 +523,14 @@ static double resultScore(const BMK_result_t res, const size_t srcSize, const co
     if(target.cMem != (U32)-1) { cm = (double)target.cMem / res.cMem; }
     rt = ((double)srcSize / res.cSize);
 
-    ret = (MIN(1, cs) + MIN(1, ds)  + MIN(1, cm))*r1 + rt * rtr + 
+    ret = (MIN(1, cs) + MIN(1, ds)  + MIN(1, cm))*r1 + rt * rtr +
          (MAX(0, log(cs))+ MAX(0, log(ds))+ MAX(0, log(cm))) * r2;
 
     return ret;
 }
 
 /* calculates normalized squared euclidean distance of result1 if it is in the first quadrant relative to lvlRes */
-static double resultDistLvl(const BMK_result_t result1, const BMK_result_t lvlRes) {
+static double resultDistLvl(const BMK_benchResult_t result1, const BMK_benchResult_t lvlRes) {
     double normalizedCSpeedGain1 = (result1.cSpeed / lvlRes.cSpeed) - 1;
     double normalizedRatioGain1 = ((double)lvlRes.cSize / result1.cSize) - 1;
     if(normalizedRatioGain1 < 0 || normalizedCSpeedGain1 < 0) {
@@ -532,8 +539,8 @@ static double resultDistLvl(const BMK_result_t result1, const BMK_result_t lvlRe
     return normalizedRatioGain1 * g_ratioMultiplier + normalizedCSpeedGain1;
 }
 
-/* return true if r2 strictly better than r1 */ 
-static int compareResultLT(const BMK_result_t result1, const BMK_result_t result2, const constraint_t target, size_t srcSize) {
+/* return true if r2 strictly better than r1 */
+static int compareResultLT(const BMK_benchResult_t result1, const BMK_benchResult_t result2, const constraint_t target, size_t srcSize) {
     if(feasible(result1, target) && feasible(result2, target)) {
         if(g_optmode) {
             return resultDistLvl(result1, g_lvltarget) < resultDistLvl(result2, g_lvltarget);
@@ -547,7 +554,7 @@ static int compareResultLT(const BMK_result_t result1, const BMK_result_t result
 
 static constraint_t relaxTarget(constraint_t target) {
     target.cMem = (U32)-1;
-    target.cSpeed *= ((double)g_strictness) / 100; 
+    target.cSpeed *= ((double)g_strictness) / 100;
     target.dSpeed *= ((double)g_strictness) / 100;
     return target;
 }
@@ -598,7 +605,7 @@ static void optimizerAdjustInput(paramValues_t* pc, const size_t maxBlockSize) {
             DISPLAY("Warning: hashlog too much larger than windowLog size, adjusted to %u\n", pc->vals[hlog_ind]);
         }
     }
-    
+
     if(pc->vals[slog_ind] != PARAM_UNSET && pc->vals[clog_ind] != PARAM_UNSET) {
         if(pc->vals[slog_ind] > pc->vals[clog_ind]) {
             pc->vals[clog_ind] = pc->vals[slog_ind];
@@ -608,54 +615,61 @@ static void optimizerAdjustInput(paramValues_t* pc, const size_t maxBlockSize) {
 }
 
 static int redundantParams(const paramValues_t paramValues, const constraint_t target, const size_t maxBlockSize) {
-    return 
+    return
        (ZSTD_estimateCStreamSize_usingCParams(pvalsToCParams(paramValues)) > (size_t)target.cMem) /* Uses too much memory */
     || ((1ULL << (paramValues.vals[wlog_ind] - 1)) >= maxBlockSize && paramValues.vals[wlog_ind] != mintable[wlog_ind]) /* wlog too much bigger than src size */
     || (paramValues.vals[clog_ind] > (paramValues.vals[wlog_ind] + (paramValues.vals[strt_ind] > ZSTD_btlazy2))) /* chainLog larger than windowLog*/
     || (paramValues.vals[slog_ind] > paramValues.vals[clog_ind]) /* searchLog larger than chainLog */
     || (paramValues.vals[hlog_ind] > paramValues.vals[wlog_ind] + 1); /* hashLog larger than windowLog + 1 */
-    
+
 }
 
 /*-************************************
-*  Display Functions 
+*  Display Functions
 **************************************/
 
 static void BMK_translateAdvancedParams(FILE* f, const paramValues_t params) {
     varInds_t v;
     int first = 1;
     fprintf(f,"--zstd=");
-    for(v = 0; v < NUM_PARAMS; v++) {
-        if(g_silenceParams[v]) { continue; }
-        if(!first) { fprintf(f, ","); }
+    for (v = 0; v < NUM_PARAMS; v++) {
+        if (g_silenceParams[v]) { continue; }
+        if (!first) { fprintf(f, ","); }
         fprintf(f,"%s=", g_paramNames[v]);
-        
-        if(v == strt_ind) { fprintf(f,"%u", params.vals[v]); }
+
+        if (v == strt_ind) { fprintf(f,"%u", params.vals[v]); }
         else { displayParamVal(f, v, params.vals[v], 0); }
         first = 0;
     }
     fprintf(f, "\n");
 }
 
-static void BMK_displayOneResult(FILE* f, winnerInfo_t res, const size_t srcSize) {
-            varInds_t v;
-            int first = 1;
-            res.params = cParamUnsetMin(res.params);
-            fprintf(f,"    {");
-            for(v = 0; v < NUM_PARAMS; v++) {
-                if(g_silenceParams[v]) { continue; }
-                if(!first) { fprintf(f, ","); }
-                displayParamVal(f, v, res.params.vals[v], 3);
-                first = 0;
-            }
+static void BMK_displayOneResult(FILE* f, winnerInfo_t res, const size_t srcSize)
+{
+    varInds_t v;
+    int first = 1;
+    res.params = cParamUnsetMin(res.params);
+    fprintf(f, "    {");
+    for (v = 0; v < NUM_PARAMS; v++) {
+        if (g_silenceParams[v]) { continue; }
+        if (!first) { fprintf(f, ","); }
+        displayParamVal(f, v, res.params.vals[v], 3);
+        first = 0;
+    }
 
-            fprintf(f, " },     /* R:%5.3f at %5.1f MB/s - %5.1f MB/s */\n",
-            (double)srcSize / res.result.cSize, (double)res.result.cSpeed / (1 MB), (double)res.result.dSpeed / (1 MB));
+    {   double const ratio = res.result.cSize ?
+                            (double)srcSize / res.result.cSize : 0;
+        double const cSpeedMBps = (double)res.result.cSpeed / MB_UNIT;
+        double const dSpeedMBps = (double)res.result.dSpeed / MB_UNIT;
+
+        fprintf(f, " },     /* R:%5.3f at %5.1f MB/s - %5.1f MB/s */\n",
+                            ratio, cSpeedMBps, dSpeedMBps);
+    }
 }
 
 /* Writes to f the results of a parameter benchmark */
 /* when used with --optimize, will only print results better than previously discovered */
-static void BMK_printWinner(FILE* f, const int cLevel, const BMK_result_t result, const paramValues_t params, const size_t srcSize)
+static void BMK_printWinner(FILE* f, const int cLevel, const BMK_benchResult_t result, const paramValues_t params, const size_t srcSize)
 {
     char lvlstr[15] = "Custom Level";
     winnerInfo_t w;
@@ -668,10 +682,10 @@ static void BMK_printWinner(FILE* f, const int cLevel, const BMK_result_t result
         snprintf(lvlstr, 15, "  Level %2d  ", cLevel);
     }
 
-    if(TIMED) { 
+    if(TIMED) {
         const U64 time = UTIL_clockSpanNano(g_time);
         const U64 minutes = time / (60ULL * TIMELOOP_NANOSEC);
-        fprintf(f, "%1lu:%2lu:%05.2f - ", (unsigned long) minutes / 60,(unsigned long) minutes % 60, (double)(time - minutes * TIMELOOP_NANOSEC * 60ULL)/TIMELOOP_NANOSEC); 
+        fprintf(f, "%1lu:%2lu:%05.2f - ", (unsigned long) minutes / 60,(unsigned long) minutes % 60, (double)(time - minutes * TIMELOOP_NANOSEC * 60ULL)/TIMELOOP_NANOSEC);
     }
 
     fprintf(f, "/* %s */   ", lvlstr);
@@ -687,7 +701,7 @@ static void BMK_printWinner(FILE* f, const int cLevel, const BMK_result_t result
 #define SPEED_RESULT 4
 #define SIZE_RESULT 5
 /* maybe have epsilon-eq to limit table size? */
-static int speedSizeCompare(const BMK_result_t r1, const BMK_result_t r2) {
+static int speedSizeCompare(const BMK_benchResult_t r1, const BMK_benchResult_t r2) {
     if(r1.cSpeed < r2.cSpeed) {
         if(r1.cSize >= r2.cSize) {
             return BETTER_RESULT;
@@ -704,7 +718,7 @@ static int speedSizeCompare(const BMK_result_t r1, const BMK_result_t r2) {
 /* 0 for insertion, 1 for no insert */
 /* maintain invariant speedSizeCompare(n, n->next) = SPEED_RESULT */
 static int insertWinner(const winnerInfo_t w, const constraint_t targetConstraints) {
-    BMK_result_t r = w.result;
+    BMK_benchResult_t r = w.result;
     winner_ll_node* cur_node = g_winners;
     /* first node to insert */
     if(!feasible(r, targetConstraints)) {
@@ -735,7 +749,7 @@ static int insertWinner(const winnerInfo_t w, const constraint_t targetConstrain
                 tmp = cur_node->next;
                 cur_node->next = cur_node->next->next;
                 free(tmp);
-                break; 
+                break;
             }
             case SIZE_RESULT:
             {
@@ -754,7 +768,7 @@ static int insertWinner(const winnerInfo_t w, const constraint_t targetConstrain
                 cur_node->next = newnode;
                 return 0;
             }
-        } 
+        }
 
     }
 
@@ -792,12 +806,12 @@ static int insertWinner(const winnerInfo_t w, const constraint_t targetConstrain
             cur_node->next = newnode;
             return 0;
         }
-        default: 
+        default:
             return 1;
-    } 
+    }
 }
 
-static void BMK_printWinnerOpt(FILE* f, const U32 cLevel, const BMK_result_t result, const paramValues_t params, const constraint_t targetConstraints, const size_t srcSize)
+static void BMK_printWinnerOpt(FILE* f, const U32 cLevel, const BMK_benchResult_t result, const paramValues_t params, const constraint_t targetConstraints, const size_t srcSize)
 {
     /* global winner used for constraints */
                                     /* cSize, cSpeed, dSpeed, cMem */
@@ -814,7 +828,7 @@ static void BMK_printWinnerOpt(FILE* f, const U32 cLevel, const BMK_result_t res
             g_winner.result = result;
             g_winner.params = params;
         }
-    }  
+    }
 
     if(g_optmode && g_optimizer && (DEBUG || g_displayLevel == 3)) {
         winnerInfo_t w;
@@ -824,8 +838,8 @@ static void BMK_printWinnerOpt(FILE* f, const U32 cLevel, const BMK_result_t res
         insertWinner(w, targetConstraints);
 
         if(!DEBUG) { fprintf(f, "\033c"); }
-        fprintf(f, "\n"); 
-        
+        fprintf(f, "\n");
+
         /* the table */
         fprintf(f, "================================\n");
         for(n = g_winners; n != NULL; n = n->next) {
@@ -833,7 +847,7 @@ static void BMK_printWinnerOpt(FILE* f, const U32 cLevel, const BMK_result_t res
         }
         fprintf(f, "================================\n");
         fprintf(f, "Level Bounds: R: > %.3f AND C: < %.1f MB/s \n\n",
-            (double)srcSize / g_lvltarget.cSize, (double)g_lvltarget.cSpeed / (1 MB));
+            (double)srcSize / g_lvltarget.cSize, (double)g_lvltarget.cSpeed / MB_UNIT);
 
 
         fprintf(f, "Overall Winner: \n");
@@ -871,7 +885,7 @@ static void BMK_printWinners(FILE* f, const winnerInfo_t* winners, const size_t 
 *********************************************************/
 
 typedef struct {
-    ZSTD_CCtx* ctx;
+    ZSTD_CCtx* cctx;
     const void* dictBuffer;
     size_t dictBufferSize;
     int cLevel;
@@ -881,15 +895,15 @@ typedef struct {
 static size_t local_initCCtx(void* payload) {
     const BMK_initCCtxArgs* ag = (const BMK_initCCtxArgs*)payload;
     varInds_t i;
-    ZSTD_CCtx_reset(ag->ctx);
-    ZSTD_CCtx_resetParameters(ag->ctx);
-    ZSTD_CCtx_setParameter(ag->ctx, ZSTD_p_compressionLevel, ag->cLevel);
+    ZSTD_CCtx_reset(ag->cctx);
+    ZSTD_CCtx_resetParameters(ag->cctx);
+    ZSTD_CCtx_setParameter(ag->cctx, ZSTD_p_compressionLevel, ag->cLevel);
 
     for(i = 0; i < NUM_PARAMS; i++) {
         if(ag->comprParams->vals[i] != PARAM_UNSET)
-        ZSTD_CCtx_setParameter(ag->ctx, cctxSetParamTable[i], ag->comprParams->vals[i]);
+        ZSTD_CCtx_setParameter(ag->cctx, cctxSetParamTable[i], ag->comprParams->vals[i]);
     }
-    ZSTD_CCtx_loadDictionary(ag->ctx, ag->dictBuffer, ag->dictBufferSize);
+    ZSTD_CCtx_loadDictionary(ag->cctx, ag->dictBuffer, ag->dictBufferSize);
 
     return 0;
 }
@@ -909,8 +923,8 @@ static size_t local_initDCtx(void* payload) {
 
 /* additional argument is just the context */
 static size_t local_defaultCompress(
-    const void* srcBuffer, size_t srcSize, 
-    void* dstBuffer, size_t dstSize, 
+    const void* srcBuffer, size_t srcSize,
+    void* dstBuffer, size_t dstSize,
     void* addArgs) {
     size_t moreToFlush = 1;
     ZSTD_CCtx* ctx = (ZSTD_CCtx*)addArgs;
@@ -937,8 +951,8 @@ static size_t local_defaultCompress(
 
 /* additional argument is just the context */
 static size_t local_defaultDecompress(
-    const void* srcBuffer, size_t srcSize, 
-    void* dstBuffer, size_t dstSize, 
+    const void* srcBuffer, size_t srcSize,
+    void* dstBuffer, size_t dstSize,
     void* addArgs) {
     size_t moreToFlush = 1;
     ZSTD_DCtx* dctx = (ZSTD_DCtx*)addArgs;
@@ -965,7 +979,7 @@ static size_t local_defaultDecompress(
 }
 
 /*-************************************
-*  Data Initialization Functions 
+*  Data Initialization Functions
 **************************************/
 
 typedef struct {
@@ -1041,7 +1055,7 @@ static int createBuffersFromMemory(buffers_t* buff, void * srcBuffer, const size
     buff->dstSizes = (size_t*)malloc(maxNbBlocks * sizeof(size_t));
 
     buff->resPtrs = (void**)calloc(maxNbBlocks, sizeof(void*));
-    buff->resSizes = (size_t*)malloc(maxNbBlocks * sizeof(size_t)); 
+    buff->resSizes = (size_t*)malloc(maxNbBlocks * sizeof(size_t));
 
     if(!buff->srcPtrs || !buff->srcSizes || !buff->dstPtrs || !buff->dstCapacities || !buff->dstSizes || !buff->resPtrs || !buff->resSizes) {
         DISPLAY("alloc error\n");
@@ -1090,18 +1104,18 @@ static int createBuffersFromMemory(buffers_t* buff, void * srcBuffer, const size
     buff->nbBlocks = blockNb;
 
     return 0;
-} 
+}
 
 /* allocates buffer's arguments. returns success / failuere */
-static int createBuffers(buffers_t* buff, const char* const * const fileNamesTable, 
+static int createBuffers(buffers_t* buff, const char* const * const fileNamesTable,
                           size_t nbFiles) {
     size_t pos = 0;
     size_t n;
     size_t totalSizeToLoad = UTIL_getTotalFileSize(fileNamesTable, (U32)nbFiles);
     size_t benchedSize = MIN(BMK_findMaxMem(totalSizeToLoad * 3) / 3, totalSizeToLoad);
     size_t* fileSizes = calloc(sizeof(size_t), nbFiles);
-    void* srcBuffer = NULL; 
-    int ret = 0;  
+    void* srcBuffer = NULL;
+    int ret = 0;
 
     if(!totalSizeToLoad || !benchedSize) {
         ret = 1;
@@ -1139,7 +1153,7 @@ static int createBuffers(buffers_t* buff, const char* const * const fileNamesTab
 
         if (fileSize + pos > benchedSize) fileSize = benchedSize - pos, nbFiles=n;   /* buffer too small - stop after this file */
         {
-            char* buffer = (char*)(srcBuffer); 
+            char* buffer = (char*)(srcBuffer);
             size_t const readSize = fread((buffer)+pos, 1, (size_t)fileSize, f);
             fclose(f);
             if (readSize != (size_t)fileSize) {
@@ -1181,14 +1195,14 @@ static int createContexts(contexts_t* ctx, const char* dictFileName) {
     ctx->dictBuffer = malloc(ctx->dictSize);
 
     f = fopen(dictFileName, "rb");
-    
+
     if(!f) {
         DISPLAY("unable to open file\n");
         fclose(f);
         freeContexts(*ctx);
         return 1;
     }
-    
+
     if(ctx->dictSize > 64 MB || !(ctx->dictBuffer)) {
         DISPLAY("dictionary too large\n");
         fclose(f);
@@ -1207,7 +1221,7 @@ static int createContexts(contexts_t* ctx, const char* dictFileName) {
 }
 
 /*-************************************
-*  Optimizer Memoization Functions 
+*  Optimizer Memoization Functions
 **************************************/
 
 /* return: new length */
@@ -1218,7 +1232,7 @@ static size_t sanitizeVarArray(varInds_t* varNew, const size_t varLength, const 
     for(i = 0; i < varLength; i++) {
         if( !((varArray[i] == clog_ind && strat == ZSTD_fast)
             || (varArray[i] == slog_ind && strat == ZSTD_fast)
-            || (varArray[i] == slog_ind && strat == ZSTD_dfast) 
+            || (varArray[i] == slog_ind && strat == ZSTD_dfast)
             || (varArray[i] == tlen_ind && strat != ZSTD_btopt && strat != ZSTD_btultra && strat != ZSTD_fast))) {
             varNew[j] = varArray[i];
             j++;
@@ -1305,7 +1319,7 @@ static void freeMemoTableArray(memoTable_t* const mtAll) {
 static memoTable_t* createMemoTableArray(const paramValues_t p, const varInds_t* const varyParams, const size_t varyLen, const U32 memoTableLog) {
     memoTable_t* mtAll = (memoTable_t*)calloc(sizeof(memoTable_t),(ZSTD_btultra + 1));
     ZSTD_strategy i, stratMin = ZSTD_fast, stratMax = ZSTD_btultra;
-    
+
     if(mtAll == NULL) {
         return NULL;
     }
@@ -1324,7 +1338,7 @@ static memoTable_t* createMemoTableArray(const paramValues_t p, const varInds_t*
         return mtAll;
     }
 
-    
+
     if(p.vals[strt_ind] != PARAM_UNSET) {
         stratMin = p.vals[strt_ind];
         stratMax = p.vals[strt_ind];
@@ -1348,7 +1362,7 @@ static memoTable_t* createMemoTableArray(const paramValues_t p, const varInds_t*
             return NULL;
         }
     }
-    
+
     return mtAll;
 }
 
@@ -1363,7 +1377,7 @@ static void randomConstrainedParams(paramValues_t* pc, const memoTable_t* memoTa
         int i;
         for(i = 0; i < NUM_PARAMS; i++) {
             varInds_t v = mt.varArray[i];
-            if(v == strt_ind) continue; 
+            if(v == strt_ind) continue;
             pc->vals[v] = rangeMap(v, FUZ_rand(&g_rand) % rangetable[v]);
         }
 
@@ -1378,16 +1392,17 @@ static void randomConstrainedParams(paramValues_t* pc, const memoTable_t* memoTa
 /* Replicate functionality of benchMemAdvanced, but with pre-split src / dst buffers */
 /* The purpose is so that sufficient information is returned so that a decompression call to benchMemInvertible is possible */
 /* BMK_benchMemAdvanced(srcBuffer,srcSize, dstBuffer, dstSize, fileSizes, nbFiles, 0, &cParams, dictBuffer, dictSize, ctx, dctx, 0, "File", &adv); */
-/* nbSeconds used in same way as in BMK_advancedParams_t, as nbIters when in iterMode */
-
+/* nbSeconds used in same way as in BMK_advancedParams_t */
 /* if in decodeOnly, then srcPtr's will be compressed blocks, and uncompressedBlocks will be written to dstPtrs */
 /* dictionary nullable, nothing else though. */
-static BMK_return_t BMK_benchMemInvertible(const buffers_t buf, const contexts_t ctx, 
-                        const int cLevel, const paramValues_t* comprParams,
-                        const BMK_mode_t mode, const BMK_loopMode_t loopMode, const unsigned nbSeconds) {
-
+/* note : it would be better if this function was in bench.c, sharing code with benchMemAdvanced(), since it's technically a part of it */
+static BMK_benchOutcome_t
+BMK_benchMemInvertible( buffers_t buf, contexts_t ctx,
+                        int cLevel, const paramValues_t* comprParams,
+                        BMK_mode_t mode, unsigned nbSeconds)
+{
     U32 i;
-    BMK_return_t results = { { 0, 0., 0., 0 }, 0 } ;
+    BMK_benchResult_t bResult;
     const void *const *const srcPtrs = (const void *const *const)buf.srcPtrs;
     size_t const *const srcSizes = buf.srcSizes;
     void** const dstPtrs = buf.dstPtrs;
@@ -1402,9 +1417,12 @@ static BMK_return_t BMK_benchMemInvertible(const buffers_t buf, const contexts_t
     ZSTD_CCtx* cctx = ctx.cctx;
     ZSTD_DCtx* dctx = ctx.dctx;
 
+    /* init */
+    memset(&bResult, 0, sizeof(bResult));
+
     /* warmimg up memory */
-    for(i = 0; i < buf.nbBlocks; i++) {
-        if(mode != BMK_decodeOnly) {
+    for (i = 0; i < buf.nbBlocks; i++) {
+        if (mode != BMK_decodeOnly) {
             RDG_genBuffer(dstPtrs[i], dstCapacities[i], 0.10, 0.50, 1);
         } else {
             RDG_genBuffer(resPtrs[i], resSizes[i], 0.10, 0.50, 1);
@@ -1414,9 +1432,13 @@ static BMK_return_t BMK_benchMemInvertible(const buffers_t buf, const contexts_t
     /* Bench */
     {
         /* init args */
+        int compressionCompleted = (mode == BMK_decodeOnly);
+        int decompressionCompleted = (mode == BMK_compressOnly);
+        BMK_timedFnState_t* timeStateCompress = BMK_createTimedFnState(nbSeconds * 1000, 1000);
+        BMK_timedFnState_t* timeStateDecompress = BMK_createTimedFnState(nbSeconds * 1000, 1000);
         BMK_initCCtxArgs cctxprep;
         BMK_initDCtxArgs dctxprep;
-        cctxprep.ctx = cctx;
+        cctxprep.cctx = cctx;
         cctxprep.dictBuffer = dictBuffer;
         cctxprep.dictBufferSize = dictBufferSize;
         cctxprep.cLevel = cLevel;
@@ -1425,130 +1447,115 @@ static BMK_return_t BMK_benchMemInvertible(const buffers_t buf, const contexts_t
         dctxprep.dictBuffer = dictBuffer;
         dctxprep.dictBufferSize = dictBufferSize;
 
-        if(loopMode == BMK_timeMode) {
-            BMK_customTimedReturn_t intermediateResultCompress;
-            BMK_customTimedReturn_t intermediateResultDecompress;  
-            BMK_timedFnState_t* timeStateCompress = BMK_createTimeState(nbSeconds);
-            BMK_timedFnState_t* timeStateDecompress = BMK_createTimeState(nbSeconds);
-            if(mode == BMK_compressOnly) {
-                intermediateResultCompress.completed = 0;
-                intermediateResultDecompress.completed = 1;
-            } else if (mode == BMK_decodeOnly) {
-                intermediateResultCompress.completed = 1;
-                intermediateResultDecompress.completed = 0;
-            } else { /* both */
-                intermediateResultCompress.completed = 0;
-                intermediateResultDecompress.completed = 0;
+        assert(timeStateCompress != NULL);
+        assert(timeStateDecompress != NULL);
+        while(!compressionCompleted) {
+            BMK_runOutcome_t const cOutcome = BMK_benchTimedFn(timeStateCompress,
+                                            &local_defaultCompress, cctx,
+                                            &local_initCCtx, &cctxprep,
+                                            nbBlocks,
+                                            srcPtrs, srcSizes,
+                                            dstPtrs, dstCapacities,
+                                            dstSizes);
+
+            if (!BMK_isSuccessful_runOutcome(cOutcome)) {
+                BMK_benchOutcome_t bOut;
+                memset(&bOut, 0, sizeof(bOut));
+                bOut.tag = 1;   /* should rather be a function or a constant */
+                BMK_freeTimedFnState(timeStateCompress);
+                BMK_freeTimedFnState(timeStateDecompress);
+                return bOut;
             }
-
-            while(!intermediateResultCompress.completed) {
-                intermediateResultCompress = BMK_benchFunctionTimed(timeStateCompress, &local_defaultCompress, (void*)cctx, &local_initCCtx, (void*)&cctxprep,
-                    nbBlocks, srcPtrs, srcSizes, dstPtrs, dstCapacities, dstSizes);
-
-                if(intermediateResultCompress.result.error) {
-                    results.error = intermediateResultCompress.result.error;
-                    BMK_freeTimeState(timeStateCompress);
-                    BMK_freeTimeState(timeStateDecompress);
-                    return results;
-                }
-                results.result.cSpeed = (srcSize * TIMELOOP_NANOSEC) / intermediateResultCompress.result.result.nanoSecPerRun;
-                results.result.cSize = intermediateResultCompress.result.result.sumOfReturn;
+            {   BMK_runTime_t const rResult = BMK_extract_runTime(cOutcome);
+                bResult.cSpeed = (srcSize * TIMELOOP_NANOSEC) / rResult.nanoSecPerRun;
+                bResult.cSize = rResult.sumOfReturn;
             }
-
-            while(!intermediateResultDecompress.completed) {
-                intermediateResultDecompress = BMK_benchFunctionTimed(timeStateDecompress, &local_defaultDecompress, (void*)(dctx), &local_initDCtx, (void*)&dctxprep,
-                    nbBlocks, (const void* const*)dstPtrs, dstSizes, resPtrs, resSizes, NULL);
-
-                if(intermediateResultDecompress.result.error) {
-                    results.error = intermediateResultDecompress.result.error;
-                    BMK_freeTimeState(timeStateCompress);
-                    BMK_freeTimeState(timeStateDecompress);
-                    return results;
-                }
-                results.result.dSpeed = (srcSize * TIMELOOP_NANOSEC) / intermediateResultDecompress.result.result.nanoSecPerRun;
-            }
-
-            BMK_freeTimeState(timeStateCompress);
-            BMK_freeTimeState(timeStateDecompress);
-
-        } else { /* iterMode; */
-            if(mode != BMK_decodeOnly) {
-
-                BMK_customReturn_t compressionResults = BMK_benchFunction(&local_defaultCompress, (void*)cctx, &local_initCCtx, (void*)&cctxprep,
-                    nbBlocks, srcPtrs, srcSizes, dstPtrs, dstCapacities, dstSizes, nbSeconds); 
-                if(compressionResults.error) {
-                    results.error = compressionResults.error;
-                    return results;
-                }
-                if(compressionResults.result.nanoSecPerRun == 0) {
-                    results.result.cSpeed = 0;
-                } else {
-                    results.result.cSpeed = srcSize * TIMELOOP_NANOSEC / compressionResults.result.nanoSecPerRun;
-                }
-                results.result.cSize = compressionResults.result.sumOfReturn;
-            }
-
-            if(mode != BMK_compressOnly) {
-                BMK_customReturn_t decompressionResults;
-                decompressionResults = BMK_benchFunction(
-                    &local_defaultDecompress, (void*)(dctx),
-                    &local_initDCtx, (void*)&dctxprep, nbBlocks,
-                    (const void* const*)dstPtrs, dstSizes, resPtrs, resSizes, NULL,
-                    nbSeconds);
-
-                if(decompressionResults.error) {
-                    results.error = decompressionResults.error;
-                    return results;
-                }
-
-                if(decompressionResults.result.nanoSecPerRun == 0) {
-                    results.result.dSpeed = 0;
-                } else {
-                    results.result.dSpeed = srcSize * TIMELOOP_NANOSEC / decompressionResults.result.nanoSecPerRun;
-                }
-            }
+            compressionCompleted = BMK_isCompleted_TimedFn(timeStateCompress);
         }
+
+        while (!decompressionCompleted) {
+            BMK_runOutcome_t const dOutcome = BMK_benchTimedFn(timeStateDecompress,
+                                        &local_defaultDecompress, dctx,
+                                        &local_initDCtx, &dctxprep,
+                                        nbBlocks,
+                                        (const void* const*)dstPtrs, dstSizes,
+                                        resPtrs, resSizes,
+                                        NULL);
+
+            if (!BMK_isSuccessful_runOutcome(dOutcome)) {
+                BMK_benchOutcome_t bOut;
+                memset(&bOut, 0, sizeof(bOut));
+                bOut.tag = 1;   /* should rather be a function or a constant */
+                BMK_freeTimedFnState(timeStateCompress);
+                BMK_freeTimedFnState(timeStateDecompress);
+                return bOut;
+            }
+            {   BMK_runTime_t const rResult = BMK_extract_runTime(dOutcome);
+                bResult.dSpeed = (srcSize * TIMELOOP_NANOSEC) / rResult.nanoSecPerRun;
+            }
+            decompressionCompleted = BMK_isCompleted_TimedFn(timeStateDecompress);
+        }
+
+        BMK_freeTimedFnState(timeStateCompress);
+        BMK_freeTimedFnState(timeStateDecompress);
     }
+
    /* Bench */
-    results.result.cMem = (1 << (comprParams->vals[wlog_ind])) + ZSTD_sizeof_CCtx(cctx);
-    return results;
+    bResult.cMem = (1 << (comprParams->vals[wlog_ind])) + ZSTD_sizeof_CCtx(cctx);
+
+    {   BMK_benchOutcome_t bOut;
+        bOut.tag = 0;
+        bOut.internal_never_use_directly = bResult;  /* should be a function */
+        return bOut;
+    }
 }
 
-static int BMK_benchParam(BMK_result_t* resultPtr,
-                const buffers_t buf, const contexts_t ctx,
-                const paramValues_t cParams) {
-    BMK_return_t res = BMK_benchMemInvertible(buf, ctx, BASE_CLEVEL, &cParams, BMK_both, BMK_timeMode, 3);
-    *resultPtr = res.result;
-    return res.error;
+static int BMK_benchParam ( BMK_benchResult_t* resultPtr,
+                            buffers_t buf, contexts_t ctx,
+                            paramValues_t cParams)
+{
+    BMK_benchOutcome_t const outcome = BMK_benchMemInvertible(buf, ctx,
+                                                        BASE_CLEVEL, &cParams,
+                                                        BMK_both, 3);
+    int const success = BMK_isSuccessful_benchOutcome(outcome);
+    if (!success) return 1;
+    *resultPtr = BMK_extract_benchResult(outcome);
+    return 0;
 }
 
 
-#define CBENCHMARK(conditional, resultvar, tmpret, mode, loopmode, sec) {                                       \
+#define CBENCHMARK(conditional, resultvar, tmpret, mode, sec) {                                                 \
     if(conditional) {                                                                                           \
-        BMK_return_t tmpret = BMK_benchMemInvertible(buf, ctx, BASE_CLEVEL, &cParams, mode, loopmode, sec);     \
-        if(tmpret.error) { DEBUGOUTPUT("Benchmarking failed\n"); return ERROR_RESULT; }                         \
-        if(mode != BMK_decodeOnly)  {                                                                           \
-            resultvar.cSpeed = tmpret.result.cSpeed;                                                            \
-            resultvar.cSize = tmpret.result.cSize;                                                              \
-            resultvar.cMem = tmpret.result.cMem;                                                                \
+        BMK_benchOutcome_t const outcome = BMK_benchMemInvertible(buf, ctx, BASE_CLEVEL, &cParams, mode, sec);  \
+        if (!BMK_isSuccessful_benchOutcome(outcome)) {                                                          \
+            DEBUGOUTPUT("Benchmarking failed\n");                                                               \
+            return ERROR_RESULT;                                                                                \
         }                                                                                                       \
-        if(mode != BMK_compressOnly) { resultvar.dSpeed = tmpret.result.dSpeed; }                               \
-    }                                                                                                           \
+        {   BMK_benchResult_t const tmpResult = BMK_extract_benchResult(outcome);                               \
+            if (mode != BMK_decodeOnly)  {                                                                      \
+                resultvar.cSpeed = tmpResult.cSpeed;                                                            \
+                resultvar.cSize = tmpResult.cSize;                                                              \
+                resultvar.cMem = tmpResult.cMem;                                                                \
+            }                                                                                                   \
+            if (mode != BMK_compressOnly) { resultvar.dSpeed = tmpResult.dSpeed; }                              \
+    }   }                                                                                                       \
 }
 
 /* Benchmarking which stops when we are sufficiently sure the solution is infeasible / worse than the winner */
-#define VARIANCE 1.2 
-static int allBench(BMK_result_t* resultPtr,
+#define VARIANCE 1.2
+static int allBench(BMK_benchResult_t* resultPtr,
                 const buffers_t buf, const contexts_t ctx,
                 const paramValues_t cParams,
                 const constraint_t target,
-                BMK_result_t* winnerResult, int feas) {
-    BMK_result_t resultMax, benchres;
+                BMK_benchResult_t* winnerResult, int feas)
+{
+    BMK_benchResult_t benchres;
     U64 loopDurationC = 0, loopDurationD = 0;
     double uncertaintyConstantC = 3., uncertaintyConstantD = 3.;
     double winnerRS;
+
     /* initial benchmarking, gives exact ratio and memory, warms up future runs */
-    CBENCHMARK(1, benchres, tmp, BMK_both, BMK_iterMode, 1);
+    CBENCHMARK(1, benchres, tmp, BMK_both, 2);
 
     winnerRS = resultScore(*winnerResult, buf.srcSize, target);
     DEBUGOUTPUT("WinnerScore: %f\n ", winnerRS);
@@ -1557,13 +1564,13 @@ static int allBench(BMK_result_t* resultPtr,
 
     /* calculate uncertainty in compression / decompression runs */
     if(benchres.cSpeed) {
-        loopDurationC = ((buf.srcSize * TIMELOOP_NANOSEC) / benchres.cSpeed); 
-        uncertaintyConstantC = ((loopDurationC + (double)(2 * g_clockGranularity))/loopDurationC); 
+        loopDurationC = (((U64)buf.srcSize * TIMELOOP_NANOSEC) / benchres.cSpeed);
+        uncertaintyConstantC = ((loopDurationC + (double)(2 * g_clockGranularity))/loopDurationC);
     }
 
     if(benchres.dSpeed) {
-        loopDurationD = ((buf.srcSize * TIMELOOP_NANOSEC) / benchres.dSpeed); 
-        uncertaintyConstantD = ((loopDurationD + (double)(2 * g_clockGranularity))/loopDurationD);  
+        loopDurationD = (((U64)buf.srcSize * TIMELOOP_NANOSEC) / benchres.dSpeed);
+        uncertaintyConstantD = ((loopDurationD + (double)(2 * g_clockGranularity))/loopDurationD);
     }
 
     /* anything with worse ratio in feas is definitely worse, discard */
@@ -1571,51 +1578,50 @@ static int allBench(BMK_result_t* resultPtr,
         return WORSE_RESULT;
     }
 
-    /* second run, if first run is too short, gives approximate cSpeed + dSpeed */
-    CBENCHMARK(loopDurationC < TIMELOOP_NANOSEC / 10, benchres, tmp, BMK_compressOnly, BMK_iterMode, 1);
-    CBENCHMARK(loopDurationD < TIMELOOP_NANOSEC / 10, benchres, tmp, BMK_decodeOnly,   BMK_iterMode, 1);
+    /* ensure all measurements last a minimum time, to reduce measurement errors */
+    assert(loopDurationC >= TIMELOOP_NANOSEC / 10);
+    assert(loopDurationD >= TIMELOOP_NANOSEC / 10);
 
     *resultPtr = benchres;
 
     /* optimistic assumption of benchres */
-    resultMax = benchres;
-    resultMax.cSpeed *= uncertaintyConstantC * VARIANCE;
-    resultMax.dSpeed *= uncertaintyConstantD * VARIANCE;
+    {   BMK_benchResult_t resultMax = benchres;
+        resultMax.cSpeed *= uncertaintyConstantC * VARIANCE;
+        resultMax.dSpeed *= uncertaintyConstantD * VARIANCE;
 
-    /* disregard infeasible results in feas mode */
-    /* disregard if resultMax < winner in infeas mode */
-    if((feas && !feasible(resultMax, target)) ||
-      (!feas && (winnerRS > resultScore(resultMax, buf.srcSize, target)))) {
-        return WORSE_RESULT;
+        /* disregard infeasible results in feas mode */
+        /* disregard if resultMax < winner in infeas mode */
+        if((feas && !feasible(resultMax, target)) ||
+          (!feas && (winnerRS > resultScore(resultMax, buf.srcSize, target)))) {
+            return WORSE_RESULT;
+        }
     }
-
-    CBENCHMARK(loopDurationC < TIMELOOP_NANOSEC, benchres, tmp, BMK_compressOnly, BMK_timeMode, 1);
-    CBENCHMARK(loopDurationD < TIMELOOP_NANOSEC, benchres, tmp, BMK_decodeOnly,   BMK_timeMode, 1);
 
     *resultPtr = benchres;
 
     /* compare by resultScore when in infeas */
     /* compare by compareResultLT when in feas */
-    if((!feas && (resultScore(benchres, buf.srcSize, target) > resultScore(*winnerResult, buf.srcSize, target))) || 
-       (feas && (compareResultLT(*winnerResult, benchres, target, buf.srcSize))) )  { 
-        return BETTER_RESULT; 
-    } else { 
-        return WORSE_RESULT; 
+    if((!feas && (resultScore(benchres, buf.srcSize, target) > resultScore(*winnerResult, buf.srcSize, target))) ||
+       (feas && (compareResultLT(*winnerResult, benchres, target, buf.srcSize))) )  {
+        return BETTER_RESULT;
+    } else {
+        return WORSE_RESULT;
     }
 }
 
+
 #define INFEASIBLE_THRESHOLD 200
 /* Memoized benchmarking, won't benchmark anything which has already been benchmarked before. */
-static int benchMemo(BMK_result_t* resultPtr,
-                const buffers_t buf, const contexts_t ctx, 
+static int benchMemo(BMK_benchResult_t* resultPtr,
+                const buffers_t buf, const contexts_t ctx,
                 const paramValues_t cParams,
                 const constraint_t target,
-                BMK_result_t* winnerResult, memoTable_t* const memoTableArray,
+                BMK_benchResult_t* winnerResult, memoTable_t* const memoTableArray,
                 const int feas) {
     static int bmcount = 0;
     int res;
 
-    if(memoTableGet(memoTableArray, cParams) >= INFEASIBLE_THRESHOLD || redundantParams(cParams, target, buf.maxBlockSize)) { return WORSE_RESULT; } 
+    if(memoTableGet(memoTableArray, cParams) >= INFEASIBLE_THRESHOLD || redundantParams(cParams, target, buf.maxBlockSize)) { return WORSE_RESULT; }
 
     res = allBench(resultPtr, buf, ctx, cParams, target, winnerResult, feas);
 
@@ -1630,6 +1636,7 @@ static int benchMemo(BMK_result_t* resultPtr,
     }
     return res;
 }
+
 
 typedef struct {
     U64 cSpeed_min;
@@ -1659,10 +1666,10 @@ static void BMK_init_level_constraints(int bytePerSec_level1)
     }   }
 }
 
-static int BMK_seed(winnerInfo_t* winners, const paramValues_t params, 
+static int BMK_seed(winnerInfo_t* winners, const paramValues_t params,
                     const buffers_t buf, const contexts_t ctx)
 {
-    BMK_result_t testResult;
+    BMK_benchResult_t testResult;
     int better = 0;
     int cLevel;
 
@@ -1729,16 +1736,16 @@ static int BMK_seed(winnerInfo_t* winners, const paramValues_t params,
                 /* too large compression speed difference for the compression benefit */
                 if (W_ratio > O_ratio)
                 DISPLAY ("Compression Speed : %5.3f @ %4.1f MB/s  vs  %5.3f @ %4.1f MB/s   : not enough for level %i\n",
-                         W_ratio, (double)testResult.cSpeed / (1 MB),
-                         O_ratio, (double)winners[cLevel].result.cSpeed / (1 MB),   cLevel);
+                         W_ratio, (double)testResult.cSpeed / MB_UNIT,
+                         O_ratio, (double)winners[cLevel].result.cSpeed / MB_UNIT,   cLevel);
                 continue;
             }
             if (W_DSpeed_note   < O_DSpeed_note  ) {
                 /* too large decompression speed difference for the compression benefit */
                 if (W_ratio > O_ratio)
                 DISPLAY ("Decompression Speed : %5.3f @ %4.1f MB/s  vs  %5.3f @ %4.1f MB/s   : not enough for level %i\n",
-                         W_ratio, (double)testResult.dSpeed / (1 MB),
-                         O_ratio, (double)winners[cLevel].result.dSpeed / (1 MB),   cLevel);
+                         W_ratio, (double)testResult.dSpeed / MB_UNIT,
+                         O_ratio, (double)winners[cLevel].result.dSpeed / MB_UNIT,   cLevel);
                 continue;
             }
 
@@ -1781,7 +1788,7 @@ static void playAround(FILE* f, winnerInfo_t* winners,
 
         if (nbVariations++ > g_maxNbVariations) break;
 
-        do { for(i = 0; i < 4; i++) { paramVaryOnce(FUZ_rand(&g_rand) % (strt_ind + 1), ((FUZ_rand(&g_rand) & 1) << 1) - 1, &p); } } 
+        do { for(i = 0; i < 4; i++) { paramVaryOnce(FUZ_rand(&g_rand) % (strt_ind + 1), ((FUZ_rand(&g_rand) & 1) << 1) - 1, &p); } }
         while(!paramValid(p));
 
         /* exclude faster if already played params */
@@ -1815,7 +1822,7 @@ static void BMK_selectRandomStart(
     }
 }
 
-static void BMK_benchFullTable(const buffers_t buf, const contexts_t ctx) 
+static void BMK_benchFullTable(const buffers_t buf, const contexts_t ctx)
 {
     paramValues_t params;
     winnerInfo_t winners[NB_LEVELS_TRACKED+1];
@@ -1828,11 +1835,11 @@ static void BMK_benchFullTable(const buffers_t buf, const contexts_t ctx)
     if (f==NULL) { DISPLAY("error opening %s \n", rfName); exit(1); }
 
     if (g_target) {
-        BMK_init_level_constraints(g_target * (1 MB));
+        BMK_init_level_constraints(g_target * MB_UNIT);
     } else {
         /* baseline config for level 1 */
         paramValues_t const l1params = cParamsToPVals(ZSTD_getCParams(1, buf.maxBlockSize, ctx.dictSize));
-        BMK_result_t testResult;
+        BMK_benchResult_t testResult;
         BMK_benchParam(&testResult, buf, ctx, l1params);
         BMK_init_level_constraints((int)((testResult.cSpeed * 31) / 32));
     }
@@ -1861,15 +1868,16 @@ static void BMK_benchFullTable(const buffers_t buf, const contexts_t ctx)
     fclose(f);
 }
 
+
 /*-************************************
 *  Single Benchmark Functions
 **************************************/
 
 static int benchOnce(const buffers_t buf, const contexts_t ctx, const int cLevel) {
-    BMK_result_t testResult;
+    BMK_benchResult_t testResult;
     g_params = adjustParams(overwriteParams(cParamsToPVals(ZSTD_getCParams(cLevel, buf.maxBlockSize, ctx.dictSize)), g_params), buf.maxBlockSize, ctx.dictSize);
 
-    if(BMK_benchParam(&testResult, buf, ctx, g_params)) {
+    if (BMK_benchParam(&testResult, buf, ctx, g_params)) {
         DISPLAY("Error during benchmarking\n");
         return 1;
     }
@@ -1883,12 +1891,12 @@ static int benchSample(double compressibility, int cLevel)
 {
     const char* const name = "Sample 10MB";
     size_t const benchedSize = 10 MB;
-    void* srcBuffer = malloc(benchedSize);
+    void* const srcBuffer = malloc(benchedSize);
     int ret = 0;
 
     buffers_t buf;
     contexts_t ctx;
-    
+
     if(srcBuffer == NULL) {
         DISPLAY("Out of Memory\n");
         return 2;
@@ -1927,31 +1935,32 @@ static int benchSample(double compressibility, int cLevel)
 /* benchFiles() :
  * note: while this function takes a table of filenames,
  * in practice, only the first filename will be used */
-int benchFiles(const char** fileNamesTable, int nbFiles, const char* dictFileName, const int cLevel)
+int benchFiles(const char** fileNamesTable, int nbFiles,
+               const char* dictFileName, int cLevel)
 {
     buffers_t buf;
     contexts_t ctx;
     int ret = 0;
 
-    if(createBuffers(&buf, fileNamesTable, nbFiles)) {
+    if (createBuffers(&buf, fileNamesTable, nbFiles)) {
         DISPLAY("unable to load files\n");
         return 1;
     }
 
-    if(createContexts(&ctx, dictFileName)) {
+    if (createContexts(&ctx, dictFileName)) {
         DISPLAY("unable to load dictionary\n");
         freeBuffers(buf);
         return 2;
     }
 
     DISPLAY("\r%79s\r", "");
-    if(nbFiles == 1) {
+    if (nbFiles == 1) {
         DISPLAY("using %s : \n", fileNamesTable[0]);
     } else {
         DISPLAY("using %d Files : \n", nbFiles);
     }
 
-    if(g_singleRun) {
+    if (g_singleRun) {
         ret = benchOnce(buf, ctx, cLevel);
     } else {
         BMK_benchFullTable(buf, ctx);
@@ -1967,12 +1976,12 @@ int benchFiles(const char** fileNamesTable, int nbFiles, const char* dictFileNam
 *  Local Optimization Functions
 **************************************/
 
-/* One iteration of hill climbing. Specifically, it first tries all 
+/* One iteration of hill climbing. Specifically, it first tries all
  * valid parameter configurations w/ manhattan distance 1 and picks the best one
  * failing that, it progressively tries candidates further and further away (up to #dim + 2)
- * if it finds a candidate exceeding winnerInfo, it will repeat. Otherwise, it will stop the 
- * current stage of hill climbing. 
- * Each iteration of hill climbing proceeds in 2 'phases'. Phase 1 climbs according to 
+ * if it finds a candidate exceeding winnerInfo, it will repeat. Otherwise, it will stop the
+ * current stage of hill climbing.
+ * Each iteration of hill climbing proceeds in 2 'phases'. Phase 1 climbs according to
  * the resultScore function, which is effectively a linear increase in reward until it reaches
  * the constraint-satisfying value, it which point any excess results in only logarithmic reward.
  * This aims to find some constraint-satisfying point.
@@ -1980,14 +1989,15 @@ int benchFiles(const char** fileNamesTable, int nbFiles, const char* dictFileNam
  * all feasible solutions valued over all infeasible solutions.
  */
 
-/* sanitize all params here. 
+/* sanitize all params here.
  * all generation after random should be sanitized. (maybe sanitize random)
  */
-static winnerInfo_t climbOnce(const constraint_t target, 
-                memoTable_t* mtAll, 
+static winnerInfo_t climbOnce(const constraint_t target,
+                memoTable_t* mtAll,
                 const buffers_t buf, const contexts_t ctx,
-                const paramValues_t init) {
-    /* 
+                const paramValues_t init)
+{
+    /*
      * cparam - currently considered 'center'
      * candidate - params to benchmark/results
      * winner - best option found so far.
@@ -2000,11 +2010,9 @@ static winnerInfo_t climbOnce(const constraint_t target,
     winnerInfo = initWinnerInfo(init);
     candidateInfo = winnerInfo;
 
-    {
-        winnerInfo_t bestFeasible1 = initWinnerInfo(cparam);
+    {   winnerInfo_t bestFeasible1 = initWinnerInfo(cparam);
         DEBUGOUTPUT("Climb Part 1\n");
         while(better) {
-
             int offset;
             size_t i, dist;
             const size_t varLen = mtAll[cparam.vals[strt_ind]].varLen;
@@ -2013,12 +2021,12 @@ static winnerInfo_t climbOnce(const constraint_t target,
             cparam = winnerInfo.params;
             candidateInfo.params = cparam;
              /* all dist-1 candidates */
-            for(i = 0; i < varLen; i++) {
-                for(offset = -1; offset <= 1; offset += 2) {
+            for (i = 0; i < varLen; i++) {
+                for (offset = -1; offset <= 1; offset += 2) {
                     CHECKTIME(winnerInfo);
                     candidateInfo.params = cparam;
-                    paramVaryOnce(mtAll[cparam.vals[strt_ind]].varArray[i], offset, &candidateInfo.params); 
-                    
+                    paramVaryOnce(mtAll[cparam.vals[strt_ind]].varArray[i], offset, &candidateInfo.params);
+
                     if(paramValid(candidateInfo.params)) {
                         int res;
                         res = benchMemo(&candidateInfo.result, buf, ctx,
@@ -2033,7 +2041,7 @@ static winnerInfo_t climbOnce(const constraint_t target,
                         }
                     }
                 }
-            }
+            }   /* for (i = 0; i < varLen; i++) */
 
             if(better) {
                 continue;
@@ -2047,27 +2055,28 @@ static winnerInfo_t climbOnce(const constraint_t target,
                     /* param error checking already done here */
                     paramVariation(&candidateInfo.params, mtAll, (U32)dist);
 
-                    res = benchMemo(&candidateInfo.result, buf, ctx, 
-                        sanitizeParams(candidateInfo.params), target, &winnerInfo.result, mtAll, feas);
+                    res = benchMemo(&candidateInfo.result,
+                                buf, ctx,
+                                sanitizeParams(candidateInfo.params), target,
+                                &winnerInfo.result, mtAll, feas);
                     DEBUGOUTPUT("Res: %d\n", res);
-                    if(res == BETTER_RESULT) { /* synonymous with better in this case*/
+                    if (res == BETTER_RESULT) { /* synonymous with better in this case*/
                         winnerInfo = candidateInfo;
                         better = 1;
-                        if(compareResultLT(bestFeasible1.result, winnerInfo.result, target, buf.srcSize)) {
+                        if (compareResultLT(bestFeasible1.result, winnerInfo.result, target, buf.srcSize)) {
                             bestFeasible1 = winnerInfo;
                         }
                         break;
                     }
-
                 }
-                if(better) {
+
+                if (better) {
                     break;
                 }
-            }
+            }   /* for(dist = 2; dist < varLen + 2; dist++) */
 
-            if(!better) { /* infeas -> feas -> stop */ 
-                if(feas) { return winnerInfo; } 
-
+            if (!better) { /* infeas -> feas -> stop */
+                if (feas) return winnerInfo;
                 feas = 1;
                 better = 1;
                 winnerInfo = bestFeasible1; /* note with change, bestFeasible may not necessarily be feasible, but if one has been benchmarked, it will be. */
@@ -2084,17 +2093,17 @@ static winnerInfo_t climbOnce(const constraint_t target,
 
 /* flexible parameters: iterations of failed climbing (or if we do non-random, maybe this is when everything is close to visitied)
    weight more on visit for bad results, less on good results/more on later results / ones with more failures.
-   allocate memoTable here. 
+   allocate memoTable here.
  */
 static winnerInfo_t optimizeFixedStrategy(
-    const buffers_t buf, const contexts_t ctx, 
+    const buffers_t buf, const contexts_t ctx,
     const constraint_t target, paramValues_t paramTarget,
-    const ZSTD_strategy strat, 
+    const ZSTD_strategy strat,
     memoTable_t* memoTableArray, const int tries) {
     int i = 0;
 
     paramValues_t init;
-    winnerInfo_t winnerInfo, candidateInfo; 
+    winnerInfo_t winnerInfo, candidateInfo;
     winnerInfo = initWinnerInfo(emptyParams());
     /* so climb is given the right fixed strategy */
     paramTarget.vals[strt_ind] = strat;
@@ -2104,7 +2113,7 @@ static winnerInfo_t optimizeFixedStrategy(
     init = paramTarget;
 
     for(i = 0; i < tries; i++) {
-        DEBUGOUTPUT("Restart\n"); 
+        DEBUGOUTPUT("Restart\n");
         do { randomConstrainedParams(&init, memoTableArray, strat); } while(redundantParams(init, target, buf.maxBlockSize));
         candidateInfo = climbOnce(target, memoTableArray, buf, ctx, init);
         if(compareResultLT(winnerInfo.result, candidateInfo.result, target, buf.srcSize)) {
@@ -2153,9 +2162,9 @@ static int nextStrategy(const int currentStrategy, const int bestStrategy) {
 
 /* main fn called when using --optimize */
 /* Does strategy selection by benchmarking default compression levels
- * then optimizes by strategy, starting with the best one and moving 
+ * then optimizes by strategy, starting with the best one and moving
  * progressively moving further away by number
- * args: 
+ * args:
  * fileNamesTable - list of files to benchmark
  * nbFiles - length of fileNamesTable
  * dictFileName - name of dictionary file if one, else NULL
@@ -2167,7 +2176,7 @@ static int nextStrategy(const int currentStrategy, const int bestStrategy) {
 static int g_maxTries = 5;
 #define TRY_DECAY 1
 
-static int optimizeForSize(const char* const * const fileNamesTable, const size_t nbFiles, const char* dictFileName, constraint_t target, paramValues_t paramTarget, 
+static int optimizeForSize(const char* const * const fileNamesTable, const size_t nbFiles, const char* dictFileName, constraint_t target, paramValues_t paramTarget,
     const int cLevelOpt, const int cLevelRun, const U32 memoTableLog)
 {
     varInds_t varArray [NUM_PARAMS];
@@ -2194,7 +2203,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
     if(nbFiles == 1) {
         DISPLAYLEVEL(2, "Loading %s...       \r", fileNamesTable[0]);
     } else {
-        DISPLAYLEVEL(2, "Loading %lu Files...       \r", (unsigned long)nbFiles); 
+        DISPLAYLEVEL(2, "Loading %lu Files...       \r", (unsigned long)nbFiles);
     }
 
     /* sanitize paramTarget */
@@ -2203,14 +2212,14 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
 
     allMT = createMemoTableArray(paramTarget, varArray, varLen, memoTableLog);
 
-    if(!allMT) {
+    if (!allMT) {
         DISPLAY("MemoTable Init Error\n");
         ret = 2;
         goto _cleanUp;
     }
 
     /* default strictnesses */
-    if(g_strictness == PARAM_UNSET) {
+    if (g_strictness == PARAM_UNSET) {
         if(g_optmode) {
             g_strictness = 100;
         } else {
@@ -2225,29 +2234,29 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
     }
 
     /* use level'ing mode instead of normal target mode */
-    if(g_optmode) {
+    if (g_optmode) {
         winner.params = cParamsToPVals(ZSTD_getCParams(cLevelOpt, buf.maxBlockSize, ctx.dictSize));
         if(BMK_benchParam(&winner.result, buf, ctx, winner.params)) {
             ret = 3;
             goto _cleanUp;
         }
- 
-        g_lvltarget = winner.result; 
+
+        g_lvltarget = winner.result;
         g_lvltarget.cSpeed *= ((double)g_strictness) / 100;
         g_lvltarget.dSpeed *= ((double)g_strictness) / 100;
         g_lvltarget.cSize /= ((double)g_strictness) / 100;
 
-        target.cSpeed = (U32)g_lvltarget.cSpeed;  
-        target.dSpeed = (U32)g_lvltarget.dSpeed; 
+        target.cSpeed = (U32)g_lvltarget.cSpeed;
+        target.dSpeed = (U32)g_lvltarget.dSpeed;
 
         BMK_printWinnerOpt(stdout, cLevelOpt, winner.result, winner.params, target, buf.srcSize);
     }
 
     /* Don't want it to return anything worse than the best known result */
-    if(g_singleRun) {
-        BMK_result_t res;
+    if (g_singleRun) {
+        BMK_benchResult_t res;
         g_params = adjustParams(overwriteParams(cParamsToPVals(ZSTD_getCParams(cLevelRun, buf.maxBlockSize, ctx.dictSize)), g_params), buf.maxBlockSize, ctx.dictSize);
-        if(BMK_benchParam(&res, buf, ctx, g_params)) {
+        if (BMK_benchParam(&res, buf, ctx, g_params)) {
             ret = 45;
             goto _cleanUp;
         }
@@ -2272,8 +2281,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
     DISPLAYLEVEL(2, "\n");
     findClockGranularity();
 
-    {   
-        paramValues_t CParams;
+    {   paramValues_t CParams;
 
         /* find best solution from default params */
         {
@@ -2281,7 +2289,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
             const int maxSeeds = g_noSeed ? 1 : ZSTD_maxCLevel();
             DEBUGOUTPUT("Strategy Selection\n");
             if(paramTarget.vals[strt_ind] == PARAM_UNSET) {
-                BMK_result_t candidate;
+                BMK_benchResult_t candidate;
                 int i;
                 for (i=1; i<=maxSeeds; i++) {
                     int ec;
@@ -2305,13 +2313,13 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
 
         DEBUGOUTPUT("Real Opt\n");
         /* start 'real' optimization */
-        {   
+        {
             int bestStrategy = (int)winner.params.vals[strt_ind];
             if(paramTarget.vals[strt_ind] == PARAM_UNSET) {
                 int st = bestStrategy;
                 int tries = g_maxTries;
 
-                { 
+                {
                     /* one iterations of hill climbing with the level-defined parameters. */
                     winnerInfo_t w1 = climbOnce(target, allMT, buf, ctx, winner.params);
                     if(compareResultLT(winner.result, w1.result, target, buf.srcSize)) {
@@ -2323,7 +2331,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
                 while(st && tries > 0) {
                     winnerInfo_t wc;
                     DEBUGOUTPUT("StrategySwitch: %s\n", g_stratName[st]);
-                    
+
                     wc = optimizeFixedStrategy(buf, ctx, target, paramBase, st, allMT, tries);
 
                     if(compareResultLT(winner.result, wc.result, target, buf.srcSize)) {
@@ -2349,7 +2357,7 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
             goto _cleanUp;
         }
         /* end summary */
-_displayCleanUp: 
+_displayCleanUp:
         if(g_displayLevel >= 0) { BMK_displayOneResult(stdout, winner, buf.srcSize); }
         BMK_translateAdvancedParams(stdout, winner.params);
         DISPLAYLEVEL(1, "grillParams size - optimizer completed \n");
@@ -2427,7 +2435,7 @@ static double readDoubleFromChar(const char** stringPtr)
     }
     (*stringPtr)++;
     while ((**stringPtr >='0') && (**stringPtr <='9')) {
-        result += (double)(**stringPtr - '0') / divide, divide *= 10, (*stringPtr)++ ; 
+        result += (double)(**stringPtr - '0') / divide, divide *= 10, (*stringPtr)++ ;
     }
     return result;
 }
@@ -2503,7 +2511,7 @@ int main(int argc, const char** argv)
     int seperateFiles = 0;
     double compressibility = COMPRESSIBILITY_DEFAULT;
     U32 memoTableLog = PARAM_UNSET;
-    constraint_t target = { 0, 0, (U32)-1 }; 
+    constraint_t target = { 0, 0, (U32)-1 };
 
     paramValues_t paramTarget = emptyParams();
     g_params = emptyParams();
@@ -2522,7 +2530,7 @@ int main(int argc, const char** argv)
             for ( ; ;) {
                 if(parse_params(&argument, &paramTarget)) { if(argument[0] == ',') { argument++; continue; } else break; }
                 PARSE_SUB_ARGS("compressionSpeed=" ,  "cSpeed=", target.cSpeed);
-                PARSE_SUB_ARGS("decompressionSpeed=", "dSpeed=", target.dSpeed); 
+                PARSE_SUB_ARGS("decompressionSpeed=", "dSpeed=", target.dSpeed);
                 PARSE_SUB_ARGS("compressionMemory=" , "cMem=", target.cMem);
                 PARSE_SUB_ARGS("strict=", "stc=", g_strictness);
                 PARSE_SUB_ARGS("maxTries=", "tries=", g_maxTries);
@@ -2701,7 +2709,7 @@ int main(int argc, const char** argv)
 
                 /* load dictionary file (only applicable for optimizer rn) */
                 case 'D':
-                    if(i == argc - 1) { /* last argument, return error. */ 
+                    if(i == argc - 1) { /* last argument, return error. */
                         DISPLAY("Dictionary file expected but not given : %d\n", i);
                         return 1;
                     } else {
@@ -2749,7 +2757,7 @@ int main(int argc, const char** argv)
             } else {
                 result = benchFiles(argv+filenamesStart, argc-filenamesStart, dictFileName, cLevelRun);
             }
-        }   
+        }
     }
 
     if (main_pause) { int unused; printf("press enter...\n"); unused = getchar(); (void)unused; }

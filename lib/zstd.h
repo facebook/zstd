@@ -211,7 +211,8 @@ typedef struct ZSTD_CDict_s ZSTD_CDict;
  *  When compressing multiple messages / blocks with the same dictionary, it's recommended to load it just once.
  *  ZSTD_createCDict() will create a digested dictionary, ready to start future compression operations without startup delay.
  *  ZSTD_CDict can be created once and shared by multiple threads concurrently, since its usage is read-only.
- *  `dictBuffer` can be released after ZSTD_CDict creation, since its content is copied within CDict */
+ *  `dictBuffer` can be released after ZSTD_CDict creation, since its content is copied within CDict
+ *  Note : A ZSTD_CDict can be created with an empty dictionary, but it is inefficient for small data. */
 ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict(const void* dictBuffer, size_t dictSize,
                                          int compressionLevel);
 
@@ -223,7 +224,9 @@ ZSTDLIB_API size_t      ZSTD_freeCDict(ZSTD_CDict* CDict);
  *  Compression using a digested Dictionary.
  *  Faster startup than ZSTD_compress_usingDict(), recommended when same dictionary is used multiple times.
  *  Note that compression level is decided during dictionary creation.
- *  Frame parameters are hardcoded (dictID=yes, contentSize=yes, checksum=no) */
+ *  Frame parameters are hardcoded (dictID=yes, contentSize=yes, checksum=no)
+ *  Note : ZSTD_compress_usingCDict() can be used with a ZSTD_CDict created from an empty dictionary.
+ *         But it is inefficient for small data, and it is recommended to use ZSTD_compressCCtx(). */
 ZSTDLIB_API size_t ZSTD_compress_usingCDict(ZSTD_CCtx* cctx,
                                             void* dst, size_t dstCapacity,
                                       const void* src, size_t srcSize,

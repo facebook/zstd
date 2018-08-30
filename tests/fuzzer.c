@@ -1375,6 +1375,24 @@ static int basicUnitTests(U32 seed, double compressibility)
                 ((BYTE*)CNBuffer)[i+1] = _3BytesSeqs[id][1];
                 ((BYTE*)CNBuffer)[i+2] = _3BytesSeqs[id][2];
     }   }   }
+    DISPLAYLEVEL(3, "test%3i : growing nbSeq : ", testNb++);
+    {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        size_t const maxNbSeq = _3BYTESTESTLENGTH / 3;
+        size_t const bound = ZSTD_compressBound(_3BYTESTESTLENGTH);
+        size_t nbSeq = 1;
+        while (nbSeq <= maxNbSeq) {
+          CHECK(ZSTD_compressCCtx(cctx, compressedBuffer, bound, CNBuffer, nbSeq * 3, 19));
+          /* Check every sequence for the first 100, then skip more rapidly. */
+          if (nbSeq < 100) {
+            ++nbSeq;
+          } else {
+            nbSeq += (nbSeq >> 2);
+          }
+        }
+        ZSTD_freeCCtx(cctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     DISPLAYLEVEL(3, "test%3i : compress lots 3-bytes sequences : ", testNb++);
     { CHECK_V(r, ZSTD_compress(compressedBuffer, ZSTD_compressBound(_3BYTESTESTLENGTH),
                                  CNBuffer, _3BYTESTESTLENGTH, 19) );
@@ -1386,8 +1404,26 @@ static int basicUnitTests(U32 seed, double compressibility)
       if (r != _3BYTESTESTLENGTH) goto _output_error; }
     DISPLAYLEVEL(3, "OK \n");
 
-    DISPLAYLEVEL(3, "test%3i : incompressible data and ill suited dictionary : ", testNb++);
+
+    DISPLAYLEVEL(3, "test%3i : growing literals buffer : ", testNb++);
     RDG_genBuffer(CNBuffer, CNBuffSize, 0.0, 0.1, seed);
+    {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        size_t const bound = ZSTD_compressBound(CNBuffSize);
+        size_t size = 1;
+        while (size <= CNBuffSize) {
+          CHECK(ZSTD_compressCCtx(cctx, compressedBuffer, bound, CNBuffer, size, 3));
+          /* Check every size for the first 100, then skip more rapidly. */
+          if (size < 100) {
+            ++size;
+          } else {
+            size += (size >> 2);
+          }
+        }
+        ZSTD_freeCCtx(cctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : incompressible data and ill suited dictionary : ", testNb++);
     {   /* Train a dictionary on low characters */
         size_t dictSize = 16 KB;
         void* const dictBuffer = malloc(dictSize);

@@ -620,6 +620,8 @@ static size_t writeLiteralsBlock(U32* seed, frame_t* frame, size_t contentSize)
 }
 
 static inline void initSeqStore(seqStore_t *seqStore) {
+    seqStore->maxNbSeq = MAX_NB_SEQ;
+    seqStore->maxNbLit = ZSTD_BLOCKSIZE_MAX;
     seqStore->sequencesStart = SEQUENCE_BUFFER;
     seqStore->litStart = SEQUENCE_LITERAL_BUFFER;
     seqStore->llCode = SEQUENCE_LLCODE;

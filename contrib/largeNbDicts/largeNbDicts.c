@@ -74,6 +74,7 @@ static const buffer_t kBuffNull = { NULL, 0, 0 };
 /* @return : kBuffNull if any error */
 static buffer_t createBuffer(size_t capacity)
 {
+    assert(capacity > 0);
     void* const ptr = malloc(capacity);
     if (ptr==NULL) return kBuffNull;
 
@@ -96,18 +97,6 @@ static void fillBuffer_fromHandle(buffer_t* buff, FILE* f)
     buff->size = readSize;
 }
 
-/* @return : kBuffNull if any error */
-static buffer_t createBuffer_fromHandle(FILE* f, size_t bufferSize)
-{
-    buffer_t buff = createBuffer(bufferSize);
-    if (buff.ptr == NULL) return kBuffNull;
-    fillBuffer_fromHandle(&buff, f);
-    if (buff.size != buff.capacity) {
-        freeBuffer(buff);
-        return kBuffNull;
-    }
-    return buff;
-}
 
 /* @return : kBuffNull if any error */
 static buffer_t createBuffer_fromFile(const char* fileName)
@@ -118,16 +107,22 @@ static buffer_t createBuffer_fromFile(const char* fileName)
     if (fileSize == UTIL_FILESIZE_UNKNOWN) return kBuffNull;
     assert((U64)bufferSize == fileSize);   /* check overflow */
 
-    {   buffer_t buff;
-        FILE* const f = fopen(fileName, "rb");
+    {   FILE* const f = fopen(fileName, "rb");
         if (f == NULL) return kBuffNull;
 
-        buff = createBuffer_fromHandle(f, bufferSize);
+        buffer_t buff = createBuffer(bufferSize);
+        CONTROL(buff.ptr != NULL);
+
+        fillBuffer_fromHandle(&buff, f);
+        CONTROL(buff.size == buff.capacity);
+
         fclose(f);   /* do nothing specific if fclose() fails */
         return buff;
     }
 }
 
+
+/* @return : kBuffNull if any error */
 static buffer_t
 createDictionaryBuffer(const char* dictionaryName,
                        const void* srcBuffer,
@@ -136,7 +131,7 @@ createDictionaryBuffer(const char* dictionaryName,
 {
     if (dictionaryName) {
         DISPLAYLEVEL(3, "loading dictionary %s \n", dictionaryName);
-        return createBuffer_fromFile(dictionaryName);
+        return createBuffer_fromFile(dictionaryName);  /* note : result might be kBuffNull */
 
     } else {
 
@@ -172,11 +167,11 @@ static int loadFiles(void* buffer, size_t bufferSize,
     for (unsigned n=0; n<nbFiles; n++) {
         U64 fileSize = UTIL_getFileSize(fileNamesTable[n]);
         if (UTIL_isDirectory(fileNamesTable[n])) {
-            fileSizes[n] = 0; fileSize = 0;
+            fileSizes[n] = 0;
             continue;
         }
         if (fileSize == UTIL_FILESIZE_UNKNOWN) {
-            fileSizes[n] = 0; fileSize = 0;
+            fileSizes[n] = 0;
             continue;
         }
 
@@ -336,6 +331,7 @@ createBufferCollection_fromFiles(const char* const * fileNamesTable, unsigned nb
     U64 const totalSizeToLoad = UTIL_getTotalFileSize(fileNamesTable, nbFiles);
     assert(totalSizeToLoad <= BENCH_SIZE_MAX);
     size_t const loadedSize = (size_t)totalSizeToLoad;
+    assert(loadedSize > 0);
     void* const srcBuffer = malloc(loadedSize);
     assert(srcBuffer != NULL);
 
@@ -777,5 +773,10 @@ int main (int argc, const char** argv)
         filenameTable = UTIL_createFileList(nameTable, nameIdx, &buffer_containing_filenames, &nbFiles, 1 /* follow_links */);
     }
 
-    return bench(filenameTable, nbFiles, dictionary, blockSize, cLevel, nbDicts, nbRounds);
+    int result = bench(filenameTable, nbFiles, dictionary, blockSize, cLevel, nbDicts, nbRounds);
+
+    free(buffer_containing_filenames);
+    free(nameTable);
+
+    return result;
 }

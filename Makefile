@@ -23,6 +23,7 @@ else
 EXT =
 endif
 
+## default: Build lib-release and zstd-release
 .PHONY: default
 default: lib-release zstd-release
 
@@ -115,9 +116,24 @@ ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD Dr
 HOST_OS = POSIX
 CMAKE_PARAMS = -DZSTD_BUILD_CONTRIB:BOOL=ON -DZSTD_BUILD_STATIC:BOOL=ON -DZSTD_BUILD_TESTS:BOOL=ON -DZSTD_ZLIB_SUPPORT:BOOL=ON -DZSTD_LZMA_SUPPORT:BOOL=ON -DCMAKE_BUILD_TYPE=Release
 
+# Print a two column output of targets and their description. To add a target description, put a
+# comment in the Makefile with the format "## <TARGET>: <DESCRIPTION>".  For example:
+#
+## list: Print all targets and their descriptions (if provided)
 .PHONY: list
 list:
-	@$(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null | awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' | sort | egrep -v -e '^[^[:alnum:]]' -e '^$@$$' | xargs
+	@TARGETS=$$($(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null \
+		| awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' \
+		| egrep -v  -e '^[^[:alnum:]]' | sort); \
+	{ \
+	    printf "Target Name\tDescription\n"; \
+	    printf "%0.s-" {1..16}; printf "\t"; printf "%0.s-" {1..40}; printf "\n"; \
+	    for target in $$TARGETS; do \
+	        line=$$(egrep "^##[[:space:]]+$$target:" $(lastword $(MAKEFILE_LIST))); \
+	        description=$$(echo $$line | awk '{i=index($$0,":"); print substr($$0,i+1)}' | xargs); \
+	        printf "$$target\t$$description\n"; \
+	    done \
+	} | column -t -s $$'\t'
 
 .PHONY: install clangtest armtest usan asan uasan
 install:

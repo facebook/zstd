@@ -716,17 +716,26 @@ static unsigned longCommandWArg(const char** stringPtr, const char* longCommand)
 }
 
 
+int usage(const char* exeName)
+{
+    DISPLAY (" \n");
+    DISPLAY (" %s [Options] filename(s) \n", exeName);
+    DISPLAY (" \n");
+    DISPLAY ("Options : \n");
+    DISPLAY ("-r          : recursively load all files in subdirectories (default: off) \n");
+    DISPLAY ("-B#         : split input into blocks of size # (default: no split) \n");
+    DISPLAY ("-#          : use compression level # (default: %u) \n", CLEVEL_DEFAULT);
+    DISPLAY ("-D #        : use # as a dictionary (default: create one) \n");
+    DISPLAY ("-i#         : nb benchmark rounds (default: %u) \n", BENCH_TIME_DEFAULT_S);
+    DISPLAY ("--nbDicts=# : create # dictionaries for bench (default: one per block) \n");
+    DISPLAY ("-h          : help (this text) \n");
+    return 0;
+}
+
 int bad_usage(const char* exeName)
 {
     DISPLAY (" bad usage : \n");
-    DISPLAY (" %s filename [Options] \n", exeName);
-    DISPLAY ("Options : \n");
-    DISPLAY ("-r             : recursively load all files in subdirectories (default: off) \n");
-    DISPLAY ("-B#            : split input into blocks of size # (default: no split) \n");
-    DISPLAY ("-#             : use compression level # (default: %u) \n", CLEVEL_DEFAULT);
-    DISPLAY ("-D #           : use # as a dictionary (default: create one) \n");
-    DISPLAY ("-i#            : nb benchmark rounds (default: %u) \n", BENCH_TIME_DEFAULT_S);
-    DISPLAY ("--nbDicts=#    : create # dictionaries for bench (default: one per block) \n");
+    usage(exeName);
     return 1;
 }
 
@@ -749,6 +758,7 @@ int main (int argc, const char** argv)
 
     for (int argNb = 1; argNb < argc ; argNb++) {
         const char* argument = argv[argNb];
+        if (!strcmp(argument, "-h")) { return usage(exeName); }
         if (!strcmp(argument, "-r")) { recursiveMode = 1; continue; }
         if (!strcmp(argument, "-D")) { argNb++; assert(argNb < argc); dictionary = argv[argNb]; continue; }
         if (longCommandWArg(&argument, "-i")) { nbRounds = readU32FromChar(&argument); continue; }

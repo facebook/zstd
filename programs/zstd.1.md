@@ -258,7 +258,7 @@ Compression of small files similar to the sample set will be greatly improved.
 * `--train-fastcover[=k#,d=#,f=#,steps=#,split=#,accel=#]`:
     Same as cover but with extra parameters _f_ and _accel_ and different default value of split
     If _split_ is not specified, then it tries _split_ = 75.
-    If _f_ is not specified, then it tries _f_ = 18.
+    If _f_ is not specified, then it tries _f_ = 20.
     Requires that 0 < _f_ < 32.
     If _accel_ is not specified, then it tries _accel_ = 1.
     Requires that 0 < _accel_ <= 10.

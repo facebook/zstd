@@ -244,7 +244,7 @@ Examples:
 Same as cover but with extra parameters \fIf\fR and \fIaccel\fR and different default value of split
 .
 .IP
-If \fIsplit\fR is not specified, then it tries \fIsplit\fR = 75. If \fIf\fR is not specified, then it tries \fIf\fR = 18. Requires that 0 < \fIf\fR < 32. If \fIaccel\fR is not specified, then it tries \fIaccel\fR = 1. Requires that 0 < \fIaccel\fR <= 10. Requires that \fId\fR = 6 or \fId\fR = 8.
+If \fIsplit\fR is not specified, then it tries \fIsplit\fR = 75. If \fIf\fR is not specified, then it tries \fIf\fR = 20. Requires that 0 < \fIf\fR < 32. If \fIaccel\fR is not specified, then it tries \fIaccel\fR = 1. Requires that 0 < \fIaccel\fR <= 10. Requires that \fId\fR = 6 or \fId\fR = 8.
 .
 .IP
 \fIf\fR is log of size of array that keeps track of frequency of subsegments of size \fId\fR. The subsegment is hashed to an index in the range [0,2^\fIf\fR - 1]. It is possible that 2 different subsegments are hashed to the same index, and they are considered as the same subsegment when computing frequency. Using a higher \fIf\fR reduces collision but takes longer.

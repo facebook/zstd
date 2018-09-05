@@ -356,7 +356,7 @@ static ZDICT_fastCover_params_t defaultFastCoverParams(void)
     ZDICT_fastCover_params_t params;
     memset(&params, 0, sizeof(params));
     params.d = 8;
-    params.f = 18;
+    params.f = 20;
     params.steps = 4;
     params.splitPoint = 0.75; /* different from default splitPoint of cover */
     params.accel = DEFAULT_ACCEL;

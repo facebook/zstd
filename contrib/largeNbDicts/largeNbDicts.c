@@ -758,7 +758,7 @@ int main (int argc, const char** argv)
 
     for (int argNb = 1; argNb < argc ; argNb++) {
         const char* argument = argv[argNb];
-        if (!strcmp(argument, "-h")) { return usage(exeName); }
+        if (!strcmp(argument, "-h")) { free(nameTable); return usage(exeName); }
         if (!strcmp(argument, "-r")) { recursiveMode = 1; continue; }
         if (!strcmp(argument, "-D")) { argNb++; assert(argNb < argc); dictionary = argv[argNb]; continue; }
         if (longCommandWArg(&argument, "-i")) { nbRounds = readU32FromChar(&argument); continue; }

@@ -233,7 +233,7 @@ typedef size_t (*BMK_initFn_t)(void* initPayload);
  * srcSizes - an array of the sizes of above buffers
  * dstBuffers - an array of buffers to be written into by benchFn
  * dstCapacities - an array of the capacities of above buffers
- * blockResults - store the return value of benchFn for each block. Optional. Use NULL if this result is not requested.
+ * blockResults - Optional: store the return value of benchFn for each block. Use NULL if this result is not requested.
  * nbLoops - defines number of times benchFn is run.
  * @return: a variant, which express either an error, or can generate a valid BMK_runTime_t result.
  *          Use BMK_isSuccessful_runOutcome() to check if function was successful.

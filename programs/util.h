@@ -319,15 +319,17 @@ UTIL_STATIC U32 UTIL_isDirectory(const char* infilename)
 
 UTIL_STATIC U32 UTIL_isLink(const char* infilename)
 {
-#if defined(_WIN32)
-    /* no symlinks on windows */
-    (void)infilename;
-#else
+/* macro guards, as defined in : https://linux.die.net/man/2/lstat */
+#if defined(_BSD_SOURCE) \
+    || (defined(_XOPEN_SOURCE) && (_XOPEN_SOURCE >= 500)) \
+    || (defined(_XOPEN_SOURCE) && defined(_XOPEN_SOURCE_EXTENDED)) \
+    || (defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE >= 200112L))
     int r;
     stat_t statbuf;
     r = lstat(infilename, &statbuf);
     if (!r && S_ISLNK(statbuf.st_mode)) return 1;
 #endif
+    (void)infilename;
     return 0;
 }
 
@@ -526,7 +528,10 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
  * After finishing usage of the list the structures should be freed with UTIL_freeFileList(params: return value, allocatedBuffer)
  * In case of error UTIL_createFileList returns NULL and UTIL_freeFileList should not be called.
  */
-UTIL_STATIC const char** UTIL_createFileList(const char **inputNames, unsigned inputNamesNb, char** allocatedBuffer, unsigned* allocatedNamesNb, int followLinks)
+UTIL_STATIC const char**
+UTIL_createFileList(const char **inputNames, unsigned inputNamesNb,
+                    char** allocatedBuffer, unsigned* allocatedNamesNb,
+                    int followLinks)
 {
     size_t pos;
     unsigned i, nbFiles;

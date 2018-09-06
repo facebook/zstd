@@ -53,7 +53,8 @@ extern "C" {
  *        It's recommended that total size of all samples be about ~x100 times the target size of dictionary.
  */
 ZDICTLIB_API size_t ZDICT_trainFromBuffer(void* dictBuffer, size_t dictBufferCapacity,
-                                    const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples);
+                                    const void* samplesBuffer,
+                                    const size_t* samplesSizes, unsigned nbSamples);
 
 
 /*======   Helper functions   ======*/

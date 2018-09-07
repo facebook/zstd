@@ -16,7 +16,7 @@ Distribution of this document is unlimited.
 
 ### Version
 
-0.2.8 (30/05/18)
+0.2.9 (05/09/18)
 
 
 Introduction
@@ -1192,6 +1192,8 @@ Number_of_Bits = Weight ? (Max_Number_of_Bits + 1 - Weight) : 0
 The last symbol's `Weight` is deduced from previously decoded ones,
 by completing to the nearest power of 2.
 This power of 2 gives `Max_Number_of_Bits`, the depth of the current tree.
+`Max_Number_of_Bits` must be <= 11,
+otherwise the representation is considered corrupted.
 
 __Example__ :
 Let's presume the following Huffman tree must be described :
@@ -1216,12 +1218,12 @@ It gives the following series of weights :
 |   `Weight`    |  4  |  3  |  2  |  0  |  1  |
 
 The decoder will do the inverse operation :
-having collected weights of literals from `0` to `4`,
+having collected weights of literal symbols from `0` to `4`,
 it knows the last literal, `5`, is present with a non-zero weight.
 The weight of `5` can be determined by advancing to the next power of 2.
 The sum of `2^(Weight-1)` (excluding 0's) is :
 `8 + 4 + 2 + 0 + 1 = 15`.
-Nearest power of 2 is 16.
+Nearest larger power of 2 value is 16.
 Therefore, `Max_Number_of_Bits = 4` and `Weight[5] = 16-15 = 1`.
 
 #### Huffman Tree header
@@ -1233,18 +1235,24 @@ which describes how the series of weights is encoded.
   the series of weights is compressed using FSE (see below).
   The length of the FSE-compressed series is equal to `headerByte` (0-127).
 
-- if `headerByte` >= 128 : this is a direct representation,
-  where each `Weight` is written directly as a 4 bits field (0-15).
-  They are encoded forward, 2 weights to a byte with the first weight taking
-  the top four bits and the second taking the bottom four (e.g. the following
-  operations could be used to read the weights:
-  `Weight[0] = (Byte[0] >> 4), Weight[1] = (Byte[0] & 0xf)`, etc.).
-  The full representation occupies `Ceiling(Number_of_Symbols/2)` bytes,
-  meaning it uses only full bytes even if `Number_of_Symbols` is odd.
-  `Number_of_Symbols = headerByte - 127`.
-  Note that maximum `Number_of_Symbols` is 255-127 = 128.
-  If any literal has a value > 128, raw header mode is not possible.
-  In such case, it's necessary to use FSE compression.
+- if `headerByte` >= 128 :
+  + the series of weights uses a direct representation,
+    where each `Weight` is encoded directly as a 4 bits field (0-15).
+  + They are encoded forward, 2 weights to a byte,
+    first weight taking the top four bits and second one taking the bottom four.
+    * e.g. the following operations could be used to read the weights:
+      `Weight[0] = (Byte[0] >> 4), Weight[1] = (Byte[0] & 0xf)`, etc.
+  + The full representation occupies `Ceiling(Number_of_Weights/2)` bytes,
+    meaning it uses only full bytes even if `Number_of_Weights` is odd.
+  + `Number_of_Weights = headerByte - 127`.
+    * Note that maximum `Number_of_Weights` is 255-127 = 128,
+      therefore, only up to 128 `Weight` can be encoded using direct representation.
+    * Since the last non-zero `Weight` is _not_ encoded,
+      this scheme is compatible with alphabet sizes of up to 129 symbols,
+      hence including literal symbol 128.
+    * If any literal symbol > 128 has a non-zero `Weight`,
+      direct representation is not possible.
+      In such case, it's necessary to use FSE compression.
 
 
 #### Finite State Entropy (FSE) compression of Huffman weights
@@ -1621,6 +1629,7 @@ or at least provide a meaningful error code explaining for which reason it canno
 
 Version changes
 ---------------
+- 0.2.9 : clarifications for huffman weights direct representation, by Ulrich Kunitz
 - 0.2.8 : clarifications for IETF RFC discuss
 - 0.2.7 : clarifications from IETF RFC review, by Vijay Gurbani and Nick Terrell
 - 0.2.6 : fixed an error in huffman example, by Ulrich Kunitz

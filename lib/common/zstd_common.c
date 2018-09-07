@@ -15,8 +15,19 @@
 ***************************************/
 #include <stdlib.h>      /* malloc, calloc, free */
 #include <string.h>      /* memset */
+#include <stdio.h>       /* fprintf(), stderr */
+#include <signal.h>      /* signal() */
+#ifndef _WIN32
+#include <execinfo.h>    /* backtrace, backtrace_symbols, symbollist */
+#endif
 #include "error_private.h"
 #include "zstd_internal.h"
+
+
+/*-************************************
+*  Display Macros
+**************************************/
+#define DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
 
 
 /*-****************************************
@@ -78,4 +89,47 @@ void ZSTD_free(void* ptr, ZSTD_customMem customMem)
         else
             free(ptr);
     }
+}
+
+
+/*-*********************************************************
+*  Termination signal trapping (Print debug stack trace)
+***********************************************************/
+#define MAX_STACK_FRAMES    50
+
+#ifndef _WIN32
+static void ABRThandler(int sig)
+{
+   void* addrlist[MAX_STACK_FRAMES + 1];
+   char** symbollist;
+   U32 addrlen, i;
+
+   (void)sig;
+
+   DISPLAY("Stack trace:\n");
+   // Retrieve current stack addresses.
+   addrlen = backtrace(addrlist, sizeof(addrlist) / sizeof(void*));
+   if (addrlen == 0) {
+      DISPLAY("\n");
+      return;
+   }
+   // Create readable strings to each frame.
+   symbollist = backtrace_symbols(addrlist, addrlen);
+   // Print the stack trace, excluding calls handling the signal.
+   for (i = 4; i < addrlen; i++) {
+      DISPLAY("%s\n", symbollist[i]);
+   }
+   free(symbollist);
+}
+#endif
+
+void ZSTD_addAbortHandler()
+{
+#ifndef _WIN32
+    signal(SIGABRT, ABRThandler);
+    signal(SIGFPE, ABRThandler);
+    signal(SIGILL, ABRThandler);
+    signal(SIGSEGV, ABRThandler);
+    signal(SIGBUS, ABRThandler);
+#endif
 }

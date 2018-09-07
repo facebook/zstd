@@ -2203,8 +2203,13 @@ static size_t ZSTD_loadEntropy(ZSTD_entropyDTables_t* entropy,
     const BYTE* const dictEnd = dictPtr + dictSize;
 
     if (dictSize <= 8) return ERROR(dictionary_corrupted);
+    assert(MEM_readLE32(dict) == ZSTD_MAGIC_DICTIONARY);   /* dict must be valid */
     dictPtr += 8;   /* skip header = magic + dictID */
 
+    ZSTD_STATIC_ASSERT(offsetof(ZSTD_entropyDTables_t, LLTable) == 0);
+    ZSTD_STATIC_ASSERT(offsetof(ZSTD_entropyDTables_t, OFTable) == sizeof(entropy->LLTable));
+    ZSTD_STATIC_ASSERT(offsetof(ZSTD_entropyDTables_t, MLTable) == sizeof(entropy->LLTable) + sizeof(entropy->OFTable));
+    ZSTD_STATIC_ASSERT(offsetof(ZSTD_entropyDTables_t, hufTable) == sizeof(entropy->LLTable) + sizeof(entropy->OFTable) + sizeof(entropy->MLTable));
     ZSTD_STATIC_ASSERT(offsetof(ZSTD_entropyDTables_t, hufTable) >= HUF_DECOMPRESS_WORKSPACE_SIZE);
     {   void* const workspace = entropy;   /* use fse tables as temporary workspace; implies fse table precede huffTable at beginning of entropy */
         size_t const workspaceSize = offsetof(ZSTD_entropyDTables_t, hufTable);

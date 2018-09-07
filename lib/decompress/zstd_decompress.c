@@ -114,7 +114,6 @@ typedef struct {
     ZSTD_seqSymbol OFTable[SEQSYMBOL_TABLE_SIZE(OffFSELog)];
     ZSTD_seqSymbol MLTable[SEQSYMBOL_TABLE_SIZE(MLFSELog)];
     HUF_DTable hufTable[HUF_DTABLE_SIZE(HufLog)];  /* can accommodate HUF_decompress4X */
-    U32 workspace[HUF_DECOMPRESS_WORKSPACE_SIZE_U32];
     U32 rep[ZSTD_REP_NUM];
 } ZSTD_entropyDTables_t;
 
@@ -125,6 +124,7 @@ struct ZSTD_DCtx_s
     const ZSTD_seqSymbol* OFTptr;
     const HUF_DTable* HUFptr;
     ZSTD_entropyDTables_t entropy;
+    U32 workspace[HUF_DECOMPRESS_WORKSPACE_SIZE_U32];   /* space needed when building huffman tables */
     const void* previousDstEnd;   /* detect continuity */
     const void* prefixStart;      /* start of current segment */
     const void* virtualStart;     /* virtual start of previous segment if it was just before current one */
@@ -612,9 +612,9 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                                         HUF_decompress4X_usingDTable_bmi2(dctx->litBuffer, litSize, istart+lhSize, litCSize, dctx->HUFptr, dctx->bmi2) ) :
                                     ( singleStream ?
                                         HUF_decompress1X1_DCtx_wksp_bmi2(dctx->entropy.hufTable, dctx->litBuffer, litSize, istart+lhSize, litCSize,
-                                                                         dctx->entropy.workspace, sizeof(dctx->entropy.workspace), dctx->bmi2) :
+                                                                         dctx->workspace, sizeof(dctx->workspace), dctx->bmi2) :
                                         HUF_decompress4X_hufOnly_wksp_bmi2(dctx->entropy.hufTable, dctx->litBuffer, litSize, istart+lhSize, litCSize,
-                                                                           dctx->entropy.workspace, sizeof(dctx->entropy.workspace), dctx->bmi2))))
+                                                                           dctx->workspace, sizeof(dctx->workspace), dctx->bmi2))))
                     return ERROR(corruption_detected);
 
                 dctx->litPtr = dctx->litBuffer;
@@ -2196,7 +2196,8 @@ static size_t ZSTD_refDictContent(ZSTD_DCtx* dctx, const void* dict, size_t dict
 /* ZSTD_loadEntropy() :
  * dict : must point at beginning of a valid zstd dictionary
  * @return : size of entropy tables read */
-static size_t ZSTD_loadEntropy(ZSTD_entropyDTables_t* entropy, const void* const dict, size_t const dictSize)
+static size_t ZSTD_loadEntropy(ZSTD_entropyDTables_t* entropy,
+                         const void* const dict, size_t const dictSize)
 {
     const BYTE* dictPtr = (const BYTE*)dict;
     const BYTE* const dictEnd = dictPtr + dictSize;
@@ -2204,10 +2205,12 @@ static size_t ZSTD_loadEntropy(ZSTD_entropyDTables_t* entropy, const void* const
     if (dictSize <= 8) return ERROR(dictionary_corrupted);
     dictPtr += 8;   /* skip header = magic + dictID */
 
-
-    {   size_t const hSize = HUF_readDTableX2_wksp(
-            entropy->hufTable, dictPtr, dictEnd - dictPtr,
-            entropy->workspace, sizeof(entropy->workspace));
+    ZSTD_STATIC_ASSERT(offsetof(ZSTD_entropyDTables_t, hufTable) >= HUF_DECOMPRESS_WORKSPACE_SIZE);
+    {   void* const workspace = entropy;   /* use fse tables as temporary workspace; implies fse table precede huffTable at beginning of entropy */
+        size_t const workspaceSize = offsetof(ZSTD_entropyDTables_t, hufTable);
+        size_t const hSize = HUF_readDTableX2_wksp(entropy->hufTable,
+                                                dictPtr, dictEnd - dictPtr,
+                                                workspace, workspaceSize);
         if (HUF_isError(hSize)) return ERROR(dictionary_corrupted);
         dictPtr += hSize;
     }
@@ -2218,7 +2221,7 @@ static size_t ZSTD_loadEntropy(ZSTD_entropyDTables_t* entropy, const void* const
         if (FSE_isError(offcodeHeaderSize)) return ERROR(dictionary_corrupted);
         if (offcodeMaxValue > MaxOff) return ERROR(dictionary_corrupted);
         if (offcodeLog > OffFSELog) return ERROR(dictionary_corrupted);
-        ZSTD_buildFSETable(entropy->OFTable,
+        ZSTD_buildFSETable( entropy->OFTable,
                             offcodeNCount, offcodeMaxValue,
                             OF_base, OF_bits,
                             offcodeLog);
@@ -2231,7 +2234,7 @@ static size_t ZSTD_loadEntropy(ZSTD_entropyDTables_t* entropy, const void* const
         if (FSE_isError(matchlengthHeaderSize)) return ERROR(dictionary_corrupted);
         if (matchlengthMaxValue > MaxML) return ERROR(dictionary_corrupted);
         if (matchlengthLog > MLFSELog) return ERROR(dictionary_corrupted);
-        ZSTD_buildFSETable(entropy->MLTable,
+        ZSTD_buildFSETable( entropy->MLTable,
                             matchlengthNCount, matchlengthMaxValue,
                             ML_base, ML_bits,
                             matchlengthLog);
@@ -2244,7 +2247,7 @@ static size_t ZSTD_loadEntropy(ZSTD_entropyDTables_t* entropy, const void* const
         if (FSE_isError(litlengthHeaderSize)) return ERROR(dictionary_corrupted);
         if (litlengthMaxValue > MaxLL) return ERROR(dictionary_corrupted);
         if (litlengthLog > LLFSELog) return ERROR(dictionary_corrupted);
-        ZSTD_buildFSETable(entropy->LLTable,
+        ZSTD_buildFSETable( entropy->LLTable,
                             litlengthNCount, litlengthMaxValue,
                             LL_base, LL_bits,
                             litlengthLog);
@@ -2365,7 +2368,9 @@ size_t ZSTD_decompressBegin_usingDDict(ZSTD_DCtx* dstDCtx, const ZSTD_DDict* ddi
     return 0;
 }
 
-static size_t ZSTD_loadEntropy_inDDict(ZSTD_DDict* ddict, ZSTD_dictContentType_e dictContentType)
+static size_t
+ZSTD_loadEntropy_inDDict(ZSTD_DDict* ddict,
+                         ZSTD_dictContentType_e dictContentType)
 {
     ddict->dictID = 0;
     ddict->entropyPresent = 0;
@@ -2386,7 +2391,9 @@ static size_t ZSTD_loadEntropy_inDDict(ZSTD_DDict* ddict, ZSTD_dictContentType_e
     ddict->dictID = MEM_readLE32((const char*)ddict->dictContent + ZSTD_FRAMEIDSIZE);
 
     /* load entropy tables */
-    CHECK_E( ZSTD_loadEntropy(&ddict->entropy, ddict->dictContent, ddict->dictSize), dictionary_corrupted );
+    CHECK_E( ZSTD_loadEntropy(&ddict->entropy,
+                              ddict->dictContent, ddict->dictSize),
+             dictionary_corrupted );
     ddict->entropyPresent = 1;
     return 0;
 }
@@ -2425,14 +2432,15 @@ ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize,
     if (!customMem.customAlloc ^ !customMem.customFree) return NULL;
 
     {   ZSTD_DDict* const ddict = (ZSTD_DDict*) ZSTD_malloc(sizeof(ZSTD_DDict), customMem);
-        if (!ddict) return NULL;
+        if (ddict == NULL) return NULL;
         ddict->cMem = customMem;
-
-        if (ZSTD_isError( ZSTD_initDDict_internal(ddict, dict, dictSize, dictLoadMethod, dictContentType) )) {
-            ZSTD_freeDDict(ddict);
-            return NULL;
-        }
-
+        {   size_t const initResult = ZSTD_initDDict_internal(ddict,
+                                            dict, dictSize,
+                                            dictLoadMethod, dictContentType);
+            if (ZSTD_isError(initResult)) {
+                ZSTD_freeDDict(ddict);
+                return NULL;
+        }   }
         return ddict;
     }
 }
@@ -2459,23 +2467,25 @@ ZSTD_DDict* ZSTD_createDDict_byReference(const void* dictBuffer, size_t dictSize
 
 
 const ZSTD_DDict* ZSTD_initStaticDDict(
-                                void* workspace, size_t workspaceSize,
+                                void* sBuffer, size_t sBufferSize,
                                 const void* dict, size_t dictSize,
                                 ZSTD_dictLoadMethod_e dictLoadMethod,
                                 ZSTD_dictContentType_e dictContentType)
 {
-    size_t const neededSpace =
-            sizeof(ZSTD_DDict) + (dictLoadMethod == ZSTD_dlm_byRef ? 0 : dictSize);
-    ZSTD_DDict* const ddict = (ZSTD_DDict*)workspace;
-    assert(workspace != NULL);
+    size_t const neededSpace = sizeof(ZSTD_DDict)
+                             + (dictLoadMethod == ZSTD_dlm_byRef ? 0 : dictSize);
+    ZSTD_DDict* const ddict = (ZSTD_DDict*)sBuffer;
+    assert(sBuffer != NULL);
     assert(dict != NULL);
-    if ((size_t)workspace & 7) return NULL;  /* 8-aligned */
-    if (workspaceSize < neededSpace) return NULL;
+    if ((size_t)sBuffer & 7) return NULL;   /* 8-aligned */
+    if (sBufferSize < neededSpace) return NULL;
     if (dictLoadMethod == ZSTD_dlm_byCopy) {
         memcpy(ddict+1, dict, dictSize);  /* local copy */
         dict = ddict+1;
     }
-    if (ZSTD_isError( ZSTD_initDDict_internal(ddict, dict, dictSize, ZSTD_dlm_byRef, dictContentType) ))
+    if (ZSTD_isError( ZSTD_initDDict_internal(ddict,
+                                              dict, dictSize,
+                                              ZSTD_dlm_byRef, dictContentType) ))
         return NULL;
     return ddict;
 }

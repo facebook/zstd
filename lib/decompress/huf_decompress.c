@@ -533,9 +533,9 @@ static void HUF_fillDTableX2(HUF_DEltX2* DTable, const U32 targetLog,
     }
 }
 
-size_t HUF_readDTableX2_wksp(HUF_DTable* DTable, const void* src,
-                             size_t srcSize, void* workSpace,
-                             size_t wkspSize)
+size_t HUF_readDTableX2_wksp(HUF_DTable* DTable,
+                       const void* src, size_t srcSize,
+                             void* workSpace, size_t wkspSize)
 {
     U32 tableLog, maxW, sizeOfSort, nbSymbols;
     DTableDesc dtd = HUF_getDTableDesc(DTable);

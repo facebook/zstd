@@ -15,15 +15,8 @@
 ***************************************/
 #include <stdlib.h>      /* malloc, calloc, free */
 #include <string.h>      /* memset */
-#include <stdio.h>       /* fprintf(), stderr */
 #include "error_private.h"
 #include "zstd_internal.h"
-
-
-/*-************************************
-*  Display Macros
-**************************************/
-#define DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
 
 
 /*-****************************************

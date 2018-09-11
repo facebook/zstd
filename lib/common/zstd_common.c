@@ -98,15 +98,30 @@ void ZSTD_free(void* ptr, ZSTD_customMem customMem)
 #define MAX_STACK_FRAMES    50
 
 #ifndef _WIN32
+
+#ifdef __linux__
+#define START_STACK_FRAME  2
+#elif defined __APPLE__
+#define START_STACK_FRAME  4
+#endif
+
 static void ABRThandler(int sig)
 {
+   const char* name;
    void* addrlist[MAX_STACK_FRAMES + 1];
    char** symbollist;
    U32 addrlen, i;
 
-   (void)sig;
+   switch (sig) {
+      case SIGABRT: name = "SIGABRT"; break;
+      case SIGFPE:  name = "SIGFPE"; break;
+      case SIGILL:  name = "SIGILL"; break;
+      case SIGINT:  name = "SIGINT"; break;
+      case SIGSEGV: name = "SIGSEGV"; break;
+      default: name = "UNKNOWN"; break;
+   }
 
-   DISPLAY("Stack trace:\n");
+   DISPLAY("Caught %s signal, printing stack:\n", name);
    // Retrieve current stack addresses.
    addrlen = backtrace(addrlist, sizeof(addrlist) / sizeof(void*));
    if (addrlen == 0) {
@@ -116,10 +131,13 @@ static void ABRThandler(int sig)
    // Create readable strings to each frame.
    symbollist = backtrace_symbols(addrlist, addrlen);
    // Print the stack trace, excluding calls handling the signal.
-   for (i = 4; i < addrlen; i++) {
+   for (i = START_STACK_FRAME; i < addrlen; i++) {
       DISPLAY("%s\n", symbollist[i]);
    }
    free(symbollist);
+   // Reset and raise the signal so default handler runs.
+   signal(sig, SIG_DFL);
+   raise(sig);
 }
 #endif
 

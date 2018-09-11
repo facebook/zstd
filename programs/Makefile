@@ -48,6 +48,7 @@ DEBUGFLAGS+=-Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
             -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings \
             -Wredundant-decls
 CFLAGS  += $(DEBUGFLAGS) $(MOREFLAGS)
+LDFLAGS += -rdynamic
 FLAGS    = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
 
 

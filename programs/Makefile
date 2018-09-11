@@ -47,8 +47,8 @@ DEBUGFLAGS+=-Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
             -Wstrict-prototypes -Wundef -Wpointer-arith -Wformat-security \
             -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings \
             -Wredundant-decls
+DEBUGFLAGS_LD+=-rdynamic
 CFLAGS  += $(DEBUGFLAGS) $(MOREFLAGS)
-LDFLAGS += -rdynamic
 FLAGS    = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
 
 
@@ -145,7 +145,7 @@ allVariants: zstd zstd-compress zstd-decompress zstd-small zstd-nolegacy
 $(ZSTDDECOMP_O): CFLAGS += $(ALIGN_LOOP)
 
 zstd : CPPFLAGS += $(THREAD_CPP) $(ZLIBCPP) $(LZMACPP) $(LZ4CPP)
-zstd : LDFLAGS += $(THREAD_LD) $(ZLIBLD) $(LZMALD) $(LZ4LD)
+zstd : LDFLAGS += $(THREAD_LD) $(ZLIBLD) $(LZMALD) $(LZ4LD) $(DEBUGFLAGS_LD)
 zstd : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 zstd : $(ZSTDLIB_FILES) zstdcli.o fileio.o bench.o datagen.o dibio.o
 	@echo "$(THREAD_MSG)"
@@ -159,6 +159,7 @@ endif
 
 .PHONY: zstd-release
 zstd-release: DEBUGFLAGS :=
+zstd-release: DEBUGFLAGS_LD :=
 zstd-release: zstd
 
 zstd32 : CPPFLAGS += $(THREAD_CPP)

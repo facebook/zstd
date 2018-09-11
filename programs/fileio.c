@@ -166,37 +166,37 @@ static void clearHandler(void)
 
 #ifndef _WIN32
 static void ABRThandler(int sig) {
-   const char* name;
-   void* addrlist[MAX_STACK_FRAMES + 1];
-   char** symbollist;
-   U32 addrlen, i;
+    const char* name;
+    void* addrlist[MAX_STACK_FRAMES];
+    char** symbollist;
+    U32 addrlen, i;
 
-   switch (sig) {
-      case SIGABRT: name = "SIGABRT"; break;
-      case SIGFPE: name = "SIGFPE"; break;
-      case SIGILL: name = "SIGILL"; break;
-      case SIGINT: name = "SIGINT"; break;
-      case SIGSEGV: name = "SIGSEGV"; break;
-      default: name = "UNKNOWN";
-   }
+    switch (sig) {
+        case SIGABRT: name = "SIGABRT"; break;
+        case SIGFPE: name = "SIGFPE"; break;
+        case SIGILL: name = "SIGILL"; break;
+        case SIGINT: name = "SIGINT"; break;
+        case SIGSEGV: name = "SIGSEGV"; break;
+        default: name = "UNKNOWN";
+    }
 
-   DISPLAY("Caught %s signal, printing stack:\n", name);
-   // Retrieve current stack addresses.
-   addrlen = backtrace(addrlist, sizeof(addrlist) / sizeof(void*));
-   if (addrlen == 0) {
-      DISPLAY("\n");
-      return;
-   }
-   // Create readable strings to each frame.
-   symbollist = backtrace_symbols(addrlist, addrlen);
-   // Print the stack trace, excluding calls handling the signal.
-   for (i = ZSTD_START_SYMBOLLIST_FRAME; i < addrlen; i++) {
-      DISPLAY("%s\n", symbollist[i]);
-   }
-   free(symbollist);
-   // Reset and raise the signal so default handler runs.
-   signal(sig, SIG_DFL);
-   raise(sig);
+    DISPLAY("Caught %s signal, printing stack:\n", name);
+    /* Retrieve current stack addresses. */
+    addrlen = backtrace(addrlist, MAX_STACK_FRAMES);
+    if (addrlen == 0) {
+        DISPLAY("\n");
+        return;
+    }
+    /* Create readable strings to each frame. */
+    symbollist = backtrace_symbols(addrlist, addrlen);
+    /* Print the stack trace, excluding calls handling the signal. */
+    for (i = ZSTD_START_SYMBOLLIST_FRAME; i < addrlen; i++) {
+        DISPLAY("%s\n", symbollist[i]);
+    }
+    free(symbollist);
+    /* Reset and raise the signal so default handler runs. */
+    signal(sig, SIG_DFL);
+    raise(sig);
 }
 #endif
 

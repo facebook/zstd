@@ -39,7 +39,6 @@
 #endif
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_maxCLevel */
 #include "zstd.h"     /* ZSTD_VERSION_STRING */
-#include "zstd_internal.h" /* ZSTD_addAbortHandler */
 
 
 /*-************************************

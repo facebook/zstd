@@ -578,13 +578,8 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
         {
         case set_repeat:
             if (dctx->litEntropy==0) return ERROR(dictionary_corrupted);
-
-            /* prefetch huffman table if cold */
-            if (dctx->ddictIsCold) {
-                PREFETCH_AREA(dctx->HUFptr, sizeof(dctx->entropy.hufTable));
-            }
-
             /* fall-through */
+
         case set_compressed:
             if (srcSize < 5) return ERROR(corruption_detected);   /* srcSize >= MIN_CBLOCK_SIZE == 3; here we need up to 5 for case 3 */
             {   size_t lhSize, litSize, litCSize;
@@ -615,6 +610,11 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 }
                 if (litSize > ZSTD_BLOCKSIZE_MAX) return ERROR(corruption_detected);
                 if (litCSize + lhSize > srcSize) return ERROR(corruption_detected);
+
+                /* prefetch huffman table if cold */
+                if (dctx->ddictIsCold && (litSize > 256 /* heuristic */)) {
+                    PREFETCH_AREA(dctx->HUFptr, sizeof(dctx->entropy.hufTable));
+                }
 
                 if (HUF_isError((litEncType==set_repeat) ?
                                     ( singleStream ?
@@ -897,7 +897,7 @@ static size_t ZSTD_buildSeqTable(ZSTD_seqSymbol* DTableSpace, const ZSTD_seqSymb
                                  const void* src, size_t srcSize,
                                  const U32* baseValue, const U32* nbAdditionalBits,
                                  const ZSTD_seqSymbol* defaultTable, U32 flagRepeatTable,
-                                 int ddictIsCold)
+                                 int ddictIsCold, int nbSeq)
 {
     switch(type)
     {
@@ -917,7 +917,8 @@ static size_t ZSTD_buildSeqTable(ZSTD_seqSymbol* DTableSpace, const ZSTD_seqSymb
     case set_repeat:
         if (!flagRepeatTable) return ERROR(corruption_detected);
         /* prefetch FSE table if used */
-        if (ddictIsCold) {
+        if (ddictIsCold && (nbSeq > 16 /* heuristic */)) {
+        //if (ddictIsCold) {
             const void* const pStart = *DTablePtr;
             size_t const pSize = sizeof(ZSTD_seqSymbol) * (SEQSYMBOL_TABLE_SIZE(maxLog));
             PREFETCH_AREA(pStart, pSize);
@@ -974,25 +975,27 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
     const BYTE* const istart = (const BYTE* const)src;
     const BYTE* const iend = istart + srcSize;
     const BYTE* ip = istart;
+    int nbSeq;
     DEBUGLOG(5, "ZSTD_decodeSeqHeaders");
 
     /* check */
     if (srcSize < MIN_SEQUENCES_SIZE) return ERROR(srcSize_wrong);
 
     /* SeqHead */
-    {   int nbSeq = *ip++;
-        if (!nbSeq) { *nbSeqPtr=0; return 1; }
-        if (nbSeq > 0x7F) {
-            if (nbSeq == 0xFF) {
-                if (ip+2 > iend) return ERROR(srcSize_wrong);
-                nbSeq = MEM_readLE16(ip) + LONGNBSEQ, ip+=2;
-            } else {
-                if (ip >= iend) return ERROR(srcSize_wrong);
-                nbSeq = ((nbSeq-0x80)<<8) + *ip++;
-            }
+    nbSeq = *ip++;
+    if (!nbSeq) { *nbSeqPtr=0; return 1; }
+    if (nbSeq > 0x7F) {
+        if (nbSeq == 0xFF) {
+            if (ip+2 > iend) return ERROR(srcSize_wrong);
+            nbSeq = MEM_readLE16(ip) + LONGNBSEQ, ip+=2;
+        } else {
+            if (ip >= iend) return ERROR(srcSize_wrong);
+            nbSeq = ((nbSeq-0x80)<<8) + *ip++;
         }
-        *nbSeqPtr = nbSeq;
     }
+    *nbSeqPtr = nbSeq;
+    DEBUGLOG(2, "nbSeqs=%i", nbSeq);
+
 
     /* FSE table descriptors */
     if (ip+4 > iend) return ERROR(srcSize_wrong); /* minimum possible size */
@@ -1007,7 +1010,7 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
                                                       ip, iend-ip,
                                                       LL_base, LL_bits,
                                                       LL_defaultDTable, dctx->fseEntropy,
-                                                      dctx->ddictIsCold);
+                                                      dctx->ddictIsCold, nbSeq);
             if (ZSTD_isError(llhSize)) return ERROR(corruption_detected);
             ip += llhSize;
         }
@@ -1017,7 +1020,7 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
                                                       ip, iend-ip,
                                                       OF_base, OF_bits,
                                                       OF_defaultDTable, dctx->fseEntropy,
-                                                      dctx->ddictIsCold);
+                                                      dctx->ddictIsCold, nbSeq);
             if (ZSTD_isError(ofhSize)) return ERROR(corruption_detected);
             ip += ofhSize;
         }
@@ -1027,7 +1030,7 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
                                                       ip, iend-ip,
                                                       ML_base, ML_bits,
                                                       ML_defaultDTable, dctx->fseEntropy,
-                                                      dctx->ddictIsCold);
+                                                      dctx->ddictIsCold, nbSeq);
             if (ZSTD_isError(mlhSize)) return ERROR(corruption_detected);
             ip += mlhSize;
         }
@@ -2395,7 +2398,7 @@ size_t ZSTD_decompressBegin_usingDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict)
             /* prefetch dictionary content */
             if (dctx->ddictIsCold) {
                 size_t const dictSize = ddict->dictSize;
-                size_t const pSize = MIN(dictSize, 32 KB);   /* proposed heuristic : 8 x frameContentSize => need to know frameContentSize */
+                size_t const pSize = MIN(dictSize, 2 KB);   /* very conservative; would need to know Nb of Copies in dictionary, or frameContentSize as a proxy */
                 const void* const pStart = (const char*)ddict->dictContent + dictSize - pSize;
                 PREFETCH_AREA(pStart, pSize);
             }

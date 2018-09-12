@@ -40,6 +40,8 @@ CPPFLAGS+= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
            -DXXH_NAMESPACE=ZSTD_
 ifeq ($(OS),Windows_NT)   # MinGW assumed
 CPPFLAGS   += -D__USE_MINGW_ANSI_STDIO   # compatibility with %zu formatting
+else
+DEBUGFLAGS_LD+= -rdynamic  # Enable backtrace symbol names for Linux/Darwin
 endif
 CFLAGS  ?= -O3
 DEBUGFLAGS+=-Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
@@ -144,7 +146,7 @@ allVariants: zstd zstd-compress zstd-decompress zstd-small zstd-nolegacy
 $(ZSTDDECOMP_O): CFLAGS += $(ALIGN_LOOP)
 
 zstd : CPPFLAGS += $(THREAD_CPP) $(ZLIBCPP) $(LZMACPP) $(LZ4CPP)
-zstd : LDFLAGS += $(THREAD_LD) $(ZLIBLD) $(LZMALD) $(LZ4LD)
+zstd : LDFLAGS += $(THREAD_LD) $(ZLIBLD) $(LZMALD) $(LZ4LD) $(DEBUGFLAGS_LD)
 zstd : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 zstd : $(ZSTDLIB_FILES) zstdcli.o fileio.o bench.o datagen.o dibio.o
 	@echo "$(THREAD_MSG)"
@@ -158,6 +160,7 @@ endif
 
 .PHONY: zstd-release
 zstd-release: DEBUGFLAGS :=
+zstd-release: DEBUGFLAGS_LD :=
 zstd-release: zstd
 
 zstd32 : CPPFLAGS += $(THREAD_CPP)

@@ -511,6 +511,9 @@ int main(int argCount, const char* argv[])
     if (exeNameMatch(programName, ZSTD_UNLZ4)) { operation=zom_decompress; FIO_setCompressionType(FIO_lz4Compression); }                                   /* behave like unlz4, also supports multiple formats */
     memset(&compressionParams, 0, sizeof(compressionParams));
 
+    /* init crash handler */
+    FIO_addAbortHandler();
+
     /* command switches */
     for (argNb=1; argNb<argCount; argNb++) {
         const char* argument = argv[argNb];

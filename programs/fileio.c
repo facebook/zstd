@@ -30,6 +30,10 @@
 #include <stdlib.h>     /* malloc, free */
 #include <string.h>     /* strcmp, strlen */
 #include <errno.h>      /* errno */
+#include <signal.h>
+#ifndef _WIN32
+#include <execinfo.h>   /* backtrace, backtrace_symbols */
+#endif
 
 #if defined (_MSC_VER)
 #  include <sys/stat.h>
@@ -124,8 +128,6 @@ static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
 /*-************************************
 *  Signal (Ctrl-C trapping)
 **************************************/
-#include  <signal.h>
-
 static const char* g_artefact = NULL;
 static void INThandler(int sig)
 {
@@ -157,7 +159,60 @@ static void clearHandler(void)
 }
 
 
-/* ************************************************************
+/*-*********************************************************
+*  Termination signal trapping (Print debug stack trace)
+***********************************************************/
+#define MAX_STACK_FRAMES    50
+
+#ifndef _WIN32
+static void ABRThandler(int sig) {
+    const char* name;
+    void* addrlist[MAX_STACK_FRAMES];
+    char** symbollist;
+    U32 addrlen, i;
+
+    switch (sig) {
+        case SIGABRT: name = "SIGABRT"; break;
+        case SIGFPE: name = "SIGFPE"; break;
+        case SIGILL: name = "SIGILL"; break;
+        case SIGINT: name = "SIGINT"; break;
+        case SIGSEGV: name = "SIGSEGV"; break;
+        default: name = "UNKNOWN";
+    }
+
+    DISPLAY("Caught %s signal, printing stack:\n", name);
+    /* Retrieve current stack addresses. */
+    addrlen = backtrace(addrlist, MAX_STACK_FRAMES);
+    if (addrlen == 0) {
+        DISPLAY("\n");
+        return;
+    }
+    /* Create readable strings to each frame. */
+    symbollist = backtrace_symbols(addrlist, addrlen);
+    /* Print the stack trace, excluding calls handling the signal. */
+    for (i = ZSTD_START_SYMBOLLIST_FRAME; i < addrlen; i++) {
+        DISPLAY("%s\n", symbollist[i]);
+    }
+    free(symbollist);
+    /* Reset and raise the signal so default handler runs. */
+    signal(sig, SIG_DFL);
+    raise(sig);
+}
+#endif
+
+void FIO_addAbortHandler()
+{
+#ifndef _WIN32
+    signal(SIGABRT, ABRThandler);
+    signal(SIGFPE, ABRThandler);
+    signal(SIGILL, ABRThandler);
+    signal(SIGSEGV, ABRThandler);
+    signal(SIGBUS, ABRThandler);
+#endif
+}
+
+
+/*-************************************************************
 * Avoid fseek()'s 2GiB barrier with MSVC, macOS, *BSD, MinGW
 ***************************************************************/
 #if defined(_MSC_VER) && _MSC_VER >= 1400

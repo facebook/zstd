@@ -1039,7 +1039,8 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
     /* prefetch dictionary content */
     if (dctx->ddictIsCold) {
         size_t const dictSize = (const char*)dctx->prefixStart - (const char*)dctx->virtualStart;
-        size_t const pSize = MIN(dictSize, (size_t)(64*nbSeq));
+        size_t const psmin = MIN(dictSize, (size_t)(64*nbSeq) /* heuristic */ );
+        size_t const pSize = MIN(psmin, 128 KB /* protection */ );
         const void* const pStart = (const char*)dctx->dictEnd - pSize;
         PREFETCH_AREA(pStart, pSize);
         dctx->ddictIsCold = 0;

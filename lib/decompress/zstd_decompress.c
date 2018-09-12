@@ -612,7 +612,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 if (litCSize + lhSize > srcSize) return ERROR(corruption_detected);
 
                 /* prefetch huffman table if cold */
-                if (dctx->ddictIsCold && (litSize > 256 /* heuristic */)) {
+                if (dctx->ddictIsCold && (litSize > 768 /* heuristic */)) {
                     PREFETCH_AREA(dctx->HUFptr, sizeof(dctx->entropy.hufTable));
                 }
 
@@ -917,8 +917,7 @@ static size_t ZSTD_buildSeqTable(ZSTD_seqSymbol* DTableSpace, const ZSTD_seqSymb
     case set_repeat:
         if (!flagRepeatTable) return ERROR(corruption_detected);
         /* prefetch FSE table if used */
-        if (ddictIsCold && (nbSeq > 16 /* heuristic */)) {
-        //if (ddictIsCold) {
+        if (ddictIsCold && (nbSeq > 24 /* heuristic */)) {
             const void* const pStart = *DTablePtr;
             size_t const pSize = sizeof(ZSTD_seqSymbol) * (SEQSYMBOL_TABLE_SIZE(maxLog));
             PREFETCH_AREA(pStart, pSize);

@@ -1344,8 +1344,9 @@ static size_t ZSTD_resetCCtx_byAttachingCDict(
         const ZSTD_compressionParameters *cdict_cParams = &cdict->matchState.cParams;
         unsigned const windowLog = params.cParams.windowLog;
         assert(windowLog != 0);
-        /* Copy only compression parameters related to tables. */
-        params.cParams = *cdict_cParams;
+        /* Resize working context table params for input only, since the dict
+         * has its own tables. */
+        params.cParams = ZSTD_adjustCParams_internal(*cdict_cParams, pledgedSrcSize, 0);
         params.cParams.windowLog = windowLog;
         ZSTD_resetCCtx_internal(cctx, params, pledgedSrcSize,
                                 ZSTDcrp_continue, zbuff);

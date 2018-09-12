@@ -97,11 +97,18 @@
 #    include <mmintrin.h>   /* https://msdn.microsoft.com/fr-fr/library/84szxsww(v=vs.90).aspx */
 #    define PREFETCH(ptr)   _mm_prefetch((const char*)ptr, _MM_HINT_T0)
 #  elif defined(__GNUC__) && ( (__GNUC__ >= 4) || ( (__GNUC__ == 3) && (__GNUC_MINOR__ >= 1) ) )
-#    define PREFETCH(ptr)   __builtin_prefetch(ptr, 0, 0)
+#    define PREFETCH(ptr)   __builtin_prefetch(ptr, 0 /* rw==read */, 0 /* locality */)
 #  else
 #    define PREFETCH(ptr)   /* disabled */
 #  endif
 #endif  /* NO_PREFETCH */
+
+#define PREFETCH_AREA(ptr, size)  {   \
+    size_t pos;                       \
+    for (pos=0; pos<size; pos++) {    \
+        PREFETCH( (const char*)(const void*)ptr + pos); \
+    }                                 \
+}
 
 /* disable warnings */
 #ifdef _MSC_VER    /* Visual Studio */

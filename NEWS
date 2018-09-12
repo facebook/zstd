@@ -1,3 +1,8 @@
+v1.3.6
+perf: much faster dictionary builder, by @jenniferliu
+api : reduced DDict size by 2 KB
+misc: tests/paramgrill, a parameter optimizer, by @GeorgeLu97
+
 v1.3.5
 perf: much faster dictionary compression, by @felixhandte
 perf: small quality improvement for dictionary generation, by @terrelln

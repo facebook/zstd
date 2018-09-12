@@ -91,25 +91,27 @@
 /* prefetch
  * can be disabled, by declaring NO_PREFETCH macro */
 #if defined(NO_PREFETCH)
-#  define PREFETCH(ptr)   /* disabled */
+#  define PREFETCH(ptr)     (void)(ptr)  /* disabled */
 #else
 #  if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_I86))  /* _mm_prefetch() is not defined outside of x86/x64 */
 #    include <mmintrin.h>   /* https://msdn.microsoft.com/fr-fr/library/84szxsww(v=vs.90).aspx */
-#    define PREFETCH(ptr)   _mm_prefetch((const char*)ptr, _MM_HINT_T1)
+#    define PREFETCH(ptr)   _mm_prefetch((const char*)(ptr), _MM_HINT_T1)
 #  elif defined(__GNUC__) && ( (__GNUC__ >= 4) || ( (__GNUC__ == 3) && (__GNUC_MINOR__ >= 1) ) )
-#    define PREFETCH(ptr)   __builtin_prefetch(ptr, 0 /* rw==read */, 2 /* locality */)
+#    define PREFETCH(ptr)   __builtin_prefetch((ptr), 0 /* rw==read */, 2 /* locality */)
 #  else
-#    define PREFETCH(ptr)   /* disabled */
+#    define PREFETCH(ptr)   (void)(ptr)  /* disabled */
 #  endif
 #endif  /* NO_PREFETCH */
 
 #define CACHELINE_SIZE 64
 
-#define PREFETCH_AREA(ptr, size)  {    \
-    size_t pos;                        \
-    for (pos=0; pos<size; pos+=CACHELINE_SIZE) { \
-        PREFETCH( (const char*)ptr + pos); \
-    }                                  \
+#define PREFETCH_AREA(p, s)  {            \
+    const char* const _ptr = (const char*)(p);  \
+    size_t const _size = (size_t)(s);     \
+    size_t _pos;                          \
+    for (_pos=0; _pos<_size; _pos+=CACHELINE_SIZE) {  \
+        PREFETCH(_ptr + _pos);            \
+    }                                     \
 }
 
 /* disable warnings */

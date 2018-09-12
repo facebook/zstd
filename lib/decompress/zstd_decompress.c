@@ -68,6 +68,9 @@
 #  include "zstd_legacy.h"
 #endif
 
+static const void* ZSTD_DDictDictContent(const ZSTD_DDict* ddict);
+static size_t ZSTD_DDictDictSize(const ZSTD_DDict* ddict);
+
 
 /*-*************************************
 *  Errors
@@ -148,7 +151,7 @@ struct ZSTD_DCtx_s
 
     /* dictionary */
     ZSTD_DDict* ddictLocal;
-    const ZSTD_DDict* ddict;
+    const ZSTD_DDict* ddict;     /* set by ZSTD_initDStream_usingDDict(), or ZSTD_DCtx_refDDict() */
     U32 dictID;
     int ddictIsCold;             /* if == 1 : dictionary is "new" for working context, and presumed "cold" (not in cpu cache) */
 
@@ -993,8 +996,6 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
         }
     }
     *nbSeqPtr = nbSeq;
-    DEBUGLOG(2, "nbSeqs=%i", nbSeq);
-
 
     /* FSE table descriptors */
     if (ip+4 > iend) return ERROR(srcSize_wrong); /* minimum possible size */
@@ -1034,7 +1035,16 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
             ip += mlhSize;
         }
     }
-    dctx->ddictIsCold = 0;
+
+    /* prefetch dictionary content */
+    if (dctx->ddictIsCold) {
+        size_t const dictSize = (const char*)dctx->prefixStart - (const char*)dctx->virtualStart;
+        size_t const pSize = MIN(dictSize, (size_t)(64*nbSeq));
+        const void* const pStart = (const char*)dctx->dictEnd - pSize;
+        DEBUGLOG(2, "dictSize: %zu  ;  prefetchSize: %zu", dictSize, pSize);
+        PREFETCH_AREA(pStart, pSize);
+        dctx->ddictIsCold = 0;
+    }
 
     return ip-istart;
 }
@@ -1911,9 +1921,6 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
     return op-ostart;
 }
 
-static const void* ZSTD_DDictDictContent(const ZSTD_DDict* ddict);
-static size_t ZSTD_DDictDictSize(const ZSTD_DDict* ddict);
-
 static size_t ZSTD_decompressMultiFrame(ZSTD_DCtx* dctx,
                                         void* dst, size_t dstCapacity,
                                   const void* src, size_t srcSize,
@@ -1922,6 +1929,8 @@ static size_t ZSTD_decompressMultiFrame(ZSTD_DCtx* dctx,
 {
     void* const dststart = dst;
     int moreThan1Frame = 0;
+
+    DEBUGLOG(5, "ZSTD_decompressMultiFrame");
     assert(dict==NULL || ddict==NULL);  /* either dict or ddict set, not both */
 
     if (ddict) {
@@ -2359,11 +2368,13 @@ struct ZSTD_DDict_s {
 
 static const void* ZSTD_DDictDictContent(const ZSTD_DDict* ddict)
 {
+    assert(ddict != NULL);
     return ddict->dictContent;
 }
 
 static size_t ZSTD_DDictDictSize(const ZSTD_DDict* ddict)
 {
+    assert(ddict != NULL);
     return ddict->dictSize;
 }
 
@@ -2372,8 +2383,8 @@ size_t ZSTD_decompressBegin_usingDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict)
     DEBUGLOG(4, "ZSTD_decompressBegin_usingDDict");
     assert(dctx != NULL);
     if (ddict) {
-        dctx->ddictIsCold = (dctx->dictID != ddict->dictID);
-        DEBUGLOG(4, "DDict is %s",
+        dctx->ddictIsCold = (dctx->dictEnd != (const char*)ddict->dictContent + ddict->dictSize);
+        DEBUGLOG(2, "DDict is %s",
                     dctx->ddictIsCold ? "~cold~" : "hot!");
     }
     CHECK_F( ZSTD_decompressBegin(dctx) );
@@ -2393,15 +2404,6 @@ size_t ZSTD_decompressBegin_usingDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict)
             dctx->entropy.rep[0] = ddict->entropy.rep[0];
             dctx->entropy.rep[1] = ddict->entropy.rep[1];
             dctx->entropy.rep[2] = ddict->entropy.rep[2];
-
-            /* prefetch dictionary content */
-            if (dctx->ddictIsCold) {
-                size_t const dictSize = ddict->dictSize;
-                size_t const pSize = MIN(dictSize, 2 KB);   /* very conservative; would need to know Nb of Copies in dictionary, or frameContentSize as a proxy */
-                const void* const pStart = (const char*)ddict->dictContent + dictSize - pSize;
-                PREFETCH_AREA(pStart, pSize);
-            }
-
         } else {
             dctx->litEntropy = 0;
             dctx->fseEntropy = 0;

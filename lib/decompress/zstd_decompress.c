@@ -1041,7 +1041,6 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
         size_t const dictSize = (const char*)dctx->prefixStart - (const char*)dctx->virtualStart;
         size_t const pSize = MIN(dictSize, (size_t)(64*nbSeq));
         const void* const pStart = (const char*)dctx->dictEnd - pSize;
-        DEBUGLOG(2, "dictSize: %zu  ;  prefetchSize: %zu", dictSize, pSize);
         PREFETCH_AREA(pStart, pSize);
         dctx->ddictIsCold = 0;
     }
@@ -2384,7 +2383,7 @@ size_t ZSTD_decompressBegin_usingDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict)
     assert(dctx != NULL);
     if (ddict) {
         dctx->ddictIsCold = (dctx->dictEnd != (const char*)ddict->dictContent + ddict->dictSize);
-        DEBUGLOG(2, "DDict is %s",
+        DEBUGLOG(4, "DDict is %s",
                     dctx->ddictIsCold ? "~cold~" : "hot!");
     }
     CHECK_F( ZSTD_decompressBegin(dctx) );

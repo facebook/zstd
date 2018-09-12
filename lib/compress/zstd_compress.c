@@ -1320,31 +1320,25 @@ static const size_t attachDictSizeCutoffs[(unsigned)ZSTD_btultra+1] = {
     8 KB /* ZSTD_btultra */
 };
 
-static const ZSTD_strategy splitLogCutoffStrategy = ZSTD_btultra;
-
-static int ZSTD_shouldAttachDict(ZSTD_CCtx* cctx,
-                            const ZSTD_CDict* cdict,
-                            ZSTD_CCtx_params params,
-                            U64 pledgedSrcSize)
+static int ZSTD_shouldAttachDict(const ZSTD_CDict* cdict,
+                                 ZSTD_CCtx_params params,
+                                 U64 pledgedSrcSize)
 {
     size_t cutoff = attachDictSizeCutoffs[cdict->matchState.cParams.strategy];
     return ( pledgedSrcSize <= cutoff
           || pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN
           || params.attachDictPref == ZSTD_dictForceAttach )
         && params.attachDictPref != ZSTD_dictForceCopy
-        && !params.forceWindow /* dictMatchState isn't correctly
-                                * handled in _enforceMaxDist */
-        && ( (cdict->matchState.cParams.strategy <= splitLogCutoffStrategy)
-          || (cdict->matchState.cParams.strategy > splitLogCutoffStrategy &&
-              ZSTD_equivalentCParams(cctx->appliedParams.cParams,
-                                     cdict->matchState.cParams)));
+        && !params.forceWindow; /* dictMatchState isn't correctly
+                                 * handled in _enforceMaxDist */
 }
 
-static size_t ZSTD_resetCCtx_byAttachingCDict(ZSTD_CCtx* cctx,
-                            const ZSTD_CDict* cdict,
-                            ZSTD_CCtx_params params,
-                            U64 pledgedSrcSize,
-                            ZSTD_buffered_policy_e zbuff)
+static size_t ZSTD_resetCCtx_byAttachingCDict(
+    ZSTD_CCtx* cctx,
+    const ZSTD_CDict* cdict,
+    ZSTD_CCtx_params params,
+    U64 pledgedSrcSize,
+    ZSTD_buffered_policy_e zbuff)
 {
     {
         const ZSTD_compressionParameters *cdict_cParams = &cdict->matchState.cParams;
@@ -1353,21 +1347,15 @@ static size_t ZSTD_resetCCtx_byAttachingCDict(ZSTD_CCtx* cctx,
         /* Copy only compression parameters related to tables. */
         params.cParams = *cdict_cParams;
         params.cParams.windowLog = windowLog;
-        if (params.cParams.strategy <= splitLogCutoffStrategy) {
-            DEBUGLOG(4, "Overriding hashLog from %d to %d", params.cParams.hashLog, cctx->requestedParams.cParams.hashLog);
-            DEBUGLOG(4, "Overriding chainLog from %d to %d", params.cParams.chainLog, cctx->requestedParams.cParams.chainLog);
-            if (cctx->requestedParams.cParams.hashLog)
-                params.cParams.hashLog = cctx->requestedParams.cParams.hashLog;
-            if (cctx->requestedParams.cParams.chainLog)
-                params.cParams.chainLog = cctx->requestedParams.cParams.chainLog;
-        }
+        DEBUGLOG(4, "Overriding hashLog from %d to %d", params.cParams.hashLog, cctx->requestedParams.cParams.hashLog);
+        DEBUGLOG(4, "Overriding chainLog from %d to %d", params.cParams.chainLog, cctx->requestedParams.cParams.chainLog);
+        if (cctx->requestedParams.cParams.hashLog)
+            params.cParams.hashLog = cctx->requestedParams.cParams.hashLog;
+        if (cctx->requestedParams.cParams.chainLog)
+            params.cParams.chainLog = cctx->requestedParams.cParams.chainLog;
         ZSTD_resetCCtx_internal(cctx, params, pledgedSrcSize,
                                 ZSTDcrp_continue, zbuff);
         assert(cctx->appliedParams.cParams.strategy == cdict_cParams->strategy);
-        if (params.cParams.strategy > splitLogCutoffStrategy) {
-            assert(cctx->appliedParams.cParams.hashLog == cdict_cParams->hashLog);
-            assert(cctx->appliedParams.cParams.chainLog == cdict_cParams->chainLog);
-        }
     }
 
     {
@@ -1468,7 +1456,7 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
 
     DEBUGLOG(4, "ZSTD_resetCCtx_usingCDict (pledgedSrcSize=%u)", (U32)pledgedSrcSize);
 
-    if (ZSTD_shouldAttachDict(cctx, cdict, params, pledgedSrcSize)) {
+    if (ZSTD_shouldAttachDict(cdict, params, pledgedSrcSize)) {
         return ZSTD_resetCCtx_byAttachingCDict(
             cctx, cdict, params, pledgedSrcSize, zbuff);
     } else {

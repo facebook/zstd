@@ -148,6 +148,17 @@ static __inline int IS_CONSOLE(FILE* stdStream) {
 #endif
 
 
+#ifndef ZSTD_START_SYMBOLLIST_FRAME
+#  ifdef __linux__
+#    define ZSTD_START_SYMBOLLIST_FRAME 2
+#  elif defined __APPLE__
+#    define ZSTD_START_SYMBOLLIST_FRAME 4
+#  else
+#    define ZSTD_START_SYMBOLLIST_FRAME 0
+#  endif
+#endif
+
+
 #if defined (__cplusplus)
 }
 #endif

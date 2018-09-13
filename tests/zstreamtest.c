@@ -135,32 +135,32 @@ typedef struct {
     size_t filled;
 } buffer_t;
 
-static const buffer_t g_nullBuffer = { NULL, 0 , 0 };
+static const buffer_t kBuffNull = { NULL, 0 , 0 };
+
+static void FUZ_freeDictionary(buffer_t dict)
+{
+    free(dict.start);
+}
 
 static buffer_t FUZ_createDictionary(const void* src, size_t srcSize, size_t blockSize, size_t requestedDictSize)
 {
-    buffer_t dict = { NULL, 0, 0 };
+    buffer_t dict = kBuffNull;
     size_t const nbBlocks = (srcSize + (blockSize-1)) / blockSize;
-    size_t* const blockSizes = (size_t*) malloc(nbBlocks * sizeof(size_t));
-    if (!blockSizes) return dict;
+    size_t* const blockSizes = (size_t*)malloc(nbBlocks * sizeof(size_t));
+    if (!blockSizes) return kBuffNull;
     dict.start = malloc(requestedDictSize);
-    if (!dict.start) { free(blockSizes); return dict; }
+    if (!dict.start) { free(blockSizes); return kBuffNull; }
     {   size_t nb;
         for (nb=0; nb<nbBlocks-1; nb++) blockSizes[nb] = blockSize;
         blockSizes[nbBlocks-1] = srcSize - (blockSize * (nbBlocks-1));
     }
     {   size_t const dictSize = ZDICT_trainFromBuffer(dict.start, requestedDictSize, src, blockSizes, (unsigned)nbBlocks);
         free(blockSizes);
-        if (ZDICT_isError(dictSize)) { free(dict.start); return g_nullBuffer; }
+        if (ZDICT_isError(dictSize)) { FUZ_freeDictionary(dict); return kBuffNull; }
         dict.size = requestedDictSize;
         dict.filled = dictSize;
-        return dict;   /* how to return dictSize ? */
+        return dict;
     }
-}
-
-static void FUZ_freeDictionary(buffer_t dict)
-{
-    free(dict.start);
 }
 
 /* Round trips data and updates xxh with the decompressed data produced */
@@ -276,7 +276,7 @@ static int basicUnitTests(U32 seed, double compressibility)
 
     ZSTD_inBuffer  inBuff, inBuff2;
     ZSTD_outBuffer outBuff;
-    buffer_t dictionary = g_nullBuffer;
+    buffer_t dictionary = kBuffNull;
     size_t const dictSize = 128 KB;
     unsigned dictID = 0;
 
@@ -1037,7 +1037,7 @@ static int basicUnitTests(U32 seed, double compressibility)
 
         CHECK(cdict == NULL, "failed to alloc cdict");
         CHECK(inbuf == NULL, "failed to alloc input buffer");
-        
+
         /* first block is uncompressible */
         cursegmentlen = 128 * 1024;
         RDG_genBuffer(inbuf + inbufpos, cursegmentlen, 0., 0., seed);

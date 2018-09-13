@@ -206,6 +206,7 @@ static void ZSTD_initDCtx_internal(ZSTD_DCtx* dctx)
     dctx->maxWindowSize = ZSTD_MAXWINDOWSIZE_DEFAULT;
     dctx->ddict       = NULL;
     dctx->ddictLocal  = NULL;
+    dctx->dictEnd     = NULL;
     dctx->ddictIsCold = 0;
     dctx->inBuff      = NULL;
     dctx->inBuffSize  = 0;

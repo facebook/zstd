@@ -89,7 +89,13 @@
 #endif
 
 /* prefetch
- * can be disabled, by declaring NO_PREFETCH macro */
+ * can be disabled, by declaring NO_PREFETCH macro
+ * All prefetch invocations use a single default locality 2,
+ * generating instruction prefetcht1,
+ * which, according to Intel, means "load data into L2 cache".
+ * This is a good enough "middle ground" for the time being,
+ * though in theory, it would be better to specialize locality depending on data being prefetched.
+ * Tests could not determine any sensible difference based on locality value. */
 #if defined(NO_PREFETCH)
 #  define PREFETCH(ptr)     (void)(ptr)  /* disabled */
 #else

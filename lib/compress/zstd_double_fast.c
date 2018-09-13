@@ -90,9 +90,9 @@ size_t ZSTD_compressBlock_doubleFast_generic(
                                      prefixLowestIndex - (U32)(dictEnd - dictBase) :
                                      0;
     const U32 dictHBitsL           = dictMode == ZSTD_dictMatchState ?
-                                     dictCParams->hashLog : 0;
+                                     dictCParams->hashLog : hBitsL;
     const U32 dictHBitsS           = dictMode == ZSTD_dictMatchState ?
-                                     dictCParams->chainLog : 0;
+                                     dictCParams->chainLog : hBitsS;
     const U32 dictAndPrefixLength  = (U32)(ip - prefixLowest + dictEnd - dictStart);
 
     assert(dictMode == ZSTD_noDict || dictMode == ZSTD_dictMatchState);

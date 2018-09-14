@@ -46,9 +46,8 @@ extern "C" {
   The library supports regular compression levels from 1 up to ZSTD_maxCLevel(),
   which is currently 22. Levels >= 20, labeled `--ultra`, should be used with
   caution, as they require more memory. The library also offers negative
-  compression levels (all negative integers are valid levels), which extend the
-  range of speed vs. ratio preferences to increasingly extremely strongly
-  prioritize speed.
+  compression levels, which extend the range of speed vs. ratio preferences.
+  The lower the level, the faster the speed (at the cost of compression).
 
   Compression can be done in:
     - a single step (described as Simple API)

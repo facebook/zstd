@@ -19,8 +19,8 @@
 /*---  Dependencies  ---*/
 
 #include <stddef.h>   /* size_t */
-#include <stdlib.h>   /* malloc, free */
-#include <stdio.h>    /* printf */
+#include <stdlib.h>   /* malloc, free, abort */
+#include <stdio.h>    /* fprintf */
 #include <assert.h>   /* assert */
 
 #include "util.h"
@@ -49,9 +49,9 @@
 
 
 /*---  Macros  ---*/
-#define CONTROL(c)   assert(c)
+#define CONTROL(c)   { if (!(c)) abort(); }
 #undef MIN
-#define MIN(a,b)   ((a) < (b) ? (a) : (b))
+#define MIN(a,b)     ((a) < (b) ? (a) : (b))
 
 
 /*---  Display Macros  ---*/
@@ -226,42 +226,50 @@ void shrinkSizes(slice_collection_t collection,
 }
 
 
-slice_collection_t splitSlices(slice_collection_t srcSlices, size_t blockSize)
+/* splitSlices() :
+ * nbSlices : if == 0, nbSlices is automatically determined from srcSlices and blockSize.
+ *            otherwise, creates exactly nbSlices slices,
+ *            by either truncating input (when smaller)
+ *            or repeating input from beginning */
+static slice_collection_t
+splitSlices(slice_collection_t srcSlices, size_t blockSize, size_t nbSlices)
 {
     if (blockSize==0) blockSize = (size_t)(-1);   /* means "do not cut" */
-    size_t nbBlocks = 0;
+    size_t nbSrcBlocks = 0;
     for (size_t ssnb=0; ssnb < srcSlices.nbSlices; ssnb++) {
         size_t pos = 0;
         while (pos <= srcSlices.capacities[ssnb]) {
-            nbBlocks++;
+            nbSrcBlocks++;
             pos += blockSize;
         }
     }
 
-    void** const sliceTable = (void**)malloc(nbBlocks * sizeof(*sliceTable));
-    size_t* const capacities = (size_t*)malloc(nbBlocks * sizeof(*capacities));
+    if (nbSlices == 0) nbSlices = nbSrcBlocks;
+
+    void** const sliceTable = (void**)malloc(nbSlices * sizeof(*sliceTable));
+    size_t* const capacities = (size_t*)malloc(nbSlices * sizeof(*capacities));
     if (sliceTable == NULL || capacities == NULL) {
         free(sliceTable);
         free(capacities);
         return kNullCollection;
     }
 
-    size_t blockNb = 0;
-    for (size_t ssnb=0; ssnb < srcSlices.nbSlices; ssnb++) {
+    size_t ssnb = 0;
+    for (size_t sliceNb=0; sliceNb < nbSlices; ) {
+        ssnb = (ssnb + 1) % srcSlices.nbSlices;
         size_t pos = 0;
         char* const ptr = (char*)srcSlices.slicePtrs[ssnb];
-        while (pos < srcSlices.capacities[ssnb]) {
+        while (pos < srcSlices.capacities[ssnb] && sliceNb < nbSlices) {
             size_t const size = MIN(blockSize, srcSlices.capacities[ssnb] - pos);
-            sliceTable[blockNb] = ptr + pos;
-            capacities[blockNb] = size;
-            blockNb++;
+            sliceTable[sliceNb] = ptr + pos;
+            capacities[sliceNb] = size;
+            sliceNb++;
             pos += blockSize;
         }
     }
-    assert(blockNb == nbBlocks);
 
     slice_collection_t result;
-    result.nbSlices = nbBlocks;
+    result.nbSlices = nbSlices;
     result.slicePtrs = sliceTable;
     result.capacities = capacities;
     return result;
@@ -329,6 +337,7 @@ static buffer_collection_t
 createBufferCollection_fromFiles(const char* const * fileNamesTable, unsigned nbFiles)
 {
     U64 const totalSizeToLoad = UTIL_getTotalFileSize(fileNamesTable, nbFiles);
+    assert(totalSizeToLoad != UTIL_FILESIZE_UNKNOWN);
     assert(totalSizeToLoad <= BENCH_SIZE_MAX);
     size_t const loadedSize = (size_t)totalSizeToLoad;
     assert(loadedSize > 0);
@@ -565,7 +574,9 @@ static int benchMem(slice_collection_t dstBlocks,
  * @return : 0 is success, 1+ otherwise */
 int bench(const char** fileNameTable, unsigned nbFiles,
           const char* dictionary,
-          size_t blockSize, int clevel, unsigned nbDictMax, int nbRounds)
+          size_t blockSize, int clevel,
+          unsigned nbDictMax, unsigned nbBlocks,
+          int nbRounds)
 {
     int result = 0;
 
@@ -577,8 +588,8 @@ int bench(const char** fileNameTable, unsigned nbFiles,
     DISPLAYLEVEL(3, "created src buffer of size %.1f MB \n",
                     (double)srcSize / (1 MB));
 
-    slice_collection_t const srcSlices = splitSlices(srcs.slices, blockSize);
-    unsigned const nbBlocks = (unsigned)(srcSlices.nbSlices);
+    slice_collection_t const srcSlices = splitSlices(srcs.slices, blockSize, nbBlocks);
+    nbBlocks = (unsigned)(srcSlices.nbSlices);
     DISPLAYLEVEL(3, "split input into %u blocks ", nbBlocks);
     if (blockSize)
         DISPLAYLEVEL(3, "of max size %u bytes ", (unsigned)blockSize);
@@ -596,10 +607,10 @@ int bench(const char** fileNameTable, unsigned nbFiles,
     buffer_t dstBuffer = createBuffer(dstBufferCapacity);
     CONTROL(dstBuffer.ptr != NULL);
 
-    void** const sliceTable = (void**)malloc(nbBlocks * sizeof(*sliceTable));
+    void** const sliceTable = malloc(nbBlocks * sizeof(*sliceTable));
     CONTROL(sliceTable != NULL);
 
-    {   char* const ptr = (char*)dstBuffer.ptr;
+    {   char* const ptr = dstBuffer.ptr;
         size_t pos = 0;
         for (size_t snb=0; snb < nbBlocks; snb++) {
             sliceTable[snb] = ptr + pos;
@@ -727,6 +738,7 @@ int usage(const char* exeName)
     DISPLAY ("-#          : use compression level # (default: %u) \n", CLEVEL_DEFAULT);
     DISPLAY ("-D #        : use # as a dictionary (default: create one) \n");
     DISPLAY ("-i#         : nb benchmark rounds (default: %u) \n", BENCH_TIME_DEFAULT_S);
+    DISPLAY ("--nbBlocks=#: use # blocks for bench (default: one per file) \n");
     DISPLAY ("--nbDicts=# : create # dictionaries for bench (default: one per block) \n");
     DISPLAY ("-h          : help (this text) \n");
     return 0;
@@ -755,6 +767,7 @@ int main (int argc, const char** argv)
     int cLevel = CLEVEL_DEFAULT;
     size_t blockSize = BLOCKSIZE_DEFAULT;
     size_t nbDicts = 0;  /* determine nbDicts automatically: 1 dictionary per block */
+    size_t nbBlocks = 0; /* determine nbBlocks automatically, from source and blockSize */
 
     for (int argNb = 1; argNb < argc ; argNb++) {
         const char* argument = argv[argNb];
@@ -766,6 +779,7 @@ int main (int argc, const char** argv)
         if (longCommandWArg(&argument, "-B")) { blockSize = readU32FromChar(&argument); continue; }
         if (longCommandWArg(&argument, "--blockSize=")) { blockSize = readU32FromChar(&argument); continue; }
         if (longCommandWArg(&argument, "--nbDicts=")) { nbDicts = readU32FromChar(&argument); continue; }
+        if (longCommandWArg(&argument, "--nbBlocks=")) { nbBlocks = readU32FromChar(&argument); continue; }
         if (longCommandWArg(&argument, "--clevel=")) { cLevel = readU32FromChar(&argument); continue; }
         if (longCommandWArg(&argument, "-")) { cLevel = readU32FromChar(&argument); continue; }
         /* anything that's not a command is a filename */
@@ -783,7 +797,7 @@ int main (int argc, const char** argv)
         filenameTable = UTIL_createFileList(nameTable, nameIdx, &buffer_containing_filenames, &nbFiles, 1 /* follow_links */);
     }
 
-    int result = bench(filenameTable, nbFiles, dictionary, blockSize, cLevel, nbDicts, nbRounds);
+    int result = bench(filenameTable, nbFiles, dictionary, blockSize, cLevel, nbDicts, nbBlocks, nbRounds);
 
     free(buffer_containing_filenames);
     free(nameTable);

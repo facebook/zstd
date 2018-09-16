@@ -215,7 +215,7 @@ gcc6test: clean
 
 clangtest: clean
 	clang -v
-	$(MAKE) all CXX=clang-++ CC=clang MOREFLAGS="-Werror -Wconversion -Wno-sign-conversion -Wdocumentation"
+	$(MAKE) all CXX=clang++ CC=clang MOREFLAGS="-Werror -Wconversion -Wno-sign-conversion -Wdocumentation"
 
 armtest: clean
 	$(MAKE) -C $(TESTDIR) datagen   # use native, faster

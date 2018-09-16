@@ -50,7 +50,7 @@
 size_t HIST_count(unsigned* count, unsigned* maxSymbolValuePtr,
                   const void* src, size_t srcSize);
 
-unsigned HIST_isError(size_t code);  /*< tells if a return value is an error code */
+unsigned HIST_isError(size_t code);  /**< tells if a return value is an error code */
 
 
 /* --- advanced histogram functions --- */

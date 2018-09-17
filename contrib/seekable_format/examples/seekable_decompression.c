@@ -84,7 +84,7 @@ static void fseek_orDie(FILE* file, long int offset, int origin) {
 }
 
 
-static void decompressFile_orDie(const char* fname, unsigned startOffset, unsigned endOffset)
+static void decompressFile_orDie(const char* fname, off_t startOffset, off_t endOffset)
 {
     FILE* const fin  = fopen_orDie(fname, "rb");
     FILE* const fout = stdout;
@@ -129,8 +129,8 @@ int main(int argc, const char** argv)
 
     {
         const char* const inFilename = argv[1];
-        unsigned const startOffset = (unsigned) atoi(argv[2]);
-        unsigned const endOffset = (unsigned) atoi(argv[3]);
+        off_t const startOffset = atoll(argv[2]);
+        off_t const endOffset = atoll(argv[3]);
         decompressFile_orDie(inFilename, startOffset, endOffset);
     }
 

@@ -313,8 +313,8 @@ static size_t ZSTD_seekable_loadSeekTable(ZSTD_seekable* zs)
             /* compute cumulative positions */
             for (; idx < numFrames; idx++) {
                 if (pos + sizePerEntry > SEEKABLE_BUFF_SIZE) {
-                    U32 const toRead = MIN(remaining, SEEKABLE_BUFF_SIZE);
                     U32 const offset = SEEKABLE_BUFF_SIZE - pos;
+                    U32 const toRead = MIN(remaining, SEEKABLE_BUFF_SIZE - offset);
                     memmove(zs->inBuff, zs->inBuff + pos, offset); /* move any data we haven't read yet */
                     CHECK_IO(src.read(src.opaque, zs->inBuff+offset, toRead));
                     remaining -= toRead;

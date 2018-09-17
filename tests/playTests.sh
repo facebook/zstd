@@ -48,6 +48,10 @@ fileRoundTripTest() {
     $DIFF -q tmp.md5.1 tmp.md5.2
 }
 
+truncateLastByte() {
+	dd bs=1 count=$(($(wc -c < "$1") - 1)) if="$1" status=none
+}
+
 UNAME=$(uname)
 
 isTerminal=false
@@ -592,7 +596,7 @@ if [ $GZIPMODE -eq 1 ]; then
     $ZSTD -f --format=gzip tmp
     $ZSTD -f tmp
     cat tmp.gz tmp.zst tmp.gz tmp.zst | $ZSTD -d -f -o tmp
-    head -c -1 tmp.gz | $ZSTD -t > $INTOVOID && die "incomplete frame not detected !"
+    truncateLastByte tmp.gz | $ZSTD -t > $INTOVOID && die "incomplete frame not detected !"
     rm tmp*
 else
     $ECHO "gzip mode not supported"
@@ -659,8 +663,8 @@ if [ $LZMAMODE -eq 1 ]; then
     $ZSTD -f --format=lzma tmp
     $ZSTD -f tmp
     cat tmp.xz tmp.lzma tmp.zst tmp.lzma tmp.xz tmp.zst | $ZSTD -d -f -o tmp
-    head -c -1 tmp.xz | $ZSTD -t > $INTOVOID && die "incomplete frame not detected !"
-    head -c -1 tmp.lzma | $ZSTD -t > $INTOVOID && die "incomplete frame not detected !"
+    truncateLastByte tmp.xz | $ZSTD -t > $INTOVOID && die "incomplete frame not detected !"
+    truncateLastByte tmp.lzma | $ZSTD -t > $INTOVOID && die "incomplete frame not detected !"
     rm tmp*
 else
     $ECHO "xz mode not supported"
@@ -696,7 +700,7 @@ if [ $LZ4MODE -eq 1 ]; then
     $ZSTD -f --format=lz4 tmp
     $ZSTD -f tmp
     cat tmp.lz4 tmp.zst tmp.lz4 tmp.zst | $ZSTD -d -f -o tmp
-    head -c -1 tmp.lz4 | $ZSTD -t > $INTOVOID && die "incomplete frame not detected !"
+    truncateLastByte tmp.lz4 | $ZSTD -t > $INTOVOID && die "incomplete frame not detected !"
     rm tmp*
 else
     $ECHO "lz4 mode not supported"

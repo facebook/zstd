@@ -766,8 +766,8 @@ int main (int argc, const char** argv)
     const char* dictionary = NULL;
     int cLevel = CLEVEL_DEFAULT;
     size_t blockSize = BLOCKSIZE_DEFAULT;
-    size_t nbDicts = 0;  /* determine nbDicts automatically: 1 dictionary per block */
-    size_t nbBlocks = 0; /* determine nbBlocks automatically, from source and blockSize */
+    unsigned nbDicts = 0;  /* determine nbDicts automatically: 1 dictionary per block */
+    unsigned nbBlocks = 0; /* determine nbBlocks automatically, from source and blockSize */
 
     for (int argNb = 1; argNb < argc ; argNb++) {
         const char* argument = argv[argNb];

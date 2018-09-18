@@ -1164,16 +1164,21 @@ ZSTDLIB_API size_t ZSTD_CCtx_refCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict);
 
 /*! ZSTD_CCtx_refPrefix() :
  *  Reference a prefix (single-usage dictionary) for next compression job.
- *  Decompression need same prefix to properly regenerate data.
- *  Prefix is **only used once**. Tables are discarded at end of compression job (ZSTD_e_end).
+ *  Decompression will need same prefix to properly regenerate data.
+ *  Compressing with a prefix is similar in outcome as performing a diff and compressing it,
+ *  but performs much faster, especially during decompression (compression speed is tunable with compression level).
+ *  Note that prefix is **only used once**. Tables are discarded at end of compression job (ZSTD_e_end).
  * @result : 0, or an error code (which can be tested with ZSTD_isError()).
  *  Special: Adding any prefix (including NULL) invalidates any previous prefix or dictionary
  *  Note 1 : Prefix buffer is referenced. It **must** outlive compression job.
  *           Its contain must remain unmodified up to end of compression (ZSTD_e_end).
- *  Note 2 : Referencing a prefix involves building tables, which are dependent on compression parameters.
+ *  Note 2 : If the intention is to diff some large src data blob with some prior version of itself,
+ *           ensure that the window size is large enough to contain the entire source.
+ *           See ZSTD_p_windowLog.
+ *  Note 3 : Referencing a prefix involves building tables, which are dependent on compression parameters.
  *           It's a CPU consuming operation, with non-negligible impact on latency.
  *           If there is a need to use same prefix multiple times, consider loadDictionary instead.
- *  Note 3 : By default, the prefix is treated as raw content (ZSTD_dm_rawContent).
+ *  Note 4 : By default, the prefix is treated as raw content (ZSTD_dm_rawContent).
  *           Use ZSTD_CCtx_refPrefix_advanced() to alter dictMode. */
 ZSTDLIB_API size_t ZSTD_CCtx_refPrefix(ZSTD_CCtx* cctx,
                                        const void* prefix, size_t prefixSize);
@@ -1356,6 +1361,8 @@ ZSTDLIB_API size_t ZSTD_DCtx_refDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict);
 
 /*! ZSTD_DCtx_refPrefix() :
  *  Reference a prefix (single-usage dictionary) for next compression job.
+ *  This is the reverse operation of ZSTD_CCtx_refPrefix(),
+ *  and must use the same prefix as the one used during compression.
  *  Prefix is **only used once**. Reference is discarded at end of frame.
  *  End of frame is reached when ZSTD_DCtx_decompress_generic() returns 0.
  * @result : 0, or an error code (which can be tested with ZSTD_isError()).

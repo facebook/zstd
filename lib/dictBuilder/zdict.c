@@ -698,7 +698,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     short litLengthNCount[MaxLL+1];
     U32 repOffset[MAXREPOFFSET];
     offsetCount_t bestRepOffset[ZSTD_REP_NUM+1];
-    EStats_ress_t esr;
+    EStats_ress_t esr = { NULL, NULL, NULL };
     ZSTD_parameters params;
     U32 u, huffLog = 11, Offlog = OffFSELog, mlLog = MLFSELog, llLog = LLFSELog, total;
     size_t pos = 0, errorCode;
@@ -863,8 +863,8 @@ _cleanup:
 
 size_t ZDICT_finalizeDictionary(void* dictBuffer, size_t dictBufferCapacity,
                           const void* customDictContent, size_t dictContentSize,
-                          const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
-                          ZDICT_params_t params)
+                          const void* samplesBuffer, const size_t* samplesSizes,
+                          unsigned nbSamples, ZDICT_params_t params)
 {
     size_t hSize;
 #define HBUFFSIZE 256   /* should prove large enough for all entropy headers */
@@ -987,8 +987,10 @@ size_t ZDICT_trainFromBuffer_unsafe_legacy(
             U32 const pos = dictList[u].pos;
             U32 const length = dictList[u].length;
             U32 const printedLength = MIN(40, length);
-            if ((pos > samplesBuffSize) || ((pos + length) > samplesBuffSize))
+            if ((pos > samplesBuffSize) || ((pos + length) > samplesBuffSize)) {
+                free(dictList);
                 return ERROR(GENERIC);   /* should never happen */
+            }
             DISPLAYLEVEL(3, "%3u:%3u bytes at pos %8u, savings %7u bytes |",
                          u, length, pos, dictList[u].savings);
             ZDICT_printHex((const char*)samplesBuffer+pos, printedLength);
@@ -1078,17 +1080,17 @@ size_t ZDICT_trainFromBuffer_legacy(void* dictBuffer, size_t dictBufferCapacity,
 size_t ZDICT_trainFromBuffer(void* dictBuffer, size_t dictBufferCapacity,
                              const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples)
 {
-    ZDICT_cover_params_t params;
+    ZDICT_fastCover_params_t params;
     DEBUGLOG(3, "ZDICT_trainFromBuffer");
     memset(&params, 0, sizeof(params));
     params.d = 8;
     params.steps = 4;
     /* Default to level 6 since no compression level information is available */
-    params.zParams.compressionLevel = 6;
+    params.zParams.compressionLevel = 3;
 #if defined(DEBUGLEVEL) && (DEBUGLEVEL>=1)
     params.zParams.notificationLevel = DEBUGLEVEL;
 #endif
-    return ZDICT_optimizeTrainFromBuffer_cover(dictBuffer, dictBufferCapacity,
+    return ZDICT_optimizeTrainFromBuffer_fastCover(dictBuffer, dictBufferCapacity,
                                                samplesBuffer, samplesSizes, nbSamples,
                                                &params);
 }

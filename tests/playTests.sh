@@ -48,6 +48,10 @@ fileRoundTripTest() {
     $DIFF -q tmp.md5.1 tmp.md5.2
 }
 
+truncateLastByte() {
+	dd bs=1 count=$(($(wc -c < "$1") - 1)) if="$1" status=none
+}
+
 UNAME=$(uname)
 
 isTerminal=false
@@ -427,7 +431,7 @@ $ECHO "- Create second (different) dictionary"
 $ZSTD --train-cover=k=56,d=8 *.c ../programs/*.c ../programs/*.h -o tmpDictC
 $ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
 $ECHO "- Create dictionary with short dictID"
-$ZSTD --train-cover=k=46,d=8 *.c ../programs/*.c --dictID=1 -o tmpDict1
+$ZSTD --train-cover=k=46,d=8,split=80 *.c ../programs/*.c --dictID=1 -o tmpDict1
 cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
 $ECHO "- Create dictionary with size limit"
 $ZSTD --train-cover=steps=8 *.c ../programs/*.c -o tmpDict2 --maxdict=4K
@@ -443,6 +447,47 @@ test -f tmpDict
 $ZSTD --train-cover *.c ../programs/*.c
 test -f dictionary
 rm tmp* dictionary
+
+
+$ECHO "\n===>  fastCover dictionary builder : advanced options "
+
+TESTFILE=../programs/zstdcli.c
+./datagen > tmpDict
+$ECHO "- Create first dictionary"
+$ZSTD --train-fastcover=k=46,d=8,f=15,split=80 *.c ../programs/*.c -o tmpDict
+cp $TESTFILE tmp
+$ZSTD -f tmp -D tmpDict
+$ZSTD -d tmp.zst -D tmpDict -fo result
+$DIFF $TESTFILE result
+$ECHO "- Create second (different) dictionary"
+$ZSTD --train-fastcover=k=56,d=8 *.c ../programs/*.c ../programs/*.h -o tmpDictC
+$ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
+$ECHO "- Create dictionary with short dictID"
+$ZSTD --train-fastcover=k=46,d=8,f=15,split=80 *.c ../programs/*.c --dictID=1 -o tmpDict1
+cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
+$ECHO "- Create dictionary with size limit"
+$ZSTD --train-fastcover=steps=8 *.c ../programs/*.c -o tmpDict2 --maxdict=4K
+$ECHO "- Compare size of dictionary from 90% training samples with 80% training samples"
+$ZSTD --train-fastcover=split=90 -r *.c ../programs/*.c
+$ZSTD --train-fastcover=split=80 -r *.c ../programs/*.c
+$ECHO "- Create dictionary using all samples for both training and testing"
+$ZSTD --train-fastcover=split=100 -r *.c ../programs/*.c
+$ECHO "- Create dictionary using f=16"
+$ZSTD --train-fastcover=f=16 -r *.c ../programs/*.c
+$ECHO "- Create dictionary using accel=2"
+$ZSTD --train-fastcover=accel=2 -r *.c ../programs/*.c
+$ECHO "- Create dictionary using accel=10"
+$ZSTD --train-fastcover=accel=10 -r *.c ../programs/*.c
+$ECHO "- Create dictionary with multithreading"
+$ZSTD --train-fastcover -T4 -r *.c ../programs/*.c
+$ECHO "- Test -o before --train-fastcover"
+rm -f tmpDict dictionary
+$ZSTD -o tmpDict --train-fastcover *.c ../programs/*.c
+test -f tmpDict
+$ZSTD --train-fastcover *.c ../programs/*.c
+test -f dictionary
+rm tmp* dictionary
+
 
 $ECHO "\n===>  legacy dictionary builder "
 
@@ -551,7 +596,7 @@ if [ $GZIPMODE -eq 1 ]; then
     $ZSTD -f --format=gzip tmp
     $ZSTD -f tmp
     cat tmp.gz tmp.zst tmp.gz tmp.zst | $ZSTD -d -f -o tmp
-    head -c -1 tmp.gz | $ZSTD -t > $INTOVOID && die "incomplete frame not detected !"
+    truncateLastByte tmp.gz | $ZSTD -t > $INTOVOID && die "incomplete frame not detected !"
     rm tmp*
 else
     $ECHO "gzip mode not supported"
@@ -618,8 +663,8 @@ if [ $LZMAMODE -eq 1 ]; then
     $ZSTD -f --format=lzma tmp
     $ZSTD -f tmp
     cat tmp.xz tmp.lzma tmp.zst tmp.lzma tmp.xz tmp.zst | $ZSTD -d -f -o tmp
-    head -c -1 tmp.xz | $ZSTD -t > $INTOVOID && die "incomplete frame not detected !"
-    head -c -1 tmp.lzma | $ZSTD -t > $INTOVOID && die "incomplete frame not detected !"
+    truncateLastByte tmp.xz | $ZSTD -t > $INTOVOID && die "incomplete frame not detected !"
+    truncateLastByte tmp.lzma | $ZSTD -t > $INTOVOID && die "incomplete frame not detected !"
     rm tmp*
 else
     $ECHO "xz mode not supported"
@@ -655,7 +700,7 @@ if [ $LZ4MODE -eq 1 ]; then
     $ZSTD -f --format=lz4 tmp
     $ZSTD -f tmp
     cat tmp.lz4 tmp.zst tmp.lz4 tmp.zst | $ZSTD -d -f -o tmp
-    head -c -1 tmp.lz4 | $ZSTD -t > $INTOVOID && die "incomplete frame not detected !"
+    truncateLastByte tmp.lz4 | $ZSTD -t > $INTOVOID && die "incomplete frame not detected !"
     rm tmp*
 else
     $ECHO "lz4 mode not supported"

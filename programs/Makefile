@@ -132,6 +132,15 @@ else
 LZ4_MSG := $(NO_LZ4_MSG)
 endif
 
+# enable backtrace symbol names for Linux/Darwin
+ALL_SYMBOLS := 0
+ifeq (,$(filter Windows%, $(OS)))
+ifeq ($(ALL_SYMBOLS), 1)
+DEBUGFLAGS_LD+=-rdynamic
+endif
+endif
+
+
 .PHONY: default
 default: zstd-release
 
@@ -144,7 +153,7 @@ allVariants: zstd zstd-compress zstd-decompress zstd-small zstd-nolegacy
 $(ZSTDDECOMP_O): CFLAGS += $(ALIGN_LOOP)
 
 zstd : CPPFLAGS += $(THREAD_CPP) $(ZLIBCPP) $(LZMACPP) $(LZ4CPP)
-zstd : LDFLAGS += $(THREAD_LD) $(ZLIBLD) $(LZMALD) $(LZ4LD)
+zstd : LDFLAGS += $(THREAD_LD) $(ZLIBLD) $(LZMALD) $(LZ4LD) $(DEBUGFLAGS_LD)
 zstd : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 zstd : $(ZSTDLIB_FILES) zstdcli.o fileio.o bench.o datagen.o dibio.o
 	@echo "$(THREAD_MSG)"
@@ -158,6 +167,7 @@ endif
 
 .PHONY: zstd-release
 zstd-release: DEBUGFLAGS :=
+zstd-release: DEBUGFLAGS_LD :=
 zstd-release: zstd
 
 zstd32 : CPPFLAGS += $(THREAD_CPP)

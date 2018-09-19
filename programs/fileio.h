@@ -96,6 +96,9 @@ int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles
                                     const char* dictFileName);
 
 
+/* custom crash signal handler */
+void FIO_addAbortHandler(void);
+
 #if defined (__cplusplus)
 }
 #endif

@@ -61,6 +61,13 @@ There are however other Makefile targets that create different variations of CLI
   In which case, linking stage will fail if `lz4` library cannot be found.
   This is useful to prevent silent feature disabling.
 
+- __ALL_SYMBOLS__ : `zstd` can display a stack backtrace if the execution
+  generates a runtime exception. By default, this feature may be
+  degraded/disabled on some platforms unless additional compiler directives are
+  applied. When triaging a runtime issue, enabling this feature can provided
+  more context to determine the location of the fault.
+  Example : `make zstd ALL_SYMBOLS=1`
+
 
 #### Aggregation of parameters
 CLI supports aggregation of parameters i.e. `-b1`, `-e18`, and `-i1` can be joined into `-b1e18i1`.
@@ -151,6 +158,7 @@ Advanced arguments :
 Dictionary builder :
 --train ## : create a dictionary from a training set of files
 --train-cover[=k=#,d=#,steps=#,split=#] : use the cover algorithm with optional args
+--train-fastcover[=k=#,d=#,f=#,steps=#,split=#,accel=#] : use the fastcover algorithm with optional args
 --train-legacy[=s=#] : use the legacy algorithm with selectivity (default: 9)
  -o file : `file` is dictionary name (default: dictionary)
 --maxdict=# : limit dictionary to specified size (default: 112640)

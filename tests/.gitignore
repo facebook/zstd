@@ -26,6 +26,7 @@ invalidDictionaries
 checkTag
 zcat
 zstdcat
+tm
 
 # Tmp test directory
 zstdtest

@@ -158,7 +158,8 @@ int main(int argc, const char** argv)
     }
 
     freeResources(ress);
-    /* success */
+    free(ofnBuffer);
+
     printf("compressed %i files \n", argc-1);
 
     return 0;

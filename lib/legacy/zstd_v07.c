@@ -3150,10 +3150,10 @@ size_t ZSTDv07_getFrameParams(ZSTDv07_frameParams* fparamsPtr, const void* src, 
     const BYTE* ip = (const BYTE*)src;
 
     if (srcSize < ZSTDv07_frameHeaderSize_min) return ZSTDv07_frameHeaderSize_min;
+    memset(fparamsPtr, 0, sizeof(*fparamsPtr));
     if (MEM_readLE32(src) != ZSTDv07_MAGICNUMBER) {
         if ((MEM_readLE32(src) & 0xFFFFFFF0U) == ZSTDv07_MAGIC_SKIPPABLE_START) {
             if (srcSize < ZSTDv07_skippableHeaderSize) return ZSTDv07_skippableHeaderSize; /* magic number + skippable frame length */
-            memset(fparamsPtr, 0, sizeof(*fparamsPtr));
             fparamsPtr->frameContentSize = MEM_readLE32((const char *)src + 4);
             fparamsPtr->windowSize = 0; /* windowSize==0 means a frame is skippable */
             return 0;
@@ -3175,11 +3175,13 @@ size_t ZSTDv07_getFrameParams(ZSTDv07_frameParams* fparamsPtr, const void* src, 
         U32 windowSize = 0;
         U32 dictID = 0;
         U64 frameContentSize = 0;
-        if ((fhdByte & 0x08) != 0) return ERROR(frameParameter_unsupported);   /* reserved bits, which must be zero */
+        if ((fhdByte & 0x08) != 0)   /* reserved bits, which must be zero */
+            return ERROR(frameParameter_unsupported);
         if (!directMode) {
             BYTE const wlByte = ip[pos++];
             U32 const windowLog = (wlByte >> 3) + ZSTDv07_WINDOWLOG_ABSOLUTEMIN;
-            if (windowLog > ZSTDv07_WINDOWLOG_MAX) return ERROR(frameParameter_unsupported);
+            if (windowLog > ZSTDv07_WINDOWLOG_MAX)
+                return ERROR(frameParameter_unsupported);
             windowSize = (1U << windowLog);
             windowSize += (windowSize >> 3) * (wlByte&7);
         }
@@ -3201,7 +3203,8 @@ size_t ZSTDv07_getFrameParams(ZSTDv07_frameParams* fparamsPtr, const void* src, 
             case 3 : frameContentSize = MEM_readLE64(ip+pos); break;
         }
         if (!windowSize) windowSize = (U32)frameContentSize;
-        if (windowSize > windowSizeMax) return ERROR(frameParameter_unsupported);
+        if (windowSize > windowSizeMax)
+            return ERROR(frameParameter_unsupported);
         fparamsPtr->frameContentSize = frameContentSize;
         fparamsPtr->windowSize = windowSize;
         fparamsPtr->dictID = dictID;
@@ -3220,11 +3223,10 @@ size_t ZSTDv07_getFrameParams(ZSTDv07_frameParams* fparamsPtr, const void* src, 
                    - frame header not completely provided (`srcSize` too small) */
 unsigned long long ZSTDv07_getDecompressedSize(const void* src, size_t srcSize)
 {
-    {   ZSTDv07_frameParams fparams;
-        size_t const frResult = ZSTDv07_getFrameParams(&fparams, src, srcSize);
-        if (frResult!=0) return 0;
-        return fparams.frameContentSize;
-    }
+    ZSTDv07_frameParams fparams;
+    size_t const frResult = ZSTDv07_getFrameParams(&fparams, src, srcSize);
+    if (frResult!=0) return 0;
+    return fparams.frameContentSize;
 }
 
 

@@ -207,9 +207,10 @@ Compression of small files similar to the sample set will be greatly improved.
     (for example, 10 MB for a 100 KB dictionary).
 
     Supports multithreading if `zstd` is compiled with threading support.
-    Additional parameters can be specified with `--train-cover`.
+    Additional parameters can be specified with `--train-fastcover`.
     The legacy dictionary builder can be accessed with `--train-legacy`.
-    Equivalent to `--train-cover=d=8,steps=4`.
+    The cover dictionary builder can be accessed with `--train-cover`.
+    Equivalent to `--train-fastcover=d=8,steps=4`.
 * `-o file`:
     Dictionary saved into `file` (default name: dictionary).
 * `--maxdict=#`:
@@ -260,6 +261,26 @@ Compression of small files similar to the sample set will be greatly improved.
     `zstd --train-cover=k=50 FILEs`
 
     `zstd --train-cover=k=50,split=60 FILEs`
+
+* `--train-fastcover[=k#,d=#,f=#,steps=#,split=#,accel=#]`:
+    Same as cover but with extra parameters _f_ and _accel_ and different default value of split
+    If _split_ is not specified, then it tries _split_ = 75.
+    If _f_ is not specified, then it tries _f_ = 20.
+    Requires that 0 < _f_ < 32.
+    If _accel_ is not specified, then it tries _accel_ = 1.
+    Requires that 0 < _accel_ <= 10.
+    Requires that _d_ = 6 or _d_ = 8.
+
+    _f_ is log of size of array that keeps track of frequency of subsegments of size _d_.
+    The subsegment is hashed to an index in the range [0,2^_f_ - 1].
+    It is possible that 2 different subsegments are hashed to the same index, and they are considered as the same subsegment when computing frequency.
+    Using a higher _f_ reduces collision but takes longer.
+
+    Examples:
+
+    `zstd --train-fastcover FILEs`
+
+    `zstd --train-fastcover=d=8,f=15,accel=2 FILEs`
 
 * `--train-legacy[=selectivity=#]`:
     Use legacy dictionary builder algorithm with the given dictionary

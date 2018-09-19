@@ -179,13 +179,9 @@ static void FUZ_displayMallocStats(mallocCounter_t count)
         (U32)(count.totalMalloc >> 10));
 }
 
-static int FUZ_mallocTests(unsigned seed, double compressibility, unsigned part)
+static int FUZ_mallocTests_internal(unsigned seed, double compressibility, unsigned part,
+                void* inBuffer, size_t inSize, void* outBuffer, size_t outSize)
 {
-    size_t const inSize = 64 MB + 16 MB + 4 MB + 1 MB + 256 KB + 64 KB; /* 85.3 MB */
-    size_t const outSize = ZSTD_compressBound(inSize);
-    void* const inBuffer = malloc(inSize);
-    void* const outBuffer = malloc(outSize);
-
     /* test only played in verbose mode, as they are long */
     if (g_displayLevel<3) return 0;
 
@@ -268,6 +264,28 @@ static int FUZ_mallocTests(unsigned seed, double compressibility, unsigned part)
     }   }   }
 
     return 0;
+}
+
+static int FUZ_mallocTests(unsigned seed, double compressibility, unsigned part)
+{
+    size_t const inSize = 64 MB + 16 MB + 4 MB + 1 MB + 256 KB + 64 KB; /* 85.3 MB */
+    size_t const outSize = ZSTD_compressBound(inSize);
+    void* const inBuffer = malloc(inSize);
+    void* const outBuffer = malloc(outSize);
+    int result;
+
+    /* Create compressible noise */
+    if (!inBuffer || !outBuffer) {
+        DISPLAY("Not enough memory, aborting \n");
+        exit(1);
+    }
+
+    result = FUZ_mallocTests_internal(seed, compressibility, part,
+                    inBuffer, inSize, outBuffer, outSize);
+
+    free(inBuffer);
+    free(outBuffer);
+    return result;
 }
 
 #else
@@ -1357,6 +1375,24 @@ static int basicUnitTests(U32 seed, double compressibility)
                 ((BYTE*)CNBuffer)[i+1] = _3BytesSeqs[id][1];
                 ((BYTE*)CNBuffer)[i+2] = _3BytesSeqs[id][2];
     }   }   }
+    DISPLAYLEVEL(3, "test%3i : growing nbSeq : ", testNb++);
+    {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        size_t const maxNbSeq = _3BYTESTESTLENGTH / 3;
+        size_t const bound = ZSTD_compressBound(_3BYTESTESTLENGTH);
+        size_t nbSeq = 1;
+        while (nbSeq <= maxNbSeq) {
+          CHECK(ZSTD_compressCCtx(cctx, compressedBuffer, bound, CNBuffer, nbSeq * 3, 19));
+          /* Check every sequence for the first 100, then skip more rapidly. */
+          if (nbSeq < 100) {
+            ++nbSeq;
+          } else {
+            nbSeq += (nbSeq >> 2);
+          }
+        }
+        ZSTD_freeCCtx(cctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     DISPLAYLEVEL(3, "test%3i : compress lots 3-bytes sequences : ", testNb++);
     { CHECK_V(r, ZSTD_compress(compressedBuffer, ZSTD_compressBound(_3BYTESTESTLENGTH),
                                  CNBuffer, _3BYTESTESTLENGTH, 19) );
@@ -1368,8 +1404,26 @@ static int basicUnitTests(U32 seed, double compressibility)
       if (r != _3BYTESTESTLENGTH) goto _output_error; }
     DISPLAYLEVEL(3, "OK \n");
 
-    DISPLAYLEVEL(3, "test%3i : incompressible data and ill suited dictionary : ", testNb++);
+
+    DISPLAYLEVEL(3, "test%3i : growing literals buffer : ", testNb++);
     RDG_genBuffer(CNBuffer, CNBuffSize, 0.0, 0.1, seed);
+    {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        size_t const bound = ZSTD_compressBound(CNBuffSize);
+        size_t size = 1;
+        while (size <= CNBuffSize) {
+          CHECK(ZSTD_compressCCtx(cctx, compressedBuffer, bound, CNBuffer, size, 3));
+          /* Check every size for the first 100, then skip more rapidly. */
+          if (size < 100) {
+            ++size;
+          } else {
+            size += (size >> 2);
+          }
+        }
+        ZSTD_freeCCtx(cctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : incompressible data and ill suited dictionary : ", testNb++);
     {   /* Train a dictionary on low characters */
         size_t dictSize = 16 KB;
         void* const dictBuffer = malloc(dictSize);
@@ -1535,7 +1589,6 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
     size_t const dstBufferSize = (size_t)1<<maxSampleLog;
     size_t const cBufferSize   = ZSTD_compressBound(dstBufferSize);
     BYTE* cNoiseBuffer[5];
-    BYTE* srcBuffer;   /* jumping pointer */
     BYTE* const cBuffer = (BYTE*) malloc (cBufferSize);
     BYTE* const dstBuffer = (BYTE*) malloc (dstBufferSize);
     BYTE* const mirrorBuffer = (BYTE*) malloc (dstBufferSize);
@@ -1544,7 +1597,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
     ZSTD_DCtx* const dctx = ZSTD_createDCtx();
     U32 result = 0;
     U32 testNb = 0;
-    U32 coreSeed = seed, lseed = 0;
+    U32 coreSeed = seed;
     UTIL_time_t const startClock = UTIL_getTime();
     U64 const maxClockSpan = maxDurationS * SEC_TO_MICRO;
     int const cLevelLimiter = bigTests ? 3 : 2;
@@ -1565,13 +1618,14 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
     RDG_genBuffer(cNoiseBuffer[2], srcBufferSize, compressibility, 0., coreSeed);
     RDG_genBuffer(cNoiseBuffer[3], srcBufferSize, 0.95, 0., coreSeed);    /* highly compressible */
     RDG_genBuffer(cNoiseBuffer[4], srcBufferSize, 1.00, 0., coreSeed);    /* sparse content */
-    srcBuffer = cNoiseBuffer[2];
 
     /* catch up testNb */
     for (testNb=1; testNb < startTest; testNb++) FUZ_rand(&coreSeed);
 
     /* main test loop */
     for ( ; (testNb <= nbTests) || (UTIL_clockSpanMicro(startClock) < maxClockSpan); testNb++ ) {
+        BYTE* srcBuffer;   /* jumping pointer */
+        U32 lseed;
         size_t sampleSize, maxTestSize, totalTestSize;
         size_t cSize, totalCSize, totalGenSize;
         U64 crcOrig;
@@ -1802,11 +1856,9 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
         CHECK (totalGenSize != totalTestSize, "streaming decompressed data : wrong size")
         CHECK (totalCSize != cSize, "compressed data should be fully read")
         {   U64 const crcDest = XXH64(dstBuffer, totalTestSize, 0);
-            if (crcDest!=crcOrig) {
-                size_t const errorPos = findDiff(mirrorBuffer, dstBuffer, totalTestSize);
-                CHECK (1, "streaming decompressed data corrupted : byte %u / %u  (%02X!=%02X)",
-                   (U32)errorPos, (U32)totalTestSize, dstBuffer[errorPos], mirrorBuffer[errorPos]);
-        }   }
+            CHECK(crcOrig != crcDest, "streaming decompressed data corrupted (pos %u / %u)",
+                (U32)findDiff(mirrorBuffer, dstBuffer, totalTestSize), (U32)totalTestSize);
+        }
     }   /* for ( ; (testNb <= nbTests) */
     DISPLAY("\r%u fuzzer tests completed   \n", testNb-1);
 

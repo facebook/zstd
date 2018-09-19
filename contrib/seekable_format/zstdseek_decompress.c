@@ -56,6 +56,7 @@
 
 #include <stdlib.h> /* malloc, free */
 #include <stdio.h>  /* FILE* */
+#include <assert.h>
 
 #define XXH_STATIC_LINKING_ONLY
 #define XXH_NAMESPACE ZSTD_
@@ -112,7 +113,7 @@ static int ZSTD_seekable_read_buff(void* opaque, void* buffer, size_t n)
 
 static int ZSTD_seekable_seek_buff(void* opaque, long long offset, int origin)
 {
-    buffWrapper_t* buff = (buffWrapper_t*) opaque;
+    buffWrapper_t* const buff = (buffWrapper_t*) opaque;
     unsigned long long newOffset;
     switch (origin) {
     case SEEK_SET:
@@ -124,6 +125,8 @@ static int ZSTD_seekable_seek_buff(void* opaque, long long offset, int origin)
     case SEEK_END:
         newOffset = (unsigned long long)buff->size - offset;
         break;
+    default:
+        assert(0);  /* not possible */
     }
     if (newOffset > buff->size) {
         return -1;
@@ -310,8 +313,8 @@ static size_t ZSTD_seekable_loadSeekTable(ZSTD_seekable* zs)
             /* compute cumulative positions */
             for (; idx < numFrames; idx++) {
                 if (pos + sizePerEntry > SEEKABLE_BUFF_SIZE) {
-                    U32 const toRead = MIN(remaining, SEEKABLE_BUFF_SIZE);
                     U32 const offset = SEEKABLE_BUFF_SIZE - pos;
+                    U32 const toRead = MIN(remaining, SEEKABLE_BUFF_SIZE - offset);
                     memmove(zs->inBuff, zs->inBuff + pos, offset); /* move any data we haven't read yet */
                     CHECK_IO(src.read(src.opaque, zs->inBuff+offset, toRead));
                     remaining -= toRead;

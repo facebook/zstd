@@ -283,7 +283,11 @@ void FIO_setOverlapLog(unsigned overlapLog){
     g_overlapLog = overlapLog;
 }
 static U32 g_adaptiveMode = 0;
-void FIO_setAdaptiveMode(unsigned adapt) { g_adaptiveMode = adapt; }
+void FIO_setAdaptiveMode(unsigned adapt) {
+    if ((adapt>0) && (g_nbWorkers==0))
+        EXM_THROW(1, "Adaptive mode is not compatible with single thread mode \n");
+    g_adaptiveMode = adapt;
+}
 static U32 g_ldmFlag = 0;
 void FIO_setLdmFlag(unsigned ldmFlag) {
     g_ldmFlag = (ldmFlag>0);
@@ -541,7 +545,8 @@ static void FIO_freeCResources(cRess_t ress)
 
 
 #ifdef ZSTD_GZCOMPRESS
-static unsigned long long FIO_compressGzFrame(cRess_t* ress,
+static unsigned long long
+FIO_compressGzFrame(cRess_t* ress,
                     const char* srcFileName, U64 const srcFileSize,
                     int compressionLevel, U64* readsize)
 {
@@ -623,9 +628,10 @@ static unsigned long long FIO_compressGzFrame(cRess_t* ress,
 
 
 #ifdef ZSTD_LZMACOMPRESS
-static unsigned long long FIO_compressLzmaFrame(cRess_t* ress,
-                            const char* srcFileName, U64 const srcFileSize,
-                            int compressionLevel, U64* readsize, int plain_lzma)
+static unsigned long long
+FIO_compressLzmaFrame(cRess_t* ress,
+                      const char* srcFileName, U64 const srcFileSize,
+                      int compressionLevel, U64* readsize, int plain_lzma)
 {
     unsigned long long inFileSize = 0, outFileSize = 0;
     lzma_stream strm = LZMA_STREAM_INIT;
@@ -698,9 +704,10 @@ static unsigned long long FIO_compressLzmaFrame(cRess_t* ress,
 #define LZ4F_max64KB max64KB
 #endif
 static int FIO_LZ4_GetBlockSize_FromBlockId (int id) { return (1 << (8 + (2 * id))); }
-static unsigned long long FIO_compressLz4Frame(cRess_t* ress,
-                            const char* srcFileName, U64 const srcFileSize,
-                            int compressionLevel, U64* readsize)
+static unsigned long long
+FIO_compressLz4Frame(cRess_t* ress,
+                     const char* srcFileName, U64 const srcFileSize,
+                     int compressionLevel, U64* readsize)
 {
     const size_t blockSize = FIO_LZ4_GetBlockSize_FromBlockId(LZ4F_max64KB);
     unsigned long long inFileSize = 0, outFileSize = 0;
@@ -838,7 +845,7 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
 
             /* count stats */
             inputPresented++;
-            if (oldIPos == inBuff.pos) inputBlocked++;
+            if (oldIPos == inBuff.pos) inputBlocked++;  /* input buffer is full and can't take any more : input speed is faster than consumption rate */
             if (!toFlushNow) flushWaiting = 1;
 
             /* Write compressed stream */
@@ -846,7 +853,7 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
                             (U32)directive, (U32)inBuff.pos, (U32)inBuff.size, (U32)outBuff.pos);
             if (outBuff.pos) {
                 size_t const sizeCheck = fwrite(ress.dstBuffer, 1, outBuff.pos, dstFile);
-                if (sizeCheck!=outBuff.pos)
+                if (sizeCheck != outBuff.pos)
                     EXM_THROW(25, "Write error : cannot write compressed block");
                 compressedfilesize += outBuff.pos;
             }
@@ -857,23 +864,23 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
                 double const cShare = (double)zfp.produced / (zfp.consumed + !zfp.consumed/*avoid div0*/) * 100;
 
                 /* check output speed */
-                if (zfp.currentJobID > 1) {
-                    static ZSTD_frameProgression cpszfp = { 0, 0, 0, 0, 0, 0 };
+                if (zfp.currentJobID > 1) {  /* only possible if nbWorkers >= 1 */
+                    static ZSTD_frameProgression cpszfp = { 0, 0, 0, 0, 0, 0 };   /* note : requires fileio to run main thread */
 
                     unsigned long long newlyProduced = zfp.produced - cpszfp.produced;
                     unsigned long long newlyFlushed = zfp.flushed - cpszfp.flushed;
                     assert(zfp.produced >= cpszfp.produced);
-
-                    cpszfp = zfp;
+                    assert(g_nbWorkers >= 1);
 
                     if ( (zfp.ingested == cpszfp.ingested)   /* no data read : input buffer full */
                       && (zfp.consumed == cpszfp.consumed)   /* no data compressed : no more buffer to compress OR compression is really slow */
                       && (zfp.nbActiveWorkers == 0)          /* confirmed : no compression : either no more buffer to compress OR not enough data to start first worker */
-                      && (zfp.currentJobID > 0)              /* first job started : only remaining reason is no more available buffer to start compression */
                       ) {
                         DISPLAYLEVEL(6, "all buffers full : compression stopped => slow down \n")
                         speedChange = slower;
                     }
+
+                    cpszfp = zfp;
 
                     if ( (newlyProduced > (newlyFlushed * 9 / 8))   /* compression produces more data than output can flush (though production can be spiky, due to work unit : (N==4)*block sizes) */
                       && (flushWaiting == 0)                        /* flush speed was never slowed by lack of production, so it's operating at max capacity */

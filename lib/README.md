@@ -13,7 +13,7 @@ including commands variables, staged install, directory variables and standard t
 - `make install` : install libraries in default system directories
 
 `libzstd` default scope includes compression, decompression, dictionary building,
-and decoding support for legacy formats >= v0.4.0.
+and decoding support for legacy formats >= v0.5.0.
 
 
 #### API
@@ -48,23 +48,24 @@ It's possible to compile only a limited set of features.
         This module depends on both `lib/common` and `lib/compress` .
 - `lib/legacy` : source code to decompress legacy zstd formats, starting from `v0.1.0`.
         This module depends on `lib/common` and `lib/decompress`.
-        To enable this feature, it's required to define `ZSTD_LEGACY_SUPPORT` during compilation.
-        Typically, with `gcc`, add argument `-DZSTD_LEGACY_SUPPORT=1`.
-        Using higher number limits versions supported.
+        To enable this feature, define `ZSTD_LEGACY_SUPPORT` during compilation.
+        Specifying a number limits versions supported to that version onward.
         For example, `ZSTD_LEGACY_SUPPORT=2` means : "support legacy formats >= v0.2.0".
         `ZSTD_LEGACY_SUPPORT=3` means : "support legacy formats >= v0.3.0", and so on.
-        Starting v0.8.0, all versions of `zstd` produce frames compliant with specification.
-        As a consequence, `ZSTD_LEGACY_SUPPORT=8` (or more) doesn't trigger legacy support.
-        Also, `ZSTD_LEGACY_SUPPORT=0` means "do __not__ support legacy formats".
+        Currently, the default library setting is `ZST_LEGACY_SUPPORT=5`.
+        It can be changed at build by any other value.
+        Note that any number >= 8 translates into "do __not__ support legacy formats",
+        since all versions of `zstd` >= v0.8 are compatible with v1+ specification.
+        `ZSTD_LEGACY_SUPPORT=0` also means "do __not__ support legacy formats".
         Once enabled, this capability is transparently triggered within decompression functions.
         It's also possible to invoke directly legacy API, as exposed in `lib/legacy/zstd_legacy.h`.
         Each version also provides an additional dedicated set of advanced API.
         For example, advanced API for version `v0.4` is exposed in `lib/legacy/zstd_v04.h` .
         Note : `lib/legacy` only supports _decoding_ legacy formats.
-- Similarly, you can define `ZSTD_LIB_COMPRESSION, ZSTD_LIB_DECOMPRESSION`, `ZSTD_LIB_DICTBUILDER`, 
-        and `ZSTD_LIB_DEPRECATED` as 0 to forgo compilation of the corresponding features. This will 
+- Similarly, you can define `ZSTD_LIB_COMPRESSION, ZSTD_LIB_DECOMPRESSION`, `ZSTD_LIB_DICTBUILDER`,
+        and `ZSTD_LIB_DEPRECATED` as 0 to forgo compilation of the corresponding features. This will
         also disable compilation of all dependencies (eg. `ZSTD_LIB_COMPRESSION=0` will also disable
-        dictBuilder). 
+        dictBuilder).
 
 
 #### Multithreading support

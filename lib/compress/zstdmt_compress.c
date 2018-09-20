@@ -640,6 +640,7 @@ void ZSTDMT_compressionJob(void* jobDescription)
     ZSTD_CCtx* const cctx = ZSTDMT_getCCtx(job->cctxPool);
     rawSeqStore_t rawSeqStore = ZSTDMT_getSeq(job->seqPool);
     buffer_t dstBuff = job->dstBuff;
+    size_t lastCBlockSize = 0;
 
     /* ressources */
     if (cctx==NULL) {
@@ -739,11 +740,7 @@ void ZSTDMT_compressionJob(void* jobDescription)
                  ZSTD_compressEnd     (cctx, op, oend-op, ip, lastBlockSize) :
                  ZSTD_compressContinue(cctx, op, oend-op, ip, lastBlockSize);
             if (ZSTD_isError(cSize)) { job->cSize = cSize; goto _endJob; }
-            /* stats */
-            ZSTD_PTHREAD_MUTEX_LOCK(&job->job_mutex);
-            job->cSize += cSize;
-            job->consumed = job->src.size;
-            ZSTD_pthread_mutex_unlock(&job->job_mutex);
+            lastCBlockSize = cSize;
     }   }
 
 _endJob:
@@ -755,7 +752,12 @@ _endJob:
     ZSTDMT_releaseSeq(job->seqPool, rawSeqStore);
     ZSTDMT_releaseCCtx(job->cctxPool, cctx);
     /* report */
+    ZSTD_PTHREAD_MUTEX_LOCK(&job->job_mutex);
+    if (ZSTD_isError(job->cSize)) assert(lastCBlockSize == 0);
+    job->cSize += lastCBlockSize;
+    job->consumed = job->src.size;  /* when job->consumed == job->src.size , compression job is presumed completed */
     ZSTD_pthread_cond_signal(&job->job_cond);
+    ZSTD_pthread_mutex_unlock(&job->job_mutex);
 }
 
 

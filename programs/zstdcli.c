@@ -1014,7 +1014,7 @@ int main(int argCount, const char* argv[])
         else
           operationResult = FIO_compressMultipleFilenames(filenameTable, filenameIdx, outFileName, suffix, dictFileName, cLevel, compressionParams);
 #else
-        (void)suffix;
+        (void)suffix; (void)adapt;
         DISPLAY("Compression not supported\n");
 #endif
     } else {  /* decompression or test */

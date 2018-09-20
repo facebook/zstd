@@ -904,7 +904,7 @@ $ZSTD -o tmpDict --train-cover *.c ../programs/*.c
 test -f tmpDict
 $ZSTD --train-cover *.c ../programs/*.c
 test -f dictionary
-rm tmp* dictionary
+rm -f tmp* dictionary
 
 
-rm tmp*
+rm -f tmp*

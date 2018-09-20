@@ -333,9 +333,13 @@ static int basicUnitTests(U32 seed, double compressibility)
         DISPLAYLEVEL(3, "OK : %s \n", errorString);
     }
 
+    DISPLAYLEVEL(3, "test%3i : min compression level : ", testNb++);
+    {   int const mcl = ZSTD_minCLevel();
+        DISPLAYLEVEL(3, "%i (OK) \n", mcl);
+    }
 
     DISPLAYLEVEL(3, "test%3i : compress %u bytes : ", testNb++, (U32)CNBuffSize);
-    {   ZSTD_CCtx* cctx = ZSTD_createCCtx();
+    {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
         if (cctx==NULL) goto _output_error;
         CHECKPLUS(r, ZSTD_compressCCtx(cctx,
                             compressedBuffer, compressedBufferSize,

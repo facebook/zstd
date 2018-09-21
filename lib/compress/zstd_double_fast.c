@@ -141,16 +141,16 @@ size_t ZSTD_compressBlock_doubleFast_generic(
             goto _match_stored;
         }
 
-        /* check prefix long match */
-        if ( (matchIndexL > prefixLowestIndex) && (MEM_read64(matchLong) == MEM_read64(ip)) ) {
-            mLength = ZSTD_count(ip+8, matchLong+8, iend) + 8;
-            offset = (U32)(ip-matchLong);
-            while (((ip>anchor) & (matchLong>prefixLowest)) && (ip[-1] == matchLong[-1])) { ip--; matchLong--; mLength++; } /* catch up */
-            goto _match_found;
-        }
-
-        /* check dictMatchState long match */
-        if (dictMode == ZSTD_dictMatchState) {
+        if (matchIndexL > prefixLowestIndex) {
+            /* check prefix long match */
+            if (MEM_read64(matchLong) == MEM_read64(ip)) {
+                mLength = ZSTD_count(ip+8, matchLong+8, iend) + 8;
+                offset = (U32)(ip-matchLong);
+                while (((ip>anchor) & (matchLong>prefixLowest)) && (ip[-1] == matchLong[-1])) { ip--; matchLong--; mLength++; } /* catch up */
+                goto _match_found;
+            }
+        } else if (dictMode == ZSTD_dictMatchState) {
+            /* check dictMatchState long match */
             U32 const dictMatchIndexL = dictHashLong[h2];
             const BYTE* dictMatchL = dictBase + dictMatchIndexL;
             assert(dictMatchL < dictEnd);
@@ -163,13 +163,13 @@ size_t ZSTD_compressBlock_doubleFast_generic(
             }
         }
 
-        /* check prefix short match */
-        if ( (matchIndexS > prefixLowestIndex) && (MEM_read32(match) == MEM_read32(ip)) ) {
-            goto _search_next_long;
-        }
-
-        /* check dictMatchState short match */
-        if (dictMode == ZSTD_dictMatchState) {
+        if (matchIndexS > prefixLowestIndex) {
+            /* check prefix short match */
+            if (MEM_read32(match) == MEM_read32(ip)) {
+                goto _search_next_long;
+            }
+        } else if (dictMode == ZSTD_dictMatchState) {
+            /* check dictMatchState short match */
             U32 const dictMatchIndexS = dictHashSmall[h];
             match = dictBase + dictMatchIndexS;
             matchIndexS = dictMatchIndexS + dictIndexDelta;
@@ -191,16 +191,16 @@ _search_next_long:
             hashLong[hl3] = current + 1;
 
             /* check prefix long +1 match */
-            if ( (matchIndexL3 > prefixLowestIndex) && (MEM_read64(matchL3) == MEM_read64(ip+1)) ) {
-                mLength = ZSTD_count(ip+9, matchL3+8, iend) + 8;
-                ip++;
-                offset = (U32)(ip-matchL3);
-                while (((ip>anchor) & (matchL3>prefixLowest)) && (ip[-1] == matchL3[-1])) { ip--; matchL3--; mLength++; } /* catch up */
-                goto _match_found;
-            }
-
-            /* check dict long +1 match */
-            if (dictMode == ZSTD_dictMatchState) {
+            if (matchIndexL3 > prefixLowestIndex) {
+                if (MEM_read64(matchL3) == MEM_read64(ip+1)) {
+                    mLength = ZSTD_count(ip+9, matchL3+8, iend) + 8;
+                    ip++;
+                    offset = (U32)(ip-matchL3);
+                    while (((ip>anchor) & (matchL3>prefixLowest)) && (ip[-1] == matchL3[-1])) { ip--; matchL3--; mLength++; } /* catch up */
+                    goto _match_found;
+                }
+            } else if (dictMode == ZSTD_dictMatchState) {
+                /* check dict long +1 match */
                 U32 const dictMatchIndexL3 = dictHashLong[hl3];
                 const BYTE* dictMatchL3 = dictBase + dictMatchIndexL3;
                 assert(dictMatchL3 < dictEnd);

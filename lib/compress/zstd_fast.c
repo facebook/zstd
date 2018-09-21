@@ -124,8 +124,7 @@ size_t ZSTD_compressBlock_fast_generic(
             mLength = ZSTD_count(ip+1+4, ip+1+4-offset_1, iend) + 4;
             ip++;
             ZSTD_storeSeq(seqStore, ip-anchor, anchor, 0, mLength-MINMATCH);
-        } else if ( (matchIndex <= prefixStartIndex)
-                 || (MEM_read32(match) != MEM_read32(ip)) ) {
+        } else if ( (matchIndex <= prefixStartIndex) ) {
             if (dictMode == ZSTD_dictMatchState) {
                 U32 const dictMatchIndex = dictHashTable[h];
                 const BYTE* dictMatch = dictBase + dictMatchIndex;
@@ -151,6 +150,11 @@ size_t ZSTD_compressBlock_fast_generic(
                 ip += ((ip-anchor) >> kSearchStrength) + stepSize;
                 continue;
             }
+        } else if (MEM_read32(match) != MEM_read32(ip)) {
+            /* it's not a match, and we're not going to check the dictionary */
+            assert(stepSize >= 1);
+            ip += ((ip-anchor) >> kSearchStrength) + stepSize;
+            continue;
         } else {
             /* found a regular match */
             U32 const offset = (U32)(ip-match);

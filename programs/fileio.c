@@ -892,6 +892,9 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
                         assert(zfp.produced >= previous_zfp_update.produced);
                         assert(g_nbWorkers >= 1);
 
+                        /* test if output speed is so slow that all buffers are full
+                         * and no further progress is possible
+                         * (neither compression nor adding more input into internal buffers) */
                         if ( (zfp.ingested == previous_zfp_update.ingested)   /* no data read : input buffer full */
                           && (zfp.consumed == previous_zfp_update.consumed)   /* no data compressed : no more buffer to compress OR compression is really slow */
                           && (zfp.nbActiveWorkers == 0)          /* confirmed : no compression : either no more buffer to compress OR not enough data to start first worker */

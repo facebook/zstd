@@ -679,7 +679,9 @@ size_t ZSTD_checkCParams(ZSTD_compressionParameters cParams)
     CLAMPCHECK(cParams.hashLog, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
     CLAMPCHECK(cParams.searchLog, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
     CLAMPCHECK(cParams.searchLength, ZSTD_SEARCHLENGTH_MIN, ZSTD_SEARCHLENGTH_MAX);
-    CLAMPCHECK(cParams.targetLength, ZSTD_TARGETLENGTH_MIN, ZSTD_TARGETLENGTH_MAX);
+    ZSTD_STATIC_ASSERT(ZSTD_TARGETLENGTH_MIN == 0);
+    if (cParams.targetLength > ZSTD_TARGETLENGTH_MAX)
+        return ERROR(parameter_outOfBound);
     if ((U32)(cParams.strategy) > (U32)ZSTD_btultra)
         return ERROR(parameter_unsupported);
     return 0;
@@ -700,7 +702,9 @@ ZSTD_clampCParams(ZSTD_compressionParameters cParams)
     CLAMP(cParams.hashLog, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
     CLAMP(cParams.searchLog, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
     CLAMP(cParams.searchLength, ZSTD_SEARCHLENGTH_MIN, ZSTD_SEARCHLENGTH_MAX);
-    CLAMP(cParams.targetLength, ZSTD_TARGETLENGTH_MIN, ZSTD_TARGETLENGTH_MAX);
+    ZSTD_STATIC_ASSERT(ZSTD_TARGETLENGTH_MIN == 0);
+    if (cParams.targetLength > ZSTD_TARGETLENGTH_MAX)
+        cParams.targetLength = ZSTD_TARGETLENGTH_MAX;
     CLAMP(cParams.strategy, ZSTD_fast, ZSTD_btultra);
     return cParams;
 }

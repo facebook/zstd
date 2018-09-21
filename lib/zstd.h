@@ -424,7 +424,7 @@ ZSTDLIB_API int ZSTD_minCLevel(void);  /*!< minimum negative compression level a
 #define ZSTD_SEARCHLENGTH_MAX    7   /* only for ZSTD_fast, other strategies are limited to 6 */
 #define ZSTD_SEARCHLENGTH_MIN    3   /* only for ZSTD_btopt, other strategies are limited to 4 */
 #define ZSTD_TARGETLENGTH_MAX  ZSTD_BLOCKSIZE_MAX
-#define ZSTD_TARGETLENGTH_MIN    0
+#define ZSTD_TARGETLENGTH_MIN    0   /* note : comparing this constant to an unsigned results in a tautological test */
 #define ZSTD_LDM_MINMATCH_MAX 4096
 #define ZSTD_LDM_MINMATCH_MIN    4
 #define ZSTD_LDM_BUCKETSIZELOG_MAX 8

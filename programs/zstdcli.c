@@ -37,8 +37,8 @@
 #ifndef ZSTD_NODICT
 #  include "dibio.h"  /* ZDICT_cover_params_t, DiB_trainFromFiles() */
 #endif
-#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_maxCLevel */
-#include "zstd.h"     /* ZSTD_VERSION_STRING */
+#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_minCLevel */
+#include "zstd.h"     /* ZSTD_VERSION_STRING, ZSTD_maxCLevel */
 
 
 /*-************************************
@@ -634,9 +634,11 @@ int main(int argCount, const char* argv[])
                     if (longCommandWArg(&argument, "--fast")) {
                         /* Parse optional acceleration factor */
                         if (*argument == '=') {
+                            U32 const maxFast = (U32)-ZSTD_minCLevel();
                             U32 fastLevel;
                             ++argument;
                             fastLevel = readU32FromChar(&argument);
+                            if (fastLevel > maxFast) fastLevel = maxFast;
                             if (fastLevel) {
                               dictCLevel = cLevel = -(int)fastLevel;
                             } else {

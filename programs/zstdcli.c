@@ -70,6 +70,7 @@
 #define GB *(1U<<30)
 
 #define DISPLAY_LEVEL_DEFAULT 2
+#define DISPLAY_SUMMARY_DEFAULT 0
 
 static const char*    g_defaultDictName = "dictionary";
 static const unsigned g_defaultMaxDictSize = 110 KB;
@@ -95,6 +96,7 @@ typedef enum { cover, fastCover, legacy } dictType;
 #define DISPLAY(...)         fprintf(g_displayOut, __VA_ARGS__)
 #define DISPLAYLEVEL(l, ...) { if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); } }
 static int g_displayLevel = DISPLAY_LEVEL_DEFAULT;   /* 0 : no display,  1: errors,  2 : + result + interaction + warnings,  3 : + progression,  4 : + information */
+static int g_displaySummary = DISPLAY_SUMMARY_DEFAULT; /* 0 : no summary, 1: show summary */
 static FILE* g_displayOut;
 
 
@@ -133,6 +135,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -V     : display Version number and exit \n");
     DISPLAY( " -v     : verbose mode; specify multiple times to increase verbosity\n");
     DISPLAY( " -q     : suppress warnings; specify twice to suppress errors too\n");
+    DISPLAY( " --sum  : print summary on completion even when -q is set\n");
     DISPLAY( " -c     : force write to standard output, even if it is the console\n");
     DISPLAY( " -l     : print information about zstd compressed files \n");
 #ifndef ZSTD_NOCOMPRESS
@@ -544,6 +547,7 @@ int main(int argCount, const char* argv[])
                     if (!strcmp(argument, "--help")) { g_displayOut=stdout; CLEAN_RETURN(usage_advanced(programName)); }
                     if (!strcmp(argument, "--verbose")) { g_displayLevel++; continue; }
                     if (!strcmp(argument, "--quiet")) { g_displayLevel--; continue; }
+		    if (!strcmp(argument, "--sum")) { g_displaySummary=1; continue; }
                     if (!strcmp(argument, "--stdout")) { forceStdout=1; outFileName=stdoutmark; g_displayLevel-=(g_displayLevel==2); continue; }
                     if (!strcmp(argument, "--ultra")) { ultra=1; continue; }
                     if (!strcmp(argument, "--check")) { FIO_setChecksumFlag(2); continue; }
@@ -994,6 +998,8 @@ int main(int argCount, const char* argv[])
 
     /* IO Stream/File */
     FIO_setNotificationLevel(g_displayLevel);
+    FIO_setDisplaySummary(g_displaySummary);
+
     if (operation==zom_compress) {
 #ifndef ZSTD_NOCOMPRESS
         FIO_setNbWorkers(nbWorkers);

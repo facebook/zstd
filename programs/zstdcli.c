@@ -631,6 +631,7 @@ int main(int argCount, const char* argv[])
                             compressionParams.windowLog = ldmWindowLog;
                         continue;
                     }
+#ifndef ZSTD_NOCOMPRESS   /* linking ZSTD_minCLevel() requires compression support */
                     if (longCommandWArg(&argument, "--fast")) {
                         /* Parse optional acceleration factor */
                         if (*argument == '=') {
@@ -652,6 +653,7 @@ int main(int argCount, const char* argv[])
                         }
                         continue;
                     }
+#endif
                     /* fall-through, will trigger bad_usage() later on */
                 }
 

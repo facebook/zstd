@@ -57,11 +57,23 @@ MEM_STATIC void MEM_check(void) { MEM_STATIC_ASSERT((sizeof(size_t)==4) || (size
   typedef  uint64_t U64;
   typedef   int64_t S64;
 #else
+# include <limits.h>
+#if CHAR_BIT != 8
+#  error "this implementation requires char to be exactly 8-bit type"
+#endif
   typedef unsigned char      BYTE;
+#if USHRT_MAX != 65535
+#  error "this implementation requires short to be exactly 16-bit type"
+#endif
   typedef unsigned short      U16;
   typedef   signed short      S16;
+#if UINT_MAX != 4294967295
+#  error "this implementation requires int to be exactly 32-bit type"
+#endif
   typedef unsigned int        U32;
   typedef   signed int        S32;
+/* note : there are no limits defined for long long type in C90.
+ * limits exist in C99, however, in such case, <stdint.h> is preferred */
   typedef unsigned long long  U64;
   typedef   signed long long  S64;
 #endif

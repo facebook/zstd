@@ -37,8 +37,8 @@
 #ifndef ZSTD_NODICT
 #  include "dibio.h"  /* ZDICT_cover_params_t, DiB_trainFromFiles() */
 #endif
-#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_maxCLevel */
-#include "zstd.h"     /* ZSTD_VERSION_STRING */
+#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_minCLevel */
+#include "zstd.h"     /* ZSTD_VERSION_STRING, ZSTD_maxCLevel */
 
 
 /*-************************************
@@ -486,8 +486,6 @@ int main(int argCount, const char* argv[])
 
     /* init */
     (void)recursive; (void)cLevelLast;    /* not used when ZSTD_NOBENCH set */
-    (void)dictCLevel; (void)dictSelect; (void)dictID;  (void)maxDictSize; /* not used when ZSTD_NODICT set */
-    (void)ultra; (void)cLevel; (void)ldmFlag; /* not used when ZSTD_NOCOMPRESS set */
     (void)memLimit;   /* not used when ZSTD_NODECOMPRESS set */
     if (filenameTable==NULL) { DISPLAY("zstd: %s \n", strerror(errno)); exit(1); }
     filenameTable[0] = stdinmark;
@@ -634,12 +632,15 @@ int main(int argCount, const char* argv[])
                             compressionParams.windowLog = ldmWindowLog;
                         continue;
                     }
+#ifndef ZSTD_NOCOMPRESS   /* linking ZSTD_minCLevel() requires compression support */
                     if (longCommandWArg(&argument, "--fast")) {
                         /* Parse optional acceleration factor */
                         if (*argument == '=') {
+                            U32 const maxFast = (U32)-ZSTD_minCLevel();
                             U32 fastLevel;
                             ++argument;
                             fastLevel = readU32FromChar(&argument);
+                            if (fastLevel > maxFast) fastLevel = maxFast;
                             if (fastLevel) {
                               dictCLevel = cLevel = -(int)fastLevel;
                             } else {
@@ -653,6 +654,7 @@ int main(int argCount, const char* argv[])
                         }
                         continue;
                     }
+#endif
                     /* fall-through, will trigger bad_usage() later on */
                 }
 
@@ -959,6 +961,10 @@ int main(int argCount, const char* argv[])
             dictParams.zParams = zParams;
             operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenameTable, filenameIdx, blockSize, &dictParams, NULL, NULL, 0);
         }
+#else
+        (void)dictCLevel; (void)dictSelect; (void)dictID;  (void)maxDictSize; /* not used when ZSTD_NODICT set */
+        DISPLAYLEVEL(1, "training mode not available \n");
+        operationResult = 1;
 #endif
         goto _end;
     }
@@ -1014,8 +1020,8 @@ int main(int argCount, const char* argv[])
         else
           operationResult = FIO_compressMultipleFilenames(filenameTable, filenameIdx, outFileName, suffix, dictFileName, cLevel, compressionParams);
 #else
-        (void)suffix; (void)adapt;
-        DISPLAY("Compression not supported\n");
+        (void)suffix; (void)adapt; (void)ultra; (void)cLevel; (void)ldmFlag; /* not used when ZSTD_NOCOMPRESS set */
+        DISPLAY("Compression not supported \n");
 #endif
     } else {  /* decompression or test */
 #ifndef ZSTD_NODECOMPRESS
@@ -1032,7 +1038,7 @@ int main(int argCount, const char* argv[])
         else
             operationResult = FIO_decompressMultipleFilenames(filenameTable, filenameIdx, outFileName, dictFileName);
 #else
-        DISPLAY("Decompression not supported\n");
+        DISPLAY("Decompression not supported \n");
 #endif
     }
 

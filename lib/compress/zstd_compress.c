@@ -679,6 +679,9 @@ size_t ZSTD_checkCParams(ZSTD_compressionParameters cParams)
     CLAMPCHECK(cParams.hashLog, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
     CLAMPCHECK(cParams.searchLog, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
     CLAMPCHECK(cParams.searchLength, ZSTD_SEARCHLENGTH_MIN, ZSTD_SEARCHLENGTH_MAX);
+    ZSTD_STATIC_ASSERT(ZSTD_TARGETLENGTH_MIN == 0);
+    if (cParams.targetLength > ZSTD_TARGETLENGTH_MAX)
+        return ERROR(parameter_outOfBound);
     if ((U32)(cParams.strategy) > (U32)ZSTD_btultra)
         return ERROR(parameter_unsupported);
     return 0;
@@ -699,6 +702,9 @@ ZSTD_clampCParams(ZSTD_compressionParameters cParams)
     CLAMP(cParams.hashLog, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
     CLAMP(cParams.searchLog, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
     CLAMP(cParams.searchLength, ZSTD_SEARCHLENGTH_MIN, ZSTD_SEARCHLENGTH_MAX);
+    ZSTD_STATIC_ASSERT(ZSTD_TARGETLENGTH_MIN == 0);
+    if (cParams.targetLength > ZSTD_TARGETLENGTH_MAX)
+        cParams.targetLength = ZSTD_TARGETLENGTH_MAX;
     CLAMP(cParams.strategy, ZSTD_fast, ZSTD_btultra);
     return cParams;
 }
@@ -3801,6 +3807,7 @@ size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
 
 #define ZSTD_MAX_CLEVEL     22
 int ZSTD_maxCLevel(void) { return ZSTD_MAX_CLEVEL; }
+int ZSTD_minCLevel(void) { return (int)-ZSTD_TARGETLENGTH_MAX; }
 
 static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEVEL+1] = {
 {   /* "default" - guarantees a monotonically increasing memory budget */

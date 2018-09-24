@@ -1673,6 +1673,7 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* dstFileName, const ch
 
     srcFile = FIO_openSrcFile(srcFileName);
     if (srcFile==NULL) return 1;
+    ress.srcBufferLoaded = 0;
 
     result = FIO_decompressFrames(ress, srcFile, dstFileName, srcFileName);
 

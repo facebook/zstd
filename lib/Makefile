@@ -94,8 +94,6 @@ else
 	SHARED_EXT_VER = $(SHARED_EXT).$(LIBVER)
 endif
 
-LIBZSTD = libzstd.$(SHARED_EXT_VER)
-
 
 .PHONY: default all clean install uninstall
 
@@ -111,18 +109,27 @@ libzstd.a: $(ZSTD_OBJ)
 libzstd.a-mt: CPPFLAGS += -DZSTD_MULTITHREAD
 libzstd.a-mt: libzstd.a
 
+ifneq (,$(filter Windows%,$(OS)))
+
+LIBZSTD = dll\libzstd.dll
+$(LIBZSTD): $(ZSTD_FILES)
+	@echo compiling dynamic library $(LIBVER)
+	@$(CC) $(FLAGS) -DZSTD_DLL_EXPORT=1 -shared $^ -o $@
+	dlltool -D $@ -d dll\libzstd.def -l dll\libzstd.lib
+
+else
+
+LIBZSTD = libzstd.$(SHARED_EXT_VER)
 $(LIBZSTD): LDFLAGS += -shared -fPIC -fvisibility=hidden
 $(LIBZSTD): $(ZSTD_FILES)
 	@echo compiling dynamic library $(LIBVER)
-ifneq (,$(filter Windows%,$(OS)))
-	@$(CC) $(FLAGS) -DZSTD_DLL_EXPORT=1 -shared $^ -o dll\libzstd.dll
-	dlltool -D dll\libzstd.dll -d dll\libzstd.def -l dll\libzstd.lib
-else
 	@$(CC) $(FLAGS) $^ $(LDFLAGS) $(SONAME_FLAGS) -o $@
 	@echo creating versioned links
 	@ln -sf $@ libzstd.$(SHARED_EXT_MAJOR)
 	@ln -sf $@ libzstd.$(SHARED_EXT)
+
 endif
+
 
 libzstd : $(LIBZSTD)
 

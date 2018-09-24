@@ -70,9 +70,6 @@ static const int g_maxNbVariations = 64;
 #define FADT_MIN 0
 #define FADT_MAX ((U32)-1)
 
-#define ZSTD_TARGETLENGTH_MIN 0
-#define ZSTD_TARGETLENGTH_MAX 999
-
 #define WLOG_RANGE (ZSTD_WINDOWLOG_MAX - ZSTD_WINDOWLOG_MIN + 1)
 #define CLOG_RANGE (ZSTD_CHAINLOG_MAX - ZSTD_CHAINLOG_MIN + 1)
 #define HLOG_RANGE (ZSTD_HASHLOG_MAX - ZSTD_HASHLOG_MIN + 1)
@@ -1186,37 +1183,42 @@ static int createContexts(contexts_t* ctx, const char* dictFileName) {
     size_t readSize;
     ctx->cctx = ZSTD_createCCtx();
     ctx->dctx = ZSTD_createDCtx();
+    assert(ctx->cctx != NULL);
+    assert(ctx->dctx != NULL);
+
     if(dictFileName == NULL) {
         ctx->dictSize = 0;
         ctx->dictBuffer = NULL;
         return 0;
     }
-    ctx->dictSize = UTIL_getFileSize(dictFileName);
+    {   U64 const dictFileSize = UTIL_getFileSize(dictFileName);
+        assert(dictFileSize != UTIL_FILESIZE_UNKNOWN);
+        ctx->dictSize = dictFileSize;
+        assert((U64)ctx->dictSize == dictFileSize); /* check overflow */
+    }
     ctx->dictBuffer = malloc(ctx->dictSize);
 
     f = fopen(dictFileName, "rb");
 
-    if(!f) {
+    if (f==NULL) {
         DISPLAY("unable to open file\n");
-        fclose(f);
         freeContexts(*ctx);
         return 1;
     }
 
-    if(ctx->dictSize > 64 MB || !(ctx->dictBuffer)) {
+    if (ctx->dictSize > 64 MB || !(ctx->dictBuffer)) {
         DISPLAY("dictionary too large\n");
         fclose(f);
         freeContexts(*ctx);
         return 1;
     }
     readSize = fread(ctx->dictBuffer, 1, ctx->dictSize, f);
-    if(readSize != ctx->dictSize) {
+    fclose(f);
+    if (readSize != ctx->dictSize) {
         DISPLAY("unable to read file\n");
-        fclose(f);
         freeContexts(*ctx);
         return 1;
     }
-    fclose(f);
     return 0;
 }
 

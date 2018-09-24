@@ -71,7 +71,7 @@ extern "C" {
 /*------   Version   ------*/
 #define ZSTD_VERSION_MAJOR    1
 #define ZSTD_VERSION_MINOR    3
-#define ZSTD_VERSION_RELEASE  5
+#define ZSTD_VERSION_RELEASE  6
 
 #define ZSTD_VERSION_NUMBER  (ZSTD_VERSION_MAJOR *100*100 + ZSTD_VERSION_MINOR *100 + ZSTD_VERSION_RELEASE)
 ZSTDLIB_API unsigned ZSTD_versionNumber(void);   /**< useful to check dll version */
@@ -80,7 +80,7 @@ ZSTDLIB_API unsigned ZSTD_versionNumber(void);   /**< useful to check dll versio
 #define ZSTD_QUOTE(str) #str
 #define ZSTD_EXPAND_AND_QUOTE(str) ZSTD_QUOTE(str)
 #define ZSTD_VERSION_STRING ZSTD_EXPAND_AND_QUOTE(ZSTD_LIB_VERSION)
-ZSTDLIB_API const char* ZSTD_versionString(void);   /* added in v1.3.0 */
+ZSTDLIB_API const char* ZSTD_versionString(void);   /* v1.3.0+ */
 
 /***************************************
 *  Default constant
@@ -330,7 +330,7 @@ typedef struct ZSTD_outBuffer_s {
 * *******************************************************************/
 
 typedef ZSTD_CCtx ZSTD_CStream;  /**< CCtx and CStream are now effectively same object (>= v1.3.0) */
-                                 /* Continue to distinguish them for compatibility with versions <= v1.2.0 */
+                                 /* Continue to distinguish them for compatibility with older versions <= v1.2.0 */
 /*===== ZSTD_CStream management functions =====*/
 ZSTDLIB_API ZSTD_CStream* ZSTD_createCStream(void);
 ZSTDLIB_API size_t ZSTD_freeCStream(ZSTD_CStream* zcs);
@@ -385,21 +385,28 @@ ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output
 
 
 
+
+#if defined(ZSTD_STATIC_LINKING_ONLY) && !defined(ZSTD_H_ZSTD_STATIC_LINKING_ONLY)
+#define ZSTD_H_ZSTD_STATIC_LINKING_ONLY
+
 /****************************************************************************************
- * START OF ADVANCED AND EXPERIMENTAL FUNCTIONS
+ *   ADVANCED AND EXPERIMENTAL FUNCTIONS
+ ****************************************************************************************
  * The definitions in this section are considered experimental.
  * They should never be used with a dynamic library, as prototypes may change in the future.
  * They are provided for advanced scenarios.
  * Use them only in association with static linking.
  * ***************************************************************************************/
 
-#if defined(ZSTD_STATIC_LINKING_ONLY) && !defined(ZSTD_H_ZSTD_STATIC_LINKING_ONLY)
-#define ZSTD_H_ZSTD_STATIC_LINKING_ONLY
+ZSTDLIB_API int ZSTD_minCLevel(void);  /*!< minimum negative compression level allowed */
 
-/* --- Constants ---*/
-#define ZSTD_MAGICNUMBER            0xFD2FB528   /* >= v0.8.0 */
+/* ---  Constants  ---*/
+#define ZSTD_MAGICNUMBER            0xFD2FB528   /* v0.8+ */
+#define ZSTD_MAGIC_DICTIONARY       0xEC30A437   /* v0.7+ */
 #define ZSTD_MAGIC_SKIPPABLE_START  0x184D2A50U
-#define ZSTD_MAGIC_DICTIONARY       0xEC30A437   /* >= v0.7.0 */
+
+#define ZSTD_BLOCKSIZELOG_MAX 17
+#define ZSTD_BLOCKSIZE_MAX   (1<<ZSTD_BLOCKSIZELOG_MAX)   /* define, for static allocation */
 
 #define ZSTD_WINDOWLOG_MAX_32   30
 #define ZSTD_WINDOWLOG_MAX_64   31
@@ -416,8 +423,10 @@ ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output
 #define ZSTD_SEARCHLOG_MIN       1
 #define ZSTD_SEARCHLENGTH_MAX    7   /* only for ZSTD_fast, other strategies are limited to 6 */
 #define ZSTD_SEARCHLENGTH_MIN    3   /* only for ZSTD_btopt, other strategies are limited to 4 */
-#define ZSTD_LDM_MINMATCH_MIN    4
+#define ZSTD_TARGETLENGTH_MAX  ZSTD_BLOCKSIZE_MAX
+#define ZSTD_TARGETLENGTH_MIN    0   /* note : comparing this constant to an unsigned results in a tautological test */
 #define ZSTD_LDM_MINMATCH_MAX 4096
+#define ZSTD_LDM_MINMATCH_MIN    4
 #define ZSTD_LDM_BUCKETSIZELOG_MAX 8
 
 #define ZSTD_FRAMEHEADERSIZE_PREFIX 5   /* minimum input size to know frame header size */
@@ -429,7 +438,8 @@ static const size_t ZSTD_frameHeaderSize_max = ZSTD_FRAMEHEADERSIZE_MAX;
 static const size_t ZSTD_skippableHeaderSize = 8;  /* magic number + skippable frame length */
 
 
-/*--- Advanced types ---*/
+
+/* ---  Advanced types  --- */
 typedef enum { ZSTD_fast=1, ZSTD_dfast, ZSTD_greedy, ZSTD_lazy, ZSTD_lazy2,
                ZSTD_btlazy2, ZSTD_btopt, ZSTD_btultra } ZSTD_strategy;   /* from faster to stronger */
 
@@ -504,7 +514,7 @@ ZSTDLIB_API size_t ZSTD_findFrameCompressedSize(const void* src, size_t srcSize)
  *            however it does mean that all frame data must be present and valid. */
 ZSTDLIB_API unsigned long long ZSTD_findDecompressedSize(const void* src, size_t srcSize);
 
-/** ZSTD_frameHeaderSize() :
+/*! ZSTD_frameHeaderSize() :
  *  srcSize must be >= ZSTD_frameHeaderSize_prefix.
  * @return : size of the Frame Header,
  *           or an error code (if srcSize is too small) */
@@ -1401,7 +1411,7 @@ ZSTDLIB_API size_t ZSTD_DCtx_setMaxWindowSize(ZSTD_DCtx* dctx, size_t maxWindowS
 ZSTDLIB_API size_t ZSTD_DCtx_setFormat(ZSTD_DCtx* dctx, ZSTD_format_e format);
 
 
-/** ZSTD_getFrameHeader_advanced() :
+/*! ZSTD_getFrameHeader_advanced() :
  *  same as ZSTD_getFrameHeader(),
  *  with added capability to select a format (like ZSTD_f_zstd1_magicless) */
 ZSTDLIB_API size_t ZSTD_getFrameHeader_advanced(ZSTD_frameHeader* zfhPtr,
@@ -1473,8 +1483,6 @@ ZSTDLIB_API void ZSTD_DCtx_reset(ZSTD_DCtx* dctx);
         Use ZSTD_insertBlock() for such a case.
 */
 
-#define ZSTD_BLOCKSIZELOG_MAX 17
-#define ZSTD_BLOCKSIZE_MAX   (1<<ZSTD_BLOCKSIZELOG_MAX)   /* define, for static allocation */
 /*=====   Raw zstd block functions  =====*/
 ZSTDLIB_API size_t ZSTD_getBlockSize   (const ZSTD_CCtx* cctx);
 ZSTDLIB_API size_t ZSTD_compressBlock  (ZSTD_CCtx* cctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);

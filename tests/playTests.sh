@@ -103,6 +103,7 @@ else
 fi
 
 
+
 $ECHO "\n===>  simple tests "
 
 ./datagen > tmp
@@ -811,10 +812,19 @@ roundTripTest -g1M -P50 "1 --single-thread --long=29" " --long=28 --memory=512MB
 roundTripTest -g1M -P50 "1 --single-thread --long=29" " --zstd=wlog=28 --memory=512MB"
 
 
+$ECHO "\n===>   adaptive mode "
+roundTripTest -g270000000 " --adapt"
+roundTripTest -g27000000 " --adapt=min=1,max=4"
+./datagen > tmp
+$ZSTD -f -vv --adapt=min=10,max=9 tmp && die "--adapt must fail on incoherent bounds"
+
+
 if [ "$1" != "--test-large-data" ]; then
     $ECHO "Skipping large data tests"
     exit 0
 fi
+
+
 
 $ECHO "\n===>   large files tests "
 
@@ -856,10 +866,6 @@ roundTripTest -g18000001 -P80  "18 --single-thread --long"
 # Test large window logs
 roundTripTest -g700M -P50 "1 --single-thread --long=29"
 roundTripTest -g600M -P50 "1 --single-thread --long --zstd=wlog=29,clog=28"
-
-
-$ECHO "\n===>   adaptive mode "
-roundTripTest -g270000000 " --adapt"
 
 
 if [ -n "$hasMT" ]

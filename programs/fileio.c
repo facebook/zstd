@@ -292,6 +292,20 @@ void FIO_setAdaptiveMode(unsigned adapt) {
         EXM_THROW(1, "Adaptive mode is not compatible with single thread mode \n");
     g_adaptiveMode = adapt;
 }
+static int g_minAdaptLevel = -50;   /* initializing this value requires a constant, so ZSTD_minCLevel() doesn't work */
+void FIO_setAdaptMin(int minCLevel)
+{
+#ifndef ZSTD_NOCOMPRESS
+    assert(minCLevel >= ZSTD_minCLevel());
+#endif
+    g_minAdaptLevel = minCLevel;
+}
+static int g_maxAdaptLevel = 22;   /* initializing this value requires a constant, so ZSTD_maxCLevel() doesn't work */
+void FIO_setAdaptMax(int maxCLevel)
+{
+    g_maxAdaptLevel = maxCLevel;
+}
+
 static U32 g_ldmFlag = 0;
 void FIO_setLdmFlag(unsigned ldmFlag) {
     g_ldmFlag = (ldmFlag>0);
@@ -954,13 +968,15 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
                         if (speedChange == slower) {
                             DISPLAYLEVEL(6, "slower speed , higher compression \n")
                             compressionLevel ++;
-                            compressionLevel += (compressionLevel == 0);   /* skip 0 */
                             if (compressionLevel > ZSTD_maxCLevel()) compressionLevel = ZSTD_maxCLevel();
+                            if (compressionLevel > g_maxAdaptLevel) compressionLevel = g_maxAdaptLevel;
+                            compressionLevel += (compressionLevel == 0);   /* skip 0 */
                             ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionLevel, (unsigned)compressionLevel);
                         }
                         if (speedChange == faster) {
                             DISPLAYLEVEL(6, "faster speed , lighter compression \n")
                             compressionLevel --;
+                            if (compressionLevel < g_minAdaptLevel) compressionLevel = g_minAdaptLevel;
                             compressionLevel -= (compressionLevel == 0);   /* skip 0 */
                             ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionLevel, (unsigned)compressionLevel);
                         }

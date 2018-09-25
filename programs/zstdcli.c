@@ -138,8 +138,8 @@ static int usage_advanced(const char* programName)
 #ifndef ZSTD_NOCOMPRESS
     DISPLAY( "--ultra : enable levels beyond %i, up to %i (requires more memory)\n", ZSTDCLI_CLEVEL_MAX, ZSTD_maxCLevel());
     DISPLAY( "--long[=#]: enable long distance matching with given window log (default: %u)\n", g_defaultMaxWindowLog);
-    DISPLAY( "--adapt : automatically adapt compression level to I/O conditions \n");
     DISPLAY( "--fast[=#]: switch to ultra fast compression level (default: %u)\n", 1);
+    DISPLAY( "--adapt : dynamically adapt compression level to I/O conditions \n");
 #ifdef ZSTD_MULTITHREAD
     DISPLAY( " -T#    : spawns # compression threads (default: 1, 0==# cores) \n");
     DISPLAY( " -B#    : select size of each job (default: 0==automatic) \n");
@@ -366,6 +366,30 @@ static ZDICT_fastCover_params_t defaultFastCoverParams(void)
 #endif
 
 
+/** parseAdaptParameters() :
+ *  reads adapt parameters from *stringPtr (e.g. "--zstd=min=1,max=19) and store them into adaptMinPtr and adaptMaxPtr.
+ *  Both adaptMinPtr and adaptMaxPtr must be already allocated and correctly initialized.
+ *  There is no guarantee that any of these values will be updated.
+ *  @return 1 means that parsing was successful,
+ *  @return 0 in case of malformed parameters
+ */
+static unsigned parseAdaptParameters(const char* stringPtr, int* adaptMinPtr, int* adaptMaxPtr)
+{
+    for ( ; ;) {
+        if (longCommandWArg(&stringPtr, "min=")) { *adaptMinPtr = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        if (longCommandWArg(&stringPtr, "max=")) { *adaptMaxPtr = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        DISPLAYLEVEL(4, "invalid compression parameter \n");
+        return 0;
+    }
+    if (stringPtr[0] != 0) return 0; /* check the end of string */
+    if (*adaptMinPtr > *adaptMaxPtr) {
+        DISPLAYLEVEL(4, "incoherent adaptation limits \n");
+        return 0;
+    }
+    return 1;
+}
+
+
 /** parseCompressionParameters() :
  *  reads compression parameters from *stringPtr (e.g. "--zstd=wlog=23,clog=23,hlog=22,slog=6,slen=3,tlen=48,strat=6") into *params
  *  @return 1 means that compression parameters were correct
@@ -430,6 +454,15 @@ typedef enum { zom_compress, zom_decompress, zom_test, zom_bench, zom_train, zom
 
 #define CLEAN_RETURN(i) { operationResult = (i); goto _end; }
 
+#ifdef ZSTD_NOCOMPRESS
+/* symbols from compression library are not defined and should not be invoked */
+# define MINCLEVEL  -50
+# define MAXCLEVEL   22
+#else
+# define MINCLEVEL  ZSTD_minCLevel()
+# define MAXCLEVEL  ZSTD_maxCLevel()
+#endif
+
 int main(int argCount, const char* argv[])
 {
     int argNb,
@@ -440,6 +473,8 @@ int main(int argCount, const char* argv[])
         main_pause = 0,
         nbWorkers = 0,
         adapt = 0,
+        adaptMin = MINCLEVEL,
+        adaptMax = MAXCLEVEL,
         nextArgumentIsOutFileName = 0,
         nextArgumentIsMaxDict = 0,
         nextArgumentIsDictID = 0,
@@ -559,6 +594,7 @@ int main(int argCount, const char* argv[])
                     if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(1); continue; }
                     if (!strcmp(argument, "--priority=rt")) { setRealTimePrio = 1; continue; }
                     if (!strcmp(argument, "--adapt")) { adapt = 1; continue; }
+                    if (longCommandWArg(&argument, "--adapt=")) { adapt = 1; if (!parseAdaptParameters(argument, &adaptMin, &adaptMax)) CLEAN_RETURN(badusage(programName)); continue; }
                     if (!strcmp(argument, "--single-thread")) { nbWorkers = 0; singleThread = 1; continue; }
                     if (!strcmp(argument, "--format=zstd")) { suffix = ZSTD_EXTENSION; FIO_setCompressionType(FIO_zstdCompression); continue; }
 #ifdef ZSTD_GZCOMPRESS
@@ -1014,6 +1050,10 @@ int main(int argCount, const char* argv[])
         if (g_ldmBucketSizeLog != LDM_PARAM_DEFAULT) FIO_setLdmBucketSizeLog(g_ldmBucketSizeLog);
         if (g_ldmHashEveryLog != LDM_PARAM_DEFAULT) FIO_setLdmHashEveryLog(g_ldmHashEveryLog);
         FIO_setAdaptiveMode(adapt);
+        FIO_setAdaptMin(adaptMin);
+        FIO_setAdaptMax(adaptMax);
+        if (adaptMin > cLevel) cLevel = adaptMin;
+        if (adaptMax < cLevel) cLevel = adaptMax;
 
         if ((filenameIdx==1) && outFileName)
           operationResult = FIO_compressFilename(outFileName, filenameTable[0], dictFileName, cLevel, compressionParams);

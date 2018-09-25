@@ -134,9 +134,10 @@ the last one takes effect.
     This mode is the only one available when multithread support is disabled.
     Single-thread mode features lower memory usage.
     Final compressed result is slightly different from `-T1`.
-* `--adapt` :
+* `--adapt[=min=#,max=#]` :
     `zstd` will dynamically adapt compression level to perceived I/O conditions.
     Compression level adaptation can be observed live by using command `-v`.
+    Adaptation can be constrained between supplied `min` and `max` levels.
     The feature works when combined with multi-threading and `--long` mode.
     It does not work with `--single-thread`.
     It sets window size to 8 MB by default (can be changed manually, see `wlog`).

@@ -27,9 +27,11 @@ LIBVER_MINOR := $(shell echo $(LIBVER_MINOR_SCRIPT))
 LIBVER_PATCH := $(shell echo $(LIBVER_PATCH_SCRIPT))
 LIBVER  := $(shell echo $(LIBVER_SCRIPT))
 
-ZSTD_VERSION=$(LIBVER)
+ZSTD_VERSION = $(LIBVER)
 
-ifeq ($(shell $(CC) -v 2>&1 | grep -c "gcc version "), 1)
+GREP = grep --color=never
+
+ifeq ($(shell $(CC) -v 2>&1 | $(GREP) -c "gcc version "), 1)
 ALIGN_LOOP = -falign-loops=32
 else
 ALIGN_LOOP =
@@ -62,7 +64,7 @@ ZSTD_LEGACY_SUPPORT ?= 5
 ZSTDLEGACY_FILES :=
 ifneq ($(ZSTD_LEGACY_SUPPORT), 0)
 ifeq ($(shell test $(ZSTD_LEGACY_SUPPORT) -lt 8; echo $$?), 0)
-	ZSTDLEGACY_FILES += $(shell ls $(ZSTDDIR)/legacy/*.c | grep 'v0[$(ZSTD_LEGACY_SUPPORT)-7]')
+	ZSTDLEGACY_FILES += $(shell ls $(ZSTDDIR)/legacy/*.c | $(GREP) 'v0[$(ZSTD_LEGACY_SUPPORT)-7]')
 endif
 	CPPFLAGS += -I$(ZSTDDIR)/legacy
 else
@@ -260,9 +262,27 @@ preview-man: clean-man man
 #-----------------------------------------------------------------------------
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS))
 
+EGREP = egrep --color=never
+
+# Print a two column output of targets and their description. To add a target description, put a
+# comment in the Makefile with the format "## <TARGET>: <DESCRIPTION>".  For example:
+#
+## list: Print all targets and their descriptions (if provided)
 .PHONY: list
 list:
-	@$(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null | awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' | sort | egrep -v -e '^[^[:alnum:]]' -e '^$@$$' | xargs
+	@TARGETS=$$($(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null \
+		| awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' \
+		| $(EGREP) -v  -e '^[^[:alnum:]]' | sort); \
+	{ \
+	    printf "Target Name\tDescription\n"; \
+	    printf "%0.s-" {1..16}; printf "\t"; printf "%0.s-" {1..40}; printf "\n"; \
+	    for target in $$TARGETS; do \
+	        line=$$($(EGREP) "^##[[:space:]]+$$target:" $(lastword $(MAKEFILE_LIST))); \
+	        description=$$(echo $$line | awk '{i=index($$0,":"); print substr($$0,i+1)}' | xargs); \
+	        printf "$$target\t$$description\n"; \
+	    done \
+	} | column -t -s $$'\t'
+
 
 DESTDIR     ?=
 # directory variables : GNU conventions prefer lowercase

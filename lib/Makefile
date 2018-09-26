@@ -31,6 +31,8 @@ DEBUGFLAGS= -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
 CFLAGS  += $(DEBUGFLAGS) $(MOREFLAGS)
 FLAGS    = $(CPPFLAGS) $(CFLAGS)
 
+GREP = grep --color=never
+
 ZSTDCOMMON_FILES := $(sort $(wildcard common/*.c))
 ZSTDCOMP_FILES := $(sort $(wildcard compress/*.c))
 ZSTDDECOMP_FILES := $(sort $(wildcard decompress/*.c))
@@ -72,7 +74,7 @@ endif
 
 ifneq ($(ZSTD_LEGACY_SUPPORT), 0)
 ifeq ($(shell test $(ZSTD_LEGACY_SUPPORT) -lt 8; echo $$?), 0)
-	ZSTD_FILES += $(shell ls legacy/*.c | grep 'v0[$(ZSTD_LEGACY_SUPPORT)-7]')
+	ZSTD_FILES += $(shell ls legacy/*.c | $(GREP) 'v0[$(ZSTD_LEGACY_SUPPORT)-7]')
 endif
 	CPPFLAGS += -I./legacy
 endif

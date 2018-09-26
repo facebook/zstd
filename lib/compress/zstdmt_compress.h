@@ -119,11 +119,21 @@ ZSTDLIB_API size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
  * ===  Not exposed in libzstd. Never invoke directly   ===
  * ======================================================== */
 
+ /*! ZSTDMT_toFlushNow()
+  *  Tell how many bytes are ready to be flushed immediately.
+  *  Probe the oldest active job (not yet entirely flushed) and check its output buffer.
+  *  If return 0, it means there is no active job,
+  *  or, it means oldest job is still active, but everything produced has been flushed so far,
+  *  therefore flushing is limited by speed of oldest job. */
+size_t ZSTDMT_toFlushNow(ZSTDMT_CCtx* mtctx);
+
+/*! ZSTDMT_CCtxParam_setMTCtxParameter()
+ *  like ZSTDMT_setMTCtxParameter(), but into a ZSTD_CCtx_Params */
 size_t ZSTDMT_CCtxParam_setMTCtxParameter(ZSTD_CCtx_params* params, ZSTDMT_parameter parameter, unsigned value);
 
-/* ZSTDMT_CCtxParam_setNbWorkers()
- * Set nbWorkers, and clamp it.
- * Also reset jobSize and overlapLog */
+/*! ZSTDMT_CCtxParam_setNbWorkers()
+ *  Set nbWorkers, and clamp it.
+ *  Also reset jobSize and overlapLog */
 size_t ZSTDMT_CCtxParam_setNbWorkers(ZSTD_CCtx_params* params, unsigned nbWorkers);
 
 /*! ZSTDMT_updateCParams_whileCompressing() :
@@ -131,9 +141,9 @@ size_t ZSTDMT_CCtxParam_setNbWorkers(ZSTD_CCtx_params* params, unsigned nbWorker
  *  New parameters will be applied to next compression job. */
 void ZSTDMT_updateCParams_whileCompressing(ZSTDMT_CCtx* mtctx, const ZSTD_CCtx_params* cctxParams);
 
-/* ZSTDMT_getFrameProgression():
- * tells how much data has been consumed (input) and produced (output) for current frame.
- * able to count progression inside worker threads.
+/*! ZSTDMT_getFrameProgression():
+ *  tells how much data has been consumed (input) and produced (output) for current frame.
+ *  able to count progression inside worker threads.
  */
 ZSTD_frameProgression ZSTDMT_getFrameProgression(ZSTDMT_CCtx* mtctx);
 

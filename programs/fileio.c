@@ -78,6 +78,7 @@
 #define MB *(1<<20)
 #define GB *(1U<<30)
 
+#define ADAPT_WINDOWLOG_DEFAULT 23   /* 8 MB */
 #define DICTSIZE_MAX (32 MB)   /* protection against large input (attack scenario) */
 
 #define FNSPACE 30
@@ -285,6 +286,26 @@ void FIO_setOverlapLog(unsigned overlapLog){
         DISPLAYLEVEL(2, "Setting overlapLog is useless in single-thread mode \n");
     g_overlapLog = overlapLog;
 }
+static U32 g_adaptiveMode = 0;
+void FIO_setAdaptiveMode(unsigned adapt) {
+    if ((adapt>0) && (g_nbWorkers==0))
+        EXM_THROW(1, "Adaptive mode is not compatible with single thread mode \n");
+    g_adaptiveMode = adapt;
+}
+static int g_minAdaptLevel = -50;   /* initializing this value requires a constant, so ZSTD_minCLevel() doesn't work */
+void FIO_setAdaptMin(int minCLevel)
+{
+#ifndef ZSTD_NOCOMPRESS
+    assert(minCLevel >= ZSTD_minCLevel());
+#endif
+    g_minAdaptLevel = minCLevel;
+}
+static int g_maxAdaptLevel = 22;   /* initializing this value requires a constant, so ZSTD_maxCLevel() doesn't work */
+void FIO_setAdaptMax(int maxCLevel)
+{
+    g_maxAdaptLevel = maxCLevel;
+}
+
 static U32 g_ldmFlag = 0;
 void FIO_setLdmFlag(unsigned ldmFlag) {
     g_ldmFlag = (ldmFlag>0);
@@ -463,7 +484,7 @@ typedef struct {
 
 static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
                                     U64 srcSize,
-                                    ZSTD_compressionParameters* comprParams) {
+                                    ZSTD_compressionParameters comprParams) {
     cRess_t ress;
     memset(&ress, 0, sizeof(ress));
 
@@ -484,6 +505,9 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
         if (dictFileName && (dictBuffer==NULL))
             EXM_THROW(32, "allocation error : can't create dictBuffer");
 
+        if (g_adaptiveMode && !g_ldmFlag && !comprParams.windowLog)
+            comprParams.windowLog = ADAPT_WINDOWLOG_DEFAULT;
+
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_contentSizeFlag, 1) );  /* always enable content size when available (note: supposed to be default) */
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_dictIDFlag, g_dictIDFlag) );
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_checksumFlag, g_checksumFlag) );
@@ -500,13 +524,13 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_ldmHashEveryLog, g_ldmHashEveryLog) );
         }
         /* compression parameters */
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_windowLog, comprParams->windowLog) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_chainLog, comprParams->chainLog) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_hashLog, comprParams->hashLog) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_searchLog, comprParams->searchLog) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_minMatch, comprParams->searchLength) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_targetLength, comprParams->targetLength) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionStrategy, (U32)comprParams->strategy) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_windowLog, comprParams.windowLog) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_chainLog, comprParams.chainLog) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_hashLog, comprParams.hashLog) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_searchLog, comprParams.searchLog) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_minMatch, comprParams.searchLength) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_targetLength, comprParams.targetLength) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionStrategy, (U32)comprParams.strategy) );
         /* multi-threading */
 #ifdef ZSTD_MULTITHREAD
         DISPLAYLEVEL(5,"set nb workers = %u \n", g_nbWorkers);
@@ -539,7 +563,8 @@ static void FIO_freeCResources(cRess_t ress)
 
 
 #ifdef ZSTD_GZCOMPRESS
-static unsigned long long FIO_compressGzFrame(cRess_t* ress,
+static unsigned long long
+FIO_compressGzFrame(cRess_t* ress,
                     const char* srcFileName, U64 const srcFileSize,
                     int compressionLevel, U64* readsize)
 {
@@ -621,9 +646,10 @@ static unsigned long long FIO_compressGzFrame(cRess_t* ress,
 
 
 #ifdef ZSTD_LZMACOMPRESS
-static unsigned long long FIO_compressLzmaFrame(cRess_t* ress,
-                            const char* srcFileName, U64 const srcFileSize,
-                            int compressionLevel, U64* readsize, int plain_lzma)
+static unsigned long long
+FIO_compressLzmaFrame(cRess_t* ress,
+                      const char* srcFileName, U64 const srcFileSize,
+                      int compressionLevel, U64* readsize, int plain_lzma)
 {
     unsigned long long inFileSize = 0, outFileSize = 0;
     lzma_stream strm = LZMA_STREAM_INIT;
@@ -696,9 +722,10 @@ static unsigned long long FIO_compressLzmaFrame(cRess_t* ress,
 #define LZ4F_max64KB max64KB
 #endif
 static int FIO_LZ4_GetBlockSize_FromBlockId (int id) { return (1 << (8 + (2 * id))); }
-static unsigned long long FIO_compressLz4Frame(cRess_t* ress,
-                            const char* srcFileName, U64 const srcFileSize,
-                            int compressionLevel, U64* readsize)
+static unsigned long long
+FIO_compressLz4Frame(cRess_t* ress,
+                     const char* srcFileName, U64 const srcFileSize,
+                     int compressionLevel, U64* readsize)
 {
     const size_t blockSize = FIO_LZ4_GetBlockSize_FromBlockId(LZ4F_max64KB);
     unsigned long long inFileSize = 0, outFileSize = 0;
@@ -796,17 +823,28 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
     FILE* const dstFile = ress.dstFile;
     U64 compressedfilesize = 0;
     ZSTD_EndDirective directive = ZSTD_e_continue;
+
+    /* stats */
+    ZSTD_frameProgression previous_zfp_update = { 0, 0, 0, 0, 0, 0 };
+    ZSTD_frameProgression previous_zfp_correction = { 0, 0, 0, 0, 0, 0 };
+    typedef enum { noChange, slower, faster } speedChange_e;
+    speedChange_e speedChange = noChange;
+    unsigned flushWaiting = 0;
+    unsigned inputPresented = 0;
+    unsigned inputBlocked = 0;
+    unsigned lastJobID = 0;
+
     DISPLAYLEVEL(6, "compression using zstd format \n");
 
     /* init */
     if (fileSize != UTIL_FILESIZE_UNKNOWN) {
         CHECK(ZSTD_CCtx_setPledgedSrcSize(ress.cctx, fileSize));
     }
-    (void)compressionLevel; (void)srcFileName;
+    (void)srcFileName;
 
     /* Main compression loop */
     do {
-        size_t result;
+        size_t stillToFlush;
         /* Fill input Buffer */
         size_t const inSize = fread(ress.srcBuffer, (size_t)1, ress.srcBufferSize, srcFile);
         ZSTD_inBuffer inBuff = { ress.srcBuffer, inSize, 0 };
@@ -816,41 +854,139 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
         if ((inSize == 0) || (*readsize == fileSize))
             directive = ZSTD_e_end;
 
-        result = 1;
+        stillToFlush = 1;
         while ((inBuff.pos != inBuff.size)   /* input buffer must be entirely ingested */
-            || (directive == ZSTD_e_end && result != 0) ) {
+            || (directive == ZSTD_e_end && stillToFlush != 0) ) {
+
+            size_t const oldIPos = inBuff.pos;
             ZSTD_outBuffer outBuff = { ress.dstBuffer, ress.dstBufferSize, 0 };
-            CHECK_V(result, ZSTD_compress_generic(ress.cctx, &outBuff, &inBuff, directive));
+            size_t const toFlushNow = ZSTD_toFlushNow(ress.cctx);
+            CHECK_V(stillToFlush, ZSTD_compress_generic(ress.cctx, &outBuff, &inBuff, directive));
+
+            /* count stats */
+            inputPresented++;
+            if (oldIPos == inBuff.pos) inputBlocked++;  /* input buffer is full and can't take any more : input speed is faster than consumption rate */
+            if (!toFlushNow) flushWaiting = 1;
 
             /* Write compressed stream */
-            DISPLAYLEVEL(6, "ZSTD_compress_generic(end:%u) => intput pos(%u)<=(%u)size ; output generated %u bytes \n",
+            DISPLAYLEVEL(6, "ZSTD_compress_generic(end:%u) => input pos(%u)<=(%u)size ; output generated %u bytes \n",
                             (U32)directive, (U32)inBuff.pos, (U32)inBuff.size, (U32)outBuff.pos);
             if (outBuff.pos) {
                 size_t const sizeCheck = fwrite(ress.dstBuffer, 1, outBuff.pos, dstFile);
-                if (sizeCheck!=outBuff.pos)
+                if (sizeCheck != outBuff.pos)
                     EXM_THROW(25, "Write error : cannot write compressed block");
                 compressedfilesize += outBuff.pos;
             }
+
+            /* display notification; and adapt compression level */
             if (READY_FOR_UPDATE()) {
                 ZSTD_frameProgression const zfp = ZSTD_getFrameProgression(ress.cctx);
                 double const cShare = (double)zfp.produced / (zfp.consumed + !zfp.consumed/*avoid div0*/) * 100;
+
+                /* display progress notifications */
                 if (g_displayLevel >= 3) {
-                    DISPLAYUPDATE(3, "\r(L%i) Buffered :%4u MB - Consumed :%4u MB - Compressed :%4u MB => %.2f%%",
+                    DISPLAYUPDATE(3, "\r(L%i) Buffered :%4u MB - Consumed :%4u MB - Compressed :%4u MB => %.2f%% ",
                                 compressionLevel,
                                 (U32)((zfp.ingested - zfp.consumed) >> 20),
                                 (U32)(zfp.consumed >> 20),
                                 (U32)(zfp.produced >> 20),
                                 cShare );
-                } else {
-                    /* g_displayLevel <= 2; only display notifications if == 2; */
+                } else {   /* summarized notifications if == 2; */
                     DISPLAYLEVEL(2, "\rRead : %u ", (U32)(zfp.consumed >> 20));
                     if (fileSize != UTIL_FILESIZE_UNKNOWN)
                         DISPLAYLEVEL(2, "/ %u ", (U32)(fileSize >> 20));
                     DISPLAYLEVEL(2, "MB ==> %2.f%% ", cShare);
                     DELAY_NEXT_UPDATE();
                 }
-            }
-        }
+
+                /* adaptive mode : statistics measurement and speed correction */
+                if (g_adaptiveMode) {
+
+                    /* check output speed */
+                    if (zfp.currentJobID > 1) {  /* only possible if nbWorkers >= 1 */
+
+                        unsigned long long newlyProduced = zfp.produced - previous_zfp_update.produced;
+                        unsigned long long newlyFlushed = zfp.flushed - previous_zfp_update.flushed;
+                        assert(zfp.produced >= previous_zfp_update.produced);
+                        assert(g_nbWorkers >= 1);
+
+                        /* test if compression is blocked
+                         * either because output is slow and all buffers are full
+                         * or because input is slow and no job can start while waiting for at least one buffer to be filled.
+                         * note : excluse starting part, since currentJobID > 1 */
+                        if ( (zfp.consumed == previous_zfp_update.consumed)   /* no data compressed : no data available, or no more buffer to compress to, OR compression is really slow (compression of a single block is slower than update rate)*/
+                          && (zfp.nbActiveWorkers == 0)                       /* confirmed : no compression ongoing */
+                          ) {
+                            DISPLAYLEVEL(6, "all buffers full : compression stopped => slow down \n")
+                            speedChange = slower;
+                        }
+
+                        previous_zfp_update = zfp;
+
+                        if ( (newlyProduced > (newlyFlushed * 9 / 8))   /* compression produces more data than output can flush (though production can be spiky, due to work unit : (N==4)*block sizes) */
+                          && (flushWaiting == 0)                        /* flush speed was never slowed by lack of production, so it's operating at max capacity */
+                          ) {
+                            DISPLAYLEVEL(6, "compression faster than flush (%llu > %llu), and flushed was never slowed down by lack of production => slow down \n", newlyProduced, newlyFlushed);
+                            speedChange = slower;
+                        }
+                        flushWaiting = 0;
+                    }
+
+                    /* course correct only if there is at least one new job completed */
+                    if (zfp.currentJobID > lastJobID) {
+                        DISPLAYLEVEL(6, "compression level adaptation check \n")
+
+                        /* check input speed */
+                        if (zfp.currentJobID > g_nbWorkers+1) {   /* warm up period, to fill all workers */
+                            if (inputBlocked <= 0) {
+                                DISPLAYLEVEL(6, "input is never blocked => input is slower than ingestion \n");
+                                speedChange = slower;
+                            } else if (speedChange == noChange) {
+                                unsigned long long newlyIngested = zfp.ingested - previous_zfp_correction.ingested;
+                                unsigned long long newlyConsumed = zfp.consumed - previous_zfp_correction.consumed;
+                                unsigned long long newlyProduced = zfp.produced - previous_zfp_correction.produced;
+                                unsigned long long newlyFlushed  = zfp.flushed  - previous_zfp_correction.flushed;
+                                previous_zfp_correction = zfp;
+                                assert(inputPresented > 0);
+                                DISPLAYLEVEL(6, "input blocked %u/%u(%.2f) - ingested:%u vs %u:consumed - flushed:%u vs %u:produced \n",
+                                                inputBlocked, inputPresented, (double)inputBlocked/inputPresented*100,
+                                                (U32)newlyIngested, (U32)newlyConsumed,
+                                                (U32)newlyFlushed, (U32)newlyProduced);
+                                if ( (inputBlocked > inputPresented / 8)     /* input is waiting often, because input buffers is full : compression or output too slow */
+                                  && (newlyFlushed * 33 / 32 > newlyProduced)  /* flush everything that is produced */
+                                  && (newlyIngested * 33 / 32 > newlyConsumed) /* input speed as fast or faster than compression speed */
+                                ) {
+                                    DISPLAYLEVEL(6, "recommend faster as in(%llu) >= (%llu)comp(%llu) <= out(%llu) \n",
+                                                    newlyIngested, newlyConsumed, newlyProduced, newlyFlushed);
+                                    speedChange = faster;
+                                }
+                            }
+                            inputBlocked = 0;
+                            inputPresented = 0;
+                        }
+
+                        if (speedChange == slower) {
+                            DISPLAYLEVEL(6, "slower speed , higher compression \n")
+                            compressionLevel ++;
+                            if (compressionLevel > ZSTD_maxCLevel()) compressionLevel = ZSTD_maxCLevel();
+                            if (compressionLevel > g_maxAdaptLevel) compressionLevel = g_maxAdaptLevel;
+                            compressionLevel += (compressionLevel == 0);   /* skip 0 */
+                            ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionLevel, (unsigned)compressionLevel);
+                        }
+                        if (speedChange == faster) {
+                            DISPLAYLEVEL(6, "faster speed , lighter compression \n")
+                            compressionLevel --;
+                            if (compressionLevel < g_minAdaptLevel) compressionLevel = g_minAdaptLevel;
+                            compressionLevel -= (compressionLevel == 0);   /* skip 0 */
+                            ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionLevel, (unsigned)compressionLevel);
+                        }
+                        speedChange = noChange;
+
+                        lastJobID = zfp.currentJobID;
+                    }  /* if (zfp.currentJobID > lastJobID) */
+                }  /* if (g_adaptiveMode) */
+            }  /* if (READY_FOR_UPDATE()) */
+        }  /* while ((inBuff.pos != inBuff.size) */
     } while (directive != ZSTD_e_end);
 
     if (ferror(srcFile)) {
@@ -1010,7 +1146,8 @@ static int FIO_compressFilename_dstFile(cRess_t ress,
 
 
 int FIO_compressFilename(const char* dstFileName, const char* srcFileName,
-                         const char* dictFileName, int compressionLevel, ZSTD_compressionParameters* comprParams)
+                         const char* dictFileName, int compressionLevel,
+                         ZSTD_compressionParameters comprParams)
 {
     clock_t const start = clock();
     U64 const fileSize = UTIL_getFileSize(srcFileName);
@@ -1030,7 +1167,7 @@ int FIO_compressFilename(const char* dstFileName, const char* srcFileName,
 int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFiles,
                                   const char* outFileName, const char* suffix,
                                   const char* dictFileName, int compressionLevel,
-                                  ZSTD_compressionParameters* comprParams)
+                                  ZSTD_compressionParameters comprParams)
 {
     int missed_files = 0;
     size_t dfnSize = FNSPACE;

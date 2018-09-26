@@ -102,6 +102,13 @@ the last one takes effect.
 
 * `-#`:
     `#` compression level \[1-19] (default: 3)
+* `--fast[=#]`:
+    switch to ultra-fast compression levels.
+    If `=#` is not present, it defaults to `1`.
+    The higher the value, the faster the compression speed,
+    at the cost of some compression ratio.
+    This setting overwrites compression level if one was set previously.
+    Similarly, if a compression level is set after `--fast`, it overrides it.
 * `--ultra`:
     unlocks high compression levels 20+ (maximum 22), using a lot more memory.
     Note that decompression will also require more memory when using these levels.
@@ -115,25 +122,28 @@ the last one takes effect.
 
     Note: If `windowLog` is set to larger than 27, `--long=windowLog` or
     `--memory=windowSize` needs to be passed to the decompressor.
-* `--fast[=#]`:
-    switch to ultra-fast compression levels.
-    If `=#` is not present, it defaults to `1`.
-    The higher the value, the faster the compression speed,
-    at the cost of some compression ratio.
-    This setting overwrites compression level if one was set previously.
-    Similarly, if a compression level is set after `--fast`, it overrides it.
-
 * `-T#`, `--threads=#`:
     Compress using `#` working threads (default: 1).
     If `#` is 0, attempt to detect and use the number of physical CPU cores.
     In all cases, the nb of threads is capped to ZSTDMT_NBTHREADS_MAX==200.
     This modifier does nothing if `zstd` is compiled without multithread support.
 * `--single-thread`:
-    Does not spawn a thread for compression, use caller thread instead.
-    This is the only available mode when multithread support is disabled.
-    In this mode, compression is serialized with I/O.
+    Does not spawn a thread for compression, use a single thread for both I/O and compression.
+    In this mode, compression is serialized with I/O, which is slightly slower.
     (This is different from `-T1`, which spawns 1 compression thread in parallel of I/O).
-    Single-thread mode also features lower memory usage.
+    This mode is the only one available when multithread support is disabled.
+    Single-thread mode features lower memory usage.
+    Final compressed result is slightly different from `-T1`.
+* `--adapt[=min=#,max=#]` :
+    `zstd` will dynamically adapt compression level to perceived I/O conditions.
+    Compression level adaptation can be observed live by using command `-v`.
+    Adaptation can be constrained between supplied `min` and `max` levels.
+    The feature works when combined with multi-threading and `--long` mode.
+    It does not work with `--single-thread`.
+    It sets window size to 8 MB by default (can be changed manually, see `wlog`).
+    Due to the chaotic nature of dynamic adaptation, compressed result is not reproducible.
+    _note_ : at the time of this writing, `--adapt` can remain stuck at low speed
+    when combined with multiple worker threads (>=2).
 * `-D file`:
     use `file` as Dictionary to compress or decompress FILE(s)
 * `--no-dictID`:

@@ -103,6 +103,7 @@ else
 fi
 
 
+
 $ECHO "\n===>  simple tests "
 
 ./datagen > tmp
@@ -415,38 +416,6 @@ rm -f tmpDict dictionary
 $ZSTD -o tmpDict --train *.c ../programs/*.c
 test -f tmpDict
 $ZSTD --train *.c ../programs/*.c
-test -f dictionary
-rm tmp* dictionary
-
-
-$ECHO "\n===>  cover dictionary builder : advanced options "
-
-TESTFILE=../programs/zstdcli.c
-./datagen > tmpDict
-$ECHO "- Create first dictionary"
-$ZSTD --train-cover=k=46,d=8,split=80 *.c ../programs/*.c -o tmpDict
-cp $TESTFILE tmp
-$ZSTD -f tmp -D tmpDict
-$ZSTD -d tmp.zst -D tmpDict -fo result
-$DIFF $TESTFILE result
-$ECHO "- Create second (different) dictionary"
-$ZSTD --train-cover=k=56,d=8 *.c ../programs/*.c ../programs/*.h -o tmpDictC
-$ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
-$ECHO "- Create dictionary with short dictID"
-$ZSTD --train-cover=k=46,d=8,split=80 *.c ../programs/*.c --dictID=1 -o tmpDict1
-cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
-$ECHO "- Create dictionary with size limit"
-$ZSTD --train-cover=steps=8 *.c ../programs/*.c -o tmpDict2 --maxdict=4K
-$ECHO "- Compare size of dictionary from 90% training samples with 80% training samples"
-$ZSTD --train-cover=split=90 -r *.c ../programs/*.c
-$ZSTD --train-cover=split=80 -r *.c ../programs/*.c
-$ECHO "- Create dictionary using all samples for both training and testing"
-$ZSTD --train-cover=split=100 -r *.c ../programs/*.c
-$ECHO "- Test -o before --train-cover"
-rm -f tmpDict dictionary
-$ZSTD -o tmpDict --train-cover *.c ../programs/*.c
-test -f tmpDict
-$ZSTD --train-cover *.c ../programs/*.c
 test -f dictionary
 rm tmp* dictionary
 
@@ -845,10 +814,19 @@ roundTripTest -g1M -P50 "1 --single-thread --long=29" " --long=28 --memory=512MB
 roundTripTest -g1M -P50 "1 --single-thread --long=29" " --zstd=wlog=28 --memory=512MB"
 
 
+$ECHO "\n===>   adaptive mode "
+roundTripTest -g270000000 " --adapt"
+roundTripTest -g27000000 " --adapt=min=1,max=4"
+./datagen > tmp
+$ZSTD -f -vv --adapt=min=10,max=9 tmp && die "--adapt must fail on incoherent bounds"
+
+
 if [ "$1" != "--test-large-data" ]; then
     $ECHO "Skipping large data tests"
     exit 0
 fi
+
+
 
 $ECHO "\n===>   large files tests "
 
@@ -904,4 +882,37 @@ else
     $ECHO "\n**** no multithreading, skipping zstdmt tests **** "
 fi
 
-rm tmp*
+
+$ECHO "\n===>  cover dictionary builder : advanced options "
+
+TESTFILE=../programs/zstdcli.c
+./datagen > tmpDict
+$ECHO "- Create first dictionary"
+$ZSTD --train-cover=k=46,d=8,split=80 *.c ../programs/*.c -o tmpDict
+cp $TESTFILE tmp
+$ZSTD -f tmp -D tmpDict
+$ZSTD -d tmp.zst -D tmpDict -fo result
+$DIFF $TESTFILE result
+$ECHO "- Create second (different) dictionary"
+$ZSTD --train-cover=k=56,d=8 *.c ../programs/*.c ../programs/*.h -o tmpDictC
+$ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
+$ECHO "- Create dictionary with short dictID"
+$ZSTD --train-cover=k=46,d=8,split=80 *.c ../programs/*.c --dictID=1 -o tmpDict1
+cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
+$ECHO "- Create dictionary with size limit"
+$ZSTD --train-cover=steps=8 *.c ../programs/*.c -o tmpDict2 --maxdict=4K
+$ECHO "- Compare size of dictionary from 90% training samples with 80% training samples"
+$ZSTD --train-cover=split=90 -r *.c ../programs/*.c
+$ZSTD --train-cover=split=80 -r *.c ../programs/*.c
+$ECHO "- Create dictionary using all samples for both training and testing"
+$ZSTD --train-cover=split=100 -r *.c ../programs/*.c
+$ECHO "- Test -o before --train-cover"
+rm -f tmpDict dictionary
+$ZSTD -o tmpDict --train-cover *.c ../programs/*.c
+test -f tmpDict
+$ZSTD --train-cover *.c ../programs/*.c
+test -f dictionary
+rm -f tmp* dictionary
+
+
+rm -f tmp*

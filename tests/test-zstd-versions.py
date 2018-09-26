@@ -213,7 +213,7 @@ if __name__ == '__main__':
     print('Retrieve all release tags :')
     os.chdir(clone_dir)
     alltags = get_git_tags() + [head]
-    tags = [t for t in alltags if t >= 'v0.4.0']
+    tags = [t for t in alltags if t >= 'v0.5.0']
     print(tags)
 
     # Build all release zstd

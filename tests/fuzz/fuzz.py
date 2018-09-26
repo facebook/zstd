@@ -13,6 +13,7 @@ import argparse
 import contextlib
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -349,11 +350,11 @@ def build(args):
     targets = args.TARGET
     cc = args.cc
     cxx = args.cxx
-    cppflags = [args.cppflags]
-    cflags = [args.cflags]
-    ldflags = [args.ldflags]
-    cxxflags = [args.cxxflags]
-    mflags = [args.mflags] if args.mflags else []
+    cppflags = shlex.split(args.cppflags)
+    cflags = shlex.split(args.cflags)
+    ldflags = shlex.split(args.ldflags)
+    cxxflags = shlex.split(args.cxxflags)
+    mflags = shlex.split(args.mflags)
     # Flags to be added to both cflags and cxxflags
     common_flags = []
 

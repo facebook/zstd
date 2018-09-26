@@ -2333,6 +2333,7 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
     ZSTD_matchState_t* const ms = &zc->blockState.matchState;
     DEBUGLOG(5, "ZSTD_compressBlock_internal (dstCapacity=%zu, dictLimit=%u, nextToUpdate=%u)",
                 dstCapacity, ms->window.dictLimit, ms->nextToUpdate);
+    assert(srcSize <= ZSTD_BLOCKSIZE_MAX);
 
     if (srcSize < MIN_CBLOCK_SIZE+ZSTD_blockHeaderSize+1) {
         ZSTD_ldm_skipSequences(&zc->externSeqStore, srcSize, zc->appliedParams.cParams.searchLength);
@@ -2454,7 +2455,19 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
             return ERROR(dstSize_tooSmall);   /* not enough space to store compressed block */
         if (remaining < blockSize) blockSize = remaining;
 
-        ZSTD_window_enforceMaxDist(&ms->window, ip + blockSize, maxDist, &ms->loadedDictEnd, &ms->dictMatchState);
+        if (ZSTD_window_needOverflowCorrection(ms->window, ip + blockSize)) {
+            U32 const cycleLog = ZSTD_cycleLog(cctx->appliedParams.cParams.chainLog, cctx->appliedParams.cParams.strategy);
+            U32 const correction = ZSTD_window_correctOverflow(&ms->window, cycleLog, maxDist, ip);
+            ZSTD_STATIC_ASSERT(ZSTD_CHAINLOG_MAX <= 30);
+            ZSTD_STATIC_ASSERT(ZSTD_WINDOWLOG_MAX_32 <= 30);
+            ZSTD_STATIC_ASSERT(ZSTD_WINDOWLOG_MAX <= 31);
+             ZSTD_reduceIndex(cctx, correction);
+            if (ms->nextToUpdate < correction) ms->nextToUpdate = 0;
+            else ms->nextToUpdate -= correction;
+            ms->loadedDictEnd = 0;
+            ms->dictMatchState = NULL;
+        }
+                ZSTD_window_enforceMaxDist(&ms->window, ip + blockSize, maxDist, &ms->loadedDictEnd, &ms->dictMatchState);
         if (ms->nextToUpdate < ms->window.lowLimit) ms->nextToUpdate = ms->window.lowLimit;
 
         {   size_t cSize = ZSTD_compressBlock_internal(cctx,
@@ -2566,7 +2579,7 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* cctx,
                         const void* src, size_t srcSize,
                                U32 frame, U32 lastFrameChunk)
 {
-    ZSTD_matchState_t* ms = &cctx->blockState.matchState;
+    ZSTD_matchState_t* const ms = &cctx->blockState.matchState;
     size_t fhSize = 0;
 
     DEBUGLOG(5, "ZSTD_compressContinue_internal, stage: %u, srcSize: %u",
@@ -2589,20 +2602,6 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* cctx,
     }
     if (cctx->appliedParams.ldmParams.enableLdm)
         ZSTD_window_update(&cctx->ldmState.window, src, srcSize);
-
-    if (ZSTD_window_needOverflowCorrection(ms->window, (const char*)src + srcSize)) {
-        U32 const cycleLog = ZSTD_cycleLog(cctx->appliedParams.cParams.chainLog, cctx->appliedParams.cParams.strategy);
-        U32 const correction = ZSTD_window_correctOverflow(&ms->window, cycleLog, 1 << cctx->appliedParams.cParams.windowLog, src);
-        ZSTD_STATIC_ASSERT(ZSTD_CHAINLOG_MAX <= 30);
-        ZSTD_STATIC_ASSERT(ZSTD_WINDOWLOG_MAX_32 <= 30);
-        ZSTD_STATIC_ASSERT(ZSTD_WINDOWLOG_MAX <= 31);
-
-        ZSTD_reduceIndex(cctx, correction);
-        if (ms->nextToUpdate < correction) ms->nextToUpdate = 0;
-        else ms->nextToUpdate -= correction;
-        ms->loadedDictEnd = 0;
-        ms->dictMatchState = NULL;
-    }
 
     DEBUGLOG(5, "ZSTD_compressContinue_internal (blockSize=%u)", (U32)cctx->blockSize);
     {   size_t const cSize = frame ?
@@ -2642,8 +2641,24 @@ size_t ZSTD_getBlockSize(const ZSTD_CCtx* cctx)
 
 size_t ZSTD_compressBlock(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
+    ZSTD_matchState_t* const ms = &cctx->blockState.matchState;
     size_t const blockSizeMax = ZSTD_getBlockSize(cctx);
     if (srcSize > blockSizeMax) return ERROR(srcSize_wrong);
+
+    if (ZSTD_window_needOverflowCorrection(ms->window, (const char*)src + srcSize)) {
+        U32 const cycleLog = ZSTD_cycleLog(cctx->appliedParams.cParams.chainLog, cctx->appliedParams.cParams.strategy);
+        U32 const correction = ZSTD_window_correctOverflow(&ms->window, cycleLog, 1 << cctx->appliedParams.cParams.windowLog, src);
+        ZSTD_STATIC_ASSERT(ZSTD_CHAINLOG_MAX <= 30);
+        ZSTD_STATIC_ASSERT(ZSTD_WINDOWLOG_MAX_32 <= 30);
+        ZSTD_STATIC_ASSERT(ZSTD_WINDOWLOG_MAX <= 31);
+
+        ZSTD_reduceIndex(cctx, correction);
+        if (ms->nextToUpdate < correction) ms->nextToUpdate = 0;
+        else ms->nextToUpdate -= correction;
+        ms->loadedDictEnd = 0;
+        ms->dictMatchState = NULL;
+    }
+
     return ZSTD_compressContinue_internal(cctx, dst, dstCapacity, src, srcSize, 0 /* frame mode */, 0 /* last chunk */);
 }
 

@@ -112,11 +112,13 @@ $ECHO "test : basic decompression"
 $ZSTD -df tmp.zst                 # trivial decompression case (overwrites tmp)
 $ECHO "test : too large compression level => auto-fix"
 $ZSTD -99 -f tmp  # too large compression level, automatic sized down
+$ZSTD -5000000000 -f tmp && die "too large numeric value : must fail"
 $ECHO "test : --fast aka negative compression levels"
 $ZSTD --fast -f tmp  # == -1
 $ZSTD --fast=3 -f tmp  # == -3
-$ZSTD --fast=200000 -f tmp  # == no compression
-! $ZSTD -c --fast=0 tmp > $INTOVOID # should fail
+$ZSTD --fast=200000 -f tmp  # too low compression level, automatic fixed
+$ZSTD --fast=5000000000 -f tmp && die "too large numeric value : must fail"
+$ZSTD -c --fast=0 tmp > $INTOVOID && die "--fast must not accept value 0"
 $ECHO "test : too large numeric argument"
 $ZSTD --fast=9999999999 -f tmp  && die "should have refused numeric value"
 $ECHO "test : compress to stdout"
@@ -798,32 +800,32 @@ $ZSTD -l *.zst
 $ZSTD -lv *.zst
 
 $ECHO "\n===>  zstd --list/-l error detection tests "
-! $ZSTD -l tmp1 tmp1.zst
-! $ZSTD --list tmp*
-! $ZSTD -lv tmp1*
-! $ZSTD --list -v tmp2 tmp12.zst
+$ZSTD -l tmp1 tmp1.zst && die "-l must fail on non-zstd file"
+$ZSTD --list tmp* && die "-l must fail on non-zstd file"
+$ZSTD -lv tmp1* && die "-l must fail on non-zstd file"
+$ZSTD --list -v tmp2 tmp12.zst && die "-l must fail on non-zstd file"
 
 $ECHO "\n===>  zstd --list/-l errors when presented with stdin / no files"
-! $ZSTD -l
-! $ZSTD -l -
-! $ZSTD -l < tmp1.zst
-! $ZSTD -l - < tmp1.zst
-! $ZSTD -l - tmp1.zst
-! $ZSTD -l - tmp1.zst < tmp1.zst
-$ZSTD -l tmp1.zst < tmp1.zst # but doesn't error just because stdin is not a tty
+$ZSTD -l && die "-l must fail on empty list of files"
+$ZSTD -l - && die "-l does not work on stdin"
+$ZSTD -l < tmp1.zst && die "-l does not work on stdin"
+$ZSTD -l - < tmp1.zst && die "-l does not work on stdin"
+$ZSTD -l - tmp1.zst && die "-l does not work on stdin"
+$ZSTD -l - tmp1.zst < tmp1.zst && die "-l does not work on stdin"
+$ZSTD -l tmp1.zst < tmp2.zst # this will check tmp1.zst, but not tmp2.zst, which is not an error : zstd simply doesn't read stdin in this case. It must not error just because stdin is not a tty
 
 $ECHO "\n===>  zstd --list/-l test with null files "
 ./datagen -g0 > tmp5
 $ZSTD tmp5
 $ZSTD -l tmp5.zst
-! $ZSTD -l tmp5*
+$ZSTD -l tmp5* && die "-l must fail on non-zstd file"
 $ZSTD -lv tmp5.zst | grep "Decompressed Size: 0.00 KB (0 B)"  # check that 0 size is present in header
-! $ZSTD -lv tmp5*
+$ZSTD -lv tmp5* && die "-l must fail on non-zstd file"
 
 $ECHO "\n===>  zstd --list/-l test with no content size field "
 ./datagen -g513K | $ZSTD > tmp6.zst
 $ZSTD -l tmp6.zst
-! $ZSTD -lv tmp6.zst | grep "Decompressed Size:"  # must NOT be present in header
+$ZSTD -lv tmp6.zst | grep "Decompressed Size:"  && die "Field :Decompressed Size: should not be available in this compressed file"
 
 $ECHO "\n===>   zstd --list/-l test with no checksum "
 $ZSTD -f --no-check tmp1

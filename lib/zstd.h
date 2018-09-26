@@ -746,29 +746,48 @@ ZSTDLIB_API size_t ZSTD_initCStream_usingCDict_advanced(ZSTD_CStream* zcs, const
 
 /*! ZSTD_resetCStream() :
  *  start a new compression job, using same parameters from previous job.
- *  This is typically useful to skip dictionary loading stage, since it will re-use it in-place..
+ *  This is typically useful to skip dictionary loading stage, since it will re-use it in-place.
  *  Note that zcs must be init at least once before using ZSTD_resetCStream().
  *  If pledgedSrcSize is not known at reset time, use macro ZSTD_CONTENTSIZE_UNKNOWN.
  *  If pledgedSrcSize > 0, its value must be correct, as it will be written in header, and controlled at the end.
  *  For the time being, pledgedSrcSize==0 is interpreted as "srcSize unknown" for compatibility with older programs,
  *  but it will change to mean "empty" in future version, so use macro ZSTD_CONTENTSIZE_UNKNOWN instead.
- * @return : 0, or an error code (which can be tested using ZSTD_isError()) */
+ * @return : 0, or an error code (which can be tested using ZSTD_isError())
+ */
 ZSTDLIB_API size_t ZSTD_resetCStream(ZSTD_CStream* zcs, unsigned long long pledgedSrcSize);
 
 
 typedef struct {
-    unsigned long long ingested;
-    unsigned long long consumed;
-    unsigned long long produced;
+    unsigned long long ingested;   /* nb input bytes read and buffered */
+    unsigned long long consumed;   /* nb input bytes actually compressed */
+    unsigned long long produced;   /* nb of compressed bytes generated and buffered */
+    unsigned long long flushed;    /* nb of compressed bytes flushed : not provided; can be tracked from caller side */
+    unsigned currentJobID;         /* MT only : latest started job nb */
+    unsigned nbActiveWorkers;      /* MT only : nb of workers actively compressing at probe time */
 } ZSTD_frameProgression;
 
-/* ZSTD_getFrameProgression():
+/* ZSTD_getFrameProgression() :
  * tells how much data has been ingested (read from input)
  * consumed (input actually compressed) and produced (output) for current frame.
- * Therefore, (ingested - consumed) is amount of input data buffered internally, not yet compressed.
- * Can report progression inside worker threads (multi-threading and non-blocking mode).
+ * Note : (ingested - consumed) is amount of input data buffered internally, not yet compressed.
+ * Aggregates progression inside active worker threads.
  */
-ZSTD_frameProgression ZSTD_getFrameProgression(const ZSTD_CCtx* cctx);
+ZSTDLIB_API ZSTD_frameProgression ZSTD_getFrameProgression(const ZSTD_CCtx* cctx);
+
+/*! ZSTD_toFlushNow() :
+ *  Tell how many bytes are ready to be flushed immediately.
+ *  Useful for multithreading scenarios (nbWorkers >= 1).
+ *  Probe the oldest active job, defined as oldest job not yet entirely flushed,
+ *  and check its output buffer.
+ * @return : amount of data stored in oldest job and ready to be flushed immediately.
+ *  if @return == 0, it means either :
+ *  + there is no active job (could be checked with ZSTD_frameProgression()), or
+ *  + oldest job is still actively compressing data,
+ *    but everything it has produced has also been flushed so far,
+ *    therefore flushing speed is currently limited by production speed of oldest job
+ *    irrespective of the speed of concurrent newer jobs.
+ */
+ZSTDLIB_API size_t ZSTD_toFlushNow(ZSTD_CCtx* cctx);
 
 
 

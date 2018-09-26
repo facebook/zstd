@@ -432,9 +432,9 @@ static size_t ZSTD_BtFindBestMatch_extDict_selectMLS (
    Assumption : always within prefix (i.e. not within extDict) */
 static U32 ZSTD_insertAndFindFirstIndex_internal(
                         ZSTD_matchState_t* ms,
+                        const ZSTD_compressionParameters* const cParams,
                         const BYTE* ip, U32 const mls)
 {
-    const ZSTD_compressionParameters* const cParams = &ms->cParams;
     U32* const hashTable  = ms->hashTable;
     const U32 hashLog = cParams->hashLog;
     U32* const chainTable = ms->chainTable;
@@ -455,7 +455,8 @@ static U32 ZSTD_insertAndFindFirstIndex_internal(
 }
 
 U32 ZSTD_insertAndFindFirstIndex(ZSTD_matchState_t* ms, const BYTE* ip) {
-    return ZSTD_insertAndFindFirstIndex_internal(ms, ip, ms->cParams.searchLength);
+    const ZSTD_compressionParameters* const cParams = &ms->cParams;
+    return ZSTD_insertAndFindFirstIndex_internal(ms, cParams, ip, ms->cParams.searchLength);
 }
 
 
@@ -483,7 +484,7 @@ size_t ZSTD_HcFindBestMatch_generic (
     size_t ml=4-1;
 
     /* HC4 match finder */
-    U32 matchIndex = ZSTD_insertAndFindFirstIndex_internal(ms, ip, mls);
+    U32 matchIndex = ZSTD_insertAndFindFirstIndex_internal(ms, cParams, ip, mls);
 
     for ( ; (matchIndex>lowLimit) & (nbAttempts>0) ; nbAttempts--) {
         size_t currentMl=0;

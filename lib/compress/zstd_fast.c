@@ -172,6 +172,7 @@ size_t ZSTD_compressBlock_fast_generic(
 
         if (ip <= ilimit) {
             /* Fill Table */
+            assert(base+current+2 > istart);  /* check base overflow */
             hashTable[ZSTD_hashPtr(base+current+2, hlog, mls)] = current+2;  /* here because current+2 could be > iend-8 */
             hashTable[ZSTD_hashPtr(ip-2, hlog, mls)] = (U32)(ip-2-base);
 

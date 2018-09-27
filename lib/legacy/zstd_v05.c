@@ -2659,6 +2659,7 @@ struct ZSTDv05_DCtx_s
     BYTE headerBuffer[ZSTDv05_frameHeaderSize_max];
 };  /* typedef'd to ZSTDv05_DCtx within "zstd_static.h" */
 
+size_t ZSTDv05_sizeofDCtx (void); /* Hidden declaration */
 size_t ZSTDv05_sizeofDCtx (void) { return sizeof(ZSTDv05_DCtx); }
 
 size_t ZSTDv05_decompressBegin(ZSTDv05_DCtx* dctx)
@@ -2823,7 +2824,7 @@ static size_t ZSTDv05_decodeFrameHeader_Part2(ZSTDv05_DCtx* zc, const void* src,
 }
 
 
-size_t ZSTDv05_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bpPtr)
+static size_t ZSTDv05_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bpPtr)
 {
     const BYTE* const in = (const BYTE* const)src;
     BYTE headerFlags;
@@ -2855,8 +2856,8 @@ static size_t ZSTDv05_copyRawBlock(void* dst, size_t maxDstSize, const void* src
 
 /*! ZSTDv05_decodeLiteralsBlock() :
     @return : nb of bytes read from src (< srcSize ) */
-size_t ZSTDv05_decodeLiteralsBlock(ZSTDv05_DCtx* dctx,
-                          const void* src, size_t srcSize)   /* note : srcSize < BLOCKSIZE */
+static size_t ZSTDv05_decodeLiteralsBlock(ZSTDv05_DCtx* dctx,
+                                    const void* src, size_t srcSize)   /* note : srcSize < BLOCKSIZE */
 {
     const BYTE* const istart = (const BYTE*) src;
 
@@ -2990,7 +2991,7 @@ size_t ZSTDv05_decodeLiteralsBlock(ZSTDv05_DCtx* dctx,
 }
 
 
-size_t ZSTDv05_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumpsLengthPtr,
+static size_t ZSTDv05_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumpsLengthPtr,
                          FSEv05_DTable* DTableLL, FSEv05_DTable* DTableML, FSEv05_DTable* DTableOffb,
                          const void* src, size_t srcSize, U32 flagStaticTable)
 {

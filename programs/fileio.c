@@ -1422,7 +1422,7 @@ static void FIO_zstdErrorHelp(dRess_t* ress, size_t err, char const* srcFileName
  *  @return : size of decoded zstd frame, or an error code
 */
 #define FIO_ERROR_FRAME_DECODING   ((unsigned long long)(-2))
-unsigned long long FIO_decompressZstdFrame(dRess_t* ress,
+static unsigned long long FIO_decompressZstdFrame(dRess_t* ress,
                                        FILE* finput,
                                        const char* srcFileName,
                                        U64 alreadyDecoded)

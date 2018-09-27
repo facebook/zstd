@@ -374,7 +374,7 @@ static U32 FUZ_rotl32(U32 x, U32 r)
     return ((x << r) | (x >> (32 - r)));
 }
 
-U32 FUZ_rand(U32* src)
+static U32 FUZ_rand(U32* src)
 {
     const U32 prime1 = 2654435761U;
     const U32 prime2 = 2246822519U;
@@ -1937,8 +1937,8 @@ static int benchSample(double compressibility, int cLevel)
 /* benchFiles() :
  * note: while this function takes a table of filenames,
  * in practice, only the first filename will be used */
-int benchFiles(const char** fileNamesTable, int nbFiles,
-               const char* dictFileName, int cLevel)
+static int benchFiles(const char** fileNamesTable, int nbFiles,
+                      const char* dictFileName, int cLevel)
 {
     buffers_t buf;
     contexts_t ctx;

@@ -910,9 +910,10 @@ size_t ZDICT_finalizeDictionary(void* dictBuffer, size_t dictBufferCapacity,
 }
 
 
-size_t ZDICT_addEntropyTablesFromBuffer_advanced(void* dictBuffer, size_t dictContentSize, size_t dictBufferCapacity,
-                                                 const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
-                                                 ZDICT_params_t params)
+static size_t ZDICT_addEntropyTablesFromBuffer_advanced(
+        void* dictBuffer, size_t dictContentSize, size_t dictBufferCapacity,
+        const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
+        ZDICT_params_t params)
 {
     int const compressionLevel = (params.compressionLevel == 0) ? g_compressionLevel_default : params.compressionLevel;
     U32 const notificationLevel = params.notificationLevel;
@@ -943,7 +944,11 @@ size_t ZDICT_addEntropyTablesFromBuffer_advanced(void* dictBuffer, size_t dictCo
     return MIN(dictBufferCapacity, hSize+dictContentSize);
 }
 
-
+/* Hidden declaration for dbio.c */
+size_t ZDICT_trainFromBuffer_unsafe_legacy(
+                            void* dictBuffer, size_t maxDictSize,
+                            const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
+                            ZDICT_legacy_params_t params);
 /*! ZDICT_trainFromBuffer_unsafe_legacy() :
 *   Warning : `samplesBuffer` must be followed by noisy guard band.
 *   @return : size of dictionary, or an error code which can be tested with ZDICT_isError()

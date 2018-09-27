@@ -84,7 +84,7 @@ static U64 g_clockTime = 0;
     @return : a 27 bits random value, from a 32-bits `seed`.
     `seed` is also modified */
 #define FUZ_rotl32(x,r) ((x << r) | (x >> (32 - r)))
-unsigned int FUZ_rand(unsigned int* seedPtr)
+static unsigned int FUZ_rand(unsigned int* seedPtr)
 {
     static const U32 prime2 = 2246822519U;
     U32 rand32 = *seedPtr;
@@ -2040,7 +2040,7 @@ _output_error:
 /*-*******************************************************
 *  Command line
 *********************************************************/
-int FUZ_usage(const char* programName)
+static int FUZ_usage(const char* programName)
 {
     DISPLAY( "Usage :\n");
     DISPLAY( "      %s [args]\n", programName);

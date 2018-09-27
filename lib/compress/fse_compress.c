@@ -321,19 +321,6 @@ size_t FSE_writeNCount (void* buffer, size_t bufferSize,
 /*-**************************************************************
 *  FSE Compression Code
 ****************************************************************/
-/*! FSE_sizeof_CTable() :
-    FSE_CTable is a variable size structure which contains :
-    `U16 tableLog;`
-    `U16 maxSymbolValue;`
-    `U16 nextStateNumber[1 << tableLog];`                         // This size is variable
-    `FSE_symbolCompressionTransform symbolTT[maxSymbolValue+1];`  // This size is variable
-Allocation is manual (C standard does not support variable-size structures).
-*/
-size_t FSE_sizeof_CTable (unsigned maxSymbolValue, unsigned tableLog)
-{
-    if (tableLog > FSE_MAX_TABLELOG) return ERROR(tableLog_tooLarge);
-    return FSE_CTABLE_SIZE_U32 (tableLog, maxSymbolValue) * sizeof(U32);
-}
 
 FSE_CTable* FSE_createCTable (unsigned maxSymbolValue, unsigned tableLog)
 {

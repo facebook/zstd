@@ -16,7 +16,7 @@
 *  Binary Tree search
 ***************************************/
 
-void ZSTD_updateDUBT(
+static void ZSTD_updateDUBT(
                 ZSTD_matchState_t* ms, ZSTD_compressionParameters const* cParams,
                 const BYTE* ip, const BYTE* iend,
                 U32 mls)

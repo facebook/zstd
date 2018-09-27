@@ -127,14 +127,14 @@ static ZSTD_DCtx* g_zdc = NULL;
 
 #ifndef ZSTD_DLL_IMPORT
 extern size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* ctx, const void* src, size_t srcSize);
-size_t local_ZSTD_decodeLiteralsBlock(const void* src, size_t srcSize, void* dst, size_t dstSize, void* buff2)
+static size_t local_ZSTD_decodeLiteralsBlock(const void* src, size_t srcSize, void* dst, size_t dstSize, void* buff2)
 {
     (void)src; (void)srcSize; (void)dst; (void)dstSize;
     return ZSTD_decodeLiteralsBlock((ZSTD_DCtx*)g_zdc, buff2, g_cSize);
 }
 
 extern size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeq, const void* src, size_t srcSize);
-size_t local_ZSTD_decodeSeqHeaders(const void* src, size_t srcSize, void* dst, size_t dstSize, void* buff2)
+static size_t local_ZSTD_decodeSeqHeaders(const void* src, size_t srcSize, void* dst, size_t dstSize, void* buff2)
 {
     int nbSeq;
     (void)src; (void)srcSize; (void)dst; (void)dstSize;
@@ -263,9 +263,9 @@ local_ZSTD_decompressStream(const void* src, size_t srcSize,
 }
 
 #ifndef ZSTD_DLL_IMPORT
-size_t local_ZSTD_compressContinue(const void* src, size_t srcSize,
-                                   void* dst, size_t dstCapacity,
-                                   void* buff2)
+static size_t local_ZSTD_compressContinue(const void* src, size_t srcSize,
+                                          void* dst, size_t dstCapacity,
+                                          void* buff2)
 {
     ZSTD_parameters p;
     ZSTD_frameParameters f = { 1 /* contentSizeHeader*/, 0, 0 };
@@ -276,9 +276,9 @@ size_t local_ZSTD_compressContinue(const void* src, size_t srcSize,
 }
 
 #define FIRST_BLOCK_SIZE 8
-size_t local_ZSTD_compressContinue_extDict(const void* src, size_t srcSize,
-                                           void* dst, size_t dstCapacity,
-                                           void* buff2)
+static size_t local_ZSTD_compressContinue_extDict(const void* src, size_t srcSize,
+                                                  void* dst, size_t dstCapacity,
+                                                  void* buff2)
 {
     BYTE firstBlockBuf[FIRST_BLOCK_SIZE];
 
@@ -305,9 +305,9 @@ size_t local_ZSTD_compressContinue_extDict(const void* src, size_t srcSize,
                             srcSize - FIRST_BLOCK_SIZE);
 }
 
-size_t local_ZSTD_decompressContinue(const void* src, size_t srcSize,
-                                           void* dst, size_t dstCapacity,
-                                           void* buff2)
+static size_t local_ZSTD_decompressContinue(const void* src, size_t srcSize,
+                                            void* dst, size_t dstCapacity,
+                                            void* buff2)
 {
     size_t regeneratedSize = 0;
     const BYTE* ip = (const BYTE*)buff2;

@@ -1864,8 +1864,9 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest,
                     CHECK_Z( ZSTD_CCtx_setPledgedSrcSize(zc, pledgedSrcSize) );
                 }
 
-                /* multi-threading parameters */
-                {   U32 const nbThreadsCandidate = (FUZ_rand(&lseed) & 4) + 1;
+                /* multi-threading parameters. Only adjust ocassionally for small tests. */
+                if (bigTests || (FUZ_rand(&lseed) & 0xF) == 0xF) {
+                    U32 const nbThreadsCandidate = (FUZ_rand(&lseed) & 4) + 1;
                     U32 const nbThreadsAdjusted = (windowLogMalus < nbThreadsCandidate) ? nbThreadsCandidate - windowLogMalus : 1;
                     U32 const nbThreads = MIN(nbThreadsAdjusted, nbThreadsMax);
                     DISPLAYLEVEL(5, "t%u: nbThreads : %u \n", testNb, nbThreads);

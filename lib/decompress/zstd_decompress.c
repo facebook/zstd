@@ -1788,10 +1788,10 @@ ZSTDLIB_API size_t ZSTD_insertBlock(ZSTD_DCtx* dctx, const void* blockStart, siz
 }
 
 
-static size_t ZSTD_generateNxBytes(void* dst, size_t dstCapacity, BYTE byte, size_t length)
+static size_t ZSTD_generateNxBytes(void* dst, size_t dstCapacity, BYTE value, size_t length)
 {
     if (length > dstCapacity) return ERROR(dstSize_tooSmall);
-    memset(dst, byte, length);
+    memset(dst, value, length);
     return length;
 }
 

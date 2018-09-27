@@ -1808,7 +1808,7 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest,
             }
             {   U64 const pledgedSrcSize = (FUZ_rand(&lseed) & 3) ? ZSTD_CONTENTSIZE_UNKNOWN : maxTestSize;
                 ZSTD_compressionParameters cParams = ZSTD_getCParams(cLevel, pledgedSrcSize, dictSize);
-                static const U32 windowLogMax = 24;
+                const U32 windowLogMax = bigTests ? 24 : 22;
                 if (dictSize)
                     DISPLAYLEVEL(5, "t%u: with dictionary of size : %zu \n", testNb, dictSize);
 

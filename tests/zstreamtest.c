@@ -1808,7 +1808,8 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest,
             }
             {   U64 const pledgedSrcSize = (FUZ_rand(&lseed) & 3) ? ZSTD_CONTENTSIZE_UNKNOWN : maxTestSize;
                 ZSTD_compressionParameters cParams = ZSTD_getCParams(cLevel, pledgedSrcSize, dictSize);
-                const U32 windowLogMax = bigTests ? 24 : 22;
+                const U32 windowLogMax = bigTests ? 24 : 20;
+                const U32 searchLogMax = bigTests ? 15 : 13;
                 if (dictSize)
                     DISPLAYLEVEL(5, "t%u: with dictionary of size : %zu \n", testNb, dictSize);
 
@@ -1818,6 +1819,7 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest,
                 cParams.hashLog += (FUZ_rand(&lseed) & 3) - 1;
                 cParams.chainLog += (FUZ_rand(&lseed) & 3) - 1;
                 cParams.searchLog += (FUZ_rand(&lseed) & 3) - 1;
+                cParams.searchLog = MIN(searchLogMax, cParams.searchLog);
                 cParams.searchLength += (FUZ_rand(&lseed) & 3) - 1;
                 cParams.targetLength = (U32)((cParams.targetLength + 1 ) * (0.5 + ((double)(FUZ_rand(&lseed) & 127) / 128)));
                 cParams = ZSTD_adjustCParams(cParams, pledgedSrcSize, dictSize);

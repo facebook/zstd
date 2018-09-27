@@ -1531,6 +1531,15 @@ static void ZSTD_reduceIndex (ZSTD_CCtx* zc, const U32 reducerValue)
 
 /* See doc/zstd_compression_format.md for detailed format description */
 
+static size_t ZSTD_noCompressBlock (void* dst, size_t dstCapacity, const void* src, size_t srcSize, U32 lastBlock)
+{
+    U32 const cBlockHeader24 = lastBlock + (((U32)bt_raw)<<1) + (U32)(srcSize << 3);
+    if (srcSize + ZSTD_blockHeaderSize > dstCapacity) return ERROR(dstSize_tooSmall);
+    MEM_writeLE24(dst, cBlockHeader24);
+    memcpy((BYTE*)dst + ZSTD_blockHeaderSize, src, srcSize);
+    return ZSTD_blockHeaderSize + srcSize;
+}
+
 static size_t ZSTD_noCompressLiterals (void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
     BYTE* const ostart = (BYTE* const)dst;
@@ -2485,11 +2494,8 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
             if (ZSTD_isError(cSize)) return cSize;
 
             if (cSize == 0) {  /* block is not compressible */
-                U32 const cBlockHeader24 = lastBlock + (((U32)bt_raw)<<1) + (U32)(blockSize << 3);
-                if (blockSize + ZSTD_blockHeaderSize > dstCapacity) return ERROR(dstSize_tooSmall);
-                MEM_writeLE32(op, cBlockHeader24);   /* 4th byte will be overwritten */
-                memcpy(op + ZSTD_blockHeaderSize, ip, blockSize);
-                cSize = ZSTD_blockHeaderSize + blockSize;
+                cSize = ZSTD_noCompressBlock(op, dstCapacity, ip, blockSize, lastBlock);
+                if (ZSTD_isError(cSize)) return cSize;
             } else {
                 U32 const cBlockHeader24 = lastBlock + (((U32)bt_compressed)<<1) + (U32)(cSize << 3);
                 MEM_writeLE24(op, cBlockHeader24);

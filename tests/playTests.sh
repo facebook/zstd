@@ -180,6 +180,8 @@ chmod 400 tmpro.zst
 $ZSTD -q tmpro && die "should have refused to overwrite read-only file"
 $ZSTD -q -f tmpro
 rm -f tmpro tmpro.zst
+
+
 $ECHO "test : file removal"
 $ZSTD -f --rm tmp
 test ! -f tmp  # tmp should no longer be present
@@ -196,9 +198,14 @@ $ECHO a | $ZSTD --rm > $INTOVOID   # --rm should remain silent
 rm tmp
 $ZSTD -f tmp && die "tmp not present : should have failed"
 test ! -f tmp.zst  # tmp.zst should not be created
+$ECHO "test : do not delete destination when source is not present"
+touch tmp    # create destination file
+$ZSTD -d -f tmp.zst && die "attempt to decompress a non existing file"
+! test -f tmp  # destination file should still be present (test disabled temporarily)
+rm tmp*
+
 
 $ECHO "test : compress multiple files"
-rm tmp*
 $ECHO hello > tmp1
 $ECHO world > tmp2
 $ZSTD tmp1 tmp2 -o "$INTOVOID"

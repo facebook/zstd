@@ -640,7 +640,7 @@ typedef struct {
 }
 
 /* ZSTDMT_compressionJob() is a POOL_function type */
-void ZSTDMT_compressionJob(void* jobDescription)
+static void ZSTDMT_compressionJob(void* jobDescription)
 {
     ZSTDMT_jobDescription* const job = (ZSTDMT_jobDescription*)jobDescription;
     ZSTD_CCtx_params jobParams = job->params;   /* do not modify job->params ! copy it, modify the copy */

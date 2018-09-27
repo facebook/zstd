@@ -13,6 +13,7 @@
 /*-************************************
 *  Dependencies
 **************************************/
+#include "datagen.h"
 #include "platform.h"  /* SET_BINARY_MODE */
 #include <stdlib.h>    /* malloc, free */
 #include <stdio.h>     /* FILE, fwrite, fprintf */
@@ -91,7 +92,7 @@ static U32 RDG_randLength(unsigned* seedPtr)
     return (RDG_rand(seedPtr) & 0x1FF) + 0xF;
 }
 
-void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, double matchProba, const BYTE* ldt, unsigned* seedPtr)
+static void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, double matchProba, const BYTE* ldt, unsigned* seedPtr)
 {
     BYTE* const buffPtr = (BYTE*)buffer;
     U32 const matchProba32 = (U32)(32768 * matchProba);

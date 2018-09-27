@@ -1458,7 +1458,7 @@ unsigned ZSTDv01_isError(size_t code) { return ERR_isError(code); }
 *   Decompression code
 **************************************************************/
 
-size_t ZSTDv01_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bpPtr)
+static size_t ZSTDv01_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bpPtr)
 {
     const BYTE* const in = (const BYTE* const)src;
     BYTE headerFlags;
@@ -1511,7 +1511,7 @@ static size_t ZSTD_decompressLiterals(void* ctx,
 }
 
 
-size_t ZSTDv01_decodeLiteralsBlock(void* ctx,
+static size_t ZSTDv01_decodeLiteralsBlock(void* ctx,
                                 void* dst, size_t maxDstSize,
                           const BYTE** litStart, size_t* litSize,
                           const void* src, size_t srcSize)
@@ -1563,7 +1563,7 @@ size_t ZSTDv01_decodeLiteralsBlock(void* ctx,
 }
 
 
-size_t ZSTDv01_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumpsLengthPtr,
+static size_t ZSTDv01_decodeSeqHeaders(int* nbSeq, const BYTE** dumpsPtr, size_t* dumpsLengthPtr,
                          FSE_DTable* DTableLL, FSE_DTable* DTableML, FSE_DTable* DTableOffb,
                          const void* src, size_t srcSize)
 {

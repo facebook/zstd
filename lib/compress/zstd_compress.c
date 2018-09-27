@@ -1531,15 +1531,6 @@ static void ZSTD_reduceIndex (ZSTD_CCtx* zc, const U32 reducerValue)
 
 /* See doc/zstd_compression_format.md for detailed format description */
 
-size_t ZSTD_noCompressBlock (void* dst, size_t dstCapacity, const void* src, size_t srcSize)
-{
-    if (srcSize + ZSTD_blockHeaderSize > dstCapacity) return ERROR(dstSize_tooSmall);
-    memcpy((BYTE*)dst + ZSTD_blockHeaderSize, src, srcSize);
-    MEM_writeLE24(dst, (U32)(srcSize << 2) + (U32)bt_raw);
-    return ZSTD_blockHeaderSize+srcSize;
-}
-
-
 static size_t ZSTD_noCompressLiterals (void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
     BYTE* const ostart = (BYTE* const)dst;
@@ -2091,7 +2082,7 @@ ZSTD_encodeSequences_bmi2(
 
 #endif
 
-size_t ZSTD_encodeSequences(
+static size_t ZSTD_encodeSequences(
             void* dst, size_t dstCapacity,
             FSE_CTable const* CTable_MatchLength, BYTE const* mlCodeTable,
             FSE_CTable const* CTable_OffsetBits, BYTE const* ofCodeTable,
@@ -2883,13 +2874,13 @@ ZSTD_compress_insertDictionary(ZSTD_compressedBlockState_t* bs,
 
 /*! ZSTD_compressBegin_internal() :
  * @return : 0, or an error code */
-size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
-                             const void* dict, size_t dictSize,
-                             ZSTD_dictContentType_e dictContentType,
-                             ZSTD_dictTableLoadMethod_e dtlm,
-                             const ZSTD_CDict* cdict,
-                             ZSTD_CCtx_params params, U64 pledgedSrcSize,
-                             ZSTD_buffered_policy_e zbuff)
+static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
+                                    const void* dict, size_t dictSize,
+                                    ZSTD_dictContentType_e dictContentType,
+                                    ZSTD_dictTableLoadMethod_e dtlm,
+                                    const ZSTD_CDict* cdict,
+                                    ZSTD_CCtx_params params, U64 pledgedSrcSize,
+                                    ZSTD_buffered_policy_e zbuff)
 {
     DEBUGLOG(4, "ZSTD_compressBegin_internal: wlog=%u", params.cParams.windowLog);
     /* params are supposed to be fully validated at this point */

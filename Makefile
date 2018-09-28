@@ -340,23 +340,23 @@ cmakebuild:
 
 c90build: clean
 	$(CC) -v
-	CFLAGS="-std=c90" $(MAKE) allmost  # will fail, due to missing support for `long long`
+	CFLAGS="-std=c90 -Werror" $(MAKE) allmost  # will fail, due to missing support for `long long`
 
 gnu90build: clean
 	$(CC) -v
-	CFLAGS="-std=gnu90" $(MAKE) allmost
+	CFLAGS="-std=gnu90 -Werror" $(MAKE) allmost
 
 c99build: clean
 	$(CC) -v
-	CFLAGS="-std=c99" $(MAKE) allmost
+	CFLAGS="-std=c99 -Werror" $(MAKE) allmost
 
 gnu99build: clean
 	$(CC) -v
-	CFLAGS="-std=gnu99" $(MAKE) allmost
+	CFLAGS="-std=gnu99 -Werror" $(MAKE) allmost
 
 c11build: clean
 	$(CC) -v
-	CFLAGS="-std=c11" $(MAKE) allmost
+	CFLAGS="-std=c11 -Werror" $(MAKE) allmost
 
 bmix64build: clean
 	$(CC) -v

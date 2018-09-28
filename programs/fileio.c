@@ -2010,7 +2010,7 @@ FIO_analyzeFrames(fileInfo_t* info, FILE* const srcFile)
               && (numBytesRead == 0)
               && (info->compressedSize > 0)
               && (info->compressedSize != UTIL_FILESIZE_UNKNOWN) ) {
-                return info_success;
+                break;  /* correct end of file => success */
             }
             EXIT_IF(feof(srcFile), info_not_zstd, "Error: reached end of file with incomplete frame");
             EXIT_IF(1, info_frame_error, "Error: did not reach end of file but ran out of frames");

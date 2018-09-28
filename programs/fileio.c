@@ -1997,7 +1997,7 @@ typedef struct {
 
 typedef enum { info_success=0, info_frame_error=1, info_not_zstd=2, info_file_error=3 } InfoError;
 
-#define EXIT_IF(c,n,...) {             \
+#define ERROR_IF(c,n,...) {             \
     if (c) {                           \
         DISPLAYLEVEL(1, __VA_ARGS__);  \
         DISPLAYLEVEL(1, " \n");        \
@@ -2019,8 +2019,8 @@ FIO_analyzeFrames(fileInfo_t* info, FILE* const srcFile)
               && (info->compressedSize != UTIL_FILESIZE_UNKNOWN) ) {
                 break;  /* correct end of file => success */
             }
-            EXIT_IF(feof(srcFile), info_not_zstd, "Error: reached end of file with incomplete frame");
-            EXIT_IF(1, info_frame_error, "Error: did not reach end of file but ran out of frames");
+            ERROR_IF(feof(srcFile), info_not_zstd, "Error: reached end of file with incomplete frame");
+            ERROR_IF(1, info_frame_error, "Error: did not reach end of file but ran out of frames");
         }
         {   U32 const magicNumber = MEM_readLE32(headerBuffer);
             /* Zstandard frame */
@@ -2033,13 +2033,13 @@ FIO_analyzeFrames(fileInfo_t* info, FILE* const srcFile)
                 } else {
                     info->decompressedSize += frameContentSize;
                 }
-                EXIT_IF(ZSTD_getFrameHeader(&header, headerBuffer, numBytesRead) != 0,
+                ERROR_IF(ZSTD_getFrameHeader(&header, headerBuffer, numBytesRead) != 0,
                         info_frame_error, "Error: could not decode frame header");
                 info->windowSize = header.windowSize;
                 /* move to the end of the frame header */
                 {   size_t const headerSize = ZSTD_frameHeaderSize(headerBuffer, numBytesRead);
-                    EXIT_IF(ZSTD_isError(headerSize), info_frame_error, "Error: could not determine frame header size");
-                    EXIT_IF(fseek(srcFile, ((long)headerSize)-((long)numBytesRead), SEEK_CUR) != 0,
+                    ERROR_IF(ZSTD_isError(headerSize), info_frame_error, "Error: could not determine frame header size");
+                    ERROR_IF(fseek(srcFile, ((long)headerSize)-((long)numBytesRead), SEEK_CUR) != 0,
                             info_frame_error, "Error: could not move to end of frame header");
                 }
 
@@ -2047,16 +2047,16 @@ FIO_analyzeFrames(fileInfo_t* info, FILE* const srcFile)
                 {   int lastBlock = 0;
                     do {
                         BYTE blockHeaderBuffer[3];
-                        EXIT_IF(fread(blockHeaderBuffer, 1, 3, srcFile) != 3,
+                        ERROR_IF(fread(blockHeaderBuffer, 1, 3, srcFile) != 3,
                                 info_frame_error, "Error while reading block header");
                         {   U32 const blockHeader = MEM_readLE24(blockHeaderBuffer);
                             U32 const blockTypeID = (blockHeader >> 1) & 3;
                             U32 const isRLE = (blockTypeID == 1);
                             U32 const isWrongBlock = (blockTypeID == 3);
                             long const blockSize = isRLE ? 1 : (long)(blockHeader >> 3);
-                            EXIT_IF(isWrongBlock, info_frame_error, "Error: unsupported block type");
+                            ERROR_IF(isWrongBlock, info_frame_error, "Error: unsupported block type");
                             lastBlock = blockHeader & 1;
-                            EXIT_IF(fseek(srcFile, blockSize, SEEK_CUR) != 0,
+                            ERROR_IF(fseek(srcFile, blockSize, SEEK_CUR) != 0,
                                     info_frame_error, "Error: could not skip to end of block");
                         }
                     } while (lastBlock != 1);
@@ -2067,7 +2067,7 @@ FIO_analyzeFrames(fileInfo_t* info, FILE* const srcFile)
                     int const contentChecksumFlag = (frameHeaderDescriptor & (1 << 2)) >> 2;
                     if (contentChecksumFlag) {
                         info->usesCheck = 1;
-                        EXIT_IF(fseek(srcFile, 4, SEEK_CUR) != 0,
+                        ERROR_IF(fseek(srcFile, 4, SEEK_CUR) != 0,
                                 info_frame_error, "Error: could not skip past checksum");
                 }   }
                 info->numActualFrames++;
@@ -2076,7 +2076,7 @@ FIO_analyzeFrames(fileInfo_t* info, FILE* const srcFile)
             else if ((magicNumber & 0xFFFFFFF0U) == ZSTD_MAGIC_SKIPPABLE_START) {
                 U32 const frameSize = MEM_readLE32(headerBuffer + 4);
                 long const seek = (long)(8 + frameSize - numBytesRead);
-                EXIT_IF(LONG_SEEK(srcFile, seek, SEEK_CUR) != 0,
+                ERROR_IF(LONG_SEEK(srcFile, seek, SEEK_CUR) != 0,
                         info_frame_error, "Error: could not find end of skippable frame");
                 info->numSkippableFrames++;
             }
@@ -2095,7 +2095,7 @@ getFileInfo_fileConfirmed(fileInfo_t* info, const char* inFileName)
 {
     InfoError status;
     FILE* const srcFile = FIO_openSrcFile(inFileName);
-    EXIT_IF(srcFile == NULL, info_file_error, "Error: could not open source file %s", inFileName);
+    ERROR_IF(srcFile == NULL, info_file_error, "Error: could not open source file %s", inFileName);
 
     info->compressedSize = UTIL_getFileSize(inFileName);
     status = FIO_analyzeFrames(info, srcFile);
@@ -2113,7 +2113,7 @@ getFileInfo_fileConfirmed(fileInfo_t* info, const char* inFileName)
 static InfoError
 getFileInfo(fileInfo_t* info, const char* srcFileName)
 {
-    EXIT_IF(!UTIL_isRegularFile(srcFileName),
+    ERROR_IF(!UTIL_isRegularFile(srcFileName),
             info_file_error, "Error : %s is not a file", srcFileName);
     return getFileInfo_fileConfirmed(info, srcFileName);
 }
@@ -2179,7 +2179,9 @@ static fileInfo_t FIO_addFInfo(fileInfo_t fi1, fileInfo_t fi2)
     return total;
 }
 
-static int FIO_listFile(fileInfo_t* total, const char* inFileName, int displayLevel){
+static int
+FIO_listFile(fileInfo_t* total, const char* inFileName, int displayLevel)
+{
     fileInfo_t info;
     memset(&info, 0, sizeof(info));
     {   InfoError const error = getFileInfo(&info, inFileName);
@@ -2209,7 +2211,7 @@ int FIO_listMultipleFiles(unsigned numFiles, const char** filenameTable, int dis
     /* ensure no specified input is stdin (needs fseek() capability) */
     {   unsigned u;
         for (u=0; u<numFiles;u++) {
-            EXIT_IF(!strcmp (filenameTable[u], stdinmark),
+            ERROR_IF(!strcmp (filenameTable[u], stdinmark),
                     1, "zstd: --list does not support reading from standard input");
     }   }
 

@@ -1914,9 +1914,9 @@ int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles
             EXM_THROW(72, "Write error : cannot properly close output file");
     } else {
         size_t suffixSize;
-        size_t dfnSize = FNSPACE;
+        size_t dfnbCapacity = FNSPACE;
         unsigned u;
-        char* dstFileName = (char*)malloc(FNSPACE);
+        char* dstFileName = (char*)malloc(dfnbCapacity);
         if (dstFileName==NULL)
             EXM_THROW(73, "not enough memory for dstFileName");
         for (u=0; u<nbFiles; u++) {   /* create dstFileName */
@@ -1930,27 +1930,34 @@ int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles
                 continue;
             }
             suffixSize = strlen(suffixPtr);
-            if (dfnSize+suffixSize <= sfnSize+1) {
+            if (dfnbCapacity+suffixSize <= sfnSize+1) {
                 free(dstFileName);
-                dfnSize = sfnSize + 20;
-                dstFileName = (char*)malloc(dfnSize);
+                dfnbCapacity = sfnSize + 20;
+                dstFileName = (char*)malloc(dfnbCapacity);
                 if (dstFileName==NULL)
                     EXM_THROW(74, "not enough memory for dstFileName");
             }
             if (sfnSize <= suffixSize
-                || (strcmp(suffixPtr, GZ_EXTENSION)
+                || (   strcmp(suffixPtr, ZSTD_EXTENSION)
+                #ifdef ZSTD_GZDECOMPRESS
+                    && strcmp(suffixPtr, GZ_EXTENSION)
+                #endif
+                #ifdef ZSTD_LZMADECOMPRESS
                     && strcmp(suffixPtr, XZ_EXTENSION)
-                    && strcmp(suffixPtr, ZSTD_EXTENSION)
                     && strcmp(suffixPtr, LZMA_EXTENSION)
-                    && strcmp(suffixPtr, LZ4_EXTENSION)) ) {
+                #endif
+                #ifdef ZSTD_LZ4DECOMPRESS
+                    && strcmp(suffixPtr, LZ4_EXTENSION)
+                #endif
+                    ) ) {
                 const char* suffixlist = ZSTD_EXTENSION
-                #ifdef ZSTD_GZCOMPRESS
+                #ifdef ZSTD_GZDECOMPRESS
                     "/" GZ_EXTENSION
                 #endif
-                #ifdef ZSTD_LZMACOMPRESS
+                #ifdef ZSTD_LZMADECOMPRESS
                     "/" XZ_EXTENSION "/" LZMA_EXTENSION
                 #endif
-                #ifdef ZSTD_LZ4COMPRESS
+                #ifdef ZSTD_LZ4DECOMPRESS
                     "/" LZ4_EXTENSION
                 #endif
                 ;

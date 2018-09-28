@@ -17,25 +17,25 @@
 #define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
 
-int compress(ZSTD_CStream *ctx, ZSTD_outBuffer out, const void *data, size_t size) {
+static int
+compress(ZSTD_CStream *ctx, ZSTD_outBuffer out, const void *data, size_t size)
+{
   ZSTD_inBuffer in = { data, size, 0 };
   while (in.pos < in.size) {
     ZSTD_outBuffer tmp = out;
     const size_t rc = ZSTD_compressStream(ctx, &tmp, &in);
-    if (ZSTD_isError(rc)) {
-      return 1;
-    }
+    if (ZSTD_isError(rc)) return 1;
   }
-  {
-    ZSTD_outBuffer tmp = out;
+  { ZSTD_outBuffer tmp = out;
     const size_t rc = ZSTD_flushStream(ctx, &tmp);
     if (rc != 0) { return 1; }
   }
   return 0;
 }
 
-int main(int argc, const char** argv) {
-  ZSTD_CStream *ctx;
+int main(int argc, const char** argv)
+{
+  ZSTD_CStream* ctx;
   ZSTD_parameters params;
   size_t rc;
   unsigned windowLog;

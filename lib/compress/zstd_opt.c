@@ -741,7 +741,7 @@ typedef struct repcodes_s {
     U32 rep[3];
 } repcodes_t;
 
-repcodes_t ZSTD_updateRep(U32 const rep[3], U32 const offset, U32 const ll0)
+static repcodes_t ZSTD_updateRep(U32 const rep[3], U32 const offset, U32 const ll0)
 {
     repcodes_t newReps;
     if (offset >= ZSTD_REP_NUM) {  /* full offset */

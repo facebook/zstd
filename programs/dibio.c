@@ -84,10 +84,6 @@ static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
 /* ********************************************************
 *  Helper functions
 **********************************************************/
-unsigned DiB_isError(size_t errorCode) { return ERR_isError(errorCode); }
-
-const char* DiB_getErrorName(size_t errorCode) { return ERR_getErrorName(errorCode); }
-
 #undef MIN
 #define MIN(a,b)    ((a) < (b) ? (a) : (b))
 

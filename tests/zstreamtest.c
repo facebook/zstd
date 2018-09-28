@@ -1088,9 +1088,8 @@ static int basicUnitTests(U32 seed, double compressibility)
         CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_p_checksumFlag, 1));
         /* Write a bunch of 6 byte blocks */
         while (remainingInput > 0) {
-          const size_t kSmallBlockSize = 6;
-          char testBuffer[kSmallBlockSize] = "\xAA\xAA\xAA\xAA\xAA\xAA";
-          const size_t outStart = out.pos;
+          char testBuffer[6] = "\xAA\xAA\xAA\xAA\xAA\xAA";
+          const size_t kSmallBlockSize = sizeof(testBuffer);
           ZSTD_inBuffer in = {testBuffer, kSmallBlockSize, 0};
 
           CHECK_Z(ZSTD_compress_generic(zc, &out, &in, ZSTD_e_flush));
@@ -1099,7 +1098,6 @@ static int basicUnitTests(U32 seed, double compressibility)
         }
         /* Write several very long offset matches into the dictionary */
         for (int offset = 1024; offset >= 0; offset -= 128) {
-          size_t start = out.pos;
           ZSTD_inBuffer in = {dictionary.start + offset, 128, 0};
           ZSTD_EndDirective flush = offset > 0 ? ZSTD_e_continue : ZSTD_e_end;
           CHECK_Z(ZSTD_compress_generic(zc, &out, &in, flush));

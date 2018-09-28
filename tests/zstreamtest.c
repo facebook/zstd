@@ -1081,6 +1081,7 @@ static int basicUnitTests(U32 seed, double compressibility)
             ZSTD_defaultCMem);
         ZSTD_outBuffer out = {compressedBuffer, compressedBufferSize, 0};
         int remainingInput = 256 * 1024;
+        int offset;
 
         ZSTD_CCtx_reset(zc);
         CHECK_Z(ZSTD_CCtx_resetParameters(zc));
@@ -1097,7 +1098,7 @@ static int basicUnitTests(U32 seed, double compressibility)
           remainingInput -= kSmallBlockSize;
         }
         /* Write several very long offset matches into the dictionary */
-        for (int offset = 1024; offset >= 0; offset -= 128) {
+        for (offset = 1024; offset >= 0; offset -= 128) {
           ZSTD_inBuffer in = {dictionary.start + offset, 128, 0};
           ZSTD_EndDirective flush = offset > 0 ? ZSTD_e_continue : ZSTD_e_end;
           CHECK_Z(ZSTD_compress_generic(zc, &out, &in, flush));

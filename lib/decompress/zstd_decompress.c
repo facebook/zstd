@@ -568,6 +568,9 @@ static size_t ZSTD_setRleBlock(void* dst, size_t dstCapacity,
     return regenSize;
 }
 
+/* Hidden declaration for fullbench */
+size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
+                          const void* src, size_t srcSize);
 /*! ZSTD_decodeLiteralsBlock() :
  * @return : nb of bytes read from src (< srcSize )
  *  note : symbol not declared but exposed for fullbench */
@@ -972,6 +975,9 @@ static const U32 ML_base[MaxML+1] = {
                     67, 83, 99, 0x83, 0x103, 0x203, 0x403, 0x803,
                     0x1003, 0x2003, 0x4003, 0x8003, 0x10003 };
 
+/* Hidden delcaration for fullbench */
+size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
+                             const void* src, size_t srcSize);
 
 size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
                              const void* src, size_t srcSize)
@@ -1782,10 +1788,10 @@ ZSTDLIB_API size_t ZSTD_insertBlock(ZSTD_DCtx* dctx, const void* blockStart, siz
 }
 
 
-static size_t ZSTD_generateNxBytes(void* dst, size_t dstCapacity, BYTE byte, size_t length)
+static size_t ZSTD_generateNxBytes(void* dst, size_t dstCapacity, BYTE value, size_t length)
 {
     if (length > dstCapacity) return ERROR(dstSize_tooSmall);
-    memset(dst, byte, length);
+    memset(dst, value, length);
     return length;
 }
 

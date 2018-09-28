@@ -72,6 +72,8 @@ static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
 *********************************************************/
 #undef MIN
 #undef MAX
+/* Declaring the function is it isn't unused */
+void FUZ_bug976(void);
 void FUZ_bug976(void)
 {   /* these constants shall not depend on MIN() macro */
     assert(ZSTD_HASHLOG_MAX < 31);
@@ -1289,6 +1291,20 @@ static int basicUnitTests(U32 seed, double compressibility)
         CHECK( ZSTD_decompressBegin(dctx) );
         { CHECK_V(r, ZSTD_decompressBlock(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize) );
           if (r != blockSize) goto _output_error; }
+        DISPLAYLEVEL(3, "OK \n");
+
+        /* very long stream of block compression */
+        DISPLAYLEVEL(3, "test%3i : Huge block streaming compression test : ", testNb++);
+        CHECK( ZSTD_compressBegin(cctx, -99) );  /* we just want to quickly overflow internal U32 index */
+        CHECK( ZSTD_getBlockSize(cctx) >= blockSize);
+        {   U64 const toCompress = 5000000000ULL;   /* > 4 GB */
+            U64 compressed = 0;
+            while (compressed < toCompress) {
+                size_t const blockCSize = ZSTD_compressBlock(cctx, compressedBuffer, ZSTD_compressBound(blockSize), CNBuffer, blockSize);
+                if (ZSTD_isError(cSize)) goto _output_error;
+                compressed += blockCSize;
+            }
+        }
         DISPLAYLEVEL(3, "OK \n");
 
         /* dictionary block compression */

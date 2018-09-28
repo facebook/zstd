@@ -1531,14 +1531,14 @@ static void ZSTD_reduceIndex (ZSTD_CCtx* zc, const U32 reducerValue)
 
 /* See doc/zstd_compression_format.md for detailed format description */
 
-size_t ZSTD_noCompressBlock (void* dst, size_t dstCapacity, const void* src, size_t srcSize)
+static size_t ZSTD_noCompressBlock (void* dst, size_t dstCapacity, const void* src, size_t srcSize, U32 lastBlock)
 {
+    U32 const cBlockHeader24 = lastBlock + (((U32)bt_raw)<<1) + (U32)(srcSize << 3);
     if (srcSize + ZSTD_blockHeaderSize > dstCapacity) return ERROR(dstSize_tooSmall);
+    MEM_writeLE24(dst, cBlockHeader24);
     memcpy((BYTE*)dst + ZSTD_blockHeaderSize, src, srcSize);
-    MEM_writeLE24(dst, (U32)(srcSize << 2) + (U32)bt_raw);
-    return ZSTD_blockHeaderSize+srcSize;
+    return ZSTD_blockHeaderSize + srcSize;
 }
-
 
 static size_t ZSTD_noCompressLiterals (void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
@@ -2091,7 +2091,7 @@ ZSTD_encodeSequences_bmi2(
 
 #endif
 
-size_t ZSTD_encodeSequences(
+static size_t ZSTD_encodeSequences(
             void* dst, size_t dstCapacity,
             FSE_CTable const* CTable_MatchLength, BYTE const* mlCodeTable,
             FSE_CTable const* CTable_OffsetBits, BYTE const* ofCodeTable,
@@ -2351,6 +2351,7 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
     ZSTD_matchState_t* const ms = &zc->blockState.matchState;
     DEBUGLOG(5, "ZSTD_compressBlock_internal (dstCapacity=%zu, dictLimit=%u, nextToUpdate=%u)",
                 dstCapacity, ms->window.dictLimit, ms->nextToUpdate);
+    assert(srcSize <= ZSTD_BLOCKSIZE_MAX);
 
     if (srcSize < MIN_CBLOCK_SIZE+ZSTD_blockHeaderSize+1) {
         ZSTD_ldm_skipSequences(&zc->externSeqStore, srcSize, zc->appliedParams.cParams.searchLength);
@@ -2478,7 +2479,6 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
             ZSTD_STATIC_ASSERT(ZSTD_CHAINLOG_MAX <= 30);
             ZSTD_STATIC_ASSERT(ZSTD_WINDOWLOG_MAX_32 <= 30);
             ZSTD_STATIC_ASSERT(ZSTD_WINDOWLOG_MAX <= 31);
-
             ZSTD_reduceIndex(cctx, correction);
             if (ms->nextToUpdate < correction) ms->nextToUpdate = 0;
             else ms->nextToUpdate -= correction;
@@ -2494,11 +2494,8 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
             if (ZSTD_isError(cSize)) return cSize;
 
             if (cSize == 0) {  /* block is not compressible */
-                U32 const cBlockHeader24 = lastBlock + (((U32)bt_raw)<<1) + (U32)(blockSize << 3);
-                if (blockSize + ZSTD_blockHeaderSize > dstCapacity) return ERROR(dstSize_tooSmall);
-                MEM_writeLE32(op, cBlockHeader24);   /* 4th byte will be overwritten */
-                memcpy(op + ZSTD_blockHeaderSize, ip, blockSize);
-                cSize = ZSTD_blockHeaderSize + blockSize;
+                cSize = ZSTD_noCompressBlock(op, dstCapacity, ip, blockSize, lastBlock);
+                if (ZSTD_isError(cSize)) return cSize;
             } else {
                 U32 const cBlockHeader24 = lastBlock + (((U32)bt_compressed)<<1) + (U32)(cSize << 3);
                 MEM_writeLE24(op, cBlockHeader24);
@@ -2597,7 +2594,7 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* cctx,
                         const void* src, size_t srcSize,
                                U32 frame, U32 lastFrameChunk)
 {
-    ZSTD_matchState_t* ms = &cctx->blockState.matchState;
+    ZSTD_matchState_t* const ms = &cctx->blockState.matchState;
     size_t fhSize = 0;
 
     DEBUGLOG(5, "ZSTD_compressContinue_internal, stage: %u, srcSize: %u",
@@ -2618,8 +2615,25 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* cctx,
     if (!ZSTD_window_update(&ms->window, src, srcSize)) {
         ms->nextToUpdate = ms->window.dictLimit;
     }
-    if (cctx->appliedParams.ldmParams.enableLdm)
+    if (cctx->appliedParams.ldmParams.enableLdm) {
         ZSTD_window_update(&cctx->ldmState.window, src, srcSize);
+    }
+
+    if (!frame) {
+        /* overflow check and correction for block mode */
+        if (ZSTD_window_needOverflowCorrection(ms->window, (const char*)src + srcSize)) {
+            U32 const cycleLog = ZSTD_cycleLog(cctx->appliedParams.cParams.chainLog, cctx->appliedParams.cParams.strategy);
+            U32 const correction = ZSTD_window_correctOverflow(&ms->window, cycleLog, 1 << cctx->appliedParams.cParams.windowLog, src);
+            ZSTD_STATIC_ASSERT(ZSTD_CHAINLOG_MAX <= 30);
+            ZSTD_STATIC_ASSERT(ZSTD_WINDOWLOG_MAX_32 <= 30);
+            ZSTD_STATIC_ASSERT(ZSTD_WINDOWLOG_MAX <= 31);
+            ZSTD_reduceIndex(cctx, correction);
+            if (ms->nextToUpdate < correction) ms->nextToUpdate = 0;
+            else ms->nextToUpdate -= correction;
+            ms->loadedDictEnd = 0;
+            ms->dictMatchState = NULL;
+        }
+    }
 
     DEBUGLOG(5, "ZSTD_compressContinue_internal (blockSize=%u)", (U32)cctx->blockSize);
     {   size_t const cSize = frame ?
@@ -2661,6 +2675,7 @@ size_t ZSTD_compressBlock(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity, const 
 {
     size_t const blockSizeMax = ZSTD_getBlockSize(cctx);
     if (srcSize > blockSizeMax) return ERROR(srcSize_wrong);
+
     return ZSTD_compressContinue_internal(cctx, dst, dstCapacity, src, srcSize, 0 /* frame mode */, 0 /* last chunk */);
 }
 
@@ -2865,13 +2880,13 @@ ZSTD_compress_insertDictionary(ZSTD_compressedBlockState_t* bs,
 
 /*! ZSTD_compressBegin_internal() :
  * @return : 0, or an error code */
-size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
-                             const void* dict, size_t dictSize,
-                             ZSTD_dictContentType_e dictContentType,
-                             ZSTD_dictTableLoadMethod_e dtlm,
-                             const ZSTD_CDict* cdict,
-                             ZSTD_CCtx_params params, U64 pledgedSrcSize,
-                             ZSTD_buffered_policy_e zbuff)
+static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
+                                    const void* dict, size_t dictSize,
+                                    ZSTD_dictContentType_e dictContentType,
+                                    ZSTD_dictTableLoadMethod_e dtlm,
+                                    const ZSTD_CDict* cdict,
+                                    ZSTD_CCtx_params params, U64 pledgedSrcSize,
+                                    ZSTD_buffered_policy_e zbuff)
 {
     DEBUGLOG(4, "ZSTD_compressBegin_internal: wlog=%u", params.cParams.windowLog);
     /* params are supposed to be fully validated at this point */

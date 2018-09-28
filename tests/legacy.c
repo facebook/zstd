@@ -36,7 +36,7 @@ size_t const COMPRESSED_SIZE = 917;
 const char* const EXPECTED; /* content is at end of file */
 
 
-int testSimpleAPI(void)
+static int testSimpleAPI(void)
 {
     size_t const size = strlen(EXPECTED);
     char* const output = malloc(size);
@@ -71,7 +71,8 @@ int testSimpleAPI(void)
     return 0;
 }
 
-int testStreamingAPI(void)
+
+static int testStreamingAPI(void)
 {
     size_t const outBuffSize = ZSTD_DStreamOutSize();
     char* const outBuff = malloc(outBuffSize);

@@ -324,6 +324,7 @@ UTIL_STATIC U32 UTIL_isDirectory(const char* infilename)
 UTIL_STATIC U32 UTIL_isLink(const char* infilename)
 {
 /* macro guards, as defined in : https://linux.die.net/man/2/lstat */
+#ifndef __STRICT_ANSI__
 #if defined(_BSD_SOURCE) \
     || (defined(_XOPEN_SOURCE) && (_XOPEN_SOURCE >= 500)) \
     || (defined(_XOPEN_SOURCE) && defined(_XOPEN_SOURCE_EXTENDED)) \
@@ -333,6 +334,7 @@ UTIL_STATIC U32 UTIL_isLink(const char* infilename)
     stat_t statbuf;
     r = lstat(infilename, &statbuf);
     if (!r && S_ISLNK(statbuf.st_mode)) return 1;
+#endif
 #endif
     (void)infilename;
     return 0;

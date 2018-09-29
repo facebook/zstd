@@ -1073,6 +1073,44 @@ static int basicUnitTests(U32 seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : dictionary + small blocks + reusing tables checks offset table validity: ", testNb++);
+    {   ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(
+            dictionary.start, dictionary.filled,
+            ZSTD_dlm_byRef, ZSTD_dct_fullDict,
+            ZSTD_getCParams(3, 0, dictionary.filled),
+            ZSTD_defaultCMem);
+        ZSTD_outBuffer out = {compressedBuffer, compressedBufferSize, 0};
+        int remainingInput = 256 * 1024;
+        int offset;
+
+        ZSTD_CCtx_reset(zc);
+        CHECK_Z(ZSTD_CCtx_resetParameters(zc));
+        CHECK_Z(ZSTD_CCtx_refCDict(zc, cdict));
+        CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_p_checksumFlag, 1));
+        /* Write a bunch of 6 byte blocks */
+        while (remainingInput > 0) {
+          char testBuffer[6] = "\xAA\xAA\xAA\xAA\xAA\xAA";
+          const size_t kSmallBlockSize = sizeof(testBuffer);
+          ZSTD_inBuffer in = {testBuffer, kSmallBlockSize, 0};
+
+          CHECK_Z(ZSTD_compress_generic(zc, &out, &in, ZSTD_e_flush));
+          CHECK(in.pos != in.size, "input not fully consumed");
+          remainingInput -= kSmallBlockSize;
+        }
+        /* Write several very long offset matches into the dictionary */
+        for (offset = 1024; offset >= 0; offset -= 128) {
+          ZSTD_inBuffer in = {dictionary.start + offset, 128, 0};
+          ZSTD_EndDirective flush = offset > 0 ? ZSTD_e_continue : ZSTD_e_end;
+          CHECK_Z(ZSTD_compress_generic(zc, &out, &in, flush));
+          CHECK(in.pos != in.size, "input not fully consumed");
+        }
+        /* Ensure decompression works */
+        CHECK_Z(ZSTD_decompress_usingDict(zd, decodedBuffer, CNBufferSize, out.dst, out.pos, dictionary.start, dictionary.filled));
+
+        ZSTD_freeCDict(cdict);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
 _end:
     FUZ_freeDictionary(dictionary);
     ZSTD_freeCStream(zc);

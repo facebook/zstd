@@ -2349,13 +2349,15 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
                                         const void* src, size_t srcSize)
 {
     ZSTD_matchState_t* const ms = &zc->blockState.matchState;
+    size_t cSize;
     DEBUGLOG(5, "ZSTD_compressBlock_internal (dstCapacity=%zu, dictLimit=%u, nextToUpdate=%u)",
                 dstCapacity, ms->window.dictLimit, ms->nextToUpdate);
     assert(srcSize <= ZSTD_BLOCKSIZE_MAX);
 
     if (srcSize < MIN_CBLOCK_SIZE+ZSTD_blockHeaderSize+1) {
         ZSTD_ldm_skipSequences(&zc->externSeqStore, srcSize, zc->appliedParams.cParams.searchLength);
-        return 0;   /* don't even attempt compression below a certain srcSize */
+        cSize = 0;
+        goto out;  /* don't even attempt compression below a certain srcSize */
     }
     ZSTD_resetSeqStore(&(zc->seqStore));
     ms->opt.symbolCosts = &zc->blockState.prevCBlock->entropy;   /* required for optimal parser to read stats from dictionary */
@@ -2417,27 +2419,27 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
     }   }
 
     /* encode sequences and literals */
-    {   size_t const cSize = ZSTD_compressSequences(&zc->seqStore,
-                                &zc->blockState.prevCBlock->entropy, &zc->blockState.nextCBlock->entropy,
-                                &zc->appliedParams,
-                                dst, dstCapacity,
-                                srcSize, zc->entropyWorkspace, zc->bmi2);
-        if (!ZSTD_isError(cSize) && cSize != 0) {
-            /* confirm repcodes and entropy tables */
-            ZSTD_compressedBlockState_t* const tmp = zc->blockState.prevCBlock;
-            zc->blockState.prevCBlock = zc->blockState.nextCBlock;
-            zc->blockState.nextCBlock = tmp;
-        }
+    cSize = ZSTD_compressSequences(&zc->seqStore,
+            &zc->blockState.prevCBlock->entropy, &zc->blockState.nextCBlock->entropy,
+            &zc->appliedParams,
+            dst, dstCapacity,
+            srcSize, zc->entropyWorkspace, zc->bmi2);
 
-        /* We check that dictionaries have offset codes available for the first
-         * block. After the first block, the offcode table might not have large
-         * enough codes to represent the offsets in the data.
-         */
-        if (zc->blockState.prevCBlock->entropy.fse.offcode_repeatMode == FSE_repeat_valid)
-            zc->blockState.prevCBlock->entropy.fse.offcode_repeatMode = FSE_repeat_check;
-
-        return cSize;
+out:
+    if (!ZSTD_isError(cSize) && cSize != 0) {
+        /* confirm repcodes and entropy tables when emitting a compressed block */
+        ZSTD_compressedBlockState_t* const tmp = zc->blockState.prevCBlock;
+        zc->blockState.prevCBlock = zc->blockState.nextCBlock;
+        zc->blockState.nextCBlock = tmp;
     }
+    /* We check that dictionaries have offset codes available for the first
+     * block. After the first block, the offcode table might not have large
+     * enough codes to represent the offsets in the data.
+     */
+    if (zc->blockState.prevCBlock->entropy.fse.offcode_repeatMode == FSE_repeat_valid)
+        zc->blockState.prevCBlock->entropy.fse.offcode_repeatMode = FSE_repeat_check;
+
+    return cSize;
 }
 
 

@@ -1895,7 +1895,74 @@ int FIO_decompressFilename(const char* dstFileName, const char* srcFileName,
 }
 
 
-#define MAXSUFFIXSIZE 8
+/* FIO_determineDstName() :
+ * create a destination filename from a srcFileName.
+ * @return a pointer to it.
+ * @return == NULL if there is an error */
+static const char*
+FIO_determineDstName(const char* srcFileName)
+{
+    static size_t dfnbCapacity = 0;
+    static char* dstFileNameBuffer = NULL;   /* using static allocation : this function cannot be multi-threaded */
+
+    size_t const sfnSize = strlen(srcFileName);
+    size_t suffixSize;
+    const char* const suffixPtr = strrchr(srcFileName, '.');
+    if (suffixPtr == NULL) {
+        DISPLAYLEVEL(1, "zstd: %s: unknown suffix -- ignored \n",
+                        srcFileName);
+        return NULL;
+    }
+    suffixSize = strlen(suffixPtr);
+
+    /* check suffix is authorized */
+    if (sfnSize <= suffixSize
+        || (   strcmp(suffixPtr, ZSTD_EXTENSION)
+        #ifdef ZSTD_GZDECOMPRESS
+            && strcmp(suffixPtr, GZ_EXTENSION)
+        #endif
+        #ifdef ZSTD_LZMADECOMPRESS
+            && strcmp(suffixPtr, XZ_EXTENSION)
+            && strcmp(suffixPtr, LZMA_EXTENSION)
+        #endif
+        #ifdef ZSTD_LZ4DECOMPRESS
+            && strcmp(suffixPtr, LZ4_EXTENSION)
+        #endif
+            ) ) {
+        const char* suffixlist = ZSTD_EXTENSION
+        #ifdef ZSTD_GZDECOMPRESS
+            "/" GZ_EXTENSION
+        #endif
+        #ifdef ZSTD_LZMADECOMPRESS
+            "/" XZ_EXTENSION "/" LZMA_EXTENSION
+        #endif
+        #ifdef ZSTD_LZ4DECOMPRESS
+            "/" LZ4_EXTENSION
+        #endif
+        ;
+        DISPLAYLEVEL(1, "zstd: %s: unknown suffix (%s expected) -- ignored \n",
+                     srcFileName, suffixlist);
+        return NULL;
+    }
+
+    /* allocate enough space to write dstFilename into it */
+    if (dfnbCapacity+suffixSize <= sfnSize+1) {
+        free(dstFileNameBuffer);
+        dfnbCapacity = sfnSize + 20;
+        dstFileNameBuffer = (char*)malloc(dfnbCapacity);
+        if (dstFileNameBuffer==NULL)
+            EXM_THROW(74, "not enough memory for dstFileName");
+    }
+
+    /* return dst name == src name truncated from suffix */
+    memcpy(dstFileNameBuffer, srcFileName, sfnSize - suffixSize);
+    dstFileNameBuffer[sfnSize-suffixSize] = '\0';
+    return dstFileNameBuffer;
+
+    /* note : dstFileNameBuffer memory is not going to be free */
+}
+
+
 int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles,
                                     const char* outFileName,
                                     const char* dictFileName)
@@ -1913,65 +1980,14 @@ int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles
         if (fclose(ress.dstFile))
             EXM_THROW(72, "Write error : cannot properly close output file");
     } else {
-        size_t suffixSize;
-        size_t dfnbCapacity = FNSPACE;
         unsigned u;
-        char* dstFileName = (char*)malloc(dfnbCapacity);
-        if (dstFileName==NULL)
-            EXM_THROW(73, "not enough memory for dstFileName");
         for (u=0; u<nbFiles; u++) {   /* create dstFileName */
             const char* const srcFileName = srcNamesTable[u];
-            const char* const suffixPtr = strrchr(srcFileName, '.');
-            size_t const sfnSize = strlen(srcFileName);
-            if (!suffixPtr) {
-                DISPLAYLEVEL(1, "zstd: %s: unknown suffix -- ignored \n",
-                                srcFileName);
-                skippedFiles++;
-                continue;
-            }
-            suffixSize = strlen(suffixPtr);
-            if (dfnbCapacity+suffixSize <= sfnSize+1) {
-                free(dstFileName);
-                dfnbCapacity = sfnSize + 20;
-                dstFileName = (char*)malloc(dfnbCapacity);
-                if (dstFileName==NULL)
-                    EXM_THROW(74, "not enough memory for dstFileName");
-            }
-            if (sfnSize <= suffixSize
-                || (   strcmp(suffixPtr, ZSTD_EXTENSION)
-                #ifdef ZSTD_GZDECOMPRESS
-                    && strcmp(suffixPtr, GZ_EXTENSION)
-                #endif
-                #ifdef ZSTD_LZMADECOMPRESS
-                    && strcmp(suffixPtr, XZ_EXTENSION)
-                    && strcmp(suffixPtr, LZMA_EXTENSION)
-                #endif
-                #ifdef ZSTD_LZ4DECOMPRESS
-                    && strcmp(suffixPtr, LZ4_EXTENSION)
-                #endif
-                    ) ) {
-                const char* suffixlist = ZSTD_EXTENSION
-                #ifdef ZSTD_GZDECOMPRESS
-                    "/" GZ_EXTENSION
-                #endif
-                #ifdef ZSTD_LZMADECOMPRESS
-                    "/" XZ_EXTENSION "/" LZMA_EXTENSION
-                #endif
-                #ifdef ZSTD_LZ4DECOMPRESS
-                    "/" LZ4_EXTENSION
-                #endif
-                ;
-                DISPLAYLEVEL(1, "zstd: %s: unknown suffix (%s expected) -- ignored \n",
-                             srcFileName, suffixlist);
-                skippedFiles++;
-                continue;
-            } else {
-                memcpy(dstFileName, srcFileName, sfnSize - suffixSize);
-                dstFileName[sfnSize-suffixSize] = '\0';
-            }
+            const char* const dstFileName = FIO_determineDstName(srcFileName);
+            if (dstFileName == NULL) { skippedFiles++; continue; }
+
             missingFiles += FIO_decompressDstFile(ress, dstFileName, srcFileName);
         }
-        free(dstFileName);
     }
 
     FIO_freeDResources(ress);

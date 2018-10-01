@@ -201,7 +201,7 @@ test ! -f tmp.zst  # tmp.zst should not be created
 $ECHO "test : do not delete destination when source is not present"
 touch tmp    # create destination file
 $ZSTD -d -f tmp.zst && die "attempt to decompress a non existing file"
-! test -f tmp  # destination file should still be present (test disabled temporarily)
+test -f tmp  # destination file should still be present (test disabled temporarily)
 rm tmp*
 
 

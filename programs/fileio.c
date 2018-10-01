@@ -1792,11 +1792,72 @@ static int FIO_decompressFrames(dRess_t ress, FILE* srcFile,
     return 0;
 }
 
+/** FIO_decompressDstFile() :
+    open `dstFileName`,
+    or path-through if ress.dstFile is already != 0,
+    then start decompression process (FIO_decompressFrames()).
+    @return : 0 : OK
+              1 : operation aborted
+*/
+static int FIO_decompressDstFile(dRess_t ress, FILE* srcFile,
+                                 const char* dstFileName, const char* srcFileName)
+{
+    int result;
+    stat_t statbuf;
+    int transfer_permissions = 0;
+    int releaseDstFile = 0;
+
+    if (ress.dstFile == NULL) {
+        releaseDstFile = 1;
+
+        ress.dstFile = FIO_openDstFile(dstFileName);
+        if (ress.dstFile==0) return 1;
+
+        /* Must only be added after FIO_openDstFile() succeeds.
+         * Otherwise we may delete the destination file if it already exists,
+         * and the user presses Ctrl-C when asked if they wish to overwrite.
+         */
+        addHandler(dstFileName);
+
+        if ( strcmp(srcFileName, stdinmark)   /* special case : don't transfer permissions from stdin */
+          && UTIL_getFileStat(srcFileName, &statbuf) )
+            transfer_permissions = 1;
+    }
+
+
+    result = FIO_decompressFrames(ress, srcFile, dstFileName, srcFileName);
+
+    if (releaseDstFile) {
+        FILE* const dstFile = ress.dstFile;
+        clearHandler();
+        ress.dstFile = NULL;
+        if (fclose(dstFile)) {
+            DISPLAYLEVEL(1, "zstd: %s: %s \n", dstFileName, strerror(errno));
+            result = 1;
+        }
+
+        if ( (result != 0)  /* operation failure */
+          && strcmp(dstFileName, nulmark)     /* special case : don't remove() /dev/null (#316) */
+          && strcmp(dstFileName, stdoutmark)  /* special case : don't remove() stdout */
+          ) {
+            FIO_remove(dstFileName);  /* remove decompression artefact; note: don't do anything special if remove() fails */
+        } else {  /* operation success */
+            if ( strcmp(dstFileName, stdoutmark) /* special case : don't chmod stdout */
+              && strcmp(dstFileName, nulmark)    /* special case : don't chmod /dev/null */
+              && transfer_permissions )          /* file permissions correctly extracted from src */
+                UTIL_setFileStat(dstFileName, &statbuf);  /* transfer file permissions from src into dst */
+        }
+        signal(SIGINT, SIG_DFL);
+    }
+
+    return result;
+}
+
 
 /** FIO_decompressSrcFile() :
-    Decompression `srcFileName` into `ress.dstFile`
+    Open `srcFileName`, transfer control to decompressDstFile()
     @return : 0 : OK
-              1 : operation not started
+              1 : error
 */
 static int FIO_decompressSrcFile(dRess_t ress, const char* dstFileName, const char* srcFileName)
 {
@@ -1812,15 +1873,15 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* dstFileName, const ch
     if (srcFile==NULL) return 1;
     ress.srcBufferLoaded = 0;
 
-    result = FIO_decompressFrames(ress, srcFile, dstFileName, srcFileName);
+    result = FIO_decompressDstFile(ress, srcFile, dstFileName, srcFileName);
 
     /* Close file */
     if (fclose(srcFile)) {
         DISPLAYLEVEL(1, "zstd: %s: %s \n", srcFileName, strerror(errno));  /* error should not happen */
         return 1;
     }
-    if ( g_removeSrcFile /* --rm */
-      && (result==0)     /* decompression successful */
+    if ( g_removeSrcFile  /* --rm */
+      && (result==0)      /* decompression successful */
       && strcmp(srcFileName, stdinmark) ) /* not stdin */ {
         /* We must clear the handler, since after this point calling it would
          * delete both the source and destination files.
@@ -1835,60 +1896,13 @@ static int FIO_decompressSrcFile(dRess_t ress, const char* dstFileName, const ch
 }
 
 
-/** FIO_decompressFile_extRess() :
-    decompress `srcFileName` into `dstFileName`
-    @return : 0 : OK
-              1 : operation aborted (src not available, dst already taken, etc.)
-*/
-static int FIO_decompressDstFile(dRess_t ress,
-                                 const char* dstFileName, const char* srcFileName)
-{
-    int result;
-    stat_t statbuf;
-    int stat_result = 0;
-
-    ress.dstFile = FIO_openDstFile(dstFileName);
-    if (ress.dstFile==0) return 1;
-    /* Must ony be added after FIO_openDstFile() succeeds.
-     * Otherwise we may delete the destination file if at already exists, and
-     * the user presses Ctrl-C when asked if they wish to overwrite.
-     */
-    addHandler(dstFileName);
-
-    if ( strcmp(srcFileName, stdinmark)
-      && UTIL_getFileStat(srcFileName, &statbuf) )
-        stat_result = 1;
-    result = FIO_decompressSrcFile(ress, dstFileName, srcFileName);
-    clearHandler();
-
-    if (fclose(ress.dstFile)) {
-        DISPLAYLEVEL(1, "zstd: %s: %s \n", dstFileName, strerror(errno));
-        result = 1;
-    }
-
-    if ( (result != 0)  /* operation failure */
-      && strcmp(dstFileName, nulmark)      /* special case : don't remove() /dev/null (#316) */
-      && strcmp(dstFileName, stdoutmark) ) /* special case : don't remove() stdout */
-        FIO_remove(dstFileName);  /* remove decompression artefact; note don't do anything special if remove() fails */
-    else {  /* operation success */
-        if ( strcmp(dstFileName, stdoutmark) /* special case : don't chmod stdout */
-          && strcmp(dstFileName, nulmark)    /* special case : don't chmod /dev/null */
-          && stat_result )                   /* file permissions correctly extracted from src */
-            UTIL_setFileStat(dstFileName, &statbuf);  /* transfer file permissions from src into dst */
-    }
-
-    signal(SIGINT, SIG_DFL);
-
-    return result;
-}
-
 
 int FIO_decompressFilename(const char* dstFileName, const char* srcFileName,
                            const char* dictFileName)
 {
     dRess_t const ress = FIO_createDResources(dictFileName);
 
-    int const decodingError = FIO_decompressDstFile(ress, dstFileName, srcFileName);
+    int const decodingError = FIO_decompressSrcFile(ress, dstFileName, srcFileName);
 
     FIO_freeDResources(ress);
     return decodingError;
@@ -1963,12 +1977,12 @@ FIO_determineDstName(const char* srcFileName)
 }
 
 
-int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles,
-                                    const char* outFileName,
-                                    const char* dictFileName)
+int
+FIO_decompressMultipleFilenames(const char* srcNamesTable[], unsigned nbFiles,
+                                const char* outFileName,
+                                const char* dictFileName)
 {
-    int skippedFiles = 0;
-    int missingFiles = 0;
+    int error = 0;
     dRess_t ress = FIO_createDResources(dictFileName);
 
     if (outFileName) {
@@ -1976,7 +1990,7 @@ int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles
         ress.dstFile = FIO_openDstFile(outFileName);
         if (ress.dstFile == 0) EXM_THROW(71, "cannot open %s", outFileName);
         for (u=0; u<nbFiles; u++)
-            missingFiles += FIO_decompressSrcFile(ress, outFileName, srcNamesTable[u]);
+            error |= FIO_decompressSrcFile(ress, outFileName, srcNamesTable[u]);
         if (fclose(ress.dstFile))
             EXM_THROW(72, "Write error : cannot properly close output file");
     } else {
@@ -1984,14 +1998,14 @@ int FIO_decompressMultipleFilenames(const char** srcNamesTable, unsigned nbFiles
         for (u=0; u<nbFiles; u++) {   /* create dstFileName */
             const char* const srcFileName = srcNamesTable[u];
             const char* const dstFileName = FIO_determineDstName(srcFileName);
-            if (dstFileName == NULL) { skippedFiles++; continue; }
+            if (dstFileName == NULL) { error=1; continue; }
 
-            missingFiles += FIO_decompressDstFile(ress, dstFileName, srcFileName);
+            error |= FIO_decompressSrcFile(ress, dstFileName, srcFileName);
         }
     }
 
     FIO_freeDResources(ress);
-    return missingFiles + skippedFiles;
+    return error;
 }
 
 

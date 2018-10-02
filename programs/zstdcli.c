@@ -547,7 +547,7 @@ int main(int argCount, const char* argv[])
     memset(&compressionParams, 0, sizeof(compressionParams));
 
     /* init crash handler */
-    //FIO_addAbortHandler();
+    FIO_addAbortHandler();
 
     /* command switches */
     for (argNb=1; argNb<argCount; argNb++) {

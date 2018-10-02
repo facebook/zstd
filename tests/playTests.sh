@@ -198,10 +198,15 @@ $ECHO a | $ZSTD --rm > $INTOVOID   # --rm should remain silent
 rm tmp
 $ZSTD -f tmp && die "tmp not present : should have failed"
 test ! -f tmp.zst  # tmp.zst should not be created
-$ECHO "test : do not delete destination when source is not present"
+$ECHO "test : -d -f do not delete destination when source is not present"
 touch tmp    # create destination file
 $ZSTD -d -f tmp.zst && die "attempt to decompress a non existing file"
-test -f tmp  # destination file should still be present (test disabled temporarily)
+test -f tmp  # destination file should still be present
+$ECHO "test : -f do not delete destination when source is not present"
+rm tmp         # erase source file
+touch tmp.zst  # create destination file
+$ZSTD -f tmp && die "attempt to compress a non existing file"
+test -f tmp.zst  # destination file should still be present
 rm tmp*
 
 
@@ -824,6 +829,7 @@ roundTripTest -g1M -P50 "1 --single-thread --long=29" " --zstd=wlog=28 --memory=
 $ECHO "\n===>   adaptive mode "
 roundTripTest -g270000000 " --adapt"
 roundTripTest -g27000000 " --adapt=min=1,max=4"
+$ECHO "===>   test: --adapt must fail on incoherent bounds "
 ./datagen > tmp
 $ZSTD -f -vv --adapt=min=10,max=9 tmp && die "--adapt must fail on incoherent bounds"
 
@@ -834,6 +840,7 @@ if [ "$1" != "--test-large-data" ]; then
 fi
 
 
+#############################################################################
 
 $ECHO "\n===>   large files tests "
 

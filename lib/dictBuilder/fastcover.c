@@ -245,39 +245,41 @@ static int FASTCOVER_checkParameters(ZDICT_cover_params_t parameters,
 /**
  * Clean up a context initialized with `FASTCOVER_ctx_init()`.
  */
-static void FASTCOVER_ctx_destroy(FASTCOVER_ctx_t *ctx) {
-  if (!ctx) {
-    return;
-  }
+static void
+FASTCOVER_ctx_destroy(FASTCOVER_ctx_t* ctx)
+{
+    if (!ctx) return;
 
-  free(ctx->freqs);
-  ctx->freqs = NULL;
+    free(ctx->freqs);
+    ctx->freqs = NULL;
 
-  free(ctx->offsets);
-  ctx->offsets = NULL;
+    free(ctx->offsets);
+    ctx->offsets = NULL;
 }
 
 
 /**
  * Calculate for frequency of hash value of each dmer in ctx->samples
  */
-static void FASTCOVER_computeFrequency(U32 *freqs, FASTCOVER_ctx_t *ctx){
-  const unsigned f = ctx->f;
-  const unsigned d = ctx->d;
-  const unsigned skip = ctx->accelParams.skip;
-  const unsigned readLength = MAX(d, 8);
-  size_t start; /* start of current dmer */
-  size_t i;
-  for (i = 0; i < ctx->nbTrainSamples; i++) {
-    size_t currSampleStart = ctx->offsets[i];
-    size_t currSampleEnd = ctx->offsets[i+1];
-    start = currSampleStart;
-    while (start + readLength <= currSampleEnd) {
-      const size_t dmerIndex = FASTCOVER_hashPtrToIndex(ctx->samples + start, f, d);
-      freqs[dmerIndex]++;
-      start = start + skip + 1;
+static void
+FASTCOVER_computeFrequency(U32* freqs, const FASTCOVER_ctx_t* ctx)
+{
+    const unsigned f = ctx->f;
+    const unsigned d = ctx->d;
+    const unsigned skip = ctx->accelParams.skip;
+    const unsigned readLength = MAX(d, 8);
+    size_t i;
+    assert(ctx->nbTrainSamples >= 5);
+    assert(ctx->nbTrainSamples <= ctx->nbSamples);
+    for (i = 0; i < ctx->nbTrainSamples; i++) {
+        size_t start = ctx->offsets[i];  /* start of current dmer */
+        size_t const currSampleEnd = ctx->offsets[i+1];
+        while (start + readLength <= currSampleEnd) {
+            const size_t dmerIndex = FASTCOVER_hashPtrToIndex(ctx->samples + start, f, d);
+            freqs[dmerIndex]++;
+            start = start + skip + 1;
+        }
     }
-  }
 }
 
 
@@ -288,84 +290,100 @@ static void FASTCOVER_computeFrequency(U32 *freqs, FASTCOVER_ctx_t *ctx){
  * Returns 1 on success or zero on error.
  * The context must be destroyed with `FASTCOVER_ctx_destroy()`.
  */
-static int FASTCOVER_ctx_init(FASTCOVER_ctx_t *ctx, const void *samplesBuffer,
-                              const size_t *samplesSizes, unsigned nbSamples,
-                              unsigned d, double splitPoint, unsigned f,
-                              FASTCOVER_accel_t accelParams) {
-  const BYTE *const samples = (const BYTE *)samplesBuffer;
-  const size_t totalSamplesSize = COVER_sum(samplesSizes, nbSamples);
-  /* Split samples into testing and training sets */
-  const unsigned nbTrainSamples = splitPoint < 1.0 ? (unsigned)((double)nbSamples * splitPoint) : nbSamples;
-  const unsigned nbTestSamples = splitPoint < 1.0 ? nbSamples - nbTrainSamples : nbSamples;
-  const size_t trainingSamplesSize = splitPoint < 1.0 ? COVER_sum(samplesSizes, nbTrainSamples) : totalSamplesSize;
-  const size_t testSamplesSize = splitPoint < 1.0 ? COVER_sum(samplesSizes + nbTrainSamples, nbTestSamples) : totalSamplesSize;
-  /* Checks */
-  if (totalSamplesSize < MAX(d, sizeof(U64)) ||
-      totalSamplesSize >= (size_t)FASTCOVER_MAX_SAMPLES_SIZE) {
-    DISPLAYLEVEL(1, "Total samples size is too large (%u MB), maximum size is %u MB\n",
-                 (U32)(totalSamplesSize >> 20), (FASTCOVER_MAX_SAMPLES_SIZE >> 20));
-    return 0;
-  }
-  /* Check if there are at least 5 training samples */
-  if (nbTrainSamples < 5) {
-    DISPLAYLEVEL(1, "Total number of training samples is %u and is invalid\n", nbTrainSamples);
-    return 0;
-  }
-  /* Check if there's testing sample */
-  if (nbTestSamples < 1) {
-    DISPLAYLEVEL(1, "Total number of testing samples is %u and is invalid.\n", nbTestSamples);
-    return 0;
-  }
-  /* Zero the context */
-  memset(ctx, 0, sizeof(*ctx));
-  DISPLAYLEVEL(2, "Training on %u samples of total size %u\n", nbTrainSamples,
-               (U32)trainingSamplesSize);
-  DISPLAYLEVEL(2, "Testing on %u samples of total size %u\n", nbTestSamples,
-               (U32)testSamplesSize);
+static int
+FASTCOVER_ctx_init(FASTCOVER_ctx_t* ctx,
+                   const void* samplesBuffer,
+                   const size_t* samplesSizes, unsigned nbSamples,
+                   unsigned d, double splitPoint, unsigned f,
+                   FASTCOVER_accel_t accelParams)
+{
+    const BYTE* const samples = (const BYTE*)samplesBuffer;
+    const size_t totalSamplesSize = COVER_sum(samplesSizes, nbSamples);
+    /* Split samples into testing and training sets */
+    const unsigned nbTrainSamples = splitPoint < 1.0 ? (unsigned)((double)nbSamples * splitPoint) : nbSamples;
+    const unsigned nbTestSamples = splitPoint < 1.0 ? nbSamples - nbTrainSamples : nbSamples;
+    const size_t trainingSamplesSize = splitPoint < 1.0 ? COVER_sum(samplesSizes, nbTrainSamples) : totalSamplesSize;
+    const size_t testSamplesSize = splitPoint < 1.0 ? COVER_sum(samplesSizes + nbTrainSamples, nbTestSamples) : totalSamplesSize;
 
-  ctx->samples = samples;
-  ctx->samplesSizes = samplesSizes;
-  ctx->nbSamples = nbSamples;
-  ctx->nbTrainSamples = nbTrainSamples;
-  ctx->nbTestSamples = nbTestSamples;
-  ctx->nbDmers = trainingSamplesSize - MAX(d, sizeof(U64)) + 1;
-  ctx->d = d;
-  ctx->f = f;
-  ctx->accelParams = accelParams;
-
-  /* The offsets of each file */
-  ctx->offsets = (size_t *)malloc((nbSamples + 1) * sizeof(size_t));
-  if (!ctx->offsets) {
-    DISPLAYLEVEL(1, "Failed to allocate scratch buffers\n");
-    FASTCOVER_ctx_destroy(ctx);
-    return 0;
-  }
-
-  /* Fill offsets from the samplesSizes */
-  {
-    U32 i;
-    ctx->offsets[0] = 0;
-    for (i = 1; i <= nbSamples; ++i) {
-      ctx->offsets[i] = ctx->offsets[i - 1] + samplesSizes[i - 1];
+    /* Checks */
+    if (totalSamplesSize < MAX(d, sizeof(U64)) ||
+        totalSamplesSize >= (size_t)FASTCOVER_MAX_SAMPLES_SIZE) {
+        DISPLAYLEVEL(1, "Total samples size is too large (%u MB), maximum size is %u MB\n",
+                    (U32)(totalSamplesSize >> 20), (FASTCOVER_MAX_SAMPLES_SIZE >> 20));
+        return 0;
     }
-  }
 
-  /* Initialize frequency array of size 2^f */
-  ctx->freqs = (U32 *)calloc(((U64)1 << f), sizeof(U32));
+    /* Check if there are at least 5 training samples */
+    if (nbTrainSamples < 5) {
+        DISPLAYLEVEL(1, "Total number of training samples is %u and is invalid\n", nbTrainSamples);
+        return 0;
+    }
 
-  DISPLAYLEVEL(2, "Computing frequencies\n");
-  FASTCOVER_computeFrequency(ctx->freqs, ctx);
+    /* Check if there's testing sample */
+    if (nbTestSamples < 1) {
+        DISPLAYLEVEL(1, "Total number of testing samples is %u and is invalid.\n", nbTestSamples);
+        return 0;
+    }
 
-  return 1;
+    /* Zero the context */
+    memset(ctx, 0, sizeof(*ctx));
+    DISPLAYLEVEL(2, "Training on %u samples of total size %u\n", nbTrainSamples,
+                    (U32)trainingSamplesSize);
+    DISPLAYLEVEL(2, "Testing on %u samples of total size %u\n", nbTestSamples,
+                    (U32)testSamplesSize);
+
+    ctx->samples = samples;
+    ctx->samplesSizes = samplesSizes;
+    ctx->nbSamples = nbSamples;
+    ctx->nbTrainSamples = nbTrainSamples;
+    ctx->nbTestSamples = nbTestSamples;
+    ctx->nbDmers = trainingSamplesSize - MAX(d, sizeof(U64)) + 1;
+    ctx->d = d;
+    ctx->f = f;
+    ctx->accelParams = accelParams;
+
+    /* The offsets of each file */
+    ctx->offsets = (size_t*)calloc((nbSamples + 1), sizeof(size_t));
+    if (ctx->offsets == NULL) {
+        DISPLAYLEVEL(1, "Failed to allocate scratch buffers \n");
+        FASTCOVER_ctx_destroy(ctx);
+        return 0;
+    }
+
+    /* Fill offsets from the samplesSizes */
+    {   U32 i;
+        ctx->offsets[0] = 0;
+        assert(nbSamples >= 5);
+        for (i = 1; i <= nbSamples; ++i) {
+            ctx->offsets[i] = ctx->offsets[i - 1] + samplesSizes[i - 1];
+        }
+    }
+
+    /* Initialize frequency array of size 2^f */
+    ctx->freqs = (U32*)calloc(((U64)1 << f), sizeof(U32));
+    if (ctx->freqs == NULL) {
+        DISPLAYLEVEL(1, "Failed to allocate frequency table \n");
+        FASTCOVER_ctx_destroy(ctx);
+        return 0;
+    }
+
+    DISPLAYLEVEL(2, "Computing frequencies\n");
+    FASTCOVER_computeFrequency(ctx->freqs, ctx);
+
+    return 1;
 }
 
 
 /**
  * Given the prepared context build the dictionary.
  */
-static size_t FASTCOVER_buildDictionary(const FASTCOVER_ctx_t *ctx, U32 *freqs,
-                                        void *dictBuffer, size_t dictBufferCapacity,
-                                        ZDICT_cover_params_t parameters, U16* segmentFreqs){
+static size_t
+FASTCOVER_buildDictionary(const FASTCOVER_ctx_t* ctx,
+                          U32* freqs,
+                          void* dictBuffer, size_t dictBufferCapacity,
+                          ZDICT_cover_params_t parameters,
+                          U16* segmentFreqs)
+{
   BYTE *const dict = (BYTE *)dictBuffer;
   size_t tail = dictBufferCapacity;
   /* Divide the data up into epochs of equal size.
@@ -416,10 +434,10 @@ static size_t FASTCOVER_buildDictionary(const FASTCOVER_ctx_t *ctx, U32 *freqs,
  * Parameters for FASTCOVER_tryParameters().
  */
 typedef struct FASTCOVER_tryParameters_data_s {
-  const FASTCOVER_ctx_t *ctx;
-  COVER_best_t *best;
-  size_t dictBufferCapacity;
-  ZDICT_cover_params_t parameters;
+    const FASTCOVER_ctx_t* ctx;
+    COVER_best_t* best;
+    size_t dictBufferCapacity;
+    ZDICT_cover_params_t parameters;
 } FASTCOVER_tryParameters_data_t;
 
 
@@ -428,7 +446,8 @@ typedef struct FASTCOVER_tryParameters_data_s {
  * This function is thread safe if zstd is compiled with multithreaded support.
  * It takes its parameters as an *OWNING* opaque pointer to support threading.
  */
-static void FASTCOVER_tryParameters(void *opaque) {
+static void FASTCOVER_tryParameters(void *opaque)
+{
   /* Save parameters as local variables */
   FASTCOVER_tryParameters_data_t *const data = (FASTCOVER_tryParameters_data_t *)opaque;
   const FASTCOVER_ctx_t *const ctx = data->ctx;
@@ -447,8 +466,7 @@ static void FASTCOVER_tryParameters(void *opaque) {
   /* Copy the frequencies because we need to modify them */
   memcpy(freqs, ctx->freqs, ((U64)1 << ctx->f) * sizeof(U32));
   /* Build the dictionary */
-  {
-    const size_t tail = FASTCOVER_buildDictionary(ctx, freqs, dict, dictBufferCapacity,
+  { const size_t tail = FASTCOVER_buildDictionary(ctx, freqs, dict, dictBufferCapacity,
                                                   parameters, segmentFreqs);
     const unsigned nbFinalizeSamples = (unsigned)(ctx->nbTrainSamples * ctx->accelParams.finalize / 100);
     dictBufferCapacity = ZDICT_finalizeDictionary(
@@ -474,9 +492,10 @@ _cleanup:
 }
 
 
-
-static void FASTCOVER_convertToCoverParams(ZDICT_fastCover_params_t fastCoverParams,
-                                          ZDICT_cover_params_t *coverParams) {
+static void
+FASTCOVER_convertToCoverParams(ZDICT_fastCover_params_t fastCoverParams,
+                               ZDICT_cover_params_t* coverParams)
+{
     coverParams->k = fastCoverParams.k;
     coverParams->d = fastCoverParams.d;
     coverParams->steps = fastCoverParams.steps;
@@ -486,9 +505,11 @@ static void FASTCOVER_convertToCoverParams(ZDICT_fastCover_params_t fastCoverPar
 }
 
 
-static void FASTCOVER_convertToFastCoverParams(ZDICT_cover_params_t coverParams,
-                                          ZDICT_fastCover_params_t *fastCoverParams,
-                                          unsigned f, unsigned accel) {
+static void
+FASTCOVER_convertToFastCoverParams(ZDICT_cover_params_t coverParams,
+                                   ZDICT_fastCover_params_t* fastCoverParams,
+                                   unsigned f, unsigned accel)
+{
     fastCoverParams->k = coverParams.k;
     fastCoverParams->d = coverParams.d;
     fastCoverParams->steps = coverParams.steps;
@@ -500,9 +521,12 @@ static void FASTCOVER_convertToFastCoverParams(ZDICT_cover_params_t coverParams,
 }
 
 
-ZDICTLIB_API size_t ZDICT_trainFromBuffer_fastCover(
-    void *dictBuffer, size_t dictBufferCapacity, const void *samplesBuffer,
-    const size_t *samplesSizes, unsigned nbSamples, ZDICT_fastCover_params_t parameters) {
+ZDICTLIB_API size_t
+ZDICT_trainFromBuffer_fastCover(void* dictBuffer, size_t dictBufferCapacity,
+                                const void* samplesBuffer,
+                                const size_t* samplesSizes, unsigned nbSamples,
+                                ZDICT_fastCover_params_t parameters)
+{
     BYTE* const dict = (BYTE*)dictBuffer;
     FASTCOVER_ctx_t ctx;
     ZDICT_cover_params_t coverParams;
@@ -562,10 +586,13 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_fastCover(
 }
 
 
-ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_fastCover(
-    void *dictBuffer, size_t dictBufferCapacity, const void *samplesBuffer,
-    const size_t *samplesSizes, unsigned nbSamples,
-    ZDICT_fastCover_params_t *parameters) {
+ZDICTLIB_API size_t
+ZDICT_optimizeTrainFromBuffer_fastCover(
+                    void* dictBuffer, size_t dictBufferCapacity,
+                    const void* samplesBuffer,
+                    const size_t* samplesSizes, unsigned nbSamples,
+                    ZDICT_fastCover_params_t* parameters)
+{
     ZDICT_cover_params_t coverParams;
     FASTCOVER_accel_t accelParams;
     /* constants */

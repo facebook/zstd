@@ -1066,14 +1066,80 @@ FIO_compressFilename_internal(cRess_t ress,
 }
 
 
+/*! FIO_compressFilename_dstFile() :
+ *  open dstFileName, or pass-through if ress.dstFile != NULL,
+ *  then start compression with FIO_compressFilename_internal().
+ *  Manages source removal (--rm) and file permissions transfer.
+ *  note : ress.srcFile must be != NULL,
+ *  so reach this function through FIO_compressFilename_srcFile().
+ *  @return : 0 : compression completed correctly,
+ *            1 : pb
+ */
+static int FIO_compressFilename_dstFile(cRess_t ress,
+                                        const char* dstFileName,
+                                        const char* srcFileName,
+                                        int compressionLevel)
+{
+    int closeDstFile = 0;
+    int result;
+    stat_t statbuf;
+    int transfer_permissions = 0;
+
+    assert(ress.srcFile != NULL);
+
+    if (ress.dstFile == NULL) {
+        closeDstFile = 1;
+        DISPLAYLEVEL(6, "FIO_compressFilename_dstFile: opening dst: %s", dstFileName);
+        ress.dstFile = FIO_openDstFile(dstFileName);
+        if (ress.dstFile==NULL) return 1;  /* could not open dstFileName */
+        /* Must only be added after FIO_openDstFile() succeeds.
+         * Otherwise we may delete the destination file if it already exists,
+         * and the user presses Ctrl-C when asked if they wish to overwrite.
+         */
+        addHandler(dstFileName);
+
+        if ( strcmp (srcFileName, stdinmark)
+          && UTIL_getFileStat(srcFileName, &statbuf))
+            transfer_permissions = 1;
+    }
+
+    result = FIO_compressFilename_internal(ress, dstFileName, srcFileName, compressionLevel);
+
+    if (closeDstFile) {
+        FILE* const dstFile = ress.dstFile;
+        ress.dstFile = NULL;
+
+        clearHandler();
+
+        if (fclose(dstFile)) { /* error closing dstFile */
+            DISPLAYLEVEL(1, "zstd: %s: %s \n", dstFileName, strerror(errno));
+            result=1;
+        }
+        if ( (result != 0)  /* operation failure */
+          && strcmp(dstFileName, nulmark)     /* special case : don't remove() /dev/null */
+          && strcmp(dstFileName, stdoutmark)  /* special case : don't remove() stdout */
+          ) {
+            FIO_remove(dstFileName); /* remove compression artefact; note don't do anything special if remove() fails */
+        } else if ( strcmp(dstFileName, stdoutmark)
+                 && strcmp(dstFileName, nulmark)
+                 && transfer_permissions) {
+            UTIL_setFileStat(dstFileName, &statbuf);
+        }
+    }
+
+    return result;
+}
+
+
 /*! FIO_compressFilename_srcFile() :
- *  note : ress.destFile already opened
  *  @return : 0 : compression completed correctly,
  *            1 : missing or pb opening srcFileName
  */
-static int FIO_compressFilename_srcFile(cRess_t ress,
-                            const char* dstFileName, const char* srcFileName,
-                            int compressionLevel)
+static int
+FIO_compressFilename_srcFile(cRess_t ress,
+                             const char* dstFileName,
+                             const char* srcFileName,
+                             int compressionLevel)
 {
     int result;
 
@@ -1084,12 +1150,16 @@ static int FIO_compressFilename_srcFile(cRess_t ress,
     }
 
     ress.srcFile = FIO_openSrcFile(srcFileName);
-    if (!ress.srcFile) return 1;   /* srcFile could not be opened */
+    if (ress.srcFile == NULL) return 1;   /* srcFile could not be opened */
 
-    result = FIO_compressFilename_internal(ress, dstFileName, srcFileName, compressionLevel);
+    result = FIO_compressFilename_dstFile(ress, dstFileName, srcFileName, compressionLevel);
 
     fclose(ress.srcFile);
-    if (g_removeSrcFile /* --rm */ && !result && strcmp(srcFileName, stdinmark)) {
+    ress.srcFile = NULL;
+    if ( g_removeSrcFile   /* --rm */
+      && result == 0       /* success */
+      && strcmp(srcFileName, stdinmark)   /* exception : don't erase stdin */
+      ) {
         /* We must clear the handler, since after this point calling it would
          * delete both the source and destination files.
          */
@@ -1097,50 +1167,6 @@ static int FIO_compressFilename_srcFile(cRess_t ress,
         if (FIO_remove(srcFileName))
             EXM_THROW(1, "zstd: %s: %s", srcFileName, strerror(errno));
     }
-    return result;
-}
-
-
-/*! FIO_compressFilename_dstFile() :
- *  @return : 0 : compression completed correctly,
- *            1 : pb
- */
-static int FIO_compressFilename_dstFile(cRess_t ress,
-                                        const char* dstFileName,
-                                        const char* srcFileName,
-                                        int compressionLevel)
-{
-    int result;
-    stat_t statbuf;
-    int stat_result = 0;
-
-    DISPLAYLEVEL(6, "FIO_compressFilename_dstFile: opening dst: %s", dstFileName);
-    ress.dstFile = FIO_openDstFile(dstFileName);
-    if (ress.dstFile==NULL) return 1;  /* could not open dstFileName */
-    /* Must ony be added after FIO_openDstFile() succeeds.
-     * Otherwise we may delete the destination file if at already exists, and
-     * the user presses Ctrl-C when asked if they wish to overwrite.
-     */
-    addHandler(dstFileName);
-
-    if (strcmp (srcFileName, stdinmark) && UTIL_getFileStat(srcFileName, &statbuf))
-        stat_result = 1;
-    result = FIO_compressFilename_srcFile(ress, dstFileName, srcFileName, compressionLevel);
-    clearHandler();
-
-    if (fclose(ress.dstFile)) { /* error closing dstFile */
-        DISPLAYLEVEL(1, "zstd: %s: %s \n", dstFileName, strerror(errno));
-        result=1;
-    }
-    if ( (result != 0)  /* operation failure */
-      && strcmp(dstFileName, nulmark)      /* special case : don't remove() /dev/null */
-      && strcmp(dstFileName, stdoutmark) ) /* special case : don't remove() stdout */
-        FIO_remove(dstFileName); /* remove compression artefact; note don't do anything special if remove() fails */
-    else if ( strcmp(dstFileName, stdoutmark)
-           && strcmp(dstFileName, nulmark)
-           && stat_result)
-        UTIL_setFileStat(dstFileName, &statbuf);
-
     return result;
 }
 
@@ -1154,7 +1180,7 @@ int FIO_compressFilename(const char* dstFileName, const char* srcFileName,
     U64 const srcSize = (fileSize == UTIL_FILESIZE_UNKNOWN) ? ZSTD_CONTENTSIZE_UNKNOWN : fileSize;
 
     cRess_t const ress = FIO_createCResources(dictFileName, compressionLevel, srcSize, comprParams);
-    int const result = FIO_compressFilename_dstFile(ress, dstFileName, srcFileName, compressionLevel);
+    int const result = FIO_compressFilename_srcFile(ress, dstFileName, srcFileName, compressionLevel);
 
     double const seconds = (double)(clock() - start) / CLOCKS_PER_SEC;
     DISPLAYLEVEL(4, "Completed in %.2f sec \n", seconds);
@@ -1164,57 +1190,75 @@ int FIO_compressFilename(const char* dstFileName, const char* srcFileName,
 }
 
 
+/* FIO_determineCompressedName() :
+ * create a destination filename for compressed srcFileName.
+ * @return a pointer to it.
+ * This function never returns an error (it may abort() in case of pb)
+ */
+static const char*
+FIO_determineCompressedName(const char* srcFileName, const char* suffix)
+{
+    static size_t dfnbCapacity = 0;
+    static char* dstFileNameBuffer = NULL;   /* using static allocation : this function cannot be multi-threaded */
+
+    size_t const sfnSize = strlen(srcFileName);
+    size_t const suffixSize = strlen(suffix);
+
+    if (dfnbCapacity <= sfnSize+suffixSize+1) {  /* resize name buffer */
+        free(dstFileNameBuffer);
+        dfnbCapacity = sfnSize + suffixSize + 30;
+        dstFileNameBuffer = (char*)malloc(dfnbCapacity);
+        if (!dstFileNameBuffer) {
+            EXM_THROW(30, "zstd: %s", strerror(errno));
+    }   }
+    strncpy(dstFileNameBuffer, srcFileName, sfnSize+1 /* Include null */);
+    strncat(dstFileNameBuffer, suffix, suffixSize);
+
+    return dstFileNameBuffer;
+}
+
+
+/* FIO_compressMultipleFilenames() :
+ * compress nbFiles files
+ * into one destination (outFileName)
+ * or into one file each (outFileName == NULL, but suffix != NULL).
+ */
 int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFiles,
                                   const char* outFileName, const char* suffix,
                                   const char* dictFileName, int compressionLevel,
                                   ZSTD_compressionParameters comprParams)
 {
-    int missed_files = 0;
-    size_t dfnSize = FNSPACE;
-    char*  dstFileName = (char*)malloc(FNSPACE);
-    size_t const suffixSize = suffix ? strlen(suffix) : 0;
+    int error = 0;
     U64 const firstFileSize = UTIL_getFileSize(inFileNamesTable[0]);
     U64 const firstSrcSize = (firstFileSize == UTIL_FILESIZE_UNKNOWN) ? ZSTD_CONTENTSIZE_UNKNOWN : firstFileSize;
     U64 const srcSize = (nbFiles != 1) ? ZSTD_CONTENTSIZE_UNKNOWN : firstSrcSize ;
     cRess_t ress = FIO_createCResources(dictFileName, compressionLevel, srcSize, comprParams);
 
     /* init */
-    if (dstFileName==NULL)
-        EXM_THROW(27, "FIO_compressMultipleFilenames : allocation error for dstFileName");
-    if (outFileName == NULL && suffix == NULL)
-        EXM_THROW(28, "FIO_compressMultipleFilenames : dst unknown");  /* should never happen */
+    assert(outFileName != NULL || suffix != NULL);
 
-    /* loop on each file */
-    if (outFileName != NULL) {
-        unsigned u;
+    if (outFileName != NULL) {   /* output into a single destination (stdout typically) */
         ress.dstFile = FIO_openDstFile(outFileName);
-        if (ress.dstFile==NULL) {  /* could not open outFileName */
-            missed_files = nbFiles;
+        if (ress.dstFile == NULL) {  /* could not open outFileName */
+            error = 1;
         } else {
+            unsigned u;
             for (u=0; u<nbFiles; u++)
-                missed_files += FIO_compressFilename_srcFile(ress, outFileName, inFileNamesTable[u], compressionLevel);
+                error |= FIO_compressFilename_srcFile(ress, outFileName, inFileNamesTable[u], compressionLevel);
             if (fclose(ress.dstFile))
-                EXM_THROW(29, "Write error : cannot properly close stdout");
+                EXM_THROW(29, "Write error : cannot properly close %s", outFileName);
+            ress.dstFile = NULL;
         }
     } else {
         unsigned u;
         for (u=0; u<nbFiles; u++) {
-            size_t const ifnSize = strlen(inFileNamesTable[u]);
-            if (dfnSize <= ifnSize+suffixSize+1) {  /* resize name buffer */
-                free(dstFileName);
-                dfnSize = ifnSize + 20;
-                dstFileName = (char*)malloc(dfnSize);
-                if (!dstFileName) {
-                    EXM_THROW(30, "zstd: %s", strerror(errno));
-            }   }
-            strncpy(dstFileName, inFileNamesTable[u], ifnSize+1 /* Include null */);
-            strncat(dstFileName, suffix, suffixSize);
-            missed_files += FIO_compressFilename_dstFile(ress, dstFileName, inFileNamesTable[u], compressionLevel);
+            const char* const srcFileName = inFileNamesTable[u];
+            const char* const dstFileName = FIO_determineCompressedName(srcFileName, suffix);  /* cannot fail */
+            error |= FIO_compressFilename_srcFile(ress, dstFileName, srcFileName, compressionLevel);
     }   }
 
     FIO_freeCResources(ress);
-    free(dstFileName);
-    return missed_files;
+    return error;
 }
 
 #endif /* #ifndef ZSTD_NOCOMPRESS */

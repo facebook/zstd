@@ -20,9 +20,11 @@
 #  define _POSIX_SOURCE 1          /* disable %llu warnings with MinGW on Windows */
 #endif
 
-#if  defined(__linux__) || (defined(__APPLE__) && defined(__MACH__))
+#if !defined(BACKTRACES_ENABLE) && \
+   (defined(__linux__) || (defined(__APPLE__) && defined(__MACH__)) )
 #  define BACKTRACES_ENABLE 1
 #endif
+
 
 /*-*************************************
 *  Includes
@@ -32,6 +34,7 @@
 #include <stdio.h>      /* fprintf, fopen, fread, _fileno, stdin, stdout */
 #include <stdlib.h>     /* malloc, free */
 #include <string.h>     /* strcmp, strlen */
+#include <assert.h>
 #include <errno.h>      /* errno */
 #include <signal.h>
 #ifdef BACKTRACES_ENABLE
@@ -43,10 +46,8 @@
 #  include <io.h>
 #endif
 
-#include "debug.h"
-#include "mem.h"
+#include "mem.h"       /* U32, U64 */
 #include "fileio.h"
-#include "util.h"
 
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_magicNumber, ZSTD_frameHeaderSize_max */
 #include "zstd.h"
@@ -113,7 +114,7 @@ static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
 #define EXM_THROW(error, ...)                                             \
 {                                                                         \
     DISPLAYLEVEL(1, "zstd: ");                                            \
-    DEBUGLOG(1, "Error defined at %s, line %i : \n", __FILE__, __LINE__); \
+    DISPLAYLEVEL(5, "Error defined at %s, line %i : \n", __FILE__, __LINE__); \
     DISPLAYLEVEL(1, "error %i : ", error);                                \
     DISPLAYLEVEL(1, __VA_ARGS__);                                         \
     DISPLAYLEVEL(1, " \n");                                               \
@@ -123,7 +124,7 @@ static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
 #define CHECK_V(v, f)                                \
     v = f;                                           \
     if (ZSTD_isError(v)) {                           \
-        DEBUGLOG(1, "%s \n", #f);                    \
+        DISPLAYLEVEL(5, "%s \n", #f);                \
         EXM_THROW(11, "%s", ZSTD_getErrorName(v));   \
     }
 #define CHECK(f) { size_t err; CHECK_V(err, f); }
@@ -1211,6 +1212,7 @@ FIO_determineCompressedName(const char* srcFileName, const char* suffix)
         if (!dstFileNameBuffer) {
             EXM_THROW(30, "zstd: %s", strerror(errno));
     }   }
+    assert(dstFileNameBuffer != NULL);
     strncpy(dstFileNameBuffer, srcFileName, sfnSize+1 /* Include null */);
     strncat(dstFileNameBuffer, suffix, suffixSize);
 
@@ -1891,7 +1893,6 @@ static int FIO_decompressDstFile(dRess_t ress, FILE* srcFile,
               && transfer_permissions )          /* file permissions correctly extracted from src */
                 UTIL_setFileStat(dstFileName, &statbuf);  /* transfer file permissions from src into dst */
         }
-        signal(SIGINT, SIG_DFL);
     }
 
     return result;
@@ -2013,6 +2014,7 @@ FIO_determineDstName(const char* srcFileName)
     }
 
     /* return dst name == src name truncated from suffix */
+    assert(dstFileNameBuffer != NULL);
     memcpy(dstFileNameBuffer, srcFileName, sfnSize - suffixSize);
     dstFileNameBuffer[sfnSize-suffixSize] = '\0';
     return dstFileNameBuffer;

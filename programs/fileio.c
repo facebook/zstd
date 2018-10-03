@@ -1449,12 +1449,12 @@ static void FIO_zstdErrorHelp(dRess_t* ress, size_t err, char const* srcFileName
     if (err == 0) {
         unsigned long long const windowSize = header.windowSize;
         U32 const windowLog = FIO_highbit64(windowSize) + ((windowSize & (windowSize - 1)) != 0);
-        U32 const windowMB = (U32)((windowSize >> 20) + ((windowSize & ((1 MB) - 1)) != 0));
-        assert(windowSize < (U64)(1ULL << 52));
         assert(g_memLimit > 0);
         DISPLAYLEVEL(1, "%s : Window size larger than maximum : %llu > %u\n",
                         srcFileName, windowSize, g_memLimit);
         if (windowLog <= ZSTD_WINDOWLOG_MAX) {
+            U32 const windowMB = (U32)((windowSize >> 20) + ((windowSize & ((1 MB) - 1)) != 0));
+            assert(windowSize < (U64)(1ULL << 52));   /* ensure now overflow for windowMB */
             DISPLAYLEVEL(1, "%s : Use --long=%u or --memory=%uMB\n",
                             srcFileName, windowLog, windowMB);
             return;

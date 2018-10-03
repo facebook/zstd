@@ -20,7 +20,7 @@ extern "C" {
 /*-****************************************
 *  Dependencies
 ******************************************/
-#include "platform.h"     /* PLATFORM_POSIX_VERSION */
+#include "platform.h"     /* PLATFORM_POSIX_VERSION, ZSTD_NANOSLEEP_SUPPORT, ZSTD_SETPRIORITY_SUPPORT */
 #include <stdlib.h>       /* malloc */
 #include <stddef.h>       /* size_t, ptrdiff_t */
 #include <stdio.h>        /* fprintf */
@@ -65,7 +65,7 @@ extern "C" {
 #elif PLATFORM_POSIX_VERSION > 0 /* Unix-like operating system */
 #  include <unistd.h>   /* sleep */
 #  define UTIL_sleep(s) sleep(s)
-#  if ZSTD_NANOSLEEP_SUPPORT
+#  if ZSTD_NANOSLEEP_SUPPORT   /* necessarily defined in platform.h */
 #      define UTIL_sleepMilli(milli) { struct timespec t; t.tv_sec=0; t.tv_nsec=milli*1000000ULL; nanosleep(&t, NULL); }
 #  else
 #      define UTIL_sleepMilli(milli) /* disabled */

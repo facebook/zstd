@@ -50,15 +50,15 @@ extern "C" {
 /* *********************************************************
 *  Turn on Large Files support (>4GB) for 32-bit Linux/Unix
 ***********************************************************/
-#if !defined(__64BIT__) || defined(__MINGW32__)       /* No point defining Large file for 64 bit but MinGW-w64 requires it */
+#if !defined(__64BIT__) || defined(__MINGW32__)    /* No point defining Large file for 64 bit but MinGW-w64 requires it */
 #  if !defined(_FILE_OFFSET_BITS)
-#    define _FILE_OFFSET_BITS 64                      /* turn off_t into a 64-bit type for ftello, fseeko */
+#    define _FILE_OFFSET_BITS 64                   /* turn off_t into a 64-bit type for ftello, fseeko */
 #  endif
-#  if !defined(_LARGEFILE_SOURCE)                     /* obsolete macro, replaced with _FILE_OFFSET_BITS */
-#    define _LARGEFILE_SOURCE 1                       /* Large File Support extension (LFS) - fseeko, ftello */
+#  if !defined(_LARGEFILE_SOURCE)                  /* obsolete macro, replaced with _FILE_OFFSET_BITS */
+#    define _LARGEFILE_SOURCE 1                    /* Large File Support extension (LFS) - fseeko, ftello */
 #  endif
 #  if defined(_AIX) || defined(__hpux)
-#    define _LARGE_FILES                              /* Large file support on 32-bits AIX and HP-UX */
+#    define _LARGE_FILES                           /* Large file support on 32-bits AIX and HP-UX */
 #  endif
 #endif
 
@@ -181,8 +181,12 @@ static __inline int IS_CONSOLE(FILE* stdStream) {
 
 #ifndef ZSTD_NANOSLEEP_SUPPORT
    /* mandates support of nanosleep() within <time.h> : http://man7.org/linux/man-pages/man2/nanosleep.2.html */
-#  define ZSTD_NANOSLEEP_SUPPORT (defined(__linux__) && (PLATFORM_POSIX_VERSION >= 199309L)) \
-                              || (PLATFORM_POSIX_VERSION >= 200112L)
+#  if (defined(__linux__) && (PLATFORM_POSIX_VERSION >= 199309L)) \
+   || (PLATFORM_POSIX_VERSION >= 200112L)
+#     define ZSTD_NANOSLEEP_SUPPORT 1
+#  else
+#     define ZSTD_NANOSLEEP_SUPPORT 0
+#  endif
 #endif
 
 

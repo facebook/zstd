@@ -34,7 +34,7 @@ SET msbuild_vs2017professional="%programfiles(x86)%\Microsoft Visual Studio\2017
 SET msbuild_vs2017enterprise="%programfiles(x86)%\Microsoft Visual Studio\2017\Enterprise\MSBuild\15.0\Bin\MSBuild.exe"
 IF %msbuild_version% == VS2013 SET msbuild="%programfiles(x86)%\MSBuild\12.0\Bin\MSBuild.exe"
 IF %msbuild_version% == VS2015 SET msbuild="%programfiles(x86)%\MSBuild\14.0\Bin\MSBuild.exe"
-IF %msbuild_version% == VS2017Community SET msbuild="%msbuild_vs2017community%
+IF %msbuild_version% == VS2017Community SET msbuild=%msbuild_vs2017community%
 IF %msbuild_version% == VS2017Professional SET msbuild=%msbuild_vs2017professional%
 IF %msbuild_version% == VS2017Enterprise SET msbuild=%msbuild_vs2017enterprise%
 IF %msbuild_version% == VS2017 (

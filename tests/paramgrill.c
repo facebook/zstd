@@ -1552,39 +1552,36 @@ static int allBench(BMK_benchResult_t* resultPtr,
                 BMK_benchResult_t* winnerResult, int feas)
 {
     BMK_benchResult_t benchres;
-    U64 loopDurationC = 0, loopDurationD = 0;
     double uncertaintyConstantC = 3., uncertaintyConstantD = 3.;
     double winnerRS;
 
-    /* initial benchmarking, gives exact ratio and memory, warms up future runs */
-    CBENCHMARK(1, benchres, tmp, BMK_both, 2);
+    BMK_benchOutcome_t const outcome = BMK_benchMemInvertible(buf, ctx, BASE_CLEVEL, &cParams, BMK_both, 2);
+    if (!BMK_isSuccessful_benchOutcome(outcome)) {
+        DEBUGOUTPUT("Benchmarking failed \n");
+        return ERROR_RESULT;
+    }
+    benchres = BMK_extract_benchResult(outcome);
 
     winnerRS = resultScore(*winnerResult, buf.srcSize, target);
-    DEBUGOUTPUT("WinnerScore: %f\n ", winnerRS);
+    DEBUGOUTPUT("WinnerScore: %f \n ", winnerRS);
 
     *resultPtr = benchres;
-
-    /* calculate uncertainty in compression / decompression runs */
-    if(benchres.cSpeed) {
-        loopDurationC = (((U64)buf.srcSize * TIMELOOP_NANOSEC) / benchres.cSpeed);
-        uncertaintyConstantC = ((loopDurationC + (double)(2 * g_clockGranularity))/loopDurationC);
-    }
-
-    if(benchres.dSpeed) {
-        loopDurationD = (((U64)buf.srcSize * TIMELOOP_NANOSEC) / benchres.dSpeed);
-        uncertaintyConstantD = ((loopDurationD + (double)(2 * g_clockGranularity))/loopDurationD);
-    }
 
     /* anything with worse ratio in feas is definitely worse, discard */
     if(feas && benchres.cSize < winnerResult->cSize && !g_optmode) {
         return WORSE_RESULT;
     }
 
-    /* ensure all measurements last a minimum time, to reduce measurement errors */
-    assert(loopDurationC >= TIMELOOP_NANOSEC / 10);
-    assert(loopDurationD >= TIMELOOP_NANOSEC / 10);
+    /* calculate uncertainty in compression / decompression runs */
+    if (benchres.cSpeed) {
+        U64 const loopDurationC = (((U64)buf.srcSize * TIMELOOP_NANOSEC) / benchres.cSpeed);
+        uncertaintyConstantC = ((loopDurationC + (double)(2 * g_clockGranularity))/loopDurationC);
+    }
 
-    *resultPtr = benchres;
+    if (benchres.dSpeed) {
+        U64 const loopDurationD = (((U64)buf.srcSize * TIMELOOP_NANOSEC) / benchres.dSpeed);
+        uncertaintyConstantD = ((loopDurationD + (double)(2 * g_clockGranularity))/loopDurationD);
+    }
 
     /* optimistic assumption of benchres */
     {   BMK_benchResult_t resultMax = benchres;
@@ -1598,8 +1595,6 @@ static int allBench(BMK_benchResult_t* resultPtr,
             return WORSE_RESULT;
         }
     }
-
-    *resultPtr = benchres;
 
     /* compare by resultScore when in infeas */
     /* compare by compareResultLT when in feas */
@@ -1623,7 +1618,10 @@ static int benchMemo(BMK_benchResult_t* resultPtr,
     static int bmcount = 0;
     int res;
 
-    if(memoTableGet(memoTableArray, cParams) >= INFEASIBLE_THRESHOLD || redundantParams(cParams, target, buf.maxBlockSize)) { return WORSE_RESULT; }
+    if ( memoTableGet(memoTableArray, cParams) >= INFEASIBLE_THRESHOLD
+      || redundantParams(cParams, target, buf.maxBlockSize) ) {
+        return WORSE_RESULT;
+    }
 
     res = allBench(resultPtr, buf, ctx, cParams, target, winnerResult, feas);
 

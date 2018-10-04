@@ -45,7 +45,7 @@ typedef struct {
     size_t cSize;
     unsigned long long cSpeed;   /* bytes / sec */
     unsigned long long dSpeed;
-    size_t cMem;                 /* ? what is reported ? */
+    size_t cMem;                 /* memory usage during compression */
 } BMK_benchResult_t;
 
 VARIANT_ERROR_RESULT(BMK_benchResult_t, BMK_benchOutcome_t);

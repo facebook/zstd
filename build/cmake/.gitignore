@@ -1,3 +1,6 @@
+# cmake working directory
+cmakeBuild
+
 # cmake artefacts
 CMakeCache.txt
 CMakeFiles

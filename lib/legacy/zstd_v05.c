@@ -3300,11 +3300,11 @@ static size_t ZSTDv05_decompressSequences(
     BYTE* const ostart = (BYTE* const)dst;
     BYTE* op = ostart;
     BYTE* const oend = ostart + maxDstSize;
-    size_t errorCode, dumpsLength;
+    size_t errorCode, dumpsLength=0;
     const BYTE* litPtr = dctx->litPtr;
     const BYTE* const litEnd = litPtr + dctx->litSize;
-    int nbSeq;
-    const BYTE* dumps;
+    int nbSeq=0;
+    const BYTE* dumps = NULL;
     U32* DTableLL = dctx->LLTable;
     U32* DTableML = dctx->MLTable;
     U32* DTableOffb = dctx->OffTable;
@@ -3413,10 +3413,10 @@ static size_t ZSTDv05_decompress_continueDCtx(ZSTDv05_DCtx* dctx,
     BYTE* const oend = ostart + maxDstSize;
     size_t remainingSize = srcSize;
     blockProperties_t blockProperties;
+    memset(&blockProperties, 0, sizeof(blockProperties));
 
     /* Frame Header */
-    {
-        size_t frameHeaderSize;
+    {   size_t frameHeaderSize;
         if (srcSize < ZSTDv05_frameHeaderSize_min+ZSTDv05_blockHeaderSize) return ERROR(srcSize_wrong);
         frameHeaderSize = ZSTDv05_decodeFrameHeader_Part1(dctx, src, ZSTDv05_frameHeaderSize_min);
         if (ZSTDv05_isError(frameHeaderSize)) return frameHeaderSize;

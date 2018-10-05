@@ -10,28 +10,38 @@ addons:
 matrix:
   include:
     # Ubuntu 14.04
-    - env: Cmd='make gcc6install && CC=gcc-6 make -j all && make clean && CC=gcc-6 make clean uasan-test-zstd'
-    - env: Cmd='make gcc6install libc6install && CC=gcc-6 make clean uasan-test-zstd32'
-    - env: Cmd='make gcc7install && CC=gcc-7 make clean uasan-test-zstd'
+    - env: Cmd='make test'
+
+    - env: Cmd='make gcc6install && CC=gcc-6 CFLAGS=-Werror make -j all
+             && make clean && CC=gcc-6 make -j uasan-test-zstd </dev/null'   # test when stdin is not a tty
+    - env: Cmd='make gcc6install libc6install
+             && make clean && CC=gcc-6 make -j uasan-test-zstd32'
+    - env: Cmd='make gcc7install && make clean && CC=gcc-7 make -j uasan-test-zstd'
+    - env: Cmd='make gcc8install && CC=gcc-8 CFLAGS="-Werror -O3" make -j all'
     - env: Cmd='make clang38install && CC=clang-3.8 make clean msan-test-zstd'
 
+    - env: Cmd='make staticAnalyze'
+
     - env: Cmd='make gcc6install && CC=gcc-6 make clean uasan-fuzztest'
-    - env: Cmd='make gcc6install libc6install && CC=gcc-6 CFLAGS=-m32 make clean uasan-fuzztest'
+    - env: Cmd='make gcc6install libc6install
+             && make clean && CC=gcc-6 CFLAGS=-m32 make uasan-fuzztest'
     - env: Cmd='make clang38install && CC=clang-3.8 make clean msan-fuzztest'
     - env: Cmd='make clang38install && CC=clang-3.8 make clean tsan-test-zstream'
 
-    - env: Cmd='make -C tests test-fuzzer-stackmode'
+    - env: Cmd='make -j uasanregressiontest
+             && make clean && make -j msanregressiontest'
 
-    - env: Cmd='make valgrindinstall && make -C tests clean valgrindTest'
+    - env: Cmd='make valgrindinstall && make -C tests clean valgrindTest
+             && make clean && make -C tests test-fuzzer-stackmode'
 
     - env: Cmd='make arminstall && make armfuzz'
     - env: Cmd='make arminstall && make aarch64fuzz'
-
     - env: Cmd='make ppcinstall && make ppcfuzz'
     - env: Cmd='make ppcinstall && make ppc64fuzz'
-    - env: Cmd='make -j uasanregressiontest && make clean && make -j msanregressiontest'
 
-    - env: Cmd='make lz4install && make -C tests test-lz4 test-pool && make clean && bash tests/libzstd_partial_builds.sh'
+    - env: Cmd='make lz4install && make -C tests test-lz4
+             && make clean && make -C tests test-pool
+             && make clean && bash tests/libzstd_partial_builds.sh'
 
     # tag-specific test
     - if: tag =~ ^v[0-9]\.[0-9]
@@ -52,6 +62,7 @@ branches:
   only:
   - dev
   - master
+  - travisTest
 
 script:
   - JOB_NUMBER=$(echo $TRAVIS_JOB_NUMBER | sed -e 's:[0-9][0-9]*\.\(.*\):\1:')

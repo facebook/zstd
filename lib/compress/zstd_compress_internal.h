@@ -140,6 +140,7 @@ struct ZSTD_matchState_t {
     U32* chainTable;
     optState_t opt;         /* optimal parser state */
     const ZSTD_matchState_t *dictMatchState;
+    ZSTD_compressionParameters cParams;
 };
 
 typedef struct {
@@ -264,7 +265,7 @@ typedef enum { ZSTD_noDict = 0, ZSTD_extDict = 1, ZSTD_dictMatchState = 2 } ZSTD
 
 typedef size_t (*ZSTD_blockCompressor) (
         ZSTD_matchState_t* bs, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
-        ZSTD_compressionParameters const* cParams, void const* src, size_t srcSize);
+        void const* src, size_t srcSize);
 ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMode_e dictMode);
 
 
@@ -314,8 +315,10 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const v
                pos, (U32)litLength, (U32)mlBase+MINMATCH, (U32)offsetCode);
     }
 #endif
+    assert((size_t)(seqStorePtr->sequences - seqStorePtr->sequencesStart) < seqStorePtr->maxNbSeq);
     /* copy Literals */
-    assert(seqStorePtr->lit + litLength <= seqStorePtr->litStart + 128 KB);
+    assert(seqStorePtr->maxNbLit <= 128 KB);
+    assert(seqStorePtr->lit + litLength <= seqStorePtr->litStart + seqStorePtr->maxNbLit);
     ZSTD_wildcopy(seqStorePtr->lit, literals, litLength);
     seqStorePtr->lit += litLength;
 

@@ -102,6 +102,13 @@ the last one takes effect.
 
 * `-#`:
     `#` compression level \[1-19] (default: 3)
+* `--fast[=#]`:
+    switch to ultra-fast compression levels.
+    If `=#` is not present, it defaults to `1`.
+    The higher the value, the faster the compression speed,
+    at the cost of some compression ratio.
+    This setting overwrites compression level if one was set previously.
+    Similarly, if a compression level is set after `--fast`, it overrides it.
 * `--ultra`:
     unlocks high compression levels 20+ (maximum 22), using a lot more memory.
     Note that decompression will also require more memory when using these levels.
@@ -115,25 +122,28 @@ the last one takes effect.
 
     Note: If `windowLog` is set to larger than 27, `--long=windowLog` or
     `--memory=windowSize` needs to be passed to the decompressor.
-* `--fast[=#]`:
-    switch to ultra-fast compression levels.
-    If `=#` is not present, it defaults to `1`.
-    The higher the value, the faster the compression speed,
-    at the cost of some compression ratio.
-    This setting overwrites compression level if one was set previously.
-    Similarly, if a compression level is set after `--fast`, it overrides it.
-
 * `-T#`, `--threads=#`:
     Compress using `#` working threads (default: 1).
     If `#` is 0, attempt to detect and use the number of physical CPU cores.
     In all cases, the nb of threads is capped to ZSTDMT_NBTHREADS_MAX==200.
     This modifier does nothing if `zstd` is compiled without multithread support.
 * `--single-thread`:
-    Does not spawn a thread for compression, use caller thread instead.
-    This is the only available mode when multithread support is disabled.
-    In this mode, compression is serialized with I/O.
+    Does not spawn a thread for compression, use a single thread for both I/O and compression.
+    In this mode, compression is serialized with I/O, which is slightly slower.
     (This is different from `-T1`, which spawns 1 compression thread in parallel of I/O).
-    Single-thread mode also features lower memory usage.
+    This mode is the only one available when multithread support is disabled.
+    Single-thread mode features lower memory usage.
+    Final compressed result is slightly different from `-T1`.
+* `--adapt[=min=#,max=#]` :
+    `zstd` will dynamically adapt compression level to perceived I/O conditions.
+    Compression level adaptation can be observed live by using command `-v`.
+    Adaptation can be constrained between supplied `min` and `max` levels.
+    The feature works when combined with multi-threading and `--long` mode.
+    It does not work with `--single-thread`.
+    It sets window size to 8 MB by default (can be changed manually, see `wlog`).
+    Due to the chaotic nature of dynamic adaptation, compressed result is not reproducible.
+    _note_ : at the time of this writing, `--adapt` can remain stuck at low speed
+    when combined with multiple worker threads (>=2).
 * `-D file`:
     use `file` as Dictionary to compress or decompress FILE(s)
 * `--no-dictID`:
@@ -200,9 +210,10 @@ Compression of small files similar to the sample set will be greatly improved.
     (for example, 10 MB for a 100 KB dictionary).
 
     Supports multithreading if `zstd` is compiled with threading support.
-    Additional parameters can be specified with `--train-cover`.
+    Additional parameters can be specified with `--train-fastcover`.
     The legacy dictionary builder can be accessed with `--train-legacy`.
-    Equivalent to `--train-cover=d=8,steps=4`.
+    The cover dictionary builder can be accessed with `--train-cover`.
+    Equivalent to `--train-fastcover=d=8,steps=4`.
 * `-o file`:
     Dictionary saved into `file` (default name: dictionary).
 * `--maxdict=#`:
@@ -223,11 +234,12 @@ Compression of small files similar to the sample set will be greatly improved.
     This compares favorably to 4 bytes default.
     However, it's up to the dictionary manager to not assign twice the same ID to
     2 different dictionaries.
-* `--train-cover[=k#,d=#,steps=#]`:
+* `--train-cover[=k#,d=#,steps=#,split=#]`:
     Select parameters for the default dictionary builder algorithm named cover.
     If _d_ is not specified, then it tries _d_ = 6 and _d_ = 8.
     If _k_ is not specified, then it tries _steps_ values in the range [50, 2000].
     If _steps_ is not specified, then the default value of 40 is used.
+    If _split_ is not specified or split <= 0, then the default value of 100 is used.
     Requires that _d_ <= _k_.
 
     Selects segments of size _k_ with highest score to put in the dictionary.
@@ -237,6 +249,8 @@ Compression of small files similar to the sample set will be greatly improved.
     algorithm will run faster with d <= _8_.
     Good values for _k_ vary widely based on the input data, but a safe range is
     [2 * _d_, 2000].
+    If _split_ is 100, all input samples are used for both training and testing
+    to find optimal _d_ and _k_ to build dictionary.
     Supports multithreading if `zstd` is compiled with threading support.
 
     Examples:
@@ -248,6 +262,28 @@ Compression of small files similar to the sample set will be greatly improved.
     `zstd --train-cover=d=8,steps=500 FILEs`
 
     `zstd --train-cover=k=50 FILEs`
+
+    `zstd --train-cover=k=50,split=60 FILEs`
+
+* `--train-fastcover[=k#,d=#,f=#,steps=#,split=#,accel=#]`:
+    Same as cover but with extra parameters _f_ and _accel_ and different default value of split
+    If _split_ is not specified, then it tries _split_ = 75.
+    If _f_ is not specified, then it tries _f_ = 20.
+    Requires that 0 < _f_ < 32.
+    If _accel_ is not specified, then it tries _accel_ = 1.
+    Requires that 0 < _accel_ <= 10.
+    Requires that _d_ = 6 or _d_ = 8.
+
+    _f_ is log of size of array that keeps track of frequency of subsegments of size _d_.
+    The subsegment is hashed to an index in the range [0,2^_f_ - 1].
+    It is possible that 2 different subsegments are hashed to the same index, and they are considered as the same subsegment when computing frequency.
+    Using a higher _f_ reduces collision but takes longer.
+
+    Examples:
+
+    `zstd --train-fastcover FILEs`
+
+    `zstd --train-fastcover=d=8,f=15,accel=2 FILEs`
 
 * `--train-legacy[=selectivity=#]`:
     Use legacy dictionary builder algorithm with the given dictionary

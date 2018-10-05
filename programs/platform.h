@@ -50,53 +50,67 @@ extern "C" {
 /* *********************************************************
 *  Turn on Large Files support (>4GB) for 32-bit Linux/Unix
 ***********************************************************/
-#if !defined(__64BIT__) || defined(__MINGW32__)       /* No point defining Large file for 64 bit but MinGW-w64 requires it */
+#if !defined(__64BIT__) || defined(__MINGW32__)    /* No point defining Large file for 64 bit but MinGW-w64 requires it */
 #  if !defined(_FILE_OFFSET_BITS)
-#    define _FILE_OFFSET_BITS 64                      /* turn off_t into a 64-bit type for ftello, fseeko */
+#    define _FILE_OFFSET_BITS 64                   /* turn off_t into a 64-bit type for ftello, fseeko */
 #  endif
-#  if !defined(_LARGEFILE_SOURCE)                     /* obsolete macro, replaced with _FILE_OFFSET_BITS */
-#    define _LARGEFILE_SOURCE 1                       /* Large File Support extension (LFS) - fseeko, ftello */
+#  if !defined(_LARGEFILE_SOURCE)                  /* obsolete macro, replaced with _FILE_OFFSET_BITS */
+#    define _LARGEFILE_SOURCE 1                    /* Large File Support extension (LFS) - fseeko, ftello */
 #  endif
 #  if defined(_AIX) || defined(__hpux)
-#    define _LARGE_FILES                              /* Large file support on 32-bits AIX and HP-UX */
+#    define _LARGE_FILES                           /* Large file support on 32-bits AIX and HP-UX */
 #  endif
 #endif
 
 
 /* ************************************************************
 *  Detect POSIX version
-*  PLATFORM_POSIX_VERSION = -1 for non-Unix e.g. Windows
-*  PLATFORM_POSIX_VERSION = 0 for Unix-like non-POSIX
-*  PLATFORM_POSIX_VERSION >= 1 is equal to found _POSIX_VERSION
+*  PLATFORM_POSIX_VERSION = 0 for non-Unix e.g. Windows
+*  PLATFORM_POSIX_VERSION = 1 for Unix-like but non-POSIX
+*  PLATFORM_POSIX_VERSION > 1 is equal to found _POSIX_VERSION
+*  Value of PLATFORM_POSIX_VERSION can be forced on command line
 ***************************************************************/
-#if !defined(_WIN32) && (defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__)) /* UNIX-like OS */ \
-   || defined(__midipix__) || defined(__VMS))
+#ifndef PLATFORM_POSIX_VERSION
+
 #  if (defined(__APPLE__) && defined(__MACH__)) || defined(__SVR4) || defined(_AIX) || defined(__hpux) /* POSIX.1-2001 (SUSv3) conformant */ \
      || defined(__DragonFly__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)  /* BSD distros */
+     /* exception rule : force posix version to 200112L,
+      * note: it's better to use unistd.h's _POSIX_VERSION whenever possible */
 #    define PLATFORM_POSIX_VERSION 200112L
-#  else
+
+/* try to determine posix version through official unistd.h's _POSIX_VERSION (http://pubs.opengroup.org/onlinepubs/7908799/xsh/unistd.h.html).
+ * note : there is no simple way to know in advance if <unistd.h> is present or not on target system,
+ * Posix specification mandates its presence and its content, but target system must respect this spec.
+ * It's necessary to _not_ #include <unistd.h> whenever target OS is not unix-like
+ * otherwise it will block preprocessing stage.
+ * The following list of build macros tries to "guess" if target OS is likely unix-like, and therefore can #include <unistd.h>
+ */
+#  elif !defined(_WIN32) \
+     && (defined(__unix__) || defined(__unix) \
+     || defined(__midipix__) || defined(__VMS) || defined(__HAIKU__))
+
 #    if defined(__linux__) || defined(__linux)
 #      ifndef _POSIX_C_SOURCE
-#        define _POSIX_C_SOURCE 200112L  /* use feature test macro */
+#        define _POSIX_C_SOURCE 200112L  /* feature test macro : https://www.gnu.org/software/libc/manual/html_node/Feature-Test-Macros.html */
 #      endif
 #    endif
 #    include <unistd.h>  /* declares _POSIX_VERSION */
 #    if defined(_POSIX_VERSION)  /* POSIX compliant */
 #      define PLATFORM_POSIX_VERSION _POSIX_VERSION
 #    else
-#      define PLATFORM_POSIX_VERSION 0
+#      define PLATFORM_POSIX_VERSION 1
 #    endif
-#  endif
-#endif
-#if !defined(PLATFORM_POSIX_VERSION)
-#  define PLATFORM_POSIX_VERSION -1
-#endif
 
+#  else  /* non-unix target platform (like Windows) */
+#    define PLATFORM_POSIX_VERSION 0
+#  endif
+
+#endif   /* PLATFORM_POSIX_VERSION */
 
 /*-*********************************************
 *  Detect if isatty() and fileno() are available
 ************************************************/
-#if (defined(__linux__) && (PLATFORM_POSIX_VERSION >= 1)) \
+#if (defined(__linux__) && (PLATFORM_POSIX_VERSION > 1)) \
  || (PLATFORM_POSIX_VERSION >= 200112L) \
  || defined(__DJGPP__) \
  || defined(__MSYS__)
@@ -144,6 +158,34 @@ static __inline int IS_CONSOLE(FILE* stdStream) {
 #    define ZSTD_SPARSE_DEFAULT 0
 #  else
 #    define ZSTD_SPARSE_DEFAULT 1
+#  endif
+#endif
+
+
+#ifndef ZSTD_START_SYMBOLLIST_FRAME
+#  ifdef __linux__
+#    define ZSTD_START_SYMBOLLIST_FRAME 2
+#  elif defined __APPLE__
+#    define ZSTD_START_SYMBOLLIST_FRAME 4
+#  else
+#    define ZSTD_START_SYMBOLLIST_FRAME 0
+#  endif
+#endif
+
+
+#ifndef ZSTD_SETPRIORITY_SUPPORT
+   /* mandates presence of <sys/resource.h> and support for setpriority() : http://man7.org/linux/man-pages/man2/setpriority.2.html */
+#  define ZSTD_SETPRIORITY_SUPPORT (PLATFORM_POSIX_VERSION >= 200112L)
+#endif
+
+
+#ifndef ZSTD_NANOSLEEP_SUPPORT
+   /* mandates support of nanosleep() within <time.h> : http://man7.org/linux/man-pages/man2/nanosleep.2.html */
+#  if (defined(__linux__) && (PLATFORM_POSIX_VERSION >= 199309L)) \
+   || (PLATFORM_POSIX_VERSION >= 200112L)
+#     define ZSTD_NANOSLEEP_SUPPORT 1
+#  else
+#     define ZSTD_NANOSLEEP_SUPPORT 0
 #  endif
 #endif
 

@@ -1093,6 +1093,7 @@ static size_t FSE_buildDTable(FSE_DTable* dt, const short* normalizedCounter, un
     if (tableLog > FSE_MAX_TABLELOG) return ERROR(tableLog_tooLarge);
 
     /* Init, lay down lowprob symbols */
+    memset(tableDecode, 0, sizeof(FSE_DECODE_TYPE) * (maxSymbolValue+1) );   /* useless init, but keep static analyzer happy, and we don't need to performance optimize legacy decoders */
     DTableH.tableLog = (U16)tableLog;
     for (s=0; s<=maxSymbolValue; s++)
     {
@@ -3621,8 +3622,3 @@ size_t ZBUFFv04_decompressContinue(ZBUFFv04_DCtx* dctx, void* dst, size_t* maxDs
 
 ZSTD_DCtx* ZSTDv04_createDCtx(void) { return ZSTD_createDCtx(); }
 size_t ZSTDv04_freeDCtx(ZSTD_DCtx* dctx) { return ZSTD_freeDCtx(dctx); }
-
-size_t ZSTDv04_getFrameParams(ZSTD_parameters* params, const void* src, size_t srcSize)
-{
-    return ZSTD_getFrameParams(params, src, srcSize);
-}

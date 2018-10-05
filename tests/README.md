@@ -88,3 +88,56 @@ as well as the 10,000 original files for more detailed comparison of decompressi
 will choose a random seed, and for 1 minute,
 generate random test frames and ensure that the
 zstd library correctly decompresses them in both simple and streaming modes.
+
+#### `paramgrill` - tool for generating compression table parameters and optimizing parameters on file given constraints
+
+Full list of arguments
+```
+ -T#          : set level 1 speed objective
+ -B#          : cut input into blocks of size # (default : single block)
+ -S           : benchmarks a single run (example command: -Sl3w10h12)
+    w# - windowLog
+    h# - hashLog
+    c# - chainLog
+    s# - searchLog
+    l# - searchLength
+    t# - targetLength
+    S# - strategy
+    L# - level
+ --zstd=      : Single run, parameter selection syntax same as zstdcli with more parameters
+                    (Added forceAttachDictionary / fadt) 
+                    When invoked with --optimize, this represents the sample to exceed. 
+ --optimize=  : find parameters to maximize compression ratio given parameters
+                    Can use all --zstd= commands to constrain the type of solution found in addition to the following constraints
+    cSpeed=   : Minimum compression speed
+    dSpeed=   : Minimum decompression speed
+    cMem=     : Maximum compression memory
+    lvl=      : Searches for solutions which are strictly better than that compression lvl in ratio and cSpeed, 
+    stc=      : When invoked with lvl=, represents percentage slack in ratio/cSpeed allowed for a solution to be considered (Default 100%)
+              : In normal operation, represents percentage slack in choosing viable starting strategy selection in choosing the default parameters
+                    (Lower value will begin with stronger strategies) (Default 90%)
+    speedRatio=   (accepts decimals)
+              : determines value of gains in speed vs gains in ratio
+                    when determining overall winner (default 5 (1% ratio = 5% speed)).
+    tries=    : Maximum number of random restarts on a single strategy before switching (Default 5)
+                    Higher values will make optimizer run longer, more chances to find better solution.
+    memLog    : Limits the log of the size of each memotable (1 per strategy). Will use hash tables when state space is larger than max size. 
+                    Setting memLog = 0 turns off memoization 
+ --display=   : specifiy which parameters are included in the output
+                    can use all --zstd parameter names and 'cParams' as a shorthand for all parameters used in ZSTD_compressionParameters 
+                    (Default: display all params available)
+ -P#          : generated sample compressibility (when no file is provided)
+ -t#          : Caps runtime of operation in seconds (default : 99999 seconds (about 27 hours )) 
+ -v           : Prints Benchmarking output
+ -D           : Next argument dictionary file
+ -s           : Benchmark all files separately
+ -q           : Quiet, repeat for more quiet
+                  -q Prints parameters + results whenever a new best is found
+                  -qq Only prints parameters whenever a new best is found, prints final parameters + results
+                  -qqq Only print final parameters + results
+                  -qqqq Only prints final parameter set in the form --zstd=
+ -v           : Verbose, cancels quiet, repeat for more volume
+                  -v Prints all candidate parameters and results
+
+```
+ Any inputs afterwards are treated as files to benchmark.

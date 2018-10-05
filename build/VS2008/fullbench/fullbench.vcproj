@@ -389,6 +389,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\programs\bench.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\tests\fullbench.c"
 				>
 			</File>

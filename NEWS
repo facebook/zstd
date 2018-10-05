@@ -1,3 +1,17 @@
+v1.3.6
+perf: much faster dictionary builder, by @jenniferliu
+perf: faster dictionary compression on small data when using multiple contexts, by @felixhandte
+perf: faster dictionary decompression when using a very large number of dictionaries simultaneously
+cli : fix : does no longer overwrite destination when source does not exist (#1082)
+cli : new command --adapt, for automatic compression level adaptation
+api : fix : block api can be streamed with > 4 GB, reported by @catid
+api : reduced ZSTD_DDict size by 2 KB
+api : minimum negative compression level is defined, and can be queried using ZSTD_minCLevel().
+build: support Haiku target, by @korli
+build: Read Legacy format is limited to v0.5+ by default. Can be changed at compile time with macro ZSTD_LEGACY_SUPPORT.
+doc : zstd_compression_format.md updated to match wording in IETF RFC 8478
+misc: tests/paramgrill, a parameter optimizer, by @GeorgeLu97
+
 v1.3.5
 perf: much faster dictionary compression, by @felixhandte
 perf: small quality improvement for dictionary generation, by @terrelln

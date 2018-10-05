@@ -39,7 +39,8 @@ extern "C" {
 
 /*! ZDICT_trainFromBuffer():
  *  Train a dictionary from an array of samples.
- *  Redirect towards ZDICT_optimizeTrainFromBuffer_cover() single-threaded, with d=8 and steps=4.
+ *  Redirect towards ZDICT_optimizeTrainFromBuffer_fastCover() single-threaded, with d=8, steps=4,
+ *  f=20, and accel=1.
  *  Samples must be stored concatenated in a single flat buffer `samplesBuffer`,
  *  supplied with an array of sizes `samplesSizes`, providing the size of each sample, in order.
  *  The resulting dictionary will be saved into `dictBuffer`.
@@ -52,7 +53,8 @@ extern "C" {
  *        It's recommended that total size of all samples be about ~x100 times the target size of dictionary.
  */
 ZDICTLIB_API size_t ZDICT_trainFromBuffer(void* dictBuffer, size_t dictBufferCapacity,
-                                    const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples);
+                                    const void* samplesBuffer,
+                                    const size_t* samplesSizes, unsigned nbSamples);
 
 
 /*======   Helper functions   ======*/
@@ -84,11 +86,22 @@ typedef struct {
 typedef struct {
     unsigned k;                  /* Segment size : constraint: 0 < k : Reasonable range [16, 2048+] */
     unsigned d;                  /* dmer size : constraint: 0 < d <= k : Reasonable range [6, 16] */
-    unsigned steps;              /* Number of steps : Only used for optimization : 0 means default (32) : Higher means more parameters checked */
+    unsigned steps;              /* Number of steps : Only used for optimization : 0 means default (40) : Higher means more parameters checked */
     unsigned nbThreads;          /* Number of threads : constraint: 0 < nbThreads : 1 means single-threaded : Only used for optimization : Ignored if ZSTD_MULTITHREAD is not defined */
+    double splitPoint;           /* Percentage of samples used for training: Only used for optimization : the first nbSamples * splitPoint samples will be used to training, the last nbSamples * (1 - splitPoint) samples will be used for testing, 0 means default (1.0), 1.0 when all samples are used for both training and testing */
     ZDICT_params_t zParams;
 } ZDICT_cover_params_t;
 
+typedef struct {
+    unsigned k;                  /* Segment size : constraint: 0 < k : Reasonable range [16, 2048+] */
+    unsigned d;                  /* dmer size : constraint: 0 < d <= k : Reasonable range [6, 16] */
+    unsigned f;                  /* log of size of frequency array : constraint: 0 < f <= 31 : 1 means default(20)*/
+    unsigned steps;              /* Number of steps : Only used for optimization : 0 means default (40) : Higher means more parameters checked */
+    unsigned nbThreads;          /* Number of threads : constraint: 0 < nbThreads : 1 means single-threaded : Only used for optimization : Ignored if ZSTD_MULTITHREAD is not defined */
+    double splitPoint;           /* Percentage of samples used for training: Only used for optimization : the first nbSamples * splitPoint samples will be used to training, the last nbSamples * (1 - splitPoint) samples will be used for testing, 0 means default (0.75), 1.0 when all samples are used for both training and testing */
+    unsigned accel;              /* Acceleration level: constraint: 0 < accel <= 10, higher means faster and less accurate, 0 means default(1) */
+    ZDICT_params_t zParams;
+} ZDICT_fastCover_params_t;
 
 /*! ZDICT_trainFromBuffer_cover():
  *  Train a dictionary from an array of samples using the COVER algorithm.
@@ -115,9 +128,9 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_cover(
  * dictionary constructed with those parameters is stored in `dictBuffer`.
  *
  * All of the parameters d, k, steps are optional.
- * If d is non-zero then we don't check multiple values of d, otherwise we check d = {6, 8, 10, 12, 14, 16}.
+ * If d is non-zero then we don't check multiple values of d, otherwise we check d = {6, 8}.
  * if steps is zero it defaults to its default value.
- * If k is non-zero then we don't check multiple values of k, otherwise we check steps values in [16, 2048].
+ * If k is non-zero then we don't check multiple values of k, otherwise we check steps values in [50, 2000].
  *
  * @return: size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`)
  *           or an error code, which can be tested with ZDICT_isError().
@@ -128,6 +141,48 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
           void* dictBuffer, size_t dictBufferCapacity,
     const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
           ZDICT_cover_params_t* parameters);
+
+/*! ZDICT_trainFromBuffer_fastCover():
+ *  Train a dictionary from an array of samples using a modified version of COVER algorithm.
+ *  Samples must be stored concatenated in a single flat buffer `samplesBuffer`,
+ *  supplied with an array of sizes `samplesSizes`, providing the size of each sample, in order.
+ *  d and k are required.
+ *  All other parameters are optional, will use default values if not provided
+ *  The resulting dictionary will be saved into `dictBuffer`.
+ * @return: size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`)
+ *          or an error code, which can be tested with ZDICT_isError().
+ *  Note: ZDICT_trainFromBuffer_fastCover() requires about 1 bytes of memory for each input byte and additionally another 6 * 2^f bytes of memory .
+ *  Tips: In general, a reasonable dictionary has a size of ~ 100 KB.
+ *        It's possible to select smaller or larger size, just by specifying `dictBufferCapacity`.
+ *        In general, it's recommended to provide a few thousands samples, though this can vary a lot.
+ *        It's recommended that total size of all samples be about ~x100 times the target size of dictionary.
+ */
+ZDICTLIB_API size_t ZDICT_trainFromBuffer_fastCover(void *dictBuffer,
+                    size_t dictBufferCapacity, const void *samplesBuffer,
+                    const size_t *samplesSizes, unsigned nbSamples,
+                    ZDICT_fastCover_params_t parameters);
+
+/*! ZDICT_optimizeTrainFromBuffer_fastCover():
+ * The same requirements as above hold for all the parameters except `parameters`.
+ * This function tries many parameter combinations (specifically, k and d combinations)
+ * and picks the best parameters. `*parameters` is filled with the best parameters found,
+ * dictionary constructed with those parameters is stored in `dictBuffer`.
+ * All of the parameters d, k, steps, f, and accel are optional.
+ * If d is non-zero then we don't check multiple values of d, otherwise we check d = {6, 8}.
+ * if steps is zero it defaults to its default value.
+ * If k is non-zero then we don't check multiple values of k, otherwise we check steps values in [50, 2000].
+ * If f is zero, default value of 20 is used.
+ * If accel is zero, default value of 1 is used.
+ *
+ * @return: size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`)
+ *           or an error code, which can be tested with ZDICT_isError().
+ *           On success `*parameters` contains the parameters selected.
+ * Note: ZDICT_optimizeTrainFromBuffer_fastCover() requires about 1 byte of memory for each input byte and additionally another 6 * 2^f bytes of memory for each thread.
+ */
+ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_fastCover(void* dictBuffer,
+                    size_t dictBufferCapacity, const void* samplesBuffer,
+                    const size_t* samplesSizes, unsigned nbSamples,
+                    ZDICT_fastCover_params_t* parameters);
 
 /*! ZDICT_finalizeDictionary():
  * Given a custom content as a basis for dictionary, and a set of samples,

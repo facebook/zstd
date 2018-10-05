@@ -337,6 +337,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\lib\dictBuilder\fastcover.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\lib\dictBuilder\divsufsort.c"
 				>
 			</File>
@@ -480,6 +484,10 @@
 			</File>
 			<File
 				RelativePath="..\..\..\lib\dictBuilder\zdict.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\dictBuilder\cover.h"
 				>
 			</File>
 			<File

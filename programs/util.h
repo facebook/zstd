@@ -20,13 +20,13 @@ extern "C" {
 /*-****************************************
 *  Dependencies
 ******************************************/
-#include "platform.h"     /* PLATFORM_POSIX_VERSION */
+#include "platform.h"     /* PLATFORM_POSIX_VERSION, ZSTD_NANOSLEEP_SUPPORT, ZSTD_SETPRIORITY_SUPPORT */
 #include <stdlib.h>       /* malloc */
 #include <stddef.h>       /* size_t, ptrdiff_t */
 #include <stdio.h>        /* fprintf */
 #include <string.h>       /* strncmp */
 #include <sys/types.h>    /* stat, utime */
-#include <sys/stat.h>     /* stat */
+#include <sys/stat.h>     /* stat, chmod */
 #if defined(_MSC_VER)
 #  include <sys/utime.h>  /* utime */
 #  include <io.h>         /* _chmod */
@@ -53,32 +53,34 @@ extern "C" {
 #endif
 
 
-/*-****************************************
-*  Sleep functions: Windows - Posix - others
-******************************************/
+/*-*************************************************
+*  Sleep & priority functions: Windows - Posix - others
+***************************************************/
 #if defined(_WIN32)
 #  include <windows.h>
 #  define SET_REALTIME_PRIORITY SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS)
 #  define UTIL_sleep(s) Sleep(1000*s)
 #  define UTIL_sleepMilli(milli) Sleep(milli)
-#elif PLATFORM_POSIX_VERSION >= 0 /* Unix-like operating system */
-#  include <unistd.h>
-#  include <sys/resource.h> /* setpriority */
-#  if defined(PRIO_PROCESS)
-#    define SET_REALTIME_PRIORITY setpriority(PRIO_PROCESS, 0, -20)
-#  else
-#    define SET_REALTIME_PRIORITY /* disabled */
-#  endif
+
+#elif PLATFORM_POSIX_VERSION > 0 /* Unix-like operating system */
+#  include <unistd.h>   /* sleep */
 #  define UTIL_sleep(s) sleep(s)
-#  if (defined(__linux__) && (PLATFORM_POSIX_VERSION >= 199309L)) || (PLATFORM_POSIX_VERSION >= 200112L)  /* nanosleep requires POSIX.1-2001 */
+#  if ZSTD_NANOSLEEP_SUPPORT   /* necessarily defined in platform.h */
 #      define UTIL_sleepMilli(milli) { struct timespec t; t.tv_sec=0; t.tv_nsec=milli*1000000ULL; nanosleep(&t, NULL); }
 #  else
 #      define UTIL_sleepMilli(milli) /* disabled */
 #  endif
-#else
-#  define SET_REALTIME_PRIORITY      /* disabled */
+#  if ZSTD_SETPRIORITY_SUPPORT
+#    include <sys/resource.h> /* setpriority */
+#    define SET_REALTIME_PRIORITY setpriority(PRIO_PROCESS, 0, -20)
+#  else
+#    define SET_REALTIME_PRIORITY /* disabled */
+#  endif
+
+#else  /* unknown non-unix operating systen */
 #  define UTIL_sleep(s)          /* disabled */
 #  define UTIL_sleepMilli(milli) /* disabled */
+#  define SET_REALTIME_PRIORITY  /* disabled */
 #endif
 
 
@@ -119,6 +121,7 @@ static int g_utilDisplayLevel;
 #if defined(_WIN32)   /* Windows */
     #define UTIL_TIME_INITIALIZER { { 0, 0 } }
     typedef LARGE_INTEGER UTIL_time_t;
+
     UTIL_STATIC UTIL_time_t UTIL_getTime(void) { UTIL_time_t x; QueryPerformanceCounter(&x); return x; }
     UTIL_STATIC U64 UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd)
     {
@@ -148,6 +151,7 @@ static int g_utilDisplayLevel;
     #include <mach/mach_time.h>
     #define UTIL_TIME_INITIALIZER 0
     typedef U64 UTIL_time_t;
+
     UTIL_STATIC UTIL_time_t UTIL_getTime(void) { return mach_absolute_time(); }
     UTIL_STATIC U64 UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd)
     {
@@ -170,11 +174,16 @@ static int g_utilDisplayLevel;
         return ((clockEnd - clockStart) * (U64)rate.numer) / ((U64)rate.denom);
     }
 
-#elif (PLATFORM_POSIX_VERSION >= 200112L) && (defined __UCLIBC__ || ((__GLIBC__ == 2 && __GLIBC_MINOR__ >= 17) || __GLIBC__ > 2))
+#elif (PLATFORM_POSIX_VERSION >= 200112L) \
+   && (defined(__UCLIBC__)                \
+      || (defined(__GLIBC__)              \
+          && ((__GLIBC__ == 2 && __GLIBC_MINOR__ >= 17) \
+             || (__GLIBC__ > 2))))
 
     #define UTIL_TIME_INITIALIZER { 0, 0 }
     typedef struct timespec UTIL_freq_t;
     typedef struct timespec UTIL_time_t;
+
     UTIL_STATIC UTIL_time_t UTIL_getTime(void)
     {
         UTIL_time_t time;
@@ -182,6 +191,7 @@ static int g_utilDisplayLevel;
             UTIL_DISPLAYLEVEL(1, "ERROR: Failed to get time\n");   /* we could also exit() */
         return time;
     }
+
     UTIL_STATIC UTIL_time_t UTIL_getSpanTime(UTIL_time_t begin, UTIL_time_t end)
     {
         UTIL_time_t diff;
@@ -194,6 +204,7 @@ static int g_utilDisplayLevel;
         }
         return diff;
     }
+
     UTIL_STATIC U64 UTIL_getSpanTimeMicro(UTIL_time_t begin, UTIL_time_t end)
     {
         UTIL_time_t const diff = UTIL_getSpanTime(begin, end);
@@ -202,6 +213,7 @@ static int g_utilDisplayLevel;
         micro += diff.tv_nsec / 1000ULL;
         return micro;
     }
+
     UTIL_STATIC U64 UTIL_getSpanTimeNano(UTIL_time_t begin, UTIL_time_t end)
     {
         UTIL_time_t const diff = UTIL_getSpanTime(begin, end);
@@ -210,6 +222,7 @@ static int g_utilDisplayLevel;
         nano += diff.tv_nsec;
         return nano;
     }
+
 #else   /* relies on standard C (note : clock_t measurements can be wrong when using multi-threading) */
     typedef clock_t UTIL_time_t;
     #define UTIL_TIME_INITIALIZER 0
@@ -319,15 +332,20 @@ UTIL_STATIC U32 UTIL_isDirectory(const char* infilename)
 
 UTIL_STATIC U32 UTIL_isLink(const char* infilename)
 {
-#if defined(_WIN32)
-    /* no symlinks on windows */
-    (void)infilename;
-#else
+/* macro guards, as defined in : https://linux.die.net/man/2/lstat */
+#ifndef __STRICT_ANSI__
+#if defined(_BSD_SOURCE) \
+    || (defined(_XOPEN_SOURCE) && (_XOPEN_SOURCE >= 500)) \
+    || (defined(_XOPEN_SOURCE) && defined(_XOPEN_SOURCE_EXTENDED)) \
+    || (defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE >= 200112L)) \
+    || (defined(__APPLE__) && defined(__MACH__))
     int r;
     stat_t statbuf;
     r = lstat(infilename, &statbuf);
     if (!r && S_ISLNK(statbuf.st_mode)) return 1;
 #endif
+#endif
+    (void)infilename;
     return 0;
 }
 
@@ -526,7 +544,10 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
  * After finishing usage of the list the structures should be freed with UTIL_freeFileList(params: return value, allocatedBuffer)
  * In case of error UTIL_createFileList returns NULL and UTIL_freeFileList should not be called.
  */
-UTIL_STATIC const char** UTIL_createFileList(const char **inputNames, unsigned inputNamesNb, char** allocatedBuffer, unsigned* allocatedNamesNb, int followLinks)
+UTIL_STATIC const char**
+UTIL_createFileList(const char **inputNames, unsigned inputNamesNb,
+                    char** allocatedBuffer, unsigned* allocatedNamesNb,
+                    int followLinks)
 {
     size_t pos;
     unsigned i, nbFiles;

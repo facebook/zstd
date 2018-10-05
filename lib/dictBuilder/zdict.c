@@ -293,7 +293,7 @@ static dictItem ZDICT_analyzePos(
             refinedEnd = refinedStart + selectedCount;
         }
 
-        /* evaluate gain based on new ref */
+        /* evaluate gain based on new dict */
         start = refinedStart;
         pos = suffix[refinedStart];
         end = start;
@@ -341,7 +341,7 @@ static dictItem ZDICT_analyzePos(
         for (i=MINMATCHLENGTH; i<=(int)maxLength; i++)
             savings[i] = savings[i-1] + (lengthList[i] * (i-3));
 
-        DISPLAYLEVEL(4, "Selected ref at position %u, of length %u : saves %u (ratio: %.2f)  \n",
+        DISPLAYLEVEL(4, "Selected dict at position %u, of length %u : saves %u (ratio: %.2f)  \n",
                      (U32)pos, (U32)maxLength, savings[maxLength], (double)savings[maxLength] / maxLength);
 
         solution.pos = (U32)pos;
@@ -581,7 +581,7 @@ static void ZDICT_fillNoise(void* buffer, size_t length)
 
 typedef struct
 {
-    ZSTD_CCtx* ref;    /* contains reference to dictionary */
+    ZSTD_CDict* dict;    /* dictionary */
     ZSTD_CCtx* zc;     /* working context */
     void* workPlace;   /* must be ZSTD_BLOCKSIZE_MAX allocated */
 } EStats_ress_t;
@@ -597,8 +597,9 @@ static void ZDICT_countEStats(EStats_ress_t esr, ZSTD_parameters params,
     size_t cSize;
 
     if (srcSize > blockSizeMax) srcSize = blockSizeMax;   /* protection vs large samples */
-    {   size_t const errorCode = ZSTD_copyCCtx(esr.zc, esr.ref, 0);
-        if (ZSTD_isError(errorCode)) { DISPLAYLEVEL(1, "warning : ZSTD_copyCCtx failed \n"); return; }
+    {   size_t const errorCode = ZSTD_compressBegin_usingCDict(esr.zc, esr.dict);
+        if (ZSTD_isError(errorCode)) { DISPLAYLEVEL(1, "warning : ZSTD_compressBegin_usingCDict failed \n"); return; }
+
     }
     cSize = ZSTD_compressBlock(esr.zc, esr.workPlace, ZSTD_BLOCKSIZE_MAX, src, srcSize);
     if (ZSTD_isError(cSize)) { DISPLAYLEVEL(3, "warning : could not compress sample size %u \n", (U32)srcSize); return; }
@@ -697,7 +698,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     short litLengthNCount[MaxLL+1];
     U32 repOffset[MAXREPOFFSET];
     offsetCount_t bestRepOffset[ZSTD_REP_NUM+1];
-    EStats_ress_t esr;
+    EStats_ress_t esr = { NULL, NULL, NULL };
     ZSTD_parameters params;
     U32 u, huffLog = 11, Offlog = OffFSELog, mlLog = MLFSELog, llLog = LLFSELog, total;
     size_t pos = 0, errorCode;
@@ -708,14 +709,6 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
 
     /* init */
     DEBUGLOG(4, "ZDICT_analyzeEntropy");
-    esr.ref = ZSTD_createCCtx();
-    esr.zc = ZSTD_createCCtx();
-    esr.workPlace = malloc(ZSTD_BLOCKSIZE_MAX);
-    if (!esr.ref || !esr.zc || !esr.workPlace) {
-        eSize = ERROR(memory_allocation);
-        DISPLAYLEVEL(1, "Not enough memory \n");
-        goto _cleanup;
-    }
     if (offcodeMax>OFFCODE_MAX) { eSize = ERROR(dictionaryCreation_failed); goto _cleanup; }   /* too large dictionary */
     for (u=0; u<256; u++) countLit[u] = 1;   /* any character must be described */
     for (u=0; u<=offcodeMax; u++) offcodeCount[u] = 1;
@@ -726,12 +719,15 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     memset(bestRepOffset, 0, sizeof(bestRepOffset));
     if (compressionLevel==0) compressionLevel = g_compressionLevel_default;
     params = ZSTD_getParams(compressionLevel, averageSampleSize, dictBufferSize);
-    {   size_t const beginResult = ZSTD_compressBegin_advanced(esr.ref, dictBuffer, dictBufferSize, params, 0);
-        if (ZSTD_isError(beginResult)) {
-            DISPLAYLEVEL(1, "error : ZSTD_compressBegin_advanced() failed : %s \n", ZSTD_getErrorName(beginResult));
-            eSize = ERROR(GENERIC);
-            goto _cleanup;
-    }   }
+
+    esr.dict = ZSTD_createCDict_advanced(dictBuffer, dictBufferSize, ZSTD_dlm_byRef, ZSTD_dct_rawContent, params.cParams, ZSTD_defaultCMem);
+    esr.zc = ZSTD_createCCtx();
+    esr.workPlace = malloc(ZSTD_BLOCKSIZE_MAX);
+    if (!esr.dict || !esr.zc || !esr.workPlace) {
+        eSize = ERROR(memory_allocation);
+        DISPLAYLEVEL(1, "Not enough memory \n");
+        goto _cleanup;
+    }
 
     /* collect stats on all samples */
     for (u=0; u<nbFiles; u++) {
@@ -856,7 +852,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     eSize += 12;
 
 _cleanup:
-    ZSTD_freeCCtx(esr.ref);
+    ZSTD_freeCDict(esr.dict);
     ZSTD_freeCCtx(esr.zc);
     free(esr.workPlace);
 
@@ -867,8 +863,8 @@ _cleanup:
 
 size_t ZDICT_finalizeDictionary(void* dictBuffer, size_t dictBufferCapacity,
                           const void* customDictContent, size_t dictContentSize,
-                          const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
-                          ZDICT_params_t params)
+                          const void* samplesBuffer, const size_t* samplesSizes,
+                          unsigned nbSamples, ZDICT_params_t params)
 {
     size_t hSize;
 #define HBUFFSIZE 256   /* should prove large enough for all entropy headers */
@@ -914,9 +910,10 @@ size_t ZDICT_finalizeDictionary(void* dictBuffer, size_t dictBufferCapacity,
 }
 
 
-size_t ZDICT_addEntropyTablesFromBuffer_advanced(void* dictBuffer, size_t dictContentSize, size_t dictBufferCapacity,
-                                                 const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
-                                                 ZDICT_params_t params)
+static size_t ZDICT_addEntropyTablesFromBuffer_advanced(
+        void* dictBuffer, size_t dictContentSize, size_t dictBufferCapacity,
+        const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
+        ZDICT_params_t params)
 {
     int const compressionLevel = (params.compressionLevel == 0) ? g_compressionLevel_default : params.compressionLevel;
     U32 const notificationLevel = params.notificationLevel;
@@ -947,7 +944,11 @@ size_t ZDICT_addEntropyTablesFromBuffer_advanced(void* dictBuffer, size_t dictCo
     return MIN(dictBufferCapacity, hSize+dictContentSize);
 }
 
-
+/* Hidden declaration for dbio.c */
+size_t ZDICT_trainFromBuffer_unsafe_legacy(
+                            void* dictBuffer, size_t maxDictSize,
+                            const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
+                            ZDICT_legacy_params_t params);
 /*! ZDICT_trainFromBuffer_unsafe_legacy() :
 *   Warning : `samplesBuffer` must be followed by noisy guard band.
 *   @return : size of dictionary, or an error code which can be tested with ZDICT_isError()
@@ -991,8 +992,10 @@ size_t ZDICT_trainFromBuffer_unsafe_legacy(
             U32 const pos = dictList[u].pos;
             U32 const length = dictList[u].length;
             U32 const printedLength = MIN(40, length);
-            if ((pos > samplesBuffSize) || ((pos + length) > samplesBuffSize))
+            if ((pos > samplesBuffSize) || ((pos + length) > samplesBuffSize)) {
+                free(dictList);
                 return ERROR(GENERIC);   /* should never happen */
+            }
             DISPLAYLEVEL(3, "%3u:%3u bytes at pos %8u, savings %7u bytes |",
                          u, length, pos, dictList[u].savings);
             ZDICT_printHex((const char*)samplesBuffer+pos, printedLength);
@@ -1082,17 +1085,17 @@ size_t ZDICT_trainFromBuffer_legacy(void* dictBuffer, size_t dictBufferCapacity,
 size_t ZDICT_trainFromBuffer(void* dictBuffer, size_t dictBufferCapacity,
                              const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples)
 {
-    ZDICT_cover_params_t params;
+    ZDICT_fastCover_params_t params;
     DEBUGLOG(3, "ZDICT_trainFromBuffer");
     memset(&params, 0, sizeof(params));
     params.d = 8;
     params.steps = 4;
     /* Default to level 6 since no compression level information is available */
-    params.zParams.compressionLevel = 6;
+    params.zParams.compressionLevel = 3;
 #if defined(DEBUGLEVEL) && (DEBUGLEVEL>=1)
     params.zParams.notificationLevel = DEBUGLEVEL;
 #endif
-    return ZDICT_optimizeTrainFromBuffer_cover(dictBuffer, dictBufferCapacity,
+    return ZDICT_optimizeTrainFromBuffer_fastCover(dictBuffer, dictBufferCapacity,
                                                samplesBuffer, samplesSizes, nbSamples,
                                                &params);
 }

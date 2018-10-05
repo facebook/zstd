@@ -23,6 +23,7 @@ else
 EXT =
 endif
 
+## default: Build lib-release and zstd-release
 .PHONY: default
 default: lib-release zstd-release
 
@@ -30,10 +31,9 @@ default: lib-release zstd-release
 all: allmost examples manual contrib
 
 .PHONY: allmost
-allmost: allzstd
-	$(MAKE) -C $(ZWRAPDIR) all
+allmost: allzstd zlibwrapper
 
-#skip zwrapper, can't build that on alternate architectures without the proper zlib installed
+# skip zwrapper, can't build that on alternate architectures without the proper zlib installed
 .PHONY: allzstd
 allzstd: lib
 	$(MAKE) -C $(PRGDIR) all
@@ -44,8 +44,8 @@ all32:
 	$(MAKE) -C $(PRGDIR) zstd32
 	$(MAKE) -C $(TESTDIR) all32
 
-.PHONY: lib lib-release
-lib lib-release:
+.PHONY: lib lib-release libzstd.a
+lib lib-release :
 	@$(MAKE) -C $(ZSTDDIR) $@
 
 .PHONY: zstd zstd-release
@@ -59,12 +59,13 @@ zstdmt:
 	cp $(PRGDIR)/zstd$(EXT) ./zstdmt$(EXT)
 
 .PHONY: zlibwrapper
-zlibwrapper:
-	$(MAKE) -C $(ZWRAPDIR) test
+zlibwrapper: lib
+	$(MAKE) -C $(ZWRAPDIR) all
 
 .PHONY: test
+test: MOREFLAGS += -g -DDEBUGLEVEL=1 -Werror
 test:
-	$(MAKE) -C $(PRGDIR) allVariants MOREFLAGS+="-g -DDEBUGLEVEL=1"
+	MOREFLAGS="$(MOREFLAGS)" $(MAKE) -j -C $(PRGDIR) allVariants
 	$(MAKE) -C $(TESTDIR) $@
 
 .PHONY: shortest
@@ -87,6 +88,7 @@ contrib: lib
 	$(MAKE) -C contrib/pzstd all
 	$(MAKE) -C contrib/seekable_format/examples all
 	$(MAKE) -C contrib/adaptive-compression all
+	$(MAKE) -C contrib/largeNbDicts all
 
 .PHONY: cleanTabs
 cleanTabs:
@@ -103,6 +105,7 @@ clean:
 	@$(MAKE) -C contrib/pzstd $@ > $(VOID)
 	@$(MAKE) -C contrib/seekable_format/examples $@ > $(VOID)
 	@$(MAKE) -C contrib/adaptive-compression $@ > $(VOID)
+	@$(MAKE) -C contrib/largeNbDicts $@ > $(VOID)
 	@$(RM) zstd$(EXT) zstdmt$(EXT) tmp*
 	@$(RM) -r lz4
 	@echo Cleaning completed
@@ -110,14 +113,31 @@ clean:
 #------------------------------------------------------------------------------
 # make install is validated only for Linux, macOS, Hurd and some BSD targets
 #------------------------------------------------------------------------------
-ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD DragonFly NetBSD MSYS_NT))
+ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD DragonFly NetBSD MSYS_NT Haiku))
 
 HOST_OS = POSIX
-CMAKE_PARAMS = -DZSTD_BUILD_CONTRIB:BOOL=ON -DZSTD_BUILD_STATIC:BOOL=ON -DZSTD_BUILD_TESTS:BOOL=ON -DZSTD_ZLIB_SUPPORT:BOOL=ON -DZSTD_LZMA_SUPPORT:BOOL=ON
+CMAKE_PARAMS = -DZSTD_BUILD_CONTRIB:BOOL=ON -DZSTD_BUILD_STATIC:BOOL=ON -DZSTD_BUILD_TESTS:BOOL=ON -DZSTD_ZLIB_SUPPORT:BOOL=ON -DZSTD_LZMA_SUPPORT:BOOL=ON -DCMAKE_BUILD_TYPE=Release
 
+EGREP = egrep --color=never
+
+# Print a two column output of targets and their description. To add a target description, put a
+# comment in the Makefile with the format "## <TARGET>: <DESCRIPTION>".  For example:
+#
+## list: Print all targets and their descriptions (if provided)
 .PHONY: list
 list:
-	@$(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null | awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' | sort | egrep -v -e '^[^[:alnum:]]' -e '^$@$$' | xargs
+	@TARGETS=$$($(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null \
+		| awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' \
+		| $(EGREP) -v  -e '^[^[:alnum:]]' | sort); \
+	{ \
+	    printf "Target Name\tDescription\n"; \
+	    printf "%0.s-" {1..16}; printf "\t"; printf "%0.s-" {1..40}; printf "\n"; \
+	    for target in $$TARGETS; do \
+	        line=$$($(EGREP) "^##[[:space:]]+$$target:" $(lastword $(MAKEFILE_LIST))); \
+	        description=$$(echo $$line | awk '{i=index($$0,":"); print substr($$0,i+1)}' | xargs); \
+	        printf "$$target\t$$description\n"; \
+	    done \
+	} | column -t -s $$'\t'
 
 .PHONY: install clangtest armtest usan asan uasan
 install:
@@ -197,7 +217,7 @@ gcc6test: clean
 
 clangtest: clean
 	clang -v
-	$(MAKE) all CXX=clang-++ CC=clang MOREFLAGS="-Werror -Wconversion -Wno-sign-conversion -Wdocumentation"
+	$(MAKE) all CXX=clang++ CC=clang MOREFLAGS="-Werror -Wconversion -Wno-sign-conversion -Wdocumentation"
 
 armtest: clean
 	$(MAKE) -C $(TESTDIR) datagen   # use native, faster
@@ -286,6 +306,9 @@ gcc6install: apt-add-repo
 gcc7install: apt-add-repo
 	APT_PACKAGES="libc6-dev-i386 gcc-multilib gcc-7 gcc-7-multilib" $(MAKE) apt-install
 
+gcc8install: apt-add-repo
+	APT_PACKAGES="libc6-dev-i386 gcc-multilib gcc-8 gcc-8-multilib" $(MAKE) apt-install
+
 gpp6install: apt-add-repo
 	APT_PACKAGES="libc6-dev-i386 g++-multilib gcc-6 g++-6 g++-6-multilib" $(MAKE) apt-install
 
@@ -317,23 +340,23 @@ cmakebuild:
 
 c90build: clean
 	$(CC) -v
-	CFLAGS="-std=c90" $(MAKE) allmost  # will fail, due to missing support for `long long`
+	CFLAGS="-std=c90 -Werror" $(MAKE) allmost  # will fail, due to missing support for `long long`
 
 gnu90build: clean
 	$(CC) -v
-	CFLAGS="-std=gnu90" $(MAKE) allmost
+	CFLAGS="-std=gnu90 -Werror" $(MAKE) allmost
 
 c99build: clean
 	$(CC) -v
-	CFLAGS="-std=c99" $(MAKE) allmost
+	CFLAGS="-std=c99 -Werror" $(MAKE) allmost
 
 gnu99build: clean
 	$(CC) -v
-	CFLAGS="-std=gnu99" $(MAKE) allmost
+	CFLAGS="-std=gnu99 -Werror" $(MAKE) allmost
 
 c11build: clean
 	$(CC) -v
-	CFLAGS="-std=c11" $(MAKE) allmost
+	CFLAGS="-std=c11 -Werror" $(MAKE) allmost
 
 bmix64build: clean
 	$(CC) -v
@@ -347,7 +370,10 @@ bmi32build: clean
 	$(CC) -v
 	CFLAGS="-O3 -mbmi -m32 -Werror" $(MAKE) -C $(TESTDIR) test
 
-staticAnalyze: clean
+# static analyzer test uses clang's scan-build
+# does not analyze zlibWrapper, due to detected issues in zlib source code
+staticAnalyze: SCANBUILD ?= scan-build
+staticAnalyze:
 	$(CC) -v
-	CPPFLAGS=-g scan-build --status-bugs -v $(MAKE) all
+	CC=$(CC) CPPFLAGS=-g $(SCANBUILD) --status-bugs -v $(MAKE) allzstd examples contrib
 endif

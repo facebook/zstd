@@ -16,7 +16,7 @@ Distribution of this document is unlimited.
 
 ### Version
 
-0.2.8 (30/05/18)
+0.3.0 (25/09/18)
 
 
 Introduction
@@ -72,7 +72,7 @@ A frame is completely independent, has a defined beginning and end,
 and a set of parameters which tells the decoder how to decompress it.
 
 A frame encapsulates one or multiple __blocks__.
-Each block can be compressed or not,
+Each block contains arbitrary content, which is described by its header,
 and has a guaranteed maximum content size, which depends on frame parameters.
 Unlike frames, each block depends on previous blocks for proper decoding.
 However, each block can be decompressed without waiting for its successor,
@@ -488,20 +488,20 @@ For values spanning several bytes, convention is __little-endian__.
 __`Size_Format` for `Raw_Literals_Block` and `RLE_Literals_Block`__ :
 
 `Size_Format` uses 1 _or_ 2 bits.
-Its value is : `Size_Format = (Header[0]>>2) & 3`
+Its value is : `Size_Format = (Literals_Section_Header[0]>>2) & 3`
 
 - `Size_Format` == 00 or 10 : `Size_Format` uses 1 bit.
                `Regenerated_Size` uses 5 bits (0-31).
                `Literals_Section_Header` uses 1 byte.
-               `Regenerated_Size = Header[0]>>3`
+               `Regenerated_Size = Literals_Section_Header[0]>>3`
 - `Size_Format` == 01 : `Size_Format` uses 2 bits.
                `Regenerated_Size` uses 12 bits (0-4095).
                `Literals_Section_Header` uses 2 bytes.
-               `Regenerated_Size = (Header[0]>>4) + (Header[1]<<4)`
+               `Regenerated_Size = (Literals_Section_Header[0]>>4) + (Literals_Section_Header[1]<<4)`
 - `Size_Format` == 11 : `Size_Format` uses 2 bits.
                `Regenerated_Size` uses 20 bits (0-1048575).
                `Literals_Section_Header` uses 3 bytes.
-               `Regenerated_Size = (Header[0]>>4) + (Header[1]<<4) + (Header[2]<<12)`
+               `Regenerated_Size = (Literals_Section_Header[0]>>4) + (Literals_Section_Header[1]<<4) + (Literals_Section_Header[2]<<12)`
 
 Only Stream1 is present for these cases.
 Note : it's allowed to represent a short value (for example `13`)
@@ -591,7 +591,7 @@ It is the number of bytes to be copied (or extracted) from the Literals Section.
 A match copy command specifies an offset and a length.
 
 When all _sequences_ are decoded,
-if there are literals left in the _literal section_,
+if there are literals left in the _literals section_,
 these bytes are added at the end of the block.
 
 This is described in more detail in [Sequence Execution](#sequence-execution).
@@ -608,7 +608,7 @@ followed by the bitstream.
 | -------------------------- | ------------------------- | ---------------- | ---------------------- | --------- |
 
 To decode the `Sequences_Section`, it's required to know its size.
-This size is deduced from the literals section size:
+Its size is deduced from the size of `Literals_Section`:
 `Sequences_Section_Size = Block_Size - Literals_Section_Size`.
 
 
@@ -805,7 +805,7 @@ one and ending with the first.
 
 ##### Decoding a sequence
 For each of the symbol types, the FSE state can be used to determine the appropriate code.
-The code then defines the baseline and number of bits to read for each type.
+The code then defines the `Baseline` and `Number_of_Bits` to read for each type.
 See the [description of the codes] for how to determine these values.
 
 [description of the codes]: #the-codes-for-literals-lengths-match-lengths-and-offsets
@@ -872,8 +872,8 @@ they are combined to produce the decoded content of a block.
 
 Each sequence consists of a tuple of (`literals_length`, `offset_value`, `match_length`),
 decoded as described in the [Sequences Section](#sequences-section).
-To execute a sequence, first copy `literals_length` bytes from the literals section
-to the output.
+To execute a sequence, first copy `literals_length` bytes
+from the decoded literals to the output.
 
 Then `match_length` bytes are copied from previous decoded data.
 The offset to copy from is determined by `offset_value`:
@@ -1192,6 +1192,8 @@ Number_of_Bits = Weight ? (Max_Number_of_Bits + 1 - Weight) : 0
 The last symbol's `Weight` is deduced from previously decoded ones,
 by completing to the nearest power of 2.
 This power of 2 gives `Max_Number_of_Bits`, the depth of the current tree.
+`Max_Number_of_Bits` must be <= 11,
+otherwise the representation is considered corrupted.
 
 __Example__ :
 Let's presume the following Huffman tree must be described :
@@ -1216,12 +1218,12 @@ It gives the following series of weights :
 |   `Weight`    |  4  |  3  |  2  |  0  |  1  |
 
 The decoder will do the inverse operation :
-having collected weights of literals from `0` to `4`,
-it knows the last literal, `5`, is present with a non-zero weight.
-The weight of `5` can be determined by advancing to the next power of 2.
+having collected weights of literal symbols from `0` to `4`,
+it knows the last literal, `5`, is present with a non-zero `Weight`.
+The `Weight` of `5` can be determined by advancing to the next power of 2.
 The sum of `2^(Weight-1)` (excluding 0's) is :
 `8 + 4 + 2 + 0 + 1 = 15`.
-Nearest power of 2 is 16.
+Nearest larger power of 2 value is 16.
 Therefore, `Max_Number_of_Bits = 4` and `Weight[5] = 16-15 = 1`.
 
 #### Huffman Tree header
@@ -1233,18 +1235,24 @@ which describes how the series of weights is encoded.
   the series of weights is compressed using FSE (see below).
   The length of the FSE-compressed series is equal to `headerByte` (0-127).
 
-- if `headerByte` >= 128 : this is a direct representation,
-  where each `Weight` is written directly as a 4 bits field (0-15).
-  They are encoded forward, 2 weights to a byte with the first weight taking
-  the top four bits and the second taking the bottom four (e.g. the following
-  operations could be used to read the weights:
-  `Weight[0] = (Byte[0] >> 4), Weight[1] = (Byte[0] & 0xf)`, etc.).
-  The full representation occupies `Ceiling(Number_of_Symbols/2)` bytes,
-  meaning it uses only full bytes even if `Number_of_Symbols` is odd.
-  `Number_of_Symbols = headerByte - 127`.
-  Note that maximum `Number_of_Symbols` is 255-127 = 128.
-  If any literal has a value > 128, raw header mode is not possible.
-  In such case, it's necessary to use FSE compression.
+- if `headerByte` >= 128 :
+  + the series of weights uses a direct representation,
+    where each `Weight` is encoded directly as a 4 bits field (0-15).
+  + They are encoded forward, 2 weights to a byte,
+    first weight taking the top four bits and second one taking the bottom four.
+    * e.g. the following operations could be used to read the weights:
+      `Weight[0] = (Byte[0] >> 4), Weight[1] = (Byte[0] & 0xf)`, etc.
+  + The full representation occupies `Ceiling(Number_of_Weights/2)` bytes,
+    meaning it uses only full bytes even if `Number_of_Weights` is odd.
+  + `Number_of_Weights = headerByte - 127`.
+    * Note that maximum `Number_of_Weights` is 255-127 = 128,
+      therefore, only up to 128 `Weight` can be encoded using direct representation.
+    * Since the last non-zero `Weight` is _not_ encoded,
+      this scheme is compatible with alphabet sizes of up to 129 symbols,
+      hence including literal symbol 128.
+    * If any literal symbol > 128 has a non-zero `Weight`,
+      direct representation is not possible.
+      In such case, it's necessary to use FSE compression.
 
 
 #### Finite State Entropy (FSE) compression of Huffman weights
@@ -1257,7 +1265,7 @@ To decode an FSE bitstream, it is necessary to know its compressed size.
 Compressed size is provided by `headerByte`.
 It's also necessary to know its _maximum possible_ decompressed size,
 which is `255`, since literal values span from `0` to `255`,
-and last symbol's weight is not represented.
+and last symbol's `Weight` is not represented.
 
 An FSE bitstream starts by a header, describing probabilities distribution.
 It will create a Decoding Table.
@@ -1267,7 +1275,7 @@ For more description see the [FSE header description](#fse-table-description)
 The Huffman header compression uses 2 states,
 which share the same FSE distribution table.
 The first state (`State1`) encodes the even indexed symbols,
-and the second (`State2`) encodes the odd indexes.
+and the second (`State2`) encodes the odd indexed symbols.
 `State1` is initialized first, and then `State2`, and they take turns
 decoding a single symbol and updating their state.
 For more details on these FSE operations, see the [FSE section](#fse).
@@ -1288,7 +1296,7 @@ Number_of_Bits = (Weight>0) ? Max_Number_of_Bits + 1 - Weight : 0
 Symbols are sorted by `Weight`.
 Within same `Weight`, symbols keep natural sequential order.
 Symbols with a `Weight` of zero are removed.
-Then, starting from lowest weight, prefix codes are distributed in sequential order.
+Then, starting from lowest `Weight`, prefix codes are distributed in sequential order.
 
 __Example__ :
 Let's presume the following list of weights has been decoded :
@@ -1315,7 +1323,7 @@ Each bitstream must be read _backward_,
 that is starting from the end down to the beginning.
 Therefore it's necessary to know the size of each bitstream.
 
-It's also necessary to know exactly which _bit_ is the latest.
+It's also necessary to know exactly which _bit_ is the last one.
 This is detected by a final bit flag :
 the highest bit of latest byte is a final-bit-flag.
 Consequently, a last byte of `0` is not possible.
@@ -1621,6 +1629,8 @@ or at least provide a meaningful error code explaining for which reason it canno
 
 Version changes
 ---------------
+- 0.3.0 : minor edits to match RFC8478
+- 0.2.9 : clarifications for huffman weights direct representation, by Ulrich Kunitz
 - 0.2.8 : clarifications for IETF RFC discuss
 - 0.2.7 : clarifications from IETF RFC review, by Vijay Gurbani and Nick Terrell
 - 0.2.6 : fixed an error in huffman example, by Ulrich Kunitz

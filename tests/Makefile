@@ -27,12 +27,15 @@ DEBUGLEVEL ?= 1
 DEBUGFLAGS  = -g -DDEBUGLEVEL=$(DEBUGLEVEL)
 CPPFLAGS   += -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
               -I$(ZSTDDIR)/dictBuilder -I$(ZSTDDIR)/deprecated -I$(PRGDIR)
+ifeq ($(OS),Windows_NT)   # MinGW assumed
+CPPFLAGS   += -D__USE_MINGW_ANSI_STDIO   # compatibility with %zu formatting
+endif
 CFLAGS     ?= -O3
 CFLAGS     += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow                 \
               -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
               -Wstrict-prototypes -Wundef -Wformat-security                   \
               -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings      \
-              -Wredundant-decls
+              -Wredundant-decls -Wmissing-prototypes
 CFLAGS     += $(DEBUGFLAGS) $(MOREFLAGS)
 FLAGS       = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
 
@@ -78,7 +81,8 @@ DECODECORPUS_TESTTIME ?= -T30
 default: fullbench
 	@echo $(ZSTDMT_OBJECTS)
 
-all: fullbench fuzzer zstreamtest paramgrill datagen decodecorpus roundTripCrash
+all: fullbench fuzzer zstreamtest paramgrill datagen decodecorpus roundTripCrash \
+     fullbench-lib
 
 all32: fullbench32 fuzzer32 zstreamtest32
 
@@ -88,13 +92,8 @@ allnothread: fullbench fuzzer paramgrill datagen decodecorpus
 
 dll: fuzzer-dll zstreamtest-dll
 
-zstd:
-	$(MAKE) -C $(PRGDIR) $@ MOREFLAGS+="$(DEBUGFLAGS)"
-
-zstd32:
-	$(MAKE) -C $(PRGDIR) $@ MOREFLAGS+="$(DEBUGFLAGS)"
-
-zstd-nolegacy:
+PHONY: zstd zstd32 zstd-nolegacy  # must be phony, only external makefile knows how to build them, or if they need an update
+zstd zstd32 zstd-nolegacy:
 	$(MAKE) -C $(PRGDIR) $@ MOREFLAGS+="$(DEBUGFLAGS)"
 
 gzstd:
@@ -131,13 +130,14 @@ zstdmt_d_%.o : $(ZSTDDIR)/decompress/%.c
 fullbench32: CPPFLAGS += -m32
 fullbench fullbench32 : CPPFLAGS += $(MULTITHREAD_CPP)
 fullbench fullbench32 : LDFLAGS += $(MULTITHREAD_LD)
-fullbench fullbench32 : DEBUGFLAGS =   # turn off assert() for speed measurements
+fullbench fullbench32 : DEBUGFLAGS = -DNDEBUG  # turn off assert() for speed measurements
 fullbench fullbench32 : $(ZSTD_FILES)
-fullbench fullbench32 : $(PRGDIR)/datagen.c fullbench.c
+fullbench fullbench32 : $(PRGDIR)/datagen.c $(PRGDIR)/bench.c fullbench.c
 	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
+fullbench-lib : CPPFLAGS += -DXXH_NAMESPACE=ZSTD_
 fullbench-lib : zstd-staticLib
-fullbench-lib : $(PRGDIR)/datagen.c fullbench.c
+fullbench-lib : $(PRGDIR)/datagen.c $(PRGDIR)/bench.c fullbench.c
 	$(CC) $(FLAGS) $(filter %.c,$^) -o $@$(EXT) $(ZSTDDIR)/libzstd.a
 
 # note : broken : requires unavailable symbols
@@ -202,7 +202,7 @@ zstreamtest-dll : $(ZSTDDIR)/common/xxhash.c  # xxh symbols not exposed from dll
 zstreamtest-dll : $(ZSTREAM_LOCAL_FILES)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(filter %.c,$^) $(LDFLAGS) -o $@$(EXT)
 
-paramgrill : DEBUGFLAGS =   # turn off assert() for speed measurements
+paramgrill : DEBUGFLAGS =  # turn off assert() by default for speed measurements
 paramgrill : $(ZSTD_FILES) $(PRGDIR)/bench.c $(PRGDIR)/datagen.c paramgrill.c
 	$(CC) $(FLAGS) $^ -lm -o $@$(EXT)
 
@@ -245,13 +245,14 @@ checkTag: checkTag.c $(ZSTDDIR)/zstd.h
 
 clean:
 	$(MAKE) -C $(ZSTDDIR) clean
+	$(MAKE) -C $(PRGDIR) clean
 	@$(RM) -fR $(TESTARTEFACT)
 	@$(RM) -f core *.o tmp* result* *.gcda dictionary *.zst \
         $(PRGDIR)/zstd$(EXT) $(PRGDIR)/zstd32$(EXT) \
         fullbench$(EXT) fullbench32$(EXT) \
         fullbench-lib$(EXT) fullbench-dll$(EXT) \
         fuzzer$(EXT) fuzzer32$(EXT) zbufftest$(EXT) zbufftest32$(EXT) \
-        fuzzer-dll$(EXT) zstreamtest-dll$(EXT) zbufftest-dll$(EXT)\
+        fuzzer-dll$(EXT) zstreamtest-dll$(EXT) zbufftest-dll$(EXT) \
         zstreamtest$(EXT) zstreamtest32$(EXT) \
         datagen$(EXT) paramgrill$(EXT) roundTripCrash$(EXT) longmatch$(EXT) \
         symbols$(EXT) invalidDictionaries$(EXT) legacy$(EXT) poolTests$(EXT) \
@@ -301,11 +302,6 @@ endif
 list:
 	@$(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null | awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' | sort | egrep -v -e '^[^[:alnum:]]' -e '^$@$$' | xargs
 
-.PHONY: zstd-playTests
-zstd-playTests: datagen
-	file $(ZSTD)
-	ZSTD="$(QEMU_SYS) $(ZSTD)" ./playTests.sh $(ZSTDRTTEST)
-
 .PHONY: shortest
 shortest: ZSTDRTTEST=
 shortest: test-zstd
@@ -323,14 +319,21 @@ test32: test-zstd32 test-fullbench32 test-fuzzer32 test-zstream32
 
 test-all: test test32 valgrindTest test-decodecorpus-cli
 
+
+.PHONY: test-zstd test-zstd32 test-zstd-nolegacy
 test-zstd: ZSTD = $(PRGDIR)/zstd
-test-zstd: zstd zstd-playTests
+test-zstd: zstd
 
 test-zstd32: ZSTD = $(PRGDIR)/zstd32
-test-zstd32: zstd32 zstd-playTests
+test-zstd32: zstd32
 
 test-zstd-nolegacy: ZSTD = $(PRGDIR)/zstd-nolegacy
-test-zstd-nolegacy: zstd-nolegacy zstd-playTests
+test-zstd-nolegacy: zstd-nolegacy
+
+test-zstd test-zstd32 test-zstd-nolegacy: datagen
+	file $(ZSTD)
+	ZSTD="$(QEMU_SYS) $(ZSTD)" ./playTests.sh $(ZSTDRTTEST)
+
 
 test-gzstd: gzstd
 	$(PRGDIR)/zstd -f README.md test-zstd-speed.py

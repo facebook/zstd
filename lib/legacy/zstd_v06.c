@@ -1250,9 +1250,7 @@ const char* FSEv06_getErrorName(size_t code) { return ERR_getErrorName(code); }
 /* **************************************************************
 *  HUF Error Management
 ****************************************************************/
-unsigned HUFv06_isError(size_t code) { return ERR_isError(code); }
-
-const char* HUFv06_getErrorName(size_t code) { return ERR_getErrorName(code); }
+static unsigned HUFv06_isError(size_t code) { return ERR_isError(code); }
 
 
 /*-**************************************************************
@@ -2823,7 +2821,8 @@ struct ZSTDv06_DCtx_s
     BYTE headerBuffer[ZSTDv06_FRAMEHEADERSIZE_MAX];
 };  /* typedef'd to ZSTDv06_DCtx within "zstd_static.h" */
 
-size_t ZSTDv06_sizeofDCtx (void) { return sizeof(ZSTDv06_DCtx); }   /* non published interface */
+size_t ZSTDv06_sizeofDCtx (void); /* Hidden declaration */
+size_t ZSTDv06_sizeofDCtx (void) { return sizeof(ZSTDv06_DCtx); }
 
 size_t ZSTDv06_decompressBegin(ZSTDv06_DCtx* dctx)
 {
@@ -3022,7 +3021,7 @@ typedef struct
 
 /*! ZSTDv06_getcBlockSize() :
 *   Provides the size of compressed block from block header `src` */
-size_t ZSTDv06_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bpPtr)
+static size_t ZSTDv06_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bpPtr)
 {
     const BYTE* const in = (const BYTE* const)src;
     U32 cSize;
@@ -3041,6 +3040,7 @@ size_t ZSTDv06_getcBlockSize(const void* src, size_t srcSize, blockProperties_t*
 
 static size_t ZSTDv06_copyRawBlock(void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
+    if (dst==NULL) return ERROR(dstSize_tooSmall);
     if (srcSize > dstCapacity) return ERROR(dstSize_tooSmall);
     memcpy(dst, src, srcSize);
     return srcSize;
@@ -3049,7 +3049,7 @@ static size_t ZSTDv06_copyRawBlock(void* dst, size_t dstCapacity, const void* sr
 
 /*! ZSTDv06_decodeLiteralsBlock() :
     @return : nb of bytes read from src (< srcSize ) */
-size_t ZSTDv06_decodeLiteralsBlock(ZSTDv06_DCtx* dctx,
+static size_t ZSTDv06_decodeLiteralsBlock(ZSTDv06_DCtx* dctx,
                           const void* src, size_t srcSize)   /* note : srcSize < BLOCKSIZE */
 {
     const BYTE* const istart = (const BYTE*) src;
@@ -3183,7 +3183,7 @@ size_t ZSTDv06_decodeLiteralsBlock(ZSTDv06_DCtx* dctx,
     @return : nb bytes read from src,
               or an error code if it fails, testable with ZSTDv06_isError()
 */
-size_t ZSTDv06_buildSeqTable(FSEv06_DTable* DTable, U32 type, U32 max, U32 maxLog,
+static size_t ZSTDv06_buildSeqTable(FSEv06_DTable* DTable, U32 type, U32 max, U32 maxLog,
                                  const void* src, size_t srcSize,
                                  const S16* defaultNorm, U32 defaultLog, U32 flagRepeatTable)
 {
@@ -3213,7 +3213,7 @@ size_t ZSTDv06_buildSeqTable(FSEv06_DTable* DTable, U32 type, U32 max, U32 maxLo
 }
 
 
-size_t ZSTDv06_decodeSeqHeaders(int* nbSeqPtr,
+static size_t ZSTDv06_decodeSeqHeaders(int* nbSeqPtr,
                              FSEv06_DTable* DTableLL, FSEv06_DTable* DTableML, FSEv06_DTable* DTableOffb, U32 flagRepeatTable,
                              const void* src, size_t srcSize)
 {
@@ -3358,7 +3358,7 @@ static void ZSTDv06_decodeSequence(seq_t* seq, seqState_t* seqState)
 }
 
 
-size_t ZSTDv06_execSequence(BYTE* op,
+static size_t ZSTDv06_execSequence(BYTE* op,
                                 BYTE* const oend, seq_t sequence,
                                 const BYTE** litPtr, const BYTE* const litLimit,
                                 const BYTE* const base, const BYTE* const vBase, const BYTE* const dictEnd)
@@ -4006,7 +4006,7 @@ size_t ZBUFFv06_decompressContinue(ZBUFFv06_DCtx* zbd,
                     if (ZSTDv06_isError(hSize)) return hSize;
                     if (toLoad > (size_t)(iend-ip)) {   /* not enough input to load full header */
                         memcpy(zbd->headerBuffer + zbd->lhSize, ip, iend-ip);
-                        zbd->lhSize += iend-ip; ip = iend; notDone = 0;
+                        zbd->lhSize += iend-ip;
                         *dstCapacityPtr = 0;
                         return (hSize - zbd->lhSize) + ZSTDv06_blockHeaderSize;   /* remaining header bytes + next block header */
                     }

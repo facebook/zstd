@@ -27,6 +27,7 @@
 #include <string.h>         /* memset */
 #include <stdio.h>          /* fprintf, fopen, ftello64 */
 #include <errno.h>          /* errno */
+#include <assert.h>
 
 #include "mem.h"            /* read */
 #include "error_private.h"
@@ -43,6 +44,7 @@
 #define SAMPLESIZE_MAX (128 KB)
 #define MEMMULT 11    /* rough estimation : memory cost to analyze 1 byte of sample */
 #define COVER_MEMMULT 9    /* rough estimation : memory cost to analyze 1 byte of sample */
+#define FASTCOVER_MEMMULT 1    /* rough estimation : memory cost to analyze 1 byte of sample */
 static const size_t g_maxMemory = (sizeof(size_t) == 4) ? (2 GB - 64 MB) : ((size_t)(512 MB) << sizeof(size_t));
 
 #define NOISELENGTH 32
@@ -82,10 +84,6 @@ static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
 /* ********************************************************
 *  Helper functions
 **********************************************************/
-unsigned DiB_isError(size_t errorCode) { return ERR_isError(errorCode); }
-
-const char* DiB_getErrorName(size_t errorCode) { return ERR_getErrorName(errorCode); }
-
 #undef MIN
 #define MIN(a,b)    ((a) < (b) ? (a) : (b))
 
@@ -165,6 +163,7 @@ static U32 DiB_rand(U32* src)
 static void DiB_shuffle(const char** fileNamesTable, unsigned nbFiles) {
     U32 seed = 0xFD2FB528;
     unsigned i;
+    assert(nbFiles >= 1);
     for (i = nbFiles - 1; i > 0; --i) {
         unsigned const j = DiB_rand(&seed) % (i + 1);
         const char* const tmp = fileNamesTable[j];
@@ -269,16 +268,19 @@ size_t ZDICT_trainFromBuffer_unsafe_legacy(void* dictBuffer, size_t dictBufferCa
 
 int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
                        const char** fileNamesTable, unsigned nbFiles, size_t chunkSize,
-                       ZDICT_legacy_params_t *params, ZDICT_cover_params_t *coverParams,
-                       int optimizeCover)
+                       ZDICT_legacy_params_t* params, ZDICT_cover_params_t* coverParams,
+                       ZDICT_fastCover_params_t* fastCoverParams, int optimize)
 {
     unsigned const displayLevel = params ? params->zParams.notificationLevel :
                         coverParams ? coverParams->zParams.notificationLevel :
+                        fastCoverParams ? fastCoverParams->zParams.notificationLevel :
                         0;   /* should never happen */
     void* const dictBuffer = malloc(maxDictSize);
     fileStats const fs = DiB_fileStats(fileNamesTable, nbFiles, chunkSize, displayLevel);
     size_t* const sampleSizes = (size_t*)malloc(fs.nbSamples * sizeof(size_t));
-    size_t const memMult = params ? MEMMULT : COVER_MEMMULT;
+    size_t const memMult = params ? MEMMULT :
+                           coverParams ? COVER_MEMMULT:
+                           FASTCOVER_MEMMULT;
     size_t const maxMem =  DiB_findMaxMem(fs.totalSizeToLoad * memMult) / memMult;
     size_t loadedSize = (size_t) MIN ((unsigned long long)maxMem, fs.totalSizeToLoad);
     void* const srcBuffer = malloc(loadedSize+NOISELENGTH);
@@ -310,7 +312,8 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
     /* Load input buffer */
     DISPLAYLEVEL(3, "Shuffling input files\n");
     DiB_shuffle(fileNamesTable, nbFiles);
-    nbFiles = DiB_loadFiles(srcBuffer, &loadedSize, sampleSizes, fs.nbSamples, fileNamesTable, nbFiles, chunkSize, displayLevel);
+
+    DiB_loadFiles(srcBuffer, &loadedSize, sampleSizes, fs.nbSamples, fileNamesTable, nbFiles, chunkSize, displayLevel);
 
     {   size_t dictSize;
         if (params) {
@@ -318,16 +321,36 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
             dictSize = ZDICT_trainFromBuffer_unsafe_legacy(dictBuffer, maxDictSize,
                                                            srcBuffer, sampleSizes, fs.nbSamples,
                                                            *params);
-        } else if (optimizeCover) {
-            dictSize = ZDICT_optimizeTrainFromBuffer_cover(dictBuffer, maxDictSize,
-                                                           srcBuffer, sampleSizes, fs.nbSamples,
-                                                           coverParams);
-            if (!ZDICT_isError(dictSize)) {
-                DISPLAYLEVEL(2, "k=%u\nd=%u\nsteps=%u\n", coverParams->k, coverParams->d, coverParams->steps);
+        } else if (coverParams) {
+            if (optimize) {
+              dictSize = ZDICT_optimizeTrainFromBuffer_cover(dictBuffer, maxDictSize,
+                                                             srcBuffer, sampleSizes, fs.nbSamples,
+                                                             coverParams);
+              if (!ZDICT_isError(dictSize)) {
+                  unsigned splitPercentage = (unsigned)(coverParams->splitPoint * 100);
+                  DISPLAYLEVEL(2, "k=%u\nd=%u\nsteps=%u\nsplit=%u\n", coverParams->k, coverParams->d,
+                              coverParams->steps, splitPercentage);
+              }
+            } else {
+              dictSize = ZDICT_trainFromBuffer_cover(dictBuffer, maxDictSize, srcBuffer,
+                                                     sampleSizes, fs.nbSamples, *coverParams);
             }
         } else {
-            dictSize = ZDICT_trainFromBuffer_cover(dictBuffer, maxDictSize, srcBuffer,
-                                                   sampleSizes, fs.nbSamples, *coverParams);
+            assert(fastCoverParams != NULL);
+            if (optimize) {
+              dictSize = ZDICT_optimizeTrainFromBuffer_fastCover(dictBuffer, maxDictSize,
+                                                              srcBuffer, sampleSizes, fs.nbSamples,
+                                                              fastCoverParams);
+              if (!ZDICT_isError(dictSize)) {
+                unsigned splitPercentage = (unsigned)(fastCoverParams->splitPoint * 100);
+                DISPLAYLEVEL(2, "k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\naccel=%u\n", fastCoverParams->k,
+                            fastCoverParams->d, fastCoverParams->f, fastCoverParams->steps, splitPercentage,
+                            fastCoverParams->accel);
+              }
+            } else {
+              dictSize = ZDICT_trainFromBuffer_fastCover(dictBuffer, maxDictSize, srcBuffer,
+                                                        sampleSizes, fs.nbSamples, *fastCoverParams);
+            }
         }
         if (ZDICT_isError(dictSize)) {
             DISPLAYLEVEL(1, "dictionary training failed : %s \n", ZDICT_getErrorName(dictSize));   /* should not happen */

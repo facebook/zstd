@@ -48,6 +48,12 @@ fileRoundTripTest() {
     $DIFF -q tmp.md5.1 tmp.md5.2
 }
 
+truncateLastByte() {
+	dd bs=1 count=$(($(wc -c < "$1") - 1)) if="$1" status=none
+}
+
+UNAME=$(uname)
+
 isTerminal=false
 if [ -t 0 ] && [ -t 1 ]
 then
@@ -56,7 +62,10 @@ fi
 
 isWindows=false
 INTOVOID="/dev/null"
-DEVDEVICE="/dev/random"
+case "$UNAME" in
+  GNU) DEVDEVICE="/dev/random" ;;
+  *) DEVDEVICE="/dev/zero" ;;
+esac
 case "$OS" in
   Windows*)
     isWindows=true
@@ -65,7 +74,6 @@ case "$OS" in
     ;;
 esac
 
-UNAME=$(uname)
 case "$UNAME" in
   Darwin) MD5SUM="md5 -r" ;;
   FreeBSD) MD5SUM="gmd5sum" ;;
@@ -95,6 +103,7 @@ else
 fi
 
 
+
 $ECHO "\n===>  simple tests "
 
 ./datagen > tmp
@@ -104,11 +113,13 @@ $ECHO "test : basic decompression"
 $ZSTD -df tmp.zst                 # trivial decompression case (overwrites tmp)
 $ECHO "test : too large compression level => auto-fix"
 $ZSTD -99 -f tmp  # too large compression level, automatic sized down
+$ZSTD -5000000000 -f tmp && die "too large numeric value : must fail"
 $ECHO "test : --fast aka negative compression levels"
 $ZSTD --fast -f tmp  # == -1
 $ZSTD --fast=3 -f tmp  # == -3
-$ZSTD --fast=200000 -f tmp  # == no compression
-! $ZSTD -c --fast=0 tmp > $INTOVOID # should fail
+$ZSTD --fast=200000 -f tmp  # too low compression level, automatic fixed
+$ZSTD --fast=5000000000 -f tmp && die "too large numeric value : must fail"
+$ZSTD -c --fast=0 tmp > $INTOVOID && die "--fast must not accept value 0"
 $ECHO "test : too large numeric argument"
 $ZSTD --fast=9999999999 -f tmp  && die "should have refused numeric value"
 $ECHO "test : compress to stdout"
@@ -169,6 +180,8 @@ chmod 400 tmpro.zst
 $ZSTD -q tmpro && die "should have refused to overwrite read-only file"
 $ZSTD -q -f tmpro
 rm -f tmpro tmpro.zst
+
+
 $ECHO "test : file removal"
 $ZSTD -f --rm tmp
 test ! -f tmp  # tmp should no longer be present
@@ -185,9 +198,19 @@ $ECHO a | $ZSTD --rm > $INTOVOID   # --rm should remain silent
 rm tmp
 $ZSTD -f tmp && die "tmp not present : should have failed"
 test ! -f tmp.zst  # tmp.zst should not be created
+$ECHO "test : -d -f do not delete destination when source is not present"
+touch tmp    # create destination file
+$ZSTD -d -f tmp.zst && die "attempt to decompress a non existing file"
+test -f tmp  # destination file should still be present
+$ECHO "test : -f do not delete destination when source is not present"
+rm tmp         # erase source file
+touch tmp.zst  # create destination file
+$ZSTD -f tmp && die "attempt to compress a non existing file"
+test -f tmp.zst  # destination file should still be present
+rm tmp*
+
 
 $ECHO "test : compress multiple files"
-rm tmp*
 $ECHO hello > tmp1
 $ECHO world > tmp2
 $ZSTD tmp1 tmp2 -o "$INTOVOID"
@@ -400,28 +423,54 @@ $ECHO "Hello World" > tmp
 $ZSTD --train-legacy -q tmp && die "Dictionary training should fail : not enough input source"
 ./datagen -P0 -g10M > tmp
 $ZSTD --train-legacy -q tmp && die "Dictionary training should fail : source is pure noise"
-rm tmp*
+$ECHO "- Test -o before --train"
+rm -f tmpDict dictionary
+$ZSTD -o tmpDict --train *.c ../programs/*.c
+test -f tmpDict
+$ZSTD --train *.c ../programs/*.c
+test -f dictionary
+rm tmp* dictionary
 
 
-$ECHO "\n===>  cover dictionary builder : advanced options "
+$ECHO "\n===>  fastCover dictionary builder : advanced options "
 
 TESTFILE=../programs/zstdcli.c
 ./datagen > tmpDict
 $ECHO "- Create first dictionary"
-$ZSTD --train-cover=k=46,d=8 *.c ../programs/*.c -o tmpDict
+$ZSTD --train-fastcover=k=46,d=8,f=15,split=80 *.c ../programs/*.c -o tmpDict
 cp $TESTFILE tmp
 $ZSTD -f tmp -D tmpDict
 $ZSTD -d tmp.zst -D tmpDict -fo result
 $DIFF $TESTFILE result
 $ECHO "- Create second (different) dictionary"
-$ZSTD --train-cover=k=56,d=8 *.c ../programs/*.c ../programs/*.h -o tmpDictC
+$ZSTD --train-fastcover=k=56,d=8 *.c ../programs/*.c ../programs/*.h -o tmpDictC
 $ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
 $ECHO "- Create dictionary with short dictID"
-$ZSTD --train-cover=k=46,d=8 *.c ../programs/*.c --dictID=1 -o tmpDict1
+$ZSTD --train-fastcover=k=46,d=8,f=15,split=80 *.c ../programs/*.c --dictID=1 -o tmpDict1
 cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
 $ECHO "- Create dictionary with size limit"
-$ZSTD --train-cover=steps=8 *.c ../programs/*.c -o tmpDict2 --maxdict=4K
-rm tmp*
+$ZSTD --train-fastcover=steps=8 *.c ../programs/*.c -o tmpDict2 --maxdict=4K
+$ECHO "- Compare size of dictionary from 90% training samples with 80% training samples"
+$ZSTD --train-fastcover=split=90 -r *.c ../programs/*.c
+$ZSTD --train-fastcover=split=80 -r *.c ../programs/*.c
+$ECHO "- Create dictionary using all samples for both training and testing"
+$ZSTD --train-fastcover=split=100 -r *.c ../programs/*.c
+$ECHO "- Create dictionary using f=16"
+$ZSTD --train-fastcover=f=16 -r *.c ../programs/*.c
+$ECHO "- Create dictionary using accel=2"
+$ZSTD --train-fastcover=accel=2 -r *.c ../programs/*.c
+$ECHO "- Create dictionary using accel=10"
+$ZSTD --train-fastcover=accel=10 -r *.c ../programs/*.c
+$ECHO "- Create dictionary with multithreading"
+$ZSTD --train-fastcover -T4 -r *.c ../programs/*.c
+$ECHO "- Test -o before --train-fastcover"
+rm -f tmpDict dictionary
+$ZSTD -o tmpDict --train-fastcover *.c ../programs/*.c
+test -f tmpDict
+$ZSTD --train-fastcover *.c ../programs/*.c
+test -f dictionary
+rm tmp* dictionary
+
 
 $ECHO "\n===>  legacy dictionary builder "
 
@@ -441,7 +490,13 @@ $ZSTD --train-legacy -s5 *.c ../programs/*.c --dictID=1 -o tmpDict1
 cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
 $ECHO "- Create dictionary with size limit"
 $ZSTD --train-legacy -s9 *.c ../programs/*.c -o tmpDict2 --maxdict=4K
-rm tmp*
+$ECHO "- Test -o before --train-legacy"
+rm -f tmpDict dictionary
+$ZSTD -o tmpDict --train-legacy *.c ../programs/*.c
+test -f tmpDict
+$ZSTD --train-legacy *.c ../programs/*.c
+test -f dictionary
+rm tmp* dictionary
 
 
 $ECHO "\n===>  integrity tests "
@@ -524,7 +579,7 @@ if [ $GZIPMODE -eq 1 ]; then
     $ZSTD -f --format=gzip tmp
     $ZSTD -f tmp
     cat tmp.gz tmp.zst tmp.gz tmp.zst | $ZSTD -d -f -o tmp
-    head -c -1 tmp.gz | $ZSTD -t > $INTOVOID && die "incomplete frame not detected !"
+    truncateLastByte tmp.gz | $ZSTD -t > $INTOVOID && die "incomplete frame not detected !"
     rm tmp*
 else
     $ECHO "gzip mode not supported"
@@ -544,16 +599,16 @@ $ZSTD --format=xz -V || LZMAMODE=0
 if [ $LZMAMODE -eq 1 ]; then
     $ECHO "xz support detected"
     XZEXE=1
-    xz -V && lzma -V || XZEXE=0
+    xz -Q -V && lzma -Q -V || XZEXE=0
     if [ $XZEXE -eq 1 ]; then
         $ECHO "Testing zstd xz and lzma support"
         ./datagen > tmp
         $ZSTD --format=lzma -f tmp
         $ZSTD --format=xz -f tmp
-        xz -t -v tmp.xz
-        xz -t -v tmp.lzma
-        xz -f -k tmp
-        lzma -f -k --lzma1 tmp
+        xz -Q -t -v tmp.xz
+        xz -Q -t -v tmp.lzma
+        xz -Q -f -k tmp
+        lzma -Q -f -k --lzma1 tmp
         $ZSTD -d -f -v tmp.xz
         $ZSTD -d -f -v tmp.lzma
         rm tmp*
@@ -565,13 +620,13 @@ if [ $LZMAMODE -eq 1 ]; then
         $ECHO "Testing xz and lzma symlinks"
         ./datagen > tmp
         ./xz tmp
-        xz -d tmp.xz
+        xz -Q -d tmp.xz
         ./lzma tmp
-        lzma -d tmp.lzma
+        lzma -Q -d tmp.lzma
         $ECHO "Testing unxz and unlzma symlinks"
-        xz tmp
+        xz -Q tmp
         ./xz -d tmp.xz
-        lzma tmp
+        lzma -Q tmp
         ./lzma -d tmp.lzma
         rm xz unxz lzma unlzma
         rm tmp*
@@ -591,8 +646,8 @@ if [ $LZMAMODE -eq 1 ]; then
     $ZSTD -f --format=lzma tmp
     $ZSTD -f tmp
     cat tmp.xz tmp.lzma tmp.zst tmp.lzma tmp.xz tmp.zst | $ZSTD -d -f -o tmp
-    head -c -1 tmp.xz | $ZSTD -t > $INTOVOID && die "incomplete frame not detected !"
-    head -c -1 tmp.lzma | $ZSTD -t > $INTOVOID && die "incomplete frame not detected !"
+    truncateLastByte tmp.xz | $ZSTD -t > $INTOVOID && die "incomplete frame not detected !"
+    truncateLastByte tmp.lzma | $ZSTD -t > $INTOVOID && die "incomplete frame not detected !"
     rm tmp*
 else
     $ECHO "xz mode not supported"
@@ -628,7 +683,7 @@ if [ $LZ4MODE -eq 1 ]; then
     $ZSTD -f --format=lz4 tmp
     $ZSTD -f tmp
     cat tmp.lz4 tmp.zst tmp.lz4 tmp.zst | $ZSTD -d -f -o tmp
-    head -c -1 tmp.lz4 | $ZSTD -t > $INTOVOID && die "incomplete frame not detected !"
+    truncateLastByte tmp.lz4 | $ZSTD -t > $INTOVOID && die "incomplete frame not detected !"
     rm tmp*
 else
     $ECHO "lz4 mode not supported"
@@ -726,26 +781,32 @@ $ZSTD -l *.zst
 $ZSTD -lv *.zst
 
 $ECHO "\n===>  zstd --list/-l error detection tests "
-! $ZSTD -l tmp1 tmp1.zst
-! $ZSTD --list tmp*
-! $ZSTD -lv tmp1*
-! $ZSTD --list -v tmp2 tmp12.zst
+$ZSTD -l tmp1 tmp1.zst && die "-l must fail on non-zstd file"
+$ZSTD --list tmp* && die "-l must fail on non-zstd file"
+$ZSTD -lv tmp1* && die "-l must fail on non-zstd file"
+$ZSTD --list -v tmp2 tmp12.zst && die "-l must fail on non-zstd file"
 
-$ECHO "\n===>  zstd --list/-l exits 1 when stdin is piped in"
-! echo "piped STDIN" | $ZSTD --list
+$ECHO "\n===>  zstd --list/-l errors when presented with stdin / no files"
+$ZSTD -l && die "-l must fail on empty list of files"
+$ZSTD -l - && die "-l does not work on stdin"
+$ZSTD -l < tmp1.zst && die "-l does not work on stdin"
+$ZSTD -l - < tmp1.zst && die "-l does not work on stdin"
+$ZSTD -l - tmp1.zst && die "-l does not work on stdin"
+$ZSTD -l - tmp1.zst < tmp1.zst && die "-l does not work on stdin"
+$ZSTD -l tmp1.zst < tmp2.zst # this will check tmp1.zst, but not tmp2.zst, which is not an error : zstd simply doesn't read stdin in this case. It must not error just because stdin is not a tty
 
 $ECHO "\n===>  zstd --list/-l test with null files "
 ./datagen -g0 > tmp5
 $ZSTD tmp5
 $ZSTD -l tmp5.zst
-! $ZSTD -l tmp5*
+$ZSTD -l tmp5* && die "-l must fail on non-zstd file"
 $ZSTD -lv tmp5.zst | grep "Decompressed Size: 0.00 KB (0 B)"  # check that 0 size is present in header
-! $ZSTD -lv tmp5*
+$ZSTD -lv tmp5* && die "-l must fail on non-zstd file"
 
 $ECHO "\n===>  zstd --list/-l test with no content size field "
 ./datagen -g513K | $ZSTD > tmp6.zst
 $ZSTD -l tmp6.zst
-! $ZSTD -lv tmp6.zst | grep "Decompressed Size:"  # must NOT be present in header
+$ZSTD -lv tmp6.zst | grep "Decompressed Size:"  && die "Field :Decompressed Size: should not be available in this compressed file"
 
 $ECHO "\n===>   zstd --list/-l test with no checksum "
 $ZSTD -f --no-check tmp1
@@ -765,10 +826,21 @@ roundTripTest -g1M -P50 "1 --single-thread --long=29" " --long=28 --memory=512MB
 roundTripTest -g1M -P50 "1 --single-thread --long=29" " --zstd=wlog=28 --memory=512MB"
 
 
+$ECHO "\n===>   adaptive mode "
+roundTripTest -g270000000 " --adapt"
+roundTripTest -g27000000 " --adapt=min=1,max=4"
+$ECHO "===>   test: --adapt must fail on incoherent bounds "
+./datagen > tmp
+$ZSTD -f -vv --adapt=min=10,max=9 tmp && die "--adapt must fail on incoherent bounds"
+
+
 if [ "$1" != "--test-large-data" ]; then
     $ECHO "Skipping large data tests"
     exit 0
 fi
+
+
+#############################################################################
 
 $ECHO "\n===>   large files tests "
 
@@ -824,4 +896,37 @@ else
     $ECHO "\n**** no multithreading, skipping zstdmt tests **** "
 fi
 
-rm tmp*
+
+$ECHO "\n===>  cover dictionary builder : advanced options "
+
+TESTFILE=../programs/zstdcli.c
+./datagen > tmpDict
+$ECHO "- Create first dictionary"
+$ZSTD --train-cover=k=46,d=8,split=80 *.c ../programs/*.c -o tmpDict
+cp $TESTFILE tmp
+$ZSTD -f tmp -D tmpDict
+$ZSTD -d tmp.zst -D tmpDict -fo result
+$DIFF $TESTFILE result
+$ECHO "- Create second (different) dictionary"
+$ZSTD --train-cover=k=56,d=8 *.c ../programs/*.c ../programs/*.h -o tmpDictC
+$ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
+$ECHO "- Create dictionary with short dictID"
+$ZSTD --train-cover=k=46,d=8,split=80 *.c ../programs/*.c --dictID=1 -o tmpDict1
+cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
+$ECHO "- Create dictionary with size limit"
+$ZSTD --train-cover=steps=8 *.c ../programs/*.c -o tmpDict2 --maxdict=4K
+$ECHO "- Compare size of dictionary from 90% training samples with 80% training samples"
+$ZSTD --train-cover=split=90 -r *.c ../programs/*.c
+$ZSTD --train-cover=split=80 -r *.c ../programs/*.c
+$ECHO "- Create dictionary using all samples for both training and testing"
+$ZSTD --train-cover=split=100 -r *.c ../programs/*.c
+$ECHO "- Test -o before --train-cover"
+rm -f tmpDict dictionary
+$ZSTD -o tmpDict --train-cover *.c ../programs/*.c
+test -f tmpDict
+$ZSTD --train-cover *.c ../programs/*.c
+test -f dictionary
+rm -f tmp* dictionary
+
+
+rm -f tmp*

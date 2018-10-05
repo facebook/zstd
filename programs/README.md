@@ -61,6 +61,13 @@ There are however other Makefile targets that create different variations of CLI
   In which case, linking stage will fail if `lz4` library cannot be found.
   This is useful to prevent silent feature disabling.
 
+- __ALL_SYMBOLS__ : `zstd` can display a stack backtrace if the execution
+  generates a runtime exception. By default, this feature may be
+  degraded/disabled on some platforms unless additional compiler directives are
+  applied. When triaging a runtime issue, enabling this feature can provided
+  more context to determine the location of the fault.
+  Example : `make zstd ALL_SYMBOLS=1`
+
 
 #### Aggregation of parameters
 CLI supports aggregation of parameters i.e. `-b1`, `-e18`, and `-i1` can be joined into `-b1e18i1`.
@@ -150,7 +157,8 @@ Advanced arguments :
 
 Dictionary builder :
 --train ## : create a dictionary from a training set of files
---train-cover[=k=#,d=#,steps=#] : use the cover algorithm with optional args
+--train-cover[=k=#,d=#,steps=#,split=#] : use the cover algorithm with optional args
+--train-fastcover[=k=#,d=#,f=#,steps=#,split=#,accel=#] : use the fastcover algorithm with optional args
 --train-legacy[=s=#] : use the legacy algorithm with selectivity (default: 9)
  -o file : `file` is dictionary name (default: dictionary)
 --maxdict=# : limit dictionary to specified size (default: 112640)
@@ -185,7 +193,7 @@ version is less than `128 MiB`).
 
 Compression Speed vs Ratio | Decompression Speed
 ---------------------------|---------------------
-![Compression Speed vs Ratio](../doc/images/ldmCspeed.png "Compression Speed vs Ratio") | ![Decompression Speed](../doc/images/ldmDspeed.png "Decompression Speed")
+![Compression Speed vs Ratio](https://raw.githubusercontent.com/facebook/zstd/v1.3.3/doc/images/ldmCspeed.png "Compression Speed vs Ratio") | ![Decompression Speed](https://raw.githubusercontent.com/facebook/zstd/v1.3.3/doc/images/ldmDspeed.png "Decompression Speed")
 
 | Method | Compression ratio | Compression speed | Decompression speed  |
 |:-------|------------------:|-------------------------:|---------------------------:|
@@ -208,10 +216,24 @@ The below table illustrates this on the [Silesia compression corpus].
 [Silesia compression corpus]: http://sun.aei.polsl.pl/~sdeor/index.php?page=silesia
 
 | Method | Compression ratio | Compression speed | Decompression speed  |
-|:-------|------------------:|-------------------------:|---------------------------:|
-| `zstd -1`   | `2.878`   | `231.7 MB/s`  | `594.4 MB/s`  |
-| `zstd -1 --long` | `2.929` | `106.5 MB/s` | `517.9 MB/s` |
-| `zstd -5`  | `3.274`    | `77.1 MB/s`  | `464.2 MB/s`  |
-| `zstd -5 --long` | `3.319` | `51.7 MB/s` | `371.9 MB/s` |
-| `zstd -10` | `3.523`    | `16.4 MB/s`   | `489.2 MB/s`  |
-| `zstd -10 --long`| `3.566` | `16.2 MB/s` | `415.7 MB/s`  |
+|:-------|------------------:|------------------:|---------------------:|
+| `zstd -1`        | `2.878` | `231.7 MB/s`      | `594.4 MB/s`   |
+| `zstd -1 --long` | `2.929` | `106.5 MB/s`      | `517.9 MB/s`   |
+| `zstd -5`        | `3.274` | `77.1 MB/s`       | `464.2 MB/s`   |
+| `zstd -5 --long` | `3.319` | `51.7 MB/s`       | `371.9 MB/s`   |
+| `zstd -10`       | `3.523` | `16.4 MB/s`       | `489.2 MB/s`   |
+| `zstd -10 --long`| `3.566` | `16.2 MB/s`       | `415.7 MB/s`   |
+
+
+#### zstdgrep
+
+`zstdgrep` is a utility which makes it possible to `grep` directly a `.zst` compressed file.
+It's used the same way as normal `grep`, for example :
+`zstdgrep pattern file.zst`
+
+`zstdgrep` is _not_ compatible with dictionary compression.
+
+To search into a file compressed with a dictionary,
+it's necessary to decompress it using `zstd` or `zstdcat`,
+and then pipe the result to `grep`. For example  :
+`zstdcat -D dictionary -qc -- file.zst | grep pattern`

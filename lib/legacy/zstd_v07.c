@@ -2628,7 +2628,7 @@ const char* ZBUFFv07_getErrorName(size_t errorCode) { return ERR_getErrorName(er
 
 
 
-void* ZSTDv07_defaultAllocFunction(void* opaque, size_t size)
+static void* ZSTDv07_defaultAllocFunction(void* opaque, size_t size)
 {
     void* address = malloc(size);
     (void)opaque;
@@ -2636,7 +2636,7 @@ void* ZSTDv07_defaultAllocFunction(void* opaque, size_t size)
     return address;
 }
 
-void ZSTDv07_defaultFreeFunction(void* opaque, void* address)
+static void ZSTDv07_defaultFreeFunction(void* opaque, void* address)
 {
     (void)opaque;
     /* if (address) printf("free %p opaque=%p \n", address, opaque); */
@@ -3150,10 +3150,10 @@ size_t ZSTDv07_getFrameParams(ZSTDv07_frameParams* fparamsPtr, const void* src, 
     const BYTE* ip = (const BYTE*)src;
 
     if (srcSize < ZSTDv07_frameHeaderSize_min) return ZSTDv07_frameHeaderSize_min;
+    memset(fparamsPtr, 0, sizeof(*fparamsPtr));
     if (MEM_readLE32(src) != ZSTDv07_MAGICNUMBER) {
         if ((MEM_readLE32(src) & 0xFFFFFFF0U) == ZSTDv07_MAGIC_SKIPPABLE_START) {
             if (srcSize < ZSTDv07_skippableHeaderSize) return ZSTDv07_skippableHeaderSize; /* magic number + skippable frame length */
-            memset(fparamsPtr, 0, sizeof(*fparamsPtr));
             fparamsPtr->frameContentSize = MEM_readLE32((const char *)src + 4);
             fparamsPtr->windowSize = 0; /* windowSize==0 means a frame is skippable */
             return 0;
@@ -3175,11 +3175,13 @@ size_t ZSTDv07_getFrameParams(ZSTDv07_frameParams* fparamsPtr, const void* src, 
         U32 windowSize = 0;
         U32 dictID = 0;
         U64 frameContentSize = 0;
-        if ((fhdByte & 0x08) != 0) return ERROR(frameParameter_unsupported);   /* reserved bits, which must be zero */
+        if ((fhdByte & 0x08) != 0)   /* reserved bits, which must be zero */
+            return ERROR(frameParameter_unsupported);
         if (!directMode) {
             BYTE const wlByte = ip[pos++];
             U32 const windowLog = (wlByte >> 3) + ZSTDv07_WINDOWLOG_ABSOLUTEMIN;
-            if (windowLog > ZSTDv07_WINDOWLOG_MAX) return ERROR(frameParameter_unsupported);
+            if (windowLog > ZSTDv07_WINDOWLOG_MAX)
+                return ERROR(frameParameter_unsupported);
             windowSize = (1U << windowLog);
             windowSize += (windowSize >> 3) * (wlByte&7);
         }
@@ -3201,7 +3203,8 @@ size_t ZSTDv07_getFrameParams(ZSTDv07_frameParams* fparamsPtr, const void* src, 
             case 3 : frameContentSize = MEM_readLE64(ip+pos); break;
         }
         if (!windowSize) windowSize = (U32)frameContentSize;
-        if (windowSize > windowSizeMax) return ERROR(frameParameter_unsupported);
+        if (windowSize > windowSizeMax)
+            return ERROR(frameParameter_unsupported);
         fparamsPtr->frameContentSize = frameContentSize;
         fparamsPtr->windowSize = windowSize;
         fparamsPtr->dictID = dictID;
@@ -3220,11 +3223,10 @@ size_t ZSTDv07_getFrameParams(ZSTDv07_frameParams* fparamsPtr, const void* src, 
                    - frame header not completely provided (`srcSize` too small) */
 unsigned long long ZSTDv07_getDecompressedSize(const void* src, size_t srcSize)
 {
-    {   ZSTDv07_frameParams fparams;
-        size_t const frResult = ZSTDv07_getFrameParams(&fparams, src, srcSize);
-        if (frResult!=0) return 0;
-        return fparams.frameContentSize;
-    }
+    ZSTDv07_frameParams fparams;
+    size_t const frResult = ZSTDv07_getFrameParams(&fparams, src, srcSize);
+    if (frResult!=0) return 0;
+    return fparams.frameContentSize;
 }
 
 
@@ -3248,7 +3250,7 @@ typedef struct
 
 /*! ZSTDv07_getcBlockSize() :
 *   Provides the size of compressed block from block header `src` */
-size_t ZSTDv07_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bpPtr)
+static size_t ZSTDv07_getcBlockSize(const void* src, size_t srcSize, blockProperties_t* bpPtr)
 {
     const BYTE* const in = (const BYTE* const)src;
     U32 cSize;
@@ -3275,7 +3277,7 @@ static size_t ZSTDv07_copyRawBlock(void* dst, size_t dstCapacity, const void* sr
 
 /*! ZSTDv07_decodeLiteralsBlock() :
     @return : nb of bytes read from src (< srcSize ) */
-size_t ZSTDv07_decodeLiteralsBlock(ZSTDv07_DCtx* dctx,
+static size_t ZSTDv07_decodeLiteralsBlock(ZSTDv07_DCtx* dctx,
                           const void* src, size_t srcSize)   /* note : srcSize < BLOCKSIZE */
 {
     const BYTE* const istart = (const BYTE*) src;
@@ -3409,7 +3411,7 @@ size_t ZSTDv07_decodeLiteralsBlock(ZSTDv07_DCtx* dctx,
     @return : nb bytes read from src,
               or an error code if it fails, testable with ZSTDv07_isError()
 */
-size_t ZSTDv07_buildSeqTable(FSEv07_DTable* DTable, U32 type, U32 max, U32 maxLog,
+static size_t ZSTDv07_buildSeqTable(FSEv07_DTable* DTable, U32 type, U32 max, U32 maxLog,
                                  const void* src, size_t srcSize,
                                  const S16* defaultNorm, U32 defaultLog, U32 flagRepeatTable)
 {
@@ -3439,7 +3441,7 @@ size_t ZSTDv07_buildSeqTable(FSEv07_DTable* DTable, U32 type, U32 max, U32 maxLo
 }
 
 
-size_t ZSTDv07_decodeSeqHeaders(int* nbSeqPtr,
+static size_t ZSTDv07_decodeSeqHeaders(int* nbSeqPtr,
                              FSEv07_DTable* DTableLL, FSEv07_DTable* DTableML, FSEv07_DTable* DTableOffb, U32 flagRepeatTable,
                              const void* src, size_t srcSize)
 {
@@ -3771,7 +3773,7 @@ ZSTDLIBv07_API size_t ZSTDv07_insertBlock(ZSTDv07_DCtx* dctx, const void* blockS
 }
 
 
-size_t ZSTDv07_generateNxBytes(void* dst, size_t dstCapacity, BYTE byte, size_t length)
+static size_t ZSTDv07_generateNxBytes(void* dst, size_t dstCapacity, BYTE byte, size_t length)
 {
     if (length > dstCapacity) return ERROR(dstSize_tooSmall);
     memset(dst, byte, length);
@@ -3851,7 +3853,7 @@ static size_t ZSTDv07_decompressFrame(ZSTDv07_DCtx* dctx,
 *   It avoids reloading the dictionary each time.
 *   `preparedDCtx` must have been properly initialized using ZSTDv07_decompressBegin_usingDict().
 *   Requires 2 contexts : 1 for reference (preparedDCtx), which will not be modified, and 1 to run the decompression operation (dctx) */
-size_t ZSTDv07_decompress_usingPreparedDCtx(ZSTDv07_DCtx* dctx, const ZSTDv07_DCtx* refDCtx,
+static size_t ZSTDv07_decompress_usingPreparedDCtx(ZSTDv07_DCtx* dctx, const ZSTDv07_DCtx* refDCtx,
                                          void* dst, size_t dstCapacity,
                                    const void* src, size_t srcSize)
 {
@@ -4146,7 +4148,7 @@ struct ZSTDv07_DDict_s {
     ZSTDv07_DCtx* refContext;
 };  /* typedef'd tp ZSTDv07_CDict within zstd.h */
 
-ZSTDv07_DDict* ZSTDv07_createDDict_advanced(const void* dict, size_t dictSize, ZSTDv07_customMem customMem)
+static ZSTDv07_DDict* ZSTDv07_createDDict_advanced(const void* dict, size_t dictSize, ZSTDv07_customMem customMem)
 {
     if (!customMem.customAlloc && !customMem.customFree)
         customMem = defaultCustomMem;

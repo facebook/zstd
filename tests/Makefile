@@ -81,7 +81,8 @@ DECODECORPUS_TESTTIME ?= -T30
 default: fullbench
 	@echo $(ZSTDMT_OBJECTS)
 
-all: fullbench fuzzer zstreamtest paramgrill datagen decodecorpus roundTripCrash
+all: fullbench fuzzer zstreamtest paramgrill datagen decodecorpus roundTripCrash \
+     fullbench-lib
 
 all32: fullbench32 fuzzer32 zstreamtest32
 
@@ -134,8 +135,9 @@ fullbench fullbench32 : $(ZSTD_FILES)
 fullbench fullbench32 : $(PRGDIR)/datagen.c $(PRGDIR)/bench.c fullbench.c
 	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
+fullbench-lib : CPPFLAGS += -DXXH_NAMESPACE=ZSTD_
 fullbench-lib : zstd-staticLib
-fullbench-lib : $(PRGDIR)/datagen.c fullbench.c
+fullbench-lib : $(PRGDIR)/datagen.c $(PRGDIR)/bench.c fullbench.c
 	$(CC) $(FLAGS) $(filter %.c,$^) -o $@$(EXT) $(ZSTDDIR)/libzstd.a
 
 # note : broken : requires unavailable symbols

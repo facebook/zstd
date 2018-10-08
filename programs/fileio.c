@@ -21,7 +21,7 @@
 #endif
 
 #if !defined(BACKTRACES_ENABLE) && \
-   (defined(__linux__) || (defined(__APPLE__) && defined(__MACH__)) )
+   (defined(__GLIBC__) || (defined(__APPLE__) && defined(__MACH__)) )
 #  define BACKTRACES_ENABLE 1
 #endif
 

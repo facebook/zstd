@@ -173,7 +173,6 @@ ZSTD_DUBT_findBetterDictMatch (
     U32         const btLow = (btMask >= dictHighLimit - dictLowLimit) ? dictLowLimit : dictHighLimit - btMask;
 
     size_t commonLengthSmaller=0, commonLengthLarger=0, bestLength=0;
-    U32 matchEndIdx = current+8+1;
 
     (void)dictMode;
     assert(dictMode == ZSTD_dictMatchState);
@@ -188,8 +187,6 @@ ZSTD_DUBT_findBetterDictMatch (
 
         if (matchLength > bestLength) {
             U32 matchIndex = dictMatchIndex + dictIndexDelta;
-            if (matchLength > matchEndIdx - matchIndex)
-                matchEndIdx = matchIndex + (U32)matchLength;
             if ( (4*(int)(matchLength-bestLength)) > (int)(ZSTD_highbit32(current-matchIndex+1) - ZSTD_highbit32((U32)offsetPtr[0]+1)) ) {
                 DEBUGLOG(2, "ZSTD_DUBT_findBestDictMatch(%u) : found better match length %u -> %u and offsetCode %u -> %u (dictMatchIndex %u, matchIndex %u)",
                     current, (U32)bestLength, (U32)matchLength, (U32)*offsetPtr, ZSTD_REP_MOVE + current - matchIndex, dictMatchIndex, matchIndex);

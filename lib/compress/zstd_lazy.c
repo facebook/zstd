@@ -147,6 +147,7 @@ ZSTD_DUBT_findBetterDictMatch (
         ZSTD_matchState_t* ms,
         const BYTE* const ip, const BYTE* const iend,
         size_t* offsetPtr,
+        size_t bestLength,
         U32 nbCompares,
         U32 const mls,
         const ZSTD_dictMode_e dictMode)
@@ -172,7 +173,7 @@ ZSTD_DUBT_findBetterDictMatch (
     U32         const btMask = (1 << btLog) - 1;
     U32         const btLow = (btMask >= dictHighLimit - dictLowLimit) ? dictLowLimit : dictHighLimit - btMask;
 
-    size_t commonLengthSmaller=0, commonLengthLarger=0, bestLength=0;
+    size_t commonLengthSmaller=0, commonLengthLarger=0;
 
     (void)dictMode;
     assert(dictMode == ZSTD_dictMatchState);
@@ -319,6 +320,11 @@ ZSTD_DUBT_findBestMatch(ZSTD_matchState_t* ms,
                 if ( (4*(int)(matchLength-bestLength)) > (int)(ZSTD_highbit32(current-matchIndex+1) - ZSTD_highbit32((U32)offsetPtr[0]+1)) )
                     bestLength = matchLength, *offsetPtr = ZSTD_REP_MOVE + current - matchIndex;
                 if (ip+matchLength == iend) {   /* equal : no way to know if inf or sup */
+                    if (dictMode == ZSTD_dictMatchState) {
+                        nbCompares = 0; /* in addition to avoiding checking any
+                                         * further in this loop, make sure we
+                                         * skip checking in the dictionary. */
+                    }
                     break;   /* drop, to guarantee consistency (miss a little bit of compression) */
                 }
             }
@@ -342,7 +348,10 @@ ZSTD_DUBT_findBestMatch(ZSTD_matchState_t* ms,
         *smallerPtr = *largerPtr = 0;
 
         if (dictMode == ZSTD_dictMatchState && nbCompares) {
-            bestLength = ZSTD_DUBT_findBetterDictMatch(ms, ip, iend, offsetPtr, nbCompares, mls, dictMode);
+            bestLength = ZSTD_DUBT_findBetterDictMatch(
+                    ms, ip, iend,
+                    offsetPtr, bestLength, nbCompares,
+                    mls, dictMode);
         }
 
         assert(matchEndIdx > current+8); /* ensure nextToUpdate is increased */

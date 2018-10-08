@@ -188,7 +188,7 @@ ZSTD_DUBT_findBetterDictMatch (
         if (matchLength > bestLength) {
             U32 matchIndex = dictMatchIndex + dictIndexDelta;
             if ( (4*(int)(matchLength-bestLength)) > (int)(ZSTD_highbit32(current-matchIndex+1) - ZSTD_highbit32((U32)offsetPtr[0]+1)) ) {
-                DEBUGLOG(2, "ZSTD_DUBT_findBestDictMatch(%u) : found better match length %u -> %u and offsetCode %u -> %u (dictMatchIndex %u, matchIndex %u)",
+                DEBUGLOG(9, "ZSTD_DUBT_findBetterDictMatch(%u) : found better match length %u -> %u and offsetCode %u -> %u (dictMatchIndex %u, matchIndex %u)",
                     current, (U32)bestLength, (U32)matchLength, (U32)*offsetPtr, ZSTD_REP_MOVE + current - matchIndex, dictMatchIndex, matchIndex);
                 bestLength = matchLength, *offsetPtr = ZSTD_REP_MOVE + current - matchIndex;
             }
@@ -197,7 +197,6 @@ ZSTD_DUBT_findBetterDictMatch (
             }
         }
 
-        DEBUGLOG(2, "matchLength:%6zu, match:%p, prefixStart:%p, ip:%p", matchLength, match, prefixStart, ip);
         if (match[matchLength] < ip[matchLength]) {
             if (dictMatchIndex <= btLow) { break; }   /* beyond tree size, stop the search */
             commonLengthSmaller = matchLength;    /* all smaller will now have at least this guaranteed common length */
@@ -212,7 +211,7 @@ ZSTD_DUBT_findBetterDictMatch (
 
     if (bestLength >= MINMATCH) {
         U32 const mIndex = current - ((U32)*offsetPtr - ZSTD_REP_MOVE); (void)mIndex;
-        DEBUGLOG(2, "ZSTD_DUBT_findBestDictMatch(%u) : found match of length %u and offsetCode %u (pos %u)",
+        DEBUGLOG(8, "ZSTD_DUBT_findBetterDictMatch(%u) : found match of length %u and offsetCode %u (pos %u)",
                     current, (U32)bestLength, (U32)*offsetPtr, mIndex);
     }
     return bestLength;

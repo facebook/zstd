@@ -147,6 +147,7 @@ ZSTD_DUBT_findBetterDictMatch (
         ZSTD_matchState_t* ms,
         const BYTE* const ip, const BYTE* const iend,
         size_t* offsetPtr,
+        size_t bestLength,
         U32 nbCompares,
         U32 const mls,
         const ZSTD_dictMode_e dictMode)
@@ -172,8 +173,7 @@ ZSTD_DUBT_findBetterDictMatch (
     U32         const btMask = (1 << btLog) - 1;
     U32         const btLow = (btMask >= dictHighLimit - dictLowLimit) ? dictLowLimit : dictHighLimit - btMask;
 
-    size_t commonLengthSmaller=0, commonLengthLarger=0, bestLength=0;
-    U32 matchEndIdx = current+8+1;
+    size_t commonLengthSmaller=0, commonLengthLarger=0;
 
     (void)dictMode;
     assert(dictMode == ZSTD_dictMatchState);
@@ -188,10 +188,8 @@ ZSTD_DUBT_findBetterDictMatch (
 
         if (matchLength > bestLength) {
             U32 matchIndex = dictMatchIndex + dictIndexDelta;
-            if (matchLength > matchEndIdx - matchIndex)
-                matchEndIdx = matchIndex + (U32)matchLength;
             if ( (4*(int)(matchLength-bestLength)) > (int)(ZSTD_highbit32(current-matchIndex+1) - ZSTD_highbit32((U32)offsetPtr[0]+1)) ) {
-                DEBUGLOG(2, "ZSTD_DUBT_findBestDictMatch(%u) : found better match length %u -> %u and offsetCode %u -> %u (dictMatchIndex %u, matchIndex %u)",
+                DEBUGLOG(9, "ZSTD_DUBT_findBetterDictMatch(%u) : found better match length %u -> %u and offsetCode %u -> %u (dictMatchIndex %u, matchIndex %u)",
                     current, (U32)bestLength, (U32)matchLength, (U32)*offsetPtr, ZSTD_REP_MOVE + current - matchIndex, dictMatchIndex, matchIndex);
                 bestLength = matchLength, *offsetPtr = ZSTD_REP_MOVE + current - matchIndex;
             }
@@ -200,7 +198,6 @@ ZSTD_DUBT_findBetterDictMatch (
             }
         }
 
-        DEBUGLOG(2, "matchLength:%6zu, match:%p, prefixStart:%p, ip:%p", matchLength, match, prefixStart, ip);
         if (match[matchLength] < ip[matchLength]) {
             if (dictMatchIndex <= btLow) { break; }   /* beyond tree size, stop the search */
             commonLengthSmaller = matchLength;    /* all smaller will now have at least this guaranteed common length */
@@ -215,7 +212,7 @@ ZSTD_DUBT_findBetterDictMatch (
 
     if (bestLength >= MINMATCH) {
         U32 const mIndex = current - ((U32)*offsetPtr - ZSTD_REP_MOVE); (void)mIndex;
-        DEBUGLOG(2, "ZSTD_DUBT_findBestDictMatch(%u) : found match of length %u and offsetCode %u (pos %u)",
+        DEBUGLOG(8, "ZSTD_DUBT_findBetterDictMatch(%u) : found match of length %u and offsetCode %u (pos %u)",
                     current, (U32)bestLength, (U32)*offsetPtr, mIndex);
     }
     return bestLength;
@@ -323,6 +320,11 @@ ZSTD_DUBT_findBestMatch(ZSTD_matchState_t* ms,
                 if ( (4*(int)(matchLength-bestLength)) > (int)(ZSTD_highbit32(current-matchIndex+1) - ZSTD_highbit32((U32)offsetPtr[0]+1)) )
                     bestLength = matchLength, *offsetPtr = ZSTD_REP_MOVE + current - matchIndex;
                 if (ip+matchLength == iend) {   /* equal : no way to know if inf or sup */
+                    if (dictMode == ZSTD_dictMatchState) {
+                        nbCompares = 0; /* in addition to avoiding checking any
+                                         * further in this loop, make sure we
+                                         * skip checking in the dictionary. */
+                    }
                     break;   /* drop, to guarantee consistency (miss a little bit of compression) */
                 }
             }
@@ -346,7 +348,10 @@ ZSTD_DUBT_findBestMatch(ZSTD_matchState_t* ms,
         *smallerPtr = *largerPtr = 0;
 
         if (dictMode == ZSTD_dictMatchState && nbCompares) {
-            bestLength = ZSTD_DUBT_findBetterDictMatch(ms, ip, iend, offsetPtr, nbCompares, mls, dictMode);
+            bestLength = ZSTD_DUBT_findBetterDictMatch(
+                    ms, ip, iend,
+                    offsetPtr, bestLength, nbCompares,
+                    mls, dictMode);
         }
 
         assert(matchEndIdx > current+8); /* ensure nextToUpdate is increased */

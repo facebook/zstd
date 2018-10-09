@@ -136,7 +136,6 @@ endif
 
 # enable backtrace symbol names for Linux & Darwin
 BACKTRACE ?= 0
-DEBUGFLAGS = -DBACKTRACE_ENABLE=$(BACKTRACE)
 ifeq (,$(filter Windows%, $(OS)))
 ifeq ($(BACKTRACE), 1)
 DEBUGFLAGS += -DBACKTRACE_ENABLE=1

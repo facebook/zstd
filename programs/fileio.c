@@ -38,7 +38,7 @@
 #include <assert.h>
 #include <errno.h>      /* errno */
 #include <signal.h>
-#ifdef BACKTRACE_ENABLE
+#if defined(BACKTRACE_ENABLE) && (BACKTRACE_ENABLE >= 1)
 #  include <execinfo.h>   /* backtrace, backtrace_symbols */
 #endif
 
@@ -168,7 +168,7 @@ static void clearHandler(void)
 /*-*********************************************************
 *  Termination signal trapping (Print debug stack trace)
 ***********************************************************/
-#ifdef BACKTRACE_ENABLE
+#if defined(BACKTRACE_ENABLE) && (BACKTRACE_ENABLE>=1)
 
 #define MAX_STACK_FRAMES    50
 
@@ -209,7 +209,7 @@ static void ABRThandler(int sig) {
 
 void FIO_addAbortHandler()
 {
-#ifdef BACKTRACE_ENABLE
+#if defined(BACKTRACE_ENABLE) && (BACKTRACE_ENABLE>=1)
     signal(SIGABRT, ABRThandler);
     signal(SIGFPE, ABRThandler);
     signal(SIGILL, ABRThandler);

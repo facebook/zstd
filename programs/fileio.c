@@ -20,9 +20,10 @@
 #  define _POSIX_SOURCE 1          /* disable %llu warnings with MinGW on Windows */
 #endif
 
-#if !defined(BACKTRACES_ENABLE) && \
-   (defined(__GLIBC__) || (defined(__APPLE__) && defined(__MACH__)) )
-#  define BACKTRACES_ENABLE 1
+#if !defined(BACKTRACE_ENABLE)          \
+   && ((defined(__linux__) && defined(__GLIBC__)) \
+       || (defined(__APPLE__) && defined(__MACH__)) )
+#  define BACKTRACE_ENABLE 1
 #endif
 
 
@@ -37,7 +38,7 @@
 #include <assert.h>
 #include <errno.h>      /* errno */
 #include <signal.h>
-#ifdef BACKTRACES_ENABLE
+#ifdef BACKTRACE_ENABLE
 #  include <execinfo.h>   /* backtrace, backtrace_symbols */
 #endif
 
@@ -167,7 +168,7 @@ static void clearHandler(void)
 /*-*********************************************************
 *  Termination signal trapping (Print debug stack trace)
 ***********************************************************/
-#ifdef BACKTRACES_ENABLE
+#ifdef BACKTRACE_ENABLE
 
 #define MAX_STACK_FRAMES    50
 
@@ -208,7 +209,7 @@ static void ABRThandler(int sig) {
 
 void FIO_addAbortHandler()
 {
-#ifdef BACKTRACES_ENABLE
+#ifdef BACKTRACE_ENABLE
     signal(SIGABRT, ABRThandler);
     signal(SIGFPE, ABRThandler);
     signal(SIGILL, ABRThandler);

@@ -20,21 +20,6 @@
 #  define _POSIX_SOURCE 1          /* disable %llu warnings with MinGW on Windows */
 #endif
 
-#if defined(__has_feature) && !defined(BACKTRACE_ENABLE) /* Clang compiler */
-#  if (__has_feature(address_sanitizer))
-#    define BACKTRACE_ENABLE 0
-#  endif /* __has_feature(address_sanitizer) */
-#elif defined(__SANITIZE_ADDRESS__) && !defined(BACKTRACE_ENABLE) /* GCC compiler */
-#  define BACKTRACE_ENABLE 0
-#endif
-
-#if !defined(BACKTRACE_ENABLE)          \
-   && ((defined(__linux__) && defined(__GLIBC__)) \
-       || (defined(__APPLE__) && defined(__MACH__)) )
-#  define BACKTRACE_ENABLE 1
-#endif
-
-
 /*-*************************************
 *  Includes
 ***************************************/
@@ -46,9 +31,6 @@
 #include <assert.h>
 #include <errno.h>      /* errno */
 #include <signal.h>
-#if defined(BACKTRACE_ENABLE) && (BACKTRACE_ENABLE >= 1)
-#  include <execinfo.h>   /* backtrace, backtrace_symbols */
-#endif
 
 #if defined (_MSC_VER)
 #  include <sys/stat.h>
@@ -176,7 +158,24 @@ static void clearHandler(void)
 /*-*********************************************************
 *  Termination signal trapping (Print debug stack trace)
 ***********************************************************/
+#if defined(__has_feature) && !defined(BACKTRACE_ENABLE) /* Clang compiler */
+#  if (__has_feature(address_sanitizer))
+#    define BACKTRACE_ENABLE 0
+#  endif /* __has_feature(address_sanitizer) */
+#elif defined(__SANITIZE_ADDRESS__) && !defined(BACKTRACE_ENABLE) /* GCC compiler */
+#  define BACKTRACE_ENABLE 0
+#endif
+
+#if !defined(BACKTRACE_ENABLE)          \
+   && ((defined(__linux__) && defined(__GLIBC__)) \
+       || (defined(__APPLE__) && defined(__MACH__)) )
+#  define BACKTRACE_ENABLE 1
+#endif
+
+
 #if defined(BACKTRACE_ENABLE) && (BACKTRACE_ENABLE>=1)
+
+#include <execinfo.h>   /* backtrace, backtrace_symbols */
 
 #define MAX_STACK_FRAMES    50
 

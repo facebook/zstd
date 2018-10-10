@@ -134,8 +134,10 @@ else
 LZ4_MSG := $(NO_LZ4_MSG)
 endif
 
-# enable backtrace symbol names for Linux & Darwin
-BACKTRACE ?= 0
+# explicit backtrace enable/disable for Linux & Darwin
+ifeq ($(BACKTRACE), 0)
+DEBUGFLAGS += -DBACKTRACE_ENABLE=0
+endif
 ifeq (,$(filter Windows%, $(OS)))
 ifeq ($(BACKTRACE), 1)
 DEBUGFLAGS += -DBACKTRACE_ENABLE=1

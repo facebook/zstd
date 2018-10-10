@@ -166,14 +166,20 @@ static void clearHandler(void)
 #  define BACKTRACE_ENABLE 0
 #endif
 
-#if !defined(BACKTRACE_ENABLE)          \
-   && ((defined(__linux__) && defined(__GLIBC__)) \
-       || (defined(__APPLE__) && defined(__MACH__)) )
-#  define BACKTRACE_ENABLE 1
+#if !defined(BACKTRACE_ENABLE)
+/* automatic detector : backtrace enabled by default on linux+glibc and osx */
+#  if (defined(__linux__) && defined(__GLIBC__)) \
+     || (defined(__APPLE__) && defined(__MACH__))
+#    define BACKTRACE_ENABLE 1
+#  else
+#    define BACKTRACE_ENABLE 0
+#  endif
 #endif
 
+/* note : after this point, BACKTRACE_ENABLE is necessarily defined */
 
-#if defined(BACKTRACE_ENABLE) && (BACKTRACE_ENABLE>=1)
+
+#if BACKTRACE_ENABLE
 
 #include <execinfo.h>   /* backtrace, backtrace_symbols */
 
@@ -216,7 +222,7 @@ static void ABRThandler(int sig) {
 
 void FIO_addAbortHandler()
 {
-#if defined(BACKTRACE_ENABLE) && (BACKTRACE_ENABLE>=1)
+#if BACKTRACE_ENABLE
     signal(SIGABRT, ABRThandler);
     signal(SIGFPE, ABRThandler);
     signal(SIGILL, ABRThandler);

@@ -340,6 +340,7 @@ MEM_STATIC size_t BIT_getUpperBits(size_t bitContainer, U32 const start)
 MEM_STATIC size_t BIT_getMiddleBits(size_t bitContainer, U32 const start, U32 const nbBits)
 {
     assert(nbBits < BIT_MASK_SIZE);
+    assert(start < sizeof(bitContainer)*8);
     return (bitContainer >> start) & BIT_mask[nbBits];
 }
 
@@ -357,11 +358,13 @@ MEM_STATIC size_t BIT_getLowerBits(size_t bitContainer, U32 const nbBits)
  * @return : value extracted */
 MEM_STATIC size_t BIT_lookBits(const BIT_DStream_t* bitD, U32 nbBits)
 {
+    /* arbitrate between double-shift and shift+mask */
 #if 1
-    assert(bitD->bitsConsumed + nbBits <= sizeof(bitD->bitContainer)*8);
+    /* if bitD->bitsConsumed + nbBits > sizeof(bitD->bitContainer)*8,
+     * bitstream is likely corrupted, and result is undefined */
     return BIT_getMiddleBits(bitD->bitContainer, (sizeof(bitD->bitContainer)*8) - bitD->bitsConsumed - nbBits, nbBits);
 #else
-    /* previous code path, seems slower */
+    /* this code path is slower on my os-x laptop */
     U32 const regMask = sizeof(bitD->bitContainer)*8 - 1;
     return ((bitD->bitContainer << (bitD->bitsConsumed & regMask)) >> 1) >> ((regMask-nbBits) & regMask);
 #endif

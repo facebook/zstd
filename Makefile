@@ -62,27 +62,38 @@ zstdmt:
 zlibwrapper: lib
 	$(MAKE) -C $(ZWRAPDIR) all
 
+## test: run long-duration tests
 .PHONY: test
 test: MOREFLAGS += -g -DDEBUGLEVEL=1 -Werror
 test:
 	MOREFLAGS="$(MOREFLAGS)" $(MAKE) -j -C $(PRGDIR) allVariants
 	$(MAKE) -C $(TESTDIR) $@
 
+## shortest: same as `make check`
 .PHONY: shortest
 shortest:
 	$(MAKE) -C $(TESTDIR) $@
 
+## check: run basic tests for `zstd` cli
 .PHONY: check
 check: shortest
 
+## examples: build all examples in `/examples` directory
 .PHONY: examples
 examples: lib
 	CPPFLAGS=-I../lib LDFLAGS=-L../lib $(MAKE) -C examples/ all
 
+## manual: generate API documentation in html format
 .PHONY: manual
 manual:
 	$(MAKE) -C contrib/gen_html $@
 
+## man: generate man page
+.PHONY: man
+man:
+	$(MAKE) -C programs $@
+
+## contrib: build all supported projects in `/contrib` directory
 .PHONY: contrib
 contrib: lib
 	$(MAKE) -C contrib/pzstd all

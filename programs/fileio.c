@@ -1219,7 +1219,8 @@ FIO_determineCompressedName(const char* srcFileName, const char* suffix)
     size_t const sfnSize = strlen(srcFileName);
     size_t const suffixSize = strlen(suffix);
 
-    if (dfnbCapacity <= sfnSize+suffixSize+1) {  /* resize name buffer */
+    if (dfnbCapacity <= sfnSize+suffixSize+1) {
+        /* resize buffer for dstName */
         free(dstFileNameBuffer);
         dfnbCapacity = sfnSize + suffixSize + 30;
         dstFileNameBuffer = (char*)malloc(dfnbCapacity);
@@ -1227,8 +1228,8 @@ FIO_determineCompressedName(const char* srcFileName, const char* suffix)
             EXM_THROW(30, "zstd: %s", strerror(errno));
     }   }
     assert(dstFileNameBuffer != NULL);
-    strncpy(dstFileNameBuffer, srcFileName, sfnSize+1 /* Include null */);
-    strncat(dstFileNameBuffer, suffix, suffixSize);
+    memcpy(dstFileNameBuffer, srcFileName, sfnSize);
+    memcpy(dstFileNameBuffer+sfnSize, suffix, suffixSize+1 /* Include terminating null */);
 
     return dstFileNameBuffer;
 }

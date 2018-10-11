@@ -28,7 +28,7 @@ default: largeNbDicts
 
 all : largeNbDicts
 
-largeNbDicts: bench.o datagen.o xxhash.o largeNbDicts.c $(LIBZSTD)
+largeNbDicts: util.o bench.o datagen.o xxhash.o largeNbDicts.c $(LIBZSTD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 .PHONY: $(LIBZSTD)
@@ -40,6 +40,10 @@ bench.o  : $(PROGDIR)/bench.c
 
 datagen.o: $(PROGDIR)/datagen.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -c
+
+util.o: $(PROGDIR)/util.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -c
+
 
 xxhash.o : $(LIBDIR)/common/xxhash.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -c

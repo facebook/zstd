@@ -1,6 +1,7 @@
 # local binary (Makefile)
 fullbench
 fullbench32
+fullbench-lib
 fuzzer
 fuzzer32
 fuzzer-dll

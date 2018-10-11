@@ -1,3 +1,9 @@
+v1.3.7
+perf: slightly better decompression speed on clang (depending on hardware target)
+fix : performance of dictionary compression for small input < 4 KB at levels 9 and 10
+build: no longer build backtrace by default in release mode; restrict further automatic mode
+build: control backtrace support through build macro BACKTRACE
+
 v1.3.6
 perf: much faster dictionary builder, by @jenniferliu
 perf: faster dictionary compression on small data when using multiple contexts, by @felixhandte

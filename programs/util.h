@@ -207,143 +207,14 @@ UTIL_STATIC void *UTIL_realloc(void *ptr, size_t size)
     return NULL;
 }
 
+int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd, int followLinks);
 #ifdef _WIN32
 #  define UTIL_HAS_CREATEFILELIST
-
-UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd, int followLinks)
-{
-    char* path;
-    int dirLength, fnameLength, pathLength, nbFiles = 0;
-    WIN32_FIND_DATAA cFile;
-    HANDLE hFile;
-
-    dirLength = (int)strlen(dirName);
-    path = (char*) malloc(dirLength + 3);
-    if (!path) return 0;
-
-    memcpy(path, dirName, dirLength);
-    path[dirLength] = '\\';
-    path[dirLength+1] = '*';
-    path[dirLength+2] = 0;
-
-    hFile=FindFirstFileA(path, &cFile);
-    if (hFile == INVALID_HANDLE_VALUE) {
-        UTIL_DISPLAYLEVEL(1, "Cannot open directory '%s'\n", dirName);
-        return 0;
-    }
-    free(path);
-
-    do {
-        fnameLength = (int)strlen(cFile.cFileName);
-        path = (char*) malloc(dirLength + fnameLength + 2);
-        if (!path) { FindClose(hFile); return 0; }
-        memcpy(path, dirName, dirLength);
-        path[dirLength] = '\\';
-        memcpy(path+dirLength+1, cFile.cFileName, fnameLength);
-        pathLength = dirLength+1+fnameLength;
-        path[pathLength] = 0;
-        if (cFile.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-            if (strcmp (cFile.cFileName, "..") == 0 ||
-                strcmp (cFile.cFileName, ".") == 0) continue;
-
-            nbFiles += UTIL_prepareFileList(path, bufStart, pos, bufEnd, followLinks);  /* Recursively call "UTIL_prepareFileList" with the new path. */
-            if (*bufStart == NULL) { free(path); FindClose(hFile); return 0; }
-        }
-        else if ((cFile.dwFileAttributes & FILE_ATTRIBUTE_NORMAL) || (cFile.dwFileAttributes & FILE_ATTRIBUTE_ARCHIVE) || (cFile.dwFileAttributes & FILE_ATTRIBUTE_COMPRESSED)) {
-            if (*bufStart + *pos + pathLength >= *bufEnd) {
-                ptrdiff_t newListSize = (*bufEnd - *bufStart) + LIST_SIZE_INCREASE;
-                *bufStart = (char*)UTIL_realloc(*bufStart, newListSize);
-                *bufEnd = *bufStart + newListSize;
-                if (*bufStart == NULL) { free(path); FindClose(hFile); return 0; }
-            }
-            if (*bufStart + *pos + pathLength < *bufEnd) {
-                strncpy(*bufStart + *pos, path, *bufEnd - (*bufStart + *pos));
-                *pos += pathLength + 1;
-                nbFiles++;
-            }
-        }
-        free(path);
-    } while (FindNextFileA(hFile, &cFile));
-
-    FindClose(hFile);
-    return nbFiles;
-}
-
 #elif defined(__linux__) || (PLATFORM_POSIX_VERSION >= 200112L)  /* opendir, readdir require POSIX.1-2001 */
 #  define UTIL_HAS_CREATEFILELIST
 #  include <dirent.h>       /* opendir, readdir */
 #  include <string.h>       /* strerror, memcpy */
-
-UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd, int followLinks)
-{
-    DIR *dir;
-    struct dirent *entry;
-    char* path;
-    int dirLength, fnameLength, pathLength, nbFiles = 0;
-
-    if (!(dir = opendir(dirName))) {
-        UTIL_DISPLAYLEVEL(1, "Cannot open directory '%s': %s\n", dirName, strerror(errno));
-        return 0;
-    }
-
-    dirLength = (int)strlen(dirName);
-    errno = 0;
-    while ((entry = readdir(dir)) != NULL) {
-        if (strcmp (entry->d_name, "..") == 0 ||
-            strcmp (entry->d_name, ".") == 0) continue;
-        fnameLength = (int)strlen(entry->d_name);
-        path = (char*) malloc(dirLength + fnameLength + 2);
-        if (!path) { closedir(dir); return 0; }
-        memcpy(path, dirName, dirLength);
-
-        path[dirLength] = '/';
-        memcpy(path+dirLength+1, entry->d_name, fnameLength);
-        pathLength = dirLength+1+fnameLength;
-        path[pathLength] = 0;
-
-        if (!followLinks && UTIL_isLink(path)) {
-            UTIL_DISPLAYLEVEL(2, "Warning : %s is a symbolic link, ignoring\n", path);
-            continue;
-        }
-
-        if (UTIL_isDirectory(path)) {
-            nbFiles += UTIL_prepareFileList(path, bufStart, pos, bufEnd, followLinks);  /* Recursively call "UTIL_prepareFileList" with the new path. */
-            if (*bufStart == NULL) { free(path); closedir(dir); return 0; }
-        } else {
-            if (*bufStart + *pos + pathLength >= *bufEnd) {
-                ptrdiff_t newListSize = (*bufEnd - *bufStart) + LIST_SIZE_INCREASE;
-                *bufStart = (char*)UTIL_realloc(*bufStart, newListSize);
-                *bufEnd = *bufStart + newListSize;
-                if (*bufStart == NULL) { free(path); closedir(dir); return 0; }
-            }
-            if (*bufStart + *pos + pathLength < *bufEnd) {
-                strncpy(*bufStart + *pos, path, *bufEnd - (*bufStart + *pos));
-                *pos += pathLength + 1;
-                nbFiles++;
-            }
-        }
-        free(path);
-        errno = 0; /* clear errno after UTIL_isDirectory, UTIL_prepareFileList */
-    }
-
-    if (errno != 0) {
-        UTIL_DISPLAYLEVEL(1, "readdir(%s) error: %s\n", dirName, strerror(errno));
-        free(*bufStart);
-        *bufStart = NULL;
-    }
-    closedir(dir);
-    return nbFiles;
-}
-
 #else
-
-UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd, int followLinks)
-{
-    (void)bufStart; (void)bufEnd; (void)pos; (void)followLinks;
-    UTIL_DISPLAYLEVEL(1, "Directory %s ignored (compiled without _WIN32 or _POSIX_C_SOURCE)\n", dirName);
-    return 0;
-}
-
 #endif /* #ifdef _WIN32 */
 
 /*
@@ -352,56 +223,10 @@ UTIL_STATIC int UTIL_prepareFileList(const char *dirName, char** bufStart, size_
  * After finishing usage of the list the structures should be freed with UTIL_freeFileList(params: return value, allocatedBuffer)
  * In case of error UTIL_createFileList returns NULL and UTIL_freeFileList should not be called.
  */
-UTIL_STATIC const char**
+const char**
 UTIL_createFileList(const char **inputNames, unsigned inputNamesNb,
                     char** allocatedBuffer, unsigned* allocatedNamesNb,
-                    int followLinks)
-{
-    size_t pos;
-    unsigned i, nbFiles;
-    char* buf = (char*)malloc(LIST_SIZE_INCREASE);
-    char* bufend = buf + LIST_SIZE_INCREASE;
-    const char** fileTable;
-
-    if (!buf) return NULL;
-
-    for (i=0, pos=0, nbFiles=0; i<inputNamesNb; i++) {
-        if (!UTIL_isDirectory(inputNames[i])) {
-            size_t const len = strlen(inputNames[i]);
-            if (buf + pos + len >= bufend) {
-                ptrdiff_t newListSize = (bufend - buf) + LIST_SIZE_INCREASE;
-                buf = (char*)UTIL_realloc(buf, newListSize);
-                bufend = buf + newListSize;
-                if (!buf) return NULL;
-            }
-            if (buf + pos + len < bufend) {
-                strncpy(buf + pos, inputNames[i], bufend - (buf + pos));
-                pos += len + 1;
-                nbFiles++;
-            }
-        } else {
-            nbFiles += UTIL_prepareFileList(inputNames[i], &buf, &pos, &bufend, followLinks);
-            if (buf == NULL) return NULL;
-    }   }
-
-    if (nbFiles == 0) { free(buf); return NULL; }
-
-    fileTable = (const char**)malloc((nbFiles+1) * sizeof(const char*));
-    if (!fileTable) { free(buf); return NULL; }
-
-    for (i=0, pos=0; i<nbFiles; i++) {
-        fileTable[i] = buf + pos;
-        pos += strlen(fileTable[i]) + 1;
-    }
-
-    if (buf + pos > bufend) { free(buf); free((void*)fileTable); return NULL; }
-
-    *allocatedBuffer = buf;
-    *allocatedNamesNb = nbFiles;
-
-    return fileTable;
-}
-
+                    int followLinks);
 
 UTIL_STATIC void UTIL_freeFileList(const char** filenameTable, char* allocatedBuffer)
 {

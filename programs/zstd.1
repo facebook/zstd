@@ -1,5 +1,5 @@
 .
-.TH "ZSTD" "1" "September 2018" "zstd 1.3.5" "User Commands"
+.TH "ZSTD" "1" "October 2018" "zstd 1.3.7" "User Commands"
 .
 .SH "NAME"
 \fBzstd\fR \- zstd, zstdmt, unzstd, zstdcat \- Compress or decompress \.zst files
@@ -123,8 +123,8 @@ Compress using \fB#\fR working threads (default: 1)\. If \fB#\fR is 0, attempt t
 Does not spawn a thread for compression, use a single thread for both I/O and compression\. In this mode, compression is serialized with I/O, which is slightly slower\. (This is different from \fB\-T1\fR, which spawns 1 compression thread in parallel of I/O)\. This mode is the only one available when multithread support is disabled\. Single\-thread mode features lower memory usage\. Final compressed result is slightly different from \fB\-T1\fR\.
 .
 .TP
-\fB\-\-adapt\fR
-\fBzstd\fR will dynamically adapt compression level to perceived I/O conditions\. Compression level adaptation can be observed live by using command \fB\-v\fR\. The feature works when combined with multi\-threading and \fB\-\-long\fR mode\. It does not work with \fB\-\-single\-thread\fR\. It sets window size to 8 MB by default (can be changed manually, see \fBwlog\fR)\. Due to the chaotic nature of dynamic adaptation, compressed result is not reproducible\. \fInote\fR : at the time of this writing, \fB\-\-adapt\fR can remain stuck at low speed when combined with multiple worker threads (>=2)\.
+\fB\-\-adapt[=min=#,max=#]\fR
+\fBzstd\fR will dynamically adapt compression level to perceived I/O conditions\. Compression level adaptation can be observed live by using command \fB\-v\fR\. Adaptation can be constrained between supplied \fBmin\fR and \fBmax\fR levels\. The feature works when combined with multi\-threading and \fB\-\-long\fR mode\. It does not work with \fB\-\-single\-thread\fR\. It sets window size to 8 MB by default (can be changed manually, see \fBwlog\fR)\. Due to the chaotic nature of dynamic adaptation, compressed result is not reproducible\. \fInote\fR : at the time of this writing, \fB\-\-adapt\fR can remain stuck at low speed when combined with multiple worker threads (>=2)\.
 .
 .TP
 \fB\-D file\fR

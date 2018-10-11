@@ -1,10 +1,10 @@
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-<title>zstd 1.3.6 Manual</title>
+<title>zstd 1.3.7 Manual</title>
 </head>
 <body>
-<h1>zstd 1.3.6 Manual</h1>
+<h1>zstd 1.3.7 Manual</h1>
 <hr>
 <a name="Contents"></a><h2>Contents</h2>
 <ol>
@@ -313,11 +313,17 @@ size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output);
   The function will update both `pos` fields.
   If `input.pos < input.size`, some input has not been consumed.
   It's up to the caller to present again remaining data.
+  The function tries to flush all data decoded immediately, repecting buffer sizes.
   If `output.pos < output.size`, decoder has flushed everything it could.
-  @return : 0 when a frame is completely decoded and fully flushed,
-            an error code, which can be tested using ZSTD_isError(),
-            any other value > 0, which means there is still some decoding to do to complete current frame.
-            The return value is a suggested next input size (a hint to improve latency) that will never load more than the current frame.
+  But if `output.pos == output.size`, there is no such guarantee,
+  it's likely that some decoded data was not flushed and still remains within internal buffers.
+  In which case, call ZSTD_decompressStream() again to flush whatever remains in the buffer.
+  When no additional input is provided, amount of data flushed is necessarily <= ZSTD_BLOCKSIZE_MAX.
+ @return : 0 when a frame is completely decoded and fully flushed,
+        or an error code, which can be tested using ZSTD_isError(),
+        or any other value > 0, which means there is still some decoding or flushing to do to complete current frame :
+                                the return value is a suggested next input size (a hint for better latency)
+                                that will never load more than the current frame.
  
 <BR></pre>
 
@@ -600,22 +606,40 @@ size_t ZSTD_initCStream_usingCDict_advanced(ZSTD_CStream* zcs, const ZSTD_CDict*
 </pre></b><BR>
 <pre><b>size_t ZSTD_resetCStream(ZSTD_CStream* zcs, unsigned long long pledgedSrcSize);
 </b><p>  start a new compression job, using same parameters from previous job.
-  This is typically useful to skip dictionary loading stage, since it will re-use it in-place..
+  This is typically useful to skip dictionary loading stage, since it will re-use it in-place.
   Note that zcs must be init at least once before using ZSTD_resetCStream().
   If pledgedSrcSize is not known at reset time, use macro ZSTD_CONTENTSIZE_UNKNOWN.
   If pledgedSrcSize > 0, its value must be correct, as it will be written in header, and controlled at the end.
   For the time being, pledgedSrcSize==0 is interpreted as "srcSize unknown" for compatibility with older programs,
   but it will change to mean "empty" in future version, so use macro ZSTD_CONTENTSIZE_UNKNOWN instead.
- @return : 0, or an error code (which can be tested using ZSTD_isError()) 
+ @return : 0, or an error code (which can be tested using ZSTD_isError())
+ 
 </p></pre><BR>
 
 <pre><b>typedef struct {
-    unsigned long long ingested;
-    unsigned long long consumed;
-    unsigned long long produced;
-    unsigned currentJobID;
+    unsigned long long ingested;   </b>/* nb input bytes read and buffered */<b>
+    unsigned long long consumed;   </b>/* nb input bytes actually compressed */<b>
+    unsigned long long produced;   </b>/* nb of compressed bytes generated and buffered */<b>
+    unsigned long long flushed;    </b>/* nb of compressed bytes flushed : not provided; can be tracked from caller side */<b>
+    unsigned currentJobID;         </b>/* MT only : latest started job nb */<b>
+    unsigned nbActiveWorkers;      </b>/* MT only : nb of workers actively compressing at probe time */<b>
 } ZSTD_frameProgression;
 </b></pre><BR>
+<pre><b>size_t ZSTD_toFlushNow(ZSTD_CCtx* cctx);
+</b><p>  Tell how many bytes are ready to be flushed immediately.
+  Useful for multithreading scenarios (nbWorkers >= 1).
+  Probe the oldest active job, defined as oldest job not yet entirely flushed,
+  and check its output buffer.
+ @return : amount of data stored in oldest job and ready to be flushed immediately.
+  if @return == 0, it means either :
+  + there is no active job (could be checked with ZSTD_frameProgression()), or
+  + oldest job is still actively compressing data,
+    but everything it has produced has also been flushed so far,
+    therefore flushing speed is currently limited by production speed of oldest job
+    irrespective of the speed of concurrent newer jobs.
+ 
+</p></pre><BR>
+
 <h3>Advanced Streaming decompression functions</h3><pre></pre><b><pre>typedef enum { DStream_p_maxWindowSize } ZSTD_DStreamParameter_e;
 size_t ZSTD_setDStreamParameter(ZSTD_DStream* zds, ZSTD_DStreamParameter_e paramType, unsigned paramValue);   </b>/* obsolete : this API will be removed in a future version */<b>
 size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t dictSize); </b>/**< note: no dictionary will be used if dict == NULL or dictSize < 8 */<b>
@@ -1015,9 +1039,13 @@ size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx,
 </p></pre><BR>
 
 <pre><b>typedef enum {
-    ZSTD_e_continue=0, </b>/* collect more data, encoder decides when to output compressed result, for optimal conditions */<b>
-    ZSTD_e_flush,      </b>/* flush any data provided so far - frame will continue, future data can still reference previous data for better compression */<b>
-    ZSTD_e_end         </b>/* flush any remaining data and close current frame. Any additional data starts a new frame. */<b>
+    ZSTD_e_continue=0, </b>/* collect more data, encoder decides when to output compressed result, for optimal compression ratio */<b>
+    ZSTD_e_flush,      </b>/* flush any data provided so far,<b>
+                        * it creates (at least) one new block, that can be decoded immediately on reception;
+                        * frame will continue: any future data can still reference previously compressed data, improving compression. */
+    ZSTD_e_end         </b>/* flush any remaining data and close current frame.<b>
+                        * any additional data starts a new frame.
+                        * each frame is independent (does not reference any content from previous frame). */
 } ZSTD_EndDirective;
 </b></pre><BR>
 <pre><b>size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,

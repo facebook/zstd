@@ -318,6 +318,11 @@ UTIL_createFileList(const char **inputNames, unsigned inputNamesNb,
 }
 
 /*-****************************************
+*  Console log
+******************************************/
+int g_utilDisplayLevel;
+
+/*-****************************************
 *  Time functions
 ******************************************/
 #if defined(_WIN32)   /* Windows */

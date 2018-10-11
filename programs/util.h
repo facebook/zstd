@@ -110,7 +110,7 @@ extern "C" {
 /*-****************************************
 *  Console log
 ******************************************/
-static int g_utilDisplayLevel;
+extern int g_utilDisplayLevel;
 #define UTIL_DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
 #define UTIL_DISPLAYLEVEL(l, ...) { if (g_utilDisplayLevel>=l) { UTIL_DISPLAY(__VA_ARGS__); } }
 

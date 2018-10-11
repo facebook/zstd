@@ -339,9 +339,10 @@ MEM_STATIC size_t BIT_getUpperBits(size_t bitContainer, U32 const start)
 
 MEM_STATIC size_t BIT_getMiddleBits(size_t bitContainer, U32 const start, U32 const nbBits)
 {
+    U32 const regMask = sizeof(bitContainer)*8 - 1;
+    /* if start > regMask, bitstream is corrupted, and result is undefined */
     assert(nbBits < BIT_MASK_SIZE);
-    /* if start > bitMask, bitstream is corrupted, and result is undefined */
-    return (bitContainer >> start) & BIT_mask[nbBits];
+    return (bitContainer >> (start & regMask)) & BIT_mask[nbBits];
 }
 
 MEM_STATIC size_t BIT_getLowerBits(size_t bitContainer, U32 const nbBits)

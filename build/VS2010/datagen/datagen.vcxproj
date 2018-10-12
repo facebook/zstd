@@ -155,6 +155,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\programs\util.c" />
     <ClCompile Include="..\..\..\programs\datagen.c" />
     <ClCompile Include="..\..\..\tests\datagencli.c" />
   </ItemGroup>

@@ -397,6 +397,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\tests\util.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\lib\compress\zstd_fast.c"
 				>
 			</File>

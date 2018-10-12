@@ -519,6 +519,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\programs\util.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\lib\common\xxhash.h"
 				>
 			</File>

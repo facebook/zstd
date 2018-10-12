@@ -127,7 +127,7 @@ U64 UTIL_getTotalFileSize(const char* const * const fileNamesTable, unsigned nbF
     return error ? UTIL_FILESIZE_UNKNOWN : total;
 }
 
-  #ifdef _WIN32
+#ifdef _WIN32
 int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd, int followLinks)
 {
     char* path;
@@ -326,53 +326,55 @@ int g_utilDisplayLevel;
 *  Time functions
 ******************************************/
 #if defined(_WIN32)   /* Windows */
-    UTIL_time_t UTIL_getTime(void) { UTIL_time_t x; QueryPerformanceCounter(&x); return x; }
-    U64 UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd)
-    {
-        static LARGE_INTEGER ticksPerSecond;
-        static int init = 0;
-        if (!init) {
-            if (!QueryPerformanceFrequency(&ticksPerSecond))
-                UTIL_DISPLAYLEVEL(1, "ERROR: QueryPerformanceFrequency() failure\n");
-            init = 1;
-        }
-        return 1000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart;
+
+UTIL_time_t UTIL_getTime(void) { UTIL_time_t x; QueryPerformanceCounter(&x); return x; }
+
+U64 UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd)
+{
+    static LARGE_INTEGER ticksPerSecond;
+    static int init = 0;
+    if (!init) {
+        if (!QueryPerformanceFrequency(&ticksPerSecond))
+            UTIL_DISPLAYLEVEL(1, "ERROR: QueryPerformanceFrequency() failure\n");
+        init = 1;
     }
-    U64 UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd)
-    {
-        static LARGE_INTEGER ticksPerSecond;
-        static int init = 0;
-        if (!init) {
-            if (!QueryPerformanceFrequency(&ticksPerSecond))
-                UTIL_DISPLAYLEVEL(1, "ERROR: QueryPerformanceFrequency() failure\n");
-            init = 1;
-        }
-        return 1000000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart;
+    return 1000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart;
+}
+U64 UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd)
+{
+    static LARGE_INTEGER ticksPerSecond;
+    static int init = 0;
+    if (!init) {
+        if (!QueryPerformanceFrequency(&ticksPerSecond))
+            UTIL_DISPLAYLEVEL(1, "ERROR: QueryPerformanceFrequency() failure\n");
+        init = 1;
     }
+    return 1000000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart;
+}
 
 #elif defined(__APPLE__) && defined(__MACH__)
-    UTIL_time_t UTIL_getTime(void) { return mach_absolute_time(); }
-    U64 UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd)
-    {
-        static mach_timebase_info_data_t rate;
-        static int init = 0;
-        if (!init) {
-            mach_timebase_info(&rate);
-            init = 1;
-        }
-        return (((clockEnd - clockStart) * (U64)rate.numer) / ((U64)rate.denom))/1000ULL;
+UTIL_time_t UTIL_getTime(void) { return mach_absolute_time(); }
+U64 UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd)
+{
+    static mach_timebase_info_data_t rate;
+    static int init = 0;
+    if (!init) {
+        mach_timebase_info(&rate);
+        init = 1;
     }
+    return (((clockEnd - clockStart) * (U64)rate.numer) / ((U64)rate.denom))/1000ULL;
+}
 
-    U64 UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd)
-    {
-        static mach_timebase_info_data_t rate;
-        static int init = 0;
-        if (!init) {
-            mach_timebase_info(&rate);
-            init = 1;
-        }
-        return ((clockEnd - clockStart) * (U64)rate.numer) / ((U64)rate.denom);
+U64 UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd)
+{
+    static mach_timebase_info_data_t rate;
+    static int init = 0;
+    if (!init) {
+        mach_timebase_info(&rate);
+        init = 1;
     }
+    return ((clockEnd - clockStart) * (U64)rate.numer) / ((U64)rate.denom);
+}
 
 #elif (PLATFORM_POSIX_VERSION >= 200112L) \
    && (defined(__UCLIBC__)                \
@@ -380,54 +382,52 @@ int g_utilDisplayLevel;
           && ((__GLIBC__ == 2 && __GLIBC_MINOR__ >= 17) \
              || (__GLIBC__ > 2))))
 
-    UTIL_time_t UTIL_getTime(void)
-    {
-        UTIL_time_t time;
-        if (clock_gettime(CLOCK_MONOTONIC, &time))
-            UTIL_DISPLAYLEVEL(1, "ERROR: Failed to get time\n");   /* we could also exit() */
-        return time;
-    }
+UTIL_time_t UTIL_getTime(void)
+{
+    UTIL_time_t time;
+    if (clock_gettime(CLOCK_MONOTONIC, &time))
+        UTIL_DISPLAYLEVEL(1, "ERROR: Failed to get time\n");   /* we could also exit() */
+    return time;
+}
 
-    UTIL_time_t UTIL_getSpanTime(UTIL_time_t begin, UTIL_time_t end)
-    {
-        UTIL_time_t diff;
-        if (end.tv_nsec < begin.tv_nsec) {
-            diff.tv_sec = (end.tv_sec - 1) - begin.tv_sec;
-            diff.tv_nsec = (end.tv_nsec + 1000000000ULL) - begin.tv_nsec;
-        } else {
-            diff.tv_sec = end.tv_sec - begin.tv_sec;
-            diff.tv_nsec = end.tv_nsec - begin.tv_nsec;
-        }
-        return diff;
+UTIL_time_t UTIL_getSpanTime(UTIL_time_t begin, UTIL_time_t end)
+{
+    UTIL_time_t diff;
+    if (end.tv_nsec < begin.tv_nsec) {
+        diff.tv_sec = (end.tv_sec - 1) - begin.tv_sec;
+        diff.tv_nsec = (end.tv_nsec + 1000000000ULL) - begin.tv_nsec;
+    } else {
+        diff.tv_sec = end.tv_sec - begin.tv_sec;
+        diff.tv_nsec = end.tv_nsec - begin.tv_nsec;
     }
+    return diff;
+}
 
-    U64 UTIL_getSpanTimeMicro(UTIL_time_t begin, UTIL_time_t end)
-    {
-        UTIL_time_t const diff = UTIL_getSpanTime(begin, end);
-        U64 micro = 0;
-        micro += 1000000ULL * diff.tv_sec;
-        micro += diff.tv_nsec / 1000ULL;
-        return micro;
-    }
+U64 UTIL_getSpanTimeMicro(UTIL_time_t begin, UTIL_time_t end)
+{
+    UTIL_time_t const diff = UTIL_getSpanTime(begin, end);
+    U64 micro = 0;
+    micro += 1000000ULL * diff.tv_sec;
+    micro += diff.tv_nsec / 1000ULL;
+    return micro;
+}
 
-    U64 UTIL_getSpanTimeNano(UTIL_time_t begin, UTIL_time_t end)
-    {
-        UTIL_time_t const diff = UTIL_getSpanTime(begin, end);
-        U64 nano = 0;
-        nano += 1000000000ULL * diff.tv_sec;
-        nano += diff.tv_nsec;
-        return nano;
-    }
+U64 UTIL_getSpanTimeNano(UTIL_time_t begin, UTIL_time_t end)
+{
+    UTIL_time_t const diff = UTIL_getSpanTime(begin, end);
+    U64 nano = 0;
+    nano += 1000000000ULL * diff.tv_sec;
+    nano += diff.tv_nsec;
+    return nano;
+}
 
 #else   /* relies on standard C (note : clock_t measurements can be wrong when using multi-threading) */
-    typedef clock_t UTIL_time_t;
-    #define UTIL_TIME_INITIALIZER 0
-    UTIL_time_t UTIL_getTime(void) { return clock(); }
-    U64 UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC; }
-    U64 UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC; }
+typedef clock_t UTIL_time_t;
+#define UTIL_TIME_INITIALIZER 0
+UTIL_time_t UTIL_getTime(void) { return clock(); }
+U64 UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC; }
+U64 UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC; }
 #endif
-
-#define SEC_TO_MICRO 1000000
 
 /* returns time span in microseconds */
 U64 UTIL_clockSpanMicro(UTIL_time_t clockStart )

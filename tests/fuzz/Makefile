@@ -52,7 +52,7 @@ FUZZ_SRC       := \
 	$(ZSTDCOMMON_SRC) \
 	$(ZSTDCOMP_SRC)
 
-FUZZ_OBJ := $(patsubst %.c,%.o, $(wildcard $(FUZZ_SRC)))
+FUZZ_OBJ := $(patsubst %.c,%.o, $(wildcard $(FUZZ_SRC))) $(PRGDIR)/util.o
 
 
 .PHONY: default all clean cleanall
@@ -90,7 +90,7 @@ stream_decompress: $(FUZZ_HEADERS) $(FUZZ_OBJ) stream_decompress.o
 block_decompress: $(FUZZ_HEADERS) $(FUZZ_OBJ) block_decompress.o
 	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_OBJ) block_decompress.o $(LIB_FUZZING_ENGINE) -o $@
 
-libregression.a: $(FUZZ_HEADERS) $(PRGDIR)/util.h regression_driver.o
+libregression.a: $(FUZZ_HEADERS) $(PRGDIR)/util.h $(PRGDIR)/util.c regression_driver.o
 	$(AR) $(FUZZ_ARFLAGS) $@ regression_driver.o
 
 # Install libfuzzer (not usable for MSAN testing)

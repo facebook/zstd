@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 
-
 /*-****************************************
 *  Dependencies
 ******************************************/
@@ -39,7 +38,7 @@ extern "C" {
 #include "mem.h"          /* U32, U64 */
 
 
-/* ************************************************************
+/*-************************************************************
 * Avoid fseek()'s 2GiB barrier with MSVC, macOS, *BSD, MinGW
 ***************************************************************/
 #if defined(_MSC_VER) && (_MSC_VER >= 1400)
@@ -84,7 +83,7 @@ extern "C" {
 #endif
 
 
-/* *************************************
+/*-*************************************
 *  Constants
 ***************************************/
 #define LIST_SIZE_INCREASE   (8*1024)
@@ -121,21 +120,10 @@ extern int g_utilDisplayLevel;
 #if defined(_WIN32)   /* Windows */
     #define UTIL_TIME_INITIALIZER { { 0, 0 } }
     typedef LARGE_INTEGER UTIL_time_t;
-
-    UTIL_time_t UTIL_getTime(void);
-    U64 UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd);
-    U64 UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd);
-
 #elif defined(__APPLE__) && defined(__MACH__)
-
     #include <mach/mach_time.h>
     #define UTIL_TIME_INITIALIZER 0
     typedef U64 UTIL_time_t;
-
-    UTIL_time_t UTIL_getTime(void);
-    U64 UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd);
-    U64 UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd);
-
 #elif (PLATFORM_POSIX_VERSION >= 200112L) \
    && (defined(__UCLIBC__)                \
       || (defined(__GLIBC__)              \
@@ -146,21 +134,14 @@ extern int g_utilDisplayLevel;
     typedef struct timespec UTIL_freq_t;
     typedef struct timespec UTIL_time_t;
 
-    UTIL_time_t UTIL_getTime(void);
-
     UTIL_time_t UTIL_getSpanTime(UTIL_time_t begin, UTIL_time_t end);
-
-    U64 UTIL_getSpanTimeMicro(UTIL_time_t begin, UTIL_time_t end);
-
-    U64 UTIL_getSpanTimeNano(UTIL_time_t begin, UTIL_time_t end);
-
 #else   /* relies on standard C (note : clock_t measurements can be wrong when using multi-threading) */
     typedef clock_t UTIL_time_t;
     #define UTIL_TIME_INITIALIZER 0
-    UTIL_time_t UTIL_getTime(void);
-    U64 UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd);
-    U64 UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd);
 #endif
+UTIL_time_t UTIL_getTime(void);
+U64 UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd);
+U64 UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd);
 
 #define SEC_TO_MICRO 1000000
 
@@ -170,8 +151,6 @@ U64 UTIL_clockSpanMicro(UTIL_time_t clockStart);
 /* returns time span in microseconds */
 U64 UTIL_clockSpanNano(UTIL_time_t clockStart);
 void UTIL_waitForNextTick(void);
-
-
 
 /*-****************************************
 *  File functions
@@ -234,201 +213,7 @@ UTIL_STATIC void UTIL_freeFileList(const char** filenameTable, char* allocatedBu
     if (filenameTable) free((void*)filenameTable);
 }
 
-/* count the number of physical cores */
-#if defined(_WIN32) || defined(WIN32)
-
-#include <windows.h>
-
-typedef BOOL(WINAPI* LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
-
-UTIL_STATIC int UTIL_countPhysicalCores(void)
-{
-    static int numPhysicalCores = 0;
-    if (numPhysicalCores != 0) return numPhysicalCores;
-
-    {   LPFN_GLPI glpi;
-        BOOL done = FALSE;
-        PSYSTEM_LOGICAL_PROCESSOR_INFORMATION buffer = NULL;
-        PSYSTEM_LOGICAL_PROCESSOR_INFORMATION ptr = NULL;
-        DWORD returnLength = 0;
-        size_t byteOffset = 0;
-
-        glpi = (LPFN_GLPI)GetProcAddress(GetModuleHandle(TEXT("kernel32")),
-                                         "GetLogicalProcessorInformation");
-
-        if (glpi == NULL) {
-            goto failed;
-        }
-
-        while(!done) {
-            DWORD rc = glpi(buffer, &returnLength);
-            if (FALSE == rc) {
-                if (GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
-                    if (buffer)
-                        free(buffer);
-                    buffer = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION)malloc(returnLength);
-
-                    if (buffer == NULL) {
-                        perror("zstd");
-                        exit(1);
-                    }
-                } else {
-                    /* some other error */
-                    goto failed;
-                }
-            } else {
-                done = TRUE;
-            }
-        }
-
-        ptr = buffer;
-
-        while (byteOffset + sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION) <= returnLength) {
-
-            if (ptr->Relationship == RelationProcessorCore) {
-                numPhysicalCores++;
-            }
-
-            ptr++;
-            byteOffset += sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
-        }
-
-        free(buffer);
-
-        return numPhysicalCores;
-    }
-
-failed:
-    /* try to fall back on GetSystemInfo */
-    {   SYSTEM_INFO sysinfo;
-        GetSystemInfo(&sysinfo);
-        numPhysicalCores = sysinfo.dwNumberOfProcessors;
-        if (numPhysicalCores == 0) numPhysicalCores = 1; /* just in case */
-    }
-    return numPhysicalCores;
-}
-
-#elif defined(__APPLE__)
-
-#include <sys/sysctl.h>
-
-/* Use apple-provided syscall
- * see: man 3 sysctl */
-UTIL_STATIC int UTIL_countPhysicalCores(void)
-{
-    static S32 numPhysicalCores = 0; /* apple specifies int32_t */
-    if (numPhysicalCores != 0) return numPhysicalCores;
-
-    {   size_t size = sizeof(S32);
-        int const ret = sysctlbyname("hw.physicalcpu", &numPhysicalCores, &size, NULL, 0);
-        if (ret != 0) {
-            if (errno == ENOENT) {
-                /* entry not present, fall back on 1 */
-                numPhysicalCores = 1;
-            } else {
-                perror("zstd: can't get number of physical cpus");
-                exit(1);
-            }
-        }
-
-        return numPhysicalCores;
-    }
-}
-
-#elif defined(__linux__)
-
-/* parse /proc/cpuinfo
- * siblings / cpu cores should give hyperthreading ratio
- * otherwise fall back on sysconf */
-UTIL_STATIC int UTIL_countPhysicalCores(void)
-{
-    static int numPhysicalCores = 0;
-
-    if (numPhysicalCores != 0) return numPhysicalCores;
-
-    numPhysicalCores = (int)sysconf(_SC_NPROCESSORS_ONLN);
-    if (numPhysicalCores == -1) {
-        /* value not queryable, fall back on 1 */
-        return numPhysicalCores = 1;
-    }
-
-    /* try to determine if there's hyperthreading */
-    {   FILE* const cpuinfo = fopen("/proc/cpuinfo", "r");
-#define BUF_SIZE 80
-        char buff[BUF_SIZE];
-
-        int siblings = 0;
-        int cpu_cores = 0;
-        int ratio = 1;
-
-        if (cpuinfo == NULL) {
-            /* fall back on the sysconf value */
-            return numPhysicalCores;
-        }
-
-        /* assume the cpu cores/siblings values will be constant across all
-         * present processors */
-        while (!feof(cpuinfo)) {
-            if (fgets(buff, BUF_SIZE, cpuinfo) != NULL) {
-                if (strncmp(buff, "siblings", 8) == 0) {
-                    const char* const sep = strchr(buff, ':');
-                    if (*sep == '\0') {
-                        /* formatting was broken? */
-                        goto failed;
-                    }
-
-                    siblings = atoi(sep + 1);
-                }
-                if (strncmp(buff, "cpu cores", 9) == 0) {
-                    const char* const sep = strchr(buff, ':');
-                    if (*sep == '\0') {
-                        /* formatting was broken? */
-                        goto failed;
-                    }
-
-                    cpu_cores = atoi(sep + 1);
-                }
-            } else if (ferror(cpuinfo)) {
-                /* fall back on the sysconf value */
-                goto failed;
-            }
-        }
-        if (siblings && cpu_cores) {
-            ratio = siblings / cpu_cores;
-        }
-failed:
-        fclose(cpuinfo);
-        return numPhysicalCores = numPhysicalCores / ratio;
-    }
-}
-
-#elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
-
-/* Use apple-provided syscall
- * see: man 3 sysctl */
-UTIL_STATIC int UTIL_countPhysicalCores(void)
-{
-    static int numPhysicalCores = 0;
-
-    if (numPhysicalCores != 0) return numPhysicalCores;
-
-    numPhysicalCores = (int)sysconf(_SC_NPROCESSORS_ONLN);
-    if (numPhysicalCores == -1) {
-        /* value not queryable, fall back on 1 */
-        return numPhysicalCores = 1;
-    }
-    return numPhysicalCores;
-}
-
-#else
-
-UTIL_STATIC int UTIL_countPhysicalCores(void)
-{
-    /* assume 1 */
-    return 1;
-}
-
-#endif
+int UTIL_countPhysicalCores(void);
 
 #if defined (__cplusplus)
 }

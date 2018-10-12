@@ -233,7 +233,7 @@ else
 	$(CC) $(FLAGS) $< -o $@$(EXT) -Wl,-rpath=$(ZSTDDIR) $(ZSTDDIR)/libzstd.so   # broken on Mac
 endif
 
-poolTests : poolTests.c $(ZSTDDIR)/common/pool.c $(ZSTDDIR)/common/threading.c $(ZSTDDIR)/common/zstd_common.c $(ZSTDDIR)/common/error_private.c
+poolTests : $(PRGDIR)/util.c poolTests.c $(ZSTDDIR)/common/pool.c $(ZSTDDIR)/common/threading.c $(ZSTDDIR)/common/zstd_common.c $(ZSTDDIR)/common/error_private.c
 	$(CC) $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
 
 .PHONY: versionsTest

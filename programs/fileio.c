@@ -20,12 +20,6 @@
 #  define _POSIX_SOURCE 1          /* disable %llu warnings with MinGW on Windows */
 #endif
 
-#if !defined(BACKTRACES_ENABLE) && \
-   (defined(__linux__) || (defined(__APPLE__) && defined(__MACH__)) )
-#  define BACKTRACES_ENABLE 1
-#endif
-
-
 /*-*************************************
 *  Includes
 ***************************************/
@@ -37,9 +31,6 @@
 #include <assert.h>
 #include <errno.h>      /* errno */
 #include <signal.h>
-#ifdef BACKTRACES_ENABLE
-#  include <execinfo.h>   /* backtrace, backtrace_symbols */
-#endif
 
 #if defined (_MSC_VER)
 #  include <sys/stat.h>
@@ -167,7 +158,30 @@ static void clearHandler(void)
 /*-*********************************************************
 *  Termination signal trapping (Print debug stack trace)
 ***********************************************************/
-#ifdef BACKTRACES_ENABLE
+#if defined(__has_feature) && !defined(BACKTRACE_ENABLE) /* Clang compiler */
+#  if (__has_feature(address_sanitizer))
+#    define BACKTRACE_ENABLE 0
+#  endif /* __has_feature(address_sanitizer) */
+#elif defined(__SANITIZE_ADDRESS__) && !defined(BACKTRACE_ENABLE) /* GCC compiler */
+#  define BACKTRACE_ENABLE 0
+#endif
+
+#if !defined(BACKTRACE_ENABLE)
+/* automatic detector : backtrace enabled by default on linux+glibc and osx */
+#  if (defined(__linux__) && defined(__GLIBC__)) \
+     || (defined(__APPLE__) && defined(__MACH__))
+#    define BACKTRACE_ENABLE 1
+#  else
+#    define BACKTRACE_ENABLE 0
+#  endif
+#endif
+
+/* note : after this point, BACKTRACE_ENABLE is necessarily defined */
+
+
+#if BACKTRACE_ENABLE
+
+#include <execinfo.h>   /* backtrace, backtrace_symbols */
 
 #define MAX_STACK_FRAMES    50
 
@@ -208,7 +222,7 @@ static void ABRThandler(int sig) {
 
 void FIO_addAbortHandler()
 {
-#ifdef BACKTRACES_ENABLE
+#if BACKTRACE_ENABLE
     signal(SIGABRT, ABRThandler);
     signal(SIGFPE, ABRThandler);
     signal(SIGILL, ABRThandler);
@@ -1205,7 +1219,8 @@ FIO_determineCompressedName(const char* srcFileName, const char* suffix)
     size_t const sfnSize = strlen(srcFileName);
     size_t const suffixSize = strlen(suffix);
 
-    if (dfnbCapacity <= sfnSize+suffixSize+1) {  /* resize name buffer */
+    if (dfnbCapacity <= sfnSize+suffixSize+1) {
+        /* resize buffer for dstName */
         free(dstFileNameBuffer);
         dfnbCapacity = sfnSize + suffixSize + 30;
         dstFileNameBuffer = (char*)malloc(dfnbCapacity);
@@ -1213,8 +1228,8 @@ FIO_determineCompressedName(const char* srcFileName, const char* suffix)
             EXM_THROW(30, "zstd: %s", strerror(errno));
     }   }
     assert(dstFileNameBuffer != NULL);
-    strncpy(dstFileNameBuffer, srcFileName, sfnSize+1 /* Include null */);
-    strncat(dstFileNameBuffer, suffix, suffixSize);
+    memcpy(dstFileNameBuffer, srcFileName, sfnSize);
+    memcpy(dstFileNameBuffer+sfnSize, suffix, suffixSize+1 /* Include terminating null */);
 
     return dstFileNameBuffer;
 }

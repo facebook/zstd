@@ -134,11 +134,14 @@ else
 LZ4_MSG := $(NO_LZ4_MSG)
 endif
 
-# enable backtrace symbol names for Linux/Darwin
-ALL_SYMBOLS := 0
+# explicit backtrace enable/disable for Linux & Darwin
+ifeq ($(BACKTRACE), 0)
+DEBUGFLAGS += -DBACKTRACE_ENABLE=0
+endif
 ifeq (,$(filter Windows%, $(OS)))
-ifeq ($(ALL_SYMBOLS), 1)
-DEBUGFLAGS_LD+=-rdynamic
+ifeq ($(BACKTRACE), 1)
+DEBUGFLAGS += -DBACKTRACE_ENABLE=1
+DEBUGFLAGS_LD += -rdynamic
 endif
 endif
 
@@ -168,12 +171,12 @@ endif
 	$(CC) $(FLAGS) $^ $(RES_FILE) -o $@$(EXT) $(LDFLAGS)
 
 .PHONY: zstd-release
-zstd-release: DEBUGFLAGS :=
+zstd-release: DEBUGFLAGS := -DBACKTRACE_ENABLE=0
 zstd-release: DEBUGFLAGS_LD :=
 zstd-release: zstd
 
 zstd32 : CPPFLAGS += $(THREAD_CPP)
-zstd32 : LDFLAGS += $(THREAD_LD)
+zstd32 : LDFLAGS  += $(THREAD_LD)
 zstd32 : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 zstd32 : $(ZSTDLIB_FILES) zstdcli.c fileio.c bench.c datagen.c dibio.c
 ifneq (,$(filter Windows%,$(OS)))
@@ -185,17 +188,17 @@ zstd-nolegacy : $(ZSTD_FILES) $(ZDICT_FILES) zstdcli.o fileio.c bench.o datagen.
 	$(CC) $(FLAGS) $^ -o $@$(EXT) $(LDFLAGS)
 
 zstd-nomt : THREAD_CPP :=
-zstd-nomt : THREAD_LD :=
+zstd-nomt : THREAD_LD  :=
 zstd-nomt : THREAD_MSG := - multi-threading disabled
 zstd-nomt : zstd
 
 zstd-nogz : ZLIBCPP :=
-zstd-nogz : ZLIBLD :=
+zstd-nogz : ZLIBLD  :=
 zstd-nogz : ZLIB_MSG := - gzip support is disabled
 zstd-nogz : zstd
 
 zstd-noxz : LZMACPP :=
-zstd-noxz : LZMALD :=
+zstd-noxz : LZMALD  :=
 zstd-noxz : LZMA_MSG := - xz/lzma support is disabled
 zstd-noxz : zstd
 

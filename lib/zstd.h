@@ -71,7 +71,7 @@ extern "C" {
 /*------   Version   ------*/
 #define ZSTD_VERSION_MAJOR    1
 #define ZSTD_VERSION_MINOR    3
-#define ZSTD_VERSION_RELEASE  6
+#define ZSTD_VERSION_RELEASE  7
 
 #define ZSTD_VERSION_NUMBER  (ZSTD_VERSION_MAJOR *100*100 + ZSTD_VERSION_MINOR *100 + ZSTD_VERSION_RELEASE)
 ZSTDLIB_API unsigned ZSTD_versionNumber(void);   /**< useful to check dll version */
@@ -361,15 +361,21 @@ ZSTDLIB_API size_t ZSTD_CStreamOutSize(void);   /**< recommended size for output
 *  The function will update both `pos` fields.
 *  If `input.pos < input.size`, some input has not been consumed.
 *  It's up to the caller to present again remaining data.
+*  The function tries to flush all data decoded immediately, repecting buffer sizes.
 *  If `output.pos < output.size`, decoder has flushed everything it could.
-*  @return : 0 when a frame is completely decoded and fully flushed,
-*            an error code, which can be tested using ZSTD_isError(),
-*            any other value > 0, which means there is still some decoding to do to complete current frame.
-*            The return value is a suggested next input size (a hint to improve latency) that will never load more than the current frame.
+*  But if `output.pos == output.size`, there is no such guarantee,
+*  it's likely that some decoded data was not flushed and still remains within internal buffers.
+*  In which case, call ZSTD_decompressStream() again to flush whatever remains in the buffer.
+*  When no additional input is provided, amount of data flushed is necessarily <= ZSTD_BLOCKSIZE_MAX.
+* @return : 0 when a frame is completely decoded and fully flushed,
+*        or an error code, which can be tested using ZSTD_isError(),
+*        or any other value > 0, which means there is still some decoding or flushing to do to complete current frame :
+*                                the return value is a suggested next input size (a hint for better latency)
+*                                that will never load more than the current frame.
 * *******************************************************************************/
 
 typedef ZSTD_DCtx ZSTD_DStream;  /**< DCtx and DStream are now effectively same object (>= v1.3.0) */
-                                 /* For compatibility with versions <= v1.2.0, continue to consider them separated. */
+                                 /* For compatibility with versions <= v1.2.0, prefer differentiating them. */
 /*===== ZSTD_DStream management functions =====*/
 ZSTDLIB_API ZSTD_DStream* ZSTD_createDStream(void);
 ZSTDLIB_API size_t ZSTD_freeDStream(ZSTD_DStream* zds);
@@ -1235,9 +1241,13 @@ ZSTDLIB_API size_t ZSTD_CCtx_resetParameters(ZSTD_CCtx* cctx);
 
 
 typedef enum {
-    ZSTD_e_continue=0, /* collect more data, encoder decides when to output compressed result, for optimal conditions */
-    ZSTD_e_flush,      /* flush any data provided so far - frame will continue, future data can still reference previous data for better compression */
-    ZSTD_e_end         /* flush any remaining data and close current frame. Any additional data starts a new frame. */
+    ZSTD_e_continue=0, /* collect more data, encoder decides when to output compressed result, for optimal compression ratio */
+    ZSTD_e_flush,      /* flush any data provided so far,
+                        * it creates (at least) one new block, that can be decoded immediately on reception;
+                        * frame will continue: any future data can still reference previously compressed data, improving compression. */
+    ZSTD_e_end         /* flush any remaining data and close current frame.
+                        * any additional data starts a new frame.
+                        * each frame is independent (does not reference any content from previous frame). */
 } ZSTD_EndDirective;
 
 /*! ZSTD_compress_generic() :

@@ -61,12 +61,12 @@ There are however other Makefile targets that create different variations of CLI
   In which case, linking stage will fail if `lz4` library cannot be found.
   This is useful to prevent silent feature disabling.
 
-- __ALL_SYMBOLS__ : `zstd` can display a stack backtrace if the execution
+- __BACKTRACE__ : `zstd` can display a stack backtrace when execution
   generates a runtime exception. By default, this feature may be
   degraded/disabled on some platforms unless additional compiler directives are
-  applied. When triaging a runtime issue, enabling this feature can provided
+  applied. When triaging a runtime issue, enabling this feature can provide
   more context to determine the location of the fault.
-  Example : `make zstd ALL_SYMBOLS=1`
+  Example : `make zstd BACKTRACE=1`
 
 
 #### Aggregation of parameters

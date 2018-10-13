@@ -41,7 +41,7 @@ FUZZ_ARFLAGS := $(ARFLAGS)
 FUZZ_TARGET_FLAGS = $(FUZZ_CPPFLAGS) $(FUZZ_CXXFLAGS) $(FUZZ_LDFLAGS)
 
 FUZZ_HEADERS := fuzz_helpers.h fuzz.h zstd_helpers.h
-FUZZ_SRC := zstd_helpers.c
+FUZZ_SRC := $(PRGDIR)/util.c zstd_helpers.c
 
 ZSTDCOMMON_SRC := $(ZSTDDIR)/common/*.c
 ZSTDCOMP_SRC   := $(ZSTDDIR)/compress/*.c
@@ -52,7 +52,7 @@ FUZZ_SRC       := \
 	$(ZSTDCOMMON_SRC) \
 	$(ZSTDCOMP_SRC)
 
-FUZZ_OBJ := $(patsubst %.c,%.o, $(wildcard $(FUZZ_SRC))) $(PRGDIR)/util.o
+FUZZ_OBJ := $(patsubst %.c,%.o, $(wildcard $(FUZZ_SRC)))
 
 
 .PHONY: default all clean cleanall

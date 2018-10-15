@@ -4,7 +4,7 @@ zstdless(1) -- view zstandard-compressed files
 SYNOPSIS
 --------
 
-`zless` [*flags*] [_file_ ...]
+`zstdless` [*flags*] [_file_ ...]
 
 
 DESCRIPTION

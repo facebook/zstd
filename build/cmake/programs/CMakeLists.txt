@@ -43,6 +43,12 @@ IF (UNIX)
     ADD_CUSTOM_TARGET(zstd.1 ALL
         ${CMAKE_COMMAND} -E copy ${PROGRAMS_DIR}/zstd.1 .
         COMMENT "Copying manpage zstd.1")
+    ADD_CUSTOM_TARGET(zstdgrep.1 ALL
+        ${CMAKE_COMMAND} -E copy ${PROGRAMS_DIR}/zstdgrep.1 .
+        COMMENT "Copying manpage zstdgrep.1")
+    ADD_CUSTOM_TARGET(zstdless.1 ALL
+        ${CMAKE_COMMAND} -E copy ${PROGRAMS_DIR}/zstdless.1 .
+        COMMENT "Copying manpage zstdless.1")
     ADD_CUSTOM_TARGET(zstdcat.1 ALL ${CMAKE_COMMAND} -E create_symlink zstd.1 zstdcat.1 DEPENDS zstd.1 COMMENT "Creating zstdcat.1 symlink")
     ADD_CUSTOM_TARGET(unzstd.1 ALL ${CMAKE_COMMAND} -E create_symlink zstd.1 unzstd.1 DEPENDS zstd.1 COMMENT "Creating unzstd.1 symlink")
 
@@ -55,6 +61,8 @@ IF (UNIX)
     INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/zstd.1 DESTINATION "${MAN_INSTALL_DIR}")
     INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/zstdcat.1 DESTINATION "${MAN_INSTALL_DIR}")
     INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/unzstd.1 DESTINATION "${MAN_INSTALL_DIR}")
+    INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/zstdgrep.1 DESTINATION "${MAN_INSTALL_DIR}")
+    INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/zstdless.1 DESTINATION "${MAN_INSTALL_DIR}")
 
     ADD_EXECUTABLE(zstd-frugal ${PROGRAMS_DIR}/zstdcli.c ${PROGRAMS_DIR}/fileio.c)
     TARGET_LINK_LIBRARIES(zstd-frugal libzstd_static)

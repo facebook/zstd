@@ -171,7 +171,7 @@ roundtripcheck: roundtrip check
 	$(TESTPROG) ./test/RoundTripTest$(EXT) $(TESTFLAGS)
 
 # Build the main binary
-pzstd$(EXT): main.o Options.o Pzstd.o SkippableFrame.o $(ZSTDDIR)/libzstd.a
+pzstd$(EXT): main.o $(PROGDIR)/util.o Options.o Pzstd.o SkippableFrame.o $(ZSTDDIR)/libzstd.a
 	$(LD_COMMAND)
 
 # Target that depends on all the tests

@@ -132,18 +132,18 @@ fullbench fullbench32 : CPPFLAGS += $(MULTITHREAD_CPP)
 fullbench fullbench32 : LDFLAGS += $(MULTITHREAD_LD)
 fullbench fullbench32 : DEBUGFLAGS = -DNDEBUG  # turn off assert() for speed measurements
 fullbench fullbench32 : $(ZSTD_FILES)
-fullbench fullbench32 : $(PRGDIR)/datagen.c $(PRGDIR)/bench.c fullbench.c
+fullbench fullbench32 : $(PRGDIR)/datagen.c $(PRGDIR)/util.c $(PRGDIR)/bench.c fullbench.c
 	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
 fullbench-lib : CPPFLAGS += -DXXH_NAMESPACE=ZSTD_
 fullbench-lib : zstd-staticLib
-fullbench-lib : $(PRGDIR)/datagen.c $(PRGDIR)/bench.c fullbench.c
+fullbench-lib : $(PRGDIR)/datagen.c $(PRGDIR)/util.c $(PRGDIR)/bench.c fullbench.c
 	$(CC) $(FLAGS) $(filter %.c,$^) -o $@$(EXT) $(ZSTDDIR)/libzstd.a
 
 # note : broken : requires unavailable symbols
 fullbench-dll : zstd-dll
 fullbench-dll : LDFLAGS+= -L$(ZSTDDIR) -lzstd
-fullbench-dll: $(PRGDIR)/datagen.c fullbench.c
+fullbench-dll: $(PRGDIR)/datagen.c $(PRGDIR)/util.c fullbench.c
 #	$(CC) $(FLAGS) $(filter %.c,$^) -o $@$(EXT) -DZSTD_DLL_IMPORT=1 $(ZSTDDIR)/dll/libzstd.dll
 	$(CC) $(FLAGS) $(filter %.c,$^) -o $@$(EXT)
 
@@ -152,32 +152,32 @@ fuzzer  : LDFLAGS += $(MULTITHREAD_LD)
 fuzzer32: CFLAGS += -m32
 fuzzer  : $(ZSTDMT_OBJECTS)
 fuzzer32: $(ZSTD_FILES)
-fuzzer fuzzer32 : $(ZDICT_FILES) $(PRGDIR)/datagen.c fuzzer.c
+fuzzer fuzzer32 : $(ZDICT_FILES) $(PRGDIR)/util.c $(PRGDIR)/datagen.c fuzzer.c
 	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
 fuzzer-dll : zstd-dll
 fuzzer-dll : LDFLAGS+= -L$(ZSTDDIR) -lzstd
-fuzzer-dll : $(ZSTDDIR)/common/xxhash.c $(PRGDIR)/datagen.c fuzzer.c
+fuzzer-dll : $(ZSTDDIR)/common/xxhash.c $(PRGDIR)/util.c $(PRGDIR)/datagen.c fuzzer.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(filter %.c,$^) $(LDFLAGS) -o $@$(EXT)
 
 zbufftest : CPPFLAGS += -I$(ZSTDDIR)/deprecated
 zbufftest : CFLAGS += -Wno-deprecated-declarations   # required to silence deprecation warnings
-zbufftest : $(ZSTD_OBJECTS) $(ZBUFF_FILES) $(PRGDIR)/datagen.c zbufftest.c
+zbufftest : $(ZSTD_OBJECTS) $(ZBUFF_FILES) $(PRGDIR)/util.c $(PRGDIR)/datagen.c zbufftest.c
 	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
 zbufftest32 : CPPFLAGS += -I$(ZSTDDIR)/deprecated
 zbufftest32 : CFLAGS += -Wno-deprecated-declarations -m32
-zbufftest32 : $(ZSTD_FILES) $(ZBUFF_FILES) $(PRGDIR)/datagen.c zbufftest.c
+zbufftest32 : $(ZSTD_FILES) $(ZBUFF_FILES) $(PRGDIR)/util.c $(PRGDIR)/datagen.c zbufftest.c
 	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
 zbufftest-dll : zstd-dll
 zbufftest-dll : CPPFLAGS += -I$(ZSTDDIR)/deprecated
 zbufftest-dll : CFLAGS += -Wno-deprecated-declarations   # required to silence deprecation warnings
 zbufftest-dll : LDFLAGS+= -L$(ZSTDDIR) -lzstd
-zbufftest-dll : $(ZSTDDIR)/common/xxhash.c $(PRGDIR)/datagen.c zbufftest.c
+zbufftest-dll : $(ZSTDDIR)/common/xxhash.c $(PRGDIR)/util.c $(PRGDIR)/datagen.c zbufftest.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(filter %.c,$^) $(LDFLAGS) -o $@$(EXT)
 
-ZSTREAM_LOCAL_FILES := $(PRGDIR)/datagen.c seqgen.c zstreamtest.c
+ZSTREAM_LOCAL_FILES := $(PRGDIR)/datagen.c $(PRGDIR)/util.c seqgen.c zstreamtest.c
 ZSTREAM_PROPER_FILES := $(ZDICT_FILES) $(ZSTREAM_LOCAL_FILES)
 ZSTREAMFILES := $(ZSTD_FILES) $(ZSTREAM_PROPER_FILES)
 zstreamtest32 : CFLAGS += -m32
@@ -203,7 +203,7 @@ zstreamtest-dll : $(ZSTREAM_LOCAL_FILES)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(filter %.c,$^) $(LDFLAGS) -o $@$(EXT)
 
 paramgrill : DEBUGFLAGS =  # turn off assert() by default for speed measurements
-paramgrill : $(ZSTD_FILES) $(PRGDIR)/bench.c $(PRGDIR)/datagen.c paramgrill.c
+paramgrill : $(ZSTD_FILES) $(PRGDIR)/util.c $(PRGDIR)/bench.c $(PRGDIR)/datagen.c paramgrill.c
 	$(CC) $(FLAGS) $^ -lm -o $@$(EXT)
 
 datagen : $(PRGDIR)/datagen.c datagencli.c
@@ -222,7 +222,7 @@ legacy : CPPFLAGS += -I$(ZSTDDIR)/legacy -DZSTD_LEGACY_SUPPORT=4
 legacy : $(ZSTD_FILES) $(wildcard $(ZSTDDIR)/legacy/*.c) legacy.c
 	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
-decodecorpus : $(filter-out zstdc_zstd_compress.o, $(ZSTD_OBJECTS)) $(ZDICT_FILES) decodecorpus.c
+decodecorpus : $(filter-out zstdc_zstd_compress.o, $(ZSTD_OBJECTS)) $(ZDICT_FILES) $(PRGDIR)/util.c decodecorpus.c
 	$(CC) $(FLAGS) $^ -o $@$(EXT) -lm
 
 symbols  : symbols.c zstd-dll
@@ -233,7 +233,7 @@ else
 	$(CC) $(FLAGS) $< -o $@$(EXT) -Wl,-rpath=$(ZSTDDIR) $(ZSTDDIR)/libzstd.so   # broken on Mac
 endif
 
-poolTests : poolTests.c $(ZSTDDIR)/common/pool.c $(ZSTDDIR)/common/threading.c $(ZSTDDIR)/common/zstd_common.c $(ZSTDDIR)/common/error_private.c
+poolTests : $(PRGDIR)/util.c poolTests.c $(ZSTDDIR)/common/pool.c $(ZSTDDIR)/common/threading.c $(ZSTDDIR)/common/zstd_common.c $(ZSTDDIR)/common/error_private.c
 	$(CC) $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
 
 .PHONY: versionsTest

@@ -22,10 +22,10 @@ FLAGS     = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MULTITHREAD_LDFLAGS)
 
 all: adapt datagen
 
-adapt: $(ZSTD_FILES) adapt.c
+adapt: $(ZSTD_FILES) $(PRGDIR)/util.c adapt.c
 	$(CC) $(FLAGS) $^ -o $@
 
-adapt-debug: $(ZSTD_FILES) adapt.c
+adapt-debug: $(ZSTD_FILES) $(PRGDIR)/util.c adapt.c
 	$(CC) $(FLAGS) -DDEBUG_MODE=2 $^ -o adapt
 
 datagen : $(PRGDIR)/datagen.c datagencli.c

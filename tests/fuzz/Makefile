@@ -41,7 +41,7 @@ FUZZ_ARFLAGS := $(ARFLAGS)
 FUZZ_TARGET_FLAGS = $(FUZZ_CPPFLAGS) $(FUZZ_CXXFLAGS) $(FUZZ_LDFLAGS)
 
 FUZZ_HEADERS := fuzz_helpers.h fuzz.h zstd_helpers.h
-FUZZ_SRC := zstd_helpers.c
+FUZZ_SRC := $(PRGDIR)/util.c zstd_helpers.c
 
 ZSTDCOMMON_SRC := $(ZSTDDIR)/common/*.c
 ZSTDCOMP_SRC   := $(ZSTDDIR)/compress/*.c
@@ -90,7 +90,7 @@ stream_decompress: $(FUZZ_HEADERS) $(FUZZ_OBJ) stream_decompress.o
 block_decompress: $(FUZZ_HEADERS) $(FUZZ_OBJ) block_decompress.o
 	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_OBJ) block_decompress.o $(LIB_FUZZING_ENGINE) -o $@
 
-libregression.a: $(FUZZ_HEADERS) $(PRGDIR)/util.h regression_driver.o
+libregression.a: $(FUZZ_HEADERS) $(PRGDIR)/util.h $(PRGDIR)/util.c regression_driver.o
 	$(AR) $(FUZZ_ARFLAGS) $@ regression_driver.o
 
 # Install libfuzzer (not usable for MSAN testing)

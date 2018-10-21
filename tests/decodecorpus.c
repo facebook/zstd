@@ -823,14 +823,13 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
     else if (nbSeq < LONGNBSEQ) op[0] = (BYTE)((nbSeq>>8) + 0x80), op[1] = (BYTE)nbSeq, op+=2;
     else op[0]=0xFF, MEM_writeLE16(op+1, (U16)(nbSeq - LONGNBSEQ)), op+=3;
 
-    /* seqHead : flags for FSE encoding type */
-    seqHead = op++;
-
     if (nbSeq==0) {
         frame->data = op;
-
         return 0;
     }
+
+    /* seqHead : flags for FSE encoding type */
+    seqHead = op++;
 
     /* convert length/distances into codes */
     ZSTD_seqToCodes(seqStorePtr);

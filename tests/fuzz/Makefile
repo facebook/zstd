@@ -99,7 +99,7 @@ libregression.a: $(FUZZ_HEADERS) $(PRGDIR)/util.h $(PRGDIR)/util.c regression_dr
 .PHONY: libFuzzer
 libFuzzer:
 	@$(RM) -rf Fuzzer
-	@git clone https://chromium.googlesource.com/chromium/llvm-project/llvm/lib/Fuzzer
+	@git clone https://chromium.googlesource.com/chromium/llvm-project/compiler-rt/lib/fuzzer Fuzzer
 	@cd Fuzzer && ./build.sh
 
 corpora/%_seed_corpus.zip:

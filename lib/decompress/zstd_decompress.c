@@ -975,7 +975,7 @@ static const U32 ML_base[MaxML+1] = {
                     67, 83, 99, 0x83, 0x103, 0x203, 0x403, 0x803,
                     0x1003, 0x2003, 0x4003, 0x8003, 0x10003 };
 
-/* Hidden delcaration for fullbench */
+/* Function required by fullbench; Hidden declaration to respect -Wmissing-prototypes */
 size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
                              const void* src, size_t srcSize);
 
@@ -993,7 +993,11 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
 
     /* SeqHead */
     nbSeq = *ip++;
-    if (!nbSeq) { *nbSeqPtr=0; return 1; }
+    if (!nbSeq) {
+        *nbSeqPtr=0;
+        if (srcSize != 1) return ERROR(srcSize_wrong);
+        return 1;
+    }
     if (nbSeq > 0x7F) {
         if (nbSeq == 0xFF) {
             if (ip+2 > iend) return ERROR(srcSize_wrong);

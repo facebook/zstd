@@ -352,6 +352,7 @@ uninstall:
 	@$(RM) $(DESTDIR)$(BINDIR)/zstdless
 	@$(RM) $(DESTDIR)$(BINDIR)/zstdcat
 	@$(RM) $(DESTDIR)$(BINDIR)/unzstd
+	@$(RM) $(DESTDIR)$(BINDIR)/zstdmt
 	@$(RM) $(DESTDIR)$(BINDIR)/zstd
 	@$(RM) $(DESTDIR)$(MAN1DIR)/zstdless.1
 	@$(RM) $(DESTDIR)$(MAN1DIR)/zstdgrep.1

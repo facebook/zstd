@@ -919,6 +919,10 @@ This means that when `Repeated_Offset1` (most recent) is used, history is unmodi
 When `Repeated_Offset2` is used, it's swapped with `Repeated_Offset1`.
 If any other offset is used, it becomes `Repeated_Offset1` and the rest are shift back by one.
 
+In the case of an `offset_value` of 3 and the literal length of the current
+sequence is zero the value `Repeasted_Offset1 - 1_byte` is a new offset,
+becoming the lead of the offset history and the first two repeated offsets will
+be shifted back.
 
 Skippable Frames
 ----------------

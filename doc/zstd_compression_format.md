@@ -1415,7 +1415,7 @@ __`Content`__ : The rest of the dictionary is its content.
               As long as the amount of data decoded from this frame is less than or
               equal to `Window_Size`, sequence commands may specify offsets longer
               than the total length of decoded output so far to reference back to the
-              dictionary, even parts of the dictionary with offsets larger than `Window_Size`.
+              dictionary, even parts of the dictionary with offsets larger than `Window_Size`.  
               After the total output has surpassed `Window_Size` however,
               this is no longer allowed and the dictionary is no longer accessible.
 

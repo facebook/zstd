@@ -920,7 +920,7 @@ When `Repeated_Offset2` is used, it's swapped with `Repeated_Offset1`.
 If any other offset is used, it becomes `Repeated_Offset1` and the rest are shift back by one.
 
 In the case of an `offset_value` of 3 and the literal length of the current
-sequence is zero the value `Repeasted_Offset1 - 1_byte` is a new offset,
+sequence is zero the value `Repeated_Offset1 - 1_byte` is a new offset,
 becoming the lead of the offset history and the first two repeated offsets will
 be shifted back.
 
@@ -1415,7 +1415,7 @@ __`Content`__ : The rest of the dictionary is its content.
               As long as the amount of data decoded from this frame is less than or
               equal to `Window_Size`, sequence commands may specify offsets longer
               than the total length of decoded output so far to reference back to the
-              dictionary, even parts of the dictionary with offsets larger than `Window_Size`.  
+              dictionary, even parts of the dictionary with offsets larger than `Window_Size`.
               After the total output has surpassed `Window_Size` however,
               this is no longer allowed and the dictionary is no longer accessible.
 

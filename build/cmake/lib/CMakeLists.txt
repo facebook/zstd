@@ -46,6 +46,7 @@ SET(Sources
         ${LIBRARY_DIR}/compress/zstd_ldm.c
         ${LIBRARY_DIR}/decompress/huf_decompress.c
         ${LIBRARY_DIR}/decompress/zstd_decompress.c
+        ${LIBRARY_DIR}/decompress/zstd_ddict.c
         ${LIBRARY_DIR}/dictBuilder/cover.c
         ${LIBRARY_DIR}/dictBuilder/fastcover.c
         ${LIBRARY_DIR}/dictBuilder/divsufsort.c
@@ -74,6 +75,8 @@ SET(Headers
         ${LIBRARY_DIR}/compress/zstd_opt.h
         ${LIBRARY_DIR}/compress/zstd_ldm.h
         ${LIBRARY_DIR}/compress/zstdmt_compress.h
+        ${LIBRARY_DIR}/decompress/zstd_ddict.h
+        ${LIBRARY_DIR}/decompress/zstd_decompress_internal.h
         ${LIBRARY_DIR}/dictBuilder/zdict.h
         ${LIBRARY_DIR}/dictBuilder/cover.h
         ${LIBRARY_DIR}/deprecated/zbuff.h)

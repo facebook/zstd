@@ -411,11 +411,55 @@ static int basicUnitTests(U32 seed, double compressibility)
     DISPLAYLEVEL(3, "OK \n");
 
     DISPLAYLEVEL(3, "test%3d : check CCtx size after compressing empty input : ", testNb++);
-    {   ZSTD_CCtx* cctx = ZSTD_createCCtx();
+    {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
         size_t const r = ZSTD_compressCCtx(cctx, compressedBuffer, compressedBufferSize, NULL, 0, 19);
         if (ZSTD_isError(r)) goto _output_error;
         if (ZSTD_sizeof_CCtx(cctx) > (1U << 20)) goto _output_error;
         ZSTD_freeCCtx(cctx);
+        cSize = r;
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3d : decompress empty frame into NULL : ", testNb++);
+    {   size_t const r = ZSTD_decompress(NULL, 0, compressedBuffer, cSize);
+        if (ZSTD_isError(r)) goto _output_error;
+        if (r != 0) goto _output_error;
+    }
+    {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        ZSTD_outBuffer output;
+        if (cctx==NULL) goto _output_error;
+        output.dst = compressedBuffer;
+        output.size = compressedBufferSize;
+        output.pos = 0;
+        CHECK_Z( ZSTD_initCStream(cctx, 1) );    /* content size unknown */
+        CHECK_Z( ZSTD_flushStream(cctx, &output) );   /* ensure no possibility to "concatenate" and determine the content size */
+        CHECK_Z( ZSTD_endStream(cctx, &output) );
+        ZSTD_freeCCtx(cctx);
+        /* single scan decompression */
+        {   size_t const r = ZSTD_decompress(NULL, 0, compressedBuffer, output.pos);
+            if (ZSTD_isError(r)) goto _output_error;
+            if (r != 0) goto _output_error;
+        }
+        /* streaming decompression */
+        {   ZSTD_DCtx* const dstream = ZSTD_createDStream();
+            ZSTD_inBuffer dinput;
+            ZSTD_outBuffer doutput;
+            size_t ipos;
+            if (dstream==NULL) goto _output_error;
+            dinput.src = compressedBuffer;
+            dinput.size = 0;
+            dinput.pos = 0;
+            doutput.dst = NULL;
+            doutput.size = 0;
+            doutput.pos = 0;
+            CHECK_Z ( ZSTD_initDStream(dstream) );
+            for (ipos=1; ipos<=output.pos; ipos++) {
+                dinput.size = ipos;
+                CHECK_Z ( ZSTD_decompressStream(dstream, &doutput, &dinput) );
+            }
+            if (doutput.pos != 0) goto _output_error;
+            ZSTD_freeDStream(dstream);
+        }
     }
     DISPLAYLEVEL(3, "OK \n");
 

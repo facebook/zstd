@@ -77,7 +77,7 @@
     <ClInclude Include="..\..\..\lib\compress\zstd_lazy.h" />
     <ClInclude Include="..\..\..\lib\compress\zstd_opt.h" />
     <ClInclude Include="..\..\..\lib\compress\zstd_ldm.h" />
-    <ClCompile Include="..\..\..\lib\decompress\zstd_ddict.h" />
+    <ClInclude Include="..\..\..\lib\decompress\zstd_ddict.h" />
     <ClInclude Include="..\..\..\lib\legacy\zstd_legacy.h" />
     <ClInclude Include="..\..\..\lib\legacy\zstd_v01.h" />
     <ClInclude Include="..\..\..\lib\legacy\zstd_v02.h" />

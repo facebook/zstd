@@ -83,7 +83,7 @@
     <ClInclude Include="..\..\..\lib\compress\zstd_opt.h" />
     <ClInclude Include="..\..\..\lib\compress\zstd_ldm.h" />
     <ClInclude Include="..\..\..\lib\compress\zstdmt_compress.h" />
-    <ClCompile Include="..\..\..\lib\decompress\zstd_ddict.h" />
+    <ClInclude Include="..\..\..\lib\decompress\zstd_ddict.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="libzstd-dll.rc" />

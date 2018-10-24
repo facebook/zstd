@@ -994,6 +994,13 @@ typedef struct {
 } seqState_t;
 
 
+/* ZSTD_execSequenceLast7():
+ * exceptional case : decompress a match starting within last 7 bytes of output buffer.
+ * requires more careful checks, to ensure there is no overflow.
+ * performance does not matter though.
+ * note : this case is supposed to be never generated "naturally" by reference encoder,
+ *        since in most cases it needs at least 8 bytes to look for a match.
+ *        but it's allowed by the specification. */
 FORCE_NOINLINE
 size_t ZSTD_execSequenceLast7(BYTE* op,
                               BYTE* const oend, seq_t sequence,
@@ -1003,21 +1010,14 @@ size_t ZSTD_execSequenceLast7(BYTE* op,
     BYTE* const oLitEnd = op + sequence.litLength;
     size_t const sequenceLength = sequence.litLength + sequence.matchLength;
     BYTE* const oMatchEnd = op + sequenceLength;   /* risk : address space overflow (32-bits) */
-    BYTE* const oend_w = oend - WILDCOPY_OVERLENGTH;
     const BYTE* const iLitEnd = *litPtr + sequence.litLength;
     const BYTE* match = oLitEnd - sequence.offset;
 
     /* check */
-    if (oMatchEnd>oend) return ERROR(dstSize_tooSmall); /* last match must start at a minimum distance of WILDCOPY_OVERLENGTH from oend */
-    if (iLitEnd > litLimit) return ERROR(corruption_detected);   /* over-read beyond lit buffer */
-    if (oLitEnd <= oend_w) return ERROR(GENERIC);   /* Precondition */
+    if (oMatchEnd>oend) return ERROR(dstSize_tooSmall);   /* last match must fit within dstBuffer */
+    if (iLitEnd > litLimit) return ERROR(corruption_detected);   /* try to read beyond literal buffer */
 
     /* copy literals */
-    if (op < oend_w) {
-        ZSTD_wildcopy(op, *litPtr, oend_w - op);
-        *litPtr += oend_w - op;
-        op = oend_w;
-    }
     while (op < oLitEnd) *op++ = *(*litPtr)++;
 
     /* copy Match */

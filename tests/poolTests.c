@@ -30,7 +30,7 @@ struct data {
   size_t i;
 };
 
-void fn(void *opaque) {
+static void fn(void *opaque) {
   struct data *data = (struct data *)opaque;
   ZSTD_pthread_mutex_lock(&data->mutex);
   data->data[data->i] = data->i;
@@ -38,7 +38,7 @@ void fn(void *opaque) {
   ZSTD_pthread_mutex_unlock(&data->mutex);
 }
 
-int testOrder(size_t numThreads, size_t queueSize) {
+static int testOrder(size_t numThreads, size_t queueSize) {
   struct data data;
   POOL_ctx *ctx = POOL_create(numThreads, queueSize);
   ASSERT_TRUE(ctx);
@@ -63,13 +63,13 @@ int testOrder(size_t numThreads, size_t queueSize) {
 
 /* --- test deadlocks --- */
 
-void waitFn(void *opaque) {
+static void waitFn(void *opaque) {
   (void)opaque;
   UTIL_sleepMilli(1);
 }
 
 /* Tests for deadlock */
-int testWait(size_t numThreads, size_t queueSize) {
+static int testWait(size_t numThreads, size_t queueSize) {
   struct data data;
   POOL_ctx *ctx = POOL_create(numThreads, queueSize);
   ASSERT_TRUE(ctx);
@@ -92,7 +92,7 @@ typedef struct {
     ZSTD_pthread_cond_t cond;
 } poolTest_t;
 
-void waitLongFn(void *opaque) {
+static void waitLongFn(void *opaque) {
   poolTest_t* test = (poolTest_t*) opaque;
   UTIL_sleepMilli(10);
   ZSTD_pthread_mutex_lock(&test->mut);
@@ -167,7 +167,7 @@ typedef struct {
     int val;
 } abruptEndCanary_t;
 
-void waitIncFn(void *opaque) {
+static void waitIncFn(void *opaque) {
   abruptEndCanary_t* test = (abruptEndCanary_t*) opaque;
   UTIL_sleepMilli(10);
   ZSTD_pthread_mutex_lock(&test->mut);

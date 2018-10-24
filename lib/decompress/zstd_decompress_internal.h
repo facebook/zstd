@@ -12,6 +12,9 @@
 /* zstd_decompress_internal:
  * objects and definitions shared within lib/decompress modules */
 
+ #ifndef ZSTD_DECOMPRESS_INTERNAL_H
+ #define ZSTD_DECOMPRESS_INTERNAL_H
+
 
 /*-*******************************************************
  *  Dependencies
@@ -115,3 +118,6 @@ struct ZSTD_DCtx_s
   * @return : size of entropy tables read */
  size_t ZSTD_loadDEntropy(ZSTD_entropyDTables_t* entropy,
                     const void* const dict, size_t const dictSize);
+
+
+#endif /* ZSTD_DECOMPRESS_INTERNAL_H */

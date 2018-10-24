@@ -413,6 +413,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\lib\decompress\zstd_ddict.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\lib\compress\zstd_fast.c"
 				>
 			</File>

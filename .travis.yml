@@ -20,6 +20,8 @@ matrix:
     - env: Cmd='make gcc8install && CC=gcc-8 CFLAGS="-Werror -O3" make -j all'
     - env: Cmd='make clang38install && CC=clang-3.8 make clean msan-test-zstd'
 
+    - env: Cmd='make cmakebuild'
+
     - env: Cmd='make staticAnalyze'
 
     - env: Cmd='make gcc6install && CC=gcc-6 make clean uasan-fuzztest'

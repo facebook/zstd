@@ -39,6 +39,7 @@
     <ClCompile Include="..\..\..\lib\compress\zstdmt_compress.c" />
     <ClCompile Include="..\..\..\lib\decompress\huf_decompress.c" />
     <ClCompile Include="..\..\..\lib\decompress\zstd_decompress.c" />
+    <ClCompile Include="..\..\..\lib\decompress\zstd_ddict.c" />
     <ClCompile Include="..\..\..\lib\deprecated\zbuff_common.c" />
     <ClCompile Include="..\..\..\lib\deprecated\zbuff_compress.c" />
     <ClCompile Include="..\..\..\lib\deprecated\zbuff_decompress.c" />
@@ -82,6 +83,7 @@
     <ClInclude Include="..\..\..\lib\compress\zstd_opt.h" />
     <ClInclude Include="..\..\..\lib\compress\zstd_ldm.h" />
     <ClInclude Include="..\..\..\lib\compress\zstdmt_compress.h" />
+    <ClInclude Include="..\..\..\lib\decompress\zstd_ddict.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{8BFD8150-94D5-4BF9-8A50-7BD9929A0850}</ProjectGuid>

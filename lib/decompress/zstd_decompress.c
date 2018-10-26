@@ -394,9 +394,9 @@ unsigned long long ZSTD_findDecompressedSize(const void* src, size_t srcSize)
 }
 
 /** ZSTD_getDecompressedSize() :
-*   compatible with legacy mode
-*   @return : decompressed size if known, 0 otherwise
-              note : 0 can mean any of the following :
+ *  compatible with legacy mode
+ * @return : decompressed size if known, 0 otherwise
+             note : 0 can mean any of the following :
                    - frame content is empty
                    - decompressed size field is not present in frame header
                    - frame header unknown / not supported
@@ -410,8 +410,8 @@ unsigned long long ZSTD_getDecompressedSize(const void* src, size_t srcSize)
 
 
 /** ZSTD_decodeFrameHeader() :
-*   `headerSize` must be the size provided by ZSTD_frameHeaderSize().
-*   @return : 0 if success, or an error code, which can be tested using ZSTD_isError() */
+ * `headerSize` must be the size provided by ZSTD_frameHeaderSize().
+ * @return : 0 if success, or an error code, which can be tested using ZSTD_isError() */
 static size_t ZSTD_decodeFrameHeader(ZSTD_DCtx* dctx, const void* src, size_t headerSize)
 {
     size_t const result = ZSTD_getFrameHeader_advanced(&(dctx->fParams), src, headerSize, dctx->format);
@@ -507,7 +507,8 @@ size_t ZSTD_insertBlock(ZSTD_DCtx* dctx, const void* blockStart, size_t blockSiz
 static size_t ZSTD_copyRawBlock(void* dst, size_t dstCapacity,
                           const void* src, size_t srcSize)
 {
-    if (dst==NULL) return ERROR(dstSize_tooSmall);
+    DEBUGLOG(5, "ZSTD_copyRawBlock");
+    if (dst == NULL) dstCapacity = 0;  /* better safe than sorry */
     if (srcSize > dstCapacity) return ERROR(dstSize_tooSmall);
     memcpy(dst, src, srcSize);
     return srcSize;
@@ -524,7 +525,9 @@ static size_t ZSTD_setRleBlock(void* dst, size_t dstCapacity,
 
 
 /*! ZSTD_decompressFrame() :
-*   @dctx must be properly initialized */
+ * @dctx must be properly initialized
+ *  will update *srcPtr and *srcSizePtr,
+ *  to make *srcPtr progress by one frame. */
 static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
                                    void* dst, size_t dstCapacity,
                              const void** srcPtr, size_t *srcSizePtr)
@@ -533,31 +536,33 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
     BYTE* const ostart = (BYTE* const)dst;
     BYTE* const oend = ostart + dstCapacity;
     BYTE* op = ostart;
-    size_t remainingSize = *srcSizePtr;
+    size_t remainingSrcSize = *srcSizePtr;
+
+    DEBUGLOG(4, "ZSTD_decompressFrame (srcSize:%i)", (int)*srcSizePtr);
 
     /* check */
-    if (remainingSize < ZSTD_frameHeaderSize_min+ZSTD_blockHeaderSize)
+    if (remainingSrcSize < ZSTD_frameHeaderSize_min+ZSTD_blockHeaderSize)
         return ERROR(srcSize_wrong);
 
     /* Frame Header */
     {   size_t const frameHeaderSize = ZSTD_frameHeaderSize(ip, ZSTD_frameHeaderSize_prefix);
         if (ZSTD_isError(frameHeaderSize)) return frameHeaderSize;
-        if (remainingSize < frameHeaderSize+ZSTD_blockHeaderSize)
+        if (remainingSrcSize < frameHeaderSize+ZSTD_blockHeaderSize)
             return ERROR(srcSize_wrong);
         CHECK_F( ZSTD_decodeFrameHeader(dctx, ip, frameHeaderSize) );
-        ip += frameHeaderSize; remainingSize -= frameHeaderSize;
+        ip += frameHeaderSize; remainingSrcSize -= frameHeaderSize;
     }
 
     /* Loop on each block */
     while (1) {
         size_t decodedSize;
         blockProperties_t blockProperties;
-        size_t const cBlockSize = ZSTD_getcBlockSize(ip, remainingSize, &blockProperties);
+        size_t const cBlockSize = ZSTD_getcBlockSize(ip, remainingSrcSize, &blockProperties);
         if (ZSTD_isError(cBlockSize)) return cBlockSize;
 
         ip += ZSTD_blockHeaderSize;
-        remainingSize -= ZSTD_blockHeaderSize;
-        if (cBlockSize > remainingSize) return ERROR(srcSize_wrong);
+        remainingSrcSize -= ZSTD_blockHeaderSize;
+        if (cBlockSize > remainingSrcSize) return ERROR(srcSize_wrong);
 
         switch(blockProperties.blockType)
         {
@@ -580,7 +585,7 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
             XXH64_update(&dctx->xxhState, op, decodedSize);
         op += decodedSize;
         ip += cBlockSize;
-        remainingSize -= cBlockSize;
+        remainingSrcSize -= cBlockSize;
         if (blockProperties.lastBlock) break;
     }
 
@@ -591,16 +596,16 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
     if (dctx->fParams.checksumFlag) { /* Frame content checksum verification */
         U32 const checkCalc = (U32)XXH64_digest(&dctx->xxhState);
         U32 checkRead;
-        if (remainingSize<4) return ERROR(checksum_wrong);
+        if (remainingSrcSize<4) return ERROR(checksum_wrong);
         checkRead = MEM_readLE32(ip);
         if (checkRead != checkCalc) return ERROR(checksum_wrong);
         ip += 4;
-        remainingSize -= 4;
+        remainingSrcSize -= 4;
     }
 
     /* Allow caller to get size read */
     *srcPtr = ip;
-    *srcSizePtr = remainingSize;
+    *srcSizePtr = remainingSrcSize;
     return op-ostart;
 }
 
@@ -632,7 +637,9 @@ static size_t ZSTD_decompressMultiFrame(ZSTD_DCtx* dctx,
             if (dctx->staticSize) return ERROR(memory_allocation);
 
             decodedSize = ZSTD_decompressLegacy(dst, dstCapacity, src, frameSize, dict, dictSize);
+            if (ZSTD_isError(decodedSize)) return decodedSize;
 
+            assert(decodedSize <=- dstCapacity);
             dst = (BYTE*)dst + decodedSize;
             dstCapacity -= decodedSize;
 
@@ -685,7 +692,7 @@ static size_t ZSTD_decompressMultiFrame(ZSTD_DCtx* dctx,
                 return ERROR(srcSize_wrong);
             }
             if (ZSTD_isError(res)) return res;
-            /* no need to bound check, ZSTD_decompressFrame already has */
+            assert(res <= dstCapacity);
             dst = (BYTE*)dst + res;
             dstCapacity -= res;
         }

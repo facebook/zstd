@@ -374,7 +374,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
 } ZSTD_parameters;
 </b></pre><BR>
 <pre><b>typedef enum {
-    ZSTD_dct_auto=0,      </b>/* dictionary is "full" when starting with ZSTD_MAGIC_DICTIONARY, otherwise it is "rawContent" */<b>
+    ZSTD_dct_auto = 0,    </b>/* dictionary is "full" when starting with ZSTD_MAGIC_DICTIONARY, otherwise it is "rawContent" */<b>
     ZSTD_dct_rawContent,  </b>/* ensures dictionary is always loaded as rawContent, even if it starts with ZSTD_MAGIC_DICTIONARY */<b>
     ZSTD_dct_fullDict     </b>/* refuses to load a dictionary if it does not respect Zstandard's specification */<b>
 } ZSTD_dictContentType_e;

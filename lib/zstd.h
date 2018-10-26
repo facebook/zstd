@@ -473,7 +473,7 @@ typedef struct {
 typedef struct ZSTD_CCtx_params_s ZSTD_CCtx_params;
 
 typedef enum {
-    ZSTD_dct_auto = 0,      /* dictionary is "full" when starting with ZSTD_MAGIC_DICTIONARY, otherwise it is "rawContent" */
+    ZSTD_dct_auto = 0,    /* dictionary is "full" when starting with ZSTD_MAGIC_DICTIONARY, otherwise it is "rawContent" */
     ZSTD_dct_rawContent,  /* ensures dictionary is always loaded as rawContent, even if it starts with ZSTD_MAGIC_DICTIONARY */
     ZSTD_dct_fullDict     /* refuses to load a dictionary if it does not respect Zstandard's specification */
 } ZSTD_dictContentType_e;

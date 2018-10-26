@@ -40,7 +40,7 @@ static void ZSTD_copy4(void* dst, const void* src) { memcpy(dst, src, 4); }
  ***************************************************************/
 
 /*! ZSTD_getcBlockSize() :
-*   Provides the size of compressed block from block header `src` */
+ *  Provides the size of compressed block from block header `src` */
 size_t ZSTD_getcBlockSize(const void* src, size_t srcSize,
                           blockProperties_t* bpPtr)
 {

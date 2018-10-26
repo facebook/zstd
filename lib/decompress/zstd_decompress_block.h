@@ -18,6 +18,7 @@
 #include <stddef.h>   /* size_t */
 #include "zstd.h"    /* DCtx, and some public functions */
 #include "zstd_internal.h"  /* blockProperties_t, and some public functions */
+#include "zstd_decompress_internal.h"  /* ZSTD_seqSymbol */
 
 
 /* ===   Prototypes   === */
@@ -44,7 +45,10 @@ size_t ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
 
 /* ZSTD_buildFSETable() :
  * generate FSE decoding table for one symbol (ll, ml or off)
- * this function cannot fail
+ * this function must be called with valid parameters only
+ * (dt is large enough, normalizedCounter distribution total is a power of 2, max is within range, etc.)
+ * in which case it cannot fail.
+ * Internal use only.
  */
 void ZSTD_buildFSETable(ZSTD_seqSymbol* dt,
              const short* normalizedCounter, unsigned maxSymbolValue,

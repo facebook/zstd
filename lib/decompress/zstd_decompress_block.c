@@ -323,7 +323,9 @@ static void ZSTD_buildSeqTable_rle(ZSTD_seqSymbol* dt, U32 baseValue, U32 nbAddB
 
 
 /* ZSTD_buildFSETable() :
- * generate FSE decoding table for one symbol (ll, ml or off) */
+ * generate FSE decoding table for one symbol (ll, ml or off)
+ * cannot fail if input is valid =>
+ * all inputs are presumed validated at this stage */
 void
 ZSTD_buildFSETable(ZSTD_seqSymbol* dt,
             const short* normalizedCounter, unsigned maxSymbolValue,

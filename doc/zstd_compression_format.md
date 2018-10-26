@@ -16,7 +16,7 @@ Distribution of this document is unlimited.
 
 ### Version
 
-0.3.0 (25/09/18)
+0.3.1 (25/10/18)
 
 
 Introduction
@@ -913,16 +913,38 @@ Note that blocks which are not `Compressed_Block` are skipped, they do not contr
 ###### Offset updates rules
 
 The newest offset takes the lead in offset history,
-shifting others back (up to its previous place if it was already present).
+shifting others back by one rank,
+up to the previous rank of the new offset _if it was present in history_.
 
-This means that when `Repeated_Offset1` (most recent) is used, history is unmodified.
-When `Repeated_Offset2` is used, it's swapped with `Repeated_Offset1`.
-If any other offset is used, it becomes `Repeated_Offset1` and the rest are shift back by one.
+__Examples__ :
 
-In the case of an `offset_value` of 3 and the literal length of the current
-sequence is zero the value `Repeated_Offset1 - 1_byte` is a new offset,
-becoming the lead of the offset history and the first two repeated offsets will
-be shifted back.
+In the common case, when new offset is not part of history :
+`Repeated_Offset3` = `Repeated_Offset2`
+`Repeated_Offset2` = `Repeated_Offset1`
+`Repeated_Offset1` = `NewOffset`
+
+When the new offset _is_ part of history, there may be specific adjustments.
+
+When `NewOffset` == `Repeated_Offset1`, offset history remains actually unmodified.
+
+When `NewOffset` == `Repeated_Offset2`,
+`Repeated_Offset1` and `Repeated_Offset2` ranks are swapped.
+`Repeated_Offset3` is unmodified.
+
+When `NewOffset` == `Repeated_Offset3`,
+there is actually no difference with the common case :
+all offsets are shifted by one rank,
+`NewOffset` (== `Repeated_Offset3`) becomes the new `Repeated_Offset1`.
+
+Also worth mentioning, the specific corner case when `offset_value` == 3,
+and the literal length of the current sequence is zero.
+In which case , `NewOffset` = `Repeated_Offset1` - 1_byte.
+Here also, from an offset history update perspective, it's just a common case :
+`Repeated_Offset3` = `Repeated_Offset2`
+`Repeated_Offset2` = `Repeated_Offset1`
+`Repeated_Offset1` = `NewOffset` ( == `Repeated_Offset1` - 1_byte )
+
+
 
 Skippable Frames
 ----------------
@@ -1633,6 +1655,7 @@ or at least provide a meaningful error code explaining for which reason it canno
 
 Version changes
 ---------------
+- 0.3.1 : minor clarification regarding offset history update rules
 - 0.3.0 : minor edits to match RFC8478
 - 0.2.9 : clarifications for huffman weights direct representation, by Ulrich Kunitz
 - 0.2.8 : clarifications for IETF RFC discuss

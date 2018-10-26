@@ -15,7 +15,7 @@ references:
         sudo apt-get -y install \
             gcc-multilib-powerpc-linux-gnu gcc-arm-linux-gnueabi \
             libc6-dev-armel-cross gcc-aarch64-linux-gnu libc6-dev-arm64-cross \
-            libc6-dev-ppc64-powerpc-cross
+            libc6-dev-ppc64-powerpc-cross zstd gzip coreutils
 
 jobs:
   # the first half of the jobs are in this test
@@ -60,15 +60,12 @@ jobs:
   # tagged release.
   publish-github-release:
     docker:
-      - image: cibuilds/github:0.12.0
+      - image: circleci/buildpack-deps:bionic
     environment:
       CIRCLE_ARTIFACTS: /tmp/circleci-artifacts
     steps:
       - checkout
-      - run:
-          name: Install dependencies
-          command: |
-            apk add -q gzip coreutils
+      - *install-dependencies
       - run:
           name: Publish
           command: |
@@ -76,10 +73,13 @@ jobs:
             export ZSTD_VERSION=zstd-$VERSION
             git archive $CIRCLE_TAG --prefix $ZSTD_VERSION/ --format tar \
                         -o $ZSTD_VERSION.tar
-            gzip -9 $ZSTD_VERSION.tar
-            sha256sum $ZSTD_VERSION.tar.gz > $ZSTD_VERSION.tar.gz.sha256sum
+            sha256sum $ZSTD_VERSION.tar > $ZSTD_VERSION.tar.sha256
+            zstd -19 $ZSTD_VERSION.tar
+            sha256sum $ZSTD_VERSION.tar.zst > $ZSTD_VERSION.tar.zst.sha256
+            gzip -k -9 $ZSTD_VERSION.tar
+            sha256sum $ZSTD_VERSION.tar.gz > $ZSTD_VERSION.tar.gz.sha256
             mkdir -p $CIRCLE_ARTIFACTS
-            cp $ZSTD_VERSION.tar.gz{,.sha256sum} $CIRCLE_ARTIFACTS
+            cp $ZSTD_VERSION.tar* $CIRCLE_ARTIFACTS
       - store_artifacts:
           path: /tmp/circleci-artifacts
 

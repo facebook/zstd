@@ -510,7 +510,7 @@ static size_t ZSTD_copyRawBlock(void* dst, size_t dstCapacity,
     DEBUGLOG(5, "ZSTD_copyRawBlock");
     if (dst == NULL) {
         if (srcSize == 0) return 0;
-        return ERROR(dstSize_tooSmall);
+        return ERROR(dstBuffer_null);
     }
     if (srcSize > dstCapacity) return ERROR(dstSize_tooSmall);
     memcpy(dst, src, srcSize);
@@ -521,6 +521,10 @@ static size_t ZSTD_setRleBlock(void* dst, size_t dstCapacity,
                                BYTE b,
                                size_t regenSize)
 {
+    if (dst == NULL) {
+        if (regenSize == 0) return 0;
+        return ERROR(dstBuffer_null);
+    }
     if (regenSize > dstCapacity) return ERROR(dstSize_tooSmall);
     memset(dst, b, regenSize);
     return regenSize;
@@ -777,7 +781,8 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
 {
     DEBUGLOG(5, "ZSTD_decompressContinue (srcSize:%u)", (U32)srcSize);
     /* Sanity check */
-    if (srcSize != dctx->expected) return ERROR(srcSize_wrong);  /* not allowed */
+    if (srcSize != dctx->expected)
+        return ERROR(srcSize_wrong);  /* not allowed */
     if (dstCapacity) ZSTD_checkContinuity(dctx, dst);
 
     switch (dctx->stage)
@@ -905,7 +910,8 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
         return 0;
 
     default:
-        return ERROR(GENERIC);   /* impossible */
+        assert(0);   /* impossible */
+        return ERROR(GENERIC);   /* some compiler require default to do something */
     }
 }
 
@@ -1530,7 +1536,9 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             someMoreWork = 0;
             break;
 
-        default: return ERROR(GENERIC);   /* impossible */
+        default:
+            assert(0);    /* impossible */
+            return ERROR(GENERIC);   /* some compiler require default to do something */
     }   }
 
     /* result */

@@ -175,6 +175,7 @@
     <ClCompile Include="..\..\..\lib\compress\zstdmt_compress.c" />
     <ClCompile Include="..\..\..\lib\decompress\huf_decompress.c" />
     <ClCompile Include="..\..\..\lib\decompress\zstd_decompress.c" />
+    <ClCompile Include="..\..\..\lib\decompress\zstd_decompress_block.c" />
     <ClCompile Include="..\..\..\lib\decompress\zstd_ddict.c" />
     <ClCompile Include="..\..\..\lib\dictBuilder\cover.c" />
     <ClCompile Include="..\..\..\lib\dictBuilder\fastcover.c" />

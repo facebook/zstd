@@ -245,13 +245,20 @@ typedef struct {
     blockType_e blockType;
     U32 lastBlock;
     U32 origSize;
-} blockProperties_t;
+} blockProperties_t;   /* declared here for decompress and fullbench */
 
 /*! ZSTD_getcBlockSize() :
  *  Provides the size of compressed block from block header `src` */
 /* Used by: decompress, fullbench (does not get its definition from here) */
 size_t ZSTD_getcBlockSize(const void* src, size_t srcSize,
                           blockProperties_t* bpPtr);
+
+/*! ZSTD_decodeSeqHeaders() :
+ *  decode sequence header from src */
+/* Used by: decompress, fullbench (does not get its definition from here) */
+size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
+                       const void* src, size_t srcSize);
+
 
 #if defined (__cplusplus)
 }

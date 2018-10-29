@@ -36,7 +36,6 @@ INSTALL(TARGETS zstd RUNTIME DESTINATION "bin")
 IF (UNIX)
     ADD_CUSTOM_TARGET(zstdcat ALL ${CMAKE_COMMAND} -E create_symlink zstd zstdcat DEPENDS zstd COMMENT "Creating zstdcat symlink")
     ADD_CUSTOM_TARGET(unzstd ALL ${CMAKE_COMMAND} -E create_symlink zstd unzstd DEPENDS zstd COMMENT "Creating unzstd symlink")
-    INSTALL(TARGETS zstd RUNTIME DESTINATION "bin")
     INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/zstdcat DESTINATION "bin")
     INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/unzstd DESTINATION "bin")
 

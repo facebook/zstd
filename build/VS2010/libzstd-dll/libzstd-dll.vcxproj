@@ -39,6 +39,7 @@
     <ClCompile Include="..\..\..\lib\compress\zstdmt_compress.c" />
     <ClCompile Include="..\..\..\lib\decompress\huf_decompress.c" />
     <ClCompile Include="..\..\..\lib\decompress\zstd_decompress.c" />
+    <ClCompile Include="..\..\..\lib\decompress\zstd_decompress_block.c" />
     <ClCompile Include="..\..\..\lib\decompress\zstd_ddict.c" />
     <ClCompile Include="..\..\..\lib\deprecated\zbuff_common.c" />
     <ClCompile Include="..\..\..\lib\deprecated\zbuff_compress.c" />

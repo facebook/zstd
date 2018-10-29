@@ -19,7 +19,7 @@
 
 #include "mem.h"         /* U32 */
 #ifndef ZSTD_DLL_IMPORT
-    #include "zstd_internal.h"   /* ZSTD_blockHeaderSize, blockType_e, KB, MB */
+    #include "zstd_internal.h"   /* ZSTD_decodeSeqHeaders, ZSTD_blockHeaderSize, blockType_e, KB, MB */
 #else
     #define KB *(1 <<10)
     #define MB *(1 <<20)
@@ -133,7 +133,6 @@ static size_t local_ZSTD_decodeLiteralsBlock(const void* src, size_t srcSize, vo
     return ZSTD_decodeLiteralsBlock((ZSTD_DCtx*)g_zdc, buff2, g_cSize);
 }
 
-extern size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeq, const void* src, size_t srcSize);
 static size_t local_ZSTD_decodeSeqHeaders(const void* src, size_t srcSize, void* dst, size_t dstSize, void* buff2)
 {
     int nbSeq;

@@ -437,7 +437,7 @@ static size_t writeHufHeader(U32* seed, HUF_CElt* hufTable, void* dst, size_t ds
     U32 count[HUF_SYMBOLVALUE_MAX+1];
 
     /* Scan input and build symbol stats */
-    {   size_t const largest = HIST_count_wksp (count, &maxSymbolValue, (const BYTE*)src, srcSize, WKSP);
+    {   size_t const largest = HIST_count_wksp (count, &maxSymbolValue, (const BYTE*)src, srcSize, WKSP, sizeof(WKSP));
         assert(!HIST_isError(largest));
         if (largest == srcSize) { *ostart = ((const BYTE*)src)[0]; return 0; }   /* single symbol, rle */
         if (largest <= (srcSize >> 7)+1) return 0;   /* Fast heuristic : not compressible enough */
@@ -836,7 +836,7 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
 
     /* CTable for Literal Lengths */
     {   U32 max = MaxLL;
-        size_t const mostFrequent = HIST_countFast_wksp(count, &max, llCodeTable, nbSeq, WKSP);   /* cannot fail */
+        size_t const mostFrequent = HIST_countFast_wksp(count, &max, llCodeTable, nbSeq, WKSP, sizeof(WKSP));   /* cannot fail */
         assert(!HIST_isError(mostFrequent));
         if (mostFrequent == nbSeq) {
             /* do RLE if we have the chance */
@@ -868,7 +868,7 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
     /* CTable for Offsets */
     /* see Literal Lengths for descriptions of mode choices */
     {   U32 max = MaxOff;
-        size_t const mostFrequent = HIST_countFast_wksp(count, &max, ofCodeTable, nbSeq, WKSP);   /* cannot fail */
+        size_t const mostFrequent = HIST_countFast_wksp(count, &max, ofCodeTable, nbSeq, WKSP, sizeof(WKSP));   /* cannot fail */
         assert(!HIST_isError(mostFrequent));
         if (mostFrequent == nbSeq) {
             *op++ = ofCodeTable[0];
@@ -896,7 +896,7 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
     /* CTable for MatchLengths */
     /* see Literal Lengths for descriptions of mode choices */
     {   U32 max = MaxML;
-        size_t const mostFrequent = HIST_countFast_wksp(count, &max, mlCodeTable, nbSeq, WKSP);   /* cannot fail */
+        size_t const mostFrequent = HIST_countFast_wksp(count, &max, mlCodeTable, nbSeq, WKSP, sizeof(WKSP));   /* cannot fail */
         assert(!HIST_isError(mostFrequent));
         if (mostFrequent == nbSeq) {
             *op++ = *mlCodeTable;

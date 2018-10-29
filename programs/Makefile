@@ -203,8 +203,9 @@ zstd-noxz : LZMA_MSG := - xz/lzma support is disabled
 zstd-noxz : zstd
 
 
-zstd-pgo : MOREFLAGS = -fprofile-generate
-zstd-pgo : clean zstd
+zstd-pgo :
+	$(MAKE) clean
+	$(MAKE) zstd MOREFLAGS=-fprofile-generate
 	./zstd -b19i1 $(PROFILE_WITH)
 	./zstd -b16i1 $(PROFILE_WITH)
 	./zstd -b9i2 $(PROFILE_WITH)

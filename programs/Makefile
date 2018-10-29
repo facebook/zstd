@@ -212,8 +212,7 @@ zstd-pgo :
 	./zstd -b $(PROFILE_WITH)
 	./zstd -b7i2 $(PROFILE_WITH)
 	./zstd -b5 $(PROFILE_WITH)
-	$(RM) zstd
-	$(RM) $(ZSTDDECOMP_O)
+	$(RM) zstd *.o $(ZSTDDECOMP_O) $(ZSTDDIR)/compress/*.o
 	$(MAKE) zstd MOREFLAGS=-fprofile-use
 
 # minimal target, with only zstd compression and decompression. no bench. no legacy.

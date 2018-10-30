@@ -495,8 +495,11 @@ FORCE_INLINE_TEMPLATE
 U32 ZSTD_insertBtAndGetAllMatches (
                     ZSTD_matchState_t* ms,
                     const BYTE* const ip, const BYTE* const iLimit, const ZSTD_dictMode_e dictMode,
-                    U32 rep[ZSTD_REP_NUM], U32 const ll0,
-                    ZSTD_match_t* matches, const U32 lengthToBeat, U32 const mls /* template */)
+                    U32 rep[ZSTD_REP_NUM],
+                    U32 const ll0,   /* tells if associated literal length is 0 or not. This value must be 0 or 1 */
+                    ZSTD_match_t* matches,
+                    const U32 lengthToBeat,
+                    U32 const mls /* template */)
 {
     const ZSTD_compressionParameters* const cParams = &ms->cParams;
     U32 const sufficient_len = MIN(cParams->targetLength, ZSTD_OPT_NUM -1);
@@ -542,6 +545,7 @@ U32 ZSTD_insertBtAndGetAllMatches (
     DEBUGLOG(8, "ZSTD_insertBtAndGetAllMatches: current=%u", current);
 
     /* check repCode */
+    assert(ll0 <= 1);   /* necessarily 1 or 0 */
     {   U32 const lastR = ZSTD_REP_NUM + ll0;
         U32 repCode;
         for (repCode = ll0; repCode < lastR; repCode++) {

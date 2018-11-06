@@ -2008,11 +2008,13 @@ ZSTD_buildCTable(void* dst, size_t dstCapacity,
 {
     BYTE* op = (BYTE*)dst;
     const BYTE* const oend = op + dstCapacity;
+    DEBUGLOG(6, "ZSTD_buildCTable (dstCapacity=%u)", (unsigned)dstCapacity);
 
     switch (type) {
     case set_rle:
-        *op = codeTable[0];
         CHECK_F(FSE_buildCTable_rle(nextCTable, (BYTE)max));
+        if (dstCapacity==0) return ERROR(dstSize_tooSmall);
+        *op = codeTable[0];
         return 1;
     case set_repeat:
         memcpy(nextCTable, prevCTable, prevCTableSize);
@@ -2054,6 +2056,9 @@ ZSTD_encodeSequences_body(
     FSE_CState_t  stateLitLength;
 
     CHECK_E(BIT_initCStream(&blockStream, dst, dstCapacity), dstSize_tooSmall); /* not enough space remaining */
+    DEBUGLOG(6, "available space for bitstream : %i  (dstCapacity=%u)",
+                (int)(blockStream.endPtr - blockStream.startPtr),
+                (unsigned)dstCapacity);
 
     /* first symbols */
     FSE_initCState2(&stateMatchLength, CTable_MatchLength, mlCodeTable[nbSeq-1]);
@@ -2113,6 +2118,7 @@ ZSTD_encodeSequences_body(
                 BIT_addBits(&blockStream, sequences[n].offset, ofBits);     /* 31 */
             }
             BIT_flushBits(&blockStream);                                    /* (7)*/
+            DEBUGLOG(7, "remaining space : %i", (int)(blockStream.endPtr - blockStream.ptr));
     }   }
 
     DEBUGLOG(6, "ZSTD_encodeSequences: flushing ML state with %u bits", stateMatchLength.stateLog);
@@ -2170,6 +2176,7 @@ static size_t ZSTD_encodeSequences(
             FSE_CTable const* CTable_LitLength, BYTE const* llCodeTable,
             seqDef const* sequences, size_t nbSeq, int longOffsets, int bmi2)
 {
+    DEBUGLOG(5, "ZSTD_encodeSequences: dstCapacity = %u", (unsigned)dstCapacity);
 #if DYNAMIC_BMI2
     if (bmi2) {
         return ZSTD_encodeSequences_bmi2(dst, dstCapacity,
@@ -2290,7 +2297,7 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
     /* build CTable for MatchLengths */
     {   U32 max = MaxML;
         size_t const mostFrequent = HIST_countFast_wksp(count, &max, mlCodeTable, nbSeq, workspace, wkspSize);   /* can't fail */
-        DEBUGLOG(5, "Building ML table");
+        DEBUGLOG(5, "Building ML table (remaining space : %i)", (int)(oend-op));
         nextEntropy->fse.matchlength_repeatMode = prevEntropy->fse.matchlength_repeatMode;
         MLtype = ZSTD_selectEncodingType(&nextEntropy->fse.matchlength_repeatMode, count, max, mostFrequent, nbSeq, MLFSELog, prevEntropy->fse.matchlengthCTable, ML_defaultNorm, ML_defaultNormLog, ZSTD_defaultAllowed, strategy);
         assert(!(MLtype < set_compressed && nextEntropy->fse.matchlength_repeatMode != FSE_repeat_none)); /* We don't copy tables */

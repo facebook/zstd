@@ -7,12 +7,15 @@
 # in the COPYING file in the root directory of this source tree).
 # ################################################################
 
-PROJECT(zstd)
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.9)
+
+PROJECT(zstd)
 SET(ZSTD_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../..")
 
-# Ensure Release build even if not invoked via Makefile
-SET(CMAKE_BUILD_TYPE "Release")
+if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  message(STATUS "No build type selected, defaulting to Release")
+  set(CMAKE_BUILD_TYPE "Release")
+endif()
 
 LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules")
 INCLUDE(GNUInstallDirs)

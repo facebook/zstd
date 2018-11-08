@@ -1026,17 +1026,18 @@ ZSTD_decompressSequencesLong_body(
     /* Regen sequences */
     if (nbSeq) {
 #define STORED_SEQS 4
-#define STOSEQ_MASK (STORED_SEQS-1)
+#define STORED_SEQS_MASK (STORED_SEQS-1)
 #define ADVANCED_SEQS 4
         seq_t sequences[STORED_SEQS];
         int const seqAdvance = MIN(nbSeq, ADVANCED_SEQS);
         seqState_t seqState;
         int seqNb;
         dctx->fseEntropy = 1;
-        { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) seqState.prevOffset[i] = dctx->entropy.rep[i]; }
+        { int i; for (i=0; i<ZSTD_REP_NUM; i++) seqState.prevOffset[i] = dctx->entropy.rep[i]; }
         seqState.prefixStart = prefixStart;
         seqState.pos = (size_t)(op-prefixStart);
         seqState.dictEnd = dictEnd;
+        assert(iend > ip);
         CHECK_E(BIT_initDStream(&seqState.DStream, ip, iend-ip), corruption_detected);
         ZSTD_initFseState(&seqState.stateLL, &seqState.DStream, dctx->LLTptr);
         ZSTD_initFseState(&seqState.stateOffb, &seqState.DStream, dctx->OFTptr);
@@ -1051,10 +1052,10 @@ ZSTD_decompressSequencesLong_body(
         /* decode and decompress */
         for ( ; (BIT_reloadDStream(&(seqState.DStream)) <= BIT_DStream_completed) && (seqNb<nbSeq) ; seqNb++) {
             seq_t const sequence = ZSTD_decodeSequenceLong(&seqState, isLongOffset);
-            size_t const oneSeqSize = ZSTD_execSequenceLong(op, oend, sequences[(seqNb-ADVANCED_SEQS) & STOSEQ_MASK], &litPtr, litEnd, prefixStart, dictStart, dictEnd);
+            size_t const oneSeqSize = ZSTD_execSequenceLong(op, oend, sequences[(seqNb-ADVANCED_SEQS) & STORED_SEQS_MASK], &litPtr, litEnd, prefixStart, dictStart, dictEnd);
             if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
             PREFETCH(sequence.match);  /* note : it's safe to invoke PREFETCH() on any memory address, including invalid ones */
-            sequences[seqNb&STOSEQ_MASK] = sequence;
+            sequences[seqNb & STORED_SEQS_MASK] = sequence;
             op += oneSeqSize;
         }
         if (seqNb<nbSeq) return ERROR(corruption_detected);
@@ -1062,7 +1063,7 @@ ZSTD_decompressSequencesLong_body(
         /* finish queue */
         seqNb -= seqAdvance;
         for ( ; seqNb<nbSeq ; seqNb++) {
-            size_t const oneSeqSize = ZSTD_execSequenceLong(op, oend, sequences[seqNb&STOSEQ_MASK], &litPtr, litEnd, prefixStart, dictStart, dictEnd);
+            size_t const oneSeqSize = ZSTD_execSequenceLong(op, oend, sequences[seqNb&STORED_SEQS_MASK], &litPtr, litEnd, prefixStart, dictStart, dictEnd);
             if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
             op += oneSeqSize;
         }
@@ -1070,7 +1071,7 @@ ZSTD_decompressSequencesLong_body(
         /* save reps for next block */
         { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) dctx->entropy.rep[i] = (U32)(seqState.prevOffset[i]); }
 #undef STORED_SEQS
-#undef STOSEQ_MASK
+#undef STORED_SEQS_MASK
 #undef ADVANCED_SEQS
     }
 
@@ -1118,9 +1119,10 @@ ZSTD_decompressSequencesLong_bmi2(ZSTD_DCtx* dctx,
 #endif
 
 typedef size_t (*ZSTD_decompressSequences_t)(
-    ZSTD_DCtx *dctx, void *dst, size_t maxDstSize,
-    const void *seqStart, size_t seqSize, int nbSeq,
-    const ZSTD_longOffset_e isLongOffset);
+                            ZSTD_DCtx* dctx,
+                            void* dst, size_t maxDstSize,
+                            const void* seqStart, size_t seqSize, int nbSeq,
+                            const ZSTD_longOffset_e isLongOffset);
 
 static size_t
 ZSTD_decompressSequences(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize,
@@ -1136,10 +1138,17 @@ ZSTD_decompressSequences(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize,
   return ZSTD_decompressSequences_default(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
 }
 
-static size_t ZSTD_decompressSequencesLong(ZSTD_DCtx* dctx,
-                                void* dst, size_t maxDstSize,
-                                const void* seqStart, size_t seqSize, int nbSeq,
-                                const ZSTD_longOffset_e isLongOffset)
+
+/* ZSTD_decompressSequencesLong() :
+ * decompression function triggered when a minimum share of offsets is considered "long",
+ * aka out of cache.
+ * note : "long" definition seems overloaded here, sometimes meaning "wider than bitstream register", and sometimes mearning "farther than memory cache distance".
+ * This function will try to mitigate main memory latency through the use of prefetching */
+static size_t
+ZSTD_decompressSequencesLong(ZSTD_DCtx* dctx,
+                             void* dst, size_t maxDstSize,
+                             const void* seqStart, size_t seqSize, int nbSeq,
+                             const ZSTD_longOffset_e isLongOffset)
 {
     DEBUGLOG(5, "ZSTD_decompressSequencesLong");
 #if DYNAMIC_BMI2
@@ -1149,6 +1158,8 @@ static size_t ZSTD_decompressSequencesLong(ZSTD_DCtx* dctx,
 #endif
   return ZSTD_decompressSequencesLong_default(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
 }
+
+
 
 /* ZSTD_getLongOffsetsShare() :
  * condition : offTable must be valid
@@ -1188,7 +1199,7 @@ ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
      * In block mode, window size is not known, so we have to be conservative.
      * (note: but it could be evaluated from current-lowLimit)
      */
-    ZSTD_longOffset_e const isLongOffset = (ZSTD_longOffset_e)(MEM_32bits() && (!frame || dctx->fParams.windowSize > (1ULL << STREAM_ACCUMULATOR_MIN)));
+    ZSTD_longOffset_e const isLongOffset = (ZSTD_longOffset_e)(MEM_32bits() && (!frame || (dctx->fParams.windowSize > (1ULL << STREAM_ACCUMULATOR_MIN))));
     DEBUGLOG(5, "ZSTD_decompressBlock_internal (size : %u)", (U32)srcSize);
 
     if (srcSize >= ZSTD_BLOCKSIZE_MAX) return ERROR(srcSize_wrong);
@@ -1208,7 +1219,7 @@ ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
         ip += seqHSize;
         srcSize -= seqHSize;
 
-        if ( (!frame || dctx->fParams.windowSize > (1<<24))
+        if ( (!frame || (dctx->fParams.windowSize > (1<<24)))
           && (nbSeq>0) ) {  /* could probably use a larger nbSeq limit */
             U32 const shareLongOffsets = ZSTD_getLongOffsetsShare(dctx->OFTptr);
             U32 const minShare = MEM_64bits() ? 7 : 20; /* heuristic values, correspond to 2.73% and 7.81% */

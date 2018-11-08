@@ -522,22 +522,24 @@ static BMK_benchOutcome_t BMK_benchOutcome_setValidResult(BMK_benchResult_t resu
 
 
 /* benchMem with no allocation */
-static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
-            const void** srcPtrs, size_t* srcSizes,
-            void** cPtrs, size_t* cCapacities, size_t* cSizes,
-            void** resPtrs, size_t* resSizes,
-            void** resultBufferPtr, void* compressedBuffer,
-            size_t maxCompressedSize,
-            BMK_timedFnState_t* timeStateCompress,
-            BMK_timedFnState_t* timeStateDecompress,
+static BMK_benchOutcome_t
+BMK_benchMemAdvancedNoAlloc(
+                    const void** srcPtrs, size_t* srcSizes,
+                    void** cPtrs, size_t* cCapacities, size_t* cSizes,
+                    void** resPtrs, size_t* resSizes,
+                    void** resultBufferPtr, void* compressedBuffer,
+                    size_t maxCompressedSize,
+                    BMK_timedFnState_t* timeStateCompress,
+                    BMK_timedFnState_t* timeStateDecompress,
 
-            const void* srcBuffer, size_t srcSize,
-            const size_t* fileSizes, unsigned nbFiles,
-            const int cLevel, const ZSTD_compressionParameters* comprParams,
-            const void* dictBuffer, size_t dictBufferSize,
-            ZSTD_CCtx* cctx, ZSTD_DCtx* dctx,
-            int displayLevel, const char* displayName,
-            const BMK_advancedParams_t* adv)
+                    const void* srcBuffer, size_t srcSize,
+                    const size_t* fileSizes, unsigned nbFiles,
+                    const int cLevel,
+                    const ZSTD_compressionParameters* comprParams,
+                    const void* dictBuffer, size_t dictBufferSize,
+                    ZSTD_CCtx* cctx, ZSTD_DCtx* dctx,
+                    int displayLevel, const char* displayName,
+                    const BMK_advancedParams_t* adv)
 {
     size_t const blockSize = ((adv->blockSize>=32 && (adv->mode != BMK_decodeOnly)) ? adv->blockSize : srcSize) + (!srcSize);  /* avoid div by 0 */
     BMK_benchResult_t benchResult;
@@ -599,6 +601,7 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
                 cPtr += cCapacities[nbBlocks];
                 resPtr += thisBlockSize;
                 remaining -= thisBlockSize;
+                if (BMK_decodeOnly) { assert(nbBlocks==0); cSizes[nbBlocks] = thisBlockSize; }
             }
         }
     }
@@ -633,7 +636,6 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
         DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->\r", marks[markNb], displayName, (U32)srcSize);
 
         while (!(compressionCompleted && decompressionCompleted)) {
-
             if (!compressionCompleted) {
                 BMK_runOutcome_t const cOutcome =
                         BMK_benchTimedFn( timeStateCompress,
@@ -659,7 +661,6 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
                 }   }
 
                 {   int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
-                    markNb = (markNb+1) % NB_MARKS;
                     DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.*f),%6.*f MB/s\r",
                             marks[markNb], displayName,
                             (U32)srcSize, (U32)cSize,
@@ -690,7 +691,6 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
                 }
 
                 {   int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
-                    markNb = (markNb+1) % NB_MARKS;
                     DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.*f),%6.*f MB/s ,%6.1f MB/s \r",
                             marks[markNb], displayName,
                             (U32)srcSize, (U32)benchResult.cSize,
@@ -700,6 +700,7 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
                 }
                 decompressionCompleted = BMK_isCompleted_TimedFn(timeStateDecompress);
             }
+            markNb = (markNb+1) % NB_MARKS;
         }   /* while (!(compressionCompleted && decompressionCompleted)) */
 
         /* CRC Checking */
@@ -707,7 +708,8 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
             U64 const crcCheck = XXH64(resultBuffer, srcSize, 0);
             if ((adv->mode == BMK_both) && (crcOrig!=crcCheck)) {
                 size_t u;
-                DISPLAY("!!! WARNING !!! %14s : Invalid Checksum : %x != %x   \n", displayName, (unsigned)crcOrig, (unsigned)crcCheck);
+                DISPLAY("!!! WARNING !!! %14s : Invalid Checksum : %x != %x   \n",
+                        displayName, (unsigned)crcOrig, (unsigned)crcCheck);
                 for (u=0; u<srcSize; u++) {
                     if (((const BYTE*)srcBuffer)[u] != resultBuffer[u]) {
                         U32 segNb, bNb, pos;

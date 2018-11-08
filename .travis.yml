@@ -28,7 +28,7 @@ matrix:
     - env: Cmd='make gcc6install libc6install
              && make clean && CC=gcc-6 CFLAGS=-m32 make uasan-fuzztest'
     - env: Cmd='make clang38install && CC=clang-3.8 make clean msan-fuzztest'
-    - env: Cmd='make clang38install && CC=clang-3.8 make clean tsan-test-zstream'
+    - env: Cmd='make clang38install && CC=clang-3.8 make clean tsan-fuzztest'
 
     - env: Cmd='make -j uasanregressiontest
              && make clean && make -j msanregressiontest'

@@ -897,6 +897,34 @@ static int basicUnitTests(U32 seed, double compressibility)
         if (ZDICT_isError(dictSize)) goto _output_error;
         DISPLAYLEVEL(3, "OK, created dictionary of size %u \n", (U32)dictSize);
 
+        DISPLAYLEVEL(3, "test%3i : Multithreaded COVER dictBuilder : ", testNb++);
+        { U32 u; for (u=0; u<nbSamples; u++) samplesSizes[u] = sampleUnitSize; }
+        {   ZDICT_cover_params_t coverParams;
+            memset(&coverParams, 0, sizeof(coverParams));
+            coverParams.steps = 8;
+            coverParams.nbThreads = 4;
+            dictSize = ZDICT_optimizeTrainFromBuffer_cover(
+                dictBuffer, dictBufferCapacity,
+                CNBuffer, samplesSizes, nbSamples,
+                &coverParams);
+            if (ZDICT_isError(dictSize)) goto _output_error;
+        }
+        DISPLAYLEVEL(3, "OK, created dictionary of size %u \n", (U32)dictSize);
+
+        DISPLAYLEVEL(3, "test%3i : Multithreaded FASTCOVER dictBuilder : ", testNb++);
+        { U32 u; for (u=0; u<nbSamples; u++) samplesSizes[u] = sampleUnitSize; }
+        {   ZDICT_fastCover_params_t fastCoverParams;
+            memset(&fastCoverParams, 0, sizeof(fastCoverParams));
+            fastCoverParams.steps = 8;
+            fastCoverParams.nbThreads = 4;
+            dictSize = ZDICT_optimizeTrainFromBuffer_fastCover(
+                dictBuffer, dictBufferCapacity,
+                CNBuffer, samplesSizes, nbSamples,
+                &fastCoverParams);
+            if (ZDICT_isError(dictSize)) goto _output_error;
+        }
+        DISPLAYLEVEL(3, "OK, created dictionary of size %u \n", (U32)dictSize);
+
         DISPLAYLEVEL(3, "test%3i : check dictID : ", testNb++);
         dictID = ZDICT_getDictID(dictBuffer, dictSize);
         if (dictID==0) goto _output_error;

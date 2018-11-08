@@ -88,8 +88,8 @@ static void* POOL_thread(void* opaque) {
             ctx->numThreadsBusy++;
             ctx->queueEmpty = ctx->queueHead == ctx->queueTail;
             /* Unlock the mutex, signal a pusher, and run the job */
-            ZSTD_pthread_mutex_unlock(&ctx->queueMutex);
             ZSTD_pthread_cond_signal(&ctx->queuePushCond);
+            ZSTD_pthread_mutex_unlock(&ctx->queueMutex);
 
             job.function(job.opaque);
 

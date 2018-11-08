@@ -868,6 +868,8 @@ void COVER_best_finish(COVER_best_t *best, size_t compressedSize,
         if (!best->dict) {
           best->compressedSize = ERROR(GENERIC);
           best->dictSize = 0;
+          ZSTD_pthread_cond_signal(&best->cond);
+          ZSTD_pthread_mutex_unlock(&best->mutex);
           return;
         }
       }

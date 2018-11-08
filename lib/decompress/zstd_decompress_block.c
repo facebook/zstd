@@ -1037,7 +1037,7 @@ ZSTD_decompressSequencesLong_body(
         seqState.prefixStart = prefixStart;
         seqState.pos = (size_t)(op-prefixStart);
         seqState.dictEnd = dictEnd;
-        assert(iend > ip);
+        assert(iend >= ip);
         CHECK_E(BIT_initDStream(&seqState.DStream, ip, iend-ip), corruption_detected);
         ZSTD_initFseState(&seqState.stateLL, &seqState.DStream, dctx->LLTptr);
         ZSTD_initFseState(&seqState.stateOffb, &seqState.DStream, dctx->OFTptr);

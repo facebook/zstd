@@ -541,6 +541,9 @@ $ECHO "bench negative level"
 $ZSTD -bi0 --fast tmp1
 $ECHO "with recursive and quiet modes"
 $ZSTD -rqi1b1e2 tmp1
+$ECHO "benchmark decompression only"
+$ZSTD -f tmp1
+$ZSTD -b -d -i1 tmp1.zst
 
 $ECHO "\n===>  zstd compatibility tests "
 

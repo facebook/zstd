@@ -49,6 +49,7 @@
 
 
 /*---  Macros  ---*/
+
 #define CONTROL(c)   { if (!(c)) abort(); }
 #undef MIN
 #define MIN(a,b)     ((a) < (b) ? (a) : (b))
@@ -594,6 +595,7 @@ int bench(const char** fileNameTable, unsigned nbFiles,
     if (blockSize)
         DISPLAYLEVEL(3, "of max size %u bytes ", (unsigned)blockSize);
     DISPLAYLEVEL(3, "\n");
+    size_t const totalSrcSlicesSize = sliceCollection_totalCapacity(srcSlices);
 
 
     size_t* const dstCapacities = malloc(nbBlocks * sizeof(*dstCapacities));
@@ -625,8 +627,8 @@ int bench(const char** fileNameTable, unsigned nbFiles,
 
     /* dictionary determination */
     buffer_t const dictBuffer = createDictionaryBuffer(dictionary,
-                                srcBuffer.ptr,
-                                srcSlices.capacities, nbBlocks,
+                                srcs.buffer.ptr,
+                                srcs.slices.capacities, srcs.slices.nbSlices,
                                 DICTSIZE);
     CONTROL(dictBuffer.ptr != NULL);
 
@@ -637,7 +639,7 @@ int bench(const char** fileNameTable, unsigned nbFiles,
     CONTROL(cTotalSizeNoDict != 0);
     DISPLAYLEVEL(3, "compressing at level %u without dictionary : Ratio=%.2f  (%u bytes) \n",
                     clevel,
-                    (double)srcSize / cTotalSizeNoDict, (unsigned)cTotalSizeNoDict);
+                    (double)totalSrcSlicesSize / cTotalSizeNoDict, (unsigned)cTotalSizeNoDict);
 
     size_t* const cSizes = malloc(nbBlocks * sizeof(size_t));
     CONTROL(cSizes != NULL);
@@ -646,7 +648,7 @@ int bench(const char** fileNameTable, unsigned nbFiles,
     CONTROL(cTotalSize != 0);
     DISPLAYLEVEL(3, "compressed using a %u bytes dictionary : Ratio=%.2f  (%u bytes) \n",
                     (unsigned)dictBuffer.size,
-                    (double)srcSize / cTotalSize, (unsigned)cTotalSize);
+                    (double)totalSrcSlicesSize / cTotalSize, (unsigned)cTotalSize);
 
     /* now dstSlices contain the real compressed size of each block, instead of the maximum capacity */
     shrinkSizes(dstSlices, cSizes);

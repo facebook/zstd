@@ -33,7 +33,7 @@ largeNbDicts: util.o bench.o datagen.o xxhash.o largeNbDicts.c $(LIBZSTD)
 
 .PHONY: $(LIBZSTD)
 $(LIBZSTD):
-	$(MAKE) -C $(LIBDIR) libzstd.a
+	$(MAKE) -C $(LIBDIR) libzstd.a CFLAGS="$(CFLAGS)"
 
 bench.o  : $(PROGDIR)/bench.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -c
@@ -50,4 +50,5 @@ xxhash.o : $(LIBDIR)/common/xxhash.c
 
 clean:
 	$(RM) *.o
+	$(MAKE) -C $(LIBDIR) clean > /dev/null
 	$(RM) largeNbDicts

@@ -412,11 +412,14 @@ size_t ZSTD_CCtxParam_setParameter(
         CCtxParams->forceWindow = (value > 0);
         return CCtxParams->forceWindow;
 
-    case ZSTD_p_forceAttachDict :
-        CCtxParams->attachDictPref = value ?
-                                    (value > 0 ? ZSTD_dictForceAttach : ZSTD_dictForceCopy) :
+    case ZSTD_p_forceAttachDict : {
+        int signed_val = (int)value;
+        CCtxParams->attachDictPref = signed_val ?
+                                    (signed_val > 0 ? ZSTD_dictForceAttach :
+                                                      ZSTD_dictForceCopy) :
                                      ZSTD_dictDefaultAttach;
         return CCtxParams->attachDictPref;
+    }
 
     case ZSTD_p_nbWorkers :
 #ifndef ZSTD_MULTITHREAD

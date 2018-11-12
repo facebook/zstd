@@ -997,6 +997,38 @@ typedef enum {
 } ZSTD_format_e;
 
 typedef enum {
+    /* Note: this enum and the behavior it controls are effectively internal
+     * implementation details of the compressor. They are expected to continue
+     * to evolve and should be considered only in the context of extremely
+     * advanced performance tuning.
+     *
+     * Zstd currently supports the use of a CDict in two ways:
+     *
+     * - The contents of the CDict can be copied into the working context. This
+     *   means that the compression can search both the dictionary and input
+     *   while operating on a single set of internal tables. This makes
+     *   the compression faster per-byte of input. However, the initial copy of
+     *   the CDict's tables incurs a fixed cost at the beginning of the
+     *   compression. For small compressions (< 8 KB), that copy can dominate
+     *   the cost of the compression.
+     *
+     * - The CDict's tables can be used in-place. In this model, compression is
+     *   slower per input byte, because the compressor has to search two sets of
+     *   tables. However, this model incurs no start-up cost (as long as the
+     *   working context's tables can be reused). For small inputs, this can be
+     *   faster than copying the CDict's tables.
+     *
+     * Zstd has a simple internal heuristic that selects which strategy to use
+     * at the beginning of a compression. However, if experimentation shows that
+     * Zstd is making poor choices, it is possible to override that choice with
+     * this enum.
+     */
+    ZSTD_dictDefaultAttach = 0, /* Use the default heuristic. */
+    ZSTD_dictForceAttach   = 1, /* Never copy the dictionary. */
+    ZSTD_dictForceCopy     = 2, /* Always copy the dictionary. */
+} ZSTD_dictAttachPref_e;
+
+typedef enum {
     /* compression format */
     ZSTD_p_format = 10,      /* See ZSTD_format_e enum definition.
                               * Cast selected format as unsigned for ZSTD_CCtx_setParameter() compatibility. */
@@ -1109,29 +1141,14 @@ typedef enum {
 
     ZSTD_p_forceMaxWindow=1100, /* Force back-reference distances to remain < windowSize,
                               * even when referencing into Dictionary content (default:0) */
-    ZSTD_p_forceAttachDict,  /* ZSTD supports usage of a CDict in-place
-                              * (avoiding having to copy the compression tables
-                              * from the CDict into the working context). Using
-                              * a CDict in this way saves an initial setup step,
-                              * but comes at the cost of more work per byte of
-                              * input. ZSTD has a simple internal heuristic that
-                              * guesses which strategy will be faster. You can
-                              * use this flag to override that guess.
+    ZSTD_p_forceAttachDict,  /* Controls whether the contents of a CDict are
+                              * used in place, or whether they are copied into
+                              * the working context.
                               *
-                              * Note that the by-reference, in-place strategy is
-                              * only used when reusing a compression context
-                              * with compatible compression parameters. (If
-                              * incompatible / uninitialized, the working
-                              * context needs to be cleared anyways, which is
-                              * about as expensive as overwriting it with the
-                              * dictionary context, so there's no savings in
-                              * using the CDict by-ref.)
-                              *
-                              * Values greater than 0 force attaching the dict.
-                              * Values less than 0 force copying the dict.
-                              * 0 selects the default heuristic-guided behavior.
+                              * Accepts values from the ZSTD_dictAttachPref_e
+                              * enum. See the comments on that enum for an
+                              * explanation of the feature.
                               */
-
 } ZSTD_cParameter;
 
 

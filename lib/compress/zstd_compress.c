@@ -413,11 +413,8 @@ size_t ZSTD_CCtxParam_setParameter(
         return CCtxParams->forceWindow;
 
     case ZSTD_p_forceAttachDict : {
-        int signed_val = (int)value;
-        CCtxParams->attachDictPref = signed_val ?
-                                    (signed_val > 0 ? ZSTD_dictForceAttach :
-                                                      ZSTD_dictForceCopy) :
-                                     ZSTD_dictDefaultAttach;
+        CLAMPCHECK(value, ZSTD_dictDefaultAttach, ZSTD_dictForceCopy);
+        CCtxParams->attachDictPref = value;
         return CCtxParams->attachDictPref;
     }
 

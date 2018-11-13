@@ -380,7 +380,7 @@ BMK_benchMemAdvancedNoAlloc(
                 cPtr += cCapacities[nbBlocks];
                 resPtr += thisBlockSize;
                 remaining -= thisBlockSize;
-                if (BMK_decodeOnly) {
+                if (adv->mode == BMK_decodeOnly) {
                     assert(nbBlocks==0);
                     cSizes[nbBlocks] = thisBlockSize;
                     benchResult.cSize = thisBlockSize;

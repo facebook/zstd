@@ -143,6 +143,7 @@ static int usage_advanced(const char* programName)
 #ifdef ZSTD_MULTITHREAD
     DISPLAY( " -T#    : spawns # compression threads (default: 1, 0==# cores) \n");
     DISPLAY( " -B#    : select size of each job (default: 0==automatic) \n");
+    DISPLAY( " --rsyncable : compress using a rsync-friendly method (-B sets block size) \n");
 #endif
     DISPLAY( "--no-dictID : don't write dictID into header (dictionary compression)\n");
     DISPLAY( "--[no-]check : integrity check (default: enabled) \n");
@@ -475,6 +476,7 @@ int main(int argCount, const char* argv[])
         adapt = 0,
         adaptMin = MINCLEVEL,
         adaptMax = MAXCLEVEL,
+        rsyncable = 0,
         nextArgumentIsOutFileName = 0,
         nextArgumentIsMaxDict = 0,
         nextArgumentIsDictID = 0,
@@ -607,6 +609,7 @@ int main(int argCount, const char* argv[])
 #ifdef ZSTD_LZ4COMPRESS
                     if (!strcmp(argument, "--format=lz4")) { suffix = LZ4_EXTENSION; FIO_setCompressionType(FIO_lz4Compression);  continue; }
 #endif
+                    if (!strcmp(argument, "--rsyncable")) { rsyncable = 1; continue; }
 
                     /* long commands with arguments */
 #ifndef ZSTD_NODICT
@@ -1052,6 +1055,7 @@ int main(int argCount, const char* argv[])
         FIO_setAdaptiveMode(adapt);
         FIO_setAdaptMin(adaptMin);
         FIO_setAdaptMax(adaptMax);
+        FIO_setRsyncable(rsyncable);
         if (adaptMin > cLevel) cLevel = adaptMin;
         if (adaptMax < cLevel) cLevel = adaptMax;
 
@@ -1060,7 +1064,7 @@ int main(int argCount, const char* argv[])
         else
           operationResult = FIO_compressMultipleFilenames(filenameTable, filenameIdx, outFileName, suffix, dictFileName, cLevel, compressionParams);
 #else
-        (void)suffix; (void)adapt; (void)ultra; (void)cLevel; (void)ldmFlag; /* not used when ZSTD_NOCOMPRESS set */
+        (void)suffix; (void)adapt; (void)rsyncable; (void)ultra; (void)cLevel; (void)ldmFlag; /* not used when ZSTD_NOCOMPRESS set */
         DISPLAY("Compression not supported \n");
 #endif
     } else {  /* decompression or test */

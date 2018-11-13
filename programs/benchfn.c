@@ -48,9 +48,9 @@
 #define DEBUGOUTPUT(...) { if (DEBUG) DISPLAY(__VA_ARGS__); }
 
 /* error without displaying */
-#define RETURN_QUIET_ERROR(errorNum, retValue, ...) { \
+#define RETURN_QUIET_ERROR(retValue, ...) {           \
     DEBUGOUTPUT("%s: %i: \n", __FILE__, __LINE__);    \
-    DEBUGOUTPUT("Error %i : ", errorNum);             \
+    DEBUGOUTPUT("Error : ");                          \
     DEBUGOUTPUT(__VA_ARGS__);                         \
     DEBUGOUTPUT(" \n");                               \
     return retValue;                                  \
@@ -63,41 +63,48 @@
 
 int BMK_isSuccessful_runOutcome(BMK_runOutcome_t outcome)
 {
-    return outcome.tag == 0;
+    return outcome.error_tag_never_ever_use_directly == 0;
 }
 
 /* warning : this function will stop program execution if outcome is invalid !
  *           check outcome validity first, using BMK_isValid_runResult() */
 BMK_runTime_t BMK_extract_runTime(BMK_runOutcome_t outcome)
 {
-    assert(outcome.tag == 0);
-    return outcome.internal_never_use_directly;
+    assert(outcome.error_tag_never_ever_use_directly == 0);
+    return outcome.internal_never_ever_use_directly;
 }
 
-static BMK_runOutcome_t BMK_runOutcome_error(void)
+size_t BMK_extract_errorResult(BMK_runOutcome_t outcome)
+{
+    assert(outcome.error_tag_never_ever_use_directly != 0);
+    return outcome.error_result_never_ever_use_directly;
+}
+
+static BMK_runOutcome_t BMK_runOutcome_error(size_t errorResult)
 {
     BMK_runOutcome_t b;
     memset(&b, 0, sizeof(b));
-    b.tag = 1;
+    b.error_tag_never_ever_use_directly = 1;
+    b.error_result_never_ever_use_directly = errorResult;
     return b;
 }
 
 static BMK_runOutcome_t BMK_setValid_runTime(BMK_runTime_t runTime)
 {
     BMK_runOutcome_t outcome;
-    outcome.tag = 0;
-    outcome.internal_never_use_directly = runTime;
+    outcome.error_tag_never_ever_use_directly = 0;
+    outcome.internal_never_ever_use_directly = runTime;
     return outcome;
 }
 
 
 /* initFn will be measured once, benchFn will be measured `nbLoops` times */
 /* initFn is optional, provide NULL if none */
-/* benchFn must return a size_t value compliant with errorFn */
+/* benchFn must return a size_t value that errorFn can interpret */
 /* takes # of blocks and list of size & stuff for each. */
 /* can report result of benchFn for each block into blockResult. */
 /* blockResult is optional, provide NULL if this information is not required */
-/* note : time per loop could be zero if run time < timer resolution */
+/* note : time per loop can be reported as zero if run time < timer resolution */
 BMK_runOutcome_t BMK_benchFunction(
             BMK_benchFn_t benchFn, void* benchPayload,
             BMK_initFn_t initFn, void* initPayload,
@@ -109,10 +116,7 @@ BMK_runOutcome_t BMK_benchFunction(
             unsigned nbLoops)
 {
     size_t dstSize = 0;
-
-    if(!nbLoops) {
-        RETURN_QUIET_ERROR(2, BMK_runOutcome_error(), "nbLoops must be nonzero ");
-    }
+    nbLoops += !nbLoops;   /* minimum nbLoops is 1 */
 
     /* init */
     {   size_t i;
@@ -138,11 +142,8 @@ BMK_runOutcome_t BMK_benchFunction(
                                     dstBlockBuffers[blockNb], dstBlockCapacities[blockNb],
                                     benchPayload);
                 if (loopNb == 0) {
-                    if (errorFn != NULL)
-                    if (errorFn(res)) {
-                        BMK_runOutcome_t ro = BMK_runOutcome_error();
-                        ro.internal_never_use_directly.sumOfReturn = res;
-                        RETURN_QUIET_ERROR(2, ro,
+                    if ((errorFn != NULL) && (errorFn(res))) {
+                        RETURN_QUIET_ERROR(BMK_runOutcome_error(res),
                             "Function benchmark failed on block %u (of size %u) with error %i",
                             blockNb, (U32)srcBlockBuffers[blockNb], (int)res);
                     }
@@ -246,7 +247,7 @@ BMK_runOutcome_t BMK_benchTimedFn(
                                     cont->nbLoops);
 
         if(!BMK_isSuccessful_runOutcome(runResult)) { /* error : move out */
-            return BMK_runOutcome_error();
+            return runResult;
         }
 
         {   BMK_runTime_t const newRunTime = BMK_extract_runTime(runResult);

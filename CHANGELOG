@@ -1,3 +1,10 @@
+v1.3.8
+perf: better decompression speed on large files (+7%) and cold dictionaries (+15%)
+api : supports decompressing empty frames into NULL (used to be an error) (#1385)
+api : fix : ZSTD_dictForceCopy advanced command, by @felixhandte
+build: fixed zstd-pgo, by @bmwiedemann
+doc : clarified zstd_compression_format.md, by @ulikunitz
+
 v1.3.7
 perf: slightly better decompression speed on clang (depending on hardware target)
 fix : performance of dictionary compression for small input < 4 KB at levels 9 and 10

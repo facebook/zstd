@@ -25,7 +25,8 @@
 #include "datagen.h"
 #include "xxhash.h"
 #include "util.h"
-#include "bench.h"
+#include "benchfn.h"
+#include "benchzstd.h"
 #include "zstd_errors.h"
 #include "zstd_internal.h"     /* should not be needed */
 
@@ -1455,6 +1456,7 @@ BMK_benchMemInvertible( buffers_t buf, contexts_t ctx,
             BMK_runOutcome_t const cOutcome = BMK_benchTimedFn(timeStateCompress,
                                             &local_defaultCompress, cctx,
                                             &local_initCCtx, &cctxprep,
+                                            ZSTD_isError,
                                             nbBlocks,
                                             srcPtrs, srcSizes,
                                             dstPtrs, dstCapacities,
@@ -1479,6 +1481,7 @@ BMK_benchMemInvertible( buffers_t buf, contexts_t ctx,
             BMK_runOutcome_t const dOutcome = BMK_benchTimedFn(timeStateDecompress,
                                         &local_defaultDecompress, dctx,
                                         &local_initDCtx, &dctxprep,
+                                        ZSTD_isError,
                                         nbBlocks,
                                         (const void* const*)dstPtrs, dstSizes,
                                         resPtrs, resSizes,

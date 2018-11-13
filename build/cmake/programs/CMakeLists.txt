@@ -26,7 +26,7 @@ IF (MSVC)
     SET(PlatformDependResources ${MSVC_RESOURCE_DIR}/zstd.rc)
 ENDIF (MSVC)
 
-ADD_EXECUTABLE(zstd ${PROGRAMS_DIR}/zstdcli.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/fileio.c ${PROGRAMS_DIR}/bench.c ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/dibio.c ${PlatformDependResources})
+ADD_EXECUTABLE(zstd ${PROGRAMS_DIR}/zstdcli.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/fileio.c ${PROGRAMS_DIR}/benchfn.c ${PROGRAMS_DIR}/benchzstd.c ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/dibio.c ${PlatformDependResources})
 TARGET_LINK_LIBRARIES(zstd libzstd_static)
 IF (CMAKE_SYSTEM_NAME MATCHES "(Solaris|SunOS)")
     TARGET_LINK_LIBRARIES(zstd rt)

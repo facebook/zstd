@@ -412,11 +412,12 @@ size_t ZSTD_CCtxParam_setParameter(
         CCtxParams->forceWindow = (value > 0);
         return CCtxParams->forceWindow;
 
-    case ZSTD_p_forceAttachDict :
-        CCtxParams->attachDictPref = value ?
-                                    (value > 0 ? ZSTD_dictForceAttach : ZSTD_dictForceCopy) :
-                                     ZSTD_dictDefaultAttach;
+    case ZSTD_p_forceAttachDict : {
+        const ZSTD_dictAttachPref_e pref = (ZSTD_dictAttachPref_e)value;
+        CLAMPCHECK(pref, ZSTD_dictDefaultAttach, ZSTD_dictForceCopy);
+        CCtxParams->attachDictPref = pref;
         return CCtxParams->attachDictPref;
+    }
 
     case ZSTD_p_nbWorkers :
 #ifndef ZSTD_MULTITHREAD

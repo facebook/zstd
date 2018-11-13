@@ -53,7 +53,8 @@
     <ClCompile Include="..\..\..\lib\legacy\zstd_v06.c" />
     <ClCompile Include="..\..\..\lib\legacy\zstd_v07.c" />
     <ClCompile Include="..\..\..\programs\util.c" />
-    <ClCompile Include="..\..\..\programs\bench.c" />
+    <ClCompile Include="..\..\..\programs\benchfn.c" />
+    <ClCompile Include="..\..\..\programs\benchzstd.c" />
     <ClCompile Include="..\..\..\programs\datagen.c" />
     <ClCompile Include="..\..\..\programs\dibio.c" />
     <ClCompile Include="..\..\..\programs\fileio.c" />
@@ -87,7 +88,7 @@
     <ClInclude Include="..\..\..\lib\legacy\zstd_v05.h" />
     <ClInclude Include="..\..\..\lib\legacy\zstd_v06.h" />
     <ClInclude Include="..\..\..\lib\legacy\zstd_v07.h" />
-    <ClInclude Include="..\..\..\programs\bench.h" />
+    <ClInclude Include="..\..\..\programs\benchzstd.h" />
     <ClInclude Include="..\..\..\programs\datagen.h" />
     <ClInclude Include="..\..\..\programs\dibio.h" />
     <ClInclude Include="..\..\..\programs\fileio.h" />

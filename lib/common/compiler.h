@@ -92,18 +92,18 @@
  * can be disabled, by declaring NO_PREFETCH build macro */
 #if defined(NO_PREFETCH)
 #  define PREFETCH_L1(ptr)  (void)(ptr)  /* disabled */
-#  define PREFETCH(ptr)     (void)(ptr)  /* disabled */
+#  define PREFETCH_L2(ptr)  (void)(ptr)  /* disabled */
 #else
 #  if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_I86))  /* _mm_prefetch() is not defined outside of x86/x64 */
 #    include <mmintrin.h>   /* https://msdn.microsoft.com/fr-fr/library/84szxsww(v=vs.90).aspx */
 #    define PREFETCH_L1(ptr)  _mm_prefetch((const char*)(ptr), _MM_HINT_T0)
-#    define PREFETCH(ptr)     _mm_prefetch((const char*)(ptr), _MM_HINT_T1)
+#    define PREFETCH_L2(ptr)  _mm_prefetch((const char*)(ptr), _MM_HINT_T1)
 #  elif defined(__GNUC__) && ( (__GNUC__ >= 4) || ( (__GNUC__ == 3) && (__GNUC_MINOR__ >= 1) ) )
 #    define PREFETCH_L1(ptr)  __builtin_prefetch((ptr), 0 /* rw==read */, 3 /* locality */)
-#    define PREFETCH(ptr)     __builtin_prefetch((ptr), 0 /* rw==read */, 2 /* locality */)
+#    define PREFETCH_L2(ptr)  __builtin_prefetch((ptr), 0 /* rw==read */, 2 /* locality */)
 #  else
 #    define PREFETCH_L1(ptr) (void)(ptr)  /* disabled */
-#    define PREFETCH(ptr)    (void)(ptr)  /* disabled */
+#    define PREFETCH_L2(ptr) (void)(ptr)  /* disabled */
 #  endif
 #endif  /* NO_PREFETCH */
 
@@ -114,7 +114,7 @@
     size_t const _size = (size_t)(s);     \
     size_t _pos;                          \
     for (_pos=0; _pos<_size; _pos+=CACHELINE_SIZE) {  \
-        PREFETCH(_ptr + _pos);            \
+        PREFETCH_L2(_ptr + _pos);         \
     }                                     \
 }
 

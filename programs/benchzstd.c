@@ -403,14 +403,41 @@ BMK_benchMemAdvancedNoAlloc(
         U32 markNb = 0;
         int compressionCompleted = (adv->mode == BMK_decodeOnly);
         int decompressionCompleted = (adv->mode == BMK_compressOnly);
+        BMK_benchParams_t cbp, dbp;
         BMK_initCCtxArgs cctxprep;
         BMK_initDCtxArgs dctxprep;
+
+        cbp.benchFn = local_defaultCompress;
+        cbp.benchPayload = cctx;
+        cbp.initFn = local_initCCtx;
+        cbp.initPayload = &cctxprep;
+        cbp.errorFn = ZSTD_isError;
+        cbp.blockCount = nbBlocks;
+        cbp.srcBuffers = srcPtrs;
+        cbp.srcSizes = srcSizes;
+        cbp.dstBuffers = cPtrs;
+        cbp.dstCapacities = cCapacities;
+        cbp.blockResults = cSizes;
+
         cctxprep.cctx = cctx;
         cctxprep.dictBuffer = dictBuffer;
         cctxprep.dictBufferSize = dictBufferSize;
         cctxprep.cLevel = cLevel;
         cctxprep.comprParams = comprParams;
         cctxprep.adv = adv;
+
+        dbp.benchFn = local_defaultDecompress;
+        dbp.benchPayload = dctx;
+        dbp.initFn = local_initDCtx;
+        dbp.initPayload = &dctxprep;
+        dbp.errorFn = ZSTD_isError;
+        dbp.blockCount = nbBlocks;
+        dbp.srcBuffers = (const void* const *) cPtrs;
+        dbp.srcSizes = cSizes;
+        dbp.dstBuffers = resPtrs;
+        dbp.dstCapacities = resSizes;
+        dbp.blockResults = NULL;
+
         dctxprep.dctx = dctx;
         dctxprep.dictBuffer = dictBuffer;
         dctxprep.dictBufferSize = dictBufferSize;
@@ -420,15 +447,7 @@ BMK_benchMemAdvancedNoAlloc(
 
         while (!(compressionCompleted && decompressionCompleted)) {
             if (!compressionCompleted) {
-                BMK_runOutcome_t const cOutcome =
-                        BMK_benchTimedFn( timeStateCompress,
-                                        &local_defaultCompress, cctx,
-                                        &local_initCCtx, &cctxprep,
-                                        ZSTD_isError,
-                                        nbBlocks,
-                                        srcPtrs, srcSizes,
-                                        cPtrs, cCapacities,
-                                        cSizes);
+                BMK_runOutcome_t const cOutcome = BMK_benchTimedFn( timeStateCompress, cbp);
 
                 if (!BMK_isSuccessful_runOutcome(cOutcome)) {
                     return BMK_benchOutcome_error();
@@ -455,15 +474,7 @@ BMK_benchMemAdvancedNoAlloc(
             }
 
             if(!decompressionCompleted) {
-                BMK_runOutcome_t const dOutcome =
-                        BMK_benchTimedFn(timeStateDecompress,
-                                        &local_defaultDecompress, dctx,
-                                        &local_initDCtx, &dctxprep,
-                                        ZSTD_isError,
-                                        nbBlocks,
-                                        (const void *const *)cPtrs, cSizes,
-                                        resPtrs, resSizes,
-                                        NULL);
+                BMK_runOutcome_t const dOutcome = BMK_benchTimedFn(timeStateDecompress, dbp);
 
                 if(!BMK_isSuccessful_runOutcome(dOutcome)) {
                     return BMK_benchOutcome_error();

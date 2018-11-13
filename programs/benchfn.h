@@ -28,7 +28,7 @@ extern "C" {
 
 /* ====  Benchmark any function, iterated on a set of blocks  ==== */
 
-/* BMK_runTime_t: valid result type */
+/* BMK_runTime_t: valid result return type */
 
 typedef struct {
     unsigned long long nanoSecPerRun;  /* time per iteration (over all blocks) */
@@ -36,9 +36,10 @@ typedef struct {
 } BMK_runTime_t;
 
 
-/* type expressing the outcome of a benchmark run by BMK_benchFunction().
- * benchmark outcome might be valid or invalid.
- * benchmark outcome can be invalid if and errorFn was provided.
+/* BMK_runOutcome_t:
+ * type expressing the outcome of a benchmark run by BMK_benchFunction(),
+ * which can be either valid or invalid.
+ * benchmark outcome can be invalid if errorFn is provided.
  * BMK_runOutcome_t must be considered "opaque" : never access its members directly.
  * Instead, use its assigned methods :
  * BMK_isSuccessful_runOutcome, BMK_extract_runTime, BMK_extract_errorResult.
@@ -51,48 +52,61 @@ typedef struct {
 } BMK_runOutcome_t;
 
 
+/* prototypes for benchmarked functions */
 typedef size_t (*BMK_benchFn_t)(const void* src, size_t srcSize, void* dst, size_t dstCapacity, void* customPayload);
 typedef size_t (*BMK_initFn_t)(void* initPayload);
 typedef unsigned (*BMK_errorFn_t)(size_t);
 
 
-/* BMK_benchFunction() :
- * This function times the execution of 2 argument functions, benchFn and initFn  */
+/* BMK_benchFunction() parameters are provided through following structure.
+ * This is preferable for readability,
+ * as the number of parameters required is pretty large.
+ * No initializer is provided, because it doesn't make sense to provide some "default" :
+ * all parameters should be specified by the caller */
+typedef struct {
+    BMK_benchFn_t benchFn;   /* the function to benchmark, over the set of blocks */
+    void* benchPayload;      /* pass custom parameters to benchFn  :
+                              * (*benchFn)(srcBuffers[i], srcSizes[i], dstBuffers[i], dstCapacities[i], benchPayload) */
+    BMK_initFn_t initFn;     /* (*initFn)(initPayload) is run once per run, at the beginning. */
+    void* initPayload;       /* Both arguments can be NULL, in which case nothing is run. */
+    BMK_errorFn_t errorFn;   /* errorFn will check each return value of benchFn over each block, to determine if it failed or not.
+                              * errorFn can be NULL, in which case no check is performed.
+                              * errorFn must return 0 when benchFn was successful, and >= 1 if it detects an error.
+                              * Execution is stopped as soon as an error is detected.
+                              * the triggering return value can be retrieved using BMK_extract_errorResult(). */
+    size_t blockCount;       /* number of blocks to operate benchFn on.
+                              * It's also the size of all array parameters :
+                              * srcBuffers, srcSizes, dstBuffers, dstCapacities, blockResults */
+    const void *const * srcBuffers; /* array of buffers to be operated on by benchFn */
+    const size_t* srcSizes;  /* array of the sizes of srcBuffers buffers */
+    void *const * dstBuffers;/* array of buffers to be written into by benchFn */
+    const size_t* dstCapacities; /* array of the capacities of dstBuffers buffers */
+    size_t* blockResults;    /* Optional: store the return value of benchFn for each block. Use NULL if this result is not requested. */
+} BMK_benchParams_t;
 
-/* benchFn - (*benchFn)(srcBuffers[i], srcSizes[i], dstBuffers[i], dstCapacities[i], benchPayload)
- *      is run nbLoops times
- * initFn - (*initFn)(initPayload) is run once per run, at the beginning.
- *      This argument can be NULL, in which case nothing is run.
- * errorFn - is a function run on each return value of benchFn.
- *      Argument errorFn can be NULL, in which case nothing is run.
- *      Otherwise, it must return 0 when benchFn was successful, and >= 1 if it detects an error.
- *      Execution is stopped as soon as an error is detected,
- *      the triggering return value can then be retrieved with BMK_extract_errorResult().
- * blockCount - number of blocks. Size of all array parameters : srcBuffers, srcSizes, dstBuffers, dstCapacities, blockResults
- * srcBuffers - an array of buffers to be operated on by benchFn
- * srcSizes - an array of the sizes of above buffers
- * dstBuffers - an array of buffers to be written into by benchFn
- * dstCapacities - an array of the capacities of above buffers
- * blockResults - Optional: store the return value of benchFn for each block. Use NULL if this result is not requested.
- * nbLoops - defines number of times benchFn is run. Minimum value is 1. A 0 is interpreted as a 1.
- * @return: a variant, which express either an error, or can generate a valid BMK_runTime_t result.
- *          Use BMK_isSuccessful_runOutcome() to check if function was successful.
+
+/* BMK_benchFunction() :
+ * This function benchmarks benchFn and initFn, providing a result.
+ *
+ * params : see description of BMK_benchParams_t above.
+ * nbLoops: defines number of times benchFn is run over the full set of blocks.
+ *          Minimum value is 1. A 0 is interpreted as a 1.
+ *
+ * @return: can express either an error or a successful result.
+ *          Use BMK_isSuccessful_runOutcome() to check if benchmark was successful.
  *          If yes, extract the result with BMK_extract_runTime(),
  *          it will contain :
  *              .sumOfReturn : the sum of all return values of benchFn through all of blocks
  *              .nanoSecPerRun : time per run of benchFn + (time for initFn / nbLoops)
  *          .sumOfReturn is generally intended for functions which return a # of bytes written into dstBuffer,
  *              in which case, this value will be the total amount of bytes written into dstBuffer.
+ *
+ * blockResults : when provided (!= NULL), and when benchmark is successful,
+ *                params.blockResults contains all return values of `benchFn` over all blocks.
+ *                when provided (!= NULL), and when benchmark failed,
+ *                params.blockResults contains return values of `benchFn` over all blocks preceding and including the failed block.
  */
-BMK_runOutcome_t BMK_benchFunction(
-                        BMK_benchFn_t benchFn, void* benchPayload,
-                        BMK_initFn_t initFn, void* initPayload,
-                        BMK_errorFn_t errorFn,
-                        size_t blockCount,
-                        const void *const * srcBuffers, const size_t* srcSizes,
-                        void *const * dstBuffers, const size_t* dstCapacities,
-                        size_t* blockResults,
-                        unsigned nbLoops);
+BMK_runOutcome_t BMK_benchFunction(BMK_benchParams_t params, unsigned nbLoops);
 
 
 
@@ -106,7 +120,7 @@ int BMK_isSuccessful_runOutcome(BMK_runOutcome_t outcome);
 BMK_runTime_t BMK_extract_runTime(BMK_runOutcome_t outcome);
 
 /* when benchmark failed, it means one invocation of `benchFn` failed.
- * The failure was detected by `errorFn`, operating on return value of `benchFn`.
+ * The failure was detected by `errorFn`, operating on return values of `benchFn`.
  * Returns the faulty return value.
  * note : this function will abort() program execution if benchmark did not failed.
  *        always check if benchmark failed first !
@@ -128,15 +142,8 @@ typedef struct BMK_timedFnState_s BMK_timedFnState_t;
  *         call BMK_benchTimedFn() repetitively, each measurement is supposed to last about run_ms
  *         Check if total time budget is spent or exceeded, using BMK_isCompleted_TimedFn()
  */
-BMK_runOutcome_t BMK_benchTimedFn(
-                    BMK_timedFnState_t* timedFnState,
-                    BMK_benchFn_t benchFn, void* benchPayload,
-                    BMK_initFn_t initFn, void* initPayload,
-                    BMK_errorFn_t errorFn,
-                    size_t blockCount,
-                    const void *const * srcBlockBuffers, const size_t* srcBlockSizes,
-                    void *const * dstBlockBuffers, const size_t* dstBlockCapacities,
-                    size_t* blockResults);
+BMK_runOutcome_t BMK_benchTimedFn(BMK_timedFnState_t* timedFnState,
+                                  BMK_benchParams_t params);
 
 /* Tells if duration of all benchmark runs has exceeded total_ms
  */

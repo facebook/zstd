@@ -515,21 +515,26 @@ static size_t benchMem(U32 benchNb,
 
     /* benchmark loop */
     {   BMK_timedFnState_t* const tfs = BMK_createTimedFnState(g_nbIterations * 1000, 1000);
+        BMK_benchParams_t bp;
         BMK_runTime_t bestResult;
         bestResult.sumOfReturn = 0;
         bestResult.nanoSecPerRun = (unsigned long long)(-1LL);
         assert(tfs != NULL);
+
+        bp.benchFn = benchFunction;
+        bp.benchPayload = buff2;
+        bp.initFn = NULL;
+        bp.initPayload = NULL;
+        bp.errorFn = ZSTD_isError;
+        bp.blockCount = 1;
+        bp.srcBuffers = &src;
+        bp.srcSizes = &srcSize;
+        bp.dstBuffers = (void* const*) &dstBuff;
+        bp.dstCapacities = &dstBuffSize;
+        bp.blockResults = NULL;
+
         for (;;) {
-            void* const dstBuffv = dstBuff;
-            BMK_runOutcome_t const bOutcome =
-                    BMK_benchTimedFn( tfs,
-                            benchFunction, buff2,
-                            NULL, NULL,   /* initFn */
-                            ZSTD_isError,
-                            1,  /* blockCount */
-                            &src, &srcSize,
-                            &dstBuffv, &dstBuffSize,
-                            NULL);
+            BMK_runOutcome_t const bOutcome = BMK_benchTimedFn( tfs, bp);
 
             if (!BMK_isSuccessful_runOutcome(bOutcome)) {
                 DISPLAY("ERROR benchmarking function ! ! \n");

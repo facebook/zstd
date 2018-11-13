@@ -18,6 +18,7 @@
 #include <stdlib.h>      /* malloc, free */
 #include <string.h>      /* memset */
 #include <stdio.h>       /* fprintf, fopen */
+#undef NDEBUG            /* assert must not be disabled */
 #include <assert.h>      /* assert */
 
 #include "mem.h"
@@ -44,7 +45,7 @@
 #  define DEBUG 0
 #endif
 
-#define DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
+#define DISPLAY(...)       fprintf(stderr, __VA_ARGS__)
 #define DEBUGOUTPUT(...) { if (DEBUG) DISPLAY(__VA_ARGS__); }
 
 /* error without displaying */
@@ -105,23 +106,16 @@ static BMK_runOutcome_t BMK_setValid_runTime(BMK_runTime_t runTime)
 /* can report result of benchFn for each block into blockResult. */
 /* blockResult is optional, provide NULL if this information is not required */
 /* note : time per loop can be reported as zero if run time < timer resolution */
-BMK_runOutcome_t BMK_benchFunction(
-            BMK_benchFn_t benchFn, void* benchPayload,
-            BMK_initFn_t initFn, void* initPayload,
-            BMK_errorFn_t errorFn,
-            size_t blockCount,
-            const void* const * srcBlockBuffers, const size_t* srcBlockSizes,
-            void* const * dstBlockBuffers, const size_t* dstBlockCapacities,
-            size_t* blockResults,
-            unsigned nbLoops)
+BMK_runOutcome_t BMK_benchFunction(BMK_benchParams_t p,
+                                   unsigned nbLoops)
 {
     size_t dstSize = 0;
     nbLoops += !nbLoops;   /* minimum nbLoops is 1 */
 
     /* init */
     {   size_t i;
-        for(i = 0; i < blockCount; i++) {
-            memset(dstBlockBuffers[i], 0xE5, dstBlockCapacities[i]);  /* warm up and erase result buffer */
+        for(i = 0; i < p.blockCount; i++) {
+            memset(p.dstBuffers[i], 0xE5, p.dstCapacities[i]);  /* warm up and erase result buffer */
         }
 #if 0
         /* based on testing these seem to lower accuracy of multiple calls of 1 nbLoops vs 1 call of multiple nbLoops
@@ -135,20 +129,20 @@ BMK_runOutcome_t BMK_benchFunction(
     /* benchmark */
     {   UTIL_time_t const clockStart = UTIL_getTime();
         unsigned loopNb, blockNb;
-        if (initFn != NULL) initFn(initPayload);
+        if (p.initFn != NULL) p.initFn(p.initPayload);
         for (loopNb = 0; loopNb < nbLoops; loopNb++) {
-            for (blockNb = 0; blockNb < blockCount; blockNb++) {
-                size_t const res = benchFn(srcBlockBuffers[blockNb], srcBlockSizes[blockNb],
-                                    dstBlockBuffers[blockNb], dstBlockCapacities[blockNb],
-                                    benchPayload);
+            for (blockNb = 0; blockNb < p.blockCount; blockNb++) {
+                size_t const res = p.benchFn(p.srcBuffers[blockNb], p.srcSizes[blockNb],
+                                   p.dstBuffers[blockNb], p.dstCapacities[blockNb],
+                                   p.benchPayload);
                 if (loopNb == 0) {
-                    if ((errorFn != NULL) && (errorFn(res))) {
+                    if (p.blockResults != NULL) p.blockResults[blockNb] = res;
+                    if ((p.errorFn != NULL) && (p.errorFn(res))) {
                         RETURN_QUIET_ERROR(BMK_runOutcome_error(res),
                             "Function benchmark failed on block %u (of size %u) with error %i",
-                            blockNb, (U32)srcBlockBuffers[blockNb], (int)res);
+                            blockNb, (U32)p.srcBuffers[blockNb], (int)res);
                     }
                     dstSize += res;
-                    if (blockResults != NULL) blockResults[blockNb] = res;
             }   }
         }  /* for (loopNb = 0; loopNb < nbLoops; loopNb++) */
 
@@ -211,15 +205,8 @@ int BMK_isCompleted_TimedFn(const BMK_timedFnState_t* timedFnState)
 
 #define MINUSABLETIME  (TIMELOOP_NANOSEC / 2)  /* 0.5 seconds */
 
-BMK_runOutcome_t BMK_benchTimedFn(
-            BMK_timedFnState_t* cont,
-            BMK_benchFn_t benchFn, void* benchPayload,
-            BMK_initFn_t initFn, void* initPayload,
-            BMK_errorFn_t errorFn,
-            size_t blockCount,
-            const void* const* srcBlockBuffers, const size_t* srcBlockSizes,
-            void * const * dstBlockBuffers, const size_t * dstBlockCapacities,
-            size_t* blockResults)
+BMK_runOutcome_t BMK_benchTimedFn(BMK_timedFnState_t* cont,
+                                  BMK_benchParams_t p)
 {
     U64 const runBudget_ns = cont->runBudget_ns;
     U64 const runTimeMin_ns = runBudget_ns / 2;
@@ -237,14 +224,7 @@ BMK_runOutcome_t BMK_benchTimedFn(
         }
 
         /* reinitialize capacity */
-        runResult = BMK_benchFunction(benchFn, benchPayload,
-                                    initFn, initPayload,
-                                    errorFn,
-                                    blockCount,
-                                    srcBlockBuffers, srcBlockSizes,
-                                    dstBlockBuffers, dstBlockCapacities,
-                                    blockResults,
-                                    cont->nbLoops);
+        runResult = BMK_benchFunction(p, cont->nbLoops);
 
         if(!BMK_isSuccessful_runOutcome(runResult)) { /* error : move out */
             return runResult;

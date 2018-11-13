@@ -140,7 +140,7 @@ BMK_runOutcome_t BMK_benchFunction(BMK_benchParams_t p,
                     if ((p.errorFn != NULL) && (p.errorFn(res))) {
                         RETURN_QUIET_ERROR(BMK_runOutcome_error(res),
                             "Function benchmark failed on block %u (of size %u) with error %i",
-                            blockNb, (U32)p.srcBuffers[blockNb], (int)res);
+                            blockNb, (U32)p.srcSizes[blockNb], (int)res);
                     }
                     dstSize += res;
             }   }

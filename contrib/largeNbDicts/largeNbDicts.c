@@ -24,7 +24,7 @@
 #include <assert.h>   /* assert */
 
 #include "util.h"
-#include "bench.h"
+#include "benchfn.h"
 #define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
 #include "zdict.h"
@@ -543,6 +543,7 @@ static int benchMem(slice_collection_t dstBlocks,
         BMK_runOutcome_t const outcome = BMK_benchTimedFn(benchState,
                                 decompress, &di,
                                 NULL, NULL,
+                                ZSTD_isError,
                                 dstBlocks.nbSlices,
                                 (const void* const *)srcBlocks.slicePtrs, srcBlocks.capacities,
                                 dstBlocks.slicePtrs, dstBlocks.capacities,

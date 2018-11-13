@@ -30,7 +30,8 @@
 #include "zstd.h"        /* ZSTD_versionString */
 #include "util.h"        /* time functions */
 #include "datagen.h"
-#include "bench.h"       /* CustomBench*/
+#include "benchfn.h"       /* CustomBench*/
+#include "benchzstd.h"     /* MB_UNIT */
 
 
 /*_************************************
@@ -524,6 +525,7 @@ static size_t benchMem(U32 benchNb,
                     BMK_benchTimedFn( tfs,
                             benchFunction, buff2,
                             NULL, NULL,   /* initFn */
+                            ZSTD_isError,
                             1,  /* blockCount */
                             &src, &srcSize,
                             &dstBuffv, &dstBuffSize,

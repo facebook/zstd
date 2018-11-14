@@ -132,18 +132,18 @@ fullbench fullbench32 : CPPFLAGS += $(MULTITHREAD_CPP)
 fullbench fullbench32 : LDFLAGS += $(MULTITHREAD_LD)
 fullbench fullbench32 : DEBUGFLAGS = -DNDEBUG  # turn off assert() for speed measurements
 fullbench fullbench32 : $(ZSTD_FILES)
-fullbench fullbench32 : $(PRGDIR)/datagen.c $(PRGDIR)/util.c $(PRGDIR)/bench.c fullbench.c
+fullbench fullbench32 : $(PRGDIR)/datagen.c $(PRGDIR)/util.c $(PRGDIR)/benchfn.c fullbench.c
 	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
 fullbench-lib : CPPFLAGS += -DXXH_NAMESPACE=ZSTD_
 fullbench-lib : zstd-staticLib
-fullbench-lib : $(PRGDIR)/datagen.c $(PRGDIR)/util.c $(PRGDIR)/bench.c fullbench.c
+fullbench-lib : $(PRGDIR)/datagen.c $(PRGDIR)/util.c $(PRGDIR)/benchfn.c fullbench.c
 	$(CC) $(FLAGS) $(filter %.c,$^) -o $@$(EXT) $(ZSTDDIR)/libzstd.a
 
 # note : broken : requires unavailable symbols
 fullbench-dll : zstd-dll
 fullbench-dll : LDFLAGS+= -L$(ZSTDDIR) -lzstd
-fullbench-dll: $(PRGDIR)/datagen.c $(PRGDIR)/util.c fullbench.c
+fullbench-dll: $(PRGDIR)/datagen.c $(PRGDIR)/util.c $(PRGDIR)/benchfn.c fullbench.c
 #	$(CC) $(FLAGS) $(filter %.c,$^) -o $@$(EXT) -DZSTD_DLL_IMPORT=1 $(ZSTDDIR)/dll/libzstd.dll
 	$(CC) $(FLAGS) $(filter %.c,$^) -o $@$(EXT)
 
@@ -203,7 +203,7 @@ zstreamtest-dll : $(ZSTREAM_LOCAL_FILES)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(filter %.c,$^) $(LDFLAGS) -o $@$(EXT)
 
 paramgrill : DEBUGFLAGS =  # turn off assert() by default for speed measurements
-paramgrill : $(ZSTD_FILES) $(PRGDIR)/util.c $(PRGDIR)/bench.c $(PRGDIR)/datagen.c paramgrill.c
+paramgrill : $(ZSTD_FILES) $(PRGDIR)/util.c $(PRGDIR)/benchfn.c $(PRGDIR)/benchzstd.c $(PRGDIR)/datagen.c paramgrill.c
 	$(CC) $(FLAGS) $^ -lm -o $@$(EXT)
 
 datagen : $(PRGDIR)/datagen.c datagencli.c

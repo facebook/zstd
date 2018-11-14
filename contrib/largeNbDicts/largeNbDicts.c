@@ -24,7 +24,7 @@
 #include <assert.h>   /* assert */
 
 #include "util.h"
-#include "bench.h"
+#include "benchfn.h"
 #define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
 #include "zdict.h"
@@ -538,15 +538,22 @@ static int benchMem(slice_collection_t dstBlocks,
     BMK_timedFnState_t* const benchState =
             BMK_createTimedFnState(total_time_ms, ms_per_round);
     decompressInstructions di = createDecompressInstructions(dictionaries);
+    BMK_benchParams_t const bp = {
+        .benchFn = decompress,
+        .benchPayload = &di,
+        .initFn = NULL,
+        .initPayload = NULL,
+        .errorFn = ZSTD_isError,
+        .blockCount = dstBlocks.nbSlices,
+        .srcBuffers = (const void* const*) srcBlocks.slicePtrs,
+        .srcSizes = srcBlocks.capacities,
+        .dstBuffers = dstBlocks.slicePtrs,
+        .dstCapacities = dstBlocks.capacities,
+        .blockResults = NULL
+    };
 
     for (;;) {
-        BMK_runOutcome_t const outcome = BMK_benchTimedFn(benchState,
-                                decompress, &di,
-                                NULL, NULL,
-                                dstBlocks.nbSlices,
-                                (const void* const *)srcBlocks.slicePtrs, srcBlocks.capacities,
-                                dstBlocks.slicePtrs, dstBlocks.capacities,
-                                NULL);
+        BMK_runOutcome_t const outcome = BMK_benchTimedFn(benchState, bp);
         CONTROL(BMK_isSuccessful_runOutcome(outcome));
 
         BMK_runTime_t const result = BMK_extract_runTime(outcome);

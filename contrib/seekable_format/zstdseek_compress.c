@@ -268,7 +268,7 @@ size_t ZSTD_seekable_compressStream(ZSTD_seekable_CStream* zcs, ZSTD_outBuffer* 
 static inline size_t ZSTD_seekable_seekTableSize(const ZSTD_frameLog* fl)
 {
     size_t const sizePerFrame = 8 + (fl->checksumFlag?4:0);
-    size_t const seekTableLen = ZSTD_skippableHeaderSize +
+    size_t const seekTableLen = ZSTD_SKIPPABLEHEADERSIZE +
                                 sizePerFrame * fl->size +
                                 ZSTD_seekTableFooterSize;
 
@@ -307,24 +307,24 @@ size_t ZSTD_seekable_writeSeekTable(ZSTD_frameLog* fl, ZSTD_outBuffer* output)
     size_t const seekTableLen = ZSTD_seekable_seekTableSize(fl);
 
     CHECK_Z(ZSTD_stwrite32(fl, output, ZSTD_MAGIC_SKIPPABLE_START | 0xE, 0));
-    CHECK_Z(ZSTD_stwrite32(fl, output, seekTableLen - ZSTD_skippableHeaderSize,
+    CHECK_Z(ZSTD_stwrite32(fl, output, seekTableLen - ZSTD_SKIPPABLEHEADERSIZE,
                            4));
 
     while (fl->seekTableIndex < fl->size) {
         CHECK_Z(ZSTD_stwrite32(fl, output,
                                fl->entries[fl->seekTableIndex].cSize,
-                               ZSTD_skippableHeaderSize +
+                               ZSTD_SKIPPABLEHEADERSIZE +
                                        sizePerFrame * fl->seekTableIndex + 0));
 
         CHECK_Z(ZSTD_stwrite32(fl, output,
                                fl->entries[fl->seekTableIndex].dSize,
-                               ZSTD_skippableHeaderSize +
+                               ZSTD_SKIPPABLEHEADERSIZE +
                                        sizePerFrame * fl->seekTableIndex + 4));
 
         if (fl->checksumFlag) {
             CHECK_Z(ZSTD_stwrite32(
                     fl, output, fl->entries[fl->seekTableIndex].checksum,
-                    ZSTD_skippableHeaderSize +
+                    ZSTD_SKIPPABLEHEADERSIZE +
                             sizePerFrame * fl->seekTableIndex + 8));
         }
 

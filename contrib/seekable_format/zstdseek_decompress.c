@@ -275,7 +275,7 @@ static size_t ZSTD_seekable_loadSeekTable(ZSTD_seekable* zs)
     {   U32 const numFrames = MEM_readLE32(zs->inBuff);
         U32 const sizePerEntry = 8 + (checksumFlag?4:0);
         U32 const tableSize = sizePerEntry * numFrames;
-        U32 const frameSize = tableSize + ZSTD_seekTableFooterSize + ZSTD_skippableHeaderSize;
+        U32 const frameSize = tableSize + ZSTD_seekTableFooterSize + ZSTD_SKIPPABLEHEADERSIZE;
 
         U32 remaining = frameSize - ZSTD_seekTableFooterSize; /* don't need to re-read footer */
         {
@@ -290,7 +290,7 @@ static size_t ZSTD_seekable_loadSeekTable(ZSTD_seekable* zs)
         if (MEM_readLE32(zs->inBuff) != (ZSTD_MAGIC_SKIPPABLE_START | 0xE)) {
             return ERROR(prefix_unknown);
         }
-        if (MEM_readLE32(zs->inBuff+4) + ZSTD_skippableHeaderSize != frameSize) {
+        if (MEM_readLE32(zs->inBuff+4) + ZSTD_SKIPPABLEHEADERSIZE != frameSize) {
             return ERROR(prefix_unknown);
         }
 

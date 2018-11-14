@@ -454,8 +454,8 @@ static size_t benchMem(U32 benchNb,
             ZSTD_frameHeader zfp;
             size_t frameHeaderSize, skippedSize;
             g_cSize = ZSTD_compress(dstBuff, dstBuffSize, src, srcSize, cLevel);
-            frameHeaderSize = ZSTD_getFrameHeader(&zfp, dstBuff, ZSTD_frameHeaderSize_min);
-            if (frameHeaderSize==0) frameHeaderSize = ZSTD_frameHeaderSize_min;
+            frameHeaderSize = ZSTD_getFrameHeader(&zfp, dstBuff, ZSTD_FRAMEHEADERSIZE_MIN);
+            if (frameHeaderSize==0) frameHeaderSize = ZSTD_FRAMEHEADERSIZE_MIN;
             ZSTD_getcBlockSize(dstBuff+frameHeaderSize, dstBuffSize, &bp);  /* Get 1st block type */
             if (bp.blockType != bt_compressed) {
                 DISPLAY("ZSTD_decodeLiteralsBlock : impossible to test on this sample (not compressible)\n");
@@ -475,8 +475,8 @@ static size_t benchMem(U32 benchNb,
             size_t frameHeaderSize, cBlockSize;
             ZSTD_compress(dstBuff, dstBuffSize, src, srcSize, cLevel);   /* it would be better to use direct block compression here */
             g_cSize = ZSTD_compress(dstBuff, dstBuffSize, src, srcSize, cLevel);
-            frameHeaderSize = ZSTD_getFrameHeader(&zfp, dstBuff, ZSTD_frameHeaderSize_min);
-            if (frameHeaderSize==0) frameHeaderSize = ZSTD_frameHeaderSize_min;
+            frameHeaderSize = ZSTD_getFrameHeader(&zfp, dstBuff, ZSTD_FRAMEHEADERSIZE_MIN);
+            if (frameHeaderSize==0) frameHeaderSize = ZSTD_FRAMEHEADERSIZE_MIN;
             ip += frameHeaderSize;   /* Skip frame Header */
             cBlockSize = ZSTD_getcBlockSize(ip, dstBuffSize, &bp);   /* Get 1st block type */
             if (bp.blockType != bt_compressed) {

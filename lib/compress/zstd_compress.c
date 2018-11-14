@@ -2624,7 +2624,7 @@ static size_t ZSTD_writeFrameHeader(void* dst, size_t dstCapacity,
     size_t pos=0;
 
     assert(!(params.fParams.contentSizeFlag && pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN));
-    if (dstCapacity < ZSTD_frameHeaderSize_max) return ERROR(dstSize_tooSmall);
+    if (dstCapacity < ZSTD_FRAMEHEADERSIZE_MAX) return ERROR(dstSize_tooSmall);
     DEBUGLOG(4, "ZSTD_writeFrameHeader : dictIDFlag : %u ; dictID : %u ; dictIDSizeCode : %u",
                 !params.fParams.noDictIDFlag, dictID,  dictIDSizeCode);
 

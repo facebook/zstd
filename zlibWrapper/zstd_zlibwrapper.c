@@ -31,7 +31,7 @@
 /* ===   Constants   === */
 #define Z_INFLATE_SYNC              8
 #define ZLIB_HEADERSIZE             4
-#define ZSTD_HEADERSIZE             ZSTD_frameHeaderSize_min
+#define ZSTD_HEADERSIZE             ZSTD_FRAMEHEADERSIZE_MIN
 #define ZWRAP_DEFAULT_CLEVEL        3   /* Z_DEFAULT_COMPRESSION is translated to ZWRAP_DEFAULT_CLEVEL for zstd */
 
 

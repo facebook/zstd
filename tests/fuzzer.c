@@ -753,7 +753,7 @@ static int basicUnitTests(U32 seed, double compressibility)
                 const U32 skipLen = 129 KB;
                 MEM_writeLE32((BYTE*)compressedBuffer + off, ZSTD_MAGIC_SKIPPABLE_START);
                 MEM_writeLE32((BYTE*)compressedBuffer + off + 4, skipLen);
-                off += skipLen + ZSTD_skippableHeaderSize;
+                off += skipLen + ZSTD_SKIPPABLEHEADERSIZE;
             }
         }
         cSize = off;
@@ -1927,7 +1927,7 @@ static int fuzzerTests(U32 seed, U32 nbTests, unsigned startTest, U32 const maxD
         DISPLAYLEVEL(5, "fuzzer t%u: Bufferless streaming decompression test \n", testNb);
         /* ensure memory requirement is good enough (should always be true) */
         {   ZSTD_frameHeader zfh;
-            CHECK( ZSTD_getFrameHeader(&zfh, cBuffer, ZSTD_frameHeaderSize_max),
+            CHECK( ZSTD_getFrameHeader(&zfh, cBuffer, ZSTD_FRAMEHEADERSIZE_MAX),
                   "ZSTD_getFrameHeader(): error retrieving frame information");
             {   size_t const roundBuffSize = ZSTD_decodingBufferSize_min(zfh.windowSize, zfh.frameContentSize);
                 CHECK_Z(roundBuffSize);

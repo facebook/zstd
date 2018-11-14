@@ -160,7 +160,7 @@ $(ZSTDDECOMP_O): CFLAGS += $(ALIGN_LOOP)
 zstd : CPPFLAGS += $(THREAD_CPP) $(ZLIBCPP) $(LZMACPP) $(LZ4CPP)
 zstd : LDFLAGS += $(THREAD_LD) $(ZLIBLD) $(LZMALD) $(LZ4LD) $(DEBUGFLAGS_LD)
 zstd : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
-zstd : $(ZSTDLIB_FILES) zstdcli.o util.o fileio.o bench.o datagen.o dibio.o
+zstd : $(ZSTDLIB_FILES) zstdcli.o util.o fileio.o benchfn.o benchzstd.o datagen.o dibio.o
 	@echo "$(THREAD_MSG)"
 	@echo "$(ZLIB_MSG)"
 	@echo "$(LZMA_MSG)"
@@ -178,13 +178,13 @@ zstd-release: zstd
 zstd32 : CPPFLAGS += $(THREAD_CPP)
 zstd32 : LDFLAGS  += $(THREAD_LD)
 zstd32 : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
-zstd32 : $(ZSTDLIB_FILES) zstdcli.c util.c fileio.c bench.c datagen.c dibio.c
+zstd32 : $(ZSTDLIB_FILES) zstdcli.c util.c fileio.c benchfn.c benchzstd.c datagen.c dibio.c
 ifneq (,$(filter Windows%,$(OS)))
 	windres/generate_res.bat
 endif
 	$(CC) -m32 $(FLAGS) $^ $(RES32_FILE) -o $@$(EXT)
 
-zstd-nolegacy : $(ZSTD_FILES) $(ZDICT_FILES) zstdcli.o util.o fileio.c bench.o datagen.o dibio.o
+zstd-nolegacy : $(ZSTD_FILES) $(ZDICT_FILES) zstdcli.o util.o fileio.c benchfn.o benchzstd.o datagen.o dibio.o
 	$(CC) $(FLAGS) $^ -o $@$(EXT) $(LDFLAGS)
 
 zstd-nomt : THREAD_CPP :=

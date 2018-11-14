@@ -25,7 +25,8 @@
 #include "datagen.h"
 #include "xxhash.h"
 #include "util.h"
-#include "bench.h"
+#include "benchfn.h"
+#include "benchzstd.h"
 #include "zstd_errors.h"
 #include "zstd_internal.h"     /* should not be needed */
 
@@ -1397,7 +1398,8 @@ static void randomConstrainedParams(paramValues_t* pc, const memoTable_t* memoTa
 /* nbSeconds used in same way as in BMK_advancedParams_t */
 /* if in decodeOnly, then srcPtr's will be compressed blocks, and uncompressedBlocks will be written to dstPtrs */
 /* dictionary nullable, nothing else though. */
-/* note : it would be better if this function was in bench.c, sharing code with benchMemAdvanced(), since it's technically a part of it */
+/* note : it would be a lot better if this function was present in benchzstd.c,
+ * sharing code with benchMemAdvanced(), since it's technically a part of it */
 static BMK_benchOutcome_t
 BMK_benchMemInvertible( buffers_t buf, contexts_t ctx,
                         int cLevel, const paramValues_t* comprParams,
@@ -1438,13 +1440,40 @@ BMK_benchMemInvertible( buffers_t buf, contexts_t ctx,
         int decompressionCompleted = (mode == BMK_compressOnly);
         BMK_timedFnState_t* timeStateCompress = BMK_createTimedFnState(nbSeconds * 1000, 1000);
         BMK_timedFnState_t* timeStateDecompress = BMK_createTimedFnState(nbSeconds * 1000, 1000);
+        BMK_benchParams_t cbp, dbp;
         BMK_initCCtxArgs cctxprep;
         BMK_initDCtxArgs dctxprep;
+
+        cbp.benchFn = local_defaultCompress;
+        cbp.benchPayload = cctx;
+        cbp.initFn = local_initCCtx;
+        cbp.initPayload = &cctxprep;
+        cbp.errorFn = ZSTD_isError;
+        cbp.blockCount = nbBlocks;
+        cbp.srcBuffers = srcPtrs;
+        cbp.srcSizes = srcSizes;
+        cbp.dstBuffers = dstPtrs;
+        cbp.dstCapacities = dstCapacities;
+        cbp.blockResults = dstSizes;
+
         cctxprep.cctx = cctx;
         cctxprep.dictBuffer = dictBuffer;
         cctxprep.dictBufferSize = dictBufferSize;
         cctxprep.cLevel = cLevel;
         cctxprep.comprParams = comprParams;
+
+        dbp.benchFn = local_defaultDecompress;
+        dbp.benchPayload = dctx;
+        dbp.initFn = local_initDCtx;
+        dbp.initPayload = &dctxprep;
+        dbp.errorFn = ZSTD_isError;
+        dbp.blockCount = nbBlocks;
+        dbp.srcBuffers = (const void* const *) dstPtrs;
+        dbp.srcSizes = dstCapacities;
+        dbp.dstBuffers = resPtrs;
+        dbp.dstCapacities = resSizes;
+        dbp.blockResults = NULL;
+
         dctxprep.dctx = dctx;
         dctxprep.dictBuffer = dictBuffer;
         dctxprep.dictBufferSize = dictBufferSize;
@@ -1452,13 +1481,7 @@ BMK_benchMemInvertible( buffers_t buf, contexts_t ctx,
         assert(timeStateCompress != NULL);
         assert(timeStateDecompress != NULL);
         while(!compressionCompleted) {
-            BMK_runOutcome_t const cOutcome = BMK_benchTimedFn(timeStateCompress,
-                                            &local_defaultCompress, cctx,
-                                            &local_initCCtx, &cctxprep,
-                                            nbBlocks,
-                                            srcPtrs, srcSizes,
-                                            dstPtrs, dstCapacities,
-                                            dstSizes);
+            BMK_runOutcome_t const cOutcome = BMK_benchTimedFn(timeStateCompress, cbp);
 
             if (!BMK_isSuccessful_runOutcome(cOutcome)) {
                 BMK_benchOutcome_t bOut;
@@ -1476,13 +1499,7 @@ BMK_benchMemInvertible( buffers_t buf, contexts_t ctx,
         }
 
         while (!decompressionCompleted) {
-            BMK_runOutcome_t const dOutcome = BMK_benchTimedFn(timeStateDecompress,
-                                        &local_defaultDecompress, dctx,
-                                        &local_initDCtx, &dctxprep,
-                                        nbBlocks,
-                                        (const void* const*)dstPtrs, dstSizes,
-                                        resPtrs, resSizes,
-                                        NULL);
+            BMK_runOutcome_t const dOutcome = BMK_benchTimedFn(timeStateDecompress, dbp);
 
             if (!BMK_isSuccessful_runOutcome(dOutcome)) {
                 BMK_benchOutcome_t bOut;

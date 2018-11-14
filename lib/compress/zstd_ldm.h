@@ -21,7 +21,7 @@ extern "C" {
 *  Long distance matching
 ***************************************/
 
-#define ZSTD_LDM_DEFAULT_WINDOW_LOG ZSTD_WINDOWLOG_DEFAULTMAX
+#define ZSTD_LDM_DEFAULT_WINDOW_LOG ZSTD_WINDOWLOG_LIMIT_DEFAULT
 
 /**
  * ZSTD_ldm_generateSequences():

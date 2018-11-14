@@ -422,8 +422,14 @@ ZSTDLIB_API int ZSTD_minCLevel(void);  /*!< minimum negative compression level a
 #define ZSTD_MAGIC_SKIPPABLE_START  0x184D2A50    /* all 16 values, from 0x184D2A50 to 0x184D2A5F, are understood as skippable frames */
 #define ZSTD_MAGIC_SKIPPABLE_MASK   0xFFFFFFF0
 
+/* note : should this limit be smaller ? like 23 (8 MB) as recommended in the spec ?
+ * also: could it be different from zstd cli default limit, which is designed to match LDM default (27) ? */
+#define ZSTD_WINDOWLOG_LIMIT_DEFAULT 27   /* by default, the streaming decoder will refuse any frame
+                                           * requiring larger than (1<<ZSTD_WINDOWLOG_LIMIT_DEFAULT) window size, to preserve memory.
+                                           * This limit can be overriden using ZSTD_DCtx_setMaxWindowSize(). */
+
 #define ZSTD_BLOCKSIZELOG_MAX 17
-#define ZSTD_BLOCKSIZE_MAX   (1<<ZSTD_BLOCKSIZELOG_MAX)   /* define, for static allocation */
+#define ZSTD_BLOCKSIZE_MAX   (1<<ZSTD_BLOCKSIZELOG_MAX)
 
 #define ZSTD_WINDOWLOG_MAX_32   30
 #define ZSTD_WINDOWLOG_MAX_64   31
@@ -435,14 +441,27 @@ ZSTDLIB_API int ZSTD_minCLevel(void);  /*!< minimum negative compression level a
 #define ZSTD_CHAINLOG_MAX_64    30
 #define ZSTD_CHAINLOG_MAX     ((unsigned)(sizeof(size_t) == 4 ? ZSTD_CHAINLOG_MAX_32 : ZSTD_CHAINLOG_MAX_64))
 #define ZSTD_CHAINLOG_MIN       ZSTD_HASHLOG_MIN
-#define ZSTD_HASHLOG3_MAX       17
 #define ZSTD_SEARCHLOG_MAX     (ZSTD_WINDOWLOG_MAX-1)
 #define ZSTD_SEARCHLOG_MIN       1
 #define ZSTD_SEARCHLENGTH_MAX    7   /* only for ZSTD_fast, other strategies are limited to 6 */
 #define ZSTD_SEARCHLENGTH_MIN    3   /* only for ZSTD_btopt, other strategies are limited to 4 */
-#define ZSTD_TARGETLENGTH_MAX  ZSTD_BLOCKSIZE_MAX
+#define ZSTD_TARGETLENGTH_MAX   ZSTD_BLOCKSIZE_MAX
 #define ZSTD_TARGETLENGTH_MIN    0   /* note : comparing this constant to an unsigned results in a tautological test */
 
+
+/***************************************
+*  Memory management
+***************************************/
+
+/*! ZSTD_sizeof_*() :
+ *  These functions give the current memory usage of selected object.
+ *  Object memory usage can evolve when re-used. */
+ZSTDLIB_API size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx);
+ZSTDLIB_API size_t ZSTD_sizeof_DCtx(const ZSTD_DCtx* dctx);
+ZSTDLIB_API size_t ZSTD_sizeof_CStream(const ZSTD_CStream* zcs);
+ZSTDLIB_API size_t ZSTD_sizeof_DStream(const ZSTD_DStream* zds);
+ZSTDLIB_API size_t ZSTD_sizeof_CDict(const ZSTD_CDict* cdict);
+ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 
 
 
@@ -451,13 +470,15 @@ ZSTDLIB_API int ZSTD_minCLevel(void);  /*!< minimum negative compression level a
 /****************************************************************************************
  *   Purely experimental API
  ****************************************************************************************
- * The following symbols and constants are not planned
- * to join "stable API" status anytime soon.
- * Some of them might even be removed in the future.
+ * The following symbols and constants
+ * are not planned to join "stable API" status anytime soon.
+ * Some will never reach "stable", and remain in the static_only section.
+ * Some of them might be removed in the future.
  * ***************************************************************************************/
 
-#define ZSTD_LDM_MINMATCH_MAX 4096
-#define ZSTD_LDM_MINMATCH_MIN    4
+#define ZSTD_HASHLOG3_MAX         17
+#define ZSTD_LDM_MINMATCH_MAX   4096
+#define ZSTD_LDM_MINMATCH_MIN      4
 #define ZSTD_LDM_BUCKETSIZELOG_MAX 8
 
 #define ZSTD_FRAMEHEADERSIZE_PREFIX 5   /* minimum input size to know frame header size */
@@ -561,16 +582,6 @@ ZSTDLIB_API size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize);
 /***************************************
 *  Memory management
 ***************************************/
-
-/*! ZSTD_sizeof_*() :
- *  These functions give the current memory usage of selected object.
- *  Object memory usage can evolve when re-used. */
-ZSTDLIB_API size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx);
-ZSTDLIB_API size_t ZSTD_sizeof_DCtx(const ZSTD_DCtx* dctx);
-ZSTDLIB_API size_t ZSTD_sizeof_CStream(const ZSTD_CStream* zcs);
-ZSTDLIB_API size_t ZSTD_sizeof_DStream(const ZSTD_DStream* zds);
-ZSTDLIB_API size_t ZSTD_sizeof_CDict(const ZSTD_CDict* cdict);
-ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 
 /*! ZSTD_estimate*() :
  *  These functions make it possible to estimate memory usage
@@ -821,16 +832,13 @@ ZSTDLIB_API ZSTD_frameProgression ZSTD_getFrameProgression(const ZSTD_CCtx* cctx
  *  + there is no active job (could be checked with ZSTD_frameProgression()), or
  *  + oldest job is still actively compressing data,
  *    but everything it has produced has also been flushed so far,
- *    therefore flushing speed is currently limited by production speed of oldest job
- *    irrespective of the speed of concurrent newer jobs.
+ *    therefore flush speed is limited by production speed of oldest job
+ *    irrespective of the speed of concurrent (and newer) jobs.
  */
 ZSTDLIB_API size_t ZSTD_toFlushNow(ZSTD_CCtx* cctx);
 
 
-
 /*=====   Advanced Streaming decompression functions  =====*/
-typedef enum { DStream_p_maxWindowSize } ZSTD_DStreamParameter_e;
-ZSTDLIB_API size_t ZSTD_setDStreamParameter(ZSTD_DStream* zds, ZSTD_DStreamParameter_e paramType, unsigned paramValue);   /* obsolete : this API will be removed in a future version */
 ZSTDLIB_API size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t dictSize); /**< note: no dictionary will be used if dict == NULL or dictSize < 8 */
 ZSTDLIB_API size_t ZSTD_initDStream_usingDDict(ZSTD_DStream* zds, const ZSTD_DDict* ddict);  /**< note : ddict is referenced, it must outlive decompression session */
 ZSTDLIB_API size_t ZSTD_resetDStream(ZSTD_DStream* zds);  /**< re-use decompression parameters from previous init; saves dictionary loading */
@@ -1473,7 +1481,7 @@ ZSTDLIB_API size_t ZSTD_DCtx_refPrefix_advanced(ZSTD_DCtx* dctx,
  *  Refuses allocating internal buffers for frames requiring a window size larger than provided limit.
  *  This is useful to prevent a decoder context from reserving too much memory for itself (potential attack scenario).
  *  This parameter is only useful in streaming mode, since no internal buffer is allocated in direct mode.
- *  By default, a decompression context accepts all window sizes <= (1 << ZSTD_WINDOWLOG_MAX)
+ *  By default, a decompression context accepts all window sizes <= (1 << ZSTD_WINDOWLOG_LIMIT_DEFAULT)
  * @return : 0, or an error code (which can be tested using ZSTD_isError()).
  */
 ZSTDLIB_API size_t ZSTD_DCtx_setMaxWindowSize(ZSTD_DCtx* dctx, size_t maxWindowSize);

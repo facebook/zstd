@@ -3862,7 +3862,7 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
         {   size_t const flushMin = ZSTDMT_compressStream_generic(cctx->mtctx, output, input, endOp);
             if ( ZSTD_isError(flushMin)
               || (endOp == ZSTD_e_end && flushMin == 0) ) { /* compression completed */
-                ZSTD_CCtx_reset(cctx);
+                ZSTD_CCtx_reset(cctx, ZSTD_CCtx_reset_session_only);
             }
             DEBUGLOG(5, "completed ZSTD_compress_generic delegating to ZSTDMT_compressStream_generic");
             return flushMin;

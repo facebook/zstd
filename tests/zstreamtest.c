@@ -930,7 +930,7 @@ static int basicUnitTests(U32 seed, double compressibility)
 
         if (!cdict || !ddict) goto _output_error;
 
-        ZSTD_CCtx_reset(zc);
+        ZSTD_CCtx_reset(zc, ZSTD_CCtx_reset_session_only);
         ZSTD_resetDStream(zd);
         CHECK_Z(ZSTD_CCtx_refCDict(zc, cdict));
         CHECK_Z(ZSTD_initDStream_usingDDict(zd, ddict));
@@ -1077,8 +1077,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         int remainingInput = 256 * 1024;
         int offset;
 
-        ZSTD_CCtx_reset(zc);
-        CHECK_Z(ZSTD_CCtx_resetParameters(zc));
+        CHECK_Z(ZSTD_CCtx_reset(zc, ZSTD_CCtx_reset_session_and_parameters));
         CHECK_Z(ZSTD_CCtx_refCDict(zc, cdict));
         CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_p_checksumFlag, 1));
         /* Write a bunch of 6 byte blocks */

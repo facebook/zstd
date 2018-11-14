@@ -527,13 +527,13 @@ static int basicUnitTests(U32 seed, double compressibility)
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_hashLog, &value));
         CHECK_EQ(value, ZSTD_HASHLOG_MIN);
         /* Reset the CCtx */
-        ZSTD_CCtx_reset(cctx);
+        ZSTD_CCtx_reset(cctx, ZSTD_CCtx_reset_session_only);
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_compressionLevel, &value));
         CHECK_EQ(value, 7);
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_hashLog, &value));
         CHECK_EQ(value, ZSTD_HASHLOG_MIN);
         /* Reset the parameters */
-        ZSTD_CCtx_resetParameters(cctx);
+        ZSTD_CCtx_reset(cctx, ZSTD_CCtx_reset_parameters);
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_compressionLevel, &value));
         CHECK_EQ(value, 3);
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_hashLog, &value));

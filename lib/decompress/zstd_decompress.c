@@ -37,7 +37,7 @@
  *  It's possible to set a different limit using ZSTD_DCtx_setMaxWindowSize().
  */
 #ifndef ZSTD_MAXWINDOWSIZE_DEFAULT
-#  define ZSTD_MAXWINDOWSIZE_DEFAULT (((U32)1 << ZSTD_WINDOWLOG_DEFAULTMAX) + 1)
+#  define ZSTD_MAXWINDOWSIZE_DEFAULT (((U32)1 << ZSTD_WINDOWLOG_LIMIT_DEFAULT) + 1)
 #endif
 
 /*!
@@ -1233,20 +1233,6 @@ size_t ZSTD_resetDStream(ZSTD_DStream* dctx)
     return ZSTD_FRAMEHEADERSIZE_PREFIX;
 }
 
-size_t ZSTD_setDStreamParameter(ZSTD_DStream* dctx,
-                                ZSTD_DStreamParameter_e paramType, unsigned paramValue)
-{
-    if (dctx->streamStage != zdss_init) return ERROR(stage_wrong);
-    switch(paramType)
-    {
-        default : return ERROR(parameter_unsupported);
-        case DStream_p_maxWindowSize :
-            DEBUGLOG(4, "setting maxWindowSize = %u KB", paramValue >> 10);
-            dctx->maxWindowSize = paramValue ? paramValue : (U32)(-1);
-            break;
-    }
-    return 0;
-}
 
 size_t ZSTD_DCtx_refDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict)
 {
@@ -1296,7 +1282,7 @@ size_t ZSTD_estimateDStreamSize(size_t windowSize)
 
 size_t ZSTD_estimateDStreamSize_fromFrame(const void* src, size_t srcSize)
 {
-    U32 const windowSizeMax = 1U << ZSTD_WINDOWLOG_MAX;   /* note : should be user-selectable */
+    U32 const windowSizeMax = 1U << ZSTD_WINDOWLOG_MAX;   /* note : should be user-selectable, but requires an additional parameter (or a dctx) */
     ZSTD_frameHeader zfh;
     size_t const err = ZSTD_getFrameHeader(&zfh, src, srcSize);
     if (ZSTD_isError(err)) return err;

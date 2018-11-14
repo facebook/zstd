@@ -379,7 +379,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     inBuff2 = inBuff;
     DISPLAYLEVEL(3, "test%3i : decompress %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
     ZSTD_initDStream_usingDict(zd, CNBuffer, dictSize);
-    CHECK_Z( ZSTD_setDStreamParameter(zd, DStream_p_maxWindowSize, 1000000000) );  /* large limit */
+    CHECK_Z( ZSTD_DCtx_setMaxWindowSize(zd, 1000000000) );  /* large limit */
     { size_t const remaining = ZSTD_decompressStream(zd, &outBuff, &inBuff);
       if (remaining != 0) goto _output_error; }  /* should reach end of frame == 0; otherwise, some data left, or an error */
     if (outBuff.pos != CNBufferSize) goto _output_error;   /* should regenerate the same amount */
@@ -649,16 +649,10 @@ static int basicUnitTests(U32 seed, double compressibility)
         DISPLAYLEVEL(3, "OK \n");
     }
 
-    /* test ZSTD_setDStreamParameter() resilience */
-    DISPLAYLEVEL(3, "test%3i : wrong parameter for ZSTD_setDStreamParameter(): ", testNb++);
-    { size_t const r = ZSTD_setDStreamParameter(zd, (ZSTD_DStreamParameter_e)999, 1);  /* large limit */
-      if (!ZSTD_isError(r)) goto _output_error; }
-    DISPLAYLEVEL(3, "OK \n");
-
     /* Memory restriction */
     DISPLAYLEVEL(3, "test%3i : maxWindowSize < frame requirement : ", testNb++);
     ZSTD_initDStream_usingDict(zd, CNBuffer, dictSize);
-    CHECK_Z( ZSTD_setDStreamParameter(zd, DStream_p_maxWindowSize, 1000) );  /* too small limit */
+    CHECK_Z( ZSTD_DCtx_setMaxWindowSize(zd, 1000) );  /* too small limit */
     outBuff.dst = decodedBuffer;
     outBuff.size = CNBufferSize;
     outBuff.pos = 0;
@@ -940,7 +934,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         ZSTD_resetDStream(zd);
         CHECK_Z(ZSTD_CCtx_refCDict(zc, cdict));
         CHECK_Z(ZSTD_initDStream_usingDDict(zd, ddict));
-        CHECK_Z(ZSTD_setDStreamParameter(zd, DStream_p_maxWindowSize, 1U << kMaxWindowLog));
+        CHECK_Z(ZSTD_DCtx_setMaxWindowSize(zd, 1U << kMaxWindowLog));
         /* Test all values < 300 */
         for (value = 0; value < 300; ++value) {
             for (type = (SEQ_gen_type)0; type < SEQ_gen_max; ++type) {

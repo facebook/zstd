@@ -1305,7 +1305,7 @@ static dRess_t FIO_createDResources(const char* dictFileName)
     /* Allocation */
     ress.dctx = ZSTD_createDStream();
     if (ress.dctx==NULL) EXM_THROW(60, "Can't create ZSTD_DStream");
-    CHECK( ZSTD_setDStreamParameter(ress.dctx, DStream_p_maxWindowSize, g_memLimit) );
+    CHECK( ZSTD_DCtx_setMaxWindowSize(ress.dctx, g_memLimit) );
     ress.srcBufferSize = ZSTD_DStreamInSize();
     ress.srcBuffer = malloc(ress.srcBufferSize);
     ress.dstBufferSize = ZSTD_DStreamOutSize();

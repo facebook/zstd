@@ -187,7 +187,7 @@ unsigned ZSTD_isFrame(const void* buffer, size_t size)
     if (size < ZSTD_FRAMEIDSIZE) return 0;
     {   U32 const magic = MEM_readLE32(buffer);
         if (magic == ZSTD_MAGICNUMBER) return 1;
-        if ((magic & 0xFFFFFFF0U) == ZSTD_MAGIC_SKIPPABLE_START) return 1;
+        if ((magic & ZSTD_MAGIC_SKIPPABLE_MASK) == ZSTD_MAGIC_SKIPPABLE_START) return 1;
     }
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
     if (ZSTD_isLegacy(buffer, size)) return 1;
@@ -242,7 +242,7 @@ size_t ZSTD_getFrameHeader_advanced(ZSTD_frameHeader* zfhPtr, const void* src, s
 
     if ( (format != ZSTD_f_zstd1_magicless)
       && (MEM_readLE32(src) != ZSTD_MAGICNUMBER) ) {
-        if ((MEM_readLE32(src) & 0xFFFFFFF0U) == ZSTD_MAGIC_SKIPPABLE_START) {
+        if ((MEM_readLE32(src) & ZSTD_MAGIC_SKIPPABLE_MASK) == ZSTD_MAGIC_SKIPPABLE_START) {
             /* skippable frame */
             if (srcSize < ZSTD_SKIPPABLEHEADERSIZE)
                 return ZSTD_SKIPPABLEHEADERSIZE; /* magic number + frame length */
@@ -355,7 +355,7 @@ unsigned long long ZSTD_findDecompressedSize(const void* src, size_t srcSize)
     while (srcSize >= ZSTD_FRAMEHEADERSIZE_PREFIX) {
         U32 const magicNumber = MEM_readLE32(src);
 
-        if ((magicNumber & 0xFFFFFFF0U) == ZSTD_MAGIC_SKIPPABLE_START) {
+        if ((magicNumber & ZSTD_MAGIC_SKIPPABLE_MASK) == ZSTD_MAGIC_SKIPPABLE_START) {
             size_t skippableSize;
             if (srcSize < ZSTD_SKIPPABLEHEADERSIZE)
                 return ERROR(srcSize_wrong);
@@ -435,7 +435,7 @@ size_t ZSTD_findFrameCompressedSize(const void *src, size_t srcSize)
         return ZSTD_findFrameCompressedSizeLegacy(src, srcSize);
 #endif
     if ( (srcSize >= ZSTD_SKIPPABLEHEADERSIZE)
-      && (MEM_readLE32(src) & 0xFFFFFFF0U) == ZSTD_MAGIC_SKIPPABLE_START ) {
+      && (MEM_readLE32(src) & ZSTD_MAGIC_SKIPPABLE_MASK) == ZSTD_MAGIC_SKIPPABLE_START ) {
         return ZSTD_SKIPPABLEHEADERSIZE + MEM_readLE32((const BYTE*)src + ZSTD_FRAMEIDSIZE);
     } else {
         const BYTE* ip = (const BYTE*)src;
@@ -659,7 +659,7 @@ static size_t ZSTD_decompressMultiFrame(ZSTD_DCtx* dctx,
         {   U32 const magicNumber = MEM_readLE32(src);
             DEBUGLOG(4, "reading magic number %08X (expecting %08X)",
                         (U32)magicNumber, (U32)ZSTD_MAGICNUMBER);
-            if ((magicNumber & 0xFFFFFFF0U) == ZSTD_MAGIC_SKIPPABLE_START) {
+            if ((magicNumber & ZSTD_MAGIC_SKIPPABLE_MASK) == ZSTD_MAGIC_SKIPPABLE_START) {
                 size_t skippableSize;
                 if (srcSize < ZSTD_SKIPPABLEHEADERSIZE)
                     return ERROR(srcSize_wrong);
@@ -790,7 +790,7 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
         assert(src != NULL);
         if (dctx->format == ZSTD_f_zstd1) {  /* allows header */
             assert(srcSize >= ZSTD_FRAMEIDSIZE);  /* to read skippable magic number */
-            if ((MEM_readLE32(src) & 0xFFFFFFF0U) == ZSTD_MAGIC_SKIPPABLE_START) {        /* skippable frame */
+            if ((MEM_readLE32(src) & ZSTD_MAGIC_SKIPPABLE_MASK) == ZSTD_MAGIC_SKIPPABLE_START) {        /* skippable frame */
                 memcpy(dctx->headerBuffer, src, srcSize);
                 dctx->expected = ZSTD_SKIPPABLEHEADERSIZE - srcSize;  /* remaining to load to get full skippable frame header */
                 dctx->stage = ZSTDds_decodeSkippableHeader;
@@ -1419,7 +1419,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             DEBUGLOG(4, "Consume header");
             CHECK_F(ZSTD_decompressBegin_usingDDict(zds, zds->ddict));
 
-            if ((MEM_readLE32(zds->headerBuffer) & 0xFFFFFFF0U) == ZSTD_MAGIC_SKIPPABLE_START) {  /* skippable frame */
+            if ((MEM_readLE32(zds->headerBuffer) & ZSTD_MAGIC_SKIPPABLE_MASK) == ZSTD_MAGIC_SKIPPABLE_START) {  /* skippable frame */
                 zds->expected = MEM_readLE32(zds->headerBuffer + ZSTD_FRAMEIDSIZE);
                 zds->stage = ZSTDds_skipFrame;
             } else {

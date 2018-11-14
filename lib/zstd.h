@@ -415,9 +415,12 @@ ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output
 ZSTDLIB_API int ZSTD_minCLevel(void);  /*!< minimum negative compression level allowed */
 
 /* ---  Constants  ---*/
-#define ZSTD_MAGICNUMBER            0xFD2FB528   /* v0.8+ */
-#define ZSTD_MAGIC_DICTIONARY       0xEC30A437   /* v0.7+ */
-#define ZSTD_MAGIC_SKIPPABLE_START  0x184D2A50U
+
+/* all magic numbers are supposed read/written to/from files/memory using little-endian convention */
+#define ZSTD_MAGICNUMBER            0xFD2FB528    /* valid since v0.8.0 */
+#define ZSTD_MAGIC_DICTIONARY       0xEC30A437    /* valid since v0.7.0 */
+#define ZSTD_MAGIC_SKIPPABLE_START  0x184D2A50    /* all 16 values, from 0x184D2A50 to 0x184D2A5F, are understood as skippable frames */
+#define ZSTD_MAGIC_SKIPPABLE_MASK   0xFFFFFFF0
 
 #define ZSTD_BLOCKSIZELOG_MAX 17
 #define ZSTD_BLOCKSIZE_MAX   (1<<ZSTD_BLOCKSIZELOG_MAX)   /* define, for static allocation */
@@ -439,6 +442,20 @@ ZSTDLIB_API int ZSTD_minCLevel(void);  /*!< minimum negative compression level a
 #define ZSTD_SEARCHLENGTH_MIN    3   /* only for ZSTD_btopt, other strategies are limited to 4 */
 #define ZSTD_TARGETLENGTH_MAX  ZSTD_BLOCKSIZE_MAX
 #define ZSTD_TARGETLENGTH_MIN    0   /* note : comparing this constant to an unsigned results in a tautological test */
+
+
+
+
+
+
+/****************************************************************************************
+ *   Purely experimental API
+ ****************************************************************************************
+ * The following symbols and constants are not planned
+ * to join "stable API" status anytime soon.
+ * Some of them might even be removed in the future.
+ * ***************************************************************************************/
+
 #define ZSTD_LDM_MINMATCH_MAX 4096
 #define ZSTD_LDM_MINMATCH_MIN    4
 #define ZSTD_LDM_BUCKETSIZELOG_MAX 8
@@ -450,23 +467,33 @@ ZSTDLIB_API int ZSTD_minCLevel(void);  /*!< minimum negative compression level a
 
 
 /* ---  Advanced types  --- */
-typedef enum { ZSTD_fast=1, ZSTD_dfast, ZSTD_greedy, ZSTD_lazy, ZSTD_lazy2,
-               ZSTD_btlazy2, ZSTD_btopt, ZSTD_btultra } ZSTD_strategy;   /* from faster to stronger */
+
+/* Compression strategies, listed from fastest to strongest */
+typedef enum { ZSTD_fast=1,
+               ZSTD_dfast=2,
+               ZSTD_greedy=3,
+               ZSTD_lazy=4,
+               ZSTD_lazy2=5,
+               ZSTD_btlazy2=6,
+               ZSTD_btopt=7,
+               ZSTD_btultra=8
+               /* note : new strategies might be added in the future */
+           } ZSTD_strategy;
 
 typedef struct {
-    unsigned windowLog;      /**< largest match distance : larger == more compression, more memory needed during decompression */
-    unsigned chainLog;       /**< fully searched segment : larger == more compression, slower, more memory (useless for fast) */
-    unsigned hashLog;        /**< dispatch table : larger == faster, more memory */
-    unsigned searchLog;      /**< nb of searches : larger == more compression, slower */
-    unsigned searchLength;   /**< match length searched : larger == faster decompression, sometimes less compression */
-    unsigned targetLength;   /**< acceptable match size for optimal parser (only) : larger == more compression, slower */
-    ZSTD_strategy strategy;
+    unsigned windowLog;       /**< largest match distance : larger == more compression, more memory needed during decompression */
+    unsigned chainLog;        /**< fully searched segment : larger == more compression, slower, more memory (useless for fast) */
+    unsigned hashLog;         /**< dispatch table : larger == faster, more memory */
+    unsigned searchLog;       /**< nb of searches : larger == more compression, slower */
+    unsigned searchLength;    /**< match length searched : larger == faster decompression, sometimes less compression */
+    unsigned targetLength;    /**< acceptable match size for optimal parser (only) : larger == more compression, slower */
+    ZSTD_strategy strategy;   /**< see ZSTD_strategy definition above */
 } ZSTD_compressionParameters;
 
 typedef struct {
     unsigned contentSizeFlag; /**< 1: content size will be in frame header (when known) */
-    unsigned checksumFlag;    /**< 1: generate a 32-bits checksum at end of frame, for error detection */
-    unsigned noDictIDFlag;    /**< 1: no dictID will be saved into frame header (if dictionary compression) */
+    unsigned checksumFlag;    /**< 1: generate a 32-bits checksum using XXH64 algorithm at end of frame, for error detection */
+    unsigned noDictIDFlag;    /**< 1: no dictID will be saved into frame header (dictID is only useful for dictionary compression) */
 } ZSTD_frameParameters;
 
 typedef struct {
@@ -477,14 +504,14 @@ typedef struct {
 typedef struct ZSTD_CCtx_params_s ZSTD_CCtx_params;
 
 typedef enum {
-    ZSTD_dct_auto = 0,    /* dictionary is "full" when starting with ZSTD_MAGIC_DICTIONARY, otherwise it is "rawContent" */
-    ZSTD_dct_rawContent,  /* ensures dictionary is always loaded as rawContent, even if it starts with ZSTD_MAGIC_DICTIONARY */
-    ZSTD_dct_fullDict     /* refuses to load a dictionary if it does not respect Zstandard's specification */
+    ZSTD_dct_auto = 0,       /* dictionary is "full" when starting with ZSTD_MAGIC_DICTIONARY, otherwise it is "rawContent" */
+    ZSTD_dct_rawContent = 1, /* ensures dictionary is always loaded as rawContent, even if it starts with ZSTD_MAGIC_DICTIONARY */
+    ZSTD_dct_fullDict = 2    /* refuses to load a dictionary if it does not respect Zstandard's specification, starting with ZSTD_MAGIC_DICTIONARY */
 } ZSTD_dictContentType_e;
 
 typedef enum {
-    ZSTD_dlm_byCopy = 0, /**< Copy dictionary content internally */
-    ZSTD_dlm_byRef,      /**< Reference dictionary content -- the dictionary buffer must outlive its users. */
+    ZSTD_dlm_byCopy = 0,  /**< Copy dictionary content internally */
+    ZSTD_dlm_byRef = 1,   /**< Reference dictionary content -- the dictionary buffer must outlive its users. */
 } ZSTD_dictLoadMethod_e;
 
 

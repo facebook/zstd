@@ -86,10 +86,6 @@ size_t ZSTD_ldm_getTableSize(ldmParams_t params);
  */
 size_t ZSTD_ldm_getMaxNbSeq(ldmParams_t params, size_t maxChunkSize);
 
-/** ZSTD_ldm_getTableSize() :
- *  Return prime8bytes^(minMatchLength-1) */
-U64 ZSTD_ldm_getHashPower(U32 minMatchLength);
-
 /** ZSTD_ldm_adjustParameters() :
  *  If the params->hashEveryLog is not set, set it to its default value based on
  *  windowLog and params->hashLog.

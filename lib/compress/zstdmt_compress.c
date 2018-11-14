@@ -471,7 +471,7 @@ static int ZSTDMT_serialState_reset(serialState_t* serialState, ZSTDMT_seqPool* 
         assert(params.ldmParams.hashLog >= params.ldmParams.bucketSizeLog);
         assert(params.ldmParams.hashEveryLog < 32);
         serialState->ldmState.hashPower =
-                ZSTD_ldm_getHashPower(params.ldmParams.minMatchLength);
+                ZSTD_rollingHash_primePower(params.ldmParams.minMatchLength);
     } else {
         memset(&params.ldmParams, 0, sizeof(params.ldmParams));
     }
@@ -777,6 +777,14 @@ typedef struct {
 
 static const roundBuff_t kNullRoundBuff = {NULL, 0, 0};
 
+#define RSYNC_LENGTH 32
+
+typedef struct {
+  U64 hash;
+  U64 hitMask;
+  U64 primePower;
+} rsyncState_t;
+
 struct ZSTDMT_CCtx_s {
     POOL_ctx* factory;
     ZSTDMT_jobDescription* jobs;
@@ -790,6 +798,7 @@ struct ZSTDMT_CCtx_s {
     inBuff_t inBuff;
     roundBuff_t roundBuff;
     serialState_t serial;
+    rsyncState_t rsync;
     unsigned singleBlockingThread;
     unsigned jobIDMask;
     unsigned doneJobID;
@@ -988,6 +997,9 @@ size_t ZSTDMT_CCtxParam_setMTCtxParameter(ZSTD_CCtx_params* params,
         DEBUGLOG(4, "ZSTDMT_p_overlapSectionLog : %u", value);
         params->overlapSizeLog = (value >= 9) ? 9 : value;
         return value;
+    case ZSTDMT_p_rsyncable :
+        params->rsyncable = (value == 0 ? 0 : 1);
+        return value;
     default :
         return ERROR(parameter_unsupported);
     }
@@ -996,15 +1008,7 @@ size_t ZSTDMT_CCtxParam_setMTCtxParameter(ZSTD_CCtx_params* params,
 size_t ZSTDMT_setMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSTDMT_parameter parameter, unsigned value)
 {
     DEBUGLOG(4, "ZSTDMT_setMTCtxParameter");
-    switch(parameter)
-    {
-    case ZSTDMT_p_jobSize :
-        return ZSTDMT_CCtxParam_setMTCtxParameter(&mtctx->params, parameter, value);
-    case ZSTDMT_p_overlapSectionLog :
-        return ZSTDMT_CCtxParam_setMTCtxParameter(&mtctx->params, parameter, value);
-    default :
-        return ERROR(parameter_unsupported);
-    }
+    return ZSTDMT_CCtxParam_setMTCtxParameter(&mtctx->params, parameter, value);
 }
 
 size_t ZSTDMT_getMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSTDMT_parameter parameter, unsigned* value)
@@ -1015,6 +1019,9 @@ size_t ZSTDMT_getMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSTDMT_parameter parameter, 
         break;
     case ZSTDMT_p_overlapSectionLog:
         *value = mtctx->params.overlapSizeLog;
+        break;
+    case ZSTDMT_p_rsyncable:
+        *value = mtctx->params.rsyncable;
         break;
     default:
         return ERROR(parameter_unsupported);
@@ -1380,6 +1387,16 @@ size_t ZSTDMT_initCStream_internal(
     mtctx->targetSectionSize = params.jobSize;
     if (mtctx->targetSectionSize == 0) {
         mtctx->targetSectionSize = 1ULL << ZSTDMT_computeTargetJobLog(params);
+    }
+    if (params.rsyncable) {
+      /* Aim for the targetsectionSize as the average job size. */
+      U32 const jobSizeMB = (U32)(mtctx->targetSectionSize >> 20);
+      U32 const rsyncBits = ZSTD_highbit32(jobSizeMB) + 20;
+      assert(jobSizeMB >= 1);
+      DEBUGLOG(4, "rsyncLog = %u", rsyncBits);
+      mtctx->rsync.hash = 0;
+      mtctx->rsync.hitMask = (1ULL << rsyncBits) - 1;
+      mtctx->rsync.primePower = ZSTD_rollingHash_primePower(RSYNC_LENGTH);
     }
     if (mtctx->targetSectionSize < mtctx->targetPrefixSize) mtctx->targetSectionSize = mtctx->targetPrefixSize;  /* job size must be >= overlap size */
     DEBUGLOG(4, "Job Size : %u KB (note : set to %u)", (U32)(mtctx->targetSectionSize>>10), params.jobSize);
@@ -1818,6 +1835,80 @@ static int ZSTDMT_tryGetInputRange(ZSTDMT_CCtx* mtctx)
     return 1;
 }
 
+typedef struct {
+  size_t toLoad;  /* The number of bytes to load from the input. */
+  int flush;      /* Boolean declaring if we must flush because we found a synchronization point. */
+} syncPoint_t;
+
+/**
+ * Searches through the input for a synchronization point. If one is found, we
+ * will instruct the caller to flush, and return the number of bytes to load.
+ * Otherwise, we will load as many bytes as possible and instruct the caller
+ * to continue as normal.
+ */
+static syncPoint_t findSynchronizationPoint(ZSTDMT_CCtx const* mtctx, ZSTD_inBuffer const input) {
+    BYTE const* const istart = (BYTE const*)input.src + input.pos;
+    U64 const primePower = mtctx->rsync.primePower;
+    U64 const hitMask = mtctx->rsync.hitMask;
+
+    syncPoint_t syncPoint;
+    U64 hash;
+    BYTE const* prev;
+    size_t pos;
+
+    syncPoint.toLoad = MIN(input.size - input.pos, mtctx->targetSectionSize - mtctx->inBuff.filled);
+    syncPoint.flush = 0;
+    if (!mtctx->params.rsyncable)
+        /* Rsync is disabled. */
+        return syncPoint;
+    if (mtctx->inBuff.filled + syncPoint.toLoad < RSYNC_LENGTH)
+        /* Not enough to compute the hash.
+         * We will miss any synchronization points in this RSYNC_LENGTH byte
+         * window. However, since it depends only in the internal buffers, if the
+         * state is already synchronized, we will remain synchronized.
+         * Additionally, the probability that we miss a synchronization point is
+         * low: RSYNC_LENGTH / targetSectionSize.
+         */
+        return syncPoint;
+    /* Initialize the loop variables. */
+    if (mtctx->inBuff.filled >= RSYNC_LENGTH) {
+        /* We have enough bytes buffered to initialize the hash.
+         * Start scanning at the beginning of the input.
+         */
+        pos = 0;
+        prev = (BYTE const*)mtctx->inBuff.buffer.start + mtctx->inBuff.filled - RSYNC_LENGTH;
+        hash = ZSTD_rollingHash_compute(prev, RSYNC_LENGTH);
+    } else {
+        /* We don't have enough bytes buffered to initialize the hash, but
+         * we know we have at least RSYNC_LENGTH bytes total.
+         * Start scanning after the first RSYNC_LENGTH bytes less the bytes
+         * already buffered.
+         */
+        pos = RSYNC_LENGTH - mtctx->inBuff.filled;
+        prev = (BYTE const*)mtctx->inBuff.buffer.start - pos;
+        hash = ZSTD_rollingHash_compute(mtctx->inBuff.buffer.start, mtctx->inBuff.filled);
+        hash = ZSTD_rollingHash_append(hash, istart, pos);
+    }
+    /* Starting with the hash of the previous RSYNC_LENGTH bytes, roll
+     * through the input. If we hit a synchronization point, then cut the
+     * job off, and tell the compressor to flush the job. Otherwise, load
+     * all the bytes and continue as normal.
+     * If we go too long without a synchronization point (targetSectionSize)
+     * then a block will be emitted anyways, but this is okay, since if we
+     * are already synchronized we will remain synchronized.
+     */
+    for (; pos < syncPoint.toLoad; ++pos) {
+        BYTE const toRemove = pos < RSYNC_LENGTH ? prev[pos] : istart[pos - RSYNC_LENGTH];
+        /* if (pos >= RSYNC_LENGTH) assert(ZSTD_rollingHash_compute(istart + pos - RSYNC_LENGTH, RSYNC_LENGTH) == hash); */
+        hash = ZSTD_rollingHash_rotate(hash, toRemove, istart[pos], primePower);
+        if ((hash & hitMask) == hitMask) {
+            syncPoint.toLoad = pos + 1;
+            syncPoint.flush = 1;
+            break;
+        }
+    }
+    return syncPoint;
+}
 
 /** ZSTDMT_compressStream_generic() :
  *  internal use only - exposed to be invoked from zstd_compress.c
@@ -1844,7 +1935,8 @@ size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
     }
 
     /* single-pass shortcut (note : synchronous-mode) */
-    if ( (mtctx->nextJobID == 0)      /* just started */
+    if ( (!mtctx->params.rsyncable)   /* rsyncable mode is disabled */
+      && (mtctx->nextJobID == 0)      /* just started */
       && (mtctx->inBuff.filled == 0)  /* nothing buffered */
       && (!mtctx->jobReady)           /* no job already created */
       && (endOp == ZSTD_e_end)        /* end order */
@@ -1876,14 +1968,17 @@ size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
                 DEBUGLOG(5, "ZSTDMT_tryGetInputRange completed successfully : mtctx->inBuff.buffer.start = %p", mtctx->inBuff.buffer.start);
         }
         if (mtctx->inBuff.buffer.start != NULL) {
-            size_t const toLoad = MIN(input->size - input->pos, mtctx->targetSectionSize - mtctx->inBuff.filled);
+            syncPoint_t const syncPoint = findSynchronizationPoint(mtctx, *input);
+            if (syncPoint.flush && endOp == ZSTD_e_continue) {
+                endOp = ZSTD_e_flush;
+            }
             assert(mtctx->inBuff.buffer.capacity >= mtctx->targetSectionSize);
             DEBUGLOG(5, "ZSTDMT_compressStream_generic: adding %u bytes on top of %u to buffer of size %u",
-                        (U32)toLoad, (U32)mtctx->inBuff.filled, (U32)mtctx->targetSectionSize);
-            memcpy((char*)mtctx->inBuff.buffer.start + mtctx->inBuff.filled, (const char*)input->src + input->pos, toLoad);
-            input->pos += toLoad;
-            mtctx->inBuff.filled += toLoad;
-            forwardInputProgress = toLoad>0;
+                        (U32)syncPoint.toLoad, (U32)mtctx->inBuff.filled, (U32)mtctx->targetSectionSize);
+            memcpy((char*)mtctx->inBuff.buffer.start + mtctx->inBuff.filled, (const char*)input->src + input->pos, syncPoint.toLoad);
+            input->pos += syncPoint.toLoad;
+            mtctx->inBuff.filled += syncPoint.toLoad;
+            forwardInputProgress = syncPoint.toLoad>0;
         }
         if ((input->pos < input->size) && (endOp == ZSTD_e_end))
             endOp = ZSTD_e_flush;   /* can't end now : not all input consumed */

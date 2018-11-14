@@ -19,7 +19,7 @@
 <li><a href="#Chapter9">Streaming compression - HowTo</a></li>
 <li><a href="#Chapter10">Streaming decompression - HowTo</a></li>
 <li><a href="#Chapter11">ADVANCED AND EXPERIMENTAL FUNCTIONS</a></li>
-<li><a href="#Chapter12">Candidate API for promotion into stable</a></li>
+<li><a href="#Chapter12">Candidate API for promotion to stable status</a></li>
 <li><a href="#Chapter13">Memory management</a></li>
 <li><a href="#Chapter14">Advanced compression API</a></li>
 <li><a href="#Chapter15">experimental API (static linking only)</a></li>
@@ -350,9 +350,12 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
  
 <BR></pre>
 
-<a name="Chapter12"></a><h2>Candidate API for promotion into stable</h2><pre>
- The following symbols and constants are considered to join
- "stable API" status by v1.4.0
+<a name="Chapter12"></a><h2>Candidate API for promotion to stable status</h2><pre>
+ The following symbols and constants are currently considered
+ to join "stable API" status by v1.4.0.
+ The intention is that they should be able to become stable "as is", with no further modification.
+ It is also last chance to gather comments / suggestions on this API,
+ as the API is locked once reaching "stable" status.
  
 <BR></pre>
 
@@ -367,27 +370,11 @@ size_t ZSTD_sizeof_DStream(const ZSTD_DStream* zds);
 size_t ZSTD_sizeof_CDict(const ZSTD_CDict* cdict);
 size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 </b><p>  These functions give the current memory usage of selected object.
-  Object memory usage can evolve when re-used. 
+  Object memory usage can evolve (increase or decrease) over time. 
 </p></pre><BR>
 
 <a name="Chapter14"></a><h2>Advanced compression API</h2><pre></pre>
 
-<pre><b>typedef enum {
-    </b>/* Opened question : should we have a format ZSTD_f_auto ?<b>
-     * Today, it would mean exactly the same as ZSTD_f_zstd1.
-     * But, in the future, should several formats become supported,
-     * on the compression side, it would mean "default format".
-     * On the decompression side, it would mean "automatic format detection",
-     * so that ZSTD_f_zstd1 would mean "accept *only* zstd frames".
-     * Since meaning is a little different, another option could be to define different enums for compression and decompression.
-     * This question could be kept for later, when there are actually multiple formats to support,
-     * but there is also the question of pinning enum values, and pinning value `0` is especially important */
-    ZSTD_f_zstd1 = 0,           </b>/* zstd frame format, specified in zstd_compression_format.md (default) */<b>
-    ZSTD_f_zstd1_magicless = 1, </b>/* Variant of zstd frame format, without initial 4-bytes magic number.<b>
-                                 * Useful to save 4 bytes per generated frame.
-                                 * Decoder cannot recognise automatically this format, requiring instructions. */
-} ZSTD_format_e;
-</b></pre><BR>
 <pre><b>typedef enum { ZSTD_fast=1,
                ZSTD_dfast=2,
                ZSTD_greedy=3,
@@ -400,50 +387,17 @@ size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
            } ZSTD_strategy;
 </b></pre><BR>
 <pre><b>typedef enum {
-    </b>/* Note: this enum and the behavior it controls are effectively internal<b>
-     * implementation details of the compressor. They are expected to continue
-     * to evolve and should be considered only in the context of extremely
-     * advanced performance tuning.
-     *
-     * Zstd currently supports the use of a CDict in two ways:
-     *
-     * - The contents of the CDict can be copied into the working context. This
-     *   means that the compression can search both the dictionary and input
-     *   while operating on a single set of internal tables. This makes
-     *   the compression faster per-byte of input. However, the initial copy of
-     *   the CDict's tables incurs a fixed cost at the beginning of the
-     *   compression. For small compressions (< 8 KB), that copy can dominate
-     *   the cost of the compression.
-     *
-     * - The CDict's tables can be used in-place. In this model, compression is
-     *   slower per input byte, because the compressor has to search two sets of
-     *   tables. However, this model incurs no start-up cost (as long as the
-     *   working context's tables can be reused). For small inputs, this can be
-     *   faster than copying the CDict's tables.
-     *
-     * Zstd has a simple internal heuristic that selects which strategy to use
-     * at the beginning of a compression. However, if experimentation shows that
-     * Zstd is making poor choices, it is possible to override that choice with
-     * this enum.
-     */
-    ZSTD_dictDefaultAttach = 0, </b>/* Use the default heuristic. */<b>
-    ZSTD_dictForceAttach   = 1, </b>/* Never copy the dictionary. */<b>
-    ZSTD_dictForceCopy     = 2, </b>/* Always copy the dictionary. */<b>
-} ZSTD_dictAttachPref_e;
-</b></pre><BR>
-<pre><b>typedef enum {
 
     </b>/* compression parameters */<b>
     ZSTD_p_compressionLevel=100, </b>/* Update all compression parameters according to pre-defined cLevel table<b>
                               * Default level is ZSTD_CLEVEL_DEFAULT==3.
                               * Special: value 0 means default, which is controlled by ZSTD_CLEVEL_DEFAULT.
                               * Note 1 : it's possible to pass a negative compression level by casting it to unsigned type.
-                              * Note 2 : setting a level sets all default values of other compression parameters.
-                              * Note 3 : setting compressionLevel automatically updates ZSTD_p_compressLiterals. */
+                              * Note 2 : setting a level sets all default values of other compression parameters */
     ZSTD_p_windowLog=101,    </b>/* Maximum allowed back-reference distance, expressed as power of 2.<b>
                               * Must be clamped between ZSTD_WINDOWLOG_MIN and ZSTD_WINDOWLOG_MAX.
                               * Special: value 0 means "use default windowLog".
-                              * Note: Using a window size greater than ZSTD_MAXWINDOWSIZE_DEFAULT (default: 2^27)
+                              * Note: Using a window size greater than 1<<ZSTD_WINDOWLOG_LIMIT_DEFAULT
                               *       requires explicitly allowing such window size during decompression stage. */
     ZSTD_p_hashLog=102,      </b>/* Size of the initial probe table, as a power of 2.<b>
                               * Resulting table size is (1 << (hashLog+2)).
@@ -519,7 +473,7 @@ size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
     ZSTD_p_dictIDFlag=202,   </b>/* When applicable, dictionary's ID is written into frame header (default:1) */<b>
 
     </b>/* multi-threading parameters */<b>
-    </b>/* These parameters are only useful if multi-threading is enabled (ZSTD_MULTITHREAD).<b>
+    </b>/* These parameters are only useful if multi-threading is enabled (compiled with build macro ZSTD_MULTITHREAD).<b>
      * They return an error otherwise. */
     ZSTD_p_nbWorkers=400,    </b>/* Select how many threads will be spawned to compress in parallel.<b>
                               * When nbWorkers >= 1, triggers asynchronous mode :
@@ -528,17 +482,17 @@ size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
                               * (note : a strong exception to this rule is when first invocation sets ZSTD_e_end : it becomes a blocking call).
                               * More workers improve speed, but also increase memory usage.
                               * Default value is `0`, aka "single-threaded mode" : no worker is spawned, compression is performed inside Caller's thread, all invocations are blocking */
-    ZSTD_p_jobSize=401,      </b>/* Size of a compression job. This value is enforced only in non-blocking mode.<b>
-                              * Each compression job is completed in parallel, so this value indirectly controls the nb of active threads.
+    ZSTD_p_jobSize=401,      </b>/* Size of a compression job. This value is enforced only when nbWorkers >= 1.<b>
+                              * Each compression job is completed in parallel, so this value can indirectly impact the nb of active threads.
                               * 0 means default, which is dynamically determined based on compression parameters.
                               * Job size must be a minimum of overlapSize, or 1 MB, whichever is largest.
                               * The minimum size is automatically and transparently enforced */
-    ZSTD_p_overlapSizeLog=402, </b>/* Size of previous input reloaded at the beginning of each job.<b>
-                              * 0 => no overlap, 6(default) => use 1/8th of windowSize, >=9 => use full windowSize */
+    ZSTD_p_overlapSizeLog=402, </b>/* Size of previous input reloaded at the beginning of each job, as a fraction of window size.<b>
+                              * 0 : no overlap;  6(default) : use 1/8th of windowSize;  >=9 : use full windowSize */
 
     </b>/* =================================================================== */<b>
     </b>/* experimental parameters - no stability guaranteed                   */<b>
-    </b>/* note : should this be exported in a different section of zstd.h ?   */<b>
+    </b>/* => note : should this part be exported in a different section of zstd.h ? */<b>
     </b>/* =================================================================== */<b>
 
     </b>/* compression format */<b>
@@ -567,12 +521,6 @@ size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
   Note : when original `value` type is not unsigned (like int, or enum), cast it to unsigned.
   @result : informational value (typically, value being effectively set, after clamping),
             or an error code (which can be tested with ZSTD_isError()). 
-</p></pre><BR>
-
-<pre><b>size_t ZSTD_CCtx_getParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned* value);
-</b><p> Get the requested value of one compression parameter, selected by enum ZSTD_cParameter.
- @result : 0, or an error code (which can be tested with ZSTD_isError()).
- 
 </p></pre><BR>
 
 <pre><b>size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long long pledgedSrcSize);
@@ -644,29 +592,27 @@ size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 } ZSTD_CCtx_reset_directive;
 </b></pre><BR>
 <pre><b>size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx, ZSTD_CCtx_reset_directive zcrd);
-</b><p>  Return a CCtx to clean state.
-  There 2 things that can be reset, independently or jointly :
-  - The session : will stop compressing current frame, and stand ready to start a new one.
-                  This action never fails.
+</b><p>  There are 2 different things that can be reset, independently or jointly :
+  - The session : will stop compressing current frame, and make CCtx ready to start a new one.
                   Useful after an error, or to interrupt any ongoing compression.
                   Any internal data not yet flushed is cancelled.
                   But parameters and dictionary are kept unchanged.
                   Therefore, same parameters and dictionary will be used for next frame.
+                  This action never fails.
   - The parameters : changes all parameters back to "default".
-                  This removes any dictionary too.
+                  This removes any reference to any dictionary too.
                   Parameters can only be changed between 2 sessions (i.e. no compression is currently ongoing)
                   otherwise the reset fails, and function returns an error value (which can be tested using ZSTD_isError())
   - Both : similar to resetting the session, followed by resetting parameters.
-                  This action never fails.
  
 </p></pre><BR>
 
 <pre><b>typedef enum {
     ZSTD_e_continue=0, </b>/* collect more data, encoder decides when to output compressed result, for optimal compression ratio */<b>
-    ZSTD_e_flush,      </b>/* flush any data provided so far,<b>
+    ZSTD_e_flush=1,    </b>/* flush any data provided so far,<b>
                         * it creates (at least) one new block, that can be decoded immediately on reception;
                         * frame will continue: any future data can still reference previously compressed data, improving compression. */
-    ZSTD_e_end         </b>/* flush any remaining data and close current frame.<b>
+    ZSTD_e_end=2       </b>/* flush any remaining data and close current frame.<b>
                         * any additional data starts a new frame.
                         * each frame is independent (does not reference any content from previous frame). */
 } ZSTD_EndDirective;
@@ -704,8 +650,7 @@ size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
                 ZSTD_EndDirective endOp);
 </b><p>  Same as ZSTD_compress_generic(),
   but using only integral types as arguments.
-  Argument list is larger than ZSTD_{in,out}Buffer,
-  but can be helpful for binders from dynamic languages
+  This variant might be be helpful for binders from dynamic languages
   which have troubles handling structures containing memory pointers.
  
 </p></pre><BR>
@@ -749,6 +694,54 @@ size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
     ZSTD_dlm_byCopy = 0,  </b>/**< Copy dictionary content internally */<b>
     ZSTD_dlm_byRef = 1,   </b>/**< Reference dictionary content -- the dictionary buffer must outlive its users. */<b>
 } ZSTD_dictLoadMethod_e;
+</b></pre><BR>
+<pre><b>typedef enum {
+    </b>/* Opened question : should we have a format ZSTD_f_auto ?<b>
+     * Today, it would mean exactly the same as ZSTD_f_zstd1.
+     * But, in the future, should several formats become supported,
+     * on the compression side, it would mean "default format".
+     * On the decompression side, it would mean "automatic format detection",
+     * so that ZSTD_f_zstd1 would mean "accept *only* zstd frames".
+     * Since meaning is a little different, another option could be to define different enums for compression and decompression.
+     * This question could be kept for later, when there are actually multiple formats to support,
+     * but there is also the question of pinning enum values, and pinning value `0` is especially important */
+    ZSTD_f_zstd1 = 0,           </b>/* zstd frame format, specified in zstd_compression_format.md (default) */<b>
+    ZSTD_f_zstd1_magicless = 1, </b>/* Variant of zstd frame format, without initial 4-bytes magic number.<b>
+                                 * Useful to save 4 bytes per generated frame.
+                                 * Decoder cannot recognise automatically this format, requiring instructions. */
+} ZSTD_format_e;
+</b></pre><BR>
+<pre><b>typedef enum {
+    </b>/* Note: this enum and the behavior it controls are effectively internal<b>
+     * implementation details of the compressor. They are expected to continue
+     * to evolve and should be considered only in the context of extremely
+     * advanced performance tuning.
+     *
+     * Zstd currently supports the use of a CDict in two ways:
+     *
+     * - The contents of the CDict can be copied into the working context. This
+     *   means that the compression can search both the dictionary and input
+     *   while operating on a single set of internal tables. This makes
+     *   the compression faster per-byte of input. However, the initial copy of
+     *   the CDict's tables incurs a fixed cost at the beginning of the
+     *   compression. For small compressions (< 8 KB), that copy can dominate
+     *   the cost of the compression.
+     *
+     * - The CDict's tables can be used in-place. In this model, compression is
+     *   slower per input byte, because the compressor has to search two sets of
+     *   tables. However, this model incurs no start-up cost (as long as the
+     *   working context's tables can be reused). For small inputs, this can be
+     *   faster than copying the CDict's tables.
+     *
+     * Zstd has a simple internal heuristic that selects which strategy to use
+     * at the beginning of a compression. However, if experimentation shows that
+     * Zstd is making poor choices, it is possible to override that choice with
+     * this enum.
+     */
+    ZSTD_dictDefaultAttach = 0, </b>/* Use the default heuristic. */<b>
+    ZSTD_dictForceAttach   = 1, </b>/* Never copy the dictionary. */<b>
+    ZSTD_dictForceCopy     = 2, </b>/* Always copy the dictionary. */<b>
+} ZSTD_dictAttachPref_e;
 </b></pre><BR>
 <a name="Chapter16"></a><h2>Frame size functions</h2><pre></pre>
 
@@ -925,6 +918,12 @@ static ZSTD_customMem const ZSTD_defaultCMem = { NULL, NULL, NULL };  </b>/**< t
 <pre><b>size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* prefix, size_t prefixSize, ZSTD_dictContentType_e dictContentType);
 </b><p>  Same as ZSTD_CCtx_refPrefix(), but gives finer control over
   and how to interpret prefix content (automatic ? force raw mode (default) ? full mode only ?) 
+</p></pre><BR>
+
+<pre><b>size_t ZSTD_CCtx_getParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned* value);
+</b><p> Get the requested value of one compression parameter, selected by enum ZSTD_cParameter.
+ @result : 0, or an error code (which can be tested with ZSTD_isError()).
+ 
 </p></pre><BR>
 
 <pre><b>ZSTD_CCtx_params* ZSTD_createCCtxParams(void);

@@ -40,7 +40,7 @@ static size_t roundTripTest(void *result, size_t resultCapacity,
         ZSTD_outBuffer out = {compressed, compressedCapacity, 0};
         size_t err;
 
-        ZSTD_CCtx_reset(cctx);
+        ZSTD_CCtx_reset(cctx, ZSTD_CCtx_reset_session_only);
         FUZZ_setRandomParameters(cctx, srcSize, &seed);
         err = ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_end);
         FUZZ_ZASSERT(err);

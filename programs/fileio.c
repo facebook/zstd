@@ -556,6 +556,7 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
 #ifdef ZSTD_MULTITHREAD
         DISPLAYLEVEL(5,"set nb workers = %u \n", g_nbWorkers);
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_nbWorkers, g_nbWorkers) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_jobSize, g_blockSize) );
         if ( (g_overlapLog == FIO_OVERLAP_LOG_NOTSET)
           && (cLevel == ZSTD_maxCLevel()) )
             g_overlapLog = 9;   /* full overlap */

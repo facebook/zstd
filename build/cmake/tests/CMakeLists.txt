@@ -43,13 +43,13 @@ INCLUDE_DIRECTORIES(${TESTS_DIR} ${PROGRAMS_DIR} ${LIBRARY_DIR} ${LIBRARY_DIR}/c
 ADD_EXECUTABLE(datagen ${PROGRAMS_DIR}/datagen.c ${TESTS_DIR}/datagencli.c)
 TARGET_LINK_LIBRARIES(datagen libzstd_static)
 
-ADD_EXECUTABLE(fullbench ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/bench.c ${TESTS_DIR}/fullbench.c)
+ADD_EXECUTABLE(fullbench ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/benchfn.c ${PROGRAMS_DIR}/benchzstd.c ${TESTS_DIR}/fullbench.c)
 TARGET_LINK_LIBRARIES(fullbench libzstd_static)
 
 ADD_EXECUTABLE(fuzzer ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${TESTS_DIR}/fuzzer.c)
 TARGET_LINK_LIBRARIES(fuzzer libzstd_static)
 
 IF (UNIX)
-    ADD_EXECUTABLE(paramgrill ${PROGRAMS_DIR}/bench.c ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${TESTS_DIR}/paramgrill.c)
+    ADD_EXECUTABLE(paramgrill ${PROGRAMS_DIR}/benchfn.c ${PROGRAMS_DIR}/benchzstd.c ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${TESTS_DIR}/paramgrill.c)
     TARGET_LINK_LIBRARIES(paramgrill libzstd_static m) #m is math library
 ENDIF (UNIX)

@@ -168,13 +168,13 @@
     <ClCompile Include="..\..\..\lib\common\xxhash.c" />
     <ClCompile Include="..\..\..\programs\util.c" />
     <ClCompile Include="..\..\..\programs\datagen.c" />
-    <ClCompile Include="..\..\..\programs\bench.c" />
+    <ClCompile Include="..\..\..\programs\benchfn.c" />
     <ClCompile Include="..\..\..\tests\fullbench.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\lib\zstd.h" />
     <ClInclude Include="..\..\..\programs\datagen.h" />
-    <ClInclude Include="..\..\..\programs\bench.h" />
+    <ClInclude Include="..\..\..\programs\benchfn.h" />
     <ClInclude Include="..\..\..\programs\util.h" />
   </ItemGroup>
   <ItemGroup>

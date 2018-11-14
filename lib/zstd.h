@@ -392,16 +392,24 @@ ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output
 
 
 
-#if defined(ZSTD_STATIC_LINKING_ONLY) && !defined(ZSTD_H_ZSTD_STATIC_LINKING_ONLY)
-#define ZSTD_H_ZSTD_STATIC_LINKING_ONLY
-
 /****************************************************************************************
  *   ADVANCED AND EXPERIMENTAL FUNCTIONS
  ****************************************************************************************
- * The definitions in this section are considered experimental.
- * They should never be used with a dynamic library, as prototypes may change in the future.
+ * The definitions in the following section are considered experimental.
  * They are provided for advanced scenarios.
+ * They should never be used with a dynamic library, as prototypes may change in the future.
  * Use them only in association with static linking.
+ * ***************************************************************************************/
+
+#if defined(ZSTD_STATIC_LINKING_ONLY) && !defined(ZSTD_H_ZSTD_STATIC_LINKING_ONLY)
+#define ZSTD_H_ZSTD_STATIC_LINKING_ONLY
+
+
+/****************************************************************************************
+ *   Candidate API for promotion into stable
+ ****************************************************************************************
+ * The following symbols and constants are considered to join
+ * "stable API" status by v1.4.0
  * ***************************************************************************************/
 
 ZSTDLIB_API int ZSTD_minCLevel(void);  /*!< minimum negative compression level allowed */
@@ -438,11 +446,7 @@ ZSTDLIB_API int ZSTD_minCLevel(void);  /*!< minimum negative compression level a
 #define ZSTD_FRAMEHEADERSIZE_PREFIX 5   /* minimum input size to know frame header size */
 #define ZSTD_FRAMEHEADERSIZE_MIN    6
 #define ZSTD_FRAMEHEADERSIZE_MAX   18   /* for static allocation */
-static const size_t ZSTD_frameHeaderSize_prefix = ZSTD_FRAMEHEADERSIZE_PREFIX;
-static const size_t ZSTD_frameHeaderSize_min = ZSTD_FRAMEHEADERSIZE_MIN;
-static const size_t ZSTD_frameHeaderSize_max = ZSTD_FRAMEHEADERSIZE_MAX;
-static const size_t ZSTD_skippableHeaderSize = 8;  /* magic number + skippable frame length */
-
+#define ZSTD_SKIPPABLEHEADERSIZE    8
 
 
 /* ---  Advanced types  --- */

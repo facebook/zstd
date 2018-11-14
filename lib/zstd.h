@@ -1149,6 +1149,27 @@ typedef enum {
                               * enum. See the comments on that enum for an
                               * explanation of the feature.
                               */
+    ZSTD_p_rsyncable,        /* Enables rsyncable mode, which makes compressed
+                              * files more rsync friendly by adding periodic
+                              * synchronization points to the compressed data.
+                              * The target average block size is
+                              * ZSTD_p_jobSize / 2. You can modify the job size
+                              * to increase or decrease the granularity of the
+                              * synchronization point. Once the jobSize is
+                              * smaller than the window size, you will start to
+                              * see degraded compression ratio.
+                              * NOTE: This only works when multithreading is
+                              * enabled.
+                              * NOTE: You probably don't want to use this with
+                              * long range mode, since that will decrease the
+                              * effectiveness of the synchronization points,
+                              * but your milage may vary.
+                              * NOTE: Rsyncable mode will limit the maximum
+                              * compression speed to approximately 400 MB/s.
+                              * If your compression level is already running
+                              * significantly slower than that (< 200 MB/s),
+                              * the speed won't be significantly impacted.
+                              */
 } ZSTD_cParameter;
 
 

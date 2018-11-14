@@ -193,6 +193,7 @@ struct ZSTD_CCtx_params_s {
     unsigned nbWorkers;
     unsigned jobSize;
     unsigned overlapSizeLog;
+    unsigned rsyncable;
 
     /* Long distance matching parameters */
     ldmParams_t ldmParams;
@@ -490,6 +491,64 @@ MEM_STATIC size_t ZSTD_hashPtr(const void* p, U32 hBits, U32 mls)
     case 7: return ZSTD_hash7Ptr(p, hBits);
     case 8: return ZSTD_hash8Ptr(p, hBits);
     }
+}
+
+/** ZSTD_ipow() :
+ * Return base^exponent.
+ */
+static U64 ZSTD_ipow(U64 base, U64 exponent)
+{
+    U64 power = 1;
+    while (exponent) {
+      if (exponent & 1) power *= base;
+      exponent >>= 1;
+      base *= base;
+    }
+    return power;
+}
+
+#define ZSTD_ROLL_HASH_CHAR_OFFSET 10
+
+/** ZSTD_rollingHash_append() :
+ * Add the buffer to the hash value.
+ */
+static U64 ZSTD_rollingHash_append(U64 hash, void const* buf, size_t size)
+{
+    BYTE const* istart = (BYTE const*)buf;
+    size_t pos;
+    for (pos = 0; pos < size; ++pos) {
+        hash *= prime8bytes;
+        hash += istart[pos] + ZSTD_ROLL_HASH_CHAR_OFFSET;
+    }
+    return hash;
+}
+
+/** ZSTD_rollingHash_compute() :
+ * Compute the rolling hash value of the buffer.
+ */
+MEM_STATIC U64 ZSTD_rollingHash_compute(void const* buf, size_t size)
+{
+    return ZSTD_rollingHash_append(0, buf, size);
+}
+
+/** ZSTD_rollingHash_primePower() :
+ * Compute the primePower to be passed to ZSTD_rollingHash_rotate() for a hash
+ * over a window of length bytes.
+ */
+MEM_STATIC U64 ZSTD_rollingHash_primePower(U32 length)
+{
+    return ZSTD_ipow(prime8bytes, length - 1);
+}
+
+/** ZSTD_rollingHash_rotate() :
+ * Rotate the rolling hash by one byte.
+ */
+MEM_STATIC U64 ZSTD_rollingHash_rotate(U64 hash, BYTE toRemove, BYTE toAdd, U64 primePower)
+{
+    hash -= (toRemove + ZSTD_ROLL_HASH_CHAR_OFFSET) * primePower;
+    hash *= prime8bytes;
+    hash += toAdd + ZSTD_ROLL_HASH_CHAR_OFFSET;
+    return hash;
 }
 
 /*-*************************************

@@ -2164,7 +2164,7 @@ FIO_analyzeFrames(fileInfo_t* info, FILE* const srcFile)
                 info->numActualFrames++;
             }
             /* Skippable frame */
-            else if ((magicNumber & 0xFFFFFFF0U) == ZSTD_MAGIC_SKIPPABLE_START) {
+            else if ((magicNumber & ZSTD_MAGIC_SKIPPABLE_MASK) == ZSTD_MAGIC_SKIPPABLE_START) {
                 U32 const frameSize = MEM_readLE32(headerBuffer + 4);
                 long const seek = (long)(8 + frameSize - numBytesRead);
                 ERROR_IF(LONG_SEEK(srcFile, seek, SEEK_CUR) != 0,

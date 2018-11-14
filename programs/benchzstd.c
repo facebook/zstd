@@ -160,8 +160,7 @@ typedef struct {
 static void BMK_initCCtx(ZSTD_CCtx* ctx,
     const void* dictBuffer, size_t dictBufferSize, int cLevel,
     const ZSTD_compressionParameters* comprParams, const BMK_advancedParams_t* adv) {
-    ZSTD_CCtx_reset(ctx);
-    ZSTD_CCtx_resetParameters(ctx);
+    ZSTD_CCtx_reset(ctx, ZSTD_CCtx_reset_session_and_parameters);
     if (adv->nbWorkers==1) {
         ZSTD_CCtx_setParameter(ctx, ZSTD_p_nbWorkers, 0);
     } else {

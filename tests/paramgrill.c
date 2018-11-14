@@ -893,8 +893,7 @@ typedef struct {
 static size_t local_initCCtx(void* payload) {
     const BMK_initCCtxArgs* ag = (const BMK_initCCtxArgs*)payload;
     varInds_t i;
-    ZSTD_CCtx_reset(ag->cctx);
-    ZSTD_CCtx_resetParameters(ag->cctx);
+    ZSTD_CCtx_reset(ag->cctx, ZSTD_CCtx_reset_session_and_parameters);
     ZSTD_CCtx_setParameter(ag->cctx, ZSTD_p_compressionLevel, ag->cLevel);
 
     for(i = 0; i < NUM_PARAMS; i++) {

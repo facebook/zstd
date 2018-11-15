@@ -836,6 +836,12 @@ $ECHO "===>   test: --adapt must fail on incoherent bounds "
 ./datagen > tmp
 $ZSTD -f -vv --adapt=min=10,max=9 tmp && die "--adapt must fail on incoherent bounds"
 
+$ECHO "\n===>   rsyncable mode "
+roundTripTest -g10M " --rsyncable"
+roundTripTest -g10M " --rsyncable -B100K"
+$ECHO "===>   test: --rsyncable must fail with --single-thread"
+$ZSTD -f -vv --rsyncable --single-thread tmp && die "--rsyncable must fail with --single-thread"
+
 
 if [ "$1" != "--test-large-data" ]; then
     $ECHO "Skipping large data tests"

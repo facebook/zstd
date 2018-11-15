@@ -1908,6 +1908,8 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest,
                         CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_jobSize, (U32)FUZ_rLogLength(&lseed, jobLog), opaqueAPI) );
                     }
                 }
+                /* Enable rsyncable mode 1 in 4 times. */
+                setCCtxParameter(zc, cctxParams, ZSTD_p_rsyncable, (FUZ_rand(&lseed) % 4 == 0), opaqueAPI);
 
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_forceMaxWindow, FUZ_rand(&lseed) & 1, opaqueAPI) );
 

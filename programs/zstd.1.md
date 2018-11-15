@@ -144,6 +144,14 @@ the last one takes effect.
     Due to the chaotic nature of dynamic adaptation, compressed result is not reproducible.
     _note_ : at the time of this writing, `--adapt` can remain stuck at low speed
     when combined with multiple worker threads (>=2).
+* `--rsyncable` :
+    `zstd` will periodically synchronize the compression state to make the
+    compressed file more rsync-friendly. There is a negligible impact to
+    compression ratio, and the faster compression levels will see a small
+    compression speed hit.
+    This feature does not work with `--single-thread`. You probably don't want
+    to use it with long range mode, since it will decrease the effectiveness of
+    the synchronization points, but your milage may vary.
 * `-D file`:
     use `file` as Dictionary to compress or decompress FILE(s)
 * `--no-dictID`:

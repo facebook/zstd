@@ -143,56 +143,6 @@ static void ZSTD_ldm_makeEntryAndInsertByTag(ldmState_t* ldmState,
     }
 }
 
-/** ZSTD_ldm_getRollingHash() :
- *  Get a 64-bit hash using the first len bytes from buf.
- *
- *  Giving bytes s = s_1, s_2, ... s_k, the hash is defined to be
- *  H(s) = s_1*(a^(k-1)) + s_2*(a^(k-2)) + ... + s_k*(a^0)
- *
- *  where the constant a is defined to be prime8bytes.
- *
- *  The implementation adds an offset to each byte, so
- *  H(s) = (s_1 + HASH_CHAR_OFFSET)*(a^(k-1)) + ... */
-static U64 ZSTD_ldm_getRollingHash(const BYTE* buf, U32 len)
-{
-    U64 ret = 0;
-    U32 i;
-    for (i = 0; i < len; i++) {
-        ret *= prime8bytes;
-        ret += buf[i] + LDM_HASH_CHAR_OFFSET;
-    }
-    return ret;
-}
-
-/** ZSTD_ldm_ipow() :
- *  Return base^exp. */
-static U64 ZSTD_ldm_ipow(U64 base, U64 exp)
-{
-    U64 ret = 1;
-    while (exp) {
-        if (exp & 1) { ret *= base; }
-        exp >>= 1;
-        base *= base;
-    }
-    return ret;
-}
-
-U64 ZSTD_ldm_getHashPower(U32 minMatchLength) {
-    DEBUGLOG(4, "ZSTD_ldm_getHashPower: mml=%u", minMatchLength);
-    assert(minMatchLength >= ZSTD_LDM_MINMATCH_MIN);
-    return ZSTD_ldm_ipow(prime8bytes, minMatchLength - 1);
-}
-
-/** ZSTD_ldm_updateHash() :
- *  Updates hash by removing toRemove and adding toAdd. */
-static U64 ZSTD_ldm_updateHash(U64 hash, BYTE toRemove, BYTE toAdd, U64 hashPower)
-{
-    hash -= ((toRemove + LDM_HASH_CHAR_OFFSET) * hashPower);
-    hash *= prime8bytes;
-    hash += toAdd + LDM_HASH_CHAR_OFFSET;
-    return hash;
-}
-
 /** ZSTD_ldm_countBackwardsMatch() :
  *  Returns the number of bytes that match backwards before pIn and pMatch.
  *
@@ -261,9 +211,9 @@ static U64 ZSTD_ldm_fillLdmHashTable(ldmState_t* state,
     const BYTE* cur = lastHashed + 1;
 
     while (cur < iend) {
-        rollingHash = ZSTD_ldm_updateHash(rollingHash, cur[-1],
-                                          cur[ldmParams.minMatchLength-1],
-                                          state->hashPower);
+        rollingHash = ZSTD_rollingHash_rotate(rollingHash, cur[-1],
+                                              cur[ldmParams.minMatchLength-1],
+                                              state->hashPower);
         ZSTD_ldm_makeEntryAndInsertByTag(state,
                                          rollingHash, hBits,
                                          (U32)(cur - base), ldmParams);
@@ -324,11 +274,11 @@ static size_t ZSTD_ldm_generateSequences_internal(
         size_t forwardMatchLength = 0, backwardMatchLength = 0;
         ldmEntry_t* bestEntry = NULL;
         if (ip != istart) {
-            rollingHash = ZSTD_ldm_updateHash(rollingHash, lastHashed[0],
-                                              lastHashed[minMatchLength],
-                                              hashPower);
+            rollingHash = ZSTD_rollingHash_rotate(rollingHash, lastHashed[0],
+                                                  lastHashed[minMatchLength],
+                                                  hashPower);
         } else {
-            rollingHash = ZSTD_ldm_getRollingHash(ip, minMatchLength);
+            rollingHash = ZSTD_rollingHash_compute(ip, minMatchLength);
         }
         lastHashed = ip;
 

@@ -254,6 +254,7 @@ static int ZSTD_isUpdateAuthorized(ZSTD_cParameter param)
     case ZSTD_p_nbWorkers:
     case ZSTD_p_jobSize:
     case ZSTD_p_overlapSizeLog:
+    case ZSTD_p_rsyncable:
     case ZSTD_p_enableLongDistanceMatching:
     case ZSTD_p_ldmHashLog:
     case ZSTD_p_ldmMinMatch:
@@ -315,6 +316,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
 
     case ZSTD_p_jobSize:
     case ZSTD_p_overlapSizeLog:
+    case ZSTD_p_rsyncable:
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
     case ZSTD_p_enableLongDistanceMatching:
@@ -441,6 +443,13 @@ size_t ZSTD_CCtxParam_setParameter(
         return ZSTDMT_CCtxParam_setMTCtxParameter(CCtxParams, ZSTDMT_p_overlapSectionLog, value);
 #endif
 
+    case ZSTD_p_rsyncable :
+#ifndef ZSTD_MULTITHREAD
+        return ERROR(parameter_unsupported);
+#else
+        return ZSTDMT_CCtxParam_setMTCtxParameter(CCtxParams, ZSTDMT_p_rsyncable, value);
+#endif
+
     case ZSTD_p_enableLongDistanceMatching :
         CCtxParams->ldmParams.enableLdm = (value>0);
         return CCtxParams->ldmParams.enableLdm;
@@ -543,6 +552,13 @@ size_t ZSTD_CCtxParam_getParameter(
         return ERROR(parameter_unsupported);
 #else
         *value = CCtxParams->overlapSizeLog;
+        break;
+#endif
+    case ZSTD_p_rsyncable :
+#ifndef ZSTD_MULTITHREAD
+        return ERROR(parameter_unsupported);
+#else
+        *value = CCtxParams->rsyncable;
         break;
 #endif
     case ZSTD_p_enableLongDistanceMatching :
@@ -1164,7 +1180,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         ZSTD_ldm_adjustParameters(&params.ldmParams, &params.cParams);
         assert(params.ldmParams.hashLog >= params.ldmParams.bucketSizeLog);
         assert(params.ldmParams.hashEveryLog < 32);
-        zc->ldmState.hashPower = ZSTD_ldm_getHashPower(params.ldmParams.minMatchLength);
+        zc->ldmState.hashPower = ZSTD_rollingHash_primePower(params.ldmParams.minMatchLength);
     }
 
     {   size_t const windowSize = MAX(1, (size_t)MIN(((U64)1 << params.cParams.windowLog), pledgedSrcSize));

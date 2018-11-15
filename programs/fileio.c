@@ -307,6 +307,12 @@ void FIO_setAdaptiveMode(unsigned adapt) {
         EXM_THROW(1, "Adaptive mode is not compatible with single thread mode \n");
     g_adaptiveMode = adapt;
 }
+static U32 g_rsyncable = 0;
+void FIO_setRsyncable(unsigned rsyncable) {
+    if ((rsyncable>0) && (g_nbWorkers==0))
+        EXM_THROW(1, "Rsyncable mode is not compatible with single thread mode \n");
+    g_rsyncable = rsyncable;
+}
 static int g_minAdaptLevel = -50;   /* initializing this value requires a constant, so ZSTD_minCLevel() doesn't work */
 void FIO_setAdaptMin(int minCLevel)
 {
@@ -550,6 +556,7 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
 #ifdef ZSTD_MULTITHREAD
         DISPLAYLEVEL(5,"set nb workers = %u \n", g_nbWorkers);
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_nbWorkers, g_nbWorkers) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_jobSize, g_blockSize) );
         if ( (g_overlapLog == FIO_OVERLAP_LOG_NOTSET)
           && (cLevel == ZSTD_maxCLevel()) )
             g_overlapLog = 9;   /* full overlap */
@@ -557,6 +564,7 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
             DISPLAYLEVEL(3,"set overlapLog = %u \n", g_overlapLog);
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_overlapSizeLog, g_overlapLog) );
         }
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_rsyncable, g_rsyncable) );
 #endif
         /* dictionary */
         CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, srcSize) );  /* set the value temporarily for dictionary loading, to adapt compression parameters */

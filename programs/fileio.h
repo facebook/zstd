@@ -65,6 +65,7 @@ void FIO_setNotificationLevel(unsigned level);
 void FIO_setOverlapLog(unsigned overlapLog);
 void FIO_setRemoveSrcFile(unsigned flag);
 void FIO_setSparseWrite(unsigned sparse);  /**< 0: no sparse; 1: disable on stdout; 2: always enabled */
+void FIO_setRsyncable(unsigned rsyncable);
 
 
 /*-*************************************

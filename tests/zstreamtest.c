@@ -662,7 +662,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     { size_t const r = ZSTD_decompressStream(zd, &outBuff, &inBuff);
       if (!ZSTD_isError(r)) goto _output_error;  /* must fail : frame requires > 100 bytes */
       DISPLAYLEVEL(3, "OK (%s)\n", ZSTD_getErrorName(r)); }
-    ZSTD_DCtx_reset(zd);   /* leave zd in good shape for next tests */
+    ZSTD_DCtx_reset(zd, ZSTD_reset_session_and_parameters);   /* leave zd in good shape for next tests */
 
     DISPLAYLEVEL(3, "test%3i : dictionary source size and level : ", testNb++);
     {   ZSTD_DCtx* const dctx = ZSTD_createDCtx();
@@ -930,7 +930,7 @@ static int basicUnitTests(U32 seed, double compressibility)
 
         if (!cdict || !ddict) goto _output_error;
 
-        ZSTD_CCtx_reset(zc, ZSTD_CCtx_reset_session_only);
+        ZSTD_CCtx_reset(zc, ZSTD_reset_session_only);
         ZSTD_resetDStream(zd);
         CHECK_Z(ZSTD_CCtx_refCDict(zc, cdict));
         CHECK_Z(ZSTD_initDStream_usingDDict(zd, ddict));
@@ -1077,7 +1077,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         int remainingInput = 256 * 1024;
         int offset;
 
-        CHECK_Z(ZSTD_CCtx_reset(zc, ZSTD_CCtx_reset_session_and_parameters));
+        CHECK_Z(ZSTD_CCtx_reset(zc, ZSTD_reset_session_and_parameters));
         CHECK_Z(ZSTD_CCtx_refCDict(zc, cdict));
         CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_p_checksumFlag, 1));
         /* Write a bunch of 6 byte blocks */

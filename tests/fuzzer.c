@@ -527,13 +527,13 @@ static int basicUnitTests(U32 seed, double compressibility)
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_hashLog, &value));
         CHECK_EQ(value, ZSTD_HASHLOG_MIN);
         /* Reset the CCtx */
-        ZSTD_CCtx_reset(cctx, ZSTD_CCtx_reset_session_only);
+        ZSTD_CCtx_reset(cctx, ZSTD_reset_session_only);
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_compressionLevel, &value));
         CHECK_EQ(value, 7);
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_hashLog, &value));
         CHECK_EQ(value, ZSTD_HASHLOG_MIN);
         /* Reset the parameters */
-        ZSTD_CCtx_reset(cctx, ZSTD_CCtx_reset_parameters);
+        ZSTD_CCtx_reset(cctx, ZSTD_reset_parameters);
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_compressionLevel, &value));
         CHECK_EQ(value, 3);
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_hashLog, &value));
@@ -1327,7 +1327,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         }
 
         DISPLAYLEVEL(3, "test%3i : decompress of magic-less frame : ", testNb++);
-        ZSTD_DCtx_reset(dctx);
+        ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters);
         CHECK( ZSTD_DCtx_setFormat(dctx, ZSTD_f_zstd1_magicless) );
         {   ZSTD_frameHeader zfh;
             size_t const zfhrt = ZSTD_getFrameHeader_advanced(&zfh, compressedBuffer, cSize, ZSTD_f_zstd1_magicless);

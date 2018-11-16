@@ -61,7 +61,7 @@ static void ZSTD_initCCtx(ZSTD_CCtx* cctx, ZSTD_customMem memManager)
     memset(cctx, 0, sizeof(*cctx));
     cctx->customMem = memManager;
     cctx->bmi2 = ZSTD_cpuid_bmi2(ZSTD_cpuid());
-    {   size_t const err = ZSTD_CCtx_reset(cctx, ZSTD_CCtx_reset_parameters);
+    {   size_t const err = ZSTD_CCtx_reset(cctx, ZSTD_reset_parameters);
         assert(!ZSTD_isError(err));
         (void)err;
     }
@@ -672,15 +672,15 @@ size_t ZSTD_CCtx_refPrefix_advanced(
 
 /*! ZSTD_CCtx_reset() :
  *  Also dumps dictionary */
-size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx, ZSTD_CCtx_reset_directive zcrd)
+size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx, ZSTD_reset_directive reset)
 {
-    if ( (zcrd == ZSTD_CCtx_reset_session_only)
-      || (zcrd == ZSTD_CCtx_reset_session_and_parameters) ) {
+    if ( (reset == ZSTD_reset_session_only)
+      || (reset == ZSTD_reset_session_and_parameters) ) {
         cctx->streamStage = zcss_init;
         cctx->pledgedSrcSizePlusOne = 0;
     }
-    if ( (zcrd == ZSTD_CCtx_reset_parameters)
-      || (zcrd == ZSTD_CCtx_reset_session_and_parameters) ) {
+    if ( (reset == ZSTD_reset_parameters)
+      || (reset == ZSTD_reset_session_and_parameters) ) {
         if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
         cctx->cdict = NULL;
         return ZSTD_CCtxParams_reset(&cctx->requestedParams);
@@ -3703,7 +3703,7 @@ size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                 ip = iend;
                 op += cSize;
                 zcs->frameEnded = 1;
-                ZSTD_CCtx_reset(zcs, ZSTD_CCtx_reset_session_only);
+                ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);
                 someMoreWork = 0; break;
             }
             /* complete loading into inBuffer */
@@ -3756,7 +3756,7 @@ size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                     if (zcs->frameEnded) {
                         DEBUGLOG(5, "Frame completed directly in outBuffer");
                         someMoreWork = 0;
-                        ZSTD_CCtx_reset(zcs, ZSTD_CCtx_reset_session_only);
+                        ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);
                     }
                     break;
                 }
@@ -3784,7 +3784,7 @@ size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                 if (zcs->frameEnded) {
                     DEBUGLOG(5, "Frame completed on flush");
                     someMoreWork = 0;
-                    ZSTD_CCtx_reset(zcs, ZSTD_CCtx_reset_session_only);
+                    ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);
                     break;
                 }
                 zcs->streamStage = zcss_load;
@@ -3878,7 +3878,7 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
         {   size_t const flushMin = ZSTDMT_compressStream_generic(cctx->mtctx, output, input, endOp);
             if ( ZSTD_isError(flushMin)
               || (endOp == ZSTD_e_end && flushMin == 0) ) { /* compression completed */
-                ZSTD_CCtx_reset(cctx, ZSTD_CCtx_reset_session_only);
+                ZSTD_CCtx_reset(cctx, ZSTD_reset_session_only);
             }
             DEBUGLOG(5, "completed ZSTD_compress_generic delegating to ZSTDMT_compressStream_generic");
             return flushMin;

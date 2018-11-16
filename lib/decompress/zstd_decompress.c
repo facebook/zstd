@@ -1585,9 +1585,18 @@ size_t ZSTD_decompress_generic_simpleArgs (
     return cErr;
 }
 
-void ZSTD_DCtx_reset(ZSTD_DCtx* dctx)
+size_t ZSTD_DCtx_reset(ZSTD_DCtx* dctx, ZSTD_reset_directive reset)
 {
-    (void)ZSTD_initDStream(dctx);
-    dctx->format = ZSTD_f_zstd1;
-    dctx->maxWindowSize = ZSTD_MAXWINDOWSIZE_DEFAULT;
+    if ( (reset == ZSTD_reset_session_only)
+      || (reset == ZSTD_reset_session_and_parameters) ) {
+        (void)ZSTD_initDStream(dctx);
+    }
+    if ( (reset == ZSTD_reset_parameters)
+      || (reset == ZSTD_reset_session_and_parameters) ) {
+        if (dctx->streamStage != zdss_init)
+            return ERROR(stage_wrong);
+        dctx->format = ZSTD_f_zstd1;
+        dctx->maxWindowSize = ZSTD_MAXWINDOWSIZE_DEFAULT;
+    }
+    return 0;
 }

@@ -1201,13 +1201,17 @@ ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
     }
 
     /* Build Decoding Tables */
-    {   int usePrefetchDecoder = dctx->ddictIsCold;
+    {
+#ifndef ZSTD_DECOMPRESS_MINIMAL
+        int usePrefetchDecoder = dctx->ddictIsCold;
+#endif
         int nbSeq;
         size_t const seqHSize = ZSTD_decodeSeqHeaders(dctx, &nbSeq, ip, srcSize);
         if (ZSTD_isError(seqHSize)) return seqHSize;
         ip += seqHSize;
         srcSize -= seqHSize;
 
+#ifndef ZSTD_DECOMPRESS_MINIMAL
         if ( !usePrefetchDecoder
           && (!frame || (dctx->fParams.windowSize > (1<<24)))
           && (nbSeq>ADVANCED_SEQS) ) {  /* could probably use a larger nbSeq limit */
@@ -1215,11 +1219,14 @@ ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
             U32 const minShare = MEM_64bits() ? 7 : 20; /* heuristic values, correspond to 2.73% and 7.81% */
             usePrefetchDecoder = (shareLongOffsets >= minShare);
         }
+#endif
 
         dctx->ddictIsCold = 0;
 
+#ifndef ZSTD_DECOMPRESS_MINIMAL
         if (usePrefetchDecoder)
             return ZSTD_decompressSequencesLong(dctx, dst, dstCapacity, ip, srcSize, nbSeq, isLongOffset);
+#endif
 
         /* else */
         return ZSTD_decompressSequences(dctx, dst, dstCapacity, ip, srcSize, nbSeq, isLongOffset);

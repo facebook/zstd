@@ -921,8 +921,13 @@ size_t HUF_decompress1X_usingDTable(void* dst, size_t maxDstSize,
                                     const HUF_DTable* DTable)
 {
     DTableDesc const dtd = HUF_getDTableDesc(DTable);
+#ifdef HUF_DECOMPRESS_MINIMAL
+    assert(dtd.tableType == 0);
+    return HUF_decompress1X1_usingDTable_internal(dst, maxDstSize, cSrc, cSrcSize, DTable, /* bmi2 */ 0);
+#else
     return dtd.tableType ? HUF_decompress1X2_usingDTable_internal(dst, maxDstSize, cSrc, cSrcSize, DTable, /* bmi2 */ 0) :
                            HUF_decompress1X1_usingDTable_internal(dst, maxDstSize, cSrc, cSrcSize, DTable, /* bmi2 */ 0);
+#endif
 }
 
 size_t HUF_decompress4X_usingDTable(void* dst, size_t maxDstSize,
@@ -930,8 +935,13 @@ size_t HUF_decompress4X_usingDTable(void* dst, size_t maxDstSize,
                                     const HUF_DTable* DTable)
 {
     DTableDesc const dtd = HUF_getDTableDesc(DTable);
+#ifdef HUF_DECOMPRESS_MINIMAL
+    assert(dtd.tableType == 0);
+    return HUF_decompress4X1_usingDTable_internal(dst, maxDstSize, cSrc, cSrcSize, DTable, /* bmi2 */ 0);
+#else
     return dtd.tableType ? HUF_decompress4X2_usingDTable_internal(dst, maxDstSize, cSrc, cSrcSize, DTable, /* bmi2 */ 0) :
                            HUF_decompress4X1_usingDTable_internal(dst, maxDstSize, cSrc, cSrcSize, DTable, /* bmi2 */ 0);
+#endif
 }
 
 
@@ -966,6 +976,9 @@ U32 HUF_selectDecoder (size_t dstSize, size_t cSrcSize)
 {
     assert(dstSize > 0);
     assert(dstSize <= 128*1024);
+#ifdef HUF_DECOMPRESS_MINIMAL
+    return 0;
+#else
     /* decoder timing evaluation */
     {   U32 const Q = (cSrcSize >= dstSize) ? 15 : (U32)(cSrcSize * 16 / dstSize);   /* Q < 16 */
         U32 const D256 = (U32)(dstSize >> 8);
@@ -973,14 +986,18 @@ U32 HUF_selectDecoder (size_t dstSize, size_t cSrcSize)
         U32 DTime1 = algoTime[Q][1].tableTime + (algoTime[Q][1].decode256Time * D256);
         DTime1 += DTime1 >> 3;  /* advantage to algorithm using less memory, to reduce cache eviction */
         return DTime1 < DTime0;
-}   }
+    }
+#endif
+}
 
 
 typedef size_t (*decompressionAlgo)(void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize);
 
 size_t HUF_decompress (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize)
 {
+#ifndef HUF_DECOMPRESS_MINIMAL
     static const decompressionAlgo decompress[2] = { HUF_decompress4X1, HUF_decompress4X2 };
+#endif
 
     /* validation checks */
     if (dstSize == 0) return ERROR(dstSize_tooSmall);
@@ -989,7 +1006,12 @@ size_t HUF_decompress (void* dst, size_t dstSize, const void* cSrc, size_t cSrcS
     if (cSrcSize == 1) { memset(dst, *(const BYTE*)cSrc, dstSize); return dstSize; }   /* RLE */
 
     {   U32 const algoNb = HUF_selectDecoder(dstSize, cSrcSize);
+#ifdef HUF_DECOMPRESS_MINIMAL
+        assert(algoNb == 0);
+        return HUF_decompress4X1(dst, dstSize, cSrc, cSrcSize);
+#else
         return decompress[algoNb](dst, dstSize, cSrc, cSrcSize);
+#endif
     }
 }
 
@@ -1002,8 +1024,13 @@ size_t HUF_decompress4X_DCtx (HUF_DTable* dctx, void* dst, size_t dstSize, const
     if (cSrcSize == 1) { memset(dst, *(const BYTE*)cSrc, dstSize); return dstSize; }   /* RLE */
 
     {   U32 const algoNb = HUF_selectDecoder(dstSize, cSrcSize);
+#ifdef HUF_DECOMPRESS_MINIMAL
+        assert(algoNb == 0);
+        return HUF_decompress4X1_DCtx(dctx, dst, dstSize, cSrc, cSrcSize);
+#else
         return algoNb ? HUF_decompress4X2_DCtx(dctx, dst, dstSize, cSrc, cSrcSize) :
                         HUF_decompress4X1_DCtx(dctx, dst, dstSize, cSrc, cSrcSize) ;
+#endif
     }
 }
 
@@ -1025,8 +1052,13 @@ size_t HUF_decompress4X_hufOnly_wksp(HUF_DTable* dctx, void* dst,
     if (cSrcSize == 0) return ERROR(corruption_detected);
 
     {   U32 const algoNb = HUF_selectDecoder(dstSize, cSrcSize);
+#ifdef HUF_DECOMPRESS_MINIMAL
+        assert(algoNb == 0);
+        return HUF_decompress4X1_DCtx_wksp(dctx, dst, dstSize, cSrc, cSrcSize, workSpace, wkspSize);
+#else
         return algoNb ? HUF_decompress4X2_DCtx_wksp(dctx, dst, dstSize, cSrc, cSrcSize, workSpace, wkspSize):
                         HUF_decompress4X1_DCtx_wksp(dctx, dst, dstSize, cSrc, cSrcSize, workSpace, wkspSize);
+#endif
     }
 }
 
@@ -1041,10 +1073,16 @@ size_t HUF_decompress1X_DCtx_wksp(HUF_DTable* dctx, void* dst, size_t dstSize,
     if (cSrcSize == 1) { memset(dst, *(const BYTE*)cSrc, dstSize); return dstSize; }   /* RLE */
 
     {   U32 const algoNb = HUF_selectDecoder(dstSize, cSrcSize);
+#ifdef HUF_DECOMPRESS_MINIMAL
+        assert(algoNb == 0);
+        return HUF_decompress1X1_DCtx_wksp(dctx, dst, dstSize, cSrc,
+                                cSrcSize, workSpace, wkspSize);
+#else
         return algoNb ? HUF_decompress1X2_DCtx_wksp(dctx, dst, dstSize, cSrc,
                                 cSrcSize, workSpace, wkspSize):
                         HUF_decompress1X1_DCtx_wksp(dctx, dst, dstSize, cSrc,
                                 cSrcSize, workSpace, wkspSize);
+#endif
     }
 }
 
@@ -1060,8 +1098,13 @@ size_t HUF_decompress1X_DCtx(HUF_DTable* dctx, void* dst, size_t dstSize,
 size_t HUF_decompress1X_usingDTable_bmi2(void* dst, size_t maxDstSize, const void* cSrc, size_t cSrcSize, const HUF_DTable* DTable, int bmi2)
 {
     DTableDesc const dtd = HUF_getDTableDesc(DTable);
+#ifdef HUF_DECOMPRESS_MINIMAL
+    assert(dtd.tableType == 0);
+    return HUF_decompress1X1_usingDTable_internal(dst, maxDstSize, cSrc, cSrcSize, DTable, bmi2);
+#else
     return dtd.tableType ? HUF_decompress1X2_usingDTable_internal(dst, maxDstSize, cSrc, cSrcSize, DTable, bmi2) :
                            HUF_decompress1X1_usingDTable_internal(dst, maxDstSize, cSrc, cSrcSize, DTable, bmi2);
+#endif
 }
 
 size_t HUF_decompress1X1_DCtx_wksp_bmi2(HUF_DTable* dctx, void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize, void* workSpace, size_t wkspSize, int bmi2)
@@ -1079,8 +1122,13 @@ size_t HUF_decompress1X1_DCtx_wksp_bmi2(HUF_DTable* dctx, void* dst, size_t dstS
 size_t HUF_decompress4X_usingDTable_bmi2(void* dst, size_t maxDstSize, const void* cSrc, size_t cSrcSize, const HUF_DTable* DTable, int bmi2)
 {
     DTableDesc const dtd = HUF_getDTableDesc(DTable);
+#ifdef HUF_DECOMPRESS_MINIMAL
+    assert(dtd.tableType == 0);
+    return HUF_decompress4X1_usingDTable_internal(dst, maxDstSize, cSrc, cSrcSize, DTable, bmi2);
+#else
     return dtd.tableType ? HUF_decompress4X2_usingDTable_internal(dst, maxDstSize, cSrc, cSrcSize, DTable, bmi2) :
                            HUF_decompress4X1_usingDTable_internal(dst, maxDstSize, cSrc, cSrcSize, DTable, bmi2);
+#endif
 }
 
 size_t HUF_decompress4X_hufOnly_wksp_bmi2(HUF_DTable* dctx, void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize, void* workSpace, size_t wkspSize, int bmi2)
@@ -1090,7 +1138,12 @@ size_t HUF_decompress4X_hufOnly_wksp_bmi2(HUF_DTable* dctx, void* dst, size_t ds
     if (cSrcSize == 0) return ERROR(corruption_detected);
 
     {   U32 const algoNb = HUF_selectDecoder(dstSize, cSrcSize);
+#ifdef HUF_DECOMPRESS_MINIMAL
+        assert(algoNb == 0);
+        return HUF_decompress4X1_DCtx_wksp_bmi2(dctx, dst, dstSize, cSrc, cSrcSize, workSpace, wkspSize, bmi2);
+#else
         return algoNb ? HUF_decompress4X2_DCtx_wksp_bmi2(dctx, dst, dstSize, cSrc, cSrcSize, workSpace, wkspSize, bmi2) :
                         HUF_decompress4X1_DCtx_wksp_bmi2(dctx, dst, dstSize, cSrc, cSrcSize, workSpace, wkspSize, bmi2);
+#endif
     }
 }

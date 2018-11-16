@@ -56,7 +56,7 @@ static size_t compress(uint8_t *dst, size_t capacity,
                        const uint8_t *src, size_t srcSize)
 {
     size_t dstSize = 0;
-    ZSTD_CCtx_reset(cctx, ZSTD_CCtx_reset_session_only);
+    ZSTD_CCtx_reset(cctx, ZSTD_reset_session_only);
     FUZZ_setRandomParameters(cctx, srcSize, &seed);
 
     while (srcSize > 0) {
@@ -84,7 +84,7 @@ static size_t compress(uint8_t *dst, size_t capacity,
                     FUZZ_ZASSERT(ret);
                     /* Reset the compressor when the frame is finished */
                     if (ret == 0) {
-                        ZSTD_CCtx_reset(cctx, ZSTD_CCtx_reset_session_only);
+                        ZSTD_CCtx_reset(cctx, ZSTD_reset_session_only);
                         if ((FUZZ_rand(&seed) & 7) == 0) {
                             size_t const remaining = in.size - in.pos;
                             FUZZ_setRandomParameters(cctx, remaining, &seed);

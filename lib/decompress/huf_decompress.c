@@ -437,6 +437,7 @@ size_t HUF_decompress4X1 (void* dst, size_t dstSize, const void* cSrc, size_t cS
     return HUF_decompress4X1_DCtx(DTable, dst, dstSize, cSrc, cSrcSize);
 }
 
+#ifndef HUF_DECOMPRESS_MINIMAL
 
 /* *************************/
 /* double-symbols decoding */
@@ -910,6 +911,8 @@ size_t HUF_decompress4X2 (void* dst, size_t dstSize, const void* cSrc, size_t cS
     HUF_CREATE_STATIC_DTABLEX2(DTable, HUF_TABLELOG_MAX);
     return HUF_decompress4X2_DCtx(DTable, dst, dstSize, cSrc, cSrcSize);
 }
+
+#endif /* HUF_DECOMPRESS_MINIMAL */
 
 
 /* ***********************************/

@@ -722,7 +722,7 @@ typedef enum {
     ZSTD_reset_session_only = 1,
     ZSTD_reset_parameters = 2,
     ZSTD_reset_session_and_parameters = 3
-} ZSTD_reset_directive;
+} ZSTD_ResetDirective;
 
 /*! ZSTD_CCtx_reset() :
  *  There are 2 different things that can be reset, independently or jointly :
@@ -738,7 +738,7 @@ typedef enum {
  *                  otherwise the reset fails, and function returns an error value (which can be tested using ZSTD_isError())
  *  - Both : similar to resetting the session, followed by resetting parameters.
  */
-ZSTDLIB_API size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx, ZSTD_reset_directive reset);
+ZSTDLIB_API size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx, ZSTD_ResetDirective reset);
 
 
 
@@ -853,7 +853,7 @@ ZSTDLIB_API size_t ZSTD_DCtx_refPrefix(ZSTD_DCtx* dctx,
  *  Parameters can only be reset when no active frame is being decompressed.
  * @return : 0, or an error code, which can be tested with ZSTD_isError()
  */
-ZSTDLIB_API size_t ZSTD_DCtx_reset(ZSTD_DCtx* dctx, ZSTD_reset_directive reset);
+ZSTDLIB_API size_t ZSTD_DCtx_reset(ZSTD_DCtx* dctx, ZSTD_ResetDirective reset);
 
 
 /*! ZSTD_decompress_generic() :

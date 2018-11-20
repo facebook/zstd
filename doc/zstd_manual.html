@@ -625,9 +625,9 @@ int ZSTD_cParam_upperBound(ZSTD_cParameter cParam);
     ZSTD_reset_session_only = 1,
     ZSTD_reset_parameters = 2,
     ZSTD_reset_session_and_parameters = 3
-} ZSTD_reset_directive;
+} ZSTD_ResetDirective;
 </b></pre><BR>
-<pre><b>size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx, ZSTD_reset_directive reset);
+<pre><b>size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx, ZSTD_ResetDirective reset);
 </b><p>  There are 2 different things that can be reset, independently or jointly :
   - The session : will stop compressing current frame, and make CCtx ready to start a new one.
                   Useful after an error, or to interrupt any ongoing compression.
@@ -735,7 +735,7 @@ int ZSTD_cParam_upperBound(ZSTD_cParameter cParam);
  
 </p></pre><BR>
 
-<pre><b>size_t ZSTD_DCtx_reset(ZSTD_DCtx* dctx, ZSTD_reset_directive reset);
+<pre><b>size_t ZSTD_DCtx_reset(ZSTD_DCtx* dctx, ZSTD_ResetDirective reset);
 </b><p>  Return a DCtx to clean state.
   Session and parameters can be reset jointly or separately
   Parameters can only be reset when no active frame is being decompressed.

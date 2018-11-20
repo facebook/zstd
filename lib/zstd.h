@@ -895,22 +895,22 @@ ZSTDLIB_API size_t ZSTD_decompress_generic(ZSTD_DCtx* dctx,
                                            * This limit does not apply to one-pass decoders (such as ZSTD_decompress()), since no additional memory is allocated */
 
 /* compression parameter bounds */
-#define ZSTD_WINDOWLOG_MAX_32   30
-#define ZSTD_WINDOWLOG_MAX_64   31
-#define ZSTD_WINDOWLOG_MAX    ((int)(sizeof(size_t) == 4 ? ZSTD_WINDOWLOG_MAX_32 : ZSTD_WINDOWLOG_MAX_64))
-#define ZSTD_WINDOWLOG_MIN      10
-#define ZSTD_HASHLOG_MAX      ((ZSTD_WINDOWLOG_MAX < 30) ? ZSTD_WINDOWLOG_MAX : 30)
-#define ZSTD_HASHLOG_MIN         6
-#define ZSTD_CHAINLOG_MAX_32    29
-#define ZSTD_CHAINLOG_MAX_64    30
-#define ZSTD_CHAINLOG_MAX     ((int)(sizeof(size_t) == 4 ? ZSTD_CHAINLOG_MAX_32 : ZSTD_CHAINLOG_MAX_64))
-#define ZSTD_CHAINLOG_MIN       ZSTD_HASHLOG_MIN
-#define ZSTD_SEARCHLOG_MAX     (ZSTD_WINDOWLOG_MAX-1)
-#define ZSTD_SEARCHLOG_MIN       1
-#define ZSTD_MINMATCH_MAX        7   /* only for ZSTD_fast, other strategies are limited to 6 */
-#define ZSTD_MINMATCH_MIN        3   /* only for ZSTD_btopt+, faster strategies are limited to 4 */
-#define ZSTD_TARGETLENGTH_MAX   ZSTD_BLOCKSIZE_MAX
-#define ZSTD_TARGETLENGTH_MIN    0   /* note : comparing this constant to an unsigned results in a tautological test */
+#define ZSTD_WINDOWLOG_MAX_32    30
+#define ZSTD_WINDOWLOG_MAX_64    31
+#define ZSTD_WINDOWLOG_MAX     ((int)(sizeof(size_t) == 4 ? ZSTD_WINDOWLOG_MAX_32 : ZSTD_WINDOWLOG_MAX_64))
+#define ZSTD_WINDOWLOG_MIN       10
+#define ZSTD_HASHLOG_MAX       ((ZSTD_WINDOWLOG_MAX < 30) ? ZSTD_WINDOWLOG_MAX : 30)
+#define ZSTD_HASHLOG_MIN          6
+#define ZSTD_CHAINLOG_MAX_32     29
+#define ZSTD_CHAINLOG_MAX_64     30
+#define ZSTD_CHAINLOG_MAX      ((int)(sizeof(size_t) == 4 ? ZSTD_CHAINLOG_MAX_32 : ZSTD_CHAINLOG_MAX_64))
+#define ZSTD_CHAINLOG_MIN        ZSTD_HASHLOG_MIN
+#define ZSTD_SEARCHLOG_MAX      (ZSTD_WINDOWLOG_MAX-1)
+#define ZSTD_SEARCHLOG_MIN        1
+#define ZSTD_MINMATCH_MAX         7   /* only for ZSTD_fast, other strategies are limited to 6 */
+#define ZSTD_MINMATCH_MIN         3   /* only for ZSTD_btopt+, faster strategies are limited to 4 */
+#define ZSTD_TARGETLENGTH_MAX    ZSTD_BLOCKSIZE_MAX
+#define ZSTD_TARGETLENGTH_MIN     0   /* note : comparing this constant to an unsigned results in a tautological test */
 
 /* LDM parameter bounds */
 #define ZSTD_LDM_MINMATCH_MAX   4096
@@ -927,7 +927,7 @@ typedef struct {
     unsigned chainLog;        /**< fully searched segment : larger == more compression, slower, more memory (useless for fast) */
     unsigned hashLog;         /**< dispatch table : larger == faster, more memory */
     unsigned searchLog;       /**< nb of searches : larger == more compression, slower */
-    unsigned minMatch;         /**< match length searched : larger == faster decompression, sometimes less compression */
+    unsigned minMatch;        /**< match length searched : larger == faster decompression, sometimes less compression */
     unsigned targetLength;    /**< acceptable match size for optimal parser (only) : larger == more compression, slower */
     ZSTD_strategy strategy;   /**< see ZSTD_strategy definition above */
 } ZSTD_compressionParameters;

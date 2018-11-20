@@ -10,7 +10,6 @@
 
 
 /* ======   Tuning parameters   ====== */
-#define ZSTDMT_NBWORKERS_MAX 200
 #define ZSTDMT_JOBSIZE_MAX  (MEM_32bits() ? (512 MB) : (2 GB))  /* note : limited by `jobSize` type, which is `unsigned` */
 #define ZSTDMT_OVERLAPLOG_DEFAULT 6
 

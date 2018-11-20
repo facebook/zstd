@@ -226,6 +226,66 @@ static ZSTD_CCtx_params ZSTD_assignParamsToCCtxParams(
     return ret;
 }
 
+ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
+{
+    ZSTD_bounds bounds = { 0, 0, 0 };
+
+    switch(param)
+    {
+    case ZSTD_p_compressionLevel:
+        bounds.lowerBound = ZSTD_minCLevel();
+        bounds.upperBound = ZSTD_maxCLevel();
+        return bounds;
+
+    case ZSTD_p_windowLog:
+        bounds.lowerBound = ZSTD_WINDOWLOG_MIN;
+        bounds.upperBound = ZSTD_WINDOWLOG_MAX;
+        return bounds;
+
+    case ZSTD_p_hashLog:
+        bounds.lowerBound = ZSTD_HASHLOG_MIN;
+        bounds.upperBound = ZSTD_HASHLOG_MAX;
+        return bounds;
+
+    case ZSTD_p_chainLog:
+        bounds.lowerBound = ZSTD_CHAINLOG_MIN;
+        bounds.upperBound = ZSTD_CHAINLOG_MAX;
+        return bounds;
+
+    case ZSTD_p_searchLog:
+        bounds.lowerBound = ZSTD_SEARCHLOG_MIN;
+        bounds.upperBound = ZSTD_SEARCHLOG_MAX;
+        return bounds;
+
+    case ZSTD_p_minMatch:
+        bounds.lowerBound = ZSTD_MINMATCH_MIN;
+        bounds.upperBound = ZSTD_MINMATCH_MAX;
+        return bounds;
+
+    case ZSTD_p_targetLength:
+    case ZSTD_p_compressionStrategy:
+    case ZSTD_p_format:
+    case ZSTD_p_contentSizeFlag:
+    case ZSTD_p_checksumFlag:
+    case ZSTD_p_dictIDFlag:
+    case ZSTD_p_forceMaxWindow :
+    case ZSTD_p_nbWorkers:
+    case ZSTD_p_jobSize:
+    case ZSTD_p_overlapSizeLog:
+    case ZSTD_p_rsyncable:
+    case ZSTD_p_enableLongDistanceMatching:
+    case ZSTD_p_ldmHashLog:
+    case ZSTD_p_ldmMinMatch:
+    case ZSTD_p_ldmBucketSizeLog:
+    case ZSTD_p_ldmHashEveryLog:
+    case ZSTD_p_forceAttachDict:
+    default:
+        {   ZSTD_bounds const boundError = { ERROR(parameter_unsupported), 0, 0 };
+            return boundError;
+        }
+    }
+}
+
 #define CLAMPCHECK(val,min,max) {            \
     if (((val)<(min)) | ((val)>(max))) {     \
         return ERROR(parameter_outOfBound);  \
@@ -379,9 +439,9 @@ size_t ZSTD_CCtxParam_setParameter(ZSTD_CCtx_params* CCtxParams,
 
     case ZSTD_p_minMatch :
         if (value>0)   /* 0 => use default */
-            CLAMPCHECK(value, ZSTD_SEARCHLENGTH_MIN, ZSTD_SEARCHLENGTH_MAX);
-        CCtxParams->cParams.searchLength = value;
-        return CCtxParams->cParams.searchLength;
+            CLAMPCHECK(value, ZSTD_MINMATCH_MIN, ZSTD_MINMATCH_MAX);
+        CCtxParams->cParams.minMatch = value;
+        return CCtxParams->cParams.minMatch;
 
     case ZSTD_p_targetLength :
         /* all values are valid. 0 => use default */
@@ -511,7 +571,7 @@ size_t ZSTD_CCtxParam_getParameter(
         *value = CCtxParams->cParams.searchLog;
         break;
     case ZSTD_p_minMatch :
-        *value = CCtxParams->cParams.searchLength;
+        *value = CCtxParams->cParams.minMatch;
         break;
     case ZSTD_p_targetLength :
         *value = CCtxParams->cParams.targetLength;
@@ -698,7 +758,7 @@ size_t ZSTD_checkCParams(ZSTD_compressionParameters cParams)
     CLAMPCHECK(cParams.chainLog, ZSTD_CHAINLOG_MIN, ZSTD_CHAINLOG_MAX);
     CLAMPCHECK(cParams.hashLog, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
     CLAMPCHECK(cParams.searchLog, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
-    CLAMPCHECK(cParams.searchLength, ZSTD_SEARCHLENGTH_MIN, ZSTD_SEARCHLENGTH_MAX);
+    CLAMPCHECK(cParams.minMatch, ZSTD_MINMATCH_MIN, ZSTD_MINMATCH_MAX);
     ZSTD_STATIC_ASSERT(ZSTD_TARGETLENGTH_MIN == 0);
     if (cParams.targetLength > ZSTD_TARGETLENGTH_MAX)
         return ERROR(parameter_outOfBound);
@@ -721,7 +781,7 @@ ZSTD_clampCParams(ZSTD_compressionParameters cParams)
     CLAMP(cParams.chainLog, ZSTD_CHAINLOG_MIN, ZSTD_CHAINLOG_MAX);
     CLAMP(cParams.hashLog, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
     CLAMP(cParams.searchLog, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
-    CLAMP(cParams.searchLength, ZSTD_SEARCHLENGTH_MIN, ZSTD_SEARCHLENGTH_MAX);
+    CLAMP(cParams.minMatch, ZSTD_MINMATCH_MIN, ZSTD_MINMATCH_MAX);
     ZSTD_STATIC_ASSERT(ZSTD_TARGETLENGTH_MIN == 0);
     if (cParams.targetLength > ZSTD_TARGETLENGTH_MAX)
         cParams.targetLength = ZSTD_TARGETLENGTH_MAX;
@@ -795,7 +855,7 @@ ZSTD_compressionParameters ZSTD_getCParamsFromCCtxParams(
     if (CCtxParams->cParams.hashLog) cParams.hashLog = CCtxParams->cParams.hashLog;
     if (CCtxParams->cParams.chainLog) cParams.chainLog = CCtxParams->cParams.chainLog;
     if (CCtxParams->cParams.searchLog) cParams.searchLog = CCtxParams->cParams.searchLog;
-    if (CCtxParams->cParams.searchLength) cParams.searchLength = CCtxParams->cParams.searchLength;
+    if (CCtxParams->cParams.minMatch) cParams.minMatch = CCtxParams->cParams.minMatch;
     if (CCtxParams->cParams.targetLength) cParams.targetLength = CCtxParams->cParams.targetLength;
     if (CCtxParams->cParams.strategy) cParams.strategy = CCtxParams->cParams.strategy;
     assert(!ZSTD_checkCParams(cParams));
@@ -808,7 +868,7 @@ ZSTD_sizeof_matchState(const ZSTD_compressionParameters* const cParams,
 {
     size_t const chainSize = (cParams->strategy == ZSTD_fast) ? 0 : ((size_t)1 << cParams->chainLog);
     size_t const hSize = ((size_t)1) << cParams->hashLog;
-    U32    const hashLog3 = (forCCtx && cParams->searchLength==3) ? MIN(ZSTD_HASHLOG3_MAX, cParams->windowLog) : 0;
+    U32    const hashLog3 = (forCCtx && cParams->minMatch==3) ? MIN(ZSTD_HASHLOG3_MAX, cParams->windowLog) : 0;
     size_t const h3Size = ((size_t)1) << hashLog3;
     size_t const tableSpace = (chainSize + hSize + h3Size) * sizeof(U32);
     size_t const optPotentialSpace = ((MaxML+1) + (MaxLL+1) + (MaxOff+1) + (1<<Litbits)) * sizeof(U32)
@@ -829,7 +889,7 @@ size_t ZSTD_estimateCCtxSize_usingCCtxParams(const ZSTD_CCtx_params* params)
     {   ZSTD_compressionParameters const cParams =
                 ZSTD_getCParamsFromCCtxParams(params, 0, 0);
         size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << cParams.windowLog);
-        U32    const divider = (cParams.searchLength==3) ? 3 : 4;
+        U32    const divider = (cParams.minMatch==3) ? 3 : 4;
         size_t const maxNbSeq = blockSize / divider;
         size_t const tokenSpace = WILDCOPY_OVERLENGTH + blockSize + 11*maxNbSeq;
         size_t const entropySpace = HUF_WORKSPACE_SIZE;
@@ -954,7 +1014,7 @@ static U32 ZSTD_equivalentCParams(ZSTD_compressionParameters cParams1,
     return (cParams1.hashLog  == cParams2.hashLog)
          & (cParams1.chainLog == cParams2.chainLog)
          & (cParams1.strategy == cParams2.strategy)   /* opt parser space */
-         & ((cParams1.searchLength==3) == (cParams2.searchLength==3));  /* hashlog3 space */
+         & ((cParams1.minMatch==3) == (cParams2.minMatch==3));  /* hashlog3 space */
 }
 
 static void ZSTD_assertEqualCParams(ZSTD_compressionParameters cParams1,
@@ -966,7 +1026,7 @@ static void ZSTD_assertEqualCParams(ZSTD_compressionParameters cParams1,
     assert(cParams1.chainLog     == cParams2.chainLog);
     assert(cParams1.hashLog      == cParams2.hashLog);
     assert(cParams1.searchLog    == cParams2.searchLog);
-    assert(cParams1.searchLength == cParams2.searchLength);
+    assert(cParams1.minMatch     == cParams2.minMatch);
     assert(cParams1.targetLength == cParams2.targetLength);
     assert(cParams1.strategy     == cParams2.strategy);
 }
@@ -997,7 +1057,7 @@ static U32 ZSTD_sufficientBuff(size_t bufferSize1, size_t maxNbSeq1,
 {
     size_t const windowSize2 = MAX(1, (size_t)MIN(((U64)1 << cParams2.windowLog), pledgedSrcSize));
     size_t const blockSize2 = MIN(ZSTD_BLOCKSIZE_MAX, windowSize2);
-    size_t const maxNbSeq2 = blockSize2 / ((cParams2.searchLength == 3) ? 3 : 4);
+    size_t const maxNbSeq2 = blockSize2 / ((cParams2.minMatch == 3) ? 3 : 4);
     size_t const maxNbLit2 = blockSize2;
     size_t const neededBufferSize2 = (buffPol2==ZSTDb_buffered) ? windowSize2 + blockSize2 : 0;
     DEBUGLOG(4, "ZSTD_sufficientBuff: is neededBufferSize2=%u <= bufferSize1=%u",
@@ -1101,7 +1161,7 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
 {
     size_t const chainSize = (cParams->strategy == ZSTD_fast) ? 0 : ((size_t)1 << cParams->chainLog);
     size_t const hSize = ((size_t)1) << cParams->hashLog;
-    U32    const hashLog3 = (forCCtx && cParams->searchLength==3) ? MIN(ZSTD_HASHLOG3_MAX, cParams->windowLog) : 0;
+    U32    const hashLog3 = (forCCtx && cParams->minMatch==3) ? MIN(ZSTD_HASHLOG3_MAX, cParams->windowLog) : 0;
     size_t const h3Size = ((size_t)1) << hashLog3;
     size_t const tableSpace = (chainSize + hSize + h3Size) * sizeof(U32);
 
@@ -1185,7 +1245,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
 
     {   size_t const windowSize = MAX(1, (size_t)MIN(((U64)1 << params.cParams.windowLog), pledgedSrcSize));
         size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, windowSize);
-        U32    const divider = (params.cParams.searchLength==3) ? 3 : 4;
+        U32    const divider = (params.cParams.minMatch==3) ? 3 : 4;
         size_t const maxNbSeq = blockSize / divider;
         size_t const tokenSpace = WILDCOPY_OVERLENGTH + blockSize + 11*maxNbSeq;
         size_t const buffOutSize = (zbuff==ZSTDb_buffered) ? ZSTD_compressBound(blockSize)+1 : 0;
@@ -2465,7 +2525,7 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
     ZSTD_assertEqualCParams(zc->appliedParams.cParams, ms->cParams);
 
     if (srcSize < MIN_CBLOCK_SIZE+ZSTD_blockHeaderSize+1) {
-        ZSTD_ldm_skipSequences(&zc->externSeqStore, srcSize, zc->appliedParams.cParams.searchLength);
+        ZSTD_ldm_skipSequences(&zc->externSeqStore, srcSize, zc->appliedParams.cParams.minMatch);
         cSize = 0;
         goto out;  /* don't even attempt compression below a certain srcSize */
     }

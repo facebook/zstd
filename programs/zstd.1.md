@@ -383,13 +383,13 @@ The list of available _options_:
 
     The minimum _slog_ is 1 and the maximum is 26.
 
-- `searchLength`=_slen_, `slen`=_slen_:
+- `minMatch`=_mml_, `mml`=_mml_:
     Specify the minimum searched length of a match in a hash table.
 
     Larger search lengths usually decrease compression ratio but improve
     decompression speed.
 
-    The minimum _slen_ is 3 and the maximum is 7.
+    The minimum _mml_ is 3 and the maximum is 7.
 
 - `targetLen`=_tlen_, `tlen`=_tlen_:
     The impact of this field vary depending on selected strategy.
@@ -420,7 +420,7 @@ The list of available _options_:
     Default _ovlog_ is 6, which means "reload `windowSize / 8`".
     Exception : the maximum compression level (22) has a default _ovlog_ of 9.
 
-- `ldmHashLog`=_ldmhlog_, `ldmhlog`=_ldmhlog_:
+- `ldmHashLog`=_lhlog_, `lhlog`=_lhlog_:
     Specify the maximum size for a hash table used for long distance matching.
 
     This option is ignored unless long distance matching is enabled.
@@ -428,18 +428,18 @@ The list of available _options_:
     Bigger hash tables usually improve compression ratio at the expense of more
     memory during compression and a decrease in compression speed.
 
-    The minimum _ldmhlog_ is 6 and the maximum is 26 (default: 20).
+    The minimum _lhlog_ is 6 and the maximum is 26 (default: 20).
 
-- `ldmSearchLength`=_ldmslen_, `ldmslen`=_ldmslen_:
+- `ldmMinMatch`=_lmml_, `lmml`=_lmml_:
     Specify the minimum searched length of a match for long distance matching.
 
     This option is ignored unless long distance matching is enabled.
 
     Larger/very small values usually decrease compression ratio.
 
-    The minimum _ldmslen_ is 4 and the maximum is 4096 (default: 64).
+    The minimum _lmml_ is 4 and the maximum is 4096 (default: 64).
 
-- `ldmBucketSizeLog`=_ldmblog_, `ldmblog`=_ldmblog_:
+- `ldmBucketSizeLog`=_lblog_, `lblog`=_lblog_:
     Specify the size of each bucket for the hash table used for long distance
     matching.
 
@@ -448,9 +448,9 @@ The list of available _options_:
     Larger bucket sizes improve collision resolution but decrease compression
     speed.
 
-    The minimum _ldmblog_ is 0 and the maximum is 8 (default: 3).
+    The minimum _lblog_ is 0 and the maximum is 8 (default: 3).
 
-- `ldmHashEveryLog`=_ldmhevery_, `ldmhevery`=_ldmhevery_:
+- `ldmHashEveryLog`=_lhevery_, `lhevery`=_lhevery_:
     Specify the frequency of inserting entries into the long distance matching
     hash table.
 
@@ -459,13 +459,13 @@ The list of available _options_:
     Larger values will improve compression speed. Deviating far from the
     default value will likely result in a decrease in compression ratio.
 
-    The default value is `wlog - ldmhlog`.
+    The default value is `wlog - lhlog`.
 
 ### Example
 The following parameters sets advanced compression options to something
 similar to predefined level 19 for files bigger than 256 KB:
 
-`--zstd`=wlog=23,clog=23,hlog=22,slog=6,slen=3,tlen=48,strat=6
+`--zstd`=wlog=23,clog=23,hlog=22,slog=6,mml=3,tlen=48,strat=6
 
 ### -B#:
 Select the size of each compression job.

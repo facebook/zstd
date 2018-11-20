@@ -408,16 +408,16 @@ static size_t benchMem(U32 benchNb,
     if (g_cstream==NULL) g_cstream = ZSTD_createCStream();
     if (g_dstream==NULL) g_dstream = ZSTD_createDStream();
 
-    /* DISPLAY("params: cLevel %d, wlog %d hlog %d clog %d slog %d slen %d tlen %d strat %d \n",
+    /* DISPLAY("params: cLevel %d, wlog %d hlog %d clog %d slog %d mml %d tlen %d strat %d \n",
           cLevel, cparams->windowLog, cparams->hashLog, cparams->chainLog, cparams->searchLog,
-          cparams->searchLength, cparams->targetLength, cparams->strategy); */
+          cparams->minMatch, cparams->targetLength, cparams->strategy); */
 
     ZSTD_CCtx_setParameter(g_zcc, ZSTD_p_compressionLevel, cLevel);
     ZSTD_CCtx_setParameter(g_zcc, ZSTD_p_windowLog, cparams.windowLog);
     ZSTD_CCtx_setParameter(g_zcc, ZSTD_p_hashLog, cparams.hashLog);
     ZSTD_CCtx_setParameter(g_zcc, ZSTD_p_chainLog, cparams.chainLog);
     ZSTD_CCtx_setParameter(g_zcc, ZSTD_p_searchLog, cparams.searchLog);
-    ZSTD_CCtx_setParameter(g_zcc, ZSTD_p_minMatch, cparams.searchLength);
+    ZSTD_CCtx_setParameter(g_zcc, ZSTD_p_minMatch, cparams.minMatch);
     ZSTD_CCtx_setParameter(g_zcc, ZSTD_p_targetLength, cparams.targetLength);
     ZSTD_CCtx_setParameter(g_zcc, ZSTD_p_compressionStrategy, cparams.strategy);
 
@@ -427,7 +427,7 @@ static size_t benchMem(U32 benchNb,
     ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_hashLog, cparams.hashLog);
     ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_chainLog, cparams.chainLog);
     ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_searchLog, cparams.searchLog);
-    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_minMatch, cparams.searchLength);
+    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_minMatch, cparams.minMatch);
     ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_targetLength, cparams.targetLength);
     ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_compressionStrategy, cparams.strategy);
 
@@ -752,7 +752,7 @@ int main(int argc, const char** argv)
                 if (longCommandWArg(&argument, "chainLog=") || longCommandWArg(&argument, "clog=")) { cparams.chainLog = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
                 if (longCommandWArg(&argument, "hashLog=") || longCommandWArg(&argument, "hlog=")) { cparams.hashLog = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
                 if (longCommandWArg(&argument, "searchLog=") || longCommandWArg(&argument, "slog=")) { cparams.searchLog = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
-                if (longCommandWArg(&argument, "searchLength=") || longCommandWArg(&argument, "slen=")) { cparams.searchLength = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
+                if (longCommandWArg(&argument, "minMatch=") || longCommandWArg(&argument, "mml=")) { cparams.minMatch = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
                 if (longCommandWArg(&argument, "targetLength=") || longCommandWArg(&argument, "tlen=")) { cparams.targetLength = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; }
                 if (longCommandWArg(&argument, "strategy=") || longCommandWArg(&argument, "strat=")) { cparams.strategy = (ZSTD_strategy)(readU32FromChar(&argument)); if (argument[0]==',') { argument++; continue; } else break; }
                 if (longCommandWArg(&argument, "level=") || longCommandWArg(&argument, "lvl=")) { cLevel = (int)readU32FromChar(&argument); cparams = ZSTD_getCParams(cLevel, 0, 0); if (argument[0]==',') { argument++; continue; } else break; }

@@ -228,7 +228,7 @@ static size_t getCCtxParams(ZSTD_CCtx* zc, ZSTD_parameters* savedParams)
     CHECK_RET_Z(ZSTD_CCtx_getParameter(zc, ZSTD_p_hashLog, &savedParams->cParams.hashLog));
     CHECK_RET_Z(ZSTD_CCtx_getParameter(zc, ZSTD_p_chainLog, &savedParams->cParams.chainLog));
     CHECK_RET_Z(ZSTD_CCtx_getParameter(zc, ZSTD_p_searchLog, &savedParams->cParams.searchLog));
-    CHECK_RET_Z(ZSTD_CCtx_getParameter(zc, ZSTD_p_minMatch, &savedParams->cParams.searchLength));
+    CHECK_RET_Z(ZSTD_CCtx_getParameter(zc, ZSTD_p_minMatch, &savedParams->cParams.minMatch));
     CHECK_RET_Z(ZSTD_CCtx_getParameter(zc, ZSTD_p_targetLength, &savedParams->cParams.targetLength));
     CHECK_RET_Z(ZSTD_CCtx_getParameter(zc, ZSTD_p_compressionStrategy, &value));
     savedParams->cParams.strategy = value;
@@ -248,7 +248,7 @@ static U32 badParameters(ZSTD_CCtx* zc, ZSTD_parameters const savedParams)
     CHECK_RET(2, params.cParams.hashLog != savedParams.cParams.hashLog, "hashLog");
     CHECK_RET(3, params.cParams.chainLog != savedParams.cParams.chainLog, "chainLog");
     CHECK_RET(4, params.cParams.searchLog != savedParams.cParams.searchLog, "searchLog");
-    CHECK_RET(5, params.cParams.searchLength != savedParams.cParams.searchLength, "searchLength");
+    CHECK_RET(5, params.cParams.minMatch != savedParams.cParams.minMatch, "minMatch");
     CHECK_RET(6, params.cParams.targetLength != savedParams.cParams.targetLength, "targetLength");
 
     CHECK_RET(7, params.fParams.checksumFlag != savedParams.fParams.checksumFlag, "checksumFlag");
@@ -353,7 +353,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     DISPLAYLEVEL(3, "test%3i : use bad compression parameters : ", testNb++);
     {   size_t r;
         ZSTD_parameters params = ZSTD_getParams(1, 0, 0);
-        params.cParams.searchLength = 2;
+        params.cParams.minMatch = 2;
         r = ZSTD_initCStream_advanced(zc, NULL, 0, params, 0);
         if (!ZSTD_isError(r)) goto _output_error;
         DISPLAYLEVEL(3, "init error : %s \n", ZSTD_getErrorName(r));
@@ -1851,7 +1851,7 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest,
                 cParams.chainLog += (FUZ_rand(&lseed) & 3) - 1;
                 cParams.searchLog += (FUZ_rand(&lseed) & 3) - 1;
                 cParams.searchLog = MIN(searchLogMax, cParams.searchLog);
-                cParams.searchLength += (FUZ_rand(&lseed) & 3) - 1;
+                cParams.minMatch += (FUZ_rand(&lseed) & 3) - 1;
                 cParams.targetLength = (U32)((cParams.targetLength + 1 ) * (0.5 + ((double)(FUZ_rand(&lseed) & 127) / 128)));
                 cParams = ZSTD_adjustCParams(cParams, pledgedSrcSize, dictSize);
 
@@ -1870,7 +1870,7 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest,
                     CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_chainLog, cParams.chainLog, opaqueAPI) );
                 }
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_searchLog, cParams.searchLog, opaqueAPI) );
-                if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_minMatch, cParams.searchLength, opaqueAPI) );
+                if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_minMatch, cParams.minMatch, opaqueAPI) );
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_p_targetLength, cParams.targetLength, opaqueAPI) );
 
                 /* mess with long distance matching parameters */

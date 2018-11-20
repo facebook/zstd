@@ -266,9 +266,9 @@ static int ZSTD_isUpdateAuthorized(ZSTD_cParameter param)
     }
 }
 
-size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned value)
+size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int value)
 {
-    DEBUGLOG(4, "ZSTD_CCtx_setParameter (%u, %u)", (U32)param, value);
+    DEBUGLOG(4, "ZSTD_CCtx_setParameter (%i, %i)", (int)param, value);
     if (cctx->streamStage != zcss_init) {
         if (ZSTD_isUpdateAuthorized(param)) {
             cctx->cParamsChanged = 1;
@@ -331,20 +331,20 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
     }
 }
 
-size_t ZSTD_CCtxParam_setParameter(
-        ZSTD_CCtx_params* CCtxParams, ZSTD_cParameter param, unsigned value)
+size_t ZSTD_CCtxParam_setParameter(ZSTD_CCtx_params* CCtxParams,
+                                   ZSTD_cParameter param, int value)
 {
-    DEBUGLOG(4, "ZSTD_CCtxParam_setParameter (%u, %u)", (U32)param, value);
+    DEBUGLOG(4, "ZSTD_CCtxParam_setParameter (%i, %i)", (int)param, value);
     switch(param)
     {
     case ZSTD_p_format :
-        if (value > (unsigned)ZSTD_f_zstd1_magicless)
+        if (value > (int)ZSTD_f_zstd1_magicless)
             return ERROR(parameter_unsupported);
         CCtxParams->format = (ZSTD_format_e)value;
         return (size_t)CCtxParams->format;
 
     case ZSTD_p_compressionLevel : {
-        int cLevel = (int)value;  /* cast expected to restore negative sign */
+        int cLevel = value;
         if (cLevel > ZSTD_maxCLevel()) cLevel = ZSTD_maxCLevel();
         if (cLevel) {  /* 0 : does not change current level */
             CCtxParams->compressionLevel = cLevel;
@@ -390,7 +390,7 @@ size_t ZSTD_CCtxParam_setParameter(
 
     case ZSTD_p_compressionStrategy :
         if (value>0)   /* 0 => use default */
-            CLAMPCHECK(value, (unsigned)ZSTD_fast, (unsigned)ZSTD_btultra);
+            CLAMPCHECK(value, (int)ZSTD_fast, (int)ZSTD_btultra);
         CCtxParams->cParams.strategy = (ZSTD_strategy)value;
         return (size_t)CCtxParams->cParams.strategy;
 

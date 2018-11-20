@@ -672,7 +672,7 @@ size_t ZSTD_CCtx_refPrefix_advanced(
 
 /*! ZSTD_CCtx_reset() :
  *  Also dumps dictionary */
-size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx, ZSTD_reset_directive reset)
+size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx, ZSTD_ResetDirective reset)
 {
     if ( (reset == ZSTD_reset_session_only)
       || (reset == ZSTD_reset_session_and_parameters) ) {

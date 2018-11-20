@@ -1585,7 +1585,7 @@ size_t ZSTD_decompress_generic_simpleArgs (
     return cErr;
 }
 
-size_t ZSTD_DCtx_reset(ZSTD_DCtx* dctx, ZSTD_reset_directive reset)
+size_t ZSTD_DCtx_reset(ZSTD_DCtx* dctx, ZSTD_ResetDirective reset)
 {
     if ( (reset == ZSTD_reset_session_only)
       || (reset == ZSTD_reset_session_and_parameters) ) {

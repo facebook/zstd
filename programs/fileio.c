@@ -533,7 +533,7 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_dictIDFlag, g_dictIDFlag) );
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_checksumFlag, g_checksumFlag) );
         /* compression level */
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionLevel, (unsigned)cLevel) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionLevel, cLevel) );
         /* long distance matching */
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_enableLongDistanceMatching, g_ldmFlag) );
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_ldmHashLog, g_ldmHashLog) );
@@ -551,7 +551,7 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_searchLog, comprParams.searchLog) );
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_minMatch, comprParams.searchLength) );
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_targetLength, comprParams.targetLength) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionStrategy, (U32)comprParams.strategy) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionStrategy, comprParams.strategy) );
         /* multi-threading */
 #ifdef ZSTD_MULTITHREAD
         DISPLAYLEVEL(5,"set nb workers = %u \n", g_nbWorkers);
@@ -994,14 +994,14 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
                             if (compressionLevel > ZSTD_maxCLevel()) compressionLevel = ZSTD_maxCLevel();
                             if (compressionLevel > g_maxAdaptLevel) compressionLevel = g_maxAdaptLevel;
                             compressionLevel += (compressionLevel == 0);   /* skip 0 */
-                            ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionLevel, (unsigned)compressionLevel);
+                            ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionLevel, compressionLevel);
                         }
                         if (speedChange == faster) {
                             DISPLAYLEVEL(6, "faster speed , lighter compression \n")
                             compressionLevel --;
                             if (compressionLevel < g_minAdaptLevel) compressionLevel = g_minAdaptLevel;
                             compressionLevel -= (compressionLevel == 0);   /* skip 0 */
-                            ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionLevel, (unsigned)compressionLevel);
+                            ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionLevel, compressionLevel);
                         }
                         speedChange = noChange;
 

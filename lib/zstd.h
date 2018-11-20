@@ -408,11 +408,12 @@ ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output
 /****************************************************************************************
  *   Candidate API for promotion to stable status
  ****************************************************************************************
- * The following symbols and constants are currently considered
- * to join "stable API" status by v1.4.0.
- * The intention is that they should be able to become stable "as is", with no further modification.
- * It is also last chance to gather comments / suggestions on this API,
- * as the API is locked once reaching "stable" status.
+ * The following symbols and constants are in "staging area" :
+ * they are considered to join "stable API" status by v1.4.0.
+ * The below proposal is created so that it's possible to make it stable "as is".
+ * That being said, it's still possible to suggest modifications.
+ * Staging is in fact last chance for changes,
+ * because the API is locked once reaching "stable" status.
  * ***************************************************************************************/
 
 
@@ -572,7 +573,7 @@ typedef enum {
      * They return an error otherwise. */
     ZSTD_p_nbWorkers=400,    /* Select how many threads will be spawned to compress in parallel.
                               * When nbWorkers >= 1, triggers asynchronous mode :
-                              * ZSTD_compress_generic() consumes some input, flush some output if possible, and immediately gives back control to caller,
+                              * ZSTD_compress_generic() consumes input and flush output if possible, but immediately gives back control to caller,
                               * while compression work is performed in parallel, within worker threads.
                               * (note : a strong exception to this rule is when first invocation sets ZSTD_e_end : it becomes a blocking call).
                               * More workers improve speed, but also increase memory usage.
@@ -637,21 +638,22 @@ typedef enum {
  * @return : requested bound (inclusive)
  *  note : if the request specifies a non-existing parameter, it will return 0.
  */
-ZSTDLIB_API unsigned ZSTD_cParam_lowerBound(ZSTD_cParameter cParam);
-ZSTDLIB_API unsigned ZSTD_cParam_upperBound(ZSTD_cParameter cParam);
+ZSTDLIB_API int ZSTD_cParam_lowerBound(ZSTD_cParameter cParam);
+ZSTDLIB_API int ZSTD_cParam_upperBound(ZSTD_cParameter cParam);
 
 
 /*! ZSTD_CCtx_setParameter() :
  *  Set one compression parameter, selected by enum ZSTD_cParameter.
+ *  All parameters have valid bounds. Bounds can be queried using ZSTD_cParam_getBounds().
+ *  Providing a value beyond bound will either clamp it, or trigger an error (depending on parameter).
  *  Setting a parameter is generally only possible during frame initialization (before starting compression).
  *  Exception : when using multi-threading mode (nbWorkers >= 1),
  *              the following parameters can be updated _during_ compression (within same frame):
  *              => compressionLevel, hashLog, chainLog, searchLog, minMatch, targetLength and strategy.
  *              new parameters will be active for next job only (after a flush()).
- *  Note : when original `value` type is not unsigned (like int, or enum), cast it to unsigned.
  *  @result : informational value (typically, value being effectively set, after clamping),
  *            or an error code (which can be tested with ZSTD_isError()). */
-ZSTDLIB_API size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned value);
+ZSTDLIB_API size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int value);
 
 /*! ZSTD_CCtx_setPledgedSrcSize() :
  *  Total input data size to be compressed as a single frame.
@@ -891,13 +893,13 @@ ZSTDLIB_API size_t ZSTD_decompress_generic(ZSTD_DCtx* dctx,
 /* compression parameter bounds */
 #define ZSTD_WINDOWLOG_MAX_32   30
 #define ZSTD_WINDOWLOG_MAX_64   31
-#define ZSTD_WINDOWLOG_MAX    ((unsigned)(sizeof(size_t) == 4 ? ZSTD_WINDOWLOG_MAX_32 : ZSTD_WINDOWLOG_MAX_64))
+#define ZSTD_WINDOWLOG_MAX    ((int)(sizeof(size_t) == 4 ? ZSTD_WINDOWLOG_MAX_32 : ZSTD_WINDOWLOG_MAX_64))
 #define ZSTD_WINDOWLOG_MIN      10
 #define ZSTD_HASHLOG_MAX      ((ZSTD_WINDOWLOG_MAX < 30) ? ZSTD_WINDOWLOG_MAX : 30)
 #define ZSTD_HASHLOG_MIN         6
 #define ZSTD_CHAINLOG_MAX_32    29
 #define ZSTD_CHAINLOG_MAX_64    30
-#define ZSTD_CHAINLOG_MAX     ((unsigned)(sizeof(size_t) == 4 ? ZSTD_CHAINLOG_MAX_32 : ZSTD_CHAINLOG_MAX_64))
+#define ZSTD_CHAINLOG_MAX     ((int)(sizeof(size_t) == 4 ? ZSTD_CHAINLOG_MAX_32 : ZSTD_CHAINLOG_MAX_64))
 #define ZSTD_CHAINLOG_MIN       ZSTD_HASHLOG_MIN
 #define ZSTD_SEARCHLOG_MAX     (ZSTD_WINDOWLOG_MAX-1)
 #define ZSTD_SEARCHLOG_MIN       1
@@ -1264,10 +1266,9 @@ ZSTDLIB_API size_t ZSTD_CCtxParams_init_advanced(ZSTD_CCtx_params* cctxParams, Z
  *  Similar to ZSTD_CCtx_setParameter.
  *  Set one compression parameter, selected by enum ZSTD_cParameter.
  *  Parameters must be applied to a ZSTD_CCtx using ZSTD_CCtx_setParametersUsingCCtxParams().
- *  Note : when `value` is an enum, cast it to unsigned for proper type checking.
  * @result : 0, or an error code (which can be tested with ZSTD_isError()).
  */
-ZSTDLIB_API size_t ZSTD_CCtxParam_setParameter(ZSTD_CCtx_params* params, ZSTD_cParameter param, unsigned value);
+ZSTDLIB_API size_t ZSTD_CCtxParam_setParameter(ZSTD_CCtx_params* params, ZSTD_cParameter param, int value);
 
 /*! ZSTD_CCtxParam_getParameter() :
  * Similar to ZSTD_CCtx_getParameter.

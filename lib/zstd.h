@@ -74,13 +74,13 @@ extern "C" {
 #define ZSTD_VERSION_RELEASE  8
 
 #define ZSTD_VERSION_NUMBER  (ZSTD_VERSION_MAJOR *100*100 + ZSTD_VERSION_MINOR *100 + ZSTD_VERSION_RELEASE)
-ZSTDLIB_API unsigned ZSTD_versionNumber(void);   /**< useful to check dll version */
+ZSTDLIB_API unsigned ZSTD_versionNumber(void);   /**< to check runtime library version */
 
 #define ZSTD_LIB_VERSION ZSTD_VERSION_MAJOR.ZSTD_VERSION_MINOR.ZSTD_VERSION_RELEASE
 #define ZSTD_QUOTE(str) #str
 #define ZSTD_EXPAND_AND_QUOTE(str) ZSTD_QUOTE(str)
 #define ZSTD_VERSION_STRING ZSTD_EXPAND_AND_QUOTE(ZSTD_LIB_VERSION)
-ZSTDLIB_API const char* ZSTD_versionString(void);   /* v1.3.0+ */
+ZSTDLIB_API const char* ZSTD_versionString(void);   /* since v1.3.0+ */
 
 /***************************************
 *  Default constant
@@ -354,8 +354,8 @@ ZSTDLIB_API size_t ZSTD_CStreamOutSize(void);   /**< recommended size for output
 *  ZSTD_DStream objects can be re-used multiple times.
 *
 *  Use ZSTD_initDStream() to start a new decompression operation,
-*   or ZSTD_initDStream_usingDict() if decompression requires a dictionary.
-*   @return : recommended first input size
+*  or ZSTD_initDStream_usingDict() if decompression requires a dictionary.
+* @return : recommended first input size
 *
 *  Use ZSTD_decompressStream() repetitively to consume your input.
 *  The function will update both `pos` fields.
@@ -415,7 +415,12 @@ ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output
  * as the API is locked once reaching "stable" status.
  * ***************************************************************************************/
 
+
+/* ===   query limits   === */
+
 ZSTDLIB_API int ZSTD_minCLevel(void);  /*!< minimum negative compression level allowed */
+
+
 
 /* ---  Constants  ---*/
 
@@ -425,38 +430,8 @@ ZSTDLIB_API int ZSTD_minCLevel(void);  /*!< minimum negative compression level a
 #define ZSTD_MAGIC_SKIPPABLE_START  0x184D2A50    /* all 16 values, from 0x184D2A50 to 0x184D2A5F, signal the beginning of a skippable frame */
 #define ZSTD_MAGIC_SKIPPABLE_MASK   0xFFFFFFF0
 
-/* note : should this limit be smaller ? like 23 (8 MB) as suggested in the spec ?
- * can it be different from zstd cli default limit, which is designed to match --ultra and --long default (27) ? */
-#define ZSTD_WINDOWLOG_LIMIT_DEFAULT 27   /* by default, the streaming decoder will refuse any frame
-                                           * requiring larger than (1<<ZSTD_WINDOWLOG_LIMIT_DEFAULT) window size, to preserve memory.
-                                           * This limit can be overriden using ZSTD_DCtx_setMaxWindowSize().
-                                           * This limit does not apply to one-pass decoders (such as ZSTD_decompress()), since no additional memory is allocated */
-
 #define ZSTD_BLOCKSIZELOG_MAX 17
 #define ZSTD_BLOCKSIZE_MAX   (1<<ZSTD_BLOCKSIZELOG_MAX)
-
-/* compression parameter bounds */
-#define ZSTD_WINDOWLOG_MAX_32   30
-#define ZSTD_WINDOWLOG_MAX_64   31
-#define ZSTD_WINDOWLOG_MAX    ((unsigned)(sizeof(size_t) == 4 ? ZSTD_WINDOWLOG_MAX_32 : ZSTD_WINDOWLOG_MAX_64))
-#define ZSTD_WINDOWLOG_MIN      10
-#define ZSTD_HASHLOG_MAX      ((ZSTD_WINDOWLOG_MAX < 30) ? ZSTD_WINDOWLOG_MAX : 30)
-#define ZSTD_HASHLOG_MIN         6
-#define ZSTD_CHAINLOG_MAX_32    29
-#define ZSTD_CHAINLOG_MAX_64    30
-#define ZSTD_CHAINLOG_MAX     ((unsigned)(sizeof(size_t) == 4 ? ZSTD_CHAINLOG_MAX_32 : ZSTD_CHAINLOG_MAX_64))
-#define ZSTD_CHAINLOG_MIN       ZSTD_HASHLOG_MIN
-#define ZSTD_SEARCHLOG_MAX     (ZSTD_WINDOWLOG_MAX-1)
-#define ZSTD_SEARCHLOG_MIN       1
-#define ZSTD_SEARCHLENGTH_MAX    7   /* only for ZSTD_fast, other strategies are limited to 6 */
-#define ZSTD_SEARCHLENGTH_MIN    3   /* only for ZSTD_btopt, other strategies are limited to 4 */
-#define ZSTD_TARGETLENGTH_MAX   ZSTD_BLOCKSIZE_MAX
-#define ZSTD_TARGETLENGTH_MIN    0   /* note : comparing this constant to an unsigned results in a tautological test */
-
-/* LDM parameter bounds */
-#define ZSTD_LDM_MINMATCH_MAX   4096
-#define ZSTD_LDM_MINMATCH_MIN      4
-#define ZSTD_LDM_BUCKETSIZELOG_MAX 8
 
 
 /***************************************
@@ -503,7 +478,8 @@ typedef enum { ZSTD_fast=1,
                ZSTD_btopt=7,
                ZSTD_btultra=8
                /* note : new strategies might be added in the future */
-           } ZSTD_strategy;
+} ZSTD_strategy;
+
 
 typedef enum {
 
@@ -628,7 +604,8 @@ typedef enum {
                               * enum. See the comments on that enum for an
                               * explanation of the feature.
                               */
-    /* Question : should rsyncable be categorized as experimental, or be candidate for stable ? */
+
+    /* Question : should rsyncable remain experimental, or be part of candidate for stable ? */
     ZSTD_p_rsyncable,        /* Enables rsyncable mode, which makes compressed
                               * files more rsync friendly by adding periodic
                               * synchronization points to the compressed data.
@@ -651,6 +628,17 @@ typedef enum {
                               * the speed won't be significantly impacted.
                               */
 } ZSTD_cParameter;
+
+
+/*! ZSTD_cParam_lowerBound() and ZSTD_cParam_upperBound() :
+ *  All parameters must respect lower/upper bounds,
+ *  otherwise they will either trigger an error
+ *  or be automatically clamped.
+ * @return : requested bound (inclusive)
+ *  note : if the request specifies a non-existing parameter, it will return 0.
+ */
+ZSTDLIB_API unsigned ZSTD_cParam_lowerBound(ZSTD_cParameter cParam);
+ZSTDLIB_API unsigned ZSTD_cParam_upperBound(ZSTD_cParameter cParam);
 
 
 /*! ZSTD_CCtx_setParameter() :
@@ -789,20 +777,6 @@ ZSTDLIB_API size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
                                           ZSTD_EndDirective endOp);
 
 
-/*! ZSTD_compress_generic_simpleArgs() :
- *  Same as ZSTD_compress_generic(),
- *  but using only integral types as arguments.
- *  This variant might be helpful for binders from dynamic languages
- *  which have troubles handling structures containing memory pointers.
- */
-ZSTDLIB_API size_t ZSTD_compress_generic_simpleArgs (
-                            ZSTD_CCtx* cctx,
-                            void* dst, size_t dstCapacity, size_t* dstPos,
-                      const void* src, size_t srcSize, size_t* srcPos,
-                            ZSTD_EndDirective endOp);
-
-
-
 /* ============================== */
 /*   Advanced decompression API   */
 /* ============================== */
@@ -892,37 +866,50 @@ ZSTDLIB_API size_t ZSTD_decompress_generic(ZSTD_DCtx* dctx,
                                            ZSTD_inBuffer* input);
 
 
-/*! ZSTD_decompress_generic_simpleArgs() :
- *  Same as ZSTD_decompress_generic(),
- *  but using only integral types as arguments.
- *  This can be helpful for binders from dynamic languages
- *  which have troubles handling structures containing memory pointers.
- */
-ZSTDLIB_API size_t ZSTD_decompress_generic_simpleArgs (
-                            ZSTD_DCtx* dctx,
-                            void* dst, size_t dstCapacity, size_t* dstPos,
-                      const void* src, size_t srcSize, size_t* srcPos);
-
-
-
-
-
-
 /****************************************************************************************
  *   experimental API (static linking only)
  ****************************************************************************************
  * The following symbols and constants
  * are not planned to join "stable API" status anytime soon.
- * Some of them will never reach "stable", and are planned to remain in the static_only section indefinitely.
- * Some of them might even be removed in the future.
+ * Some of them are planned to remain in the static_only section indefinitely.
+ * Some of them might even be removed in the future (especially when redundant with existing stable functions)
  * ***************************************************************************************/
-
-#define ZSTD_HASHLOG3_MAX         17
 
 #define ZSTD_FRAMEHEADERSIZE_PREFIX 5   /* minimum input size required to query frame header size */
 #define ZSTD_FRAMEHEADERSIZE_MIN    6
 #define ZSTD_FRAMEHEADERSIZE_MAX   18   /* can be useful for static allocation */
 #define ZSTD_SKIPPABLEHEADERSIZE    8
+
+#define ZSTD_HASHLOG3_MAX          17
+
+/* note : matches --ultra and --long default (27) ? */
+#define ZSTD_WINDOWLOG_LIMIT_DEFAULT 27   /* by default, the streaming decoder will refuse any frame
+                                           * requiring larger than (1<<ZSTD_WINDOWLOG_LIMIT_DEFAULT) window size, to preserve memory.
+                                           * This limit can be overriden using ZSTD_DCtx_setMaxWindowSize().
+                                           * This limit does not apply to one-pass decoders (such as ZSTD_decompress()), since no additional memory is allocated */
+
+/* compression parameter bounds */
+#define ZSTD_WINDOWLOG_MAX_32   30
+#define ZSTD_WINDOWLOG_MAX_64   31
+#define ZSTD_WINDOWLOG_MAX    ((unsigned)(sizeof(size_t) == 4 ? ZSTD_WINDOWLOG_MAX_32 : ZSTD_WINDOWLOG_MAX_64))
+#define ZSTD_WINDOWLOG_MIN      10
+#define ZSTD_HASHLOG_MAX      ((ZSTD_WINDOWLOG_MAX < 30) ? ZSTD_WINDOWLOG_MAX : 30)
+#define ZSTD_HASHLOG_MIN         6
+#define ZSTD_CHAINLOG_MAX_32    29
+#define ZSTD_CHAINLOG_MAX_64    30
+#define ZSTD_CHAINLOG_MAX     ((unsigned)(sizeof(size_t) == 4 ? ZSTD_CHAINLOG_MAX_32 : ZSTD_CHAINLOG_MAX_64))
+#define ZSTD_CHAINLOG_MIN       ZSTD_HASHLOG_MIN
+#define ZSTD_SEARCHLOG_MAX     (ZSTD_WINDOWLOG_MAX-1)
+#define ZSTD_SEARCHLOG_MIN       1
+#define ZSTD_SEARCHLENGTH_MAX    7   /* only for ZSTD_fast, other strategies are limited to 6 */
+#define ZSTD_SEARCHLENGTH_MIN    3   /* only for ZSTD_btopt, other strategies are limited to 4 */
+#define ZSTD_TARGETLENGTH_MAX   ZSTD_BLOCKSIZE_MAX
+#define ZSTD_TARGETLENGTH_MIN    0   /* note : comparing this constant to an unsigned results in a tautological test */
+
+/* LDM parameter bounds */
+#define ZSTD_LDM_MINMATCH_MAX   4096
+#define ZSTD_LDM_MINMATCH_MIN      4
+#define ZSTD_LDM_BUCKETSIZELOG_MAX 8
 
 
 /* ---  Advanced types  --- */
@@ -1197,19 +1184,20 @@ ZSTDLIB_API size_t ZSTD_checkCParams(ZSTD_compressionParameters params);
 ZSTDLIB_API ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, unsigned long long srcSize, size_t dictSize);
 
 /*! ZSTD_compress_advanced() :
-*   Same as ZSTD_compress_usingDict(), with fine-tune control over each compression parameter */
-ZSTDLIB_API size_t ZSTD_compress_advanced (ZSTD_CCtx* cctx,
-                                  void* dst, size_t dstCapacity,
-                            const void* src, size_t srcSize,
-                            const void* dict,size_t dictSize,
-                                  ZSTD_parameters params);
+ *  Same as ZSTD_compress_usingDict(), with fine-tune control over compression parameters (by structure) */
+ZSTDLIB_API size_t ZSTD_compress_advanced(ZSTD_CCtx* cctx,
+                                          void* dst, size_t dstCapacity,
+                                    const void* src, size_t srcSize,
+                                    const void* dict,size_t dictSize,
+                                          ZSTD_parameters params);
 
 /*! ZSTD_compress_usingCDict_advanced() :
-*   Same as ZSTD_compress_usingCDict(), with fine-tune control over frame parameters */
+ *  Same as ZSTD_compress_usingCDict(), with fine-tune control over frame parameters */
 ZSTDLIB_API size_t ZSTD_compress_usingCDict_advanced(ZSTD_CCtx* cctx,
-                                  void* dst, size_t dstCapacity,
-                            const void* src, size_t srcSize,
-                            const ZSTD_CDict* cdict, ZSTD_frameParameters fParams);
+                                              void* dst, size_t dstCapacity,
+                                        const void* src, size_t srcSize,
+                                        const ZSTD_CDict* cdict,
+                                              ZSTD_frameParameters fParams);
 
 
 /*! ZSTD_CCtx_loadDictionary_byReference() :
@@ -1298,6 +1286,18 @@ ZSTDLIB_API size_t ZSTD_CCtxParam_getParameter(ZSTD_CCtx_params* params, ZSTD_cP
 ZSTDLIB_API size_t ZSTD_CCtx_setParametersUsingCCtxParams(
         ZSTD_CCtx* cctx, const ZSTD_CCtx_params* params);
 
+/*! ZSTD_compress_generic_simpleArgs() :
+ *  Same as ZSTD_compress_generic(),
+ *  but using only integral types as arguments.
+ *  This variant might be helpful for binders from dynamic languages
+ *  which have troubles handling structures containing memory pointers.
+ */
+ZSTDLIB_API size_t ZSTD_compress_generic_simpleArgs (
+                            ZSTD_CCtx* cctx,
+                            void* dst, size_t dstCapacity, size_t* dstPos,
+                      const void* src, size_t srcSize, size_t* srcPos,
+                            ZSTD_EndDirective endOp);
+
 
 /***************************************
 *  Advanced decompression functions
@@ -1368,10 +1368,23 @@ ZSTDLIB_API size_t ZSTD_DCtx_refPrefix_advanced(ZSTD_DCtx* dctx, const void* pre
  * @return : 0, or an error code (which can be tested using ZSTD_isError()). */
 ZSTDLIB_API size_t ZSTD_DCtx_setFormat(ZSTD_DCtx* dctx, ZSTD_format_e format);
 
+/*! ZSTD_decompress_generic_simpleArgs() :
+ *  Same as ZSTD_decompress_generic(),
+ *  but using only integral types as arguments.
+ *  This can be helpful for binders from dynamic languages
+ *  which have troubles handling structures containing memory pointers.
+ */
+ZSTDLIB_API size_t ZSTD_decompress_generic_simpleArgs (
+                            ZSTD_DCtx* dctx,
+                            void* dst, size_t dstCapacity, size_t* dstPos,
+                      const void* src, size_t srcSize, size_t* srcPos);
 
 
 /********************************************************************
 *  Advanced streaming functions
+*  Warning : most of these functions are now redundant with the Advanced API.
+*  Once Advanced API reaches "stable" status,
+*  redundant functions will be deprecated, and then at some point removed.
 ********************************************************************/
 
 /*=====   Advanced Streaming compression functions  =====*/

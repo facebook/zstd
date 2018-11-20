@@ -513,9 +513,11 @@ typedef enum {
                               * More attempts result in better and slower compression.
                               * This parameter is useless when using "fast" and "dFast" strategies.
                               * Special: value 0 means "use default searchLog". */
-    ZSTD_p_minMatch=105,     /* Minimum size of searched matches (note : repCode matches can be smaller).
-                              * Larger values make faster compression and decompression, but decrease ratio.
-                              * Must be clamped between ZSTD_SEARCHLENGTH_MIN and ZSTD_SEARCHLENGTH_MAX.
+    ZSTD_p_minMatch=105,     /* Minimum size of searched matches.
+                              * Note that Zstandard can still find matches of smaller size,
+                              * it just tweaks its search algorithm to look for this size and larger.
+                              * Larger values increase compression and decompression speed, but decrease ratio.
+                              * Must be clamped between ZSTD_MINMATCH_MIN and ZSTD_MINMATCH_MAX.
                               * Note that currently, for all strategies < btopt, effective minimum is 4.
                               *                    , for all strategies > fast, effective maximum is 6.
                               * Special: value 0 means "use default minMatchLength". */
@@ -528,7 +530,6 @@ typedef enum {
                               *     Larger values make compression faster, and weaker.
                               * Special: value 0 means "use default targetLength". */
     ZSTD_p_compressionStrategy=107, /* See ZSTD_strategy enum definition.
-                              * Cast selected strategy as unsigned for ZSTD_CCtx_setParameter() compatibility.
                               * The higher the value of selected strategy, the more complex it is,
                               * resulting in stronger and slower compression.
                               * Special: value 0 means "use default strategy". */
@@ -631,16 +632,20 @@ typedef enum {
 } ZSTD_cParameter;
 
 
-/*! ZSTD_cParam_lowerBound() and ZSTD_cParam_upperBound() :
- *  All parameters must respect lower/upper bounds,
- *  otherwise they will either trigger an error
- *  or be automatically clamped.
- * @return : requested bound (inclusive)
- *  note : if the request specifies a non-existing parameter, it will return 0.
- */
-ZSTDLIB_API int ZSTD_cParam_lowerBound(ZSTD_cParameter cParam);
-ZSTDLIB_API int ZSTD_cParam_upperBound(ZSTD_cParameter cParam);
+typedef struct {
+    size_t error;
+    int lowerBound;
+    int upperBound;
+} ZSTD_bounds;
 
+/*! ZSTD_cParam_getBounds() :
+ *  All parameters must belong to an interval with lower and upper bounds,
+ *  otherwise they will either trigger an error or be automatically clamped.
+ * @return : a structure, ZSTD_bounds, which contains
+ *         - an error status field, which must be tested using ZSTD_isError()
+ *         - both lower and upper bounds, inclusive
+ */
+ZSTDLIB_API ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter cParam);
 
 /*! ZSTD_CCtx_setParameter() :
  *  Set one compression parameter, selected by enum ZSTD_cParameter.
@@ -651,8 +656,7 @@ ZSTDLIB_API int ZSTD_cParam_upperBound(ZSTD_cParameter cParam);
  *              the following parameters can be updated _during_ compression (within same frame):
  *              => compressionLevel, hashLog, chainLog, searchLog, minMatch, targetLength and strategy.
  *              new parameters will be active for next job only (after a flush()).
- *  @result : informational value (typically, value being effectively set, after clamping),
- *            or an error code (which can be tested with ZSTD_isError()). */
+ * @return : an error code (which can be tested using ZSTD_isError()). */
 ZSTDLIB_API size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int value);
 
 /*! ZSTD_CCtx_setPledgedSrcSize() :
@@ -903,8 +907,8 @@ ZSTDLIB_API size_t ZSTD_decompress_generic(ZSTD_DCtx* dctx,
 #define ZSTD_CHAINLOG_MIN       ZSTD_HASHLOG_MIN
 #define ZSTD_SEARCHLOG_MAX     (ZSTD_WINDOWLOG_MAX-1)
 #define ZSTD_SEARCHLOG_MIN       1
-#define ZSTD_SEARCHLENGTH_MAX    7   /* only for ZSTD_fast, other strategies are limited to 6 */
-#define ZSTD_SEARCHLENGTH_MIN    3   /* only for ZSTD_btopt, other strategies are limited to 4 */
+#define ZSTD_MINMATCH_MAX        7   /* only for ZSTD_fast, other strategies are limited to 6 */
+#define ZSTD_MINMATCH_MIN        3   /* only for ZSTD_btopt+, faster strategies are limited to 4 */
 #define ZSTD_TARGETLENGTH_MAX   ZSTD_BLOCKSIZE_MAX
 #define ZSTD_TARGETLENGTH_MIN    0   /* note : comparing this constant to an unsigned results in a tautological test */
 
@@ -923,7 +927,7 @@ typedef struct {
     unsigned chainLog;        /**< fully searched segment : larger == more compression, slower, more memory (useless for fast) */
     unsigned hashLog;         /**< dispatch table : larger == faster, more memory */
     unsigned searchLog;       /**< nb of searches : larger == more compression, slower */
-    unsigned searchLength;    /**< match length searched : larger == faster decompression, sometimes less compression */
+    unsigned minMatch;         /**< match length searched : larger == faster decompression, sometimes less compression */
     unsigned targetLength;    /**< acceptable match size for optimal parser (only) : larger == more compression, slower */
     ZSTD_strategy strategy;   /**< see ZSTD_strategy definition above */
 } ZSTD_compressionParameters;

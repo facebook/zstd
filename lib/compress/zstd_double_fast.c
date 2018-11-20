@@ -18,7 +18,7 @@ void ZSTD_fillDoubleHashTable(ZSTD_matchState_t* ms,
     const ZSTD_compressionParameters* const cParams = &ms->cParams;
     U32* const hashLarge = ms->hashTable;
     U32  const hBitsL = cParams->hashLog;
-    U32  const mls = cParams->searchLength;
+    U32  const mls = cParams->minMatch;
     U32* const hashSmall = ms->chainTable;
     U32  const hBitsS = cParams->chainLog;
     const BYTE* const base = ms->window.base;
@@ -309,7 +309,7 @@ size_t ZSTD_compressBlock_doubleFast(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         void const* src, size_t srcSize)
 {
-    const U32 mls = ms->cParams.searchLength;
+    const U32 mls = ms->cParams.minMatch;
     switch(mls)
     {
     default: /* includes case 3 */
@@ -329,7 +329,7 @@ size_t ZSTD_compressBlock_doubleFast_dictMatchState(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         void const* src, size_t srcSize)
 {
-    const U32 mls = ms->cParams.searchLength;
+    const U32 mls = ms->cParams.minMatch;
     switch(mls)
     {
     default: /* includes case 3 */
@@ -483,7 +483,7 @@ size_t ZSTD_compressBlock_doubleFast_extDict(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         void const* src, size_t srcSize)
 {
-    U32 const mls = ms->cParams.searchLength;
+    U32 const mls = ms->cParams.minMatch;
     switch(mls)
     {
     default: /* includes case 3 */

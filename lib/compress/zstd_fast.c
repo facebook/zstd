@@ -18,7 +18,7 @@ void ZSTD_fillHashTable(ZSTD_matchState_t* ms,
     const ZSTD_compressionParameters* const cParams = &ms->cParams;
     U32* const hashTable = ms->hashTable;
     U32  const hBits = cParams->hashLog;
-    U32  const mls = cParams->searchLength;
+    U32  const mls = cParams->minMatch;
     const BYTE* const base = ms->window.base;
     const BYTE* ip = base + ms->nextToUpdate;
     const BYTE* const iend = ((const BYTE*)end) - HASH_READ_SIZE;
@@ -235,7 +235,7 @@ size_t ZSTD_compressBlock_fast(
         void const* src, size_t srcSize)
 {
     ZSTD_compressionParameters const* cParams = &ms->cParams;
-    U32 const mls = cParams->searchLength;
+    U32 const mls = cParams->minMatch;
     assert(ms->dictMatchState == NULL);
     switch(mls)
     {
@@ -256,7 +256,7 @@ size_t ZSTD_compressBlock_fast_dictMatchState(
         void const* src, size_t srcSize)
 {
     ZSTD_compressionParameters const* cParams = &ms->cParams;
-    U32 const mls = cParams->searchLength;
+    U32 const mls = cParams->minMatch;
     assert(ms->dictMatchState != NULL);
     switch(mls)
     {
@@ -375,7 +375,7 @@ size_t ZSTD_compressBlock_fast_extDict(
         void const* src, size_t srcSize)
 {
     ZSTD_compressionParameters const* cParams = &ms->cParams;
-    U32 const mls = cParams->searchLength;
+    U32 const mls = cParams->minMatch;
     switch(mls)
     {
     default: /* includes case 3 */

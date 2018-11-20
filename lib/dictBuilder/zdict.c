@@ -255,7 +255,7 @@ static dictItem ZDICT_analyzePos(
     }
 
     {   int i;
-        U32 searchLength;
+        U32 mml;
         U32 refinedStart = start;
         U32 refinedEnd = end;
 
@@ -263,7 +263,7 @@ static dictItem ZDICT_analyzePos(
         DISPLAYLEVEL(4, "found %3u matches of length >= %i at pos %7u  ", (U32)(end-start), MINMATCHLENGTH, (U32)pos);
         DISPLAYLEVEL(4, "\n");
 
-        for (searchLength = MINMATCHLENGTH ; ; searchLength++) {
+        for (mml = MINMATCHLENGTH ; ; mml++) {
             BYTE currentChar = 0;
             U32 currentCount = 0;
             U32 currentID = refinedStart;
@@ -271,13 +271,13 @@ static dictItem ZDICT_analyzePos(
             U32 selectedCount = 0;
             U32 selectedID = currentID;
             for (id =refinedStart; id < refinedEnd; id++) {
-                if (b[suffix[id] + searchLength] != currentChar) {
+                if (b[suffix[id] + mml] != currentChar) {
                     if (currentCount > selectedCount) {
                         selectedCount = currentCount;
                         selectedID = currentID;
                     }
                     currentID = id;
-                    currentChar = b[ suffix[id] + searchLength];
+                    currentChar = b[ suffix[id] + mml];
                     currentCount = 0;
                 }
                 currentCount ++;

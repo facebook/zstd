@@ -263,13 +263,39 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
         return bounds;
 
     case ZSTD_p_targetLength:
+        bounds.lowerBound = ZSTD_TARGETLENGTH_MIN;
+        bounds.upperBound = ZSTD_TARGETLENGTH_MAX;
+        return bounds;
+
     case ZSTD_p_compressionStrategy:
-    case ZSTD_p_format:
+        bounds.lowerBound = (int)ZSTD_fast;
+        bounds.upperBound = (int)ZSTD_btultra;
+        return bounds;
+
     case ZSTD_p_contentSizeFlag:
+        bounds.lowerBound = 0;
+        bounds.upperBound = 1;
+        return bounds;
+
     case ZSTD_p_checksumFlag:
+        bounds.lowerBound = 0;
+        bounds.upperBound = 1;
+        return bounds;
+
     case ZSTD_p_dictIDFlag:
-    case ZSTD_p_forceMaxWindow :
+        bounds.lowerBound = 0;
+        bounds.upperBound = 1;
+        return bounds;
+
     case ZSTD_p_nbWorkers:
+        bounds.lowerBound = 0;
+#ifdef ZSTD_MULTITHREAD
+        bounds.upperBound = ZSTDMT_NBWORKERS_MAX;
+#else
+        bounds.upperBound = 0;
+#endif
+        return bounds;
+
     case ZSTD_p_jobSize:
     case ZSTD_p_overlapSizeLog:
     case ZSTD_p_rsyncable:
@@ -278,6 +304,13 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
     case ZSTD_p_ldmMinMatch:
     case ZSTD_p_ldmBucketSizeLog:
     case ZSTD_p_ldmHashEveryLog:
+
+    /* experimental parameters */
+    case ZSTD_p_forceMaxWindow :
+        bounds.lowerBound = 0;
+        bounds.upperBound = 1;
+        return bounds;
+    case ZSTD_p_format:
     case ZSTD_p_forceAttachDict:
     default:
         {   ZSTD_bounds const boundError = { ERROR(parameter_unsupported), 0, 0 };

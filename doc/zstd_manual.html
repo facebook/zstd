@@ -772,7 +772,7 @@ size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
     unsigned chainLog;        </b>/**< fully searched segment : larger == more compression, slower, more memory (useless for fast) */<b>
     unsigned hashLog;         </b>/**< dispatch table : larger == faster, more memory */<b>
     unsigned searchLog;       </b>/**< nb of searches : larger == more compression, slower */<b>
-    unsigned minMatch;         </b>/**< match length searched : larger == faster decompression, sometimes less compression */<b>
+    unsigned minMatch;        </b>/**< match length searched : larger == faster decompression, sometimes less compression */<b>
     unsigned targetLength;    </b>/**< acceptable match size for optimal parser (only) : larger == more compression, slower */<b>
     ZSTD_strategy strategy;   </b>/**< see ZSTD_strategy definition above */<b>
 } ZSTD_compressionParameters;

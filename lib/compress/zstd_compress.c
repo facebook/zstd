@@ -620,13 +620,13 @@ size_t ZSTD_CCtxParam_setParameter(ZSTD_CCtx_params* CCtxParams,
     }
 }
 
-size_t ZSTD_CCtx_getParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned* value)
+size_t ZSTD_CCtx_getParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int* value)
 {
     return ZSTD_CCtxParam_getParameter(&cctx->requestedParams, param, value);
 }
 
 size_t ZSTD_CCtxParam_getParameter(
-        ZSTD_CCtx_params* CCtxParams, ZSTD_cParameter param, unsigned* value)
+        ZSTD_CCtx_params* CCtxParams, ZSTD_cParameter param, int* value)
 {
     switch(param)
     {

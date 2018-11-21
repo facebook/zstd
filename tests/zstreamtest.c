@@ -223,13 +223,13 @@ static size_t SEQ_generateRoundTrip(ZSTD_CCtx* cctx, ZSTD_DCtx* dctx,
 
 static size_t getCCtxParams(ZSTD_CCtx* zc, ZSTD_parameters* savedParams)
 {
-    unsigned value;
-    CHECK_RET_Z(ZSTD_CCtx_getParameter(zc, ZSTD_p_windowLog, &savedParams->cParams.windowLog));
-    CHECK_RET_Z(ZSTD_CCtx_getParameter(zc, ZSTD_p_hashLog, &savedParams->cParams.hashLog));
-    CHECK_RET_Z(ZSTD_CCtx_getParameter(zc, ZSTD_p_chainLog, &savedParams->cParams.chainLog));
-    CHECK_RET_Z(ZSTD_CCtx_getParameter(zc, ZSTD_p_searchLog, &savedParams->cParams.searchLog));
-    CHECK_RET_Z(ZSTD_CCtx_getParameter(zc, ZSTD_p_minMatch, &savedParams->cParams.minMatch));
-    CHECK_RET_Z(ZSTD_CCtx_getParameter(zc, ZSTD_p_targetLength, &savedParams->cParams.targetLength));
+    int value;
+    CHECK_RET_Z(ZSTD_CCtx_getParameter(zc, ZSTD_p_windowLog, (int*)&savedParams->cParams.windowLog));
+    CHECK_RET_Z(ZSTD_CCtx_getParameter(zc, ZSTD_p_hashLog, (int*)&savedParams->cParams.hashLog));
+    CHECK_RET_Z(ZSTD_CCtx_getParameter(zc, ZSTD_p_chainLog, (int*)&savedParams->cParams.chainLog));
+    CHECK_RET_Z(ZSTD_CCtx_getParameter(zc, ZSTD_p_searchLog, (int*)&savedParams->cParams.searchLog));
+    CHECK_RET_Z(ZSTD_CCtx_getParameter(zc, ZSTD_p_minMatch, (int*)&savedParams->cParams.minMatch));
+    CHECK_RET_Z(ZSTD_CCtx_getParameter(zc, ZSTD_p_targetLength, (int*)&savedParams->cParams.targetLength));
     CHECK_RET_Z(ZSTD_CCtx_getParameter(zc, ZSTD_p_compressionStrategy, &value));
     savedParams->cParams.strategy = value;
 
@@ -962,7 +962,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     DISPLAYLEVEL(3, "OK \n");
 
     DISPLAYLEVEL(3, "test%3i : ZSTD_initCStream_srcSize sets requestedParams : ", testNb++);
-    {   unsigned level;
+    {   int level;
         CHECK_Z(ZSTD_initCStream_srcSize(zc, 11, ZSTD_CONTENTSIZE_UNKNOWN));
         CHECK_Z(ZSTD_CCtx_getParameter(zc, ZSTD_p_compressionLevel, &level));
         CHECK(level != 11, "Compression level does not match");

@@ -504,7 +504,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
         ZSTD_outBuffer out = {NULL, 0, 0};
         ZSTD_inBuffer in = {NULL, 0, 0};
-        unsigned value;
+        int value;
 
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_compressionLevel, &value));
         CHECK_EQ(value, 3);

@@ -351,7 +351,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
 <BR></pre>
 
 <a name="Chapter12"></a><h2>Candidate API for promotion to stable status</h2><pre>
- The following symbols and constants are in "staging area" :
+ The following symbols and constants belong to the "staging area" :
  they are considered to join "stable API" status by v1.4.0.
  The below proposal is written so that it can become stable "as is".
  It's still possible to suggest modifications.
@@ -771,9 +771,10 @@ size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 
 <a name="Chapter14"></a><h2>experimental API (static linking only)</h2><pre>
  The following symbols and constants
- are not planned to join "stable API" status anytime soon.
+ are not planned to join "stable API" status in the near future.
+ They can still change in future versions.
  Some of them are planned to remain in the static_only section indefinitely.
- Some of them might even be removed in the future (especially when redundant with existing stable functions)
+ Some of them might be removed in the future (especially when redundant with existing stable functions)
  
 <BR></pre>
 
@@ -788,9 +789,9 @@ size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 } ZSTD_compressionParameters;
 </b></pre><BR>
 <pre><b>typedef struct {
-    unsigned contentSizeFlag; </b>/**< 1: content size will be in frame header (when known) */<b>
-    unsigned checksumFlag;    </b>/**< 1: generate a 32-bits checksum using XXH64 algorithm at end of frame, for error detection */<b>
-    unsigned noDictIDFlag;    </b>/**< 1: no dictID will be saved into frame header (dictID is only useful for dictionary compression) */<b>
+    int contentSizeFlag; </b>/**< 1: content size will be in frame header (when known) */<b>
+    int checksumFlag;    </b>/**< 1: generate a 32-bits checksum using XXH64 algorithm at end of frame, for error detection */<b>
+    int noDictIDFlag;    </b>/**< 1: no dictID will be saved into frame header (dictID is only useful for dictionary compression) */<b>
 } ZSTD_frameParameters;
 </b></pre><BR>
 <pre><b>typedef struct {
@@ -858,14 +859,6 @@ size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 } ZSTD_dictAttachPref_e;
 </b></pre><BR>
 <a name="Chapter15"></a><h2>Frame size functions</h2><pre></pre>
-
-<pre><b>size_t ZSTD_findFrameCompressedSize(const void* src, size_t srcSize);
-</b><p>  `src` should point to the start of a ZSTD encoded frame or skippable frame
-  `srcSize` must be >= first frame size
-  @return : the compressed size of the first frame starting at `src`,
-            suitable to pass to `ZSTD_decompress` or similar,
-            or an error code if input is invalid 
-</p></pre><BR>
 
 <pre><b>unsigned long long ZSTD_findDecompressedSize(const void* src, size_t srcSize);
 </b><p>  `src` should point the start of a series of ZSTD encoded and/or skippable frames
@@ -1035,7 +1028,7 @@ static ZSTD_customMem const ZSTD_defaultCMem = { NULL, NULL, NULL };  </b>/**< t
   how to interpret prefix content (automatic ? force raw mode (default) ? full mode only ?) 
 </p></pre><BR>
 
-<pre><b>size_t ZSTD_CCtx_getParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned* value);
+<pre><b>size_t ZSTD_CCtx_getParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int* value);
 </b><p> Get the requested value of one compression parameter, selected by enum ZSTD_cParameter.
  @result : 0, or an error code (which can be tested with ZSTD_isError()).
  
@@ -1086,7 +1079,7 @@ size_t ZSTD_freeCCtxParams(ZSTD_CCtx_params* params);
  
 </p></pre><BR>
 
-<pre><b>size_t ZSTD_CCtxParam_getParameter(ZSTD_CCtx_params* params, ZSTD_cParameter param, unsigned* value);
+<pre><b>size_t ZSTD_CCtxParam_getParameter(ZSTD_CCtx_params* params, ZSTD_cParameter param, int* value);
 </b><p> Similar to ZSTD_CCtx_getParameter.
  Get the requested value of one compression parameter, selected by enum ZSTD_cParameter.
  @result : 0, or an error code (which can be tested with ZSTD_isError()).

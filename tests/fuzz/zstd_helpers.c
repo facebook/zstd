@@ -79,6 +79,6 @@ void FUZZ_setRandomParameters(ZSTD_CCtx *cctx, size_t srcSize, uint32_t *state)
             ZSTD_LDM_MINMATCH_MAX, state);
     setRand(cctx, ZSTD_p_ldmBucketSizeLog, 0, ZSTD_LDM_BUCKETSIZELOG_MAX,
             state);
-    setRand(cctx, ZSTD_p_ldmHashEveryLog, 0,
-            ZSTD_WINDOWLOG_MAX - ZSTD_HASHLOG_MIN, state);
+    setRand(cctx, ZSTD_p_ldmHashRateLog, ZSTD_LDM_HASHRATELOG_MIN,
+            ZSTD_LDM_HASHRATELOG_MAX, state);
 }

@@ -346,9 +346,9 @@ void FIO_setLdmBucketSizeLog(unsigned ldmBucketSizeLog) {
     g_ldmBucketSizeLog = ldmBucketSizeLog;
 }
 
-static U32 g_ldmHashEveryLog = FIO_LDM_PARAM_NOTSET;
-void FIO_setLdmHashEveryLog(unsigned ldmHashEveryLog) {
-    g_ldmHashEveryLog = ldmHashEveryLog;
+static U32 g_ldmHashRateLog = FIO_LDM_PARAM_NOTSET;
+void FIO_setLdmHashRateLog(unsigned ldmHashRateLog) {
+    g_ldmHashRateLog = ldmHashRateLog;
 }
 
 
@@ -541,8 +541,8 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
         if (g_ldmBucketSizeLog != FIO_LDM_PARAM_NOTSET) {
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_ldmBucketSizeLog, g_ldmBucketSizeLog) );
         }
-        if (g_ldmHashEveryLog != FIO_LDM_PARAM_NOTSET) {
-            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_ldmHashEveryLog, g_ldmHashEveryLog) );
+        if (g_ldmHashRateLog != FIO_LDM_PARAM_NOTSET) {
+            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_ldmHashRateLog, g_ldmHashRateLog) );
         }
         /* compression parameters */
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_windowLog, comprParams.windowLog) );

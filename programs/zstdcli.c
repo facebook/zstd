@@ -81,7 +81,7 @@ static const unsigned g_defaultMaxWindowLog = 27;
 static U32 g_overlapLog = OVERLAP_LOG_DEFAULT;
 static U32 g_ldmHashLog = 0;
 static U32 g_ldmMinMatch = 0;
-static U32 g_ldmHashEveryLog = LDM_PARAM_DEFAULT;
+static U32 g_ldmHashRateLog = LDM_PARAM_DEFAULT;
 static U32 g_ldmBucketSizeLog = LDM_PARAM_DEFAULT;
 
 
@@ -410,7 +410,7 @@ static unsigned parseCompressionParameters(const char* stringPtr, ZSTD_compressi
         if (longCommandWArg(&stringPtr, "ldmHashLog=") || longCommandWArg(&stringPtr, "lhlog=")) { g_ldmHashLog = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "ldmMinMatch=") || longCommandWArg(&stringPtr, "lmml=")) { g_ldmMinMatch = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "ldmBucketSizeLog=") || longCommandWArg(&stringPtr, "lblog=")) { g_ldmBucketSizeLog = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
-        if (longCommandWArg(&stringPtr, "ldmHashEveryLog=") || longCommandWArg(&stringPtr, "lhevery=")) { g_ldmHashEveryLog = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        if (longCommandWArg(&stringPtr, "ldmHashRateLog=") || longCommandWArg(&stringPtr, "lhrlog=")) { g_ldmHashRateLog = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         DISPLAYLEVEL(4, "invalid compression parameter \n");
         return 0;
     }
@@ -940,8 +940,8 @@ int main(int argCount, const char* argv[])
         if (g_ldmBucketSizeLog != LDM_PARAM_DEFAULT) {
             benchParams.ldmBucketSizeLog = g_ldmBucketSizeLog;
         }
-        if (g_ldmHashEveryLog != LDM_PARAM_DEFAULT) {
-            benchParams.ldmHashEveryLog = g_ldmHashEveryLog;
+        if (g_ldmHashRateLog != LDM_PARAM_DEFAULT) {
+            benchParams.ldmHashRateLog = g_ldmHashRateLog;
         }
 
         if (cLevel > ZSTD_maxCLevel()) cLevel = ZSTD_maxCLevel();
@@ -1051,7 +1051,7 @@ int main(int argCount, const char* argv[])
         FIO_setLdmHashLog(g_ldmHashLog);
         FIO_setLdmMinMatch(g_ldmMinMatch);
         if (g_ldmBucketSizeLog != LDM_PARAM_DEFAULT) FIO_setLdmBucketSizeLog(g_ldmBucketSizeLog);
-        if (g_ldmHashEveryLog != LDM_PARAM_DEFAULT) FIO_setLdmHashEveryLog(g_ldmHashEveryLog);
+        if (g_ldmHashRateLog != LDM_PARAM_DEFAULT) FIO_setLdmHashRateLog(g_ldmHashRateLog);
         FIO_setAdaptiveMode(adapt);
         FIO_setAdaptMin(adaptMin);
         FIO_setAdaptMax(adaptMax);

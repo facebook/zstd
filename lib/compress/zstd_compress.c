@@ -303,6 +303,7 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
 #else
         bounds.upperBound = 0;
 #endif
+        return bounds;
 
     case ZSTD_p_overlapSizeLog:
         bounds.lowerBound = ZSTD_OVERLAPLOG_MIN;

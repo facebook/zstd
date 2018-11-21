@@ -133,7 +133,7 @@ BMK_advancedParams_t BMK_initAdvancedParams(void) {
         0, /* ldmMinMatch */
         0, /* ldmHashLog */
         0, /* ldmBuckSizeLog */
-        0  /* ldmHashEveryLog */
+        0  /* ldmHashRateLog */
     };
     return res;
 }
@@ -171,7 +171,7 @@ static void BMK_initCCtx(ZSTD_CCtx* ctx,
     ZSTD_CCtx_setParameter(ctx, ZSTD_p_ldmMinMatch, adv->ldmMinMatch);
     ZSTD_CCtx_setParameter(ctx, ZSTD_p_ldmHashLog, adv->ldmHashLog);
     ZSTD_CCtx_setParameter(ctx, ZSTD_p_ldmBucketSizeLog, adv->ldmBucketSizeLog);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_p_ldmHashEveryLog, adv->ldmHashEveryLog);
+    ZSTD_CCtx_setParameter(ctx, ZSTD_p_ldmHashRateLog, adv->ldmHashRateLog);
     ZSTD_CCtx_setParameter(ctx, ZSTD_p_windowLog, comprParams->windowLog);
     ZSTD_CCtx_setParameter(ctx, ZSTD_p_hashLog, comprParams->hashLog);
     ZSTD_CCtx_setParameter(ctx, ZSTD_p_chainLog, comprParams->chainLog);

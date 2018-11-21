@@ -330,9 +330,9 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
         bounds.upperBound = ZSTD_LDM_BUCKETSIZELOG_MAX;
         return bounds;
 
-    case ZSTD_p_ldmHashEveryLog:
-        bounds.lowerBound = ZSTD_LDM_HASHEVERYLOG_MIN;
-        bounds.upperBound = ZSTD_LDM_HASHEVERYLOG_MAX;
+    case ZSTD_p_ldmHashRateLog:
+        bounds.lowerBound = ZSTD_LDM_HASHRATELOG_MIN;
+        bounds.upperBound = ZSTD_LDM_HASHRATELOG_MAX;
         return bounds;
 
     /* experimental parameters */
@@ -397,7 +397,7 @@ static int ZSTD_isUpdateAuthorized(ZSTD_cParameter param)
     case ZSTD_p_ldmHashLog:
     case ZSTD_p_ldmMinMatch:
     case ZSTD_p_ldmBucketSizeLog:
-    case ZSTD_p_ldmHashEveryLog:
+    case ZSTD_p_ldmHashRateLog:
     case ZSTD_p_forceAttachDict:
     default:
         return 0;
@@ -461,7 +461,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int value)
     case ZSTD_p_ldmHashLog:
     case ZSTD_p_ldmMinMatch:
     case ZSTD_p_ldmBucketSizeLog:
-    case ZSTD_p_ldmHashEveryLog:
+    case ZSTD_p_ldmHashRateLog:
         if (cctx->cdict) return ERROR(stage_wrong);
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
@@ -610,11 +610,11 @@ size_t ZSTD_CCtxParam_setParameter(ZSTD_CCtx_params* CCtxParams,
         CCtxParams->ldmParams.bucketSizeLog = value;
         return CCtxParams->ldmParams.bucketSizeLog;
 
-    case ZSTD_p_ldmHashEveryLog :
+    case ZSTD_p_ldmHashRateLog :
         if (value > ZSTD_WINDOWLOG_MAX - ZSTD_HASHLOG_MIN)
             return ERROR(parameter_outOfBound);
-        CCtxParams->ldmParams.hashEveryLog = value;
-        return CCtxParams->ldmParams.hashEveryLog;
+        CCtxParams->ldmParams.hashRateLog = value;
+        return CCtxParams->ldmParams.hashRateLog;
 
     default: return ERROR(parameter_unsupported);
     }
@@ -711,8 +711,8 @@ size_t ZSTD_CCtxParam_getParameter(
     case ZSTD_p_ldmBucketSizeLog :
         *value = CCtxParams->ldmParams.bucketSizeLog;
         break;
-    case ZSTD_p_ldmHashEveryLog :
-        *value = CCtxParams->ldmParams.hashEveryLog;
+    case ZSTD_p_ldmHashRateLog :
+        *value = CCtxParams->ldmParams.hashRateLog;
         break;
     default: return ERROR(parameter_unsupported);
     }
@@ -1119,7 +1119,7 @@ static U32 ZSTD_equivalentLdmParams(ldmParams_t ldmParams1,
             ldmParams1.hashLog == ldmParams2.hashLog &&
             ldmParams1.bucketSizeLog == ldmParams2.bucketSizeLog &&
             ldmParams1.minMatchLength == ldmParams2.minMatchLength &&
-            ldmParams1.hashEveryLog == ldmParams2.hashEveryLog);
+            ldmParams1.hashRateLog == ldmParams2.hashRateLog);
 }
 
 typedef enum { ZSTDb_not_buffered, ZSTDb_buffered } ZSTD_buffered_policy_e;
@@ -1317,7 +1317,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         /* Adjust long distance matching parameters */
         ZSTD_ldm_adjustParameters(&params.ldmParams, &params.cParams);
         assert(params.ldmParams.hashLog >= params.ldmParams.bucketSizeLog);
-        assert(params.ldmParams.hashEveryLog < 32);
+        assert(params.ldmParams.hashRateLog < 32);
         zc->ldmState.hashPower = ZSTD_rollingHash_primePower(params.ldmParams.minMatchLength);
     }
 

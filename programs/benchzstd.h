@@ -115,7 +115,7 @@ typedef struct {
     unsigned ldmMinMatch;       /* below: parameters for long distance matching, see zstd.1.md */
     unsigned ldmHashLog;
     unsigned ldmBucketSizeLog;
-    unsigned ldmHashEveryLog;
+    unsigned ldmHashRateLog;
 } BMK_advancedParams_t;
 
 /* returns default parameters used by nonAdvanced functions */

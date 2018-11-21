@@ -450,7 +450,7 @@ The list of available _options_:
 
     The minimum _lblog_ is 0 and the maximum is 8 (default: 3).
 
-- `ldmHashEveryLog`=_lhevery_, `lhevery`=_lhevery_:
+- `ldmHashRateLog`=_lhrlog_, `lhrlog`=_lhrlog_:
     Specify the frequency of inserting entries into the long distance matching
     hash table.
 

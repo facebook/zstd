@@ -555,12 +555,12 @@ typedef enum {
                               * Larger values improve collision resolution but decrease compression speed.
                               * The maximum value is ZSTD_LDM_BUCKETSIZELOG_MAX.
                               * Special: value 0 means "use default value" (default: 3). */
-    ZSTD_p_ldmHashEveryLog=164, /* Frequency of inserting/looking up entries into the LDM hash table.
+    ZSTD_p_ldmHashRateLog=164, /* Frequency of inserting/looking up entries into the LDM hash table.
                               * Must be clamped between 0 and (ZSTD_WINDOWLOG_MAX - ZSTD_HASHLOG_MIN).
                               * Default is MAX(0, (windowLog - ldmHashLog)), optimizing hash table usage.
                               * Larger values improve compression speed.
                               * Deviating far from default value will likely result in a compression ratio decrease.
-                              * Special: value 0 means "automatically determine hashEveryLog". */
+                              * Special: value 0 means "automatically determine hashRateLog". */
 
     /* frame parameters */
     ZSTD_p_contentSizeFlag=200, /* Content size will be written into frame header _whenever known_ (default:1)
@@ -926,8 +926,8 @@ ZSTDLIB_API size_t ZSTD_decompress_generic(ZSTD_DCtx* dctx,
 #define ZSTD_LDM_MINMATCH_MAX     4096
 #define ZSTD_LDM_BUCKETSIZELOG_MIN   1
 #define ZSTD_LDM_BUCKETSIZELOG_MAX   8
-#define ZSTD_LDM_HASHEVERYLOG_MIN    0
-#define ZSTD_LDM_HASHEVERYLOG_MAX (ZSTD_WINDOWLOG_MAX - ZSTD_HASHLOG_MIN)
+#define ZSTD_LDM_HASHRATELOG_MIN     0
+#define ZSTD_LDM_HASHRATELOG_MAX (ZSTD_WINDOWLOG_MAX - ZSTD_HASHLOG_MIN)
 
 /* internal */
 #define ZSTD_HASHLOG3_MAX           17

@@ -461,12 +461,12 @@ size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
                               * Larger values improve collision resolution but decrease compression speed.
                               * The maximum value is ZSTD_LDM_BUCKETSIZELOG_MAX.
                               * Special: value 0 means "use default value" (default: 3). */
-    ZSTD_p_ldmHashEveryLog=164, </b>/* Frequency of inserting/looking up entries into the LDM hash table.<b>
+    ZSTD_p_ldmHashRateLog=164, </b>/* Frequency of inserting/looking up entries into the LDM hash table.<b>
                               * Must be clamped between 0 and (ZSTD_WINDOWLOG_MAX - ZSTD_HASHLOG_MIN).
                               * Default is MAX(0, (windowLog - ldmHashLog)), optimizing hash table usage.
                               * Larger values improve compression speed.
                               * Deviating far from default value will likely result in a compression ratio decrease.
-                              * Special: value 0 means "automatically determine hashEveryLog". */
+                              * Special: value 0 means "automatically determine hashRateLog". */
 
     </b>/* frame parameters */<b>
     ZSTD_p_contentSizeFlag=200, </b>/* Content size will be written into frame header _whenever known_ (default:1)<b>

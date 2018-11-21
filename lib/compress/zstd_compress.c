@@ -269,7 +269,7 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
 
     case ZSTD_p_compressionStrategy:
         bounds.lowerBound = (int)ZSTD_fast;
-        bounds.upperBound = (int)ZSTD_btultra;
+        bounds.upperBound = (int)ZSTD_btultra;  /* note : how to ensure at compile time that this is the highest value strategy ? */
         return bounds;
 
     case ZSTD_p_contentSizeFlag:
@@ -297,21 +297,65 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
         return bounds;
 
     case ZSTD_p_jobSize:
+        bounds.lowerBound = 0;
+#ifdef ZSTD_MULTITHREAD
+        bounds.upperBound = ZSTDMT_JOBSIZE_MAX;
+#else
+        bounds.upperBound = 0;
+#endif
+
     case ZSTD_p_overlapSizeLog:
-    case ZSTD_p_rsyncable:
+        bounds.lowerBound = ZSTD_OVERLAPLOG_MIN;
+        bounds.upperBound = ZSTD_OVERLAPLOG_MAX;
+        return bounds;
+
     case ZSTD_p_enableLongDistanceMatching:
+        bounds.lowerBound = 0;
+        bounds.upperBound = 1;
+        return bounds;
+
     case ZSTD_p_ldmHashLog:
+        bounds.lowerBound = ZSTD_LDM_HASHLOG_MIN;
+        bounds.upperBound = ZSTD_LDM_HASHLOG_MAX;
+        return bounds;
+
     case ZSTD_p_ldmMinMatch:
+        bounds.lowerBound = ZSTD_LDM_MINMATCH_MIN;
+        bounds.upperBound = ZSTD_LDM_MINMATCH_MAX;
+        return bounds;
+
     case ZSTD_p_ldmBucketSizeLog:
+        bounds.lowerBound = ZSTD_LDM_BUCKETSIZELOG_MIN;
+        bounds.upperBound = ZSTD_LDM_BUCKETSIZELOG_MAX;
+        return bounds;
+
     case ZSTD_p_ldmHashEveryLog:
+        bounds.lowerBound = ZSTD_LDM_HASHEVERYLOG_MIN;
+        bounds.upperBound = ZSTD_LDM_HASHEVERYLOG_MAX;
+        return bounds;
 
     /* experimental parameters */
+    case ZSTD_p_rsyncable:
+        bounds.lowerBound = 0;
+        bounds.upperBound = 1;
+        return bounds;
+
     case ZSTD_p_forceMaxWindow :
         bounds.lowerBound = 0;
         bounds.upperBound = 1;
         return bounds;
+
     case ZSTD_p_format:
+        ZSTD_STATIC_ASSERT((int)ZSTD_f_zstd1 < (int)ZSTD_f_zstd1_magicless);
+        bounds.lowerBound = (int)ZSTD_f_zstd1;
+        bounds.upperBound = (int)ZSTD_f_zstd1_magicless;
+        return bounds;
+
     case ZSTD_p_forceAttachDict:
+        bounds.lowerBound = 0;
+        bounds.upperBound = 1;
+        return bounds;
+
     default:
         {   ZSTD_bounds const boundError = { ERROR(parameter_unsupported), 0, 0 };
             return boundError;
@@ -402,7 +446,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int value)
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
     case ZSTD_p_nbWorkers:
-        if ((value>0) && cctx->staticSize) {
+        if ((value!=0) && cctx->staticSize) {
             return ERROR(parameter_unsupported);  /* MT not compatible with static alloc */
         }
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
@@ -447,31 +491,31 @@ size_t ZSTD_CCtxParam_setParameter(ZSTD_CCtx_params* CCtxParams,
     }
 
     case ZSTD_p_windowLog :
-        if (value>0)   /* 0 => use default */
+        if (value!=0)   /* 0 => use default */
             CLAMPCHECK(value, ZSTD_WINDOWLOG_MIN, ZSTD_WINDOWLOG_MAX);
         CCtxParams->cParams.windowLog = value;
         return CCtxParams->cParams.windowLog;
 
     case ZSTD_p_hashLog :
-        if (value>0)   /* 0 => use default */
+        if (value!=0)   /* 0 => use default */
             CLAMPCHECK(value, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
         CCtxParams->cParams.hashLog = value;
         return CCtxParams->cParams.hashLog;
 
     case ZSTD_p_chainLog :
-        if (value>0)   /* 0 => use default */
+        if (value!=0)   /* 0 => use default */
             CLAMPCHECK(value, ZSTD_CHAINLOG_MIN, ZSTD_CHAINLOG_MAX);
         CCtxParams->cParams.chainLog = value;
         return CCtxParams->cParams.chainLog;
 
     case ZSTD_p_searchLog :
-        if (value>0)   /* 0 => use default */
+        if (value!=0)   /* 0 => use default */
             CLAMPCHECK(value, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
         CCtxParams->cParams.searchLog = value;
         return value;
 
     case ZSTD_p_minMatch :
-        if (value>0)   /* 0 => use default */
+        if (value!=0)   /* 0 => use default */
             CLAMPCHECK(value, ZSTD_MINMATCH_MIN, ZSTD_MINMATCH_MAX);
         CCtxParams->cParams.minMatch = value;
         return CCtxParams->cParams.minMatch;
@@ -482,29 +526,29 @@ size_t ZSTD_CCtxParam_setParameter(ZSTD_CCtx_params* CCtxParams,
         return CCtxParams->cParams.targetLength;
 
     case ZSTD_p_compressionStrategy :
-        if (value>0)   /* 0 => use default */
+        if (value!=0)   /* 0 => use default */
             CLAMPCHECK(value, (int)ZSTD_fast, (int)ZSTD_btultra);
         CCtxParams->cParams.strategy = (ZSTD_strategy)value;
         return (size_t)CCtxParams->cParams.strategy;
 
     case ZSTD_p_contentSizeFlag :
         /* Content size written in frame header _when known_ (default:1) */
-        DEBUGLOG(4, "set content size flag = %u", (value>0));
-        CCtxParams->fParams.contentSizeFlag = value > 0;
+        DEBUGLOG(4, "set content size flag = %u", (value!=0));
+        CCtxParams->fParams.contentSizeFlag = value != 0;
         return CCtxParams->fParams.contentSizeFlag;
 
     case ZSTD_p_checksumFlag :
         /* A 32-bits content checksum will be calculated and written at end of frame (default:0) */
-        CCtxParams->fParams.checksumFlag = value > 0;
+        CCtxParams->fParams.checksumFlag = value != 0;
         return CCtxParams->fParams.checksumFlag;
 
     case ZSTD_p_dictIDFlag : /* When applicable, dictionary's dictID is provided in frame header (default:1) */
-        DEBUGLOG(4, "set dictIDFlag = %u", (value>0));
+        DEBUGLOG(4, "set dictIDFlag = %u", (value!=0));
         CCtxParams->fParams.noDictIDFlag = !value;
         return !CCtxParams->fParams.noDictIDFlag;
 
     case ZSTD_p_forceMaxWindow :
-        CCtxParams->forceWindow = (value > 0);
+        CCtxParams->forceWindow = (value != 0);
         return CCtxParams->forceWindow;
 
     case ZSTD_p_forceAttachDict : {
@@ -516,7 +560,7 @@ size_t ZSTD_CCtxParam_setParameter(ZSTD_CCtx_params* CCtxParams,
 
     case ZSTD_p_nbWorkers :
 #ifndef ZSTD_MULTITHREAD
-        if (value>0) return ERROR(parameter_unsupported);
+        if (value!=0) return ERROR(parameter_unsupported);
         return 0;
 #else
         return ZSTDMT_CCtxParam_setNbWorkers(CCtxParams, value);
@@ -544,24 +588,24 @@ size_t ZSTD_CCtxParam_setParameter(ZSTD_CCtx_params* CCtxParams,
 #endif
 
     case ZSTD_p_enableLongDistanceMatching :
-        CCtxParams->ldmParams.enableLdm = (value>0);
+        CCtxParams->ldmParams.enableLdm = (value!=0);
         return CCtxParams->ldmParams.enableLdm;
 
     case ZSTD_p_ldmHashLog :
-        if (value>0)   /* 0 ==> auto */
+        if (value!=0)   /* 0 ==> auto */
             CLAMPCHECK(value, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
         CCtxParams->ldmParams.hashLog = value;
         return CCtxParams->ldmParams.hashLog;
 
     case ZSTD_p_ldmMinMatch :
-        if (value>0)   /* 0 ==> default */
+        if (value!=0)   /* 0 ==> default */
             CLAMPCHECK(value, ZSTD_LDM_MINMATCH_MIN, ZSTD_LDM_MINMATCH_MAX);
         CCtxParams->ldmParams.minMatchLength = value;
         return CCtxParams->ldmParams.minMatchLength;
 
     case ZSTD_p_ldmBucketSizeLog :
-        if (value > ZSTD_LDM_BUCKETSIZELOG_MAX)
-            return ERROR(parameter_outOfBound);
+        if (value!=0)   /* 0 ==> default */
+            CLAMPCHECK(value, ZSTD_LDM_BUCKETSIZELOG_MIN, ZSTD_LDM_BUCKETSIZELOG_MAX);
         CCtxParams->ldmParams.bucketSizeLog = value;
         return CCtxParams->ldmParams.bucketSizeLog;
 

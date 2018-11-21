@@ -459,7 +459,7 @@ size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
                               * Special: value 0 means "use default value" (default: 64). */
     ZSTD_p_ldmBucketSizeLog=163, </b>/* Log size of each bucket in the LDM hash table for collision resolution.<b>
                               * Larger values improve collision resolution but decrease compression speed.
-                              * The maximum value is ZSTD_LDM_BUCKETSIZELOG_MAX .
+                              * The maximum value is ZSTD_LDM_BUCKETSIZELOG_MAX.
                               * Special: value 0 means "use default value" (default: 3). */
     ZSTD_p_ldmHashEveryLog=164, </b>/* Frequency of inserting/looking up entries into the LDM hash table.<b>
                               * Must be clamped between 0 and (ZSTD_WINDOWLOG_MAX - ZSTD_HASHLOG_MIN).
@@ -490,8 +490,13 @@ size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
                               * 0 means default, which is dynamically determined based on compression parameters.
                               * Job size must be a minimum of overlapSize, or 1 MB, whichever is largest.
                               * The minimum size is automatically and transparently enforced */
-    ZSTD_p_overlapSizeLog=402, </b>/* Size of previous input reloaded at the beginning of each job, as a fraction of window size.<b>
-                              * 0 : no overlap;  6(default) : use 1/8th of windowSize;  >=9 : use full windowSize */
+    ZSTD_p_overlapSizeLog=402, </b>/* Size of previous job reloaded at the beginning of each job, as a fraction of window size.<b>
+                              * This value is enforced only when nbWorkers >= 1.
+                              * Larger values increase compression ratio, but decrease speed.
+                              * Values range from 0 (no overlap) to 9 (overlap a full windowSize).
+                              * Each rank (except 0) increase/decrease load size by a factor 2
+                              * 9: full window;  8: w/2;  7: w/4;  6: w/8;  5:w/16;  4: w/32;  3:w/64;  2:w/128;  1:w/256;
+                              * default value is 6 : use 1/8th of windowSize */
 
     </b>/* =================================================================== */<b>
     </b>/* experimental parameters - no stability guaranteed                   */<b>

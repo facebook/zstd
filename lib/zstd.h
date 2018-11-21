@@ -553,7 +553,7 @@ typedef enum {
                               * Special: value 0 means "use default value" (default: 64). */
     ZSTD_p_ldmBucketSizeLog=163, /* Log size of each bucket in the LDM hash table for collision resolution.
                               * Larger values improve collision resolution but decrease compression speed.
-                              * The maximum value is ZSTD_LDM_BUCKETSIZELOG_MAX .
+                              * The maximum value is ZSTD_LDM_BUCKETSIZELOG_MAX.
                               * Special: value 0 means "use default value" (default: 3). */
     ZSTD_p_ldmHashEveryLog=164, /* Frequency of inserting/looking up entries into the LDM hash table.
                               * Must be clamped between 0 and (ZSTD_WINDOWLOG_MAX - ZSTD_HASHLOG_MIN).
@@ -584,8 +584,13 @@ typedef enum {
                               * 0 means default, which is dynamically determined based on compression parameters.
                               * Job size must be a minimum of overlapSize, or 1 MB, whichever is largest.
                               * The minimum size is automatically and transparently enforced */
-    ZSTD_p_overlapSizeLog=402, /* Size of previous input reloaded at the beginning of each job, as a fraction of window size.
-                              * 0 : no overlap;  6(default) : use 1/8th of windowSize;  >=9 : use full windowSize */
+    ZSTD_p_overlapSizeLog=402, /* Size of previous job reloaded at the beginning of each job, as a fraction of window size.
+                              * This value is enforced only when nbWorkers >= 1.
+                              * Larger values increase compression ratio, but decrease speed.
+                              * Values range from 0 (no overlap) to 9 (overlap a full windowSize).
+                              * Each rank (except 0) increase/decrease load size by a factor 2
+                              * 9: full window;  8: w/2;  7: w/4;  6: w/8;  5:w/16;  4: w/32;  3:w/64;  2:w/128;  1:w/256;
+                              * default value is 6 : use 1/8th of windowSize */
 
     /* =================================================================== */
     /* experimental parameters - no stability guaranteed                   */
@@ -886,8 +891,6 @@ ZSTDLIB_API size_t ZSTD_decompress_generic(ZSTD_DCtx* dctx,
 #define ZSTD_FRAMEHEADERSIZE_MAX   18   /* can be useful for static allocation */
 #define ZSTD_SKIPPABLEHEADERSIZE    8
 
-#define ZSTD_HASHLOG3_MAX          17
-
 /* note : matches --ultra and --long default (27) ? */
 #define ZSTD_WINDOWLOG_LIMIT_DEFAULT 27   /* by default, the streaming decoder will refuse any frame
                                            * requiring larger than (1<<ZSTD_WINDOWLOG_LIMIT_DEFAULT) window size, to preserve memory.
@@ -912,10 +915,22 @@ ZSTDLIB_API size_t ZSTD_decompress_generic(ZSTD_DCtx* dctx,
 #define ZSTD_TARGETLENGTH_MAX    ZSTD_BLOCKSIZE_MAX
 #define ZSTD_TARGETLENGTH_MIN     0   /* note : comparing this constant to an unsigned results in a tautological test */
 
+#define ZSTD_OVERLAPLOG_MIN       0
+#define ZSTD_OVERLAPLOG_MAX       9
+
+
 /* LDM parameter bounds */
-#define ZSTD_LDM_MINMATCH_MAX   4096
-#define ZSTD_LDM_MINMATCH_MIN      4
-#define ZSTD_LDM_BUCKETSIZELOG_MAX 8
+#define ZSTD_LDM_HASHLOG_MIN      ZSTD_HASHLOG_MIN
+#define ZSTD_LDM_HASHLOG_MAX      ZSTD_HASHLOG_MAX
+#define ZSTD_LDM_MINMATCH_MIN        4
+#define ZSTD_LDM_MINMATCH_MAX     4096
+#define ZSTD_LDM_BUCKETSIZELOG_MIN   1
+#define ZSTD_LDM_BUCKETSIZELOG_MAX   8
+#define ZSTD_LDM_HASHEVERYLOG_MIN    0
+#define ZSTD_LDM_HASHEVERYLOG_MAX (ZSTD_WINDOWLOG_MAX - ZSTD_HASHLOG_MIN)
+
+/* internal */
+#define ZSTD_HASHLOG3_MAX           17
 
 
 /* ---  Advanced types  --- */

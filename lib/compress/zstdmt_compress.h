@@ -30,6 +30,10 @@
 
 /* ===   Constants   === */
 #define ZSTDMT_NBWORKERS_MAX 200
+#ifndef ZSTDMT_JOBSIZE_MIN
+#  define ZSTDMT_JOBSIZE_MIN (1U << 20)   /* 1 MB - Minimum size of each compression job */
+#endif
+#define ZSTDMT_JOBSIZE_MAX  (MEM_32bits() ? (512 MB) : (1 GB))  /* note : limited by `jobSize` type, which is `int` */
 
 
 /* ===   Memory management   === */
@@ -63,10 +67,6 @@ ZSTDLIB_API size_t ZSTDMT_endStream(ZSTDMT_CCtx* mtctx, ZSTD_outBuffer* output);
 
 
 /* ===   Advanced functions and parameters  === */
-
-#ifndef ZSTDMT_JOBSIZE_MIN
-#  define ZSTDMT_JOBSIZE_MIN (1U << 20)   /* 1 MB - Minimum size of each compression job */
-#endif
 
 ZSTDLIB_API size_t ZSTDMT_compress_advanced(ZSTDMT_CCtx* mtctx,
                                            void* dst, size_t dstCapacity,

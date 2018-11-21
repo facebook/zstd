@@ -408,13 +408,25 @@ ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output
 /****************************************************************************************
  *   Candidate API for promotion to stable status
  ****************************************************************************************
- * The following symbols and constants are in "staging area" :
+ * The following symbols and constants belong to the "staging area" :
  * they are considered to join "stable API" status by v1.4.0.
- * The below proposal is created so that it's possible to make it stable "as is".
- * That being said, it's still possible to suggest modifications.
+ * The below proposal is written so that it can become stable "as is".
+ * It's still possible to suggest modifications.
  * Staging is in fact last chance for changes,
- * because the API is locked once reaching "stable" status.
+ * the API is locked once reaching "stable" status.
  * ***************************************************************************************/
+
+
+ /* ===  Constants   === */
+
+ /* all magic numbers are supposed read/written to/from files/memory using little-endian convention */
+ #define ZSTD_MAGICNUMBER            0xFD2FB528    /* valid since v0.8.0 */
+ #define ZSTD_MAGIC_DICTIONARY       0xEC30A437    /* valid since v0.7.0 */
+ #define ZSTD_MAGIC_SKIPPABLE_START  0x184D2A50    /* all 16 values, from 0x184D2A50 to 0x184D2A5F, signal the beginning of a skippable frame */
+ #define ZSTD_MAGIC_SKIPPABLE_MASK   0xFFFFFFF0
+
+ #define ZSTD_BLOCKSIZELOG_MAX  17
+ #define ZSTD_BLOCKSIZE_MAX     (1<<ZSTD_BLOCKSIZELOG_MAX)
 
 
 /* ===   query limits   === */
@@ -422,22 +434,18 @@ ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output
 ZSTDLIB_API int ZSTD_minCLevel(void);  /*!< minimum negative compression level allowed */
 
 
+/* ===   frame size   === */
 
-/* ---  Constants  ---*/
-
-/* all magic numbers are supposed read/written to/from files/memory using little-endian convention */
-#define ZSTD_MAGICNUMBER            0xFD2FB528    /* valid since v0.8.0 */
-#define ZSTD_MAGIC_DICTIONARY       0xEC30A437    /* valid since v0.7.0 */
-#define ZSTD_MAGIC_SKIPPABLE_START  0x184D2A50    /* all 16 values, from 0x184D2A50 to 0x184D2A5F, signal the beginning of a skippable frame */
-#define ZSTD_MAGIC_SKIPPABLE_MASK   0xFFFFFFF0
-
-#define ZSTD_BLOCKSIZELOG_MAX 17
-#define ZSTD_BLOCKSIZE_MAX   (1<<ZSTD_BLOCKSIZELOG_MAX)
+/*! ZSTD_findFrameCompressedSize() :
+ * `src` should point to the start of a ZSTD frame or skippable frame.
+ * `srcSize` must be >= first frame size
+ * @return : the compressed size of the first frame starting at `src`,
+ *           suitable to pass to `ZSTD_decompress` or similar,
+ *           or an error code if input is invalid */
+ZSTDLIB_API size_t ZSTD_findFrameCompressedSize(const void* src, size_t srcSize);
 
 
-/***************************************
-*  Memory management
-***************************************/
+/* ===   Memory management   === */
 
 /*! ZSTD_sizeof_*() :
  *  These functions give the current memory usage of selected object.
@@ -881,9 +889,10 @@ ZSTDLIB_API size_t ZSTD_decompress_generic(ZSTD_DCtx* dctx,
  *   experimental API (static linking only)
  ****************************************************************************************
  * The following symbols and constants
- * are not planned to join "stable API" status anytime soon.
+ * are not planned to join "stable API" status in the near future.
+ * They can still change in future versions.
  * Some of them are planned to remain in the static_only section indefinitely.
- * Some of them might even be removed in the future (especially when redundant with existing stable functions)
+ * Some of them might be removed in the future (especially when redundant with existing stable functions)
  * ***************************************************************************************/
 
 #define ZSTD_FRAMEHEADERSIZE_PREFIX 5   /* minimum input size required to query frame header size */
@@ -1021,14 +1030,6 @@ typedef enum {
 /***************************************
 *  Frame size functions
 ***************************************/
-
-/*! ZSTD_findFrameCompressedSize() :
- *  `src` should point to the start of a ZSTD encoded frame or skippable frame
- *  `srcSize` must be >= first frame size
- *  @return : the compressed size of the first frame starting at `src`,
- *            suitable to pass to `ZSTD_decompress` or similar,
- *            or an error code if input is invalid */
-ZSTDLIB_API size_t ZSTD_findFrameCompressedSize(const void* src, size_t srcSize);
 
 /*! ZSTD_findDecompressedSize() :
  *  `src` should point the start of a series of ZSTD encoded and/or skippable frames

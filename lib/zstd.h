@@ -600,48 +600,20 @@ typedef enum {
                               * 9: full window;  8: w/2;  7: w/4;  6: w/8;  5:w/16;  4: w/32;  3:w/64;  2:w/128;  1:w/256;
                               * default value is 6 : use 1/8th of windowSize */
 
-    /* =================================================================== */
-    /* experimental parameters - no stability guaranteed                   */
-    /* => note : should this part be exported in a different section of zstd.h ? */
-    /* =================================================================== */
-
-    /* compression format */
-    ZSTD_p_format = 10,      /* See ZSTD_format_e enum definition.
-                              * Cast selected format as unsigned for ZSTD_CCtx_setParameter() compatibility. */
-
-    ZSTD_p_forceMaxWindow=1100, /* Force back-reference distances to remain < windowSize,
-                              * even when referencing into Dictionary content (default:0) */
-    ZSTD_p_forceAttachDict,  /* Controls whether the contents of a CDict are
-                              * used in place, or whether they are copied into
-                              * the working context.
-                              *
-                              * Accepts values from the ZSTD_dictAttachPref_e
-                              * enum. See the comments on that enum for an
-                              * explanation of the feature.
-                              */
-
-    /* Question : should rsyncable remain experimental, or be part of candidate for stable ? */
-    ZSTD_p_rsyncable,        /* Enables rsyncable mode, which makes compressed
-                              * files more rsync friendly by adding periodic
-                              * synchronization points to the compressed data.
-                              * The target average block size is
-                              * ZSTD_p_jobSize / 2. You can modify the job size
-                              * to increase or decrease the granularity of the
-                              * synchronization point. Once the jobSize is
-                              * smaller than the window size, you will start to
-                              * see degraded compression ratio.
-                              * NOTE: This only works when multithreading is
-                              * enabled.
-                              * NOTE: You probably don't want to use this with
-                              * long range mode, since that will decrease the
-                              * effectiveness of the synchronization points,
-                              * but your milage may vary.
-                              * NOTE: Rsyncable mode will limit the maximum
-                              * compression speed to approximately 400 MB/s.
-                              * If your compression level is already running
-                              * significantly slower than that (< 200 MB/s),
-                              * the speed won't be significantly impacted.
-                              */
+    /* note : additional experimental parameters are also available
+     * within the experimental section of the API.
+     * At the time of this writing, they include :
+     * ZSTD_p_rsyncable
+     * ZSTD_p_format
+     * ZSTD_p_forceMaxWindow
+     * ZSTD_p_forceAttachDict
+     * Because they are not stable, it's necessary to define ZSTD_STATIC_LINKING_ONLY to access them.
+     * note : never use experimentalParam names directly
+     */
+     ZSTD_p_experimentalParam1=500,
+     ZSTD_p_experimentalParam2=10,
+     ZSTD_p_experimentalParam3=1000,
+     ZSTD_p_experimentalParam4
 } ZSTD_cParameter;
 
 
@@ -1237,6 +1209,43 @@ ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary_advanced(ZSTD_CCtx* cctx, const void
  *  Same as ZSTD_CCtx_refPrefix(), but gives finer control over
  *  how to interpret prefix content (automatic ? force raw mode (default) ? full mode only ?) */
 ZSTDLIB_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* prefix, size_t prefixSize, ZSTD_dictContentType_e dictContentType);
+
+/* ===   experimental parameters   === */
+/* these parameters can be used with ZSTD_setParameter()
+ * they are not guaranteed to remain supported in the future */
+
+ /* Enables rsyncable mode,
+  * which makes compressed files more rsync friendly
+  * by adding periodic synchronization points to the compressed data.
+  * The target average block size is ZSTD_p_jobSize / 2.
+  * It's possible to modify the job size to increase or decrease
+  * the granularity of the synchronization point.
+  * Once the jobSize is smaller than the window size,
+  * it will result in compression ratio degradation.
+  * NOTE 1: rsyncable mode only works when multithreading is enabled.
+  * NOTE 2: rsyncable performs poorly in combination with long range mode,
+  * since it will decrease the effectiveness of synchronization points,
+  * though mileage may vary.
+  * NOTE 3: Rsyncable mode limits maximum compression speed to ~400 MB/s.
+  * If the selected compression level is already running significantly slower,
+  * the overall speed won't be significantly impacted.
+  */
+ #define ZSTD_p_rsyncable ZSTD_p_experimentalParam1
+
+/* Select a compression format.
+ * The value must be of type ZSTD_format_e.
+ * See ZSTD_format_e enum definition for details */
+#define ZSTD_p_format ZSTD_p_experimentalParam2
+
+/* Force back-reference distances to remain < windowSize,
+ * even when referencing into Dictionary content (default:0) */
+#define ZSTD_p_forceMaxWindow ZSTD_p_experimentalParam3
+
+/* Controls whether the contents of a CDict
+ * are used in place, or copied into the working context.
+ * Accepts values from the ZSTD_dictAttachPref_e enum.
+ * See the comments on that enum for an explanation of the feature. */
+#define ZSTD_p_forceAttachDict ZSTD_p_experimentalParam4
 
 /*! ZSTD_CCtx_getParameter() :
  * Get the requested value of one compression parameter, selected by enum ZSTD_cParameter.

@@ -61,8 +61,6 @@ executable('zstd-frugal',
 # Program symlinks
 # =============================================================================
 
-CreateSymlink_py = join_paths(meson.current_source_dir(), '..', 'CreateSymlink.py')
-
 foreach f : [ 'zstdcat', 'unzstd' ]
     custom_target(f,
         output : f,
@@ -89,7 +87,6 @@ endif
 
 zstd_man1_dir = join_paths(zstd_mandir, 'man1')
 zstd_1_file = join_paths(programs_dir, 'zstd.1')
-CopyFile_py = join_paths(meson.current_source_dir(), '..', 'CopyFile.py')
 
 custom_target('zstd.1',
         output : 'zstd.1',

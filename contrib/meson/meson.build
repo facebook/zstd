@@ -52,10 +52,17 @@ enable_zlib = get_option('zlib_support')
 enable_lzma = get_option('lzma_support')
 
 # =============================================================================
-# Getting project version from zstd.h
+# Helper scripts for Meson
 # =============================================================================
 
 GetZstdLibraryVersion_py = files('GetZstdLibraryVersion.py')
+CreateSymlink_py = files('CreateSymlink.py')
+CopyFile_py = files('CopyFile.py')
+
+# =============================================================================
+# Getting project version from zstd.h
+# =============================================================================
+
 zstd_h_file = join_paths(library_dir, 'zstd.h')
 r = run_command(python3, GetZstdLibraryVersion_py, zstd_h_file)
 if r.returncode() == 0

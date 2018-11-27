@@ -1,144 +1,109 @@
-project('zstd', 'c', license: 'BSD')
+# #############################################################################
+# Copyright (c) 2018-present     Dima Krasner <dima@dimakrasner.com>
+#                                lzutao <taolzu(at)gmail.com>
+# All rights reserved.
+#
+# This source code is licensed under both the BSD-style license (found in the
+# LICENSE file in the root directory of this source tree) and the GPLv2 (found
+# in the COPYING file in the root directory of this source tree).
+# #############################################################################
 
-libm = meson.get_compiler('c').find_library('m', required: true)
+project('zstd',
+    ['c', 'cpp'],
+    license: 'BSD',
+    default_options : ['c_std=c99',
+        'cpp_std=c++11',
+        'buildtype=release'],
+    version: '1.3.7',
+    # for install_man
+    meson_version: '>=0.47.0')
 
-lib_dir = join_paths('..', '..', 'lib')
-common_dir = join_paths(lib_dir, 'common')
-compress_dir = join_paths(lib_dir, 'compress')
-decompress_dir = join_paths(lib_dir, 'decompress')
-dictbuilder_dir = join_paths(lib_dir, 'dictBuilder')
-deprecated_dir = join_paths(lib_dir, 'deprecated')
+cc = meson.get_compiler('c')
+cxx = meson.get_compiler('cpp')
+pkgconfig = import('pkgconfig')
+python3 = import('python').find_installation()
 
-libzstd_srcs = [
-    join_paths(common_dir, 'entropy_common.c'),
-    join_paths(common_dir, 'fse_decompress.c'),
-    join_paths(common_dir, 'threading.c'),
-    join_paths(common_dir, 'pool.c'),
-    join_paths(common_dir, 'zstd_common.c'),
-    join_paths(common_dir, 'error_private.c'),
-    join_paths(common_dir, 'xxhash.c'),
-    join_paths(compress_dir, 'fse_compress.c'),
-    join_paths(compress_dir, 'hist.c'),
-    join_paths(compress_dir, 'huf_compress.c'),
-    join_paths(compress_dir, 'zstd_compress.c'),
-    join_paths(compress_dir, 'zstd_fast.c'),
-    join_paths(compress_dir, 'zstd_double_fast.c'),
-    join_paths(compress_dir, 'zstd_lazy.c'),
-    join_paths(compress_dir, 'zstd_opt.c'),
-    join_paths(compress_dir, 'zstd_ldm.c'),
-    join_paths(compress_dir, 'zstdmt_compress.c'),
-    join_paths(decompress_dir, 'huf_decompress.c'),
-    join_paths(decompress_dir, 'zstd_decompress.c'),
-    join_paths(dictbuilder_dir, 'cover.c'),
-    join_paths(dictbuilder_dir, 'divsufsort.c'),
-    join_paths(dictbuilder_dir, 'zdict.c'),
-    join_paths(deprecated_dir, 'zbuff_common.c'),
-    join_paths(deprecated_dir, 'zbuff_compress.c'),
-    join_paths(deprecated_dir, 'zbuff_decompress.c')
-]
+zstd_version = meson.project_version()
 
-libzstd_includes = [include_directories(common_dir, dictbuilder_dir, compress_dir, lib_dir)]
+# =============================================================================
+# Project directories
+# =============================================================================
 
-legacy = get_option('legacy_support')
-if legacy == '0'
-    legacy = 'false'
-endif
-if legacy != 'false'
-    if legacy == 'true'
-        legacy = '1'
-    endif
-    #See ZSTD_LEGACY_SUPPORT of programs/README.md
-    message('Enabling legacy support back to version 0.' + legacy)
-    legacy_int = legacy.to_int()
-    if legacy_int > 7
-        legacy_int = 7
-    endif
-    libzstd_cflags = ['-DZSTD_LEGACY_SUPPORT=' + legacy]
+zstd_prefix = get_option('prefix')
+zstd_bindir = join_paths(zstd_prefix, get_option('bindir'))
+zstd_datadir = join_paths(zstd_prefix, get_option('datadir'))
+zstd_docdir = join_paths(zstd_datadir, 'doc', meson.project_name())
+zstd_mandir = join_paths(zstd_prefix, get_option('mandir'))
 
-    legacy_dir = join_paths(lib_dir, 'legacy')
-    libzstd_includes += [include_directories(legacy_dir)]
-    if legacy_int <= 1
-        libzstd_srcs += join_paths(legacy_dir, 'zstd_v01.c')
+zstd_source_dir = join_paths('..', '..')
+library_dir = join_paths(zstd_source_dir, 'lib')
+contrib_meson_dir = join_paths(zstd_source_dir, 'contrib', 'meson')
+
+# =============================================================================
+# Project options
+# =============================================================================
+
+legacy_support = get_option('legacy_support')
+enable_programs = get_option('build_programs')
+enable_tests = get_option('build_tests')
+enable_contrib = get_option('build_contrib')
+enable_multithread = get_option('multithread_support')
+enable_zlib = get_option('zlib_support')
+enable_lzma = get_option('lzma_support')
+
+# =============================================================================
+# Getting project version from zstd.h
+# =============================================================================
+
+GetZstdLibraryVersion_py = files('GetZstdLibraryVersion.py')
+zstd_h_file = join_paths(library_dir, 'zstd.h')
+r = run_command(python3, GetZstdLibraryVersion_py, zstd_h_file)
+if r.returncode() == 0
+    output = r.stdout().strip()
+    if output.version_compare('>@0@'.format(zstd_version))
+        zstd_version = output
+        message('Project version is now: @0@'.format(zstd_version))
     endif
-    if legacy_int <= 2
-        libzstd_srcs += join_paths(legacy_dir, 'zstd_v02.c')
-    endif
-    if legacy_int <= 3
-        libzstd_srcs += join_paths(legacy_dir, 'zstd_v03.c')
-    endif
-    if legacy_int <= 4
-        libzstd_srcs += join_paths(legacy_dir, 'zstd_v04.c')
-    endif
-    if legacy_int <= 5
-        libzstd_srcs += join_paths(legacy_dir, 'zstd_v05.c')
-    endif
-    if legacy_int <= 6
-        libzstd_srcs += join_paths(legacy_dir, 'zstd_v06.c')
-    endif
-    if legacy_int <= 7
-        libzstd_srcs += join_paths(legacy_dir, 'zstd_v07.c')
-    endif
-else
-    libzstd_cflags = []
 endif
 
-if get_option('multithread')
-    message('Enabling multi-threading support')
-    add_global_arguments('-DZSTD_MULTITHREAD', language: 'c')
-    libzstd_deps = [dependency('threads')]
-else
-    libzstd_deps = []
+# =============================================================================
+# Dependencies
+# =============================================================================
+
+libm_dep = cc.find_library('m', required: true)
+thread_dep = dependency('threads', required: false)
+zlib_dep = dependency('zlib', required: false)
+lzma_dep = dependency('lzma', required: false)
+
+# =============================================================================
+# Compiler flags
+# =============================================================================
+
+if cxx.get_id() == 'gcc' or cxx.get_id() == 'clang'
+    common_flags = [ '-DXXH_NAMESPACE=ZSTD_' ]
+    zstd_compilation_flags = [ '-Wextra', '-Wundef', '-Wshadow', '-Wcast-align', '-Wcast-qual' ]
+    cc_common_flags = cc.get_supported_arguments(zstd_compilation_flags)
+    cc_common_flags += cc.get_supported_arguments(['-Wstrict-prototypes'])
+    cc_common_flags += common_flags
+    cxx_common_flags = cxx.get_supported_arguments(zstd_compilation_flags)
+    cxx_common_flags += common_flags
+    add_project_arguments(cc_common_flags, language : 'c')
+    add_project_arguments(cxx_common_flags, language : 'cpp')
 endif
 
-libzstd = library('zstd',
-                  libzstd_srcs,
-                  include_directories: libzstd_includes,
-                  c_args: libzstd_cflags,
-                  dependencies: libzstd_deps,
-                  install: true,
-                  soversion: '1',
-                 )
+# =============================================================================
+# Subdirs
+# =============================================================================
 
-programs_dir = join_paths('..', '..', 'programs')
+subdir('lib')
+if enable_programs
+    subdir('programs')
+endif
 
-zstd = executable('zstd',
-                  join_paths(programs_dir, 'bench.c'),
-                  join_paths(programs_dir, 'datagen.c'),
-                  join_paths(programs_dir, 'dibio.c'),
-                  join_paths(programs_dir, 'fileio.c'),
-                  join_paths(programs_dir, 'zstdcli.c'),
-                  include_directories: libzstd_includes,
-                  c_args: ['-DZSTD_NODICT', '-DZSTD_NOBENCH'],
-                  link_with: libzstd,
-                  install: true)
+if enable_tests
+    subdir('tests')
+endif
 
-tests_dir = join_paths('..', '..', 'tests')
-datagen_c = join_paths(programs_dir, 'datagen.c')
-test_includes = libzstd_includes + [include_directories(programs_dir)]
-
-fullbench = executable('fullbench',
-                       datagen_c, join_paths(tests_dir, 'fullbench.c'),
-                       include_directories: test_includes,
-                       link_with: libzstd)
-test('fullbench', fullbench)
-
-fuzzer = executable('fuzzer',
-                    datagen_c, join_paths(tests_dir, 'fuzzer.c'),
-                    include_directories: test_includes,
-                    link_with: libzstd)
-test('fuzzer', fuzzer)
-
-if target_machine.system() != 'windows'
-    paramgrill = executable('paramgrill',
-                            datagen_c, join_paths(tests_dir, 'paramgrill.c'),
-                            join_paths(programs_dir, 'bench.c'),
-                            include_directories: test_includes,
-                            link_with: libzstd,
-                            dependencies: libm)
-    test('paramgrill', paramgrill)
-
-    datagen = executable('datagen',
-                         datagen_c, join_paths(tests_dir, 'datagencli.c'),
-                         include_directories: test_includes,
-                         link_with: libzstd)
+if enable_contrib
+    subdir('contrib')
 endif

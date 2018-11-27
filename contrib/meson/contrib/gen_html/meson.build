@@ -16,7 +16,7 @@ contrib_gen_html_dir = join_paths(zstd_source_dir, 'contrib', 'gen_html')
 gen_html_includes = include_directories(programs_dir,
     library_dir,
     library_common_dir,
-    contrib_gen_html_dir )
+    contrib_gen_html_dir)
 
 gen_html = executable('gen_html',
     join_paths(contrib_gen_html_dir, 'gen_html.cpp'),

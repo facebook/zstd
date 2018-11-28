@@ -103,9 +103,11 @@ EXIT_CODE=0
 # call grep ...
 if [ "$#" -lt 1 ]; then
     # ... on stdin
+    set -f # Disable file name generation (globbing).
     # shellcheck disable=SC2086
     "${zcat}" -fq - | "${grep}" ${grep_args} -- "${pattern}" -
     EXIT_CODE=$?
+    set +f
 else
     # ... on all files given on the command line
     if [ "${silent}" -lt 1 ] && [ "$#" -gt 1 ]; then
@@ -113,6 +115,7 @@ else
     fi
     CUR_EXIT_CODE=0
     EXIT_CODE=1
+    set -f
     while [ "$#" -gt 0 ]; do
         # shellcheck disable=SC2086
         "${zcat}" -fq -- "$1" | "${grep}" --label="${1}" ${grep_args} -- "${pattern}" -
@@ -122,6 +125,7 @@ else
         fi
         shift
     done
+    set +f
 fi
 
 exit "${EXIT_CODE}"

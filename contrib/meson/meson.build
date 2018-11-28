@@ -86,14 +86,14 @@ lzma_dep = dependency('lzma', required: false)
 
 if cxx.get_id() == 'gcc' or cxx.get_id() == 'clang'
     common_flags = [ '-DXXH_NAMESPACE=ZSTD_' ]
-    zstd_compilation_flags = [ '-Wextra', '-Wundef', '-Wshadow', '-Wcast-align', '-Wcast-qual' ]
-    cc_common_flags = cc.get_supported_arguments(zstd_compilation_flags)
-    cc_common_flags += cc.get_supported_arguments(['-Wstrict-prototypes'])
-    cc_common_flags += common_flags
-    cxx_common_flags = cxx.get_supported_arguments(zstd_compilation_flags)
-    cxx_common_flags += common_flags
-    add_project_arguments(cc_common_flags, language : 'c')
-    add_project_arguments(cxx_common_flags, language : 'cpp')
+    common_warning_flags = [ '-Wextra', '-Wundef', '-Wshadow', '-Wcast-align', '-Wcast-qual' ]
+    cc_compilation_flags = cc.get_supported_arguments(common_warning_flags)
+    cc_compilation_flags += cc.get_supported_arguments(['-Wstrict-prototypes'])
+    cc_compilation_flags += common_flags
+    cxx_compilation_flags = cxx.get_supported_arguments(common_warning_flags)
+    cxx_compilation_flags += common_flags
+    add_project_arguments(cc_compilation_flags, language : 'c')
+    add_project_arguments(cxx_compilation_flags, language : 'cpp')
 endif
 
 # =============================================================================

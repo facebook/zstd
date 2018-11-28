@@ -58,7 +58,7 @@ if legacy_support == '0'
 endif
 if legacy_support != 'false'
     if legacy_support == 'true'
-        legacy_support = '1'
+        legacy_support = '5'
     endif
     legacy_int = legacy_support.to_int()
     if legacy_int < 0 or legacy_int >= 8
@@ -108,12 +108,11 @@ libzstd = library('zstd',
     soversion: '1')
 
 pkgconfig.generate(name: 'libzstd',
-    description: 'fast lossless compression algorithm library',
-    version: zstd_version,
     filebase: 'libzstd',
     libraries: [libzstd],
-    #subdirs: ['.']
-    )
+    description: 'fast lossless compression algorithm library',
+    version: zstd_version,
+    url: 'http://www.zstd.net/')
 
 install_headers(join_paths(library_dir, 'zstd.h'),
     join_paths(library_deprecated_dir, 'zbuff.h'),

@@ -3,11 +3,13 @@
 language: c
 dist: trusty
 sudo: required
+
 addons:
   apt:
     update: true
 
 matrix:
+  fast_finish: true
   include:
     # Ubuntu 14.04
     - env: Cmd='make test'
@@ -49,6 +51,10 @@ matrix:
     - if: tag =~ ^v[0-9]\.[0-9]
       env: Cmd='make -C tests checkTag && tests/checkTag $TRAVIS_BRANCH'
 
+    - env: INSTALL_SYSTEM='meson'
+  allow_failures:
+    - env: INSTALL_SYSTEM='meson'
+
 git:
   depth: 1
 
@@ -59,9 +65,25 @@ branches:
   - travisTest
 
 script:
-  - JOB_NUMBER=$(echo $TRAVIS_JOB_NUMBER | sed -e 's:[0-9][0-9]*\.\(.*\):\1:')
-  - echo JOB_NUMBER=$JOB_NUMBER TRAVIS_BRANCH=$TRAVIS_BRANCH TRAVIS_EVENT_TYPE=$TRAVIS_EVENT_TYPE TRAVIS_PULL_REQUEST=$TRAVIS_PULL_REQUEST
-  - export FUZZERTEST=-T2mn;
-    export ZSTREAM_TESTTIME=-T2mn;
-    export DECODECORPUS_TESTTIME=-T1mn;
-    sh -c "$Cmd" || travis_terminate 1;
+  - JOB_NUMBER=$(printf '%s' "${TRAVIS_JOB_NUMBER}" | sed -E 's@[0-9]+\.([0-9]+)@\1@')
+  - printf 'JOB_NUMBER=%s TRAVIS_BRANCH=%s TRAVIS_EVENT_TYPE=%s TRAVIS_PULL_REQUEST=%s\n'
+      "${JOB_NUMBER}" "${TRAVIS_BRANCH}" "${TRAVIS_EVENT_TYPE}" "${TRAVIS_PULL_REQUEST}"
+  - if [ "${INSTALL_SYSTEM}" = meson ]; then
+      sudo apt-get install -qq python3.5 wget tree
+        && wget https://bootstrap.pypa.io/get-pip.py
+        && python3.5 get-pip.py --user
+        && rm get-pip.py
+        && pip3.5 install --user meson ninja;
+      mkdir contrib/meson/build;
+      pushd "$_";
+      meson --buildtype=debug -Dbuild_contrib=true -Dbuild_tests=true ..
+        && ninja
+        && DESTDIR=./staging ninja install
+        && tree ./staging;
+      popd;
+    else
+      export FUZZERTEST=-T2mn;
+      export ZSTREAM_TESTTIME=-T2mn;
+      export DECODECORPUS_TESTTIME=-T1mn;
+      sh -c "${Cmd}" || travis_terminate 1;
+    fi

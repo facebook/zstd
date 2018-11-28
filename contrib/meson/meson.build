@@ -14,7 +14,7 @@ project('zstd',
     default_options : ['c_std=c99',
         'cpp_std=c++11',
         'buildtype=release'],
-    version: '1.3.7',
+    version: '1.3.8',
     # for install_man
     meson_version: '>=0.47.0')
 
@@ -63,7 +63,7 @@ CopyFile_py = files('CopyFile.py')
 # Getting project version from zstd.h
 # =============================================================================
 
-zstd_h_file = join_paths(library_dir, 'zstd.h')
+zstd_h_file = join_paths(meson.current_source_dir(), library_dir, 'zstd.h')
 r = run_command(python3, GetZstdLibraryVersion_py, zstd_h_file)
 if r.returncode() == 0
     output = r.stdout().strip()

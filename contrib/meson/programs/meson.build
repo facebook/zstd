@@ -80,5 +80,6 @@ install_man(join_paths(programs_dir, 'zstd.1'),
     join_paths(programs_dir, 'zstdless.1'))
 
 # Meson automatically compresses manpages to gz format
+# WARNING: This may fail on Windows. Test NEEDED.
 meson.add_install_script(InstallSymlink_py, 'zstd.1.gz', 'zstdcat.1.gz', zstd_man1_dir)
 meson.add_install_script(InstallSymlink_py, 'zstd.1.gz', 'unzstd.1.gz', zstd_man1_dir)

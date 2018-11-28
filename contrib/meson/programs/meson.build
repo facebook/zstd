@@ -83,3 +83,7 @@ install_man(join_paths(programs_dir, 'zstd.1'),
 # WARNING: This may fail on Windows. Test NEEDED.
 meson.add_install_script(InstallSymlink_py, 'zstd.1.gz', 'zstdcat.1.gz', zstd_man1_dir)
 meson.add_install_script(InstallSymlink_py, 'zstd.1.gz', 'unzstd.1.gz', zstd_man1_dir)
+
+if enable_multithread
+    meson.add_install_script(InstallSymlink_py, 'zstd.1.gz', 'zstdmt.1.gz', zstd_man1_dir)
+endif

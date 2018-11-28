@@ -56,8 +56,6 @@ enable_lzma = get_option('lzma_support')
 # =============================================================================
 
 GetZstdLibraryVersion_py = files('GetZstdLibraryVersion.py')
-CreateSymlink_py = files('CreateSymlink.py')
-CopyFile_py = files('CopyFile.py')
 
 # =============================================================================
 # Getting project version from zstd.h

@@ -57,6 +57,10 @@ executable('zstd-frugal',
     c_args: [ '-DZSTD_NOBENCH', '-DZSTD_NODICT' ],
     install: true)
 
+install_data(join_paths(programs_dir, 'zstdgrep'),
+    join_paths(programs_dir, 'zstdless'),
+    install_dir: zstd_bindir)
+
 # =============================================================================
 # Program symlinks
 # =============================================================================

@@ -103,6 +103,7 @@ endif
 # =============================================================================
 
 subdir('lib')
+
 if enable_programs
     subdir('programs')
 endif

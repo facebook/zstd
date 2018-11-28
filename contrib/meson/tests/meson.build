@@ -31,7 +31,7 @@ fullbench_sources = [datagen_c_file,
     util_c_file,
     benchfn_c_file,
     join_paths(programs_dir, 'benchzstd.c'),
-    join_paths(programs_dir, 'fullbench.c')]
+    join_paths(tests_dir, 'fullbench.c')]
 fullbench = executable('fullbench',
     fullbench_sources,
     include_directories: test_includes,
@@ -49,10 +49,10 @@ fuzzer = executable('fuzzer',
     install: false)
 test('fuzzer', fuzzer)
 
-paramgrill_sources = [benchfn_c_file
+paramgrill_sources = [benchfn_c_file,
     join_paths(programs_dir, 'benchzstd.c'),
-    datagen_c_file
-    util_c_file
+    datagen_c_file,
+    util_c_file,
     join_paths(tests_dir, 'paramgrill.c')]
 if host_machine.system() != 'windows'
     paramgrill = executable('paramgrill',
@@ -60,6 +60,6 @@ if host_machine.system() != 'windows'
         include_directories: test_includes,
         link_with: libzstd,
         dependencies: libm_dep,
-        install: false )
+        install: false)
     test('paramgrill', paramgrill)
 endif

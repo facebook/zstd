@@ -21,16 +21,14 @@ gen_html_includes = include_directories(programs_dir,
 gen_html = executable('gen_html',
     join_paths(contrib_gen_html_dir, 'gen_html.cpp'),
     include_directories: gen_html_includes,
-    install: false )
+    install: false)
 
 # Update zstd manual
 zstd_manual_html = custom_target('zstd_manual.html',
     output : 'zstd_manual.html',
-    command : [
-        gen_html,
+    command : [gen_html,
         zstd_version,
         join_paths(meson.current_source_dir(), library_dir, 'zstd.h'),
-        '@OUTPUT@'
-    ],
+        '@OUTPUT@'],
     install : true,
     install_dir : zstd_docdir )

@@ -61,24 +61,12 @@ executable('zstd-frugal',
 # Program symlinks
 # =============================================================================
 
-foreach f : [ 'zstdcat', 'unzstd' ]
-    custom_target(f,
-        output : f,
-        input: zstd,
-        command : [python3, CreateSymlink_py, '@PLAINNAME@', '@OUTPUT@'],
-        build_always_stale: false,
-        install : true,
-        install_dir: zstd_bindir)
-endforeach
+InstallSymlink_py = join_paths('..', 'InstallSymlink.py')
+meson.add_install_script(InstallSymlink_py, 'zstd', 'zstdcat', zstd_bindir)
+meson.add_install_script(InstallSymlink_py, 'zstd', 'unzstd', zstd_bindir)
 
 if enable_multithread
-    custom_target('zstdmt',
-        output : 'zstdmt',
-        input: zstd,
-        command : [python3, CreateSymlink_py, '@PLAINNAME@', '@OUTPUT@'],
-        build_always_stale: false,
-        install : true,
-        install_dir: zstd_bindir)
+    meson.add_install_script(InstallSymlink_py, 'zstd', 'zstdmt', zstd_bindir)
 endif
 
 # =============================================================================
@@ -86,25 +74,10 @@ endif
 # =============================================================================
 
 zstd_man1_dir = join_paths(zstd_mandir, 'man1')
-zstd_1_file = join_paths(programs_dir, 'zstd.1')
 
-custom_target('zstd.1',
-        output : 'zstd.1',
-        input: zstd_1_file,
-        command : [python3, CopyFile_py, '@INPUT@', '@OUTPUT@'],
-        build_always_stale: false,
-        install : true,
-        install_dir: zstd_man1_dir)
-
-foreach f : [ 'zstdcat.1', 'unzstd.1' ]
-    custom_target(f,
-        output : f,
-        input: zstd_1_file,
-        command : [python3, CreateSymlink_py, '@PLAINNAME@', '@OUTPUT@'],
-        install : true,
-        build_always_stale: false,
-        install_dir: zstd_man1_dir)
-endforeach
-
-install_man(join_paths(programs_dir, 'zstdgrep.1'),
+install_man(join_paths(programs_dir, 'zstd.1'),
+    join_paths(programs_dir, 'zstdgrep.1'),
     join_paths(programs_dir, 'zstdless.1'))
+
+meson.add_install_script(InstallSymlink_py, 'zstd.1', 'zstdcat.1', zstd_man1_dir)
+meson.add_install_script(InstallSymlink_py, 'zstd.1', 'unzstd.1', zstd_man1_dir)

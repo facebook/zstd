@@ -67,7 +67,7 @@ if legacy_support != 'false'
     add_project_arguments('-DZSTD_LEGACY_SUPPORT=@0@'.format(legacy_int),
         language: 'c')
     libzstd_includes += [ include_directories(library_legacy_dir) ]
-    # See ZSTD_LEGACY_SUPPORT of programs/README.md
+    # See ZSTD_LEGACY_SUPPORT of lib/README.md
     message('Enable legacy support back to version 0.@0@'.format(legacy_int))
     if legacy_int <= 1
         libzstd_sources += join_paths(library_legacy_dir, 'zstd_v01.c')
@@ -105,7 +105,7 @@ libzstd = library('zstd',
     include_directories: libzstd_includes,
     dependencies: libzstd_deps,
     install: true,
-    soversion: '1')
+    soversion: zstd_version)
 
 pkgconfig.generate(name: 'libzstd',
     filebase: 'libzstd',
@@ -117,5 +117,4 @@ pkgconfig.generate(name: 'libzstd',
 install_headers(join_paths(library_dir, 'zstd.h'),
     join_paths(library_deprecated_dir, 'zbuff.h'),
     join_paths(library_dictbuilder_dir, 'zdict.h'),
-    join_paths(library_dictbuilder_dir, 'cover.h'),
     join_paths(library_common_dir, 'zstd_errors.h'))

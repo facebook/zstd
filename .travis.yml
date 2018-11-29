@@ -76,7 +76,7 @@ script:
         && pip3.5 install --user meson ninja;
       mkdir build/meson/build;
       pushd "$_";
-      meson --buildtype=debug -Dbuild_contrib=true -Dbuild_tests=true ..
+      meson --buildtype=debug -D with-contrib=true -D with-tests=true -D with-contrib=true ..
         && ninja
         && DESTDIR=./staging ninja install
         && tree ./staging;

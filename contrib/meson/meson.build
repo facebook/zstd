@@ -50,6 +50,7 @@ enable_contrib = get_option('build_contrib')
 enable_multithread = get_option('multithread_support')
 enable_zlib = get_option('zlib_support')
 enable_lzma = get_option('lzma_support')
+enable_lz4 = get_option('lz4_support')
 
 # =============================================================================
 # Helper scripts for Meson
@@ -78,7 +79,8 @@ endif
 libm_dep = cc.find_library('m', required: true)
 thread_dep = dependency('threads', required: false)
 zlib_dep = dependency('zlib', required: false)
-lzma_dep = dependency('lzma', required: false)
+lzma_dep = dependency('liblzma', required: false)
+lz4_dep = dependency('liblz4', required: false)
 
 # =============================================================================
 # Compiler flags

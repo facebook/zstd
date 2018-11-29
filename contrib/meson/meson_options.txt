@@ -24,3 +24,5 @@ option('zlib_support', type: 'boolean', value: false,
     description: 'Enable zlib support')
 option('lzma_support', type: 'boolean', value: false,
     description: 'Enable lzma support')
+option('lz4_support', type: 'boolean', value: false,
+    description: 'Enable lz4 support')

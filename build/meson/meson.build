@@ -79,6 +79,7 @@ endif
 
 libm_dep = cc.find_library('m', required: true)
 thread_dep = dependency('threads', required: false)
+# Arguments in dependency should be equivalent to those passed to pkg-config
 zlib_dep = dependency('zlib', required: false)
 lzma_dep = dependency('liblzma', required: false)
 lz4_dep = dependency('liblz4', required: false)

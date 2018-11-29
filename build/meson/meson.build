@@ -42,15 +42,16 @@ contrib_meson_dir = join_paths(zstd_source_dir, 'contrib', 'meson')
 # =============================================================================
 # Project options
 # =============================================================================
+
 enable_debug = get_option('debug')
-legacy_support = get_option('legacy_support')
-enable_programs = get_option('build_programs')
-enable_tests = get_option('build_tests')
-enable_contrib = get_option('build_contrib')
-enable_multithread = get_option('multithread_support')
-enable_zlib = get_option('zlib_support')
-enable_lzma = get_option('lzma_support')
-enable_lz4 = get_option('lz4_support')
+with_legacy_support = get_option('with-legacy-support')
+with_programs = get_option('with-programs')
+with_tests = get_option('with-tests')
+with_contrib = get_option('with-contrib')
+enable_multithread = get_option('enable-multithread')
+enable_zlib = get_option('enable-zlib')
+enable_lzma = get_option('enable-lzma')
+enable_lz4 = get_option('enable-lz4')
 
 # =============================================================================
 # Helper scripts for Meson
@@ -104,14 +105,14 @@ endif
 
 subdir('lib')
 
-if enable_programs
+if with_programs
     subdir('programs')
 endif
 
-if enable_tests
+if with_tests
     subdir('tests')
 endif
 
-if enable_contrib
+if with_contrib
     subdir('contrib')
 endif

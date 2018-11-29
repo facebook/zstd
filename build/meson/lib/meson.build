@@ -53,14 +53,14 @@ libzstd_sources = [join_paths(library_common_dir, 'entropy_common.c'),
     join_paths(library_deprecated_dir, 'zbuff_compress.c'),
     join_paths(library_deprecated_dir, 'zbuff_decompress.c')]
 
-if legacy_support == '0'
-    legacy_support = 'false'
+if with_legacy_support == '0'
+    with_legacy_support = 'false'
 endif
-if legacy_support != 'false'
-    if legacy_support == 'true'
-        legacy_support = '5'
+if with_legacy_support != 'false'
+    if with_legacy_support == 'true'
+        with_legacy_support = '5'
     endif
-    legacy_int = legacy_support.to_int()
+    legacy_int = with_legacy_support.to_int()
     if legacy_int < 0 or legacy_int >= 8
         legacy_int = 0
     endif

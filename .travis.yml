@@ -74,7 +74,7 @@ script:
         && python3.5 get-pip.py --user
         && rm get-pip.py
         && pip3.5 install --user meson ninja;
-      mkdir contrib/meson/build;
+      mkdir build/meson/build;
       pushd "$_";
       meson --buildtype=debug -Dbuild_contrib=true -Dbuild_tests=true ..
         && ninja

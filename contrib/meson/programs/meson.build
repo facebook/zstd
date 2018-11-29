@@ -38,6 +38,11 @@ if enable_lzma and lzma_dep.found()
     zstd_c_args += [ '-DZSTD_LZMACOMPRESS', '-DZSTD_LZMADECOMPRESS' ]
 endif
 
+if enable_lz4 and lz4_dep.found()
+    zstd_deps += [ lz4_dep ]
+    zstd_c_args += [ '-DZSTD_LZ4COMPRESS', '-DZSTD_LZ4DECOMPRESS' ]
+endif
+
 zstd = executable('zstd',
     zstd_programs_sources,
     c_args: zstd_c_args,

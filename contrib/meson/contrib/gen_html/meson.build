@@ -30,5 +30,4 @@ zstd_manual_html = custom_target('zstd_manual.html',
         zstd_version,
         join_paths(meson.current_source_dir(), library_dir, 'zstd.h'),
         '@OUTPUT@'],
-    install : true,
-    install_dir : zstd_docdir )
+    install : false)

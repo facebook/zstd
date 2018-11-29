@@ -51,9 +51,9 @@ matrix:
     - if: tag =~ ^v[0-9]\.[0-9]
       env: Cmd='make -C tests checkTag && tests/checkTag $TRAVIS_BRANCH'
 
-    - env: INSTALL_SYSTEM='meson'
+    - env: BUILD_SYSTEM='meson'
   allow_failures:
-    - env: INSTALL_SYSTEM='meson'
+    - env: BUILD_SYSTEM='meson'
 
 git:
   depth: 1
@@ -68,7 +68,7 @@ script:
   - JOB_NUMBER=$(printf '%s' "${TRAVIS_JOB_NUMBER}" | sed -E 's@[0-9]+\.([0-9]+)@\1@')
   - printf 'JOB_NUMBER=%s TRAVIS_BRANCH=%s TRAVIS_EVENT_TYPE=%s TRAVIS_PULL_REQUEST=%s\n'
       "${JOB_NUMBER}" "${TRAVIS_BRANCH}" "${TRAVIS_EVENT_TYPE}" "${TRAVIS_PULL_REQUEST}"
-  - if [ "${INSTALL_SYSTEM}" = meson ]; then
+  - if [ "${BUILD_SYSTEM}" = meson ]; then
       sudo apt-get install -qq python3.5 wget tree
         && wget https://bootstrap.pypa.io/get-pip.py
         && python3.5 get-pip.py --user
@@ -76,7 +76,8 @@ script:
         && pip3.5 install --user meson ninja;
       mkdir build/meson/build;
       pushd "$_";
-      meson --buildtype=debug -D with-contrib=true -D with-tests=true -D with-contrib=true ..
+      meson --buildtype=debug -D with-contrib=true -D with-tests=true
+          -D with-contrib=true -D default_library=both ..
         && ninja
         && DESTDIR=./staging ninja install
         && tree ./staging;

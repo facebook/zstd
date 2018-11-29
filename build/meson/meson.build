@@ -42,7 +42,7 @@ contrib_meson_dir = join_paths(zstd_source_dir, 'contrib', 'meson')
 # =============================================================================
 # Project options
 # =============================================================================
-
+enable_debug = get_option('debug')
 legacy_support = get_option('legacy_support')
 enable_programs = get_option('build_programs')
 enable_tests = get_option('build_tests')

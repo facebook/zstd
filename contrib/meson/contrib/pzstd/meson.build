@@ -25,7 +25,7 @@ pzstd_sources = [join_paths(programs_dir, 'util.c'),
 
 pzstd = executable('pzstd',
     pzstd_sources,
-    cpp_args: [ '-DNDEBUG', '-Wno-shadow' ],
+    cpp_args: [ '-DNDEBUG', '-Wno-shadow', '-pedantic' ],
     include_directories: pzstd_includes,
     link_with: libzstd,
     dependencies: [ thread_dep ],

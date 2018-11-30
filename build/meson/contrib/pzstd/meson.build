@@ -7,26 +7,18 @@
 # in the COPYING file in the root directory of this source tree).
 # #############################################################################
 
-zstd_source_dir = join_paths('..', '..', '..', '..')
-library_dir = join_paths(zstd_source_dir, 'lib')
-library_common_dir = join_paths(library_dir, 'common')
-programs_dir = join_paths(zstd_source_dir, 'programs')
-contrib_pzstd_dir = join_paths(zstd_source_dir, 'contrib', 'pzstd')
+zstd_rootdir = '../../../..'
 
-pzstd_includes = include_directories(programs_dir,
-    library_dir,
-    library_common_dir,
-    contrib_pzstd_dir)
-pzstd_sources = [join_paths(programs_dir, 'util.c'),
-    join_paths(contrib_pzstd_dir, 'main.cpp'),
-    join_paths(contrib_pzstd_dir, 'Options.cpp'),
-    join_paths(contrib_pzstd_dir, 'Pzstd.cpp'),
-    join_paths(contrib_pzstd_dir, 'SkippableFrame.cpp')]
-
+pzstd_includes = include_directories(join_paths(zstd_rootdir, 'programs'),
+  join_paths(zstd_rootdir, 'contrib/pzstd'))
+pzstd_sources = [join_paths(zstd_rootdir, 'programs/util.c'),
+  join_paths(zstd_rootdir, 'contrib/pzstd/main.cpp'),
+  join_paths(zstd_rootdir, 'contrib/pzstd/Options.cpp'),
+  join_paths(zstd_rootdir, 'contrib/pzstd/Pzstd.cpp'),
+  join_paths(zstd_rootdir, 'contrib/pzstd/SkippableFrame.cpp')]
 pzstd = executable('pzstd',
-    pzstd_sources,
-    cpp_args: [ '-DNDEBUG', '-Wno-shadow', '-pedantic' ],
-    include_directories: pzstd_includes,
-    link_with: libzstd,
-    dependencies: [ thread_dep ],
-    install: true)
+  pzstd_sources,
+  cpp_args: [ '-DNDEBUG', '-Wno-shadow', '-pedantic' ],
+  include_directories: pzstd_includes,
+  dependencies: [ libzstd_dep, thread_dep ],
+  install: true)

@@ -8,74 +8,86 @@
 # in the COPYING file in the root directory of this source tree).
 # #############################################################################
 
-zstd_source_dir = join_paths('..', '..', '..')
-programs_dir = join_paths(zstd_source_dir, 'programs')
+zstd_rootdir = '../../..'
 
-zstdcli_c_file = join_paths(programs_dir, 'zstdcli.c')
-util_c_file = join_paths(programs_dir, 'util.c')
-fileio_c_file = join_paths(programs_dir, 'fileio.c')
-zstd_programs_sources = [zstdcli_c_file,
-    util_c_file,
-    fileio_c_file,
-    join_paths(programs_dir, 'benchfn.c'),
-    join_paths(programs_dir, 'benchzstd.c'),
-    join_paths(programs_dir, 'datagen.c'),
-    join_paths(programs_dir, 'dibio.c')]
+zstd_programs_sources = [join_paths(zstd_rootdir, 'programs/zstdcli.c'),
+  join_paths(zstd_rootdir, 'programs/util.c'),
+  join_paths(zstd_rootdir, 'programs/fileio.c'),
+  join_paths(zstd_rootdir, 'programs/benchfn.c'),
+  join_paths(zstd_rootdir, 'programs/benchzstd.c'),
+  join_paths(zstd_rootdir, 'programs/datagen.c'),
+  join_paths(zstd_rootdir, 'programs/dibio.c')]
 
-zstd_c_args = []
+zstd_c_args = libzstd_debug_cflags
 if enable_multithread
-    zstd_c_args += [ '-DZSTD_MULTITHREAD' ]
+  zstd_c_args += [ '-DZSTD_MULTITHREAD' ]
 endif
 
-zstd_deps = []
+zstd_deps = [ libzstd_dep ]
 if enable_zlib and zlib_dep.found()
-    zstd_deps += [ zlib_dep ]
-    zstd_c_args += [ '-DZSTD_GZCOMPRESS', '-DZSTD_GZDECOMPRESS' ]
+  zstd_deps += [ zlib_dep ]
+  zstd_c_args += [ '-DZSTD_GZCOMPRESS', '-DZSTD_GZDECOMPRESS' ]
 endif
 
 if enable_lzma and lzma_dep.found()
-    zstd_deps += [ lzma_dep ]
-    zstd_c_args += [ '-DZSTD_LZMACOMPRESS', '-DZSTD_LZMADECOMPRESS' ]
+  zstd_deps += [ lzma_dep ]
+  zstd_c_args += [ '-DZSTD_LZMACOMPRESS', '-DZSTD_LZMADECOMPRESS' ]
 endif
 
 if enable_lz4 and lz4_dep.found()
-    zstd_deps += [ lz4_dep ]
-    zstd_c_args += [ '-DZSTD_LZ4COMPRESS', '-DZSTD_LZ4DECOMPRESS' ]
+  zstd_deps += [ lz4_dep ]
+  zstd_c_args += [ '-DZSTD_LZ4COMPRESS', '-DZSTD_LZ4DECOMPRESS' ]
+endif
+
+export_dynamic_on_windows = false
+# explicit backtrace enable/disable for Linux & Darwin
+if not enable_backtrace
+  zstd_c_args += '-DBACKTRACE_ENABLE=0'
+elif enable_debug and host_machine_os == os_windows  # MinGW target
+  zstd_c_args += '-DBACKTRACE_ENABLE=1'
+  export_dynamic_on_windows = true
+endif
+
+if cc_id == compiler_msvc
+  if default_library_type != 'static'
+    zstd_programs_sources += [windows_mod.compile_resources(
+      join_paths(zstd_rootdir, 'build/VS2010/zstd/zstd.rc'))]
+  endif
 endif
 
 zstd = executable('zstd',
-    zstd_programs_sources,
-    c_args: zstd_c_args,
-    include_directories: libzstd_includes,
-    link_with: libzstd,
-    dependencies: zstd_deps,
-    install: true)
+  zstd_programs_sources,
+  c_args: zstd_c_args,
+  dependencies: zstd_deps,
+  export_dynamic: export_dynamic_on_windows, # Since Meson 0.45.0
+  install: true)
 
-zstd_frugal_sources = [join_paths(programs_dir, 'zstdcli.c'),
-    util_c_file,
-    fileio_c_file]
+zstd_frugal_sources = [join_paths(zstd_rootdir, 'programs/zstdcli.c'),
+  join_paths(zstd_rootdir, 'programs/util.c'),
+  join_paths(zstd_rootdir, 'programs/fileio.c')]
 
+# Minimal target, with only zstd compression and decompression.
+# No bench. No legacy.
 executable('zstd-frugal',
-    zstd_frugal_sources,
-    include_directories: libzstd_includes,
-    link_with: libzstd,
-    c_args: [ '-DZSTD_NOBENCH', '-DZSTD_NODICT' ],
-    install: true)
+  zstd_frugal_sources,
+  dependencies: libzstd_dep,
+  c_args: [ '-DZSTD_NOBENCH', '-DZSTD_NODICT' ],
+  install: true)
 
-install_data(join_paths(programs_dir, 'zstdgrep'),
-    join_paths(programs_dir, 'zstdless'),
-    install_dir: zstd_bindir)
+install_data(join_paths(zstd_rootdir, 'programs/zstdgrep'),
+  join_paths(zstd_rootdir, 'programs/zstdless'),
+  install_dir: zstd_bindir)
 
 # =============================================================================
 # Program symlinks
 # =============================================================================
 
-InstallSymlink_py = join_paths('..', 'InstallSymlink.py')
+InstallSymlink_py = '../InstallSymlink.py'
 meson.add_install_script(InstallSymlink_py, 'zstd', 'zstdcat', zstd_bindir)
 meson.add_install_script(InstallSymlink_py, 'zstd', 'unzstd', zstd_bindir)
 
 if enable_multithread
-    meson.add_install_script(InstallSymlink_py, 'zstd', 'zstdmt', zstd_bindir)
+  meson.add_install_script(InstallSymlink_py, 'zstd', 'zstdmt', zstd_bindir)
 endif
 
 # =============================================================================
@@ -84,9 +96,9 @@ endif
 
 zstd_man1_dir = join_paths(zstd_mandir, 'man1')
 
-install_man(join_paths(programs_dir, 'zstd.1'),
-    join_paths(programs_dir, 'zstdgrep.1'),
-    join_paths(programs_dir, 'zstdless.1'))
+install_man(join_paths(zstd_rootdir, 'programs/zstd.1'),
+  join_paths(zstd_rootdir, 'programs/zstdgrep.1'),
+  join_paths(zstd_rootdir, 'programs/zstdless.1'))
 
 # Meson automatically compresses manpages to gz format
 # WARNING: This may fail on Windows. Test NEEDED.
@@ -94,5 +106,5 @@ meson.add_install_script(InstallSymlink_py, 'zstd.1.gz', 'zstdcat.1.gz', zstd_ma
 meson.add_install_script(InstallSymlink_py, 'zstd.1.gz', 'unzstd.1.gz', zstd_man1_dir)
 
 if enable_multithread
-    meson.add_install_script(InstallSymlink_py, 'zstd.1.gz', 'zstdmt.1.gz', zstd_man1_dir)
+  meson.add_install_script(InstallSymlink_py, 'zstd.1.gz', 'zstdmt.1.gz', zstd_man1_dir)
 endif

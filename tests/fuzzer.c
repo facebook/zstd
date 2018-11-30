@@ -237,7 +237,7 @@ static int FUZ_mallocTests_internal(unsigned seed, double compressibility, unsig
                 ZSTD_inBuffer in = { inBuffer, inSize, 0 };
                 CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_p_compressionLevel, compressionLevel) );
                 CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_p_nbWorkers, nbThreads) );
-                while ( ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_end) ) {}
+                while ( ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end) ) {}
                 ZSTD_freeCCtx(cctx);
                 DISPLAYLEVEL(3, "compress_generic,-T%u,end level %i : ",
                                 nbThreads, compressionLevel);
@@ -257,8 +257,8 @@ static int FUZ_mallocTests_internal(unsigned seed, double compressibility, unsig
                 ZSTD_inBuffer in = { inBuffer, inSize, 0 };
                 CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_p_compressionLevel, compressionLevel) );
                 CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_p_nbWorkers, nbThreads) );
-                CHECK_Z( ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_continue) );
-                while ( ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_end) ) {}
+                CHECK_Z( ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_continue) );
+                while ( ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end) ) {}
                 ZSTD_freeCCtx(cctx);
                 DISPLAYLEVEL(3, "compress_generic,-T%u,continue level %i : ",
                                 nbThreads, compressionLevel);
@@ -521,7 +521,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_hashLog, &value));
         CHECK_EQ(value, ZSTD_HASHLOG_MIN);
         /* Start a compression job */
-        ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_continue);
+        ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_continue);
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_compressionLevel, &value));
         CHECK_EQ(value, 7);
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_hashLog, &value));
@@ -1255,7 +1255,7 @@ static int basicUnitTests(U32 seed, double compressibility)
             CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_p_compressionLevel, compressionLevel) );
             {   ZSTD_inBuffer in = { CNBuffer, srcSize, 0 };
                 ZSTD_outBuffer out = { compressedBuffer, compressedBufferSize, 0 };
-                size_t const compressionResult = ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_end);
+                size_t const compressionResult = ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end);
                 DISPLAYLEVEL(5, "simple=%zu vs %zu=advanced : ", cSize_1pass, out.pos);
                 if (ZSTD_isError(compressionResult)) goto _output_error;
                 if (out.pos != cSize_1pass) goto _output_error;
@@ -1276,7 +1276,7 @@ static int basicUnitTests(U32 seed, double compressibility)
             CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_p_windowLog, 18) );
             {   ZSTD_inBuffer in = { CNBuffer, inputSize, 0 };
                 ZSTD_outBuffer out = { compressedBuffer, ZSTD_compressBound(inputSize), 0 };
-                size_t const result = ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_end);
+                size_t const result = ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end);
                 if (result != 0) goto _output_error;
                 if (in.pos != in.size) goto _output_error;
                 cSize = out.pos;
@@ -1293,7 +1293,7 @@ static int basicUnitTests(U32 seed, double compressibility)
             CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_p_compressionLevel, 2) );
             {   ZSTD_inBuffer in = { CNBuffer, inputSize, 0 };
                 ZSTD_outBuffer out = { compressedBuffer, ZSTD_compressBound(inputSize), 0 };
-                size_t const result = ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_end);
+                size_t const result = ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end);
                 if (result != 0) goto _output_error;
                 if (in.pos != in.size) goto _output_error;
                 if (out.pos != cSize) goto _output_error;   /* must result in same compressed result, hence same size */
@@ -1313,7 +1313,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_p_format, ZSTD_f_zstd1_magicless) );
         {   ZSTD_inBuffer in = { CNBuffer, inputSize, 0 };
             ZSTD_outBuffer out = { compressedBuffer, ZSTD_compressBound(inputSize), 0 };
-            size_t const result = ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_end);
+            size_t const result = ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end);
             if (result != 0) goto _output_error;
             if (in.pos != in.size) goto _output_error;
             cSize = out.pos;

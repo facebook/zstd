@@ -72,7 +72,7 @@ static size_t compress(uint8_t *dst, size_t capacity,
                 case 1: /* fall-though */
                 case 2: {
                     size_t const ret =
-                        ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_flush);
+                        ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_flush);
                     FUZZ_ZASSERT(ret);
                     if (ret == 0)
                         mode = -1;
@@ -80,7 +80,7 @@ static size_t compress(uint8_t *dst, size_t capacity,
                 }
                 case 3: {
                     size_t ret =
-                        ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_end);
+                        ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end);
                     FUZZ_ZASSERT(ret);
                     /* Reset the compressor when the frame is finished */
                     if (ret == 0) {
@@ -95,7 +95,7 @@ static size_t compress(uint8_t *dst, size_t capacity,
                 }
                 default: {
                     size_t const ret =
-                        ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_continue);
+                        ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_continue);
                     FUZZ_ZASSERT(ret);
                     mode = -1;
                 }
@@ -108,7 +108,7 @@ static size_t compress(uint8_t *dst, size_t capacity,
     for (;;) {
         ZSTD_inBuffer in = {NULL, 0, 0};
         ZSTD_outBuffer out = makeOutBuffer(dst, capacity);
-        size_t const ret = ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_end);
+        size_t const ret = ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end);
         FUZZ_ZASSERT(ret);
 
         dst += out.pos;

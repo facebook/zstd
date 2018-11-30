@@ -920,30 +920,13 @@ static size_t local_initDCtx(void* payload) {
 
 /* additional argument is just the context */
 static size_t local_defaultCompress(
-    const void* srcBuffer, size_t srcSize,
-    void* dstBuffer, size_t dstSize,
-    void* addArgs) {
-    size_t moreToFlush = 1;
-    ZSTD_CCtx* ctx = (ZSTD_CCtx*)addArgs;
-    ZSTD_inBuffer in;
-    ZSTD_outBuffer out;
-    in.src = srcBuffer;
-    in.size = srcSize;
-    in.pos = 0;
-    out.dst = dstBuffer;
-    out.size = dstSize;
-    out.pos = 0;
+                            const void* srcBuffer, size_t srcSize,
+                            void* dstBuffer, size_t dstSize,
+                            void* addArgs)
+{
+    ZSTD_CCtx* cctx = (ZSTD_CCtx*)addArgs;
     assert(dstSize == ZSTD_compressBound(srcSize)); /* specific to this version, which is only used in paramgrill */
-    while (moreToFlush) {
-        if(out.pos == out.size) {
-            return (size_t)-ZSTD_error_dstSize_tooSmall;
-        }
-        moreToFlush = ZSTD_compress_generic(ctx, &out, &in, ZSTD_e_end);
-        if (ZSTD_isError(moreToFlush)) {
-            return moreToFlush;
-        }
-    }
-    return out.pos;
+    return ZSTD_compress2(cctx, dstBuffer, dstSize, srcBuffer, srcSize);
 }
 
 /* additional argument is just the context */

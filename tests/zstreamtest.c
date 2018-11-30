@@ -175,11 +175,11 @@ static size_t SEQ_roundTrip(ZSTD_CCtx* cctx, ZSTD_DCtx* dctx,
     size_t cret;
 
     do {
-        ZSTD_outBuffer cout = {compressed, sizeof(compressed), 0};
-        ZSTD_inBuffer din = {compressed, 0, 0};
-        ZSTD_outBuffer dout = {uncompressed, 0, 0};
+        ZSTD_outBuffer cout = { compressed, sizeof(compressed), 0 };
+        ZSTD_inBuffer din   = { compressed, 0, 0 };
+        ZSTD_outBuffer dout = { uncompressed, 0, 0 };
 
-        cret = ZSTD_compress_generic(cctx, &cout, &cin, endOp);
+        cret = ZSTD_compressStream2(cctx, &cout, &cin, endOp);
         if (ZSTD_isError(cret))
             return cret;
 
@@ -686,7 +686,7 @@ static int basicUnitTests(U32 seed, double compressibility)
                 inBuff.size = size;
                 inBuff.pos = 0;
                 CHECK_Z(ZSTD_CCtx_refCDict(cctx, cdict));
-                CHECK_Z(ZSTD_compress_generic(cctx, &outBuff, &inBuff, ZSTD_e_end));
+                CHECK_Z(ZSTD_compressStream2(cctx, &outBuff, &inBuff, ZSTD_e_end));
                 CHECK(badParameters(cctx, savedParams), "Bad CCtx params");
                 if (inBuff.pos != inBuff.size) goto _output_error;
                 {   ZSTD_outBuffer decOut = {decodedBuffer, size, 0};
@@ -746,7 +746,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     inBuff.src = CNBuffer;
     inBuff.size = CNBufferSize;
     inBuff.pos = 0;
-    CHECK_Z( ZSTD_compress_generic(zc, &outBuff, &inBuff, ZSTD_e_end) );
+    CHECK_Z( ZSTD_compressStream2(zc, &outBuff, &inBuff, ZSTD_e_end) );
     if (inBuff.pos != inBuff.size) goto _output_error;  /* entire input should be consumed */
     cSize = outBuff.pos;
     DISPLAYLEVEL(3, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/CNBufferSize*100);
@@ -770,14 +770,14 @@ static int basicUnitTests(U32 seed, double compressibility)
         DISPLAYLEVEL(3, "OK (%s)\n", ZSTD_getErrorName(r));
     }
 
-    DISPLAYLEVEL(3, "test%3i : compress again with ZSTD_compress_generic : ", testNb++);
+    DISPLAYLEVEL(3, "test%3i : compress again with ZSTD_compressStream2 : ", testNb++);
     outBuff.dst = compressedBuffer;
     outBuff.size = compressedBufferSize;
     outBuff.pos = 0;
     inBuff.src = CNBuffer;
     inBuff.size = CNBufferSize;
     inBuff.pos = 0;
-    CHECK_Z( ZSTD_compress_generic(zc, &outBuff, &inBuff, ZSTD_e_end) );
+    CHECK_Z( ZSTD_compressStream2(zc, &outBuff, &inBuff, ZSTD_e_end) );
     if (inBuff.pos != inBuff.size) goto _output_error;  /* entire input should be consumed */
     cSize = outBuff.pos;
     DISPLAYLEVEL(3, "OK (%u bytes : %.2f%%)\n", (U32)cSize, (double)cSize/CNBufferSize*100);
@@ -885,7 +885,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dictionary.start, dictionary.filled, ZSTD_dlm_byRef, ZSTD_dct_fullDict, cParams, ZSTD_defaultCMem);
         DISPLAYLEVEL(5, "cParams.windowLog = %u : ", cParams.windowLog);
         CHECK_Z( ZSTD_CCtx_refCDict(zc, cdict) );
-        CHECK_Z( ZSTD_compress_generic(zc, &outBuff, &inBuff, ZSTD_e_end) );
+        CHECK_Z( ZSTD_compressStream2(zc, &outBuff, &inBuff, ZSTD_e_end) );
         CHECK_Z( ZSTD_CCtx_refCDict(zc, NULL) );  /* do not keep a reference to cdict, as its lifetime ends */
         ZSTD_freeCDict(cdict);
     }
@@ -1086,7 +1086,7 @@ static int basicUnitTests(U32 seed, double compressibility)
           const size_t kSmallBlockSize = sizeof(testBuffer);
           ZSTD_inBuffer in = {testBuffer, kSmallBlockSize, 0};
 
-          CHECK_Z(ZSTD_compress_generic(zc, &out, &in, ZSTD_e_flush));
+          CHECK_Z(ZSTD_compressStream2(zc, &out, &in, ZSTD_e_flush));
           CHECK(in.pos != in.size, "input not fully consumed");
           remainingInput -= kSmallBlockSize;
         }
@@ -1094,7 +1094,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         for (offset = 1024; offset >= 0; offset -= 128) {
           ZSTD_inBuffer in = {dictionary.start + offset, 128, 0};
           ZSTD_EndDirective flush = offset > 0 ? ZSTD_e_continue : ZSTD_e_end;
-          CHECK_Z(ZSTD_compress_generic(zc, &out, &in, flush));
+          CHECK_Z(ZSTD_compressStream2(zc, &out, &in, flush));
           CHECK(in.pos != in.size, "input not fully consumed");
         }
         /* Ensure decompression works */
@@ -1956,7 +1956,7 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest,
                 ZSTD_inBuffer inBuff = { srcBuffer+srcStart, srcSize, 0 };
                 outBuff.size = outBuff.pos + dstBuffSize;
 
-                CHECK_Z( ZSTD_compress_generic(zc, &outBuff, &inBuff, flush) );
+                CHECK_Z( ZSTD_compressStream2(zc, &outBuff, &inBuff, flush) );
                 DISPLAYLEVEL(6, "t%u: compress consumed %u bytes (total : %u) ; flush: %u (total : %u) \n",
                     testNb, (U32)inBuff.pos, (U32)(totalTestSize + inBuff.pos), (U32)flush, (U32)outBuff.pos);
 
@@ -1973,10 +1973,10 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest,
                     size_t const adjustedDstSize = MIN(cBufferSize - cSize, randomDstSize);
                     outBuff.size = outBuff.pos + adjustedDstSize;
                     DISPLAYLEVEL(6, "t%u: End-flush into dst buffer of size %u \n", testNb, (U32)adjustedDstSize);
-                    remainingToFlush = ZSTD_compress_generic(zc, &outBuff, &inBuff, ZSTD_e_end);
+                    remainingToFlush = ZSTD_compressStream2(zc, &outBuff, &inBuff, ZSTD_e_end);
                     DISPLAYLEVEL(6, "t%u: Total flushed so far : %u bytes \n", testNb, (U32)outBuff.pos);
                     CHECK( ZSTD_isError(remainingToFlush),
-                          "ZSTD_compress_generic w/ ZSTD_e_end error : %s",
+                          "ZSTD_compressStream2 w/ ZSTD_e_end error : %s",
                            ZSTD_getErrorName(remainingToFlush) );
             }   }
             crcOrig = XXH64_digest(&xxhState);

@@ -15,7 +15,6 @@ project('zstd',
     'cpp_std=c++11',
     'buildtype=release'],
   version: '1.3.8',
-  # for install_man
   meson_version: '>=0.47.0')
 
 cc = meson.get_compiler('c')
@@ -67,20 +66,23 @@ zstd_docdir = join_paths(zstd_datadir, 'doc', meson.project_name())
 # Project options
 # =============================================================================
 
-enable_debug = get_option('debug')
-default_library_type = get_option('default_library')
-meson_buildtype = get_option('buildtype')
-with_legacy_support = get_option('with-legacy-support')
-with_programs = get_option('with-programs')
-with_tests = get_option('with-tests')
-with_contrib = get_option('with-contrib')
-with_debug_level = get_option('with-debug-level')
-enable_multithread = get_option('enable-multithread')
-enable_static_runtime = get_option('enable-static-runtime')
-enable_zlib = get_option('enable-zlib')
-enable_lzma = get_option('enable-lzma')
-enable_lz4 = get_option('enable-lz4')
-enable_backtrace = get_option('enable-backtrace')
+# Built-in options
+use_debug = get_option('debug')
+
+# Custom options
+debug_level = get_option('debug_level')
+legacy_level = get_option('legacy_level')
+use_backtrace = get_option('backtrace')
+use_static_runtime = get_option('static_runtime')
+
+build_programs = get_option('build_programs')
+build_contrib = get_option('build_contrib')
+build_tests = get_option('build_tests')
+
+feature_multi_thread = get_option('multi_thread')
+feature_zlib = get_option('zlib')
+feature_lzma = get_option('lzma')
+feature_lz4 = get_option('lz4')
 
 # =============================================================================
 # Helper scripts for Meson
@@ -110,12 +112,16 @@ endif
 # Dependencies
 # =============================================================================
 
-libm_dep = cc.find_library('m', required: with_tests)
-thread_dep = dependency('threads', required: enable_multithread)
+libm_dep = cc.find_library('m', required: build_tests)
+thread_dep = dependency('threads', required: feature_multi_thread)
+use_multi_thread = thread_dep.found()
 # Arguments in dependency should be equivalent to those passed to pkg-config
-zlib_dep = dependency('zlib', required: enable_zlib)
-lzma_dep = dependency('liblzma', required: enable_lzma)
-lz4_dep = dependency('liblz4', required: enable_lz4)
+zlib_dep = dependency('zlib', required: feature_zlib)
+use_zlib = zlib_dep.found()
+lzma_dep = dependency('liblzma', required: feature_lzma)
+use_lzma = lzma_dep.found()
+lz4_dep = dependency('liblz4', required: feature_lz4)
+use_lz4 = lz4_dep.found()
 
 # =============================================================================
 # Compiler flags
@@ -134,7 +140,7 @@ if [compiler_gcc, compiler_clang].contains(cc_id)
   add_project_arguments(cxx_compile_flags, language : 'cpp')
 elif cc_id == compiler_msvc
   msvc_compile_flags = [ '/D_UNICODE', '/DUNICODE' ]
-  if enable_multithread
+  if use_multi_thread
     msvc_compile_flags += '/MP'
   endif
   if enable_static_runtime
@@ -149,14 +155,14 @@ endif
 
 subdir('lib')
 
-if with_programs
+if build_programs
   subdir('programs')
 endif
 
-if with_tests
+if build_tests
   subdir('tests')
 endif
 
-if with_contrib
+if build_contrib
   subdir('contrib')
 endif

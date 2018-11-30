@@ -51,7 +51,8 @@ matrix:
     - if: tag =~ ^v[0-9]\.[0-9]
       env: Cmd='make -C tests checkTag && tests/checkTag $TRAVIS_BRANCH'
 
-    - env: BUILD_SYSTEM='meson'
+    - dist: xenial
+      env: BUILD_SYSTEM='meson'
   allow_failures:
     - env: BUILD_SYSTEM='meson'
 
@@ -69,22 +70,25 @@ script:
   - printf 'JOB_NUMBER=%s TRAVIS_BRANCH=%s TRAVIS_EVENT_TYPE=%s TRAVIS_PULL_REQUEST=%s\n'
       "${JOB_NUMBER}" "${TRAVIS_BRANCH}" "${TRAVIS_EVENT_TYPE}" "${TRAVIS_PULL_REQUEST}"
   - if [ "${BUILD_SYSTEM}" = meson ]; then
-      sudo apt-get install -qq python3.5 wget tree
-        && wget https://bootstrap.pypa.io/get-pip.py
-        && python3.5 get-pip.py --user
+      set -x;
+      sudo apt-get install -qq liblz4-dev valgrind tree
+        && curl -o get-pip.py 'https://bootstrap.pypa.io/get-pip.py'
+        && python3 get-pip.py --user
         && rm get-pip.py
-        && pip3.5 install --user meson ninja;
-      mkdir build/meson/build;
-      pushd "$_";
-      meson --buildtype=debug -D with-contrib=true -D with-tests=true
-          -D with-contrib=true -D default_library=both ..
+        && pip3 install --user meson ninja
+        && unset CC CXX
+        && meson --buildtype=debug
+              -Dauto_features=enabled
+              -Dbuild_{programs,tests,contrib}=true
+              -Ddefault_library=both build/meson
+              builddir
+        && cd "$_"
         && ninja
         && DESTDIR=./staging ninja install
         && tree ./staging;
-      popd;
-    else
-      export FUZZERTEST=-T2mn;
-      export ZSTREAM_TESTTIME=-T2mn;
-      export DECODECORPUS_TESTTIME=-T1mn;
-      sh -c "${Cmd}" || travis_terminate 1;
+      travis_terminate "$?";
     fi
+  - export FUZZERTEST=-T2mn;
+    export ZSTREAM_TESTTIME=-T2mn;
+    export DECODECORPUS_TESTTIME=-T1mn;
+    sh -c "${Cmd}" || travis_terminate 1;

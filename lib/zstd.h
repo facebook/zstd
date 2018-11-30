@@ -80,7 +80,7 @@ ZSTDLIB_API unsigned ZSTD_versionNumber(void);   /**< to check runtime library v
 #define ZSTD_QUOTE(str) #str
 #define ZSTD_EXPAND_AND_QUOTE(str) ZSTD_QUOTE(str)
 #define ZSTD_VERSION_STRING ZSTD_EXPAND_AND_QUOTE(ZSTD_LIB_VERSION)
-ZSTDLIB_API const char* ZSTD_versionString(void);   /* since v1.3.0+ */
+ZSTDLIB_API const char* ZSTD_versionString(void);   /* requires v1.3.0+ */
 
 /***************************************
 *  Default constant
@@ -110,7 +110,7 @@ ZSTDLIB_API size_t ZSTD_compress( void* dst, size_t dstCapacity,
 ZSTDLIB_API size_t ZSTD_decompress( void* dst, size_t dstCapacity,
                               const void* src, size_t compressedSize);
 
-/*! ZSTD_getFrameContentSize() : added in v1.3.0
+/*! ZSTD_getFrameContentSize() : requires v1.3.0+
  *  `src` should point to the start of a ZSTD encoded frame.
  *  `srcSize` must be at least as large as the frame header.
  *            hint : any size >= `ZSTD_frameHeaderSize_max` is large enough.
@@ -417,16 +417,22 @@ ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output
  * ***************************************************************************************/
 
 
- /* ===  Constants   === */
+/* ===  Constants   === */
 
- /* all magic numbers are supposed read/written to/from files/memory using little-endian convention */
- #define ZSTD_MAGICNUMBER            0xFD2FB528    /* valid since v0.8.0 */
- #define ZSTD_MAGIC_DICTIONARY       0xEC30A437    /* valid since v0.7.0 */
- #define ZSTD_MAGIC_SKIPPABLE_START  0x184D2A50    /* all 16 values, from 0x184D2A50 to 0x184D2A5F, signal the beginning of a skippable frame */
- #define ZSTD_MAGIC_SKIPPABLE_MASK   0xFFFFFFF0
+/* all magic numbers are supposed read/written to/from files/memory using little-endian convention */
+#define ZSTD_MAGICNUMBER            0xFD2FB528    /* valid since v0.8.0 */
+#define ZSTD_MAGIC_DICTIONARY       0xEC30A437    /* valid since v0.7.0 */
+#define ZSTD_MAGIC_SKIPPABLE_START  0x184D2A50    /* all 16 values, from 0x184D2A50 to 0x184D2A5F, signal the beginning of a skippable frame */
+#define ZSTD_MAGIC_SKIPPABLE_MASK   0xFFFFFFF0
 
- #define ZSTD_BLOCKSIZELOG_MAX  17
- #define ZSTD_BLOCKSIZE_MAX     (1<<ZSTD_BLOCKSIZELOG_MAX)
+#define ZSTD_BLOCKSIZELOG_MAX  17
+#define ZSTD_BLOCKSIZE_MAX     (1<<ZSTD_BLOCKSIZELOG_MAX)
+
+#define ZSTD_WINDOWLOG_LIMIT_DEFAULT 27   /* by default, the streaming decoder will refuse any frame
+                                           * requiring larger than (1<<ZSTD_WINDOWLOG_LIMIT_DEFAULT) window size,
+                                           * to preserve memory from unreasonable requirements.
+                                           * This limit can be overriden using ZSTD_DCtx_setParameter().
+                                           * This limit does not apply to one-pass decoders (such as ZSTD_decompress()), since no additional memory is allocated */
 
 
 /* ===   query limits   === */
@@ -486,7 +492,9 @@ typedef enum { ZSTD_fast=1,
                ZSTD_btlazy2=6,
                ZSTD_btopt=7,
                ZSTD_btultra=8
-               /* note : new strategies might be added in the future */
+               /* note : new strategies might be added in the future
+                         at this stage, only the order (from fast to strong) is guaranteed.
+                         new strategy names may be introduced, pushing the maximum number upward */
 } ZSTD_strategy;
 
 
@@ -735,7 +743,7 @@ ZSTDLIB_API size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx, ZSTD_ResetDirective reset);
 /*! ZSTD_compress2() :
  *  Behave the same as ZSTD_compressCCtx(), but compression parameters are set using the advanced API.
  *  - Compression parameters are pushed into CCtx before starting compression, using ZSTD_CCtx_set*()
- *  - The function is always blocking.
+ *  - The function is always blocking, returns when compression is completed.
  *  Hint : compression runs faster if `dstCapacity` >=  `ZSTD_compressBound(srcSize)`.
  *  @return : compressed size written into `dst` (<= `dstCapacity),
  *            or an error code if it fails (which can be tested using ZSTD_isError()).
@@ -794,14 +802,45 @@ ZSTDLIB_API size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
  * They are not valid if a "simple" function is used on the context (like `ZSTD_decompressDCtx()`).
  */
 
-/*! ZSTD_DCtx_setMaxWindowSize() :
- *  Refuses allocating internal buffers for frames requiring a window size larger than provided limit.
- *  This protects a decoder context from reserving too much memory for itself (potential attack scenario).
- *  This parameter is only useful in streaming mode, since no internal buffer is allocated in single-pass mode.
- *  By default, a decompression context accepts all window sizes <= (1 << ZSTD_WINDOWLOG_LIMIT_DEFAULT)
- * @return : 0, or an error code (which can be tested using ZSTD_isError()).
+
+typedef enum {
+
+    ZSTD_d_windowLogMax=100, /* Used to select a limit beyond which
+                              * the streaming API will refuse to allocate memory buffer
+                              * in order to protect the host from unreasonable memory requirements.
+                              * This parameter is only useful in streaming mode, as no internal buffer is allocated in single-pass mode.
+                              * By default, a decompression context accepts all window sizes <= (1 << ZSTD_WINDOWLOG_LIMIT_DEFAULT) */
+
+    /* note : additional experimental parameters are also available
+     * within the experimental section of the API.
+     * At the time of this writing, they include :
+     * ZSTD_p_format
+     * Because they are not stable, it's necessary to define ZSTD_STATIC_LINKING_ONLY to access them.
+     * note : never use experimentalParam names directly
+     */
+     ZSTD_d_experimentalParam1=1000
+
+} ZSTD_dParameter;
+
+
+/*! ZSTD_dParam_getBounds() :
+ *  All parameters must belong to an interval with lower and upper bounds,
+ *  otherwise they will either trigger an error or be automatically clamped.
+ * @return : a structure, ZSTD_bounds, which contains
+ *         - an error status field, which must be tested using ZSTD_isError()
+ *         - both lower and upper bounds, inclusive
  */
-ZSTDLIB_API size_t ZSTD_DCtx_setMaxWindowSize(ZSTD_DCtx* dctx, size_t maxWindowSize);
+ZSTDLIB_API ZSTD_bounds ZSTD_dParam_getBounds(ZSTD_dParameter dParam);    /* not implemented yet */
+
+/*! ZSTD_DCtx_setParameter() :
+ *  Set one compression parameter, selected by enum ZSTD_dParameter.
+ *  All parameters have valid bounds. Bounds can be queried using ZSTD_dParam_getBounds().
+ *  Providing a value beyond bound will either clamp it, or trigger an error (depending on parameter).
+ *  Setting a parameter is only possible during frame initialization (before starting decompression).
+ * @return : an error code (which can be tested using ZSTD_isError()).
+ */
+ZSTDLIB_API size_t ZSTD_DCtx_setParameter(ZSTD_DCtx* dctx, ZSTD_dParameter param, int value);   /* not implemented yet */
+
 
 /*! ZSTD_DCtx_loadDictionary() :
  *  Create an internal DDict from dict buffer,
@@ -885,12 +924,6 @@ ZSTDLIB_API size_t ZSTD_decompress_generic(ZSTD_DCtx* dctx,
 #define ZSTD_FRAMEHEADERSIZE_MIN    6
 #define ZSTD_FRAMEHEADERSIZE_MAX   18   /* can be useful for static allocation */
 #define ZSTD_SKIPPABLEHEADERSIZE    8
-
-/* note : matches --ultra and --long default (27) ? */
-#define ZSTD_WINDOWLOG_LIMIT_DEFAULT 27   /* by default, the streaming decoder will refuse any frame
-                                           * requiring larger than (1<<ZSTD_WINDOWLOG_LIMIT_DEFAULT) window size, to preserve memory.
-                                           * This limit can be overriden using ZSTD_DCtx_setMaxWindowSize().
-                                           * This limit does not apply to one-pass decoders (such as ZSTD_decompress()), since no additional memory is allocated */
 
 /* compression parameter bounds */
 #define ZSTD_WINDOWLOG_MAX_32    30
@@ -1404,6 +1437,15 @@ ZSTDLIB_API size_t ZSTD_DCtx_loadDictionary_advanced(ZSTD_DCtx* dctx, const void
  *  Same as ZSTD_DCtx_refPrefix(), but gives finer control over
  *  how to interpret prefix content (automatic ? force raw mode (default) ? full mode only ?) */
 ZSTDLIB_API size_t ZSTD_DCtx_refPrefix_advanced(ZSTD_DCtx* dctx, const void* prefix, size_t prefixSize, ZSTD_dictContentType_e dictContentType);
+
+/*! ZSTD_DCtx_setMaxWindowSize() :
+ *  Refuses allocating internal buffers for frames requiring a window size larger than provided limit.
+ *  This protects a decoder context from reserving too much memory for itself (potential attack scenario).
+ *  This parameter is only useful in streaming mode, since no internal buffer is allocated in single-pass mode.
+ *  By default, a decompression context accepts all window sizes <= (1 << ZSTD_WINDOWLOG_LIMIT_DEFAULT)
+ * @return : 0, or an error code (which can be tested using ZSTD_isError()).
+ */
+ZSTDLIB_API size_t ZSTD_DCtx_setMaxWindowSize(ZSTD_DCtx* dctx, size_t maxWindowSize);
 
 /*! ZSTD_DCtx_setFormat() :
  *  Instruct the decoder context about what kind of data to decode next.

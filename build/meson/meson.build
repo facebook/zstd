@@ -9,14 +9,14 @@
 # #############################################################################
 
 project('zstd',
-    ['c', 'cpp'],
-    license: ['BSD', 'GPLv2'],
-    default_options : ['c_std=c99',
-        'cpp_std=c++11',
-        'buildtype=release'],
-    version: '1.3.8',
-    # for install_man
-    meson_version: '>=0.47.0')
+  ['c', 'cpp'],
+  license: ['BSD', 'GPLv2'],
+  default_options : ['c_std=c99',
+    'cpp_std=c++11',
+    'buildtype=release'],
+  version: '1.3.8',
+  # for install_man
+  meson_version: '>=0.47.0')
 
 cc = meson.get_compiler('c')
 cxx = meson.get_compiler('cpp')
@@ -46,19 +46,19 @@ zstd_libversion = ''
 zstd_rootdir = '../..'
 
 # =============================================================================
-# Installing directories
+# Installation directories
 # =============================================================================
 
 if host_machine_os == os_windows
-    zstd_prefix = '.'
-    zstd_bindir = 'bin'
-    zstd_datadir = 'share'
-    zstd_mandir = join_paths(zstd_datadir, 'man')
+  zstd_prefix = '.'
+  zstd_bindir = 'bin'
+  zstd_datadir = 'share'
+  zstd_mandir = join_paths(zstd_datadir, 'man')
 else
-    zstd_prefix = get_option('prefix')
-    zstd_bindir = join_paths(zstd_prefix, get_option('bindir'))
-    zstd_datadir = join_paths(zstd_prefix, get_option('datadir'))
-    zstd_mandir = join_paths(zstd_prefix, get_option('mandir'))
+  zstd_prefix = get_option('prefix')
+  zstd_bindir = join_paths(zstd_prefix, get_option('bindir'))
+  zstd_datadir = join_paths(zstd_prefix, get_option('datadir'))
+  zstd_mandir = join_paths(zstd_prefix, get_option('mandir'))
 endif
 
 zstd_docdir = join_paths(zstd_datadir, 'doc', meson.project_name())
@@ -95,15 +95,15 @@ GetZstdLibraryVersion_py = files('GetZstdLibraryVersion.py')
 zstd_h_file = join_paths(meson.current_source_dir(), zstd_rootdir, 'lib/zstd.h')
 r = run_command(python3, GetZstdLibraryVersion_py, zstd_h_file)
 if r.returncode() == 0
-    output = r.stdout().strip()
-    if output.version_compare('>@0@'.format(zstd_version))
-        zstd_version = output
-        message('Project version is now: @0@'.format(zstd_version))
-    endif
+  output = r.stdout().strip()
+  if output.version_compare('>@0@'.format(zstd_version))
+    zstd_version = output
+    message('Project version is now: @0@'.format(zstd_version))
+  endif
 endif
 
 if host_machine_os != os_windows
-    zstd_libversion = zstd_version
+  zstd_libversion = zstd_version
 endif
 
 # =============================================================================
@@ -121,23 +121,26 @@ lz4_dep = dependency('liblz4', required: enable_lz4)
 # Compiler flags
 # =============================================================================
 
-add_project_arguments('-DXXH_NAMESPACE=ZSTD_', language: [ 'c' ])
+add_project_arguments('-DXXH_NAMESPACE=ZSTD_', language: ['c'])
 
 if [compiler_gcc, compiler_clang].contains(cc_id)
-    common_warning_flags = [ '-Wextra', '-Wundef', '-Wshadow', '-Wcast-align', '-Wcast-qual' ]
-    cc_compile_flags = cc.get_supported_arguments(common_warning_flags + [ '-Wstrict-prototypes' ])
-    cxx_compile_flags = cxx.get_supported_arguments(common_warning_flags)
-    add_project_arguments(cc_compile_flags, language : 'c')
-    add_project_arguments(cxx_compile_flags, language : 'cpp')
+  common_warning_flags = [ '-Wextra', '-Wundef', '-Wshadow', '-Wcast-align', '-Wcast-qual' ]
+  if cc_id == compiler_clang
+    common_warning_flags += ['-Werror', '-Wconversion', '-Wno-sign-conversion', '-Wdocumentation']
+  endif
+  cc_compile_flags = cc.get_supported_arguments(common_warning_flags + ['-Wstrict-prototypes'])
+  cxx_compile_flags = cxx.get_supported_arguments(common_warning_flags)
+  add_project_arguments(cc_compile_flags, language : 'c')
+  add_project_arguments(cxx_compile_flags, language : 'cpp')
 elif cc_id == compiler_msvc
-    msvc_compile_flags = [ '/D_UNICODE', '/DUNICODE' ]
-    if enable_multithread
-        msvc_compile_flags += [ '/MP' ]
-    endif
-    if enable_static_runtime
-        msvc_compile_flags += [ '/MT' ]
-    endif
-    add_project_arguments(msvc_compile_flags, language: ['c', 'cpp'])
+  msvc_compile_flags = [ '/D_UNICODE', '/DUNICODE' ]
+  if enable_multithread
+    msvc_compile_flags += '/MP'
+  endif
+  if enable_static_runtime
+    msvc_compile_flags += '/MT'
+  endif
+  add_project_arguments(msvc_compile_flags, language: ['c', 'cpp'])
 endif
 
 # =============================================================================
@@ -147,13 +150,13 @@ endif
 subdir('lib')
 
 if with_programs
-    subdir('programs')
+  subdir('programs')
 endif
 
 if with_tests
-    subdir('tests')
+  subdir('tests')
 endif
 
 if with_contrib
-    subdir('contrib')
+  subdir('contrib')
 endif

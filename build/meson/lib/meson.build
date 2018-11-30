@@ -47,25 +47,25 @@ libzstd_sources = [join_paths(zstd_rootdir, 'lib/common/entropy_common.c'),
   join_paths(zstd_rootdir, 'lib/deprecated/zbuff_decompress.c')]
 
 # Explicit define legacy support
-add_project_arguments('-DZSTD_LEGACY_SUPPORT=@0@'.format(with_legacy_support),
+add_project_arguments('-DZSTD_LEGACY_SUPPORT=@0@'.format(legacy_level),
   language: 'c')
 
-if with_legacy_support == 0
+if legacy_level == 0
   message('Legacy support: DISABLED')
 else
   # See ZSTD_LEGACY_SUPPORT of lib/README.md
-  message('Enable legacy support back to version 0.@0@'.format(with_legacy_support))
+  message('Enable legacy support back to version 0.@0@'.format(legacy_level))
 
   libzstd_includes += [ include_directories(join_paths(zstd_rootdir, 'lib/legacy')) ]
   foreach i : [1, 2, 3, 4, 5, 6, 7]
-    if with_legacy_support <= i
+    if legacy_level <= i
       libzstd_sources += join_paths(zstd_rootdir, 'lib/legacy/zstd_v0@0@.c'.format(i))
     endif
   endforeach
 endif
 
 libzstd_deps = []
-if enable_multithread
+if use_multi_thread
   message('Enable multi-threading support')
   add_project_arguments('-DZSTD_MULTITHREAD', language: 'c')
   libzstd_deps = [ thread_dep ]
@@ -93,7 +93,8 @@ endif
 libzstd_c_args += mingw_ansi_stdio_flags
 
 libzstd_debug_cflags = []
-if enable_debug and meson_buildtype == 'debug'
+if use_debug
+  libzstd_c_args += '-DDEBUGLEVEL=@0@'.format(debug_level)
   if cc_id == compiler_gcc or cc_id == compiler_clang
     libzstd_debug_cflags = ['-Wstrict-aliasing=1', '-Wswitch-enum',
       '-Wdeclaration-after-statement', '-Wstrict-prototypes',

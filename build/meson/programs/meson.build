@@ -19,31 +19,31 @@ zstd_programs_sources = [join_paths(zstd_rootdir, 'programs/zstdcli.c'),
   join_paths(zstd_rootdir, 'programs/dibio.c')]
 
 zstd_c_args = libzstd_debug_cflags
-if enable_multithread
+if use_multi_thread
   zstd_c_args += [ '-DZSTD_MULTITHREAD' ]
 endif
 
 zstd_deps = [ libzstd_dep ]
-if enable_zlib and zlib_dep.found()
+if use_zlib
   zstd_deps += [ zlib_dep ]
   zstd_c_args += [ '-DZSTD_GZCOMPRESS', '-DZSTD_GZDECOMPRESS' ]
 endif
 
-if enable_lzma and lzma_dep.found()
+if use_lzma
   zstd_deps += [ lzma_dep ]
   zstd_c_args += [ '-DZSTD_LZMACOMPRESS', '-DZSTD_LZMADECOMPRESS' ]
 endif
 
-if enable_lz4 and lz4_dep.found()
+if use_lz4
   zstd_deps += [ lz4_dep ]
   zstd_c_args += [ '-DZSTD_LZ4COMPRESS', '-DZSTD_LZ4DECOMPRESS' ]
 endif
 
 export_dynamic_on_windows = false
 # explicit backtrace enable/disable for Linux & Darwin
-if not enable_backtrace
+if not use_backtrace
   zstd_c_args += '-DBACKTRACE_ENABLE=0'
-elif enable_debug and host_machine_os == os_windows  # MinGW target
+elif use_debug and host_machine_os == os_windows  # MinGW target
   zstd_c_args += '-DBACKTRACE_ENABLE=1'
   export_dynamic_on_windows = true
 endif
@@ -86,7 +86,7 @@ InstallSymlink_py = '../InstallSymlink.py'
 meson.add_install_script(InstallSymlink_py, 'zstd', 'zstdcat', zstd_bindir)
 meson.add_install_script(InstallSymlink_py, 'zstd', 'unzstd', zstd_bindir)
 
-if enable_multithread
+if use_multi_thread
   meson.add_install_script(InstallSymlink_py, 'zstd', 'zstdmt', zstd_bindir)
 endif
 
@@ -105,6 +105,6 @@ install_man(join_paths(zstd_rootdir, 'programs/zstd.1'),
 meson.add_install_script(InstallSymlink_py, 'zstd.1.gz', 'zstdcat.1.gz', zstd_man1_dir)
 meson.add_install_script(InstallSymlink_py, 'zstd.1.gz', 'unzstd.1.gz', zstd_man1_dir)
 
-if enable_multithread
+if use_multi_thread
   meson.add_install_script(InstallSymlink_py, 'zstd.1.gz', 'zstdmt.1.gz', zstd_man1_dir)
 endif

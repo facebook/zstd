@@ -139,7 +139,7 @@ poolTests_sources = [join_paths(zstd_rootdir, 'programs/util.c'),
 poolTests = executable('poolTests',
   poolTests_sources,
   include_directories: test_includes,
-  dependencies: [ libzstd_dep ],
+  dependencies: [ libzstd_dep, thread_dep ],
   install: false)
 
 checkTag_sources = [join_paths(zstd_rootdir, 'tests/checkTag.c')]
@@ -177,7 +177,7 @@ test('test-fullbench-1', fullbench, args: ['-i1'],
 test('test-fullbench-2', fullbench, args: ['-i1', '-P0'],
   depends: [fullbench, datagen])
 
-if enable_zlib
+if use_zlib
   test('test-fuzzer', fuzzer, args: ['-v', FUZZERTEST] + FUZZER_FLAGS)
 endif
 

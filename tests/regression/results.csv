@@ -1,0 +1,43 @@
+Data,	Config,	Method,	Total compressed size
+silesia.tar,	level -5,	simple,	106176430
+silesia.tar,	level -3,	simple,	98476550
+silesia.tar,	level -1,	simple,	87206767
+silesia.tar,	level 0,	simple,	66996953
+silesia.tar,	level 1,	simple,	73658303
+silesia.tar,	level 3,	simple,	66996953
+silesia.tar,	level 4,	simple,	65996020
+silesia.tar,	level 5,	simple,	64421326
+silesia.tar,	level 6,	simple,	62388673
+silesia.tar,	level 7,	simple,	61159525
+silesia.tar,	level 9,	simple,	60214921
+silesia.tar,	level 13,	simple,	58428642
+silesia.tar,	level 16,	simple,	56363759
+silesia.tar,	level 19,	simple,	53274173
+silesia,	level -5,	cli file,	106202112
+silesia,	level -3,	cli file,	98518660
+silesia,	level -1,	cli file,	87226203
+silesia,	level 0,	cli file,	67049190
+silesia,	level 1,	cli file,	73676282
+silesia,	level 3,	cli file,	67049190
+silesia,	level 4,	cli file,	66090040
+silesia,	level 5,	cli file,	64503721
+silesia,	level 6,	cli file,	62446177
+silesia,	level 7,	cli file,	61217029
+silesia,	level 9,	cli file,	60282841
+silesia,	level 13,	cli file,	58480658
+silesia,	level 16,	cli file,	56414170
+silesia,	level 19,	cli file,	53365292
+silesia.tar,	level -5,	cli file,	106250113
+silesia.tar,	level -3,	cli file,	98550747
+silesia.tar,	level -1,	cli file,	87227322
+silesia.tar,	level 0,	cli file,	67111168
+silesia.tar,	level 1,	cli file,	73694374
+silesia.tar,	level 3,	cli file,	67111168
+silesia.tar,	level 4,	cli file,	66154079
+silesia.tar,	level 5,	cli file,	64546998
+silesia.tar,	level 6,	cli file,	62458454
+silesia.tar,	level 7,	cli file,	61231085
+silesia.tar,	level 9,	cli file,	60310313
+silesia.tar,	level 13,	cli file,	58517476
+silesia.tar,	level 16,	cli file,	56448694
+silesia.tar,	level 19,	cli file,	53444920

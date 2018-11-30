@@ -466,7 +466,7 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
  *   In this API, parameters are pushed one by one into an existing context,
  *   using ZSTD_CCtx_set*() functions.
  *   Pushed parameters are sticky : they are applied to next job, and any subsequent job.
- *   Note that "sticky" parameters are only applicable with `ZSTD_compress_generic()` !
+ *   Note that "sticky" parameters are only applicable with `ZSTD_compress2()` and `ZSTD_compressStream2()` !
  *   They do not apply should the context be used with a "simple" variant such as ZSTD_compressCCtx()
  *
  *   It's possible to reset all parameters to "default" using ZSTD_CCtx_reset().
@@ -581,10 +581,11 @@ typedef enum {
     /* These parameters are only useful if multi-threading is enabled (compiled with build macro ZSTD_MULTITHREAD).
      * They return an error otherwise. */
     ZSTD_p_nbWorkers=400,    /* Select how many threads will be spawned to compress in parallel.
-                              * When nbWorkers >= 1, triggers asynchronous mode :
-                              * ZSTD_compress_generic() consumes input and flush output if possible, but immediately gives back control to caller,
+                              * When nbWorkers >= 1, triggers asynchronous mode when used with ZSTD_compressStream2() :
+                              * ZSTD_compressStream2() consumes input and flush output if possible, but immediately gives back control to caller,
                               * while compression work is performed in parallel, within worker threads.
-                              * (note : a strong exception to this rule is when first invocation sets ZSTD_e_end : it becomes a blocking call).
+                              * (note : a strong exception to this rule is when first invocation sets ZSTD_e_end :
+                              *  in which case, ZSTD_compressStream2() delegates to ZSTD_compress2(), which is always a blocking call).
                               * More workers improve speed, but also increase memory usage.
                               * Default value is `0`, aka "single-threaded mode" : no worker is spawned, compression is performed inside Caller's thread, all invocations are blocking */
     ZSTD_p_jobSize=401,      /* Size of a compression job. This value is enforced only when nbWorkers >= 1.
@@ -731,6 +732,18 @@ ZSTDLIB_API size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx, ZSTD_ResetDirective reset);
 
 
 
+/*! ZSTD_compress2() :
+ *  Behave the same as ZSTD_compressCCtx(), but compression parameters are set using the advanced API.
+ *  - Compression parameters are pushed into CCtx before starting compression, using ZSTD_CCtx_set*()
+ *  - The function is always blocking.
+ *  Hint : compression runs faster if `dstCapacity` >=  `ZSTD_compressBound(srcSize)`.
+ *  @return : compressed size written into `dst` (<= `dstCapacity),
+ *            or an error code if it fails (which can be tested using ZSTD_isError()).
+ */
+ZSTDLIB_API size_t ZSTD_compress2( ZSTD_CCtx* cctx,
+                                   void* dst, size_t dstCapacity,
+                             const void* src, size_t srcSize);
+
 typedef enum {
     ZSTD_e_continue=0, /* collect more data, encoder decides when to output compressed result, for optimal compression ratio */
     ZSTD_e_flush=1,    /* flush any data provided so far,
@@ -741,8 +754,8 @@ typedef enum {
                         * each frame is independent (does not reference any content from previous frame). */
 } ZSTD_EndDirective;
 
-/*! ZSTD_compress_generic() :
- *  Behave about the same as ZSTD_compressStream. To note :
+/*! ZSTD_compressStream2() :
+ *  Behave about the same as ZSTD_compressStream, with additional control on end directive.
  *  - Compression parameters are pushed into CCtx before starting compression, using ZSTD_CCtx_set*()
  *  - Compression parameters cannot be changed once compression is started (save a list of exceptions in multi-threading mode)
  *  - outpot->pos must be <= dstCapacity, input->pos must be <= srcSize
@@ -751,7 +764,7 @@ typedef enum {
  *  - In multi-thread mode, function is non-blocking : it just acquires a copy of input, and distribute job to internal worker threads,
  *                                                     and then immediately returns, just indicating that there is some data remaining to be flushed.
  *                                                     The function nonetheless guarantees forward progress : it will return only after it reads or write at least 1+ byte.
- *  - Exception : in multi-threading mode, if the first call requests a ZSTD_e_end directive, it is blocking : it will complete compression before giving back control to caller.
+ *  - Exception : if the first call requests a ZSTD_e_end directive, the function delegates to ZSTD_compress2() which is always blocking.
  *  - @return provides a minimum amount of data remaining to be flushed from internal buffers
  *            or an error code, which can be tested using ZSTD_isError().
  *            if @return != 0, flush is not fully completed, there is still some data left within internal buffers.
@@ -762,10 +775,11 @@ typedef enum {
  *            Before starting a new compression job, or changing compression parameters,
  *            it is required to fully flush internal buffers.
  */
-ZSTDLIB_API size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
-                                          ZSTD_outBuffer* output,
-                                          ZSTD_inBuffer* input,
-                                          ZSTD_EndDirective endOp);
+ZSTDLIB_API size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
+                                         ZSTD_outBuffer* output,
+                                         ZSTD_inBuffer* input,
+                                         ZSTD_EndDirective endOp);
+
 
 
 /* ============================== */
@@ -780,14 +794,14 @@ ZSTDLIB_API size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
  * They are not valid if a "simple" function is used on the context (like `ZSTD_decompressDCtx()`).
  */
 
- /*! ZSTD_DCtx_setMaxWindowSize() :
-  *  Refuses allocating internal buffers for frames requiring a window size larger than provided limit.
-  *  This protects a decoder context from reserving too much memory for itself (potential attack scenario).
-  *  This parameter is only useful in streaming mode, since no internal buffer is allocated in single-pass mode.
-  *  By default, a decompression context accepts all window sizes <= (1 << ZSTD_WINDOWLOG_LIMIT_DEFAULT)
-  * @return : 0, or an error code (which can be tested using ZSTD_isError()).
-  */
- ZSTDLIB_API size_t ZSTD_DCtx_setMaxWindowSize(ZSTD_DCtx* dctx, size_t maxWindowSize);
+/*! ZSTD_DCtx_setMaxWindowSize() :
+ *  Refuses allocating internal buffers for frames requiring a window size larger than provided limit.
+ *  This protects a decoder context from reserving too much memory for itself (potential attack scenario).
+ *  This parameter is only useful in streaming mode, since no internal buffer is allocated in single-pass mode.
+ *  By default, a decompression context accepts all window sizes <= (1 << ZSTD_WINDOWLOG_LIMIT_DEFAULT)
+ * @return : 0, or an error code (which can be tested using ZSTD_isError()).
+ */
+ZSTDLIB_API size_t ZSTD_DCtx_setMaxWindowSize(ZSTD_DCtx* dctx, size_t maxWindowSize);
 
 /*! ZSTD_DCtx_loadDictionary() :
  *  Create an internal DDict from dict buffer,
@@ -1265,7 +1279,7 @@ ZSTDLIB_API size_t ZSTD_CCtx_getParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param
  *                                    an existing CCtx.
  *                                    These parameters will be applied to
  *                                    all subsequent compression jobs.
- *  - ZSTD_compress_generic() : Do compression using the CCtx.
+ *  - ZSTD_compressStream2() : Do compression using the CCtx.
  *  - ZSTD_freeCCtxParams() : Free the memory.
  *
  *  This can be used with ZSTD_estimateCCtxSize_advanced_usingCCtxParams()
@@ -1316,13 +1330,13 @@ ZSTDLIB_API size_t ZSTD_CCtxParam_getParameter(ZSTD_CCtx_params* params, ZSTD_cP
 ZSTDLIB_API size_t ZSTD_CCtx_setParametersUsingCCtxParams(
         ZSTD_CCtx* cctx, const ZSTD_CCtx_params* params);
 
-/*! ZSTD_compress_generic_simpleArgs() :
- *  Same as ZSTD_compress_generic(),
+/*! ZSTD_compressStream2_simpleArgs() :
+ *  Same as ZSTD_compressStream2(),
  *  but using only integral types as arguments.
  *  This variant might be helpful for binders from dynamic languages
  *  which have troubles handling structures containing memory pointers.
  */
-ZSTDLIB_API size_t ZSTD_compress_generic_simpleArgs (
+ZSTDLIB_API size_t ZSTD_compressStream2_simpleArgs (
                             ZSTD_CCtx* cctx,
                             void* dst, size_t dstCapacity, size_t* dstPos,
                       const void* src, size_t srcSize, size_t* srcPos,

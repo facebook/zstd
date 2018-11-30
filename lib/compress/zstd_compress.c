@@ -3953,12 +3953,12 @@ size_t ZSTD_compressStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output, ZSTD_inBuf
 }
 
 
-size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
-                              ZSTD_outBuffer* output,
-                              ZSTD_inBuffer* input,
-                              ZSTD_EndDirective endOp)
+size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
+                             ZSTD_outBuffer* output,
+                             ZSTD_inBuffer* input,
+                             ZSTD_EndDirective endOp)
 {
-    DEBUGLOG(5, "ZSTD_compress_generic, endOp=%u ", (U32)endOp);
+    DEBUGLOG(5, "ZSTD_compressStream2, endOp=%u ", (U32)endOp);
     /* check conditions */
     if (output->pos > output->size) return ERROR(GENERIC);
     if (input->pos  > input->size)  return ERROR(GENERIC);
@@ -3970,7 +3970,7 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
         ZSTD_prefixDict const prefixDict = cctx->prefixDict;
         memset(&cctx->prefixDict, 0, sizeof(cctx->prefixDict));  /* single usage */
         assert(prefixDict.dict==NULL || cctx->cdict==NULL);   /* only one can be set */
-        DEBUGLOG(4, "ZSTD_compress_generic : transparent init stage");
+        DEBUGLOG(4, "ZSTD_compressStream2 : transparent init stage");
         if (endOp == ZSTD_e_end) cctx->pledgedSrcSizePlusOne = input->size + 1;  /* auto-fix pledgedSrcSize */
         params.cParams = ZSTD_getCParamsFromCCtxParams(
                 &cctx->requestedParams, cctx->pledgedSrcSizePlusOne-1, 0 /*dictSize*/);
@@ -3983,7 +3983,7 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
         if (params.nbWorkers > 0) {
             /* mt context creation */
             if (cctx->mtctx == NULL) {
-                DEBUGLOG(4, "ZSTD_compress_generic: creating new mtctx for nbWorkers=%u",
+                DEBUGLOG(4, "ZSTD_compressStream2: creating new mtctx for nbWorkers=%u",
                             params.nbWorkers);
                 cctx->mtctx = ZSTDMT_createCCtx_advanced(params.nbWorkers, cctx->customMem);
                 if (cctx->mtctx == NULL) return ERROR(memory_allocation);
@@ -4018,16 +4018,16 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
               || (endOp == ZSTD_e_end && flushMin == 0) ) { /* compression completed */
                 ZSTD_CCtx_reset(cctx, ZSTD_reset_session_only);
             }
-            DEBUGLOG(5, "completed ZSTD_compress_generic delegating to ZSTDMT_compressStream_generic");
+            DEBUGLOG(5, "completed ZSTD_compressStream2 delegating to ZSTDMT_compressStream_generic");
             return flushMin;
     }   }
 #endif
     CHECK_F( ZSTD_compressStream_generic(cctx, output, input, endOp) );
-    DEBUGLOG(5, "completed ZSTD_compress_generic");
+    DEBUGLOG(5, "completed ZSTD_compressStream2");
     return cctx->outBuffContentSize - cctx->outBuffFlushedSize; /* remaining to flush */
 }
 
-size_t ZSTD_compress_generic_simpleArgs (
+size_t ZSTD_compressStream2_simpleArgs (
                             ZSTD_CCtx* cctx,
                             void* dst, size_t dstCapacity, size_t* dstPos,
                       const void* src, size_t srcSize, size_t* srcPos,
@@ -4035,13 +4035,27 @@ size_t ZSTD_compress_generic_simpleArgs (
 {
     ZSTD_outBuffer output = { dst, dstCapacity, *dstPos };
     ZSTD_inBuffer  input  = { src, srcSize, *srcPos };
-    /* ZSTD_compress_generic() will check validity of dstPos and srcPos */
-    size_t const cErr = ZSTD_compress_generic(cctx, &output, &input, endOp);
+    /* ZSTD_compressStream2() will check validity of dstPos and srcPos */
+    size_t const cErr = ZSTD_compressStream2(cctx, &output, &input, endOp);
     *dstPos = output.pos;
     *srcPos = input.pos;
     return cErr;
 }
 
+size_t ZSTD_compress2(ZSTD_CCtx* cctx,
+                      void* dst, size_t dstCapacity,
+                      const void* src, size_t srcSize)
+{
+    size_t oPos = 0;
+    size_t iPos = 0;
+    size_t const result = ZSTD_compressStream2_simpleArgs(cctx,
+                                    dst, dstCapacity, &oPos,
+                                    src, srcSize, &iPos,
+                                    ZSTD_e_end);
+    assert(iPos == srcSize);
+    if (ZSTD_isError(result)) return result;
+    return oPos;
+}
 
 /*======   Finalize   ======*/
 

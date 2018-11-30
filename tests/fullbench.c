@@ -171,17 +171,8 @@ local_ZSTD_compress_generic_end(const void* src, size_t srcSize,
                                 void* dst, size_t dstCapacity,
                                 void* buff2)
 {
-    ZSTD_outBuffer buffOut;
-    ZSTD_inBuffer buffIn;
     (void)buff2;
-    buffOut.dst = dst;
-    buffOut.size = dstCapacity;
-    buffOut.pos = 0;
-    buffIn.src = src;
-    buffIn.size = srcSize;
-    buffIn.pos = 0;
-    ZSTD_compress_generic(g_cstream, &buffOut, &buffIn, ZSTD_e_end);
-    return buffOut.pos;
+    return ZSTD_compress2(g_cstream, dst, dstCapacity, src, srcSize);
 }
 
 static size_t
@@ -198,8 +189,8 @@ local_ZSTD_compress_generic_continue(const void* src, size_t srcSize,
     buffIn.src = src;
     buffIn.size = srcSize;
     buffIn.pos = 0;
-    ZSTD_compress_generic(g_cstream, &buffOut, &buffIn, ZSTD_e_continue);
-    ZSTD_compress_generic(g_cstream, &buffOut, &buffIn, ZSTD_e_end);
+    ZSTD_compressStream2(g_cstream, &buffOut, &buffIn, ZSTD_e_continue);
+    ZSTD_compressStream2(g_cstream, &buffOut, &buffIn, ZSTD_e_end);
     return buffOut.pos;
 }
 
@@ -208,18 +199,9 @@ local_ZSTD_compress_generic_T2_end(const void* src, size_t srcSize,
                                    void* dst, size_t dstCapacity,
                                    void* buff2)
 {
-    ZSTD_outBuffer buffOut;
-    ZSTD_inBuffer buffIn;
     (void)buff2;
     ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_nbWorkers, 2);
-    buffOut.dst = dst;
-    buffOut.size = dstCapacity;
-    buffOut.pos = 0;
-    buffIn.src = src;
-    buffIn.size = srcSize;
-    buffIn.pos = 0;
-    while (ZSTD_compress_generic(g_cstream, &buffOut, &buffIn, ZSTD_e_end)) {}
-    return buffOut.pos;
+    return ZSTD_compress2(g_cstream, dst, dstCapacity, src, srcSize);
 }
 
 static size_t
@@ -237,8 +219,8 @@ local_ZSTD_compress_generic_T2_continue(const void* src, size_t srcSize,
     buffIn.src = src;
     buffIn.size = srcSize;
     buffIn.pos = 0;
-    ZSTD_compress_generic(g_cstream, &buffOut, &buffIn, ZSTD_e_continue);
-    while(ZSTD_compress_generic(g_cstream, &buffOut, &buffIn, ZSTD_e_end)) {}
+    ZSTD_compressStream2(g_cstream, &buffOut, &buffIn, ZSTD_e_continue);
+    while(ZSTD_compressStream2(g_cstream, &buffOut, &buffIn, ZSTD_e_end)) {}
     return buffOut.pos;
 }
 

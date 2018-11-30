@@ -884,7 +884,7 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
             size_t const oldIPos = inBuff.pos;
             ZSTD_outBuffer outBuff = { ress.dstBuffer, ress.dstBufferSize, 0 };
             size_t const toFlushNow = ZSTD_toFlushNow(ress.cctx);
-            CHECK_V(stillToFlush, ZSTD_compress_generic(ress.cctx, &outBuff, &inBuff, directive));
+            CHECK_V(stillToFlush, ZSTD_compressStream2(ress.cctx, &outBuff, &inBuff, directive));
 
             /* count stats */
             inputPresented++;

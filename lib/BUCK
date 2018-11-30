@@ -1,6 +1,7 @@
 cxx_library(
     name='zstd',
     header_namespace='',
+    exported_headers=['zstd.h'],
     visibility=['PUBLIC'],
     deps=[
         ':common',
@@ -17,7 +18,7 @@ cxx_library(
     exported_headers=subdir_glob([
         ('compress', 'zstd*.h'),
     ]),
-    srcs=glob(['compress/zstd*.c']),
+    srcs=glob(['compress/zstd*.c', 'compress/hist.c']),
     deps=[':common'],
 )
 
@@ -40,7 +41,7 @@ cxx_library(
     header_namespace='',
     visibility=['PUBLIC'],
     exported_headers=subdir_glob([
-        ('decprecated', '*.h'),
+        ('deprecated', '*.h'),
     ]),
     srcs=glob(['deprecated/*.c']),
     deps=[':common'],
@@ -118,6 +119,7 @@ cxx_library(
         'decompress/huf_decompress.c',
     ],
     deps=[
+        ':debug',
         ':bitstream',
         ':compiler',
         ':errors',
@@ -205,8 +207,19 @@ cxx_library(
 )
 
 cxx_library(
+    name='debug',
+    header_namespace='',
+    visibility=['PUBLIC'],
+    exported_headers=subdir_glob([
+        ('common', 'debug.h'),
+    ]),
+    srcs=['common/debug.c'],
+)
+
+cxx_library(
     name='common',
     deps=[
+        ':debug',
         ':bitstream',
         ':compiler',
         ':cpu',

@@ -24,6 +24,6 @@ zstd_manual_html = custom_target('zstd_manual.html',
   output : 'zstd_manual.html',
   command : [gen_html,
     zstd_version,
-    join_paths(meson.current_source_dir(), join_paths(zstd_rootdir, 'lib/zstd.h')),
+    join_paths(meson.current_source_dir(), zstd_rootdir, 'lib/zstd.h'),
     '@OUTPUT@'],
   install : false)

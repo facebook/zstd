@@ -8,21 +8,25 @@
 # in the COPYING file in the root directory of this source tree).
 # #############################################################################
 
-option('enable-multithread', type: 'boolean', value: true,
-    description: 'Enable multi-threading when pthread is detected')
-option('with-legacy-support', type: 'string', value: '5',
-    description: 'Support any legacy format: true or false, or 7 to 1 for v0.7+ to v0.1+')
+option('with-legacy-support', type: 'integer', min: 0, max: 7, value: '5',
+  description: 'Support any legacy format: 7 to 1 for v0.7+ to v0.1+')
 option('with-programs', type: 'boolean', value: true,
-    description: 'Enable programs build')
+  description: 'Enable programs build')
 option('with-contrib', type: 'boolean', value: false,
-    description: 'Enable contrib build')
+  description: 'Enable contrib build')
 option('with-tests', type: 'boolean', value: false,
-    description: 'Enable tests build')
+  description: 'Enable tests build')
+option('with-debug-level', type: 'integer', min: 0, max: 9, value: 1, # Since 0.45.0
+  description: 'Enable run-time debug. See lib/common/debug.h')
+option('enable-multithread', type: 'boolean', value: true,
+  description: 'Enable multi-threading when pthread is detected')
 option('enable-static-runtime', type: 'boolean', value: false,
-    description: 'Link to static run-time libraries on MSVC')
+  description: 'Link to static run-time libraries on MSVC')
 option('enable-zlib', type: 'boolean', value: false,
-    description: 'Enable zlib support')
+  description: 'Enable zlib support')
 option('enable-lzma', type: 'boolean', value: false,
-    description: 'Enable lzma support')
+  description: 'Enable lzma support')
 option('enable-lz4', type: 'boolean', value: false,
-    description: 'Enable lz4 support')
+  description: 'Enable lz4 support')
+option('enable-backtrace', type: 'boolean', value: false,
+  description: 'Display a stack backtrace when execution generates a runtime exception. Only in debug build mode.')

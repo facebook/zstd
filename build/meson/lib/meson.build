@@ -8,113 +8,121 @@
 # in the COPYING file in the root directory of this source tree).
 # #############################################################################
 
-zstd_source_dir = join_paths('..', '..', '..')
-library_dir = join_paths(zstd_source_dir, 'lib')
-library_common_dir = join_paths(library_dir, 'common')
-library_compress_dir = join_paths(library_dir, 'compress')
-library_decompress_dir = join_paths(library_dir, 'decompress')
-library_dictbuilder_dir = join_paths(library_dir, 'dictBuilder')
-library_deprecated_dir = join_paths(library_dir, 'deprecated')
-library_legacy_dir = join_paths(library_dir, 'legacy')
+zstd_rootdir = '../../..'
 
-libzstd_includes = [include_directories(library_dir,
-    library_common_dir,
-    library_compress_dir,
-    library_decompress_dir,
-    library_dictbuilder_dir,
-    library_deprecated_dir)]
+libzstd_includes = [include_directories(join_paths(zstd_rootdir,'lib'),
+  join_paths(zstd_rootdir, 'lib/common'),
+  join_paths(zstd_rootdir, 'lib/compress'),
+  join_paths(zstd_rootdir, 'lib/decompress'),
+  join_paths(zstd_rootdir, 'lib/dictBuilder'),
+  join_paths(zstd_rootdir, 'lib/deprecated'))]
 
-libzstd_sources = [join_paths(library_common_dir, 'entropy_common.c'),
-    join_paths(library_common_dir, 'fse_decompress.c'),
-    join_paths(library_common_dir, 'threading.c'),
-    join_paths(library_common_dir, 'pool.c'),
-    join_paths(library_common_dir, 'zstd_common.c'),
-    join_paths(library_common_dir, 'error_private.c'),
-    join_paths(library_common_dir, 'xxhash.c'),
-    join_paths(library_compress_dir, 'hist.c'),
-    join_paths(library_compress_dir, 'fse_compress.c'),
-    join_paths(library_compress_dir, 'huf_compress.c'),
-    join_paths(library_compress_dir, 'zstd_compress.c'),
-    join_paths(library_compress_dir, 'zstdmt_compress.c'),
-    join_paths(library_compress_dir, 'zstd_fast.c'),
-    join_paths(library_compress_dir, 'zstd_double_fast.c'),
-    join_paths(library_compress_dir, 'zstd_lazy.c'),
-    join_paths(library_compress_dir, 'zstd_opt.c'),
-    join_paths(library_compress_dir, 'zstd_ldm.c'),
-    join_paths(library_decompress_dir, 'huf_decompress.c'),
-    join_paths(library_decompress_dir, 'zstd_decompress.c'),
-    join_paths(library_decompress_dir, 'zstd_decompress_block.c'),
-    join_paths(library_decompress_dir, 'zstd_ddict.c'),
-    join_paths(library_dictbuilder_dir, 'cover.c'),
-    join_paths(library_dictbuilder_dir, 'fastcover.c'),
-    join_paths(library_dictbuilder_dir, 'divsufsort.c'),
-    join_paths(library_dictbuilder_dir, 'zdict.c'),
-    join_paths(library_deprecated_dir, 'zbuff_common.c'),
-    join_paths(library_deprecated_dir, 'zbuff_compress.c'),
-    join_paths(library_deprecated_dir, 'zbuff_decompress.c')]
+libzstd_sources = [join_paths(zstd_rootdir, 'lib/common/entropy_common.c'),
+  join_paths(zstd_rootdir, 'lib/common/fse_decompress.c'),
+  join_paths(zstd_rootdir, 'lib/common/threading.c'),
+  join_paths(zstd_rootdir, 'lib/common/pool.c'),
+  join_paths(zstd_rootdir, 'lib/common/zstd_common.c'),
+  join_paths(zstd_rootdir, 'lib/common/error_private.c'),
+  join_paths(zstd_rootdir, 'lib/common/xxhash.c'),
+  join_paths(zstd_rootdir, 'lib/compress/hist.c'),
+  join_paths(zstd_rootdir, 'lib/compress/fse_compress.c'),
+  join_paths(zstd_rootdir, 'lib/compress/huf_compress.c'),
+  join_paths(zstd_rootdir, 'lib/compress/zstd_compress.c'),
+  join_paths(zstd_rootdir, 'lib/compress/zstdmt_compress.c'),
+  join_paths(zstd_rootdir, 'lib/compress/zstd_fast.c'),
+  join_paths(zstd_rootdir, 'lib/compress/zstd_double_fast.c'),
+  join_paths(zstd_rootdir, 'lib/compress/zstd_lazy.c'),
+  join_paths(zstd_rootdir, 'lib/compress/zstd_opt.c'),
+  join_paths(zstd_rootdir, 'lib/compress/zstd_ldm.c'),
+  join_paths(zstd_rootdir, 'lib/decompress/huf_decompress.c'),
+  join_paths(zstd_rootdir, 'lib/decompress/zstd_decompress.c'),
+  join_paths(zstd_rootdir, 'lib/decompress/zstd_decompress_block.c'),
+  join_paths(zstd_rootdir, 'lib/decompress/zstd_ddict.c'),
+  join_paths(zstd_rootdir, 'lib/dictBuilder/cover.c'),
+  join_paths(zstd_rootdir, 'lib/dictBuilder/fastcover.c'),
+  join_paths(zstd_rootdir, 'lib/dictBuilder/divsufsort.c'),
+  join_paths(zstd_rootdir, 'lib/dictBuilder/zdict.c'),
+  join_paths(zstd_rootdir, 'lib/deprecated/zbuff_common.c'),
+  join_paths(zstd_rootdir, 'lib/deprecated/zbuff_compress.c'),
+  join_paths(zstd_rootdir, 'lib/deprecated/zbuff_decompress.c')]
 
-if with_legacy_support == '0'
-    with_legacy_support = 'false'
-endif
-if with_legacy_support != 'false'
-    if with_legacy_support == 'true'
-        with_legacy_support = '5'
-    endif
-    legacy_int = with_legacy_support.to_int()
-    if legacy_int < 0 or legacy_int >= 8
-        legacy_int = 0
-    endif
-    add_project_arguments('-DZSTD_LEGACY_SUPPORT=@0@'.format(legacy_int),
-        language: 'c')
-    libzstd_includes += [ include_directories(library_legacy_dir) ]
-    # See ZSTD_LEGACY_SUPPORT of lib/README.md
-    message('Enable legacy support back to version 0.@0@'.format(legacy_int))
-    if legacy_int <= 1
-        libzstd_sources += join_paths(library_legacy_dir, 'zstd_v01.c')
-    endif
-    if legacy_int <= 2
-        libzstd_sources += join_paths(library_legacy_dir, 'zstd_v02.c')
-    endif
-    if legacy_int <= 3
-        libzstd_sources += join_paths(library_legacy_dir, 'zstd_v03.c')
-    endif
-    if legacy_int <= 4
-        libzstd_sources += join_paths(library_legacy_dir, 'zstd_v04.c')
-    endif
-    if legacy_int <= 5
-        libzstd_sources += join_paths(library_legacy_dir, 'zstd_v05.c')
-    endif
-    if legacy_int <= 6
-        libzstd_sources += join_paths(library_legacy_dir, 'zstd_v06.c')
-    endif
-    if legacy_int <= 7
-        libzstd_sources += join_paths(library_legacy_dir, 'zstd_v07.c')
-    endif
-endif
+# Explicit define legacy support
+add_project_arguments('-DZSTD_LEGACY_SUPPORT=@0@'.format(with_legacy_support),
+  language: 'c')
 
-if enable_multithread
-    message('Enable multi-threading support')
-    add_project_arguments('-DZSTD_MULTITHREAD', language: 'c')
-    libzstd_deps = [ thread_dep ]
+if with_legacy_support == 0
+  message('Legacy support: DISABLED')
 else
-    libzstd_deps = []
+  # See ZSTD_LEGACY_SUPPORT of lib/README.md
+  message('Enable legacy support back to version 0.@0@'.format(with_legacy_support))
+
+  libzstd_includes += [ include_directories(join_paths(zstd_rootdir, 'lib/legacy')) ]
+  foreach i : [1, 2, 3, 4, 5, 6, 7]
+    if with_legacy_support <= i
+      libzstd_sources += join_paths(zstd_rootdir, 'lib/legacy/zstd_v0@0@.c'.format(i))
+    endif
+  endforeach
 endif
+
+libzstd_deps = []
+if enable_multithread
+  message('Enable multi-threading support')
+  add_project_arguments('-DZSTD_MULTITHREAD', language: 'c')
+  libzstd_deps = [ thread_dep ]
+endif
+
+libzstd_c_args = []
+if cc_id == compiler_msvc
+  if default_library_type != 'static'
+    libzstd_sources += [windows_mod.compile_resources(
+      join_paths(zstd_rootdir, 'build/VS2010/libzstd-dll/libzstd-dll.rc'))]
+    libzstd_c_args += ['-DZSTD_DLL_EXPORT=1',
+      '-DZSTD_HEAPMODE=0',
+      '-D_CONSOLE',
+      '-D_CRT_SECURE_NO_WARNINGS']
+  else
+    libzstd_c_args += ['-DZSTD_HEAPMODE=0',
+      '-D_CRT_SECURE_NO_WARNINGS']
+  endif
+endif
+
+mingw_ansi_stdio_flags = []
+if host_machine_os == os_windows and cc_id == compiler_gcc
+  mingw_ansi_stdio_flags = [ '-D__USE_MINGW_ANSI_STDIO' ]
+endif
+libzstd_c_args += mingw_ansi_stdio_flags
+
+libzstd_debug_cflags = []
+if enable_debug and meson_buildtype == 'debug'
+  if cc_id == compiler_gcc or cc_id == compiler_clang
+    libzstd_debug_cflags = ['-Wstrict-aliasing=1', '-Wswitch-enum',
+      '-Wdeclaration-after-statement', '-Wstrict-prototypes',
+      '-Wundef', '-Wpointer-arith', '-Wformat-security', '-Wvla',
+      '-Wformat=2', '-Winit-self', '-Wfloat-equal', '-Wwrite-strings',
+      '-Wredundant-decls', '-Wmissing-prototypes', '-Wc++-compat']
+  endif
+endif
+libzstd_c_args += cc.get_supported_arguments(libzstd_debug_cflags)
 
 libzstd = library('zstd',
-    libzstd_sources,
-    include_directories: libzstd_includes,
-    dependencies: libzstd_deps,
-    install: true,
-    soversion: zstd_version)
+  libzstd_sources,
+  include_directories: libzstd_includes,
+  c_args: libzstd_c_args,
+  dependencies: libzstd_deps,
+  install: true,
+  soversion: zstd_libversion)
+
+libzstd_dep = declare_dependency(link_with: libzstd,
+  include_directories: libzstd_includes)
 
 pkgconfig.generate(name: 'libzstd',
-    filebase: 'libzstd',
-    libraries: [libzstd],
-    description: 'fast lossless compression algorithm library',
-    version: zstd_version,
-    url: 'http://www.zstd.net/')
+  filebase: 'libzstd',
+  libraries: [libzstd],
+  description: 'fast lossless compression algorithm library',
+  version: zstd_libversion,
+  url: 'http://www.zstd.net/')
 
-install_headers(join_paths(library_dir, 'zstd.h'),
-    join_paths(library_deprecated_dir, 'zbuff.h'),
-    join_paths(library_dictbuilder_dir, 'zdict.h'),
-    join_paths(library_common_dir, 'zstd_errors.h'))
+install_headers(join_paths(zstd_rootdir, 'lib/zstd.h'),
+  join_paths(zstd_rootdir, 'lib/deprecated/zbuff.h'),
+  join_paths(zstd_rootdir, 'lib/dictBuilder/zdict.h'),
+  join_paths(zstd_rootdir, 'lib/common/zstd_errors.h'))

@@ -1,3 +1,16 @@
+/*
+ * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under both the BSD-style license (found in the
+ * LICENSE file in the root directory of this source tree) and the GPLv2 (found
+ * in the COPYING file in the root directory of this source tree).
+ * You may select, at your option, one of the above-listed licenses.
+ */
+
+/*
+ * This header file has common utility functions used in examples. 
+ */
 #pragma once
 
 #include <stdlib.h>    // malloc, free, exit
@@ -6,6 +19,9 @@
 #include <errno.h>     // errno
 #include <sys/stat.h>  // stat
 
+/*
+ * Define the returned error code from utility functions. 
+ */
 typedef enum {
     ERROR_fsize = 1,
     ERROR_fopen = 2,
@@ -18,6 +34,11 @@ typedef enum {
     ERROR_largeFile = 9,
 } UTILS_ErrorCode;
 
+/*! fsize_orDie() : 
+ * Get the size of a given file path.
+ * 
+ * @return The size of a given file path.
+ */
 off_t fsize_orDie(const char *filename)
 {
     struct stat st;
@@ -27,6 +48,12 @@ off_t fsize_orDie(const char *filename)
     exit(ERROR_fsize);
 }
 
+/*! fopen_orDie() : 
+ * Open a file using given file path and open option.
+ *
+ * @return If successful this function will return a FILE pointer to an
+ * opened file otherwise it sends an error to stderr and exits.
+ */
 FILE* fopen_orDie(const char *filename, const char *instruction)
 {
     FILE* const inFile = fopen(filename, instruction);
@@ -36,14 +63,24 @@ FILE* fopen_orDie(const char *filename, const char *instruction)
     exit(ERROR_fopen);
 }
 
-size_t fclose_orDie(FILE* file)
+/*! fclose_orDie() : 
+ * Close an opened file using given FILE pointer.
+ */
+void fclose_orDie(FILE* file)
 {
-    if (!fclose(file)) return 0;
+    if (!fclose(file)) { return; };
     /* error */
     perror("fclose");
     exit(ERROR_fclose);
 }
 
+/*! fread_orDie() : 
+ * 
+ * Read sizeToRead bytes from a given file, storing them at the
+ * location given by buffer.
+ * 
+ * @return The number of bytes read.
+ */
 size_t fread_orDie(void* buffer, size_t sizeToRead, FILE* file)
 {
     size_t const readSize = fread(buffer, 1, sizeToRead, file);
@@ -54,6 +91,16 @@ size_t fread_orDie(void* buffer, size_t sizeToRead, FILE* file)
     exit(ERROR_fread);
 }
 
+/*! fwrite_orDie() :
+ *  
+ * Write sizeToWrite bytes to a file pointed to by file, obtaining
+ * them from a location given by buffer.
+ *
+ * Note: This function will send an error to stderr and exit if it
+ * cannot write data to the given file pointer. 
+ *
+ * @return The number of bytes written.
+ */
 size_t fwrite_orDie(const void* buffer, size_t sizeToWrite, FILE* file)
 {
     size_t const writtenSize = fwrite(buffer, 1, sizeToWrite, file);
@@ -63,6 +110,13 @@ size_t fwrite_orDie(const void* buffer, size_t sizeToWrite, FILE* file)
     exit(ERROR_fwrite);
 }
 
+/*! malloc_orDie() :
+ * Allocate memory.
+ * 
+ * @return If successful this function returns a pointer to allo-
+ * cated memory.  If there is an error, this function will send that
+ * error to stderr and exit.
+ */
 void* malloc_orDie(size_t size)
 {
     void* const buff = malloc(size);
@@ -72,6 +126,15 @@ void* malloc_orDie(size_t size)
     exit(ERROR_malloc);
 }
 
+/*! loadFile_orDie() :
+ * Read size bytes from a file.
+ * 
+ * Note: This function will send an error to stderr and exit if it
+ * cannot read data from the given file path.
+ * 
+ * @return If successful this function will return a pointer to read
+ * data otherwise it will printout an error to stderr and exit.
+ */
 void* loadFile_orDie(const char* fileName, size_t* size)
 {
     off_t const fileSize = fsize_orDie(fileName);
@@ -92,6 +155,14 @@ void* loadFile_orDie(const char* fileName, size_t* size)
     return buffer;
 }
 
+/*! saveFile_orDie() :
+ *  
+ * Save buffSize bytes to a given file path, obtaining them from a location pointed
+ * to by buff.
+ * 
+ * Note: This function will send an error to stderr and exit if it
+ * cannot write to a given file.
+ */
 void saveFile_orDie(const char* fileName, const void* buff, size_t buffSize)
 {
     FILE* const oFile = fopen_orDie(fileName, "wb");

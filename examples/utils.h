@@ -11,7 +11,8 @@
 /*
  * This header file has common utility functions used in examples. 
  */
-#pragma once
+#ifndef UTILS_H
+#define UTILS_H
 
 #include <stdlib.h>    // malloc, free, exit
 #include <stdio.h>     // fprintf, perror, fopen, etc.
@@ -39,7 +40,7 @@ typedef enum {
  * 
  * @return The size of a given file path.
  */
-off_t fsize_orDie(const char *filename)
+static off_t fsize_orDie(const char *filename)
 {
     struct stat st;
     if (stat(filename, &st) == 0) return st.st_size;
@@ -54,7 +55,7 @@ off_t fsize_orDie(const char *filename)
  * @return If successful this function will return a FILE pointer to an
  * opened file otherwise it sends an error to stderr and exits.
  */
-FILE* fopen_orDie(const char *filename, const char *instruction)
+static FILE* fopen_orDie(const char *filename, const char *instruction)
 {
     FILE* const inFile = fopen(filename, instruction);
     if (inFile) return inFile;
@@ -66,7 +67,7 @@ FILE* fopen_orDie(const char *filename, const char *instruction)
 /*! fclose_orDie() : 
  * Close an opened file using given FILE pointer.
  */
-void fclose_orDie(FILE* file)
+static void fclose_orDie(FILE* file)
 {
     if (!fclose(file)) { return; };
     /* error */
@@ -81,7 +82,7 @@ void fclose_orDie(FILE* file)
  * 
  * @return The number of bytes read.
  */
-size_t fread_orDie(void* buffer, size_t sizeToRead, FILE* file)
+static size_t fread_orDie(void* buffer, size_t sizeToRead, FILE* file)
 {
     size_t const readSize = fread(buffer, 1, sizeToRead, file);
     if (readSize == sizeToRead) return readSize;   /* good */
@@ -101,7 +102,7 @@ size_t fread_orDie(void* buffer, size_t sizeToRead, FILE* file)
  *
  * @return The number of bytes written.
  */
-size_t fwrite_orDie(const void* buffer, size_t sizeToWrite, FILE* file)
+static size_t fwrite_orDie(const void* buffer, size_t sizeToWrite, FILE* file)
 {
     size_t const writtenSize = fwrite(buffer, 1, sizeToWrite, file);
     if (writtenSize == sizeToWrite) return sizeToWrite;   /* good */
@@ -117,7 +118,7 @@ size_t fwrite_orDie(const void* buffer, size_t sizeToWrite, FILE* file)
  * cated memory.  If there is an error, this function will send that
  * error to stderr and exit.
  */
-void* malloc_orDie(size_t size)
+static void* malloc_orDie(size_t size)
 {
     void* const buff = malloc(size);
     if (buff) return buff;
@@ -176,3 +177,5 @@ void saveFile_orDie(const char* fileName, const void* buff, size_t buffSize)
         exit(ERROR_fclose);
     }
 }
+
+#endif

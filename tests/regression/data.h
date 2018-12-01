@@ -22,16 +22,23 @@ typedef enum {
 typedef struct {
     char const* url;   /**< Where to get this resource. */
     uint64_t xxhash64; /**< Hash of the url contents. */
-    char const* name;  /**< The logical name of the resource (no extension). */
-    data_type_t type;  /**< The type of this resource. */
     char const* path;  /**< The path of the unpacked resource (derived). */
-    size_t size;
+} data_resource_t;
+
+typedef struct {
+    data_resource_t data;
+    data_resource_t dict;
+    data_type_t type;  /**< The type of the data. */
+    char const* name;  /**< The logical name of the data (no extension). */
 } data_t;
 
 /**
  * The NULL-terminated list of data objects.
  */
 extern data_t const* const* data;
+
+
+int data_has_dict(data_t const* data);
 
 /**
  * Initializes the data module and downloads the data necessary.
@@ -62,7 +69,14 @@ typedef struct {
  *
  * @returns The buffer, which is NULL on failure.
  */
-data_buffer_t data_buffer_get(data_t const* data);
+data_buffer_t data_buffer_get_data(data_t const* data);
+
+/**
+ * Read the dictionary that the data points to into a buffer.
+ *
+ * @returns The buffer, which is NULL on failure.
+ */
+data_buffer_t data_buffer_get_dict(data_t const* data);
 
 /**
  * Read the contents of filename into a buffer.
@@ -88,5 +102,39 @@ int data_buffer_compare(data_buffer_t buffer1, data_buffer_t buffer2);
  */
 void data_buffer_free(data_buffer_t buffer);
 
+typedef struct {
+    char* buffer;
+    char const** filenames;
+    unsigned size;
+} data_filenames_t;
+
+/**
+ * Get a recursive list of filenames in the data object. If it is a file, it
+ * will only contain one entry. If it is a directory, it will recursively walk
+ * the directory.
+ *
+ * @returns The list of filenames, which has size 0 and NULL pointers on error.
+ */
+data_filenames_t data_filenames_get(data_t const* data);
+
+/**
+ * Frees the filenames table.
+ */
+void data_filenames_free(data_filenames_t filenames);
+
+typedef struct {
+    data_buffer_t const* buffers;
+    size_t size;
+} data_buffers_t;
+
+/**
+ * @returns a list of buffers for every file in data. It is zero sized on error.
+ */
+data_buffers_t data_buffers_get(data_t const* data);
+
+/**
+ * Frees the data buffers.
+ */
+void data_buffers_free(data_buffers_t buffers);
 
 #endif

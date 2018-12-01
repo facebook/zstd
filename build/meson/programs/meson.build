@@ -79,32 +79,23 @@ install_data(join_paths(zstd_rootdir, 'programs/zstdgrep'),
   install_dir: zstd_bindir)
 
 # =============================================================================
-# Program symlinks
+# Programs and manpages installing
 # =============================================================================
-
-InstallSymlink_py = '../InstallSymlink.py'
-meson.add_install_script(InstallSymlink_py, 'zstd', 'zstdcat', zstd_bindir)
-meson.add_install_script(InstallSymlink_py, 'zstd', 'unzstd', zstd_bindir)
-
-if use_multi_thread
-  meson.add_install_script(InstallSymlink_py, 'zstd', 'zstdmt', zstd_bindir)
-endif
-
-# =============================================================================
-# Manpages
-# =============================================================================
-
-zstd_man1_dir = join_paths(zstd_mandir, 'man1')
 
 install_man(join_paths(zstd_rootdir, 'programs/zstd.1'),
   join_paths(zstd_rootdir, 'programs/zstdgrep.1'),
   join_paths(zstd_rootdir, 'programs/zstdless.1'))
 
-# Meson automatically compresses manpages to gz format
-# WARNING: This may fail on Windows. Test NEEDED.
-meson.add_install_script(InstallSymlink_py, 'zstd.1.gz', 'zstdcat.1.gz', zstd_man1_dir)
-meson.add_install_script(InstallSymlink_py, 'zstd.1.gz', 'unzstd.1.gz', zstd_man1_dir)
+InstallSymlink_py = '../InstallSymlink.py'
+zstd_man1_dir = join_paths(zstd_mandir, 'man1')
+man1_EXT = host_machine_os != os_windows ? '.1.gz' : ''
+
+foreach f : ['zstdcat', 'unzstd']
+  meson.add_install_script(InstallSymlink_py, 'zstd', f, zstd_bindir)
+  meson.add_install_script(InstallSymlink_py, 'zstd' + man1_EXT, f + man1_EXT, zstd_man1_dir)
+endforeach
 
 if use_multi_thread
-  meson.add_install_script(InstallSymlink_py, 'zstd.1.gz', 'zstdmt.1.gz', zstd_man1_dir)
+  meson.add_install_script(InstallSymlink_py, 'zstd', 'zstdmt', zstd_bindir)
+  meson.add_install_script(InstallSymlink_py, 'zstd' + man1_EXT, 'zstdmt' + man1_EXT, zstd_man1_dir)
 endif

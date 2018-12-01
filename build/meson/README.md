@@ -1,5 +1,5 @@
-contrib/meson - Meson build system for zstandard
-================================================
+Meson build system for zstandard
+================================
 
 Meson is a build system designed to optimize programmer productivity.
 It aims to do this by providing simple, out-of-the-box support for

@@ -19,6 +19,12 @@
         .name = "level -" #x,                                       \
         .cli_args = "--fast=" #x,                                   \
         .param_values = PARAM_VALUES(level_fast##x##_param_values), \
+    };                                                              \
+    config_t const level_fast##x##_dict = {                         \
+        .name = "level -" #x " with dict",                          \
+        .cli_args = "--fast=" #x,                                   \
+        .param_values = PARAM_VALUES(level_fast##x##_param_values), \
+        .use_dictionary = 1,                                        \
     };
 
 /* Define a config for each level we want to test with. */
@@ -30,6 +36,12 @@
         .name = "level " #x,                                      \
         .cli_args = "-" #x,                                       \
         .param_values = PARAM_VALUES(level_##x##_param_values),   \
+    };                                                            \
+    config_t const level_##x##_dict = {                           \
+        .name = "level " #x " with dict",                         \
+        .cli_args = "-" #x,                                       \
+        .param_values = PARAM_VALUES(level_##x##_param_values),   \
+        .use_dictionary = 1,                                      \
     };
 
 
@@ -41,16 +53,30 @@
 #undef LEVEL
 #undef FAST_LEVEL
 
+static config_t no_pledged_src_size = {
+    .name = "no source size",
+    .cli_args = "",
+    .param_values = {.data = NULL, .size = 0},
+    .no_pledged_src_size = 1,
+};
+
 static config_t const* g_configs[] = {
-#define FAST_LEVEL(x) &level_fast##x,
-#define LEVEL(x) &level_##x,
+
+#define FAST_LEVEL(x) &level_fast##x, &level_fast##x##_dict,
+#define LEVEL(x) &level_##x, &level_##x##_dict,
 #include "levels.h"
 #undef LEVEL
 #undef FAST_LEVEL
+
+    &no_pledged_src_size,
     NULL,
 };
 
 config_t const* const* configs = g_configs;
+
+int config_skip_data(config_t const* config, data_t const* data) {
+    return config->use_dictionary && !data_has_dict(data);
+}
 
 int config_get_level(config_t const* config) {
     param_values_t const params = config->param_values;

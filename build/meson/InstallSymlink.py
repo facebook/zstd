@@ -21,7 +21,7 @@ def mkdir_p(path, dir_mode=0o777):
       raise
 
 
-def InstallSymlink(src, dst, install_dir, dst_is_dir=False, dir_mode=0o777):
+def install_symlink(src, dst, install_dir, dst_is_dir=False, dir_mode=0o777):
   if not os.path.exists(install_dir):
       mkdir_p(install_dir, dir_mode)
   if not os.path.isdir(install_dir):
@@ -38,8 +38,7 @@ def InstallSymlink(src, dst, install_dir, dst_is_dir=False, dir_mode=0o777):
 def main():
   import argparse
   parser = argparse.ArgumentParser(description='Install a symlink.\n',
-      usage='usage: InstallSymlink.py [-h] [-d] [-m MODE] src dst '
-            'install_dir\n\n'
+      usage='InstallSymlink.py [-h] [-d] [-m MODE] src dst install_dir\n\n'
             'example:\n'
             '\tInstallSymlink.py libcrypto.so.1.0.0 libcrypt.so '
             '/usr/lib/x86_64-linux-gnu False')
@@ -65,7 +64,7 @@ def main():
       install_dir = DESTDIR + install_dir if os.path.isabs(install_dir) \
                else os.path.join(DESTDIR, install_dir)
 
-  InstallSymlink(src, dst, install_dir, dst_is_dir, dir_mode)
+  install_symlink(src, dst, install_dir, dst_is_dir, dir_mode)
 
 
 if __name__ == '__main__':

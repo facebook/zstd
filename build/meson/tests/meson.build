@@ -173,22 +173,46 @@ if host_machine_os != os_windows
     timeout: 600) # Timeout should work on HDD drive
 endif
 
-test('test-fullbench-1', fullbench, args: ['-i1'],
-  depends: [fullbench, datagen])
-test('test-fullbench-2', fullbench, args: ['-i1', '-P0'],
-  depends: [fullbench, datagen])
+test('test-fullbench-1',
+  fullbench,
+  args: ['-i1'],
+  depends: [datagen],
+  timeout: 60)
+test('test-fullbench-2',
+  fullbench,
+  args: ['-i1', '-P0'],
+  depends: [datagen],
+  timeout: 60)
 
 if use_zlib
-  test('test-fuzzer', fuzzer, args: ['-v', FUZZERTEST] + FUZZER_FLAGS)
+  test('test-fuzzer',
+    fuzzer,
+    args: ['-v', FUZZERTEST] + FUZZER_FLAGS,
+    timeout: 240)
 endif
 
-test('test-zbuff', zbufftest, args: [ZSTREAM_TESTTIME])
-test('test-zstream-1', zstreamtest, args: ['-v', ZSTREAM_TESTTIME] + FUZZER_FLAGS)
-test('test-zstream-2', zstreamtest, args: ['-mt', '-t1', ZSTREAM_TESTTIME] + FUZZER_FLAGS)
-test('test-zstream-3', zstreamtest, args: ['--newapi', '-t1', ZSTREAM_TESTTIME] + FUZZER_FLAGS)
-test('test-longmatch', longmatch)
-test('test-invalidDictionaries', invalidDictionaries)
-test('test-symbols', symbols)
-test('test-legacy', legacy)
-test('test-decodecorpus', decodecorpus, args: ['-t', DECODECORPUS_TESTTIME])
-test('test-poolTests', poolTests)
+test('test-zbuff',
+  zbufftest,
+  args: [ZSTREAM_TESTTIME],
+  timeout: 120)
+test('test-zstream-1',
+  zstreamtest,
+  args: ['-v', ZSTREAM_TESTTIME] + FUZZER_FLAGS,
+  timeout: 120)
+test('test-zstream-2',
+  zstreamtest,
+  args: ['-mt', '-t1', ZSTREAM_TESTTIME] + FUZZER_FLAGS,
+  timeout: 120)
+test('test-zstream-3',
+  zstreamtest,
+  args: ['--newapi', '-t1', ZSTREAM_TESTTIME] + FUZZER_FLAGS,
+  timeout: 120)
+test('test-longmatch', longmatch, timeout: 36)
+test('test-invalidDictionaries', invalidDictionaries) # should be fast
+test('test-symbols', symbols) # should be fast
+test('test-legacy', legacy) # should be fast
+test('test-decodecorpus',
+  decodecorpus,
+  args: ['-t', DECODECORPUS_TESTTIME],
+  timeout: 60)
+test('test-poolTests', poolTests) # should be fast

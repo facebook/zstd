@@ -110,7 +110,8 @@ invalidDictionaries = executable('invalidDictionaries',
 legacy_sources = [join_paths(zstd_rootdir, 'tests/legacy.c')]
 legacy = executable('legacy',
   legacy_sources,
-  c_args: '-DZSTD_LEGACY_SUPPORT=4',
+  # Use -Dlegacy_level build option to control it
+  #c_args: '-DZSTD_LEGACY_SUPPORT=4',
   dependencies: [ libzstd_dep ],
   install: false)
 

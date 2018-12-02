@@ -72,18 +72,17 @@ script:
   - if [ "${BUILD_SYSTEM}" = meson ]; then
       set -x;
       sudo apt-get install -qq liblz4-dev valgrind tree
-        && curl -o get-pip.py 'https://bootstrap.pypa.io/get-pip.py'
-        && python3 get-pip.py --user
-        && rm get-pip.py
+        && curl -o ~/get-pip.py 'https://bootstrap.pypa.io/get-pip.py'
+        && python3 ~/get-pip.py --user
         && pip3 install --user meson ninja
-        && unset CC CXX
+        && export CC=clang CXX=clang++
         && meson --buildtype=debug
-              -Dauto_features=enabled
-              -Dbuild_{programs,tests,contrib}=true
-              -Ddefault_library=both build/meson
-              builddir
+                 -Db_lundef=false
+                 -Dauto_features=enabled
+                 -Dbuild_{programs,tests,contrib}=true
+                 -Ddefault_library=both
+                 build/meson builddir
         && cd "$_"
-        && ninja
         && DESTDIR=./staging ninja install
         && tree ./staging;
       travis_terminate "$?";

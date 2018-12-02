@@ -68,6 +68,7 @@ zstd_docdir = join_paths(zstd_datadir, 'doc', meson.project_name())
 
 # Built-in options
 use_debug = get_option('debug')
+buildtype = get_option('buildtype')
 
 # Custom options
 debug_level = get_option('debug_level')
@@ -132,7 +133,9 @@ add_project_arguments('-DXXH_NAMESPACE=ZSTD_', language: ['c'])
 if [compiler_gcc, compiler_clang].contains(cc_id)
   common_warning_flags = [ '-Wextra', '-Wundef', '-Wshadow', '-Wcast-align', '-Wcast-qual' ]
   if cc_id == compiler_clang
-    common_warning_flags += ['-Werror', '-Wconversion', '-Wno-sign-conversion', '-Wdocumentation']
+    # Should use Meson's own --werror build option
+    #common_warning_flags += '-Werror'
+    common_warning_flags += ['-Wconversion', '-Wno-sign-conversion', '-Wdocumentation']
   endif
   cc_compile_flags = cc.get_supported_arguments(common_warning_flags + ['-Wstrict-prototypes'])
   cxx_compile_flags = cxx.get_supported_arguments(common_warning_flags)

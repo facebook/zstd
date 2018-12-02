@@ -11,11 +11,6 @@ import re
 import sys
 
 
-def usage():
-  print('usage: python3 GetZstdLibraryVersion.py <path/to/zstd.h>')
-  sys.exit(1)
-
-
 def find_version(filepath):
   version_file_data = None
   with open(filepath) as fd:
@@ -29,14 +24,15 @@ def find_version(filepath):
   version_match = regex.search(version_file_data)
   if version_match:
     return version_match.groups()
-  raise RuntimeError("Unable to find version string.")
+  raise Exception("Unable to find version string.")
 
 
 def main():
-  if len(sys.argv) < 2:
-    usage()
-
-  filepath = sys.argv[1]
+  import argparse
+  parser = argparse.ArgumentParser(description='Print zstd version from lib/zstd.h')
+  parser.add_argument('file', help='path to lib/zstd.h')
+  args = parser.parse_args()
+  filepath = args.file
   version_tup = find_version(filepath)
   print('.'.join(version_tup))
 

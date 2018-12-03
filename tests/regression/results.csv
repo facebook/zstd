@@ -1,43 +1,101 @@
-Data,	Config,	Method,	Total compressed size
-silesia.tar,	level -5,	simple,	106176430
-silesia.tar,	level -3,	simple,	98476550
-silesia.tar,	level -1,	simple,	87206767
-silesia.tar,	level 0,	simple,	66996953
-silesia.tar,	level 1,	simple,	73658303
-silesia.tar,	level 3,	simple,	66996953
-silesia.tar,	level 4,	simple,	65996020
-silesia.tar,	level 5,	simple,	64421326
-silesia.tar,	level 6,	simple,	62388673
-silesia.tar,	level 7,	simple,	61159525
-silesia.tar,	level 9,	simple,	60214921
-silesia.tar,	level 13,	simple,	58428642
-silesia.tar,	level 16,	simple,	56363759
-silesia.tar,	level 19,	simple,	53274173
-silesia,	level -5,	cli file,	106202112
-silesia,	level -3,	cli file,	98518660
-silesia,	level -1,	cli file,	87226203
-silesia,	level 0,	cli file,	67049190
-silesia,	level 1,	cli file,	73676282
-silesia,	level 3,	cli file,	67049190
-silesia,	level 4,	cli file,	66090040
-silesia,	level 5,	cli file,	64503721
-silesia,	level 6,	cli file,	62446177
-silesia,	level 7,	cli file,	61217029
-silesia,	level 9,	cli file,	60282841
-silesia,	level 13,	cli file,	58480658
-silesia,	level 16,	cli file,	56414170
-silesia,	level 19,	cli file,	53365292
-silesia.tar,	level -5,	cli file,	106250113
-silesia.tar,	level -3,	cli file,	98550747
-silesia.tar,	level -1,	cli file,	87227322
-silesia.tar,	level 0,	cli file,	67111168
-silesia.tar,	level 1,	cli file,	73694374
-silesia.tar,	level 3,	cli file,	67111168
-silesia.tar,	level 4,	cli file,	66154079
-silesia.tar,	level 5,	cli file,	64546998
-silesia.tar,	level 6,	cli file,	62458454
-silesia.tar,	level 7,	cli file,	61231085
-silesia.tar,	level 9,	cli file,	60310313
-silesia.tar,	level 13,	cli file,	58517476
-silesia.tar,	level 16,	cli file,	56448694
-silesia.tar,	level 19,	cli file,	53444920
+Data,               Config,             Method,             Total compressed size
+This line is intentionally added to see how the nightly job reports failures
+silesia.tar,        level -5,           ZSTD_compress,      7160438
+silesia.tar,        level -3,           ZSTD_compress,      6789024
+silesia.tar,        level -1,           ZSTD_compress,      6195462
+silesia.tar,        level 0,            ZSTD_compress,      4875071
+silesia.tar,        level 1,            ZSTD_compress,      5339697
+silesia.tar,        level 3,            ZSTD_compress,      4875071
+silesia.tar,        level 4,            ZSTD_compress,      4813104
+silesia.tar,        level 5,            ZSTD_compress,      4726961
+silesia.tar,        level 6,            ZSTD_compress,      4654401
+silesia.tar,        level 7,            ZSTD_compress,      4591933
+silesia.tar,        level 9,            ZSTD_compress,      4554098
+silesia.tar,        level 13,           ZSTD_compress,      4503496
+silesia.tar,        level 16,           ZSTD_compress,      4387233
+silesia.tar,        level 19,           ZSTD_compress,      4283123
+silesia,            level -5,           ZSTD_compressCCtx,  7152294
+silesia,            level -3,           ZSTD_compressCCtx,  6789969
+silesia,            level -1,           ZSTD_compressCCtx,  6191548
+silesia,            level 0,            ZSTD_compressCCtx,  4862377
+silesia,            level 1,            ZSTD_compressCCtx,  5318036
+silesia,            level 3,            ZSTD_compressCCtx,  4862377
+silesia,            level 4,            ZSTD_compressCCtx,  4800629
+silesia,            level 5,            ZSTD_compressCCtx,  4715005
+silesia,            level 6,            ZSTD_compressCCtx,  4644055
+silesia,            level 7,            ZSTD_compressCCtx,  4581559
+silesia,            level 9,            ZSTD_compressCCtx,  4543862
+silesia,            level 13,           ZSTD_compressCCtx,  4493931
+silesia,            level 16,           ZSTD_compressCCtx,  4381885
+silesia,            level 19,           ZSTD_compressCCtx,  4296899
+github,             level -5,           ZSTD_compressCCtx,  232744
+github,             level -3,           ZSTD_compressCCtx,  220611
+github,             level -1,           ZSTD_compressCCtx,  176575
+github,             level 0,            ZSTD_compressCCtx,  136397
+github,             level 1,            ZSTD_compressCCtx,  143457
+github,             level 3,            ZSTD_compressCCtx,  136397
+github,             level 4,            ZSTD_compressCCtx,  136144
+github,             level 5,            ZSTD_compressCCtx,  135106
+github,             level 6,            ZSTD_compressCCtx,  135108
+github,             level 7,            ZSTD_compressCCtx,  135108
+github,             level 9,            ZSTD_compressCCtx,  135108
+github,             level 13,           ZSTD_compressCCtx,  133741
+github,             level 16,           ZSTD_compressCCtx,  133741
+github,             level 19,           ZSTD_compressCCtx,  133717
+silesia,            level -5,           zstdcli,            7152342
+silesia,            level -3,           zstdcli,            6790021
+silesia,            level -1,           zstdcli,            6191597
+silesia,            level 0,            zstdcli,            4862425
+silesia,            level 1,            zstdcli,            5318084
+silesia,            level 3,            zstdcli,            4862425
+silesia,            level 4,            zstdcli,            4800677
+silesia,            level 5,            zstdcli,            4715053
+silesia,            level 6,            zstdcli,            4644103
+silesia,            level 7,            zstdcli,            4581607
+silesia,            level 9,            zstdcli,            4543910
+silesia,            level 13,           zstdcli,            4493979
+silesia,            level 16,           zstdcli,            4381933
+silesia,            level 19,           zstdcli,            4296947
+silesia.tar,        level -5,           zstdcli,            7159586
+silesia.tar,        level -3,           zstdcli,            6791018
+silesia.tar,        level -1,           zstdcli,            6196283
+silesia.tar,        level 0,            zstdcli,            4876730
+silesia.tar,        level 1,            zstdcli,            5340312
+silesia.tar,        level 3,            zstdcli,            4876730
+silesia.tar,        level 4,            zstdcli,            4817723
+silesia.tar,        level 5,            zstdcli,            4730389
+silesia.tar,        level 6,            zstdcli,            4655708
+silesia.tar,        level 7,            zstdcli,            4593407
+silesia.tar,        level 9,            zstdcli,            4556135
+silesia.tar,        level 13,           zstdcli,            4503500
+silesia.tar,        level 16,           zstdcli,            4387237
+silesia.tar,        level 19,           zstdcli,            4283127
+silesia.tar,        no source size,     zstdcli,            4876726
+github,             level -5,           zstdcli,            234744
+github,             level -5 with dict, zstdcli,            47528
+github,             level -3,           zstdcli,            222611
+github,             level -3 with dict, zstdcli,            46394
+github,             level -1,           zstdcli,            178575
+github,             level -1 with dict, zstdcli,            43401
+github,             level 0,            zstdcli,            138397
+github,             level 0 with dict,  zstdcli,            40316
+github,             level 1,            zstdcli,            145457
+github,             level 1 with dict,  zstdcli,            43242
+github,             level 3,            zstdcli,            138397
+github,             level 3 with dict,  zstdcli,            40316
+github,             level 4,            zstdcli,            138144
+github,             level 4 with dict,  zstdcli,            40292
+github,             level 5,            zstdcli,            137106
+github,             level 5 with dict,  zstdcli,            40938
+github,             level 6,            zstdcli,            137108
+github,             level 6 with dict,  zstdcli,            40632
+github,             level 7,            zstdcli,            137108
+github,             level 7 with dict,  zstdcli,            40766
+github,             level 9,            zstdcli,            137108
+github,             level 9 with dict,  zstdcli,            41326
+github,             level 13,           zstdcli,            135741
+github,             level 13 with dict, zstdcli,            41670
+github,             level 16,           zstdcli,            135741
+github,             level 16 with dict, zstdcli,            39940
+github,             level 19,           zstdcli,            135717
+github,             level 19 with dict, zstdcli,            39576

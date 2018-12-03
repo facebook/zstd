@@ -17,10 +17,15 @@
 #include "data.h"
 #include "method.h"
 
-/** Check if a name contains a comma. */
+static int g_max_name_len = 0;
+
+/** Check if a name contains a comma or is too long. */
 static int is_name_bad(char const* name) {
     if (name == NULL)
         return 1;
+    int const len = strlen(name);
+    if (len > g_max_name_len)
+        g_max_name_len = len;
     for (; *name != '\0'; ++name)
         if (*name == ',')
             return 1;
@@ -47,57 +52,6 @@ static int are_names_bad() {
     return 0;
 }
 
-/** Helper macro to print to stderr and a file. */
-#define tprintf(file, ...)            \
-    do {                              \
-        fprintf(file, __VA_ARGS__);   \
-        fprintf(stderr, __VA_ARGS__); \
-    } while (0)
-/** Helper macro to flush stderr and a file. */
-#define tflush(file)    \
-    do {                \
-        fflush(file);   \
-        fflush(stderr); \
-    } while (0)
-
-/**
- * Run all the regression tests and record the results table to results and
- * stderr progressively.
- */
-static int run_all(FILE* results) {
-    tprintf(results, "Data,\tConfig,\tMethod,\tTotal compressed size\n");
-    for (size_t method = 0; methods[method] != NULL; ++method) {
-        for (size_t datum = 0; data[datum] != NULL; ++datum) {
-            /* Create the state common to all configs */
-            method_state_t* state = methods[method]->create(data[datum]);
-            for (size_t config = 0; configs[config] != NULL; ++config) {
-                /* Print the result for the (method, data, config) tuple. */
-                result_t const result =
-                    methods[method]->compress(state, configs[config]);
-                if (result_is_skip(result))
-                    continue;
-                tprintf(
-                    results,
-                    "%s,\t%s,\t%s,\t",
-                    data[datum]->name,
-                    configs[config]->name,
-                    methods[method]->name);
-                if (result_is_error(result)) {
-                    tprintf(results, "%s\n", result_get_error_string(result));
-                } else {
-                    tprintf(
-                        results,
-                        "%llu\n",
-                        (unsigned long long)result_get_data(result).total_size);
-                }
-                tflush(results);
-            }
-            methods[method]->destroy(state);
-        }
-    }
-    return 0;
-}
-
 /**
  * Option parsing using getopt.
  * When you add a new option update: long_options, long_extras, and
@@ -109,6 +63,9 @@ static char const* g_output = NULL;
 static char const* g_diff = NULL;
 static char const* g_cache = NULL;
 static char const* g_zstdcli = NULL;
+static char const* g_config = NULL;
+static char const* g_data = NULL;
+static char const* g_method = NULL;
 
 typedef enum {
     required_option,
@@ -120,19 +77,22 @@ typedef enum {
  * Extra state that we need to keep per-option that we can't store in getopt.
  */
 struct option_extra {
-    int id;               /**< The short option name, used as an id. */
-    char const* help;     /**< The help message. */
+    int id; /**< The short option name, used as an id. */
+    char const* help; /**< The help message. */
     option_type opt_type; /**< The option type: required, optional, or help. */
-    char const** value;   /**< The value to set or NULL if no_argument. */
+    char const** value; /**< The value to set or NULL if no_argument. */
 };
 
 /** The options. */
 static struct option long_options[] = {
     {"cache", required_argument, NULL, 'c'},
-    {"diff", required_argument, NULL, 'd'},
-    {"help", no_argument, NULL, 'h'},
     {"output", required_argument, NULL, 'o'},
     {"zstd", required_argument, NULL, 'z'},
+    {"config", required_argument, NULL, 128},
+    {"data", required_argument, NULL, 129},
+    {"method", required_argument, NULL, 130},
+    {"diff", required_argument, NULL, 'd'},
+    {"help", no_argument, NULL, 'h'},
 };
 
 static size_t const nargs = sizeof(long_options) / sizeof(long_options[0]);
@@ -140,10 +100,13 @@ static size_t const nargs = sizeof(long_options) / sizeof(long_options[0]);
 /** The extra info for the options. Must be in the same order as the options. */
 static struct option_extra long_extras[] = {
     {'c', "the cache directory", required_option, &g_cache},
-    {'d', "compare the results to this file", optional_option, &g_diff},
-    {'h', "display this message", help_option, NULL},
     {'o', "write the results here", required_option, &g_output},
     {'z', "zstd cli tool", required_option, &g_zstdcli},
+    {128, "use this config", optional_option, &g_config},
+    {129, "use this data", optional_option, &g_data},
+    {130, "use this method", optional_option, &g_method},
+    {'d', "compare the results to this file", optional_option, &g_diff},
+    {'h', "display this message", help_option, NULL},
 };
 
 /** The short options. Must correspond to the options. */
@@ -169,14 +132,24 @@ static void print_help(void) {
     fprintf(stderr, "regression test runner\n");
     size_t const nargs = sizeof(long_options) / sizeof(long_options[0]);
     for (size_t i = 0; i < nargs; ++i) {
-        /* Short / long  - help [option type] */
-        fprintf(
-            stderr,
-            "-%c / --%s \t- %s %s\n",
-            long_options[i].val,
-            long_options[i].name,
-            long_extras[i].help,
-            required_message(long_extras[i].opt_type));
+        if (long_options[i].val < 128) {
+            /* Long / short  - help [option type] */
+            fprintf(
+                stderr,
+                "--%s / -%c \t- %s %s\n",
+                long_options[i].name,
+                long_options[i].val,
+                long_extras[i].help,
+                required_message(long_extras[i].opt_type));
+        } else {
+            /* Short / long  - help [option type] */
+            fprintf(
+                stderr,
+                "--%s      \t- %s %s\n",
+                long_options[i].name,
+                long_extras[i].help,
+                required_message(long_extras[i].opt_type));
+        }
     }
 }
 
@@ -220,8 +193,7 @@ static int parse_args(int argc, char** argv) {
             continue;
         fprintf(
             stderr,
-            "-%c / --%s is a required argument but is not set\n",
-            long_options[i].val,
+            "--%s is a required argument but is not set\n",
             long_options[i].name);
         bad = 1;
     }
@@ -231,6 +203,88 @@ static int parse_args(int argc, char** argv) {
         return 1;
     }
 
+    return 0;
+}
+
+/** Helper macro to print to stderr and a file. */
+#define tprintf(file, ...)            \
+    do {                              \
+        fprintf(file, __VA_ARGS__);   \
+        fprintf(stderr, __VA_ARGS__); \
+    } while (0)
+/** Helper macro to flush stderr and a file. */
+#define tflush(file)    \
+    do {                \
+        fflush(file);   \
+        fflush(stderr); \
+    } while (0)
+
+void tprint_names(
+    FILE* results,
+    char const* data_name,
+    char const* config_name,
+    char const* method_name) {
+    int const data_padding = g_max_name_len - strlen(data_name);
+    int const config_padding = g_max_name_len - strlen(config_name);
+    int const method_padding = g_max_name_len - strlen(method_name);
+
+    tprintf(
+        results,
+        "%s, %*s%s, %*s%s, %*s",
+        data_name,
+        data_padding,
+        "",
+        config_name,
+        config_padding,
+        "",
+        method_name,
+        method_padding,
+        "");
+}
+
+/**
+ * Run all the regression tests and record the results table to results and
+ * stderr progressively.
+ */
+static int run_all(FILE* results) {
+    tprint_names(results, "Data", "Config", "Method");
+    tprintf(results, "Total compressed size\n");
+    for (size_t method = 0; methods[method] != NULL; ++method) {
+        if (g_method != NULL && strcmp(methods[method]->name, g_method))
+            continue;
+        for (size_t datum = 0; data[datum] != NULL; ++datum) {
+            if (g_data != NULL && strcmp(data[datum]->name, g_data))
+                continue;
+            /* Create the state common to all configs */
+            method_state_t* state = methods[method]->create(data[datum]);
+            for (size_t config = 0; configs[config] != NULL; ++config) {
+                if (g_config != NULL && strcmp(configs[config]->name, g_config))
+                    continue;
+                if (config_skip_data(configs[config], data[datum]))
+                    continue;
+                /* Print the result for the (method, data, config) tuple. */
+                result_t const result =
+                    methods[method]->compress(state, configs[config]);
+                if (result_is_skip(result))
+                    continue;
+                tprint_names(
+                    results,
+                    data[datum]->name,
+                    configs[config]->name,
+                    methods[method]->name);
+                if (result_is_error(result)) {
+                    tprintf(results, "%s\n", result_get_error_string(result));
+                } else {
+                    tprintf(
+                        results,
+                        "%llu\n",
+                        (unsigned long long)result_get_data(result).total_size);
+                }
+                tflush(results);
+            }
+            methods[method]->destroy(state);
+        }
+    }
     return 0;
 }
 

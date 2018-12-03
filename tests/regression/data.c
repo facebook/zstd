@@ -32,26 +32,57 @@
     "https://github.com/facebook/zstd/releases/download/regression-data/" x
 
 data_t silesia = {
-    .url = REGRESSION_RELEASE("silesia.tar.zst"),
     .name = "silesia",
     .type = data_type_dir,
-    .xxhash64 = 0x67558ee5506918b4LL,
+    .data =
+        {
+            .url = REGRESSION_RELEASE("silesia.tar.zst"),
+            .xxhash64 = 0x48a199f92f93e977LL,
+        },
 };
 
 data_t silesia_tar = {
-    .url = REGRESSION_RELEASE("silesia.tar.zst"),
     .name = "silesia.tar",
     .type = data_type_file,
-    .xxhash64 = 0x67558ee5506918b4LL,
+    .data =
+        {
+            .url = REGRESSION_RELEASE("silesia.tar.zst"),
+            .xxhash64 = 0x48a199f92f93e977LL,
+        },
+};
+
+data_t github = {
+    .name = "github",
+    .type = data_type_dir,
+    .data =
+        {
+            .url = REGRESSION_RELEASE("github.tar.zst"),
+            .xxhash64 = 0xa9b1b44b020df292LL,
+        },
+    .dict =
+        {
+            .url = REGRESSION_RELEASE("github.dict.zst"),
+            .xxhash64 = 0x1eddc6f737d3cb53LL,
+
+        },
 };
 
 static data_t* g_data[] = {
     &silesia,
     &silesia_tar,
+    &github,
     NULL,
 };
 
 data_t const* const* data = (data_t const* const*)g_data;
+
+/**
+ * data helpers.
+ */
+
+int data_has_dict(data_t const* data) {
+    return data->dict.url != NULL;
+}
 
 /**
  * data buffer helper functions (documented in header).
@@ -100,16 +131,24 @@ err:
     free(buffer.data);
     memset(&buffer, 0, sizeof(buffer));
     return buffer;
-
 }
 
-data_buffer_t data_buffer_get(data_t const* data) {
+data_buffer_t data_buffer_get_data(data_t const* data) {
     data_buffer_t const kEmptyBuffer = {};
 
     if (data->type != data_type_file)
         return kEmptyBuffer;
 
-    return data_buffer_read(data->path);
+    return data_buffer_read(data->data.path);
+}
+
+data_buffer_t data_buffer_get_dict(data_t const* data) {
+    data_buffer_t const kEmptyBuffer = {};
+
+    if (!data_has_dict(data))
+        return kEmptyBuffer;
+
+    return data_buffer_read(data->dict.path);
 }
 
 int data_buffer_compare(data_buffer_t buffer1, data_buffer_t buffer2) {
@@ -124,11 +163,67 @@ int data_buffer_compare(data_buffer_t buffer1, data_buffer_t buffer2) {
         return 0;
     assert(buffer1.size > buffer2.size);
     return 1;
-
 }
 
 void data_buffer_free(data_buffer_t buffer) {
     free(buffer.data);
+}
+
+/**
+ * data filenames helpers.
+ */
+
+data_filenames_t data_filenames_get(data_t const* data) {
+    data_filenames_t filenames = {.buffer = NULL, .size = 0};
+    char const* path = data->data.path;
+
+    filenames.filenames = UTIL_createFileList(
+        &path,
+        1,
+        &filenames.buffer,
+        &filenames.size,
+        /* followLinks */ 0);
+    return filenames;
+}
+
+void data_filenames_free(data_filenames_t filenames) {
+    UTIL_freeFileList(filenames.filenames, filenames.buffer);
+}
+
+/**
+ * data buffers helpers.
+ */
+
+data_buffers_t data_buffers_get(data_t const* data) {
+    data_buffers_t buffers = {.size = 0};
+    data_filenames_t filenames = data_filenames_get(data);
+    if (filenames.size == 0)
+        return buffers;
+
+    data_buffer_t* buffersPtr =
+        (data_buffer_t*)malloc(filenames.size * sizeof(data_buffer_t));
+    if (buffersPtr == NULL)
+        return buffers;
+    buffers.buffers = (data_buffer_t const*)buffersPtr;
+    buffers.size = filenames.size;
+
+    for (size_t i = 0; i < filenames.size; ++i) {
+        buffersPtr[i] = data_buffer_read(filenames.filenames[i]);
+        if (buffersPtr[i].data == NULL) {
+            data_buffers_t const kEmptyBuffer = {};
+            data_buffers_free(buffers);
+            return kEmptyBuffer;
+        }
+    }
+
+    return buffers;
+}
+
+/**
+ * Frees the data buffers.
+ */
+void data_buffers_free(data_buffers_t buffers) {
+    free((data_buffer_t*)buffers.buffers);
 }
 
 /**
@@ -174,16 +269,21 @@ out:
 static char* cat3(char const* str1, char const* str2, char const* str3) {
     size_t const size1 = strlen(str1);
     size_t const size2 = strlen(str2);
-    size_t const size3 = strlen(str3);
+    size_t const size3 = str3 == NULL ? 0 : strlen(str3);
     size_t const size = size1 + size2 + size3 + 1;
     char* const dst = (char*)malloc(size);
     if (dst == NULL)
         return NULL;
     strcpy(dst, str1);
     strcpy(dst + size1, str2);
-    strcpy(dst + size1 + size2, str3);
+    if (str3 != NULL)
+        strcpy(dst + size1 + size2, str3);
     assert(strlen(dst) == size1 + size2 + size3);
     return dst;
+}
+
+static char* cat2(char const* str1, char const* str2) {
+    return cat3(str1, str2, NULL);
 }
 
 /**
@@ -197,16 +297,18 @@ typedef struct {
 } curl_data_t;
 
 /** Create the curl state. */
-static curl_data_t curl_data_create(data_t const* data) {
+static curl_data_t curl_data_create(
+    data_resource_t const* resource,
+    data_type_t type) {
     curl_data_t cdata = {};
 
     XXH64_reset(&cdata.xxhash64, 0);
 
     assert(UTIL_isDirectory(g_data_dir));
 
-    if (data->type == data_type_file) {
+    if (type == data_type_file) {
         /* Decompress the resource and store to the path. */
-        char* cmd = cat3("zstd -dqfo '", data->path, "'");
+        char* cmd = cat3("zstd -dqfo '", resource->path, "'");
         if (cmd == NULL) {
             cdata.error = ENOMEM;
             return cdata;
@@ -243,54 +345,68 @@ static size_t curl_write(void* data, size_t size, size_t count, void* ptr) {
     return written;
 }
 
-/** Download a single data object. */
-static int curl_download_datum(CURL* curl, data_t const* data) {
-    curl_data_t cdata = curl_data_create(data);
-    int err = EFAULT;
-
-    if (cdata.error != 0) {
-        err = cdata.error;
-        goto out;
-    }
-
+static int curl_download_resource(
+    CURL* curl,
+    data_resource_t const* resource,
+    data_type_t type) {
+    curl_data_t cdata;
     /* Download the data. */
-    if (curl_easy_setopt(curl, CURLOPT_URL, data->url) != 0)
-        goto out;
+    if (curl_easy_setopt(curl, CURLOPT_URL, resource->url) != 0)
+        return EINVAL;
     if (curl_easy_setopt(curl, CURLOPT_WRITEDATA, &cdata) != 0)
-        goto out;
-    if (curl_easy_perform(curl) != 0) {
-        fprintf(stderr, "downloading '%s' failed\n", data->url);
-        goto out;
-    }
-    /* check that the file exists. */
-    if (data->type == data_type_file && !UTIL_isRegularFile(data->path)) {
-        fprintf(stderr, "output file '%s' does not exist\n", data->path);
-        goto out;
-    }
-    if (data->type == data_type_dir && !UTIL_isDirectory(data->path)) {
-        fprintf(stderr, "output directory '%s' does not exist\n", data->path);
-        goto out;
-    }
-    /* Check that the hash matches. */
-    if (XXH64_digest(&cdata.xxhash64) != data->xxhash64) {
+        return EINVAL;
+    cdata = curl_data_create(resource, type);
+    if (cdata.error != 0)
+        return cdata.error;
+    int const curl_err = curl_easy_perform(curl);
+    int const close_err = curl_data_free(cdata);
+    if (curl_err) {
         fprintf(
             stderr,
-            "checksum does not match: %llx != %llx\n",
+            "downloading '%s' for '%s' failed\n",
+            resource->url,
+            resource->path);
+        return EIO;
+    }
+    if (close_err) {
+        fprintf(stderr, "writing data to '%s' failed\n", resource->path);
+        return EIO;
+    }
+    /* check that the file exists. */
+    if (type == data_type_file && !UTIL_isRegularFile(resource->path)) {
+        fprintf(stderr, "output file '%s' does not exist\n", resource->path);
+        return EIO;
+    }
+    if (type == data_type_dir && !UTIL_isDirectory(resource->path)) {
+        fprintf(
+            stderr, "output directory '%s' does not exist\n", resource->path);
+        return EIO;
+    }
+    /* Check that the hash matches. */
+    if (XXH64_digest(&cdata.xxhash64) != resource->xxhash64) {
+        fprintf(
+            stderr,
+            "checksum does not match: 0x%llxLL != 0x%llxLL\n",
             (unsigned long long)XXH64_digest(&cdata.xxhash64),
-            (unsigned long long)data->xxhash64);
-        goto out;
+            (unsigned long long)resource->xxhash64);
+        return EINVAL;
     }
 
-    err = 0;
-out:
-    if (err != 0)
-        fprintf(stderr, "downloading '%s' failed\n", data->name);
-    int const close_err = curl_data_free(cdata);
-    if (close_err != 0 && err == 0) {
-        fprintf(stderr, "failed to write data for '%s'\n", data->name);
-        err = close_err;
+    return 0;
+}
+
+/** Download a single data object. */
+static int curl_download_datum(CURL* curl, data_t const* data) {
+    int ret;
+    ret = curl_download_resource(curl, &data->data, data->type);
+    if (ret != 0)
+        return ret;
+    if (data_has_dict(data)) {
+        ret = curl_download_resource(curl, &data->dict, data_type_file);
+        if (ret != 0)
+            return ret;
     }
-    return err;
+    return ret;
 }
 
 /** Download all the data. */
@@ -331,9 +447,14 @@ static int data_create_paths(data_t* const* data, char const* dir) {
     assert(data != NULL);
     for (; *data != NULL; ++data) {
         data_t* const datum = *data;
-        datum->path = cat3(dir, "/", datum->name);
-        if (datum->path == NULL)
+        datum->data.path = cat3(dir, "/", datum->name);
+        if (datum->data.path == NULL)
             return ENOMEM;
+        if (data_has_dict(datum)) {
+            datum->dict.path = cat2(datum->data.path, ".dict");
+            if (datum->dict.path == NULL)
+                return ENOMEM;
+        }
     }
     return 0;
 }
@@ -343,8 +464,10 @@ static void data_free_paths(data_t* const* data) {
     assert(data != NULL);
     for (; *data != NULL; ++data) {
         data_t* datum = *data;
-        free((void*)datum->path);
-        datum->path = NULL;
+        free((void*)datum->data.path);
+        free((void*)datum->dict.path);
+        datum->data.path = NULL;
+        datum->dict.path = NULL;
     }
 }
 
@@ -367,7 +490,8 @@ static uint64_t stamp_hash(data_t const* const* data) {
         /* We don't care about the URL that we fetch from. */
         /* The path is derived from the name. */
         XXH64_update(&state, datum->name, strlen(datum->name));
-        xxh_update_le(&state, datum->xxhash64);
+        xxh_update_le(&state, datum->data.xxhash64);
+        xxh_update_le(&state, datum->dict.xxhash64);
         xxh_update_le(&state, datum->type);
     }
     return XXH64_digest(&state);

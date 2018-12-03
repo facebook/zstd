@@ -16,6 +16,8 @@
 #define ZSTD_STATIC_LINKING_ONLY
 #include <zstd.h>
 
+#include "data.h"
+
 typedef struct {
     ZSTD_cParameter param;
     unsigned value;
@@ -41,7 +43,24 @@ typedef struct {
      * the parameters will be derived from these.
      */
     param_values_t param_values;
+    /**
+     * Boolean parameter that says if we should use a dictionary. If the data
+     * doesn't have a dictionary, this config is skipped. Defaults to no.
+     */
+    int use_dictionary;
+    /**
+     * Boolean parameter that says if we should pass the pledged source size
+     * when the method allows it. Defaults to yes.
+     */
+    int no_pledged_src_size;
 } config_t;
+
+/**
+ * Returns true if the config should skip this data.
+ * For instance, if the config requires a dictionary but the data doesn't have
+ * one.
+ */
+int config_skip_data(config_t const* config, data_t const* data);
 
 #define CONFIG_NO_LEVEL (-ZSTD_TARGETLENGTH_MAX - 1)
 /**

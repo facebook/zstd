@@ -29,19 +29,19 @@ def install_symlink(src, dst, install_dir, dst_is_dir=False, dir_mode=0o777):
 
   new_dst = os.path.join(install_dir, dst)
   if os.path.islink(new_dst) and os.readlink(new_dst) == src:
-    print('File exists: %r -> %r' % (dst, src))
+    print('File exists: {!r} -> {!r}'.format(new_dst, src))
     return
-  print('Installing symlink %r -> %r' % (new_dst, src))
+  print('Installing symlink {!r} -> {!r}'.format(new_dst, src))
   os.symlink(src, new_dst, dst_is_dir)
 
 
 def main():
   import argparse
-  parser = argparse.ArgumentParser(description='Install a symlink.\n',
+  parser = argparse.ArgumentParser(description='Install a symlink',
       usage='InstallSymlink.py [-h] [-d] [-m MODE] src dst install_dir\n\n'
             'example:\n'
-            '\tInstallSymlink.py libcrypto.so.1.0.0 libcrypt.so '
-            '/usr/lib/x86_64-linux-gnu False')
+            '\tInstallSymlink.py dash sh /bin\n'
+            '\tDESTDIR=./staging InstallSymlink.py dash sh /bin')
   parser.add_argument('src', help='target to link')
   parser.add_argument('dst', help='link name')
   parser.add_argument('install_dir', help='installation directory')

@@ -233,11 +233,9 @@ static int FUZ_mallocTests_internal(unsigned seed, double compressibility, unsig
                 mallocCounter_t malcount = INIT_MALLOC_COUNTER;
                 ZSTD_customMem const cMem = { FUZ_mallocDebug, FUZ_freeDebug, &malcount };
                 ZSTD_CCtx* const cctx = ZSTD_createCCtx_advanced(cMem);
-                ZSTD_outBuffer out = { outBuffer, outSize, 0 };
-                ZSTD_inBuffer in = { inBuffer, inSize, 0 };
                 CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_p_compressionLevel, compressionLevel) );
                 CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_p_nbWorkers, nbThreads) );
-                while ( ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end) ) {}
+                CHECK_Z( ZSTD_compress2(cctx, outBuffer, outSize, inBuffer, inSize) );
                 ZSTD_freeCCtx(cctx);
                 DISPLAYLEVEL(3, "compress_generic,-T%u,end level %i : ",
                                 nbThreads, compressionLevel);
@@ -1253,12 +1251,12 @@ static int basicUnitTests(U32 seed, double compressibility)
             if (ZSTD_isError(cSize_1pass)) goto _output_error;
 
             CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_p_compressionLevel, compressionLevel) );
-            {   ZSTD_inBuffer in = { CNBuffer, srcSize, 0 };
-                ZSTD_outBuffer out = { compressedBuffer, compressedBufferSize, 0 };
-                size_t const compressionResult = ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end);
-                DISPLAYLEVEL(5, "simple=%zu vs %zu=advanced : ", cSize_1pass, out.pos);
+            {   size_t const compressionResult = ZSTD_compress2(cctx,
+                                    compressedBuffer, compressedBufferSize,
+                                    CNBuffer, srcSize);
+                DISPLAYLEVEL(5, "simple=%zu vs %zu=advanced : ", cSize_1pass, compressionResult);
                 if (ZSTD_isError(compressionResult)) goto _output_error;
-                if (out.pos != cSize_1pass) goto _output_error;
+                if (compressionResult != cSize_1pass) goto _output_error;
         }   }
         ZSTD_freeCCtx(cctx);
     }
@@ -1274,13 +1272,12 @@ static int basicUnitTests(U32 seed, double compressibility)
             CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_p_compressionLevel, 2) );
             CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_p_enableLongDistanceMatching, 1) );
             CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_p_windowLog, 18) );
-            {   ZSTD_inBuffer in = { CNBuffer, inputSize, 0 };
-                ZSTD_outBuffer out = { compressedBuffer, ZSTD_compressBound(inputSize), 0 };
-                size_t const result = ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end);
-                if (result != 0) goto _output_error;
-                if (in.pos != in.size) goto _output_error;
-                cSize = out.pos;
-                xxh64 = XXH64(out.dst, out.pos, 0);
+            {   size_t const compressedSize = ZSTD_compress2(cctx,
+                                compressedBuffer, ZSTD_compressBound(inputSize),
+                                CNBuffer, inputSize);
+                CHECK(compressedSize);
+                cSize = compressedSize;
+                xxh64 = XXH64(compressedBuffer, compressedSize, 0);
             }
             DISPLAYLEVEL(3, "OK (compress : %u -> %u bytes)\n", (U32)inputSize, (U32)cSize);
             ZSTD_freeCCtx(cctx);
@@ -1291,14 +1288,13 @@ static int basicUnitTests(U32 seed, double compressibility)
             CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_p_windowLog, 18) );
             CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_p_enableLongDistanceMatching, 1) );
             CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_p_compressionLevel, 2) );
-            {   ZSTD_inBuffer in = { CNBuffer, inputSize, 0 };
-                ZSTD_outBuffer out = { compressedBuffer, ZSTD_compressBound(inputSize), 0 };
-                size_t const result = ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end);
-                if (result != 0) goto _output_error;
-                if (in.pos != in.size) goto _output_error;
-                if (out.pos != cSize) goto _output_error;   /* must result in same compressed result, hence same size */
-                if (XXH64(out.dst, out.pos, 0) != xxh64) goto _output_error;  /* must result in exactly same content, hence same hash */
-                DISPLAYLEVEL(3, "OK (compress : %u -> %u bytes)\n", (U32)inputSize, (U32)out.pos);
+            {   size_t const result = ZSTD_compress2(cctx,
+                                compressedBuffer, ZSTD_compressBound(inputSize),
+                                CNBuffer, inputSize);
+                CHECK(result);
+                if (result != cSize) goto _output_error;   /* must result in same compressed result, hence same size */
+                if (XXH64(compressedBuffer, result, 0) != xxh64) goto _output_error;  /* must result in exactly same content, hence same hash */
+                DISPLAYLEVEL(3, "OK (compress : %u -> %u bytes)\n", (U32)inputSize, (U32)result);
             }
             ZSTD_freeCCtx(cctx);
         }

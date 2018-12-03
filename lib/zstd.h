@@ -289,13 +289,17 @@ typedef struct ZSTD_outBuffer_s {
 *  A ZSTD_CStream object is required to track streaming operation.
 *  Use ZSTD_createCStream() and ZSTD_freeCStream() to create/release resources.
 *  ZSTD_CStream objects can be reused multiple times on consecutive compression operations.
-*  It is recommended to re-use ZSTD_CStream in situations where many streaming operations will be achieved consecutively,
-*  since it will play nicer with system's memory, by re-using already allocated memory.
-*  Use one separate ZSTD_CStream per thread for parallel execution.
+*  It is recommended to re-use ZSTD_CStream since it will play nicer with system's memory, by re-using already allocated memory.
 *
-*  Start a new compression by initializing ZSTD_CStream context.
-*  Use ZSTD_initCStream() to start a new compression operation.
-*  Use variants ZSTD_initCStream_usingDict() or ZSTD_initCStream_usingCDict() for streaming with dictionary (experimental section)
+*  For parallel execution, use one separate ZSTD_CStream per thread.
+*
+*  note : since v1.3.0, ZSTD_CStream and ZSTD_CCtx are the same thing.
+*
+*  Parameters are sticky : when starting a new compression on the same context,
+*  it will re-use the same sticky parameters as previous compression session.
+*  It's recommended to initialize the context before every usage.
+*  Use ZSTD_initCStream() to set the parameter to a selected compression level.
+*  Use advanced API (ZSTD_CCtx_setParameter(), etc.) to set more detailed parameters.
 *
 *  Use ZSTD_compressStream() as many times as necessary to consume input stream.
 *  The function will automatically update both `pos` fields within `input` and `output`.
@@ -306,10 +310,10 @@ typedef struct ZSTD_outBuffer_s {
 *  If not, the caller must make some room to receive more compressed data,
 *  typically by emptying output buffer, or allocating a new output buffer,
 *  and then present again remaining input data.
-*  @return : a size hint, preferred nb of bytes to use as input for next function call
-*            or an error code, which can be tested using ZSTD_isError().
-*            Note 1 : it's just a hint, to help latency a little, any other value will work fine.
-*            Note 2 : size hint is guaranteed to be <= ZSTD_CStreamInSize()
+* @return : a size hint, preferred nb of bytes to use as input for next function call
+*           or an error code, which can be tested using ZSTD_isError().
+*           Note 1 : it's just a hint, to help latency a little, any value will work fine.
+*           Note 2 : size hint is guaranteed to be <= ZSTD_CStreamInSize()
 *
 *  At any moment, it's possible to flush whatever data might remain stuck within internal buffer,
 *  using ZSTD_flushStream(). `output->pos` will be updated.
@@ -757,21 +761,22 @@ typedef enum {
     ZSTD_e_flush=1,    /* flush any data provided so far,
                         * it creates (at least) one new block, that can be decoded immediately on reception;
                         * frame will continue: any future data can still reference previously compressed data, improving compression. */
-    ZSTD_e_end=2       /* flush any remaining data and close current frame.
-                        * any additional data starts a new frame.
-                        * each frame is independent (does not reference any content from previous frame). */
+    ZSTD_e_end=2       /* flush any remaining data _and_ close current frame.
+                        * note that frame is only closed after compressed data is fully flushed (return value == 0).
+                        * After that point, any additional data starts a new frame.
+                        * note : each frame is independent (does not reference any content from previous frame). */
 } ZSTD_EndDirective;
 
 /*! ZSTD_compressStream2() :
- *  Behave about the same as ZSTD_compressStream, with additional control on end directive.
+ *  Behaves about the same as ZSTD_compressStream, with additional control on end directive.
  *  - Compression parameters are pushed into CCtx before starting compression, using ZSTD_CCtx_set*()
  *  - Compression parameters cannot be changed once compression is started (save a list of exceptions in multi-threading mode)
  *  - outpot->pos must be <= dstCapacity, input->pos must be <= srcSize
  *  - outpot->pos and input->pos will be updated. They are guaranteed to remain below their respective limit.
- *  - In single-thread mode (default), function is blocking : it completes its job before returning to caller.
- *  - In multi-thread mode, function is non-blocking : it just acquires a copy of input, and distribute job to internal worker threads,
- *                                                     and then immediately returns, just indicating that there is some data remaining to be flushed.
- *                                                     The function nonetheless guarantees forward progress : it will return only after it reads or write at least 1+ byte.
+ *  - When nbWorkers==0 (default), function is blocking : it completes its job before returning to caller.
+ *  - When nbWorkers>=1, function is non-blocking : it just acquires a copy of input, and distributes jobs to internal worker threads,
+ *                                                  and then immediately returns, just indicating that there is some data remaining to be flushed.
+ *                                                  The function nonetheless guarantees forward progress : it will return only after it reads or write at least 1+ byte.
  *  - Exception : if the first call requests a ZSTD_e_end directive, the function delegates to ZSTD_compress2() which is always blocking.
  *  - @return provides a minimum amount of data remaining to be flushed from internal buffers
  *            or an error code, which can be tested using ZSTD_isError().

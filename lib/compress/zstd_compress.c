@@ -3788,8 +3788,15 @@ size_t ZSTD_initCStream(ZSTD_CStream* zcs, int compressionLevel)
 
 /*======   Compression   ======*/
 
-MEM_STATIC size_t ZSTD_limitCopy(void* dst, size_t dstCapacity,
-                           const void* src, size_t srcSize)
+static size_t ZSTD_nextInputSizeHint(const ZSTD_CCtx* cctx)
+{
+    size_t hintInSize = cctx->inBuffTarget - cctx->inBuffPos;
+    if (hintInSize==0) hintInSize = cctx->blockSize;
+    return hintInSize;
+}
+
+static size_t ZSTD_limitCopy(void* dst, size_t dstCapacity,
+                       const void* src, size_t srcSize)
 {
     size_t const length = MIN(dstCapacity, srcSize);
     if (length) memcpy(dst, src, length);
@@ -3797,7 +3804,7 @@ MEM_STATIC size_t ZSTD_limitCopy(void* dst, size_t dstCapacity,
 }
 
 /** ZSTD_compressStream_generic():
- *  internal function for all *compressStream*() variants and *compress_generic()
+ *  internal function for all *compressStream*() variants
  *  non-static, because can be called from zstdmt_compress.c
  * @return : hint size for next input */
 size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
@@ -3937,19 +3944,25 @@ size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
     input->pos = ip - istart;
     output->pos = op - ostart;
     if (zcs->frameEnded) return 0;
-    {   size_t hintInSize = zcs->inBuffTarget - zcs->inBuffPos;
-        if (hintInSize==0) hintInSize = zcs->blockSize;
-        return hintInSize;
+    return ZSTD_nextInputSizeHint(zcs);
+}
+
+static size_t ZSTD_nextInputSizeHint_MTorST(const ZSTD_CCtx* cctx)
+{
+#ifdef ZSTD_MULTITHREAD
+    if (cctx->appliedParams.nbWorkers >= 1) {
+        assert(cctx->mtctx != NULL);
+        return ZSTDMT_nextInputSizeHint(cctx->mtctx);
     }
+#endif
+    return ZSTD_nextInputSizeHint(cctx);
+
 }
 
 size_t ZSTD_compressStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output, ZSTD_inBuffer* input)
 {
-    /* check conditions */
-    if (output->pos > output->size) return ERROR(GENERIC);
-    if (input->pos  > input->size)  return ERROR(GENERIC);
-
-    return ZSTD_compressStream_generic(zcs, output, input, ZSTD_e_continue);
+    CHECK_F( ZSTD_compressStream2(zcs, output, input, ZSTD_e_continue) );
+    return ZSTD_nextInputSizeHint_MTorST(zcs);
 }
 
 
@@ -4005,6 +4018,7 @@ size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
             assert(cctx->streamStage == zcss_load);
             assert(cctx->appliedParams.nbWorkers == 0);
     }   }
+    /* end of transparent initialization stage */
 
     /* compression stage */
 #ifdef ZSTD_MULTITHREAD
@@ -4054,6 +4068,10 @@ size_t ZSTD_compress2(ZSTD_CCtx* cctx,
                                     ZSTD_e_end);
     assert(iPos == srcSize);
     if (ZSTD_isError(result)) return result;
+    if (result != 0) {  /* compression not completed, due to lack of output space */
+        assert(oPos == dstCapacity);
+        return ERROR(dstSize_tooSmall);
+    }
     return oPos;
 }
 
@@ -4064,20 +4082,20 @@ size_t ZSTD_compress2(ZSTD_CCtx* cctx,
 size_t ZSTD_flushStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
 {
     ZSTD_inBuffer input = { NULL, 0, 0 };
-    if (output->pos > output->size) return ERROR(GENERIC);
-    CHECK_F( ZSTD_compressStream_generic(zcs, output, &input, ZSTD_e_flush) );
-    return zcs->outBuffContentSize - zcs->outBuffFlushedSize;  /* remaining to flush */
+    return ZSTD_compressStream2(zcs, output, &input, ZSTD_e_flush);
 }
 
 
 size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
 {
     ZSTD_inBuffer input = { NULL, 0, 0 };
-    if (output->pos > output->size) return ERROR(GENERIC);
-    CHECK_F( ZSTD_compressStream_generic(zcs, output, &input, ZSTD_e_end) );
+    size_t const remainingToFlush = ZSTD_compressStream2(zcs, output, &input, ZSTD_e_end);
+    CHECK_F( remainingToFlush );
+    if (zcs->appliedParams.nbWorkers > 0) return remainingToFlush;   /* minimal estimation */
+    /* single thread mode : attempt to calculate remaining to flush more precisely */
     {   size_t const lastBlockSize = zcs->frameEnded ? 0 : ZSTD_BLOCKHEADERSIZE;
         size_t const checksumSize = zcs->frameEnded ? 0 : zcs->appliedParams.fParams.checksumFlag * 4;
-        size_t const toFlush = zcs->outBuffContentSize - zcs->outBuffFlushedSize + lastBlockSize + checksumSize;
+        size_t const toFlush = remainingToFlush + lastBlockSize + checksumSize;
         DEBUGLOG(4, "ZSTD_endStream : remaining to flush : %u", (U32)toFlush);
         return toFlush;
     }

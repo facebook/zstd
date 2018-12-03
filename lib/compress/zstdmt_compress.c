@@ -1844,7 +1844,9 @@ typedef struct {
  * Otherwise, we will load as many bytes as possible and instruct the caller
  * to continue as normal.
  */
-static syncPoint_t findSynchronizationPoint(ZSTDMT_CCtx const* mtctx, ZSTD_inBuffer const input) {
+static syncPoint_t
+findSynchronizationPoint(ZSTDMT_CCtx const* mtctx, ZSTD_inBuffer const input)
+{
     BYTE const* const istart = (BYTE const*)input.src + input.pos;
     U64 const primePower = mtctx->rsync.primePower;
     U64 const hitMask = mtctx->rsync.hitMask;
@@ -1906,6 +1908,13 @@ static syncPoint_t findSynchronizationPoint(ZSTDMT_CCtx const* mtctx, ZSTD_inBuf
         }
     }
     return syncPoint;
+}
+
+size_t ZSTDMT_nextInputSizeHint(const ZSTDMT_CCtx* mtctx)
+{
+    size_t hintInSize = mtctx->targetSectionSize - mtctx->inBuff.filled;
+    if (hintInSize==0) hintInSize = mtctx->targetSectionSize;
+    return hintInSize;
 }
 
 /** ZSTDMT_compressStream_generic() :

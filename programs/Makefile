@@ -29,7 +29,12 @@ LIBVER  := $(shell echo $(LIBVER_SCRIPT))
 
 ZSTD_VERSION = $(LIBVER)
 
-GREP = grep --color=never
+HAVE_COLORNEVER = $(shell echo a | grep --color=never a > /dev/null 2> /dev/null && echo 1 || echo 0)
+GREP_OPTIONS ?=
+ifeq ($HAVE_COLORNEVER, 1)
+GREP_OPTIONS += --color=never
+endif
+GREP = grep $(GREP_OPTIONS)
 
 ifeq ($(shell $(CC) -v 2>&1 | $(GREP) -c "gcc version "), 1)
 ALIGN_LOOP = -falign-loops=32
@@ -275,7 +280,12 @@ preview-man: clean-man man
 #-----------------------------------------------------------------------------
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku))
 
-EGREP = egrep --color=never
+HAVE_COLORNEVER = $(shell echo a | egrep --color=never a > /dev/null 2> /dev/null && echo 1 || echo 0)
+EGREP_OPTIONS ?=
+ifeq ($HAVE_COLORNEVER, 1)
+EGREP_OPTIONS += --color=never
+endif
+EGREP = egrep $(EGREP_OPTIONS)
 
 # Print a two column output of targets and their description. To add a target description, put a
 # comment in the Makefile with the format "## <TARGET>: <DESCRIPTION>".  For example:

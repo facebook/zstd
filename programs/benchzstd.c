@@ -243,7 +243,7 @@ static size_t local_defaultDecompress(
         if(out.pos == out.size) {
             return (size_t)-ZSTD_error_dstSize_tooSmall;
         }
-        moreToFlush = ZSTD_decompress_generic(dctx, &out, &in);
+        moreToFlush = ZSTD_decompressStream(dctx, &out, &in);
         if (ZSTD_isError(moreToFlush)) {
             return moreToFlush;
         }

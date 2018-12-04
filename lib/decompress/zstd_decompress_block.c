@@ -27,6 +27,18 @@
 #include "zstd_ddict.h"  /* ZSTD_DDictDictContent */
 #include "zstd_decompress_block.h"
 
+/*_*******************************************************
+*  Macros
+**********************************************************/
+
+/* These two optional macros force the use one way or another of the two
+ * ZSTD_decompressSequences implementations. You can't force in both directions
+ * at the same time.
+ */
+#if defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT) && \
+    defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG)
+#error "Cannot force the use of the short and the long ZSTD_decompressSequences variants!"
+#endif
 
 
 /*_*******************************************************
@@ -1202,7 +1214,12 @@ ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
 
     /* Build Decoding Tables */
     {
-#ifndef ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT
+        /* These macros control at build-time which decompressor implementation
+         * we use. If neither is defined, we do some inspection and dispatch at
+         * runtime.
+         */
+#if !defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT) && \
+    !defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG)
         int usePrefetchDecoder = dctx->ddictIsCold;
 #endif
         int nbSeq;
@@ -1211,7 +1228,8 @@ ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
         ip += seqHSize;
         srcSize -= seqHSize;
 
-#ifndef ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT
+#if !defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT) && \
+    !defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG)
         if ( !usePrefetchDecoder
           && (!frame || (dctx->fParams.windowSize > (1<<24)))
           && (nbSeq>ADVANCED_SEQS) ) {  /* could probably use a larger nbSeq limit */
@@ -1223,13 +1241,18 @@ ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
 
         dctx->ddictIsCold = 0;
 
-#ifndef ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT
+#if !defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT) && \
+    !defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG)
         if (usePrefetchDecoder)
+#endif
+#ifndef ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT
             return ZSTD_decompressSequencesLong(dctx, dst, dstCapacity, ip, srcSize, nbSeq, isLongOffset);
 #endif
 
+#ifndef ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG
         /* else */
         return ZSTD_decompressSequences(dctx, dst, dstCapacity, ip, srcSize, nbSeq, isLongOffset);
+#endif
     }
 }
 

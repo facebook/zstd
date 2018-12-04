@@ -125,7 +125,7 @@ By default, `CMAKE_BUILD_TYPE` is set to `Release`.
 
 #### Meson
 
-A Meson project is provided within `contrib/meson`.
+A Meson project is provided within `build/meson`.
 
 #### Visual Studio (Windows)
 

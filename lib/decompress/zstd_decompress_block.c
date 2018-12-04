@@ -95,6 +95,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 U32 singleStream=0;
                 U32 const lhlCode = (istart[0] >> 2) & 3;
                 U32 const lhc = MEM_readLE32(istart);
+                size_t hufSuccess;
                 switch(lhlCode)
                 {
                 case 0: case 1: default:   /* note : default is impossible, since lhlCode into [0..3] */
@@ -125,16 +126,31 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                     PREFETCH_AREA(dctx->HUFptr, sizeof(dctx->entropy.hufTable));
                 }
 
-                if (HUF_isError((litEncType==set_repeat) ?
-                                    ( singleStream ?
-                                        HUF_decompress1X_usingDTable_bmi2(dctx->litBuffer, litSize, istart+lhSize, litCSize, dctx->HUFptr, dctx->bmi2) :
-                                        HUF_decompress4X_usingDTable_bmi2(dctx->litBuffer, litSize, istart+lhSize, litCSize, dctx->HUFptr, dctx->bmi2) ) :
-                                    ( singleStream ?
-                                        HUF_decompress1X1_DCtx_wksp_bmi2(dctx->entropy.hufTable, dctx->litBuffer, litSize, istart+lhSize, litCSize,
-                                                                         dctx->workspace, sizeof(dctx->workspace), dctx->bmi2) :
-                                        HUF_decompress4X_hufOnly_wksp_bmi2(dctx->entropy.hufTable, dctx->litBuffer, litSize, istart+lhSize, litCSize,
-                                                                           dctx->workspace, sizeof(dctx->workspace), dctx->bmi2))))
-                    return ERROR(corruption_detected);
+                if (litEncType==set_repeat) {
+                    if (singleStream) {
+                        hufSuccess = HUF_decompress1X_usingDTable_bmi2(
+                            dctx->litBuffer, litSize, istart+lhSize, litCSize,
+                            dctx->HUFptr, dctx->bmi2);
+                    } else {
+                        hufSuccess = HUF_decompress4X_usingDTable_bmi2(
+                            dctx->litBuffer, litSize, istart+lhSize, litCSize,
+                            dctx->HUFptr, dctx->bmi2);
+                    }
+                } else {
+                    if (singleStream) {
+                        hufSuccess = HUF_decompress1X1_DCtx_wksp_bmi2(
+                            dctx->entropy.hufTable, dctx->litBuffer, litSize,
+                            istart+lhSize, litCSize, dctx->workspace,
+                            sizeof(dctx->workspace), dctx->bmi2);
+                    } else {
+                        hufSuccess = HUF_decompress4X_hufOnly_wksp_bmi2(
+                            dctx->entropy.hufTable, dctx->litBuffer, litSize,
+                            istart+lhSize, litCSize, dctx->workspace,
+                            sizeof(dctx->workspace), dctx->bmi2);
+                    }
+                }
+
+                if (HUF_isError(hufSuccess)) return ERROR(corruption_detected);
 
                 dctx->litPtr = dctx->litBuffer;
                 dctx->litSize = litSize;

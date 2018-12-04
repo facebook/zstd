@@ -473,16 +473,15 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 ***************************************/
 
 /* API design :
- *   In this API, parameters are pushed one by one into an existing context,
+ *   Parameters are pushed one by one into an existing context,
  *   using ZSTD_CCtx_set*() functions.
  *   Pushed parameters are sticky : they are applied to next job, and any subsequent job.
- *   Note that "sticky" parameters are only applicable with `ZSTD_compress2()` and `ZSTD_compressStream2()` !
- *   They do not apply should the context be used with a "simple" variant such as ZSTD_compressCCtx()
+ *   "sticky" parameters are applicable to `ZSTD_compress2()` and `ZSTD_compressStream*()` !
+ *   They do not apply to "simple" one-shot variants such as ZSTD_compressCCtx()
  *
  *   It's possible to reset all parameters to "default" using ZSTD_CCtx_reset().
  *
- *   This API gives access to all advanced capabilities.
- *   It supercedes all other "advanced" API entry points in the experimental section.
+ *   This API supercedes all other "advanced" API entry points in the experimental section.
  *   In the future, we expect to remove from experimental API entry points which are redundant with this API.
  */
 
@@ -621,7 +620,7 @@ typedef enum {
      * ZSTD_p_forceMaxWindow
      * ZSTD_p_forceAttachDict
      * Because they are not stable, it's necessary to define ZSTD_STATIC_LINKING_ONLY to access them.
-     * note : never use experimentalParam names directly
+     * note : never ever use experimentalParam? names directly
      */
      ZSTD_p_experimentalParam1=500,
      ZSTD_p_experimentalParam2=10,
@@ -799,12 +798,12 @@ ZSTDLIB_API size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
 /*   Advanced decompression API   */
 /* ============================== */
 
-/* The following API works the same way as the advanced compression API :
- * a context is created, parameters are pushed into it one by one,
- * then the context can be used to decompress data
- * using ZSTD_decompress_generic(), similar to the streaming API.
- * Note that sticky parameters only apply to ZSTD_decompress_generic() and ZSTD_decompress_generic_simpleArgs().
- * They are not valid if a "simple" function is used on the context (like `ZSTD_decompressDCtx()`).
+/* The advanced API pushes parameters one by one into an existing DCtx context.
+ * Parameters are "sticky, and remain valid for all futures decompression jobs
+ * started with the same DCtx context.
+ * It's possible to reset parameters to default values using ZSTD_DCtx_reset().
+ * Note : No new decompression function is provided,
+ * use existing ZSTD_decompressDCtx() and ZSTD_decompressStream().
  */
 
 
@@ -821,7 +820,7 @@ typedef enum {
      * At the time of this writing, they include :
      * ZSTD_p_format
      * Because they are not stable, it's necessary to define ZSTD_STATIC_LINKING_ONLY to access them.
-     * note : never use experimentalParam names directly
+     * note : never ever use experimentalParam? names directly
      */
      ZSTD_d_experimentalParam1=1000
 
@@ -870,7 +869,7 @@ ZSTDLIB_API size_t ZSTD_DCtx_loadDictionary(ZSTD_DCtx* dctx, const void* dict, s
  * @result : 0, or an error code (which can be tested with ZSTD_isError()).
  *  Note 1 : Currently, only one dictionary can be managed.
  *           Referencing a new dictionary effectively "discards" any previous one.
- *  Special : adding a NULL DDict means "return to no-dictionary mode".
+ *  Special: referencing a NULL DDict means "return to no-dictionary mode".
  *  Note 2 : DDict is just referenced, its lifetime must outlive its usage from DCtx.
  */
 ZSTDLIB_API size_t ZSTD_DCtx_refDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict);
@@ -880,16 +879,16 @@ ZSTDLIB_API size_t ZSTD_DCtx_refDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict);
  *  This is the reverse operation of ZSTD_CCtx_refPrefix(),
  *  and must use the same prefix as the one used during compression.
  *  Prefix is **only used once**. Reference is discarded at end of frame.
- *  End of frame is reached when ZSTD_DCtx_decompress_generic() returns 0.
+ *  End of frame is reached when ZSTD_decompressStream() returns 0.
  * @result : 0, or an error code (which can be tested with ZSTD_isError()).
  *  Note 1 : Adding any prefix (including NULL) invalidates any previously set prefix or dictionary
  *  Note 2 : Prefix buffer is referenced. It **must** outlive decompression job.
  *           Prefix buffer must remain unmodified up to the end of frame,
- *           reached when ZSTD_DCtx_decompress_generic() returns 0.
+ *           reached when ZSTD_decompressStream() returns 0.
  *  Note 3 : By default, the prefix is treated as raw content (ZSTD_dm_rawContent).
- *           Use ZSTD_CCtx_refPrefix_advanced() to alter dictMode.
+ *           Use ZSTD_CCtx_refPrefix_advanced() to alter dictMode (Experimental section)
  *  Note 4 : Referencing a raw content prefix has almost no cpu nor memory cost.
- *           A fulldict prefix requires building tables, hence is more costly.
+ *           A full dictionary is more costly, as it requires building tables.
  */
 ZSTDLIB_API size_t ZSTD_DCtx_refPrefix(ZSTD_DCtx* dctx,
                                  const void* prefix, size_t prefixSize);
@@ -902,17 +901,6 @@ ZSTDLIB_API size_t ZSTD_DCtx_refPrefix(ZSTD_DCtx* dctx,
  */
 ZSTDLIB_API size_t ZSTD_DCtx_reset(ZSTD_DCtx* dctx, ZSTD_ResetDirective reset);
 
-
-/*! ZSTD_decompress_generic() :
- *  Behave the same as ZSTD_decompressStream.
- *  Decompression parameters cannot be changed once decompression is started.
- * @return : an error code, which can be tested using ZSTD_isError()
- *           if >0, a hint, nb of expected input bytes for next invocation.
- *           `0` means : a frame has just been fully decoded and flushed.
- */
-ZSTDLIB_API size_t ZSTD_decompress_generic(ZSTD_DCtx* dctx,
-                                           ZSTD_outBuffer* output,
-                                           ZSTD_inBuffer* input);
 
 
 /****************************************************************************************
@@ -1459,13 +1447,13 @@ ZSTDLIB_API size_t ZSTD_DCtx_setMaxWindowSize(ZSTD_DCtx* dctx, size_t maxWindowS
  * @return : 0, or an error code (which can be tested using ZSTD_isError()). */
 ZSTDLIB_API size_t ZSTD_DCtx_setFormat(ZSTD_DCtx* dctx, ZSTD_format_e format);
 
-/*! ZSTD_decompress_generic_simpleArgs() :
- *  Same as ZSTD_decompress_generic(),
+/*! ZSTD_decompressStream_simpleArgs() :
+ *  Same as ZSTD_decompressStream(),
  *  but using only integral types as arguments.
  *  This can be helpful for binders from dynamic languages
  *  which have troubles handling structures containing memory pointers.
  */
-ZSTDLIB_API size_t ZSTD_decompress_generic_simpleArgs (
+ZSTDLIB_API size_t ZSTD_decompressStream_simpleArgs (
                             ZSTD_DCtx* dctx,
                             void* dst, size_t dstCapacity, size_t* dstPos,
                       const void* src, size_t srcSize, size_t* srcPos);

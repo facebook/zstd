@@ -691,7 +691,7 @@ static int basicUnitTests(U32 seed, double compressibility)
                 if (inBuff.pos != inBuff.size) goto _output_error;
                 {   ZSTD_outBuffer decOut = {decodedBuffer, size, 0};
                     ZSTD_inBuffer decIn = {outBuff.dst, outBuff.pos, 0};
-                    CHECK_Z( ZSTD_decompress_generic(dctx, &decOut, &decIn) );
+                    CHECK_Z( ZSTD_decompressStream(dctx, &decOut, &decIn) );
                     if (decIn.pos != decIn.size) goto _output_error;
                     if (decOut.pos != size) goto _output_error;
                     {   U64 const crcDec = XXH64(decOut.dst, decOut.pos, 0);
@@ -759,7 +759,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     inBuff.src = compressedBuffer;
     inBuff.size = cSize;
     inBuff.pos = 0;
-    CHECK_Z( ZSTD_decompress_generic(zd, &outBuff, &inBuff) );
+    CHECK_Z( ZSTD_decompressStream(zd, &outBuff, &inBuff) );
     if (inBuff.pos != inBuff.size) goto _output_error;  /* entire input should be consumed */
     if (outBuff.pos != CNBufferSize) goto _output_error;  /* must regenerate whole input */
     DISPLAYLEVEL(3, "OK \n");

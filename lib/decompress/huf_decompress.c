@@ -43,6 +43,19 @@
 #include "huf.h"
 #include "error_private.h"
 
+/* **************************************************************
+*  Macros
+****************************************************************/
+
+/* These two optional macros force the use one way or another of the two
+ * Huffman decompression implementations. You can't force in both directions
+ * at the same time.
+ */
+#if defined(HUF_FORCE_DECOMPRESS_X1) && \
+    defined(HUF_FORCE_DECOMPRESS_X2)
+#error "Cannot force the use of the X1 and X2 decoders at the same time!"
+#endif
+
 
 /* **************************************************************
 *  Error Management

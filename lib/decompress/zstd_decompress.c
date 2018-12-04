@@ -1301,7 +1301,7 @@ size_t ZSTD_DCtx_setParameter(ZSTD_DCtx* dctx, ZSTD_dParameter dParam, int value
     switch(dParam) {
         case ZSTD_d_windowLogMax:
             CHECK_DBOUNDS(ZSTD_d_windowLogMax, value);
-            dctx->maxWindowSize = 1 << value;
+            dctx->maxWindowSize = ((size_t)1) << value;
             return 0;
         case ZSTD_d_format:
             CHECK_DBOUNDS(ZSTD_d_format, value);

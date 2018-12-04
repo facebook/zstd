@@ -173,7 +173,7 @@ typedef U32 HUF_DTable;
 *  Advanced decompression functions
 ******************************************/
 size_t HUF_decompress4X1 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize);   /**< single-symbol decoder */
-#ifndef HUF_DECOMPRESS_MINIMAL
+#ifndef HUF_FORCE_DECOMPRESS_X1
 size_t HUF_decompress4X2 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize);   /**< double-symbols decoder */
 #endif
 
@@ -182,7 +182,7 @@ size_t HUF_decompress4X_hufOnly(HUF_DTable* dctx, void* dst, size_t dstSize, con
 size_t HUF_decompress4X_hufOnly_wksp(HUF_DTable* dctx, void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize, void* workSpace, size_t wkspSize); /**< considers RLE and uncompressed as errors */
 size_t HUF_decompress4X1_DCtx(HUF_DTable* dctx, void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize);   /**< single-symbol decoder */
 size_t HUF_decompress4X1_DCtx_wksp(HUF_DTable* dctx, void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize, void* workSpace, size_t wkspSize);   /**< single-symbol decoder */
-#ifndef HUF_DECOMPRESS_MINIMAL
+#ifndef HUF_FORCE_DECOMPRESS_X1
 size_t HUF_decompress4X2_DCtx(HUF_DTable* dctx, void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize);   /**< double-symbols decoder */
 size_t HUF_decompress4X2_DCtx_wksp(HUF_DTable* dctx, void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize, void* workSpace, size_t wkspSize);   /**< double-symbols decoder */
 #endif
@@ -283,14 +283,14 @@ U32 HUF_selectDecoder (size_t dstSize, size_t cSrcSize);
 
 size_t HUF_readDTableX1 (HUF_DTable* DTable, const void* src, size_t srcSize);
 size_t HUF_readDTableX1_wksp (HUF_DTable* DTable, const void* src, size_t srcSize, void* workSpace, size_t wkspSize);
-#ifndef HUF_DECOMPRESS_MINIMAL
+#ifndef HUF_FORCE_DECOMPRESS_X1
 size_t HUF_readDTableX2 (HUF_DTable* DTable, const void* src, size_t srcSize);
 size_t HUF_readDTableX2_wksp (HUF_DTable* DTable, const void* src, size_t srcSize, void* workSpace, size_t wkspSize);
 #endif
 
 size_t HUF_decompress4X_usingDTable(void* dst, size_t maxDstSize, const void* cSrc, size_t cSrcSize, const HUF_DTable* DTable);
 size_t HUF_decompress4X1_usingDTable(void* dst, size_t maxDstSize, const void* cSrc, size_t cSrcSize, const HUF_DTable* DTable);
-#ifndef HUF_DECOMPRESS_MINIMAL
+#ifndef HUF_FORCE_DECOMPRESS_X1
 size_t HUF_decompress4X2_usingDTable(void* dst, size_t maxDstSize, const void* cSrc, size_t cSrcSize, const HUF_DTable* DTable);
 #endif
 
@@ -314,7 +314,7 @@ size_t HUF_compress1X_repeat(void* dst, size_t dstSize,
                        HUF_CElt* hufTable, HUF_repeat* repeat, int preferRepeat, int bmi2);
 
 size_t HUF_decompress1X1 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize);   /* single-symbol decoder */
-#ifndef HUF_DECOMPRESS_MINIMAL
+#ifndef HUF_FORCE_DECOMPRESS_X1
 size_t HUF_decompress1X2 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize);   /* double-symbol decoder */
 #endif
 
@@ -322,14 +322,14 @@ size_t HUF_decompress1X_DCtx (HUF_DTable* dctx, void* dst, size_t dstSize, const
 size_t HUF_decompress1X_DCtx_wksp (HUF_DTable* dctx, void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize, void* workSpace, size_t wkspSize);
 size_t HUF_decompress1X1_DCtx(HUF_DTable* dctx, void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize);   /**< single-symbol decoder */
 size_t HUF_decompress1X1_DCtx_wksp(HUF_DTable* dctx, void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize, void* workSpace, size_t wkspSize);   /**< single-symbol decoder */
-#ifndef HUF_DECOMPRESS_MINIMAL
+#ifndef HUF_FORCE_DECOMPRESS_X1
 size_t HUF_decompress1X2_DCtx(HUF_DTable* dctx, void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize);   /**< double-symbols decoder */
 size_t HUF_decompress1X2_DCtx_wksp(HUF_DTable* dctx, void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize, void* workSpace, size_t wkspSize);   /**< double-symbols decoder */
 #endif
 
 size_t HUF_decompress1X_usingDTable(void* dst, size_t maxDstSize, const void* cSrc, size_t cSrcSize, const HUF_DTable* DTable);   /**< automatic selection of sing or double symbol decoder, based on DTable */
 size_t HUF_decompress1X1_usingDTable(void* dst, size_t maxDstSize, const void* cSrc, size_t cSrcSize, const HUF_DTable* DTable);
-#ifndef HUF_DECOMPRESS_MINIMAL
+#ifndef HUF_FORCE_DECOMPRESS_X1
 size_t HUF_decompress1X2_usingDTable(void* dst, size_t maxDstSize, const void* cSrc, size_t cSrcSize, const HUF_DTable* DTable);
 #endif
 

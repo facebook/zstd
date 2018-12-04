@@ -1256,6 +1256,80 @@ size_t ZSTD_DCtx_setFormat(ZSTD_DCtx* dctx, ZSTD_format_e format)
     return 0;
 }
 
+ZSTD_bounds ZSTD_dParam_getBounds(ZSTD_dParameter dParam)
+{
+    ZSTD_bounds bounds = { 0, 0, 0 };
+    switch(dParam) {
+        case ZSTD_d_windowLogMax:
+            bounds.lowerBound = ZSTD_WINDOWLOG_ABSOLUTEMIN;
+            bounds.upperBound = ZSTD_WINDOWLOG_MAX;
+            return bounds;
+        case ZSTD_d_format:
+            bounds.lowerBound = (int)ZSTD_f_zstd1;
+            bounds.upperBound = (int)ZSTD_f_zstd1_magicless;
+            ZSTD_STATIC_ASSERT(ZSTD_f_zstd1 < ZSTD_f_zstd1_magicless);
+            return bounds;
+        default:
+            bounds.error = ERROR(parameter_unsupported);
+            return bounds;
+    }
+    assert(0);
+    bounds.error = ERROR(parameter_unsupported);
+    return bounds;
+}
+
+/* ZSTD_dParam_withinBounds:
+ * @return 1 if value is within dParam bounds,
+ * 0 otherwise */
+static int ZSTD_dParam_withinBounds(ZSTD_dParameter dParam, int value)
+{
+    ZSTD_bounds const bounds = ZSTD_dParam_getBounds(dParam);
+    if (ZSTD_isError(bounds.error)) return 0;
+    if (value < bounds.lowerBound) return 0;
+    if (value > bounds.upperBound) return 0;
+    return 1;
+}
+
+#define CHECK_DBOUNDS(p,v) {                \
+    if (!ZSTD_dParam_withinBounds(p, v))    \
+        return ERROR(parameter_outOfBound); \
+}
+
+size_t ZSTD_DCtx_setParameter(ZSTD_DCtx* dctx, ZSTD_dParameter dParam, int value)
+{
+    if (dctx->streamStage != zdss_init) return ERROR(stage_wrong);
+    switch(dParam) {
+        case ZSTD_d_windowLogMax:
+            CHECK_DBOUNDS(ZSTD_d_windowLogMax, value);
+            dctx->maxWindowSize = 1 << value;
+            return 0;
+        case ZSTD_d_format:
+            CHECK_DBOUNDS(ZSTD_d_format, value);
+            dctx->format = (ZSTD_format_e)value;
+            return 0;
+        default:
+            return ERROR(parameter_unsupported);
+    }
+    assert(0);  /* should be unreachable */
+    return ERROR(parameter_unsupported);
+}
+
+size_t ZSTD_DCtx_reset(ZSTD_DCtx* dctx, ZSTD_ResetDirective reset)
+{
+    if ( (reset == ZSTD_reset_session_only)
+      || (reset == ZSTD_reset_session_and_parameters) ) {
+        (void)ZSTD_initDStream(dctx);
+    }
+    if ( (reset == ZSTD_reset_parameters)
+      || (reset == ZSTD_reset_session_and_parameters) ) {
+        if (dctx->streamStage != zdss_init)
+            return ERROR(stage_wrong);
+        dctx->format = ZSTD_f_zstd1;
+        dctx->maxWindowSize = ZSTD_MAXWINDOWSIZE_DEFAULT;
+    }
+    return 0;
+}
+
 
 size_t ZSTD_sizeof_DStream(const ZSTD_DStream* dctx)
 {
@@ -1577,21 +1651,4 @@ size_t ZSTD_decompressStream_simpleArgs (
     *dstPos = output.pos;
     *srcPos = input.pos;
     return cErr;
-}
-
-
-size_t ZSTD_DCtx_reset(ZSTD_DCtx* dctx, ZSTD_ResetDirective reset)
-{
-    if ( (reset == ZSTD_reset_session_only)
-      || (reset == ZSTD_reset_session_and_parameters) ) {
-        (void)ZSTD_initDStream(dctx);
-    }
-    if ( (reset == ZSTD_reset_parameters)
-      || (reset == ZSTD_reset_session_and_parameters) ) {
-        if (dctx->streamStage != zdss_init)
-            return ERROR(stage_wrong);
-        dctx->format = ZSTD_f_zstd1;
-        dctx->maxWindowSize = ZSTD_MAXWINDOWSIZE_DEFAULT;
-    }
-    return 0;
 }

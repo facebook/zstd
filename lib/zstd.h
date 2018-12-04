@@ -640,7 +640,7 @@ typedef struct {
  *  otherwise they will either trigger an error or be automatically clamped.
  * @return : a structure, ZSTD_bounds, which contains
  *         - an error status field, which must be tested using ZSTD_isError()
- *         - both lower and upper bounds, inclusive
+ *         - lower and upper bounds, both inclusive
  */
 ZSTDLIB_API ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter cParam);
 
@@ -834,16 +834,16 @@ typedef enum {
  *         - an error status field, which must be tested using ZSTD_isError()
  *         - both lower and upper bounds, inclusive
  */
-ZSTDLIB_API ZSTD_bounds ZSTD_dParam_getBounds(ZSTD_dParameter dParam);    /* not implemented yet */
+ZSTDLIB_API ZSTD_bounds ZSTD_dParam_getBounds(ZSTD_dParameter dParam);
 
 /*! ZSTD_DCtx_setParameter() :
  *  Set one compression parameter, selected by enum ZSTD_dParameter.
  *  All parameters have valid bounds. Bounds can be queried using ZSTD_dParam_getBounds().
  *  Providing a value beyond bound will either clamp it, or trigger an error (depending on parameter).
  *  Setting a parameter is only possible during frame initialization (before starting decompression).
- * @return : an error code (which can be tested using ZSTD_isError()).
+ * @return : 0, or an error code (which can be tested using ZSTD_isError()).
  */
-ZSTDLIB_API size_t ZSTD_DCtx_setParameter(ZSTD_DCtx* dctx, ZSTD_dParameter param, int value);   /* not implemented yet */
+ZSTDLIB_API size_t ZSTD_DCtx_setParameter(ZSTD_DCtx* dctx, ZSTD_dParameter param, int value);
 
 
 /*! ZSTD_DCtx_loadDictionary() :
@@ -895,7 +895,7 @@ ZSTDLIB_API size_t ZSTD_DCtx_refPrefix(ZSTD_DCtx* dctx,
 
 /*! ZSTD_DCtx_reset() :
  *  Return a DCtx to clean state.
- *  Session and parameters can be reset jointly or separately
+ *  Session and parameters can be reset jointly or separately.
  *  Parameters can only be reset when no active frame is being decompressed.
  * @return : 0, or an error code, which can be tested with ZSTD_isError()
  */
@@ -1003,7 +1003,7 @@ typedef enum {
     ZSTD_f_zstd1 = 0,           /* zstd frame format, specified in zstd_compression_format.md (default) */
     ZSTD_f_zstd1_magicless = 1, /* Variant of zstd frame format, without initial 4-bytes magic number.
                                  * Useful to save 4 bytes per generated frame.
-                                 * Decoder cannot recognise automatically this format, requiring instructions. */
+                                 * Decoder cannot recognise automatically this format, requiring this instruction. */
 } ZSTD_format_e;
 
 typedef enum {
@@ -1439,6 +1439,12 @@ ZSTDLIB_API size_t ZSTD_DCtx_refPrefix_advanced(ZSTD_DCtx* dctx, const void* pre
  * @return : 0, or an error code (which can be tested using ZSTD_isError()).
  */
 ZSTDLIB_API size_t ZSTD_DCtx_setMaxWindowSize(ZSTD_DCtx* dctx, size_t maxWindowSize);
+
+/* ZSTD_d_format
+ * experimental parameter,
+ * allowing selection between ZSTD_format_e input compression formats
+ */
+#define ZSTD_d_format ZSTD_d_experimentalParam1
 
 /*! ZSTD_DCtx_setFormat() :
  *  Instruct the decoder context about what kind of data to decode next.

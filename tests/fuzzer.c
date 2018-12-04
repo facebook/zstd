@@ -381,16 +381,24 @@ static int basicUnitTests(U32 seed, double compressibility)
 
     DISPLAYLEVEL(3, "test%3i : decompress with null dict : ", testNb++);
     {   ZSTD_DCtx* const dctx = ZSTD_createDCtx(); assert(dctx != NULL);
-        size_t const r = ZSTD_decompress_usingDict(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize, NULL, 0);
-        if (r != CNBuffSize) goto _output_error;
+        {   size_t const r = ZSTD_decompress_usingDict(dctx,
+                                                    decodedBuffer, CNBuffSize,
+                                                    compressedBuffer, cSize,
+                                                    NULL, 0);
+            if (r != CNBuffSize) goto _output_error;
+        }
         ZSTD_freeDCtx(dctx);
     }
     DISPLAYLEVEL(3, "OK \n");
 
     DISPLAYLEVEL(3, "test%3i : decompress with null DDict : ", testNb++);
     {   ZSTD_DCtx* const dctx = ZSTD_createDCtx(); assert(dctx != NULL);
-        size_t const r = ZSTD_decompress_usingDDict(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize, NULL);
-        if (r != CNBuffSize) goto _output_error;
+        {   size_t const r = ZSTD_decompress_usingDDict(dctx,
+                                                    decodedBuffer, CNBuffSize,
+                                                    compressedBuffer, cSize,
+                                                    NULL);
+            if (r != CNBuffSize) goto _output_error;
+        }
         ZSTD_freeDCtx(dctx);
     }
     DISPLAYLEVEL(3, "OK \n");
@@ -1080,12 +1088,14 @@ static int basicUnitTests(U32 seed, double compressibility)
         DISPLAYLEVEL(3, "OK \n");
 
         DISPLAYLEVEL(3, "test%3i : dictionary containing only header should return error : ", testNb++);
-        {   ZSTD_DCtx* const dctx = ZSTD_createDCtx(); assert(dctx != NULL);
-            const size_t ret = ZSTD_decompress_usingDict(
+        {   ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+            assert(dctx != NULL);
+            {   const size_t ret = ZSTD_decompress_usingDict(
                     dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize,
                     "\x37\xa4\x30\xec\x11\x22\x33\x44", 8);
-            if (ZSTD_getErrorCode(ret) != ZSTD_error_dictionary_corrupted)
-                goto _output_error;
+                if (ZSTD_getErrorCode(ret) != ZSTD_error_dictionary_corrupted)
+                    goto _output_error;
+            }
             ZSTD_freeDCtx(dctx);
         }
         DISPLAYLEVEL(3, "OK \n");

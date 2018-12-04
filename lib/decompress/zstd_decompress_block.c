@@ -138,10 +138,17 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                     }
                 } else {
                     if (singleStream) {
+#if defined(HUF_FORCE_DECOMPRESS_X2)
+                        hufSuccess = HUF_decompress1X_DCtx_wksp(
+                            dctx->entropy.hufTable, dctx->litBuffer, litSize,
+                            istart+lhSize, litCSize, dctx->workspace,
+                            sizeof(dctx->workspace));
+#else
                         hufSuccess = HUF_decompress1X1_DCtx_wksp_bmi2(
                             dctx->entropy.hufTable, dctx->litBuffer, litSize,
                             istart+lhSize, litCSize, dctx->workspace,
                             sizeof(dctx->workspace), dctx->bmi2);
+#endif
                     } else {
                         hufSuccess = HUF_decompress4X_hufOnly_wksp_bmi2(
                             dctx->entropy.hufTable, dctx->litBuffer, litSize,

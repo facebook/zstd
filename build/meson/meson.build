@@ -36,30 +36,30 @@ compiler_clang = 'clang'
 compiler_msvc = 'msvc'
 
 zstd_version = meson.project_version()
-zstd_libversion = ''
 
-# =============================================================================
-# Project directories
-# =============================================================================
+zstd_h_file = join_paths(meson.current_source_dir(), '../../lib/zstd.h')
+GetZstdLibraryVersion_py = files('GetZstdLibraryVersion.py')
+r = run_command(python3, GetZstdLibraryVersion_py, zstd_h_file)
+if r.returncode() == 0
+  output = r.stdout().strip()
+  if output.version_compare('>@0@'.format(zstd_version))
+    zstd_version = output
+    message('Project version is now: @0@'.format(zstd_version))
+  endif
+else
+  message('Cannot find project version in @0@'.format(zstd_h_file))
+endif
 
-zstd_rootdir = '../..'
+zstd_libversion = zstd_version
 
 # =============================================================================
 # Installation directories
 # =============================================================================
 
-if host_machine_os == os_windows
-  zstd_prefix = '.'
-  zstd_bindir = 'bin'
-  zstd_datadir = 'share'
-  zstd_mandir = join_paths(zstd_datadir, 'man')
-else
-  zstd_prefix = get_option('prefix')
-  zstd_bindir = join_paths(zstd_prefix, get_option('bindir'))
-  zstd_datadir = join_paths(zstd_prefix, get_option('datadir'))
-  zstd_mandir = join_paths(zstd_prefix, get_option('mandir'))
-endif
-
+zstd_prefix = get_option('prefix')
+zstd_bindir = get_option('bindir')
+zstd_datadir = get_option('datadir')
+zstd_mandir = get_option('mandir')
 zstd_docdir = join_paths(zstd_datadir, 'doc', meson.project_name())
 
 # =============================================================================
@@ -84,30 +84,6 @@ feature_multi_thread = get_option('multi_thread')
 feature_zlib = get_option('zlib')
 feature_lzma = get_option('lzma')
 feature_lz4 = get_option('lz4')
-
-# =============================================================================
-# Helper scripts for Meson
-# =============================================================================
-
-GetZstdLibraryVersion_py = files('GetZstdLibraryVersion.py')
-
-# =============================================================================
-# Getting project version from zstd.h
-# =============================================================================
-
-zstd_h_file = join_paths(meson.current_source_dir(), zstd_rootdir, 'lib/zstd.h')
-r = run_command(python3, GetZstdLibraryVersion_py, zstd_h_file)
-if r.returncode() == 0
-  output = r.stdout().strip()
-  if output.version_compare('>@0@'.format(zstd_version))
-    zstd_version = output
-    message('Project version is now: @0@'.format(zstd_version))
-  endif
-endif
-
-if host_machine_os != os_windows
-  zstd_libversion = zstd_version
-endif
 
 # =============================================================================
 # Dependencies

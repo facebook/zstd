@@ -1393,7 +1393,7 @@ static int basicUnitTests(U32 seed, double compressibility)
 
         DISPLAYLEVEL(3, "test%3i : decompress of magic-less frame : ", testNb++);
         ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters);
-        CHECK( ZSTD_DCtx_setFormat(dctx, ZSTD_f_zstd1_magicless) );
+        CHECK( ZSTD_DCtx_setParameter(dctx, ZSTD_d_format, ZSTD_f_zstd1_magicless) );
         {   ZSTD_frameHeader zfh;
             size_t const zfhrt = ZSTD_getFrameHeader_advanced(&zfh, compressedBuffer, cSize, ZSTD_f_zstd1_magicless);
             if (zfhrt != 0) goto _output_error;

@@ -1241,19 +1241,24 @@ size_t ZSTD_DCtx_refDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict)
     return 0;
 }
 
+/* ZSTD_DCtx_setMaxWindowSize() :
+ * note : no direct equivalence in ZSTD_DCtx_setParameter,
+ * since this version sets windowSize, and the other sets windowLog */
 size_t ZSTD_DCtx_setMaxWindowSize(ZSTD_DCtx* dctx, size_t maxWindowSize)
 {
+    ZSTD_bounds const bounds = ZSTD_dParam_getBounds(ZSTD_d_windowLogMax);
+    size_t const min = (size_t)1 << bounds.lowerBound;
+    size_t const max = (size_t)1 << bounds.upperBound;
     if (dctx->streamStage != zdss_init) return ERROR(stage_wrong);
+    if (maxWindowSize < min) return ERROR(parameter_outOfBound);
+    if (maxWindowSize > max) return ERROR(parameter_outOfBound);
     dctx->maxWindowSize = maxWindowSize;
     return 0;
 }
 
 size_t ZSTD_DCtx_setFormat(ZSTD_DCtx* dctx, ZSTD_format_e format)
 {
-    DEBUGLOG(4, "ZSTD_DCtx_setFormat : %u", (unsigned)format);
-    if (dctx->streamStage != zdss_init) return ERROR(stage_wrong);
-    dctx->format = format;
-    return 0;
+    return ZSTD_DCtx_setParameter(dctx, ZSTD_d_format, format);
 }
 
 ZSTD_bounds ZSTD_dParam_getBounds(ZSTD_dParameter dParam)

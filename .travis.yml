@@ -63,6 +63,15 @@ matrix:
         - make clang38install
         - CC=clang-3.8 make clean msan-test-zstd
 
+    - name: Trusty (Minimal Decompressor Macros)
+      script:
+        - make clean
+        - make -C tests test-zstd MOREFLAGS="-O0 -DHUF_FORCE_DECOMPRESS_X1 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT"
+        - make clean
+        - make -C tests test-zstd MOREFLAGS="-O0 -DHUF_FORCE_DECOMPRESS_X2 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG"
+        - make clean
+        - make -C tests test-zstd MOREFLAGS="-O0 -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
+
     - name: Trusty (CMake)
       script:
         - make cmakebuild

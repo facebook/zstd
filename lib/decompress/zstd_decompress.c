@@ -1269,11 +1269,8 @@ ZSTD_bounds ZSTD_dParam_getBounds(ZSTD_dParameter dParam)
             bounds.upperBound = (int)ZSTD_f_zstd1_magicless;
             ZSTD_STATIC_ASSERT(ZSTD_f_zstd1 < ZSTD_f_zstd1_magicless);
             return bounds;
-        default:
-            bounds.error = ERROR(parameter_unsupported);
-            return bounds;
+        default:;
     }
-    assert(0);
     bounds.error = ERROR(parameter_unsupported);
     return bounds;
 }
@@ -1307,10 +1304,8 @@ size_t ZSTD_DCtx_setParameter(ZSTD_DCtx* dctx, ZSTD_dParameter dParam, int value
             CHECK_DBOUNDS(ZSTD_d_format, value);
             dctx->format = (ZSTD_format_e)value;
             return 0;
-        default:
-            return ERROR(parameter_unsupported);
+        default:;
     }
-    assert(0);  /* should be unreachable */
     return ERROR(parameter_unsupported);
 }
 

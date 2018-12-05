@@ -168,7 +168,7 @@ ZSTDLIB_API size_t     ZSTD_freeCCtx(ZSTD_CCtx* cctx);
 
 /*! ZSTD_compressCCtx() :
  *  Same as ZSTD_compress(), requires an allocated ZSTD_CCtx (see ZSTD_createCCtx()). */
-ZSTDLIB_API size_t ZSTD_compressCCtx(ZSTD_CCtx* ctx,
+ZSTDLIB_API size_t ZSTD_compressCCtx(ZSTD_CCtx* cctx,
                                      void* dst, size_t dstCapacity,
                                const void* src, size_t srcSize,
                                      int compressionLevel);
@@ -184,8 +184,11 @@ ZSTDLIB_API ZSTD_DCtx* ZSTD_createDCtx(void);
 ZSTDLIB_API size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);
 
 /*! ZSTD_decompressDCtx() :
- *  Same as ZSTD_decompress(), requires an allocated ZSTD_DCtx (see ZSTD_createDCtx()) */
-ZSTDLIB_API size_t ZSTD_decompressDCtx(ZSTD_DCtx* ctx,
+ *  Same as ZSTD_decompress(),
+ *  requires an allocated ZSTD_DCtx.
+ *  Compatible with sticky parameters.
+ */
+ZSTDLIB_API size_t ZSTD_decompressDCtx(ZSTD_DCtx* dctx,
                                        void* dst, size_t dstCapacity,
                                  const void* src, size_t srcSize);
 
@@ -799,11 +802,11 @@ ZSTDLIB_API size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
 /* ============================== */
 
 /* The advanced API pushes parameters one by one into an existing DCtx context.
- * Parameters are "sticky, and remain valid for all futures decompression jobs
- * started with the same DCtx context.
+ * Parameters are sticky, and remain valid for all following decompression jobs
+ * using the same DCtx context.
  * It's possible to reset parameters to default values using ZSTD_DCtx_reset().
- * Note : No new decompression function is provided,
- * use existing ZSTD_decompressDCtx() and ZSTD_decompressStream().
+ * Note : This API is compatible with existing ZSTD_decompressDCtx() and ZSTD_decompressStream().
+ *        Therefore, no new decompression function is necessary.
  */
 
 

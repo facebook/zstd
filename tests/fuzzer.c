@@ -1398,13 +1398,19 @@ static int basicUnitTests(U32 seed, double compressibility)
             size_t const zfhrt = ZSTD_getFrameHeader_advanced(&zfh, compressedBuffer, cSize, ZSTD_f_zstd1_magicless);
             if (zfhrt != 0) goto _output_error;
         }
+        /* one shot */
+        {   size_t const result = ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize);
+            if (result != inputSize) goto _output_error;
+            DISPLAYLEVEL(3, "one-shot OK, ");
+        }
+        /* streaming */
         {   ZSTD_inBuffer in = { compressedBuffer, cSize, 0 };
             ZSTD_outBuffer out = { decodedBuffer, CNBuffSize, 0 };
             size_t const result = ZSTD_decompressStream(dctx, &out, &in);
             if (result != 0) goto _output_error;
             if (in.pos != in.size) goto _output_error;
             if (out.pos != inputSize) goto _output_error;
-            DISPLAYLEVEL(3, "OK : regenerated %u bytes \n", (U32)out.pos);
+            DISPLAYLEVEL(3, "streaming OK : regenerated %u bytes \n", (U32)out.pos);
         }
 
         ZSTD_freeCCtx(cctx);

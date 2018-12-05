@@ -379,7 +379,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     inBuff2 = inBuff;
     DISPLAYLEVEL(3, "test%3i : decompress %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
     ZSTD_initDStream_usingDict(zd, CNBuffer, dictSize);
-    CHECK_Z( ZSTD_DCtx_setMaxWindowSize(zd, 1000000000) );  /* large limit */
+    CHECK_Z( ZSTD_DCtx_setParameter(zd, ZSTD_d_windowLogMax, ZSTD_WINDOWLOG_LIMIT_DEFAULT+1) );  /* large limit */
     { size_t const remaining = ZSTD_decompressStream(zd, &outBuff, &inBuff);
       if (remaining != 0) goto _output_error; }  /* should reach end of frame == 0; otherwise, some data left, or an error */
     if (outBuff.pos != CNBufferSize) goto _output_error;   /* should regenerate the same amount */
@@ -652,7 +652,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     /* Memory restriction */
     DISPLAYLEVEL(3, "test%3i : maxWindowSize < frame requirement : ", testNb++);
     ZSTD_initDStream_usingDict(zd, CNBuffer, dictSize);
-    CHECK_Z( ZSTD_DCtx_setMaxWindowSize(zd, 1000) );  /* too small limit */
+    CHECK_Z( ZSTD_DCtx_setParameter(zd, ZSTD_d_windowLogMax, 10) );  /* too small limit */
     outBuff.dst = decodedBuffer;
     outBuff.size = CNBufferSize;
     outBuff.pos = 0;
@@ -934,7 +934,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         ZSTD_resetDStream(zd);
         CHECK_Z(ZSTD_CCtx_refCDict(zc, cdict));
         CHECK_Z(ZSTD_initDStream_usingDDict(zd, ddict));
-        CHECK_Z(ZSTD_DCtx_setMaxWindowSize(zd, 1U << kMaxWindowLog));
+        CHECK_Z(ZSTD_DCtx_setParameter(zd, ZSTD_d_windowLogMax, kMaxWindowLog));
         /* Test all values < 300 */
         for (value = 0; value < 300; ++value) {
             for (type = (SEQ_gen_type)0; type < SEQ_gen_max; ++type) {

@@ -377,7 +377,7 @@ static int ZSTD_cParam_withinBounds(ZSTD_cParameter cParam, int value)
     return 1;
 }
 
-#define CLAMPCHECK(cParam, val) {                  \
+#define BOUNDCHECK(cParam, val) {                  \
     if (!ZSTD_cParam_withinBounds(cParam,val)) {   \
         return ERROR(parameter_outOfBound);        \
 }   }
@@ -506,42 +506,42 @@ size_t ZSTD_CCtxParam_setParameter(ZSTD_CCtx_params* CCtxParams,
 
     case ZSTD_c_windowLog :
         if (value!=0)   /* 0 => use default */
-            CLAMPCHECK(ZSTD_c_windowLog, value);
+            BOUNDCHECK(ZSTD_c_windowLog, value);
         CCtxParams->cParams.windowLog = value;
         return CCtxParams->cParams.windowLog;
 
     case ZSTD_c_hashLog :
         if (value!=0)   /* 0 => use default */
-            CLAMPCHECK(ZSTD_c_hashLog, value);
+            BOUNDCHECK(ZSTD_c_hashLog, value);
         CCtxParams->cParams.hashLog = value;
         return CCtxParams->cParams.hashLog;
 
     case ZSTD_c_chainLog :
         if (value!=0)   /* 0 => use default */
-            CLAMPCHECK(ZSTD_c_chainLog, value);
+            BOUNDCHECK(ZSTD_c_chainLog, value);
         CCtxParams->cParams.chainLog = value;
         return CCtxParams->cParams.chainLog;
 
     case ZSTD_c_searchLog :
         if (value!=0)   /* 0 => use default */
-            CLAMPCHECK(ZSTD_c_searchLog, value);
+            BOUNDCHECK(ZSTD_c_searchLog, value);
         CCtxParams->cParams.searchLog = value;
         return value;
 
     case ZSTD_c_minMatch :
         if (value!=0)   /* 0 => use default */
-            CLAMPCHECK(ZSTD_c_minMatch, value);
+            BOUNDCHECK(ZSTD_c_minMatch, value);
         CCtxParams->cParams.minMatch = value;
         return CCtxParams->cParams.minMatch;
 
     case ZSTD_c_targetLength :
-        CLAMPCHECK(ZSTD_c_targetLength, value);
+        BOUNDCHECK(ZSTD_c_targetLength, value);
         CCtxParams->cParams.targetLength = value;
         return CCtxParams->cParams.targetLength;
 
     case ZSTD_c_strategy :
         if (value!=0)   /* 0 => use default */
-            CLAMPCHECK(ZSTD_c_strategy, value);
+            BOUNDCHECK(ZSTD_c_strategy, value);
         CCtxParams->cParams.strategy = (ZSTD_strategy)value;
         return (size_t)CCtxParams->cParams.strategy;
 
@@ -567,7 +567,7 @@ size_t ZSTD_CCtxParam_setParameter(ZSTD_CCtx_params* CCtxParams,
 
     case ZSTD_c_forceAttachDict : {
         const ZSTD_dictAttachPref_e pref = (ZSTD_dictAttachPref_e)value;
-        CLAMPCHECK(ZSTD_c_forceAttachDict, pref);
+        BOUNDCHECK(ZSTD_c_forceAttachDict, pref);
         CCtxParams->attachDictPref = pref;
         return CCtxParams->attachDictPref;
     }
@@ -607,19 +607,19 @@ size_t ZSTD_CCtxParam_setParameter(ZSTD_CCtx_params* CCtxParams,
 
     case ZSTD_c_ldmHashLog :
         if (value!=0)   /* 0 ==> auto */
-            CLAMPCHECK(ZSTD_c_ldmHashLog, value);
+            BOUNDCHECK(ZSTD_c_ldmHashLog, value);
         CCtxParams->ldmParams.hashLog = value;
         return CCtxParams->ldmParams.hashLog;
 
     case ZSTD_c_ldmMinMatch :
         if (value!=0)   /* 0 ==> default */
-            CLAMPCHECK(ZSTD_c_ldmMinMatch, value);
+            BOUNDCHECK(ZSTD_c_ldmMinMatch, value);
         CCtxParams->ldmParams.minMatchLength = value;
         return CCtxParams->ldmParams.minMatchLength;
 
     case ZSTD_c_ldmBucketSizeLog :
         if (value!=0)   /* 0 ==> default */
-            CLAMPCHECK(ZSTD_c_ldmBucketSizeLog, value);
+            BOUNDCHECK(ZSTD_c_ldmBucketSizeLog, value);
         CCtxParams->ldmParams.bucketSizeLog = value;
         return CCtxParams->ldmParams.bucketSizeLog;
 
@@ -845,13 +845,13 @@ size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx, ZSTD_ResetDirective reset)
     @return : 0, or an error code if one value is beyond authorized range */
 size_t ZSTD_checkCParams(ZSTD_compressionParameters cParams)
 {
-    CLAMPCHECK(ZSTD_c_windowLog, cParams.windowLog);
-    CLAMPCHECK(ZSTD_c_chainLog,  cParams.chainLog);
-    CLAMPCHECK(ZSTD_c_hashLog,   cParams.hashLog);
-    CLAMPCHECK(ZSTD_c_searchLog, cParams.searchLog);
-    CLAMPCHECK(ZSTD_c_minMatch,  cParams.minMatch);
-    CLAMPCHECK(ZSTD_c_targetLength,cParams.targetLength);
-    CLAMPCHECK(ZSTD_c_strategy,  cParams.strategy);
+    BOUNDCHECK(ZSTD_c_windowLog, cParams.windowLog);
+    BOUNDCHECK(ZSTD_c_chainLog,  cParams.chainLog);
+    BOUNDCHECK(ZSTD_c_hashLog,   cParams.hashLog);
+    BOUNDCHECK(ZSTD_c_searchLog, cParams.searchLog);
+    BOUNDCHECK(ZSTD_c_minMatch,  cParams.minMatch);
+    BOUNDCHECK(ZSTD_c_targetLength,cParams.targetLength);
+    BOUNDCHECK(ZSTD_c_strategy,  cParams.strategy);
     return 0;
 }
 
@@ -861,18 +861,19 @@ size_t ZSTD_checkCParams(ZSTD_compressionParameters cParams)
 static ZSTD_compressionParameters
 ZSTD_clampCParams(ZSTD_compressionParameters cParams)
 {
-#   define CLAMP(cParam, val) {                                      \
-        ZSTD_bounds const bounds = ZSTD_cParam_getBounds(cParam);    \
-        if ((int)val<bounds.lowerBound) val=bounds.lowerBound;       \
-        else if ((int)val>bounds.upperBound) val=bounds.upperBound;  \
+#   define CLAMP_TYPE(cParam, val, type) {                                \
+        ZSTD_bounds const bounds = ZSTD_cParam_getBounds(cParam);         \
+        if ((int)val<bounds.lowerBound) val=(type)bounds.lowerBound;      \
+        else if ((int)val>bounds.upperBound) val=(type)bounds.upperBound; \
     }
+#   define CLAMP(cParam, val) CLAMP_TYPE(cParam, val, int)
     CLAMP(ZSTD_c_windowLog, cParams.windowLog);
     CLAMP(ZSTD_c_chainLog,  cParams.chainLog);
     CLAMP(ZSTD_c_hashLog,   cParams.hashLog);
     CLAMP(ZSTD_c_searchLog, cParams.searchLog);
     CLAMP(ZSTD_c_minMatch,  cParams.minMatch);
     CLAMP(ZSTD_c_targetLength,cParams.targetLength);
-    CLAMP(ZSTD_c_strategy,  cParams.strategy);
+    CLAMP_TYPE(ZSTD_c_strategy,  cParams.strategy, ZSTD_strategy);
     return cParams;
 }
 

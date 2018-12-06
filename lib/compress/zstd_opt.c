@@ -1071,14 +1071,54 @@ MEM_STATIC void ZSTD_upscaleStats(optState_t* optPtr)
     optPtr->matchLengthSum = ZSTD_upscaleStat(optPtr->matchLengthFreq, MaxML, 1);
     optPtr->offCodeSum = ZSTD_upscaleStat(optPtr->offCodeFreq, MaxOff, 1);
 }
+/* ZSTD_initStats_ultra():
+ * make a first compression pass, just to seed stats with more accurate starting values.
+ * only works on first block, with no dictionary and no ldm.
+ * this function must not fail, hence its usage conditions must be respected.
+ */
+static void ZSTD_initStats_ultra(
+        ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
+        const void* src, size_t srcSize)
+{
+    U32 tmpRep[ZSTD_REP_NUM];  /* updated rep codes will sink here */
+
+    DEBUGLOG(5, "ZSTD_initStats_ultra (srcSize=%zu)", srcSize);
+    assert(ms->opt.litLengthSum == 0);    /* first block */
+    assert(seqStore->sequences == seqStore->sequencesStart);   /* no ldm */
+    assert(ms->window.dictLimit == ms->window.lowLimit);   /* no dictionary */
+    assert(ms->nextToUpdate >= ms->window.dictLimit
+        && ms->nextToUpdate <= ms->window.dictLimit + 1);
+
+    memcpy(tmpRep, rep, sizeof(tmpRep));
+    ZSTD_compressBlock_opt_generic(ms, seqStore, tmpRep, src, srcSize, 2 /*optLevel*/, ZSTD_noDict);   /* generate stats into ms->opt*/
+
+    /* invalidate first scan from history */
+    ZSTD_resetSeqStore(seqStore);
+    ms->window.base -= srcSize;
+    ms->window.dictLimit += (U32)srcSize;
+    ms->window.lowLimit = ms->window.dictLimit;
+    ms->nextToUpdate = ms->window.dictLimit;
+    ms->nextToUpdate3 = ms->window.dictLimit;
+
+    /* re-inforce weight of collected statistics */
+    ZSTD_upscaleStats(&ms->opt);
+}
 
 size_t ZSTD_compressBlock_btultra(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         const void* src, size_t srcSize)
 {
     DEBUGLOG(5, "ZSTD_compressBlock_btultra (srcSize=%zu)", srcSize);
-#if 0
-    /* 2-pass strategy (disabled)
+    return ZSTD_compressBlock_opt_generic(ms, seqStore, rep, src, srcSize, 2 /*optLevel*/, ZSTD_noDict);
+}
+
+size_t ZSTD_compressBlock_btultra2(
+        ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
+        const void* src, size_t srcSize)
+{
+    DEBUGLOG(5, "ZSTD_compressBlock_btultra2 (srcSize=%zu)", srcSize);
+
+    /* 2-pass strategy
      * this strategy makes a first pass over first block to collect statistics
      * and seed next round's statistics with it.
      * The compression ratio gain is generally small (~0.5% on first block),
@@ -1087,23 +1127,9 @@ size_t ZSTD_compressBlock_btultra(
     if ( (ms->opt.litLengthSum==0)   /* first block */
       && (seqStore->sequences == seqStore->sequencesStart)   /* no ldm */
       && (ms->window.dictLimit == ms->window.lowLimit) ) {   /* no dictionary */
-        U32 tmpRep[ZSTD_REP_NUM];
-        DEBUGLOG(5, "ZSTD_compressBlock_btultra: first block: collecting statistics");
-        assert(ms->nextToUpdate >= ms->window.dictLimit
-            && ms->nextToUpdate <= ms->window.dictLimit + 1);
-        memcpy(tmpRep, rep, sizeof(tmpRep));
-        ZSTD_compressBlock_opt_generic(ms, seqStore, tmpRep, src, srcSize, 2 /*optLevel*/, ZSTD_noDict);   /* generate stats into ms->opt*/
-        ZSTD_resetSeqStore(seqStore);
-        /* invalidate first scan from history */
-        ms->window.base -= srcSize;
-        ms->window.dictLimit += (U32)srcSize;
-        ms->window.lowLimit = ms->window.dictLimit;
-        ms->nextToUpdate = ms->window.dictLimit;
-        ms->nextToUpdate3 = ms->window.dictLimit;
-        /* re-inforce weight of collected statistics */
-        ZSTD_upscaleStats(&ms->opt);
+        ZSTD_initStats_ultra(ms, seqStore, rep, src, srcSize);
     }
-#endif
+
     return ZSTD_compressBlock_opt_generic(ms, seqStore, rep, src, srcSize, 2 /*optLevel*/, ZSTD_noDict);
 }
 
@@ -1134,3 +1160,7 @@ size_t ZSTD_compressBlock_btultra_extDict(
 {
     return ZSTD_compressBlock_opt_generic(ms, seqStore, rep, src, srcSize, 2 /*optLevel*/, ZSTD_extDict);
 }
+
+/* note : no btultra2 variant for extDict nor dictMatchState,
+ * tbecause btultra2 is not meant to work with dictionaries
+ * and is only specific for the first block (no prefix) */

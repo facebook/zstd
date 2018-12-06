@@ -494,7 +494,8 @@ typedef enum { ZSTD_fast=1,
                ZSTD_lazy2=5,
                ZSTD_btlazy2=6,
                ZSTD_btopt=7,
-               ZSTD_btultra=8
+               ZSTD_btultra=8,
+               ZSTD_btultra2=9
                /* note : new strategies might be added in the future.
                          Only the order (from fast to strong) is guaranteed, not the exact position.
                          new strategy names might be introduced, pushing the maximum number upward */

@@ -672,7 +672,7 @@ static void ZSTDMT_compressionJob(void* jobDescription)
         if (ZSTD_isError(initError)) JOB_ERROR(initError);
     } else {  /* srcStart points at reloaded section */
         U64 const pledgedSrcSize = job->firstJob ? job->fullFrameSize : job->src.size;
-        {   size_t const forceWindowError = ZSTD_CCtxParam_setParameter(&jobParams, ZSTD_p_forceMaxWindow, !job->firstJob);
+        {   size_t const forceWindowError = ZSTD_CCtxParam_setParameter(&jobParams, ZSTD_c_forceMaxWindow, !job->firstJob);
             if (ZSTD_isError(forceWindowError)) JOB_ERROR(forceWindowError);
         }
         {   size_t const initError = ZSTD_compressBegin_advanced_internal(cctx,

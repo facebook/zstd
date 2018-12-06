@@ -200,7 +200,7 @@ local_ZSTD_compress_generic_T2_end(const void* src, size_t srcSize,
                                    void* buff2)
 {
     (void)buff2;
-    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_nbWorkers, 2);
+    ZSTD_CCtx_setParameter(g_cstream, ZSTD_c_nbWorkers, 2);
     return ZSTD_compress2(g_cstream, dst, dstCapacity, src, srcSize);
 }
 
@@ -212,7 +212,7 @@ local_ZSTD_compress_generic_T2_continue(const void* src, size_t srcSize,
     ZSTD_outBuffer buffOut;
     ZSTD_inBuffer buffIn;
     (void)buff2;
-    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_nbWorkers, 2);
+    ZSTD_CCtx_setParameter(g_cstream, ZSTD_c_nbWorkers, 2);
     buffOut.dst = dst;
     buffOut.size = dstCapacity;
     buffOut.pos = 0;
@@ -394,24 +394,24 @@ static size_t benchMem(U32 benchNb,
           cLevel, cparams->windowLog, cparams->hashLog, cparams->chainLog, cparams->searchLog,
           cparams->minMatch, cparams->targetLength, cparams->strategy); */
 
-    ZSTD_CCtx_setParameter(g_zcc, ZSTD_p_compressionLevel, cLevel);
-    ZSTD_CCtx_setParameter(g_zcc, ZSTD_p_windowLog, cparams.windowLog);
-    ZSTD_CCtx_setParameter(g_zcc, ZSTD_p_hashLog, cparams.hashLog);
-    ZSTD_CCtx_setParameter(g_zcc, ZSTD_p_chainLog, cparams.chainLog);
-    ZSTD_CCtx_setParameter(g_zcc, ZSTD_p_searchLog, cparams.searchLog);
-    ZSTD_CCtx_setParameter(g_zcc, ZSTD_p_minMatch, cparams.minMatch);
-    ZSTD_CCtx_setParameter(g_zcc, ZSTD_p_targetLength, cparams.targetLength);
-    ZSTD_CCtx_setParameter(g_zcc, ZSTD_p_compressionStrategy, cparams.strategy);
+    ZSTD_CCtx_setParameter(g_zcc, ZSTD_c_compressionLevel, cLevel);
+    ZSTD_CCtx_setParameter(g_zcc, ZSTD_c_windowLog, cparams.windowLog);
+    ZSTD_CCtx_setParameter(g_zcc, ZSTD_c_hashLog, cparams.hashLog);
+    ZSTD_CCtx_setParameter(g_zcc, ZSTD_c_chainLog, cparams.chainLog);
+    ZSTD_CCtx_setParameter(g_zcc, ZSTD_c_searchLog, cparams.searchLog);
+    ZSTD_CCtx_setParameter(g_zcc, ZSTD_c_minMatch, cparams.minMatch);
+    ZSTD_CCtx_setParameter(g_zcc, ZSTD_c_targetLength, cparams.targetLength);
+    ZSTD_CCtx_setParameter(g_zcc, ZSTD_c_compressionStrategy, cparams.strategy);
 
 
-    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_compressionLevel, cLevel);
-    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_windowLog, cparams.windowLog);
-    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_hashLog, cparams.hashLog);
-    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_chainLog, cparams.chainLog);
-    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_searchLog, cparams.searchLog);
-    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_minMatch, cparams.minMatch);
-    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_targetLength, cparams.targetLength);
-    ZSTD_CCtx_setParameter(g_cstream, ZSTD_p_compressionStrategy, cparams.strategy);
+    ZSTD_CCtx_setParameter(g_cstream, ZSTD_c_compressionLevel, cLevel);
+    ZSTD_CCtx_setParameter(g_cstream, ZSTD_c_windowLog, cparams.windowLog);
+    ZSTD_CCtx_setParameter(g_cstream, ZSTD_c_hashLog, cparams.hashLog);
+    ZSTD_CCtx_setParameter(g_cstream, ZSTD_c_chainLog, cparams.chainLog);
+    ZSTD_CCtx_setParameter(g_cstream, ZSTD_c_searchLog, cparams.searchLog);
+    ZSTD_CCtx_setParameter(g_cstream, ZSTD_c_minMatch, cparams.minMatch);
+    ZSTD_CCtx_setParameter(g_cstream, ZSTD_c_targetLength, cparams.targetLength);
+    ZSTD_CCtx_setParameter(g_cstream, ZSTD_c_compressionStrategy, cparams.strategy);
 
     /* Preparation */
     switch(benchNb)

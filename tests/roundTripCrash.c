@@ -93,9 +93,9 @@ static size_t cctxParamRoundTripTest(void* resultBuff, size_t resultBuffCapacity
     int const cLevel = h32 % maxClevel;
 
     /* Set parameters */
-    CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_compressionLevel, cLevel) );
-    CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_nbWorkers, 2) );
-    CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_overlapSizeLog, 5) );
+    CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_c_compressionLevel, cLevel) );
+    CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_c_nbWorkers, 2) );
+    CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_c_overlapSizeLog, 5) );
 
 
     /* Apply parameters */

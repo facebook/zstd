@@ -233,8 +233,8 @@ static int FUZ_mallocTests_internal(unsigned seed, double compressibility, unsig
                 mallocCounter_t malcount = INIT_MALLOC_COUNTER;
                 ZSTD_customMem const cMem = { FUZ_mallocDebug, FUZ_freeDebug, &malcount };
                 ZSTD_CCtx* const cctx = ZSTD_createCCtx_advanced(cMem);
-                CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_p_compressionLevel, compressionLevel) );
-                CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_p_nbWorkers, nbThreads) );
+                CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, compressionLevel) );
+                CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, nbThreads) );
                 CHECK_Z( ZSTD_compress2(cctx, outBuffer, outSize, inBuffer, inSize) );
                 ZSTD_freeCCtx(cctx);
                 DISPLAYLEVEL(3, "compress_generic,-T%u,end level %i : ",
@@ -253,8 +253,8 @@ static int FUZ_mallocTests_internal(unsigned seed, double compressibility, unsig
                 ZSTD_CCtx* const cctx = ZSTD_createCCtx_advanced(cMem);
                 ZSTD_outBuffer out = { outBuffer, outSize, 0 };
                 ZSTD_inBuffer in = { inBuffer, inSize, 0 };
-                CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_p_compressionLevel, compressionLevel) );
-                CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_p_nbWorkers, nbThreads) );
+                CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, compressionLevel) );
+                CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, nbThreads) );
                 CHECK_Z( ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_continue) );
                 while ( ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end) ) {}
                 ZSTD_freeCCtx(cctx);
@@ -517,37 +517,37 @@ static int basicUnitTests(U32 seed, double compressibility)
         ZSTD_inBuffer in = {NULL, 0, 0};
         int value;
 
-        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_compressionLevel, &value));
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_compressionLevel, &value));
         CHECK_EQ(value, 3);
-        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_hashLog, &value));
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_hashLog, &value));
         CHECK_EQ(value, 0);
-        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_p_hashLog, ZSTD_HASHLOG_MIN));
-        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_compressionLevel, &value));
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_hashLog, ZSTD_HASHLOG_MIN));
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_compressionLevel, &value));
         CHECK_EQ(value, 3);
-        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_hashLog, &value));
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_hashLog, &value));
         CHECK_EQ(value, ZSTD_HASHLOG_MIN);
-        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_p_compressionLevel, 7));
-        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_compressionLevel, &value));
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, 7));
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_compressionLevel, &value));
         CHECK_EQ(value, 7);
-        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_hashLog, &value));
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_hashLog, &value));
         CHECK_EQ(value, ZSTD_HASHLOG_MIN);
         /* Start a compression job */
         ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_continue);
-        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_compressionLevel, &value));
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_compressionLevel, &value));
         CHECK_EQ(value, 7);
-        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_hashLog, &value));
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_hashLog, &value));
         CHECK_EQ(value, ZSTD_HASHLOG_MIN);
         /* Reset the CCtx */
         ZSTD_CCtx_reset(cctx, ZSTD_reset_session_only);
-        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_compressionLevel, &value));
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_compressionLevel, &value));
         CHECK_EQ(value, 7);
-        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_hashLog, &value));
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_hashLog, &value));
         CHECK_EQ(value, ZSTD_HASHLOG_MIN);
         /* Reset the parameters */
         ZSTD_CCtx_reset(cctx, ZSTD_reset_parameters);
-        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_compressionLevel, &value));
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_compressionLevel, &value));
         CHECK_EQ(value, 3);
-        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_p_hashLog, &value));
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_hashLog, &value));
         CHECK_EQ(value, 0);
 
         ZSTD_freeCCtx(cctx);
@@ -1285,7 +1285,7 @@ static int basicUnitTests(U32 seed, double compressibility)
                                         params);
             if (ZSTD_isError(cSize_1pass)) goto _output_error;
 
-            CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_p_compressionLevel, compressionLevel) );
+            CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, compressionLevel) );
             {   size_t const compressionResult = ZSTD_compress2(cctx,
                                     compressedBuffer, compressedBufferSize,
                                     CNBuffer, srcSize);
@@ -1304,9 +1304,9 @@ static int basicUnitTests(U32 seed, double compressibility)
         {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
             DISPLAYLEVEL(3, "test%3i : parameters in order : ", testNb++);
             assert(cctx != NULL);
-            CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_p_compressionLevel, 2) );
-            CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_p_enableLongDistanceMatching, 1) );
-            CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_p_windowLog, 18) );
+            CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, 2) );
+            CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, 1) );
+            CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_windowLog, 18) );
             {   size_t const compressedSize = ZSTD_compress2(cctx,
                                 compressedBuffer, ZSTD_compressBound(inputSize),
                                 CNBuffer, inputSize);
@@ -1320,9 +1320,9 @@ static int basicUnitTests(U32 seed, double compressibility)
 
         {   ZSTD_CCtx* cctx = ZSTD_createCCtx();
             DISPLAYLEVEL(3, "test%3i : parameters disordered : ", testNb++);
-            CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_p_windowLog, 18) );
-            CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_p_enableLongDistanceMatching, 1) );
-            CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_p_compressionLevel, 2) );
+            CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_windowLog, 18) );
+            CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, 1) );
+            CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, 2) );
             {   size_t const result = ZSTD_compress2(cctx,
                                 compressedBuffer, ZSTD_compressBound(inputSize),
                                 CNBuffer, inputSize);
@@ -1375,7 +1375,7 @@ static int basicUnitTests(U32 seed, double compressibility)
 
         /* basic block compression */
         DISPLAYLEVEL(3, "test%3i : magic-less format test : ", testNb++);
-        CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_p_format, ZSTD_f_zstd1_magicless) );
+        CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_format, ZSTD_f_zstd1_magicless) );
         {   ZSTD_inBuffer in = { CNBuffer, inputSize, 0 };
             ZSTD_outBuffer out = { compressedBuffer, ZSTD_compressBound(inputSize), 0 };
             size_t const result = ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end);

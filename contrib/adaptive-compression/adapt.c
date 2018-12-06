@@ -579,7 +579,7 @@ static void* compressionThread(void* arg)
                 params.cParams.windowLog = 23;
                 {
                     size_t const initError = ZSTD_compressBegin_advanced(ctx->cctx, job->src.start + job->dictSize - useDictSize, useDictSize, params, 0);
-                    size_t const windowSizeError = ZSTD_CCtx_setParameter(ctx->cctx, ZSTD_p_forceMaxWindow, 1);
+                    size_t const windowSizeError = ZSTD_CCtx_setParameter(ctx->cctx, ZSTD_c_forceMaxWindow, 1);
                     if (ZSTD_isError(initError) || ZSTD_isError(windowSizeError)) {
                         DISPLAY("Error: something went wrong while starting compression\n");
                         signalErrorToThreads(ctx);

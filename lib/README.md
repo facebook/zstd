@@ -66,6 +66,24 @@ It's possible to compile only a limited set of features.
         and `ZSTD_LIB_DEPRECATED` as 0 to forgo compilation of the corresponding features. This will
         also disable compilation of all dependencies (eg. `ZSTD_LIB_COMPRESSION=0` will also disable
         dictBuilder).
+- There are some additional macros that can be used to minify the decoder.
+
+  Zstandard often has more than one implementation of a piece of functionality,
+  where each implementation optimizes for different scenarios. For example, the
+  Huffman decoder has complementary implementations that decode the stream one
+  symbol at a time or two symbols at a time. Zstd normally includes both (and
+  dispatches between them at runtime), but by defining `HUF_FORCE_DECOMPRESS_X1`
+  or `HUF_FORCE_DECOMPRESS_X2`, you can force the use of one or the other, avoiding
+  compilation of the other. Similarly, `ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT`
+  and `ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG` force the compilation and use of
+  only one or the other of two decompression implementations. The smallest
+  binary is achieved by using `HUF_FORCE_DECOMPRESS_X1` and
+  `ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT`.
+
+  For squeezing the last ounce of size out, you can also define
+  `ZSTD_NO_INLINE`, which disables inlining, and `ZSTD_STRIP_ERROR_STRINGS`,
+  which removes the error messages that are otherwise returned by
+  `ZSTD_getErrorName`.
 
 
 #### Multithreading support

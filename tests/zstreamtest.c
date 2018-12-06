@@ -230,7 +230,7 @@ static size_t getCCtxParams(ZSTD_CCtx* zc, ZSTD_parameters* savedParams)
     CHECK_RET_Z(ZSTD_CCtx_getParameter(zc, ZSTD_c_searchLog, (int*)&savedParams->cParams.searchLog));
     CHECK_RET_Z(ZSTD_CCtx_getParameter(zc, ZSTD_c_minMatch, (int*)&savedParams->cParams.minMatch));
     CHECK_RET_Z(ZSTD_CCtx_getParameter(zc, ZSTD_c_targetLength, (int*)&savedParams->cParams.targetLength));
-    CHECK_RET_Z(ZSTD_CCtx_getParameter(zc, ZSTD_c_compressionStrategy, &value));
+    CHECK_RET_Z(ZSTD_CCtx_getParameter(zc, ZSTD_c_strategy, &value));
     savedParams->cParams.strategy = value;
 
     CHECK_RET_Z(ZSTD_CCtx_getParameter(zc, ZSTD_c_checksumFlag, &savedParams->fParams.checksumFlag));

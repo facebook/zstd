@@ -267,7 +267,7 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
         bounds.upperBound = ZSTD_TARGETLENGTH_MAX;
         return bounds;
 
-    case ZSTD_c_compressionStrategy:
+    case ZSTD_c_strategy:
         bounds.lowerBound = (int)ZSTD_fast;
         bounds.upperBound = (int)ZSTD_btultra2;  /* note : how to ensure at compile time that this is the highest value strategy ? */
         return bounds;
@@ -349,12 +349,13 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
     case ZSTD_c_format:
         ZSTD_STATIC_ASSERT((int)ZSTD_f_zstd1 < (int)ZSTD_f_zstd1_magicless);
         bounds.lowerBound = (int)ZSTD_f_zstd1;
-        bounds.upperBound = (int)ZSTD_f_zstd1_magicless;
+        bounds.upperBound = (int)ZSTD_f_zstd1_magicless;   /* note : how to ensure at compile time that this is the highest value enum ? */
         return bounds;
 
     case ZSTD_c_forceAttachDict:
-        bounds.lowerBound = 0;
-        bounds.upperBound = 1;
+        ZSTD_STATIC_ASSERT((int)ZSTD_dictDefaultAttach < (int)ZSTD_dictForceCopy);
+        bounds.lowerBound = ZSTD_dictDefaultAttach;
+        bounds.upperBound = ZSTD_dictForceCopy;           /* note : how to ensure at compile time that this is the highest value enum ? */
         return bounds;
 
     default:
@@ -392,7 +393,7 @@ static int ZSTD_isUpdateAuthorized(ZSTD_cParameter param)
     case ZSTD_c_searchLog:
     case ZSTD_c_minMatch:
     case ZSTD_c_targetLength:
-    case ZSTD_c_compressionStrategy:
+    case ZSTD_c_strategy:
         return 1;
 
     case ZSTD_c_format:
@@ -441,7 +442,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int value)
     case ZSTD_c_searchLog:
     case ZSTD_c_minMatch:
     case ZSTD_c_targetLength:
-    case ZSTD_c_compressionStrategy:
+    case ZSTD_c_strategy:
         if (cctx->cdict) return ERROR(stage_wrong);
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
@@ -534,13 +535,13 @@ size_t ZSTD_CCtxParam_setParameter(ZSTD_CCtx_params* CCtxParams,
         return CCtxParams->cParams.minMatch;
 
     case ZSTD_c_targetLength :
-        /* all values are valid. 0 => use default */
+        CLAMPCHECK(ZSTD_c_targetLength, value);
         CCtxParams->cParams.targetLength = value;
         return CCtxParams->cParams.targetLength;
 
-    case ZSTD_c_compressionStrategy :
+    case ZSTD_c_strategy :
         if (value!=0)   /* 0 => use default */
-            CLAMPCHECK(ZSTD_c_compressionStrategy, value);
+            CLAMPCHECK(ZSTD_c_strategy, value);
         CCtxParams->cParams.strategy = (ZSTD_strategy)value;
         return (size_t)CCtxParams->cParams.strategy;
 
@@ -666,7 +667,7 @@ size_t ZSTD_CCtxParam_getParameter(
     case ZSTD_c_targetLength :
         *value = CCtxParams->cParams.targetLength;
         break;
-    case ZSTD_c_compressionStrategy :
+    case ZSTD_c_strategy :
         *value = (unsigned)CCtxParams->cParams.strategy;
         break;
     case ZSTD_c_contentSizeFlag :
@@ -849,10 +850,8 @@ size_t ZSTD_checkCParams(ZSTD_compressionParameters cParams)
     CLAMPCHECK(ZSTD_c_hashLog,   cParams.hashLog);
     CLAMPCHECK(ZSTD_c_searchLog, cParams.searchLog);
     CLAMPCHECK(ZSTD_c_minMatch,  cParams.minMatch);
-    ZSTD_STATIC_ASSERT(ZSTD_TARGETLENGTH_MIN == 0);
-    if (cParams.targetLength > ZSTD_TARGETLENGTH_MAX)
-        return ERROR(parameter_outOfBound);
-    CLAMPCHECK(ZSTD_c_compressionStrategy, cParams.strategy);
+    CLAMPCHECK(ZSTD_c_targetLength,cParams.targetLength);
+    CLAMPCHECK(ZSTD_c_strategy,  cParams.strategy);
     return 0;
 }
 
@@ -862,20 +861,18 @@ size_t ZSTD_checkCParams(ZSTD_compressionParameters cParams)
 static ZSTD_compressionParameters
 ZSTD_clampCParams(ZSTD_compressionParameters cParams)
 {
-#   define CLAMP(cParam, val) {                                   \
-        ZSTD_bounds const bounds = ZSTD_cParam_getBounds(cParam); \
-        if (val<bounds.lowerBound) val=bounds.lowerBound;         \
-        else if (val>bounds.upperBound) val=bounds.upperBound;    \
+#   define CLAMP(cParam, val) {                                      \
+        ZSTD_bounds const bounds = ZSTD_cParam_getBounds(cParam);    \
+        if ((int)val<bounds.lowerBound) val=bounds.lowerBound;       \
+        else if ((int)val>bounds.upperBound) val=bounds.upperBound;  \
     }
     CLAMP(ZSTD_c_windowLog, cParams.windowLog);
     CLAMP(ZSTD_c_chainLog,  cParams.chainLog);
     CLAMP(ZSTD_c_hashLog,   cParams.hashLog);
     CLAMP(ZSTD_c_searchLog, cParams.searchLog);
     CLAMP(ZSTD_c_minMatch,  cParams.minMatch);
-    ZSTD_STATIC_ASSERT(ZSTD_TARGETLENGTH_MIN == 0);
-    if (cParams.targetLength > ZSTD_TARGETLENGTH_MAX)
-        cParams.targetLength = ZSTD_TARGETLENGTH_MAX;
-    CLAMP(ZSTD_c_compressionStrategy, cParams.strategy);
+    CLAMP(ZSTD_c_targetLength,cParams.targetLength);
+    CLAMP(ZSTD_c_strategy,  cParams.strategy);
     return cParams;
 }
 
@@ -1841,11 +1838,9 @@ static size_t ZSTD_compressRleLiteralsBlock (void* dst, size_t dstCapacity, cons
  * note : use same formula for both situations */
 static size_t ZSTD_minGain(size_t srcSize, ZSTD_strategy strat)
 {
-    U32 const minlog = (U32)strat - 1;
-    ZSTD_STATIC_ASSERT(ZSTD_btopt == 7);
-    assert(strat >= ZSTD_btopt);
-    return (srcSize >> minlog) + 2;
-}
+    U32 const minlog = (strat>=ZSTD_btultra) ? (U32)(strat) - 1 : 6;
+    ZSTD_STATIC_ASSERT(ZSTD_btultra == 8);
+    return (srcSize >> minlog) + 2;}
 
 static size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
                                      ZSTD_hufCTables_t* nextHuf,
@@ -2585,7 +2580,7 @@ ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMo
     ZSTD_blockCompressor selectedCompressor;
     ZSTD_STATIC_ASSERT((unsigned)ZSTD_fast == 1);
 
-    assert(ZSTD_cParam_withinBounds(ZSTD_c_compressionStrategy, strat));
+    assert(ZSTD_cParam_withinBounds(ZSTD_c_strategy, strat));
     selectedCompressor = blockCompressor[(int)dictMode][(int)strat];
     assert(selectedCompressor != NULL);
     return selectedCompressor;

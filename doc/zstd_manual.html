@@ -1050,8 +1050,9 @@ static ZSTD_customMem const ZSTD_defaultCMem = { NULL, NULL, NULL };  </b>/**< t
 </p></pre><BR>
 
 <pre><b>size_t ZSTD_CCtx_getParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int* value);
-</b><p> Get the requested value of one compression parameter, selected by enum ZSTD_cParameter.
- @result : 0, or an error code (which can be tested with ZSTD_isError()).
+</b><p>  Get the requested compression parameter value, selected by enum ZSTD_cParameter,
+  and store it into int* value.
+ @return : 0, or an error code (which can be tested with ZSTD_isError()).
  
 </p></pre><BR>
 
@@ -1071,7 +1072,7 @@ size_t ZSTD_freeCCtxParams(ZSTD_CCtx_params* params);
   - ZSTD_freeCCtxParams() : Free the memory.
 
   This can be used with ZSTD_estimateCCtxSize_advanced_usingCCtxParams()
-  for static allocation for single-threaded compression.
+  for static allocation of CCtx for single-threaded compression.
  
 </p></pre><BR>
 

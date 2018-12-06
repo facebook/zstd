@@ -438,12 +438,6 @@ ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output
 #define ZSTD_BLOCKSIZELOG_MAX  17
 #define ZSTD_BLOCKSIZE_MAX     (1<<ZSTD_BLOCKSIZELOG_MAX)
 
-#define ZSTD_WINDOWLOG_LIMIT_DEFAULT 27   /* by default, the streaming decoder will refuse any frame
-                                           * requiring larger than (1<<ZSTD_WINDOWLOG_LIMIT_DEFAULT) window size,
-                                           * to preserve memory from unreasonable requirements.
-                                           * This limit can be overriden using ZSTD_DCtx_setParameter().
-                                           * This limit does not apply to one-pass decoders (such as ZSTD_decompress()), since no additional memory is allocated */
-
 
 /* ===   query limits   === */
 
@@ -950,6 +944,12 @@ ZSTDLIB_API size_t ZSTD_DCtx_reset(ZSTD_DCtx* dctx, ZSTD_ResetDirective reset);
 #define ZSTD_OVERLAPLOG_MIN       0
 #define ZSTD_OVERLAPLOG_MAX       9
 
+#define ZSTD_WINDOWLOG_LIMIT_DEFAULT 27   /* by default, the streaming decoder will refuse any frame
+                                           * requiring larger than (1<<ZSTD_WINDOWLOG_LIMIT_DEFAULT) window size,
+                                           * to preserve host's memory from unreasonable requirements.
+                                           * This limit can be overriden using ZSTD_DCtx_setParameter(,ZSTD_d_windowLogMax,).
+                                           * The limit does not apply for one-pass decoders (such as ZSTD_decompress()), since no additional memory is allocated */
+
 
 /* LDM parameter bounds */
 #define ZSTD_LDM_HASHLOG_MIN      ZSTD_HASHLOG_MIN
@@ -1300,8 +1300,9 @@ ZSTDLIB_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* pre
 #define ZSTD_c_forceAttachDict ZSTD_c_experimentalParam4
 
 /*! ZSTD_CCtx_getParameter() :
- * Get the requested value of one compression parameter, selected by enum ZSTD_cParameter.
- * @result : 0, or an error code (which can be tested with ZSTD_isError()).
+ *  Get the requested compression parameter value, selected by enum ZSTD_cParameter,
+ *  and store it into int* value.
+ * @return : 0, or an error code (which can be tested with ZSTD_isError()).
  */
 ZSTDLIB_API size_t ZSTD_CCtx_getParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int* value);
 
@@ -1321,7 +1322,7 @@ ZSTDLIB_API size_t ZSTD_CCtx_getParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param
  *  - ZSTD_freeCCtxParams() : Free the memory.
  *
  *  This can be used with ZSTD_estimateCCtxSize_advanced_usingCCtxParams()
- *  for static allocation for single-threaded compression.
+ *  for static allocation of CCtx for single-threaded compression.
  */
 ZSTDLIB_API ZSTD_CCtx_params* ZSTD_createCCtxParams(void);
 ZSTDLIB_API size_t ZSTD_freeCCtxParams(ZSTD_CCtx_params* params);

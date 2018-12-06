@@ -75,20 +75,21 @@ static const int g_maxNbVariations = 64;
 #define CLOG_RANGE (ZSTD_CHAINLOG_MAX - ZSTD_CHAINLOG_MIN + 1)
 #define HLOG_RANGE (ZSTD_HASHLOG_MAX - ZSTD_HASHLOG_MIN + 1)
 #define SLOG_RANGE (ZSTD_SEARCHLOG_MAX - ZSTD_SEARCHLOG_MIN + 1)
-#define MML_RANGE (ZSTD_MINMATCH_MAX - ZSTD_MINMATCH_MIN + 1)
-#define TLEN_RANGE 17
-#define STRT_RANGE (ZSTD_btultra - ZSTD_fast + 1)
-#define FADT_RANGE 3
+#define MML_RANGE  (ZSTD_MINMATCH_MAX - ZSTD_MINMATCH_MIN + 1)
+#define TLEN_RANGE  17
+#define STRT_RANGE (ZSTD_btultra2 - ZSTD_fast + 1)
+#define FADT_RANGE   3
 
 #define CHECKTIME(r) { if(BMK_timeSpan(g_time) > g_timeLimit_s) { DEBUGOUTPUT("Time Limit Reached\n"); return r; } }
 #define CHECKTIMEGT(ret, val, _gototag) {if(BMK_timeSpan(g_time) > g_timeLimit_s) { DEBUGOUTPUT("Time Limit Reached\n"); ret = val; goto _gototag; } }
 
 #define PARAM_UNSET ((U32)-2) /* can't be -1 b/c fadt uses -1 */
 
-static const char* g_stratName[ZSTD_btultra+1] = {
+static const char* g_stratName[ZSTD_btultra2+1] = {
                 "(none)       ", "ZSTD_fast    ", "ZSTD_dfast   ",
                 "ZSTD_greedy  ", "ZSTD_lazy    ", "ZSTD_lazy2   ",
-                "ZSTD_btlazy2 ", "ZSTD_btopt   ", "ZSTD_btultra "};
+                "ZSTD_btlazy2 ", "ZSTD_btopt   ", "ZSTD_btultra ",
+                "ZSTD_btultra2"};
 
 static const U32 tlen_table[TLEN_RANGE] = { 0, 1, 2, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128, 256, 512, 999 };
 
@@ -114,13 +115,13 @@ typedef struct {
     U32 vals[NUM_PARAMS];
 } paramValues_t;
 
-/* maximum value of parameters */
+/* minimum value of parameters */
 static const U32 mintable[NUM_PARAMS] =
         { ZSTD_WINDOWLOG_MIN, ZSTD_CHAINLOG_MIN, ZSTD_HASHLOG_MIN, ZSTD_SEARCHLOG_MIN, ZSTD_MINMATCH_MIN, ZSTD_TARGETLENGTH_MIN, ZSTD_fast, FADT_MIN };
 
-/* minimum value of parameters */
+/* maximum value of parameters */
 static const U32 maxtable[NUM_PARAMS] =
-        { ZSTD_WINDOWLOG_MAX, ZSTD_CHAINLOG_MAX, ZSTD_HASHLOG_MAX, ZSTD_SEARCHLOG_MAX, ZSTD_MINMATCH_MAX, ZSTD_TARGETLENGTH_MAX, ZSTD_btultra, FADT_MAX };
+        { ZSTD_WINDOWLOG_MAX, ZSTD_CHAINLOG_MAX, ZSTD_HASHLOG_MAX, ZSTD_SEARCHLOG_MAX, ZSTD_MINMATCH_MAX, ZSTD_TARGETLENGTH_MAX, ZSTD_btultra2, FADT_MAX };
 
 /* # of values parameters can take on */
 static const U32 rangetable[NUM_PARAMS] =
@@ -128,7 +129,7 @@ static const U32 rangetable[NUM_PARAMS] =
 
 /* ZSTD_cctxSetParameter() index to set */
 static const ZSTD_cParameter cctxSetParamTable[NUM_PARAMS] =
-        { ZSTD_c_windowLog, ZSTD_c_chainLog, ZSTD_c_hashLog, ZSTD_c_searchLog, ZSTD_c_minMatch, ZSTD_c_targetLength, ZSTD_c_compressionStrategy, ZSTD_c_forceAttachDict };
+        { ZSTD_c_windowLog, ZSTD_c_chainLog, ZSTD_c_hashLog, ZSTD_c_searchLog, ZSTD_c_minMatch, ZSTD_c_targetLength, ZSTD_c_strategy, ZSTD_c_forceAttachDict };
 
 /* names of parameters */
 static const char* g_paramNames[NUM_PARAMS] =
@@ -298,7 +299,7 @@ static paramValues_t sanitizeParams(paramValues_t params)
         params.vals[clog_ind] = 0, params.vals[slog_ind] = 0;
     if (params.vals[strt_ind] == ZSTD_dfast)
         params.vals[slog_ind] = 0;
-    if (params.vals[strt_ind] != ZSTD_btopt && params.vals[strt_ind] != ZSTD_btultra && params.vals[strt_ind] != ZSTD_fast)
+    if ( (params.vals[strt_ind] < ZSTD_btopt) && (params.vals[strt_ind] != ZSTD_fast) )
         params.vals[tlen_ind] = 0;
 
     return params;
@@ -1218,7 +1219,7 @@ static size_t sanitizeVarArray(varInds_t* varNew, const size_t varLength, const 
         if( !((varArray[i] == clog_ind && strat == ZSTD_fast)
             || (varArray[i] == slog_ind && strat == ZSTD_fast)
             || (varArray[i] == slog_ind && strat == ZSTD_dfast)
-            || (varArray[i] == tlen_ind && strat != ZSTD_btopt && strat != ZSTD_btultra && strat != ZSTD_fast))) {
+            || (varArray[i] == tlen_ind && strat < ZSTD_btopt && strat != ZSTD_fast))) {
             varNew[j] = varArray[i];
             j++;
         }
@@ -1290,10 +1291,12 @@ static void memoTableSet(const memoTable_t* memoTableArray, const paramValues_t 
 }
 
 /* frees all allocated memotables */
+/* secret contract :
+ * mtAll is a table of (ZSTD_btultra2+1) memoTable_t */
 static void freeMemoTableArray(memoTable_t* const mtAll) {
     int i;
     if(mtAll == NULL) { return; }
-    for(i = 1; i <= (int)ZSTD_btultra; i++) {
+    for(i = 1; i <= (int)ZSTD_btultra2; i++) {
         free(mtAll[i].table);
     }
     free(mtAll);
@@ -1301,21 +1304,26 @@ static void freeMemoTableArray(memoTable_t* const mtAll) {
 
 /* inits memotables for all (including mallocs), all strategies */
 /* takes unsanitized varyParams */
-static memoTable_t* createMemoTableArray(const paramValues_t p, const varInds_t* const varyParams, const size_t varyLen, const U32 memoTableLog) {
-    memoTable_t* mtAll = (memoTable_t*)calloc(sizeof(memoTable_t),(ZSTD_btultra + 1));
-    ZSTD_strategy i, stratMin = ZSTD_fast, stratMax = ZSTD_btultra;
+static memoTable_t*
+createMemoTableArray(const paramValues_t p,
+                     const varInds_t* const varyParams,
+                     const size_t varyLen,
+                     const U32 memoTableLog)
+{
+    memoTable_t* const mtAll = (memoTable_t*)calloc(sizeof(memoTable_t),(ZSTD_btultra2 + 1));
+    ZSTD_strategy i, stratMin = ZSTD_fast, stratMax = ZSTD_btultra2;
 
     if(mtAll == NULL) {
         return NULL;
     }
 
-    for(i = 1; i <= (int)ZSTD_btultra; i++) {
+    for(i = 1; i <= (int)ZSTD_btultra2; i++) {
         mtAll[i].varLen = sanitizeVarArray(mtAll[i].varArray, varyLen, varyParams, i);
     }
 
     /* no memoization */
     if(memoTableLog == 0) {
-        for(i = 1; i <= (int)ZSTD_btultra; i++) {
+        for(i = 1; i <= (int)ZSTD_btultra2; i++) {
             mtAll[i].tableType = noMemo;
             mtAll[i].table = NULL;
             mtAll[i].tableLen = 0;
@@ -1661,7 +1669,7 @@ static void BMK_init_level_constraints(int bytePerSec_level1)
             g_level_constraint[l].cSpeed_min = (g_level_constraint[l-1].cSpeed_min * 49) / 64;
             g_level_constraint[l].dSpeed_min = 0.;
             g_level_constraint[l].windowLog_max = (l<20) ? 23 : l+5;   /* only --ultra levels >= 20 can use windowlog > 23 */
-            g_level_constraint[l].strategy_max = (l<19) ? ZSTD_btopt : ZSTD_btultra;   /* level 19 is allowed to use btultra */
+            g_level_constraint[l].strategy_max = ZSTD_btultra2;   /* level 19 is allowed to use btultra */
     }   }
 }
 
@@ -2134,7 +2142,7 @@ static int nextStrategy(const int currentStrategy, const int bestStrategy) {
         int candidate = 2 * bestStrategy - currentStrategy - 1;
         if(candidate < 1) {
             candidate = currentStrategy + 1;
-            if(candidate > (int)ZSTD_btultra) {
+            if(candidate > (int)ZSTD_btultra2) {
                 return 0;
             } else {
                 return candidate;
@@ -2144,7 +2152,7 @@ static int nextStrategy(const int currentStrategy, const int bestStrategy) {
         }
     } else { /* bestStrategy >= currentStrategy */
         int candidate = 2 * bestStrategy - currentStrategy;
-        if(candidate > (int)ZSTD_btultra) {
+        if(candidate > (int)ZSTD_btultra2) {
             candidate = currentStrategy - 1;
             if(candidate < 1) {
                 return 0;

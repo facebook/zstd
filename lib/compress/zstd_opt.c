@@ -1162,5 +1162,5 @@ size_t ZSTD_compressBlock_btultra_extDict(
 }
 
 /* note : no btultra2 variant for extDict nor dictMatchState,
- * tbecause btultra2 is not meant to work with dictionaries
+ * because btultra2 is not meant to work with dictionaries
  * and is only specific for the first block (no prefix) */

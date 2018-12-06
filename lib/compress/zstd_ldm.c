@@ -188,6 +188,7 @@ static size_t ZSTD_ldm_fillFastTables(ZSTD_matchState_t* ms,
     case ZSTD_btlazy2:
     case ZSTD_btopt:
     case ZSTD_btultra:
+    case ZSTD_btultra2:
         break;
     default:
         assert(0);  /* not possible : not a valid strategy id */

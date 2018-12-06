@@ -496,9 +496,8 @@ typedef enum { ZSTD_fast=1,
                ZSTD_btopt=7,
                ZSTD_btultra=8,
                ZSTD_btultra2=9
-               /* note : new strategies might be added in the future.
-                         Only the order (from fast to strong) is guaranteed, not the exact position.
-                         new strategy names might be introduced, pushing the maximum number upward */
+               /* note : new strategies _might_ be added in the future.
+                         Only the order (from fast to strong) is guaranteed */
 } ZSTD_strategy;
 
 
@@ -549,7 +548,7 @@ typedef enum {
                               *     Distance between match sampling.
                               *     Larger values make compression faster, and weaker.
                               * Special: value 0 means "use default targetLength". */
-    ZSTD_c_compressionStrategy=107, /* See ZSTD_strategy enum definition.
+    ZSTD_c_strategy=107,     /* See ZSTD_strategy enum definition.
                               * The higher the value of selected strategy, the more complex it is,
                               * resulting in stronger and slower compression.
                               * Special: value 0 means "use default strategy". */

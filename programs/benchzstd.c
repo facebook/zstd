@@ -178,7 +178,7 @@ static void BMK_initCCtx(ZSTD_CCtx* ctx,
     ZSTD_CCtx_setParameter(ctx, ZSTD_c_searchLog, comprParams->searchLog);
     ZSTD_CCtx_setParameter(ctx, ZSTD_c_minMatch, comprParams->minMatch);
     ZSTD_CCtx_setParameter(ctx, ZSTD_c_targetLength, comprParams->targetLength);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_c_compressionStrategy, comprParams->strategy);
+    ZSTD_CCtx_setParameter(ctx, ZSTD_c_strategy, comprParams->strategy);
     ZSTD_CCtx_loadDictionary(ctx, dictBuffer, dictBufferSize);
 }
 

@@ -481,7 +481,7 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 /* API design :
  *   Parameters are pushed one by one into an existing context,
  *   using ZSTD_CCtx_set*() functions.
- *   Pushed parameters are sticky : they are applied to next job, and any subsequent job.
+ *   Pushed parameters are sticky : they are valid for next compressed frame, and any subsequent frame.
  *   "sticky" parameters are applicable to `ZSTD_compress2()` and `ZSTD_compressStream*()` !
  *   They do not apply to "simple" one-shot variants such as ZSTD_compressCCtx()
  *
@@ -518,8 +518,8 @@ typedef enum {
     ZSTD_c_windowLog=101,    /* Maximum allowed back-reference distance, expressed as power of 2.
                               * Must be clamped between ZSTD_WINDOWLOG_MIN and ZSTD_WINDOWLOG_MAX.
                               * Special: value 0 means "use default windowLog".
-                              * Note: Using a window size greater than 1<<ZSTD_WINDOWLOG_LIMIT_DEFAULT
-                              *       requires explicitly allowing such window size during decompression stage if using streaming. */
+                              * Note: Using a windowLog greater than ZSTD_WINDOWLOG_LIMIT_DEFAULT
+                              *       requires explicitly allowing such window size at decompression stage if using streaming. */
     ZSTD_c_hashLog=102,      /* Size of the initial probe table, as a power of 2.
                               * Resulting memory usage is (1 << (hashLog+2)).
                               * Must be clamped between ZSTD_HASHLOG_MIN and ZSTD_HASHLOG_MAX.
@@ -683,7 +683,7 @@ ZSTDLIB_API size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long lo
  * @result : 0, or an error code (which can be tested with ZSTD_isError()).
  *  Special: Loading a NULL (or 0-size) dictionary invalidates previous dictionary,
  *           meaning "return to no-dictionary mode".
- *  Note 1 : Dictionary is sticky, it will be used for all future compression jobs.
+ *  Note 1 : Dictionary is sticky, it will be used for all future compressed frames.
  *           To return to "no-dictionary" situation, load a NULL dictionary (or reset parameters).
  *  Note 2 : Loading a dictionary involves building tables.
  *           It's also a CPU consuming operation, with non-negligible impact on latency.
@@ -697,10 +697,10 @@ ZSTDLIB_API size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long lo
 ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, size_t dictSize);
 
 /*! ZSTD_CCtx_refCDict() :
- *  Reference a prepared dictionary, to be used for all next compression jobs.
+ *  Reference a prepared dictionary, to be used for all next compressed frames.
  *  Note that compression parameters are enforced from within CDict,
  *  and supercede any compression parameter previously set within CCtx.
- *  The dictionary will remain valid for future compression jobs using same CCtx.
+ *  The dictionary will remain valid for future compressed frames using same CCtx.
  * @result : 0, or an error code (which can be tested with ZSTD_isError()).
  *  Special : Referencing a NULL CDict means "return to no-dictionary mode".
  *  Note 1 : Currently, only one dictionary can be managed.
@@ -709,14 +709,14 @@ ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, s
 ZSTDLIB_API size_t ZSTD_CCtx_refCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict);
 
 /*! ZSTD_CCtx_refPrefix() :
- *  Reference a prefix (single-usage dictionary) for next compression job.
+ *  Reference a prefix (single-usage dictionary) for next compressed frame.
+ *  A prefix is **only used once**. Tables are discarded at end of frame (ZSTD_e_end).
  *  Decompression will need same prefix to properly regenerate data.
  *  Compressing with a prefix is similar in outcome as performing a diff and compressing it,
  *  but performs much faster, especially during decompression (compression speed is tunable with compression level).
- *  Note that prefix is **only used once**. Tables are discarded at end of compression job (ZSTD_e_end).
  * @result : 0, or an error code (which can be tested with ZSTD_isError()).
  *  Special: Adding any prefix (including NULL) invalidates any previous prefix or dictionary
- *  Note 1 : Prefix buffer is referenced. It **must** outlive compression job.
+ *  Note 1 : Prefix buffer is referenced. It **must** outlive compression.
  *           Its content must remain unmodified during compression.
  *  Note 2 : If the intention is to diff some large src data blob with some prior version of itself,
  *           ensure that the window size is large enough to contain the entire source.
@@ -810,7 +810,7 @@ ZSTDLIB_API size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
 /* ============================== */
 
 /* The advanced API pushes parameters one by one into an existing DCtx context.
- * Parameters are sticky, and remain valid for all following decompression jobs
+ * Parameters are sticky, and remain valid for all following frames
  * using the same DCtx context.
  * It's possible to reset parameters to default values using ZSTD_DCtx_reset().
  * Note : This API is compatible with existing ZSTD_decompressDCtx() and ZSTD_decompressStream().
@@ -886,14 +886,14 @@ ZSTDLIB_API size_t ZSTD_DCtx_loadDictionary(ZSTD_DCtx* dctx, const void* dict, s
 ZSTDLIB_API size_t ZSTD_DCtx_refDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict);
 
 /*! ZSTD_DCtx_refPrefix() :
- *  Reference a prefix (single-usage dictionary) for next compression job.
+ *  Reference a prefix (single-usage dictionary) to decompress next frame.
  *  This is the reverse operation of ZSTD_CCtx_refPrefix(),
  *  and must use the same prefix as the one used during compression.
  *  Prefix is **only used once**. Reference is discarded at end of frame.
  *  End of frame is reached when ZSTD_decompressStream() returns 0.
  * @result : 0, or an error code (which can be tested with ZSTD_isError()).
  *  Note 1 : Adding any prefix (including NULL) invalidates any previously set prefix or dictionary
- *  Note 2 : Prefix buffer is referenced. It **must** outlive decompression job.
+ *  Note 2 : Prefix buffer is referenced. It **must** outlive decompression.
  *           Prefix buffer must remain unmodified up to the end of frame,
  *           reached when ZSTD_decompressStream() returns 0.
  *  Note 3 : By default, the prefix is treated as raw content (ZSTD_dm_rawContent).
@@ -1316,7 +1316,7 @@ ZSTDLIB_API size_t ZSTD_CCtx_getParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param
  *  - ZSTD_CCtx_setParametersUsingCCtxParams() : Apply parameters to
  *                                    an existing CCtx.
  *                                    These parameters will be applied to
- *                                    all subsequent compression jobs.
+ *                                    all subsequent frames.
  *  - ZSTD_compressStream2() : Do compression using the CCtx.
  *  - ZSTD_freeCCtxParams() : Free the memory.
  *
@@ -1493,7 +1493,7 @@ ZSTDLIB_API size_t ZSTD_initCStream_usingCDict(ZSTD_CStream* zcs, const ZSTD_CDi
 ZSTDLIB_API size_t ZSTD_initCStream_usingCDict_advanced(ZSTD_CStream* zcs, const ZSTD_CDict* cdict, ZSTD_frameParameters fParams, unsigned long long pledgedSrcSize);  /**< same as ZSTD_initCStream_usingCDict(), with control over frame parameters. pledgedSrcSize must be correct. If srcSize is not known at init time, use value ZSTD_CONTENTSIZE_UNKNOWN. */
 
 /*! ZSTD_resetCStream() :
- *  start a new compression job, using same parameters from previous job.
+ *  start a new frame, using same parameters from previous frame.
  *  This is typically useful to skip dictionary loading stage, since it will re-use it in-place.
  *  Note that zcs must be init at least once before using ZSTD_resetCStream().
  *  If pledgedSrcSize is not known at reset time, use macro ZSTD_CONTENTSIZE_UNKNOWN.

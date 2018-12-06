@@ -7,13 +7,71 @@
  * in the COPYING file in the root directory of this source tree).
  * You may select, at your option, one of the above-listed licenses.
  */
+
+
 #include <stdlib.h>    // malloc, exit
 #include <stdio.h>     // printf
 #include <string.h>    // strerror
 #include <errno.h>     // errno
 #include <sys/stat.h>  // stat
 #include <zstd.h>      // presumes zstd library is installed
-#include "utils.h"
+
+
+static off_t fsize_orDie(const char *filename)
+{
+    struct stat st;
+    if (stat(filename, &st) == 0) return st.st_size;
+    /* error */
+    perror(filename);
+    exit(1);
+}
+
+static FILE* fopen_orDie(const char *filename, const char *instruction)
+{
+    FILE* const inFile = fopen(filename, instruction);
+    if (inFile) return inFile;
+    /* error */
+    perror(filename);
+    exit(2);
+}
+
+static void* malloc_orDie(size_t size)
+{
+    void* const buff = malloc(size);
+    if (buff) return buff;
+    /* error */
+    perror("malloc");
+    exit(3);
+}
+
+static void* loadFile_orDie(const char* fileName, size_t* size)
+{
+    off_t const buffSize = fsize_orDie(fileName);
+    FILE* const inFile = fopen_orDie(fileName, "rb");
+    void* const buffer = malloc_orDie(buffSize);
+    size_t const readSize = fread(buffer, 1, buffSize, inFile);
+    if (readSize != (size_t)buffSize) {
+        fprintf(stderr, "fread: %s : %s \n", fileName, strerror(errno));
+        exit(4);
+    }
+    fclose(inFile);
+    *size = buffSize;
+    return buffer;
+}
+
+static void saveFile_orDie(const char* fileName, const void* buff, size_t buffSize)
+{
+    FILE* const oFile = fopen_orDie(fileName, "wb");
+    size_t const wSize = fwrite(buff, 1, buffSize, oFile);
+    if (wSize != (size_t)buffSize) {
+        fprintf(stderr, "fwrite: %s : %s \n", fileName, strerror(errno));
+        exit(5);
+    }
+    if (fclose(oFile)) {
+        perror(fileName);
+        exit(6);
+    }
+}
 
 /* createDict() :
    `dictFileName` is supposed to have been created using `zstd --train` */

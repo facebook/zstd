@@ -17,7 +17,49 @@
 #include <sys/stat.h>  // stat
 #define ZSTD_STATIC_LINKING_ONLY   // ZSTD_findDecompressedSize
 #include <zstd.h>      // presumes zstd library is installed
-#include "utils.h"
+
+
+static off_t fsize_orDie(const char *filename)
+{
+    struct stat st;
+    if (stat(filename, &st) == 0) return st.st_size;
+    /* error */
+    perror(filename);
+    exit(1);
+}
+
+static FILE* fopen_orDie(const char *filename, const char *instruction)
+{
+    FILE* const inFile = fopen(filename, instruction);
+    if (inFile) return inFile;
+    /* error */
+    perror(filename);
+    exit(2);
+}
+
+static void* malloc_orDie(size_t size)
+{
+    void* const buff = malloc(size);
+    if (buff) return buff;
+    /* error */
+    perror("malloc");
+    exit(3);
+}
+
+static void* loadFile_orDie(const char* fileName, size_t* size)
+{
+    off_t const buffSize = fsize_orDie(fileName);
+    FILE* const inFile = fopen_orDie(fileName, "rb");
+    void* const buffer = malloc_orDie(buffSize);
+    size_t const readSize = fread(buffer, 1, buffSize, inFile);
+    if (readSize != (size_t)buffSize) {
+        fprintf(stderr, "fread: %s : %s \n", fileName, strerror(errno));
+        exit(4);
+    }
+    fclose(inFile);
+    *size = buffSize;
+    return buffer;
+}
 
 /* createDict() :
    `dictFileName` is supposed to have been created using `zstd --train` */
@@ -31,6 +73,7 @@ static ZSTD_DDict* createDict_orDie(const char* dictFileName)
     free(dictBuffer);
     return ddict;
 }
+
 
 static void decompress(const char* fname, const ZSTD_DDict* ddict)
 {

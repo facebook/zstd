@@ -8,13 +8,78 @@
  * You may select, at your option, one of the above-listed licenses.
  */
 
+
+
 #include <stdlib.h>    // malloc, free, exit
 #include <stdio.h>     // fprintf, perror, fopen, etc.
 #include <string.h>    // strlen, strcat, memset, strerror
 #include <errno.h>     // errno
 #include <sys/stat.h>  // stat
 #include <zstd.h>      // presumes zstd library is installed
-#include "utils.h"
+
+
+static off_t fsize_orDie(const char *filename)
+{
+    struct stat st;
+    if (stat(filename, &st) == 0) return st.st_size;
+    /* error */
+    perror(filename);
+    exit(1);
+}
+
+static FILE* fopen_orDie(const char *filename, const char *instruction)
+{
+    FILE* const inFile = fopen(filename, instruction);
+    if (inFile) return inFile;
+    /* error */
+    perror(filename);
+    exit(2);
+}
+
+static void* malloc_orDie(size_t size)
+{
+    void* const buff = malloc(size);
+    if (buff) return buff;
+    /* error */
+    perror(NULL);
+    exit(3);
+}
+
+static void* loadFile_orDie(const char* fileName, size_t* size)
+{
+    off_t const fileSize = fsize_orDie(fileName);
+    size_t const buffSize = (size_t)fileSize;
+    if ((off_t)buffSize < fileSize) {   /* narrowcast overflow */
+        fprintf(stderr, "%s : filesize too large \n", fileName);
+        exit(4);
+    }
+    FILE* const inFile = fopen_orDie(fileName, "rb");
+    void* const buffer = malloc_orDie(buffSize);
+    size_t const readSize = fread(buffer, 1, buffSize, inFile);
+    if (readSize != (size_t)buffSize) {
+        fprintf(stderr, "fread: %s : %s \n", fileName, strerror(errno));
+        exit(5);
+    }
+    fclose(inFile);  /* can't fail, read only */
+    *size = buffSize;
+    return buffer;
+}
+
+
+static void saveFile_orDie(const char* fileName, const void* buff, size_t buffSize)
+{
+    FILE* const oFile = fopen_orDie(fileName, "wb");
+    size_t const wSize = fwrite(buff, 1, buffSize, oFile);
+    if (wSize != (size_t)buffSize) {
+        fprintf(stderr, "fwrite: %s : %s \n", fileName, strerror(errno));
+        exit(6);
+    }
+    if (fclose(oFile)) {
+        perror(fileName);
+        exit(7);
+    }
+}
+
 
 static void compress_orDie(const char* fname, const char* oname)
 {
@@ -37,6 +102,7 @@ static void compress_orDie(const char* fname, const char* oname)
     free(fBuff);
     free(cBuff);
 }
+
 
 static char* createOutFilename_orDie(const char* filename)
 {

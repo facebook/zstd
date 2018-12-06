@@ -128,7 +128,7 @@ static const U32 rangetable[NUM_PARAMS] =
 
 /* ZSTD_cctxSetParameter() index to set */
 static const ZSTD_cParameter cctxSetParamTable[NUM_PARAMS] =
-        { ZSTD_p_windowLog, ZSTD_p_chainLog, ZSTD_p_hashLog, ZSTD_p_searchLog, ZSTD_p_minMatch, ZSTD_p_targetLength, ZSTD_p_compressionStrategy, ZSTD_p_forceAttachDict };
+        { ZSTD_c_windowLog, ZSTD_c_chainLog, ZSTD_c_hashLog, ZSTD_c_searchLog, ZSTD_c_minMatch, ZSTD_c_targetLength, ZSTD_c_compressionStrategy, ZSTD_c_forceAttachDict };
 
 /* names of parameters */
 static const char* g_paramNames[NUM_PARAMS] =
@@ -894,7 +894,7 @@ static size_t local_initCCtx(void* payload) {
     const BMK_initCCtxArgs* ag = (const BMK_initCCtxArgs*)payload;
     varInds_t i;
     ZSTD_CCtx_reset(ag->cctx, ZSTD_reset_session_and_parameters);
-    ZSTD_CCtx_setParameter(ag->cctx, ZSTD_p_compressionLevel, ag->cLevel);
+    ZSTD_CCtx_setParameter(ag->cctx, ZSTD_c_compressionLevel, ag->cLevel);
 
     for(i = 0; i < NUM_PARAMS; i++) {
         if(ag->comprParams->vals[i] != PARAM_UNSET)

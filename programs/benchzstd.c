@@ -162,23 +162,23 @@ static void BMK_initCCtx(ZSTD_CCtx* ctx,
     const ZSTD_compressionParameters* comprParams, const BMK_advancedParams_t* adv) {
     ZSTD_CCtx_reset(ctx, ZSTD_reset_session_and_parameters);
     if (adv->nbWorkers==1) {
-        ZSTD_CCtx_setParameter(ctx, ZSTD_p_nbWorkers, 0);
+        ZSTD_CCtx_setParameter(ctx, ZSTD_c_nbWorkers, 0);
     } else {
-        ZSTD_CCtx_setParameter(ctx, ZSTD_p_nbWorkers, adv->nbWorkers);
+        ZSTD_CCtx_setParameter(ctx, ZSTD_c_nbWorkers, adv->nbWorkers);
     }
-    ZSTD_CCtx_setParameter(ctx, ZSTD_p_compressionLevel, cLevel);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_p_enableLongDistanceMatching, adv->ldmFlag);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_p_ldmMinMatch, adv->ldmMinMatch);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_p_ldmHashLog, adv->ldmHashLog);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_p_ldmBucketSizeLog, adv->ldmBucketSizeLog);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_p_ldmHashRateLog, adv->ldmHashRateLog);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_p_windowLog, comprParams->windowLog);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_p_hashLog, comprParams->hashLog);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_p_chainLog, comprParams->chainLog);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_p_searchLog, comprParams->searchLog);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_p_minMatch, comprParams->minMatch);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_p_targetLength, comprParams->targetLength);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_p_compressionStrategy, comprParams->strategy);
+    ZSTD_CCtx_setParameter(ctx, ZSTD_c_compressionLevel, cLevel);
+    ZSTD_CCtx_setParameter(ctx, ZSTD_c_enableLongDistanceMatching, adv->ldmFlag);
+    ZSTD_CCtx_setParameter(ctx, ZSTD_c_ldmMinMatch, adv->ldmMinMatch);
+    ZSTD_CCtx_setParameter(ctx, ZSTD_c_ldmHashLog, adv->ldmHashLog);
+    ZSTD_CCtx_setParameter(ctx, ZSTD_c_ldmBucketSizeLog, adv->ldmBucketSizeLog);
+    ZSTD_CCtx_setParameter(ctx, ZSTD_c_ldmHashRateLog, adv->ldmHashRateLog);
+    ZSTD_CCtx_setParameter(ctx, ZSTD_c_windowLog, comprParams->windowLog);
+    ZSTD_CCtx_setParameter(ctx, ZSTD_c_hashLog, comprParams->hashLog);
+    ZSTD_CCtx_setParameter(ctx, ZSTD_c_chainLog, comprParams->chainLog);
+    ZSTD_CCtx_setParameter(ctx, ZSTD_c_searchLog, comprParams->searchLog);
+    ZSTD_CCtx_setParameter(ctx, ZSTD_c_minMatch, comprParams->minMatch);
+    ZSTD_CCtx_setParameter(ctx, ZSTD_c_targetLength, comprParams->targetLength);
+    ZSTD_CCtx_setParameter(ctx, ZSTD_c_compressionStrategy, comprParams->strategy);
     ZSTD_CCtx_loadDictionary(ctx, dictBuffer, dictBufferSize);
 }
 

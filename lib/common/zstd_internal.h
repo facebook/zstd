@@ -56,6 +56,14 @@ extern "C" {
 #define CHECK_F(f) { size_t const errcod = f; if (ERR_isError(errcod)) return errcod; }  /* check and Forward error code */
 #define CHECK_E(f, e) { size_t const errcod = f; if (ERR_isError(errcod)) return ERROR(e); }  /* check and send Error code */
 
+#define RETURN_ERROR_IF(cond, err, ...) \
+  if (cond) { \
+    RAWLOG(3, "%s:%d: check %s failed, returning %s", __FILE__, __LINE__, ZSTD_QUOTE(cond), ZSTD_QUOTE(ERROR(err))); \
+    RAWLOG(3, ": " __VA_ARGS__); \
+    RAWLOG(3, "\n"); \
+    return ERROR(err); \
+  }
+
 
 /*-*************************************
 *  Common constants

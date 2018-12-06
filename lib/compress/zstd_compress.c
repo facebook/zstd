@@ -269,7 +269,7 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
 
     case ZSTD_c_compressionStrategy:
         bounds.lowerBound = (int)ZSTD_fast;
-        bounds.upperBound = (int)ZSTD_btultra;  /* note : how to ensure at compile time that this is the highest value strategy ? */
+        bounds.upperBound = (int)ZSTD_btultra2;  /* note : how to ensure at compile time that this is the highest value strategy ? */
         return bounds;
 
     case ZSTD_c_contentSizeFlag:
@@ -364,9 +364,21 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
     }
 }
 
-#define CLAMPCHECK(val,min,max) {            \
-    if (((val)<(min)) | ((val)>(max))) {     \
-        return ERROR(parameter_outOfBound);  \
+/* ZSTD_cParam_withinBounds:
+ * @return 1 if value is within cParam bounds,
+ * 0 otherwise */
+static int ZSTD_cParam_withinBounds(ZSTD_cParameter cParam, int value)
+{
+    ZSTD_bounds const bounds = ZSTD_cParam_getBounds(cParam);
+    if (ZSTD_isError(bounds.error)) return 0;
+    if (value < bounds.lowerBound) return 0;
+    if (value > bounds.upperBound) return 0;
+    return 1;
+}
+
+#define CLAMPCHECK(cParam, val) {                  \
+    if (!ZSTD_cParam_withinBounds(cParam,val)) {   \
+        return ERROR(parameter_outOfBound);        \
 }   }
 
 
@@ -493,31 +505,31 @@ size_t ZSTD_CCtxParam_setParameter(ZSTD_CCtx_params* CCtxParams,
 
     case ZSTD_c_windowLog :
         if (value!=0)   /* 0 => use default */
-            CLAMPCHECK(value, ZSTD_WINDOWLOG_MIN, ZSTD_WINDOWLOG_MAX);
+            CLAMPCHECK(ZSTD_c_windowLog, value);
         CCtxParams->cParams.windowLog = value;
         return CCtxParams->cParams.windowLog;
 
     case ZSTD_c_hashLog :
         if (value!=0)   /* 0 => use default */
-            CLAMPCHECK(value, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
+            CLAMPCHECK(ZSTD_c_hashLog, value);
         CCtxParams->cParams.hashLog = value;
         return CCtxParams->cParams.hashLog;
 
     case ZSTD_c_chainLog :
         if (value!=0)   /* 0 => use default */
-            CLAMPCHECK(value, ZSTD_CHAINLOG_MIN, ZSTD_CHAINLOG_MAX);
+            CLAMPCHECK(ZSTD_c_chainLog, value);
         CCtxParams->cParams.chainLog = value;
         return CCtxParams->cParams.chainLog;
 
     case ZSTD_c_searchLog :
         if (value!=0)   /* 0 => use default */
-            CLAMPCHECK(value, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
+            CLAMPCHECK(ZSTD_c_searchLog, value);
         CCtxParams->cParams.searchLog = value;
         return value;
 
     case ZSTD_c_minMatch :
         if (value!=0)   /* 0 => use default */
-            CLAMPCHECK(value, ZSTD_MINMATCH_MIN, ZSTD_MINMATCH_MAX);
+            CLAMPCHECK(ZSTD_c_minMatch, value);
         CCtxParams->cParams.minMatch = value;
         return CCtxParams->cParams.minMatch;
 
@@ -528,7 +540,7 @@ size_t ZSTD_CCtxParam_setParameter(ZSTD_CCtx_params* CCtxParams,
 
     case ZSTD_c_compressionStrategy :
         if (value!=0)   /* 0 => use default */
-            CLAMPCHECK(value, (int)ZSTD_fast, (int)ZSTD_btultra);
+            CLAMPCHECK(ZSTD_c_compressionStrategy, value);
         CCtxParams->cParams.strategy = (ZSTD_strategy)value;
         return (size_t)CCtxParams->cParams.strategy;
 
@@ -554,7 +566,7 @@ size_t ZSTD_CCtxParam_setParameter(ZSTD_CCtx_params* CCtxParams,
 
     case ZSTD_c_forceAttachDict : {
         const ZSTD_dictAttachPref_e pref = (ZSTD_dictAttachPref_e)value;
-        CLAMPCHECK(pref, ZSTD_dictDefaultAttach, ZSTD_dictForceCopy);
+        CLAMPCHECK(ZSTD_c_forceAttachDict, pref);
         CCtxParams->attachDictPref = pref;
         return CCtxParams->attachDictPref;
     }
@@ -594,19 +606,19 @@ size_t ZSTD_CCtxParam_setParameter(ZSTD_CCtx_params* CCtxParams,
 
     case ZSTD_c_ldmHashLog :
         if (value!=0)   /* 0 ==> auto */
-            CLAMPCHECK(value, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
+            CLAMPCHECK(ZSTD_c_ldmHashLog, value);
         CCtxParams->ldmParams.hashLog = value;
         return CCtxParams->ldmParams.hashLog;
 
     case ZSTD_c_ldmMinMatch :
         if (value!=0)   /* 0 ==> default */
-            CLAMPCHECK(value, ZSTD_LDM_MINMATCH_MIN, ZSTD_LDM_MINMATCH_MAX);
+            CLAMPCHECK(ZSTD_c_ldmMinMatch, value);
         CCtxParams->ldmParams.minMatchLength = value;
         return CCtxParams->ldmParams.minMatchLength;
 
     case ZSTD_c_ldmBucketSizeLog :
         if (value!=0)   /* 0 ==> default */
-            CLAMPCHECK(value, ZSTD_LDM_BUCKETSIZELOG_MIN, ZSTD_LDM_BUCKETSIZELOG_MAX);
+            CLAMPCHECK(ZSTD_c_ldmBucketSizeLog, value);
         CCtxParams->ldmParams.bucketSizeLog = value;
         return CCtxParams->ldmParams.bucketSizeLog;
 
@@ -832,16 +844,15 @@ size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx, ZSTD_ResetDirective reset)
     @return : 0, or an error code if one value is beyond authorized range */
 size_t ZSTD_checkCParams(ZSTD_compressionParameters cParams)
 {
-    CLAMPCHECK(cParams.windowLog, ZSTD_WINDOWLOG_MIN, ZSTD_WINDOWLOG_MAX);
-    CLAMPCHECK(cParams.chainLog, ZSTD_CHAINLOG_MIN, ZSTD_CHAINLOG_MAX);
-    CLAMPCHECK(cParams.hashLog, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
-    CLAMPCHECK(cParams.searchLog, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
-    CLAMPCHECK(cParams.minMatch, ZSTD_MINMATCH_MIN, ZSTD_MINMATCH_MAX);
+    CLAMPCHECK(ZSTD_c_windowLog, cParams.windowLog);
+    CLAMPCHECK(ZSTD_c_chainLog,  cParams.chainLog);
+    CLAMPCHECK(ZSTD_c_hashLog,   cParams.hashLog);
+    CLAMPCHECK(ZSTD_c_searchLog, cParams.searchLog);
+    CLAMPCHECK(ZSTD_c_minMatch,  cParams.minMatch);
     ZSTD_STATIC_ASSERT(ZSTD_TARGETLENGTH_MIN == 0);
     if (cParams.targetLength > ZSTD_TARGETLENGTH_MAX)
         return ERROR(parameter_outOfBound);
-    if ((U32)(cParams.strategy) > (U32)ZSTD_btultra)
-        return ERROR(parameter_unsupported);
+    CLAMPCHECK(ZSTD_c_compressionStrategy, cParams.strategy);
     return 0;
 }
 
@@ -851,19 +862,20 @@ size_t ZSTD_checkCParams(ZSTD_compressionParameters cParams)
 static ZSTD_compressionParameters
 ZSTD_clampCParams(ZSTD_compressionParameters cParams)
 {
-#   define CLAMP(val,min,max) {      \
-        if (val<min) val=min;        \
-        else if (val>max) val=max;   \
+#   define CLAMP(cParam, val) {                                   \
+        ZSTD_bounds const bounds = ZSTD_cParam_getBounds(cParam); \
+        if (val<bounds.lowerBound) val=bounds.lowerBound;         \
+        else if (val>bounds.upperBound) val=bounds.upperBound;    \
     }
-    CLAMP(cParams.windowLog, ZSTD_WINDOWLOG_MIN, ZSTD_WINDOWLOG_MAX);
-    CLAMP(cParams.chainLog, ZSTD_CHAINLOG_MIN, ZSTD_CHAINLOG_MAX);
-    CLAMP(cParams.hashLog, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
-    CLAMP(cParams.searchLog, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
-    CLAMP(cParams.minMatch, ZSTD_MINMATCH_MIN, ZSTD_MINMATCH_MAX);
+    CLAMP(ZSTD_c_windowLog, cParams.windowLog);
+    CLAMP(ZSTD_c_chainLog,  cParams.chainLog);
+    CLAMP(ZSTD_c_hashLog,   cParams.hashLog);
+    CLAMP(ZSTD_c_searchLog, cParams.searchLog);
+    CLAMP(ZSTD_c_minMatch,  cParams.minMatch);
     ZSTD_STATIC_ASSERT(ZSTD_TARGETLENGTH_MIN == 0);
     if (cParams.targetLength > ZSTD_TARGETLENGTH_MAX)
         cParams.targetLength = ZSTD_TARGETLENGTH_MAX;
-    CLAMP(cParams.strategy, ZSTD_fast, ZSTD_btultra);
+    CLAMP(ZSTD_c_compressionStrategy, cParams.strategy);
     return cParams;
 }
 
@@ -951,8 +963,7 @@ ZSTD_sizeof_matchState(const ZSTD_compressionParameters* const cParams,
     size_t const tableSpace = (chainSize + hSize + h3Size) * sizeof(U32);
     size_t const optPotentialSpace = ((MaxML+1) + (MaxLL+1) + (MaxOff+1) + (1<<Litbits)) * sizeof(U32)
                           + (ZSTD_OPT_NUM+1) * (sizeof(ZSTD_match_t)+sizeof(ZSTD_optimal_t));
-    size_t const optSpace = (forCCtx && ((cParams->strategy == ZSTD_btopt) ||
-                                         (cParams->strategy == ZSTD_btultra)))
+    size_t const optSpace = (forCCtx && (cParams->strategy >= ZSTD_btopt))
                                 ? optPotentialSpace
                                 : 0;
     DEBUGLOG(4, "chainSize: %u - hSize: %u - h3Size: %u",
@@ -1253,7 +1264,7 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
     ZSTD_invalidateMatchState(ms);
 
     /* opt parser space */
-    if (forCCtx && ((cParams->strategy == ZSTD_btopt) | (cParams->strategy == ZSTD_btultra))) {
+    if (forCCtx && (cParams->strategy >= ZSTD_btopt)) {
         DEBUGLOG(4, "reserving optimal parser space");
         ms->opt.litFreq = (U32*)ptr;
         ms->opt.litLengthFreq = ms->opt.litFreq + (1<<Litbits);
@@ -1465,16 +1476,17 @@ void ZSTD_invalidateRepCodes(ZSTD_CCtx* cctx) {
  * dictionary tables into the working context is faster than using them
  * in-place.
  */
-static const size_t attachDictSizeCutoffs[(unsigned)ZSTD_btultra+1] = {
-    8 KB, /* unused */
-    8 KB, /* ZSTD_fast */
+static const size_t attachDictSizeCutoffs[(unsigned)ZSTD_btultra2+1] = {
+    8 KB,  /* unused */
+    8 KB,  /* ZSTD_fast */
     16 KB, /* ZSTD_dfast */
     32 KB, /* ZSTD_greedy */
     32 KB, /* ZSTD_lazy */
     32 KB, /* ZSTD_lazy2 */
     32 KB, /* ZSTD_btlazy2 */
     32 KB, /* ZSTD_btopt */
-    8 KB /* ZSTD_btultra */
+    8 KB,  /* ZSTD_btultra */
+    8 KB   /* ZSTD_btultra2 */
 };
 
 static int ZSTD_shouldAttachDict(const ZSTD_CDict* cdict,
@@ -1829,7 +1841,9 @@ static size_t ZSTD_compressRleLiteralsBlock (void* dst, size_t dstCapacity, cons
  * note : use same formula for both situations */
 static size_t ZSTD_minGain(size_t srcSize, ZSTD_strategy strat)
 {
-    U32 const minlog = (strat==ZSTD_btultra) ? 7 : 6;
+    U32 const minlog = (U32)strat - 1;
+    ZSTD_STATIC_ASSERT(ZSTD_btopt == 7);
+    assert(strat >= ZSTD_btopt);
     return (srcSize >> minlog) + 2;
 }
 
@@ -2536,7 +2550,7 @@ ZSTD_compressSequences(seqStore_t* seqStorePtr,
  * assumption : strat is a valid strategy */
 ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMode_e dictMode)
 {
-    static const ZSTD_blockCompressor blockCompressor[3][(unsigned)ZSTD_btultra+1] = {
+    static const ZSTD_blockCompressor blockCompressor[3][(unsigned)ZSTD_btultra2+1] = {
         { ZSTD_compressBlock_fast  /* default for 0 */,
           ZSTD_compressBlock_fast,
           ZSTD_compressBlock_doubleFast,
@@ -2545,6 +2559,7 @@ ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMo
           ZSTD_compressBlock_lazy2,
           ZSTD_compressBlock_btlazy2,
           ZSTD_compressBlock_btopt,
+          ZSTD_compressBlock_btultra,
           ZSTD_compressBlock_btultra },
         { ZSTD_compressBlock_fast_extDict  /* default for 0 */,
           ZSTD_compressBlock_fast_extDict,
@@ -2554,6 +2569,7 @@ ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMo
           ZSTD_compressBlock_lazy2_extDict,
           ZSTD_compressBlock_btlazy2_extDict,
           ZSTD_compressBlock_btopt_extDict,
+          ZSTD_compressBlock_btultra_extDict,
           ZSTD_compressBlock_btultra_extDict },
         { ZSTD_compressBlock_fast_dictMatchState  /* default for 0 */,
           ZSTD_compressBlock_fast_dictMatchState,
@@ -2563,14 +2579,14 @@ ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMo
           ZSTD_compressBlock_lazy2_dictMatchState,
           ZSTD_compressBlock_btlazy2_dictMatchState,
           ZSTD_compressBlock_btopt_dictMatchState,
+          ZSTD_compressBlock_btultra_dictMatchState,
           ZSTD_compressBlock_btultra_dictMatchState }
     };
     ZSTD_blockCompressor selectedCompressor;
     ZSTD_STATIC_ASSERT((unsigned)ZSTD_fast == 1);
 
-    assert((U32)strat >= (U32)ZSTD_fast);
-    assert((U32)strat <= (U32)ZSTD_btultra);
-    selectedCompressor = blockCompressor[(int)dictMode][(U32)strat];
+    assert(ZSTD_cParam_withinBounds(ZSTD_c_compressionStrategy, strat));
+    selectedCompressor = blockCompressor[(int)dictMode][(int)strat];
     assert(selectedCompressor != NULL);
     return selectedCompressor;
 }
@@ -2967,6 +2983,7 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
     case ZSTD_btlazy2:   /* we want the dictionary table fully sorted */
     case ZSTD_btopt:
     case ZSTD_btultra:
+    case ZSTD_btultra2:
         if (srcSize >= HASH_READ_SIZE)
             ZSTD_updateTree(ms, iend-HASH_READ_SIZE, iend);
         break;

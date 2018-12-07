@@ -268,8 +268,8 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
         return bounds;
 
     case ZSTD_c_strategy:
-        bounds.lowerBound = (int)ZSTD_fast;
-        bounds.upperBound = (int)ZSTD_btultra2;  /* note : how to ensure at compile time that this is the highest value strategy ? */
+        bounds.lowerBound = (int)ZSTD_STRATEGY_MIN;
+        bounds.upperBound = (int)ZSTD_STRATEGY_MAX;  /* note : how to ensure at compile time that this is the highest value strategy ? */
         return bounds;
 
     case ZSTD_c_contentSizeFlag:
@@ -1474,7 +1474,7 @@ void ZSTD_invalidateRepCodes(ZSTD_CCtx* cctx) {
  * dictionary tables into the working context is faster than using them
  * in-place.
  */
-static const size_t attachDictSizeCutoffs[(unsigned)ZSTD_btultra2+1] = {
+static const size_t attachDictSizeCutoffs[ZSTD_STRATEGY_MAX+1] = {
     8 KB,  /* unused */
     8 KB,  /* ZSTD_fast */
     16 KB, /* ZSTD_dfast */
@@ -2546,7 +2546,7 @@ ZSTD_compressSequences(seqStore_t* seqStorePtr,
  * assumption : strat is a valid strategy */
 ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMode_e dictMode)
 {
-    static const ZSTD_blockCompressor blockCompressor[3][(unsigned)ZSTD_btultra2+1] = {
+    static const ZSTD_blockCompressor blockCompressor[3][ZSTD_STRATEGY_MAX+1] = {
         { ZSTD_compressBlock_fast  /* default for 0 */,
           ZSTD_compressBlock_fast,
           ZSTD_compressBlock_doubleFast,

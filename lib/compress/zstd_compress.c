@@ -268,8 +268,8 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
         return bounds;
 
     case ZSTD_c_strategy:
-        bounds.lowerBound = (int)ZSTD_STRATEGY_MIN;
-        bounds.upperBound = (int)ZSTD_STRATEGY_MAX;  /* note : how to ensure at compile time that this is the highest value strategy ? */
+        bounds.lowerBound = ZSTD_STRATEGY_MIN;
+        bounds.upperBound = ZSTD_STRATEGY_MAX;
         return bounds;
 
     case ZSTD_c_contentSizeFlag:
@@ -347,15 +347,15 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
         return bounds;
 
     case ZSTD_c_format:
-        ZSTD_STATIC_ASSERT((int)ZSTD_f_zstd1 < (int)ZSTD_f_zstd1_magicless);
-        bounds.lowerBound = (int)ZSTD_f_zstd1;
-        bounds.upperBound = (int)ZSTD_f_zstd1_magicless;   /* note : how to ensure at compile time that this is the highest value enum ? */
+        ZSTD_STATIC_ASSERT(ZSTD_f_zstd1 < ZSTD_f_zstd1_magicless);
+        bounds.lowerBound = ZSTD_f_zstd1;
+        bounds.upperBound = ZSTD_f_zstd1_magicless;   /* note : how to ensure at compile time that this is the highest value enum ? */
         return bounds;
 
     case ZSTD_c_forceAttachDict:
-        ZSTD_STATIC_ASSERT((int)ZSTD_dictDefaultAttach < (int)ZSTD_dictForceCopy);
+        ZSTD_STATIC_ASSERT(ZSTD_dictDefaultAttach < ZSTD_dictForceCopy);
         bounds.lowerBound = ZSTD_dictDefaultAttach;
-        bounds.upperBound = ZSTD_dictForceCopy;           /* note : how to ensure at compile time that this is the highest value enum ? */
+        bounds.upperBound = ZSTD_dictForceCopy;       /* note : how to ensure at compile time that this is the highest value enum ? */
         return bounds;
 
     default:
@@ -489,14 +489,14 @@ size_t ZSTD_CCtxParam_setParameter(ZSTD_CCtx_params* CCtxParams,
     switch(param)
     {
     case ZSTD_c_format :
-        if (value > (int)ZSTD_f_zstd1_magicless)
-            return ERROR(parameter_unsupported);
+        BOUNDCHECK(ZSTD_c_format, value);
         CCtxParams->format = (ZSTD_format_e)value;
         return (size_t)CCtxParams->format;
 
     case ZSTD_c_compressionLevel : {
         int cLevel = value;
         if (cLevel > ZSTD_maxCLevel()) cLevel = ZSTD_maxCLevel();
+        if (cLevel < ZSTD_minCLevel()) cLevel = ZSTD_minCLevel();
         if (cLevel) {  /* 0 : does not change current level */
             CCtxParams->compressionLevel = cLevel;
         }

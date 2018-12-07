@@ -80,8 +80,8 @@ static const int g_maxNbVariations = 64;
 #define STRT_RANGE (ZSTD_STRATEGY_MAX - ZSTD_STRATEGY_MIN + 1)
 #define FADT_RANGE   3
 
-#define CHECKTIME(r) { if(BMK_timeSpan(g_time) > g_timeLimit_s) { DEBUGOUTPUT("Time Limit Reached\n"); return r; } }
-#define CHECKTIMEGT(ret, val, _gototag) {if(BMK_timeSpan(g_time) > g_timeLimit_s) { DEBUGOUTPUT("Time Limit Reached\n"); ret = val; goto _gototag; } }
+#define CHECKTIME(r) { if(BMK_timeSpan_s(g_time) > g_timeLimit_s) { DEBUGOUTPUT("Time Limit Reached\n"); return r; } }
+#define CHECKTIMEGT(ret, val, _gototag) { if(BMK_timeSpan_s(g_time) > g_timeLimit_s) { DEBUGOUTPUT("Time Limit Reached\n"); ret = val; goto _gototag; } }
 
 #define PARAM_UNSET ((U32)-2) /* can't be -1 b/c fadt uses -1 */
 
@@ -140,13 +140,10 @@ static const char* g_shortParamNames[NUM_PARAMS] =
         { "wlog", "clog", "hlog", "slog", "mml", "tlen", "strat", "fadt" };
 
 /* maps value from { 0 to rangetable[param] - 1 } to valid paramvalues */
-static U32 rangeMap(varInds_t param, int ind) {
+static U32 rangeMap(varInds_t param, int ind)
+{
     ind = MAX(MIN(ind, (int)rangetable[param] - 1), 0);
     switch(param) {
-        case tlen_ind:
-            return tlen_table[ind];
-        case fadt_ind: /* 0, 1, 2 -> -1, 0, 1 */
-            return ind - 1;
         case wlog_ind: /* using default: triggers -Wswitch-enum */
         case clog_ind:
         case hlog_ind:
@@ -154,17 +151,30 @@ static U32 rangeMap(varInds_t param, int ind) {
         case mml_ind:
         case strt_ind:
             return mintable[param] + ind;
+        case tlen_ind:
+            return tlen_table[ind];
+        case fadt_ind: /* 0, 1, 2 -> -1, 0, 1 */
+            return ind - 1;
         case NUM_PARAMS:
-            DISPLAY("Error, not a valid param\n ");
-            return (U32)-1;
+        default:;
     }
-    return 0; /* should never happen, stop compiler warnings */
+    DISPLAY("Error, not a valid param\n ");
+    assert(0);
+    return (U32)-1;
 }
 
 /* inverse of rangeMap */
-static int invRangeMap(varInds_t param, U32 value) {
+static int invRangeMap(varInds_t param, U32 value)
+{
     value = MIN(MAX(mintable[param], value), maxtable[param]);
     switch(param) {
+        case wlog_ind:
+        case clog_ind:
+        case hlog_ind:
+        case slog_ind:
+        case mml_ind:
+        case strt_ind:
+            return value - mintable[param];
         case tlen_ind: /* bin search */
         {
             int lo = 0;
@@ -183,33 +193,49 @@ static int invRangeMap(varInds_t param, U32 value) {
         }
         case fadt_ind:
             return (int)value + 1;
-        case wlog_ind:
-        case clog_ind:
-        case hlog_ind:
-        case slog_ind:
-        case mml_ind:
-        case strt_ind:
-            return value - mintable[param];
         case NUM_PARAMS:
-            DISPLAY("Error, not a valid param\n ");
-            return -2;
+        default:;
     }
-    return 0; /* should never happen, stop compiler warnings */
+    DISPLAY("Error, not a valid param\n ");
+    assert(0);
+    return -2;
 }
 
 /* display of params */
-static void displayParamVal(FILE* f, varInds_t param, U32 value, int width) {
+static void displayParamVal(FILE* f, varInds_t param, U32 value, int width)
+{
     switch(param) {
-        case fadt_ind: if(width) { fprintf(f, "%*d", width, (int)value); } else { fprintf(f, "%d", (int)value); } break;
-        case strt_ind: if(width) { fprintf(f, "%*s", width, g_stratName[value]); } else { fprintf(f, "%s", g_stratName[value]); } break;
         case wlog_ind:
         case clog_ind:
         case hlog_ind:
         case slog_ind:
         case mml_ind:
-        case tlen_ind: if(width) { fprintf(f, "%*u", width, value); } else { fprintf(f, "%u", value); } break;
+        case tlen_ind:
+            if(width) {
+                fprintf(f, "%*u", width, value);
+            } else {
+                fprintf(f, "%u", value);
+            }
+            break;
+        case strt_ind:
+            if(width) {
+                fprintf(f, "%*s", width, g_stratName[value]);
+            } else {
+                fprintf(f, "%s", g_stratName[value]);
+            }
+            break;
+        case fadt_ind:   /* force attach dict */
+            if(width) {
+                fprintf(f, "%*d", width, (int)value);
+            } else {
+                fprintf(f, "%d", (int)value);
+            }
+            break;
         case NUM_PARAMS:
-            DISPLAY("Error, not a valid param\n "); break;
+        default:
+            DISPLAY("Error, not a valid param\n ");
+            assert(0);
+            break;
     }
 }
 
@@ -217,8 +243,6 @@ static void displayParamVal(FILE* f, varInds_t param, U32 value, int width) {
 /*-************************************
 *  Benchmark Parameters/Global Variables
 **************************************/
-
-typedef BYTE U8;
 
 /* General Utility */
 static U32 g_timeLimit_s = 99999;   /* about 27 hours */
@@ -228,7 +252,7 @@ static U32 g_rand = 1;
 
 /* Display */
 static int g_displayLevel = 3;
-static BYTE g_silenceParams[NUM_PARAMS];
+static BYTE g_silenceParams[NUM_PARAMS];   /* can selectively silence some params when displaying them */
 
 /* Mode Selection */
 static U32 g_singleRun = 0;
@@ -305,7 +329,8 @@ static paramValues_t sanitizeParams(paramValues_t params)
     return params;
 }
 
-static ZSTD_compressionParameters pvalsToCParams(paramValues_t p) {
+static ZSTD_compressionParameters pvalsToCParams(paramValues_t p)
+{
     ZSTD_compressionParameters c;
     memset(&c, 0, sizeof(ZSTD_compressionParameters));
     c.windowLog = p.vals[wlog_ind];
@@ -319,7 +344,8 @@ static ZSTD_compressionParameters pvalsToCParams(paramValues_t p) {
     return c;
 }
 
-static paramValues_t cParamsToPVals(ZSTD_compressionParameters c) {
+static paramValues_t cParamsToPVals(ZSTD_compressionParameters c)
+{
     paramValues_t p;
     varInds_t i;
     p.vals[wlog_ind] = c.windowLog;
@@ -331,14 +357,16 @@ static paramValues_t cParamsToPVals(ZSTD_compressionParameters c) {
     p.vals[strt_ind] = c.strategy;
 
     /* set all other params to their minimum value */
-    for(i = strt_ind + 1; i < NUM_PARAMS; i++) {
+    for (i = strt_ind + 1; i < NUM_PARAMS; i++) {
         p.vals[i] = mintable[i];
     }
     return p;
 }
 
 /* equivalent of ZSTD_adjustCParams for paramValues_t */
-static paramValues_t adjustParams(paramValues_t p, const size_t maxBlockSize, const size_t dictSize) {
+static paramValues_t
+adjustParams(paramValues_t p, const size_t maxBlockSize, const size_t dictSize)
+{
     paramValues_t ot = p;
     varInds_t i;
     p = cParamsToPVals(ZSTD_adjustCParams(pvalsToCParams(p), maxBlockSize, dictSize));
@@ -369,7 +397,10 @@ static size_t BMK_findMaxMem(U64 requiredMem)
 }
 
 /* accuracy in seconds only, span can be multiple years */
-static U32 BMK_timeSpan(const UTIL_time_t tStart) { return (U32)(UTIL_clockSpanMicro(tStart) / 1000000ULL); }
+static U32 BMK_timeSpan_s(const UTIL_time_t tStart)
+{
+    return (U32)(UTIL_clockSpanMicro(tStart) / 1000000ULL);
+}
 
 static U32 FUZ_rotl32(U32 x, U32 r)
 {
@@ -388,32 +419,38 @@ static U32 FUZ_rand(U32* src)
     return rand32 >> 5;
 }
 
-/* allows zeros */
-#define CLAMPCHECK(val,min,max) {                     \
+#define BOUNDCHECK(val,min,max) {                     \
     if (((val)<(min)) | ((val)>(max))) {              \
         DISPLAY("INVALID PARAMETER CONSTRAINTS\n");   \
         return 0;                                     \
 }   }
 
-static int paramValid(const paramValues_t paramTarget) {
+static int paramValid(const paramValues_t paramTarget)
+{
     U32 i;
     for(i = 0; i < NUM_PARAMS; i++) {
-        CLAMPCHECK(paramTarget.vals[i], mintable[i], maxtable[i]);
+        BOUNDCHECK(paramTarget.vals[i], mintable[i], maxtable[i]);
     }
     return 1;
 }
 
-static paramValues_t cParamUnsetMin(paramValues_t paramTarget) {
-    varInds_t i;
-    for(i = 0; i < NUM_PARAMS; i++) {
-        if(paramTarget.vals[i] == PARAM_UNSET) {
-            paramTarget.vals[i] = mintable[i];
+/* cParamUnsetMin() :
+ * if any parameter in paramTarget is not yet set,
+ * it will receive its corresponding minimal value.
+ * This function never fails */
+static paramValues_t cParamUnsetMin(paramValues_t paramTarget)
+{
+    varInds_t vi;
+    for (vi = 0; vi < NUM_PARAMS; vi++) {
+        if (paramTarget.vals[vi] == PARAM_UNSET) {
+            paramTarget.vals[vi] = mintable[vi];
         }
     }
     return paramTarget;
 }
 
-static paramValues_t emptyParams(void) {
+static paramValues_t emptyParams(void)
+{
     U32 i;
     paramValues_t p;
     for(i = 0; i < NUM_PARAMS; i++) {
@@ -422,7 +459,8 @@ static paramValues_t emptyParams(void) {
     return p;
 }
 
-static winnerInfo_t initWinnerInfo(const paramValues_t p) {
+static winnerInfo_t initWinnerInfo(const paramValues_t p)
+{
     winnerInfo_t w1;
     w1.result.cSpeed = 0.;
     w1.result.dSpeed = 0.;
@@ -432,7 +470,9 @@ static winnerInfo_t initWinnerInfo(const paramValues_t p) {
     return w1;
 }
 
-static paramValues_t overwriteParams(paramValues_t base, const paramValues_t mask) {
+static paramValues_t
+overwriteParams(paramValues_t base, const paramValues_t mask)
+{
     U32 i;
     for(i = 0; i < NUM_PARAMS; i++) {
         if(mask.vals[i] != PARAM_UNSET) {
@@ -442,12 +482,16 @@ static paramValues_t overwriteParams(paramValues_t base, const paramValues_t mas
     return base;
 }
 
-static void paramVaryOnce(const varInds_t paramIndex, const int amt, paramValues_t* ptr) {
-    ptr->vals[paramIndex] = rangeMap(paramIndex, invRangeMap(paramIndex, ptr->vals[paramIndex]) + amt);
+static void
+paramVaryOnce(const varInds_t paramIndex, const int amt, paramValues_t* ptr)
+{
+    ptr->vals[paramIndex] = rangeMap(paramIndex,
+                                     invRangeMap(paramIndex, ptr->vals[paramIndex]) + amt);
 }
 
 /* varies ptr by nbChanges respecting varyParams*/
-static void paramVariation(paramValues_t* ptr, memoTable_t* mtAll, const U32 nbChanges)
+static void
+paramVariation(paramValues_t* ptr, memoTable_t* mtAll, const U32 nbChanges)
 {
     paramValues_t p;
     U32 validated = 0;
@@ -475,8 +519,9 @@ static paramValues_t randomParams(void)
 
 static U64 g_clockGranularity = 100000000ULL;
 
-static void findClockGranularity(void) {
-    UTIL_time_t clockStart = UTIL_getTime();
+static void init_clockGranularity(void)
+{
+    UTIL_time_t const clockStart = UTIL_getTime();
     U64 el1 = 0, el2 = 0;
     int i = 0;
     do {
@@ -513,7 +558,9 @@ static int feasible(const BMK_benchResult_t results, const constraint_t target) 
  * bonus to exceeding the constraint value. We also give linear ratio for compression ratio.
  * The constant factors are experimental.
  */
-static double resultScore(const BMK_benchResult_t res, const size_t srcSize, const constraint_t target) {
+static double
+resultScore(const BMK_benchResult_t res, const size_t srcSize, const constraint_t target)
+{
     double cs = 0., ds = 0., rt, cm = 0.;
     const double r1 = 1, r2 = 0.1, rtr = 0.5;
     double ret;
@@ -529,7 +576,9 @@ static double resultScore(const BMK_benchResult_t res, const size_t srcSize, con
 }
 
 /* calculates normalized squared euclidean distance of result1 if it is in the first quadrant relative to lvlRes */
-static double resultDistLvl(const BMK_benchResult_t result1, const BMK_benchResult_t lvlRes) {
+static double
+resultDistLvl(const BMK_benchResult_t result1, const BMK_benchResult_t lvlRes)
+{
     double normalizedCSpeedGain1 = (result1.cSpeed / lvlRes.cSpeed) - 1;
     double normalizedRatioGain1 = ((double)lvlRes.cSize / result1.cSize) - 1;
     if(normalizedRatioGain1 < 0 || normalizedCSpeedGain1 < 0) {
@@ -539,16 +588,21 @@ static double resultDistLvl(const BMK_benchResult_t result1, const BMK_benchResu
 }
 
 /* return true if r2 strictly better than r1 */
-static int compareResultLT(const BMK_benchResult_t result1, const BMK_benchResult_t result2, const constraint_t target, size_t srcSize) {
+static int
+compareResultLT(const BMK_benchResult_t result1, const BMK_benchResult_t result2, const constraint_t target, size_t srcSize)
+{
     if(feasible(result1, target) && feasible(result2, target)) {
         if(g_optmode) {
             return resultDistLvl(result1, g_lvltarget) < resultDistLvl(result2, g_lvltarget);
         } else {
-            return (result1.cSize > result2.cSize) || (result1.cSize == result2.cSize && result2.cSpeed > result1.cSpeed)
-            || (result1.cSize == result2.cSize && result2.cSpeed == result1.cSpeed && result2.dSpeed > result1.dSpeed);
+            return (result1.cSize > result2.cSize)
+                || (result1.cSize == result2.cSize && result2.cSpeed > result1.cSpeed)
+                || (result1.cSize == result2.cSize && result2.cSpeed == result1.cSpeed && result2.dSpeed > result1.dSpeed);
         }
     }
-    return feasible(result2, target) || (!feasible(result1, target) && (resultScore(result1, srcSize, target) < resultScore(result2, srcSize, target)));
+    return feasible(result2, target)
+        || (!feasible(result1, target)
+            && (resultScore(result1, srcSize, target) < resultScore(result2, srcSize, target)));
 }
 
 static constraint_t relaxTarget(constraint_t target) {
@@ -558,14 +612,17 @@ static constraint_t relaxTarget(constraint_t target) {
     return target;
 }
 
-static void optimizerAdjustInput(paramValues_t* pc, const size_t maxBlockSize) {
+static void optimizerAdjustInput(paramValues_t* pc, const size_t maxBlockSize)
+{
     varInds_t v;
     for(v = 0; v < NUM_PARAMS; v++) {
         if(pc->vals[v] != PARAM_UNSET) {
             U32 newval = MIN(MAX(pc->vals[v], mintable[v]), maxtable[v]);
             if(newval != pc->vals[v]) {
                 pc->vals[v] = newval;
-                DISPLAY("Warning: parameter %s not in valid range, adjusting to ", g_paramNames[v]); displayParamVal(stderr, v, newval, 0); DISPLAY("\n");
+                DISPLAY("Warning: parameter %s not in valid range, adjusting to ",
+                        g_paramNames[v]);
+                displayParamVal(stderr, v, newval, 0); DISPLAY("\n");
             }
         }
     }
@@ -579,7 +636,8 @@ static void optimizerAdjustInput(paramValues_t* pc, const size_t maxBlockSize) {
             U32 adjust = MAX(mintable[wlog_ind], sshb);
             if(adjust != pc->vals[wlog_ind]) {
                 pc->vals[wlog_ind] = adjust;
-                DISPLAY("Warning: windowLog larger than src/block size, adjusted to %u\n", pc->vals[wlog_ind]);
+                DISPLAY("Warning: windowLog larger than src/block size, adjusted to %u\n",
+                        pc->vals[wlog_ind]);
             }
         }
     }
@@ -594,40 +652,52 @@ static void optimizerAdjustInput(paramValues_t* pc, const size_t maxBlockSize) {
 
         if(pc->vals[clog_ind] > maxclog) {
             pc->vals[clog_ind] = maxclog;
-            DISPLAY("Warning: chainlog too much larger than windowLog size, adjusted to %u\n", pc->vals[clog_ind]);
+            DISPLAY("Warning: chainlog too much larger than windowLog size, adjusted to %u\n",
+                    pc->vals[clog_ind]);
         }
     }
 
     if(pc->vals[wlog_ind] != PARAM_UNSET && pc->vals[hlog_ind] != PARAM_UNSET) {
         if(pc->vals[wlog_ind] + 1 < pc->vals[hlog_ind]) {
             pc->vals[hlog_ind] = pc->vals[wlog_ind] + 1;
-            DISPLAY("Warning: hashlog too much larger than windowLog size, adjusted to %u\n", pc->vals[hlog_ind]);
+            DISPLAY("Warning: hashlog too much larger than windowLog size, adjusted to %u\n",
+                    pc->vals[hlog_ind]);
         }
     }
 
     if(pc->vals[slog_ind] != PARAM_UNSET && pc->vals[clog_ind] != PARAM_UNSET) {
         if(pc->vals[slog_ind] > pc->vals[clog_ind]) {
             pc->vals[clog_ind] = pc->vals[slog_ind];
-            DISPLAY("Warning: searchLog larger than chainLog, adjusted to %u\n", pc->vals[slog_ind]);
+            DISPLAY("Warning: searchLog larger than chainLog, adjusted to %u\n",
+                    pc->vals[slog_ind]);
         }
     }
 }
 
-static int redundantParams(const paramValues_t paramValues, const constraint_t target, const size_t maxBlockSize) {
+static int
+redundantParams(const paramValues_t paramValues, const constraint_t target, const size_t maxBlockSize)
+{
     return
        (ZSTD_estimateCStreamSize_usingCParams(pvalsToCParams(paramValues)) > (size_t)target.cMem) /* Uses too much memory */
     || ((1ULL << (paramValues.vals[wlog_ind] - 1)) >= maxBlockSize && paramValues.vals[wlog_ind] != mintable[wlog_ind]) /* wlog too much bigger than src size */
     || (paramValues.vals[clog_ind] > (paramValues.vals[wlog_ind] + (paramValues.vals[strt_ind] > ZSTD_btlazy2))) /* chainLog larger than windowLog*/
     || (paramValues.vals[slog_ind] > paramValues.vals[clog_ind]) /* searchLog larger than chainLog */
     || (paramValues.vals[hlog_ind] > paramValues.vals[wlog_ind] + 1); /* hashLog larger than windowLog + 1 */
-
 }
+
 
 /*-************************************
 *  Display Functions
 **************************************/
 
-static void BMK_translateAdvancedParams(FILE* f, const paramValues_t params) {
+/* BMK_paramValues_into_commandLine() :
+ * transform a set of parameters paramValues_t
+ * into a command line compatible with `zstd` syntax
+ * and writes it into FILE* f.
+ * f must be already opened and writable */
+static void
+BMK_paramValues_into_commandLine(FILE* f, const paramValues_t params)
+{
     varInds_t v;
     int first = 1;
     fprintf(f,"--zstd=");
@@ -643,53 +713,6 @@ static void BMK_translateAdvancedParams(FILE* f, const paramValues_t params) {
     fprintf(f, "\n");
 }
 
-static void BMK_displayOneResult(FILE* f, winnerInfo_t res, const size_t srcSize)
-{
-    varInds_t v;
-    int first = 1;
-    res.params = cParamUnsetMin(res.params);
-    fprintf(f, "    {");
-    for (v = 0; v < NUM_PARAMS; v++) {
-        if (g_silenceParams[v]) { continue; }
-        if (!first) { fprintf(f, ","); }
-        displayParamVal(f, v, res.params.vals[v], 3);
-        first = 0;
-    }
-
-    {   double const ratio = res.result.cSize ?
-                            (double)srcSize / res.result.cSize : 0;
-        double const cSpeedMBps = (double)res.result.cSpeed / MB_UNIT;
-        double const dSpeedMBps = (double)res.result.dSpeed / MB_UNIT;
-
-        fprintf(f, " },     /* R:%5.3f at %5.1f MB/s - %5.1f MB/s */\n",
-                            ratio, cSpeedMBps, dSpeedMBps);
-    }
-}
-
-/* Writes to f the results of a parameter benchmark */
-/* when used with --optimize, will only print results better than previously discovered */
-static void BMK_printWinner(FILE* f, const int cLevel, const BMK_benchResult_t result, const paramValues_t params, const size_t srcSize)
-{
-    char lvlstr[15] = "Custom Level";
-    winnerInfo_t w;
-    w.params = params;
-    w.result = result;
-
-    fprintf(f, "\r%79s\r", "");
-
-    if(cLevel != CUSTOM_LEVEL) {
-        snprintf(lvlstr, 15, "  Level %2d  ", cLevel);
-    }
-
-    if(TIMED) {
-        const U64 time = UTIL_clockSpanNano(g_time);
-        const U64 minutes = time / (60ULL * TIMELOOP_NANOSEC);
-        fprintf(f, "%1lu:%2lu:%05.2f - ", (unsigned long) minutes / 60,(unsigned long) minutes % 60, (double)(time - minutes * TIMELOOP_NANOSEC * 60ULL)/TIMELOOP_NANOSEC);
-    }
-
-    fprintf(f, "/* %s */   ", lvlstr);
-    BMK_displayOneResult(f, w, srcSize);
-}
 
 /* comparison function: */
 /* strictly better, strictly worse, equal, speed-side adv, size-side adv */
@@ -700,7 +723,9 @@ static void BMK_printWinner(FILE* f, const int cLevel, const BMK_benchResult_t r
 #define SPEED_RESULT 4
 #define SIZE_RESULT 5
 /* maybe have epsilon-eq to limit table size? */
-static int speedSizeCompare(const BMK_benchResult_t r1, const BMK_benchResult_t r2) {
+static int
+speedSizeCompare(const BMK_benchResult_t r1, const BMK_benchResult_t r2)
+{
     if(r1.cSpeed < r2.cSpeed) {
         if(r1.cSize >= r2.cSize) {
             return BETTER_RESULT;
@@ -716,7 +741,9 @@ static int speedSizeCompare(const BMK_benchResult_t r1, const BMK_benchResult_t 
 
 /* 0 for insertion, 1 for no insert */
 /* maintain invariant speedSizeCompare(n, n->next) = SPEED_RESULT */
-static int insertWinner(const winnerInfo_t w, const constraint_t targetConstraints) {
+static int
+insertWinner(const winnerInfo_t w, const constraint_t targetConstraints)
+{
     BMK_benchResult_t r = w.result;
     winner_ll_node* cur_node = g_winners;
     /* first node to insert */
@@ -810,20 +837,82 @@ static int insertWinner(const winnerInfo_t w, const constraint_t targetConstrain
     }
 }
 
-static void BMK_printWinnerOpt(FILE* f, const U32 cLevel, const BMK_benchResult_t result, const paramValues_t params, const constraint_t targetConstraints, const size_t srcSize)
+static void
+BMK_displayOneResult(FILE* f, winnerInfo_t res, const size_t srcSize)
+{
+    varInds_t v;
+    int first = 1;
+    res.params = cParamUnsetMin(res.params);
+    fprintf(f, "    {");
+    for (v = 0; v < NUM_PARAMS; v++) {
+        if (g_silenceParams[v]) { continue; }
+        if (!first) { fprintf(f, ","); }
+        displayParamVal(f, v, res.params.vals[v], 3);
+        first = 0;
+    }
+
+    {   double const ratio = res.result.cSize ?
+                            (double)srcSize / res.result.cSize : 0;
+        double const cSpeedMBps = (double)res.result.cSpeed / MB_UNIT;
+        double const dSpeedMBps = (double)res.result.dSpeed / MB_UNIT;
+
+        fprintf(f, " },     /* R:%5.3f at %5.1f MB/s - %5.1f MB/s */\n",
+                            ratio, cSpeedMBps, dSpeedMBps);
+    }
+}
+
+/* Writes to f the results of a parameter benchmark */
+/* when used with --optimize, will only print results better than previously discovered */
+static void
+BMK_printWinner(FILE* f, const int cLevel, const BMK_benchResult_t result, const paramValues_t params, const size_t srcSize)
+{
+    char lvlstr[15] = "Custom Level";
+    winnerInfo_t w;
+    w.params = params;
+    w.result = result;
+
+    fprintf(f, "\r%79s\r", "");
+
+    if(cLevel != CUSTOM_LEVEL) {
+        snprintf(lvlstr, 15, "  Level %2d  ", cLevel);
+    }
+
+    if(TIMED) {
+        const U64 mn_in_ns = 60ULL * TIMELOOP_NANOSEC;
+        const U64 time = UTIL_clockSpanNano(g_time);
+        const U64 minutes = time / mn_in_ns;
+        fprintf(f, "%1lu:%2lu:%05.2f - ",
+                (unsigned long) minutes / 60,
+                (unsigned long) minutes % 60,
+                (double)(time - (minutes * mn_in_ns)) / TIMELOOP_NANOSEC );
+    }
+
+    fprintf(f, "/* %s */   ", lvlstr);
+    BMK_displayOneResult(f, w, srcSize);
+}
+
+static void
+BMK_printWinnerOpt(FILE* f, const U32 cLevel, const BMK_benchResult_t result, const paramValues_t params, const constraint_t targetConstraints, const size_t srcSize)
 {
     /* global winner used for constraints */
                                     /* cSize, cSpeed, dSpeed, cMem */
-    static winnerInfo_t g_winner = { { (size_t)-1LL, 0, 0, (size_t)-1LL }, { { PARAM_UNSET, PARAM_UNSET, PARAM_UNSET, PARAM_UNSET, PARAM_UNSET, PARAM_UNSET, PARAM_UNSET, PARAM_UNSET } } };
-    if(DEBUG || compareResultLT(g_winner.result, result, targetConstraints, srcSize) || g_displayLevel >= 4) {
-        if(DEBUG && compareResultLT(g_winner.result, result, targetConstraints, srcSize)) {
+    static winnerInfo_t g_winner = { { (size_t)-1LL, 0, 0, (size_t)-1LL },
+                                     { { PARAM_UNSET, PARAM_UNSET, PARAM_UNSET, PARAM_UNSET, PARAM_UNSET, PARAM_UNSET, PARAM_UNSET, PARAM_UNSET } }
+                                   };
+    if ( DEBUG
+      || compareResultLT(g_winner.result, result, targetConstraints, srcSize)
+      || g_displayLevel >= 4) {
+        if ( DEBUG
+          && compareResultLT(g_winner.result, result, targetConstraints, srcSize)) {
             DISPLAY("New Winner: \n");
         }
 
-        if(g_displayLevel >= 2) { BMK_printWinner(f, cLevel, result, params, srcSize); }
+        if(g_displayLevel >= 2) {
+            BMK_printWinner(f, cLevel, result, params, srcSize);
+        }
 
         if(compareResultLT(g_winner.result, result, targetConstraints, srcSize)) {
-            if(g_displayLevel >= 1) { BMK_translateAdvancedParams(f, params); }
+            if(g_displayLevel >= 1) { BMK_paramValues_into_commandLine(f, params); }
             g_winner.result = result;
             g_winner.params = params;
         }
@@ -851,31 +940,88 @@ static void BMK_printWinnerOpt(FILE* f, const U32 cLevel, const BMK_benchResult_
 
         fprintf(f, "Overall Winner: \n");
         BMK_displayOneResult(f, g_winner, srcSize);
-        BMK_translateAdvancedParams(f, g_winner.params);
+        BMK_paramValues_into_commandLine(f, g_winner.params);
 
         fprintf(f, "Latest BMK: \n");\
         BMK_displayOneResult(f, w, srcSize);
     }
 }
 
-static void BMK_printWinners2(FILE* f, const winnerInfo_t* winners, const size_t srcSize)
+
+/* BMK_print_cLevelEntry() :
+ * Writes one cLevelTable entry, for one level.
+ * f must exist, be already opened, and be seekable.
+ * this function cannot error.
+ */
+static void
+BMK_print_cLevelEntry(FILE* f, const int cLevel,
+                      paramValues_t params,
+                      const BMK_benchResult_t result, const size_t srcSize)
+{
+    varInds_t v;
+    int first = 1;
+
+    assert(cLevel >= 0);
+    assert(cLevel <= NB_LEVELS_TRACKED);
+    params = cParamUnsetMin(params);
+
+    fprintf(f, "   {");
+    /* print cParams.
+     * assumption : all cParams are present and in order in the following range */
+    for (v = 0; v <= strt_ind; v++) {
+        if (!first) { fprintf(f, ","); }
+        displayParamVal(f, v, params.vals[v], 3);
+        first = 0;
+    }
+    /* print comment */
+    {   double const ratio = result.cSize ?
+                            (double)srcSize / result.cSize : 0;
+        double const cSpeedMBps = (double)result.cSpeed / MB_UNIT;
+        double const dSpeedMBps = (double)result.dSpeed / MB_UNIT;
+
+        fprintf(f, " },   /* level %2i:  R=%5.3f at %5.1f MB/s - %5.1f MB/s */\n",
+                             cLevel, ratio, cSpeedMBps, dSpeedMBps);
+    }
+}
+
+
+/* BMK_print_cLevelTable() :
+ * print candidate compression table into proposed FILE* f.
+ * f must exist, be already opened, and be seekable.
+ * winners must be a table of NB_LEVELS_TRACKED+1 elements winnerInfo_t, all entries presumed initialized
+ * this function cannot error.
+ */
+static void
+BMK_print_cLevelTable(FILE* f, const winnerInfo_t* winners, const size_t srcSize)
 {
     int cLevel;
 
     fprintf(f, "\n /* Proposed configurations : */ \n");
-    fprintf(f, "    /* W,  C,  H,  S,  L,  T, strat */ \n");
+    fprintf(f, "   /* W,  C,  H,  S,  L,  T, strat */ \n");
 
     for (cLevel=0; cLevel <= NB_LEVELS_TRACKED; cLevel++)
-        BMK_printWinner(f, cLevel, winners[cLevel].result, winners[cLevel].params, srcSize);
+        BMK_print_cLevelEntry(f,
+                              cLevel, winners[cLevel].params,
+                              winners[cLevel].result, srcSize);
 }
 
 
-static void BMK_printWinners(FILE* f, const winnerInfo_t* winners, const size_t srcSize)
+/* BMK_saveAndPrint_cLevelTable() :
+ * save candidate compression table into FILE* f,
+ * and then to stdout.
+ * f must exist, be already opened, and be seekable.
+ * winners must be a table of NB_LEVELS_TRACKED+1 elements winnerInfo_t, all entries presumed initialized
+ * this function cannot error.
+ */
+static void
+BMK_saveAndPrint_cLevelTable(FILE* const f,
+                       const winnerInfo_t* winners,
+                       const size_t srcSize)
 {
     fseek(f, 0, SEEK_SET);
-    BMK_printWinners2(f, winners, srcSize);
+    BMK_print_cLevelTable(f, winners, srcSize);
     fflush(f);
-    BMK_printWinners2(stdout, winners, srcSize);
+    BMK_print_cLevelTable(stdout, winners, srcSize);
 }
 
 
@@ -1682,8 +1828,8 @@ static int BMK_seed(winnerInfo_t* winners, const paramValues_t params,
 
     BMK_benchParam(&testResult, buf, ctx, params);
 
-
     for (cLevel = 1; cLevel <= NB_LEVELS_TRACKED; cLevel++) {
+
         if (testResult.cSpeed < g_level_constraint[cLevel].cSpeed_min)
             continue;   /* not fast enough for this level */
         if (testResult.dSpeed < g_level_constraint[cLevel].dSpeed_min)
@@ -1696,7 +1842,7 @@ static int BMK_seed(winnerInfo_t* winners, const paramValues_t params,
             /* first solution for this cLevel */
             winners[cLevel].result = testResult;
             winners[cLevel].params = params;
-            BMK_printWinner(stdout, cLevel, testResult, params, buf.srcSize);
+            BMK_print_cLevelEntry(stdout, cLevel, params, testResult, buf.srcSize);
             better = 1;
             continue;
         }
@@ -1761,7 +1907,7 @@ static int BMK_seed(winnerInfo_t* winners, const paramValues_t params,
 
             winners[cLevel].result = testResult;
             winners[cLevel].params = params;
-            BMK_printWinner(stdout, cLevel, testResult, params, buf.srcSize);
+            BMK_print_cLevelEntry(stdout, cLevel, params, testResult, buf.srcSize);
 
             better = 1;
     }   }
@@ -1778,58 +1924,74 @@ static int BMK_seed(winnerInfo_t* winners, const paramValues_t params,
 #define PARAMTABLEMASK (PARAMTABLESIZE-1)
 static BYTE g_alreadyTested[PARAMTABLESIZE] = {0};   /* init to zero */
 
-static BYTE* NB_TESTS_PLAYED(paramValues_t p) {
-    ZSTD_compressionParameters p2 = pvalsToCParams(sanitizeParams(p));
-    return &g_alreadyTested[(XXH64((void*)&p2, sizeof(p2), 0) >> 3) & PARAMTABLEMASK];
+static BYTE* NB_TESTS_PLAYED(paramValues_t p)
+{
+    ZSTD_compressionParameters const cParams = pvalsToCParams(sanitizeParams(p));
+    unsigned long long const h64 = XXH64(&cParams, sizeof(cParams), 0);
+    return &g_alreadyTested[(h64 >> 3) & PARAMTABLEMASK];
 }
 
-static void playAround(FILE* f, winnerInfo_t* winners,
+static void playAround(FILE* f,
+                       winnerInfo_t* winners,
                        paramValues_t p,
                        const buffers_t buf, const contexts_t ctx)
 {
-    int nbVariations = 0, i;
+    int nbVariations = 0;
     UTIL_time_t const clockStart = UTIL_getTime();
 
     while (UTIL_clockSpanMicro(clockStart) < g_maxVariationTime) {
-        BYTE* b;
-
         if (nbVariations++ > g_maxNbVariations) break;
 
-        do { for(i = 0; i < 4; i++) { paramVaryOnce(FUZ_rand(&g_rand) % (strt_ind + 1), ((FUZ_rand(&g_rand) & 1) << 1) - 1, &p); } }
-        while(!paramValid(p));
+        do {
+            int i;
+            for(i = 0; i < 4; i++) {
+                paramVaryOnce(FUZ_rand(&g_rand) % (strt_ind + 1),
+                              ((FUZ_rand(&g_rand) & 1) << 1) - 1,
+                              &p);
+            }
+        } while(!paramValid(p));
 
         /* exclude faster if already played params */
         if (FUZ_rand(&g_rand) & ((1 << *NB_TESTS_PLAYED(p))-1))
             continue;
 
         /* test */
-        b = NB_TESTS_PLAYED(p);
-        (*b)++;
+        {   BYTE* const b = NB_TESTS_PLAYED(p);
+            (*b)++;
+        }
         if (!BMK_seed(winners, p, buf, ctx)) continue;
 
         /* improvement found => search more */
-        BMK_printWinners(f, winners, buf.srcSize);
+        BMK_saveAndPrint_cLevelTable(f, winners, buf.srcSize);
         playAround(f, winners, p, buf, ctx);
     }
 
 }
 
-static void BMK_selectRandomStart(
-                       FILE* f, winnerInfo_t* winners,
+static void
+BMK_selectRandomStart( FILE* f, winnerInfo_t* winners,
                        const buffers_t buf, const contexts_t ctx)
 {
     U32 const id = FUZ_rand(&g_rand) % (NB_LEVELS_TRACKED+1);
     if ((id==0) || (winners[id].params.vals[wlog_ind]==0)) {
         /* use some random entry */
         paramValues_t const p = adjustParams(cParamsToPVals(pvalsToCParams(randomParams())), /* defaults nonCompression parameters */
-            buf.srcSize, 0);
+                                             buf.srcSize, 0);
         playAround(f, winners, p, buf, ctx);
     } else {
         playAround(f, winners, winners[id].params, buf, ctx);
     }
 }
 
-static void BMK_benchFullTable(const buffers_t buf, const contexts_t ctx)
+
+/* BMK_generate_cLevelTable() :
+ * test a large number of configurations
+ * and distribute them accross compression levels according to speed conditions.
+ * display and save all intermediate results into rfName = "grillResults.txt".
+ * the function automatically stops after g_timeLimit_s.
+ * this function cannot error, it directly exit() in case of problem.
+ */
+static void BMK_generate_cLevelTable(const buffers_t buf, const contexts_t ctx)
 {
     paramValues_t params;
     winnerInfo_t winners[NB_LEVELS_TRACKED+1];
@@ -1858,17 +2020,17 @@ static void BMK_benchFullTable(const buffers_t buf, const contexts_t ctx)
             params = cParamsToPVals(ZSTD_getCParams(i, buf.maxBlockSize, 0));
             BMK_seed(winners, params, buf, ctx);
     }   }
-    BMK_printWinners(f, winners, buf.srcSize);
+    BMK_saveAndPrint_cLevelTable(f, winners, buf.srcSize);
 
     /* start tests */
     {   const UTIL_time_t grillStart = UTIL_getTime();
         do {
             BMK_selectRandomStart(f, winners, buf, ctx);
-        } while (BMK_timeSpan(grillStart) < g_timeLimit_s);
+        } while (BMK_timeSpan_s(grillStart) < g_timeLimit_s);
     }
 
     /* end summary */
-    BMK_printWinners(f, winners, buf.srcSize);
+    BMK_saveAndPrint_cLevelTable(f, winners, buf.srcSize);
     DISPLAY("grillParams operations completed \n");
 
     /* clean up*/
@@ -1880,7 +2042,9 @@ static void BMK_benchFullTable(const buffers_t buf, const contexts_t ctx)
 *  Single Benchmark Functions
 **************************************/
 
-static int benchOnce(const buffers_t buf, const contexts_t ctx, const int cLevel) {
+static int
+benchOnce(const buffers_t buf, const contexts_t ctx, const int cLevel)
+{
     BMK_benchResult_t testResult;
     g_params = adjustParams(overwriteParams(cParamsToPVals(ZSTD_getCParams(cLevel, buf.maxBlockSize, ctx.dictSize)), g_params), buf.maxBlockSize, ctx.dictSize);
 
@@ -1930,7 +2094,7 @@ static int benchSample(double compressibility, int cLevel)
     if(g_singleRun) {
         ret = benchOnce(buf, ctx, cLevel);
     } else {
-        BMK_benchFullTable(buf, ctx);
+        BMK_generate_cLevelTable(buf, ctx);
     }
 
     freeBuffers(buf);
@@ -1970,7 +2134,7 @@ static int benchFiles(const char** fileNamesTable, int nbFiles,
     if (g_singleRun) {
         ret = benchOnce(buf, ctx, cLevel);
     } else {
-        BMK_benchFullTable(buf, ctx);
+        BMK_generate_cLevelTable(buf, ctx);
     }
 
     freeBuffers(buf);
@@ -2047,15 +2211,15 @@ static winnerInfo_t climbOnce(const constraint_t target,
                             }
                         }
                     }
-                }
+                }  /* for (offset = -1; offset <= 1; offset += 2) */
             }   /* for (i = 0; i < varLen; i++) */
 
             if(better) {
                 continue;
             }
 
-            for(dist = 2; dist < varLen + 2; dist++) { /* varLen is # dimensions */
-                for(i = 0; i < (1 << varLen) / varLen + 2; i++) {
+            for (dist = 2; dist < varLen + 2; dist++) { /* varLen is # dimensions */
+                for (i = 0; i < (1 << varLen) / varLen + 2; i++) {
                     int res;
                     CHECKTIME(winnerInfo);
                     candidateInfo.params = cparam;
@@ -2102,11 +2266,12 @@ static winnerInfo_t climbOnce(const constraint_t target,
    weight more on visit for bad results, less on good results/more on later results / ones with more failures.
    allocate memoTable here.
  */
-static winnerInfo_t optimizeFixedStrategy(
-    const buffers_t buf, const contexts_t ctx,
-    const constraint_t target, paramValues_t paramTarget,
-    const ZSTD_strategy strat,
-    memoTable_t* memoTableArray, const int tries) {
+static winnerInfo_t
+optimizeFixedStrategy(const buffers_t buf, const contexts_t ctx,
+                      const constraint_t target, paramValues_t paramTarget,
+                      const ZSTD_strategy strat,
+                      memoTable_t* memoTableArray, const int tries)
+{
     int i = 0;
 
     paramValues_t init;
@@ -2121,9 +2286,11 @@ static winnerInfo_t optimizeFixedStrategy(
 
     for(i = 0; i < tries; i++) {
         DEBUGOUTPUT("Restart\n");
-        do { randomConstrainedParams(&init, memoTableArray, strat); } while(redundantParams(init, target, buf.maxBlockSize));
+        do {
+            randomConstrainedParams(&init, memoTableArray, strat);
+        } while(redundantParams(init, target, buf.maxBlockSize));
         candidateInfo = climbOnce(target, memoTableArray, buf, ctx, init);
-        if(compareResultLT(winnerInfo.result, candidateInfo.result, target, buf.srcSize)) {
+        if (compareResultLT(winnerInfo.result, candidateInfo.result, target, buf.srcSize)) {
             winnerInfo = candidateInfo;
             BMK_printWinnerOpt(stdout, CUSTOM_LEVEL, winnerInfo.result, winnerInfo.params, target, buf.srcSize);
             i = 0;
@@ -2137,7 +2304,8 @@ static winnerInfo_t optimizeFixedStrategy(
 
 /* goes best, best-1, best+1, best-2, ... */
 /* return 0 if nothing remaining */
-static int nextStrategy(const int currentStrategy, const int bestStrategy) {
+static int nextStrategy(const int currentStrategy, const int bestStrategy)
+{
     if(bestStrategy <= currentStrategy) {
         int candidate = 2 * bestStrategy - currentStrategy - 1;
         if(candidate < 1) {
@@ -2183,8 +2351,12 @@ static int nextStrategy(const int currentStrategy, const int bestStrategy) {
 static int g_maxTries = 5;
 #define TRY_DECAY 1
 
-static int optimizeForSize(const char* const * const fileNamesTable, const size_t nbFiles, const char* dictFileName, constraint_t target, paramValues_t paramTarget,
-    const int cLevelOpt, const int cLevelRun, const U32 memoTableLog)
+static int
+optimizeForSize(const char* const * const fileNamesTable, const size_t nbFiles,
+                const char* dictFileName,
+                constraint_t target, paramValues_t paramTarget,
+                const int cLevelOpt, const int cLevelRun,
+                const U32 memoTableLog)
 {
     varInds_t varArray [NUM_PARAMS];
     int ret = 0;
@@ -2196,18 +2368,18 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
     buffers_t buf;
     g_time = UTIL_getTime();
 
-    if(createBuffers(&buf, fileNamesTable, nbFiles)) {
+    if (createBuffers(&buf, fileNamesTable, nbFiles)) {
         DISPLAY("unable to load files\n");
         return 1;
     }
 
-    if(createContexts(&ctx, dictFileName)) {
+    if (createContexts(&ctx, dictFileName)) {
         DISPLAY("unable to load dictionary\n");
         freeBuffers(buf);
         return 2;
     }
 
-    if(nbFiles == 1) {
+    if (nbFiles == 1) {
         DISPLAYLEVEL(2, "Loading %s...       \r", fileNamesTable[0]);
     } else {
         DISPLAYLEVEL(2, "Loading %lu Files...       \r", (unsigned long)nbFiles);
@@ -2286,16 +2458,14 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
     if(target.cMem != (U32)-1) { DISPLAYLEVEL(2, " - limit memory %u MB", target.cMem >> 20); }
 
     DISPLAYLEVEL(2, "\n");
-    findClockGranularity();
+    init_clockGranularity();
 
     {   paramValues_t CParams;
 
         /* find best solution from default params */
-        {
-            /* strategy selection */
-            const int maxSeeds = g_noSeed ? 1 : ZSTD_maxCLevel();
+        {   const int maxSeeds = g_noSeed ? 1 : ZSTD_maxCLevel();
             DEBUGOUTPUT("Strategy Selection\n");
-            if(paramTarget.vals[strt_ind] == PARAM_UNSET) {
+            if (paramTarget.vals[strt_ind] == PARAM_UNSET) {
                 BMK_benchResult_t candidate;
                 int i;
                 for (i=1; i<=maxSeeds; i++) {
@@ -2320,16 +2490,14 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
 
         DEBUGOUTPUT("Real Opt\n");
         /* start 'real' optimization */
-        {
-            int bestStrategy = (int)winner.params.vals[strt_ind];
-            if(paramTarget.vals[strt_ind] == PARAM_UNSET) {
+        {   int bestStrategy = (int)winner.params.vals[strt_ind];
+            if (paramTarget.vals[strt_ind] == PARAM_UNSET) {
                 int st = bestStrategy;
                 int tries = g_maxTries;
 
-                {
-                    /* one iterations of hill climbing with the level-defined parameters. */
-                    winnerInfo_t w1 = climbOnce(target, allMT, buf, ctx, winner.params);
-                    if(compareResultLT(winner.result, w1.result, target, buf.srcSize)) {
+                /* one iterations of hill climbing with the level-defined parameters. */
+                {   winnerInfo_t const w1 = climbOnce(target, allMT, buf, ctx, winner.params);
+                    if (compareResultLT(winner.result, w1.result, target, buf.srcSize)) {
                         winner = w1;
                     }
                     CHECKTIMEGT(ret, 0, _displayCleanUp);
@@ -2363,13 +2531,16 @@ static int optimizeForSize(const char* const * const fileNamesTable, const size_
             DISPLAY("No feasible solution found\n");
             goto _cleanUp;
         }
+
         /* end summary */
 _displayCleanUp:
-        if(g_displayLevel >= 0) { BMK_displayOneResult(stdout, winner, buf.srcSize); }
-        BMK_translateAdvancedParams(stdout, winner.params);
+        if (g_displayLevel >= 0) {
+            BMK_displayOneResult(stdout, winner, buf.srcSize);
+        }
+        BMK_paramValues_into_commandLine(stdout, winner.params);
         DISPLAYLEVEL(1, "grillParams size - optimizer completed \n");
-
     }
+
 _cleanUp:
     freeContexts(ctx);
     freeBuffers(buf);
@@ -2480,14 +2651,23 @@ static int badusage(const char* exename)
     return 1;
 }
 
-#define PARSE_SUB_ARGS(stringLong, stringShort, variable) { if (longCommandWArg(&argument, stringLong) || longCommandWArg(&argument, stringShort)) { variable = readU32FromChar(&argument); if (argument[0]==',') { argument++; continue; } else break; } }
+#define PARSE_SUB_ARGS(stringLong, stringShort, variable) { \
+    if ( longCommandWArg(&argument, stringLong)             \
+      || longCommandWArg(&argument, stringShort) ) {        \
+          variable = readU32FromChar(&argument);            \
+          if (argument[0]==',') {                           \
+              argument++; continue;                         \
+          } else break;                                     \
+}   }
+
 /* 1 if successful parse, 0 otherwise */
 static int parse_params(const char** argptr, paramValues_t* pv) {
     int matched = 0;
     const char* argOrig = *argptr;
     varInds_t v;
     for(v = 0; v < NUM_PARAMS; v++) {
-        if(longCommandWArg(argptr,g_shortParamNames[v]) || longCommandWArg(argptr, g_paramNames[v])) {
+        if ( longCommandWArg(argptr,g_shortParamNames[v])
+          || longCommandWArg(argptr, g_paramNames[v]) ) {
             if(**argptr == '=') {
                 (*argptr)++;
                 pv->vals[v] = readU32FromChar(argptr);

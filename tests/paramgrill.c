@@ -77,7 +77,7 @@ static const int g_maxNbVariations = 64;
 #define SLOG_RANGE (ZSTD_SEARCHLOG_MAX - ZSTD_SEARCHLOG_MIN + 1)
 #define MML_RANGE  (ZSTD_MINMATCH_MAX - ZSTD_MINMATCH_MIN + 1)
 #define TLEN_RANGE  17
-#define STRT_RANGE (ZSTD_btultra2 - ZSTD_fast + 1)
+#define STRT_RANGE (ZSTD_STRATEGY_MAX - ZSTD_STRATEGY_MIN + 1)
 #define FADT_RANGE   3
 
 #define CHECKTIME(r) { if(BMK_timeSpan(g_time) > g_timeLimit_s) { DEBUGOUTPUT("Time Limit Reached\n"); return r; } }
@@ -85,7 +85,7 @@ static const int g_maxNbVariations = 64;
 
 #define PARAM_UNSET ((U32)-2) /* can't be -1 b/c fadt uses -1 */
 
-static const char* g_stratName[ZSTD_btultra2+1] = {
+static const char* g_stratName[ZSTD_STRATEGY_MAX+1] = {
                 "(none)       ", "ZSTD_fast    ", "ZSTD_dfast   ",
                 "ZSTD_greedy  ", "ZSTD_lazy    ", "ZSTD_lazy2   ",
                 "ZSTD_btlazy2 ", "ZSTD_btopt   ", "ZSTD_btultra ",
@@ -117,11 +117,11 @@ typedef struct {
 
 /* minimum value of parameters */
 static const U32 mintable[NUM_PARAMS] =
-        { ZSTD_WINDOWLOG_MIN, ZSTD_CHAINLOG_MIN, ZSTD_HASHLOG_MIN, ZSTD_SEARCHLOG_MIN, ZSTD_MINMATCH_MIN, ZSTD_TARGETLENGTH_MIN, ZSTD_fast, FADT_MIN };
+        { ZSTD_WINDOWLOG_MIN, ZSTD_CHAINLOG_MIN, ZSTD_HASHLOG_MIN, ZSTD_SEARCHLOG_MIN, ZSTD_MINMATCH_MIN, ZSTD_TARGETLENGTH_MIN, ZSTD_STRATEGY_MIN, FADT_MIN };
 
 /* maximum value of parameters */
 static const U32 maxtable[NUM_PARAMS] =
-        { ZSTD_WINDOWLOG_MAX, ZSTD_CHAINLOG_MAX, ZSTD_HASHLOG_MAX, ZSTD_SEARCHLOG_MAX, ZSTD_MINMATCH_MAX, ZSTD_TARGETLENGTH_MAX, ZSTD_btultra2, FADT_MAX };
+        { ZSTD_WINDOWLOG_MAX, ZSTD_CHAINLOG_MAX, ZSTD_HASHLOG_MAX, ZSTD_SEARCHLOG_MAX, ZSTD_MINMATCH_MAX, ZSTD_TARGETLENGTH_MAX, ZSTD_STRATEGY_MAX, FADT_MAX };
 
 /* # of values parameters can take on */
 static const U32 rangetable[NUM_PARAMS] =
@@ -1292,11 +1292,11 @@ static void memoTableSet(const memoTable_t* memoTableArray, const paramValues_t 
 
 /* frees all allocated memotables */
 /* secret contract :
- * mtAll is a table of (ZSTD_btultra2+1) memoTable_t */
+ * mtAll is a table of (ZSTD_STRATEGY_MAX+1) memoTable_t */
 static void freeMemoTableArray(memoTable_t* const mtAll) {
     int i;
     if(mtAll == NULL) { return; }
-    for(i = 1; i <= (int)ZSTD_btultra2; i++) {
+    for(i = 1; i <= (int)ZSTD_STRATEGY_MAX; i++) {
         free(mtAll[i].table);
     }
     free(mtAll);
@@ -1310,20 +1310,20 @@ createMemoTableArray(const paramValues_t p,
                      const size_t varyLen,
                      const U32 memoTableLog)
 {
-    memoTable_t* const mtAll = (memoTable_t*)calloc(sizeof(memoTable_t),(ZSTD_btultra2 + 1));
-    ZSTD_strategy i, stratMin = ZSTD_fast, stratMax = ZSTD_btultra2;
+    memoTable_t* const mtAll = (memoTable_t*)calloc(sizeof(memoTable_t),(ZSTD_STRATEGY_MAX + 1));
+    ZSTD_strategy i, stratMin = ZSTD_STRATEGY_MIN, stratMax = ZSTD_STRATEGY_MAX;
 
     if(mtAll == NULL) {
         return NULL;
     }
 
-    for(i = 1; i <= (int)ZSTD_btultra2; i++) {
+    for(i = 1; i <= (int)ZSTD_STRATEGY_MAX; i++) {
         mtAll[i].varLen = sanitizeVarArray(mtAll[i].varArray, varyLen, varyParams, i);
     }
 
     /* no memoization */
     if(memoTableLog == 0) {
-        for(i = 1; i <= (int)ZSTD_btultra2; i++) {
+        for(i = 1; i <= (int)ZSTD_STRATEGY_MAX; i++) {
             mtAll[i].tableType = noMemo;
             mtAll[i].table = NULL;
             mtAll[i].tableLen = 0;
@@ -1669,7 +1669,7 @@ static void BMK_init_level_constraints(int bytePerSec_level1)
             g_level_constraint[l].cSpeed_min = (g_level_constraint[l-1].cSpeed_min * 49) / 64;
             g_level_constraint[l].dSpeed_min = 0.;
             g_level_constraint[l].windowLog_max = (l<20) ? 23 : l+5;   /* only --ultra levels >= 20 can use windowlog > 23 */
-            g_level_constraint[l].strategy_max = ZSTD_btultra2;   /* level 19 is allowed to use btultra */
+            g_level_constraint[l].strategy_max = ZSTD_STRATEGY_MAX;
     }   }
 }
 
@@ -2142,7 +2142,7 @@ static int nextStrategy(const int currentStrategy, const int bestStrategy) {
         int candidate = 2 * bestStrategy - currentStrategy - 1;
         if(candidate < 1) {
             candidate = currentStrategy + 1;
-            if(candidate > (int)ZSTD_btultra2) {
+            if(candidate > (int)ZSTD_STRATEGY_MAX) {
                 return 0;
             } else {
                 return candidate;
@@ -2152,7 +2152,7 @@ static int nextStrategy(const int currentStrategy, const int bestStrategy) {
         }
     } else { /* bestStrategy >= currentStrategy */
         int candidate = 2 * bestStrategy - currentStrategy;
-        if(candidate > (int)ZSTD_btultra2) {
+        if(candidate > (int)ZSTD_STRATEGY_MAX) {
             candidate = currentStrategy - 1;
             if(candidate < 1) {
                 return 0;

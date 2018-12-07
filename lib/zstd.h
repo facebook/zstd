@@ -940,6 +940,9 @@ ZSTDLIB_API size_t ZSTD_DCtx_reset(ZSTD_DCtx* dctx, ZSTD_ResetDirective reset);
 #define ZSTD_MINMATCH_MIN         3   /* only for ZSTD_btopt+, faster strategies are limited to 4 */
 #define ZSTD_TARGETLENGTH_MAX    ZSTD_BLOCKSIZE_MAX
 #define ZSTD_TARGETLENGTH_MIN     0   /* note : comparing this constant to an unsigned results in a tautological test */
+#define ZSTD_STRATEGY_MIN        ZSTD_fast
+#define ZSTD_STRATEGY_MAX        ZSTD_btultra2
+
 
 #define ZSTD_OVERLAPLOG_MIN       0
 #define ZSTD_OVERLAPLOG_MAX       9

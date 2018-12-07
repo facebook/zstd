@@ -541,7 +541,7 @@ typedef enum {
                               *                    , for all strategies > fast, effective maximum is 6.
                               * Special: value 0 means "use default minMatchLength". */
     ZSTD_c_targetLength=106, /* Impact of this field depends on strategy.
-                              * For strategies btopt & btultra:
+                              * For strategies btopt, btultra & btultra2:
                               *     Length of Match considered "good enough" to stop search.
                               *     Larger values make compression stronger, and slower.
                               * For strategy fast:

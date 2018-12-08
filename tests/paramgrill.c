@@ -370,7 +370,7 @@ adjustParams(paramValues_t p, const size_t maxBlockSize, const size_t dictSize)
     paramValues_t ot = p;
     varInds_t i;
     p = cParamsToPVals(ZSTD_adjustCParams(pvalsToCParams(p), maxBlockSize, dictSize));
-    if(!dictSize) { p.vals[fadt_ind] = 0; }
+    if (!dictSize) { p.vals[fadt_ind] = 0; }
     /* retain value of all other parameters */
     for(i = strt_ind + 1; i < NUM_PARAMS; i++) {
         p.vals[i] = ot.vals[i];
@@ -1528,6 +1528,16 @@ static void randomConstrainedParams(paramValues_t* pc, const memoTable_t* memoTa
 *  Benchmarking Functions
 **************************************/
 
+static void display_params_tested(paramValues_t cParams)
+{
+    varInds_t vi;
+    DISPLAYLEVEL(3, "\r testing :");
+    for (vi=0; vi < NUM_PARAMS; vi++) {
+        DISPLAYLEVEL(3, "%3u,", cParams.vals[vi]);
+    }
+    DISPLAYLEVEL(3, "\b    \r");
+}
+
 /* Replicate functionality of benchMemAdvanced, but with pre-split src / dst buffers */
 /* The purpose is so that sufficient information is returned so that a decompression call to benchMemInvertible is possible */
 /* BMK_benchMemAdvanced(srcBuffer,srcSize, dstBuffer, dstSize, fileSizes, nbFiles, 0, &cParams, dictBuffer, dictSize, ctx, dctx, 0, "File", &adv); */
@@ -1558,6 +1568,7 @@ BMK_benchMemInvertible( buffers_t buf, contexts_t ctx,
     ZSTD_DCtx* dctx = ctx.dctx;
 
     /* init */
+    display_params_tested(*comprParams);
     memset(&bResult, 0, sizeof(bResult));
 
     /* warmimg up memory */
@@ -1665,6 +1676,10 @@ BMK_benchMemInvertible( buffers_t buf, contexts_t ctx,
     }
 }
 
+/* BMK_benchParam() :
+ * benchmark a set of `cParams` over sample `buf`,
+ * store the result in `resultPtr`.
+ * @return : 0 if success, 1 if error */
 static int BMK_benchParam ( BMK_benchResult_t* resultPtr,
                             buffers_t buf, contexts_t ctx,
                             paramValues_t cParams)
@@ -1672,29 +1687,11 @@ static int BMK_benchParam ( BMK_benchResult_t* resultPtr,
     BMK_benchOutcome_t const outcome = BMK_benchMemInvertible(buf, ctx,
                                                         BASE_CLEVEL, &cParams,
                                                         BMK_both, 3);
-    int const success = BMK_isSuccessful_benchOutcome(outcome);
-    if (!success) return 1;
+    if (!BMK_isSuccessful_benchOutcome(outcome)) return 1;
     *resultPtr = BMK_extract_benchResult(outcome);
     return 0;
 }
 
-
-#define CBENCHMARK(conditional, resultvar, tmpret, mode, sec) {                                                 \
-    if(conditional) {                                                                                           \
-        BMK_benchOutcome_t const outcome = BMK_benchMemInvertible(buf, ctx, BASE_CLEVEL, &cParams, mode, sec);  \
-        if (!BMK_isSuccessful_benchOutcome(outcome)) {                                                          \
-            DEBUGOUTPUT("Benchmarking failed\n");                                                               \
-            return ERROR_RESULT;                                                                                \
-        }                                                                                                       \
-        {   BMK_benchResult_t const tmpResult = BMK_extract_benchResult(outcome);                               \
-            if (mode != BMK_decodeOnly)  {                                                                      \
-                resultvar.cSpeed = tmpResult.cSpeed;                                                            \
-                resultvar.cSize = tmpResult.cSize;                                                              \
-                resultvar.cMem = tmpResult.cMem;                                                                \
-            }                                                                                                   \
-            if (mode != BMK_compressOnly) { resultvar.dSpeed = tmpResult.dSpeed; }                              \
-    }   }                                                                                                       \
-}
 
 /* Benchmarking which stops when we are sufficiently sure the solution is infeasible / worse than the winner */
 #define VARIANCE 1.2
@@ -1819,8 +1816,10 @@ static void BMK_init_level_constraints(int bytePerSec_level1)
     }   }
 }
 
-static int BMK_seed(winnerInfo_t* winners, const paramValues_t params,
-                    const buffers_t buf, const contexts_t ctx)
+static int BMK_seed(winnerInfo_t* winners,
+                    const paramValues_t params,
+                    const buffers_t buf,
+                    const contexts_t ctx)
 {
     BMK_benchResult_t testResult;
     int better = 0;
@@ -1872,7 +1871,7 @@ static int BMK_seed(winnerInfo_t* winners, const paramValues_t params,
             if (W_DMemUsed_note < O_DMemUsed_note) {
                 /* uses too much Decompression memory for too little benefit */
                 if (W_ratio > O_ratio)
-                DISPLAY ("Decompression Memory : %5.3f @ %4.1f MB  vs  %5.3f @ %4.1f MB   : not enough for level %i\n",
+                DISPLAYLEVEL(3, "Decompression Memory : %5.3f @ %4.1f MB  vs  %5.3f @ %4.1f MB   : not enough for level %i\n",
                          W_ratio, (double)(W_DMemUsed) / 1024 / 1024,
                          O_ratio, (double)(O_DMemUsed) / 1024 / 1024,   cLevel);
                 continue;
@@ -1880,30 +1879,34 @@ static int BMK_seed(winnerInfo_t* winners, const paramValues_t params,
             if (W_CMemUsed_note < O_CMemUsed_note) {
                 /* uses too much memory for compression for too little benefit */
                 if (W_ratio > O_ratio)
-                DISPLAY ("Compression Memory : %5.3f @ %4.1f MB  vs  %5.3f @ %4.1f MB   : not enough for level %i\n",
+                DISPLAYLEVEL(3, "Compression Memory : %5.3f @ %4.1f MB  vs  %5.3f @ %4.1f MB   : not enough for level %i\n",
                          W_ratio, (double)(W_CMemUsed) / 1024 / 1024,
-                         O_ratio, (double)(O_CMemUsed) / 1024 / 1024,   cLevel);
+                         O_ratio, (double)(O_CMemUsed) / 1024 / 1024,
+                         cLevel);
                 continue;
             }
             if (W_CSpeed_note   < O_CSpeed_note  ) {
                 /* too large compression speed difference for the compression benefit */
                 if (W_ratio > O_ratio)
-                DISPLAY ("Compression Speed : %5.3f @ %4.1f MB/s  vs  %5.3f @ %4.1f MB/s   : not enough for level %i\n",
+                DISPLAYLEVEL(3, "Compression Speed : %5.3f @ %4.1f MB/s  vs  %5.3f @ %4.1f MB/s   : not enough for level %i\n",
                          W_ratio, (double)testResult.cSpeed / MB_UNIT,
-                         O_ratio, (double)winners[cLevel].result.cSpeed / MB_UNIT,   cLevel);
+                         O_ratio, (double)winners[cLevel].result.cSpeed / MB_UNIT,
+                         cLevel);
                 continue;
             }
             if (W_DSpeed_note   < O_DSpeed_note  ) {
                 /* too large decompression speed difference for the compression benefit */
                 if (W_ratio > O_ratio)
-                DISPLAY ("Decompression Speed : %5.3f @ %4.1f MB/s  vs  %5.3f @ %4.1f MB/s   : not enough for level %i\n",
+                DISPLAYLEVEL(3, "Decompression Speed : %5.3f @ %4.1f MB/s  vs  %5.3f @ %4.1f MB/s   : not enough for level %i\n",
                          W_ratio, (double)testResult.dSpeed / MB_UNIT,
-                         O_ratio, (double)winners[cLevel].result.dSpeed / MB_UNIT,   cLevel);
+                         O_ratio, (double)winners[cLevel].result.dSpeed / MB_UNIT,
+                         cLevel);
                 continue;
             }
 
             if (W_ratio < O_ratio)
-                DISPLAY("Solution %4.3f selected over %4.3f at level %i, due to better secondary statistics \n", W_ratio, O_ratio, cLevel);
+                DISPLAYLEVEL(3, "Solution %4.3f selected over %4.3f at level %i, due to better secondary statistics \n",
+                                W_ratio, O_ratio, cLevel);
 
             winners[cLevel].result = testResult;
             winners[cLevel].params = params;
@@ -1949,7 +1952,7 @@ static void playAround(FILE* f,
                               ((FUZ_rand(&g_rand) & 1) << 1) - 1,
                               &p);
             }
-        } while(!paramValid(p));
+        } while (!paramValid(p));
 
         /* exclude faster if already played params */
         if (FUZ_rand(&g_rand) & ((1 << *NB_TESTS_PLAYED(p))-1))
@@ -1969,7 +1972,8 @@ static void playAround(FILE* f,
 }
 
 static void
-BMK_selectRandomStart( FILE* f, winnerInfo_t* winners,
+BMK_selectRandomStart( FILE* f,
+                       winnerInfo_t* winners,
                        const buffers_t buf, const contexts_t ctx)
 {
     U32 const id = FUZ_rand(&g_rand) % (NB_LEVELS_TRACKED+1);

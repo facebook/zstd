@@ -4205,18 +4205,18 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
     { 17, 17, 17,  4,  4,  8, ZSTD_lazy2   },  /* level  8 */
     { 17, 17, 17,  5,  4,  8, ZSTD_lazy2   },  /* level  9 */
     { 17, 17, 17,  6,  4,  8, ZSTD_lazy2   },  /* level 10 */
-    { 17, 17, 17,  7,  4,  8, ZSTD_lazy2   },  /* level 11 */
-    { 17, 18, 17,  6,  4, 16, ZSTD_btlazy2 },  /* level 12 */
-    { 17, 18, 17,  8,  4, 16, ZSTD_btlazy2 },  /* level 13.*/
-    { 17, 18, 17,  4,  4, 32, ZSTD_btopt   },  /* level 14.*/
-    { 17, 18, 17,  6,  3, 64, ZSTD_btopt   },  /* level 15.*/
-    { 17, 18, 17,  7,  3,128, ZSTD_btopt   },  /* level 16.*/
-    { 17, 18, 17,  7,  3,256, ZSTD_btopt   },  /* level 17.*/
-    { 17, 18, 17,  8,  3,256, ZSTD_btopt   },  /* level 18.*/
-    { 17, 18, 17,  8,  3,256, ZSTD_btultra },  /* level 19.*/
-    { 17, 18, 17,  9,  3,256, ZSTD_btultra },  /* level 20.*/
-    { 17, 18, 17, 10,  3,256, ZSTD_btultra },  /* level 21.*/
-    { 17, 18, 17, 11,  3,512, ZSTD_btultra },  /* level 22.*/
+    { 17, 17, 17,  5,  4,  8, ZSTD_btlazy2 },  /* level 11 */
+    { 17, 18, 17,  7,  4, 12, ZSTD_btlazy2 },  /* level 12 */
+    { 17, 18, 17,  3,  4, 12, ZSTD_btopt   },  /* level 13.*/
+    { 17, 18, 17,  4,  3, 32, ZSTD_btopt   },  /* level 14.*/
+    { 17, 18, 17,  6,  3,256, ZSTD_btopt   },  /* level 15.*/
+    { 17, 18, 17,  6,  3,128, ZSTD_btultra },  /* level 16.*/
+    { 17, 18, 17,  8,  3,256, ZSTD_btultra },  /* level 17.*/
+    { 17, 18, 17, 10,  3,512, ZSTD_btultra },  /* level 18.*/
+    { 17, 18, 17,  5,  3,256, ZSTD_btultra2},  /* level 19.*/
+    { 17, 18, 17,  7,  3,512, ZSTD_btultra2},  /* level 20.*/
+    { 17, 18, 17,  9,  3,512, ZSTD_btultra2},  /* level 21.*/
+    { 17, 18, 17, 11,  3,999, ZSTD_btultra2},  /* level 22.*/
 },
 {   /* for srcSize <= 16 KB */
     /* W,  C,  H,  S,  L,  T, strat */

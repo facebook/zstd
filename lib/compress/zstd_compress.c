@@ -2433,7 +2433,11 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
         size_t const mostFrequent = HIST_countFast_wksp(count, &max, llCodeTable, nbSeq, workspace, wkspSize);   /* can't fail */
         DEBUGLOG(5, "Building LL table");
         nextEntropy->fse.litlength_repeatMode = prevEntropy->fse.litlength_repeatMode;
-        LLtype = ZSTD_selectEncodingType(&nextEntropy->fse.litlength_repeatMode, count, max, mostFrequent, nbSeq, LLFSELog, prevEntropy->fse.litlengthCTable, LL_defaultNorm, LL_defaultNormLog, ZSTD_defaultAllowed, strategy);
+        LLtype = ZSTD_selectEncodingType(&nextEntropy->fse.litlength_repeatMode,
+                                        count, max, mostFrequent, nbSeq,
+                                        LLFSELog, prevEntropy->fse.litlengthCTable,
+                                        LL_defaultNorm, LL_defaultNormLog,
+                                        ZSTD_defaultAllowed, strategy);
         assert(set_basic < set_compressed && set_rle < set_compressed);
         assert(!(LLtype < set_compressed && nextEntropy->fse.litlength_repeatMode != FSE_repeat_none)); /* We don't copy tables */
         {   size_t const countSize = ZSTD_buildCTable(op, oend - op, CTable_LitLength, LLFSELog, (symbolEncodingType_e)LLtype,
@@ -2452,7 +2456,11 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
         ZSTD_defaultPolicy_e const defaultPolicy = (max <= DefaultMaxOff) ? ZSTD_defaultAllowed : ZSTD_defaultDisallowed;
         DEBUGLOG(5, "Building OF table");
         nextEntropy->fse.offcode_repeatMode = prevEntropy->fse.offcode_repeatMode;
-        Offtype = ZSTD_selectEncodingType(&nextEntropy->fse.offcode_repeatMode, count, max, mostFrequent, nbSeq, OffFSELog, prevEntropy->fse.offcodeCTable, OF_defaultNorm, OF_defaultNormLog, defaultPolicy, strategy);
+        Offtype = ZSTD_selectEncodingType(&nextEntropy->fse.offcode_repeatMode,
+                                        count, max, mostFrequent, nbSeq,
+                                        OffFSELog, prevEntropy->fse.offcodeCTable,
+                                        OF_defaultNorm, OF_defaultNormLog,
+                                        defaultPolicy, strategy);
         assert(!(Offtype < set_compressed && nextEntropy->fse.offcode_repeatMode != FSE_repeat_none)); /* We don't copy tables */
         {   size_t const countSize = ZSTD_buildCTable(op, oend - op, CTable_OffsetBits, OffFSELog, (symbolEncodingType_e)Offtype,
                                                     count, max, ofCodeTable, nbSeq, OF_defaultNorm, OF_defaultNormLog, DefaultMaxOff,
@@ -2468,7 +2476,11 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
         size_t const mostFrequent = HIST_countFast_wksp(count, &max, mlCodeTable, nbSeq, workspace, wkspSize);   /* can't fail */
         DEBUGLOG(5, "Building ML table (remaining space : %i)", (int)(oend-op));
         nextEntropy->fse.matchlength_repeatMode = prevEntropy->fse.matchlength_repeatMode;
-        MLtype = ZSTD_selectEncodingType(&nextEntropy->fse.matchlength_repeatMode, count, max, mostFrequent, nbSeq, MLFSELog, prevEntropy->fse.matchlengthCTable, ML_defaultNorm, ML_defaultNormLog, ZSTD_defaultAllowed, strategy);
+        MLtype = ZSTD_selectEncodingType(&nextEntropy->fse.matchlength_repeatMode,
+                                        count, max, mostFrequent, nbSeq,
+                                        MLFSELog, prevEntropy->fse.matchlengthCTable,
+                                        ML_defaultNorm, ML_defaultNormLog,
+                                        ZSTD_defaultAllowed, strategy);
         assert(!(MLtype < set_compressed && nextEntropy->fse.matchlength_repeatMode != FSE_repeat_none)); /* We don't copy tables */
         {   size_t const countSize = ZSTD_buildCTable(op, oend - op, CTable_MatchLength, MLFSELog, (symbolEncodingType_e)MLtype,
                                                     count, max, mlCodeTable, nbSeq, ML_defaultNorm, ML_defaultNormLog, MaxML,
@@ -3050,7 +3062,9 @@ static size_t ZSTD_loadZstdDictionary(ZSTD_compressedBlockState_t* bs,
         if (offcodeLog > OffFSELog) return ERROR(dictionary_corrupted);
         /* Defer checking offcodeMaxValue because we need to know the size of the dictionary content */
         /* fill all offset symbols to avoid garbage at end of table */
-        CHECK_E( FSE_buildCTable_wksp(bs->entropy.fse.offcodeCTable, offcodeNCount, MaxOff, offcodeLog, workspace, HUF_WORKSPACE_SIZE),
+        CHECK_E( FSE_buildCTable_wksp(bs->entropy.fse.offcodeCTable,
+                                    offcodeNCount, MaxOff, offcodeLog,
+                                    workspace, HUF_WORKSPACE_SIZE),
                  dictionary_corrupted);
         dictPtr += offcodeHeaderSize;
     }
@@ -3062,7 +3076,9 @@ static size_t ZSTD_loadZstdDictionary(ZSTD_compressedBlockState_t* bs,
         if (matchlengthLog > MLFSELog) return ERROR(dictionary_corrupted);
         /* Every match length code must have non-zero probability */
         CHECK_F( ZSTD_checkDictNCount(matchlengthNCount, matchlengthMaxValue, MaxML));
-        CHECK_E( FSE_buildCTable_wksp(bs->entropy.fse.matchlengthCTable, matchlengthNCount, matchlengthMaxValue, matchlengthLog, workspace, HUF_WORKSPACE_SIZE),
+        CHECK_E( FSE_buildCTable_wksp(bs->entropy.fse.matchlengthCTable,
+                                    matchlengthNCount, matchlengthMaxValue, matchlengthLog,
+                                    workspace, HUF_WORKSPACE_SIZE),
                  dictionary_corrupted);
         dictPtr += matchlengthHeaderSize;
     }
@@ -3074,7 +3090,9 @@ static size_t ZSTD_loadZstdDictionary(ZSTD_compressedBlockState_t* bs,
         if (litlengthLog > LLFSELog) return ERROR(dictionary_corrupted);
         /* Every literal length code must have non-zero probability */
         CHECK_F( ZSTD_checkDictNCount(litlengthNCount, litlengthMaxValue, MaxLL));
-        CHECK_E( FSE_buildCTable_wksp(bs->entropy.fse.litlengthCTable, litlengthNCount, litlengthMaxValue, litlengthLog, workspace, HUF_WORKSPACE_SIZE),
+        CHECK_E( FSE_buildCTable_wksp(bs->entropy.fse.litlengthCTable,
+                                    litlengthNCount, litlengthMaxValue, litlengthLog,
+                                    workspace, HUF_WORKSPACE_SIZE),
                  dictionary_corrupted);
         dictPtr += litlengthHeaderSize;
     }
@@ -4205,8 +4223,8 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
     { 14, 12, 13,  1,  5,  1, ZSTD_fast    },  /* base for negative levels */
     { 14, 14, 15,  1,  5,  0, ZSTD_fast    },  /* level  1 */
     { 14, 14, 15,  1,  4,  0, ZSTD_fast    },  /* level  2 */
-    { 14, 14, 14,  2,  4,  1, ZSTD_dfast   },  /* level  3.*/
-    { 14, 14, 14,  4,  4,  2, ZSTD_greedy  },  /* level  4.*/
+    { 14, 14, 15,  2,  4,  1, ZSTD_dfast   },  /* level  3 */
+    { 14, 14, 14,  4,  4,  2, ZSTD_greedy  },  /* level  4 */
     { 14, 14, 14,  3,  4,  4, ZSTD_lazy    },  /* level  5.*/
     { 14, 14, 14,  4,  4,  8, ZSTD_lazy2   },  /* level  6 */
     { 14, 14, 14,  6,  4,  8, ZSTD_lazy2   },  /* level  7 */
@@ -4214,17 +4232,17 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
     { 14, 15, 14,  5,  4,  8, ZSTD_btlazy2 },  /* level  9.*/
     { 14, 15, 14,  9,  4,  8, ZSTD_btlazy2 },  /* level 10.*/
     { 14, 15, 14,  3,  4, 12, ZSTD_btopt   },  /* level 11.*/
-    { 14, 15, 14,  6,  3, 16, ZSTD_btopt   },  /* level 12.*/
-    { 14, 15, 14,  6,  3, 24, ZSTD_btopt   },  /* level 13.*/
-    { 14, 15, 15,  6,  3, 48, ZSTD_btopt   },  /* level 14.*/
-    { 14, 15, 15,  6,  3, 64, ZSTD_btopt   },  /* level 15.*/
-    { 14, 15, 15,  6,  3, 96, ZSTD_btopt   },  /* level 16.*/
-    { 14, 15, 15,  6,  3,128, ZSTD_btopt   },  /* level 17.*/
-    { 14, 15, 15,  8,  3,256, ZSTD_btopt   },  /* level 18.*/
-    { 14, 15, 15,  6,  3,256, ZSTD_btultra },  /* level 19.*/
-    { 14, 15, 15,  8,  3,256, ZSTD_btultra },  /* level 20.*/
-    { 14, 15, 15,  9,  3,256, ZSTD_btultra },  /* level 21.*/
-    { 14, 15, 15, 10,  3,512, ZSTD_btultra },  /* level 22.*/
+    { 14, 15, 14,  4,  3, 24, ZSTD_btopt   },  /* level 12.*/
+    { 14, 15, 14,  5,  3, 32, ZSTD_btultra },  /* level 13.*/
+    { 14, 15, 15,  6,  3, 64, ZSTD_btultra },  /* level 14.*/
+    { 14, 15, 15,  7,  3,256, ZSTD_btultra },  /* level 15.*/
+    { 14, 15, 15,  5,  3, 48, ZSTD_btultra2},  /* level 16.*/
+    { 14, 15, 15,  6,  3,128, ZSTD_btultra2},  /* level 17.*/
+    { 14, 15, 15,  7,  3,256, ZSTD_btultra2},  /* level 18.*/
+    { 14, 15, 15,  8,  3,256, ZSTD_btultra2},  /* level 19.*/
+    { 14, 15, 15,  8,  3,512, ZSTD_btultra2},  /* level 20.*/
+    { 14, 15, 15,  9,  3,512, ZSTD_btultra2},  /* level 21.*/
+    { 14, 15, 15, 10,  3,999, ZSTD_btultra2},  /* level 22.*/
 },
 };
 
@@ -4243,8 +4261,8 @@ ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, unsigned long l
     if (compressionLevel > ZSTD_MAX_CLEVEL) row = ZSTD_MAX_CLEVEL;
     {   ZSTD_compressionParameters cp = ZSTD_defaultCParameters[tableID][row];
         if (compressionLevel < 0) cp.targetLength = (unsigned)(-compressionLevel);   /* acceleration factor */
-        return ZSTD_adjustCParams_internal(cp, srcSizeHint, dictSize); }
-
+        return ZSTD_adjustCParams_internal(cp, srcSizeHint, dictSize);
+    }
 }
 
 /*! ZSTD_getParams() :

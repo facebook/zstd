@@ -293,6 +293,7 @@ static int advanced_config(
     ZSTD_CCtx* cctx,
     buffer_state_t* state,
     config_t const* config) {
+    ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters);
     for (size_t p = 0; p < config->param_values.size; ++p) {
         param_value_t const pv = config->param_values.data[p];
         if (ZSTD_isError(ZSTD_CCtx_setParameter(cctx, pv.param, pv.value))) {

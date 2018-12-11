@@ -583,8 +583,9 @@ typedef enum {
 
     /* frame parameters */
     ZSTD_c_contentSizeFlag=200, /* Content size will be written into frame header _whenever known_ (default:1)
-                              * Content size must be known at the beginning of compression,
-                              * it is provided using ZSTD_CCtx_setPledgedSrcSize() */
+                              * Content size must be known at the beginning of compression.
+                              * This is automatically the case when using ZSTD_compress2(),
+                              * For streaming variants, content size must be provided with ZSTD_CCtx_setPledgedSrcSize() */
     ZSTD_c_checksumFlag=201, /* A 32-bits checksum of content is written at end of frame (default:0) */
     ZSTD_c_dictIDFlag=202,   /* When applicable, dictionary's ID is written into frame header (default:1) */
 
@@ -660,14 +661,17 @@ ZSTDLIB_API size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param
 
 /*! ZSTD_CCtx_setPledgedSrcSize() :
  *  Total input data size to be compressed as a single frame.
- *  This value will be controlled at end of frame, and trigger an error if not respected.
+ *  Value will be written in frame header, unless if explicitly forbidden using ZSTD_c_contentSizeFlag.
+ *  This value will also be controlled at end of frame, and trigger an error if not respected.
  * @result : 0, or an error code (which can be tested with ZSTD_isError()).
  *  Note 1 : pledgedSrcSize==0 actually means zero, aka an empty frame.
  *           In order to mean "unknown content size", pass constant ZSTD_CONTENTSIZE_UNKNOWN.
  *           ZSTD_CONTENTSIZE_UNKNOWN is default value for any new frame.
  *  Note 2 : pledgedSrcSize is only valid once, for the next frame.
- *           It's discarded at the end of the frame.
- *  Note 3 : If all data is provided and consumed in a single round,
+ *           It's discarded at the end of the frame, and replaced by ZSTD_CONTENTSIZE_UNKNOWN.
+ *  Note 3 : Whenever all input data is provided and consumed in a single round,
+ *           for example with ZSTD_compress2(),
+ *           or invoking immediately ZSTD_compressStream2(,,,ZSTD_e_end),
  *           this value is automatically overriden by srcSize instead.
  */
 ZSTDLIB_API size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long long pledgedSrcSize);

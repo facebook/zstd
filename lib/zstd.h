@@ -750,6 +750,8 @@ ZSTDLIB_API size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx, ZSTD_ResetDirective reset);
 
 /*! ZSTD_compress2() :
  *  Behave the same as ZSTD_compressCCtx(), but compression parameters are set using the advanced API.
+ *  ZSTD_compress2() always starts a new frame.
+ *  Should cctx hold data from a previously unfinished frame, everything about it is forgotten.
  *  - Compression parameters are pushed into CCtx before starting compression, using ZSTD_CCtx_set*()
  *  - The function is always blocking, returns when compression is completed.
  *  Hint : compression runs faster if `dstCapacity` >=  `ZSTD_compressBound(srcSize)`.

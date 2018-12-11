@@ -4068,11 +4068,11 @@ size_t ZSTD_compress2(ZSTD_CCtx* cctx,
                                         src, srcSize, &iPos,
                                         ZSTD_e_end);
         if (ZSTD_isError(result)) return result;
-        assert(iPos == srcSize);
         if (result != 0) {  /* compression not completed, due to lack of output space */
             assert(oPos == dstCapacity);
             return ERROR(dstSize_tooSmall);
         }
+        assert(iPos == srcSize);   /* all input is expected consumed */
         return oPos;
     }
 }

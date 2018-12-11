@@ -1086,8 +1086,7 @@ static void ZSTD_initStats_ultra(
     assert(ms->opt.litLengthSum == 0);    /* first block */
     assert(seqStore->sequences == seqStore->sequencesStart);   /* no ldm */
     assert(ms->window.dictLimit == ms->window.lowLimit);   /* no dictionary */
-    assert(ms->nextToUpdate >= ms->window.dictLimit
-        && ms->nextToUpdate <= ms->window.dictLimit + 1);
+    assert(ms->window.dictLimit - ms->nextToUpdate <= 1);  /* no prefix (note: intentional overflow, defined as 2-complement) */
 
     memcpy(tmpRep, rep, sizeof(tmpRep));
     ZSTD_compressBlock_opt_generic(ms, seqStore, tmpRep, src, srcSize, 2 /*optLevel*/, ZSTD_noDict);   /* generate stats into ms->opt*/
@@ -1121,12 +1120,17 @@ size_t ZSTD_compressBlock_btultra2(
     /* 2-pass strategy
      * this strategy makes a first pass over first block to collect statistics
      * and seed next round's statistics with it.
+     * After 1st pass, function forgets everything, and starts a new block.
+     * Consequently, this can only work if no data has been previously loaded in tables,
+     * aka, no dictionary, no prefix, no ldm preprocessing.
      * The compression ratio gain is generally small (~0.5% on first block),
      * the cost is 2x cpu time on first block. */
     assert(srcSize <= ZSTD_BLOCKSIZE_MAX);
     if ( (ms->opt.litLengthSum==0)   /* first block */
-      && (seqStore->sequences == seqStore->sequencesStart)   /* no ldm */
-      && (ms->window.dictLimit == ms->window.lowLimit) ) {   /* no dictionary */
+      && (seqStore->sequences == seqStore->sequencesStart)  /* no ldm */
+      && (ms->window.dictLimit == ms->window.lowLimit)   /* no dictionary */
+      && (ms->window.dictLimit - ms->nextToUpdate <= 1)  /* no prefix (note: intentional overflow, defined as 2-complement) */
+      ) {
         ZSTD_initStats_ultra(ms, seqStore, rep, src, srcSize);
     }
 

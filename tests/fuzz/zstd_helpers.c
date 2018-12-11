@@ -32,8 +32,8 @@ ZSTD_compressionParameters FUZZ_randomCParams(size_t srcSize, uint32_t *state)
     cParams.hashLog = FUZZ_rand32(state, ZSTD_HASHLOG_MIN, 15);
     cParams.chainLog = FUZZ_rand32(state, ZSTD_CHAINLOG_MIN, 16);
     cParams.searchLog = FUZZ_rand32(state, ZSTD_SEARCHLOG_MIN, 9);
-    cParams.searchLength = FUZZ_rand32(state, ZSTD_SEARCHLENGTH_MIN,
-                                              ZSTD_SEARCHLENGTH_MAX);
+    cParams.minMatch = FUZZ_rand32(state, ZSTD_MINMATCH_MIN,
+                                          ZSTD_MINMATCH_MAX);
     cParams.targetLength = FUZZ_rand32(state, 0, 512);
     cParams.strategy = FUZZ_rand32(state, ZSTD_fast, ZSTD_btultra);
     return ZSTD_adjustCParams(cParams, srcSize, 0);
@@ -60,25 +60,25 @@ ZSTD_parameters FUZZ_randomParams(size_t srcSize, uint32_t *state)
 void FUZZ_setRandomParameters(ZSTD_CCtx *cctx, size_t srcSize, uint32_t *state)
 {
     ZSTD_compressionParameters cParams = FUZZ_randomCParams(srcSize, state);
-    set(cctx, ZSTD_p_windowLog, cParams.windowLog);
-    set(cctx, ZSTD_p_hashLog, cParams.hashLog);
-    set(cctx, ZSTD_p_chainLog, cParams.chainLog);
-    set(cctx, ZSTD_p_searchLog, cParams.searchLog);
-    set(cctx, ZSTD_p_minMatch, cParams.searchLength);
-    set(cctx, ZSTD_p_targetLength, cParams.targetLength);
-    set(cctx, ZSTD_p_compressionStrategy, cParams.strategy);
+    set(cctx, ZSTD_c_windowLog, cParams.windowLog);
+    set(cctx, ZSTD_c_hashLog, cParams.hashLog);
+    set(cctx, ZSTD_c_chainLog, cParams.chainLog);
+    set(cctx, ZSTD_c_searchLog, cParams.searchLog);
+    set(cctx, ZSTD_c_minMatch, cParams.minMatch);
+    set(cctx, ZSTD_c_targetLength, cParams.targetLength);
+    set(cctx, ZSTD_c_compressionStrategy, cParams.strategy);
     /* Select frame parameters */
-    setRand(cctx, ZSTD_p_contentSizeFlag, 0, 1, state);
-    setRand(cctx, ZSTD_p_checksumFlag, 0, 1, state);
-    setRand(cctx, ZSTD_p_dictIDFlag, 0, 1, state);
-    setRand(cctx, ZSTD_p_forceAttachDict, 0, 2, state);
+    setRand(cctx, ZSTD_c_contentSizeFlag, 0, 1, state);
+    setRand(cctx, ZSTD_c_checksumFlag, 0, 1, state);
+    setRand(cctx, ZSTD_c_dictIDFlag, 0, 1, state);
+    setRand(cctx, ZSTD_c_forceAttachDict, 0, 2, state);
     /* Select long distance matchig parameters */
-    setRand(cctx, ZSTD_p_enableLongDistanceMatching, 0, 1, state);
-    setRand(cctx, ZSTD_p_ldmHashLog, ZSTD_HASHLOG_MIN, 16, state);
-    setRand(cctx, ZSTD_p_ldmMinMatch, ZSTD_LDM_MINMATCH_MIN,
+    setRand(cctx, ZSTD_c_enableLongDistanceMatching, 0, 1, state);
+    setRand(cctx, ZSTD_c_ldmHashLog, ZSTD_HASHLOG_MIN, 16, state);
+    setRand(cctx, ZSTD_c_ldmMinMatch, ZSTD_LDM_MINMATCH_MIN,
             ZSTD_LDM_MINMATCH_MAX, state);
-    setRand(cctx, ZSTD_p_ldmBucketSizeLog, 0, ZSTD_LDM_BUCKETSIZELOG_MAX,
+    setRand(cctx, ZSTD_c_ldmBucketSizeLog, 0, ZSTD_LDM_BUCKETSIZELOG_MAX,
             state);
-    setRand(cctx, ZSTD_p_ldmHashEveryLog, 0,
-            ZSTD_WINDOWLOG_MAX - ZSTD_HASHLOG_MIN, state);
+    setRand(cctx, ZSTD_c_ldmHashRateLog, ZSTD_LDM_HASHRATELOG_MIN,
+            ZSTD_LDM_HASHRATELOG_MAX, state);
 }

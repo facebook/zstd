@@ -240,17 +240,7 @@ MEM_STATIC size_t MEM_readLEST(const void* memPtr)
 /* *************************************
 *  Types
 ***************************************/
-#define ZSTD_WINDOWLOG_MAX 26
-#define ZSTD_WINDOWLOG_MIN 18
 #define ZSTD_WINDOWLOG_ABSOLUTEMIN 11
-#define ZSTD_CONTENTLOG_MAX (ZSTD_WINDOWLOG_MAX+1)
-#define ZSTD_CONTENTLOG_MIN 4
-#define ZSTD_HASHLOG_MAX 28
-#define ZSTD_HASHLOG_MIN 4
-#define ZSTD_SEARCHLOG_MAX (ZSTD_CONTENTLOG_MAX-1)
-#define ZSTD_SEARCHLOG_MIN 1
-#define ZSTD_SEARCHLENGTH_MAX 7
-#define ZSTD_SEARCHLENGTH_MIN 4
 
 /** from faster to stronger */
 typedef enum { ZSTD_fast, ZSTD_greedy, ZSTD_lazy, ZSTD_lazy2, ZSTD_btlazy2 } ZSTD_strategy;

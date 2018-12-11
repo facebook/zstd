@@ -61,7 +61,7 @@ static void ZSTD_initCCtx(ZSTD_CCtx* cctx, ZSTD_customMem memManager)
     memset(cctx, 0, sizeof(*cctx));
     cctx->customMem = memManager;
     cctx->bmi2 = ZSTD_cpuid_bmi2(ZSTD_cpuid());
-    {   size_t const err = ZSTD_CCtx_resetParameters(cctx);
+    {   size_t const err = ZSTD_CCtx_reset(cctx, ZSTD_reset_parameters);
         assert(!ZSTD_isError(err));
         (void)err;
     }
@@ -128,7 +128,7 @@ static size_t ZSTD_sizeof_mtctx(const ZSTD_CCtx* cctx)
 #ifdef ZSTD_MULTITHREAD
     return ZSTDMT_sizeof_CCtx(cctx->mtctx);
 #else
-    (void) cctx;
+    (void)cctx;
     return 0;
 #endif
 }
@@ -226,6 +226,144 @@ static ZSTD_CCtx_params ZSTD_assignParamsToCCtxParams(
     return ret;
 }
 
+ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
+{
+    ZSTD_bounds bounds = { 0, 0, 0 };
+
+    switch(param)
+    {
+    case ZSTD_c_compressionLevel:
+        bounds.lowerBound = ZSTD_minCLevel();
+        bounds.upperBound = ZSTD_maxCLevel();
+        return bounds;
+
+    case ZSTD_c_windowLog:
+        bounds.lowerBound = ZSTD_WINDOWLOG_MIN;
+        bounds.upperBound = ZSTD_WINDOWLOG_MAX;
+        return bounds;
+
+    case ZSTD_c_hashLog:
+        bounds.lowerBound = ZSTD_HASHLOG_MIN;
+        bounds.upperBound = ZSTD_HASHLOG_MAX;
+        return bounds;
+
+    case ZSTD_c_chainLog:
+        bounds.lowerBound = ZSTD_CHAINLOG_MIN;
+        bounds.upperBound = ZSTD_CHAINLOG_MAX;
+        return bounds;
+
+    case ZSTD_c_searchLog:
+        bounds.lowerBound = ZSTD_SEARCHLOG_MIN;
+        bounds.upperBound = ZSTD_SEARCHLOG_MAX;
+        return bounds;
+
+    case ZSTD_c_minMatch:
+        bounds.lowerBound = ZSTD_MINMATCH_MIN;
+        bounds.upperBound = ZSTD_MINMATCH_MAX;
+        return bounds;
+
+    case ZSTD_c_targetLength:
+        bounds.lowerBound = ZSTD_TARGETLENGTH_MIN;
+        bounds.upperBound = ZSTD_TARGETLENGTH_MAX;
+        return bounds;
+
+    case ZSTD_c_compressionStrategy:
+        bounds.lowerBound = (int)ZSTD_fast;
+        bounds.upperBound = (int)ZSTD_btultra;  /* note : how to ensure at compile time that this is the highest value strategy ? */
+        return bounds;
+
+    case ZSTD_c_contentSizeFlag:
+        bounds.lowerBound = 0;
+        bounds.upperBound = 1;
+        return bounds;
+
+    case ZSTD_c_checksumFlag:
+        bounds.lowerBound = 0;
+        bounds.upperBound = 1;
+        return bounds;
+
+    case ZSTD_c_dictIDFlag:
+        bounds.lowerBound = 0;
+        bounds.upperBound = 1;
+        return bounds;
+
+    case ZSTD_c_nbWorkers:
+        bounds.lowerBound = 0;
+#ifdef ZSTD_MULTITHREAD
+        bounds.upperBound = ZSTDMT_NBWORKERS_MAX;
+#else
+        bounds.upperBound = 0;
+#endif
+        return bounds;
+
+    case ZSTD_c_jobSize:
+        bounds.lowerBound = 0;
+#ifdef ZSTD_MULTITHREAD
+        bounds.upperBound = ZSTDMT_JOBSIZE_MAX;
+#else
+        bounds.upperBound = 0;
+#endif
+        return bounds;
+
+    case ZSTD_c_overlapSizeLog:
+        bounds.lowerBound = ZSTD_OVERLAPLOG_MIN;
+        bounds.upperBound = ZSTD_OVERLAPLOG_MAX;
+        return bounds;
+
+    case ZSTD_c_enableLongDistanceMatching:
+        bounds.lowerBound = 0;
+        bounds.upperBound = 1;
+        return bounds;
+
+    case ZSTD_c_ldmHashLog:
+        bounds.lowerBound = ZSTD_LDM_HASHLOG_MIN;
+        bounds.upperBound = ZSTD_LDM_HASHLOG_MAX;
+        return bounds;
+
+    case ZSTD_c_ldmMinMatch:
+        bounds.lowerBound = ZSTD_LDM_MINMATCH_MIN;
+        bounds.upperBound = ZSTD_LDM_MINMATCH_MAX;
+        return bounds;
+
+    case ZSTD_c_ldmBucketSizeLog:
+        bounds.lowerBound = ZSTD_LDM_BUCKETSIZELOG_MIN;
+        bounds.upperBound = ZSTD_LDM_BUCKETSIZELOG_MAX;
+        return bounds;
+
+    case ZSTD_c_ldmHashRateLog:
+        bounds.lowerBound = ZSTD_LDM_HASHRATELOG_MIN;
+        bounds.upperBound = ZSTD_LDM_HASHRATELOG_MAX;
+        return bounds;
+
+    /* experimental parameters */
+    case ZSTD_c_rsyncable:
+        bounds.lowerBound = 0;
+        bounds.upperBound = 1;
+        return bounds;
+
+    case ZSTD_c_forceMaxWindow :
+        bounds.lowerBound = 0;
+        bounds.upperBound = 1;
+        return bounds;
+
+    case ZSTD_c_format:
+        ZSTD_STATIC_ASSERT((int)ZSTD_f_zstd1 < (int)ZSTD_f_zstd1_magicless);
+        bounds.lowerBound = (int)ZSTD_f_zstd1;
+        bounds.upperBound = (int)ZSTD_f_zstd1_magicless;
+        return bounds;
+
+    case ZSTD_c_forceAttachDict:
+        bounds.lowerBound = 0;
+        bounds.upperBound = 1;
+        return bounds;
+
+    default:
+        {   ZSTD_bounds const boundError = { ERROR(parameter_unsupported), 0, 0 };
+            return boundError;
+        }
+    }
+}
+
 #define CLAMPCHECK(val,min,max) {            \
     if (((val)<(min)) | ((val)>(max))) {     \
         return ERROR(parameter_outOfBound);  \
@@ -236,39 +374,39 @@ static int ZSTD_isUpdateAuthorized(ZSTD_cParameter param)
 {
     switch(param)
     {
-    case ZSTD_p_compressionLevel:
-    case ZSTD_p_hashLog:
-    case ZSTD_p_chainLog:
-    case ZSTD_p_searchLog:
-    case ZSTD_p_minMatch:
-    case ZSTD_p_targetLength:
-    case ZSTD_p_compressionStrategy:
+    case ZSTD_c_compressionLevel:
+    case ZSTD_c_hashLog:
+    case ZSTD_c_chainLog:
+    case ZSTD_c_searchLog:
+    case ZSTD_c_minMatch:
+    case ZSTD_c_targetLength:
+    case ZSTD_c_compressionStrategy:
         return 1;
 
-    case ZSTD_p_format:
-    case ZSTD_p_windowLog:
-    case ZSTD_p_contentSizeFlag:
-    case ZSTD_p_checksumFlag:
-    case ZSTD_p_dictIDFlag:
-    case ZSTD_p_forceMaxWindow :
-    case ZSTD_p_nbWorkers:
-    case ZSTD_p_jobSize:
-    case ZSTD_p_overlapSizeLog:
-    case ZSTD_p_rsyncable:
-    case ZSTD_p_enableLongDistanceMatching:
-    case ZSTD_p_ldmHashLog:
-    case ZSTD_p_ldmMinMatch:
-    case ZSTD_p_ldmBucketSizeLog:
-    case ZSTD_p_ldmHashEveryLog:
-    case ZSTD_p_forceAttachDict:
+    case ZSTD_c_format:
+    case ZSTD_c_windowLog:
+    case ZSTD_c_contentSizeFlag:
+    case ZSTD_c_checksumFlag:
+    case ZSTD_c_dictIDFlag:
+    case ZSTD_c_forceMaxWindow :
+    case ZSTD_c_nbWorkers:
+    case ZSTD_c_jobSize:
+    case ZSTD_c_overlapSizeLog:
+    case ZSTD_c_rsyncable:
+    case ZSTD_c_enableLongDistanceMatching:
+    case ZSTD_c_ldmHashLog:
+    case ZSTD_c_ldmMinMatch:
+    case ZSTD_c_ldmBucketSizeLog:
+    case ZSTD_c_ldmHashRateLog:
+    case ZSTD_c_forceAttachDict:
     default:
         return 0;
     }
 }
 
-size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned value)
+size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int value)
 {
-    DEBUGLOG(4, "ZSTD_CCtx_setParameter (%u, %u)", (U32)param, value);
+    DEBUGLOG(4, "ZSTD_CCtx_setParameter (%i, %i)", (int)param, value);
     if (cctx->streamStage != zcss_init) {
         if (ZSTD_isUpdateAuthorized(param)) {
             cctx->cParamsChanged = 1;
@@ -278,52 +416,52 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
 
     switch(param)
     {
-    case ZSTD_p_format :
+    case ZSTD_c_format :
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
-    case ZSTD_p_compressionLevel:
+    case ZSTD_c_compressionLevel:
         if (cctx->cdict) return ERROR(stage_wrong);
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
-    case ZSTD_p_windowLog:
-    case ZSTD_p_hashLog:
-    case ZSTD_p_chainLog:
-    case ZSTD_p_searchLog:
-    case ZSTD_p_minMatch:
-    case ZSTD_p_targetLength:
-    case ZSTD_p_compressionStrategy:
+    case ZSTD_c_windowLog:
+    case ZSTD_c_hashLog:
+    case ZSTD_c_chainLog:
+    case ZSTD_c_searchLog:
+    case ZSTD_c_minMatch:
+    case ZSTD_c_targetLength:
+    case ZSTD_c_compressionStrategy:
         if (cctx->cdict) return ERROR(stage_wrong);
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
-    case ZSTD_p_contentSizeFlag:
-    case ZSTD_p_checksumFlag:
-    case ZSTD_p_dictIDFlag:
+    case ZSTD_c_contentSizeFlag:
+    case ZSTD_c_checksumFlag:
+    case ZSTD_c_dictIDFlag:
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
-    case ZSTD_p_forceMaxWindow :  /* Force back-references to remain < windowSize,
+    case ZSTD_c_forceMaxWindow :  /* Force back-references to remain < windowSize,
                                    * even when referencing into Dictionary content.
                                    * default : 0 when using a CDict, 1 when using a Prefix */
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
-    case ZSTD_p_forceAttachDict:
+    case ZSTD_c_forceAttachDict:
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
-    case ZSTD_p_nbWorkers:
-        if ((value>0) && cctx->staticSize) {
+    case ZSTD_c_nbWorkers:
+        if ((value!=0) && cctx->staticSize) {
             return ERROR(parameter_unsupported);  /* MT not compatible with static alloc */
         }
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
-    case ZSTD_p_jobSize:
-    case ZSTD_p_overlapSizeLog:
-    case ZSTD_p_rsyncable:
+    case ZSTD_c_jobSize:
+    case ZSTD_c_overlapSizeLog:
+    case ZSTD_c_rsyncable:
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
-    case ZSTD_p_enableLongDistanceMatching:
-    case ZSTD_p_ldmHashLog:
-    case ZSTD_p_ldmMinMatch:
-    case ZSTD_p_ldmBucketSizeLog:
-    case ZSTD_p_ldmHashEveryLog:
+    case ZSTD_c_enableLongDistanceMatching:
+    case ZSTD_c_ldmHashLog:
+    case ZSTD_c_ldmMinMatch:
+    case ZSTD_c_ldmBucketSizeLog:
+    case ZSTD_c_ldmHashRateLog:
         if (cctx->cdict) return ERROR(stage_wrong);
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
@@ -331,20 +469,20 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned v
     }
 }
 
-size_t ZSTD_CCtxParam_setParameter(
-        ZSTD_CCtx_params* CCtxParams, ZSTD_cParameter param, unsigned value)
+size_t ZSTD_CCtxParam_setParameter(ZSTD_CCtx_params* CCtxParams,
+                                   ZSTD_cParameter param, int value)
 {
-    DEBUGLOG(4, "ZSTD_CCtxParam_setParameter (%u, %u)", (U32)param, value);
+    DEBUGLOG(4, "ZSTD_CCtxParam_setParameter (%i, %i)", (int)param, value);
     switch(param)
     {
-    case ZSTD_p_format :
-        if (value > (unsigned)ZSTD_f_zstd1_magicless)
+    case ZSTD_c_format :
+        if (value > (int)ZSTD_f_zstd1_magicless)
             return ERROR(parameter_unsupported);
         CCtxParams->format = (ZSTD_format_e)value;
         return (size_t)CCtxParams->format;
 
-    case ZSTD_p_compressionLevel : {
-        int cLevel = (int)value;  /* cast expected to restore negative sign */
+    case ZSTD_c_compressionLevel : {
+        int cLevel = value;
         if (cLevel > ZSTD_maxCLevel()) cLevel = ZSTD_maxCLevel();
         if (cLevel) {  /* 0 : does not change current level */
             CCtxParams->compressionLevel = cLevel;
@@ -353,228 +491,228 @@ size_t ZSTD_CCtxParam_setParameter(
         return 0;  /* return type (size_t) cannot represent negative values */
     }
 
-    case ZSTD_p_windowLog :
-        if (value>0)   /* 0 => use default */
+    case ZSTD_c_windowLog :
+        if (value!=0)   /* 0 => use default */
             CLAMPCHECK(value, ZSTD_WINDOWLOG_MIN, ZSTD_WINDOWLOG_MAX);
         CCtxParams->cParams.windowLog = value;
         return CCtxParams->cParams.windowLog;
 
-    case ZSTD_p_hashLog :
-        if (value>0)   /* 0 => use default */
+    case ZSTD_c_hashLog :
+        if (value!=0)   /* 0 => use default */
             CLAMPCHECK(value, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
         CCtxParams->cParams.hashLog = value;
         return CCtxParams->cParams.hashLog;
 
-    case ZSTD_p_chainLog :
-        if (value>0)   /* 0 => use default */
+    case ZSTD_c_chainLog :
+        if (value!=0)   /* 0 => use default */
             CLAMPCHECK(value, ZSTD_CHAINLOG_MIN, ZSTD_CHAINLOG_MAX);
         CCtxParams->cParams.chainLog = value;
         return CCtxParams->cParams.chainLog;
 
-    case ZSTD_p_searchLog :
-        if (value>0)   /* 0 => use default */
+    case ZSTD_c_searchLog :
+        if (value!=0)   /* 0 => use default */
             CLAMPCHECK(value, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
         CCtxParams->cParams.searchLog = value;
         return value;
 
-    case ZSTD_p_minMatch :
-        if (value>0)   /* 0 => use default */
-            CLAMPCHECK(value, ZSTD_SEARCHLENGTH_MIN, ZSTD_SEARCHLENGTH_MAX);
-        CCtxParams->cParams.searchLength = value;
-        return CCtxParams->cParams.searchLength;
+    case ZSTD_c_minMatch :
+        if (value!=0)   /* 0 => use default */
+            CLAMPCHECK(value, ZSTD_MINMATCH_MIN, ZSTD_MINMATCH_MAX);
+        CCtxParams->cParams.minMatch = value;
+        return CCtxParams->cParams.minMatch;
 
-    case ZSTD_p_targetLength :
+    case ZSTD_c_targetLength :
         /* all values are valid. 0 => use default */
         CCtxParams->cParams.targetLength = value;
         return CCtxParams->cParams.targetLength;
 
-    case ZSTD_p_compressionStrategy :
-        if (value>0)   /* 0 => use default */
-            CLAMPCHECK(value, (unsigned)ZSTD_fast, (unsigned)ZSTD_btultra);
+    case ZSTD_c_compressionStrategy :
+        if (value!=0)   /* 0 => use default */
+            CLAMPCHECK(value, (int)ZSTD_fast, (int)ZSTD_btultra);
         CCtxParams->cParams.strategy = (ZSTD_strategy)value;
         return (size_t)CCtxParams->cParams.strategy;
 
-    case ZSTD_p_contentSizeFlag :
+    case ZSTD_c_contentSizeFlag :
         /* Content size written in frame header _when known_ (default:1) */
-        DEBUGLOG(4, "set content size flag = %u", (value>0));
-        CCtxParams->fParams.contentSizeFlag = value > 0;
+        DEBUGLOG(4, "set content size flag = %u", (value!=0));
+        CCtxParams->fParams.contentSizeFlag = value != 0;
         return CCtxParams->fParams.contentSizeFlag;
 
-    case ZSTD_p_checksumFlag :
+    case ZSTD_c_checksumFlag :
         /* A 32-bits content checksum will be calculated and written at end of frame (default:0) */
-        CCtxParams->fParams.checksumFlag = value > 0;
+        CCtxParams->fParams.checksumFlag = value != 0;
         return CCtxParams->fParams.checksumFlag;
 
-    case ZSTD_p_dictIDFlag : /* When applicable, dictionary's dictID is provided in frame header (default:1) */
-        DEBUGLOG(4, "set dictIDFlag = %u", (value>0));
+    case ZSTD_c_dictIDFlag : /* When applicable, dictionary's dictID is provided in frame header (default:1) */
+        DEBUGLOG(4, "set dictIDFlag = %u", (value!=0));
         CCtxParams->fParams.noDictIDFlag = !value;
         return !CCtxParams->fParams.noDictIDFlag;
 
-    case ZSTD_p_forceMaxWindow :
-        CCtxParams->forceWindow = (value > 0);
+    case ZSTD_c_forceMaxWindow :
+        CCtxParams->forceWindow = (value != 0);
         return CCtxParams->forceWindow;
 
-    case ZSTD_p_forceAttachDict : {
+    case ZSTD_c_forceAttachDict : {
         const ZSTD_dictAttachPref_e pref = (ZSTD_dictAttachPref_e)value;
         CLAMPCHECK(pref, ZSTD_dictDefaultAttach, ZSTD_dictForceCopy);
         CCtxParams->attachDictPref = pref;
         return CCtxParams->attachDictPref;
     }
 
-    case ZSTD_p_nbWorkers :
+    case ZSTD_c_nbWorkers :
 #ifndef ZSTD_MULTITHREAD
-        if (value>0) return ERROR(parameter_unsupported);
+        if (value!=0) return ERROR(parameter_unsupported);
         return 0;
 #else
         return ZSTDMT_CCtxParam_setNbWorkers(CCtxParams, value);
 #endif
 
-    case ZSTD_p_jobSize :
+    case ZSTD_c_jobSize :
 #ifndef ZSTD_MULTITHREAD
         return ERROR(parameter_unsupported);
 #else
         return ZSTDMT_CCtxParam_setMTCtxParameter(CCtxParams, ZSTDMT_p_jobSize, value);
 #endif
 
-    case ZSTD_p_overlapSizeLog :
+    case ZSTD_c_overlapSizeLog :
 #ifndef ZSTD_MULTITHREAD
         return ERROR(parameter_unsupported);
 #else
         return ZSTDMT_CCtxParam_setMTCtxParameter(CCtxParams, ZSTDMT_p_overlapSectionLog, value);
 #endif
 
-    case ZSTD_p_rsyncable :
+    case ZSTD_c_rsyncable :
 #ifndef ZSTD_MULTITHREAD
         return ERROR(parameter_unsupported);
 #else
         return ZSTDMT_CCtxParam_setMTCtxParameter(CCtxParams, ZSTDMT_p_rsyncable, value);
 #endif
 
-    case ZSTD_p_enableLongDistanceMatching :
-        CCtxParams->ldmParams.enableLdm = (value>0);
+    case ZSTD_c_enableLongDistanceMatching :
+        CCtxParams->ldmParams.enableLdm = (value!=0);
         return CCtxParams->ldmParams.enableLdm;
 
-    case ZSTD_p_ldmHashLog :
-        if (value>0)   /* 0 ==> auto */
+    case ZSTD_c_ldmHashLog :
+        if (value!=0)   /* 0 ==> auto */
             CLAMPCHECK(value, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
         CCtxParams->ldmParams.hashLog = value;
         return CCtxParams->ldmParams.hashLog;
 
-    case ZSTD_p_ldmMinMatch :
-        if (value>0)   /* 0 ==> default */
+    case ZSTD_c_ldmMinMatch :
+        if (value!=0)   /* 0 ==> default */
             CLAMPCHECK(value, ZSTD_LDM_MINMATCH_MIN, ZSTD_LDM_MINMATCH_MAX);
         CCtxParams->ldmParams.minMatchLength = value;
         return CCtxParams->ldmParams.minMatchLength;
 
-    case ZSTD_p_ldmBucketSizeLog :
-        if (value > ZSTD_LDM_BUCKETSIZELOG_MAX)
-            return ERROR(parameter_outOfBound);
+    case ZSTD_c_ldmBucketSizeLog :
+        if (value!=0)   /* 0 ==> default */
+            CLAMPCHECK(value, ZSTD_LDM_BUCKETSIZELOG_MIN, ZSTD_LDM_BUCKETSIZELOG_MAX);
         CCtxParams->ldmParams.bucketSizeLog = value;
         return CCtxParams->ldmParams.bucketSizeLog;
 
-    case ZSTD_p_ldmHashEveryLog :
+    case ZSTD_c_ldmHashRateLog :
         if (value > ZSTD_WINDOWLOG_MAX - ZSTD_HASHLOG_MIN)
             return ERROR(parameter_outOfBound);
-        CCtxParams->ldmParams.hashEveryLog = value;
-        return CCtxParams->ldmParams.hashEveryLog;
+        CCtxParams->ldmParams.hashRateLog = value;
+        return CCtxParams->ldmParams.hashRateLog;
 
     default: return ERROR(parameter_unsupported);
     }
 }
 
-size_t ZSTD_CCtx_getParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, unsigned* value)
+size_t ZSTD_CCtx_getParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int* value)
 {
     return ZSTD_CCtxParam_getParameter(&cctx->requestedParams, param, value);
 }
 
 size_t ZSTD_CCtxParam_getParameter(
-        ZSTD_CCtx_params* CCtxParams, ZSTD_cParameter param, unsigned* value)
+        ZSTD_CCtx_params* CCtxParams, ZSTD_cParameter param, int* value)
 {
     switch(param)
     {
-    case ZSTD_p_format :
+    case ZSTD_c_format :
         *value = CCtxParams->format;
         break;
-    case ZSTD_p_compressionLevel :
+    case ZSTD_c_compressionLevel :
         *value = CCtxParams->compressionLevel;
         break;
-    case ZSTD_p_windowLog :
+    case ZSTD_c_windowLog :
         *value = CCtxParams->cParams.windowLog;
         break;
-    case ZSTD_p_hashLog :
+    case ZSTD_c_hashLog :
         *value = CCtxParams->cParams.hashLog;
         break;
-    case ZSTD_p_chainLog :
+    case ZSTD_c_chainLog :
         *value = CCtxParams->cParams.chainLog;
         break;
-    case ZSTD_p_searchLog :
+    case ZSTD_c_searchLog :
         *value = CCtxParams->cParams.searchLog;
         break;
-    case ZSTD_p_minMatch :
-        *value = CCtxParams->cParams.searchLength;
+    case ZSTD_c_minMatch :
+        *value = CCtxParams->cParams.minMatch;
         break;
-    case ZSTD_p_targetLength :
+    case ZSTD_c_targetLength :
         *value = CCtxParams->cParams.targetLength;
         break;
-    case ZSTD_p_compressionStrategy :
+    case ZSTD_c_compressionStrategy :
         *value = (unsigned)CCtxParams->cParams.strategy;
         break;
-    case ZSTD_p_contentSizeFlag :
+    case ZSTD_c_contentSizeFlag :
         *value = CCtxParams->fParams.contentSizeFlag;
         break;
-    case ZSTD_p_checksumFlag :
+    case ZSTD_c_checksumFlag :
         *value = CCtxParams->fParams.checksumFlag;
         break;
-    case ZSTD_p_dictIDFlag :
+    case ZSTD_c_dictIDFlag :
         *value = !CCtxParams->fParams.noDictIDFlag;
         break;
-    case ZSTD_p_forceMaxWindow :
+    case ZSTD_c_forceMaxWindow :
         *value = CCtxParams->forceWindow;
         break;
-    case ZSTD_p_forceAttachDict :
+    case ZSTD_c_forceAttachDict :
         *value = CCtxParams->attachDictPref;
         break;
-    case ZSTD_p_nbWorkers :
+    case ZSTD_c_nbWorkers :
 #ifndef ZSTD_MULTITHREAD
         assert(CCtxParams->nbWorkers == 0);
 #endif
         *value = CCtxParams->nbWorkers;
         break;
-    case ZSTD_p_jobSize :
+    case ZSTD_c_jobSize :
 #ifndef ZSTD_MULTITHREAD
         return ERROR(parameter_unsupported);
 #else
         *value = CCtxParams->jobSize;
         break;
 #endif
-    case ZSTD_p_overlapSizeLog :
+    case ZSTD_c_overlapSizeLog :
 #ifndef ZSTD_MULTITHREAD
         return ERROR(parameter_unsupported);
 #else
         *value = CCtxParams->overlapSizeLog;
         break;
 #endif
-    case ZSTD_p_rsyncable :
+    case ZSTD_c_rsyncable :
 #ifndef ZSTD_MULTITHREAD
         return ERROR(parameter_unsupported);
 #else
         *value = CCtxParams->rsyncable;
         break;
 #endif
-    case ZSTD_p_enableLongDistanceMatching :
+    case ZSTD_c_enableLongDistanceMatching :
         *value = CCtxParams->ldmParams.enableLdm;
         break;
-    case ZSTD_p_ldmHashLog :
+    case ZSTD_c_ldmHashLog :
         *value = CCtxParams->ldmParams.hashLog;
         break;
-    case ZSTD_p_ldmMinMatch :
+    case ZSTD_c_ldmMinMatch :
         *value = CCtxParams->ldmParams.minMatchLength;
         break;
-    case ZSTD_p_ldmBucketSizeLog :
+    case ZSTD_c_ldmBucketSizeLog :
         *value = CCtxParams->ldmParams.bucketSizeLog;
         break;
-    case ZSTD_p_ldmHashEveryLog :
-        *value = CCtxParams->ldmParams.hashEveryLog;
+    case ZSTD_c_ldmHashRateLog :
+        *value = CCtxParams->ldmParams.hashRateLog;
         break;
     default: return ERROR(parameter_unsupported);
     }
@@ -672,18 +810,22 @@ size_t ZSTD_CCtx_refPrefix_advanced(
 
 /*! ZSTD_CCtx_reset() :
  *  Also dumps dictionary */
-void ZSTD_CCtx_reset(ZSTD_CCtx* cctx)
+size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx, ZSTD_ResetDirective reset)
 {
-    cctx->streamStage = zcss_init;
-    cctx->pledgedSrcSizePlusOne = 0;
+    if ( (reset == ZSTD_reset_session_only)
+      || (reset == ZSTD_reset_session_and_parameters) ) {
+        cctx->streamStage = zcss_init;
+        cctx->pledgedSrcSizePlusOne = 0;
+    }
+    if ( (reset == ZSTD_reset_parameters)
+      || (reset == ZSTD_reset_session_and_parameters) ) {
+        if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
+        cctx->cdict = NULL;
+        return ZSTD_CCtxParams_reset(&cctx->requestedParams);
+    }
+    return 0;
 }
 
-size_t ZSTD_CCtx_resetParameters(ZSTD_CCtx* cctx)
-{
-    if (cctx->streamStage != zcss_init) return ERROR(stage_wrong);
-    cctx->cdict = NULL;
-    return ZSTD_CCtxParams_reset(&cctx->requestedParams);
-}
 
 /** ZSTD_checkCParams() :
     control CParam values remain within authorized range.
@@ -694,7 +836,7 @@ size_t ZSTD_checkCParams(ZSTD_compressionParameters cParams)
     CLAMPCHECK(cParams.chainLog, ZSTD_CHAINLOG_MIN, ZSTD_CHAINLOG_MAX);
     CLAMPCHECK(cParams.hashLog, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
     CLAMPCHECK(cParams.searchLog, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
-    CLAMPCHECK(cParams.searchLength, ZSTD_SEARCHLENGTH_MIN, ZSTD_SEARCHLENGTH_MAX);
+    CLAMPCHECK(cParams.minMatch, ZSTD_MINMATCH_MIN, ZSTD_MINMATCH_MAX);
     ZSTD_STATIC_ASSERT(ZSTD_TARGETLENGTH_MIN == 0);
     if (cParams.targetLength > ZSTD_TARGETLENGTH_MAX)
         return ERROR(parameter_outOfBound);
@@ -717,7 +859,7 @@ ZSTD_clampCParams(ZSTD_compressionParameters cParams)
     CLAMP(cParams.chainLog, ZSTD_CHAINLOG_MIN, ZSTD_CHAINLOG_MAX);
     CLAMP(cParams.hashLog, ZSTD_HASHLOG_MIN, ZSTD_HASHLOG_MAX);
     CLAMP(cParams.searchLog, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLOG_MAX);
-    CLAMP(cParams.searchLength, ZSTD_SEARCHLENGTH_MIN, ZSTD_SEARCHLENGTH_MAX);
+    CLAMP(cParams.minMatch, ZSTD_MINMATCH_MIN, ZSTD_MINMATCH_MAX);
     ZSTD_STATIC_ASSERT(ZSTD_TARGETLENGTH_MIN == 0);
     if (cParams.targetLength > ZSTD_TARGETLENGTH_MAX)
         cParams.targetLength = ZSTD_TARGETLENGTH_MAX;
@@ -791,7 +933,7 @@ ZSTD_compressionParameters ZSTD_getCParamsFromCCtxParams(
     if (CCtxParams->cParams.hashLog) cParams.hashLog = CCtxParams->cParams.hashLog;
     if (CCtxParams->cParams.chainLog) cParams.chainLog = CCtxParams->cParams.chainLog;
     if (CCtxParams->cParams.searchLog) cParams.searchLog = CCtxParams->cParams.searchLog;
-    if (CCtxParams->cParams.searchLength) cParams.searchLength = CCtxParams->cParams.searchLength;
+    if (CCtxParams->cParams.minMatch) cParams.minMatch = CCtxParams->cParams.minMatch;
     if (CCtxParams->cParams.targetLength) cParams.targetLength = CCtxParams->cParams.targetLength;
     if (CCtxParams->cParams.strategy) cParams.strategy = CCtxParams->cParams.strategy;
     assert(!ZSTD_checkCParams(cParams));
@@ -804,7 +946,7 @@ ZSTD_sizeof_matchState(const ZSTD_compressionParameters* const cParams,
 {
     size_t const chainSize = (cParams->strategy == ZSTD_fast) ? 0 : ((size_t)1 << cParams->chainLog);
     size_t const hSize = ((size_t)1) << cParams->hashLog;
-    U32    const hashLog3 = (forCCtx && cParams->searchLength==3) ? MIN(ZSTD_HASHLOG3_MAX, cParams->windowLog) : 0;
+    U32    const hashLog3 = (forCCtx && cParams->minMatch==3) ? MIN(ZSTD_HASHLOG3_MAX, cParams->windowLog) : 0;
     size_t const h3Size = ((size_t)1) << hashLog3;
     size_t const tableSpace = (chainSize + hSize + h3Size) * sizeof(U32);
     size_t const optPotentialSpace = ((MaxML+1) + (MaxLL+1) + (MaxOff+1) + (1<<Litbits)) * sizeof(U32)
@@ -825,7 +967,7 @@ size_t ZSTD_estimateCCtxSize_usingCCtxParams(const ZSTD_CCtx_params* params)
     {   ZSTD_compressionParameters const cParams =
                 ZSTD_getCParamsFromCCtxParams(params, 0, 0);
         size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << cParams.windowLog);
-        U32    const divider = (cParams.searchLength==3) ? 3 : 4;
+        U32    const divider = (cParams.minMatch==3) ? 3 : 4;
         size_t const maxNbSeq = blockSize / divider;
         size_t const tokenSpace = WILDCOPY_OVERLENGTH + blockSize + 11*maxNbSeq;
         size_t const entropySpace = HUF_WORKSPACE_SIZE;
@@ -950,7 +1092,7 @@ static U32 ZSTD_equivalentCParams(ZSTD_compressionParameters cParams1,
     return (cParams1.hashLog  == cParams2.hashLog)
          & (cParams1.chainLog == cParams2.chainLog)
          & (cParams1.strategy == cParams2.strategy)   /* opt parser space */
-         & ((cParams1.searchLength==3) == (cParams2.searchLength==3));  /* hashlog3 space */
+         & ((cParams1.minMatch==3) == (cParams2.minMatch==3));  /* hashlog3 space */
 }
 
 static void ZSTD_assertEqualCParams(ZSTD_compressionParameters cParams1,
@@ -962,7 +1104,7 @@ static void ZSTD_assertEqualCParams(ZSTD_compressionParameters cParams1,
     assert(cParams1.chainLog     == cParams2.chainLog);
     assert(cParams1.hashLog      == cParams2.hashLog);
     assert(cParams1.searchLog    == cParams2.searchLog);
-    assert(cParams1.searchLength == cParams2.searchLength);
+    assert(cParams1.minMatch     == cParams2.minMatch);
     assert(cParams1.targetLength == cParams2.targetLength);
     assert(cParams1.strategy     == cParams2.strategy);
 }
@@ -977,7 +1119,7 @@ static U32 ZSTD_equivalentLdmParams(ldmParams_t ldmParams1,
             ldmParams1.hashLog == ldmParams2.hashLog &&
             ldmParams1.bucketSizeLog == ldmParams2.bucketSizeLog &&
             ldmParams1.minMatchLength == ldmParams2.minMatchLength &&
-            ldmParams1.hashEveryLog == ldmParams2.hashEveryLog);
+            ldmParams1.hashRateLog == ldmParams2.hashRateLog);
 }
 
 typedef enum { ZSTDb_not_buffered, ZSTDb_buffered } ZSTD_buffered_policy_e;
@@ -993,7 +1135,7 @@ static U32 ZSTD_sufficientBuff(size_t bufferSize1, size_t maxNbSeq1,
 {
     size_t const windowSize2 = MAX(1, (size_t)MIN(((U64)1 << cParams2.windowLog), pledgedSrcSize));
     size_t const blockSize2 = MIN(ZSTD_BLOCKSIZE_MAX, windowSize2);
-    size_t const maxNbSeq2 = blockSize2 / ((cParams2.searchLength == 3) ? 3 : 4);
+    size_t const maxNbSeq2 = blockSize2 / ((cParams2.minMatch == 3) ? 3 : 4);
     size_t const maxNbLit2 = blockSize2;
     size_t const neededBufferSize2 = (buffPol2==ZSTDb_buffered) ? windowSize2 + blockSize2 : 0;
     DEBUGLOG(4, "ZSTD_sufficientBuff: is neededBufferSize2=%u <= bufferSize1=%u",
@@ -1097,7 +1239,7 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
 {
     size_t const chainSize = (cParams->strategy == ZSTD_fast) ? 0 : ((size_t)1 << cParams->chainLog);
     size_t const hSize = ((size_t)1) << cParams->hashLog;
-    U32    const hashLog3 = (forCCtx && cParams->searchLength==3) ? MIN(ZSTD_HASHLOG3_MAX, cParams->windowLog) : 0;
+    U32    const hashLog3 = (forCCtx && cParams->minMatch==3) ? MIN(ZSTD_HASHLOG3_MAX, cParams->windowLog) : 0;
     size_t const h3Size = ((size_t)1) << hashLog3;
     size_t const tableSpace = (chainSize + hSize + h3Size) * sizeof(U32);
 
@@ -1175,13 +1317,13 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         /* Adjust long distance matching parameters */
         ZSTD_ldm_adjustParameters(&params.ldmParams, &params.cParams);
         assert(params.ldmParams.hashLog >= params.ldmParams.bucketSizeLog);
-        assert(params.ldmParams.hashEveryLog < 32);
+        assert(params.ldmParams.hashRateLog < 32);
         zc->ldmState.hashPower = ZSTD_rollingHash_primePower(params.ldmParams.minMatchLength);
     }
 
     {   size_t const windowSize = MAX(1, (size_t)MIN(((U64)1 << params.cParams.windowLog), pledgedSrcSize));
         size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, windowSize);
-        U32    const divider = (params.cParams.searchLength==3) ? 3 : 4;
+        U32    const divider = (params.cParams.minMatch==3) ? 3 : 4;
         size_t const maxNbSeq = blockSize / divider;
         size_t const tokenSpace = WILDCOPY_OVERLENGTH + blockSize + 11*maxNbSeq;
         size_t const buffOutSize = (zbuff==ZSTDb_buffered) ? ZSTD_compressBound(blockSize)+1 : 0;
@@ -2461,7 +2603,7 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
     ZSTD_assertEqualCParams(zc->appliedParams.cParams, ms->cParams);
 
     if (srcSize < MIN_CBLOCK_SIZE+ZSTD_blockHeaderSize+1) {
-        ZSTD_ldm_skipSequences(&zc->externSeqStore, srcSize, zc->appliedParams.cParams.searchLength);
+        ZSTD_ldm_skipSequences(&zc->externSeqStore, srcSize, zc->appliedParams.cParams.minMatch);
         cSize = 0;
         goto out;  /* don't even attempt compression below a certain srcSize */
     }
@@ -2640,7 +2782,7 @@ static size_t ZSTD_writeFrameHeader(void* dst, size_t dstCapacity,
     size_t pos=0;
 
     assert(!(params.fParams.contentSizeFlag && pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN));
-    if (dstCapacity < ZSTD_frameHeaderSize_max) return ERROR(dstSize_tooSmall);
+    if (dstCapacity < ZSTD_FRAMEHEADERSIZE_MAX) return ERROR(dstSize_tooSmall);
     DEBUGLOG(4, "ZSTD_writeFrameHeader : dictIDFlag : %u ; dictID : %u ; dictIDSizeCode : %u",
                 !params.fParams.noDictIDFlag, dictID,  dictIDSizeCode);
 
@@ -3646,8 +3788,15 @@ size_t ZSTD_initCStream(ZSTD_CStream* zcs, int compressionLevel)
 
 /*======   Compression   ======*/
 
-MEM_STATIC size_t ZSTD_limitCopy(void* dst, size_t dstCapacity,
-                           const void* src, size_t srcSize)
+static size_t ZSTD_nextInputSizeHint(const ZSTD_CCtx* cctx)
+{
+    size_t hintInSize = cctx->inBuffTarget - cctx->inBuffPos;
+    if (hintInSize==0) hintInSize = cctx->blockSize;
+    return hintInSize;
+}
+
+static size_t ZSTD_limitCopy(void* dst, size_t dstCapacity,
+                       const void* src, size_t srcSize)
 {
     size_t const length = MIN(dstCapacity, srcSize);
     if (length) memcpy(dst, src, length);
@@ -3655,7 +3804,7 @@ MEM_STATIC size_t ZSTD_limitCopy(void* dst, size_t dstCapacity,
 }
 
 /** ZSTD_compressStream_generic():
- *  internal function for all *compressStream*() variants and *compress_generic()
+ *  internal function for all *compressStream*() variants
  *  non-static, because can be called from zstdmt_compress.c
  * @return : hint size for next input */
 size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
@@ -3699,7 +3848,7 @@ size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                 ip = iend;
                 op += cSize;
                 zcs->frameEnded = 1;
-                ZSTD_CCtx_reset(zcs);
+                ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);
                 someMoreWork = 0; break;
             }
             /* complete loading into inBuffer */
@@ -3752,7 +3901,7 @@ size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                     if (zcs->frameEnded) {
                         DEBUGLOG(5, "Frame completed directly in outBuffer");
                         someMoreWork = 0;
-                        ZSTD_CCtx_reset(zcs);
+                        ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);
                     }
                     break;
                 }
@@ -3780,7 +3929,7 @@ size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                 if (zcs->frameEnded) {
                     DEBUGLOG(5, "Frame completed on flush");
                     someMoreWork = 0;
-                    ZSTD_CCtx_reset(zcs);
+                    ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);
                     break;
                 }
                 zcs->streamStage = zcss_load;
@@ -3795,28 +3944,34 @@ size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
     input->pos = ip - istart;
     output->pos = op - ostart;
     if (zcs->frameEnded) return 0;
-    {   size_t hintInSize = zcs->inBuffTarget - zcs->inBuffPos;
-        if (hintInSize==0) hintInSize = zcs->blockSize;
-        return hintInSize;
+    return ZSTD_nextInputSizeHint(zcs);
+}
+
+static size_t ZSTD_nextInputSizeHint_MTorST(const ZSTD_CCtx* cctx)
+{
+#ifdef ZSTD_MULTITHREAD
+    if (cctx->appliedParams.nbWorkers >= 1) {
+        assert(cctx->mtctx != NULL);
+        return ZSTDMT_nextInputSizeHint(cctx->mtctx);
     }
+#endif
+    return ZSTD_nextInputSizeHint(cctx);
+
 }
 
 size_t ZSTD_compressStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output, ZSTD_inBuffer* input)
 {
-    /* check conditions */
-    if (output->pos > output->size) return ERROR(GENERIC);
-    if (input->pos  > input->size)  return ERROR(GENERIC);
-
-    return ZSTD_compressStream_generic(zcs, output, input, ZSTD_e_continue);
+    CHECK_F( ZSTD_compressStream2(zcs, output, input, ZSTD_e_continue) );
+    return ZSTD_nextInputSizeHint_MTorST(zcs);
 }
 
 
-size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
-                              ZSTD_outBuffer* output,
-                              ZSTD_inBuffer* input,
-                              ZSTD_EndDirective endOp)
+size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
+                             ZSTD_outBuffer* output,
+                             ZSTD_inBuffer* input,
+                             ZSTD_EndDirective endOp)
 {
-    DEBUGLOG(5, "ZSTD_compress_generic, endOp=%u ", (U32)endOp);
+    DEBUGLOG(5, "ZSTD_compressStream2, endOp=%u ", (U32)endOp);
     /* check conditions */
     if (output->pos > output->size) return ERROR(GENERIC);
     if (input->pos  > input->size)  return ERROR(GENERIC);
@@ -3828,7 +3983,7 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
         ZSTD_prefixDict const prefixDict = cctx->prefixDict;
         memset(&cctx->prefixDict, 0, sizeof(cctx->prefixDict));  /* single usage */
         assert(prefixDict.dict==NULL || cctx->cdict==NULL);   /* only one can be set */
-        DEBUGLOG(4, "ZSTD_compress_generic : transparent init stage");
+        DEBUGLOG(4, "ZSTD_compressStream2 : transparent init stage");
         if (endOp == ZSTD_e_end) cctx->pledgedSrcSizePlusOne = input->size + 1;  /* auto-fix pledgedSrcSize */
         params.cParams = ZSTD_getCParamsFromCCtxParams(
                 &cctx->requestedParams, cctx->pledgedSrcSizePlusOne-1, 0 /*dictSize*/);
@@ -3841,7 +3996,7 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
         if (params.nbWorkers > 0) {
             /* mt context creation */
             if (cctx->mtctx == NULL) {
-                DEBUGLOG(4, "ZSTD_compress_generic: creating new mtctx for nbWorkers=%u",
+                DEBUGLOG(4, "ZSTD_compressStream2: creating new mtctx for nbWorkers=%u",
                             params.nbWorkers);
                 cctx->mtctx = ZSTDMT_createCCtx_advanced(params.nbWorkers, cctx->customMem);
                 if (cctx->mtctx == NULL) return ERROR(memory_allocation);
@@ -3863,6 +4018,7 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
             assert(cctx->streamStage == zcss_load);
             assert(cctx->appliedParams.nbWorkers == 0);
     }   }
+    /* end of transparent initialization stage */
 
     /* compression stage */
 #ifdef ZSTD_MULTITHREAD
@@ -3874,18 +4030,18 @@ size_t ZSTD_compress_generic (ZSTD_CCtx* cctx,
         {   size_t const flushMin = ZSTDMT_compressStream_generic(cctx->mtctx, output, input, endOp);
             if ( ZSTD_isError(flushMin)
               || (endOp == ZSTD_e_end && flushMin == 0) ) { /* compression completed */
-                ZSTD_CCtx_reset(cctx);
+                ZSTD_CCtx_reset(cctx, ZSTD_reset_session_only);
             }
-            DEBUGLOG(5, "completed ZSTD_compress_generic delegating to ZSTDMT_compressStream_generic");
+            DEBUGLOG(5, "completed ZSTD_compressStream2 delegating to ZSTDMT_compressStream_generic");
             return flushMin;
     }   }
 #endif
     CHECK_F( ZSTD_compressStream_generic(cctx, output, input, endOp) );
-    DEBUGLOG(5, "completed ZSTD_compress_generic");
+    DEBUGLOG(5, "completed ZSTD_compressStream2");
     return cctx->outBuffContentSize - cctx->outBuffFlushedSize; /* remaining to flush */
 }
 
-size_t ZSTD_compress_generic_simpleArgs (
+size_t ZSTD_compressStream2_simpleArgs (
                             ZSTD_CCtx* cctx,
                             void* dst, size_t dstCapacity, size_t* dstPos,
                       const void* src, size_t srcSize, size_t* srcPos,
@@ -3893,13 +4049,33 @@ size_t ZSTD_compress_generic_simpleArgs (
 {
     ZSTD_outBuffer output = { dst, dstCapacity, *dstPos };
     ZSTD_inBuffer  input  = { src, srcSize, *srcPos };
-    /* ZSTD_compress_generic() will check validity of dstPos and srcPos */
-    size_t const cErr = ZSTD_compress_generic(cctx, &output, &input, endOp);
+    /* ZSTD_compressStream2() will check validity of dstPos and srcPos */
+    size_t const cErr = ZSTD_compressStream2(cctx, &output, &input, endOp);
     *dstPos = output.pos;
     *srcPos = input.pos;
     return cErr;
 }
 
+size_t ZSTD_compress2(ZSTD_CCtx* cctx,
+                      void* dst, size_t dstCapacity,
+                      const void* src, size_t srcSize)
+{
+    ZSTD_CCtx_reset(cctx, ZSTD_reset_session_only);
+    {   size_t oPos = 0;
+        size_t iPos = 0;
+        size_t const result = ZSTD_compressStream2_simpleArgs(cctx,
+                                        dst, dstCapacity, &oPos,
+                                        src, srcSize, &iPos,
+                                        ZSTD_e_end);
+        if (ZSTD_isError(result)) return result;
+        if (result != 0) {  /* compression not completed, due to lack of output space */
+            assert(oPos == dstCapacity);
+            return ERROR(dstSize_tooSmall);
+        }
+        assert(iPos == srcSize);   /* all input is expected consumed */
+        return oPos;
+    }
+}
 
 /*======   Finalize   ======*/
 
@@ -3908,20 +4084,20 @@ size_t ZSTD_compress_generic_simpleArgs (
 size_t ZSTD_flushStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
 {
     ZSTD_inBuffer input = { NULL, 0, 0 };
-    if (output->pos > output->size) return ERROR(GENERIC);
-    CHECK_F( ZSTD_compressStream_generic(zcs, output, &input, ZSTD_e_flush) );
-    return zcs->outBuffContentSize - zcs->outBuffFlushedSize;  /* remaining to flush */
+    return ZSTD_compressStream2(zcs, output, &input, ZSTD_e_flush);
 }
 
 
 size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
 {
     ZSTD_inBuffer input = { NULL, 0, 0 };
-    if (output->pos > output->size) return ERROR(GENERIC);
-    CHECK_F( ZSTD_compressStream_generic(zcs, output, &input, ZSTD_e_end) );
+    size_t const remainingToFlush = ZSTD_compressStream2(zcs, output, &input, ZSTD_e_end);
+    CHECK_F( remainingToFlush );
+    if (zcs->appliedParams.nbWorkers > 0) return remainingToFlush;   /* minimal estimation */
+    /* single thread mode : attempt to calculate remaining to flush more precisely */
     {   size_t const lastBlockSize = zcs->frameEnded ? 0 : ZSTD_BLOCKHEADERSIZE;
         size_t const checksumSize = zcs->frameEnded ? 0 : zcs->appliedParams.fParams.checksumFlag * 4;
-        size_t const toFlush = zcs->outBuffContentSize - zcs->outBuffFlushedSize + lastBlockSize + checksumSize;
+        size_t const toFlush = remainingToFlush + lastBlockSize + checksumSize;
         DEBUGLOG(4, "ZSTD_endStream : remaining to flush : %u", (U32)toFlush);
         return toFlush;
     }

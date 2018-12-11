@@ -85,7 +85,7 @@ static size_t cctxParamRoundTripTest(void* resultBuff, size_t resultBuffCapacity
     ZSTD_CCtx* const cctx = ZSTD_createCCtx();
     ZSTD_CCtx_params* const cctxParams = ZSTD_createCCtxParams();
     ZSTD_inBuffer inBuffer = { srcBuff, srcBuffSize, 0 };
-    ZSTD_outBuffer outBuffer = {compressedBuff, compressedBuffCapacity, 0 };
+    ZSTD_outBuffer outBuffer = { compressedBuff, compressedBuffCapacity, 0 };
 
     static const int maxClevel = 19;
     size_t const hashLength = MIN(128, srcBuffSize);
@@ -93,15 +93,15 @@ static size_t cctxParamRoundTripTest(void* resultBuff, size_t resultBuffCapacity
     int const cLevel = h32 % maxClevel;
 
     /* Set parameters */
-    CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_compressionLevel, cLevel) );
-    CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_nbWorkers, 2) );
-    CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_p_overlapSizeLog, 5) );
+    CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_c_compressionLevel, cLevel) );
+    CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_c_nbWorkers, 2) );
+    CHECK_Z( ZSTD_CCtxParam_setParameter(cctxParams, ZSTD_c_overlapSizeLog, 5) );
 
 
     /* Apply parameters */
     CHECK_Z( ZSTD_CCtx_setParametersUsingCCtxParams(cctx, cctxParams) );
 
-    CHECK_Z (ZSTD_compress_generic(cctx, &outBuffer, &inBuffer, ZSTD_e_end) );
+    CHECK_Z (ZSTD_compressStream2(cctx, &outBuffer, &inBuffer, ZSTD_e_end) );
 
     ZSTD_freeCCtxParams(cctxParams);
     ZSTD_freeCCtx(cctx);

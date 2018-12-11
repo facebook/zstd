@@ -75,7 +75,7 @@ static const int g_maxNbVariations = 64;
 #define CLOG_RANGE (ZSTD_CHAINLOG_MAX - ZSTD_CHAINLOG_MIN + 1)
 #define HLOG_RANGE (ZSTD_HASHLOG_MAX - ZSTD_HASHLOG_MIN + 1)
 #define SLOG_RANGE (ZSTD_SEARCHLOG_MAX - ZSTD_SEARCHLOG_MIN + 1)
-#define SLEN_RANGE (ZSTD_SEARCHLENGTH_MAX - ZSTD_SEARCHLENGTH_MIN + 1)
+#define MML_RANGE (ZSTD_MINMATCH_MAX - ZSTD_MINMATCH_MIN + 1)
 #define TLEN_RANGE 17
 #define STRT_RANGE (ZSTD_btultra - ZSTD_fast + 1)
 #define FADT_RANGE 3
@@ -103,7 +103,7 @@ typedef enum {
     clog_ind = 1,
     hlog_ind = 2,
     slog_ind = 3,
-    slen_ind = 4,
+    mml_ind  = 4,
     tlen_ind = 5,
     strt_ind = 6,
     fadt_ind = 7, /* forceAttachDict */
@@ -116,27 +116,27 @@ typedef struct {
 
 /* maximum value of parameters */
 static const U32 mintable[NUM_PARAMS] =
-        { ZSTD_WINDOWLOG_MIN, ZSTD_CHAINLOG_MIN, ZSTD_HASHLOG_MIN, ZSTD_SEARCHLOG_MIN, ZSTD_SEARCHLENGTH_MIN, ZSTD_TARGETLENGTH_MIN, ZSTD_fast, FADT_MIN };
+        { ZSTD_WINDOWLOG_MIN, ZSTD_CHAINLOG_MIN, ZSTD_HASHLOG_MIN, ZSTD_SEARCHLOG_MIN, ZSTD_MINMATCH_MIN, ZSTD_TARGETLENGTH_MIN, ZSTD_fast, FADT_MIN };
 
 /* minimum value of parameters */
 static const U32 maxtable[NUM_PARAMS] =
-        { ZSTD_WINDOWLOG_MAX, ZSTD_CHAINLOG_MAX, ZSTD_HASHLOG_MAX, ZSTD_SEARCHLOG_MAX, ZSTD_SEARCHLENGTH_MAX, ZSTD_TARGETLENGTH_MAX, ZSTD_btultra, FADT_MAX };
+        { ZSTD_WINDOWLOG_MAX, ZSTD_CHAINLOG_MAX, ZSTD_HASHLOG_MAX, ZSTD_SEARCHLOG_MAX, ZSTD_MINMATCH_MAX, ZSTD_TARGETLENGTH_MAX, ZSTD_btultra, FADT_MAX };
 
 /* # of values parameters can take on */
 static const U32 rangetable[NUM_PARAMS] =
-        { WLOG_RANGE, CLOG_RANGE, HLOG_RANGE, SLOG_RANGE, SLEN_RANGE, TLEN_RANGE, STRT_RANGE, FADT_RANGE };
+        { WLOG_RANGE, CLOG_RANGE, HLOG_RANGE, SLOG_RANGE, MML_RANGE, TLEN_RANGE, STRT_RANGE, FADT_RANGE };
 
 /* ZSTD_cctxSetParameter() index to set */
 static const ZSTD_cParameter cctxSetParamTable[NUM_PARAMS] =
-        { ZSTD_p_windowLog, ZSTD_p_chainLog, ZSTD_p_hashLog, ZSTD_p_searchLog, ZSTD_p_minMatch, ZSTD_p_targetLength, ZSTD_p_compressionStrategy, ZSTD_p_forceAttachDict };
+        { ZSTD_c_windowLog, ZSTD_c_chainLog, ZSTD_c_hashLog, ZSTD_c_searchLog, ZSTD_c_minMatch, ZSTD_c_targetLength, ZSTD_c_compressionStrategy, ZSTD_c_forceAttachDict };
 
 /* names of parameters */
 static const char* g_paramNames[NUM_PARAMS] =
-        { "windowLog", "chainLog", "hashLog","searchLog", "searchLength", "targetLength", "strategy", "forceAttachDict" };
+        { "windowLog", "chainLog", "hashLog","searchLog", "minMatch", "targetLength", "strategy", "forceAttachDict" };
 
 /* shortened names of parameters */
 static const char* g_shortParamNames[NUM_PARAMS] =
-        { "wlog", "clog", "hlog","slog", "slen", "tlen", "strt", "fadt" };
+        { "wlog", "clog", "hlog", "slog", "mml", "tlen", "strat", "fadt" };
 
 /* maps value from { 0 to rangetable[param] - 1 } to valid paramvalues */
 static U32 rangeMap(varInds_t param, int ind) {
@@ -150,7 +150,7 @@ static U32 rangeMap(varInds_t param, int ind) {
         case clog_ind:
         case hlog_ind:
         case slog_ind:
-        case slen_ind:
+        case mml_ind:
         case strt_ind:
             return mintable[param] + ind;
         case NUM_PARAMS:
@@ -186,7 +186,7 @@ static int invRangeMap(varInds_t param, U32 value) {
         case clog_ind:
         case hlog_ind:
         case slog_ind:
-        case slen_ind:
+        case mml_ind:
         case strt_ind:
             return value - mintable[param];
         case NUM_PARAMS:
@@ -205,7 +205,7 @@ static void displayParamVal(FILE* f, varInds_t param, U32 value, int width) {
         case clog_ind:
         case hlog_ind:
         case slog_ind:
-        case slen_ind:
+        case mml_ind:
         case tlen_ind: if(width) { fprintf(f, "%*u", width, value); } else { fprintf(f, "%u", value); } break;
         case NUM_PARAMS:
             DISPLAY("Error, not a valid param\n "); break;
@@ -311,7 +311,7 @@ static ZSTD_compressionParameters pvalsToCParams(paramValues_t p) {
     c.chainLog = p.vals[clog_ind];
     c.hashLog = p.vals[hlog_ind];
     c.searchLog = p.vals[slog_ind];
-    c.searchLength = p.vals[slen_ind];
+    c.minMatch = p.vals[mml_ind];
     c.targetLength = p.vals[tlen_ind];
     c.strategy = p.vals[strt_ind];
     /* no forceAttachDict */
@@ -325,7 +325,7 @@ static paramValues_t cParamsToPVals(ZSTD_compressionParameters c) {
     p.vals[clog_ind] = c.chainLog;
     p.vals[hlog_ind] = c.hashLog;
     p.vals[slog_ind] = c.searchLog;
-    p.vals[slen_ind] = c.searchLength;
+    p.vals[mml_ind]  = c.minMatch;
     p.vals[tlen_ind] = c.targetLength;
     p.vals[strt_ind] = c.strategy;
 
@@ -893,9 +893,8 @@ typedef struct {
 static size_t local_initCCtx(void* payload) {
     const BMK_initCCtxArgs* ag = (const BMK_initCCtxArgs*)payload;
     varInds_t i;
-    ZSTD_CCtx_reset(ag->cctx);
-    ZSTD_CCtx_resetParameters(ag->cctx);
-    ZSTD_CCtx_setParameter(ag->cctx, ZSTD_p_compressionLevel, ag->cLevel);
+    ZSTD_CCtx_reset(ag->cctx, ZSTD_reset_session_and_parameters);
+    ZSTD_CCtx_setParameter(ag->cctx, ZSTD_c_compressionLevel, ag->cLevel);
 
     for(i = 0; i < NUM_PARAMS; i++) {
         if(ag->comprParams->vals[i] != PARAM_UNSET)
@@ -914,37 +913,20 @@ typedef struct {
 
 static size_t local_initDCtx(void* payload) {
     const BMK_initDCtxArgs* ag = (const BMK_initDCtxArgs*)payload;
-    ZSTD_DCtx_reset(ag->dctx);
+    ZSTD_DCtx_reset(ag->dctx, ZSTD_reset_session_and_parameters);
     ZSTD_DCtx_loadDictionary(ag->dctx, ag->dictBuffer, ag->dictBufferSize);
     return 0;
 }
 
 /* additional argument is just the context */
 static size_t local_defaultCompress(
-    const void* srcBuffer, size_t srcSize,
-    void* dstBuffer, size_t dstSize,
-    void* addArgs) {
-    size_t moreToFlush = 1;
-    ZSTD_CCtx* ctx = (ZSTD_CCtx*)addArgs;
-    ZSTD_inBuffer in;
-    ZSTD_outBuffer out;
-    in.src = srcBuffer;
-    in.size = srcSize;
-    in.pos = 0;
-    out.dst = dstBuffer;
-    out.size = dstSize;
-    out.pos = 0;
+                            const void* srcBuffer, size_t srcSize,
+                            void* dstBuffer, size_t dstSize,
+                            void* addArgs)
+{
+    ZSTD_CCtx* cctx = (ZSTD_CCtx*)addArgs;
     assert(dstSize == ZSTD_compressBound(srcSize)); /* specific to this version, which is only used in paramgrill */
-    while (moreToFlush) {
-        if(out.pos == out.size) {
-            return (size_t)-ZSTD_error_dstSize_tooSmall;
-        }
-        moreToFlush = ZSTD_compress_generic(ctx, &out, &in, ZSTD_e_end);
-        if (ZSTD_isError(moreToFlush)) {
-            return moreToFlush;
-        }
-    }
-    return out.pos;
+    return ZSTD_compress2(cctx, dstBuffer, dstSize, srcBuffer, srcSize);
 }
 
 /* additional argument is just the context */
@@ -966,7 +948,7 @@ static size_t local_defaultDecompress(
         if(out.pos == out.size) {
             return (size_t)-ZSTD_error_dstSize_tooSmall;
         }
-        moreToFlush = ZSTD_decompress_generic(dctx,
+        moreToFlush = ZSTD_decompressStream(dctx,
                             &out, &in);
         if (ZSTD_isError(moreToFlush)) {
             return moreToFlush;
@@ -2665,7 +2647,7 @@ int main(int argc, const char** argv)
                             continue;
                         case 'l':  /* search length */
                             argument++;
-                            g_params.vals[slen_ind] = readU32FromChar(&argument);
+                            g_params.vals[mml_ind] = readU32FromChar(&argument);
                             continue;
                         case 't':  /* target length */
                             argument++;

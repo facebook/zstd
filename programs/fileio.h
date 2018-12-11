@@ -56,7 +56,7 @@ void FIO_setChecksumFlag(unsigned checksumFlag);
 void FIO_setDictIDFlag(unsigned dictIDFlag);
 void FIO_setLdmBucketSizeLog(unsigned ldmBucketSizeLog);
 void FIO_setLdmFlag(unsigned ldmFlag);
-void FIO_setLdmHashEveryLog(unsigned ldmHashEveryLog);
+void FIO_setLdmHashRateLog(unsigned ldmHashRateLog);
 void FIO_setLdmHashLog(unsigned ldmHashLog);
 void FIO_setLdmMinMatch(unsigned ldmMinMatch);
 void FIO_setMemLimit(unsigned memLimit);

@@ -37,8 +37,8 @@ void ZSTD_ldm_adjustParameters(ldmParams_t* params,
         params->hashLog = MAX(ZSTD_HASHLOG_MIN, params->windowLog - LDM_HASH_RLOG);
         assert(params->hashLog <= ZSTD_HASHLOG_MAX);
     }
-    if (params->hashEveryLog == 0) {
-        params->hashEveryLog = params->windowLog < params->hashLog
+    if (params->hashRateLog == 0) {
+        params->hashRateLog = params->windowLog < params->hashLog
                                    ? 0
                                    : params->windowLog - params->hashLog;
     }
@@ -119,20 +119,20 @@ static void ZSTD_ldm_insertEntry(ldmState_t* ldmState,
  *
  *  Gets the small hash, checksum, and tag from the rollingHash.
  *
- *  If the tag matches (1 << ldmParams.hashEveryLog)-1, then
+ *  If the tag matches (1 << ldmParams.hashRateLog)-1, then
  *  creates an ldmEntry from the offset, and inserts it into the hash table.
  *
  *  hBits is the length of the small hash, which is the most significant hBits
  *  of rollingHash. The checksum is the next 32 most significant bits, followed
- *  by ldmParams.hashEveryLog bits that make up the tag. */
+ *  by ldmParams.hashRateLog bits that make up the tag. */
 static void ZSTD_ldm_makeEntryAndInsertByTag(ldmState_t* ldmState,
                                              U64 const rollingHash,
                                              U32 const hBits,
                                              U32 const offset,
                                              ldmParams_t const ldmParams)
 {
-    U32 const tag = ZSTD_ldm_getTag(rollingHash, hBits, ldmParams.hashEveryLog);
-    U32 const tagMask = ((U32)1 << ldmParams.hashEveryLog) - 1;
+    U32 const tag = ZSTD_ldm_getTag(rollingHash, hBits, ldmParams.hashRateLog);
+    U32 const tagMask = ((U32)1 << ldmParams.hashRateLog) - 1;
     if (tag == tagMask) {
         U32 const hash = ZSTD_ldm_getSmallHash(rollingHash, hBits);
         U32 const checksum = ZSTD_ldm_getChecksum(rollingHash, hBits);
@@ -247,8 +247,8 @@ static size_t ZSTD_ldm_generateSequences_internal(
     U64 const hashPower = ldmState->hashPower;
     U32 const hBits = params->hashLog - params->bucketSizeLog;
     U32 const ldmBucketSize = 1U << params->bucketSizeLog;
-    U32 const hashEveryLog = params->hashEveryLog;
-    U32 const ldmTagMask = (1U << params->hashEveryLog) - 1;
+    U32 const hashRateLog = params->hashRateLog;
+    U32 const ldmTagMask = (1U << params->hashRateLog) - 1;
     /* Prefix and extDict parameters */
     U32 const dictLimit = ldmState->window.dictLimit;
     U32 const lowestIndex = extDict ? ldmState->window.lowLimit : dictLimit;
@@ -283,7 +283,7 @@ static size_t ZSTD_ldm_generateSequences_internal(
         lastHashed = ip;
 
         /* Do not insert and do not look for a match */
-        if (ZSTD_ldm_getTag(rollingHash, hBits, hashEveryLog) != ldmTagMask) {
+        if (ZSTD_ldm_getTag(rollingHash, hBits, hashRateLog) != ldmTagMask) {
            ip++;
            continue;
         }
@@ -543,7 +543,7 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
     void const* src, size_t srcSize)
 {
     const ZSTD_compressionParameters* const cParams = &ms->cParams;
-    unsigned const minMatch = cParams->searchLength;
+    unsigned const minMatch = cParams->minMatch;
     ZSTD_blockCompressor const blockCompressor =
         ZSTD_selectBlockCompressor(cParams->strategy, ZSTD_matchState_dictMode(ms));
     /* Input bounds */

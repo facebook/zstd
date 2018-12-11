@@ -488,7 +488,7 @@ void ZSTD_updateTree_internal(
 }
 
 void ZSTD_updateTree(ZSTD_matchState_t* ms, const BYTE* ip, const BYTE* iend) {
-    ZSTD_updateTree_internal(ms, ip, iend, ms->cParams.searchLength, ZSTD_noDict);
+    ZSTD_updateTree_internal(ms, ip, iend, ms->cParams.minMatch, ZSTD_noDict);
 }
 
 FORCE_INLINE_TEMPLATE
@@ -728,7 +728,7 @@ FORCE_INLINE_TEMPLATE U32 ZSTD_BtGetAllMatches (
                         ZSTD_match_t* matches, U32 const lengthToBeat)
 {
     const ZSTD_compressionParameters* const cParams = &ms->cParams;
-    U32 const matchLengthSearch = cParams->searchLength;
+    U32 const matchLengthSearch = cParams->minMatch;
     DEBUGLOG(8, "ZSTD_BtGetAllMatches");
     if (ip < ms->window.base + ms->nextToUpdate) return 0;   /* skipped area */
     ZSTD_updateTree_internal(ms, ip, iHighLimit, matchLengthSearch, dictMode);
@@ -796,7 +796,7 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
     const ZSTD_compressionParameters* const cParams = &ms->cParams;
 
     U32 const sufficient_len = MIN(cParams->targetLength, ZSTD_OPT_NUM -1);
-    U32 const minMatch = (cParams->searchLength == 3) ? 3 : 4;
+    U32 const minMatch = (cParams->minMatch == 3) ? 3 : 4;
 
     ZSTD_optimal_t* const opt = optStatePtr->priceTable;
     ZSTD_match_t* const matches = optStatePtr->matchTable;

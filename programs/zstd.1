@@ -127,6 +127,10 @@ Does not spawn a thread for compression, use a single thread for both I/O and co
 \fBzstd\fR will dynamically adapt compression level to perceived I/O conditions\. Compression level adaptation can be observed live by using command \fB\-v\fR\. Adaptation can be constrained between supplied \fBmin\fR and \fBmax\fR levels\. The feature works when combined with multi\-threading and \fB\-\-long\fR mode\. It does not work with \fB\-\-single\-thread\fR\. It sets window size to 8 MB by default (can be changed manually, see \fBwlog\fR)\. Due to the chaotic nature of dynamic adaptation, compressed result is not reproducible\. \fInote\fR : at the time of this writing, \fB\-\-adapt\fR can remain stuck at low speed when combined with multiple worker threads (>=2)\.
 .
 .TP
+\fB\-\-rsyncable\fR
+\fBzstd\fR will periodically synchronize the compression state to make the compressed file more rsync\-friendly\. There is a negligible impact to compression ratio, and the faster compression levels will see a small compression speed hit\. This feature does not work with \fB\-\-single\-thread\fR\. You probably don\'t want to use it with long range mode, since it will decrease the effectiveness of the synchronization points, but your milage may vary\.
+.
+.TP
 \fB\-D file\fR
 use \fBfile\fR as Dictionary to compress or decompress FILE(s)
 .
@@ -355,14 +359,14 @@ More searches increases the chance to find a match which usually increases compr
 The minimum \fIslog\fR is 1 and the maximum is 26\.
 .
 .TP
-\fBsearchLength\fR=\fIslen\fR, \fBslen\fR=\fIslen\fR
+\fBminMatch\fR=\fImml\fR, \fBmml\fR=\fImml\fR
 Specify the minimum searched length of a match in a hash table\.
 .
 .IP
 Larger search lengths usually decrease compression ratio but improve decompression speed\.
 .
 .IP
-The minimum \fIslen\fR is 3 and the maximum is 7\.
+The minimum \fImml\fR is 3 and the maximum is 7\.
 .
 .TP
 \fBtargetLen\fR=\fItlen\fR, \fBtlen\fR=\fItlen\fR
@@ -388,7 +392,7 @@ Determine \fBoverlapSize\fR, amount of data reloaded from previous job\. This pa
 The minimum \fIovlog\fR is 0, and the maximum is 9\. 0 means "no overlap", hence completely independent jobs\. 9 means "full overlap", meaning up to \fBwindowSize\fR is reloaded from previous job\. Reducing \fIovlog\fR by 1 reduces the amount of reload by a factor 2\. Default \fIovlog\fR is 6, which means "reload \fBwindowSize / 8\fR"\. Exception : the maximum compression level (22) has a default \fIovlog\fR of 9\.
 .
 .TP
-\fBldmHashLog\fR=\fIldmhlog\fR, \fBldmhlog\fR=\fIldmhlog\fR
+\fBldmHashLog\fR=\fIlhlog\fR, \fBlhlog\fR=\fIlhlog\fR
 Specify the maximum size for a hash table used for long distance matching\.
 .
 .IP
@@ -398,10 +402,10 @@ This option is ignored unless long distance matching is enabled\.
 Bigger hash tables usually improve compression ratio at the expense of more memory during compression and a decrease in compression speed\.
 .
 .IP
-The minimum \fIldmhlog\fR is 6 and the maximum is 26 (default: 20)\.
+The minimum \fIlhlog\fR is 6 and the maximum is 26 (default: 20)\.
 .
 .TP
-\fBldmSearchLength\fR=\fIldmslen\fR, \fBldmslen\fR=\fIldmslen\fR
+\fBldmMinMatch\fR=\fIlmml\fR, \fBlmml\fR=\fIlmml\fR
 Specify the minimum searched length of a match for long distance matching\.
 .
 .IP
@@ -411,10 +415,10 @@ This option is ignored unless long distance matching is enabled\.
 Larger/very small values usually decrease compression ratio\.
 .
 .IP
-The minimum \fIldmslen\fR is 4 and the maximum is 4096 (default: 64)\.
+The minimum \fIlmml\fR is 4 and the maximum is 4096 (default: 64)\.
 .
 .TP
-\fBldmBucketSizeLog\fR=\fIldmblog\fR, \fBldmblog\fR=\fIldmblog\fR
+\fBldmBucketSizeLog\fR=\fIlblog\fR, \fBlblog\fR=\fIlblog\fR
 Specify the size of each bucket for the hash table used for long distance matching\.
 .
 .IP
@@ -424,10 +428,10 @@ This option is ignored unless long distance matching is enabled\.
 Larger bucket sizes improve collision resolution but decrease compression speed\.
 .
 .IP
-The minimum \fIldmblog\fR is 0 and the maximum is 8 (default: 3)\.
+The minimum \fIlblog\fR is 0 and the maximum is 8 (default: 3)\.
 .
 .TP
-\fBldmHashEveryLog\fR=\fIldmhevery\fR, \fBldmhevery\fR=\fIldmhevery\fR
+\fBldmHashRateLog\fR=\fIlhrlog\fR, \fBlhrlog\fR=\fIlhrlog\fR
 Specify the frequency of inserting entries into the long distance matching hash table\.
 .
 .IP
@@ -437,13 +441,13 @@ This option is ignored unless long distance matching is enabled\.
 Larger values will improve compression speed\. Deviating far from the default value will likely result in a decrease in compression ratio\.
 .
 .IP
-The default value is \fBwlog \- ldmhlog\fR\.
+The default value is \fBwlog \- lhlog\fR\.
 .
 .SS "Example"
 The following parameters sets advanced compression options to something similar to predefined level 19 for files bigger than 256 KB:
 .
 .P
-\fB\-\-zstd\fR=wlog=23,clog=23,hlog=22,slog=6,slen=3,tlen=48,strat=6
+\fB\-\-zstd\fR=wlog=23,clog=23,hlog=22,slog=6,mml=3,tlen=48,strat=6
 .
 .SS "\-B#:"
 Select the size of each compression job\. This parameter is available only when multi\-threading is enabled\. Default value is \fB4 * windowSize\fR, which means it varies depending on compression level\. \fB\-B#\fR makes it possible to select a custom value\. Note that job size must respect a minimum value which is enforced transparently\. This minimum is either 1 MB, or \fBoverlapSize\fR, whichever is largest\.

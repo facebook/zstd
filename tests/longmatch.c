@@ -50,7 +50,7 @@ int main(int argc, const char** argv)
   params.cParams.chainLog = 13;
   params.cParams.hashLog = 14;
   params.cParams.searchLog = 1;
-  params.cParams.searchLength = 7;
+  params.cParams.minMatch = 7;
   params.cParams.targetLength = 16;
   params.cParams.strategy = ZSTD_fast;
   windowLog = params.cParams.windowLog;

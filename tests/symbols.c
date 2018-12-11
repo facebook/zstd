@@ -89,7 +89,6 @@ static const void *symbols[] = {
   &ZSTD_sizeof_CStream,
   &ZSTD_createDStream_advanced,
   &ZSTD_initDStream_usingDict,
-  &ZSTD_setDStreamParameter,
   &ZSTD_initDStream_usingDDict,
   &ZSTD_resetDStream,
   &ZSTD_sizeof_DStream,

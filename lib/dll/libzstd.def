@@ -78,7 +78,6 @@ EXPORTS
     ZSTD_nextSrcSizeToDecompress
     ZSTD_resetCStream
     ZSTD_resetDStream
-    ZSTD_setDStreamParameter
     ZSTD_sizeof_CCtx
     ZSTD_sizeof_CDict
     ZSTD_sizeof_CStream

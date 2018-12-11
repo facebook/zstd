@@ -346,9 +346,9 @@ void FIO_setLdmBucketSizeLog(unsigned ldmBucketSizeLog) {
     g_ldmBucketSizeLog = ldmBucketSizeLog;
 }
 
-static U32 g_ldmHashEveryLog = FIO_LDM_PARAM_NOTSET;
-void FIO_setLdmHashEveryLog(unsigned ldmHashEveryLog) {
-    g_ldmHashEveryLog = ldmHashEveryLog;
+static U32 g_ldmHashRateLog = FIO_LDM_PARAM_NOTSET;
+void FIO_setLdmHashRateLog(unsigned ldmHashRateLog) {
+    g_ldmHashRateLog = ldmHashRateLog;
 }
 
 
@@ -529,42 +529,42 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
         if (g_adaptiveMode && !g_ldmFlag && !comprParams.windowLog)
             comprParams.windowLog = ADAPT_WINDOWLOG_DEFAULT;
 
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_contentSizeFlag, 1) );  /* always enable content size when available (note: supposed to be default) */
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_dictIDFlag, g_dictIDFlag) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_checksumFlag, g_checksumFlag) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_contentSizeFlag, 1) );  /* always enable content size when available (note: supposed to be default) */
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_dictIDFlag, g_dictIDFlag) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_checksumFlag, g_checksumFlag) );
         /* compression level */
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionLevel, (unsigned)cLevel) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_compressionLevel, cLevel) );
         /* long distance matching */
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_enableLongDistanceMatching, g_ldmFlag) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_ldmHashLog, g_ldmHashLog) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_ldmMinMatch, g_ldmMinMatch) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_enableLongDistanceMatching, g_ldmFlag) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_ldmHashLog, g_ldmHashLog) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_ldmMinMatch, g_ldmMinMatch) );
         if (g_ldmBucketSizeLog != FIO_LDM_PARAM_NOTSET) {
-            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_ldmBucketSizeLog, g_ldmBucketSizeLog) );
+            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_ldmBucketSizeLog, g_ldmBucketSizeLog) );
         }
-        if (g_ldmHashEveryLog != FIO_LDM_PARAM_NOTSET) {
-            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_ldmHashEveryLog, g_ldmHashEveryLog) );
+        if (g_ldmHashRateLog != FIO_LDM_PARAM_NOTSET) {
+            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_ldmHashRateLog, g_ldmHashRateLog) );
         }
         /* compression parameters */
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_windowLog, comprParams.windowLog) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_chainLog, comprParams.chainLog) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_hashLog, comprParams.hashLog) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_searchLog, comprParams.searchLog) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_minMatch, comprParams.searchLength) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_targetLength, comprParams.targetLength) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionStrategy, (U32)comprParams.strategy) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_windowLog, comprParams.windowLog) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_chainLog, comprParams.chainLog) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_hashLog, comprParams.hashLog) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_searchLog, comprParams.searchLog) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_minMatch, comprParams.minMatch) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_targetLength, comprParams.targetLength) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_compressionStrategy, comprParams.strategy) );
         /* multi-threading */
 #ifdef ZSTD_MULTITHREAD
         DISPLAYLEVEL(5,"set nb workers = %u \n", g_nbWorkers);
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_nbWorkers, g_nbWorkers) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_jobSize, g_blockSize) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_nbWorkers, g_nbWorkers) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_jobSize, g_blockSize) );
         if ( (g_overlapLog == FIO_OVERLAP_LOG_NOTSET)
           && (cLevel == ZSTD_maxCLevel()) )
             g_overlapLog = 9;   /* full overlap */
         if (g_overlapLog != FIO_OVERLAP_LOG_NOTSET) {
             DISPLAYLEVEL(3,"set overlapLog = %u \n", g_overlapLog);
-            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_overlapSizeLog, g_overlapLog) );
+            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_overlapSizeLog, g_overlapLog) );
         }
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_rsyncable, g_rsyncable) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_rsyncable, g_rsyncable) );
 #endif
         /* dictionary */
         CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, srcSize) );  /* set the value temporarily for dictionary loading, to adapt compression parameters */
@@ -884,7 +884,7 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
             size_t const oldIPos = inBuff.pos;
             ZSTD_outBuffer outBuff = { ress.dstBuffer, ress.dstBufferSize, 0 };
             size_t const toFlushNow = ZSTD_toFlushNow(ress.cctx);
-            CHECK_V(stillToFlush, ZSTD_compress_generic(ress.cctx, &outBuff, &inBuff, directive));
+            CHECK_V(stillToFlush, ZSTD_compressStream2(ress.cctx, &outBuff, &inBuff, directive));
 
             /* count stats */
             inputPresented++;
@@ -994,14 +994,14 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
                             if (compressionLevel > ZSTD_maxCLevel()) compressionLevel = ZSTD_maxCLevel();
                             if (compressionLevel > g_maxAdaptLevel) compressionLevel = g_maxAdaptLevel;
                             compressionLevel += (compressionLevel == 0);   /* skip 0 */
-                            ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionLevel, (unsigned)compressionLevel);
+                            ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_compressionLevel, compressionLevel);
                         }
                         if (speedChange == faster) {
                             DISPLAYLEVEL(6, "faster speed , lighter compression \n")
                             compressionLevel --;
                             if (compressionLevel < g_minAdaptLevel) compressionLevel = g_minAdaptLevel;
                             compressionLevel -= (compressionLevel == 0);   /* skip 0 */
-                            ZSTD_CCtx_setParameter(ress.cctx, ZSTD_p_compressionLevel, (unsigned)compressionLevel);
+                            ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_compressionLevel, compressionLevel);
                         }
                         speedChange = noChange;
 
@@ -1313,7 +1313,7 @@ static dRess_t FIO_createDResources(const char* dictFileName)
     /* Allocation */
     ress.dctx = ZSTD_createDStream();
     if (ress.dctx==NULL) EXM_THROW(60, "Can't create ZSTD_DStream");
-    CHECK( ZSTD_setDStreamParameter(ress.dctx, DStream_p_maxWindowSize, g_memLimit) );
+    CHECK( ZSTD_DCtx_setMaxWindowSize(ress.dctx, g_memLimit) );
     ress.srcBufferSize = ZSTD_DStreamInSize();
     ress.srcBuffer = malloc(ress.srcBufferSize);
     ress.dstBufferSize = ZSTD_DStreamOutSize();
@@ -2111,7 +2111,7 @@ FIO_analyzeFrames(fileInfo_t* info, FILE* const srcFile)
     for ( ; ; ) {
         BYTE headerBuffer[ZSTD_FRAMEHEADERSIZE_MAX];
         size_t const numBytesRead = fread(headerBuffer, 1, sizeof(headerBuffer), srcFile);
-        if (numBytesRead < ZSTD_frameHeaderSize_min) {
+        if (numBytesRead < ZSTD_FRAMEHEADERSIZE_MIN) {
             if ( feof(srcFile)
               && (numBytesRead == 0)
               && (info->compressedSize > 0)
@@ -2172,7 +2172,7 @@ FIO_analyzeFrames(fileInfo_t* info, FILE* const srcFile)
                 info->numActualFrames++;
             }
             /* Skippable frame */
-            else if ((magicNumber & 0xFFFFFFF0U) == ZSTD_MAGIC_SKIPPABLE_START) {
+            else if ((magicNumber & ZSTD_MAGIC_SKIPPABLE_MASK) == ZSTD_MAGIC_SKIPPABLE_START) {
                 U32 const frameSize = MEM_readLE32(headerBuffer + 4);
                 long const seek = (long)(8 + frameSize - numBytesRead);
                 ERROR_IF(LONG_SEEK(srcFile, seek, SEEK_CUR) != 0,

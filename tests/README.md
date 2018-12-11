@@ -41,7 +41,7 @@ Additional remarks:
 The example usage with two test files, one e-mail address, and with an additional message:
 ```
 ./test-zstd-speed.py "silesia.tar calgary.tar" "email@gmail.com" --message "tested on my laptop" --sleepTime 60
-``` 
+```
 
 To run the script in background please use:
 ```
@@ -100,19 +100,19 @@ Full list of arguments
     h# - hashLog
     c# - chainLog
     s# - searchLog
-    l# - searchLength
+    l# - minMatch
     t# - targetLength
     S# - strategy
     L# - level
  --zstd=      : Single run, parameter selection syntax same as zstdcli with more parameters
-                    (Added forceAttachDictionary / fadt) 
-                    When invoked with --optimize, this represents the sample to exceed. 
+                    (Added forceAttachDictionary / fadt)
+                    When invoked with --optimize, this represents the sample to exceed.
  --optimize=  : find parameters to maximize compression ratio given parameters
                     Can use all --zstd= commands to constrain the type of solution found in addition to the following constraints
     cSpeed=   : Minimum compression speed
     dSpeed=   : Minimum decompression speed
     cMem=     : Maximum compression memory
-    lvl=      : Searches for solutions which are strictly better than that compression lvl in ratio and cSpeed, 
+    lvl=      : Searches for solutions which are strictly better than that compression lvl in ratio and cSpeed,
     stc=      : When invoked with lvl=, represents percentage slack in ratio/cSpeed allowed for a solution to be considered (Default 100%)
               : In normal operation, represents percentage slack in choosing viable starting strategy selection in choosing the default parameters
                     (Lower value will begin with stronger strategies) (Default 90%)
@@ -121,13 +121,13 @@ Full list of arguments
                     when determining overall winner (default 5 (1% ratio = 5% speed)).
     tries=    : Maximum number of random restarts on a single strategy before switching (Default 5)
                     Higher values will make optimizer run longer, more chances to find better solution.
-    memLog    : Limits the log of the size of each memotable (1 per strategy). Will use hash tables when state space is larger than max size. 
-                    Setting memLog = 0 turns off memoization 
+    memLog    : Limits the log of the size of each memotable (1 per strategy). Will use hash tables when state space is larger than max size.
+                    Setting memLog = 0 turns off memoization
  --display=   : specifiy which parameters are included in the output
-                    can use all --zstd parameter names and 'cParams' as a shorthand for all parameters used in ZSTD_compressionParameters 
+                    can use all --zstd parameter names and 'cParams' as a shorthand for all parameters used in ZSTD_compressionParameters
                     (Default: display all params available)
  -P#          : generated sample compressibility (when no file is provided)
- -t#          : Caps runtime of operation in seconds (default : 99999 seconds (about 27 hours )) 
+ -t#          : Caps runtime of operation in seconds (default : 99999 seconds (about 27 hours ))
  -v           : Prints Benchmarking output
  -D           : Next argument dictionary file
  -s           : Benchmark all files separately

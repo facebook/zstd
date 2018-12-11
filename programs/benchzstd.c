@@ -133,7 +133,7 @@ BMK_advancedParams_t BMK_initAdvancedParams(void) {
         0, /* ldmMinMatch */
         0, /* ldmHashLog */
         0, /* ldmBuckSizeLog */
-        0  /* ldmHashEveryLog */
+        0  /* ldmHashRateLog */
     };
     return res;
 }
@@ -160,32 +160,31 @@ typedef struct {
 static void BMK_initCCtx(ZSTD_CCtx* ctx,
     const void* dictBuffer, size_t dictBufferSize, int cLevel,
     const ZSTD_compressionParameters* comprParams, const BMK_advancedParams_t* adv) {
-    ZSTD_CCtx_reset(ctx);
-    ZSTD_CCtx_resetParameters(ctx);
+    ZSTD_CCtx_reset(ctx, ZSTD_reset_session_and_parameters);
     if (adv->nbWorkers==1) {
-        ZSTD_CCtx_setParameter(ctx, ZSTD_p_nbWorkers, 0);
+        ZSTD_CCtx_setParameter(ctx, ZSTD_c_nbWorkers, 0);
     } else {
-        ZSTD_CCtx_setParameter(ctx, ZSTD_p_nbWorkers, adv->nbWorkers);
+        ZSTD_CCtx_setParameter(ctx, ZSTD_c_nbWorkers, adv->nbWorkers);
     }
-    ZSTD_CCtx_setParameter(ctx, ZSTD_p_compressionLevel, cLevel);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_p_enableLongDistanceMatching, adv->ldmFlag);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_p_ldmMinMatch, adv->ldmMinMatch);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_p_ldmHashLog, adv->ldmHashLog);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_p_ldmBucketSizeLog, adv->ldmBucketSizeLog);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_p_ldmHashEveryLog, adv->ldmHashEveryLog);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_p_windowLog, comprParams->windowLog);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_p_hashLog, comprParams->hashLog);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_p_chainLog, comprParams->chainLog);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_p_searchLog, comprParams->searchLog);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_p_minMatch, comprParams->searchLength);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_p_targetLength, comprParams->targetLength);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_p_compressionStrategy, comprParams->strategy);
+    ZSTD_CCtx_setParameter(ctx, ZSTD_c_compressionLevel, cLevel);
+    ZSTD_CCtx_setParameter(ctx, ZSTD_c_enableLongDistanceMatching, adv->ldmFlag);
+    ZSTD_CCtx_setParameter(ctx, ZSTD_c_ldmMinMatch, adv->ldmMinMatch);
+    ZSTD_CCtx_setParameter(ctx, ZSTD_c_ldmHashLog, adv->ldmHashLog);
+    ZSTD_CCtx_setParameter(ctx, ZSTD_c_ldmBucketSizeLog, adv->ldmBucketSizeLog);
+    ZSTD_CCtx_setParameter(ctx, ZSTD_c_ldmHashRateLog, adv->ldmHashRateLog);
+    ZSTD_CCtx_setParameter(ctx, ZSTD_c_windowLog, comprParams->windowLog);
+    ZSTD_CCtx_setParameter(ctx, ZSTD_c_hashLog, comprParams->hashLog);
+    ZSTD_CCtx_setParameter(ctx, ZSTD_c_chainLog, comprParams->chainLog);
+    ZSTD_CCtx_setParameter(ctx, ZSTD_c_searchLog, comprParams->searchLog);
+    ZSTD_CCtx_setParameter(ctx, ZSTD_c_minMatch, comprParams->minMatch);
+    ZSTD_CCtx_setParameter(ctx, ZSTD_c_targetLength, comprParams->targetLength);
+    ZSTD_CCtx_setParameter(ctx, ZSTD_c_compressionStrategy, comprParams->strategy);
     ZSTD_CCtx_loadDictionary(ctx, dictBuffer, dictBufferSize);
 }
 
 static void BMK_initDCtx(ZSTD_DCtx* dctx,
     const void* dictBuffer, size_t dictBufferSize) {
-    ZSTD_DCtx_reset(dctx);
+    ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters);
     ZSTD_DCtx_loadDictionary(dctx, dictBuffer, dictBufferSize);
 }
 
@@ -224,22 +223,8 @@ static size_t local_defaultCompress(
                     void* dstBuffer, size_t dstSize,
                     void* addArgs)
 {
-    size_t moreToFlush = 1;
     ZSTD_CCtx* const cctx = (ZSTD_CCtx*)addArgs;
-    ZSTD_inBuffer in;
-    ZSTD_outBuffer out;
-    in.src = srcBuffer; in.size = srcSize; in.pos = 0;
-    out.dst = dstBuffer; out.size = dstSize; out.pos = 0;
-    while (moreToFlush) {
-        if(out.pos == out.size) {
-            return (size_t)-ZSTD_error_dstSize_tooSmall;
-        }
-        moreToFlush = ZSTD_compress_generic(cctx, &out, &in, ZSTD_e_end);
-        if (ZSTD_isError(moreToFlush)) {
-            return moreToFlush;
-        }
-    }
-    return out.pos;
+    return ZSTD_compress2(cctx, dstBuffer, dstSize, srcBuffer, srcSize);
 }
 
 /* `addArgs` is the context */
@@ -258,7 +243,7 @@ static size_t local_defaultDecompress(
         if(out.pos == out.size) {
             return (size_t)-ZSTD_error_dstSize_tooSmall;
         }
-        moreToFlush = ZSTD_decompress_generic(dctx, &out, &in);
+        moreToFlush = ZSTD_decompressStream(dctx, &out, &in);
         if (ZSTD_isError(moreToFlush)) {
             return moreToFlush;
         }

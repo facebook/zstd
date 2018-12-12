@@ -343,6 +343,21 @@ unsigned long long ZSTD_getFrameContentSize(const void *src, size_t srcSize)
     }   }
 }
 
+static size_t readSkippableFrameSize(void const* src, size_t srcSize)
+{
+    size_t const skippableHeaderSize = ZSTD_SKIPPABLEHEADERSIZE;
+    U32 sizeU32;
+
+    if (srcSize < ZSTD_SKIPPABLEHEADERSIZE)
+        return ERROR(srcSize_wrong);
+
+    sizeU32 = MEM_readLE32((BYTE const*)src + ZSTD_FRAMEIDSIZE);
+    if ((U32)(sizeU32 + ZSTD_SKIPPABLEHEADERSIZE) < sizeU32)
+        return ERROR(frameParameter_unsupported);
+
+    return skippableHeaderSize + sizeU32;
+}
+
 /** ZSTD_findDecompressedSize() :
  *  compatible with legacy mode
  *  `srcSize` must be the exact length of some number of ZSTD compressed and/or
@@ -356,11 +371,9 @@ unsigned long long ZSTD_findDecompressedSize(const void* src, size_t srcSize)
         U32 const magicNumber = MEM_readLE32(src);
 
         if ((magicNumber & ZSTD_MAGIC_SKIPPABLE_MASK) == ZSTD_MAGIC_SKIPPABLE_START) {
-            size_t skippableSize;
-            if (srcSize < ZSTD_SKIPPABLEHEADERSIZE)
-                return ERROR(srcSize_wrong);
-            skippableSize = MEM_readLE32((const BYTE *)src + ZSTD_FRAMEIDSIZE)
-                          + ZSTD_SKIPPABLEHEADERSIZE;
+            size_t const skippableSize = readSkippableFrameSize(src, srcSize);
+            if (ZSTD_isError(skippableSize))
+                return skippableSize;
             if (srcSize < skippableSize) {
                 return ZSTD_CONTENTSIZE_ERROR;
             }
@@ -436,7 +449,7 @@ size_t ZSTD_findFrameCompressedSize(const void *src, size_t srcSize)
 #endif
     if ( (srcSize >= ZSTD_SKIPPABLEHEADERSIZE)
       && (MEM_readLE32(src) & ZSTD_MAGIC_SKIPPABLE_MASK) == ZSTD_MAGIC_SKIPPABLE_START ) {
-        return ZSTD_SKIPPABLEHEADERSIZE + MEM_readLE32((const BYTE*)src + ZSTD_FRAMEIDSIZE);
+        return readSkippableFrameSize(src, srcSize);
     } else {
         const BYTE* ip = (const BYTE*)src;
         const BYTE* const ipstart = ip;
@@ -660,11 +673,9 @@ static size_t ZSTD_decompressMultiFrame(ZSTD_DCtx* dctx,
             DEBUGLOG(4, "reading magic number %08X (expecting %08X)",
                         (U32)magicNumber, (U32)ZSTD_MAGICNUMBER);
             if ((magicNumber & ZSTD_MAGIC_SKIPPABLE_MASK) == ZSTD_MAGIC_SKIPPABLE_START) {
-                size_t skippableSize;
-                if (srcSize < ZSTD_SKIPPABLEHEADERSIZE)
-                    return ERROR(srcSize_wrong);
-                skippableSize = MEM_readLE32((const BYTE*)src + ZSTD_FRAMEIDSIZE)
-                              + ZSTD_SKIPPABLEHEADERSIZE;
+                size_t const skippableSize = readSkippableFrameSize(src, srcSize);
+                if (ZSTD_isError(skippableSize))
+                    return skippableSize;
                 if (srcSize < skippableSize) return ERROR(srcSize_wrong);
 
                 src = (const BYTE *)src + skippableSize;

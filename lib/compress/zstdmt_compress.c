@@ -1156,19 +1156,61 @@ size_t ZSTDMT_toFlushNow(ZSTDMT_CCtx* mtctx)
 static size_t ZSTDMT_computeTargetJobLog(ZSTD_CCtx_params const params)
 {
     if (params.ldmParams.enableLdm)
+        /* In Long Range Mode, the windowLog is typically oversized.
+         * In which case, it's preferable to determine the jobSize
+         * based on chainLog instead. */
         return MAX(21, params.cParams.chainLog + 4);
     return MAX(20, params.cParams.windowLog + 2);
 }
 
-static size_t ZSTDMT_computeOverlapLog(ZSTD_CCtx_params const params)
+static int ZSTDMT_overlapLog_default(ZSTD_strategy strat)
 {
-    unsigned const overlapRLog = (params.overlapLog>9) ? 0 : 9-params.overlapLog;
-    if (params.ldmParams.enableLdm)
-        return (MIN(params.cParams.windowLog, ZSTDMT_computeTargetJobLog(params) - 2) - overlapRLog);
-    return overlapRLog >= 9 ? 0 : (params.cParams.windowLog - overlapRLog);
+    switch(strat)
+    {
+        case ZSTD_btultra2:
+            return 9;
+        case ZSTD_btultra:
+        case ZSTD_btopt:
+            return 8;
+        case ZSTD_btlazy2:
+        case ZSTD_lazy2:
+            return 7;
+        case ZSTD_lazy:
+        case ZSTD_greedy:
+        case ZSTD_dfast:
+        case ZSTD_fast:
+        default:;
+    }
+    return 6;
 }
 
-static unsigned ZSTDMT_computeNbJobs(ZSTD_CCtx_params params, size_t srcSize, unsigned nbWorkers) {
+static int ZSTDMT_overlapLog(int ovlog, ZSTD_strategy strat)
+{
+    assert(0 <= ovlog && ovlog <= 9);
+    if (ovlog == 0) return ZSTDMT_overlapLog_default(strat);
+    return ovlog;
+}
+
+static size_t ZSTDMT_computeOverlapSize(ZSTD_CCtx_params const params)
+{
+    int const overlapRLog = 9 - ZSTDMT_overlapLog(params.overlapLog, params.cParams.strategy);
+    int ovLog = (overlapRLog >= 8) ? 0 : (params.cParams.windowLog - overlapRLog);
+    assert(0 <= overlapRLog && overlapRLog <= 8);
+    if (params.ldmParams.enableLdm) {
+        /* In Long Range Mode, the windowLog is typically oversized.
+         * In which case, it's preferable to determine the jobSize
+         * based on chainLog instead.
+         * Then, ovLog becomes a fraction of the jobSize, rather than windowSize */
+        ovLog = MIN(params.cParams.windowLog, ZSTDMT_computeTargetJobLog(params) - 2)
+                - overlapRLog;
+    }
+    assert(0 <= ovLog && ovLog <= 30);
+    return (ovLog==0) ? 0 : (size_t)1 << ovLog;
+}
+
+static unsigned
+ZSTDMT_computeNbJobs(ZSTD_CCtx_params params, size_t srcSize, unsigned nbWorkers)
+{
     assert(nbWorkers>0);
     {   size_t const jobSizeTarget = (size_t)1 << ZSTDMT_computeTargetJobLog(params);
         size_t const jobMaxSize = jobSizeTarget << 2;
@@ -1191,7 +1233,7 @@ static size_t ZSTDMT_compress_advanced_internal(
                 ZSTD_CCtx_params params)
 {
     ZSTD_CCtx_params const jobParams = ZSTDMT_initJobCCtxParams(params);
-    size_t const overlapSize = (size_t)1 << ZSTDMT_computeOverlapLog(params);
+    size_t const overlapSize = ZSTDMT_computeOverlapSize(params);
     unsigned const nbJobs = ZSTDMT_computeNbJobs(params, srcSize, params.nbWorkers);
     size_t const proposedJobSize = (srcSize + (nbJobs-1)) / nbJobs;
     size_t const avgJobSize = (((proposedJobSize-1) & 0x1FFFF) < 0x7FFF) ? proposedJobSize + 0xFFFF : proposedJobSize;   /* avoid too small last block */
@@ -1302,42 +1344,21 @@ static size_t ZSTDMT_compress_advanced_internal(
 }
 
 size_t ZSTDMT_compress_advanced(ZSTDMT_CCtx* mtctx,
-                               void* dst, size_t dstCapacity,
-                         const void* src, size_t srcSize,
-                         const ZSTD_CDict* cdict,
-                               ZSTD_parameters params,
-                               unsigned overlapLog)
+                                void* dst, size_t dstCapacity,
+                          const void* src, size_t srcSize,
+                          const ZSTD_CDict* cdict,
+                                ZSTD_parameters params,
+                                int overlapLog)
 {
     ZSTD_CCtx_params cctxParams = mtctx->params;
     cctxParams.cParams = params.cParams;
     cctxParams.fParams = params.fParams;
+    assert(ZSTD_OVERLAPLOG_MIN <= overlapLog && overlapLog <= ZSTD_OVERLAPLOG_MAX);
     cctxParams.overlapLog = overlapLog;
     return ZSTDMT_compress_advanced_internal(mtctx,
                                              dst, dstCapacity,
                                              src, srcSize,
                                              cdict, cctxParams);
-}
-
-static int ZSTDMT_overlapLog_default(ZSTD_strategy strat)
-{
-    switch(strat)
-    {
-        case ZSTD_btultra2:
-            return 9;
-        case ZSTD_btultra:
-        case ZSTD_btopt:
-            return 8;
-        case ZSTD_btlazy2:
-        case ZSTD_lazy2:
-            return 7;
-        case ZSTD_lazy:
-        case ZSTD_greedy:
-        case ZSTD_dfast:
-        case ZSTD_fast:
-        default:
-            return 6;
-    }
-    assert(0);
 }
 
 
@@ -1410,8 +1431,8 @@ size_t ZSTDMT_initCStream_internal(
         mtctx->cdict = cdict;
     }
 
-    mtctx->targetPrefixSize = (size_t)1 << ZSTDMT_computeOverlapLog(params);
-    DEBUGLOG(4, "overlapLog=%u => %u KB", params.overlapLog, (U32)(mtctx->targetPrefixSize>>10));
+    mtctx->targetPrefixSize = ZSTDMT_computeOverlapSize(params);
+    DEBUGLOG(4, "overlapLog=%i => %u KB", params.overlapLog, (U32)(mtctx->targetPrefixSize>>10));
     mtctx->targetSectionSize = params.jobSize;
     if (mtctx->targetSectionSize == 0) {
         mtctx->targetSectionSize = 1ULL << ZSTDMT_computeTargetJobLog(params);

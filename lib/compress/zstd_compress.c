@@ -591,7 +591,7 @@ size_t ZSTD_CCtxParam_setParameter(ZSTD_CCtx_params* CCtxParams,
 #ifndef ZSTD_MULTITHREAD
         return ERROR(parameter_unsupported);
 #else
-        return ZSTDMT_CCtxParam_setMTCtxParameter(CCtxParams, ZSTDMT_p_overlapSectionLog, value);
+        return ZSTDMT_CCtxParam_setMTCtxParameter(CCtxParams, ZSTDMT_p_overlapLog, value);
 #endif
 
     case ZSTD_c_rsyncable :
@@ -702,7 +702,7 @@ size_t ZSTD_CCtxParam_getParameter(
 #ifndef ZSTD_MULTITHREAD
         return ERROR(parameter_unsupported);
 #else
-        *value = CCtxParams->overlapSizeLog;
+        *value = CCtxParams->overlapLog;
         break;
 #endif
     case ZSTD_c_rsyncable :
@@ -873,7 +873,7 @@ ZSTD_clampCParams(ZSTD_compressionParameters cParams)
     CLAMP(ZSTD_c_searchLog, cParams.searchLog);
     CLAMP(ZSTD_c_minMatch,  cParams.minMatch);
     CLAMP(ZSTD_c_targetLength,cParams.targetLength);
-    CLAMP_TYPE(ZSTD_c_strategy,  cParams.strategy, ZSTD_strategy);
+    CLAMP_TYPE(ZSTD_c_strategy,cParams.strategy, ZSTD_strategy);
     return cParams;
 }
 

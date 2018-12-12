@@ -190,10 +190,10 @@ struct ZSTD_CCtx_params_s {
     ZSTD_dictAttachPref_e attachDictPref;
 
     /* Multithreading: used to pass parameters to mtctx */
-    unsigned nbWorkers;
-    unsigned jobSize;
-    unsigned overlapSizeLog;
-    unsigned rsyncable;
+    int nbWorkers;
+    size_t jobSize;
+    int overlapLog;
+    int rsyncable;
 
     /* Long distance matching parameters */
     ldmParams_t ldmParams;

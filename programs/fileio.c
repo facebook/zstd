@@ -562,7 +562,7 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
             g_overlapLog = 9;   /* full overlap */
         if (g_overlapLog != FIO_OVERLAP_LOG_NOTSET) {
             DISPLAYLEVEL(3,"set overlapLog = %u \n", g_overlapLog);
-            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_overlapSizeLog, g_overlapLog) );
+            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_overlapLog, g_overlapLog) );
         }
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_rsyncable, g_rsyncable) );
 #endif

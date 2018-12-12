@@ -305,7 +305,7 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
 #endif
         return bounds;
 
-    case ZSTD_c_overlapSizeLog:
+    case ZSTD_c_overlapLog:
         bounds.lowerBound = ZSTD_OVERLAPLOG_MIN;
         bounds.upperBound = ZSTD_OVERLAPLOG_MAX;
         return bounds;
@@ -404,7 +404,7 @@ static int ZSTD_isUpdateAuthorized(ZSTD_cParameter param)
     case ZSTD_c_forceMaxWindow :
     case ZSTD_c_nbWorkers:
     case ZSTD_c_jobSize:
-    case ZSTD_c_overlapSizeLog:
+    case ZSTD_c_overlapLog:
     case ZSTD_c_rsyncable:
     case ZSTD_c_enableLongDistanceMatching:
     case ZSTD_c_ldmHashLog:
@@ -466,7 +466,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int value)
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
     case ZSTD_c_jobSize:
-    case ZSTD_c_overlapSizeLog:
+    case ZSTD_c_overlapLog:
     case ZSTD_c_rsyncable:
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
@@ -587,7 +587,7 @@ size_t ZSTD_CCtxParam_setParameter(ZSTD_CCtx_params* CCtxParams,
         return ZSTDMT_CCtxParam_setMTCtxParameter(CCtxParams, ZSTDMT_p_jobSize, value);
 #endif
 
-    case ZSTD_c_overlapSizeLog :
+    case ZSTD_c_overlapLog :
 #ifndef ZSTD_MULTITHREAD
         return ERROR(parameter_unsupported);
 #else
@@ -698,7 +698,7 @@ size_t ZSTD_CCtxParam_getParameter(
         *value = CCtxParams->jobSize;
         break;
 #endif
-    case ZSTD_c_overlapSizeLog :
+    case ZSTD_c_overlapLog :
 #ifndef ZSTD_MULTITHREAD
         return ERROR(parameter_unsupported);
 #else
@@ -4012,8 +4012,8 @@ size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
     if (cctx->streamStage == zcss_init) {
         ZSTD_CCtx_params params = cctx->requestedParams;
         ZSTD_prefixDict const prefixDict = cctx->prefixDict;
-        memset(&cctx->prefixDict, 0, sizeof(cctx->prefixDict));  /* single usage */
-        assert(prefixDict.dict==NULL || cctx->cdict==NULL);   /* only one can be set */
+        memset(&cctx->prefixDict, 0, sizeof(cctx->prefixDict));   /* single usage */
+        assert(prefixDict.dict==NULL || cctx->cdict==NULL);    /* only one can be set */
         DEBUGLOG(4, "ZSTD_compressStream2 : transparent init stage");
         if (endOp == ZSTD_e_end) cctx->pledgedSrcSizePlusOne = input->size + 1;  /* auto-fix pledgedSrcSize */
         params.cParams = ZSTD_getCParamsFromCCtxParams(

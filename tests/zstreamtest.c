@@ -1904,7 +1904,7 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest,
                     CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_c_nbWorkers, nbThreads, opaqueAPI) );
                     if (nbThreads > 1) {
                         U32 const jobLog = FUZ_rand(&lseed) % (testLog+1);
-                        CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_c_overlapSizeLog, FUZ_rand(&lseed) % 10, opaqueAPI) );
+                        CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_c_overlapLog, FUZ_rand(&lseed) % 10, opaqueAPI) );
                         CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_c_jobSize, (U32)FUZ_rLogLength(&lseed, jobLog), opaqueAPI) );
                     }
                 }

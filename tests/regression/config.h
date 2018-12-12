@@ -20,7 +20,7 @@
 
 typedef struct {
     ZSTD_cParameter param;
-    unsigned value;
+    int value;
 } param_value_t;
 
 typedef struct {
@@ -69,6 +69,14 @@ int config_skip_data(config_t const* config, data_t const* data);
  * default.
  */
 int config_get_level(config_t const* config);
+
+/**
+ * Returns the compression parameters specified by the config.
+ */
+ZSTD_parameters config_get_zstd_params(
+    config_t const* config,
+    uint64_t srcSize,
+    size_t dictSize);
 
 /**
  * The NULL-terminated list of configs.

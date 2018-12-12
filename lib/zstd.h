@@ -602,15 +602,20 @@ typedef enum {
     ZSTD_c_jobSize=401,      /* Size of a compression job. This value is enforced only when nbWorkers >= 1.
                               * Each compression job is completed in parallel, so this value can indirectly impact the nb of active threads.
                               * 0 means default, which is dynamically determined based on compression parameters.
-                              * Job size must be a minimum of overlapSize, or 1 MB, whichever is largest.
+                              * Job size must be a minimum of overlap size, or 1 MB, whichever is largest.
                               * The minimum size is automatically and transparently enforced */
-    ZSTD_c_overlapSizeLog=402, /* Size of previous job reloaded at the beginning of each job, as a fraction of window size.
+    ZSTD_c_overlapLog=402,   /* Control the overlap size, as a fraction of window size.
+                              * The overlap size is an amount of data reloaded from previous job at the beginning of a new job.
+                              * It helps preserve compression ratio, while each job is compressed in parallel.
                               * This value is enforced only when nbWorkers >= 1.
                               * Larger values increase compression ratio, but decrease speed.
-                              * Values range from 0 (no overlap) to 9 (overlap a full windowSize).
-                              * Each rank (except 0) increase/decrease load size by a factor 2
-                              * 9: full window;  8: w/2;  7: w/4;  6: w/8;  5:w/16;  4: w/32;  3:w/64;  2:w/128;  1:w/256;
-                              * default value is 6 : use 1/8th of windowSize */
+                              * Values range from 0 to 9 (overlap a full windowSize).
+                              * - 0 means "auto" : value will be determined by the library, depending on strategy
+                              * - 1 means "no overlap"
+                              * - 9 means "full overlap", using a full window size.
+                              * Each intermediate rank increases/decreases load size by a factor 2 :
+                              * 9: full window;  8: w/2;  7: w/4;  6: w/8;  5:w/16;  4: w/32;  3:w/64;  2:w/128;  1:no overlap;  0:auto
+                              * default value varies between 6 and 9, depending on strategy */
 
     /* note : additional experimental parameters are also available
      * within the experimental section of the API.

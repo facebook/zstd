@@ -45,11 +45,9 @@ def main():
   args = parser.parse_args()
 
   dir_mode = int(args.mode, 8)
-  install_dir = pathlib.Path(args.install_dir)
 
-  meson_destdir = os.environ.get('MESON_INSTALL_DESTDIR_PREFIX')
-  if meson_destdir:
-    install_dir = pathlib.Path(meson_destdir).joinpath(install_dir)
+  meson_destdir = os.environ.get('MESON_INSTALL_DESTDIR_PREFIX', default='')
+  install_dir = pathlib.Path(meson_destdir, args.install_dir)
   install_symlink(args.source, args.dest, install_dir, args.isdir, dir_mode)
 
 

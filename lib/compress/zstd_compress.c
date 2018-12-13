@@ -1841,7 +1841,9 @@ static size_t ZSTD_minGain(size_t srcSize, ZSTD_strategy strat)
 {
     U32 const minlog = (strat>=ZSTD_btultra) ? (U32)(strat) - 1 : 6;
     ZSTD_STATIC_ASSERT(ZSTD_btultra == 8);
-    return (srcSize >> minlog) + 2;}
+    assert(ZSTD_cParam_withinBounds(ZSTD_c_strategy, strat));
+    return (srcSize >> minlog) + 2;
+}
 
 static size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
                                      ZSTD_hufCTables_t* nextHuf,
@@ -4091,19 +4093,21 @@ size_t ZSTD_compress2(ZSTD_CCtx* cctx,
                       void* dst, size_t dstCapacity,
                       const void* src, size_t srcSize)
 {
-    size_t oPos = 0;
-    size_t iPos = 0;
-    size_t const result = ZSTD_compressStream2_simpleArgs(cctx,
-                                    dst, dstCapacity, &oPos,
-                                    src, srcSize, &iPos,
-                                    ZSTD_e_end);
-    assert(iPos == srcSize);
-    if (ZSTD_isError(result)) return result;
-    if (result != 0) {  /* compression not completed, due to lack of output space */
-        assert(oPos == dstCapacity);
-        return ERROR(dstSize_tooSmall);
+    ZSTD_CCtx_reset(cctx, ZSTD_reset_session_only);
+    {   size_t oPos = 0;
+        size_t iPos = 0;
+        size_t const result = ZSTD_compressStream2_simpleArgs(cctx,
+                                        dst, dstCapacity, &oPos,
+                                        src, srcSize, &iPos,
+                                        ZSTD_e_end);
+        if (ZSTD_isError(result)) return result;
+        if (result != 0) {  /* compression not completed, due to lack of output space */
+            assert(oPos == dstCapacity);
+            return ERROR(dstSize_tooSmall);
+        }
+        assert(iPos == srcSize);   /* all input is expected consumed */
+        return oPos;
     }
-    return oPos;
 }
 
 /*======   Finalize   ======*/

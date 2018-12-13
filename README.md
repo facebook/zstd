@@ -125,7 +125,7 @@ By default, `CMAKE_BUILD_TYPE` is set to `Release`.
 
 #### Meson
 
-A Meson project is provided within `contrib/meson`.
+A Meson project is provided within `build/meson`.
 
 #### Visual Studio (Windows)
 
@@ -135,6 +135,10 @@ Going into `build` directory, you will find additional possibilities:
 - Automated build scripts for Visual compiler by [@KrzysFR](https://github.com/KrzysFR), in `build/VS_scripts`,
   which will build `zstd` cli and `libzstd` library without any need to open Visual Studio solution.
 
+#### Buck
+
+You can build the zstd binary via buck by executing: `buck build programs:zstd` from the root of the repo.
+The output binary will be in `buck-out/gen/programs/`.
 
 ### Status
 

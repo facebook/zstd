@@ -13,53 +13,7 @@
 #include <stdio.h>     // fprintf, perror, feof, fopen, etc.
 #include <string.h>    // strlen, memset, strcat
 #include <zstd.h>      // presumes zstd library is installed
-
-
-static void* malloc_orDie(size_t size)
-{
-    void* const buff = malloc(size);
-    if (buff) return buff;
-    /* error */
-    perror("malloc:");
-    exit(1);
-}
-
-static FILE* fopen_orDie(const char *filename, const char *instruction)
-{
-    FILE* const inFile = fopen(filename, instruction);
-    if (inFile) return inFile;
-    /* error */
-    perror(filename);
-    exit(3);
-}
-
-static size_t fread_orDie(void* buffer, size_t sizeToRead, FILE* file)
-{
-    size_t const readSize = fread(buffer, 1, sizeToRead, file);
-    if (readSize == sizeToRead) return readSize;   /* good */
-    if (feof(file)) return readSize;   /* good, reached end of file */
-    /* error */
-    perror("fread");
-    exit(4);
-}
-
-static size_t fwrite_orDie(const void* buffer, size_t sizeToWrite, FILE* file)
-{
-    size_t const writtenSize = fwrite(buffer, 1, sizeToWrite, file);
-    if (writtenSize == sizeToWrite) return sizeToWrite;   /* good */
-    /* error */
-    perror("fwrite");
-    exit(5);
-}
-
-static size_t fclose_orDie(FILE* file)
-{
-    if (!fclose(file)) return 0;
-    /* error */
-    perror("fclose");
-    exit(6);
-}
-
+#include "utils.h"
 
 static void compressFile_orDie(const char* fname, const char* outName, int cLevel)
 {
@@ -102,8 +56,7 @@ static void compressFile_orDie(const char* fname, const char* outName, int cLeve
 
     ZSTD_freeCStream(cstream);
     fclose_orDie(fout);
-    fclose_orDie(fin);
-    free(buffIn);
+    fclose_orDie(fin);    free(buffIn);
     free(buffOut);
 }
 

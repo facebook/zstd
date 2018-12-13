@@ -20,53 +20,7 @@
 #include <errno.h>     // errno
 #define ZSTD_STATIC_LINKING_ONLY  // streaming API defined as "experimental" for the time being
 #include <zstd.h>      // presumes zstd library is installed
-
-
-static void* malloc_orDie(size_t size)
-{
-    void* const buff = malloc(size);
-    if (buff) return buff;
-    /* error */
-    perror("malloc:");
-    exit(1);
-}
-
-static FILE* fopen_orDie(const char *filename, const char *instruction)
-{
-    FILE* const inFile = fopen(filename, instruction);
-    if (inFile) return inFile;
-    /* error */
-    perror(filename);
-    exit(3);
-}
-
-static size_t fread_orDie(void* buffer, size_t sizeToRead, FILE* file)
-{
-    size_t const readSize = fread(buffer, 1, sizeToRead, file);
-    if (readSize == sizeToRead) return readSize;   /* good */
-    if (feof(file)) return readSize;   /* good, reached end of file */
-    /* error */
-    perror("fread");
-    exit(4);
-}
-
-static size_t fwrite_orDie(const void* buffer, size_t sizeToWrite, FILE* file)
-{
-    size_t const writtenSize = fwrite(buffer, 1, sizeToWrite, file);
-    if (writtenSize == sizeToWrite) return sizeToWrite;   /* good */
-    /* error */
-    perror("fwrite");
-    exit(5);
-}
-
-static size_t fclose_orDie(FILE* file)
-{
-    if (!fclose(file)) return 0;
-    /* error */
-    perror("fclose");
-    exit(6);
-}
-
+#include "utils.h"
 
 typedef struct {
     void* buffIn;
@@ -94,7 +48,6 @@ static void freeResources(resources ress)
     free(ress.buffIn);
     free(ress.buffOut);
 }
-
 
 static void compressFile_orDie(resources ress, const char* fname, const char* outName, int cLevel)
 {
@@ -124,7 +77,6 @@ static void compressFile_orDie(resources ress, const char* fname, const char* ou
     fclose_orDie(fout);
     fclose_orDie(fin);
 }
-
 
 int main(int argc, const char** argv)
 {

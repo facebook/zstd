@@ -78,7 +78,7 @@ MEM_STATIC ZSTD_cpuid_t ZSTD_cpuid(void) {
       __asm__(
           "pushl %%ebx\n\t"
           "cpuid\n\t"
-          "movl %%ebx, %%eax\n\r"
+          "movl %%ebx, %%eax\n\t"
           "popl %%ebx"
           : "=a"(f7b), "=c"(f7c)
           : "a"(7), "c"(0)

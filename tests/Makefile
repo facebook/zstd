@@ -320,7 +320,7 @@ test32: test-zstd32 test-fullbench32 test-fuzzer32 test-zstream32
 test-all: test test32 valgrindTest test-decodecorpus-cli
 
 
-.PHONY: test-zstd test-zstd32 test-zstd-nolegacy
+.PHONY: test-zstd test-zstd32 test-zstd-nolegacy test-zstdgrep
 test-zstd: ZSTD = $(PRGDIR)/zstd
 test-zstd: zstd
 
@@ -351,6 +351,10 @@ test-gzstd: gzstd
 	$(PRGDIR)/zstd -dcf hello.*
 	$(PRGDIR)/zstd -dcf - <hello_zst_gz_txt.gz
 	$(RM) *.gz *.zst README2.md gz_zstd zstd_gz hello.txt
+
+test-zstdgrep: gzstd
+	@echo a | $(PRGDIR)/zstd | $(PRGDIR)/zstdgrep a
+	@echo a | $(PRGDIR)/zstd | $(PRGDIR)/zstdgrep b && return 1 || return 0
 
 test-fullbench: fullbench datagen
 	$(QEMU_SYS) ./fullbench -i1

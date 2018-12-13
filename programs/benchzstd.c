@@ -94,6 +94,18 @@ static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
     return errorNum;                                  \
 }
 
+#define CHECK_Z(zf) {              \
+    size_t const zerr = zf;        \
+    if (ZSTD_isError(zerr)) {      \
+        DEBUGOUTPUT("%s: %i: \n", __FILE__, __LINE__);  \
+        DISPLAY("Error : ");       \
+        DISPLAY("%s failed : %s",  \
+                #zf, ZSTD_getErrorName(zerr));   \
+        DISPLAY(" \n");            \
+        exit(1);                   \
+    }                              \
+}
+
 #define RETURN_ERROR(errorNum, retType, ...)  {       \
     retType r;                                        \
     memset(&r, 0, sizeof(retType));                   \
@@ -105,17 +117,6 @@ static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
     return r;                                         \
 }
 
-/* error without displaying */
-#define RETURN_QUIET_ERROR(errorNum, retType, ...)  { \
-    retType r;                                        \
-    memset(&r, 0, sizeof(retType));                   \
-    DEBUGOUTPUT("%s: %i: \n", __FILE__, __LINE__);    \
-    DEBUGOUTPUT("Error %i : ", errorNum);             \
-    DEBUGOUTPUT(__VA_ARGS__);                         \
-    DEBUGOUTPUT(" \n");                               \
-    r.tag = errorNum;                                 \
-    return r;                                         \
-}
 
 /* *************************************
 *  Benchmark Parameters
@@ -162,30 +163,30 @@ static void BMK_initCCtx(ZSTD_CCtx* ctx,
     const ZSTD_compressionParameters* comprParams, const BMK_advancedParams_t* adv) {
     ZSTD_CCtx_reset(ctx, ZSTD_reset_session_and_parameters);
     if (adv->nbWorkers==1) {
-        ZSTD_CCtx_setParameter(ctx, ZSTD_c_nbWorkers, 0);
+        CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_nbWorkers, 0));
     } else {
-        ZSTD_CCtx_setParameter(ctx, ZSTD_c_nbWorkers, adv->nbWorkers);
+        CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_nbWorkers, adv->nbWorkers));
     }
-    ZSTD_CCtx_setParameter(ctx, ZSTD_c_compressionLevel, cLevel);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_c_enableLongDistanceMatching, adv->ldmFlag);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_c_ldmMinMatch, adv->ldmMinMatch);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_c_ldmHashLog, adv->ldmHashLog);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_c_ldmBucketSizeLog, adv->ldmBucketSizeLog);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_c_ldmHashRateLog, adv->ldmHashRateLog);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_c_windowLog, comprParams->windowLog);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_c_hashLog, comprParams->hashLog);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_c_chainLog, comprParams->chainLog);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_c_searchLog, comprParams->searchLog);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_c_minMatch, comprParams->minMatch);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_c_targetLength, comprParams->targetLength);
-    ZSTD_CCtx_setParameter(ctx, ZSTD_c_compressionStrategy, comprParams->strategy);
-    ZSTD_CCtx_loadDictionary(ctx, dictBuffer, dictBufferSize);
+    CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_compressionLevel, cLevel));
+    CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_enableLongDistanceMatching, adv->ldmFlag));
+    CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_ldmMinMatch, adv->ldmMinMatch));
+    CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_ldmHashLog, adv->ldmHashLog));
+    CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_ldmBucketSizeLog, adv->ldmBucketSizeLog));
+    CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_ldmHashRateLog, adv->ldmHashRateLog));
+    CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_windowLog, comprParams->windowLog));
+    CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_hashLog, comprParams->hashLog));
+    CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_chainLog, comprParams->chainLog));
+    CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_searchLog, comprParams->searchLog));
+    CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_minMatch, comprParams->minMatch));
+    CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_targetLength, comprParams->targetLength));
+    CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_strategy, comprParams->strategy));
+    CHECK_Z(ZSTD_CCtx_loadDictionary(ctx, dictBuffer, dictBufferSize));
 }
 
 static void BMK_initDCtx(ZSTD_DCtx* dctx,
     const void* dictBuffer, size_t dictBufferSize) {
-    ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters);
-    ZSTD_DCtx_loadDictionary(dctx, dictBuffer, dictBufferSize);
+    CHECK_Z(ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters));
+    CHECK_Z(ZSTD_DCtx_loadDictionary(dctx, dictBuffer, dictBufferSize));
 }
 
 

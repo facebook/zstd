@@ -230,7 +230,7 @@ static size_t getCCtxParams(ZSTD_CCtx* zc, ZSTD_parameters* savedParams)
     CHECK_RET_Z(ZSTD_CCtx_getParameter(zc, ZSTD_c_searchLog, (int*)&savedParams->cParams.searchLog));
     CHECK_RET_Z(ZSTD_CCtx_getParameter(zc, ZSTD_c_minMatch, (int*)&savedParams->cParams.minMatch));
     CHECK_RET_Z(ZSTD_CCtx_getParameter(zc, ZSTD_c_targetLength, (int*)&savedParams->cParams.targetLength));
-    CHECK_RET_Z(ZSTD_CCtx_getParameter(zc, ZSTD_c_compressionStrategy, &value));
+    CHECK_RET_Z(ZSTD_CCtx_getParameter(zc, ZSTD_c_strategy, &value));
     savedParams->cParams.strategy = value;
 
     CHECK_RET_Z(ZSTD_CCtx_getParameter(zc, ZSTD_c_checksumFlag, &savedParams->fParams.checksumFlag));
@@ -1548,7 +1548,7 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest,
                     params.fParams.contentSizeFlag = FUZ_rand(&lseed) & 1;
                     DISPLAYLEVEL(5, "checksumFlag : %u \n", params.fParams.checksumFlag);
                     CHECK_Z( ZSTDMT_setMTCtxParameter(zc, ZSTDMT_p_overlapSectionLog, FUZ_rand(&lseed) % 12) );
-                    CHECK_Z( ZSTDMT_setMTCtxParameter(zc, ZSTDMT_p_jobSize, FUZ_rand(&lseed) % (2*maxTestSize+1)) );   /* custome job size */
+                    CHECK_Z( ZSTDMT_setMTCtxParameter(zc, ZSTDMT_p_jobSize, FUZ_rand(&lseed) % (2*maxTestSize+1)) );   /* custom job size */
                     CHECK_Z( ZSTDMT_initCStream_advanced(zc, dict, dictSize, params, pledgedSrcSize) );
         }   }   }
 

@@ -494,10 +494,10 @@ typedef enum { ZSTD_fast=1,
                ZSTD_lazy2=5,
                ZSTD_btlazy2=6,
                ZSTD_btopt=7,
-               ZSTD_btultra=8
-               /* note : new strategies might be added in the future.
-                         Only the order (from fast to strong) is guaranteed, not the exact position.
-                         new strategy names might be introduced, pushing the maximum number upward */
+               ZSTD_btultra=8,
+               ZSTD_btultra2=9
+               /* note : new strategies _might_ be added in the future.
+                         Only the order (from fast to strong) is guaranteed */
 } ZSTD_strategy;
 
 
@@ -541,14 +541,14 @@ typedef enum {
                               *                    , for all strategies > fast, effective maximum is 6.
                               * Special: value 0 means "use default minMatchLength". */
     ZSTD_c_targetLength=106, /* Impact of this field depends on strategy.
-                              * For strategies btopt & btultra:
+                              * For strategies btopt, btultra & btultra2:
                               *     Length of Match considered "good enough" to stop search.
                               *     Larger values make compression stronger, and slower.
                               * For strategy fast:
                               *     Distance between match sampling.
                               *     Larger values make compression faster, and weaker.
                               * Special: value 0 means "use default targetLength". */
-    ZSTD_c_compressionStrategy=107, /* See ZSTD_strategy enum definition.
+    ZSTD_c_strategy=107,     /* See ZSTD_strategy enum definition.
                               * The higher the value of selected strategy, the more complex it is,
                               * resulting in stronger and slower compression.
                               * Special: value 0 means "use default strategy". */
@@ -947,6 +947,9 @@ ZSTDLIB_API size_t ZSTD_DCtx_reset(ZSTD_DCtx* dctx, ZSTD_ResetDirective reset);
 #define ZSTD_MINMATCH_MIN         3   /* only for ZSTD_btopt+, faster strategies are limited to 4 */
 #define ZSTD_TARGETLENGTH_MAX    ZSTD_BLOCKSIZE_MAX
 #define ZSTD_TARGETLENGTH_MIN     0   /* note : comparing this constant to an unsigned results in a tautological test */
+#define ZSTD_STRATEGY_MIN        ZSTD_fast
+#define ZSTD_STRATEGY_MAX        ZSTD_btultra2
+
 
 #define ZSTD_OVERLAPLOG_MIN       0
 #define ZSTD_OVERLAPLOG_MAX       9

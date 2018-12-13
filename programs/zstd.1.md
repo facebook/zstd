@@ -339,9 +339,10 @@ The list of available _options_:
 - `strategy`=_strat_, `strat`=_strat_:
     Specify a strategy used by a match finder.
 
-    There are 8 strategies numbered from 1 to 8, from faster to stronger:
-    1=ZSTD\_fast, 2=ZSTD\_dfast, 3=ZSTD\_greedy, 4=ZSTD\_lazy,
-    5=ZSTD\_lazy2, 6=ZSTD\_btlazy2, 7=ZSTD\_btopt, 8=ZSTD\_btultra.
+    There are 9 strategies numbered from 1 to 9, from faster to stronger:
+    1=ZSTD\_fast, 2=ZSTD\_dfast, 3=ZSTD\_greedy,
+    4=ZSTD\_lazy, 5=ZSTD\_lazy2, 6=ZSTD\_btlazy2,
+    7=ZSTD\_btopt, 8=ZSTD\_btultra, 9=ZSTD\_btultra2.
 
 - `windowLog`=_wlog_, `wlog`=_wlog_:
     Specify the maximum number of bits for a match distance.
@@ -394,8 +395,8 @@ The list of available _options_:
 - `targetLen`=_tlen_, `tlen`=_tlen_:
     The impact of this field vary depending on selected strategy.
 
-    For ZSTD\_btopt and ZSTD\_btultra, it specifies the minimum match length
-    that causes match finder to stop searching for better matches.
+    For ZSTD\_btopt, ZSTD\_btultra and ZSTD\_btultra2, it specifies
+    the minimum match length that causes match finder to stop searching.
     A larger `targetLen` usually improves compression ratio
     but decreases compression speed.
 

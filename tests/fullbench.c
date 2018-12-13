@@ -401,7 +401,7 @@ static size_t benchMem(U32 benchNb,
     ZSTD_CCtx_setParameter(g_zcc, ZSTD_c_searchLog, cparams.searchLog);
     ZSTD_CCtx_setParameter(g_zcc, ZSTD_c_minMatch, cparams.minMatch);
     ZSTD_CCtx_setParameter(g_zcc, ZSTD_c_targetLength, cparams.targetLength);
-    ZSTD_CCtx_setParameter(g_zcc, ZSTD_c_compressionStrategy, cparams.strategy);
+    ZSTD_CCtx_setParameter(g_zcc, ZSTD_c_strategy, cparams.strategy);
 
 
     ZSTD_CCtx_setParameter(g_cstream, ZSTD_c_compressionLevel, cLevel);
@@ -411,7 +411,7 @@ static size_t benchMem(U32 benchNb,
     ZSTD_CCtx_setParameter(g_cstream, ZSTD_c_searchLog, cparams.searchLog);
     ZSTD_CCtx_setParameter(g_cstream, ZSTD_c_minMatch, cparams.minMatch);
     ZSTD_CCtx_setParameter(g_cstream, ZSTD_c_targetLength, cparams.targetLength);
-    ZSTD_CCtx_setParameter(g_cstream, ZSTD_c_compressionStrategy, cparams.strategy);
+    ZSTD_CCtx_setParameter(g_cstream, ZSTD_c_strategy, cparams.strategy);
 
     /* Preparation */
     switch(benchNb)

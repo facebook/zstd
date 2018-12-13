@@ -77,10 +77,11 @@ int config_skip_data(config_t const* config, data_t const* data) {
     return config->use_dictionary && !data_has_dict(data);
 }
 
-int config_get_level(config_t const* config) {
+int config_get_level(config_t const* config)
+{
     param_values_t const params = config->param_values;
     size_t i;
-    for (size_t i = 0; i < params.size; ++i) {
+    for (i = 0; i < params.size; ++i) {
         if (params.data[i].param == ZSTD_c_compressionLevel)
             return (int)params.data[i].value;
     }
@@ -90,7 +91,8 @@ int config_get_level(config_t const* config) {
 ZSTD_parameters config_get_zstd_params(
     config_t const* config,
     uint64_t srcSize,
-    size_t dictSize) {
+    size_t dictSize)
+{
     ZSTD_parameters zparams = {};
     param_values_t const params = config->param_values;
     int level = config_get_level(config);
@@ -130,7 +132,7 @@ ZSTD_parameters config_get_zstd_params(
             case ZSTD_c_targetLength:
                 zparams.cParams.targetLength = value;
                 break;
-            case ZSTD_c_compressionStrategy:
+            case ZSTD_c_strategy:
                 zparams.cParams.strategy = (ZSTD_strategy)value;
                 break;
             default:

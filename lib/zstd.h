@@ -610,12 +610,12 @@ typedef enum {
                               * It helps preserve compression ratio, while each job is compressed in parallel.
                               * This value is enforced only when nbWorkers >= 1.
                               * Larger values increase compression ratio, but decrease speed.
-                              * Values range from 0 to 9 (overlap a full windowSize).
-                              * - 0 means "auto" : value will be determined by the library, depending on strategy
+                              * Possible values range from 0 to 9 :
+                              * - 0 means "default" : value will be determined by the library, depending on strategy
                               * - 1 means "no overlap"
                               * - 9 means "full overlap", using a full window size.
                               * Each intermediate rank increases/decreases load size by a factor 2 :
-                              * 9: full window;  8: w/2;  7: w/4;  6: w/8;  5:w/16;  4: w/32;  3:w/64;  2:w/128;  1:no overlap;  0:auto
+                              * 9: full window;  8: w/2;  7: w/4;  6: w/8;  5:w/16;  4: w/32;  3:w/64;  2:w/128;  1:no overlap;  0:default
                               * default value varies between 6 and 9, depending on strategy */
 
     /* note : additional experimental parameters are also available

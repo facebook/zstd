@@ -748,17 +748,17 @@ then
     ./datagen -g2MB > tmp
     refSize=$($ZSTD tmp -6 -c --zstd=wlog=18         | wc -c)
     ov9Size=$($ZSTD tmp -6 -c --zstd=wlog=18,ovlog=9 | wc -c)
-    ov0Size=$($ZSTD tmp -6 -c --zstd=wlog=18,ovlog=0 | wc -c)
+    ov1Size=$($ZSTD tmp -6 -c --zstd=wlog=18,ovlog=1 | wc -c)
     if [ $refSize -eq $ov9Size ]; then
         echo ov9Size should be different from refSize
         exit 1
     fi
-    if [ $refSize -eq $ov0Size ]; then
-        echo ov0Size should be different from refSize
+    if [ $refSize -eq $ov1Size ]; then
+        echo ov1Size should be different from refSize
         exit 1
     fi
-    if [ $ov9Size -ge $ov0Size ]; then
-        echo ov9Size=$ov9Size should be smaller than ov0Size=$ov0Size
+    if [ $ov9Size -ge $ov1Size ]; then
+        echo ov9Size=$ov9Size should be smaller than ov1Size=$ov1Size
         exit 1
     fi
 

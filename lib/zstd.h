@@ -583,8 +583,9 @@ typedef enum {
 
     /* frame parameters */
     ZSTD_c_contentSizeFlag=200, /* Content size will be written into frame header _whenever known_ (default:1)
-                              * Content size must be known at the beginning of compression,
-                              * it is provided using ZSTD_CCtx_setPledgedSrcSize() */
+                              * Content size must be known at the beginning of compression.
+                              * This is automatically the case when using ZSTD_compress2(),
+                              * For streaming variants, content size must be provided with ZSTD_CCtx_setPledgedSrcSize() */
     ZSTD_c_checksumFlag=201, /* A 32-bits checksum of content is written at end of frame (default:0) */
     ZSTD_c_dictIDFlag=202,   /* When applicable, dictionary's ID is written into frame header (default:1) */
 
@@ -620,12 +621,13 @@ typedef enum {
      * ZSTD_c_forceMaxWindow
      * ZSTD_c_forceAttachDict
      * Because they are not stable, it's necessary to define ZSTD_STATIC_LINKING_ONLY to access them.
-     * note : never ever use experimentalParam? names directly
+     * note : never ever use experimentalParam? names directly;
+     *        also, the enums values themselves are unstable and can still change.
      */
      ZSTD_c_experimentalParam1=500,
      ZSTD_c_experimentalParam2=10,
      ZSTD_c_experimentalParam3=1000,
-     ZSTD_c_experimentalParam4
+     ZSTD_c_experimentalParam4=1001
 } ZSTD_cParameter;
 
 
@@ -659,14 +661,17 @@ ZSTDLIB_API size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param
 
 /*! ZSTD_CCtx_setPledgedSrcSize() :
  *  Total input data size to be compressed as a single frame.
- *  This value will be controlled at end of frame, and trigger an error if not respected.
+ *  Value will be written in frame header, unless if explicitly forbidden using ZSTD_c_contentSizeFlag.
+ *  This value will also be controlled at end of frame, and trigger an error if not respected.
  * @result : 0, or an error code (which can be tested with ZSTD_isError()).
  *  Note 1 : pledgedSrcSize==0 actually means zero, aka an empty frame.
  *           In order to mean "unknown content size", pass constant ZSTD_CONTENTSIZE_UNKNOWN.
  *           ZSTD_CONTENTSIZE_UNKNOWN is default value for any new frame.
  *  Note 2 : pledgedSrcSize is only valid once, for the next frame.
- *           It's discarded at the end of the frame.
- *  Note 3 : If all data is provided and consumed in a single round,
+ *           It's discarded at the end of the frame, and replaced by ZSTD_CONTENTSIZE_UNKNOWN.
+ *  Note 3 : Whenever all input data is provided and consumed in a single round,
+ *           for example with ZSTD_compress2(),
+ *           or invoking immediately ZSTD_compressStream2(,,,ZSTD_e_end),
  *           this value is automatically overriden by srcSize instead.
  */
 ZSTDLIB_API size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long long pledgedSrcSize);
@@ -750,6 +755,8 @@ ZSTDLIB_API size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx, ZSTD_ResetDirective reset);
 
 /*! ZSTD_compress2() :
  *  Behave the same as ZSTD_compressCCtx(), but compression parameters are set using the advanced API.
+ *  ZSTD_compress2() always starts a new frame.
+ *  Should cctx hold data from a previously unfinished frame, everything about it is forgotten.
  *  - Compression parameters are pushed into CCtx before starting compression, using ZSTD_CCtx_set*()
  *  - The function is always blocking, returns when compression is completed.
  *  Hint : compression runs faster if `dstCapacity` >=  `ZSTD_compressBound(srcSize)`.

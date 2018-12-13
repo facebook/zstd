@@ -15,50 +15,7 @@
 #include <sys/stat.h>  // stat
 #define ZSTD_STATIC_LINKING_ONLY   // ZSTD_findDecompressedSize
 #include <zstd.h>      // presumes zstd library is installed
-
-
-static off_t fsize_orDie(const char *filename)
-{
-    struct stat st;
-    if (stat(filename, &st) == 0) return st.st_size;
-    /* error */
-    fprintf(stderr, "stat: %s : %s \n", filename, strerror(errno));
-    exit(1);
-}
-
-static FILE* fopen_orDie(const char *filename, const char *instruction)
-{
-    FILE* const inFile = fopen(filename, instruction);
-    if (inFile) return inFile;
-    /* error */
-    fprintf(stderr, "fopen: %s : %s \n", filename, strerror(errno));
-    exit(2);
-}
-
-static void* malloc_orDie(size_t size)
-{
-    void* const buff = malloc(size + !size);   /* avoid allocating size of 0 : may return NULL (implementation dependent) */
-    if (buff) return buff;
-    /* error */
-    fprintf(stderr, "malloc: %s \n", strerror(errno));
-    exit(3);
-}
-
-static void* loadFile_orDie(const char* fileName, size_t* size)
-{
-    off_t const buffSize = fsize_orDie(fileName);
-    FILE* const inFile = fopen_orDie(fileName, "rb");
-    void* const buffer = malloc_orDie(buffSize);
-    size_t const readSize = fread(buffer, 1, buffSize, inFile);
-    if (readSize != (size_t)buffSize) {
-        fprintf(stderr, "fread: %s : %s \n", fileName, strerror(errno));
-        exit(4);
-    }
-    fclose(inFile);   /* can't fail (read only) */
-    *size = buffSize;
-    return buffer;
-}
-
+#include "utils.h"
 
 static void decompress(const char* fname)
 {
@@ -89,7 +46,6 @@ static void decompress(const char* fname)
     free(rBuff);
     free(cBuff);
 }
-
 
 int main(int argc, const char** argv)
 {

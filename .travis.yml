@@ -4,58 +4,6 @@ language: c
 dist: trusty
 sudo: required
 
-addons:
-  apt:
-    update: true
-
-matrix:
-  fast_finish: true
-  include:
-    # Ubuntu 14.04
-    - env: Cmd='make test'
-
-    - env: Cmd='make gcc6install && CC=gcc-6 CFLAGS=-Werror make -j all
-             && make clean && CC=gcc-6 make -j uasan-test-zstd </dev/null'   # test when stdin is not a tty
-    - env: Cmd='make gcc6install libc6install
-             && make clean && CC=gcc-6 make -j uasan-test-zstd32'
-    - env: Cmd='make gcc7install && make clean && CC=gcc-7 make -j uasan-test-zstd'
-    - env: Cmd='make gcc8install && CC=gcc-8 CFLAGS="-Werror -O3" make -j all'
-    - env: Cmd='make clang38install && CC=clang-3.8 make clean msan-test-zstd'
-
-    - env: Cmd='make cmakebuild'
-
-    - env: Cmd='make staticAnalyze'
-
-    - env: Cmd='make gcc6install && CC=gcc-6 make clean uasan-fuzztest'
-    - env: Cmd='make gcc6install libc6install
-             && make clean && CC=gcc-6 CFLAGS=-m32 make uasan-fuzztest'
-    - env: Cmd='make clang38install && CC=clang-3.8 make clean msan-fuzztest'
-    - env: Cmd='make clang38install && CC=clang-3.8 make clean tsan-fuzztest'
-
-    - env: Cmd='make -j uasanregressiontest
-             && make clean && make -j msanregressiontest'
-
-    - env: Cmd='make valgrindinstall && make -C tests clean valgrindTest
-             && make clean && make -C tests test-fuzzer-stackmode'
-
-    - env: Cmd='make arminstall && make armfuzz'
-    - env: Cmd='make arminstall && make aarch64fuzz'
-    - env: Cmd='make ppcinstall && make ppcfuzz'
-    - env: Cmd='make ppcinstall && make ppc64fuzz'
-
-    - env: Cmd='make lz4install && make -C tests test-lz4
-             && make clean && make -C tests test-pool
-             && make clean && bash tests/libzstd_partial_builds.sh'
-
-    # tag-specific test
-    - if: tag =~ ^v[0-9]\.[0-9]
-      env: Cmd='make -C tests checkTag && tests/checkTag $TRAVIS_BRANCH'
-
-    - dist: xenial
-      env: BUILD_SYSTEM='meson'
-  allow_failures:
-    - env: BUILD_SYSTEM='meson'
-
 git:
   depth: 1
 
@@ -65,29 +13,145 @@ branches:
   - master
   - travisTest
 
-script:
-  - JOB_NUMBER=$(printf '%s' "${TRAVIS_JOB_NUMBER}" | sed -E 's@[0-9]+\.([0-9]+)@\1@')
-  - printf 'JOB_NUMBER=%s TRAVIS_BRANCH=%s TRAVIS_EVENT_TYPE=%s TRAVIS_PULL_REQUEST=%s\n'
-      "${JOB_NUMBER}" "${TRAVIS_BRANCH}" "${TRAVIS_EVENT_TYPE}" "${TRAVIS_PULL_REQUEST}"
-  - if [ "${BUILD_SYSTEM}" = meson ]; then
-      set -x;
-      sudo apt-get install -qq liblz4-dev valgrind tree
-        && curl -o ~/get-pip.py 'https://bootstrap.pypa.io/get-pip.py'
-        && python3 ~/get-pip.py --user
-        && pip3 install --user meson ninja
-        && export CC=clang CXX=clang++
-        && meson --buildtype=debug
-                 -Db_lundef=false
-                 -Dauto_features=enabled
-                 -Dbuild_{programs,tests,contrib}=true
-                 -Ddefault_library=both
-                 build/meson builddir
-        && cd "$_"
-        && DESTDIR=./staging ninja install
-        && tree ./staging;
-      travis_terminate "$?";
-    fi
-  - export FUZZERTEST=-T2mn;
-    export ZSTREAM_TESTTIME=-T2mn;
-    export DECODECORPUS_TESTTIME=-T1mn;
-    sh -c "${Cmd}" || travis_terminate 1;
+addons:
+  apt:
+    update: true
+
+env:
+  global:
+    - FUZZERTEST=-T2mn
+      ZSTREAM_TESTTIME=-T2mn
+      DECODECORPUS_TESTTIME=-T1mn
+
+# TODO:
+#   - Add Coverity job
+#   - Ref https://travis-ci.org/systemd/systemd/jobs/461620858/config
+#stages:
+#  # Run Coverity periodically instead of for each commit/PR
+#  - name: Coverity
+#    if: type = cron
+
+matrix:
+  fast_finish: true
+  include:
+    - name: Trusty (Test All)
+      script:
+        - make test
+
+    - name: Trusty (gcc-6 + ASan + UBSan + Test Zstd)
+      script:
+        - make gcc6install
+        - CC=gcc-6 CFLAGS=-Werror make -j all
+        - make clean
+        - CC=gcc-6 make -j uasan-test-zstd </dev/null   # test when stdin is not a tty
+    - name: Trusty (gcc-6 + ASan + UBSan + Test Zstd 32bit)
+      script:
+        - make gcc6install libc6install
+        - make clean
+        - CC=gcc-6 make -j uasan-test-zstd32
+    - name: Trusty (gcc-7 + ASan + UBSan + Test Zstd)
+      script:
+        - make gcc7install
+        - make clean
+        - CC=gcc-7 make -j uasan-test-zstd
+    - name: Trusty (gcc-8)
+      script:
+        - make gcc8install
+        - CC=gcc-8 CFLAGS="-Werror -O3" make -j all
+    - name: Trusty (clang-3.8 + MSan + Test Zstd)
+      script:
+        - make clang38install
+        - CC=clang-3.8 make clean msan-test-zstd
+
+    - name: Trusty (CMake)
+      script:
+        - make cmakebuild
+
+    - name: Trusty (Static Analyze)
+      script:
+        - make staticAnalyze
+
+    - name: Trusty (gcc-6 + ASan + UBSan + Fuzz Test)
+      script:
+        - make gcc6install
+        - CC=gcc-6 make clean uasan-fuzztest
+    - name: Trusty (gcc-6 + ASan + UBSan + Fuzz Test 32bit)
+      script:
+        - make gcc6install libc6install
+        - make clean
+        - CC=gcc-6 CFLAGS=-m32 make uasan-fuzztest
+    - name: Trusty (clang-3.8 + MSan + Fuzz Test)
+      script:
+        - make clang38install
+        - CC=clang-3.8 make clean msan-fuzztest
+    - name: Trusty (clang-3.8 + TSan + Fuzz Test)
+      script:
+        - make clang38install
+        - CC=clang-3.8 make clean tsan-fuzztest
+
+    - name: Trusty (ASan + UBSan + MSan + Regression Test)
+      script:
+        - make -j uasanregressiontest
+        - make clean
+        - make -j msanregressiontest
+
+    - name: Trusty (Valgrind + Fuzz Test Stack Mode)
+      script:
+        - make valgrindinstall
+        - make -C tests clean valgrindTest
+        - make clean
+        - make -C tests test-fuzzer-stackmode
+
+    - name: Trusty (ARM + Fuzz Test)
+      script:
+        - make arminstall
+        - make armfuzz
+    - name: Trusty (AARCH64 + Fuzz Test)
+      script:
+        - make arminstall
+        - make aarch64fuzz
+    - name: Trusty (PPC + Fuzz Test)
+      script:
+        - make ppcinstall
+        - make ppcfuzz
+    - name: Trusty (PPC64 + Fuzz Test)
+      script:
+        - make ppcinstall
+        - make ppc64fuzz
+
+    - name: Trusty (LZ4)
+      script:
+        - make lz4install
+        - make -C tests test-lz4
+        - make clean
+        - make -C tests test-pool
+        - make clean
+        - bash tests/libzstd_partial_builds.sh
+
+    - name: Tag-Specific Test
+      if: tag =~ ^v[0-9]\.[0-9]
+      script:
+        - make -C tests checkTag
+        - tests/checkTag "$TRAVIS_BRANCH"
+
+    - name: Xenial (Meson + clang)
+      dist: xenial
+      language: cpp
+      compiler: clang
+      before_install:
+        - sudo apt-get install -qq liblz4-dev valgrind tree
+        - curl -o ~/get-pip.py 'https://bootstrap.pypa.io/get-pip.py'
+        - python3 ~/get-pip.py --user
+        - pip3 install --user meson ninja
+      script:
+        - meson --buildtype=debug
+                -Db_lundef=false
+                -Dauto_features=enabled
+                -Dbuild_{programs,tests,contrib}=true
+                -Ddefault_library=both
+                build/meson builddir
+        - cd builddir
+        - DESTDIR=./staging ninja install
+        - tree ./staging
+  allow_failures:
+    - name: Xenial (Meson + clang)

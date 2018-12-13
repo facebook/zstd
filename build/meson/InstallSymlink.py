@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 # #############################################################################
-# Copyright (c) 2018-present    lzutao <taolzu(at)gmail.com>
+# Copyright (c) 2018-present  lzutao <taolzu(at)gmail.com>
 # All rights reserved.
 #
 # This source code is licensed under both the BSD-style license (found in the
 # LICENSE file in the root directory of this source tree) and the GPLv2 (found
 # in the COPYING file in the root directory of this source tree).
 # #############################################################################
+# This file should be synced with https://github.com/lzutao/meson-symlink
 
 import os
 import pathlib  # since Python 3.4
@@ -29,30 +30,27 @@ def install_symlink(src, dst, install_dir, dst_is_dir=False, dir_mode=0o777):
 def main():
   import argparse
   parser = argparse.ArgumentParser(description='Install a symlink',
-      usage='InstallSymlink.py [-h] [-d] [-m MODE] src dst install_dir\n\n'
+      usage='{0} [-h] [-d] [-m MODE] source dest install_dir\n\n'
             'example:\n'
-            '\tInstallSymlink.py dash sh /bin')
-  parser.add_argument('src', help='target to link')
-  parser.add_argument('dst', help='link name')
+            '        {0} dash sh /bin'.format(pathlib.Path(__file__).name))
+  parser.add_argument('source', help='target to link')
+  parser.add_argument('dest', help='link name')
   parser.add_argument('install_dir', help='installation directory')
   parser.add_argument('-d', '--isdir',
       action='store_true',
-      help='dst is a directory')
+      help='dest is a directory')
   parser.add_argument('-m', '--mode',
       help='directory mode on creating if not exist',
-      default='0o777')
+      default='0o755')
   args = parser.parse_args()
 
-  src = args.src
-  dst = args.dst
-  dst_is_dir = args.isdir
   dir_mode = int(args.mode, 8)
   install_dir = pathlib.Path(args.install_dir)
 
   meson_destdir = os.environ.get('MESON_INSTALL_DESTDIR_PREFIX')
   if meson_destdir:
     install_dir = pathlib.Path(meson_destdir).joinpath(install_dir)
-  install_symlink(src, dst, install_dir, dst_is_dir, dir_mode)
+  install_symlink(args.source, args.dest, install_dir, args.isdir, dir_mode)
 
 
 if __name__ == '__main__':

@@ -11,6 +11,7 @@
 /*-*************************************
 *  Dependencies
 ***************************************/
+#include <limits.h>         /* INT_MAX */
 #include <string.h>         /* memset */
 #include "cpu.h"
 #include "mem.h"
@@ -695,7 +696,8 @@ size_t ZSTD_CCtxParam_getParameter(
 #ifndef ZSTD_MULTITHREAD
         return ERROR(parameter_unsupported);
 #else
-        *value = CCtxParams->jobSize;
+        assert(CCtxParams->jobSize <= INT_MAX);
+        *value = (int)CCtxParams->jobSize;
         break;
 #endif
     case ZSTD_c_overlapLog :

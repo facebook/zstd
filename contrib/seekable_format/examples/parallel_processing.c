@@ -148,20 +148,20 @@ static void sumFile_orDie(const char* fname, int nbThreads)
     size_t const initResult = ZSTD_seekable_initFile(seekable, fin);
     if (ZSTD_isError(initResult)) { fprintf(stderr, "ZSTD_seekable_init() error : %s \n", ZSTD_getErrorName(initResult)); exit(11); }
 
-    size_t const numFrames = ZSTD_seekable_getNumFrames(seekable);
+    unsigned const numFrames = ZSTD_seekable_getNumFrames(seekable);
     struct sum_job* jobs = (struct sum_job*)malloc(numFrames * sizeof(struct sum_job));
 
-    size_t i;
-    for (i = 0; i < numFrames; i++) {
-        jobs[i] = (struct sum_job){ fname, 0, i, 0 };
-        POOL_add(pool, sumFrame, &jobs[i]);
+    unsigned fnb;
+    for (fnb = 0; fnb < numFrames; fnb++) {
+        jobs[fnb] = (struct sum_job){ fname, 0, fnb, 0 };
+        POOL_add(pool, sumFrame, &jobs[fnb]);
     }
 
     unsigned long long total = 0;
 
-    for (i = 0; i < numFrames; i++) {
-        while (!jobs[i].done) SLEEP(5); /* wake up every 5 milliseconds to check */
-        total += jobs[i].sum;
+    for (fnb = 0; fnb < numFrames; fnb++) {
+        while (!jobs[fnb].done) SLEEP(5); /* wake up every 5 milliseconds to check */
+        total += jobs[fnb].sum;
     }
 
     printf("Sum: %llu\n", total);

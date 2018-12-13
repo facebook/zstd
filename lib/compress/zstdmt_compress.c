@@ -21,7 +21,7 @@
 
 /* ======   Dependencies   ====== */
 #include <string.h>      /* memcpy, memset */
-#include <limits.h>      /* INT_MAX */
+#include <limits.h>      /* INT_MAX, UINT_MAX */
 #include "pool.h"        /* threadpool */
 #include "threading.h"   /* mutex */
 #include "zstd_compress_internal.h"  /* MIN, ERROR, ZSTD_*, ZSTD_highbit32 */
@@ -989,7 +989,7 @@ ZSTDMT_CCtxParam_setMTCtxParameter(ZSTD_CCtx_params* params,
         if (value < ZSTDMT_JOBSIZE_MIN) value = ZSTDMT_JOBSIZE_MIN;
         assert(value >= 0);
         {   size_t jobSize = value;
-            if (jobSize > ZSTDMT_JOBSIZE_MAX) jobSize = ZSTDMT_JOBSIZE_MAX;
+            if (jobSize > (size_t)ZSTDMT_JOBSIZE_MAX) jobSize = ZSTDMT_JOBSIZE_MAX;
             params->jobSize = jobSize;
             return jobSize;
         }
@@ -1021,7 +1021,8 @@ size_t ZSTDMT_getMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSTDMT_parameter parameter, 
 {
     switch (parameter) {
     case ZSTDMT_p_jobSize:
-        *value = mtctx->params.jobSize;
+        assert(mtctx->params.jobSize <= UINT_MAX);
+        *value = (unsigned)(mtctx->params.jobSize);
         break;
     case ZSTDMT_p_overlapLog:
         *value = mtctx->params.overlapLog;
@@ -1153,7 +1154,7 @@ size_t ZSTDMT_toFlushNow(ZSTDMT_CCtx* mtctx)
 /* =====   Multi-threaded compression   ===== */
 /* ------------------------------------------ */
 
-static size_t ZSTDMT_computeTargetJobLog(ZSTD_CCtx_params const params)
+static unsigned ZSTDMT_computeTargetJobLog(ZSTD_CCtx_params const params)
 {
     if (params.ldmParams.enableLdm)
         /* In Long Range Mode, the windowLog is typically oversized.
@@ -1396,7 +1397,7 @@ size_t ZSTDMT_initCStream_internal(
         CHECK_F( ZSTDMT_resize(mtctx, params.nbWorkers) );
 
     if (params.jobSize > 0 && params.jobSize < ZSTDMT_JOBSIZE_MIN) params.jobSize = ZSTDMT_JOBSIZE_MIN;
-    if (params.jobSize > ZSTDMT_JOBSIZE_MAX) params.jobSize = ZSTDMT_JOBSIZE_MAX;
+    if (params.jobSize > (size_t)ZSTDMT_JOBSIZE_MAX) params.jobSize = ZSTDMT_JOBSIZE_MAX;
 
     mtctx->singleBlockingThread = (pledgedSrcSize <= ZSTDMT_JOBSIZE_MIN);  /* do not trigger multi-threading when srcSize is too small */
     if (mtctx->singleBlockingThread) {

@@ -8,6 +8,8 @@
  */
 
 #include <stdlib.h>     /* malloc, free */
+#include <limits.h>     /* UINT_MAX */
+#include <assert.h>
 
 #define XXH_STATIC_LINKING_ONLY
 #define XXH_NAMESPACE ZSTD_
@@ -167,9 +169,9 @@ size_t ZSTD_seekable_initCStream(ZSTD_seekable_CStream* zcs,
 }
 
 size_t ZSTD_seekable_logFrame(ZSTD_frameLog* fl,
-                                     unsigned compressedSize,
-                                     unsigned decompressedSize,
-                                     unsigned checksum)
+                              unsigned compressedSize,
+                              unsigned decompressedSize,
+                              unsigned checksum)
 {
     if (fl->size == ZSTD_SEEKABLE_MAXFRAMES)
         return ERROR(frameIndex_tooLarge);
@@ -184,7 +186,8 @@ size_t ZSTD_seekable_logFrame(ZSTD_frameLog* fl,
         if (newEntries == NULL) return ERROR(memory_allocation);
 
         fl->entries = newEntries;
-        fl->capacity = newCapacity;
+        assert(newCapacity <= UINT_MAX);
+        fl->capacity = (U32)newCapacity;
     }
 
     fl->entries[fl->size] = (framelogEntry_t){
@@ -307,32 +310,32 @@ size_t ZSTD_seekable_writeSeekTable(ZSTD_frameLog* fl, ZSTD_outBuffer* output)
     size_t const seekTableLen = ZSTD_seekable_seekTableSize(fl);
 
     CHECK_Z(ZSTD_stwrite32(fl, output, ZSTD_MAGIC_SKIPPABLE_START | 0xE, 0));
-    CHECK_Z(ZSTD_stwrite32(fl, output, seekTableLen - ZSTD_SKIPPABLEHEADERSIZE,
-                           4));
+    assert(seekTableLen <= (size_t)UINT_MAX);
+    CHECK_Z(ZSTD_stwrite32(fl, output, (U32)seekTableLen - ZSTD_SKIPPABLEHEADERSIZE, 4));
 
     while (fl->seekTableIndex < fl->size) {
+        unsigned long long const start = ZSTD_SKIPPABLEHEADERSIZE + sizePerFrame * fl->seekTableIndex;
+        assert(start + 8 <= UINT_MAX);
         CHECK_Z(ZSTD_stwrite32(fl, output,
                                fl->entries[fl->seekTableIndex].cSize,
-                               ZSTD_SKIPPABLEHEADERSIZE +
-                                       sizePerFrame * fl->seekTableIndex + 0));
+                               (U32)start + 0));
 
         CHECK_Z(ZSTD_stwrite32(fl, output,
                                fl->entries[fl->seekTableIndex].dSize,
-                               ZSTD_SKIPPABLEHEADERSIZE +
-                                       sizePerFrame * fl->seekTableIndex + 4));
+                               (U32)start + 4));
 
         if (fl->checksumFlag) {
             CHECK_Z(ZSTD_stwrite32(
                     fl, output, fl->entries[fl->seekTableIndex].checksum,
-                    ZSTD_SKIPPABLEHEADERSIZE +
-                            sizePerFrame * fl->seekTableIndex + 8));
+                    (U32)start + 8));
         }
 
         fl->seekTableIndex++;
     }
 
+    assert(seekTableLen <= UINT_MAX);
     CHECK_Z(ZSTD_stwrite32(fl, output, fl->size,
-                           seekTableLen - ZSTD_seekTableFooterSize));
+                           (U32)seekTableLen - ZSTD_seekTableFooterSize));
 
     if (output->size - output->pos < 1) return seekTableLen - fl->seekTablePos;
     if (fl->seekTablePos < seekTableLen - 4) {
@@ -345,7 +348,7 @@ size_t ZSTD_seekable_writeSeekTable(ZSTD_frameLog* fl, ZSTD_outBuffer* output)
     }
 
     CHECK_Z(ZSTD_stwrite32(fl, output, ZSTD_SEEKABLE_MAGICNUMBER,
-                           seekTableLen - 4));
+                           (U32)seekTableLen - 4));
 
     if (fl->seekTablePos != seekTableLen) return ERROR(GENERIC);
     return 0;

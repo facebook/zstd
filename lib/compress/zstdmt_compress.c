@@ -9,14 +9,14 @@
  */
 
 
-/* ======   Tuning parameters   ====== */
-#define ZSTDMT_OVERLAPLOG_DEFAULT 0
-
-
 /* ======   Compiler specifics   ====== */
 #if defined(_MSC_VER)
 #  pragma warning(disable : 4204)   /* disable: C4204: non-constant aggregate initializer */
 #endif
+
+
+/* ======   Constants   ====== */
+#define ZSTDMT_OVERLAPLOG_DEFAULT 0
 
 
 /* ======   Dependencies   ====== */
@@ -55,9 +55,9 @@ static unsigned long long GetCurrentClockTimeMicroseconds(void)
    static clock_t _ticksPerSecond = 0;
    if (_ticksPerSecond <= 0) _ticksPerSecond = sysconf(_SC_CLK_TCK);
 
-   { struct tms junk; clock_t newTicks = (clock_t) times(&junk);
-     return ((((unsigned long long)newTicks)*(1000000))/_ticksPerSecond); }
-}
+   {   struct tms junk; clock_t newTicks = (clock_t) times(&junk);
+       return ((((unsigned long long)newTicks)*(1000000))/_ticksPerSecond);
+}  }
 
 #define MUTEX_WAIT_TIME_DLEVEL 6
 #define ZSTD_PTHREAD_MUTEX_LOCK(mutex) {          \
@@ -995,7 +995,7 @@ ZSTDMT_CCtxParam_setMTCtxParameter(ZSTD_CCtx_params* params,
         }
 
     case ZSTDMT_p_overlapLog :
-        DEBUGLOG(4, "ZSTDMT_p_overlapSectionLog : %i", value);
+        DEBUGLOG(2, "ZSTDMT_p_overlapLog : %i", value);
         if (value < ZSTD_OVERLAPLOG_MIN) value = ZSTD_OVERLAPLOG_MIN;
         if (value > ZSTD_OVERLAPLOG_MAX) value = ZSTD_OVERLAPLOG_MAX;
         params->overlapLog = value;
@@ -1011,18 +1011,18 @@ ZSTDMT_CCtxParam_setMTCtxParameter(ZSTD_CCtx_params* params,
     }
 }
 
-size_t ZSTDMT_setMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSTDMT_parameter parameter, unsigned value)
+size_t ZSTDMT_setMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSTDMT_parameter parameter, int value)
 {
     DEBUGLOG(4, "ZSTDMT_setMTCtxParameter");
     return ZSTDMT_CCtxParam_setMTCtxParameter(&mtctx->params, parameter, value);
 }
 
-size_t ZSTDMT_getMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSTDMT_parameter parameter, unsigned* value)
+size_t ZSTDMT_getMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSTDMT_parameter parameter, int* value)
 {
     switch (parameter) {
     case ZSTDMT_p_jobSize:
-        assert(mtctx->params.jobSize <= UINT_MAX);
-        *value = (unsigned)(mtctx->params.jobSize);
+        assert(mtctx->params.jobSize <= INT_MAX);
+        *value = (int)(mtctx->params.jobSize);
         break;
     case ZSTDMT_p_overlapLog:
         *value = mtctx->params.overlapLog;

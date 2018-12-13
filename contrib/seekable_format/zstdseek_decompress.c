@@ -54,8 +54,9 @@
 #   define LONG_SEEK fseek
 #endif
 
-#include <stdlib.h> /* malloc, free */
-#include <stdio.h>  /* FILE* */
+#include <stdlib.h>  /* malloc, free */
+#include <stdio.h>   /* FILE* */
+#include <limits.h>  /* UNIT_MAX */
 #include <assert.h>
 
 #define XXH_STATIC_LINKING_ONLY
@@ -203,10 +204,11 @@ size_t ZSTD_seekable_free(ZSTD_seekable* zs)
 U32 ZSTD_seekable_offsetToFrameIndex(ZSTD_seekable* const zs, unsigned long long pos)
 {
     U32 lo = 0;
-    U32 hi = zs->seekTable.tableLen;
+    U32 hi = (U32)zs->seekTable.tableLen;
+    assert(zs->seekTable.tableLen <= UINT_MAX);
 
     if (pos >= zs->seekTable.entries[zs->seekTable.tableLen].dOffset) {
-        return zs->seekTable.tableLen;
+        return (U32)zs->seekTable.tableLen;
     }
 
     while (lo + 1 < hi) {
@@ -222,7 +224,8 @@ U32 ZSTD_seekable_offsetToFrameIndex(ZSTD_seekable* const zs, unsigned long long
 
 U32 ZSTD_seekable_getNumFrames(ZSTD_seekable* const zs)
 {
-    return zs->seekTable.tableLen;
+    assert(zs->seekTable.tableLen <= UINT_MAX);
+    return (U32)zs->seekTable.tableLen;
 }
 
 unsigned long long ZSTD_seekable_getFrameCompressedOffset(ZSTD_seekable* const zs, U32 frameIndex)

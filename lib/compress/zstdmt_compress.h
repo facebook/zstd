@@ -35,7 +35,7 @@
 #ifndef ZSTDMT_JOBSIZE_MIN
 #  define ZSTDMT_JOBSIZE_MIN (1 MB)
 #endif
-#define ZSTDMT_JOBSIZE_MAX  ((size_t)(MEM_32bits() ? (512 MB) : (1 GB)))
+#define ZSTDMT_JOBSIZE_MAX  (MEM_32bits() ? (512 MB) : (1024 MB))
 
 
 /* ===   Memory management   === */

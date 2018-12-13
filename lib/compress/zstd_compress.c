@@ -1841,7 +1841,9 @@ static size_t ZSTD_minGain(size_t srcSize, ZSTD_strategy strat)
 {
     U32 const minlog = (strat>=ZSTD_btultra) ? (U32)(strat) - 1 : 6;
     ZSTD_STATIC_ASSERT(ZSTD_btultra == 8);
-    return (srcSize >> minlog) + 2;}
+    assert(ZSTD_cParam_withinBounds(ZSTD_c_strategy, strat));
+    return (srcSize >> minlog) + 2;
+}
 
 static size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
                                      ZSTD_hufCTables_t* nextHuf,

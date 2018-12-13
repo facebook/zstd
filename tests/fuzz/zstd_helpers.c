@@ -13,7 +13,7 @@
 #include "fuzz_helpers.h"
 #include "zstd.h"
 
-static void set(ZSTD_CCtx *cctx, ZSTD_cParameter param, unsigned value)
+static void set(ZSTD_CCtx *cctx, ZSTD_cParameter param, int value)
 {
     FUZZ_ZASSERT(ZSTD_CCtx_setParameter(cctx, param, value));
 }
@@ -35,7 +35,7 @@ ZSTD_compressionParameters FUZZ_randomCParams(size_t srcSize, uint32_t *state)
     cParams.minMatch = FUZZ_rand32(state, ZSTD_MINMATCH_MIN,
                                           ZSTD_MINMATCH_MAX);
     cParams.targetLength = FUZZ_rand32(state, 0, 512);
-    cParams.strategy = FUZZ_rand32(state, ZSTD_fast, ZSTD_btultra);
+    cParams.strategy = FUZZ_rand32(state, ZSTD_STRATEGY_MIN, ZSTD_STRATEGY_MAX);
     return ZSTD_adjustCParams(cParams, srcSize, 0);
 }
 
@@ -66,7 +66,7 @@ void FUZZ_setRandomParameters(ZSTD_CCtx *cctx, size_t srcSize, uint32_t *state)
     set(cctx, ZSTD_c_searchLog, cParams.searchLog);
     set(cctx, ZSTD_c_minMatch, cParams.minMatch);
     set(cctx, ZSTD_c_targetLength, cParams.targetLength);
-    set(cctx, ZSTD_c_compressionStrategy, cParams.strategy);
+    set(cctx, ZSTD_c_strategy, cParams.strategy);
     /* Select frame parameters */
     setRand(cctx, ZSTD_c_contentSizeFlag, 0, 1, state);
     setRand(cctx, ZSTD_c_checksumFlag, 0, 1, state);

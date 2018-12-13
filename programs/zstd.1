@@ -1,5 +1,5 @@
 .
-.TH "ZSTD" "1" "November 2018" "zstd 1.3.8" "User Commands"
+.TH "ZSTD" "1" "December 2018" "zstd 1.3.8" "User Commands"
 .
 .SH "NAME"
 \fBzstd\fR \- zstd, zstdmt, unzstd, zstdcat \- Compress or decompress \.zst files
@@ -316,7 +316,7 @@ set process priority to real\-time
 Specify a strategy used by a match finder\.
 .
 .IP
-There are 8 strategies numbered from 1 to 8, from faster to stronger: 1=ZSTD_fast, 2=ZSTD_dfast, 3=ZSTD_greedy, 4=ZSTD_lazy, 5=ZSTD_lazy2, 6=ZSTD_btlazy2, 7=ZSTD_btopt, 8=ZSTD_btultra\.
+There are 9 strategies numbered from 1 to 9, from faster to stronger: 1=ZSTD_fast, 2=ZSTD_dfast, 3=ZSTD_greedy, 4=ZSTD_lazy, 5=ZSTD_lazy2, 6=ZSTD_btlazy2, 7=ZSTD_btopt, 8=ZSTD_btultra, 9=ZSTD_btultra2\.
 .
 .TP
 \fBwindowLog\fR=\fIwlog\fR, \fBwlog\fR=\fIwlog\fR
@@ -373,7 +373,7 @@ The minimum \fImml\fR is 3 and the maximum is 7\.
 The impact of this field vary depending on selected strategy\.
 .
 .IP
-For ZSTD_btopt and ZSTD_btultra, it specifies the minimum match length that causes match finder to stop searching for better matches\. A larger \fBtargetLen\fR usually improves compression ratio but decreases compression speed\.
+For ZSTD_btopt, ZSTD_btultra and ZSTD_btultra2, it specifies the minimum match length that causes match finder to stop searching\. A larger \fBtargetLen\fR usually improves compression ratio but decreases compression speed\.
 .
 .IP
 For ZSTD_fast, it triggers ultra\-fast mode when > 0\. The value represents the amount of data skipped between match sampling\. Impact is reversed : a larger \fBtargetLen\fR increases compression speed but decreases compression ratio\.

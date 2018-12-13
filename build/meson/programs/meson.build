@@ -89,7 +89,7 @@ install_man(join_paths(zstd_rootdir, 'programs/zstd.1'),
 InstallSymlink_py = '../InstallSymlink.py'
 zstd_man1_dir = join_paths(zstd_mandir, 'man1')
 bin_EXT = host_machine_os == os_windows ? '.exe' : ''
-man1_EXT = '.1.gz' # Meson automatically compresses manpages
+man1_EXT = meson.version().version_compare('>=0.49.0') ? '.1' : '.1.gz'
 
 foreach f : ['zstdcat', 'unzstd']
   meson.add_install_script(InstallSymlink_py, 'zstd' + bin_EXT, f + bin_EXT, zstd_bindir)

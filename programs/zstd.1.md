@@ -195,6 +195,8 @@ the last one takes effect.
 * `-q`, `--quiet`:
     suppress warnings, interactivity, and notifications.
     specify twice to suppress errors too.
+* `--no-progress`:
+    do not display the progress bar, but keep all other messages.
 * `-C`, `--[no-]check`:
     add integrity check computed from uncompressed data (default: enabled)
 * `--`:

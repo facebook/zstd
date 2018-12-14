@@ -88,10 +88,10 @@ void FIO_setNotificationLevel(unsigned level) { g_displayLevel=level; }
 static const U64 g_refreshRate = SEC_TO_MICRO / 6;
 static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
 
-#define READY_FOR_UPDATE() (UTIL_clockSpanMicro(g_displayClock) > g_refreshRate)
+#define READY_FOR_UPDATE() (!g_noProgress && UTIL_clockSpanMicro(g_displayClock) > g_refreshRate)
 #define DELAY_NEXT_UPDATE() { g_displayClock = UTIL_getTime(); }
 #define DISPLAYUPDATE(l, ...) {                              \
-        if (g_displayLevel>=l) {                             \
+        if (g_displayLevel>=l && !g_noProgress) {            \
             if (READY_FOR_UPDATE() || (g_displayLevel>=4)) { \
                 DELAY_NEXT_UPDATE();                         \
                 DISPLAY(__VA_ARGS__);                        \
@@ -349,6 +349,10 @@ void FIO_setLdmBucketSizeLog(unsigned ldmBucketSizeLog) {
 static U32 g_ldmHashRateLog = FIO_LDM_PARAM_NOTSET;
 void FIO_setLdmHashRateLog(unsigned ldmHashRateLog) {
     g_ldmHashRateLog = ldmHashRateLog;
+}
+static U32 g_noProgress = 0;
+void FIO_setNoProgress(unsigned noProgress) {
+    g_noProgress = noProgress;
 }
 
 

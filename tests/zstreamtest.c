@@ -836,7 +836,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     /* Basic multithreading compression test */
     DISPLAYLEVEL(3, "test%3i : compress %u bytes with multiple threads : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
     {   ZSTD_parameters const params = ZSTD_getParams(1, 0, 0);
-        unsigned jobSize;
+        int jobSize;
         CHECK_Z( ZSTDMT_getMTCtxParameter(mtctx, ZSTDMT_p_jobSize, &jobSize));
         CHECK(jobSize != 0, "job size non-zero");
         CHECK_Z( ZSTDMT_initCStream_advanced(mtctx, CNBuffer, dictSize, params, CNBufferSize) );

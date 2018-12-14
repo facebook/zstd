@@ -415,14 +415,17 @@ std::string Options::getOutputFile(const std::string &inputFile) const {
   }
   // Attempt to add/remove zstd extension from the input file
   if (decompress) {
-    int stemSize = inputFile.size() - kZstdExtension.size();
-    if (stemSize > 0 && inputFile.substr(stemSize) == kZstdExtension) {
-      return inputFile.substr(0, stemSize);
-    } else {
-      return "";
+    size_t len_zstd_ext = kZstdExtension.size();
+    size_t len_inputFile = inputFile.size();
+    if (len_inputFile >= len_zstd_ext) {
+      size_t stemSize = len_inputFile - len_zstd_ext;
+      if (inputFile.compare(stemSize, len_zstd_ext, kZstdExtension) == 0) {
+        return inputFile.substr(0, stemSize);
+      }
     }
+    return std::string();
   } else {
     return inputFile + kZstdExtension;
   }
 }
-}
+} /* namespace pzstd */

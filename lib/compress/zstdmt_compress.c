@@ -986,16 +986,16 @@ ZSTDMT_CCtxParam_setMTCtxParameter(ZSTD_CCtx_params* params,
     {
     case ZSTDMT_p_jobSize :
         DEBUGLOG(4, "ZSTDMT_CCtxParam_setMTCtxParameter : set jobSize to %i", value);
-        if (value < ZSTDMT_JOBSIZE_MIN) value = ZSTDMT_JOBSIZE_MIN;
+        if ( value != 0  /* default */
+          && value < ZSTDMT_JOBSIZE_MIN)
+            value = ZSTDMT_JOBSIZE_MIN;
         assert(value >= 0);
-        {   size_t jobSize = value;
-            if (jobSize > (size_t)ZSTDMT_JOBSIZE_MAX) jobSize = ZSTDMT_JOBSIZE_MAX;
-            params->jobSize = jobSize;
-            return jobSize;
-        }
+        if (value > ZSTDMT_JOBSIZE_MAX) value = ZSTDMT_JOBSIZE_MAX;
+        params->jobSize = value;
+        return value;
 
     case ZSTDMT_p_overlapLog :
-        DEBUGLOG(2, "ZSTDMT_p_overlapLog : %i", value);
+        DEBUGLOG(4, "ZSTDMT_p_overlapLog : %i", value);
         if (value < ZSTD_OVERLAPLOG_MIN) value = ZSTD_OVERLAPLOG_MIN;
         if (value > ZSTD_OVERLAPLOG_MAX) value = ZSTD_OVERLAPLOG_MAX;
         params->overlapLog = value;
@@ -1206,6 +1206,8 @@ static size_t ZSTDMT_computeOverlapSize(ZSTD_CCtx_params const params)
                 - overlapRLog;
     }
     assert(0 <= ovLog && ovLog <= 30);
+    DEBUGLOG(4, "overlapLog : %i", params.overlapLog);
+    DEBUGLOG(4, "overlap size : %i", 1 << ovLog);
     return (ovLog==0) ? 0 : (size_t)1 << ovLog;
 }
 
@@ -1396,7 +1398,7 @@ size_t ZSTDMT_initCStream_internal(
     if (params.nbWorkers != mtctx->params.nbWorkers)
         CHECK_F( ZSTDMT_resize(mtctx, params.nbWorkers) );
 
-    if (params.jobSize > 0 && params.jobSize < ZSTDMT_JOBSIZE_MIN) params.jobSize = ZSTDMT_JOBSIZE_MIN;
+    if (params.jobSize != 0 && params.jobSize < ZSTDMT_JOBSIZE_MIN) params.jobSize = ZSTDMT_JOBSIZE_MIN;
     if (params.jobSize > (size_t)ZSTDMT_JOBSIZE_MAX) params.jobSize = ZSTDMT_JOBSIZE_MAX;
 
     mtctx->singleBlockingThread = (pledgedSrcSize <= ZSTDMT_JOBSIZE_MIN);  /* do not trigger multi-threading when srcSize is too small */
@@ -1439,14 +1441,14 @@ size_t ZSTDMT_initCStream_internal(
         mtctx->targetSectionSize = 1ULL << ZSTDMT_computeTargetJobLog(params);
     }
     if (params.rsyncable) {
-      /* Aim for the targetsectionSize as the average job size. */
-      U32 const jobSizeMB = (U32)(mtctx->targetSectionSize >> 20);
-      U32 const rsyncBits = ZSTD_highbit32(jobSizeMB) + 20;
-      assert(jobSizeMB >= 1);
-      DEBUGLOG(4, "rsyncLog = %u", rsyncBits);
-      mtctx->rsync.hash = 0;
-      mtctx->rsync.hitMask = (1ULL << rsyncBits) - 1;
-      mtctx->rsync.primePower = ZSTD_rollingHash_primePower(RSYNC_LENGTH);
+        /* Aim for the targetsectionSize as the average job size. */
+        U32 const jobSizeMB = (U32)(mtctx->targetSectionSize >> 20);
+        U32 const rsyncBits = ZSTD_highbit32(jobSizeMB) + 20;
+        assert(jobSizeMB >= 1);
+        DEBUGLOG(4, "rsyncLog = %u", rsyncBits);
+        mtctx->rsync.hash = 0;
+        mtctx->rsync.hitMask = (1ULL << rsyncBits) - 1;
+        mtctx->rsync.primePower = ZSTD_rollingHash_primePower(RSYNC_LENGTH);
     }
     if (mtctx->targetSectionSize < mtctx->targetPrefixSize) mtctx->targetSectionSize = mtctx->targetPrefixSize;  /* job size must be >= overlap size */
     DEBUGLOG(4, "Job Size : %u KB (note : set to %u)", (U32)(mtctx->targetSectionSize>>10), (U32)params.jobSize);

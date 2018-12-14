@@ -179,6 +179,9 @@ $ECHO foo > tmpro
 chmod 400 tmpro.zst
 $ZSTD -q tmpro && die "should have refused to overwrite read-only file"
 $ZSTD -q -f tmpro
+$ECHO "test: --no-progress flag"
+$ZSTD tmpro -c --no-progress | $ZSTD -d -o "$INTOVOID" --no-progress
+$ZSTD tmpro -cv --no-progress | $ZSTD -dv -o "$INTOVOID" --no-progress
 rm -f tmpro tmpro.zst
 
 

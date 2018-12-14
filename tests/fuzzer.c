@@ -353,6 +353,14 @@ static int basicUnitTests(U32 seed, double compressibility)
         ZSTD_freeCCtx(cctx);
     }
 
+    DISPLAYLEVEL(3, "test%3i : decompress skippable frame -8 size : ", testNb++);
+    {
+       char const skippable8[] = "\x50\x2a\x4d\x18\xf8\xff\xff\xff";
+       size_t const size = ZSTD_decompress(NULL, 0, skippable8, 8);
+       if (!ZSTD_isError(size)) goto _output_error;
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
 
     DISPLAYLEVEL(3, "test%3i : ZSTD_getFrameContentSize test : ", testNb++);
     {   unsigned long long const rSize = ZSTD_getFrameContentSize(compressedBuffer, cSize);

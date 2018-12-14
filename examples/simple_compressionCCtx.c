@@ -62,6 +62,17 @@ int main(int argc, const char** argv)
 
     const char* const inFilename = argv[1];
 
+    /** copied code
+    ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+    if (cctx==NULL) { fprintf(stderr, "ZSTD_createCCtx() error \n"); exit(10); } 
+    size_t const cSize = ZSTD_compress_usingCDict(cctx, cBuff, cBuffSize, fBuff, fSize, cdict);
+    if (ZSTD_isError(cSize)) { 
+        fprintf(stderr, "error compressing %s : %s \n", fname, ZSTD_getErrorName(cSize));
+        exit(7);
+    }
+    **/
+
+
     char* const outFilename = createOutFilename_orDie(inFilename);
     compress_orDie(inFilename, outFilename);
     free(outFilename);

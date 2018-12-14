@@ -171,6 +171,7 @@ static int usage_advanced(const char* programName)
 #endif
 #endif
     DISPLAY( " -M#    : Set a memory usage limit for decompression \n");
+    DISPLAY( "--no-progress : do not display the progress bar \n");
     DISPLAY( "--      : All arguments after \"--\" are treated as files \n");
 #ifndef ZSTD_NODICT
     DISPLAY( "\n");
@@ -610,6 +611,7 @@ int main(int argCount, const char* argv[])
                     if (!strcmp(argument, "--format=lz4")) { suffix = LZ4_EXTENSION; FIO_setCompressionType(FIO_lz4Compression);  continue; }
 #endif
                     if (!strcmp(argument, "--rsyncable")) { rsyncable = 1; continue; }
+                    if (!strcmp(argument, "--no-progress")) { FIO_setNoProgress(1); continue; }
 
                     /* long commands with arguments */
 #ifndef ZSTD_NODICT

@@ -8,10 +8,9 @@
 # in the COPYING file in the root directory of this source tree).
 # #############################################################################
 import re
-import sys
 
 
-def find_version(filepath):
+def find_version_tuple(filepath):
   version_file_data = None
   with open(filepath) as fd:
     version_file_data = fd.read()
@@ -24,7 +23,7 @@ def find_version(filepath):
   version_match = regex.search(version_file_data)
   if version_match:
     return version_match.groups()
-  raise Exception("Unable to find version string.")
+  raise Exception("Unable to find version string")
 
 
 def main():
@@ -32,9 +31,8 @@ def main():
   parser = argparse.ArgumentParser(description='Print zstd version from lib/zstd.h')
   parser.add_argument('file', help='path to lib/zstd.h')
   args = parser.parse_args()
-  filepath = args.file
-  version_tup = find_version(filepath)
-  print('.'.join(version_tup))
+  version_tuple = find_version_tuple(args.file)
+  print('.'.join(version_tuple))
 
 
 if __name__ == '__main__':

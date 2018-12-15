@@ -18,7 +18,7 @@
 
 /* compress with pre-allocated context (ZSTD_CCtx) and input/output buffers*/
 static void compressExpress_orDie(const char* fname, const char* oname,
-                                   ZSTD_CCtx* cctx, void* cBuff, size_t cBuffSize, void* fBuff, size_t fBuffSize)
+                                  ZSTD_CCtx* cctx, void* cBuff, size_t cBuffSize, void* fBuff, size_t fBuffSize)
 {
     size_t fSize;
     loadFile_orDie(fname, &fSize, fBuff, fBuffSize);

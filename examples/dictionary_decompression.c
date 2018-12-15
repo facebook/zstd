@@ -25,7 +25,7 @@ static ZSTD_DDict* createDict_orDie(const char* dictFileName)
 {
     size_t dictSize;
     printf("loading dictionary %s \n", dictFileName);
-    void* const dictBuffer = loadFile_orDie(dictFileName, &dictSize);
+    void* const dictBuffer = loadFile_orDie(dictFileName, &dictSize, 0, 0);
     ZSTD_DDict* const ddict = ZSTD_createDDict(dictBuffer, dictSize);
     if (ddict==NULL) { fprintf(stderr, "ZSTD_createDDict error \n"); exit(5); }
     free(dictBuffer);
@@ -35,7 +35,7 @@ static ZSTD_DDict* createDict_orDie(const char* dictFileName)
 static void decompress(const char* fname, const ZSTD_DDict* ddict)
 {
     size_t cSize;
-    void* const cBuff = loadFile_orDie(fname, &cSize);
+    void* const cBuff = loadFile_orDie(fname, &cSize, 0, 0);
     unsigned long long const rSize = ZSTD_findDecompressedSize(cBuff, cSize);
     if (rSize==ZSTD_CONTENTSIZE_ERROR) {
         fprintf(stderr, "%s : it was not compressed by zstd.\n", fname);

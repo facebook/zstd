@@ -19,7 +19,7 @@
 static void compress_orDie(const char* fname, const char* oname)
 {
     size_t fSize;
-    void* const fBuff = loadFile_orDie(fname, &fSize);
+    void* const fBuff = loadFile_orDie(fname, &fSize, 0, 0);
     size_t const cBuffSize = ZSTD_compressBound(fSize);
     void* const cBuff = malloc_orDie(cBuffSize);
 

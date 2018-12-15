@@ -16,14 +16,14 @@
 #include <zstd.h>      // presumes zstd library is installed
 #include "utils.h"
 
-static void compress_orDie(const char* fname, const char* oname)
+/* compress with pre-allocated context (ZSTD_CCtx) and input/output buffers*/
+static void compressExpress_orDie(const char* fname, const char* oname,
+                                   ZSTD_CCtx* cctx, void* cBuff, size_t cBuffSize, void* fBuff, size_t fBuffSize)
 {
     size_t fSize;
-    void* const fBuff = loadFile_orDie(fname, &fSize);
-    size_t const cBuffSize = ZSTD_compressBound(fSize);
-    void* const cBuff = malloc_orDie(cBuffSize);
+    loadFile_orDie(fname, &fSize, fBuff, fBuffSize);
 
-    size_t const cSize = ZSTD_compress(cBuff, cBuffSize, fBuff, fSize, 1);
+    size_t const cSize = ZSTD_compressCCtx(cctx, cBuff, cBuffSize, fBuff, fBuffSize, 1);
     if (ZSTD_isError(cSize)) {
         fprintf(stderr, "error compressing %s : %s \n", fname, ZSTD_getErrorName(cSize));
         exit(8);
@@ -33,48 +33,65 @@ static void compress_orDie(const char* fname, const char* oname)
 
     /* success */
     printf("%25s : %6u -> %7u - %s \n", fname, (unsigned)fSize, (unsigned)cSize, oname);
-
-    free(fBuff);
-    free(cBuff);
 }
 
-static char* createOutFilename_orDie(const char* filename)
+static void getOutFilename(const char* const filename, char* const outFilename)
 {
-    size_t const inL = strlen(filename);
-    size_t const outL = inL + 5;
-    void* const outSpace = malloc_orDie(outL);
-    memset(outSpace, 0, outL);
-    strcat(outSpace, filename);
-    strcat(outSpace, ".zst");
-    return (char*)outSpace;
+    memset(outFilename, 0, 1);
+    strcat(outFilename, filename);
+    strcat(outFilename, ".zst");
 }
 
 int main(int argc, const char** argv)
 {
     const char* const exeName = argv[0];
 
-    if (argc!=2) {
+    if (argc<2) {
         printf("wrong arguments\n");
         printf("usage:\n");
-        printf("%s FILE\n", exeName);
+        printf("%s FILE(s)\n", exeName);
         return 1;
     }
 
-    const char* const inFilename = argv[1];
+    /* pre-calculate buffer sizes needed to handle all files */
+    size_t maxFileNameLength=0;
+    size_t maxFileSize = 0;
+    size_t maxCBufferSize = 0;
 
-    /** copied code
-    ZSTD_CCtx* const cctx = ZSTD_createCCtx();
-    if (cctx==NULL) { fprintf(stderr, "ZSTD_createCCtx() error \n"); exit(10); } 
-    size_t const cSize = ZSTD_compress_usingCDict(cctx, cBuff, cBuffSize, fBuff, fSize, cdict);
-    if (ZSTD_isError(cSize)) { 
-        fprintf(stderr, "error compressing %s : %s \n", fname, ZSTD_getErrorName(cSize));
-        exit(7);
+    int argNb;
+    for (argNb = 1; argNb < argc; argNb++) {
+      const char* const fileName = argv[argNb];
+      size_t const fileNameLength = strlen(fileName);
+      size_t const fileSize = fsize_orDie(fileName);
+
+      if (fileNameLength > maxFileNameLength) maxFileNameLength = fileNameLength;
+      if (fileSize > maxFileSize) maxFileSize = fileSize;
     }
-    **/
+    maxCBufferSize = ZSTD_compressBound(maxFileSize);
 
+    /* allocate memory for output file name, input/output buffers for all compression tasks */
+    char* const outFilename = (char*)malloc_orDie(maxFileNameLength + 5);
+    void* const fBuffer = malloc_orDie(maxFileSize);
+    void* const cBuffer = malloc_orDie(maxCBufferSize);
 
-    char* const outFilename = createOutFilename_orDie(inFilename);
-    compress_orDie(inFilename, outFilename);
+    /* create a compression context (ZSTD_CCtx) for all compression tasks */
+    ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+    if (cctx==NULL) { fprintf(stderr, "ZSTD_createCCtx() error \n"); exit(10); }
+
+    /* compress files with shared context, input and output buffers */
+    for (argNb = 1; argNb < argc; argNb++) {
+      const char* const inFilename = argv[argNb];
+      getOutFilename(inFilename, outFilename);
+      compressExpress_orDie(inFilename, outFilename, cctx, cBuffer, maxCBufferSize, fBuffer, maxFileSize);
+    }
+
+    /* free momery resources */
     free(outFilename);
+    free(fBuffer);
+    free(cBuffer);
+    ZSTD_freeCCtx(cctx);   /* never fails */
+
+    printf("compressed %i files \n", argc-1);
+
     return 0;
 }

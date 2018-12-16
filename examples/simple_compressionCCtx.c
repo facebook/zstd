@@ -23,7 +23,7 @@ static void compressExpress_orDie(const char* fname, const char* oname,
     size_t fSize;
     loadFile_orDie(fname, &fSize, fBuff, fBuffSize);
 
-    size_t const cSize = ZSTD_compressCCtx(cctx, cBuff, cBuffSize, fBuff, fBuffSize, 1);
+    size_t const cSize = ZSTD_compressCCtx(cctx, cBuff, cBuffSize, fBuff, fSize, 1);
     if (ZSTD_isError(cSize)) {
         fprintf(stderr, "error compressing %s : %s \n", fname, ZSTD_getErrorName(cSize));
         exit(8);
@@ -42,6 +42,32 @@ static void getOutFilename(const char* const filename, char* const outFilename)
     strcat(outFilename, ".zst");
 }
 
+/* allocate memory for buffers big enough to compress all files
+ * as well as memory for output file names (outFileName)
+ */
+void allocMemory_orDie(int argc, const char** argv, char** outFilename,
+                       void** cBuffer, size_t* cBufferSize, void** fBuffer, size_t* fBufferSize) {
+    size_t maxFilenameLength=0;
+    size_t maxFileSize = 0;
+
+    int argNb;
+    for (argNb = 1; argNb < argc; argNb++) {
+      const char* const filename = argv[argNb];
+      size_t const filenameLength = strlen(filename);
+      size_t const fileSize = fsize_orDie(filename);
+
+      if (filenameLength > maxFilenameLength) maxFilenameLength = filenameLength;
+      if (fileSize > maxFileSize) maxFileSize = fileSize;
+    }
+    *cBufferSize = ZSTD_compressBound(maxFileSize);
+    *fBufferSize = maxFileSize;
+
+    /* allocate memory for output file name, input/output buffers for all compression tasks */
+    *outFilename = (char*)malloc_orDie(maxFilenameLength + 5);
+    *cBuffer = malloc_orDie(*cBufferSize);
+    *fBuffer = malloc_orDie(*fBufferSize);
+}
+
 int main(int argc, const char** argv)
 {
     const char* const exeName = argv[0];
@@ -53,36 +79,28 @@ int main(int argc, const char** argv)
         return 1;
     }
 
-    /* pre-calculate buffer sizes needed to handle all files */
-    size_t maxFileNameLength=0;
-    size_t maxFileSize = 0;
-    size_t maxCBufferSize = 0;
-
-    int argNb;
-    for (argNb = 1; argNb < argc; argNb++) {
-      const char* const fileName = argv[argNb];
-      size_t const fileNameLength = strlen(fileName);
-      size_t const fileSize = fsize_orDie(fileName);
-
-      if (fileNameLength > maxFileNameLength) maxFileNameLength = fileNameLength;
-      if (fileSize > maxFileSize) maxFileSize = fileSize;
-    }
-    maxCBufferSize = ZSTD_compressBound(maxFileSize);
-
-    /* allocate memory for output file name, input/output buffers for all compression tasks */
-    char* const outFilename = (char*)malloc_orDie(maxFileNameLength + 5);
-    void* const fBuffer = malloc_orDie(maxFileSize);
-    void* const cBuffer = malloc_orDie(maxCBufferSize);
+    /* allocate memory for buffers big enough to compress all files
+     * as well as memory for output file name (outFileName)
+     *    fBuffer - buffer for input file data
+     *    cBuffer - buffer for compressed data 
+     */
+    char* outFilename;
+    void* fBuffer;
+    void* cBuffer;
+    size_t fBufferSize;
+    size_t cBufferSize;
+    allocMemory_orDie(argc, argv, &outFilename, &cBuffer, &cBufferSize, &fBuffer, &fBufferSize); 
 
     /* create a compression context (ZSTD_CCtx) for all compression tasks */
     ZSTD_CCtx* const cctx = ZSTD_createCCtx();
     if (cctx==NULL) { fprintf(stderr, "ZSTD_createCCtx() error \n"); exit(10); }
 
     /* compress files with shared context, input and output buffers */
+    int argNb;
     for (argNb = 1; argNb < argc; argNb++) {
       const char* const inFilename = argv[argNb];
       getOutFilename(inFilename, outFilename);
-      compressExpress_orDie(inFilename, outFilename, cctx, cBuffer, maxCBufferSize, fBuffer, maxFileSize);
+      compressExpress_orDie(inFilename, outFilename, cctx, cBuffer, cBufferSize, fBuffer, fBufferSize);
     }
 
     /* free momery resources */

@@ -25,32 +25,32 @@ all: simple_compression simple_decompression \
 $(LIB) :
 	$(MAKE) -C ../lib libzstd.a
 
-simple_compression : simple_compression.c $(LIB)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
+simple_compression : simple_compression.c utils.h $(LIB)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB) $(LDFLAGS) -o $@
 
-simple_decompression : simple_decompression.c $(LIB)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
+simple_decompression : simple_decompression.c utils.h $(LIB)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB) $(LDFLAGS) -o $@
 
-simple_compressionCCtx : simple_compressionCCtx.c $(LIB)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
+simple_compressionCCtx : simple_compressionCCtx.c utils.h $(LIB)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB) $(LDFLAGS) -o $@
 
-dictionary_compression : dictionary_compression.c $(LIB)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
+dictionary_compression : dictionary_compression.c utils.h $(LIB)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB) $(LDFLAGS) -o $@
 
-dictionary_decompression : dictionary_decompression.c $(LIB)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
+dictionary_decompression : dictionary_decompression.c utils.h $(LIB)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB) $(LDFLAGS) -o $@
 
-streaming_compression : streaming_compression.c $(LIB)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
+streaming_compression : streaming_compression.c utils.h $(LIB)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB) $(LDFLAGS) -o $@
 
-multiple_streaming_compression : multiple_streaming_compression.c $(LIB)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
+multiple_streaming_compression : multiple_streaming_compression.c utils.h $(LIB)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB) $(LDFLAGS) -o $@
 
-streaming_decompression : streaming_decompression.c $(LIB)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
+streaming_decompression : streaming_decompression.c utils.h $(LIB)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB) $(LDFLAGS) -o $@
 
 streaming_memory_usage : streaming_memory_usage.c $(LIB)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB) $(LDFLAGS) -o $@
 
 clean:
 	@rm -f core *.o tmp* result* *.zst \

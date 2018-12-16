@@ -51,8 +51,8 @@ static size_t fsize_orDie(const char *filename)
 
     off_t const fileSize = st.st_size;
     size_t const size = (size_t)fileSize;
-    /* if off_t -> size_t conversion causes discrepancy, the file size is
-     * too big for at least 1 type to handle
+    /* if off_t -> size_t type conversion results in discrepancy,
+     * the file size is too big for at least one type to handle.
      */
     if (size != fileSize) {   /* narrowcast overflow */
         fprintf(stderr, "%s : filesize too large \n", filename);

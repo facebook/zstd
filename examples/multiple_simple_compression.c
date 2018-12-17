@@ -78,7 +78,7 @@ static void compressFile_orDie(resources ress, const char* fname, const char* on
     saveFile_orDie(oname, ress.cBuffer, cSize);
 
     /* success */
-    printf("%25s : %6u -> %7u - %s \n", fname, (unsigned)fSize, (unsigned)cSize, oname);
+    // printf("%25s : %6u -> %7u - %s \n", fname, (unsigned)fSize, (unsigned)cSize, oname);
 }
 
 int main(int argc, const char** argv)

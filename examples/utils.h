@@ -159,7 +159,7 @@ static void* loadFile_orDie(const char* fileName, size_t* size, void* buffer, in
     }
     else if (bufferSize < fileSize) {
         fprintf(stderr, "%s : filesize bigger than provided buffer.\n", fileName);
-
+        exit(ERROR_largeFile);
     }
     size_t const readSize = fread(buffer, 1, fileSize, inFile);
     if (readSize != (size_t)fileSize) {

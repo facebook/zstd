@@ -11,8 +11,14 @@ Zstandard library : usage examples
   Result remains in memory.
   Introduces usage of : `ZSTD_decompress()`
 
+- [Multiple simple compression](multiple_simple_compression.c) :
+  Compress multiple files (in simple mode) in a single command line.
+  Demonstrates memory preservation technique that
+  minimizes malloc()/free() calls by re-using existing resources.
+  Introduces usage of : `ZSTD_compressCCtx()`
+
 - [Streaming memory usage](streaming_memory_usage.c) :
-  Provides amount of memory used by streaming context
+  Provides amount of memory used by streaming context.
   Introduces usage of : `ZSTD_sizeof_CStream()`
 
 - [Streaming compression](streaming_compression.c) :
@@ -20,7 +26,7 @@ Zstandard library : usage examples
   Introduces usage of : `ZSTD_compressStream()`
 
 - [Multiple Streaming compression](multiple_streaming_compression.c) :
-  Compress multiple files in a single command line.
+  Compress multiple files (in streaming mode) in a single command line.
   Introduces memory usage preservation technique,
   reducing impact of malloc()/free() and memset() by re-using existing resources.
 

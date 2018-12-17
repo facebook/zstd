@@ -17,7 +17,7 @@ LIB = ../lib/libzstd.a
 default: all
 
 all: simple_compression simple_decompression \
-	simple_compressionCCtx\
+	multiple_simple_compression\
 	dictionary_compression dictionary_decompression \
 	streaming_compression streaming_decompression \
 	multiple_streaming_compression streaming_memory_usage
@@ -31,7 +31,7 @@ simple_compression : simple_compression.c utils.h $(LIB)
 simple_decompression : simple_decompression.c utils.h $(LIB)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB) $(LDFLAGS) -o $@
 
-simple_compressionCCtx : simple_compressionCCtx.c utils.h $(LIB)
+multiple_simple_compression : multiple_simple_compression.c utils.h $(LIB)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB) $(LDFLAGS) -o $@
 
 dictionary_compression : dictionary_compression.c utils.h $(LIB)
@@ -55,7 +55,7 @@ streaming_memory_usage : streaming_memory_usage.c $(LIB)
 clean:
 	@rm -f core *.o tmp* result* *.zst \
         simple_compression simple_decompression \
-	simple_compressionCCtx \
+        multiple_simple_compression \
         dictionary_compression dictionary_decompression \
         streaming_compression streaming_decompression \
         multiple_streaming_compression streaming_memory_usage
@@ -67,7 +67,7 @@ test: all
 	@echo -- Simple compression tests
 	./simple_compression tmp
 	./simple_decompression tmp.zst
-	./simple_compressionCCtx *.c
+	./multiple_simple_compression *.c
 	./streaming_decompression tmp.zst > /dev/null
 	@echo -- Streaming memory usage
 	./streaming_memory_usage

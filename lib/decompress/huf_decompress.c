@@ -1140,7 +1140,7 @@ size_t HUF_decompress1X_DCtx_wksp(HUF_DTable* dctx, void* dst, size_t dstSize,
                                 cSrcSize, workSpace, wkspSize);
 #elif defined(HUF_FORCE_DECOMPRESS_X2)
         (void)algoNb;
-        assert(algoNb == 0);
+        assert(algoNb == 1);
         return HUF_decompress1X2_DCtx_wksp(dctx, dst, dstSize, cSrc,
                                 cSrcSize, workSpace, wkspSize);
 #else

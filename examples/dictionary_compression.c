@@ -21,7 +21,7 @@ static ZSTD_CDict* createCDict_orDie(const char* dictFileName, int cLevel)
 {
     size_t dictSize;
     printf("loading dictionary %s \n", dictFileName);
-    void* const dictBuffer = loadFile_orDie(dictFileName, &dictSize, 0, 0);
+    void* const dictBuffer = mallocAndLoadFile_orDie(dictFileName, &dictSize);
     ZSTD_CDict* const cdict = ZSTD_createCDict(dictBuffer, dictSize, cLevel);
     if (!cdict) {
         fprintf(stderr, "ZSTD_createCDict error \n");
@@ -35,7 +35,7 @@ static ZSTD_CDict* createCDict_orDie(const char* dictFileName, int cLevel)
 static void compress(const char* fname, const char* oname, const ZSTD_CDict* cdict)
 {
     size_t fSize;
-    void* const fBuff = loadFile_orDie(fname, &fSize, 0, 0);
+    void* const fBuff = mallocAndLoadFile_orDie(fname, &fSize);
     size_t const cBuffSize = ZSTD_compressBound(fSize);
     void* const cBuff = malloc_orDie(cBuffSize);
 

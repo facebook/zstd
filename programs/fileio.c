@@ -420,7 +420,7 @@ static FILE* FIO_openDstFile(const char* srcFileName, const char* dstFileName)
         stat_t srcStat;
         stat_t dstStat;
         if (UTIL_getFileStat(srcFileName, &srcStat) && UTIL_getFileStat(dstFileName, &dstStat)) {
-            if (srcStat.st_ino == dstStat.st_ino) {
+            if (srcStat.st_dev == dstStat.st_dev && srcStat.st_ino == dstStat.st_ino) {
                 DISPLAYLEVEL(1, "zstd: Refusing to open a output file which will overwrite the input file \n");
                 return NULL;
             }

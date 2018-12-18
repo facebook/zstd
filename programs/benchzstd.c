@@ -359,8 +359,7 @@ BMK_benchMemAdvancedNoAlloc(
                 srcPtrs[nbBlocks] = srcPtr;
                 srcSizes[nbBlocks] = thisBlockSize;
                 cPtrs[nbBlocks] = cPtr;
-#warning force streaming mode
-                cCapacities[nbBlocks] = (adv->mode == BMK_decodeOnly) ? thisBlockSize : ZSTD_compressBound(thisBlockSize) - 1;
+                cCapacities[nbBlocks] = (adv->mode == BMK_decodeOnly) ? thisBlockSize : ZSTD_compressBound(thisBlockSize);
                 resPtrs[nbBlocks] = resPtr;
                 resSizes[nbBlocks] = (adv->mode == BMK_decodeOnly) ? (size_t) ZSTD_findDecompressedSize(srcPtr, thisBlockSize) : thisBlockSize;
                 srcPtr += thisBlockSize;

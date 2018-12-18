@@ -183,6 +183,9 @@ $ECHO "test: --no-progress flag"
 $ZSTD tmpro -c --no-progress | $ZSTD -d -o "$INTOVOID" --no-progress
 $ZSTD tmpro -cv --no-progress | $ZSTD -dv -o "$INTOVOID" --no-progress
 rm -f tmpro tmpro.zst
+$ECHO "test: overwrite input file (must fail)"
+$ZSTD tmp -fo tmp && die "zstd overwrote the input file"
+$ZSTD tmp.zst -dfo tmp.zst && die "zstd overwrote the input file"
 
 
 $ECHO "test : file removal"

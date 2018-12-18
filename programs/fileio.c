@@ -404,7 +404,7 @@ static FILE* FIO_openSrcFile(const char* srcFileName)
 /** FIO_openDstFile() :
  *  condition : `dstFileName` must be non-NULL.
  * @result : FILE* to `dstFileName`, or NULL if it fails */
-static FILE* FIO_openDstFile(const char* dstFileName)
+static FILE* FIO_openDstFile(const char* srcFileName, const char* dstFileName)
 {
     assert(dstFileName != NULL);
     if (!strcmp (dstFileName, stdoutmark)) {
@@ -415,6 +415,16 @@ static FILE* FIO_openDstFile(const char* dstFileName)
             DISPLAYLEVEL(4, "Sparse File Support is automatically disabled on stdout ; try --sparse \n");
         }
         return stdout;
+    }
+    if (srcFileName != NULL) {
+        stat_t srcStat;
+        stat_t dstStat;
+        if (UTIL_getFileStat(srcFileName, &srcStat) && UTIL_getFileStat(dstFileName, &dstStat)) {
+            if (srcStat.st_ino == dstStat.st_ino) {
+                DISPLAYLEVEL(1, "zstd: Refusing to open a output file which will overwrite the input file \n");
+                return NULL;
+            }
+        }
     }
 
     if (g_sparseFileSupport == 1) {
@@ -1114,7 +1124,7 @@ static int FIO_compressFilename_dstFile(cRess_t ress,
     if (ress.dstFile == NULL) {
         closeDstFile = 1;
         DISPLAYLEVEL(6, "FIO_compressFilename_dstFile: opening dst: %s", dstFileName);
-        ress.dstFile = FIO_openDstFile(dstFileName);
+        ress.dstFile = FIO_openDstFile(srcFileName, dstFileName);
         if (ress.dstFile==NULL) return 1;  /* could not open dstFileName */
         /* Must only be added after FIO_openDstFile() succeeds.
          * Otherwise we may delete the destination file if it already exists,
@@ -1264,7 +1274,7 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
     assert(outFileName != NULL || suffix != NULL);
 
     if (outFileName != NULL) {   /* output into a single destination (stdout typically) */
-        ress.dstFile = FIO_openDstFile(outFileName);
+        ress.dstFile = FIO_openDstFile(NULL, outFileName);
         if (ress.dstFile == NULL) {  /* could not open outFileName */
             error = 1;
         } else {
@@ -1880,7 +1890,7 @@ static int FIO_decompressDstFile(dRess_t ress, FILE* srcFile,
     if (ress.dstFile == NULL) {
         releaseDstFile = 1;
 
-        ress.dstFile = FIO_openDstFile(dstFileName);
+        ress.dstFile = FIO_openDstFile(srcFileName, dstFileName);
         if (ress.dstFile==0) return 1;
 
         /* Must only be added after FIO_openDstFile() succeeds.
@@ -2057,7 +2067,7 @@ FIO_decompressMultipleFilenames(const char* srcNamesTable[], unsigned nbFiles,
 
     if (outFileName) {
         unsigned u;
-        ress.dstFile = FIO_openDstFile(outFileName);
+        ress.dstFile = FIO_openDstFile(NULL, outFileName);
         if (ress.dstFile == 0) EXM_THROW(71, "cannot open %s", outFileName);
         for (u=0; u<nbFiles; u++)
             error |= FIO_decompressSrcFile(ress, outFileName, srcNamesTable[u]);

@@ -21,6 +21,7 @@
 #include <stddef.h>   /* size_t */
 #include <stdlib.h>   /* malloc, free, abort */
 #include <stdio.h>    /* fprintf */
+#include <limits.h>   /* UINT_MAX */
 #include <assert.h>   /* assert */
 
 #include "util.h"
@@ -127,7 +128,7 @@ static buffer_t createBuffer_fromFile(const char* fileName)
 static buffer_t
 createDictionaryBuffer(const char* dictionaryName,
                        const void* srcBuffer,
-                       const size_t* srcBlockSizes, unsigned nbBlocks,
+                       const size_t* srcBlockSizes, size_t nbBlocks,
                        size_t requestedDictSize)
 {
     if (dictionaryName) {
@@ -141,9 +142,10 @@ createDictionaryBuffer(const char* dictionaryName,
         void* const dictBuffer = malloc(requestedDictSize);
         CONTROL(dictBuffer != NULL);
 
+        assert(nbBlocks <= UINT_MAX);
         size_t const dictSize = ZDICT_trainFromBuffer(dictBuffer, requestedDictSize,
                                                       srcBuffer,
-                                                      srcBlockSizes, nbBlocks);
+                                                      srcBlockSizes, (unsigned)nbBlocks);
         CONTROL(!ZSTD_isError(dictSize));
 
         buffer_t result;

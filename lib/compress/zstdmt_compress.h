@@ -29,11 +29,13 @@
 
 
 /* ===   Constants   === */
-#define ZSTDMT_NBWORKERS_MAX 200
-#ifndef ZSTDMT_JOBSIZE_MIN
-#  define ZSTDMT_JOBSIZE_MIN (1U << 20)   /* 1 MB - Minimum size of each compression job */
+#ifndef ZSTDMT_NBWORKERS_MAX
+#  define ZSTDMT_NBWORKERS_MAX 200
 #endif
-#define ZSTDMT_JOBSIZE_MAX  (MEM_32bits() ? (512 MB) : (1 GB))  /* note : limited by `jobSize` type, which is `int` */
+#ifndef ZSTDMT_JOBSIZE_MIN
+#  define ZSTDMT_JOBSIZE_MIN (1 MB)
+#endif
+#define ZSTDMT_JOBSIZE_MAX  (MEM_32bits() ? (512 MB) : (1024 MB))
 
 
 /* ===   Memory management   === */
@@ -74,7 +76,7 @@ ZSTDLIB_API size_t ZSTDMT_compress_advanced(ZSTDMT_CCtx* mtctx,
                                      const void* src, size_t srcSize,
                                      const ZSTD_CDict* cdict,
                                            ZSTD_parameters params,
-                                           unsigned overlapLog);
+                                           int overlapLog);
 
 ZSTDLIB_API size_t ZSTDMT_initCStream_advanced(ZSTDMT_CCtx* mtctx,
                                         const void* dict, size_t dictSize,   /* dict can be released after init, a local copy is preserved within zcs */
@@ -89,9 +91,9 @@ ZSTDLIB_API size_t ZSTDMT_initCStream_usingCDict(ZSTDMT_CCtx* mtctx,
 /* ZSTDMT_parameter :
  * List of parameters that can be set using ZSTDMT_setMTCtxParameter() */
 typedef enum {
-    ZSTDMT_p_jobSize,           /* Each job is compressed in parallel. By default, this value is dynamically determined depending on compression parameters. Can be set explicitly here. */
-    ZSTDMT_p_overlapSectionLog, /* Each job may reload a part of previous job to enhance compressionr ratio; 0 == no overlap, 6(default) == use 1/8th of window, >=9 == use full window. This is a "sticky" parameter : its value will be re-used on next compression job */
-    ZSTDMT_p_rsyncable          /* Enables rsyncable mode. */
+    ZSTDMT_p_jobSize,     /* Each job is compressed in parallel. By default, this value is dynamically determined depending on compression parameters. Can be set explicitly here. */
+    ZSTDMT_p_overlapLog,  /* Each job may reload a part of previous job to enhance compressionr ratio; 0 == no overlap, 6(default) == use 1/8th of window, >=9 == use full window. This is a "sticky" parameter : its value will be re-used on next compression job */
+    ZSTDMT_p_rsyncable    /* Enables rsyncable mode. */
 } ZSTDMT_parameter;
 
 /* ZSTDMT_setMTCtxParameter() :
@@ -99,12 +101,12 @@ typedef enum {
  * The function must be called typically after ZSTD_createCCtx() but __before ZSTDMT_init*() !__
  * Parameters not explicitly reset by ZSTDMT_init*() remain the same in consecutive compression sessions.
  * @return : 0, or an error code (which can be tested using ZSTD_isError()) */
-ZSTDLIB_API size_t ZSTDMT_setMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSTDMT_parameter parameter, unsigned value);
+ZSTDLIB_API size_t ZSTDMT_setMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSTDMT_parameter parameter, int value);
 
 /* ZSTDMT_getMTCtxParameter() :
  * Query the ZSTDMT_CCtx for a parameter value.
  * @return : 0, or an error code (which can be tested using ZSTD_isError()) */
-ZSTDLIB_API size_t ZSTDMT_getMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSTDMT_parameter parameter, unsigned* value);
+ZSTDLIB_API size_t ZSTDMT_getMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSTDMT_parameter parameter, int* value);
 
 
 /*! ZSTDMT_compressStream_generic() :
@@ -135,7 +137,7 @@ size_t ZSTDMT_toFlushNow(ZSTDMT_CCtx* mtctx);
 
 /*! ZSTDMT_CCtxParam_setMTCtxParameter()
  *  like ZSTDMT_setMTCtxParameter(), but into a ZSTD_CCtx_Params */
-size_t ZSTDMT_CCtxParam_setMTCtxParameter(ZSTD_CCtx_params* params, ZSTDMT_parameter parameter, unsigned value);
+size_t ZSTDMT_CCtxParam_setMTCtxParameter(ZSTD_CCtx_params* params, ZSTDMT_parameter parameter, int value);
 
 /*! ZSTDMT_CCtxParam_setNbWorkers()
  *  Set nbWorkers, and clamp it.

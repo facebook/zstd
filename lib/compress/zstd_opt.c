@@ -17,6 +17,8 @@
 #define ZSTD_FREQ_DIV       4   /* log factor when using previous stats to init next stats */
 #define ZSTD_MAX_PRICE     (1<<30)
 
+#define ZSTD_PREDEF_THRESHOLD 1024   /* if srcSize < ZSTD_PREDEF_THRESHOLD, symbols' cost is assumed static, directly determined by pre-defined distributions */
+
 
 /*-*************************************
 *  Price functions for optimal parser
@@ -73,7 +75,7 @@ static void ZSTD_setBasePrices(optState_t* optPtr, int optLevel)
 static U32 ZSTD_downscaleStat(U32* table, U32 lastEltIndex, int malus)
 {
     U32 s, sum=0;
-    DEBUGLOG(2, "ZSTD_downscaleStat (nbElts=%u)", lastEltIndex+1);
+    DEBUGLOG(5, "ZSTD_downscaleStat (nbElts=%u)", lastEltIndex+1);
     assert(ZSTD_FREQ_DIV+malus > 0 && ZSTD_FREQ_DIV+malus < 31);
     for (s=0; s<lastEltIndex+1; s++) {
         table[s] = 1 + (table[s] >> (ZSTD_FREQ_DIV+malus));
@@ -96,7 +98,7 @@ ZSTD_rescaleFreqs(optState_t* const optPtr,
     optPtr->priceType = zop_dynamic;
 
     if (optPtr->litLengthSum == 0) {  /* first block : init */
-        if (srcSize <= 1024)   /* heuristic */
+        if (srcSize <= ZSTD_PREDEF_THRESHOLD)   /* heuristic */
             optPtr->priceType = zop_predef;
 
         assert(optPtr->symbolCosts != NULL);
@@ -789,6 +791,7 @@ static U32 ZSTD_totalLen(ZSTD_optimal_t sol)
     return sol.litlen + sol.mlen;
 }
 
+#if 0 /* debug */
 
 static void
 listStats(const U32* table, int lastEltID)
@@ -802,6 +805,8 @@ listStats(const U32* table, int lastEltID)
     }
     RAWLOG(2, " \n");
 }
+
+#endif
 
 FORCE_INLINE_TEMPLATE size_t
 ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
@@ -833,12 +838,6 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
     ms->nextToUpdate3 = ms->nextToUpdate;
     ZSTD_rescaleFreqs(optStatePtr, (const BYTE*)src, srcSize, optLevel);
     ip += (ip==prefixStart);
-
-    DEBUGLOG(2, "OffCode table on entry : ");
-    listStats(optStatePtr->offCodeFreq, MaxOff);
-
-    DEBUGLOG(2, "Literals table on entry : ");
-    listStats(optStatePtr->litFreq, MaxLit);
 
     /* Match Loop */
     while (ip < ilimit) {
@@ -1067,12 +1066,6 @@ _shortestPath:   /* cur, last_pos, best_mlen, best_off have to be set */
 
     }   /* while (ip < ilimit) */
 
-    DEBUGLOG(2, "OffCode table on exit : ");
-    listStats(optStatePtr->offCodeFreq, MaxOff);
-
-    DEBUGLOG(2, "Literals table on exit : ");
-    listStats(optStatePtr->litFreq, MaxLit);
-
     /* Return the last literals size */
     return iend - anchor;
 }
@@ -1104,9 +1097,9 @@ static U32 ZSTD_upscaleStat(U32* table, U32 lastEltIndex, int bonus)
 MEM_STATIC void ZSTD_upscaleStats(optState_t* optPtr)
 {
     optPtr->litSum = ZSTD_upscaleStat(optPtr->litFreq, MaxLit, 0);
-    optPtr->litLengthSum = ZSTD_upscaleStat(optPtr->litLengthFreq, MaxLL, 1);
-    optPtr->matchLengthSum = ZSTD_upscaleStat(optPtr->matchLengthFreq, MaxML, 1);
-    optPtr->offCodeSum = ZSTD_upscaleStat(optPtr->offCodeFreq, MaxOff, 1);
+    optPtr->litLengthSum = ZSTD_upscaleStat(optPtr->litLengthFreq, MaxLL, 0);
+    optPtr->matchLengthSum = ZSTD_upscaleStat(optPtr->matchLengthFreq, MaxML, 0);
+    optPtr->offCodeSum = ZSTD_upscaleStat(optPtr->offCodeFreq, MaxOff, 0);
 }
 
 /* ZSTD_initStats_ultra():
@@ -1171,6 +1164,7 @@ size_t ZSTD_compressBlock_btultra2(
       && (seqStore->sequences == seqStore->sequencesStart)  /* no ldm */
       && (ms->window.dictLimit == ms->window.lowLimit)   /* no dictionary */
       && (ms->window.dictLimit - ms->nextToUpdate <= 1)  /* no prefix (note: intentional overflow, defined as 2-complement) */
+      && (srcSize > ZSTD_PREDEF_THRESHOLD)
       ) {
         ZSTD_initStats_ultra(ms, seqStore, rep, src, srcSize);
     }

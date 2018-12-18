@@ -17,6 +17,8 @@
 #define ZSTD_FREQ_DIV       4   /* log factor when using previous stats to init next stats */
 #define ZSTD_MAX_PRICE     (1<<30)
 
+#define ZSTD_PREDEF_THRESHOLD 1024   /* if srcSize < ZSTD_PREDEF_THRESHOLD, symbols' cost is assumed static, directly determined by pre-defined distributions */
+
 
 /*-*************************************
 *  Price functions for optimal parser
@@ -67,25 +69,36 @@ static void ZSTD_setBasePrices(optState_t* optPtr, int optLevel)
 }
 
 
+/* ZSTD_downscaleStat() :
+ * reduce all elements in table by a factor 2^(ZSTD_FREQ_DIV+malus)
+ * return the resulting sum of elements */
 static U32 ZSTD_downscaleStat(U32* table, U32 lastEltIndex, int malus)
 {
     U32 s, sum=0;
+    DEBUGLOG(5, "ZSTD_downscaleStat (nbElts=%u)", lastEltIndex+1);
     assert(ZSTD_FREQ_DIV+malus > 0 && ZSTD_FREQ_DIV+malus < 31);
-    for (s=0; s<=lastEltIndex; s++) {
+    for (s=0; s<lastEltIndex+1; s++) {
         table[s] = 1 + (table[s] >> (ZSTD_FREQ_DIV+malus));
         sum += table[s];
     }
     return sum;
 }
 
-static void ZSTD_rescaleFreqs(optState_t* const optPtr,
-                              const BYTE* const src, size_t const srcSize,
-                              int optLevel)
+/* ZSTD_rescaleFreqs() :
+ * if first block (detected by optPtr->litLengthSum == 0) : init statistics
+ *    take hints from dictionary if there is one
+ *    or init from zero, using src for literals stats, or flat 1 for match symbols
+ * otherwise downscale existing stats, to be used as seed for next block.
+ */
+static void
+ZSTD_rescaleFreqs(optState_t* const optPtr,
+                  const BYTE* const src, size_t const srcSize,
+                  int optLevel)
 {
     optPtr->priceType = zop_dynamic;
 
     if (optPtr->litLengthSum == 0) {  /* first block : init */
-        if (srcSize <= 1024)   /* heuristic */
+        if (srcSize <= ZSTD_PREDEF_THRESHOLD)   /* heuristic */
             optPtr->priceType = zop_predef;
 
         assert(optPtr->symbolCosts != NULL);
@@ -778,6 +791,23 @@ static U32 ZSTD_totalLen(ZSTD_optimal_t sol)
     return sol.litlen + sol.mlen;
 }
 
+#if 0 /* debug */
+
+static void
+listStats(const U32* table, int lastEltID)
+{
+    int const nbElts = lastEltID + 1;
+    int enb;
+    for (enb=0; enb < nbElts; enb++) {
+        (void)table;
+        //RAWLOG(2, "%3i:%3i,  ", enb, table[enb]);
+        RAWLOG(2, "%4i,", table[enb]);
+    }
+    RAWLOG(2, " \n");
+}
+
+#endif
+
 FORCE_INLINE_TEMPLATE size_t
 ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
                                seqStore_t* seqStore,
@@ -1054,8 +1084,8 @@ size_t ZSTD_compressBlock_btopt(
 static U32 ZSTD_upscaleStat(U32* table, U32 lastEltIndex, int bonus)
 {
     U32 s, sum=0;
-    assert(ZSTD_FREQ_DIV+bonus > 0);
-    for (s=0; s<=lastEltIndex; s++) {
+    assert(ZSTD_FREQ_DIV+bonus >= 0);
+    for (s=0; s<lastEltIndex+1; s++) {
         table[s] <<= ZSTD_FREQ_DIV+bonus;
         table[s]--;
         sum += table[s];
@@ -1067,28 +1097,32 @@ static U32 ZSTD_upscaleStat(U32* table, U32 lastEltIndex, int bonus)
 MEM_STATIC void ZSTD_upscaleStats(optState_t* optPtr)
 {
     optPtr->litSum = ZSTD_upscaleStat(optPtr->litFreq, MaxLit, 0);
-    optPtr->litLengthSum = ZSTD_upscaleStat(optPtr->litLengthFreq, MaxLL, 1);
-    optPtr->matchLengthSum = ZSTD_upscaleStat(optPtr->matchLengthFreq, MaxML, 1);
-    optPtr->offCodeSum = ZSTD_upscaleStat(optPtr->offCodeFreq, MaxOff, 1);
+    optPtr->litLengthSum = ZSTD_upscaleStat(optPtr->litLengthFreq, MaxLL, 0);
+    optPtr->matchLengthSum = ZSTD_upscaleStat(optPtr->matchLengthFreq, MaxML, 0);
+    optPtr->offCodeSum = ZSTD_upscaleStat(optPtr->offCodeFreq, MaxOff, 0);
 }
+
 /* ZSTD_initStats_ultra():
  * make a first compression pass, just to seed stats with more accurate starting values.
  * only works on first block, with no dictionary and no ldm.
- * this function must not fail, hence its usage conditions must be respected.
+ * this function cannot error, hence its constract must be respected.
  */
-static void ZSTD_initStats_ultra(
-        ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
-        const void* src, size_t srcSize)
+static void
+ZSTD_initStats_ultra(ZSTD_matchState_t* ms,
+                     seqStore_t* seqStore,
+                     U32 rep[ZSTD_REP_NUM],
+               const void* src, size_t srcSize)
 {
     U32 tmpRep[ZSTD_REP_NUM];  /* updated rep codes will sink here */
+    memcpy(tmpRep, rep, sizeof(tmpRep));
 
     DEBUGLOG(5, "ZSTD_initStats_ultra (srcSize=%zu)", srcSize);
+    DEBUGLOG(5, "repCodes: %u, %u, %u", tmpRep[0], tmpRep[1], tmpRep[2]);
     assert(ms->opt.litLengthSum == 0);    /* first block */
     assert(seqStore->sequences == seqStore->sequencesStart);   /* no ldm */
     assert(ms->window.dictLimit == ms->window.lowLimit);   /* no dictionary */
     assert(ms->window.dictLimit - ms->nextToUpdate <= 1);  /* no prefix (note: intentional overflow, defined as 2-complement) */
 
-    memcpy(tmpRep, rep, sizeof(tmpRep));
     ZSTD_compressBlock_opt_generic(ms, seqStore, tmpRep, src, srcSize, 2 /*optLevel*/, ZSTD_noDict);   /* generate stats into ms->opt*/
 
     /* invalidate first scan from history */
@@ -1117,7 +1151,7 @@ size_t ZSTD_compressBlock_btultra2(
 {
     DEBUGLOG(5, "ZSTD_compressBlock_btultra2 (srcSize=%zu)", srcSize);
 
-    /* 2-pass strategy
+    /* 2-pass strategy:
      * this strategy makes a first pass over first block to collect statistics
      * and seed next round's statistics with it.
      * After 1st pass, function forgets everything, and starts a new block.
@@ -1130,6 +1164,7 @@ size_t ZSTD_compressBlock_btultra2(
       && (seqStore->sequences == seqStore->sequencesStart)  /* no ldm */
       && (ms->window.dictLimit == ms->window.lowLimit)   /* no dictionary */
       && (ms->window.dictLimit - ms->nextToUpdate <= 1)  /* no prefix (note: intentional overflow, defined as 2-complement) */
+      && (srcSize > ZSTD_PREDEF_THRESHOLD)
       ) {
         ZSTD_initStats_ultra(ms, seqStore, rep, src, srcSize);
     }

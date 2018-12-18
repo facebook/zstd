@@ -1116,8 +1116,8 @@ ZSTD_initStats_ultra(ZSTD_matchState_t* ms,
     U32 tmpRep[ZSTD_REP_NUM];  /* updated rep codes will sink here */
     memcpy(tmpRep, rep, sizeof(tmpRep));
 
-    DEBUGLOG(2, "ZSTD_initStats_ultra (srcSize=%zu)", srcSize);
-    DEBUGLOG(2, "repCodes: %u, %u, %u", tmpRep[0], tmpRep[1], tmpRep[2]);
+    DEBUGLOG(5, "ZSTD_initStats_ultra (srcSize=%zu)", srcSize);
+    DEBUGLOG(5, "repCodes: %u, %u, %u", tmpRep[0], tmpRep[1], tmpRep[2]);
     assert(ms->opt.litLengthSum == 0);    /* first block */
     assert(seqStore->sequences == seqStore->sequencesStart);   /* no ldm */
     assert(ms->window.dictLimit == ms->window.lowLimit);   /* no dictionary */
@@ -1141,7 +1141,7 @@ size_t ZSTD_compressBlock_btultra(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         const void* src, size_t srcSize)
 {
-    DEBUGLOG(2, "ZSTD_compressBlock_btultra (srcSize=%zu)", srcSize);
+    DEBUGLOG(5, "ZSTD_compressBlock_btultra (srcSize=%zu)", srcSize);
     return ZSTD_compressBlock_opt_generic(ms, seqStore, rep, src, srcSize, 2 /*optLevel*/, ZSTD_noDict);
 }
 
@@ -1149,7 +1149,7 @@ size_t ZSTD_compressBlock_btultra2(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         const void* src, size_t srcSize)
 {
-    DEBUGLOG(2, "ZSTD_compressBlock_btultra2 (srcSize=%zu)", srcSize);
+    DEBUGLOG(5, "ZSTD_compressBlock_btultra2 (srcSize=%zu)", srcSize);
 
     /* 2-pass strategy:
      * this strategy makes a first pass over first block to collect statistics

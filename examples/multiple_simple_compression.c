@@ -26,9 +26,9 @@ typedef struct {
 
 /*
  * allocate memory for buffers big enough to compress all files
- * as well as memory for output file name (outFilename)
+ * as well as memory for output file name (ofn)
  */
-static resources createResources_orDie(int argc, const char** argv, char **outFilename)
+static resources createResources_orDie(int argc, const char** argv, char **ofn, int* ofnBufferLen)
 {
     size_t maxFilenameLength=0;
     size_t maxFileSize = 0;
@@ -47,7 +47,8 @@ static resources createResources_orDie(int argc, const char** argv, char **outFi
     ress.fBufferSize = maxFileSize;
     ress.cBufferSize = ZSTD_compressBound(maxFileSize);
 
-    *outFilename = (char*)malloc_orDie(maxFilenameLength + 5);
+    *ofnBufferLen = maxFilenameLength + 5;
+    *ofn = (char*)malloc_orDie(*ofnBufferLen);
     ress.fBuffer = malloc_orDie(ress.fBufferSize);
     ress.cBuffer = malloc_orDie(ress.cBufferSize);
     ress.cctx = ZSTD_createCCtx();
@@ -66,8 +67,7 @@ static void freeResources(resources ress, char *outFilename)
 /* compress with pre-allocated context (ZSTD_CCtx) and input/output buffers*/
 static void compressFile_orDie(resources ress, const char* fname, const char* oname)
 {
-    size_t fSize;
-    loadFile_orDie(fname, &fSize, ress.fBuffer, ress.fBufferSize);
+    size_t fSize = loadFile_orDie(fname, ress.fBuffer, ress.fBufferSize);
 
     size_t const cSize = ZSTD_compressCCtx(ress.cctx, ress.cBuffer, ress.cBufferSize, ress.fBuffer, fSize, 1);
     if (ZSTD_isError(cSize)) {
@@ -94,15 +94,17 @@ int main(int argc, const char** argv)
 
     /* memory allocation for outFilename and resources */
     char* outFilename;
-    resources ress = createResources_orDie(argc, argv, &outFilename); 
+    int outFilenameBufferLen;
+    resources const ress = createResources_orDie(argc, argv, &outFilename, &outFilenameBufferLen); 
 
     /* compress files with shared context, input and output buffers */
     int argNb;
     for (argNb = 1; argNb < argc; argNb++) {
         const char* const inFilename = argv[argNb];
-        memset(outFilename, 0, 1);
-        strcat(outFilename, inFilename);
-        strcat(outFilename, ".zst");
+        int inFilenameLen = strlen(inFilename);
+        assert(inFilenameLen + 5 <= outFilenameBufferLen);
+        memcpy(outFilename, inFilename, inFilenameLen);
+        memcpy(outFilename+inFilenameLen, ".zst", 5);
         compressFile_orDie(ress, inFilename, outFilename);
     }
 

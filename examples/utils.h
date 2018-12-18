@@ -18,6 +18,7 @@
 #include <stdio.h>     // fprintf, perror, fopen, etc.
 #include <string.h>    // strlen, strcat, memset, strerror
 #include <errno.h>     // errno
+#include <assert.h>    // assert
 #include <sys/stat.h>  // stat
 
 /*
@@ -141,33 +142,43 @@ static void* malloc_orDie(size_t size)
 }
 
 /*! loadFile_orDie() :
- * Read size bytes from a file. If buffer is not provided (i.e., buffer == null),
- * malloc will be called to allocate one.
+ * load file into buffer (memory).
  *
  * Note: This function will send an error to stderr and exit if it
  * cannot read data from the given file path.
  *
- * @return If successful this function will return a pointer to read
- * data otherwise it will printout an error to stderr and exit.
+ * @return If successful this function will load file into buffer and
+ * return file size, otherwise it will printout an error to stderr and exit.
  */
-static void* loadFile_orDie(const char* fileName, size_t* size, void* buffer, int bufferSize)
+static size_t loadFile_orDie(const char* fileName, void* buffer, int bufferSize)
 {
     size_t const fileSize = fsize_orDie(fileName);
+    assert(fileSize <= bufferSize);
+
     FILE* const inFile = fopen_orDie(fileName, "rb");
-    if (!buffer) {
-        buffer = malloc_orDie(fileSize);
-    }
-    else if (bufferSize < fileSize) {
-        fprintf(stderr, "%s : filesize bigger than provided buffer.\n", fileName);
-        exit(ERROR_largeFile);
-    }
     size_t const readSize = fread(buffer, 1, fileSize, inFile);
     if (readSize != (size_t)fileSize) {
         fprintf(stderr, "fread: %s : %s \n", fileName, strerror(errno));
         exit(ERROR_fread);
     }
     fclose(inFile);  /* can't fail, read only */
-    *size = fileSize;
+    return fileSize;
+}
+
+/*! mallocAndLoadFile_orDie() :
+ * allocate memory buffer and then load file into it.
+ *
+ * Note: This function will send an error to stderr and exit if memory allocation
+ * fails or it cannot read data from the given file path.
+ *
+ * @return If successful this function will return buffer and bufferSize(=fileSize),
+ * otherwise it will printout an error to stderr and exit.
+ */
+static void* mallocAndLoadFile_orDie(const char* fileName, size_t* bufferSize) {
+    size_t const fileSize = fsize_orDie(fileName);
+    *bufferSize = fileSize;
+    void* const buffer = malloc_orDie(*bufferSize);
+    loadFile_orDie(fileName, buffer, *bufferSize);
     return buffer;
 }
 

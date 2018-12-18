@@ -836,7 +836,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     /* Basic multithreading compression test */
     DISPLAYLEVEL(3, "test%3i : compress %u bytes with multiple threads : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
     {   ZSTD_parameters const params = ZSTD_getParams(1, 0, 0);
-        unsigned jobSize;
+        int jobSize;
         CHECK_Z( ZSTDMT_getMTCtxParameter(mtctx, ZSTDMT_p_jobSize, &jobSize));
         CHECK(jobSize != 0, "job size non-zero");
         CHECK_Z( ZSTDMT_initCStream_advanced(mtctx, CNBuffer, dictSize, params, CNBufferSize) );
@@ -1547,7 +1547,7 @@ static int fuzzerTests_MT(U32 seed, U32 nbTests, unsigned startTest,
                     params.fParams.noDictIDFlag = FUZ_rand(&lseed) & 1;
                     params.fParams.contentSizeFlag = FUZ_rand(&lseed) & 1;
                     DISPLAYLEVEL(5, "checksumFlag : %u \n", params.fParams.checksumFlag);
-                    CHECK_Z( ZSTDMT_setMTCtxParameter(zc, ZSTDMT_p_overlapSectionLog, FUZ_rand(&lseed) % 12) );
+                    CHECK_Z( ZSTDMT_setMTCtxParameter(zc, ZSTDMT_p_overlapLog, FUZ_rand(&lseed) % 12) );
                     CHECK_Z( ZSTDMT_setMTCtxParameter(zc, ZSTDMT_p_jobSize, FUZ_rand(&lseed) % (2*maxTestSize+1)) );   /* custom job size */
                     CHECK_Z( ZSTDMT_initCStream_advanced(zc, dict, dictSize, params, pledgedSrcSize) );
         }   }   }
@@ -1904,7 +1904,7 @@ static int fuzzerTests_newAPI(U32 seed, U32 nbTests, unsigned startTest,
                     CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_c_nbWorkers, nbThreads, opaqueAPI) );
                     if (nbThreads > 1) {
                         U32 const jobLog = FUZ_rand(&lseed) % (testLog+1);
-                        CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_c_overlapSizeLog, FUZ_rand(&lseed) % 10, opaqueAPI) );
+                        CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_c_overlapLog, FUZ_rand(&lseed) % 10, opaqueAPI) );
                         CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_c_jobSize, (U32)FUZ_rLogLength(&lseed, jobLog), opaqueAPI) );
                     }
                 }

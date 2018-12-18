@@ -417,11 +417,12 @@ The list of available _options_:
     Reloading more data improves compression ratio, but decreases speed.
 
     The minimum _ovlog_ is 0, and the maximum is 9.
-    0 means "no overlap", hence completely independent jobs.
+    1 means "no overlap", hence completely independent jobs.
     9 means "full overlap", meaning up to `windowSize` is reloaded from previous job.
-    Reducing _ovlog_ by 1 reduces the amount of reload by a factor 2.
-    Default _ovlog_ is 6, which means "reload `windowSize / 8`".
-    Exception : the maximum compression level (22) has a default _ovlog_ of 9.
+    Reducing _ovlog_ by 1 reduces the reloaded amount by a factor 2.
+    For example, 8 means "windowSize/2", and 6 means "windowSize/8".
+    Value 0 is special and means "default" : _ovlog_ is automatically determined by `zstd`.
+    In which case, _ovlog_ will range from 6 to 9, depending on selected _strat_.
 
 - `ldmHashLog`=_lhlog_, `lhlog`=_lhlog_:
     Specify the maximum size for a hash table used for long distance matching.

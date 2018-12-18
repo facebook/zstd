@@ -694,6 +694,17 @@ static int basicUnitTests(U32 seed, double compressibility)
         free(staticDCtxBuffer);
     }
 
+    DISPLAYLEVEL(3, "test%3i : Static negative levels : ", testNb++);
+    {   size_t const cctxSizeN1 = ZSTD_estimateCCtxSize(-1);
+        size_t const cctxSizeP1 = ZSTD_estimateCCtxSize(1);
+        size_t const cstreamSizeN1 = ZSTD_estimateCStreamSize(-1);
+        size_t const cstreamSizeP1 = ZSTD_estimateCStreamSize(1);
+
+        if (!(0 < cctxSizeN1 && cctxSizeN1 <= cctxSizeP1)) goto _output_error;
+        if (!(0 < cstreamSizeN1 && cstreamSizeN1 <= cstreamSizeP1)) goto _output_error;
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
 
     /* ZSTDMT simple MT compression test */
     DISPLAYLEVEL(3, "test%3i : create ZSTDMT CCtx : ", testNb++);

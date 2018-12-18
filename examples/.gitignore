@@ -1,6 +1,7 @@
 #build
 simple_compression
 simple_decompression
+multiple_simple_compression
 dictionary_compression
 dictionary_decompression
 streaming_compression

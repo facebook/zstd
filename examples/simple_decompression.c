@@ -20,7 +20,7 @@
 static void decompress(const char* fname)
 {
     size_t cSize;
-    void* const cBuff = loadFile_orDie(fname, &cSize);
+    void* const cBuff = mallocAndLoadFile_orDie(fname, &cSize);
     unsigned long long const rSize = ZSTD_findDecompressedSize(cBuff, cSize);
     if (rSize==ZSTD_CONTENTSIZE_ERROR) {
         fprintf(stderr, "%s : it was not compressed by zstd.\n", fname);

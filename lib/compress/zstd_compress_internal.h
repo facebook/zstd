@@ -679,16 +679,19 @@ MEM_STATIC U32 ZSTD_window_correctOverflow(ZSTD_window_t* window, U32 cycleLog,
  * dictMatchState mode, lowLimit and dictLimit are the same, and the dictionary
  * is below them. forceWindow and dictMatchState are therefore incompatible.
  */
-MEM_STATIC void ZSTD_window_enforceMaxDist(ZSTD_window_t* window,
-                                           void const* srcEnd, U32 maxDist,
-                                           U32* loadedDictEndPtr,
-                                           const ZSTD_matchState_t** dictMatchStatePtr)
+MEM_STATIC void
+ZSTD_window_enforceMaxDist(ZSTD_window_t* window,
+                           void const* srcEnd,
+                           U32 maxDist,
+                           U32* loadedDictEndPtr,
+                     const ZSTD_matchState_t** dictMatchStatePtr)
 {
-    U32 const current = (U32)((BYTE const*)srcEnd - window->base);
-    U32 loadedDictEnd = loadedDictEndPtr != NULL ? *loadedDictEndPtr : 0;
-    DEBUGLOG(5, "ZSTD_window_enforceMaxDist: current=%u, maxDist=%u", current, maxDist);
-    if (current > maxDist + loadedDictEnd) {
-        U32 const newLowLimit = current - maxDist;
+    U32 const blockEndIdx = (U32)((BYTE const*)srcEnd - window->base);
+    U32 loadedDictEnd = (loadedDictEndPtr != NULL) ? *loadedDictEndPtr : 0;
+    DEBUGLOG(5, "ZSTD_window_enforceMaxDist: blockEndIdx=%u, maxDist=%u",
+                blockEndIdx, maxDist);
+    if (blockEndIdx > maxDist + loadedDictEnd) {
+        U32 const newLowLimit = blockEndIdx - maxDist;
         if (window->lowLimit < newLowLimit) window->lowLimit = newLowLimit;
         if (window->dictLimit < window->lowLimit) {
             DEBUGLOG(5, "Update dictLimit to match lowLimit, from %u to %u",

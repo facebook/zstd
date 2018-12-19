@@ -500,7 +500,8 @@ static int basicUnitTests(U32 seed, double compressibility)
     DISPLAYLEVEL(3, "OK \n");
 
     DISPLAYLEVEL(3, "test%3d : re-using a CCtx should compress the same : ", testNb++);
-    {   int i;
+    {   size_t const sampleSize = 30;
+        int i;
         for (i=0; i<20; i++)
             ((char*)CNBuffer)[i] = (char)i;   /* ensure no match during initial section */
         memcpy((char*)CNBuffer + 20, CNBuffer, 10);   /* create one match, starting from beginning of sample, which is the difficult case (see #1241) */
@@ -508,11 +509,35 @@ static int basicUnitTests(U32 seed, double compressibility)
             ZSTD_CCtx* const cctx = ZSTD_createCCtx();
             size_t size1, size2;
             DISPLAYLEVEL(5, "l%i ", i);
-            size1 = ZSTD_compressCCtx(cctx, compressedBuffer, compressedBufferSize, CNBuffer, 30, i);
+            size1 = ZSTD_compressCCtx(cctx, compressedBuffer, compressedBufferSize, CNBuffer, sampleSize, i);
             CHECK_Z(size1);
-            size2 = ZSTD_compressCCtx(cctx, compressedBuffer, compressedBufferSize, CNBuffer, 30, i);
+
+            size2 = ZSTD_compressCCtx(cctx, compressedBuffer, compressedBufferSize, CNBuffer, sampleSize, i);
             CHECK_Z(size2);
             CHECK_EQ(size1, size2);
+
+            CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, i) );
+            size2 = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, sampleSize);
+            CHECK_Z(size2);
+            CHECK_EQ(size1, size2);
+
+            size2 = ZSTD_compress2(cctx, compressedBuffer, ZSTD_compressBound(sampleSize) - 1, CNBuffer, sampleSize);  /* force streaming, as output buffer is not large enough to guarantee success */
+            CHECK_Z(size2);
+            CHECK_EQ(size1, size2);
+
+            {   ZSTD_inBuffer inb;
+                ZSTD_outBuffer outb;
+                inb.src = CNBuffer;
+                inb.pos = 0;
+                inb.size = sampleSize;
+                outb.dst = compressedBuffer;
+                outb.pos = 0;
+                outb.size = ZSTD_compressBound(sampleSize) - 1;  /* force streaming, as output buffer is not large enough to guarantee success */
+                CHECK_Z( ZSTD_compressStream2(cctx, &outb, &inb, ZSTD_e_end) );
+                assert(inb.pos == inb.size);
+                CHECK_EQ(size1, outb.pos);
+            }
+
 
             ZSTD_freeCCtx(cctx);
         }

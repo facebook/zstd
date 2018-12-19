@@ -9,7 +9,11 @@ and a command line utility producing and decoding `.zst`, `.gz`, `.xz` and `.lz4
 Should your project require another programming language,
 a list of known ports and bindings is provided on [Zstandard homepage](http://www.zstd.net/#other-languages).
 
-Development branch status : [![Build Status][travisDevBadge]][travisLink]   [![Build status][AppveyorDevBadge]][AppveyorLink]   [![Build status][CircleDevBadge]][CircleLink]
+**Development branch status:**
+
+[![Build Status][travisDevBadge]][travisLink]
+[![Build status][AppveyorDevBadge]][AppveyorLink]
+[![Build status][CircleDevBadge]][CircleLink]
 
 [travisDevBadge]: https://travis-ci.org/facebook/zstd.svg?branch=dev "Continuous Integration test suite"
 [travisLink]: https://travis-ci.org/facebook/zstd
@@ -18,7 +22,7 @@ Development branch status : [![Build Status][travisDevBadge]][travisLink]   [![B
 [CircleDevBadge]: https://circleci.com/gh/facebook/zstd/tree/dev.svg?style=shield "Short test suite"
 [CircleLink]: https://circleci.com/gh/facebook/zstd
 
-### Benchmarks
+## Benchmarks
 
 For reference, several fast compression algorithms were tested and compared
 on a server running Linux Debian (`Linux version 4.14.0-3-amd64`),
@@ -42,7 +46,7 @@ on the [Silesia compression corpus].
 | snappy 1.1.4            | 2.091 |   530 MB/s |  1800 MB/s |
 | lzf 3.6 -1              | 2.077 |   400 MB/s |   860 MB/s |
 
-[zlib]:http://www.zlib.net/
+[zlib]: http://www.zlib.net/
 [LZ4]: http://www.lz4.org/
 
 Zstd can also offer stronger compression ratios at the cost of compression speed.
@@ -65,7 +69,7 @@ A few other algorithms can produce higher compression ratios at slower speeds, f
 For a larger picture including slow modes, [click on this link](doc/images/DCspeed5.png).
 
 
-### The case for Small Data compression
+## The case for Small Data compression
 
 Previous charts provide results applicable to typical file and stream scenarios (several MB). Small data comes with different perspectives.
 
@@ -89,24 +93,24 @@ Training works if there is some correlation in a family of small data samples. T
 Hence, deploying one dictionary per type of data will provide the greatest benefits.
 Dictionary gains are mostly effective in the first few KB. Then, the compression algorithm will gradually use previously decoded content to better compress the rest of the file.
 
-#### Dictionary compression How To:
+### Dictionary compression How To:
 
-1) Create the dictionary
+1. Create the dictionary
 
-`zstd --train FullPathToTrainingSet/* -o dictionaryName`
+   `zstd --train FullPathToTrainingSet/* -o dictionaryName`
 
-2) Compress with dictionary
+2. Compress with dictionary
 
-`zstd -D dictionaryName FILE`
+   `zstd -D dictionaryName FILE`
 
-3) Decompress with dictionary
+3. Decompress with dictionary
 
-`zstd -D dictionaryName --decompress FILE.zst`
+   `zstd -D dictionaryName --decompress FILE.zst`
 
 
-### Build instructions
+## Build instructions
 
-#### Makefile
+### Makefile
 
 If your system is compatible with standard `make` (or `gmake`),
 invoking `make` in root directory will generate `zstd` cli in root directory.
@@ -115,7 +119,7 @@ Other available options include:
 - `make install` : create and install zstd cli, library and man pages
 - `make check` : create and run `zstd`, tests its behavior on local platform
 
-#### cmake
+### cmake
 
 A `cmake` project generator is provided within `build/cmake`.
 It can generate Makefiles or other build scripts
@@ -123,11 +127,17 @@ to create `zstd` binary, and `libzstd` dynamic and static libraries.
 
 By default, `CMAKE_BUILD_TYPE` is set to `Release`.
 
-#### Meson
+### Meson
 
-A Meson project is provided within `build/meson`.
+A Meson project is provided within [`build/meson`](build/meson). Follow
+build instructions in that directory.
 
-#### Visual Studio (Windows)
+You can also take a look at [`.travis.yml`](.travis.yml) file for an
+example about how Meson is used to build this project.
+
+Note that default build type is **release**.
+
+### Visual Studio (Windows)
 
 Going into `build` directory, you will find additional possibilities:
 - Projects for Visual Studio 2005, 2008 and 2010.
@@ -135,21 +145,21 @@ Going into `build` directory, you will find additional possibilities:
 - Automated build scripts for Visual compiler by [@KrzysFR](https://github.com/KrzysFR), in `build/VS_scripts`,
   which will build `zstd` cli and `libzstd` library without any need to open Visual Studio solution.
 
-#### Buck
+### Buck
 
 You can build the zstd binary via buck by executing: `buck build programs:zstd` from the root of the repo.
 The output binary will be in `buck-out/gen/programs/`.
 
-### Status
+## Status
 
 Zstandard is currently deployed within Facebook. It is used continuously to compress large amounts of data in multiple formats and use cases.
 Zstandard is considered safe for production environments.
 
-### License
+## License
 
 Zstandard is dual-licensed under [BSD](LICENSE) and [GPLv2](COPYING).
 
-### Contributing
+## Contributing
 
 The "dev" branch is the one where all contributions are merged before reaching "master".
 If you plan to propose a patch, please commit into the "dev" branch, or its own feature branch.

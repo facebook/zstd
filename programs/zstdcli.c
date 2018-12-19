@@ -28,6 +28,7 @@
 #include "platform.h" /* IS_CONSOLE, PLATFORM_POSIX_VERSION */
 #include "util.h"     /* UTIL_HAS_CREATEFILELIST, UTIL_createFileList */
 #include <stdio.h>    /* fprintf(), stdin, stdout, stderr */
+#include <stdlib.h>   /* getenv */
 #include <string.h>   /* strcmp, strlen */
 #include <errno.h>    /* errno */
 #include "fileio.h"   /* stdinmark, stdoutmark, ZSTD_EXTENSION */
@@ -452,6 +453,28 @@ static void printVersion(void)
 #endif
 }
 
+/* Environment variables for parameter setting */
+#define ENV_CLEVEL "ZSTD_CLEVEL"
+
+/* functions that pick up environment variables */
+int init_cLevel() {
+    const char *env = getenv(ENV_CLEVEL);
+    if (env) {
+        int sign = 1;
+        if (*env == '-') {
+            sign = -1;
+            env++;
+        } else if (*env == '+') {
+            env++;
+        }
+
+        if ((*env>='0') && (*env<='9'))
+            return sign * readU32FromChar(&env);
+    }
+
+    return ZSTDCLI_CLEVEL_DEFAULT;
+}
+
 typedef enum { zom_compress, zom_decompress, zom_test, zom_bench, zom_train, zom_list } zstd_operation_mode;
 
 #define CLEAN_RETURN(i) { operationResult = (i); goto _end; }
@@ -493,7 +516,7 @@ int main(int argCount, const char* argv[])
     size_t blockSize = 0;
     zstd_operation_mode operation = zom_compress;
     ZSTD_compressionParameters compressionParams;
-    int cLevel = ZSTDCLI_CLEVEL_DEFAULT;
+    int cLevel = init_cLevel();
     int cLevelLast = -1000000000;
     unsigned recursive = 0;
     unsigned memLimit = 0;

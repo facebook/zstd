@@ -1204,8 +1204,8 @@ static void ZSTD_invalidateMatchState(ZSTD_matchState_t* ms)
 {
     ZSTD_window_clear(&ms->window);
 
-    ms->nextToUpdate = ms->window.dictLimit + 1;
-    ms->nextToUpdate3 = ms->window.dictLimit + 1;
+    ms->nextToUpdate = ms->window.dictLimit;
+    ms->nextToUpdate3 = ms->window.dictLimit;
     ms->loadedDictEnd = 0;
     ms->opt.litLengthSum = 0;  /* force reset of btopt stats */
     ms->dictMatchState = NULL;
@@ -2367,14 +2367,16 @@ static size_t ZSTD_encodeSequences(
                                         sequences, nbSeq, longOffsets);
 }
 
+/* ZSTD_compressSequences_internal():
+ * actually compresses both literals and sequences */
 MEM_STATIC size_t
 ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
-                              ZSTD_entropyCTables_t const* prevEntropy,
-                              ZSTD_entropyCTables_t* nextEntropy,
-                              ZSTD_CCtx_params const* cctxParams,
-                              void* dst, size_t dstCapacity,
-                              void* workspace, size_t wkspSize,
-                              const int bmi2)
+                          const ZSTD_entropyCTables_t* prevEntropy,
+                                ZSTD_entropyCTables_t* nextEntropy,
+                          const ZSTD_CCtx_params* cctxParams,
+                                void* dst, size_t dstCapacity,
+                                void* workspace, size_t wkspSize,
+                          const int bmi2)
 {
     const int longOffsets = cctxParams->cParams.windowLog > STREAM_ACCUMULATOR_MIN;
     ZSTD_strategy const strategy = cctxParams->cParams.strategy;
@@ -2395,6 +2397,7 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
     BYTE* lastNCount = NULL;
 
     ZSTD_STATIC_ASSERT(HUF_WORKSPACE_SIZE >= (1<<MAX(MLFSELog,LLFSELog)));
+    DEBUGLOG(5, "ZSTD_compressSequences_internal");
 
     /* Compress literals */
     {   const BYTE* const literals = seqStorePtr->litStart;
@@ -2524,6 +2527,7 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
         }
     }
 
+    DEBUGLOG(5, "compressed block size : %u", (unsigned)(op - ostart));
     return op - ostart;
 }
 
@@ -2623,8 +2627,8 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
 {
     ZSTD_matchState_t* const ms = &zc->blockState.matchState;
     size_t cSize;
-    DEBUGLOG(5, "ZSTD_compressBlock_internal (dstCapacity=%zu, dictLimit=%u, nextToUpdate=%u)",
-                dstCapacity, ms->window.dictLimit, ms->nextToUpdate);
+    DEBUGLOG(5, "ZSTD_compressBlock_internal (dstCapacity=%u, dictLimit=%u, nextToUpdate=%u)",
+                (U32)dstCapacity, ms->window.dictLimit, ms->nextToUpdate);
     assert(srcSize <= ZSTD_BLOCKSIZE_MAX);
 
     /* Assert that we have correctly flushed the ctx params into the ms's copy */
@@ -2639,8 +2643,8 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
     ms->opt.symbolCosts = &zc->blockState.prevCBlock->entropy;   /* required for optimal parser to read stats from dictionary */
 
     /* a gap between an attached dict and the current window is not safe,
-     * they must remain adjacent, and when that stops being the case, the dict
-     * must be unset */
+     * they must remain adjacent,
+     * and when that stops being the case, the dict must be unset */
     assert(ms->dictMatchState == NULL || ms->loadedDictEnd == ms->window.dictLimit);
 
     /* limited update after a very long match */

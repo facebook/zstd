@@ -538,9 +538,48 @@ static int basicUnitTests(U32 seed, double compressibility)
                 CHECK_EQ(size1, outb.pos);
             }
 
-
             ZSTD_freeCCtx(cctx);
         }
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3d : btultra2 & 1st block : ", testNb++);
+    {   size_t const sampleSize = 1024;
+        ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        ZSTD_inBuffer inb;
+        ZSTD_outBuffer outb;
+        inb.src = CNBuffer;
+        inb.pos = 0;
+        inb.size = 0;
+        outb.dst = compressedBuffer;
+        outb.pos = 0;
+        outb.size = compressedBufferSize;
+        CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, ZSTD_maxCLevel()) );
+
+        inb.size = sampleSize;   /* start with something, so that context is already used */
+        CHECK_Z( ZSTD_compressStream2(cctx, &outb, &inb, ZSTD_e_end) );   /* will break internal assert if stats_init is not disabled */
+        assert(inb.pos == inb.size);
+        outb.pos = 0;     /* cancel output */
+
+        CHECK_Z( ZSTD_CCtx_setPledgedSrcSize(cctx, sampleSize) );
+        inb.size = 4;   /* too small size : compression will be skipped */
+        inb.pos = 0;
+        CHECK_Z( ZSTD_compressStream2(cctx, &outb, &inb, ZSTD_e_flush) );
+        assert(inb.pos == inb.size);
+
+        inb.size += 5;   /* too small size : compression will be skipped */
+        CHECK_Z( ZSTD_compressStream2(cctx, &outb, &inb, ZSTD_e_flush) );
+        assert(inb.pos == inb.size);
+
+        inb.size += 11;   /* small enough to attempt compression */
+        CHECK_Z( ZSTD_compressStream2(cctx, &outb, &inb, ZSTD_e_flush) );
+        assert(inb.pos == inb.size);
+
+        assert(inb.pos < sampleSize);
+        inb.size = sampleSize;   /* large enough to trigger stats_init, but no longer at beginning */
+        CHECK_Z( ZSTD_compressStream2(cctx, &outb, &inb, ZSTD_e_end) );   /* will break internal assert if stats_init is not disabled */
+        assert(inb.pos == inb.size);
+        ZSTD_freeCCtx(cctx);
     }
     DISPLAYLEVEL(3, "OK \n");
 

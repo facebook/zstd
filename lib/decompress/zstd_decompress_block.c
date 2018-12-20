@@ -952,6 +952,7 @@ ZSTD_decompressSequences_default(ZSTD_DCtx* dctx,
 
 
 
+#ifndef ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT
 FORCE_INLINE_TEMPLATE seq_t
 ZSTD_decodeSequenceLong(seqState_t* seqState, ZSTD_longOffset_e const longOffsets)
 {
@@ -1116,6 +1117,7 @@ ZSTD_decompressSequencesLong_default(ZSTD_DCtx* dctx,
 {
     return ZSTD_decompressSequencesLong_body(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
 }
+#endif /* ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT */
 
 
 
@@ -1130,6 +1132,7 @@ ZSTD_decompressSequences_bmi2(ZSTD_DCtx* dctx,
     return ZSTD_decompressSequences_body(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
 }
 
+#ifndef ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT
 static TARGET_ATTRIBUTE("bmi2") size_t
 ZSTD_decompressSequencesLong_bmi2(ZSTD_DCtx* dctx,
                                  void* dst, size_t maxDstSize,
@@ -1138,8 +1141,9 @@ ZSTD_decompressSequencesLong_bmi2(ZSTD_DCtx* dctx,
 {
     return ZSTD_decompressSequencesLong_body(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
 }
+#endif /* ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT */
 
-#endif
+#endif /* DYNAMIC_BMI2 */
 
 typedef size_t (*ZSTD_decompressSequences_t)(
                             ZSTD_DCtx* dctx,
@@ -1162,6 +1166,7 @@ ZSTD_decompressSequences(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize,
 }
 
 
+#ifndef ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT
 /* ZSTD_decompressSequencesLong() :
  * decompression function triggered when a minimum share of offsets is considered "long",
  * aka out of cache.
@@ -1181,9 +1186,12 @@ ZSTD_decompressSequencesLong(ZSTD_DCtx* dctx,
 #endif
   return ZSTD_decompressSequencesLong_default(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
 }
+#endif /* ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT */
 
 
 
+#if !defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT) && \
+    !defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG)
 /* ZSTD_getLongOffsetsShare() :
  * condition : offTable must be valid
  * @return : "share" of long offsets (arbitrarily defined as > (1<<23))
@@ -1208,6 +1216,7 @@ ZSTD_getLongOffsetsShare(const ZSTD_seqSymbol* offTable)
 
     return total;
 }
+#endif
 
 
 size_t

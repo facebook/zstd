@@ -234,12 +234,12 @@ static void errorOut(const char* msg)
     DISPLAY("%s \n", msg); exit(1);
 }
 
-/*! _readU32FromChar() :
+/*! readU32FromCharChecked() :
  * @return 0 if success, and store the result in *value.
  *  allows and interprets K, KB, KiB, M, MB and MiB suffix.
  *  Will also modify `*stringPtr`, advancing it to position where it stopped reading.
  * @return 1 if an overflow error occurs */
-static int _readU32FromChar(const char** stringPtr, unsigned* value)
+static int readU32FromCharChecked(const char** stringPtr, unsigned* value)
 {
     static unsigned const max = (((unsigned)(-1)) / 10) - 1;
     unsigned result = 0;
@@ -271,7 +271,7 @@ static int _readU32FromChar(const char** stringPtr, unsigned* value)
 static unsigned readU32FromChar(const char** stringPtr) {
     static const char errorMsg[] = "error: numeric value too large";
     unsigned result;
-    if (_readU32FromChar(stringPtr, &result)) { errorOut(errorMsg); }
+    if (readU32FromCharChecked(stringPtr, &result)) { errorOut(errorMsg); }
     return result;
 }
 
@@ -483,15 +483,15 @@ static int init_cLevel(void) {
 
         if ((*ptr>='0') && (*ptr<='9')) {
             unsigned absLevel;
-            if (_readU32FromChar(&ptr, &absLevel)) { 
-                DISPLAYLEVEL(2, "Ignore environment variable %s=%s: numeric value too large\n", ENV_CLEVEL, env);
+            if (readU32FromCharChecked(&ptr, &absLevel)) { 
+                DISPLAYLEVEL(2, "Ignore environment variable setting %s=%s: numeric value too large\n", ENV_CLEVEL, env);
                 return ZSTDCLI_CLEVEL_DEFAULT;
             } else if (*ptr == 0) {
                 return sign * absLevel;
             }
         }
 
-        DISPLAYLEVEL(2, "Ignore environment variable %s=%s: not a valid integer value\n", ENV_CLEVEL, env);
+        DISPLAYLEVEL(2, "Ignore environment variable setting %s=%s: not a valid integer value\n", ENV_CLEVEL, env);
     }
 
     return ZSTDCLI_CLEVEL_DEFAULT;

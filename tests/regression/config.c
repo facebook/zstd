@@ -59,6 +59,86 @@ static config_t no_pledged_src_size = {
     .no_pledged_src_size = 1,
 };
 
+static param_value_t const ldm_param_values[] = {
+    {.param = ZSTD_c_enableLongDistanceMatching, .value = 1},
+};
+
+static config_t ldm = {
+    .name = "long distance mode",
+    .cli_args = "--long",
+    .param_values = PARAM_VALUES(ldm_param_values),
+};
+
+static param_value_t const mt_param_values[] = {
+    {.param = ZSTD_c_nbWorkers, .value = 2},
+};
+
+static config_t mt = {
+    .name = "multithreaded",
+    .cli_args = "-T2",
+    .param_values = PARAM_VALUES(mt_param_values),
+};
+
+static param_value_t const mt_ldm_param_values[] = {
+    {.param = ZSTD_c_nbWorkers, .value = 2},
+    {.param = ZSTD_c_enableLongDistanceMatching, .value = 1},
+};
+
+static config_t mt_ldm = {
+    .name = "multithreaded long distance mode",
+    .cli_args = "-T2 --long",
+    .param_values = PARAM_VALUES(mt_ldm_param_values),
+};
+
+static param_value_t const small_wlog_param_values[] = {
+    {.param = ZSTD_c_windowLog, .value = 10},
+};
+
+static config_t small_wlog = {
+    .name = "small window log",
+    .cli_args = "--zstd=wlog=10",
+    .param_values = PARAM_VALUES(small_wlog_param_values),
+};
+
+static param_value_t const small_hlog_param_values[] = {
+    {.param = ZSTD_c_hashLog, .value = 6},
+    {.param = ZSTD_c_strategy, .value = (int)ZSTD_btopt},
+};
+
+static config_t small_hlog = {
+    .name = "small hash log",
+    .cli_args = "--zstd=hlog=6,strat=7",
+    .param_values = PARAM_VALUES(small_hlog_param_values),
+};
+
+static param_value_t const small_clog_param_values[] = {
+    {.param = ZSTD_c_chainLog, .value = 6},
+    {.param = ZSTD_c_strategy, .value = (int)ZSTD_btopt},
+};
+
+static config_t small_clog = {
+    .name = "small chain log",
+    .cli_args = "--zstd=clog=6,strat=7",
+    .param_values = PARAM_VALUES(small_clog_param_values),
+};
+
+static param_value_t const explicit_params_param_values[] = {
+    {.param = ZSTD_c_checksumFlag, .value = 1},
+    {.param = ZSTD_c_contentSizeFlag, .value = 0},
+    {.param = ZSTD_c_dictIDFlag, .value = 0},
+    {.param = ZSTD_c_strategy, .value = (int)ZSTD_greedy},
+    {.param = ZSTD_c_windowLog, .value = 18},
+    {.param = ZSTD_c_hashLog, .value = 21},
+    {.param = ZSTD_c_chainLog, .value = 21},
+    {.param = ZSTD_c_targetLength, .value = 100},
+};
+
+static config_t explicit_params = {
+    .name = "explicit params",
+    .cli_args = "--no-check --no-dictID --zstd=strategy=3,wlog=18,hlog=21,clog=21,tlen=100",
+    .param_values = PARAM_VALUES(explicit_params_param_values),
+};
+
 static config_t const* g_configs[] = {
 
 #define FAST_LEVEL(x) &level_fast##x, &level_fast##x##_dict,
@@ -68,6 +148,13 @@ static config_t const* g_configs[] = {
 #undef FAST_LEVEL
 
     &no_pledged_src_size,
+    &ldm,
+    &mt,
+    &mt_ldm,
+    &small_wlog,
+    &small_hlog,
+    &small_clog,
+    &explicit_params,
     NULL,
 };
 

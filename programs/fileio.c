@@ -388,6 +388,12 @@ static FILE* FIO_openSrcFile(const char* srcFileName)
         return stdin;
     }
 
+    if (!UTIL_fileExist(srcFileName)) {
+        DISPLAYLEVEL(1, "zstd: %s : No such file or directory (can't stat) -- ignored \n",
+                        srcFileName);
+        return NULL;
+    }
+
     if (!UTIL_isRegularFile(srcFileName)) {
         DISPLAYLEVEL(1, "zstd: %s is not a regular file -- ignored \n",
                         srcFileName);
@@ -803,26 +809,28 @@ FIO_compressLz4Frame(cRess_t* ress,
 
         /* Main Loop */
         while (readSize>0) {
-            size_t outSize;
-
-            /* Compress Block */
-            outSize = LZ4F_compressUpdate(ctx, ress->dstBuffer, ress->dstBufferSize, ress->srcBuffer, readSize, NULL);
+            size_t const outSize = LZ4F_compressUpdate(ctx,
+                                        ress->dstBuffer, ress->dstBufferSize,
+                                        ress->srcBuffer, readSize, NULL);
             if (LZ4F_isError(outSize))
                 EXM_THROW(35, "zstd: %s: lz4 compression failed : %s",
                             srcFileName, LZ4F_getErrorName(outSize));
             outFileSize += outSize;
-            if (srcFileSize == UTIL_FILESIZE_UNKNOWN)
+            if (srcFileSize == UTIL_FILESIZE_UNKNOWN) {
                 DISPLAYUPDATE(2, "\rRead : %u MB ==> %.2f%%",
                                 (U32)(inFileSize>>20),
                                 (double)outFileSize/inFileSize*100)
-            else
+            } else {
                 DISPLAYUPDATE(2, "\rRead : %u / %u MB ==> %.2f%%",
                                 (U32)(inFileSize>>20), (U32)(srcFileSize>>20),
                                 (double)outFileSize/inFileSize*100);
+            }
 
             /* Write Block */
-            { size_t const sizeCheck = fwrite(ress->dstBuffer, 1, outSize, ress->dstFile);
-              if (sizeCheck!=outSize) EXM_THROW(36, "Write error : %s", strerror(errno)); }
+            {   size_t const sizeCheck = fwrite(ress->dstBuffer, 1, outSize, ress->dstFile);
+                if (sizeCheck != outSize)
+                    EXM_THROW(36, "Write error : %s", strerror(errno));
+            }
 
             /* Read next block */
             readSize  = fread(ress->srcBuffer, (size_t)1, (size_t)blockSize, ress->srcFile);
@@ -837,7 +845,7 @@ FIO_compressLz4Frame(cRess_t* ress,
                         srcFileName, LZ4F_getErrorName(headerSize));
 
         {   size_t const sizeCheck = fwrite(ress->dstBuffer, 1, headerSize, ress->dstFile);
-            if (sizeCheck!=headerSize)
+            if (sizeCheck != headerSize)
                 EXM_THROW(39, "Write error : %s (cannot write end of stream)",
                             strerror(errno));
         }

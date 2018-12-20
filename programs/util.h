@@ -20,10 +20,9 @@ extern "C" {
 *  Dependencies
 ******************************************/
 #include "platform.h"     /* PLATFORM_POSIX_VERSION, ZSTD_NANOSLEEP_SUPPORT, ZSTD_SETPRIORITY_SUPPORT */
-#include <stdlib.h>       /* malloc */
+#include <stdlib.h>       /* malloc, realloc, free */
 #include <stddef.h>       /* size_t, ptrdiff_t */
 #include <stdio.h>        /* fprintf */
-#include <string.h>       /* strncmp */
 #include <sys/types.h>    /* stat, utime */
 #include <sys/stat.h>     /* stat, chmod */
 #if defined(_MSC_VER)
@@ -34,7 +33,6 @@ extern "C" {
 #  include <utime.h>      /* utime */
 #endif
 #include <time.h>         /* clock_t, clock, CLOCKS_PER_SEC, nanosleep */
-#include <errno.h>
 #include "mem.h"          /* U32, U64 */
 
 
@@ -163,10 +161,11 @@ void UTIL_waitForNextTick(void);
 #endif
 
 
+int UTIL_fileExist(const char* filename);
 int UTIL_isRegularFile(const char* infilename);
-int UTIL_setFileStat(const char *filename, stat_t *statbuf);
+int UTIL_setFileStat(const char* filename, stat_t* statbuf);
 U32 UTIL_isDirectory(const char* infilename);
-int UTIL_getFileStat(const char* infilename, stat_t *statbuf);
+int UTIL_getFileStat(const char* infilename, stat_t* statbuf);
 
 U32 UTIL_isLink(const char* infilename);
 #define UTIL_FILESIZE_UNKNOWN  ((U64)(-1))
@@ -178,7 +177,7 @@ U64 UTIL_getTotalFileSize(const char* const * const fileNamesTable, unsigned nbF
  * A modified version of realloc().
  * If UTIL_realloc() fails the original block is freed.
 */
-UTIL_STATIC void *UTIL_realloc(void *ptr, size_t size)
+UTIL_STATIC void* UTIL_realloc(void *ptr, size_t size)
 {
     void *newptr = realloc(ptr, size);
     if (newptr) return newptr;
@@ -186,7 +185,7 @@ UTIL_STATIC void *UTIL_realloc(void *ptr, size_t size)
     return NULL;
 }
 
-int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd, int followLinks);
+int UTIL_prepareFileList(const char* dirName, char** bufStart, size_t* pos, char** bufEnd, int followLinks);
 #ifdef _WIN32
 #  define UTIL_HAS_CREATEFILELIST
 #elif defined(__linux__) || (PLATFORM_POSIX_VERSION >= 200112L)  /* opendir, readdir require POSIX.1-2001 */

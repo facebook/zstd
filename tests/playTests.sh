@@ -186,7 +186,8 @@ rm -f tmpro tmpro.zst
 $ECHO "test: overwrite input file (must fail)"
 $ZSTD tmp -fo tmp && die "zstd overwrote the input file"
 $ZSTD tmp.zst -dfo tmp.zst && die "zstd overwrote the input file"
-
+$ECHO "test: properly detect input file does not exist"
+$ZSTD nothere 2>&1 | grep "o such file"
 
 $ECHO "test : file removal"
 $ZSTD -f --rm tmp

@@ -16,7 +16,17 @@ extern "C" {
 /*-****************************************
 *  Dependencies
 ******************************************/
+#include <string.h>       /* strncmp */
+#include <errno.h>
+
 #include "util.h"
+
+int UTIL_fileExist(const char* filename)
+{
+    stat_t statbuf;
+    int const stat_success = stat(filename, &statbuf);
+    return !stat_success;
+}
 
 int UTIL_isRegularFile(const char* infilename)
 {
@@ -651,4 +661,3 @@ int UTIL_countPhysicalCores(void)
 #if defined (__cplusplus)
 }
 #endif
-

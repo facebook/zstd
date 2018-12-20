@@ -24,8 +24,12 @@ extern "C" {
 int UTIL_fileExist(const char* filename)
 {
     stat_t statbuf;
-    int const stat_success = stat(filename, &statbuf);
-    return !stat_success;
+#if defined(_MSC_VER)
+    int const stat_error = _stat64(filename, &statbuf);
+#else
+    int const stat_error = stat(filename, &statbuf);
+#endif
+    return !stat_error;
 }
 
 int UTIL_isRegularFile(const char* infilename)

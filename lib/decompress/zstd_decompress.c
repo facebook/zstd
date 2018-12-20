@@ -954,9 +954,16 @@ ZSTD_loadDEntropy(ZSTD_entropyDTables_t* entropy,
     ZSTD_STATIC_ASSERT(sizeof(entropy->LLTable) + sizeof(entropy->OFTable) + sizeof(entropy->MLTable) >= HUF_DECOMPRESS_WORKSPACE_SIZE);
     {   void* const workspace = &entropy->LLTable;   /* use fse tables as temporary workspace; implies fse tables are grouped together */
         size_t const workspaceSize = sizeof(entropy->LLTable) + sizeof(entropy->OFTable) + sizeof(entropy->MLTable);
+#ifdef HUF_FORCE_DECOMPRESS_X1
+        /* in minimal huffman, we always use X1 variants */
+        size_t const hSize = HUF_readDTableX1_wksp(entropy->hufTable,
+                                                dictPtr, dictEnd - dictPtr,
+                                                workspace, workspaceSize);
+#else
         size_t const hSize = HUF_readDTableX2_wksp(entropy->hufTable,
                                                 dictPtr, dictEnd - dictPtr,
                                                 workspace, workspaceSize);
+#endif
         if (HUF_isError(hSize)) return ERROR(dictionary_corrupted);
         dictPtr += hSize;
     }

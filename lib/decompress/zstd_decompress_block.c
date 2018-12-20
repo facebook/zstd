@@ -27,6 +27,18 @@
 #include "zstd_ddict.h"  /* ZSTD_DDictDictContent */
 #include "zstd_decompress_block.h"
 
+/*_*******************************************************
+*  Macros
+**********************************************************/
+
+/* These two optional macros force the use one way or another of the two
+ * ZSTD_decompressSequences implementations. You can't force in both directions
+ * at the same time.
+ */
+#if defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT) && \
+    defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG)
+#error "Cannot force the use of the short and the long ZSTD_decompressSequences variants!"
+#endif
 
 
 /*_*******************************************************
@@ -83,6 +95,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 U32 singleStream=0;
                 U32 const lhlCode = (istart[0] >> 2) & 3;
                 U32 const lhc = MEM_readLE32(istart);
+                size_t hufSuccess;
                 switch(lhlCode)
                 {
                 case 0: case 1: default:   /* note : default is impossible, since lhlCode into [0..3] */
@@ -113,16 +126,38 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                     PREFETCH_AREA(dctx->HUFptr, sizeof(dctx->entropy.hufTable));
                 }
 
-                if (HUF_isError((litEncType==set_repeat) ?
-                                    ( singleStream ?
-                                        HUF_decompress1X_usingDTable_bmi2(dctx->litBuffer, litSize, istart+lhSize, litCSize, dctx->HUFptr, dctx->bmi2) :
-                                        HUF_decompress4X_usingDTable_bmi2(dctx->litBuffer, litSize, istart+lhSize, litCSize, dctx->HUFptr, dctx->bmi2) ) :
-                                    ( singleStream ?
-                                        HUF_decompress1X1_DCtx_wksp_bmi2(dctx->entropy.hufTable, dctx->litBuffer, litSize, istart+lhSize, litCSize,
-                                                                         dctx->workspace, sizeof(dctx->workspace), dctx->bmi2) :
-                                        HUF_decompress4X_hufOnly_wksp_bmi2(dctx->entropy.hufTable, dctx->litBuffer, litSize, istart+lhSize, litCSize,
-                                                                           dctx->workspace, sizeof(dctx->workspace), dctx->bmi2))))
-                    return ERROR(corruption_detected);
+                if (litEncType==set_repeat) {
+                    if (singleStream) {
+                        hufSuccess = HUF_decompress1X_usingDTable_bmi2(
+                            dctx->litBuffer, litSize, istart+lhSize, litCSize,
+                            dctx->HUFptr, dctx->bmi2);
+                    } else {
+                        hufSuccess = HUF_decompress4X_usingDTable_bmi2(
+                            dctx->litBuffer, litSize, istart+lhSize, litCSize,
+                            dctx->HUFptr, dctx->bmi2);
+                    }
+                } else {
+                    if (singleStream) {
+#if defined(HUF_FORCE_DECOMPRESS_X2)
+                        hufSuccess = HUF_decompress1X_DCtx_wksp(
+                            dctx->entropy.hufTable, dctx->litBuffer, litSize,
+                            istart+lhSize, litCSize, dctx->workspace,
+                            sizeof(dctx->workspace));
+#else
+                        hufSuccess = HUF_decompress1X1_DCtx_wksp_bmi2(
+                            dctx->entropy.hufTable, dctx->litBuffer, litSize,
+                            istart+lhSize, litCSize, dctx->workspace,
+                            sizeof(dctx->workspace), dctx->bmi2);
+#endif
+                    } else {
+                        hufSuccess = HUF_decompress4X_hufOnly_wksp_bmi2(
+                            dctx->entropy.hufTable, dctx->litBuffer, litSize,
+                            istart+lhSize, litCSize, dctx->workspace,
+                            sizeof(dctx->workspace), dctx->bmi2);
+                    }
+                }
+
+                if (HUF_isError(hufSuccess)) return ERROR(corruption_detected);
 
                 dctx->litPtr = dctx->litBuffer;
                 dctx->litSize = litSize;
@@ -775,6 +810,7 @@ ZSTD_updateFseState(ZSTD_fseState* DStatePtr, BIT_DStream_t* bitD)
 
 typedef enum { ZSTD_lo_isRegularOffset, ZSTD_lo_isLongOffset=1 } ZSTD_longOffset_e;
 
+#ifndef ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG
 FORCE_INLINE_TEMPLATE seq_t
 ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e longOffsets)
 {
@@ -914,9 +950,11 @@ ZSTD_decompressSequences_default(ZSTD_DCtx* dctx,
 {
     return ZSTD_decompressSequences_body(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
 }
+#endif /* ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG */
 
 
 
+#ifndef ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT
 FORCE_INLINE_TEMPLATE seq_t
 ZSTD_decodeSequenceLong(seqState_t* seqState, ZSTD_longOffset_e const longOffsets)
 {
@@ -1081,11 +1119,13 @@ ZSTD_decompressSequencesLong_default(ZSTD_DCtx* dctx,
 {
     return ZSTD_decompressSequencesLong_body(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
 }
+#endif /* ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT */
 
 
 
 #if DYNAMIC_BMI2
 
+#ifndef ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG
 static TARGET_ATTRIBUTE("bmi2") size_t
 ZSTD_decompressSequences_bmi2(ZSTD_DCtx* dctx,
                                  void* dst, size_t maxDstSize,
@@ -1094,7 +1134,9 @@ ZSTD_decompressSequences_bmi2(ZSTD_DCtx* dctx,
 {
     return ZSTD_decompressSequences_body(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
 }
+#endif /* ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG */
 
+#ifndef ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT
 static TARGET_ATTRIBUTE("bmi2") size_t
 ZSTD_decompressSequencesLong_bmi2(ZSTD_DCtx* dctx,
                                  void* dst, size_t maxDstSize,
@@ -1103,8 +1145,9 @@ ZSTD_decompressSequencesLong_bmi2(ZSTD_DCtx* dctx,
 {
     return ZSTD_decompressSequencesLong_body(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
 }
+#endif /* ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT */
 
-#endif
+#endif /* DYNAMIC_BMI2 */
 
 typedef size_t (*ZSTD_decompressSequences_t)(
                             ZSTD_DCtx* dctx,
@@ -1112,6 +1155,7 @@ typedef size_t (*ZSTD_decompressSequences_t)(
                             const void* seqStart, size_t seqSize, int nbSeq,
                             const ZSTD_longOffset_e isLongOffset);
 
+#ifndef ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG
 static size_t
 ZSTD_decompressSequences(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize,
                    const void* seqStart, size_t seqSize, int nbSeq,
@@ -1125,8 +1169,10 @@ ZSTD_decompressSequences(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize,
 #endif
   return ZSTD_decompressSequences_default(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
 }
+#endif /* ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG */
 
 
+#ifndef ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT
 /* ZSTD_decompressSequencesLong() :
  * decompression function triggered when a minimum share of offsets is considered "long",
  * aka out of cache.
@@ -1146,9 +1192,12 @@ ZSTD_decompressSequencesLong(ZSTD_DCtx* dctx,
 #endif
   return ZSTD_decompressSequencesLong_default(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
 }
+#endif /* ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT */
 
 
 
+#if !defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT) && \
+    !defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG)
 /* ZSTD_getLongOffsetsShare() :
  * condition : offTable must be valid
  * @return : "share" of long offsets (arbitrarily defined as > (1<<23))
@@ -1173,6 +1222,7 @@ ZSTD_getLongOffsetsShare(const ZSTD_seqSymbol* offTable)
 
     return total;
 }
+#endif
 
 
 size_t
@@ -1201,13 +1251,23 @@ ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
     }
 
     /* Build Decoding Tables */
-    {   int usePrefetchDecoder = dctx->ddictIsCold;
+    {
+        /* These macros control at build-time which decompressor implementation
+         * we use. If neither is defined, we do some inspection and dispatch at
+         * runtime.
+         */
+#if !defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT) && \
+    !defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG)
+        int usePrefetchDecoder = dctx->ddictIsCold;
+#endif
         int nbSeq;
         size_t const seqHSize = ZSTD_decodeSeqHeaders(dctx, &nbSeq, ip, srcSize);
         if (ZSTD_isError(seqHSize)) return seqHSize;
         ip += seqHSize;
         srcSize -= seqHSize;
 
+#if !defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT) && \
+    !defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG)
         if ( !usePrefetchDecoder
           && (!frame || (dctx->fParams.windowSize > (1<<24)))
           && (nbSeq>ADVANCED_SEQS) ) {  /* could probably use a larger nbSeq limit */
@@ -1215,14 +1275,22 @@ ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
             U32 const minShare = MEM_64bits() ? 7 : 20; /* heuristic values, correspond to 2.73% and 7.81% */
             usePrefetchDecoder = (shareLongOffsets >= minShare);
         }
+#endif
 
         dctx->ddictIsCold = 0;
 
+#if !defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT) && \
+    !defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG)
         if (usePrefetchDecoder)
+#endif
+#ifndef ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT
             return ZSTD_decompressSequencesLong(dctx, dst, dstCapacity, ip, srcSize, nbSeq, isLongOffset);
+#endif
 
+#ifndef ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG
         /* else */
         return ZSTD_decompressSequences(dctx, dst, dstCapacity, ip, srcSize, nbSeq, isLongOffset);
+#endif
     }
 }
 

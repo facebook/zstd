@@ -270,9 +270,9 @@ void FIO_addAbortHandler()
 static FIO_compressionType_t g_compressionType = FIO_zstdCompression;
 void FIO_setCompressionType(FIO_compressionType_t compressionType) { g_compressionType = compressionType; }
 static U32 g_overwrite = 0;
-void FIO_overwriteMode(void) { g_overwrite=1; }
-static U32 g_sparseFileSupport = 1;   /* 0: no sparse allowed; 1: auto (file yes, stdout no); 2: force sparse */
-void FIO_setSparseWrite(unsigned sparse) { g_sparseFileSupport=sparse; }
+void FIO_overwriteMode(void) { g_overwrite = 1; }
+static U32 g_sparseFileSupport = ZSTD_SPARSE_DEFAULT;   /* 0: no sparse allowed; 1: auto (file yes, stdout no); 2: force sparse */
+void FIO_setSparseWrite(unsigned sparse) { g_sparseFileSupport = sparse; }
 static U32 g_dictIDFlag = 1;
 void FIO_setDictIDFlag(unsigned dictIDFlag) { g_dictIDFlag = dictIDFlag; }
 static U32 g_checksumFlag = 1;
@@ -416,23 +416,23 @@ static FILE* FIO_openDstFile(const char* srcFileName, const char* dstFileName)
     if (!strcmp (dstFileName, stdoutmark)) {
         DISPLAYLEVEL(4,"Using stdout for output \n");
         SET_BINARY_MODE(stdout);
-        if (g_sparseFileSupport==1) {
+        if (g_sparseFileSupport == 1) {
             g_sparseFileSupport = 0;
             DISPLAYLEVEL(4, "Sparse File Support is automatically disabled on stdout ; try --sparse \n");
         }
         return stdout;
     }
+
     if (srcFileName != NULL) {
         stat_t srcStat;
         stat_t dstStat;
         if ( UTIL_getFileStat(srcFileName, &srcStat)
-          && UTIL_getFileStat(dstFileName, &dstStat)
-          && srcStat.st_dev == dstStat.st_dev
-          && srcStat.st_ino == dstStat.st_ino ) {
-            DISPLAYLEVEL(1, "zstd: Refusing to open a output file which will overwrite the input file \n");
-            return NULL;
-        }
-    }
+          && UTIL_getFileStat(dstFileName, &dstStat) ) {
+            if ( srcStat.st_dev == dstStat.st_dev
+              && srcStat.st_ino == dstStat.st_ino ) {
+                DISPLAYLEVEL(1, "zstd: Refusing to open a output file which will overwrite the input file \n");
+                return NULL;
+    }   }   }
 
     if (g_sparseFileSupport == 1) {
         g_sparseFileSupport = ZSTD_SPARSE_DEFAULT;
@@ -1440,12 +1440,14 @@ static unsigned FIO_fwriteSparse(FILE* file, const void* buffer, size_t bufferSi
 
 static void FIO_fwriteSparseEnd(FILE* file, unsigned storedSkips)
 {
-    if (storedSkips-->0) {   /* implies g_sparseFileSupport>0 */
-        int const seekResult = LONG_SEEK(file, storedSkips, SEEK_CUR);
-        if (seekResult != 0) EXM_THROW(69, "Final skip error (sparse file)");
+    if (storedSkips>0) {
+        assert(g_sparseFileSupport > 0);  /* storedSkips>0 implies sparse support is enabled */
+        if (LONG_SEEK(file, storedSkips-1, SEEK_CUR) != 0)
+            EXM_THROW(69, "Final skip error (sparse file support)");
+        /* last zero must be explicitly written,
+         * so that skipped ones get implicitly translated as zero by FS */
         {   const char lastZeroByte[1] = { 0 };
-            size_t const sizeCheck = fwrite(lastZeroByte, 1, 1, file);
-            if (sizeCheck != 1)
+            if (fwrite(lastZeroByte, 1, 1, file) != 1)
                 EXM_THROW(69, "Write error : cannot write last zero");
     }   }
 }

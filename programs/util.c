@@ -18,6 +18,7 @@ extern "C" {
 ******************************************/
 #include <string.h>       /* strncmp */
 #include <errno.h>
+#include <assert.h>
 
 #include "util.h"
 
@@ -175,21 +176,23 @@ int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char
         pathLength = dirLength+1+fnameLength;
         path[pathLength] = 0;
         if (cFile.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-            if (strcmp (cFile.cFileName, "..") == 0 ||
-                strcmp (cFile.cFileName, ".") == 0) continue;
-
-            nbFiles += UTIL_prepareFileList(path, bufStart, pos, bufEnd, followLinks);  /* Recursively call "UTIL_prepareFileList" with the new path. */
+            if ( strcmp (cFile.cFileName, "..") == 0
+              || strcmp (cFile.cFileName, ".") == 0 )
+                continue;
+            /* Recursively call "UTIL_prepareFileList" with the new path. */
+            nbFiles += UTIL_prepareFileList(path, bufStart, pos, bufEnd, followLinks);
             if (*bufStart == NULL) { free(path); FindClose(hFile); return 0; }
-        }
-        else if ((cFile.dwFileAttributes & FILE_ATTRIBUTE_NORMAL) || (cFile.dwFileAttributes & FILE_ATTRIBUTE_ARCHIVE) || (cFile.dwFileAttributes & FILE_ATTRIBUTE_COMPRESSED)) {
+        } else if ( (cFile.dwFileAttributes & FILE_ATTRIBUTE_NORMAL)
+                 || (cFile.dwFileAttributes & FILE_ATTRIBUTE_ARCHIVE)
+                 || (cFile.dwFileAttributes & FILE_ATTRIBUTE_COMPRESSED) ) {
             if (*bufStart + *pos + pathLength >= *bufEnd) {
-                ptrdiff_t newListSize = (*bufEnd - *bufStart) + LIST_SIZE_INCREASE;
+                ptrdiff_t const newListSize = (*bufEnd - *bufStart) + LIST_SIZE_INCREASE;
                 *bufStart = (char*)UTIL_realloc(*bufStart, newListSize);
-                *bufEnd = *bufStart + newListSize;
                 if (*bufStart == NULL) { free(path); FindClose(hFile); return 0; }
+                *bufEnd = *bufStart + newListSize;
             }
             if (*bufStart + *pos + pathLength < *bufEnd) {
-                strncpy(*bufStart + *pos, path, *bufEnd - (*bufStart + *pos));
+                memcpy(*bufStart + *pos, path, pathLength+1 /* include final \0 */);
                 *pos += pathLength + 1;
                 nbFiles++;
             }
@@ -246,7 +249,7 @@ int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char
                 if (*bufStart == NULL) { free(path); closedir(dir); return 0; }
             }
             if (*bufStart + *pos + pathLength < *bufEnd) {
-                strncpy(*bufStart + *pos, path, *bufEnd - (*bufStart + *pos));
+                memcpy(*bufStart + *pos, path, pathLength + 1);  /* with final \0 */
                 *pos += pathLength + 1;
                 nbFiles++;
             }
@@ -304,7 +307,7 @@ UTIL_createFileList(const char **inputNames, unsigned inputNamesNb,
                 if (!buf) return NULL;
             }
             if (buf + pos + len < bufend) {
-                strncpy(buf + pos, inputNames[i], bufend - (buf + pos));
+                memcpy(buf+pos, inputNames[i], len+1);  /* with final \0 */
                 pos += len + 1;
                 nbFiles++;
             }
@@ -336,6 +339,7 @@ UTIL_createFileList(const char **inputNames, unsigned inputNamesNb,
 ******************************************/
 int g_utilDisplayLevel;
 
+
 /*-****************************************
 *  Time functions
 ******************************************/
@@ -354,6 +358,7 @@ U64 UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd)
     }
     return 1000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart;
 }
+
 U64 UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd)
 {
     static LARGE_INTEGER ticksPerSecond;
@@ -367,7 +372,9 @@ U64 UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd)
 }
 
 #elif defined(__APPLE__) && defined(__MACH__)
+
 UTIL_time_t UTIL_getTime(void) { return mach_absolute_time(); }
+
 U64 UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd)
 {
     static mach_timebase_info_data_t rate;
@@ -436,11 +443,13 @@ U64 UTIL_getSpanTimeNano(UTIL_time_t begin, UTIL_time_t end)
 }
 
 #else   /* relies on standard C (note : clock_t measurements can be wrong when using multi-threading) */
+
 typedef clock_t UTIL_time_t;
 #define UTIL_TIME_INITIALIZER 0
 UTIL_time_t UTIL_getTime(void) { return clock(); }
 U64 UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC; }
 U64 UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC; }
+
 #endif
 
 /* returns time span in microseconds */

@@ -16,11 +16,10 @@ extern "C" {
 /*-****************************************
 *  Dependencies
 ******************************************/
-#include <string.h>       /* strncmp */
+#include "util.h"       /* note : ensure that platform.h is included first ! */
 #include <errno.h>
 #include <assert.h>
 
-#include "util.h"
 
 int UTIL_fileExist(const char* filename)
 {

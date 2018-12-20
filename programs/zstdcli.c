@@ -469,7 +469,7 @@ static void printVersion(void)
 #define ENV_CLEVEL "ZSTD_CLEVEL"
 
 /* functions that pick up environment variables */
-int init_cLevel() {
+int init_cLevel(void) {
     const char* const env = getenv(ENV_CLEVEL);
     if (env) {
         const char *ptr = env;
@@ -541,6 +541,7 @@ int main(int argCount, const char* argv[])
     zstd_operation_mode operation = zom_compress;
     ZSTD_compressionParameters compressionParams;
     int cLevel = init_cLevel();
+    printf("init cLevel = %d\n", cLevel);
     int cLevelLast = -1000000000;
     unsigned recursive = 0;
     unsigned memLimit = 0;
@@ -1107,6 +1108,7 @@ int main(int argCount, const char* argv[])
         if (adaptMin > cLevel) cLevel = adaptMin;
         if (adaptMax < cLevel) cLevel = adaptMax;
 
+    printf("final cLevel = %d\n", cLevel);
         if ((filenameIdx==1) && outFileName)
           operationResult = FIO_compressFilename(outFileName, filenameTable[0], dictFileName, cLevel, compressionParams);
         else

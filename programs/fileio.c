@@ -2334,7 +2334,7 @@ FIO_listFile(fileInfo_t* total, const char* inFileName, int displayLevel)
         }
         displayInfo(inFileName, &info, displayLevel);
         *total = FIO_addFInfo(*total, info);
-        assert(error>=0 || error<=1);
+        assert(error == info_success || error == info_frame_error);
         return error;
     }
 }

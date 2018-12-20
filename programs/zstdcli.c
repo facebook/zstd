@@ -469,7 +469,7 @@ static void printVersion(void)
 #define ENV_CLEVEL "ZSTD_CLEVEL"
 
 /* functions that pick up environment variables */
-int init_cLevel(void) {
+static int init_cLevel(void) {
     const char* const env = getenv(ENV_CLEVEL);
     if (env) {
         const char *ptr = env;

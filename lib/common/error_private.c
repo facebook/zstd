@@ -14,6 +14,10 @@
 
 const char* ERR_getErrorString(ERR_enum code)
 {
+#ifdef ZSTD_STRIP_ERROR_STRINGS
+    (void)code;
+    return "Error strings stripped";
+#else
     static const char* const notErrorCode = "Unspecified error code";
     switch( code )
     {
@@ -46,4 +50,5 @@ const char* ERR_getErrorString(ERR_enum code)
     case PREFIX(maxCode):
     default: return notErrorCode;
     }
+#endif
 }

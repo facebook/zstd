@@ -184,9 +184,9 @@ $ZSTD tmpro -c --no-progress | $ZSTD -d -o "$INTOVOID" --no-progress
 $ZSTD tmpro -cv --no-progress | $ZSTD -dv -o "$INTOVOID" --no-progress
 rm -f tmpro tmpro.zst
 $ECHO "test: overwrite input file (must fail)"
-$ZSTD tmp -fo tmp && die "zstd overwrote the input file"
-$ZSTD tmp.zst -dfo tmp.zst && die "zstd overwrote the input file"
-$ECHO "test: properly detect input file does not exist"
+$ZSTD tmp -fo tmp && die "zstd compression overwrote the input file"
+$ZSTD tmp.zst -dfo tmp.zst && die "zstd decompression overwrote the input file"
+$ECHO "test: detect that input file does not exist"
 $ZSTD nothere && die "zstd hasn't detected that input file does not exist"
 
 $ECHO "test : file removal"

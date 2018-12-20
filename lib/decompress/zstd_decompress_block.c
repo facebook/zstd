@@ -810,6 +810,7 @@ ZSTD_updateFseState(ZSTD_fseState* DStatePtr, BIT_DStream_t* bitD)
 
 typedef enum { ZSTD_lo_isRegularOffset, ZSTD_lo_isLongOffset=1 } ZSTD_longOffset_e;
 
+#ifndef ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG
 FORCE_INLINE_TEMPLATE seq_t
 ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e longOffsets)
 {
@@ -949,6 +950,7 @@ ZSTD_decompressSequences_default(ZSTD_DCtx* dctx,
 {
     return ZSTD_decompressSequences_body(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
 }
+#endif /* ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG */
 
 
 
@@ -1123,6 +1125,7 @@ ZSTD_decompressSequencesLong_default(ZSTD_DCtx* dctx,
 
 #if DYNAMIC_BMI2
 
+#ifndef ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG
 static TARGET_ATTRIBUTE("bmi2") size_t
 ZSTD_decompressSequences_bmi2(ZSTD_DCtx* dctx,
                                  void* dst, size_t maxDstSize,
@@ -1131,6 +1134,7 @@ ZSTD_decompressSequences_bmi2(ZSTD_DCtx* dctx,
 {
     return ZSTD_decompressSequences_body(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
 }
+#endif /* ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG */
 
 #ifndef ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT
 static TARGET_ATTRIBUTE("bmi2") size_t
@@ -1151,6 +1155,7 @@ typedef size_t (*ZSTD_decompressSequences_t)(
                             const void* seqStart, size_t seqSize, int nbSeq,
                             const ZSTD_longOffset_e isLongOffset);
 
+#ifndef ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG
 static size_t
 ZSTD_decompressSequences(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize,
                    const void* seqStart, size_t seqSize, int nbSeq,
@@ -1164,6 +1169,7 @@ ZSTD_decompressSequences(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize,
 #endif
   return ZSTD_decompressSequences_default(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
 }
+#endif /* ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG */
 
 
 #ifndef ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT

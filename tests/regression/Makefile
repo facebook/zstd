@@ -10,7 +10,7 @@
 CFLAGS ?= -O3
 
 CURL_CFLAGS := $(shell curl-config --cflags)
-CURL_LDFLAGS := $(shell curl-config --libs)
+CURL_LDFLAGS := $(shell curl-config --libs) -pthread
 
 PROGDIR := ../../programs
 LIBDIR := ../../lib
@@ -46,7 +46,7 @@ test.o: test.c data.h config.h method.h
 	$(CC) $(REGRESSION_CFLAGS) $(REGRESSION_CPPFLAGS) $< -c -o $@
 
 libzstd.a:
-	$(MAKE) -C $(LIBDIR) libzstd.a
+	$(MAKE) -C $(LIBDIR) libzstd.a-mt
 	cp $(LIBDIR)/libzstd.a .
 
 test: test.o data.o config.o util.o method.o result.o xxhash.o libzstd.a

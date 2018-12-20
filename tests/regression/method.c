@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define ZSTD_STATIC_LINKING_ONLY
 #include <zstd.h>
 
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
@@ -152,8 +153,6 @@ static result_t compress_cctx_compress(
         return result_error(result_error_skip);
 
     int const level = config_get_level(config);
-    if (level == CONFIG_NO_LEVEL)
-        return result_error(result_error_skip);
 
     ZSTD_CCtx* cctx = ZSTD_createCCtx();
     ZSTD_DCtx* dctx = ZSTD_createDCtx();
@@ -166,8 +165,20 @@ static result_t compress_cctx_compress(
     result_data_t data = {.total_size = 0};
     for (size_t i = 0; i < state->inputs.size; ++i) {
         data_buffer_t const input = state->inputs.buffers[i];
+        ZSTD_parameters const params =
+            config_get_zstd_params(config, input.size, state->dictionary.size);
 
-        if (config->use_dictionary)
+        if (level == CONFIG_NO_LEVEL)
+            state->compressed.size = ZSTD_compress_advanced(
+                cctx,
+                state->compressed.data,
+                state->compressed.capacity,
+                input.data,
+                input.size,
+                state->dictionary.data,
+                state->dictionary.size,
+                params);
+        else if (config->use_dictionary)
             state->compressed.size = ZSTD_compress_usingDict(
                 cctx,
                 state->compressed.data,
@@ -185,6 +196,7 @@ static result_t compress_cctx_compress(
                 input.data,
                 input.size,
                 level);
+
         if (ZSTD_isError(state->compressed.size)) {
             result = result_error(result_error_compression_error);
             goto out;

@@ -116,12 +116,16 @@ extern int g_utilDisplayLevel;
 *  Time functions
 ******************************************/
 #if defined(_WIN32)   /* Windows */
+
     #define UTIL_TIME_INITIALIZER { { 0, 0 } }
     typedef LARGE_INTEGER UTIL_time_t;
+
 #elif defined(__APPLE__) && defined(__MACH__)
+
     #include <mach/mach_time.h>
     #define UTIL_TIME_INITIALIZER 0
     typedef U64 UTIL_time_t;
+
 #elif (PLATFORM_POSIX_VERSION >= 200112L) \
    && (defined(__UCLIBC__)                \
       || (defined(__GLIBC__)              \
@@ -133,10 +137,14 @@ extern int g_utilDisplayLevel;
     typedef struct timespec UTIL_time_t;
 
     UTIL_time_t UTIL_getSpanTime(UTIL_time_t begin, UTIL_time_t end);
+
 #else   /* relies on standard C (note : clock_t measurements can be wrong when using multi-threading) */
+
     typedef clock_t UTIL_time_t;
     #define UTIL_TIME_INITIALIZER 0
+
 #endif
+
 UTIL_time_t UTIL_getTime(void);
 U64 UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd);
 U64 UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd);

@@ -444,8 +444,6 @@ U64 UTIL_getSpanTimeNano(UTIL_time_t begin, UTIL_time_t end)
 
 #else   /* relies on standard C (note : clock_t measurements can be wrong when using multi-threading) */
 
-typedef clock_t UTIL_time_t;
-#define UTIL_TIME_INITIALIZER 0
 UTIL_time_t UTIL_getTime(void) { return clock(); }
 U64 UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC; }
 U64 UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC; }

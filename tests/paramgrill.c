@@ -12,7 +12,7 @@
 /*-************************************
 *  Dependencies
 **************************************/
-#include "util.h"      /* Compiler options, UTIL_GetFileSize */
+#include "util.h"      /* Ensure platform.h is compiled first; also : compiler options, UTIL_GetFileSize */
 #include <stdlib.h>    /* malloc */
 #include <stdio.h>     /* fprintf, fopen, ftello64 */
 #include <string.h>    /* strcmp */
@@ -24,7 +24,6 @@
 #include "zstd.h"
 #include "datagen.h"
 #include "xxhash.h"
-#include "util.h"
 #include "benchfn.h"
 #include "benchzstd.h"
 #include "zstd_errors.h"
@@ -879,12 +878,12 @@ BMK_printWinner(FILE* f, const int cLevel, const BMK_benchResult_t result, const
 
     if(TIMED) {
         const U64 mn_in_ns = 60ULL * TIMELOOP_NANOSEC;
-        const U64 time = UTIL_clockSpanNano(g_time);
-        const U64 minutes = time / mn_in_ns;
+        const U64 time_ns = UTIL_clockSpanNano(g_time);
+        const U64 minutes = time_ns / mn_in_ns;
         fprintf(f, "%1lu:%2lu:%05.2f - ",
                 (unsigned long) minutes / 60,
                 (unsigned long) minutes % 60,
-                (double)(time - (minutes * mn_in_ns)) / TIMELOOP_NANOSEC );
+                (double)(time_ns - (minutes * mn_in_ns)) / TIMELOOP_NANOSEC );
     }
 
     fprintf(f, "/* %s */   ", lvlstr);

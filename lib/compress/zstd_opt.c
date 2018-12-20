@@ -1124,8 +1124,7 @@ ZSTD_initStats_ultra(ZSTD_matchState_t* ms,
     U32 tmpRep[ZSTD_REP_NUM];  /* updated rep codes will sink here */
     memcpy(tmpRep, rep, sizeof(tmpRep));
 
-    DEBUGLOG(5, "ZSTD_initStats_ultra (srcSize=%zu)", srcSize);
-    DEBUGLOG(5, "repCodes: %u, %u, %u", tmpRep[0], tmpRep[1], tmpRep[2]);
+    DEBUGLOG(4, "ZSTD_initStats_ultra (srcSize=%zu)", srcSize);
     assert(ms->opt.litLengthSum == 0);    /* first block */
     assert(seqStore->sequences == seqStore->sequencesStart);   /* no ldm */
     assert(ms->window.dictLimit == ms->window.lowLimit);   /* no dictionary */
@@ -1157,6 +1156,7 @@ size_t ZSTD_compressBlock_btultra2(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         const void* src, size_t srcSize)
 {
+    U32 const current = (U32)((const BYTE*)src - ms->window.base);
     DEBUGLOG(5, "ZSTD_compressBlock_btultra2 (srcSize=%zu)", srcSize);
 
     /* 2-pass strategy:
@@ -1171,7 +1171,7 @@ size_t ZSTD_compressBlock_btultra2(
     if ( (ms->opt.litLengthSum==0)   /* first block */
       && (seqStore->sequences == seqStore->sequencesStart)  /* no ldm */
       && (ms->window.dictLimit == ms->window.lowLimit)   /* no dictionary */
-      && (ms->window.dictLimit - ms->nextToUpdate <= 1)  /* no prefix (note: intentional overflow, defined as 2-complement) */
+      && (current == ms->window.dictLimit)   /* start of frame, nothing already loaded nor skipped */
       && (srcSize > ZSTD_PREDEF_THRESHOLD)
       ) {
         ZSTD_initStats_ultra(ms, seqStore, rep, src, srcSize);

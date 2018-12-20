@@ -3882,7 +3882,7 @@ size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                 /* shortcut to compression pass directly into output buffer */
                 size_t const cSize = ZSTD_compressEnd(zcs,
                                                 op, oend-op, ip, iend-ip);
-                DEBUGLOG(4, "ZSTD_compressEnd : %u", (U32)cSize);
+                DEBUGLOG(4, "ZSTD_compressEnd : cSize=%u", (U32)cSize);
                 if (ZSTD_isError(cSize)) return cSize;
                 ip = iend;
                 op += cSize;

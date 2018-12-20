@@ -496,7 +496,8 @@ static size_t FIO_createDictBuffer(void** bufferPtr, const char* fileName)
     if (*bufferPtr==NULL) EXM_THROW(34, "%s", strerror(errno));
     {   size_t const readSize = fread(*bufferPtr, 1, (size_t)fileSize, fileHandle);
         if (readSize!=fileSize)
-            EXM_THROW(35, "Error reading dictionary file %s", fileName);
+            EXM_THROW(35, "Error reading dictionary file %s : %s",
+                    fileName, strerror(errno));
     }
     fclose(fileHandle);
     return (size_t)fileSize;
@@ -526,7 +527,8 @@ static cRess_t FIO_createCResources(const char* dictFileName, int cLevel,
     DISPLAYLEVEL(6, "FIO_createCResources \n");
     ress.cctx = ZSTD_createCCtx();
     if (ress.cctx == NULL)
-        EXM_THROW(30, "allocation error : can't create ZSTD_CCtx");
+        EXM_THROW(30, "allocation error (%s): can't create ZSTD_CCtx",
+                    strerror(errno));
     ress.srcBufferSize = ZSTD_CStreamInSize();
     ress.srcBuffer = malloc(ress.srcBufferSize);
     ress.dstBufferSize = ZSTD_CStreamOutSize();
@@ -659,7 +661,7 @@ FIO_compressGzFrame(cRess_t* ress,
         {   size_t const decompBytes = ress->dstBufferSize - strm.avail_out;
             if (decompBytes) {
                 if (fwrite(ress->dstBuffer, 1, decompBytes, ress->dstFile) != decompBytes)
-                    EXM_THROW(75, "Write error : cannot write to output file");
+                    EXM_THROW(75, "Write error : %s", strerror(errno));
                 outFileSize += decompBytes;
                 strm.next_out = (Bytef*)ress->dstBuffer;
                 strm.avail_out = (uInt)ress->dstBufferSize;
@@ -727,7 +729,7 @@ FIO_compressLzmaFrame(cRess_t* ress,
         {   size_t const compBytes = ress->dstBufferSize - strm.avail_out;
             if (compBytes) {
                 if (fwrite(ress->dstBuffer, 1, compBytes, ress->dstFile) != compBytes)
-                    EXM_THROW(73, "Write error : cannot write to output file");
+                    EXM_THROW(73, "Write error : %s", strerror(errno));
                 outFileSize += compBytes;
                 strm.next_out = (BYTE*)ress->dstBuffer;
                 strm.avail_out = ress->dstBufferSize;
@@ -792,7 +794,7 @@ FIO_compressLz4Frame(cRess_t* ress,
             EXM_THROW(33, "File header generation failed : %s",
                             LZ4F_getErrorName(headerSize));
         if (fwrite(ress->dstBuffer, 1, headerSize, ress->dstFile) != headerSize)
-            EXM_THROW(34, "Write error : cannot write header");
+            EXM_THROW(34, "Write error : %s (cannot write header)", strerror(errno));
         outFileSize += headerSize;
 
         /* Read first block */
@@ -820,7 +822,7 @@ FIO_compressLz4Frame(cRess_t* ress,
 
             /* Write Block */
             { size_t const sizeCheck = fwrite(ress->dstBuffer, 1, outSize, ress->dstFile);
-              if (sizeCheck!=outSize) EXM_THROW(36, "Write error : cannot write compressed block"); }
+              if (sizeCheck!=outSize) EXM_THROW(36, "Write error : %s", strerror(errno)); }
 
             /* Read next block */
             readSize  = fread(ress->srcBuffer, (size_t)1, (size_t)blockSize, ress->srcFile);
@@ -834,8 +836,11 @@ FIO_compressLz4Frame(cRess_t* ress,
             EXM_THROW(38, "zstd: %s: lz4 end of file generation failed : %s",
                         srcFileName, LZ4F_getErrorName(headerSize));
 
-        { size_t const sizeCheck = fwrite(ress->dstBuffer, 1, headerSize, ress->dstFile);
-          if (sizeCheck!=headerSize) EXM_THROW(39, "Write error : cannot write end of stream"); }
+        {   size_t const sizeCheck = fwrite(ress->dstBuffer, 1, headerSize, ress->dstFile);
+            if (sizeCheck!=headerSize)
+                EXM_THROW(39, "Write error : %s (cannot write end of stream)",
+                            strerror(errno));
+        }
         outFileSize += headerSize;
     }
 
@@ -908,7 +913,8 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
             if (outBuff.pos) {
                 size_t const sizeCheck = fwrite(ress.dstBuffer, 1, outBuff.pos, dstFile);
                 if (sizeCheck != outBuff.pos)
-                    EXM_THROW(25, "Write error : cannot write compressed block");
+                    EXM_THROW(25, "Write error : %s (cannot write compressed block)",
+                                    strerror(errno));
                 compressedfilesize += outBuff.pos;
             }
 
@@ -1282,7 +1288,8 @@ int FIO_compressMultipleFilenames(const char** inFileNamesTable, unsigned nbFile
             for (u=0; u<nbFiles; u++)
                 error |= FIO_compressFilename_srcFile(ress, outFileName, inFileNamesTable[u], compressionLevel);
             if (fclose(ress.dstFile))
-                EXM_THROW(29, "Write error : cannot properly close %s", outFileName);
+                EXM_THROW(29, "Write error (%s) : cannot properly close %s",
+                            strerror(errno), outFileName);
             ress.dstFile = NULL;
         }
     } else {
@@ -1323,7 +1330,8 @@ static dRess_t FIO_createDResources(const char* dictFileName)
 
     /* Allocation */
     ress.dctx = ZSTD_createDStream();
-    if (ress.dctx==NULL) EXM_THROW(60, "Can't create ZSTD_DStream");
+    if (ress.dctx==NULL)
+        EXM_THROW(60, "Error: %s : can't create ZSTD_DStream", strerror(errno));
     CHECK( ZSTD_DCtx_setMaxWindowSize(ress.dctx, g_memLimit) );
     ress.srcBufferSize = ZSTD_DStreamInSize();
     ress.srcBuffer = malloc(ress.srcBufferSize);
@@ -1362,14 +1370,17 @@ static unsigned FIO_fwriteSparse(FILE* file, const void* buffer, size_t bufferSi
 
     if (!g_sparseFileSupport) {  /* normal write */
         size_t const sizeCheck = fwrite(buffer, 1, bufferSize, file);
-        if (sizeCheck != bufferSize) EXM_THROW(70, "Write error : cannot write decoded block");
+        if (sizeCheck != bufferSize)
+            EXM_THROW(70, "Write error : %s (cannot write decoded block)",
+                            strerror(errno));
         return 0;
     }
 
     /* avoid int overflow */
     if (storedSkips > 1 GB) {
         int const seekResult = LONG_SEEK(file, 1 GB, SEEK_CUR);
-        if (seekResult != 0) EXM_THROW(71, "1 GB skip error (sparse file support)");
+        if (seekResult != 0)
+            EXM_THROW(71, "1 GB skip error (sparse file support)");
         storedSkips -= 1 GB;
     }
 
@@ -2044,7 +2055,7 @@ FIO_determineDstName(const char* srcFileName)
         dfnbCapacity = sfnSize + 20;
         dstFileNameBuffer = (char*)malloc(dfnbCapacity);
         if (dstFileNameBuffer==NULL)
-            EXM_THROW(74, "not enough memory for dstFileName");
+            EXM_THROW(74, "%s : not enough memory for dstFileName", strerror(errno));
     }
 
     /* return dst name == src name truncated from suffix */
@@ -2072,7 +2083,8 @@ FIO_decompressMultipleFilenames(const char* srcNamesTable[], unsigned nbFiles,
         for (u=0; u<nbFiles; u++)
             error |= FIO_decompressSrcFile(ress, outFileName, srcNamesTable[u]);
         if (fclose(ress.dstFile))
-            EXM_THROW(72, "Write error : cannot properly close output file");
+            EXM_THROW(72, "Write error : %s : cannot properly close output file",
+                        strerror(errno));
     } else {
         unsigned u;
         for (u=0; u<nbFiles; u++) {   /* create dstFileName */

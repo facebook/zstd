@@ -365,7 +365,7 @@ void FIO_setNoProgress(unsigned noProgress) {
 static int FIO_remove(const char* path)
 {
     if (!UTIL_isRegularFile(path)) {
-        DISPLAYLEVEL(2, "zstd: Refusing to remove non-regular file %s\n", path);
+        DISPLAYLEVEL(2, "zstd: Refusing to remove non-regular file %s \n", path);
         return 0;
     }
 #if defined(_WIN32) || defined(WIN32)
@@ -383,14 +383,14 @@ static FILE* FIO_openSrcFile(const char* srcFileName)
 {
     assert(srcFileName != NULL);
     if (!strcmp (srcFileName, stdinmark)) {
-        DISPLAYLEVEL(4,"Using stdin for input\n");
+        DISPLAYLEVEL(4,"Using stdin for input \n");
         SET_BINARY_MODE(stdin);
         return stdin;
     }
 
     if (!UTIL_fileExist(srcFileName)) {
-        DISPLAYLEVEL(1, "zstd: %s : No such file or directory (can't stat) -- ignored \n",
-                        srcFileName);
+        DISPLAYLEVEL(1, "zstd: can't stat %s : %s -- ignored \n",
+                        srcFileName, strerror(errno));
         return NULL;
     }
 
@@ -414,7 +414,7 @@ static FILE* FIO_openDstFile(const char* srcFileName, const char* dstFileName)
 {
     assert(dstFileName != NULL);
     if (!strcmp (dstFileName, stdoutmark)) {
-        DISPLAYLEVEL(4,"Using stdout for output\n");
+        DISPLAYLEVEL(4,"Using stdout for output \n");
         SET_BINARY_MODE(stdout);
         if (g_sparseFileSupport==1) {
             g_sparseFileSupport = 0;
@@ -425,11 +425,12 @@ static FILE* FIO_openDstFile(const char* srcFileName, const char* dstFileName)
     if (srcFileName != NULL) {
         stat_t srcStat;
         stat_t dstStat;
-        if (UTIL_getFileStat(srcFileName, &srcStat) && UTIL_getFileStat(dstFileName, &dstStat)) {
-            if (srcStat.st_dev == dstStat.st_dev && srcStat.st_ino == dstStat.st_ino) {
-                DISPLAYLEVEL(1, "zstd: Refusing to open a output file which will overwrite the input file \n");
-                return NULL;
-            }
+        if ( UTIL_getFileStat(srcFileName, &srcStat)
+          && UTIL_getFileStat(dstFileName, &dstStat)
+          && srcStat.st_dev == dstStat.st_dev
+          && srcStat.st_ino == dstStat.st_ino ) {
+            DISPLAYLEVEL(1, "zstd: Refusing to open a output file which will overwrite the input file \n");
+            return NULL;
         }
     }
 
@@ -438,12 +439,12 @@ static FILE* FIO_openDstFile(const char* srcFileName, const char* dstFileName)
     }
 
     if (UTIL_isRegularFile(dstFileName)) {
-        FILE* fCheck;
-        if (!strcmp(dstFileName, nulmark)) {
-            EXM_THROW(40, "%s is unexpectedly a regular file", dstFileName);
-        }
         /* Check if destination file already exists */
-        fCheck = fopen( dstFileName, "rb" );
+        FILE* const fCheck = fopen( dstFileName, "rb" );
+        if (!strcmp(dstFileName, nulmark)) {
+            EXM_THROW(40, "%s is unexpectedly categorized as a regular file",
+                        dstFileName);
+        }
         if (fCheck != NULL) {  /* dst file exists, authorization prompt */
             fclose(fCheck);
             if (!g_overwrite) {

@@ -122,6 +122,18 @@ $ZSTD --fast=5000000000 -f tmp && die "too large numeric value : must fail"
 $ZSTD -c --fast=0 tmp > $INTOVOID && die "--fast must not accept value 0"
 $ECHO "test : too large numeric argument"
 $ZSTD --fast=9999999999 -f tmp  && die "should have refused numeric value"
+$ECHO "test : set compression level with environment variable ZSTD_CLEVEL"
+ZSTD_CLEVEL=12  $ZSTD -f tmp # positive compression level
+ZSTD_CLEVEL=-12 $ZSTD -f tmp # negative compression level
+ZSTD_CLEVEL=+12 $ZSTD -f tmp # valid: verbose '+' sign 
+ZSTD_CLEVEL=    $ZSTD -f tmp # empty env var, warn and revert to default setting
+ZSTD_CLEVEL=-   $ZSTD -f tmp # malformed env var, warn and revert to default setting
+ZSTD_CLEVEL=a   $ZSTD -f tmp # malformed env var, warn and revert to default setting
+ZSTD_CLEVEL=+a  $ZSTD -f tmp # malformed env var, warn and revert to default setting
+ZSTD_CLEVEL=3a7 $ZSTD -f tmp # malformed env var, warn and revert to default setting
+ZSTD_CLEVEL=50000000000  $ZSTD -f tmp # numeric value too large, warn and revert to default setting
+$ECHO "test : override ZSTD_CLEVEL with command line option"
+ZSTD_CLEVEL=12  $ZSTD --fast=3 -f tmp # overridden by command line option 
 $ECHO "test : compress to stdout"
 $ZSTD tmp -c > tmpCompressed
 $ZSTD tmp --stdout > tmpCompressed       # long command format

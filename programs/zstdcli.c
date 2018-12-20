@@ -234,32 +234,44 @@ static void errorOut(const char* msg)
     DISPLAY("%s \n", msg); exit(1);
 }
 
-/*! readU32FromChar() :
- * @return : unsigned integer value read from input in `char` format.
+/*! _readU32FromChar() :
+ * @return 0 if success, and store the result in *value.
  *  allows and interprets K, KB, KiB, M, MB and MiB suffix.
  *  Will also modify `*stringPtr`, advancing it to position where it stopped reading.
- *  Note : function will exit() program if digit sequence overflows */
-static unsigned readU32FromChar(const char** stringPtr)
+ * @return 1 if an overflow error occurs */
+static int _readU32FromChar(const char** stringPtr, unsigned* value)
 {
-    const char errorMsg[] = "error: numeric value too large";
+    static unsigned const max = (((unsigned)(-1)) / 10) - 1;
     unsigned result = 0;
     while ((**stringPtr >='0') && (**stringPtr <='9')) {
-        unsigned const max = (((unsigned)(-1)) / 10) - 1;
-        if (result > max) errorOut(errorMsg);
+        if (result > max) return 1; // overflow error
         result *= 10, result += **stringPtr - '0', (*stringPtr)++ ;
     }
     if ((**stringPtr=='K') || (**stringPtr=='M')) {
         unsigned const maxK = ((unsigned)(-1)) >> 10;
-        if (result > maxK) errorOut(errorMsg);
+        if (result > maxK) return 1; // overflow error
         result <<= 10;
         if (**stringPtr=='M') {
-            if (result > maxK) errorOut(errorMsg);
+            if (result > maxK) return 1; // overflow error
             result <<= 10;
         }
         (*stringPtr)++;  /* skip `K` or `M` */
         if (**stringPtr=='i') (*stringPtr)++;
         if (**stringPtr=='B') (*stringPtr)++;
     }
+    *value = result;
+    return 0;
+}
+
+/*! readU32FromChar() :
+ * @return : unsigned integer value read from input in `char` format.
+ *  allows and interprets K, KB, KiB, M, MB and MiB suffix.
+ *  Will also modify `*stringPtr`, advancing it to position where it stopped reading.
+ *  Note : function will exit() program if digit sequence overflows */
+static unsigned readU32FromChar(const char** stringPtr) {
+    static const char errorMsg[] = "error: numeric value too large";
+    unsigned result;
+    if (_readU32FromChar(stringPtr, &result)) { errorOut(errorMsg); }
     return result;
 }
 
@@ -458,18 +470,28 @@ static void printVersion(void)
 
 /* functions that pick up environment variables */
 int init_cLevel() {
-    const char *env = getenv(ENV_CLEVEL);
+    const char* const env = getenv(ENV_CLEVEL);
     if (env) {
+        const char *ptr = env;
         int sign = 1;
-        if (*env == '-') {
+        if (*ptr == '-') {
             sign = -1;
-            env++;
-        } else if (*env == '+') {
-            env++;
+            ptr++;
+        } else if (*ptr == '+') {
+            ptr++;
         }
 
-        if ((*env>='0') && (*env<='9'))
-            return sign * readU32FromChar(&env);
+        if ((*ptr>='0') && (*ptr<='9')) {
+            unsigned absLevel;
+            if (_readU32FromChar(&ptr, &absLevel)) { 
+                DISPLAYLEVEL(2, "Ignore environment variable %s=%s: numeric value too large\n", ENV_CLEVEL, env);
+                return ZSTDCLI_CLEVEL_DEFAULT;
+            } else if (*ptr == 0) {
+                return sign * absLevel;
+            }
+        }
+
+        DISPLAYLEVEL(2, "Ignore environment variable %s=%s: not a valid integer value\n", ENV_CLEVEL, env);
     }
 
     return ZSTDCLI_CLEVEL_DEFAULT;
@@ -490,6 +512,8 @@ typedef enum { zom_compress, zom_decompress, zom_test, zom_bench, zom_train, zom
 
 int main(int argCount, const char* argv[])
 {
+    g_displayOut = stderr;
+
     int argNb,
         followLinks = 0,
         forceStdout = 0,
@@ -550,7 +574,6 @@ int main(int argCount, const char* argv[])
     (void)memLimit;   /* not used when ZSTD_NODECOMPRESS set */
     if (filenameTable==NULL) { DISPLAY("zstd: %s \n", strerror(errno)); exit(1); }
     filenameTable[0] = stdinmark;
-    g_displayOut = stderr;
     programName = lastNameFromPath(programName);
 #ifdef ZSTD_MULTITHREAD
     nbWorkers = 1;

@@ -512,8 +512,6 @@ typedef enum { zom_compress, zom_decompress, zom_test, zom_bench, zom_train, zom
 
 int main(int argCount, const char* argv[])
 {
-    g_displayOut = stderr;
-
     int argNb,
         followLinks = 0,
         forceStdout = 0,
@@ -540,8 +538,7 @@ int main(int argCount, const char* argv[])
     size_t blockSize = 0;
     zstd_operation_mode operation = zom_compress;
     ZSTD_compressionParameters compressionParams;
-    int cLevel = init_cLevel();
-    printf("init cLevel = %d\n", cLevel);
+    int cLevel;
     int cLevelLast = -1000000000;
     unsigned recursive = 0;
     unsigned memLimit = 0;
@@ -575,6 +572,8 @@ int main(int argCount, const char* argv[])
     (void)memLimit;   /* not used when ZSTD_NODECOMPRESS set */
     if (filenameTable==NULL) { DISPLAY("zstd: %s \n", strerror(errno)); exit(1); }
     filenameTable[0] = stdinmark;
+    g_displayOut = stderr;
+    cLevel = init_cLevel();
     programName = lastNameFromPath(programName);
 #ifdef ZSTD_MULTITHREAD
     nbWorkers = 1;
@@ -1108,7 +1107,6 @@ int main(int argCount, const char* argv[])
         if (adaptMin > cLevel) cLevel = adaptMin;
         if (adaptMax < cLevel) cLevel = adaptMax;
 
-    printf("final cLevel = %d\n", cLevel);
         if ((filenameIdx==1) && outFileName)
           operationResult = FIO_compressFilename(outFileName, filenameTable[0], dictFileName, cLevel, compressionParams);
         else

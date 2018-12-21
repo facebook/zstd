@@ -23,7 +23,7 @@
 #include "platform.h"    /* Large Files support */
 #include "util.h"        /* UTIL_getFileSize, UTIL_sleep */
 #include <stdlib.h>      /* malloc, free */
-#include <string.h>      /* memset */
+#include <string.h>      /* memset, strerror */
 #include <stdio.h>       /* fprintf, fopen */
 #include <errno.h>
 #include <assert.h>      /* assert */

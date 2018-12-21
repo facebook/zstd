@@ -115,7 +115,7 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct,
     /* symbol start positions */
     {   U32 u;
         cumul[0] = 0;
-        for (u=1; u<=maxSymbolValue+1; u++) {
+        for (u=1; u <= maxSymbolValue+1; u++) {
             if (normalizedCounter[u-1]==-1) {  /* Low proba symbol */
                 cumul[u] = cumul[u-1] + 1;
                 tableSymbol[highThreshold--] = (FSE_FUNCTION_TYPE)(u-1);

@@ -270,9 +270,9 @@ void FIO_addAbortHandler()
 static FIO_compressionType_t g_compressionType = FIO_zstdCompression;
 void FIO_setCompressionType(FIO_compressionType_t compressionType) { g_compressionType = compressionType; }
 static U32 g_overwrite = 0;
-void FIO_overwriteMode(void) { g_overwrite=1; }
-static U32 g_sparseFileSupport = 1;   /* 0: no sparse allowed; 1: auto (file yes, stdout no); 2: force sparse */
-void FIO_setSparseWrite(unsigned sparse) { g_sparseFileSupport=sparse; }
+void FIO_overwriteMode(void) { g_overwrite = 1; }
+static U32 g_sparseFileSupport = ZSTD_SPARSE_DEFAULT;   /* 0: no sparse allowed; 1: auto (file yes, stdout no); 2: force sparse */
+void FIO_setSparseWrite(unsigned sparse) { g_sparseFileSupport = sparse; }
 static U32 g_dictIDFlag = 1;
 void FIO_setDictIDFlag(unsigned dictIDFlag) { g_dictIDFlag = dictIDFlag; }
 static U32 g_checksumFlag = 1;
@@ -365,7 +365,7 @@ void FIO_setNoProgress(unsigned noProgress) {
 static int FIO_remove(const char* path)
 {
     if (!UTIL_isRegularFile(path)) {
-        DISPLAYLEVEL(2, "zstd: Refusing to remove non-regular file %s\n", path);
+        DISPLAYLEVEL(2, "zstd: Refusing to remove non-regular file %s \n", path);
         return 0;
     }
 #if defined(_WIN32) || defined(WIN32)
@@ -383,9 +383,15 @@ static FILE* FIO_openSrcFile(const char* srcFileName)
 {
     assert(srcFileName != NULL);
     if (!strcmp (srcFileName, stdinmark)) {
-        DISPLAYLEVEL(4,"Using stdin for input\n");
+        DISPLAYLEVEL(4,"Using stdin for input \n");
         SET_BINARY_MODE(stdin);
         return stdin;
+    }
+
+    if (!UTIL_fileExist(srcFileName)) {
+        DISPLAYLEVEL(1, "zstd: can't stat %s : %s -- ignored \n",
+                        srcFileName, strerror(errno));
+        return NULL;
     }
 
     if (!UTIL_isRegularFile(srcFileName)) {
@@ -408,36 +414,37 @@ static FILE* FIO_openDstFile(const char* srcFileName, const char* dstFileName)
 {
     assert(dstFileName != NULL);
     if (!strcmp (dstFileName, stdoutmark)) {
-        DISPLAYLEVEL(4,"Using stdout for output\n");
+        DISPLAYLEVEL(4,"Using stdout for output \n");
         SET_BINARY_MODE(stdout);
-        if (g_sparseFileSupport==1) {
+        if (g_sparseFileSupport == 1) {
             g_sparseFileSupport = 0;
             DISPLAYLEVEL(4, "Sparse File Support is automatically disabled on stdout ; try --sparse \n");
         }
         return stdout;
     }
+
     if (srcFileName != NULL) {
         stat_t srcStat;
         stat_t dstStat;
-        if (UTIL_getFileStat(srcFileName, &srcStat) && UTIL_getFileStat(dstFileName, &dstStat)) {
-            if (srcStat.st_dev == dstStat.st_dev && srcStat.st_ino == dstStat.st_ino) {
+        if ( UTIL_getFileStat(srcFileName, &srcStat)
+          && UTIL_getFileStat(dstFileName, &dstStat) ) {
+            if ( srcStat.st_dev == dstStat.st_dev
+              && srcStat.st_ino == dstStat.st_ino ) {
                 DISPLAYLEVEL(1, "zstd: Refusing to open a output file which will overwrite the input file \n");
                 return NULL;
-            }
-        }
-    }
+    }   }   }
 
     if (g_sparseFileSupport == 1) {
         g_sparseFileSupport = ZSTD_SPARSE_DEFAULT;
     }
 
     if (UTIL_isRegularFile(dstFileName)) {
-        FILE* fCheck;
-        if (!strcmp(dstFileName, nulmark)) {
-            EXM_THROW(40, "%s is unexpectedly a regular file", dstFileName);
-        }
         /* Check if destination file already exists */
-        fCheck = fopen( dstFileName, "rb" );
+        FILE* const fCheck = fopen( dstFileName, "rb" );
+        if (!strcmp(dstFileName, nulmark)) {
+            EXM_THROW(40, "%s is unexpectedly categorized as a regular file",
+                        dstFileName);
+        }
         if (fCheck != NULL) {  /* dst file exists, authorization prompt */
             fclose(fCheck);
             if (!g_overwrite) {
@@ -803,26 +810,28 @@ FIO_compressLz4Frame(cRess_t* ress,
 
         /* Main Loop */
         while (readSize>0) {
-            size_t outSize;
-
-            /* Compress Block */
-            outSize = LZ4F_compressUpdate(ctx, ress->dstBuffer, ress->dstBufferSize, ress->srcBuffer, readSize, NULL);
+            size_t const outSize = LZ4F_compressUpdate(ctx,
+                                        ress->dstBuffer, ress->dstBufferSize,
+                                        ress->srcBuffer, readSize, NULL);
             if (LZ4F_isError(outSize))
                 EXM_THROW(35, "zstd: %s: lz4 compression failed : %s",
                             srcFileName, LZ4F_getErrorName(outSize));
             outFileSize += outSize;
-            if (srcFileSize == UTIL_FILESIZE_UNKNOWN)
+            if (srcFileSize == UTIL_FILESIZE_UNKNOWN) {
                 DISPLAYUPDATE(2, "\rRead : %u MB ==> %.2f%%",
                                 (U32)(inFileSize>>20),
                                 (double)outFileSize/inFileSize*100)
-            else
+            } else {
                 DISPLAYUPDATE(2, "\rRead : %u / %u MB ==> %.2f%%",
                                 (U32)(inFileSize>>20), (U32)(srcFileSize>>20),
                                 (double)outFileSize/inFileSize*100);
+            }
 
             /* Write Block */
-            { size_t const sizeCheck = fwrite(ress->dstBuffer, 1, outSize, ress->dstFile);
-              if (sizeCheck!=outSize) EXM_THROW(36, "Write error : %s", strerror(errno)); }
+            {   size_t const sizeCheck = fwrite(ress->dstBuffer, 1, outSize, ress->dstFile);
+                if (sizeCheck != outSize)
+                    EXM_THROW(36, "Write error : %s", strerror(errno));
+            }
 
             /* Read next block */
             readSize  = fread(ress->srcBuffer, (size_t)1, (size_t)blockSize, ress->srcFile);
@@ -837,7 +846,7 @@ FIO_compressLz4Frame(cRess_t* ress,
                         srcFileName, LZ4F_getErrorName(headerSize));
 
         {   size_t const sizeCheck = fwrite(ress->dstBuffer, 1, headerSize, ress->dstFile);
-            if (sizeCheck!=headerSize)
+            if (sizeCheck != headerSize)
                 EXM_THROW(39, "Write error : %s (cannot write end of stream)",
                             strerror(errno));
         }
@@ -1431,12 +1440,14 @@ static unsigned FIO_fwriteSparse(FILE* file, const void* buffer, size_t bufferSi
 
 static void FIO_fwriteSparseEnd(FILE* file, unsigned storedSkips)
 {
-    if (storedSkips-->0) {   /* implies g_sparseFileSupport>0 */
-        int const seekResult = LONG_SEEK(file, storedSkips, SEEK_CUR);
-        if (seekResult != 0) EXM_THROW(69, "Final skip error (sparse file)");
+    if (storedSkips>0) {
+        assert(g_sparseFileSupport > 0);  /* storedSkips>0 implies sparse support is enabled */
+        if (LONG_SEEK(file, storedSkips-1, SEEK_CUR) != 0)
+            EXM_THROW(69, "Final skip error (sparse file support)");
+        /* last zero must be explicitly written,
+         * so that skipped ones get implicitly translated as zero by FS */
         {   const char lastZeroByte[1] = { 0 };
-            size_t const sizeCheck = fwrite(lastZeroByte, 1, 1, file);
-            if (sizeCheck != 1)
+            if (fwrite(lastZeroByte, 1, 1, file) != 1)
                 EXM_THROW(69, "Write error : cannot write last zero");
     }   }
 }
@@ -2323,7 +2334,7 @@ FIO_listFile(fileInfo_t* total, const char* inFileName, int displayLevel)
         }
         displayInfo(inFileName, &info, displayLevel);
         *total = FIO_addFInfo(*total, info);
-        assert(error>=0 || error<=1);
+        assert(error == info_success || error == info_frame_error);
         return error;
     }
 }

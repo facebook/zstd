@@ -159,15 +159,15 @@ static COVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
    */
   while (activeSegment.end < end) {
     /* Get hash value of current dmer */
-    const size_t index = FASTCOVER_hashPtrToIndex(ctx->samples + activeSegment.end, f, d);
+    const size_t idx = FASTCOVER_hashPtrToIndex(ctx->samples + activeSegment.end, f, d);
 
     /* Add frequency of this index to score if this is the first occurence of index in active segment */
-    if (segmentFreqs[index] == 0) {
-      activeSegment.score += freqs[index];
+    if (segmentFreqs[idx] == 0) {
+      activeSegment.score += freqs[idx];
     }
     /* Increment end of segment and segmentFreqs*/
     activeSegment.end += 1;
-    segmentFreqs[index] += 1;
+    segmentFreqs[idx] += 1;
     /* If the window is now too large, drop the first position */
     if (activeSegment.end - activeSegment.begin == dmersInK + 1) {
       /* Get hash value of the dmer to be eliminated from active segment */

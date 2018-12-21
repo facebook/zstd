@@ -487,6 +487,7 @@ static size_t FIO_createDictBuffer(void** bufferPtr, const char* fileName)
     DISPLAYLEVEL(4,"Loading %s as dictionary \n", fileName);
     fileHandle = fopen(fileName, "rb");
     if (fileHandle==NULL) EXM_THROW(31, "%s: %s", fileName, strerror(errno));
+
     fileSize = UTIL_getFileSize(fileName);
     if (fileSize > DICTSIZE_MAX) {
         EXM_THROW(32, "Dictionary file %s is too large (> %u MB)",
@@ -495,7 +496,7 @@ static size_t FIO_createDictBuffer(void** bufferPtr, const char* fileName)
     *bufferPtr = malloc((size_t)fileSize);
     if (*bufferPtr==NULL) EXM_THROW(34, "%s", strerror(errno));
     {   size_t const readSize = fread(*bufferPtr, 1, (size_t)fileSize, fileHandle);
-        if (readSize!=fileSize)
+        if (readSize != fileSize)
             EXM_THROW(35, "Error reading dictionary file %s : %s",
                     fileName, strerror(errno));
     }

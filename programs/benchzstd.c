@@ -25,6 +25,7 @@
 #include <stdlib.h>      /* malloc, free */
 #include <string.h>      /* memset */
 #include <stdio.h>       /* fprintf, fopen */
+#include <errno.h>
 #include <assert.h>      /* assert */
 
 #include "benchfn.h"
@@ -799,6 +800,11 @@ BMK_benchOutcome_t BMK_benchFilesAdvanced(
     /* Load dictionary */
     if (dictFileName != NULL) {
         U64 const dictFileSize = UTIL_getFileSize(dictFileName);
+        if (dictFileSize == UTIL_FILESIZE_UNKNOWN) {
+            DISPLAYLEVEL(1, "error loading %s : %s \n", dictFileName, strerror(errno));
+            free(fileSizes);
+            RETURN_ERROR(9, BMK_benchOutcome_t, "benchmark aborted");
+        }
         if (dictFileSize > 64 MB) {
             free(fileSizes);
             RETURN_ERROR(10, BMK_benchOutcome_t, "dictionary file %s too large", dictFileName);

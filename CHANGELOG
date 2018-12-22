@@ -1,9 +1,24 @@
 v1.3.8
 perf: better decompression speed on large files (+7%) and cold dictionaries (+15%)
-api : supports decompressing empty frames into NULL (used to be an error) (#1385)
-api : fix : ZSTD_dictForceCopy advanced command, by @felixhandte
+perf: slightly better compression ratio at high compression modes
+api : finalized advanced API, last stage before "stable" status
+api : new --rsyncable mode, by @terrelln
+api : support decompression of empty frames into NULL (used to be an error) (#1385)
+build: new set of macros to build a minimal size decoder, by @felixhandte
+build: fix compilation on MIPS32, reported by @clbr (#1441)
+build: fix compilation with multiple -arch flags, by @ryandesign
+build: highly upgraded meson build, by @lzutao
+build: improved buck support, by @obelisk
+build: fix cmake script : can create debug build, by @pitrou
+build: Makefile : grep works on both colored consoles and systems without color support
 build: fixed zstd-pgo, by @bmwiedemann
+cli : support ZSTD_CLEVEL environment variable, by @yijinfb (#1423)
+cli : --no-progress flag, preserving final summary (#1371), by @terrelln
+cli : ensure destination file is not source file (#1422)
+cli : clearer error messages, especially when input file not present
 doc : clarified zstd_compression_format.md, by @ulikunitz
+misc: fixed zstdgrep, returns 1 on failure, by @lzutao
+misc: NEWS renamed as CHANGELOG, in accordance with fboss
 
 v1.3.7
 perf: slightly better decompression speed on clang (depending on hardware target)

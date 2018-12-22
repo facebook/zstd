@@ -88,13 +88,13 @@ static size_t HUF_compressWeights (void* dst, size_t dstSize, const void* weight
     BYTE* op = ostart;
     BYTE* const oend = ostart + dstSize;
 
-    U32 maxSymbolValue = HUF_TABLELOG_MAX;
+    unsigned maxSymbolValue = HUF_TABLELOG_MAX;
     U32 tableLog = MAX_FSE_TABLELOG_FOR_HUFF_HEADER;
 
     FSE_CTable CTable[FSE_CTABLE_SIZE_U32(MAX_FSE_TABLELOG_FOR_HUFF_HEADER, HUF_TABLELOG_MAX)];
     BYTE scratchBuffer[1<<MAX_FSE_TABLELOG_FOR_HUFF_HEADER];
 
-    U32 count[HUF_TABLELOG_MAX+1];
+    unsigned count[HUF_TABLELOG_MAX+1];
     S16 norm[HUF_TABLELOG_MAX+1];
 
     /* init conditions */
@@ -134,7 +134,7 @@ struct HUF_CElt_s {
     `CTable` : Huffman tree to save, using huf representation.
     @return : size of saved CTable */
 size_t HUF_writeCTable (void* dst, size_t maxDstSize,
-                        const HUF_CElt* CTable, U32 maxSymbolValue, U32 huffLog)
+                        const HUF_CElt* CTable, unsigned maxSymbolValue, unsigned huffLog)
 {
     BYTE bitsToWeight[HUF_TABLELOG_MAX + 1];   /* precomputed conversion table */
     BYTE huffWeight[HUF_SYMBOLVALUE_MAX];
@@ -169,7 +169,7 @@ size_t HUF_writeCTable (void* dst, size_t maxDstSize,
 }
 
 
-size_t HUF_readCTable (HUF_CElt* CTable, U32* maxSymbolValuePtr, const void* src, size_t srcSize)
+size_t HUF_readCTable (HUF_CElt* CTable, unsigned* maxSymbolValuePtr, const void* src, size_t srcSize)
 {
     BYTE huffWeight[HUF_SYMBOLVALUE_MAX + 1];   /* init not required, even though some static analyzer may complain */
     U32 rankVal[HUF_TABLELOG_ABSOLUTEMAX + 1];   /* large enough for values from 0 to 16 */
@@ -315,7 +315,7 @@ typedef struct {
     U32 current;
 } rankPos;
 
-static void HUF_sort(nodeElt* huffNode, const U32* count, U32 maxSymbolValue)
+static void HUF_sort(nodeElt* huffNode, const unsigned* count, U32 maxSymbolValue)
 {
     rankPos rank[32];
     U32 n;
@@ -347,7 +347,7 @@ static void HUF_sort(nodeElt* huffNode, const U32* count, U32 maxSymbolValue)
  */
 #define STARTNODE (HUF_SYMBOLVALUE_MAX+1)
 typedef nodeElt huffNodeTable[HUF_CTABLE_WORKSPACE_SIZE_U32];
-size_t HUF_buildCTable_wksp (HUF_CElt* tree, const U32* count, U32 maxSymbolValue, U32 maxNbBits, void* workSpace, size_t wkspSize)
+size_t HUF_buildCTable_wksp (HUF_CElt* tree, const unsigned* count, U32 maxSymbolValue, U32 maxNbBits, void* workSpace, size_t wkspSize)
 {
     nodeElt* const huffNode0 = (nodeElt*)workSpace;
     nodeElt* const huffNode = huffNode0+1;
@@ -421,7 +421,7 @@ size_t HUF_buildCTable_wksp (HUF_CElt* tree, const U32* count, U32 maxSymbolValu
  * @return : maxNbBits
  *  Note : count is used before tree is written, so they can safely overlap
  */
-size_t HUF_buildCTable (HUF_CElt* tree, const U32* count, U32 maxSymbolValue, U32 maxNbBits)
+size_t HUF_buildCTable (HUF_CElt* tree, const unsigned* count, unsigned maxSymbolValue, unsigned maxNbBits)
 {
     huffNodeTable nodeTable;
     return HUF_buildCTable_wksp(tree, count, maxSymbolValue, maxNbBits, nodeTable, sizeof(nodeTable));
@@ -629,7 +629,7 @@ static size_t HUF_compressCTable_internal(
 }
 
 typedef struct {
-    U32 count[HUF_SYMBOLVALUE_MAX + 1];
+    unsigned count[HUF_SYMBOLVALUE_MAX + 1];
     HUF_CElt CTable[HUF_SYMBOLVALUE_MAX + 1];
     huffNodeTable nodeTable;
 } HUF_compress_tables_t;
@@ -689,9 +689,10 @@ HUF_compress_internal (void* dst, size_t dstSize,
 
     /* Build Huffman Tree */
     huffLog = HUF_optimalTableLog(huffLog, srcSize, maxSymbolValue);
-    {   CHECK_V_F(maxBits, HUF_buildCTable_wksp(table->CTable, table->count,
-                                                maxSymbolValue, huffLog,
-                                                table->nodeTable, sizeof(table->nodeTable)) );
+    {   size_t const maxBits = HUF_buildCTable_wksp(table->CTable, table->count,
+                                            maxSymbolValue, huffLog,
+                                            table->nodeTable, sizeof(table->nodeTable));
+        CHECK_F(maxBits);
         huffLog = (U32)maxBits;
         /* Zero unused symbols in CTable, so we can check it for validity */
         memset(table->CTable + (maxSymbolValue + 1), 0,

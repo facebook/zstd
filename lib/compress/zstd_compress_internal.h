@@ -90,10 +90,10 @@ typedef enum { zop_dynamic=0, zop_predef } ZSTD_OptPrice_e;
 
 typedef struct {
     /* All tables are allocated inside cctx->workspace by ZSTD_resetCCtx_internal() */
-    U32* litFreq;                /* table of literals statistics, of size 256 */
-    U32* litLengthFreq;          /* table of litLength statistics, of size (MaxLL+1) */
-    U32* matchLengthFreq;        /* table of matchLength statistics, of size (MaxML+1) */
-    U32* offCodeFreq;            /* table of offCode statistics, of size (MaxOff+1) */
+    unsigned* litFreq;           /* table of literals statistics, of size 256 */
+    unsigned* litLengthFreq;     /* table of litLength statistics, of size (MaxLL+1) */
+    unsigned* matchLengthFreq;   /* table of matchLength statistics, of size (MaxML+1) */
+    unsigned* offCodeFreq;       /* table of offCode statistics, of size (MaxOff+1) */
     ZSTD_match_t* matchTable;    /* list of found matches, of size ZSTD_OPT_NUM+1 */
     ZSTD_optimal_t* priceTable;  /* All positions tracked by optimal parser, of size ZSTD_OPT_NUM+1 */
 
@@ -689,13 +689,13 @@ ZSTD_window_enforceMaxDist(ZSTD_window_t* window,
     U32 const blockEndIdx = (U32)((BYTE const*)srcEnd - window->base);
     U32 loadedDictEnd = (loadedDictEndPtr != NULL) ? *loadedDictEndPtr : 0;
     DEBUGLOG(5, "ZSTD_window_enforceMaxDist: blockEndIdx=%u, maxDist=%u",
-                blockEndIdx, maxDist);
+                (unsigned)blockEndIdx, (unsigned)maxDist);
     if (blockEndIdx > maxDist + loadedDictEnd) {
         U32 const newLowLimit = blockEndIdx - maxDist;
         if (window->lowLimit < newLowLimit) window->lowLimit = newLowLimit;
         if (window->dictLimit < window->lowLimit) {
             DEBUGLOG(5, "Update dictLimit to match lowLimit, from %u to %u",
-                        window->dictLimit, window->lowLimit);
+                        (unsigned)window->dictLimit, (unsigned)window->lowLimit);
             window->dictLimit = window->lowLimit;
         }
         if (loadedDictEndPtr)

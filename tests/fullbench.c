@@ -64,10 +64,10 @@ static const size_t g_sampleSize = 10000000;
 /*_************************************
 *  Benchmark Parameters
 **************************************/
-static U32 g_nbIterations = NBLOOPS;
+static unsigned g_nbIterations = NBLOOPS;
 static double g_compressibility = COMPRESSIBILITY_DEFAULT;
 
-static void BMK_SetNbIterations(U32 nbLoops)
+static void BMK_SetNbIterations(unsigned nbLoops)
 {
     g_nbIterations = nbLoops;
     DISPLAY("- %i iterations -\n", g_nbIterations);
@@ -316,7 +316,7 @@ static size_t local_ZSTD_decompressContinue(const void* src, size_t srcSize,
 /*_*******************************************************
 *  Bench functions
 *********************************************************/
-static size_t benchMem(U32 benchNb,
+static size_t benchMem(unsigned benchNb,
                        const void* src, size_t srcSize,
                        int cLevel, ZSTD_compressionParameters cparams)
 {
@@ -606,7 +606,7 @@ static int benchFiles(U32 benchNb,
                 benchedSize = (size_t)inFileSize;
             if ((U64)benchedSize < inFileSize) {
                 DISPLAY("Not enough memory for '%s' full size; testing %u MB only... \n",
-                        inFileName, (U32)(benchedSize>>20));
+                        inFileName, (unsigned)(benchedSize>>20));
         }   }
 
         /* Alloc */

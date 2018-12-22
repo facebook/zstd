@@ -54,11 +54,15 @@ MEM_STATIC U32 ZSTD_fracWeight(U32 rawStat)
     return weight;
 }
 
-/* debugging function, @return price in bytes */
+#if (DEBUGLEVEL>=2)
+/* debugging function,
+ * @return price in bytes as fractional value
+ * for debug messages only */
 MEM_STATIC double ZSTD_fCost(U32 price)
 {
     return (double)price / (BITCOST_MULTIPLIER*8);
 }
+#endif
 
 static void ZSTD_setBasePrices(optState_t* optPtr, int optLevel)
 {

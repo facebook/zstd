@@ -232,7 +232,7 @@ size_t HUF_compress4X_repeat(void* dst, size_t dstSize,
 #define HUF_CTABLE_WORKSPACE_SIZE_U32 (2*HUF_SYMBOLVALUE_MAX +1 +1)
 #define HUF_CTABLE_WORKSPACE_SIZE (HUF_CTABLE_WORKSPACE_SIZE_U32 * sizeof(unsigned))
 size_t HUF_buildCTable_wksp (HUF_CElt* tree,
-                       const U32* count, U32 maxSymbolValue, U32 maxNbBits,
+                       const unsigned* count, U32 maxSymbolValue, U32 maxNbBits,
                              void* workSpace, size_t wkspSize);
 
 /*! HUF_readStats() :

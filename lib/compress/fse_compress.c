@@ -658,7 +658,7 @@ size_t FSE_compress_wksp (void* dst, size_t dstSize, const void* src, size_t src
     BYTE* op = ostart;
     BYTE* const oend = ostart + dstSize;
 
-    U32   count[FSE_MAX_SYMBOL_VALUE+1];
+    unsigned count[FSE_MAX_SYMBOL_VALUE+1];
     S16   norm[FSE_MAX_SYMBOL_VALUE+1];
     FSE_CTable* CTable = (FSE_CTable*)workSpace;
     size_t const CTableSize = FSE_CTABLE_SIZE_U32(tableLog, maxSymbolValue);

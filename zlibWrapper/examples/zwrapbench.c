@@ -104,7 +104,7 @@ static clock_t g_time = 0;
 /* *************************************
 *  Benchmark Parameters
 ***************************************/
-static U32 g_nbIterations = NBLOOPS;
+static unsigned g_nbIterations = NBLOOPS;
 static size_t g_blockSize = 0;
 int g_additionalParam = 0;
 
@@ -121,7 +121,7 @@ void BMK_SetNbIterations(unsigned nbLoops)
 void BMK_SetBlockSize(size_t blockSize)
 {
     g_blockSize = blockSize;
-    DISPLAYLEVEL(2, "using blocks of size %u KB \n", (U32)(blockSize>>10));
+    DISPLAYLEVEL(2, "using blocks of size %u KB \n", (unsigned)(blockSize>>10));
 }
 
 
@@ -222,7 +222,7 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
             }
 
             /* Compression */
-            DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->\r", marks[markNb], displayName, (U32)srcSize);
+            DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->\r", marks[markNb], displayName, (unsigned)srcSize);
             if (!cCompleted) memset(compressedBuffer, 0xE5, maxCompressedSize);  /* warm up and erase result buffer */
 
             UTIL_sleepMilli(1);  /* give processor time to other processes */
@@ -371,7 +371,7 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
             ratio = (double)srcSize / (double)cSize;
             markNb = (markNb+1) % NB_MARKS;
             DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.3f),%6.1f MB/s\r",
-                    marks[markNb], displayName, (U32)srcSize, (U32)cSize, ratio,
+                    marks[markNb], displayName, (unsigned)srcSize, (unsigned)cSize, ratio,
                     (double)srcSize / fastestC );
 
             (void)fastestD; (void)crcOrig;   /*  unused when decompression disabled */
@@ -389,7 +389,7 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
                     ZSTD_DDict* ddict = ZSTD_createDDict(dictBuffer, dictBufferSize);
                     if (!ddict) EXM_THROW(2, "ZSTD_createDDict() allocation failure");
                     do {
-                        U32 blockNb;
+                        unsigned blockNb;
                         for (blockNb=0; blockNb<nbBlocks; blockNb++) {
                             size_t const regenSize = ZSTD_decompress_usingDDict(dctx,
                                 blockTable[blockNb].resPtr, blockTable[blockNb].srcSize,
@@ -510,7 +510,7 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
 
             markNb = (markNb+1) % NB_MARKS;
             DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.3f),%6.1f MB/s ,%6.1f MB/s\r",
-                    marks[markNb], displayName, (U32)srcSize, (U32)cSize, ratio,
+                    marks[markNb], displayName, (unsigned)srcSize, (unsigned)cSize, ratio,
                     (double)srcSize / fastestC,
                     (double)srcSize / fastestD );
 
@@ -521,9 +521,9 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
                     DISPLAY("!!! WARNING !!! %14s : Invalid Checksum : %x != %x   \n", displayName, (unsigned)crcOrig, (unsigned)crcCheck);
                     for (u=0; u<srcSize; u++) {
                         if (((const BYTE*)srcBuffer)[u] != ((const BYTE*)resultBuffer)[u]) {
-                            U32 segNb, bNb, pos;
+                            unsigned segNb, bNb, pos;
                             size_t bacc = 0;
-                            DISPLAY("Decoding error at pos %u ", (U32)u);
+                            DISPLAY("Decoding error at pos %u ", (unsigned)u);
                             for (segNb = 0; segNb < nbBlocks; segNb++) {
                                 if (bacc + blockTable[segNb].srcSize > u) break;
                                 bacc += blockTable[segNb].srcSize;
@@ -594,7 +594,9 @@ static void BMK_benchCLevel(void* srcBuffer, size_t benchedSize,
     SET_REALTIME_PRIORITY;
 
     if (g_displayLevel == 1 && !g_additionalParam)
-        DISPLAY("bench %s %s: input %u bytes, %u seconds, %u KB blocks\n", ZSTD_VERSION_STRING, ZSTD_GIT_COMMIT_STRING, (U32)benchedSize, g_nbIterations, (U32)(g_blockSize>>10));
+        DISPLAY("bench %s %s: input %u bytes, %u seconds, %u KB blocks\n",
+                ZSTD_VERSION_STRING, ZSTD_GIT_COMMIT_STRING,
+                (unsigned)benchedSize, g_nbIterations, (unsigned)(g_blockSize>>10));
 
     if (cLevelLast < cLevel) cLevelLast = cLevel;
 
@@ -726,7 +728,7 @@ static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles,
         dictBufferSize = (size_t)dictFileSize;
         dictBuffer = malloc(dictBufferSize);
         if (dictBuffer==NULL)
-            EXM_THROW(11, "not enough memory for dictionary (%u bytes)", (U32)dictBufferSize);
+            EXM_THROW(11, "not enough memory for dictionary (%u bytes)", (unsigned)dictBufferSize);
         BMK_loadFiles(dictBuffer, dictBufferSize, fileSizes, &dictFileName, 1);
     }
 
@@ -734,7 +736,7 @@ static void BMK_benchFileTable(const char** fileNamesTable, unsigned nbFiles,
     benchedSize = BMK_findMaxMem(totalSizeToLoad * 3) / 3;
     if ((U64)benchedSize > totalSizeToLoad) benchedSize = (size_t)totalSizeToLoad;
     if (benchedSize < totalSizeToLoad)
-        DISPLAY("Not enough memory; testing %u MB only...\n", (U32)(benchedSize >> 20));
+        DISPLAY("Not enough memory; testing %u MB only...\n", (unsigned)(benchedSize >> 20));
     srcBuffer = malloc(benchedSize + !benchedSize);
     if (!srcBuffer) EXM_THROW(12, "not enough memory");
 

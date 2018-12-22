@@ -139,7 +139,7 @@ static unsigned DiB_loadFiles(void* buffer, size_t* bufferSizePtr,
     }
     DISPLAYLEVEL(2, "\r%79s\r", "");
     *bufferSizePtr = pos;
-    DISPLAYLEVEL(4, "loaded : %u KB \n", (U32)(pos >> 10))
+    DISPLAYLEVEL(4, "loaded : %u KB \n", (unsigned)(pos >> 10))
     return nbLoadedChunks;
 }
 
@@ -249,7 +249,7 @@ static fileStats DiB_fileStats(const char** fileNamesTable, unsigned nbFiles, si
         fs.oneSampleTooLarge |= (chunkSize > 2*SAMPLESIZE_MAX);
         fs.nbSamples += nbSamples;
     }
-    DISPLAYLEVEL(4, "Preparing to load : %u KB \n", (U32)(fs.totalSizeToLoad >> 10));
+    DISPLAYLEVEL(4, "Preparing to load : %u KB \n", (unsigned)(fs.totalSizeToLoad >> 10));
     return fs;
 }
 
@@ -358,7 +358,7 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
             goto _cleanup;
         }
         /* save dict */
-        DISPLAYLEVEL(2, "Save dictionary of size %u into file %s \n", (U32)dictSize, dictFileName);
+        DISPLAYLEVEL(2, "Save dictionary of size %u into file %s \n", (unsigned)dictSize, dictFileName);
         DiB_saveDict(dictFileName, dictBuffer, dictSize);
     }
 

@@ -81,18 +81,18 @@ static BYTE RDG_genChar(U32* seed, const BYTE* ldt)
 }
 
 
-static U32 RDG_rand15Bits (unsigned* seedPtr)
+static U32 RDG_rand15Bits (U32* seedPtr)
 {
     return RDG_rand(seedPtr) & 0x7FFF;
 }
 
-static U32 RDG_randLength(unsigned* seedPtr)
+static U32 RDG_randLength(U32* seedPtr)
 {
     if (RDG_rand(seedPtr) & 7) return (RDG_rand(seedPtr) & 0xF);   /* small length */
     return (RDG_rand(seedPtr) & 0x1FF) + 0xF;
 }
 
-static void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, double matchProba, const BYTE* ldt, unsigned* seedPtr)
+static void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, double matchProba, const BYTE* ldt, U32* seedPtr)
 {
     BYTE* const buffPtr = (BYTE*)buffer;
     U32 const matchProba32 = (U32)(32768 * matchProba);
@@ -141,16 +141,18 @@ static void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, doubl
 
 void RDG_genBuffer(void* buffer, size_t size, double matchProba, double litProba, unsigned seed)
 {
+    U32 seed32 = seed;
     BYTE ldt[LTSIZE];
     memset(ldt, '0', sizeof(ldt));  /* yes, character '0', this is intentional */
     if (litProba<=0.0) litProba = matchProba / 4.5;
     RDG_fillLiteralDistrib(ldt, litProba);
-    RDG_genBlock(buffer, size, 0, matchProba, ldt, &seed);
+    RDG_genBlock(buffer, size, 0, matchProba, ldt, &seed32);
 }
 
 
 void RDG_genStdout(unsigned long long size, double matchProba, double litProba, unsigned seed)
 {
+    U32 seed32 = seed;
     size_t const stdBlockSize = 128 KB;
     size_t const stdDictSize = 32 KB;
     BYTE* const buff = (BYTE*)malloc(stdDictSize + stdBlockSize);
@@ -165,12 +167,12 @@ void RDG_genStdout(unsigned long long size, double matchProba, double litProba, 
     SET_BINARY_MODE(stdout);
 
     /* Generate initial dict */
-    RDG_genBlock(buff, stdDictSize, 0, matchProba, ldt, &seed);
+    RDG_genBlock(buff, stdDictSize, 0, matchProba, ldt, &seed32);
 
     /* Generate compressible data */
     while (total < size) {
         size_t const genBlockSize = (size_t) (MIN (stdBlockSize, size-total));
-        RDG_genBlock(buff, stdDictSize+stdBlockSize, stdDictSize, matchProba, ldt, &seed);
+        RDG_genBlock(buff, stdDictSize+stdBlockSize, stdDictSize, matchProba, ldt, &seed32);
         total += genBlockSize;
         { size_t const unused = fwrite(buff, 1, genBlockSize, stdout); (void)unused; }
         /* update dict */

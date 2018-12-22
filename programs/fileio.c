@@ -279,9 +279,9 @@ static U32 g_checksumFlag = 1;
 void FIO_setChecksumFlag(unsigned checksumFlag) { g_checksumFlag = checksumFlag; }
 static U32 g_removeSrcFile = 0;
 void FIO_setRemoveSrcFile(unsigned flag) { g_removeSrcFile = (flag>0); }
-static U32 g_memLimit = 0;
+static unsigned g_memLimit = 0;
 void FIO_setMemLimit(unsigned memLimit) { g_memLimit = memLimit; }
-static U32 g_nbWorkers = 1;
+static unsigned g_nbWorkers = 1;
 void FIO_setNbWorkers(unsigned nbWorkers) {
 #ifndef ZSTD_MULTITHREAD
     if (nbWorkers > 0) DISPLAYLEVEL(2, "Note : multi-threading is disabled \n");
@@ -295,7 +295,7 @@ void FIO_setBlockSize(unsigned blockSize) {
     g_blockSize = blockSize;
 }
 #define FIO_OVERLAP_LOG_NOTSET 9999
-static U32 g_overlapLog = FIO_OVERLAP_LOG_NOTSET;
+static unsigned g_overlapLog = FIO_OVERLAP_LOG_NOTSET;
 void FIO_setOverlapLog(unsigned overlapLog){
     if (overlapLog && g_nbWorkers==0)
         DISPLAYLEVEL(2, "Setting overlapLog is useless in single-thread mode \n");
@@ -656,11 +656,11 @@ FIO_compressGzFrame(cRess_t* ress,
         }
         if (srcFileSize == UTIL_FILESIZE_UNKNOWN)
             DISPLAYUPDATE(2, "\rRead : %u MB ==> %.2f%%",
-                            (U32)(inFileSize>>20),
+                            (unsigned)(inFileSize>>20),
                             (double)outFileSize/inFileSize*100)
         else
             DISPLAYUPDATE(2, "\rRead : %u / %u MB ==> %.2f%%",
-                            (U32)(inFileSize>>20), (U32)(srcFileSize>>20),
+                            (unsigned)(inFileSize>>20), (unsigned)(srcFileSize>>20),
                             (double)outFileSize/inFileSize*100);
     }
 
@@ -744,11 +744,11 @@ FIO_compressLzmaFrame(cRess_t* ress,
         }   }
         if (srcFileSize == UTIL_FILESIZE_UNKNOWN)
             DISPLAYUPDATE(2, "\rRead : %u MB ==> %.2f%%",
-                            (U32)(inFileSize>>20),
+                            (unsigned)(inFileSize>>20),
                             (double)outFileSize/inFileSize*100)
         else
             DISPLAYUPDATE(2, "\rRead : %u / %u MB ==> %.2f%%",
-                            (U32)(inFileSize>>20), (U32)(srcFileSize>>20),
+                            (unsigned)(inFileSize>>20), (unsigned)(srcFileSize>>20),
                             (double)outFileSize/inFileSize*100);
         if (ret == LZMA_STREAM_END) break;
     }
@@ -820,11 +820,11 @@ FIO_compressLz4Frame(cRess_t* ress,
             outFileSize += outSize;
             if (srcFileSize == UTIL_FILESIZE_UNKNOWN) {
                 DISPLAYUPDATE(2, "\rRead : %u MB ==> %.2f%%",
-                                (U32)(inFileSize>>20),
+                                (unsigned)(inFileSize>>20),
                                 (double)outFileSize/inFileSize*100)
             } else {
                 DISPLAYUPDATE(2, "\rRead : %u / %u MB ==> %.2f%%",
-                                (U32)(inFileSize>>20), (U32)(srcFileSize>>20),
+                                (unsigned)(inFileSize>>20), (unsigned)(srcFileSize>>20),
                                 (double)outFileSize/inFileSize*100);
             }
 
@@ -897,7 +897,7 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
         /* Fill input Buffer */
         size_t const inSize = fread(ress.srcBuffer, (size_t)1, ress.srcBufferSize, srcFile);
         ZSTD_inBuffer inBuff = { ress.srcBuffer, inSize, 0 };
-        DISPLAYLEVEL(6, "fread %u bytes from source \n", (U32)inSize);
+        DISPLAYLEVEL(6, "fread %u bytes from source \n", (unsigned)inSize);
         *readsize += inSize;
 
         if ((inSize == 0) || (*readsize == fileSize))
@@ -919,7 +919,7 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
 
             /* Write compressed stream */
             DISPLAYLEVEL(6, "ZSTD_compress_generic(end:%u) => input pos(%u)<=(%u)size ; output generated %u bytes \n",
-                            (U32)directive, (U32)inBuff.pos, (U32)inBuff.size, (U32)outBuff.pos);
+                            (unsigned)directive, (unsigned)inBuff.pos, (unsigned)inBuff.size, (unsigned)outBuff.pos);
             if (outBuff.pos) {
                 size_t const sizeCheck = fwrite(ress.dstBuffer, 1, outBuff.pos, dstFile);
                 if (sizeCheck != outBuff.pos)
@@ -937,14 +937,14 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
                 if (g_displayLevel >= 3) {
                     DISPLAYUPDATE(3, "\r(L%i) Buffered :%4u MB - Consumed :%4u MB - Compressed :%4u MB => %.2f%% ",
                                 compressionLevel,
-                                (U32)((zfp.ingested - zfp.consumed) >> 20),
-                                (U32)(zfp.consumed >> 20),
-                                (U32)(zfp.produced >> 20),
+                                (unsigned)((zfp.ingested - zfp.consumed) >> 20),
+                                (unsigned)(zfp.consumed >> 20),
+                                (unsigned)(zfp.produced >> 20),
                                 cShare );
                 } else {   /* summarized notifications if == 2; */
-                    DISPLAYLEVEL(2, "\rRead : %u ", (U32)(zfp.consumed >> 20));
+                    DISPLAYLEVEL(2, "\rRead : %u ", (unsigned)(zfp.consumed >> 20));
                     if (fileSize != UTIL_FILESIZE_UNKNOWN)
-                        DISPLAYLEVEL(2, "/ %u ", (U32)(fileSize >> 20));
+                        DISPLAYLEVEL(2, "/ %u ", (unsigned)(fileSize >> 20));
                     DISPLAYLEVEL(2, "MB ==> %2.f%% ", cShare);
                     DELAY_NEXT_UPDATE();
                 }
@@ -1000,8 +1000,8 @@ FIO_compressZstdFrame(const cRess_t* ressPtr,
                                 assert(inputPresented > 0);
                                 DISPLAYLEVEL(6, "input blocked %u/%u(%.2f) - ingested:%u vs %u:consumed - flushed:%u vs %u:produced \n",
                                                 inputBlocked, inputPresented, (double)inputBlocked/inputPresented*100,
-                                                (U32)newlyIngested, (U32)newlyConsumed,
-                                                (U32)newlyFlushed, (U32)newlyProduced);
+                                                (unsigned)newlyIngested, (unsigned)newlyConsumed,
+                                                (unsigned)newlyFlushed, (unsigned)newlyProduced);
                                 if ( (inputBlocked > inputPresented / 8)     /* input is waiting often, because input buffers is full : compression or output too slow */
                                   && (newlyFlushed * 33 / 32 > newlyProduced)  /* flush everything that is produced */
                                   && (newlyIngested * 33 / 32 > newlyConsumed) /* input speed as fast or faster than compression speed */
@@ -1063,7 +1063,7 @@ FIO_compressFilename_internal(cRess_t ress,
     U64 readsize = 0;
     U64 compressedfilesize = 0;
     U64 const fileSize = UTIL_getFileSize(srcFileName);
-    DISPLAYLEVEL(5, "%s: %u bytes \n", srcFileName, (U32)fileSize);
+    DISPLAYLEVEL(5, "%s: %u bytes \n", srcFileName, (unsigned)fileSize);
 
     /* compression format selection */
     switch (g_compressionType) {
@@ -1505,12 +1505,12 @@ static void FIO_zstdErrorHelp(dRess_t* ress, size_t err, char const* srcFileName
     err = ZSTD_getFrameHeader(&header, ress->srcBuffer, ress->srcBufferLoaded);
     if (err == 0) {
         unsigned long long const windowSize = header.windowSize;
-        U32 const windowLog = FIO_highbit64(windowSize) + ((windowSize & (windowSize - 1)) != 0);
+        unsigned const windowLog = FIO_highbit64(windowSize) + ((windowSize & (windowSize - 1)) != 0);
         assert(g_memLimit > 0);
         DISPLAYLEVEL(1, "%s : Window size larger than maximum : %llu > %u\n",
                         srcFileName, windowSize, g_memLimit);
         if (windowLog <= ZSTD_WINDOWLOG_MAX) {
-            U32 const windowMB = (U32)((windowSize >> 20) + ((windowSize & ((1 MB) - 1)) != 0));
+            unsigned const windowMB = (unsigned)((windowSize >> 20) + ((windowSize & ((1 MB) - 1)) != 0));
             assert(windowSize < (U64)(1ULL << 52));   /* ensure now overflow for windowMB */
             DISPLAYLEVEL(1, "%s : Use --long=%u or --memory=%uMB\n",
                             srcFileName, windowLog, windowMB);
@@ -1562,7 +1562,7 @@ static unsigned long long FIO_decompressZstdFrame(dRess_t* ress,
         storedSkips = FIO_fwriteSparse(ress->dstFile, ress->dstBuffer, outBuff.pos, storedSkips);
         frameSize += outBuff.pos;
         DISPLAYUPDATE(2, "\r%-20.20s : %u MB...     ",
-                         srcFileName, (U32)((alreadyDecoded+frameSize)>>20) );
+                         srcFileName, (unsigned)((alreadyDecoded+frameSize)>>20) );
 
         if (inBuff.pos > 0) {
             memmove(ress->srcBuffer, (char*)ress->srcBuffer + inBuff.pos, inBuff.size - inBuff.pos);
@@ -2382,13 +2382,13 @@ int FIO_listMultipleFiles(unsigned numFiles, const char** filenameTable, int dis
                         total.numSkippableFrames + total.numActualFrames,
                         total.numSkippableFrames,
                         compressedSizeUnit, unitStr,
-                        checkString, total.nbFiles);
+                        checkString, (unsigned)total.nbFiles);
             } else {
                 DISPLAYOUT("%6d  %5d  %7.2f %2s  %9.2f %2s  %5.3f  %5s  %u files\n",
                         total.numSkippableFrames + total.numActualFrames,
                         total.numSkippableFrames,
                         compressedSizeUnit, unitStr, decompressedSizeUnit, unitStr,
-                        ratio, checkString, total.nbFiles);
+                        ratio, checkString, (unsigned)total.nbFiles);
         }   }
         return error;
     }

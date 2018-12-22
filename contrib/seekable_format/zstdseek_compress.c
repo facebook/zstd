@@ -141,7 +141,7 @@ size_t ZSTD_seekable_freeCStream(ZSTD_seekable_CStream* zcs)
 size_t ZSTD_seekable_initCStream(ZSTD_seekable_CStream* zcs,
                                  int compressionLevel,
                                  int checksumFlag,
-                                 U32 maxFrameSize)
+                                 unsigned maxFrameSize)
 {
     zcs->framelog.size = 0;
     zcs->frameCSize = 0;

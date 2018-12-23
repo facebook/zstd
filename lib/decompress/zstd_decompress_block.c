@@ -427,7 +427,7 @@ ZSTD_buildFSETable(ZSTD_seqSymbol* dt,
  * @return : nb bytes read from src,
  *           or an error code if it fails */
 static size_t ZSTD_buildSeqTable(ZSTD_seqSymbol* DTableSpace, const ZSTD_seqSymbol** DTablePtr,
-                                 symbolEncodingType_e type, U32 max, U32 maxLog,
+                                 symbolEncodingType_e type, unsigned max, U32 maxLog,
                                  const void* src, size_t srcSize,
                                  const U32* baseValue, const U32* nbAdditionalBits,
                                  const ZSTD_seqSymbol* defaultTable, U32 flagRepeatTable,
@@ -458,7 +458,7 @@ static size_t ZSTD_buildSeqTable(ZSTD_seqSymbol* DTableSpace, const ZSTD_seqSymb
         }
         return 0;
     case set_compressed :
-        {   U32 tableLog;
+        {   unsigned tableLog;
             S16 norm[MaxSeq+1];
             size_t const headerSize = FSE_readNCount(norm, &max, &tableLog, src, srcSize);
             if (FSE_isError(headerSize)) return ERROR(corruption_detected);

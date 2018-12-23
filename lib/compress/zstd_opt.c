@@ -72,10 +72,10 @@ static void ZSTD_setBasePrices(optState_t* optPtr, int optLevel)
 /* ZSTD_downscaleStat() :
  * reduce all elements in table by a factor 2^(ZSTD_FREQ_DIV+malus)
  * return the resulting sum of elements */
-static U32 ZSTD_downscaleStat(U32* table, U32 lastEltIndex, int malus)
+static U32 ZSTD_downscaleStat(unsigned* table, U32 lastEltIndex, int malus)
 {
     U32 s, sum=0;
-    DEBUGLOG(5, "ZSTD_downscaleStat (nbElts=%u)", lastEltIndex+1);
+    DEBUGLOG(5, "ZSTD_downscaleStat (nbElts=%u)", (unsigned)lastEltIndex+1);
     assert(ZSTD_FREQ_DIV+malus > 0 && ZSTD_FREQ_DIV+malus < 31);
     for (s=0; s<lastEltIndex+1; s++) {
         table[s] = 1 + (table[s] >> (ZSTD_FREQ_DIV+malus));
@@ -1041,7 +1041,7 @@ _shortestPath:   /* cur, last_pos, best_mlen, best_off have to be set */
                     U32 const offCode = opt[storePos].off;
                     U32 const advance = llen + mlen;
                     DEBUGLOG(6, "considering seq starting at %zi, llen=%u, mlen=%u",
-                                anchor - istart, llen, mlen);
+                                anchor - istart, (unsigned)llen, (unsigned)mlen);
 
                     if (mlen==0) {  /* only literals => must be last "sequence", actually starting a new stream of sequences */
                         assert(storePos == storeEnd);   /* must be last sequence */
@@ -1089,7 +1089,7 @@ size_t ZSTD_compressBlock_btopt(
 
 
 /* used in 2-pass strategy */
-static U32 ZSTD_upscaleStat(U32* table, U32 lastEltIndex, int bonus)
+static U32 ZSTD_upscaleStat(unsigned* table, U32 lastEltIndex, int bonus)
 {
     U32 s, sum=0;
     assert(ZSTD_FREQ_DIV+bonus >= 0);

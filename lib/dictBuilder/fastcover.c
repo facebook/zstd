@@ -20,7 +20,7 @@
 /*-*************************************
 *  Constants
 ***************************************/
-#define FASTCOVER_MAX_SAMPLES_SIZE (sizeof(size_t) == 8 ? ((U32)-1) : ((U32)1 GB))
+#define FASTCOVER_MAX_SAMPLES_SIZE (sizeof(size_t) == 8 ? ((unsigned)-1) : ((unsigned)1 GB))
 #define FASTCOVER_MAX_F 31
 #define FASTCOVER_MAX_ACCEL 10
 #define DEFAULT_SPLITPOINT 0.75
@@ -309,7 +309,7 @@ FASTCOVER_ctx_init(FASTCOVER_ctx_t* ctx,
     if (totalSamplesSize < MAX(d, sizeof(U64)) ||
         totalSamplesSize >= (size_t)FASTCOVER_MAX_SAMPLES_SIZE) {
         DISPLAYLEVEL(1, "Total samples size is too large (%u MB), maximum size is %u MB\n",
-                    (U32)(totalSamplesSize >> 20), (FASTCOVER_MAX_SAMPLES_SIZE >> 20));
+                    (unsigned)(totalSamplesSize >> 20), (FASTCOVER_MAX_SAMPLES_SIZE >> 20));
         return 0;
     }
 
@@ -328,9 +328,9 @@ FASTCOVER_ctx_init(FASTCOVER_ctx_t* ctx,
     /* Zero the context */
     memset(ctx, 0, sizeof(*ctx));
     DISPLAYLEVEL(2, "Training on %u samples of total size %u\n", nbTrainSamples,
-                    (U32)trainingSamplesSize);
+                    (unsigned)trainingSamplesSize);
     DISPLAYLEVEL(2, "Testing on %u samples of total size %u\n", nbTestSamples,
-                    (U32)testSamplesSize);
+                    (unsigned)testSamplesSize);
 
     ctx->samples = samples;
     ctx->samplesSizes = samplesSizes;
@@ -389,11 +389,11 @@ FASTCOVER_buildDictionary(const FASTCOVER_ctx_t* ctx,
   /* Divide the data up into epochs of equal size.
    * We will select at least one segment from each epoch.
    */
-  const U32 epochs = MAX(1, (U32)(dictBufferCapacity / parameters.k));
-  const U32 epochSize = (U32)(ctx->nbDmers / epochs);
+  const unsigned epochs = MAX(1, (U32)(dictBufferCapacity / parameters.k));
+  const unsigned epochSize = (U32)(ctx->nbDmers / epochs);
   size_t epoch;
-  DISPLAYLEVEL(2, "Breaking content into %u epochs of size %u\n", epochs,
-               epochSize);
+  DISPLAYLEVEL(2, "Breaking content into %u epochs of size %u\n",
+                epochs, epochSize);
   /* Loop through the epochs until there are no more segments or the dictionary
    * is full.
    */
@@ -423,7 +423,7 @@ FASTCOVER_buildDictionary(const FASTCOVER_ctx_t* ctx,
     memcpy(dict + tail, ctx->samples + segment.begin, segmentSize);
     DISPLAYUPDATE(
         2, "\r%u%%       ",
-        (U32)(((dictBufferCapacity - tail) * 100) / dictBufferCapacity));
+        (unsigned)(((dictBufferCapacity - tail) * 100) / dictBufferCapacity));
   }
   DISPLAYLEVEL(2, "\r%79s\r", "");
   return tail;
@@ -577,7 +577,7 @@ ZDICT_trainFromBuffer_fastCover(void* dictBuffer, size_t dictBufferCapacity,
           samplesBuffer, samplesSizes, nbFinalizeSamples, coverParams.zParams);
       if (!ZSTD_isError(dictionarySize)) {
           DISPLAYLEVEL(2, "Constructed dictionary of size %u\n",
-                      (U32)dictionarySize);
+                      (unsigned)dictionarySize);
       }
       FASTCOVER_ctx_destroy(&ctx);
       free(segmentFreqs);
@@ -702,7 +702,7 @@ ZDICT_optimizeTrainFromBuffer_fastCover(
         }
         /* Print status */
         LOCALDISPLAYUPDATE(displayLevel, 2, "\r%u%%       ",
-                           (U32)((iteration * 100) / kIterations));
+                           (unsigned)((iteration * 100) / kIterations));
         ++iteration;
       }
       COVER_best_wait(&best);

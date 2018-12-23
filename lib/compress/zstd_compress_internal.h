@@ -746,6 +746,7 @@ MEM_STATIC U32 ZSTD_window_update(ZSTD_window_t* window,
 
 
 /* debug functions */
+#if (DEBUGLEVEL>=2)
 
 MEM_STATIC double ZSTD_fWeight(U32 rawStat)
 {
@@ -760,6 +761,8 @@ MEM_STATIC double ZSTD_fWeight(U32 rawStat)
     return (double)weight / fp_multiplier;
 }
 
+/* display a table content,
+ * listing each element, its frequency, and its predicted bit cost */
 MEM_STATIC void ZSTD_debugTable(const U32* table, U32 max)
 {
     unsigned u, sum;
@@ -770,6 +773,9 @@ MEM_STATIC void ZSTD_debugTable(const U32* table, U32 max)
                 u, table[u], ZSTD_fWeight(sum) - ZSTD_fWeight(table[u]) );
     }
 }
+
+#endif
+
 
 #if defined (__cplusplus)
 }

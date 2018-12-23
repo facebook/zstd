@@ -115,14 +115,18 @@ matrix:
       script:
         - make arminstall
         - make armfuzz
-    - name: Trusty (AARCH64 + Fuzz Test)
+
+    - name: Xenial (AARCH64 + Fuzz Test)
+      dist: xenial
       script:
         - make arminstall
         - make aarch64fuzz
+
     - name: Trusty (PPC + Fuzz Test)
       script:
         - make ppcinstall
         - make ppcfuzz
+
     - name: Trusty (PPC64 + Fuzz Test)
       script:
         - make ppcinstall

@@ -45,19 +45,19 @@ option(ZSTD_LEGACY_SUPPORT "LEGACY SUPPORT" OFF)
 if (ZSTD_LEGACY_SUPPORT)
     message(STATUS "ZSTD_LEGACY_SUPPORT defined!")
     add_definitions(-DZSTD_LEGACY_SUPPORT=4)
-else (ZSTD_LEGACY_SUPPORT)
+else ()
     message(STATUS "ZSTD_LEGACY_SUPPORT not defined!")
     add_definitions(-DZSTD_LEGACY_SUPPORT=0)
-endif (ZSTD_LEGACY_SUPPORT)
+endif ()
 
 # Multi-threading support
 option(ZSTD_MULTITHREAD_SUPPORT "MULTITHREADING SUPPORT" ON)
 
 if (ZSTD_MULTITHREAD_SUPPORT)
     message(STATUS "ZSTD_MULTITHREAD_SUPPORT is enabled")
-else (ZSTD_MULTITHREAD_SUPPORT)
+else ()
     message(STATUS "ZSTD_MULTITHREAD_SUPPORT is disabled")
-endif (ZSTD_MULTITHREAD_SUPPORT)
+endif ()
 
 option(ZSTD_BUILD_PROGRAMS "BUILD PROGRAMS" ON)
 option(ZSTD_BUILD_CONTRIB "BUILD CONTRIB" OFF)
@@ -77,7 +77,7 @@ if (ZSTD_MULTITHREAD_SUPPORT AND UNIX)
     else()
         message(SEND_ERROR "ZSTD currently does not support thread libraries other than pthreads")
     endif()
-endif (ZSTD_MULTITHREAD_SUPPORT AND UNIX)
+endif ()
 
 #-----------------------------------------------------------------------------
 # Add source directories
@@ -87,22 +87,22 @@ add_subdirectory(lib)
 if (ZSTD_BUILD_PROGRAMS)
     if (NOT ZSTD_BUILD_STATIC)
         message(SEND_ERROR "You need to build static library to build zstd CLI")
-    endif (NOT ZSTD_BUILD_STATIC)
+    endif ()
 
     add_subdirectory(programs)
-endif (ZSTD_BUILD_PROGRAMS)
+endif ()
 
 if (ZSTD_BUILD_TESTS)
     if (NOT ZSTD_BUILD_STATIC)
         message(SEND_ERROR "You need to build static library to build tests")
-    endif (NOT ZSTD_BUILD_STATIC)
+    endif ()
 
     add_subdirectory(tests)
-endif (ZSTD_BUILD_TESTS)
+endif ()
 
 if (ZSTD_BUILD_CONTRIB)
     add_subdirectory(contrib)
-endif (ZSTD_BUILD_CONTRIB)
+endif ()
 
 #-----------------------------------------------------------------------------
 # Add clean-all target

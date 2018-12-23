@@ -430,7 +430,7 @@ BMK_benchMemAdvancedNoAlloc(
         dctxprep.dictBufferSize = dictBufferSize;
 
         DISPLAYLEVEL(2, "\r%70s\r", "");   /* blank line */
-        DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->\r", marks[markNb], displayName, (U32)srcSize);
+        DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->\r", marks[markNb], displayName, (unsigned)srcSize);
 
         while (!(compressionCompleted && decompressionCompleted)) {
             if (!compressionCompleted) {
@@ -453,7 +453,7 @@ BMK_benchMemAdvancedNoAlloc(
                 {   int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
                     DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.*f),%6.*f MB/s\r",
                             marks[markNb], displayName,
-                            (U32)srcSize, (U32)cSize,
+                            (unsigned)srcSize, (unsigned)cSize,
                             ratioAccuracy, ratio,
                             benchResult.cSpeed < (10 MB) ? 2 : 1, (double)benchResult.cSpeed / MB_UNIT);
                 }
@@ -476,7 +476,7 @@ BMK_benchMemAdvancedNoAlloc(
                 {   int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
                     DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.*f),%6.*f MB/s ,%6.1f MB/s \r",
                             marks[markNb], displayName,
-                            (U32)srcSize, (U32)benchResult.cSize,
+                            (unsigned)srcSize, (unsigned)benchResult.cSize,
                             ratioAccuracy, ratio,
                             benchResult.cSpeed < (10 MB) ? 2 : 1, (double)benchResult.cSpeed / MB_UNIT,
                             (double)benchResult.dSpeed / MB_UNIT);
@@ -495,9 +495,9 @@ BMK_benchMemAdvancedNoAlloc(
                         displayName, (unsigned)crcOrig, (unsigned)crcCheck);
                 for (u=0; u<srcSize; u++) {
                     if (((const BYTE*)srcBuffer)[u] != resultBuffer[u]) {
-                        U32 segNb, bNb, pos;
+                        unsigned segNb, bNb, pos;
                         size_t bacc = 0;
-                        DISPLAY("Decoding error at pos %u ", (U32)u);
+                        DISPLAY("Decoding error at pos %u ", (unsigned)u);
                         for (segNb = 0; segNb < nbBlocks; segNb++) {
                             if (bacc + srcSizes[segNb] > u) break;
                             bacc += srcSizes[segNb];
@@ -668,7 +668,7 @@ static BMK_benchOutcome_t BMK_benchCLevel(const void* srcBuffer, size_t benchedS
     if (displayLevel == 1 && !adv->additionalParam)   /* --quiet mode */
         DISPLAY("bench %s %s: input %u bytes, %u seconds, %u KB blocks\n",
                 ZSTD_VERSION_STRING, ZSTD_GIT_COMMIT_STRING,
-                (U32)benchedSize, adv->nbSeconds, (U32)(adv->blockSize>>10));
+                (unsigned)benchedSize, adv->nbSeconds, (unsigned)(adv->blockSize>>10));
 
     return BMK_benchMemAdvanced(srcBuffer, benchedSize,
                                 NULL, 0,
@@ -814,7 +814,7 @@ BMK_benchOutcome_t BMK_benchFilesAdvanced(
         if (dictBuffer==NULL) {
             free(fileSizes);
             RETURN_ERROR(11, BMK_benchOutcome_t, "not enough memory for dictionary (%u bytes)",
-                            (U32)dictBufferSize);
+                            (unsigned)dictBufferSize);
         }
 
         {   int const errorCode = BMK_loadFiles(dictBuffer, dictBufferSize,
@@ -830,7 +830,7 @@ BMK_benchOutcome_t BMK_benchFilesAdvanced(
     benchedSize = BMK_findMaxMem(totalSizeToLoad * 3) / 3;
     if ((U64)benchedSize > totalSizeToLoad) benchedSize = (size_t)totalSizeToLoad;
     if (benchedSize < totalSizeToLoad)
-        DISPLAY("Not enough memory; testing %u MB only...\n", (U32)(benchedSize >> 20));
+        DISPLAY("Not enough memory; testing %u MB only...\n", (unsigned)(benchedSize >> 20));
 
     srcBuffer = benchedSize ? malloc(benchedSize) : NULL;
     if (!srcBuffer) {

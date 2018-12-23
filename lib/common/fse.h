@@ -512,7 +512,7 @@ MEM_STATIC void FSE_initCState(FSE_CState_t* statePtr, const FSE_CTable* ct)
     const U32 tableLog = MEM_read16(ptr);
     statePtr->value = (ptrdiff_t)1<<tableLog;
     statePtr->stateTable = u16ptr+2;
-    statePtr->symbolTT = ((const U32*)ct + 1 + (tableLog ? (1<<(tableLog-1)) : 1));
+    statePtr->symbolTT = ct + 1 + (tableLog ? (1<<(tableLog-1)) : 1);
     statePtr->stateLog = tableLog;
 }
 
@@ -531,7 +531,7 @@ MEM_STATIC void FSE_initCState2(FSE_CState_t* statePtr, const FSE_CTable* ct, U3
     }
 }
 
-MEM_STATIC void FSE_encodeSymbol(BIT_CStream_t* bitC, FSE_CState_t* statePtr, U32 symbol)
+MEM_STATIC void FSE_encodeSymbol(BIT_CStream_t* bitC, FSE_CState_t* statePtr, unsigned symbol)
 {
     FSE_symbolCompressionTransform const symbolTT = ((const FSE_symbolCompressionTransform*)(statePtr->symbolTT))[symbol];
     const U16* const stateTable = (const U16*)(statePtr->stateTable);

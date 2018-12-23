@@ -201,7 +201,7 @@ static int invRangeMap(varInds_t param, U32 value)
 }
 
 /* display of params */
-static void displayParamVal(FILE* f, varInds_t param, U32 value, int width)
+static void displayParamVal(FILE* f, varInds_t param, unsigned value, int width)
 {
     switch(param) {
         case wlog_ind:
@@ -636,7 +636,7 @@ static void optimizerAdjustInput(paramValues_t* pc, const size_t maxBlockSize)
             if(adjust != pc->vals[wlog_ind]) {
                 pc->vals[wlog_ind] = adjust;
                 DISPLAY("Warning: windowLog larger than src/block size, adjusted to %u\n",
-                        pc->vals[wlog_ind]);
+                        (unsigned)pc->vals[wlog_ind]);
             }
         }
     }
@@ -652,7 +652,7 @@ static void optimizerAdjustInput(paramValues_t* pc, const size_t maxBlockSize)
         if(pc->vals[clog_ind] > maxclog) {
             pc->vals[clog_ind] = maxclog;
             DISPLAY("Warning: chainlog too much larger than windowLog size, adjusted to %u\n",
-                    pc->vals[clog_ind]);
+                    (unsigned)pc->vals[clog_ind]);
         }
     }
 
@@ -660,7 +660,7 @@ static void optimizerAdjustInput(paramValues_t* pc, const size_t maxBlockSize)
         if(pc->vals[wlog_ind] + 1 < pc->vals[hlog_ind]) {
             pc->vals[hlog_ind] = pc->vals[wlog_ind] + 1;
             DISPLAY("Warning: hashlog too much larger than windowLog size, adjusted to %u\n",
-                    pc->vals[hlog_ind]);
+                    (unsigned)pc->vals[hlog_ind]);
         }
     }
 
@@ -668,7 +668,7 @@ static void optimizerAdjustInput(paramValues_t* pc, const size_t maxBlockSize)
         if(pc->vals[slog_ind] > pc->vals[clog_ind]) {
             pc->vals[clog_ind] = pc->vals[slog_ind];
             DISPLAY("Warning: searchLog larger than chainLog, adjusted to %u\n",
-                    pc->vals[slog_ind]);
+                    (unsigned)pc->vals[slog_ind]);
         }
     }
 }
@@ -705,7 +705,7 @@ BMK_paramValues_into_commandLine(FILE* f, const paramValues_t params)
         if (!first) { fprintf(f, ","); }
         fprintf(f,"%s=", g_paramNames[v]);
 
-        if (v == strt_ind) { fprintf(f,"%u", params.vals[v]); }
+        if (v == strt_ind) { fprintf(f,"%u", (unsigned)params.vals[v]); }
         else { displayParamVal(f, v, params.vals[v], 0); }
         first = 0;
     }
@@ -1532,7 +1532,7 @@ static void display_params_tested(paramValues_t cParams)
     varInds_t vi;
     DISPLAYLEVEL(3, "\r testing :");
     for (vi=0; vi < NUM_PARAMS; vi++) {
-        DISPLAYLEVEL(3, "%3u,", cParams.vals[vi]);
+        DISPLAYLEVEL(3, "%3u,", (unsigned)cParams.vals[vi]);
     }
     DISPLAYLEVEL(3, "\b    \r");
 }
@@ -2456,9 +2456,9 @@ optimizeForSize(const char* const * const fileNamesTable, const size_t nbFiles,
         DISPLAYLEVEL(2, "optimizing for %lu Files", (unsigned long)nbFiles);
     }
 
-    if(target.cSpeed != 0) { DISPLAYLEVEL(2," - limit compression speed %u MB/s", target.cSpeed >> 20); }
-    if(target.dSpeed != 0) { DISPLAYLEVEL(2, " - limit decompression speed %u MB/s", target.dSpeed >> 20); }
-    if(target.cMem != (U32)-1) { DISPLAYLEVEL(2, " - limit memory %u MB", target.cMem >> 20); }
+    if(target.cSpeed != 0) { DISPLAYLEVEL(2," - limit compression speed %u MB/s", (unsigned)(target.cSpeed >> 20)); }
+    if(target.dSpeed != 0) { DISPLAYLEVEL(2, " - limit decompression speed %u MB/s", (unsigned)(target.dSpeed >> 20)); }
+    if(target.cMem != (U32)-1) { DISPLAYLEVEL(2, " - limit memory %u MB", (unsigned)(target.cMem >> 20)); }
 
     DISPLAYLEVEL(2, "\n");
     init_clockGranularity();
@@ -2640,7 +2640,8 @@ static int usage_advanced(void)
     DISPLAY( " -S           : Single run \n");
     DISPLAY( " --zstd       : Single run, parameter selection same as zstdcli \n");
     DISPLAY( " -P#          : generated sample compressibility (default : %.1f%%) \n", COMPRESSIBILITY_DEFAULT * 100);
-    DISPLAY( " -t#          : Caps runtime of operation in seconds (default : %u seconds (%.1f hours)) \n", g_timeLimit_s, (double)g_timeLimit_s / 3600);
+    DISPLAY( " -t#          : Caps runtime of operation in seconds (default : %u seconds (%.1f hours)) \n",
+                                (unsigned)g_timeLimit_s, (double)g_timeLimit_s / 3600);
     DISPLAY( " -v           : Prints Benchmarking output\n");
     DISPLAY( " -D           : Next argument dictionary file\n");
     DISPLAY( " -s           : Seperate Files\n");
@@ -2875,7 +2876,7 @@ int main(int argc, const char** argv)
                 case 'B':
                     argument++;
                     g_blockSize = readU32FromChar(&argument);
-                    DISPLAY("using %u KB block size \n", g_blockSize>>10);
+                    DISPLAY("using %u KB block size \n", (unsigned)(g_blockSize>>10));
                     break;
 
                     /* caps runtime (in seconds) */

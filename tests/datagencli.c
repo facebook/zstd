@@ -121,7 +121,7 @@ int main(int argc, const char** argv)
     DISPLAYLEVEL(4, "Compressible data Generator \n");
     if (probaU32!=COMPRESSIBILITY_DEFAULT)
         DISPLAYLEVEL(3, "Compressibility : %i%%\n", probaU32);
-    DISPLAYLEVEL(3, "Seed = %u \n", seed);
+    DISPLAYLEVEL(3, "Seed = %u \n", (unsigned)seed);
 
     RDG_genStdout(size, (double)probaU32/100, litProba, seed);
     DISPLAYLEVEL(1, "\n");

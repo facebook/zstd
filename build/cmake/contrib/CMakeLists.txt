@@ -7,7 +7,7 @@
 # in the COPYING file in the root directory of this source tree).
 # ################################################################
 
-PROJECT(contrib)
+project(contrib)
 
-ADD_SUBDIRECTORY(pzstd)
-ADD_SUBDIRECTORY(gen_html)
+add_subdirectory(pzstd)
+add_subdirectory(gen_html)

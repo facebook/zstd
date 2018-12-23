@@ -7,107 +7,107 @@
 # in the COPYING file in the root directory of this source tree).
 # ################################################################
 
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.9)
+cmake_minimum_required(VERSION 2.8.9)
 
-PROJECT(zstd)
-SET(ZSTD_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../..")
+project(zstd)
+set(ZSTD_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../..")
 
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   message(STATUS "No build type selected, defaulting to Release")
   set(CMAKE_BUILD_TYPE "Release")
 endif()
 
-LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules")
-INCLUDE(GNUInstallDirs)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules")
+include(GNUInstallDirs)
 
 #-----------------------------------------------------------------------------
 # Add extra compilation flags
 #-----------------------------------------------------------------------------
-INCLUDE(AddZstdCompilationFlags)
+include(AddZstdCompilationFlags)
 ADD_ZSTD_COMPILATION_FLAGS()
 
 # Always hide XXHash symbols
-ADD_DEFINITIONS(-DXXH_NAMESPACE=ZSTD_)
+add_definitions(-DXXH_NAMESPACE=ZSTD_)
 
 #-----------------------------------------------------------------------------
 # Installation variables
 #-----------------------------------------------------------------------------
-MESSAGE(STATUS "CMAKE_INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}")
-MESSAGE(STATUS "CMAKE_INSTALL_LIBDIR: ${CMAKE_INSTALL_LIBDIR}")
+message(STATUS "CMAKE_INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}")
+message(STATUS "CMAKE_INSTALL_LIBDIR: ${CMAKE_INSTALL_LIBDIR}")
 
 #-----------------------------------------------------------------------------
 # Options
 #-----------------------------------------------------------------------------
 
 # Legacy support
-OPTION(ZSTD_LEGACY_SUPPORT "LEGACY SUPPORT" OFF)
+option(ZSTD_LEGACY_SUPPORT "LEGACY SUPPORT" OFF)
 
-IF (ZSTD_LEGACY_SUPPORT)
-    MESSAGE(STATUS "ZSTD_LEGACY_SUPPORT defined!")
-    ADD_DEFINITIONS(-DZSTD_LEGACY_SUPPORT=4)
-ELSE (ZSTD_LEGACY_SUPPORT)
-    MESSAGE(STATUS "ZSTD_LEGACY_SUPPORT not defined!")
-    ADD_DEFINITIONS(-DZSTD_LEGACY_SUPPORT=0)
-ENDIF (ZSTD_LEGACY_SUPPORT)
+if (ZSTD_LEGACY_SUPPORT)
+    message(STATUS "ZSTD_LEGACY_SUPPORT defined!")
+    add_definitions(-DZSTD_LEGACY_SUPPORT=4)
+else (ZSTD_LEGACY_SUPPORT)
+    message(STATUS "ZSTD_LEGACY_SUPPORT not defined!")
+    add_definitions(-DZSTD_LEGACY_SUPPORT=0)
+endif (ZSTD_LEGACY_SUPPORT)
 
 # Multi-threading support
-OPTION(ZSTD_MULTITHREAD_SUPPORT "MULTITHREADING SUPPORT" ON)
+option(ZSTD_MULTITHREAD_SUPPORT "MULTITHREADING SUPPORT" ON)
 
-IF (ZSTD_MULTITHREAD_SUPPORT)
-    MESSAGE(STATUS "ZSTD_MULTITHREAD_SUPPORT is enabled")
-ELSE (ZSTD_MULTITHREAD_SUPPORT)
-    MESSAGE(STATUS "ZSTD_MULTITHREAD_SUPPORT is disabled")
-ENDIF (ZSTD_MULTITHREAD_SUPPORT)
+if (ZSTD_MULTITHREAD_SUPPORT)
+    message(STATUS "ZSTD_MULTITHREAD_SUPPORT is enabled")
+else (ZSTD_MULTITHREAD_SUPPORT)
+    message(STATUS "ZSTD_MULTITHREAD_SUPPORT is disabled")
+endif (ZSTD_MULTITHREAD_SUPPORT)
 
-OPTION(ZSTD_BUILD_PROGRAMS "BUILD PROGRAMS" ON)
-OPTION(ZSTD_BUILD_CONTRIB "BUILD CONTRIB" OFF)
-OPTION(ZSTD_BUILD_TESTS "BUILD TESTS" OFF)
+option(ZSTD_BUILD_PROGRAMS "BUILD PROGRAMS" ON)
+option(ZSTD_BUILD_CONTRIB "BUILD CONTRIB" OFF)
+option(ZSTD_BUILD_TESTS "BUILD TESTS" OFF)
 if (MSVC)
-    OPTION(ZSTD_USE_STATIC_RUNTIME "LINK TO STATIC RUN-TIME LIBRARIES" OFF)
+    option(ZSTD_USE_STATIC_RUNTIME "LINK TO STATIC RUN-TIME LIBRARIES" OFF)
 endif ()
 
 #-----------------------------------------------------------------------------
 # External dependencies
 #-----------------------------------------------------------------------------
-IF (ZSTD_MULTITHREAD_SUPPORT AND UNIX)
-    SET(THREADS_PREFER_PTHREAD_FLAG ON)
-    FIND_PACKAGE(Threads REQUIRED)
-    IF(CMAKE_USE_PTHREADS_INIT)
-        SET(THREADS_LIBS "${CMAKE_THREAD_LIBS_INIT}")
-    ELSE()
-        MESSAGE(SEND_ERROR "ZSTD currently does not support thread libraries other than pthreads")
-    ENDIF()
-ENDIF (ZSTD_MULTITHREAD_SUPPORT AND UNIX)
+if (ZSTD_MULTITHREAD_SUPPORT AND UNIX)
+    set(THREADS_PREFER_PTHREAD_FLAG ON)
+    find_package(Threads REQUIRED)
+    if(CMAKE_USE_PTHREADS_INIT)
+        set(THREADS_LIBS "${CMAKE_THREAD_LIBS_INIT}")
+    else()
+        message(SEND_ERROR "ZSTD currently does not support thread libraries other than pthreads")
+    endif()
+endif (ZSTD_MULTITHREAD_SUPPORT AND UNIX)
 
 #-----------------------------------------------------------------------------
 # Add source directories
 #-----------------------------------------------------------------------------
-ADD_SUBDIRECTORY(lib)
+add_subdirectory(lib)
 
-IF (ZSTD_BUILD_PROGRAMS)
-    IF (NOT ZSTD_BUILD_STATIC)
-        MESSAGE(SEND_ERROR "You need to build static library to build zstd CLI")
-    ENDIF (NOT ZSTD_BUILD_STATIC)
+if (ZSTD_BUILD_PROGRAMS)
+    if (NOT ZSTD_BUILD_STATIC)
+        message(SEND_ERROR "You need to build static library to build zstd CLI")
+    endif (NOT ZSTD_BUILD_STATIC)
 
-    ADD_SUBDIRECTORY(programs)
-ENDIF (ZSTD_BUILD_PROGRAMS)
+    add_subdirectory(programs)
+endif (ZSTD_BUILD_PROGRAMS)
 
-IF (ZSTD_BUILD_TESTS)
-    IF (NOT ZSTD_BUILD_STATIC)
-        MESSAGE(SEND_ERROR "You need to build static library to build tests")
-    ENDIF (NOT ZSTD_BUILD_STATIC)
+if (ZSTD_BUILD_TESTS)
+    if (NOT ZSTD_BUILD_STATIC)
+        message(SEND_ERROR "You need to build static library to build tests")
+    endif (NOT ZSTD_BUILD_STATIC)
 
-    ADD_SUBDIRECTORY(tests)
-ENDIF (ZSTD_BUILD_TESTS)
+    add_subdirectory(tests)
+endif (ZSTD_BUILD_TESTS)
 
-IF (ZSTD_BUILD_CONTRIB)
-    ADD_SUBDIRECTORY(contrib)
-ENDIF (ZSTD_BUILD_CONTRIB)
+if (ZSTD_BUILD_CONTRIB)
+    add_subdirectory(contrib)
+endif (ZSTD_BUILD_CONTRIB)
 
 #-----------------------------------------------------------------------------
 # Add clean-all target
 #-----------------------------------------------------------------------------
-ADD_CUSTOM_TARGET(clean-all
+add_custom_target(clean-all
    COMMAND ${CMAKE_BUILD_TOOL} clean
    COMMAND rm -rf ${CMAKE_BINARY_DIR}/
 )

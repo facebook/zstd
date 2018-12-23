@@ -7,26 +7,26 @@
 # in the COPYING file in the root directory of this source tree).
 # ################################################################
 
-PROJECT(pzstd)
+project(pzstd)
 
-SET(CMAKE_INCLUDE_CURRENT_DIR TRUE)
+set(CMAKE_INCLUDE_CURRENT_DIR TRUE)
 
 # Define programs directory, where sources and header files are located
-SET(LIBRARY_DIR ${ZSTD_SOURCE_DIR}/lib)
-SET(PROGRAMS_DIR ${ZSTD_SOURCE_DIR}/programs)
-SET(PZSTD_DIR ${ZSTD_SOURCE_DIR}/contrib/pzstd)
-INCLUDE_DIRECTORIES(${PROGRAMS_DIR} ${LIBRARY_DIR} ${LIBRARY_DIR}/common ${PZSTD_DIR})
+set(LIBRARY_DIR ${ZSTD_SOURCE_DIR}/lib)
+set(PROGRAMS_DIR ${ZSTD_SOURCE_DIR}/programs)
+set(PZSTD_DIR ${ZSTD_SOURCE_DIR}/contrib/pzstd)
+include_directories(${PROGRAMS_DIR} ${LIBRARY_DIR} ${LIBRARY_DIR}/common ${PZSTD_DIR})
 
-ADD_EXECUTABLE(pzstd ${PROGRAMS_DIR}/util.c ${PZSTD_DIR}/main.cpp ${PZSTD_DIR}/Options.cpp ${PZSTD_DIR}/Pzstd.cpp ${PZSTD_DIR}/SkippableFrame.cpp)
-SET_PROPERTY(TARGET pzstd APPEND PROPERTY COMPILE_DEFINITIONS "NDEBUG")
-SET_PROPERTY(TARGET pzstd APPEND PROPERTY COMPILE_OPTIONS "-Wno-shadow")
+add_executable(pzstd ${PROGRAMS_DIR}/util.c ${PZSTD_DIR}/main.cpp ${PZSTD_DIR}/Options.cpp ${PZSTD_DIR}/Pzstd.cpp ${PZSTD_DIR}/SkippableFrame.cpp)
+set_property(TARGET pzstd APPEND PROPERTY COMPILE_DEFINITIONS "NDEBUG")
+set_property(TARGET pzstd APPEND PROPERTY COMPILE_OPTIONS "-Wno-shadow")
 
-SET(THREADS_PREFER_PTHREAD_FLAG ON)
-FIND_PACKAGE(Threads REQUIRED)
-IF (CMAKE_USE_PTHREADS_INIT)
-    TARGET_LINK_LIBRARIES(pzstd libzstd_shared ${CMAKE_THREAD_LIBS_INIT})
-ELSE()
-    MESSAGE(SEND_ERROR "ZSTD currently does not support thread libraries other than pthreads")
-ENDIF()
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+if (CMAKE_USE_PTHREADS_INIT)
+    target_link_libraries(pzstd libzstd_shared ${CMAKE_THREAD_LIBS_INIT})
+else()
+    message(SEND_ERROR "ZSTD currently does not support thread libraries other than pthreads")
+endif()
 
-INSTALL(TARGETS pzstd RUNTIME DESTINATION "bin")
+install(TARGETS pzstd RUNTIME DESTINATION "bin")

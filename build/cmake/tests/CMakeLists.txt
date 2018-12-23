@@ -52,4 +52,4 @@ target_link_libraries(fuzzer libzstd_static)
 if (UNIX)
     add_executable(paramgrill ${PROGRAMS_DIR}/benchfn.c ${PROGRAMS_DIR}/benchzstd.c ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${TESTS_DIR}/paramgrill.c)
     target_link_libraries(paramgrill libzstd_static m) #m is math library
-endif (UNIX)
+endif ()

@@ -105,12 +105,12 @@ if (ZSTD_LEGACY_SUPPORT)
             ${LIBRARY_LEGACY_DIR}/zstd_v05.h
             ${LIBRARY_LEGACY_DIR}/zstd_v06.h
             ${LIBRARY_LEGACY_DIR}/zstd_v07.h)
-endif (ZSTD_LEGACY_SUPPORT)
+endif ()
 
 if (MSVC)
     set(MSVC_RESOURCE_DIR ${ZSTD_SOURCE_DIR}/build/VS2010/libzstd-dll)
     set(PlatformDependResources ${MSVC_RESOURCE_DIR}/libzstd-dll.rc)
-endif (MSVC)
+endif ()
 
 # Split project to static and shared libraries build
 if (ZSTD_BUILD_SHARED)
@@ -121,7 +121,7 @@ if (ZSTD_BUILD_SHARED)
             target_link_libraries(libzstd_shared ${THREADS_LIBS})
         endif ()
     endif()
-endif (ZSTD_BUILD_SHARED)
+endif ()
 if (ZSTD_BUILD_STATIC)
     add_library(libzstd_static STATIC ${Sources} ${Headers})
     if (ZSTD_MULTITHREAD_SUPPORT)
@@ -130,24 +130,24 @@ if (ZSTD_BUILD_STATIC)
             target_link_libraries(libzstd_static ${THREADS_LIBS})
         endif ()
     endif ()
-endif (ZSTD_BUILD_STATIC)
+endif ()
 
 # Add specific compile definitions for MSVC project
 if (MSVC)
     if (ZSTD_BUILD_SHARED)
         set_property(TARGET libzstd_shared APPEND PROPERTY COMPILE_DEFINITIONS "ZSTD_DLL_EXPORT=1;ZSTD_HEAPMODE=0;_CONSOLE;_CRT_SECURE_NO_WARNINGS")
-    endif (ZSTD_BUILD_SHARED)
+    endif ()
     if (ZSTD_BUILD_STATIC)
         set_property(TARGET libzstd_static APPEND PROPERTY COMPILE_DEFINITIONS "ZSTD_HEAPMODE=0;_CRT_SECURE_NO_WARNINGS")
-    endif (ZSTD_BUILD_STATIC)
-endif (MSVC)
+    endif ()
+endif ()
 
 # With MSVC static library needs to be renamed to avoid conflict with import library
 if (MSVC)
     set(STATIC_LIBRARY_BASE_NAME zstd_static)
 else ()
     set(STATIC_LIBRARY_BASE_NAME zstd)
-endif (MSVC)
+endif ()
 
 # Define static and shared library names
 if (ZSTD_BUILD_SHARED)
@@ -156,14 +156,14 @@ if (ZSTD_BUILD_SHARED)
             PROPERTIES
             OUTPUT_NAME zstd
             SOVERSION ${LIBVER_MAJOR}.${LIBVER_MINOR}.${LIBVER_RELEASE})
-endif (ZSTD_BUILD_SHARED)
+endif ()
 
 if (ZSTD_BUILD_STATIC)
     set_target_properties(
             libzstd_static
             PROPERTIES
             OUTPUT_NAME ${STATIC_LIBRARY_BASE_NAME})
-endif (ZSTD_BUILD_STATIC)
+endif ()
 
 if (UNIX)
     # pkg-config
@@ -178,7 +178,7 @@ if (UNIX)
             COMMENT "Creating pkg-config file")
 
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libzstd.pc" DESTINATION "${LIBDIR}/pkgconfig")
-endif (UNIX)
+endif ()
 
 # install target
 install(FILES
@@ -196,7 +196,7 @@ if (ZSTD_BUILD_SHARED)
 endif()
 if (ZSTD_BUILD_STATIC)
     install(TARGETS libzstd_static ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
-endif (ZSTD_BUILD_STATIC)
+endif ()
 
 # uninstall target
 configure_file(

@@ -7,10 +7,48 @@
 # in the COPYING file in the root directory of this source tree).
 # ################################################################
 
-cmake_minimum_required(VERSION 2.8.9)
+cmake_minimum_required(VERSION 2.8.9 FATAL_ERROR)
+  
+# As of 2018-12-26 ZSTD has been validated to build with cmake version 3.13.2 new policies. 
+# Set and use the newest cmake policies that are validated to work 
+set(ZSTD_MAX_VALIDATED_CMAKE_VERSION "3.13.2") 
+if("${CMAKE_MAJOR_VERSION}" LESS 3) # Cmake version 2 does not understand the VERSION_LESS_EQUAL operator
+  set(ZSTD_CMAKE_POLICY_VERSION "${CMAKE_VERSION}") 
+else()
+  if("${CMAKE_VERSION}" VERSION_LESS_EQUAL "${ZSTD_MAX_VALIDATED_CMAKE_VERSION}") 
+    set(ZSTD_CMAKE_POLICY_VERSION "${CMAKE_VERSION}") 
+  else() 
+    set(ZSTD_CMAKE_POLICY_VERSION "${ZSTD_MAX_VALIDATED_CMAKE_VERSION}") 
+  endif() 
+endif()
+cmake_policy(VERSION ${ZSTD_CMAKE_POLICY_VERSION})
 
-project(zstd)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules")
 set(ZSTD_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../..")
+set(LIBRARY_DIR ${ZSTD_SOURCE_DIR}/lib)
+# Parse version
+include(GetZstdLibraryVersion)
+GetZstdLibraryVersion(${LIBRARY_DIR}/zstd.h zstd_VERSION_MAJOR zstd_VERSION_MINOR zstd_VERSION_PATCH)
+
+if( CMAKE_MAJOR_VERSION LESS 3 )
+  ## Provide cmake 3+ behavior for older versions of cmake
+  project(zstd)
+  set(PROJECT_VERSION_MAJOR ${zstd_VERSION_MAJOR})
+  set(PROJECT_VERSION_MINOR ${zstd_VERSION_MINOR})
+  set(PROJECT_VERSION_PATCH ${zstd_VERSION_PATCH})
+  set(PROJECT_VERSION "${zstd_VERSION_MAJOR}.${zstd_VERSION_MINOR}.${zstd_VERSION_PATCH}")
+  enable_language(C)   # Main library is in C
+  enable_language(CXX) # Testing contributed code also utilizes CXX
+else()
+  project(zstd
+    VERSION "${zstd_VERSION_MAJOR}.${zstd_VERSION_MINOR}.${zstd_VERSION_PATCH}"
+    LANGUAGES C   # Main library is in C
+              CXX # Testing contributed code also utilizes CXX
+    )
+endif()
+message(STATUS "ZSTD VERSION: ${zstd_VERSION}")
+set(zstd_HOMEPAGE_URL "http://www.zstd.net")
+set(zstd_DESCRIPTION  "Zstandard is a real-time compression algorithm, providing high compression ratios.")
 
 # Set a default build type if none was specified
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -20,7 +58,6 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules")
 include(GNUInstallDirs)
 
 #-----------------------------------------------------------------------------

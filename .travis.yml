@@ -156,24 +156,28 @@ matrix:
 
     # tests for master branch and cron job only
     - name: OS-X
+      if: branch = master
       os: osx
       script:
         - make test
 
     - name: thread sanitizer
+      if: branch = master
       script:
         - make clang38install
         - CC=clang-3.8 make tsan-test-zstream
 
-    - name: port tests
+    - name: C++ and gnu90 compatibility
+      if: branch = master
       script:
         - make cxxtest
         - make clean
         - make gnu90build
         - make clean
-        - make travis-install
+        - make travis-install    # just ensures `make install` works
 
     - name: zlib wrapper test
+      if: branch = master
       script:
         - make gpp6install valgrindinstall
         - make -C zlibWrapper test

@@ -20,7 +20,7 @@ function(EnableCompilerFlag _flag _C _CXX)
     endif ()
 endfunction()
 
-MACRO(ADD_ZSTD_COMPILATION_FLAGS)
+macro(ADD_ZSTD_COMPILATION_FLAGS)
     if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" OR MINGW) #Not only UNIX but also WIN32 for MinGW
         #Set c++11 by default
         EnableCompilerFlag("-std=c++11" false true)
@@ -46,22 +46,22 @@ MACRO(ADD_ZSTD_COMPILATION_FLAGS)
     endif ()
 
     # Remove duplicates compilation flags
-    FOREACH (flag_var CMAKE_C_FLAGS CMAKE_C_FLAGS_DEBUG CMAKE_C_FLAGS_RELEASE
+    foreach (flag_var CMAKE_C_FLAGS CMAKE_C_FLAGS_DEBUG CMAKE_C_FLAGS_RELEASE
              CMAKE_C_FLAGS_MINSIZEREL CMAKE_C_FLAGS_RELWITHDEBINFO
              CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
              CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
         separate_arguments(${flag_var})
         list(REMOVE_DUPLICATES ${flag_var})
         string(REPLACE ";" " " ${flag_var} "${${flag_var}}")
-    ENDFOREACH (flag_var)
+    endforeach ()
 
     if (MSVC AND ZSTD_USE_STATIC_RUNTIME)
-        FOREACH (flag_var CMAKE_C_FLAGS CMAKE_C_FLAGS_DEBUG CMAKE_C_FLAGS_RELEASE
+        foreach (flag_var CMAKE_C_FLAGS CMAKE_C_FLAGS_DEBUG CMAKE_C_FLAGS_RELEASE
                  CMAKE_C_FLAGS_MINSIZEREL CMAKE_C_FLAGS_RELWITHDEBINFO
                  CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
                  CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
-            STRING(REGEX REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
-        ENDFOREACH (flag_var)
+            string(REGEX REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
+        endforeach ()
     endif ()
 
-ENDMACRO(ADD_ZSTD_COMPILATION_FLAGS)
+endmacro()

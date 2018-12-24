@@ -1,1 +1,1 @@
-CONFIGURE_FILE("${IN}" "${OUT}" @ONLY)
+configure_file("${IN}" "${OUT}" @ONLY)

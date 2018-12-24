@@ -30,26 +30,26 @@
 #  - zstd homepage : http://www.zstd.net/
 # ################################################################
 
-PROJECT(tests)
+project(tests)
 
-SET(CMAKE_INCLUDE_CURRENT_DIR TRUE)
+set(CMAKE_INCLUDE_CURRENT_DIR TRUE)
 
 # Define programs directory, where sources and header files are located
-SET(LIBRARY_DIR ${ZSTD_SOURCE_DIR}/lib)
-SET(PROGRAMS_DIR ${ZSTD_SOURCE_DIR}/programs)
-SET(TESTS_DIR ${ZSTD_SOURCE_DIR}/tests)
-INCLUDE_DIRECTORIES(${TESTS_DIR} ${PROGRAMS_DIR} ${LIBRARY_DIR} ${LIBRARY_DIR}/common ${LIBRARY_DIR}/compress ${LIBRARY_DIR}/dictBuilder)
+set(LIBRARY_DIR ${ZSTD_SOURCE_DIR}/lib)
+set(PROGRAMS_DIR ${ZSTD_SOURCE_DIR}/programs)
+set(TESTS_DIR ${ZSTD_SOURCE_DIR}/tests)
+include_directories(${TESTS_DIR} ${PROGRAMS_DIR} ${LIBRARY_DIR} ${LIBRARY_DIR}/common ${LIBRARY_DIR}/compress ${LIBRARY_DIR}/dictBuilder)
 
-ADD_EXECUTABLE(datagen ${PROGRAMS_DIR}/datagen.c ${TESTS_DIR}/datagencli.c)
-TARGET_LINK_LIBRARIES(datagen libzstd_static)
+add_executable(datagen ${PROGRAMS_DIR}/datagen.c ${TESTS_DIR}/datagencli.c)
+target_link_libraries(datagen libzstd_static)
 
-ADD_EXECUTABLE(fullbench ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/benchfn.c ${PROGRAMS_DIR}/benchzstd.c ${TESTS_DIR}/fullbench.c)
-TARGET_LINK_LIBRARIES(fullbench libzstd_static)
+add_executable(fullbench ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/benchfn.c ${PROGRAMS_DIR}/benchzstd.c ${TESTS_DIR}/fullbench.c)
+target_link_libraries(fullbench libzstd_static)
 
-ADD_EXECUTABLE(fuzzer ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${TESTS_DIR}/fuzzer.c)
-TARGET_LINK_LIBRARIES(fuzzer libzstd_static)
+add_executable(fuzzer ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${TESTS_DIR}/fuzzer.c)
+target_link_libraries(fuzzer libzstd_static)
 
-IF (UNIX)
-    ADD_EXECUTABLE(paramgrill ${PROGRAMS_DIR}/benchfn.c ${PROGRAMS_DIR}/benchzstd.c ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${TESTS_DIR}/paramgrill.c)
-    TARGET_LINK_LIBRARIES(paramgrill libzstd_static m) #m is math library
-ENDIF (UNIX)
+if (UNIX)
+    add_executable(paramgrill ${PROGRAMS_DIR}/benchfn.c ${PROGRAMS_DIR}/benchzstd.c ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${TESTS_DIR}/paramgrill.c)
+    target_link_libraries(paramgrill libzstd_static m) #m is math library
+endif ()

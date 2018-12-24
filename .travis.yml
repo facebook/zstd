@@ -147,12 +147,39 @@ matrix:
         - make clean
         - bash tests/libzstd_partial_builds.sh
 
+    # check release number
     - name: Tag-Specific Test
       if: tag =~ ^v[0-9]\.[0-9]
       script:
         - make -C tests checkTag
         - tests/checkTag "$TRAVIS_BRANCH"
 
+    # tests for master branch and cron job only
+    - name: OS-X
+      os: osx
+      script:
+        - make test
+
+    - name: thread sanitizer
+      script:
+        - make clang38install
+        - CC=clang-3.8 make tsan-test-zstream
+
+    - name: port tests
+      script:
+        - make cxxtest
+        - make clean
+        - make gnu90build
+        - make clean
+        - make travis-install
+
+    - name: zlib wrapper test
+      script:
+        - make gpp6install valgrindinstall
+        - make -C zlibWrapper test
+        - make -C zlibWrapper valgrindTest
+
+    # meson dedicated test
     - name: Xenial (Meson + clang)
       dist: xenial
       language: cpp

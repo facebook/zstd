@@ -31,29 +31,26 @@ matrix:
       script:
         - make test
 
-    - name: Trusty (gcc-6 + ASan + UBSan + Test Zstd)
+    - name: gcc-6 + gcc-7 compilation
       script:
-        - make gcc6install
+        - make gcc6install gcc7install
         - CC=gcc-6 CFLAGS=-Werror make -j all
         - make clean
-        - CC=gcc-6 make -j uasan-test-zstd </dev/null   # test when stdin is not a tty
+        - CC=gcc-7 CFLAGS=-Werror make -j all
 
-    - name: Trusty (gcc-6 + ASan + UBSan + Test Zstd 32bit)
-      script:
-        - make gcc6install libc6install
-        - make clean
-        - CC=gcc-6 make -j uasan-test-zstd32
-
-    - name: Trusty (gcc-7 + ASan + UBSan + Test Zstd)
-      script:
-        - make gcc7install
-        - make clean
-        - CC=gcc-7 make -j uasan-test-zstd
-
-    - name: Trusty (gcc-8)
+    - name: gcc-8 + ASan + UBSan + Test Zstd
       script:
         - make gcc8install
-        - CC=gcc-8 CFLAGS="-Werror -O3" make -j all
+        - CC=gcc-8 CFLAGS="-Werror" make -j all
+        - make clean
+        - CC=gcc-8 make -j uasan-test-zstd </dev/null   # test when stdin is not a tty
+
+    - name: gcc-6 + ASan + UBSan + Test Zstd, 32bit mode
+      script:
+        - make gcc6install libc6install
+        - CC=gcc-6 CFLAGS="-Werror -m32" make -j all32
+        - make clean
+        - CC=gcc-6 make -j uasan-test-zstd32   # note : can complain about pointer overflow
 
     - name: Trusty (clang-3.8 + MSan + Test Zstd)
       script:
@@ -83,26 +80,20 @@ matrix:
       script:
         - make staticAnalyze
 
-    - name: Trusty (gcc-6 + ASan + UBSan + Fuzz Test)
+    - name: Trusty (gcc-8 + ASan + UBSan + Fuzz Test)
       script:
-        - make gcc6install
-        - CC=gcc-6 make clean uasan-fuzztest
+        - make gcc8install
+        - CC=gcc-8 make clean uasan-fuzztest
 
     - name: Trusty (gcc-6 + ASan + UBSan + Fuzz Test 32bit)
       script:
         - make gcc6install libc6install
-        - make clean
-        - CC=gcc-6 CFLAGS=-m32 make uasan-fuzztest
+        - CC=gcc-6 CFLAGS="-O2 -m32" make uasan-fuzztest   # can complain about pointer overflow
 
     - name: Trusty (clang-3.8 + MSan + Fuzz Test)
       script:
         - make clang38install
         - CC=clang-3.8 make clean msan-fuzztest
-
-    - name: Trusty (clang-3.8 + TSan + Fuzz Test)
-      script:
-        - make clang38install
-        - CC=clang-3.8 make clean tsan-fuzztest
 
     - name: Trusty (ASan + UBSan + MSan + Regression Test)
       script:
@@ -133,20 +124,6 @@ matrix:
         - make ppcinstall
         - make ppcfuzz
 
-    - name: Trusty (PPC64 + Fuzz Test)
-      script:
-        - make ppcinstall
-        - make ppc64fuzz
-
-    - name: Trusty (LZ4)
-      script:
-        - make lz4install
-        - make -C tests test-lz4
-        - make clean
-        - make -C tests test-pool
-        - make clean
-        - bash tests/libzstd_partial_builds.sh
-
     # check release number
     - name: Tag-Specific Test
       if: tag =~ ^v[0-9]\.[0-9]
@@ -166,6 +143,7 @@ matrix:
       script:
         - make clang38install
         - CC=clang-3.8 make tsan-test-zstream
+        - CC=clang-3.8 make tsan-fuzztest
 
     - name: C++ and gnu90 compatibility
       if: branch = master
@@ -176,12 +154,28 @@ matrix:
         - make clean
         - make travis-install    # just ensures `make install` works
 
+    - name: PPC64
+      if: branch = master
+      script:
+        - make ppcinstall
+        - make ppc64fuzz
+
     - name: zlib wrapper test
       if: branch = master
       script:
         - make gpp6install valgrindinstall
         - make -C zlibWrapper test
         - make -C zlibWrapper valgrindTest
+
+    - name: LZ4, thread pool, and partial libs tests
+      if: branch = master
+      script:
+        - make lz4install
+        - make -C tests test-lz4
+        - make clean
+        - make -C tests test-pool
+        - make clean
+        - bash tests/libzstd_partial_builds.sh
 
     # meson dedicated test
     - name: Xenial (Meson + clang)

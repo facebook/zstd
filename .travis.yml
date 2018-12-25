@@ -23,13 +23,6 @@ env:
       ZSTREAM_TESTTIME=-T2mn
       DECODECORPUS_TESTTIME=-T1mn
 
-# TODO:
-#   - Add Coverity job
-#   - Ref https://travis-ci.org/systemd/systemd/jobs/461620858/config
-#stages:
-#  # Run Coverity periodically instead of for each commit/PR
-#  - name: Coverity
-#    if: type = cron
 
 matrix:
   fast_finish: true
@@ -44,20 +37,24 @@ matrix:
         - CC=gcc-6 CFLAGS=-Werror make -j all
         - make clean
         - CC=gcc-6 make -j uasan-test-zstd </dev/null   # test when stdin is not a tty
+
     - name: Trusty (gcc-6 + ASan + UBSan + Test Zstd 32bit)
       script:
         - make gcc6install libc6install
         - make clean
         - CC=gcc-6 make -j uasan-test-zstd32
+
     - name: Trusty (gcc-7 + ASan + UBSan + Test Zstd)
       script:
         - make gcc7install
         - make clean
         - CC=gcc-7 make -j uasan-test-zstd
+
     - name: Trusty (gcc-8)
       script:
         - make gcc8install
         - CC=gcc-8 CFLAGS="-Werror -O3" make -j all
+
     - name: Trusty (clang-3.8 + MSan + Test Zstd)
       script:
         - make clang38install
@@ -66,11 +63,17 @@ matrix:
     - name: Trusty (Minimal Decompressor Macros)
       script:
         - make clean
-        - make check -j all MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X1 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT"
+        - CFLAGS=-Werror make -j all MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X1 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT"
         - make clean
-        - make check -j all MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X2 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG"
+        - make -j check MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X1 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT"
         - make clean
-        - make check -j all MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
+        - CFLAGS=-Werror make -j all MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X2 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG"
+        - make clean
+        - make -j check MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X2 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG"
+        - make clean
+        - CFLAGS=-Werror make -j all MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
+        - make clean
+        - make -j check MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
 
     - name: Trusty (CMake)
       script:
@@ -84,15 +87,18 @@ matrix:
       script:
         - make gcc6install
         - CC=gcc-6 make clean uasan-fuzztest
+
     - name: Trusty (gcc-6 + ASan + UBSan + Fuzz Test 32bit)
       script:
         - make gcc6install libc6install
         - make clean
         - CC=gcc-6 CFLAGS=-m32 make uasan-fuzztest
+
     - name: Trusty (clang-3.8 + MSan + Fuzz Test)
       script:
         - make clang38install
         - CC=clang-3.8 make clean msan-fuzztest
+
     - name: Trusty (clang-3.8 + TSan + Fuzz Test)
       script:
         - make clang38install

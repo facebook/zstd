@@ -337,7 +337,11 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\programs\bench.c"
+				RelativePath="..\..\..\programs\benchfn.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\programs\benchzstd.c"
 				>
 			</File>
 			<File

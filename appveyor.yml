@@ -4,6 +4,7 @@
     only:
     - master
     - appveyorTest
+    - /visual*/
   environment:
     matrix:
     - COMPILER: "gcc"

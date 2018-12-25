@@ -3,6 +3,7 @@
   branches:
     only:
     - master
+    - appveyorTest
   environment:
     matrix:
     - COMPILER: "gcc"

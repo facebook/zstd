@@ -44,7 +44,7 @@ option(ZSTD_LEGACY_SUPPORT "LEGACY SUPPORT" OFF)
 
 if (ZSTD_LEGACY_SUPPORT)
     message(STATUS "ZSTD_LEGACY_SUPPORT defined!")
-    add_definitions(-DZSTD_LEGACY_SUPPORT=4)
+    add_definitions(-DZSTD_LEGACY_SUPPORT=5)
 else ()
     message(STATUS "ZSTD_LEGACY_SUPPORT not defined!")
     add_definitions(-DZSTD_LEGACY_SUPPORT=0)

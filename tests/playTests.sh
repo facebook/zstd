@@ -125,7 +125,7 @@ $ZSTD --fast=9999999999 -f tmp  && die "should have refused numeric value"
 $ECHO "test : set compression level with environment variable ZSTD_CLEVEL"
 ZSTD_CLEVEL=12  $ZSTD -f tmp # positive compression level
 ZSTD_CLEVEL=-12 $ZSTD -f tmp # negative compression level
-ZSTD_CLEVEL=+12 $ZSTD -f tmp # valid: verbose '+' sign 
+ZSTD_CLEVEL=+12 $ZSTD -f tmp # valid: verbose '+' sign
 ZSTD_CLEVEL=    $ZSTD -f tmp # empty env var, warn and revert to default setting
 ZSTD_CLEVEL=-   $ZSTD -f tmp # malformed env var, warn and revert to default setting
 ZSTD_CLEVEL=a   $ZSTD -f tmp # malformed env var, warn and revert to default setting
@@ -133,7 +133,7 @@ ZSTD_CLEVEL=+a  $ZSTD -f tmp # malformed env var, warn and revert to default set
 ZSTD_CLEVEL=3a7 $ZSTD -f tmp # malformed env var, warn and revert to default setting
 ZSTD_CLEVEL=50000000000  $ZSTD -f tmp # numeric value too large, warn and revert to default setting
 $ECHO "test : override ZSTD_CLEVEL with command line option"
-ZSTD_CLEVEL=12  $ZSTD --fast=3 -f tmp # overridden by command line option 
+ZSTD_CLEVEL=12  $ZSTD --fast=3 -f tmp # overridden by command line option
 $ECHO "test : compress to stdout"
 $ZSTD tmp -c > tmpCompressed
 $ZSTD tmp --stdout > tmpCompressed       # long command format
@@ -192,8 +192,8 @@ chmod 400 tmpro.zst
 $ZSTD -q tmpro && die "should have refused to overwrite read-only file"
 $ZSTD -q -f tmpro
 $ECHO "test: --no-progress flag"
-$ZSTD tmpro -c --no-progress | $ZSTD -d -o "$INTOVOID" --no-progress
-$ZSTD tmpro -cv --no-progress | $ZSTD -dv -o "$INTOVOID" --no-progress
+$ZSTD tmpro -c --no-progress | $ZSTD -d -f -o "$INTOVOID" --no-progress
+$ZSTD tmpro -cv --no-progress | $ZSTD -dv -f -o "$INTOVOID" --no-progress
 rm -f tmpro tmpro.zst
 $ECHO "test: overwrite input file (must fail)"
 $ZSTD tmp -fo tmp && die "zstd compression overwrote the input file"
@@ -232,7 +232,7 @@ rm tmp*
 $ECHO "test : compress multiple files"
 $ECHO hello > tmp1
 $ECHO world > tmp2
-$ZSTD tmp1 tmp2 -o "$INTOVOID"
+$ZSTD tmp1 tmp2 -o "$INTOVOID" -f
 $ZSTD tmp1 tmp2 -c | $ZSTD -t
 $ZSTD tmp1 tmp2 -o tmp.zst
 test ! -f tmp1.zst
@@ -240,7 +240,7 @@ test ! -f tmp2.zst
 $ZSTD tmp1 tmp2
 $ZSTD -t tmp1.zst tmp2.zst
 $ZSTD -dc tmp1.zst tmp2.zst
-$ZSTD tmp1.zst tmp2.zst -o "$INTOVOID"
+$ZSTD tmp1.zst tmp2.zst -o "$INTOVOID" -f
 $ZSTD -d tmp1.zst tmp2.zst -o tmp
 touch tmpexists
 $ZSTD tmp1 tmp2 -f -o tmpexists

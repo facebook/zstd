@@ -26,6 +26,7 @@ extern "C" {
 #    define _CRT_SECURE_NO_DEPRECATE /* VS2005 - must be declared before <io.h> and <windows.h> */
 #    define snprintf sprintf_s       /* snprintf unsupported by Visual <= 2013 */
 #  endif
+#  pragma warning(disable : 4127)    /* disable: C4127: conditional expression is constant */
 #endif
 
 

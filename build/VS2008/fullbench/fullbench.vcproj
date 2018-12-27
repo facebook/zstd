@@ -397,7 +397,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\programs\bench.c"
+				RelativePath="..\..\..\programs\benchfn.c"
 				>
 			</File>
 			<File
@@ -405,7 +405,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\tests\util.c"
+				RelativePath="..\..\..\programs\util.c"
 				>
 			</File>
 			<File

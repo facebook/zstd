@@ -50,9 +50,11 @@ macro(ADD_ZSTD_COMPILATION_FLAGS)
              CMAKE_C_FLAGS_MINSIZEREL CMAKE_C_FLAGS_RELWITHDEBINFO
              CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
              CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
-        separate_arguments(${flag_var})
-        list(REMOVE_DUPLICATES ${flag_var})
-        string(REPLACE ";" " " ${flag_var} "${${flag_var}}")
+        if( ${flag_var} )
+            separate_arguments(${flag_var})
+            list(REMOVE_DUPLICATES ${flag_var})
+            string(REPLACE ";" " " ${flag_var} "${${flag_var}}")
+        endif()
     endforeach ()
 
     if (MSVC AND ZSTD_USE_STATIC_RUNTIME)
@@ -60,7 +62,9 @@ macro(ADD_ZSTD_COMPILATION_FLAGS)
                  CMAKE_C_FLAGS_MINSIZEREL CMAKE_C_FLAGS_RELWITHDEBINFO
                  CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
                  CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
-            string(REGEX REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
+            if ( ${flag_var} )
+                string(REGEX REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
+            endif()
         endforeach ()
     endif ()
 

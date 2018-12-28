@@ -2,7 +2,6 @@
 
 language: c
 dist: trusty
-sudo: required
 
 git:
   depth: 1

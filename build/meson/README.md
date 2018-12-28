@@ -7,7 +7,7 @@ modern software development tools and practices, such as unit tests,
 coverage reports, Valgrind, CCache and the like.
 
 This Meson build system is provided with no guarantee and maintained
-by Dima Krasner <dima@dimakrasner.com>.
+by Dima Krasner \<dima@dimakrasner.com\>.
 
 It outputs one `libzstd`, either shared or static, depending on
 `default_library` option.
@@ -17,7 +17,7 @@ It outputs one `libzstd`, either shared or static, depending on
 `cd` to this meson directory (`build/meson`)
 
 ```sh
-meson --buildtype=release -D with-contrib=true -D with-tests=true -D with-contrib=true builddir
+meson --buildtype=release -Dbuild_{programs,contrib}=true builddir
 cd builddir
 ninja             # to build
 ninja install     # to install

@@ -11,9 +11,11 @@
 project('zstd',
   ['c', 'cpp'],
   license: ['BSD', 'GPLv2'],
-  default_options : ['c_std=c99',
+  default_options : [
+    'c_std=c99',
     'cpp_std=c++11',
-    'buildtype=release'],
+    'buildtype=release'
+  ],
   version: '1.3.8',
   meson_version: '>=0.47.0')
 

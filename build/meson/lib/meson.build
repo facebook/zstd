@@ -116,9 +116,9 @@ libzstd = library('zstd',
 libzstd_dep = declare_dependency(link_with: libzstd,
   include_directories: libzstd_includes)
 
-pkgconfig.generate(name: 'libzstd',
+pkgconfig.generate(libzstd,
+  name: 'libzstd',
   filebase: 'libzstd',
-  libraries: [libzstd],
   description: 'fast lossless compression algorithm library',
   version: zstd_libversion,
   url: 'http://www.zstd.net/')

@@ -1226,22 +1226,26 @@ ZSTDLIB_API ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictS
 ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_byReference(const void* dictBuffer, size_t dictSize, int compressionLevel);
 
 /*! ZSTD_getCParams() :
-*   @return ZSTD_compressionParameters structure for a selected compression level and estimated srcSize.
-*   `estimatedSrcSize` value is optional, select 0 if not known */
+ * @return ZSTD_compressionParameters structure for a selected compression level and estimated srcSize.
+ * `estimatedSrcSize` value is optional, select 0 if not known */
 ZSTDLIB_API ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, unsigned long long estimatedSrcSize, size_t dictSize);
 
 /*! ZSTD_getParams() :
-*   same as ZSTD_getCParams(), but @return a full `ZSTD_parameters` object instead of sub-component `ZSTD_compressionParameters`.
-*   All fields of `ZSTD_frameParameters` are set to default : contentSize=1, checksum=0, noDictID=0 */
+ *  same as ZSTD_getCParams(), but @return a full `ZSTD_parameters` object instead of sub-component `ZSTD_compressionParameters`.
+ *  All fields of `ZSTD_frameParameters` are set to default : contentSize=1, checksum=0, noDictID=0 */
 ZSTDLIB_API ZSTD_parameters ZSTD_getParams(int compressionLevel, unsigned long long estimatedSrcSize, size_t dictSize);
 
 /*! ZSTD_checkCParams() :
-*   Ensure param values remain within authorized range */
+ *  Ensure param values remain within authorized range.
+ * @return 0 on success, or an error code (can be checked with ZSTD_isError()) */
 ZSTDLIB_API size_t ZSTD_checkCParams(ZSTD_compressionParameters params);
 
 /*! ZSTD_adjustCParams() :
  *  optimize params for a given `srcSize` and `dictSize`.
- *  both values are optional, select `0` if unknown. */
+ * `srcSize` can be unknown, in which case use ZSTD_CONTENTSIZE_UNKNOWN.
+ * `dictSize` must be `0` when there is no dictionary.
+ *  cPar can be invalid : all parameters will be clamped within valid range in the @return struct.
+ *  This function never fails (wide contract) */
 ZSTDLIB_API ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, unsigned long long srcSize, size_t dictSize);
 
 /*! ZSTD_compress_advanced() :

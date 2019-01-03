@@ -12,9 +12,9 @@ cmake_minimum_required(VERSION 2.8.9 FATAL_ERROR)
 # As of 2018-12-26 ZSTD has been validated to build with cmake version 3.13.2 new policies. 
 # Set and use the newest cmake policies that are validated to work 
 set(ZSTD_MAX_VALIDATED_CMAKE_VERSION "3.13.2") 
-if("${CMAKE_MAJOR_VERSION}" LESS 3) # Cmake version 2 does not understand the VERSION_LESS_EQUAL operator
+if("${CMAKE_MAJOR_VERSION}" LESS 3) # Cmake version <3.7 does not understand the VERSION_LESS_EQUAL operator
   set(ZSTD_CMAKE_POLICY_VERSION "${CMAKE_VERSION}") 
-else()
+elseif(("${CMAKE_MAJOR_VERSION}" EQUAL 3 AND "${CMAKE_MINOR_VERSION}" GREATER 6) OR ("${CMAKE_MAJOR_VERSION}" GREATER 3))
   if("${CMAKE_VERSION}" VERSION_LESS_EQUAL "${ZSTD_MAX_VALIDATED_CMAKE_VERSION}") 
     set(ZSTD_CMAKE_POLICY_VERSION "${CMAKE_VERSION}") 
   else() 

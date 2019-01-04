@@ -640,10 +640,42 @@ failed:
     }
 }
 
-#elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+#elif defined(__FreeBSD__)
 
-/* Use apple-provided syscall
- * see: man 3 sysctl */
+#include <sys/param.h>
+#include <sys/sysctl.h>
+
+/* Use physical core sysctl when available
+ * see: man 4 smp, man 3 sysctl */
+int UTIL_countPhysicalCores(void)
+{
+    static int numPhysicalCores = 0; /* freebsd sysctl is native int sized */
+    if (numPhysicalCores != 0) return numPhysicalCores;
+
+#if __FreeBSD_version >= 1300008
+    {   size_t size = sizeof(numPhysicalCores);
+        int ret = sysctlbyname("kern.smp.cores", &numPhysicalCores, &size, NULL, 0);
+        if (ret == 0) return numPhysicalCores;
+        if (errno != ENOENT) {
+            perror("zstd: can't get number of physical cpus");
+            exit(1);
+        }
+        /* sysctl not present, fall through to older sysconf method */
+    }
+#endif
+
+    numPhysicalCores = (int)sysconf(_SC_NPROCESSORS_ONLN);
+    if (numPhysicalCores == -1) {
+        /* value not queryable, fall back on 1 */
+        numPhysicalCores = 1;
+    }
+    return numPhysicalCores;
+}
+
+#elif defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+
+/* Use POSIX sysconf
+ * see: man 3 sysconf */
 int UTIL_countPhysicalCores(void)
 {
     static int numPhysicalCores = 0;

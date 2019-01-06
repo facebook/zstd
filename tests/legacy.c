@@ -87,6 +87,7 @@ static int testStreamingAPI(void)
     }
     if (stream == NULL) {
         DISPLAY("ERROR: Could not create dstream\n");
+        free(outBuff);
         return 1;
     }
 

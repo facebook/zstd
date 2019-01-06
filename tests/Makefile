@@ -353,8 +353,12 @@ test-gzstd: gzstd
 	$(RM) *.gz *.zst README2.md gz_zstd zstd_gz hello.txt
 
 test-zstdgrep: gzstd
-	@echo a | $(PRGDIR)/zstd | $(PRGDIR)/zstdgrep a
-	@echo a | $(PRGDIR)/zstd | $(PRGDIR)/zstdgrep b && return 1 || return 0
+	-[ -f /tmp/zstdcat ] || ln -s $(PWD)/$(PRGDIR)/zstd /tmp/zstdcat
+	echo a | $(PRGDIR)/zstd | env ZCAT=/tmp/zstdcat $(PRGDIR)/zstdgrep a
+	echo a | $(PRGDIR)/zstd | env ZCAT=/tmp/zstdcat $(PRGDIR)/zstdgrep b && return 1 || return 0
+	-echo 'hello world' > test.txt && $(PRGDIR)/zstd test.txt
+	env ZCAT=/tmp/zstdcat $(PRGDIR)/zstdgrep hello test.txt.zst
+	env ZCAT=/tmp/zstdcat $(PRGDIR)/zstdgrep weird test.txt.zst && return 1 || return 0
 
 test-fullbench: fullbench datagen
 	$(QEMU_SYS) ./fullbench -i1

@@ -237,10 +237,13 @@ void FIO_addAbortHandler()
 ***************************************************************/
 #if defined(_MSC_VER) && _MSC_VER >= 1400
 #   define LONG_SEEK _fseeki64
+#   define LONG_TELL _ftelli64
 #elif !defined(__64BIT__) && (PLATFORM_POSIX_VERSION >= 200112L) /* No point defining Large file for 64 bit */
 #  define LONG_SEEK fseeko
+#  define LONG_TELL ftello
 #elif defined(__MINGW32__) && !defined(__STRICT_ANSI__) && !defined(__NO_MINGW_LFS) && defined(__MSVCRT__)
 #   define LONG_SEEK fseeko64
+#   define LONG_TELL ftello64
 #elif defined(_WIN32) && !defined(__DJGPP__)
 #   include <windows.h>
     static int LONG_SEEK(FILE* file, __int64 offset, int origin) {
@@ -261,6 +264,7 @@ void FIO_addAbortHandler()
     }
 #else
 #   define LONG_SEEK fseek
+#   define LONG_TELL ftell
 #endif
 
 
@@ -2142,7 +2146,13 @@ typedef struct {
     U32 nbFiles;
 } fileInfo_t;
 
-typedef enum { info_success=0, info_frame_error=1, info_not_zstd=2, info_file_error=3 } InfoError;
+typedef enum {
+  info_success=0,
+  info_frame_error=1,
+  info_not_zstd=2,
+  info_file_error=3,
+  info_truncated_input=4,
+} InfoError;
 
 #define ERROR_IF(c,n,...) {             \
     if (c) {                           \
@@ -2164,6 +2174,12 @@ FIO_analyzeFrames(fileInfo_t* info, FILE* const srcFile)
               && (numBytesRead == 0)
               && (info->compressedSize > 0)
               && (info->compressedSize != UTIL_FILESIZE_UNKNOWN) ) {
+                unsigned long long file_position = (unsigned long long) LONG_TELL(srcFile);
+                unsigned long long file_size = (unsigned long long) info->compressedSize;
+                ERROR_IF(file_position != file_size, info_truncated_input,
+                  "Error: seeked to position %llu, which is beyond file size of %llu\n",
+                  file_position,
+                  file_size);
                 break;  /* correct end of file => success */
             }
             ERROR_IF(feof(srcFile), info_not_zstd, "Error: reached end of file with incomplete frame");
@@ -2332,20 +2348,28 @@ FIO_listFile(fileInfo_t* total, const char* inFileName, int displayLevel)
     fileInfo_t info;
     memset(&info, 0, sizeof(info));
     {   InfoError const error = getFileInfo(&info, inFileName);
-        if (error == info_frame_error) {
-            /* display error, but provide output */
-            DISPLAYLEVEL(1, "Error while parsing %s \n", inFileName);
+        switch (error) {
+            case info_frame_error:
+                /* display error, but provide output */
+                DISPLAYLEVEL(1, "Error while parsing \"%s\" \n", inFileName);
+                break;
+            case info_not_zstd:
+                DISPLAYOUT("File \"%s\" not compressed by zstd \n", inFileName);
+                if (displayLevel > 2) DISPLAYOUT("\n");
+                return 1;
+            case info_file_error:
+                /* error occurred while opening the file */
+                if (displayLevel > 2) DISPLAYOUT("\n");
+                return 1;
+            case info_truncated_input:
+                DISPLAYOUT("File \"%s\" is truncated \n", inFileName);
+                if (displayLevel > 2) DISPLAYOUT("\n");
+                return 1;
+            case info_success:
+            default:
+                break;
         }
-        else if (error == info_not_zstd) {
-            DISPLAYOUT("File %s not compressed by zstd \n", inFileName);
-            if (displayLevel > 2) DISPLAYOUT("\n");
-            return 1;
-        }
-        else if (error == info_file_error) {
-            /* error occurred while opening the file */
-            if (displayLevel > 2) DISPLAYOUT("\n");
-            return 1;
-        }
+
         displayInfo(inFileName, &info, displayLevel);
         *total = FIO_addFInfo(*total, info);
         assert(error == info_success || error == info_frame_error);

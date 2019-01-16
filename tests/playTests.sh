@@ -809,6 +809,19 @@ $ZSTD --list tmp* && die "-l must fail on non-zstd file"
 $ZSTD -lv tmp1* && die "-l must fail on non-zstd file"
 $ZSTD --list -v tmp2 tmp12.zst && die "-l must fail on non-zstd file"
 
+$ECHO "test : detect truncated compressed file "
+TEST_DATA_FILE=truncatable-input.txt
+FULL_COMPRESSED_FILE=${TEST_DATA_FILE}.zst
+TRUNCATED_COMPRESSED_FILE=truncated-input.txt.zst
+./datagen -g50000 > $TEST_DATA_FILE
+$ZSTD -f $TEST_DATA_FILE -o $FULL_COMPRESSED_FILE
+head -c 100 $FULL_COMPRESSED_FILE > $TRUNCATED_COMPRESSED_FILE
+$ZSTD --list $TRUNCATED_COMPRESSED_FILE && die "-l must fail on truncated file"
+
+rm $TEST_DATA_FILE
+rm $FULL_COMPRESSED_FILE
+rm $TRUNCATED_COMPRESSED_FILE
+
 $ECHO "\n===>  zstd --list/-l errors when presented with stdin / no files"
 $ZSTD -l && die "-l must fail on empty list of files"
 $ZSTD -l - && die "-l does not work on stdin"

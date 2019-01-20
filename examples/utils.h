@@ -56,7 +56,7 @@ static size_t fsize_orDie(const char *filename)
      * 2. if off_t -> size_t type conversion results in discrepancy,
      *    the file size is too large for type size_t.
      */
-    if ((fileSize < 0) || (fileSize != (off_t)size)) { 
+    if ((fileSize < 0) || (fileSize != (off_t)size)) {
         fprintf(stderr, "%s : filesize too large \n", filename);
         exit(ERROR_largeFile);
     }
@@ -150,7 +150,7 @@ static void* malloc_orDie(size_t size)
  * @return If successful this function will load file into buffer and
  * return file size, otherwise it will printout an error to stderr and exit.
  */
-static size_t loadFile_orDie(const char* fileName, void* buffer, int bufferSize)
+static size_t loadFile_orDie(const char* fileName, void* buffer, size_t bufferSize)
 {
     size_t const fileSize = fsize_orDie(fileName);
     assert(fileSize <= bufferSize);

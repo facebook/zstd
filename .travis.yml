@@ -30,14 +30,12 @@ matrix:
       script:
         - make test
 
-    - name: clang + gcc-6 + gcc-7 compilation
+    - name: gcc-6 + gcc-7 compilation
       script:
         - make gcc6install gcc7install
         - CC=gcc-6 CFLAGS=-Werror make -j all
         - make clean
         - CC=gcc-7 CFLAGS=-Werror make -j all
-        - make clean
-        - CXX=clang++ CC=clang CFLAGS="-Werror -Wconversion -Wno-sign-conversion -Wdocumentation" make all
 
     - name: gcc-8 + ASan + UBSan + Test Zstd
       script:

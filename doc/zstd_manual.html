@@ -1011,22 +1011,26 @@ static ZSTD_customMem const ZSTD_defaultCMem = { NULL, NULL, NULL };  </b>/**< t
 </p></pre><BR>
 
 <pre><b>ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, unsigned long long estimatedSrcSize, size_t dictSize);
-</b><p>   @return ZSTD_compressionParameters structure for a selected compression level and estimated srcSize.
-   `estimatedSrcSize` value is optional, select 0 if not known 
+</b><p> @return ZSTD_compressionParameters structure for a selected compression level and estimated srcSize.
+ `estimatedSrcSize` value is optional, select 0 if not known 
 </p></pre><BR>
 
 <pre><b>ZSTD_parameters ZSTD_getParams(int compressionLevel, unsigned long long estimatedSrcSize, size_t dictSize);
-</b><p>   same as ZSTD_getCParams(), but @return a full `ZSTD_parameters` object instead of sub-component `ZSTD_compressionParameters`.
-   All fields of `ZSTD_frameParameters` are set to default : contentSize=1, checksum=0, noDictID=0 
+</b><p>  same as ZSTD_getCParams(), but @return a full `ZSTD_parameters` object instead of sub-component `ZSTD_compressionParameters`.
+  All fields of `ZSTD_frameParameters` are set to default : contentSize=1, checksum=0, noDictID=0 
 </p></pre><BR>
 
 <pre><b>size_t ZSTD_checkCParams(ZSTD_compressionParameters params);
-</b><p>   Ensure param values remain within authorized range 
+</b><p>  Ensure param values remain within authorized range.
+ @return 0 on success, or an error code (can be checked with ZSTD_isError()) 
 </p></pre><BR>
 
 <pre><b>ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, unsigned long long srcSize, size_t dictSize);
 </b><p>  optimize params for a given `srcSize` and `dictSize`.
-  both values are optional, select `0` if unknown. 
+ `srcSize` can be unknown, in which case use ZSTD_CONTENTSIZE_UNKNOWN.
+ `dictSize` must be `0` when there is no dictionary.
+  cPar can be invalid : all parameters will be clamped within valid range in the @return struct.
+  This function never fails (wide contract) 
 </p></pre><BR>
 
 <pre><b>size_t ZSTD_compress_advanced(ZSTD_CCtx* cctx,

@@ -156,7 +156,7 @@ list:
 	    done \
 	} | column -t -s $$'\t'
 
-.PHONY: install clangtest armtest usan asan uasan
+.PHONY: install armtest usan asan uasan
 install:
 	@$(MAKE) -C $(ZSTDDIR) $@
 	@$(MAKE) -C $(PRGDIR) $@
@@ -188,7 +188,7 @@ gcc7build: clean
 .PHONY: clangbuild
 clangbuild: clean
 	clang -v
-	CXX=clang++ CC=clang $(MAKE) all MOREFLAGS="-Werror -Wconversion -Wno-sign-conversion -Wdocumentation"
+	CXX=clang++ CC=clang CFLAGS="-Werror -Wconversion -Wno-sign-conversion -Wdocumentation" $(MAKE) all
 
 m32build: clean
 	gcc -v
@@ -231,10 +231,6 @@ gcc5test: clean
 gcc6test: clean
 	gcc-6 -v
 	$(MAKE) all CC=gcc-6 MOREFLAGS="-Werror"
-
-clangtest: clean
-	clang -v
-	$(MAKE) all CXX=clang++ CC=clang MOREFLAGS="-Werror -Wconversion -Wno-sign-conversion -Wdocumentation"
 
 armtest: clean
 	$(MAKE) -C $(TESTDIR) datagen   # use native, faster

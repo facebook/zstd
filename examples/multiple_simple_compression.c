@@ -28,7 +28,7 @@ typedef struct {
  * allocate memory for buffers big enough to compress all files
  * as well as memory for output file name (ofn)
  */
-static resources createResources_orDie(int argc, const char** argv, char **ofn, int* ofnBufferLen)
+static resources createResources_orDie(int argc, const char** argv, char **ofn, size_t* ofnBufferLen)
 {
     size_t maxFilenameLength=0;
     size_t maxFileSize = 0;
@@ -94,14 +94,14 @@ int main(int argc, const char** argv)
 
     /* memory allocation for outFilename and resources */
     char* outFilename;
-    int outFilenameBufferLen;
-    resources const ress = createResources_orDie(argc, argv, &outFilename, &outFilenameBufferLen); 
+    size_t outFilenameBufferLen;
+    resources const ress = createResources_orDie(argc, argv, &outFilename, &outFilenameBufferLen);
 
     /* compress files with shared context, input and output buffers */
     int argNb;
     for (argNb = 1; argNb < argc; argNb++) {
         const char* const inFilename = argv[argNb];
-        int inFilenameLen = strlen(inFilename);
+        size_t const inFilenameLen = strlen(inFilename);
         assert(inFilenameLen + 5 <= outFilenameBufferLen);
         memcpy(outFilename, inFilename, inFilenameLen);
         memcpy(outFilename+inFilenameLen, ".zst", 5);

@@ -31,7 +31,7 @@ extern "C" {
 /* BMK_runTime_t: valid result return type */
 
 typedef struct {
-    unsigned long long nanoSecPerRun;  /* time per iteration (over all blocks) */
+    double nanoSecPerRun;  /* time per iteration (over all blocks) */
     size_t sumOfReturn;         /* sum of return values */
 } BMK_runTime_t;
 
@@ -159,6 +159,21 @@ BMK_timedFnState_t* BMK_createTimedFnState(unsigned total_ms, unsigned run_ms);
 void BMK_resetTimedFnState(BMK_timedFnState_t* timedFnState, unsigned total_ms, unsigned run_ms);
 void BMK_freeTimedFnState(BMK_timedFnState_t* state);
 
+
+/* BMK_timedFnState_shell and BMK_initStatic_timedFnState() :
+ * Makes it possible to statically allocate a BMK_timedFnState_t on stack.
+ * BMK_timedFnState_shell is only there to allocate space,
+ * never ever access its members.
+ * BMK_timedFnState_t() actually accepts any buffer.
+ * It will check if provided buffer is large enough and is correctly aligned,
+ * and will return NULL if conditions are not respected.
+ */
+#define BMK_TIMEDFNSTATE_SIZE 56
+typedef union {
+    char never_access_space[BMK_TIMEDFNSTATE_SIZE];
+    long long alignment_enforcer;  /* must be aligned on 8-bytes boundaries */
+} BMK_timedFnState_shell;
+BMK_timedFnState_t* BMK_initStatic_timedFnState(void* buffer, size_t size, unsigned total_ms, unsigned run_ms);
 
 
 #endif   /* BENCH_FN_H_23876 */

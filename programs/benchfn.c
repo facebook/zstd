@@ -148,7 +148,7 @@ BMK_runOutcome_t BMK_benchFunction(BMK_benchParams_t p,
 
         {   U64 const totalTime = UTIL_clockSpanNano(clockStart);
             BMK_runTime_t rt;
-            rt.nanoSecPerRun = totalTime / nbLoops;
+            rt.nanoSecPerRun = (double)totalTime / nbLoops;
             rt.sumOfReturn = dstSize;
             return BMK_setValid_runTime(rt);
     }   }
@@ -178,6 +178,15 @@ void BMK_freeTimedFnState(BMK_timedFnState_t* state) {
     free(state);
 }
 
+BMK_timedFnState_t* BMK_initStatic_timedFnState(void* buffer, size_t size, unsigned total_ms, unsigned run_ms)
+{
+    BMK_timedFnState_t* const r = (BMK_timedFnState_t*)buffer;
+    if (size < sizeof(struct BMK_timedFnState_s)) return NULL;
+    if ((size_t)buffer % 8) return NULL;  /* must be aligned on 8-bytes boundaries */
+    BMK_resetTimedFnState(r, total_ms, run_ms);
+    return r;
+}
+
 void BMK_resetTimedFnState(BMK_timedFnState_t* timedFnState, unsigned total_ms, unsigned run_ms)
 {
     if (!total_ms) total_ms = 1 ;
@@ -186,7 +195,7 @@ void BMK_resetTimedFnState(BMK_timedFnState_t* timedFnState, unsigned total_ms, 
     timedFnState->timeSpent_ns = 0;
     timedFnState->timeBudget_ns = (U64)total_ms * TIMELOOP_NANOSEC / 1000;
     timedFnState->runBudget_ns = (U64)run_ms * TIMELOOP_NANOSEC / 1000;
-    timedFnState->fastestRun.nanoSecPerRun = (U64)(-1LL);
+    timedFnState->fastestRun.nanoSecPerRun = (double)TIMELOOP_NANOSEC * 2000000000;  /* hopefully large enough : must be larger than any potential measurement */
     timedFnState->fastestRun.sumOfReturn = (size_t)(-1LL);
     timedFnState->nbLoops = 1;
     timedFnState->coolTime = UTIL_getTime();
@@ -231,13 +240,13 @@ BMK_runOutcome_t BMK_benchTimedFn(BMK_timedFnState_t* cont,
         }
 
         {   BMK_runTime_t const newRunTime = BMK_extract_runTime(runResult);
-            U64 const loopDuration_ns = newRunTime.nanoSecPerRun * cont->nbLoops;
+            double const loopDuration_ns = newRunTime.nanoSecPerRun * cont->nbLoops;
 
-            cont->timeSpent_ns += loopDuration_ns;
+            cont->timeSpent_ns += (unsigned long long)loopDuration_ns;
 
             /* estimate nbLoops for next run to last approximately 1 second */
             if (loopDuration_ns > (runBudget_ns / 50)) {
-                U64 const fastestRun_ns = MIN(bestRunTime.nanoSecPerRun, newRunTime.nanoSecPerRun);
+                double const fastestRun_ns = MIN(bestRunTime.nanoSecPerRun, newRunTime.nanoSecPerRun);
                 cont->nbLoops = (U32)(runBudget_ns / fastestRun_ns) + 1;
             } else {
                 /* previous run was too short : blindly increase workload by x multiplier */

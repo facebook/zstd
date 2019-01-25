@@ -105,17 +105,17 @@ typedef enum {
 } BMK_mode_t;
 
 typedef struct {
-    BMK_mode_t mode;            /* 0: all, 1: compress only 2: decode only */
-    unsigned nbSeconds;         /* default timing is in nbSeconds */
-    size_t blockSize;           /* Maximum size of each block*/
-    unsigned nbWorkers;         /* multithreading */
-    unsigned realTime;          /* real time priority */
-    int additionalParam;        /* used by python speed benchmark */
-    unsigned ldmFlag;           /* enables long distance matching */
-    unsigned ldmMinMatch;       /* below: parameters for long distance matching, see zstd.1.md */
-    unsigned ldmHashLog;
-    unsigned ldmBucketSizeLog;
-    unsigned ldmHashRateLog;
+    BMK_mode_t mode;        /* 0: all, 1: compress only 2: decode only */
+    unsigned nbSeconds;     /* default timing is in nbSeconds */
+    size_t blockSize;       /* Maximum size of each block*/
+    int nbWorkers;          /* multithreading */
+    unsigned realTime;      /* real time priority */
+    int additionalParam;    /* used by python speed benchmark */
+    int ldmFlag;            /* enables long distance matching */
+    int ldmMinMatch;        /* below: parameters for long distance matching, see zstd.1.md */
+    int ldmHashLog;
+    int ldmBucketSizeLog;
+    int ldmHashRateLog;
 } BMK_advancedParams_t;
 
 /* returns default parameters used by nonAdvanced functions */

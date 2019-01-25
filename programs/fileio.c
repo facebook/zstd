@@ -195,7 +195,7 @@ static void ABRThandler(int sig) {
     const char* name;
     void* addrlist[MAX_STACK_FRAMES];
     char** symbollist;
-    U32 addrlen, i;
+    int addrlen, i;
 
     switch (sig) {
         case SIGABRT: name = "SIGABRT"; break;
@@ -283,19 +283,19 @@ struct FIO_prefs_s {
     /* Algorithm preferences */
     FIO_compressionType_t compressionType;
     U32 sparseFileSupport;   /* 0: no sparse allowed; 1: auto (file yes, stdout no); 2: force sparse */
-    U32 dictIDFlag;
-    U32 checksumFlag;
-    U32 blockSize;
-    unsigned overlapLog;
+    int dictIDFlag;
+    int checksumFlag;
+    int blockSize;
+    int overlapLog;
     U32 adaptiveMode;
-    U32 rsyncable;
+    int rsyncable;
     int minAdaptLevel;
     int maxAdaptLevel;
-    U32 ldmFlag;
-    U32 ldmHashLog;
-    U32 ldmMinMatch;
-    U32 ldmBucketSizeLog;
-    U32 ldmHashRateLog;
+    int ldmFlag;
+    int ldmHashLog;
+    int ldmMinMatch;
+    int ldmBucketSizeLog;
+    int ldmHashRateLog;
 
     /* IO preferences */
     U32 removeSrcFile;
@@ -303,7 +303,7 @@ struct FIO_prefs_s {
 
     /* Computation resources preferences */
     unsigned memLimit;
-    unsigned nbWorkers;
+    int nbWorkers;
 };
 
 
@@ -352,7 +352,7 @@ void FIO_freePreferences(FIO_prefs_t* const prefs)
 *  Parameters: Display Options
 ***************************************/
 
-void FIO_setNotificationLevel(unsigned level) { g_display_prefs.displayLevel=level; }
+void FIO_setNotificationLevel(int level) { g_display_prefs.displayLevel=level; }
 
 void FIO_setNoProgress(unsigned noProgress) { g_display_prefs.noProgress = noProgress; }
 
@@ -367,28 +367,28 @@ void FIO_overwriteMode(FIO_prefs_t* const prefs) { prefs->overwrite = 1; }
 
 void FIO_setSparseWrite(FIO_prefs_t* const prefs, unsigned sparse) { prefs->sparseFileSupport = sparse; }
 
-void FIO_setDictIDFlag(FIO_prefs_t* const prefs, unsigned dictIDFlag) { prefs->dictIDFlag = dictIDFlag; }
+void FIO_setDictIDFlag(FIO_prefs_t* const prefs, int dictIDFlag) { prefs->dictIDFlag = dictIDFlag; }
 
-void FIO_setChecksumFlag(FIO_prefs_t* const prefs, unsigned checksumFlag) { prefs->checksumFlag = checksumFlag; }
+void FIO_setChecksumFlag(FIO_prefs_t* const prefs, int checksumFlag) { prefs->checksumFlag = checksumFlag; }
 
 void FIO_setRemoveSrcFile(FIO_prefs_t* const prefs, unsigned flag) { prefs->removeSrcFile = (flag>0); }
 
 void FIO_setMemLimit(FIO_prefs_t* const prefs, unsigned memLimit) { prefs->memLimit = memLimit; }
 
-void FIO_setNbWorkers(FIO_prefs_t* const prefs, unsigned nbWorkers) {
+void FIO_setNbWorkers(FIO_prefs_t* const prefs, int nbWorkers) {
 #ifndef ZSTD_MULTITHREAD
     if (nbWorkers > 0) DISPLAYLEVEL(2, "Note : multi-threading is disabled \n");
 #endif
     prefs->nbWorkers = nbWorkers;
 }
 
-void FIO_setBlockSize(FIO_prefs_t* const prefs, unsigned blockSize) {
+void FIO_setBlockSize(FIO_prefs_t* const prefs, int blockSize) {
     if (blockSize && prefs->nbWorkers==0)
         DISPLAYLEVEL(2, "Setting block size is useless in single-thread mode \n");
     prefs->blockSize = blockSize;
 }
 
-void FIO_setOverlapLog(FIO_prefs_t* const prefs, unsigned overlapLog){
+void FIO_setOverlapLog(FIO_prefs_t* const prefs, int overlapLog){
     if (overlapLog && prefs->nbWorkers==0)
         DISPLAYLEVEL(2, "Setting overlapLog is useless in single-thread mode \n");
     prefs->overlapLog = overlapLog;
@@ -400,7 +400,7 @@ void FIO_setAdaptiveMode(FIO_prefs_t* const prefs, unsigned adapt) {
     prefs->adaptiveMode = adapt;
 }
 
-void FIO_setRsyncable(FIO_prefs_t* const prefs, unsigned rsyncable) {
+void FIO_setRsyncable(FIO_prefs_t* const prefs, int rsyncable) {
     if ((rsyncable>0) && (prefs->nbWorkers==0))
         EXM_THROW(1, "Rsyncable mode is not compatible with single thread mode \n");
     prefs->rsyncable = rsyncable;
@@ -423,20 +423,20 @@ void FIO_setLdmFlag(FIO_prefs_t* const prefs, unsigned ldmFlag) {
     prefs->ldmFlag = (ldmFlag>0);
 }
 
-void FIO_setLdmHashLog(FIO_prefs_t* const prefs, unsigned ldmHashLog) {
+void FIO_setLdmHashLog(FIO_prefs_t* const prefs, int ldmHashLog) {
     prefs->ldmHashLog = ldmHashLog;
 }
 
-void FIO_setLdmMinMatch(FIO_prefs_t* const prefs, unsigned ldmMinMatch) {
+void FIO_setLdmMinMatch(FIO_prefs_t* const prefs, int ldmMinMatch) {
     prefs->ldmMinMatch = ldmMinMatch;
 }
 
-void FIO_setLdmBucketSizeLog(FIO_prefs_t* const prefs, unsigned ldmBucketSizeLog) {
+void FIO_setLdmBucketSizeLog(FIO_prefs_t* const prefs, int ldmBucketSizeLog) {
     prefs->ldmBucketSizeLog = ldmBucketSizeLog;
 }
 
 
-void FIO_setLdmHashRateLog(FIO_prefs_t* const prefs, unsigned ldmHashRateLog) {
+void FIO_setLdmHashRateLog(FIO_prefs_t* const prefs, int ldmHashRateLog) {
     prefs->ldmHashRateLog = ldmHashRateLog;
 }
 
@@ -667,12 +667,12 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
             CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_ldmHashRateLog, prefs->ldmHashRateLog) );
         }
         /* compression parameters */
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_windowLog, comprParams.windowLog) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_chainLog, comprParams.chainLog) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_hashLog, comprParams.hashLog) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_searchLog, comprParams.searchLog) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_minMatch, comprParams.minMatch) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_targetLength, comprParams.targetLength) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_windowLog, (int)comprParams.windowLog) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_chainLog, (int)comprParams.chainLog) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_hashLog, (int)comprParams.hashLog) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_searchLog, (int)comprParams.searchLog) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_minMatch, (int)comprParams.minMatch) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_targetLength, (int)comprParams.targetLength) );
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_strategy, comprParams.strategy) );
         /* multi-threading */
 #ifdef ZSTD_MULTITHREAD
@@ -859,15 +859,19 @@ FIO_compressLzmaFrame(cRess_t* ress,
 #endif
 
 #ifdef ZSTD_LZ4COMPRESS
+
 #if LZ4_VERSION_NUMBER <= 10600
 #define LZ4F_blockLinked blockLinked
 #define LZ4F_max64KB max64KB
 #endif
+
 static int FIO_LZ4_GetBlockSize_FromBlockId (int id) { return (1 << (8 + (2 * id))); }
+
 static unsigned long long
 FIO_compressLz4Frame(cRess_t* ress,
                      const char* srcFileName, U64 const srcFileSize,
-                     int compressionLevel, U64* readsize)
+                     int compressionLevel, int checksumFlag,
+                     U64* readsize)
 {
     const size_t blockSize = FIO_LZ4_GetBlockSize_FromBlockId(LZ4F_max64KB);
     unsigned long long inFileSize = 0, outFileSize = 0;
@@ -887,7 +891,7 @@ FIO_compressLz4Frame(cRess_t* ress,
     prefs.compressionLevel = compressionLevel;
     prefs.frameInfo.blockMode = LZ4F_blockLinked;
     prefs.frameInfo.blockSizeID = LZ4F_max64KB;
-    prefs.frameInfo.contentChecksumFlag = (contentChecksum_t)g_checksumFlag;
+    prefs.frameInfo.contentChecksumFlag = (contentChecksum_t)checksumFlag;
 #if LZ4_VERSION_NUMBER >= 10600
     prefs.frameInfo.contentSize = (srcFileSize==UTIL_FILESIZE_UNKNOWN) ? 0 : srcFileSize;
 #endif
@@ -1086,7 +1090,7 @@ FIO_compressZstdFrame(FIO_prefs_t* const prefs,
                         DISPLAYLEVEL(6, "compression level adaptation check \n")
 
                         /* check input speed */
-                        if (zfp.currentJobID > prefs->nbWorkers+1) {   /* warm up period, to fill all workers */
+                        if (zfp.currentJobID > (unsigned)(prefs->nbWorkers+1)) {   /* warm up period, to fill all workers */
                             if (inputBlocked <= 0) {
                                 DISPLAYLEVEL(6, "input is never blocked => input is slower than ingestion \n");
                                 speedChange = slower;
@@ -1195,7 +1199,7 @@ FIO_compressFilename_internal(FIO_prefs_t* const prefs,
 
         case FIO_lz4Compression:
 #ifdef ZSTD_LZ4COMPRESS
-            compressedfilesize = FIO_compressLz4Frame(&ress, srcFileName, fileSize, compressionLevel, &readsize);
+            compressedfilesize = FIO_compressLz4Frame(&ress, srcFileName, fileSize, compressionLevel, prefs->checksumFlag, &readsize);
 #else
             (void)compressionLevel;
             EXM_THROW(20, "zstd: %s: file cannot be compressed as lz4 (zstd compiled without ZSTD_LZ4COMPRESS) -- ignored \n",
@@ -1535,7 +1539,7 @@ static unsigned FIO_fwriteSparse(FIO_prefs_t* const prefs, FILE* file, const voi
                 if (seekResult)
                     EXM_THROW(74, "Sparse skip error ; try --no-sparse");
                 storedSkips = 0;
-                {   size_t const sizeCheck = fwrite(restPtr, 1, restEnd - restPtr, file);
+                {   size_t const sizeCheck = fwrite(restPtr, 1, (size_t)(restEnd - restPtr), file);
                     if (sizeCheck != (size_t)(restEnd - restPtr))
                         EXM_THROW(75, "Write error : cannot write decoded end of block");
     }   }   }   }
@@ -1560,7 +1564,10 @@ static void FIO_fwriteSparseEnd(FIO_prefs_t* const prefs, FILE* file, unsigned s
 
 /** FIO_passThrough() : just copy input into output, for compatibility with gzip -df mode
     @return : 0 (no error) */
-static unsigned FIO_passThrough(FIO_prefs_t* const prefs, FILE* foutput, FILE* finput, void* buffer, size_t bufferSize, size_t alreadyLoaded)
+static int FIO_passThrough(FIO_prefs_t* const prefs,
+                           FILE* foutput, FILE* finput,
+                           void* buffer, size_t bufferSize,
+                           size_t alreadyLoaded)
 {
     size_t const blockSize = MIN(64 KB, bufferSize);
     size_t readFromInput = 1;
@@ -1987,8 +1994,10 @@ static int FIO_decompressFrames(FIO_prefs_t* const prefs, dRess_t ress, FILE* sr
             return 1;
 #endif
         } else if ((prefs->overwrite) && !strcmp (dstFileName, stdoutmark)) {  /* pass-through mode */
-            return FIO_passThrough(prefs, ress.dstFile, srcFile,
-                                   ress.srcBuffer, ress.srcBufferSize, ress.srcBufferLoaded);
+            return FIO_passThrough(prefs,
+                                   ress.dstFile, srcFile,
+                                   ress.srcBuffer, ress.srcBufferSize,
+                                   ress.srcBufferLoaded);
         } else {
             DISPLAYLEVEL(1, "zstd: %s: unsupported format \n", srcFileName);
             return 1;

@@ -57,23 +57,23 @@ void FIO_overwriteMode(FIO_prefs_t* const prefs);
 void FIO_setAdaptiveMode(FIO_prefs_t* const prefs, unsigned adapt);
 void FIO_setAdaptMin(FIO_prefs_t* const prefs, int minCLevel);
 void FIO_setAdaptMax(FIO_prefs_t* const prefs, int maxCLevel);
-void FIO_setBlockSize(FIO_prefs_t* const prefs, unsigned blockSize);
-void FIO_setChecksumFlag(FIO_prefs_t* const prefs, unsigned checksumFlag);
-void FIO_setDictIDFlag(FIO_prefs_t* const prefs, unsigned dictIDFlag);
-void FIO_setLdmBucketSizeLog(FIO_prefs_t* const prefs, unsigned ldmBucketSizeLog);
+void FIO_setBlockSize(FIO_prefs_t* const prefs, int blockSize);
+void FIO_setChecksumFlag(FIO_prefs_t* const prefs, int checksumFlag);
+void FIO_setDictIDFlag(FIO_prefs_t* const prefs, int dictIDFlag);
+void FIO_setLdmBucketSizeLog(FIO_prefs_t* const prefs, int ldmBucketSizeLog);
 void FIO_setLdmFlag(FIO_prefs_t* const prefs, unsigned ldmFlag);
-void FIO_setLdmHashRateLog(FIO_prefs_t* const prefs, unsigned ldmHashRateLog);
-void FIO_setLdmHashLog(FIO_prefs_t* const prefs, unsigned ldmHashLog);
-void FIO_setLdmMinMatch(FIO_prefs_t* const prefs, unsigned ldmMinMatch);
+void FIO_setLdmHashRateLog(FIO_prefs_t* const prefs, int ldmHashRateLog);
+void FIO_setLdmHashLog(FIO_prefs_t* const prefs, int ldmHashLog);
+void FIO_setLdmMinMatch(FIO_prefs_t* const prefs, int ldmMinMatch);
 void FIO_setMemLimit(FIO_prefs_t* const prefs, unsigned memLimit);
-void FIO_setNbWorkers(FIO_prefs_t* const prefs, unsigned nbWorkers);
-void FIO_setOverlapLog(FIO_prefs_t* const prefs, unsigned overlapLog);
+void FIO_setNbWorkers(FIO_prefs_t* const prefs, int nbWorkers);
+void FIO_setOverlapLog(FIO_prefs_t* const prefs, int overlapLog);
 void FIO_setRemoveSrcFile(FIO_prefs_t* const prefs, unsigned flag);
 void FIO_setSparseWrite(FIO_prefs_t* const prefs, unsigned sparse);  /**< 0: no sparse; 1: disable on stdout; 2: always enabled */
-void FIO_setRsyncable(FIO_prefs_t* const prefs, unsigned rsyncable);
+void FIO_setRsyncable(FIO_prefs_t* const prefs, int rsyncable);
 
 void FIO_setNoProgress(unsigned noProgress);
-void FIO_setNotificationLevel(unsigned level);
+void FIO_setNotificationLevel(int level);
 
 /*-*************************************
 *  Single File functions

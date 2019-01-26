@@ -180,9 +180,12 @@ void BMK_freeTimedFnState(BMK_timedFnState_t* state) {
 
 BMK_timedFnState_t* BMK_initStatic_timedFnState(void* buffer, size_t size, unsigned total_ms, unsigned run_ms)
 {
+    enum { timedFnState_staticSize_isLargeEnough=(1/(sizeof(BMK_timedFnState_shell) >= sizeof(struct BMK_timedFnState_s))) };  /* static assert */
+    typedef struct { char c; long long ll; } ll_align;  /* this will force ll to be aligned at its next best position */
+    size_t const ll_alignment = offsetof(ll_align, ll); /* provides the minimal alignment restriction for long long */
     BMK_timedFnState_t* const r = (BMK_timedFnState_t*)buffer;
     if (size < sizeof(struct BMK_timedFnState_s)) return NULL;
-    if ((size_t)buffer % 8) return NULL;  /* must be aligned on 8-bytes boundaries */
+    if ((size_t)buffer % ll_alignment) return NULL;  /* must be aligned to satisfy `long long` alignment requirement */
     BMK_resetTimedFnState(r, total_ms, run_ms);
     return r;
 }

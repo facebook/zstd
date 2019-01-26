@@ -168,7 +168,7 @@ void BMK_freeTimedFnState(BMK_timedFnState_t* state);
  * It will check if provided buffer is large enough and is correctly aligned,
  * and will return NULL if conditions are not respected.
  */
-#define BMK_TIMEDFNSTATE_SIZE 56
+#define BMK_TIMEDFNSTATE_SIZE 64
 typedef union {
     char never_access_space[BMK_TIMEDFNSTATE_SIZE];
     long long alignment_enforcer;  /* must be aligned on 8-bytes boundaries */

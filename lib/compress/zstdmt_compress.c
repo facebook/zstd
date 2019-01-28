@@ -1056,7 +1056,7 @@ static ZSTD_CCtx_params ZSTDMT_initJobCCtxParams(ZSTD_CCtx_params const params)
 static size_t ZSTDMT_resize(ZSTDMT_CCtx* mtctx, unsigned nbWorkers)
 {
     if (POOL_resize(mtctx->factory, nbWorkers)) return ERROR(memory_allocation);
-    CHECK_F( ZSTDMT_expandJobsTable(mtctx, nbWorkers) );
+    FORWARD_ERROR( ZSTDMT_expandJobsTable(mtctx, nbWorkers) );
     mtctx->bufPool = ZSTDMT_expandBufferPool(mtctx->bufPool, nbWorkers);
     if (mtctx->bufPool == NULL) return ERROR(memory_allocation);
     mtctx->cctxPool = ZSTDMT_expandCCtxPool(mtctx->cctxPool, nbWorkers);
@@ -1263,7 +1263,7 @@ static size_t ZSTDMT_compress_advanced_internal(
     if (ZSTDMT_serialState_reset(&mtctx->serial, mtctx->seqPool, params, avgJobSize))
         return ERROR(memory_allocation);
 
-    CHECK_F( ZSTDMT_expandJobsTable(mtctx, nbJobs) );  /* only expands if necessary */
+    FORWARD_ERROR( ZSTDMT_expandJobsTable(mtctx, nbJobs) );  /* only expands if necessary */
 
     {   unsigned u;
         for (u=0; u<nbJobs; u++) {
@@ -1396,7 +1396,7 @@ size_t ZSTDMT_initCStream_internal(
 
     /* init */
     if (params.nbWorkers != mtctx->params.nbWorkers)
-        CHECK_F( ZSTDMT_resize(mtctx, params.nbWorkers) );
+        FORWARD_ERROR( ZSTDMT_resize(mtctx, params.nbWorkers) );
 
     if (params.jobSize != 0 && params.jobSize < ZSTDMT_JOBSIZE_MIN) params.jobSize = ZSTDMT_JOBSIZE_MIN;
     if (params.jobSize > (size_t)ZSTDMT_JOBSIZE_MAX) params.jobSize = ZSTDMT_JOBSIZE_MAX;
@@ -2051,7 +2051,7 @@ size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
       || ((endOp == ZSTD_e_end) && (!mtctx->frameEnded)) ) {   /* must finish the frame with a zero-size block */
         size_t const jobSize = mtctx->inBuff.filled;
         assert(mtctx->inBuff.filled <= mtctx->targetSectionSize);
-        CHECK_F( ZSTDMT_createCompressionJob(mtctx, jobSize, endOp) );
+        FORWARD_ERROR( ZSTDMT_createCompressionJob(mtctx, jobSize, endOp) );
     }
 
     /* check for potential compressed data ready to be flushed */
@@ -2065,7 +2065,7 @@ size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
 
 size_t ZSTDMT_compressStream(ZSTDMT_CCtx* mtctx, ZSTD_outBuffer* output, ZSTD_inBuffer* input)
 {
-    CHECK_F( ZSTDMT_compressStream_generic(mtctx, output, input, ZSTD_e_continue) );
+    FORWARD_ERROR( ZSTDMT_compressStream_generic(mtctx, output, input, ZSTD_e_continue) );
 
     /* recommended next input size : fill current input buffer */
     return mtctx->targetSectionSize - mtctx->inBuff.filled;   /* note : could be zero when input buffer is fully filled and no more availability to create new job */
@@ -2082,7 +2082,7 @@ static size_t ZSTDMT_flushStream_internal(ZSTDMT_CCtx* mtctx, ZSTD_outBuffer* ou
       || ((endFrame==ZSTD_e_end) && !mtctx->frameEnded)) {  /* need a last 0-size block to end frame */
            DEBUGLOG(5, "ZSTDMT_flushStream_internal : create a new job (%u bytes, end:%u)",
                         (U32)srcSize, (U32)endFrame);
-        CHECK_F( ZSTDMT_createCompressionJob(mtctx, srcSize, endFrame) );
+        FORWARD_ERROR( ZSTDMT_createCompressionJob(mtctx, srcSize, endFrame) );
     }
 
     /* check if there is any data available to flush */

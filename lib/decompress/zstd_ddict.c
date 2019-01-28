@@ -133,7 +133,7 @@ static size_t ZSTD_initDDict_internal(ZSTD_DDict* ddict,
     ddict->entropy.hufTable[0] = (HUF_DTable)((HufLog)*0x1000001);  /* cover both little and big endian */
 
     /* parse dictionary content */
-    CHECK_F( ZSTD_loadEntropy_intoDDict(ddict, dictContentType) );
+    FORWARD_ERROR( ZSTD_loadEntropy_intoDDict(ddict, dictContentType) );
 
     return 0;
 }

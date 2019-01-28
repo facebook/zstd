@@ -251,7 +251,7 @@ size_t ZSTD_getFrameHeader_advanced(ZSTD_frameHeader* zfhPtr, const void* src, s
             zfhPtr->frameType = ZSTD_skippableFrame;
             return 0;
         }
-        RETURN_ERROR_IF(1, prefix_unknown);
+        RETURN_ERROR(prefix_unknown);
     }
 
     /* ensure there is enough `srcSize` to fully read/decode frame header */
@@ -520,7 +520,7 @@ static size_t ZSTD_copyRawBlock(void* dst, size_t dstCapacity,
     DEBUGLOG(5, "ZSTD_copyRawBlock");
     if (dst == NULL) {
         if (srcSize == 0) return 0;
-        RETURN_ERROR_IF(1, dstBuffer_null);
+        RETURN_ERROR(dstBuffer_null);
     }
     RETURN_ERROR_IF(srcSize > dstCapacity, dstSize_tooSmall);
     memcpy(dst, src, srcSize);
@@ -533,7 +533,7 @@ static size_t ZSTD_setRleBlock(void* dst, size_t dstCapacity,
 {
     if (dst == NULL) {
         if (regenSize == 0) return 0;
-        RETURN_ERROR_IF(1, dstBuffer_null);
+        RETURN_ERROR(dstBuffer_null);
     }
     RETURN_ERROR_IF(regenSize > dstCapacity, dstSize_tooSmall);
     memset(dst, b, regenSize);
@@ -595,7 +595,7 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
             break;
         case bt_reserved :
         default:
-            RETURN_ERROR_IF(1, corruption_detected);
+            RETURN_ERROR(corruption_detected);
         }
 
         if (ZSTD_isError(decodedSize)) return decodedSize;
@@ -865,7 +865,7 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
                 break;
             case bt_reserved :   /* should never happen */
             default:
-                RETURN_ERROR_IF(1, corruption_detected);
+                RETURN_ERROR(corruption_detected);
             }
             if (ZSTD_isError(rSize)) return rSize;
             DEBUGLOG(5, "ZSTD_decompressContinue: decoded size from block : %u", (unsigned)rSize);
@@ -919,7 +919,7 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
 
     default:
         assert(0);   /* impossible */
-        RETURN_ERROR_IF(1, GENERIC);   /* some compiler require default to do something */
+        RETURN_ERROR(GENERIC);   /* some compiler require default to do something */
     }
 }
 
@@ -1327,7 +1327,7 @@ size_t ZSTD_DCtx_setParameter(ZSTD_DCtx* dctx, ZSTD_dParameter dParam, int value
             return 0;
         default:;
     }
-    RETURN_ERROR_IF(1, parameter_unsupported);
+    RETURN_ERROR(parameter_unsupported);
 }
 
 size_t ZSTD_DCtx_reset(ZSTD_DCtx* dctx, ZSTD_ResetDirective reset)
@@ -1617,7 +1617,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
 
         default:
             assert(0);    /* impossible */
-            RETURN_ERROR_IF(1, GENERIC);   /* some compiler require default to do something */
+            RETURN_ERROR(GENERIC);   /* some compiler require default to do something */
     }   }
 
     /* result */

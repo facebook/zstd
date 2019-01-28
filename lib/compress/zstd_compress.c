@@ -2228,7 +2228,9 @@ ZSTD_encodeSequences_body(
     FSE_CState_t  stateOffsetBits;
     FSE_CState_t  stateLitLength;
 
-    CHECK_E(BIT_initCStream(&blockStream, dst, dstCapacity), dstSize_tooSmall); /* not enough space remaining */
+    RETURN_ERROR_IF(
+        ERR_isError(BIT_initCStream(&blockStream, dst, dstCapacity)),
+        dstSize_tooSmall, "not enough space remaining");
     DEBUGLOG(6, "available space for bitstream : %i  (dstCapacity=%u)",
                 (int)(blockStream.endPtr - blockStream.startPtr),
                 (unsigned)dstCapacity);
@@ -3072,10 +3074,11 @@ static size_t ZSTD_loadZstdDictionary(ZSTD_compressedBlockState_t* bs,
         RETURN_ERROR_IF(offcodeLog > OffFSELog, dictionary_corrupted);
         /* Defer checking offcodeMaxValue because we need to know the size of the dictionary content */
         /* fill all offset symbols to avoid garbage at end of table */
-        CHECK_E( FSE_buildCTable_wksp(bs->entropy.fse.offcodeCTable,
-                                    offcodeNCount, MaxOff, offcodeLog,
-                                    workspace, HUF_WORKSPACE_SIZE),
-                 dictionary_corrupted);
+        RETURN_ERROR_IF(FSE_isError(FSE_buildCTable_wksp(
+                bs->entropy.fse.offcodeCTable,
+                offcodeNCount, MaxOff, offcodeLog,
+                workspace, HUF_WORKSPACE_SIZE)),
+            dictionary_corrupted);
         dictPtr += offcodeHeaderSize;
     }
 
@@ -3086,10 +3089,11 @@ static size_t ZSTD_loadZstdDictionary(ZSTD_compressedBlockState_t* bs,
         RETURN_ERROR_IF(matchlengthLog > MLFSELog, dictionary_corrupted);
         /* Every match length code must have non-zero probability */
         FORWARD_ERROR( ZSTD_checkDictNCount(matchlengthNCount, matchlengthMaxValue, MaxML));
-        CHECK_E( FSE_buildCTable_wksp(bs->entropy.fse.matchlengthCTable,
-                                    matchlengthNCount, matchlengthMaxValue, matchlengthLog,
-                                    workspace, HUF_WORKSPACE_SIZE),
-                 dictionary_corrupted);
+        RETURN_ERROR_IF(FSE_isError(FSE_buildCTable_wksp(
+                bs->entropy.fse.matchlengthCTable,
+                matchlengthNCount, matchlengthMaxValue, matchlengthLog,
+                workspace, HUF_WORKSPACE_SIZE)),
+            dictionary_corrupted);
         dictPtr += matchlengthHeaderSize;
     }
 
@@ -3100,10 +3104,11 @@ static size_t ZSTD_loadZstdDictionary(ZSTD_compressedBlockState_t* bs,
         RETURN_ERROR_IF(litlengthLog > LLFSELog, dictionary_corrupted);
         /* Every literal length code must have non-zero probability */
         FORWARD_ERROR( ZSTD_checkDictNCount(litlengthNCount, litlengthMaxValue, MaxLL));
-        CHECK_E( FSE_buildCTable_wksp(bs->entropy.fse.litlengthCTable,
-                                    litlengthNCount, litlengthMaxValue, litlengthLog,
-                                    workspace, HUF_WORKSPACE_SIZE),
-                 dictionary_corrupted);
+        RETURN_ERROR_IF(FSE_isError(FSE_buildCTable_wksp(
+                bs->entropy.fse.litlengthCTable,
+                litlengthNCount, litlengthMaxValue, litlengthLog,
+                workspace, HUF_WORKSPACE_SIZE)),
+            dictionary_corrupted);
         dictPtr += litlengthHeaderSize;
     }
 

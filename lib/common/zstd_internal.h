@@ -56,6 +56,11 @@ extern "C" {
 #define CHECK_F(f) { size_t const errcod = f; if (ERR_isError(errcod)) return errcod; }  /* check and Forward error code */
 #define CHECK_E(f, e) { size_t const errcod = f; if (ERR_isError(errcod)) return ERROR(e); }  /* check and send Error code */
 
+/**
+ * Return the specified error if the condition evaluates to true.
+ *
+ * In debug modes, prints additional information.
+ */
 #define RETURN_ERROR_IF(cond, err, ...) \
   if (cond) { \
     RAWLOG(3, "%s:%d: check %s failed, returning %s", __FILE__, __LINE__, ZSTD_QUOTE(cond), ZSTD_QUOTE(ERROR(err))); \
@@ -63,6 +68,35 @@ extern "C" {
     RAWLOG(3, "\n"); \
     return ERROR(err); \
   }
+
+/**
+ * Unconditionally return the specified error.
+ *
+ * In debug modes, prints additional information.
+ */
+#define RETURN_ERROR(err, ...) \
+  do { \
+    RAWLOG(3, "%s:%d: unconditional check failed, returning %s", __FILE__, __LINE__, ZSTD_QUOTE(ERROR(err))); \
+    RAWLOG(3, ": " __VA_ARGS__); \
+    RAWLOG(3, "\n"); \
+    return ERROR(err); \
+  } while(0);
+
+/**
+ * If the provided expression evaluates to an error code, returns that error code.
+ *
+ * In debug modes, prints additional information.
+ */
+#define FORWARD_ERROR(err, ...) \
+  do { \
+    size_t const err_code = (err); \
+    if (ERR_isError(err_code)) { \
+      RAWLOG(3, "%s:%d: forwarding error in %s: %s", __FILE__, __LINE__, ZSTD_QUOTE(err), ERR_getErrorName(err_code)); \
+      RAWLOG(3, ": " __VA_ARGS__); \
+      RAWLOG(3, "\n"); \
+      return err_code; \
+    } \
+  } while(0);
 
 
 /*-*************************************

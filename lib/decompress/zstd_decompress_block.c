@@ -227,7 +227,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 return lhSize+1;
             }
         default:
-            RETURN_ERROR_IF(1, corruption_detected, "impossible");
+            RETURN_ERROR(corruption_detected, "impossible");
         }
     }
 }
@@ -470,7 +470,7 @@ static size_t ZSTD_buildSeqTable(ZSTD_seqSymbol* DTableSpace, const ZSTD_seqSymb
         }
     default :
         assert(0);
-        RETURN_ERROR_IF(1, GENERIC, "impossible");
+        RETURN_ERROR(GENERIC, "impossible");
     }
 }
 

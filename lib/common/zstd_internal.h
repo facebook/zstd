@@ -57,7 +57,9 @@ extern "C" {
 /**
  * Return the specified error if the condition evaluates to true.
  *
- * In debug modes, prints additional information.
+ * In debug modes, prints additional information. In order to do that
+ * (particularly, printing the conditional that failed), this can't just wrap
+ * RETURN_ERROR().
  */
 #define RETURN_ERROR_IF(cond, err, ...) \
   if (cond) { \

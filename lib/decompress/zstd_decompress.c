@@ -1065,7 +1065,9 @@ size_t ZSTD_decompressBegin_usingDict(ZSTD_DCtx* dctx, const void* dict, size_t 
 {
     FORWARD_ERROR( ZSTD_decompressBegin(dctx) );
     if (dict && dictSize)
-        CHECK_E(ZSTD_decompress_insertDictionary(dctx, dict, dictSize), dictionary_corrupted);
+        RETURN_ERROR_IF(
+            ZSTD_isError(ZSTD_decompress_insertDictionary(dctx, dict, dictSize)),
+            dictionary_corrupted);
     return 0;
 }
 

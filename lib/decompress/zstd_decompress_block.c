@@ -911,7 +911,9 @@ ZSTD_decompressSequences_body( ZSTD_DCtx* dctx,
         seqState_t seqState;
         dctx->fseEntropy = 1;
         { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) seqState.prevOffset[i] = dctx->entropy.rep[i]; }
-        CHECK_E(BIT_initDStream(&seqState.DStream, ip, iend-ip), corruption_detected);
+        RETURN_ERROR_IF(
+            ERR_isError(BIT_initDStream(&seqState.DStream, ip, iend-ip)),
+            corruption_detected);
         ZSTD_initFseState(&seqState.stateLL, &seqState.DStream, dctx->LLTptr);
         ZSTD_initFseState(&seqState.stateOffb, &seqState.DStream, dctx->OFTptr);
         ZSTD_initFseState(&seqState.stateML, &seqState.DStream, dctx->MLTptr);
@@ -1066,7 +1068,9 @@ ZSTD_decompressSequencesLong_body(
         seqState.pos = (size_t)(op-prefixStart);
         seqState.dictEnd = dictEnd;
         assert(iend >= ip);
-        CHECK_E(BIT_initDStream(&seqState.DStream, ip, iend-ip), corruption_detected);
+        RETURN_ERROR_IF(
+            ERR_isError(BIT_initDStream(&seqState.DStream, ip, iend-ip)),
+            corruption_detected);
         ZSTD_initFseState(&seqState.stateLL, &seqState.DStream, dctx->LLTptr);
         ZSTD_initFseState(&seqState.stateOffb, &seqState.DStream, dctx->OFTptr);
         ZSTD_initFseState(&seqState.stateML, &seqState.DStream, dctx->MLTptr);

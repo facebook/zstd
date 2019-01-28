@@ -105,9 +105,9 @@ ZSTD_loadEntropy_intoDDict(ZSTD_DDict* ddict,
     ddict->dictID = MEM_readLE32((const char*)ddict->dictContent + ZSTD_FRAMEIDSIZE);
 
     /* load entropy tables */
-    CHECK_E( ZSTD_loadDEntropy(&ddict->entropy,
-                                ddict->dictContent, ddict->dictSize),
-             dictionary_corrupted );
+    RETURN_ERROR_IF(ZSTD_isError(ZSTD_loadDEntropy(
+            &ddict->entropy, ddict->dictContent, ddict->dictSize)),
+        dictionary_corrupted);
     ddict->entropyPresent = 1;
     return 0;
 }

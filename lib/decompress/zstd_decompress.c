@@ -567,7 +567,7 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
         if (ZSTD_isError(frameHeaderSize)) return frameHeaderSize;
         RETURN_ERROR_IF(remainingSrcSize < frameHeaderSize+ZSTD_blockHeaderSize,
                         srcSize_wrong);
-        FORWARD_ERROR( ZSTD_decodeFrameHeader(dctx, ip, frameHeaderSize) );
+        FORWARD_IF_ERROR( ZSTD_decodeFrameHeader(dctx, ip, frameHeaderSize) );
         ip += frameHeaderSize; remainingSrcSize -= frameHeaderSize;
     }
 
@@ -684,11 +684,11 @@ static size_t ZSTD_decompressMultiFrame(ZSTD_DCtx* dctx,
 
         if (ddict) {
             /* we were called from ZSTD_decompress_usingDDict */
-            FORWARD_ERROR(ZSTD_decompressBegin_usingDDict(dctx, ddict));
+            FORWARD_IF_ERROR(ZSTD_decompressBegin_usingDDict(dctx, ddict));
         } else {
             /* this will initialize correctly with no dict if dict == NULL, so
              * use this in all cases but ddict */
-            FORWARD_ERROR(ZSTD_decompressBegin_usingDict(dctx, dict, dictSize));
+            FORWARD_IF_ERROR(ZSTD_decompressBegin_usingDict(dctx, dict, dictSize));
         }
         ZSTD_checkContinuity(dctx, dst);
 
@@ -815,7 +815,7 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
     case ZSTDds_decodeFrameHeader:
         assert(src != NULL);
         memcpy(dctx->headerBuffer + (dctx->headerSize - srcSize), src, srcSize);
-        FORWARD_ERROR(ZSTD_decodeFrameHeader(dctx, dctx->headerBuffer, dctx->headerSize));
+        FORWARD_IF_ERROR(ZSTD_decodeFrameHeader(dctx, dctx->headerBuffer, dctx->headerSize));
         dctx->expected = ZSTD_blockHeaderSize;
         dctx->stage = ZSTDds_decodeBlockHeader;
         return 0;
@@ -1063,7 +1063,7 @@ size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx)
 
 size_t ZSTD_decompressBegin_usingDict(ZSTD_DCtx* dctx, const void* dict, size_t dictSize)
 {
-    FORWARD_ERROR( ZSTD_decompressBegin(dctx) );
+    FORWARD_IF_ERROR( ZSTD_decompressBegin(dctx) );
     if (dict && dictSize)
         RETURN_ERROR_IF(
             ZSTD_isError(ZSTD_decompress_insertDictionary(dctx, dict, dictSize)),
@@ -1086,7 +1086,7 @@ size_t ZSTD_decompressBegin_usingDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict)
         DEBUGLOG(4, "DDict is %s",
                     dctx->ddictIsCold ? "~cold~" : "hot!");
     }
-    FORWARD_ERROR( ZSTD_decompressBegin(dctx) );
+    FORWARD_IF_ERROR( ZSTD_decompressBegin(dctx) );
     if (ddict) {   /* NULL ddict is equivalent to no dictionary */
         ZSTD_copyDDictParameters(dctx, ddict);
     }
@@ -1218,7 +1218,7 @@ size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t di
     DEBUGLOG(4, "ZSTD_initDStream_usingDict");
     zds->streamStage = zdss_init;
     zds->noForwardProgress = 0;
-    FORWARD_ERROR( ZSTD_DCtx_loadDictionary(zds, dict, dictSize) );
+    FORWARD_IF_ERROR( ZSTD_DCtx_loadDictionary(zds, dict, dictSize) );
     return ZSTD_FRAMEHEADERSIZE_PREFIX;
 }
 
@@ -1448,7 +1448,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                         DEBUGLOG(5, "ZSTD_decompressStream: detected legacy version v0.%u", legacyVersion);
                         RETURN_ERROR_IF(zds->staticSize, memory_allocation,
                             "legacy support is incompatible with static dctx");
-                        FORWARD_ERROR(ZSTD_initLegacyStream(&zds->legacyContext,
+                        FORWARD_IF_ERROR(ZSTD_initLegacyStream(&zds->legacyContext,
                                     zds->previousLegacyVersion, legacyVersion,
                                     dict, dictSize));
                         zds->legacyVersion = zds->previousLegacyVersion = legacyVersion;
@@ -1495,13 +1495,13 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
 
             /* Consume header (see ZSTDds_decodeFrameHeader) */
             DEBUGLOG(4, "Consume header");
-            FORWARD_ERROR(ZSTD_decompressBegin_usingDDict(zds, zds->ddict));
+            FORWARD_IF_ERROR(ZSTD_decompressBegin_usingDDict(zds, zds->ddict));
 
             if ((MEM_readLE32(zds->headerBuffer) & ZSTD_MAGIC_SKIPPABLE_MASK) == ZSTD_MAGIC_SKIPPABLE_START) {  /* skippable frame */
                 zds->expected = MEM_readLE32(zds->headerBuffer + ZSTD_FRAMEIDSIZE);
                 zds->stage = ZSTDds_skipFrame;
             } else {
-                FORWARD_ERROR(ZSTD_decodeFrameHeader(zds, zds->headerBuffer, zds->lhSize));
+                FORWARD_IF_ERROR(ZSTD_decodeFrameHeader(zds, zds->headerBuffer, zds->lhSize));
                 zds->expected = ZSTD_blockHeaderSize;
                 zds->stage = ZSTDds_decodeBlockHeader;
             }

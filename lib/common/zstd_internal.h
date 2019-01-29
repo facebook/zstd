@@ -87,7 +87,7 @@ extern "C" {
  *
  * In debug modes, prints additional information.
  */
-#define FORWARD_ERROR(err, ...) \
+#define FORWARD_IF_ERROR(err, ...) \
   do { \
     size_t const err_code = (err); \
     if (ERR_isError(err_code)) { \

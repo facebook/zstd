@@ -22,7 +22,7 @@ a list of known ports and bindings is provided on [Zstandard homepage](http://ww
 [AppveyorLink]: https://ci.appveyor.com/project/YannCollet/zstd-p0yf0
 [CircleDevBadge]: https://circleci.com/gh/facebook/zstd/tree/dev.svg?style=shield "Short test suite"
 [CircleLink]: https://circleci.com/gh/facebook/zstd
-[CirrusDevBadge]: https://api.cirrus-ci.com/github/facebook/zstd.svg
+[CirrusDevBadge]: https://api.cirrus-ci.com/github/facebook/zstd.svg?branch=dev
 [CirrusLink]: https://cirrus-ci.com/github/facebook/zstd
 
 ## Benchmarks

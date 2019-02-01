@@ -33,7 +33,7 @@ endif
 CFLAGS     ?= -O3
 CFLAGS     += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow                 \
               -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
-              -Wstrict-prototypes -Wundef -Wformat-security                   \
+              -Wstrict-prototypes -Wundef                                     \
               -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings      \
               -Wredundant-decls -Wmissing-prototypes
 CFLAGS     += $(DEBUGFLAGS) $(MOREFLAGS)

@@ -25,7 +25,7 @@ endif
 CFLAGS  ?= -O3
 DEBUGFLAGS= -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
             -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
-            -Wstrict-prototypes -Wundef -Wpointer-arith -Wformat-security \
+            -Wstrict-prototypes -Wundef -Wpointer-arith \
             -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings \
             -Wredundant-decls -Wmissing-prototypes -Wc++-compat
 CFLAGS  += $(DEBUGFLAGS) $(MOREFLAGS)

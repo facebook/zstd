@@ -30,7 +30,7 @@ FUZZ_CPPFLAGS := -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
 	$(CPPFLAGS)
 FUZZ_EXTRA_FLAGS := -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
 	-Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
-	-Wstrict-prototypes -Wundef -Wformat-security \
+	-Wstrict-prototypes -Wundef \
 	-Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings \
 	-Wredundant-decls \
 	-g -fno-omit-frame-pointer

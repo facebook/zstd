@@ -98,7 +98,7 @@ if use_debug
   if cc_id == compiler_gcc or cc_id == compiler_clang
     libzstd_debug_cflags = ['-Wstrict-aliasing=1', '-Wswitch-enum',
       '-Wdeclaration-after-statement', '-Wstrict-prototypes',
-      '-Wundef', '-Wpointer-arith', '-Wformat-security', '-Wvla',
+      '-Wundef', '-Wpointer-arith', '-Wvla',
       '-Wformat=2', '-Winit-self', '-Wfloat-equal', '-Wwrite-strings',
       '-Wredundant-decls', '-Wmissing-prototypes', '-Wc++-compat']
   endif

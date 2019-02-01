@@ -18,7 +18,7 @@ CFLAGS  ?= -O3
 CFLAGS  += -std=gnu99
 DEBUGFLAGS= -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
             -Wstrict-aliasing=1 -Wswitch-enum \
-            -Wstrict-prototypes -Wundef -Wpointer-arith -Wformat-security \
+            -Wstrict-prototypes -Wundef -Wpointer-arith \
             -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings \
             -Wredundant-decls
 CFLAGS  += $(DEBUGFLAGS) $(MOREFLAGS)

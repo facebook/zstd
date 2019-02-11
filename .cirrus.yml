@@ -10,6 +10,7 @@ task:
   install_script:
     - sed -i.bak -e 's,pkg+http://pkg.FreeBSD.org/\${ABI}/quarterly,pkg+http://pkg.FreeBSD.org/\${ABI}/latest,' /etc/pkg/FreeBSD.conf
     - pkg upgrade -y
-    - pkg install -y gmake
-  script:
-    - CFLAGS="-Werror" gmake -j all
+    - pkg install -y gmake coreutils
+  script: |
+    MOREFLAGS="-Werror" gmake -j all
+    gmake shortest

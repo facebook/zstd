@@ -314,18 +314,28 @@ $ECHO foo | $ZSTD > /dev/full && die "write error not detected!"
 $ECHO "$ECHO foo | $ZSTD | $ZSTD -d > /dev/full"
 $ECHO foo | $ZSTD | $ZSTD -d > /dev/full && die "write error not detected!"
 
+fi
+
+
+if [ "$isWindows" = false ] && [ "$UNAME" != 'SunOS' ] ; then
 
 $ECHO "\n===>  symbolic link test "
 
-rm -f hello.tmp world.tmp hello.tmp.zst world.tmp.zst
+rm -f hello.tmp world.tmp world2.tmp hello.tmp.zst world.tmp.zst
 $ECHO "hello world" > hello.tmp
 ln -s hello.tmp world.tmp
-$ZSTD world.tmp hello.tmp
+ln -s hello.tmp world2.tmp
+$ZSTD world.tmp hello.tmp || true
 test -f hello.tmp.zst  # regular file should have been compressed!
 test ! -f world.tmp.zst  # symbolic link should not have been compressed!
+$ZSTD world.tmp || true
+test ! -f world.tmp.zst  # symbolic link should not have been compressed!
+$ZSTD world.tmp world2.tmp || true
+test ! -f world.tmp.zst  # symbolic link should not have been compressed!
+test ! -f world2.tmp.zst  # symbolic link should not have been compressed!
 $ZSTD world.tmp hello.tmp -f
 test -f world.tmp.zst  # symbolic link should have been compressed with --force
-rm -f hello.tmp world.tmp hello.tmp.zst world.tmp.zst
+rm -f hello.tmp world.tmp world2.tmp hello.tmp.zst world.tmp.zst
 
 fi
 

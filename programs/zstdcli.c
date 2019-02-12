@@ -951,6 +951,8 @@ int main(int argCount, const char* argv[])
                 filenameTable[fileNamesNb++] = filenameTable[u];
             }
         }
+        if (fileNamesNb == 0 && filenameIdx > 0)
+            CLEAN_RETURN(1);
         filenameIdx = fileNamesNb;
     }
     if (recursive) {  /* at this stage, filenameTable is a list of paths, which can contain both files and directories */

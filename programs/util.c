@@ -92,11 +92,12 @@ U32 UTIL_isLink(const char* infilename)
 /* macro guards, as defined in : https://linux.die.net/man/2/lstat */
 #ifndef __STRICT_ANSI__
 #if defined(_BSD_SOURCE) \
-    || defined(__OpenBSD__) \
     || (defined(_XOPEN_SOURCE) && (_XOPEN_SOURCE >= 500)) \
     || (defined(_XOPEN_SOURCE) && defined(_XOPEN_SOURCE_EXTENDED)) \
     || (defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE >= 200112L)) \
-    || (defined(__APPLE__) && defined(__MACH__))
+    || (defined(__APPLE__) && defined(__MACH__)) \
+    || defined(__OpenBSD__) \
+    || defined(__FreeBSD__)
     int r;
     stat_t statbuf;
     r = lstat(infilename, &statbuf);

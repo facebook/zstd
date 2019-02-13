@@ -625,6 +625,7 @@ typedef enum {
      * ZSTD_c_format
      * ZSTD_c_forceMaxWindow
      * ZSTD_c_forceAttachDict
+     * ZSTD_c_literalCompressionMode
      * Because they are not stable, it's necessary to define ZSTD_STATIC_LINKING_ONLY to access them.
      * note : never ever use experimentalParam? names directly;
      *        also, the enums values themselves are unstable and can still change.
@@ -632,7 +633,8 @@ typedef enum {
      ZSTD_c_experimentalParam1=500,
      ZSTD_c_experimentalParam2=10,
      ZSTD_c_experimentalParam3=1000,
-     ZSTD_c_experimentalParam4=1001
+     ZSTD_c_experimentalParam4=1001,
+     ZSTD_c_experimentalParam5=1002,
 } ZSTD_cParameter;
 
 
@@ -1064,6 +1066,15 @@ typedef enum {
     ZSTD_dictForceCopy     = 2, /* Always copy the dictionary. */
 } ZSTD_dictAttachPref_e;
 
+typedef enum {
+  ZSTD_lcm_auto = 0,          /**< Automatically determine the compression mode based on the compression level.
+                               *   Negative compression levels will be uncompressed, and positive compression
+                               *   levels will be compressed. */
+  ZSTD_lcm_huffman = 1,       /**< Always attempt Huffman compression. Uncompressed literals will still be
+                               *   emitted if Huffman compression is not profitable. */
+  ZSTD_lcm_uncompressed = 2,  /**< Always emit uncompressed literals. */
+} ZSTD_literalCompressionMode_e;
+
 
 /***************************************
 *  Frame size functions
@@ -1317,6 +1328,12 @@ ZSTDLIB_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* pre
  * Accepts values from the ZSTD_dictAttachPref_e enum.
  * See the comments on that enum for an explanation of the feature. */
 #define ZSTD_c_forceAttachDict ZSTD_c_experimentalParam4
+
+/* Controls how the literals are compressed (default is auto).
+ * The value must be of type ZSTD_literalCompressionMode_e.
+ * See ZSTD_literalCompressionMode_t enum definition for details.
+ */
+#define ZSTD_c_literalCompressionMode ZSTD_c_experimentalParam5
 
 /*! ZSTD_CCtx_getParameter() :
  *  Get the requested compression parameter value, selected by enum ZSTD_cParameter,

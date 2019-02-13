@@ -188,6 +188,7 @@ struct ZSTD_CCtx_params_s {
                                 * 1<<wLog, even for dictionary */
 
     ZSTD_dictAttachPref_e attachDictPref;
+    ZSTD_literalCompressionMode_e literalCompressionMode;
 
     /* Multithreading: used to pass parameters to mtctx */
     int nbWorkers;

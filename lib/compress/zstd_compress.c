@@ -360,6 +360,12 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
         bounds.upperBound = ZSTD_dictForceCopy;       /* note : how to ensure at compile time that this is the highest value enum ? */
         return bounds;
 
+    case ZSTD_c_literalCompressionMode:
+        ZSTD_STATIC_ASSERT(ZSTD_lcm_auto < ZSTD_lcm_huffman && ZSTD_lcm_huffman < ZSTD_lcm_uncompressed);
+        bounds.lowerBound = ZSTD_lcm_auto;
+        bounds.upperBound = ZSTD_lcm_uncompressed;
+        return bounds;
+
     default:
         {   ZSTD_bounds const boundError = { ERROR(parameter_unsupported), 0, 0 };
             return boundError;
@@ -396,6 +402,7 @@ static int ZSTD_isUpdateAuthorized(ZSTD_cParameter param)
     case ZSTD_c_minMatch:
     case ZSTD_c_targetLength:
     case ZSTD_c_strategy:
+    case ZSTD_c_literalCompressionMode:
         return 1;
 
     case ZSTD_c_format:
@@ -461,6 +468,9 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int value)
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
     case ZSTD_c_forceAttachDict:
+        return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
+
+    case ZSTD_c_literalCompressionMode:
         return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
 
     case ZSTD_c_nbWorkers:
@@ -575,6 +585,13 @@ size_t ZSTD_CCtxParam_setParameter(ZSTD_CCtx_params* CCtxParams,
         return CCtxParams->attachDictPref;
     }
 
+    case ZSTD_c_literalCompressionMode : {
+        const ZSTD_literalCompressionMode_e lcm = (ZSTD_literalCompressionMode_e)value;
+        BOUNDCHECK(ZSTD_c_literalCompressionMode, lcm);
+        CCtxParams->literalCompressionMode = lcm;
+        return CCtxParams->literalCompressionMode;
+    }
+
     case ZSTD_c_nbWorkers :
 #ifndef ZSTD_MULTITHREAD
         RETURN_ERROR_IF(value!=0, parameter_unsupported, "not compiled with multithreading");
@@ -687,6 +704,9 @@ size_t ZSTD_CCtxParam_getParameter(
         break;
     case ZSTD_c_forceAttachDict :
         *value = CCtxParams->attachDictPref;
+        break;
+    case ZSTD_c_literalCompressionMode :
+        *value = CCtxParams->literalCompressionMode;
         break;
     case ZSTD_c_nbWorkers :
 #ifndef ZSTD_MULTITHREAD
@@ -2369,6 +2389,21 @@ static size_t ZSTD_encodeSequences(
                                         sequences, nbSeq, longOffsets);
 }
 
+static int ZSTD_disableLiteralsCompression(const ZSTD_CCtx_params* cctxParams)
+{
+    switch (cctxParams->literalCompressionMode) {
+    case ZSTD_lcm_huffman:
+        return 0;
+    case ZSTD_lcm_uncompressed:
+        return 1;
+    default:
+        assert(0 /* impossible: pre-validated */);
+        /* fall-through */
+    case ZSTD_lcm_auto:
+        return (cctxParams->cParams.strategy == ZSTD_fast) && (cctxParams->cParams.targetLength > 0);
+    }
+}
+
 /* ZSTD_compressSequences_internal():
  * actually compresses both literals and sequences */
 MEM_STATIC size_t
@@ -2404,10 +2439,10 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
     /* Compress literals */
     {   const BYTE* const literals = seqStorePtr->litStart;
         size_t const litSize = seqStorePtr->lit - literals;
-        int const disableLiteralCompression = (cctxParams->cParams.strategy == ZSTD_fast) && (cctxParams->cParams.targetLength > 0);
         size_t const cSize = ZSTD_compressLiterals(
                                     &prevEntropy->huf, &nextEntropy->huf,
-                                    cctxParams->cParams.strategy, disableLiteralCompression,
+                                    cctxParams->cParams.strategy,
+                                    ZSTD_disableLiteralsCompression(cctxParams),
                                     op, dstCapacity,
                                     literals, litSize,
                                     workspace, wkspSize,

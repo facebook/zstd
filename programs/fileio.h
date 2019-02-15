@@ -71,6 +71,9 @@ void FIO_setOverlapLog(FIO_prefs_t* const prefs, int overlapLog);
 void FIO_setRemoveSrcFile(FIO_prefs_t* const prefs, unsigned flag);
 void FIO_setSparseWrite(FIO_prefs_t* const prefs, unsigned sparse);  /**< 0: no sparse; 1: disable on stdout; 2: always enabled */
 void FIO_setRsyncable(FIO_prefs_t* const prefs, int rsyncable);
+void FIO_setLiteralCompressionMode(
+        FIO_prefs_t* const prefs,
+        ZSTD_literalCompressionMode_e mode);
 
 void FIO_setNoProgress(unsigned noProgress);
 void FIO_setNotificationLevel(int level);

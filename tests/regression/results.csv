@@ -68,13 +68,13 @@ github,                           level 16,                         compress cct
 github,                           level 16 with dict,               compress cctx,                    37568
 github,                           level 19,                         compress cctx,                    133717
 github,                           level 19 with dict,               compress cctx,                    37567
-github,                           long distance mode,               compress cctx,                    decompression error
-github,                           multithreaded,                    compress cctx,                    decompression error
-github,                           multithreaded long distance mode, compress cctx,                    decompression error
-github,                           small window log,                 compress cctx,                    decompression error
-github,                           small hash log,                   compress cctx,                    decompression error
-github,                           small chain log,                  compress cctx,                    decompression error
-github,                           explicit params,                  compress cctx,                    decompression error
+github,                           long distance mode,               compress cctx,                    141473
+github,                           multithreaded,                    compress cctx,                    141473
+github,                           multithreaded long distance mode, compress cctx,                    141473
+github,                           small window log,                 compress cctx,                    141473
+github,                           small hash log,                   compress cctx,                    138943
+github,                           small chain log,                  compress cctx,                    139239
+github,                           explicit params,                  compress cctx,                    140924
 github,                           uncompressed literals,            compress cctx,                    136397
 github,                           uncompressed literals optimal,    compress cctx,                    133717
 github,                           huffman literals,                 compress cctx,                    176575
@@ -99,6 +99,9 @@ silesia,                          small window log,                 zstdcli,    
 silesia,                          small hash log,                   zstdcli,                          6554946
 silesia,                          small chain log,                  zstdcli,                          4931141
 silesia,                          explicit params,                  zstdcli,                          4815380
+silesia,                          uncompressed literals,            zstdcli,                          5155472
+silesia,                          uncompressed literals optimal,    zstdcli,                          4325475
+silesia,                          huffman literals,                 zstdcli,                          5341405
 silesia.tar,                      level -5,                         zstdcli,                          7161160
 silesia.tar,                      level -3,                         zstdcli,                          6789865
 silesia.tar,                      level -1,                         zstdcli,                          6196433
@@ -121,6 +124,9 @@ silesia.tar,                      small window log,                 zstdcli,    
 silesia.tar,                      small hash log,                   zstdcli,                          6587841
 silesia.tar,                      small chain log,                  zstdcli,                          4943259
 silesia.tar,                      explicit params,                  zstdcli,                          4839202
+silesia.tar,                      uncompressed literals,            zstdcli,                          5158134
+silesia.tar,                      uncompressed literals optimal,    zstdcli,                          4321098
+silesia.tar,                      huffman literals,                 zstdcli,                          5358479
 github,                           level -5,                         zstdcli,                          234744
 github,                           level -5 with dict,               zstdcli,                          48718
 github,                           level -3,                         zstdcli,                          222611
@@ -156,6 +162,9 @@ github,                           small window log,                 zstdcli,    
 github,                           small hash log,                   zstdcli,                          137467
 github,                           small chain log,                  zstdcli,                          138314
 github,                           explicit params,                  zstdcli,                          136140
+github,                           uncompressed literals,            zstdcli,                          169004
+github,                           uncompressed literals optimal,    zstdcli,                          158824
+github,                           huffman literals,                 zstdcli,                          145457
 silesia,                          level -5,                         advanced one pass,                7152294
 silesia,                          level -3,                         advanced one pass,                6789969
 silesia,                          level -1,                         advanced one pass,                6191548

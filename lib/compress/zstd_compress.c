@@ -402,7 +402,6 @@ static int ZSTD_isUpdateAuthorized(ZSTD_cParameter param)
     case ZSTD_c_minMatch:
     case ZSTD_c_targetLength:
     case ZSTD_c_strategy:
-    case ZSTD_c_literalCompressionMode:
         return 1;
 
     case ZSTD_c_format:
@@ -421,6 +420,7 @@ static int ZSTD_isUpdateAuthorized(ZSTD_cParameter param)
     case ZSTD_c_ldmBucketSizeLog:
     case ZSTD_c_ldmHashRateLog:
     case ZSTD_c_forceAttachDict:
+    case ZSTD_c_literalCompressionMode:
     default:
         return 0;
     }
@@ -2677,7 +2677,10 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
         goto out;  /* don't even attempt compression below a certain srcSize */
     }
     ZSTD_resetSeqStore(&(zc->seqStore));
-    ms->opt.symbolCosts = &zc->blockState.prevCBlock->entropy;   /* required for optimal parser to read stats from dictionary */
+    /* required for optimal parser to read stats from dictionary */
+    ms->opt.symbolCosts = &zc->blockState.prevCBlock->entropy;
+    /* tell the optimal parser how we expect to compress literals */
+    ms->opt.literalCompressionMode = zc->appliedParams.literalCompressionMode;
 
     /* a gap between an attached dict and the current window is not safe,
      * they must remain adjacent,

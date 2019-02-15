@@ -179,7 +179,7 @@ silesia,                          small hash log,                   advanced one
 silesia,                          small chain log,                  advanced one pass,                4931093
 silesia,                          explicit params,                  advanced one pass,                4815369
 silesia,                          uncompressed literals,            advanced one pass,                5155424
-silesia,                          uncompressed literals optimal,    advanced one pass,                4426654
+silesia,                          uncompressed literals optimal,    advanced one pass,                4325427
 silesia,                          huffman literals,                 advanced one pass,                5341356
 silesia.tar,                      level -5,                         advanced one pass,                7160438
 silesia.tar,                      level -3,                         advanced one pass,                6789024
@@ -204,7 +204,7 @@ silesia.tar,                      small hash log,                   advanced one
 silesia.tar,                      small chain log,                  advanced one pass,                4943255
 silesia.tar,                      explicit params,                  advanced one pass,                4829974
 silesia.tar,                      uncompressed literals,            advanced one pass,                5157992
-silesia.tar,                      uncompressed literals optimal,    advanced one pass,                4372744
+silesia.tar,                      uncompressed literals optimal,    advanced one pass,                4321094
 silesia.tar,                      huffman literals,                 advanced one pass,                5358079
 github,                           level -5,                         advanced one pass,                232744
 github,                           level -5 with dict,               advanced one pass,                46718
@@ -243,7 +243,7 @@ github,                           small hash log,                   advanced one
 github,                           small chain log,                  advanced one pass,                136314
 github,                           explicit params,                  advanced one pass,                137670
 github,                           uncompressed literals,            advanced one pass,                167004
-github,                           uncompressed literals optimal,    advanced one pass,                164600
+github,                           uncompressed literals optimal,    advanced one pass,                156824
 github,                           huffman literals,                 advanced one pass,                143457
 silesia,                          level -5,                         advanced one pass small out,      7152294
 silesia,                          level -3,                         advanced one pass small out,      6789969
@@ -268,7 +268,7 @@ silesia,                          small hash log,                   advanced one
 silesia,                          small chain log,                  advanced one pass small out,      4931093
 silesia,                          explicit params,                  advanced one pass small out,      4815369
 silesia,                          uncompressed literals,            advanced one pass small out,      5155424
-silesia,                          uncompressed literals optimal,    advanced one pass small out,      4426654
+silesia,                          uncompressed literals optimal,    advanced one pass small out,      4325427
 silesia,                          huffman literals,                 advanced one pass small out,      5341356
 silesia.tar,                      level -5,                         advanced one pass small out,      7160438
 silesia.tar,                      level -3,                         advanced one pass small out,      6789024
@@ -293,7 +293,7 @@ silesia.tar,                      small hash log,                   advanced one
 silesia.tar,                      small chain log,                  advanced one pass small out,      4943255
 silesia.tar,                      explicit params,                  advanced one pass small out,      4829974
 silesia.tar,                      uncompressed literals,            advanced one pass small out,      5157992
-silesia.tar,                      uncompressed literals optimal,    advanced one pass small out,      4372744
+silesia.tar,                      uncompressed literals optimal,    advanced one pass small out,      4321094
 silesia.tar,                      huffman literals,                 advanced one pass small out,      5358079
 github,                           level -5,                         advanced one pass small out,      232744
 github,                           level -5 with dict,               advanced one pass small out,      46718
@@ -332,7 +332,7 @@ github,                           small hash log,                   advanced one
 github,                           small chain log,                  advanced one pass small out,      136314
 github,                           explicit params,                  advanced one pass small out,      137670
 github,                           uncompressed literals,            advanced one pass small out,      167004
-github,                           uncompressed literals optimal,    advanced one pass small out,      164600
+github,                           uncompressed literals optimal,    advanced one pass small out,      156824
 github,                           huffman literals,                 advanced one pass small out,      143457
 silesia,                          level -5,                         advanced streaming,               7152294
 silesia,                          level -3,                         advanced streaming,               6789973
@@ -357,7 +357,7 @@ silesia,                          small hash log,                   advanced str
 silesia,                          small chain log,                  advanced streaming,               4931093
 silesia,                          explicit params,                  advanced streaming,               4815380
 silesia,                          uncompressed literals,            advanced streaming,               5155424
-silesia,                          uncompressed literals optimal,    advanced streaming,               4426654
+silesia,                          uncompressed literals optimal,    advanced streaming,               4325427
 silesia,                          huffman literals,                 advanced streaming,               5341357
 silesia.tar,                      level -5,                         advanced streaming,               7160440
 silesia.tar,                      level -3,                         advanced streaming,               6789026
@@ -382,7 +382,7 @@ silesia.tar,                      small hash log,                   advanced str
 silesia.tar,                      small chain log,                  advanced streaming,               4943260
 silesia.tar,                      explicit params,                  advanced streaming,               4830002
 silesia.tar,                      uncompressed literals,            advanced streaming,               5157995
-silesia.tar,                      uncompressed literals optimal,    advanced streaming,               4372744
+silesia.tar,                      uncompressed literals optimal,    advanced streaming,               4321094
 silesia.tar,                      huffman literals,                 advanced streaming,               5358083
 github,                           level -5,                         advanced streaming,               232744
 github,                           level -5 with dict,               advanced streaming,               46718
@@ -421,7 +421,7 @@ github,                           small hash log,                   advanced str
 github,                           small chain log,                  advanced streaming,               136314
 github,                           explicit params,                  advanced streaming,               137670
 github,                           uncompressed literals,            advanced streaming,               167004
-github,                           uncompressed literals optimal,    advanced streaming,               164600
+github,                           uncompressed literals optimal,    advanced streaming,               156824
 github,                           huffman literals,                 advanced streaming,               143457
 silesia,                          level -5,                         old streaming,                    7152294
 silesia,                          level -3,                         old streaming,                    6789973

@@ -175,8 +175,8 @@ static result_t compress_cctx_compress(
                 state->compressed.capacity,
                 input.data,
                 input.size,
-                state->dictionary.data,
-                state->dictionary.size,
+                config->use_dictionary ? state->dictionary.data : NULL,
+                config->use_dictionary ? state->dictionary.size : 0,
                 params);
         else if (config->use_dictionary)
             state->compressed.size = ZSTD_compress_usingDict(

@@ -129,6 +129,7 @@ static param_value_t const uncompressed_literals_param_values[] = {
 
 static config_t uncompressed_literals = {
     .name = "uncompressed literals",
+    .cli_args = "-3 --no-compress-literals",
     .param_values = PARAM_VALUES(uncompressed_literals_param_values),
 };
 
@@ -139,6 +140,7 @@ static param_value_t const uncompressed_literals_opt_param_values[] = {
 
 static config_t uncompressed_literals_opt = {
     .name = "uncompressed literals optimal",
+    .cli_args = "-19 --no-compress-literals",
     .param_values = PARAM_VALUES(uncompressed_literals_opt_param_values),
 };
 
@@ -149,6 +151,7 @@ static param_value_t const huffman_literals_param_values[] = {
 
 static config_t huffman_literals = {
     .name = "huffman literals",
+    .cli_args = "--fast=1 --compress-literals",
     .param_values = PARAM_VALUES(huffman_literals_param_values),
 };
 

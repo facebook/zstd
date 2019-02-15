@@ -148,6 +148,7 @@ static int usage_advanced(const char* programName)
 #endif
     DISPLAY( "--no-dictID : don't write dictID into header (dictionary compression)\n");
     DISPLAY( "--[no-]check : integrity check (default: enabled) \n");
+    DISPLAY( "--[no-]compress-literals : force (un)compressed literals \n");
 #endif
 #ifdef UTIL_HAS_CREATEFILELIST
     DISPLAY( " -r     : operate recursively on directories \n");
@@ -483,7 +484,7 @@ static int init_cLevel(void) {
 
         if ((*ptr>='0') && (*ptr<='9')) {
             unsigned absLevel;
-            if (readU32FromCharChecked(&ptr, &absLevel)) { 
+            if (readU32FromCharChecked(&ptr, &absLevel)) {
                 DISPLAYLEVEL(2, "Ignore environment variable setting %s=%s: numeric value too large\n", ENV_CLEVEL, env);
                 return ZSTDCLI_CLEVEL_DEFAULT;
             } else if (*ptr == 0) {
@@ -659,6 +660,8 @@ int main(int argCount, const char* argv[])
                     if (!strcmp(argument, "--format=lz4")) { suffix = LZ4_EXTENSION; FIO_setCompressionType(prefs, FIO_lz4Compression);  continue; }
 #endif
                     if (!strcmp(argument, "--rsyncable")) { rsyncable = 1; continue; }
+                    if (!strcmp(argument, "--compress-literals")) { FIO_setLiteralCompressionMode(prefs, ZSTD_lcm_huffman); continue; }
+                    if (!strcmp(argument, "--no-compress-literals")) { FIO_setLiteralCompressionMode(prefs, ZSTD_lcm_uncompressed); continue; }
                     if (!strcmp(argument, "--no-progress")) { FIO_setNoProgress(1); continue; }
 
                     /* long commands with arguments */

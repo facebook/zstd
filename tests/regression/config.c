@@ -132,6 +132,16 @@ static config_t uncompressed_literals = {
     .param_values = PARAM_VALUES(uncompressed_literals_param_values),
 };
 
+static param_value_t const uncompressed_literals_opt_param_values[] = {
+    {.param = ZSTD_c_compressionLevel, .value = 19},
+    {.param = ZSTD_c_literalCompressionMode, .value = ZSTD_lcm_uncompressed},
+};
+
+static config_t uncompressed_literals_opt = {
+    .name = "uncompressed literals optimal",
+    .param_values = PARAM_VALUES(uncompressed_literals_opt_param_values),
+};
+
 static param_value_t const huffman_literals_param_values[] = {
     {.param = ZSTD_c_compressionLevel, .value = -1},
     {.param = ZSTD_c_literalCompressionMode, .value = ZSTD_lcm_huffman},
@@ -176,6 +186,7 @@ static config_t const* g_configs[] = {
     &small_clog,
     &explicit_params,
     &uncompressed_literals,
+    &uncompressed_literals_opt,
     &huffman_literals,
     NULL,
 };

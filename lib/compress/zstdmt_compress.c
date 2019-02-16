@@ -864,11 +864,7 @@ static size_t ZSTDMT_expandJobsTable (ZSTDMT_CCtx* mtctx, U32 nbWorkers) {
  * Internal use only */
 size_t ZSTDMT_CCtxParam_setNbWorkers(ZSTD_CCtx_params* params, unsigned nbWorkers)
 {
-    if (nbWorkers > ZSTDMT_NBWORKERS_MAX) nbWorkers = ZSTDMT_NBWORKERS_MAX;
-    params->nbWorkers = nbWorkers;
-    params->overlapLog = ZSTDMT_OVERLAPLOG_DEFAULT;
-    params->jobSize = 0;
-    return nbWorkers;
+    return ZSTD_CCtxParam_setParameter(params, ZSTD_c_nbWorkers, (int)nbWorkers);
 }
 
 ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced(unsigned nbWorkers, ZSTD_customMem cMem)
@@ -986,26 +982,13 @@ ZSTDMT_CCtxParam_setMTCtxParameter(ZSTD_CCtx_params* params,
     {
     case ZSTDMT_p_jobSize :
         DEBUGLOG(4, "ZSTDMT_CCtxParam_setMTCtxParameter : set jobSize to %i", value);
-        if ( value != 0  /* default */
-          && value < ZSTDMT_JOBSIZE_MIN)
-            value = ZSTDMT_JOBSIZE_MIN;
-        assert(value >= 0);
-        if (value > ZSTDMT_JOBSIZE_MAX) value = ZSTDMT_JOBSIZE_MAX;
-        params->jobSize = value;
-        return value;
-
+        return ZSTD_CCtxParam_setParameter(params, ZSTD_c_jobSize, value);
     case ZSTDMT_p_overlapLog :
         DEBUGLOG(4, "ZSTDMT_p_overlapLog : %i", value);
-        if (value < ZSTD_OVERLAPLOG_MIN) value = ZSTD_OVERLAPLOG_MIN;
-        if (value > ZSTD_OVERLAPLOG_MAX) value = ZSTD_OVERLAPLOG_MAX;
-        params->overlapLog = value;
-        return value;
-
+        return ZSTD_CCtxParam_setParameter(params, ZSTD_c_overlapLog, value);
     case ZSTDMT_p_rsyncable :
-        value = (value != 0);
-        params->rsyncable = value;
-        return value;
-
+        DEBUGLOG(4, "ZSTD_p_rsyncable : %i", value);
+        return ZSTD_CCtxParam_setParameter(params, ZSTD_c_rsyncable, value);
     default :
         return ERROR(parameter_unsupported);
     }
@@ -1021,32 +1004,29 @@ size_t ZSTDMT_getMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSTDMT_parameter parameter, 
 {
     switch (parameter) {
     case ZSTDMT_p_jobSize:
-        assert(mtctx->params.jobSize <= INT_MAX);
-        *value = (int)(mtctx->params.jobSize);
-        break;
+        return ZSTD_CCtxParam_getParameter(&mtctx->params, ZSTD_c_jobSize, value);
     case ZSTDMT_p_overlapLog:
-        *value = mtctx->params.overlapLog;
-        break;
+        return ZSTD_CCtxParam_getParameter(&mtctx->params, ZSTD_c_overlapLog, value);
     case ZSTDMT_p_rsyncable:
-        *value = mtctx->params.rsyncable;
-        break;
+        return ZSTD_CCtxParam_getParameter(&mtctx->params, ZSTD_c_rsyncable, value);
     default:
         return ERROR(parameter_unsupported);
     }
-    return 0;
 }
 
 /* Sets parameters relevant to the compression job,
  * initializing others to default values. */
 static ZSTD_CCtx_params ZSTDMT_initJobCCtxParams(ZSTD_CCtx_params const params)
 {
-    ZSTD_CCtx_params jobParams;
-    memset(&jobParams, 0, sizeof(jobParams));
-
-    jobParams.cParams = params.cParams;
-    jobParams.fParams = params.fParams;
-    jobParams.compressionLevel = params.compressionLevel;
-
+    ZSTD_CCtx_params jobParams = params;
+    /* Clear parameters related to multithreading */
+    jobParams.forceWindow = 0;
+    jobParams.nbWorkers = 0;
+    jobParams.jobSize = 0;
+    jobParams.overlapLog = 0;
+    jobParams.rsyncable = 0;
+    memset(&jobParams.ldmParams, 0, sizeof(ldmParams_t));
+    memset(&jobParams.customMem, 0, sizeof(ZSTD_customMem));
     return jobParams;
 }
 

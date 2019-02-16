@@ -296,6 +296,7 @@ struct FIO_prefs_s {
     int ldmMinMatch;
     int ldmBucketSizeLog;
     int ldmHashRateLog;
+    ZSTD_literalCompressionMode_e literalCompressionMode;
 
     /* IO preferences */
     U32 removeSrcFile;
@@ -339,6 +340,7 @@ FIO_prefs_t* FIO_createPreferences(void)
     ret->ldmMinMatch = 0;
     ret->ldmBucketSizeLog = FIO_LDM_PARAM_NOTSET;
     ret->ldmHashRateLog = FIO_LDM_PARAM_NOTSET;
+    ret->literalCompressionMode = ZSTD_lcm_auto;
     return ret;
 }
 
@@ -404,6 +406,12 @@ void FIO_setRsyncable(FIO_prefs_t* const prefs, int rsyncable) {
     if ((rsyncable>0) && (prefs->nbWorkers==0))
         EXM_THROW(1, "Rsyncable mode is not compatible with single thread mode \n");
     prefs->rsyncable = rsyncable;
+}
+
+void FIO_setLiteralCompressionMode(
+        FIO_prefs_t* const prefs,
+        ZSTD_literalCompressionMode_e mode) {
+    prefs->literalCompressionMode = mode;
 }
 
 void FIO_setAdaptMin(FIO_prefs_t* const prefs, int minCLevel)
@@ -674,6 +682,7 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_minMatch, (int)comprParams.minMatch) );
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_targetLength, (int)comprParams.targetLength) );
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_strategy, comprParams.strategy) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_literalCompressionMode, (int)prefs->literalCompressionMode) );
         /* multi-threading */
 #ifdef ZSTD_MULTITHREAD
         DISPLAYLEVEL(5,"set nb workers = %u \n", prefs->nbWorkers);

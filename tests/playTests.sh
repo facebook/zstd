@@ -200,6 +200,15 @@ $ZSTD tmp -fo tmp && die "zstd compression overwrote the input file"
 $ZSTD tmp.zst -dfo tmp.zst && die "zstd decompression overwrote the input file"
 $ECHO "test: detect that input file does not exist"
 $ZSTD nothere && die "zstd hasn't detected that input file does not exist"
+$ECHO "test: --[no-]compress-literals"
+$ZSTD tmp -c --no-compress-literals -1       | $ZSTD -t
+$ZSTD tmp -c --no-compress-literals --fast=1 | $ZSTD -t
+$ZSTD tmp -c --no-compress-literals -19      | $ZSTD -t
+$ZSTD tmp -c --compress-literals    -1       | $ZSTD -t
+$ZSTD tmp -c --compress-literals    --fast=1 | $ZSTD -t
+$ZSTD tmp -c --compress-literals    -19      | $ZSTD -t
+$ZSTD -b --fast=1 -i1e1 tmp --compress-literals
+$ZSTD -b --fast=1 -i1e1 tmp --no-compress-literals
 
 $ECHO "test : file removal"
 $ZSTD -f --rm tmp

@@ -124,12 +124,14 @@ static U32 FUZ_highbit32(U32 v32)
 #define CHECK(fn)  { CHECK_V(err, fn); }
 #define CHECKPLUS(var, fn, more)  { CHECK_V(var, fn); more; }
 
-#define CHECK_EQ(lhs, rhs) {                                      \
-    if ((lhs) != (rhs)) {                                         \
-        DISPLAY("Error L%u => %s != %s ", __LINE__, #lhs, #rhs);  \
+#define CHECK_OP(op, lhs, rhs) {                                  \
+    if (!((lhs) op (rhs))) {                                      \
+        DISPLAY("Error L%u => FAILED %s %s %s ", __LINE__, #lhs, #op, #rhs);  \
         goto _output_error;                                       \
     }                                                             \
 }
+#define CHECK_EQ(lhs, rhs) CHECK_OP(==, lhs, rhs)
+#define CHECK_LT(lhs, rhs) CHECK_OP(<, lhs, rhs)
 
 
 /*=============================================
@@ -828,6 +830,46 @@ static int basicUnitTests(U32 seed, double compressibility)
         ZSTDMT_freeCCtx(mtctx);
     }
 
+    DISPLAYLEVEL(3, "test%3i : compress -T2 with/without literals compression : ", testNb++)
+    {   ZSTD_CCtx* cctx = ZSTD_createCCtx();
+        size_t cSize1, cSize2;
+        CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, 1) );
+        CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 2) );
+        cSize1 = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize);
+        CHECK(cSize1);
+        CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_literalCompressionMode, ZSTD_lcm_uncompressed) );
+        cSize2 = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize);
+        CHECK(cSize2);
+        CHECK_LT(cSize1, cSize2);
+        ZSTD_freeCCtx(cctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : setting multithreaded parameters : ", testNb++)
+    {   ZSTD_CCtx_params* params = ZSTD_createCCtxParams();
+        int value;
+        /* Check that the overlap log and job size are unset. */
+        CHECK( ZSTD_CCtxParam_getParameter(params, ZSTD_c_overlapLog, &value) );
+        CHECK_EQ(value, 0);
+        CHECK( ZSTD_CCtxParam_getParameter(params, ZSTD_c_jobSize, &value) );
+        CHECK_EQ(value, 0);
+        /* Set and check the overlap log and job size. */
+        CHECK( ZSTD_CCtxParam_setParameter(params, ZSTD_c_overlapLog, 5) );
+        CHECK( ZSTD_CCtxParam_setParameter(params, ZSTD_c_jobSize, 2 MB) );
+        CHECK( ZSTD_CCtxParam_getParameter(params, ZSTD_c_overlapLog, &value) );
+        CHECK_EQ(value, 5);
+        CHECK( ZSTD_CCtxParam_getParameter(params, ZSTD_c_jobSize, &value) );
+        CHECK_EQ(value, 2 MB);
+        /* Set the number of worksers and check the overlap log and job size. */
+        CHECK( ZSTD_CCtxParam_setParameter(params, ZSTD_c_nbWorkers, 2) );
+        CHECK( ZSTD_CCtxParam_getParameter(params, ZSTD_c_overlapLog, &value) );
+        CHECK_EQ(value, 5);
+        CHECK( ZSTD_CCtxParam_getParameter(params, ZSTD_c_jobSize, &value) );
+        CHECK_EQ(value, 2 MB);
+        ZSTD_freeCCtxParams(params);
+
+    }
+    DISPLAYLEVEL(3, "OK \n");
 
     /* Simple API multiframe test */
     DISPLAYLEVEL(3, "test%3i : compress multiple frames : ", testNb++);

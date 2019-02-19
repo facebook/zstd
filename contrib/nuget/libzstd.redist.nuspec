@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>libzstd.redist</id>
+    <version>__VERSION__</version>
+    <title>libzstd - redistributable</title>
+    <authors>Facebook</authors>
+    <owners>Facebook</owners>
+    <licenseUrl>https://github.com/facebook/zstd/blob/dev/LICENSE</licenseUrl>
+    <projectUrl>https://zstd.net</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Zstandard compression library - redistributable</description>
+    <summary>Zstandard is a real-time compression algorithm, providing high compression ratios - redistributable</summary>
+    <copyright>Copyright 2016-2019</copyright>
+    <tags>zstd native C C++ nativepackage redist</tags>
+  </metadata>
+  <files>
+    <file src="**" />
+  </files>
+</package>

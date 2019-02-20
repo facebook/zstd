@@ -849,22 +849,22 @@ static int basicUnitTests(U32 seed, double compressibility)
     {   ZSTD_CCtx_params* params = ZSTD_createCCtxParams();
         int value;
         /* Check that the overlap log and job size are unset. */
-        CHECK( ZSTD_CCtxParam_getParameter(params, ZSTD_c_overlapLog, &value) );
+        CHECK( ZSTD_CCtxParams_getParameter(params, ZSTD_c_overlapLog, &value) );
         CHECK_EQ(value, 0);
-        CHECK( ZSTD_CCtxParam_getParameter(params, ZSTD_c_jobSize, &value) );
+        CHECK( ZSTD_CCtxParams_getParameter(params, ZSTD_c_jobSize, &value) );
         CHECK_EQ(value, 0);
         /* Set and check the overlap log and job size. */
-        CHECK( ZSTD_CCtxParam_setParameter(params, ZSTD_c_overlapLog, 5) );
-        CHECK( ZSTD_CCtxParam_setParameter(params, ZSTD_c_jobSize, 2 MB) );
-        CHECK( ZSTD_CCtxParam_getParameter(params, ZSTD_c_overlapLog, &value) );
+        CHECK( ZSTD_CCtxParams_setParameter(params, ZSTD_c_overlapLog, 5) );
+        CHECK( ZSTD_CCtxParams_setParameter(params, ZSTD_c_jobSize, 2 MB) );
+        CHECK( ZSTD_CCtxParams_getParameter(params, ZSTD_c_overlapLog, &value) );
         CHECK_EQ(value, 5);
-        CHECK( ZSTD_CCtxParam_getParameter(params, ZSTD_c_jobSize, &value) );
+        CHECK( ZSTD_CCtxParams_getParameter(params, ZSTD_c_jobSize, &value) );
         CHECK_EQ(value, 2 MB);
         /* Set the number of worksers and check the overlap log and job size. */
-        CHECK( ZSTD_CCtxParam_setParameter(params, ZSTD_c_nbWorkers, 2) );
-        CHECK( ZSTD_CCtxParam_getParameter(params, ZSTD_c_overlapLog, &value) );
+        CHECK( ZSTD_CCtxParams_setParameter(params, ZSTD_c_nbWorkers, 2) );
+        CHECK( ZSTD_CCtxParams_getParameter(params, ZSTD_c_overlapLog, &value) );
         CHECK_EQ(value, 5);
-        CHECK( ZSTD_CCtxParam_getParameter(params, ZSTD_c_jobSize, &value) );
+        CHECK( ZSTD_CCtxParams_getParameter(params, ZSTD_c_jobSize, &value) );
         CHECK_EQ(value, 2 MB);
         ZSTD_freeCCtxParams(params);
 

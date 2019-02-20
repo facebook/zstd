@@ -494,13 +494,13 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int value)
 
     default: RETURN_ERROR(parameter_unsupported);
     }
-    return ZSTD_CCtxParam_setParameter(&cctx->requestedParams, param, value);
+    return ZSTD_CCtxParams_setParameter(&cctx->requestedParams, param, value);
 }
 
-size_t ZSTD_CCtxParam_setParameter(ZSTD_CCtx_params* CCtxParams,
-                                   ZSTD_cParameter param, int value)
+size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
+                                    ZSTD_cParameter param, int value)
 {
-    DEBUGLOG(4, "ZSTD_CCtxParam_setParameter (%i, %i)", (int)param, value);
+    DEBUGLOG(4, "ZSTD_CCtxParams_setParameter (%i, %i)", (int)param, value);
     switch(param)
     {
     case ZSTD_c_format :
@@ -670,10 +670,10 @@ size_t ZSTD_CCtxParam_setParameter(ZSTD_CCtx_params* CCtxParams,
 
 size_t ZSTD_CCtx_getParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int* value)
 {
-    return ZSTD_CCtxParam_getParameter(&cctx->requestedParams, param, value);
+    return ZSTD_CCtxParams_getParameter(&cctx->requestedParams, param, value);
 }
 
-size_t ZSTD_CCtxParam_getParameter(
+size_t ZSTD_CCtxParams_getParameter(
         ZSTD_CCtx_params* CCtxParams, ZSTD_cParameter param, int* value)
 {
     switch(param)

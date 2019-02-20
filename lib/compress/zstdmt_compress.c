@@ -672,7 +672,7 @@ static void ZSTDMT_compressionJob(void* jobDescription)
         if (ZSTD_isError(initError)) JOB_ERROR(initError);
     } else {  /* srcStart points at reloaded section */
         U64 const pledgedSrcSize = job->firstJob ? job->fullFrameSize : job->src.size;
-        {   size_t const forceWindowError = ZSTD_CCtxParam_setParameter(&jobParams, ZSTD_c_forceMaxWindow, !job->firstJob);
+        {   size_t const forceWindowError = ZSTD_CCtxParams_setParameter(&jobParams, ZSTD_c_forceMaxWindow, !job->firstJob);
             if (ZSTD_isError(forceWindowError)) JOB_ERROR(forceWindowError);
         }
         {   size_t const initError = ZSTD_compressBegin_advanced_internal(cctx,
@@ -864,7 +864,7 @@ static size_t ZSTDMT_expandJobsTable (ZSTDMT_CCtx* mtctx, U32 nbWorkers) {
  * Internal use only */
 size_t ZSTDMT_CCtxParam_setNbWorkers(ZSTD_CCtx_params* params, unsigned nbWorkers)
 {
-    return ZSTD_CCtxParam_setParameter(params, ZSTD_c_nbWorkers, (int)nbWorkers);
+    return ZSTD_CCtxParams_setParameter(params, ZSTD_c_nbWorkers, (int)nbWorkers);
 }
 
 ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced(unsigned nbWorkers, ZSTD_customMem cMem)
@@ -982,13 +982,13 @@ ZSTDMT_CCtxParam_setMTCtxParameter(ZSTD_CCtx_params* params,
     {
     case ZSTDMT_p_jobSize :
         DEBUGLOG(4, "ZSTDMT_CCtxParam_setMTCtxParameter : set jobSize to %i", value);
-        return ZSTD_CCtxParam_setParameter(params, ZSTD_c_jobSize, value);
+        return ZSTD_CCtxParams_setParameter(params, ZSTD_c_jobSize, value);
     case ZSTDMT_p_overlapLog :
         DEBUGLOG(4, "ZSTDMT_p_overlapLog : %i", value);
-        return ZSTD_CCtxParam_setParameter(params, ZSTD_c_overlapLog, value);
+        return ZSTD_CCtxParams_setParameter(params, ZSTD_c_overlapLog, value);
     case ZSTDMT_p_rsyncable :
         DEBUGLOG(4, "ZSTD_p_rsyncable : %i", value);
-        return ZSTD_CCtxParam_setParameter(params, ZSTD_c_rsyncable, value);
+        return ZSTD_CCtxParams_setParameter(params, ZSTD_c_rsyncable, value);
     default :
         return ERROR(parameter_unsupported);
     }
@@ -1004,11 +1004,11 @@ size_t ZSTDMT_getMTCtxParameter(ZSTDMT_CCtx* mtctx, ZSTDMT_parameter parameter, 
 {
     switch (parameter) {
     case ZSTDMT_p_jobSize:
-        return ZSTD_CCtxParam_getParameter(&mtctx->params, ZSTD_c_jobSize, value);
+        return ZSTD_CCtxParams_getParameter(&mtctx->params, ZSTD_c_jobSize, value);
     case ZSTDMT_p_overlapLog:
-        return ZSTD_CCtxParam_getParameter(&mtctx->params, ZSTD_c_overlapLog, value);
+        return ZSTD_CCtxParams_getParameter(&mtctx->params, ZSTD_c_overlapLog, value);
     case ZSTDMT_p_rsyncable:
-        return ZSTD_CCtxParam_getParameter(&mtctx->params, ZSTD_c_rsyncable, value);
+        return ZSTD_CCtxParams_getParameter(&mtctx->params, ZSTD_c_rsyncable, value);
     default:
         return ERROR(parameter_unsupported);
     }

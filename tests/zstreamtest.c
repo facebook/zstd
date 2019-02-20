@@ -1703,7 +1703,7 @@ static size_t setCCtxParameter(ZSTD_CCtx* zc, ZSTD_CCtx_params* cctxParams,
                                int useOpaqueAPI)
 {
     if (useOpaqueAPI) {
-        return ZSTD_CCtxParam_setParameter(cctxParams, param, value);
+        return ZSTD_CCtxParams_setParameter(cctxParams, param, value);
     } else {
         return ZSTD_CCtx_setParameter(zc, param, value);
     }

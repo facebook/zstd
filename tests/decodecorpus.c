@@ -938,7 +938,7 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
         FSE_CState_t  stateOffsetBits;
         FSE_CState_t  stateLitLength;
 
-        RETURN_ERROR_IF(
+        RETURN_ERROR_IF_MSG(
             ERR_isError(BIT_initCStream(&blockStream, op, oend-op)),
             dstSize_tooSmall, "not enough space remaining");
 

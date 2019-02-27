@@ -91,7 +91,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
             /* fall-through */
 
         case set_compressed:
-            RETURN_ERROR_IF(srcSize < 5, corruption_detected, "srcSize >= MIN_CBLOCK_SIZE == 3; here we need up to 5 for case 3");
+            RETURN_ERROR_IF_MSG(srcSize < 5, corruption_detected, "srcSize >= MIN_CBLOCK_SIZE == 3; here we need up to 5 for case 3");
             {   size_t lhSize, litSize, litCSize;
                 U32 singleStream=0;
                 U32 const lhlCode = (istart[0] >> 2) & 3;
@@ -217,7 +217,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 case 3:
                     lhSize = 3;
                     litSize = MEM_readLE24(istart) >> 4;
-                    RETURN_ERROR_IF(srcSize<4, corruption_detected, "srcSize >= MIN_CBLOCK_SIZE == 3; here we need lhSize+1 = 4");
+                    RETURN_ERROR_IF_MSG(srcSize<4, corruption_detected, "srcSize >= MIN_CBLOCK_SIZE == 3; here we need lhSize+1 = 4");
                     break;
                 }
                 RETURN_ERROR_IF(litSize > ZSTD_BLOCKSIZE_MAX, corruption_detected);
@@ -227,7 +227,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 return lhSize+1;
             }
         default:
-            RETURN_ERROR(corruption_detected, "impossible");
+            RETURN_ERROR_MSG(corruption_detected, "impossible");
         }
     }
 }
@@ -470,7 +470,7 @@ static size_t ZSTD_buildSeqTable(ZSTD_seqSymbol* DTableSpace, const ZSTD_seqSymb
         }
     default :
         assert(0);
-        RETURN_ERROR(GENERIC, "impossible");
+        RETURN_ERROR_MSG(GENERIC, "impossible");
     }
 }
 
@@ -591,8 +591,8 @@ size_t ZSTD_execSequenceLast7(BYTE* op,
     const BYTE* match = oLitEnd - sequence.offset;
 
     /* check */
-    RETURN_ERROR_IF(oMatchEnd>oend, dstSize_tooSmall, "last match must fit within dstBuffer");
-    RETURN_ERROR_IF(iLitEnd > litLimit, corruption_detected, "try to read beyond literal buffer");
+    RETURN_ERROR_IF_MSG(oMatchEnd>oend, dstSize_tooSmall, "last match must fit within dstBuffer");
+    RETURN_ERROR_IF_MSG(iLitEnd > litLimit, corruption_detected, "try to read beyond literal buffer");
 
     /* copy literals */
     while (op < oLitEnd) *op++ = *(*litPtr)++;
@@ -632,8 +632,8 @@ size_t ZSTD_execSequence(BYTE* op,
     const BYTE* match = oLitEnd - sequence.offset;
 
     /* check */
-    RETURN_ERROR_IF(oMatchEnd>oend, dstSize_tooSmall, "last match must start at a minimum distance of WILDCOPY_OVERLENGTH from oend");
-    RETURN_ERROR_IF(iLitEnd > litLimit, corruption_detected, "over-read beyond lit buffer");
+    RETURN_ERROR_IF_MSG(oMatchEnd>oend, dstSize_tooSmall, "last match must start at a minimum distance of WILDCOPY_OVERLENGTH from oend");
+    RETURN_ERROR_IF_MSG(iLitEnd > litLimit, corruption_detected, "over-read beyond lit buffer");
     if (oLitEnd>oend_w) return ZSTD_execSequenceLast7(op, oend, sequence, litPtr, litLimit, prefixStart, virtualStart, dictEnd);
 
     /* copy Literals */
@@ -712,8 +712,8 @@ size_t ZSTD_execSequenceLong(BYTE* op,
     const BYTE* match = sequence.match;
 
     /* check */
-    RETURN_ERROR_IF(oMatchEnd > oend, dstSize_tooSmall, "last match must start at a minimum distance of WILDCOPY_OVERLENGTH from oend");
-    RETURN_ERROR_IF(iLitEnd > litLimit, corruption_detected, "over-read beyond lit buffer");
+    RETURN_ERROR_IF_MSG(oMatchEnd > oend, dstSize_tooSmall, "last match must start at a minimum distance of WILDCOPY_OVERLENGTH from oend");
+    RETURN_ERROR_IF_MSG(iLitEnd > litLimit, corruption_detected, "over-read beyond lit buffer");
     if (oLitEnd > oend_w) return ZSTD_execSequenceLast7(op, oend, sequence, litPtr, litLimit, prefixStart, dictStart, dictEnd);
 
     /* copy Literals */

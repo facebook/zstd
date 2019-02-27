@@ -61,33 +61,37 @@ extern "C" {
  * (particularly, printing the conditional that failed), this can't just wrap
  * RETURN_ERROR().
  */
-#define RETURN_ERROR_IF(cond, err, ...) \
-  if (cond) { \
-    RAWLOG(3, "%s:%d: ERROR!: check %s failed, returning %s", __FILE__, __LINE__, ZSTD_QUOTE(cond), ZSTD_QUOTE(ERROR(err))); \
-    RAWLOG(3, ": " __VA_ARGS__); \
-    RAWLOG(3, "\n"); \
-    return ERROR(err); \
-  }
+#define RETURN_ERROR_IF_MSG(cond, err, ...) \
+  do { \
+    if (cond) { \
+      RAWLOG(3, "%s:%d: ERROR!: check %s failed, returning %s", __FILE__, __LINE__, ZSTD_QUOTE(cond), ZSTD_QUOTE(ERROR(err))); \
+      RAWLOG(3, ": " __VA_ARGS__); \
+      RAWLOG(3, "\n"); \
+      return ERROR(err); \
+    } \
+  } while (0)
+#define RETURN_ERROR_IF(cond, err) RETURN_ERROR_IF_MSG(cond, err, "")
 
 /**
  * Unconditionally return the specified error.
  *
  * In debug modes, prints additional information.
  */
-#define RETURN_ERROR(err, ...) \
+#define RETURN_ERROR_MSG(err, ...) \
   do { \
     RAWLOG(3, "%s:%d: ERROR!: unconditional check failed, returning %s", __FILE__, __LINE__, ZSTD_QUOTE(ERROR(err))); \
     RAWLOG(3, ": " __VA_ARGS__); \
     RAWLOG(3, "\n"); \
     return ERROR(err); \
-  } while(0);
+  } while(0)
+#define RETURN_ERROR(err) RETURN_ERROR_MSG(err, "")
 
 /**
  * If the provided expression evaluates to an error code, returns that error code.
  *
  * In debug modes, prints additional information.
  */
-#define FORWARD_IF_ERROR(err, ...) \
+#define FORWARD_IF_ERROR_MSG(err, ...) \
   do { \
     size_t const err_code = (err); \
     if (ERR_isError(err_code)) { \
@@ -96,7 +100,9 @@ extern "C" {
       RAWLOG(3, "\n"); \
       return err_code; \
     } \
-  } while(0);
+  } while(0)
+
+#define FORWARD_IF_ERROR(err) FORWARD_IF_ERROR_MSG(err, "")
 
 
 /*-*************************************

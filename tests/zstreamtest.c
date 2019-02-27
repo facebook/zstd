@@ -130,7 +130,7 @@ static U32 FUZ_rand(U32* seedPtr)
  *======================================================*/
 
 typedef struct {
-    void* start;
+    char* start;
     size_t size;
     size_t filled;
 } buffer_t;
@@ -148,7 +148,7 @@ static buffer_t FUZ_createDictionary(const void* src, size_t srcSize, size_t blo
     size_t const nbBlocks = (srcSize + (blockSize-1)) / blockSize;
     size_t* const blockSizes = (size_t*)malloc(nbBlocks * sizeof(size_t));
     if (!blockSizes) return kBuffNull;
-    dict.start = malloc(requestedDictSize);
+    dict.start = (char*)malloc(requestedDictSize);
     if (!dict.start) { free(blockSizes); return kBuffNull; }
     {   size_t nb;
         for (nb=0; nb<nbBlocks-1; nb++) blockSizes[nb] = blockSize;
@@ -1993,7 +1993,7 @@ static int fuzzerTests_newAPI(U32 seed, int nbTests, int startTest,
 
         /* multi - fragments decompression test */
         if (!dictSize /* don't reset if dictionary : could be different */ && (FUZ_rand(&lseed) & 1)) {
-            DISPLAYLEVEL(5, "resetting DCtx (dict:%p) \n", dict);
+            DISPLAYLEVEL(5, "resetting DCtx (dict:%p) \n", (void const*)dict);
             CHECK_Z( ZSTD_resetDStream(zd) );
         } else {
             if (dictSize)

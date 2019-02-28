@@ -376,6 +376,20 @@ static int basicUnitTests(U32 seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : tight ZSTD_decompressBound test : ", testNb++);
+    {
+        size_t bound = ZSTD_decompressBound(compressedBuffer, cSize);
+        if (bound != CNBuffSize) goto _output_error;
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : ZSTD_decompressBound test missing Frame_Content_Size : ", testNb++);
+    {
+        size_t bound = ZSTD_decompressBound(compressedBuffer, cSize);
+        if (bound != CNBuffSize) goto _output_error;
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     DISPLAYLEVEL(3, "test%3i : decompress %u bytes : ", testNb++, (unsigned)CNBuffSize);
     { size_t const r = ZSTD_decompress(decodedBuffer, CNBuffSize, compressedBuffer, cSize);
       if (r != CNBuffSize) goto _output_error; }
@@ -898,6 +912,11 @@ static int basicUnitTests(U32 seed, double compressibility)
 
     DISPLAYLEVEL(3, "test%3i : get decompressed size of multiple frames : ", testNb++);
     {   unsigned long long const r = ZSTD_findDecompressedSize(compressedBuffer, cSize);
+        if (r != CNBuffSize / 2) goto _output_error; }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : get tight decompressed bound of multiple frames : ", testNb++);
+    {   unsigned long long const r = ZSTD_decompressBound(compressedBuffer, cSize);
         if (r != CNBuffSize / 2) goto _output_error; }
     DISPLAYLEVEL(3, "OK \n");
 

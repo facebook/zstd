@@ -148,11 +148,11 @@ ZSTDLIB_API unsigned long long ZSTD_getDecompressedSize(const void* src, size_t 
 
 /*======  Helper functions  ======*/
 #define ZSTD_COMPRESSBOUND(srcSize)   ((srcSize) + ((srcSize)>>8) + (((srcSize) < (128<<10)) ? (((128<<10) - (srcSize)) >> 11) /* margin, from 64 to 0 */ : 0))  /* this formula ensures that bound(A) + bound(B) <= bound(A+B) as long as A and B >= 128 KB */
-ZSTDLIB_API size_t      ZSTD_compressBound(size_t srcSize);                    /*!< maximum compressed size in worst case single-pass scenario */
-ZSTDLIB_API size_t      ZSTD_decompressBound(const void* src, size_t srcSice); /*!< maximum decompressed size of the compressed source */
-ZSTDLIB_API unsigned    ZSTD_isError(size_t code);                             /*!< tells if a `size_t` function result is an error code */
-ZSTDLIB_API const char* ZSTD_getErrorName(size_t code);                        /*!< provides readable string from an error code */
-ZSTDLIB_API int         ZSTD_maxCLevel(void);                                  /*!< maximum compression level available */
+ZSTDLIB_API size_t             ZSTD_compressBound(size_t srcSize);                    /*!< maximum compressed size in worst case single-pass scenario */
+ZSTDLIB_API unsigned long long ZSTD_decompressBound(const void* src, size_t srcSice); /*!< maximum decompressed size of the compressed source */
+ZSTDLIB_API unsigned           ZSTD_isError(size_t code);                             /*!< tells if a `size_t` function result is an error code */
+ZSTDLIB_API const char*        ZSTD_getErrorName(size_t code);                        /*!< provides readable string from an error code */
+ZSTDLIB_API int                ZSTD_maxCLevel(void);                                  /*!< maximum compression level available */
 
 
 /***************************************

@@ -503,9 +503,9 @@ size_t ZSTD_findFrameCompressedSize(const void *src, size_t srcSize)
  *  `srcSize` must be at least as large as the frame contained
  *  @return : maximum decompressed size of the compressed source
  */
-size_t ZSTD_decompressBound(const void* src, size_t srcSize)
+unsigned long long ZSTD_decompressBound(const void* src, size_t srcSize)
 {
-    size_t totalDstSize = 0;
+    unsigned long long totalDstSize = 0;
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
     if (ZSTD_isLegacy(src, srcSize))
         return ERROR(version_unsupported);

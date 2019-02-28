@@ -378,14 +378,7 @@ static int basicUnitTests(U32 seed, double compressibility)
 
     DISPLAYLEVEL(3, "test%3i : tight ZSTD_decompressBound test : ", testNb++);
     {
-        size_t bound = ZSTD_decompressBound(compressedBuffer, cSize);
-        if (bound != CNBuffSize) goto _output_error;
-    }
-    DISPLAYLEVEL(3, "OK \n");
-
-    DISPLAYLEVEL(3, "test%3i : ZSTD_decompressBound test missing Frame_Content_Size : ", testNb++);
-    {
-        size_t bound = ZSTD_decompressBound(compressedBuffer, cSize);
+        unsigned long long bound = ZSTD_decompressBound(compressedBuffer, cSize);
         if (bound != CNBuffSize) goto _output_error;
     }
     DISPLAYLEVEL(3, "OK \n");

@@ -530,10 +530,11 @@ size_t ZSTD_decompressBound(const void* src, size_t srcSize)
 
         {   size_t bound;
             size_t frameBound;
+            size_t frameSrcSize;
             unsigned long long const ret = ZSTD_getFrameContentSize(src, srcSize);
             if (ret == ZSTD_CONTENTSIZE_ERROR) return ret;
 
-            size_t const frameSrcSize = ZSTD_findFrameCompressedSize_internal(src, srcSize, &bound);
+            frameSrcSize = ZSTD_findFrameCompressedSize_internal(src, srcSize, &bound);
             if (ZSTD_isError(frameSrcSize)) {
                 return ZSTD_CONTENTSIZE_ERROR;
             }

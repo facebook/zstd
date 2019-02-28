@@ -529,7 +529,7 @@ unsigned long long ZSTD_decompressBound(const void* src, size_t srcSize)
         }
 
         {   size_t bound;
-            size_t frameBound;
+            unsigned long long frameBound;
             size_t frameSrcSize;
             unsigned long long const ret = ZSTD_getFrameContentSize(src, srcSize);
             if (ret == ZSTD_CONTENTSIZE_ERROR) return ret;

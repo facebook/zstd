@@ -192,11 +192,21 @@ def build_parser(args):
         default=LIB_FUZZING_ENGINE,
         help=('The fuzzing engine to use e.g. /path/to/libFuzzer.a '
               "(default: $LIB_FUZZING_ENGINE='{})".format(LIB_FUZZING_ENGINE)))
-    parser.add_argument(
+
+    fuzz_group = parser.add_mutually_exclusive_group()
+    fuzz_group.add_argument(
         '--enable-coverage',
         dest='coverage',
         action='store_true',
         help='Enable coverage instrumentation (-fsanitize-coverage)')
+    fuzz_group.add_argument(
+        '--enable-fuzzer',
+        dest='fuzzer',
+        action='store_true',
+        help=('Enable clang fuzzer (-fsanitize=fuzzer). When enabled '
+              'LIB_FUZZING_ENGINE is ignored')
+    )
+
     parser.add_argument(
         '--enable-asan', dest='asan', action='store_true', help='Enable UBSAN')
     parser.add_argument(
@@ -364,13 +374,17 @@ def build(args):
         '-DFUZZ_RNG_SEED_SIZE={}'.format(args.fuzz_rng_seed_size),
     ]
 
-    mflags += ['LIB_FUZZING_ENGINE={}'.format(args.lib_fuzzing_engine)]
-
     # Set flags for options
+    assert not (args.fuzzer and args.coverage)
     if args.coverage:
         common_flags += [
             '-fsanitize-coverage=trace-pc-guard,indirect-calls,trace-cmp'
         ]
+    if args.fuzzer:
+        common_flags += ['-fsanitize=fuzzer']
+        args.lib_fuzzing_engine = ''
+
+    mflags += ['LIB_FUZZING_ENGINE={}'.format(args.lib_fuzzing_engine)]
 
     if args.sanitize_recover:
         recover_flags = ['-fsanitize-recover=all']

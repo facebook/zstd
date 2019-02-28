@@ -528,9 +528,9 @@ unsigned long long ZSTD_decompressBound(const void* src, size_t srcSize)
             continue;
         }
 
-        {   size_t bound;
-            unsigned long long frameBound;
-            size_t frameSrcSize;
+        {   size_t bound = 0;
+            unsigned long long frameBound = 0;
+            size_t frameSrcSize = 0;
             unsigned long long const ret = ZSTD_getFrameContentSize(src, srcSize);
             if (ret == ZSTD_CONTENTSIZE_ERROR) return ret;
 

@@ -448,6 +448,7 @@ static size_t ZSTD_findFrameCompressedSize_internal(const void *src, size_t srcS
         const BYTE* const ipstart = ip;
         size_t remainingSize = srcSize;
         ZSTD_frameHeader zfh;
+        unsigned nbBlocks = 0;
 
         /* Extract Frame Header */
         {   size_t const ret = ZSTD_getFrameHeader(&zfh, src, srcSize);
@@ -459,7 +460,6 @@ static size_t ZSTD_findFrameCompressedSize_internal(const void *src, size_t srcS
         remainingSize -= zfh.headerSize;
 
         /* Loop on each block */
-        unsigned nbBlocks = 0;
         while (1) {
             blockProperties_t blockProperties;
             size_t const cBlockSize = ZSTD_getcBlockSize(ip, remainingSize, &blockProperties);
@@ -505,12 +505,11 @@ size_t ZSTD_findFrameCompressedSize(const void *src, size_t srcSize)
  */
 size_t ZSTD_decompressBound(const void* src, size_t srcSize)
 {
+    size_t totalDstSize = 0;
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
     if (ZSTD_isLegacy(src, srcSize))
         return ERROR(version_unsupported);
 #endif
-
-    size_t totalDstSize = 0;
 
     /* Loop over each frame */
     while (srcSize >= ZSTD_FRAMEHEADERSIZE_PREFIX) {
@@ -529,16 +528,17 @@ size_t ZSTD_decompressBound(const void* src, size_t srcSize)
             continue;
         }
 
-        {   unsigned long long const ret = ZSTD_getFrameContentSize(src, srcSize);
+        {   size_t bound;
+            size_t frameBound;
+            unsigned long long const ret = ZSTD_getFrameContentSize(src, srcSize);
             if (ret == ZSTD_CONTENTSIZE_ERROR) return ret;
 
-            size_t bound;
             size_t const frameSrcSize = ZSTD_findFrameCompressedSize_internal(src, srcSize, &bound);
             if (ZSTD_isError(frameSrcSize)) {
                 return ZSTD_CONTENTSIZE_ERROR;
             }
 
-            size_t frameBound = (ret == ZSTD_CONTENTSIZE_UNKNOWN) ? bound : ret;
+            frameBound = (ret == ZSTD_CONTENTSIZE_UNKNOWN) ? bound : ret;
             /* check for overflow */
             if (totalDstSize + frameBound < totalDstSize) return ZSTD_CONTENTSIZE_ERROR;
             totalDstSize += frameBound;

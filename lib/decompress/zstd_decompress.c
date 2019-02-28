@@ -434,12 +434,7 @@ static size_t ZSTD_decodeFrameHeader(ZSTD_DCtx* dctx, const void* src, size_t he
 }
 
 
-/** ZSTD_findFrameCompressedSize() :
- *  compatible with legacy mode
- *  `src` must point to the start of a ZSTD frame, ZSTD legacy frame, or skippable frame
- *  `srcSize` must be at least as large as the frame contained
- *  @return : the compressed size of the frame starting at `src` */
-size_t ZSTD_findFrameCompressedSize(const void *src, size_t srcSize)
+static size_t ZSTD_findFrameCompressedSize_internal(const void *src, size_t srcSize, size_t* bound)
 {
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
     if (ZSTD_isLegacy(src, srcSize))
@@ -464,6 +459,7 @@ size_t ZSTD_findFrameCompressedSize(const void *src, size_t srcSize)
         remainingSize -= zfh.headerSize;
 
         /* Loop on each block */
+        unsigned nbBlocks = 0;
         while (1) {
             blockProperties_t blockProperties;
             size_t const cBlockSize = ZSTD_getcBlockSize(ip, remainingSize, &blockProperties);
@@ -474,6 +470,7 @@ size_t ZSTD_findFrameCompressedSize(const void *src, size_t srcSize)
 
             ip += ZSTD_blockHeaderSize + cBlockSize;
             remainingSize -= ZSTD_blockHeaderSize + cBlockSize;
+            nbBlocks++;
 
             if (blockProperties.lastBlock) break;
         }
@@ -483,10 +480,78 @@ size_t ZSTD_findFrameCompressedSize(const void *src, size_t srcSize)
             ip += 4;
         }
 
+        if (bound != NULL) *bound = (nbBlocks * zfh.blockSizeMax); /* set to block-based bound */
+
         return ip - ipstart;
     }
 }
 
+/** ZSTD_findFrameCompressedSize() :
+ *  compatible with legacy mode
+ *  `src` must point to the start of a ZSTD frame, ZSTD legacy frame, or skippable frame
+ *  `srcSize` must be at least as large as the frame contained
+ *  @return : the compressed size of the frame starting at `src` */
+size_t ZSTD_findFrameCompressedSize(const void *src, size_t srcSize)
+{
+    return ZSTD_findFrameCompressedSize_internal(src, srcSize, NULL);
+}
+
+
+/** ZSTD_decompressBound() :
+ *  currently incompatible with legacy mode
+ *  `src` must point to the start of a ZSTD frame or a skippeable frame
+ *  `srcSize` must be at least as large as the frame contained
+ *  @return : maximum decompressed size of the compressed source
+ */
+size_t ZSTD_decompressBound(const void* src, size_t srcSize)
+{
+#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
+    if (ZSTD_isLegacy(src, srcSize))
+        return ERROR(version_unsupported);
+#endif
+
+    size_t totalDstSize = 0;
+
+    /* Loop over each frame */
+    while (srcSize >= ZSTD_FRAMEHEADERSIZE_PREFIX) {
+        U32 const magicNumber = MEM_readLE32(src);
+
+        if ((magicNumber & ZSTD_MAGIC_SKIPPABLE_MASK) == ZSTD_MAGIC_SKIPPABLE_START) {
+            size_t const skippableSize = readSkippableFrameSize(src, srcSize);
+            if (ZSTD_isError(skippableSize))
+                return skippableSize;
+            if (srcSize < skippableSize) {
+                return ZSTD_CONTENTSIZE_ERROR;
+            }
+
+            src = (const BYTE *)src + skippableSize;
+            srcSize -= skippableSize;
+            continue;
+        }
+
+        {   unsigned long long const ret = ZSTD_getFrameContentSize(src, srcSize);
+            if (ret == ZSTD_CONTENTSIZE_ERROR) return ret;
+
+            size_t bound;
+            size_t const frameSrcSize = ZSTD_findFrameCompressedSize_internal(src, srcSize, &bound);
+            if (ZSTD_isError(frameSrcSize)) {
+                return ZSTD_CONTENTSIZE_ERROR;
+            }
+
+            size_t frameBound = (ret == ZSTD_CONTENTSIZE_UNKNOWN) ? bound : ret;
+            /* check for overflow */
+            if (totalDstSize + frameBound < totalDstSize) return ZSTD_CONTENTSIZE_ERROR;
+            totalDstSize += frameBound;
+
+            src = (const BYTE *)src + frameSrcSize;
+            srcSize -= frameSrcSize;
+        }
+    }  /* while (srcSize >= ZSTD_frameHeaderSize_prefix) */
+
+    if (srcSize) return ZSTD_CONTENTSIZE_ERROR;
+
+    return totalDstSize;
+}
 
 
 /*-*************************************************************

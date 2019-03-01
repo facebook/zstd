@@ -435,12 +435,13 @@ static size_t ZSTD_decodeFrameHeader(ZSTD_DCtx* dctx, const void* src, size_t he
 
 /**
  * Contains the compressed frame size and an upper-bound for the decompressed frame size.
- * Note: before using `compressedSize` or `decompressedBound`,
- *       you must check the field for errors using ZSTD_isError().
+ * Note: before using `compressedSize` you must check for errors using ZSTD_isError().
+ *       similarly, before using `decompressedBound`, you must check for errors using:
+ *          `decompressedBound` != ZSTD_CONTENTSIZE_UNKNOWN
  */
 typedef struct {
     size_t compressedSize;
-    size_t decompressedBound;
+    unsigned long long decompressedBound;
 } ZSTD_frameSizeInfo;
 
 static ZSTD_frameSizeInfo ZSTD_findFrameSizeInfo(const void* src, size_t srcSize)
@@ -451,7 +452,7 @@ static ZSTD_frameSizeInfo ZSTD_findFrameSizeInfo(const void* src, size_t srcSize
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
     if (ZSTD_isLegacy(src, srcSize)) {
         frameSizeInfo.compressedSize = ZSTD_findFrameCompressedSizeLegacy(src, srcSize);
-        frameSizeInfo.decompressedBound = ERROR(version_unsupported);
+        frameSizeInfo.decompressedBound = ZSTD_CONTENTSIZE_ERROR;
         return frameSizeInfo;
     }
 #endif
@@ -477,7 +478,7 @@ static ZSTD_frameSizeInfo ZSTD_findFrameSizeInfo(const void* src, size_t srcSize
             }
             if (ret > 0) {
                 frameSizeInfo.compressedSize = ERROR(srcSize_wrong);
-                frameSizeInfo.decompressedBound = ERROR(srcSize_wrong);
+                frameSizeInfo.decompressedBound = ZSTD_CONTENTSIZE_ERROR;
                 return frameSizeInfo;
             }
         }
@@ -491,13 +492,13 @@ static ZSTD_frameSizeInfo ZSTD_findFrameSizeInfo(const void* src, size_t srcSize
             size_t const cBlockSize = ZSTD_getcBlockSize(ip, remainingSize, &blockProperties);
             if (ZSTD_isError(cBlockSize)) {
                 frameSizeInfo.compressedSize = cBlockSize;
-                frameSizeInfo.decompressedBound = cBlockSize;
+                frameSizeInfo.decompressedBound = ZSTD_CONTENTSIZE_ERROR;
                 return frameSizeInfo;
             }
 
             if (ZSTD_blockHeaderSize + cBlockSize > remainingSize) {
                 frameSizeInfo.compressedSize = ERROR(srcSize_wrong);
-                frameSizeInfo.decompressedBound = ERROR(srcSize_wrong);
+                frameSizeInfo.decompressedBound = ZSTD_CONTENTSIZE_ERROR;
                 return frameSizeInfo;
             }
 
@@ -512,7 +513,7 @@ static ZSTD_frameSizeInfo ZSTD_findFrameSizeInfo(const void* src, size_t srcSize
         if (zfh.checksumFlag) {
             if (remainingSize < 4) {
                 frameSizeInfo.compressedSize = ERROR(srcSize_wrong);
-                frameSizeInfo.decompressedBound = ERROR(srcSize_wrong);
+                frameSizeInfo.decompressedBound = ZSTD_CONTENTSIZE_ERROR;
                 return frameSizeInfo;
             }
             ip += 4;
@@ -542,19 +543,19 @@ size_t ZSTD_findFrameCompressedSize(const void *src, size_t srcSize)
  *  currently incompatible with legacy mode
  *  `src` must point to the start of a ZSTD frame or a skippeable frame
  *  `srcSize` must be at least as large as the frame contained
- *  @return : maximum decompressed size of the compressed source
- *            or an error code which can be tested with ZSTD_isError()
+ *  @return : the maximum decompressed size of the compressed source
  */
-size_t ZSTD_decompressBound(const void* src, size_t srcSize)
+unsigned long long ZSTD_decompressBound(const void* src, size_t srcSize)
 {
-    size_t bound = 0;
+    unsigned long long bound = 0;
     /* Iterate over each frame */
     while (srcSize > 0) {
         ZSTD_frameSizeInfo frameSizeInfo = ZSTD_findFrameSizeInfo(src, srcSize);
         size_t compressedSize = frameSizeInfo.compressedSize;
-        size_t decompressedBound = frameSizeInfo.decompressedBound;
-        FORWARD_IF_ERROR(compressedSize);
-        FORWARD_IF_ERROR(decompressedBound);
+        unsigned long long decompressedBound = frameSizeInfo.decompressedBound;
+        if (ZSTD_isError(compressedSize) || decompressedBound == ZSTD_CONTENTSIZE_ERROR) {
+            return ZSTD_CONTENTSIZE_ERROR;
+        }
         src = (const BYTE*)src + compressedSize;
         srcSize -= compressedSize;
         bound += decompressedBound;

@@ -127,11 +127,10 @@ unsigned long long ZSTD_getFrameContentSize(const void *src, size_t srcSize);
 </p></pre><BR>
 
 <h3>Helper functions</h3><pre></pre><b><pre>#define ZSTD_COMPRESSBOUND(srcSize)   ((srcSize) + ((srcSize)>>8) + (((srcSize) < (128<<10)) ? (((128<<10) - (srcSize)) >> 11) </b>/* margin, from 64 to 0 */ : 0))  /* this formula ensures that bound(A) + bound(B) <= bound(A+B) as long as A and B >= 128 KB */<b>
-size_t             ZSTD_compressBound(size_t srcSize);                    </b>/*!< maximum compressed size in worst case single-pass scenario */<b>
-unsigned long long ZSTD_decompressBound(const void* src, size_t srcSice); </b>/*!< maximum decompressed size of the compressed source */<b>
-unsigned           ZSTD_isError(size_t code);                             </b>/*!< tells if a `size_t` function result is an error code */<b>
-const char*        ZSTD_getErrorName(size_t code);                        </b>/*!< provides readable string from an error code */<b>
-int                ZSTD_maxCLevel(void);                                  </b>/*!< maximum compression level available */<b>
+size_t      ZSTD_compressBound(size_t srcSize); </b>/*!< maximum compressed size in worst case single-pass scenario */<b>
+unsigned    ZSTD_isError(size_t code);          </b>/*!< tells if a `size_t` function result is an error code */<b>
+const char* ZSTD_getErrorName(size_t code);     </b>/*!< provides readable string from an error code */<b>
+int         ZSTD_maxCLevel(void);               </b>/*!< maximum compression level available */<b>
 </pre></b><BR>
 <a name="Chapter5"></a><h2>Explicit context</h2><pre></pre>
 

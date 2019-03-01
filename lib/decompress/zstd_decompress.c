@@ -433,40 +433,73 @@ static size_t ZSTD_decodeFrameHeader(ZSTD_DCtx* dctx, const void* src, size_t he
     return 0;
 }
 
+/**
+ * Contains the compressed frame size and an upper-bound for the decompressed frame size.
+ * Note: before using `compressedSize` or `decompressedBound`,
+ *       you must check the field for errors using ZSTD_isError().
+ */
+typedef struct {
+    size_t compressedSize;
+    size_t decompressedBound;
+} ZSTD_frameSizeInfo;
 
-static size_t ZSTD_findFrameCompressedSize_internal(const void *src, size_t srcSize, size_t* bound)
+static ZSTD_frameSizeInfo ZSTD_findFrameSizeInfo(const void* src, size_t srcSize)
 {
+    ZSTD_frameSizeInfo frameSizeInfo;
+    memset(&frameSizeInfo, 0, sizeof(ZSTD_frameSizeInfo));
+
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
-    if (ZSTD_isLegacy(src, srcSize))
-        return ZSTD_findFrameCompressedSizeLegacy(src, srcSize);
+    if (ZSTD_isLegacy(src, srcSize)) {
+        frameSizeInfo.compressedSize = ZSTD_findFrameCompressedSizeLegacy(src, srcSize);
+        frameSizeInfo.decompressedBound = ERROR(version_unsupported);
+        return frameSizeInfo;
+    }
 #endif
-    if ( (srcSize >= ZSTD_SKIPPABLEHEADERSIZE)
-      && (MEM_readLE32(src) & ZSTD_MAGIC_SKIPPABLE_MASK) == ZSTD_MAGIC_SKIPPABLE_START ) {
-        return readSkippableFrameSize(src, srcSize);
+
+    if ((srcSize >= ZSTD_SKIPPABLEHEADERSIZE)
+        && (MEM_readLE32(src) & ZSTD_MAGIC_SKIPPABLE_MASK) == ZSTD_MAGIC_SKIPPABLE_START) {
+        frameSizeInfo.compressedSize = readSkippableFrameSize(src, srcSize);
+        return frameSizeInfo;
     } else {
         const BYTE* ip = (const BYTE*)src;
         const BYTE* const ipstart = ip;
         size_t remainingSize = srcSize;
-        ZSTD_frameHeader zfh;
         unsigned nbBlocks = 0;
+        ZSTD_frameHeader zfh;
 
         /* Extract Frame Header */
-        {   size_t const ret = ZSTD_getFrameHeader(&zfh, src, srcSize);
-            if (ZSTD_isError(ret)) return ret;
-            RETURN_ERROR_IF(ret > 0, srcSize_wrong);
+        {
+            size_t const ret = ZSTD_getFrameHeader(&zfh, src, srcSize);
+            if (ZSTD_isError(ret)) {
+                frameSizeInfo.compressedSize = ret;
+                frameSizeInfo.decompressedBound = ret;
+                return frameSizeInfo;
+            }
+            if (ret > 0) {
+                frameSizeInfo.compressedSize = ERROR(srcSize_wrong);
+                frameSizeInfo.decompressedBound = ERROR(srcSize_wrong);
+                return frameSizeInfo;
+            }
         }
 
         ip += zfh.headerSize;
         remainingSize -= zfh.headerSize;
 
-        /* Loop on each block */
+        /* Iterate over each block */
         while (1) {
             blockProperties_t blockProperties;
             size_t const cBlockSize = ZSTD_getcBlockSize(ip, remainingSize, &blockProperties);
-            if (ZSTD_isError(cBlockSize)) return cBlockSize;
+            if (ZSTD_isError(cBlockSize)) {
+                frameSizeInfo.compressedSize = cBlockSize;
+                frameSizeInfo.decompressedBound = cBlockSize;
+                return frameSizeInfo;
+            }
 
-            RETURN_ERROR_IF(ZSTD_blockHeaderSize + cBlockSize > remainingSize,
-                            srcSize_wrong);
+            if (ZSTD_blockHeaderSize + cBlockSize > remainingSize) {
+                frameSizeInfo.compressedSize = ERROR(srcSize_wrong);
+                frameSizeInfo.decompressedBound = ERROR(srcSize_wrong);
+                return frameSizeInfo;
+            }
 
             ip += ZSTD_blockHeaderSize + cBlockSize;
             remainingSize -= ZSTD_blockHeaderSize + cBlockSize;
@@ -475,14 +508,21 @@ static size_t ZSTD_findFrameCompressedSize_internal(const void *src, size_t srcS
             if (blockProperties.lastBlock) break;
         }
 
-        if (zfh.checksumFlag) {   /* Final frame content checksum */
-            RETURN_ERROR_IF(remainingSize < 4, srcSize_wrong);
+        /* Final frame content checksum */
+        if (zfh.checksumFlag) {
+            if (remainingSize < 4) {
+                frameSizeInfo.compressedSize = ERROR(srcSize_wrong);
+                frameSizeInfo.decompressedBound = ERROR(srcSize_wrong);
+                return frameSizeInfo;
+            }
             ip += 4;
         }
 
-        if (bound != NULL) *bound = (nbBlocks * zfh.blockSizeMax); /* set to block-based bound */
-
-        return ip - ipstart;
+        frameSizeInfo.compressedSize = ip - ipstart;
+        frameSizeInfo.decompressedBound = (zfh.frameContentSize != ZSTD_CONTENTSIZE_UNKNOWN)
+                                        ? zfh.frameContentSize
+                                        : nbBlocks * zfh.blockSizeMax;
+        return frameSizeInfo;
     }
 }
 
@@ -493,7 +533,8 @@ static size_t ZSTD_findFrameCompressedSize_internal(const void *src, size_t srcS
  *  @return : the compressed size of the frame starting at `src` */
 size_t ZSTD_findFrameCompressedSize(const void *src, size_t srcSize)
 {
-    return ZSTD_findFrameCompressedSize_internal(src, srcSize, NULL);
+    ZSTD_frameSizeInfo frameSizeInfo = ZSTD_findFrameSizeInfo(src, srcSize);
+    return frameSizeInfo.compressedSize;
 }
 
 
@@ -502,56 +543,23 @@ size_t ZSTD_findFrameCompressedSize(const void *src, size_t srcSize)
  *  `src` must point to the start of a ZSTD frame or a skippeable frame
  *  `srcSize` must be at least as large as the frame contained
  *  @return : maximum decompressed size of the compressed source
+ *            or an error code which can be tested with ZSTD_isError()
  */
-unsigned long long ZSTD_decompressBound(const void* src, size_t srcSize)
+size_t ZSTD_decompressBound(const void* src, size_t srcSize)
 {
-    unsigned long long totalDstSize = 0;
-#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
-    if (ZSTD_isLegacy(src, srcSize))
-        return ERROR(version_unsupported);
-#endif
-
-    /* Loop over each frame */
-    while (srcSize >= ZSTD_FRAMEHEADERSIZE_PREFIX) {
-        U32 const magicNumber = MEM_readLE32(src);
-
-        if ((magicNumber & ZSTD_MAGIC_SKIPPABLE_MASK) == ZSTD_MAGIC_SKIPPABLE_START) {
-            size_t const skippableSize = readSkippableFrameSize(src, srcSize);
-            if (ZSTD_isError(skippableSize))
-                return skippableSize;
-            if (srcSize < skippableSize) {
-                return ZSTD_CONTENTSIZE_ERROR;
-            }
-
-            src = (const BYTE *)src + skippableSize;
-            srcSize -= skippableSize;
-            continue;
-        }
-
-        {   size_t bound = 0;
-            unsigned long long frameBound = 0;
-            size_t frameSrcSize = 0;
-            unsigned long long const ret = ZSTD_getFrameContentSize(src, srcSize);
-            if (ret == ZSTD_CONTENTSIZE_ERROR) return ret;
-
-            frameSrcSize = ZSTD_findFrameCompressedSize_internal(src, srcSize, &bound);
-            if (ZSTD_isError(frameSrcSize)) {
-                return ZSTD_CONTENTSIZE_ERROR;
-            }
-
-            frameBound = (ret == ZSTD_CONTENTSIZE_UNKNOWN) ? bound : ret;
-            /* check for overflow */
-            if (totalDstSize + frameBound < totalDstSize) return ZSTD_CONTENTSIZE_ERROR;
-            totalDstSize += frameBound;
-
-            src = (const BYTE *)src + frameSrcSize;
-            srcSize -= frameSrcSize;
-        }
-    }  /* while (srcSize >= ZSTD_frameHeaderSize_prefix) */
-
-    if (srcSize) return ZSTD_CONTENTSIZE_ERROR;
-
-    return totalDstSize;
+    size_t bound = 0;
+    /* Iterate over each frame */
+    while (srcSize > 0) {
+        ZSTD_frameSizeInfo frameSizeInfo = ZSTD_findFrameSizeInfo(src, srcSize);
+        size_t compressedSize = frameSizeInfo.compressedSize;
+        size_t decompressedBound = frameSizeInfo.decompressedBound;
+        FORWARD_IF_ERROR(compressedSize);
+        FORWARD_IF_ERROR(decompressedBound);
+        src = (const BYTE*)src + compressedSize;
+        srcSize -= compressedSize;
+        bound += decompressedBound;
+    }
+    return bound;
 }
 
 

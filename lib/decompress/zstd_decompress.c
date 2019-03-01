@@ -465,7 +465,7 @@ static ZSTD_frameSizeInfo ZSTD_findFrameSizeInfo(const void* src, size_t srcSize
         const BYTE* ip = (const BYTE*)src;
         const BYTE* const ipstart = ip;
         size_t remainingSize = srcSize;
-        unsigned nbBlocks = 0;
+        size_t nbBlocks = 0;
         ZSTD_frameHeader zfh;
 
         /* Extract Frame Header */

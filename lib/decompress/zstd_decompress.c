@@ -473,7 +473,7 @@ static ZSTD_frameSizeInfo ZSTD_findFrameSizeInfo(const void* src, size_t srcSize
             size_t const ret = ZSTD_getFrameHeader(&zfh, src, srcSize);
             if (ZSTD_isError(ret)) {
                 frameSizeInfo.compressedSize = ret;
-                frameSizeInfo.decompressedBound = ret;
+                frameSizeInfo.decompressedBound = ZSTD_CONTENTSIZE_ERROR;
                 return frameSizeInfo;
             }
             if (ret > 0) {

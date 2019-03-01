@@ -148,11 +148,10 @@ ZSTDLIB_API unsigned long long ZSTD_getDecompressedSize(const void* src, size_t 
 
 /*======  Helper functions  ======*/
 #define ZSTD_COMPRESSBOUND(srcSize)   ((srcSize) + ((srcSize)>>8) + (((srcSize) < (128<<10)) ? (((128<<10) - (srcSize)) >> 11) /* margin, from 64 to 0 */ : 0))  /* this formula ensures that bound(A) + bound(B) <= bound(A+B) as long as A and B >= 128 KB */
-ZSTDLIB_API size_t             ZSTD_compressBound(size_t srcSize);                    /*!< maximum compressed size in worst case single-pass scenario */
-ZSTDLIB_API unsigned long long ZSTD_decompressBound(const void* src, size_t srcSice); /*!< maximum decompressed size of the compressed source */
-ZSTDLIB_API unsigned           ZSTD_isError(size_t code);                             /*!< tells if a `size_t` function result is an error code */
-ZSTDLIB_API const char*        ZSTD_getErrorName(size_t code);                        /*!< provides readable string from an error code */
-ZSTDLIB_API int                ZSTD_maxCLevel(void);                                  /*!< maximum compression level available */
+ZSTDLIB_API size_t      ZSTD_compressBound(size_t srcSize); /*!< maximum compressed size in worst case single-pass scenario */
+ZSTDLIB_API unsigned    ZSTD_isError(size_t code);          /*!< tells if a `size_t` function result is an error code */
+ZSTDLIB_API const char* ZSTD_getErrorName(size_t code);     /*!< provides readable string from an error code */
+ZSTDLIB_API int         ZSTD_maxCLevel(void);               /*!< maximum compression level available */
 
 
 /***************************************
@@ -1103,6 +1102,21 @@ typedef enum {
  *            read each contained frame header.  This is fast as most of the data is skipped,
  *            however it does mean that all frame data must be present and valid. */
 ZSTDLIB_API unsigned long long ZSTD_findDecompressedSize(const void* src, size_t srcSize);
+
+/** ZSTD_decompressBound() :
+ *  currently incompatible with legacy mode
+ *  `src` must point to the start of a ZSTD frame or a skippeable frame
+ *  `srcSize` must be at least as large as the frame contained
+ *  @return : maximum decompressed size of the compressed source
+ *            or an error code which can be tested with ZSTD_isError()
+ *
+ *  note 1  : the bound is exact when Frame_Content_Size field is available in EVERY frame of `src`.
+ *  note 2  : when Frame_Content_Size isn't provided, the upper-bound for that frame is calculated by:
+ *                             upper-bound = min(128 KB, Window_Size)
+ *  note 3  : we always use Frame_Content_Size to bound the decompressed frame size if it's present.
+ **           the above formula is only used when Frame_Content_Size is missing.
+ */
+ZSTDLIB_API size_t ZSTD_decompressBound(const void* src, size_t srcSice);
 
 /*! ZSTD_frameHeaderSize() :
  *  srcSize must be >= ZSTD_FRAMEHEADERSIZE_PREFIX.

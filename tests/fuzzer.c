@@ -438,6 +438,28 @@ static int basicUnitTests(U32 seed, double compressibility)
       if (ZSTD_getErrorCode(r) != ZSTD_error_srcSize_wrong) goto _output_error; }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : ZSTD_decompressBound test with content size missing : ", testNb++);
+    {   /* create compressed buffer with content size missing */
+        ZSTD_CCtx* cctx = ZSTD_createCCtx();
+        CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_contentSizeFlag, 0) );
+        CHECKPLUS(r, ZSTD_compress2(cctx,
+                            compressedBuffer, compressedBufferSize,
+                            CNBuffer, CNBuffSize),
+                  cSize=r );
+        ZSTD_freeCCtx(cctx);
+    }
+    {   /* ensure frame content size is missing */
+        ZSTD_frameHeader zfh;
+        size_t ret = ZSTD_getFrameHeader(&zfh, compressedBuffer, compressedBufferSize);
+        if (ret != 0) goto _output_error;
+        if (zfh.frameContentSize !=  ZSTD_CONTENTSIZE_UNKNOWN) goto _output_error;
+    }
+    {   /* ensure CNBuffSize <= decompressBound */
+        unsigned long long bound = ZSTD_decompressBound(compressedBuffer, compressedBufferSize);
+        if (CNBuffSize > bound) goto _output_error;
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     DISPLAYLEVEL(3, "test%3d : check CCtx size after compressing empty input : ", testNb++);
     {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
         size_t const r = ZSTD_compressCCtx(cctx, compressedBuffer, compressedBufferSize, NULL, 0, 19);

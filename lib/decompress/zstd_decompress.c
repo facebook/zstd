@@ -433,6 +433,88 @@ static size_t ZSTD_decodeFrameHeader(ZSTD_DCtx* dctx, const void* src, size_t he
     return 0;
 }
 
+/**
+ * Contains the compressed frame size and an upper-bound for the decompressed frame size.
+ * Note: before using `compressedSize` you must check for errors using ZSTD_isError().
+ *       similarly, before using `decompressedBound`, you must check for errors using:
+ *          `decompressedBound` != ZSTD_CONTENTSIZE_UNKNOWN
+ */
+typedef struct {
+    size_t compressedSize;
+    unsigned long long decompressedBound;
+} ZSTD_frameSizeInfo;
+
+static ZSTD_frameSizeInfo ZSTD_errorFrameSizeInfo(size_t ret)
+{
+    ZSTD_frameSizeInfo frameSizeInfo;
+    frameSizeInfo.compressedSize = ret;
+    frameSizeInfo.decompressedBound = ZSTD_CONTENTSIZE_UNKNOWN;
+    return frameSizeInfo;
+}
+
+static ZSTD_frameSizeInfo ZSTD_findFrameSizeInfo(const void* src, size_t srcSize)
+{
+    ZSTD_frameSizeInfo frameSizeInfo;
+    memset(&frameSizeInfo, 0, sizeof(ZSTD_frameSizeInfo));
+
+#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
+    if (ZSTD_isLegacy(src, srcSize))
+        return ZSTD_errorFrameSizeInfo(ZSTD_findFrameCompressedSizeLegacy(src, srcSize));
+#endif
+
+    if ((srcSize >= ZSTD_SKIPPABLEHEADERSIZE)
+        && (MEM_readLE32(src) & ZSTD_MAGIC_SKIPPABLE_MASK) == ZSTD_MAGIC_SKIPPABLE_START) {
+        frameSizeInfo.compressedSize = readSkippableFrameSize(src, srcSize);
+        return frameSizeInfo;
+    } else {
+        const BYTE* ip = (const BYTE*)src;
+        const BYTE* const ipstart = ip;
+        size_t remainingSize = srcSize;
+        size_t nbBlocks = 0;
+        ZSTD_frameHeader zfh;
+
+        /* Extract Frame Header */
+        {   size_t const ret = ZSTD_getFrameHeader(&zfh, src, srcSize);
+            if (ZSTD_isError(ret))
+                return ZSTD_errorFrameSizeInfo(ret);
+            if (ret > 0)
+                return ZSTD_errorFrameSizeInfo(ERROR(srcSize_wrong));
+        }
+
+        ip += zfh.headerSize;
+        remainingSize -= zfh.headerSize;
+
+        /* Iterate over each block */
+        while (1) {
+            blockProperties_t blockProperties;
+            size_t const cBlockSize = ZSTD_getcBlockSize(ip, remainingSize, &blockProperties);
+            if (ZSTD_isError(cBlockSize))
+                return ZSTD_errorFrameSizeInfo(cBlockSize);
+
+            if (ZSTD_blockHeaderSize + cBlockSize > remainingSize)
+                return ZSTD_errorFrameSizeInfo(ERROR(srcSize_wrong));
+
+            ip += ZSTD_blockHeaderSize + cBlockSize;
+            remainingSize -= ZSTD_blockHeaderSize + cBlockSize;
+            nbBlocks++;
+
+            if (blockProperties.lastBlock) break;
+        }
+
+        /* Final frame content checksum */
+        if (zfh.checksumFlag) {
+            if (remainingSize < 4)
+                return ZSTD_errorFrameSizeInfo(ERROR(srcSize_wrong));
+            ip += 4;
+        }
+
+        frameSizeInfo.compressedSize = ip - ipstart;
+        frameSizeInfo.decompressedBound = (zfh.frameContentSize != ZSTD_CONTENTSIZE_UNKNOWN)
+                                        ? zfh.frameContentSize
+                                        : nbBlocks * zfh.blockSizeMax;
+        return frameSizeInfo;
+    }
+}
 
 /** ZSTD_findFrameCompressedSize() :
  *  compatible with legacy mode
@@ -441,52 +523,33 @@ static size_t ZSTD_decodeFrameHeader(ZSTD_DCtx* dctx, const void* src, size_t he
  *  @return : the compressed size of the frame starting at `src` */
 size_t ZSTD_findFrameCompressedSize(const void *src, size_t srcSize)
 {
-#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
-    if (ZSTD_isLegacy(src, srcSize))
-        return ZSTD_findFrameCompressedSizeLegacy(src, srcSize);
-#endif
-    if ( (srcSize >= ZSTD_SKIPPABLEHEADERSIZE)
-      && (MEM_readLE32(src) & ZSTD_MAGIC_SKIPPABLE_MASK) == ZSTD_MAGIC_SKIPPABLE_START ) {
-        return readSkippableFrameSize(src, srcSize);
-    } else {
-        const BYTE* ip = (const BYTE*)src;
-        const BYTE* const ipstart = ip;
-        size_t remainingSize = srcSize;
-        ZSTD_frameHeader zfh;
-
-        /* Extract Frame Header */
-        {   size_t const ret = ZSTD_getFrameHeader(&zfh, src, srcSize);
-            if (ZSTD_isError(ret)) return ret;
-            RETURN_ERROR_IF(ret > 0, srcSize_wrong);
-        }
-
-        ip += zfh.headerSize;
-        remainingSize -= zfh.headerSize;
-
-        /* Loop on each block */
-        while (1) {
-            blockProperties_t blockProperties;
-            size_t const cBlockSize = ZSTD_getcBlockSize(ip, remainingSize, &blockProperties);
-            if (ZSTD_isError(cBlockSize)) return cBlockSize;
-
-            RETURN_ERROR_IF(ZSTD_blockHeaderSize + cBlockSize > remainingSize,
-                            srcSize_wrong);
-
-            ip += ZSTD_blockHeaderSize + cBlockSize;
-            remainingSize -= ZSTD_blockHeaderSize + cBlockSize;
-
-            if (blockProperties.lastBlock) break;
-        }
-
-        if (zfh.checksumFlag) {   /* Final frame content checksum */
-            RETURN_ERROR_IF(remainingSize < 4, srcSize_wrong);
-            ip += 4;
-        }
-
-        return ip - ipstart;
-    }
+    ZSTD_frameSizeInfo const frameSizeInfo = ZSTD_findFrameSizeInfo(src, srcSize);
+    return frameSizeInfo.compressedSize;
 }
 
+
+/** ZSTD_decompressBound() :
+ *  currently incompatible with legacy mode
+ *  `src` must point to the start of a ZSTD frame or a skippeable frame
+ *  `srcSize` must be at least as large as the frame contained
+ *  @return : the maximum decompressed size of the compressed source
+ */
+unsigned long long ZSTD_decompressBound(const void* src, size_t srcSize)
+{
+    unsigned long long bound = 0;
+    /* Iterate over each frame */
+    while (srcSize > 0) {
+        ZSTD_frameSizeInfo const frameSizeInfo = ZSTD_findFrameSizeInfo(src, srcSize);
+        size_t const compressedSize = frameSizeInfo.compressedSize;
+        unsigned long long const decompressedBound = frameSizeInfo.decompressedBound;
+        if (ZSTD_isError(compressedSize) || decompressedBound == ZSTD_CONTENTSIZE_ERROR)
+            return ZSTD_CONTENTSIZE_ERROR;
+        src = (const BYTE*)src + compressedSize;
+        srcSize -= compressedSize;
+        bound += decompressedBound;
+    }
+    return bound;
+}
 
 
 /*-*************************************************************

@@ -839,6 +839,9 @@ ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, s
 size_t ZSTD_CCtx_refCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict)
 {
     RETURN_ERROR_IF(cctx->streamStage != zcss_init, stage_wrong);
+    /* Free the existing local cdict (if any) to save memory. */
+    FORWARD_IF_ERROR( ZSTD_freeCDict(cctx->cdictLocal) );
+    cctx->cdictLocal = NULL;
     cctx->cdict = cdict;
     memset(&cctx->prefixDict, 0, sizeof(cctx->prefixDict));  /* exclusive */
     return 0;

@@ -495,7 +495,7 @@ static int basicUnitTests(U32 seed, double compressibility)
 
     /* _srcSize compression test */
     DISPLAYLEVEL(3, "test%3i : compress_srcSize %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
-    ZSTD_initCStream_srcSize(zc, 1, CNBufferSize);
+    CHECK_Z( ZSTD_initCStream_srcSize(zc, 1, CNBufferSize) );
     outBuff.dst = (char*)(compressedBuffer);
     outBuff.size = compressedBufferSize;
     outBuff.pos = 0;
@@ -503,11 +503,14 @@ static int basicUnitTests(U32 seed, double compressibility)
     inBuff.size = CNBufferSize;
     inBuff.pos = 0;
     CHECK_Z( ZSTD_compressStream(zc, &outBuff, &inBuff) );
-    if (inBuff.pos != inBuff.size) goto _output_error;   /* entire input should be consumed */
-    { size_t const r = ZSTD_endStream(zc, &outBuff);
-      if (r != 0) goto _output_error; }  /* error, or some data not flushed */
-    { unsigned long long origSize = ZSTD_findDecompressedSize(outBuff.dst, outBuff.pos);
-      if ((size_t)origSize != CNBufferSize) goto _output_error; }  /* exact original size must be present */
+    CHECK(inBuff.pos != inBuff.size, "Entire input should be consumed");
+    {   size_t const r = ZSTD_endStream(zc, &outBuff);
+        CHECK(r != 0, "Error or some data not flushed (ret=%zu)", r);
+    }
+    {   unsigned long long origSize = ZSTD_findDecompressedSize(outBuff.dst, outBuff.pos);
+        CHECK(origSize == ZSTD_CONTENTSIZE_UNKNOWN, "Unknown!");
+        CHECK((size_t)origSize != CNBufferSize, "Exact original size must be present (got %llu)", origSize);
+    }
     DISPLAYLEVEL(3, "OK (%u bytes : %.2f%%)\n", (unsigned)cSize, (double)cSize/COMPRESSIBLE_NOISE_LENGTH*100);
 
     /* wrong _srcSize compression test */

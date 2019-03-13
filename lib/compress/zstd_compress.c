@@ -450,11 +450,12 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int value)
 
     switch(param)
     {
-    case ZSTD_c_compressionLevel:
-        RETURN_ERROR_IF(cctx->cdict, stage_wrong,
-                        "compression level is configured in cdict");
+    case ZSTD_c_nbWorkers:
+        RETURN_ERROR_IF((value!=0) && cctx->staticSize, parameter_unsupported,
+                        "MT not compatible with static alloc");
         break;
 
+    case ZSTD_c_compressionLevel:
     case ZSTD_c_windowLog:
     case ZSTD_c_hashLog:
     case ZSTD_c_chainLog:
@@ -462,20 +463,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int value)
     case ZSTD_c_minMatch:
     case ZSTD_c_targetLength:
     case ZSTD_c_strategy:
-        RETURN_ERROR_IF(cctx->cdict, stage_wrong,
-                        "cparams are configured in cdict");
-        break;
-
-    case ZSTD_c_nbWorkers:
-        RETURN_ERROR_IF((value!=0) && cctx->staticSize, parameter_unsupported,
-                        "MT not compatible with static alloc");
-        break;
-
     case ZSTD_c_ldmHashRateLog:
-        RETURN_ERROR_IF(cctx->cdict, stage_wrong,
-                        "LDM hash rate log is configured in cdict");
-        break;
-
     case ZSTD_c_format:
     case ZSTD_c_contentSizeFlag:
     case ZSTD_c_checksumFlag:

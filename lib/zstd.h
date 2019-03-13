@@ -503,7 +503,10 @@ typedef enum { ZSTD_fast=1,
 
 typedef enum {
 
-    /* compression parameters */
+    /* compression parameters
+     * Note: When compressing with a ZSTD_CDict these parameters are superseded
+     * by the parameters used to construct the ZSTD_CDict. See ZSTD_CCtx_refCDict()
+     * for more info (superseded-by-cdict). */
     ZSTD_c_compressionLevel=100, /* Update all compression parameters according to pre-defined cLevel table
                               * Default level is ZSTD_CLEVEL_DEFAULT==3.
                               * Special: value 0 means default, which is controlled by ZSTD_CLEVEL_DEFAULT.
@@ -705,7 +708,9 @@ ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, s
 /*! ZSTD_CCtx_refCDict() :
  *  Reference a prepared dictionary, to be used for all next compressed frames.
  *  Note that compression parameters are enforced from within CDict,
- *  and supercede any compression parameter previously set within CCtx.
+ *  and supersede any compression parameter previously set within CCtx.
+ *  The parameters ignored are labled as "superseded-by-cdict" in the ZSTD_cParameter enum docs.
+ *  The ignored parameters will be used again if the CCtx is returned to no-dictionary mode.
  *  The dictionary will remain valid for future compressed frames using same CCtx.
  * @result : 0, or an error code (which can be tested with ZSTD_isError()).
  *  Special : Referencing a NULL CDict means "return to no-dictionary mode".

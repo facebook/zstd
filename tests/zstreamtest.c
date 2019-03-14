@@ -1930,16 +1930,6 @@ static int fuzzerTests_newAPI(U32 seed, int nbTests, int startTest,
                     } else {
                         CHECK_Z( ZSTD_CCtx_loadDictionary_byReference(zc, dict, dictSize) );
                     }
-                    if (dict && dictSize) {
-                        /* test that compression parameters are rejected (correctly) after loading a non-NULL dictionary */
-                        if (opaqueAPI) {
-                            size_t const setError = ZSTD_CCtx_setParametersUsingCCtxParams(zc, cctxParams);
-                            CHECK(!ZSTD_isError(setError), "ZSTD_CCtx_setParametersUsingCCtxParams should have failed");
-                        } else {
-                            size_t const setError = ZSTD_CCtx_setParameter(zc, ZSTD_c_windowLog, cParams.windowLog-1);
-                            CHECK(!ZSTD_isError(setError), "ZSTD_CCtx_setParameter should have failed");
-                        }
-                    }
                 } else {
                     CHECK_Z( ZSTD_CCtx_refPrefix(zc, dict, dictSize) );
                 }

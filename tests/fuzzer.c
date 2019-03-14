@@ -1294,6 +1294,17 @@ static int basicUnitTests(U32 seed, double compressibility)
         }
         DISPLAYLEVEL(3, "OK \n");
 
+        DISPLAYLEVEL(3, "test%3i : ZSTD_CCtx_refCDict() then set parameters : ", testNb++);
+        {   ZSTD_CDict* const cdict = ZSTD_createCDict(CNBuffer, dictSize, 1);
+            CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, 1) );
+            CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_hashLog, 12 ));
+            CHECK_Z( ZSTD_CCtx_refCDict(cctx, cdict) );
+            CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, 1) );
+            CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_hashLog, 12 ));
+            ZSTD_freeCDict(cdict);
+        }
+        DISPLAYLEVEL(3, "OK \n");
+
         DISPLAYLEVEL(3, "test%3i : Dictionary with non-default repcodes : ", testNb++);
         { U32 u; for (u=0; u<nbSamples; u++) samplesSizes[u] = sampleUnitSize; }
         dictSize = ZDICT_trainFromBuffer(dictBuffer, dictSize,

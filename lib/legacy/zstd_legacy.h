@@ -186,9 +186,9 @@ MEM_STATIC void ZSTD_errorFrameSizeInfoLegacy(size_t* cSize, unsigned long long*
 
 MEM_STATIC ZSTD_frameSizeInfo ZSTD_findFrameSizeInfoLegacy(const void *src, size_t srcSize)
 {
+    U32 const version = ZSTD_isLegacy(src, srcSize);
     ZSTD_frameSizeInfo frameSizeInfo;
     memset(&frameSizeInfo, 0, sizeof(ZSTD_frameSizeInfo));
-    U32 const version = ZSTD_isLegacy(src, srcSize);
     switch(version)
     {
 #if (ZSTD_LEGACY_SUPPORT <= 1)

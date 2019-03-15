@@ -373,6 +373,9 @@ static const size_t ZSTD_frameHeaderSize_min = 5;
 #define MIN_SEQUENCES_SIZE (2 /*seqNb*/ + 2 /*dumps*/ + 3 /*seqTables*/ + 1 /*bitStream*/)
 #define MIN_CBLOCK_SIZE (3 /*litCSize*/ + MIN_SEQUENCES_SIZE)
 
+#define ZSTD_CONTENTSIZE_UNKNOWN (0ULL - 1)
+#define ZSTD_CONTENTSIZE_ERROR   (0ULL - 2)
+
 typedef enum { bt_compressed, bt_raw, bt_rle, bt_end } blockType_t;
 
 
@@ -3119,34 +3122,56 @@ static size_t ZSTD_decompress_usingDict(ZSTD_DCtx* ctx,
     return op-ostart;
 }
 
-static size_t ZSTD_findFrameCompressedSize(const void* src, size_t srcSize)
+MEM_STATIC void ZSTD_errorFrameSizeInfoLegacy(size_t* cSize, unsigned long long* dBound, size_t ret)
+{
+    *cSize = ret;
+    *dBound = ZSTD_CONTENTSIZE_ERROR;
+}
+
+void ZSTDv04_findFrameSizeInfoLegacy(const void *src, size_t srcSize,
+                                     size_t* cSize, unsigned long long* dBound)
 {
     const BYTE* ip = (const BYTE*)src;
     size_t remainingSize = srcSize;
+    size_t nbBlocks = 0;
     blockProperties_t blockProperties;
 
     /* Frame Header */
-    if (srcSize < ZSTD_frameHeaderSize_min) return ERROR(srcSize_wrong);
-    if (MEM_readLE32(src) != ZSTD_MAGICNUMBER) return ERROR(prefix_unknown);
+    if (srcSize < ZSTD_frameHeaderSize_min) {
+        ZSTD_errorFrameSizeInfoLegacy(cSize, dBound, ERROR(srcSize_wrong));
+        return;
+    }
+    if (MEM_readLE32(src) != ZSTD_MAGICNUMBER) {
+        ZSTD_errorFrameSizeInfoLegacy(cSize, dBound, ERROR(prefix_unknown));
+        return;
+    }
     ip += ZSTD_frameHeaderSize_min; remainingSize -= ZSTD_frameHeaderSize_min;
 
     /* Loop on each block */
     while (1)
     {
         size_t cBlockSize = ZSTD_getcBlockSize(ip, remainingSize, &blockProperties);
-        if (ZSTD_isError(cBlockSize)) return cBlockSize;
+        if (ZSTD_isError(cBlockSize)) {
+            ZSTD_errorFrameSizeInfoLegacy(cSize, dBound, cBlockSize);
+            return;
+        }
 
         ip += ZSTD_blockHeaderSize;
         remainingSize -= ZSTD_blockHeaderSize;
-        if (cBlockSize > remainingSize) return ERROR(srcSize_wrong);
+        if (cBlockSize > remainingSize) {
+            ZSTD_errorFrameSizeInfoLegacy(cSize, dBound, ERROR(srcSize_wrong));
+            return;
+        }
 
         if (cBlockSize == 0) break;   /* bt_end */
 
         ip += cBlockSize;
         remainingSize -= cBlockSize;
+        nbBlocks++;
     }
 
-    return ip - (const BYTE*)src;
+    *cSize = ip - (const BYTE*)src;
+    *dBound = nbBlocks * BLOCKSIZE;
 }
 
 /* ******************************
@@ -3576,11 +3601,6 @@ size_t ZSTDv04_decompress(void* dst, size_t maxDstSize, const void* src, size_t 
     ZSTD_DCtx dctx;
     return ZSTDv04_decompressDCtx(&dctx, dst, maxDstSize, src, srcSize);
 #endif
-}
-
-size_t ZSTDv04_findFrameCompressedSize(const void* src, size_t srcSize)
-{
-    return ZSTD_findFrameCompressedSize(src, srcSize);
 }
 
 size_t ZSTDv04_resetDCtx(ZSTDv04_Dctx* dctx) { return ZSTD_resetDCtx(dctx); }

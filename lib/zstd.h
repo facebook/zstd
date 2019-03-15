@@ -1085,6 +1085,17 @@ typedef enum {
 *  Frame size functions
 ***************************************/
 
+/**
+ * Contains the compressed frame size and an upper-bound for the decompressed frame size.
+ * Note: before using `compressedSize` you must check for errors using ZSTD_isError().
+ *       similarly, before using `decompressedBound`, you must check for errors using:
+ *          `decompressedBound` != ZSTD_CONTENTSIZE_ERROR
+ */
+typedef struct {
+    size_t compressedSize;
+    unsigned long long decompressedBound;
+} ZSTD_frameSizeInfo;
+
 /*! ZSTD_findDecompressedSize() :
  *  `src` should point to the start of a series of ZSTD encoded and/or skippable frames
  *  `srcSize` must be the _exact_ size of this series

@@ -130,11 +130,27 @@ static int testStreamingAPI(void)
     return error_code;
 }
 
+static int testFrameDecoding(void)
+{
+    if (ZSTD_decompressBound(COMPRESSED, COMPRESSED_SIZE) != ZSTD_CONTENTSIZE_ERROR) {
+        DISPLAY("ERROR: ZSTD_decompressBound: Expected to receive ZSTD_CONTENTSIZE_ERROR\n");
+        return 1;
+    }
+    if (ZSTD_findFrameCompressedSize(COMPRESSED) != COMPRESSED_SIZE) {
+        DISPLAY("ERROR: ZSTD_findFrameCompressedSize: Expected to receive %d\n", COMPRESSED_SIZE);
+        return 1;
+    }
+    DISPLAY("Frame Decoding OK\n");
+    return 0;
+}
+
 int main(void)
 {
     {   int const ret = testSimpleAPI();
         if (ret) return ret; }
     {   int const ret = testStreamingAPI();
+        if (ret) return ret; }
+    {   int const ret = testFrameDecoding();
         if (ret) return ret; }
 
     DISPLAY("OK\n");

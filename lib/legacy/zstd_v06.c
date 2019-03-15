@@ -506,6 +506,9 @@ typedef enum { bt_compressed, bt_raw, bt_rle, bt_end } blockType_t;
 #define FSEv06_ENCODING_STATIC  2
 #define FSEv06_ENCODING_DYNAMIC 3
 
+#define ZSTD_CONTENTSIZE_UNKNOWN (0ULL - 1)
+#define ZSTD_CONTENTSIZE_ERROR   (0ULL - 2)
+
 static const U32 LL_bits[MaxLL+1] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                                       1, 1, 1, 1, 2, 2, 3, 3, 4, 6, 7, 8, 9,10,11,12,
                                      13,14,15,16 };
@@ -3654,36 +3657,61 @@ size_t ZSTDv06_decompress(void* dst, size_t dstCapacity, const void* src, size_t
 #endif
 }
 
-size_t ZSTDv06_findFrameCompressedSize(const void* src, size_t srcSize)
+MEM_STATIC void ZSTD_errorFrameSizeInfoLegacy(size_t* cSize, unsigned long long* dBound, size_t ret)
+{
+    *cSize = ret;
+    *dBound = ZSTD_CONTENTSIZE_ERROR;
+}
+
+void ZSTDv06_findFrameSizeInfoLegacy(const void *src, size_t srcSize,
+                                     size_t* cSize, unsigned long long* dBound)
 {
     const BYTE* ip = (const BYTE*)src;
     size_t remainingSize = srcSize;
+    size_t nbBlocks = 0;
     blockProperties_t blockProperties = { bt_compressed, 0 };
 
     /* Frame Header */
     {   size_t const frameHeaderSize = ZSTDv06_frameHeaderSize(src, ZSTDv06_frameHeaderSize_min);
-        if (ZSTDv06_isError(frameHeaderSize)) return frameHeaderSize;
-        if (MEM_readLE32(src) != ZSTDv06_MAGICNUMBER) return ERROR(prefix_unknown);
-        if (srcSize < frameHeaderSize+ZSTDv06_blockHeaderSize) return ERROR(srcSize_wrong);
+        if (ZSTDv06_isError(frameHeaderSize)) {
+            ZSTD_errorFrameSizeInfoLegacy(cSize, dBound, frameHeaderSize);
+            return;
+        }
+        if (MEM_readLE32(src) != ZSTDv06_MAGICNUMBER) {
+            ZSTD_errorFrameSizeInfoLegacy(cSize, dBound, ERROR(prefix_unknown));
+            return;
+        }
+        if (srcSize < frameHeaderSize+ZSTDv06_blockHeaderSize) {
+            ZSTD_errorFrameSizeInfoLegacy(cSize, dBound, ERROR(srcSize_wrong));
+            return;
+        }
         ip += frameHeaderSize; remainingSize -= frameHeaderSize;
     }
 
     /* Loop on each block */
     while (1) {
         size_t const cBlockSize = ZSTDv06_getcBlockSize(ip, remainingSize, &blockProperties);
-        if (ZSTDv06_isError(cBlockSize)) return cBlockSize;
+        if (ZSTDv06_isError(cBlockSize)) {
+            ZSTD_errorFrameSizeInfoLegacy(cSize, dBound, cBlockSize);
+            return;
+        }
 
         ip += ZSTDv06_blockHeaderSize;
         remainingSize -= ZSTDv06_blockHeaderSize;
-        if (cBlockSize > remainingSize) return ERROR(srcSize_wrong);
+        if (cBlockSize > remainingSize) {
+            ZSTD_errorFrameSizeInfoLegacy(cSize, dBound, ERROR(srcSize_wrong));
+            return;
+        }
 
         if (cBlockSize == 0) break;   /* bt_end */
 
         ip += cBlockSize;
         remainingSize -= cBlockSize;
+        nbBlocks++;
     }
 
-    return ip - (const BYTE*)src;
+    *cSize = ip - (const BYTE*)src;
+    *dBound = nbBlocks * ZSTDv06_BLOCKSIZE_MAX;
 }
 
 /*_******************************

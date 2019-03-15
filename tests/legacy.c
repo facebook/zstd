@@ -133,8 +133,8 @@ static int testStreamingAPI(void)
 
 static int testFrameDecoding(void)
 {
-    if (ZSTD_decompressBound(COMPRESSED, COMPRESSED_SIZE) != ZSTD_CONTENTSIZE_ERROR) {
-        DISPLAY("ERROR: ZSTD_decompressBound: Expected to receive ZSTD_CONTENTSIZE_ERROR\n");
+    if (strlen(EXPECTED) > ZSTD_decompressBound(COMPRESSED, COMPRESSED_SIZE)) {
+        DISPLAY("ERROR: ZSTD_decompressBound: decompressed bound too small\n");
         return 1;
     }
     DISPLAY("Frame Decoding OK\n");

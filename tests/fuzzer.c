@@ -383,6 +383,13 @@ static int basicUnitTests(U32 seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : ZSTD_decompressBound test with invalid srcSize : ", testNb++);
+    {
+        unsigned long long bound = ZSTD_decompressBound(compressedBuffer, cSize - 1);
+        if (bound != ZSTD_CONTENTSIZE_ERROR) goto _output_error;
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     DISPLAYLEVEL(3, "test%3i : decompress %u bytes : ", testNb++, (unsigned)CNBuffSize);
     { size_t const r = ZSTD_decompress(decodedBuffer, CNBuffSize, compressedBuffer, cSize);
       if (r != CNBuffSize) goto _output_error; }

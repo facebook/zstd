@@ -437,7 +437,7 @@ static size_t ZSTD_decodeFrameHeader(ZSTD_DCtx* dctx, const void* src, size_t he
  * Contains the compressed frame size and an upper-bound for the decompressed frame size.
  * Note: before using `compressedSize` you must check for errors using ZSTD_isError().
  *       similarly, before using `decompressedBound`, you must check for errors using:
- *          `decompressedBound` != ZSTD_CONTENTSIZE_UNKNOWN
+ *          `decompressedBound` != ZSTD_CONTENTSIZE_ERROR
  */
 typedef struct {
     size_t compressedSize;
@@ -448,7 +448,7 @@ static ZSTD_frameSizeInfo ZSTD_errorFrameSizeInfo(size_t ret)
 {
     ZSTD_frameSizeInfo frameSizeInfo;
     frameSizeInfo.compressedSize = ret;
-    frameSizeInfo.decompressedBound = ZSTD_CONTENTSIZE_UNKNOWN;
+    frameSizeInfo.decompressedBound = ZSTD_CONTENTSIZE_ERROR;
     return frameSizeInfo;
 }
 

@@ -36,10 +36,12 @@ size_t ZSTDv02_decompress( void* dst, size_t maxOriginalSize,
                      const void* src, size_t compressedSize);
 
  /**
- ZSTDv02_getFrameSrcSize() : get the source length of a ZSTD frame compliant with v0.2.x format
-     compressedSize : The size of the 'src' buffer, at least as large as the frame pointed to by 'src'
-     return : the number of bytes that would be read to decompress this frame
-              or an errorCode if it fails (which can be tested using ZSTDv02_isError())
+ ZSTDv02_findFrameSizeInfoLegacy() : get the source length and decompressed bound of a ZSTD frame compliant with v0.2.x format
+     srcSize : The size of the 'src' buffer, at least as large as the frame pointed to by 'src'
+     cSize (output parameter) : the number of bytes that would be read to decompress this frame
+                                or an errorCode if it fails (which can be tested using ZSTDv01_isError())
+     dBound (output paramter) : an upper-bound for the decompressed size of the data in the frame
+                                or ZSTD_CONTENTSIZE_ERROR if an error occurs
  */
 void ZSTDv02_findFrameSizeInfoLegacy(const void *src, size_t srcSize,
                                      size_t* cSize, unsigned long long* dBound);

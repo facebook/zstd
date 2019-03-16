@@ -242,6 +242,17 @@ typedef struct {
     U32   longLengthPos;
 } seqStore_t;
 
+/**
+ * Contains the compressed frame size and an upper-bound for the decompressed frame size.
+ * Note: before using `compressedSize` you must check for errors using ZSTD_isError().
+ *       similarly, before using `decompressedBound`, you must check for errors using:
+ *          `decompressedBound` != ZSTD_CONTENTSIZE_ERROR
+ */
+typedef struct {
+    size_t compressedSize;
+    unsigned long long decompressedBound;
+} ZSTD_frameSizeInfo;
+
 const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx);   /* compress & dictBuilder */
 void ZSTD_seqToCodes(const seqStore_t* seqStorePtr);   /* compress, dictBuilder, decodeCorpus (shouldn't get its definition from here) */
 

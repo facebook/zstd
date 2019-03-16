@@ -20,7 +20,7 @@ extern "C" {
 ***************************************/
 #include "mem.h"            /* MEM_STATIC */
 #include "error_private.h"  /* ERROR */
-#include "zstd.h"           /* ZSTD_inBuffer, ZSTD_outBuffer */
+#include "zstd_internal.h"  /* ZSTD_inBuffer, ZSTD_outBuffer, ZSTD_frameSizeInfo */
 
 #if !defined (ZSTD_LEGACY_SUPPORT) || (ZSTD_LEGACY_SUPPORT == 0)
 #  undef ZSTD_LEGACY_SUPPORT
@@ -178,12 +178,6 @@ MEM_STATIC size_t ZSTD_decompressLegacy(
     }
 }
 
-MEM_STATIC void ZSTD_errorFrameSizeInfoLegacy(size_t* cSize, unsigned long long* dBound, size_t ret)
-{
-    *cSize = ret;
-    *dBound = ZSTD_CONTENTSIZE_ERROR;
-}
-
 MEM_STATIC ZSTD_frameSizeInfo ZSTD_findFrameSizeInfoLegacy(const void *src, size_t srcSize)
 {
     U32 const version = ZSTD_isLegacy(src, srcSize);
@@ -234,8 +228,8 @@ MEM_STATIC ZSTD_frameSizeInfo ZSTD_findFrameSizeInfoLegacy(const void *src, size
             break;
 #endif
         default :
-            ZSTD_errorFrameSizeInfoLegacy(&frameSizeInfo.compressedSize,
-                &frameSizeInfo.decompressedBound, ERROR(prefix_unknown));
+            frameSizeInfo.compressedSize = ERROR(prefix_unknown);
+            frameSizeInfo.decompressedBound = ZSTD_CONTENTSIZE_ERROR;
             break;
     }
     return frameSizeInfo;

@@ -188,43 +188,50 @@ MEM_STATIC ZSTD_frameSizeInfo ZSTD_findFrameSizeInfoLegacy(const void *src, size
 #if (ZSTD_LEGACY_SUPPORT <= 1)
         case 1 :
             ZSTDv01_findFrameSizeInfoLegacy(src, srcSize,
-                &frameSizeInfo.compressedSize, &frameSizeInfo.decompressedBound);
+                &frameSizeInfo.compressedSize,
+                &frameSizeInfo.decompressedBound);
             break;
 #endif
 #if (ZSTD_LEGACY_SUPPORT <= 2)
         case 2 :
             ZSTDv02_findFrameSizeInfoLegacy(src, srcSize,
-                &frameSizeInfo.compressedSize, &frameSizeInfo.decompressedBound);
+                &frameSizeInfo.compressedSize,
+                &frameSizeInfo.decompressedBound);
             break;
 #endif
 #if (ZSTD_LEGACY_SUPPORT <= 3)
         case 3 :
             ZSTDv03_findFrameSizeInfoLegacy(src, srcSize,
-                &frameSizeInfo.compressedSize, &frameSizeInfo.decompressedBound);
+                &frameSizeInfo.compressedSize,
+                &frameSizeInfo.decompressedBound);
             break;
 #endif
 #if (ZSTD_LEGACY_SUPPORT <= 4)
         case 4 :
             ZSTDv04_findFrameSizeInfoLegacy(src, srcSize,
-                &frameSizeInfo.compressedSize, &frameSizeInfo.decompressedBound);
+                &frameSizeInfo.compressedSize,
+                &frameSizeInfo.decompressedBound);
             break;
 #endif
 #if (ZSTD_LEGACY_SUPPORT <= 5)
         case 5 :
             ZSTDv05_findFrameSizeInfoLegacy(src, srcSize,
-                &frameSizeInfo.compressedSize, &frameSizeInfo.decompressedBound);
+                &frameSizeInfo.compressedSize,
+                &frameSizeInfo.decompressedBound);
             break;
 #endif
 #if (ZSTD_LEGACY_SUPPORT <= 6)
         case 6 :
             ZSTDv06_findFrameSizeInfoLegacy(src, srcSize,
-                &frameSizeInfo.compressedSize, &frameSizeInfo.decompressedBound);
+                &frameSizeInfo.compressedSize,
+                &frameSizeInfo.decompressedBound);
             break;
 #endif
 #if (ZSTD_LEGACY_SUPPORT <= 7)
         case 7 :
             ZSTDv07_findFrameSizeInfoLegacy(src, srcSize,
-                &frameSizeInfo.compressedSize, &frameSizeInfo.decompressedBound);
+                &frameSizeInfo.compressedSize,
+                &frameSizeInfo.decompressedBound);
             break;
 #endif
         default :

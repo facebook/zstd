@@ -2369,7 +2369,6 @@ static size_t HUF_decompress (void* dst, size_t dstSize, const void* cSrc, size_
 #define LITERAL_NOENTROPY 63
 #define COMMAND_NOENTROPY 7   /* to remove */
 
-#define ZSTD_CONTENTSIZE_UNKNOWN (0ULL - 1)
 #define ZSTD_CONTENTSIZE_ERROR   (0ULL - 2)
 
 static const size_t ZSTD_blockHeaderSize = 3;
@@ -2962,8 +2961,7 @@ MEM_STATIC void ZSTD_errorFrameSizeInfoLegacy(size_t* cSize, unsigned long long*
     *dBound = ZSTD_CONTENTSIZE_ERROR;
 }
 
-void ZSTDv03_findFrameSizeInfoLegacy(const void *src, size_t srcSize,
-                                     size_t* cSize, unsigned long long* dBound)
+void ZSTDv03_findFrameSizeInfoLegacy(const void *src, size_t srcSize, size_t* cSize, unsigned long long* dBound)
 {
     const BYTE* ip = (const BYTE*)src;
     size_t remainingSize = srcSize;

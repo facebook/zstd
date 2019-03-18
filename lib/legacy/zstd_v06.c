@@ -506,7 +506,6 @@ typedef enum { bt_compressed, bt_raw, bt_rle, bt_end } blockType_t;
 #define FSEv06_ENCODING_STATIC  2
 #define FSEv06_ENCODING_DYNAMIC 3
 
-#define ZSTD_CONTENTSIZE_UNKNOWN (0ULL - 1)
 #define ZSTD_CONTENTSIZE_ERROR   (0ULL - 2)
 
 static const U32 LL_bits[MaxLL+1] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -3663,8 +3662,7 @@ MEM_STATIC void ZSTD_errorFrameSizeInfoLegacy(size_t* cSize, unsigned long long*
     *dBound = ZSTD_CONTENTSIZE_ERROR;
 }
 
-void ZSTDv06_findFrameSizeInfoLegacy(const void *src, size_t srcSize,
-                                     size_t* cSize, unsigned long long* dBound)
+void ZSTDv06_findFrameSizeInfoLegacy(const void *src, size_t srcSize, size_t* cSize, unsigned long long* dBound)
 {
     const BYTE* ip = (const BYTE*)src;
     size_t remainingSize = srcSize;

@@ -491,7 +491,6 @@ static const size_t ZSTDv05_frameHeaderSize_min = 5;
 
 #define WILDCOPY_OVERLENGTH 8
 
-#define ZSTD_CONTENTSIZE_UNKNOWN (0ULL - 1)
 #define ZSTD_CONTENTSIZE_ERROR   (0ULL - 2)
 
 typedef enum { bt_compressed, bt_raw, bt_rle, bt_end } blockType_t;
@@ -3517,8 +3516,7 @@ MEM_STATIC void ZSTD_errorFrameSizeInfoLegacy(size_t* cSize, unsigned long long*
     *dBound = ZSTD_CONTENTSIZE_ERROR;
 }
 
-void ZSTDv05_findFrameSizeInfoLegacy(const void *src, size_t srcSize,
-                                     size_t* cSize, unsigned long long* dBound)
+void ZSTDv05_findFrameSizeInfoLegacy(const void *src, size_t srcSize, size_t* cSize, unsigned long long* dBound)
 {
     const BYTE* ip = (const BYTE*)src;
     size_t remainingSize = srcSize;

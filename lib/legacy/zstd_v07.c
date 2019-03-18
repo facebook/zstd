@@ -2740,7 +2740,6 @@ typedef enum { lbt_huffman, lbt_repeat, lbt_raw, lbt_rle } litBlockType_t;
 #define FSEv07_ENCODING_STATIC  2
 #define FSEv07_ENCODING_DYNAMIC 3
 
-#define ZSTD_CONTENTSIZE_UNKNOWN (0ULL - 1)
 #define ZSTD_CONTENTSIZE_ERROR   (0ULL - 2)
 
 static const U32 LL_bits[MaxLL+1] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -3904,8 +3903,7 @@ MEM_STATIC void ZSTD_errorFrameSizeInfoLegacy(size_t* cSize, unsigned long long*
     *dBound = ZSTD_CONTENTSIZE_ERROR;
 }
 
-void ZSTDv07_findFrameSizeInfoLegacy(const void *src, size_t srcSize,
-                                     size_t* cSize, unsigned long long* dBound)
+void ZSTDv07_findFrameSizeInfoLegacy(const void *src, size_t srcSize, size_t* cSize, unsigned long long* dBound)
 {
     const BYTE* ip = (const BYTE*)src;
     size_t remainingSize = srcSize;

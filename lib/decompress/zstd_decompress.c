@@ -447,9 +447,8 @@ static ZSTD_frameSizeInfo ZSTD_findFrameSizeInfo(const void* src, size_t srcSize
     memset(&frameSizeInfo, 0, sizeof(ZSTD_frameSizeInfo));
 
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
-    if (ZSTD_isLegacy(src, srcSize)) {
+    if (ZSTD_isLegacy(src, srcSize))
         return ZSTD_findFrameSizeInfoLegacy(src, srcSize);
-    }
 #endif
 
     if ((srcSize >= ZSTD_SKIPPABLEHEADERSIZE)

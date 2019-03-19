@@ -133,9 +133,26 @@ static int testStreamingAPI(void)
 
 static int testFrameDecoding(void)
 {
-    if (ZSTD_decompressBound(COMPRESSED, COMPRESSED_SIZE) != ZSTD_CONTENTSIZE_ERROR) {
-        DISPLAY("ERROR: ZSTD_decompressBound: Expected to receive ZSTD_CONTENTSIZE_ERROR\n");
+    if (strlen(EXPECTED) > ZSTD_decompressBound(COMPRESSED, COMPRESSED_SIZE)) {
+        DISPLAY("ERROR: ZSTD_decompressBound: decompressed bound too small\n");
         return 1;
+    }
+    {   const char* ip = COMPRESSED;
+        size_t remainingSize = COMPRESSED_SIZE;
+        while (1) {
+            size_t frameSize = ZSTD_findFrameCompressedSize(ip, remainingSize);
+            if (ZSTD_isError(frameSize)) {
+                DISPLAY("ERROR: ZSTD_findFrameCompressedSize: %s\n", ZSTD_getErrorName(frameSize));
+                return 1;
+            }
+            if (frameSize > remainingSize) {
+                DISPLAY("ERROR: ZSTD_findFrameCompressedSize: expected frameSize to align with src buffer");
+                return 1;
+            }
+            ip += frameSize;
+            remainingSize -= frameSize;
+            if (remainingSize == 0) break;
+        }
     }
     DISPLAY("Frame Decoding OK\n");
     return 0;

@@ -433,17 +433,6 @@ static size_t ZSTD_decodeFrameHeader(ZSTD_DCtx* dctx, const void* src, size_t he
     return 0;
 }
 
-/**
- * Contains the compressed frame size and an upper-bound for the decompressed frame size.
- * Note: before using `compressedSize` you must check for errors using ZSTD_isError().
- *       similarly, before using `decompressedBound`, you must check for errors using:
- *          `decompressedBound` != ZSTD_CONTENTSIZE_ERROR
- */
-typedef struct {
-    size_t compressedSize;
-    unsigned long long decompressedBound;
-} ZSTD_frameSizeInfo;
-
 static ZSTD_frameSizeInfo ZSTD_errorFrameSizeInfo(size_t ret)
 {
     ZSTD_frameSizeInfo frameSizeInfo;
@@ -459,7 +448,7 @@ static ZSTD_frameSizeInfo ZSTD_findFrameSizeInfo(const void* src, size_t srcSize
 
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
     if (ZSTD_isLegacy(src, srcSize))
-        return ZSTD_errorFrameSizeInfo(ZSTD_findFrameCompressedSizeLegacy(src, srcSize));
+        return ZSTD_findFrameSizeInfoLegacy(src, srcSize);
 #endif
 
     if ((srcSize >= ZSTD_SKIPPABLEHEADERSIZE)
@@ -529,7 +518,7 @@ size_t ZSTD_findFrameCompressedSize(const void *src, size_t srcSize)
 
 
 /** ZSTD_decompressBound() :
- *  currently incompatible with legacy mode
+ *  compatible with legacy mode
  *  `src` must point to the start of a ZSTD frame or a skippeable frame
  *  `srcSize` must be at least as large as the frame contained
  *  @return : the maximum decompressed size of the compressed source

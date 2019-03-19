@@ -49,6 +49,9 @@ ZSTDv06_findFrameSizeInfoLegacy() : get the source length and decompressed bound
                                or an errorCode if it fails (which can be tested using ZSTDv01_isError())
     dBound (output paramter) : an upper-bound for the decompressed size of the data in the frame
                                or ZSTD_CONTENTSIZE_ERROR if an error occurs
+
+    note : assumes `cSize` and `dBound` are _not_ NULL.
+
 */
 void ZSTDv06_findFrameSizeInfoLegacy(const void *src, size_t srcSize,
                                      size_t* cSize, unsigned long long* dBound);

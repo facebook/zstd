@@ -42,7 +42,6 @@ size_t ZSTDv05_decompress( void* dst, size_t dstCapacity,
                                 or ZSTD_CONTENTSIZE_ERROR if an error occurs
 
     note : assumes `cSize` and `dBound` are _not_ NULL.
-
  */
 void ZSTDv05_findFrameSizeInfoLegacy(const void *src, size_t srcSize,
                                      size_t* cSize, unsigned long long* dBound);

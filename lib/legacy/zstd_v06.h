@@ -43,12 +43,17 @@ ZSTDLIBv06_API size_t ZSTDv06_decompress( void* dst, size_t dstCapacity,
                                     const void* src, size_t compressedSize);
 
 /**
-ZSTDv06_getFrameSrcSize() : get the source length of a ZSTD frame
-    compressedSize : The size of the 'src' buffer, at least as large as the frame pointed to by 'src'
-    return : the number of bytes that would be read to decompress this frame
-             or an errorCode if it fails (which can be tested using ZSTDv06_isError())
+ZSTDv06_findFrameSizeInfoLegacy() : get the source length and decompressed bound of a ZSTD frame compliant with v0.6.x format
+    srcSize : The size of the 'src' buffer, at least as large as the frame pointed to by 'src'
+    cSize (output parameter)  : the number of bytes that would be read to decompress this frame
+                                or an error code if it fails (which can be tested using ZSTDv01_isError())
+    dBound (output parameter) : an upper-bound for the decompressed size of the data in the frame
+                                or ZSTD_CONTENTSIZE_ERROR if an error occurs
+
+    note : assumes `cSize` and `dBound` are _not_ NULL.
 */
-size_t ZSTDv06_findFrameCompressedSize(const void* src, size_t compressedSize);
+void ZSTDv06_findFrameSizeInfoLegacy(const void *src, size_t srcSize,
+                                     size_t* cSize, unsigned long long* dBound);
 
 /* *************************************
 *  Helper functions

@@ -180,9 +180,8 @@ MEM_STATIC size_t ZSTD_decompressLegacy(
 
 MEM_STATIC ZSTD_frameSizeInfo ZSTD_findFrameSizeInfoLegacy(const void *src, size_t srcSize)
 {
-    U32 const version = ZSTD_isLegacy(src, srcSize);
     ZSTD_frameSizeInfo frameSizeInfo;
-    memset(&frameSizeInfo, 0, sizeof(ZSTD_frameSizeInfo));
+    U32 const version = ZSTD_isLegacy(src, srcSize);
     switch(version)
     {
 #if (ZSTD_LEGACY_SUPPORT <= 1)

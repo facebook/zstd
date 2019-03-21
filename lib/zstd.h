@@ -347,9 +347,24 @@ ZSTDLIB_API ZSTD_CStream* ZSTD_createCStream(void);
 ZSTDLIB_API size_t ZSTD_freeCStream(ZSTD_CStream* zcs);
 
 /*===== Streaming compression functions =====*/
+/**
+ * Equivalent to:
+ *
+ *     ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);
+ *     ZSTD_CCtx_refCDict(zcs, NULL); // clear the dictionary (if any)
+ *     ZSTD_CCtx_setParameter(zcs, ZSTD_c_compressionLevel, compressionLevel);
+ */
 ZSTDLIB_API size_t ZSTD_initCStream(ZSTD_CStream* zcs, int compressionLevel);
+/**
+ * Alternative for ZSTD_compressStream2(zcs, output, input, ZSTD_e_continue).
+ * NOTE: The return value is different. ZSTD_compressStream() returns a hint for
+ * the next read size (if non-zero and not an error). ZSTD_compressStream2()
+ * returns the number of bytes left to flush (if non-zero and not an error).
+ */
 ZSTDLIB_API size_t ZSTD_compressStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output, ZSTD_inBuffer* input);
+/** Equivalent to ZSTD_compressStream2(zcs, output, &emptyInput, ZSTD_e_flush). */
 ZSTDLIB_API size_t ZSTD_flushStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output);
+/** Equivalent to ZSTD_compressStream2(zcs, output, &emptyInput, ZSTD_e_end). */
 ZSTDLIB_API size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output);
 
 ZSTDLIB_API size_t ZSTD_CStreamInSize(void);    /**< recommended size for input buffer */
@@ -1542,14 +1557,68 @@ ZSTDLIB_API size_t ZSTD_decompressStream_simpleArgs (
 ********************************************************************/
 
 /*=====   Advanced Streaming compression functions  =====*/
-ZSTDLIB_API size_t ZSTD_initCStream_srcSize(ZSTD_CStream* zcs, int compressionLevel, unsigned long long pledgedSrcSize);   /**< pledgedSrcSize must be correct. If it is not known at init time, use ZSTD_CONTENTSIZE_UNKNOWN. Note that, for compatibility with older programs, "0" also disables frame content size field. It may be enabled in the future. */
-ZSTDLIB_API size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs, const void* dict, size_t dictSize, int compressionLevel); /**< creates of an internal CDict (incompatible with static CCtx), except if dict == NULL or dictSize < 8, in which case no dict is used. Note: dict is loaded with ZSTD_dm_auto (treated as a full zstd dictionary if it begins with ZSTD_MAGIC_DICTIONARY, else as raw content) and ZSTD_dlm_byCopy.*/
+/**! ZSTD_initCStream_srcSize() :
+ * This function is deprecated, and equivalent to:
+ *     ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);
+ *     ZSTD_CCtx_refCDict(zcs, NULL); // clear the dictionary (if any)
+ *     ZSTD_CCtx_setParameter(zcs, ZSTD_c_compressionLevel, compressionLevel);
+ *     ZSTD_CCtx_setPledgedSrcSize(zcs, pledgedSrcSize);
+ *
+ * pledgedSrcSize must be correct. If it is not known at init time, use
+ * ZSTD_CONTENTSIZE_UNKNOWN. Note that, for compatibility with older programs,
+ * "0" also disables frame content size field. It may be enabled in the future.
+ */
+ZSTDLIB_API size_t ZSTD_initCStream_srcSize(ZSTD_CStream* zcs, int compressionLevel, unsigned long long pledgedSrcSize);
+/**! ZSTD_initCStream_usingDict() :
+ * This function is deprecated, and is equivalent to:
+ *     ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);
+ *     ZSTD_CCtx_setParameter(zcs, ZSTD_c_compressionLevel, compressionLevel);
+ *     ZSTD_CCtx_loadDictionary(zcs, dict, dictSize);
+ *
+ * Creates of an internal CDict (incompatible with static CCtx), except if
+ * dict == NULL or dictSize < 8, in which case no dict is used.
+ * Note: dict is loaded with ZSTD_dm_auto (treated as a full zstd dictionary if
+ * it begins with ZSTD_MAGIC_DICTIONARY, else as raw content) and ZSTD_dlm_byCopy.
+ */
+ZSTDLIB_API size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs, const void* dict, size_t dictSize, int compressionLevel);
+/**! ZSTD_initCStream_advanced() :
+ * This function is deprecated, and is approximately equivalent to:
+ *     ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);
+ *     ZSTD_CCtx_setZstdParams(zcs, params); // Set the zstd params and leave the rest as-is
+ *     ZSTD_CCtx_setPledgedSrcSize(zcs, pledgedSrcSize);
+ *     ZSTD_CCtx_loadDictionary(zcs, dict, dictSize);
+ *
+ * pledgedSrcSize must be correct. If srcSize is not known at init time, use
+ * value ZSTD_CONTENTSIZE_UNKNOWN. dict is loaded with ZSTD_dm_auto and ZSTD_dlm_byCopy.
+ */
 ZSTDLIB_API size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs, const void* dict, size_t dictSize,
-                                             ZSTD_parameters params, unsigned long long pledgedSrcSize);  /**< pledgedSrcSize must be correct. If srcSize is not known at init time, use value ZSTD_CONTENTSIZE_UNKNOWN. dict is loaded with ZSTD_dm_auto and ZSTD_dlm_byCopy. */
-ZSTDLIB_API size_t ZSTD_initCStream_usingCDict(ZSTD_CStream* zcs, const ZSTD_CDict* cdict);  /**< note : cdict will just be referenced, and must outlive compression session */
-ZSTDLIB_API size_t ZSTD_initCStream_usingCDict_advanced(ZSTD_CStream* zcs, const ZSTD_CDict* cdict, ZSTD_frameParameters fParams, unsigned long long pledgedSrcSize);  /**< same as ZSTD_initCStream_usingCDict(), with control over frame parameters. pledgedSrcSize must be correct. If srcSize is not known at init time, use value ZSTD_CONTENTSIZE_UNKNOWN. */
+                                             ZSTD_parameters params, unsigned long long pledgedSrcSize);
+/**! ZSTD_initCStream_usingCDict() :
+ * This function is deprecated, and equivalent to:
+ *     ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);
+ *     ZSTD_CCtx_refCDict(zcs, cdict);
+ *
+ * note : cdict will just be referenced, and must outlive compression session
+ */
+ZSTDLIB_API size_t ZSTD_initCStream_usingCDict(ZSTD_CStream* zcs, const ZSTD_CDict* cdict);
+/**! ZSTD_initCStream_usingCDict_advanced() :
+ * This function is deprecated, and is approximately equivalent to:
+ *     ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);
+ *     ZSTD_CCtx_setZstdFrameParams(zcs, fParams); // Set the zstd frame params and leave the rest as-is
+ *     ZSTD_CCtx_setPledgedSrcSize(zcs, pledgedSrcSize);
+ *     ZSTD_CCtx_refCDict(zcs, cdict);
+ *
+ * same as ZSTD_initCStream_usingCDict(), with control over frame parameters.
+ * pledgedSrcSize must be correct. If srcSize is not known at init time, use
+ * value ZSTD_CONTENTSIZE_UNKNOWN.
+ */
+ZSTDLIB_API size_t ZSTD_initCStream_usingCDict_advanced(ZSTD_CStream* zcs, const ZSTD_CDict* cdict, ZSTD_frameParameters fParams, unsigned long long pledgedSrcSize);
 
 /*! ZSTD_resetCStream() :
+ * This function is deprecated, and is equivalent to:
+ *     ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);
+ *     ZSTD_CCtx_setPledgedSrcSize(zcs, pledgedSrcSize);
+ *
  *  start a new frame, using same parameters from previous frame.
  *  This is typically useful to skip dictionary loading stage, since it will re-use it in-place.
  *  Note that zcs must be init at least once before using ZSTD_resetCStream().

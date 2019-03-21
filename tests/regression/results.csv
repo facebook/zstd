@@ -104,7 +104,7 @@ silesia,                            explicit params,                    zstdcli,
 silesia,                            uncompressed literals,              zstdcli,                            5155472
 silesia,                            uncompressed literals optimal,      zstdcli,                            4325475
 silesia,                            huffman literals,                   zstdcli,                            5341405
-silesia,                            multithreaded with advanced params, zstdcli,                            compression error
+silesia,                            multithreaded with advanced params, zstdcli,                            5155472
 silesia.tar,                        level -5,                           zstdcli,                            7161160
 silesia.tar,                        level -3,                           zstdcli,                            6789865
 silesia.tar,                        level -1,                           zstdcli,                            6196433
@@ -130,7 +130,7 @@ silesia.tar,                        explicit params,                    zstdcli,
 silesia.tar,                        uncompressed literals,              zstdcli,                            5158134
 silesia.tar,                        uncompressed literals optimal,      zstdcli,                            4321098
 silesia.tar,                        huffman literals,                   zstdcli,                            5358479
-silesia.tar,                        multithreaded with advanced params, zstdcli,                            compression error
+silesia.tar,                        multithreaded with advanced params, zstdcli,                            5158134
 github,                             level -5,                           zstdcli,                            234744
 github,                             level -5 with dict,                 zstdcli,                            48718
 github,                             level -3,                           zstdcli,                            222611
@@ -169,7 +169,7 @@ github,                             explicit params,                    zstdcli,
 github,                             uncompressed literals,              zstdcli,                            169004
 github,                             uncompressed literals optimal,      zstdcli,                            158824
 github,                             huffman literals,                   zstdcli,                            145457
-github,                             multithreaded with advanced params, zstdcli,                            compression error
+github,                             multithreaded with advanced params, zstdcli,                            169004
 silesia,                            level -5,                           advanced one pass,                  7152294
 silesia,                            level -3,                           advanced one pass,                  6789969
 silesia,                            level -1,                           advanced one pass,                  6191548
@@ -461,9 +461,17 @@ silesia,                            level 13,                           old stre
 silesia,                            level 16,                           old streaming,                      4377391
 silesia,                            level 19,                           old streaming,                      4293262
 silesia,                            no source size,                     old streaming,                      4862341
+silesia,                            long distance mode,                 old streaming,                      12000408
+silesia,                            multithreaded,                      old streaming,                      12000408
+silesia,                            multithreaded long distance mode,   old streaming,                      12000408
+silesia,                            small window log,                   old streaming,                      12000408
+silesia,                            small hash log,                     old streaming,                      12000408
+silesia,                            small chain log,                    old streaming,                      12000408
+silesia,                            explicit params,                    old streaming,                      12000408
 silesia,                            uncompressed literals,              old streaming,                      4862377
 silesia,                            uncompressed literals optimal,      old streaming,                      4293262
 silesia,                            huffman literals,                   old streaming,                      6191549
+silesia,                            multithreaded with advanced params, old streaming,                      12000408
 silesia.tar,                        level -5,                           old streaming,                      7160440
 silesia.tar,                        level -3,                           old streaming,                      6789026
 silesia.tar,                        level -1,                           old streaming,                      6195465
@@ -479,9 +487,17 @@ silesia.tar,                        level 13,                           old stre
 silesia.tar,                        level 16,                           old streaming,                      4381277
 silesia.tar,                        level 19,                           old streaming,                      4281514
 silesia.tar,                        no source size,                     old streaming,                      4875006
+silesia.tar,                        long distance mode,                 old streaming,                      12022046
+silesia.tar,                        multithreaded,                      old streaming,                      12022046
+silesia.tar,                        multithreaded long distance mode,   old streaming,                      12022046
+silesia.tar,                        small window log,                   old streaming,                      12022046
+silesia.tar,                        small hash log,                     old streaming,                      12022046
+silesia.tar,                        small chain log,                    old streaming,                      12022046
+silesia.tar,                        explicit params,                    old streaming,                      12022046
 silesia.tar,                        uncompressed literals,              old streaming,                      4875010
 silesia.tar,                        uncompressed literals optimal,      old streaming,                      4281514
 silesia.tar,                        huffman literals,                   old streaming,                      6195465
+silesia.tar,                        multithreaded with advanced params, old streaming,                      12022046
 github,                             level -5,                           old streaming,                      232744
 github,                             level -5 with dict,                 old streaming,                      46718
 github,                             level -3,                           old streaming,                      220611
@@ -511,6 +527,290 @@ github,                             level 16 with dict,                 old stre
 github,                             level 19,                           old streaming,                      133717
 github,                             level 19 with dict,                 old streaming,                      37576
 github,                             no source size,                     old streaming,                      141003
+github,                             long distance mode,                 old streaming,                      412933
+github,                             multithreaded,                      old streaming,                      412933
+github,                             multithreaded long distance mode,   old streaming,                      412933
+github,                             small window log,                   old streaming,                      412933
+github,                             small hash log,                     old streaming,                      412933
+github,                             small chain log,                    old streaming,                      412933
+github,                             explicit params,                    old streaming,                      412933
 github,                             uncompressed literals,              old streaming,                      136397
 github,                             uncompressed literals optimal,      old streaming,                      133717
 github,                             huffman literals,                   old streaming,                      176575
+github,                             multithreaded with advanced params, old streaming,                      412933
+silesia,                            level -5,                           old streaming advanced,             7152294
+silesia,                            level -3,                           old streaming advanced,             6789973
+silesia,                            level -1,                           old streaming advanced,             6191549
+silesia,                            level 0,                            old streaming advanced,             4862377
+silesia,                            level 1,                            old streaming advanced,             5318036
+silesia,                            level 3,                            old streaming advanced,             4862377
+silesia,                            level 4,                            old streaming advanced,             4800629
+silesia,                            level 5,                            old streaming advanced,             4710178
+silesia,                            level 6,                            old streaming advanced,             4659996
+silesia,                            level 7,                            old streaming advanced,             4596234
+silesia,                            level 9,                            old streaming advanced,             4543862
+silesia,                            level 13,                           old streaming advanced,             4482073
+silesia,                            level 16,                           old streaming advanced,             4377391
+silesia,                            level 19,                           old streaming advanced,             4293262
+silesia,                            no source size,                     old streaming advanced,             4862341
+silesia,                            long distance mode,                 old streaming advanced,             12000408
+silesia,                            multithreaded,                      old streaming advanced,             12000408
+silesia,                            multithreaded long distance mode,   old streaming advanced,             12000408
+silesia,                            small window log,                   old streaming advanced,             12000408
+silesia,                            small hash log,                     old streaming advanced,             12000408
+silesia,                            small chain log,                    old streaming advanced,             12000408
+silesia,                            explicit params,                    old streaming advanced,             12000408
+silesia,                            uncompressed literals,              old streaming advanced,             4862377
+silesia,                            uncompressed literals optimal,      old streaming advanced,             4293262
+silesia,                            huffman literals,                   old streaming advanced,             6191549
+silesia,                            multithreaded with advanced params, old streaming advanced,             12000408
+silesia.tar,                        level -5,                           old streaming advanced,             7160440
+silesia.tar,                        level -3,                           old streaming advanced,             6789026
+silesia.tar,                        level -1,                           old streaming advanced,             6195465
+silesia.tar,                        level 0,                            old streaming advanced,             4875010
+silesia.tar,                        level 1,                            old streaming advanced,             5339701
+silesia.tar,                        level 3,                            old streaming advanced,             4875010
+silesia.tar,                        level 4,                            old streaming advanced,             4813507
+silesia.tar,                        level 5,                            old streaming advanced,             4722240
+silesia.tar,                        level 6,                            old streaming advanced,             4672203
+silesia.tar,                        level 7,                            old streaming advanced,             4606658
+silesia.tar,                        level 9,                            old streaming advanced,             4554105
+silesia.tar,                        level 13,                           old streaming advanced,             4491703
+silesia.tar,                        level 16,                           old streaming advanced,             4381277
+silesia.tar,                        level 19,                           old streaming advanced,             4281514
+silesia.tar,                        no source size,                     old streaming advanced,             4875006
+silesia.tar,                        long distance mode,                 old streaming advanced,             12022046
+silesia.tar,                        multithreaded,                      old streaming advanced,             12022046
+silesia.tar,                        multithreaded long distance mode,   old streaming advanced,             12022046
+silesia.tar,                        small window log,                   old streaming advanced,             12022046
+silesia.tar,                        small hash log,                     old streaming advanced,             12022046
+silesia.tar,                        small chain log,                    old streaming advanced,             12022046
+silesia.tar,                        explicit params,                    old streaming advanced,             12022046
+silesia.tar,                        uncompressed literals,              old streaming advanced,             4875010
+silesia.tar,                        uncompressed literals optimal,      old streaming advanced,             4281514
+silesia.tar,                        huffman literals,                   old streaming advanced,             6195465
+silesia.tar,                        multithreaded with advanced params, old streaming advanced,             12022046
+github,                             level -5,                           old streaming advanced,             232744
+github,                             level -5 with dict,                 old streaming advanced,             46718
+github,                             level -3,                           old streaming advanced,             220611
+github,                             level -3 with dict,                 old streaming advanced,             45395
+github,                             level -1,                           old streaming advanced,             176575
+github,                             level -1 with dict,                 old streaming advanced,             43170
+github,                             level 0,                            old streaming advanced,             136397
+github,                             level 0 with dict,                  old streaming advanced,             41170
+github,                             level 1,                            old streaming advanced,             143457
+github,                             level 1 with dict,                  old streaming advanced,             41682
+github,                             level 3,                            old streaming advanced,             136397
+github,                             level 3 with dict,                  old streaming advanced,             41170
+github,                             level 4,                            old streaming advanced,             136144
+github,                             level 4 with dict,                  old streaming advanced,             41306
+github,                             level 5,                            old streaming advanced,             135106
+github,                             level 5 with dict,                  old streaming advanced,             38938
+github,                             level 6,                            old streaming advanced,             135108
+github,                             level 6 with dict,                  old streaming advanced,             38632
+github,                             level 7,                            old streaming advanced,             135108
+github,                             level 7 with dict,                  old streaming advanced,             38766
+github,                             level 9,                            old streaming advanced,             135108
+github,                             level 9 with dict,                  old streaming advanced,             39326
+github,                             level 13,                           old streaming advanced,             133717
+github,                             level 13 with dict,                 old streaming advanced,             39716
+github,                             level 16,                           old streaming advanced,             133717
+github,                             level 16 with dict,                 old streaming advanced,             37577
+github,                             level 19,                           old streaming advanced,             133717
+github,                             level 19 with dict,                 old streaming advanced,             37576
+github,                             no source size,                     old streaming advanced,             141003
+github,                             long distance mode,                 old streaming advanced,             412933
+github,                             multithreaded,                      old streaming advanced,             412933
+github,                             multithreaded long distance mode,   old streaming advanced,             412933
+github,                             small window log,                   old streaming advanced,             412933
+github,                             small hash log,                     old streaming advanced,             412933
+github,                             small chain log,                    old streaming advanced,             412933
+github,                             explicit params,                    old streaming advanced,             412933
+github,                             uncompressed literals,              old streaming advanced,             136397
+github,                             uncompressed literals optimal,      old streaming advanced,             133717
+github,                             huffman literals,                   old streaming advanced,             176575
+github,                             multithreaded with advanced params, old streaming advanced,             412933
+silesia,                            level -5,                           old streaming cdcit,                7152294
+silesia,                            level -3,                           old streaming cdcit,                6789973
+silesia,                            level -1,                           old streaming cdcit,                6191549
+silesia,                            level 0,                            old streaming cdcit,                4862377
+silesia,                            level 1,                            old streaming cdcit,                5318036
+silesia,                            level 3,                            old streaming cdcit,                4862377
+silesia,                            level 4,                            old streaming cdcit,                4800629
+silesia,                            level 5,                            old streaming cdcit,                4710178
+silesia,                            level 6,                            old streaming cdcit,                4659996
+silesia,                            level 7,                            old streaming cdcit,                4596234
+silesia,                            level 9,                            old streaming cdcit,                4543862
+silesia,                            level 13,                           old streaming cdcit,                4482073
+silesia,                            level 16,                           old streaming cdcit,                4377391
+silesia,                            level 19,                           old streaming cdcit,                4293262
+silesia,                            no source size,                     old streaming cdcit,                4862341
+silesia,                            long distance mode,                 old streaming cdcit,                12000408
+silesia,                            multithreaded,                      old streaming cdcit,                12000408
+silesia,                            multithreaded long distance mode,   old streaming cdcit,                12000408
+silesia,                            small window log,                   old streaming cdcit,                12000408
+silesia,                            small hash log,                     old streaming cdcit,                12000408
+silesia,                            small chain log,                    old streaming cdcit,                12000408
+silesia,                            explicit params,                    old streaming cdcit,                12000408
+silesia,                            uncompressed literals,              old streaming cdcit,                4862377
+silesia,                            uncompressed literals optimal,      old streaming cdcit,                4293262
+silesia,                            huffman literals,                   old streaming cdcit,                6191549
+silesia,                            multithreaded with advanced params, old streaming cdcit,                12000408
+silesia.tar,                        level -5,                           old streaming cdcit,                7160440
+silesia.tar,                        level -3,                           old streaming cdcit,                6789026
+silesia.tar,                        level -1,                           old streaming cdcit,                6195465
+silesia.tar,                        level 0,                            old streaming cdcit,                4875010
+silesia.tar,                        level 1,                            old streaming cdcit,                5339701
+silesia.tar,                        level 3,                            old streaming cdcit,                4875010
+silesia.tar,                        level 4,                            old streaming cdcit,                4813507
+silesia.tar,                        level 5,                            old streaming cdcit,                4722240
+silesia.tar,                        level 6,                            old streaming cdcit,                4672203
+silesia.tar,                        level 7,                            old streaming cdcit,                4606658
+silesia.tar,                        level 9,                            old streaming cdcit,                4554105
+silesia.tar,                        level 13,                           old streaming cdcit,                4491703
+silesia.tar,                        level 16,                           old streaming cdcit,                4381277
+silesia.tar,                        level 19,                           old streaming cdcit,                4281514
+silesia.tar,                        no source size,                     old streaming cdcit,                4875006
+silesia.tar,                        long distance mode,                 old streaming cdcit,                12022046
+silesia.tar,                        multithreaded,                      old streaming cdcit,                12022046
+silesia.tar,                        multithreaded long distance mode,   old streaming cdcit,                12022046
+silesia.tar,                        small window log,                   old streaming cdcit,                12022046
+silesia.tar,                        small hash log,                     old streaming cdcit,                12022046
+silesia.tar,                        small chain log,                    old streaming cdcit,                12022046
+silesia.tar,                        explicit params,                    old streaming cdcit,                12022046
+silesia.tar,                        uncompressed literals,              old streaming cdcit,                4875010
+silesia.tar,                        uncompressed literals optimal,      old streaming cdcit,                4281514
+silesia.tar,                        huffman literals,                   old streaming cdcit,                6195465
+silesia.tar,                        multithreaded with advanced params, old streaming cdcit,                12022046
+github,                             level -5,                           old streaming cdcit,                232744
+github,                             level -5 with dict,                 old streaming cdcit,                46718
+github,                             level -3,                           old streaming cdcit,                220611
+github,                             level -3 with dict,                 old streaming cdcit,                45395
+github,                             level -1,                           old streaming cdcit,                176575
+github,                             level -1 with dict,                 old streaming cdcit,                43170
+github,                             level 0,                            old streaming cdcit,                136397
+github,                             level 0 with dict,                  old streaming cdcit,                41170
+github,                             level 1,                            old streaming cdcit,                143457
+github,                             level 1 with dict,                  old streaming cdcit,                41682
+github,                             level 3,                            old streaming cdcit,                136397
+github,                             level 3 with dict,                  old streaming cdcit,                41170
+github,                             level 4,                            old streaming cdcit,                136144
+github,                             level 4 with dict,                  old streaming cdcit,                41306
+github,                             level 5,                            old streaming cdcit,                135106
+github,                             level 5 with dict,                  old streaming cdcit,                38938
+github,                             level 6,                            old streaming cdcit,                135108
+github,                             level 6 with dict,                  old streaming cdcit,                38632
+github,                             level 7,                            old streaming cdcit,                135108
+github,                             level 7 with dict,                  old streaming cdcit,                38766
+github,                             level 9,                            old streaming cdcit,                135108
+github,                             level 9 with dict,                  old streaming cdcit,                39326
+github,                             level 13,                           old streaming cdcit,                133717
+github,                             level 13 with dict,                 old streaming cdcit,                39716
+github,                             level 16,                           old streaming cdcit,                133717
+github,                             level 16 with dict,                 old streaming cdcit,                37577
+github,                             level 19,                           old streaming cdcit,                133717
+github,                             level 19 with dict,                 old streaming cdcit,                37576
+github,                             no source size,                     old streaming cdcit,                141003
+github,                             long distance mode,                 old streaming cdcit,                412933
+github,                             multithreaded,                      old streaming cdcit,                412933
+github,                             multithreaded long distance mode,   old streaming cdcit,                412933
+github,                             small window log,                   old streaming cdcit,                412933
+github,                             small hash log,                     old streaming cdcit,                412933
+github,                             small chain log,                    old streaming cdcit,                412933
+github,                             explicit params,                    old streaming cdcit,                412933
+github,                             uncompressed literals,              old streaming cdcit,                136397
+github,                             uncompressed literals optimal,      old streaming cdcit,                133717
+github,                             huffman literals,                   old streaming cdcit,                176575
+github,                             multithreaded with advanced params, old streaming cdcit,                412933
+silesia,                            level -5,                           old streaming advanced cdict,       7152294
+silesia,                            level -3,                           old streaming advanced cdict,       6789973
+silesia,                            level -1,                           old streaming advanced cdict,       6191549
+silesia,                            level 0,                            old streaming advanced cdict,       4862377
+silesia,                            level 1,                            old streaming advanced cdict,       5318036
+silesia,                            level 3,                            old streaming advanced cdict,       4862377
+silesia,                            level 4,                            old streaming advanced cdict,       4800629
+silesia,                            level 5,                            old streaming advanced cdict,       4710178
+silesia,                            level 6,                            old streaming advanced cdict,       4659996
+silesia,                            level 7,                            old streaming advanced cdict,       4596234
+silesia,                            level 9,                            old streaming advanced cdict,       4543862
+silesia,                            level 13,                           old streaming advanced cdict,       4482073
+silesia,                            level 16,                           old streaming advanced cdict,       4377391
+silesia,                            level 19,                           old streaming advanced cdict,       4293262
+silesia,                            no source size,                     old streaming advanced cdict,       4862341
+silesia,                            long distance mode,                 old streaming advanced cdict,       12000408
+silesia,                            multithreaded,                      old streaming advanced cdict,       12000408
+silesia,                            multithreaded long distance mode,   old streaming advanced cdict,       12000408
+silesia,                            small window log,                   old streaming advanced cdict,       12000408
+silesia,                            small hash log,                     old streaming advanced cdict,       12000408
+silesia,                            small chain log,                    old streaming advanced cdict,       12000408
+silesia,                            explicit params,                    old streaming advanced cdict,       12000408
+silesia,                            uncompressed literals,              old streaming advanced cdict,       4862377
+silesia,                            uncompressed literals optimal,      old streaming advanced cdict,       4293262
+silesia,                            huffman literals,                   old streaming advanced cdict,       6191549
+silesia,                            multithreaded with advanced params, old streaming advanced cdict,       12000408
+silesia.tar,                        level -5,                           old streaming advanced cdict,       7160440
+silesia.tar,                        level -3,                           old streaming advanced cdict,       6789026
+silesia.tar,                        level -1,                           old streaming advanced cdict,       6195465
+silesia.tar,                        level 0,                            old streaming advanced cdict,       4875010
+silesia.tar,                        level 1,                            old streaming advanced cdict,       5339701
+silesia.tar,                        level 3,                            old streaming advanced cdict,       4875010
+silesia.tar,                        level 4,                            old streaming advanced cdict,       4813507
+silesia.tar,                        level 5,                            old streaming advanced cdict,       4722240
+silesia.tar,                        level 6,                            old streaming advanced cdict,       4672203
+silesia.tar,                        level 7,                            old streaming advanced cdict,       4606658
+silesia.tar,                        level 9,                            old streaming advanced cdict,       4554105
+silesia.tar,                        level 13,                           old streaming advanced cdict,       4491703
+silesia.tar,                        level 16,                           old streaming advanced cdict,       4381277
+silesia.tar,                        level 19,                           old streaming advanced cdict,       4281514
+silesia.tar,                        no source size,                     old streaming advanced cdict,       4875006
+silesia.tar,                        long distance mode,                 old streaming advanced cdict,       12022046
+silesia.tar,                        multithreaded,                      old streaming advanced cdict,       12022046
+silesia.tar,                        multithreaded long distance mode,   old streaming advanced cdict,       12022046
+silesia.tar,                        small window log,                   old streaming advanced cdict,       12022046
+silesia.tar,                        small hash log,                     old streaming advanced cdict,       12022046
+silesia.tar,                        small chain log,                    old streaming advanced cdict,       12022046
+silesia.tar,                        explicit params,                    old streaming advanced cdict,       12022046
+silesia.tar,                        uncompressed literals,              old streaming advanced cdict,       4875010
+silesia.tar,                        uncompressed literals optimal,      old streaming advanced cdict,       4281514
+silesia.tar,                        huffman literals,                   old streaming advanced cdict,       6195465
+silesia.tar,                        multithreaded with advanced params, old streaming advanced cdict,       12022046
+github,                             level -5,                           old streaming advanced cdict,       232744
+github,                             level -5 with dict,                 old streaming advanced cdict,       46718
+github,                             level -3,                           old streaming advanced cdict,       220611
+github,                             level -3 with dict,                 old streaming advanced cdict,       45395
+github,                             level -1,                           old streaming advanced cdict,       176575
+github,                             level -1 with dict,                 old streaming advanced cdict,       43170
+github,                             level 0,                            old streaming advanced cdict,       136397
+github,                             level 0 with dict,                  old streaming advanced cdict,       41170
+github,                             level 1,                            old streaming advanced cdict,       143457
+github,                             level 1 with dict,                  old streaming advanced cdict,       41682
+github,                             level 3,                            old streaming advanced cdict,       136397
+github,                             level 3 with dict,                  old streaming advanced cdict,       41170
+github,                             level 4,                            old streaming advanced cdict,       136144
+github,                             level 4 with dict,                  old streaming advanced cdict,       41306
+github,                             level 5,                            old streaming advanced cdict,       135106
+github,                             level 5 with dict,                  old streaming advanced cdict,       38938
+github,                             level 6,                            old streaming advanced cdict,       135108
+github,                             level 6 with dict,                  old streaming advanced cdict,       38632
+github,                             level 7,                            old streaming advanced cdict,       135108
+github,                             level 7 with dict,                  old streaming advanced cdict,       38766
+github,                             level 9,                            old streaming advanced cdict,       135108
+github,                             level 9 with dict,                  old streaming advanced cdict,       39326
+github,                             level 13,                           old streaming advanced cdict,       133717
+github,                             level 13 with dict,                 old streaming advanced cdict,       39716
+github,                             level 16,                           old streaming advanced cdict,       133717
+github,                             level 16 with dict,                 old streaming advanced cdict,       37577
+github,                             level 19,                           old streaming advanced cdict,       133717
+github,                             level 19 with dict,                 old streaming advanced cdict,       37576
+github,                             no source size,                     old streaming advanced cdict,       141003
+github,                             long distance mode,                 old streaming advanced cdict,       412933
+github,                             multithreaded,                      old streaming advanced cdict,       412933
+github,                             multithreaded long distance mode,   old streaming advanced cdict,       412933
+github,                             small window log,                   old streaming advanced cdict,       412933
+github,                             small hash log,                     old streaming advanced cdict,       412933
+github,                             small chain log,                    old streaming advanced cdict,       412933
+github,                             explicit params,                    old streaming advanced cdict,       412933
+github,                             uncompressed literals,              old streaming advanced cdict,       136397
+github,                             uncompressed literals optimal,      old streaming advanced cdict,       133717
+github,                             huffman literals,                   old streaming advanced cdict,       176575
+github,                             multithreaded with advanced params, old streaming advanced cdict,       412933

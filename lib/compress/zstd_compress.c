@@ -103,12 +103,31 @@ ZSTD_CCtx* ZSTD_initStaticCCtx(void *workspace, size_t workspaceSize)
     return cctx;
 }
 
+/**
+ * Clears and frees all of the dictionaries in the CCtx.
+ */
+static void ZSTD_clearAllDicts(ZSTD_CCtx* cctx)
+{
+    ZSTD_free(cctx->localDict.dictBuffer, cctx->customMem);
+    ZSTD_freeCDict(cctx->localDict.cdict);
+    memset(&cctx->localDict, 0, sizeof(cctx->localDict));
+    memset(&cctx->prefixDict, 0, sizeof(cctx->prefixDict));
+    cctx->cdict = NULL;
+}
+
+static size_t ZSTD_sizeof_localDict(ZSTD_localDict dict)
+{
+    size_t const bufferSize = dict.dictBuffer != NULL ? dict.dictSize : 0;
+    size_t const cdictSize = ZSTD_sizeof_CDict(dict.cdict);
+    return bufferSize + cdictSize;
+}
+
 static void ZSTD_freeCCtxContent(ZSTD_CCtx* cctx)
 {
     assert(cctx != NULL);
     assert(cctx->staticSize == 0);
     ZSTD_free(cctx->workSpace, cctx->customMem); cctx->workSpace = NULL;
-    ZSTD_freeCDict(cctx->cdictLocal); cctx->cdictLocal = NULL;
+    ZSTD_clearAllDicts(cctx);
 #ifdef ZSTD_MULTITHREAD
     ZSTDMT_freeCCtx(cctx->mtctx); cctx->mtctx = NULL;
 #endif
@@ -140,7 +159,7 @@ size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx)
 {
     if (cctx==NULL) return 0;   /* support sizeof on NULL */
     return sizeof(*cctx) + cctx->workSpaceSize
-           + ZSTD_sizeof_CDict(cctx->cdictLocal)
+           + ZSTD_sizeof_localDict(cctx->localDict)
            + ZSTD_sizeof_mtctx(cctx);
 }
 
@@ -785,6 +804,44 @@ ZSTDLIB_API size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long lo
     return 0;
 }
 
+/**
+ * Initializes the local dict using the requested parameters.
+ * NOTE: This does not use the pledged src size, because it may be used for more
+ * than one compression.
+ */
+static size_t ZSTD_initLocalDict(ZSTD_CCtx* cctx)
+{
+    ZSTD_localDict* const dl = &cctx->localDict;
+    ZSTD_compressionParameters const cParams = ZSTD_getCParamsFromCCtxParams(
+            &cctx->requestedParams, 0, dl->dictSize);
+    if (dl->dict == NULL) {
+        /* No local dictionary. */
+        assert(dl->dictBuffer == NULL);
+        assert(dl->cdict == NULL);
+        assert(dl->dictSize == 0);
+        return 0;
+    }
+    if (dl->cdict != NULL) {
+        assert(cctx->cdict == dl->cdict);
+        /* Local dictionary already initialized. */
+        return 0;
+    }
+    assert(dl->dictSize > 0);
+    assert(cctx->cdict == NULL);
+    assert(cctx->prefixDict.dict == NULL);
+
+    dl->cdict = ZSTD_createCDict_advanced(
+            dl->dict,
+            dl->dictSize,
+            ZSTD_dlm_byRef,
+            dl->dictContentType,
+            cParams,
+            cctx->customMem);
+    RETURN_ERROR_IF(!dl->cdict, memory_allocation);
+    cctx->cdict = dl->cdict;
+    return 0;
+}
+
 size_t ZSTD_CCtx_loadDictionary_advanced(
         ZSTD_CCtx* cctx, const void* dict, size_t dictSize,
         ZSTD_dictLoadMethod_e dictLoadMethod, ZSTD_dictContentType_e dictContentType)
@@ -793,20 +850,20 @@ size_t ZSTD_CCtx_loadDictionary_advanced(
     RETURN_ERROR_IF(cctx->staticSize, memory_allocation,
                     "no malloc for static CCtx");
     DEBUGLOG(4, "ZSTD_CCtx_loadDictionary_advanced (size: %u)", (U32)dictSize);
-    ZSTD_freeCDict(cctx->cdictLocal);  /* in case one already exists */
-    if (dict==NULL || dictSize==0) {   /* no dictionary mode */
-        cctx->cdictLocal = NULL;
-        cctx->cdict = NULL;
+    ZSTD_clearAllDicts(cctx);  /* in case one already exists */
+    if (dict == NULL || dictSize == 0)  /* no dictionary mode */
+        return 0;
+    if (dictLoadMethod == ZSTD_dlm_byRef) {
+        cctx->localDict.dict = dict;
     } else {
-        ZSTD_compressionParameters const cParams =
-                ZSTD_getCParamsFromCCtxParams(&cctx->requestedParams, cctx->pledgedSrcSizePlusOne-1, dictSize);
-        cctx->cdictLocal = ZSTD_createCDict_advanced(
-                                dict, dictSize,
-                                dictLoadMethod, dictContentType,
-                                cParams, cctx->customMem);
-        cctx->cdict = cctx->cdictLocal;
-        RETURN_ERROR_IF(cctx->cdictLocal == NULL, memory_allocation);
+        void* dictBuffer = ZSTD_malloc(dictSize, cctx->customMem);
+        RETURN_ERROR_IF(!dictBuffer, memory_allocation);
+        memcpy(dictBuffer, dict, dictSize);
+        cctx->localDict.dictBuffer = dictBuffer;
+        cctx->localDict.dict = dictBuffer;
     }
+    cctx->localDict.dictSize = dictSize;
+    cctx->localDict.dictContentType = dictContentType;
     return 0;
 }
 
@@ -828,10 +885,8 @@ size_t ZSTD_CCtx_refCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict)
 {
     RETURN_ERROR_IF(cctx->streamStage != zcss_init, stage_wrong);
     /* Free the existing local cdict (if any) to save memory. */
-    FORWARD_IF_ERROR( ZSTD_freeCDict(cctx->cdictLocal) );
-    cctx->cdictLocal = NULL;
+    ZSTD_clearAllDicts(cctx);
     cctx->cdict = cdict;
-    memset(&cctx->prefixDict, 0, sizeof(cctx->prefixDict));  /* exclusive */
     return 0;
 }
 
@@ -844,7 +899,7 @@ size_t ZSTD_CCtx_refPrefix_advanced(
         ZSTD_CCtx* cctx, const void* prefix, size_t prefixSize, ZSTD_dictContentType_e dictContentType)
 {
     RETURN_ERROR_IF(cctx->streamStage != zcss_init, stage_wrong);
-    cctx->cdict = NULL;   /* prefix discards any prior cdict */
+    ZSTD_clearAllDicts(cctx);
     cctx->prefixDict.dict = prefix;
     cctx->prefixDict.dictSize = prefixSize;
     cctx->prefixDict.dictContentType = dictContentType;
@@ -863,7 +918,7 @@ size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx, ZSTD_ResetDirective reset)
     if ( (reset == ZSTD_reset_parameters)
       || (reset == ZSTD_reset_session_and_parameters) ) {
         RETURN_ERROR_IF(cctx->streamStage != zcss_init, stage_wrong);
-        cctx->cdict = NULL;
+        ZSTD_clearAllDicts(cctx);
         return ZSTD_CCtxParams_reset(&cctx->requestedParams);
     }
     return 0;
@@ -4079,6 +4134,7 @@ size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
     if (cctx->streamStage == zcss_init) {
         ZSTD_CCtx_params params = cctx->requestedParams;
         ZSTD_prefixDict const prefixDict = cctx->prefixDict;
+        FORWARD_IF_ERROR( ZSTD_initLocalDict(cctx) ); /* Init the local dict if present. */
         memset(&cctx->prefixDict, 0, sizeof(cctx->prefixDict));   /* single usage */
         assert(prefixDict.dict==NULL || cctx->cdict==NULL);    /* only one can be set */
         DEBUGLOG(4, "ZSTD_compressStream2 : transparent init stage");

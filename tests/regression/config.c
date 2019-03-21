@@ -97,7 +97,7 @@ static param_value_t mt_advanced_param_values[] = {
 
 static config_t mt_advanced = {
     .name = "multithreaded with advanced params",
-    .cli_args = "-T2 --no-compressed-literals",
+    .cli_args = "-T2 --no-compress-literals",
     .param_values = PARAM_VALUES(mt_advanced_param_values),
 };
 

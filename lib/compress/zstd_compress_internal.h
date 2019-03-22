@@ -55,6 +55,14 @@ typedef struct ZSTD_prefixDict_s {
 } ZSTD_prefixDict;
 
 typedef struct {
+    void* dictBuffer;
+    void const* dict;
+    size_t dictSize;
+    ZSTD_dictContentType_e dictContentType;
+    ZSTD_CDict* cdict;
+} ZSTD_localDict;
+
+typedef struct {
     U32 CTable[HUF_CTABLE_SIZE_U32(255)];
     HUF_repeat repeatMode;
 } ZSTD_hufCTables_t;
@@ -245,7 +253,7 @@ struct ZSTD_CCtx_s {
     U32    frameEnded;
 
     /* Dictionary */
-    ZSTD_CDict* cdictLocal;
+    ZSTD_localDict localDict;
     const ZSTD_CDict* cdict;
     ZSTD_prefixDict prefixDict;   /* single-usage dictionary */
 

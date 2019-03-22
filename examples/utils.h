@@ -20,6 +20,7 @@
 #include <errno.h>     // errno
 #include <assert.h>    // assert
 #include <sys/stat.h>  // stat
+#include <zstd.h>
 
 /*
  * Define the returned error code from utility functions.
@@ -203,5 +204,32 @@ static void saveFile_orDie(const char* fileName, const void* buff, size_t buffSi
         exit(ERROR_fclose);
     }
 }
+
+/*! CHECK
+ * Check that the condition holds. If it doesn't print a message and die.
+ */
+#define CHECK(cond, ...)                        \
+    do {                                        \
+        if (!(cond)) {                          \
+            fprintf(stderr,                     \
+                    "%s:%d CHECK(%s) failed: ", \
+                    __FILE__,                   \
+                    __LINE__,                   \
+                    #cond);                     \
+            fprintf(stderr, "" __VA_ARGS__);    \
+            fprintf(stderr, "\n");              \
+            exit(1);                            \
+        }                                       \
+    } while (0)
+
+/*! CHECK_ZSTD
+ * Check the zstd error code and die if an error occurred after printing a
+ * message.
+ */
+#define CHECK_ZSTD(fn, ...)                                      \
+    do {                                                         \
+        size_t const err = (fn);                                 \
+        CHECK(!ZSTD_isError(err), "%s", ZSTD_getErrorName(err)); \
+    } while (0)
 
 #endif

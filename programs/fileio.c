@@ -1300,7 +1300,7 @@ FIO_compressFilename_srcFile(FIO_prefs_t* const prefs,
 
     /* ensure src is not the same as dict */
     if (UTIL_isSameFile(srcFileName, ress.dictFileName)) {
-        DISPLAYLEVEL(1, "zstd: Refusing to use %s as an input file and dictionary \n", srcFileName);
+        DISPLAYLEVEL(1, "zstd: cannot use %s as an input file and dictionary \n", srcFileName);
         return 1;
     }
 

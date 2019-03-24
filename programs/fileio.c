@@ -515,28 +515,10 @@ static FILE* FIO_openDstFile(FIO_prefs_t* const prefs, const char* srcFileName, 
         return stdout;
     }
 
-    /* ensure dst is not the same file as src */
-    if (srcFileName != NULL) {
-#ifdef _MSC_VER
-        /* note : Visual does not support file identification by inode.
-         *        The following work-around is limited to detecting exact name repetition only,
-         *        aka `filename` is considered different from `subdir/../filename` */
-        if (!strcmp(srcFileName, dstFileName)) {
-            DISPLAYLEVEL(1, "zstd: Refusing to open a output file which will overwrite the input file \n");
-            return NULL;
-        }
-#else
-        stat_t srcStat;
-        stat_t dstStat;
-        if (UTIL_getFileStat(srcFileName, &srcStat)
-            && UTIL_getFileStat(dstFileName, &dstStat)) {
-            if (srcStat.st_dev == dstStat.st_dev
-                && srcStat.st_ino == dstStat.st_ino) {
-                DISPLAYLEVEL(1, "zstd: Refusing to open a output file which will overwrite the input file \n");
-                return NULL;
-            }
-        }
-#endif
+    /* check if src file is the same as dst */
+    if (srcFileName != NULL && UTIL_isSameFile(srcFileName, dstFileName)) {
+        DISPLAYLEVEL(1, "zstd: Refusing to open an output file which will overwrite the input file \n");
+        return NULL;
     }
 
     if (prefs->sparseFileSupport == 1) {

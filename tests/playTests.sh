@@ -410,6 +410,8 @@ $ECHO "- Create first dictionary "
 TESTFILE=../programs/zstdcli.c
 $ZSTD --train *.c ../programs/*.c -o tmpDict
 cp $TESTFILE tmp
+$ECHO "- Compress dictionary with itself"
+$ZSTD -f tmpDict -D tmpDict | grep "cannot use" && die "expected error : cannot compress dictionary with itself"
 $ECHO "- Dictionary compression roundtrip"
 $ZSTD -f tmp -D tmpDict
 $ZSTD -d tmp.zst -D tmpDict -fo result

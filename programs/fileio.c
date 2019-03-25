@@ -515,28 +515,10 @@ static FILE* FIO_openDstFile(FIO_prefs_t* const prefs, const char* srcFileName, 
         return stdout;
     }
 
-    /* ensure dst is not the same file as src */
-    if (srcFileName != NULL) {
-#ifdef _MSC_VER
-        /* note : Visual does not support file identification by inode.
-         *        The following work-around is limited to detecting exact name repetition only,
-         *        aka `filename` is considered different from `subdir/../filename` */
-        if (!strcmp(srcFileName, dstFileName)) {
-            DISPLAYLEVEL(1, "zstd: Refusing to open a output file which will overwrite the input file \n");
-            return NULL;
-        }
-#else
-        stat_t srcStat;
-        stat_t dstStat;
-        if (UTIL_getFileStat(srcFileName, &srcStat)
-            && UTIL_getFileStat(dstFileName, &dstStat)) {
-            if (srcStat.st_dev == dstStat.st_dev
-                && srcStat.st_ino == dstStat.st_ino) {
-                DISPLAYLEVEL(1, "zstd: Refusing to open a output file which will overwrite the input file \n");
-                return NULL;
-            }
-        }
-#endif
+    /* ensure dst is not the same as src */
+    if (srcFileName != NULL && UTIL_isSameFile(srcFileName, dstFileName)) {
+        DISPLAYLEVEL(1, "zstd: Refusing to open an output file which will overwrite the input file \n");
+        return NULL;
     }
 
     if (prefs->sparseFileSupport == 1) {
@@ -628,6 +610,7 @@ typedef struct {
     size_t srcBufferSize;
     void*  dstBuffer;
     size_t dstBufferSize;
+    const char* dictFileName;
     ZSTD_CStream* cctx;
 } cRess_t;
 
@@ -655,6 +638,7 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
         size_t const dictBuffSize = FIO_createDictBuffer(&dictBuffer, dictFileName);   /* works with dictFileName==NULL */
         if (dictFileName && (dictBuffer==NULL))
             EXM_THROW(32, "allocation error : can't create dictBuffer");
+        ress.dictFileName = dictFileName;
 
         if (prefs->adaptiveMode && !prefs->ldmFlag && !comprParams.windowLog)
             comprParams.windowLog = ADAPT_WINDOWLOG_DEFAULT;
@@ -1308,9 +1292,15 @@ FIO_compressFilename_srcFile(FIO_prefs_t* const prefs,
 {
     int result;
 
-    /* File check */
+    /* ensure src is not a directory */
     if (UTIL_isDirectory(srcFileName)) {
         DISPLAYLEVEL(1, "zstd: %s is a directory -- ignored \n", srcFileName);
+        return 1;
+    }
+
+    /* ensure src is not the same as dict (if present) */
+    if (ress.dictFileName != NULL && UTIL_isSameFile(srcFileName, ress.dictFileName)) {
+        DISPLAYLEVEL(1, "zstd: cannot use %s as an input file and dictionary \n", srcFileName);
         return 1;
     }
 

@@ -87,6 +87,23 @@ U32 UTIL_isDirectory(const char* infilename)
     return 0;
 }
 
+int UTIL_isSameFile(const char* file1, const char* file2)
+{
+#if defined(_MSC_VER)
+    /* note : Visual does not support file identification by inode.
+     *        The following work-around is limited to detecting exact name repetition only,
+     *        aka `filename` is considered different from `subdir/../filename` */
+    return !strcmp(file1, file2);
+#else
+    stat_t file1Stat;
+    stat_t file2Stat;
+    return UTIL_getFileStat(file1, &file1Stat)
+        && UTIL_getFileStat(file2, &file2Stat)
+        && (file1Stat.st_dev == file2Stat.st_dev)
+        && (file1Stat.st_ino == file2Stat.st_ino);
+#endif
+}
+
 U32 UTIL_isLink(const char* infilename)
 {
 /* macro guards, as defined in : https://linux.die.net/man/2/lstat */

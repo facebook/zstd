@@ -1136,7 +1136,7 @@ ZSTDLIB_API unsigned long long ZSTD_findDecompressedSize(const void* src, size_t
  *  note 3  : when the decompressed size field isn't available, the upper-bound for that frame is calculated by:
  *              upper-bound = # blocks * min(128 KB, Window_Size)
  */
-ZSTDLIB_API unsigned long long ZSTD_decompressBound(const void* src, size_t srcSice);
+ZSTDLIB_API unsigned long long ZSTD_decompressBound(const void* src, size_t srcSize);
 
 /*! ZSTD_frameHeaderSize() :
  *  srcSize must be >= ZSTD_FRAMEHEADERSIZE_PREFIX.

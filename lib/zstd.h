@@ -90,6 +90,21 @@ ZSTDLIB_API const char* ZSTD_versionString(void);   /* requires v1.3.0+ */
 #endif
 
 /***************************************
+*  Constants
+***************************************/
+
+/* All magic numbers are supposed read/written to/from files/memory using little-endian convention */
+#define ZSTD_MAGICNUMBER            0xFD2FB528    /* valid since v0.8.0 */
+#define ZSTD_MAGIC_DICTIONARY       0xEC30A437    /* valid since v0.7.0 */
+#define ZSTD_MAGIC_SKIPPABLE_START  0x184D2A50    /* all 16 values, from 0x184D2A50 to 0x184D2A5F, signal the beginning of a skippable frame */
+#define ZSTD_MAGIC_SKIPPABLE_MASK   0xFFFFFFF0
+
+#define ZSTD_BLOCKSIZELOG_MAX  17
+#define ZSTD_BLOCKSIZE_MAX     (1<<ZSTD_BLOCKSIZELOG_MAX)
+
+
+
+/***************************************
 *  Simple API
 ***************************************/
 /*! ZSTD_compress() :
@@ -145,12 +160,21 @@ ZSTDLIB_API unsigned long long ZSTD_getFrameContentSize(const void *src, size_t 
  * @return : decompressed size of `src` frame content _if known and not empty_, 0 otherwise. */
 ZSTDLIB_API unsigned long long ZSTD_getDecompressedSize(const void* src, size_t srcSize);
 
+/*! ZSTD_findFrameCompressedSize() :
+ * `src` should point to the start of a ZSTD frame or skippable frame.
+ * `srcSize` must be >= first frame size
+ * @return : the compressed size of the first frame starting at `src`,
+ *           suitable to pass as `srcSize` to `ZSTD_decompress` or similar,
+ *        or an error code if input is invalid */
+ZSTDLIB_API size_t ZSTD_findFrameCompressedSize(const void* src, size_t srcSize);
+
 
 /*======  Helper functions  ======*/
 #define ZSTD_COMPRESSBOUND(srcSize)   ((srcSize) + ((srcSize)>>8) + (((srcSize) < (128<<10)) ? (((128<<10) - (srcSize)) >> 11) /* margin, from 64 to 0 */ : 0))  /* this formula ensures that bound(A) + bound(B) <= bound(A+B) as long as A and B >= 128 KB */
 ZSTDLIB_API size_t      ZSTD_compressBound(size_t srcSize); /*!< maximum compressed size in worst case single-pass scenario */
 ZSTDLIB_API unsigned    ZSTD_isError(size_t code);          /*!< tells if a `size_t` function result is an error code */
 ZSTDLIB_API const char* ZSTD_getErrorName(size_t code);     /*!< provides readable string from an error code */
+ZSTDLIB_API int         ZSTD_minCLevel(void);               /*!< minimum negative compression level allowed */
 ZSTDLIB_API int         ZSTD_maxCLevel(void);               /*!< maximum compression level available */
 
 
@@ -271,216 +295,6 @@ ZSTDLIB_API size_t ZSTD_decompress_usingDDict(ZSTD_DCtx* dctx,
                                               void* dst, size_t dstCapacity,
                                         const void* src, size_t srcSize,
                                         const ZSTD_DDict* ddict);
-
-
-/****************************
-*  Streaming
-****************************/
-
-typedef struct ZSTD_inBuffer_s {
-  const void* src;    /**< start of input buffer */
-  size_t size;        /**< size of input buffer */
-  size_t pos;         /**< position where reading stopped. Will be updated. Necessarily 0 <= pos <= size */
-} ZSTD_inBuffer;
-
-typedef struct ZSTD_outBuffer_s {
-  void*  dst;         /**< start of output buffer */
-  size_t size;        /**< size of output buffer */
-  size_t pos;         /**< position where writing stopped. Will be updated. Necessarily 0 <= pos <= size */
-} ZSTD_outBuffer;
-
-
-
-/*-***********************************************************************
-*  Streaming compression - HowTo
-*
-*  A ZSTD_CStream object is required to track streaming operation.
-*  Use ZSTD_createCStream() and ZSTD_freeCStream() to create/release resources.
-*  ZSTD_CStream objects can be reused multiple times on consecutive compression operations.
-*  It is recommended to re-use ZSTD_CStream since it will play nicer with system's memory, by re-using already allocated memory.
-*
-*  For parallel execution, use one separate ZSTD_CStream per thread.
-*
-*  note : since v1.3.0, ZSTD_CStream and ZSTD_CCtx are the same thing.
-*
-*  Parameters are sticky : when starting a new compression on the same context,
-*  it will re-use the same sticky parameters as previous compression session.
-*  When in doubt, it's recommended to fully initialize the context before usage.
-*  Use ZSTD_initCStream() to set the parameter to a selected compression level.
-*  Use advanced API (ZSTD_CCtx_setParameter(), etc.) to set more specific parameters.
-*
-*  Use ZSTD_compressStream() as many times as necessary to consume input stream.
-*  The function will automatically update both `pos` fields within `input` and `output`.
-*  Note that the function may not consume the entire input,
-*  for example, because the output buffer is already full,
-*  in which case `input.pos < input.size`.
-*  The caller must check if input has been entirely consumed.
-*  If not, the caller must make some room to receive more compressed data,
-*  and then present again remaining input data.
-* @return : a size hint, preferred nb of bytes to use as input for next function call
-*           or an error code, which can be tested using ZSTD_isError().
-*           Note 1 : it's just a hint, to help latency a little, any value will work fine.
-*           Note 2 : size hint is guaranteed to be <= ZSTD_CStreamInSize()
-*
-*  At any moment, it's possible to flush whatever data might remain stuck within internal buffer,
-*  using ZSTD_flushStream(). `output->pos` will be updated.
-*  Note that, if `output->size` is too small, a single invocation of ZSTD_flushStream() might not be enough (return code > 0).
-*  In which case, make some room to receive more compressed data, and call again ZSTD_flushStream().
-*  @return : 0 if internal buffers are entirely flushed,
-*            >0 if some data still present within internal buffer (the value is minimal estimation of remaining size),
-*            or an error code, which can be tested using ZSTD_isError().
-*
-*  ZSTD_endStream() instructs to finish a frame.
-*  It will perform a flush and write frame epilogue.
-*  The epilogue is required for decoders to consider a frame completed.
-*  flush() operation is the same, and follows same rules as ZSTD_flushStream().
-*  @return : 0 if frame fully completed and fully flushed,
-*            >0 if some data still present within internal buffer (the value is minimal estimation of remaining size),
-*            or an error code, which can be tested using ZSTD_isError().
-*
-* *******************************************************************/
-
-typedef ZSTD_CCtx ZSTD_CStream;  /**< CCtx and CStream are now effectively same object (>= v1.3.0) */
-                                 /* Continue to distinguish them for compatibility with older versions <= v1.2.0 */
-/*===== ZSTD_CStream management functions =====*/
-ZSTDLIB_API ZSTD_CStream* ZSTD_createCStream(void);
-ZSTDLIB_API size_t ZSTD_freeCStream(ZSTD_CStream* zcs);
-
-/*===== Streaming compression functions =====*/
-/**
- * Equivalent to:
- *
- *     ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);
- *     ZSTD_CCtx_refCDict(zcs, NULL); // clear the dictionary (if any)
- *     ZSTD_CCtx_setParameter(zcs, ZSTD_c_compressionLevel, compressionLevel);
- */
-ZSTDLIB_API size_t ZSTD_initCStream(ZSTD_CStream* zcs, int compressionLevel);
-/**
- * Alternative for ZSTD_compressStream2(zcs, output, input, ZSTD_e_continue).
- * NOTE: The return value is different. ZSTD_compressStream() returns a hint for
- * the next read size (if non-zero and not an error). ZSTD_compressStream2()
- * returns the number of bytes left to flush (if non-zero and not an error).
- */
-ZSTDLIB_API size_t ZSTD_compressStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output, ZSTD_inBuffer* input);
-/** Equivalent to ZSTD_compressStream2(zcs, output, &emptyInput, ZSTD_e_flush). */
-ZSTDLIB_API size_t ZSTD_flushStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output);
-/** Equivalent to ZSTD_compressStream2(zcs, output, &emptyInput, ZSTD_e_end). */
-ZSTDLIB_API size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output);
-
-ZSTDLIB_API size_t ZSTD_CStreamInSize(void);    /**< recommended size for input buffer */
-ZSTDLIB_API size_t ZSTD_CStreamOutSize(void);   /**< recommended size for output buffer. Guarantee to successfully flush at least one complete compressed block in all circumstances. */
-
-
-
-/*-***************************************************************************
-*  Streaming decompression - HowTo
-*
-*  A ZSTD_DStream object is required to track streaming operations.
-*  Use ZSTD_createDStream() and ZSTD_freeDStream() to create/release resources.
-*  ZSTD_DStream objects can be re-used multiple times.
-*
-*  Use ZSTD_initDStream() to start a new decompression operation.
-* @return : recommended first input size
-*  Alternatively, use advanced API to set specific properties.
-*
-*  Use ZSTD_decompressStream() repetitively to consume your input.
-*  The function will update both `pos` fields.
-*  If `input.pos < input.size`, some input has not been consumed.
-*  It's up to the caller to present again remaining data.
-*  The function tries to flush all data decoded immediately, respecting output buffer size.
-*  If `output.pos < output.size`, decoder has flushed everything it could.
-*  But if `output.pos == output.size`, there might be some data left within internal buffers.,
-*  In which case, call ZSTD_decompressStream() again to flush whatever remains in the buffer.
-*  Note : with no additional input provided, amount of data flushed is necessarily <= ZSTD_BLOCKSIZE_MAX.
-* @return : 0 when a frame is completely decoded and fully flushed,
-*        or an error code, which can be tested using ZSTD_isError(),
-*        or any other value > 0, which means there is still some decoding or flushing to do to complete current frame :
-*                                the return value is a suggested next input size (just a hint for better latency)
-*                                that will never request more than the remaining frame size.
-* *******************************************************************************/
-
-typedef ZSTD_DCtx ZSTD_DStream;  /**< DCtx and DStream are now effectively same object (>= v1.3.0) */
-                                 /* For compatibility with versions <= v1.2.0, prefer differentiating them. */
-/*===== ZSTD_DStream management functions =====*/
-ZSTDLIB_API ZSTD_DStream* ZSTD_createDStream(void);
-ZSTDLIB_API size_t ZSTD_freeDStream(ZSTD_DStream* zds);
-
-/*===== Streaming decompression functions =====*/
-ZSTDLIB_API size_t ZSTD_initDStream(ZSTD_DStream* zds);
-ZSTDLIB_API size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inBuffer* input);
-
-ZSTDLIB_API size_t ZSTD_DStreamInSize(void);    /*!< recommended size for input buffer */
-ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output buffer. Guarantee to successfully flush at least one complete block in all circumstances. */
-
-#endif  /* ZSTD_H_235446 */
-
-
-
-
-/****************************************************************************************
- *   ADVANCED AND EXPERIMENTAL FUNCTIONS
- ****************************************************************************************
- * The definitions in the following section are considered experimental.
- * They are provided for advanced scenarios.
- * They should never be used with a dynamic library, as prototypes may change in the future.
- * Use them only in association with static linking.
- * ***************************************************************************************/
-
-#if defined(ZSTD_STATIC_LINKING_ONLY) && !defined(ZSTD_H_ZSTD_STATIC_LINKING_ONLY)
-#define ZSTD_H_ZSTD_STATIC_LINKING_ONLY
-
-
-/****************************************************************************************
- *   Candidate API for promotion to stable status
- ****************************************************************************************
- * The following symbols and constants form the "staging area" :
- * they are considered to join "stable API" by v1.4.0.
- * The proposal is written so that it can be made stable "as is",
- * though it's still possible to suggest improvements.
- * Staging is in fact last chance for changes,
- * the API is locked once reaching "stable" status.
- * ***************************************************************************************/
-
-
-/* ===  Constants   === */
-
-/* all magic numbers are supposed read/written to/from files/memory using little-endian convention */
-#define ZSTD_MAGICNUMBER            0xFD2FB528    /* valid since v0.8.0 */
-#define ZSTD_MAGIC_DICTIONARY       0xEC30A437    /* valid since v0.7.0 */
-#define ZSTD_MAGIC_SKIPPABLE_START  0x184D2A50    /* all 16 values, from 0x184D2A50 to 0x184D2A5F, signal the beginning of a skippable frame */
-#define ZSTD_MAGIC_SKIPPABLE_MASK   0xFFFFFFF0
-
-#define ZSTD_BLOCKSIZELOG_MAX  17
-#define ZSTD_BLOCKSIZE_MAX     (1<<ZSTD_BLOCKSIZELOG_MAX)
-
-
-/* ===   query limits   === */
-
-ZSTDLIB_API int ZSTD_minCLevel(void);  /*!< minimum negative compression level allowed */
-
-
-/* ===   frame size   === */
-
-/*! ZSTD_findFrameCompressedSize() :
- * `src` should point to the start of a ZSTD frame or skippable frame.
- * `srcSize` must be >= first frame size
- * @return : the compressed size of the first frame starting at `src`,
- *           suitable to pass as `srcSize` to `ZSTD_decompress` or similar,
- *        or an error code if input is invalid */
-ZSTDLIB_API size_t ZSTD_findFrameCompressedSize(const void* src, size_t srcSize);
-
-
-/* ===   Memory management   === */
-
-/*! ZSTD_sizeof_*() :
- *  These functions give the _current_ memory usage of selected object.
- *  Note that object memory usage can evolve (increase or decrease) over time. */
-ZSTDLIB_API size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx);
-ZSTDLIB_API size_t ZSTD_sizeof_DCtx(const ZSTD_DCtx* dctx);
-ZSTDLIB_API size_t ZSTD_sizeof_CStream(const ZSTD_CStream* zcs);
-ZSTDLIB_API size_t ZSTD_sizeof_DStream(const ZSTD_DStream* zds);
-ZSTDLIB_API size_t ZSTD_sizeof_CDict(const ZSTD_CDict* cdict);
-ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 
 
 /***************************************
@@ -655,7 +469,6 @@ typedef enum {
      ZSTD_c_experimentalParam5=1002,
 } ZSTD_cParameter;
 
-
 typedef struct {
     size_t error;
     int lowerBound;
@@ -755,7 +568,6 @@ ZSTDLIB_API size_t ZSTD_CCtx_refCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict);
 ZSTDLIB_API size_t ZSTD_CCtx_refPrefix(ZSTD_CCtx* cctx,
                                  const void* prefix, size_t prefixSize);
 
-
 typedef enum {
     ZSTD_reset_session_only = 1,
     ZSTD_reset_parameters = 2,
@@ -778,8 +590,6 @@ typedef enum {
  */
 ZSTDLIB_API size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx, ZSTD_ResetDirective reset);
 
-
-
 /*! ZSTD_compress2() :
  *  Behave the same as ZSTD_compressCCtx(), but compression parameters are set using the advanced API.
  *  ZSTD_compress2() always starts a new frame.
@@ -794,48 +604,10 @@ ZSTDLIB_API size_t ZSTD_compress2( ZSTD_CCtx* cctx,
                                    void* dst, size_t dstCapacity,
                              const void* src, size_t srcSize);
 
-typedef enum {
-    ZSTD_e_continue=0, /* collect more data, encoder decides when to output compressed result, for optimal compression ratio */
-    ZSTD_e_flush=1,    /* flush any data provided so far,
-                        * it creates (at least) one new block, that can be decoded immediately on reception;
-                        * frame will continue: any future data can still reference previously compressed data, improving compression. */
-    ZSTD_e_end=2       /* flush any remaining data _and_ close current frame.
-                        * note that frame is only closed after compressed data is fully flushed (return value == 0).
-                        * After that point, any additional data starts a new frame.
-                        * note : each frame is independent (does not reference any content from previous frame). */
-} ZSTD_EndDirective;
 
-/*! ZSTD_compressStream2() :
- *  Behaves about the same as ZSTD_compressStream, with additional control on end directive.
- *  - Compression parameters are pushed into CCtx before starting compression, using ZSTD_CCtx_set*()
- *  - Compression parameters cannot be changed once compression is started (save a list of exceptions in multi-threading mode)
- *  - outpot->pos must be <= dstCapacity, input->pos must be <= srcSize
- *  - outpot->pos and input->pos will be updated. They are guaranteed to remain below their respective limit.
- *  - When nbWorkers==0 (default), function is blocking : it completes its job before returning to caller.
- *  - When nbWorkers>=1, function is non-blocking : it just acquires a copy of input, and distributes jobs to internal worker threads, flush whatever is available,
- *                                                  and then immediately returns, just indicating that there is some data remaining to be flushed.
- *                                                  The function nonetheless guarantees forward progress : it will return only after it reads or write at least 1+ byte.
- *  - Exception : if the first call requests a ZSTD_e_end directive and provides enough dstCapacity, the function delegates to ZSTD_compress2() which is always blocking.
- *  - @return provides a minimum amount of data remaining to be flushed from internal buffers
- *            or an error code, which can be tested using ZSTD_isError().
- *            if @return != 0, flush is not fully completed, there is still some data left within internal buffers.
- *            This is useful for ZSTD_e_flush, since in this case more flushes are necessary to empty all buffers.
- *            For ZSTD_e_end, @return == 0 when internal buffers are fully flushed and frame is completed.
- *  - after a ZSTD_e_end directive, if internal buffer is not fully flushed (@return != 0),
- *            only ZSTD_e_end or ZSTD_e_flush operations are allowed.
- *            Before starting a new compression job, or changing compression parameters,
- *            it is required to fully flush internal buffers.
- */
-ZSTDLIB_API size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
-                                         ZSTD_outBuffer* output,
-                                         ZSTD_inBuffer* input,
-                                         ZSTD_EndDirective endOp);
-
-
-
-/* ============================== */
-/*   Advanced decompression API   */
-/* ============================== */
+/***************************************
+*  Advanced decompression API
+***************************************/
 
 /* The advanced API pushes parameters one by one into an existing DCtx context.
  * Parameters are sticky, and remain valid for all following frames
@@ -844,7 +616,6 @@ ZSTDLIB_API size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
  * Note : This API is compatible with existing ZSTD_decompressDCtx() and ZSTD_decompressStream().
  *        Therefore, no new decompression function is necessary.
  */
-
 
 typedef enum {
 
@@ -866,7 +637,6 @@ typedef enum {
 
 } ZSTD_dParameter;
 
-
 /*! ZSTD_dParam_getBounds() :
  *  All parameters must belong to an interval with lower and upper bounds,
  *  otherwise they will either trigger an error or be automatically clamped.
@@ -884,7 +654,6 @@ ZSTDLIB_API ZSTD_bounds ZSTD_dParam_getBounds(ZSTD_dParameter dParam);
  * @return : 0, or an error code (which can be tested using ZSTD_isError()).
  */
 ZSTDLIB_API size_t ZSTD_DCtx_setParameter(ZSTD_DCtx* dctx, ZSTD_dParameter param, int value);
-
 
 /*! ZSTD_DCtx_loadDictionary() :
  *  Create an internal DDict from dict buffer,
@@ -942,6 +711,207 @@ ZSTDLIB_API size_t ZSTD_DCtx_refPrefix(ZSTD_DCtx* dctx,
 ZSTDLIB_API size_t ZSTD_DCtx_reset(ZSTD_DCtx* dctx, ZSTD_ResetDirective reset);
 
 
+/****************************
+*  Streaming
+****************************/
+
+typedef struct ZSTD_inBuffer_s {
+  const void* src;    /**< start of input buffer */
+  size_t size;        /**< size of input buffer */
+  size_t pos;         /**< position where reading stopped. Will be updated. Necessarily 0 <= pos <= size */
+} ZSTD_inBuffer;
+
+typedef struct ZSTD_outBuffer_s {
+  void*  dst;         /**< start of output buffer */
+  size_t size;        /**< size of output buffer */
+  size_t pos;         /**< position where writing stopped. Will be updated. Necessarily 0 <= pos <= size */
+} ZSTD_outBuffer;
+
+
+
+/*-***********************************************************************
+*  Streaming compression - HowTo
+*
+*  A ZSTD_CStream object is required to track streaming operation.
+*  Use ZSTD_createCStream() and ZSTD_freeCStream() to create/release resources.
+*  ZSTD_CStream objects can be reused multiple times on consecutive compression operations.
+*  It is recommended to re-use ZSTD_CStream since it will play nicer with system's memory, by re-using already allocated memory.
+*
+*  For parallel execution, use one separate ZSTD_CStream per thread.
+*
+*  note : since v1.3.0, ZSTD_CStream and ZSTD_CCtx are the same thing.
+*
+*  Parameters are sticky : when starting a new compression on the same context,
+*  it will re-use the same sticky parameters as previous compression session.
+*  When in doubt, it's recommended to fully initialize the context before usage.
+*  Use ZSTD_initCStream() to set the parameter to a selected compression level.
+*  Use advanced API (ZSTD_CCtx_setParameter(), etc.) to set more specific parameters.
+*
+*  Use ZSTD_compressStream() as many times as necessary to consume input stream.
+*  The function will automatically update both `pos` fields within `input` and `output`.
+*  Note that the function may not consume the entire input,
+*  for example, because the output buffer is already full,
+*  in which case `input.pos < input.size`.
+*  The caller must check if input has been entirely consumed.
+*  If not, the caller must make some room to receive more compressed data,
+*  and then present again remaining input data.
+* @return : a size hint, preferred nb of bytes to use as input for next function call
+*           or an error code, which can be tested using ZSTD_isError().
+*           Note 1 : it's just a hint, to help latency a little, any value will work fine.
+*           Note 2 : size hint is guaranteed to be <= ZSTD_CStreamInSize()
+*
+*  At any moment, it's possible to flush whatever data might remain stuck within internal buffer,
+*  using ZSTD_flushStream(). `output->pos` will be updated.
+*  Note that, if `output->size` is too small, a single invocation of ZSTD_flushStream() might not be enough (return code > 0).
+*  In which case, make some room to receive more compressed data, and call again ZSTD_flushStream().
+*  @return : 0 if internal buffers are entirely flushed,
+*            >0 if some data still present within internal buffer (the value is minimal estimation of remaining size),
+*            or an error code, which can be tested using ZSTD_isError().
+*
+*  ZSTD_endStream() instructs to finish a frame.
+*  It will perform a flush and write frame epilogue.
+*  The epilogue is required for decoders to consider a frame completed.
+*  flush() operation is the same, and follows same rules as ZSTD_flushStream().
+*  @return : 0 if frame fully completed and fully flushed,
+*            >0 if some data still present within internal buffer (the value is minimal estimation of remaining size),
+*            or an error code, which can be tested using ZSTD_isError().
+*
+* *******************************************************************/
+
+typedef ZSTD_CCtx ZSTD_CStream;  /**< CCtx and CStream are now effectively same object (>= v1.3.0) */
+                                 /* Continue to distinguish them for compatibility with older versions <= v1.2.0 */
+/*===== ZSTD_CStream management functions =====*/
+ZSTDLIB_API ZSTD_CStream* ZSTD_createCStream(void);
+ZSTDLIB_API size_t ZSTD_freeCStream(ZSTD_CStream* zcs);
+
+/*===== Streaming compression functions =====*/
+typedef enum {
+    ZSTD_e_continue=0, /* collect more data, encoder decides when to output compressed result, for optimal compression ratio */
+    ZSTD_e_flush=1,    /* flush any data provided so far,
+                        * it creates (at least) one new block, that can be decoded immediately on reception;
+                        * frame will continue: any future data can still reference previously compressed data, improving compression. */
+    ZSTD_e_end=2       /* flush any remaining data _and_ close current frame.
+                        * note that frame is only closed after compressed data is fully flushed (return value == 0).
+                        * After that point, any additional data starts a new frame.
+                        * note : each frame is independent (does not reference any content from previous frame). */
+} ZSTD_EndDirective;
+
+/*! ZSTD_compressStream2() :
+ *  Behaves about the same as ZSTD_compressStream, with additional control on end directive.
+ *  - Compression parameters are pushed into CCtx before starting compression, using ZSTD_CCtx_set*()
+ *  - Compression parameters cannot be changed once compression is started (save a list of exceptions in multi-threading mode)
+ *  - outpot->pos must be <= dstCapacity, input->pos must be <= srcSize
+ *  - outpot->pos and input->pos will be updated. They are guaranteed to remain below their respective limit.
+ *  - When nbWorkers==0 (default), function is blocking : it completes its job before returning to caller.
+ *  - When nbWorkers>=1, function is non-blocking : it just acquires a copy of input, and distributes jobs to internal worker threads, flush whatever is available,
+ *                                                  and then immediately returns, just indicating that there is some data remaining to be flushed.
+ *                                                  The function nonetheless guarantees forward progress : it will return only after it reads or write at least 1+ byte.
+ *  - Exception : if the first call requests a ZSTD_e_end directive and provides enough dstCapacity, the function delegates to ZSTD_compress2() which is always blocking.
+ *  - @return provides a minimum amount of data remaining to be flushed from internal buffers
+ *            or an error code, which can be tested using ZSTD_isError().
+ *            if @return != 0, flush is not fully completed, there is still some data left within internal buffers.
+ *            This is useful for ZSTD_e_flush, since in this case more flushes are necessary to empty all buffers.
+ *            For ZSTD_e_end, @return == 0 when internal buffers are fully flushed and frame is completed.
+ *  - after a ZSTD_e_end directive, if internal buffer is not fully flushed (@return != 0),
+ *            only ZSTD_e_end or ZSTD_e_flush operations are allowed.
+ *            Before starting a new compression job, or changing compression parameters,
+ *            it is required to fully flush internal buffers.
+ */
+ZSTDLIB_API size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
+                                         ZSTD_outBuffer* output,
+                                         ZSTD_inBuffer* input,
+                                         ZSTD_EndDirective endOp);
+
+/**
+ * Equivalent to:
+ *
+ *     ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);
+ *     ZSTD_CCtx_refCDict(zcs, NULL); // clear the dictionary (if any)
+ *     ZSTD_CCtx_setParameter(zcs, ZSTD_c_compressionLevel, compressionLevel);
+ */
+ZSTDLIB_API size_t ZSTD_initCStream(ZSTD_CStream* zcs, int compressionLevel);
+/**
+ * Alternative for ZSTD_compressStream2(zcs, output, input, ZSTD_e_continue).
+ * NOTE: The return value is different. ZSTD_compressStream() returns a hint for
+ * the next read size (if non-zero and not an error). ZSTD_compressStream2()
+ * returns the number of bytes left to flush (if non-zero and not an error).
+ */
+ZSTDLIB_API size_t ZSTD_compressStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output, ZSTD_inBuffer* input);
+/** Equivalent to ZSTD_compressStream2(zcs, output, &emptyInput, ZSTD_e_flush). */
+ZSTDLIB_API size_t ZSTD_flushStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output);
+/** Equivalent to ZSTD_compressStream2(zcs, output, &emptyInput, ZSTD_e_end). */
+ZSTDLIB_API size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output);
+
+ZSTDLIB_API size_t ZSTD_CStreamInSize(void);    /**< recommended size for input buffer */
+ZSTDLIB_API size_t ZSTD_CStreamOutSize(void);   /**< recommended size for output buffer. Guarantee to successfully flush at least one complete compressed block in all circumstances. */
+
+
+/*-***************************************************************************
+*  Streaming decompression - HowTo
+*
+*  A ZSTD_DStream object is required to track streaming operations.
+*  Use ZSTD_createDStream() and ZSTD_freeDStream() to create/release resources.
+*  ZSTD_DStream objects can be re-used multiple times.
+*
+*  Use ZSTD_initDStream() to start a new decompression operation.
+* @return : recommended first input size
+*  Alternatively, use advanced API to set specific properties.
+*
+*  Use ZSTD_decompressStream() repetitively to consume your input.
+*  The function will update both `pos` fields.
+*  If `input.pos < input.size`, some input has not been consumed.
+*  It's up to the caller to present again remaining data.
+*  The function tries to flush all data decoded immediately, respecting output buffer size.
+*  If `output.pos < output.size`, decoder has flushed everything it could.
+*  But if `output.pos == output.size`, there might be some data left within internal buffers.,
+*  In which case, call ZSTD_decompressStream() again to flush whatever remains in the buffer.
+*  Note : with no additional input provided, amount of data flushed is necessarily <= ZSTD_BLOCKSIZE_MAX.
+* @return : 0 when a frame is completely decoded and fully flushed,
+*        or an error code, which can be tested using ZSTD_isError(),
+*        or any other value > 0, which means there is still some decoding or flushing to do to complete current frame :
+*                                the return value is a suggested next input size (just a hint for better latency)
+*                                that will never request more than the remaining frame size.
+* *******************************************************************************/
+
+typedef ZSTD_DCtx ZSTD_DStream;  /**< DCtx and DStream are now effectively same object (>= v1.3.0) */
+                                 /* For compatibility with versions <= v1.2.0, prefer differentiating them. */
+/*===== ZSTD_DStream management functions =====*/
+ZSTDLIB_API ZSTD_DStream* ZSTD_createDStream(void);
+ZSTDLIB_API size_t ZSTD_freeDStream(ZSTD_DStream* zds);
+
+/*===== Streaming decompression functions =====*/
+ZSTDLIB_API size_t ZSTD_initDStream(ZSTD_DStream* zds);
+ZSTDLIB_API size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inBuffer* input);
+
+ZSTDLIB_API size_t ZSTD_DStreamInSize(void);    /*!< recommended size for input buffer */
+ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output buffer. Guarantee to successfully flush at least one complete block in all circumstances. */
+
+/* ===   Memory management   === */
+
+/*! ZSTD_sizeof_*() :
+ *  These functions give the _current_ memory usage of selected object.
+ *  Note that object memory usage can evolve (increase or decrease) over time. */
+ZSTDLIB_API size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx);
+ZSTDLIB_API size_t ZSTD_sizeof_DCtx(const ZSTD_DCtx* dctx);
+ZSTDLIB_API size_t ZSTD_sizeof_CStream(const ZSTD_CStream* zcs);
+ZSTDLIB_API size_t ZSTD_sizeof_DStream(const ZSTD_DStream* zds);
+ZSTDLIB_API size_t ZSTD_sizeof_CDict(const ZSTD_CDict* cdict);
+ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
+
+#endif  /* ZSTD_H_235446 */
+
+
+/****************************************************************************************
+ *   ADVANCED AND EXPERIMENTAL FUNCTIONS
+ ****************************************************************************************
+ * The definitions in the following section are considered experimental.
+ * They are provided for advanced scenarios.
+ * They should never be used with a dynamic library, as prototypes may change in the future.
+ * Use them only in association with static linking.
+ * ***************************************************************************************/
+
+#if defined(ZSTD_STATIC_LINKING_ONLY) && !defined(ZSTD_H_ZSTD_STATIC_LINKING_ONLY)
+#define ZSTD_H_ZSTD_STATIC_LINKING_ONLY
 
 /****************************************************************************************
  *   experimental API (static linking only)

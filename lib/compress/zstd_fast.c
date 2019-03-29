@@ -51,10 +51,12 @@ size_t ZSTD_compressBlock_fast_generic(
     U32* const hashTable = ms->hashTable;
     U32 const hlog = cParams->hashLog;
     /* support stepSize of 0 */
-    U32 const stepSize = cParams->targetLength + !(cParams->targetLength);
+    size_t const stepSize = cParams->targetLength + !(cParams->targetLength) + 1;
     const BYTE* const base = ms->window.base;
     const BYTE* const istart = (const BYTE*)src;
-    const BYTE* ip = istart;
+    /* We check ip0 (ip + 0) and ip1 (ip + 1) each loop */
+    const BYTE* ip0 = istart;
+    const BYTE* ip1;
     const BYTE* anchor = istart;
     const U32   prefixStartIndex = ms->window.dictLimit;
     const BYTE* const prefixStart = base + prefixStartIndex;
@@ -64,62 +66,96 @@ size_t ZSTD_compressBlock_fast_generic(
     U32 offsetSaved = 0;
 
     /* init */
-    ip += (ip == prefixStart);
+    ip0 += (ip0 == prefixStart);
+    ip1 = ip0 + 1;
     {
-        U32 const maxRep = (U32)(ip - prefixStart);
+        U32 const maxRep = (U32)(ip0 - prefixStart);
         if (offset_2 > maxRep) offsetSaved = offset_2, offset_2 = 0;
         if (offset_1 > maxRep) offsetSaved = offset_1, offset_1 = 0;
     }
 
     /* Main Search Loop */
-    while (ip < ilimit) {   /* < instead of <=, because repcode check at (ip+1) */
+    while (ip1 < ilimit) {   /* < instead of <=, because check at ip0+2 */
         size_t mLength;
-        size_t const h = ZSTD_hashPtr(ip, hlog, mls);
-        U32 const current = (U32)(ip-base);
-        U32 const matchIndex = hashTable[h];
-        const BYTE* match = base + matchIndex;
-        hashTable[h] = current;   /* update hash table */
+        BYTE const* ip2 = ip0 + 2;
+        size_t const h0 = ZSTD_hashPtr(ip0, hlog, mls);
+        U32 const val0 = MEM_read32(ip0);
+        size_t const h1 = ZSTD_hashPtr(ip1, hlog, mls);
+        U32 const val1 = MEM_read32(ip1);
+        U32 const current0 = (U32)(ip0-base);
+        U32 const current1 = (U32)(ip1-base);
+        U32 const matchIndex0 = hashTable[h0];
+        U32 const matchIndex1 = hashTable[h1];
+        BYTE const* repMatch = ip2-offset_1;
+        const BYTE* match0 = base + matchIndex0;
+        const BYTE* match1 = base + matchIndex1;
+        U32 offcode;
+        hashTable[h0] = current0;   /* update hash table */
+        hashTable[h1] = current1;   /* update hash table */
 
-        if ((offset_1 > 0) & (MEM_read32(ip+1-offset_1) == MEM_read32(ip+1))) {
-            mLength = ZSTD_count(ip+1+4, ip+1+4-offset_1, iend) + 4;
-            ip++;
-            ZSTD_storeSeq(seqStore, ip-anchor, anchor, 0, mLength-MINMATCH);
-        } else if ((matchIndex <= prefixStartIndex) || MEM_read32(match) != MEM_read32(ip)) {
-            assert(stepSize >= 1);
-            ip += ((ip-anchor) >> kSearchStrength) + stepSize;
-            continue;
-        } else {
-            /* found a regular match */
-            U32 const offset = (U32)(ip-match);
-            mLength = ZSTD_count(ip+4, match+4, iend) + 4;
-            while (((ip>anchor) & (match>prefixStart))
-                 && (ip[-1] == match[-1])) { ip--; match--; mLength++; } /* catch up */
-            offset_2 = offset_1;
-            offset_1 = offset;
-            ZSTD_storeSeq(seqStore, ip-anchor, anchor, offset + ZSTD_REP_MOVE, mLength-MINMATCH);
+        assert(ip0 + 1 == ip1);
+
+        if ((offset_1 > 0) & (MEM_read32(repMatch) == MEM_read32(ip2))) {
+            mLength = ip2[-1] == repMatch[-1] ? 1 : 0;
+            ip0 = ip2 - mLength;
+            match0 = repMatch - mLength;
+            offcode = 0;
+            goto _match;
         }
+        if ((matchIndex0 > prefixStartIndex) && MEM_read32(match0) == val0) {
+            /* found a regular match */
+            goto _offset;
+        }
+        if ((matchIndex1 > prefixStartIndex) && MEM_read32(match1) == val1) {
+            /* found a regular match after one literal */
+            ip0 = ip1;
+            match0 = match1;
+            goto _offset;
+        }
+        {
+            size_t const step = ((ip0-anchor) >> (kSearchStrength - 1)) + stepSize;
+            assert(step >= 2);
+            ip0 += step;
+            ip1 += step;
+            continue;
+        }
+_offset: /* Requires: ip0, match0 */
+        /* Compute the offset code */
+        offset_2 = offset_1;
+        offset_1 = (U32)(ip0-match0);
+        offcode = offset_1 + ZSTD_REP_MOVE;
+        mLength = 0;
+        /* Count the backwards match length */
+        while (((ip0>anchor) & (match0>prefixStart))
+             && (ip0[-1] == match0[-1])) { ip0--; match0--; mLength++; } /* catch up */
 
+_match: /* Requires: ip0, match0, offcode */
+        /* Count the forward length */
+        mLength += ZSTD_count(ip0+mLength+4, match0+mLength+4, iend) + 4;
+        ZSTD_storeSeq(seqStore, ip0-anchor, anchor, offcode, mLength-MINMATCH);
         /* match found */
-        ip += mLength;
-        anchor = ip;
+        ip0 += mLength;
+        anchor = ip0;
+        ip1 = ip0 + 1;
 
-        if (ip <= ilimit) {
+        if (ip0 <= ilimit) {
             /* Fill Table */
-            assert(base+current+2 > istart);  /* check base overflow */
-            hashTable[ZSTD_hashPtr(base+current+2, hlog, mls)] = current+2;  /* here because current+2 could be > iend-8 */
-            hashTable[ZSTD_hashPtr(ip-2, hlog, mls)] = (U32)(ip-2-base);
+            assert(base+current0+2 > istart);  /* check base overflow */
+            hashTable[ZSTD_hashPtr(base+current0+2, hlog, mls)] = current0+2;  /* here because current+2 could be > iend-8 */
+            hashTable[ZSTD_hashPtr(ip0-2, hlog, mls)] = (U32)(ip0-2-base);
 
-            while ( (ip <= ilimit)
+            while ( (ip0 <= ilimit)
                  && ( (offset_2>0)
-                    & (MEM_read32(ip) == MEM_read32(ip - offset_2)) )) {
+                    & (MEM_read32(ip0) == MEM_read32(ip0 - offset_2)) )) {
                 /* store sequence */
-                size_t const rLength = ZSTD_count(ip+4, ip+4-offset_2, iend) + 4;
+                size_t const rLength = ZSTD_count(ip0+4, ip0+4-offset_2, iend) + 4;
                 U32 const tmpOff = offset_2; offset_2 = offset_1; offset_1 = tmpOff;  /* swap offset_2 <=> offset_1 */
-                hashTable[ZSTD_hashPtr(ip, hlog, mls)] = (U32)(ip-base);
+                hashTable[ZSTD_hashPtr(ip0, hlog, mls)] = (U32)(ip0-base);
+                ip0 += rLength;
+                ip1 = ip0 + 1;
                 ZSTD_storeSeq(seqStore, 0, anchor, 0, rLength-MINMATCH);
-                ip += rLength;
-                anchor = ip;
-                continue;   /* faster when present ... (?) */
+                anchor = ip0;
+                continue;   /* faster when present (confirmed on gcc-8) ... (?) */
             }
         }
     }

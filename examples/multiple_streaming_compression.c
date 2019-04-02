@@ -80,11 +80,11 @@ static void compressFile_orDie(resources ress, const char* fname, const char* ou
         ZSTD_inBuffer input = { ress.buffIn, read, 0 };
         int finished;
         do {
-          ZSTD_outBuffer output = { ress.buffOut, ress.buffOutSize, 0 };
-          size_t const remaining = ZSTD_compressStream2(ress.cctx, &output, &input, mode);
-          CHECK_ZSTD(remaining);
-          fwrite_orDie(ress.buffOut, output.pos, fout);
-          finished = lastChunk ? (remaining == 0) : (input.pos == input.size);
+            ZSTD_outBuffer output = { ress.buffOut, ress.buffOutSize, 0 };
+            size_t const remaining = ZSTD_compressStream2(ress.cctx, &output, &input, mode);
+            CHECK_ZSTD(remaining);
+            fwrite_orDie(ress.buffOut, output.pos, fout);
+            finished = lastChunk ? (remaining == 0) : (input.pos == input.size);
         } while (!finished);
         assert(input.pos == input.size);
     }

@@ -344,6 +344,20 @@ static int basicUnitTests(U32 seed, double compressibility)
         DISPLAYLEVEL(3, "OK (%u bytes) \n", (unsigned)(cstreamSize + cdictSize));
     }
 
+    /* context size functions */
+    DISPLAYLEVEL(3, "test%3i : estimate CStream size using CCtxParams : ", testNb++);
+    {   ZSTD_CCtx_params* const params = ZSTD_createCCtxParams();
+        size_t cstreamSize, cctxSize;
+        CHECK_Z( ZSTD_CCtxParams_setParameter(params, ZSTD_c_compressionLevel, 19) );
+        cstreamSize = ZSTD_estimateCStreamSize_usingCCtxParams(params);
+        CHECK_Z(cstreamSize);
+        cctxSize = ZSTD_estimateCCtxSize_usingCCtxParams(params);
+        CHECK_Z(cctxSize);
+        if (cstreamSize <= cctxSize + 2 * ZSTD_BLOCKSIZE_MAX) goto _output_error;
+        ZSTD_freeCCtxParams(params);
+        DISPLAYLEVEL(3, "OK \n");
+    }
+
     DISPLAYLEVEL(3, "test%3i : check actual CStream size : ", testNb++);
     {   size_t const s = ZSTD_sizeof_CStream(zc);
         if (ZSTD_isError(s)) goto _output_error;

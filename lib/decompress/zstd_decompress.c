@@ -1372,6 +1372,7 @@ size_t ZSTD_DCtx_setParameter(ZSTD_DCtx* dctx, ZSTD_dParameter dParam, int value
     RETURN_ERROR_IF(dctx->streamStage != zdss_init, stage_wrong);
     switch(dParam) {
         case ZSTD_d_windowLogMax:
+            if (value == 0) value = ZSTD_WINDOWLOG_LIMIT_DEFAULT;
             CHECK_DBOUNDS(ZSTD_d_windowLogMax, value);
             dctx->maxWindowSize = ((size_t)1) << value;
             return 0;

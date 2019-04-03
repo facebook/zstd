@@ -852,7 +852,8 @@ typedef enum {
                               * the streaming API will refuse to allocate memory buffer
                               * in order to protect the host from unreasonable memory requirements.
                               * This parameter is only useful in streaming mode, since no internal buffer is allocated in single-pass mode.
-                              * By default, a decompression context accepts window sizes <= (1 << ZSTD_WINDOWLOG_LIMIT_DEFAULT) */
+                              * By default, a decompression context accepts window sizes <= (1 << ZSTD_WINDOWLOG_LIMIT_DEFAULT).
+                              * Special: value 0 means "use default maximum windowLog". */
 
     /* note : additional experimental parameters are also available
      * within the experimental section of the API.

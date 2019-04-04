@@ -565,14 +565,15 @@ typedef struct ZSTD_outBuffer_s {
 *  Parameters are sticky : when starting a new compression on the same context,
 *  it will re-use the same sticky parameters as previous compression session.
 *  When in doubt, it's recommended to fully initialize the context before usage.
-*  Use ZSTD_initCStream() to set the parameter to a selected compression level.
-*  Use advanced API (ZSTD_CCtx_setParameter(), etc.) to set more specific parameters.
+*  Use ZSTD_CCtx_reset() to reset the context and ZSTD_CCtx_setParameter(),
+*  ZSTD_CCtx_setPledgedSrcSize(), or ZSTD_CCtx_loadDictionary() and friends to
+*  set more specific parameters, the pledged source size, or load a dictionary.
 *
-*  Use ZSTD_compressStream() as many times as necessary to consume input stream.
-*  The function will automatically update both `pos` fields within `input` and `output`.
-*  Note that the function may not consume the entire input,
-*  for example, because the output buffer is already full,
-*  in which case `input.pos < input.size`.
+*  Use ZSTD_compressStream2() with ZSTD_e_continue as many times as necessary to
+*  consume input stream. The function will automatically update both `pos`
+*  fields within `input` and `output`.
+*  Note that the function may not consume the entire input, for example, because
+*  the output buffer is already full, in which case `input.pos < input.size`.
 *  The caller must check if input has been entirely consumed.
 *  If not, the caller must make some room to receive more compressed data,
 *  and then present again remaining input data.
@@ -582,17 +583,21 @@ typedef struct ZSTD_outBuffer_s {
 *           Note 2 : size hint is guaranteed to be <= ZSTD_CStreamInSize()
 *
 *  At any moment, it's possible to flush whatever data might remain stuck within internal buffer,
-*  using ZSTD_flushStream(). `output->pos` will be updated.
-*  Note that, if `output->size` is too small, a single invocation of ZSTD_flushStream() might not be enough (return code > 0).
-*  In which case, make some room to receive more compressed data, and call again ZSTD_flushStream().
+*  using ZSTD_compressStream2() with ZSTD_e_flush. `output->pos` will be updated.
+*  Note that, if `output->size` is too small, a single invocation with ZSTD_e_flush might not be enough (return code > 0).
+*  In which case, make some room to receive more compressed data, and call again ZSTD_compressStream2() with ZSTD_e_flush.
+*  You must continue calling ZSTD_compressStream2() with ZSTD_e_flush until it returns 0, at which point you can change the
+*  operation.
 *  @return : 0 if internal buffers are entirely flushed,
 *            >0 if some data still present within internal buffer (the value is minimal estimation of remaining size),
 *            or an error code, which can be tested using ZSTD_isError().
 *
-*  ZSTD_endStream() instructs to finish a frame.
+*  Calling ZSTD_compressStream2() with ZSTD_e_end instructs to finish a frame.
 *  It will perform a flush and write frame epilogue.
 *  The epilogue is required for decoders to consider a frame completed.
-*  flush() operation is the same, and follows same rules as ZSTD_flushStream().
+*  flush operation is the same, and follows same rules as calling ZSTD_compressStream2() with ZSTD_e_flush.
+*  You must continue calling ZSTD_compressStream2() with ZSTD_e_end until it returns 0, at which point you are free to
+*  start a new frame.
 *  @return : 0 if frame fully completed and fully flushed,
 *            >0 if some data still present within internal buffer (the value is minimal estimation of remaining size),
 *            or an error code, which can be tested using ZSTD_isError().

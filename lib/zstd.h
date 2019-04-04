@@ -219,84 +219,6 @@ ZSTDLIB_API size_t ZSTD_decompressDCtx(ZSTD_DCtx* dctx,
                                  const void* src, size_t srcSize);
 
 
-/**************************
-*  Simple dictionary API
-***************************/
-/*! ZSTD_compress_usingDict() :
- *  Compression at an explicit compression level using a Dictionary.
- *  A dictionary can be any arbitrary data segment (also called a prefix),
- *  or a buffer with specified information (see dictBuilder/zdict.h).
- *  Note : This function loads the dictionary, resulting in significant startup delay.
- *         It's intended for a dictionary used only once.
- *  Note 2 : When `dict == NULL || dictSize < 8` no dictionary is used. */
-ZSTDLIB_API size_t ZSTD_compress_usingDict(ZSTD_CCtx* ctx,
-                                           void* dst, size_t dstCapacity,
-                                     const void* src, size_t srcSize,
-                                     const void* dict,size_t dictSize,
-                                           int compressionLevel);
-
-/*! ZSTD_decompress_usingDict() :
- *  Decompression using a known Dictionary.
- *  Dictionary must be identical to the one used during compression.
- *  Note : This function loads the dictionary, resulting in significant startup delay.
- *         It's intended for a dictionary used only once.
- *  Note : When `dict == NULL || dictSize < 8` no dictionary is used. */
-ZSTDLIB_API size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
-                                             void* dst, size_t dstCapacity,
-                                       const void* src, size_t srcSize,
-                                       const void* dict,size_t dictSize);
-
-
-/***********************************
- *  Bulk processing dictionary API
- **********************************/
-typedef struct ZSTD_CDict_s ZSTD_CDict;
-
-/*! ZSTD_createCDict() :
- *  When compressing multiple messages / blocks using the same dictionary, it's recommended to load it only once.
- *  ZSTD_createCDict() will create a digested dictionary, ready to start future compression operations without startup cost.
- *  ZSTD_CDict can be created once and shared by multiple threads concurrently, since its usage is read-only.
- * `dictBuffer` can be released after ZSTD_CDict creation, because its content is copied within CDict.
- *  Consider experimental function `ZSTD_createCDict_byReference()` if you prefer to not duplicate `dictBuffer` content.
- *  Note : A ZSTD_CDict can be created from an empty dictBuffer, but it is inefficient when used to compress small data. */
-ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict(const void* dictBuffer, size_t dictSize,
-                                         int compressionLevel);
-
-/*! ZSTD_freeCDict() :
- *  Function frees memory allocated by ZSTD_createCDict(). */
-ZSTDLIB_API size_t      ZSTD_freeCDict(ZSTD_CDict* CDict);
-
-/*! ZSTD_compress_usingCDict() :
- *  Compression using a digested Dictionary.
- *  Recommended when same dictionary is used multiple times.
- *  Note : compression level is _decided at dictionary creation time_,
- *     and frame parameters are hardcoded (dictID=yes, contentSize=yes, checksum=no) */
-ZSTDLIB_API size_t ZSTD_compress_usingCDict(ZSTD_CCtx* cctx,
-                                            void* dst, size_t dstCapacity,
-                                      const void* src, size_t srcSize,
-                                      const ZSTD_CDict* cdict);
-
-
-typedef struct ZSTD_DDict_s ZSTD_DDict;
-
-/*! ZSTD_createDDict() :
- *  Create a digested dictionary, ready to start decompression operation without startup delay.
- *  dictBuffer can be released after DDict creation, as its content is copied inside DDict. */
-ZSTDLIB_API ZSTD_DDict* ZSTD_createDDict(const void* dictBuffer, size_t dictSize);
-
-/*! ZSTD_freeDDict() :
- *  Function frees memory allocated with ZSTD_createDDict() */
-ZSTDLIB_API size_t      ZSTD_freeDDict(ZSTD_DDict* ddict);
-
-/*! ZSTD_decompress_usingDDict() :
- *  Decompression using a digested Dictionary.
- *  Recommended when same dictionary is used multiple times. */
-ZSTDLIB_API size_t ZSTD_decompress_usingDDict(ZSTD_DCtx* dctx,
-                                              void* dst, size_t dstCapacity,
-                                        const void* src, size_t srcSize,
-                                        const ZSTD_DDict* ddict);
-
-
 /***************************************
 *  Advanced compression API
 ***************************************/
@@ -514,60 +436,6 @@ ZSTDLIB_API size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param
  */
 ZSTDLIB_API size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long long pledgedSrcSize);
 
-/*! ZSTD_CCtx_loadDictionary() :
- *  Create an internal CDict from `dict` buffer.
- *  Decompression will have to use same dictionary.
- * @result : 0, or an error code (which can be tested with ZSTD_isError()).
- *  Special: Loading a NULL (or 0-size) dictionary invalidates previous dictionary,
- *           meaning "return to no-dictionary mode".
- *  Note 1 : Dictionary is sticky, it will be used for all future compressed frames.
- *           To return to "no-dictionary" situation, load a NULL dictionary (or reset parameters).
- *  Note 2 : Loading a dictionary involves building tables.
- *           It's also a CPU consuming operation, with non-negligible impact on latency.
- *           Tables are dependent on compression parameters, and for this reason,
- *           compression parameters can no longer be changed after loading a dictionary.
- *  Note 3 :`dict` content will be copied internally.
- *           Use experimental ZSTD_CCtx_loadDictionary_byReference() to reference content instead.
- *           In such a case, dictionary buffer must outlive its users.
- *  Note 4 : Use ZSTD_CCtx_loadDictionary_advanced()
- *           to precisely select how dictionary content must be interpreted. */
-ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, size_t dictSize);
-
-/*! ZSTD_CCtx_refCDict() :
- *  Reference a prepared dictionary, to be used for all next compressed frames.
- *  Note that compression parameters are enforced from within CDict,
- *  and supersede any compression parameter previously set within CCtx.
- *  The parameters ignored are labled as "superseded-by-cdict" in the ZSTD_cParameter enum docs.
- *  The ignored parameters will be used again if the CCtx is returned to no-dictionary mode.
- *  The dictionary will remain valid for future compressed frames using same CCtx.
- * @result : 0, or an error code (which can be tested with ZSTD_isError()).
- *  Special : Referencing a NULL CDict means "return to no-dictionary mode".
- *  Note 1 : Currently, only one dictionary can be managed.
- *           Referencing a new dictionary effectively "discards" any previous one.
- *  Note 2 : CDict is just referenced, its lifetime must outlive its usage within CCtx. */
-ZSTDLIB_API size_t ZSTD_CCtx_refCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict);
-
-/*! ZSTD_CCtx_refPrefix() :
- *  Reference a prefix (single-usage dictionary) for next compressed frame.
- *  A prefix is **only used once**. Tables are discarded at end of frame (ZSTD_e_end).
- *  Decompression will need same prefix to properly regenerate data.
- *  Compressing with a prefix is similar in outcome as performing a diff and compressing it,
- *  but performs much faster, especially during decompression (compression speed is tunable with compression level).
- * @result : 0, or an error code (which can be tested with ZSTD_isError()).
- *  Special: Adding any prefix (including NULL) invalidates any previous prefix or dictionary
- *  Note 1 : Prefix buffer is referenced. It **must** outlive compression.
- *           Its content must remain unmodified during compression.
- *  Note 2 : If the intention is to diff some large src data blob with some prior version of itself,
- *           ensure that the window size is large enough to contain the entire source.
- *           See ZSTD_c_windowLog.
- *  Note 3 : Referencing a prefix involves building tables, which are dependent on compression parameters.
- *           It's a CPU consuming operation, with non-negligible impact on latency.
- *           If there is a need to use the same prefix multiple times, consider loadDictionary instead.
- *  Note 4 : By default, the prefix is interpreted as raw content (ZSTD_dm_rawContent).
- *           Use experimental ZSTD_CCtx_refPrefix_advanced() to alter dictionary interpretation. */
-ZSTDLIB_API size_t ZSTD_CCtx_refPrefix(ZSTD_CCtx* cctx,
-                                 const void* prefix, size_t prefixSize);
-
 typedef enum {
     ZSTD_reset_session_only = 1,
     ZSTD_reset_parameters = 2,
@@ -654,53 +522,6 @@ ZSTDLIB_API ZSTD_bounds ZSTD_dParam_getBounds(ZSTD_dParameter dParam);
  * @return : 0, or an error code (which can be tested using ZSTD_isError()).
  */
 ZSTDLIB_API size_t ZSTD_DCtx_setParameter(ZSTD_DCtx* dctx, ZSTD_dParameter param, int value);
-
-/*! ZSTD_DCtx_loadDictionary() :
- *  Create an internal DDict from dict buffer,
- *  to be used to decompress next frames.
- *  The dictionary remains valid for all future frames, until explicitly invalidated.
- * @result : 0, or an error code (which can be tested with ZSTD_isError()).
- *  Special : Adding a NULL (or 0-size) dictionary invalidates any previous dictionary,
- *            meaning "return to no-dictionary mode".
- *  Note 1 : Loading a dictionary involves building tables,
- *           which has a non-negligible impact on CPU usage and latency.
- *           It's recommended to "load once, use many times", to amortize the cost
- *  Note 2 :`dict` content will be copied internally, so `dict` can be released after loading.
- *           Use ZSTD_DCtx_loadDictionary_byReference() to reference dictionary content instead.
- *  Note 3 : Use ZSTD_DCtx_loadDictionary_advanced() to take control of
- *           how dictionary content is loaded and interpreted.
- */
-ZSTDLIB_API size_t ZSTD_DCtx_loadDictionary(ZSTD_DCtx* dctx, const void* dict, size_t dictSize);
-
-/*! ZSTD_DCtx_refDDict() :
- *  Reference a prepared dictionary, to be used to decompress next frames.
- *  The dictionary remains active for decompression of future frames using same DCtx.
- * @result : 0, or an error code (which can be tested with ZSTD_isError()).
- *  Note 1 : Currently, only one dictionary can be managed.
- *           Referencing a new dictionary effectively "discards" any previous one.
- *  Special: referencing a NULL DDict means "return to no-dictionary mode".
- *  Note 2 : DDict is just referenced, its lifetime must outlive its usage from DCtx.
- */
-ZSTDLIB_API size_t ZSTD_DCtx_refDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict);
-
-/*! ZSTD_DCtx_refPrefix() :
- *  Reference a prefix (single-usage dictionary) to decompress next frame.
- *  This is the reverse operation of ZSTD_CCtx_refPrefix(),
- *  and must use the same prefix as the one used during compression.
- *  Prefix is **only used once**. Reference is discarded at end of frame.
- *  End of frame is reached when ZSTD_decompressStream() returns 0.
- * @result : 0, or an error code (which can be tested with ZSTD_isError()).
- *  Note 1 : Adding any prefix (including NULL) invalidates any previously set prefix or dictionary
- *  Note 2 : Prefix buffer is referenced. It **must** outlive decompression.
- *           Prefix buffer must remain unmodified up to the end of frame,
- *           reached when ZSTD_decompressStream() returns 0.
- *  Note 3 : By default, the prefix is treated as raw content (ZSTD_dm_rawContent).
- *           Use ZSTD_CCtx_refPrefix_advanced() to alter dictMode (Experimental section)
- *  Note 4 : Referencing a raw content prefix has almost no cpu nor memory cost.
- *           A full dictionary is more costly, as it requires building tables.
- */
-ZSTDLIB_API size_t ZSTD_DCtx_refPrefix(ZSTD_DCtx* dctx,
-                                 const void* prefix, size_t prefixSize);
 
 /*! ZSTD_DCtx_reset() :
  *  Return a DCtx to clean state.
@@ -822,6 +643,16 @@ ZSTDLIB_API size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
                                          ZSTD_inBuffer* input,
                                          ZSTD_EndDirective endOp);
 
+ZSTDLIB_API size_t ZSTD_CStreamInSize(void);    /**< recommended size for input buffer */
+ZSTDLIB_API size_t ZSTD_CStreamOutSize(void);   /**< recommended size for output buffer. Guarantee to successfully flush at least one complete compressed block in all circumstances. */
+
+/*******************************************************************************
+ * This is a legacy streaming API, and can be replaced by ZSTD_CCtx_reset() and
+ * ZSTD_compressStream2(). It is redundent, but is still fully supported.
+ * Advanced parameters and dictionary compression can only be used through the
+ * new API.
+ ******************************************************************************/
+
 /**
  * Equivalent to:
  *
@@ -841,9 +672,6 @@ ZSTDLIB_API size_t ZSTD_compressStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output
 ZSTDLIB_API size_t ZSTD_flushStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output);
 /** Equivalent to ZSTD_compressStream2(zcs, output, &emptyInput, ZSTD_e_end). */
 ZSTDLIB_API size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output);
-
-ZSTDLIB_API size_t ZSTD_CStreamInSize(void);    /**< recommended size for input buffer */
-ZSTDLIB_API size_t ZSTD_CStreamOutSize(void);   /**< recommended size for output buffer. Guarantee to successfully flush at least one complete compressed block in all circumstances. */
 
 
 /*-***************************************************************************
@@ -885,6 +713,196 @@ ZSTDLIB_API size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* outp
 
 ZSTDLIB_API size_t ZSTD_DStreamInSize(void);    /*!< recommended size for input buffer */
 ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output buffer. Guarantee to successfully flush at least one complete block in all circumstances. */
+
+
+/**************************
+*  Simple dictionary API
+***************************/
+/*! ZSTD_compress_usingDict() :
+ *  Compression at an explicit compression level using a Dictionary.
+ *  A dictionary can be any arbitrary data segment (also called a prefix),
+ *  or a buffer with specified information (see dictBuilder/zdict.h).
+ *  Note : This function loads the dictionary, resulting in significant startup delay.
+ *         It's intended for a dictionary used only once.
+ *  Note 2 : When `dict == NULL || dictSize < 8` no dictionary is used. */
+ZSTDLIB_API size_t ZSTD_compress_usingDict(ZSTD_CCtx* ctx,
+                                           void* dst, size_t dstCapacity,
+                                     const void* src, size_t srcSize,
+                                     const void* dict,size_t dictSize,
+                                           int compressionLevel);
+
+/*! ZSTD_decompress_usingDict() :
+ *  Decompression using a known Dictionary.
+ *  Dictionary must be identical to the one used during compression.
+ *  Note : This function loads the dictionary, resulting in significant startup delay.
+ *         It's intended for a dictionary used only once.
+ *  Note : When `dict == NULL || dictSize < 8` no dictionary is used. */
+ZSTDLIB_API size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
+                                             void* dst, size_t dstCapacity,
+                                       const void* src, size_t srcSize,
+                                       const void* dict,size_t dictSize);
+
+
+/***********************************
+ *  Bulk processing dictionary API
+ **********************************/
+typedef struct ZSTD_CDict_s ZSTD_CDict;
+
+/*! ZSTD_createCDict() :
+ *  When compressing multiple messages / blocks using the same dictionary, it's recommended to load it only once.
+ *  ZSTD_createCDict() will create a digested dictionary, ready to start future compression operations without startup cost.
+ *  ZSTD_CDict can be created once and shared by multiple threads concurrently, since its usage is read-only.
+ * `dictBuffer` can be released after ZSTD_CDict creation, because its content is copied within CDict.
+ *  Consider experimental function `ZSTD_createCDict_byReference()` if you prefer to not duplicate `dictBuffer` content.
+ *  Note : A ZSTD_CDict can be created from an empty dictBuffer, but it is inefficient when used to compress small data. */
+ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict(const void* dictBuffer, size_t dictSize,
+                                         int compressionLevel);
+
+/*! ZSTD_freeCDict() :
+ *  Function frees memory allocated by ZSTD_createCDict(). */
+ZSTDLIB_API size_t      ZSTD_freeCDict(ZSTD_CDict* CDict);
+
+/*! ZSTD_compress_usingCDict() :
+ *  Compression using a digested Dictionary.
+ *  Recommended when same dictionary is used multiple times.
+ *  Note : compression level is _decided at dictionary creation time_,
+ *     and frame parameters are hardcoded (dictID=yes, contentSize=yes, checksum=no) */
+ZSTDLIB_API size_t ZSTD_compress_usingCDict(ZSTD_CCtx* cctx,
+                                            void* dst, size_t dstCapacity,
+                                      const void* src, size_t srcSize,
+                                      const ZSTD_CDict* cdict);
+
+
+typedef struct ZSTD_DDict_s ZSTD_DDict;
+
+/*! ZSTD_createDDict() :
+ *  Create a digested dictionary, ready to start decompression operation without startup delay.
+ *  dictBuffer can be released after DDict creation, as its content is copied inside DDict. */
+ZSTDLIB_API ZSTD_DDict* ZSTD_createDDict(const void* dictBuffer, size_t dictSize);
+
+/*! ZSTD_freeDDict() :
+ *  Function frees memory allocated with ZSTD_createDDict() */
+ZSTDLIB_API size_t      ZSTD_freeDDict(ZSTD_DDict* ddict);
+
+/*! ZSTD_decompress_usingDDict() :
+ *  Decompression using a digested Dictionary.
+ *  Recommended when same dictionary is used multiple times. */
+ZSTDLIB_API size_t ZSTD_decompress_usingDDict(ZSTD_DCtx* dctx,
+                                              void* dst, size_t dstCapacity,
+                                        const void* src, size_t srcSize,
+                                        const ZSTD_DDict* ddict);
+
+
+/*******************************************************************************
+ * Advanced dictionary and prefix API
+ *
+ * This API allows dictionaries to be used with ZSTD_compress2(),
+ * ZSTD_compressStream2(), and ZSTD_decompress(). Dictionaries are sticky, and
+ * only reset with the context is reset with ZSTD_reset_parameters or
+ * ZSTD_reset_session_and_parameters. Prefixes are single-use.
+ ******************************************************************************/
+
+
+/*! ZSTD_CCtx_loadDictionary() :
+ *  Create an internal CDict from `dict` buffer.
+ *  Decompression will have to use same dictionary.
+ * @result : 0, or an error code (which can be tested with ZSTD_isError()).
+ *  Special: Loading a NULL (or 0-size) dictionary invalidates previous dictionary,
+ *           meaning "return to no-dictionary mode".
+ *  Note 1 : Dictionary is sticky, it will be used for all future compressed frames.
+ *           To return to "no-dictionary" situation, load a NULL dictionary (or reset parameters).
+ *  Note 2 : Loading a dictionary involves building tables.
+ *           It's also a CPU consuming operation, with non-negligible impact on latency.
+ *           Tables are dependent on compression parameters, and for this reason,
+ *           compression parameters can no longer be changed after loading a dictionary.
+ *  Note 3 :`dict` content will be copied internally.
+ *           Use experimental ZSTD_CCtx_loadDictionary_byReference() to reference content instead.
+ *           In such a case, dictionary buffer must outlive its users.
+ *  Note 4 : Use ZSTD_CCtx_loadDictionary_advanced()
+ *           to precisely select how dictionary content must be interpreted. */
+ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, size_t dictSize);
+
+/*! ZSTD_CCtx_refCDict() :
+ *  Reference a prepared dictionary, to be used for all next compressed frames.
+ *  Note that compression parameters are enforced from within CDict,
+ *  and supersede any compression parameter previously set within CCtx.
+ *  The parameters ignored are labled as "superseded-by-cdict" in the ZSTD_cParameter enum docs.
+ *  The ignored parameters will be used again if the CCtx is returned to no-dictionary mode.
+ *  The dictionary will remain valid for future compressed frames using same CCtx.
+ * @result : 0, or an error code (which can be tested with ZSTD_isError()).
+ *  Special : Referencing a NULL CDict means "return to no-dictionary mode".
+ *  Note 1 : Currently, only one dictionary can be managed.
+ *           Referencing a new dictionary effectively "discards" any previous one.
+ *  Note 2 : CDict is just referenced, its lifetime must outlive its usage within CCtx. */
+ZSTDLIB_API size_t ZSTD_CCtx_refCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict);
+
+/*! ZSTD_CCtx_refPrefix() :
+ *  Reference a prefix (single-usage dictionary) for next compressed frame.
+ *  A prefix is **only used once**. Tables are discarded at end of frame (ZSTD_e_end).
+ *  Decompression will need same prefix to properly regenerate data.
+ *  Compressing with a prefix is similar in outcome as performing a diff and compressing it,
+ *  but performs much faster, especially during decompression (compression speed is tunable with compression level).
+ * @result : 0, or an error code (which can be tested with ZSTD_isError()).
+ *  Special: Adding any prefix (including NULL) invalidates any previous prefix or dictionary
+ *  Note 1 : Prefix buffer is referenced. It **must** outlive compression.
+ *           Its content must remain unmodified during compression.
+ *  Note 2 : If the intention is to diff some large src data blob with some prior version of itself,
+ *           ensure that the window size is large enough to contain the entire source.
+ *           See ZSTD_c_windowLog.
+ *  Note 3 : Referencing a prefix involves building tables, which are dependent on compression parameters.
+ *           It's a CPU consuming operation, with non-negligible impact on latency.
+ *           If there is a need to use the same prefix multiple times, consider loadDictionary instead.
+ *  Note 4 : By default, the prefix is interpreted as raw content (ZSTD_dm_rawContent).
+ *           Use experimental ZSTD_CCtx_refPrefix_advanced() to alter dictionary interpretation. */
+ZSTDLIB_API size_t ZSTD_CCtx_refPrefix(ZSTD_CCtx* cctx,
+                                 const void* prefix, size_t prefixSize);
+
+/*! ZSTD_DCtx_loadDictionary() :
+ *  Create an internal DDict from dict buffer,
+ *  to be used to decompress next frames.
+ *  The dictionary remains valid for all future frames, until explicitly invalidated.
+ * @result : 0, or an error code (which can be tested with ZSTD_isError()).
+ *  Special : Adding a NULL (or 0-size) dictionary invalidates any previous dictionary,
+ *            meaning "return to no-dictionary mode".
+ *  Note 1 : Loading a dictionary involves building tables,
+ *           which has a non-negligible impact on CPU usage and latency.
+ *           It's recommended to "load once, use many times", to amortize the cost
+ *  Note 2 :`dict` content will be copied internally, so `dict` can be released after loading.
+ *           Use ZSTD_DCtx_loadDictionary_byReference() to reference dictionary content instead.
+ *  Note 3 : Use ZSTD_DCtx_loadDictionary_advanced() to take control of
+ *           how dictionary content is loaded and interpreted.
+ */
+ZSTDLIB_API size_t ZSTD_DCtx_loadDictionary(ZSTD_DCtx* dctx, const void* dict, size_t dictSize);
+
+/*! ZSTD_DCtx_refDDict() :
+ *  Reference a prepared dictionary, to be used to decompress next frames.
+ *  The dictionary remains active for decompression of future frames using same DCtx.
+ * @result : 0, or an error code (which can be tested with ZSTD_isError()).
+ *  Note 1 : Currently, only one dictionary can be managed.
+ *           Referencing a new dictionary effectively "discards" any previous one.
+ *  Special: referencing a NULL DDict means "return to no-dictionary mode".
+ *  Note 2 : DDict is just referenced, its lifetime must outlive its usage from DCtx.
+ */
+ZSTDLIB_API size_t ZSTD_DCtx_refDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict);
+
+/*! ZSTD_DCtx_refPrefix() :
+ *  Reference a prefix (single-usage dictionary) to decompress next frame.
+ *  This is the reverse operation of ZSTD_CCtx_refPrefix(),
+ *  and must use the same prefix as the one used during compression.
+ *  Prefix is **only used once**. Reference is discarded at end of frame.
+ *  End of frame is reached when ZSTD_decompressStream() returns 0.
+ * @result : 0, or an error code (which can be tested with ZSTD_isError()).
+ *  Note 1 : Adding any prefix (including NULL) invalidates any previously set prefix or dictionary
+ *  Note 2 : Prefix buffer is referenced. It **must** outlive decompression.
+ *           Prefix buffer must remain unmodified up to the end of frame,
+ *           reached when ZSTD_decompressStream() returns 0.
+ *  Note 3 : By default, the prefix is treated as raw content (ZSTD_dm_rawContent).
+ *           Use ZSTD_CCtx_refPrefix_advanced() to alter dictMode (Experimental section)
+ *  Note 4 : Referencing a raw content prefix has almost no cpu nor memory cost.
+ *           A full dictionary is more costly, as it requires building tables.
+ */
+ZSTDLIB_API size_t ZSTD_DCtx_refPrefix(ZSTD_DCtx* dctx,
+                                 const void* prefix, size_t prefixSize);
 
 /* ===   Memory management   === */
 

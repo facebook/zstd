@@ -577,10 +577,8 @@ typedef struct ZSTD_outBuffer_s {
 *  The caller must check if input has been entirely consumed.
 *  If not, the caller must make some room to receive more compressed data,
 *  and then present again remaining input data.
-* @return : a size hint, preferred nb of bytes to use as input for next function call
+* @return : provides a minimum amount of data remaining to be flushed from internal buffers
 *           or an error code, which can be tested using ZSTD_isError().
-*           Note 1 : it's just a hint, to help latency a little, any value will work fine.
-*           Note 2 : size hint is guaranteed to be <= ZSTD_CStreamInSize()
 *
 *  At any moment, it's possible to flush whatever data might remain stuck within internal buffer,
 *  using ZSTD_compressStream2() with ZSTD_e_flush. `output->pos` will be updated.

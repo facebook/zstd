@@ -7,13 +7,11 @@
  * in the COPYING file in the root directory of this source tree).
  * You may select, at your option, one of the above-listed licenses.
  */
-#include <stdlib.h>    // malloc, exit
 #include <stdio.h>     // printf
-#include <string.h>    // strerror
-#include <errno.h>     // errno
-#include <sys/stat.h>  // stat
+#include <stdlib.h>    // free
+#include <string.h>    // memset, strcat
 #include <zstd.h>      // presumes zstd library is installed
-#include "utils.h"
+#include "common.h"    // Helper functions, CHECK(), and CHECK_ZSTD()
 
 /* createDict() :
    `dictFileName` is supposed to have been created using `zstd --train` */
@@ -23,10 +21,7 @@ static ZSTD_CDict* createCDict_orDie(const char* dictFileName, int cLevel)
     printf("loading dictionary %s \n", dictFileName);
     void* const dictBuffer = mallocAndLoadFile_orDie(dictFileName, &dictSize);
     ZSTD_CDict* const cdict = ZSTD_createCDict(dictBuffer, dictSize, cLevel);
-    if (!cdict) {
-        fprintf(stderr, "ZSTD_createCDict error \n");
-        exit(7);
-    }
+    CHECK(cdict != NULL, "ZSTD_createCDict() failed!");
     free(dictBuffer);
     return cdict;
 }
@@ -39,13 +34,16 @@ static void compress(const char* fname, const char* oname, const ZSTD_CDict* cdi
     size_t const cBuffSize = ZSTD_compressBound(fSize);
     void* const cBuff = malloc_orDie(cBuffSize);
 
+    /* Compress using the dictionary.
+     * This function writes the dictionary id, and content size into the header.
+     * But, it doesn't use a checksum. You can control these options using the
+     * advanced API: ZSTD_CCtx_setParameter(), ZSTD_CCtx_refCDict(),
+     * and ZSTD_compress2().
+     */
     ZSTD_CCtx* const cctx = ZSTD_createCCtx();
-    if (cctx==NULL) { fprintf(stderr, "ZSTD_createCCtx() error \n"); exit(10); }
+    CHECK(cctx != NULL, "ZSTD_createCCtx() failed!");
     size_t const cSize = ZSTD_compress_usingCDict(cctx, cBuff, cBuffSize, fBuff, fSize, cdict);
-    if (ZSTD_isError(cSize)) {
-        fprintf(stderr, "error compressing %s : %s \n", fname, ZSTD_getErrorName(cSize));
-        exit(7);
-    }
+    CHECK_ZSTD(cSize);
 
     saveFile_orDie(oname, cBuff, cSize);
 

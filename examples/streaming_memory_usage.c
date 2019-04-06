@@ -16,10 +16,10 @@
 
 
 /*===   Dependencies   ===*/
-#include <stdio.h>   /* printf */
+#include <stdio.h>     // printf
 #define ZSTD_STATIC_LINKING_ONLY
-#include "zstd.h"
-#include "utils.h"
+#include <zstd.h>      // presumes zstd library is installed
+#include "common.h"    // Helper functions, CHECK(), and CHECK_ZSTD()
 
 
 /*===   functions   ===*/

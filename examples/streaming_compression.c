@@ -9,12 +9,11 @@
  */
 
 
-#include <stdlib.h>    // malloc, free, exit
-#include <stdio.h>     // fprintf, perror, feof, fopen, etc.
-#include <string.h>    // strlen, memset, strcat
-#define ZSTD_STATIC_LINKING_ONLY // TODO: Remove once the API is stable
+#include <stdio.h>     // printf
+#include <stdlib.h>    // free
+#include <string.h>    // memset, strcat, strlen
 #include <zstd.h>      // presumes zstd library is installed
-#include "utils.h"
+#include "common.h"    // Helper functions, CHECK(), and CHECK_ZSTD()
 
 
 static void compressFile_orDie(const char* fname, const char* outName, int cLevel)
@@ -75,7 +74,8 @@ static void compressFile_orDie(const char* fname, const char* outName, int cLeve
              */
             finished = lastChunk ? (remaining == 0) : (input.pos == input.size);
         } while (!finished);
-        assert(input.pos == input.size);
+        CHECK(input.pos == input.size,
+              "Impossible: zstd only returns 0 when the input is completely consumed!");
     }
 
     ZSTD_freeCCtx(cctx);

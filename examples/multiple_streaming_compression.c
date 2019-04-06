@@ -14,13 +14,11 @@
 *  All structures and buffers will be created only once,
 *  and shared across all compression operations */
 
-#include <stdlib.h>    // malloc, exit
-#include <stdio.h>     // fprintf, perror, feof
-#include <string.h>    // strerror
-#include <errno.h>     // errno
-#define ZSTD_STATIC_LINKING_ONLY  // TODO: Remove once the API is stable
+#include <stdio.h>     // printf
+#include <stdlib.h>    // free
+#include <string.h>    // memset, strcat
 #include <zstd.h>      // presumes zstd library is installed
-#include "utils.h"
+#include "common.h"    // Helper functions, CHECK(), and CHECK_ZSTD()
 
 typedef struct {
     void* buffIn;
@@ -86,7 +84,8 @@ static void compressFile_orDie(resources ress, const char* fname, const char* ou
             fwrite_orDie(ress.buffOut, output.pos, fout);
             finished = lastChunk ? (remaining == 0) : (input.pos == input.size);
         } while (!finished);
-        assert(input.pos == input.size);
+        CHECK(input.pos == input.size,
+              "Impossible: zstd only returns 0 when the input is completely consumed!");
     }
 
     fclose_orDie(fout);

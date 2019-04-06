@@ -9,12 +9,10 @@
  */
 
 
-#include <stdlib.h>    // malloc, exit
-#include <stdio.h>     // fprintf, perror, feof
-#include <string.h>    // strerror
-#include <errno.h>     // errno
+#include <stdio.h>     // fprintf
+#include <stdlib.h>    // free
 #include <zstd.h>      // presumes zstd library is installed
-#include "utils.h"
+#include "common.h"    // Helper functions, CHECK(), and CHECK_ZSTD()
 
 static void decompressFile_orDie(const char* fname)
 {

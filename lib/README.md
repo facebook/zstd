@@ -109,7 +109,7 @@ The file structure is designed to make this selection manually achievable for an
   `ZSTD_getErrorName`.
 
 - While invoking `make libzstd`, the build macro `ZSTD_LEGACY_MULTITHREADED_API=1`
-  will expose the deprecated the `ZSTDMT` API exposed by `zstdmt_compress.h` in
+  will expose the deprecated `ZSTDMT` API exposed by `zstdmt_compress.h` in
   the shared library, which is now hidden by default.
 
 

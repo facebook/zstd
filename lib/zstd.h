@@ -577,6 +577,11 @@ typedef struct ZSTD_outBuffer_s {
 *  The caller must check if input has been entirely consumed.
 *  If not, the caller must make some room to receive more compressed data,
 *  and then present again remaining input data.
+*  note: ZSTD_e_continue is guaranteed to make some forward progress when called,
+*        but doesn't guarantee maximal forward progress. This is especially relevant
+*        when compressing with multiple threads. The call won't block if it can
+*        consume some input, but if it can't it will wait for some, but not all,
+*        output to be flushed.
 * @return : provides a minimum amount of data remaining to be flushed from internal buffers
 *           or an error code, which can be tested using ZSTD_isError().
 *
@@ -586,6 +591,8 @@ typedef struct ZSTD_outBuffer_s {
 *  In which case, make some room to receive more compressed data, and call again ZSTD_compressStream2() with ZSTD_e_flush.
 *  You must continue calling ZSTD_compressStream2() with ZSTD_e_flush until it returns 0, at which point you can change the
 *  operation.
+*  note: ZSTD_e_flush will flush as much output as possible, meaning when compressing with multiple threads, it will
+*        block until the flush is complete or the output buffer is full.
 *  @return : 0 if internal buffers are entirely flushed,
 *            >0 if some data still present within internal buffer (the value is minimal estimation of remaining size),
 *            or an error code, which can be tested using ZSTD_isError().
@@ -596,6 +603,8 @@ typedef struct ZSTD_outBuffer_s {
 *  flush operation is the same, and follows same rules as calling ZSTD_compressStream2() with ZSTD_e_flush.
 *  You must continue calling ZSTD_compressStream2() with ZSTD_e_end until it returns 0, at which point you are free to
 *  start a new frame.
+*  note: ZSTD_e_end will flush as much output as possible, meaning when compressing with multiple threads, it will
+*        block until the flush is complete or the output buffer is full.
 *  @return : 0 if frame fully completed and fully flushed,
 *            >0 if some data still present within internal buffer (the value is minimal estimation of remaining size),
 *            or an error code, which can be tested using ZSTD_isError().
@@ -613,11 +622,13 @@ typedef enum {
     ZSTD_e_continue=0, /* collect more data, encoder decides when to output compressed result, for optimal compression ratio */
     ZSTD_e_flush=1,    /* flush any data provided so far,
                         * it creates (at least) one new block, that can be decoded immediately on reception;
-                        * frame will continue: any future data can still reference previously compressed data, improving compression. */
+                        * frame will continue: any future data can still reference previously compressed data, improving compression.
+                        * note : multithreaded compression will block to flush as much output as possible. */
     ZSTD_e_end=2       /* flush any remaining data _and_ close current frame.
                         * note that frame is only closed after compressed data is fully flushed (return value == 0).
                         * After that point, any additional data starts a new frame.
-                        * note : each frame is independent (does not reference any content from previous frame). */
+                        * note : each frame is independent (does not reference any content from previous frame).
+                        : note : multithreaded compression will block to flush as much output as possible. */
 } ZSTD_EndDirective;
 
 /*! ZSTD_compressStream2() :

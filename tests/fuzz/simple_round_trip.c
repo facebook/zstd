@@ -25,9 +25,6 @@ static const int kMaxClevel = 19;
 
 static ZSTD_CCtx *cctx = NULL;
 static ZSTD_DCtx *dctx = NULL;
-static void* cBuf = NULL;
-static void* rBuf = NULL;
-static size_t bufSize = 0;
 static uint32_t seed;
 
 static size_t roundTripTest(void *result, size_t resultCapacity,
@@ -49,20 +46,21 @@ static size_t roundTripTest(void *result, size_t resultCapacity,
 
 int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 {
-    size_t neededBufSize;
+    size_t const rBufSize = size;
+    void* rBuf = malloc(rBufSize);
+    size_t cBufSize = ZSTD_compressBound(size);
+    void* cBuf;
 
     seed = FUZZ_seed(&src, &size);
-    neededBufSize = ZSTD_compressBound(size);
+    /* Half of the time fuzz with a 1 byte smaller output size.
+     * This will still succeed because we don't use a dictionary, so the dictID
+     * field is empty, giving us 4 bytes of overhead.
+     */
+    cBufSize -= FUZZ_rand32(&seed, 0, 1);
+    cBuf = malloc(cBufSize);
 
-    /* Allocate all buffers and contexts if not already allocated */
-    if (neededBufSize > bufSize) {
-        free(cBuf);
-        free(rBuf);
-        cBuf = malloc(neededBufSize);
-        rBuf = malloc(neededBufSize);
-        bufSize = neededBufSize;
-        FUZZ_ASSERT(cBuf && rBuf);
-    }
+    FUZZ_ASSERT(cBuf && rBuf);
+
     if (!cctx) {
         cctx = ZSTD_createCCtx();
         FUZZ_ASSERT(cctx);
@@ -74,11 +72,13 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 
     {
         size_t const result =
-            roundTripTest(rBuf, neededBufSize, cBuf, neededBufSize, src, size);
+            roundTripTest(rBuf, rBufSize, cBuf, cBufSize, src, size);
         FUZZ_ZASSERT(result);
         FUZZ_ASSERT_MSG(result == size, "Incorrect regenerated size");
         FUZZ_ASSERT_MSG(!memcmp(src, rBuf, size), "Corruption!");
     }
+    free(rBuf);
+    free(cBuf);
 #ifndef STATEFUL_FUZZING
     ZSTD_freeCCtx(cctx); cctx = NULL;
     ZSTD_freeDCtx(dctx); dctx = NULL;

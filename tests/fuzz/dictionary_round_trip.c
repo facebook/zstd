@@ -24,9 +24,6 @@ static const int kMaxClevel = 19;
 
 static ZSTD_CCtx *cctx = NULL;
 static ZSTD_DCtx *dctx = NULL;
-static void* cBuf = NULL;
-static void* rBuf = NULL;
-static size_t bufSize = 0;
 static uint32_t seed;
 
 static size_t roundTripTest(void *result, size_t resultCapacity,
@@ -45,6 +42,8 @@ static size_t roundTripTest(void *result, size_t resultCapacity,
                 cLevel);
     } else {
         FUZZ_setRandomParameters(cctx, srcSize, &seed);
+        /* Disable checksum so we can use sizes smaller than compress bound. */
+        FUZZ_ZASSERT(ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 0));
         FUZZ_ZASSERT(ZSTD_CCtx_loadDictionary(cctx, dict.buff, dict.size));
         cSize = ZSTD_compress2(cctx, compressed, compressedCapacity, src, srcSize);
     }
@@ -61,20 +60,19 @@ static size_t roundTripTest(void *result, size_t resultCapacity,
 
 int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 {
-    size_t neededBufSize;
+    size_t const rBufSize = size;
+    void* rBuf = malloc(rBufSize);
+    size_t cBufSize = ZSTD_compressBound(size);
+    void* cBuf;
 
     seed = FUZZ_seed(&src, &size);
-    neededBufSize = ZSTD_compressBound(size);
+    /* Half of the time fuzz with a 1 byte smaller output size.
+     * This will still succeed because we force the checksum to be disabled,
+     * giving us 4 bytes of overhead.
+     */
+    cBufSize -= FUZZ_rand32(&seed, 0, 1);
+    cBuf = malloc(cBufSize);
 
-    /* Allocate all buffers and contexts if not already allocated */
-    if (neededBufSize > bufSize) {
-        free(cBuf);
-        free(rBuf);
-        cBuf = malloc(neededBufSize);
-        rBuf = malloc(neededBufSize);
-        bufSize = neededBufSize;
-        FUZZ_ASSERT(cBuf && rBuf);
-    }
     if (!cctx) {
         cctx = ZSTD_createCCtx();
         FUZZ_ASSERT(cctx);
@@ -86,11 +84,13 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 
     {
         size_t const result =
-            roundTripTest(rBuf, neededBufSize, cBuf, neededBufSize, src, size);
+            roundTripTest(rBuf, rBufSize, cBuf, cBufSize, src, size);
         FUZZ_ZASSERT(result);
         FUZZ_ASSERT_MSG(result == size, "Incorrect regenerated size");
         FUZZ_ASSERT_MSG(!memcmp(src, rBuf, size), "Corruption!");
     }
+    free(rBuf);
+    free(cBuf);
 #ifndef STATEFUL_FUZZING
     ZSTD_freeCCtx(cctx); cctx = NULL;
     ZSTD_freeDCtx(dctx); dctx = NULL;

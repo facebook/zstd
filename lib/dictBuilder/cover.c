@@ -627,19 +627,20 @@ static int COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
   return 1;
 }
 
-void COVER_warnOnSmallCorpus(size_t maxDictSize, size_t nbDmers)
+void COVER_warnOnSmallCorpus(size_t maxDictSize, size_t nbDmers, int displayLevel)
 {
   const double ratio = (double)nbDmers / maxDictSize;
   if (ratio >= 10) {
       return;
   }
-  DISPLAYLEVEL(1, "WARNING: The maximum dictionary size %u is too large "
-                  "compared to the source size %u! "
-                  "size(source)/size(dictionary) = %f, but it should be >= "
-                  "10! This may lead to a subpar dictionary! We recommend "
-                  "training on sources at least 10x, and up to 100x the "
-                  "size of the dictionary!\n", (U32)maxDictSize,
-                  (U32)nbDmers, ratio);
+  LOCALDISPLAYLEVEL(displayLevel, 1,
+                    "WARNING: The maximum dictionary size %u is too large "
+                    "compared to the source size %u! "
+                    "size(source)/size(dictionary) = %f, but it should be >= "
+                    "10! This may lead to a subpar dictionary! We recommend "
+                    "training on sources at least 10x, and up to 100x the "
+                    "size of the dictionary!\n", (U32)maxDictSize,
+                    (U32)nbDmers, ratio);
 }
 
 COVER_epoch_info_t COVER_computeEpochs(U32 maxDictSize,
@@ -744,7 +745,7 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_cover(
                       parameters.d, parameters.splitPoint)) {
     return ERROR(GENERIC);
   }
-  COVER_warnOnSmallCorpus(dictBufferCapacity, ctx.suffixSize);
+  COVER_warnOnSmallCorpus(dictBufferCapacity, ctx.suffixSize, g_displayLevel);
   if (!COVER_map_init(&activeDmers, parameters.k - parameters.d + 1)) {
     DISPLAYLEVEL(1, "Failed to allocate dmer map: out of memory\n");
     COVER_ctx_destroy(&ctx);
@@ -1060,7 +1061,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
       return ERROR(GENERIC);
     }
     if (!warned) {
-      COVER_warnOnSmallCorpus(dictBufferCapacity, ctx.suffixSize);
+      COVER_warnOnSmallCorpus(dictBufferCapacity, ctx.suffixSize, displayLevel);
       warned = 1;
     }
     /* Loop through k reusing the same context */

@@ -36,16 +36,8 @@ static size_t roundTripTest(void *result, size_t resultCapacity,
 {
     size_t cSize;
     if (FUZZ_rand(&seed) & 1) {
-        ZSTD_inBuffer in = {src, srcSize, 0};
-        ZSTD_outBuffer out = {compressed, compressedCapacity, 0};
-        size_t err;
-
-        ZSTD_CCtx_reset(cctx, ZSTD_reset_session_only);
         FUZZ_setRandomParameters(cctx, srcSize, &seed);
-        err = ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end);
-        FUZZ_ZASSERT(err);
-        FUZZ_ASSERT(err == 0);
-        cSize = out.pos;
+        cSize = ZSTD_compress2(cctx, compressed, compressedCapacity, src, srcSize);
     } else {
         int const cLevel = FUZZ_rand(&seed) % kMaxClevel;
         cSize = ZSTD_compressCCtx(

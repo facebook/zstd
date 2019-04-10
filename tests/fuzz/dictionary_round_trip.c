@@ -30,6 +30,7 @@ static size_t roundTripTest(void *result, size_t resultCapacity,
                             void *compressed, size_t compressedCapacity,
                             const void *src, size_t srcSize)
 {
+    ZSTD_dictContentType_e dictContentType = ZSTD_dct_auto;
     FUZZ_dict_t dict = FUZZ_train(src, srcSize, &seed);
     size_t cSize;
     if ((FUZZ_rand(&seed) & 15) == 0) {
@@ -41,18 +42,24 @@ static size_t roundTripTest(void *result, size_t resultCapacity,
                 dict.buff, dict.size,
                 cLevel);
     } else {
+        dictContentType = FUZZ_rand32(&seed, 0, 2);
         FUZZ_setRandomParameters(cctx, srcSize, &seed);
         /* Disable checksum so we can use sizes smaller than compress bound. */
         FUZZ_ZASSERT(ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 0));
-        FUZZ_ZASSERT(ZSTD_CCtx_loadDictionary(cctx, dict.buff, dict.size));
+        FUZZ_ZASSERT(ZSTD_CCtx_loadDictionary_advanced(
+                cctx, dict.buff, dict.size,
+                (ZSTD_dictLoadMethod_e)FUZZ_rand32(&seed, 0, 1),
+                dictContentType));
         cSize = ZSTD_compress2(cctx, compressed, compressedCapacity, src, srcSize);
     }
     FUZZ_ZASSERT(cSize);
+    FUZZ_ZASSERT(ZSTD_DCtx_loadDictionary_advanced(
+        dctx, dict.buff, dict.size,
+        (ZSTD_dictLoadMethod_e)FUZZ_rand32(&seed, 0, 1),
+        dictContentType));
     {
-        size_t const ret = ZSTD_decompress_usingDict(dctx,
-                result, resultCapacity,
-                compressed, cSize,
-                dict.buff, dict.size);
+        size_t const ret = ZSTD_decompressDCtx(
+                dctx, result, resultCapacity, compressed, cSize);
         free(dict.buff);
         return ret;
     }

@@ -200,6 +200,15 @@ $ZSTD tmp -fo tmp && die "zstd compression overwrote the input file"
 $ZSTD tmp.zst -dfo tmp.zst && die "zstd decompression overwrote the input file"
 $ECHO "test: detect that input file does not exist"
 $ZSTD nothere && die "zstd hasn't detected that input file does not exist"
+$ECHO "test: --[no-]compress-literals"
+$ZSTD tmp -c --no-compress-literals -1       | $ZSTD -t
+$ZSTD tmp -c --no-compress-literals --fast=1 | $ZSTD -t
+$ZSTD tmp -c --no-compress-literals -19      | $ZSTD -t
+$ZSTD tmp -c --compress-literals    -1       | $ZSTD -t
+$ZSTD tmp -c --compress-literals    --fast=1 | $ZSTD -t
+$ZSTD tmp -c --compress-literals    -19      | $ZSTD -t
+$ZSTD -b --fast=1 -i1e1 tmp --compress-literals
+$ZSTD -b --fast=1 -i1e1 tmp --no-compress-literals
 
 $ECHO "test : file removal"
 $ZSTD -f --rm tmp
@@ -314,18 +323,28 @@ $ECHO foo | $ZSTD > /dev/full && die "write error not detected!"
 $ECHO "$ECHO foo | $ZSTD | $ZSTD -d > /dev/full"
 $ECHO foo | $ZSTD | $ZSTD -d > /dev/full && die "write error not detected!"
 
+fi
+
+
+if [ "$isWindows" = false ] && [ "$UNAME" != 'SunOS' ] ; then
 
 $ECHO "\n===>  symbolic link test "
 
-rm -f hello.tmp world.tmp hello.tmp.zst world.tmp.zst
+rm -f hello.tmp world.tmp world2.tmp hello.tmp.zst world.tmp.zst
 $ECHO "hello world" > hello.tmp
 ln -s hello.tmp world.tmp
-$ZSTD world.tmp hello.tmp
+ln -s hello.tmp world2.tmp
+$ZSTD world.tmp hello.tmp || true
 test -f hello.tmp.zst  # regular file should have been compressed!
 test ! -f world.tmp.zst  # symbolic link should not have been compressed!
+$ZSTD world.tmp || true
+test ! -f world.tmp.zst  # symbolic link should not have been compressed!
+$ZSTD world.tmp world2.tmp || true
+test ! -f world.tmp.zst  # symbolic link should not have been compressed!
+test ! -f world2.tmp.zst  # symbolic link should not have been compressed!
 $ZSTD world.tmp hello.tmp -f
 test -f world.tmp.zst  # symbolic link should have been compressed with --force
-rm -f hello.tmp world.tmp hello.tmp.zst world.tmp.zst
+rm -f hello.tmp world.tmp world2.tmp hello.tmp.zst world.tmp.zst
 
 fi
 
@@ -391,6 +410,8 @@ $ECHO "- Create first dictionary "
 TESTFILE=../programs/zstdcli.c
 $ZSTD --train *.c ../programs/*.c -o tmpDict
 cp $TESTFILE tmp
+$ECHO "- Test dictionary compression with tmpDict as an input file and dictionary"
+$ZSTD -f tmpDict -D tmpDict && die "compression error not detected!"
 $ECHO "- Dictionary compression roundtrip"
 $ZSTD -f tmp -D tmpDict
 $ZSTD -d tmp.zst -D tmpDict -fo result
@@ -815,7 +836,7 @@ FULL_COMPRESSED_FILE=${TEST_DATA_FILE}.zst
 TRUNCATED_COMPRESSED_FILE=truncated-input.txt.zst
 ./datagen -g50000 > $TEST_DATA_FILE
 $ZSTD -f $TEST_DATA_FILE -o $FULL_COMPRESSED_FILE
-head -c 100 $FULL_COMPRESSED_FILE > $TRUNCATED_COMPRESSED_FILE
+dd bs=1 count=100 if=$FULL_COMPRESSED_FILE of=$TRUNCATED_COMPRESSED_FILE status=none
 $ZSTD --list $TRUNCATED_COMPRESSED_FILE && die "-l must fail on truncated file"
 
 rm $TEST_DATA_FILE

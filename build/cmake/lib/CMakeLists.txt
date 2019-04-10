@@ -149,7 +149,8 @@ if (ZSTD_BUILD_SHARED)
             libzstd_shared
             PROPERTIES
             OUTPUT_NAME zstd
-            SOVERSION ${zstd_VERSION_MAJOR}.${zstd_VERSION_MINOR}.${zstd_VERSION_PATCH})
+            VERSION ${zstd_VERSION_MAJOR}.${zstd_VERSION_MINOR}.${zstd_VERSION_PATCH}
+            SOVERSION ${zstd_VERSION_MAJOR})
 endif ()
 
 if (ZSTD_BUILD_STATIC)

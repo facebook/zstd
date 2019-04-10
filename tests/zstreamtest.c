@@ -344,6 +344,20 @@ static int basicUnitTests(U32 seed, double compressibility)
         DISPLAYLEVEL(3, "OK (%u bytes) \n", (unsigned)(cstreamSize + cdictSize));
     }
 
+    /* context size functions */
+    DISPLAYLEVEL(3, "test%3i : estimate CStream size using CCtxParams : ", testNb++);
+    {   ZSTD_CCtx_params* const params = ZSTD_createCCtxParams();
+        size_t cstreamSize, cctxSize;
+        CHECK_Z( ZSTD_CCtxParams_setParameter(params, ZSTD_c_compressionLevel, 19) );
+        cstreamSize = ZSTD_estimateCStreamSize_usingCCtxParams(params);
+        CHECK_Z(cstreamSize);
+        cctxSize = ZSTD_estimateCCtxSize_usingCCtxParams(params);
+        CHECK_Z(cctxSize);
+        if (cstreamSize <= cctxSize + 2 * ZSTD_BLOCKSIZE_MAX) goto _output_error;
+        ZSTD_freeCCtxParams(params);
+        DISPLAYLEVEL(3, "OK \n");
+    }
+
     DISPLAYLEVEL(3, "test%3i : check actual CStream size : ", testNb++);
     {   size_t const s = ZSTD_sizeof_CStream(zc);
         if (ZSTD_isError(s)) goto _output_error;
@@ -495,7 +509,7 @@ static int basicUnitTests(U32 seed, double compressibility)
 
     /* _srcSize compression test */
     DISPLAYLEVEL(3, "test%3i : compress_srcSize %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
-    ZSTD_initCStream_srcSize(zc, 1, CNBufferSize);
+    CHECK_Z( ZSTD_initCStream_srcSize(zc, 1, CNBufferSize) );
     outBuff.dst = (char*)(compressedBuffer);
     outBuff.size = compressedBufferSize;
     outBuff.pos = 0;
@@ -503,11 +517,14 @@ static int basicUnitTests(U32 seed, double compressibility)
     inBuff.size = CNBufferSize;
     inBuff.pos = 0;
     CHECK_Z( ZSTD_compressStream(zc, &outBuff, &inBuff) );
-    if (inBuff.pos != inBuff.size) goto _output_error;   /* entire input should be consumed */
-    { size_t const r = ZSTD_endStream(zc, &outBuff);
-      if (r != 0) goto _output_error; }  /* error, or some data not flushed */
-    { unsigned long long origSize = ZSTD_findDecompressedSize(outBuff.dst, outBuff.pos);
-      if ((size_t)origSize != CNBufferSize) goto _output_error; }  /* exact original size must be present */
+    CHECK(inBuff.pos != inBuff.size, "Entire input should be consumed");
+    {   size_t const r = ZSTD_endStream(zc, &outBuff);
+        CHECK(r != 0, "Error or some data not flushed (ret=%zu)", r);
+    }
+    {   unsigned long long origSize = ZSTD_findDecompressedSize(outBuff.dst, outBuff.pos);
+        CHECK(origSize == ZSTD_CONTENTSIZE_UNKNOWN, "Unknown!");
+        CHECK((size_t)origSize != CNBufferSize, "Exact original size must be present (got %llu)", origSize);
+    }
     DISPLAYLEVEL(3, "OK (%u bytes : %.2f%%)\n", (unsigned)cSize, (double)cSize/COMPRESSIBLE_NOISE_LENGTH*100);
 
     /* wrong _srcSize compression test */
@@ -1703,7 +1720,7 @@ static size_t setCCtxParameter(ZSTD_CCtx* zc, ZSTD_CCtx_params* cctxParams,
                                int useOpaqueAPI)
 {
     if (useOpaqueAPI) {
-        return ZSTD_CCtxParam_setParameter(cctxParams, param, value);
+        return ZSTD_CCtxParams_setParameter(cctxParams, param, value);
     } else {
         return ZSTD_CCtx_setParameter(zc, param, value);
     }
@@ -1929,16 +1946,6 @@ static int fuzzerTests_newAPI(U32 seed, int nbTests, int startTest,
                         CHECK_Z( ZSTD_CCtx_loadDictionary(zc, dict, dictSize) );
                     } else {
                         CHECK_Z( ZSTD_CCtx_loadDictionary_byReference(zc, dict, dictSize) );
-                    }
-                    if (dict && dictSize) {
-                        /* test that compression parameters are rejected (correctly) after loading a non-NULL dictionary */
-                        if (opaqueAPI) {
-                            size_t const setError = ZSTD_CCtx_setParametersUsingCCtxParams(zc, cctxParams);
-                            CHECK(!ZSTD_isError(setError), "ZSTD_CCtx_setParametersUsingCCtxParams should have failed");
-                        } else {
-                            size_t const setError = ZSTD_CCtx_setParameter(zc, ZSTD_c_windowLog, cParams.windowLog-1);
-                            CHECK(!ZSTD_isError(setError), "ZSTD_CCtx_setParameter should have failed");
-                        }
                     }
                 } else {
                     CHECK_Z( ZSTD_CCtx_refPrefix(zc, dict, dictSize) );

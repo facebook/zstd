@@ -148,6 +148,7 @@ static int usage_advanced(const char* programName)
 #endif
     DISPLAY( "--no-dictID : don't write dictID into header (dictionary compression)\n");
     DISPLAY( "--[no-]check : integrity check (default: enabled) \n");
+    DISPLAY( "--[no-]compress-literals : force (un)compressed literals \n");
 #endif
 #ifdef UTIL_HAS_CREATEFILELIST
     DISPLAY( " -r     : operate recursively on directories \n");
@@ -569,6 +570,7 @@ int main(int argCount, const char* argv[])
 #ifndef ZSTD_NOBENCH
     BMK_advancedParams_t benchParams = BMK_initAdvancedParams();
 #endif
+    ZSTD_literalCompressionMode_e literalCompressionMode = ZSTD_lcm_auto;
 
 
     /* init */
@@ -661,6 +663,8 @@ int main(int argCount, const char* argv[])
                     if (!strcmp(argument, "--format=lz4")) { suffix = LZ4_EXTENSION; FIO_setCompressionType(prefs, FIO_lz4Compression);  continue; }
 #endif
                     if (!strcmp(argument, "--rsyncable")) { rsyncable = 1; continue; }
+                    if (!strcmp(argument, "--compress-literals")) { literalCompressionMode = ZSTD_lcm_huffman; continue; }
+                    if (!strcmp(argument, "--no-compress-literals")) { literalCompressionMode = ZSTD_lcm_uncompressed; continue; }
                     if (!strcmp(argument, "--no-progress")) { FIO_setNoProgress(1); continue; }
 
                     /* long commands with arguments */
@@ -953,6 +957,8 @@ int main(int argCount, const char* argv[])
                 filenameTable[fileNamesNb++] = filenameTable[u];
             }
         }
+        if (fileNamesNb == 0 && filenameIdx > 0)
+            CLEAN_RETURN(1);
         filenameIdx = fileNamesNb;
     }
     if (recursive) {  /* at this stage, filenameTable is a list of paths, which can contain both files and directories */
@@ -995,6 +1001,7 @@ int main(int argCount, const char* argv[])
         if (g_ldmHashRateLog != LDM_PARAM_DEFAULT) {
             benchParams.ldmHashRateLog = g_ldmHashRateLog;
         }
+        benchParams.literalCompressionMode = literalCompressionMode;
 
         if (cLevel > ZSTD_maxCLevel()) cLevel = ZSTD_maxCLevel();
         if (cLevelLast > ZSTD_maxCLevel()) cLevelLast = ZSTD_maxCLevel();
@@ -1108,6 +1115,7 @@ int main(int argCount, const char* argv[])
         FIO_setAdaptMin(prefs, adaptMin);
         FIO_setAdaptMax(prefs, adaptMax);
         FIO_setRsyncable(prefs, rsyncable);
+        FIO_setLiteralCompressionMode(prefs, literalCompressionMode);
         if (adaptMin > cLevel) cLevel = adaptMin;
         if (adaptMax < cLevel) cLevel = adaptMax;
 
@@ -1116,7 +1124,7 @@ int main(int argCount, const char* argv[])
         else
           operationResult = FIO_compressMultipleFilenames(prefs, filenameTable, filenameIdx, outFileName, suffix, dictFileName, cLevel, compressionParams);
 #else
-        (void)suffix; (void)adapt; (void)rsyncable; (void)ultra; (void)cLevel; (void)ldmFlag; /* not used when ZSTD_NOCOMPRESS set */
+        (void)suffix; (void)adapt; (void)rsyncable; (void)ultra; (void)cLevel; (void)ldmFlag; (void)literalCompressionMode; /* not used when ZSTD_NOCOMPRESS set */
         DISPLAY("Compression not supported \n");
 #endif
     } else {  /* decompression or test */

@@ -11,6 +11,8 @@
 
 /* ===  Dependencies  === */
 
+#include <stdlib.h>   /* perror, abort */
+
 #include "timefn.h"
 
 
@@ -27,8 +29,10 @@ PTime UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd)
     static LARGE_INTEGER ticksPerSecond;
     static int init = 0;
     if (!init) {
-        if (!QueryPerformanceFrequency(&ticksPerSecond))
-            UTIL_DISPLAYLEVEL(1, "ERROR: QueryPerformanceFrequency() failure\n");
+        if (!QueryPerformanceFrequency(&ticksPerSecond)) {
+            perror("timefn::QueryPerformanceFrequency");
+            abort();
+        }
         init = 1;
     }
     return 1000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart;
@@ -39,12 +43,16 @@ PTime UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd)
     static LARGE_INTEGER ticksPerSecond;
     static int init = 0;
     if (!init) {
-        if (!QueryPerformanceFrequency(&ticksPerSecond))
-            UTIL_DISPLAYLEVEL(1, "ERROR: QueryPerformanceFrequency() failure\n");
+        if (!QueryPerformanceFrequency(&ticksPerSecond)) {
+            perror("timefn::QueryPerformanceFrequency");
+            abort();
+        }
         init = 1;
     }
     return 1000000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart;
 }
+
+
 
 #elif defined(__APPLE__) && defined(__MACH__)
 
@@ -72,14 +80,18 @@ PTime UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd)
     return ((clockEnd - clockStart) * (PTime)rate.numer) / ((PTime)rate.denom);
 }
 
+
+
 #elif (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) /* C11 */) \
     && defined (CLOCK_MONOTONIC)
 
 UTIL_time_t UTIL_getTime(void)
 {
     UTIL_time_t time;
-    if (clock_gettime(CLOCK_MONOTONIC, &time))
-        UTIL_DISPLAYLEVEL(1, "ERROR: Failed to get time\n");   /* we could also exit() */
+    if (clock_gettime(CLOCK_MONOTONIC, &time)) {
+        perror("timefb::clock_gettime");
+        abort();
+    }
     return time;
 }
 
@@ -114,13 +126,17 @@ PTime UTIL_getSpanTimeNano(UTIL_time_t begin, UTIL_time_t end)
     return nano;
 }
 
-#else   /* relies on standard C (note : clock_t measurements can be wrong when using multi-threading) */
+
+
+#else   /* relies on standard C90 (note : clock_t measurements can be wrong when using multi-threading) */
 
 UTIL_time_t UTIL_getTime(void) { return clock(); }
 PTime UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC; }
 PTime UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC; }
 
 #endif
+
+
 
 /* returns time span in microseconds */
 PTime UTIL_clockSpanMicro(UTIL_time_t clockStart )

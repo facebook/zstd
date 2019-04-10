@@ -1438,6 +1438,32 @@ static int basicUnitTests(U32 seed, double compressibility)
         }
         DISPLAYLEVEL(3, "OK \n");
 
+        ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters);
+        CHECK_Z( ZSTD_CCtx_loadDictionary(cctx, dictBuffer, dictSize) );
+        cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, MIN(CNBuffSize, 100 KB));
+        CHECK_Z(cSize);
+        DISPLAYLEVEL(3, "test%3i : ZSTD_decompressDCtx() with dictionary : ", testNb++);
+        {
+            ZSTD_DCtx* dctx = ZSTD_createDCtx();
+            size_t ret;
+            /* We should fail to decompress without a dictionary. */
+            ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters);
+            ret = ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize);
+            if (!ZSTD_isError(ret)) goto _output_error;
+            /* We should succeed to decompress with the dictionary. */
+            ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters);
+            CHECK_Z( ZSTD_DCtx_loadDictionary(dctx, dictBuffer, dictSize) );
+            CHECK_Z( ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize) );
+            /* The dictionary should presist across calls. */
+            CHECK_Z( ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize) );
+            /* When we reset the context the dictionary is cleared. */
+            ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters);
+            ret = ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize);
+            if (!ZSTD_isError(ret)) goto _output_error;
+            ZSTD_freeDCtx(dctx);
+        }
+        DISPLAYLEVEL(3, "OK \n");
+
         DISPLAYLEVEL(3, "test%3i : Dictionary with non-default repcodes : ", testNb++);
         { U32 u; for (u=0; u<nbSamples; u++) samplesSizes[u] = sampleUnitSize; }
         dictSize = ZDICT_trainFromBuffer(dictBuffer, dictSize,

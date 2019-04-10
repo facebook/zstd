@@ -788,7 +788,7 @@ size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
 
 size_t ZSTD_decompressDCtx(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
-    return ZSTD_decompress_usingDict(dctx, dst, dstCapacity, src, srcSize, NULL, 0);
+    return ZSTD_decompress_usingDDict(dctx, dst, dstCapacity, src, srcSize, dctx->ddict);
 }
 
 

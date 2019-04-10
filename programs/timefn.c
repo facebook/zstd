@@ -11,9 +11,6 @@
 
 /* ===  Dependencies  === */
 
-#include <stdlib.h>   /* abort */
-#include <stdio.h>    /* perror */
-
 #include "timefn.h"
 
 
@@ -22,6 +19,9 @@
 ******************************************/
 
 #if defined(_WIN32)   /* Windows */
+
+#include <stdlib.h>   /* abort */
+#include <stdio.h>    /* perror */
 
 UTIL_time_t UTIL_getTime(void) { UTIL_time_t x; QueryPerformanceCounter(&x); return x; }
 
@@ -83,14 +83,16 @@ PTime UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd)
 
 
 
-#elif (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) /* C11 */) \
-    && defined (CLOCK_MONOTONIC)
+#elif (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) /* C11 */)
+
+#include <stdlib.h>   /* abort */
+#include <stdio.h>    /* perror */
 
 UTIL_time_t UTIL_getTime(void)
 {
     UTIL_time_t time;
-    if (clock_gettime(CLOCK_MONOTONIC, &time)) {
-        perror("timefb::clock_gettime");
+    if (timespec_get(&time, TIME_UTC) == 0) {
+        perror("timefn::timespec_get");
         abort();
     }
     return time;

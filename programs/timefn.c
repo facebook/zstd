@@ -11,7 +11,8 @@
 
 /* ===  Dependencies  === */
 
-#include <stdlib.h>   /* perror, abort */
+#include <stdlib.h>   /* abort */
+#include <stdio.h>    /* perror */
 
 #include "timefn.h"
 

@@ -25,6 +25,7 @@ static size_t bufSize = 0;
 
 int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 {
+    FUZZ_dict_t dict;
     size_t neededBufSize;
 
     uint32_t seed = FUZZ_seed(&src, &size);
@@ -41,15 +42,21 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
         dctx = ZSTD_createDCtx();
         FUZZ_ASSERT(dctx);
     }
-    {
-        FUZZ_dict_t dict = FUZZ_train(src, size, &seed);
+    dict = FUZZ_train(src, size, &seed);
+    if (FUZZ_rand32(&seed, 0, 1) == 0) {
         ZSTD_decompress_usingDict(dctx,
                 rBuf, neededBufSize,
                 src, size,
                 dict.buff, dict.size);
-        free(dict.buff);
+    } else {
+        FUZZ_ZASSERT(ZSTD_DCtx_loadDictionary_advanced(
+                dctx, dict.buff, dict.size,
+                (ZSTD_dictLoadMethod_e)FUZZ_rand32(&seed, 0, 1),
+                (ZSTD_dictContentType_e)FUZZ_rand32(&seed, 0, 2)));
+        ZSTD_decompressDCtx(dctx, rBuf, neededBufSize, src, size);
     }
 
+    free(dict.buff);
 #ifndef STATEFUL_FUZZING
     ZSTD_freeDCtx(dctx); dctx = NULL;
 #endif

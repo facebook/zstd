@@ -123,6 +123,9 @@ struct ZSTD_DCtx_s
     const ZSTD_DDict* ddict;     /* set by ZSTD_initDStream_usingDDict(), or ZSTD_DCtx_refDDict() */
     U32 dictID;
     int ddictIsCold;             /* if == 1 : dictionary is "new" for working context, and presumed "cold" (not in cpu cache) */
+    int dictUsesRemaining;       /* if == 1 : dictionary should be used once.
+                                  * if == 0 : dictionary should be forgotten now.
+                                  * if < 0 : dictionary should be used indefinitely. */
 
     /* streaming */
     ZSTD_dStreamStage streamStage;

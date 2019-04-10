@@ -497,7 +497,7 @@ static int benchMem(unsigned benchNb,
         BMK_benchParams_t bp;
         BMK_runTime_t bestResult;
         bestResult.sumOfReturn = 0;
-        bestResult.nanoSecPerRun = (unsigned long long)(-1LL);
+        bestResult.nanoSecPerRun = (double)(-1);
         assert(tfs != NULL);
 
         bp.benchFn = benchFunction;

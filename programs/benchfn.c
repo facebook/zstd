@@ -167,7 +167,8 @@ void BMK_freeTimedFnState(BMK_timedFnState_t* state) {
     free(state);
 }
 
-BMK_timedFnState_t* BMK_initStatic_timedFnState(void* buffer, size_t size, unsigned total_ms, unsigned run_ms)
+BMK_timedFnState_t*
+BMK_initStatic_timedFnState(void* buffer, size_t size, unsigned total_ms, unsigned run_ms)
 {
     enum { timedFnState_staticSize_isLargeEnough=(1/(sizeof(BMK_timedFnState_shell) >= sizeof(struct BMK_timedFnState_s))) };  /* static assert */
     typedef struct { char c; long long ll; } ll_align;  /* this will force ll to be aligned at its next best position */

@@ -880,6 +880,19 @@ static int basicUnitTests(U32 seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : Multithreaded ZSTD_compress2() with rsyncable : ", testNb++)
+    {   ZSTD_CCtx* cctx = ZSTD_createCCtx();
+        /* Set rsyncable and don't give the ZSTD_compressBound(CNBuffSize) so
+         * ZSTDMT is forced to not take the shortcut.
+         */
+        CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, 1) );
+        CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 1) );
+        CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_rsyncable, 1) );
+        CHECK( ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize - 1, CNBuffer, CNBuffSize) );
+        ZSTD_freeCCtx(cctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     DISPLAYLEVEL(3, "test%3i : setting multithreaded parameters : ", testNb++)
     {   ZSTD_CCtx_params* params = ZSTD_createCCtxParams();
         int value;
@@ -1422,6 +1435,32 @@ static int basicUnitTests(U32 seed, double compressibility)
             if (ZSTD_isError(size2)) goto _output_error;
 
             if (size1 == size2) goto _output_error;
+        }
+        DISPLAYLEVEL(3, "OK \n");
+
+        ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters);
+        CHECK_Z( ZSTD_CCtx_loadDictionary(cctx, dictBuffer, dictSize) );
+        cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, MIN(CNBuffSize, 100 KB));
+        CHECK_Z(cSize);
+        DISPLAYLEVEL(3, "test%3i : ZSTD_decompressDCtx() with dictionary : ", testNb++);
+        {
+            ZSTD_DCtx* dctx = ZSTD_createDCtx();
+            size_t ret;
+            /* We should fail to decompress without a dictionary. */
+            ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters);
+            ret = ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize);
+            if (!ZSTD_isError(ret)) goto _output_error;
+            /* We should succeed to decompress with the dictionary. */
+            ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters);
+            CHECK_Z( ZSTD_DCtx_loadDictionary(dctx, dictBuffer, dictSize) );
+            CHECK_Z( ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize) );
+            /* The dictionary should presist across calls. */
+            CHECK_Z( ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize) );
+            /* When we reset the context the dictionary is cleared. */
+            ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters);
+            ret = ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize);
+            if (!ZSTD_isError(ret)) goto _output_error;
+            ZSTD_freeDCtx(dctx);
         }
         DISPLAYLEVEL(3, "OK \n");
 

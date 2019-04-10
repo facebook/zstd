@@ -63,7 +63,7 @@ static size_t compress(uint8_t *dst, size_t capacity,
         ZSTD_inBuffer in = makeInBuffer(&src, &srcSize);
         /* Mode controls the action. If mode == -1 we pick a new mode */
         int mode = -1;
-        while (in.pos < in.size) {
+        while (in.pos < in.size || mode != -1) {
             ZSTD_outBuffer out = makeOutBuffer(dst, capacity);
             /* Previous action finished, pick a new mode. */
             if (mode == -1) mode = FUZZ_rand(&seed) % 10;

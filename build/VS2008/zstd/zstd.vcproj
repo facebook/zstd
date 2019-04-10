@@ -337,6 +337,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\programs\timefn.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\programs\benchfn.c"
 				>
 			</File>

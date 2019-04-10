@@ -53,6 +53,7 @@
     <ClCompile Include="..\..\..\lib\legacy\zstd_v06.c" />
     <ClCompile Include="..\..\..\lib\legacy\zstd_v07.c" />
     <ClCompile Include="..\..\..\programs\util.c" />
+    <ClCompile Include="..\..\..\programs\timefn.c" />
     <ClCompile Include="..\..\..\programs\benchfn.c" />
     <ClCompile Include="..\..\..\programs\benchzstd.c" />
     <ClCompile Include="..\..\..\programs\datagen.c" />

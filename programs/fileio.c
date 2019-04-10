@@ -31,6 +31,7 @@
 #include <assert.h>
 #include <errno.h>      /* errno */
 #include <signal.h>
+#include "timefn.h"     /* UTIL_getTime, UTIL_clockSpanMicro */
 
 #if defined (_MSC_VER)
 #  include <sys/stat.h>

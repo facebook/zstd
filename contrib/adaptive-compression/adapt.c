@@ -13,6 +13,7 @@
 #include <string.h>     /* memset */
 #include "zstd_internal.h"
 #include "util.h"
+#include "timefn.h"     /* UTIL_time_t, UTIL_getTime, UTIL_getSpanTimeMicro */
 
 #define DISPLAY(...) fprintf(stderr, __VA_ARGS__)
 #define PRINT(...) fprintf(stdout, __VA_ARGS__)

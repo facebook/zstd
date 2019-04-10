@@ -427,8 +427,13 @@ static size_t ZSTD_decodeFrameHeader(ZSTD_DCtx* dctx, const void* src, size_t he
     size_t const result = ZSTD_getFrameHeader_advanced(&(dctx->fParams), src, headerSize, dctx->format);
     if (ZSTD_isError(result)) return result;    /* invalid header */
     RETURN_ERROR_IF(result>0, srcSize_wrong, "headerSize too small");
+#ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+    /* Skip the dictID check in fuzzing mode, because it makes the search
+     * harder.
+     */
     RETURN_ERROR_IF(dctx->fParams.dictID && (dctx->dictID != dctx->fParams.dictID),
                     dictionary_wrong);
+#endif
     if (dctx->fParams.checksumFlag) XXH64_reset(&dctx->xxhState, 0);
     return 0;
 }
@@ -783,7 +788,7 @@ size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
 
 size_t ZSTD_decompressDCtx(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
-    return ZSTD_decompress_usingDict(dctx, dst, dstCapacity, src, srcSize, NULL, 0);
+    return ZSTD_decompress_usingDDict(dctx, dst, dstCapacity, src, srcSize, dctx->ddict);
 }
 
 

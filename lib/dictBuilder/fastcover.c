@@ -570,7 +570,7 @@ ZDICT_trainFromBuffer_fastCover(void* dictBuffer, size_t dictBufferCapacity,
       DISPLAYLEVEL(1, "Failed to initialize context\n");
       return ERROR(GENERIC);
     }
-    COVER_warnOnSmallCorpus(dictBufferCapacity, ctx.nbDmers);
+    COVER_warnOnSmallCorpus(dictBufferCapacity, ctx.nbDmers, g_displayLevel);
     /* Build the dictionary */
     DISPLAYLEVEL(2, "Building dictionary\n");
     {
@@ -673,7 +673,7 @@ ZDICT_optimizeTrainFromBuffer_fastCover(
         return ERROR(GENERIC);
       }
       if (!warned) {
-        COVER_warnOnSmallCorpus(dictBufferCapacity, ctx.nbDmers);
+        COVER_warnOnSmallCorpus(dictBufferCapacity, ctx.nbDmers, displayLevel);
         warned = 1;
       }
       /* Loop through k reusing the same context */

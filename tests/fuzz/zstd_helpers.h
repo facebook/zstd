@@ -14,6 +14,8 @@
 #ifndef ZSTD_HELPERS_H
 #define ZSTD_HELPERS_H
 
+#define ZSTD_STATIC_LINKING_ONLY
+
 #include "zstd.h"
 #include <stdint.h>
 
@@ -26,6 +28,17 @@ void FUZZ_setRandomParameters(ZSTD_CCtx *cctx, size_t srcSize, uint32_t *state);
 ZSTD_compressionParameters FUZZ_randomCParams(size_t srcSize, uint32_t *state);
 ZSTD_frameParameters FUZZ_randomFParams(uint32_t *state);
 ZSTD_parameters FUZZ_randomParams(size_t srcSize, uint32_t *state);
+
+typedef struct {
+  void* buff;
+  size_t size;
+} FUZZ_dict_t;
+
+/* Quickly train a dictionary from a source for fuzzing.
+ * NOTE: Don't use this to train production dictionaries, it is only optimized
+ * for speed, and doesn't care about dictionary quality.
+ */
+FUZZ_dict_t FUZZ_train(void const* src, size_t srcSize, uint32_t *state);
 
 
 #ifdef __cplusplus

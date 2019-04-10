@@ -65,7 +65,7 @@ COVER_epoch_info_t COVER_computeEpochs(U32 maxDictSize, U32 nbDmers,
 /**
  * Warns the user when their corpus is too small.
  */
-void COVER_warnOnSmallCorpus(size_t maxDictSize, size_t nbDmers);
+void COVER_warnOnSmallCorpus(size_t maxDictSize, size_t nbDmers, int displayLevel);
 
 /**
  *  Checks total compressed size of a dictionary

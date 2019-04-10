@@ -57,9 +57,10 @@ extern "C" {
     typedef PTime UTIL_time_t;
     #define UTIL_TIME_INITIALIZER 0
 
-#elif (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) /* C11 */)
+#elif (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) /* C11 */) \
+    && defined(TIME_UTC) /* C11 requires timespec_get, but FreeBSD 11 lacks it, while still claiming C11 compliance */
 
-    typedef struct timespec UTIL_time_t;   /* C11 defines struct timespes within time.h */
+    typedef struct timespec UTIL_time_t;
     #define UTIL_TIME_INITIALIZER { 0, 0 }
 
 #else   /* relies on standard C90 (note : clock_t measurements can be wrong when using multi-threading) */

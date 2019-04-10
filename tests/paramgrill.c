@@ -19,6 +19,7 @@
 #include <math.h>      /* log */
 #include <assert.h>
 
+#include "timefn.h"    /* SEC_TO_MICRO, UTIL_time_t, UTIL_clockSpanMicro, UTIL_clockSpanNano, UTIL_getTime */
 #include "mem.h"
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_parameters, ZSTD_estimateCCtxSize */
 #include "zstd.h"

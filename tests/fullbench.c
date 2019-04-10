@@ -17,6 +17,7 @@
 #include <stdio.h>       /* fprintf, fopen, ftello64 */
 #include <assert.h>      /* assert */
 
+#include "timefn.h"      /* UTIL_clockSpanNano, UTIL_getTime */
 #include "mem.h"         /* U32 */
 #ifndef ZSTD_DLL_IMPORT
     #include "zstd_internal.h"   /* ZSTD_decodeSeqHeaders, ZSTD_blockHeaderSize, blockType_e, KB, MB */

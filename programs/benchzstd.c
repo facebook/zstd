@@ -28,6 +28,7 @@
 #include <errno.h>
 #include <assert.h>      /* assert */
 
+#include "timefn.h"      /* UTIL_time_t */
 #include "benchfn.h"
 #include "mem.h"
 #define ZSTD_STATIC_LINKING_ONLY

@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "util.h"
+#include "timefn.h"   /* UTIL_clockSpanMicro, SEC_TO_MICRO, UTIL_TIME_INITIALIZER */
 #include "zstd.h"
 #include "zstd_internal.h"
 #include "mem.h"

@@ -72,11 +72,8 @@ PTime UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd)
     return ((clockEnd - clockStart) * (PTime)rate.numer) / ((PTime)rate.denom);
 }
 
-#elif (PLATFORM_POSIX_VERSION >= 200112L) \
-   && (defined(__UCLIBC__)                \
-      || (defined(__GLIBC__)              \
-          && ((__GLIBC__ == 2 && __GLIBC_MINOR__ >= 17) \
-             || (__GLIBC__ > 2))))
+#elif (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) /* C11 */) \
+    && defined (CLOCK_MONOTONIC)
 
 UTIL_time_t UTIL_getTime(void)
 {
@@ -86,7 +83,7 @@ UTIL_time_t UTIL_getTime(void)
     return time;
 }
 
-UTIL_time_t UTIL_getSpanTime(UTIL_time_t begin, UTIL_time_t end)
+static UTIL_time_t UTIL_getSpanTime(UTIL_time_t begin, UTIL_time_t end)
 {
     UTIL_time_t diff;
     if (end.tv_nsec < begin.tv_nsec) {

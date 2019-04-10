@@ -333,6 +333,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\programs\timefn.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\programs\datagen.c"
 				>
 			</File>

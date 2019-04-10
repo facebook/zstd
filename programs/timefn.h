@@ -56,8 +56,7 @@ extern "C" {
     typedef PTime UTIL_time_t;
     #define UTIL_TIME_INITIALIZER 0
 
-#elif (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) /* C11 */) \
-    && defined (CLOCK_MONOTONIC)
+#elif (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) /* C11 */) 
 
     typedef struct timespec UTIL_time_t;   /* C11 defines struct timespes within time.h */
     #define UTIL_TIME_INITIALIZER { 0, 0 }

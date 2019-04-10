@@ -178,7 +178,7 @@ the last one takes effect.
     keep source file(s) after successful compression or decompression.
     This is the default behavior.
 * `-r`:
-    operate recursively on dictionaries
+    operate recursively on directories
 * `--format=FORMAT`:
     compress and decompress in other formats. If compiled with
     support, zstd can compress to or decompress from other compression algorithm

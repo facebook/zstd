@@ -55,6 +55,14 @@ typedef struct ZSTD_prefixDict_s {
 } ZSTD_prefixDict;
 
 typedef struct {
+    void* dictBuffer;
+    void const* dict;
+    size_t dictSize;
+    ZSTD_dictContentType_e dictContentType;
+    ZSTD_CDict* cdict;
+} ZSTD_localDict;
+
+typedef struct {
     U32 CTable[HUF_CTABLE_SIZE_U32(255)];
     HUF_repeat repeatMode;
 } ZSTD_hufCTables_t;
@@ -107,6 +115,7 @@ typedef struct {
     U32  offCodeSumBasePrice;    /* to compare to log2(offreq)  */
     ZSTD_OptPrice_e priceType;   /* prices can be determined dynamically, or follow a pre-defined cost structure */
     const ZSTD_entropyCTables_t* symbolCosts;  /* pre-calculated dictionary statistics */
+    ZSTD_literalCompressionMode_e literalCompressionMode;
 } optState_t;
 
 typedef struct {
@@ -188,6 +197,7 @@ struct ZSTD_CCtx_params_s {
                                 * 1<<wLog, even for dictionary */
 
     ZSTD_dictAttachPref_e attachDictPref;
+    ZSTD_literalCompressionMode_e literalCompressionMode;
 
     /* Multithreading: used to pass parameters to mtctx */
     int nbWorkers;
@@ -243,7 +253,7 @@ struct ZSTD_CCtx_s {
     U32    frameEnded;
 
     /* Dictionary */
-    ZSTD_CDict* cdictLocal;
+    ZSTD_localDict localDict;
     const ZSTD_CDict* cdict;
     ZSTD_prefixDict prefixDict;   /* single-usage dictionary */
 
@@ -805,13 +815,6 @@ size_t ZSTD_initCStream_internal(ZSTD_CStream* zcs,
                      ZSTD_CCtx_params  params, unsigned long long pledgedSrcSize);
 
 void ZSTD_resetSeqStore(seqStore_t* ssPtr);
-
-/*! ZSTD_compressStream_generic() :
- *  Private use only. To be called from zstdmt_compress.c in single-thread mode. */
-size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
-                                   ZSTD_outBuffer* output,
-                                   ZSTD_inBuffer* input,
-                                   ZSTD_EndDirective const flushMode);
 
 /*! ZSTD_getCParamsFromCDict() :
  *  as the name implies */

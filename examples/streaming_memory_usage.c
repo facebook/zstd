@@ -16,9 +16,10 @@
 
 
 /*===   Dependencies   ===*/
-#include <stdio.h>   /* printf */
+#include <stdio.h>     // printf
 #define ZSTD_STATIC_LINKING_ONLY
-#include "zstd.h"
+#include <zstd.h>      // presumes zstd library is installed
+#include "common.h"    // Helper functions, CHECK(), and CHECK_ZSTD()
 
 
 /*===   functions   ===*/
@@ -61,90 +62,75 @@ int main(int argc, char const *argv[]) {
         char const dataToCompress[INPUT_SIZE] = "abcde";
         char compressedData[COMPRESSED_SIZE];
         char decompressedData[INPUT_SIZE];
-        ZSTD_CStream* const cstream = ZSTD_createCStream();
-        if (cstream==NULL) {
-            printf("Level %i : ZSTD_CStream Memory allocation failure \n", compressionLevel);
-            return 1;
-        }
+        /* the ZSTD_CCtx_params structure is a way to save parameters and use
+         * them across multiple contexts. We use them here so we can call the
+         * function ZSTD_estimateCStreamSize_usingCCtxParams().
+         */
+        ZSTD_CCtx_params* const cctxParams = ZSTD_createCCtxParams();
+        CHECK(cctxParams != NULL, "ZSTD_createCCtxParams() failed!");
 
-        /* forces compressor to use maximum memory size for given compression level,
-         * by not providing any information on input size */
-        ZSTD_parameters params = ZSTD_getParams(compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, 0);
-        if (wLog) { /* special mode : specific wLog */
-            printf("Using custom compression parameter : level 1 + wLog=%u \n", wLog);
-            params = ZSTD_getParams(1 /*compressionLevel*/,
-                                    1 << wLog /*estimatedSrcSize*/,
-                                    0 /*no dictionary*/);
-            size_t const error = ZSTD_initCStream_advanced(cstream, NULL, 0, params, ZSTD_CONTENTSIZE_UNKNOWN);
-            if (ZSTD_isError(error)) {
-                printf("ZSTD_initCStream_advanced error : %s \n", ZSTD_getErrorName(error));
-                return 1;
-            }
-        } else {
-            size_t const error = ZSTD_initCStream(cstream, compressionLevel);
-            if (ZSTD_isError(error)) {
-                printf("ZSTD_initCStream error : %s \n", ZSTD_getErrorName(error));
-                return 1;
-            }
-        }
+        /* Set the compression level. */
+        CHECK_ZSTD( ZSTD_CCtxParams_setParameter(cctxParams, ZSTD_c_compressionLevel, compressionLevel) );
+        /* Set the window log.
+         * The value 0 means use the default window log, which is equivalent to
+         * not setting it.
+         */
+        CHECK_ZSTD( ZSTD_CCtxParams_setParameter(cctxParams, ZSTD_c_windowLog, wLog) );
 
+        /* Force the compressor to allocate the maximum memory size for a given
+         * level by not providing the pledged source size, or calling
+         * ZSTD_compressStream2() with ZSTD_e_end.
+         */
+        ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        CHECK(cctx != NULL, "ZSTD_createCCtx() failed!");
+        CHECK_ZSTD( ZSTD_CCtx_setParametersUsingCCtxParams(cctx, cctxParams) );
         size_t compressedSize;
-        {   ZSTD_inBuffer inBuff = { dataToCompress, sizeof(dataToCompress), 0 };
+        {
+            ZSTD_inBuffer inBuff = { dataToCompress, sizeof(dataToCompress), 0 };
             ZSTD_outBuffer outBuff = { compressedData, sizeof(compressedData), 0 };
-            size_t const cError = ZSTD_compressStream(cstream, &outBuff, &inBuff);
-            if (ZSTD_isError(cError)) {
-                printf("ZSTD_compressStream error : %s \n", ZSTD_getErrorName(cError));
-                return 1;
-            }
-            size_t const fError = ZSTD_endStream(cstream, &outBuff);
-            if (ZSTD_isError(fError)) {
-                printf("ZSTD_endStream error : %s \n", ZSTD_getErrorName(fError));
-                return 1;
-            }
+            CHECK_ZSTD( ZSTD_compressStream(cctx, &outBuff, &inBuff) );
+            size_t const remaining = ZSTD_endStream(cctx, &outBuff);
+            CHECK_ZSTD(remaining);
+            CHECK(remaining == 0, "Frame not flushed!");
             compressedSize = outBuff.pos;
         }
 
-        ZSTD_DStream* dstream = ZSTD_createDStream();
-        if (dstream==NULL) {
-            printf("Level %i : ZSTD_DStream Memory allocation failure \n", compressionLevel);
-            return 1;
-        }
-        {   size_t const error = ZSTD_initDStream(dstream);
-            if (ZSTD_isError(error)) {
-                printf("ZSTD_initDStream error : %s \n", ZSTD_getErrorName(error));
-                return 1;
-            }
-        }
-        /* forces decompressor to use maximum memory size, as decompressed size is not known */
+        ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+        CHECK(dctx != NULL, "ZSTD_createDCtx() failed!");
+        /* Set the maximum allowed window log.
+         * The value 0 means use the default window log, which is equivalent to
+         * not setting it.
+         */
+        CHECK_ZSTD( ZSTD_DCtx_setParameter(dctx, ZSTD_d_windowLogMax, wLog) );
+        /* forces decompressor to use maximum memory size, since the
+         * decompressed size is not stored in the frame header.
+         */
         {   ZSTD_inBuffer inBuff = { compressedData, compressedSize, 0 };
             ZSTD_outBuffer outBuff = { decompressedData, sizeof(decompressedData), 0 };
-            size_t const dResult = ZSTD_decompressStream(dstream, &outBuff, &inBuff);
-            if (ZSTD_isError(dResult)) {
-                printf("ZSTD_decompressStream error : %s \n", ZSTD_getErrorName(dResult));
-                return 1;
-            }
-            if (dResult != 0) {
-                printf("ZSTD_decompressStream error : unfinished decompression \n");
-                return 1;
-            }
-            if (outBuff.pos != sizeof(dataToCompress)) {
-                printf("ZSTD_decompressStream error : incorrect decompression \n");
-                return 1;
-            }
+            size_t const remaining = ZSTD_decompressStream(dctx, &outBuff, &inBuff);
+            CHECK_ZSTD(remaining);
+            CHECK(remaining == 0, "Frame not complete!");
+            CHECK(outBuff.pos == sizeof(dataToCompress), "Bad decompression!");
         }
 
-        size_t const cstreamSize = ZSTD_sizeof_CStream(cstream);
-        size_t const cstreamEstimatedSize = wLog ?
-                ZSTD_estimateCStreamSize_usingCParams(params.cParams) :
-                ZSTD_estimateCStreamSize(compressionLevel);
-        size_t const dstreamSize = ZSTD_sizeof_DStream(dstream);
+        size_t const cstreamSize = ZSTD_sizeof_CStream(cctx);
+        size_t const cstreamEstimatedSize = ZSTD_estimateCStreamSize_usingCCtxParams(cctxParams);
+        size_t const dstreamSize = ZSTD_sizeof_DStream(dctx);
+        size_t const dstreamEstimatedSize = ZSTD_estimateDStreamSize_fromFrame(compressedData, compressedSize);
 
-        printf("Level %2i : Compression Mem = %5u KB (estimated : %5u KB) ; Decompression Mem = %4u KB \n",
+        CHECK(cstreamSize <= cstreamEstimatedSize, "Compression mem (%u) > estimated (%u)",
+                (unsigned)cstreamSize, (unsigned)cstreamEstimatedSize);
+        CHECK(dstreamSize <= dstreamEstimatedSize, "Decompression mem (%u) > estimated (%u)",
+                (unsigned)dstreamSize, (unsigned)dstreamEstimatedSize);
+
+        printf("Level %2i : Compression Mem = %5u KB (estimated : %5u KB) ; Decompression Mem = %4u KB (estimated : %5u KB)\n",
                 compressionLevel,
-                (unsigned)(cstreamSize>>10), (unsigned)(cstreamEstimatedSize>>10), (unsigned)(dstreamSize>>10));
+                (unsigned)(cstreamSize>>10), (unsigned)(cstreamEstimatedSize>>10),
+                (unsigned)(dstreamSize>>10), (unsigned)(dstreamEstimatedSize>>10));
 
-        ZSTD_freeDStream(dstream);
-        ZSTD_freeCStream(cstream);
+        ZSTD_freeDCtx(dctx);
+        ZSTD_freeCCtx(cctx);
+        ZSTD_freeCCtxParams(cctxParams);
         if (wLog) break;  /* single test */
     }
     return 0;

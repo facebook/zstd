@@ -1,3 +1,7 @@
+dev
+api : Rename ZSTD_CCtxParam_getParameter to ZSTD_CCtxParams_getParameter
+api : Rename ZSTD_CCtxParam_setParameter to ZSTD_CCtxParams_setParameter
+
 v1.3.8
 perf: better decompression speed on large files (+7%) and cold dictionaries (+15%)
 perf: slightly better compression ratio at high compression modes

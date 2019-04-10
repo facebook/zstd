@@ -135,7 +135,8 @@ BMK_advancedParams_t BMK_initAdvancedParams(void) {
         0, /* ldmMinMatch */
         0, /* ldmHashLog */
         0, /* ldmBuckSizeLog */
-        0  /* ldmHashRateLog */
+        0,  /* ldmHashRateLog */
+        ZSTD_lcm_auto /* literalCompressionMode */
     };
     return res;
 }
@@ -184,6 +185,7 @@ BMK_initCCtx(ZSTD_CCtx* ctx,
     CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_searchLog, (int)comprParams->searchLog));
     CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_minMatch, (int)comprParams->minMatch));
     CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_targetLength, (int)comprParams->targetLength));
+    CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_literalCompressionMode, (int)adv->literalCompressionMode));
     CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_strategy, comprParams->strategy));
     CHECK_Z(ZSTD_CCtx_loadDictionary(ctx, dictBuffer, dictBufferSize));
 }

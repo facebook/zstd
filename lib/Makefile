@@ -25,7 +25,7 @@ endif
 CFLAGS  ?= -O3
 DEBUGFLAGS= -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
             -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
-            -Wstrict-prototypes -Wundef -Wpointer-arith -Wformat-security \
+            -Wstrict-prototypes -Wundef -Wpointer-arith \
             -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings \
             -Wredundant-decls -Wmissing-prototypes -Wc++-compat
 CFLAGS  += $(DEBUGFLAGS) $(MOREFLAGS)
@@ -56,6 +56,7 @@ ZSTD_FORCE_DECOMPRESS_SHORT ?= 0
 ZSTD_FORCE_DECOMPRESS_LONG ?= 0
 ZSTD_NO_INLINE ?= 0
 ZSTD_STRIP_ERROR_STRINGS ?= 0
+ZSTD_LEGACY_MULTITHREADED_API ?= 0
 
 ifeq ($(ZSTD_LIB_COMPRESSION), 0)
 	ZSTD_LIB_DICTBUILDER = 0
@@ -107,6 +108,10 @@ ifneq ($(ZSTD_STRIP_ERROR_STRINGS), 0)
 	CFLAGS += -DZSTD_STRIP_ERROR_STRINGS
 endif
 
+ifneq ($(ZSTD_LEGACY_MULTITHREADED_API), 0)
+	CFLAGS += -DZSTD_LEGACY_MULTITHREADED_API
+endif
+
 ifneq ($(ZSTD_LEGACY_SUPPORT), 0)
 ifeq ($(shell test $(ZSTD_LEGACY_SUPPORT) -lt 8; echo $$?), 0)
 	ZSTD_FILES += $(shell ls legacy/*.c | $(GREP) 'v0[$(ZSTD_LEGACY_SUPPORT)-7]')
@@ -151,8 +156,7 @@ ifneq (,$(filter Windows%,$(OS)))
 LIBZSTD = dll\libzstd.dll
 $(LIBZSTD): $(ZSTD_FILES)
 	@echo compiling dynamic library $(LIBVER)
-	@$(CC) $(FLAGS) -DZSTD_DLL_EXPORT=1 -shared $^ -o $@
-	dlltool -D $@ -d dll\libzstd.def -l dll\libzstd.lib
+	$(CC) $(FLAGS) -DZSTD_DLL_EXPORT=1 -Wl,--out-implib,dll\libzstd.lib -shared $^ -o $@
 
 else
 

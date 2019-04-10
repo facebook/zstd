@@ -116,6 +116,7 @@ typedef struct {
     int ldmHashLog;
     int ldmBucketSizeLog;
     int ldmHashRateLog;
+    ZSTD_literalCompressionMode_e literalCompressionMode;
 } BMK_advancedParams_t;
 
 /* returns default parameters used by nonAdvanced functions */

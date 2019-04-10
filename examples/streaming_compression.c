@@ -9,54 +9,79 @@
  */
 
 
-#include <stdlib.h>    // malloc, free, exit
-#include <stdio.h>     // fprintf, perror, feof, fopen, etc.
-#include <string.h>    // strlen, memset, strcat
+#include <stdio.h>     // printf
+#include <stdlib.h>    // free
+#include <string.h>    // memset, strcat, strlen
 #include <zstd.h>      // presumes zstd library is installed
-#include "utils.h"
+#include "common.h"    // Helper functions, CHECK(), and CHECK_ZSTD()
+
 
 static void compressFile_orDie(const char* fname, const char* outName, int cLevel)
 {
+    /* Open the input and output files. */
     FILE* const fin  = fopen_orDie(fname, "rb");
     FILE* const fout = fopen_orDie(outName, "wb");
-    size_t const buffInSize = ZSTD_CStreamInSize();    /* can always read one full block */
+    /* Create the input and output buffers.
+     * They may be any size, but we recommend using these functions to size them.
+     * Performance will only suffer significantly for very tiny buffers.
+     */
+    size_t const buffInSize = ZSTD_CStreamInSize();
     void*  const buffIn  = malloc_orDie(buffInSize);
-    size_t const buffOutSize = ZSTD_CStreamOutSize();  /* can always flush a full block */
+    size_t const buffOutSize = ZSTD_CStreamOutSize();
     void*  const buffOut = malloc_orDie(buffOutSize);
 
-    ZSTD_CStream* const cstream = ZSTD_createCStream();
-    if (cstream==NULL) { fprintf(stderr, "ZSTD_createCStream() error \n"); exit(10); }
-    size_t const initResult = ZSTD_initCStream(cstream, cLevel);
-    if (ZSTD_isError(initResult)) {
-        fprintf(stderr, "ZSTD_initCStream() error : %s \n",
-                    ZSTD_getErrorName(initResult));
-        exit(11);
-    }
+    /* Create the context. */
+    ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+    CHECK(cctx != NULL, "ZSTD_createCCtx() failed!");
 
-    size_t read, toRead = buffInSize;
-    while( (read = fread_orDie(buffIn, toRead, fin)) ) {
+    /* Set any parameters you want.
+     * Here we set the compression level, and enable the checksum.
+     */
+    CHECK_ZSTD( ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, cLevel) );
+    CHECK_ZSTD( ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1) );
+
+    /* This loop read from the input file, compresses that entire chunk,
+     * and writes all output produced to the output file.
+     */
+    size_t const toRead = buffInSize;
+    size_t read;
+    while ((read = fread_orDie(buffIn, toRead, fin))) {
+        /* Select the flush mode.
+         * If the read may not be finished (read == toRead) we use
+         * ZSTD_e_continue. If this is the last chunk, we use ZSTD_e_end.
+         * Zstd optimizes the case where the first flush mode is ZSTD_e_end,
+         * since it knows it is compressing the entire source in one pass.
+         */
+        int const lastChunk = (read < toRead);
+        ZSTD_EndDirective const mode = lastChunk ? ZSTD_e_end : ZSTD_e_continue;
+        /* Set the input buffer to what we just read.
+         * We compress until the input buffer is empty, each time flushing the
+         * output.
+         */
         ZSTD_inBuffer input = { buffIn, read, 0 };
-        while (input.pos < input.size) {
+        int finished;
+        do {
+            /* Compress into the output buffer and write all of the output to
+             * the file so we can reuse the buffer next iteration.
+             */
             ZSTD_outBuffer output = { buffOut, buffOutSize, 0 };
-            toRead = ZSTD_compressStream(cstream, &output , &input);   /* toRead is guaranteed to be <= ZSTD_CStreamInSize() */
-            if (ZSTD_isError(toRead)) {
-                fprintf(stderr, "ZSTD_compressStream() error : %s \n",
-                                ZSTD_getErrorName(toRead));
-                exit(12);
-            }
-            if (toRead > buffInSize) toRead = buffInSize;   /* Safely handle case when `buffInSize` is manually changed to a value < ZSTD_CStreamInSize()*/
+            size_t const remaining = ZSTD_compressStream2(cctx, &output , &input, mode);
+            CHECK_ZSTD(remaining);
             fwrite_orDie(buffOut, output.pos, fout);
-        }
+            /* If we're on the last chunk we're finished when zstd returns 0,
+             * which means its consumed all the input AND finished the frame.
+             * Otherwise, we're finished when we've consumed all the input.
+             */
+            finished = lastChunk ? (remaining == 0) : (input.pos == input.size);
+        } while (!finished);
+        CHECK(input.pos == input.size,
+              "Impossible: zstd only returns 0 when the input is completely consumed!");
     }
 
-    ZSTD_outBuffer output = { buffOut, buffOutSize, 0 };
-    size_t const remainingToFlush = ZSTD_endStream(cstream, &output);   /* close frame */
-    if (remainingToFlush) { fprintf(stderr, "not fully flushed"); exit(13); }
-    fwrite_orDie(buffOut, output.pos, fout);
-
-    ZSTD_freeCStream(cstream);
+    ZSTD_freeCCtx(cctx);
     fclose_orDie(fout);
-    fclose_orDie(fin);    free(buffIn);
+    fclose_orDie(fin);
+    free(buffIn);
     free(buffOut);
 }
 

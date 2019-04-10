@@ -11,15 +11,15 @@
 /*
  * This header file has common utility functions used in examples.
  */
-#ifndef UTILS_H
-#define UTILS_H
+#ifndef COMMON_H
+#define COMMON_H
 
 #include <stdlib.h>    // malloc, free, exit
 #include <stdio.h>     // fprintf, perror, fopen, etc.
-#include <string.h>    // strlen, strcat, memset, strerror
+#include <string.h>    // strerror
 #include <errno.h>     // errno
-#include <assert.h>    // assert
 #include <sys/stat.h>  // stat
+#include <zstd.h>
 
 /*
  * Define the returned error code from utility functions.
@@ -34,7 +34,34 @@ typedef enum {
     ERROR_saveFile = 7,
     ERROR_malloc = 8,
     ERROR_largeFile = 9,
-} UTILS_ErrorCode;
+} COMMON_ErrorCode;
+
+/*! CHECK
+ * Check that the condition holds. If it doesn't print a message and die.
+ */
+#define CHECK(cond, ...)                        \
+    do {                                        \
+        if (!(cond)) {                          \
+            fprintf(stderr,                     \
+                    "%s:%d CHECK(%s) failed: ", \
+                    __FILE__,                   \
+                    __LINE__,                   \
+                    #cond);                     \
+            fprintf(stderr, "" __VA_ARGS__);    \
+            fprintf(stderr, "\n");              \
+            exit(1);                            \
+        }                                       \
+    } while (0)
+
+/*! CHECK_ZSTD
+ * Check the zstd error code and die if an error occurred after printing a
+ * message.
+ */
+#define CHECK_ZSTD(fn, ...)                                      \
+    do {                                                         \
+        size_t const err = (fn);                                 \
+        CHECK(!ZSTD_isError(err), "%s", ZSTD_getErrorName(err)); \
+    } while (0)
 
 /*! fsize_orDie() :
  * Get the size of a given file path.
@@ -153,7 +180,7 @@ static void* malloc_orDie(size_t size)
 static size_t loadFile_orDie(const char* fileName, void* buffer, size_t bufferSize)
 {
     size_t const fileSize = fsize_orDie(fileName);
-    assert(fileSize <= bufferSize);
+    CHECK(fileSize <= bufferSize, "File too large!");
 
     FILE* const inFile = fopen_orDie(fileName, "rb");
     size_t const readSize = fread(buffer, 1, fileSize, inFile);

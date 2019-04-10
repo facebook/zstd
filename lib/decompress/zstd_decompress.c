@@ -106,7 +106,7 @@ static void ZSTD_initDCtx_internal(ZSTD_DCtx* dctx)
     dctx->ddictLocal  = NULL;
     dctx->dictEnd     = NULL;
     dctx->ddictIsCold = 0;
-    dctx->dictUsesRemaining = 0;
+    dctx->dictUses = ZSTD_dont_use;
     dctx->inBuff      = NULL;
     dctx->inBuffSize  = 0;
     dctx->outBuffSize = 0;
@@ -153,7 +153,7 @@ static void ZSTD_clearDict(ZSTD_DCtx* dctx)
     ZSTD_freeDDict(dctx->ddictLocal);
     dctx->ddictLocal = NULL;
     dctx->ddict = NULL;
-    dctx->dictUsesRemaining = 0;
+    dctx->dictUses = ZSTD_dont_use;
 }
 
 size_t ZSTD_freeDCtx(ZSTD_DCtx* dctx)
@@ -796,15 +796,19 @@ size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
 
 static ZSTD_DDict const* ZSTD_getDDict(ZSTD_DCtx* dctx)
 {
-    if (dctx->dictUsesRemaining == 0) {
+    switch (dctx->dictUses) {
+    default:
+        assert(0 /* Impossible */);
+        /* fall-through */
+    case ZSTD_dont_use:
         ZSTD_clearDict(dctx);
         return NULL;
-    }
-    if (dctx->dictUsesRemaining < 0) {
+    case ZSTD_use_indefinitely:
+        return dctx->ddict;
+    case ZSTD_use_once:
+        dctx->dictUses = ZSTD_dont_use;
         return dctx->ddict;
     }
-    --dctx->dictUsesRemaining;
-    return dctx->ddict;
 }
 
 size_t ZSTD_decompressDCtx(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize)
@@ -1261,7 +1265,7 @@ size_t ZSTD_DCtx_loadDictionary_advanced(ZSTD_DCtx* dctx,
         dctx->ddictLocal = ZSTD_createDDict_advanced(dict, dictSize, dictLoadMethod, dictContentType, dctx->customMem);
         RETURN_ERROR_IF(dctx->ddictLocal == NULL, memory_allocation);
         dctx->ddict = dctx->ddictLocal;
-        dctx->dictUsesRemaining = -1;
+        dctx->dictUses = ZSTD_use_indefinitely;
     }
     return 0;
 }
@@ -1279,7 +1283,7 @@ size_t ZSTD_DCtx_loadDictionary(ZSTD_DCtx* dctx, const void* dict, size_t dictSi
 size_t ZSTD_DCtx_refPrefix_advanced(ZSTD_DCtx* dctx, const void* prefix, size_t prefixSize, ZSTD_dictContentType_e dictContentType)
 {
     FORWARD_IF_ERROR(ZSTD_DCtx_loadDictionary_advanced(dctx, prefix, prefixSize, ZSTD_dlm_byRef, dictContentType));
-    dctx->dictUsesRemaining = 1;
+    dctx->dictUses = ZSTD_use_once;
     return 0;
 }
 
@@ -1333,7 +1337,7 @@ size_t ZSTD_DCtx_refDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict)
     ZSTD_clearDict(dctx);
     if (ddict) {
         dctx->ddict = ddict;
-        dctx->dictUsesRemaining = -1;
+        dctx->dictUses = ZSTD_use_indefinitely;
     }
     return 0;
 }

@@ -163,19 +163,18 @@ BMK_timedFnState_t* BMK_createTimedFnState(unsigned total_ms, unsigned run_ms)
     return r;
 }
 
-void BMK_freeTimedFnState(BMK_timedFnState_t* state) {
-    free(state);
-}
+void BMK_freeTimedFnState(BMK_timedFnState_t* state) { free(state); }
 
 BMK_timedFnState_t*
 BMK_initStatic_timedFnState(void* buffer, size_t size, unsigned total_ms, unsigned run_ms)
 {
-    enum { timedFnState_staticSize_isLargeEnough=(1/(sizeof(BMK_timedFnState_shell) >= sizeof(struct BMK_timedFnState_s))) };  /* static assert */
-    typedef struct { char c; long long ll; } ll_align;  /* this will force ll to be aligned at its next best position */
-    size_t const ll_alignment = offsetof(ll_align, ll); /* provides the minimal alignment restriction for long long */
+    typedef char check_size[ 2 * (sizeof(BMK_timedFnState_shell) >= sizeof(struct BMK_timedFnState_s)) - 1];  /* static assert : a compilation failure indicates that BMK_timedFnState_shell is not large enough */
+    typedef struct { check_size c; BMK_timedFnState_t tfs; } tfs_align;  /* force tfs to be aligned at its next best position */
+    size_t const tfs_alignment = offsetof(tfs_align, tfs); /* provides the minimal alignment restriction for BMK_timedFnState_t */
     BMK_timedFnState_t* const r = (BMK_timedFnState_t*)buffer;
+    if (buffer == NULL) return NULL;
     if (size < sizeof(struct BMK_timedFnState_s)) return NULL;
-    if ((size_t)buffer % ll_alignment) return NULL;  /* must be aligned to satisfy `long long` alignment requirement */
+    if ((size_t)buffer % tfs_alignment) return NULL;  /* buffer must be properly aligned */
     BMK_resetTimedFnState(r, total_ms, run_ms);
     return r;
 }

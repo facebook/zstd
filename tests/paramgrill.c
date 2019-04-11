@@ -1992,7 +1992,7 @@ BMK_selectRandomStart( FILE* f,
 
 /* BMK_generate_cLevelTable() :
  * test a large number of configurations
- * and distribute them accross compression levels according to speed conditions.
+ * and distribute them across compression levels according to speed conditions.
  * display and save all intermediate results into rfName = "grillResults.txt".
  * the function automatically stops after g_timeLimit_s.
  * this function cannot error, it directly exit() in case of problem.

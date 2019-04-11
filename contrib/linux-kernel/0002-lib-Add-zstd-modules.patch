@@ -21,7 +21,7 @@ will be easier to keep the kernel zstd up to date.
 I benchmarked zstd compression as a special character device. I ran zstd
 and zlib compression at several levels, as well as performing no
 compression, which measure the time spent copying the data to kernel space.
-Data is passed to the compresser 4096 B at a time. The benchmark file is
+Data is passed to the compressor 4096 B at a time. The benchmark file is
 located in the upstream zstd source repository under
 `contrib/linux-kernel/zstd_compress_test.c` [2].
 

@@ -424,7 +424,7 @@ static ddict_collection_t createDDictCollection(const void* dictBuffer, size_t d
 }
 
 
-/* mess with adresses, so that linear scanning dictionaries != linear address scanning */
+/* mess with addresses, so that linear scanning dictionaries != linear address scanning */
 void shuffleDictionaries(ddict_collection_t dicts)
 {
     size_t const nbDicts = dicts.nbDDict;

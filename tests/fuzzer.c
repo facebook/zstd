@@ -38,6 +38,7 @@
 #define XXH_STATIC_LINKING_ONLY   /* XXH64_state_t */
 #include "xxhash.h"       /* XXH64 */
 #include "util.h"
+#include "timefn.h"       /* SEC_TO_MICRO, UTIL_time_t, UTIL_TIME_INITIALIZER, UTIL_clockSpanMicro, UTIL_getTime */
 
 
 /*-************************************

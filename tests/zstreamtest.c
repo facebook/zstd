@@ -37,6 +37,7 @@
 #include "xxhash.h"       /* XXH64_* */
 #include "seqgen.h"
 #include "util.h"
+#include "timefn.h"       /* UTIL_time_t, UTIL_clockSpanMicro, UTIL_getTime */
 
 
 /*-************************************

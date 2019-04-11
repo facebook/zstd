@@ -86,7 +86,7 @@ Tested in userland using the test-suite in the zstd repo under
 `contrib/linux-kernel/test/UserlandTest.cpp` [5] by mocking the kernel
 functions. Fuzz tested using libfuzzer [6] with the fuzz harnesses under
 `contrib/linux-kernel/test/{RoundTripCrash.c,DecompressCrash.c}` [7] [8]
-with ASAN, UBSAN, and MSAN. Additionaly, it was tested while testing the
+with ASAN, UBSAN, and MSAN. Additionally, it was tested while testing the
 BtrFS and SquashFS patches coming next.
 
 [1] https://clang.llvm.org/docs/ClangFormat.html

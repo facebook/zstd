@@ -36,7 +36,7 @@ extern "C" {
 #define ZSTD_DUBT_UNSORTED_MARK 1   /* For btlazy2 strategy, index 1 now means "unsorted".
                                        It could be confused for a real successor at index "1", if sorted as larger than its predecessor.
                                        It's not a big deal though : candidate will just be sorted again.
-                                       Additionnally, candidate position 1 will be lost.
+                                       Additionally, candidate position 1 will be lost.
                                        But candidate 1 cannot hide a large tree of candidates, so it's a minimal loss.
                                        The benefit is that ZSTD_DUBT_UNSORTED_MARK cannot be misdhandled after table re-use with a different strategy
                                        Constant required by ZSTD_compressBlock_btlazy2() and ZSTD_reduceTable_internal() */

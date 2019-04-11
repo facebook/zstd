@@ -1050,7 +1050,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         inBuff.size = srcSize; assert(srcSize < COMPRESSIBLE_NOISE_LENGTH);
         inBuff.pos = 0;
     }
-    {   ZSTD_compressionParameters const cParams = ZSTD_getCParams(1, 4 KB, dictionary.filled);   /* intentionnally lies on estimatedSrcSize, to push cdict into targeting a small window size */
+    {   ZSTD_compressionParameters const cParams = ZSTD_getCParams(1, 4 KB, dictionary.filled);   /* intentionally lies on estimatedSrcSize, to push cdict into targeting a small window size */
         ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dictionary.start, dictionary.filled, ZSTD_dlm_byRef, ZSTD_dct_fullDict, cParams, ZSTD_defaultCMem);
         DISPLAYLEVEL(5, "cParams.windowLog = %u : ", cParams.windowLog);
         CHECK_Z( ZSTD_CCtx_refCDict(zc, cdict) );

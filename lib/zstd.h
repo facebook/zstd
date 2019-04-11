@@ -722,7 +722,14 @@ ZSTDLIB_API ZSTD_DStream* ZSTD_createDStream(void);
 ZSTDLIB_API size_t ZSTD_freeDStream(ZSTD_DStream* zds);
 
 /*===== Streaming decompression functions =====*/
+
+/* This function is redundant with the advanced API and equivalent to:
+ *
+ *     ZSTD_DCtx_reset(zds);
+ *     ZSTD_DCtx_refDDict(zds, NULL);
+ */
 ZSTDLIB_API size_t ZSTD_initDStream(ZSTD_DStream* zds);
+
 ZSTDLIB_API size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inBuffer* input);
 
 ZSTDLIB_API size_t ZSTD_DStreamInSize(void);    /*!< recommended size for input buffer */
@@ -1672,9 +1679,32 @@ ZSTDLIB_API size_t ZSTD_toFlushNow(ZSTD_CCtx* cctx);
 
 
 /*=====   Advanced Streaming decompression functions  =====*/
-ZSTDLIB_API size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t dictSize); /**< note: no dictionary will be used if dict == NULL or dictSize < 8 */
-ZSTDLIB_API size_t ZSTD_initDStream_usingDDict(ZSTD_DStream* zds, const ZSTD_DDict* ddict);  /**< note : ddict is referenced, it must outlive decompression session */
-ZSTDLIB_API size_t ZSTD_resetDStream(ZSTD_DStream* zds);  /**< re-use decompression parameters from previous init; saves dictionary loading */
+/**
+ * This function is deprecated, and is equivalent to:
+ *
+ *     ZSTD_DCtx_reset(zds, ZSTD_reset_session_only);
+ *     ZSTD_DCtx_loadDictionary(zds, dict, dictSize);
+ *
+ * note: no dictionary will be used if dict == NULL or dictSize < 8
+ */
+ZSTDLIB_API size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t dictSize);
+/**
+ * This function is deprecated, and is equivalent to:
+ *
+ *     ZSTD_DCtx_reset(zds, ZSTD_reset_session_only);
+ *     ZSTD_DCtx_refDDict(zds, ddict);
+ *
+ * note : ddict is referenced, it must outlive decompression session
+ */
+ZSTDLIB_API size_t ZSTD_initDStream_usingDDict(ZSTD_DStream* zds, const ZSTD_DDict* ddict);
+/**
+ * This function is deprecated, and is equivalent to:
+ *
+ *     ZSTD_DCtx_reset(zds, ZSTD_reset_session_only);
+ *
+ * re-use decompression parameters from previous init; saves dictionary loading
+ */
+ZSTDLIB_API size_t ZSTD_resetDStream(ZSTD_DStream* zds);
 
 
 /*********************************************************************

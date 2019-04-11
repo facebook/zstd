@@ -347,7 +347,7 @@ static unsigned parseFastCoverParameters(const char* stringPtr, ZDICT_fastCover_
 
 /**
  * parseLegacyParameters() :
- * reads legacy dictioanry builter parameters from *stringPtr (e.g. "--train-legacy=selectivity=8") into *selectivity
+ * reads legacy dictioanry builder parameters from *stringPtr (e.g. "--train-legacy=selectivity=8") into *selectivity
  * @return 1 means that legacy dictionary builder parameters were correct
  * @return 0 in case of malformed parameters
  */

@@ -1133,7 +1133,7 @@ MEM_STATIC void ZSTD_upscaleStats(optState_t* optPtr)
 /* ZSTD_initStats_ultra():
  * make a first compression pass, just to seed stats with more accurate starting values.
  * only works on first block, with no dictionary and no ldm.
- * this function cannot error, hence its constract must be respected.
+ * this function cannot error, hence its contract must be respected.
  */
 static void
 ZSTD_initStats_ultra(ZSTD_matchState_t* ms,

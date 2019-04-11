@@ -1235,7 +1235,7 @@ static int createBuffersFromMemory(buffers_t* buff, void * srcBuffer, const size
     return 0;
 }
 
-/* allocates buffer's arguments. returns success / failuere */
+/* allocates buffer's arguments. returns success / failure */
 static int createBuffers(buffers_t* buff, const char* const * const fileNamesTable,
                           size_t nbFiles) {
     size_t pos = 0;

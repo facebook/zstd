@@ -96,8 +96,8 @@ as this case is automatically detected.
 #### Reusing contexts
 
 The ordinary zlib compression of two files/streams allocates two contexts:
-- for the 1st file calls `deflateInit`, `deflate`, `...`, `deflate`, `defalateEnd`
-- for the 2nd file calls `deflateInit`, `deflate`, `...`, `deflate`, `defalateEnd`
+- for the 1st file calls `deflateInit`, `deflate`, `...`, `deflate`, `deflateEnd`
+- for the 2nd file calls `deflateInit`, `deflate`, `...`, `deflate`, `deflateEnd`
 
 The speed of compression can be improved with reusing a single context with following steps:
 - initialize the context with `deflateInit`

@@ -26,12 +26,13 @@
 #define ASSERT_EQ(lhs, rhs) ASSERT_TRUE((lhs) == (rhs))
 
 struct data {
-  pthread_mutex_t mutex;
+  ZSTD_pthread_mutex_t mutex;
   unsigned data[16];
   size_t i;
 };
 
-static void fn(void *opaque) {
+static void fn(void *opaque)
+{
   struct data *data = (struct data *)opaque;
   ZSTD_pthread_mutex_lock(&data->mutex);
   data->data[data->i] = data->i;
@@ -39,12 +40,13 @@ static void fn(void *opaque) {
   ZSTD_pthread_mutex_unlock(&data->mutex);
 }
 
-static int testOrder(size_t numThreads, size_t queueSize) {
+static int testOrder(size_t numThreads, size_t queueSize)
+{
   struct data data;
-  POOL_ctx *ctx = POOL_create(numThreads, queueSize);
+  POOL_ctx* const ctx = POOL_create(numThreads, queueSize);
   ASSERT_TRUE(ctx);
   data.i = 0;
-  ZSTD_pthread_mutex_init(&data.mutex, NULL);
+  (void)ZSTD_pthread_mutex_init(&data.mutex, NULL);
   { size_t i;
     for (i = 0; i < 16; ++i) {
       POOL_add(ctx, &fn, &data);
@@ -72,7 +74,7 @@ static void waitFn(void *opaque) {
 /* Tests for deadlock */
 static int testWait(size_t numThreads, size_t queueSize) {
   struct data data;
-  POOL_ctx *ctx = POOL_create(numThreads, queueSize);
+  POOL_ctx* const ctx = POOL_create(numThreads, queueSize);
   ASSERT_TRUE(ctx);
   { size_t i;
     for (i = 0; i < 16; ++i) {
@@ -94,7 +96,7 @@ typedef struct {
 } poolTest_t;
 
 static void waitLongFn(void *opaque) {
-  poolTest_t* test = (poolTest_t*) opaque;
+  poolTest_t* const test = (poolTest_t*) opaque;
   UTIL_sleepMilli(10);
   ZSTD_pthread_mutex_lock(&test->mut);
   test->val = test->val + 1;

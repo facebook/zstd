@@ -623,7 +623,7 @@ def regression(args):
 
 def gen_parser(args):
     description = """
-    Generate a seed corpus appropiate for TARGET with data generated with
+    Generate a seed corpus appropriate for TARGET with data generated with
     decodecorpus.
     The fuzz inputs are prepended with a seed before the zstd data, so the
     output of decodecorpus shouldn't be used directly.

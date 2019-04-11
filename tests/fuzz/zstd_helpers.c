@@ -75,7 +75,7 @@ void FUZZ_setRandomParameters(ZSTD_CCtx *cctx, size_t srcSize, uint32_t *state)
     setRand(cctx, ZSTD_c_contentSizeFlag, 0, 1, state);
     setRand(cctx, ZSTD_c_checksumFlag, 0, 1, state);
     setRand(cctx, ZSTD_c_dictIDFlag, 0, 1, state);
-    /* Select long distance matchig parameters */
+    /* Select long distance matching parameters */
     setRand(cctx, ZSTD_c_enableLongDistanceMatching, 0, 1, state);
     setRand(cctx, ZSTD_c_ldmHashLog, ZSTD_HASHLOG_MIN, 16, state);
     setRand(cctx, ZSTD_c_ldmMinMatch, ZSTD_LDM_MINMATCH_MIN,

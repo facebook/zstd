@@ -1187,7 +1187,7 @@ unsigned ZSTD_getDictID_fromDict(const void* dict, size_t dictSize)
 }
 
 /*! ZSTD_getDictID_fromFrame() :
- *  Provides the dictID required to decompresse frame stored within `src`.
+ *  Provides the dictID required to decompress frame stored within `src`.
  *  If @return == 0, the dictID could not be decoded.
  *  This could for one of the following reasons :
  *  - The frame does not require a dictionary (most common case).

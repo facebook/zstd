@@ -12,6 +12,7 @@
 #include "pool.h"
 #include "threading.h"
 #include "util.h"
+#include "timefn.h"
 #include <stddef.h>
 #include <stdio.h>
 

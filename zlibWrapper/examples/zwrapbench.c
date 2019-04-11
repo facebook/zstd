@@ -19,6 +19,7 @@
 #include <ctype.h>       /* toupper */
 #include <errno.h>       /* errno */
 
+#include "timefn.h"      /* UTIL_time_t, UTIL_getTime, UTIL_clockSpanMicro, UTIL_waitForNextTick */
 #include "mem.h"
 #define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"

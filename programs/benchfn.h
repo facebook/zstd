@@ -31,7 +31,7 @@ extern "C" {
 /* BMK_runTime_t: valid result return type */
 
 typedef struct {
-    unsigned long long nanoSecPerRun;  /* time per iteration (over all blocks) */
+    double nanoSecPerRun;  /* time per iteration (over all blocks) */
     size_t sumOfReturn;         /* sum of return values */
 } BMK_runTime_t;
 
@@ -58,30 +58,31 @@ typedef size_t (*BMK_initFn_t)(void* initPayload);
 typedef unsigned (*BMK_errorFn_t)(size_t);
 
 
-/* BMK_benchFunction() parameters are provided through following structure.
- * This is preferable for readability,
- * as the number of parameters required is pretty large.
+/* BMK_benchFunction() parameters are provided via the following structure.
+ * A structure is preferable for readability,
+ * as the number of parameters required is fairly large.
  * No initializer is provided, because it doesn't make sense to provide some "default" :
- * all parameters should be specified by the caller */
+ * all parameters must be specified by the caller.
+ * optional parameters are labelled explicitly, and accept value NULL when not used */
 typedef struct {
-    BMK_benchFn_t benchFn;   /* the function to benchmark, over the set of blocks */
-    void* benchPayload;      /* pass custom parameters to benchFn  :
-                              * (*benchFn)(srcBuffers[i], srcSizes[i], dstBuffers[i], dstCapacities[i], benchPayload) */
-    BMK_initFn_t initFn;     /* (*initFn)(initPayload) is run once per run, at the beginning. */
-    void* initPayload;       /* Both arguments can be NULL, in which case nothing is run. */
-    BMK_errorFn_t errorFn;   /* errorFn will check each return value of benchFn over each block, to determine if it failed or not.
-                              * errorFn can be NULL, in which case no check is performed.
-                              * errorFn must return 0 when benchFn was successful, and >= 1 if it detects an error.
-                              * Execution is stopped as soon as an error is detected.
-                              * the triggering return value can be retrieved using BMK_extract_errorResult(). */
-    size_t blockCount;       /* number of blocks to operate benchFn on.
-                              * It's also the size of all array parameters :
-                              * srcBuffers, srcSizes, dstBuffers, dstCapacities, blockResults */
-    const void *const * srcBuffers; /* array of buffers to be operated on by benchFn */
-    const size_t* srcSizes;  /* array of the sizes of srcBuffers buffers */
-    void *const * dstBuffers;/* array of buffers to be written into by benchFn */
-    const size_t* dstCapacities; /* array of the capacities of dstBuffers buffers */
-    size_t* blockResults;    /* Optional: store the return value of benchFn for each block. Use NULL if this result is not requested. */
+    BMK_benchFn_t benchFn;    /* the function to benchmark, over the set of blocks */
+    void* benchPayload;       /* pass custom parameters to benchFn  :
+                               * (*benchFn)(srcBuffers[i], srcSizes[i], dstBuffers[i], dstCapacities[i], benchPayload) */
+    BMK_initFn_t initFn;      /* (*initFn)(initPayload) is run once per run, at the beginning. */
+    void* initPayload;        /* Both arguments can be NULL, in which case nothing is run. */
+    BMK_errorFn_t errorFn;    /* errorFn will check each return value of benchFn over each block, to determine if it failed or not.
+                               * errorFn can be NULL, in which case no check is performed.
+                               * errorFn must return 0 when benchFn was successful, and >= 1 if it detects an error.
+                               * Execution is stopped as soon as an error is detected.
+                               * the triggering return value can be retrieved using BMK_extract_errorResult(). */
+    size_t blockCount;        /* number of blocks to operate benchFn on.
+                               * It's also the size of all array parameters :
+                               * srcBuffers, srcSizes, dstBuffers, dstCapacities, blockResults */
+    const void *const * srcBuffers; /* read-only array of buffers to be operated on by benchFn */
+    const size_t* srcSizes;   /* read-only array containing sizes of srcBuffers */
+    void *const * dstBuffers; /* array of buffers to be written into by benchFn. This array is not optional, it must be provided even if unused by benchfn. */
+    const size_t* dstCapacities; /* read-only array containing capacities of dstBuffers. This array must be present. */
+    size_t* blockResults;     /* Optional: store the return value of benchFn for each block. Use NULL if this result is not requested. */
 } BMK_benchParams_t;
 
 
@@ -158,6 +159,21 @@ BMK_timedFnState_t* BMK_createTimedFnState(unsigned total_ms, unsigned run_ms);
 void BMK_resetTimedFnState(BMK_timedFnState_t* timedFnState, unsigned total_ms, unsigned run_ms);
 void BMK_freeTimedFnState(BMK_timedFnState_t* state);
 
+
+/* BMK_timedFnState_shell and BMK_initStatic_timedFnState() :
+ * Makes it possible to statically allocate a BMK_timedFnState_t on stack.
+ * BMK_timedFnState_shell is only there to allocate space,
+ * never ever access its members.
+ * BMK_timedFnState_t() actually accepts any buffer.
+ * It will check if provided buffer is large enough and is correctly aligned,
+ * and will return NULL if conditions are not respected.
+ */
+#define BMK_TIMEDFNSTATE_SIZE 64
+typedef union {
+    char never_access_space[BMK_TIMEDFNSTATE_SIZE];
+    long long alignment_enforcer;  /* must be aligned on 8-bytes boundaries */
+} BMK_timedFnState_shell;
+BMK_timedFnState_t* BMK_initStatic_timedFnState(void* buffer, size_t size, unsigned total_ms, unsigned run_ms);
 
 
 #endif   /* BENCH_FN_H_23876 */

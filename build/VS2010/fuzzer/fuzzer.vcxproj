@@ -182,6 +182,7 @@
     <ClCompile Include="..\..\..\lib\dictBuilder\divsufsort.c" />
     <ClCompile Include="..\..\..\lib\dictBuilder\zdict.c" />
     <ClCompile Include="..\..\..\programs\util.c" />
+    <ClCompile Include="..\..\..\programs\timefn.c" />
     <ClCompile Include="..\..\..\programs\datagen.c" />
     <ClCompile Include="..\..\..\tests\fuzzer.c" />
   </ItemGroup>

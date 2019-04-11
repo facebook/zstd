@@ -1547,10 +1547,12 @@ static unsigned FIO_fwriteSparse(FIO_prefs_t* const prefs, FILE* file, const voi
     return storedSkips;
 }
 
-static void FIO_fwriteSparseEnd(FIO_prefs_t* const prefs, FILE* file, unsigned storedSkips)
+static void
+FIO_fwriteSparseEnd(FIO_prefs_t* const prefs, FILE* file, unsigned storedSkips)
 {
     if (storedSkips>0) {
         assert(prefs->sparseFileSupport > 0);  /* storedSkips>0 implies sparse support is enabled */
+        (void)prefs;   /* assert can be disabled, in which case prefs becomes unused */
         if (LONG_SEEK(file, storedSkips-1, SEEK_CUR) != 0)
             EXM_THROW(69, "Final skip error (sparse file support)");
         /* last zero must be explicitly written,

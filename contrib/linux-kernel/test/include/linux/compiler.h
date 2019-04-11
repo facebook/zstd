@@ -1,5 +1,5 @@
-#ifndef LINUX_COMIPLER_H_
-#define LINUX_COMIPLER_H_
+#ifndef LINUX_COMPILER_H_
+#define LINUX_COMPILER_H_
 
 #ifndef __always_inline
 #  define __always_inline inline
@@ -9,4 +9,4 @@
 #  define noinline __attribute__((__noinline__))
 #endif
 
-#endif // LINUX_COMIPLER_H_
+#endif // LINUX_COMPILER_H_

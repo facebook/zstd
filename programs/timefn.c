@@ -91,8 +91,10 @@ PTime UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd)
 
 UTIL_time_t UTIL_getTime(void)
 {
-    UTIL_time_t time;
-    if (timespec_get(&time, TIME_UTC) == 0) {
+    /* time must be initialized, othersize it may fail msan test.
+     * No good reason, likely a limitation of timespec_get() for some target */
+    UTIL_time_t time = UTIL_TIME_INITIALIZER;
+    if (timespec_get(&time, TIME_UTC) != TIME_UTC) {
         perror("timefn::timespec_get");
         abort();
     }

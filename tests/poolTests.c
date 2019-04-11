@@ -35,7 +35,7 @@ static void fn(void *opaque)
 {
   struct data *data = (struct data *)opaque;
   ZSTD_pthread_mutex_lock(&data->mutex);
-  data->data[data->i] = data->i;
+  data->data[data->i] = (unsigned)(data->i);
   ++data->i;
   ZSTD_pthread_mutex_unlock(&data->mutex);
 }

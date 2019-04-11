@@ -1464,6 +1464,41 @@ static int basicUnitTests(U32 seed, double compressibility)
         }
         DISPLAYLEVEL(3, "OK \n");
 
+        DISPLAYLEVEL(3, "test%3i : ZSTD_decompressDCtx() with ddict : ", testNb++);
+        {
+            ZSTD_DCtx* dctx = ZSTD_createDCtx();
+            ZSTD_DDict* ddict = ZSTD_createDDict(dictBuffer, dictSize);
+            size_t ret;
+            /* We should succeed to decompress with the ddict. */
+            ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters);
+            CHECK_Z( ZSTD_DCtx_refDDict(dctx, ddict) );
+            CHECK_Z( ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize) );
+            /* The ddict should presist across calls. */
+            CHECK_Z( ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize) );
+            /* When we reset the context the ddict is cleared. */
+            ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters);
+            ret = ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize);
+            if (!ZSTD_isError(ret)) goto _output_error;
+            ZSTD_freeDCtx(dctx);
+            ZSTD_freeDDict(ddict);
+        }
+        DISPLAYLEVEL(3, "OK \n");
+
+        DISPLAYLEVEL(3, "test%3i : ZSTD_decompressDCtx() with prefix : ", testNb++);
+        {
+            ZSTD_DCtx* dctx = ZSTD_createDCtx();
+            size_t ret;
+            /* We should succeed to decompress with the prefix. */
+            ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters);
+            CHECK_Z( ZSTD_DCtx_refPrefix_advanced(dctx, dictBuffer, dictSize, ZSTD_dct_auto) );
+            CHECK_Z( ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize) );
+            /* The prefix should be cleared after the first compression. */
+            ret = ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize);
+            if (!ZSTD_isError(ret)) goto _output_error;
+            ZSTD_freeDCtx(dctx);
+        }
+        DISPLAYLEVEL(3, "OK \n");
+
         DISPLAYLEVEL(3, "test%3i : Dictionary with non-default repcodes : ", testNb++);
         { U32 u; for (u=0; u<nbSamples; u++) samplesSizes[u] = sampleUnitSize; }
         dictSize = ZDICT_trainFromBuffer(dictBuffer, dictSize,

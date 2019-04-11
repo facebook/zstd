@@ -2914,7 +2914,7 @@ static size_t ZSTD_writeFrameHeader(void* dst, size_t dstCapacity,
     BYTE  const windowLogByte = (BYTE)((params.cParams.windowLog - ZSTD_WINDOWLOG_ABSOLUTEMIN) << 3);
     U32   const fcsCode = params.fParams.contentSizeFlag ?
                      (pledgedSrcSize>=256) + (pledgedSrcSize>=65536+256) + (pledgedSrcSize>=0xFFFFFFFFU) : 0;  /* 0-3 */
-    BYTE  const frameHeaderDecriptionByte = (BYTE)(dictIDSizeCode + (checksumFlag<<2) + (singleSegment<<5) + (fcsCode<<6) );
+    BYTE  const frameHeaderDescriptionByte = (BYTE)(dictIDSizeCode + (checksumFlag<<2) + (singleSegment<<5) + (fcsCode<<6) );
     size_t pos=0;
 
     assert(!(params.fParams.contentSizeFlag && pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN));
@@ -2926,7 +2926,7 @@ static size_t ZSTD_writeFrameHeader(void* dst, size_t dstCapacity,
         MEM_writeLE32(dst, ZSTD_MAGICNUMBER);
         pos = 4;
     }
-    op[pos++] = frameHeaderDecriptionByte;
+    op[pos++] = frameHeaderDescriptionByte;
     if (!singleSegment) op[pos++] = windowLogByte;
     switch(dictIDSizeCode)
     {

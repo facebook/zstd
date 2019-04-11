@@ -265,9 +265,9 @@ man: zstd.1 zstdgrep.1 zstdless.1
 
 .PHONY: clean-man
 clean-man:
-	rm zstd.1
-	rm zstdgrep.1
-	rm zstdless.1
+	$(RM) zstd.1
+	$(RM) zstdgrep.1
+	$(RM) zstdless.1
 
 .PHONY: preview-man
 preview-man: clean-man man

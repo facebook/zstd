@@ -53,7 +53,7 @@ typedef struct {
  * The COVER algorithms divide the data up into epochs of equal size and
  * select one segemnt from each epoch.
  *
- * @param maxDictSize The maximum allowed dictioary size.
+ * @param maxDictSize The maximum allowed dictionary size.
  * @param nbDmers     The number of dmers we are training on.
  * @param k           The parameter k (segment size).
  * @param passes      The target number of passes over the dmer corpus.

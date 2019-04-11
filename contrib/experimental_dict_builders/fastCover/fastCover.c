@@ -125,7 +125,7 @@ typedef struct {
  *
  *     Score(S) = F(S_1) + F(S_2) + ... + F(S_{k-d+1})
  *
- * Once the dmer with hash value d is in the dictionay we set F(d) = F(d)/2.
+ * Once the dmer with hash value d is in the dictionary we set F(d) = F(d)/2.
  */
 static FASTCOVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
                                                   U32 *freqs, U32 begin,U32 end,

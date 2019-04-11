@@ -391,7 +391,7 @@ static void COVER_group(COVER_ctx_t *ctx, const void *group,
  *
  *     Score(S) = F(S_1) + F(S_2) + ... + F(S_{k-d+1})
  *
- * Once the dmer d is in the dictionay we set F(d) = 0.
+ * Once the dmer d is in the dictionary we set F(d) = 0.
  */
 static COVER_segment_t COVER_selectSegment(const COVER_ctx_t *ctx, U32 *freqs,
                                            COVER_map_t *activeDmers, U32 begin,

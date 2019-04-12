@@ -198,7 +198,7 @@ int main(int argc, char **argv)
     if (ret == Z_MEM_ERROR)
         quit("out of memory");
 
-    /* set up for next reocmpression */
+    /* set up for next recompression */
     ret = inflateReset(&inf);
     assert(ret != Z_STREAM_ERROR);
     ret = deflateReset(&def);

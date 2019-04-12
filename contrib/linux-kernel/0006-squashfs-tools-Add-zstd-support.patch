@@ -11,7 +11,7 @@ Signed-off-by: Nick Terrell <terrelln@fb.com>
 ---
 v4 -> v5:
 - Fix patch documentation to reflect that Sean Purcell is the author
-- Don't strip trailing whitespace of unreleated code
+- Don't strip trailing whitespace of unrelated code
 - Make zstd_display_options() static
 
 v5 -> v6:

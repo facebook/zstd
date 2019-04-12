@@ -193,7 +193,7 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
                 remaining -= thisBlockSize;
     }   }   }
 
-    /* warmimg up memory */
+    /* warming up memory */
     RDG_genBuffer(compressedBuffer, maxCompressedSize, 0.10, 0.50, 1);
 
     /* Bench */

@@ -1573,7 +1573,7 @@ BMK_benchMemInvertible( buffers_t buf, contexts_t ctx,
     display_params_tested(*comprParams);
     memset(&bResult, 0, sizeof(bResult));
 
-    /* warmimg up memory */
+    /* warming up memory */
     for (i = 0; i < buf.nbBlocks; i++) {
         if (mode != BMK_decodeOnly) {
             RDG_genBuffer(dstPtrs[i], dstCapacities[i], 0.10, 0.50, 1);

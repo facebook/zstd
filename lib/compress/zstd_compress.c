@@ -2611,7 +2611,7 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
         FORWARD_IF_ERROR(bitstreamSize);
         op += bitstreamSize;
         /* zstd versions <= 1.3.4 mistakenly report corruption when
-         * FSE_readNCount() recieves a buffer < 4 bytes.
+         * FSE_readNCount() receives a buffer < 4 bytes.
          * Fixed by https://github.com/facebook/zstd/pull/1146.
          * This can happen when the last set_compressed table present is 2
          * bytes and the bitstream is only one byte.

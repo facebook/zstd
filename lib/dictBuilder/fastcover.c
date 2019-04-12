@@ -161,7 +161,7 @@ static COVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
     /* Get hash value of current dmer */
     const size_t idx = FASTCOVER_hashPtrToIndex(ctx->samples + activeSegment.end, f, d);
 
-    /* Add frequency of this index to score if this is the first occurence of index in active segment */
+    /* Add frequency of this index to score if this is the first occurrence of index in active segment */
     if (segmentFreqs[idx] == 0) {
       activeSegment.score += freqs[idx];
     }

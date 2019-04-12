@@ -435,7 +435,7 @@ static COVER_segment_t COVER_selectSegment(const COVER_ctx_t *ctx, U32 *freqs,
       U32 *delDmerOcc = COVER_map_at(activeDmers, delDmer);
       activeSegment.begin += 1;
       *delDmerOcc -= 1;
-      /* If this is the last occurence of the dmer, subtract its score */
+      /* If this is the last occurrence of the dmer, subtract its score */
       if (*delDmerOcc == 0) {
         COVER_map_remove(activeDmers, delDmer);
         activeSegment.score -= freqs[delDmer];

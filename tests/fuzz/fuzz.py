@@ -345,7 +345,7 @@ def build_parser(args):
     if args.msan_track_origins and not args.msan:
         raise RuntimeError('--enable-msan-track-origins requires MSAN')
     if args.ubsan_pointer_overflow and not args.ubsan:
-        raise RuntimeError('--enable-ubsan-pointer-overlow requires UBSAN')
+        raise RuntimeError('--enable-ubsan-pointer-overflow requires UBSAN')
     if args.sanitize_recover and not args.sanitize:
         raise RuntimeError('--enable-sanitize-recover but no sanitizers used')
 

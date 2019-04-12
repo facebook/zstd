@@ -38,7 +38,7 @@ The specific fuzzing engine is selected with `LIB_FUZZING_ENGINE` or
 It has flags that can easily set up sanitizers `--enable-{a,ub,m}san`, and
 coverage instrumentation `--enable-coverage`.
 It sets sane defaults which can be overriden with flags `--debug`,
-`--enable-ubsan-pointer-overlow`, etc.
+`--enable-ubsan-pointer-overflow`, etc.
 Run `./fuzz.py build -h` for help.
 
 ### Running Fuzzers

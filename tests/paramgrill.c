@@ -2270,7 +2270,7 @@ static winnerInfo_t climbOnce(const constraint_t target,
 
 /* Optimizes for a fixed strategy */
 
-/* flexible parameters: iterations of failed climbing (or if we do non-random, maybe this is when everything is close to visitied)
+/* flexible parameters: iterations of failed climbing (or if we do non-random, maybe this is when everything is close to visited)
    weight more on visit for bad results, less on good results/more on later results / ones with more failures.
    allocate memoTable here.
  */

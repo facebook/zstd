@@ -17,7 +17,7 @@
    data in order to determine how much of that input will compress to
    nearly the requested output block size.  The first pass generates
    enough deflate blocks to produce output to fill the requested
-   output size plus a specfied excess amount (see the EXCESS define
+   output size plus a specified excess amount (see the EXCESS define
    below).  The last deflate block may go quite a bit past that, but
    is discarded.  The second pass decompresses and recompresses just
    the compressed data that fit in the requested plus excess sized

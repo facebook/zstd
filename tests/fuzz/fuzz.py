@@ -339,7 +339,7 @@ def build_parser(args):
     args = parse_env_flags(args, ' '.join(
         [args.cppflags, args.cflags, args.cxxflags, args.ldflags]))
 
-    # Check option sanitiy
+    # Check option sanity
     if args.msan and (args.asan or args.ubsan):
         raise RuntimeError('MSAN may not be used with any other sanitizers')
     if args.msan_track_origins and not args.msan:

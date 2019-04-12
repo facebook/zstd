@@ -170,7 +170,7 @@ BMK_benchOutcome_t BMK_syntheticTest(
  *  comprParams - basic compression parameters
  *  dictBuffer - a dictionary if used, null otherwise
  *  dictBufferSize - size of dictBuffer, 0 otherwise
- *  diplayLevel - see BMK_benchFiles
+ *  displayLevel - see BMK_benchFiles
  *  displayName - name used by display
  * @return:
  *      a variant, which expresses either an error, or a valid result.

@@ -391,7 +391,7 @@ static void COVER_group(COVER_ctx_t *ctx, const void *group,
  *
  *     Score(S) = F(S_1) + F(S_2) + ... + F(S_{k-d+1})
  *
- * Once the dmer d is in the dictionay we set F(d) = 0.
+ * Once the dmer d is in the dictionary we set F(d) = 0.
  */
 static COVER_segment_t COVER_selectSegment(const COVER_ctx_t *ctx, U32 *freqs,
                                            COVER_map_t *activeDmers, U32 begin,
@@ -435,7 +435,7 @@ static COVER_segment_t COVER_selectSegment(const COVER_ctx_t *ctx, U32 *freqs,
       U32 *delDmerOcc = COVER_map_at(activeDmers, delDmer);
       activeSegment.begin += 1;
       *delDmerOcc -= 1;
-      /* If this is the last occurence of the dmer, subtract its score */
+      /* If this is the last occurrence of the dmer, subtract its score */
       if (*delDmerOcc == 0) {
         COVER_map_remove(activeDmers, delDmer);
         activeSegment.score -= freqs[delDmer];

@@ -383,7 +383,7 @@ BMK_benchMemAdvancedNoAlloc(
         }
     }
 
-    /* warmimg up `compressedBuffer` */
+    /* warming up `compressedBuffer` */
     if (adv->mode == BMK_decodeOnly) {
         memcpy(compressedBuffer, srcBuffer, loadedCompressedSize);
     } else {

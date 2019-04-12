@@ -358,7 +358,7 @@ static u32 copy_literals(const size_t seq, istream_t *litstream,
                          ostream_t *const out);
 
 // Given an offset code from a sequence command (either an actual offset value
-// or an index for previous offset), computes the correct offset and udpates
+// or an index for previous offset), computes the correct offset and updates
 // the offset history
 static size_t compute_offset(sequence_command_t seq, u64 *const offset_hist);
 

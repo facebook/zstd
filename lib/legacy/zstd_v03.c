@@ -2739,7 +2739,7 @@ static size_t ZSTD_execSequence(BYTE* op,
                                 BYTE* const base, BYTE* const oend)
 {
     static const int dec32table[] = {0, 1, 2, 1, 4, 4, 4, 4};   /* added */
-    static const int dec64table[] = {8, 8, 8, 7, 8, 9,10,11};   /* substracted */
+    static const int dec64table[] = {8, 8, 8, 7, 8, 9,10,11};   /* subtracted */
     const BYTE* const ostart = op;
     BYTE* const oLitEnd = op + sequence.litLength;
     BYTE* const oMatchEnd = op + sequence.litLength + sequence.matchLength;   /* risk : address space overflow (32-bits) */

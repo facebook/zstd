@@ -2046,7 +2046,7 @@ void ZSTD_seqToCodes(const seqStore_t* seqStorePtr)
  * If x == 0: Return 0
  * Else: Return floor(-log2(x / 256) * 256)
  */
-static unsigned const kInverseProbabiltyLog256[256] = {
+static unsigned const kInverseProbabilityLog256[256] = {
     0,    2048, 1792, 1642, 1536, 1453, 1386, 1329, 1280, 1236, 1197, 1162,
     1130, 1100, 1073, 1047, 1024, 1001, 980,  960,  941,  923,  906,  889,
     874,  859,  844,  830,  817,  804,  791,  779,  768,  756,  745,  734,
@@ -2085,7 +2085,7 @@ static size_t ZSTD_entropyCost(unsigned const* count, unsigned const max, size_t
         if (count[s] != 0 && norm == 0)
             norm = 1;
         assert(count[s] < total);
-        cost += count[s] * kInverseProbabiltyLog256[norm];
+        cost += count[s] * kInverseProbabilityLog256[norm];
     }
     return cost >> 8;
 }
@@ -2108,7 +2108,7 @@ static size_t ZSTD_crossEntropyCost(short const* norm, unsigned accuracyLog,
         unsigned const norm256 = normAcc << shift;
         assert(norm256 > 0);
         assert(norm256 < 256);
-        cost += count[s] * kInverseProbabiltyLog256[norm256];
+        cost += count[s] * kInverseProbabilityLog256[norm256];
     }
     return cost >> 8;
 }
@@ -2611,7 +2611,7 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
         FORWARD_IF_ERROR(bitstreamSize);
         op += bitstreamSize;
         /* zstd versions <= 1.3.4 mistakenly report corruption when
-         * FSE_readNCount() recieves a buffer < 4 bytes.
+         * FSE_readNCount() receives a buffer < 4 bytes.
          * Fixed by https://github.com/facebook/zstd/pull/1146.
          * This can happen when the last set_compressed table present is 2
          * bytes and the bitstream is only one byte.
@@ -2914,7 +2914,7 @@ static size_t ZSTD_writeFrameHeader(void* dst, size_t dstCapacity,
     BYTE  const windowLogByte = (BYTE)((params.cParams.windowLog - ZSTD_WINDOWLOG_ABSOLUTEMIN) << 3);
     U32   const fcsCode = params.fParams.contentSizeFlag ?
                      (pledgedSrcSize>=256) + (pledgedSrcSize>=65536+256) + (pledgedSrcSize>=0xFFFFFFFFU) : 0;  /* 0-3 */
-    BYTE  const frameHeaderDecriptionByte = (BYTE)(dictIDSizeCode + (checksumFlag<<2) + (singleSegment<<5) + (fcsCode<<6) );
+    BYTE  const frameHeaderDescriptionByte = (BYTE)(dictIDSizeCode + (checksumFlag<<2) + (singleSegment<<5) + (fcsCode<<6) );
     size_t pos=0;
 
     assert(!(params.fParams.contentSizeFlag && pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN));
@@ -2926,7 +2926,7 @@ static size_t ZSTD_writeFrameHeader(void* dst, size_t dstCapacity,
         MEM_writeLE32(dst, ZSTD_MAGICNUMBER);
         pos = 4;
     }
-    op[pos++] = frameHeaderDecriptionByte;
+    op[pos++] = frameHeaderDescriptionByte;
     if (!singleSegment) op[pos++] = windowLogByte;
     switch(dictIDSizeCode)
     {
@@ -2950,7 +2950,7 @@ static size_t ZSTD_writeFrameHeader(void* dst, size_t dstCapacity,
 /* ZSTD_writeLastEmptyBlock() :
  * output an empty Block with end-of-frame mark to complete a frame
  * @return : size of data written into `dst` (== ZSTD_blockHeaderSize (defined in zstd_internal.h))
- *           or an error code if `dstCapcity` is too small (<ZSTD_blockHeaderSize)
+ *           or an error code if `dstCapacity` is too small (<ZSTD_blockHeaderSize)
  */
 size_t ZSTD_writeLastEmptyBlock(void* dst, size_t dstCapacity)
 {

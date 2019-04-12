@@ -104,7 +104,7 @@ libregression.a: $(FUZZ_HEADERS) $(PRGDIR)/util.h $(PRGDIR)/util.c regression_dr
 	$(AR) $(FUZZ_ARFLAGS) $@ regression_driver.o
 
 # Install libfuzzer (not usable for MSAN testing)
-# Provided for convienence. To use this library run make libFuzzer and
+# Provided for convenience. To use this library run make libFuzzer and
 # set LDFLAGS=-L.
 .PHONY: libFuzzer
 libFuzzer:

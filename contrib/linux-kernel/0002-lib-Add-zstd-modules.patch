@@ -4,7 +4,7 @@ Date: Mon, 17 Jul 2017 17:08:19 -0700
 Subject: [PATCH v5 2/5] lib: Add zstd modules
 
 Add zstd compression and decompression kernel modules.
-zstd offers a wide varity of compression speed and quality trade-offs.
+zstd offers a wide variety of compression speed and quality trade-offs.
 It can compress at speeds approaching lz4, and quality approaching lzma.
 zstd decompressions at speeds more than twice as fast as zlib, and
 decompression speed remains roughly the same across all compression levels.
@@ -21,7 +21,7 @@ will be easier to keep the kernel zstd up to date.
 I benchmarked zstd compression as a special character device. I ran zstd
 and zlib compression at several levels, as well as performing no
 compression, which measure the time spent copying the data to kernel space.
-Data is passed to the compresser 4096 B at a time. The benchmark file is
+Data is passed to the compressor 4096 B at a time. The benchmark file is
 located in the upstream zstd source repository under
 `contrib/linux-kernel/zstd_compress_test.c` [2].
 
@@ -86,7 +86,7 @@ Tested in userland using the test-suite in the zstd repo under
 `contrib/linux-kernel/test/UserlandTest.cpp` [5] by mocking the kernel
 functions. Fuzz tested using libfuzzer [6] with the fuzz harnesses under
 `contrib/linux-kernel/test/{RoundTripCrash.c,DecompressCrash.c}` [7] [8]
-with ASAN, UBSAN, and MSAN. Additionaly, it was tested while testing the
+with ASAN, UBSAN, and MSAN. Additionally, it was tested while testing the
 BtrFS and SquashFS patches coming next.
 
 [1] https://clang.llvm.org/docs/ClangFormat.html
@@ -4200,14 +4200,14 @@ index 0000000..ff18ae6
 +	BYTE const windowLogByte = (BYTE)((params.cParams.windowLog - ZSTD_WINDOWLOG_ABSOLUTEMIN) << 3);
 +	U32 const fcsCode =
 +	    params.fParams.contentSizeFlag ? (pledgedSrcSize >= 256) + (pledgedSrcSize >= 65536 + 256) + (pledgedSrcSize >= 0xFFFFFFFFU) : 0; /* 0-3 */
-+	BYTE const frameHeaderDecriptionByte = (BYTE)(dictIDSizeCode + (checksumFlag << 2) + (singleSegment << 5) + (fcsCode << 6));
++	BYTE const frameHeaderDescriptionByte = (BYTE)(dictIDSizeCode + (checksumFlag << 2) + (singleSegment << 5) + (fcsCode << 6));
 +	size_t pos;
 +
 +	if (dstCapacity < ZSTD_frameHeaderSize_max)
 +		return ERROR(dstSize_tooSmall);
 +
 +	ZSTD_writeLE32(dst, ZSTD_MAGICNUMBER);
-+	op[4] = frameHeaderDecriptionByte;
++	op[4] = frameHeaderDescriptionByte;
 +	pos = 5;
 +	if (!singleSegment)
 +		op[pos++] = windowLogByte;
@@ -8812,8 +8812,8 @@ index 0000000..ef3d174
 +		U32 position = 0;
 +		U32 symbol;
 +		for (symbol = 0; symbol <= maxSymbolValue; symbol++) {
-+			int nbOccurences;
-+			for (nbOccurences = 0; nbOccurences < normalizedCounter[symbol]; nbOccurences++) {
++			int nbOccurrences;
++			for (nbOccurrences = 0; nbOccurrences < normalizedCounter[symbol]; nbOccurrences++) {
 +				tableSymbol[position] = (FSE_FUNCTION_TYPE)symbol;
 +				position = (position + step) & tableMask;
 +				while (position > highThreshold)
@@ -9944,7 +9944,7 @@ index 0000000..2143da2
 +	HUF_repeat_none,  /**< Cannot use the previous table */
 +	HUF_repeat_check, /**< Can use the previous table but it must be checked. Note : The previous table must have been constructed by HUF_compress{1,
 +			     4}X_repeat */
-+	HUF_repeat_valid  /**< Can use the previous table and it is asumed to be valid */
++	HUF_repeat_valid  /**< Can use the previous table and it is assumed to be valid */
 +} HUF_repeat;
 +/** HUF_compress4X_repeat() :
 +*   Same as HUF_compress4X_wksp(), but considers using hufTable if *repeat != HUF_repeat_none.

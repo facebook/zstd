@@ -178,7 +178,7 @@ matrix:
 
     # meson dedicated test
     - name: Xenial (Meson + clang)
-      env: ALLOW_FAILURES=true
+      # env: ALLOW_FAILURES=true
       dist: xenial
       language: cpp
       compiler: clang

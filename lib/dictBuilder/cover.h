@@ -51,7 +51,7 @@ typedef struct {
  * We will make sure that each epoch gets at least 10 * k bytes.
  *
  * The COVER algorithms divide the data up into epochs of equal size and
- * select one segemnt from each epoch.
+ * select one segment from each epoch.
  *
  * @param maxDictSize The maximum allowed dictionary size.
  * @param nbDmers     The number of dmers we are training on.

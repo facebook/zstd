@@ -38,7 +38,7 @@ extern "C" {
                                        It's not a big deal though : candidate will just be sorted again.
                                        Additionally, candidate position 1 will be lost.
                                        But candidate 1 cannot hide a large tree of candidates, so it's a minimal loss.
-                                       The benefit is that ZSTD_DUBT_UNSORTED_MARK cannot be misdhandled after table re-use with a different strategy
+                                       The benefit is that ZSTD_DUBT_UNSORTED_MARK cannot be mishandled after table re-use with a different strategy
                                        Constant required by ZSTD_compressBlock_btlazy2() and ZSTD_reduceTable_internal() */
 
 

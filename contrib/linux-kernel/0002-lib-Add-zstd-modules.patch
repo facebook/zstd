@@ -4,7 +4,7 @@ Date: Mon, 17 Jul 2017 17:08:19 -0700
 Subject: [PATCH v5 2/5] lib: Add zstd modules
 
 Add zstd compression and decompression kernel modules.
-zstd offers a wide varity of compression speed and quality trade-offs.
+zstd offers a wide variety of compression speed and quality trade-offs.
 It can compress at speeds approaching lz4, and quality approaching lzma.
 zstd decompressions at speeds more than twice as fast as zlib, and
 decompression speed remains roughly the same across all compression levels.

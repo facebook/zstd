@@ -885,7 +885,7 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
             /* large match -> immediate encoding */
             {   U32 const maxML = matches[nbMatches-1].len;
                 U32 const maxOffset = matches[nbMatches-1].off;
-                DEBUGLOG(6, "found %u matches of maxLength=%u and maxOffCode=%u at cPos=%u => start new serie",
+                DEBUGLOG(6, "found %u matches of maxLength=%u and maxOffCode=%u at cPos=%u => start new series",
                             nbMatches, maxML, maxOffset, (U32)(ip-prefixStart));
 
                 if (maxML > sufficient_len) {

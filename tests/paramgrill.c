@@ -1508,7 +1508,7 @@ createMemoTableArray(const paramValues_t p,
 }
 
 /* Sets pc to random unmeasured set of parameters */
-/* specifiy strategy */
+/* specify strategy */
 static void randomConstrainedParams(paramValues_t* pc, const memoTable_t* memoTableArray, const ZSTD_strategy st)
 {
     size_t j;

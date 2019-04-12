@@ -15,7 +15,7 @@
  */
 
 /* create fake symbol to avoid empty translation unit warning */
-int g_ZSTD_threading_useles_symbol;
+int g_ZSTD_threading_useless_symbol;
 
 #if defined(ZSTD_MULTITHREAD) && defined(_WIN32)
 

@@ -72,7 +72,7 @@ Command line tool to generate test .zst files.
 
 This tool will generate .zst files with checksums,
 as well as optionally output the corresponding correct uncompressed data for
-extra verfication.
+extra verification.
 
 Example:
 ```

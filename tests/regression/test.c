@@ -153,7 +153,7 @@ static void print_help(void) {
     }
 }
 
-/** Parse the arguments. Teturn 0 on success. Print help on failure. */
+/** Parse the arguments. Return 0 on success. Print help on failure. */
 static int parse_args(int argc, char** argv) {
     int option_index = 0;
     int c;

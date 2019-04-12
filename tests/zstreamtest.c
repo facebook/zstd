@@ -26,6 +26,7 @@
 #include <stdio.h>        /* fgets, sscanf */
 #include <string.h>       /* strcmp */
 #include <assert.h>       /* assert */
+#include "timefn.h"       /* UTIL_time_t, UTIL_getTime */
 #include "mem.h"
 #define ZSTD_STATIC_LINKING_ONLY  /* ZSTD_maxCLevel, ZSTD_customMem, ZSTD_getDictID_fromFrame */
 #include "zstd.h"         /* ZSTD_compressBound */

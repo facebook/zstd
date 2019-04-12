@@ -25,6 +25,7 @@
 #include <stdlib.h>       /* free */
 #include <stdio.h>        /* fgets, sscanf */
 #include <string.h>       /* strcmp */
+#include "timefn.h"       /* UTIL_time_t */
 #include "mem.h"
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_maxCLevel */
 #include "zstd.h"         /* ZSTD_compressBound */

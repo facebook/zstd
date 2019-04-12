@@ -2046,7 +2046,7 @@ void ZSTD_seqToCodes(const seqStore_t* seqStorePtr)
  * If x == 0: Return 0
  * Else: Return floor(-log2(x / 256) * 256)
  */
-static unsigned const kInverseProbabiltyLog256[256] = {
+static unsigned const kInverseProbabilityLog256[256] = {
     0,    2048, 1792, 1642, 1536, 1453, 1386, 1329, 1280, 1236, 1197, 1162,
     1130, 1100, 1073, 1047, 1024, 1001, 980,  960,  941,  923,  906,  889,
     874,  859,  844,  830,  817,  804,  791,  779,  768,  756,  745,  734,
@@ -2085,7 +2085,7 @@ static size_t ZSTD_entropyCost(unsigned const* count, unsigned const max, size_t
         if (count[s] != 0 && norm == 0)
             norm = 1;
         assert(count[s] < total);
-        cost += count[s] * kInverseProbabiltyLog256[norm];
+        cost += count[s] * kInverseProbabilityLog256[norm];
     }
     return cost >> 8;
 }
@@ -2108,7 +2108,7 @@ static size_t ZSTD_crossEntropyCost(short const* norm, unsigned accuracyLog,
         unsigned const norm256 = normAcc << shift;
         assert(norm256 > 0);
         assert(norm256 < 256);
-        cost += count[s] * kInverseProbabiltyLog256[norm256];
+        cost += count[s] * kInverseProbabilityLog256[norm256];
     }
     return cost >> 8;
 }

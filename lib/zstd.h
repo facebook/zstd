@@ -432,7 +432,7 @@ ZSTDLIB_API size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param
  *  Note 3 : Whenever all input data is provided and consumed in a single round,
  *           for example with ZSTD_compress2(),
  *           or invoking immediately ZSTD_compressStream2(,,,ZSTD_e_end),
- *           this value is automatically overriden by srcSize instead.
+ *           this value is automatically overridden by srcSize instead.
  */
 ZSTDLIB_API size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long long pledgedSrcSize);
 
@@ -1023,7 +1023,7 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 #define ZSTD_WINDOWLOG_LIMIT_DEFAULT 27   /* by default, the streaming decoder will refuse any frame
                                            * requiring larger than (1<<ZSTD_WINDOWLOG_LIMIT_DEFAULT) window size,
                                            * to preserve host's memory from unreasonable requirements.
-                                           * This limit can be overriden using ZSTD_DCtx_setParameter(,ZSTD_d_windowLogMax,).
+                                           * This limit can be overridden using ZSTD_DCtx_setParameter(,ZSTD_d_windowLogMax,).
                                            * The limit does not apply for one-pass decoders (such as ZSTD_decompress()), since no additional memory is allocated */
 
 

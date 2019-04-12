@@ -71,7 +71,7 @@ inflate with dictionary: hello, hello!
 The script used for compilation can be found at [zlibWrapper/Makefile](Makefile).
 
 
-#### The measurement of performace of Zstandard wrapper for zlib
+#### The measurement of performance of Zstandard wrapper for zlib
 
 The zstd distribution contains a tool called `zwrapbench` which can measure speed and ratio of zlib, zstd, and the wrapper.
 The benchmark is conducted using given filenames or synthetic data if filenames are not provided.

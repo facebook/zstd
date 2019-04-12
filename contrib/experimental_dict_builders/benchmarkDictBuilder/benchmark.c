@@ -194,7 +194,7 @@ double compressWithDict(sampleInfo *srcInfo, dictInfo* dInfo, int compressionLev
     totalCompressedSize += compressedSize;
   }
 
-  /* Sum orignal sizes */
+  /* Sum original sizes */
   for (i = 0; i<srcInfo->nbSamples; i++) {
     totalOriginalSize += srcInfo->samplesSizes[i];
   }

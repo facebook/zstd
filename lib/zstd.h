@@ -662,7 +662,7 @@ ZSTDLIB_API size_t ZSTD_CStreamOutSize(void);   /**< recommended size for output
 
 /*******************************************************************************
  * This is a legacy streaming API, and can be replaced by ZSTD_CCtx_reset() and
- * ZSTD_compressStream2(). It is redundent, but is still fully supported.
+ * ZSTD_compressStream2(). It is redundant, but is still fully supported.
  * Advanced parameters and dictionary compression can only be used through the
  * new API.
  ******************************************************************************/

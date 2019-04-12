@@ -107,7 +107,7 @@ int main(int argc, const char** argv)
         compressFile_orDie(ress, inFilename, outFilename);
     }
 
-    /* free momery */
+    /* free memory */
     freeResources(ress,outFilename);
 
     printf("compressed %i files \n", argc-1);

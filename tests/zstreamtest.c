@@ -770,7 +770,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
-    DISPLAYLEVEL(3, "test%3i : ZSTD_resetDStream() wtih dictionary : ", testNb++);
+    DISPLAYLEVEL(3, "test%3i : ZSTD_resetDStream() with dictionary : ", testNb++);
     {
         ZSTD_DCtx* dctx = ZSTD_createDCtx();
         /* We should succeed to decompress with the dictionary. */

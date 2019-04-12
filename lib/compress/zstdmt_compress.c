@@ -456,7 +456,7 @@ typedef struct {
      * Must be acquired after the main mutex when acquiring both.
      */
     ZSTD_pthread_mutex_t ldmWindowMutex;
-    ZSTD_pthread_cond_t ldmWindowCond;  /* Signaled when ldmWindow is udpated */
+    ZSTD_pthread_cond_t ldmWindowCond;  /* Signaled when ldmWindow is updated */
     ZSTD_window_t ldmWindow;  /* A thread-safe copy of ldmState.window */
 } serialState_t;
 
@@ -647,7 +647,7 @@ static void ZSTDMT_compressionJob(void* jobDescription)
     buffer_t dstBuff = job->dstBuff;
     size_t lastCBlockSize = 0;
 
-    /* ressources */
+    /* resources */
     if (cctx==NULL) JOB_ERROR(ERROR(memory_allocation));
     if (dstBuff.start == NULL) {   /* streaming job : doesn't provide a dstBuffer */
         dstBuff = ZSTDMT_getBuffer(job->bufPool);
@@ -1527,7 +1527,7 @@ size_t ZSTDMT_initCStream(ZSTDMT_CCtx* mtctx, int compressionLevel) {
 /* ZSTDMT_writeLastEmptyBlock()
  * Write a single empty block with an end-of-frame to finish a frame.
  * Job must be created from streaming variant.
- * This function is always successfull if expected conditions are fulfilled.
+ * This function is always successful if expected conditions are fulfilled.
  */
 static void ZSTDMT_writeLastEmptyBlock(ZSTDMT_jobDescription* job)
 {

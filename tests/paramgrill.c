@@ -1235,7 +1235,7 @@ static int createBuffersFromMemory(buffers_t* buff, void * srcBuffer, const size
     return 0;
 }
 
-/* allocates buffer's arguments. returns success / failuere */
+/* allocates buffer's arguments. returns success / failure */
 static int createBuffers(buffers_t* buff, const char* const * const fileNamesTable,
                           size_t nbFiles) {
     size_t pos = 0;
@@ -1508,7 +1508,7 @@ createMemoTableArray(const paramValues_t p,
 }
 
 /* Sets pc to random unmeasured set of parameters */
-/* specifiy strategy */
+/* specify strategy */
 static void randomConstrainedParams(paramValues_t* pc, const memoTable_t* memoTableArray, const ZSTD_strategy st)
 {
     size_t j;
@@ -1573,7 +1573,7 @@ BMK_benchMemInvertible( buffers_t buf, contexts_t ctx,
     display_params_tested(*comprParams);
     memset(&bResult, 0, sizeof(bResult));
 
-    /* warmimg up memory */
+    /* warming up memory */
     for (i = 0; i < buf.nbBlocks; i++) {
         if (mode != BMK_decodeOnly) {
             RDG_genBuffer(dstPtrs[i], dstCapacities[i], 0.10, 0.50, 1);
@@ -1992,7 +1992,7 @@ BMK_selectRandomStart( FILE* f,
 
 /* BMK_generate_cLevelTable() :
  * test a large number of configurations
- * and distribute them accross compression levels according to speed conditions.
+ * and distribute them across compression levels according to speed conditions.
  * display and save all intermediate results into rfName = "grillResults.txt".
  * the function automatically stops after g_timeLimit_s.
  * this function cannot error, it directly exit() in case of problem.
@@ -2270,7 +2270,7 @@ static winnerInfo_t climbOnce(const constraint_t target,
 
 /* Optimizes for a fixed strategy */
 
-/* flexible parameters: iterations of failed climbing (or if we do non-random, maybe this is when everything is close to visitied)
+/* flexible parameters: iterations of failed climbing (or if we do non-random, maybe this is when everything is close to visited)
    weight more on visit for bad results, less on good results/more on later results / ones with more failures.
    allocate memoTable here.
  */

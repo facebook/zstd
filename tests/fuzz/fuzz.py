@@ -339,13 +339,13 @@ def build_parser(args):
     args = parse_env_flags(args, ' '.join(
         [args.cppflags, args.cflags, args.cxxflags, args.ldflags]))
 
-    # Check option sanitiy
+    # Check option sanity
     if args.msan and (args.asan or args.ubsan):
         raise RuntimeError('MSAN may not be used with any other sanitizers')
     if args.msan_track_origins and not args.msan:
         raise RuntimeError('--enable-msan-track-origins requires MSAN')
     if args.ubsan_pointer_overflow and not args.ubsan:
-        raise RuntimeError('--enable-ubsan-pointer-overlow requires UBSAN')
+        raise RuntimeError('--enable-ubsan-pointer-overflow requires UBSAN')
     if args.sanitize_recover and not args.sanitize:
         raise RuntimeError('--enable-sanitize-recover but no sanitizers used')
 
@@ -623,7 +623,7 @@ def regression(args):
 
 def gen_parser(args):
     description = """
-    Generate a seed corpus appropiate for TARGET with data generated with
+    Generate a seed corpus appropriate for TARGET with data generated with
     decodecorpus.
     The fuzz inputs are prepended with a seed before the zstd data, so the
     output of decodecorpus shouldn't be used directly.

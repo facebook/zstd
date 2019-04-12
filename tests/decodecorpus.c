@@ -514,7 +514,7 @@ static size_t writeLiteralsBlockCompressed(U32* seed, frame_t* frame, size_t con
         if ((RAND(seed) & 3) || !frame->stats.hufInit) {
             do {
                 if (RAND(seed) & 3) {
-                    /* add 10 to ensure some compressability */
+                    /* add 10 to ensure some compressibility */
                     double const weight = ((RAND(seed) % 90) + 10) / 100.0;
 
                     DISPLAYLEVEL(5, "    distribution weight: %d%%\n",

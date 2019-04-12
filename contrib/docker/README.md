@@ -5,7 +5,7 @@ The `Dockerfile` script requires a version of `docker` >= 17.05
 
 ## Installing docker
 
-The officiel docker install docs use a ppa with a modern version available:
+The official docker install docs use a ppa with a modern version available:
 https://docs.docker.com/install/linux/docker-ce/ubuntu/
 
 ## How to run

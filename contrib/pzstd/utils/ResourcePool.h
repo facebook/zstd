@@ -54,7 +54,7 @@ class ResourcePool {
 
   /**
    * @returns  A unique pointer to a resource.  The resource is null iff
-   *           there are no avaiable resources and `factory()` returns null.
+   *           there are no available resources and `factory()` returns null.
    */
   UniquePtr get() {
     std::lock_guard<std::mutex> lock(mutex_);

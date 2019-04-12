@@ -3,7 +3,7 @@
 Contributions to the cmake build configurations are welcome. Please
 use case sensitivity that matches modern (ie. cmake version 2.6 and above)
 conventions of using lower-case for commands, and upper-case for
-varibles.
+variables.
 
 # CMake Style Recommendations
 

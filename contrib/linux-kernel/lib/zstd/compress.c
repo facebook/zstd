@@ -2436,14 +2436,14 @@ static size_t ZSTD_writeFrameHeader(void *dst, size_t dstCapacity, ZSTD_paramete
 	BYTE const windowLogByte = (BYTE)((params.cParams.windowLog - ZSTD_WINDOWLOG_ABSOLUTEMIN) << 3);
 	U32 const fcsCode =
 	    params.fParams.contentSizeFlag ? (pledgedSrcSize >= 256) + (pledgedSrcSize >= 65536 + 256) + (pledgedSrcSize >= 0xFFFFFFFFU) : 0; /* 0-3 */
-	BYTE const frameHeaderDecriptionByte = (BYTE)(dictIDSizeCode + (checksumFlag << 2) + (singleSegment << 5) + (fcsCode << 6));
+	BYTE const frameHeaderDescriptionByte = (BYTE)(dictIDSizeCode + (checksumFlag << 2) + (singleSegment << 5) + (fcsCode << 6));
 	size_t pos;
 
 	if (dstCapacity < ZSTD_frameHeaderSize_max)
 		return ERROR(dstSize_tooSmall);
 
 	ZSTD_writeLE32(dst, ZSTD_MAGICNUMBER);
-	op[4] = frameHeaderDecriptionByte;
+	op[4] = frameHeaderDescriptionByte;
 	pos = 5;
 	if (!singleSegment)
 		op[pos++] = windowLogByte;

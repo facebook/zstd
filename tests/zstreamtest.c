@@ -771,7 +771,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
-    DISPLAYLEVEL(3, "test%3i : ZSTD_resetDStream() wtih dictionary : ", testNb++);
+    DISPLAYLEVEL(3, "test%3i : ZSTD_resetDStream() with dictionary : ", testNb++);
     {
         ZSTD_DCtx* dctx = ZSTD_createDCtx();
         /* We should succeed to decompress with the dictionary. */
@@ -1051,7 +1051,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         inBuff.size = srcSize; assert(srcSize < COMPRESSIBLE_NOISE_LENGTH);
         inBuff.pos = 0;
     }
-    {   ZSTD_compressionParameters const cParams = ZSTD_getCParams(1, 4 KB, dictionary.filled);   /* intentionnally lies on estimatedSrcSize, to push cdict into targeting a small window size */
+    {   ZSTD_compressionParameters const cParams = ZSTD_getCParams(1, 4 KB, dictionary.filled);   /* intentionally lies on estimatedSrcSize, to push cdict into targeting a small window size */
         ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dictionary.start, dictionary.filled, ZSTD_dlm_byRef, ZSTD_dct_fullDict, cParams, ZSTD_defaultCMem);
         DISPLAYLEVEL(5, "cParams.windowLog = %u : ", cParams.windowLog);
         CHECK_Z( ZSTD_CCtx_refCDict(zc, cdict) );
@@ -2069,7 +2069,7 @@ static int fuzzerTests_newAPI(U32 seed, int nbTests, int startTest,
                     CHECK_Z( ZSTD_CCtx_setPledgedSrcSize(zc, pledgedSrcSize) );
                 }
 
-                /* multi-threading parameters. Only adjust ocassionally for small tests. */
+                /* multi-threading parameters. Only adjust occasionally for small tests. */
                 if (bigTests || (FUZ_rand(&lseed) & 0xF) == 0xF) {
                     U32 const nbThreadsCandidate = (FUZ_rand(&lseed) & 4) + 1;
                     U32 const nbThreadsAdjusted = (windowLogMalus < nbThreadsCandidate) ? nbThreadsCandidate - windowLogMalus : 1;

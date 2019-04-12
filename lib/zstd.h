@@ -432,7 +432,7 @@ ZSTDLIB_API size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param
  *  Note 3 : Whenever all input data is provided and consumed in a single round,
  *           for example with ZSTD_compress2(),
  *           or invoking immediately ZSTD_compressStream2(,,,ZSTD_e_end),
- *           this value is automatically overriden by srcSize instead.
+ *           this value is automatically overridden by srcSize instead.
  */
 ZSTDLIB_API size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long long pledgedSrcSize);
 
@@ -635,8 +635,8 @@ typedef enum {
  *  Behaves about the same as ZSTD_compressStream, with additional control on end directive.
  *  - Compression parameters are pushed into CCtx before starting compression, using ZSTD_CCtx_set*()
  *  - Compression parameters cannot be changed once compression is started (save a list of exceptions in multi-threading mode)
- *  - outpot->pos must be <= dstCapacity, input->pos must be <= srcSize
- *  - outpot->pos and input->pos will be updated. They are guaranteed to remain below their respective limit.
+ *  - output->pos must be <= dstCapacity, input->pos must be <= srcSize
+ *  - output->pos and input->pos will be updated. They are guaranteed to remain below their respective limit.
  *  - When nbWorkers==0 (default), function is blocking : it completes its job before returning to caller.
  *  - When nbWorkers>=1, function is non-blocking : it just acquires a copy of input, and distributes jobs to internal worker threads, flush whatever is available,
  *                                                  and then immediately returns, just indicating that there is some data remaining to be flushed.
@@ -662,7 +662,7 @@ ZSTDLIB_API size_t ZSTD_CStreamOutSize(void);   /**< recommended size for output
 
 /*******************************************************************************
  * This is a legacy streaming API, and can be replaced by ZSTD_CCtx_reset() and
- * ZSTD_compressStream2(). It is redundent, but is still fully supported.
+ * ZSTD_compressStream2(). It is redundant, but is still fully supported.
  * Advanced parameters and dictionary compression can only be used through the
  * new API.
  ******************************************************************************/
@@ -1023,7 +1023,7 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 #define ZSTD_WINDOWLOG_LIMIT_DEFAULT 27   /* by default, the streaming decoder will refuse any frame
                                            * requiring larger than (1<<ZSTD_WINDOWLOG_LIMIT_DEFAULT) window size,
                                            * to preserve host's memory from unreasonable requirements.
-                                           * This limit can be overriden using ZSTD_DCtx_setParameter(,ZSTD_d_windowLogMax,).
+                                           * This limit can be overridden using ZSTD_DCtx_setParameter(,ZSTD_d_windowLogMax,).
                                            * The limit does not apply for one-pass decoders (such as ZSTD_decompress()), since no additional memory is allocated */
 
 

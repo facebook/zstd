@@ -3633,7 +3633,7 @@ size_t ZSTDv07_execSequence(BYTE* op,
     if (sequence.offset < 8) {
         /* close range match, overlap */
         static const U32 dec32table[] = { 0, 1, 2, 1, 4, 4, 4, 4 };   /* added */
-        static const int dec64table[] = { 8, 8, 8, 7, 8, 9,10,11 };   /* substracted */
+        static const int dec64table[] = { 8, 8, 8, 7, 8, 9,10,11 };   /* subtracted */
         int const sub2 = dec64table[sequence.offset];
         op[0] = match[0];
         op[1] = match[1];

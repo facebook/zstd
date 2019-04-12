@@ -1060,7 +1060,7 @@ FIO_compressZstdFrame(FIO_prefs_t* const prefs,
                         /* test if compression is blocked
                          * either because output is slow and all buffers are full
                          * or because input is slow and no job can start while waiting for at least one buffer to be filled.
-                         * note : excluse starting part, since currentJobID > 1 */
+                         * note : exclude starting part, since currentJobID > 1 */
                         if ( (zfp.consumed == previous_zfp_update.consumed)   /* no data compressed : no data available, or no more buffer to compress to, OR compression is really slow (compression of a single block is slower than update rate)*/
                           && (zfp.nbActiveWorkers == 0)                       /* confirmed : no compression ongoing */
                           ) {

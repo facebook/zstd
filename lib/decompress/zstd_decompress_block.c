@@ -801,7 +801,7 @@ ZSTD_updateFseState(ZSTD_fseState* DStatePtr, BIT_DStream_t* bitD)
 /* We need to add at most (ZSTD_WINDOWLOG_MAX_32 - 1) bits to read the maximum
  * offset bits. But we can only read at most (STREAM_ACCUMULATOR_MIN_32 - 1)
  * bits before reloading. This value is the maximum number of bytes we read
- * after reloading when we are decoding long offets.
+ * after reloading when we are decoding long offsets.
  */
 #define LONG_OFFSETS_MAX_EXTRA_BITS_32                       \
     (ZSTD_WINDOWLOG_MAX_32 > STREAM_ACCUMULATOR_MIN_32       \
@@ -1180,7 +1180,7 @@ ZSTD_decompressSequences(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize,
 /* ZSTD_decompressSequencesLong() :
  * decompression function triggered when a minimum share of offsets is considered "long",
  * aka out of cache.
- * note : "long" definition seems overloaded here, sometimes meaning "wider than bitstream register", and sometimes mearning "farther than memory cache distance".
+ * note : "long" definition seems overloaded here, sometimes meaning "wider than bitstream register", and sometimes meaning "farther than memory cache distance".
  * This function will try to mitigate main memory latency through the use of prefetching */
 static size_t
 ZSTD_decompressSequencesLong(ZSTD_DCtx* dctx,

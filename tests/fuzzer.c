@@ -909,7 +909,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         CHECK_EQ(value, 5);
         CHECK( ZSTD_CCtxParams_getParameter(params, ZSTD_c_jobSize, &value) );
         CHECK_EQ(value, 2 MB);
-        /* Set the number of worksers and check the overlap log and job size. */
+        /* Set the number of workers and check the overlap log and job size. */
         CHECK( ZSTD_CCtxParams_setParameter(params, ZSTD_c_nbWorkers, 2) );
         CHECK( ZSTD_CCtxParams_getParameter(params, ZSTD_c_overlapLog, &value) );
         CHECK_EQ(value, 5);

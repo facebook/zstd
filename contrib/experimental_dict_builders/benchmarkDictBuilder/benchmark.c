@@ -127,7 +127,7 @@ dictInfo* createDictFromFiles(sampleInfo *info, unsigned maxDictSize,
 
 
 /** compressWithDict() :
- *  Compress samples from sample buffer given dicionary stored on dictionary buffer and compression level
+ *  Compress samples from sample buffer given dictionary stored on dictionary buffer and compression level
  *  @return compression ratio
  */
 double compressWithDict(sampleInfo *srcInfo, dictInfo* dInfo, int compressionLevel, int displayLevel) {
@@ -194,7 +194,7 @@ double compressWithDict(sampleInfo *srcInfo, dictInfo* dInfo, int compressionLev
     totalCompressedSize += compressedSize;
   }
 
-  /* Sum orignal sizes */
+  /* Sum original sizes */
   for (i = 0; i<srcInfo->nbSamples; i++) {
     totalOriginalSize += srcInfo->samplesSizes[i];
   }

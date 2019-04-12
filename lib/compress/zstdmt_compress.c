@@ -647,7 +647,7 @@ static void ZSTDMT_compressionJob(void* jobDescription)
     buffer_t dstBuff = job->dstBuff;
     size_t lastCBlockSize = 0;
 
-    /* ressources */
+    /* resources */
     if (cctx==NULL) JOB_ERROR(ERROR(memory_allocation));
     if (dstBuff.start == NULL) {   /* streaming job : doesn't provide a dstBuffer */
         dstBuff = ZSTDMT_getBuffer(job->bufPool);

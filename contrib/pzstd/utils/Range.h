@@ -9,7 +9,7 @@
  
 /**
  * A subset of `folly/Range.h`.
- * All code copied verbatiam modulo formatting
+ * All code copied verbatim modulo formatting
  */
 #pragma once
 

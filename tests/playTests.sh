@@ -49,7 +49,7 @@ fileRoundTripTest() {
 }
 
 truncateLastByte() {
-	dd bs=1 count=$(($(wc -c < "$1") - 1)) if="$1" status=none
+	dd bs=1 count=$(($(wc -c < "$1") - 1)) if="$1"
 }
 
 UNAME=$(uname)
@@ -836,7 +836,7 @@ FULL_COMPRESSED_FILE=${TEST_DATA_FILE}.zst
 TRUNCATED_COMPRESSED_FILE=truncated-input.txt.zst
 ./datagen -g50000 > $TEST_DATA_FILE
 $ZSTD -f $TEST_DATA_FILE -o $FULL_COMPRESSED_FILE
-dd bs=1 count=100 if=$FULL_COMPRESSED_FILE of=$TRUNCATED_COMPRESSED_FILE status=none
+dd bs=1 count=100 if=$FULL_COMPRESSED_FILE of=$TRUNCATED_COMPRESSED_FILE
 $ZSTD --list $TRUNCATED_COMPRESSED_FILE && die "-l must fail on truncated file"
 
 rm $TEST_DATA_FILE

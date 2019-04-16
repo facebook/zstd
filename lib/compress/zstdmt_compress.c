@@ -874,6 +874,10 @@ ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced(unsigned nbWorkers, ZSTD_customMem cMem)
     int initError;
     DEBUGLOG(3, "ZSTDMT_createCCtx_advanced (nbWorkers = %u)", nbWorkers);
 
+#ifndef ZSTD_MULTITHREAD
+    return NULL;
+#endif
+
     if (nbWorkers < 1) return NULL;
     nbWorkers = MIN(nbWorkers , ZSTDMT_NBWORKERS_MAX);
     if ((cMem.customAlloc!=NULL) ^ (cMem.customFree!=NULL))

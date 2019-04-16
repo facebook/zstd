@@ -1,3 +1,40 @@
+v1.4.0
+perf: Improve level 1 compression speed in most scenarios by 6% by @gbtucker and @terrelln
+api: Move the advanced API, including all functions in the staging section, to the stable section
+api: Make ZSTD_e_flush and ZSTD_e_end block for maximum forward progress
+api: Rename ZSTD_CCtxParam_getParameter to ZSTD_CCtxParams_getParameter
+api: Rename ZSTD_CCtxParam_setParameter to ZSTD_CCtxParams_setParameter
+api: Don't export ZSTDMT functions from the shared library by default
+api: Require ZSTD_MULTITHREAD to be defined to use ZSTDMT
+api: Add ZSTD_decompressBound() to provide an upper bound on decompressed size by @shakeelrao
+api: Fix ZSTD_decompressDCtx() corner cases with a dictionary
+api: Move ZSTD_getDictID_*() functions to the stable section
+api: Add ZSTD_c_literalCompressionMode flag to enable or disable literal compression by @terrelln
+api: Allow compression parameters to be set when a dictionary is used
+api: Allow setting parameters before or after ZSTD_CCtx_loadDictionary() is called
+api: Fix ZSTD_estimateCStreamSize_usingCCtxParams()
+api: Setting ZSTD_d_maxWindowLog to 0 means use the default
+cli: Ensure that a dictionary is not used to compress itself by @shakeelrao
+cli: Add --[no-]compress-literals flag to enable or disable literal compression
+doc: Update the examples to use the advanced API
+doc: Explain how to transition from old streaming functions to the advanced API in the header
+build: Improve the Windows release packages
+build: Improve CMake build by @hjmjohnson
+build: Build fixes for FreeBSD by @lwhsu
+build: Remove redundant warnings by @thatsafunnyname
+build: Fix tests on OpenBSD by @bket
+build: Extend fuzzer build system to work with the new clang engine
+build: CMake now creates the libzstd.so.1 symlink
+build: Improve Menson build by @lzutao
+misc: Fix symbolic link detection on FreeBSD
+misc: Use physical core count for -T0 on FreeBSD by @cemeyer
+misc: Fix zstd --list on truncated files by @kostmo
+misc: Improve logging in debug mode by @felixhandte
+misc: Add CirrusCI tests by @lwhsu
+misc: Optimize dictionary memory usage in corner cases
+misc: Improve the dictionary builder on small or homogeneous data
+misc: Fix spelling across the repo by @jsoref
+
 v1.3.8
 perf: better decompression speed on large files (+7%) and cold dictionaries (+15%)
 perf: slightly better compression ratio at high compression modes
@@ -239,7 +276,7 @@ v1.0.0
 Change Licensing, all project is now BSD, Copyright Facebook
 Small decompression speed improvement
 API : Streaming API supports legacy format
-API : ZDICT_getDictID(), ZSTD_sizeof_{CCtx, DCtx, CStream, DStream}(), ZSTD_setDStreamParamter()
+API : ZDICT_getDictID(), ZSTD_sizeof_{CCtx, DCtx, CStream, DStream}(), ZSTD_setDStreamParameter()
 CLI supports legacy formats v0.4+
 Fixed : compression fails on certain huge files, reported by Jesse McGrew
 Enhanced documentation, by Przemyslaw Skibinski

@@ -51,7 +51,7 @@ endif
 CFLAGS  ?= -O3
 DEBUGFLAGS+=-Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
             -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
-            -Wstrict-prototypes -Wundef -Wpointer-arith -Wformat-security \
+            -Wstrict-prototypes -Wundef -Wpointer-arith \
             -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings \
             -Wredundant-decls -Wmissing-prototypes -Wc++-compat
 CFLAGS  += $(DEBUGFLAGS) $(MOREFLAGS)
@@ -165,7 +165,7 @@ $(ZSTDDECOMP_O): CFLAGS += $(ALIGN_LOOP)
 zstd : CPPFLAGS += $(THREAD_CPP) $(ZLIBCPP) $(LZMACPP) $(LZ4CPP)
 zstd : LDFLAGS += $(THREAD_LD) $(ZLIBLD) $(LZMALD) $(LZ4LD) $(DEBUGFLAGS_LD)
 zstd : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
-zstd : $(ZSTDLIB_FILES) zstdcli.o util.o fileio.o benchfn.o benchzstd.o datagen.o dibio.o
+zstd : $(ZSTDLIB_FILES) zstdcli.o util.o timefn.o fileio.o benchfn.o benchzstd.o datagen.o dibio.o
 	@echo "$(THREAD_MSG)"
 	@echo "$(ZLIB_MSG)"
 	@echo "$(LZMA_MSG)"
@@ -183,13 +183,13 @@ zstd-release: zstd
 zstd32 : CPPFLAGS += $(THREAD_CPP)
 zstd32 : LDFLAGS  += $(THREAD_LD)
 zstd32 : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
-zstd32 : $(ZSTDLIB_FILES) zstdcli.c util.c fileio.c benchfn.c benchzstd.c datagen.c dibio.c
+zstd32 : $(ZSTDLIB_FILES) zstdcli.c util.c timefn.c fileio.c benchfn.c benchzstd.c datagen.c dibio.c
 ifneq (,$(filter Windows%,$(OS)))
 	windres/generate_res.bat
 endif
 	$(CC) -m32 $(FLAGS) $^ $(RES32_FILE) -o $@$(EXT)
 
-zstd-nolegacy : $(ZSTD_FILES) $(ZDICT_FILES) zstdcli.o util.o fileio.c benchfn.o benchzstd.o datagen.o dibio.o
+zstd-nolegacy : $(ZSTD_FILES) $(ZDICT_FILES) zstdcli.o util.o fileio.c benchfn.o benchzstd.o timefn.o datagen.o dibio.o
 	$(CC) $(FLAGS) $^ -o $@$(EXT) $(LDFLAGS)
 
 zstd-nomt : THREAD_CPP :=
@@ -222,13 +222,13 @@ zstd-pgo :
 
 # minimal target, with only zstd compression and decompression. no bench. no legacy.
 zstd-small: CFLAGS = -Os -s
-zstd-frugal zstd-small: $(ZSTD_FILES) zstdcli.c util.c fileio.c
+zstd-frugal zstd-small: $(ZSTD_FILES) zstdcli.c util.c timefn.c fileio.c
 	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT $^ -o $@$(EXT)
 
-zstd-decompress: $(ZSTDCOMMON_FILES) $(ZSTDDECOMP_FILES) zstdcli.c util.c fileio.c
+zstd-decompress: $(ZSTDCOMMON_FILES) $(ZSTDDECOMP_FILES) zstdcli.c util.c timefn.c fileio.c
 	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOCOMPRESS $^ -o $@$(EXT)
 
-zstd-compress: $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) zstdcli.c util.c fileio.c
+zstd-compress: $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) zstdcli.c util.c timefn.c fileio.c
 	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS $^ -o $@$(EXT)
 
 zstdmt: zstd
@@ -265,9 +265,9 @@ man: zstd.1 zstdgrep.1 zstdless.1
 
 .PHONY: clean-man
 clean-man:
-	rm zstd.1
-	rm zstdgrep.1
-	rm zstdless.1
+	$(RM) zstd.1
+	$(RM) zstdgrep.1
+	$(RM) zstdless.1
 
 .PHONY: preview-man
 preview-man: clean-man man

@@ -71,7 +71,7 @@ inflate with dictionary: hello, hello!
 The script used for compilation can be found at [zlibWrapper/Makefile](Makefile).
 
 
-#### The measurement of performace of Zstandard wrapper for zlib
+#### The measurement of performance of Zstandard wrapper for zlib
 
 The zstd distribution contains a tool called `zwrapbench` which can measure speed and ratio of zlib, zstd, and the wrapper.
 The benchmark is conducted using given filenames or synthetic data if filenames are not provided.
@@ -96,8 +96,8 @@ as this case is automatically detected.
 #### Reusing contexts
 
 The ordinary zlib compression of two files/streams allocates two contexts:
-- for the 1st file calls `deflateInit`, `deflate`, `...`, `deflate`, `defalateEnd`
-- for the 2nd file calls `deflateInit`, `deflate`, `...`, `deflate`, `defalateEnd`
+- for the 1st file calls `deflateInit`, `deflate`, `...`, `deflate`, `deflateEnd`
+- for the 2nd file calls `deflateInit`, `deflate`, `...`, `deflate`, `deflateEnd`
 
 The speed of compression can be improved with reusing a single context with following steps:
 - initialize the context with `deflateInit`

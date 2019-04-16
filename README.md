@@ -14,6 +14,7 @@ a list of known ports and bindings is provided on [Zstandard homepage](http://ww
 [![Build Status][travisDevBadge]][travisLink]
 [![Build status][AppveyorDevBadge]][AppveyorLink]
 [![Build status][CircleDevBadge]][CircleLink]
+[![Build status][CirrusDevBadge]][CirrusLink]
 
 [travisDevBadge]: https://travis-ci.org/facebook/zstd.svg?branch=dev "Continuous Integration test suite"
 [travisLink]: https://travis-ci.org/facebook/zstd
@@ -21,14 +22,16 @@ a list of known ports and bindings is provided on [Zstandard homepage](http://ww
 [AppveyorLink]: https://ci.appveyor.com/project/YannCollet/zstd-p0yf0
 [CircleDevBadge]: https://circleci.com/gh/facebook/zstd/tree/dev.svg?style=shield "Short test suite"
 [CircleLink]: https://circleci.com/gh/facebook/zstd
+[CirrusDevBadge]: https://api.cirrus-ci.com/github/facebook/zstd.svg?branch=dev
+[CirrusLink]: https://cirrus-ci.com/github/facebook/zstd
 
 ## Benchmarks
 
 For reference, several fast compression algorithms were tested and compared
-on a server running Linux Debian (`Linux version 4.14.0-3-amd64`),
-with a Core i7-6700K CPU @ 4.0GHz,
+on a server running Arch Linux (`Linux version 5.0.5-arch1-1`),
+with a Core i9-9900K CPU @ 5.0GHz,
 using [lzbench], an open-source in-memory benchmark by @inikep
-compiled with [gcc] 7.3.0,
+compiled with [gcc] 8.2.1,
 on the [Silesia compression corpus].
 
 [lzbench]: https://github.com/inikep/lzbench
@@ -37,14 +40,14 @@ on the [Silesia compression corpus].
 
 | Compressor name         | Ratio | Compression| Decompress.|
 | ---------------         | ------| -----------| ---------- |
-| **zstd 1.3.4 -1**       | 2.877 |   470 MB/s |  1380 MB/s |
-| zlib 1.2.11 -1          | 2.743 |   110 MB/s |   400 MB/s |
-| brotli 1.0.2 -0         | 2.701 |   410 MB/s |   430 MB/s |
-| quicklz 1.5.0 -1        | 2.238 |   550 MB/s |   710 MB/s |
-| lzo1x 2.09 -1           | 2.108 |   650 MB/s |   830 MB/s |
-| lz4 1.8.1               | 2.101 |   750 MB/s |  3700 MB/s |
-| snappy 1.1.4            | 2.091 |   530 MB/s |  1800 MB/s |
-| lzf 3.6 -1              | 2.077 |   400 MB/s |   860 MB/s |
+| **zstd 1.4.0 -1**       | 2.884 |   530 MB/s |  1360 MB/s |
+| zlib 1.2.11 -1          | 2.743 |   110 MB/s |   440 MB/s |
+| brotli 1.0.7 -0         | 2.701 |   430 MB/s |   470 MB/s |
+| quicklz 1.5.0 -1        | 2.238 |   600 MB/s |   800 MB/s |
+| lzo1x 2.09 -1           | 2.106 |   680 MB/s |   950 MB/s |
+| lz4 1.8.3               | 2.101 |   800 MB/s |  4220 MB/s |
+| snappy 1.1.4            | 2.073 |   580 MB/s |  2020 MB/s |
+| lzf 3.6 -1              | 2.077 |   440 MB/s |   930 MB/s |
 
 [zlib]: http://www.zlib.net/
 [LZ4]: http://www.lz4.org/

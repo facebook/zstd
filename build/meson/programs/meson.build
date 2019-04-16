@@ -12,6 +12,7 @@ zstd_rootdir = '../../..'
 
 zstd_programs_sources = [join_paths(zstd_rootdir, 'programs/zstdcli.c'),
   join_paths(zstd_rootdir, 'programs/util.c'),
+  join_paths(zstd_rootdir, 'programs/timefn.c'),
   join_paths(zstd_rootdir, 'programs/fileio.c'),
   join_paths(zstd_rootdir, 'programs/benchfn.c'),
   join_paths(zstd_rootdir, 'programs/benchzstd.c'),
@@ -63,6 +64,7 @@ zstd = executable('zstd',
   install: true)
 
 zstd_frugal_sources = [join_paths(zstd_rootdir, 'programs/zstdcli.c'),
+  join_paths(zstd_rootdir, 'programs/timefn.c'),
   join_paths(zstd_rootdir, 'programs/util.c'),
   join_paths(zstd_rootdir, 'programs/fileio.c')]
 

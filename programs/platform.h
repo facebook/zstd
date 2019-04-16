@@ -87,8 +87,8 @@ extern "C" {
  * The following list of build macros tries to "guess" if target OS is likely unix-like, and therefore can #include <unistd.h>
  */
 #  elif !defined(_WIN32) \
-     && (defined(__unix__) || defined(__unix) \
-     || defined(__midipix__) || defined(__VMS) || defined(__HAIKU__))
+     && ( defined(__unix__) || defined(__unix) \
+       || defined(__midipix__) || defined(__VMS) || defined(__HAIKU__) )
 
 #    if defined(__linux__) || defined(__linux)
 #      ifndef _POSIX_C_SOURCE
@@ -107,6 +107,7 @@ extern "C" {
 #  endif
 
 #endif   /* PLATFORM_POSIX_VERSION */
+
 
 /*-*********************************************
 *  Detect if isatty() and fileno() are available

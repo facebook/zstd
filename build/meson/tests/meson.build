@@ -40,6 +40,7 @@ datagen = executable('datagen',
 
 fullbench_sources = [join_paths(zstd_rootdir, 'programs/datagen.c'),
   join_paths(zstd_rootdir, 'programs/util.c'),
+  join_paths(zstd_rootdir, 'programs/timefn.c'),
   join_paths(zstd_rootdir, 'programs/benchfn.c'),
   join_paths(zstd_rootdir, 'programs/benchzstd.c'),
   join_paths(zstd_rootdir, 'tests/fullbench.c')]
@@ -51,6 +52,7 @@ fullbench = executable('fullbench',
 
 fuzzer_sources = [join_paths(zstd_rootdir, 'programs/datagen.c'),
   join_paths(zstd_rootdir, 'programs/util.c'),
+  join_paths(zstd_rootdir, 'programs/timefn.c'),
   join_paths(zstd_rootdir, 'tests/fuzzer.c')]
 fuzzer = executable('fuzzer',
   fuzzer_sources,
@@ -60,6 +62,7 @@ fuzzer = executable('fuzzer',
 
 zbufftest_sources = [join_paths(zstd_rootdir, 'programs/datagen.c'),
   join_paths(zstd_rootdir, 'programs/util.c'),
+  join_paths(zstd_rootdir, 'programs/timefn.c'),
   join_paths(zstd_rootdir, 'tests/zbufftest.c')]
 zbufftest = executable('zbufftest',
   zbufftest_sources,
@@ -70,6 +73,7 @@ zbufftest = executable('zbufftest',
 
 zstreamtest_sources = [join_paths(zstd_rootdir, 'programs/datagen.c'),
   join_paths(zstd_rootdir, 'programs/util.c'),
+  join_paths(zstd_rootdir, 'programs/timefn.c'),
   join_paths(zstd_rootdir, 'tests/seqgen.c'),
   join_paths(zstd_rootdir, 'tests/zstreamtest.c')]
 zstreamtest = executable('zstreamtest',
@@ -79,6 +83,7 @@ zstreamtest = executable('zstreamtest',
   install: false)
 
 paramgrill_sources = [join_paths(zstd_rootdir, 'programs/benchfn.c'),
+  join_paths(zstd_rootdir, 'programs/timefn.c'),
   join_paths(zstd_rootdir, 'programs/benchzstd.c'),
   join_paths(zstd_rootdir, 'programs/datagen.c'),
   join_paths(zstd_rootdir, 'programs/util.c'),
@@ -116,6 +121,7 @@ legacy = executable('legacy',
   install: false)
 
 decodecorpus_sources = [join_paths(zstd_rootdir, 'programs/util.c'),
+  join_paths(zstd_rootdir, 'programs/timefn.c'),
   join_paths(zstd_rootdir, 'tests/decodecorpus.c')]
 decodecorpus = executable('decodecorpus',
   decodecorpus_sources,
@@ -132,6 +138,7 @@ symbols = executable('symbols',
   install: false)
 
 poolTests_sources = [join_paths(zstd_rootdir, 'programs/util.c'),
+  join_paths(zstd_rootdir, 'programs/timefn.c'),
   join_paths(zstd_rootdir, 'tests/poolTests.c'),
   join_paths(zstd_rootdir, 'lib/common/pool.c'),
   join_paths(zstd_rootdir, 'lib/common/threading.c'),

@@ -72,7 +72,7 @@ Command line tool to generate test .zst files.
 
 This tool will generate .zst files with checksums,
 as well as optionally output the corresponding correct uncompressed data for
-extra verfication.
+extra verification.
 
 Example:
 ```
@@ -123,7 +123,7 @@ Full list of arguments
                     Higher values will make optimizer run longer, more chances to find better solution.
     memLog    : Limits the log of the size of each memotable (1 per strategy). Will use hash tables when state space is larger than max size.
                     Setting memLog = 0 turns off memoization
- --display=   : specifiy which parameters are included in the output
+ --display=   : specify which parameters are included in the output
                     can use all --zstd parameter names and 'cParams' as a shorthand for all parameters used in ZSTD_compressionParameters
                     (Default: display all params available)
  -P#          : generated sample compressibility (when no file is provided)

@@ -8,13 +8,11 @@
  * You may select, at your option, one of the above-listed licenses.
  */
 
-#include <stdlib.h>    // malloc, free, exit
-#include <stdio.h>     // fprintf, perror, fopen, etc.
-#include <string.h>    // strlen, strcat, memset, strerror
-#include <errno.h>     // errno
-#include <sys/stat.h>  // stat
+#include <stdio.h>     // printf
+#include <stdlib.h>    // free
+#include <string.h>    // strlen, strcat, memset
 #include <zstd.h>      // presumes zstd library is installed
-#include "utils.h"
+#include "common.h"    // Helper functions, CHECK(), and CHECK_ZSTD()
 
 static void compress_orDie(const char* fname, const char* oname)
 {
@@ -23,11 +21,12 @@ static void compress_orDie(const char* fname, const char* oname)
     size_t const cBuffSize = ZSTD_compressBound(fSize);
     void* const cBuff = malloc_orDie(cBuffSize);
 
+    /* Compress.
+     * If you are doing many compressions, you may want to reuse the context.
+     * See the multiple_simple_compression.c example.
+     */
     size_t const cSize = ZSTD_compress(cBuff, cBuffSize, fBuff, fSize, 1);
-    if (ZSTD_isError(cSize)) {
-        fprintf(stderr, "error compressing %s : %s \n", fname, ZSTD_getErrorName(cSize));
-        exit(8);
-    }
+    CHECK_ZSTD(cSize);
 
     saveFile_orDie(oname, cBuff, cSize);
 

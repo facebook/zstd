@@ -12,8 +12,8 @@ __`zstd_compression_format.md`__ : This document defines the Zstandard compressi
 Compliant decoders must adhere to this document,
 and compliant encoders must generate data that follows it.
 
-Should you look for ressources to develop your own port of Zstandard algorithm,
-you may find the following ressources useful :
+Should you look for resources to develop your own port of Zstandard algorithm,
+you may find the following resources useful :
 
 __`educational_decoder`__ : This directory contains an implementation of a Zstandard decoder,
 compliant with the Zstandard compression format.

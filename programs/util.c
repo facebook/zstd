@@ -87,6 +87,23 @@ U32 UTIL_isDirectory(const char* infilename)
     return 0;
 }
 
+int UTIL_isSameFile(const char* file1, const char* file2)
+{
+#if defined(_MSC_VER)
+    /* note : Visual does not support file identification by inode.
+     *        The following work-around is limited to detecting exact name repetition only,
+     *        aka `filename` is considered different from `subdir/../filename` */
+    return !strcmp(file1, file2);
+#else
+    stat_t file1Stat;
+    stat_t file2Stat;
+    return UTIL_getFileStat(file1, &file1Stat)
+        && UTIL_getFileStat(file2, &file2Stat)
+        && (file1Stat.st_dev == file2Stat.st_dev)
+        && (file1Stat.st_ino == file2Stat.st_ino);
+#endif
+}
+
 U32 UTIL_isLink(const char* infilename)
 {
 /* macro guards, as defined in : https://linux.die.net/man/2/lstat */
@@ -95,7 +112,9 @@ U32 UTIL_isLink(const char* infilename)
     || (defined(_XOPEN_SOURCE) && (_XOPEN_SOURCE >= 500)) \
     || (defined(_XOPEN_SOURCE) && defined(_XOPEN_SOURCE_EXTENDED)) \
     || (defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE >= 200112L)) \
-    || (defined(__APPLE__) && defined(__MACH__))
+    || (defined(__APPLE__) && defined(__MACH__)) \
+    || defined(__OpenBSD__) \
+    || defined(__FreeBSD__)
     int r;
     stat_t statbuf;
     r = lstat(infilename, &statbuf);
@@ -333,146 +352,18 @@ UTIL_createFileList(const char **inputNames, unsigned inputNamesNb,
     return fileTable;
 }
 
+
 /*-****************************************
 *  Console log
 ******************************************/
 int g_utilDisplayLevel;
 
 
+
 /*-****************************************
-*  Time functions
+*  count the number of physical cores
 ******************************************/
-#if defined(_WIN32)   /* Windows */
 
-UTIL_time_t UTIL_getTime(void) { UTIL_time_t x; QueryPerformanceCounter(&x); return x; }
-
-U64 UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd)
-{
-    static LARGE_INTEGER ticksPerSecond;
-    static int init = 0;
-    if (!init) {
-        if (!QueryPerformanceFrequency(&ticksPerSecond))
-            UTIL_DISPLAYLEVEL(1, "ERROR: QueryPerformanceFrequency() failure\n");
-        init = 1;
-    }
-    return 1000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart;
-}
-
-U64 UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd)
-{
-    static LARGE_INTEGER ticksPerSecond;
-    static int init = 0;
-    if (!init) {
-        if (!QueryPerformanceFrequency(&ticksPerSecond))
-            UTIL_DISPLAYLEVEL(1, "ERROR: QueryPerformanceFrequency() failure\n");
-        init = 1;
-    }
-    return 1000000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart;
-}
-
-#elif defined(__APPLE__) && defined(__MACH__)
-
-UTIL_time_t UTIL_getTime(void) { return mach_absolute_time(); }
-
-U64 UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd)
-{
-    static mach_timebase_info_data_t rate;
-    static int init = 0;
-    if (!init) {
-        mach_timebase_info(&rate);
-        init = 1;
-    }
-    return (((clockEnd - clockStart) * (U64)rate.numer) / ((U64)rate.denom))/1000ULL;
-}
-
-U64 UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd)
-{
-    static mach_timebase_info_data_t rate;
-    static int init = 0;
-    if (!init) {
-        mach_timebase_info(&rate);
-        init = 1;
-    }
-    return ((clockEnd - clockStart) * (U64)rate.numer) / ((U64)rate.denom);
-}
-
-#elif (PLATFORM_POSIX_VERSION >= 200112L) \
-   && (defined(__UCLIBC__)                \
-      || (defined(__GLIBC__)              \
-          && ((__GLIBC__ == 2 && __GLIBC_MINOR__ >= 17) \
-             || (__GLIBC__ > 2))))
-
-UTIL_time_t UTIL_getTime(void)
-{
-    UTIL_time_t time;
-    if (clock_gettime(CLOCK_MONOTONIC, &time))
-        UTIL_DISPLAYLEVEL(1, "ERROR: Failed to get time\n");   /* we could also exit() */
-    return time;
-}
-
-UTIL_time_t UTIL_getSpanTime(UTIL_time_t begin, UTIL_time_t end)
-{
-    UTIL_time_t diff;
-    if (end.tv_nsec < begin.tv_nsec) {
-        diff.tv_sec = (end.tv_sec - 1) - begin.tv_sec;
-        diff.tv_nsec = (end.tv_nsec + 1000000000ULL) - begin.tv_nsec;
-    } else {
-        diff.tv_sec = end.tv_sec - begin.tv_sec;
-        diff.tv_nsec = end.tv_nsec - begin.tv_nsec;
-    }
-    return diff;
-}
-
-U64 UTIL_getSpanTimeMicro(UTIL_time_t begin, UTIL_time_t end)
-{
-    UTIL_time_t const diff = UTIL_getSpanTime(begin, end);
-    U64 micro = 0;
-    micro += 1000000ULL * diff.tv_sec;
-    micro += diff.tv_nsec / 1000ULL;
-    return micro;
-}
-
-U64 UTIL_getSpanTimeNano(UTIL_time_t begin, UTIL_time_t end)
-{
-    UTIL_time_t const diff = UTIL_getSpanTime(begin, end);
-    U64 nano = 0;
-    nano += 1000000000ULL * diff.tv_sec;
-    nano += diff.tv_nsec;
-    return nano;
-}
-
-#else   /* relies on standard C (note : clock_t measurements can be wrong when using multi-threading) */
-
-UTIL_time_t UTIL_getTime(void) { return clock(); }
-U64 UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC; }
-U64 UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC; }
-
-#endif
-
-/* returns time span in microseconds */
-U64 UTIL_clockSpanMicro(UTIL_time_t clockStart )
-{
-    UTIL_time_t const clockEnd = UTIL_getTime();
-    return UTIL_getSpanTimeMicro(clockStart, clockEnd);
-}
-
-/* returns time span in microseconds */
-U64 UTIL_clockSpanNano(UTIL_time_t clockStart )
-{
-    UTIL_time_t const clockEnd = UTIL_getTime();
-    return UTIL_getSpanTimeNano(clockStart, clockEnd);
-}
-
-void UTIL_waitForNextTick(void)
-{
-    UTIL_time_t const clockStart = UTIL_getTime();
-    UTIL_time_t clockEnd;
-    do {
-        clockEnd = UTIL_getTime();
-    } while (UTIL_getSpanTimeNano(clockStart, clockEnd) == 0);
-}
-
-/* count the number of physical cores */
 #if defined(_WIN32) || defined(WIN32)
 
 #include <windows.h>
@@ -640,10 +531,42 @@ failed:
     }
 }
 
-#elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+#elif defined(__FreeBSD__)
 
-/* Use apple-provided syscall
- * see: man 3 sysctl */
+#include <sys/param.h>
+#include <sys/sysctl.h>
+
+/* Use physical core sysctl when available
+ * see: man 4 smp, man 3 sysctl */
+int UTIL_countPhysicalCores(void)
+{
+    static int numPhysicalCores = 0; /* freebsd sysctl is native int sized */
+    if (numPhysicalCores != 0) return numPhysicalCores;
+
+#if __FreeBSD_version >= 1300008
+    {   size_t size = sizeof(numPhysicalCores);
+        int ret = sysctlbyname("kern.smp.cores", &numPhysicalCores, &size, NULL, 0);
+        if (ret == 0) return numPhysicalCores;
+        if (errno != ENOENT) {
+            perror("zstd: can't get number of physical cpus");
+            exit(1);
+        }
+        /* sysctl not present, fall through to older sysconf method */
+    }
+#endif
+
+    numPhysicalCores = (int)sysconf(_SC_NPROCESSORS_ONLN);
+    if (numPhysicalCores == -1) {
+        /* value not queryable, fall back on 1 */
+        numPhysicalCores = 1;
+    }
+    return numPhysicalCores;
+}
+
+#elif defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+
+/* Use POSIX sysconf
+ * see: man 3 sysconf */
 int UTIL_countPhysicalCores(void)
 {
     static int numPhysicalCores = 0;

@@ -13,7 +13,7 @@ CPPFLAGS += -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
 CFLAGS   ?= -O3
 CFLAGS   += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow                 \
             -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
-            -Wstrict-prototypes -Wundef -Wformat-security                   \
+            -Wstrict-prototypes -Wundef                                     \
             -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings      \
             -Wredundant-decls
 CFLAGS   += $(DEBUGFLAGS)
@@ -22,10 +22,10 @@ FLAGS     = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MULTITHREAD_LDFLAGS)
 
 all: adapt datagen
 
-adapt: $(ZSTD_FILES) $(PRGDIR)/util.c adapt.c
+adapt: $(ZSTD_FILES) $(PRGDIR)/util.c $(PRGDIR)/timefn.c adapt.c
 	$(CC) $(FLAGS) $^ -o $@
 
-adapt-debug: $(ZSTD_FILES) $(PRGDIR)/util.c adapt.c
+adapt-debug: $(ZSTD_FILES) $(PRGDIR)/util.c $(PRGDIR)/timefn.c adapt.c
 	$(CC) $(FLAGS) -DDEBUG_MODE=2 $^ -o adapt
 
 datagen : $(PRGDIR)/datagen.c datagencli.c

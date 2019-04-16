@@ -28,6 +28,7 @@
 #include <errno.h>
 #include <assert.h>      /* assert */
 
+#include "timefn.h"      /* UTIL_time_t */
 #include "benchfn.h"
 #include "mem.h"
 #define ZSTD_STATIC_LINKING_ONLY
@@ -135,7 +136,8 @@ BMK_advancedParams_t BMK_initAdvancedParams(void) {
         0, /* ldmMinMatch */
         0, /* ldmHashLog */
         0, /* ldmBuckSizeLog */
-        0  /* ldmHashRateLog */
+        0,  /* ldmHashRateLog */
+        ZSTD_lcm_auto /* literalCompressionMode */
     };
     return res;
 }
@@ -159,9 +161,13 @@ typedef struct {
 #define MIN(a,b)    ((a) < (b) ? (a) : (b))
 #define MAX(a,b)    ((a) > (b) ? (a) : (b))
 
-static void BMK_initCCtx(ZSTD_CCtx* ctx,
-    const void* dictBuffer, size_t dictBufferSize, int cLevel,
-    const ZSTD_compressionParameters* comprParams, const BMK_advancedParams_t* adv) {
+static void
+BMK_initCCtx(ZSTD_CCtx* ctx,
+            const void* dictBuffer, size_t dictBufferSize,
+            int cLevel,
+            const ZSTD_compressionParameters* comprParams,
+            const BMK_advancedParams_t* adv)
+{
     ZSTD_CCtx_reset(ctx, ZSTD_reset_session_and_parameters);
     if (adv->nbWorkers==1) {
         CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_nbWorkers, 0));
@@ -174,12 +180,13 @@ static void BMK_initCCtx(ZSTD_CCtx* ctx,
     CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_ldmHashLog, adv->ldmHashLog));
     CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_ldmBucketSizeLog, adv->ldmBucketSizeLog));
     CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_ldmHashRateLog, adv->ldmHashRateLog));
-    CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_windowLog, comprParams->windowLog));
-    CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_hashLog, comprParams->hashLog));
-    CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_chainLog, comprParams->chainLog));
-    CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_searchLog, comprParams->searchLog));
-    CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_minMatch, comprParams->minMatch));
-    CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_targetLength, comprParams->targetLength));
+    CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_windowLog, (int)comprParams->windowLog));
+    CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_hashLog, (int)comprParams->hashLog));
+    CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_chainLog, (int)comprParams->chainLog));
+    CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_searchLog, (int)comprParams->searchLog));
+    CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_minMatch, (int)comprParams->minMatch));
+    CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_targetLength, (int)comprParams->targetLength));
+    CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_literalCompressionMode, (int)adv->literalCompressionMode));
     CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_strategy, comprParams->strategy));
     CHECK_Z(ZSTD_CCtx_loadDictionary(ctx, dictBuffer, dictBufferSize));
 }
@@ -376,7 +383,7 @@ BMK_benchMemAdvancedNoAlloc(
         }
     }
 
-    /* warmimg up `compressedBuffer` */
+    /* warming up `compressedBuffer` */
     if (adv->mode == BMK_decodeOnly) {
         memcpy(compressedBuffer, srcBuffer, loadedCompressedSize);
     } else {
@@ -444,7 +451,7 @@ BMK_benchMemAdvancedNoAlloc(
                     cSize = cResult.sumOfReturn;
                     ratio = (double)srcSize / cSize;
                     {   BMK_benchResult_t newResult;
-                        newResult.cSpeed = ((U64)srcSize * TIMELOOP_NANOSEC / cResult.nanoSecPerRun);
+                        newResult.cSpeed = (U64)((double)srcSize * TIMELOOP_NANOSEC / cResult.nanoSecPerRun);
                         benchResult.cSize = cSize;
                         if (newResult.cSpeed > benchResult.cSpeed)
                             benchResult.cSpeed = newResult.cSpeed;
@@ -468,7 +475,7 @@ BMK_benchMemAdvancedNoAlloc(
                 }
 
                 {   BMK_runTime_t const dResult = BMK_extract_runTime(dOutcome);
-                    U64 const newDSpeed = (srcSize * TIMELOOP_NANOSEC / dResult.nanoSecPerRun);
+                    U64 const newDSpeed = (U64)((double)srcSize * TIMELOOP_NANOSEC / dResult.nanoSecPerRun);
                     if (newDSpeed > benchResult.dSpeed)
                         benchResult.dSpeed = newDSpeed;
                 }
@@ -505,17 +512,21 @@ BMK_benchMemAdvancedNoAlloc(
                         pos = (U32)(u - bacc);
                         bNb = pos / (128 KB);
                         DISPLAY("(sample %u, block %u, pos %u) \n", segNb, bNb, pos);
-                        if (u>5) {
-                            int n;
+                        {   size_t const lowest = (u>5) ? 5 : u;
+                            size_t n;
                             DISPLAY("origin: ");
-                            for (n=-5; n<0; n++) DISPLAY("%02X ", ((const BYTE*)srcBuffer)[u+n]);
+                            for (n=lowest; n>0; n--)
+                                DISPLAY("%02X ", ((const BYTE*)srcBuffer)[u-n]);
                             DISPLAY(" :%02X:  ", ((const BYTE*)srcBuffer)[u]);
-                            for (n=1; n<3; n++) DISPLAY("%02X ", ((const BYTE*)srcBuffer)[u+n]);
+                            for (n=1; n<3; n++)
+                                DISPLAY("%02X ", ((const BYTE*)srcBuffer)[u+n]);
                             DISPLAY(" \n");
                             DISPLAY("decode: ");
-                            for (n=-5; n<0; n++) DISPLAY("%02X ", resultBuffer[u+n]);
+                            for (n=lowest; n>0; n++)
+                                DISPLAY("%02X ", resultBuffer[u-n]);
                             DISPLAY(" :%02X:  ", resultBuffer[u]);
-                            for (n=1; n<3; n++) DISPLAY("%02X ", resultBuffer[u+n]);
+                            for (n=1; n<3; n++)
+                                DISPLAY("%02X ", resultBuffer[u+n]);
                             DISPLAY(" \n");
                         }
                         break;

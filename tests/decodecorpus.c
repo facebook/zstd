@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "util.h"
+#include "timefn.h"   /* UTIL_clockSpanMicro, SEC_TO_MICRO, UTIL_TIME_INITIALIZER */
 #include "zstd.h"
 #include "zstd_internal.h"
 #include "mem.h"
@@ -513,7 +514,7 @@ static size_t writeLiteralsBlockCompressed(U32* seed, frame_t* frame, size_t con
         if ((RAND(seed) & 3) || !frame->stats.hufInit) {
             do {
                 if (RAND(seed) & 3) {
-                    /* add 10 to ensure some compressability */
+                    /* add 10 to ensure some compressibility */
                     double const weight = ((RAND(seed) % 90) + 10) / 100.0;
 
                     DISPLAYLEVEL(5, "    distribution weight: %d%%\n",
@@ -938,7 +939,9 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
         FSE_CState_t  stateOffsetBits;
         FSE_CState_t  stateLitLength;
 
-        CHECK_E(BIT_initCStream(&blockStream, op, oend-op), dstSize_tooSmall); /* not enough space remaining */
+        RETURN_ERROR_IF(
+            ERR_isError(BIT_initCStream(&blockStream, op, oend-op)),
+            dstSize_tooSmall, "not enough space remaining");
 
         /* first symbols */
         FSE_initCState2(&stateMatchLength, CTable_MatchLength, mlCodeTable[nbSeq-1]);

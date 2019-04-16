@@ -90,6 +90,17 @@ static config_t mt_ldm = {
     .param_values = PARAM_VALUES(mt_ldm_param_values),
 };
 
+static param_value_t mt_advanced_param_values[] = {
+    {.param = ZSTD_c_nbWorkers, .value = 2},
+    {.param = ZSTD_c_literalCompressionMode, .value = ZSTD_lcm_uncompressed},
+};
+
+static config_t mt_advanced = {
+    .name = "multithreaded with advanced params",
+    .cli_args = "-T2 --no-compress-literals",
+    .param_values = PARAM_VALUES(mt_advanced_param_values),
+};
+
 static param_value_t const small_wlog_param_values[] = {
     {.param = ZSTD_c_windowLog, .value = 10},
 };
@@ -120,6 +131,39 @@ static config_t small_clog = {
     .name = "small chain log",
     .cli_args = "--zstd=clog=6,strat=7",
     .param_values = PARAM_VALUES(small_clog_param_values),
+};
+
+static param_value_t const uncompressed_literals_param_values[] = {
+    {.param = ZSTD_c_compressionLevel, .value = 3},
+    {.param = ZSTD_c_literalCompressionMode, .value = ZSTD_lcm_uncompressed},
+};
+
+static config_t uncompressed_literals = {
+    .name = "uncompressed literals",
+    .cli_args = "-3 --no-compress-literals",
+    .param_values = PARAM_VALUES(uncompressed_literals_param_values),
+};
+
+static param_value_t const uncompressed_literals_opt_param_values[] = {
+    {.param = ZSTD_c_compressionLevel, .value = 19},
+    {.param = ZSTD_c_literalCompressionMode, .value = ZSTD_lcm_uncompressed},
+};
+
+static config_t uncompressed_literals_opt = {
+    .name = "uncompressed literals optimal",
+    .cli_args = "-19 --no-compress-literals",
+    .param_values = PARAM_VALUES(uncompressed_literals_opt_param_values),
+};
+
+static param_value_t const huffman_literals_param_values[] = {
+    {.param = ZSTD_c_compressionLevel, .value = -1},
+    {.param = ZSTD_c_literalCompressionMode, .value = ZSTD_lcm_huffman},
+};
+
+static config_t huffman_literals = {
+    .name = "huffman literals",
+    .cli_args = "--fast=1 --compress-literals",
+    .param_values = PARAM_VALUES(huffman_literals_param_values),
 };
 
 static param_value_t const explicit_params_param_values[] = {
@@ -155,6 +199,10 @@ static config_t const* g_configs[] = {
     &small_hlog,
     &small_clog,
     &explicit_params,
+    &uncompressed_literals,
+    &uncompressed_literals_opt,
+    &huffman_literals,
+    &mt_advanced,
     NULL,
 };
 

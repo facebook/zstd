@@ -105,17 +105,18 @@ typedef enum {
 } BMK_mode_t;
 
 typedef struct {
-    BMK_mode_t mode;            /* 0: all, 1: compress only 2: decode only */
-    unsigned nbSeconds;         /* default timing is in nbSeconds */
-    size_t blockSize;           /* Maximum size of each block*/
-    unsigned nbWorkers;         /* multithreading */
-    unsigned realTime;          /* real time priority */
-    int additionalParam;        /* used by python speed benchmark */
-    unsigned ldmFlag;           /* enables long distance matching */
-    unsigned ldmMinMatch;       /* below: parameters for long distance matching, see zstd.1.md */
-    unsigned ldmHashLog;
-    unsigned ldmBucketSizeLog;
-    unsigned ldmHashRateLog;
+    BMK_mode_t mode;        /* 0: all, 1: compress only 2: decode only */
+    unsigned nbSeconds;     /* default timing is in nbSeconds */
+    size_t blockSize;       /* Maximum size of each block*/
+    int nbWorkers;          /* multithreading */
+    unsigned realTime;      /* real time priority */
+    int additionalParam;    /* used by python speed benchmark */
+    int ldmFlag;            /* enables long distance matching */
+    int ldmMinMatch;        /* below: parameters for long distance matching, see zstd.1.md */
+    int ldmHashLog;
+    int ldmBucketSizeLog;
+    int ldmHashRateLog;
+    ZSTD_literalCompressionMode_e literalCompressionMode;
 } BMK_advancedParams_t;
 
 /* returns default parameters used by nonAdvanced functions */
@@ -169,7 +170,7 @@ BMK_benchOutcome_t BMK_syntheticTest(
  *  comprParams - basic compression parameters
  *  dictBuffer - a dictionary if used, null otherwise
  *  dictBufferSize - size of dictBuffer, 0 otherwise
- *  diplayLevel - see BMK_benchFiles
+ *  displayLevel - see BMK_benchFiles
  *  displayName - name used by display
  * @return:
  *      a variant, which expresses either an error, or a valid result.

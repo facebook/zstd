@@ -132,7 +132,7 @@ typedef struct {
  *
  *     Score(S) = F(S_1) + F(S_2) + ... + F(S_{k-d+1})
  *
- * Once the dmer with hash value d is in the dictionay we set F(d) = 0.
+ * Once the dmer with hash value d is in the dictionary we set F(d) = 0.
  */
 static COVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
                                               U32 *freqs, U32 begin, U32 end,
@@ -161,7 +161,7 @@ static COVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
     /* Get hash value of current dmer */
     const size_t idx = FASTCOVER_hashPtrToIndex(ctx->samples + activeSegment.end, f, d);
 
-    /* Add frequency of this index to score if this is the first occurence of index in active segment */
+    /* Add frequency of this index to score if this is the first occurrence of index in active segment */
     if (segmentFreqs[idx] == 0) {
       activeSegment.score += freqs[idx];
     }
@@ -386,29 +386,35 @@ FASTCOVER_buildDictionary(const FASTCOVER_ctx_t* ctx,
 {
   BYTE *const dict = (BYTE *)dictBuffer;
   size_t tail = dictBufferCapacity;
-  /* Divide the data up into epochs of equal size.
-   * We will select at least one segment from each epoch.
-   */
-  const unsigned epochs = MAX(1, (U32)(dictBufferCapacity / parameters.k));
-  const unsigned epochSize = (U32)(ctx->nbDmers / epochs);
+  /* Divide the data into epochs. We will select one segment from each epoch. */
+  const COVER_epoch_info_t epochs = COVER_computeEpochs(
+      (U32)dictBufferCapacity, (U32)ctx->nbDmers, parameters.k, 1);
+  const size_t maxZeroScoreRun = 10;
+  size_t zeroScoreRun = 0;
   size_t epoch;
   DISPLAYLEVEL(2, "Breaking content into %u epochs of size %u\n",
-                epochs, epochSize);
+                (U32)epochs.num, (U32)epochs.size);
   /* Loop through the epochs until there are no more segments or the dictionary
    * is full.
    */
-  for (epoch = 0; tail > 0; epoch = (epoch + 1) % epochs) {
-    const U32 epochBegin = (U32)(epoch * epochSize);
-    const U32 epochEnd = epochBegin + epochSize;
+  for (epoch = 0; tail > 0; epoch = (epoch + 1) % epochs.num) {
+    const U32 epochBegin = (U32)(epoch * epochs.size);
+    const U32 epochEnd = epochBegin + epochs.size;
     size_t segmentSize;
     /* Select a segment */
     COVER_segment_t segment = FASTCOVER_selectSegment(
         ctx, freqs, epochBegin, epochEnd, parameters, segmentFreqs);
 
-    /* If the segment covers no dmers, then we are out of content */
+    /* If the segment covers no dmers, then we are out of content.
+     * There may be new content in other epochs, for continue for some time.
+     */
     if (segment.score == 0) {
-      break;
+      if (++zeroScoreRun >= maxZeroScoreRun) {
+          break;
+      }
+      continue;
     }
+    zeroScoreRun = 0;
 
     /* Trim the segment if necessary and if it is too small then we are done */
     segmentSize = MIN(segment.end - segment.begin + parameters.d - 1, tail);
@@ -564,6 +570,7 @@ ZDICT_trainFromBuffer_fastCover(void* dictBuffer, size_t dictBufferCapacity,
       DISPLAYLEVEL(1, "Failed to initialize context\n");
       return ERROR(GENERIC);
     }
+    COVER_warnOnSmallCorpus(dictBufferCapacity, ctx.nbDmers, g_displayLevel);
     /* Build the dictionary */
     DISPLAYLEVEL(2, "Building dictionary\n");
     {
@@ -616,6 +623,7 @@ ZDICT_optimizeTrainFromBuffer_fastCover(
     unsigned k;
     COVER_best_t best;
     POOL_ctx *pool = NULL;
+    int warned = 0;
     /* Checks */
     if (splitPoint <= 0 || splitPoint > 1) {
       LOCALDISPLAYLEVEL(displayLevel, 1, "Incorrect splitPoint\n");
@@ -663,6 +671,10 @@ ZDICT_optimizeTrainFromBuffer_fastCover(
         COVER_best_destroy(&best);
         POOL_free(pool);
         return ERROR(GENERIC);
+      }
+      if (!warned) {
+        COVER_warnOnSmallCorpus(dictBufferCapacity, ctx.nbDmers, displayLevel);
+        warned = 1;
       }
       /* Loop through k reusing the same context */
       for (k = kMinK; k <= kMaxK; k += kStepSize) {

@@ -22,6 +22,7 @@
 /* ======   Dependencies   ====== */
 #include <string.h>      /* memcpy, memset */
 #include <limits.h>      /* INT_MAX, UINT_MAX */
+#include "mem.h"         /* MEM_STATIC */
 #include "pool.h"        /* threadpool */
 #include "threading.h"   /* mutex */
 #include "zstd_compress_internal.h"  /* MIN, ERROR, ZSTD_*, ZSTD_highbit32 */
@@ -867,16 +868,12 @@ size_t ZSTDMT_CCtxParam_setNbWorkers(ZSTD_CCtx_params* params, unsigned nbWorker
     return ZSTD_CCtxParams_setParameter(params, ZSTD_c_nbWorkers, (int)nbWorkers);
 }
 
-ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced(unsigned nbWorkers, ZSTD_customMem cMem)
+MEM_STATIC ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced_internal(unsigned nbWorkers, ZSTD_customMem cMem)
 {
     ZSTDMT_CCtx* mtctx;
     U32 nbJobs = nbWorkers + 2;
     int initError;
     DEBUGLOG(3, "ZSTDMT_createCCtx_advanced (nbWorkers = %u)", nbWorkers);
-
-#ifndef ZSTD_MULTITHREAD
-    return NULL;
-#endif
 
     if (nbWorkers < 1) return NULL;
     nbWorkers = MIN(nbWorkers , ZSTDMT_NBWORKERS_MAX);
@@ -904,6 +901,17 @@ ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced(unsigned nbWorkers, ZSTD_customMem cMem)
     }
     DEBUGLOG(3, "mt_cctx created, for %u threads", nbWorkers);
     return mtctx;
+}
+
+ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced(unsigned nbWorkers, ZSTD_customMem cMem)
+{
+#ifdef ZSTD_MULTITHREAD
+    return ZSTDMT_createCCtx_advanced_internal(nbWorkers, cMem);
+#else
+    (void)nbWorkers;
+    (void)cMem;
+    return NULL;
+#endif
 }
 
 ZSTDMT_CCtx* ZSTDMT_createCCtx(unsigned nbWorkers)

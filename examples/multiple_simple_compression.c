@@ -8,13 +8,11 @@
  * You may select, at your option, one of the above-listed licenses.
  */
 
-#include <stdlib.h>    // malloc, free, exit
-#include <stdio.h>     // fprintf, perror, fopen, etc.
-#include <string.h>    // strlen, strcat, memset, strerror
-#include <errno.h>     // errno
-#include <sys/stat.h>  // stat
+#include <stdio.h>     // printf
+#include <stdlib.h>    // free
+#include <string.h>    // memcpy, strlen
 #include <zstd.h>      // presumes zstd library is installed
-#include "utils.h"
+#include "common.h"    // Helper functions, CHECK(), and CHECK_ZSTD()
 
 typedef struct {
     void* fBuffer;
@@ -28,7 +26,7 @@ typedef struct {
  * allocate memory for buffers big enough to compress all files
  * as well as memory for output file name (ofn)
  */
-static resources createResources_orDie(int argc, const char** argv, char **ofn, int* ofnBufferLen)
+static resources createResources_orDie(int argc, const char** argv, char **ofn, size_t* ofnBufferLen)
 {
     size_t maxFilenameLength=0;
     size_t maxFileSize = 0;
@@ -52,7 +50,7 @@ static resources createResources_orDie(int argc, const char** argv, char **ofn, 
     ress.fBuffer = malloc_orDie(ress.fBufferSize);
     ress.cBuffer = malloc_orDie(ress.cBufferSize);
     ress.cctx = ZSTD_createCCtx();
-    if (ress.cctx==NULL) { fprintf(stderr, "ZSTD_createCCtx() error \n"); exit(10); }
+    CHECK(ress.cctx != NULL, "ZSTD_createCCtx() failed!");
     return ress;
 }
 
@@ -69,16 +67,17 @@ static void compressFile_orDie(resources ress, const char* fname, const char* on
 {
     size_t fSize = loadFile_orDie(fname, ress.fBuffer, ress.fBufferSize);
 
+    /* Compress using the context.
+     * If you need more control over parameters, use the advanced API:
+     * ZSTD_CCtx_setParameter(), and ZSTD_compress2().
+     */
     size_t const cSize = ZSTD_compressCCtx(ress.cctx, ress.cBuffer, ress.cBufferSize, ress.fBuffer, fSize, 1);
-    if (ZSTD_isError(cSize)) {
-        fprintf(stderr, "error compressing %s : %s \n", fname, ZSTD_getErrorName(cSize));
-        exit(8);
-    }
+    CHECK_ZSTD(cSize);
 
     saveFile_orDie(oname, ress.cBuffer, cSize);
 
     /* success */
-    // printf("%25s : %6u -> %7u - %s \n", fname, (unsigned)fSize, (unsigned)cSize, oname);
+    printf("%25s : %6u -> %7u - %s \n", fname, (unsigned)fSize, (unsigned)cSize, oname);
 }
 
 int main(int argc, const char** argv)
@@ -94,21 +93,21 @@ int main(int argc, const char** argv)
 
     /* memory allocation for outFilename and resources */
     char* outFilename;
-    int outFilenameBufferLen;
-    resources const ress = createResources_orDie(argc, argv, &outFilename, &outFilenameBufferLen); 
+    size_t outFilenameBufferLen;
+    resources const ress = createResources_orDie(argc, argv, &outFilename, &outFilenameBufferLen);
 
     /* compress files with shared context, input and output buffers */
     int argNb;
     for (argNb = 1; argNb < argc; argNb++) {
         const char* const inFilename = argv[argNb];
-        int inFilenameLen = strlen(inFilename);
-        assert(inFilenameLen + 5 <= outFilenameBufferLen);
+        size_t const inFilenameLen = strlen(inFilename);
+        CHECK(inFilenameLen + 5 <= outFilenameBufferLen, "File name too long!");
         memcpy(outFilename, inFilename, inFilenameLen);
         memcpy(outFilename+inFilenameLen, ".zst", 5);
         compressFile_orDie(ress, inFilename, outFilename);
     }
 
-    /* free momery */
+    /* free memory */
     freeResources(ress,outFilename);
 
     printf("compressed %i files \n", argc-1);

@@ -98,7 +98,7 @@ if use_debug
   if cc_id == compiler_gcc or cc_id == compiler_clang
     libzstd_debug_cflags = ['-Wstrict-aliasing=1', '-Wswitch-enum',
       '-Wdeclaration-after-statement', '-Wstrict-prototypes',
-      '-Wundef', '-Wpointer-arith', '-Wformat-security', '-Wvla',
+      '-Wundef', '-Wpointer-arith', '-Wvla',
       '-Wformat=2', '-Winit-self', '-Wfloat-equal', '-Wwrite-strings',
       '-Wredundant-decls', '-Wmissing-prototypes', '-Wc++-compat']
   endif
@@ -116,9 +116,9 @@ libzstd = library('zstd',
 libzstd_dep = declare_dependency(link_with: libzstd,
   include_directories: libzstd_includes)
 
-pkgconfig.generate(name: 'libzstd',
+pkgconfig.generate(libzstd,
+  name: 'libzstd',
   filebase: 'libzstd',
-  libraries: [libzstd],
   description: 'fast lossless compression algorithm library',
   version: zstd_libversion,
   url: 'http://www.zstd.net/')

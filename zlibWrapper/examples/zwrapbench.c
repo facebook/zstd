@@ -19,6 +19,7 @@
 #include <ctype.h>       /* toupper */
 #include <errno.h>       /* errno */
 
+#include "timefn.h"      /* UTIL_time_t, UTIL_getTime, UTIL_clockSpanMicro, UTIL_waitForNextTick */
 #include "mem.h"
 #define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
@@ -192,7 +193,7 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
                 remaining -= thisBlockSize;
     }   }   }
 
-    /* warmimg up memory */
+    /* warming up memory */
     RDG_genBuffer(compressedBuffer, maxCompressedSize, 0.10, 0.50, 1);
 
     /* Bench */

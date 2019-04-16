@@ -31,8 +31,6 @@ note that it's necessary to request the `-pthread` flag during link stage.
 
 Multithreading capabilities are exposed
 via the [advanced API defined in `lib/zstd.h`](https://github.com/facebook/zstd/blob/v1.3.8/lib/zstd.h#L592).
-This API is still labelled experimental,
-but is expected to become "stable" in the near future.
 
 
 #### API
@@ -109,6 +107,10 @@ The file structure is designed to make this selection manually achievable for an
   `ZSTD_NO_INLINE`, which disables inlining, and `ZSTD_STRIP_ERROR_STRINGS`,
   which removes the error messages that are otherwise returned by
   `ZSTD_getErrorName`.
+
+- While invoking `make libzstd`, the build macro `ZSTD_LEGACY_MULTITHREADED_API=1`
+  will expose the deprecated `ZSTDMT` API exposed by `zstdmt_compress.h` in
+  the shared library, which is now hidden by default.
 
 
 #### Windows : using MinGW+MSYS to create DLL

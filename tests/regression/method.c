@@ -175,8 +175,8 @@ static result_t compress_cctx_compress(
                 state->compressed.capacity,
                 input.data,
                 input.size,
-                state->dictionary.data,
-                state->dictionary.size,
+                config->use_dictionary ? state->dictionary.data : NULL,
+                config->use_dictionary ? state->dictionary.size : 0,
                 params);
         else if (config->use_dictionary)
             state->compressed.size = ZSTD_compress_usingDict(
@@ -432,75 +432,156 @@ out:
     return result;
 }
 
-static result_t old_streaming_compress(
-    method_state_t* base,
-    config_t const* config) {
-    buffer_state_t* state = container_of(base, buffer_state_t, base);
-
-    if (buffer_state_bad(state, config))
-        return result_error(result_error_system_error);
-
-    int const level = config_get_level(config);
-    if (level == CONFIG_NO_LEVEL)
-        return result_error(result_error_skip);
-
-    ZSTD_CStream* zcs = ZSTD_createCStream();
-    result_t result;
-    if (zcs == NULL) {
-        result = result_error(result_error_compression_error);
-        goto out;
-    }
+static int init_cstream(
+    buffer_state_t* state,
+    ZSTD_CStream* zcs,
+    config_t const* config,
+    int const advanced,
+    ZSTD_CDict** cdict)
+{
     size_t zret;
-    if (config->use_dictionary) {
-        zret = ZSTD_initCStream_usingDict(
-            zcs, state->dictionary.data, state->dictionary.size, level);
+    if (advanced) {
+        ZSTD_parameters const params = config_get_zstd_params(config, 0, 0);
+        ZSTD_CDict* dict = NULL;
+        if (cdict) {
+            *cdict = ZSTD_createCDict_advanced(
+                state->dictionary.data,
+                state->dictionary.size,
+                ZSTD_dlm_byRef,
+                ZSTD_dct_auto,
+                params.cParams,
+                ZSTD_defaultCMem);
+            if (!*cdict) {
+                return 1;
+            }
+            zret = ZSTD_initCStream_usingCDict_advanced(
+                zcs, *cdict, params.fParams, ZSTD_CONTENTSIZE_UNKNOWN);
+        } else {
+            zret = ZSTD_initCStream_advanced(
+                zcs,
+                state->dictionary.data,
+                state->dictionary.size,
+                params,
+                ZSTD_CONTENTSIZE_UNKNOWN);
+        }
     } else {
-        zret = ZSTD_initCStream(zcs, level);
+        int const level = config_get_level(config);
+        if (cdict) {
+            *cdict = ZSTD_createCDict(
+                state->dictionary.data,
+                state->dictionary.size,
+                level);
+            if (!*cdict) {
+                return 1;
+            }
+            zret = ZSTD_initCStream_usingCDict(zcs, *cdict);
+        } else if (config->use_dictionary) {
+            zret = ZSTD_initCStream_usingDict(
+                zcs, state->dictionary.data, state->dictionary.size, level);
+        } else {
+            zret = ZSTD_initCStream(zcs, level);
+        }
     }
     if (ZSTD_isError(zret)) {
-        result = result_error(result_error_compression_error);
-        goto out;
+        return 1;
+    }
+    return 0;
+}
+
+static result_t old_streaming_compress_internal(
+    method_state_t* base,
+    config_t const* config,
+    int const advanced,
+    int const cdict) {
+  buffer_state_t* state = container_of(base, buffer_state_t, base);
+
+  if (buffer_state_bad(state, config))
+    return result_error(result_error_system_error);
+
+
+  ZSTD_CStream* zcs = ZSTD_createCStream();
+  ZSTD_CDict* cd = NULL;
+  result_t result;
+  if (zcs == NULL) {
+    result = result_error(result_error_compression_error);
+    goto out;
+  }
+  if (init_cstream(state, zcs, config, advanced, cdict ? &cd : NULL)) {
+      result = result_error(result_error_compression_error);
+      goto out;
+  }
+
+  result_data_t data = {.total_size = 0};
+  for (size_t i = 0; i < state->inputs.size; ++i) {
+    data_buffer_t input = state->inputs.buffers[i];
+    size_t zret = ZSTD_resetCStream(
+        zcs,
+        config->no_pledged_src_size ? ZSTD_CONTENTSIZE_UNKNOWN : input.size);
+    if (ZSTD_isError(zret)) {
+      result = result_error(result_error_compression_error);
+      goto out;
     }
 
-    result_data_t data = {.total_size = 0};
-    for (size_t i = 0; i < state->inputs.size; ++i) {
-        data_buffer_t input = state->inputs.buffers[i];
-        zret = ZSTD_resetCStream(
-            zcs,
-            config->no_pledged_src_size ? ZSTD_CONTENTSIZE_UNKNOWN
-                                        : input.size);
+    while (input.size > 0) {
+      ZSTD_inBuffer in = {input.data, MIN(input.size, 4096)};
+      input.data += in.size;
+      input.size -= in.size;
+      ZSTD_EndDirective const op =
+          input.size > 0 ? ZSTD_e_continue : ZSTD_e_end;
+      zret = 0;
+      while (in.pos < in.size || (op == ZSTD_e_end && zret != 0)) {
+        ZSTD_outBuffer out = {state->compressed.data,
+                              MIN(state->compressed.capacity, 1024)};
+        if (op == ZSTD_e_continue || in.pos < in.size)
+          zret = ZSTD_compressStream(zcs, &out, &in);
+        else
+          zret = ZSTD_endStream(zcs, &out);
         if (ZSTD_isError(zret)) {
-            result = result_error(result_error_compression_error);
-            goto out;
+          result = result_error(result_error_compression_error);
+          goto out;
         }
-
-        while (input.size > 0) {
-            ZSTD_inBuffer in = {input.data, MIN(input.size, 4096)};
-            input.data += in.size;
-            input.size -= in.size;
-            ZSTD_EndDirective const op =
-                input.size > 0 ? ZSTD_e_continue : ZSTD_e_end;
-            zret = 0;
-            while (in.pos < in.size || (op == ZSTD_e_end && zret != 0)) {
-                ZSTD_outBuffer out = {state->compressed.data,
-                                      MIN(state->compressed.capacity, 1024)};
-                if (op == ZSTD_e_continue || in.pos < in.size)
-                    zret = ZSTD_compressStream(zcs, &out, &in);
-                else
-                    zret = ZSTD_endStream(zcs, &out);
-                if (ZSTD_isError(zret)) {
-                    result = result_error(result_error_compression_error);
-                    goto out;
-                }
-                data.total_size += out.pos;
-            }
-        }
+        data.total_size += out.pos;
+      }
     }
+  }
 
-    result = result_data(data);
+  result = result_data(data);
 out:
     ZSTD_freeCStream(zcs);
+    ZSTD_freeCDict(cd);
     return result;
+}
+
+static result_t old_streaming_compress(
+    method_state_t* base,
+    config_t const* config)
+{
+    return old_streaming_compress_internal(
+        base, config, /* advanced */ 0, /* cdict */ 0);
+}
+
+static result_t old_streaming_compress_advanced(
+    method_state_t* base,
+    config_t const* config)
+{
+    return old_streaming_compress_internal(
+        base, config, /* advanced */ 1, /* cdict */ 0);
+}
+
+static result_t old_streaming_compress_cdict(
+    method_state_t* base,
+    config_t const* config)
+{
+    return old_streaming_compress_internal(
+        base, config, /* advanced */ 0, /* cdict */ 1);
+}
+
+static result_t old_streaming_compress_cdict_advanced(
+    method_state_t* base,
+    config_t const* config)
+{
+    return old_streaming_compress_internal(
+        base, config, /* advanced */ 1, /* cdict */ 1);
 }
 
 method_t const simple = {
@@ -545,6 +626,27 @@ method_t const old_streaming = {
     .destroy = buffer_state_destroy,
 };
 
+method_t const old_streaming_advanced = {
+    .name = "old streaming advanced",
+    .create = buffer_state_create,
+    .compress = old_streaming_compress,
+    .destroy = buffer_state_destroy,
+};
+
+method_t const old_streaming_cdict = {
+    .name = "old streaming cdcit",
+    .create = buffer_state_create,
+    .compress = old_streaming_compress,
+    .destroy = buffer_state_destroy,
+};
+
+method_t const old_streaming_advanced_cdict = {
+    .name = "old streaming advanced cdict",
+    .create = buffer_state_create,
+    .compress = old_streaming_compress,
+    .destroy = buffer_state_destroy,
+};
+
 method_t const cli = {
     .name = "zstdcli",
     .create = method_state_create,
@@ -560,6 +662,9 @@ static method_t const* g_methods[] = {
     &advanced_one_pass_small_out,
     &advanced_streaming,
     &old_streaming,
+    &old_streaming_advanced,
+    &old_streaming_cdict,
+    &old_streaming_advanced_cdict,
     NULL,
 };
 

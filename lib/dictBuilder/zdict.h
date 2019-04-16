@@ -46,7 +46,12 @@ extern "C" {
  *  The resulting dictionary will be saved into `dictBuffer`.
  * @return: size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`)
  *          or an error code, which can be tested with ZDICT_isError().
- *  Note: ZDICT_trainFromBuffer() requires about 9 bytes of memory for each input byte.
+ *  Note:  Dictionary training will fail if there are not enough samples to construct a
+ *         dictionary, or if most of the samples are too small (< 8 bytes being the lower limit).
+ *         If dictionary training fails, you should use zstd without a dictionary, as the dictionary
+ *         would've been ineffective anyways. If you believe your samples would benefit from a dictionary
+ *         please open an issue with details, and we can look into it.
+ *  Note: ZDICT_trainFromBuffer()'s memory usage is about 6 MB.
  *  Tips: In general, a reasonable dictionary has a size of ~ 100 KB.
  *        It's possible to select smaller or larger size, just by specifying `dictBufferCapacity`.
  *        In general, it's recommended to provide a few thousands samples, though this can vary a lot.
@@ -110,6 +115,7 @@ typedef struct {
  *  The resulting dictionary will be saved into `dictBuffer`.
  * @return: size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`)
  *          or an error code, which can be tested with ZDICT_isError().
+ *          See ZDICT_trainFromBuffer() for details on failure modes.
  *  Note: ZDICT_trainFromBuffer_cover() requires about 9 bytes of memory for each input byte.
  *  Tips: In general, a reasonable dictionary has a size of ~ 100 KB.
  *        It's possible to select smaller or larger size, just by specifying `dictBufferCapacity`.
@@ -133,8 +139,9 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_cover(
  * If k is non-zero then we don't check multiple values of k, otherwise we check steps values in [50, 2000].
  *
  * @return: size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`)
- *           or an error code, which can be tested with ZDICT_isError().
- *           On success `*parameters` contains the parameters selected.
+ *          or an error code, which can be tested with ZDICT_isError().
+ *          On success `*parameters` contains the parameters selected.
+ *          See ZDICT_trainFromBuffer() for details on failure modes.
  * Note: ZDICT_optimizeTrainFromBuffer_cover() requires about 8 bytes of memory for each input byte and additionally another 5 bytes of memory for each byte of memory for each thread.
  */
 ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
@@ -151,7 +158,8 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
  *  The resulting dictionary will be saved into `dictBuffer`.
  * @return: size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`)
  *          or an error code, which can be tested with ZDICT_isError().
- *  Note: ZDICT_trainFromBuffer_fastCover() requires about 1 bytes of memory for each input byte and additionally another 6 * 2^f bytes of memory .
+ *          See ZDICT_trainFromBuffer() for details on failure modes.
+ *  Note: ZDICT_trainFromBuffer_fastCover() requires 6 * 2^f bytes of memory.
  *  Tips: In general, a reasonable dictionary has a size of ~ 100 KB.
  *        It's possible to select smaller or larger size, just by specifying `dictBufferCapacity`.
  *        In general, it's recommended to provide a few thousands samples, though this can vary a lot.
@@ -175,9 +183,10 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_fastCover(void *dictBuffer,
  * If accel is zero, default value of 1 is used.
  *
  * @return: size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`)
- *           or an error code, which can be tested with ZDICT_isError().
- *           On success `*parameters` contains the parameters selected.
- * Note: ZDICT_optimizeTrainFromBuffer_fastCover() requires about 1 byte of memory for each input byte and additionally another 6 * 2^f bytes of memory for each thread.
+ *          or an error code, which can be tested with ZDICT_isError().
+ *          On success `*parameters` contains the parameters selected.
+ *          See ZDICT_trainFromBuffer() for details on failure modes.
+ * Note: ZDICT_optimizeTrainFromBuffer_fastCover() requires about 6 * 2^f bytes of memory for each thread.
  */
 ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_fastCover(void* dictBuffer,
                     size_t dictBufferCapacity, const void* samplesBuffer,
@@ -195,7 +204,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_fastCover(void* dictBuffer,
  * maxDictSize must be >= dictContentSize, and must be >= ZDICT_DICTSIZE_MIN bytes.
  *
  * @return: size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`),
- *           or an error code, which can be tested by ZDICT_isError().
+ *          or an error code, which can be tested by ZDICT_isError().
  * Note: ZDICT_finalizeDictionary() will push notifications into stderr if instructed to, using notificationLevel>0.
  * Note 2: dictBuffer and dictContent can overlap
  */
@@ -219,6 +228,7 @@ typedef struct {
  * `parameters` is optional and can be provided with values set to 0 to mean "default".
  * @return: size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`)
  *          or an error code, which can be tested with ZDICT_isError().
+ *          See ZDICT_trainFromBuffer() for details on failure modes.
  *  Tips: In general, a reasonable dictionary has a size of ~ 100 KB.
  *        It's possible to select smaller or larger size, just by specifying `dictBufferCapacity`.
  *        In general, it's recommended to provide a few thousands samples, though this can vary a lot.

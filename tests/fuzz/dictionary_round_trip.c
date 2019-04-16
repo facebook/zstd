@@ -8,11 +8,10 @@
  */
 
 /**
- * This fuzz target performs a zstd round-trip test (compress & decompress),
- * compares the result with the original, and calls abort() on corruption.
+ * This fuzz target performs a zstd round-trip test (compress & decompress) with
+ * a dictionary, compares the result with the original, and calls abort() on
+ * corruption.
  */
-
-#define ZSTD_STATIC_LINKING_ONLY
 
 #include <stddef.h>
 #include <stdlib.h>
@@ -31,17 +30,39 @@ static size_t roundTripTest(void *result, size_t resultCapacity,
                             void *compressed, size_t compressedCapacity,
                             const void *src, size_t srcSize)
 {
+    ZSTD_dictContentType_e dictContentType = ZSTD_dct_auto;
+    FUZZ_dict_t dict = FUZZ_train(src, srcSize, &seed);
     size_t cSize;
-    if (FUZZ_rand(&seed) & 1) {
-        FUZZ_setRandomParameters(cctx, srcSize, &seed);
-        cSize = ZSTD_compress2(cctx, compressed, compressedCapacity, src, srcSize);
-    } else {
+    if ((FUZZ_rand(&seed) & 15) == 0) {
         int const cLevel = FUZZ_rand(&seed) % kMaxClevel;
-        cSize = ZSTD_compressCCtx(
-            cctx, compressed, compressedCapacity, src, srcSize, cLevel);
+
+        cSize = ZSTD_compress_usingDict(cctx,
+                compressed, compressedCapacity,
+                src, srcSize,
+                dict.buff, dict.size,
+                cLevel);
+    } else {
+        dictContentType = FUZZ_rand32(&seed, 0, 2);
+        FUZZ_setRandomParameters(cctx, srcSize, &seed);
+        /* Disable checksum so we can use sizes smaller than compress bound. */
+        FUZZ_ZASSERT(ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 0));
+        FUZZ_ZASSERT(ZSTD_CCtx_loadDictionary_advanced(
+                cctx, dict.buff, dict.size,
+                (ZSTD_dictLoadMethod_e)FUZZ_rand32(&seed, 0, 1),
+                dictContentType));
+        cSize = ZSTD_compress2(cctx, compressed, compressedCapacity, src, srcSize);
     }
     FUZZ_ZASSERT(cSize);
-    return ZSTD_decompressDCtx(dctx, result, resultCapacity, compressed, cSize);
+    FUZZ_ZASSERT(ZSTD_DCtx_loadDictionary_advanced(
+        dctx, dict.buff, dict.size,
+        (ZSTD_dictLoadMethod_e)FUZZ_rand32(&seed, 0, 1),
+        dictContentType));
+    {
+        size_t const ret = ZSTD_decompressDCtx(
+                dctx, result, resultCapacity, compressed, cSize);
+        free(dict.buff);
+        return ret;
+    }
 }
 
 int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
@@ -53,13 +74,11 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 
     seed = FUZZ_seed(&src, &size);
     /* Half of the time fuzz with a 1 byte smaller output size.
-     * This will still succeed because we don't use a dictionary, so the dictID
-     * field is empty, giving us 4 bytes of overhead.
+     * This will still succeed because we force the checksum to be disabled,
+     * giving us 4 bytes of overhead.
      */
     cBufSize -= FUZZ_rand32(&seed, 0, 1);
     cBuf = malloc(cBufSize);
-
-    FUZZ_ASSERT(cBuf && rBuf);
 
     if (!cctx) {
         cctx = ZSTD_createCCtx();

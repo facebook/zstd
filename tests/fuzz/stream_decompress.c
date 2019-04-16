@@ -62,9 +62,8 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     if (!dstream) {
         dstream = ZSTD_createDStream();
         FUZZ_ASSERT(dstream);
-        FUZZ_ASSERT(!ZSTD_isError(ZSTD_initDStream(dstream)));
     } else {
-        FUZZ_ASSERT(!ZSTD_isError(ZSTD_resetDStream(dstream)));
+        FUZZ_ZASSERT(ZSTD_DCtx_reset(dstream, ZSTD_reset_session_only));
     }
 
     while (size > 0) {
@@ -73,7 +72,6 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
             ZSTD_outBuffer out = makeOutBuffer();
             size_t const rc = ZSTD_decompressStream(dstream, &out, &in);
             if (ZSTD_isError(rc)) goto error;
-            if (rc == 0) FUZZ_ASSERT(!ZSTD_isError(ZSTD_resetDStream(dstream)));
         }
     }
 

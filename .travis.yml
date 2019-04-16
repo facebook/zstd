@@ -2,7 +2,6 @@
 
 language: c
 dist: trusty
-sudo: required
 
 git:
   depth: 1
@@ -179,14 +178,17 @@ matrix:
 
     # meson dedicated test
     - name: Xenial (Meson + clang)
+      # env: ALLOW_FAILURES=true
       dist: xenial
       language: cpp
       compiler: clang
-      before_install:
+      install:
         - sudo apt-get install -qq liblz4-dev valgrind tree
-        - curl -o ~/get-pip.py 'https://bootstrap.pypa.io/get-pip.py'
-        - python3 ~/get-pip.py --user
-        - pip3 install --user meson ninja
+        - travis_retry curl -o ~/ninja.zip -L 'https://github.com/ninja-build/ninja/releases/download/v1.8.2/ninja-linux.zip'
+            && unzip ~/ninja.zip -d ~/.local/bin
+        - travis_retry curl -o ~/get-pip.py -L 'https://bootstrap.pypa.io/get-pip.py'
+            && python3 ~/get-pip.py --user
+            && pip3 install --user meson
       script:
         - meson --buildtype=debug
                 -Db_lundef=false
@@ -198,4 +200,4 @@ matrix:
         - DESTDIR=./staging ninja install
         - tree ./staging
   allow_failures:
-    - name: Xenial (Meson + clang)
+    - env: ALLOW_FAILURES=true

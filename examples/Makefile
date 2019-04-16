@@ -25,28 +25,28 @@ all: simple_compression simple_decompression \
 $(LIB) :
 	$(MAKE) -C ../lib libzstd.a
 
-simple_compression : simple_compression.c utils.h $(LIB)
+simple_compression : simple_compression.c common.h $(LIB)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB) $(LDFLAGS) -o $@
 
-simple_decompression : simple_decompression.c utils.h $(LIB)
+simple_decompression : simple_decompression.c common.h $(LIB)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB) $(LDFLAGS) -o $@
 
-multiple_simple_compression : multiple_simple_compression.c utils.h $(LIB)
+multiple_simple_compression : multiple_simple_compression.c common.h $(LIB)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB) $(LDFLAGS) -o $@
 
-dictionary_compression : dictionary_compression.c utils.h $(LIB)
+dictionary_compression : dictionary_compression.c common.h $(LIB)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB) $(LDFLAGS) -o $@
 
-dictionary_decompression : dictionary_decompression.c utils.h $(LIB)
+dictionary_decompression : dictionary_decompression.c common.h $(LIB)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB) $(LDFLAGS) -o $@
 
-streaming_compression : streaming_compression.c utils.h $(LIB)
+streaming_compression : streaming_compression.c common.h $(LIB)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB) $(LDFLAGS) -o $@
 
-multiple_streaming_compression : multiple_streaming_compression.c utils.h $(LIB)
+multiple_streaming_compression : multiple_streaming_compression.c common.h $(LIB)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB) $(LDFLAGS) -o $@
 
-streaming_decompression : streaming_decompression.c utils.h $(LIB)
+streaming_decompression : streaming_decompression.c common.h $(LIB)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB) $(LDFLAGS) -o $@
 
 streaming_memory_usage : streaming_memory_usage.c $(LIB)

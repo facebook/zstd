@@ -31,6 +31,7 @@ static const void *symbols[] = {
   &ZSTD_getFrameContentSize,
   &ZSTD_maxCLevel,
   &ZSTD_compressBound,
+  &ZSTD_decompressBound,
   &ZSTD_isError,
   &ZSTD_getErrorName,
   &ZSTD_createCCtx,

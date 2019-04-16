@@ -39,6 +39,35 @@ typedef struct {
 } COVER_segment_t;
 
 /**
+ *Number of epochs and size of each epoch.
+ */
+typedef struct {
+  U32 num;
+  U32 size;
+} COVER_epoch_info_t;
+
+/**
+ * Computes the number of epochs and the size of each epoch.
+ * We will make sure that each epoch gets at least 10 * k bytes.
+ *
+ * The COVER algorithms divide the data up into epochs of equal size and
+ * select one segment from each epoch.
+ *
+ * @param maxDictSize The maximum allowed dictionary size.
+ * @param nbDmers     The number of dmers we are training on.
+ * @param k           The parameter k (segment size).
+ * @param passes      The target number of passes over the dmer corpus.
+ *                    More passes means a better dictionary.
+ */
+COVER_epoch_info_t COVER_computeEpochs(U32 maxDictSize, U32 nbDmers,
+                                       U32 k, U32 passes);
+
+/**
+ * Warns the user when their corpus is too small.
+ */
+void COVER_warnOnSmallCorpus(size_t maxDictSize, size_t nbDmers, int displayLevel);
+
+/**
  *  Checks total compressed size of a dictionary
  */
 size_t COVER_checkTotalCompressedSize(const ZDICT_cover_params_t parameters,

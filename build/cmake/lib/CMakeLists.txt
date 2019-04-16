@@ -18,13 +18,7 @@ if(NOT ZSTD_BUILD_SHARED AND NOT ZSTD_BUILD_STATIC)
 endif()
 
 # Define library directory, where sources and header files are located
-set(LIBRARY_DIR ${ZSTD_SOURCE_DIR}/lib)
 include_directories(${LIBRARY_DIR} ${LIBRARY_DIR}/common)
-
-# Parse version
-include(GetZstdLibraryVersion)
-GetZstdLibraryVersion(${LIBRARY_DIR}/zstd.h LIBVER_MAJOR LIBVER_MINOR LIBVER_RELEASE)
-message(STATUS "ZSTD VERSION ${LIBVER_MAJOR}.${LIBVER_MINOR}.${LIBVER_RELEASE}")
 
 set(Sources
         ${LIBRARY_DIR}/common/entropy_common.c
@@ -155,7 +149,8 @@ if (ZSTD_BUILD_SHARED)
             libzstd_shared
             PROPERTIES
             OUTPUT_NAME zstd
-            SOVERSION ${LIBVER_MAJOR}.${LIBVER_MINOR}.${LIBVER_RELEASE})
+            VERSION ${zstd_VERSION_MAJOR}.${zstd_VERSION_MINOR}.${zstd_VERSION_PATCH}
+            SOVERSION ${zstd_VERSION_MAJOR})
 endif ()
 
 if (ZSTD_BUILD_STATIC)
@@ -170,7 +165,7 @@ if (UNIX)
     set(PREFIX "${CMAKE_INSTALL_PREFIX}")
     set(LIBDIR "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
     set(INCLUDEDIR "${CMAKE_INSTALL_PREFIX}/include")
-    set(VERSION "${LIBVER_MAJOR}.${LIBVER_MINOR}.${LIBVER_RELEASE}")
+    set(VERSION "${zstd_VERSION_MAJOR}.${zstd_VERSION_MINOR}.${zstd_VERSION_PATCH}")
     add_custom_target(libzstd.pc ALL
             ${CMAKE_COMMAND} -DIN="${LIBRARY_DIR}/libzstd.pc.in" -DOUT="libzstd.pc"
             -DPREFIX="${PREFIX}" -DLIBDIR="${LIBDIR}" -DINCLUDEDIR="${INCLUDEDIR}" -DVERSION="${VERSION}"

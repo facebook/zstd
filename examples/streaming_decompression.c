@@ -9,12 +9,10 @@
  */
 
 
-#include <stdlib.h>    // malloc, exit
-#include <stdio.h>     // fprintf, perror, feof
-#include <string.h>    // strerror
-#include <errno.h>     // errno
+#include <stdio.h>     // fprintf
+#include <stdlib.h>    // free
 #include <zstd.h>      // presumes zstd library is installed
-#include "utils.h"
+#include "common.h"    // Helper functions, CHECK(), and CHECK_ZSTD()
 
 static void decompressFile_orDie(const char* fname)
 {
@@ -25,26 +23,40 @@ static void decompressFile_orDie(const char* fname)
     size_t const buffOutSize = ZSTD_DStreamOutSize();  /* Guarantee to successfully flush at least one complete compressed block in all circumstances. */
     void*  const buffOut = malloc_orDie(buffOutSize);
 
-    ZSTD_DStream* const dstream = ZSTD_createDStream();
-    if (dstream==NULL) { fprintf(stderr, "ZSTD_createDStream() error \n"); exit(10); }
+    ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+    CHECK(dctx != NULL, "ZSTD_createDCtx() failed!");
 
-    /* In more complex scenarios, a file may consist of multiple appended frames (ex : pzstd).
-    *  The following example decompresses only the first frame.
-    *  It is compatible with other provided streaming examples */
-    size_t const initResult = ZSTD_initDStream(dstream);
-    if (ZSTD_isError(initResult)) { fprintf(stderr, "ZSTD_initDStream() error : %s \n", ZSTD_getErrorName(initResult)); exit(11); }
-    size_t read, toRead = initResult;
+    /* This loop assumes that the input file is one or more concatenated zstd
+     * streams. This example won't work if there is trailing non-zstd data at
+     * the end, but streaming decompression in general handles this case.
+     * ZSTD_decompressStream() returns 0 exactly when the frame is completed,
+     * and doesn't consume input after the frame.
+     */
+    size_t const toRead = buffInSize;
+    size_t read;
     while ( (read = fread_orDie(buffIn, toRead, fin)) ) {
         ZSTD_inBuffer input = { buffIn, read, 0 };
+        /* Given a valid frame, zstd won't consume the last byte of the frame
+         * until it has flushed all of the decompressed data of the frame.
+         * Therefore, instead of checking if the return code is 0, we can
+         * decompress just check if input.pos < input.size.
+         */
         while (input.pos < input.size) {
             ZSTD_outBuffer output = { buffOut, buffOutSize, 0 };
-            toRead = ZSTD_decompressStream(dstream, &output , &input);  /* toRead : size of next compressed block */
-            if (ZSTD_isError(toRead)) { fprintf(stderr, "ZSTD_decompressStream() error : %s \n", ZSTD_getErrorName(toRead)); exit(12); }
+            /* The return code is zero if the frame is complete, but there may
+             * be multiple frames concatenated together. Zstd will automatically
+             * reset the context when a frame is complete. Still, calling
+             * ZSTD_DCtx_reset() can be useful to reset the context to a clean
+             * state, for instance if the last decompression call returned an
+             * error.
+             */
+            size_t const ret = ZSTD_decompressStream(dctx, &output , &input);
+            CHECK_ZSTD(ret);
             fwrite_orDie(buffOut, output.pos, fout);
         }
     }
 
-    ZSTD_freeDStream(dstream);
+    ZSTD_freeDCtx(dctx);
     fclose_orDie(fin);
     fclose_orDie(fout);
     free(buffIn);

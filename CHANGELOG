@@ -5,6 +5,7 @@ api: Make ZSTD_e_flush and ZSTD_e_end block for maximum forward progress
 api: Rename ZSTD_CCtxParam_getParameter to ZSTD_CCtxParams_getParameter
 api: Rename ZSTD_CCtxParam_setParameter to ZSTD_CCtxParams_setParameter
 api: Don't export ZSTDMT functions from the shared library by default
+api: Require ZSTD_MULTITHREAD to be defined to use ZSTDMT
 api: Add ZSTD_decompressBound() to provide an upper bound on decompressed size by @shakeelrao
 api: Fix ZSTD_decompressDCtx() corner cases with a dictionary
 api: Move ZSTD_getDictID_*() functions to the stable section

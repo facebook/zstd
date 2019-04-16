@@ -19,12 +19,16 @@
 /* Note : This is an internal API.
  *        These APIs used to be exposed with ZSTDLIB_API,
  *        because it used to be the only way to invoke MT compression.
- *        Now, it's recommended to use ZSTD_compress_generic() instead.
+ *        Now, it's recommended to use ZSTD_compress2 and ZSTD_compressStream2()
+ *        instead.
  *
  *        If you depend on these APIs and can't switch, then define
  *        ZSTD_LEGACY_MULTITHREADED_API when making the dynamic library.
  *        However, we may completely remove these functions in a future
  *        release, so please switch soon.
+ *
+ *        This API requires ZSTD_MULTITHREAD to be defined during compilation,
+ *        otherwise ZSTDMT_createCCtx*() will fail.
  */
 
 #ifdef ZSTD_LEGACY_MULTITHREADED_API
@@ -51,7 +55,9 @@
 
 /* ===   Memory management   === */
 typedef struct ZSTDMT_CCtx_s ZSTDMT_CCtx;
+/* Requires ZSTD_MULTITHREAD to be defined during compilation, otherwise it will return NULL. */
 ZSTDMT_API ZSTDMT_CCtx* ZSTDMT_createCCtx(unsigned nbWorkers);
+/* Requires ZSTD_MULTITHREAD to be defined during compilation, otherwise it will return NULL. */
 ZSTDMT_API ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced(unsigned nbWorkers,
                                                     ZSTD_customMem cMem);
 ZSTDMT_API size_t ZSTDMT_freeCCtx(ZSTDMT_CCtx* mtctx);

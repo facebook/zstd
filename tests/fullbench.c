@@ -497,7 +497,7 @@ static int benchMem(unsigned benchNb,
         BMK_benchParams_t bp;
         BMK_runTime_t bestResult;
         bestResult.sumOfReturn = 0;
-        bestResult.nanoSecPerRun = (double)(-1);
+        bestResult.nanoSecPerRun = (double)TIMELOOP_NANOSEC * 2000000000;  /* hopefully large enough : must be larger than any potential measurement */
         assert(tfs != NULL);
 
         bp.benchFn = benchFunction;

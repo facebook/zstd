@@ -360,8 +360,11 @@ static size_t readSkippableFrameSize(void const* src, size_t srcSize)
     sizeU32 = MEM_readLE32((BYTE const*)src + ZSTD_FRAMEIDSIZE);
     RETURN_ERROR_IF((U32)(sizeU32 + ZSTD_SKIPPABLEHEADERSIZE) < sizeU32,
                     frameParameter_unsupported);
-
-    return skippableHeaderSize + sizeU32;
+    {
+        size_t const skippableSize = skippableHeaderSize + sizeU32;
+        RETURN_ERROR_IF(skippableSize > srcSize, srcSize_wrong);
+        return skippableSize;
+    }
 }
 
 /** ZSTD_findDecompressedSize() :
@@ -378,11 +381,10 @@ unsigned long long ZSTD_findDecompressedSize(const void* src, size_t srcSize)
 
         if ((magicNumber & ZSTD_MAGIC_SKIPPABLE_MASK) == ZSTD_MAGIC_SKIPPABLE_START) {
             size_t const skippableSize = readSkippableFrameSize(src, srcSize);
-            if (ZSTD_isError(skippableSize))
-                return skippableSize;
-            if (srcSize < skippableSize) {
+            if (ZSTD_isError(skippableSize)) {
                 return ZSTD_CONTENTSIZE_ERROR;
             }
+            assert(skippableSize <= srcSize);
 
             src = (const BYTE *)src + skippableSize;
             srcSize -= skippableSize;
@@ -467,9 +469,8 @@ static ZSTD_frameSizeInfo ZSTD_findFrameSizeInfo(const void* src, size_t srcSize
     if ((srcSize >= ZSTD_SKIPPABLEHEADERSIZE)
         && (MEM_readLE32(src) & ZSTD_MAGIC_SKIPPABLE_MASK) == ZSTD_MAGIC_SKIPPABLE_START) {
         frameSizeInfo.compressedSize = readSkippableFrameSize(src, srcSize);
-        if (frameSizeInfo.compressedSize > srcSize) {
-            return ZSTD_errorFrameSizeInfo(ERROR(srcSize_wrong));
-        }
+        assert(ZSTD_isError(frameSizeInfo.compressedSize) ||
+               frameSizeInfo.compressedSize <= srcSize);
         return frameSizeInfo;
     } else {
         const BYTE* ip = (const BYTE*)src;
@@ -741,9 +742,8 @@ static size_t ZSTD_decompressMultiFrame(ZSTD_DCtx* dctx,
                         (unsigned)magicNumber, ZSTD_MAGICNUMBER);
             if ((magicNumber & ZSTD_MAGIC_SKIPPABLE_MASK) == ZSTD_MAGIC_SKIPPABLE_START) {
                 size_t const skippableSize = readSkippableFrameSize(src, srcSize);
-                if (ZSTD_isError(skippableSize))
-                    return skippableSize;
-                RETURN_ERROR_IF(srcSize < skippableSize, srcSize_wrong);
+                FORWARD_IF_ERROR(skippableSize);
+                assert(skippableSize <= srcSize);
 
                 src = (const BYTE *)src + skippableSize;
                 srcSize -= skippableSize;

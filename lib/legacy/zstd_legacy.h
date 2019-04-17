@@ -238,7 +238,7 @@ MEM_STATIC ZSTD_frameSizeInfo ZSTD_findFrameSizeInfoLegacy(const void *src, size
             frameSizeInfo.decompressedBound = ZSTD_CONTENTSIZE_ERROR;
             break;
     }
-    if (frameSizeInfo.compressedSize > srcSize) {
+    if (!ZSTD_isError(frameSizeInfo.compressedSize) && frameSizeInfo.compressedSize > srcSize) {
         frameSizeInfo.compressedSize = ERROR(srcSize_wrong);
         frameSizeInfo.decompressedBound = ZSTD_CONTENTSIZE_ERROR;
     }

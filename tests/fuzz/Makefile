@@ -126,6 +126,9 @@ corpora/%: corpora/%_seed_corpus.zip
 .PHONY: corpora
 corpora: $(patsubst %,corpora/%,$(FUZZ_TARGETS))
 
+.PHONY: seedcorpora
+seedcorpora: $(patsubst %,corpora/%_seed_corpus.zip,$(FUZZ_TARGETS))
+
 regressiontest: corpora
 	CC="$(CC)" CXX="$(CXX)" CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" $(PYTHON) ./fuzz.py build all
 	$(PYTHON) ./fuzz.py regression all

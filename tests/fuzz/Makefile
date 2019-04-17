@@ -69,7 +69,8 @@ FUZZ_TARGETS :=       \
 	stream_decompress \
 	block_decompress  \
 	dictionary_round_trip \
-	dictionary_decompress
+	dictionary_decompress \
+	zstd_frame_info
 
 all: $(FUZZ_TARGETS)
 
@@ -100,6 +101,9 @@ dictionary_round_trip: $(FUZZ_HEADERS) $(FUZZ_OBJ) dictionary_round_trip.o
 dictionary_decompress: $(FUZZ_HEADERS) $(FUZZ_OBJ) dictionary_decompress.o
 	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_OBJ) dictionary_decompress.o $(LIB_FUZZING_ENGINE) -o $@
 
+zstd_frame_info: $(FUZZ_HEADERS) $(FUZZ_OBJ) zstd_frame_info.o
+	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_OBJ) zstd_frame_info.o $(LIB_FUZZING_ENGINE) -o $@
+
 libregression.a: $(FUZZ_HEADERS) $(PRGDIR)/util.h $(PRGDIR)/util.c regression_driver.o
 	$(AR) $(FUZZ_ARFLAGS) $@ regression_driver.o
 
@@ -121,6 +125,9 @@ corpora/%: corpora/%_seed_corpus.zip
 
 .PHONY: corpora
 corpora: $(patsubst %,corpora/%,$(FUZZ_TARGETS))
+
+.PHONY: seedcorpora
+seedcorpora: $(patsubst %,corpora/%_seed_corpus.zip,$(FUZZ_TARGETS))
 
 regressiontest: corpora
 	CC="$(CC)" CXX="$(CXX)" CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" $(PYTHON) ./fuzz.py build all

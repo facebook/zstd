@@ -467,6 +467,9 @@ static ZSTD_frameSizeInfo ZSTD_findFrameSizeInfo(const void* src, size_t srcSize
     if ((srcSize >= ZSTD_SKIPPABLEHEADERSIZE)
         && (MEM_readLE32(src) & ZSTD_MAGIC_SKIPPABLE_MASK) == ZSTD_MAGIC_SKIPPABLE_START) {
         frameSizeInfo.compressedSize = readSkippableFrameSize(src, srcSize);
+        if (frameSizeInfo.compressedSize > srcSize) {
+            return ZSTD_errorFrameSizeInfo(ERROR(srcSize_wrong));
+        }
         return frameSizeInfo;
     } else {
         const BYTE* ip = (const BYTE*)src;
@@ -529,7 +532,6 @@ size_t ZSTD_findFrameCompressedSize(const void *src, size_t srcSize)
     return frameSizeInfo.compressedSize;
 }
 
-
 /** ZSTD_decompressBound() :
  *  compatible with legacy mode
  *  `src` must point to the start of a ZSTD frame or a skippeable frame
@@ -546,6 +548,7 @@ unsigned long long ZSTD_decompressBound(const void* src, size_t srcSize)
         unsigned long long const decompressedBound = frameSizeInfo.decompressedBound;
         if (ZSTD_isError(compressedSize) || decompressedBound == ZSTD_CONTENTSIZE_ERROR)
             return ZSTD_CONTENTSIZE_ERROR;
+        assert(srcSize >= compressedSize);
         src = (const BYTE*)src + compressedSize;
         srcSize -= compressedSize;
         bound += decompressedBound;

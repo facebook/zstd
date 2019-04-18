@@ -26,8 +26,8 @@ ZSTDDIR = ../../lib
 PRGDIR = ../../programs
 
 FUZZ_CPPFLAGS := -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
-	-I$(ZSTDDIR)/dictBuilder -I$(ZSTDDIR)/deprecated -I$(PRGDIR) \
-	-DZSTD_MULTITHREAD $(CPPFLAGS)
+	-I$(ZSTDDIR)/dictBuilder -I$(ZSTDDIR)/deprecated -I$(ZSTDDIR)/legacy \
+	-I$(PRGDIR) -DZSTD_MULTITHREAD -DZSTD_LEGACY_SUPPORT=1 $(CPPFLAGS)
 FUZZ_EXTRA_FLAGS := -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
 	-Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
 	-Wstrict-prototypes -Wundef \
@@ -47,12 +47,14 @@ ZSTDCOMMON_SRC := $(ZSTDDIR)/common/*.c
 ZSTDCOMP_SRC   := $(ZSTDDIR)/compress/*.c
 ZSTDDECOMP_SRC := $(ZSTDDIR)/decompress/*.c
 ZSTDDICT_SRC := $(ZSTDDIR)/dictBuilder/*.c
+ZSTDLEGACY_SRC := $(ZSTDDIR)/legacy/*.c
 FUZZ_SRC       := \
 	$(FUZZ_SRC) \
 	$(ZSTDDECOMP_SRC) \
 	$(ZSTDCOMMON_SRC) \
 	$(ZSTDCOMP_SRC) \
-	$(ZSTDDICT_SRC)
+	$(ZSTDDICT_SRC) \
+	$(ZSTDLEGACY_SRC)
 
 FUZZ_OBJ := $(patsubst %.c,%.o, $(wildcard $(FUZZ_SRC)))
 

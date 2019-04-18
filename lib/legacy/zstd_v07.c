@@ -3918,7 +3918,7 @@ void ZSTDv07_findFrameSizeInfoLegacy(const void *src, size_t srcSize, size_t* cS
     }
 
     /* Frame Header */
-    {   size_t const frameHeaderSize = ZSTDv07_frameHeaderSize(src, ZSTDv07_frameHeaderSize_min);
+    {   size_t const frameHeaderSize = ZSTDv07_frameHeaderSize(src, srcSize);
         if (ZSTDv07_isError(frameHeaderSize)) {
             ZSTD_errorFrameSizeInfoLegacy(cSize, dBound, frameHeaderSize);
             return;

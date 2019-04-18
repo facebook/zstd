@@ -3470,13 +3470,11 @@ static size_t ZSTDv07_decodeSeqHeaders(int* nbSeqPtr,
     }
 
     /* FSE table descriptors */
+    if (ip + 4 > iend) return ERROR(srcSize_wrong); /* min : header byte + all 3 are "raw", hence no header, but at least xxLog bits per type */
     {   U32 const LLtype  = *ip >> 6;
         U32 const OFtype = (*ip >> 4) & 3;
         U32 const MLtype  = (*ip >> 2) & 3;
         ip++;
-
-        /* check */
-        if (ip > iend-3) return ERROR(srcSize_wrong); /* min : all 3 are "raw", hence no header, but at least xxLog bits per type */
 
         /* Build DTables */
         {   size_t const llhSize = ZSTDv07_buildSeqTable(DTableLL, LLtype, MaxLL, LLFSELog, ip, iend-ip, LL_defaultNorm, LL_defaultNormLog, flagRepeatTable);

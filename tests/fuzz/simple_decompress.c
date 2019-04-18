@@ -19,28 +19,24 @@
 #include "zstd.h"
 
 static ZSTD_DCtx *dctx = NULL;
-static void* rBuf = NULL;
-static size_t bufSize = 0;
 
 int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 {
-    size_t neededBufSize;
 
-    FUZZ_seed(&src, &size);
-    neededBufSize = MAX(20 * size, (size_t)256 << 10);
-
-    /* Allocate all buffers and contexts if not already allocated */
-    if (neededBufSize > bufSize) {
-        free(rBuf);
-        rBuf = malloc(neededBufSize);
-        bufSize = neededBufSize;
-        FUZZ_ASSERT(rBuf);
-    }
+    uint32_t seed = FUZZ_seed(&src, &size);
+    int i;
     if (!dctx) {
         dctx = ZSTD_createDCtx();
         FUZZ_ASSERT(dctx);
     }
-    ZSTD_decompressDCtx(dctx, rBuf, neededBufSize, src, size);
+    /* Run it 10 times over 10 output sizes. Reuse the context. */
+    for (i = 0; i < 10; ++i) {
+        size_t const bufSize = FUZZ_rand32(&seed, 0, 2 * size);
+        void* rBuf = malloc(bufSize);
+        FUZZ_ASSERT(rBuf);
+        ZSTD_decompressDCtx(dctx, rBuf, bufSize, src, size);
+        free(rBuf);
+    }
 
 #ifndef STATEFUL_FUZZING
     ZSTD_freeDCtx(dctx); dctx = NULL;

@@ -1358,8 +1358,6 @@ static unsigned ZSTD_isLittleEndian(void)
 
 static U16    ZSTD_read16(const void* p) { U16 r; memcpy(&r, p, sizeof(r)); return r; }
 
-static U32    ZSTD_read32(const void* p) { U32 r; memcpy(&r, p, sizeof(r)); return r; }
-
 static void   ZSTD_copy4(void* dst, const void* src) { memcpy(dst, src, 4); }
 
 static void   ZSTD_copy8(void* dst, const void* src) { memcpy(dst, src, 8); }
@@ -1384,16 +1382,9 @@ static U16 ZSTD_readLE16(const void* memPtr)
     }
 }
 
-
-static U32 ZSTD_readLE32(const void* memPtr)
+static U32 ZSTD_readLE24(const void* memPtr)
 {
-    if (ZSTD_isLittleEndian())
-        return ZSTD_read32(memPtr);
-    else
-    {
-        const BYTE* p = (const BYTE*)memPtr;
-        return (U32)((U32)p[0] + ((U32)p[1]<<8) + ((U32)p[2]<<16) + ((U32)p[3]<<24));
-    }
+    return ZSTD_readLE16(memPtr) + (((const BYTE*)memPtr)[2] << 16);
 }
 
 static U32 ZSTD_readBE32(const void* memPtr)
@@ -1707,13 +1698,13 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
     seqState->prevOffset = seq->offset;
     if (litLength == MaxLL)
     {
-        U32 add = dumps<de ? *dumps++ : 0;
+        const U32 add = dumps<de ? *dumps++ : 0;
         if (add < 255) litLength += add;
         else
         {
             if (dumps<=(de-3))
             {
-                litLength = ZSTD_readLE32(dumps) & 0xFFFFFF;  /* no pb : dumps is always followed by seq tables > 1 byte */
+                litLength = ZSTD_readLE24(dumps);
                 dumps += 3;
             }
         }
@@ -1735,13 +1726,13 @@ static void ZSTD_decodeSequence(seq_t* seq, seqState_t* seqState)
     matchLength = FSE_decodeSymbol(&(seqState->stateML), &(seqState->DStream));
     if (matchLength == MaxML)
     {
-        U32 add = dumps<de ? *dumps++ : 0;
+        const U32 add = dumps<de ? *dumps++ : 0;
         if (add < 255) matchLength += add;
         else
         {
             if (dumps<=(de-3))
             {
-                matchLength = ZSTD_readLE32(dumps) & 0xFFFFFF;  /* no pb : dumps is always followed by seq tables > 1 byte */
+                matchLength = ZSTD_readLE24(dumps);
                 dumps += 3;
             }
         }

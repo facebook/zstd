@@ -918,6 +918,11 @@ ZSTD_decompressSequences_body( ZSTD_DCtx* dctx,
         ZSTD_initFseState(&seqState.stateOffb, &seqState.DStream, dctx->OFTptr);
         ZSTD_initFseState(&seqState.stateML, &seqState.DStream, dctx->MLTptr);
 
+        ZSTD_STATIC_ASSERT(
+                BIT_DStream_unfinished < BIT_DStream_completed &&
+                BIT_DStream_endOfBuffer < BIT_DStream_completed &&
+                BIT_DStream_completed < BIT_DStream_overflow);
+
         for ( ; (BIT_reloadDStream(&(seqState.DStream)) <= BIT_DStream_completed) && nbSeq ; ) {
             nbSeq--;
             {   seq_t const sequence = ZSTD_decodeSequence(&seqState, isLongOffset);

@@ -269,6 +269,13 @@ void FIO_addAbortHandler()
         else
             return -1;
     }
+    static __int64 LONG_TELL(FILE* file) {
+        LARGE_INTEGER off, newOff;
+        off.QuadPart = 0;
+        newOff.QuadPart = 0;
+        SetFilePointerEx((HANDLE) _get_osfhandle(_fileno(file)), off, &newOff, FILE_CURRENT);
+        return newOff.QuadPart;
+    }
 #else
 #   define LONG_SEEK fseek
 #   define LONG_TELL ftell

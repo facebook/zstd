@@ -16,7 +16,9 @@ project('zstd',
     'cpp_std=c++11',
     'buildtype=release'
   ],
-  version: '1.3.8',
+  # Fall-back version in case of extracting version number from
+  # `zstd.h` failed.
+  version: '1.4.0',
   meson_version: '>=0.47.0')
 
 cc = meson.get_compiler('c')

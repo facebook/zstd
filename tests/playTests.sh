@@ -304,11 +304,16 @@ $ECHO "testing zstdcat symlink"
 ln -sf $ZSTD zstdcat
 ./zstdcat helloworld.zstd > result.tmp
 $DIFF helloworld.tmp result.tmp
+ln -s helloworld.zstd helloworld.link.zstd
+./zstdcat helloworld.link.zstd > result.tmp
+$DIFF helloworld.tmp result.tmp
 rm zstdcat
 rm result.tmp
 $ECHO "testing zcat symlink"
 ln -sf $ZSTD zcat
 ./zcat helloworld.zstd > result.tmp
+$DIFF helloworld.tmp result.tmp
+./zcat helloworld.link.zstd > result.tmp
 $DIFF helloworld.tmp result.tmp
 rm zcat
 rm ./*.tmp ./*.zstd

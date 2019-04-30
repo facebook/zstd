@@ -177,7 +177,8 @@ if host_machine_os != os_windows
     args: ZSTDRTTEST,
     env: ['ZSTD=' + zstd.full_path()],
     depends: [datagen],
-    timeout: 600) # Timeout should work on HDD drive
+    workdir: meson.current_build_dir(),
+    timeout: 2800) # Timeout should work on HDD drive
 endif
 
 test('test-fullbench-1',
@@ -195,7 +196,7 @@ if use_zlib
   test('test-fuzzer',
     fuzzer,
     args: ['-v', FUZZERTEST] + FUZZER_FLAGS,
-    timeout: 240)
+    timeout: 480)
 endif
 
 test('test-zbuff',

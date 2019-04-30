@@ -184,19 +184,19 @@ matrix:
       compiler: clang
       install:
         - sudo apt-get install -qq liblz4-dev valgrind tree
-        - travis_retry curl -o ~/ninja.zip -L 'https://github.com/ninja-build/ninja/releases/download/v1.8.2/ninja-linux.zip'
+        - travis_retry curl -o ~/ninja.zip -L 'https://github.com/ninja-build/ninja/releases/download/v1.9.0/ninja-linux.zip'
             && unzip ~/ninja.zip -d ~/.local/bin
         - travis_retry curl -o ~/get-pip.py -L 'https://bootstrap.pypa.io/get-pip.py'
             && python3 ~/get-pip.py --user
             && pip3 install --user meson
       script:
-        - meson --buildtype=debug
+        - meson setup --buildtype=debug
                 -Db_lundef=false
                 -Dauto_features=enabled
                 -Dbuild_{programs,tests,contrib}=true
                 -Ddefault_library=both
                 build/meson builddir
-        - cd builddir
+        - pushd builddir
         - DESTDIR=./staging ninja install
         - tree ./staging
   allow_failures:

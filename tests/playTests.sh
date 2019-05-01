@@ -55,6 +55,7 @@ truncateLastByte() {
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 PRGDIR="$SCRIPT_DIR/../programs"
+TESTDIR="$SCRIPT_DIR/../tests"
 UNAME=$(uname)
 
 isTerminal=false
@@ -416,7 +417,7 @@ $ECHO "- test with raw dict (content only) "
 $DIFF -q tmp1 tmp2
 $ECHO "- Create first dictionary "
 TESTFILE="$PRGDIR"/zstdcli.c
-$ZSTD --train ./*.c "$PRGDIR"/*.c -o tmpDict
+$ZSTD --train "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpDict
 cp "$TESTFILE" tmp
 $ECHO "- Test dictionary compression with tmpDict as an input file and dictionary"
 $ZSTD -f tmpDict -D tmpDict && die "compression error not detected!"
@@ -434,19 +435,19 @@ then
     ./datagen -g5M | $ZSTD -T2 -D tmpDict | $ZSTD -t -D tmpDict   # fails with v1.3.2
 fi
 $ECHO "- Create second (different) dictionary "
-$ZSTD --train ./*.c "$PRGDIR"/*.c "$PRGDIR"/*.h -o tmpDictC
+$ZSTD --train "$TESTDIR"/*.c "$PRGDIR"/*.c "$PRGDIR"/*.h -o tmpDictC
 $ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
 $ECHO "- Create dictionary with short dictID"
-$ZSTD --train ./*.c "$PRGDIR"/*.c --dictID=1 -o tmpDict1
+$ZSTD --train "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o tmpDict1
 cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
 $ECHO "- Create dictionary with wrong dictID parameter order (must fail)"
-$ZSTD --train ./*.c "$PRGDIR"/*.c --dictID -o 1 tmpDict1 && die "wrong order : --dictID must be followed by argument "
+$ZSTD --train "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID -o 1 tmpDict1 && die "wrong order : --dictID must be followed by argument "
 $ECHO "- Create dictionary with size limit"
-$ZSTD --train ./*.c "$PRGDIR"/*.c -o tmpDict2 --maxdict=4K -v
+$ZSTD --train "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpDict2 --maxdict=4K -v
 $ECHO "- Create dictionary with small size limit"
-$ZSTD --train ./*.c "$PRGDIR"/*.c -o tmpDict3 --maxdict=1K -v
+$ZSTD --train "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpDict3 --maxdict=1K -v
 $ECHO "- Create dictionary with wrong parameter order (must fail)"
-$ZSTD --train ./*.c "$PRGDIR"/*.c -o tmpDict3 --maxdict -v 4K && die "wrong order : --maxdict must be followed by argument "
+$ZSTD --train "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpDict3 --maxdict -v 4K && die "wrong order : --maxdict must be followed by argument "
 $ECHO "- Compress without dictID"
 $ZSTD -f tmp -D tmpDict1 --no-dictID
 $ZSTD -d tmp.zst -D tmpDict -fo result
@@ -456,7 +457,7 @@ $ZSTD tmp -Df tmpDict1 -c > $INTOVOID && die "-D must be followed by dictionary 
 $ECHO "- Compress multiple files with dictionary"
 rm -rf dirTestDict
 mkdir dirTestDict
-cp ./*.c dirTestDict
+cp "$TESTDIR"/*.c dirTestDict
 cp "$PRGDIR"/*.c dirTestDict
 cp "$PRGDIR"/*.h dirTestDict
 $MD5SUM dirTestDict/* > tmph1
@@ -474,9 +475,9 @@ $ZSTD --train-legacy -q tmp && die "Dictionary training should fail : not enough
 $ZSTD --train-legacy -q tmp && die "Dictionary training should fail : source is pure noise"
 $ECHO "- Test -o before --train"
 rm -f tmpDict dictionary
-$ZSTD -o tmpDict --train ./*.c "$PRGDIR"/*.c
+$ZSTD -o tmpDict --train "$TESTDIR"/*.c "$PRGDIR"/*.c
 test -f tmpDict
-$ZSTD --train ./*.c "$PRGDIR"/*.c
+$ZSTD --train "$TESTDIR"/*.c "$PRGDIR"/*.c
 test -f dictionary
 rm tmp* dictionary
 
@@ -486,37 +487,37 @@ $ECHO "\n===>  fastCover dictionary builder : advanced options "
 TESTFILE="$PRGDIR"/zstdcli.c
 ./datagen > tmpDict
 $ECHO "- Create first dictionary"
-$ZSTD --train-fastcover=k=46,d=8,f=15,split=80 ./*.c "$PRGDIR"/*.c -o tmpDict
+$ZSTD --train-fastcover=k=46,d=8,f=15,split=80 "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpDict
 cp "$TESTFILE" tmp
 $ZSTD -f tmp -D tmpDict
 $ZSTD -d tmp.zst -D tmpDict -fo result
 $DIFF "$TESTFILE" result
 $ECHO "- Create second (different) dictionary"
-$ZSTD --train-fastcover=k=56,d=8 ./*.c "$PRGDIR"/*.c "$PRGDIR"/*.h -o tmpDictC
+$ZSTD --train-fastcover=k=56,d=8 "$TESTDIR"/*.c "$PRGDIR"/*.c "$PRGDIR"/*.h -o tmpDictC
 $ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
 $ECHO "- Create dictionary with short dictID"
-$ZSTD --train-fastcover=k=46,d=8,f=15,split=80 ./*.c "$PRGDIR"/*.c --dictID=1 -o tmpDict1
+$ZSTD --train-fastcover=k=46,d=8,f=15,split=80 "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o tmpDict1
 cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
 $ECHO "- Create dictionary with size limit"
-$ZSTD --train-fastcover=steps=8 ./*.c "$PRGDIR"/*.c -o tmpDict2 --maxdict=4K
+$ZSTD --train-fastcover=steps=8 "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpDict2 --maxdict=4K
 $ECHO "- Compare size of dictionary from 90% training samples with 80% training samples"
-$ZSTD --train-fastcover=split=90 -r ./*.c "$PRGDIR"/*.c
-$ZSTD --train-fastcover=split=80 -r ./*.c "$PRGDIR"/*.c
+$ZSTD --train-fastcover=split=90 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
+$ZSTD --train-fastcover=split=80 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
 $ECHO "- Create dictionary using all samples for both training and testing"
-$ZSTD --train-fastcover=split=100 -r ./*.c "$PRGDIR"/*.c
+$ZSTD --train-fastcover=split=100 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
 $ECHO "- Create dictionary using f=16"
-$ZSTD --train-fastcover=f=16 -r ./*.c "$PRGDIR"/*.c
+$ZSTD --train-fastcover=f=16 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
 $ECHO "- Create dictionary using accel=2"
-$ZSTD --train-fastcover=accel=2 -r ./*.c "$PRGDIR"/*.c
+$ZSTD --train-fastcover=accel=2 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
 $ECHO "- Create dictionary using accel=10"
-$ZSTD --train-fastcover=accel=10 -r ./*.c "$PRGDIR"/*.c
+$ZSTD --train-fastcover=accel=10 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
 $ECHO "- Create dictionary with multithreading"
-$ZSTD --train-fastcover -T4 -r ./*.c "$PRGDIR"/*.c
+$ZSTD --train-fastcover -T4 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
 $ECHO "- Test -o before --train-fastcover"
 rm -f tmpDict dictionary
-$ZSTD -o tmpDict --train-fastcover ./*.c "$PRGDIR"/*.c
+$ZSTD -o tmpDict --train-fastcover "$TESTDIR"/*.c "$PRGDIR"/*.c
 test -f tmpDict
-$ZSTD --train-fastcover ./*.c "$PRGDIR"/*.c
+$ZSTD --train-fastcover "$TESTDIR"/*.c "$PRGDIR"/*.c
 test -f dictionary
 rm tmp* dictionary
 
@@ -526,24 +527,24 @@ $ECHO "\n===>  legacy dictionary builder "
 TESTFILE="$PRGDIR"/zstdcli.c
 ./datagen > tmpDict
 $ECHO "- Create first dictionary"
-$ZSTD --train-legacy=selectivity=8 ./*.c "$PRGDIR"/*.c -o tmpDict
+$ZSTD --train-legacy=selectivity=8 "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpDict
 cp "$TESTFILE" tmp
 $ZSTD -f tmp -D tmpDict
 $ZSTD -d tmp.zst -D tmpDict -fo result
 $DIFF "$TESTFILE" result
 $ECHO "- Create second (different) dictionary"
-$ZSTD --train-legacy=s=5 ./*.c "$PRGDIR"/*.c "$PRGDIR"/*.h -o tmpDictC
+$ZSTD --train-legacy=s=5 "$TESTDIR"/*.c "$PRGDIR"/*.c "$PRGDIR"/*.h -o tmpDictC
 $ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
 $ECHO "- Create dictionary with short dictID"
-$ZSTD --train-legacy -s5 ./*.c "$PRGDIR"/*.c --dictID=1 -o tmpDict1
+$ZSTD --train-legacy -s5 "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o tmpDict1
 cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
 $ECHO "- Create dictionary with size limit"
-$ZSTD --train-legacy -s9 ./*.c "$PRGDIR"/*.c -o tmpDict2 --maxdict=4K
+$ZSTD --train-legacy -s9 "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpDict2 --maxdict=4K
 $ECHO "- Test -o before --train-legacy"
 rm -f tmpDict dictionary
-$ZSTD -o tmpDict --train-legacy ./*.c "$PRGDIR"/*.c
+$ZSTD -o tmpDict --train-legacy "$TESTDIR"/*.c "$PRGDIR"/*.c
 test -f tmpDict
-$ZSTD --train-legacy ./*.c "$PRGDIR"/*.c
+$ZSTD --train-legacy "$TESTDIR"/*.c "$PRGDIR"/*.c
 test -f dictionary
 rm tmp* dictionary
 
@@ -575,8 +576,8 @@ $ZSTD -t tmpSplit.* && die "bad file not detected !"
 
 $ECHO "\n===>  golden files tests "
 
-$ZSTD -t -r files
-$ZSTD -c -r files | $ZSTD -t
+$ZSTD -t -r "$TESTDIR/files"
+$ZSTD -c -r "$TESTDIR/files" | $ZSTD -t
 
 
 $ECHO "\n===>  benchmark mode tests "
@@ -973,29 +974,29 @@ $ECHO "\n===>  cover dictionary builder : advanced options "
 TESTFILE="$PRGDIR"/zstdcli.c
 ./datagen > tmpDict
 $ECHO "- Create first dictionary"
-$ZSTD --train-cover=k=46,d=8,split=80 ./*.c "$PRGDIR"/*.c -o tmpDict
+$ZSTD --train-cover=k=46,d=8,split=80 "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpDict
 cp "$TESTFILE" tmp
 $ZSTD -f tmp -D tmpDict
 $ZSTD -d tmp.zst -D tmpDict -fo result
 $DIFF "$TESTFILE" result
 $ECHO "- Create second (different) dictionary"
-$ZSTD --train-cover=k=56,d=8 ./*.c "$PRGDIR"/*.c "$PRGDIR"/*.h -o tmpDictC
+$ZSTD --train-cover=k=56,d=8 "$TESTDIR"/*.c "$PRGDIR"/*.c "$PRGDIR"/*.h -o tmpDictC
 $ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
 $ECHO "- Create dictionary with short dictID"
-$ZSTD --train-cover=k=46,d=8,split=80 ./*.c "$PRGDIR"/*.c --dictID=1 -o tmpDict1
+$ZSTD --train-cover=k=46,d=8,split=80 "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o tmpDict1
 cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
 $ECHO "- Create dictionary with size limit"
-$ZSTD --train-cover=steps=8 ./*.c "$PRGDIR"/*.c -o tmpDict2 --maxdict=4K
+$ZSTD --train-cover=steps=8 "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpDict2 --maxdict=4K
 $ECHO "- Compare size of dictionary from 90% training samples with 80% training samples"
-$ZSTD --train-cover=split=90 -r ./*.c "$PRGDIR"/*.c
-$ZSTD --train-cover=split=80 -r ./*.c "$PRGDIR"/*.c
+$ZSTD --train-cover=split=90 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
+$ZSTD --train-cover=split=80 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
 $ECHO "- Create dictionary using all samples for both training and testing"
-$ZSTD --train-cover=split=100 -r ./*.c "$PRGDIR"/*.c
+$ZSTD --train-cover=split=100 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
 $ECHO "- Test -o before --train-cover"
 rm -f tmpDict dictionary
-$ZSTD -o tmpDict --train-cover ./*.c "$PRGDIR"/*.c
+$ZSTD -o tmpDict --train-cover "$TESTDIR"/*.c "$PRGDIR"/*.c
 test -f tmpDict
-$ZSTD --train-cover ./*.c "$PRGDIR"/*.c
+$ZSTD --train-cover "$TESTDIR"/*.c "$PRGDIR"/*.c
 test -f dictionary
 rm -f tmp* dictionary
 

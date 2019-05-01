@@ -332,7 +332,7 @@ test-zstd-nolegacy: zstd-nolegacy
 
 test-zstd test-zstd32 test-zstd-nolegacy: datagen
 	file $(ZSTD)
-	ZSTD="$(QEMU_SYS) $(ZSTD)" ./playTests.sh $(ZSTDRTTEST)
+	ZSTD="$(QEMU_SYS) $(ZSTD)" sh -xe ./playTests.sh $(ZSTDRTTEST)
 
 
 test-gzstd: gzstd

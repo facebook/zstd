@@ -307,6 +307,8 @@ $ZSTD -dc helloworld.zstd > result.tmp
 $DIFF helloworld.tmp result.tmp
 println "testing zstdcat symlink"
 ln -sf "$ZSTD" zstdcat
+ls -l zstdcat
+test -f zstdcat
 ./zstdcat helloworld.zstd > result.tmp
 $DIFF helloworld.tmp result.tmp
 ln -s helloworld.zstd helloworld.link.zstd

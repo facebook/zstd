@@ -112,13 +112,15 @@ invalidDictionaries = executable('invalidDictionaries',
   dependencies: [ libzstd_dep ],
   install: false)
 
-legacy_sources = [join_paths(zstd_rootdir, 'tests/legacy.c')]
-legacy = executable('legacy',
-  legacy_sources,
-  # Use -Dlegacy_level build option to control it
-  #c_args: '-DZSTD_LEGACY_SUPPORT=4',
-  dependencies: [ libzstd_dep ],
-  install: false)
+if 0 < legacy_level and legacy_level <= 4
+  legacy_sources = [join_paths(zstd_rootdir, 'tests/legacy.c')]
+  legacy = executable('legacy',
+    legacy_sources,
+    # Use -Dlegacy_level build option to control it
+    #c_args: '-DZSTD_LEGACY_SUPPORT=4',
+    dependencies: [ libzstd_dep ],
+    install: false)
+endif
 
 decodecorpus_sources = [join_paths(zstd_rootdir, 'programs/util.c'),
   join_paths(zstd_rootdir, 'programs/timefn.c'),
@@ -218,7 +220,9 @@ test('test-zstream-3',
 test('test-longmatch', longmatch, timeout: 36)
 test('test-invalidDictionaries', invalidDictionaries) # should be fast
 test('test-symbols', symbols) # should be fast
-test('test-legacy', legacy) # should be fast
+if 0 < legacy_level and legacy_level <= 4
+  test('test-legacy', legacy) # should be fast
+endif
 test('test-decodecorpus',
   decodecorpus,
   args: ['-t', DECODECORPUS_TESTTIME],

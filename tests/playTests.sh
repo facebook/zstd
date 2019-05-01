@@ -95,7 +95,7 @@ $ECHO "\nStarting playTests.sh isWindows=$isWindows ZSTD='$ZSTD'"
 
 [ -n "$ZSTD" ] || die "ZSTD variable must be defined!"
 
-if [ -n "$(echo hello | $ZSTD -v -T2 2>&1 > $INTOVOID | grep 'multi-threading is disabled')" ]
+if echo hello | $ZSTD -v -T2 2>&1 > $INTOVOID | grep -q 'multi-threading is disabled'
 then
     hasMT=""
 else
@@ -126,7 +126,7 @@ $ECHO "test : set compression level with environment variable ZSTD_CLEVEL"
 ZSTD_CLEVEL=12  $ZSTD -f tmp # positive compression level
 ZSTD_CLEVEL=-12 $ZSTD -f tmp # negative compression level
 ZSTD_CLEVEL=+12 $ZSTD -f tmp # valid: verbose '+' sign
-ZSTD_CLEVEL=    $ZSTD -f tmp # empty env var, warn and revert to default setting
+ZSTD_CLEVEL=''  $ZSTD -f tmp # empty env var, warn and revert to default setting
 ZSTD_CLEVEL=-   $ZSTD -f tmp # malformed env var, warn and revert to default setting
 ZSTD_CLEVEL=a   $ZSTD -f tmp # malformed env var, warn and revert to default setting
 ZSTD_CLEVEL=+a  $ZSTD -f tmp # malformed env var, warn and revert to default setting
@@ -301,7 +301,7 @@ cat hello.zstd world.zstd > helloworld.zstd
 $ZSTD -dc helloworld.zstd > result.tmp
 $DIFF helloworld.tmp result.tmp
 $ECHO "testing zstdcat symlink"
-ln -sf $ZSTD zstdcat
+ln -sf "$ZSTD" zstdcat
 ./zstdcat helloworld.zstd > result.tmp
 $DIFF helloworld.tmp result.tmp
 ln -s helloworld.zstd helloworld.link.zstd
@@ -310,7 +310,7 @@ $DIFF helloworld.tmp result.tmp
 rm zstdcat
 rm result.tmp
 $ECHO "testing zcat symlink"
-ln -sf $ZSTD zcat
+ln -sf "$ZSTD" zcat
 ./zcat helloworld.zstd > result.tmp
 $DIFF helloworld.tmp result.tmp
 ./zcat helloworld.link.zstd > result.tmp
@@ -391,7 +391,7 @@ $ZSTD -f tmp*
 ls -ls tmp*
 rm tmp1 tmp2 tmp3
 $ECHO "decompress tmp* : "
-$ZSTD -df *.zst
+$ZSTD -df ./*.zst
 ls -ls tmp*
 $ECHO "compress tmp* into stdout > tmpall : "
 $ZSTD -c tmp1 tmp2 tmp3 > tmpall
@@ -413,7 +413,7 @@ $ECHO "- test with raw dict (content only) "
 $DIFF -q tmp1 tmp2
 $ECHO "- Create first dictionary "
 TESTFILE=../programs/zstdcli.c
-$ZSTD --train *.c ../programs/*.c -o tmpDict
+$ZSTD --train ./*.c ../programs/*.c -o tmpDict
 cp $TESTFILE tmp
 $ECHO "- Test dictionary compression with tmpDict as an input file and dictionary"
 $ZSTD -f tmpDict -D tmpDict && die "compression error not detected!"
@@ -431,19 +431,19 @@ then
     ./datagen -g5M | $ZSTD -T2 -D tmpDict | $ZSTD -t -D tmpDict   # fails with v1.3.2
 fi
 $ECHO "- Create second (different) dictionary "
-$ZSTD --train *.c ../programs/*.c ../programs/*.h -o tmpDictC
+$ZSTD --train ./*.c ../programs/*.c ../programs/*.h -o tmpDictC
 $ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
 $ECHO "- Create dictionary with short dictID"
-$ZSTD --train *.c ../programs/*.c --dictID=1 -o tmpDict1
+$ZSTD --train ./*.c ../programs/*.c --dictID=1 -o tmpDict1
 cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
 $ECHO "- Create dictionary with wrong dictID parameter order (must fail)"
-$ZSTD --train *.c ../programs/*.c --dictID -o 1 tmpDict1 && die "wrong order : --dictID must be followed by argument "
+$ZSTD --train ./*.c ../programs/*.c --dictID -o 1 tmpDict1 && die "wrong order : --dictID must be followed by argument "
 $ECHO "- Create dictionary with size limit"
-$ZSTD --train *.c ../programs/*.c -o tmpDict2 --maxdict=4K -v
+$ZSTD --train ./*.c ../programs/*.c -o tmpDict2 --maxdict=4K -v
 $ECHO "- Create dictionary with small size limit"
-$ZSTD --train *.c ../programs/*.c -o tmpDict3 --maxdict=1K -v
+$ZSTD --train ./*.c ../programs/*.c -o tmpDict3 --maxdict=1K -v
 $ECHO "- Create dictionary with wrong parameter order (must fail)"
-$ZSTD --train *.c ../programs/*.c -o tmpDict3 --maxdict -v 4K && die "wrong order : --maxdict must be followed by argument "
+$ZSTD --train ./*.c ../programs/*.c -o tmpDict3 --maxdict -v 4K && die "wrong order : --maxdict must be followed by argument "
 $ECHO "- Compress without dictID"
 $ZSTD -f tmp -D tmpDict1 --no-dictID
 $ZSTD -d tmp.zst -D tmpDict -fo result
@@ -453,7 +453,7 @@ $ZSTD tmp -Df tmpDict1 -c > $INTOVOID && die "-D must be followed by dictionary 
 $ECHO "- Compress multiple files with dictionary"
 rm -rf dirTestDict
 mkdir dirTestDict
-cp *.c dirTestDict
+cp ./*.c dirTestDict
 cp ../programs/*.c dirTestDict
 cp ../programs/*.h dirTestDict
 $MD5SUM dirTestDict/* > tmph1
@@ -471,9 +471,9 @@ $ZSTD --train-legacy -q tmp && die "Dictionary training should fail : not enough
 $ZSTD --train-legacy -q tmp && die "Dictionary training should fail : source is pure noise"
 $ECHO "- Test -o before --train"
 rm -f tmpDict dictionary
-$ZSTD -o tmpDict --train *.c ../programs/*.c
+$ZSTD -o tmpDict --train ./*.c ../programs/*.c
 test -f tmpDict
-$ZSTD --train *.c ../programs/*.c
+$ZSTD --train ./*.c ../programs/*.c
 test -f dictionary
 rm tmp* dictionary
 
@@ -483,37 +483,37 @@ $ECHO "\n===>  fastCover dictionary builder : advanced options "
 TESTFILE=../programs/zstdcli.c
 ./datagen > tmpDict
 $ECHO "- Create first dictionary"
-$ZSTD --train-fastcover=k=46,d=8,f=15,split=80 *.c ../programs/*.c -o tmpDict
+$ZSTD --train-fastcover=k=46,d=8,f=15,split=80 ./*.c ../programs/*.c -o tmpDict
 cp $TESTFILE tmp
 $ZSTD -f tmp -D tmpDict
 $ZSTD -d tmp.zst -D tmpDict -fo result
 $DIFF $TESTFILE result
 $ECHO "- Create second (different) dictionary"
-$ZSTD --train-fastcover=k=56,d=8 *.c ../programs/*.c ../programs/*.h -o tmpDictC
+$ZSTD --train-fastcover=k=56,d=8 ./*.c ../programs/*.c ../programs/*.h -o tmpDictC
 $ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
 $ECHO "- Create dictionary with short dictID"
-$ZSTD --train-fastcover=k=46,d=8,f=15,split=80 *.c ../programs/*.c --dictID=1 -o tmpDict1
+$ZSTD --train-fastcover=k=46,d=8,f=15,split=80 ./*.c ../programs/*.c --dictID=1 -o tmpDict1
 cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
 $ECHO "- Create dictionary with size limit"
-$ZSTD --train-fastcover=steps=8 *.c ../programs/*.c -o tmpDict2 --maxdict=4K
+$ZSTD --train-fastcover=steps=8 ./*.c ../programs/*.c -o tmpDict2 --maxdict=4K
 $ECHO "- Compare size of dictionary from 90% training samples with 80% training samples"
-$ZSTD --train-fastcover=split=90 -r *.c ../programs/*.c
-$ZSTD --train-fastcover=split=80 -r *.c ../programs/*.c
+$ZSTD --train-fastcover=split=90 -r ./*.c ../programs/*.c
+$ZSTD --train-fastcover=split=80 -r ./*.c ../programs/*.c
 $ECHO "- Create dictionary using all samples for both training and testing"
-$ZSTD --train-fastcover=split=100 -r *.c ../programs/*.c
+$ZSTD --train-fastcover=split=100 -r ./*.c ../programs/*.c
 $ECHO "- Create dictionary using f=16"
-$ZSTD --train-fastcover=f=16 -r *.c ../programs/*.c
+$ZSTD --train-fastcover=f=16 -r ./*.c ../programs/*.c
 $ECHO "- Create dictionary using accel=2"
-$ZSTD --train-fastcover=accel=2 -r *.c ../programs/*.c
+$ZSTD --train-fastcover=accel=2 -r ./*.c ../programs/*.c
 $ECHO "- Create dictionary using accel=10"
-$ZSTD --train-fastcover=accel=10 -r *.c ../programs/*.c
+$ZSTD --train-fastcover=accel=10 -r ./*.c ../programs/*.c
 $ECHO "- Create dictionary with multithreading"
-$ZSTD --train-fastcover -T4 -r *.c ../programs/*.c
+$ZSTD --train-fastcover -T4 -r ./*.c ../programs/*.c
 $ECHO "- Test -o before --train-fastcover"
 rm -f tmpDict dictionary
-$ZSTD -o tmpDict --train-fastcover *.c ../programs/*.c
+$ZSTD -o tmpDict --train-fastcover ./*.c ../programs/*.c
 test -f tmpDict
-$ZSTD --train-fastcover *.c ../programs/*.c
+$ZSTD --train-fastcover ./*.c ../programs/*.c
 test -f dictionary
 rm tmp* dictionary
 
@@ -523,24 +523,24 @@ $ECHO "\n===>  legacy dictionary builder "
 TESTFILE=../programs/zstdcli.c
 ./datagen > tmpDict
 $ECHO "- Create first dictionary"
-$ZSTD --train-legacy=selectivity=8 *.c ../programs/*.c -o tmpDict
+$ZSTD --train-legacy=selectivity=8 ./*.c ../programs/*.c -o tmpDict
 cp $TESTFILE tmp
 $ZSTD -f tmp -D tmpDict
 $ZSTD -d tmp.zst -D tmpDict -fo result
 $DIFF $TESTFILE result
 $ECHO "- Create second (different) dictionary"
-$ZSTD --train-legacy=s=5 *.c ../programs/*.c ../programs/*.h -o tmpDictC
+$ZSTD --train-legacy=s=5 ./*.c ../programs/*.c ../programs/*.h -o tmpDictC
 $ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
 $ECHO "- Create dictionary with short dictID"
-$ZSTD --train-legacy -s5 *.c ../programs/*.c --dictID=1 -o tmpDict1
+$ZSTD --train-legacy -s5 ./*.c ../programs/*.c --dictID=1 -o tmpDict1
 cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
 $ECHO "- Create dictionary with size limit"
-$ZSTD --train-legacy -s9 *.c ../programs/*.c -o tmpDict2 --maxdict=4K
+$ZSTD --train-legacy -s9 ./*.c ../programs/*.c -o tmpDict2 --maxdict=4K
 $ECHO "- Test -o before --train-legacy"
 rm -f tmpDict dictionary
-$ZSTD -o tmpDict --train-legacy *.c ../programs/*.c
+$ZSTD -o tmpDict --train-legacy ./*.c ../programs/*.c
 test -f tmpDict
-$ZSTD --train-legacy *.c ../programs/*.c
+$ZSTD --train-legacy ./*.c ../programs/*.c
 test -f dictionary
 rm tmp* dictionary
 
@@ -553,9 +553,9 @@ $ZSTD tmp1
 $ZSTD -t tmp1.zst
 $ZSTD --test tmp1.zst
 $ECHO "test multiple files (*.zst) "
-$ZSTD -t *.zst
+$ZSTD -t ./*.zst
 $ECHO "test bad files (*) "
-$ZSTD -t * && die "bad files not detected !"
+$ZSTD -t ./* && die "bad files not detected !"
 $ZSTD -t tmp1 && die "bad file not detected !"
 cp tmp1 tmp2.zst
 $ZSTD -t tmp2.zst && die "bad file not detected !"
@@ -662,10 +662,10 @@ if [ $LZMAMODE -eq 1 ]; then
         $ZSTD -d -f -v tmp.lzma
         rm tmp*
         $ECHO "Creating symlinks"
-        ln -s $ZSTD ./xz
-        ln -s $ZSTD ./unxz
-        ln -s $ZSTD ./lzma
-        ln -s $ZSTD ./unlzma
+        ln -s "$ZSTD" ./xz
+        ln -s "$ZSTD" ./unxz
+        ln -s "$ZSTD" ./lzma
+        ln -s "$ZSTD" ./unlzma
         $ECHO "Testing xz and lzma symlinks"
         ./datagen > tmp
         ./xz tmp
@@ -794,16 +794,16 @@ then
     refSize=$($ZSTD tmp -6 -c --zstd=wlog=18         | wc -c)
     ov9Size=$($ZSTD tmp -6 -c --zstd=wlog=18,ovlog=9 | wc -c)
     ov1Size=$($ZSTD tmp -6 -c --zstd=wlog=18,ovlog=1 | wc -c)
-    if [ $refSize -eq $ov9Size ]; then
+    if [ "$refSize" -eq "$ov9Size" ]; then
         echo ov9Size should be different from refSize
         exit 1
     fi
-    if [ $refSize -eq $ov1Size ]; then
+    if [ "$refSize" -eq "$ov1Size" ]; then
         echo ov1Size should be different from refSize
         exit 1
     fi
-    if [ $ov9Size -ge $ov1Size ]; then
-        echo ov9Size=$ov9Size should be smaller than ov1Size=$ov1Size
+    if [ "$ov9Size" -ge "$ov1Size" ]; then
+        echo ov9Size="$ov9Size" should be smaller than ov1Size="$ov1Size"
         exit 1
     fi
 
@@ -818,16 +818,16 @@ $ECHO "\n===>  zstd --list/-l single frame tests "
 ./datagen > tmp2
 ./datagen > tmp3
 $ZSTD tmp*
-$ZSTD -l *.zst
-$ZSTD -lv *.zst | grep "Decompressed Size:"  # check that decompressed size is present in header
-$ZSTD --list *.zst
-$ZSTD --list -v *.zst
+$ZSTD -l ./*.zst
+$ZSTD -lv ./*.zst | grep "Decompressed Size:"  # check that decompressed size is present in header
+$ZSTD --list ./*.zst
+$ZSTD --list -v ./*.zst
 
 $ECHO "\n===>  zstd --list/-l multiple frame tests "
 cat tmp1.zst tmp2.zst > tmp12.zst
 cat tmp12.zst tmp3.zst > tmp123.zst
-$ZSTD -l *.zst
-$ZSTD -lv *.zst
+$ZSTD -l ./*.zst
+$ZSTD -lv ./*.zst
 
 $ECHO "\n===>  zstd --list/-l error detection tests "
 $ZSTD -l tmp1 tmp1.zst && die "-l must fail on non-zstd file"
@@ -970,29 +970,29 @@ $ECHO "\n===>  cover dictionary builder : advanced options "
 TESTFILE=../programs/zstdcli.c
 ./datagen > tmpDict
 $ECHO "- Create first dictionary"
-$ZSTD --train-cover=k=46,d=8,split=80 *.c ../programs/*.c -o tmpDict
+$ZSTD --train-cover=k=46,d=8,split=80 ./*.c ../programs/*.c -o tmpDict
 cp $TESTFILE tmp
 $ZSTD -f tmp -D tmpDict
 $ZSTD -d tmp.zst -D tmpDict -fo result
 $DIFF $TESTFILE result
 $ECHO "- Create second (different) dictionary"
-$ZSTD --train-cover=k=56,d=8 *.c ../programs/*.c ../programs/*.h -o tmpDictC
+$ZSTD --train-cover=k=56,d=8 ./*.c ../programs/*.c ../programs/*.h -o tmpDictC
 $ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
 $ECHO "- Create dictionary with short dictID"
-$ZSTD --train-cover=k=46,d=8,split=80 *.c ../programs/*.c --dictID=1 -o tmpDict1
+$ZSTD --train-cover=k=46,d=8,split=80 ./*.c ../programs/*.c --dictID=1 -o tmpDict1
 cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
 $ECHO "- Create dictionary with size limit"
-$ZSTD --train-cover=steps=8 *.c ../programs/*.c -o tmpDict2 --maxdict=4K
+$ZSTD --train-cover=steps=8 ./*.c ../programs/*.c -o tmpDict2 --maxdict=4K
 $ECHO "- Compare size of dictionary from 90% training samples with 80% training samples"
-$ZSTD --train-cover=split=90 -r *.c ../programs/*.c
-$ZSTD --train-cover=split=80 -r *.c ../programs/*.c
+$ZSTD --train-cover=split=90 -r ./*.c ../programs/*.c
+$ZSTD --train-cover=split=80 -r ./*.c ../programs/*.c
 $ECHO "- Create dictionary using all samples for both training and testing"
-$ZSTD --train-cover=split=100 -r *.c ../programs/*.c
+$ZSTD --train-cover=split=100 -r ./*.c ../programs/*.c
 $ECHO "- Test -o before --train-cover"
 rm -f tmpDict dictionary
-$ZSTD -o tmpDict --train-cover *.c ../programs/*.c
+$ZSTD -o tmpDict --train-cover ./*.c ../programs/*.c
 test -f tmpDict
-$ZSTD --train-cover *.c ../programs/*.c
+$ZSTD --train-cover ./*.c ../programs/*.c
 test -f dictionary
 rm -f tmp* dictionary
 

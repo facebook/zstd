@@ -52,6 +52,9 @@ truncateLastByte() {
 	dd bs=1 count=$(($(wc -c < "$1") - 1)) if="$1"
 }
 
+
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+PRGDIR="$SCRIPT_DIR/../programs"
 UNAME=$(uname)
 
 isTerminal=false
@@ -412,50 +415,50 @@ $ECHO "- test with raw dict (content only) "
 ./datagen -g1M | $ZSTD -D tmpDict | $ZSTD -D tmpDict -dvq | $MD5SUM > tmp2
 $DIFF -q tmp1 tmp2
 $ECHO "- Create first dictionary "
-TESTFILE=../programs/zstdcli.c
-$ZSTD --train ./*.c ../programs/*.c -o tmpDict
-cp $TESTFILE tmp
+TESTFILE="$PRGDIR"/zstdcli.c
+$ZSTD --train ./*.c "$PRGDIR"/*.c -o tmpDict
+cp "$TESTFILE" tmp
 $ECHO "- Test dictionary compression with tmpDict as an input file and dictionary"
 $ZSTD -f tmpDict -D tmpDict && die "compression error not detected!"
 $ECHO "- Dictionary compression roundtrip"
 $ZSTD -f tmp -D tmpDict
 $ZSTD -d tmp.zst -D tmpDict -fo result
-$DIFF $TESTFILE result
+$DIFF "$TESTFILE" result
 $ECHO "- Dictionary compression with btlazy2 strategy"
 $ZSTD -f tmp -D tmpDict --zstd=strategy=6
 $ZSTD -d tmp.zst -D tmpDict -fo result
-$DIFF $TESTFILE result
+$DIFF "$TESTFILE" result
 if [ -n "$hasMT" ]
 then
     $ECHO "- Test dictionary compression with multithreading "
     ./datagen -g5M | $ZSTD -T2 -D tmpDict | $ZSTD -t -D tmpDict   # fails with v1.3.2
 fi
 $ECHO "- Create second (different) dictionary "
-$ZSTD --train ./*.c ../programs/*.c ../programs/*.h -o tmpDictC
+$ZSTD --train ./*.c "$PRGDIR"/*.c "$PRGDIR"/*.h -o tmpDictC
 $ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
 $ECHO "- Create dictionary with short dictID"
-$ZSTD --train ./*.c ../programs/*.c --dictID=1 -o tmpDict1
+$ZSTD --train ./*.c "$PRGDIR"/*.c --dictID=1 -o tmpDict1
 cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
 $ECHO "- Create dictionary with wrong dictID parameter order (must fail)"
-$ZSTD --train ./*.c ../programs/*.c --dictID -o 1 tmpDict1 && die "wrong order : --dictID must be followed by argument "
+$ZSTD --train ./*.c "$PRGDIR"/*.c --dictID -o 1 tmpDict1 && die "wrong order : --dictID must be followed by argument "
 $ECHO "- Create dictionary with size limit"
-$ZSTD --train ./*.c ../programs/*.c -o tmpDict2 --maxdict=4K -v
+$ZSTD --train ./*.c "$PRGDIR"/*.c -o tmpDict2 --maxdict=4K -v
 $ECHO "- Create dictionary with small size limit"
-$ZSTD --train ./*.c ../programs/*.c -o tmpDict3 --maxdict=1K -v
+$ZSTD --train ./*.c "$PRGDIR"/*.c -o tmpDict3 --maxdict=1K -v
 $ECHO "- Create dictionary with wrong parameter order (must fail)"
-$ZSTD --train ./*.c ../programs/*.c -o tmpDict3 --maxdict -v 4K && die "wrong order : --maxdict must be followed by argument "
+$ZSTD --train ./*.c "$PRGDIR"/*.c -o tmpDict3 --maxdict -v 4K && die "wrong order : --maxdict must be followed by argument "
 $ECHO "- Compress without dictID"
 $ZSTD -f tmp -D tmpDict1 --no-dictID
 $ZSTD -d tmp.zst -D tmpDict -fo result
-$DIFF $TESTFILE result
+$DIFF "$TESTFILE" result
 $ECHO "- Compress with wrong argument order (must fail)"
 $ZSTD tmp -Df tmpDict1 -c > $INTOVOID && die "-D must be followed by dictionary name "
 $ECHO "- Compress multiple files with dictionary"
 rm -rf dirTestDict
 mkdir dirTestDict
 cp ./*.c dirTestDict
-cp ../programs/*.c dirTestDict
-cp ../programs/*.h dirTestDict
+cp "$PRGDIR"/*.c dirTestDict
+cp "$PRGDIR"/*.h dirTestDict
 $MD5SUM dirTestDict/* > tmph1
 $ZSTD -f --rm dirTestDict/* -D tmpDictC
 $ZSTD -d --rm dirTestDict/*.zst -D tmpDictC  # note : use internal checksum by default
@@ -471,76 +474,76 @@ $ZSTD --train-legacy -q tmp && die "Dictionary training should fail : not enough
 $ZSTD --train-legacy -q tmp && die "Dictionary training should fail : source is pure noise"
 $ECHO "- Test -o before --train"
 rm -f tmpDict dictionary
-$ZSTD -o tmpDict --train ./*.c ../programs/*.c
+$ZSTD -o tmpDict --train ./*.c "$PRGDIR"/*.c
 test -f tmpDict
-$ZSTD --train ./*.c ../programs/*.c
+$ZSTD --train ./*.c "$PRGDIR"/*.c
 test -f dictionary
 rm tmp* dictionary
 
 
 $ECHO "\n===>  fastCover dictionary builder : advanced options "
 
-TESTFILE=../programs/zstdcli.c
+TESTFILE="$PRGDIR"/zstdcli.c
 ./datagen > tmpDict
 $ECHO "- Create first dictionary"
-$ZSTD --train-fastcover=k=46,d=8,f=15,split=80 ./*.c ../programs/*.c -o tmpDict
-cp $TESTFILE tmp
+$ZSTD --train-fastcover=k=46,d=8,f=15,split=80 ./*.c "$PRGDIR"/*.c -o tmpDict
+cp "$TESTFILE" tmp
 $ZSTD -f tmp -D tmpDict
 $ZSTD -d tmp.zst -D tmpDict -fo result
-$DIFF $TESTFILE result
+$DIFF "$TESTFILE" result
 $ECHO "- Create second (different) dictionary"
-$ZSTD --train-fastcover=k=56,d=8 ./*.c ../programs/*.c ../programs/*.h -o tmpDictC
+$ZSTD --train-fastcover=k=56,d=8 ./*.c "$PRGDIR"/*.c "$PRGDIR"/*.h -o tmpDictC
 $ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
 $ECHO "- Create dictionary with short dictID"
-$ZSTD --train-fastcover=k=46,d=8,f=15,split=80 ./*.c ../programs/*.c --dictID=1 -o tmpDict1
+$ZSTD --train-fastcover=k=46,d=8,f=15,split=80 ./*.c "$PRGDIR"/*.c --dictID=1 -o tmpDict1
 cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
 $ECHO "- Create dictionary with size limit"
-$ZSTD --train-fastcover=steps=8 ./*.c ../programs/*.c -o tmpDict2 --maxdict=4K
+$ZSTD --train-fastcover=steps=8 ./*.c "$PRGDIR"/*.c -o tmpDict2 --maxdict=4K
 $ECHO "- Compare size of dictionary from 90% training samples with 80% training samples"
-$ZSTD --train-fastcover=split=90 -r ./*.c ../programs/*.c
-$ZSTD --train-fastcover=split=80 -r ./*.c ../programs/*.c
+$ZSTD --train-fastcover=split=90 -r ./*.c "$PRGDIR"/*.c
+$ZSTD --train-fastcover=split=80 -r ./*.c "$PRGDIR"/*.c
 $ECHO "- Create dictionary using all samples for both training and testing"
-$ZSTD --train-fastcover=split=100 -r ./*.c ../programs/*.c
+$ZSTD --train-fastcover=split=100 -r ./*.c "$PRGDIR"/*.c
 $ECHO "- Create dictionary using f=16"
-$ZSTD --train-fastcover=f=16 -r ./*.c ../programs/*.c
+$ZSTD --train-fastcover=f=16 -r ./*.c "$PRGDIR"/*.c
 $ECHO "- Create dictionary using accel=2"
-$ZSTD --train-fastcover=accel=2 -r ./*.c ../programs/*.c
+$ZSTD --train-fastcover=accel=2 -r ./*.c "$PRGDIR"/*.c
 $ECHO "- Create dictionary using accel=10"
-$ZSTD --train-fastcover=accel=10 -r ./*.c ../programs/*.c
+$ZSTD --train-fastcover=accel=10 -r ./*.c "$PRGDIR"/*.c
 $ECHO "- Create dictionary with multithreading"
-$ZSTD --train-fastcover -T4 -r ./*.c ../programs/*.c
+$ZSTD --train-fastcover -T4 -r ./*.c "$PRGDIR"/*.c
 $ECHO "- Test -o before --train-fastcover"
 rm -f tmpDict dictionary
-$ZSTD -o tmpDict --train-fastcover ./*.c ../programs/*.c
+$ZSTD -o tmpDict --train-fastcover ./*.c "$PRGDIR"/*.c
 test -f tmpDict
-$ZSTD --train-fastcover ./*.c ../programs/*.c
+$ZSTD --train-fastcover ./*.c "$PRGDIR"/*.c
 test -f dictionary
 rm tmp* dictionary
 
 
 $ECHO "\n===>  legacy dictionary builder "
 
-TESTFILE=../programs/zstdcli.c
+TESTFILE="$PRGDIR"/zstdcli.c
 ./datagen > tmpDict
 $ECHO "- Create first dictionary"
-$ZSTD --train-legacy=selectivity=8 ./*.c ../programs/*.c -o tmpDict
-cp $TESTFILE tmp
+$ZSTD --train-legacy=selectivity=8 ./*.c "$PRGDIR"/*.c -o tmpDict
+cp "$TESTFILE" tmp
 $ZSTD -f tmp -D tmpDict
 $ZSTD -d tmp.zst -D tmpDict -fo result
-$DIFF $TESTFILE result
+$DIFF "$TESTFILE" result
 $ECHO "- Create second (different) dictionary"
-$ZSTD --train-legacy=s=5 ./*.c ../programs/*.c ../programs/*.h -o tmpDictC
+$ZSTD --train-legacy=s=5 ./*.c "$PRGDIR"/*.c "$PRGDIR"/*.h -o tmpDictC
 $ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
 $ECHO "- Create dictionary with short dictID"
-$ZSTD --train-legacy -s5 ./*.c ../programs/*.c --dictID=1 -o tmpDict1
+$ZSTD --train-legacy -s5 ./*.c "$PRGDIR"/*.c --dictID=1 -o tmpDict1
 cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
 $ECHO "- Create dictionary with size limit"
-$ZSTD --train-legacy -s9 ./*.c ../programs/*.c -o tmpDict2 --maxdict=4K
+$ZSTD --train-legacy -s9 ./*.c "$PRGDIR"/*.c -o tmpDict2 --maxdict=4K
 $ECHO "- Test -o before --train-legacy"
 rm -f tmpDict dictionary
-$ZSTD -o tmpDict --train-legacy ./*.c ../programs/*.c
+$ZSTD -o tmpDict --train-legacy ./*.c "$PRGDIR"/*.c
 test -f tmpDict
-$ZSTD --train-legacy ./*.c ../programs/*.c
+$ZSTD --train-legacy ./*.c "$PRGDIR"/*.c
 test -f dictionary
 rm tmp* dictionary
 
@@ -967,32 +970,32 @@ fi
 
 $ECHO "\n===>  cover dictionary builder : advanced options "
 
-TESTFILE=../programs/zstdcli.c
+TESTFILE="$PRGDIR"/zstdcli.c
 ./datagen > tmpDict
 $ECHO "- Create first dictionary"
-$ZSTD --train-cover=k=46,d=8,split=80 ./*.c ../programs/*.c -o tmpDict
-cp $TESTFILE tmp
+$ZSTD --train-cover=k=46,d=8,split=80 ./*.c "$PRGDIR"/*.c -o tmpDict
+cp "$TESTFILE" tmp
 $ZSTD -f tmp -D tmpDict
 $ZSTD -d tmp.zst -D tmpDict -fo result
-$DIFF $TESTFILE result
+$DIFF "$TESTFILE" result
 $ECHO "- Create second (different) dictionary"
-$ZSTD --train-cover=k=56,d=8 ./*.c ../programs/*.c ../programs/*.h -o tmpDictC
+$ZSTD --train-cover=k=56,d=8 ./*.c "$PRGDIR"/*.c "$PRGDIR"/*.h -o tmpDictC
 $ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
 $ECHO "- Create dictionary with short dictID"
-$ZSTD --train-cover=k=46,d=8,split=80 ./*.c ../programs/*.c --dictID=1 -o tmpDict1
+$ZSTD --train-cover=k=46,d=8,split=80 ./*.c "$PRGDIR"/*.c --dictID=1 -o tmpDict1
 cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
 $ECHO "- Create dictionary with size limit"
-$ZSTD --train-cover=steps=8 ./*.c ../programs/*.c -o tmpDict2 --maxdict=4K
+$ZSTD --train-cover=steps=8 ./*.c "$PRGDIR"/*.c -o tmpDict2 --maxdict=4K
 $ECHO "- Compare size of dictionary from 90% training samples with 80% training samples"
-$ZSTD --train-cover=split=90 -r ./*.c ../programs/*.c
-$ZSTD --train-cover=split=80 -r ./*.c ../programs/*.c
+$ZSTD --train-cover=split=90 -r ./*.c "$PRGDIR"/*.c
+$ZSTD --train-cover=split=80 -r ./*.c "$PRGDIR"/*.c
 $ECHO "- Create dictionary using all samples for both training and testing"
-$ZSTD --train-cover=split=100 -r ./*.c ../programs/*.c
+$ZSTD --train-cover=split=100 -r ./*.c "$PRGDIR"/*.c
 $ECHO "- Test -o before --train-cover"
 rm -f tmpDict dictionary
-$ZSTD -o tmpDict --train-cover ./*.c ../programs/*.c
+$ZSTD -o tmpDict --train-cover ./*.c "$PRGDIR"/*.c
 test -f tmpDict
-$ZSTD --train-cover ./*.c ../programs/*.c
+$ZSTD --train-cover ./*.c "$PRGDIR"/*.c
 test -f dictionary
 rm -f tmp* dictionary
 

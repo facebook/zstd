@@ -90,6 +90,7 @@ static int testWait(size_t numThreads, size_t queueSize) {
 
 typedef struct {
     ZSTD_pthread_mutex_t mut;
+    int countdown;
     int val;
     int max;
     ZSTD_pthread_cond_t cond;
@@ -97,48 +98,56 @@ typedef struct {
 
 static void waitLongFn(void *opaque) {
   poolTest_t* const test = (poolTest_t*) opaque;
-  UTIL_sleepMilli(10);
   ZSTD_pthread_mutex_lock(&test->mut);
-  test->val = test->val + 1;
-  if (test->val == test->max)
-    ZSTD_pthread_cond_signal(&test->cond);
+  test->val++;
+  if (test->val > test->max)
+      test->max = test->val;
+  ZSTD_pthread_mutex_unlock(&test->mut);
+
+  UTIL_sleepMilli(10);
+
+  ZSTD_pthread_mutex_lock(&test->mut);
+  test->val--;
+  test->countdown--;
+  if (test->countdown == 0)
+      ZSTD_pthread_cond_signal(&test->cond);
   ZSTD_pthread_mutex_unlock(&test->mut);
 }
 
 static int testThreadReduction_internal(POOL_ctx* ctx, poolTest_t test)
 {
     int const nbWaits = 16;
-    UTIL_time_t startTime;
-    U64 time4threads, time2threads;
 
+    test.countdown = nbWaits;
     test.val = 0;
-    test.max = nbWaits;
+    test.max = 0;
 
-    startTime = UTIL_getTime();
     {   int i;
         for (i=0; i<nbWaits; i++)
             POOL_add(ctx, &waitLongFn, &test);
     }
     ZSTD_pthread_mutex_lock(&test.mut);
-    ZSTD_pthread_cond_wait(&test.cond, &test.mut);
-    ASSERT_EQ(test.val, nbWaits);
+    while (test.countdown > 0)
+        ZSTD_pthread_cond_wait(&test.cond, &test.mut);
+    ASSERT_EQ(test.val, 0);
+    ASSERT_EQ(test.max, 4);
     ZSTD_pthread_mutex_unlock(&test.mut);
-    time4threads = UTIL_clockSpanNano(startTime);
 
     ASSERT_EQ( POOL_resize(ctx, 2/*nbThreads*/) , 0 );
+    test.countdown = nbWaits;
     test.val = 0;
-    startTime = UTIL_getTime();
+    test.max = 0;
     {   int i;
         for (i=0; i<nbWaits; i++)
             POOL_add(ctx, &waitLongFn, &test);
     }
     ZSTD_pthread_mutex_lock(&test.mut);
-    ZSTD_pthread_cond_wait(&test.cond, &test.mut);
-    ASSERT_EQ(test.val, nbWaits);
+    while (test.countdown > 0)
+        ZSTD_pthread_cond_wait(&test.cond, &test.mut);
+    ASSERT_EQ(test.val, 0);
+    ASSERT_EQ(test.max, 2);
     ZSTD_pthread_mutex_unlock(&test.mut);
-    time2threads = UTIL_clockSpanNano(startTime);
 
-    if (time4threads >= time2threads) return 1;   /* check 4 threads were effectively faster than 2 */
     return 0;
 }
 
@@ -246,7 +255,7 @@ int main(int argc, const char **argv) {
       printf("FAIL: thread reduction not effective \n");
       return 1;
   } else {
-      printf("SUCCESS: thread reduction effective (slower execution) \n");
+      printf("SUCCESS: thread reduction effective \n");
   }
 
   if (testAbruptEnding()) {

@@ -190,14 +190,19 @@ matrix:
             && python3 ~/get-pip.py --user
             && pip3 install --user meson
       script:
-        - meson setup --buildtype=debug
-                -Db_lundef=false
-                -Dauto_features=enabled
-                -Dbuild_{programs,tests,contrib}=true
-                -Ddefault_library=both
-                build/meson builddir
+        - meson setup
+            --buildtype=debugoptimized
+            -Db_lundef=false
+            -Dauto_features=enabled
+            -Dbuild_{programs,tests,contrib}=true
+            -Ddefault_library=both
+             build/meson builddir
         - pushd builddir
+        - ninja
+        - meson test --verbose --no-rebuild
         - DESTDIR=./staging ninja install
         - tree ./staging
+      after_failure:
+        - cat "$TRAVIS_BUILD_DIR"/builddir/meson-logs/testlog.txt
   allow_failures:
     - env: ALLOW_FAILURES=true

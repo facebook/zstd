@@ -104,7 +104,7 @@ static void waitLongFn(void *opaque) {
       test->max = test->val;
   ZSTD_pthread_mutex_unlock(&test->mut);
 
-  UTIL_sleepMilli(100);
+  UTIL_sleepMilli(10);
 
   ZSTD_pthread_mutex_lock(&test->mut);
   test->val--;

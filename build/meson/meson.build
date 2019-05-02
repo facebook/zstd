@@ -12,7 +12,7 @@ project('zstd',
   ['c', 'cpp'],
   license: ['BSD', 'GPLv2'],
   default_options : [
-    'c_std=c99',
+    'c_std=gnu99',
     'cpp_std=c++11',
     'buildtype=release'
   ],

@@ -175,7 +175,7 @@ static void clearHandler(void)
 
 #if !defined(BACKTRACE_ENABLE)
 /* automatic detector : backtrace enabled by default on linux+glibc and osx */
-#  if (defined(__linux__) && defined(__GLIBC__)) \
+#  if (defined(__linux__) && (defined(__GLIBC__) && !defined(__UCLIBC__))) \
      || (defined(__APPLE__) && defined(__MACH__))
 #    define BACKTRACE_ENABLE 1
 #  else

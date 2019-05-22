@@ -744,7 +744,7 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_cover(
   {
     size_t const initVal = COVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples,
                       parameters.d, parameters.splitPoint);
-    if(ZSTD_isError(initVal)){
+    if (ZSTD_isError(initVal)) {
       return initVal;
     }
   }
@@ -1025,11 +1025,11 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
   /* Checks */
   if (splitPoint <= 0 || splitPoint > 1) {
     LOCALDISPLAYLEVEL(displayLevel, 1, "Incorrect parameters\n");
-    return ERROR(parameter_unsupported);
+    return ERROR(parameter_outOfBound);
   }
   if (kMinK < kMaxD || kMaxK < kMinK) {
     LOCALDISPLAYLEVEL(displayLevel, 1, "Incorrect parameters\n");
-    return ERROR(parameter_unsupported);
+    return ERROR(parameter_outOfBound);
   }
   if (nbSamples == 0) {
     DISPLAYLEVEL(1, "Cover must have at least one input file\n");
@@ -1057,11 +1057,14 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
     /* Initialize the context for this value of d */
     COVER_ctx_t ctx;
     LOCALDISPLAYLEVEL(displayLevel, 3, "d=%u\n", d);
-    if (COVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples, d, splitPoint) != 1) {
-      LOCALDISPLAYLEVEL(displayLevel, 1, "Failed to initialize context\n");
-      COVER_best_destroy(&best);
-      POOL_free(pool);
-      return ERROR(parameter_unsupported);
+    {
+      const size_t initVal = COVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples, d, splitPoint);
+      if (ZSTD_isError(initVal)) {
+        LOCALDISPLAYLEVEL(displayLevel, 1, "Failed to initialize context\n");
+        COVER_best_destroy(&best);
+        POOL_free(pool);
+        return initVal;
+      }
     }
     if (!warned) {
       COVER_warnOnSmallCorpus(dictBufferCapacity, ctx.suffixSize, displayLevel);

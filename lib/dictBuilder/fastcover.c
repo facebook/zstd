@@ -550,7 +550,7 @@ ZDICT_trainFromBuffer_fastCover(void* dictBuffer, size_t dictBufferCapacity,
     if (!FASTCOVER_checkParameters(coverParams, dictBufferCapacity, parameters.f,
                                    parameters.accel)) {
       DISPLAYLEVEL(1, "FASTCOVER parameters incorrect\n");
-      return ERROR(parameter_unsupported);
+      return ERROR(parameter_outOfBound);
     }
     if (nbSamples == 0) {
       DISPLAYLEVEL(1, "FASTCOVER must have at least one input file\n");
@@ -568,7 +568,7 @@ ZDICT_trainFromBuffer_fastCover(void* dictBuffer, size_t dictBufferCapacity,
       size_t const initVal = FASTCOVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples,
                             coverParams.d, parameters.splitPoint, parameters.f,
                             accelParams);
-      if(ZSTD_isError(initVal)){
+      if (ZSTD_isError(initVal)) {
         DISPLAYLEVEL(1, "Failed to initialize context\n");
         return initVal;
       }
@@ -671,7 +671,7 @@ ZDICT_optimizeTrainFromBuffer_fastCover(
       LOCALDISPLAYLEVEL(displayLevel, 3, "d=%u\n", d);
       {
         size_t const initVal = FASTCOVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples, d, splitPoint, f, accelParams);
-        if(ZSTD_isError(initVal)){
+        if (ZSTD_isError(initVal)) {
           LOCALDISPLAYLEVEL(displayLevel, 1, "Failed to initialize context\n");
           COVER_best_destroy(&best);
           POOL_free(pool);

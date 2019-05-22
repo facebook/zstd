@@ -724,6 +724,7 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_cover(
   COVER_ctx_t ctx;
   COVER_map_t activeDmers;
   parameters.splitPoint = 1.0;
+  size_t init_val;
   /* Initialize global data */
   g_displayLevel = parameters.zParams.notificationLevel;
   /* Checks */
@@ -741,7 +742,7 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_cover(
     return ERROR(dstSize_tooSmall);
   }
   /* Initialize context and activeDmers */
-  size_t init_val = COVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples,
+  init_val = COVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples,
                       parameters.d, parameters.splitPoint);
   if (init_val == 72) {
     return ERROR(srcSize_wrong);

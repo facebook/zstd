@@ -607,6 +607,7 @@ ZDICT_optimizeTrainFromBuffer_fastCover(
 {
     ZDICT_cover_params_t coverParams;
     FASTCOVER_accel_t accelParams;
+    size_t init_val;
     /* constants */
     const unsigned nbThreads = parameters->nbThreads;
     const double splitPoint =
@@ -671,7 +672,7 @@ ZDICT_optimizeTrainFromBuffer_fastCover(
       /* Initialize the context for this value of d */
       FASTCOVER_ctx_t ctx;
       LOCALDISPLAYLEVEL(displayLevel, 3, "d=%u\n", d);
-      size_t init_val = FASTCOVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples, d, splitPoint, f, accelParams);
+      init_val = FASTCOVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples, d, splitPoint, f, accelParams);
       if (init_val != 1) {
         LOCALDISPLAYLEVEL(displayLevel, 1, "Failed to initialize context\n");
         COVER_best_destroy(&best);

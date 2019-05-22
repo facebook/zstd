@@ -834,7 +834,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     }
 
     if (maxDstSize<12) {
-        eSize = ERROR(workSpace_tooSmall);
+        eSize = ERROR(dstSize_tooSmall);
         DISPLAYLEVEL(1, "not enough space to write RepOffsets \n");
         goto _cleanup;
     }

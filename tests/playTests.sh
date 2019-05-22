@@ -495,8 +495,7 @@ $DIFF "$TESTFILE" result
 println "- Create second (different) dictionary"
 $ZSTD --train-fastcover=k=56,d=8 "$TESTDIR"/*.c "$PRGDIR"/*.c "$PRGDIR"/*.h -o tmpDictC
 $ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
-println "- Create dictionary without input file (should error)"
-$ZSTD --train-fastcover=k=56,d=8
+$ZSTD --train-fastcover=k=56,d=8 && die "Create dictionary without input file"
 println "- Create dictionary with short dictID"
 $ZSTD --train-fastcover=k=46,d=8,f=15,split=80 "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o tmpDict1
 cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
@@ -536,8 +535,7 @@ cp "$TESTFILE" tmp
 $ZSTD -f tmp -D tmpDict
 $ZSTD -d tmp.zst -D tmpDict -fo result
 $DIFF "$TESTFILE" result
-println "- Creatre dictionary without input files (should error)"
-$ZSTD --train-legacy=s=8
+$ZSTD --train-legacy=s=8 && die "Create dictionary without input files (should error)"
 println "- Create second (different) dictionary"
 $ZSTD --train-legacy=s=5 "$TESTDIR"/*.c "$PRGDIR"/*.c "$PRGDIR"/*.h -o tmpDictC
 $ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
@@ -985,8 +983,7 @@ cp "$TESTFILE" tmp
 $ZSTD -f tmp -D tmpDict
 $ZSTD -d tmp.zst -D tmpDict -fo result
 $DIFF "$TESTFILE" result
-println "- Create dictionary without input file (should error)"
-$ZSTD --train-cover=k=56,d=8
+$ZSTD --train-cover=k=56,d=8 && die "Create dictionary without input file (should error)"
 println "- Create second (different) dictionary"
 $ZSTD --train-cover=k=56,d=8 "$TESTDIR"/*.c "$PRGDIR"/*.c "$PRGDIR"/*.h -o tmpDictC
 $ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"

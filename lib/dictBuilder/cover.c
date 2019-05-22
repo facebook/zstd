@@ -526,10 +526,10 @@ static void COVER_ctx_destroy(COVER_ctx_t *ctx) {
  * Prepare a context for dictionary building.
  * The context is only dependent on the parameter `d` and can used multiple
  * times.
- * Returns 1 on success or zero on error.
+ * Returns 0 on success or error code on error.
  * The context must be destroyed with `COVER_ctx_destroy()`.
  */
-size_t COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
+static size_t COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
                           const size_t *samplesSizes, unsigned nbSamples,
                           unsigned d, double splitPoint) {
   const BYTE *const samples = (const BYTE *)samplesBuffer;
@@ -544,17 +544,17 @@ size_t COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
       totalSamplesSize >= (size_t)COVER_MAX_SAMPLES_SIZE) {
     DISPLAYLEVEL(1, "Total samples size is too large (%u MB), maximum size is %u MB\n",
                  (unsigned)(totalSamplesSize>>20), (COVER_MAX_SAMPLES_SIZE >> 20));
-    return 72;
+    return ERROR(srcSize_wrong);
   }
   /* Check if there are at least 5 training samples */
   if (nbTrainSamples < 5) {
     DISPLAYLEVEL(1, "Total number of training samples is %u and is invalid.", nbTrainSamples);
-    return 72;
+    return ERROR(srcSize_wrong);
   }
   /* Check if there's testing sample */
   if (nbTestSamples < 1) {
     DISPLAYLEVEL(1, "Total number of testing samples is %u and is invalid.", nbTestSamples);
-    return 72;
+    return ERROR(srcSize_wrong);
   }
   /* Zero the context */
   memset(ctx, 0, sizeof(*ctx));
@@ -577,7 +577,7 @@ size_t COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
   if (!ctx->suffix || !ctx->dmerAt || !ctx->offsets) {
     DISPLAYLEVEL(1, "Failed to allocate scratch buffers\n");
     COVER_ctx_destroy(ctx);
-    return 64;
+    return ERROR(memory_allocation);
   }
   ctx->freqs = NULL;
   ctx->d = d;
@@ -624,7 +624,7 @@ size_t COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
                 (ctx->d <= 8 ? &COVER_cmp8 : &COVER_cmp), &COVER_group);
   ctx->freqs = ctx->suffix;
   ctx->suffix = NULL;
-  return 1;
+  return 0;
 }
 
 void COVER_warnOnSmallCorpus(size_t maxDictSize, size_t nbDmers, int displayLevel)
@@ -724,7 +724,6 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_cover(
   COVER_ctx_t ctx;
   COVER_map_t activeDmers;
   parameters.splitPoint = 1.0;
-  size_t init_val;
   /* Initialize global data */
   g_displayLevel = parameters.zParams.notificationLevel;
   /* Checks */
@@ -742,13 +741,12 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_cover(
     return ERROR(dstSize_tooSmall);
   }
   /* Initialize context and activeDmers */
-  init_val = COVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples,
+  {
+    size_t const initVal = COVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples,
                       parameters.d, parameters.splitPoint);
-  if (init_val == 72) {
-    return ERROR(srcSize_wrong);
-  }
-  else if(init_val == 64){
-    return ERROR(memory_allocation);
+    if(ZSTD_isError(initVal)){
+      return initVal;
+    }
   }
   COVER_warnOnSmallCorpus(dictBufferCapacity, ctx.suffixSize, g_displayLevel);
   if (!COVER_map_init(&activeDmers, parameters.k - parameters.d + 1)) {

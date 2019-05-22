@@ -484,7 +484,6 @@ rm tmp* dictionary
 
 
 println "\n===>  fastCover dictionary builder : advanced options "
-
 TESTFILE="$PRGDIR"/zstdcli.c
 ./datagen > tmpDict
 println "- Create first dictionary"
@@ -496,6 +495,8 @@ $DIFF "$TESTFILE" result
 println "- Create second (different) dictionary"
 $ZSTD --train-fastcover=k=56,d=8 "$TESTDIR"/*.c "$PRGDIR"/*.c "$PRGDIR"/*.h -o tmpDictC
 $ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
+println "- Create dictionary without input file (should error)"
+$ZSTD --train-fastcover=k=56,d=8
 println "- Create dictionary with short dictID"
 $ZSTD --train-fastcover=k=46,d=8,f=15,split=80 "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o tmpDict1
 cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
@@ -508,6 +509,8 @@ println "- Create dictionary using all samples for both training and testing"
 $ZSTD --train-fastcover=split=100 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
 println "- Create dictionary using f=16"
 $ZSTD --train-fastcover=f=16 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
+println "- Create dictionary using accel=0 (should error)"
+$ZSTD --train-fastcover=accel=0 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
 println "- Create dictionary using accel=2"
 $ZSTD --train-fastcover=accel=2 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
 println "- Create dictionary using accel=10"
@@ -533,6 +536,8 @@ cp "$TESTFILE" tmp
 $ZSTD -f tmp -D tmpDict
 $ZSTD -d tmp.zst -D tmpDict -fo result
 $DIFF "$TESTFILE" result
+println "- Creatre dictionary without input files (should error)"
+$ZSTD --train-legacy=s=8
 println "- Create second (different) dictionary"
 $ZSTD --train-legacy=s=5 "$TESTDIR"/*.c "$PRGDIR"/*.c "$PRGDIR"/*.h -o tmpDictC
 $ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
@@ -980,6 +985,8 @@ cp "$TESTFILE" tmp
 $ZSTD -f tmp -D tmpDict
 $ZSTD -d tmp.zst -D tmpDict -fo result
 $DIFF "$TESTFILE" result
+println "- Create dictionary without input file (should error)"
+$ZSTD --train-cover=k=56,d=8
 println "- Create second (different) dictionary"
 $ZSTD --train-cover=k=56,d=8 "$TESTDIR"/*.c "$PRGDIR"/*.c "$PRGDIR"/*.h -o tmpDictC
 $ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"

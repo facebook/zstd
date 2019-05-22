@@ -550,11 +550,11 @@ ZDICT_trainFromBuffer_fastCover(void* dictBuffer, size_t dictBufferCapacity,
     if (!FASTCOVER_checkParameters(coverParams, dictBufferCapacity, parameters.f,
                                    parameters.accel)) {
       DISPLAYLEVEL(1, "FASTCOVER parameters incorrect\n");
-      return ERROR(GENERIC);
+      return ERROR(parameter_unsupported);
     }
     if (nbSamples == 0) {
       DISPLAYLEVEL(1, "FASTCOVER must have at least one input file\n");
-      return ERROR(GENERIC);
+      return ERROR(srcSize_wrong);
     }
     if (dictBufferCapacity < ZDICT_DICTSIZE_MIN) {
       DISPLAYLEVEL(1, "dictBufferCapacity must be at least %u\n",
@@ -627,19 +627,19 @@ ZDICT_optimizeTrainFromBuffer_fastCover(
     /* Checks */
     if (splitPoint <= 0 || splitPoint > 1) {
       LOCALDISPLAYLEVEL(displayLevel, 1, "Incorrect splitPoint\n");
-      return ERROR(GENERIC);
+      return ERROR(parameter_outOfBound);
     }
     if (accel == 0 || accel > FASTCOVER_MAX_ACCEL) {
       LOCALDISPLAYLEVEL(displayLevel, 1, "Incorrect accel\n");
-      return ERROR(GENERIC);
+      return ERROR(parameter_outOfBound);
     }
     if (kMinK < kMaxD || kMaxK < kMinK) {
       LOCALDISPLAYLEVEL(displayLevel, 1, "Incorrect k\n");
-      return ERROR(GENERIC);
+      return ERROR(parameter_outOfBound);
     }
     if (nbSamples == 0) {
       LOCALDISPLAYLEVEL(displayLevel, 1, "FASTCOVER must have at least one input file\n");
-      return ERROR(GENERIC);
+      return ERROR(srcSize_wrong);
     }
     if (dictBufferCapacity < ZDICT_DICTSIZE_MIN) {
       LOCALDISPLAYLEVEL(displayLevel, 1, "dictBufferCapacity must be at least %u\n",
@@ -687,7 +687,7 @@ ZDICT_optimizeTrainFromBuffer_fastCover(
           COVER_best_destroy(&best);
           FASTCOVER_ctx_destroy(&ctx);
           POOL_free(pool);
-          return ERROR(GENERIC);
+          return ERROR(parameter_unsupported);
         }
         data->ctx = &ctx;
         data->best = &best;

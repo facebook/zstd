@@ -41,3 +41,4 @@ _zstdbench/
 .DS_Store
 googletest/
 *.d
+*.vscode

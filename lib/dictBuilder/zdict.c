@@ -741,7 +741,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     /* analyze, build stats, starting with literals */
     {   size_t maxNbBits = HUF_buildCTable (hufTable, countLit, 255, huffLog);
         if (HUF_isError(maxNbBits)) {
-            eSize = ERROR(GENERIC);
+            eSize = maxNbBits;
             DISPLAYLEVEL(1, " HUF_buildCTable error \n");
             goto _cleanup;
         }
@@ -764,7 +764,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     total=0; for (u=0; u<=offcodeMax; u++) total+=offcodeCount[u];
     errorCode = FSE_normalizeCount(offcodeNCount, Offlog, offcodeCount, total, offcodeMax);
     if (FSE_isError(errorCode)) {
-        eSize = ERROR(GENERIC);
+        eSize = errorCode;
         DISPLAYLEVEL(1, "FSE_normalizeCount error with offcodeCount \n");
         goto _cleanup;
     }
@@ -773,7 +773,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     total=0; for (u=0; u<=MaxML; u++) total+=matchLengthCount[u];
     errorCode = FSE_normalizeCount(matchLengthNCount, mlLog, matchLengthCount, total, MaxML);
     if (FSE_isError(errorCode)) {
-        eSize = ERROR(GENERIC);
+        eSize = errorCode;
         DISPLAYLEVEL(1, "FSE_normalizeCount error with matchLengthCount \n");
         goto _cleanup;
     }
@@ -782,7 +782,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     total=0; for (u=0; u<=MaxLL; u++) total+=litLengthCount[u];
     errorCode = FSE_normalizeCount(litLengthNCount, llLog, litLengthCount, total, MaxLL);
     if (FSE_isError(errorCode)) {
-        eSize = ERROR(GENERIC);
+        eSize = errorCode;
         DISPLAYLEVEL(1, "FSE_normalizeCount error with litLengthCount \n");
         goto _cleanup;
     }
@@ -791,7 +791,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     /* write result to buffer */
     {   size_t const hhSize = HUF_writeCTable(dstPtr, maxDstSize, hufTable, 255, huffLog);
         if (HUF_isError(hhSize)) {
-            eSize = ERROR(GENERIC);
+            eSize = hhSize;
             DISPLAYLEVEL(1, "HUF_writeCTable error \n");
             goto _cleanup;
         }
@@ -802,7 +802,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
 
     {   size_t const ohSize = FSE_writeNCount(dstPtr, maxDstSize, offcodeNCount, OFFCODE_MAX, Offlog);
         if (FSE_isError(ohSize)) {
-            eSize = ERROR(GENERIC);
+            eSize = ohSize;
             DISPLAYLEVEL(1, "FSE_writeNCount error with offcodeNCount \n");
             goto _cleanup;
         }
@@ -813,7 +813,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
 
     {   size_t const mhSize = FSE_writeNCount(dstPtr, maxDstSize, matchLengthNCount, MaxML, mlLog);
         if (FSE_isError(mhSize)) {
-            eSize = ERROR(GENERIC);
+            eSize = mhSize;
             DISPLAYLEVEL(1, "FSE_writeNCount error with matchLengthNCount \n");
             goto _cleanup;
         }
@@ -824,7 +824,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
 
     {   size_t const lhSize = FSE_writeNCount(dstPtr, maxDstSize, litLengthNCount, MaxLL, llLog);
         if (FSE_isError(lhSize)) {
-            eSize = ERROR(GENERIC);
+            eSize = lhSize;
             DISPLAYLEVEL(1, "FSE_writeNCount error with litlengthNCount \n");
             goto _cleanup;
         }
@@ -834,7 +834,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     }
 
     if (maxDstSize<12) {
-        eSize = ERROR(GENERIC);
+        eSize = ERROR(dstSize_tooSmall);
         DISPLAYLEVEL(1, "not enough space to write RepOffsets \n");
         goto _cleanup;
     }

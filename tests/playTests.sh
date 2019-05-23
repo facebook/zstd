@@ -508,7 +508,7 @@ println "- Create dictionary using all samples for both training and testing"
 $ZSTD --train-fastcover=split=100 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
 println "- Create dictionary using f=16"
 $ZSTD --train-fastcover=f=16 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
-$ZSTD --train-fastcover=accel=0 -r "$TESTDIR"/*.c "$PRGDIR"/*.c && die "Create dictionary using accel=0"
+$ZSTD --train-fastcover=accel=15 -r "$TESTDIR"/*.c "$PRGDIR"/*.c && die "Created dictionary using accel=15"
 println "- Create dictionary using accel=2"
 $ZSTD --train-fastcover=accel=2 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
 println "- Create dictionary using accel=10"

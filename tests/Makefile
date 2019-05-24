@@ -359,6 +359,9 @@ test-zstdgrep: gzstd
 	-echo 'hello world' > test.txt && $(PRGDIR)/zstd test.txt
 	env ZCAT=/tmp/zstdcat $(PRGDIR)/zstdgrep hello test.txt.zst
 	env ZCAT=/tmp/zstdcat $(PRGDIR)/zstdgrep weird test.txt.zst && return 1 || return 0
+	-echo 'hello' > pattern.txt
+	env ZCAT=/tmp/zstdcat $(PRGDIR)/zstdgrep -f pattern.txt test.txt.zst
+	$(RM) test.txt test.txt.zst pattern.txt
 
 test-fullbench: fullbench datagen
 	$(QEMU_SYS) ./fullbench -i1

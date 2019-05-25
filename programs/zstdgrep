@@ -58,6 +58,9 @@ while [ "$#" -gt 0 ] && [ "${endofopts}" -eq 0 ]; do
                     shift 2
                     break
                     ;;
+                -f)
+                    pattern_found=2
+                    ;;
                 *)
                     ;;
             esac
@@ -117,7 +120,11 @@ else
     set -f
     while [ "$#" -gt 0 ]; do
         # shellcheck disable=SC2086
-        "${zcat}" -fq -- "$1" | "${grep}" --label="${1}" ${grep_args} -- "${pattern}" -
+        if [ $pattern_found -eq 2 ]; then
+            "${zcat}" -fq -- "$1" | "${grep}" --label="${1}" ${grep_args} -- -
+        else
+            "${zcat}" -fq -- "$1" | "${grep}" --label="${1}" ${grep_args} -- "${pattern}" -
+        fi
         [ "$?" -ne 0 ] && EXIT_CODE=1
         shift
     done

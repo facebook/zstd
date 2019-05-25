@@ -526,10 +526,10 @@ static void COVER_ctx_destroy(COVER_ctx_t *ctx) {
  * Prepare a context for dictionary building.
  * The context is only dependent on the parameter `d` and can used multiple
  * times.
- * Returns 1 on success or zero on error.
+ * Returns 0 on success or error code on error.
  * The context must be destroyed with `COVER_ctx_destroy()`.
  */
-static int COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
+static size_t COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
                           const size_t *samplesSizes, unsigned nbSamples,
                           unsigned d, double splitPoint) {
   const BYTE *const samples = (const BYTE *)samplesBuffer;
@@ -544,17 +544,17 @@ static int COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
       totalSamplesSize >= (size_t)COVER_MAX_SAMPLES_SIZE) {
     DISPLAYLEVEL(1, "Total samples size is too large (%u MB), maximum size is %u MB\n",
                  (unsigned)(totalSamplesSize>>20), (COVER_MAX_SAMPLES_SIZE >> 20));
-    return 0;
+    return ERROR(srcSize_wrong);
   }
   /* Check if there are at least 5 training samples */
   if (nbTrainSamples < 5) {
     DISPLAYLEVEL(1, "Total number of training samples is %u and is invalid.", nbTrainSamples);
-    return 0;
+    return ERROR(srcSize_wrong);
   }
   /* Check if there's testing sample */
   if (nbTestSamples < 1) {
     DISPLAYLEVEL(1, "Total number of testing samples is %u and is invalid.", nbTestSamples);
-    return 0;
+    return ERROR(srcSize_wrong);
   }
   /* Zero the context */
   memset(ctx, 0, sizeof(*ctx));
@@ -577,7 +577,7 @@ static int COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
   if (!ctx->suffix || !ctx->dmerAt || !ctx->offsets) {
     DISPLAYLEVEL(1, "Failed to allocate scratch buffers\n");
     COVER_ctx_destroy(ctx);
-    return 0;
+    return ERROR(memory_allocation);
   }
   ctx->freqs = NULL;
   ctx->d = d;
@@ -624,7 +624,7 @@ static int COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
                 (ctx->d <= 8 ? &COVER_cmp8 : &COVER_cmp), &COVER_group);
   ctx->freqs = ctx->suffix;
   ctx->suffix = NULL;
-  return 1;
+  return 0;
 }
 
 void COVER_warnOnSmallCorpus(size_t maxDictSize, size_t nbDmers, int displayLevel)
@@ -729,11 +729,11 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_cover(
   /* Checks */
   if (!COVER_checkParameters(parameters, dictBufferCapacity)) {
     DISPLAYLEVEL(1, "Cover parameters incorrect\n");
-    return ERROR(GENERIC);
+    return ERROR(parameter_outOfBound);
   }
   if (nbSamples == 0) {
     DISPLAYLEVEL(1, "Cover must have at least one input file\n");
-    return ERROR(GENERIC);
+    return ERROR(srcSize_wrong);
   }
   if (dictBufferCapacity < ZDICT_DICTSIZE_MIN) {
     DISPLAYLEVEL(1, "dictBufferCapacity must be at least %u\n",
@@ -741,15 +741,18 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_cover(
     return ERROR(dstSize_tooSmall);
   }
   /* Initialize context and activeDmers */
-  if (!COVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples,
-                      parameters.d, parameters.splitPoint)) {
-    return ERROR(GENERIC);
+  {
+    size_t const initVal = COVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples,
+                      parameters.d, parameters.splitPoint);
+    if (ZSTD_isError(initVal)) {
+      return initVal;
+    }
   }
   COVER_warnOnSmallCorpus(dictBufferCapacity, ctx.suffixSize, g_displayLevel);
   if (!COVER_map_init(&activeDmers, parameters.k - parameters.d + 1)) {
     DISPLAYLEVEL(1, "Failed to allocate dmer map: out of memory\n");
     COVER_ctx_destroy(&ctx);
-    return ERROR(GENERIC);
+    return ERROR(memory_allocation);
   }
 
   DISPLAYLEVEL(2, "Building dictionary\n");
@@ -810,7 +813,7 @@ size_t COVER_checkTotalCompressedSize(const ZDICT_cover_params_t parameters,
         cctx, dst, dstCapacity, samples + offsets[i],
         samplesSizes[i], cdict);
     if (ZSTD_isError(size)) {
-      totalCompressedSize = ERROR(GENERIC);
+      totalCompressedSize = size;
       goto _compressCleanup;
     }
     totalCompressedSize += size;
@@ -1022,15 +1025,15 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
   /* Checks */
   if (splitPoint <= 0 || splitPoint > 1) {
     LOCALDISPLAYLEVEL(displayLevel, 1, "Incorrect parameters\n");
-    return ERROR(GENERIC);
+    return ERROR(parameter_outOfBound);
   }
   if (kMinK < kMaxD || kMaxK < kMinK) {
     LOCALDISPLAYLEVEL(displayLevel, 1, "Incorrect parameters\n");
-    return ERROR(GENERIC);
+    return ERROR(parameter_outOfBound);
   }
   if (nbSamples == 0) {
     DISPLAYLEVEL(1, "Cover must have at least one input file\n");
-    return ERROR(GENERIC);
+    return ERROR(srcSize_wrong);
   }
   if (dictBufferCapacity < ZDICT_DICTSIZE_MIN) {
     DISPLAYLEVEL(1, "dictBufferCapacity must be at least %u\n",
@@ -1054,11 +1057,14 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
     /* Initialize the context for this value of d */
     COVER_ctx_t ctx;
     LOCALDISPLAYLEVEL(displayLevel, 3, "d=%u\n", d);
-    if (!COVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples, d, splitPoint)) {
-      LOCALDISPLAYLEVEL(displayLevel, 1, "Failed to initialize context\n");
-      COVER_best_destroy(&best);
-      POOL_free(pool);
-      return ERROR(GENERIC);
+    {
+      const size_t initVal = COVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples, d, splitPoint);
+      if (ZSTD_isError(initVal)) {
+        LOCALDISPLAYLEVEL(displayLevel, 1, "Failed to initialize context\n");
+        COVER_best_destroy(&best);
+        POOL_free(pool);
+        return initVal;
+      }
     }
     if (!warned) {
       COVER_warnOnSmallCorpus(dictBufferCapacity, ctx.suffixSize, displayLevel);
@@ -1075,7 +1081,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
         COVER_best_destroy(&best);
         COVER_ctx_destroy(&ctx);
         POOL_free(pool);
-        return ERROR(GENERIC);
+        return ERROR(memory_allocation);
       }
       data->ctx = &ctx;
       data->best = &best;

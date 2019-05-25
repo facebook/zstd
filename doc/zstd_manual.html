@@ -594,7 +594,7 @@ size_t ZSTD_freeCStream(ZSTD_CStream* zcs);
 </b></pre><BR>
 <pre><b>size_t ZSTD_CStreamOutSize(void);   </b>/**< recommended size for output buffer. Guarantee to successfully flush at least one complete compressed block in all circumstances. */<b>
 </b></pre><BR>
-<a name="Chapter11"></a><h2>This is a legacy streaming API, and can be replaced by ZSTD_CCtx_reset() and</h2><pre> ZSTD_compressStream2(). It is redundent, but is still fully supported.
+<a name="Chapter11"></a><h2>This is a legacy streaming API, and can be replaced by ZSTD_CCtx_reset() and</h2><pre> ZSTD_compressStream2(). It is redundant, but is still fully supported.
  Advanced parameters and dictionary compression can only be used through the
  new API.
 <BR></pre>
@@ -647,9 +647,7 @@ size_t ZSTD_freeCStream(ZSTD_CStream* zcs);
 <h3>ZSTD_DStream management functions</h3><pre></pre><b><pre>ZSTD_DStream* ZSTD_createDStream(void);
 size_t ZSTD_freeDStream(ZSTD_DStream* zds);
 </pre></b><BR>
-<h3>Streaming decompression functions</h3><pre></pre><b><pre>size_t ZSTD_initDStream(ZSTD_DStream* zds);
-size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inBuffer* input);
-</pre></b><BR>
+<h3>Streaming decompression functions</h3><pre></pre><b><pre></pre></b><BR>
 <pre><b>size_t ZSTD_DStreamInSize(void);    </b>/*!< recommended size for input buffer */<b>
 </b></pre><BR>
 <pre><b>size_t ZSTD_DStreamOutSize(void);   </b>/*!< recommended size for output buffer. Guarantee to successfully flush at least one complete block in all circumstances. */<b>
@@ -1407,9 +1405,32 @@ size_t ZSTD_initCStream_usingCDict_advanced(ZSTD_CStream* zcs, const ZSTD_CDict*
  
 </p></pre><BR>
 
-<h3>Advanced Streaming decompression functions</h3><pre></pre><b><pre>size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t dictSize); </b>/**< note: no dictionary will be used if dict == NULL or dictSize < 8 */<b>
-size_t ZSTD_initDStream_usingDDict(ZSTD_DStream* zds, const ZSTD_DDict* ddict);  </b>/**< note : ddict is referenced, it must outlive decompression session */<b>
-size_t ZSTD_resetDStream(ZSTD_DStream* zds);  </b>/**< re-use decompression parameters from previous init; saves dictionary loading */<b>
+<h3>Advanced Streaming decompression functions</h3><pre></pre><b><pre></b>/**<b>
+ * This function is deprecated, and is equivalent to:
+ *
+ *     ZSTD_DCtx_reset(zds, ZSTD_reset_session_only);
+ *     ZSTD_DCtx_loadDictionary(zds, dict, dictSize);
+ *
+ * note: no dictionary will be used if dict == NULL or dictSize < 8
+ */
+size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t dictSize);
+</b>/**<b>
+ * This function is deprecated, and is equivalent to:
+ *
+ *     ZSTD_DCtx_reset(zds, ZSTD_reset_session_only);
+ *     ZSTD_DCtx_refDDict(zds, ddict);
+ *
+ * note : ddict is referenced, it must outlive decompression session
+ */
+size_t ZSTD_initDStream_usingDDict(ZSTD_DStream* zds, const ZSTD_DDict* ddict);
+</b>/**<b>
+ * This function is deprecated, and is equivalent to:
+ *
+ *     ZSTD_DCtx_reset(zds, ZSTD_reset_session_only);
+ *
+ * re-use decompression parameters from previous init; saves dictionary loading
+ */
+size_t ZSTD_resetDStream(ZSTD_DStream* zds);
 </pre></b><BR>
 <a name="Chapter29"></a><h2>Buffer-less and synchronous inner streaming functions</h2><pre>
   This is an advanced API, giving full control over buffer management, for users which need direct control over memory.

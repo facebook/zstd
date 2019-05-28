@@ -862,7 +862,7 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
     DEBUGLOG(5, "ZSTD_compressBlock_opt_generic: current=%u, prefix=%u, nextToUpdate=%u",
                 (U32)(ip - base), ms->window.dictLimit, ms->nextToUpdate);
     assert(optLevel <= 2);
-    ms->nextToUpdate3 = ms->nextToUpdate;
+    ms->nextToUpdate3 = ms->nextToUpdate;   /* note : why a separate nextToUpdate3 stored into cctx->ms if it's synchtonized from nextToUpdate anyway ? */
     ZSTD_rescaleFreqs(optStatePtr, (const BYTE*)src, srcSize, optLevel);
     ip += (ip==prefixStart);
 

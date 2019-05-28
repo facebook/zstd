@@ -532,11 +532,11 @@ void ZSTD_updateTree(ZSTD_matchState_t* ms, const BYTE* ip, const BYTE* iend) {
 
 FORCE_INLINE_TEMPLATE
 U32 ZSTD_insertBtAndGetAllMatches (
+                    ZSTD_match_t* matches,   /* store result (found matches) in this table (presumed large enough) */
                     ZSTD_matchState_t* ms,
                     const BYTE* const ip, const BYTE* const iLimit, const ZSTD_dictMode_e dictMode,
-                    U32 rep[ZSTD_REP_NUM],
+                    const U32 rep[ZSTD_REP_NUM],
                     U32 const ll0,   /* tells if associated literal length is 0 or not. This value must be 0 or 1 */
-                    ZSTD_match_t* matches,
                     const U32 lengthToBeat,
                     U32 const mls /* template */)
 {
@@ -759,10 +759,12 @@ U32 ZSTD_insertBtAndGetAllMatches (
 
 
 FORCE_INLINE_TEMPLATE U32 ZSTD_BtGetAllMatches (
+                        ZSTD_match_t* matches,   /* store result (match found, increasing size) in this table */
                         ZSTD_matchState_t* ms,
                         const BYTE* ip, const BYTE* const iHighLimit, const ZSTD_dictMode_e dictMode,
-                        U32 rep[ZSTD_REP_NUM], U32 const ll0,
-                        ZSTD_match_t* matches, U32 const lengthToBeat)
+                        const U32 rep[ZSTD_REP_NUM],
+                        U32 const ll0,
+                        U32 const lengthToBeat)
 {
     const ZSTD_compressionParameters* const cParams = &ms->cParams;
     U32 const matchLengthSearch = cParams->minMatch;
@@ -771,12 +773,12 @@ FORCE_INLINE_TEMPLATE U32 ZSTD_BtGetAllMatches (
     ZSTD_updateTree_internal(ms, ip, iHighLimit, matchLengthSearch, dictMode);
     switch(matchLengthSearch)
     {
-    case 3 : return ZSTD_insertBtAndGetAllMatches(ms, ip, iHighLimit, dictMode, rep, ll0, matches, lengthToBeat, 3);
+    case 3 : return ZSTD_insertBtAndGetAllMatches(matches, ms, ip, iHighLimit, dictMode, rep, ll0, lengthToBeat, 3);
     default :
-    case 4 : return ZSTD_insertBtAndGetAllMatches(ms, ip, iHighLimit, dictMode, rep, ll0, matches, lengthToBeat, 4);
-    case 5 : return ZSTD_insertBtAndGetAllMatches(ms, ip, iHighLimit, dictMode, rep, ll0, matches, lengthToBeat, 5);
+    case 4 : return ZSTD_insertBtAndGetAllMatches(matches, ms, ip, iHighLimit, dictMode, rep, ll0, lengthToBeat, 4);
+    case 5 : return ZSTD_insertBtAndGetAllMatches(matches, ms, ip, iHighLimit, dictMode, rep, ll0, lengthToBeat, 5);
     case 7 :
-    case 6 : return ZSTD_insertBtAndGetAllMatches(ms, ip, iHighLimit, dictMode, rep, ll0, matches, lengthToBeat, 6);
+    case 6 : return ZSTD_insertBtAndGetAllMatches(matches, ms, ip, iHighLimit, dictMode, rep, ll0, lengthToBeat, 6);
     }
 }
 
@@ -872,7 +874,7 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
         /* find first match */
         {   U32 const litlen = (U32)(ip - anchor);
             U32 const ll0 = !litlen;
-            U32 const nbMatches = ZSTD_BtGetAllMatches(ms, ip, iend, dictMode, rep, ll0, matches, minMatch);
+            U32 const nbMatches = ZSTD_BtGetAllMatches(matches, ms, ip, iend, dictMode, rep, ll0, minMatch);
             if (!nbMatches) { ip++; continue; }
 
             /* initialize opt[0] */
@@ -969,7 +971,7 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
                 U32 const litlen = (opt[cur].mlen == 0) ? opt[cur].litlen : 0;
                 U32 const previousPrice = opt[cur].price;
                 U32 const basePrice = previousPrice + ZSTD_litLengthPrice(0, optStatePtr, optLevel);
-                U32 const nbMatches = ZSTD_BtGetAllMatches(ms, inr, iend, dictMode, opt[cur].rep, ll0, matches, minMatch);
+                U32 const nbMatches = ZSTD_BtGetAllMatches(matches, ms, inr, iend, dictMode, opt[cur].rep, ll0, minMatch);
                 U32 matchNb;
                 if (!nbMatches) {
                     DEBUGLOG(7, "rPos:%u : no match found", cur);
@@ -1093,7 +1095,7 @@ _shortestPath:   /* cur, last_pos, best_mlen, best_off have to be set */
     }   /* while (ip < ilimit) */
 
     /* Return the last literals size */
-    return iend - anchor;
+    return (size_t)(iend - anchor);
 }
 
 

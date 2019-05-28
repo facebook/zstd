@@ -51,7 +51,7 @@
 #define DEFAULT_CLEVEL 1
 
 #define COMPRESSIBILITY_DEFAULT 0.50
-static const size_t g_sampleSize = 10000000;
+static const size_t k_sampleSize_default = 10000000;
 
 #define TIMELOOP_NANOSEC      (1*1000000000ULL) /* 1 second */
 
@@ -66,7 +66,6 @@ static const size_t g_sampleSize = 10000000;
 *  Benchmark Parameters
 **************************************/
 static unsigned g_nbIterations = NBLOOPS;
-static double g_compressibility = COMPRESSIBILITY_DEFAULT;
 
 
 /*_*******************************************************
@@ -549,21 +548,19 @@ _cleanOut:
 
 
 static int benchSample(U32 benchNb,
+                       size_t benchedSize, double compressibility,
                        int cLevel, ZSTD_compressionParameters cparams)
 {
-    size_t const benchedSize = g_sampleSize;
-    const char* const name = "Sample 10MiB";
-
     /* Allocation */
     void* const origBuff = malloc(benchedSize);
     if (!origBuff) { DISPLAY("\nError: not enough memory!\n"); return 12; }
 
     /* Fill buffer */
-    RDG_genBuffer(origBuff, benchedSize, g_compressibility, 0.0, 0);
+    RDG_genBuffer(origBuff, benchedSize, compressibility, 0.0, 0);
 
     /* bench */
     DISPLAY("\r%70s\r", "");
-    DISPLAY(" %s : \n", name);
+    DISPLAY(" Sample %u bytes : \n", (unsigned)benchedSize);
     if (benchNb) {
         benchMem(benchNb, origBuff, benchedSize, cLevel, cparams);
     } else {  /* 0 == run all tests */
@@ -696,10 +693,11 @@ static int usage_advanced(const char* exename)
     usage(exename);
     DISPLAY( "\nAdvanced options :\n");
     DISPLAY( " -b#    : test only function # \n");
-    DISPLAY( " -i#    : iteration loops [1-9](default : %i)\n", NBLOOPS);
-    DISPLAY( " -P#    : sample compressibility (default : %.1f%%)\n", COMPRESSIBILITY_DEFAULT * 100);
     DISPLAY( " -l#    : benchmark functions at that compression level (default : %i)\n", DEFAULT_CLEVEL);
     DISPLAY( " --zstd : custom parameter selection. Format same as zstdcli \n");
+    DISPLAY( " -P#    : sample compressibility (default : %.1f%%)\n", COMPRESSIBILITY_DEFAULT * 100);
+    DISPLAY( " -B#    : sample size (default : %u)\n", (unsigned)k_sampleSize_default);
+    DISPLAY( " -i#    : iteration loops [1-9](default : %i)\n", NBLOOPS);
     return 0;
 }
 
@@ -718,6 +716,8 @@ int main(int argc, const char** argv)
     U32 benchNb = 0, main_pause = 0;
     int cLevel = DEFAULT_CLEVEL;
     ZSTD_compressionParameters cparams = ZSTD_getCParams(cLevel, 0, 0);
+    size_t sampleSize = k_sampleSize_default;
+    double compressibility = COMPRESSIBILITY_DEFAULT;
 
     DISPLAY(WELCOME_MESSAGE);
     if (argc<1) return badusage(exename);
@@ -767,21 +767,29 @@ int main(int argc, const char** argv)
                     benchNb = readU32FromChar(&argument);
                     break;
 
-                    /* Modify Nb Iterations */
-                case 'i':
+                    /* Select compression level to use */
+                case 'l':
                     argument++;
-                    g_nbIterations = readU32FromChar(&argument);
+                    cLevel = (int)readU32FromChar(&argument);
+                    cparams = ZSTD_getCParams(cLevel, 0, 0);
                     break;
 
                     /* Select compressibility of synthetic sample */
                 case 'P':
                     argument++;
-                    g_compressibility = (double)readU32FromChar(&argument) / 100.;
+                    compressibility = (double)readU32FromChar(&argument) / 100.;
                     break;
-                case 'l':
+
+                    /* Select size of synthetic sample */
+                case 'B':
                     argument++;
-                    cLevel = (int)readU32FromChar(&argument);
-                    cparams = ZSTD_getCParams(cLevel, 0, 0);
+                    sampleSize = (size_t)readU32FromChar(&argument);
+                    break;
+
+                    /* Modify Nb Iterations */
+                case 'i':
+                    argument++;
+                    g_nbIterations = readU32FromChar(&argument);
                     break;
 
                     /* Unknown command */
@@ -798,7 +806,7 @@ int main(int argc, const char** argv)
 
 
     if (filenamesStart==0)   /* no input file */
-        result = benchSample(benchNb, cLevel, cparams);
+        result = benchSample(benchNb, sampleSize, compressibility, cLevel, cparams);
     else
         result = benchFiles(benchNb, argv+filenamesStart, argc-filenamesStart, cLevel, cparams);
 

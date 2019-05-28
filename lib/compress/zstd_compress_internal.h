@@ -136,7 +136,6 @@ struct ZSTD_matchState_t {
     ZSTD_window_t window;   /* State for window round buffer management */
     U32 loadedDictEnd;      /* index of end of dictionary, within context's referential. When dict referential is copied into active context (i.e. not attached), effectively same value as dictSize, since referential starts from zero */
     U32 nextToUpdate;       /* index from which to continue table update */
-    U32 nextToUpdate3;      /* index from which to continue table update of hashTable3. synchronized with nextToUpdate at block's start, so no need to maintain outside of parser. Used by opt parser only */
     U32 hashLog3;           /* dispatch table : larger == faster, more memory */
     U32* hashTable;
     U32* hashTable3;

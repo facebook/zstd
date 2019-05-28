@@ -1282,8 +1282,8 @@ static void ZSTD_reset_compressedBlockState(ZSTD_compressedBlockState_t* bs)
 }
 
 /*! ZSTD_invalidateMatchState()
- * Invalidate all the matches in the match finder tables.
- * Requires nextSrc and base to be set (can be NULL).
+ *  Invalidate all the matches in the match finder tables.
+ *  Requires nextSrc and base to be set (can be NULL).
  */
 static void ZSTD_invalidateMatchState(ZSTD_matchState_t* ms)
 {
@@ -1587,15 +1587,14 @@ static int ZSTD_shouldAttachDict(const ZSTD_CDict* cdict,
                                  * handled in _enforceMaxDist */
 }
 
-static size_t ZSTD_resetCCtx_byAttachingCDict(
-    ZSTD_CCtx* cctx,
-    const ZSTD_CDict* cdict,
-    ZSTD_CCtx_params params,
-    U64 pledgedSrcSize,
-    ZSTD_buffered_policy_e zbuff)
+static size_t
+ZSTD_resetCCtx_byAttachingCDict(ZSTD_CCtx* cctx,
+                        const ZSTD_CDict* cdict,
+                        ZSTD_CCtx_params params,
+                        U64 pledgedSrcSize,
+                        ZSTD_buffered_policy_e zbuff)
 {
-    {
-        const ZSTD_compressionParameters *cdict_cParams = &cdict->matchState.cParams;
+    {   const ZSTD_compressionParameters* const cdict_cParams = &cdict->matchState.cParams;
         unsigned const windowLog = params.cParams.windowLog;
         assert(windowLog != 0);
         /* Resize working context table params for input only, since the dict
@@ -1607,8 +1606,7 @@ static size_t ZSTD_resetCCtx_byAttachingCDict(
         assert(cctx->appliedParams.cParams.strategy == cdict_cParams->strategy);
     }
 
-    {
-        const U32 cdictEnd = (U32)( cdict->matchState.window.nextSrc
+    {   const U32 cdictEnd = (U32)( cdict->matchState.window.nextSrc
                                   - cdict->matchState.window.base);
         const U32 cdictLen = cdictEnd - cdict->matchState.window.dictLimit;
         if (cdictLen == 0) {
@@ -1625,9 +1623,9 @@ static size_t ZSTD_resetCCtx_byAttachingCDict(
                     cctx->blockState.matchState.window.base + cdictEnd;
                 ZSTD_window_clear(&cctx->blockState.matchState.window);
             }
+            /* loadedDictEnd is expressed within the referential of the active context */
             cctx->blockState.matchState.loadedDictEnd = cctx->blockState.matchState.window.dictLimit;
-        }
-    }
+    }   }
 
     cctx->dictID = cdict->dictID;
 
@@ -2844,7 +2842,7 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
     BYTE* const ostart = (BYTE*)dst;
     BYTE* op = ostart;
     U32 const maxDist = (U32)1 << cctx->appliedParams.cParams.windowLog;
-    assert(cctx->appliedParams.cParams.windowLog <= 31);
+    assert(cctx->appliedParams.cParams.windowLog <= ZSTD_WINDOWLOG_MAX);
 
     DEBUGLOG(5, "ZSTD_compress_frameChunk (blockSize=%u)", (unsigned)blockSize);
     if (cctx->appliedParams.fParams.checksumFlag && srcSize)
@@ -2899,7 +2897,7 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
     }   }
 
     if (lastFrameChunk && (op>ostart)) cctx->stage = ZSTDcs_ending;
-    return op-ostart;
+    return (size_t)(op-ostart);
 }
 
 
@@ -2991,6 +2989,7 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* cctx,
         fhSize = ZSTD_writeFrameHeader(dst, dstCapacity, cctx->appliedParams,
                                        cctx->pledgedSrcSizePlusOne-1, cctx->dictID);
         FORWARD_IF_ERROR(fhSize);
+        assert(fhSize <= dstCapacity);
         dstCapacity -= fhSize;
         dst = (char*)dst + fhSize;
         cctx->stage = ZSTDcs_ongoing;

@@ -255,13 +255,13 @@ static U32 ZSTD_litLengthPrice(U32 const litLength, const optState_t* const optP
  * to provide a cost which is directly comparable to a match ending at same position */
 static int ZSTD_litLengthContribution(U32 const litLength, const optState_t* const optPtr, int optLevel)
 {
-    if (optPtr->priceType >= zop_predef) return WEIGHT(litLength, optLevel);
+    if (optPtr->priceType >= zop_predef) return (int)WEIGHT(litLength, optLevel);
 
     /* dynamic statistics */
     {   U32 const llCode = ZSTD_LLcode(litLength);
-        int const contribution = (LL_bits[llCode] * BITCOST_MULTIPLIER)
-                               + WEIGHT(optPtr->litLengthFreq[0], optLevel)   /* note: log2litLengthSum cancel out */
-                               - WEIGHT(optPtr->litLengthFreq[llCode], optLevel);
+        int const contribution = (int)(LL_bits[llCode] * BITCOST_MULTIPLIER)
+                               + (int)WEIGHT(optPtr->litLengthFreq[0], optLevel)   /* note: log2litLengthSum cancel out */
+                               - (int)WEIGHT(optPtr->litLengthFreq[llCode], optLevel);
 #if 1
         return contribution;
 #else
@@ -278,7 +278,7 @@ static int ZSTD_literalsContribution(const BYTE* const literals, U32 const litLe
                                      const optState_t* const optPtr,
                                      int optLevel)
 {
-    int const contribution = ZSTD_rawLiteralsCost(literals, litLength, optPtr, optLevel)
+    int const contribution = (int)ZSTD_rawLiteralsCost(literals, litLength, optPtr, optLevel)
                            + ZSTD_litLengthContribution(litLength, optPtr, optLevel);
     return contribution;
 }
@@ -378,7 +378,7 @@ static U32 ZSTD_insertAndFindFirstIndexHash3 (ZSTD_matchState_t* ms, const BYTE*
     U32 const hashLog3 = ms->hashLog3;
     const BYTE* const base = ms->window.base;
     U32 idx = ms->nextToUpdate3;
-    U32 const target = ms->nextToUpdate3 = (U32)(ip - base);
+    U32 const target = (U32)(ip - base);
     size_t const hash3 = ZSTD_hash3Ptr(ip, hashLog3);
     assert(hashLog3 > 0);
 
@@ -387,6 +387,7 @@ static U32 ZSTD_insertAndFindFirstIndexHash3 (ZSTD_matchState_t* ms, const BYTE*
         idx++;
     }
 
+    ms->nextToUpdate3 = target;
     return hashTable3[hash3];
 }
 
@@ -653,9 +654,7 @@ U32 ZSTD_insertBtAndGetAllMatches (
                      (ip+mlen == iLimit) ) {  /* best possible length */
                     ms->nextToUpdate = current+1;  /* skip insertion */
                     return 1;
-                }
-            }
-        }
+        }   }   }
         /* no dictMatchState lookup: dicts don't have a populated HC3 table */
     }
 
@@ -862,7 +861,7 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
     DEBUGLOG(5, "ZSTD_compressBlock_opt_generic: current=%u, prefix=%u, nextToUpdate=%u",
                 (U32)(ip - base), ms->window.dictLimit, ms->nextToUpdate);
     assert(optLevel <= 2);
-    ms->nextToUpdate3 = ms->nextToUpdate;   /* note : why a separate nextToUpdate3 stored into cctx->ms if it's synchtonized from nextToUpdate anyway ? */
+    ms->nextToUpdate3 = ms->nextToUpdate;   /* note : nextToUpdate3 always synchronized with nextToUpdate at beginning of block */
     ZSTD_rescaleFreqs(optStatePtr, (const BYTE*)src, srcSize, optLevel);
     ip += (ip==prefixStart);
 
@@ -1158,7 +1157,6 @@ ZSTD_initStats_ultra(ZSTD_matchState_t* ms,
     ms->window.dictLimit += (U32)srcSize;
     ms->window.lowLimit = ms->window.dictLimit;
     ms->nextToUpdate = ms->window.dictLimit;
-    ms->nextToUpdate3 = ms->window.dictLimit;
 
     /* re-inforce weight of collected statistics */
     ZSTD_upscaleStats(&ms->opt);

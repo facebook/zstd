@@ -161,6 +161,19 @@ local_ZSTD_compressStream(const void* src, size_t srcSize,
 }
 
 static size_t
+local_ZSTD_compressStream_freshCCtx(const void* src, size_t srcSize,
+                          void* dst, size_t dstCapacity,
+                          void* buff2)
+{
+    ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+    assert(cctx != NULL);
+
+    return local_ZSTD_compressStream(src, srcSize, dst, dstCapacity, buff2);
+
+    ZSTD_freeCCtx(cctx);
+}
+
+static size_t
 local_ZSTD_compress_generic_end(const void* src, size_t srcSize,
                                 void* dst, size_t dstCapacity,
                                 void* buff2)
@@ -353,6 +366,9 @@ static int benchMem(unsigned benchNb,
         break;
     case 42:
         benchFunction = local_ZSTD_decompressStream; benchName = "decompressStream";
+        break;
+    case 43:
+        benchFunction = local_ZSTD_compressStream_freshCCtx; benchName = "compressStream_freshCCtx";
         break;
     case 51:
         benchFunction = local_ZSTD_compress_generic_continue; benchName = "compress_generic, continue";

@@ -499,6 +499,9 @@ static int benchMem(unsigned benchNb,
     case 42 :
         g_cSize = ZSTD_compress(buff2, dstBuffSize, src, srcSize, cLevel);
         break;
+    case 43 :
+        buff2 = &cparams;
+        break;
 
     /* test functions */
     /* convention: test functions have ID > 100 */

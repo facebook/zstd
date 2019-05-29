@@ -1094,7 +1094,7 @@ _shortestPath:   /* cur, last_pos, best_mlen, best_off have to be set */
     }   /* while (ip < ilimit) */
 
     /* Return the last literals size */
-    return iend - anchor;
+    return (size_t)(iend - anchor);
 }
 
 

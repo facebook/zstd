@@ -653,7 +653,6 @@ size_t ZSTD_compressBlock_lazy_generic(
 
     /* init */
     ip += (dictAndPrefixLength == 0);
-    ms->nextToUpdate3 = ms->nextToUpdate;
     if (dictMode == ZSTD_noDict) {
         U32 const maxRep = (U32)(ip - prefixLowest);
         if (offset_2 > maxRep) savedOffset = offset_2, offset_2 = 0;
@@ -933,7 +932,6 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
     U32 offset_1 = rep[0], offset_2 = rep[1];
 
     /* init */
-    ms->nextToUpdate3 = ms->nextToUpdate;
     ip += (ip == prefixStart);
 
     /* Match Loop */

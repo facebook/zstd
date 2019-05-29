@@ -15,7 +15,6 @@
 #include "util.h"        /* Compiler options, UTIL_GetFileSize */
 #include <stdlib.h>      /* malloc */
 #include <stdio.h>       /* fprintf, fopen, ftello64 */
-#include <assert.h>      /* assert */
 
 #include "timefn.h"      /* UTIL_clockSpanNano, UTIL_getTime */
 #include "mem.h"         /* U32 */
@@ -61,6 +60,7 @@ static const size_t k_sampleSize_default = 10000000;
 **************************************/
 #define DISPLAY(...)  fprintf(stderr, __VA_ARGS__)
 
+#define CONTROL(c)  { if (!(c)) { abort(); } }   /* like assert(), but cannot be disabled */
 
 /*_************************************
 *  Benchmark Parameters
@@ -450,7 +450,7 @@ static int benchMem(unsigned benchNb,
         {   size_t frameHeaderSize;
             g_cSize = ZSTD_compress(dstBuff, dstBuffSize, src, srcSize, cLevel);
             frameHeaderSize = ZSTD_frameHeaderSize(dstBuff, ZSTD_FRAMEHEADERSIZE_PREFIX);
-            assert(!ZSTD_isError(frameHeaderSize));
+            CONTROL(!ZSTD_isError(frameHeaderSize));
             /* check block is compressible, hence contains a literals section */
             {   blockProperties_t bp;
                 ZSTD_getcBlockSize(dstBuff+frameHeaderSize, dstBuffSize, &bp);  /* Get 1st block type */
@@ -470,11 +470,11 @@ static int benchMem(unsigned benchNb,
             const BYTE* ip = dstBuff;
             const BYTE* iend;
             {   size_t const cSize = ZSTD_compress(dstBuff, dstBuffSize, src, srcSize, cLevel);
-                assert(cSize > ZSTD_FRAMEHEADERSIZE_PREFIX);
+                CONTROL(cSize > ZSTD_FRAMEHEADERSIZE_PREFIX);
             }
             /* Skip frame Header */
             {   size_t const frameHeaderSize = ZSTD_frameHeaderSize(dstBuff, ZSTD_FRAMEHEADERSIZE_PREFIX);
-                assert(!ZSTD_isError(frameHeaderSize));
+                CONTROL(!ZSTD_isError(frameHeaderSize));
                 ip += frameHeaderSize;
             }
             /* Find end of block */
@@ -487,7 +487,7 @@ static int benchMem(unsigned benchNb,
             }
             ip += ZSTD_blockHeaderSize;    /* skip block header */
             ZSTD_decompressBegin(g_zdc);
-            assert(iend > ip);
+            CONTROL(iend > ip);
             ip += ZSTD_decodeLiteralsBlock(g_zdc, ip, (size_t)(iend-ip));   /* skip literal segment */
             g_cSize = (size_t)(iend-ip);
             memcpy(dstBuff2, ip, g_cSize);   /* copy rest of block (it starts by SeqHeader) */
@@ -524,7 +524,7 @@ static int benchMem(unsigned benchNb,
         BMK_runTime_t bestResult;
         bestResult.sumOfReturn = 0;
         bestResult.nanoSecPerRun = (double)TIMELOOP_NANOSEC * 2000000000;  /* hopefully large enough : must be larger than any potential measurement */
-        assert(tfs != NULL);
+        CONTROL(tfs != NULL);
 
         bp.benchFn = benchFunction;
         bp.benchPayload = payload;
@@ -751,7 +751,7 @@ int main(int argc, const char** argv)
 
     for (argNb=1; argNb<argc; argNb++) {
         const char* argument = argv[argNb];
-        assert(argument != NULL);
+        CONTROL(argument != NULL);
 
         if (longCommandWArg(&argument, "--zstd=")) {
             for ( ; ;) {

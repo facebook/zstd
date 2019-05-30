@@ -15,6 +15,7 @@
 #include "util.h"        /* Compiler options, UTIL_GetFileSize */
 #include <stdlib.h>      /* malloc */
 #include <stdio.h>       /* fprintf, fopen, ftello64 */
+#include <assert.h>
 
 #include "timefn.h"      /* UTIL_clockSpanNano, UTIL_getTime */
 #include "mem.h"         /* U32 */
@@ -30,8 +31,8 @@
 #include "zstd.h"        /* ZSTD_versionString */
 #include "util.h"        /* time functions */
 #include "datagen.h"
-#include "benchfn.h"       /* CustomBench*/
-#include "benchzstd.h"     /* MB_UNIT */
+#include "benchfn.h"     /* CustomBench */
+#include "benchzstd.h"   /* MB_UNIT */
 
 
 /*_************************************
@@ -50,7 +51,7 @@
 #define DEFAULT_CLEVEL 1
 
 #define COMPRESSIBILITY_DEFAULT 0.50
-static const size_t k_sampleSize_default = 10000000;
+static const size_t kSampleSizeDefault = 10000000;
 
 #define TIMELOOP_NANOSEC      (1*1000000000ULL) /* 1 second */
 
@@ -723,7 +724,7 @@ static int usage_advanced(const char* exename)
     DISPLAY( " -l#    : benchmark functions at that compression level (default : %i)\n", DEFAULT_CLEVEL);
     DISPLAY( " --zstd : custom parameter selection. Format same as zstdcli \n");
     DISPLAY( " -P#    : sample compressibility (default : %.1f%%)\n", COMPRESSIBILITY_DEFAULT * 100);
-    DISPLAY( " -B#    : sample size (default : %u)\n", (unsigned)k_sampleSize_default);
+    DISPLAY( " -B#    : sample size (default : %u)\n", (unsigned)kSampleSizeDefault);
     DISPLAY( " -i#    : iteration loops [1-9](default : %i)\n", NBLOOPS);
     return 0;
 }
@@ -743,7 +744,7 @@ int main(int argc, const char** argv)
     U32 benchNb = 0, main_pause = 0;
     int cLevel = DEFAULT_CLEVEL;
     ZSTD_compressionParameters cparams = ZSTD_getCParams(cLevel, 0, 0);
-    size_t sampleSize = k_sampleSize_default;
+    size_t sampleSize = kSampleSizeDefault;
     double compressibility = COMPRESSIBILITY_DEFAULT;
 
     DISPLAY(WELCOME_MESSAGE);

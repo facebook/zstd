@@ -930,12 +930,12 @@ size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx, ZSTD_ResetDirective reset)
     @return : 0, or an error code if one value is beyond authorized range */
 size_t ZSTD_checkCParams(ZSTD_compressionParameters cParams)
 {
-    BOUNDCHECK(ZSTD_c_windowLog, cParams.windowLog);
-    BOUNDCHECK(ZSTD_c_chainLog,  cParams.chainLog);
-    BOUNDCHECK(ZSTD_c_hashLog,   cParams.hashLog);
-    BOUNDCHECK(ZSTD_c_searchLog, cParams.searchLog);
-    BOUNDCHECK(ZSTD_c_minMatch,  cParams.minMatch);
-    BOUNDCHECK(ZSTD_c_targetLength,cParams.targetLength);
+    BOUNDCHECK(ZSTD_c_windowLog, (int)cParams.windowLog);
+    BOUNDCHECK(ZSTD_c_chainLog,  (int)cParams.chainLog);
+    BOUNDCHECK(ZSTD_c_hashLog,   (int)cParams.hashLog);
+    BOUNDCHECK(ZSTD_c_searchLog, (int)cParams.searchLog);
+    BOUNDCHECK(ZSTD_c_minMatch,  (int)cParams.minMatch);
+    BOUNDCHECK(ZSTD_c_targetLength,(int)cParams.targetLength);
     BOUNDCHECK(ZSTD_c_strategy,  cParams.strategy);
     return 0;
 }
@@ -951,7 +951,7 @@ ZSTD_clampCParams(ZSTD_compressionParameters cParams)
         if ((int)val<bounds.lowerBound) val=(type)bounds.lowerBound;      \
         else if ((int)val>bounds.upperBound) val=(type)bounds.upperBound; \
     }
-#   define CLAMP(cParam, val) CLAMP_TYPE(cParam, val, int)
+#   define CLAMP(cParam, val) CLAMP_TYPE(cParam, val, unsigned)
     CLAMP(ZSTD_c_windowLog, cParams.windowLog);
     CLAMP(ZSTD_c_chainLog,  cParams.chainLog);
     CLAMP(ZSTD_c_hashLog,   cParams.hashLog);

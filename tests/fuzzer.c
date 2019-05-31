@@ -2464,7 +2464,7 @@ static unsigned readU32FromChar(const char** stringPtr)
  *  If yes, @return 1 and advances *stringPtr to the position which immediately follows longCommand.
  *  @return 0 and doesn't modify *stringPtr otherwise.
  */
-static unsigned longCommandWArg(const char** stringPtr, const char* longCommand)
+static int longCommandWArg(const char** stringPtr, const char* longCommand)
 {
     size_t const comSize = strlen(longCommand);
     int const result = !strncmp(*stringPtr, longCommand, comSize);
@@ -2524,7 +2524,7 @@ int main(int argc, const char** argv)
 
                 case 'i':
                     argument++; maxDuration = 0;
-                    nbTests = readU32FromChar(&argument);
+                    nbTests = (int)readU32FromChar(&argument);
                     break;
 
                 case 'T':
@@ -2544,12 +2544,12 @@ int main(int argc, const char** argv)
 
                 case 't':
                     argument++;
-                    testNb = readU32FromChar(&argument);
+                    testNb = (int)readU32FromChar(&argument);
                     break;
 
                 case 'P':   /* compressibility % */
                     argument++;
-                    proba = readU32FromChar(&argument);
+                    proba = (int)readU32FromChar(&argument);
                     if (proba>100) proba = 100;
                     break;
 

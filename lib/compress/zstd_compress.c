@@ -1387,7 +1387,7 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
     note : `params` are assumed fully validated at this stage */
 static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                                       ZSTD_CCtx_params params,
-                                      U64 pledgedSrcSize,
+                                      U64 const pledgedSrcSize,
                                       ZSTD_compResetPolicy_e const crp,
                                       ZSTD_buffered_policy_e const zbuff)
 {
@@ -2868,7 +2868,8 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
             ms->dictMatchState = NULL;
         }
 
-        ZSTD_window_enforceMaxDist(&ms->window, ip + blockSize, maxDist, &ms->loadedDictEnd, &ms->dictMatchState);
+        //ZSTD_window_enforceMaxDist(&ms->window, ip + blockSize, maxDist, &ms->loadedDictEnd, &ms->dictMatchState);
+        ZSTD_checkDictValidity(&ms->window, ip + blockSize, maxDist, &ms->loadedDictEnd, &ms->dictMatchState);
         /* Ensure hash/chain table insertion resumes no sooner than lowlimit */
         if (ms->nextToUpdate < ms->window.lowLimit) ms->nextToUpdate = ms->window.lowLimit;
 
@@ -3296,12 +3297,11 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
 
     FORWARD_IF_ERROR( ZSTD_resetCCtx_internal(cctx, params, pledgedSrcSize,
                                      ZSTDcrp_continue, zbuff) );
-    {
-        size_t const dictID = ZSTD_compress_insertDictionary(
+    {   size_t const dictID = ZSTD_compress_insertDictionary(
                 cctx->blockState.prevCBlock, &cctx->blockState.matchState,
                 &params, dict, dictSize, dictContentType, dtlm, cctx->entropyWorkspace);
         FORWARD_IF_ERROR(dictID);
-        assert(dictID <= (size_t)(U32)-1);
+        assert(dictID <= UINT32_MAX);
         cctx->dictID = (U32)dictID;
     }
     return 0;

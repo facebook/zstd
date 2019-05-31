@@ -141,7 +141,7 @@ struct ZSTD_matchState_t {
     U32* hashTable3;
     U32* chainTable;
     optState_t opt;         /* optimal parser state */
-    const ZSTD_matchState_t * dictMatchState;
+    const ZSTD_matchState_t* dictMatchState;
     ZSTD_compressionParameters cParams;
 };
 
@@ -725,6 +725,38 @@ ZSTD_window_enforceMaxDist(ZSTD_window_t* window,
                         (unsigned)window->dictLimit, (unsigned)window->lowLimit);
             window->dictLimit = window->lowLimit;
         }
+        /* On reaching window size, dictionaries are invalidated */
+        if (loadedDictEndPtr) *loadedDictEndPtr = 0;
+        if (dictMatchStatePtr) *dictMatchStatePtr = NULL;
+    }
+}
+
+MEM_STATIC void
+ZSTD_checkDictValidity(ZSTD_window_t* window,
+                       const void* blockEnd,
+                             U32   maxDist,
+                             U32*  loadedDictEndPtr,
+                       const ZSTD_matchState_t** dictMatchStatePtr)
+{
+    U32 const blockEndIdx = (U32)((BYTE const*)blockEnd - window->base);
+    U32 const loadedDictEnd = (loadedDictEndPtr != NULL) ? *loadedDictEndPtr : 0;
+    DEBUGLOG(5, "ZSTD_checkDictValidity: blockEndIdx=%u, maxDist=%u, loadedDictEnd=%u",
+                (unsigned)blockEndIdx, (unsigned)maxDist, (unsigned)loadedDictEnd);
+
+    /* - When there is no dictionary : loadedDictEnd == 0.
+         In which case, the test (blockEndIdx > maxDist) is merely to avoid
+         overflowing next operation `newLowLimit = blockEndIdx - maxDist`.
+       - When there is a standard dictionary :
+         Index referential is copied from the dictionary,
+         which means it starts from 0.
+         In which case, loadedDictEnd == dictSize,
+         and it makes sense to compare `blockEndIdx > maxDist + dictSize`
+         since `blockEndIdx` also starts from zero.
+       - When there is an attached dictionary :
+         loadedDictEnd is expressed within the referential of the context,
+         so it can be directly compared against blockEndIdx.
+    */
+    if (loadedDictEnd && (blockEndIdx > maxDist + loadedDictEnd)) {
         /* On reaching window size, dictionaries are invalidated */
         if (loadedDictEndPtr) *loadedDictEndPtr = 0;
         if (dictMatchStatePtr) *dictMatchStatePtr = NULL;

@@ -731,6 +731,9 @@ ZSTD_window_enforceMaxDist(ZSTD_window_t* window,
     }
 }
 
+/* Similar to ZSTD_window_enforceMaxDist(),
+ * but only invalidates dictionary
+ * when input progresses beyond window size. */
 MEM_STATIC void
 ZSTD_checkDictValidity(ZSTD_window_t* window,
                        const void* blockEnd,
@@ -743,19 +746,6 @@ ZSTD_checkDictValidity(ZSTD_window_t* window,
     DEBUGLOG(5, "ZSTD_checkDictValidity: blockEndIdx=%u, maxDist=%u, loadedDictEnd=%u",
                 (unsigned)blockEndIdx, (unsigned)maxDist, (unsigned)loadedDictEnd);
 
-    /* - When there is no dictionary : loadedDictEnd == 0.
-         In which case, the test (blockEndIdx > maxDist) is merely to avoid
-         overflowing next operation `newLowLimit = blockEndIdx - maxDist`.
-       - When there is a standard dictionary :
-         Index referential is copied from the dictionary,
-         which means it starts from 0.
-         In which case, loadedDictEnd == dictSize,
-         and it makes sense to compare `blockEndIdx > maxDist + dictSize`
-         since `blockEndIdx` also starts from zero.
-       - When there is an attached dictionary :
-         loadedDictEnd is expressed within the referential of the context,
-         so it can be directly compared against blockEndIdx.
-    */
     if (loadedDictEnd && (blockEndIdx > maxDist + loadedDictEnd)) {
         /* On reaching window size, dictionaries are invalidated */
         if (loadedDictEndPtr) *loadedDictEndPtr = 0;

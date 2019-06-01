@@ -179,8 +179,7 @@ size_t ZSTD_compressBlock_doubleFast_generic(
                 offset = (U32)(current - dictMatchIndexL - dictIndexDelta);
                 while (((ip>anchor) & (dictMatchL>dictStart)) && (ip[-1] == dictMatchL[-1])) { ip--; dictMatchL--; mLength++; } /* catch up */
                 goto _match_found;
-            }
-        }
+        }   }
 
         if (matchIndexS > prefixLowestIndex) {
             /* check prefix short match */
@@ -195,16 +194,14 @@ size_t ZSTD_compressBlock_doubleFast_generic(
 
             if (match > dictStart && MEM_read32(match) == MEM_read32(ip)) {
                 goto _search_next_long;
-            }
-        }
+        }   }
 
         ip += ((ip-anchor) >> kSearchStrength) + 1;
         continue;
 
 _search_next_long:
 
-        {
-            size_t const hl3 = ZSTD_hashPtr(ip+1, hBitsL, 8);
+        {   size_t const hl3 = ZSTD_hashPtr(ip+1, hBitsL, 8);
             size_t const dictHLNext = ZSTD_hashPtr(ip+1, dictHBitsL, 8);
             U32 const matchIndexL3 = hashLong[hl3];
             const BYTE* matchL3 = base + matchIndexL3;
@@ -230,9 +227,7 @@ _search_next_long:
                     offset = (U32)(current + 1 - dictMatchIndexL3 - dictIndexDelta);
                     while (((ip>anchor) & (dictMatchL3>dictStart)) && (ip[-1] == dictMatchL3[-1])) { ip--; dictMatchL3--; mLength++; } /* catch up */
                     goto _match_found;
-                }
-            }
-        }
+        }   }   }
 
         /* if no long +1 match, explore the short match we found */
         if (dictMode == ZSTD_dictMatchState && matchIndexS < prefixLowestIndex) {
@@ -287,8 +282,7 @@ _match_stored:
                         continue;
                     }
                     break;
-                }
-            }
+            }   }
 
             if (dictMode == ZSTD_noDict) {
                 while ( (ip <= ilimit)
@@ -303,7 +297,8 @@ _match_stored:
                     ip += rLength;
                     anchor = ip;
                     continue;   /* faster when present ... (?) */
-    }   }   }   }
+        }   }   }
+    }   /* while (ip < ilimit) */
 
     /* save reps for next block */
     rep[0] = offset_1 ? offset_1 : offsetSaved;

@@ -3301,7 +3301,7 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
                 cctx->blockState.prevCBlock, &cctx->blockState.matchState,
                 &params, dict, dictSize, dictContentType, dtlm, cctx->entropyWorkspace);
         FORWARD_IF_ERROR(dictID);
-        assert(dictID <= UINT32_MAX);
+        assert(dictID <= UINT_MAX);
         cctx->dictID = (U32)dictID;
     }
     return 0;

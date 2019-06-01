@@ -97,11 +97,14 @@ size_t ZSTD_compressBlock_doubleFast_generic(
                                      dictCParams->chainLog : hBitsS;
     const U32 dictAndPrefixLength  = (U32)(ip - prefixLowest + dictEnd - dictStart);
 
+    DEBUGLOG(5, "ZSTD_compressBlock_doubleFast_generic");
+
     assert(dictMode == ZSTD_noDict || dictMode == ZSTD_dictMatchState);
 
     /* if a dictionary is attached, it must be within window range */
-    if (dictMode == ZSTD_dictMatchState)
-        assert(lowestValid + maxDistance <= endIndex);
+    if (dictMode == ZSTD_dictMatchState) {
+        assert(lowestValid + maxDistance >= endIndex);
+    }
 
     /* init */
     ip += (dictAndPrefixLength == 0);

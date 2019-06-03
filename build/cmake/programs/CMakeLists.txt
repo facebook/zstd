@@ -38,6 +38,8 @@ if (UNIX)
     add_custom_target(unzstd ALL ${CMAKE_COMMAND} -E create_symlink zstd unzstd DEPENDS zstd COMMENT "Creating unzstd symlink")
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/zstdcat DESTINATION "bin")
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/unzstd DESTINATION "bin")
+    install(PROGRAMS ${CMAKE_SOURCE_DIR}/../../programs/zstdgrep DESTINATION "bin")
+    install(PROGRAMS ${CMAKE_SOURCE_DIR}/../../programs/zstdless DESTINATION "bin")
 
     add_custom_target(zstd.1 ALL
         ${CMAKE_COMMAND} -E copy ${PROGRAMS_DIR}/zstd.1 .

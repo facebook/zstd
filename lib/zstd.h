@@ -657,12 +657,28 @@ ZSTDLIB_API size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
                                          ZSTD_inBuffer* input,
                                          ZSTD_EndDirective endOp);
 
+
+/* These buffer sizes are softly recommended.
+ * They are not required : ZSTD_compressStream*() happily accepts any buffer size, for both input and output.
+ * Respecting the recommended size just makes it a bit easier for ZSTD_compressStream*(),
+ * reducing the amount of memory shuffling and buffering, resulting in minor performance savings.
+ *
+ * However, note that these recommendations are from the perspective of a C caller program.
+ * If the streaming interface is invoked from some other language,
+ * especially managed ones such as Java or Go, through a foreign function interface such as jni or cgo,
+ * a major performance rule is to reduce crossing such interface to an absolute minimum.
+ * It's not rare that performance ends being spent more into the interface, rather than compression itself.
+ * In which cases, prefer using large buffers, as large as practical,
+ * for both input and output, to reduce the nb of roundtrips.
+ */
 ZSTDLIB_API size_t ZSTD_CStreamInSize(void);    /**< recommended size for input buffer */
-ZSTDLIB_API size_t ZSTD_CStreamOutSize(void);   /**< recommended size for output buffer. Guarantee to successfully flush at least one complete compressed block in all circumstances. */
+ZSTDLIB_API size_t ZSTD_CStreamOutSize(void);   /**< recommended size for output buffer. Guarantee to successfully flush at least one complete compressed block. */
+
 
 /*******************************************************************************
- * This is a legacy streaming API, and can be replaced by ZSTD_CCtx_reset() and
- * ZSTD_compressStream2(). It is redundant, but is still fully supported.
+ * This following is a legacy streaming API.
+ * It can be replaced by ZSTD_CCtx_reset() and ZSTD_compressStream2().
+ * It is redundant, but remains fully supported.
  * Advanced parameters and dictionary compression can only be used through the
  * new API.
  ******************************************************************************/
@@ -679,7 +695,7 @@ ZSTDLIB_API size_t ZSTD_initCStream(ZSTD_CStream* zcs, int compressionLevel);
  * Alternative for ZSTD_compressStream2(zcs, output, input, ZSTD_e_continue).
  * NOTE: The return value is different. ZSTD_compressStream() returns a hint for
  * the next read size (if non-zero and not an error). ZSTD_compressStream2()
- * returns the number of bytes left to flush (if non-zero and not an error).
+ * returns the minimum nb of bytes left to flush (if non-zero and not an error).
  */
 ZSTDLIB_API size_t ZSTD_compressStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output, ZSTD_inBuffer* input);
 /** Equivalent to ZSTD_compressStream2(zcs, output, &emptyInput, ZSTD_e_flush). */

@@ -1165,6 +1165,8 @@ FIO_compressFilename_internal(FIO_prefs_t* const prefs,
                               const char* dstFileName, const char* srcFileName,
                               int compressionLevel)
 {
+    UTIL_time_t const timeStart = UTIL_getTime();
+    clock_t const cpuStart = clock();
     U64 readsize = 0;
     U64 compressedfilesize = 0;
     U64 const fileSize = UTIL_getFileSize(srcFileName);
@@ -1217,6 +1219,15 @@ FIO_compressFilename_internal(FIO_prefs_t* const prefs,
         (unsigned long long)readsize, (unsigned long long) compressedfilesize,
          dstFileName);
 
+    /* Elapsed Time and CPU Load */
+    {   clock_t const cpuEnd = clock();
+        double const cpuLoad_s = (double)(cpuEnd - cpuStart) / CLOCKS_PER_SEC;
+        U64 const timeLength_ns = UTIL_clockSpanNano(timeStart);
+        double const timeLength_s = (double)timeLength_ns / 1000000000;
+        double const cpuLoad_pct = (cpuLoad_s / timeLength_s) * 100;
+        DISPLAYLEVEL(4, "%-20s : Completed in %.2f sec  (cpu load : %.0f%%)\n",
+                        srcFileName, timeLength_s, cpuLoad_pct);
+    }
     return 0;
 }
 
@@ -1339,15 +1350,12 @@ int FIO_compressFilename(FIO_prefs_t* const prefs,
                          const char* dictFileName, int compressionLevel,
                          ZSTD_compressionParameters comprParams)
 {
-    clock_t const start = clock();
     U64 const fileSize = UTIL_getFileSize(srcFileName);
     U64 const srcSize = (fileSize == UTIL_FILESIZE_UNKNOWN) ? ZSTD_CONTENTSIZE_UNKNOWN : fileSize;
 
     cRess_t const ress = FIO_createCResources(prefs, dictFileName, compressionLevel, srcSize, comprParams);
     int const result = FIO_compressFilename_srcFile(prefs, ress, dstFileName, srcFileName, compressionLevel);
 
-    double const seconds = (double)(clock() - start) / CLOCKS_PER_SEC;
-    DISPLAYLEVEL(4, "Completed in %.2f sec \n", seconds);
 
     FIO_freeCResources(ress);
     return result;

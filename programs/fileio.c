@@ -1167,7 +1167,6 @@ FIO_compressFilename_internal(FIO_prefs_t* const prefs,
 {
     UTIL_time_t const timeStart = UTIL_getTime();;
     clock_t const cpuStart = clock();
-
     U64 readsize = 0;
     U64 compressedfilesize = 0;
     U64 const fileSize = UTIL_getFileSize(srcFileName);

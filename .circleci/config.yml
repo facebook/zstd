@@ -24,10 +24,9 @@ jobs:
     # TODO: Create a small custom docker image with all the dependencies we need
     #       preinstalled to reduce installation time.
     docker:
-      - image: circleci/buildpack-deps:bionic
+      - image: fbopensource/zstd-circleci-primary:0.0.1
     steps:
       - checkout
-      - *install-dependencies
       - run:
           name: Test
           command: |
@@ -41,10 +40,9 @@ jobs:
   # the second half of the jobs are in this test
   short-tests-1:
     docker:
-      - image: circleci/buildpack-deps:bionic
+      - image: fbopensource/zstd-circleci-primary:0.0.1
     steps:
       - checkout
-      - *install-dependencies
       - run:
           name: Test
           command: |
@@ -61,12 +59,11 @@ jobs:
   # tagged release.
   publish-github-release:
     docker:
-      - image: circleci/buildpack-deps:bionic
+      - image: fbopensource/zstd-circleci-primary:0.0.1
     environment:
       CIRCLE_ARTIFACTS: /tmp/circleci-artifacts
     steps:
       - checkout
-      - *install-dependencies
       - run:
           name: Publish
           command: |
@@ -86,12 +83,11 @@ jobs:
   # This step should only be run in a cron job
   regression-test:
     docker:
-      - image: circleci/buildpack-deps:bionic
+      - image: fbopensource/zstd-circleci-primary:0.0.1
     environment:
       CIRCLE_ARTIFACTS: /tmp/circleci-artifacts
     steps:
       - checkout
-      - *install-dependencies
       # Restore the cached resources.
       - restore_cache:
           # We try our best to bust the cache when the data changes by hashing

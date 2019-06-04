@@ -18,7 +18,7 @@
 <li><a href="#Chapter8">Advanced decompression API</a></li>
 <li><a href="#Chapter9">Streaming</a></li>
 <li><a href="#Chapter10">Streaming compression - HowTo</a></li>
-<li><a href="#Chapter11">This is a legacy streaming API, and can be replaced by ZSTD_CCtx_reset() and</a></li>
+<li><a href="#Chapter11">This following is a legacy streaming API.</a></li>
 <li><a href="#Chapter12">Equivalent to:</a></li>
 <li><a href="#Chapter13">Alternative for ZSTD_compressStream2(zcs, output, input, ZSTD_e_continue).</a></li>
 <li><a href="#Chapter14">Equivalent to ZSTD_compressStream2(zcs, output, &emptyInput, ZSTD_e_flush).</a></li>
@@ -592,9 +592,10 @@ size_t ZSTD_freeCStream(ZSTD_CStream* zcs);
 
 <pre><b>size_t ZSTD_CStreamInSize(void);    </b>/**< recommended size for input buffer */<b>
 </b></pre><BR>
-<pre><b>size_t ZSTD_CStreamOutSize(void);   </b>/**< recommended size for output buffer. Guarantee to successfully flush at least one complete compressed block in all circumstances. */<b>
+<pre><b>size_t ZSTD_CStreamOutSize(void);   </b>/**< recommended size for output buffer. Guarantee to successfully flush at least one complete compressed block. */<b>
 </b></pre><BR>
-<a name="Chapter11"></a><h2>This is a legacy streaming API, and can be replaced by ZSTD_CCtx_reset() and</h2><pre> ZSTD_compressStream2(). It is redundant, but is still fully supported.
+<a name="Chapter11"></a><h2>This following is a legacy streaming API.</h2><pre> It can be replaced by ZSTD_CCtx_reset() and ZSTD_compressStream2().
+ It is redundant, but remains fully supported.
  Advanced parameters and dictionary compression can only be used through the
  new API.
 <BR></pre>
@@ -608,7 +609,7 @@ size_t ZSTD_freeCStream(ZSTD_CStream* zcs);
 
 <a name="Chapter13"></a><h2>Alternative for ZSTD_compressStream2(zcs, output, input, ZSTD_e_continue).</h2><pre> NOTE: The return value is different. ZSTD_compressStream() returns a hint for
  the next read size (if non-zero and not an error). ZSTD_compressStream2()
- returns the number of bytes left to flush (if non-zero and not an error).
+ returns the minimum nb of bytes left to flush (if non-zero and not an error).
  
 <BR></pre>
 

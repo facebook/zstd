@@ -1225,7 +1225,7 @@ FIO_compressFilename_internal(FIO_prefs_t* const prefs,
         U64 const timeLength_ns = UTIL_clockSpanNano(timeStart);
         double const timeLength_s = (double)timeLength_ns / 1000000000;
         double const cpuLoad_pct = (cpuLoad_s / timeLength_s) * 100;
-        DISPLAYLEVEL(4, "%s: Completed in %.2f sec  (cpu load : %.0f%%)\n",
+        DISPLAYLEVEL(4, "%-20s : Completed in %.2f sec  (cpu load : %.0f%%)\n",
                         srcFileName, timeLength_s, cpuLoad_pct);
     }
     return 0;

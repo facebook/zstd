@@ -1236,6 +1236,9 @@ static int FIO_compressFilename_dstFile(FIO_prefs_t* const prefs,
                                         const char* srcFileName,
                                         int compressionLevel)
 {
+    UTIL_time_t timeStart;
+    clock_t cpuStart;
+
     int closeDstFile = 0;
     int result;
     stat_t statbuf;
@@ -1259,8 +1262,8 @@ static int FIO_compressFilename_dstFile(FIO_prefs_t* const prefs,
             transfer_permissions = 1;
     }
 
-    UTIL_time_t const timeStart = UTIL_getTime();
-    clock_t const cpuStart = clock();
+    timeStart = UTIL_getTime();
+    cpuStart = clock();
 
     result = FIO_compressFilename_internal(prefs, ress, dstFileName, srcFileName, compressionLevel);
 

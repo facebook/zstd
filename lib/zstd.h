@@ -82,16 +82,16 @@ ZSTDLIB_API unsigned ZSTD_versionNumber(void);   /**< to check runtime library v
 #define ZSTD_VERSION_STRING ZSTD_EXPAND_AND_QUOTE(ZSTD_LIB_VERSION)
 ZSTDLIB_API const char* ZSTD_versionString(void);   /* requires v1.3.0+ */
 
-/***************************************
-*  Default constant
-***************************************/
+/* *************************************
+ *  Default constant
+ ***************************************/
 #ifndef ZSTD_CLEVEL_DEFAULT
 #  define ZSTD_CLEVEL_DEFAULT 3
 #endif
 
-/***************************************
-*  Constants
-***************************************/
+/* *************************************
+ *  Constants
+ ***************************************/
 
 /* All magic numbers are supposed read/written to/from files/memory using little-endian convention */
 #define ZSTD_MAGICNUMBER            0xFD2FB528    /* valid since v0.8.0 */
@@ -675,7 +675,7 @@ ZSTDLIB_API size_t ZSTD_CStreamInSize(void);    /**< recommended size for input 
 ZSTDLIB_API size_t ZSTD_CStreamOutSize(void);   /**< recommended size for output buffer. Guarantee to successfully flush at least one complete compressed block. */
 
 
-/*******************************************************************************
+/* *****************************************************************************
  * This following is a legacy streaming API.
  * It can be replaced by ZSTD_CCtx_reset() and ZSTD_compressStream2().
  * It is redundant, but remains fully supported.
@@ -683,7 +683,7 @@ ZSTDLIB_API size_t ZSTD_CStreamOutSize(void);   /**< recommended size for output
  * new API.
  ******************************************************************************/
 
-/**
+/*!
  * Equivalent to:
  *
  *     ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);
@@ -691,16 +691,16 @@ ZSTDLIB_API size_t ZSTD_CStreamOutSize(void);   /**< recommended size for output
  *     ZSTD_CCtx_setParameter(zcs, ZSTD_c_compressionLevel, compressionLevel);
  */
 ZSTDLIB_API size_t ZSTD_initCStream(ZSTD_CStream* zcs, int compressionLevel);
-/**
+/*!
  * Alternative for ZSTD_compressStream2(zcs, output, input, ZSTD_e_continue).
  * NOTE: The return value is different. ZSTD_compressStream() returns a hint for
  * the next read size (if non-zero and not an error). ZSTD_compressStream2()
  * returns the minimum nb of bytes left to flush (if non-zero and not an error).
  */
 ZSTDLIB_API size_t ZSTD_compressStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output, ZSTD_inBuffer* input);
-/** Equivalent to ZSTD_compressStream2(zcs, output, &emptyInput, ZSTD_e_flush). */
+/*! Equivalent to ZSTD_compressStream2(zcs, output, &emptyInput, ZSTD_e_flush). */
 ZSTDLIB_API size_t ZSTD_flushStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output);
-/** Equivalent to ZSTD_compressStream2(zcs, output, &emptyInput, ZSTD_e_end). */
+/*! Equivalent to ZSTD_compressStream2(zcs, output, &emptyInput, ZSTD_e_end). */
 ZSTDLIB_API size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output);
 
 
@@ -985,7 +985,7 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 #endif  /* ZSTD_H_235446 */
 
 
-/****************************************************************************************
+/* **************************************************************************************
  *   ADVANCED AND EXPERIMENTAL FUNCTIONS
  ****************************************************************************************
  * The definitions in the following section are considered experimental.
@@ -1178,7 +1178,7 @@ typedef enum {
  *            however it does mean that all frame data must be present and valid. */
 ZSTDLIB_API unsigned long long ZSTD_findDecompressedSize(const void* src, size_t srcSize);
 
-/** ZSTD_decompressBound() :
+/*! ZSTD_decompressBound() :
  *  `src` should point to the start of a series of ZSTD encoded and/or skippable frames
  *  `srcSize` must be the _exact_ size of this series
  *       (i.e. there should be a frame boundary at `src + srcSize`)
@@ -1859,7 +1859,7 @@ typedef struct {
     unsigned checksumFlag;
 } ZSTD_frameHeader;
 
-/** ZSTD_getFrameHeader() :
+/*! ZSTD_getFrameHeader() :
  *  decode Frame Header, or requires larger `srcSize`.
  * @return : 0, `zfhPtr` is correctly filled,
  *          >0, `srcSize` is too small, value is wanted `srcSize` amount,

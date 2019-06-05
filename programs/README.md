@@ -37,7 +37,7 @@ There are however other Makefile targets that create different variations of CLI
   `.gz` support is automatically enabled when `zlib` library is detected at build time.
   It's possible to disable `.gz` support, by setting `HAVE_ZLIB=0`.
   Example : `make zstd HAVE_ZLIB=0`
-  It's also possible to force compilation with zlib support, `using HAVE_ZLIB=1`.
+  It's also possible to force compilation with zlib support, using `HAVE_ZLIB=1`.
   In which case, linking stage will fail if `zlib` library cannot be found.
   This is useful to prevent silent feature disabling.
 
@@ -45,7 +45,7 @@ There are however other Makefile targets that create different variations of CLI
   This is ordered through commands `--format=xz` and `--format=lzma` respectively.
   Alternatively, symlinks named `xz`, `unxz`, `lzma`, or `unlzma` will mimic intended behavior.
   `.xz` and `.lzma` support is automatically enabled when `lzma` library is detected at build time.
-  It's possible to disable `.xz` and `.lzma` support, by setting `HAVE_LZMA=0` .
+  It's possible to disable `.xz` and `.lzma` support, by setting `HAVE_LZMA=0`.
   Example : `make zstd HAVE_LZMA=0`
   It's also possible to force compilation with lzma support, using `HAVE_LZMA=1`.
   In which case, linking stage will fail if `lzma` library cannot be found.

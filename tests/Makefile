@@ -247,7 +247,7 @@ clean:
 	$(MAKE) -C $(ZSTDDIR) clean
 	$(MAKE) -C $(PRGDIR) clean
 	@$(RM) -fR $(TESTARTEFACT)
-	@$(RM) -f core *.o tmp* result* *.gcda dictionary *.zst \
+	@$(RM) -f core *.o tmp* *.tmp result* *.gcda dictionary *.zst \
         $(PRGDIR)/zstd$(EXT) $(PRGDIR)/zstd32$(EXT) \
         fullbench$(EXT) fullbench32$(EXT) \
         fullbench-lib$(EXT) fullbench-dll$(EXT) \

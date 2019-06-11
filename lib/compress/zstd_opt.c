@@ -506,9 +506,11 @@ static U32 ZSTD_insertBt1(
     }   }
 
     *smallerPtr = *largerPtr = 0;
-    if (bestLength > 384) return MIN(192, (U32)(bestLength - 384));   /* speed optimization */
-    assert(matchEndIdx > current + 8);
-    return matchEndIdx - (current + 8);
+    {   U32 positions = 0;
+        if (bestLength > 384) positions = MIN(192, (U32)(bestLength - 384));   /* speed optimization */
+        assert(matchEndIdx > current + 8);
+        return MAX(positions, matchEndIdx - (current + 8));
+    }
 }
 
 FORCE_INLINE_TEMPLATE

@@ -533,6 +533,11 @@ static FILE* FIO_openDstFile(FIO_prefs_t* const prefs, const char* srcFileName, 
         prefs->sparseFileSupport = ZSTD_SPARSE_DEFAULT;
     }
 
+    /* set the umask so group and other permissions are not set,
+     * preventing possible security leaks when compressing or
+     * uncompressing */
+    umask(0077);
+
     if (UTIL_isRegularFile(dstFileName)) {
         /* Check if destination file already exists */
         FILE* const fCheck = fopen( dstFileName, "rb" );

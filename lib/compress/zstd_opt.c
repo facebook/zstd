@@ -547,6 +547,7 @@ U32 ZSTD_insertBtAndGetAllMatches (
 {
     const ZSTD_compressionParameters* const cParams = &ms->cParams;
     U32 const sufficient_len = MIN(cParams->targetLength, ZSTD_OPT_NUM -1);
+    U32 const maxDistance = 1U << cParams->windowLog;
     const BYTE* const base = ms->window.base;
     U32 const current = (U32)(ip-base);
     U32 const hashLog = cParams->hashLog;
@@ -562,8 +563,9 @@ U32 ZSTD_insertBtAndGetAllMatches (
     U32 const dictLimit = ms->window.dictLimit;
     const BYTE* const dictEnd = dictBase + dictLimit;
     const BYTE* const prefixStart = base + dictLimit;
-    U32 const btLow = btMask >= current ? 0 : current - btMask;
-    U32 const windowLow = ms->window.lowLimit;
+    U32 const btLow = (btMask >= current) ? 0 : current - btMask;
+    U32 const windowValid = ms->window.lowLimit;
+    U32 const windowLow = ((current - windowValid) > maxDistance) ? current - maxDistance : windowValid;
     U32 const matchLow = windowLow ? windowLow : 1;
     U32* smallerPtr = bt + 2*(current&btMask);
     U32* largerPtr  = bt + 2*(current&btMask) + 1;

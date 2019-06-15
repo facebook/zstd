@@ -895,18 +895,21 @@ roundTripTest -g1M -P50 "1 --single-thread --long=29" " --long=28 --memory=512MB
 roundTripTest -g1M -P50 "1 --single-thread --long=29" " --zstd=wlog=28 --memory=512MB"
 
 
-println "\n===>   adaptive mode "
-roundTripTest -g270000000 " --adapt"
-roundTripTest -g27000000 " --adapt=min=1,max=4"
-println "===>   test: --adapt must fail on incoherent bounds "
-./datagen > tmp
-$ZSTD -f -vv --adapt=min=10,max=9 tmp && die "--adapt must fail on incoherent bounds"
+if [ -n "$hasMT" ]
+then
+    println "\n===>   adaptive mode "
+    roundTripTest -g270000000 " --adapt"
+    roundTripTest -g27000000 " --adapt=min=1,max=4"
+    println "===>   test: --adapt must fail on incoherent bounds "
+    ./datagen > tmp
+    $ZSTD -f -vv --adapt=min=10,max=9 tmp && die "--adapt must fail on incoherent bounds"
 
-println "\n===>   rsyncable mode "
-roundTripTest -g10M " --rsyncable"
-roundTripTest -g10M " --rsyncable -B100K"
-println "===>   test: --rsyncable must fail with --single-thread"
-$ZSTD -f -vv --rsyncable --single-thread tmp && die "--rsyncable must fail with --single-thread"
+    println "\n===>   rsyncable mode "
+    roundTripTest -g10M " --rsyncable"
+    roundTripTest -g10M " --rsyncable -B100K"
+    println "===>   test: --rsyncable must fail with --single-thread"
+    $ZSTD -f -vv --rsyncable --single-thread tmp && die "--rsyncable must fail with --single-thread"
+fi
 
 
 if [ "$1" != "--test-large-data" ]; then

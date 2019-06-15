@@ -141,7 +141,7 @@ struct ZSTD_matchState_t {
     U32* hashTable3;
     U32* chainTable;
     optState_t opt;         /* optimal parser state */
-    const ZSTD_matchState_t * dictMatchState;
+    const ZSTD_matchState_t* dictMatchState;
     ZSTD_compressionParameters cParams;
 };
 
@@ -725,6 +725,28 @@ ZSTD_window_enforceMaxDist(ZSTD_window_t* window,
                         (unsigned)window->dictLimit, (unsigned)window->lowLimit);
             window->dictLimit = window->lowLimit;
         }
+        /* On reaching window size, dictionaries are invalidated */
+        if (loadedDictEndPtr) *loadedDictEndPtr = 0;
+        if (dictMatchStatePtr) *dictMatchStatePtr = NULL;
+    }
+}
+
+/* Similar to ZSTD_window_enforceMaxDist(),
+ * but only invalidates dictionary
+ * when input progresses beyond window size. */
+MEM_STATIC void
+ZSTD_checkDictValidity(ZSTD_window_t* window,
+                       const void* blockEnd,
+                             U32   maxDist,
+                             U32*  loadedDictEndPtr,
+                       const ZSTD_matchState_t** dictMatchStatePtr)
+{
+    U32 const blockEndIdx = (U32)((BYTE const*)blockEnd - window->base);
+    U32 const loadedDictEnd = (loadedDictEndPtr != NULL) ? *loadedDictEndPtr : 0;
+    DEBUGLOG(5, "ZSTD_checkDictValidity: blockEndIdx=%u, maxDist=%u, loadedDictEnd=%u",
+                (unsigned)blockEndIdx, (unsigned)maxDist, (unsigned)loadedDictEnd);
+
+    if (loadedDictEnd && (blockEndIdx > maxDist + loadedDictEnd)) {
         /* On reaching window size, dictionaries are invalidated */
         if (loadedDictEndPtr) *loadedDictEndPtr = 0;
         if (dictMatchStatePtr) *dictMatchStatePtr = NULL;

@@ -6,15 +6,15 @@ silesia.tar,                        level 0,                            compress
 silesia.tar,                        level 1,                            compress simple,                    5334825
 silesia.tar,                        level 3,                            compress simple,                    4875008
 silesia.tar,                        level 4,                            compress simple,                    4813507
-silesia.tar,                        level 5,                            compress simple,                    4722235
-silesia.tar,                        level 6,                            compress simple,                    4672194
-silesia.tar,                        level 7,                            compress simple,                    4606658
-silesia.tar,                        level 9,                            compress simple,                    4554098
-silesia.tar,                        level 13,                           compress simple,                    4491702
-silesia.tar,                        level 16,                           compress simple,                    4381284
-silesia.tar,                        level 19,                           compress simple,                    4281512
+silesia.tar,                        level 5,                            compress simple,                    4722271
+silesia.tar,                        level 6,                            compress simple,                    4672231
+silesia.tar,                        level 7,                            compress simple,                    4606657
+silesia.tar,                        level 9,                            compress simple,                    4554099
+silesia.tar,                        level 13,                           compress simple,                    4491706
+silesia.tar,                        level 16,                           compress simple,                    4381265
+silesia.tar,                        level 19,                           compress simple,                    4281551
 silesia.tar,                        uncompressed literals,              compress simple,                    4875008
-silesia.tar,                        uncompressed literals optimal,      compress simple,                    4281512
+silesia.tar,                        uncompressed literals optimal,      compress simple,                    4281551
 silesia.tar,                        huffman literals,                   compress simple,                    6186038
 silesia,                            level -5,                           compress cctx,                      6737567
 silesia,                            level -3,                           compress cctx,                      6444663
@@ -36,7 +36,7 @@ silesia,                            multithreaded long distance mode,   compress
 silesia,                            small window log,                   compress cctx,                      7115734
 silesia,                            small hash log,                     compress cctx,                      6554898
 silesia,                            small chain log,                    compress cctx,                      4931093
-silesia,                            explicit params,                    compress cctx,                      4813352
+silesia,                            explicit params,                    compress cctx,                      4794609
 silesia,                            uncompressed literals,              compress cctx,                      4862377
 silesia,                            uncompressed literals optimal,      compress cctx,                      4293262
 silesia,                            huffman literals,                   compress cctx,                      6178442
@@ -100,7 +100,7 @@ silesia,                            multithreaded long distance mode,   zstdcli,
 silesia,                            small window log,                   zstdcli,                            7126434
 silesia,                            small hash log,                     zstdcli,                            6554946
 silesia,                            small chain log,                    zstdcli,                            4931141
-silesia,                            explicit params,                    zstdcli,                            4815380
+silesia,                            explicit params,                    zstdcli,                            4797048
 silesia,                            uncompressed literals,              zstdcli,                            5155472
 silesia,                            uncompressed literals optimal,      zstdcli,                            4325482
 silesia,                            huffman literals,                   zstdcli,                            5331158
@@ -112,23 +112,23 @@ silesia.tar,                        level 0,                            zstdcli,
 silesia.tar,                        level 1,                            zstdcli,                            5336255
 silesia.tar,                        level 3,                            zstdcli,                            4875136
 silesia.tar,                        level 4,                            zstdcli,                            4814531
-silesia.tar,                        level 5,                            zstdcli,                            4723284
-silesia.tar,                        level 6,                            zstdcli,                            4673591
-silesia.tar,                        level 7,                            zstdcli,                            4608342
-silesia.tar,                        level 9,                            zstdcli,                            4554700
-silesia.tar,                        level 13,                           zstdcli,                            4491706
-silesia.tar,                        level 16,                           zstdcli,                            4381288
-silesia.tar,                        level 19,                           zstdcli,                            4281516
+silesia.tar,                        level 5,                            zstdcli,                            4723312
+silesia.tar,                        level 6,                            zstdcli,                            4673616
+silesia.tar,                        level 7,                            zstdcli,                            4608346
+silesia.tar,                        level 9,                            zstdcli,                            4554702
+silesia.tar,                        level 13,                           zstdcli,                            4491710
+silesia.tar,                        level 16,                           zstdcli,                            4381269
+silesia.tar,                        level 19,                           zstdcli,                            4281555
 silesia.tar,                        no source size,                     zstdcli,                            4875132
 silesia.tar,                        long distance mode,                 zstdcli,                            4866975
 silesia.tar,                        multithreaded,                      zstdcli,                            4875136
 silesia.tar,                        multithreaded long distance mode,   zstdcli,                            4866975
 silesia.tar,                        small window log,                   zstdcli,                            7130434
 silesia.tar,                        small hash log,                     zstdcli,                            6587841
-silesia.tar,                        small chain log,                    zstdcli,                            4943259
-silesia.tar,                        explicit params,                    zstdcli,                            4839202
+silesia.tar,                        small chain log,                    zstdcli,                            4943269
+silesia.tar,                        explicit params,                    zstdcli,                            4822318
 silesia.tar,                        uncompressed literals,              zstdcli,                            5158134
-silesia.tar,                        uncompressed literals optimal,      zstdcli,                            4321099
+silesia.tar,                        uncompressed literals optimal,      zstdcli,                            4320914
 silesia.tar,                        huffman literals,                   zstdcli,                            5347560
 silesia.tar,                        multithreaded with advanced params, zstdcli,                            5158134
 github,                             level -5,                           zstdcli,                            207285
@@ -191,7 +191,7 @@ silesia,                            multithreaded long distance mode,   advanced
 silesia,                            small window log,                   advanced one pass,                  7126386
 silesia,                            small hash log,                     advanced one pass,                  6554898
 silesia,                            small chain log,                    advanced one pass,                  4931093
-silesia,                            explicit params,                    advanced one pass,                  4815369
+silesia,                            explicit params,                    advanced one pass,                  4797035
 silesia,                            uncompressed literals,              advanced one pass,                  5155424
 silesia,                            uncompressed literals optimal,      advanced one pass,                  4325434
 silesia,                            huffman literals,                   advanced one pass,                  5326210
@@ -203,23 +203,23 @@ silesia.tar,                        level 0,                            advanced
 silesia.tar,                        level 1,                            advanced one pass,                  5334825
 silesia.tar,                        level 3,                            advanced one pass,                  4875008
 silesia.tar,                        level 4,                            advanced one pass,                  4813507
-silesia.tar,                        level 5,                            advanced one pass,                  4722235
-silesia.tar,                        level 6,                            advanced one pass,                  4672194
-silesia.tar,                        level 7,                            advanced one pass,                  4606658
-silesia.tar,                        level 9,                            advanced one pass,                  4554098
-silesia.tar,                        level 13,                           advanced one pass,                  4491702
-silesia.tar,                        level 16,                           advanced one pass,                  4381284
-silesia.tar,                        level 19,                           advanced one pass,                  4281512
+silesia.tar,                        level 5,                            advanced one pass,                  4722271
+silesia.tar,                        level 6,                            advanced one pass,                  4672231
+silesia.tar,                        level 7,                            advanced one pass,                  4606657
+silesia.tar,                        level 9,                            advanced one pass,                  4554099
+silesia.tar,                        level 13,                           advanced one pass,                  4491706
+silesia.tar,                        level 16,                           advanced one pass,                  4381265
+silesia.tar,                        level 19,                           advanced one pass,                  4281551
 silesia.tar,                        no source size,                     advanced one pass,                  4875008
 silesia.tar,                        long distance mode,                 advanced one pass,                  4861218
 silesia.tar,                        multithreaded,                      advanced one pass,                  4874631
 silesia.tar,                        multithreaded long distance mode,   advanced one pass,                  4860683
 silesia.tar,                        small window log,                   advanced one pass,                  7130394
 silesia.tar,                        small hash log,                     advanced one pass,                  6587833
-silesia.tar,                        small chain log,                    advanced one pass,                  4943255
-silesia.tar,                        explicit params,                    advanced one pass,                  4829974
+silesia.tar,                        small chain log,                    advanced one pass,                  4943266
+silesia.tar,                        explicit params,                    advanced one pass,                  4808543
 silesia.tar,                        uncompressed literals,              advanced one pass,                  5157992
-silesia.tar,                        uncompressed literals optimal,      advanced one pass,                  4321095
+silesia.tar,                        uncompressed literals optimal,      advanced one pass,                  4320910
 silesia.tar,                        huffman literals,                   advanced one pass,                  5347283
 silesia.tar,                        multithreaded with advanced params, advanced one pass,                  5158545
 github,                             level -5,                           advanced one pass,                  205285
@@ -283,7 +283,7 @@ silesia,                            multithreaded long distance mode,   advanced
 silesia,                            small window log,                   advanced one pass small out,        7126386
 silesia,                            small hash log,                     advanced one pass small out,        6554898
 silesia,                            small chain log,                    advanced one pass small out,        4931093
-silesia,                            explicit params,                    advanced one pass small out,        4815369
+silesia,                            explicit params,                    advanced one pass small out,        4797035
 silesia,                            uncompressed literals,              advanced one pass small out,        5155424
 silesia,                            uncompressed literals optimal,      advanced one pass small out,        4325434
 silesia,                            huffman literals,                   advanced one pass small out,        5326210
@@ -295,23 +295,23 @@ silesia.tar,                        level 0,                            advanced
 silesia.tar,                        level 1,                            advanced one pass small out,        5334825
 silesia.tar,                        level 3,                            advanced one pass small out,        4875008
 silesia.tar,                        level 4,                            advanced one pass small out,        4813507
-silesia.tar,                        level 5,                            advanced one pass small out,        4722235
-silesia.tar,                        level 6,                            advanced one pass small out,        4672194
-silesia.tar,                        level 7,                            advanced one pass small out,        4606658
-silesia.tar,                        level 9,                            advanced one pass small out,        4554098
-silesia.tar,                        level 13,                           advanced one pass small out,        4491702
-silesia.tar,                        level 16,                           advanced one pass small out,        4381284
-silesia.tar,                        level 19,                           advanced one pass small out,        4281512
+silesia.tar,                        level 5,                            advanced one pass small out,        4722271
+silesia.tar,                        level 6,                            advanced one pass small out,        4672231
+silesia.tar,                        level 7,                            advanced one pass small out,        4606657
+silesia.tar,                        level 9,                            advanced one pass small out,        4554099
+silesia.tar,                        level 13,                           advanced one pass small out,        4491706
+silesia.tar,                        level 16,                           advanced one pass small out,        4381265
+silesia.tar,                        level 19,                           advanced one pass small out,        4281551
 silesia.tar,                        no source size,                     advanced one pass small out,        4875008
 silesia.tar,                        long distance mode,                 advanced one pass small out,        4861218
 silesia.tar,                        multithreaded,                      advanced one pass small out,        4874631
 silesia.tar,                        multithreaded long distance mode,   advanced one pass small out,        4860683
 silesia.tar,                        small window log,                   advanced one pass small out,        7130394
 silesia.tar,                        small hash log,                     advanced one pass small out,        6587833
-silesia.tar,                        small chain log,                    advanced one pass small out,        4943255
-silesia.tar,                        explicit params,                    advanced one pass small out,        4829974
+silesia.tar,                        small chain log,                    advanced one pass small out,        4943266
+silesia.tar,                        explicit params,                    advanced one pass small out,        4808543
 silesia.tar,                        uncompressed literals,              advanced one pass small out,        5157992
-silesia.tar,                        uncompressed literals optimal,      advanced one pass small out,        4321095
+silesia.tar,                        uncompressed literals optimal,      advanced one pass small out,        4320910
 silesia.tar,                        huffman literals,                   advanced one pass small out,        5347283
 silesia.tar,                        multithreaded with advanced params, advanced one pass small out,        5158545
 github,                             level -5,                           advanced one pass small out,        205285
@@ -375,7 +375,7 @@ silesia,                            multithreaded long distance mode,   advanced
 silesia,                            small window log,                   advanced streaming,                 7126389
 silesia,                            small hash log,                     advanced streaming,                 6554898
 silesia,                            small chain log,                    advanced streaming,                 4931093
-silesia,                            explicit params,                    advanced streaming,                 4815380
+silesia,                            explicit params,                    advanced streaming,                 4797048
 silesia,                            uncompressed literals,              advanced streaming,                 5155424
 silesia,                            uncompressed literals optimal,      advanced streaming,                 4325434
 silesia,                            huffman literals,                   advanced streaming,                 5331110
@@ -387,23 +387,23 @@ silesia.tar,                        level 0,                            advanced
 silesia.tar,                        level 1,                            advanced streaming,                 5336879
 silesia.tar,                        level 3,                            advanced streaming,                 4875010
 silesia.tar,                        level 4,                            advanced streaming,                 4813507
-silesia.tar,                        level 5,                            advanced streaming,                 4722240
-silesia.tar,                        level 6,                            advanced streaming,                 4672203
-silesia.tar,                        level 7,                            advanced streaming,                 4606658
-silesia.tar,                        level 9,                            advanced streaming,                 4554105
-silesia.tar,                        level 13,                           advanced streaming,                 4491703
+silesia.tar,                        level 5,                            advanced streaming,                 4722276
+silesia.tar,                        level 6,                            advanced streaming,                 4672240
+silesia.tar,                        level 7,                            advanced streaming,                 4606657
+silesia.tar,                        level 9,                            advanced streaming,                 4554106
+silesia.tar,                        level 13,                           advanced streaming,                 4491707
 silesia.tar,                        level 16,                           advanced streaming,                 4381284
-silesia.tar,                        level 19,                           advanced streaming,                 4281512
+silesia.tar,                        level 19,                           advanced streaming,                 4281511
 silesia.tar,                        no source size,                     advanced streaming,                 4875006
 silesia.tar,                        long distance mode,                 advanced streaming,                 4861218
 silesia.tar,                        multithreaded,                      advanced streaming,                 4875132
 silesia.tar,                        multithreaded long distance mode,   advanced streaming,                 4866971
 silesia.tar,                        small window log,                   advanced streaming,                 7130394
 silesia.tar,                        small hash log,                     advanced streaming,                 6587834
-silesia.tar,                        small chain log,                    advanced streaming,                 4943260
-silesia.tar,                        explicit params,                    advanced streaming,                 4830002
+silesia.tar,                        small chain log,                    advanced streaming,                 4943271
+silesia.tar,                        explicit params,                    advanced streaming,                 4808570
 silesia.tar,                        uncompressed literals,              advanced streaming,                 5157995
-silesia.tar,                        uncompressed literals optimal,      advanced streaming,                 4321095
+silesia.tar,                        uncompressed literals optimal,      advanced streaming,                 4320841
 silesia.tar,                        huffman literals,                   advanced streaming,                 5352306
 silesia.tar,                        multithreaded with advanced params, advanced streaming,                 5158130
 github,                             level -5,                           advanced streaming,                 205285
@@ -479,13 +479,13 @@ silesia.tar,                        level 0,                            old stre
 silesia.tar,                        level 1,                            old streaming,                      5336879
 silesia.tar,                        level 3,                            old streaming,                      4875010
 silesia.tar,                        level 4,                            old streaming,                      4813507
-silesia.tar,                        level 5,                            old streaming,                      4722240
-silesia.tar,                        level 6,                            old streaming,                      4672203
-silesia.tar,                        level 7,                            old streaming,                      4606658
-silesia.tar,                        level 9,                            old streaming,                      4554105
-silesia.tar,                        level 13,                           old streaming,                      4491703
+silesia.tar,                        level 5,                            old streaming,                      4722276
+silesia.tar,                        level 6,                            old streaming,                      4672240
+silesia.tar,                        level 7,                            old streaming,                      4606657
+silesia.tar,                        level 9,                            old streaming,                      4554106
+silesia.tar,                        level 13,                           old streaming,                      4491707
 silesia.tar,                        level 16,                           old streaming,                      4381284
-silesia.tar,                        level 19,                           old streaming,                      4281512
+silesia.tar,                        level 19,                           old streaming,                      4281511
 silesia.tar,                        no source size,                     old streaming,                      4875006
 silesia.tar,                        long distance mode,                 old streaming,                      12022046
 silesia.tar,                        multithreaded,                      old streaming,                      12022046
@@ -495,7 +495,7 @@ silesia.tar,                        small hash log,                     old stre
 silesia.tar,                        small chain log,                    old streaming,                      12022046
 silesia.tar,                        explicit params,                    old streaming,                      12022046
 silesia.tar,                        uncompressed literals,              old streaming,                      4875010
-silesia.tar,                        uncompressed literals optimal,      old streaming,                      4281512
+silesia.tar,                        uncompressed literals optimal,      old streaming,                      4281511
 silesia.tar,                        huffman literals,                   old streaming,                      6190789
 silesia.tar,                        multithreaded with advanced params, old streaming,                      12022046
 github,                             level -5,                           old streaming,                      205285
@@ -571,13 +571,13 @@ silesia.tar,                        level 0,                            old stre
 silesia.tar,                        level 1,                            old streaming advanced,             5336879
 silesia.tar,                        level 3,                            old streaming advanced,             4875010
 silesia.tar,                        level 4,                            old streaming advanced,             4813507
-silesia.tar,                        level 5,                            old streaming advanced,             4722240
-silesia.tar,                        level 6,                            old streaming advanced,             4672203
-silesia.tar,                        level 7,                            old streaming advanced,             4606658
-silesia.tar,                        level 9,                            old streaming advanced,             4554105
-silesia.tar,                        level 13,                           old streaming advanced,             4491703
+silesia.tar,                        level 5,                            old streaming advanced,             4722276
+silesia.tar,                        level 6,                            old streaming advanced,             4672240
+silesia.tar,                        level 7,                            old streaming advanced,             4606657
+silesia.tar,                        level 9,                            old streaming advanced,             4554106
+silesia.tar,                        level 13,                           old streaming advanced,             4491707
 silesia.tar,                        level 16,                           old streaming advanced,             4381284
-silesia.tar,                        level 19,                           old streaming advanced,             4281512
+silesia.tar,                        level 19,                           old streaming advanced,             4281511
 silesia.tar,                        no source size,                     old streaming advanced,             4875006
 silesia.tar,                        long distance mode,                 old streaming advanced,             12022046
 silesia.tar,                        multithreaded,                      old streaming advanced,             12022046
@@ -587,7 +587,7 @@ silesia.tar,                        small hash log,                     old stre
 silesia.tar,                        small chain log,                    old streaming advanced,             12022046
 silesia.tar,                        explicit params,                    old streaming advanced,             12022046
 silesia.tar,                        uncompressed literals,              old streaming advanced,             4875010
-silesia.tar,                        uncompressed literals optimal,      old streaming advanced,             4281512
+silesia.tar,                        uncompressed literals optimal,      old streaming advanced,             4281511
 silesia.tar,                        huffman literals,                   old streaming advanced,             6190789
 silesia.tar,                        multithreaded with advanced params, old streaming advanced,             12022046
 github,                             level -5,                           old streaming advanced,             205285
@@ -663,13 +663,13 @@ silesia.tar,                        level 0,                            old stre
 silesia.tar,                        level 1,                            old streaming cdcit,                5336879
 silesia.tar,                        level 3,                            old streaming cdcit,                4875010
 silesia.tar,                        level 4,                            old streaming cdcit,                4813507
-silesia.tar,                        level 5,                            old streaming cdcit,                4722240
-silesia.tar,                        level 6,                            old streaming cdcit,                4672203
-silesia.tar,                        level 7,                            old streaming cdcit,                4606658
-silesia.tar,                        level 9,                            old streaming cdcit,                4554105
-silesia.tar,                        level 13,                           old streaming cdcit,                4491703
+silesia.tar,                        level 5,                            old streaming cdcit,                4722276
+silesia.tar,                        level 6,                            old streaming cdcit,                4672240
+silesia.tar,                        level 7,                            old streaming cdcit,                4606657
+silesia.tar,                        level 9,                            old streaming cdcit,                4554106
+silesia.tar,                        level 13,                           old streaming cdcit,                4491707
 silesia.tar,                        level 16,                           old streaming cdcit,                4381284
-silesia.tar,                        level 19,                           old streaming cdcit,                4281512
+silesia.tar,                        level 19,                           old streaming cdcit,                4281511
 silesia.tar,                        no source size,                     old streaming cdcit,                4875006
 silesia.tar,                        long distance mode,                 old streaming cdcit,                12022046
 silesia.tar,                        multithreaded,                      old streaming cdcit,                12022046
@@ -679,7 +679,7 @@ silesia.tar,                        small hash log,                     old stre
 silesia.tar,                        small chain log,                    old streaming cdcit,                12022046
 silesia.tar,                        explicit params,                    old streaming cdcit,                12022046
 silesia.tar,                        uncompressed literals,              old streaming cdcit,                4875010
-silesia.tar,                        uncompressed literals optimal,      old streaming cdcit,                4281512
+silesia.tar,                        uncompressed literals optimal,      old streaming cdcit,                4281511
 silesia.tar,                        huffman literals,                   old streaming cdcit,                6190789
 silesia.tar,                        multithreaded with advanced params, old streaming cdcit,                12022046
 github,                             level -5,                           old streaming cdcit,                205285
@@ -755,13 +755,13 @@ silesia.tar,                        level 0,                            old stre
 silesia.tar,                        level 1,                            old streaming advanced cdict,       5336879
 silesia.tar,                        level 3,                            old streaming advanced cdict,       4875010
 silesia.tar,                        level 4,                            old streaming advanced cdict,       4813507
-silesia.tar,                        level 5,                            old streaming advanced cdict,       4722240
-silesia.tar,                        level 6,                            old streaming advanced cdict,       4672203
-silesia.tar,                        level 7,                            old streaming advanced cdict,       4606658
-silesia.tar,                        level 9,                            old streaming advanced cdict,       4554105
-silesia.tar,                        level 13,                           old streaming advanced cdict,       4491703
+silesia.tar,                        level 5,                            old streaming advanced cdict,       4722276
+silesia.tar,                        level 6,                            old streaming advanced cdict,       4672240
+silesia.tar,                        level 7,                            old streaming advanced cdict,       4606657
+silesia.tar,                        level 9,                            old streaming advanced cdict,       4554106
+silesia.tar,                        level 13,                           old streaming advanced cdict,       4491707
 silesia.tar,                        level 16,                           old streaming advanced cdict,       4381284
-silesia.tar,                        level 19,                           old streaming advanced cdict,       4281512
+silesia.tar,                        level 19,                           old streaming advanced cdict,       4281511
 silesia.tar,                        no source size,                     old streaming advanced cdict,       4875006
 silesia.tar,                        long distance mode,                 old streaming advanced cdict,       12022046
 silesia.tar,                        multithreaded,                      old streaming advanced cdict,       12022046
@@ -771,7 +771,7 @@ silesia.tar,                        small hash log,                     old stre
 silesia.tar,                        small chain log,                    old streaming advanced cdict,       12022046
 silesia.tar,                        explicit params,                    old streaming advanced cdict,       12022046
 silesia.tar,                        uncompressed literals,              old streaming advanced cdict,       4875010
-silesia.tar,                        uncompressed literals optimal,      old streaming advanced cdict,       4281512
+silesia.tar,                        uncompressed literals optimal,      old streaming advanced cdict,       4281511
 silesia.tar,                        huffman literals,                   old streaming advanced cdict,       6190789
 silesia.tar,                        multithreaded with advanced params, old streaming advanced cdict,       12022046
 github,                             level -5,                           old streaming advanced cdict,       205285

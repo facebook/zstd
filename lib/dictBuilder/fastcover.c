@@ -503,6 +503,7 @@ typedef struct FASTCOVER_tryParameters_data_s {
     ZDICT_cover_params_t parameters;
 } FASTCOVER_tryParameters_data_t;
 
+
 /**
  * Tries a set of parameters and updates the COVER_best_t with the results.
  * This function is thread safe if zstd is compiled with multithreaded support.
@@ -528,9 +529,9 @@ static void FASTCOVER_tryParameters(void *opaque)
   /* Copy the frequencies because we need to modify them */
   memcpy(freqs, ctx->freqs, ((U64)1 << ctx->f) * sizeof(U32));
   /* Build the dictionary */
-  {
-    const size_t tail = FASTCOVER_buildDictionary(ctx, freqs, dict, dictBufferCapacity,
+  { const size_t tail = FASTCOVER_buildDictionary(ctx, freqs, dict, dictBufferCapacity,
                                                     parameters, segmentFreqs);
+
     const unsigned nbFinalizeSamples = (unsigned)(ctx->nbTrainSamples * ctx->accelParams.finalize / 100);
 
     FASTCOVER_selectDict(dict, &dictBufferCapacity, dict + tail, dictBufferCapacity - tail,
@@ -542,7 +543,6 @@ static void FASTCOVER_tryParameters(void *opaque)
       goto _cleanup;
     }
   }
-
 _cleanup:
   COVER_best_finish(data->best, totalCompressedSize, parameters, dict,
                     dictBufferCapacity);

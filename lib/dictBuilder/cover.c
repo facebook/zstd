@@ -1026,7 +1026,7 @@ static void COVER_tryParameters(void *opaque) {
   /* Build the dictionary */
   {
     const size_t tail = COVER_buildDictionary(ctx, freqs, &activeDmers, dict,
-                                                dictBufferCapacity, parameters);
+                                              dictBufferCapacity, parameters);
     COVER_selectDict(dict, &dictBufferCapacity, dict + tail, dictBufferCapacity - tail,
       ctx->samples, ctx->samplesSizes, ctx->nbTrainSamples, ctx->nbSamples, parameters, ctx->offsets,
       &totalCompressedSize);

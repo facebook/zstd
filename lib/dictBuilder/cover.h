@@ -110,12 +110,3 @@ void COVER_best_start(COVER_best_t *best);
 void COVER_best_finish(COVER_best_t *best, size_t compressedSize,
                        ZDICT_cover_params_t parameters, void *dict,
                        size_t dictSize);
-/**
- * Called to finalize the dictionary and select one based on whether or not
- * the shrink-dict flag was enabled. If enabled the dictionary used is the
- * smallest dictionary within a factor of 1.01 of the compressed size of from
- * the largest dictionary.
- *
-void COVER_selectDict(void* dict, size_t* dictBufferCapacity, const void* customDictContent, size_t dictContentSize,
-        const void* samplesBuffer, const size_t* samplesSizes, size_t nbTrainSamples, size_t nbSamples, ZDICT_cover_params_t params,
-        size_t* offsets, size_t* totalCompressedSize);*/

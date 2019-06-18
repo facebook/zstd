@@ -435,9 +435,9 @@ FASTCOVER_buildDictionary(const FASTCOVER_ctx_t* ctx,
   return tail;
 }
 
-void FASTCOVER_selectDict(void* dict, size_t* dictBufferCapacity, const void* customDictContent, size_t dictContentSize,
+static void FASTCOVER_selectDict(void* dict, size_t* dictBufferCapacity, const void* customDictContent, size_t dictContentSize,
         const void* samplesBuffer, const size_t* samplesSizes, size_t nbTrainSamples, size_t nbSamples, ZDICT_cover_params_t params,
-        size_t* offsets, size_t* totalCompressedSize){
+        size_t* offsets, size_t* totalCompressedSize, const unsigned nbFinalizeSamples){
 
   size_t largestDict = 0;
   size_t largestCompressed = 0;
@@ -446,7 +446,7 @@ void FASTCOVER_selectDict(void* dict, size_t* dictBufferCapacity, const void* cu
   {
     *dictBufferCapacity = ZDICT_finalizeDictionary(
       dict, *dictBufferCapacity, customDictContent, dictContentSize,
-      samplesBuffer, samplesSizes, (unsigned)nbTrainSamples, params.zParams);
+      samplesBuffer, samplesSizes, nbFinalizeSamples, params.zParams);
 
     if (ZDICT_isError(*dictBufferCapacity)) {
       return;
@@ -472,7 +472,7 @@ void FASTCOVER_selectDict(void* dict, size_t* dictBufferCapacity, const void* cu
     {
       *dictBufferCapacity = ZDICT_finalizeDictionary(
         dict, *dictBufferCapacity, customDictContent, dictContentSize,
-        samplesBuffer, samplesSizes, (unsigned)nbTrainSamples, params.zParams);
+        samplesBuffer, samplesSizes, nbFinalizeSamples, params.zParams);
 
       if (ZDICT_isError(*dictBufferCapacity)) {
         return;
@@ -535,7 +535,7 @@ static void FASTCOVER_tryParameters(void *opaque)
 
     FASTCOVER_selectDict(dict, &dictBufferCapacity, dict + tail, dictBufferCapacity - tail,
          ctx->samples, ctx->samplesSizes, ctx->nbTrainSamples, ctx->nbSamples, parameters, ctx->offsets,
-         &totalCompressedSize);
+         &totalCompressedSize, nbFinalizeSamples);
 
     if (ZDICT_isError(dictBufferCapacity)){
       DISPLAYLEVEL(1, "Failed to finalize dictionary\n");

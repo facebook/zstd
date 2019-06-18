@@ -929,7 +929,7 @@ void COVER_best_finish(COVER_best_t *best, size_t compressedSize,
   }
 }
 
-void COVER_selectDict(void* dict, size_t* dictBufferCapacity, const void* customDictContent, size_t dictContentSize,
+static void COVER_selectDict(void* dict, size_t* dictBufferCapacity, const void* customDictContent, size_t dictContentSize,
         const void* samplesBuffer, const size_t* samplesSizes, size_t nbTrainSamples, size_t nbSamples, ZDICT_cover_params_t params,
         size_t* offsets, size_t* totalCompressedSize){
 

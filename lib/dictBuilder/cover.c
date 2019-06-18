@@ -935,6 +935,7 @@ static void COVER_selectDict(void* dict, size_t* dictBufferCapacity, const void*
 
   size_t largestDict = 0;
   size_t largestCompressed = 0;
+  double defaultRegression = 1.01;
 
   /* Initial dictionary size and compressed size */
   {
@@ -978,7 +979,7 @@ static void COVER_selectDict(void* dict, size_t* dictBufferCapacity, const void*
                                                          nbTrainSamples, nbSamples,
                                                          (BYTE *const)dict, *dictBufferCapacity);
 
-    if (*totalCompressedSize <= largestCompressed * 1.01){
+    if (*totalCompressedSize <= largestCompressed * defaultRegression){
       break;
     }
     dictContentSize *= 2;

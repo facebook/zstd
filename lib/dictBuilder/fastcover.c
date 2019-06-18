@@ -435,17 +435,6 @@ FASTCOVER_buildDictionary(const FASTCOVER_ctx_t* ctx,
   return tail;
 }
 
-
-/**
- * Parameters for FASTCOVER_tryParameters().
- */
-typedef struct FASTCOVER_tryParameters_data_s {
-    const FASTCOVER_ctx_t* ctx;
-    COVER_best_t* best;
-    size_t dictBufferCapacity;
-    ZDICT_cover_params_t parameters;
-} FASTCOVER_tryParameters_data_t;
-
 void FASTCOVER_selectDict(void* dict, size_t* dictBufferCapacity, const void* customDictContent, size_t dictContentSize,
         const void* samplesBuffer, const size_t* samplesSizes, size_t nbTrainSamples, size_t nbSamples, ZDICT_cover_params_t params,
         size_t* offsets, size_t* totalCompressedSize){
@@ -505,6 +494,16 @@ void FASTCOVER_selectDict(void* dict, size_t* dictBufferCapacity, const void* cu
 }
 
 /**
+ * Parameters for FASTCOVER_tryParameters().
+ */
+typedef struct FASTCOVER_tryParameters_data_s {
+    const FASTCOVER_ctx_t* ctx;
+    COVER_best_t* best;
+    size_t dictBufferCapacity;
+    ZDICT_cover_params_t parameters;
+} FASTCOVER_tryParameters_data_t;
+
+/**
  * Tries a set of parameters and updates the COVER_best_t with the results.
  * This function is thread safe if zstd is compiled with multithreaded support.
  * It takes its parameters as an *OWNING* opaque pointer to support threading.
@@ -529,17 +528,19 @@ static void FASTCOVER_tryParameters(void *opaque)
   /* Copy the frequencies because we need to modify them */
   memcpy(freqs, ctx->freqs, ((U64)1 << ctx->f) * sizeof(U32));
   /* Build the dictionary */
-  const size_t tail = FASTCOVER_buildDictionary(ctx, freqs, dict, dictBufferCapacity,
-                                                  parameters, segmentFreqs);
-  const unsigned nbFinalizeSamples = (unsigned)(ctx->nbTrainSamples * ctx->accelParams.finalize / 100);
+  {
+    const size_t tail = FASTCOVER_buildDictionary(ctx, freqs, dict, dictBufferCapacity,
+                                                    parameters, segmentFreqs);
+    const unsigned nbFinalizeSamples = (unsigned)(ctx->nbTrainSamples * ctx->accelParams.finalize / 100);
 
-  FASTCOVER_selectDict(dict, &dictBufferCapacity, dict + tail, dictBufferCapacity - tail,
-       ctx->samples, ctx->samplesSizes, ctx->nbTrainSamples, ctx->nbSamples, parameters, ctx->offsets,
-       &totalCompressedSize);
+    FASTCOVER_selectDict(dict, &dictBufferCapacity, dict + tail, dictBufferCapacity - tail,
+         ctx->samples, ctx->samplesSizes, ctx->nbTrainSamples, ctx->nbSamples, parameters, ctx->offsets,
+         &totalCompressedSize);
 
-  if (ZDICT_isError(dictBufferCapacity)){
-    DISPLAYLEVEL(1, "Failed to finalize dictionary\n");
-    goto _cleanup;
+    if (ZDICT_isError(dictBufferCapacity)){
+      DISPLAYLEVEL(1, "Failed to finalize dictionary\n");
+      goto _cleanup;
+    }
   }
 
 _cleanup:

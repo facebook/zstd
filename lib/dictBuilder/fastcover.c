@@ -446,6 +446,63 @@ typedef struct FASTCOVER_tryParameters_data_s {
     ZDICT_cover_params_t parameters;
 } FASTCOVER_tryParameters_data_t;
 
+void FASTCOVER_selectDict(void* dict, size_t* dictBufferCapacity, const void* customDictContent, size_t dictContentSize,
+        const void* samplesBuffer, const size_t* samplesSizes, size_t nbTrainSamples, size_t nbSamples, ZDICT_cover_params_t params,
+        size_t* offsets, size_t* totalCompressedSize){
+
+  size_t largestDict = 0;
+  size_t largestCompressed = 0;
+
+  /* Initial dictionary size and compressed size */
+  {
+    *dictBufferCapacity = ZDICT_finalizeDictionary(
+      dict, *dictBufferCapacity, customDictContent, dictContentSize,
+      samplesBuffer, samplesSizes, (unsigned)nbTrainSamples, params.zParams);
+
+    if (ZDICT_isError(*dictBufferCapacity)) {
+      return;
+    }
+  }
+
+  *totalCompressedSize = COVER_checkTotalCompressedSize(params, samplesSizes,
+                                                       samplesBuffer, offsets,
+                                                       nbTrainSamples, nbSamples,
+                                                       dict, *dictBufferCapacity);
+
+  if(params.zParams.shrinkDict == 0){
+    return;
+  }
+
+  largestDict = *dictBufferCapacity;
+  largestCompressed = *totalCompressedSize;
+  *dictBufferCapacity = ZDICT_DICTSIZE_MIN;
+  dictContentSize = ZDICT_CONTENTSIZE_MIN;
+
+  /* Largest dict is initially at least ZDICT_DICTSIZE_MIN */
+  while (*dictBufferCapacity <= largestDict){
+    {
+      *dictBufferCapacity = ZDICT_finalizeDictionary(
+        dict, *dictBufferCapacity, customDictContent, dictContentSize,
+        samplesBuffer, samplesSizes, (unsigned)nbTrainSamples, params.zParams);
+
+      if (ZDICT_isError(*dictBufferCapacity)) {
+        return;
+      }
+    }
+
+    *totalCompressedSize = COVER_checkTotalCompressedSize(params, samplesSizes,
+                                                         samplesBuffer, offsets,
+                                                         nbTrainSamples, nbSamples,
+                                                         dict, *dictBufferCapacity);
+
+    if (*totalCompressedSize <= largestCompressed * 1.01){
+      break;
+    }
+    dictContentSize *= 2;
+    *dictBufferCapacity *= 2;
+  }
+  return;
+}
 
 /**
  * Tries a set of parameters and updates the COVER_best_t with the results.
@@ -472,22 +529,19 @@ static void FASTCOVER_tryParameters(void *opaque)
   /* Copy the frequencies because we need to modify them */
   memcpy(freqs, ctx->freqs, ((U64)1 << ctx->f) * sizeof(U32));
   /* Build the dictionary */
-  { const size_t tail = FASTCOVER_buildDictionary(ctx, freqs, dict, dictBufferCapacity,
+  const size_t tail = FASTCOVER_buildDictionary(ctx, freqs, dict, dictBufferCapacity,
                                                   parameters, segmentFreqs);
-    const unsigned nbFinalizeSamples = (unsigned)(ctx->nbTrainSamples * ctx->accelParams.finalize / 100);
-    dictBufferCapacity = ZDICT_finalizeDictionary(
-        dict, dictBufferCapacity, dict + tail, dictBufferCapacity - tail,
-        ctx->samples, ctx->samplesSizes, nbFinalizeSamples, parameters.zParams);
-    if (ZDICT_isError(dictBufferCapacity)) {
-      DISPLAYLEVEL(1, "Failed to finalize dictionary\n");
-      goto _cleanup;
-    }
+  const unsigned nbFinalizeSamples = (unsigned)(ctx->nbTrainSamples * ctx->accelParams.finalize / 100);
+
+  FASTCOVER_selectDict(dict, &dictBufferCapacity, dict + tail, dictBufferCapacity - tail,
+       ctx->samples, ctx->samplesSizes, ctx->nbTrainSamples, ctx->nbSamples, parameters, ctx->offsets,
+       &totalCompressedSize);
+
+  if (ZDICT_isError(dictBufferCapacity)){
+    DISPLAYLEVEL(1, "Failed to finalize dictionary\n");
+    goto _cleanup;
   }
-  /* Check total compressed size */
-  totalCompressedSize = COVER_checkTotalCompressedSize(parameters, ctx->samplesSizes,
-                                                       ctx->samples, ctx->offsets,
-                                                       ctx->nbTrainSamples, ctx->nbSamples,
-                                                       dict, dictBufferCapacity);
+
 _cleanup:
   COVER_best_finish(data->best, totalCompressedSize, parameters, dict,
                     dictBufferCapacity);

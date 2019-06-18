@@ -77,6 +77,7 @@ static const unsigned g_defaultMaxDictSize = 110 KB;
 static const int      g_defaultDictCLevel = 3;
 static const unsigned g_defaultSelectivityLevel = 9;
 static const unsigned g_defaultMaxWindowLog = 27;
+static const double   g_defaultDictRegression = 1.01;
 #define OVERLAP_LOG_DEFAULT 9999
 #define LDM_PARAM_DEFAULT 9999  /* Default for parameters where 0 is valid */
 static U32 g_overlapLog = OVERLAP_LOG_DEFAULT;
@@ -185,6 +186,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -o file : `file` is dictionary name (default: %s) \n", g_defaultDictName);
     DISPLAY( "--maxdict=# : limit dictionary to specified size (default: %u) \n", g_defaultMaxDictSize);
     DISPLAY( "--dictID=# : force dictionary ID to specified value (default: random)\n");
+    DISPLAY( "--shrink-dict: select the smallest dictionary within %f regression of the largest dictionary\n", g_defaultDictRegression);
 #endif
 #ifndef ZSTD_NOBENCH
     DISPLAY( "\n");
@@ -557,6 +559,7 @@ int main(int argCount, const char* argv[])
     unsigned dictID = 0;
     int dictCLevel = g_defaultDictCLevel;
     unsigned dictSelect = g_defaultSelectivityLevel;
+    unsigned shrinkDict = 0;
 #ifdef UTIL_HAS_CREATEFILELIST
     const char** extendedFileList = NULL;
     char* fileNamesBuf = NULL;
@@ -645,6 +648,7 @@ int main(int argCount, const char* argv[])
                     if (!strcmp(argument, "--maxdict")) { nextArgumentIsMaxDict=1; lastCommand=1; continue; }  /* kept available for compatibility with old syntax ; will be removed one day */
                     if (!strcmp(argument, "--dictID")) { nextArgumentIsDictID=1; lastCommand=1; continue; }  /* kept available for compatibility with old syntax ; will be removed one day */
                     if (!strcmp(argument, "--no-dictID")) { FIO_setDictIDFlag(prefs, 0); continue; }
+                    if (!strcmp(argument, "--shrink-dict")) { shrinkDict=1; continue; }
                     if (!strcmp(argument, "--keep")) { FIO_setRemoveSrcFile(prefs, 0); continue; }
                     if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(prefs, 1); continue; }
                     if (!strcmp(argument, "--priority=rt")) { setRealTimePrio = 1; continue; }
@@ -1042,6 +1046,7 @@ int main(int argCount, const char* argv[])
         zParams.compressionLevel = dictCLevel;
         zParams.notificationLevel = g_displayLevel;
         zParams.dictID = dictID;
+        zParams.shrinkDict = shrinkDict;
         if (dict == cover) {
             int const optimize = !coverParams.k || !coverParams.d;
             coverParams.nbThreads = nbWorkers;

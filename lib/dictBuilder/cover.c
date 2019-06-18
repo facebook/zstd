@@ -948,9 +948,9 @@ void COVER_selectDict(void* dict, size_t* dictBufferCapacity, const void* custom
   }
 
   *totalCompressedSize = COVER_checkTotalCompressedSize(params, samplesSizes,
-                                                       samplesBuffer, offsets,
+                                                       (const BYTE*)samplesBuffer, offsets,
                                                        nbTrainSamples, nbSamples,
-                                                       dict, *dictBufferCapacity);
+                                                       (BYTE *const)dict, *dictBufferCapacity);
 
   if(params.zParams.shrinkDict == 0){
     return;
@@ -974,9 +974,9 @@ void COVER_selectDict(void* dict, size_t* dictBufferCapacity, const void* custom
     }
 
     *totalCompressedSize = COVER_checkTotalCompressedSize(params, samplesSizes,
-                                                         samplesBuffer, offsets,
+                                                         (const BYTE*)samplesBuffer, offsets,
                                                          nbTrainSamples, nbSamples,
-                                                         dict, *dictBufferCapacity);
+                                                         (BYTE *const)dict, *dictBufferCapacity);
 
     if (*totalCompressedSize <= largestCompressed * 1.01){
       break;

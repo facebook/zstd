@@ -153,6 +153,12 @@ matrix:
         - make clean
         - make travis-install    # just ensures `make install` works
 
+    - name: c99 compatibility
+      if: branch = master
+      script:
+        - make c99build
+        - make -C tests test-zstd
+
     - name: PPC64
       if: branch = master
       script:

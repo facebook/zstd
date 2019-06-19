@@ -938,7 +938,7 @@ unsigned COVER_dictSelectionIsError(COVER_dictSelection_t selection) {
   return ZSTD_isError(selection.totalCompressedSize);
 }
 
-COVER_dictSelection_t COVER_selectDict(void* dict, void* dictBuffer, size_t dictBufferCapacity, const void* customDictContent,
+COVER_dictSelection_t COVER_selectDict(void* dict, void* dictBuffer, size_t dictBufferCapacity, void* customDictContent,
         size_t dictContentSize, const void* samplesBuffer, const size_t* samplesSizes, size_t nbFinalizeSamples,
         size_t nbCheckSamples, size_t nbSamples, ZDICT_cover_params_t params, size_t* offsets, size_t totalCompressedSize) {
 
@@ -946,11 +946,11 @@ COVER_dictSelection_t COVER_selectDict(void* dict, void* dictBuffer, size_t dict
   size_t largestCompressed = 0;
   size_t initDictContent = 0;
   double regressionTolerance = 1 + ((double)params.shrinkDict / 100);
-  const char* customDictContentEnd = ((char*)customDictContent + dictContentSize);
+  char* customDictContentEnd = ((char*)customDictContent + dictContentSize);
 
   /* Initial dictionary size and compressed size */
   dictBufferCapacity = ZDICT_finalizeDictionary(
-    dictBuffer, dictBufferCapacity, customDictContent, dictContentSize,
+    dictBuffer, dictBufferCapacity, (const void*)customDictContent, dictContentSize,
     samplesBuffer, samplesSizes, nbFinalizeSamples, params.zParams);
 
   if (ZDICT_isError(dictBufferCapacity)) {
@@ -982,7 +982,7 @@ COVER_dictSelection_t COVER_selectDict(void* dict, void* dictBuffer, size_t dict
     {
       memcpy(dictBuffer, dict, largestDict);
       dictBufferCapacity = ZDICT_finalizeDictionary(
-        dictBuffer, dictBufferCapacity, (void*)(customDictContentEnd - dictContentSize), dictContentSize,
+        dictBuffer, dictBufferCapacity, ((const void*)customDictContentEnd - dictContentSize), dictContentSize,
         samplesBuffer, samplesSizes, nbFinalizeSamples, params.zParams);
 
       if (ZDICT_isError(dictBufferCapacity)) {
@@ -996,7 +996,7 @@ COVER_dictSelection_t COVER_selectDict(void* dict, void* dictBuffer, size_t dict
                                                          (BYTE *const)dictBuffer, dictBufferCapacity);
 
     if (ZSTD_isError(totalCompressedSize)) {
-      //return COVER_dictSelectionError(dictBufferCapacity);
+      return COVER_dictSelectionError(dictBufferCapacity);
     }
 
     if (totalCompressedSize <= largestCompressed * regressionTolerance) {

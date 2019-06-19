@@ -120,10 +120,16 @@ void COVER_best_finish(COVER_best_t *best, size_t compressedSize,
                        ZDICT_cover_params_t parameters, void *dict,
                        size_t dictSize);
 /**
- * Error function for COVER_selectDict function. Returns a struct where
- * return.totalCompressedSize is a ZSTD error
+ * Error function for COVER_selectDict function. Checks if the return
+ * value is an error.
  */
 unsigned COVER_dictSelectionIsError(COVER_dictSelection_t selection);
+
+ /**
+  * Error function for COVER_selectDict function. Returns a struct where
+  * return.totalCompressedSize is a ZSTD error
+  */
+COVER_dictSelection_t COVER_dictSelectionError(size_t error);
 
 /**
  * Called to finalize the dictionary and select one based on whether or not

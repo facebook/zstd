@@ -369,6 +369,7 @@ static ZDICT_cover_params_t defaultCoverParams(void)
     params.d = 8;
     params.steps = 4;
     params.splitPoint = 1.0;
+    params.shrinkDict = 0;
     return params;
 }
 
@@ -1064,6 +1065,7 @@ int main(int argCount, const char* argv[])
             int const optimize = !fastCoverParams.k || !fastCoverParams.d;
             fastCoverParams.nbThreads = nbWorkers;
             fastCoverParams.zParams = zParams;
+            fastCoverParams.shrinkDict = shrinkDict;
             operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenameTable, filenameIdx, blockSize, NULL, NULL, &fastCoverParams, optimize);
         } else {
             ZDICT_legacy_params_t dictParams;

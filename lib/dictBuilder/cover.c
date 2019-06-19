@@ -946,7 +946,7 @@ COVER_dictSelection_t COVER_selectDict(void* dict, void* dictBuffer, size_t dict
   size_t largestCompressed = 0;
   size_t initDictContent = 0;
   double regressionTolerance = 1 + ((double)params.shrinkDict / 100);
-  const void* customDictContentEnd = customDictContent + dictContentSize;
+  const char* customDictContentEnd = ((char*)customDictContent + dictContentSize);
 
   /* Initial dictionary size and compressed size */
   dictBufferCapacity = ZDICT_finalizeDictionary(
@@ -982,7 +982,7 @@ COVER_dictSelection_t COVER_selectDict(void* dict, void* dictBuffer, size_t dict
     {
       memcpy(dictBuffer, dict, largestDict);
       dictBufferCapacity = ZDICT_finalizeDictionary(
-        dictBuffer, dictBufferCapacity, customDictContentEnd - dictContentSize, dictContentSize,
+        dictBuffer, dictBufferCapacity, (void*)(customDictContentEnd - dictContentSize), dictContentSize,
         samplesBuffer, samplesSizes, nbFinalizeSamples, params.zParams);
 
       if (ZDICT_isError(dictBufferCapacity)) {
@@ -1000,7 +1000,6 @@ COVER_dictSelection_t COVER_selectDict(void* dict, void* dictBuffer, size_t dict
     }
 
     if (totalCompressedSize <= largestCompressed * regressionTolerance) {
-      //customDictContent = customDictContentEnd - dictContentSize;
       const COVER_dictSelection_t selection = { customDictContent, dictBufferCapacity, totalCompressedSize };
       return selection;
     }
@@ -1054,10 +1053,10 @@ static void COVER_tryParameters(void *opaque) {
   /* Copy the frequencies because we need to modify them */
   memcpy(freqs, ctx->freqs, ctx->suffixSize * sizeof(U32));
   /* Build the dictionary */
+  memcpy(dictFinal, dict, dictBufferCapacity);
   {
     const size_t tail = COVER_buildDictionary(ctx, freqs, &activeDmers, dict,
                                               dictBufferCapacity, parameters);
-    memcpy(dictFinal, dict, dictBufferCapacity);
     const COVER_dictSelection_t selection = COVER_selectDict(dict, dictFinal, dictBufferCapacity, dictFinal + tail, dictBufferCapacity - tail,
         ctx->samples, ctx->samplesSizes, ctx->nbTrainSamples, ctx->nbTrainSamples, ctx->nbSamples, parameters, ctx->offsets,
         totalCompressedSize);

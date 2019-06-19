@@ -472,12 +472,12 @@ static void FASTCOVER_tryParameters(void *opaque)
   /* Copy the frequencies because we need to modify them */
   memcpy(freqs, ctx->freqs, ((U64)1 << ctx->f) * sizeof(U32));
   /* Build the dictionary */
+  memcpy(dictFinal, dict, dictBufferCapacity);
   { const size_t tail = FASTCOVER_buildDictionary(ctx, freqs, dict, dictBufferCapacity,
                                                     parameters, segmentFreqs);
 
     const unsigned nbFinalizeSamples = (unsigned)(ctx->nbTrainSamples * ctx->accelParams.finalize / 100);
-    memcpy(dictFinal, dict, dictBufferCapacity);
-    const COVER_dictSelection_t selection = COVER_selectDict(dict, dictFinal, dictBufferCapacity, dict + tail, dictBufferCapacity - tail,
+    const COVER_dictSelection_t selection = COVER_selectDict(dict, dictFinal, dictBufferCapacity, dictFinal + tail, dictBufferCapacity - tail,
          ctx->samples, ctx->samplesSizes, nbFinalizeSamples, ctx->nbTrainSamples, ctx->nbSamples, parameters, ctx->offsets,
          totalCompressedSize);
 
@@ -485,7 +485,6 @@ static void FASTCOVER_tryParameters(void *opaque)
       DISPLAYLEVEL(1, "Failed to select dictionary\n");
       goto _cleanup;
     }
-
     dictBufferCapacity = selection.dictSize;
     totalCompressedSize = selection.totalCompressedSize;
     memcpy(dict, dictFinal, dictBufferCapacity);
@@ -513,6 +512,7 @@ FASTCOVER_convertToCoverParams(ZDICT_fastCover_params_t fastCoverParams,
     coverParams->nbThreads = fastCoverParams.nbThreads;
     coverParams->splitPoint = fastCoverParams.splitPoint;
     coverParams->zParams = fastCoverParams.zParams;
+    coverParams->shrinkDict = fastCoverParams.shrinkDict;
 }
 
 
@@ -529,6 +529,7 @@ FASTCOVER_convertToFastCoverParams(ZDICT_cover_params_t coverParams,
     fastCoverParams->f = f;
     fastCoverParams->accel = accel;
     fastCoverParams->zParams = coverParams.zParams;
+    fastCoverParams->shrinkDict = coverParams.shrinkDict;
 }
 
 

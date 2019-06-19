@@ -982,7 +982,7 @@ COVER_dictSelection_t COVER_selectDict(void* dict, void* dictBuffer, size_t dict
     {
       memcpy(dictBuffer, dict, largestDict);
       dictBufferCapacity = ZDICT_finalizeDictionary(
-        dictBuffer, dictBufferCapacity, ((const void*)customDictContentEnd - dictContentSize), dictContentSize,
+        dictBuffer, dictBufferCapacity, (const void*)(customDictContentEnd - dictContentSize), dictContentSize,
         samplesBuffer, samplesSizes, nbFinalizeSamples, params.zParams);
 
       if (ZDICT_isError(dictBufferCapacity)) {

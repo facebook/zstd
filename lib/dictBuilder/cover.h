@@ -47,6 +47,15 @@ typedef struct {
 } COVER_epoch_info_t;
 
 /**
+ * Struct used for the dictionary selection function.
+ */
+typedef struct COVER_dictSelection {
+  const void* dictContent;
+  size_t dictSize;
+  size_t totalCompressedSize;
+} COVER_dictSelection_t;
+
+/**
  * Computes the number of epochs and the size of each epoch.
  * We will make sure that each epoch gets at least 10 * k bytes.
  *
@@ -110,3 +119,18 @@ void COVER_best_start(COVER_best_t *best);
 void COVER_best_finish(COVER_best_t *best, size_t compressedSize,
                        ZDICT_cover_params_t parameters, void *dict,
                        size_t dictSize);
+/**
+ * Error function for COVER_selectDict function. Returns a struct where
+ * return.totalCompressedSize is a ZSTD error
+ */
+unsigned COVER_dictSelectionIsError(COVER_dictSelection_t selection);
+
+/**
+ * Called to finalize the dictionary and select one based on whether or not
+ * the shrink-dict flag was enabled. If enabled the dictionary used is the
+ * smallest dictionary within a specified regression of the compressed size
+ * from the largest dictionary.
+ */
+ COVER_dictSelection_t COVER_selectDict(void* dict, void* dictBuffer, size_t dictBufferCapacity, const void* customDictContent,
+                       size_t dictContentSize, const void* samplesBuffer, const size_t* samplesSizes, size_t nbFinalizeSamples,
+                       size_t nbCheckSamples, size_t nbSamples, ZDICT_cover_params_t params, size_t* offsets, size_t totalCompressedSize);

@@ -532,7 +532,6 @@ int main(int argCount, const char* argv[])
         nextArgumentIsOutFileName = 0,
         nextArgumentIsMaxDict = 0,
         nextArgumentIsDictID = 0,
-        nextArgumentIsShrinkDict = 0,
         nextArgumentsAreFiles = 0,
         nextEntryIsDictionary = 0,
         operationResult = 0,
@@ -650,7 +649,6 @@ int main(int argCount, const char* argv[])
                     if (!strcmp(argument, "--maxdict")) { nextArgumentIsMaxDict=1; lastCommand=1; continue; }  /* kept available for compatibility with old syntax ; will be removed one day */
                     if (!strcmp(argument, "--dictID")) { nextArgumentIsDictID=1; lastCommand=1; continue; }  /* kept available for compatibility with old syntax ; will be removed one day */
                     if (!strcmp(argument, "--no-dictID")) { FIO_setDictIDFlag(prefs, 0); continue; }
-                    if (!strcmp(argument, "--shrink-dict")) { nextArgumentIsShrinkDict=1; lastCommand=1; continue; }  /* kept available for compatibility with old syntax ; will be removed one day */
                     if (!strcmp(argument, "--keep")) { FIO_setRemoveSrcFile(prefs, 0); continue; }
                     if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(prefs, 1); continue; }
                     if (!strcmp(argument, "--priority=rt")) { setRealTimePrio = 1; continue; }

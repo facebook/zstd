@@ -561,6 +561,7 @@ int main(int argCount, const char* argv[])
     unsigned dictID = 0;
     int dictCLevel = g_defaultDictCLevel;
     unsigned dictSelect = g_defaultSelectivityLevel;
+    unsigned shrinkDict = g_defaultDictRegression;
 #ifdef UTIL_HAS_CREATEFILELIST
     const char** extendedFileList = NULL;
     char* fileNamesBuf = NULL;
@@ -569,7 +570,6 @@ int main(int argCount, const char* argv[])
 #ifndef ZSTD_NODICT
     ZDICT_cover_params_t coverParams = defaultCoverParams();
     ZDICT_fastCover_params_t fastCoverParams = defaultFastCoverParams();
-    unsigned shrinkDict = g_defaultDictRegression;
     dictType dict = fastCover;
 #endif
 #ifndef ZSTD_NOBENCH

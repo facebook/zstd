@@ -561,7 +561,6 @@ int main(int argCount, const char* argv[])
     unsigned dictID = 0;
     int dictCLevel = g_defaultDictCLevel;
     unsigned dictSelect = g_defaultSelectivityLevel;
-    unsigned shrinkDict = g_defaultDictRegression;
 #ifdef UTIL_HAS_CREATEFILELIST
     const char** extendedFileList = NULL;
     char* fileNamesBuf = NULL;
@@ -570,6 +569,7 @@ int main(int argCount, const char* argv[])
 #ifndef ZSTD_NODICT
     ZDICT_cover_params_t coverParams = defaultCoverParams();
     ZDICT_fastCover_params_t fastCoverParams = defaultFastCoverParams();
+    unsigned shrinkDict = g_defaultDictRegression;
     dictType dict = fastCover;
 #endif
 #ifndef ZSTD_NOBENCH
@@ -708,6 +708,10 @@ int main(int argCount, const char* argv[])
                       else if (!parseLegacyParameters(argument, &dictSelect)) { CLEAN_RETURN(badusage(programName)); }
                       continue;
                     }
+                    if (longCommandWArg(&argument, "--shrink-dict=")) {
+                      shrinkDict = readU32FromChar(&argument);
+                      continue;
+                    }
 #endif
                     if (longCommandWArg(&argument, "--threads=")) { nbWorkers = readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--memlimit=")) { memLimit = readU32FromChar(&argument); continue; }
@@ -716,7 +720,6 @@ int main(int argCount, const char* argv[])
                     if (longCommandWArg(&argument, "--block-size=")) { blockSize = readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--maxdict=")) { maxDictSize = readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--dictID=")) { dictID = readU32FromChar(&argument); continue; }
-                    if (longCommandWArg(&argument, "--shrink-dict=")) { shrinkDict = readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--zstd=")) { if (!parseCompressionParameters(argument, &compressionParams)) CLEAN_RETURN(badusage(programName)); continue; }
                     if (longCommandWArg(&argument, "--long")) {
                         unsigned ldmWindowLog = 0;
@@ -911,12 +914,6 @@ int main(int argCount, const char* argv[])
                 nextArgumentIsDictID = 0;
                 lastCommand = 0;
                 dictID = readU32FromChar(&argument);
-                continue;
-            }
-            if (nextArgumentIsShrinkDict) {  /* kept available for compatibility with old syntax ; will be removed one day */
-                nextArgumentIsDictID = 0;
-                lastCommand = 0;
-                shrinkDict = readU32FromChar(&argument);
                 continue;
             }
 

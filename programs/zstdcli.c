@@ -186,7 +186,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -o file : `file` is dictionary name (default: %s) \n", g_defaultDictName);
     DISPLAY( "--maxdict=# : limit dictionary to specified size (default: %u) \n", g_defaultMaxDictSize);
     DISPLAY( "--dictID=# : force dictionary ID to specified value (default: random)\n");
-    DISPLAY( "--shrink-dict=#: select the smallest dictionary within given regression of the largest dictionary (default: %d)\n", g_defaultDictRegression);
+    DISPLAY( "--shrink-dict=#: select the smallest dictionary within given regression of the largest dictionary (default: %u)\n", g_defaultDictRegression);
 #endif
 #ifndef ZSTD_NOBENCH
     DISPLAY( "\n");
@@ -532,6 +532,7 @@ int main(int argCount, const char* argv[])
         nextArgumentIsOutFileName = 0,
         nextArgumentIsMaxDict = 0,
         nextArgumentIsDictID = 0,
+        nextArgumentIsShrinkDict = 0,
         nextArgumentsAreFiles = 0,
         nextEntryIsDictionary = 0,
         operationResult = 0,
@@ -560,6 +561,7 @@ int main(int argCount, const char* argv[])
     unsigned dictID = 0;
     int dictCLevel = g_defaultDictCLevel;
     unsigned dictSelect = g_defaultSelectivityLevel;
+    unsigned shrinkDict = g_defaultDictRegression;
 #ifdef UTIL_HAS_CREATEFILELIST
     const char** extendedFileList = NULL;
     char* fileNamesBuf = NULL;
@@ -568,7 +570,6 @@ int main(int argCount, const char* argv[])
 #ifndef ZSTD_NODICT
     ZDICT_cover_params_t coverParams = defaultCoverParams();
     ZDICT_fastCover_params_t fastCoverParams = defaultFastCoverParams();
-    unsigned shrinkDict = g_defaultDictRegression;
     dictType dict = fastCover;
 #endif
 #ifndef ZSTD_NOBENCH
@@ -648,6 +649,7 @@ int main(int argCount, const char* argv[])
                     if (!strcmp(argument, "--train")) { operation=zom_train; if (outFileName==NULL) outFileName=g_defaultDictName; continue; }
                     if (!strcmp(argument, "--maxdict")) { nextArgumentIsMaxDict=1; lastCommand=1; continue; }  /* kept available for compatibility with old syntax ; will be removed one day */
                     if (!strcmp(argument, "--dictID")) { nextArgumentIsDictID=1; lastCommand=1; continue; }  /* kept available for compatibility with old syntax ; will be removed one day */
+                    if (!strcmp(argument, "--shrink-dict")) { nextArgumentIsShrinkDict=1; lastCommand=1; continue; }  /* kept available for compatibility with old syntax ; will be removed one day */
                     if (!strcmp(argument, "--no-dictID")) { FIO_setDictIDFlag(prefs, 0); continue; }
                     if (!strcmp(argument, "--keep")) { FIO_setRemoveSrcFile(prefs, 0); continue; }
                     if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(prefs, 1); continue; }
@@ -706,10 +708,6 @@ int main(int argCount, const char* argv[])
                       else if (!parseLegacyParameters(argument, &dictSelect)) { CLEAN_RETURN(badusage(programName)); }
                       continue;
                     }
-                    if (longCommandWArg(&argument, "--shrink-dict=")) {
-                      shrinkDict = readU32FromChar(&argument);
-                      continue;
-                    }
 #endif
                     if (longCommandWArg(&argument, "--threads=")) { nbWorkers = readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--memlimit=")) { memLimit = readU32FromChar(&argument); continue; }
@@ -718,6 +716,7 @@ int main(int argCount, const char* argv[])
                     if (longCommandWArg(&argument, "--block-size=")) { blockSize = readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--maxdict=")) { maxDictSize = readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--dictID=")) { dictID = readU32FromChar(&argument); continue; }
+                    if (longCommandWArg(&argument, "--shrink-dict=")) { shrinkDict = readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--zstd=")) { if (!parseCompressionParameters(argument, &compressionParams)) CLEAN_RETURN(badusage(programName)); continue; }
                     if (longCommandWArg(&argument, "--long")) {
                         unsigned ldmWindowLog = 0;
@@ -914,6 +913,12 @@ int main(int argCount, const char* argv[])
                 dictID = readU32FromChar(&argument);
                 continue;
             }
+            if (nextArgumentIsShrinkDict) {  /* kept available for compatibility with old syntax ; will be removed one day */
+                nextArgumentIsShrinkDict = 0;
+                lastCommand = 0;
+                shrinkDict = readU32FromChar(&argument);
+                continue;
+            }
 
         }   /* if (nextArgumentIsAFile==0) */
 
@@ -1070,7 +1075,7 @@ int main(int argCount, const char* argv[])
             operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenameTable, filenameIdx, blockSize, &dictParams, NULL, NULL, 0);
         }
 #else
-        (void)dictCLevel; (void)dictSelect; (void)dictID;  (void)maxDictSize; /* not used when ZSTD_NODICT set */
+        (void)dictCLevel; (void)dictSelect; (void)dictID;  (void)maxDictSize; (void)shrinkDict; /* not used when ZSTD_NODICT set */
         DISPLAYLEVEL(1, "training mode not available \n");
         operationResult = 1;
 #endif

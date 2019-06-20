@@ -938,79 +938,88 @@ unsigned COVER_dictSelectionIsError(COVER_dictSelection_t selection) {
   return ZSTD_isError(selection.totalCompressedSize);
 }
 
-COVER_dictSelection_t COVER_selectDict(void* dict, void* dictBuffer, size_t dictBufferCapacity, void* customDictContent,
+COVER_dictSelection_t COVER_selectDict(void* customDictContent,
         size_t dictContentSize, const void* samplesBuffer, const size_t* samplesSizes, size_t nbFinalizeSamples,
         size_t nbCheckSamples, size_t nbSamples, ZDICT_cover_params_t params, size_t* offsets, size_t totalCompressedSize) {
 
+  BYTE *const dict = (BYTE * const)malloc(dictContentSize);
+  BYTE *const dictBuffer = (BYTE * const)malloc(dictContentSize);
   size_t largestDict = 0;
   size_t largestCompressed = 0;
-  size_t initDictContent = 0;
   double regressionTolerance = 1 + ((double)params.shrinkDict / 100);
   char* customDictContentEnd = ((char*)customDictContent + dictContentSize);
 
   /* Initial dictionary size and compressed size */
-  dictBufferCapacity = ZDICT_finalizeDictionary(
-    dictBuffer, dictBufferCapacity, (const void*)customDictContent, dictContentSize,
+  memcpy(dict, customDictContent, dictContentSize);
+  dictContentSize = ZDICT_finalizeDictionary(
+    dict, dictContentSize, (const void*)customDictContent, dictContentSize,
     samplesBuffer, samplesSizes, (unsigned)nbFinalizeSamples, params.zParams);
 
-  if (ZDICT_isError(dictBufferCapacity)) {
-    return COVER_dictSelectionError(dictBufferCapacity);
+  if (ZDICT_isError(dictContentSize)) {
+    if (dict) free(dict);
+    if (dictBuffer) free(dictBuffer);
+    return COVER_dictSelectionError(dictContentSize);
   }
 
   totalCompressedSize = COVER_checkTotalCompressedSize(params, samplesSizes,
                                                        (const BYTE*)samplesBuffer, offsets,
                                                        nbCheckSamples, nbSamples,
-                                                       (BYTE *const)dictBuffer, dictBufferCapacity);
+                                                       (BYTE *const)dictBuffer, dictContentSize);
 
   if (ZSTD_isError(totalCompressedSize)) {
-    return COVER_dictSelectionError(dictBufferCapacity);
+    if (dict) free(dict);
+    if (dictBuffer) free(dictBuffer);
+    return COVER_dictSelectionError(dictContentSize);
   }
 
   if (params.shrinkDict == 0) {
-    const COVER_dictSelection_t selection = { customDictContent, dictBufferCapacity, totalCompressedSize };
+    const COVER_dictSelection_t selection = { dict, dictContentSize, totalCompressedSize };
+    if (dictBuffer) free(dictBuffer);
     return selection;
   }
 
-  initDictContent = dictContentSize;
-  largestDict = dictBufferCapacity;
+  largestDict = dictContentSize;
   largestCompressed = totalCompressedSize;
-  dictBufferCapacity = ZDICT_DICTSIZE_MIN;
-  dictContentSize = dictBufferCapacity;
+  dictContentSize = ZDICT_DICTSIZE_MIN;
 
   /* Largest dict is initially at least ZDICT_DICTSIZE_MIN */
-  while (dictBufferCapacity < largestDict) {
+  while (dictContentSize < largestDict) {
     {
       memcpy(dictBuffer, dict, largestDict);
-      dictBufferCapacity = ZDICT_finalizeDictionary(
-        dictBuffer, dictBufferCapacity, (const void*)(customDictContentEnd - dictContentSize), dictContentSize,
+      dictContentSize = ZDICT_finalizeDictionary(
+        dictBuffer, dictContentSize, (const void*)(customDictContentEnd - dictContentSize), dictContentSize,
         samplesBuffer, samplesSizes, (unsigned)nbFinalizeSamples, params.zParams);
 
-      if (ZDICT_isError(dictBufferCapacity)) {
-        return COVER_dictSelectionError(dictBufferCapacity);
+      if (ZDICT_isError(dictContentSize)) {
+        if (dict) free(dict);
+        if (dictBuffer) free(dictBuffer);
+        return COVER_dictSelectionError(dictContentSize);
       }
     }
 
     totalCompressedSize = COVER_checkTotalCompressedSize(params, samplesSizes,
                                                          (const BYTE*)samplesBuffer, offsets,
                                                          nbCheckSamples, nbSamples,
-                                                         (BYTE *const)dictBuffer, dictBufferCapacity);
+                                                         (BYTE *const)dictBuffer, dictContentSize);
 
     if (ZSTD_isError(totalCompressedSize)) {
-      return COVER_dictSelectionError(dictBufferCapacity);
+      if (dict) free(dict);
+      if (dictBuffer) free(dictBuffer);
+      return COVER_dictSelectionError(dictContentSize);
     }
 
     if (totalCompressedSize <= largestCompressed * regressionTolerance) {
-      const COVER_dictSelection_t selection = { customDictContent, dictBufferCapacity, totalCompressedSize };
+      const COVER_dictSelection_t selection = { dictBuffer, dictContentSize, totalCompressedSize };
+      if (dict) free(dict);
       return selection;
     }
     dictContentSize *= 2;
-    dictBufferCapacity *= 2;
   }
-  dictContentSize = initDictContent;
-  dictBufferCapacity = largestDict;
+  dictContentSize = largestDict;
   totalCompressedSize = largestCompressed;
   {
-    const COVER_dictSelection_t selection = { customDictContent, dictBufferCapacity, totalCompressedSize };
+    const COVER_dictSelection_t selection = { dictBuffer, dictContentSize, totalCompressedSize };
+    if (dict) free(dict);
     return selection;
   }
 }
@@ -1040,7 +1049,6 @@ static void COVER_tryParameters(void *opaque) {
   /* Allocate space for hash table, dict, and freqs */
   COVER_map_t activeDmers;
   BYTE *const dict = (BYTE * const)malloc(dictBufferCapacity);
-  BYTE *const dictFinal = (BYTE * const)malloc(dictBufferCapacity);
   U32 *freqs = (U32 *)malloc(ctx->suffixSize * sizeof(U32));
   if (!COVER_map_init(&activeDmers, parameters.k - parameters.d + 1)) {
     DISPLAYLEVEL(1, "Failed to allocate dmer map: out of memory\n");
@@ -1053,13 +1061,16 @@ static void COVER_tryParameters(void *opaque) {
   /* Copy the frequencies because we need to modify them */
   memcpy(freqs, ctx->freqs, ctx->suffixSize * sizeof(U32));
   /* Build the dictionary */
-  memcpy(dictFinal, dict, dictBufferCapacity);
   {
     const size_t tail = COVER_buildDictionary(ctx, freqs, &activeDmers, dict,
                                               dictBufferCapacity, parameters);
-    const COVER_dictSelection_t selection = COVER_selectDict(dict, dictFinal, dictBufferCapacity, dictFinal + tail, dictBufferCapacity - tail,
+    const COVER_dictSelection_t selection = COVER_selectDict(dict + tail, dictBufferCapacity - tail,
         ctx->samples, ctx->samplesSizes, ctx->nbTrainSamples, ctx->nbTrainSamples, ctx->nbSamples, parameters, ctx->offsets,
         totalCompressedSize);
+
+    if (selection.dictContent) {
+      free(selection.dictContent);
+    }
 
     if (COVER_dictSelectionIsError(selection)) {
       DISPLAYLEVEL(1, "Failed to select dictionary\n");
@@ -1067,7 +1078,7 @@ static void COVER_tryParameters(void *opaque) {
     }
     dictBufferCapacity = selection.dictSize;
     totalCompressedSize = selection.totalCompressedSize;
-    memcpy(dict, dictFinal, dictBufferCapacity);
+    memcpy(dict, selection.dictContent, dictBufferCapacity);
   }
 _cleanup:
   COVER_best_finish(data->best, totalCompressedSize, parameters, dict,
@@ -1076,9 +1087,6 @@ _cleanup:
   COVER_map_destroy(&activeDmers);
   if (dict) {
     free(dict);
-  }
-  if (dictFinal) {
-    free(dictFinal);
   }
   if (freqs) {
     free(freqs);

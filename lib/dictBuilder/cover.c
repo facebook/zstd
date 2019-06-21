@@ -942,19 +942,19 @@ COVER_dictSelection_t COVER_selectDict(void* customDictContent,
         size_t dictContentSize, const void* samplesBuffer, const size_t* samplesSizes, size_t nbFinalizeSamples,
         size_t nbCheckSamples, size_t nbSamples, ZDICT_cover_params_t params, size_t* offsets, size_t totalCompressedSize) {
 
-  BYTE *const dict = (BYTE * const)malloc(dictContentSize);
-  BYTE *const dictBuffer = (BYTE * const)malloc(dictContentSize);
-  {
-    if (!dict || !dictBuffer) {
-      if (dict) free(dict);
-      if (dictBuffer) free(dict);
-      return COVER_dictSelectionError(dictContentSize);
-    }
-  }
   size_t largestDict = 0;
   size_t largestCompressed = 0;
   double regressionTolerance = 1 + ((double)params.shrinkDict / 100);
   char* customDictContentEnd = ((char*)customDictContent + dictContentSize);
+
+  BYTE *const dict = (BYTE * const)malloc(dictContentSize);
+  BYTE *const dictBuffer = (BYTE * const)malloc(dictContentSize);
+
+  if (!dict || !dictBuffer) {
+    if (dict) free(dict);
+    if (dictBuffer) free(dictBuffer);
+    return COVER_dictSelectionError(dictContentSize);
+  }
 
   /* Initial dictionary size and compressed size */
   memcpy(dict, customDictContent, dictContentSize);

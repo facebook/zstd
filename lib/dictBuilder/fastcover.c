@@ -479,10 +479,6 @@ static void FASTCOVER_tryParameters(void *opaque)
          ctx->samples, ctx->samplesSizes, nbFinalizeSamples, ctx->nbTrainSamples, ctx->nbSamples, parameters, ctx->offsets,
          totalCompressedSize);
 
-    if (selection.dictContent) {
-      free(selection.dictContent);
-    }
-
     if (COVER_dictSelectionIsError(selection)) {
       DISPLAYLEVEL(1, "Failed to select dictionary\n");
       goto _cleanup;
@@ -490,6 +486,10 @@ static void FASTCOVER_tryParameters(void *opaque)
     dictBufferCapacity = selection.dictSize;
     totalCompressedSize = selection.totalCompressedSize;
     memcpy(dict, selection.dictContent, dictBufferCapacity);
+
+    if (selection.dictContent) {
+      free(selection.dictContent);
+    }
   }
 _cleanup:
   COVER_best_finish(data->best, totalCompressedSize, parameters, dict,

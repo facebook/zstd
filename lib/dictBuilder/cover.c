@@ -964,7 +964,7 @@ COVER_dictSelection_t COVER_selectDict(void* customDictContent,
   totalCompressedSize = COVER_checkTotalCompressedSize(params, samplesSizes,
                                                        (const BYTE*)samplesBuffer, offsets,
                                                        nbCheckSamples, nbSamples,
-                                                       (BYTE *const)dictBuffer, dictContentSize);
+                                                       (BYTE *const)dict, dictContentSize);
 
   if (ZSTD_isError(totalCompressedSize)) {
     if (dict) free(dict);
@@ -1068,10 +1068,6 @@ static void COVER_tryParameters(void *opaque) {
         ctx->samples, ctx->samplesSizes, ctx->nbTrainSamples, ctx->nbTrainSamples, ctx->nbSamples, parameters, ctx->offsets,
         totalCompressedSize);
 
-    if (selection.dictContent) {
-      free(selection.dictContent);
-    }
-
     if (COVER_dictSelectionIsError(selection)) {
       DISPLAYLEVEL(1, "Failed to select dictionary\n");
       goto _cleanup;
@@ -1079,6 +1075,10 @@ static void COVER_tryParameters(void *opaque) {
     dictBufferCapacity = selection.dictSize;
     totalCompressedSize = selection.totalCompressedSize;
     memcpy(dict, selection.dictContent, dictBufferCapacity);
+
+    if (selection.dictContent) {
+      free(selection.dictContent);
+    }
   }
 _cleanup:
   COVER_best_finish(data->best, totalCompressedSize, parameters, dict,

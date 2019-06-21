@@ -692,13 +692,13 @@ size_t ZSTD_CCtxParams_getParameter(
         *value = CCtxParams->compressionLevel;
         break;
     case ZSTD_c_windowLog :
-        *value = CCtxParams->cParams.windowLog;
+        *value = (int)CCtxParams->cParams.windowLog;
         break;
     case ZSTD_c_hashLog :
-        *value = CCtxParams->cParams.hashLog;
+        *value = (int)CCtxParams->cParams.hashLog;
         break;
     case ZSTD_c_chainLog :
-        *value = CCtxParams->cParams.chainLog;
+        *value = (int)CCtxParams->cParams.chainLog;
         break;
     case ZSTD_c_searchLog :
         *value = CCtxParams->cParams.searchLog;
@@ -1376,6 +1376,19 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
     return ptr;
 }
 
+/* ZSTD_index_valid_for_continue() :
+ * minor optimization : prefer triggering a memset() rather than reduceIndex()
+ * which can apparenly be measurably slow in some circumstances (reported for Visual Studio).
+ * Works when re-using a context for a lot of smallish inputs :
+ * if all inputs are smaller than ZSTD_INDEXOVERFLOW_MARGIN,
+ * memset() will be triggered before reduceIndex().
+ */
+#define ZSTD_INDEXOVERFLOW_MARGIN (16 MB)
+static int ZSTD_index_valid_for_continue(ZSTD_window_t w)
+{
+    return (size_t)(w.nextSrc - w.base) < (ZSTD_CURRENT_MAX - ZSTD_INDEXOVERFLOW_MARGIN);
+}
+
 #define ZSTD_WORKSPACETOOLARGE_FACTOR 3 /* define "workspace is too large" as this number of times larger than needed */
 #define ZSTD_WORKSPACETOOLARGE_MAXDURATION 128  /* when workspace is continuously too large
                                          * during at least this number of times,
@@ -1399,7 +1412,9 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         if (ZSTD_equivalentParams(zc->appliedParams, params,
                                   zc->inBuffSize,
                                   zc->seqStore.maxNbSeq, zc->seqStore.maxNbLit,
-                                  zbuff, pledgedSrcSize)) {
+                                  zbuff, pledgedSrcSize)
+            && ZSTD_index_valid_for_continue(zc->blockState.matchState.window)
+            ) {
             DEBUGLOG(4, "ZSTD_equivalentParams()==1 -> continue mode (wLog1=%u, blockSize1=%zu)",
                         zc->appliedParams.cParams.windowLog, zc->blockSize);
             zc->workSpaceOversizedDuration += (zc->workSpaceOversizedDuration > 0);   /* if it was too large, it still is */

@@ -944,13 +944,13 @@ COVER_dictSelection_t COVER_selectDict(void* customDictContent,
 
   BYTE *const dict = (BYTE * const)malloc(dictContentSize);
   BYTE *const dictBuffer = (BYTE * const)malloc(dictContentSize);
-
-  if (!dict || !dictBuffer) {
-    if (dict) free(dict);
-    if (dictBuffer) free(dict);
-    return COVER_dictSelectionError(dictContentSize);
+  {
+    if (!dict || !dictBuffer) {
+      if (dict) free(dict);
+      if (dictBuffer) free(dict);
+      return COVER_dictSelectionError(dictContentSize);
+    }
   }
-
   size_t largestDict = 0;
   size_t largestCompressed = 0;
   double regressionTolerance = 1 + ((double)params.shrinkDict / 100);

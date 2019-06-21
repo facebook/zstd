@@ -969,7 +969,7 @@ COVER_dictSelection_t COVER_selectDict(void* customDictContent,
   if (ZSTD_isError(totalCompressedSize)) {
     if (dict) free(dict);
     if (dictBuffer) free(dictBuffer);
-    return COVER_dictSelectionError(dictContentSize);
+    return COVER_dictSelectionError(totalCompressedSize);
   }
 
   if (params.shrinkDict == 0) {
@@ -1005,7 +1005,7 @@ COVER_dictSelection_t COVER_selectDict(void* customDictContent,
     if (ZSTD_isError(totalCompressedSize)) {
       if (dict) free(dict);
       if (dictBuffer) free(dictBuffer);
-      return COVER_dictSelectionError(dictContentSize);
+      return COVER_dictSelectionError(totalCompressedSize);
     }
 
     if (totalCompressedSize <= largestCompressed * regressionTolerance) {

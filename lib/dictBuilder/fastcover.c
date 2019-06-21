@@ -487,9 +487,7 @@ static void FASTCOVER_tryParameters(void *opaque)
     totalCompressedSize = selection.totalCompressedSize;
     memcpy(dict, selection.dictContent, dictBufferCapacity);
 
-    if (selection.dictContent) {
-      free(selection.dictContent);
-    }
+    COVER_dictSelectionFree(selection);
   }
 _cleanup:
   COVER_best_finish(data->best, totalCompressedSize, parameters, dict,

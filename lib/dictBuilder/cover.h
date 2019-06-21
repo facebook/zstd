@@ -127,9 +127,15 @@ unsigned COVER_dictSelectionIsError(COVER_dictSelection_t selection);
 
  /**
   * Error function for COVER_selectDict function. Returns a struct where
-  * return.totalCompressedSize is a ZSTD error
+  * return.totalCompressedSize is a ZSTD error.
   */
 COVER_dictSelection_t COVER_dictSelectionError(size_t error);
+
+/**
+ * Always call after selectDict is called to free up used memory from
+ * newly created dictionary.
+ */
+void COVER_dictSelectionFree(COVER_dictSelection_t selection);
 
 /**
  * Called to finalize the dictionary and select one based on whether or not

@@ -499,6 +499,9 @@ $ZSTD --train-fastcover=k=56,d=8 && die "Create dictionary without input file"
 println "- Create dictionary with short dictID"
 $ZSTD --train-fastcover=k=46,d=8,f=15,split=80 "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o tmpDict1
 cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
+println "- Create dictionaries with shrink-dict flag enabled"
+$ZSTD --train-fastcover=steps=256 --shrink-dict=1 "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o shrinkDict
+$ZSTD --train-fastcover=steps=256 --shrink-dict=5 "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o shrinkDict1
 println "- Create dictionary with size limit"
 $ZSTD --train-fastcover=steps=8 "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpDict2 --maxdict=4K
 println "- Compare size of dictionary from 90% training samples with 80% training samples"
@@ -989,6 +992,9 @@ $ZSTD --train-cover=k=56,d=8 && die "Create dictionary without input file (shoul
 println "- Create second (different) dictionary"
 $ZSTD --train-cover=k=56,d=8 "$TESTDIR"/*.c "$PRGDIR"/*.c "$PRGDIR"/*.h -o tmpDictC
 $ZSTD -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
+println "- Create dictionary using shrink-dict flag"
+$ZSTD --train-cover=steps=256 --shrink-dict=1 "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o shrinkDict
+$ZSTD --train-cover=steps=256 --shrink-dict=5 "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o shrinkDict1
 println "- Create dictionary with short dictID"
 $ZSTD --train-cover=k=46,d=8,split=80 "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o tmpDict1
 cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"

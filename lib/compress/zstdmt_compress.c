@@ -1197,7 +1197,7 @@ static size_t ZSTDMT_computeOverlapSize(ZSTD_CCtx_params const params)
         ovLog = MIN(params.cParams.windowLog, ZSTDMT_computeTargetJobLog(params) - 2)
                 - overlapRLog;
     }
-    assert(0 <= ovLog && ovLog <= 30);
+    assert(0 <= ovLog && ovLog <= ZSTD_WINDOWLOG_MAX);
     DEBUGLOG(4, "overlapLog : %i", params.overlapLog);
     DEBUGLOG(4, "overlap size : %i", 1 << ovLog);
     return (ovLog==0) ? 0 : (size_t)1 << ovLog;

@@ -935,7 +935,7 @@ COVER_dictSelection_t COVER_dictSelectionError(size_t error) {
 }
 
 unsigned COVER_dictSelectionIsError(COVER_dictSelection_t selection) {
-  return ZSTD_isError(selection.totalCompressedSize);
+  return (ZSTD_isError(selection.totalCompressedSize) || !selection.dictContent);
 }
 
 COVER_dictSelection_t COVER_selectDict(void* customDictContent,
@@ -944,6 +944,13 @@ COVER_dictSelection_t COVER_selectDict(void* customDictContent,
 
   BYTE *const dict = (BYTE * const)malloc(dictContentSize);
   BYTE *const dictBuffer = (BYTE * const)malloc(dictContentSize);
+
+  if (!dict || !dictBuffer) {
+    if (dict) free(dict);
+    if (dictBuffer) free(dict);
+    return COVER_dictSelectionError(dictContentSize);
+  }
+
   size_t largestDict = 0;
   size_t largestCompressed = 0;
   double regressionTolerance = 1 + ((double)params.shrinkDict / 100);

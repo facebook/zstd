@@ -311,8 +311,8 @@ static U32 HUF_setMaxHeight(nodeElt* huffNode, U32 lastNonNull, U32 maxNbBits)
 
 
 typedef struct {
-    U32 base;
-    U32 current;
+    U16 base;
+    U16 current;
 } rankPos;
 
 static void HUF_sort(nodeElt* huffNode, const unsigned* count, U32 maxSymbolValue)

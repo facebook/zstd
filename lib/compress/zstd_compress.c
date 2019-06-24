@@ -385,6 +385,11 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
         bounds.upperBound = ZSTD_lcm_uncompressed;
         return bounds;
 
+    case ZSTD_c_targetCBlockSize:
+        bounds.lowerBound = ZSTD_TARGETCBLOCKSIZE_MIN;
+        bounds.upperBound = ZSTD_TARGETCBLOCKSIZE_MAX;
+        return bounds;
+
     default:
         {   ZSTD_bounds const boundError = { ERROR(parameter_unsupported), 0, 0 };
             return boundError;
@@ -452,6 +457,7 @@ static int ZSTD_isUpdateAuthorized(ZSTD_cParameter param)
     case ZSTD_c_ldmHashRateLog:
     case ZSTD_c_forceAttachDict:
     case ZSTD_c_literalCompressionMode:
+    case ZSTD_c_targetCBlockSize:
     default:
         return 0;
     }
@@ -497,6 +503,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int value)
     case ZSTD_c_ldmHashLog:
     case ZSTD_c_ldmMinMatch:
     case ZSTD_c_ldmBucketSizeLog:
+    case ZSTD_c_targetCBlockSize:
         break;
 
     default: RETURN_ERROR(parameter_unsupported);
@@ -671,6 +678,12 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
         CCtxParams->ldmParams.hashRateLog = value;
         return CCtxParams->ldmParams.hashRateLog;
 
+    case ZSTD_c_targetCBlockSize :
+        if (value!=0)   /* 0 ==> default */
+            BOUNDCHECK(ZSTD_c_targetCBlockSize, value);
+        CCtxParams->targetCBlockSize = value;
+        return CCtxParams->targetCBlockSize;
+
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
     }
 }
@@ -772,6 +785,9 @@ size_t ZSTD_CCtxParams_getParameter(
         break;
     case ZSTD_c_ldmHashRateLog :
         *value = CCtxParams->ldmParams.hashRateLog;
+        break;
+    case ZSTD_c_targetCBlockSize :
+        *value = (int)CCtxParams->targetCBlockSize;
         break;
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
     }

@@ -525,8 +525,13 @@ void ZSTD_updateTree_internal(
     DEBUGLOG(6, "ZSTD_updateTree_internal, from %u to %u  (dictMode:%u)",
                 idx, target, dictMode);
 
-    while(idx < target)
-        idx += ZSTD_insertBt1(ms, base+idx, iend, mls, dictMode == ZSTD_extDict);
+    while(idx < target) {
+        U32 const forward = ZSTD_insertBt1(ms, base+idx, iend, mls, dictMode == ZSTD_extDict);
+        assert(idx < (U32)(idx + forward));
+        idx += forward;
+    }
+    assert((size_t)(ip - base) <= (size_t)(U32)(-1));
+    assert((size_t)(iend - base) <= (size_t)(U32)(-1));
     ms->nextToUpdate = target;
 }
 

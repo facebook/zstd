@@ -215,6 +215,9 @@ roundTripCrash : $(ZSTD_OBJECTS) roundTripCrash.c
 longmatch  : $(ZSTD_OBJECTS) longmatch.c
 	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
+bigdict: $(ZSTDMT_OBJECTS) $(PRGDIR)/datagen.c bigdict.c
+	$(CC) $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
+
 invalidDictionaries : $(ZSTD_OBJECTS) invalidDictionaries.c
 	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
@@ -256,7 +259,7 @@ clean:
         zstreamtest$(EXT) zstreamtest32$(EXT) \
         datagen$(EXT) paramgrill$(EXT) roundTripCrash$(EXT) longmatch$(EXT) \
         symbols$(EXT) invalidDictionaries$(EXT) legacy$(EXT) poolTests$(EXT) \
-        decodecorpus$(EXT) checkTag$(EXT)
+        decodecorpus$(EXT) checkTag$(EXT) bigdict$(EXT)
 	@echo Cleaning completed
 
 
@@ -396,6 +399,9 @@ test-zstream32: zstreamtest32
 
 test-longmatch: longmatch
 	$(QEMU_SYS) ./longmatch
+
+test-bigdict: bigdict
+	$(QEMU_SYS) ./bigdict
 
 test-invalidDictionaries: invalidDictionaries
 	$(QEMU_SYS) ./invalidDictionaries

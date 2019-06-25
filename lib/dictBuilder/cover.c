@@ -983,7 +983,7 @@ COVER_dictSelection_t COVER_selectDict(BYTE* customDictContent,
     return COVER_dictSelectionError(totalCompressedSize);
   }
 
-  if (params.shrinkDict < 1.01) {
+  if (regressionTolerance < 1.01) {
     const COVER_dictSelection_t selection = { largestDictbuffer, dictContentSize, totalCompressedSize };
     free(candidateDictBuffer);
     return selection;
@@ -1119,7 +1119,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
   const unsigned kStepSize = MAX((kMaxK - kMinK) / kSteps, 1);
   const unsigned kIterations =
       (1 + (kMaxD - kMinD) / 2) * (1 + (kMaxK - kMinK) / kStepSize);
-  const unsigned shrinkDict = 0.0;
+  const double shrinkDict = 0.0;
   /* Local variables */
   const int displayLevel = parameters->zParams.notificationLevel;
   unsigned iteration = 1;

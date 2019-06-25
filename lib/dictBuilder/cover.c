@@ -983,7 +983,7 @@ COVER_dictSelection_t COVER_selectDict(BYTE* customDictContent,
     return COVER_dictSelectionError(totalCompressedSize);
   }
 
-  if (params.shrinkDict != 1.00) {
+  if (params.shrinkDict < 1.01) {
     const COVER_dictSelection_t selection = { largestDictbuffer, dictContentSize, totalCompressedSize };
     free(candidateDictBuffer);
     return selection;

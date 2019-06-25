@@ -942,17 +942,17 @@ void COVER_dictSelectionFree(COVER_dictSelection_t selection){
   free(selection.dictContent);
 }
 
-COVER_dictSelection_t COVER_selectDict(void* customDictContent,
-        size_t dictContentSize, const void* samplesBuffer, const size_t* samplesSizes, size_t nbFinalizeSamples,
+COVER_dictSelection_t COVER_selectDict(BYTE* customDictContent,
+        size_t dictContentSize, const BYTE* samplesBuffer, const size_t* samplesSizes, unsigned nbFinalizeSamples,
         size_t nbCheckSamples, size_t nbSamples, ZDICT_cover_params_t params, size_t* offsets, size_t totalCompressedSize) {
 
   size_t largestDict = 0;
   size_t largestCompressed = 0;
-  double regressionTolerance = 1 + ((double)params.shrinkDict / 100);
-  char* customDictContentEnd = ((char*)customDictContent + dictContentSize);
+  BYTE* customDictContentEnd = customDictContent + dictContentSize;
 
   BYTE *const largestDictbuffer = (BYTE * const)malloc(dictContentSize);
   BYTE *const candidateDictBuffer = (BYTE * const)malloc(dictContentSize);
+  double regressionTolerance = params.shrinkDict + 1.00;
 
   if (!largestDictbuffer || !candidateDictBuffer) {
     free(largestDictbuffer);
@@ -963,8 +963,8 @@ COVER_dictSelection_t COVER_selectDict(void* customDictContent,
   /* Initial dictionary size and compressed size */
   memcpy(largestDictbuffer, customDictContent, dictContentSize);
   dictContentSize = ZDICT_finalizeDictionary(
-    largestDictbuffer, dictContentSize, (const void*)customDictContent, dictContentSize,
-    samplesBuffer, samplesSizes, (unsigned)nbFinalizeSamples, params.zParams);
+    largestDictbuffer, dictContentSize, customDictContent, dictContentSize,
+    samplesBuffer, samplesSizes, nbFinalizeSamples, params.zParams);
 
   if (ZDICT_isError(dictContentSize)) {
     free(largestDictbuffer);
@@ -973,9 +973,9 @@ COVER_dictSelection_t COVER_selectDict(void* customDictContent,
   }
 
   totalCompressedSize = COVER_checkTotalCompressedSize(params, samplesSizes,
-                                                       (const BYTE*)samplesBuffer, offsets,
+                                                       samplesBuffer, offsets,
                                                        nbCheckSamples, nbSamples,
-                                                       (BYTE *const)largestDictbuffer, dictContentSize);
+                                                       largestDictbuffer, dictContentSize);
 
   if (ZSTD_isError(totalCompressedSize)) {
     free(largestDictbuffer);
@@ -983,7 +983,7 @@ COVER_dictSelection_t COVER_selectDict(void* customDictContent,
     return COVER_dictSelectionError(totalCompressedSize);
   }
 
-  if (params.shrinkDict == 0) {
+  if (params.shrinkDict != 1.00) {
     const COVER_dictSelection_t selection = { largestDictbuffer, dictContentSize, totalCompressedSize };
     free(candidateDictBuffer);
     return selection;
@@ -995,23 +995,22 @@ COVER_dictSelection_t COVER_selectDict(void* customDictContent,
 
   /* Largest dict is initially at least ZDICT_DICTSIZE_MIN */
   while (dictContentSize < largestDict) {
-    {
-      memcpy(candidateDictBuffer, largestDictbuffer, largestDict);
-      dictContentSize = ZDICT_finalizeDictionary(
-        candidateDictBuffer, dictContentSize, (const void*)(customDictContentEnd - dictContentSize), dictContentSize,
-        samplesBuffer, samplesSizes, (unsigned)nbFinalizeSamples, params.zParams);
+    memcpy(candidateDictBuffer, largestDictbuffer, largestDict);
+    dictContentSize = ZDICT_finalizeDictionary(
+      candidateDictBuffer, dictContentSize, customDictContentEnd - dictContentSize, dictContentSize,
+      samplesBuffer, samplesSizes, nbFinalizeSamples, params.zParams);
 
-      if (ZDICT_isError(dictContentSize)) {
-        free(largestDictbuffer);
-        free(candidateDictBuffer);
-        return COVER_dictSelectionError(dictContentSize);
-      }
+    if (ZDICT_isError(dictContentSize)) {
+      free(largestDictbuffer);
+      free(candidateDictBuffer);
+      return COVER_dictSelectionError(dictContentSize);
+
     }
 
     totalCompressedSize = COVER_checkTotalCompressedSize(params, samplesSizes,
-                                                         (const BYTE*)samplesBuffer, offsets,
+                                                         samplesBuffer, offsets,
                                                          nbCheckSamples, nbSamples,
-                                                         (BYTE *const)candidateDictBuffer, dictContentSize);
+                                                         candidateDictBuffer, dictContentSize);
 
     if (ZSTD_isError(totalCompressedSize)) {
       free(largestDictbuffer);
@@ -1029,8 +1028,8 @@ COVER_dictSelection_t COVER_selectDict(void* customDictContent,
   dictContentSize = largestDict;
   totalCompressedSize = largestCompressed;
   {
-    const COVER_dictSelection_t selection = { candidateDictBuffer, dictContentSize, totalCompressedSize };
-    free(largestDictbuffer);
+    const COVER_dictSelection_t selection = { largestDictbuffer, dictContentSize, totalCompressedSize };
+    free(candidateDictBuffer);
     return selection;
   }
 }
@@ -1076,11 +1075,13 @@ static void COVER_tryParameters(void *opaque) {
     const size_t tail = COVER_buildDictionary(ctx, freqs, &activeDmers, dict,
                                               dictBufferCapacity, parameters);
     const COVER_dictSelection_t selection = COVER_selectDict(dict + tail, dictBufferCapacity - tail,
-        ctx->samples, ctx->samplesSizes, ctx->nbTrainSamples, ctx->nbTrainSamples, ctx->nbSamples, parameters, ctx->offsets,
+        ctx->samples, ctx->samplesSizes, (unsigned)ctx->nbTrainSamples, ctx->nbTrainSamples, ctx->nbSamples, parameters, ctx->offsets,
         totalCompressedSize);
 
     if (COVER_dictSelectionIsError(selection)) {
       DISPLAYLEVEL(1, "Failed to select dictionary\n");
+      dictBufferCapacity = selection.totalCompressedSize;
+      totalCompressedSize = selection.totalCompressedSize;
       goto _cleanup;
     }
     dictBufferCapacity = selection.dictSize;
@@ -1118,6 +1119,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
   const unsigned kStepSize = MAX((kMaxK - kMinK) / kSteps, 1);
   const unsigned kIterations =
       (1 + (kMaxD - kMinD) / 2) * (1 + (kMaxK - kMinK) / kStepSize);
+  const unsigned shrinkDict = 0.0;
   /* Local variables */
   const int displayLevel = parameters->zParams.notificationLevel;
   unsigned iteration = 1;
@@ -1196,6 +1198,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
       data->parameters.d = d;
       data->parameters.splitPoint = splitPoint;
       data->parameters.steps = kSteps;
+      data->parameters.shrinkDict = shrinkDict;
       data->parameters.zParams.notificationLevel = g_displayLevel;
       /* Check the parameters */
       if (!COVER_checkParameters(data->parameters, dictBufferCapacity)) {

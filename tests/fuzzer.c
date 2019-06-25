@@ -1125,7 +1125,6 @@ static int basicUnitTests(U32 seed, double compressibility)
             memset(&fastCoverParams, 0, sizeof(fastCoverParams));
             fastCoverParams.steps = 8;
             fastCoverParams.nbThreads = 4;
-            fastCoverParams.shrinkDict = 1;
             dictSize = ZDICT_optimizeTrainFromBuffer_fastCover(
                 dictBuffer, dictBufferCapacity,
                 CNBuffer, samplesSizes, nbSamples,
@@ -1140,6 +1139,7 @@ static int basicUnitTests(U32 seed, double compressibility)
             memset(&fastCoverParams, 0, sizeof(fastCoverParams));
             fastCoverParams.steps = 8;
             fastCoverParams.nbThreads = 4;
+            fastCoverParams.shrinkDict = 1;
             dictSize = ZDICT_optimizeTrainFromBuffer_fastCover(
                 dictBuffer, dictBufferCapacity,
                 CNBuffer, samplesSizes, nbSamples,

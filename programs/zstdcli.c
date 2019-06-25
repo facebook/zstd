@@ -77,7 +77,6 @@ static const unsigned g_defaultMaxDictSize = 110 KB;
 static const int      g_defaultDictCLevel = 3;
 static const unsigned g_defaultSelectivityLevel = 9;
 static const unsigned g_defaultMaxWindowLog = 27;
-static const unsigned g_defaultDictRegression = 0;
 #define OVERLAP_LOG_DEFAULT 9999
 #define LDM_PARAM_DEFAULT 9999  /* Default for parameters where 0 is valid */
 static U32 g_overlapLog = OVERLAP_LOG_DEFAULT;
@@ -180,13 +179,12 @@ static int usage_advanced(const char* programName)
     DISPLAY( "\n");
     DISPLAY( "Dictionary builder : \n");
     DISPLAY( "--train ## : create a dictionary from a training set of files \n");
-    DISPLAY( "--train-cover[=k=#,d=#,steps=#,split=#] : use the cover algorithm with optional args\n");
-    DISPLAY( "--train-fastcover[=k=#,d=#,f=#,steps=#,split=#,accel=#] : use the fast cover algorithm with optional args\n");
+    DISPLAY( "--train-cover[=k=#,d=#,steps=#,split=#,shrink=#] : use the cover algorithm with optional args\n");
+    DISPLAY( "--train-fastcover[=k=#,d=#,f=#,steps=#,split=#,accel=#,shrink=#] : use the fast cover algorithm with optional args\n");
     DISPLAY( "--train-legacy[=s=#] : use the legacy algorithm with selectivity (default: %u)\n", g_defaultSelectivityLevel);
     DISPLAY( " -o file : `file` is dictionary name (default: %s) \n", g_defaultDictName);
     DISPLAY( "--maxdict=# : limit dictionary to specified size (default: %u) \n", g_defaultMaxDictSize);
     DISPLAY( "--dictID=# : force dictionary ID to specified value (default: random)\n");
-    DISPLAY( "--shrink-dict=#: select the smallest dictionary within given regression of the largest dictionary (default: %u)\n", g_defaultDictRegression);
 #endif
 #ifndef ZSTD_NOBENCH
     DISPLAY( "\n");
@@ -313,10 +311,15 @@ static unsigned parseCoverParameters(const char* stringPtr, ZDICT_cover_params_t
           params->splitPoint = (double)splitPercentage / 100.0;
           if (stringPtr[0]==',') { stringPtr++; continue; } else break;
         }
+        if (longCommandWArg(&stringPtr, "shrink=")) {
+          unsigned shrinkPercentage= readU32FromChar(&stringPtr);
+          params->shrinkDict = (double)shrinkPercentage / 100.0;
+          if (stringPtr[0]==',') { stringPtr++; continue; } else break;
+        }
         return 0;
     }
     if (stringPtr[0] != 0) return 0;
-    DISPLAYLEVEL(4, "cover: k=%u\nd=%u\nsteps=%u\nsplit=%u\n", params->k, params->d, params->steps, (unsigned)(params->splitPoint * 100));
+    DISPLAYLEVEL(4, "cover: k=%u\nd=%u\nsteps=%u\nsplit=%u\nshrink=%u\n", params->k, params->d, params->steps, (unsigned)(params->splitPoint * 100), (unsigned)(params->shrinkDict * 100));
     return 1;
 }
 
@@ -340,10 +343,15 @@ static unsigned parseFastCoverParameters(const char* stringPtr, ZDICT_fastCover_
           params->splitPoint = (double)splitPercentage / 100.0;
           if (stringPtr[0]==',') { stringPtr++; continue; } else break;
         }
+        if (longCommandWArg(&stringPtr, "shrink=")) {
+          unsigned shrinkPercentage= readU32FromChar(&stringPtr);
+          params->shrinkDict = (double)shrinkPercentage / 100.0;
+          if (stringPtr[0]==',') { stringPtr++; continue; } else break;
+        }
         return 0;
     }
     if (stringPtr[0] != 0) return 0;
-    DISPLAYLEVEL(4, "cover: k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\naccel=%u\n", params->k, params->d, params->f, params->steps, (unsigned)(params->splitPoint * 100), params->accel);
+    DISPLAYLEVEL(4, "cover: k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\naccel=%u\nshrink=%u\n", params->k, params->d, params->f, params->steps, (unsigned)(params->splitPoint * 100), params->accel, (unsigned)(params->shrinkDict * 100));
     return 1;
 }
 
@@ -369,7 +377,7 @@ static ZDICT_cover_params_t defaultCoverParams(void)
     params.d = 8;
     params.steps = 4;
     params.splitPoint = 1.0;
-    params.shrinkDict = g_defaultDictRegression;
+    params.shrinkDict = 0.0;
     return params;
 }
 
@@ -382,6 +390,7 @@ static ZDICT_fastCover_params_t defaultFastCoverParams(void)
     params.steps = 4;
     params.splitPoint = 0.75; /* different from default splitPoint of cover */
     params.accel = DEFAULT_ACCEL;
+    params.shrinkDict = 0.0;
     return params;
 }
 #endif
@@ -532,7 +541,6 @@ int main(int argCount, const char* argv[])
         nextArgumentIsOutFileName = 0,
         nextArgumentIsMaxDict = 0,
         nextArgumentIsDictID = 0,
-        nextArgumentIsShrinkDict = 0,
         nextArgumentsAreFiles = 0,
         nextEntryIsDictionary = 0,
         operationResult = 0,
@@ -561,7 +569,6 @@ int main(int argCount, const char* argv[])
     unsigned dictID = 0;
     int dictCLevel = g_defaultDictCLevel;
     unsigned dictSelect = g_defaultSelectivityLevel;
-    unsigned shrinkDict = g_defaultDictRegression;
 #ifdef UTIL_HAS_CREATEFILELIST
     const char** extendedFileList = NULL;
     char* fileNamesBuf = NULL;
@@ -649,7 +656,6 @@ int main(int argCount, const char* argv[])
                     if (!strcmp(argument, "--train")) { operation=zom_train; if (outFileName==NULL) outFileName=g_defaultDictName; continue; }
                     if (!strcmp(argument, "--maxdict")) { nextArgumentIsMaxDict=1; lastCommand=1; continue; }  /* kept available for compatibility with old syntax ; will be removed one day */
                     if (!strcmp(argument, "--dictID")) { nextArgumentIsDictID=1; lastCommand=1; continue; }  /* kept available for compatibility with old syntax ; will be removed one day */
-                    if (!strcmp(argument, "--shrink-dict")) { nextArgumentIsShrinkDict=1; lastCommand=1; continue; }  /* kept available for compatibility with old syntax ; will be removed one day */
                     if (!strcmp(argument, "--no-dictID")) { FIO_setDictIDFlag(prefs, 0); continue; }
                     if (!strcmp(argument, "--keep")) { FIO_setRemoveSrcFile(prefs, 0); continue; }
                     if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(prefs, 1); continue; }
@@ -716,7 +722,6 @@ int main(int argCount, const char* argv[])
                     if (longCommandWArg(&argument, "--block-size=")) { blockSize = readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--maxdict=")) { maxDictSize = readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--dictID=")) { dictID = readU32FromChar(&argument); continue; }
-                    if (longCommandWArg(&argument, "--shrink-dict=")) { shrinkDict = readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--zstd=")) { if (!parseCompressionParameters(argument, &compressionParams)) CLEAN_RETURN(badusage(programName)); continue; }
                     if (longCommandWArg(&argument, "--long")) {
                         unsigned ldmWindowLog = 0;
@@ -913,12 +918,6 @@ int main(int argCount, const char* argv[])
                 dictID = readU32FromChar(&argument);
                 continue;
             }
-            if (nextArgumentIsShrinkDict) {  /* kept available for compatibility with old syntax ; will be removed one day */
-                nextArgumentIsShrinkDict = 0;
-                lastCommand = 0;
-                shrinkDict = readU32FromChar(&argument);
-                continue;
-            }
 
         }   /* if (nextArgumentIsAFile==0) */
 
@@ -1055,7 +1054,6 @@ int main(int argCount, const char* argv[])
         zParams.compressionLevel = dictCLevel;
         zParams.notificationLevel = g_displayLevel;
         zParams.dictID = dictID;
-        coverParams.shrinkDict = shrinkDict;
         if (dict == cover) {
             int const optimize = !coverParams.k || !coverParams.d;
             coverParams.nbThreads = nbWorkers;
@@ -1065,7 +1063,6 @@ int main(int argCount, const char* argv[])
             int const optimize = !fastCoverParams.k || !fastCoverParams.d;
             fastCoverParams.nbThreads = nbWorkers;
             fastCoverParams.zParams = zParams;
-            fastCoverParams.shrinkDict = shrinkDict;
             operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenameTable, filenameIdx, blockSize, NULL, NULL, &fastCoverParams, optimize);
         } else {
             ZDICT_legacy_params_t dictParams;
@@ -1075,7 +1072,7 @@ int main(int argCount, const char* argv[])
             operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenameTable, filenameIdx, blockSize, &dictParams, NULL, NULL, 0);
         }
 #else
-        (void)dictCLevel; (void)dictSelect; (void)dictID;  (void)maxDictSize; (void)shrinkDict; /* not used when ZSTD_NODICT set */
+        (void)dictCLevel; (void)dictSelect; (void)dictID;  (void)maxDictSize; /* not used when ZSTD_NODICT set */
         DISPLAYLEVEL(1, "training mode not available \n");
         operationResult = 1;
 #endif

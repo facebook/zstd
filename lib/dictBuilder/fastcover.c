@@ -481,6 +481,8 @@ static void FASTCOVER_tryParameters(void *opaque)
 
     if (COVER_dictSelectionIsError(selection)) {
       DISPLAYLEVEL(1, "Failed to select dictionary\n");
+      dictBufferCapacity = selection.totalCompressedSize;
+      totalCompressedSize = selection.totalCompressedSize;
       goto _cleanup;
     }
     dictBufferCapacity = selection.dictSize;
@@ -622,6 +624,7 @@ ZDICT_optimizeTrainFromBuffer_fastCover(
         (1 + (kMaxD - kMinD) / 2) * (1 + (kMaxK - kMinK) / kStepSize);
     const unsigned f = parameters->f == 0 ? DEFAULT_F : parameters->f;
     const unsigned accel = parameters->accel == 0 ? DEFAULT_ACCEL : parameters->accel;
+    const double shrinkDict = 0.0;
     /* Local variables */
     const int displayLevel = parameters->zParams.notificationLevel;
     unsigned iteration = 1;
@@ -706,6 +709,7 @@ ZDICT_optimizeTrainFromBuffer_fastCover(
         data->parameters.d = d;
         data->parameters.splitPoint = splitPoint;
         data->parameters.steps = kSteps;
+        data->parameters.shrinkDict = shrinkDict;
         data->parameters.zParams.notificationLevel = g_displayLevel;
         /* Check the parameters */
         if (!FASTCOVER_checkParameters(data->parameters, dictBufferCapacity,

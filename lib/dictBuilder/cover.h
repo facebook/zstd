@@ -50,7 +50,7 @@ typedef struct {
  * Struct used for the dictionary selection function.
  */
 typedef struct COVER_dictSelection {
-  BYTE* const dictContent;
+  BYTE* dictContent;
   size_t dictSize;
   size_t totalCompressedSize;
 } COVER_dictSelection_t;

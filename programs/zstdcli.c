@@ -179,8 +179,8 @@ static int usage_advanced(const char* programName)
     DISPLAY( "\n");
     DISPLAY( "Dictionary builder : \n");
     DISPLAY( "--train ## : create a dictionary from a training set of files \n");
-    DISPLAY( "--train-cover[=k=#,d=#,steps=#,split=#,shrink] : use the cover algorithm with optional args\n");
-    DISPLAY( "--train-fastcover[=k=#,d=#,f=#,steps=#,split=#,accel=#,shrink] : use the fast cover algorithm with optional args\n");
+    DISPLAY( "--train-cover[=k=#,d=#,steps=#,split=#,shrink[=#]] : use the cover algorithm with optional args\n");
+    DISPLAY( "--train-fastcover[=k=#,d=#,f=#,steps=#,split=#,accel=#,shrink[=#]] : use the fast cover algorithm with optional args\n");
     DISPLAY( "--train-legacy[=s=#] : use the legacy algorithm with selectivity (default: %u)\n", g_defaultSelectivityLevel);
     DISPLAY( " -o file : `file` is dictionary name (default: %s) \n", g_defaultDictName);
     DISPLAY( "--maxdict=# : limit dictionary to specified size (default: %u) \n", g_defaultMaxDictSize);
@@ -395,7 +395,7 @@ static ZDICT_cover_params_t defaultCoverParams(void)
     params.steps = 4;
     params.splitPoint = 1.0;
     params.shrinkDict = 0;
-    params.shrinkDictMaxRegression = 1;
+    params.shrinkDictMaxRegression = kDefaultRegression;
     return params;
 }
 
@@ -409,7 +409,7 @@ static ZDICT_fastCover_params_t defaultFastCoverParams(void)
     params.splitPoint = 0.75; /* different from default splitPoint of cover */
     params.accel = DEFAULT_ACCEL;
     params.shrinkDict = 0;
-    params.shrinkDictMaxRegression = 1;
+    params.shrinkDictMaxRegression = kDefaultRegression;
     return params;
 }
 #endif

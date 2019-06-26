@@ -463,7 +463,7 @@ static void FASTCOVER_tryParameters(void *opaque)
   U16* segmentFreqs = (U16 *)calloc(((U64)1 << ctx->f), sizeof(U16));
   /* Allocate space for hash table, dict, and freqs */
   BYTE *const dict = (BYTE * const)malloc(dictBufferCapacity);
-  COVER_dictSelection_t selection = {dict, dictBufferCapacity, totalCompressedSize};
+  COVER_dictSelection_t selection = COVER_dictSelectionError(ERROR(GENERIC));
   U32 *freqs = (U32*) malloc(((U64)1 << ctx->f) * sizeof(U32));
   if (!segmentFreqs || !dict || !freqs) {
     DISPLAYLEVEL(1, "Failed to allocate buffers: out of memory\n");
@@ -486,6 +486,7 @@ static void FASTCOVER_tryParameters(void *opaque)
     }
   }
 _cleanup:
+  free(dict);
   COVER_best_finish(data->best, parameters, selection);
   free(data);
   free(segmentFreqs);

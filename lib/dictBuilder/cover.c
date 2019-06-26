@@ -932,7 +932,7 @@ void COVER_best_finish(COVER_best_t *best, ZDICT_cover_params_t parameters,
 }
 
 COVER_dictSelection_t COVER_dictSelectionError(size_t error) {
-    const COVER_dictSelection_t selection = { NULL, error, error };
+    COVER_dictSelection_t selection = { NULL, error, error };
     return selection;
 }
 
@@ -952,8 +952,8 @@ COVER_dictSelection_t COVER_selectDict(BYTE* customDictContent,
   size_t largestCompressed = 0;
   BYTE* customDictContentEnd = customDictContent + dictContentSize;
 
-  BYTE *const largestDictbuffer = (BYTE * const)malloc(dictContentSize);
-  BYTE *const candidateDictBuffer = (BYTE * const)malloc(dictContentSize);
+  BYTE * largestDictbuffer = (BYTE *)malloc(dictContentSize);
+  BYTE * candidateDictBuffer = (BYTE *)malloc(dictContentSize);
   double regressionTolerance = ((double)params.shrinkDictMaxRegression / 100.0) + 1.00;
 
   if (!largestDictbuffer || !candidateDictBuffer) {
@@ -986,7 +986,7 @@ COVER_dictSelection_t COVER_selectDict(BYTE* customDictContent,
   }
 
   if (params.shrinkDict == 0) {
-    const COVER_dictSelection_t selection = { largestDictbuffer, dictContentSize, totalCompressedSize };
+    COVER_dictSelection_t selection = { largestDictbuffer, dictContentSize, totalCompressedSize };
     free(candidateDictBuffer);
     return selection;
   }
@@ -1021,7 +1021,7 @@ COVER_dictSelection_t COVER_selectDict(BYTE* customDictContent,
     }
 
     if (totalCompressedSize <= largestCompressed * regressionTolerance) {
-      const COVER_dictSelection_t selection = { candidateDictBuffer, dictContentSize, totalCompressedSize };
+      COVER_dictSelection_t selection = { candidateDictBuffer, dictContentSize, totalCompressedSize };
       free(largestDictbuffer);
       return selection;
     }
@@ -1030,7 +1030,7 @@ COVER_dictSelection_t COVER_selectDict(BYTE* customDictContent,
   dictContentSize = largestDict;
   totalCompressedSize = largestCompressed;
   {
-    const COVER_dictSelection_t selection = { largestDictbuffer, dictContentSize, totalCompressedSize };
+    COVER_dictSelection_t selection = { largestDictbuffer, dictContentSize, totalCompressedSize };
     free(candidateDictBuffer);
     return selection;
   }
@@ -1061,7 +1061,7 @@ static void COVER_tryParameters(void *opaque) {
   /* Allocate space for hash table, dict, and freqs */
   COVER_map_t activeDmers;
   BYTE *const dict = (BYTE * const)malloc(dictBufferCapacity);
-  COVER_dictSelection_t selection = {dict, dictBufferCapacity, totalCompressedSize};
+  COVER_dictSelection_t selection = COVER_dictSelectionError(ERROR(GENERIC));
   U32 *freqs = (U32 *)malloc(ctx->suffixSize * sizeof(U32));
   if (!COVER_map_init(&activeDmers, parameters.k - parameters.d + 1)) {
     DISPLAYLEVEL(1, "Failed to allocate dmer map: out of memory\n");
@@ -1087,6 +1087,7 @@ static void COVER_tryParameters(void *opaque) {
     }
   }
 _cleanup:
+  free(dict);
   COVER_best_finish(data->best, parameters, selection);
   free(data);
   COVER_map_destroy(&activeDmers);

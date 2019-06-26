@@ -1111,6 +1111,7 @@ static int basicUnitTests(U32 seed, double compressibility)
             coverParams.steps = 8;
             coverParams.nbThreads = 4;
             coverParams.shrinkDict = 1;
+            coverParams.shrinkDictMaxRegression = 1;
             dictSize = ZDICT_optimizeTrainFromBuffer_cover(
                 dictBuffer, dictBufferCapacity,
                 CNBuffer, samplesSizes, nbSamples/8,  /* less samples for faster tests */
@@ -1140,6 +1141,7 @@ static int basicUnitTests(U32 seed, double compressibility)
             fastCoverParams.steps = 8;
             fastCoverParams.nbThreads = 4;
             fastCoverParams.shrinkDict = 1;
+            fastCoverParams.shrinkDictMaxRegression = 1;
             dictSize = ZDICT_optimizeTrainFromBuffer_fastCover(
                 dictBuffer, dictBufferCapacity,
                 CNBuffer, samplesSizes, nbSamples,

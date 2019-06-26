@@ -463,6 +463,7 @@ static void FASTCOVER_tryParameters(void *opaque)
   U16* segmentFreqs = (U16 *)calloc(((U64)1 << ctx->f), sizeof(U16));
   /* Allocate space for hash table, dict, and freqs */
   BYTE *const dict = (BYTE * const)malloc(dictBufferCapacity);
+  COVER_dictSelection_t selection = {dict, dictBufferCapacity, totalCompressedSize};
   U32 *freqs = (U32*) malloc(((U64)1 << ctx->f) * sizeof(U32));
   if (!segmentFreqs || !dict || !freqs) {
     DISPLAYLEVEL(1, "Failed to allocate buffers: out of memory\n");
@@ -475,28 +476,20 @@ static void FASTCOVER_tryParameters(void *opaque)
                                                     parameters, segmentFreqs);
 
     const unsigned nbFinalizeSamples = (unsigned)(ctx->nbTrainSamples * ctx->accelParams.finalize / 100);
-    const COVER_dictSelection_t selection = COVER_selectDict(dict + tail, dictBufferCapacity - tail,
+    selection = COVER_selectDict(dict + tail, dictBufferCapacity - tail,
          ctx->samples, ctx->samplesSizes, nbFinalizeSamples, ctx->nbTrainSamples, ctx->nbSamples, parameters, ctx->offsets,
          totalCompressedSize);
 
     if (COVER_dictSelectionIsError(selection)) {
       DISPLAYLEVEL(1, "Failed to select dictionary\n");
-      dictBufferCapacity = selection.totalCompressedSize;
-      totalCompressedSize = selection.totalCompressedSize;
       goto _cleanup;
     }
-    dictBufferCapacity = selection.dictSize;
-    totalCompressedSize = selection.totalCompressedSize;
-    memcpy(dict, selection.dictContent, dictBufferCapacity);
-
-    COVER_dictSelectionFree(selection);
   }
 _cleanup:
-  COVER_best_finish(data->best, totalCompressedSize, parameters, dict,
-                    dictBufferCapacity);
+  COVER_best_finish(data->best, parameters, selection);
   free(data);
   free(segmentFreqs);
-  free(dict);
+  COVER_dictSelectionFree(selection);
   free(freqs);
 }
 

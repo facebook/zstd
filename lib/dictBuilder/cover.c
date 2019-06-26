@@ -889,9 +889,11 @@ void COVER_best_start(COVER_best_t *best) {
  * Decrements liveJobs and signals any waiting threads if liveJobs == 0.
  * If this dictionary is the best so far save it and its parameters.
  */
-void COVER_best_finish(COVER_best_t *best, size_t compressedSize,
-                              ZDICT_cover_params_t parameters, void *dict,
-                              size_t dictSize) {
+void COVER_best_finish(COVER_best_t *best, ZDICT_cover_params_t parameters,
+                              COVER_dictSelection_t selection) {
+  void* dict = selection.dictContent;
+  size_t compressedSize = selection.totalCompressedSize;
+  size_t dictSize = selection.dictSize;
   if (!best) {
     return;
   }
@@ -930,7 +932,7 @@ void COVER_best_finish(COVER_best_t *best, size_t compressedSize,
 }
 
 COVER_dictSelection_t COVER_dictSelectionError(size_t error) {
-    const COVER_dictSelection_t selection = { NULL, 0, error };
+    const COVER_dictSelection_t selection = { NULL, error, error };
     return selection;
 }
 
@@ -952,7 +954,7 @@ COVER_dictSelection_t COVER_selectDict(BYTE* customDictContent,
 
   BYTE *const largestDictbuffer = (BYTE * const)malloc(dictContentSize);
   BYTE *const candidateDictBuffer = (BYTE * const)malloc(dictContentSize);
-  double regressionTolerance = params.shrinkDict + 1.00;
+  double regressionTolerance = ((double)params.shrinkDictMaxRegression / 100.0) + 1.00;
 
   if (!largestDictbuffer || !candidateDictBuffer) {
     free(largestDictbuffer);
@@ -983,7 +985,7 @@ COVER_dictSelection_t COVER_selectDict(BYTE* customDictContent,
     return COVER_dictSelectionError(totalCompressedSize);
   }
 
-  if (regressionTolerance < 1.01) {
+  if (params.shrinkDict == 0) {
     const COVER_dictSelection_t selection = { largestDictbuffer, dictContentSize, totalCompressedSize };
     free(candidateDictBuffer);
     return selection;
@@ -1059,6 +1061,7 @@ static void COVER_tryParameters(void *opaque) {
   /* Allocate space for hash table, dict, and freqs */
   COVER_map_t activeDmers;
   BYTE *const dict = (BYTE * const)malloc(dictBufferCapacity);
+  COVER_dictSelection_t selection = {dict, dictBufferCapacity, totalCompressedSize};
   U32 *freqs = (U32 *)malloc(ctx->suffixSize * sizeof(U32));
   if (!COVER_map_init(&activeDmers, parameters.k - parameters.d + 1)) {
     DISPLAYLEVEL(1, "Failed to allocate dmer map: out of memory\n");
@@ -1074,30 +1077,20 @@ static void COVER_tryParameters(void *opaque) {
   {
     const size_t tail = COVER_buildDictionary(ctx, freqs, &activeDmers, dict,
                                               dictBufferCapacity, parameters);
-    const COVER_dictSelection_t selection = COVER_selectDict(dict + tail, dictBufferCapacity - tail,
+    selection = COVER_selectDict(dict + tail, dictBufferCapacity - tail,
         ctx->samples, ctx->samplesSizes, (unsigned)ctx->nbTrainSamples, ctx->nbTrainSamples, ctx->nbSamples, parameters, ctx->offsets,
         totalCompressedSize);
 
     if (COVER_dictSelectionIsError(selection)) {
       DISPLAYLEVEL(1, "Failed to select dictionary\n");
-      dictBufferCapacity = selection.totalCompressedSize;
-      totalCompressedSize = selection.totalCompressedSize;
       goto _cleanup;
     }
-    dictBufferCapacity = selection.dictSize;
-    totalCompressedSize = selection.totalCompressedSize;
-    memcpy(dict, selection.dictContent, dictBufferCapacity);
-
-    COVER_dictSelectionFree(selection);
   }
 _cleanup:
-  COVER_best_finish(data->best, totalCompressedSize, parameters, dict,
-                    dictBufferCapacity);
+  COVER_best_finish(data->best, parameters, selection);
   free(data);
   COVER_map_destroy(&activeDmers);
-  if (dict) {
-    free(dict);
-  }
+  COVER_dictSelectionFree(selection);
   if (freqs) {
     free(freqs);
   }

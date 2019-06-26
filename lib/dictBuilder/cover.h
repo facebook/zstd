@@ -116,9 +116,8 @@ void COVER_best_start(COVER_best_t *best);
  * Decrements liveJobs and signals any waiting threads if liveJobs == 0.
  * If this dictionary is the best so far save it and its parameters.
  */
-void COVER_best_finish(COVER_best_t *best, size_t compressedSize,
-                       ZDICT_cover_params_t parameters, void *dict,
-                       size_t dictSize);
+void COVER_best_finish(COVER_best_t *best, ZDICT_cover_params_t parameters,
+                       COVER_dictSelection_t selection);
 /**
  * Error function for COVER_selectDict function. Checks if the return
  * value is an error.

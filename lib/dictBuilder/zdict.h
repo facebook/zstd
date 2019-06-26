@@ -94,7 +94,8 @@ typedef struct {
     unsigned steps;              /* Number of steps : Only used for optimization : 0 means default (40) : Higher means more parameters checked */
     unsigned nbThreads;          /* Number of threads : constraint: 0 < nbThreads : 1 means single-threaded : Only used for optimization : Ignored if ZSTD_MULTITHREAD is not defined */
     double splitPoint;           /* Percentage of samples used for training: Only used for optimization : the first nbSamples * splitPoint samples will be used to training, the last nbSamples * (1 - splitPoint) samples will be used for testing, 0 means default (1.0), 1.0 when all samples are used for both training and testing */
-    double shrinkDict;           /* Shrink dictionaries to select the smallest dictionary within the % specified by the auto-shrink-dict flag: 0 disables shrinking  */
+    unsigned shrinkDict;         /* Train dictionaries to shrink in size starting from the minimum size and selects the smallest dictionary within the max regression. 0 means no shrinking and 1 means shrinking  */
+    unsigned shrinkDictMaxRegression; /* Sets the value that determines how much worse a dictionary can be than the dictionary of max dictionary size */
     ZDICT_params_t zParams;
 } ZDICT_cover_params_t;
 
@@ -106,7 +107,9 @@ typedef struct {
     unsigned nbThreads;          /* Number of threads : constraint: 0 < nbThreads : 1 means single-threaded : Only used for optimization : Ignored if ZSTD_MULTITHREAD is not defined */
     double splitPoint;           /* Percentage of samples used for training: Only used for optimization : the first nbSamples * splitPoint samples will be used to training, the last nbSamples * (1 - splitPoint) samples will be used for testing, 0 means default (0.75), 1.0 when all samples are used for both training and testing */
     unsigned accel;              /* Acceleration level: constraint: 0 < accel <= 10, higher means faster and less accurate, 0 means default(1) */
-    double shrinkDict;           /* Shrink dictionaries to select the smallest dictionary within the % specified by the auto-shrink-dict flag: 0 disables shrinking  */
+    unsigned shrinkDict;         /* Train dictionaries to shrink in size starting from the minimum size and selects the smallest dictionary within the max regression. 0 means no shrinking and 1 means shrinking  */
+    unsigned shrinkDictMaxRegression; /* Sets the value that determines how much worse a dictionary can be than the dictionary of max dictionary size */
+
     ZDICT_params_t zParams;
 } ZDICT_fastCover_params_t;
 

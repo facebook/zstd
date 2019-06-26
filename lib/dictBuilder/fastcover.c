@@ -618,7 +618,7 @@ ZDICT_optimizeTrainFromBuffer_fastCover(
         (1 + (kMaxD - kMinD) / 2) * (1 + (kMaxK - kMinK) / kStepSize);
     const unsigned f = parameters->f == 0 ? DEFAULT_F : parameters->f;
     const unsigned accel = parameters->accel == 0 ? DEFAULT_ACCEL : parameters->accel;
-    const double shrinkDict = 0.0;
+    const unsigned shrinkDict = 0;
     /* Local variables */
     const int displayLevel = parameters->zParams.notificationLevel;
     unsigned iteration = 1;

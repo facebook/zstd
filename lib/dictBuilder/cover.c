@@ -919,6 +919,9 @@ void COVER_best_finish(COVER_best_t *best, ZDICT_cover_params_t parameters,
         }
       }
       /* Save the dictionary, parameters, and size */
+      if (!dict) {
+        return;
+      }
       memcpy(best->dict, dict, dictSize);
       best->dictSize = dictSize;
       best->parameters = parameters;

@@ -935,7 +935,7 @@ void COVER_best_finish(COVER_best_t *best, ZDICT_cover_params_t parameters,
 }
 
 COVER_dictSelection_t COVER_dictSelectionError(size_t error) {
-    COVER_dictSelection_t selection = { NULL, error, error };
+    COVER_dictSelection_t selection = { NULL, 0, error };
     return selection;
 }
 

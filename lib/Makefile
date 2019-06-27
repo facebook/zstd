@@ -45,6 +45,8 @@ ZDICT_FILES := $(sort $(wildcard dictBuilder/*.c))
 ZDEPR_FILES := $(sort $(wildcard deprecated/*.c))
 ZSTD_FILES := $(ZSTDCOMMON_FILES)
 
+decompress/zstd_decompress_block.o : CFLAGS+=-fno-tree-vectorize
+
 ZSTD_LEGACY_SUPPORT ?= 5
 ZSTD_LIB_COMPRESSION ?= 1
 ZSTD_LIB_DECOMPRESSION ?= 1

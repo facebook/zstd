@@ -889,9 +889,11 @@ void COVER_best_start(COVER_best_t *best) {
  * Decrements liveJobs and signals any waiting threads if liveJobs == 0.
  * If this dictionary is the best so far save it and its parameters.
  */
-void COVER_best_finish(COVER_best_t *best, size_t compressedSize,
-                              ZDICT_cover_params_t parameters, void *dict,
-                              size_t dictSize) {
+void COVER_best_finish(COVER_best_t *best, ZDICT_cover_params_t parameters,
+                              COVER_dictSelection_t selection) {
+  void* dict = selection.dictContent;
+  size_t compressedSize = selection.totalCompressedSize;
+  size_t dictSize = selection.dictSize;
   if (!best) {
     return;
   }
@@ -917,6 +919,9 @@ void COVER_best_finish(COVER_best_t *best, size_t compressedSize,
         }
       }
       /* Save the dictionary, parameters, and size */
+      if (!dict) {
+        return;
+      }
       memcpy(best->dict, dict, dictSize);
       best->dictSize = dictSize;
       best->parameters = parameters;
@@ -926,6 +931,111 @@ void COVER_best_finish(COVER_best_t *best, size_t compressedSize,
       ZSTD_pthread_cond_broadcast(&best->cond);
     }
     ZSTD_pthread_mutex_unlock(&best->mutex);
+  }
+}
+
+COVER_dictSelection_t COVER_dictSelectionError(size_t error) {
+    COVER_dictSelection_t selection = { NULL, 0, error };
+    return selection;
+}
+
+unsigned COVER_dictSelectionIsError(COVER_dictSelection_t selection) {
+  return (ZSTD_isError(selection.totalCompressedSize) || !selection.dictContent);
+}
+
+void COVER_dictSelectionFree(COVER_dictSelection_t selection){
+  free(selection.dictContent);
+}
+
+COVER_dictSelection_t COVER_selectDict(BYTE* customDictContent,
+        size_t dictContentSize, const BYTE* samplesBuffer, const size_t* samplesSizes, unsigned nbFinalizeSamples,
+        size_t nbCheckSamples, size_t nbSamples, ZDICT_cover_params_t params, size_t* offsets, size_t totalCompressedSize) {
+
+  size_t largestDict = 0;
+  size_t largestCompressed = 0;
+  BYTE* customDictContentEnd = customDictContent + dictContentSize;
+
+  BYTE * largestDictbuffer = (BYTE *)malloc(dictContentSize);
+  BYTE * candidateDictBuffer = (BYTE *)malloc(dictContentSize);
+  double regressionTolerance = ((double)params.shrinkDictMaxRegression / 100.0) + 1.00;
+
+  if (!largestDictbuffer || !candidateDictBuffer) {
+    free(largestDictbuffer);
+    free(candidateDictBuffer);
+    return COVER_dictSelectionError(dictContentSize);
+  }
+
+  /* Initial dictionary size and compressed size */
+  memcpy(largestDictbuffer, customDictContent, dictContentSize);
+  dictContentSize = ZDICT_finalizeDictionary(
+    largestDictbuffer, dictContentSize, customDictContent, dictContentSize,
+    samplesBuffer, samplesSizes, nbFinalizeSamples, params.zParams);
+
+  if (ZDICT_isError(dictContentSize)) {
+    free(largestDictbuffer);
+    free(candidateDictBuffer);
+    return COVER_dictSelectionError(dictContentSize);
+  }
+
+  totalCompressedSize = COVER_checkTotalCompressedSize(params, samplesSizes,
+                                                       samplesBuffer, offsets,
+                                                       nbCheckSamples, nbSamples,
+                                                       largestDictbuffer, dictContentSize);
+
+  if (ZSTD_isError(totalCompressedSize)) {
+    free(largestDictbuffer);
+    free(candidateDictBuffer);
+    return COVER_dictSelectionError(totalCompressedSize);
+  }
+
+  if (params.shrinkDict == 0) {
+    COVER_dictSelection_t selection = { largestDictbuffer, dictContentSize, totalCompressedSize };
+    free(candidateDictBuffer);
+    return selection;
+  }
+
+  largestDict = dictContentSize;
+  largestCompressed = totalCompressedSize;
+  dictContentSize = ZDICT_DICTSIZE_MIN;
+
+  /* Largest dict is initially at least ZDICT_DICTSIZE_MIN */
+  while (dictContentSize < largestDict) {
+    memcpy(candidateDictBuffer, largestDictbuffer, largestDict);
+    dictContentSize = ZDICT_finalizeDictionary(
+      candidateDictBuffer, dictContentSize, customDictContentEnd - dictContentSize, dictContentSize,
+      samplesBuffer, samplesSizes, nbFinalizeSamples, params.zParams);
+
+    if (ZDICT_isError(dictContentSize)) {
+      free(largestDictbuffer);
+      free(candidateDictBuffer);
+      return COVER_dictSelectionError(dictContentSize);
+
+    }
+
+    totalCompressedSize = COVER_checkTotalCompressedSize(params, samplesSizes,
+                                                         samplesBuffer, offsets,
+                                                         nbCheckSamples, nbSamples,
+                                                         candidateDictBuffer, dictContentSize);
+
+    if (ZSTD_isError(totalCompressedSize)) {
+      free(largestDictbuffer);
+      free(candidateDictBuffer);
+      return COVER_dictSelectionError(totalCompressedSize);
+    }
+
+    if (totalCompressedSize <= largestCompressed * regressionTolerance) {
+      COVER_dictSelection_t selection = { candidateDictBuffer, dictContentSize, totalCompressedSize };
+      free(largestDictbuffer);
+      return selection;
+    }
+    dictContentSize *= 2;
+  }
+  dictContentSize = largestDict;
+  totalCompressedSize = largestCompressed;
+  {
+    COVER_dictSelection_t selection = { largestDictbuffer, dictContentSize, totalCompressedSize };
+    free(candidateDictBuffer);
+    return selection;
   }
 }
 
@@ -954,6 +1064,7 @@ static void COVER_tryParameters(void *opaque) {
   /* Allocate space for hash table, dict, and freqs */
   COVER_map_t activeDmers;
   BYTE *const dict = (BYTE * const)malloc(dictBufferCapacity);
+  COVER_dictSelection_t selection = COVER_dictSelectionError(ERROR(GENERIC));
   U32 *freqs = (U32 *)malloc(ctx->suffixSize * sizeof(U32));
   if (!COVER_map_init(&activeDmers, parameters.k - parameters.d + 1)) {
     DISPLAYLEVEL(1, "Failed to allocate dmer map: out of memory\n");
@@ -969,29 +1080,21 @@ static void COVER_tryParameters(void *opaque) {
   {
     const size_t tail = COVER_buildDictionary(ctx, freqs, &activeDmers, dict,
                                               dictBufferCapacity, parameters);
-    dictBufferCapacity = ZDICT_finalizeDictionary(
-        dict, dictBufferCapacity, dict + tail, dictBufferCapacity - tail,
-        ctx->samples, ctx->samplesSizes, (unsigned)ctx->nbTrainSamples,
-        parameters.zParams);
-    if (ZDICT_isError(dictBufferCapacity)) {
-      DISPLAYLEVEL(1, "Failed to finalize dictionary\n");
+    selection = COVER_selectDict(dict + tail, dictBufferCapacity - tail,
+        ctx->samples, ctx->samplesSizes, (unsigned)ctx->nbTrainSamples, ctx->nbTrainSamples, ctx->nbSamples, parameters, ctx->offsets,
+        totalCompressedSize);
+
+    if (COVER_dictSelectionIsError(selection)) {
+      DISPLAYLEVEL(1, "Failed to select dictionary\n");
       goto _cleanup;
     }
   }
-  /* Check total compressed size */
-  totalCompressedSize = COVER_checkTotalCompressedSize(parameters, ctx->samplesSizes,
-                                                       ctx->samples, ctx->offsets,
-                                                       ctx->nbTrainSamples, ctx->nbSamples,
-                                                       dict, dictBufferCapacity);
-
 _cleanup:
-  COVER_best_finish(data->best, totalCompressedSize, parameters, dict,
-                    dictBufferCapacity);
+  free(dict);
+  COVER_best_finish(data->best, parameters, selection);
   free(data);
   COVER_map_destroy(&activeDmers);
-  if (dict) {
-    free(dict);
-  }
+  COVER_dictSelectionFree(selection);
   if (freqs) {
     free(freqs);
   }
@@ -1013,6 +1116,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
   const unsigned kStepSize = MAX((kMaxK - kMinK) / kSteps, 1);
   const unsigned kIterations =
       (1 + (kMaxD - kMinD) / 2) * (1 + (kMaxK - kMinK) / kStepSize);
+  const unsigned shrinkDict = 0;
   /* Local variables */
   const int displayLevel = parameters->zParams.notificationLevel;
   unsigned iteration = 1;
@@ -1091,6 +1195,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
       data->parameters.d = d;
       data->parameters.splitPoint = splitPoint;
       data->parameters.steps = kSteps;
+      data->parameters.shrinkDict = shrinkDict;
       data->parameters.zParams.notificationLevel = g_displayLevel;
       /* Check the parameters */
       if (!COVER_checkParameters(data->parameters, dictBufferCapacity)) {

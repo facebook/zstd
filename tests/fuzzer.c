@@ -1104,12 +1104,44 @@ static int basicUnitTests(U32 seed, double compressibility)
         }
         DISPLAYLEVEL(3, "OK, created dictionary of size %u \n", (unsigned)dictSize);
 
+        DISPLAYLEVEL(3, "test%3i : COVER dictBuilder with shrinkDict: ", testNb++);
+        { U32 u; for (u=0; u<nbSamples; u++) samplesSizes[u] = sampleUnitSize; }
+        {   ZDICT_cover_params_t coverParams;
+            memset(&coverParams, 0, sizeof(coverParams));
+            coverParams.steps = 8;
+            coverParams.nbThreads = 4;
+            coverParams.shrinkDict = 1;
+            coverParams.shrinkDictMaxRegression = 1;
+            dictSize = ZDICT_optimizeTrainFromBuffer_cover(
+                dictBuffer, dictBufferCapacity,
+                CNBuffer, samplesSizes, nbSamples/8,  /* less samples for faster tests */
+                &coverParams);
+            if (ZDICT_isError(dictSize)) goto _output_error;
+        }
+        DISPLAYLEVEL(3, "OK, created dictionary of size %u \n", (unsigned)dictSize);
+
         DISPLAYLEVEL(3, "test%3i : Multithreaded FASTCOVER dictBuilder : ", testNb++);
         { U32 u; for (u=0; u<nbSamples; u++) samplesSizes[u] = sampleUnitSize; }
         {   ZDICT_fastCover_params_t fastCoverParams;
             memset(&fastCoverParams, 0, sizeof(fastCoverParams));
             fastCoverParams.steps = 8;
             fastCoverParams.nbThreads = 4;
+            dictSize = ZDICT_optimizeTrainFromBuffer_fastCover(
+                dictBuffer, dictBufferCapacity,
+                CNBuffer, samplesSizes, nbSamples,
+                &fastCoverParams);
+            if (ZDICT_isError(dictSize)) goto _output_error;
+        }
+        DISPLAYLEVEL(3, "OK, created dictionary of size %u \n", (unsigned)dictSize);
+
+        DISPLAYLEVEL(3, "test%3i : FASTCOVER dictBuilder with shrinkDict: ", testNb++);
+        { U32 u; for (u=0; u<nbSamples; u++) samplesSizes[u] = sampleUnitSize; }
+        {   ZDICT_fastCover_params_t fastCoverParams;
+            memset(&fastCoverParams, 0, sizeof(fastCoverParams));
+            fastCoverParams.steps = 8;
+            fastCoverParams.nbThreads = 4;
+            fastCoverParams.shrinkDict = 1;
+            fastCoverParams.shrinkDictMaxRegression = 1;
             dictSize = ZDICT_optimizeTrainFromBuffer_fastCover(
                 dictBuffer, dictBufferCapacity,
                 CNBuffer, samplesSizes, nbSamples,

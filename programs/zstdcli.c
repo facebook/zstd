@@ -179,8 +179,8 @@ static int usage_advanced(const char* programName)
     DISPLAY( "\n");
     DISPLAY( "Dictionary builder : \n");
     DISPLAY( "--train ## : create a dictionary from a training set of files \n");
-    DISPLAY( "--train-cover[=k=#,d=#,steps=#,split=#] : use the cover algorithm with optional args\n");
-    DISPLAY( "--train-fastcover[=k=#,d=#,f=#,steps=#,split=#,accel=#] : use the fast cover algorithm with optional args\n");
+    DISPLAY( "--train-cover[=k=#,d=#,steps=#,split=#,shrink[=#]] : use the cover algorithm with optional args\n");
+    DISPLAY( "--train-fastcover[=k=#,d=#,f=#,steps=#,split=#,accel=#,shrink[=#]] : use the fast cover algorithm with optional args\n");
     DISPLAY( "--train-legacy[=s=#] : use the legacy algorithm with selectivity (default: %u)\n", g_defaultSelectivityLevel);
     DISPLAY( " -o file : `file` is dictionary name (default: %s) \n", g_defaultDictName);
     DISPLAY( "--maxdict=# : limit dictionary to specified size (default: %u) \n", g_defaultMaxDictSize);
@@ -299,6 +299,7 @@ static unsigned longCommandWArg(const char** stringPtr, const char* longCommand)
  * @return 1 means that cover parameters were correct
  * @return 0 in case of malformed parameters
  */
+static const unsigned kDefaultRegression = 1;
 static unsigned parseCoverParameters(const char* stringPtr, ZDICT_cover_params_t* params)
 {
     memset(params, 0, sizeof(*params));
@@ -311,10 +312,23 @@ static unsigned parseCoverParameters(const char* stringPtr, ZDICT_cover_params_t
           params->splitPoint = (double)splitPercentage / 100.0;
           if (stringPtr[0]==',') { stringPtr++; continue; } else break;
         }
+        if (longCommandWArg(&stringPtr, "shrink")) {
+          params->shrinkDictMaxRegression = kDefaultRegression;
+          params->shrinkDict = 1;
+          if (stringPtr[0]=='=') {
+            stringPtr++;
+            params->shrinkDictMaxRegression = readU32FromChar(&stringPtr);
+          }
+          if (stringPtr[0]==',') {
+            stringPtr++;
+            continue;
+          }
+          else break;
+        }
         return 0;
     }
     if (stringPtr[0] != 0) return 0;
-    DISPLAYLEVEL(4, "cover: k=%u\nd=%u\nsteps=%u\nsplit=%u\n", params->k, params->d, params->steps, (unsigned)(params->splitPoint * 100));
+    DISPLAYLEVEL(4, "cover: k=%u\nd=%u\nsteps=%u\nsplit=%u\nshrink%u\n", params->k, params->d, params->steps, (unsigned)(params->splitPoint * 100), params->shrinkDictMaxRegression);
     return 1;
 }
 
@@ -338,10 +352,23 @@ static unsigned parseFastCoverParameters(const char* stringPtr, ZDICT_fastCover_
           params->splitPoint = (double)splitPercentage / 100.0;
           if (stringPtr[0]==',') { stringPtr++; continue; } else break;
         }
+        if (longCommandWArg(&stringPtr, "shrink")) {
+          params->shrinkDictMaxRegression = kDefaultRegression;
+          params->shrinkDict = 1;
+          if (stringPtr[0]=='=') {
+            stringPtr++;
+            params->shrinkDictMaxRegression = readU32FromChar(&stringPtr);
+          }
+          if (stringPtr[0]==',') {
+            stringPtr++;
+            continue;
+          }
+          else break;
+        }
         return 0;
     }
     if (stringPtr[0] != 0) return 0;
-    DISPLAYLEVEL(4, "cover: k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\naccel=%u\n", params->k, params->d, params->f, params->steps, (unsigned)(params->splitPoint * 100), params->accel);
+    DISPLAYLEVEL(4, "cover: k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\naccel=%u\nshrink=%u\n", params->k, params->d, params->f, params->steps, (unsigned)(params->splitPoint * 100), params->accel, params->shrinkDictMaxRegression);
     return 1;
 }
 
@@ -367,6 +394,8 @@ static ZDICT_cover_params_t defaultCoverParams(void)
     params.d = 8;
     params.steps = 4;
     params.splitPoint = 1.0;
+    params.shrinkDict = 0;
+    params.shrinkDictMaxRegression = kDefaultRegression;
     return params;
 }
 
@@ -379,6 +408,8 @@ static ZDICT_fastCover_params_t defaultFastCoverParams(void)
     params.steps = 4;
     params.splitPoint = 0.75; /* different from default splitPoint of cover */
     params.accel = DEFAULT_ACCEL;
+    params.shrinkDict = 0;
+    params.shrinkDictMaxRegression = kDefaultRegression;
     return params;
 }
 #endif

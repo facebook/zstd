@@ -435,7 +435,6 @@ FASTCOVER_buildDictionary(const FASTCOVER_ctx_t* ctx,
   return tail;
 }
 
-
 /**
  * Parameters for FASTCOVER_tryParameters().
  */
@@ -464,6 +463,7 @@ static void FASTCOVER_tryParameters(void *opaque)
   U16* segmentFreqs = (U16 *)calloc(((U64)1 << ctx->f), sizeof(U16));
   /* Allocate space for hash table, dict, and freqs */
   BYTE *const dict = (BYTE * const)malloc(dictBufferCapacity);
+  COVER_dictSelection_t selection = COVER_dictSelectionError(ERROR(GENERIC));
   U32 *freqs = (U32*) malloc(((U64)1 << ctx->f) * sizeof(U32));
   if (!segmentFreqs || !dict || !freqs) {
     DISPLAYLEVEL(1, "Failed to allocate buffers: out of memory\n");
@@ -473,27 +473,24 @@ static void FASTCOVER_tryParameters(void *opaque)
   memcpy(freqs, ctx->freqs, ((U64)1 << ctx->f) * sizeof(U32));
   /* Build the dictionary */
   { const size_t tail = FASTCOVER_buildDictionary(ctx, freqs, dict, dictBufferCapacity,
-                                                  parameters, segmentFreqs);
+                                                    parameters, segmentFreqs);
+
     const unsigned nbFinalizeSamples = (unsigned)(ctx->nbTrainSamples * ctx->accelParams.finalize / 100);
-    dictBufferCapacity = ZDICT_finalizeDictionary(
-        dict, dictBufferCapacity, dict + tail, dictBufferCapacity - tail,
-        ctx->samples, ctx->samplesSizes, nbFinalizeSamples, parameters.zParams);
-    if (ZDICT_isError(dictBufferCapacity)) {
-      DISPLAYLEVEL(1, "Failed to finalize dictionary\n");
+    selection = COVER_selectDict(dict + tail, dictBufferCapacity - tail,
+         ctx->samples, ctx->samplesSizes, nbFinalizeSamples, ctx->nbTrainSamples, ctx->nbSamples, parameters, ctx->offsets,
+         totalCompressedSize);
+
+    if (COVER_dictSelectionIsError(selection)) {
+      DISPLAYLEVEL(1, "Failed to select dictionary\n");
       goto _cleanup;
     }
   }
-  /* Check total compressed size */
-  totalCompressedSize = COVER_checkTotalCompressedSize(parameters, ctx->samplesSizes,
-                                                       ctx->samples, ctx->offsets,
-                                                       ctx->nbTrainSamples, ctx->nbSamples,
-                                                       dict, dictBufferCapacity);
 _cleanup:
-  COVER_best_finish(data->best, totalCompressedSize, parameters, dict,
-                    dictBufferCapacity);
+  free(dict);
+  COVER_best_finish(data->best, parameters, selection);
   free(data);
   free(segmentFreqs);
-  free(dict);
+  COVER_dictSelectionFree(selection);
   free(freqs);
 }
 
@@ -508,6 +505,7 @@ FASTCOVER_convertToCoverParams(ZDICT_fastCover_params_t fastCoverParams,
     coverParams->nbThreads = fastCoverParams.nbThreads;
     coverParams->splitPoint = fastCoverParams.splitPoint;
     coverParams->zParams = fastCoverParams.zParams;
+    coverParams->shrinkDict = fastCoverParams.shrinkDict;
 }
 
 
@@ -524,6 +522,7 @@ FASTCOVER_convertToFastCoverParams(ZDICT_cover_params_t coverParams,
     fastCoverParams->f = f;
     fastCoverParams->accel = accel;
     fastCoverParams->zParams = coverParams.zParams;
+    fastCoverParams->shrinkDict = coverParams.shrinkDict;
 }
 
 
@@ -619,6 +618,7 @@ ZDICT_optimizeTrainFromBuffer_fastCover(
         (1 + (kMaxD - kMinD) / 2) * (1 + (kMaxK - kMinK) / kStepSize);
     const unsigned f = parameters->f == 0 ? DEFAULT_F : parameters->f;
     const unsigned accel = parameters->accel == 0 ? DEFAULT_ACCEL : parameters->accel;
+    const unsigned shrinkDict = 0;
     /* Local variables */
     const int displayLevel = parameters->zParams.notificationLevel;
     unsigned iteration = 1;
@@ -703,6 +703,7 @@ ZDICT_optimizeTrainFromBuffer_fastCover(
         data->parameters.d = d;
         data->parameters.splitPoint = splitPoint;
         data->parameters.steps = kSteps;
+        data->parameters.shrinkDict = shrinkDict;
         data->parameters.zParams.notificationLevel = g_displayLevel;
         /* Check the parameters */
         if (!FASTCOVER_checkParameters(data->parameters, dictBufferCapacity,

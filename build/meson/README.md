@@ -17,7 +17,7 @@ It outputs one `libzstd`, either shared or static, depending on
 `cd` to this meson directory (`build/meson`)
 
 ```sh
-meson --buildtype=release -Dbuild_{programs,contrib}=true builddir
+meson setup -Dbin_programs=true -Dbin_contrib=true builddir
 cd builddir
 ninja             # to build
 ninja install     # to install

@@ -19,11 +19,11 @@ option('backtrace', type: 'boolean', value: false,
 option('static_runtime', type: 'boolean', value: false,
   description: 'Link to static run-time libraries on MSVC')
 
-option('build_programs', type: 'boolean', value: true,
+option('bin_programs', type: 'boolean', value: true,
   description: 'Enable programs build')
-option('build_tests', type: 'boolean', value: false,
+option('bin_tests', type: 'boolean', value: false,
   description: 'Enable tests build')
-option('build_contrib', type: 'boolean', value: false,
+option('bin_contrib', type: 'boolean', value: false,
   description: 'Enable contrib build')
 
 option('multi_thread', type: 'feature', value: 'enabled',

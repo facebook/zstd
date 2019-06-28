@@ -203,9 +203,9 @@ matrix:
             --buildtype=debugoptimized \
             -Db_lundef=false \
             -Dauto_features=enabled \
-            -Dbuild_programs=true \
-            -Dbuild_tests=true \
-            -Dbuild_contrib=true \
+            -Dbin_programs=true \
+            -Dbin_tests=true \
+            -Dbin_contrib=true \
             -Ddefault_library=both \
              build/meson builddir
         - pushd builddir

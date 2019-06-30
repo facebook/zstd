@@ -17,6 +17,7 @@ gen_html_includes = include_directories(join_paths(zstd_rootdir, 'programs'),
 gen_html = executable('gen_html',
   join_paths(zstd_rootdir, 'contrib/gen_html/gen_html.cpp'),
   include_directories: gen_html_includes,
+  native: true,
   install: false)
 
 # Update zstd manual

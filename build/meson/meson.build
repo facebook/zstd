@@ -75,9 +75,9 @@ legacy_level = get_option('legacy_level')
 use_backtrace = get_option('backtrace')
 use_static_runtime = get_option('static_runtime')
 
-build_programs = get_option('build_programs')
-build_contrib = get_option('build_contrib')
-build_tests = get_option('build_tests')
+bin_programs = get_option('bin_programs')
+bin_contrib = get_option('bin_contrib')
+bin_tests = get_option('bin_tests')
 
 feature_multi_thread = get_option('multi_thread')
 feature_zlib = get_option('zlib')
@@ -88,7 +88,7 @@ feature_lz4 = get_option('lz4')
 # Dependencies
 # =============================================================================
 
-libm_dep = cc.find_library('m', required: build_tests)
+libm_dep = cc.find_library('m', required: bin_tests)
 thread_dep = dependency('threads', required: feature_multi_thread)
 use_multi_thread = thread_dep.found()
 # Arguments in dependency should be equivalent to those passed to pkg-config
@@ -133,14 +133,14 @@ endif
 
 subdir('lib')
 
-if build_programs
+if bin_programs
   subdir('programs')
 endif
 
-if build_tests
+if bin_tests
   subdir('tests')
 endif
 
-if build_contrib
+if bin_contrib
   subdir('contrib')
 endif

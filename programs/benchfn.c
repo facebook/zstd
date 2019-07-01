@@ -15,7 +15,6 @@
 ***************************************/
 #include <stdlib.h>      /* malloc, free */
 #include <string.h>      /* memset */
-#undef NDEBUG            /* assert must not be disabled */
 #include <assert.h>      /* assert */
 
 #include "timefn.h"        /* UTIL_time_t, UTIL_getTime */
@@ -54,6 +53,9 @@
     return retValue;                                  \
 }
 
+/* Abort execution if a condition is not met */
+#define CONTROL(c) { if (!(c)) { DEBUGOUTPUT("error: %s \n", #c); abort(); } }
+
 
 /* *************************************
 *  Benchmarking an arbitrary function
@@ -68,13 +70,13 @@ int BMK_isSuccessful_runOutcome(BMK_runOutcome_t outcome)
  *           check outcome validity first, using BMK_isValid_runResult() */
 BMK_runTime_t BMK_extract_runTime(BMK_runOutcome_t outcome)
 {
-    assert(outcome.error_tag_never_ever_use_directly == 0);
+    CONTROL(outcome.error_tag_never_ever_use_directly == 0);
     return outcome.internal_never_ever_use_directly;
 }
 
 size_t BMK_extract_errorResult(BMK_runOutcome_t outcome)
 {
-    assert(outcome.error_tag_never_ever_use_directly != 0);
+    CONTROL(outcome.error_tag_never_ever_use_directly != 0);
     return outcome.error_result_never_ever_use_directly;
 }
 

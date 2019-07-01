@@ -563,6 +563,9 @@ MEM_STATIC U64 ZSTD_rollingHash_rotate(U64 hash, BYTE toRemove, BYTE toAdd, U64 
 /*-*************************************
 *  Round buffer management
 ***************************************/
+#if (ZSTD_WINDOWLOG_MAX_64 > 31)
+# error "ZSTD_WINDOWLOG_MAX is too large : would overflow ZSTD_CURRENT_MAX"
+#endif
 /* Max current allowed */
 #define ZSTD_CURRENT_MAX ((3U << 29) + (1U << ZSTD_WINDOWLOG_MAX))
 /* Maximum chunk size before overflow correction needs to be called again */

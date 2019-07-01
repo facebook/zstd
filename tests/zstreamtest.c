@@ -1184,6 +1184,58 @@ static int basicUnitTests(U32 seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    /* Small Sequence Section bug */
+    DISPLAYLEVEL(3, "test%3i : decompress blocks with small sequences section : ", testNb++);
+    {   /* This test consists of 3 blocks. Each block has one sequence.
+            The sequence has literal length of 10, match length of 10 and offset of 10.
+            The sequence value and compression mode for the blocks are following:
+            The order of values are ll, ml, of.
+              - First block  : (10, 7, 13) (rle, rle, rle)
+                 - size of sequences section: 6 bytes (1 byte for nbSeq, 1 byte for encoding mode, 3 bytes for rle, 1 byte bitstream)
+              - Second block : (10, 7, 1) (repeat, repeat, rle)
+                 - size of sequences section: 4 bytes (1 byte for nbSeq, 1 byte for encoding mode, 1 bytes for rle, 1 byte bitstream)
+              - Third block  : (10, 7, 1) (repeat, repeat, repeat)
+                 - size of sequences section: 3 bytes (1 byte for nbSeq, 1 byte for encoding mode, 1 byte bitstream) */
+
+        unsigned char compressed[] = {
+            0x28, 0xb5, 0x2f, 0xfd, 0x24, 0x3c, 0x35, 0x01, 0x00, 0xf0, 0x85, 0x08,
+            0xc2, 0xc4, 0x70, 0xcf, 0xd7, 0xc0, 0x96, 0x7e, 0x4c, 0x6b, 0xa9, 0x8b,
+            0xbc, 0xc5, 0xb6, 0xd9, 0x7f, 0x4c, 0xf1, 0x05, 0xa6, 0x54, 0xef, 0xac,
+            0x69, 0x94, 0x89, 0x1c, 0x03, 0x44, 0x0a, 0x07, 0x00, 0xb4, 0x04, 0x80,
+            0x40, 0x0a, 0xa4
+        };
+        unsigned int compressedSize = 51;
+        unsigned char decompressed[] = {
+            0x85, 0x08, 0xc2, 0xc4, 0x70, 0xcf, 0xd7, 0xc0, 0x96, 0x7e, 0x85, 0x08,
+            0xc2, 0xc4, 0x70, 0xcf, 0xd7, 0xc0, 0x96, 0x7e, 0x4c, 0x6b, 0xa9, 0x8b,
+            0xbc, 0xc5, 0xb6, 0xd9, 0x7f, 0x4c, 0x4c, 0x6b, 0xa9, 0x8b, 0xbc, 0xc5,
+            0xb6, 0xd9, 0x7f, 0x4c, 0xf1, 0x05, 0xa6, 0x54, 0xef, 0xac, 0x69, 0x94,
+            0x89, 0x1c, 0xf1, 0x05, 0xa6, 0x54, 0xef, 0xac, 0x69, 0x94, 0x89, 0x1c
+        };
+        unsigned int decompressedSize = 60;
+
+        ZSTD_DStream* const zds = ZSTD_createDStream();
+        if (zds==NULL) goto _output_error;
+
+        CHECK_Z( ZSTD_initDStream(zds) );
+        inBuff.src = compressed;
+        inBuff.size = compressedSize;
+        inBuff.pos = 0;
+        outBuff.dst = decodedBuffer;
+        outBuff.size = CNBufferSize;
+        outBuff.pos = 0;
+
+        CHECK(ZSTD_decompressStream(zds, &outBuff, &inBuff) != 0,
+              "Decompress did not reach the end of frame");
+        CHECK(inBuff.pos != inBuff.size, "Decompress did not fully consume input");
+        CHECK(outBuff.pos != decompressedSize, "Decompressed size does not match");
+        CHECK(memcmp(outBuff.dst, decompressed, decompressedSize) != 0,
+              "Decompressed data does not match");
+
+        ZSTD_freeDStream(zds);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     DISPLAYLEVEL(3, "test%3i : dictionary + uncompressible block + reusing tables checks offset table validity: ", testNb++);
     {   ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(
             dictionary.start, dictionary.filled,

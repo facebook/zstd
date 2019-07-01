@@ -1225,22 +1225,12 @@ static int basicUnitTests(U32 seed, double compressibility)
         outBuff.size = CNBufferSize;
         outBuff.pos = 0;
 
-        while (inBuff.pos < inBuff.size) {
-            CHECK_Z( ZSTD_decompressStream(zds, &outBuff, &inBuff) );
-        }
-
-        {   XXH64_state_t xxhStateIn, xxhStateOut;
-            U32 checkIn, checkOut;
-            XXH64_reset(&xxhStateIn, 0);
-            XXH64_reset(&xxhStateOut, 0);
-
-            XXH64_update(&xxhStateIn, decompressed, decompressedSize);
-            XXH64_update(&xxhStateOut, outBuff.dst, outBuff.pos);
-
-            checkIn = (U32)XXH64_digest(&xxhStateIn);
-            checkOut = (U32)XXH64_digest(&xxhStateOut);
-            CHECK(checkIn != checkOut, "Checksum does not match");
-        }
+        CHECK(ZSTD_decompressStream(zds, &outBuff, &inBuff) != 0,
+              "Decompress did not reach the end of frame");
+        CHECK(inBuff.pos != inBuff.size, "Decompress did not fully consume input");
+        CHECK(outBuff.pos != decompressedSize, "Decompressed size does not match");
+        CHECK(memcmp(outBuff.dst, decompressed, decompressedSize) != 0,
+              "Decompressed data does not match");
 
         ZSTD_freeDStream(zds);
     }

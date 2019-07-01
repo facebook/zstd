@@ -840,16 +840,16 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
     {   unsigned max = MaxLL;
         size_t const mostFrequent = HIST_countFast_wksp(count, &max, llCodeTable, nbSeq, WKSP, sizeof(WKSP));   /* cannot fail */
         assert(!HIST_isError(mostFrequent));
-        if (mostFrequent == nbSeq) {
-            /* do RLE if we have the chance */
-            *op++ = llCodeTable[0];
-            FSE_buildCTable_rle(CTable_LitLength, (BYTE)max);
-            LLtype = set_rle;
-        } else if (frame->stats.fseInit && !(RAND(seed) & 3) &&
+        if (frame->stats.fseInit && !(RAND(seed) & 3) &&
                    isSymbolSubset(llCodeTable, nbSeq,
                                   frame->stats.litlengthSymbolSet, 35)) {
             /* maybe do repeat mode if we're allowed to */
             LLtype = set_repeat;
+        } else if (mostFrequent == nbSeq) {
+            /* do RLE if we have the chance */
+            *op++ = llCodeTable[0];
+            FSE_buildCTable_rle(CTable_LitLength, (BYTE)max);
+            LLtype = set_rle;
         } else if (!(RAND(seed) & 3)) {
             /* maybe use the default distribution */
             FSE_buildCTable_wksp(CTable_LitLength, LL_defaultNorm, MaxLL, LL_defaultNormLog, scratchBuffer, sizeof(scratchBuffer));
@@ -872,14 +872,14 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
     {   unsigned max = MaxOff;
         size_t const mostFrequent = HIST_countFast_wksp(count, &max, ofCodeTable, nbSeq, WKSP, sizeof(WKSP));   /* cannot fail */
         assert(!HIST_isError(mostFrequent));
-        if (mostFrequent == nbSeq) {
-            *op++ = ofCodeTable[0];
-            FSE_buildCTable_rle(CTable_OffsetBits, (BYTE)max);
-            Offtype = set_rle;
-        } else if (frame->stats.fseInit && !(RAND(seed) & 3) &&
+        if (frame->stats.fseInit && !(RAND(seed) & 3) &&
                    isSymbolSubset(ofCodeTable, nbSeq,
                                   frame->stats.offsetSymbolSet, 28)) {
             Offtype = set_repeat;
+        } else if (mostFrequent == nbSeq) {
+            *op++ = ofCodeTable[0];
+            FSE_buildCTable_rle(CTable_OffsetBits, (BYTE)max);
+            Offtype = set_rle;
         } else if (!(RAND(seed) & 3)) {
             FSE_buildCTable_wksp(CTable_OffsetBits, OF_defaultNorm, DefaultMaxOff, OF_defaultNormLog, scratchBuffer, sizeof(scratchBuffer));
             Offtype = set_basic;
@@ -900,14 +900,14 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
     {   unsigned max = MaxML;
         size_t const mostFrequent = HIST_countFast_wksp(count, &max, mlCodeTable, nbSeq, WKSP, sizeof(WKSP));   /* cannot fail */
         assert(!HIST_isError(mostFrequent));
-        if (mostFrequent == nbSeq) {
-            *op++ = *mlCodeTable;
-            FSE_buildCTable_rle(CTable_MatchLength, (BYTE)max);
-            MLtype = set_rle;
-        } else if (frame->stats.fseInit && !(RAND(seed) & 3) &&
+        if (frame->stats.fseInit && !(RAND(seed) & 3) &&
                    isSymbolSubset(mlCodeTable, nbSeq,
                                   frame->stats.matchlengthSymbolSet, 52)) {
             MLtype = set_repeat;
+        } else if (mostFrequent == nbSeq) {
+            *op++ = *mlCodeTable;
+            FSE_buildCTable_rle(CTable_MatchLength, (BYTE)max);
+            MLtype = set_rle;
         } else if (!(RAND(seed) & 3)) {
             /* sometimes do default distribution */
             FSE_buildCTable_wksp(CTable_MatchLength, ML_defaultNorm, MaxML, ML_defaultNormLog, scratchBuffer, sizeof(scratchBuffer));

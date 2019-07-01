@@ -1129,9 +1129,14 @@ size_t ZSTDMT_toFlushNow(ZSTDMT_CCtx* mtctx)
             size_t const produced = ZSTD_isError(cResult) ? 0 : cResult;
             size_t const flushed = ZSTD_isError(cResult) ? 0 : jobPtr->dstFlushed;
             assert(flushed <= produced);
+            assert(jobPtr->consumed <= jobPtr->src.size);
             toFlush = produced - flushed;
-            if (toFlush==0 && (jobPtr->consumed >= jobPtr->src.size)) {
-                /* doneJobID is not-fully-flushed, but toFlush==0 : doneJobID should be compressing some more data */
+            /* if toFlush==0, nothing is available to flush.
+             * However, jobID is expected to still be active:
+             * if jobID was already completed and fully flushed,
+             * ZSTDMT_flushProduced() should have already moved onto next job.
+             * Therefore, some input has not yet been consumed. */
+            if (toFlush==0) {
                 assert(jobPtr->consumed < jobPtr->src.size);
             }
         }

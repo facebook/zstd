@@ -692,13 +692,13 @@ size_t ZSTD_CCtxParams_getParameter(
         *value = CCtxParams->compressionLevel;
         break;
     case ZSTD_c_windowLog :
-        *value = CCtxParams->cParams.windowLog;
+        *value = (int)CCtxParams->cParams.windowLog;
         break;
     case ZSTD_c_hashLog :
-        *value = CCtxParams->cParams.hashLog;
+        *value = (int)CCtxParams->cParams.hashLog;
         break;
     case ZSTD_c_chainLog :
-        *value = CCtxParams->cParams.chainLog;
+        *value = (int)CCtxParams->cParams.chainLog;
         break;
     case ZSTD_c_searchLog :
         *value = CCtxParams->cParams.searchLog;
@@ -1326,15 +1326,17 @@ static size_t ZSTD_continueCCtx(ZSTD_CCtx* cctx, ZSTD_CCtx_params params, U64 pl
 
 typedef enum { ZSTDcrp_continue, ZSTDcrp_noMemset } ZSTD_compResetPolicy_e;
 
+typedef enum { ZSTD_resetTarget_CDict, ZSTD_resetTarget_CCtx } ZSTD_resetTarget_e;
+
 static void*
 ZSTD_reset_matchState(ZSTD_matchState_t* ms,
                       void* ptr,
                 const ZSTD_compressionParameters* cParams,
-                      ZSTD_compResetPolicy_e const crp, U32 const forCCtx)
+                      ZSTD_compResetPolicy_e const crp, ZSTD_resetTarget_e const forWho)
 {
     size_t const chainSize = (cParams->strategy == ZSTD_fast) ? 0 : ((size_t)1 << cParams->chainLog);
     size_t const hSize = ((size_t)1) << cParams->hashLog;
-    U32    const hashLog3 = (forCCtx && cParams->minMatch==3) ? MIN(ZSTD_HASHLOG3_MAX, cParams->windowLog) : 0;
+    U32    const hashLog3 = ((forWho == ZSTD_resetTarget_CCtx) && cParams->minMatch==3) ? MIN(ZSTD_HASHLOG3_MAX, cParams->windowLog) : 0;
     size_t const h3Size = ((size_t)1) << hashLog3;
     size_t const tableSpace = (chainSize + hSize + h3Size) * sizeof(U32);
 
@@ -1348,7 +1350,7 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
     ZSTD_invalidateMatchState(ms);
 
     /* opt parser space */
-    if (forCCtx && (cParams->strategy >= ZSTD_btopt)) {
+    if ((forWho == ZSTD_resetTarget_CCtx) && (cParams->strategy >= ZSTD_btopt)) {
         DEBUGLOG(4, "reserving optimal parser space");
         ms->opt.litFreq = (unsigned*)ptr;
         ms->opt.litLengthFreq = ms->opt.litFreq + (1<<Litbits);
@@ -1376,6 +1378,19 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
     return ptr;
 }
 
+/* ZSTD_indexTooCloseToMax() :
+ * minor optimization : prefer memset() rather than reduceIndex()
+ * which is measurably slow in some circumstances (reported for Visual Studio).
+ * Works when re-using a context for a lot of smallish inputs :
+ * if all inputs are smaller than ZSTD_INDEXOVERFLOW_MARGIN,
+ * memset() will be triggered before reduceIndex().
+ */
+#define ZSTD_INDEXOVERFLOW_MARGIN (16 MB)
+static int ZSTD_indexTooCloseToMax(ZSTD_window_t w)
+{
+    return (size_t)(w.nextSrc - w.base) > (ZSTD_CURRENT_MAX - ZSTD_INDEXOVERFLOW_MARGIN);
+}
+
 #define ZSTD_WORKSPACETOOLARGE_FACTOR 3 /* define "workspace is too large" as this number of times larger than needed */
 #define ZSTD_WORKSPACETOOLARGE_MAXDURATION 128  /* when workspace is continuously too large
                                          * during at least this number of times,
@@ -1399,13 +1414,21 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         if (ZSTD_equivalentParams(zc->appliedParams, params,
                                   zc->inBuffSize,
                                   zc->seqStore.maxNbSeq, zc->seqStore.maxNbLit,
-                                  zbuff, pledgedSrcSize)) {
-            DEBUGLOG(4, "ZSTD_equivalentParams()==1 -> continue mode (wLog1=%u, blockSize1=%zu)",
-                        zc->appliedParams.cParams.windowLog, zc->blockSize);
+                                  zbuff, pledgedSrcSize) ) {
+            DEBUGLOG(4, "ZSTD_equivalentParams()==1 -> consider continue mode");
             zc->workSpaceOversizedDuration += (zc->workSpaceOversizedDuration > 0);   /* if it was too large, it still is */
-            if (zc->workSpaceOversizedDuration <= ZSTD_WORKSPACETOOLARGE_MAXDURATION)
+            if (zc->workSpaceOversizedDuration <= ZSTD_WORKSPACETOOLARGE_MAXDURATION) {
+                DEBUGLOG(4, "continue mode confirmed (wLog1=%u, blockSize1=%zu)",
+                            zc->appliedParams.cParams.windowLog, zc->blockSize);
+                if (ZSTD_indexTooCloseToMax(zc->blockState.matchState.window)) {
+                    /* prefer a reset, faster than a rescale */
+                    ZSTD_reset_matchState(&zc->blockState.matchState,
+                                           zc->entropyWorkspace + HUF_WORKSPACE_SIZE_U32,
+                                          &params.cParams,
+                                           crp, ZSTD_resetTarget_CCtx);
+                }
                 return ZSTD_continueCCtx(zc, params, pledgedSrcSize);
-    }   }
+    }   }   }
     DEBUGLOG(4, "ZSTD_equivalentParams()==0 -> reset CCtx");
 
     if (params.ldmParams.enableLdm) {
@@ -1448,7 +1471,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             DEBUGLOG(4, "windowSize: %zu - blockSize: %zu", windowSize, blockSize);
 
             if (workSpaceTooSmall || workSpaceWasteful) {
-                DEBUGLOG(4, "Need to resize workSpaceSize from %zuKB to %zuKB",
+                DEBUGLOG(4, "Resize workSpaceSize from %zuKB to %zuKB",
                             zc->workSpaceSize >> 10,
                             neededSpace >> 10);
 
@@ -1490,7 +1513,10 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
 
         ZSTD_reset_compressedBlockState(zc->blockState.prevCBlock);
 
-        ptr = zc->entropyWorkspace + HUF_WORKSPACE_SIZE_U32;
+        ptr = ZSTD_reset_matchState(&zc->blockState.matchState,
+                                     zc->entropyWorkspace + HUF_WORKSPACE_SIZE_U32,
+                                    &params.cParams,
+                                     crp, ZSTD_resetTarget_CCtx);
 
         /* ldm hash table */
         /* initialize bucketOffsets table later for pointer alignment */
@@ -1507,8 +1533,6 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             memset(&zc->ldmState.window, 0, sizeof(zc->ldmState.window));
         }
         assert(((size_t)ptr & 3) == 0); /* ensure ptr is properly aligned */
-
-        ptr = ZSTD_reset_matchState(&zc->blockState.matchState, ptr, &params.cParams, crp, /* forCCtx */ 1);
 
         /* sequences storage */
         zc->seqStore.maxNbSeq = maxNbSeq;
@@ -3558,10 +3582,10 @@ static size_t ZSTD_initCDict_internal(
 
     /* Reset the state to no dictionary */
     ZSTD_reset_compressedBlockState(&cdict->cBlockState);
-    {   void* const end = ZSTD_reset_matchState(
-                &cdict->matchState,
-                (U32*)cdict->workspace + HUF_WORKSPACE_SIZE_U32,
-                &cParams, ZSTDcrp_continue, /* forCCtx */ 0);
+    {   void* const end = ZSTD_reset_matchState(&cdict->matchState,
+                            (U32*)cdict->workspace + HUF_WORKSPACE_SIZE_U32,
+                            &cParams,
+                             ZSTDcrp_continue, ZSTD_resetTarget_CDict);
         assert(end == (char*)cdict->workspace + cdict->workspaceSize);
         (void)end;
     }
@@ -4071,7 +4095,7 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
         case zcss_flush:
             DEBUGLOG(5, "flush stage");
             {   size_t const toFlush = zcs->outBuffContentSize - zcs->outBuffFlushedSize;
-                size_t const flushed = ZSTD_limitCopy(op, oend-op,
+                size_t const flushed = ZSTD_limitCopy(op, (size_t)(oend-op),
                             zcs->outBuff + zcs->outBuffFlushedSize, toFlush);
                 DEBUGLOG(5, "toFlush: %u into %u ==> flushed: %u",
                             (unsigned)toFlush, (unsigned)(oend-op), (unsigned)flushed);
@@ -4265,7 +4289,7 @@ size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
     if (zcs->appliedParams.nbWorkers > 0) return remainingToFlush;   /* minimal estimation */
     /* single thread mode : attempt to calculate remaining to flush more precisely */
     {   size_t const lastBlockSize = zcs->frameEnded ? 0 : ZSTD_BLOCKHEADERSIZE;
-        size_t const checksumSize = zcs->frameEnded ? 0 : zcs->appliedParams.fParams.checksumFlag * 4;
+        size_t const checksumSize = (size_t)(zcs->frameEnded ? 0 : zcs->appliedParams.fParams.checksumFlag * 4);
         size_t const toFlush = remainingToFlush + lastBlockSize + checksumSize;
         DEBUGLOG(4, "ZSTD_endStream : remaining to flush : %u", (unsigned)toFlush);
         return toFlush;

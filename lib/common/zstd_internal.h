@@ -212,7 +212,6 @@ MEM_STATIC FORCE_INLINE_ATTR DONT_VECTORIZE
 void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length, ZSTD_overlap_e ovtype)
 {
     ptrdiff_t diff = (BYTE*)dst - (const BYTE*)src;
-
     const BYTE* ip = (const BYTE*)src;
     BYTE* op = (BYTE*)dst;
     BYTE* const oend = op + length;
@@ -238,12 +237,11 @@ MEM_STATIC FORCE_INLINE_ATTR DONT_VECTORIZE
 void ZSTD_wildcopy_16min(void* dst, const void* src, ptrdiff_t length, ZSTD_overlap_e ovtype)
 {
     ptrdiff_t diff = (BYTE*)dst - (const BYTE*)src;
-    assert(length >= 8);
-
     const BYTE* ip = (const BYTE*)src;
     BYTE* op = (BYTE*)dst;
     BYTE* const oend = op + length;
 
+    assert(length >= 8);
     assert(diff >= 8);
     if (ovtype == ZSTD_overlap_src_before_dst && diff < VECLEN) {
       do

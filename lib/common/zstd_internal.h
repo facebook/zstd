@@ -211,7 +211,7 @@ typedef enum {
 MEM_STATIC FORCE_INLINE_ATTR DONT_VECTORIZE
 void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length, ZSTD_overlap_e ovtype)
 {
-    ptrdiff_t diff = dst - src;
+    ptrdiff_t diff = (BYTE*)dst - (const BYTE*)src;
 
     const BYTE* ip = (const BYTE*)src;
     BYTE* op = (BYTE*)dst;
@@ -237,7 +237,7 @@ void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length, ZSTD_overlap_e 
 MEM_STATIC FORCE_INLINE_ATTR DONT_VECTORIZE
 void ZSTD_wildcopy_16min(void* dst, const void* src, ptrdiff_t length, ZSTD_overlap_e ovtype)
 {
-    long int diff = dst - src;
+    ptrdiff_t diff = (BYTE*)dst - (const BYTE*)src;
     assert(length >= 8);
 
     const BYTE* ip = (const BYTE*)src;

@@ -17,6 +17,7 @@ LIBVER_MINOR := $(shell echo $(LIBVER_MINOR_SCRIPT))
 LIBVER_PATCH := $(shell echo $(LIBVER_PATCH_SCRIPT))
 LIBVER := $(shell echo $(LIBVER_SCRIPT))
 VERSION?= $(LIBVER)
+CCVER := $(shell $(CC) --version)
 
 CPPFLAGS+= -I. -I./common -DXXH_NAMESPACE=ZSTD_
 ifeq ($(OS),Windows_NT)   # MinGW assumed
@@ -45,7 +46,9 @@ ZDICT_FILES := $(sort $(wildcard dictBuilder/*.c))
 ZDEPR_FILES := $(sort $(wildcard deprecated/*.c))
 ZSTD_FILES := $(ZSTDCOMMON_FILES)
 
-decompress/zstd_decompress_block.o : CFLAGS+=-fno-tree-vectorize
+ifeq ($(findstring GCC,$(CCVER)),GCC)
+decompress/zstd_decompress_block.o :	CFLAGS+=-fno-tree-vectorize
+endif
 
 ZSTD_LEGACY_SUPPORT ?= 5
 ZSTD_LIB_COMPRESSION ?= 1

@@ -2542,6 +2542,7 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
         op[0] = (BYTE)((nbSeq>>8) + 0x80), op[1] = (BYTE)nbSeq, op+=2;
     else
         op[0]=0xFF, MEM_writeLE16(op+1, (U16)(nbSeq - LONGNBSEQ)), op+=3;
+    assert(op <= oend);
     if (nbSeq==0) {
         /* Copy the old tables over as if we repeated them */
         memcpy(&nextEntropy->fse, &prevEntropy->fse, sizeof(prevEntropy->fse));
@@ -2550,6 +2551,7 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
 
     /* seqHead : flags for FSE encoding type */
     seqHead = op++;
+    assert(op <= oend);
 
     /* convert length/distances into codes */
     ZSTD_seqToCodes(seqStorePtr);
@@ -2573,6 +2575,7 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
             if (LLtype == set_compressed)
                 lastNCount = op;
             op += countSize;
+            assert(op <= oend);
     }   }
     /* build CTable for Offsets */
     {   unsigned max = MaxOff;
@@ -2595,6 +2598,7 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
             if (Offtype == set_compressed)
                 lastNCount = op;
             op += countSize;
+            assert(op <= oend);
     }   }
     /* build CTable for MatchLengths */
     {   unsigned max = MaxML;
@@ -2615,6 +2619,7 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
             if (MLtype == set_compressed)
                 lastNCount = op;
             op += countSize;
+            assert(op <= oend);
     }   }
 
     *seqHead = (BYTE)((LLtype<<6) + (Offtype<<4) + (MLtype<<2));
@@ -2628,6 +2633,7 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
                                         longOffsets, bmi2);
         FORWARD_IF_ERROR(bitstreamSize);
         op += bitstreamSize;
+        assert(op <= oend);
         /* zstd versions <= 1.3.4 mistakenly report corruption when
          * FSE_readNCount() receives a buffer < 4 bytes.
          * Fixed by https://github.com/facebook/zstd/pull/1146.

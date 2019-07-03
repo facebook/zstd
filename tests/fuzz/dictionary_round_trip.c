@@ -69,7 +69,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 {
     size_t const rBufSize = size;
     void* rBuf = malloc(rBufSize);
-    size_t cBufSize = ZSTD_compressBound(size);
+    size_t cBufSize = ZSTD_compressBound(size) * 2;
     void* cBuf;
 
     seed = FUZZ_seed(&src, &size);

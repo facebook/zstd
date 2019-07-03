@@ -90,6 +90,7 @@ void FUZZ_setRandomParameters(ZSTD_CCtx *cctx, size_t srcSize, uint32_t *state)
     setRand(cctx, ZSTD_c_forceMaxWindow, 0, 1, state);
     setRand(cctx, ZSTD_c_literalCompressionMode, 0, 2, state);
     setRand(cctx, ZSTD_c_forceAttachDict, 0, 2, state);
+    if (FUZZ_rand32(state, 0, 1)) setRand(cctx, ZSTD_c_targetCBlockSize, ZSTD_TARGETCBLOCKSIZE_MIN, ZSTD_TARGETCBLOCKSIZE_MAX, state);
 }
 
 FUZZ_dict_t FUZZ_train(void const* src, size_t srcSize, uint32_t *state)

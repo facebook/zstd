@@ -216,7 +216,7 @@ void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length, ZSTD_overlap_e 
     BYTE* op = (BYTE*)dst;
     BYTE* const oend = op + length;
 
-    assert(diff >= 8);
+    assert(diff >= 8 || (ovtype == ZSTD_no_overlap && diff < -8));
     if (length < VECLEN || (ovtype == ZSTD_overlap_src_before_dst && diff < VECLEN)) {
       do
           COPY8(op, ip)
@@ -242,7 +242,7 @@ void ZSTD_wildcopy_16min(void* dst, const void* src, ptrdiff_t length, ZSTD_over
     BYTE* const oend = op + length;
 
     assert(length >= 8);
-    assert(diff >= 8);
+    assert(diff >= 8 || (ovtype == ZSTD_no_overlap && diff < -8));
     if (ovtype == ZSTD_overlap_src_before_dst && diff < VECLEN) {
       do
           COPY8(op, ip)

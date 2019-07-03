@@ -427,7 +427,7 @@ size_t HUF_buildCTable (HUF_CElt* tree, const unsigned* count, unsigned maxSymbo
     return HUF_buildCTable_wksp(tree, count, maxSymbolValue, maxNbBits, nodeTable, sizeof(nodeTable));
 }
 
-static size_t HUF_estimateCompressedSize(HUF_CElt* CTable, const unsigned* count, unsigned maxSymbolValue)
+size_t HUF_estimateCompressedSize(const HUF_CElt* CTable, const unsigned* count, unsigned maxSymbolValue)
 {
     size_t nbBits = 0;
     int s;

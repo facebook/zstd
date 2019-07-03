@@ -319,6 +319,20 @@ MEM_STATIC int ZSTD_cParam_withinBounds(ZSTD_cParameter cParam, int value)
     return 1;
 }
 
+/* ZSTD_noCompressBlock() :
+ * Writes uncompressed block to dst buffer from given src.
+ * Returns the size of the block */
+MEM_STATIC size_t ZSTD_noCompressBlock (void* dst, size_t dstCapacity, const void* src, size_t srcSize, U32 lastBlock)
+{
+    U32 const cBlockHeader24 = lastBlock + (((U32)bt_raw)<<1) + (U32)(srcSize << 3);
+    RETURN_ERROR_IF(srcSize + ZSTD_blockHeaderSize > dstCapacity,
+                    dstSize_tooSmall);
+    MEM_writeLE24(dst, cBlockHeader24);
+    memcpy((BYTE*)dst + ZSTD_blockHeaderSize, src, srcSize);
+    return ZSTD_blockHeaderSize + srcSize;
+}
+
+
 /* ZSTD_minGain() :
  * minimum compression required
  * to generate a compress block or a compressed literals section.

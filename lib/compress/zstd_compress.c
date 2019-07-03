@@ -20,6 +20,7 @@
 #include "fse.h"
 #define HUF_STATIC_LINKING_ONLY
 #include "huf.h"
+#include "zstd_compress_superblock.h"
 #include "zstd_compress_internal.h"
 #include "zstd_compress_sequences.h"
 #include "zstd_compress_literals.h"
@@ -33,6 +34,13 @@
 /*-*************************************
 *  Helper functions
 ***************************************/
+/* ZSTD_compressBound()
+ * Note that the result from this function is only compatible with the "normal"
+ * full-block strategy.
+ * When there are a lot of small blocks due to frequent flush in streaming mode
+ * or targetCBlockSize, the overhead of headers can make the compressed data to
+ * be larger than the return value of ZSTD_compressBound().
+ */
 size_t ZSTD_compressBound(size_t srcSize) {
     return ZSTD_COMPRESSBOUND(srcSize);
 }
@@ -1860,16 +1868,6 @@ static void ZSTD_reduceIndex (ZSTD_CCtx* zc, const U32 reducerValue)
 
 /* See doc/zstd_compression_format.md for detailed format description */
 
-static size_t ZSTD_noCompressBlock (void* dst, size_t dstCapacity, const void* src, size_t srcSize, U32 lastBlock)
-{
-    U32 const cBlockHeader24 = lastBlock + (((U32)bt_raw)<<1) + (U32)(srcSize << 3);
-    RETURN_ERROR_IF(srcSize + ZSTD_blockHeaderSize > dstCapacity,
-                    dstSize_tooSmall);
-    MEM_writeLE24(dst, cBlockHeader24);
-    memcpy((BYTE*)dst + ZSTD_blockHeaderSize, src, srcSize);
-    return ZSTD_blockHeaderSize + srcSize;
-}
-
 void ZSTD_seqToCodes(const seqStore_t* seqStorePtr)
 {
     const seqDef* const sequences = seqStorePtr->sequencesStart;
@@ -1905,6 +1903,16 @@ static int ZSTD_disableLiteralsCompression(const ZSTD_CCtx_params* cctxParams)
     case ZSTD_lcm_auto:
         return (cctxParams->cParams.strategy == ZSTD_fast) && (cctxParams->cParams.targetLength > 0);
     }
+}
+
+/* ZSTD_useTargetCBlockSize():
+ * Returns if target compressed block size param is being used.
+ * If used, compression will do best effort to make a compressed block size to be around targetCBlockSize.
+ * Returns 1 if true, 0 otherwise. */
+static int ZSTD_useTargetCBlockSize(const ZSTD_CCtx_params* cctxParams)
+{
+    DEBUGLOG(5, "ZSTD_useTargetCBlockSize (targetCBlockSize=%zu)", cctxParams->targetCBlockSize);
+    return (cctxParams->targetCBlockSize != 0);
 }
 
 /* ZSTD_compressSequences_internal():
@@ -2274,6 +2282,70 @@ out:
     return cSize;
 }
 
+static size_t ZSTD_compressBlock_targetCBlockSize(ZSTD_CCtx* zc,
+                               void* dst, size_t dstCapacity,
+                               const void* src, size_t srcSize,
+                               U32 lastBlock) {
+    size_t cSize = 0;
+    DEBUGLOG(5, "ZSTD_compressBlock_targetCBlockSize (dstCapacity=%u, dictLimit=%u, nextToUpdate=%u, srcSize=%zu)",
+                (unsigned)dstCapacity, (unsigned)zc->blockState.matchState.window.dictLimit, (unsigned)zc->blockState.matchState.nextToUpdate, srcSize);
+
+    {   const size_t bss = ZSTD_buildSeqStore(zc, src, srcSize);
+        FORWARD_IF_ERROR(bss);
+        if (bss == ZSTDbss_compress) {
+            cSize = ZSTD_compressSuperBlock(zc, dst, dstCapacity, lastBlock);
+    }   }
+
+    /* Superblock compression may fail, in which case
+     * encode using ZSTD_noCompressSuperBlock writing sub blocks
+     * in uncompressed mode.
+     */
+    if (cSize == 0) {
+        cSize = ZSTD_noCompressSuperBlock(dst, dstCapacity, src, srcSize, zc->appliedParams.targetCBlockSize, lastBlock);
+        /* In compression, there is an assumption that a compressed block is always
+         * within the size of ZSTD_compressBound(). However, SuperBlock compression
+         * can exceed the limit due to overhead of headers from SubBlocks.
+         * This breaks in streaming mode where output buffer in compress context is
+         * allocated ZSTD_compressBound() amount of memory, which may not be big
+         * enough for SuperBlock compression.
+         * In such case, fall back to normal compression. This is possible because
+         * targetCBlockSize is best effort not a guarantee. */
+        if (cSize != ERROR(dstSize_tooSmall)) return cSize;
+        else {
+            BYTE* const ostart = (BYTE*)dst;
+            /* If ZSTD_noCompressSuperBlock fails with dstSize_tooSmall,
+             * compress normally.
+             */
+            cSize = ZSTD_compressSequences(&zc->seqStore,
+                    &zc->blockState.prevCBlock->entropy, &zc->blockState.nextCBlock->entropy,
+                    &zc->appliedParams,
+                    ostart+ZSTD_blockHeaderSize, dstCapacity-ZSTD_blockHeaderSize,
+                    srcSize,
+                    zc->entropyWorkspace, HUF_WORKSPACE_SIZE /* statically allocated in resetCCtx */,
+                    zc->bmi2);
+            if (!ZSTD_isError(cSize) && cSize != 0) {
+                U32 const cBlockHeader24 = lastBlock + (((U32)bt_compressed)<<1) + (U32)(cSize << 3);
+                MEM_writeLE24(ostart, cBlockHeader24);
+                cSize += ZSTD_blockHeaderSize;
+            }
+        }
+    }
+
+    if (!ZSTD_isError(cSize) && cSize != 0) {
+        /* confirm repcodes and entropy tables when emitting a compressed block */
+        ZSTD_compressedBlockState_t* const tmp = zc->blockState.prevCBlock;
+        zc->blockState.prevCBlock = zc->blockState.nextCBlock;
+        zc->blockState.nextCBlock = tmp;
+    }
+    /* We check that dictionaries have offset codes available for the first
+     * block. After the first block, the offcode table might not have large
+     * enough codes to represent the offsets in the data.
+     */
+    if (zc->blockState.prevCBlock->entropy.fse.offcode_repeatMode == FSE_repeat_valid)
+        zc->blockState.prevCBlock->entropy.fse.offcode_repeatMode = FSE_repeat_check;
+
+    return cSize;
+}
 
 /*! ZSTD_compress_frameChunk() :
 *   Compress a chunk of data into one or multiple blocks.
@@ -2326,19 +2398,27 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
         /* Ensure hash/chain table insertion resumes no sooner than lowlimit */
         if (ms->nextToUpdate < ms->window.lowLimit) ms->nextToUpdate = ms->window.lowLimit;
 
-        {   size_t cSize = ZSTD_compressBlock_internal(cctx,
-                                op+ZSTD_blockHeaderSize, dstCapacity-ZSTD_blockHeaderSize,
-                                ip, blockSize);
-            FORWARD_IF_ERROR(cSize);
-
-            if (cSize == 0) {  /* block is not compressible */
-                cSize = ZSTD_noCompressBlock(op, dstCapacity, ip, blockSize, lastBlock);
+        {   int useTargetCBlockSize = ZSTD_useTargetCBlockSize(&cctx->appliedParams);
+            size_t cSize = 0;
+            if (useTargetCBlockSize) {
+                cSize = ZSTD_compressBlock_targetCBlockSize(cctx, op, dstCapacity, ip, blockSize, lastBlock);
                 FORWARD_IF_ERROR(cSize);
             } else {
-                U32 const cBlockHeader24 = lastBlock + (((U32)bt_compressed)<<1) + (U32)(cSize << 3);
-                MEM_writeLE24(op, cBlockHeader24);
-                cSize += ZSTD_blockHeaderSize;
+                cSize = ZSTD_compressBlock_internal(cctx,
+                                        op+ZSTD_blockHeaderSize, dstCapacity-ZSTD_blockHeaderSize,
+                                        ip, blockSize);
+                FORWARD_IF_ERROR(cSize);
+
+                if (cSize == 0) {  /* block is not compressible */
+                    cSize = ZSTD_noCompressBlock(op, dstCapacity, ip, blockSize, lastBlock);
+                    FORWARD_IF_ERROR(cSize);
+                } else {
+                    U32 const cBlockHeader24 = lastBlock + (((U32)bt_compressed)<<1) + (U32)(cSize << 3);
+                    MEM_writeLE24(op, cBlockHeader24);
+                    cSize += ZSTD_blockHeaderSize;
+                }
             }
+
 
             ip += blockSize;
             assert(remaining >= blockSize);

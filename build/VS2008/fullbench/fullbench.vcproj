@@ -373,6 +373,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\lib\compress\zstd_compress_superblock.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\lib\compress\zstdmt_compress.c"
 				>
 			</File>
@@ -508,6 +512,10 @@
 			</File>
 			<File
 				RelativePath="..\..\..\lib\compress\zstd_compress_sequences.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstd_compress_superblock.h"
 				>
 			</File>
 			<File

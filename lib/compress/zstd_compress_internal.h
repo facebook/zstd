@@ -307,6 +307,30 @@ MEM_STATIC U32 ZSTD_MLcode(U32 mlBase)
     return (mlBase > 127) ? ZSTD_highbit32(mlBase) + ML_deltaCode : ML_Code[mlBase];
 }
 
+/* ZSTD_cParam_withinBounds:
+ * @return 1 if value is within cParam bounds,
+ * 0 otherwise */
+MEM_STATIC int ZSTD_cParam_withinBounds(ZSTD_cParameter cParam, int value)
+{
+    ZSTD_bounds const bounds = ZSTD_cParam_getBounds(cParam);
+    if (ZSTD_isError(bounds.error)) return 0;
+    if (value < bounds.lowerBound) return 0;
+    if (value > bounds.upperBound) return 0;
+    return 1;
+}
+
+/* ZSTD_minGain() :
+ * minimum compression required
+ * to generate a compress block or a compressed literals section.
+ * note : use same formula for both situations */
+MEM_STATIC size_t ZSTD_minGain(size_t srcSize, ZSTD_strategy strat)
+{
+    U32 const minlog = (strat>=ZSTD_btultra) ? (U32)(strat) - 1 : 6;
+    ZSTD_STATIC_ASSERT(ZSTD_btultra == 8);
+    assert(ZSTD_cParam_withinBounds(ZSTD_c_strategy, strat));
+    return (srcSize >> minlog) + 2;
+}
+
 /*! ZSTD_storeSeq() :
  *  Store a sequence (literal length, literals, offset code and match length code) into seqStore_t.
  *  `offsetCode` : distance to match + 3 (values 1-3 are repCodes).

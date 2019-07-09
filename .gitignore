@@ -14,10 +14,7 @@
 *.dylib
 
 # Executables
-zstd
-!build/VS2008/zstd
-!build/VS2010/zstd
-!contrib/VS2005/zstd
+zstd.
 zstdmt
 *.exe
 *.out
@@ -25,11 +22,7 @@ zstdmt
 
 # Test artefacts
 tmp*
-dictionary*
-!examples/dictionary_compression.c
-!examples/dictionary_decompression.c
-!tests/fuzz/dictionary_decompress.c
-!tests/fuzz/dictionary_round_trip.c
+dictionary.
 NUL
 
 # Build artefacts

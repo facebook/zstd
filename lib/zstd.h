@@ -71,7 +71,7 @@ extern "C" {
 /*------   Version   ------*/
 #define ZSTD_VERSION_MAJOR    1
 #define ZSTD_VERSION_MINOR    4
-#define ZSTD_VERSION_RELEASE  0
+#define ZSTD_VERSION_RELEASE  1
 
 #define ZSTD_VERSION_NUMBER  (ZSTD_VERSION_MAJOR *100*100 + ZSTD_VERSION_MINOR *100 + ZSTD_VERSION_RELEASE)
 ZSTDLIB_API unsigned ZSTD_versionNumber(void);   /**< to check runtime library version */
@@ -183,9 +183,14 @@ ZSTDLIB_API int         ZSTD_maxCLevel(void);               /*!< maximum compres
 ***************************************/
 /*= Compression context
  *  When compressing many times,
- *  it is recommended to allocate a context just once, and re-use it for each successive compression operation.
+ *  it is recommended to allocate a context just once,
+ *  and re-use it for each successive compression operation.
  *  This will make workload friendlier for system's memory.
- *  Use one context per thread for parallel execution in multi-threaded environments. */
+ *  Note : re-using context is just a speed / resource optimization.
+ *         It doesn't change the compression ratio, which remains identical.
+ *  Note 2 : In multi-threaded environments,
+ *         use one different context per thread for parallel execution.
+ */
 typedef struct ZSTD_CCtx_s ZSTD_CCtx;
 ZSTDLIB_API ZSTD_CCtx* ZSTD_createCCtx(void);
 ZSTDLIB_API size_t     ZSTD_freeCCtx(ZSTD_CCtx* cctx);

@@ -1,10 +1,10 @@
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-<title>zstd 1.4.0 Manual</title>
+<title>zstd 1.4.1 Manual</title>
 </head>
 <body>
-<h1>zstd 1.4.0 Manual</h1>
+<h1>zstd 1.4.1 Manual</h1>
 <hr>
 <a name="Contents"></a><h2>Contents</h2>
 <ol>
@@ -141,9 +141,14 @@ int         ZSTD_maxCLevel(void);               </b>/*!< maximum compression lev
 <a name="Chapter4"></a><h2>Explicit context</h2><pre></pre>
 
 <h3>Compression context</h3><pre>  When compressing many times,
-  it is recommended to allocate a context just once, and re-use it for each successive compression operation.
+  it is recommended to allocate a context just once,
+  and re-use it for each successive compression operation.
   This will make workload friendlier for system's memory.
-  Use one context per thread for parallel execution in multi-threaded environments. 
+  Note : re-using context is just a speed / resource optimization.
+         It doesn't change the compression ratio, which remains identical.
+  Note 2 : In multi-threaded environments,
+         use one different context per thread for parallel execution.
+ 
 </pre><b><pre>typedef struct ZSTD_CCtx_s ZSTD_CCtx;
 ZSTD_CCtx* ZSTD_createCCtx(void);
 size_t     ZSTD_freeCCtx(ZSTD_CCtx* cctx);

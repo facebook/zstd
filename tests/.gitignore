@@ -55,6 +55,7 @@ _*
 tmp*
 *.zst
 *.gz
+!gzip/hufts-segv.gz
 result
 out
 *.zstd

@@ -1153,12 +1153,16 @@ size_t ZSTDMT_toFlushNow(ZSTDMT_CCtx* mtctx)
 
 static unsigned ZSTDMT_computeTargetJobLog(ZSTD_CCtx_params const params)
 {
-    if (params.ldmParams.enableLdm)
+    unsigned jobLog;
+    if (params.ldmParams.enableLdm) {
         /* In Long Range Mode, the windowLog is typically oversized.
          * In which case, it's preferable to determine the jobSize
          * based on chainLog instead. */
-        return MAX(21, params.cParams.chainLog + 4);
-    return MAX(20, params.cParams.windowLog + 2);
+        jobLog = MAX(21, params.cParams.chainLog + 4);
+    } else {
+        jobLog = MAX(20, params.cParams.windowLog + 2);
+    }
+    return MIN(jobLog, (unsigned)ZSTDMT_JOBLOG_MAX);
 }
 
 static int ZSTDMT_overlapLog_default(ZSTD_strategy strat)
@@ -1396,7 +1400,7 @@ size_t ZSTDMT_initCStream_internal(
         FORWARD_IF_ERROR( ZSTDMT_resize(mtctx, params.nbWorkers) );
 
     if (params.jobSize != 0 && params.jobSize < ZSTDMT_JOBSIZE_MIN) params.jobSize = ZSTDMT_JOBSIZE_MIN;
-    if (params.jobSize > (size_t)ZSTDMT_JOBSIZE_MAX) params.jobSize = ZSTDMT_JOBSIZE_MAX;
+    if (params.jobSize > (size_t)ZSTDMT_JOBSIZE_MAX) params.jobSize = (size_t)ZSTDMT_JOBSIZE_MAX;
 
     mtctx->singleBlockingThread = (pledgedSrcSize <= ZSTDMT_JOBSIZE_MIN);  /* do not trigger multi-threading when srcSize is too small */
     if (mtctx->singleBlockingThread) {
@@ -1437,6 +1441,8 @@ size_t ZSTDMT_initCStream_internal(
     if (mtctx->targetSectionSize == 0) {
         mtctx->targetSectionSize = 1ULL << ZSTDMT_computeTargetJobLog(params);
     }
+    assert(mtctx->targetSectionSize <= (size_t)ZSTDMT_JOBSIZE_MAX);
+
     if (params.rsyncable) {
         /* Aim for the targetsectionSize as the average job size. */
         U32 const jobSizeMB = (U32)(mtctx->targetSectionSize >> 20);

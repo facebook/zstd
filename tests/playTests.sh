@@ -974,6 +974,10 @@ then
     roundTripTest -g500000000 -P97 "1 -T999" " "
     fileRoundTripTest -g4103M -P98 " -T0" " "
     roundTripTest -g400000000 -P97 "1 --long=24 -T2" " "
+    # Exposes the bug in https://github.com/facebook/zstd/pull/1678
+    # This test fails on 4 different travis builds at the time of writing
+    # because it needs to allocate 8 GB of memory.
+    # roundTripTest -g10G -P99 "1 -T1 --long=31 --zstd=clog=27 --fast=1000"
 else
     println "\n**** no multithreading, skipping zstdmt tests **** "
 fi

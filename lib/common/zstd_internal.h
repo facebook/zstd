@@ -223,13 +223,12 @@ void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length, ZSTD_overlap_e 
       while (op < oend);
     }
     else {
+      if ((length & 8) == 0)
+        COPY8(op, ip);
       do {
         COPY16(op, ip);
       }
-      while (op < oend - 8);
-
-      if (op < oend)
-        COPY8(op, ip);
+      while (op < oend);
     }
 }
 
@@ -252,13 +251,12 @@ void ZSTD_wildcopy_16min(void* dst, const void* src, ptrdiff_t length, ZSTD_over
       while (op < oend);
     }
     else {
+      if ((length & 8) == 0)
+        COPY8(op, ip);
       do {
         COPY16(op, ip);
       }
-      while (op < oend - 8);
-
-      if (op < oend)
-        COPY8(op, ip);
+      while (op < oend);
     }
 }
 

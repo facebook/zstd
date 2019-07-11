@@ -254,11 +254,23 @@ _match_stored:
         anchor = ip;
 
         if (ip <= ilimit) {
-            /* Fill Table */
-            hashLong[ZSTD_hashPtr(base+current+2, hBitsL, 8)] =
-                hashSmall[ZSTD_hashPtr(base+current+2, hBitsS, mls)] = current+2;  /* here because current+2 could be > iend-8 */
-            hashLong[ZSTD_hashPtr(ip-2, hBitsL, 8)] =
-                hashSmall[ZSTD_hashPtr(ip-2, hBitsS, mls)] = (U32)(ip-2-base);
+            /* Complementary insertion */
+            /* done after iLimit test, as candidates could be > iend-8 */
+            {   U32 const indexToInsert = current+2;
+                hashLong[ZSTD_hashPtr(base+indexToInsert, hBitsL, 8)] =
+                    hashSmall[ZSTD_hashPtr(base+indexToInsert, hBitsS, mls)] =
+                        indexToInsert;
+            }
+            {   const BYTE* const ipToInsert = ip - 2;
+                hashLong[ZSTD_hashPtr(ipToInsert, hBitsL, 8)] =
+                    hashSmall[ZSTD_hashPtr(ipToInsert, hBitsS, mls)] =
+                        (U32)(ipToInsert-base);
+            }
+            {   const BYTE* const ipToInsert = ip - 1;
+                hashLong[ZSTD_hashPtr(ipToInsert, hBitsL, 8)] =
+                    hashSmall[ZSTD_hashPtr(ipToInsert, hBitsS, mls)] =
+                        (U32)(ipToInsert-base);
+            }
 
             /* check immediate repcode */
             if (dictMode == ZSTD_dictMatchState) {
@@ -452,16 +464,28 @@ static size_t ZSTD_compressBlock_doubleFast_extDict_generic(
                 continue;
         }   }
 
-        /* found a match : store it */
+        /* move to next sequence start */
         ip += mLength;
         anchor = ip;
 
         if (ip <= ilimit) {
-            /* Fill Table */
-            hashSmall[ZSTD_hashPtr(base+current+2, hBitsS, mls)] = current+2;
-            hashLong[ZSTD_hashPtr(base+current+2, hBitsL, 8)] = current+2;
-            hashSmall[ZSTD_hashPtr(ip-2, hBitsS, mls)] = (U32)(ip-2-base);
-            hashLong[ZSTD_hashPtr(ip-2, hBitsL, 8)] = (U32)(ip-2-base);
+            /* Complementary insertion */
+            /* done after iLimit test, as candidates could be > iend-8 */
+            {   U32 const indexToInsert = current+2;
+                hashLong[ZSTD_hashPtr(base+indexToInsert, hBitsL, 8)] =
+                    hashSmall[ZSTD_hashPtr(base+indexToInsert, hBitsS, mls)] =
+                        indexToInsert;
+            }
+            {   const BYTE* const ipToInsert = ip - 2;
+                hashLong[ZSTD_hashPtr(ipToInsert, hBitsL, 8)] =
+                    hashSmall[ZSTD_hashPtr(ipToInsert, hBitsS, mls)] =
+                        (U32)(ipToInsert-base);
+            }
+            {   const BYTE* const ipToInsert = ip - 1;
+                hashLong[ZSTD_hashPtr(ipToInsert, hBitsL, 8)] =
+                    hashSmall[ZSTD_hashPtr(ipToInsert, hBitsS, mls)] =
+                        (U32)(ipToInsert-base);
+            }
             /* check immediate repcode */
             while (ip <= ilimit) {
                 U32 const current2 = (U32)(ip-base);

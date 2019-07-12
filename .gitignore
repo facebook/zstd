@@ -14,7 +14,7 @@
 *.dylib
 
 # Executables
-zstd.
+/zstd
 zstdmt
 *.exe
 *.out

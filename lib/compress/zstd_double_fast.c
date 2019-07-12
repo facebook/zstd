@@ -463,20 +463,12 @@ static size_t ZSTD_compressBlock_doubleFast_extDict_generic(
             /* Complementary insertion */
             /* done after iLimit test, as candidates could be > iend-8 */
             {   U32 const indexToInsert = current+2;
-                hashLong[ZSTD_hashPtr(base+indexToInsert, hBitsL, 8)] =
-                    hashSmall[ZSTD_hashPtr(base+indexToInsert, hBitsS, mls)] =
-                        indexToInsert;
+                hashLong[ZSTD_hashPtr(base+indexToInsert, hBitsL, 8)] = indexToInsert;
+                hashLong[ZSTD_hashPtr(ip-2, hBitsL, 8)] = (U32)(ip-2-base);
+                hashSmall[ZSTD_hashPtr(base+indexToInsert, hBitsS, mls)] = indexToInsert;
+                hashSmall[ZSTD_hashPtr(ip-1, hBitsS, mls)] = (U32)(ip-1-base);
             }
-            {   const BYTE* const ipToInsert = ip - 2;
-                hashLong[ZSTD_hashPtr(ipToInsert, hBitsL, 8)] =
-                    hashSmall[ZSTD_hashPtr(ipToInsert, hBitsS, mls)] =
-                        (U32)(ipToInsert-base);
-            }
-            {   const BYTE* const ipToInsert = ip - 1;
-                hashLong[ZSTD_hashPtr(ipToInsert, hBitsL, 8)] =
-                    hashSmall[ZSTD_hashPtr(ipToInsert, hBitsS, mls)] =
-                        (U32)(ipToInsert-base);
-            }
+
             /* check immediate repcode */
             while (ip <= ilimit) {
                 U32 const current2 = (U32)(ip-base);

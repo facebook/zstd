@@ -223,6 +223,80 @@ struct ZSTD_CCtx_params_s {
     ZSTD_customMem customMem;
 };  /* typedef'd to ZSTD_CCtx_params within "zstd.h" */
 
+/**
+ * Zstd fits all its internal datastructures into a single continuous buffer,
+ * so that it only needs to perform a single OS allocation (or so that a buffer
+ * can be provided to it and it can perform no allocations at all). This buffer
+ * is called the workspace.
+ *
+ * Several optimizations complicate that process of allocating memory ranges
+ * from this workspace for each datastructure:
+ *
+ * - These different internal datastructures have different setup requirements.
+ *   Some (e.g., the window buffer) don't care, and are happy to accept
+ *   uninitialized memory. Others (e.g., the matchstate tables) can accept
+ *   memory filled with unknown but bounded values (i.e., a memory area whose 
+ *   values are known to be constrained between 0 and some upper bound). If
+ *   that constraint isn't known to be satisfied, the area has to be cleared.
+ *
+ * - We would like to reuse the objects in the workspace for multiple
+ *   compressions without having to perform any expensive reallocation or
+ *   reinitialization work.
+ *
+ * - We would like to be able to efficiently reuse the workspace across
+ *   multiple compressions **even when the compression parameters change** and
+ *   we need to resize some of the objects (where possible).
+ *
+ * Workspace Layout:
+ *
+ * In order to accomplish this, the various objects that live in the workspace
+ * are divided into the following categories:
+ *
+ * - Static objects: this is optionally the enclosing ZSTD_CCtx or ZSTD_CDict,
+ *   so that literally everything fits in a single buffer.
+ *
+ * - Fixed size objects: these are fixed-size, fixed-count objects that are
+ *   nonetheless "dynamically" allocated in the workspace so that we can
+ *   control how they're initialized separately from the broader ZSTD_CCtx.
+ *   Examples:
+ *   - Entropy Workspace
+ *   - 2 x ZSTD_compressedBlockState_t
+ *
+ * - Tables: these are any of several different datastructures (hash tables,
+ *   chain tables, binary trees) that all respect a common format: they are
+ *   uint32_t arrays, all of whose values are between 0 and (nextSrc - base).
+ *   Their sizes depend on the cparams.
+ *
+ * - Uninitialized memory: these buffers are used for various purposes that
+ *   don't require any initialization before they're used. This means they can
+ *   be moved around at no cost for a new compression.
+ *   - I/O Buffers
+ *
+ * [workspace, workspace + workspaceSize)
+ * []
+ */
+typedef struct {
+    void* workspace;
+    void* workspaceEnd;
+
+    void* objectEnd;
+
+    // // void* tableZoneStart;
+    // void* tableAllocStart;
+    // void* tableAllocEnd;
+    // // void* tableZoneEnd;
+
+    // void* seqEnd;
+
+    // void* bufferBegin;
+
+    void* allocEnd;
+    int allocFailed;
+
+    int workspaceOversizedDuration;
+    int staticAllocDone;
+} ZSTD_CCtx_workspace;
+
 struct ZSTD_CCtx_s {
     ZSTD_compressionStage_e stage;
     int cParamsChanged;                  /* == 1 if cParams(except wlog) or compression level are changed in requestedParams. Triggers transmission of new params to ZSTDMT (if available) then reset to 0. */
@@ -231,9 +305,7 @@ struct ZSTD_CCtx_s {
     ZSTD_CCtx_params appliedParams;
     U32   dictID;
 
-    int workspaceOversizedDuration;
-    void* workspace;
-    size_t workspaceSize;
+    ZSTD_CCtx_workspace workspace; /* manages buffer for dynamic allocations */
     size_t blockSize;
     unsigned long long pledgedSrcSizePlusOne;  /* this way, 0 (default) == unknown */
     unsigned long long consumedSrcSize;

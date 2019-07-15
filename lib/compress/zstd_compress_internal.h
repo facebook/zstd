@@ -231,9 +231,9 @@ struct ZSTD_CCtx_s {
     ZSTD_CCtx_params appliedParams;
     U32   dictID;
 
-    int workSpaceOversizedDuration;
-    void* workSpace;
-    size_t workSpaceSize;
+    int workspaceOversizedDuration;
+    void* workspace;
+    size_t workspaceSize;
     size_t blockSize;
     unsigned long long pledgedSrcSizePlusOne;  /* this way, 0 (default) == unknown */
     unsigned long long consumedSrcSize;

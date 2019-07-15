@@ -89,13 +89,13 @@ ZSTD_CCtx* ZSTD_initStaticCCtx(void *workspace, size_t workspaceSize)
     if ((size_t)workspace & 7) return NULL;  /* must be 8-aligned */
     memset(workspace, 0, workspaceSize);   /* may be a bit generous, could memset be smaller ? */
     cctx->staticSize = workspaceSize;
-    cctx->workSpace = (void*)(cctx+1);
-    cctx->workSpaceSize = workspaceSize - sizeof(ZSTD_CCtx);
+    cctx->workspace = (void*)(cctx+1);
+    cctx->workspaceSize = workspaceSize - sizeof(ZSTD_CCtx);
 
     /* statically sized space. entropyWorkspace never moves (but prev/next block swap places) */
-    if (cctx->workSpaceSize < HUF_WORKSPACE_SIZE + 2 * sizeof(ZSTD_compressedBlockState_t)) return NULL;
-    assert(((size_t)cctx->workSpace & (sizeof(void*)-1)) == 0);   /* ensure correct alignment */
-    cctx->blockState.prevCBlock = (ZSTD_compressedBlockState_t*)cctx->workSpace;
+    if (cctx->workspaceSize < HUF_WORKSPACE_SIZE + 2 * sizeof(ZSTD_compressedBlockState_t)) return NULL;
+    assert(((size_t)cctx->workspace & (sizeof(void*)-1)) == 0);   /* ensure correct alignment */
+    cctx->blockState.prevCBlock = (ZSTD_compressedBlockState_t*)cctx->workspace;
     cctx->blockState.nextCBlock = cctx->blockState.prevCBlock + 1;
     {
         void* const ptr = cctx->blockState.nextCBlock + 1;
@@ -128,7 +128,7 @@ static void ZSTD_freeCCtxContent(ZSTD_CCtx* cctx)
 {
     assert(cctx != NULL);
     assert(cctx->staticSize == 0);
-    ZSTD_free(cctx->workSpace, cctx->customMem); cctx->workSpace = NULL;
+    ZSTD_free(cctx->workspace, cctx->customMem); cctx->workspace = NULL;
     ZSTD_clearAllDicts(cctx);
 #ifdef ZSTD_MULTITHREAD
     ZSTDMT_freeCCtx(cctx->mtctx); cctx->mtctx = NULL;
@@ -160,7 +160,7 @@ static size_t ZSTD_sizeof_mtctx(const ZSTD_CCtx* cctx)
 size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx)
 {
     if (cctx==NULL) return 0;   /* support sizeof on NULL */
-    return sizeof(*cctx) + cctx->workSpaceSize
+    return sizeof(*cctx) + cctx->workspaceSize
            + ZSTD_sizeof_localDict(cctx->localDict)
            + ZSTD_sizeof_mtctx(cctx);
 }
@@ -1101,7 +1101,7 @@ size_t ZSTD_estimateCCtxSize_usingCCtxParams(const ZSTD_CCtx_params* params)
                                    matchStateSize + ldmSpace + ldmSeqSpace;
 
         DEBUGLOG(5, "sizeof(ZSTD_CCtx) : %u", (U32)sizeof(ZSTD_CCtx));
-        DEBUGLOG(5, "estimate workSpace : %u", (U32)neededSpace);
+        DEBUGLOG(5, "estimate workspace : %u", (U32)neededSpace);
         return sizeof(ZSTD_CCtx) + neededSpace;
     }
 }
@@ -1444,8 +1444,8 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                                   zc->seqStore.maxNbSeq, zc->seqStore.maxNbLit,
                                   zbuff, pledgedSrcSize) ) {
             DEBUGLOG(4, "ZSTD_equivalentParams()==1 -> consider continue mode");
-            zc->workSpaceOversizedDuration += (zc->workSpaceOversizedDuration > 0);   /* if it was too large, it still is */
-            if (zc->workSpaceOversizedDuration <= ZSTD_WORKSPACETOOLARGE_MAXDURATION) {
+            zc->workspaceOversizedDuration += (zc->workspaceOversizedDuration > 0);   /* if it was too large, it still is */
+            if (zc->workspaceOversizedDuration <= ZSTD_WORKSPACETOOLARGE_MAXDURATION) {
                 DEBUGLOG(4, "continue mode confirmed (wLog1=%u, blockSize1=%zu)",
                             zc->appliedParams.cParams.windowLog, zc->blockSize);
                 if (ZSTD_indexTooCloseToMax(zc->blockState.matchState.window)) {
@@ -1476,9 +1476,9 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         size_t const buffInSize = (zbuff==ZSTDb_buffered) ? windowSize + blockSize : 0;
         size_t const matchStateSize = ZSTD_sizeof_matchState(&params.cParams, /* forCCtx */ 1);
         size_t const maxNbLdmSeq = ZSTD_ldm_getMaxNbSeq(params.ldmParams, blockSize);
-        void* ptr;   /* used to partition workSpace */
+        void* ptr;   /* used to partition workspace */
 
-        /* Check if workSpace is large enough, alloc a new one if needed */
+        /* Check if workspace is large enough, alloc a new one if needed */
         {   size_t const entropySpace = HUF_WORKSPACE_SIZE;
             size_t const blockStateSpace = 2 * sizeof(ZSTD_compressedBlockState_t);
             size_t const bufferSpace = buffInSize + buffOutSize;
@@ -1489,35 +1489,35 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                                        ldmSeqSpace + matchStateSize + tokenSpace +
                                        bufferSpace;
 
-            int const workSpaceTooSmall = zc->workSpaceSize < neededSpace;
-            int const workSpaceTooLarge = zc->workSpaceSize > ZSTD_WORKSPACETOOLARGE_FACTOR * neededSpace;
-            int const workSpaceWasteful = workSpaceTooLarge && (zc->workSpaceOversizedDuration > ZSTD_WORKSPACETOOLARGE_MAXDURATION);
-            zc->workSpaceOversizedDuration = workSpaceTooLarge ? zc->workSpaceOversizedDuration+1 : 0;
+            int const workspaceTooSmall = zc->workspaceSize < neededSpace;
+            int const workspaceTooLarge = zc->workspaceSize > ZSTD_WORKSPACETOOLARGE_FACTOR * neededSpace;
+            int const workspaceWasteful = workspaceTooLarge && (zc->workspaceOversizedDuration > ZSTD_WORKSPACETOOLARGE_MAXDURATION);
+            zc->workspaceOversizedDuration = workspaceTooLarge ? zc->workspaceOversizedDuration+1 : 0;
 
             DEBUGLOG(4, "Need %zuKB workspace, including %zuKB for match state, and %zuKB for buffers",
                         neededSpace>>10, matchStateSize>>10, bufferSpace>>10);
             DEBUGLOG(4, "windowSize: %zu - blockSize: %zu", windowSize, blockSize);
 
-            if (workSpaceTooSmall || workSpaceWasteful) {
-                DEBUGLOG(4, "Resize workSpaceSize from %zuKB to %zuKB",
-                            zc->workSpaceSize >> 10,
+            if (workspaceTooSmall || workspaceWasteful) {
+                DEBUGLOG(4, "Resize workspaceSize from %zuKB to %zuKB",
+                            zc->workspaceSize >> 10,
                             neededSpace >> 10);
 
                 RETURN_ERROR_IF(zc->staticSize, memory_allocation, "static cctx : no resize");
 
-                zc->workSpaceSize = 0;
-                ZSTD_free(zc->workSpace, zc->customMem);
-                zc->workSpace = ZSTD_malloc(neededSpace, zc->customMem);
-                RETURN_ERROR_IF(zc->workSpace == NULL, memory_allocation);
-                zc->workSpaceSize = neededSpace;
-                zc->workSpaceOversizedDuration = 0;
+                zc->workspaceSize = 0;
+                ZSTD_free(zc->workspace, zc->customMem);
+                zc->workspace = ZSTD_malloc(neededSpace, zc->customMem);
+                RETURN_ERROR_IF(zc->workspace == NULL, memory_allocation);
+                zc->workspaceSize = neededSpace;
+                zc->workspaceOversizedDuration = 0;
 
                 /* Statically sized space.
                  * entropyWorkspace never moves,
                  * though prev/next block swap places */
-                assert(((size_t)zc->workSpace & 3) == 0);   /* ensure correct alignment */
-                assert(zc->workSpaceSize >= 2 * sizeof(ZSTD_compressedBlockState_t));
-                zc->blockState.prevCBlock = (ZSTD_compressedBlockState_t*)zc->workSpace;
+                assert(((size_t)zc->workspace & 3) == 0);   /* ensure correct alignment */
+                assert(zc->workspaceSize >= 2 * sizeof(ZSTD_compressedBlockState_t));
+                zc->blockState.prevCBlock = (ZSTD_compressedBlockState_t*)zc->workspace;
                 zc->blockState.nextCBlock = zc->blockState.prevCBlock + 1;
                 ptr = zc->blockState.nextCBlock + 1;
                 zc->entropyWorkspace = (U32*)ptr;

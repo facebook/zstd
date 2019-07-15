@@ -1960,7 +1960,7 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
                                 ZSTD_entropyCTables_t* nextEntropy,
                           const ZSTD_CCtx_params* cctxParams,
                                 void* dst, size_t dstCapacity,
-                                void* workspace, size_t wkspSize,
+                                void* entropyWorkspace, size_t entropyWkspSize,
                           const int bmi2)
 {
     const int longOffsets = cctxParams->cParams.windowLog > STREAM_ACCUMULATOR_MIN;
@@ -1993,7 +1993,7 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
                                     ZSTD_disableLiteralsCompression(cctxParams),
                                     op, dstCapacity,
                                     literals, litSize,
-                                    workspace, wkspSize,
+                                    entropyWorkspace, entropyWkspSize,
                                     bmi2);
         FORWARD_IF_ERROR(cSize);
         assert(cSize <= dstCapacity);
@@ -2029,7 +2029,7 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
     ZSTD_seqToCodes(seqStorePtr);
     /* build CTable for Literal Lengths */
     {   unsigned max = MaxLL;
-        size_t const mostFrequent = HIST_countFast_wksp(count, &max, llCodeTable, nbSeq, workspace, wkspSize);   /* can't fail */
+        size_t const mostFrequent = HIST_countFast_wksp(count, &max, llCodeTable, nbSeq, entropyWorkspace, entropyWkspSize);   /* can't fail */
         DEBUGLOG(5, "Building LL table");
         nextEntropy->fse.litlength_repeatMode = prevEntropy->fse.litlength_repeatMode;
         LLtype = ZSTD_selectEncodingType(&nextEntropy->fse.litlength_repeatMode,
@@ -2039,10 +2039,14 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
                                         ZSTD_defaultAllowed, strategy);
         assert(set_basic < set_compressed && set_rle < set_compressed);
         assert(!(LLtype < set_compressed && nextEntropy->fse.litlength_repeatMode != FSE_repeat_none)); /* We don't copy tables */
-        {   size_t const countSize = ZSTD_buildCTable(op, (size_t)(oend - op), CTable_LitLength, LLFSELog, (symbolEncodingType_e)LLtype,
-                                                    count, max, llCodeTable, nbSeq, LL_defaultNorm, LL_defaultNormLog, MaxLL,
-                                                    prevEntropy->fse.litlengthCTable, sizeof(prevEntropy->fse.litlengthCTable),
-                                                    workspace, wkspSize);
+        {   size_t const countSize = ZSTD_buildCTable(
+                op, (size_t)(oend - op),
+                CTable_LitLength, LLFSELog, (symbolEncodingType_e)LLtype,
+                count, max, llCodeTable, nbSeq,
+                LL_defaultNorm, LL_defaultNormLog, MaxLL,
+                prevEntropy->fse.litlengthCTable,
+                sizeof(prevEntropy->fse.litlengthCTable),
+                entropyWorkspace, entropyWkspSize);
             FORWARD_IF_ERROR(countSize);
             if (LLtype == set_compressed)
                 lastNCount = op;
@@ -2051,7 +2055,8 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
     }   }
     /* build CTable for Offsets */
     {   unsigned max = MaxOff;
-        size_t const mostFrequent = HIST_countFast_wksp(count, &max, ofCodeTable, nbSeq, workspace, wkspSize);  /* can't fail */
+        size_t const mostFrequent = HIST_countFast_wksp(
+            count, &max, ofCodeTable, nbSeq, entropyWorkspace, entropyWkspSize);  /* can't fail */
         /* We can only use the basic table if max <= DefaultMaxOff, otherwise the offsets are too large */
         ZSTD_defaultPolicy_e const defaultPolicy = (max <= DefaultMaxOff) ? ZSTD_defaultAllowed : ZSTD_defaultDisallowed;
         DEBUGLOG(5, "Building OF table");
@@ -2062,10 +2067,14 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
                                         OF_defaultNorm, OF_defaultNormLog,
                                         defaultPolicy, strategy);
         assert(!(Offtype < set_compressed && nextEntropy->fse.offcode_repeatMode != FSE_repeat_none)); /* We don't copy tables */
-        {   size_t const countSize = ZSTD_buildCTable(op, (size_t)(oend - op), CTable_OffsetBits, OffFSELog, (symbolEncodingType_e)Offtype,
-                                                    count, max, ofCodeTable, nbSeq, OF_defaultNorm, OF_defaultNormLog, DefaultMaxOff,
-                                                    prevEntropy->fse.offcodeCTable, sizeof(prevEntropy->fse.offcodeCTable),
-                                                    workspace, wkspSize);
+        {   size_t const countSize = ZSTD_buildCTable(
+                op, (size_t)(oend - op),
+                CTable_OffsetBits, OffFSELog, (symbolEncodingType_e)Offtype,
+                count, max, ofCodeTable, nbSeq,
+                OF_defaultNorm, OF_defaultNormLog, DefaultMaxOff,
+                prevEntropy->fse.offcodeCTable,
+                sizeof(prevEntropy->fse.offcodeCTable),
+                entropyWorkspace, entropyWkspSize);
             FORWARD_IF_ERROR(countSize);
             if (Offtype == set_compressed)
                 lastNCount = op;
@@ -2074,7 +2083,8 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
     }   }
     /* build CTable for MatchLengths */
     {   unsigned max = MaxML;
-        size_t const mostFrequent = HIST_countFast_wksp(count, &max, mlCodeTable, nbSeq, workspace, wkspSize);   /* can't fail */
+        size_t const mostFrequent = HIST_countFast_wksp(
+            count, &max, mlCodeTable, nbSeq, entropyWorkspace, entropyWkspSize);   /* can't fail */
         DEBUGLOG(5, "Building ML table (remaining space : %i)", (int)(oend-op));
         nextEntropy->fse.matchlength_repeatMode = prevEntropy->fse.matchlength_repeatMode;
         MLtype = ZSTD_selectEncodingType(&nextEntropy->fse.matchlength_repeatMode,
@@ -2083,10 +2093,14 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
                                         ML_defaultNorm, ML_defaultNormLog,
                                         ZSTD_defaultAllowed, strategy);
         assert(!(MLtype < set_compressed && nextEntropy->fse.matchlength_repeatMode != FSE_repeat_none)); /* We don't copy tables */
-        {   size_t const countSize = ZSTD_buildCTable(op, (size_t)(oend - op), CTable_MatchLength, MLFSELog, (symbolEncodingType_e)MLtype,
-                                                    count, max, mlCodeTable, nbSeq, ML_defaultNorm, ML_defaultNormLog, MaxML,
-                                                    prevEntropy->fse.matchlengthCTable, sizeof(prevEntropy->fse.matchlengthCTable),
-                                                    workspace, wkspSize);
+        {   size_t const countSize = ZSTD_buildCTable(
+                op, (size_t)(oend - op),
+                CTable_MatchLength, MLFSELog, (symbolEncodingType_e)MLtype,
+                count, max, mlCodeTable, nbSeq,
+                ML_defaultNorm, ML_defaultNormLog, MaxML,
+                prevEntropy->fse.matchlengthCTable,
+                sizeof(prevEntropy->fse.matchlengthCTable),
+                entropyWorkspace, entropyWkspSize);
             FORWARD_IF_ERROR(countSize);
             if (MLtype == set_compressed)
                 lastNCount = op;
@@ -2134,13 +2148,13 @@ ZSTD_compressSequences(seqStore_t* seqStorePtr,
                        const ZSTD_CCtx_params* cctxParams,
                              void* dst, size_t dstCapacity,
                              size_t srcSize,
-                             void* workspace, size_t wkspSize,
+                             void* entropyWorkspace, size_t entropyWkspSize,
                              int bmi2)
 {
     size_t const cSize = ZSTD_compressSequences_internal(
                             seqStorePtr, prevEntropy, nextEntropy, cctxParams,
                             dst, dstCapacity,
-                            workspace, wkspSize, bmi2);
+                            entropyWorkspace, entropyWkspSize, bmi2);
     if (cSize == 0) return 0;
     /* When srcSize <= dstCapacity, there is enough space to write a raw uncompressed block.
      * Since we ran out of space, block must be not compressible, so fall back to raw uncompressed block.
@@ -2379,6 +2393,7 @@ static void ZSTD_overflowCorrectIfNeeded(ZSTD_matchState_t* ms, ZSTD_CCtx_params
         ms->dictMatchState = NULL;
     }
 }
+
 
 /*! ZSTD_compress_frameChunk() :
 *   Compress a chunk of data into one or multiple blocks.
@@ -2848,7 +2863,8 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
                                      ZSTDcrp_continue, zbuff) );
     {   size_t const dictID = ZSTD_compress_insertDictionary(
                 cctx->blockState.prevCBlock, &cctx->blockState.matchState,
-                params, dict, dictSize, dictContentType, dtlm, cctx->entropyWorkspace);
+                params, dict, dictSize, dictContentType, dtlm,
+                cctx->entropyWorkspace);
         FORWARD_IF_ERROR(dictID);
         assert(dictID <= UINT_MAX);
         cctx->dictID = (U32)dictID;
@@ -3393,7 +3409,8 @@ size_t ZSTD_resetCStream(ZSTD_CStream* zcs, unsigned long long pss)
  *  Assumption 2 : either dict, or cdict, is defined, not both */
 size_t ZSTD_initCStream_internal(ZSTD_CStream* zcs,
                     const void* dict, size_t dictSize, const ZSTD_CDict* cdict,
-                    const ZSTD_CCtx_params* params, unsigned long long pledgedSrcSize)
+                    const ZSTD_CCtx_params* params,
+                    unsigned long long pledgedSrcSize)
 {
     DEBUGLOG(4, "ZSTD_initCStream_internal");
     FORWARD_IF_ERROR( ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only) );

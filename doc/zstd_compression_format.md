@@ -390,9 +390,7 @@ A block can contain any number of bytes (even zero), up to
 -  Window_Size
 -  128 KB
 
-A `Compressed_Block` has the extra restriction that `Block_Size` is always
-strictly less than the decompressed size.
-If this condition cannot be respected,
+If this condition cannot be respected when generating a `Compressed_Block`,
 the block must be sent uncompressed instead (`Raw_Block`).
 
 

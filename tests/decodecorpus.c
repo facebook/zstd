@@ -1050,8 +1050,8 @@ static void writeBlock(U32* seed, frame_t* frame, size_t contentSize,
         op += contentSize;
         blockType = 0;
         blockSize = contentSize;
-    } else if (blockTypeDesc == 1) {
-        /* RLE */
+    } else if (blockTypeDesc == 1 && frame->header.contentSize > 0) {
+        /* RLE (Don't create RLE block if frame content is 0 since block size of 1 may exceed max block size)*/
         BYTE const symbol = RAND(seed) & 0xff;
 
         op[0] = symbol;

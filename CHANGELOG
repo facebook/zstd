@@ -1,3 +1,33 @@
+v1.4.1
+bug: Fix data corruption in niche use cases by @terrelln (#1659)
+bug: Fuzz legacy modes, fix uncovered bugs by @terrelln (#1593, #1594, #1595)
+bug: Fix out of bounds read by @terrelln (#1590)
+perf: Improve decode speed by ~7% @mgrice (#1668)
+perf: Slightly improved compression ratio of level 3 and 4 (ZSTD_dfast) by @cyan4973 (#1681)
+perf: Slightly faster compression speed when re-using a context by @cyan4973 (#1658)
+perf: Improve compression ratio for small windowLog by @cyan4973 (#1624)
+perf: Faster compression speed in high compression mode for repetitive data by @terrelln (#1635)
+api: Add parameter to generate smaller dictionaries by @tyler-tran (#1656)
+cli: Recognize symlinks when built in C99 mode by @felixhandte (#1640)
+cli: Expose cpu load indicator for each file on -vv mode by @ephiepark (#1631)
+cli: Restrict read permissions on destination files by @chungy (#1644)
+cli: zstdgrep: handle -f flag by @felixhandte (#1618)
+cli: zstdcat: follow symlinks by @vejnar (#1604)
+doc: Remove extra size limit on compressed blocks by @felixhandte (#1689)
+doc: Fix typo by @yk-tanigawa (#1633)
+doc: Improve documentation on streaming buffer sizes by @cyan4973 (#1629)
+build: CMake: support building with LZ4 @leeyoung624 (#1626)
+build: CMake: install zstdless and zstdgrep by @leeyoung624 (#1647)
+build: CMake: respect existing uninstall target by @j301scott (#1619)
+build: Make: skip multithread tests when built without support by @michaelforney (#1620)
+build: Make: Fix examples/ test target by @sjnam (#1603)
+build: Meson: rename options out of deprecated namespace by @lzutao (#1665)
+build: Meson: fix build by @lzutao (#1602)
+build: Visual Studio: don't export symbols in static lib by @scharan (#1650)
+build: Visual Studio: fix linking by @absotively (#1639)
+build: Fix MinGW-W64 build by @myzhang1029 (#1600)
+misc: Expand decodecorpus coverage by @ephiepark (#1664)
+
 v1.4.0
 perf: Improve level 1 compression speed in most scenarios by 6% by @gbtucker and @terrelln
 api: Move the advanced API, including all functions in the staging section, to the stable section

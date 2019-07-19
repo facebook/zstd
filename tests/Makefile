@@ -215,6 +215,9 @@ roundTripCrash : $(ZSTD_OBJECTS) roundTripCrash.c
 longmatch  : $(ZSTD_OBJECTS) longmatch.c
 	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
+bigdict: $(ZSTDMT_OBJECTS) $(PRGDIR)/datagen.c bigdict.c
+	$(CC) $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
+
 invalidDictionaries : $(ZSTD_OBJECTS) invalidDictionaries.c
 	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
@@ -247,7 +250,7 @@ clean:
 	$(MAKE) -C $(ZSTDDIR) clean
 	$(MAKE) -C $(PRGDIR) clean
 	@$(RM) -fR $(TESTARTEFACT)
-	@$(RM) -f core *.o tmp* result* *.gcda dictionary *.zst \
+	@$(RM) -f core *.o tmp* *.tmp result* *.gcda dictionary *.zst \
         $(PRGDIR)/zstd$(EXT) $(PRGDIR)/zstd32$(EXT) \
         fullbench$(EXT) fullbench32$(EXT) \
         fullbench-lib$(EXT) fullbench-dll$(EXT) \
@@ -256,7 +259,7 @@ clean:
         zstreamtest$(EXT) zstreamtest32$(EXT) \
         datagen$(EXT) paramgrill$(EXT) roundTripCrash$(EXT) longmatch$(EXT) \
         symbols$(EXT) invalidDictionaries$(EXT) legacy$(EXT) poolTests$(EXT) \
-        decodecorpus$(EXT) checkTag$(EXT)
+        decodecorpus$(EXT) checkTag$(EXT) bigdict$(EXT)
 	@echo Cleaning completed
 
 
@@ -359,6 +362,9 @@ test-zstdgrep: gzstd
 	-echo 'hello world' > test.txt && $(PRGDIR)/zstd test.txt
 	env ZCAT=/tmp/zstdcat $(PRGDIR)/zstdgrep hello test.txt.zst
 	env ZCAT=/tmp/zstdcat $(PRGDIR)/zstdgrep weird test.txt.zst && return 1 || return 0
+	-echo 'hello' > pattern.txt
+	env ZCAT=/tmp/zstdcat $(PRGDIR)/zstdgrep -f pattern.txt test.txt.zst
+	$(RM) test.txt test.txt.zst pattern.txt
 
 test-fullbench: fullbench datagen
 	$(QEMU_SYS) ./fullbench -i1
@@ -393,6 +399,9 @@ test-zstream32: zstreamtest32
 
 test-longmatch: longmatch
 	$(QEMU_SYS) ./longmatch
+
+test-bigdict: bigdict
+	$(QEMU_SYS) ./bigdict
 
 test-invalidDictionaries: invalidDictionaries
 	$(QEMU_SYS) ./invalidDictionaries

@@ -12,11 +12,11 @@ project('zstd',
   ['c', 'cpp'],
   license: ['BSD', 'GPLv2'],
   default_options : [
-    'c_std=c99',
+    'c_std=gnu99',
     'cpp_std=c++11',
     'buildtype=release'
   ],
-  version: '1.3.8',
+  version: 'DUMMY',
   meson_version: '>=0.47.0')
 
 cc = meson.get_compiler('c')
@@ -43,13 +43,10 @@ zstd_h_file = join_paths(meson.current_source_dir(), '../../lib/zstd.h')
 GetZstdLibraryVersion_py = files('GetZstdLibraryVersion.py')
 r = run_command(python3, GetZstdLibraryVersion_py, zstd_h_file)
 if r.returncode() == 0
-  output = r.stdout().strip()
-  if output.version_compare('>@0@'.format(zstd_version))
-    zstd_version = output
-    message('Project version is now: @0@'.format(zstd_version))
-  endif
+  zstd_version = r.stdout().strip()
+  message('Project version is now: @0@'.format(zstd_version))
 else
-  message('Cannot find project version in @0@'.format(zstd_h_file))
+  error('Cannot find project version in @0@'.format(zstd_h_file))
 endif
 
 zstd_libversion = zstd_version
@@ -78,9 +75,9 @@ legacy_level = get_option('legacy_level')
 use_backtrace = get_option('backtrace')
 use_static_runtime = get_option('static_runtime')
 
-build_programs = get_option('build_programs')
-build_contrib = get_option('build_contrib')
-build_tests = get_option('build_tests')
+bin_programs = get_option('bin_programs')
+bin_contrib = get_option('bin_contrib')
+bin_tests = get_option('bin_tests')
 
 feature_multi_thread = get_option('multi_thread')
 feature_zlib = get_option('zlib')
@@ -91,7 +88,7 @@ feature_lz4 = get_option('lz4')
 # Dependencies
 # =============================================================================
 
-libm_dep = cc.find_library('m', required: build_tests)
+libm_dep = cc.find_library('m', required: bin_tests)
 thread_dep = dependency('threads', required: feature_multi_thread)
 use_multi_thread = thread_dep.found()
 # Arguments in dependency should be equivalent to those passed to pkg-config
@@ -136,14 +133,14 @@ endif
 
 subdir('lib')
 
-if build_programs
+if bin_programs
   subdir('programs')
 endif
 
-if build_tests
+if bin_tests
   subdir('tests')
 endif
 
-if build_contrib
+if bin_contrib
   subdir('contrib')
 endif

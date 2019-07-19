@@ -609,8 +609,8 @@ compareResultLT(const BMK_benchResult_t result1, const BMK_benchResult_t result2
 
 static constraint_t relaxTarget(constraint_t target) {
     target.cMem = (U32)-1;
-    target.cSpeed *= ((double)g_strictness) / 100;
-    target.dSpeed *= ((double)g_strictness) / 100;
+    target.cSpeed = (target.cSpeed * g_strictness) / 100;
+    target.dSpeed = (target.dSpeed * g_strictness) / 100;
     return target;
 }
 
@@ -1737,8 +1737,8 @@ static int allBench(BMK_benchResult_t* resultPtr,
 
     /* optimistic assumption of benchres */
     {   BMK_benchResult_t resultMax = benchres;
-        resultMax.cSpeed *= uncertaintyConstantC * VARIANCE;
-        resultMax.dSpeed *= uncertaintyConstantD * VARIANCE;
+        resultMax.cSpeed = (unsigned long long)(resultMax.cSpeed * uncertaintyConstantC * VARIANCE);
+        resultMax.dSpeed = (unsigned long long)(resultMax.dSpeed * uncertaintyConstantD * VARIANCE);
 
         /* disregard infeasible results in feas mode */
         /* disregard if resultMax < winner in infeas mode */
@@ -2429,9 +2429,9 @@ optimizeForSize(const char* const * const fileNamesTable, const size_t nbFiles,
         }
 
         g_lvltarget = winner.result;
-        g_lvltarget.cSpeed *= ((double)g_strictness) / 100;
-        g_lvltarget.dSpeed *= ((double)g_strictness) / 100;
-        g_lvltarget.cSize /= ((double)g_strictness) / 100;
+        g_lvltarget.cSpeed = (g_lvltarget.cSpeed * g_strictness) / 100;
+        g_lvltarget.dSpeed = (g_lvltarget.dSpeed * g_strictness) / 100;
+        g_lvltarget.cSize = (g_lvltarget.cSize * 100) / g_strictness;
 
         target.cSpeed = (U32)g_lvltarget.cSpeed;
         target.dSpeed = (U32)g_lvltarget.dSpeed;

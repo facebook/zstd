@@ -77,7 +77,6 @@ test: all
 	@echo -- Edge cases detection
 	! ./streaming_decompression tmp    # invalid input, must fail
 	! ./simple_decompression tmp       # invalid input, must fail
-	! ./simple_decompression tmp.zst   # unknown input size, must fail
 	touch tmpNull                      # create 0-size file
 	./simple_compression tmpNull
 	./simple_decompression tmpNull.zst # 0-size frame : must work

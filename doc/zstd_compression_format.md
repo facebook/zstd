@@ -16,7 +16,7 @@ Distribution of this document is unlimited.
 
 ### Version
 
-0.3.1 (25/10/18)
+0.3.2 (17/07/19)
 
 
 Introduction
@@ -390,9 +390,7 @@ A block can contain any number of bytes (even zero), up to
 -  Window_Size
 -  128 KB
 
-A `Compressed_Block` has the extra restriction that `Block_Size` is always
-strictly less than the decompressed size.
-If this condition cannot be respected,
+If this condition cannot be respected when generating a `Compressed_Block`,
 the block must be sent uncompressed instead (`Raw_Block`).
 
 
@@ -1655,6 +1653,7 @@ or at least provide a meaningful error code explaining for which reason it canno
 
 Version changes
 ---------------
+- 0.3.2 : remove additional block size restriction on compressed blocks
 - 0.3.1 : minor clarification regarding offset history update rules
 - 0.3.0 : minor edits to match RFC8478
 - 0.2.9 : clarifications for huffman weights direct representation, by Ulrich Kunitz

@@ -36,6 +36,8 @@ TARGETS = [
     'block_decompress',
     'dictionary_round_trip',
     'dictionary_decompress',
+    'zstd_frame_info',
+    'simple_compress',
 ]
 ALL_TARGETS = TARGETS + ['all']
 FUZZ_RNG_SEED_SIZE = 4

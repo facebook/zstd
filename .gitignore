@@ -14,7 +14,7 @@
 *.dylib
 
 # Executables
-zstd
+/zstd
 zstdmt
 *.exe
 *.out
@@ -22,7 +22,7 @@ zstdmt
 
 # Test artefacts
 tmp*
-dictionary*
+dictionary.
 NUL
 
 # Build artefacts
@@ -41,3 +41,4 @@ _zstdbench/
 .DS_Store
 googletest/
 *.d
+*.vscode

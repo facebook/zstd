@@ -5,6 +5,45 @@ use case sensitivity that matches modern (ie. cmake version 2.6 and above)
 conventions of using lower-case for commands, and upper-case for
 variables.
 
+# How to build
+
+As cmake doesn't support command like `cmake clean`, it's recommanded to perform a "out of source build".
+To do this, you can create a new directory and build in it:
+```sh
+cd build/cmake
+mkdir builddir
+cd builddir
+cmake ..
+make
+```
+Then you can clean all cmake caches by simpily delete the new directory:
+```sh
+rm -rf build/cmake/builddir
+```
+
+And of course, you can directly build in build/cmake:
+```sh
+cd build/cmake
+cmake
+make
+```
+
+To show cmake build options, you can:
+```sh
+cd build/cmake/builddir
+cmake -LH ..
+```
+
+Bool options can be set to ON/OFF with -D\[option\]=\[ON/OFF\]. You can configure cmake options like this:
+```sh
+cd build/cmake/builddir
+cmake -DZSTD_BUILD_TESTS=ON -DZSTD_LEGACY_SUPPORT=ON ..
+make
+```
+
+## referring
+[Looking for a 'cmake clean' command to clear up CMake output](https://stackoverflow.com/questions/9680420/looking-for-a-cmake-clean-command-to-clear-up-cmake-output)
+
 # CMake Style Recommendations
 
 ## Indent all code correctly, i.e. the body of

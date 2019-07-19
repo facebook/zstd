@@ -153,6 +153,12 @@ matrix:
         - make clean
         - make travis-install    # just ensures `make install` works
 
+    - name: c99 compatibility
+      if: branch = master
+      script:
+        - make c99build
+        - make -C tests test-zstd
+
     - name: PPC64
       if: branch = master
       script:
@@ -184,20 +190,30 @@ matrix:
       compiler: clang
       install:
         - sudo apt-get install -qq liblz4-dev valgrind tree
-        - travis_retry curl -o ~/ninja.zip -L 'https://github.com/ninja-build/ninja/releases/download/v1.8.2/ninja-linux.zip'
-            && unzip ~/ninja.zip -d ~/.local/bin
-        - travis_retry curl -o ~/get-pip.py -L 'https://bootstrap.pypa.io/get-pip.py'
-            && python3 ~/get-pip.py --user
-            && pip3 install --user meson
+        - |
+          travis_retry curl -o ~/ninja.zip -L 'https://github.com/ninja-build/ninja/releases/download/v1.9.0/ninja-linux.zip' &&
+          unzip ~/ninja.zip -d ~/.local/bin
+        - |
+          travis_retry curl -o ~/get-pip.py -L 'https://bootstrap.pypa.io/get-pip.py' &&
+          python3 ~/get-pip.py --user &&
+          pip3 install --user meson
       script:
-        - meson --buildtype=debug
-                -Db_lundef=false
-                -Dauto_features=enabled
-                -Dbuild_{programs,tests,contrib}=true
-                -Ddefault_library=both
-                build/meson builddir
-        - cd builddir
+        - |
+          meson setup \
+            --buildtype=debugoptimized \
+            -Db_lundef=false \
+            -Dauto_features=enabled \
+            -Dbin_programs=true \
+            -Dbin_tests=true \
+            -Dbin_contrib=true \
+            -Ddefault_library=both \
+             build/meson builddir
+        - pushd builddir
+        - ninja
+        - meson test --verbose --no-rebuild
         - DESTDIR=./staging ninja install
         - tree ./staging
+      after_failure:
+        - cat "$TRAVIS_BUILD_DIR"/builddir/meson-logs/testlog.txt
   allow_failures:
     - env: ALLOW_FAILURES=true

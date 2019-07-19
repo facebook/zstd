@@ -141,6 +141,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( "--long[=#]: enable long distance matching with given window log (default: %u)\n", g_defaultMaxWindowLog);
     DISPLAY( "--fast[=#]: switch to ultra fast compression level (default: %u)\n", 1);
     DISPLAY( "--adapt : dynamically adapt compression level to I/O conditions \n");
+    DISPLAY( "--target-compressed-block-size=# : make compressed block near targeted size \n");
 #ifdef ZSTD_MULTITHREAD
     DISPLAY( " -T#    : spawns # compression threads (default: 1, 0==# cores) \n");
     DISPLAY( " -B#    : select size of each job (default: 0==automatic) \n");
@@ -179,8 +180,8 @@ static int usage_advanced(const char* programName)
     DISPLAY( "\n");
     DISPLAY( "Dictionary builder : \n");
     DISPLAY( "--train ## : create a dictionary from a training set of files \n");
-    DISPLAY( "--train-cover[=k=#,d=#,steps=#,split=#] : use the cover algorithm with optional args\n");
-    DISPLAY( "--train-fastcover[=k=#,d=#,f=#,steps=#,split=#,accel=#] : use the fast cover algorithm with optional args\n");
+    DISPLAY( "--train-cover[=k=#,d=#,steps=#,split=#,shrink[=#]] : use the cover algorithm with optional args\n");
+    DISPLAY( "--train-fastcover[=k=#,d=#,f=#,steps=#,split=#,accel=#,shrink[=#]] : use the fast cover algorithm with optional args\n");
     DISPLAY( "--train-legacy[=s=#] : use the legacy algorithm with selectivity (default: %u)\n", g_defaultSelectivityLevel);
     DISPLAY( " -o file : `file` is dictionary name (default: %s) \n", g_defaultDictName);
     DISPLAY( "--maxdict=# : limit dictionary to specified size (default: %u) \n", g_defaultMaxDictSize);
@@ -299,6 +300,7 @@ static unsigned longCommandWArg(const char** stringPtr, const char* longCommand)
  * @return 1 means that cover parameters were correct
  * @return 0 in case of malformed parameters
  */
+static const unsigned kDefaultRegression = 1;
 static unsigned parseCoverParameters(const char* stringPtr, ZDICT_cover_params_t* params)
 {
     memset(params, 0, sizeof(*params));
@@ -311,10 +313,23 @@ static unsigned parseCoverParameters(const char* stringPtr, ZDICT_cover_params_t
           params->splitPoint = (double)splitPercentage / 100.0;
           if (stringPtr[0]==',') { stringPtr++; continue; } else break;
         }
+        if (longCommandWArg(&stringPtr, "shrink")) {
+          params->shrinkDictMaxRegression = kDefaultRegression;
+          params->shrinkDict = 1;
+          if (stringPtr[0]=='=') {
+            stringPtr++;
+            params->shrinkDictMaxRegression = readU32FromChar(&stringPtr);
+          }
+          if (stringPtr[0]==',') {
+            stringPtr++;
+            continue;
+          }
+          else break;
+        }
         return 0;
     }
     if (stringPtr[0] != 0) return 0;
-    DISPLAYLEVEL(4, "cover: k=%u\nd=%u\nsteps=%u\nsplit=%u\n", params->k, params->d, params->steps, (unsigned)(params->splitPoint * 100));
+    DISPLAYLEVEL(4, "cover: k=%u\nd=%u\nsteps=%u\nsplit=%u\nshrink%u\n", params->k, params->d, params->steps, (unsigned)(params->splitPoint * 100), params->shrinkDictMaxRegression);
     return 1;
 }
 
@@ -338,10 +353,23 @@ static unsigned parseFastCoverParameters(const char* stringPtr, ZDICT_fastCover_
           params->splitPoint = (double)splitPercentage / 100.0;
           if (stringPtr[0]==',') { stringPtr++; continue; } else break;
         }
+        if (longCommandWArg(&stringPtr, "shrink")) {
+          params->shrinkDictMaxRegression = kDefaultRegression;
+          params->shrinkDict = 1;
+          if (stringPtr[0]=='=') {
+            stringPtr++;
+            params->shrinkDictMaxRegression = readU32FromChar(&stringPtr);
+          }
+          if (stringPtr[0]==',') {
+            stringPtr++;
+            continue;
+          }
+          else break;
+        }
         return 0;
     }
     if (stringPtr[0] != 0) return 0;
-    DISPLAYLEVEL(4, "cover: k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\naccel=%u\n", params->k, params->d, params->f, params->steps, (unsigned)(params->splitPoint * 100), params->accel);
+    DISPLAYLEVEL(4, "cover: k=%u\nd=%u\nf=%u\nsteps=%u\nsplit=%u\naccel=%u\nshrink=%u\n", params->k, params->d, params->f, params->steps, (unsigned)(params->splitPoint * 100), params->accel, params->shrinkDictMaxRegression);
     return 1;
 }
 
@@ -367,6 +395,8 @@ static ZDICT_cover_params_t defaultCoverParams(void)
     params.d = 8;
     params.steps = 4;
     params.splitPoint = 1.0;
+    params.shrinkDict = 0;
+    params.shrinkDictMaxRegression = kDefaultRegression;
     return params;
 }
 
@@ -379,6 +409,8 @@ static ZDICT_fastCover_params_t defaultFastCoverParams(void)
     params.steps = 4;
     params.splitPoint = 0.75; /* different from default splitPoint of cover */
     params.accel = DEFAULT_ACCEL;
+    params.shrinkDict = 0;
+    params.shrinkDictMaxRegression = kDefaultRegression;
     return params;
 }
 #endif
@@ -555,6 +587,7 @@ int main(int argCount, const char* argv[])
     const char* suffix = ZSTD_EXTENSION;
     unsigned maxDictSize = g_defaultMaxDictSize;
     unsigned dictID = 0;
+    size_t targetCBlockSize = 0;
     int dictCLevel = g_defaultDictCLevel;
     unsigned dictSelect = g_defaultSelectivityLevel;
 #ifdef UTIL_HAS_CREATEFILELIST
@@ -588,11 +621,11 @@ int main(int argCount, const char* argv[])
     /* preset behaviors */
     if (exeNameMatch(programName, ZSTD_ZSTDMT)) nbWorkers=0, singleThread=0;
     if (exeNameMatch(programName, ZSTD_UNZSTD)) operation=zom_decompress;
-    if (exeNameMatch(programName, ZSTD_CAT)) { operation=zom_decompress; forceStdout=1; FIO_overwriteMode(prefs); outFileName=stdoutmark; g_displayLevel=1; }     /* supports multiple formats */
-    if (exeNameMatch(programName, ZSTD_ZCAT)) { operation=zom_decompress; forceStdout=1; FIO_overwriteMode(prefs); outFileName=stdoutmark; g_displayLevel=1; }    /* behave like zcat, also supports multiple formats */
+    if (exeNameMatch(programName, ZSTD_CAT)) { operation=zom_decompress; FIO_overwriteMode(prefs); forceStdout=1; followLinks=1; outFileName=stdoutmark; g_displayLevel=1; }     /* supports multiple formats */
+    if (exeNameMatch(programName, ZSTD_ZCAT)) { operation=zom_decompress; FIO_overwriteMode(prefs); forceStdout=1; followLinks=1; outFileName=stdoutmark; g_displayLevel=1; }    /* behave like zcat, also supports multiple formats */
     if (exeNameMatch(programName, ZSTD_GZ)) { suffix = GZ_EXTENSION; FIO_setCompressionType(prefs, FIO_gzipCompression); FIO_setRemoveSrcFile(prefs, 1); }        /* behave like gzip */
     if (exeNameMatch(programName, ZSTD_GUNZIP)) { operation=zom_decompress; FIO_setRemoveSrcFile(prefs, 1); }                                                     /* behave like gunzip, also supports multiple formats */
-    if (exeNameMatch(programName, ZSTD_GZCAT)) { operation=zom_decompress; forceStdout=1; FIO_overwriteMode(prefs); outFileName=stdoutmark; g_displayLevel=1; }   /* behave like gzcat, also supports multiple formats */
+    if (exeNameMatch(programName, ZSTD_GZCAT)) { operation=zom_decompress; FIO_overwriteMode(prefs); forceStdout=1; followLinks=1; outFileName=stdoutmark; g_displayLevel=1; }   /* behave like gzcat, also supports multiple formats */
     if (exeNameMatch(programName, ZSTD_LZMA)) { suffix = LZMA_EXTENSION; FIO_setCompressionType(prefs, FIO_lzmaCompression); FIO_setRemoveSrcFile(prefs, 1); }    /* behave like lzma */
     if (exeNameMatch(programName, ZSTD_UNLZMA)) { operation=zom_decompress; FIO_setCompressionType(prefs, FIO_lzmaCompression); FIO_setRemoveSrcFile(prefs, 1); } /* behave like unlzma, also supports multiple formats */
     if (exeNameMatch(programName, ZSTD_XZ)) { suffix = XZ_EXTENSION; FIO_setCompressionType(prefs, FIO_xzCompression); FIO_setRemoveSrcFile(prefs, 1); }          /* behave like xz */
@@ -711,6 +744,7 @@ int main(int argCount, const char* argv[])
                     if (longCommandWArg(&argument, "--maxdict=")) { maxDictSize = readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--dictID=")) { dictID = readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--zstd=")) { if (!parseCompressionParameters(argument, &compressionParams)) CLEAN_RETURN(badusage(programName)); continue; }
+                    if (longCommandWArg(&argument, "--target-compressed-block-size=")) { targetCBlockSize = readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--long")) {
                         unsigned ldmWindowLog = 0;
                         ldmFlag = 1;
@@ -1115,6 +1149,7 @@ int main(int argCount, const char* argv[])
         FIO_setAdaptMin(prefs, adaptMin);
         FIO_setAdaptMax(prefs, adaptMax);
         FIO_setRsyncable(prefs, rsyncable);
+        FIO_setTargetCBlockSize(prefs, targetCBlockSize);
         FIO_setLiteralCompressionMode(prefs, literalCompressionMode);
         if (adaptMin > cLevel) cLevel = adaptMin;
         if (adaptMax < cLevel) cLevel = adaptMax;
@@ -1124,7 +1159,7 @@ int main(int argCount, const char* argv[])
         else
           operationResult = FIO_compressMultipleFilenames(prefs, filenameTable, filenameIdx, outFileName, suffix, dictFileName, cLevel, compressionParams);
 #else
-        (void)suffix; (void)adapt; (void)rsyncable; (void)ultra; (void)cLevel; (void)ldmFlag; (void)literalCompressionMode; /* not used when ZSTD_NOCOMPRESS set */
+        (void)suffix; (void)adapt; (void)rsyncable; (void)ultra; (void)cLevel; (void)ldmFlag; (void)literalCompressionMode; (void)targetCBlockSize; /* not used when ZSTD_NOCOMPRESS set */
         DISPLAY("Compression not supported \n");
 #endif
     } else {  /* decompression or test */

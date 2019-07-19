@@ -909,6 +909,7 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
         {   blockProperties_t bp;
             size_t const cBlockSize = ZSTD_getcBlockSize(src, ZSTD_blockHeaderSize, &bp);
             if (ZSTD_isError(cBlockSize)) return cBlockSize;
+            RETURN_ERROR_IF(cBlockSize > dctx->fParams.blockSizeMax, corruption_detected, "Block Size Exceeds Maximum");
             dctx->expected = cBlockSize;
             dctx->bType = bp.blockType;
             dctx->rleSize = bp.origSize;
@@ -953,6 +954,7 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
                 RETURN_ERROR(corruption_detected);
             }
             if (ZSTD_isError(rSize)) return rSize;
+            RETURN_ERROR_IF(rSize > dctx->fParams.blockSizeMax, corruption_detected, "Decompressed Block Size Exceeds Maximum");
             DEBUGLOG(5, "ZSTD_decompressContinue: decoded size from block : %u", (unsigned)rSize);
             dctx->decodedSize += rSize;
             if (dctx->fParams.checksumFlag) XXH64_update(&dctx->xxhState, dst, rSize);

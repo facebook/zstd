@@ -266,7 +266,7 @@ Compression of small files similar to the sample set will be greatly improved.
     Supports multithreading if `zstd` is compiled with threading support.
     Having _shrink_ enabled takes a truncated dictionary of minimum size and doubles
     in size until compression ratio of the truncated dictionary is at most
-    _shrinkDictMaxRegression_% worse than the compression ratio of the largest dictionary.
+    _shrinkDictMaxRegression%_ worse than the compression ratio of the largest dictionary.
 
     Examples:
 

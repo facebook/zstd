@@ -218,11 +218,6 @@ MEM_STATIC void MEM_writeLE16(void* memPtr, U16 val)
     }
 }
 
-MEM_STATIC U32 MEM_readLE24(const void* memPtr)
-{
-    return MEM_readLE16(memPtr) + (((const BYTE*)memPtr)[2] << 16);
-}
-
 MEM_STATIC U32 MEM_readLE32(const void* memPtr)
 {
     if (MEM_isLittleEndian())
@@ -3158,10 +3153,14 @@ static void ZSTDv05_decodeSequence(seq_t* seq, seqState_t* seqState)
     if (litLength == MaxLL) {
         const U32 add = *dumps++;
         if (add < 255) litLength += add;
-        else if (dumps + 3 <= de) {
-            litLength = MEM_readLE24(dumps);
-            if (litLength&1) litLength>>=1, dumps += 3;
-            else litLength = (U16)(litLength)>>1, dumps += 2;
+        else if (dumps + 2 <= de) {
+            litLength = MEM_readLE16(dumps);
+            dumps += 2;
+            if ((litLength & 1) && dumps < de) {
+                litLength += *dumps << 16;
+                dumps += 1;
+            }
+            litLength>>=1;
         }
         if (dumps >= de) { dumps = de-1; }  /* late correction, to avoid read overflow (data is now corrupted anyway) */
     }
@@ -3191,10 +3190,14 @@ static void ZSTDv05_decodeSequence(seq_t* seq, seqState_t* seqState)
     if (matchLength == MaxML) {
         const U32 add = dumps<de ? *dumps++ : 0;
         if (add < 255) matchLength += add;
-        else if (dumps + 3 <= de) {
-            matchLength = MEM_readLE24(dumps);
-            if (matchLength&1) matchLength>>=1, dumps += 3;
-            else matchLength = (U16)(matchLength)>>1, dumps += 2;
+        else if (dumps + 2 <= de) {
+            matchLength = MEM_readLE16(dumps);
+            dumps += 2;
+            if ((matchLength & 1) && dumps < de) {
+                matchLength += *dumps << 16;
+                dumps += 1;
+            }
+            matchLength >>= 1;
         }
         if (dumps >= de) { dumps = de-1; }  /* late correction, to avoid read overflow (data is now corrupted anyway) */
     }

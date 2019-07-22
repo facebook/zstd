@@ -24,7 +24,8 @@ SEEKABLE_OBJS = ../zstdseek_compress.c ../zstdseek_decompress.c $(ZSTDLIB)
 
 default: all
 
-all: seekable_compression seekable_decompression parallel_processing
+all: seekable_compression seekable_decompression seekable_decompression_mem \
+	parallel_processing
 
 $(ZSTDLIB):
 	make -C $(ZSTDLIB_PATH) $(ZSTDLIB_NAME)
@@ -33,6 +34,9 @@ seekable_compression : seekable_compression.c $(SEEKABLE_OBJS)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 seekable_decompression : seekable_decompression.c $(SEEKABLE_OBJS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
+
+seekable_decompression_mem : seekable_decompression_mem.c $(SEEKABLE_OBJS)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 parallel_processing : parallel_processing.c $(SEEKABLE_OBJS)
@@ -44,5 +48,6 @@ parallel_compression : parallel_compression.c $(SEEKABLE_OBJS)
 clean:
 	@rm -f core *.o tmp* result* *.zst \
 		seekable_compression seekable_decompression \
+		seekable_decompression_mem \
 		parallel_processing parallel_compression
 	@echo Cleaning completed

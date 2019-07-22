@@ -106,7 +106,7 @@ typedef struct {
 static int ZSTD_seekable_read_buff(void* opaque, void* buffer, size_t n)
 {
     buffWrapper_t* buff = (buffWrapper_t*) opaque;
-    if (buff->size + n > buff->pos) return -1;
+    if (buff->pos + n > buff->size) return -1;
     memcpy(buffer, (const BYTE*)buff->ptr + buff->pos, n);
     buff->pos += n;
     return 0;
@@ -124,7 +124,7 @@ static int ZSTD_seekable_seek_buff(void* opaque, long long offset, int origin)
         newOffset = (unsigned long long)buff->pos + offset;
         break;
     case SEEK_END:
-        newOffset = (unsigned long long)buff->size - offset;
+        newOffset = (unsigned long long)buff->size + offset;
         break;
     default:
         assert(0);  /* not possible */

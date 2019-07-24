@@ -229,7 +229,7 @@ Split input files in blocks of size # (default: no split)
 A dictionary ID is a locally unique ID that a decoder can use to verify it is using the right dictionary\. By default, zstd will create a 4\-bytes random number ID\. It\'s possible to give a precise number instead\. Short numbers have an advantage : an ID < 256 will only need 1 byte in the compressed frame header, and an ID < 65536 will only need 2 bytes\. This compares favorably to 4 bytes default\. However, it\'s up to the dictionary manager to not assign twice the same ID to 2 different dictionaries\.
 .
 .TP
-\fB\-\-train\-cover[=k#,d=#,steps=#,split=#]\fR	\fB\-\-train\-cover[=k#,d=#,steps=#,split=#,shrink[=#]]\fR
+\fB\-\-train\-cover[=k#,d=#,steps=#,split=#]\fR
 Select parameters for the default dictionary builder algorithm named cover\. If \fId\fR is not specified, then it tries \fId\fR = 6 and \fId\fR = 8\. If \fIk\fR is not specified, then it tries \fIsteps\fR values in the range [50, 2000]\. If \fIsteps\fR is not specified, then the default value of 40 is used\. If \fIsplit\fR is not specified or split <= 0, then the default value of 100 is used\. Requires that \fId\fR <= \fIk\fR\.
 .
 .IP
@@ -254,7 +254,7 @@ Examples:
 \fBzstd \-\-train\-cover=k=50,split=60 FILEs\fR
 .
 .TP
-\fB\-\-train\-fastcover[=k#,d=#,f=#,steps=#,split=#,shrink[=#],accel=#]\fR
+\fB\-\-train\-fastcover[=k#,d=#,f=#,steps=#,split=#,accel=#]\fR
 Same as cover but with extra parameters \fIf\fR and \fIaccel\fR and different default value of split If \fIsplit\fR is not specified, then it tries \fIsplit\fR = 75\. If \fIf\fR is not specified, then it tries \fIf\fR = 20\. Requires that 0 < \fIf\fR < 32\. If \fIaccel\fR is not specified, then it tries \fIaccel\fR = 1\. Requires that 0 < \fIaccel\fR <= 10\. Requires that \fId\fR = 6 or \fId\fR = 8\.
 .
 .IP

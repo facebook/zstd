@@ -559,7 +559,7 @@ static int benchMem(slice_collection_t dstBlocks,
         CONTROL(BMK_isSuccessful_runOutcome(outcome));
 
         BMK_runTime_t const result = BMK_extract_runTime(outcome);
-        U64 const dTime_ns = result.nanoSecPerRun;
+        double const dTime_ns = result.nanoSecPerRun;
         double const dTime_sec = (double)dTime_ns / 1000000000;
         size_t const srcSize = result.sumOfReturn;
         double const dSpeed_MBps = (double)srcSize / dTime_sec / (1 MB);

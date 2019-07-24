@@ -1,3 +1,9 @@
+v1.4.2
+bug: Fix bug in zstd-0.5 decoder by @terrelln (#1696)
+bug: Fix seekable decompression in-memory API by @iburinoc (#1695)
+misc: Validate blocks are smaller than size limit by @vivekmg (#1685)
+misc: Restructure source files by @ephiepark (#1679)
+
 v1.4.1
 bug: Fix data corruption in niche use cases by @terrelln (#1659)
 bug: Fuzz legacy modes, fix uncovered bugs by @terrelln (#1593, #1594, #1595)

@@ -245,6 +245,7 @@ int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char
 
         if (!followLinks && UTIL_isLink(path)) {
             UTIL_DISPLAYLEVEL(2, "Warning : %s is a symbolic link, ignoring\n", path);
+            free(path);
             continue;
         }
 

@@ -294,13 +294,14 @@ static unsigned longCommandWArg(const char** stringPtr, const char* longCommand)
 
 
 #ifndef ZSTD_NODICT
+
+static const unsigned kDefaultRegression = 1;
 /**
  * parseCoverParameters() :
  * reads cover parameters from *stringPtr (e.g. "--train-cover=k=48,d=8,steps=32") into *params
  * @return 1 means that cover parameters were correct
  * @return 0 in case of malformed parameters
  */
-static const unsigned kDefaultRegression = 1;
 static unsigned parseCoverParameters(const char* stringPtr, ZDICT_cover_params_t* params)
 {
     memset(params, 0, sizeof(*params));

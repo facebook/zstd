@@ -1,5 +1,5 @@
 .
-.TH "ZSTD" "1" "July 2019" "zstd 1.4.1" "User Commands"
+.TH "ZSTD" "1" "July 2019" "zstd 1.4.2" "User Commands"
 .
 .SH "NAME"
 \fBzstd\fR \- zstd, zstdmt, unzstd, zstdcat \- Compress or decompress \.zst files
@@ -229,11 +229,11 @@ Split input files in blocks of size # (default: no split)
 A dictionary ID is a locally unique ID that a decoder can use to verify it is using the right dictionary\. By default, zstd will create a 4\-bytes random number ID\. It\'s possible to give a precise number instead\. Short numbers have an advantage : an ID < 256 will only need 1 byte in the compressed frame header, and an ID < 65536 will only need 2 bytes\. This compares favorably to 4 bytes default\. However, it\'s up to the dictionary manager to not assign twice the same ID to 2 different dictionaries\.
 .
 .TP
-\fB\-\-train\-cover[=k#,d=#,steps=#,split=#]\fR
-Select parameters for the default dictionary builder algorithm named cover\. If \fId\fR is not specified, then it tries \fId\fR = 6 and \fId\fR = 8\. If \fIk\fR is not specified, then it tries \fIsteps\fR values in the range [50, 2000]\. If \fIsteps\fR is not specified, then the default value of 40 is used\. If \fIsplit\fR is not specified or split <= 0, then the default value of 100 is used\. Requires that \fId\fR <= \fIk\fR\.
+\fB\-\-train\-cover[=k#,d=#,steps=#,split=#,shrink[=#]]\fR
+Select parameters for the default dictionary builder algorithm named cover\. If \fId\fR is not specified, then it tries \fId\fR = 6 and \fId\fR = 8\. If \fIk\fR is not specified, then it tries \fIsteps\fR values in the range [50, 2000]\. If \fIsteps\fR is not specified, then the default value of 40 is used\. If \fIsplit\fR is not specified or split <= 0, then the default value of 100 is used\. Requires that \fId\fR <= \fIk\fR\. If \fIshrink\fR flag is not used, then the default value for \fIshrinkDict\fR of 0 is used\. If \fIshrink\fR is not specified, then the default value for \fIshrinkDictMaxRegression\fR of 1 is used\.
 .
 .IP
-Selects segments of size \fIk\fR with highest score to put in the dictionary\. The score of a segment is computed by the sum of the frequencies of all the subsegments of size \fId\fR\. Generally \fId\fR should be in the range [6, 8], occasionally up to 16, but the algorithm will run faster with d <= \fI8\fR\. Good values for \fIk\fR vary widely based on the input data, but a safe range is [2 * \fId\fR, 2000]\. If \fIsplit\fR is 100, all input samples are used for both training and testing to find optimal \fId\fR and \fIk\fR to build dictionary\. Supports multithreading if \fBzstd\fR is compiled with threading support\.
+Selects segments of size \fIk\fR with highest score to put in the dictionary\. The score of a segment is computed by the sum of the frequencies of all the subsegments of size \fId\fR\. Generally \fId\fR should be in the range [6, 8], occasionally up to 16, but the algorithm will run faster with d <= \fI8\fR\. Good values for \fIk\fR vary widely based on the input data, but a safe range is [2 * \fId\fR, 2000]\. If \fIsplit\fR is 100, all input samples are used for both training and testing to find optimal \fId\fR and \fIk\fR to build dictionary\. Supports multithreading if \fBzstd\fR is compiled with threading support\. Having \fIshrink\fR enabled takes a truncated dictionary of minimum size and doubles in size until compression ratio of the truncated dictionary is at most \fIshrinkDictMaxRegression%\fR worse than the compression ratio of the largest dictionary\.
 .
 .IP
 Examples:
@@ -252,6 +252,12 @@ Examples:
 .
 .IP
 \fBzstd \-\-train\-cover=k=50,split=60 FILEs\fR
+.
+.IP
+\fBzstd \-\-train\-cover=shrink FILEs\fR
+.
+.IP
+\fBzstd \-\-train\-cover=shrink=2 FILEs\fR
 .
 .TP
 \fB\-\-train\-fastcover[=k#,d=#,f=#,steps=#,split=#,accel=#]\fR

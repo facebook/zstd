@@ -123,6 +123,10 @@ matrix:
         - make ppcinstall
         - make ppcfuzz
 
+    - name: Trusty (Versions Compatibility Test)
+      script:
+        - make -C tests versionsTest
+
     # check release number
     - name: Tag-Specific Test
       if: tag =~ ^v[0-9]\.[0-9]

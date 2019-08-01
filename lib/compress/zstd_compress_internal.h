@@ -134,9 +134,13 @@ typedef struct {
 typedef struct ZSTD_matchState_t ZSTD_matchState_t;
 struct ZSTD_matchState_t {
     ZSTD_window_t window;   /* State for window round buffer management */
-    U32 loadedDictEnd;      /* index of end of dictionary, within context's referential. When dict referential is copied into active context (i.e. not attached), effectively same value as dictSize, since referential starts from zero */
+    U32 loadedDictEnd;      /* index of end of dictionary, within context's referential.
+                             * When loadedDictEnd != 0, a dictionary is in use, and still valid.
+                             * When dict referential is copied into active context (i.e. not attached),
+                             * loadedDictEnd == dictSize, since referential starts from zero.
+                             */
     U32 nextToUpdate;       /* index from which to continue table update */
-    U32 hashLog3;           /* dispatch table : larger == faster, more memory */
+    U32 hashLog3;           /* dispatch table for matches of len==3 : larger == faster, more memory */
     U32* hashTable;
     U32* hashTable3;
     U32* chainTable;
@@ -763,24 +767,37 @@ ZSTD_window_enforceMaxDist(ZSTD_window_t* window,
 
 /* Similar to ZSTD_window_enforceMaxDist(),
  * but only invalidates dictionary
- * when input progresses beyond window size. */
+ * when input progresses beyond window size.
+ * assumption : loadedDictEndPtr and dictMatchStatePtr are valid (non NULL)
+ *              loadedDictEnd uses same referential as window->base
+ *              maxDist is the window size */
 MEM_STATIC void
-ZSTD_checkDictValidity(ZSTD_window_t* window,
+ZSTD_checkDictValidity(const ZSTD_window_t* window,
                        const void* blockEnd,
                              U32   maxDist,
                              U32*  loadedDictEndPtr,
                        const ZSTD_matchState_t** dictMatchStatePtr)
 {
-    U32 const blockEndIdx = (U32)((BYTE const*)blockEnd - window->base);
-    U32 const loadedDictEnd = (loadedDictEndPtr != NULL) ? *loadedDictEndPtr : 0;
-    DEBUGLOG(5, "ZSTD_checkDictValidity: blockEndIdx=%u, maxDist=%u, loadedDictEnd=%u",
-                (unsigned)blockEndIdx, (unsigned)maxDist, (unsigned)loadedDictEnd);
+    assert(loadedDictEndPtr != NULL);
+    assert(dictMatchStatePtr != NULL);
+    {   U32 const blockEndIdx = (U32)((BYTE const*)blockEnd - window->base);
+        U32 const loadedDictEnd = *loadedDictEndPtr;
+        DEBUGLOG(5, "ZSTD_checkDictValidity: blockEndIdx=%u, maxDist=%u, loadedDictEnd=%u",
+                    (unsigned)blockEndIdx, (unsigned)maxDist, (unsigned)loadedDictEnd);
+        assert(blockEndIdx >= loadedDictEnd);
 
-    if (loadedDictEnd && (blockEndIdx > maxDist + loadedDictEnd)) {
-        /* On reaching window size, dictionaries are invalidated */
-        if (loadedDictEndPtr) *loadedDictEndPtr = 0;
-        if (dictMatchStatePtr) *dictMatchStatePtr = NULL;
-    }
+        if (blockEndIdx > loadedDictEnd + maxDist) {
+            /* On reaching window size, dictionaries are invalidated.
+             * For simplification, if window size is reached anywhere within next block,
+             * the dictionary is invalidated for the full block.
+             */
+            DEBUGLOG(6, "invalidating dictionary for current block (distance > windowSize)");
+            *loadedDictEndPtr = 0;
+            *dictMatchStatePtr = NULL;
+        } else {
+            if (*loadedDictEndPtr != 0) {
+                DEBUGLOG(6, "dictionary considered valid for current block");
+    }   }   }
 }
 
 /**

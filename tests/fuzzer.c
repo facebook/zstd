@@ -231,7 +231,7 @@ static int FUZ_mallocTests_internal(unsigned seed, double compressibility, unsig
 
     /* advanced MT API test */
     if (part <= 3)
-    {   unsigned nbThreads;
+    {   int nbThreads;
         for (nbThreads=1; nbThreads<=4; nbThreads++) {
             int compressionLevel;
             for (compressionLevel=1; compressionLevel<=6; compressionLevel++) {
@@ -242,7 +242,7 @@ static int FUZ_mallocTests_internal(unsigned seed, double compressibility, unsig
                 CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, nbThreads) );
                 CHECK_Z( ZSTD_compress2(cctx, outBuffer, outSize, inBuffer, inSize) );
                 ZSTD_freeCCtx(cctx);
-                DISPLAYLEVEL(3, "compress_generic,-T%u,end level %i : ",
+                DISPLAYLEVEL(3, "compress_generic,-T%i,end level %i : ",
                                 nbThreads, compressionLevel);
                 FUZ_displayMallocStats(malcount);
     }   }   }
@@ -450,7 +450,7 @@ static int basicUnitTests(U32 seed, double compressibility)
 
     DISPLAYLEVEL(3, "test%3i : ZSTD_decompressBound test with content size missing : ", testNb++);
     {   /* create compressed buffer with content size missing */
-        ZSTD_CCtx* cctx = ZSTD_createCCtx();
+        ZSTD_CCtx* const cctx = ZSTD_createCCtx();
         CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_contentSizeFlag, 0) );
         CHECKPLUS(r, ZSTD_compress2(cctx,
                             compressedBuffer, compressedBufferSize,
@@ -777,7 +777,7 @@ static int basicUnitTests(U32 seed, double compressibility)
             CHECK( ZSTD_initCStream(staticCCtx, 1) );
             DISPLAYLEVEL(3, "OK \n");
 
-            DISPLAYLEVEL(3, "test%3i : init CStream with dictionary (should fail) : ", testNb++);
+            DISPLAYLEVEL(3, "test%3i : init static CStream with dictionary (should fail) : ", testNb++);
             { size_t const r = ZSTD_initCStream_usingDict(staticCCtx, CNBuffer, 64 KB, 1);
               if (!ZSTD_isError(r)) goto _output_error; }
             DISPLAYLEVEL(3, "OK \n");
@@ -1963,7 +1963,7 @@ static int basicUnitTests(U32 seed, double compressibility)
 
     DISPLAYLEVEL(3, "test%3i : compress lots 3-bytes sequences : ", testNb++);
     { CHECK_V(r, ZSTD_compress(compressedBuffer, ZSTD_compressBound(_3BYTESTESTLENGTH),
-                                 CNBuffer, _3BYTESTESTLENGTH, 19) );
+                               CNBuffer, _3BYTESTESTLENGTH, 19) );
       cSize = r; }
     DISPLAYLEVEL(3, "OK (%u bytes : %.2f%%)\n", (unsigned)cSize, (double)cSize/_3BYTESTESTLENGTH*100);
 

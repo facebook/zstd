@@ -123,9 +123,10 @@ static U32 FUZ_highbit32(U32 v32)
         exit(1);                                   \
 }   }
 
-#define CHECK_V(var, fn)  size_t const var = fn; if (ZSTD_isError(var)) goto _output_error
-#define CHECK(fn)  { CHECK_V(err, fn); }
-#define CHECKPLUS(var, fn, more)  { CHECK_V(var, fn); more; }
+#define CHECK_VAR(var, fn)  var = fn; if (ZSTD_isError(var)) goto _output_error
+#define CHECK_NEWV(var, fn)  size_t const CHECK_VAR(var, fn)
+#define CHECK(fn)  { CHECK_NEWV(err, fn); }
+#define CHECKPLUS(var, fn, more)  { CHECK_NEWV(var, fn); more; }
 
 #define CHECK_OP(op, lhs, rhs) {                                  \
     if (!((lhs) op (rhs))) {                                      \
@@ -345,10 +346,9 @@ static int basicUnitTests(U32 seed, double compressibility)
     DISPLAYLEVEL(3, "test%3u : compress %u bytes : ", testNb++, (unsigned)CNBuffSize);
     {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
         if (cctx==NULL) goto _output_error;
-        CHECKPLUS(r, ZSTD_compressCCtx(cctx,
+        CHECK_VAR(cSize, ZSTD_compressCCtx(cctx,
                             compressedBuffer, compressedBufferSize,
-                            CNBuffer, CNBuffSize, 1),
-                  cSize=r );
+                            CNBuffer, CNBuffSize, 1) );
         DISPLAYLEVEL(3, "OK (%u bytes : %.2f%%)\n", (unsigned)cSize, (double)cSize/CNBuffSize*100);
 
         DISPLAYLEVEL(3, "test%3i : size of cctx for level 1 : ", testNb++);
@@ -452,10 +452,9 @@ static int basicUnitTests(U32 seed, double compressibility)
     {   /* create compressed buffer with content size missing */
         ZSTD_CCtx* const cctx = ZSTD_createCCtx();
         CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_contentSizeFlag, 0) );
-        CHECKPLUS(r, ZSTD_compress2(cctx,
+        CHECK_VAR(cSize, ZSTD_compress2(cctx,
                             compressedBuffer, compressedBufferSize,
-                            CNBuffer, CNBuffSize),
-                  cSize=r );
+                            CNBuffer, CNBuffSize) );
         ZSTD_freeCCtx(cctx);
     }
     {   /* ensure frame content size is missing */
@@ -742,10 +741,9 @@ static int basicUnitTests(U32 seed, double compressibility)
             DISPLAYLEVEL(3, "OK \n");
 
             DISPLAYLEVEL(3, "test%3i : simple compression test with static CCtx : ", testNb++);
-            CHECKPLUS(r, ZSTD_compressCCtx(staticCCtx,
-                            compressedBuffer, compressedBufferSize,
-                            CNBuffer, CNBuffSize, STATIC_CCTX_LEVEL),
-                      cSize=r );
+            CHECK_VAR(cSize, ZSTD_compressCCtx(staticCCtx,
+                                  compressedBuffer, compressedBufferSize,
+                                  CNBuffer, CNBuffSize, STATIC_CCTX_LEVEL) );
             DISPLAYLEVEL(3, "OK (%u bytes : %.2f%%)\n",
                             (unsigned)cSize, (double)cSize/CNBuffSize*100);
 
@@ -819,11 +817,10 @@ static int basicUnitTests(U32 seed, double compressibility)
         DISPLAYLEVEL(3, "OK \n");
 
         DISPLAYLEVEL(3, "test%3u : compress %u bytes with 2 threads : ", testNb++, (unsigned)CNBuffSize);
-        CHECKPLUS(r, ZSTDMT_compressCCtx(mtctx,
+        CHECK_VAR(cSize, ZSTDMT_compressCCtx(mtctx,
                                 compressedBuffer, compressedBufferSize,
                                 CNBuffer, CNBuffSize,
-                                1),
-                  cSize=r );
+                                1) );
         DISPLAYLEVEL(3, "OK (%u bytes : %.2f%%)\n", (unsigned)cSize, (double)cSize/CNBuffSize*100);
 
         DISPLAYLEVEL(3, "test%3i : decompressed size test : ", testNb++);
@@ -850,11 +847,10 @@ static int basicUnitTests(U32 seed, double compressibility)
         {   ZSTD_parameters params = ZSTD_getParams(1, CNBuffSize, 0);
             params.fParams.checksumFlag = 1;
             params.fParams.contentSizeFlag = 1;
-            CHECKPLUS(r, ZSTDMT_compress_advanced(mtctx,
+            CHECK_VAR(cSize, ZSTDMT_compress_advanced(mtctx,
                                     compressedBuffer, compressedBufferSize,
                                     CNBuffer, CNBuffSize,
-                                    NULL, params, 3 /*overlapRLog*/),
-                      cSize=r );
+                                    NULL, params, 3 /*overlapRLog*/) );
         }
         DISPLAYLEVEL(3, "OK (%u bytes : %.2f%%)\n", (unsigned)cSize, (double)cSize/CNBuffSize*100);
 
@@ -928,10 +924,10 @@ static int basicUnitTests(U32 seed, double compressibility)
         /* only use the first half so we don't push against size limit of compressedBuffer */
         size_t const segSize = (CNBuffSize / 2) / segs;
         for (i = 0; i < segs; i++) {
-            CHECK_V(r, ZSTD_compress(
-                            (BYTE *)compressedBuffer + off, CNBuffSize - off,
-                            (BYTE *)CNBuffer + segSize * i,
-                            segSize, 5));
+            CHECK_NEWV(r, ZSTD_compress(
+                            (BYTE*)compressedBuffer + off, CNBuffSize - off,
+                            (BYTE*)CNBuffer + segSize * (size_t)i, segSize,
+                            5) );
             off += r;
             if (i == segs/2) {
                 /* insert skippable frame */
@@ -956,7 +952,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     DISPLAYLEVEL(3, "OK \n");
 
     DISPLAYLEVEL(3, "test%3i : decompress multiple frames : ", testNb++);
-    {   CHECK_V(r, ZSTD_decompress(decodedBuffer, CNBuffSize, compressedBuffer, cSize));
+    {   CHECK_NEWV(r, ZSTD_decompress(decodedBuffer, CNBuffSize, compressedBuffer, cSize));
         if (r != CNBuffSize / 2) goto _output_error; }
     DISPLAYLEVEL(3, "OK \n");
 
@@ -983,8 +979,9 @@ static int basicUnitTests(U32 seed, double compressibility)
 
         DISPLAYLEVEL(3, "test%3i : compress with flat dictionary : ", testNb++);
         cSize = 0;
-        CHECKPLUS(r, ZSTD_compressEnd(ctxOrig, compressedBuffer, compressedBufferSize,
-                                           (const char*)CNBuffer + dictSize, CNBuffSize - dictSize),
+        CHECKPLUS(r, ZSTD_compressEnd(ctxOrig,
+                                      compressedBuffer, compressedBufferSize,
+                         (const char*)CNBuffer + dictSize, CNBuffSize - dictSize),
                   cSize += r);
         DISPLAYLEVEL(3, "OK (%u bytes : %.2f%%)\n", (unsigned)cSize, (double)cSize/CNBuffSize*100);
 
@@ -999,8 +996,9 @@ static int basicUnitTests(U32 seed, double compressibility)
         DISPLAYLEVEL(3, "test%3i : compress with duplicated context : ", testNb++);
         {   size_t const cSizeOrig = cSize;
             cSize = 0;
-            CHECKPLUS(r, ZSTD_compressEnd(ctxDuplicated, compressedBuffer, compressedBufferSize,
-                                               (const char*)CNBuffer + dictSize, CNBuffSize - dictSize),
+            CHECKPLUS(r, ZSTD_compressEnd(ctxDuplicated,
+                                    compressedBuffer, compressedBufferSize,
+                       (const char*)CNBuffer + dictSize, CNBuffSize - dictSize),
                       cSize += r);
             if (cSize != cSizeOrig) goto _output_error;   /* should be identical ==> same size */
         }
@@ -1024,7 +1022,7 @@ static int basicUnitTests(U32 seed, double compressibility)
 
         DISPLAYLEVEL(3, "test%3i : decompress with static DDict : ", testNb++);
         {   size_t const ddictBufferSize = ZSTD_estimateDDictSize(dictSize, ZSTD_dlm_byCopy);
-            void* ddictBuffer = malloc(ddictBufferSize);
+            void* const ddictBuffer = malloc(ddictBufferSize);
             if (ddictBuffer == NULL) goto _output_error;
             {   const ZSTD_DDict* const ddict = ZSTD_initStaticDDict(ddictBuffer, ddictBufferSize, CNBuffer, dictSize, ZSTD_dlm_byCopy, ZSTD_dct_auto);
                 size_t const r = ZSTD_decompress_usingDDict(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize, ddict);
@@ -1042,14 +1040,60 @@ static int basicUnitTests(U32 seed, double compressibility)
             }
             CHECK( ZSTD_copyCCtx(ctxDuplicated, ctxOrig, testSize) );
 
-            CHECKPLUS(r, ZSTD_compressEnd(ctxDuplicated, compressedBuffer, ZSTD_compressBound(testSize),
-                                          (const char*)CNBuffer + dictSize, testSize),
-                      cSize = r);
+            CHECK_VAR(cSize, ZSTD_compressEnd(ctxDuplicated, compressedBuffer, ZSTD_compressBound(testSize),
+                                          (const char*)CNBuffer + dictSize, testSize) );
             {   ZSTD_frameHeader zfh;
                 if (ZSTD_getFrameHeader(&zfh, compressedBuffer, cSize)) goto _output_error;
                 if ((zfh.frameContentSize != testSize) && (zfh.frameContentSize != 0)) goto _output_error;
         }   }
         DISPLAYLEVEL(3, "OK \n");
+
+        DISPLAYLEVEL(3, "test%3i : flat-dictionary efficiency test : \n", testNb++);
+        {   size_t const flatdictSize = 22 KB;
+            size_t const contentSize = 9 KB;
+            const void* const dict = (const char*)CNBuffer;
+            const void* const contentStart = dict + flatdictSize;
+            size_t const target_nodict_cSize[22+1] = { 3840, 3740, 3840, 3810, 3750,
+                                                       3750, 3740, 3740, 3740, 3740,
+                                                       3740, 3670, 3660, 3660, 3660,
+                                                       3650, 3650, 3650, 3650, 3650,
+                                                       3650, 3650, 3650 };
+            size_t const target_wdict_cSize[22+1] =  { 2820, 2850, 2860, 2820, 2940,
+                                                       2930, 2930, 2920, 2890, 2890,
+                                                       2890, 2900, 2900, 2770, 2760,
+                                                       2750, 2750, 2750, 2750, 2750,
+                                                       2750, 2750, 2750 };
+            int l = 1;
+            int const maxLevel = ZSTD_maxCLevel();
+            assert(maxLevel == 22);
+            for ( ; l <= maxLevel; l++) {
+                size_t const nodict_cSize = ZSTD_compress(compressedBuffer, compressedBufferSize,
+                                                          contentStart, contentSize, l);
+                if (nodict_cSize > target_nodict_cSize[l]) {
+                    DISPLAYLEVEL(1, "error : compression at level %i worse than expected (%u > %u) \n",
+                                    l, (unsigned)nodict_cSize, (unsigned)target_nodict_cSize[l]);
+                    goto _output_error;
+                }
+                DISPLAYLEVEL(3, "level %i : max expected %u >= reached %u \n",
+                                l, (unsigned)target_nodict_cSize[l], (unsigned)nodict_cSize);
+            }
+            for ( l=1 ; l <= maxLevel; l++) {
+                size_t const wdict_cSize = ZSTD_compress_usingDict(ctxOrig,
+                                                          compressedBuffer, compressedBufferSize,
+                                                          contentStart, contentSize,
+                                                          dict, flatdictSize,
+                                                          l);
+                if (wdict_cSize > target_wdict_cSize[l]) {
+                    DISPLAYLEVEL(1, "error : compression with dictionary at level %i worse than expected (%u > %u) \n",
+                                    l, (unsigned)wdict_cSize, (unsigned)target_wdict_cSize[l]);
+                    goto _output_error;
+                }
+                DISPLAYLEVEL(3, "level %i with dictionary : max expected %u >= reached %u \n",
+                                l, (unsigned)target_wdict_cSize[l], (unsigned)wdict_cSize);
+            }
+        }
+        DISPLAYLEVEL(3, "compression efficiency tests OK \n");
+
 
         ZSTD_freeCCtx(ctxOrig);
         ZSTD_freeCCtx(ctxDuplicated);
@@ -1836,7 +1880,7 @@ static int basicUnitTests(U32 seed, double compressibility)
 
         DISPLAYLEVEL(3, "test%3i : Block decompression test : ", testNb++);
         CHECK( ZSTD_decompressBegin(dctx) );
-        { CHECK_V(r, ZSTD_decompressBlock(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize) );
+        { CHECK_NEWV(r, ZSTD_decompressBlock(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize) );
           if (r != blockSize) goto _output_error; }
         DISPLAYLEVEL(3, "OK \n");
 
@@ -1870,10 +1914,10 @@ static int basicUnitTests(U32 seed, double compressibility)
 
         DISPLAYLEVEL(3, "test%3i : Dictionary Block decompression test : ", testNb++);
         CHECK( ZSTD_decompressBegin_usingDict(dctx, CNBuffer, dictSize) );
-        { CHECK_V( r, ZSTD_decompressBlock(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize) );
+        { CHECK_NEWV( r, ZSTD_decompressBlock(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize) );
           if (r != blockSize) goto _output_error; }
         ZSTD_insertBlock(dctx, (char*)decodedBuffer+blockSize, blockSize);   /* insert non-compressed block into dctx history */
-        { CHECK_V( r, ZSTD_decompressBlock(dctx, (char*)decodedBuffer+2*blockSize, CNBuffSize, (char*)compressedBuffer+cSize+blockSize, cSize2) );
+        { CHECK_NEWV( r, ZSTD_decompressBlock(dctx, (char*)decodedBuffer+2*blockSize, CNBuffSize, (char*)compressedBuffer+cSize+blockSize, cSize2) );
           if (r != blockSize) goto _output_error; }
         DISPLAYLEVEL(3, "OK \n");
 
@@ -1900,7 +1944,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         sampleSize += 96 KB;
         cSize = ZSTD_compress(compressedBuffer, ZSTD_compressBound(sampleSize), CNBuffer, sampleSize, 1);
         if (ZSTD_isError(cSize)) goto _output_error;
-        { CHECK_V(regenSize, ZSTD_decompress(decodedBuffer, sampleSize, compressedBuffer, cSize));
+        { CHECK_NEWV(regenSize, ZSTD_decompress(decodedBuffer, sampleSize, compressedBuffer, cSize));
           if (regenSize!=sampleSize) goto _output_error; }
         DISPLAYLEVEL(3, "OK \n");
     }
@@ -1909,12 +1953,11 @@ static int basicUnitTests(U32 seed, double compressibility)
     #define ZEROESLENGTH 100
     DISPLAYLEVEL(3, "test%3i : compress %u zeroes : ", testNb++, ZEROESLENGTH);
     memset(CNBuffer, 0, ZEROESLENGTH);
-    { CHECK_V(r, ZSTD_compress(compressedBuffer, ZSTD_compressBound(ZEROESLENGTH), CNBuffer, ZEROESLENGTH, 1) );
-      cSize = r; }
+    CHECK_VAR(cSize, ZSTD_compress(compressedBuffer, ZSTD_compressBound(ZEROESLENGTH), CNBuffer, ZEROESLENGTH, 1) );
     DISPLAYLEVEL(3, "OK (%u bytes : %.2f%%)\n", (unsigned)cSize, (double)cSize/ZEROESLENGTH*100);
 
     DISPLAYLEVEL(3, "test%3i : decompress %u zeroes : ", testNb++, ZEROESLENGTH);
-    { CHECK_V(r, ZSTD_decompress(decodedBuffer, ZEROESLENGTH, compressedBuffer, cSize) );
+    { CHECK_NEWV(r, ZSTD_decompress(decodedBuffer, ZEROESLENGTH, compressedBuffer, cSize) );
       if (r != ZEROESLENGTH) goto _output_error; }
     DISPLAYLEVEL(3, "OK \n");
 
@@ -1962,13 +2005,12 @@ static int basicUnitTests(U32 seed, double compressibility)
     DISPLAYLEVEL(3, "OK \n");
 
     DISPLAYLEVEL(3, "test%3i : compress lots 3-bytes sequences : ", testNb++);
-    { CHECK_V(r, ZSTD_compress(compressedBuffer, ZSTD_compressBound(_3BYTESTESTLENGTH),
-                               CNBuffer, _3BYTESTESTLENGTH, 19) );
-      cSize = r; }
+    CHECK_VAR(cSize, ZSTD_compress(compressedBuffer, ZSTD_compressBound(_3BYTESTESTLENGTH),
+                                   CNBuffer, _3BYTESTESTLENGTH, 19) );
     DISPLAYLEVEL(3, "OK (%u bytes : %.2f%%)\n", (unsigned)cSize, (double)cSize/_3BYTESTESTLENGTH*100);
 
     DISPLAYLEVEL(3, "test%3i : decompress lots 3-bytes sequence : ", testNb++);
-    { CHECK_V(r, ZSTD_decompress(decodedBuffer, _3BYTESTESTLENGTH, compressedBuffer, cSize) );
+    { CHECK_NEWV(r, ZSTD_decompress(decodedBuffer, _3BYTESTESTLENGTH, compressedBuffer, cSize) );
       if (r != _3BYTESTESTLENGTH) goto _output_error; }
     DISPLAYLEVEL(3, "OK \n");
 

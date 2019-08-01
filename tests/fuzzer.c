@@ -1052,7 +1052,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         {   size_t const flatdictSize = 22 KB;
             size_t const contentSize = 9 KB;
             const void* const dict = (const char*)CNBuffer;
-            const void* const contentStart = dict + flatdictSize;
+            const void* const contentStart = (const char*)dict + flatdictSize;
             size_t const target_nodict_cSize[22+1] = { 3840, 3740, 3840, 3810, 3750,
                                                        3750, 3740, 3740, 3740, 3740,
                                                        3740, 3670, 3660, 3660, 3660,

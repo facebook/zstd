@@ -1048,8 +1048,8 @@ static int basicUnitTests(U32 seed, double compressibility)
         }   }
         DISPLAYLEVEL(3, "OK \n");
 
-        DISPLAYLEVEL(3, "test%3i : flat-dictionary efficiency test : \n", testNb++);
-        {   size_t const flatdictSize = 22 KB;
+        if ((int)(compressibility * 100 + 0.1) == FUZ_compressibility_default) { /* test only valid with known input */
+            size_t const flatdictSize = 22 KB;
             size_t const contentSize = 9 KB;
             const void* const dict = (const char*)CNBuffer;
             const void* const contentStart = (const char*)dict + flatdictSize;
@@ -1065,7 +1065,11 @@ static int basicUnitTests(U32 seed, double compressibility)
                                                        2750, 2750, 2750 };
             int l = 1;
             int const maxLevel = ZSTD_maxCLevel();
+
+            DISPLAYLEVEL(3, "test%3i : flat-dictionary efficiency test : \n", testNb++);
             assert(maxLevel == 22);
+            RDG_genBuffer(CNBuffer, flatdictSize + contentSize, compressibility, 0., seed);
+
             for ( ; l <= maxLevel; l++) {
                 size_t const nodict_cSize = ZSTD_compress(compressedBuffer, compressedBufferSize,
                                                           contentStart, contentSize, l);
@@ -1074,7 +1078,7 @@ static int basicUnitTests(U32 seed, double compressibility)
                                     l, (unsigned)nodict_cSize, (unsigned)target_nodict_cSize[l]);
                     goto _output_error;
                 }
-                DISPLAYLEVEL(3, "level %i : max expected %u >= reached %u \n",
+                DISPLAYLEVEL(4, "level %i : max expected %u >= reached %u \n",
                                 l, (unsigned)target_nodict_cSize[l], (unsigned)nodict_cSize);
             }
             for ( l=1 ; l <= maxLevel; l++) {
@@ -1088,12 +1092,12 @@ static int basicUnitTests(U32 seed, double compressibility)
                                     l, (unsigned)wdict_cSize, (unsigned)target_wdict_cSize[l]);
                     goto _output_error;
                 }
-                DISPLAYLEVEL(3, "level %i with dictionary : max expected %u >= reached %u \n",
+                DISPLAYLEVEL(4, "level %i with dictionary : max expected %u >= reached %u \n",
                                 l, (unsigned)target_wdict_cSize[l], (unsigned)wdict_cSize);
             }
-        }
-        DISPLAYLEVEL(3, "compression efficiency tests OK \n");
 
+            DISPLAYLEVEL(4, "compression efficiency tests OK \n");
+        }
 
         ZSTD_freeCCtx(ctxOrig);
         ZSTD_freeCCtx(ctxDuplicated);

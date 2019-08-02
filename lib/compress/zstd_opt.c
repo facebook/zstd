@@ -569,8 +569,10 @@ U32 ZSTD_insertBtAndGetAllMatches (
     const BYTE* const dictEnd = dictBase + dictLimit;
     const BYTE* const prefixStart = base + dictLimit;
     U32 const btLow = (btMask >= current) ? 0 : current - btMask;
-    U32 const windowValid = ms->window.lowLimit;
-    U32 const windowLow = ((current - windowValid) > maxDistance) ? current - maxDistance : windowValid;
+    U32 const lowestValid = ms->window.lowLimit;
+    U32 const withinWindow = (current - lowestValid > maxDistance) ? current - maxDistance : lowestValid;
+    U32 const isDictionary = (ms->loadedDictEnd != 0);
+    U32 const windowLow = isDictionary ? lowestValid : withinWindow;
     U32 const matchLow = windowLow ? windowLow : 1;
     U32* smallerPtr = bt + 2*(current&btMask);
     U32* largerPtr  = bt + 2*(current&btMask) + 1;
@@ -674,19 +676,21 @@ U32 ZSTD_insertBtAndGetAllMatches (
 
     while (nbCompares-- && (matchIndex >= matchLow)) {
         U32* const nextPtr = bt + 2*(matchIndex & btMask);
-        size_t matchLength = MIN(commonLengthSmaller, commonLengthLarger);   /* guaranteed minimum nb of common bytes */
         const BYTE* match;
+        size_t matchLength = MIN(commonLengthSmaller, commonLengthLarger);   /* guaranteed minimum nb of common bytes */
         assert(current > matchIndex);
 
         if ((dictMode == ZSTD_noDict) || (dictMode == ZSTD_dictMatchState) || (matchIndex+matchLength >= dictLimit)) {
             assert(matchIndex+matchLength >= dictLimit);  /* ensure the condition is correct when !extDict */
             match = base + matchIndex;
+            if (matchIndex >= dictLimit) assert(memcmp(match, ip, matchLength) == 0);  /* ensure early section of match is equal as expected */
             matchLength += ZSTD_count(ip+matchLength, match+matchLength, iLimit);
         } else {
             match = dictBase + matchIndex;
+            assert(memcmp(match, ip, matchLength) == 0);  /* ensure early section of match is equal as expected */
             matchLength += ZSTD_count_2segments(ip+matchLength, match+matchLength, iLimit, dictEnd, prefixStart);
             if (matchIndex+matchLength >= dictLimit)
-                match = base + matchIndex;   /* prepare for match[matchLength] */
+                match = base + matchIndex;   /* prepare for match[matchLength] read */
         }
 
         if (matchLength > bestLength) {

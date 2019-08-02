@@ -497,8 +497,10 @@ size_t ZSTD_HcFindBestMatch_generic (
     const BYTE* const dictEnd = dictBase + dictLimit;
     const U32 current = (U32)(ip-base);
     const U32 maxDistance = 1U << cParams->windowLog;
-    const U32 lowValid = ms->window.lowLimit;
-    const U32 lowLimit = (current - lowValid > maxDistance) ? current - maxDistance : lowValid;
+    const U32 lowestValid = ms->window.lowLimit;
+    const U32 withinMaxDistance = (current - lowestValid > maxDistance) ? current - maxDistance : lowestValid;
+    const U32 isDictionary = (ms->loadedDictEnd != 0);
+    const U32 lowLimit = isDictionary ? lowestValid : withinMaxDistance;
     const U32 minChain = current > chainSize ? current - chainSize : 0;
     U32 nbAttempts = 1U << cParams->searchLog;
     size_t ml=4-1;
@@ -642,8 +644,10 @@ ZSTD_compressBlock_lazy_generic(
                         ZSTD_matchState_t* ms,
                         const BYTE* ip, const BYTE* iLimit, size_t* offsetPtr);
     searchMax_f const searchMax = dictMode == ZSTD_dictMatchState ?
-        (searchMethod==search_binaryTree ? ZSTD_BtFindBestMatch_dictMatchState_selectMLS : ZSTD_HcFindBestMatch_dictMatchState_selectMLS) :
-        (searchMethod==search_binaryTree ? ZSTD_BtFindBestMatch_selectMLS : ZSTD_HcFindBestMatch_selectMLS);
+        (searchMethod==search_binaryTree ? ZSTD_BtFindBestMatch_dictMatchState_selectMLS
+                                         : ZSTD_HcFindBestMatch_dictMatchState_selectMLS) :
+        (searchMethod==search_binaryTree ? ZSTD_BtFindBestMatch_selectMLS
+                                         : ZSTD_HcFindBestMatch_selectMLS);
     U32 offset_1 = rep[0], offset_2 = rep[1], savedOffset=0;
 
     const ZSTD_matchState_t* const dms = ms->dictMatchState;

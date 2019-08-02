@@ -64,7 +64,7 @@ static void RDG_fillLiteralDistrib(BYTE* ldt, fixedPoint_24_8 ld)
     BYTE character = (ld<=0.0) ? 0 : '0';
     U32 u;
 
-    if (ld<=0.0) ld = 0.0;
+    if (ld<=0) ld = 0;
     for (u=0; u<LTSIZE; ) {
         U32 const weight = (((LTSIZE - u) * ld) >> 8) + 1;
         U32 const end = MIN ( u + weight , LTSIZE);

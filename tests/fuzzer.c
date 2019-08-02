@@ -123,7 +123,7 @@ static U32 FUZ_highbit32(U32 v32)
         exit(1);                                   \
 }   }
 
-#define CHECK_VAR(var, fn)  var = fn; if (ZSTD_isError(var)) goto _output_error
+#define CHECK_VAR(var, fn)  var = fn; if (ZSTD_isError(var)) { DISPLAYLEVEL(1, "%s : fails : %s \n", #fn, ZSTD_getErrorName(var)); goto _output_error; }
 #define CHECK_NEWV(var, fn)  size_t const CHECK_VAR(var, fn)
 #define CHECK(fn)  { CHECK_NEWV(err, fn); }
 #define CHECKPLUS(var, fn, more)  { CHECK_NEWV(var, fn); more; }
@@ -1920,11 +1920,17 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
         DISPLAYLEVEL(3, "test%3i : Dictionary Block decompression test : ", testNb++);
         CHECK( ZSTD_decompressBegin_usingDict(dctx, CNBuffer, dictSize) );
-        { CHECK_NEWV( r, ZSTD_decompressBlock(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize) );
-          if (r != blockSize) goto _output_error; }
+        {   CHECK_NEWV( r, ZSTD_decompressBlock(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize) );
+            if (r != blockSize) {
+                DISPLAYLEVEL(1, "ZSTD_decompressBlock() with _usingDict() fails : %s \n", ZSTD_getErrorName(r));
+                goto _output_error;
+        }   }
         ZSTD_insertBlock(dctx, (char*)decodedBuffer+blockSize, blockSize);   /* insert non-compressed block into dctx history */
-        { CHECK_NEWV( r, ZSTD_decompressBlock(dctx, (char*)decodedBuffer+2*blockSize, CNBuffSize, (char*)compressedBuffer+cSize+blockSize, cSize2) );
-          if (r != blockSize) goto _output_error; }
+        {   CHECK_NEWV( r, ZSTD_decompressBlock(dctx, (char*)decodedBuffer+2*blockSize, CNBuffSize, (char*)compressedBuffer+cSize+blockSize, cSize2) );
+            if (r != blockSize) {
+                DISPLAYLEVEL(1, "ZSTD_decompressBlock() with _usingDict() and after insertBlock() fails : %s \n", ZSTD_getErrorName(r));
+                goto _output_error;
+        }   }
         DISPLAYLEVEL(3, "OK \n");
 
         DISPLAYLEVEL(3, "test%3i : Block compression with CDict : ", testNb++);

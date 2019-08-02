@@ -858,7 +858,7 @@ _storeSequence:
     rep[1] = offset_2 ? offset_2 : savedOffset;
 
     /* Return the last literals size */
-    return iend - anchor;
+    return (size_t)(iend - anchor);
 }
 
 

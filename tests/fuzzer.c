@@ -808,9 +808,9 @@ static int basicUnitTests(U32 seed, double compressibility)
 
     /* ZSTDMT simple MT compression test */
     DISPLAYLEVEL(3, "test%3i : create ZSTDMT CCtx : ", testNb++);
-    {   ZSTDMT_CCtx* mtctx = ZSTDMT_createCCtx(2);
+    {   ZSTDMT_CCtx* const mtctx = ZSTDMT_createCCtx(2);
         if (mtctx==NULL) {
-            DISPLAY("mtctx : mot enough memory, aborting \n");
+            DISPLAY("mtctx : not enough memory, aborting \n");
             testResult = 1;
             goto _end;
         }

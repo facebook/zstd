@@ -308,7 +308,7 @@ static int FUZ_mallocTests(unsigned seed, double compressibility, unsigned part)
 *   Unit tests
 =============================================*/
 
-static int basicUnitTests(U32 seed, double compressibility)
+static int basicUnitTests(U32 const seed, double compressibility)
 {
     size_t const CNBuffSize = 5 MB;
     void* const CNBuffer = malloc(CNBuffSize);
@@ -1053,14 +1053,14 @@ static int basicUnitTests(U32 seed, double compressibility)
             size_t const contentSize = 9 KB;
             const void* const dict = (const char*)CNBuffer;
             const void* const contentStart = (const char*)dict + flatdictSize;
-            size_t const target_nodict_cSize[22+1] = { 3840, 3740, 3840, 3810, 3750,
-                                                       3750, 3740, 3740, 3740, 3740,
-                                                       3740, 3670, 3660, 3660, 3660,
-                                                       3650, 3650, 3650, 3650, 3650,
-                                                       3650, 3650, 3650 };
-            size_t const target_wdict_cSize[22+1] =  { 2820, 2850, 2860, 2820, 2940,
-                                                       2930, 2930, 2920, 2890, 2890,
-                                                       2890, 2900, 2900, 2770, 2760,
+            size_t const target_nodict_cSize[22+1] = { 3840, 3770, 3870, 3830, 3770,
+                                                       3770, 3770, 3770, 3750, 3750,
+                                                       3740, 3670, 3670, 3660, 3660,
+                                                       3660, 3660, 3660, 3660, 3660,
+                                                       3660, 3660, 3660 };
+            size_t const target_wdict_cSize[22+1] =  { 2830, 2890, 2890, 2820, 2940,
+                                                       2950, 2950, 2920, 2900, 2890,
+                                                       2910, 2910, 2910, 2770, 2760,
                                                        2750, 2750, 2750, 2750, 2750,
                                                        2750, 2750, 2750 };
             int l = 1;
@@ -1069,6 +1069,7 @@ static int basicUnitTests(U32 seed, double compressibility)
             DISPLAYLEVEL(3, "test%3i : flat-dictionary efficiency test : \n", testNb++);
             assert(maxLevel == 22);
             RDG_genBuffer(CNBuffer, flatdictSize + contentSize, compressibility, 0., seed);
+            DISPLAYLEVEL(4, "content hash : %016llx;  dict hash : %016llx \n", XXH64(contentStart, contentSize, 0), XXH64(dict, flatdictSize, 0));
 
             for ( ; l <= maxLevel; l++) {
                 size_t const nodict_cSize = ZSTD_compress(compressedBuffer, compressedBufferSize,
@@ -1646,6 +1647,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         size_t const sampleUnitSize = 8 KB;
         U32 const nbSamples = (U32)(totalSampleSize / sampleUnitSize);
         size_t* const samplesSizes = (size_t*) malloc(nbSamples * sizeof(size_t));
+        U32 seed32 = seed;
         ZDICT_cover_params_t params;
         U32 dictID;
 
@@ -1658,8 +1660,8 @@ static int basicUnitTests(U32 seed, double compressibility)
         DISPLAYLEVEL(3, "test%3i : ZDICT_trainFromBuffer_cover : ", testNb++);
         { U32 u; for (u=0; u<nbSamples; u++) samplesSizes[u] = sampleUnitSize; }
         memset(&params, 0, sizeof(params));
-        params.d = 1 + (FUZ_rand(&seed) % 16);
-        params.k = params.d + (FUZ_rand(&seed) % 256);
+        params.d = 1 + (FUZ_rand(&seed32) % 16);
+        params.k = params.d + (FUZ_rand(&seed32) % 256);
         dictSize = ZDICT_trainFromBuffer_cover(dictBuffer, dictSize,
                                                CNBuffer, samplesSizes, nbSamples,
                                                params);

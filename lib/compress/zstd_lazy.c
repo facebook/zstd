@@ -243,8 +243,10 @@ ZSTD_DUBT_findBestMatch(ZSTD_matchState_t* ms,
     const BYTE* const base = ms->window.base;
     U32    const current = (U32)(ip-base);
     U32    const maxDistance = 1U << cParams->windowLog;
-    U32    const windowValid = ms->window.lowLimit;
-    U32    const windowLow = (current - windowValid > maxDistance) ? current - maxDistance : windowValid;
+    U32    const lowestValid = ms->window.lowLimit;
+    U32    const withinWindow = (current - lowestValid > maxDistance) ? current - maxDistance : lowestValid;
+    U32    const isDictionary = (ms->loadedDictEnd != 0);
+    U32    const windowLow = isDictionary ? lowestValid : withinWindow;
 
     U32*   const bt = ms->chainTable;
     U32    const btLog  = cParams->chainLog - 1;

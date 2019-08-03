@@ -1907,8 +1907,10 @@ static int basicUnitTests(U32 const seed, double compressibility)
         DISPLAYLEVEL(3, "test%3i : Dictionary Block compression test : ", testNb++);
         CHECK( ZSTD_compressBegin_usingDict(cctx, CNBuffer, dictSize, 5) );
         CHECK_VAR(cSize,  ZSTD_compressBlock(cctx, compressedBuffer, ZSTD_compressBound(blockSize), (char*)CNBuffer+dictSize, blockSize));
-        CHECK( ZSTD_compressBlock(cctx, (char*)compressedBuffer+cSize, ZSTD_compressBound(blockSize), (char*)CNBuffer+dictSize+blockSize, blockSize) );  /* just to ensure cctx history consistency */
-        memcpy((char*)compressedBuffer+cSize, (char*)CNBuffer+dictSize+blockSize, blockSize);   /* fake non-compressed block (without header) */
+        RDG_genBuffer((char*)CNBuffer+dictSize+blockSize, blockSize, 0.0, 0.0, seed);  /* create a non-compressible second block */
+        { CHECK_NEWV(r, ZSTD_compressBlock(cctx, (char*)compressedBuffer+cSize, ZSTD_compressBound(blockSize), (char*)CNBuffer+dictSize+blockSize, blockSize) );  /* for cctx history consistency */
+          assert(r == 0); /* non-compressible block */ }
+        memcpy((char*)compressedBuffer+cSize, (char*)CNBuffer+dictSize+blockSize, blockSize);   /* send non-compressed block (without header) */
         CHECK_VAR(cSize2, ZSTD_compressBlock(cctx, (char*)compressedBuffer+cSize+blockSize, ZSTD_compressBound(blockSize),
                                                    (char*)CNBuffer+dictSize+2*blockSize, blockSize));
         DISPLAYLEVEL(3, "OK \n");
@@ -1927,6 +1929,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
                 DISPLAYLEVEL(1, "ZSTD_decompressBlock() with _usingDict() and after insertBlock() fails : %u, instead of %u expected \n", (unsigned)r, (unsigned)blockSize);
                 goto _output_error;
         }   }
+        assert(memcpy((char*)CNBuffer+dictSize, decodedBuffer, blockSize*3));  /* ensure regenerated content is identical to origin */
         DISPLAYLEVEL(3, "OK \n");
 
         DISPLAYLEVEL(3, "test%3i : Block compression with CDict : ", testNb++);

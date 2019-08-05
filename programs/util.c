@@ -494,7 +494,7 @@ int UTIL_countPhysicalCores(void)
             if (fgets(buff, BUF_SIZE, cpuinfo) != NULL) {
                 if (strncmp(buff, "siblings", 8) == 0) {
                     const char* const sep = strchr(buff, ':');
-                    if (*sep == '\0') {
+                    if (sep == NULL || *sep == '\0') {
                         /* formatting was broken? */
                         goto failed;
                     }
@@ -503,7 +503,7 @@ int UTIL_countPhysicalCores(void)
                 }
                 if (strncmp(buff, "cpu cores", 9) == 0) {
                     const char* const sep = strchr(buff, ':');
-                    if (*sep == '\0') {
+                    if (sep == NULL || *sep == '\0') {
                         /* formatting was broken? */
                         goto failed;
                     }

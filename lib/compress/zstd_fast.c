@@ -381,11 +381,7 @@ static size_t ZSTD_compressBlock_fast_extDict_generic(
     const BYTE* ip = istart;
     const BYTE* anchor = istart;
     const U32   endIndex = (U32)((size_t)(istart - base) + srcSize);
-    const U32   maxDistance = 1U << cParams->windowLog;
-    const U32   validLowest = ms->window.lowLimit;
-    const int   isDictionary = (ms->loadedDictEnd != 0);
-    const U32   withinWindow = (endIndex - validLowest > maxDistance) ? endIndex - maxDistance : validLowest;
-    const U32   lowLimit = isDictionary ? validLowest : withinWindow;
+    const U32   lowLimit = ZSTD_getLowestMatchIndex(ms, endIndex, cParams->windowLog);
     const U32   dictStartIndex = lowLimit;
     const BYTE* const dictStart = dictBase + dictStartIndex;
     const U32   dictLimit = ms->window.dictLimit;

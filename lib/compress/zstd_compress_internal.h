@@ -136,6 +136,8 @@ struct ZSTD_matchState_t {
     ZSTD_window_t window;   /* State for window round buffer management */
     U32 loadedDictEnd;      /* index of end of dictionary, within context's referential.
                              * When loadedDictEnd != 0, a dictionary is in use, and still valid.
+                             * This relies on a mechanism to set loadedDictEnd=0 when dictionary is no longer within distance.
+                             * Such mechanism is provided within ZSTD_window_enforceMaxDist() and ZSTD_checkDictValidity().
                              * When dict referential is copied into active context (i.e. not attached),
                              * loadedDictEnd == dictSize, since referential starts from zero.
                              */
@@ -354,7 +356,7 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const v
     /* copy Literals */
     assert(seqStorePtr->maxNbLit <= 128 KB);
     assert(seqStorePtr->lit + litLength <= seqStorePtr->litStart + seqStorePtr->maxNbLit);
-    ZSTD_wildcopy(seqStorePtr->lit, literals, litLength, ZSTD_no_overlap);
+    ZSTD_wildcopy(seqStorePtr->lit, literals, (ptrdiff_t)litLength, ZSTD_no_overlap);
     seqStorePtr->lit += litLength;
 
     /* literal Length */
@@ -838,6 +840,17 @@ MEM_STATIC U32 ZSTD_window_update(ZSTD_window_t* window,
     }
     return contiguous;
 }
+
+MEM_STATIC U32 ZSTD_getLowestMatchIndex(const ZSTD_matchState_t* ms, U32 current, unsigned windowLog)
+{
+    U32    const maxDistance = 1U << windowLog;
+    U32    const lowestValid = ms->window.lowLimit;
+    U32    const withinWindow = (current - lowestValid > maxDistance) ? current - maxDistance : lowestValid;
+    U32    const isDictionary = (ms->loadedDictEnd != 0);
+    U32    const matchLowest = isDictionary ? lowestValid : withinWindow;
+    return matchLowest;
+}
+
 
 
 /* debug functions */

@@ -55,17 +55,18 @@ static U32 RDG_rand(U32* src)
     return rand32 >> 5;
 }
 
+typedef U32 fixedPoint_24_8;
 
-static void RDG_fillLiteralDistrib(BYTE* ldt, double ld)
+static void RDG_fillLiteralDistrib(BYTE* ldt, fixedPoint_24_8 ld)
 {
     BYTE const firstChar = (ld<=0.0) ?   0 : '(';
     BYTE const lastChar  = (ld<=0.0) ? 255 : '}';
     BYTE character = (ld<=0.0) ? 0 : '0';
     U32 u;
 
-    if (ld<=0.0) ld = 0.0;
+    if (ld<=0) ld = 0;
     for (u=0; u<LTSIZE; ) {
-        U32 const weight = (U32)((double)(LTSIZE - u) * ld) + 1;
+        U32 const weight = (((LTSIZE - u) * ld) >> 8) + 1;
         U32 const end = MIN ( u + weight , LTSIZE);
         while (u < end) ldt[u++] = character;
         character++;
@@ -92,7 +93,8 @@ static U32 RDG_randLength(U32* seedPtr)
     return (RDG_rand(seedPtr) & 0x1FF) + 0xF;
 }
 
-static void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, double matchProba, const BYTE* ldt, U32* seedPtr)
+static void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize,
+                         double matchProba, const BYTE* ldt, U32* seedPtr)
 {
     BYTE* const buffPtr = (BYTE*)buffer;
     U32 const matchProba32 = (U32)(32768 * matchProba);
@@ -128,13 +130,13 @@ static void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize, doubl
             U32 const randOffset = RDG_rand15Bits(seedPtr) + 1;
             U32 const offset = repeatOffset ? prevOffset : (U32) MIN(randOffset , pos);
             size_t match = pos - offset;
-            while (pos < d) buffPtr[pos++] = buffPtr[match++];   /* correctly manages overlaps */
+            while (pos < d) { buffPtr[pos++] = buffPtr[match++];   /* correctly manages overlaps */ }
             prevOffset = offset;
         } else {
             /* Literal (noise) */
             U32 const length = RDG_randLength(seedPtr);
             U32 const d = (U32) MIN(pos + length, buffSize);
-            while (pos < d) buffPtr[pos++] = RDG_genChar(seedPtr, ldt);
+            while (pos < d) { buffPtr[pos++] = RDG_genChar(seedPtr, ldt); }
     }   }
 }
 
@@ -145,7 +147,7 @@ void RDG_genBuffer(void* buffer, size_t size, double matchProba, double litProba
     BYTE ldt[LTSIZE];
     memset(ldt, '0', sizeof(ldt));  /* yes, character '0', this is intentional */
     if (litProba<=0.0) litProba = matchProba / 4.5;
-    RDG_fillLiteralDistrib(ldt, litProba);
+    RDG_fillLiteralDistrib(ldt, (fixedPoint_24_8)(litProba * 256 + 0.001));
     RDG_genBlock(buffer, size, 0, matchProba, ldt, &seed32);
 }
 
@@ -163,7 +165,7 @@ void RDG_genStdout(unsigned long long size, double matchProba, double litProba, 
     if (buff==NULL) { perror("datagen"); exit(1); }
     if (litProba<=0.0) litProba = matchProba / 4.5;
     memset(ldt, '0', sizeof(ldt));   /* yes, character '0', this is intentional */
-    RDG_fillLiteralDistrib(ldt, litProba);
+    RDG_fillLiteralDistrib(ldt, (fixedPoint_24_8)(litProba * 256 + 0.001));
     SET_BINARY_MODE(stdout);
 
     /* Generate initial dict */

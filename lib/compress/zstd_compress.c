@@ -58,9 +58,10 @@ static size_t ZSTD_workspace_align(size_t size, size_t align) {
 
 static void* ZSTD_workspace_reserve(ZSTD_CCtx_workspace* ws, size_t bytes, ZSTD_workspace_alloc_phase_e phase) {
     /* TODO(felixh): alignment */
-    void* alloc = ws->allocEnd;
-    void* newAllocEnd = (BYTE *)ws->allocEnd + bytes;
-    DEBUGLOG(3, "wksp: reserving %zd bytes, %zd bytes remaining", bytes, (BYTE *)ws->workspaceEnd - (BYTE *)newAllocEnd);
+    void* alloc = (BYTE *)ws->allocStart - bytes;
+    void* bottom = ws->tableEnd;
+    DEBUGLOG(3, "wksp: reserving align %zd bytes, %zd bytes remaining",
+        bytes, (BYTE *)alloc - (BYTE *)bottom);
     assert(phase >= ws->phase);
     if (phase > ws->phase) {
         if (ws->phase <= ZSTD_workspace_alloc_buffers) {
@@ -68,12 +69,42 @@ static void* ZSTD_workspace_reserve(ZSTD_CCtx_workspace* ws, size_t bytes, ZSTD_
         }
         ws->phase = phase;
     }
-    assert(newAllocEnd <= ws->workspaceEnd);
-    if (newAllocEnd > ws->workspaceEnd) {
+    assert(alloc >= bottom);
+    if (alloc < bottom) {
         ws->allocFailed = 1;
         return NULL;
     }
-    ws->allocEnd = newAllocEnd;
+    ws->allocStart = alloc;
+    return alloc;
+}
+
+/**
+ * Aligned on sizeof(unsigned). These buffers have the special property that
+ * their values remain constrained, allowing us to re-use them without
+ * memset()-ing them.
+ */
+static void* ZSTD_workspace_reserve_table(ZSTD_CCtx_workspace* ws, size_t bytes) {
+    /* TODO(felixh): alignment */
+    const ZSTD_workspace_alloc_phase_e phase = ZSTD_workspace_alloc_aligned;
+    void* alloc = ws->tableEnd;
+    void* end = (BYTE *)alloc + bytes;
+    void* top = ws->allocStart;
+    DEBUGLOG(3, "wksp: reserving table %zd bytes, %zd bytes remaining",
+        bytes, (BYTE *)top - (BYTE *)end);
+    assert((bytes & (sizeof(U32)-1)) == 0); // TODO ???
+    assert(phase >= ws->phase);
+    if (phase > ws->phase) {
+        if (ws->phase <= ZSTD_workspace_alloc_buffers) {
+
+        }
+        ws->phase = phase;
+    }
+    assert(end <= top);
+    if (end > top) {
+        ws->allocFailed = 1;
+        return NULL;
+    }
+    ws->tableEnd = end;
     return alloc;
 }
 
@@ -84,7 +115,6 @@ static void* ZSTD_workspace_reserve_object(ZSTD_CCtx_workspace* ws, size_t bytes
     size_t roundedBytes = ZSTD_workspace_align(bytes, sizeof(void*));
     void* start = ws->objectEnd;
     void* end = (BYTE*)start + roundedBytes;
-    assert(ws->allocEnd == ws->objectEnd);
     DEBUGLOG(3, "wksp: reserving %zd bytes object (rounded to %zd), %zd bytes remaining", bytes, roundedBytes, (BYTE *)ws->workspaceEnd - (BYTE *)end);
     assert((bytes & (sizeof(void*)-1)) == 0); // TODO ???
     if (ws->phase != ZSTD_workspace_alloc_objects || end > ws->workspaceEnd) {
@@ -93,18 +123,8 @@ static void* ZSTD_workspace_reserve_object(ZSTD_CCtx_workspace* ws, size_t bytes
         return NULL;
     }
     ws->objectEnd = end;
-    ws->allocEnd = end;
+    ws->tableEnd = end;
     return start;
-}
-
-/**
- * Aligned on sizeof(unsigned). These buffers have the special property that
- * their values remain constrained, allowing us to re-use them without
- * memset()-ing them.
- */
-static void* ZSTD_workspace_reserve_table(ZSTD_CCtx_workspace* ws, size_t bytes) {
-    assert((bytes & (sizeof(U32)-1)) == 0); // TODO ???
-    return ZSTD_workspace_reserve(ws, ZSTD_workspace_align(bytes, sizeof(unsigned)), ZSTD_workspace_alloc_aligned);
 }
 
 /**
@@ -134,10 +154,15 @@ static int ZSTD_workspace_bump_oversized_duration(ZSTD_CCtx_workspace* ws) {
     return 0;
 }
 
+static void ZSTD_workspace_clear_tables(ZSTD_CCtx_workspace* ws) {
+    ws->tableEnd = ws->objectEnd;
+}
+
 static void ZSTD_workspace_clear(ZSTD_CCtx_workspace* ws) {
     DEBUGLOG(3, "wksp: clearing!");
     ZSTD_workspace_bump_oversized_duration(ws);
-    ws->allocEnd = ws->objectEnd;
+    ws->tableEnd = ws->objectEnd;
+    ws->allocStart = ws->workspaceEnd;
     ws->allocFailed = 0;
     if (ws->phase > ZSTD_workspace_alloc_buffers) {
         ws->phase = ZSTD_workspace_alloc_buffers;
@@ -177,7 +202,7 @@ static void ZSTD_workspace_free(ZSTD_CCtx_workspace* ws, ZSTD_customMem customMe
 }
 
 static int ZSTD_workspace_check_available(ZSTD_CCtx_workspace* ws, size_t minFree) {
-    return (size_t)((BYTE*)ws->workspaceEnd - (BYTE*)ws->allocEnd) >= minFree;
+    return (size_t)((BYTE*)ws->allocStart - (BYTE*)ws->tableEnd) >= minFree;
 }
 
 static int ZSTD_workspace_check_wasteful(ZSTD_CCtx_workspace* ws, size_t minFree) {
@@ -1527,22 +1552,22 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
 
     assert(!ZSTD_workspace_reserve_failed(ws)); /* check that allocation hasn't already failed */
 
-    if (crp!=ZSTDcrp_noRealloc) {
-        DEBUGLOG(5, "reserving table space");
-        /* table Space */
-        ms->hashTable = (U32*)ZSTD_workspace_reserve_table(ws, hSize * sizeof(U32));
-        ms->chainTable = (U32*)ZSTD_workspace_reserve_table(ws, chainSize * sizeof(U32));
-        ms->hashTable3 = (U32*)ZSTD_workspace_reserve_table(ws, h3Size * sizeof(U32));
-        RETURN_ERROR_IF(ZSTD_workspace_reserve_failed(ws), memory_allocation,
-                        "failed a workspace allocation in ZSTD_reset_matchState");
-    
-        DEBUGLOG(4, "reset table : %u", crp!=ZSTDcrp_noMemset);
-        if (crp!=ZSTDcrp_noMemset) {
-            /* reset tables only */
-            memset(ms->hashTable, 0, hSize * sizeof(U32));
-            memset(ms->chainTable, 0, chainSize * sizeof(U32));
-            memset(ms->hashTable3, 0, h3Size * sizeof(U32));
-        }
+    ZSTD_workspace_clear_tables(ws);
+
+    DEBUGLOG(5, "reserving table space");
+    /* table Space */
+    ms->hashTable = (U32*)ZSTD_workspace_reserve_table(ws, hSize * sizeof(U32));
+    ms->chainTable = (U32*)ZSTD_workspace_reserve_table(ws, chainSize * sizeof(U32));
+    ms->hashTable3 = (U32*)ZSTD_workspace_reserve_table(ws, h3Size * sizeof(U32));
+    RETURN_ERROR_IF(ZSTD_workspace_reserve_failed(ws), memory_allocation,
+                    "failed a workspace allocation in ZSTD_reset_matchState");
+
+    DEBUGLOG(4, "reset table : %u", crp!=ZSTDcrp_noMemset);
+    if (crp!=ZSTDcrp_noMemset) {
+        /* reset tables only */
+        memset(ms->hashTable, 0, hSize * sizeof(U32));
+        memset(ms->chainTable, 0, chainSize * sizeof(U32));
+        memset(ms->hashTable3, 0, h3Size * sizeof(U32));
     }
 
     /* opt parser space */
@@ -1743,6 +1768,8 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             memset(&zc->ldmState.window, 0, sizeof(zc->ldmState.window));
             ZSTD_window_clear(&zc->ldmState.window);
         }
+
+        assert(!ZSTD_workspace_check_available(&zc->workspace, 1));
 
         return 0;
     }

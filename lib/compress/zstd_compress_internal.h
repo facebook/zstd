@@ -223,6 +223,12 @@ struct ZSTD_CCtx_params_s {
     ZSTD_customMem customMem;
 };  /* typedef'd to ZSTD_CCtx_params within "zstd.h" */
 
+typedef enum {
+    ZSTD_workspace_alloc_objects,
+    ZSTD_workspace_alloc_buffers,
+    ZSTD_workspace_alloc_aligned
+} ZSTD_workspace_alloc_phase_e;
+
 /**
  * Zstd fits all its internal datastructures into a single continuous buffer,
  * so that it only needs to perform a single OS allocation (or so that a buffer
@@ -294,7 +300,7 @@ typedef struct {
     int allocFailed;
 
     int workspaceOversizedDuration;
-    int staticAllocDone;
+    ZSTD_workspace_alloc_phase_e phase;
 } ZSTD_CCtx_workspace;
 
 struct ZSTD_CCtx_s {

@@ -270,6 +270,7 @@ typedef enum {
  *   Examples:
  *   - Entropy Workspace
  *   - 2 x ZSTD_compressedBlockState_t
+ *   - CDict dictionary contents sometimes??? // TODO
  *
  * - Tables: these are any of several different datastructures (hash tables,
  *   chain tables, binary trees) that all respect a common format: they are

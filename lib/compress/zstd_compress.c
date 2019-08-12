@@ -48,11 +48,6 @@ size_t ZSTD_compressBound(size_t srcSize) {
                                          * because it's sized to handle a worst case scenario which rarely happens.
                                          * In which case, resize it down to free some memory */
 
-static size_t ZSTD_workspace_round_size(size_t size) {
-    // return size + sizeof(void*) - 1 - ((size - 1) & (sizeof(void*) - 1));
-    return size + 3 - ((size - 1) & 3);
-}
-
 /**
  * Align must be a power of 2.
  */
@@ -61,18 +56,24 @@ static size_t ZSTD_workspace_align(size_t size, size_t align) {
     // return size + 3 - ((size - 1) & 3);
 }
 
-static void* ZSTD_workspace_reserve(ZSTD_CCtx_workspace* ws, size_t bytes) {
+static void* ZSTD_workspace_reserve(ZSTD_CCtx_workspace* ws, size_t bytes, ZSTD_workspace_alloc_phase_e phase) {
     /* TODO(felixh): alignment */
     void* alloc = ws->allocEnd;
     void* newAllocEnd = (BYTE *)ws->allocEnd + bytes;
     DEBUGLOG(3, "wksp: reserving %zd bytes, %zd bytes remaining", bytes, (BYTE *)ws->workspaceEnd - (BYTE *)newAllocEnd);
+    assert(phase >= ws->phase);
+    if (phase > ws->phase) {
+        if (ws->phase <= ZSTD_workspace_alloc_buffers) {
+
+        }
+        ws->phase = phase;
+    }
     assert(newAllocEnd <= ws->workspaceEnd);
     if (newAllocEnd > ws->workspaceEnd) {
         ws->allocFailed = 1;
         return NULL;
     }
     ws->allocEnd = newAllocEnd;
-    ws->staticAllocDone = 1;
     return alloc;
 }
 
@@ -86,7 +87,7 @@ static void* ZSTD_workspace_reserve_object(ZSTD_CCtx_workspace* ws, size_t bytes
     assert(ws->allocEnd == ws->objectEnd);
     DEBUGLOG(3, "wksp: reserving %zd bytes object (rounded to %zd), %zd bytes remaining", bytes, roundedBytes, (BYTE *)ws->workspaceEnd - (BYTE *)end);
     assert((bytes & (sizeof(void*)-1)) == 0); // TODO ???
-    if (ws->staticAllocDone || end > ws->workspaceEnd) {
+    if (ws->phase != ZSTD_workspace_alloc_objects || end > ws->workspaceEnd) {
         DEBUGLOG(3, "wksp: object alloc failed!");
         ws->allocFailed = 1;
         return NULL;
@@ -103,8 +104,7 @@ static void* ZSTD_workspace_reserve_object(ZSTD_CCtx_workspace* ws, size_t bytes
  */
 static void* ZSTD_workspace_reserve_table(ZSTD_CCtx_workspace* ws, size_t bytes) {
     assert((bytes & (sizeof(U32)-1)) == 0); // TODO ???
-    ws->staticAllocDone = 1;
-    return ZSTD_workspace_reserve(ws, ZSTD_workspace_align(bytes, sizeof(unsigned)));
+    return ZSTD_workspace_reserve(ws, ZSTD_workspace_align(bytes, sizeof(unsigned)), ZSTD_workspace_alloc_aligned);
 }
 
 /**
@@ -112,20 +112,19 @@ static void* ZSTD_workspace_reserve_table(ZSTD_CCtx_workspace* ws, size_t bytes)
  */
 static void* ZSTD_workspace_reserve_aligned(ZSTD_CCtx_workspace* ws, size_t bytes) {
     assert((bytes & (sizeof(U32)-1)) == 0); // TODO ???
-    ws->staticAllocDone = 1;
-    return ZSTD_workspace_reserve(ws, ZSTD_workspace_align(bytes, sizeof(unsigned)));
+    return ZSTD_workspace_reserve(ws, ZSTD_workspace_align(bytes, sizeof(unsigned)), ZSTD_workspace_alloc_aligned);
 }
 
 /**
  * Unaligned.
  */
-static void* ZSTD_workspace_reserve_buffer(ZSTD_CCtx_workspace* ws, size_t bytes) {
-    ws->staticAllocDone = 1;
-    return ZSTD_workspace_reserve(ws, bytes);
+static BYTE* ZSTD_workspace_reserve_buffer(ZSTD_CCtx_workspace* ws, size_t bytes) {
+    return (BYTE*)ZSTD_workspace_reserve(ws, bytes, ZSTD_workspace_alloc_buffers);
 }
 
 // TODO
 static int ZSTD_workspace_bump_oversized_duration(ZSTD_CCtx_workspace* ws) {
+    (void)ws;
     // if (((BYTE*)ws->allocEnd - (BYTE*)ws->workspace) * ZSTD_WORKSPACETOOLARGE_FACTOR < (BYTE*)ws->workspaceEnd - (BYTE*)ws->workspace) {
     //     ws->workspaceOversizedDuration++;
     // } else {
@@ -140,6 +139,9 @@ static void ZSTD_workspace_clear(ZSTD_CCtx_workspace* ws) {
     ZSTD_workspace_bump_oversized_duration(ws);
     ws->allocEnd = ws->objectEnd;
     ws->allocFailed = 0;
+    if (ws->phase > ZSTD_workspace_alloc_buffers) {
+        ws->phase = ZSTD_workspace_alloc_buffers;
+    }
 
     // ws->table = NULL;
     // ws->tableEnd = NULL;
@@ -153,9 +155,9 @@ static void ZSTD_workspace_init(ZSTD_CCtx_workspace* ws, void* start, size_t siz
     ws->workspace = start;
     ws->workspaceEnd = (BYTE*)start + size;
     ws->objectEnd = ws->workspace;
+    ws->phase = ZSTD_workspace_alloc_objects;
     ZSTD_workspace_clear(ws);
     ws->workspaceOversizedDuration = 0;
-    ws->staticAllocDone = 0;
 }
 
 static size_t ZSTD_workspace_create(ZSTD_CCtx_workspace* ws, size_t size, ZSTD_customMem customMem) {
@@ -1500,7 +1502,7 @@ static size_t ZSTD_continueCCtx(ZSTD_CCtx* cctx, const ZSTD_CCtx_params* params,
     return 0;
 }
 
-typedef enum { ZSTDcrp_continue, ZSTDcrp_noMemset } ZSTD_compResetPolicy_e;
+typedef enum { ZSTDcrp_continue, ZSTDcrp_noMemset, ZSTDcrp_noRealloc } ZSTD_compResetPolicy_e;
 
 typedef enum { ZSTD_resetTarget_CDict, ZSTD_resetTarget_CCtx } ZSTD_resetTarget_e;
 
@@ -1525,19 +1527,22 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
 
     assert(!ZSTD_workspace_reserve_failed(ws)); /* check that allocation hasn't already failed */
 
-    DEBUGLOG(5, "reserving table space");
-    /* table Space */
-    ms->hashTable = (U32*)ZSTD_workspace_reserve_table(ws, hSize * sizeof(U32));
-    ms->chainTable = (U32*)ZSTD_workspace_reserve_table(ws, chainSize * sizeof(U32));
-    ms->hashTable3 = (U32*)ZSTD_workspace_reserve_table(ws, h3Size * sizeof(U32));
-    RETURN_ERROR_IF(ZSTD_workspace_reserve_failed(ws), memory_allocation,
-                    "failed a workspace allocation in ZSTD_reset_matchState");
-    DEBUGLOG(4, "reset table : %u", crp!=ZSTDcrp_noMemset);
-    if (crp!=ZSTDcrp_noMemset) {
-        /* reset tables only */
-        memset(ms->hashTable, 0, hSize * sizeof(U32));
-        memset(ms->chainTable, 0, chainSize * sizeof(U32));
-        memset(ms->hashTable3, 0, h3Size * sizeof(U32));
+    if (crp!=ZSTDcrp_noRealloc) {
+        DEBUGLOG(5, "reserving table space");
+        /* table Space */
+        ms->hashTable = (U32*)ZSTD_workspace_reserve_table(ws, hSize * sizeof(U32));
+        ms->chainTable = (U32*)ZSTD_workspace_reserve_table(ws, chainSize * sizeof(U32));
+        ms->hashTable3 = (U32*)ZSTD_workspace_reserve_table(ws, h3Size * sizeof(U32));
+        RETURN_ERROR_IF(ZSTD_workspace_reserve_failed(ws), memory_allocation,
+                        "failed a workspace allocation in ZSTD_reset_matchState");
+    
+        DEBUGLOG(4, "reset table : %u", crp!=ZSTDcrp_noMemset);
+        if (crp!=ZSTDcrp_noMemset) {
+            /* reset tables only */
+            memset(ms->hashTable, 0, hSize * sizeof(U32));
+            memset(ms->chainTable, 0, chainSize * sizeof(U32));
+            memset(ms->hashTable3, 0, h3Size * sizeof(U32));
+        }
     }
 
     /* opt parser space */
@@ -1600,7 +1605,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                         &zc->blockState.matchState,
                         &zc->workspace,
                         &params.cParams,
-                        crp, ZSTD_resetTarget_CCtx));
+                        ZSTDcrp_noRealloc, ZSTD_resetTarget_CCtx));
                 }
                 return ZSTD_continueCCtx(zc, &params, pledgedSrcSize);
     }   }   }
@@ -1691,16 +1696,43 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
 
         ZSTD_reset_compressedBlockState(zc->blockState.prevCBlock);
 
+        /* ZSTD_wildcopy() is used to copy into the literals buffer,
+         * so we have to oversize the buffer by WILDCOPY_OVERLENGTH bytes.
+         */
+        zc->seqStore.litStart = ZSTD_workspace_reserve_buffer(&zc->workspace, blockSize + WILDCOPY_OVERLENGTH);
+        zc->seqStore.maxNbLit = blockSize;
+
+        /* buffers */
+        zc->inBuffSize = buffInSize;
+        zc->inBuff = (char*)ZSTD_workspace_reserve_buffer(&zc->workspace, buffInSize);
+        zc->outBuffSize = buffOutSize;
+        zc->outBuff = (char*)ZSTD_workspace_reserve_buffer(&zc->workspace, buffOutSize);
+
+        /* ldm bucketOffsets table */
+        if (params.ldmParams.enableLdm) {
+            size_t const ldmBucketSize =
+                  ((size_t)1) << (params.ldmParams.hashLog -
+                                  params.ldmParams.bucketSizeLog);
+            zc->ldmState.bucketOffsets = ZSTD_workspace_reserve_buffer(&zc->workspace, ldmBucketSize);
+            memset(zc->ldmState.bucketOffsets, 0, ldmBucketSize);
+        }
+
+        /* sequences storage */
+        ZSTD_referenceExternalSequences(zc, NULL, 0);
+        zc->seqStore.maxNbSeq = maxNbSeq;
+        zc->seqStore.llCode = ZSTD_workspace_reserve_buffer(&zc->workspace, maxNbSeq * sizeof(BYTE));
+        zc->seqStore.mlCode = ZSTD_workspace_reserve_buffer(&zc->workspace, maxNbSeq * sizeof(BYTE));
+        zc->seqStore.ofCode = ZSTD_workspace_reserve_buffer(&zc->workspace, maxNbSeq * sizeof(BYTE));
+        zc->seqStore.sequencesStart = (seqDef*)ZSTD_workspace_reserve_aligned(&zc->workspace, maxNbSeq * sizeof(seqDef));
+
         FORWARD_IF_ERROR(ZSTD_reset_matchState(
             &zc->blockState.matchState,
             &zc->workspace,
             &params.cParams,
             crp, ZSTD_resetTarget_CCtx));
 
-        DEBUGLOG(3, "Done allocating match state");
-
         /* ldm hash table */
-        /* initialize bucketOffsets table later for pointer alignment */
+        /* initialize bucketOffsets table separately for pointer alignment */
         if (params.ldmParams.enableLdm) {
             size_t const ldmHSize = ((size_t)1) << params.ldmParams.hashLog;
             zc->ldmState.hashTable = (ldmEntry_t*)ZSTD_workspace_reserve_aligned(&zc->workspace, ldmHSize * sizeof(ldmEntry_t));
@@ -1709,37 +1741,8 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             zc->maxNbLdmSequences = maxNbLdmSeq;
 
             memset(&zc->ldmState.window, 0, sizeof(zc->ldmState.window));
-        }
-
-        /* ldm bucketOffsets table */
-        if (params.ldmParams.enableLdm) {
-            size_t const ldmBucketSize =
-                  ((size_t)1) << (params.ldmParams.hashLog -
-                                  params.ldmParams.bucketSizeLog);
-            zc->ldmState.bucketOffsets = (BYTE*)ZSTD_workspace_reserve_aligned(&zc->workspace, ldmBucketSize);
-            memset(zc->ldmState.bucketOffsets, 0, ldmBucketSize);
             ZSTD_window_clear(&zc->ldmState.window);
         }
-        ZSTD_referenceExternalSequences(zc, NULL, 0);
-
-        /* sequences storage */
-        zc->seqStore.maxNbSeq = maxNbSeq;
-        zc->seqStore.sequencesStart = (seqDef*)ZSTD_workspace_reserve_aligned(&zc->workspace, maxNbSeq * sizeof(seqDef));
-        zc->seqStore.llCode = (BYTE*)ZSTD_workspace_reserve_buffer(&zc->workspace, maxNbSeq * sizeof(BYTE));
-        zc->seqStore.mlCode = (BYTE*)ZSTD_workspace_reserve_buffer(&zc->workspace, maxNbSeq * sizeof(BYTE));
-        zc->seqStore.ofCode = (BYTE*)ZSTD_workspace_reserve_buffer(&zc->workspace, maxNbSeq * sizeof(BYTE));
-
-        /* ZSTD_wildcopy() is used to copy into the literals buffer,
-         * so we have to oversize the buffer by WILDCOPY_OVERLENGTH bytes.
-         */
-        zc->seqStore.litStart = (BYTE*)ZSTD_workspace_reserve_buffer(&zc->workspace, blockSize + WILDCOPY_OVERLENGTH);
-        zc->seqStore.maxNbLit = blockSize;
-
-        /* buffers */
-        zc->inBuffSize = buffInSize;
-        zc->inBuff = (char*)ZSTD_workspace_reserve_buffer(&zc->workspace, buffInSize);
-        zc->outBuffSize = buffOutSize;
-        zc->outBuff = (char*)ZSTD_workspace_reserve_buffer(&zc->workspace, buffOutSize);
 
         return 0;
     }

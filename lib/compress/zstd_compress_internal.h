@@ -255,6 +255,9 @@ typedef enum {
  *
  * Workspace Layout:
  *
+ * [                        ... workspace ...                         ]
+ * [objects][tables ... ->] free space [<- ... aligned][<- ... buffers]
+ *
  * In order to accomplish this, the various objects that live in the workspace
  * are divided into the following categories:
  *
@@ -287,18 +290,11 @@ typedef struct {
 
     void* objectEnd;
 
-    // // void* tableZoneStart;
-    // void* tableAllocStart;
-    // void* tableAllocEnd;
-    // // void* tableZoneEnd;
+    void* tableEnd;
 
-    // void* seqEnd;
+    void* allocStart;
 
-    // void* bufferBegin;
-
-    void* allocEnd;
     int allocFailed;
-
     int workspaceOversizedDuration;
     ZSTD_workspace_alloc_phase_e phase;
 } ZSTD_CCtx_workspace;

@@ -64,8 +64,19 @@ static void* ZSTD_workspace_reserve(ZSTD_CCtx_workspace* ws, size_t bytes, ZSTD_
         bytes, (BYTE *)alloc - (BYTE *)bottom);
     assert(phase >= ws->phase);
     if (phase > ws->phase) {
-        if (ws->phase <= ZSTD_workspace_alloc_buffers) {
-
+        if (ws->phase < ZSTD_workspace_alloc_buffers &&
+                phase >= ZSTD_workspace_alloc_buffers) {
+        }
+        if (ws->phase < ZSTD_workspace_alloc_aligned &&
+                phase >= ZSTD_workspace_alloc_aligned) {
+            /* If unaligned allocations down from a too-large top have left us
+             * unaligned, we need to realign our alloc ptr. Technically, this
+             * can consume space that is unaccounted for in the neededSpace
+             * calculation. However, I believe this can only happen when the
+             * workspace is too large, and specifically when it is too large
+             * by a larger margin than the space that will be consumed. */
+            /* TODO: cleaner, compiler warning friendly way to do this??? */
+            alloc = (BYTE*)alloc - ((size_t)alloc & (sizeof(U32)-1));
         }
         ws->phase = phase;
     }

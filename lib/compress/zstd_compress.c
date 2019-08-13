@@ -201,8 +201,12 @@ static void ZSTD_workspace_free(ZSTD_CCtx_workspace* ws, ZSTD_customMem customMe
     ZSTD_workspace_clear(ws);
 }
 
+static size_t ZSTD_workspace_available_space(ZSTD_CCtx_workspace* ws) {
+    return (size_t)((BYTE*)ws->allocStart - (BYTE*)ws->tableEnd);
+}
+
 static int ZSTD_workspace_check_available(ZSTD_CCtx_workspace* ws, size_t minFree) {
-    return (size_t)((BYTE*)ws->allocStart - (BYTE*)ws->tableEnd) >= minFree;
+    return ZSTD_workspace_available_space(ws) >= minFree;
 }
 
 static int ZSTD_workspace_check_wasteful(ZSTD_CCtx_workspace* ws, size_t minFree) {
@@ -1768,7 +1772,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             ZSTD_window_clear(&zc->ldmState.window);
         }
 
-        assert(!ZSTD_workspace_check_available(&zc->workspace, 1));
+        DEBUGLOG(3, "wksp: finished allocating, %zd bytes remain available", ZSTD_workspace_available_space(&zc->workspace));
 
         return 0;
     }

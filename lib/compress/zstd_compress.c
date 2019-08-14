@@ -281,7 +281,7 @@ ZSTD_CCtx* ZSTD_initStaticCCtx(void *workspace, size_t workspaceSize)
     ZSTD_CCtx* const cctx = (ZSTD_CCtx*) workspace;
     if (workspaceSize <= sizeof(ZSTD_CCtx)) return NULL;  /* minimum size */
     if ((size_t)workspace & 7) return NULL;  /* must be 8-aligned */
-    memset(workspace, 0, workspaceSize);   /* may be a bit generous, could memset be smaller ? */ /* TODO(felixh): investigate */
+    memset(cctx, 0, sizeof(ZSTD_CCtx));
     cctx->staticSize = workspaceSize;
     ZSTD_workspace_init(&cctx->workspace, (void*)(cctx+1), workspaceSize - sizeof(ZSTD_CCtx));
 

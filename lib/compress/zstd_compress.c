@@ -325,7 +325,11 @@ static void ZSTD_freeCCtxContent(ZSTD_CCtx* cctx)
 {
     assert(cctx != NULL);
     assert(cctx->staticSize == 0);
-    ZSTD_workspace_free(&cctx->workspace, cctx->customMem);
+    /* Only free workspace if cctx not in workspace, otherwise the workspace
+     * will be freed when the cctx itself is freed. */
+    if ((void*)cctx->workspace.workspace != (void*)cctx) {
+        ZSTD_workspace_free(&cctx->workspace, cctx->customMem);
+    }
     ZSTD_clearAllDicts(cctx);
 #ifdef ZSTD_MULTITHREAD
     ZSTDMT_freeCCtx(cctx->mtctx); cctx->mtctx = NULL;
@@ -3352,17 +3356,27 @@ ZSTD_CDict* ZSTD_createCDict_advanced(const void* dictBuffer, size_t dictSize,
     DEBUGLOG(3, "ZSTD_createCDict_advanced, mode %u", (unsigned)dictContentType);
     if (!customMem.customAlloc ^ !customMem.customFree) return NULL;
 
-    {   ZSTD_CDict* const cdict = (ZSTD_CDict*)ZSTD_malloc(sizeof(ZSTD_CDict), customMem);
-        size_t const workspaceSize = HUF_WORKSPACE_SIZE + ZSTD_sizeof_matchState(&cParams, /* forCCtx */ 0) + (dictLoadMethod == ZSTD_dlm_byRef ? 0 : ZSTD_workspace_align(dictSize, sizeof(void*)));
+    {   size_t const workspaceSize =
+            sizeof(ZSTD_CDict) +
+            HUF_WORKSPACE_SIZE +
+            ZSTD_sizeof_matchState(&cParams, /* forCCtx */ 0) +
+            (dictLoadMethod == ZSTD_dlm_byRef ? 0
+                : ZSTD_workspace_align(dictSize, sizeof(void*)));
         void* const workspace = ZSTD_malloc(workspaceSize, customMem);
+        ZSTD_CCtx_workspace tmpWorkspace;
+        ZSTD_CDict* cdict;
 
-        if (!cdict || !workspace) {
-            ZSTD_free(cdict, customMem);
+        if (!workspace) {
             ZSTD_free(workspace, customMem);
             return NULL;
         }
+
+        ZSTD_workspace_init(&tmpWorkspace, workspace, workspaceSize);
+
+        cdict = (ZSTD_CDict*)ZSTD_workspace_reserve_object(&tmpWorkspace, sizeof(ZSTD_CDict));
+        assert(cdict != NULL);
+        cdict->workspace = tmpWorkspace;
         cdict->customMem = customMem;
-        ZSTD_workspace_init(&cdict->workspace, workspace, workspaceSize);
         if (ZSTD_isError( ZSTD_initCDict_internal(cdict,
                                         dictBuffer, dictSize,
                                         dictLoadMethod, dictContentType,
@@ -3395,7 +3409,11 @@ size_t ZSTD_freeCDict(ZSTD_CDict* cdict)
 {
     if (cdict==NULL) return 0;   /* support free on NULL */
     {   ZSTD_customMem const cMem = cdict->customMem;
-        ZSTD_workspace_free(&cdict->workspace, cMem);
+        /* Only free workspace if cdict not in workspace, otherwise the
+         * workspace will be freed when the cdict itself is freed. */
+        if ((void*)cdict->workspace.workspace != (void*)cdict) {
+            ZSTD_workspace_free(&cdict->workspace, cMem);
+        }
         ZSTD_free(cdict, cMem);
         return 0;
     }

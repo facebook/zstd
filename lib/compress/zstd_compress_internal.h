@@ -262,7 +262,10 @@ typedef enum {
  * are divided into the following categories:
  *
  * - Static objects: this is optionally the enclosing ZSTD_CCtx or ZSTD_CDict,
- *   so that literally everything fits in a single buffer.
+ *   so that literally everything fits in a single buffer. Note: if present,
+ *   this must be the first object in the workspace, since ZSTD_free{CCtx,
+ *   CDict}() rely on a pointer comparison to see whether one or two frees are
+ *   required.
  *
  * - Fixed size objects: these are fixed-size, fixed-count objects that are
  *   nonetheless "dynamically" allocated in the workspace so that we can
@@ -277,13 +280,22 @@ typedef enum {
  *   uint32_t arrays, all of whose values are between 0 and (nextSrc - base).
  *   Their sizes depend on the cparams.
  *
+ * - Aligned: these buffers are used for various purposes that don't require
+ *   any initialization before they're used.
+ *
  * - Uninitialized memory: these buffers are used for various purposes that
  *   don't require any initialization before they're used. This means they can
  *   be moved around at no cost for a new compression.
- *   - I/O Buffers
  *
- * [workspace, workspace + workspaceSize)
- * []
+ * Allocating Memory:
+ *
+ * The various types of objects must be allocated in order, so they can be
+ * correctly packed into the workspace buffer. That order is:
+ *
+ * 1. Objects
+ * 2. Buffers
+ * 3. Aligned
+ * 4. Tables
  */
 typedef struct {
     void* workspace;

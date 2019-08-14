@@ -53,7 +53,6 @@ size_t ZSTD_compressBound(size_t srcSize) {
  */
 static size_t ZSTD_workspace_align(size_t size, size_t align) {
     return size + align - 1 - ((size - 1) & (align - 1));
-    // return size + 3 - ((size - 1) & 3);
 }
 
 static void* ZSTD_workspace_reserve(ZSTD_CCtx_workspace* ws, size_t bytes, ZSTD_workspace_alloc_phase_e phase) {
@@ -165,10 +164,18 @@ static int ZSTD_workspace_bump_oversized_duration(ZSTD_CCtx_workspace* ws) {
     return 0;
 }
 
+/**
+ * Invalidates table allocations.
+ * All other allocations remain valid.
+ */
 static void ZSTD_workspace_clear_tables(ZSTD_CCtx_workspace* ws) {
     ws->tableEnd = ws->objectEnd;
 }
 
+/**
+ * Invalidates all buffer, aligned, and table allocations.
+ * Object allocations remain valid.
+ */
 static void ZSTD_workspace_clear(ZSTD_CCtx_workspace* ws) {
     DEBUGLOG(3, "wksp: clearing!");
     ZSTD_workspace_bump_oversized_duration(ws);

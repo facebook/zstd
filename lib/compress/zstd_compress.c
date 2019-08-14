@@ -278,12 +278,19 @@ ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem)
 
 ZSTD_CCtx* ZSTD_initStaticCCtx(void *workspace, size_t workspaceSize)
 {
-    ZSTD_CCtx* const cctx = (ZSTD_CCtx*) workspace;
+    ZSTD_CCtx_workspace tmpWorkspace;
+    ZSTD_CCtx* cctx;
     if (workspaceSize <= sizeof(ZSTD_CCtx)) return NULL;  /* minimum size */
     if ((size_t)workspace & 7) return NULL;  /* must be 8-aligned */
+    ZSTD_workspace_init(&tmpWorkspace, workspace, workspaceSize);
+
+    cctx = (ZSTD_CCtx*)ZSTD_workspace_reserve_object(&tmpWorkspace, sizeof(ZSTD_CCtx));
+    if (cctx == NULL) {
+        return NULL;
+    }
     memset(cctx, 0, sizeof(ZSTD_CCtx));
+    cctx->workspace = tmpWorkspace;
     cctx->staticSize = workspaceSize;
-    ZSTD_workspace_init(&cctx->workspace, (void*)(cctx+1), workspaceSize - sizeof(ZSTD_CCtx));
 
     /* statically sized space. entropyWorkspace never moves (but prev/next block swap places) */
     if (!ZSTD_workspace_check_available(&cctx->workspace, HUF_WORKSPACE_SIZE + 2 * sizeof(ZSTD_compressedBlockState_t))) return NULL;

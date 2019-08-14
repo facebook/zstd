@@ -51,11 +51,16 @@ size_t ZSTD_compressBound(size_t srcSize) {
 /**
  * Align must be a power of 2.
  */
-static size_t ZSTD_workspace_align(size_t size, size_t align) {
-    return size + align - 1 - ((size - 1) & (align - 1));
+static size_t ZSTD_workspace_align(size_t size, size_t const align) {
+    size_t const mask = align - 1;
+    assert((align & mask) == 0);
+    return (size + mask) & ~mask;
 }
 
-static void* ZSTD_workspace_reserve(ZSTD_CCtx_workspace* ws, size_t bytes, ZSTD_workspace_alloc_phase_e phase) {
+/**
+ * Internal function, use wrappers instead.
+ */
+static void* ZSTD_workspace_reserve_internal(ZSTD_CCtx_workspace* ws, size_t bytes, ZSTD_workspace_alloc_phase_e phase) {
     /* TODO(felixh): alignment */
     void* alloc = (BYTE *)ws->allocStart - bytes;
     void* bottom = ws->tableEnd;
@@ -86,6 +91,21 @@ static void* ZSTD_workspace_reserve(ZSTD_CCtx_workspace* ws, size_t bytes, ZSTD_
     }
     ws->allocStart = alloc;
     return alloc;
+}
+
+/**
+ * Unaligned.
+ */
+static BYTE* ZSTD_workspace_reserve_buffer(ZSTD_CCtx_workspace* ws, size_t bytes) {
+    return (BYTE*)ZSTD_workspace_reserve_internal(ws, bytes, ZSTD_workspace_alloc_buffers);
+}
+
+/**
+ * Aligned on sizeof(unsigned).
+ */
+static void* ZSTD_workspace_reserve_aligned(ZSTD_CCtx_workspace* ws, size_t bytes) {
+    assert((bytes & (sizeof(U32)-1)) == 0); // TODO ???
+    return ZSTD_workspace_reserve_internal(ws, ZSTD_workspace_align(bytes, sizeof(U32)), ZSTD_workspace_alloc_aligned);
 }
 
 /**
@@ -126,7 +146,8 @@ static void* ZSTD_workspace_reserve_object(ZSTD_CCtx_workspace* ws, size_t bytes
     void* start = ws->objectEnd;
     void* end = (BYTE*)start + roundedBytes;
     DEBUGLOG(3, "wksp: reserving %zd bytes object (rounded to %zd), %zd bytes remaining", bytes, roundedBytes, (BYTE *)ws->workspaceEnd - (BYTE *)end);
-    assert((bytes & (sizeof(void*)-1)) == 0); // TODO ???
+    assert(((size_t)start & (sizeof(void*)-1)) == 0);
+    assert((bytes & (sizeof(void*)-1)) == 0);
     if (ws->phase != ZSTD_workspace_alloc_objects || end > ws->workspaceEnd) {
         DEBUGLOG(3, "wksp: object alloc failed!");
         ws->allocFailed = 1;
@@ -135,21 +156,6 @@ static void* ZSTD_workspace_reserve_object(ZSTD_CCtx_workspace* ws, size_t bytes
     ws->objectEnd = end;
     ws->tableEnd = end;
     return start;
-}
-
-/**
- * Aligned on sizeof(unsigned).
- */
-static void* ZSTD_workspace_reserve_aligned(ZSTD_CCtx_workspace* ws, size_t bytes) {
-    assert((bytes & (sizeof(U32)-1)) == 0); // TODO ???
-    return ZSTD_workspace_reserve(ws, ZSTD_workspace_align(bytes, sizeof(U32)), ZSTD_workspace_alloc_aligned);
-}
-
-/**
- * Unaligned.
- */
-static BYTE* ZSTD_workspace_reserve_buffer(ZSTD_CCtx_workspace* ws, size_t bytes) {
-    return (BYTE*)ZSTD_workspace_reserve(ws, bytes, ZSTD_workspace_alloc_buffers);
 }
 
 // TODO
@@ -185,16 +191,11 @@ static void ZSTD_workspace_clear(ZSTD_CCtx_workspace* ws) {
     if (ws->phase > ZSTD_workspace_alloc_buffers) {
         ws->phase = ZSTD_workspace_alloc_buffers;
     }
-
-    // ws->table = NULL;
-    // ws->tableEnd = NULL;
-
-    // ws->bufferBegin = ws->workspaceEnd;
 }
 
 static void ZSTD_workspace_init(ZSTD_CCtx_workspace* ws, void* start, size_t size) {
     DEBUGLOG(3, "wksp: init'ing with %zd bytes", size);
-    assert(((size_t)start & (sizeof(void*)-1)) == 0);   /* ensure correct alignment */
+    assert(((size_t)start & (sizeof(void*)-1)) == 0); /* ensure correct alignment */
     ws->workspace = start;
     ws->workspaceEnd = (BYTE*)start + size;
     ws->objectEnd = ws->workspace;
@@ -1723,7 +1724,6 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                 /* Statically sized space.
                  * entropyWorkspace never moves,
                  * though prev/next block swap places */
-                /* assert(((size_t)zc->workspace.workspace & 3) == 0); */   /* ensure correct alignment */ /* TODO(felixh): check elsewhere */
                 assert(ZSTD_workspace_check_available(&zc->workspace, 2 * sizeof(ZSTD_compressedBlockState_t)));
                 zc->blockState.prevCBlock = (ZSTD_compressedBlockState_t*) ZSTD_workspace_reserve_object(&zc->workspace, sizeof(ZSTD_compressedBlockState_t));
                 RETURN_ERROR_IF(zc->blockState.prevCBlock == NULL, memory_allocation, "couldn't allocate prevCBlock");

@@ -273,7 +273,7 @@ typedef enum {
  *   Examples:
  *   - Entropy Workspace
  *   - 2 x ZSTD_compressedBlockState_t
- *   - CDict dictionary contents sometimes??? // TODO
+ *   - CDict dictionary contents
  *
  * - Tables: these are any of several different datastructures (hash tables,
  *   chain tables, binary trees) that all respect a common format: they are
@@ -296,15 +296,17 @@ typedef enum {
  * 2. Buffers
  * 3. Aligned
  * 4. Tables
+ *
+ * Reusing Table Space:
+ *
+ * TODO(felixh): ...
  */
 typedef struct {
     void* workspace;
     void* workspaceEnd;
 
     void* objectEnd;
-
     void* tableEnd;
-
     void* allocStart;
 
     int allocFailed;

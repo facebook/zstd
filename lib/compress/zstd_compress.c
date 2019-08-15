@@ -1981,12 +1981,17 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
     /* Sequences Header */
     RETURN_ERROR_IF((oend-op) < 3 /*max nbSeq Size*/ + 1 /*seqHead*/,
                     dstSize_tooSmall);
-    if (nbSeq < 0x7F)
+    if (nbSeq < 128) {
         *op++ = (BYTE)nbSeq;
-    else if (nbSeq < LONGNBSEQ)
-        op[0] = (BYTE)((nbSeq>>8) + 0x80), op[1] = (BYTE)nbSeq, op+=2;
-    else
-        op[0]=0xFF, MEM_writeLE16(op+1, (U16)(nbSeq - LONGNBSEQ)), op+=3;
+    } else if (nbSeq < LONGNBSEQ) {
+        op[0] = (BYTE)((nbSeq>>8) + 0x80);
+        op[1] = (BYTE)nbSeq;
+        op+=2;
+    } else {
+        op[0]=0xFF;
+        MEM_writeLE16(op+1, (U16)(nbSeq - LONGNBSEQ));
+        op+=3;
+    }
     assert(op <= oend);
     if (nbSeq==0) {
         /* Copy the old tables over as if we repeated them */

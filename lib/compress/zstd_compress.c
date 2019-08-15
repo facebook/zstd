@@ -51,7 +51,7 @@ size_t ZSTD_compressBound(size_t srcSize) {
 /**
  * Align must be a power of 2.
  */
-static size_t ZSTD_workspace_align(size_t size, size_t const align) {
+static size_t ZSTD_cwksp_align(size_t size, size_t const align) {
     size_t const mask = align - 1;
     assert((align & mask) == 0);
     return (size + mask) & ~mask;
@@ -60,7 +60,7 @@ static size_t ZSTD_workspace_align(size_t size, size_t const align) {
 /**
  * Internal function, use wrappers instead.
  */
-static void* ZSTD_workspace_reserve_internal(ZSTD_CCtx_workspace* ws, size_t bytes, ZSTD_workspace_alloc_phase_e phase) {
+static void* ZSTD_cwksp_reserve_internal(ZSTD_cwksp* ws, size_t bytes, ZSTD_cwksp_alloc_phase_e phase) {
     /* TODO(felixh): alignment */
     void* alloc = (BYTE *)ws->allocStart - bytes;
     void* bottom = ws->tableEnd;
@@ -68,11 +68,11 @@ static void* ZSTD_workspace_reserve_internal(ZSTD_CCtx_workspace* ws, size_t byt
         bytes, (BYTE *)alloc - (BYTE *)bottom);
     assert(phase >= ws->phase);
     if (phase > ws->phase) {
-        if (ws->phase < ZSTD_workspace_alloc_buffers &&
-                phase >= ZSTD_workspace_alloc_buffers) {
+        if (ws->phase < ZSTD_cwksp_alloc_buffers &&
+                phase >= ZSTD_cwksp_alloc_buffers) {
         }
-        if (ws->phase < ZSTD_workspace_alloc_aligned &&
-                phase >= ZSTD_workspace_alloc_aligned) {
+        if (ws->phase < ZSTD_cwksp_alloc_aligned &&
+                phase >= ZSTD_cwksp_alloc_aligned) {
             /* If unaligned allocations down from a too-large top have left us
              * unaligned, we need to realign our alloc ptr. Technically, this
              * can consume space that is unaccounted for in the neededSpace
@@ -96,16 +96,16 @@ static void* ZSTD_workspace_reserve_internal(ZSTD_CCtx_workspace* ws, size_t byt
 /**
  * Unaligned.
  */
-static BYTE* ZSTD_workspace_reserve_buffer(ZSTD_CCtx_workspace* ws, size_t bytes) {
-    return (BYTE*)ZSTD_workspace_reserve_internal(ws, bytes, ZSTD_workspace_alloc_buffers);
+static BYTE* ZSTD_cwksp_reserve_buffer(ZSTD_cwksp* ws, size_t bytes) {
+    return (BYTE*)ZSTD_cwksp_reserve_internal(ws, bytes, ZSTD_cwksp_alloc_buffers);
 }
 
 /**
  * Aligned on sizeof(unsigned).
  */
-static void* ZSTD_workspace_reserve_aligned(ZSTD_CCtx_workspace* ws, size_t bytes) {
+static void* ZSTD_cwksp_reserve_aligned(ZSTD_cwksp* ws, size_t bytes) {
     assert((bytes & (sizeof(U32)-1)) == 0); // TODO ???
-    return ZSTD_workspace_reserve_internal(ws, ZSTD_workspace_align(bytes, sizeof(U32)), ZSTD_workspace_alloc_aligned);
+    return ZSTD_cwksp_reserve_internal(ws, ZSTD_cwksp_align(bytes, sizeof(U32)), ZSTD_cwksp_alloc_aligned);
 }
 
 /**
@@ -113,9 +113,9 @@ static void* ZSTD_workspace_reserve_aligned(ZSTD_CCtx_workspace* ws, size_t byte
  * their values remain constrained, allowing us to re-use them without
  * memset()-ing them.
  */
-static void* ZSTD_workspace_reserve_table(ZSTD_CCtx_workspace* ws, size_t bytes) {
+static void* ZSTD_cwksp_reserve_table(ZSTD_cwksp* ws, size_t bytes) {
     /* TODO(felixh): alignment */
-    const ZSTD_workspace_alloc_phase_e phase = ZSTD_workspace_alloc_aligned;
+    const ZSTD_cwksp_alloc_phase_e phase = ZSTD_cwksp_alloc_aligned;
     void* alloc = ws->tableEnd;
     void* end = (BYTE *)alloc + bytes;
     void* top = ws->allocStart;
@@ -124,7 +124,7 @@ static void* ZSTD_workspace_reserve_table(ZSTD_CCtx_workspace* ws, size_t bytes)
     assert((bytes & (sizeof(U32)-1)) == 0); // TODO ???
     assert(phase >= ws->phase);
     if (phase > ws->phase) {
-        if (ws->phase <= ZSTD_workspace_alloc_buffers) {
+        if (ws->phase <= ZSTD_cwksp_alloc_buffers) {
 
         }
         ws->phase = phase;
@@ -141,14 +141,14 @@ static void* ZSTD_workspace_reserve_table(ZSTD_CCtx_workspace* ws, size_t bytes)
 /**
  * Aligned on sizeof(void*).
  */
-static void* ZSTD_workspace_reserve_object(ZSTD_CCtx_workspace* ws, size_t bytes) {
-    size_t roundedBytes = ZSTD_workspace_align(bytes, sizeof(void*));
+static void* ZSTD_cwksp_reserve_object(ZSTD_cwksp* ws, size_t bytes) {
+    size_t roundedBytes = ZSTD_cwksp_align(bytes, sizeof(void*));
     void* start = ws->objectEnd;
     void* end = (BYTE*)start + roundedBytes;
     DEBUGLOG(3, "wksp: reserving %zd bytes object (rounded to %zd), %zd bytes remaining", bytes, roundedBytes, (BYTE *)ws->workspaceEnd - (BYTE *)end);
     assert(((size_t)start & (sizeof(void*)-1)) == 0);
     assert((bytes & (sizeof(void*)-1)) == 0);
-    if (ws->phase != ZSTD_workspace_alloc_objects || end > ws->workspaceEnd) {
+    if (ws->phase != ZSTD_cwksp_alloc_objects || end > ws->workspaceEnd) {
         DEBUGLOG(3, "wksp: object alloc failed!");
         ws->allocFailed = 1;
         return NULL;
@@ -159,7 +159,7 @@ static void* ZSTD_workspace_reserve_object(ZSTD_CCtx_workspace* ws, size_t bytes
 }
 
 // TODO
-static int ZSTD_workspace_bump_oversized_duration(ZSTD_CCtx_workspace* ws) {
+static int ZSTD_cwksp_bump_oversized_duration(ZSTD_cwksp* ws) {
     (void)ws;
     // if (((BYTE*)ws->allocEnd - (BYTE*)ws->workspace) * ZSTD_WORKSPACETOOLARGE_FACTOR < (BYTE*)ws->workspaceEnd - (BYTE*)ws->workspace) {
     //     ws->workspaceOversizedDuration++;
@@ -174,7 +174,7 @@ static int ZSTD_workspace_bump_oversized_duration(ZSTD_CCtx_workspace* ws) {
  * Invalidates table allocations.
  * All other allocations remain valid.
  */
-static void ZSTD_workspace_clear_tables(ZSTD_CCtx_workspace* ws) {
+static void ZSTD_cwksp_clear_tables(ZSTD_cwksp* ws) {
     ws->tableEnd = ws->objectEnd;
 }
 
@@ -182,61 +182,61 @@ static void ZSTD_workspace_clear_tables(ZSTD_CCtx_workspace* ws) {
  * Invalidates all buffer, aligned, and table allocations.
  * Object allocations remain valid.
  */
-static void ZSTD_workspace_clear(ZSTD_CCtx_workspace* ws) {
+static void ZSTD_cwksp_clear(ZSTD_cwksp* ws) {
     DEBUGLOG(3, "wksp: clearing!");
-    ZSTD_workspace_bump_oversized_duration(ws);
+    ZSTD_cwksp_bump_oversized_duration(ws);
     ws->tableEnd = ws->objectEnd;
     ws->allocStart = ws->workspaceEnd;
     ws->allocFailed = 0;
-    if (ws->phase > ZSTD_workspace_alloc_buffers) {
-        ws->phase = ZSTD_workspace_alloc_buffers;
+    if (ws->phase > ZSTD_cwksp_alloc_buffers) {
+        ws->phase = ZSTD_cwksp_alloc_buffers;
     }
 }
 
-static void ZSTD_workspace_init(ZSTD_CCtx_workspace* ws, void* start, size_t size) {
+static void ZSTD_cwksp_init(ZSTD_cwksp* ws, void* start, size_t size) {
     DEBUGLOG(3, "wksp: init'ing with %zd bytes", size);
     assert(((size_t)start & (sizeof(void*)-1)) == 0); /* ensure correct alignment */
     ws->workspace = start;
     ws->workspaceEnd = (BYTE*)start + size;
     ws->objectEnd = ws->workspace;
-    ws->phase = ZSTD_workspace_alloc_objects;
-    ZSTD_workspace_clear(ws);
+    ws->phase = ZSTD_cwksp_alloc_objects;
+    ZSTD_cwksp_clear(ws);
     ws->workspaceOversizedDuration = 0;
 }
 
-static size_t ZSTD_workspace_create(ZSTD_CCtx_workspace* ws, size_t size, ZSTD_customMem customMem) {
+static size_t ZSTD_cwksp_create(ZSTD_cwksp* ws, size_t size, ZSTD_customMem customMem) {
     void* workspace = ZSTD_malloc(size, customMem);
     DEBUGLOG(3, "wksp: creating with %zd bytes", size);
     RETURN_ERROR_IF(workspace == NULL, memory_allocation);
-    ZSTD_workspace_init(ws, workspace, size);
+    ZSTD_cwksp_init(ws, workspace, size);
     return 0;
 }
 
-static void ZSTD_workspace_free(ZSTD_CCtx_workspace* ws, ZSTD_customMem customMem) {
+static void ZSTD_cwksp_free(ZSTD_cwksp* ws, ZSTD_customMem customMem) {
     DEBUGLOG(3, "wksp: freeing");
     ZSTD_free(ws->workspace, customMem);
     ws->workspace = NULL;
     ws->workspaceEnd = NULL;
-    ZSTD_workspace_clear(ws);
+    ZSTD_cwksp_clear(ws);
 }
 
-static size_t ZSTD_workspace_available_space(ZSTD_CCtx_workspace* ws) {
+static size_t ZSTD_cwksp_available_space(ZSTD_cwksp* ws) {
     return (size_t)((BYTE*)ws->allocStart - (BYTE*)ws->tableEnd);
 }
 
-static int ZSTD_workspace_check_available(ZSTD_CCtx_workspace* ws, size_t minFree) {
-    return ZSTD_workspace_available_space(ws) >= minFree;
+static int ZSTD_cwksp_check_available(ZSTD_cwksp* ws, size_t minFree) {
+    return ZSTD_cwksp_available_space(ws) >= minFree;
 }
 
-static int ZSTD_workspace_check_wasteful(ZSTD_CCtx_workspace* ws, size_t minFree) {
-    return ZSTD_workspace_check_available(ws, minFree * ZSTD_WORKSPACETOOLARGE_FACTOR) && ws->workspaceOversizedDuration > ZSTD_WORKSPACETOOLARGE_MAXDURATION;
+static int ZSTD_cwksp_check_wasteful(ZSTD_cwksp* ws, size_t minFree) {
+    return ZSTD_cwksp_check_available(ws, minFree * ZSTD_WORKSPACETOOLARGE_FACTOR) && ws->workspaceOversizedDuration > ZSTD_WORKSPACETOOLARGE_MAXDURATION;
 }
 
-static size_t ZSTD_workspace_sizeof(const ZSTD_CCtx_workspace* ws) {
+static size_t ZSTD_cwksp_sizeof(const ZSTD_cwksp* ws) {
     return (BYTE*)ws->workspaceEnd - (BYTE*)ws->workspace;
 }
 
-static int ZSTD_workspace_reserve_failed(const ZSTD_CCtx_workspace* ws) {
+static int ZSTD_cwksp_reserve_failed(const ZSTD_cwksp* ws) {
     return ws->allocFailed;
 }
 
@@ -248,7 +248,7 @@ struct ZSTD_CDict_s {
     const void* dictContent;
     size_t dictContentSize;
     U32* entropyWorkspace; /* entropy workspace of HUF_WORKSPACE_SIZE bytes */
-    ZSTD_CCtx_workspace workspace;
+    ZSTD_cwksp workspace;
     ZSTD_matchState_t matchState;
     ZSTD_compressedBlockState_t cBlockState;
     ZSTD_customMem customMem;
@@ -286,25 +286,25 @@ ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem)
 
 ZSTD_CCtx* ZSTD_initStaticCCtx(void *workspace, size_t workspaceSize)
 {
-    ZSTD_CCtx_workspace tmpWorkspace;
+    ZSTD_cwksp ws;
     ZSTD_CCtx* cctx;
     if (workspaceSize <= sizeof(ZSTD_CCtx)) return NULL;  /* minimum size */
     if ((size_t)workspace & 7) return NULL;  /* must be 8-aligned */
-    ZSTD_workspace_init(&tmpWorkspace, workspace, workspaceSize);
+    ZSTD_cwksp_init(&ws, workspace, workspaceSize);
 
-    cctx = (ZSTD_CCtx*)ZSTD_workspace_reserve_object(&tmpWorkspace, sizeof(ZSTD_CCtx));
+    cctx = (ZSTD_CCtx*)ZSTD_cwksp_reserve_object(&ws, sizeof(ZSTD_CCtx));
     if (cctx == NULL) {
         return NULL;
     }
     memset(cctx, 0, sizeof(ZSTD_CCtx));
-    cctx->workspace = tmpWorkspace;
+    cctx->workspace = ws;
     cctx->staticSize = workspaceSize;
 
     /* statically sized space. entropyWorkspace never moves (but prev/next block swap places) */
-    if (!ZSTD_workspace_check_available(&cctx->workspace, HUF_WORKSPACE_SIZE + 2 * sizeof(ZSTD_compressedBlockState_t))) return NULL;
-    cctx->blockState.prevCBlock = (ZSTD_compressedBlockState_t*)ZSTD_workspace_reserve_object(&cctx->workspace, sizeof(ZSTD_compressedBlockState_t));
-    cctx->blockState.nextCBlock = (ZSTD_compressedBlockState_t*)ZSTD_workspace_reserve_object(&cctx->workspace, sizeof(ZSTD_compressedBlockState_t));
-    cctx->entropyWorkspace = (U32*)ZSTD_workspace_reserve_object(
+    if (!ZSTD_cwksp_check_available(&cctx->workspace, HUF_WORKSPACE_SIZE + 2 * sizeof(ZSTD_compressedBlockState_t))) return NULL;
+    cctx->blockState.prevCBlock = (ZSTD_compressedBlockState_t*)ZSTD_cwksp_reserve_object(&cctx->workspace, sizeof(ZSTD_compressedBlockState_t));
+    cctx->blockState.nextCBlock = (ZSTD_compressedBlockState_t*)ZSTD_cwksp_reserve_object(&cctx->workspace, sizeof(ZSTD_compressedBlockState_t));
+    cctx->entropyWorkspace = (U32*)ZSTD_cwksp_reserve_object(
         &cctx->workspace, HUF_WORKSPACE_SIZE);
     cctx->bmi2 = ZSTD_cpuid_bmi2(ZSTD_cpuid());
     return cctx;
@@ -336,7 +336,7 @@ static void ZSTD_freeCCtxContent(ZSTD_CCtx* cctx)
     /* Only free workspace if cctx not in workspace, otherwise the workspace
      * will be freed when the cctx itself is freed. */
     if ((void*)cctx->workspace.workspace != (void*)cctx) {
-        ZSTD_workspace_free(&cctx->workspace, cctx->customMem);
+        ZSTD_cwksp_free(&cctx->workspace, cctx->customMem);
     }
     ZSTD_clearAllDicts(cctx);
 #ifdef ZSTD_MULTITHREAD
@@ -369,7 +369,7 @@ static size_t ZSTD_sizeof_mtctx(const ZSTD_CCtx* cctx)
 size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx)
 {
     if (cctx==NULL) return 0;   /* support sizeof on NULL */
-    return sizeof(*cctx) + ZSTD_workspace_sizeof(&cctx->workspace)
+    return sizeof(*cctx) + ZSTD_cwksp_sizeof(&cctx->workspace)
            + ZSTD_sizeof_localDict(cctx->localDict)
            + ZSTD_sizeof_mtctx(cctx);
 }
@@ -1566,7 +1566,7 @@ typedef enum { ZSTD_resetTarget_CDict, ZSTD_resetTarget_CCtx } ZSTD_resetTarget_
 
 static size_t
 ZSTD_reset_matchState(ZSTD_matchState_t* ms,
-                      ZSTD_CCtx_workspace* ws,
+                      ZSTD_cwksp* ws,
                 const ZSTD_compressionParameters* cParams,
                       ZSTD_compResetPolicy_e const crp, ZSTD_resetTarget_e const forWho)
 {
@@ -1583,16 +1583,16 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
     ms->window.nextSrc = ms->window.base + 1;   /* see issue #1241 */
     ZSTD_invalidateMatchState(ms);
 
-    assert(!ZSTD_workspace_reserve_failed(ws)); /* check that allocation hasn't already failed */
+    assert(!ZSTD_cwksp_reserve_failed(ws)); /* check that allocation hasn't already failed */
 
-    ZSTD_workspace_clear_tables(ws);
+    ZSTD_cwksp_clear_tables(ws);
 
     DEBUGLOG(5, "reserving table space");
     /* table Space */
-    ms->hashTable = (U32*)ZSTD_workspace_reserve_table(ws, hSize * sizeof(U32));
-    ms->chainTable = (U32*)ZSTD_workspace_reserve_table(ws, chainSize * sizeof(U32));
-    ms->hashTable3 = (U32*)ZSTD_workspace_reserve_table(ws, h3Size * sizeof(U32));
-    RETURN_ERROR_IF(ZSTD_workspace_reserve_failed(ws), memory_allocation,
+    ms->hashTable = (U32*)ZSTD_cwksp_reserve_table(ws, hSize * sizeof(U32));
+    ms->chainTable = (U32*)ZSTD_cwksp_reserve_table(ws, chainSize * sizeof(U32));
+    ms->hashTable3 = (U32*)ZSTD_cwksp_reserve_table(ws, h3Size * sizeof(U32));
+    RETURN_ERROR_IF(ZSTD_cwksp_reserve_failed(ws), memory_allocation,
                     "failed a workspace allocation in ZSTD_reset_matchState");
 
     DEBUGLOG(4, "reset table : %u", crp!=ZSTDcrp_noMemset);
@@ -1606,17 +1606,17 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
     /* opt parser space */
     if ((forWho == ZSTD_resetTarget_CCtx) && (cParams->strategy >= ZSTD_btopt)) {
         DEBUGLOG(4, "reserving optimal parser space");
-        ms->opt.litFreq = (unsigned*)ZSTD_workspace_reserve_aligned(ws, (1<<Litbits) * sizeof(unsigned));
-        ms->opt.litLengthFreq = (unsigned*)ZSTD_workspace_reserve_aligned(ws, (MaxLL+1) * sizeof(unsigned));
-        ms->opt.matchLengthFreq = (unsigned*)ZSTD_workspace_reserve_aligned(ws, (MaxML+1) * sizeof(unsigned));
-        ms->opt.offCodeFreq = (unsigned*)ZSTD_workspace_reserve_aligned(ws, (MaxOff+1) * sizeof(unsigned));
-        ms->opt.matchTable = (ZSTD_match_t*)ZSTD_workspace_reserve_aligned(ws, (ZSTD_OPT_NUM+1) * sizeof(ZSTD_match_t));
-        ms->opt.priceTable = (ZSTD_optimal_t*)ZSTD_workspace_reserve_aligned(ws, (ZSTD_OPT_NUM+1) * sizeof(ZSTD_optimal_t));
+        ms->opt.litFreq = (unsigned*)ZSTD_cwksp_reserve_aligned(ws, (1<<Litbits) * sizeof(unsigned));
+        ms->opt.litLengthFreq = (unsigned*)ZSTD_cwksp_reserve_aligned(ws, (MaxLL+1) * sizeof(unsigned));
+        ms->opt.matchLengthFreq = (unsigned*)ZSTD_cwksp_reserve_aligned(ws, (MaxML+1) * sizeof(unsigned));
+        ms->opt.offCodeFreq = (unsigned*)ZSTD_cwksp_reserve_aligned(ws, (MaxOff+1) * sizeof(unsigned));
+        ms->opt.matchTable = (ZSTD_match_t*)ZSTD_cwksp_reserve_aligned(ws, (ZSTD_OPT_NUM+1) * sizeof(ZSTD_match_t));
+        ms->opt.priceTable = (ZSTD_optimal_t*)ZSTD_cwksp_reserve_aligned(ws, (ZSTD_OPT_NUM+1) * sizeof(ZSTD_optimal_t));
     }
 
     ms->cParams = *cParams;
 
-    RETURN_ERROR_IF(ZSTD_workspace_reserve_failed(ws), memory_allocation,
+    RETURN_ERROR_IF(ZSTD_cwksp_reserve_failed(ws), memory_allocation,
                     "failed a workspace allocation in ZSTD_reset_matchState");
 
     return 0;
@@ -1654,7 +1654,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                                   zc->seqStore.maxNbSeq, zc->seqStore.maxNbLit,
                                   zbuff, pledgedSrcSize) ) {
             DEBUGLOG(4, "ZSTD_equivalentParams()==1 -> consider continue mode");
-            if (ZSTD_workspace_bump_oversized_duration(&zc->workspace) <= ZSTD_WORKSPACETOOLARGE_MAXDURATION) {
+            if (ZSTD_cwksp_bump_oversized_duration(&zc->workspace) <= ZSTD_WORKSPACETOOLARGE_MAXDURATION) {
                 DEBUGLOG(4, "continue mode confirmed (wLog1=%u, blockSize1=%zu)",
                             zc->appliedParams.cParams.windowLog, zc->blockSize);
                 if (ZSTD_indexTooCloseToMax(zc->blockState.matchState.window)) {
@@ -1703,8 +1703,8 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                 tokenSpace +
                 bufferSpace;
 
-            int const workspaceTooSmall = !ZSTD_workspace_check_available(&zc->workspace, neededSpace);
-            int const workspaceWasteful = ZSTD_workspace_check_wasteful(&zc->workspace, neededSpace);
+            int const workspaceTooSmall = !ZSTD_cwksp_check_available(&zc->workspace, neededSpace);
+            int const workspaceWasteful = ZSTD_cwksp_check_wasteful(&zc->workspace, neededSpace);
 
             DEBUGLOG(4, "Need %zuKB workspace, including %zuKB for match state, and %zuKB for buffers",
                         neededSpace>>10, matchStateSize>>10, bufferSpace>>10);
@@ -1712,28 +1712,28 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
 
             if (workspaceTooSmall || workspaceWasteful) {
                 DEBUGLOG(4, "Resize workspaceSize from %zuKB to %zuKB",
-                            ZSTD_workspace_sizeof(&zc->workspace) >> 10,
+                            ZSTD_cwksp_sizeof(&zc->workspace) >> 10,
                             neededSpace >> 10);
 
                 RETURN_ERROR_IF(zc->staticSize, memory_allocation, "static cctx : no resize");
 
-                ZSTD_workspace_free(&zc->workspace, zc->customMem);
-                FORWARD_IF_ERROR(ZSTD_workspace_create(&zc->workspace, neededSpace, zc->customMem));
+                ZSTD_cwksp_free(&zc->workspace, zc->customMem);
+                FORWARD_IF_ERROR(ZSTD_cwksp_create(&zc->workspace, neededSpace, zc->customMem));
 
                 DEBUGLOG(5, "reserving object space");
                 /* Statically sized space.
                  * entropyWorkspace never moves,
                  * though prev/next block swap places */
-                assert(ZSTD_workspace_check_available(&zc->workspace, 2 * sizeof(ZSTD_compressedBlockState_t)));
-                zc->blockState.prevCBlock = (ZSTD_compressedBlockState_t*) ZSTD_workspace_reserve_object(&zc->workspace, sizeof(ZSTD_compressedBlockState_t));
+                assert(ZSTD_cwksp_check_available(&zc->workspace, 2 * sizeof(ZSTD_compressedBlockState_t)));
+                zc->blockState.prevCBlock = (ZSTD_compressedBlockState_t*) ZSTD_cwksp_reserve_object(&zc->workspace, sizeof(ZSTD_compressedBlockState_t));
                 RETURN_ERROR_IF(zc->blockState.prevCBlock == NULL, memory_allocation, "couldn't allocate prevCBlock");
-                zc->blockState.nextCBlock = (ZSTD_compressedBlockState_t*) ZSTD_workspace_reserve_object(&zc->workspace, sizeof(ZSTD_compressedBlockState_t));
+                zc->blockState.nextCBlock = (ZSTD_compressedBlockState_t*) ZSTD_cwksp_reserve_object(&zc->workspace, sizeof(ZSTD_compressedBlockState_t));
                 RETURN_ERROR_IF(zc->blockState.nextCBlock == NULL, memory_allocation, "couldn't allocate nextCBlock");
-                zc->entropyWorkspace = (U32*) ZSTD_workspace_reserve_object(&zc->workspace, HUF_WORKSPACE_SIZE);
+                zc->entropyWorkspace = (U32*) ZSTD_cwksp_reserve_object(&zc->workspace, HUF_WORKSPACE_SIZE);
                 RETURN_ERROR_IF(zc->blockState.nextCBlock == NULL, memory_allocation, "couldn't allocate entropyWorkspace");
         }   }
 
-        ZSTD_workspace_clear(&zc->workspace);
+        ZSTD_cwksp_clear(&zc->workspace);
 
         /* init params */
         zc->appliedParams = params;
@@ -1756,31 +1756,31 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         /* ZSTD_wildcopy() is used to copy into the literals buffer,
          * so we have to oversize the buffer by WILDCOPY_OVERLENGTH bytes.
          */
-        zc->seqStore.litStart = ZSTD_workspace_reserve_buffer(&zc->workspace, blockSize + WILDCOPY_OVERLENGTH);
+        zc->seqStore.litStart = ZSTD_cwksp_reserve_buffer(&zc->workspace, blockSize + WILDCOPY_OVERLENGTH);
         zc->seqStore.maxNbLit = blockSize;
 
         /* buffers */
         zc->inBuffSize = buffInSize;
-        zc->inBuff = (char*)ZSTD_workspace_reserve_buffer(&zc->workspace, buffInSize);
+        zc->inBuff = (char*)ZSTD_cwksp_reserve_buffer(&zc->workspace, buffInSize);
         zc->outBuffSize = buffOutSize;
-        zc->outBuff = (char*)ZSTD_workspace_reserve_buffer(&zc->workspace, buffOutSize);
+        zc->outBuff = (char*)ZSTD_cwksp_reserve_buffer(&zc->workspace, buffOutSize);
 
         /* ldm bucketOffsets table */
         if (params.ldmParams.enableLdm) {
             size_t const ldmBucketSize =
                   ((size_t)1) << (params.ldmParams.hashLog -
                                   params.ldmParams.bucketSizeLog);
-            zc->ldmState.bucketOffsets = ZSTD_workspace_reserve_buffer(&zc->workspace, ldmBucketSize);
+            zc->ldmState.bucketOffsets = ZSTD_cwksp_reserve_buffer(&zc->workspace, ldmBucketSize);
             memset(zc->ldmState.bucketOffsets, 0, ldmBucketSize);
         }
 
         /* sequences storage */
         ZSTD_referenceExternalSequences(zc, NULL, 0);
         zc->seqStore.maxNbSeq = maxNbSeq;
-        zc->seqStore.llCode = ZSTD_workspace_reserve_buffer(&zc->workspace, maxNbSeq * sizeof(BYTE));
-        zc->seqStore.mlCode = ZSTD_workspace_reserve_buffer(&zc->workspace, maxNbSeq * sizeof(BYTE));
-        zc->seqStore.ofCode = ZSTD_workspace_reserve_buffer(&zc->workspace, maxNbSeq * sizeof(BYTE));
-        zc->seqStore.sequencesStart = (seqDef*)ZSTD_workspace_reserve_aligned(&zc->workspace, maxNbSeq * sizeof(seqDef));
+        zc->seqStore.llCode = ZSTD_cwksp_reserve_buffer(&zc->workspace, maxNbSeq * sizeof(BYTE));
+        zc->seqStore.mlCode = ZSTD_cwksp_reserve_buffer(&zc->workspace, maxNbSeq * sizeof(BYTE));
+        zc->seqStore.ofCode = ZSTD_cwksp_reserve_buffer(&zc->workspace, maxNbSeq * sizeof(BYTE));
+        zc->seqStore.sequencesStart = (seqDef*)ZSTD_cwksp_reserve_aligned(&zc->workspace, maxNbSeq * sizeof(seqDef));
 
         FORWARD_IF_ERROR(ZSTD_reset_matchState(
             &zc->blockState.matchState,
@@ -1792,16 +1792,16 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         /* initialize bucketOffsets table separately for pointer alignment */
         if (params.ldmParams.enableLdm) {
             size_t const ldmHSize = ((size_t)1) << params.ldmParams.hashLog;
-            zc->ldmState.hashTable = (ldmEntry_t*)ZSTD_workspace_reserve_aligned(&zc->workspace, ldmHSize * sizeof(ldmEntry_t));
+            zc->ldmState.hashTable = (ldmEntry_t*)ZSTD_cwksp_reserve_aligned(&zc->workspace, ldmHSize * sizeof(ldmEntry_t));
             memset(zc->ldmState.hashTable, 0, ldmHSize * sizeof(ldmEntry_t));
-            zc->ldmSequences = (rawSeq*)ZSTD_workspace_reserve_aligned(&zc->workspace, maxNbLdmSeq * sizeof(rawSeq));
+            zc->ldmSequences = (rawSeq*)ZSTD_cwksp_reserve_aligned(&zc->workspace, maxNbLdmSeq * sizeof(rawSeq));
             zc->maxNbLdmSequences = maxNbLdmSeq;
 
             memset(&zc->ldmState.window, 0, sizeof(zc->ldmState.window));
             ZSTD_window_clear(&zc->ldmState.window);
         }
 
-        DEBUGLOG(3, "wksp: finished allocating, %zd bytes remain available", ZSTD_workspace_available_space(&zc->workspace));
+        DEBUGLOG(3, "wksp: finished allocating, %zd bytes remain available", ZSTD_cwksp_available_space(&zc->workspace));
 
         return 0;
     }
@@ -3288,7 +3288,7 @@ size_t ZSTD_estimateCDictSize_advanced(
 {
     DEBUGLOG(5, "sizeof(ZSTD_CDict) : %u", (unsigned)sizeof(ZSTD_CDict));
     return sizeof(ZSTD_CDict) + HUF_WORKSPACE_SIZE + ZSTD_sizeof_matchState(&cParams, /* forCCtx */ 0)
-           + (dictLoadMethod == ZSTD_dlm_byRef ? 0 : ZSTD_workspace_align(dictSize, sizeof(void *)));
+           + (dictLoadMethod == ZSTD_dlm_byRef ? 0 : ZSTD_cwksp_align(dictSize, sizeof(void *)));
 }
 
 size_t ZSTD_estimateCDictSize(size_t dictSize, int compressionLevel)
@@ -3301,7 +3301,7 @@ size_t ZSTD_sizeof_CDict(const ZSTD_CDict* cdict)
 {
     if (cdict==NULL) return 0;   /* support sizeof on NULL */
     DEBUGLOG(5, "sizeof(*cdict) : %u", (unsigned)sizeof(*cdict));
-    return ZSTD_workspace_sizeof(&cdict->workspace) + sizeof(*cdict);
+    return ZSTD_cwksp_sizeof(&cdict->workspace) + sizeof(*cdict);
 }
 
 static size_t ZSTD_initCDict_internal(
@@ -3317,14 +3317,14 @@ static size_t ZSTD_initCDict_internal(
     if ((dictLoadMethod == ZSTD_dlm_byRef) || (!dictBuffer) || (!dictSize)) {
         cdict->dictContent = dictBuffer;
     } else {
-         void *internalBuffer = ZSTD_workspace_reserve_object(&cdict->workspace, ZSTD_workspace_align(dictSize, sizeof(void*)));
+         void *internalBuffer = ZSTD_cwksp_reserve_object(&cdict->workspace, ZSTD_cwksp_align(dictSize, sizeof(void*)));
         RETURN_ERROR_IF(!internalBuffer, memory_allocation);
         cdict->dictContent = internalBuffer;
         memcpy(internalBuffer, dictBuffer, dictSize);
     }
     cdict->dictContentSize = dictSize;
 
-    cdict->entropyWorkspace = (U32*)ZSTD_workspace_reserve_object(&cdict->workspace, HUF_WORKSPACE_SIZE);
+    cdict->entropyWorkspace = (U32*)ZSTD_cwksp_reserve_object(&cdict->workspace, HUF_WORKSPACE_SIZE);
 
 
     /* Reset the state to no dictionary */
@@ -3368,9 +3368,9 @@ ZSTD_CDict* ZSTD_createCDict_advanced(const void* dictBuffer, size_t dictSize,
             HUF_WORKSPACE_SIZE +
             ZSTD_sizeof_matchState(&cParams, /* forCCtx */ 0) +
             (dictLoadMethod == ZSTD_dlm_byRef ? 0
-                : ZSTD_workspace_align(dictSize, sizeof(void*)));
+                : ZSTD_cwksp_align(dictSize, sizeof(void*)));
         void* const workspace = ZSTD_malloc(workspaceSize, customMem);
-        ZSTD_CCtx_workspace tmpWorkspace;
+        ZSTD_cwksp ws;
         ZSTD_CDict* cdict;
 
         if (!workspace) {
@@ -3378,11 +3378,11 @@ ZSTD_CDict* ZSTD_createCDict_advanced(const void* dictBuffer, size_t dictSize,
             return NULL;
         }
 
-        ZSTD_workspace_init(&tmpWorkspace, workspace, workspaceSize);
+        ZSTD_cwksp_init(&ws, workspace, workspaceSize);
 
-        cdict = (ZSTD_CDict*)ZSTD_workspace_reserve_object(&tmpWorkspace, sizeof(ZSTD_CDict));
+        cdict = (ZSTD_CDict*)ZSTD_cwksp_reserve_object(&ws, sizeof(ZSTD_CDict));
         assert(cdict != NULL);
-        cdict->workspace = tmpWorkspace;
+        cdict->workspace = ws;
         cdict->customMem = customMem;
         if (ZSTD_isError( ZSTD_initCDict_internal(cdict,
                                         dictBuffer, dictSize,
@@ -3419,7 +3419,7 @@ size_t ZSTD_freeCDict(ZSTD_CDict* cdict)
         /* Only free workspace if cdict not in workspace, otherwise the
          * workspace will be freed when the cdict itself is freed. */
         if ((void*)cdict->workspace.workspace != (void*)cdict) {
-            ZSTD_workspace_free(&cdict->workspace, cMem);
+            ZSTD_cwksp_free(&cdict->workspace, cMem);
         }
         ZSTD_free(cdict, cMem);
         return 0;
@@ -3447,16 +3447,16 @@ const ZSTD_CDict* ZSTD_initStaticCDict(
                                  ZSTD_compressionParameters cParams)
 {
     size_t const matchStateSize = ZSTD_sizeof_matchState(&cParams, /* forCCtx */ 0);
-    size_t const neededSize = sizeof(ZSTD_CDict) + (dictLoadMethod == ZSTD_dlm_byRef ? 0 : ZSTD_workspace_align(dictSize, sizeof(void*)))
+    size_t const neededSize = sizeof(ZSTD_CDict) + (dictLoadMethod == ZSTD_dlm_byRef ? 0 : ZSTD_cwksp_align(dictSize, sizeof(void*)))
                             + HUF_WORKSPACE_SIZE + matchStateSize;
     ZSTD_CDict* cdict;
 
     if ((size_t)workspace & 7) return NULL;  /* 8-aligned */
 
     {
-        ZSTD_CCtx_workspace ws;
-        ZSTD_workspace_init(&ws, workspace, workspaceSize);
-        cdict = (ZSTD_CDict*)ZSTD_workspace_reserve_object(&ws, sizeof(ZSTD_CDict));
+        ZSTD_cwksp ws;
+        ZSTD_cwksp_init(&ws, workspace, workspaceSize);
+        cdict = (ZSTD_CDict*)ZSTD_cwksp_reserve_object(&ws, sizeof(ZSTD_CDict));
         if (cdict == NULL) return NULL;
         cdict->workspace = ws;
     }

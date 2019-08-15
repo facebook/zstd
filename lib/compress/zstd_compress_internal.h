@@ -224,10 +224,10 @@ struct ZSTD_CCtx_params_s {
 };  /* typedef'd to ZSTD_CCtx_params within "zstd.h" */
 
 typedef enum {
-    ZSTD_workspace_alloc_objects,
-    ZSTD_workspace_alloc_buffers,
-    ZSTD_workspace_alloc_aligned
-} ZSTD_workspace_alloc_phase_e;
+    ZSTD_cwksp_alloc_objects,
+    ZSTD_cwksp_alloc_buffers,
+    ZSTD_cwksp_alloc_aligned
+} ZSTD_cwksp_alloc_phase_e;
 
 /**
  * Zstd fits all its internal datastructures into a single continuous buffer,
@@ -311,8 +311,8 @@ typedef struct {
 
     int allocFailed;
     int workspaceOversizedDuration;
-    ZSTD_workspace_alloc_phase_e phase;
-} ZSTD_CCtx_workspace;
+    ZSTD_cwksp_alloc_phase_e phase;
+} ZSTD_cwksp;
 
 struct ZSTD_CCtx_s {
     ZSTD_compressionStage_e stage;
@@ -322,7 +322,7 @@ struct ZSTD_CCtx_s {
     ZSTD_CCtx_params appliedParams;
     U32   dictID;
 
-    ZSTD_CCtx_workspace workspace; /* manages buffer for dynamic allocations */
+    ZSTD_cwksp workspace; /* manages buffer for dynamic allocations */
     size_t blockSize;
     unsigned long long pledgedSrcSizePlusOne;  /* this way, 0 (default) == unknown */
     unsigned long long consumedSrcSize;

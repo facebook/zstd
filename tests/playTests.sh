@@ -108,7 +108,6 @@ else
 fi
 
 
-
 println "\n===>  simple tests "
 
 ./datagen > tmp
@@ -1018,6 +1017,27 @@ test -f tmpDict
 $ZSTD --train-cover "$TESTDIR"/*.c "$PRGDIR"/*.c
 test -f dictionary
 rm -f tmp* dictionary
+
+
+println "\n===>  stream-size mode"
+
+./datagen -g11000 > tmp
+println "test : basic file compression vs sized streaming compression"
+$ZSTD -14 -f tmp -o tmp.zst |& tee file.out
+cat tmp | $ZSTD -14 -f -o tmp.zst --stream-size=11000 |& tee stream_sized.out
+
+file_ratio=$(cat file.out | awk '{print $4}' | sed 's/%//g')
+stream_sized_ratio=$(cat stream_sized.out | awk '{print $4}' | sed 's/%//g')
+rm file.out stream_sized.out
+
+ratio_diff=$(echo $file_ratio - $stream_sized_ratio | bc)
+if [ $(echo "(100 * $ratio_diff) > 5" | bc -l) == 1 ]
+then
+  die "greater than 0.05% difference between file and sized-streaming compression"
+fi
+
+println "test : incorrect stream size"
+cat tmp | $ZSTD -14 -f -o tmp.zst --stream-size=11001 && die "should fail with incorrect stream size"
 
 
 rm -f tmp*

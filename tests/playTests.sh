@@ -1023,8 +1023,8 @@ println "\n===>  stream-size mode"
 
 ./datagen -g11000 > tmp
 println "test : basic file compression vs sized streaming compression"
-$ZSTD -14 -f tmp -o tmp.zst |& tee file.out
-cat tmp | $ZSTD -14 -f -o tmp.zst --stream-size=11000 |& tee stream_sized.out
+$ZSTD -14 -f tmp -o tmp.zst 2>&1 | tee file.out
+cat tmp | $ZSTD -14 -f -o tmp.zst --stream-size=11000 2>&1 | tee stream_sized.out
 
 file_ratio=$(cat file.out | awk '{print $4}' | sed 's/%//g')
 stream_sized_ratio=$(cat stream_sized.out | awk '{print $4}' | sed 's/%//g')
@@ -1035,7 +1035,10 @@ if [ $(echo "(100 * $ratio_diff) > 5" | bc -l) == 1 ]
 then
   die "greater than 0.05% difference between file and sized-streaming compression"
 fi
-
+println "test : sized streaming compression and decompression"
+cat tmp | $ZSTD -14 -f tmp -o --stream-size=11000 tmp.zst
+$ZSTD -df tmp.zst -o tmp_decompress
+cmp tmp tmp_decompress || die "difference between original and decompressed file"
 println "test : incorrect stream size"
 cat tmp | $ZSTD -14 -f -o tmp.zst --stream-size=11001 && die "should fail with incorrect stream size"
 

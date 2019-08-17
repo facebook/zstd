@@ -388,7 +388,7 @@ The upper 21 bits of `Block_Header` represent the `Block_Size`.
 When `Block_Type` is `Compressed_Block` or `Raw_Block`,
 `Block_Size` is the size of `Block_Content`, hence excluding `Block_Header`.  
 When `Block_Type` is `RLE_Block`, `Block_Content`’s size is always 1,
-and `Block_Size` represents the nb of times this byte must be repeated.
+and `Block_Size` represents the number of times this byte must be repeated.
 A block can contain and decompress into any number of bytes (even zero),
 up to `Block_Maximum_Decompressed_Size`, which is the smallest of:
 -  Window_Size

@@ -1006,9 +1006,8 @@ FIO_compressZstdFrame(FIO_prefs_t* const prefs,
     if (fileSize != UTIL_FILESIZE_UNKNOWN) {
         CHECK(ZSTD_CCtx_setPledgedSrcSize(ress.cctx, fileSize));
     } else if (prefs->streamSrcSize > 0) {
-      /* unknown source size; use the declared stream size and disable writing this size to frame during compression */
+      /* unknown source size; use the declared stream size */
       CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, prefs->streamSrcSize) );
-      CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_contentSizeFlag, 0) );
     }
     (void)srcFileName;
 

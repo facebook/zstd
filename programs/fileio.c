@@ -585,7 +585,7 @@ static FILE* FIO_openDstFile(FIO_prefs_t* const prefs, const char* srcFileName, 
     {   FILE* const f = fopen( dstFileName, "wb" );
         if (f == NULL) {
             DISPLAYLEVEL(1, "zstd: %s: %s\n", dstFileName, strerror(errno));
-        } else {
+        } else if(srcFileName != NULL && strcmp (srcFileName, stdinmark)) {
             chmod(dstFileName, 00600);
         }
         return f;

@@ -15,6 +15,7 @@ extern "C" {
 #define ZSTD_H_235446
 
 /* ======   Dependency   ======*/
+#include <limits.h>   /* INT_MAX */
 #include <stddef.h>   /* size_t */
 
 
@@ -1065,7 +1066,7 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 /* Advanced parameter bounds */
 #define ZSTD_TARGETCBLOCKSIZE_MIN   64
 #define ZSTD_TARGETCBLOCKSIZE_MAX   ZSTD_BLOCKSIZE_MAX
-#define ZSTD_SRCSIZEHINT_MAX        1e9  /* 1 GB */
+#define ZSTD_SRCSIZEHINT_MAX        INT_MAX
 
 /* internal */
 #define ZSTD_HASHLOG3_MAX           17

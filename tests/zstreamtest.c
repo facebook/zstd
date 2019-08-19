@@ -1151,6 +1151,21 @@ static int basicUnitTests(U32 seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : ZSTD_c_srcSizeHint provides hint about size of stream : ", testNb++);
+    {
+      CHECK_Z( ZSTD_initCStream(zc, 1 /* cLevel */) );
+      outBuff.dst = (char*)(compressedBuffer);
+      outBuff.size = compressedBufferSize;
+      outBuff.pos = 0;
+      inBuff.src = CNBuffer;
+      inBuff.size = CNBufferSize;
+      inBuff.pos = 0;
+      CHECK_Z( ZSTD_compressStream(zc, &outBuff, &inBuff) );
+      if (inBuff.pos != inBuff.size) goto _output_error;   /* entire input should be consumed */
+      { size_t const r = ZSTD_endStream(zc, &outBuff);
+        if (r != 0) goto _output_error; }  /* error, or some data not flushed */
+    }
+
     /* Overlen overwriting window data bug */
     DISPLAYLEVEL(3, "test%3i : wildcopy doesn't overwrite potential match data : ", testNb++);
     {   /* This test has a window size of 1024 bytes and consists of 3 blocks:
@@ -2106,6 +2121,7 @@ static int fuzzerTests_newAPI(U32 seed, int nbTests, int startTest,
                     if (FUZ_rand(&lseed) & 3) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_c_ldmMinMatch, FUZ_randomClampedLength(&lseed, ZSTD_LDM_MINMATCH_MIN, ZSTD_LDM_MINMATCH_MAX), opaqueAPI) );
                     if (FUZ_rand(&lseed) & 3) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_c_ldmBucketSizeLog, FUZ_randomClampedLength(&lseed, ZSTD_LDM_BUCKETSIZELOG_MIN, ZSTD_LDM_BUCKETSIZELOG_MAX), opaqueAPI) );
                     if (FUZ_rand(&lseed) & 3) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_c_ldmHashRateLog, FUZ_randomClampedLength(&lseed, ZSTD_LDM_HASHRATELOG_MIN, ZSTD_LDM_HASHRATELOG_MAX), opaqueAPI) );
+                    if (FUZ_rand(&lseed) & 3) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_c_srcSizeHint, FUZ_randomClampedLength(&lseed, 0, ZSTD_ZSTD_SRCSIZEHINT_MAX), opaqueAPI) );
                 }
 
                 /* mess with frame parameters */

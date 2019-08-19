@@ -794,6 +794,7 @@ size_t ZSTD_CCtxParams_getParameter(
         break;
     case ZSTD_c_srcSizeHint :
         *value = (int)CCtxParams->srcSizeHint;
+        break;
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
     }
     return 0;

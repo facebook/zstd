@@ -704,21 +704,7 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_rsyncable, prefs->rsyncable) );
 #endif
         /* dictionary */
-        /* set the pledged size for dictionary loading, to adapt compression parameters */
-        if (srcSize == ZSTD_CONTENTSIZE_UNKNOWN && prefs->streamSrcSize > 0) {
-          /* unknown source size; use the declared stream size and disable writing this size to frame during compression */
-          CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, prefs->streamSrcSize) );
-          CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_contentSizeFlag, 0) );
-        } else {
-          /* use the known source size for adaption */
-          CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, srcSize) );
-        }
         CHECK( ZSTD_CCtx_loadDictionary(ress.cctx, dictBuffer, dictBuffSize) );
-        if (srcSize != ZSTD_CONTENTSIZE_UNKNOWN || prefs->streamSrcSize == 0) {
-            /* reset pledge when src size is known or stream size is declared */
-            CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, ZSTD_CONTENTSIZE_UNKNOWN) );
-        }
-
         free(dictBuffer);
     }
 
@@ -1020,6 +1006,10 @@ FIO_compressZstdFrame(FIO_prefs_t* const prefs,
     /* init */
     if (fileSize != UTIL_FILESIZE_UNKNOWN) {
         CHECK(ZSTD_CCtx_setPledgedSrcSize(ress.cctx, fileSize));
+    } else if (prefs->streamSrcSize > 0) {
+      /* unknown source size; use the declared stream size and disable writing this size to frame during compression */
+      CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, prefs->streamSrcSize) );
+      CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_contentSizeFlag, 0) );
     }
     (void)srcFileName;
 

@@ -412,29 +412,31 @@ $ZSTD -f tmp1 notHere tmp2 && die "missing file not detected!"
 println "\n===>  size-hint mode"
 
 ./datagen -g11000 > tmp
-println "test : basic file compression vs streaming compression vs hinted streaming compression"
-$ZSTD -14 -f tmp -o tmp.zst 2>&1 | tee file.out
-cat tmp | $ZSTD -14 -f -o tmp.zst  # only run for convenience of comparison
-cat tmp | $ZSTD -14 -f -o tmp.zst --size-hint=11000 2>&1 | tee stream_sized.out
-
-file_ratio=$(cat file.out | awk '{print $4}' | sed 's/%//g')
-stream_sized_ratio=$(cat stream_sized.out | awk '{print $4}' | sed 's/%//g')
-rm file.out stream_sized.out
-
-ratio_diff=$(echo $stream_sized_ratio - $file_ratio | bc)
-if [ $(echo "(100 * $ratio_diff) > 1" | bc -l) -eq 1 ]
-then
-  die "hinted compression greater than 0.01% larger than file compression"
+./datagen -g11000 > tmp2
+./datagen > tmpDict
+println "test : basic file compression vs hinted streaming compression"
+file_size=$($ZSTD -14 -f tmp -o tmp.zst && wc -c < tmp.zst)
+stream_size=$(cat tmp | $ZSTD -14 --size-hint=11000 | wc -c)
+if [ "$stream_size" -ge "$file_size" ]; then
+  die "hinted compression larger than expected"
 fi
 println "test : hinted streaming compression and decompression"
 cat tmp | $ZSTD -14 -f -o tmp.zst --size-hint=11000
 $ZSTD -df tmp.zst -o tmp_decompress
 cmp tmp tmp_decompress || die "difference between original and decompressed file"
+println "test : hinted streaming compression with dictionary"
+cat tmp | $ZSTD -14 -f -D tmpDict --size-hint=11000 | $ZSTD -t -D tmpDict
+println "test : multiple file compression with hints and dictionary"
+$ZSTD -14 -f -D tmpDict --size-hint=11000 tmp tmp2
+$ZSTD -14 -f -o tmp1_.zst -D tmpDict --size-hint=11000 tmp
+$ZSTD -14 -f -o tmp2_.zst -D tmpDict --size-hint=11000 tmp2
+cmp tmp.zst tmp1_.zst || die "first file's output differs"
+cmp tmp2.zst tmp2_.zst || die "second file's output differs"
 println "test : incorrect hinted stream sizes"
-cat tmp | $ZSTD -14 -f -o tmp.zst --size-hint=11050  # slightly too high
-cat tmp | $ZSTD -14 -f -o tmp.zst --size-hint=10950  # slightly too low
-cat tmp | $ZSTD -14 -f -o tmp.zst --size-hint=22000  # considerably too high
-cat tmp | $ZSTD -14 -f -o tmp.zst --size-hint=5500   # considerably too low
+cat tmp | $ZSTD -14 -f --size-hint=11050 | $ZSTD -t  # slightly too high
+cat tmp | $ZSTD -14 -f --size-hint=10950 | $ZSTD -t  # slightly too low
+cat tmp | $ZSTD -14 -f --size-hint=22000 | $ZSTD -t  # considerably too high
+cat tmp | $ZSTD -14 -f --size-hint=5500  | $ZSTD -t  # considerably too low
 
 
 println "\n===>  dictionary tests "

@@ -1955,7 +1955,7 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
     BYTE* const ostart = (BYTE*)dst;
     BYTE* const oend = ostart + dstCapacity;
     BYTE* op = ostart;
-    size_t const nbSeq = seqStorePtr->sequences - seqStorePtr->sequencesStart;
+    size_t const nbSeq = (size_t)(seqStorePtr->sequences - seqStorePtr->sequencesStart);
     BYTE* seqHead;
     BYTE* lastNCount = NULL;
 
@@ -1964,7 +1964,7 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
 
     /* Compress literals */
     {   const BYTE* const literals = seqStorePtr->litStart;
-        size_t const litSize = seqStorePtr->lit - literals;
+        size_t const litSize = (size_t)(seqStorePtr->lit - literals);
         size_t const cSize = ZSTD_compressLiterals(
                                     &prevEntropy->huf, &nextEntropy->huf,
                                     cctxParams->cParams.strategy,
@@ -1991,7 +1991,7 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
     if (nbSeq==0) {
         /* Copy the old tables over as if we repeated them */
         memcpy(&nextEntropy->fse, &prevEntropy->fse, sizeof(prevEntropy->fse));
-        return op - ostart;
+        return (size_t)(op - ostart);
     }
 
     /* seqHead : flags for FSE encoding type */
@@ -2012,7 +2012,7 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
                                         ZSTD_defaultAllowed, strategy);
         assert(set_basic < set_compressed && set_rle < set_compressed);
         assert(!(LLtype < set_compressed && nextEntropy->fse.litlength_repeatMode != FSE_repeat_none)); /* We don't copy tables */
-        {   size_t const countSize = ZSTD_buildCTable(op, oend - op, CTable_LitLength, LLFSELog, (symbolEncodingType_e)LLtype,
+        {   size_t const countSize = ZSTD_buildCTable(op, (size_t)(oend - op), CTable_LitLength, LLFSELog, (symbolEncodingType_e)LLtype,
                                                     count, max, llCodeTable, nbSeq, LL_defaultNorm, LL_defaultNormLog, MaxLL,
                                                     prevEntropy->fse.litlengthCTable, sizeof(prevEntropy->fse.litlengthCTable),
                                                     workspace, wkspSize);
@@ -2035,7 +2035,7 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
                                         OF_defaultNorm, OF_defaultNormLog,
                                         defaultPolicy, strategy);
         assert(!(Offtype < set_compressed && nextEntropy->fse.offcode_repeatMode != FSE_repeat_none)); /* We don't copy tables */
-        {   size_t const countSize = ZSTD_buildCTable(op, oend - op, CTable_OffsetBits, OffFSELog, (symbolEncodingType_e)Offtype,
+        {   size_t const countSize = ZSTD_buildCTable(op, (size_t)(oend - op), CTable_OffsetBits, OffFSELog, (symbolEncodingType_e)Offtype,
                                                     count, max, ofCodeTable, nbSeq, OF_defaultNorm, OF_defaultNormLog, DefaultMaxOff,
                                                     prevEntropy->fse.offcodeCTable, sizeof(prevEntropy->fse.offcodeCTable),
                                                     workspace, wkspSize);
@@ -2056,7 +2056,7 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
                                         ML_defaultNorm, ML_defaultNormLog,
                                         ZSTD_defaultAllowed, strategy);
         assert(!(MLtype < set_compressed && nextEntropy->fse.matchlength_repeatMode != FSE_repeat_none)); /* We don't copy tables */
-        {   size_t const countSize = ZSTD_buildCTable(op, oend - op, CTable_MatchLength, MLFSELog, (symbolEncodingType_e)MLtype,
+        {   size_t const countSize = ZSTD_buildCTable(op, (size_t)(oend - op), CTable_MatchLength, MLFSELog, (symbolEncodingType_e)MLtype,
                                                     count, max, mlCodeTable, nbSeq, ML_defaultNorm, ML_defaultNormLog, MaxML,
                                                     prevEntropy->fse.matchlengthCTable, sizeof(prevEntropy->fse.matchlengthCTable),
                                                     workspace, wkspSize);
@@ -2070,7 +2070,7 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
     *seqHead = (BYTE)((LLtype<<6) + (Offtype<<4) + (MLtype<<2));
 
     {   size_t const bitstreamSize = ZSTD_encodeSequences(
-                                        op, oend - op,
+                                        op, (size_t)(oend - op),
                                         CTable_MatchLength, mlCodeTable,
                                         CTable_OffsetBits, ofCodeTable,
                                         CTable_LitLength, llCodeTable,
@@ -2097,7 +2097,7 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
     }
 
     DEBUGLOG(5, "compressed block size : %u", (unsigned)(op - ostart));
-    return op - ostart;
+    return (size_t)(op - ostart);
 }
 
 MEM_STATIC size_t
@@ -2270,7 +2270,8 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
 {
     size_t cSize;
     DEBUGLOG(5, "ZSTD_compressBlock_internal (dstCapacity=%u, dictLimit=%u, nextToUpdate=%u)",
-                (unsigned)dstCapacity, (unsigned)zc->blockState.matchState.window.dictLimit, (unsigned)zc->blockState.matchState.nextToUpdate);
+                (unsigned)dstCapacity, (unsigned)zc->blockState.matchState.window.dictLimit,
+                (unsigned)zc->blockState.matchState.nextToUpdate);
 
     {   const size_t bss = ZSTD_buildSeqStore(zc, src, srcSize);
         FORWARD_IF_ERROR(bss);
@@ -2538,8 +2539,9 @@ size_t ZSTD_getBlockSize(const ZSTD_CCtx* cctx)
 
 size_t ZSTD_compressBlock(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
-    size_t const blockSizeMax = ZSTD_getBlockSize(cctx);
-    RETURN_ERROR_IF(srcSize > blockSizeMax, srcSize_wrong);
+    DEBUGLOG(5, "ZSTD_compressBlock: srcSize = %u", (unsigned)srcSize);
+    { size_t const blockSizeMax = ZSTD_getBlockSize(cctx);
+      RETURN_ERROR_IF(srcSize > blockSizeMax, srcSize_wrong); }
 
     return ZSTD_compressContinue_internal(cctx, dst, dstCapacity, src, srcSize, 0 /* frame mode */, 0 /* last chunk */);
 }
@@ -2564,7 +2566,7 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
     if (srcSize <= HASH_READ_SIZE) return 0;
 
     while (iend - ip > HASH_READ_SIZE) {
-        size_t const remaining = iend - ip;
+        size_t const remaining = (size_t)(iend - ip);
         size_t const chunk = MIN(remaining, ZSTD_CHUNKSIZE_MAX);
         const BYTE* const ichunk = ip + chunk;
 

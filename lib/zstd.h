@@ -1447,7 +1447,8 @@ ZSTDLIB_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* pre
 
 /* User's best guess of source size.
  * Hint is not valid when srcSizeHint == 0.
- * There is no guarantee that hint is close to actual source size */
+ * There is no guarantee that hint is close to actual source size,
+ * but compression ratio may regress significantly if guess considerably underestimates */
 #define ZSTD_c_srcSizeHint ZSTD_c_experimentalParam7
 
 /*! ZSTD_CCtx_getParameter() :

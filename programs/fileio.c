@@ -30,6 +30,7 @@
 #include <string.h>     /* strcmp, strlen */
 #include <assert.h>
 #include <errno.h>      /* errno */
+#include <limits.h>     /* INT_MAX */
 #include <signal.h>
 #include "timefn.h"     /* UTIL_getTime, UTIL_clockSpanMicro */
 
@@ -305,7 +306,7 @@ struct FIO_prefs_s {
     int ldmBucketSizeLog;
     int ldmHashRateLog;
     size_t targetCBlockSize;
-    size_t srcSizeHint;
+    int srcSizeHint;
     ZSTD_literalCompressionMode_e literalCompressionMode;
 
     /* IO preferences */
@@ -425,7 +426,7 @@ void FIO_setTargetCBlockSize(FIO_prefs_t* const prefs, size_t targetCBlockSize) 
 }
 
 void FIO_setSrcSizeHint(FIO_prefs_t* const prefs, size_t srcSizeHint) {
-    prefs->srcSizeHint = srcSizeHint;
+    prefs->srcSizeHint = (int)MIN((size_t)INT_MAX, srcSizeHint);
 }
 
 void FIO_setLiteralCompressionMode(

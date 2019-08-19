@@ -152,6 +152,12 @@ the last one takes effect.
     This feature does not work with `--single-thread`. You probably don't want
     to use it with long range mode, since it will decrease the effectiveness of
     the synchronization points, but your milage may vary.
+* `--stream-size` :
+    When handling input from a stream, `zstd` must guess how large the source size
+    will be when optimizing compression parameters. If the stream size is relatively
+    small, this guess may be a poor one, resulting in a higher compression ratio than
+    expected. This feature will set the source size of a stream. Note that it must
+    be exact; incorrect stream sizes will cause an error.
 * `-D file`:
     use `file` as Dictionary to compress or decompress FILE(s)
 * `--no-dictID`:

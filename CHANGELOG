@@ -1,3 +1,9 @@
+v1.4.3
+bug: Fix Dictionary Compression Ratio Regression by @cyan4973 (#1709)
+bug: Fix Buffer Overflow in v0.3 Decompression by @felixhandte (#1722)
+build: Add support for IAR C/C++ Compiler for Arm by @joseph0918 (#1705)
+misc: Add NULL pointer check in util.c by @leeyoung624 (#1706)
+
 v1.4.2
 bug: Fix bug in zstd-0.5 decoder by @terrelln (#1696)
 bug: Fix seekable decompression in-memory API by @iburinoc (#1695)

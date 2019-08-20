@@ -144,6 +144,13 @@ the last one takes effect.
     Due to the chaotic nature of dynamic adaptation, compressed result is not reproducible.
     _note_ : at the time of this writing, `--adapt` can remain stuck at low speed
     when combined with multiple worker threads (>=2).
+* `--size-hint=#`:
+    When handling input from a stream, `zstd` must guess how large the source size
+    will be when optimizing compression parameters. If the stream size is relatively
+    small, this guess may be a poor one, resulting in a higher compression ratio than
+    expected. This feature allows for controlling the guess when needed.
+    Exact guesses result in better compression ratios. Overestimates result in slightly
+    degraded compression ratios, while underestimates may result in significant degradation.
 * `--rsyncable` :
     `zstd` will periodically synchronize the compression state to make the
     compressed file more rsync-friendly. There is a negligible impact to

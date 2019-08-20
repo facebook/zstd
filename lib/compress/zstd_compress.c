@@ -393,7 +393,7 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
         return bounds;
 
     case ZSTD_c_srcSizeHint:
-        bounds.lowerBound = 0;
+        bounds.lowerBound = ZSTD_SRCSIZEHINT_MIN;
         bounds.upperBound = ZSTD_SRCSIZEHINT_MAX;
         return bounds;
 

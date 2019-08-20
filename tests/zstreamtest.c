@@ -1151,21 +1151,6 @@ static int basicUnitTests(U32 seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
-    DISPLAYLEVEL(3, "test%3i : ZSTD_c_srcSizeHint provides hint about size of stream : ", testNb++);
-    {
-      CHECK_Z( ZSTD_initCStream(zc, 1 /* cLevel */) );
-      outBuff.dst = (char*)(compressedBuffer);
-      outBuff.size = compressedBufferSize;
-      outBuff.pos = 0;
-      inBuff.src = CNBuffer;
-      inBuff.size = CNBufferSize;
-      inBuff.pos = 0;
-      CHECK_Z( ZSTD_compressStream(zc, &outBuff, &inBuff) );
-      if (inBuff.pos != inBuff.size) goto _output_error;   /* entire input should be consumed */
-      { size_t const r = ZSTD_endStream(zc, &outBuff);
-        if (r != 0) goto _output_error; }  /* error, or some data not flushed */
-    }
-
     /* Overlen overwriting window data bug */
     DISPLAYLEVEL(3, "test%3i : wildcopy doesn't overwrite potential match data : ", testNb++);
     {   /* This test has a window size of 1024 bytes and consists of 3 blocks:

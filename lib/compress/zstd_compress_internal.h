@@ -19,6 +19,7 @@
 *  Dependencies
 ***************************************/
 #include "zstd_internal.h"
+#include "zstd_cwksp.h"
 #ifdef ZSTD_MULTITHREAD
 #  include "zstdmt_compress.h"
 #endif
@@ -222,97 +223,6 @@ struct ZSTD_CCtx_params_s {
     /* Internal use, for createCCtxParams() and freeCCtxParams() only */
     ZSTD_customMem customMem;
 };  /* typedef'd to ZSTD_CCtx_params within "zstd.h" */
-
-typedef enum {
-    ZSTD_cwksp_alloc_objects,
-    ZSTD_cwksp_alloc_buffers,
-    ZSTD_cwksp_alloc_aligned
-} ZSTD_cwksp_alloc_phase_e;
-
-/**
- * Zstd fits all its internal datastructures into a single continuous buffer,
- * so that it only needs to perform a single OS allocation (or so that a buffer
- * can be provided to it and it can perform no allocations at all). This buffer
- * is called the workspace.
- *
- * Several optimizations complicate that process of allocating memory ranges
- * from this workspace for each datastructure:
- *
- * - These different internal datastructures have different setup requirements.
- *   Some (e.g., the window buffer) don't care, and are happy to accept
- *   uninitialized memory. Others (e.g., the matchstate tables) can accept
- *   memory filled with unknown but bounded values (i.e., a memory area whose 
- *   values are known to be constrained between 0 and some upper bound). If
- *   that constraint isn't known to be satisfied, the area has to be cleared.
- *
- * - We would like to reuse the objects in the workspace for multiple
- *   compressions without having to perform any expensive reallocation or
- *   reinitialization work.
- *
- * - We would like to be able to efficiently reuse the workspace across
- *   multiple compressions **even when the compression parameters change** and
- *   we need to resize some of the objects (where possible).
- *
- * Workspace Layout:
- *
- * [                        ... workspace ...                         ]
- * [objects][tables ... ->] free space [<- ... aligned][<- ... buffers]
- *
- * In order to accomplish this, the various objects that live in the workspace
- * are divided into the following categories:
- *
- * - Static objects: this is optionally the enclosing ZSTD_CCtx or ZSTD_CDict,
- *   so that literally everything fits in a single buffer. Note: if present,
- *   this must be the first object in the workspace, since ZSTD_free{CCtx,
- *   CDict}() rely on a pointer comparison to see whether one or two frees are
- *   required.
- *
- * - Fixed size objects: these are fixed-size, fixed-count objects that are
- *   nonetheless "dynamically" allocated in the workspace so that we can
- *   control how they're initialized separately from the broader ZSTD_CCtx.
- *   Examples:
- *   - Entropy Workspace
- *   - 2 x ZSTD_compressedBlockState_t
- *   - CDict dictionary contents
- *
- * - Tables: these are any of several different datastructures (hash tables,
- *   chain tables, binary trees) that all respect a common format: they are
- *   uint32_t arrays, all of whose values are between 0 and (nextSrc - base).
- *   Their sizes depend on the cparams.
- *
- * - Aligned: these buffers are used for various purposes that don't require
- *   any initialization before they're used.
- *
- * - Uninitialized memory: these buffers are used for various purposes that
- *   don't require any initialization before they're used. This means they can
- *   be moved around at no cost for a new compression.
- *
- * Allocating Memory:
- *
- * The various types of objects must be allocated in order, so they can be
- * correctly packed into the workspace buffer. That order is:
- *
- * 1. Objects
- * 2. Buffers
- * 3. Aligned
- * 4. Tables
- *
- * Reusing Table Space:
- *
- * TODO(felixh): ...
- */
-typedef struct {
-    void* workspace;
-    void* workspaceEnd;
-
-    void* objectEnd;
-    void* tableEnd;
-    void* allocStart;
-
-    int allocFailed;
-    int workspaceOversizedDuration;
-    ZSTD_cwksp_alloc_phase_e phase;
-} ZSTD_cwksp;
 
 struct ZSTD_CCtx_s {
     ZSTD_compressionStage_e stage;

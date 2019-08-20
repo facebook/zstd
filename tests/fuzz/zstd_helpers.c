@@ -91,7 +91,7 @@ void FUZZ_setRandomParameters(ZSTD_CCtx *cctx, size_t srcSize, uint32_t *state)
     setRand(cctx, ZSTD_c_literalCompressionMode, 0, 2, state);
     setRand(cctx, ZSTD_c_forceAttachDict, 0, 2, state);
     if (FUZZ_rand32(state, 0, 1) == 0) {
-      setRand(cctx, ZSTD_c_srcSizeHint, 0, 2 * srcSize, state);
+      setRand(cctx, ZSTD_c_srcSizeHint, ZSTD_SRCSIZEHINT_MIN, 2 * srcSize, state);
     }
 }
 

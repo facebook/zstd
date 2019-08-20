@@ -1066,7 +1066,7 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 /* Advanced parameter bounds */
 #define ZSTD_TARGETCBLOCKSIZE_MIN   64
 #define ZSTD_TARGETCBLOCKSIZE_MAX   ZSTD_BLOCKSIZE_MAX
-#define ZSTD_SRCSIZEHINT_MAX        0
+#define ZSTD_SRCSIZEHINT_MIN        0
 #define ZSTD_SRCSIZEHINT_MAX        INT_MAX
 
 /* internal */

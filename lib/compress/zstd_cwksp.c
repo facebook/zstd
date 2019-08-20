@@ -10,6 +10,10 @@
 
 #include "zstd_cwksp.h"
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 /**
  * Align must be a power of 2.
  */
@@ -22,7 +26,7 @@ size_t ZSTD_cwksp_align(size_t size, size_t const align) {
 /**
  * Internal function, use wrappers instead.
  */
-void* ZSTD_cwksp_reserve_internal(ZSTD_cwksp* ws, size_t bytes, ZSTD_cwksp_alloc_phase_e phase) {
+static void* ZSTD_cwksp_reserve_internal(ZSTD_cwksp* ws, size_t bytes, ZSTD_cwksp_alloc_phase_e phase) {
     /* TODO(felixh): alignment */
     void* alloc = (BYTE *)ws->allocStart - bytes;
     void* bottom = ws->tableEnd;
@@ -201,3 +205,7 @@ size_t ZSTD_cwksp_sizeof(const ZSTD_cwksp* ws) {
 int ZSTD_cwksp_reserve_failed(const ZSTD_cwksp* ws) {
     return ws->allocFailed;
 }
+
+#if defined (__cplusplus)
+}
+#endif

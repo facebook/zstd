@@ -401,7 +401,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
     DISPLAYLEVEL(3, "test%3i : check decompressed result : ", testNb++);
     {   size_t u;
         for (u=0; u<CNBuffSize; u++) {
-            if (((BYTE*)decodedBuffer)[u] != ((BYTE*)CNBuffer)[u]) goto _output_error;;
+            if (((BYTE*)decodedBuffer)[u] != ((BYTE*)CNBuffer)[u]) goto _output_error;
     }   }
     DISPLAYLEVEL(3, "OK \n");
 
@@ -758,7 +758,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
             {   size_t u;
                 for (u=0; u<CNBuffSize; u++) {
                     if (((BYTE*)decodedBuffer)[u] != ((BYTE*)CNBuffer)[u])
-                        goto _output_error;;
+                        goto _output_error;
             }   }
             DISPLAYLEVEL(3, "OK \n");
 
@@ -839,7 +839,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         DISPLAYLEVEL(3, "test%3i : check decompressed result : ", testNb++);
         {   size_t u;
             for (u=0; u<CNBuffSize; u++) {
-                if (((BYTE*)decodedBuffer)[u] != ((BYTE*)CNBuffer)[u]) goto _output_error;;
+                if (((BYTE*)decodedBuffer)[u] != ((BYTE*)CNBuffer)[u]) goto _output_error;
         }   }
         DISPLAYLEVEL(3, "OK \n");
 

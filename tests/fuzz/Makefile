@@ -113,15 +113,6 @@ zstd_frame_info: $(FUZZ_HEADERS) $(FUZZ_OBJ) zstd_frame_info.o
 libregression.a: $(FUZZ_HEADERS) $(PRGDIR)/util.h $(PRGDIR)/util.c regression_driver.o
 	$(AR) $(FUZZ_ARFLAGS) $@ regression_driver.o
 
-# Install libfuzzer (not usable for MSAN testing)
-# Provided for convenience. To use this library run make libFuzzer and
-# set LDFLAGS=-L.
-.PHONY: libFuzzer
-libFuzzer:
-	@$(RM) -rf Fuzzer
-	@git clone https://chromium.googlesource.com/chromium/llvm-project/compiler-rt/lib/fuzzer Fuzzer
-	@cd Fuzzer && ./build.sh
-
 corpora/%_seed_corpus.zip:
 	@mkdir -p corpora
 	$(DOWNLOAD) $@ $(CORPORA_URL_PREFIX)$*_seed_corpus.zip

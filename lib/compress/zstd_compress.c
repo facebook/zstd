@@ -2306,12 +2306,12 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
 
 out:
     if (!ZSTD_isError(cSize) && cSize > 1) {
-        assert(!ZSTD_isRLE(src, srcSize));
-
         /* confirm repcodes and entropy tables when emitting a compressed block */
         ZSTD_compressedBlockState_t* const tmp = zc->blockState.prevCBlock;
         zc->blockState.prevCBlock = zc->blockState.nextCBlock;
         zc->blockState.nextCBlock = tmp;
+
+        assert(!ZSTD_isRLE(src, srcSize));
     }
     /* We check that dictionaries have offset codes available for the first
      * block. After the first block, the offcode table might not have large

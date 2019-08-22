@@ -144,6 +144,11 @@ the last one takes effect.
     Due to the chaotic nature of dynamic adaptation, compressed result is not reproducible.
     _note_ : at the time of this writing, `--adapt` can remain stuck at low speed
     when combined with multiple worker threads (>=2).
+* `--stream-size=#` :
+    When handling input from a stream, `zstd` must guess how large the source size
+    will be when optimizing compression parameters. This option sets the pledged source
+    size of a stream to eliminate that guesswork. Note that the pledged size must be exact;
+    incorrect stream sizes will cause an error.
 * `--rsyncable` :
     `zstd` will periodically synchronize the compression state to make the
     compressed file more rsync-friendly. There is a negligible impact to
@@ -152,12 +157,6 @@ the last one takes effect.
     This feature does not work with `--single-thread`. You probably don't want
     to use it with long range mode, since it will decrease the effectiveness of
     the synchronization points, but your milage may vary.
-* `--stream-size` :
-    When handling input from a stream, `zstd` must guess how large the source size
-    will be when optimizing compression parameters. If the stream size is relatively
-    small, this guess may be a poor one, resulting in a higher compression ratio than
-    expected. This feature will set the source size of a stream. Note that it must
-    be exact; incorrect stream sizes will cause an error.
 * `-D file`:
     use `file` as Dictionary to compress or decompress FILE(s)
 * `--no-dictID`:

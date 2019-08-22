@@ -124,18 +124,6 @@ void* ZSTD_cwksp_reserve_object(ZSTD_cwksp* ws, size_t bytes) {
     return start;
 }
 
-// TODO
-int ZSTD_cwksp_bump_oversized_duration(ZSTD_cwksp* ws) {
-    (void)ws;
-    // if (((BYTE*)ws->allocEnd - (BYTE*)ws->workspace) * ZSTD_WORKSPACETOOLARGE_FACTOR < (BYTE*)ws->workspaceEnd - (BYTE*)ws->workspace) {
-    //     ws->workspaceOversizedDuration++;
-    // } else {
-    //     ws->workspaceOversizedDuration = 0;
-    // }
-    // return ws->workspaceOversizedDuration;
-    return 0;
-}
-
 /**
  * Invalidates table allocations.
  * All other allocations remain valid.
@@ -150,7 +138,6 @@ void ZSTD_cwksp_clear_tables(ZSTD_cwksp* ws) {
  */
 void ZSTD_cwksp_clear(ZSTD_cwksp* ws) {
     DEBUGLOG(3, "wksp: clearing!");
-    ZSTD_cwksp_bump_oversized_duration(ws);
     ws->tableEnd = ws->objectEnd;
     ws->allocStart = ws->workspaceEnd;
     ws->allocFailed = 0;
@@ -186,24 +173,39 @@ void ZSTD_cwksp_free(ZSTD_cwksp* ws, ZSTD_customMem customMem) {
     ZSTD_cwksp_clear(ws);
 }
 
-size_t ZSTD_cwksp_available_space(ZSTD_cwksp* ws) {
-    return (size_t)((BYTE*)ws->allocStart - (BYTE*)ws->tableEnd);
-}
-
-int ZSTD_cwksp_check_available(ZSTD_cwksp* ws, size_t minFree) {
-    return ZSTD_cwksp_available_space(ws) >= minFree;
-}
-
-int ZSTD_cwksp_check_wasteful(ZSTD_cwksp* ws, size_t minFree) {
-    return ZSTD_cwksp_check_available(ws, minFree * ZSTD_WORKSPACETOOLARGE_FACTOR) && ws->workspaceOversizedDuration > ZSTD_WORKSPACETOOLARGE_MAXDURATION;
-}
-
 size_t ZSTD_cwksp_sizeof(const ZSTD_cwksp* ws) {
     return (BYTE*)ws->workspaceEnd - (BYTE*)ws->workspace;
 }
 
 int ZSTD_cwksp_reserve_failed(const ZSTD_cwksp* ws) {
     return ws->allocFailed;
+}
+
+size_t ZSTD_cwksp_available_space(ZSTD_cwksp* ws) {
+    return (size_t)((BYTE*)ws->allocStart - (BYTE*)ws->tableEnd);
+}
+
+void ZSTD_cwksp_bump_oversized_duration(
+        ZSTD_cwksp* ws, size_t additionalNeededSpace) {
+    if (ZSTD_cwksp_check_too_large(ws, additionalNeededSpace)) {
+        ws->workspaceOversizedDuration++;
+    } else {
+        ws->workspaceOversizedDuration = 0;
+    }
+}
+
+int ZSTD_cwksp_check_available(ZSTD_cwksp* ws, size_t additionalNeededSpace) {
+    return ZSTD_cwksp_available_space(ws) >= additionalNeededSpace;
+}
+
+int ZSTD_cwksp_check_too_large(ZSTD_cwksp* ws, size_t additionalNeededSpace) {
+    return ZSTD_cwksp_check_available(
+        ws, additionalNeededSpace * ZSTD_WORKSPACETOOLARGE_FACTOR);
+}
+
+int ZSTD_cwksp_check_wasteful(ZSTD_cwksp* ws, size_t additionalNeededSpace) {
+    return ZSTD_cwksp_check_too_large(ws, additionalNeededSpace)
+        && ws->workspaceOversizedDuration > ZSTD_WORKSPACETOOLARGE_MAXDURATION;
 }
 
 #if defined (__cplusplus)

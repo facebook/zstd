@@ -159,8 +159,6 @@ void* ZSTD_cwksp_reserve_table(ZSTD_cwksp* ws, size_t bytes);
  */
 void* ZSTD_cwksp_reserve_object(ZSTD_cwksp* ws, size_t bytes);
 
-int ZSTD_cwksp_bump_oversized_duration(ZSTD_cwksp* ws);
-
 /**
  * Invalidates table allocations.
  * All other allocations remain valid.
@@ -179,15 +177,23 @@ size_t ZSTD_cwksp_create(ZSTD_cwksp* ws, size_t size, ZSTD_customMem customMem);
 
 void ZSTD_cwksp_free(ZSTD_cwksp* ws, ZSTD_customMem customMem);
 
-size_t ZSTD_cwksp_available_space(ZSTD_cwksp* ws);
-
-int ZSTD_cwksp_check_available(ZSTD_cwksp* ws, size_t minFree);
-
-int ZSTD_cwksp_check_wasteful(ZSTD_cwksp* ws, size_t minFree);
-
 size_t ZSTD_cwksp_sizeof(const ZSTD_cwksp* ws);
 
 int ZSTD_cwksp_reserve_failed(const ZSTD_cwksp* ws);
+
+/*-*************************************
+*  Functions Checking Free Space
+***************************************/
+
+size_t ZSTD_cwksp_available_space(ZSTD_cwksp* ws);
+
+int ZSTD_cwksp_check_available(ZSTD_cwksp* ws, size_t additionalNeededSpace);
+
+int ZSTD_cwksp_check_too_large(ZSTD_cwksp* ws, size_t additionalNeededSpace);
+
+int ZSTD_cwksp_check_wasteful(ZSTD_cwksp* ws, size_t additionalNeededSpace);
+
+void ZSTD_cwksp_bump_oversized_duration(ZSTD_cwksp* ws, size_t additionalNeededSpace);
 
 #if defined (__cplusplus)
 }

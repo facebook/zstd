@@ -1451,7 +1451,8 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                                   zc->seqStore.maxNbSeq, zc->seqStore.maxNbLit,
                                   zbuff, pledgedSrcSize) ) {
             DEBUGLOG(4, "ZSTD_equivalentParams()==1 -> consider continue mode");
-            if (ZSTD_cwksp_bump_oversized_duration(&zc->workspace) <= ZSTD_WORKSPACETOOLARGE_MAXDURATION) {
+            ZSTD_cwksp_bump_oversized_duration(&zc->workspace, 0);
+            if (!ZSTD_cwksp_check_wasteful(&zc->workspace, 0)) {
                 DEBUGLOG(4, "continue mode confirmed (wLog1=%u, blockSize1=%zu)",
                             zc->appliedParams.cParams.windowLog, zc->blockSize);
                 if (ZSTD_indexTooCloseToMax(zc->blockState.matchState.window)) {

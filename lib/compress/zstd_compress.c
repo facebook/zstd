@@ -2264,6 +2264,16 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
     return ZSTDbss_compress;
 }
 
+/* Returns true if the given block is a RLE block */
+static int ZSTD_isRLE(const BYTE *ip, size_t length) {
+    size_t i;
+    if (length < 2) return 1;
+    for (i = 1; i < length; ++i) {
+        if (ip[0] != ip[i]) return 0;
+    }
+    return 1;
+}
+
 static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
                                         void* dst, size_t dstCapacity,
                                         const void* src, size_t srcSize)
@@ -2287,8 +2297,15 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
             zc->entropyWorkspace, HUF_WORKSPACE_SIZE /* statically allocated in resetCCtx */,
             zc->bmi2);
 
+    if (cSize < 10 && ZSTD_isRLE(src, srcSize)) {
+        cSize = 1;
+        ((BYTE*)dst)[0] = ((const BYTE*)src)[0];
+    }
+
 out:
-    if (!ZSTD_isError(cSize) && cSize != 0) {
+    if (!ZSTD_isError(cSize) && cSize > 1) {
+        assert(!ZSTD_isRLE(src, srcSize));
+
         /* confirm repcodes and entropy tables when emitting a compressed block */
         ZSTD_compressedBlockState_t* const tmp = zc->blockState.prevCBlock;
         zc->blockState.prevCBlock = zc->blockState.nextCBlock;
@@ -2321,16 +2338,6 @@ static void ZSTD_overflowCorrectIfNeeded(ZSTD_matchState_t* ms, ZSTD_CCtx_params
         ms->loadedDictEnd = 0;
         ms->dictMatchState = NULL;
     }
-}
-
-/* Returns true if the given block is a RLE block */
-static int ZSTD_isRLE(const BYTE *ip, size_t length) {
-    if (length < 2) return 1;
-    size_t i;
-    for (i = 1; i < length; ++i) {
-        if (ip[0] != ip[i]) return 0;
-    }
-    return 1;
 }
 
 /*! ZSTD_compress_frameChunk() :
@@ -2381,21 +2388,11 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
                 cSize = ZSTD_noCompressBlock(op, dstCapacity, ip, blockSize, lastBlock);
                 FORWARD_IF_ERROR(cSize);
             } else {
-                U32 cBlockHeader;
-                /*
-                    We check to see if the regularly compressed block size is
-                    less than 10 (the upper bound for RLE blocks) and we check
-                    to see if the block is an RLE
-                */
-                if (cSize < 10 && ZSTD_isRLE(ip, blockSize)) {
-                    op[ZSTD_blockHeaderSize] = ip[0];
-                    cBlockHeader = lastBlock + (((U32)bt_rle)<<1) + (U32)(blockSize << 3);
-                    cSize = ZSTD_blockHeaderSize + 1;
-                } else {
-                    cBlockHeader = lastBlock + (((U32)bt_compressed)<<1) + (U32)(cSize << 3);
-                    cSize += ZSTD_blockHeaderSize;
-                }
+                const U32 cBlockHeader = cSize == 1 ?
+                    lastBlock + (((U32)bt_rle)<<1) + (U32)(blockSize << 3) :
+                    lastBlock + (((U32)bt_compressed)<<1) + (U32)(cSize << 3);
                 MEM_writeLE24(op, (const U32) cBlockHeader);
+                cSize += ZSTD_blockHeaderSize;
             }
 
             ip += blockSize;

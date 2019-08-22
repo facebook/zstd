@@ -108,7 +108,6 @@ else
 fi
 
 
-
 println "\n===>  simple tests "
 
 ./datagen > tmp
@@ -407,6 +406,23 @@ $ZSTD -dc tmpall* > tmpdec
 ls -ls tmp* # check size of tmpdec (should be 2*(tmp1 + tmp2 + tmp3))
 println "compress multiple files including a missing one (notHere) : "
 $ZSTD -f tmp1 notHere tmp2 && die "missing file not detected!"
+
+
+println "\n===>  stream-size mode"
+
+./datagen -g11000 > tmp
+println "test : basic file compression vs sized streaming compression"
+file_size=$($ZSTD -14 -f tmp -o tmp.zst && wc -c < tmp.zst)
+stream_size=$(cat tmp | $ZSTD -14 --stream-size=11000 | wc -c)
+if [ "$stream_size" -gt "$file_size" ]; then
+  die "hinted compression larger than expected"
+fi
+println "test : sized streaming compression and decompression"
+cat tmp | $ZSTD -14 -f tmp -o --stream-size=11000 tmp.zst
+$ZSTD -df tmp.zst -o tmp_decompress
+cmp tmp tmp_decompress || die "difference between original and decompressed file"
+println "test : incorrect stream size"
+cat tmp | $ZSTD -14 -f -o tmp.zst --stream-size=11001 && die "should fail with incorrect stream size"
 
 
 println "\n===>  size-hint mode"

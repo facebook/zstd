@@ -141,6 +141,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( "--long[=#]: enable long distance matching with given window log (default: %u)\n", g_defaultMaxWindowLog);
     DISPLAY( "--fast[=#]: switch to ultra fast compression level (default: %u)\n", 1);
     DISPLAY( "--adapt : dynamically adapt compression level to I/O conditions \n");
+    DISPLAY( "--stream-size=# : optimize compression parameters for streaming input of given number of bytes \n");
     DISPLAY( "--size-hint=# optimize compression parameters for streaming input of approximately this size\n");
     DISPLAY( "--target-compressed-block-size=# : make compressed block near targeted size \n");
 #ifdef ZSTD_MULTITHREAD
@@ -589,6 +590,7 @@ int main(int argCount, const char* argv[])
     const char* suffix = ZSTD_EXTENSION;
     unsigned maxDictSize = g_defaultMaxDictSize;
     unsigned dictID = 0;
+    size_t streamSrcSize = 0;
     size_t targetCBlockSize = 0;
     size_t srcSizeHint = 0;
     int dictCLevel = g_defaultDictCLevel;
@@ -747,6 +749,7 @@ int main(int argCount, const char* argv[])
                     if (longCommandWArg(&argument, "--maxdict=")) { maxDictSize = readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--dictID=")) { dictID = readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--zstd=")) { if (!parseCompressionParameters(argument, &compressionParams)) CLEAN_RETURN(badusage(programName)); continue; }
+                    if (longCommandWArg(&argument, "--stream-size=")) { streamSrcSize = readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--target-compressed-block-size=")) { targetCBlockSize = readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--size-hint=")) { srcSizeHint = readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--long")) {
@@ -1153,6 +1156,7 @@ int main(int argCount, const char* argv[])
         FIO_setAdaptMin(prefs, adaptMin);
         FIO_setAdaptMax(prefs, adaptMax);
         FIO_setRsyncable(prefs, rsyncable);
+        FIO_setStreamSrcSize(prefs, streamSrcSize);
         FIO_setTargetCBlockSize(prefs, targetCBlockSize);
         FIO_setSrcSizeHint(prefs, srcSizeHint);
         FIO_setLiteralCompressionMode(prefs, literalCompressionMode);
@@ -1164,7 +1168,7 @@ int main(int argCount, const char* argv[])
         else
           operationResult = FIO_compressMultipleFilenames(prefs, filenameTable, filenameIdx, outFileName, suffix, dictFileName, cLevel, compressionParams);
 #else
-        (void)suffix; (void)adapt; (void)rsyncable; (void)ultra; (void)cLevel; (void)ldmFlag; (void)literalCompressionMode; (void)targetCBlockSize; (void)srcSizeHint; /* not used when ZSTD_NOCOMPRESS set */
+        (void)suffix; (void)adapt; (void)rsyncable; (void)ultra; (void)cLevel; (void)ldmFlag; (void)literalCompressionMode; (void)targetCBlockSize; (void)streamSrcSize; (void)srcSizeHint; /* not used when ZSTD_NOCOMPRESS set */
         DISPLAY("Compression not supported \n");
 #endif
     } else {  /* decompression or test */

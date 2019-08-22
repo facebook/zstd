@@ -145,10 +145,10 @@ the last one takes effect.
     _note_ : at the time of this writing, `--adapt` can remain stuck at low speed
     when combined with multiple worker threads (>=2).
 * `--stream-size=#` :
-    When handling input from a stream, `zstd` must guess how large the source size
-    will be when optimizing compression parameters. This option sets the pledged source
-    size of a stream to eliminate that guesswork. Note that the pledged size must be exact;
-    incorrect stream sizes will cause an error.
+    Sets the pledged source size of input coming from a stream. This value must be exact, as it
+    will be included in the produced frame header. Incorrect stream sizes will cause an error.
+    This information will be used to better optimize compression parameters, resulting in
+    better and potentially faster compression, especially for smaller source sizes.
 * `--rsyncable` :
     `zstd` will periodically synchronize the compression state to make the
     compressed file more rsync-friendly. There is a negligible impact to

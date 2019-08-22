@@ -481,7 +481,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     DISPLAYLEVEL(3, "test%3i : check decompressed result : ", testNb++);
     {   size_t i;
         for (i=0; i<CNBufferSize; i++) {
-            if (((BYTE*)decodedBuffer)[i] != ((BYTE*)CNBuffer)[i]) goto _output_error;;
+            if (((BYTE*)decodedBuffer)[i] != ((BYTE*)CNBuffer)[i]) goto _output_error;
     }   }
     DISPLAYLEVEL(3, "OK \n");
 

@@ -305,6 +305,7 @@ struct FIO_prefs_s {
     int ldmMinMatch;
     int ldmBucketSizeLog;
     int ldmHashRateLog;
+    size_t streamSrcSize;
     size_t targetCBlockSize;
     int srcSizeHint;
     ZSTD_literalCompressionMode_e literalCompressionMode;
@@ -351,6 +352,7 @@ FIO_prefs_t* FIO_createPreferences(void)
     ret->ldmMinMatch = 0;
     ret->ldmBucketSizeLog = FIO_LDM_PARAM_NOTSET;
     ret->ldmHashRateLog = FIO_LDM_PARAM_NOTSET;
+    ret->streamSrcSize = 0;
     ret->targetCBlockSize = 0;
     ret->srcSizeHint = 0;
     ret->literalCompressionMode = ZSTD_lcm_auto;
@@ -419,6 +421,10 @@ void FIO_setRsyncable(FIO_prefs_t* const prefs, int rsyncable) {
     if ((rsyncable>0) && (prefs->nbWorkers==0))
         EXM_THROW(1, "Rsyncable mode is not compatible with single thread mode \n");
     prefs->rsyncable = rsyncable;
+}
+
+void FIO_setStreamSrcSize(FIO_prefs_t* const prefs, size_t streamSrcSize) {
+    prefs->streamSrcSize = streamSrcSize;
 }
 
 void FIO_setTargetCBlockSize(FIO_prefs_t* const prefs, size_t targetCBlockSize) {
@@ -640,7 +646,6 @@ typedef struct {
 
 static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
                                     const char* dictFileName, int cLevel,
-                                    U64 srcSize,
                                     ZSTD_compressionParameters comprParams) {
     cRess_t ress;
     memset(&ress, 0, sizeof(ress));
@@ -707,10 +712,7 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_rsyncable, prefs->rsyncable) );
 #endif
         /* dictionary */
-        CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, srcSize) );  /* set the value temporarily for dictionary loading, to adapt compression parameters */
         CHECK( ZSTD_CCtx_loadDictionary(ress.cctx, dictBuffer, dictBuffSize) );
-        CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, ZSTD_CONTENTSIZE_UNKNOWN) );  /* reset */
-
         free(dictBuffer);
     }
 
@@ -1012,6 +1014,9 @@ FIO_compressZstdFrame(FIO_prefs_t* const prefs,
     /* init */
     if (fileSize != UTIL_FILESIZE_UNKNOWN) {
         CHECK(ZSTD_CCtx_setPledgedSrcSize(ress.cctx, fileSize));
+    } else if (prefs->streamSrcSize > 0) {
+      /* unknown source size; use the declared stream size */
+      CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, prefs->streamSrcSize) );
     }
     (void)srcFileName;
 
@@ -1370,10 +1375,7 @@ int FIO_compressFilename(FIO_prefs_t* const prefs,
                          const char* dictFileName, int compressionLevel,
                          ZSTD_compressionParameters comprParams)
 {
-    U64 const fileSize = UTIL_getFileSize(srcFileName);
-    U64 const srcSize = (fileSize == UTIL_FILESIZE_UNKNOWN) ? ZSTD_CONTENTSIZE_UNKNOWN : fileSize;
-
-    cRess_t const ress = FIO_createCResources(prefs, dictFileName, compressionLevel, srcSize, comprParams);
+    cRess_t const ress = FIO_createCResources(prefs, dictFileName, compressionLevel, comprParams);
     int const result = FIO_compressFilename_srcFile(prefs, ress, dstFileName, srcFileName, compressionLevel);
 
 
@@ -1424,10 +1426,7 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
                                   ZSTD_compressionParameters comprParams)
 {
     int error = 0;
-    U64 const firstFileSize = UTIL_getFileSize(inFileNamesTable[0]);
-    U64 const firstSrcSize = (firstFileSize == UTIL_FILESIZE_UNKNOWN) ? ZSTD_CONTENTSIZE_UNKNOWN : firstFileSize;
-    U64 const srcSize = (nbFiles != 1) ? ZSTD_CONTENTSIZE_UNKNOWN : firstSrcSize ;
-    cRess_t ress = FIO_createCResources(prefs, dictFileName, compressionLevel, srcSize, comprParams);
+    cRess_t ress = FIO_createCResources(prefs, dictFileName, compressionLevel, comprParams);
 
     /* init */
     assert(outFileName != NULL || suffix != NULL);

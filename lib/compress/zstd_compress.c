@@ -2279,6 +2279,8 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
                                         const void* src, size_t srcSize)
 {
     size_t cSize;
+    const BYTE* ip = (const BYTE*)src;
+    BYTE* op = (BYTE*)dst;
     DEBUGLOG(5, "ZSTD_compressBlock_internal (dstCapacity=%u, dictLimit=%u, nextToUpdate=%u)",
                 (unsigned)dstCapacity, (unsigned)zc->blockState.matchState.window.dictLimit,
                 (unsigned)zc->blockState.matchState.nextToUpdate);
@@ -2297,9 +2299,9 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
             zc->entropyWorkspace, HUF_WORKSPACE_SIZE /* statically allocated in resetCCtx */,
             zc->bmi2);
 
-    if (cSize < 10 && ZSTD_isRLE(src, srcSize)) {
+    if (cSize < 10 && ZSTD_isRLE(ip, srcSize)) {
         cSize = 1;
-        ((BYTE*)dst)[0] = ((const BYTE*)src)[0];
+        op[0] = ip[0];
     }
 
 out:
@@ -2391,7 +2393,7 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
                 const U32 cBlockHeader = cSize == 1 ?
                     lastBlock + (((U32)bt_rle)<<1) + (U32)(blockSize << 3) :
                     lastBlock + (((U32)bt_compressed)<<1) + (U32)(cSize << 3);
-                MEM_writeLE24(op, (const U32) cBlockHeader);
+                MEM_writeLE24(op, cBlockHeader);
                 cSize += ZSTD_blockHeaderSize;
             }
 

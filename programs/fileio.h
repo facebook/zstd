@@ -73,6 +73,7 @@ void FIO_setSparseWrite(FIO_prefs_t* const prefs, unsigned sparse);  /**< 0: no 
 void FIO_setRsyncable(FIO_prefs_t* const prefs, int rsyncable);
 void FIO_setStreamSrcSize(FIO_prefs_t* const prefs, size_t streamSrcSize);
 void FIO_setTargetCBlockSize(FIO_prefs_t* const prefs, size_t targetCBlockSize);
+void FIO_setSrcSizeHint(FIO_prefs_t* const prefs, size_t srcSizeHint);
 void FIO_setLiteralCompressionMode(
         FIO_prefs_t* const prefs,
         ZSTD_literalCompressionMode_e mode);

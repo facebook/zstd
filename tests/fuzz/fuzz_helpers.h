@@ -14,6 +14,7 @@
 #ifndef FUZZ_HELPERS_H
 #define FUZZ_HELPERS_H
 
+#include "debug.h"
 #include "fuzz.h"
 #include "xxhash.h"
 #include "zstd.h"

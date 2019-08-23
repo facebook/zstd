@@ -203,6 +203,9 @@ struct ZSTD_CCtx_params_s {
     size_t targetCBlockSize;   /* Tries to fit compressed block size to be around targetCBlockSize.
                                 * No target when targetCBlockSize == 0.
                                 * There is no guarantee on compressed block size */
+    int srcSizeHint;           /* User's best guess of source size.
+                                * Hint is not valid when srcSizeHint == 0.
+                                * There is no guarantee that hint is close to actual source size */
 
     ZSTD_dictAttachPref_e attachDictPref;
     ZSTD_literalCompressionMode_e literalCompressionMode;

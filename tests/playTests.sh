@@ -108,7 +108,6 @@ else
 fi
 
 
-
 println "\n===>  simple tests "
 
 ./datagen > tmp
@@ -407,6 +406,53 @@ $ZSTD -dc tmpall* > tmpdec
 ls -ls tmp* # check size of tmpdec (should be 2*(tmp1 + tmp2 + tmp3))
 println "compress multiple files including a missing one (notHere) : "
 $ZSTD -f tmp1 notHere tmp2 && die "missing file not detected!"
+
+
+println "\n===>  stream-size mode"
+
+./datagen -g11000 > tmp
+println "test : basic file compression vs sized streaming compression"
+file_size=$($ZSTD -14 -f tmp -o tmp.zst && wc -c < tmp.zst)
+stream_size=$(cat tmp | $ZSTD -14 --stream-size=11000 | wc -c)
+if [ "$stream_size" -gt "$file_size" ]; then
+  die "hinted compression larger than expected"
+fi
+println "test : sized streaming compression and decompression"
+cat tmp | $ZSTD -14 -f tmp -o --stream-size=11000 tmp.zst
+$ZSTD -df tmp.zst -o tmp_decompress
+cmp tmp tmp_decompress || die "difference between original and decompressed file"
+println "test : incorrect stream size"
+cat tmp | $ZSTD -14 -f -o tmp.zst --stream-size=11001 && die "should fail with incorrect stream size"
+
+
+println "\n===>  size-hint mode"
+
+./datagen -g11000 > tmp
+./datagen -g11000 > tmp2
+./datagen > tmpDict
+println "test : basic file compression vs hinted streaming compression"
+file_size=$($ZSTD -14 -f tmp -o tmp.zst && wc -c < tmp.zst)
+stream_size=$(cat tmp | $ZSTD -14 --size-hint=11000 | wc -c)
+if [ "$stream_size" -ge "$file_size" ]; then
+  die "hinted compression larger than expected"
+fi
+println "test : hinted streaming compression and decompression"
+cat tmp | $ZSTD -14 -f -o tmp.zst --size-hint=11000
+$ZSTD -df tmp.zst -o tmp_decompress
+cmp tmp tmp_decompress || die "difference between original and decompressed file"
+println "test : hinted streaming compression with dictionary"
+cat tmp | $ZSTD -14 -f -D tmpDict --size-hint=11000 | $ZSTD -t -D tmpDict
+println "test : multiple file compression with hints and dictionary"
+$ZSTD -14 -f -D tmpDict --size-hint=11000 tmp tmp2
+$ZSTD -14 -f -o tmp1_.zst -D tmpDict --size-hint=11000 tmp
+$ZSTD -14 -f -o tmp2_.zst -D tmpDict --size-hint=11000 tmp2
+cmp tmp.zst tmp1_.zst || die "first file's output differs"
+cmp tmp2.zst tmp2_.zst || die "second file's output differs"
+println "test : incorrect hinted stream sizes"
+cat tmp | $ZSTD -14 -f --size-hint=11050 | $ZSTD -t  # slightly too high
+cat tmp | $ZSTD -14 -f --size-hint=10950 | $ZSTD -t  # slightly too low
+cat tmp | $ZSTD -14 -f --size-hint=22000 | $ZSTD -t  # considerably too high
+cat tmp | $ZSTD -14 -f --size-hint=5500  | $ZSTD -t  # considerably too low
 
 
 println "\n===>  dictionary tests "

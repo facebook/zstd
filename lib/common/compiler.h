@@ -128,7 +128,7 @@
 }
 
 /* vectorization */
-#if !defined(__clang__) && defined(__GNUC__)
+#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ >= 5
 #  define DONT_VECTORIZE __attribute__((optimize("no-tree-vectorize")))
 #else
 #  define DONT_VECTORIZE

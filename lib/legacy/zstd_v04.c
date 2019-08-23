@@ -2655,6 +2655,7 @@ static size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
             const size_t litSize = (MEM_readLE32(istart) & 0xFFFFFF) >> 2;   /* no buffer issue : srcSize >= MIN_CBLOCK_SIZE */
             if (litSize > srcSize-11)   /* risk of reading too far with wildcopy */
             {
+                if (litSize > BLOCKSIZE) return ERROR(corruption_detected);
                 if (litSize > srcSize-3) return ERROR(corruption_detected);
                 memcpy(dctx->litBuffer, istart, litSize);
                 dctx->litPtr = dctx->litBuffer;
@@ -3034,9 +3035,12 @@ static size_t ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
 {
     /* blockType == blockCompressed */
     const BYTE* ip = (const BYTE*)src;
+    size_t litCSize;
+
+    if (srcSize > BLOCKSIZE) return ERROR(corruption_detected);
 
     /* Decode literals sub-block */
-    size_t litCSize = ZSTD_decodeLiteralsBlock(dctx, src, srcSize);
+    litCSize = ZSTD_decodeLiteralsBlock(dctx, src, srcSize);
     if (ZSTD_isError(litCSize)) return litCSize;
     ip += litCSize;
     srcSize -= litCSize;

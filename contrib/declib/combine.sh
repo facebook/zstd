@@ -46,7 +46,7 @@ function add_file {
           # And we've not previously encountered it
           FOUND="$FOUND $inc"
           echo "/**** start inlining $inc ****/"
-          add_file $inc
+          add_file "$inc"
           echo "/**** ended inlining $inc ****/"
         else
           echo "/**** skipping file: $inc ****/"

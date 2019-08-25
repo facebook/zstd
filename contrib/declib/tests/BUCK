@@ -1,0 +1,5 @@
+cxx_test(
+    name='simple',
+    srcs=['simple.c'],
+    deps=['//contrib/declib:combine']
+)

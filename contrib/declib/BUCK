@@ -1,0 +1,11 @@
+sh_test(
+    name='combine',
+    visibility=['PUBLIC'],
+    test='combine.sh',
+    args=[
+        '-r', '../../lib',
+        '-r', '../../lib/common',
+        '-r', '../../lib/decompress',
+        '-o', 'zstddeclib.c',
+        'zstddeclib-in.c']
+)

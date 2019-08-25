@@ -3385,8 +3385,12 @@ size_t ZSTD_decompress(void* dst, size_t dstLen, const void* src, size_t srcLen)
  * the binary by 74kB.
  */
 int main() {
-	size_t bytes = ZSTD_decompress(dstDxt1, sizeof dstDxt1, srcZstd, sizeof srcZstd);
-	printf("Decompressed size: %ld (expected %ld)\n", bytes, sizeof dstDxt1);
-	printf("Byte comparison: %s\n", (memcmp(rawDxt1, dstDxt1, sizeof dstDxt1)) ? "failed" : "succeeded");
-	return 0;
+	size_t size = ZSTD_decompress(dstDxt1, sizeof dstDxt1, srcZstd, sizeof srcZstd);
+	int compare = memcmp(rawDxt1, dstDxt1, sizeof dstDxt1);
+	printf("Decompressed size: %ld (expected %ld)\n", size, sizeof dstDxt1);
+	printf("Byte comparison: %s\n", (compare) ? "failed" : "succeeded");
+	if (size == sizeof dstDxt1 && compare == 0) {
+		return EXIT_SUCCESS;
+	}
+	return EXIT_FAILURE;
 }

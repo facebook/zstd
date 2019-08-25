@@ -1,6 +1,8 @@
 #!/bin/bash
 
 # Tool to bundle multiple C/C++ source files, inlining any includes.
+# 
+# TODO: ROOTS and FOUND as arrays (since they fail on paths with spaces)
 
 # Common file roots
 ROOTS="./"
@@ -8,11 +10,15 @@ ROOTS="./"
 # Files previously visited
 FOUND=""
 
+# Optional destination file (empty string to write to stdout)
+DESTN=""
+
 # Prints the script usage then exits
 function usage {
-  echo "Usage: $0 [-r <paths>] infile"
+  echo "Usage: $0 [-r <path>] [-o <outfile>] infile"
   echo "  -r file root search paths"
-  echo "Example: $0 -r \"../my/path ../my/other\" in.c > out.c"
+  echo "  -o output file (otherwise stdout)"
+  echo "Example: $0 -r ../my/path - r ../other/path -o out.c in.c"
   exit 1
 }
 
@@ -26,6 +32,15 @@ function list_has_item {
   return 1
 }
 
+# Adds a new line with the supplied arguments to $DESTN (or stdout)
+function write_line {
+  if [ -n "$DESTN" ]; then
+    printf "%s\n" "$@" >> "$DESTN"
+  else
+    printf "%s\n" "$@"
+  fi
+}
+
 # Adds the contents of $1 with any of its includes inlined
 function add_file {
   # Match the path
@@ -35,7 +50,7 @@ function add_file {
       file="$root/$1"
     fi
   done
-  if [ "$file" != "" ]; then
+  if [ -n "$file" ]; then
     # Read the file
     local line
     while IFS= read -r line; do
@@ -45,26 +60,29 @@ function add_file {
         if ! `list_has_item "$FOUND" "$inc"`; then
           # And we've not previously encountered it
           FOUND="$FOUND $inc"
-          echo "/**** start inlining $inc ****/"
+          write_line "/**** start inlining $inc ****/"
           add_file "$inc"
-          echo "/**** ended inlining $inc ****/"
+          write_line "/**** ended inlining $inc ****/"
         else
-          echo "/**** skipping file: $inc ****/"
+          write_line "/**** skipping file: $inc ****/"
         fi
       else
         # Otherwise write the source line
-        echo "$line"
+        write_line "$line"
       fi
     done < "$file"
   else
-    echo "#error Unable to find \"$1\""
+    write_line "#error Unable to find \"$1\""
   fi
 }
 
-while getopts ":r:" opts; do
+while getopts ":r:o:" opts; do
   case $opts in
   r)
-    ROOTS="$ROOTS $OPTARG"
+    ROOTS="$OPTARG $ROOTS"
+    ;;
+  o)
+    DESTN="$OPTARG"
     ;;
   *)
     usage
@@ -73,8 +91,17 @@ while getopts ":r:" opts; do
 done
 shift $((OPTIND-1))
 
-if [ "$1" != "" ]; then
-  add_file $1
+if [ -n "$1" ]; then
+  if [ -f "$1" ]; then
+    if [ -n "$DESTN" ]; then
+      printf "" > "$DESTN"
+    fi
+    add_file $1
+  else
+    echo "Input file not found: '$1'"
+    exit 1
+  fi
 else
   usage
 fi
+exit 0

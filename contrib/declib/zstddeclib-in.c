@@ -4,7 +4,7 @@
  * 
  * Generate using:
  * \code
- *	combine.sh -r "../../lib ../../lib/common ../../lib/decompress" zstddeclib-in.c > zstddeclib.c
+ *	combine.sh -r ../../lib -r ../../lib/common -r ../../lib/decompress -o zstddeclib.c zstddeclib-in.c
  * \endcode
  */
 /* 

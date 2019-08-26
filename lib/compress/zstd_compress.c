@@ -2397,7 +2397,6 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
                 const U32 cBlockHeader = cSize == 1 ?
                     lastBlock + (((U32)bt_rle)<<1) + (U32)(blockSize << 3) :
                     lastBlock + (((U32)bt_compressed)<<1) + (U32)(cSize << 3);
-                ZSTD_printBlockStructure(cBlockHeader);
                 MEM_writeLE24(op, cBlockHeader);
                 cSize += ZSTD_blockHeaderSize;
             }

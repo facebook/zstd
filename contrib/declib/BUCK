@@ -3,9 +3,9 @@ sh_test(
     visibility=['PUBLIC'],
     test='combine.sh',
     args=[
-        '-r', '../../lib',
-        '-r', '../../lib/common',
-        '-r', '../../lib/decompress',
-        '-o', 'zstddeclib.c',
-        'zstddeclib-in.c']
+        '-r', 'lib',
+        '-r', 'lib/common',
+        '-r', 'lib/decompress',
+        '-o', 'contrib/declib/zstddeclib.c',
+        'contrib/declib/zstddeclib-in.c']
 )

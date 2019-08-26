@@ -2316,8 +2316,6 @@ out:
         ZSTD_compressedBlockState_t* const tmp = zc->blockState.prevCBlock;
         zc->blockState.prevCBlock = zc->blockState.nextCBlock;
         zc->blockState.nextCBlock = tmp;
-
-        assert(!ZSTD_isRLE(ip, srcSize));
     }
     /* We check that dictionaries have offset codes available for the first
      * block. After the first block, the offcode table might not have large
@@ -2399,6 +2397,7 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
                 const U32 cBlockHeader = cSize == 1 ?
                     lastBlock + (((U32)bt_rle)<<1) + (U32)(blockSize << 3) :
                     lastBlock + (((U32)bt_compressed)<<1) + (U32)(cSize << 3);
+                ZSTD_printBlockStructure(cBlockHeader);
                 MEM_writeLE24(op, cBlockHeader);
                 cSize += ZSTD_blockHeaderSize;
             }

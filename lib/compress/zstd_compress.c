@@ -2276,7 +2276,7 @@ static int ZSTD_isRLE(const BYTE *ip, size_t length) {
 
 static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
                                         void* dst, size_t dstCapacity,
-                                        const void* src, size_t srcSize)
+                                        const void* src, size_t srcSize, U32 frame)
 {
     /*
         This the upper bound for the length of an rle block.
@@ -2305,7 +2305,18 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
             zc->entropyWorkspace, HUF_WORKSPACE_SIZE /* statically allocated in resetCCtx */,
             zc->bmi2);
 
-    if (cSize < rleMaxLength && ZSTD_isRLE(ip, srcSize)) {
+    /*
+        We don't want to emit our first block as a RLE even if it qualifies because
+        doing so will cause the decoder to throw a "should consume all input error."
+        https://github.com/facebook/zstd/blob/dev/programs/fileio.c#L1723
+    */
+    U32 isFirstBlock = zc->inBuffPos == srcSize;
+
+    if (frame &&
+        !isFirstBlock &&
+        cSize < rleMaxLength &&
+        ZSTD_isRLE(ip, srcSize))
+    {
         cSize = 1;
         op[0] = ip[0];
     }
@@ -2387,7 +2398,7 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
 
         {   size_t cSize = ZSTD_compressBlock_internal(cctx,
                                 op+ZSTD_blockHeaderSize, dstCapacity-ZSTD_blockHeaderSize,
-                                ip, blockSize);
+                                ip, blockSize, 1 /* frame */);
             FORWARD_IF_ERROR(cSize);
 
             if (cSize == 0) {  /* block is not compressible */
@@ -2527,7 +2538,7 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* cctx,
     DEBUGLOG(5, "ZSTD_compressContinue_internal (blockSize=%u)", (unsigned)cctx->blockSize);
     {   size_t const cSize = frame ?
                              ZSTD_compress_frameChunk (cctx, dst, dstCapacity, src, srcSize, lastFrameChunk) :
-                             ZSTD_compressBlock_internal (cctx, dst, dstCapacity, src, srcSize);
+                             ZSTD_compressBlock_internal (cctx, dst, dstCapacity, src, srcSize, 0 /* frame */);
         FORWARD_IF_ERROR(cSize);
         cctx->consumedSrcSize += srcSize;
         cctx->producedCSize += (cSize + fhSize);

@@ -45,11 +45,15 @@ function write_line {
 function add_file {
   # Match the path
   local file=
-  for root in $ROOTS; do
-    if test -f "$root/$1"; then
-      file="$root/$1"
-    fi
-  done
+  if [ -f "$1" ]; then
+    file="$1"
+  else
+    for root in $ROOTS; do
+      if test -f "$root/$1"; then
+        file="$root/$1"
+      fi
+    done
+  fi
   if [ -n "$file" ]; then
     # Read the file
     local line

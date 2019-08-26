@@ -2,10 +2,11 @@
  * \file simple.c
  * Simple standalone example of using the single-file \c zstddeclib.
  */
-#include "../zstddeclib.c"
+ 
+#include <stdio.h>
+#include <string.h>
 
-#include "stdio.h"
-#include "string.h"
+#include "../zstddeclib.c"
 
 //************************* Test Data (DXT texture) **************************/
 
@@ -3387,8 +3388,8 @@ size_t ZSTD_decompress(void* dst, size_t dstLen, const void* src, size_t srcLen)
 int main() {
 	size_t size = ZSTD_decompress(dstDxt1, sizeof dstDxt1, srcZstd, sizeof srcZstd);
 	int compare = memcmp(rawDxt1, dstDxt1, sizeof dstDxt1);
-	printf("Decompressed size: %ld (expected %ld)\n", size, sizeof dstDxt1);
-	printf("Byte comparison: %s\n", (compare) ? "failed" : "succeeded");
+	printf("Decompressed size: %s\n", (size == sizeof dstDxt1) ? "OK" : "FAILED");
+	printf("Byte comparison: %s\n", (compare == 0) ? "OK" : "FAILED");
 	if (size == sizeof dstDxt1 && compare == 0) {
 		return EXIT_SUCCESS;
 	}

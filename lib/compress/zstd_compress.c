@@ -2284,6 +2284,12 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
         needs further investigation.
     */
     const U32 rleMaxLength = 25;
+    /*
+        We don't want to emit our first block as a RLE even if it qualifies because
+        doing so will cause the decoder to throw a "should consume all input error."
+        https://github.com/facebook/zstd/blob/dev/programs/fileio.c#L1723
+    */
+    U32 isFirstBlock = zc->inBuffPos == srcSize;
     size_t cSize;
     const BYTE* ip = (const BYTE*)src;
     BYTE* op = (BYTE*)dst;
@@ -2304,13 +2310,6 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
             srcSize,
             zc->entropyWorkspace, HUF_WORKSPACE_SIZE /* statically allocated in resetCCtx */,
             zc->bmi2);
-
-    /*
-        We don't want to emit our first block as a RLE even if it qualifies because
-        doing so will cause the decoder to throw a "should consume all input error."
-        https://github.com/facebook/zstd/blob/dev/programs/fileio.c#L1723
-    */
-    U32 isFirstBlock = zc->inBuffPos == srcSize;
 
     if (frame &&
         !isFirstBlock &&

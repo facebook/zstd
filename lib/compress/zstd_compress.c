@@ -1314,6 +1314,7 @@ static size_t ZSTD_continueCCtx(ZSTD_CCtx* cctx, ZSTD_CCtx_params params, U64 pl
     cctx->blockState.matchState.cParams = params.cParams;
     cctx->pledgedSrcSizePlusOne = pledgedSrcSize+1;
     cctx->consumedSrcSize = 0;
+    cctx->isFirstBlock = 1;
     cctx->producedCSize = 0;
     if (pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN)
         cctx->appliedParams.fParams.contentSizeFlag = 0;
@@ -1416,6 +1417,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                 (U32)pledgedSrcSize, params.cParams.windowLog);
     assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
 
+    zc->isFirstBlock = 1;
     if (crp == ZSTDcrp_continue) {
         if (ZSTD_equivalentParams(zc->appliedParams, params,
                                   zc->inBuffSize,
@@ -2278,18 +2280,11 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
                                         void* dst, size_t dstCapacity,
                                         const void* src, size_t srcSize, U32 frame)
 {
-    /*
-        This the upper bound for the length of an rle block.
-        This isn't the actual upper bound. Finding the real threshold
-        needs further investigation.
+    /* This the upper bound for the length of an rle block.
+     * This isn't the actual upper bound. Finding the real threshold
+     * needs further investigation.
     */
     const U32 rleMaxLength = 25;
-    /*
-        We don't want to emit our first block as a RLE even if it qualifies because
-        doing so will cause the decoder to throw a "should consume all input error."
-        https://github.com/facebook/zstd/blob/dev/programs/fileio.c#L1723
-    */
-    U32 isFirstBlock = zc->inBuffPos == srcSize;
     size_t cSize;
     const BYTE* ip = (const BYTE*)src;
     BYTE* op = (BYTE*)dst;
@@ -2312,7 +2307,11 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
             zc->bmi2);
 
     if (frame &&
-        !isFirstBlock &&
+        /* We don't want to emit our first block as a RLE even if it qualifies because
+         * doing so will cause the decoder to throw a "should consume all input error."
+         * https://github.com/facebook/zstd/blob/dev/programs/fileio.c#L1723
+        */
+        !zc->isFirstBlock &&
         cSize < rleMaxLength &&
         ZSTD_isRLE(ip, srcSize))
     {
@@ -2417,6 +2416,7 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
             op += cSize;
             assert(dstCapacity >= cSize);
             dstCapacity -= cSize;
+            cctx->isFirstBlock = 0;
             DEBUGLOG(5, "ZSTD_compress_frameChunk: adding a block of size %u",
                         (unsigned)cSize);
     }   }

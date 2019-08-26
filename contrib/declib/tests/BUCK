@@ -1,7 +1,0 @@
-# Note: we need to undef ZSTD_LEGACY_SUPPORT since Buck defines it elsewhere
-cxx_binary(
-    name='simple',
-    srcs=['simple.c'],
-    preprocessor_flags=['-UZSTD_LEGACY_SUPPORT'],
-    deps=['//contrib/declib:combine']
-)

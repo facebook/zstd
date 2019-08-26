@@ -2278,6 +2278,12 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
                                         void* dst, size_t dstCapacity,
                                         const void* src, size_t srcSize)
 {
+    /*
+        This the upper bound for the length of an rle block.
+        This isn't the actual upper bound. Finding the real threshold
+        needs further investigation.
+    */
+    const int rleMaxLength = 25;
     size_t cSize;
     const BYTE* ip = (const BYTE*)src;
     BYTE* op = (BYTE*)dst;
@@ -2299,7 +2305,7 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
             zc->entropyWorkspace, HUF_WORKSPACE_SIZE /* statically allocated in resetCCtx */,
             zc->bmi2);
 
-    if (cSize < 10 && ZSTD_isRLE(ip, srcSize)) {
+    if (cSize < rleMaxLength && ZSTD_isRLE(ip, srcSize)) {
         cSize = 1;
         op[0] = ip[0];
     }
@@ -2311,7 +2317,7 @@ out:
         zc->blockState.prevCBlock = zc->blockState.nextCBlock;
         zc->blockState.nextCBlock = tmp;
 
-        assert(!ZSTD_isRLE(src, srcSize));
+        assert(!ZSTD_isRLE(ip, srcSize));
     }
     /* We check that dictionaries have offset codes available for the first
      * block. After the first block, the offcode table might not have large

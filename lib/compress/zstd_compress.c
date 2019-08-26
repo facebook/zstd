@@ -2283,7 +2283,7 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
         This isn't the actual upper bound. Finding the real threshold
         needs further investigation.
     */
-    const int rleMaxLength = 25;
+    const U32 rleMaxLength = 25;
     size_t cSize;
     const BYTE* ip = (const BYTE*)src;
     BYTE* op = (BYTE*)dst;

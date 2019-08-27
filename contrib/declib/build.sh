@@ -42,16 +42,17 @@ echo "Running simple.c: PASSED"
 which emcc > /dev/null
 if [ $? -ne 0 ]; then
   echo "(Skipping Emscripten test)"
+else
+  # Compile the Emscripten example
+  CC_FLAGS="-Wall -Wextra -Os -g0 -flto --llvm-lto 3 -lGL -DNDEBUG=1"
+  emcc $CC_FLAGS -s WASM=1 -o $OUT_WASM examples/emscripten.c
+  # Did compilation work?
+  if [ $? -ne 0 ]; then
+    echo "Compiling emscripten.c: FAILED"
+    exit 1
+  fi
+  echo "Compiling emscripten.c: PASSED"
+  rm -f $OUT_WASM
 fi
-# Compile the Emscripten example
-CC_FLAGS="-Wall -Wextra -Os -g0 -flto --llvm-lto 3 -lGL -DNDEBUG=1"
-emcc $CC_FLAGS -s WASM=1 -o $OUT_WASM examples/emscripten.c
-# Did compilation work?
-if [ $? -ne 0 ]; then
-  echo "Compiling emscripten.c: FAILED"
-  exit 1
-fi
-echo "Compiling emscripten.c: PASSED"
-rm -f $OUT_WASM
 
 exit 0

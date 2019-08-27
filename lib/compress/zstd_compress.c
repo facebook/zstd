@@ -1357,7 +1357,7 @@ static size_t ZSTD_continueCCtx(ZSTD_CCtx* cctx, const ZSTD_CCtx_params* params,
     return 0;
 }
 
-typedef enum { ZSTDcrp_continue, ZSTDcrp_noMemset, ZSTDcrp_noRealloc } ZSTD_compResetPolicy_e;
+typedef enum { ZSTDcrp_continue, ZSTDcrp_noMemset } ZSTD_compResetPolicy_e;
 
 typedef enum { ZSTD_resetTarget_CDict, ZSTD_resetTarget_CCtx } ZSTD_resetTarget_e;
 
@@ -1461,7 +1461,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                         &zc->blockState.matchState,
                         &zc->workspace,
                         &params.cParams,
-                        ZSTDcrp_noRealloc, ZSTD_resetTarget_CCtx));
+                        ZSTDcrp_noMemset, ZSTD_resetTarget_CCtx));
                 }
                 return ZSTD_continueCCtx(zc, &params, pledgedSrcSize);
     }   }   }

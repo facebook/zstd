@@ -10,13 +10,13 @@ OUT_FILE="tempbin"
 OUT_WASM="temp.wasm"
 
 # Amalgamate the sources
-./combine.sh -r "$ZSTD_SRC_ROOT" -r "$ZSTD_SRC_ROOT/common" -r "$ZSTD_SRC_ROOT/decompress" -o zstddeclib.c zstddeclib-in.c
+./create_single_file_decoder.sh
 # Did combining work?
 if [ $? -ne 0 ]; then
-  echo "Combine script: FAILED"
+  echo "Single file decoder creation script: FAILED"
   exit 1
 fi
-echo "Combine script: PASSED"
+echo "Single file decoder creation script: PASSED"
 
 # Compile the generated output
 cc -Os -g0 -o $OUT_FILE examples/simple.c

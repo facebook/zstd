@@ -641,7 +641,7 @@ size_t ZSTD_execSequence(BYTE* op,
 
     /* copy Literals */
     if (sequence.litLength > 8)
-        ZSTD_wildcopy_16min(op, (*litPtr), sequence.litLength, ZSTD_no_overlap);   /* note : since oLitEnd <= oend-WILDCOPY_OVERLENGTH, no risk of overwrite beyond oend */
+        ZSTD_wildcopy_16min(op, (*litPtr), oend, sequence.litLength, ZSTD_no_overlap);   /* note : since oLitEnd <= oend-WILDCOPY_OVERLENGTH, no risk of overwrite beyond oend */
     else
         ZSTD_copy8(op, *litPtr);
     op = oLitEnd;
@@ -690,13 +690,13 @@ size_t ZSTD_execSequence(BYTE* op,
 
     if (oMatchEnd > oend-(16-MINMATCH)) {
         if (op < oend_w) {
-            ZSTD_wildcopy(op, match, oend_w - op, ZSTD_overlap_src_before_dst);
+            ZSTD_wildcopy(op, match, oend, oend_w - op, ZSTD_overlap_src_before_dst);
             match += oend_w - op;
             op = oend_w;
         }
         while (op < oMatchEnd) *op++ = *match++;
     } else {
-        ZSTD_wildcopy(op, match, (ptrdiff_t)sequence.matchLength-8, ZSTD_overlap_src_before_dst);   /* works even if matchLength < 8 */
+        ZSTD_wildcopy(op, match, oend, (ptrdiff_t)sequence.matchLength-8, ZSTD_overlap_src_before_dst);   /* works even if matchLength < 8 */
     }
     return sequenceLength;
 }
@@ -722,7 +722,7 @@ size_t ZSTD_execSequenceLong(BYTE* op,
 
     /* copy Literals */
     if (sequence.litLength > 8)
-        ZSTD_wildcopy_16min(op, *litPtr, sequence.litLength, ZSTD_no_overlap);   /* note : since oLitEnd <= oend-WILDCOPY_OVERLENGTH, no risk of overwrite beyond oend */
+        ZSTD_wildcopy_16min(op, *litPtr, oend, sequence.litLength, ZSTD_no_overlap);   /* note : since oLitEnd <= oend-WILDCOPY_OVERLENGTH, no risk of overwrite beyond oend */
     else
         ZSTD_copy8(op, *litPtr);  /* note : op <= oLitEnd <= oend_w == oend - 8 */
 
@@ -772,13 +772,13 @@ size_t ZSTD_execSequenceLong(BYTE* op,
 
     if (oMatchEnd > oend-(16-MINMATCH)) {
         if (op < oend_w) {
-            ZSTD_wildcopy(op, match, oend_w - op, ZSTD_overlap_src_before_dst);
+            ZSTD_wildcopy(op, match, oend, oend_w - op, ZSTD_overlap_src_before_dst);
             match += oend_w - op;
             op = oend_w;
         }
         while (op < oMatchEnd) *op++ = *match++;
     } else {
-        ZSTD_wildcopy(op, match, (ptrdiff_t)sequence.matchLength-8, ZSTD_overlap_src_before_dst);   /* works even if matchLength < 8 */
+        ZSTD_wildcopy(op, match, oend, (ptrdiff_t)sequence.matchLength-8, ZSTD_overlap_src_before_dst);   /* works even if matchLength < 8 */
     }
     return sequenceLength;
 }

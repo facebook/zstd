@@ -6,7 +6,9 @@
  * \n
  * Compile using:
  * \code
- *	emcc -Wall -Wextra -Os -g0 -lGL -s WASM=1 -o out.html emscripten.c
+ *	export CC_FLAGS="-Wall -Wextra -Os -g0 -flto --llvm-lto 3 -lGL -DNDEBUG=1"
+ *	export EM_FLAGS="-s WASM=1 -s ENVIRONMENT=web --shell-file shell.html --closure 1"
+ *	emcc $CC_FLAGS $EM_FLAGS -o out.html emscripten.c
  * \endcode
  */
 
@@ -27,6 +29,8 @@
 
 /**
  * Zstd compressed DXT1 256x256 texture source.
+ * 
+ * File credit: https://commons.wikimedia.org/wiki/File:FuBK-Testbild.png
  */
 static uint8_t const srcZstd[] = {
   0x28, 0xb5, 0x2f, 0xfd, 0x60, 0x00, 0x7f, 0xfd, 0xe2, 0x00, 0x8a, 0x05,
@@ -685,11 +689,6 @@ static GLint uRotId = -1;
 /**
  * Draw colour ID.
  */
-static GLint uColId = -1;
-
-/**
- * Draw colour ID.
- */
 static GLint uTx0Id = -1;
 
 //******************************* Shader Source ******************************/
@@ -775,14 +774,9 @@ static GLuint compileShader(GLenum const type, const GLchar* text) {
 #define GL_VERT_POSXY_ID 0
 
 /**
- * Vertex colour index.
- */
-#define GL_VERT_COLOR_ID 1
-
-/**
  * Vertex UV0 index.
  */
-#define GL_VERT_TXUV0_ID 2
+#define GL_VERT_TXUV0_ID 1
 
  /**
   * \c GL vec2 storage type.
@@ -871,7 +865,7 @@ static void tick() {
  * and 'uploads' the resulting texture.
  * 
  * As a (naive) comparison, removing Zstd and building with "-Os -g0 s WASM=1
- * -lGL emscripten.c" results in a 23kB WebAssembly file; re-adding Zstd
+ * -lGL emscripten.c" results in a 19kB WebAssembly file; re-adding Zstd
  * increases the Wasm by 25kB.
  */
 int main() {
@@ -882,7 +876,6 @@ int main() {
 			 fragId = compileShader(GL_FRAGMENT_SHADER, fragShader2D);
 			 
 			 glBindAttribLocation(progId, GL_VERT_POSXY_ID, "aPos");
-			 glBindAttribLocation(progId, GL_VERT_COLOR_ID, "aCol");
 			 glBindAttribLocation(progId, GL_VERT_TXUV0_ID, "aUV0");
 			 
 			 glAttachShader(progId, vertId);
@@ -890,7 +883,6 @@ int main() {
 			 glLinkProgram (progId);
 			 glUseProgram  (progId);
 			 uRotId = glGetUniformLocation(progId, "uRot");
-			 uColId = glGetUniformLocation(progId, "uCol");
 			 uTx0Id = glGetUniformLocation(progId, "uTx0");
 			 if (uTx0Id >= 0) {
 				 glUniform1i(uTx0Id, 0);

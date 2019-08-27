@@ -397,6 +397,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\lib\compress\zstd_compress_literals.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstd_compress_sequences.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\lib\compress\zstd_fast.c"
 				>
 			</File>
@@ -540,6 +548,14 @@
 			</File>
 			<File
 				RelativePath="..\..\..\lib\compress\zstd_compress.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstd_compress_literals.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstd_compress_sequences.h"
 				>
 			</File>
 			<File

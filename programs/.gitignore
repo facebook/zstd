@@ -33,4 +33,5 @@ afl
 
 # Misc files
 *.bat
+!windres/generate_res.bat
 dirTest*

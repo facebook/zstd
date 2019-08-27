@@ -1,11 +1,14 @@
+# object artifacts
+*.o
+
 # Default result files
 _*
-example.*
+example
 example_zstd.*
 example_gz.*
-fitblk.*
+fitblk
 fitblk_zstd.*
-zwrapbench.*
+zwrapbench
 foo.gz
 
 minigzip

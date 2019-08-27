@@ -167,6 +167,8 @@
     <ClCompile Include="..\..\..\lib\compress\fse_compress.c" />
     <ClCompile Include="..\..\..\lib\compress\huf_compress.c" />
     <ClCompile Include="..\..\..\lib\compress\zstd_compress.c" />
+    <ClCompile Include="..\..\..\lib\compress\zstd_compress_literals.c" />
+    <ClCompile Include="..\..\..\lib\compress\zstd_compress_sequences.c" />
     <ClCompile Include="..\..\..\lib\compress\zstd_fast.c" />
     <ClCompile Include="..\..\..\lib\compress\zstd_double_fast.c" />
     <ClCompile Include="..\..\..\lib\compress\zstd_lazy.c" />
@@ -196,6 +198,8 @@
     <ClInclude Include="..\..\..\lib\common\zstd_errors.h" />
     <ClInclude Include="..\..\..\lib\zstd.h" />
     <ClInclude Include="..\..\..\lib\compress\zstd_compress.h" />
+    <ClInclude Include="..\..\..\lib\compress\zstd_compress_literals.h" />
+    <ClInclude Include="..\..\..\lib\compress\zstd_compress_sequences.h" />
     <ClInclude Include="..\..\..\lib\compress\zstd_fast.h" />
     <ClInclude Include="..\..\..\lib\compress\zstd_double_fast.h" />
     <ClInclude Include="..\..\..\lib\compress\zstd_lazy.h" />

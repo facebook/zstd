@@ -99,7 +99,6 @@ man:
 contrib: lib
 	$(MAKE) -C contrib/pzstd all
 	$(MAKE) -C contrib/seekable_format/examples all
-	$(MAKE) -C contrib/adaptive-compression all
 	$(MAKE) -C contrib/largeNbDicts all
 
 .PHONY: cleanTabs
@@ -116,7 +115,6 @@ clean:
 	@$(MAKE) -C contrib/gen_html $@ > $(VOID)
 	@$(MAKE) -C contrib/pzstd $@ > $(VOID)
 	@$(MAKE) -C contrib/seekable_format/examples $@ > $(VOID)
-	@$(MAKE) -C contrib/adaptive-compression $@ > $(VOID)
 	@$(MAKE) -C contrib/largeNbDicts $@ > $(VOID)
 	@$(RM) zstd$(EXT) zstdmt$(EXT) tmp*
 	@$(RM) -r lz4

@@ -1,6 +1,11 @@
 /**
  * \file simple.c
  * Simple standalone example of using the single-file \c zstddeclib.
+ * 
+ * \note In this simple example we include the amalgamated source and compile
+ * just this single file, but we could equally (and more conventionally)
+ * include \c zstd.h and compile both this file and \c zstddeclib.c (the
+ * resulting binaries differ slightly in size but perform the same).
  */
  
 #include <stddef.h>
@@ -14,6 +19,8 @@
 
 /**
  * Raw 256x256 DXT1 data (used to compare the result).
+ * 
+ * File credit: https://commons.wikimedia.org/wiki/File:FuBK-Testbild.png
  */
 static uint8_t const rawDxt1[] = {
   0x3c, 0xe7, 0xc7, 0x39, 0x25, 0x25, 0x25, 0x00, 0x28, 0x42, 0xba, 0xd6,
@@ -2751,6 +2758,8 @@ static uint8_t const rawDxt1[] = {
 
 /**
  * Zstd compressed version of \c #rawDxt1.
+ * 
+ * File credit: https://commons.wikimedia.org/wiki/File:FuBK-Testbild.png
  */
 static uint8_t const srcZstd[] = {
   0x28, 0xb5, 0x2f, 0xfd, 0x60, 0x00, 0x7f, 0xfd, 0xe2, 0x00, 0x8a, 0x05,
@@ -3373,7 +3382,7 @@ static uint8_t dstDxt1[sizeof rawDxt1] = {};
  * dummy function to fake the process and stop the buffers being optimised out.
  */
 size_t ZSTD_decompress(void* dst, size_t dstLen, const void* src, size_t srcLen) {
-	return (memcmp(dst, src, (srcLen < dstLen) ? srcLen : dstLen)) ? dstLen : 0;
+	return (memcmp(dst, src, (srcLen < dstLen) ? srcLen : dstLen)) ? 0 : dstLen;
 }
 #endif
 
@@ -3385,13 +3394,13 @@ size_t ZSTD_decompress(void* dst, size_t dstLen, const void* src, size_t srcLen)
  * \n
  * As a (naive) comparison, removing Zstd and building with "-Os -g0 simple.c"
  * results in a 48kB binary (macOS 10.14, Clang 10); re-adding Zstd increases
- * the binary by 74kB.
+ * the binary by 67kB (after calling \c strip).
  */
 int main() {
 	size_t size = ZSTD_decompress(dstDxt1, sizeof dstDxt1, srcZstd, sizeof srcZstd);
 	int compare = memcmp(rawDxt1, dstDxt1, sizeof dstDxt1);
-	printf("Decompressed size: %s\n", (size == sizeof dstDxt1) ? "OK" : "FAILED");
-	printf("Byte comparison: %s\n", (compare == 0) ? "OK" : "FAILED");
+	printf("Decompressed size: %s\n", (size == sizeof dstDxt1) ? "PASSED" : "FAILED");
+	printf("Byte comparison: %s\n", (compare == 0) ? "PASSED" : "FAILED");
 	if (size == sizeof dstDxt1 && compare == 0) {
 		return EXIT_SUCCESS;
 	}

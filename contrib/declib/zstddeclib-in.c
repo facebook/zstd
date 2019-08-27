@@ -42,6 +42,9 @@
  */
 /*
  * Settings to bake for the standalone decompressor.
+ * 
+ * Note: It's important that none of these affects 'zstd.h' (only the
+ * implementation files we're amalgamating).
  */
 #define DEBUGLEVEL 0
 #define XXH_NAMESPACE ZSTD_
@@ -51,7 +54,6 @@
 #define ZSTD_LIB_COMPRESSION 0
 #define ZSTD_LIB_DEPRECATED 0
 #define ZSTD_NOBENCH
-#define ZSTD_STATIC_LINKING_ONLY
 #define ZSTD_STRIP_ERROR_STRINGS
 
 #include "debug.c"

@@ -72,7 +72,8 @@ FUZZ_TARGETS :=       \
 	block_decompress  \
 	dictionary_round_trip \
 	dictionary_decompress \
-	zstd_frame_info
+	zstd_frame_info \
+	simple_compress
 
 all: $(FUZZ_TARGETS)
 
@@ -102,6 +103,9 @@ dictionary_round_trip: $(FUZZ_HEADERS) $(FUZZ_OBJ) dictionary_round_trip.o
 
 dictionary_decompress: $(FUZZ_HEADERS) $(FUZZ_OBJ) dictionary_decompress.o
 	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_OBJ) dictionary_decompress.o $(LIB_FUZZING_ENGINE) -o $@
+
+simple_compress: $(FUZZ_HEADERS) $(FUZZ_OBJ) simple_compress.o
+	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_OBJ) simple_compress.o $(LIB_FUZZING_ENGINE) -o $@
 
 zstd_frame_info: $(FUZZ_HEADERS) $(FUZZ_OBJ) zstd_frame_info.o
 	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_OBJ) zstd_frame_info.o $(LIB_FUZZING_ENGINE) -o $@
@@ -139,7 +143,9 @@ clean:
 	@$(MAKE) -C $(ZSTDDIR) clean
 	@$(RM) *.a *.o
 	@$(RM) simple_round_trip stream_round_trip simple_decompress \
-           stream_decompress block_decompress block_round_trip
+           stream_decompress block_decompress block_round_trip \
+           simple_compress dictionary_round_trip dictionary_decompress \
+           zstd_frame_info
 
 cleanall:
 	@$(RM) -r Fuzzer

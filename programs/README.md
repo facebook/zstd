@@ -157,8 +157,8 @@ Advanced arguments :
 
 Dictionary builder :
 --train ## : create a dictionary from a training set of files
---train-cover[=k=#,d=#,steps=#,split=#] : use the cover algorithm with optional args
---train-fastcover[=k=#,d=#,f=#,steps=#,split=#,accel=#] : use the fastcover algorithm with optional args
+--train-cover[=k=#,d=#,steps=#,split=#,shrink[=#]] : use the cover algorithm with optional args
+--train-fastcover[=k=#,d=#,f=#,steps=#,split=#,shrink[=#],accel=#] : use the fastcover algorithm with optional args
 --train-legacy[=s=#] : use the legacy algorithm with selectivity (default: 9)
  -o file : `file` is dictionary name (default: dictionary)
 --maxdict=# : limit dictionary to specified size (default: 112640)

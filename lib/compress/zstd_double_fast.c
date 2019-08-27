@@ -65,6 +65,7 @@ size_t ZSTD_compressBlock_doubleFast_generic(
     const U32 endIndex = (U32)((size_t)(istart - base) + srcSize);
     const U32 lowestValid = ms->window.dictLimit;
     const U32 maxDistance = 1U << cParams->windowLog;
+    /* presumes that, if there is a dictionary, it must be using Attach mode */
     const U32 prefixLowestIndex = (endIndex - lowestValid > maxDistance) ? endIndex - maxDistance : lowestValid;
     const BYTE* const prefixLowest = base + prefixLowestIndex;
     const BYTE* const iend = istart + srcSize;
@@ -254,11 +255,14 @@ _match_stored:
         anchor = ip;
 
         if (ip <= ilimit) {
-            /* Fill Table */
-            hashLong[ZSTD_hashPtr(base+current+2, hBitsL, 8)] =
-                hashSmall[ZSTD_hashPtr(base+current+2, hBitsS, mls)] = current+2;  /* here because current+2 could be > iend-8 */
-            hashLong[ZSTD_hashPtr(ip-2, hBitsL, 8)] =
-                hashSmall[ZSTD_hashPtr(ip-2, hBitsS, mls)] = (U32)(ip-2-base);
+            /* Complementary insertion */
+            /* done after iLimit test, as candidates could be > iend-8 */
+            {   U32 const indexToInsert = current+2;
+                hashLong[ZSTD_hashPtr(base+indexToInsert, hBitsL, 8)] = indexToInsert;
+                hashLong[ZSTD_hashPtr(ip-2, hBitsL, 8)] = (U32)(ip-2-base);
+                hashSmall[ZSTD_hashPtr(base+indexToInsert, hBitsS, mls)] = indexToInsert;
+                hashSmall[ZSTD_hashPtr(ip-1, hBitsS, mls)] = (U32)(ip-1-base);
+            }
 
             /* check immediate repcode */
             if (dictMode == ZSTD_dictMatchState) {
@@ -366,9 +370,7 @@ static size_t ZSTD_compressBlock_doubleFast_extDict_generic(
     const BYTE* const ilimit = iend - 8;
     const BYTE* const base = ms->window.base;
     const U32   endIndex = (U32)((size_t)(istart - base) + srcSize);
-    const U32   maxDistance = 1U << cParams->windowLog;
-    const U32   lowestValid = ms->window.lowLimit;
-    const U32   lowLimit = (endIndex - lowestValid > maxDistance) ? endIndex - maxDistance : lowestValid;
+    const U32   lowLimit = ZSTD_getLowestMatchIndex(ms, endIndex, cParams->windowLog);
     const U32   dictStartIndex = lowLimit;
     const U32   dictLimit = ms->window.dictLimit;
     const U32   prefixStartIndex = (dictLimit > lowLimit) ? dictLimit : lowLimit;
@@ -452,16 +454,20 @@ static size_t ZSTD_compressBlock_doubleFast_extDict_generic(
                 continue;
         }   }
 
-        /* found a match : store it */
+        /* move to next sequence start */
         ip += mLength;
         anchor = ip;
 
         if (ip <= ilimit) {
-            /* Fill Table */
-            hashSmall[ZSTD_hashPtr(base+current+2, hBitsS, mls)] = current+2;
-            hashLong[ZSTD_hashPtr(base+current+2, hBitsL, 8)] = current+2;
-            hashSmall[ZSTD_hashPtr(ip-2, hBitsS, mls)] = (U32)(ip-2-base);
-            hashLong[ZSTD_hashPtr(ip-2, hBitsL, 8)] = (U32)(ip-2-base);
+            /* Complementary insertion */
+            /* done after iLimit test, as candidates could be > iend-8 */
+            {   U32 const indexToInsert = current+2;
+                hashLong[ZSTD_hashPtr(base+indexToInsert, hBitsL, 8)] = indexToInsert;
+                hashLong[ZSTD_hashPtr(ip-2, hBitsL, 8)] = (U32)(ip-2-base);
+                hashSmall[ZSTD_hashPtr(base+indexToInsert, hBitsS, mls)] = indexToInsert;
+                hashSmall[ZSTD_hashPtr(ip-1, hBitsS, mls)] = (U32)(ip-1-base);
+            }
+
             /* check immediate repcode */
             while (ip <= ilimit) {
                 U32 const current2 = (U32)(ip-base);

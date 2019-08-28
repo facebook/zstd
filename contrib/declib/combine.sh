@@ -1,6 +1,9 @@
-#!/bin/bash
+#!/bin/sh -e
 
 # Tool to bundle multiple C/C++ source files, inlining any includes.
+# 
+# Note: this POSIX-compliant script is many times slower than the original bash
+# implementation (due to the grep calls) but it runs and works everywhere.
 # 
 # TODO: ROOTS and FOUND as arrays (since they fail on paths with spaces)
 
@@ -14,7 +17,7 @@ FOUND=""
 DESTN=""
 
 # Prints the script usage then exits
-function usage {
+usage() {
   echo "Usage: $0 [-r <path>] [-o <outfile>] infile"
   echo "  -r file root search paths"
   echo "  -o output file (otherwise stdout)"
@@ -22,27 +25,26 @@ function usage {
   exit 1
 }
 
-# Tests if list $1 has item $2
-function list_has_item {
-  local list="$1"
-  local item="$2"
-  if [[ $list =~ (^|[[:space:]]*)"$item"($|[[:space:]]*) ]]; then
+# Tests if list $1 has item $2 (returning zero on a match)
+list_has_item() {
+  if echo "$1" | grep -Eq "(^|\s*)$2(\$|\s*)"; then
     return 0
+  else
+    return 1
   fi
-  return 1
 }
 
 # Adds a new line with the supplied arguments to $DESTN (or stdout)
-function write_line {
+write_line() {
   if [ -n "$DESTN" ]; then
-    printf "%s\n" "$@" >> "$DESTN"
+    printf '%s\n' "$@" >> "$DESTN"
   else
-    printf "%s\n" "$@"
+    printf '%s\n' "$@"
   fi
 }
 
 # Adds the contents of $1 with any of its includes inlined
-function add_file {
+add_file() {
   # Match the path
   local file=
   if [ -f "$1" ]; then
@@ -56,12 +58,12 @@ function add_file {
   fi
   if [ -n "$file" ]; then
     # Read the file
-    local line
+    local line=
     while IFS= read -r line; do
-      if [[ $line =~ ^[[:space:]]*\#[[:space:]]*include[[:space:]]*\"(.*)\".* ]]; then
-        # We have an include directive
-        local inc=${BASH_REMATCH[1]}
-        if ! `list_has_item "$FOUND" "$inc"`; then
+      if echo "$line" | grep -Eq '^\s*#\s*include\s*".+"'; then
+        # We have an include directive so strip the (first) file
+        local inc=$(echo "$line" | grep -Eo '".*"' | grep -Eo '\w*(\.?\w+)+' | head -1)
+        if ! list_has_item "$FOUND" "$inc"; then
           # And we've not previously encountered it
           FOUND="$FOUND $inc"
           write_line "/**** start inlining $inc ****/"
@@ -102,7 +104,7 @@ if [ -n "$1" ]; then
     fi
     add_file $1
   else
-    echo "Input file not found: '$1'"
+    echo "Input file not found: \"$1\""
     exit 1
   fi
 else

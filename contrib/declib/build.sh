@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Where to find the sources
 ZSTD_SRC_ROOT="../../lib"
@@ -10,6 +10,7 @@ OUT_FILE="tempbin"
 OUT_WASM="temp.wasm"
 
 # Amalgamate the sources
+echo "Amalgamating files... this may take a few minutes"
 ./combine.sh -r "$ZSTD_SRC_ROOT" -r "$ZSTD_SRC_ROOT/common" -r "$ZSTD_SRC_ROOT/decompress" -o zstddeclib.c zstddeclib-in.c
 # Did combining work?
 if [ $? -ne 0 ]; then

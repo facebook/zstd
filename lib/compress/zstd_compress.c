@@ -392,6 +392,11 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
         bounds.upperBound = ZSTD_TARGETCBLOCKSIZE_MAX;
         return bounds;
 
+    case ZSTD_c_srcSizeHint:
+        bounds.lowerBound = ZSTD_SRCSIZEHINT_MIN;
+        bounds.upperBound = ZSTD_SRCSIZEHINT_MAX;
+        return bounds;
+
     default:
         {   ZSTD_bounds const boundError = { ERROR(parameter_unsupported), 0, 0 };
             return boundError;
@@ -448,6 +453,7 @@ static int ZSTD_isUpdateAuthorized(ZSTD_cParameter param)
     case ZSTD_c_forceAttachDict:
     case ZSTD_c_literalCompressionMode:
     case ZSTD_c_targetCBlockSize:
+    case ZSTD_c_srcSizeHint:
     default:
         return 0;
     }
@@ -494,6 +500,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int value)
     case ZSTD_c_ldmMinMatch:
     case ZSTD_c_ldmBucketSizeLog:
     case ZSTD_c_targetCBlockSize:
+    case ZSTD_c_srcSizeHint:
         break;
 
     default: RETURN_ERROR(parameter_unsupported);
@@ -674,6 +681,12 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
         CCtxParams->targetCBlockSize = value;
         return CCtxParams->targetCBlockSize;
 
+    case ZSTD_c_srcSizeHint :
+        if (value!=0)    /* 0 ==> default */
+            BOUNDCHECK(ZSTD_c_srcSizeHint, value);
+        CCtxParams->srcSizeHint = value;
+        return CCtxParams->srcSizeHint;
+
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
     }
 }
@@ -778,6 +791,9 @@ size_t ZSTD_CCtxParams_getParameter(
         break;
     case ZSTD_c_targetCBlockSize :
         *value = (int)CCtxParams->targetCBlockSize;
+        break;
+    case ZSTD_c_srcSizeHint :
+        *value = (int)CCtxParams->srcSizeHint;
         break;
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
     }
@@ -1029,7 +1045,11 @@ ZSTD_adjustCParams(ZSTD_compressionParameters cPar,
 ZSTD_compressionParameters ZSTD_getCParamsFromCCtxParams(
         const ZSTD_CCtx_params* CCtxParams, U64 srcSizeHint, size_t dictSize)
 {
-    ZSTD_compressionParameters cParams = ZSTD_getCParams(CCtxParams->compressionLevel, srcSizeHint, dictSize);
+    ZSTD_compressionParameters cParams;
+    if (srcSizeHint == ZSTD_CONTENTSIZE_UNKNOWN && CCtxParams->srcSizeHint > 0) {
+      srcSizeHint = CCtxParams->srcSizeHint;
+    }
+    cParams = ZSTD_getCParams(CCtxParams->compressionLevel, srcSizeHint, dictSize);
     if (CCtxParams->ldmParams.enableLdm) cParams.windowLog = ZSTD_LDM_DEFAULT_WINDOW_LOG;
     if (CCtxParams->cParams.windowLog) cParams.windowLog = CCtxParams->cParams.windowLog;
     if (CCtxParams->cParams.hashLog) cParams.hashLog = CCtxParams->cParams.hashLog;
@@ -1981,12 +2001,17 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
     /* Sequences Header */
     RETURN_ERROR_IF((oend-op) < 3 /*max nbSeq Size*/ + 1 /*seqHead*/,
                     dstSize_tooSmall);
-    if (nbSeq < 0x7F)
+    if (nbSeq < 128) {
         *op++ = (BYTE)nbSeq;
-    else if (nbSeq < LONGNBSEQ)
-        op[0] = (BYTE)((nbSeq>>8) + 0x80), op[1] = (BYTE)nbSeq, op+=2;
-    else
-        op[0]=0xFF, MEM_writeLE16(op+1, (U16)(nbSeq - LONGNBSEQ)), op+=3;
+    } else if (nbSeq < LONGNBSEQ) {
+        op[0] = (BYTE)((nbSeq>>8) + 0x80);
+        op[1] = (BYTE)nbSeq;
+        op+=2;
+    } else {
+        op[0]=0xFF;
+        MEM_writeLE16(op+1, (U16)(nbSeq - LONGNBSEQ));
+        op+=3;
+    }
     assert(op <= oend);
     if (nbSeq==0) {
         /* Copy the old tables over as if we repeated them */

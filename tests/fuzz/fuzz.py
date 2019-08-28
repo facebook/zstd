@@ -24,21 +24,38 @@ def abs_join(a, *p):
     return os.path.abspath(os.path.join(a, *p))
 
 
+class InputType(object):
+    RAW_DATA = 1
+    COMPRESSED_DATA = 2
+
+
+class FrameType(object):
+    ZSTD = 1
+    BLOCK = 2
+
+
+class TargetInfo(object):
+    def __init__(self, input_type, frame_type=FrameType.ZSTD):
+        self.input_type = input_type
+        self.frame_type = frame_type
+
+
 # Constants
 FUZZ_DIR = os.path.abspath(os.path.dirname(__file__))
 CORPORA_DIR = abs_join(FUZZ_DIR, 'corpora')
-TARGETS = [
-    'simple_round_trip',
-    'stream_round_trip',
-    'block_round_trip',
-    'simple_decompress',
-    'stream_decompress',
-    'block_decompress',
-    'dictionary_round_trip',
-    'dictionary_decompress',
-    'zstd_frame_info',
-    'simple_compress',
-]
+TARGET_INFO = {
+    'simple_round_trip': TargetInfo(InputType.RAW_DATA),
+    'stream_round_trip': TargetInfo(InputType.RAW_DATA),
+    'block_round_trip': TargetInfo(InputType.RAW_DATA, FrameType.BLOCK),
+    'simple_decompress': TargetInfo(InputType.COMPRESSED_DATA),
+    'stream_decompress': TargetInfo(InputType.COMPRESSED_DATA),
+    'block_decompress': TargetInfo(InputType.COMPRESSED_DATA, FrameType.BLOCK),
+    'dictionary_round_trip': TargetInfo(InputType.RAW_DATA),
+    'dictionary_decompress': TargetInfo(InputType.COMPRESSED_DATA),
+    'zstd_frame_info': TargetInfo(InputType.COMPRESSED_DATA),
+    'simple_compress': TargetInfo(InputType.RAW_DATA),
+}
+TARGETS = list(TARGET_INFO.keys())
 ALL_TARGETS = TARGETS + ['all']
 FUZZ_RNG_SEED_SIZE = 4
 
@@ -67,7 +84,7 @@ MSAN_EXTRA_LDFLAGS = os.environ.get('MSAN_EXTRA_LDFLAGS', '')
 def create(r):
     d = os.path.abspath(r)
     if not os.path.isdir(d):
-        os.mkdir(d)
+        os.makedirs(d)
     return d
 
 
@@ -158,7 +175,7 @@ def compiler_version(cc, cxx):
         assert(b'clang' in cxx_version_bytes)
         compiler = 'clang'
     elif b'gcc' in cc_version_bytes:
-        assert(b'gcc' in cxx_version_bytes)
+        assert(b'gcc' in cxx_version_bytes or b'g++' in cxx_version_bytes)
         compiler = 'gcc'
     if compiler is not None:
         version_regex = b'([0-9])+\.([0-9])+\.([0-9])+'
@@ -699,7 +716,8 @@ def gen(args):
                 '-o{}'.format(decompressed),
             ]
 
-            if 'block_' in args.TARGET:
+            info = TARGET_INFO[args.TARGET]
+            if info.frame_type == FrameType.BLOCK:
                 cmd += [
                     '--gen-blocks',
                     '--max-block-size-log={}'.format(args.max_size_log)
@@ -710,10 +728,11 @@ def gen(args):
             print(' '.join(cmd))
             subprocess.check_call(cmd)
 
-            if '_round_trip' in args.TARGET:
+            if info.input_type == InputType.RAW_DATA:
                 print('using decompressed data in {}'.format(decompressed))
                 samples = decompressed
-            elif '_decompress' in args.TARGET:
+            else:
+                assert info.input_type == InputType.COMPRESSED_DATA
                 print('using compressed data in {}'.format(compressed))
                 samples = compressed
 

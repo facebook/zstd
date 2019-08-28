@@ -127,9 +127,14 @@
     }                                     \
 }
 
-/* vectorization */
-#if !defined(__clang__) && defined(__GNUC__) && __GNUC__ >= 5
-#  define DONT_VECTORIZE __attribute__((optimize("no-tree-vectorize")))
+/* vectorization
+ * older GCC (pre gcc-4.3 picked as the cutoff) uses a different syntax */
+#if !defined(__clang__) && defined(__GNUC__)
+#  if (__GNUC__ == 4 && __GNUC_MINOR__ > 3) || (__GNUC__ >= 5)
+#    define DONT_VECTORIZE __attribute__((optimize("no-tree-vectorize")))
+#  else
+#    define DONT_VECTORIZE _Pragma("GCC optimize(\"no-tree-vectorize\")")
+#  endif
 #else
 #  define DONT_VECTORIZE
 #endif

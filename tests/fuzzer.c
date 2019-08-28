@@ -1960,6 +1960,19 @@ static int basicUnitTests(U32 const seed, double compressibility)
         DISPLAYLEVEL(3, "OK \n");
     }
 
+    /* Multiple blocks of zeros test */
+    #define LONGZEROSLENGTH 1000000 /* 1MB of zeros */
+    DISPLAYLEVEL(3, "test%3i : compress %u zeroes : ", testNb++, LONGZEROSLENGTH);
+    memset(CNBuffer, 0, LONGZEROSLENGTH);
+    CHECK_VAR(cSize, ZSTD_compress(compressedBuffer, ZSTD_compressBound(LONGZEROSLENGTH), CNBuffer, LONGZEROSLENGTH, 1) );
+    DISPLAYLEVEL(3, "OK (%u bytes : %.2f%%)\n", (unsigned)cSize, (double)cSize/LONGZEROSLENGTH*100);
+
+    DISPLAYLEVEL(3, "test%3i : decompress %u zeroes : ", testNb++, LONGZEROSLENGTH);
+    { CHECK_NEWV(r, ZSTD_decompress(decodedBuffer, LONGZEROSLENGTH, compressedBuffer, cSize) );
+      if (r != LONGZEROSLENGTH) goto _output_error; }
+    DISPLAYLEVEL(3, "OK \n");
+
+
     /* All zeroes test (test bug #137) */
     #define ZEROESLENGTH 100
     DISPLAYLEVEL(3, "test%3i : compress %u zeroes : ", testNb++, ZEROESLENGTH);

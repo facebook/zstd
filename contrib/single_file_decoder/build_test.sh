@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Where to find the sources
 ZSTD_SRC_ROOT="../../lib"

@@ -2283,7 +2283,7 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
     /* This the upper bound for the length of an rle block.
      * This isn't the actual upper bound. Finding the real threshold
      * needs further investigation.
-    */
+     */
     const U32 rleMaxLength = 25;
     size_t cSize;
     const BYTE* ip = (const BYTE*)src;
@@ -2310,7 +2310,7 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
         /* We don't want to emit our first block as a RLE even if it qualifies because
          * doing so will cause the decoder to throw a "should consume all input error."
          * https://github.com/facebook/zstd/blob/dev/programs/fileio.c#L1723
-        */
+         */
         !zc->isFirstBlock &&
         cSize < rleMaxLength &&
         ZSTD_isRLE(ip, srcSize))

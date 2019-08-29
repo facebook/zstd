@@ -1461,7 +1461,8 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                         &zc->blockState.matchState,
                         &zc->workspace,
                         &params.cParams,
-                        ZSTDcrp_noMemset, ZSTD_resetTarget_CCtx));
+                        crp,
+                        ZSTD_resetTarget_CCtx));
                 }
                 return ZSTD_continueCCtx(zc, &params, pledgedSrcSize);
     }   }   }

@@ -45,8 +45,12 @@
  * 
  * Note: It's important that none of these affects 'zstd.h' (only the
  * implementation files we're amalgamating).
+ * 
+ * Note: MEM_MODULE stops xxhash redefining BYTE, U16, etc., which are also
+ * defined in mem.h (breaking C99 compatibility).
  */
 #define DEBUGLEVEL 0
+#define MEM_MODULE
 #define XXH_NAMESPACE ZSTD_
 #define XXH_PRIVATE_API
 #define XXH_INLINE_ALL

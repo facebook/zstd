@@ -2207,21 +2207,21 @@ static size_t ZSTD_getSequencesForOneBlock(ZSTD_CCtx* zc, ZSTD_CDict* cdict,
     const seqDef* seqs;
     size_t seqsSize;
 
-    int i; int repIdx; U32 position;
+    size_t i; int repIdx; size_t position;
 
     size_t blockSize = ZSTD_getBlockSize(zc);
     size_t maxOutput = ZSTD_compressBound(blockSize);
 
-    ASSERT(!ZSTD_isError(ZSTD_compressBegin_usingCDict(zc, cdict)));
-    ASSERT(dstSize >= maxOutput); dstSize = maxOutput;
-    ASSERT(srcSize >= blockSize); srcSize = blockSize;
-    ASSERT(!ZSTD_isError(ZSTD_compressBlock(zc, dst, dstSize, src, srcSize)));
+    assert(!ZSTD_isError(ZSTD_compressBegin_usingCDict(zc, cdict)));
+    assert(dstSize >= maxOutput); dstSize = maxOutput;
+    assert(srcSize >= blockSize); srcSize = blockSize;
+    assert(!ZSTD_isError(ZSTD_compressBlock(zc, dst, dstSize, src, srcSize)));
 
     seqStore = ZSTD_getSeqStore(zc);
     seqs = seqStore->sequencesStart;
     seqsSize = seqStore->sequences - seqStore->sequencesStart;
 
-    ASSERT(outSeqsSize >= seqsSize); outSeqsSize = seqsSize;
+    assert(outSeqsSize >= seqsSize); outSeqsSize = seqsSize;
 
     for (i = 0, position = 0; i < seqsSize; ++i) {
         outSeqs[i].offset = seqs[i].offset;

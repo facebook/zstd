@@ -2190,6 +2190,77 @@ void ZSTD_resetSeqStore(seqStore_t* ssPtr)
     ssPtr->longLengthID = 0;
 }
 
+typedef struct {
+    U32 matchPos;
+    U32 offset;
+    U32 litLength;
+    U32 matchLength;
+    int rep;
+} Sequence;
+
+static size_t ZSTD_getSequencesForOneBlock(ZSTD_CCtx* zc, ZSTD_CDict* cdict,
+                                void* dst, size_t dstSize,
+                                const void* src, size_t srcSize,
+                                Sequence* outSeqs, size_t outSeqsSize)
+{
+    const seqStore_t* seqStore;
+    const seqDef* seqs;
+    size_t seqsSize;
+
+    int i; int repIdx; U32 position;
+
+    size_t blockSize = ZSTD_getBlockSize(zc);
+    size_t maxOutput = ZSTD_compressBound(blockSize);
+
+    ASSERT(!ZSTD_isError(ZSTD_compressBegin_usingCDict(zc, cdict)));
+    ASSERT(dstSize >= maxOutput); dstSize = maxOutput;
+    ASSERT(srcSize >= blockSize); srcSize = blockSize;
+    ASSERT(!ZSTD_isError(ZSTD_compressBlock(zc, dst, dstSize, src, srcSize)));
+
+    seqStore = ZSTD_getSeqStore(zc);
+    seqs = seqStore->sequencesStart;
+    seqsSize = seqStore->sequences - seqStore->sequencesStart;
+
+    ASSERT(outSeqsSize >= seqsSize); outSeqsSize = seqsSize;
+
+    for (i = 0, position = 0; i < seqsSize; ++i) {
+        outSeqs[i].offset = seqs[i].offset;
+        outSeqs[i].litLength = seqs[i].litLength;
+        outSeqs[i].matchLength = seqs[i].matchLength + 3 /* min match */;
+
+        if (i == seqStore->longLengthPos) {
+            if (seqStore->longLengthID == 1) {
+                outSeqs[i].litLength += 0x10000;
+            } else if (seqStore->longLengthID == 2) {
+                outSeqs[i].matchLength += 0x10000;
+            }
+        }
+
+        if (outSeqs[i].offset <= 3 /* num reps */) {
+            outSeqs[i].rep = 1;
+            repIdx = i - outSeqs[i].offset;
+
+            if (repIdx >= 0) {
+                outSeqs[i].offset = outSeqs[repIdx].offset;
+            }
+
+            if (repIdx == -1) {
+                outSeqs[i].offset = 1;
+            } else if (repIdx == -2) {
+                outSeqs[i].offset = 4;
+            } else if (repIdx == -3) {
+                outSeqs[i].offset = 8;
+            }
+        } else {
+            outSeqs[i].offset -= 3 /* num reps */;
+        }
+
+        position += outSeqs[i].litLength;
+        outSeqs[i].matchPos = position;
+        position += outSeqs[i].matchLength;
+    }
+}
+
 typedef enum { ZSTDbss_compress, ZSTDbss_noCompress } ZSTD_buildSeqStore_e;
 
 static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)

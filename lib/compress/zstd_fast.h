@@ -15,6 +15,8 @@
 extern "C" {
 #endif
 
+#define NORESET 1
+
 #include "mem.h"      /* U32 */
 #include "zstd_compress_internal.h"
 

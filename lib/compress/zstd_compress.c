@@ -1350,7 +1350,7 @@ static size_t ZSTD_continueCCtx(ZSTD_CCtx* cctx, ZSTD_CCtx_params params, U64 pl
     return 0;
 }
 
-typedef enum { ZSTDcrp_continue, ZSTDcrp_noMemset } ZSTD_compResetPolicy_e;
+typedef enum { ZSTDcrp_continue, ZSTDcrp_noMemset, ZSTDcrp_forceMemset } ZSTD_compResetPolicy_e;
 
 typedef enum { ZSTD_resetTarget_CDict, ZSTD_resetTarget_CCtx } ZSTD_resetTarget_e;
 
@@ -1364,7 +1364,6 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
     size_t const hSize = ((size_t)1) << cParams->hashLog;
     U32    const hashLog3 = ((forWho == ZSTD_resetTarget_CCtx) && cParams->minMatch==3) ? MIN(ZSTD_HASHLOG3_MAX, cParams->windowLog) : 0;
     size_t const h3Size = ((size_t)1) << hashLog3;
-    size_t const tableSpace = (chainSize + hSize + h3Size) * sizeof(U32);
 
     assert(((size_t)ptr & 3) == 0);
 
@@ -1390,9 +1389,30 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
     }
 
     /* table Space */
-    DEBUGLOG(4, "reset table : %u", crp!=ZSTDcrp_noMemset);
+    DEBUGLOG(4, "reset table : %u", crp!=ZSTDcrp_noMemset && (crp == ZSTDcrp_forceMemset || cParams->strategy != ZSTD_fast));
     assert(((size_t)ptr & 3) == 0);  /* ensure ptr is properly aligned */
+#ifdef NORESET
+    U32 * p = ptr;
+    size_t tableSpace;
+    if (crp!=ZSTDcrp_noMemset) {
+       if (cParams->strategy == ZSTD_fast && crp!=ZSTDcrp_forceMemset)  {
+           /* Randomize the offset table.
+              This is for testing purpose, this makes sure that ZSTD_fast compression
+              is robust to uninitialized table. */
+           for (size_t i=0; i < hSize; i++) {
+               *(p++) = 0x98765432 * (i+1);
+           }
+           tableSpace = (chainSize + h3Size) * sizeof(U32);
+           memset(p , 0, tableSpace);
+       } else {
+           tableSpace = (chainSize + hSize + h3Size) * sizeof(U32);
+           memset(ptr, 0, tableSpace);   /* reset tables only */
+       }
+    }
+#else
+    size_t const tableSpace = (chainSize + hSize + h3Size) * sizeof(U32);
     if (crp!=ZSTDcrp_noMemset) memset(ptr, 0, tableSpace);   /* reset tables only */
+#endif
     ms->hashTable = (U32*)(ptr);
     ms->chainTable = ms->hashTable + hSize;
     ms->hashTable3 = ms->chainTable + chainSize;
@@ -1651,7 +1671,7 @@ ZSTD_resetCCtx_byAttachingCDict(ZSTD_CCtx* cctx,
         params.cParams = ZSTD_adjustCParams_internal(*cdict_cParams, pledgedSrcSize, 0);
         params.cParams.windowLog = windowLog;
         ZSTD_resetCCtx_internal(cctx, params, pledgedSrcSize,
-                                ZSTDcrp_continue, zbuff);
+                                ZSTDcrp_forceMemset, zbuff);
         assert(cctx->appliedParams.cParams.strategy == cdict_cParams->strategy);
     }
 
@@ -3072,7 +3092,7 @@ static size_t ZSTD_initCDict_internal(
     {   void* const end = ZSTD_reset_matchState(&cdict->matchState,
                             (U32*)cdict->workspace + HUF_WORKSPACE_SIZE_U32,
                             &cParams,
-                             ZSTDcrp_continue, ZSTD_resetTarget_CDict);
+                             ZSTDcrp_forceMemset, ZSTD_resetTarget_CDict);
         assert(end == (char*)cdict->workspace + cdict->workspaceSize);
         (void)end;
     }

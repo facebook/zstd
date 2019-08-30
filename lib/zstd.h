@@ -1073,6 +1073,14 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 typedef struct ZSTD_CCtx_params_s ZSTD_CCtx_params;
 
 typedef struct {
+    unsigned int matchPos;
+    unsigned int offset;
+    unsigned int litLength;
+    unsigned int matchLength;
+    int rep;
+} ZSTD_Sequence;
+
+typedef struct {
     unsigned windowLog;       /**< largest match distance : larger == more compression, more memory needed during decompression */
     unsigned chainLog;        /**< fully searched segment : larger == more compression, slower, more memory (useless for fast) */
     unsigned hashLog;         /**< dispatch table : larger == faster, more memory */
@@ -1209,6 +1217,9 @@ ZSTDLIB_API unsigned long long ZSTD_decompressBound(const void* src, size_t srcS
  * @return : size of the Frame Header,
  *           or an error code (if srcSize is too small) */
 ZSTDLIB_API size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize);
+
+ZSTDLIB_API size_t ZSTD_getSequences(ZSTD_CCtx* zc, const void* src,
+    size_t srcSize, ZSTD_Sequence* outSeqs, size_t outSeqsSize, int level);
 
 
 /***************************************

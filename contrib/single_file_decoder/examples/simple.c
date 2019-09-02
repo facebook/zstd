@@ -3050,8 +3050,8 @@ size_t ZSTD_decompress(void* dst, size_t dstLen, const void* src, size_t srcLen)
  * compare the resulting bytes with \c #rawDxt1.
  * \n
  * As a (naive) comparison, removing Zstd and building with "-Os -g0 simple.c"
- * results in a 48kB binary (macOS 10.14, Clang 10); re-adding Zstd increases
- * the binary by 67kB (after calling \c strip).
+ * results in a 44kB binary (macOS 10.14, Clang 10); re-adding Zstd increases
+ * the binary by 56kB (after calling \c strip).
  */
 int main() {
 	size_t size = ZSTD_decompress(dstDxt1, sizeof dstDxt1, srcZstd, sizeof srcZstd);

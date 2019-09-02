@@ -19,7 +19,7 @@ fi
 echo "Single file decoder creation script: PASSED"
 
 # Compile the generated output
-cc -Os -g0 -o $OUT_FILE examples/simple.c
+cc -Wall -Wextra -Werror -Os -g0 -o $OUT_FILE examples/simple.c
 # Did compilation work?
 if [ $? -ne 0 ]; then
   echo "Compiling simple.c: FAILED"
@@ -44,7 +44,7 @@ if [ $? -ne 0 ]; then
   echo "(Skipping Emscripten test)"
 else
   # Compile the Emscripten example
-  CC_FLAGS="-Wall -Wextra -Os -g0 -flto --llvm-lto 3 -lGL -DNDEBUG=1"
+  CC_FLAGS="-Wall -Wextra -Werror -Os -g0 -flto --llvm-lto 3 -lGL -DNDEBUG=1"
   emcc $CC_FLAGS -s WASM=1 -o $OUT_WASM examples/emscripten.c
   # Did compilation work?
   if [ $? -ne 0 ]; then

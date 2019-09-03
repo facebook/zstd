@@ -94,7 +94,7 @@ ZSTD_CCtx* ZSTD_initStaticCCtx(void *workspace, size_t workspaceSize)
         return NULL;
     }
     memset(cctx, 0, sizeof(ZSTD_CCtx));
-    cctx->workspace = ws;
+    ZSTD_cwksp_move(&cctx->workspace, &ws);
     cctx->staticSize = workspaceSize;
 
     /* statically sized space. entropyWorkspace never moves (but prev/next block swap places) */
@@ -3181,7 +3181,7 @@ ZSTD_CDict* ZSTD_createCDict_advanced(const void* dictBuffer, size_t dictSize,
 
         cdict = (ZSTD_CDict*)ZSTD_cwksp_reserve_object(&ws, sizeof(ZSTD_CDict));
         assert(cdict != NULL);
-        cdict->workspace = ws;
+        ZSTD_cwksp_move(&cdict->workspace, &ws);
         cdict->customMem = customMem;
         if (ZSTD_isError( ZSTD_initCDict_internal(cdict,
                                         dictBuffer, dictSize,
@@ -3257,7 +3257,7 @@ const ZSTD_CDict* ZSTD_initStaticCDict(
         ZSTD_cwksp_init(&ws, workspace, workspaceSize);
         cdict = (ZSTD_CDict*)ZSTD_cwksp_reserve_object(&ws, sizeof(ZSTD_CDict));
         if (cdict == NULL) return NULL;
-        cdict->workspace = ws;
+        ZSTD_cwksp_move(&cdict->workspace, &ws);
     }
 
     DEBUGLOG(4, "(workspaceSize < neededSize) : (%u < %u) => %u",

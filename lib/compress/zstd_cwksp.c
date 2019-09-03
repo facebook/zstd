@@ -112,7 +112,7 @@ void* ZSTD_cwksp_reserve_object(ZSTD_cwksp* ws, size_t bytes) {
     void* start = ws->objectEnd;
     void* end = (BYTE*)start + roundedBytes;
     DEBUGLOG(4,
-        "cwksp: reserving %zd bytes object (rounded to %zd), %zd bytes remaining",
+        "cwksp: reserving object %zd bytes (rounded to %zd), %zd bytes remaining",
         bytes, roundedBytes, ZSTD_cwksp_available_space(ws) - roundedBytes);
     assert(((size_t)start & (sizeof(void*)-1)) == 0);
     assert((bytes & (sizeof(void*)-1)) == 0);

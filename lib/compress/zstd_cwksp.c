@@ -30,7 +30,7 @@ static void* ZSTD_cwksp_reserve_internal(ZSTD_cwksp* ws, size_t bytes, ZSTD_cwks
     /* TODO(felixh): alignment */
     void* alloc = (BYTE *)ws->allocStart - bytes;
     void* bottom = ws->tableEnd;
-    DEBUGLOG(3, "wksp: reserving align %zd bytes, %zd bytes remaining",
+    DEBUGLOG(4, "cwksp: reserving align %zd bytes, %zd bytes remaining",
         bytes, (BYTE *)alloc - (BYTE *)bottom);
     assert(phase >= ws->phase);
     if (phase > ws->phase) {
@@ -80,14 +80,13 @@ void* ZSTD_cwksp_reserve_aligned(ZSTD_cwksp* ws, size_t bytes) {
  * memset()-ing them.
  */
 void* ZSTD_cwksp_reserve_table(ZSTD_cwksp* ws, size_t bytes) {
-    /* TODO(felixh): alignment */
     const ZSTD_cwksp_alloc_phase_e phase = ZSTD_cwksp_alloc_aligned;
     void* alloc = ws->tableEnd;
     void* end = (BYTE *)alloc + bytes;
     void* top = ws->allocStart;
-    DEBUGLOG(3, "wksp: reserving table %zd bytes, %zd bytes remaining",
-        bytes, (BYTE *)top - (BYTE *)end);
-    assert((bytes & (sizeof(U32)-1)) == 0); // TODO ???
+    DEBUGLOG(4, "cwksp: reserving table %zd bytes, %zd bytes remaining",
+        bytes, ZSTD_cwksp_available_space(ws) - bytes);
+    assert((bytes & (sizeof(U32)-1)) == 0);
     assert(phase >= ws->phase);
     if (phase > ws->phase) {
         if (ws->phase <= ZSTD_cwksp_alloc_buffers) {
@@ -97,6 +96,7 @@ void* ZSTD_cwksp_reserve_table(ZSTD_cwksp* ws, size_t bytes) {
     }
     assert(end <= top);
     if (end > top) {
+        DEBUGLOG(4, "cwksp: object alloc failed!");
         ws->allocFailed = 1;
         return NULL;
     }
@@ -111,11 +111,13 @@ void* ZSTD_cwksp_reserve_object(ZSTD_cwksp* ws, size_t bytes) {
     size_t roundedBytes = ZSTD_cwksp_align(bytes, sizeof(void*));
     void* start = ws->objectEnd;
     void* end = (BYTE*)start + roundedBytes;
-    DEBUGLOG(3, "wksp: reserving %zd bytes object (rounded to %zd), %zd bytes remaining", bytes, roundedBytes, (BYTE *)ws->workspaceEnd - (BYTE *)end);
+    DEBUGLOG(4,
+        "cwksp: reserving %zd bytes object (rounded to %zd), %zd bytes remaining",
+        bytes, roundedBytes, ZSTD_cwksp_available_space(ws) - roundedBytes);
     assert(((size_t)start & (sizeof(void*)-1)) == 0);
     assert((bytes & (sizeof(void*)-1)) == 0);
     if (ws->phase != ZSTD_cwksp_alloc_objects || end > ws->workspaceEnd) {
-        DEBUGLOG(3, "wksp: object alloc failed!");
+        DEBUGLOG(4, "cwksp: object alloc failed!");
         ws->allocFailed = 1;
         return NULL;
     }
@@ -129,6 +131,7 @@ void* ZSTD_cwksp_reserve_object(ZSTD_cwksp* ws, size_t bytes) {
  * All other allocations remain valid.
  */
 void ZSTD_cwksp_clear_tables(ZSTD_cwksp* ws) {
+    DEBUGLOG(4, "cwksp: clearing tables!");
     ws->tableEnd = ws->objectEnd;
 }
 
@@ -137,7 +140,7 @@ void ZSTD_cwksp_clear_tables(ZSTD_cwksp* ws) {
  * Object allocations remain valid.
  */
 void ZSTD_cwksp_clear(ZSTD_cwksp* ws) {
-    DEBUGLOG(3, "wksp: clearing!");
+    DEBUGLOG(4, "cwksp: clearing!");
     ws->tableEnd = ws->objectEnd;
     ws->allocStart = ws->workspaceEnd;
     ws->allocFailed = 0;
@@ -147,7 +150,7 @@ void ZSTD_cwksp_clear(ZSTD_cwksp* ws) {
 }
 
 void ZSTD_cwksp_init(ZSTD_cwksp* ws, void* start, size_t size) {
-    DEBUGLOG(3, "wksp: init'ing with %zd bytes", size);
+    DEBUGLOG(4, "cwksp: init'ing workspace with %zd bytes", size);
     assert(((size_t)start & (sizeof(void*)-1)) == 0); /* ensure correct alignment */
     ws->workspace = start;
     ws->workspaceEnd = (BYTE*)start + size;
@@ -159,14 +162,14 @@ void ZSTD_cwksp_init(ZSTD_cwksp* ws, void* start, size_t size) {
 
 size_t ZSTD_cwksp_create(ZSTD_cwksp* ws, size_t size, ZSTD_customMem customMem) {
     void* workspace = ZSTD_malloc(size, customMem);
-    DEBUGLOG(3, "wksp: creating with %zd bytes", size);
+    DEBUGLOG(4, "cwksp: creating new workspace with %zd bytes", size);
     RETURN_ERROR_IF(workspace == NULL, memory_allocation);
     ZSTD_cwksp_init(ws, workspace, size);
     return 0;
 }
 
 void ZSTD_cwksp_free(ZSTD_cwksp* ws, ZSTD_customMem customMem) {
-    DEBUGLOG(3, "wksp: freeing");
+    DEBUGLOG(4, "cwksp: freeing workspace");
     ZSTD_free(ws->workspace, customMem);
     ws->workspace = NULL;
     ws->workspaceEnd = NULL;

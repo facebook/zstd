@@ -133,6 +133,7 @@ typedef struct {
 
     void* objectEnd;
     void* tableEnd;
+    void* tableValidEnd;
     void* allocStart;
 
     int allocFailed;
@@ -161,6 +162,7 @@ MEM_STATIC void ZSTD_cwksp_internal_advance_phase(
     if (phase > ws->phase) {
         if (ws->phase < ZSTD_cwksp_alloc_buffers &&
                 phase >= ZSTD_cwksp_alloc_buffers) {
+            ws->tableValidEnd = ws->objectEnd;
         }
         if (ws->phase < ZSTD_cwksp_alloc_aligned &&
                 phase >= ZSTD_cwksp_alloc_aligned) {
@@ -192,6 +194,9 @@ MEM_STATIC void* ZSTD_cwksp_reserve_internal(
     if (alloc < bottom) {
         ws->allocFailed = 1;
         return NULL;
+    }
+    if (alloc < ws->tableValidEnd) {
+        ws->tableValidEnd = alloc;
     }
     ws->allocStart = alloc;
     return alloc;
@@ -256,7 +261,37 @@ MEM_STATIC void* ZSTD_cwksp_reserve_object(ZSTD_cwksp* ws, size_t bytes) {
     }
     ws->objectEnd = end;
     ws->tableEnd = end;
+    ws->tableValidEnd = end;
     return start;
+}
+
+MEM_STATIC void ZSTD_cwksp_mark_tables_dirty(ZSTD_cwksp* ws) {
+    DEBUGLOG(4, "cwksp: ZSTD_cwksp_mark_tables_dirty");
+    assert(ws->tableValidEnd >= ws->objectEnd);
+    assert(ws->tableValidEnd <= ws->allocStart);
+    ws->tableValidEnd = ws->objectEnd;
+}
+
+MEM_STATIC void ZSTD_cwksp_mark_tables_clean(ZSTD_cwksp* ws) {
+    DEBUGLOG(4, "cwksp: ZSTD_cwksp_mark_tables_clean");
+    assert(ws->tableValidEnd >= ws->objectEnd);
+    assert(ws->tableValidEnd <= ws->allocStart);
+    if (ws->tableValidEnd < ws->tableEnd) {
+        ws->tableValidEnd = ws->tableEnd;
+    }
+}
+
+/**
+ * Zero the part of the allocated tables not already marked clean.
+ */
+MEM_STATIC void ZSTD_cwksp_clean_tables(ZSTD_cwksp* ws) {
+    DEBUGLOG(4, "cwksp: ZSTD_cwksp_clean_tables");
+    assert(ws->tableValidEnd >= ws->objectEnd);
+    assert(ws->tableValidEnd <= ws->allocStart);
+    if (ws->tableValidEnd < ws->tableEnd) {
+        memset(ws->tableValidEnd, 0, (BYTE*)ws->tableEnd - (BYTE*)ws->tableValidEnd);
+    }
+    ZSTD_cwksp_mark_tables_clean(ws);
 }
 
 /**
@@ -293,6 +328,7 @@ MEM_STATIC void ZSTD_cwksp_init(ZSTD_cwksp* ws, void* start, size_t size) {
     ws->workspace = start;
     ws->workspaceEnd = (BYTE*)start + size;
     ws->objectEnd = ws->workspace;
+    ws->tableValidEnd = ws->objectEnd;
     ws->phase = ZSTD_cwksp_alloc_objects;
     ZSTD_cwksp_clear(ws);
     ws->workspaceOversizedDuration = 0;

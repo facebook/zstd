@@ -177,6 +177,12 @@ size_t ZSTD_cwksp_create(ZSTD_cwksp* ws, size_t size, ZSTD_customMem customMem);
 
 void ZSTD_cwksp_free(ZSTD_cwksp* ws, ZSTD_customMem customMem);
 
+/**
+ * Moves the management of a workspace from one cwksp to another. The src cwksp
+ * is left in an invalid state (src must be re-init()'ed before its used again).
+ */
+void ZSTD_cwksp_move(ZSTD_cwksp* dst, ZSTD_cwksp* src);
+
 size_t ZSTD_cwksp_sizeof(const ZSTD_cwksp* ws);
 
 int ZSTD_cwksp_reserve_failed(const ZSTD_cwksp* ws);

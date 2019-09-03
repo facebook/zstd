@@ -176,6 +176,11 @@ void ZSTD_cwksp_free(ZSTD_cwksp* ws, ZSTD_customMem customMem) {
     ZSTD_cwksp_clear(ws);
 }
 
+void ZSTD_cwksp_move(ZSTD_cwksp* dst, ZSTD_cwksp* src) {
+    *dst = *src;
+    memset(src, 0, sizeof(ZSTD_cwksp));
+}
+
 size_t ZSTD_cwksp_sizeof(const ZSTD_cwksp* ws) {
     return (BYTE*)ws->workspaceEnd - (BYTE*)ws->workspace;
 }

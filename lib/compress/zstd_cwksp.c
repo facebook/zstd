@@ -23,15 +23,8 @@ size_t ZSTD_cwksp_align(size_t size, size_t const align) {
     return (size + mask) & ~mask;
 }
 
-/**
- * Internal function, use wrappers instead.
- */
-static void* ZSTD_cwksp_reserve_internal(ZSTD_cwksp* ws, size_t bytes, ZSTD_cwksp_alloc_phase_e phase) {
-    /* TODO(felixh): alignment */
-    void* alloc = (BYTE *)ws->allocStart - bytes;
-    void* bottom = ws->tableEnd;
-    DEBUGLOG(4, "cwksp: reserving align %zd bytes, %zd bytes remaining",
-        bytes, (BYTE *)alloc - (BYTE *)bottom);
+static void ZSTD_cwksp_internal_advance_phase(
+        ZSTD_cwksp* ws, ZSTD_cwksp_alloc_phase_e phase) {
     assert(phase >= ws->phase);
     if (phase > ws->phase) {
         if (ws->phase < ZSTD_cwksp_alloc_buffers &&
@@ -46,10 +39,23 @@ static void* ZSTD_cwksp_reserve_internal(ZSTD_cwksp* ws, size_t bytes, ZSTD_cwks
              * workspace is too large, and specifically when it is too large
              * by a larger margin than the space that will be consumed. */
             /* TODO: cleaner, compiler warning friendly way to do this??? */
-            alloc = (BYTE*)alloc - ((size_t)alloc & (sizeof(U32)-1));
+            ws->allocStart = (BYTE*)ws->allocStart - ((size_t)ws->allocStart & (sizeof(U32)-1));
         }
         ws->phase = phase;
     }
+}
+
+/**
+ * Internal function, use wrappers instead.
+ */
+static void* ZSTD_cwksp_reserve_internal(ZSTD_cwksp* ws, size_t bytes, ZSTD_cwksp_alloc_phase_e phase) {
+    /* TODO(felixh): alignment */
+    void* alloc;
+    void* bottom = ws->tableEnd;
+    ZSTD_cwksp_internal_advance_phase(ws, phase);
+    alloc = (BYTE *)ws->allocStart - bytes;
+    DEBUGLOG(4, "cwksp: reserving align %zd bytes, %zd bytes remaining",
+        bytes, ZSTD_cwksp_available_space(ws) - bytes);
     assert(alloc >= bottom);
     if (alloc < bottom) {
         ws->allocFailed = 1;
@@ -87,13 +93,7 @@ void* ZSTD_cwksp_reserve_table(ZSTD_cwksp* ws, size_t bytes) {
     DEBUGLOG(4, "cwksp: reserving table %zd bytes, %zd bytes remaining",
         bytes, ZSTD_cwksp_available_space(ws) - bytes);
     assert((bytes & (sizeof(U32)-1)) == 0);
-    assert(phase >= ws->phase);
-    if (phase > ws->phase) {
-        if (ws->phase <= ZSTD_cwksp_alloc_buffers) {
-
-        }
-        ws->phase = phase;
-    }
+    ZSTD_cwksp_internal_advance_phase(ws, phase);
     assert(end <= top);
     if (end > top) {
         DEBUGLOG(4, "cwksp: object alloc failed!");
@@ -116,6 +116,7 @@ void* ZSTD_cwksp_reserve_object(ZSTD_cwksp* ws, size_t bytes) {
         bytes, roundedBytes, ZSTD_cwksp_available_space(ws) - roundedBytes);
     assert(((size_t)start & (sizeof(void*)-1)) == 0);
     assert((bytes & (sizeof(void*)-1)) == 0);
+    /* we must be in the first phase, no advance is possible */
     if (ws->phase != ZSTD_cwksp_alloc_objects || end > ws->workspaceEnd) {
         DEBUGLOG(4, "cwksp: object alloc failed!");
         ws->allocFailed = 1;

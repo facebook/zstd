@@ -1665,8 +1665,8 @@ ZSTD_resetCCtx_byAttachingCDict(ZSTD_CCtx* cctx,
          * has its own tables. */
         params.cParams = ZSTD_adjustCParams_internal(*cdict_cParams, pledgedSrcSize, 0);
         params.cParams.windowLog = windowLog;
-        ZSTD_resetCCtx_internal(cctx, params, pledgedSrcSize,
-                                ZSTDcrp_continue, zbuff);
+        FORWARD_IF_ERROR(ZSTD_resetCCtx_internal(cctx, params, pledgedSrcSize,
+                                                 ZSTDcrp_continue, zbuff));
         assert(cctx->appliedParams.cParams.strategy == cdict_cParams->strategy);
     }
 
@@ -1714,8 +1714,8 @@ static size_t ZSTD_resetCCtx_byCopyingCDict(ZSTD_CCtx* cctx,
         /* Copy only compression parameters related to tables. */
         params.cParams = *cdict_cParams;
         params.cParams.windowLog = windowLog;
-        ZSTD_resetCCtx_internal(cctx, params, pledgedSrcSize,
-                                ZSTDcrp_noMemset, zbuff);
+        FORWARD_IF_ERROR(ZSTD_resetCCtx_internal(cctx, params, pledgedSrcSize,
+                                                 ZSTDcrp_noMemset, zbuff));
         assert(cctx->appliedParams.cParams.strategy == cdict_cParams->strategy);
         assert(cctx->appliedParams.cParams.hashLog == cdict_cParams->hashLog);
         assert(cctx->appliedParams.cParams.chainLog == cdict_cParams->chainLog);

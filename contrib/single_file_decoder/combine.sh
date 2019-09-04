@@ -6,6 +6,8 @@
 # implementation (due to the grep calls) but it runs and works everywhere.
 # 
 # TODO: ROOTS and FOUND as arrays (since they fail on paths with spaces)
+# 
+# Author: Carl Woffenden, Numfum GmbH (released under a CC0 license)
 
 # Common file roots
 ROOTS="./"
@@ -23,6 +25,14 @@ usage() {
   echo "  -o output file (otherwise stdout)"
   echo "Example: $0 -r ../my/path - r ../other/path -o out.c in.c"
   exit 1
+}
+
+# Tests that the grep implementation works as expected (older OSX grep fails)
+test_grep() {
+	if ! echo '#include "foo"' | grep -Eq '^\s*#\s*include\s*".+"'; then
+		echo "Aborting: the grep implementation fails to parse include lines"
+		exit 1
+	fi
 }
 
 # Tests if list $1 has item $2 (returning zero on a match)
@@ -102,6 +112,7 @@ if [ -n "$1" ]; then
     if [ -n "$DESTN" ]; then
       printf "" > "$DESTN"
     fi
+    test_grep
     add_file $1
   else
     echo "Input file not found: \"$1\""

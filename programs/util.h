@@ -127,8 +127,12 @@ int UTIL_fileExist(const char* filename);
 int UTIL_isRegularFile(const char* infilename);
 int UTIL_setFileStat(const char* filename, stat_t* statbuf);
 U32 UTIL_isDirectory(const char* infilename);
+int UTIL_createDir(const char* outDirName);
 int UTIL_getFileStat(const char* infilename, stat_t* statbuf);
 int UTIL_isSameFile(const char* file1, const char* file2);
+void UTIL_createDestinationDirTable(const char** filenameTable, unsigned filenameIdx,
+        const char* outDirName,  char** dstFilenameTable);
+void UTIL_freeDestinationFilenameTable(char** dstDirTable, unsigned nbFiles);
 
 U32 UTIL_isLink(const char* infilename);
 #define UTIL_FILESIZE_UNKNOWN  ((U64)(-1))

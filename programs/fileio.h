@@ -87,8 +87,9 @@ void FIO_setNotificationLevel(int level);
 /** FIO_compressFilename() :
     @return : 0 == ok;  1 == pb with src file. */
 int FIO_compressFilename (FIO_prefs_t* const prefs,
-                          const char* outfilename, const char* infilename, const char* dictFileName,
-                          int compressionLevel, ZSTD_compressionParameters comprParams);
+                          const char* outfilename, const char* infilename,
+                          const char* dictFileName, int compressionLevel,
+                          ZSTD_compressionParameters comprParams);
 
 /** FIO_decompressFilename() :
     @return : 0 == ok;  1 == pb with src file. */
@@ -103,11 +104,11 @@ int FIO_listMultipleFiles(unsigned numFiles, const char** filenameTable, int dis
 ***************************************/
 /** FIO_compressMultipleFilenames() :
     @return : nb of missing files */
-int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
-                                  const char** srcNamesTable, unsigned nbFiles,
-                                  const char* outFileName, const char* suffix,
-                                  const char* dictFileName, int compressionLevel,
-                                  ZSTD_compressionParameters comprParams);
+int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs, const char** inFileNamesTable,
+                                  const char* outDirName, char** dstFileNamesTable, 
+                                  unsigned nbFiles, const char* outFileName,
+                                  const char* suffix, const char* dictFileName,
+                                  int compressionLevel, ZSTD_compressionParameters comprParams);
 
 /** FIO_decompressMultipleFilenames() :
     @return : nb of missing or skipped files */

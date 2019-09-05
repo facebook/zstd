@@ -118,6 +118,7 @@ static int usage(const char* programName)
 #endif
     DISPLAY( " -D file: use `file` as Dictionary \n");
     DISPLAY( " -o file: result stored into `file` (only if 1 input file) \n");
+    DISPLAY( " -O directory: result(s) stored into `directory`, creates one if non-existent \n");
     DISPLAY( " -f     : overwrite output without prompting and (de)compress links \n");
     DISPLAY( "--rm    : remove source file(s) after successful de/compression \n");
     DISPLAY( " -k     : preserve source file(s) (default) \n");
@@ -562,6 +563,7 @@ int main(int argCount, const char* argv[])
         adaptMax = MAXCLEVEL,
         rsyncable = 0,
         nextArgumentIsOutFileName = 0,
+        nextArgumentIsOutDirName = 0,
         nextArgumentIsMaxDict = 0,
         nextArgumentIsDictID = 0,
         nextArgumentsAreFiles = 0,
@@ -583,9 +585,11 @@ int main(int argCount, const char* argv[])
     unsigned recursive = 0;
     unsigned memLimit = 0;
     const char** filenameTable = (const char**)malloc(argCount * sizeof(const char*));   /* argCount >= 1 */
+    char** dstFilenameTable = (char**)malloc(argCount * sizeof(char*));
     unsigned filenameIdx = 0;
     const char* programName = argv[0];
     const char* outFileName = NULL;
+    const char* outDirName = NULL;
     const char* dictFileName = NULL;
     const char* suffix = ZSTD_EXTENSION;
     unsigned maxDictSize = g_defaultMaxDictSize;
@@ -853,6 +857,9 @@ int main(int argCount, const char* argv[])
                         /* destination file name */
                     case 'o': nextArgumentIsOutFileName=1; lastCommand=1; argument++; break;
 
+                         /* destination directory name */
+                    case 'O': nextArgumentIsOutDirName=1; lastCommand=1; argument++; break;
+                   
                         /* limit decompression memory */
                     case 'M':
                         argument++;
@@ -962,6 +969,13 @@ int main(int argCount, const char* argv[])
             lastCommand = 0;
             outFileName = argument;
             if (!strcmp(outFileName, "-")) outFileName = stdoutmark;
+            continue;
+        }
+
+        if (nextArgumentIsOutDirName) {
+            nextArgumentIsOutDirName = 0;
+            lastCommand = 0;
+            outDirName = argument;
             continue;
         }
 
@@ -1163,10 +1177,20 @@ int main(int argCount, const char* argv[])
         if (adaptMin > cLevel) cLevel = adaptMin;
         if (adaptMax < cLevel) cLevel = adaptMax;
 
+        if (outDirName) {
+            int dirResult;
+            dirResult = UTIL_createDir(outDirName);
+            if (dirResult) DISPLAY("Directory creation unsuccessful \n");
+
+            UTIL_createDestinationDirTable(filenameTable, filenameIdx, outDirName, dstFilenameTable);
+            if (outFileName) {
+                outFileName = dstFilenameTable[0]; /* in case -O is called with single file */
+            }
+        }
         if ((filenameIdx==1) && outFileName)
           operationResult = FIO_compressFilename(prefs, outFileName, filenameTable[0], dictFileName, cLevel, compressionParams);
         else
-          operationResult = FIO_compressMultipleFilenames(prefs, filenameTable, filenameIdx, outFileName, suffix, dictFileName, cLevel, compressionParams);
+          operationResult = FIO_compressMultipleFilenames(prefs, filenameTable, outDirName, dstFilenameTable, filenameIdx, outFileName, suffix, dictFileName, cLevel, compressionParams);
 #else
         (void)suffix; (void)adapt; (void)rsyncable; (void)ultra; (void)cLevel; (void)ldmFlag; (void)literalCompressionMode; (void)targetCBlockSize; (void)streamSrcSize; (void)srcSizeHint; /* not used when ZSTD_NOCOMPRESS set */
         DISPLAY("Compression not supported \n");

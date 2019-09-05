@@ -1276,9 +1276,7 @@ static int FIO_compressFilename_dstFile(FIO_prefs_t* const prefs,
     int result;
     stat_t statbuf;
     int transfer_permissions = 0;
-
     assert(ress.srcFile != NULL);
-
     if (ress.dstFile == NULL) {
         closeDstFile = 1;
         DISPLAYLEVEL(6, "FIO_compressFilename_dstFile: opening dst: %s", dstFileName);
@@ -1369,11 +1367,9 @@ FIO_compressFilename_srcFile(FIO_prefs_t* const prefs,
     return result;
 }
 
-
-int FIO_compressFilename(FIO_prefs_t* const prefs,
-                         const char* dstFileName, const char* srcFileName,
-                         const char* dictFileName, int compressionLevel,
-                         ZSTD_compressionParameters comprParams)
+int FIO_compressFilename(FIO_prefs_t* const prefs, const char* dstFileName,
+                         const char* srcFileName, const char* dictFileName,
+                         int compressionLevel,  ZSTD_compressionParameters comprParams)
 {
     cRess_t const ress = FIO_createCResources(prefs, dictFileName, compressionLevel, comprParams);
     int const result = FIO_compressFilename_srcFile(prefs, ress, dstFileName, srcFileName, compressionLevel);
@@ -1416,22 +1412,30 @@ FIO_determineCompressedName(const char* srcFileName, const char* suffix)
 
 /* FIO_compressMultipleFilenames() :
  * compress nbFiles files
- * into one destination (outFileName)
- * or into one file each (outFileName == NULL, but suffix != NULL).
+ * into either one destination (outFileName),
+ * or into one file each (outFileName == NULL, but suffix != NULL),
+ * or into a destination folder (specified with -O)
  */
-int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
-                                  const char** inFileNamesTable, unsigned nbFiles,
-                                  const char* outFileName, const char* suffix,
-                                  const char* dictFileName, int compressionLevel,
-                                  ZSTD_compressionParameters comprParams)
+int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs, const char** inFileNamesTable,
+                                  const char* outDirName, char** dstFileNamesTable, 
+                                  unsigned nbFiles, const char* outFileName,
+                                  const char* suffix, const char* dictFileName,
+                                  int compressionLevel, ZSTD_compressionParameters comprParams)
 {
+    printf("compressing multiple...\n");
     int error = 0;
     cRess_t ress = FIO_createCResources(prefs, dictFileName, compressionLevel, comprParams);
 
     /* init */
     assert(outFileName != NULL || suffix != NULL);
-
-    if (outFileName != NULL) {   /* output into a single destination (stdout typically) */
+    if (outDirName != NULL) {   /* output into a particular folder */
+        unsigned u;
+        for (u = 0; u < nbFiles; ++u) {
+            const char* const srcFileName = inFileNamesTable[u];
+            const char* const dstFileName = FIO_determineCompressedName(dstFileNamesTable[u], suffix);
+            error |= FIO_compressFilename_srcFile(prefs, ress, dstFileName, srcFileName, compressionLevel);
+        }
+    } else if (outFileName != NULL) {   /* output into a single destination (stdout typically) */
         ress.dstFile = FIO_openDstFile(prefs, NULL, outFileName);
         if (ress.dstFile == NULL) {  /* could not open outFileName */
             error = 1;
@@ -1453,6 +1457,7 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
     }   }
 
     FIO_freeCResources(ress);
+    UTIL_freeDestinationFilenameTable(dstFileNamesTable, nbFiles);
     return error;
 }
 

@@ -87,6 +87,49 @@ U32 UTIL_isDirectory(const char* infilename)
     return 0;
 }
 
+int UTIL_createDir(const char* outDirName) {
+    if (UTIL_isDirectory(outDirName)) {
+        return 0;   /* no need to create if directory already exists */
+    }
+    int r;
+#if defined(_MSC_VER)
+    r = _mkdir(outDirName);
+    if (r || !UTIL_isDirectory(outDirName)) return 1;
+#else
+    r = mkdir(outDirName, S_IRWXU | S_IRWXG | S_IRWXO); /* dir has all permissions */
+    if (r || !UTIL_isDirectory(outDirName)) return 1;
+#endif
+    return 0;
+}
+
+void UTIL_createDestinationDirTable(const char** filenameTable, unsigned nbFiles,
+                                   const char* outDirName, char** dstFilenameTable)
+{
+    unsigned u;
+    char c;
+    c = '/';
+
+    /* duplicate source file table */
+    for (u = 0; u < nbFiles; ++u) {
+        char* filename;
+        char* finalPath;
+        size_t finalPathLen;
+        finalPathLen = strlen(outDirName);
+        filename = strrchr(filenameTable[u], c);    /* filename is the last bit of string after '/' */
+        finalPathLen += strlen(filename);
+        dstFilenameTable[u] = (char*) malloc(finalPathLen * sizeof(char) + 1);
+        strcpy(dstFilenameTable[u], outDirName);
+        strcat(dstFilenameTable[u], filename);
+    } 
+}
+
+void UTIL_freeDestinationFilenameTable(char** dstDirTable, unsigned nbFiles) {
+    unsigned u;
+    for (u = 0; u < nbFiles; ++u)
+        free(dstDirTable[u]);
+    free((void*)dstDirTable);
+}
+
 int UTIL_isSameFile(const char* file1, const char* file2)
 {
 #if defined(_MSC_VER)

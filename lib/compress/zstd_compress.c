@@ -2468,7 +2468,7 @@ static size_t ZSTD_writeFrameHeader(void* dst, size_t dstCapacity,
     assert(!(params->fParams.contentSizeFlag && pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN));
     RETURN_ERROR_IF(dstCapacity < ZSTD_FRAMEHEADERSIZE_MAX, dstSize_tooSmall);
     DEBUGLOG(4, "ZSTD_writeFrameHeader : dictIDFlag : %u ; dictID : %u ; dictIDSizeCode : %u",
-                !params.fParams.noDictIDFlag, (unsigned)dictID, (unsigned)dictIDSizeCode);
+                !params->fParams.noDictIDFlag, (unsigned)dictID, (unsigned)dictIDSizeCode);
 
     if (params->format == ZSTD_f_zstd1) {
         MEM_writeLE32(dst, ZSTD_MAGICNUMBER);
@@ -2837,7 +2837,7 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
 {
     DEBUGLOG(4, "ZSTD_compressBegin_internal: wlog=%u", params->cParams.windowLog);
     /* params are supposed to be fully validated at this point */
-    assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
+    assert(!ZSTD_isError(ZSTD_checkCParams(params->cParams)));
     assert(!((dict) && (cdict)));  /* either dict or cdict, not both */
 
     if (cdict && cdict->dictContentSize>0) {

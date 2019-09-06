@@ -6,10 +6,10 @@ CPPFLAGS += -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
             -I$(ZSTDDIR)/dictBuilder -I$(ZSTDDIR)/deprecated -I$(PRGDIR)
 CFLAGS   ?= -O3
 CFLAGS   += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow                 \
-            -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
-            -Wstrict-prototypes -Wundef                                     \
+            -Wstrict-aliasing=1 -Wswitch-enum                               \
+            -Wredundant-decls -Wstrict-prototypes -Wundef                   \
             -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings      \
-            -Wredundant-decls
+            -std=c99
 CFLAGS   += $(DEBUGFLAGS)
 CFLAGS   += $(MOREFLAGS)
 FLAGS     = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(MULTITHREAD_LDFLAGS)

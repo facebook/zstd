@@ -1453,7 +1453,9 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs, const char** inFileN
     }   }
 
     FIO_freeCResources(ress);
-    UTIL_freeDestinationFilenameTable(dstFileNamesTable, nbFiles);
+    if (outDirName)
+        UTIL_freeDestinationFilenameTable(dstFileNamesTable, nbFiles);
+        
     return error;
 }
 
@@ -2274,22 +2276,10 @@ FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
     }
 
     FIO_freeDResources(ress);
-    UTIL_freeDestinationFilenameTable(dstFileNamesTable, nbFiles);
+    if (outDirName)
+        UTIL_freeDestinationFilenameTable(dstFileNamesTable, nbFiles);
+
     return error;
-}
-
-void FIO_processMultipleFilenameDestinationDir(char** dstFilenameTable,
-                                              const char** filenameTable, unsigned filenameIdx,
-                                              const char* outFileName, const char* outDirName) {
-    int dirResult;
-    dirResult = UTIL_createDir(outDirName);
-    if (dirResult)
-        DISPLAY("Directory creation unsuccessful \n");
-
-    UTIL_createDestinationDirTable(filenameTable, filenameIdx, outDirName, dstFilenameTable);
-    if (outFileName) {
-        outFileName = dstFilenameTable[0]; /* in case -O is called with single file */
-    }
 }
 
 /* **************************************************************************

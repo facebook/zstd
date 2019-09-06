@@ -133,6 +133,9 @@ int UTIL_isSameFile(const char* file1, const char* file2);
 void UTIL_createDestinationDirTable(const char** filenameTable, unsigned filenameIdx,
         const char* outDirName,  char** dstFilenameTable);
 void UTIL_freeDestinationFilenameTable(char** dstDirTable, unsigned nbFiles);
+void UTIL_processMultipleFilenameDestinationDir(char** dstFilenameTable,
+                                              const char** filenameTable, unsigned filenameIdx,
+                                              const char* outFileName, const char* outDirName);
 
 U32 UTIL_isLink(const char* infilename);
 #define UTIL_FILESIZE_UNKNOWN  ((U64)(-1))

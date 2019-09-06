@@ -1178,8 +1178,9 @@ int main(int argCount, const char* argv[])
         if (adaptMax < cLevel) cLevel = adaptMax;
 
         if (outDirName) {
+            printf("ok\n");
             dstFilenameTable = (char**)malloc(filenameIdx * sizeof(char*));
-            FIO_processMultipleFilenameDestinationDir(dstFilenameTable, filenameTable, filenameIdx, outFileName, outDirName);
+            UTIL_processMultipleFilenameDestinationDir(dstFilenameTable, filenameTable, filenameIdx, outFileName, outDirName);
         }
 
         if ((filenameIdx==1) && outFileName)
@@ -1203,7 +1204,7 @@ int main(int argCount, const char* argv[])
 
         if (outDirName) {
             dstFilenameTable = (char**)malloc(filenameIdx * sizeof(char*));
-            FIO_processMultipleFilenameDestinationDir(dstFilenameTable, filenameTable, filenameIdx, outFileName, outDirName);
+            UTIL_processMultipleFilenameDestinationDir(dstFilenameTable, filenameTable, filenameIdx, outFileName, outDirName);
         }
         if (filenameIdx==1 && outFileName)
             operationResult = FIO_decompressFilename(prefs, outFileName, filenameTable[0], dictFileName);

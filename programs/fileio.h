@@ -118,10 +118,6 @@ int FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
                                     const char* outFileName,
                                     const char* dictFileName);
 
-void FIO_processMultipleFilenameDestinationDir(char** dstFilenameTable,
-                                              const char** filenameTable, unsigned filenameIdx,
-                                              const char* outFileName, const char* outDirName);
-
 
 /*-*************************************
 *  Advanced stuff (should actually be hosted elsewhere)

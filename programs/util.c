@@ -123,6 +123,20 @@ void UTIL_createDestinationDirTable(const char** filenameTable, unsigned nbFiles
     } 
 }
 
+void UTIL_processMultipleFilenameDestinationDir(char** dstFilenameTable,
+                                              const char** filenameTable, unsigned filenameIdx,
+                                              const char* outFileName, const char* outDirName) {
+    int dirResult;
+    dirResult = UTIL_createDir(outDirName);
+    if (dirResult)
+        UTIL_DISPLAYLEVEL(1, "Directory creation unsuccessful\n");
+
+    UTIL_createDestinationDirTable(filenameTable, filenameIdx, outDirName, dstFilenameTable);
+    if (outFileName) {
+        outFileName = dstFilenameTable[0]; /* in case -O is called with single file */
+    }
+}
+
 void UTIL_freeDestinationFilenameTable(char** dstDirTable, unsigned nbFiles) {
     unsigned u;
     for (u = 0; u < nbFiles; ++u) {

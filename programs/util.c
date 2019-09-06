@@ -20,6 +20,9 @@ extern "C" {
 #include <errno.h>
 #include <assert.h>
 
+#if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__)
+#include <direct.h>     /* needed for _mkdir in windows */
+#endif
 
 int UTIL_fileExist(const char* filename)
 {
@@ -93,7 +96,7 @@ int UTIL_createDir(const char* outDirName)
     if (UTIL_isDirectory(outDirName))
         return 0;   /* no need to create if directory already exists */
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__)
     r = _mkdir(outDirName);
     if (r || !UTIL_isDirectory(outDirName)) return 1;
 #else
@@ -112,7 +115,7 @@ void UTIL_createDestinationDirTable(const char** filenameTable, unsigned nbFiles
 
     /* duplicate source file table */
     for (u = 0; u < nbFiles; ++u) {
-        char* filename;
+        const char* filename;
         size_t finalPathLen;
         finalPathLen = strlen(outDirName);
         filename = strrchr(filenameTable[u], c);    /* filename is the last bit of string after '/' */

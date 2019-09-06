@@ -1181,6 +1181,8 @@ int main(int argCount, const char* argv[])
             printf("ok\n");
             dstFilenameTable = (char**)malloc(filenameIdx * sizeof(char*));
             UTIL_processMultipleFilenameDestinationDir(dstFilenameTable, filenameTable, filenameIdx, outFileName, outDirName);
+        } else {
+            dstFilenameTable = NULL;
         }
 
         if ((filenameIdx==1) && outFileName)
@@ -1205,7 +1207,10 @@ int main(int argCount, const char* argv[])
         if (outDirName) {
             dstFilenameTable = (char**)malloc(filenameIdx * sizeof(char*));
             UTIL_processMultipleFilenameDestinationDir(dstFilenameTable, filenameTable, filenameIdx, outFileName, outDirName);
+        } else {
+            dstFilenameTable = NULL;
         }
+        
         if (filenameIdx==1 && outFileName)
             operationResult = FIO_decompressFilename(prefs, outFileName, filenameTable[0], dictFileName);
         else

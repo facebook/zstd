@@ -833,6 +833,7 @@ static size_t decode_literals_compressed(frame_context_t *const ctx,
         // bits (0-1023)."
         num_streams = 1;
     // Fall through as it has the same size format
+        /* fallthrough */
     case 1:
         // "4 streams. Both Compressed_Size and Regenerated_Size use 10 bits
         // (0-1023)."

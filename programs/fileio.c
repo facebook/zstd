@@ -1422,7 +1422,6 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs, const char** inFileN
                                   const char* suffix, const char* dictFileName,
                                   int compressionLevel, ZSTD_compressionParameters comprParams)
 {
-    printf("compressing multiple...\n");
     int error = 0;
     cRess_t ress = FIO_createCResources(prefs, dictFileName, compressionLevel, comprParams);
 
@@ -1457,7 +1456,7 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs, const char** inFileN
     }   }
 
     FIO_freeCResources(ress);
-    UTIL_freeDestinationFilenameTable(dstFileNamesTable, nbFiles);
+    /*UTIL_freeDestinationFilenameTable(dstFileNamesTable, nbFiles);*/
     return error;
 }
 
@@ -2240,14 +2239,24 @@ FIO_determineDstName(const char* srcFileName)
 
 int
 FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
-                                const char* srcNamesTable[], unsigned nbFiles,
+                                const char** srcNamesTable, unsigned nbFiles,
+                                const char* outDirName, char** dstFileNamesTable, 
                                 const char* outFileName,
                                 const char* dictFileName)
 {
     int error = 0;
     dRess_t ress = FIO_createDResources(prefs, dictFileName);
 
-    if (outFileName) {
+    if (outDirName != NULL) {   /* output into a particular folder */
+        unsigned u;
+        for (u = 0; u < nbFiles; ++u) {
+            const char* const srcFileName = srcNamesTable[u];
+            const char* const dstFileName = FIO_determineDstName(dstFileNamesTable[u]);
+            if (dstFileName == NULL) { error=1; continue; }
+            
+            error |= FIO_decompressSrcFile(prefs, ress, dstFileName, srcFileName);
+        }
+    } else if (outFileName) {
         unsigned u;
         ress.dstFile = FIO_openDstFile(prefs, NULL, outFileName);
         if (ress.dstFile == 0) EXM_THROW(71, "cannot open %s", outFileName);
@@ -2268,10 +2277,23 @@ FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
     }
 
     FIO_freeDResources(ress);
+    /* UTIL_freeDestinationFilenameTable(dstFileNamesTable, nbFiles); */
     return error;
 }
 
+void FIO_processMultipleFilenameDestinationDir(char** dstFilenameTable,
+                                              const char** filenameTable, unsigned filenameIdx,
+                                              const char* outFileName, const char* outDirName) {
+    int dirResult;
+    dirResult = UTIL_createDir(outDirName);
+    if (dirResult)
+        DISPLAY("Directory creation unsuccessful \n");
 
+    UTIL_createDestinationDirTable(filenameTable, filenameIdx, outDirName, dstFilenameTable);
+    if (outFileName) {
+        outFileName = dstFilenameTable[0]; /* in case -O is called with single file */
+    }
+}
 
 /* **************************************************************************
  *  .zst file info (--list command)

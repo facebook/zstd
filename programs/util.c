@@ -108,6 +108,7 @@ void UTIL_createDestinationDirTable(const char** filenameTable, unsigned nbFiles
     unsigned u;
     char c;
     c = '/';
+    printf("NBFILE: %u\n", nbFiles);
 
     /* duplicate source file table */
     for (u = 0; u < nbFiles; ++u) {
@@ -120,14 +121,17 @@ void UTIL_createDestinationDirTable(const char** filenameTable, unsigned nbFiles
         dstFilenameTable[u] = (char*) malloc(finalPathLen * sizeof(char) + 1);
         strcpy(dstFilenameTable[u], outDirName);
         strcat(dstFilenameTable[u], filename);
+        printf("%s    %s\n", filenameTable[u], dstFilenameTable[u]);
     } 
 }
 
 void UTIL_freeDestinationFilenameTable(char** dstDirTable, unsigned nbFiles) {
     unsigned u;
-    for (u = 0; u < nbFiles; ++u)
-        free(dstDirTable[u]);
-    free((void*)dstDirTable);
+    for (u = 0; u < nbFiles; ++u) {
+        if (dstDirTable[u] != NULL)
+            free(dstDirTable[u]);
+    }
+    if (dstDirTable != NULL) free((void*)dstDirTable);
 }
 
 int UTIL_isSameFile(const char* file1, const char* file2)

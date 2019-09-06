@@ -1177,16 +1177,9 @@ int main(int argCount, const char* argv[])
         if (adaptMin > cLevel) cLevel = adaptMin;
         if (adaptMax < cLevel) cLevel = adaptMax;
 
-        if (outDirName) {
-            int dirResult;
-            dirResult = UTIL_createDir(outDirName);
-            if (dirResult) DISPLAY("Directory creation unsuccessful \n");
+        if (outDirName)
+            FIO_processMultipleFilenameDestinationDir(dstFilenameTable, filenameTable, filenameIdx, outFileName, outDirName);
 
-            UTIL_createDestinationDirTable(filenameTable, filenameIdx, outDirName, dstFilenameTable);
-            if (outFileName) {
-                outFileName = dstFilenameTable[0]; /* in case -O is called with single file */
-            }
-        }
         if ((filenameIdx==1) && outFileName)
           operationResult = FIO_compressFilename(prefs, outFileName, filenameTable[0], dictFileName, cLevel, compressionParams);
         else
@@ -1205,10 +1198,14 @@ int main(int argCount, const char* argv[])
             }
         }
         FIO_setMemLimit(prefs, memLimit);
+
+        if (outDirName)
+            FIO_processMultipleFilenameDestinationDir(dstFilenameTable, filenameTable, filenameIdx, outFileName, outDirName);
+
         if (filenameIdx==1 && outFileName)
             operationResult = FIO_decompressFilename(prefs, outFileName, filenameTable[0], dictFileName);
         else
-            operationResult = FIO_decompressMultipleFilenames(prefs, filenameTable, filenameIdx, outFileName, dictFileName);
+            operationResult = FIO_decompressMultipleFilenames(prefs, filenameTable, filenameIdx, outDirName, dstFilenameTable, outFileName, dictFileName);
 #else
         DISPLAY("Decompression not supported \n");
 #endif

@@ -87,11 +87,12 @@ U32 UTIL_isDirectory(const char* infilename)
     return 0;
 }
 
-int UTIL_createDir(const char* outDirName) {
-    if (UTIL_isDirectory(outDirName)) {
-        return 0;   /* no need to create if directory already exists */
-    }
+int UTIL_createDir(const char* outDirName)
+{
     int r;
+    if (UTIL_isDirectory(outDirName))
+        return 0;   /* no need to create if directory already exists */
+
 #if defined(_MSC_VER)
     r = _mkdir(outDirName);
     if (r || !UTIL_isDirectory(outDirName)) return 1;
@@ -108,20 +109,17 @@ void UTIL_createDestinationDirTable(const char** filenameTable, unsigned nbFiles
     unsigned u;
     char c;
     c = '/';
-    printf("NBFILE: %u\n", nbFiles);
 
     /* duplicate source file table */
     for (u = 0; u < nbFiles; ++u) {
         char* filename;
-        char* finalPath;
         size_t finalPathLen;
         finalPathLen = strlen(outDirName);
         filename = strrchr(filenameTable[u], c);    /* filename is the last bit of string after '/' */
         finalPathLen += strlen(filename);
-        dstFilenameTable[u] = (char*) malloc(finalPathLen * sizeof(char) + 1);
+        dstFilenameTable[u] = (char*) malloc((finalPathLen+5) * sizeof(char)); /* extra 1 bit for \0, extra 4 for .zst if compressing*/
         strcpy(dstFilenameTable[u], outDirName);
         strcat(dstFilenameTable[u], filename);
-        printf("%s    %s\n", filenameTable[u], dstFilenameTable[u]);
     } 
 }
 

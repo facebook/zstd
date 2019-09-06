@@ -1390,10 +1390,8 @@ FIO_determineCompressedName(const char* srcFileName, const char* suffix)
 {
     static size_t dfnbCapacity = 0;
     static char* dstFileNameBuffer = NULL;   /* using static allocation : this function cannot be multi-threaded */
-
     size_t const sfnSize = strlen(srcFileName);
     size_t const suffixSize = strlen(suffix);
-
     if (dfnbCapacity <= sfnSize+suffixSize+1) {
         /* resize buffer for dstName */
         free(dstFileNameBuffer);
@@ -1405,7 +1403,6 @@ FIO_determineCompressedName(const char* srcFileName, const char* suffix)
     assert(dstFileNameBuffer != NULL);
     memcpy(dstFileNameBuffer, srcFileName, sfnSize);
     memcpy(dstFileNameBuffer+sfnSize, suffix, suffixSize+1 /* Include terminating null */);
-
     return dstFileNameBuffer;
 }
 
@@ -1456,7 +1453,7 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs, const char** inFileN
     }   }
 
     FIO_freeCResources(ress);
-    /*UTIL_freeDestinationFilenameTable(dstFileNamesTable, nbFiles);*/
+    UTIL_freeDestinationFilenameTable(dstFileNamesTable, nbFiles);
     return error;
 }
 
@@ -2277,7 +2274,7 @@ FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
     }
 
     FIO_freeDResources(ress);
-    /* UTIL_freeDestinationFilenameTable(dstFileNamesTable, nbFiles); */
+    UTIL_freeDestinationFilenameTable(dstFileNamesTable, nbFiles);
     return error;
 }
 

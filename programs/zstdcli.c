@@ -585,7 +585,7 @@ int main(int argCount, const char* argv[])
     unsigned recursive = 0;
     unsigned memLimit = 0;
     const char** filenameTable = (const char**)malloc(argCount * sizeof(const char*));   /* argCount >= 1 */
-    char** dstFilenameTable = (char**)malloc(argCount * sizeof(char*));
+    char** dstFilenameTable;
     unsigned filenameIdx = 0;
     const char* programName = argv[0];
     const char* outFileName = NULL;
@@ -1177,8 +1177,10 @@ int main(int argCount, const char* argv[])
         if (adaptMin > cLevel) cLevel = adaptMin;
         if (adaptMax < cLevel) cLevel = adaptMax;
 
-        if (outDirName)
+        if (outDirName) {
+            dstFilenameTable = (char**)malloc(filenameIdx * sizeof(char*));
             FIO_processMultipleFilenameDestinationDir(dstFilenameTable, filenameTable, filenameIdx, outFileName, outDirName);
+        }
 
         if ((filenameIdx==1) && outFileName)
           operationResult = FIO_compressFilename(prefs, outFileName, filenameTable[0], dictFileName, cLevel, compressionParams);
@@ -1199,9 +1201,10 @@ int main(int argCount, const char* argv[])
         }
         FIO_setMemLimit(prefs, memLimit);
 
-        if (outDirName)
+        if (outDirName) {
+            dstFilenameTable = (char**)malloc(filenameIdx * sizeof(char*));
             FIO_processMultipleFilenameDestinationDir(dstFilenameTable, filenameTable, filenameIdx, outFileName, outDirName);
-
+        }
         if (filenameIdx==1 && outFileName)
             operationResult = FIO_decompressFilename(prefs, outFileName, filenameTable[0], dictFileName);
         else

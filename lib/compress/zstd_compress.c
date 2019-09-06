@@ -1314,6 +1314,7 @@ static size_t ZSTD_continueCCtx(ZSTD_CCtx* cctx, ZSTD_CCtx_params params, U64 pl
     cctx->blockState.matchState.cParams = params.cParams;
     cctx->pledgedSrcSizePlusOne = pledgedSrcSize+1;
     cctx->consumedSrcSize = 0;
+    cctx->isFirstBlock = 1;
     cctx->producedCSize = 0;
     if (pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN)
         cctx->appliedParams.fParams.contentSizeFlag = 0;
@@ -1416,6 +1417,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                 (U32)pledgedSrcSize, params.cParams.windowLog);
     assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
 
+    zc->isFirstBlock = 1;
     if (crp == ZSTDcrp_continue) {
         if (ZSTD_equivalentParams(zc->appliedParams, params,
                                   zc->inBuffSize,
@@ -2305,6 +2307,11 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
             zc->bmi2);
 
     if (frame &&
+        /* We don't want to emit our first block as a RLE even if it qualifies because
+         * doing so will cause the decoder to throw a "should consume all input error."
+         * This is only an issue for zstd <= v1.4.3
+         */
+        !zc->isFirstBlock &&
         cSize < rleMaxLength &&
         ZSTD_isRLE(ip, srcSize))
     {
@@ -2409,6 +2416,7 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
             op += cSize;
             assert(dstCapacity >= cSize);
             dstCapacity -= cSize;
+            cctx->isFirstBlock = 0;
             DEBUGLOG(5, "ZSTD_compress_frameChunk: adding a block of size %u",
                         (unsigned)cSize);
     }   }

@@ -238,6 +238,7 @@ struct ZSTD_CCtx_s {
     XXH64_state_t xxhState;
     ZSTD_customMem customMem;
     size_t staticSize;
+    int isFirstBlock;
 
     seqStore_t seqStore;      /* sequences storage ptrs */
     ldmState_t ldmState;      /* long distance matching state */

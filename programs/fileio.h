@@ -114,8 +114,13 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs, const char** inFileN
     @return : nb of missing or skipped files */
 int FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
                                     const char** srcNamesTable, unsigned nbFiles,
+                                    const char* outDirName, char** dstFilenameTable, 
                                     const char* outFileName,
                                     const char* dictFileName);
+
+void FIO_processMultipleFilenameDestinationDir(char** dstFilenameTable,
+                                              const char** filenameTable, unsigned filenameIdx,
+                                              const char* outFileName, const char* outDirName);
 
 
 /*-*************************************

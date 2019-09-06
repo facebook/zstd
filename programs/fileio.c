@@ -1711,11 +1711,6 @@ static unsigned long long FIO_decompressZstdFrame(
         }
 
         if (readSizeHint == 0) break;   /* end of frame */
-        if (inBuff.size != inBuff.pos) {
-            DISPLAYLEVEL(1, "%s : Decoding error (37) : should consume entire input \n",
-                            srcFileName);
-            return FIO_ERROR_FRAME_DECODING;
-        }
 
         /* Fill input buffer */
         {   size_t const toDecode = MIN(readSizeHint, ress->srcBufferSize);  /* support large skippable frames */

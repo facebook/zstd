@@ -128,14 +128,18 @@ int UTIL_isRegularFile(const char* infilename);
 int UTIL_setFileStat(const char* filename, stat_t* statbuf);
 U32 UTIL_isDirectory(const char* infilename);
 int UTIL_createDir(const char* outDirName);
+int UTIL_createPath(char* path); /* if trying to create c/d and c doesn't exist, will attempt to make c/ as well */
+int UTIL_createDirMirrored(char** dstFilenameTable, unsigned nbFiles, const char* outDirName);
 int UTIL_getFileStat(const char* infilename, stat_t* statbuf);
 int UTIL_isSameFile(const char* file1, const char* file2);
 void UTIL_createDestinationDirTable(const char** filenameTable, unsigned filenameIdx,
-        const char* outDirName,  char** dstFilenameTable);
+                                    const char* outDirName,  char** dstFilenameTable);
+void UTIL_createDestinationDirTableMirrored(const char** filenameTable, unsigned nbFiles,
+                                            const char* outDirName, char** dstFilenameTable);
 void UTIL_freeDestinationFilenameTable(char** dstDirTable, unsigned nbFiles);
-void UTIL_processMultipleFilenameDestinationDir(char** dstFilenameTable,
-                                              const char** filenameTable, unsigned filenameIdx,
-                                              const char* outFileName, const char* outDirName);
+void UTIL_processMultipleFilenameDestinationDir(char** dstFilenameTable, unsigned mirrored,
+                                              const char** filenameTable, unsigned nbFiles,
+                                              const char* outDirName);
 
 U32 UTIL_isLink(const char* infilename);
 #define UTIL_FILESIZE_UNKNOWN  ((U64)(-1))

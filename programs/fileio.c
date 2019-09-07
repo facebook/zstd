@@ -1388,6 +1388,10 @@ int FIO_compressFilename(FIO_prefs_t* const prefs, const char* dstFileName,
 static const char*
 FIO_determineCompressedName(const char* srcFileName, const char* suffix)
 {
+    if (srcFileName == NULL) {
+        DISPLAYLEVEL(1, "ERROR: Invalid path for --output-dir-mirrored: needs to be downstream from current directory\n");
+        return NULL;
+    }
     static size_t dfnbCapacity = 0;
     static char* dstFileNameBuffer = NULL;   /* using static allocation : this function cannot be multi-threaded */
     size_t const sfnSize = strlen(srcFileName);
@@ -1429,6 +1433,8 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs, const char** inFileN
         for (u = 0; u < nbFiles; ++u) {
             const char* const srcFileName = inFileNamesTable[u];
             const char* const dstFileName = FIO_determineCompressedName(dstFileNamesTable[u], suffix);
+            if (dstFileName == NULL) { error=1; continue; }
+
             error |= FIO_compressFilename_srcFile(prefs, ress, dstFileName, srcFileName, compressionLevel);
         }
     } else if (outFileName != NULL) {   /* output into a single destination (stdout typically) */

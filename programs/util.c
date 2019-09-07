@@ -22,6 +22,10 @@ extern "C" {
 
 #if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__)
 #include <direct.h>     /* needed for _mkdir in windows */
+#define currDir _getcwd
+#else
+#include <unistd.h>     /* needed for getcwd in linux */
+#define currDir getcwd
 #endif
 
 int UTIL_fileExist(const char* filename)
@@ -94,7 +98,7 @@ int UTIL_createDir(const char* outDirName)
 {
     int r;
     if (UTIL_isDirectory(outDirName))
-        return 0;   /* no need to create if directory already exists */
+        return -1;   /* no need to create if directory already exists */
 
 #if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__)
     r = _mkdir(outDirName);
@@ -103,6 +107,48 @@ int UTIL_createDir(const char* outDirName)
     r = mkdir(outDirName, S_IRWXU | S_IRWXG | S_IRWXO); /* dir has all permissions */
     if (r || !UTIL_isDirectory(outDirName)) return 1;
 #endif
+    return 0;   /* success */
+}
+
+int UTIL_createPath(char* path)
+{
+    char* ptr;
+    char c;
+    c = '/';
+    #if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__)   /* windows support */
+    c = '\\';
+    #endif
+
+    for (ptr = strchr(path+1, c); ptr; ptr = strchr(ptr+1, c)) {
+        *ptr = '\0';
+        printf("attempt to create %s\n", path);
+        int result;
+        result = UTIL_createDir((const char*) path);
+        *ptr = c;  
+    }
+    return 0;
+}
+
+int UTIL_createDirMirrored(char** dstFilenameTable, unsigned nbFiles, const char* outDirName) {
+    printf("creating dirs\n");
+    int result = UTIL_createDir(outDirName);
+    if (result) {
+        printf("oop\n");
+    }
+
+    unsigned u;
+    char c;
+    c = '/';
+    #if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__)   /* windows support */
+    c = '\\';
+    #endif
+
+    for (u = 0; u < nbFiles; ++u) {
+        if (dstFilenameTable[u] != NULL) {
+            printf("the file path is: %s\n", dstFilenameTable[u]);
+            UTIL_createPath(dstFilenameTable[u]);
+        }
+    }
     return 0;
 }
 
@@ -112,6 +158,9 @@ void UTIL_createDestinationDirTable(const char** filenameTable, unsigned nbFiles
     unsigned u;
     char c;
     c = '/';
+    #if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__) /* windows support */
+    c = '\\';
+    #endif
 
     /* duplicate source file table */
     for (u = 0; u < nbFiles; ++u) {
@@ -126,18 +175,54 @@ void UTIL_createDestinationDirTable(const char** filenameTable, unsigned nbFiles
     } 
 }
 
-void UTIL_processMultipleFilenameDestinationDir(char** dstFilenameTable,
-                                              const char** filenameTable, unsigned filenameIdx,
-                                              const char* outFileName, const char* outDirName) {
+void UTIL_createDestinationDirTableMirrored(const char** filenameTable, unsigned nbFiles,
+                                   const char* outDirName, char** dstFilenameTable)
+{
+    printf("creating desttable\n");
+    unsigned u;
+    size_t cwdLength;
+    char cwd[LIST_SIZE_INCREASE];   /* same limit used by filenameTable */
+    currDir(cwd, LIST_SIZE_INCREASE);   /* stores current dir in cwd */
+    cwdLength = strlen(cwd);
+    printf("current dir: %s\n", cwd);
+    printf("output dir: %s\n", outDirName);
+    const char* filePath;
+
+    /* duplicate source file table */
+    for (u = 0; u < nbFiles; ++u) {
+        /* checks if cwd is prefix of filenametable[u] */
+        printf("%s\n", filenameTable[u]);
+        if (strncmp(cwd, filenameTable[u], cwdLength) == 0) {
+            size_t finalPathLen;
+            filePath = filenameTable[u] + cwdLength; /* increment ptr to filename by certain amount to get relative path */
+            finalPathLen = strlen(outDirName) + strlen(filePath);   /* combined length of target dir and relative path */
+            dstFilenameTable[u] = (char*) malloc((finalPathLen+5) * sizeof(char));
+            strcpy(dstFilenameTable[u], outDirName);
+            strcat(dstFilenameTable[u], filePath);
+            printf("destination dir: %s\n", dstFilenameTable[u]);
+        } else {
+            filenameTable[u] = NULL;    /* this file exists in directory upstream of cwd */
+            dstFilenameTable[u] = NULL;
+        }
+    } 
+}
+
+void UTIL_processMultipleFilenameDestinationDir(char** dstFilenameTable, unsigned mirrored,
+                                                const char** filenameTable, unsigned nbFiles,
+                                                const char* outDirName) {
+    
     int dirResult;
-    dirResult = UTIL_createDir(outDirName);
+
+    if (mirrored) {
+        UTIL_createDestinationDirTableMirrored(filenameTable, nbFiles, outDirName, dstFilenameTable);
+        dirResult = UTIL_createDirMirrored(dstFilenameTable, nbFiles, outDirName);
+    } else {
+        UTIL_createDestinationDirTable(filenameTable, nbFiles, outDirName, dstFilenameTable);
+        dirResult = UTIL_createDir(outDirName);
+    }
+
     if (dirResult)
         UTIL_DISPLAYLEVEL(1, "Directory creation unsuccessful\n");
-
-    UTIL_createDestinationDirTable(filenameTable, filenameIdx, outDirName, dstFilenameTable);
-    if (outFileName) {
-        outFileName = dstFilenameTable[0]; /* in case -O is called with single file */
-    }
 }
 
 void UTIL_freeDestinationFilenameTable(char** dstDirTable, unsigned nbFiles) {

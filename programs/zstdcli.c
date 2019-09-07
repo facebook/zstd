@@ -118,7 +118,6 @@ static int usage(const char* programName)
 #endif
     DISPLAY( " -D file: use `file` as Dictionary \n");
     DISPLAY( " -o file: result stored into `file` (only if 1 input file) \n");
-    DISPLAY( " -O directory: result(s) stored into `directory`, creates one if non-existent \n");
     DISPLAY( " -f     : overwrite output without prompting and (de)compress links \n");
     DISPLAY( "--rm    : remove source file(s) after successful de/compression \n");
     DISPLAY( " -k     : preserve source file(s) (default) \n");
@@ -137,6 +136,8 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -q     : suppress warnings; specify twice to suppress errors too\n");
     DISPLAY( " -c     : force write to standard output, even if it is the console\n");
     DISPLAY( " -l     : print information about zstd compressed files \n");
+    DISPLAY( " --output-dir-flat dir    : result(s) stored into toplevel `dir`, creates one if non-existent \n");
+    DISPLAY( " --output-dir-mirrored dir    : result(s) stored into `dir`, creates one if non-existent, and mirrors directory structure of the input. File input upstream from current directory is invalid \n");
 #ifndef ZSTD_NOCOMPRESS
     DISPLAY( "--ultra : enable levels beyond %i, up to %i (requires more memory)\n", ZSTDCLI_CLEVEL_MAX, ZSTD_maxCLevel());
     DISPLAY( "--long[=#]: enable long distance matching with given window log (default: %u)\n", g_defaultMaxWindowLog);
@@ -584,6 +585,7 @@ int main(int argCount, const char* argv[])
     int cLevelLast = -1000000000;
     unsigned recursive = 0;
     unsigned memLimit = 0;
+    unsigned mirroredOutDir = 0;
     const char** filenameTable = (const char**)malloc(argCount * sizeof(const char*));   /* argCount >= 1 */
     char** dstFilenameTable;
     unsigned filenameIdx = 0;
@@ -677,6 +679,8 @@ int main(int argCount, const char* argv[])
                     if (!strcmp(argument, "--verbose")) { g_displayLevel++; continue; }
                     if (!strcmp(argument, "--quiet")) { g_displayLevel--; continue; }
                     if (!strcmp(argument, "--stdout")) { forceStdout=1; outFileName=stdoutmark; g_displayLevel-=(g_displayLevel==2); continue; }
+                    if (!strcmp(argument, "--output-dir-flat")) {nextArgumentIsOutDirName=1; lastCommand=1; continue; }
+                    if (!strcmp(argument, "--output-dir-mirrored")) { nextArgumentIsOutDirName=1; lastCommand=1; mirroredOutDir=1; continue; }
                     if (!strcmp(argument, "--ultra")) { ultra=1; continue; }
                     if (!strcmp(argument, "--check")) { FIO_setChecksumFlag(prefs, 2); continue; }
                     if (!strcmp(argument, "--no-check")) { FIO_setChecksumFlag(prefs, 0); continue; }
@@ -856,9 +860,6 @@ int main(int argCount, const char* argv[])
 
                         /* destination file name */
                     case 'o': nextArgumentIsOutFileName=1; lastCommand=1; argument++; break;
-
-                         /* destination directory name */
-                    case 'O': nextArgumentIsOutDirName=1; lastCommand=1; argument++; break;
                    
                         /* limit decompression memory */
                     case 'M':
@@ -1178,9 +1179,8 @@ int main(int argCount, const char* argv[])
         if (adaptMax < cLevel) cLevel = adaptMax;
 
         if (outDirName) {
-            printf("ok\n");
             dstFilenameTable = (char**)malloc(filenameIdx * sizeof(char*));
-            UTIL_processMultipleFilenameDestinationDir(dstFilenameTable, filenameTable, filenameIdx, outFileName, outDirName);
+            UTIL_processMultipleFilenameDestinationDir(dstFilenameTable, mirroredOutDir, filenameTable, filenameIdx, outDirName);
         } else {
             dstFilenameTable = NULL;
         }
@@ -1206,11 +1206,11 @@ int main(int argCount, const char* argv[])
 
         if (outDirName) {
             dstFilenameTable = (char**)malloc(filenameIdx * sizeof(char*));
-            UTIL_processMultipleFilenameDestinationDir(dstFilenameTable, filenameTable, filenameIdx, outFileName, outDirName);
+            UTIL_processMultipleFilenameDestinationDir(dstFilenameTable, mirroredOutDir, filenameTable, filenameIdx, outDirName);
         } else {
             dstFilenameTable = NULL;
         }
-        
+
         if (filenameIdx==1 && outFileName)
             operationResult = FIO_decompressFilename(prefs, outFileName, filenameTable[0], dictFileName);
         else

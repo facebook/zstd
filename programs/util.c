@@ -98,7 +98,7 @@ int UTIL_createDir(const char* outDirName)
 {
     int r;
     if (UTIL_isDirectory(outDirName))
-        return -1;   /* no need to create if directory already exists */
+        return 0;   /* no need to create if directory already exists */
 
 #if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__)
     r = _mkdir(outDirName);
@@ -119,10 +119,14 @@ int UTIL_createPath(char* path)
     #if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__)   /* windows support */
     c = '\\';
     #endif
+    result = 0;
 
     for (ptr = strchr(path+1, c); ptr; ptr = strchr(ptr+1, c)) {
         *ptr = '\0';
         result = UTIL_createDir((const char*) path);
+        if (result) {
+            UTIL_DISPLAYLEVEL(8, "Unsuccessful directory creation: either already exists or system error\n");
+        }
         *ptr = c;  
     }
     return result;
@@ -175,7 +179,10 @@ void UTIL_createDestinationDirTableMirrored(const char** filenameTable, unsigned
     const char* filePath;
     char cwd[LIST_SIZE_INCREASE];   /* same limit used by filenameTable */
     cwdLength = strlen(cwd);
-    currDir(cwd, LIST_SIZE_INCREASE);   /* stores current dir in cwd */
+    /* stores current dir in cwd via _getcwd or getcwd */ 
+    if (currDir(cwd, LIST_SIZE_INCREASE) == NULL) {
+        UTIL_DISPLAYLEVEL(1, "Unable to fetch current directory\n");
+    }
 
     /* duplicate source file table */
     for (u = 0; u < nbFiles; ++u) {

@@ -1388,14 +1388,15 @@ int FIO_compressFilename(FIO_prefs_t* const prefs, const char* dstFileName,
 static const char*
 FIO_determineCompressedName(const char* srcFileName, const char* suffix)
 {
-    if (srcFileName == NULL) {
-        DISPLAYLEVEL(1, "ERROR: Invalid path for --output-dir-mirrored: needs to be downstream from current directory\n");
-        return NULL;
-    }
+    
     static size_t dfnbCapacity = 0;
     static char* dstFileNameBuffer = NULL;   /* using static allocation : this function cannot be multi-threaded */
     size_t const sfnSize = strlen(srcFileName);
     size_t const suffixSize = strlen(suffix);
+    if (srcFileName == NULL) {
+        DISPLAYLEVEL(1, "ERROR: Invalid path for --output-dir-mirrored: needs to be downstream from current directory\n");
+        return NULL;
+    }
     if (dfnbCapacity <= sfnSize+suffixSize+1) {
         /* resize buffer for dstName */
         free(dstFileNameBuffer);

@@ -31,8 +31,8 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
       FUZZ_ASSERT(dctx);
   }
 
-  size_t const bufSize = FUZZ_dataProducer_uint32Range(producer, 0, 2 * size);
-  void* rBuf = malloc(bufSize);
+  size_t const bufSize = FUZZ_dataProducer_uint32Range(producer, 0, 10 * size);
+  void *rBuf = malloc(bufSize);
   FUZZ_ASSERT(rBuf);
 
   /* Restrict to remaining data. If we run out of data while generating params,

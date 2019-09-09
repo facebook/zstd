@@ -144,6 +144,8 @@ typedef struct {
 *  Functions
 ***************************************/
 
+MEM_STATIC size_t ZSTD_cwksp_available_space(ZSTD_cwksp* ws);
+
 /**
  * Align must be a power of 2.
  */

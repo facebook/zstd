@@ -1488,13 +1488,15 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         size_t const maxNbLdmSeq = ZSTD_ldm_getMaxNbSeq(params.ldmParams, blockSize);
 
         /* Check if workspace is large enough, alloc a new one if needed */
-        {   size_t const entropySpace = HUF_WORKSPACE_SIZE;
+        {   size_t const cctxSpace = zc->staticSize ? sizeof(ZSTD_CCtx) : 0;
+            size_t const entropySpace = HUF_WORKSPACE_SIZE;
             size_t const blockStateSpace = 2 * sizeof(ZSTD_compressedBlockState_t);
             size_t const bufferSpace = buffInSize + buffOutSize;
             size_t const ldmSpace = ZSTD_ldm_getTableSize(params.ldmParams);
             size_t const ldmSeqSpace = maxNbLdmSeq * sizeof(rawSeq);
 
             size_t const neededSpace =
+                cctxSpace +
                 entropySpace +
                 blockStateSpace +
                 ldmSpace +
@@ -1503,7 +1505,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                 tokenSpace +
                 bufferSpace;
 
-            int const workspaceTooSmall = !ZSTD_cwksp_check_available(ws, neededSpace);
+            int const workspaceTooSmall = ZSTD_cwksp_sizeof(ws) < neededSpace;
             int const workspaceWasteful = ZSTD_cwksp_check_wasteful(ws, neededSpace);
 
             DEBUGLOG(4, "Need %zuKB workspace, including %zuKB for match state, and %zuKB for buffers",

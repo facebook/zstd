@@ -244,7 +244,7 @@ rm tmp*
 
 println "\n===> decompression only tests "
 head -c 1M /dev/zero > tmp
-$ZSTD -d -o tmp1 "$TESTDIR/files/rle-first-block.zst"
+$ZSTD -d -o tmp1 "$TESTDIR/golden-decompression/rle-first-block.zst"
 $DIFF -s tmp1 tmp
 rm tmp*
 
@@ -588,8 +588,8 @@ $ZSTD -t tmpSplit.* && die "bad file not detected !"
 
 println "\n===>  golden files tests "
 
-$ZSTD -t -r "$TESTDIR/golden"
-$ZSTD -c -r "$TESTDIR/golden" | $ZSTD -t
+$ZSTD -t -r "$TESTDIR/golden-compression"
+$ZSTD -c -r "$TESTDIR/golden-compression" | $ZSTD -t
 
 
 println "\n===>  benchmark mode tests "

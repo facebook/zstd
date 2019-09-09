@@ -50,14 +50,25 @@ typedef enum {
  * is called the workspace.
  *
  * Several optimizations complicate that process of allocating memory ranges
- * from this workspace for each datastructure:
+ * from this workspace for each internal datastructure:
  *
- * - These different internal datastructures have different setup requirements.
- *   Some (e.g., the window buffer) don't care, and are happy to accept
- *   uninitialized memory. Others (e.g., the matchstate tables) can accept
- *   memory filled with unknown but bounded values (i.e., a memory area whose 
- *   values are known to be constrained between 0 and some upper bound). If
- *   that constraint isn't known to be satisfied, the area has to be cleared.
+ * - These different internal datastructures have different setup requirements:
+ *
+ *   - The static objects need to be cleared once and can then be trivially
+ *     reused for each compression.
+ *
+ *   - Various buffers don't need to be initialized at all--they are always
+ *     written into before they're read.
+ *
+ *   - The matchstate tables have a unique requirement that they don't need
+ *     their memory to be totally cleared, but they do need the memory to have
+ *     some bound, i.e., a guarantee that all values in the memory they've been
+ *     allocated is less than some maximum value (which is the starting value
+ *     for the indices that they will then use for compression). When this
+ *     guarantee is provided to them, they can use the memory without any setup
+ *     work. When it can't, they have to clear the area.
+ *
+ * - These buffers also have different alignment requirements.
  *
  * - We would like to reuse the objects in the workspace for multiple
  *   compressions without having to perform any expensive reallocation or
@@ -67,13 +78,16 @@ typedef enum {
  *   multiple compressions **even when the compression parameters change** and
  *   we need to resize some of the objects (where possible).
  *
+ * To attempt to manage this buffer, given these constraints, the ZSTD_cwksp
+ * abstraction was created. It works as follows:
+ *
  * Workspace Layout:
  *
  * [                        ... workspace ...                         ]
  * [objects][tables ... ->] free space [<- ... aligned][<- ... buffers]
  *
- * In order to accomplish this, the various objects that live in the workspace
- * are divided into the following categories:
+ * The various objects that live in the workspace are divided into the
+ * following categories, and are allocated separately:
  *
  * - Static objects: this is optionally the enclosing ZSTD_CCtx or ZSTD_CDict,
  *   so that literally everything fits in a single buffer. Note: if present,
@@ -94,11 +108,11 @@ typedef enum {
  *   uint32_t arrays, all of whose values are between 0 and (nextSrc - base).
  *   Their sizes depend on the cparams.
  *
- * - Aligned: these buffers are used for various purposes that don't require
- *   any initialization before they're used.
+ * - Aligned: these buffers are used for various purposes that require 4 byte
+ *   alignment, but don't require any initialization before they're used.
  *
- * - Uninitialized memory: these buffers are used for various purposes that
- *   don't require any initialization before they're used. This means they can
+ * - Buffers: these buffers are used for various purposes that don't require
+ *   any alignment or initialization before they're used. This means they can
  *   be moved around at no cost for a new compression.
  *
  * Allocating Memory:
@@ -111,9 +125,7 @@ typedef enum {
  * 3. Aligned
  * 4. Tables
  *
- * Reusing Table Space:
- *
- * TODO(felixh): ...
+ * Attempts to reserve objects of different types out of order will fail.
  */
 typedef struct {
     void* workspace;
@@ -171,6 +183,11 @@ void ZSTD_cwksp_clear_tables(ZSTD_cwksp* ws);
  */
 void ZSTD_cwksp_clear(ZSTD_cwksp* ws);
 
+/**
+ * The provided workspace takes ownership of the buffer [start, start+size).
+ * Any existing values in the workspace are ignored (the previously managed
+ * buffer, if present, must be separately freed).
+ */
 void ZSTD_cwksp_init(ZSTD_cwksp* ws, void* start, size_t size);
 
 size_t ZSTD_cwksp_create(ZSTD_cwksp* ws, size_t size, ZSTD_customMem customMem);

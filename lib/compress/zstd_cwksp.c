@@ -45,16 +45,13 @@ static void ZSTD_cwksp_internal_advance_phase(
     }
 }
 
-/**
- * Internal function, use wrappers instead.
- */
-static void* ZSTD_cwksp_reserve_internal(ZSTD_cwksp* ws, size_t bytes, ZSTD_cwksp_alloc_phase_e phase) {
-    /* TODO(felixh): alignment */
+static void* ZSTD_cwksp_reserve_internal(
+        ZSTD_cwksp* ws, size_t bytes, ZSTD_cwksp_alloc_phase_e phase) {
     void* alloc;
     void* bottom = ws->tableEnd;
     ZSTD_cwksp_internal_advance_phase(ws, phase);
     alloc = (BYTE *)ws->allocStart - bytes;
-    DEBUGLOG(4, "cwksp: reserving align %zd bytes, %zd bytes remaining",
+    DEBUGLOG(4, "cwksp: reserving %zd bytes, %zd bytes remaining",
         bytes, ZSTD_cwksp_available_space(ws) - bytes);
     assert(alloc >= bottom);
     if (alloc < bottom) {
@@ -76,7 +73,7 @@ BYTE* ZSTD_cwksp_reserve_buffer(ZSTD_cwksp* ws, size_t bytes) {
  * Aligned on sizeof(unsigned).
  */
 void* ZSTD_cwksp_reserve_aligned(ZSTD_cwksp* ws, size_t bytes) {
-    assert((bytes & (sizeof(U32)-1)) == 0); // TODO ???
+    assert((bytes & (sizeof(U32)-1)) == 0);
     return ZSTD_cwksp_reserve_internal(ws, ZSTD_cwksp_align(bytes, sizeof(U32)), ZSTD_cwksp_alloc_aligned);
 }
 

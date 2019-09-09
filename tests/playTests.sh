@@ -273,12 +273,25 @@ mkdir tmpInputTestDir/we/must
 mkdir tmpInputTestDir/we/must/go
 mkdir tmpInputTestDir/we/must/go/deeper
 println cool > tmpInputTestDir/we/must/go/deeper/tmp3
+println very > tmpInputTestDir/we/must/go/deeper/tmp4
+mkdir tmpOutDir
+mkdir tmpOutDir/secondDir
 $ZSTD tmp1 tmpInputTestDir/we/must/go/deeper/tmp3 --output-dir-flat tmpOutDir
-$ZSTD tmp2 tmpInputTestDir/we/ -r --output-dir-mirrored tmpOutDir/secondDir/
+$ZSTD tmp2 tmpInputTestDir/we/must/go/deeper/tmp4 --output-dir-mirrored tmpOutDir/secondDir/
 test -f tmpOutDir/tmp1.zst
 test -f tmpOutDir/tmp3.zst
-test -f tmpOutDir/secondDir/tmpInputTestDir/we/must/go/deeper/tmp3.zst
 test -f tmpOutDir/secondDir/tmp2.zst
+test -f tmpOutDir/secondDir/tmpInputTestDir/we/must/go/deeper/tmp4.zst
+println "test : decompress multiple files into an output directory, flat version"
+mkdir tmpOutDirDecomp
+$ZSTD tmpOutDir/secondDir/ -r -d --output-dir-flat tmpOutDirDecomp
+test -f tmpOutDirDecomp/tmp4
+test -f tmpOutDirDecomp/tmp2
+mkdir tmpOutDirDecomp/create
+println "test : decompress multiple files into an output directory, mirrored version"
+$ZSTD tmpOutDir/secondDir/tmpInputTestDir/we/must/go/deeper/tmp4.zst tmpOutDir/tmp1.zst -d --output-dir-mirrored tmpOutDirDecomp/create
+test -f tmpOutDirDecomp/create/tmpOutDir/secondDir/tmpInputTestDir/we/must/go/deeper/tmp4
+test -f tmpOutDirDecomp/create/tmpOutDir/tmp1
 rm -rf tmp*
 
 println "\n===>  Advanced compression parameters "

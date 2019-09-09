@@ -2258,9 +2258,12 @@ FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
         unsigned u;
         for (u = 0; u < nbFiles; ++u) {
             const char* const srcFileName = srcNamesTable[u];
-            const char* const dstFileName = FIO_determineDstName(dstFileNamesTable[u]);
-            
-            error |= FIO_decompressSrcFile(prefs, ress, dstFileName, srcFileName);
+            if (dstFileNamesTable[u] != NULL) {
+                const char* const dstFileName = FIO_determineDstName(dstFileNamesTable[u]);
+                error |= FIO_decompressSrcFile(prefs, ress, dstFileName, srcFileName);
+            } else {
+                DISPLAYLEVEL(1, "File: %s is upstream of current directory, not processing...\n", srcNamesTable[u]);
+            }
         }
     } else if (outFileName) {
         unsigned u;

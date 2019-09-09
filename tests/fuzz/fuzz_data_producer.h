@@ -9,6 +9,10 @@
 
 /**
  * Helper APIs for generating random data from input data stream.
+ The producer reads bytes from the end of the input and appends them together
+ to generate  a random number in the requested range. If it runs out of input
+ data, it will keep returning the same value (min) over and over again.
+
  */
 
 #ifndef FUZZ_DATA_PRODUCER_H

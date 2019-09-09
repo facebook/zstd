@@ -119,7 +119,8 @@ int UTIL_getRealPath(const char* relativePath, char* absolutePath) {
 #if defined(_MSC_VER) || defined (__MINGW32__) || defined (__MSVCRT__)
     if (_fullpath(absolutePath, relativePath, LIST_SIZE_INCREASE) == NULL)
         return 1;
-#elif defined(_BSD_SOURCE) || (PLATFORM_POSIX_VERSION >= 200112L)
+#elif (PLATFORM_POSIX_VERSION >= 200112L)
+#define _BSD_SOURCE
     char* r;
     r = realpath(relativePath, absolutePath);
     if (r == NULL && errno != ENOENT /* we will be using this to generate "FAKE" paths, so ignore this err */) {

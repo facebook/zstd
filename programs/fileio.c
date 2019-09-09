@@ -1333,6 +1333,7 @@ FIO_compressFilename_srcFile(FIO_prefs_t* const prefs,
                              int compressionLevel)
 {
     int result;
+
     /* ensure src is not a directory */
     if (UTIL_isDirectory(srcFileName)) {
         DISPLAYLEVEL(1, "zstd: %s is a directory -- ignored \n", srcFileName);
@@ -2187,6 +2188,11 @@ FIO_determineDstName(const char* srcFileName)
     size_t const sfnSize = strlen(srcFileName);
     size_t suffixSize;
     const char* const suffixPtr = strrchr(srcFileName, '.');
+    if (suffixPtr == NULL) {
+        DISPLAYLEVEL(1, "zstd: %s: unknown suffix -- ignored \n",
+                        srcFileName);
+        return NULL;
+    }
     suffixSize = strlen(suffixPtr);
 
     /* check suffix is authorized */

@@ -264,6 +264,22 @@ if [ "$?" -eq 139 ]; then
 fi
 rm tmp*
 
+println "test : compress multiple files into an output directory"
+println henlo > tmp1
+println worlddd > tmp2
+mkdir tmpInputTestDir
+mkdir tmpInputTestDir/we
+mkdir tmpInputTestDir/we/must
+mkdir tmpInputTestDir/we/must/go
+mkdir tmpInputTestDir/we/must/go/deeper
+println cool > tmpInputTestDir/we/must/go/deeper/tmp3
+$ZSTD tmp1 tmpInputTestDir/we/must/go/deeper/tmp3 --output-dir-flat tmpOutDir
+$ZSTD tmp2 tmpInputTestDir/we/ -r --output-dir-mirrored tmpOutDir/secondDir/
+test -f tmpOutDir/tmp1.zst
+test -f tmpOutDir/tmp3.zst
+test -f tmpOutDir/secondDir/tmpInputTestDir/we/must/go/deeper/tmp3.zst
+test -f tmpOutDir/secondDir/tmp2.zst
+rm -rf tmp*
 
 println "\n===>  Advanced compression parameters "
 println "Hello world!" | $ZSTD --zstd=windowLog=21,      - -o tmp.zst && die "wrong parameters not detected!"

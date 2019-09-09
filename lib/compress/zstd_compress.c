@@ -166,7 +166,9 @@ static size_t ZSTD_sizeof_mtctx(const ZSTD_CCtx* cctx)
 size_t ZSTD_sizeof_CCtx(const ZSTD_CCtx* cctx)
 {
     if (cctx==NULL) return 0;   /* support sizeof on NULL */
-    return sizeof(*cctx) + ZSTD_cwksp_sizeof(&cctx->workspace)
+    /* cctx may be in the workspace */
+    return (cctx->workspace.workspace == cctx ? 0 : sizeof(*cctx))
+           + ZSTD_cwksp_sizeof(&cctx->workspace)
            + ZSTD_sizeof_localDict(cctx->localDict)
            + ZSTD_sizeof_mtctx(cctx);
 }
@@ -3103,7 +3105,9 @@ size_t ZSTD_sizeof_CDict(const ZSTD_CDict* cdict)
 {
     if (cdict==NULL) return 0;   /* support sizeof on NULL */
     DEBUGLOG(5, "sizeof(*cdict) : %u", (unsigned)sizeof(*cdict));
-    return ZSTD_cwksp_sizeof(&cdict->workspace) + sizeof(*cdict);
+    /* cdict may be in the workspace */
+    return (cdict->workspace.workspace == cdict ? 0 : sizeof(*cdict))
+        + ZSTD_cwksp_sizeof(&cdict->workspace);
 }
 
 static size_t ZSTD_initCDict_internal(

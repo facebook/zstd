@@ -136,8 +136,8 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -q     : suppress warnings; specify twice to suppress errors too\n");
     DISPLAY( " -c     : force write to standard output, even if it is the console\n");
     DISPLAY( " -l     : print information about zstd compressed files \n");
-    DISPLAY( " --output-dir-flat dir    : result(s) stored into toplevel `dir`, creates one if non-existent \n");
-    DISPLAY( " --output-dir-mirrored dir    : result(s) stored into `dir`, creates one if non-existent, and mirrors directory structure of the input. File input upstream from current directory is invalid \n");
+    DISPLAY( " --output-dir-flat dir    : result(s) stored into toplevel `dir`, creates one if non-existent. If multiple files have the same name, -f will cause the final file to be the output, otherwise the first will be output \n");
+    DISPLAY( " --output-dir-mirrored dir    : result(s) stored into `dir`, creates one if non-existent, and mirrors directory structure of the input, relative to cwd. File input upstream from current directory is invalid \n");
 #ifndef ZSTD_NOCOMPRESS
     DISPLAY( "--ultra : enable levels beyond %i, up to %i (requires more memory)\n", ZSTDCLI_CLEVEL_MAX, ZSTD_maxCLevel());
     DISPLAY( "--long[=#]: enable long distance matching with given window log (default: %u)\n", g_defaultMaxWindowLog);
@@ -1179,6 +1179,7 @@ int main(int argCount, const char* argv[])
         if (adaptMax < cLevel) cLevel = adaptMax;
 
         if (outDirName) {
+            UTIL_DISPLAYLEVEL(8, "Output of files will be in directory: %s\n", outDirName);
             dstFilenameTable = (char**)malloc(filenameIdx * sizeof(char*));
             UTIL_processMultipleFilenameDestinationDir(dstFilenameTable, mirroredOutDir, filenameTable, filenameIdx, outDirName);
         } else {

@@ -105,9 +105,29 @@ int UTIL_createDir(const char* outDirName)
     if (r || !UTIL_isDirectory(outDirName)) return 1;
 #else
     r = mkdir(outDirName, S_IRWXU | S_IRWXG | S_IRWXO); /* dir has all permissions */
-    if (r || !UTIL_isDirectory(outDirName)) return 1;
+    if (r || !UTIL_isDirectory(outDirName)) {
+        errno = 0;
+        return 1;
+    }
 #endif
+    errno = 0;
     return 0;   /* success */
+}
+
+int UTIL_getRealPath(const char* relativePath, char* absolutePath) {
+    char* r;
+#if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__)
+    if (_fullpath(absolutePath, relativePath, LIST_SIZE_INCREASE) == NULL)
+        return 1;
+#else
+    r = realpath(relativePath, absolutePath);
+    if (r == NULL && errno != ENOENT /* we will be using this to generate "FAKE" paths, so ignore this err */) {
+        errno = 0;
+        return 1;
+    }
+#endif
+    errno = 0;
+    return 0;
 }
 
 int UTIL_createPath(char* path)
@@ -132,17 +152,16 @@ int UTIL_createPath(char* path)
     return result;
 }
 
-int UTIL_createDirMirrored(char** dstFilenameTable, unsigned nbFiles, const char* outDirName) {
+int UTIL_createDirMirrored(char** dstFilenameTable, unsigned nbFiles) {
     int result;
     unsigned u;
-    result = UTIL_createDir(outDirName);
-    if (result) {
-        UTIL_DISPLAYLEVEL(8, "Directory already exists or creation was unsuccessful\n");
-    }
 
     for (u = 0; u < nbFiles; ++u) {
         if (dstFilenameTable[u] != NULL) {
-            UTIL_createPath(dstFilenameTable[u]);
+            result = UTIL_createPath(dstFilenameTable[u]);
+            if (result) {
+                UTIL_DISPLAYLEVEL(8, "Directory already exists or creation was unsuccessful\n");
+            }
         }
     }
     return 0;
@@ -153,22 +172,35 @@ void UTIL_createDestinationDirTable(const char** filenameTable, unsigned nbFiles
 {
     unsigned u;
     char c;
+    int err;
     c = '/';
     #if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__) /* windows support */
     c = '\\';
     #endif
+    char outDirNameAbsolute[LIST_SIZE_INCREASE];
+    err = UTIL_getRealPath(outDirName, outDirNameAbsolute); /* abs path is stored in outDirNameAbsolute, sans the final "/" */
+    if (err) {
+        UTIL_DISPLAYLEVEL(8, "Was unable to get absolute directory path of target output directory\n");
+    }
 
-    /* duplicate source file table */
+    /* generate the appropriate destination filename table */
     for (u = 0; u < nbFiles; ++u) {
         const char* filename;
-        size_t finalPathLen;
-        finalPathLen = strlen(outDirName);
-        filename = strrchr(filenameTable[u], c);    /* filename is the last bit of string after '/' */
-        finalPathLen += strlen(filename);
-        dstFilenameTable[u] = (char*) malloc((finalPathLen+5) * sizeof(char)); /* extra 1 bit for \0, extra 4 for .zst if compressing*/
-        strcpy(dstFilenameTable[u], outDirName);
+        size_t finalPathLen, outDirNameAbsoluteLen;
+        outDirNameAbsoluteLen = strlen(outDirNameAbsolute);
+        filename = strrchr(filenameTable[u], c);
+        if (filename == NULL) {
+            filename = filenameTable[u];  /* no 'c' found, use the basic name given */
+        } else {
+            filename += 1;  /* strrchr includes the first occurrence of 'c', which we need to get rid of */
+        }
+        finalPathLen = outDirNameAbsoluteLen + strlen(filename);
+        dstFilenameTable[u] = (char*) malloc((finalPathLen+6) * sizeof(char)); /* extra 1 bit for \0, extra 1 bit for directory delim extra 4 for .zst if compressing*/
+        strcpy(dstFilenameTable[u], outDirNameAbsolute);
+        dstFilenameTable[u][outDirNameAbsoluteLen] = c;
+        dstFilenameTable[u][outDirNameAbsoluteLen+1] = '\0'; /* need null terminator for strcat */
         strcat(dstFilenameTable[u], filename);
-    } 
+    }
 }
 
 void UTIL_createDestinationDirTableMirrored(const char** filenameTable, unsigned nbFiles,
@@ -177,26 +209,46 @@ void UTIL_createDestinationDirTableMirrored(const char** filenameTable, unsigned
     unsigned u;
     size_t cwdLength;
     const char* filePath;
-    char cwd[LIST_SIZE_INCREASE];   /* same limit used by filenameTable */
-    cwdLength = strlen(cwd);
-    /* stores current dir in cwd via _getcwd or getcwd */ 
+    int err;
+    char outDirNameAbsolute[LIST_SIZE_INCREASE],
+         cwd[LIST_SIZE_INCREASE],   /* same limit used by filenameTable */
+         c;
+    c = '/';
+    #if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__) /* windows support */
+    c = '\\';
+    #endif
+
+    /* store current dir in cwd via _getcwd or getcwd */ 
     if (currDir(cwd, LIST_SIZE_INCREASE) == NULL) {
         UTIL_DISPLAYLEVEL(1, "Unable to fetch current directory\n");
     }
+    cwdLength = strlen(cwd);
+    err = UTIL_getRealPath(outDirName, outDirNameAbsolute); /* abs path is stored in outDirNameAbsolute, sans the final "/" */
+    if (err) {
+        UTIL_DISPLAYLEVEL(8, "Was unable to get absolute directory path of target output directory\n");
+    }
 
-    /* duplicate source file table */
+    /* generate destination files table */
     for (u = 0; u < nbFiles; ++u) {
+        char srcFileNameAbsolute[LIST_SIZE_INCREASE];
+        err = UTIL_getRealPath(filenameTable[u], srcFileNameAbsolute); /* abs path is stored in outDirNameAbsolute, sans the final "/" */
+        if (err) {
+            UTIL_DISPLAYLEVEL(8, "Was unable to get absolute path of source file %s\n", filenameTable[u]);
+        }
+
         /* checks if cwd is prefix of filenametable[u] */
-        if (strncmp(cwd, filenameTable[u], cwdLength) == 0) {
-            size_t finalPathLen;
-            filePath = filenameTable[u] + cwdLength; /* increment ptr to filename by certain amount to get relative path */
-            finalPathLen = strlen(outDirName) + strlen(filePath);   /* combined length of target dir and relative path */
-            dstFilenameTable[u] = (char*) malloc((finalPathLen+5) * sizeof(char));
-            strcpy(dstFilenameTable[u], outDirName);
+        if (strncmp(cwd, srcFileNameAbsolute, cwdLength) == 0) {
+            size_t finalPathLen, outDirNameAbsoluteLen;
+            outDirNameAbsoluteLen = strlen(outDirNameAbsolute);
+            filePath = srcFileNameAbsolute + cwdLength + 1; /* get relative path of file from cwd */
+            finalPathLen = outDirNameAbsoluteLen + strlen(filePath);   /* combined length of target dir and relative path */
+            dstFilenameTable[u] = (char*) malloc((finalPathLen+6) * sizeof(char));
+            strcpy(dstFilenameTable[u], outDirNameAbsolute);    /* final path is: output dir (absolute) + / + relative path to file from cwd */
+            dstFilenameTable[u][outDirNameAbsoluteLen] = c;
+            dstFilenameTable[u][outDirNameAbsoluteLen+1] = '\0';
             strcat(dstFilenameTable[u], filePath);
         } else {
-            filenameTable[u] = NULL;    /* this file exists in directory upstream of cwd */
-            dstFilenameTable[u] = NULL;
+            dstFilenameTable[u] = NULL;  /* this file exists in directory upstream of cwd, we do NOT process, okurrrr */
         }
     } 
 }
@@ -209,13 +261,13 @@ void UTIL_processMultipleFilenameDestinationDir(char** dstFilenameTable, unsigne
 
     if (mirrored) {
         UTIL_createDestinationDirTableMirrored(filenameTable, nbFiles, outDirName, dstFilenameTable);
-        dirResult = UTIL_createDirMirrored(dstFilenameTable, nbFiles, outDirName);
+        dirResult = UTIL_createDirMirrored(dstFilenameTable, nbFiles);
     } else {
         UTIL_createDestinationDirTable(filenameTable, nbFiles, outDirName, dstFilenameTable);
         dirResult = UTIL_createDir(outDirName);
     }
     if (dirResult)
-        UTIL_DISPLAYLEVEL(8, "Potentially not something totally happy in directory creation...\n");
+        UTIL_DISPLAYLEVEL(8, "Target directory creation unsuccessful\n");
 }
 
 void UTIL_freeDestinationFilenameTable(char** dstDirTable, unsigned nbFiles) {

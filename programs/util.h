@@ -128,8 +128,9 @@ int UTIL_isRegularFile(const char* infilename);
 int UTIL_setFileStat(const char* filename, stat_t* statbuf);
 U32 UTIL_isDirectory(const char* infilename);
 int UTIL_createDir(const char* outDirName);
-int UTIL_createPath(char* path); /* if trying to create c/d and c doesn't exist, will attempt to make c/ as well */
-int UTIL_createDirMirrored(char** dstFilenameTable, unsigned nbFiles, const char* outDirName);
+int UTIL_getRealPath(const char* relativePath, char* absolutePath);
+int UTIL_createPath(char* path); /* if trying to create /c/d and c doesn't exist, will attempt to make c/ as well */
+int UTIL_createDirMirrored(char** dstFilenameTable, unsigned nbFiles);
 int UTIL_getFileStat(const char* infilename, stat_t* statbuf);
 int UTIL_isSameFile(const char* file1, const char* file2);
 void UTIL_createDestinationDirTable(const char** filenameTable, unsigned filenameIdx,

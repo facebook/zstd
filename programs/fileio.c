@@ -1333,7 +1333,6 @@ FIO_compressFilename_srcFile(FIO_prefs_t* const prefs,
                              int compressionLevel)
 {
     int result;
-
     /* ensure src is not a directory */
     if (UTIL_isDirectory(srcFileName)) {
         DISPLAYLEVEL(1, "zstd: %s is a directory -- ignored \n", srcFileName);
@@ -1426,17 +1425,18 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs, const char** inFileN
 {
     int error = 0;
     cRess_t ress = FIO_createCResources(prefs, dictFileName, compressionLevel, comprParams);
-
     /* init */
     assert(outFileName != NULL || suffix != NULL);
     if (outDirName != NULL) {   /* output into a particular folder */
         unsigned u;
         for (u = 0; u < nbFiles; ++u) {
             const char* const srcFileName = inFileNamesTable[u];
-            const char* const dstFileName = FIO_determineCompressedName(dstFileNamesTable[u], suffix);
-            if (dstFileName == NULL) { error=1; continue; }
-
-            error |= FIO_compressFilename_srcFile(prefs, ress, dstFileName, srcFileName, compressionLevel);
+            if (dstFileNamesTable[u] != NULL) { /* only process if there is a valid destination name (so ignore upstream files if mirrored) */
+                const char* const dstFileName = FIO_determineCompressedName(dstFileNamesTable[u], suffix);
+                error |= FIO_compressFilename_srcFile(prefs, ress, dstFileName, srcFileName, compressionLevel);
+            } else {
+                DISPLAYLEVEL(1, "File: %s is upstream of current directory, not processing...\n", inFileNamesTable[u]);
+            }
         }
     } else if (outFileName != NULL) {   /* output into a single destination (stdout typically) */
         ress.dstFile = FIO_openDstFile(prefs, NULL, outFileName);
@@ -2187,11 +2187,6 @@ FIO_determineDstName(const char* srcFileName)
     size_t const sfnSize = strlen(srcFileName);
     size_t suffixSize;
     const char* const suffixPtr = strrchr(srcFileName, '.');
-    if (suffixPtr == NULL) {
-        DISPLAYLEVEL(1, "zstd: %s: unknown suffix -- ignored \n",
-                        srcFileName);
-        return NULL;
-    }
     suffixSize = strlen(suffixPtr);
 
     /* check suffix is authorized */
@@ -2258,7 +2253,6 @@ FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
         for (u = 0; u < nbFiles; ++u) {
             const char* const srcFileName = srcNamesTable[u];
             const char* const dstFileName = FIO_determineDstName(dstFileNamesTable[u]);
-            if (dstFileName == NULL) { error=1; continue; }
             
             error |= FIO_decompressSrcFile(prefs, ress, dstFileName, srcFileName);
         }

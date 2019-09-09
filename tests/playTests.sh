@@ -242,6 +242,11 @@ $ZSTD -f tmp && die "attempt to compress a non existing file"
 test -f tmp.zst  # destination file should still be present
 rm tmp*
 
+println "\n===> decompression only tests "
+head -c 1M /dev/zero > tmp
+$ZSTD -d -o tmp1 "$TESTDIR/files/rle-first-block.zst"
+$DIFF -s tmp1 tmp
+rm tmp*
 
 println "test : compress multiple files"
 println hello > tmp1
@@ -583,8 +588,8 @@ $ZSTD -t tmpSplit.* && die "bad file not detected !"
 
 println "\n===>  golden files tests "
 
-$ZSTD -t -r "$TESTDIR/files"
-$ZSTD -c -r "$TESTDIR/files" | $ZSTD -t
+$ZSTD -t -r "$TESTDIR/golden"
+$ZSTD -c -r "$TESTDIR/golden" | $ZSTD -t
 
 
 println "\n===>  benchmark mode tests "

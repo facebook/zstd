@@ -177,14 +177,9 @@ char* UTIL_getRealPathPosixImpl(const char *path, char* resolved) {
         errno = ENAMETOOLONG;
         return (NULL);
     }
-    /*
-     * Iterate over path components in `left'.
-     */
+    /* Iterate over path components in `left'. */
     while (leftLen != 0) {
-        /*
-         * Extract the next path component and adjust `left'
-         * and its length.
-         */
+        /* Extract the next path component and adjust `left' and its length. */
         p = strchr(left, '/');
         s = p ? p : left + leftLen;
         if ((unsigned long)(s - left) >= sizeof(next_token)) {
@@ -290,7 +285,10 @@ int UTIL_getRealPath(const char* relativePath, char* absolutePath) {
     c = '\\';
     r = _fullpath(absolutePath, relativePath, LIST_SIZE_INCREASE);
     if ((errno == ENOENT) && (absolutePath != NULL)) {
-        /* directory doesn't already exist, so realpath will be too short, but will contain a correct prefix until the unrecognized file - we must extend */
+        /* 
+         * directory doesn't already exist, so realpath will be too short,
+         * but will contain a correct prefix until the unrecognized file = we must extend 
+         */
         deepestAbsolutePathFolder = strrchr(absolutePath, c);   /* last folder/file currently in absolutePath */
         deepestAbsolutePathFolder++;    /* get rid of '/' */
         relativePathTemp = (char*)malloc((strlen(relativePath)+1)*sizeof(char));
@@ -298,7 +296,7 @@ int UTIL_getRealPath(const char* relativePath, char* absolutePath) {
             memcpy(relativePathTemp, relativePath, strlen(relativePath));
         } else {
             UTIL_DISPLAYLEVEL(1, "Error allocating memory for relative path\n")
-            return 0;
+            return 1;
         }
         pathExtension = UTIL_lastStrstr(relativePathTemp, deepestAbsolutePathFolder);    /* ptr to last occurrence of last folder/file in relativePath */
         free(relativePathTemp);
@@ -311,7 +309,7 @@ int UTIL_getRealPath(const char* relativePath, char* absolutePath) {
     r = UTIL_getRealPathPosixImpl(relativePath, absolutePath);
 #else
     UTIL_DISPLAYLEVEL(1, "System doesn't support output dir functionality\n");
-    exit(1);    
+    return -1;   
 #endif
     if (errno == 0 && r != NULL) {
         return 0;
@@ -367,7 +365,7 @@ int UTIL_createDirMirrored(char** dstFilenameTable, unsigned nbFiles) {
         if (dstFilenameTable[u] != NULL) {
             result = UTIL_createPath(dstFilenameTable[u], 0);
             if (result) {
-                UTIL_DISPLAYLEVEL(8, "Directory already exists or creation was unsuccessful\n");
+                UTIL_DISPLAYLEVEL(8, "Directory creation was unsuccessful\n");
             }
         }
     }
@@ -438,7 +436,10 @@ void UTIL_createDestinationDirTable(const char** filenameTable, unsigned nbFiles
             filename += 1;  /* strrchr includes the first occurrence of 'c', which we need to get rid of */
         }
         finalPathLen = outDirNameAbsoluteLen + strlen(filename);
-        dstFilenameTable[u] = (char*) malloc((finalPathLen+6) * sizeof(char)); /* extra 1 bit for \0, extra 1 bit for directory delim, extra 4 for .zst if compressing */
+        dstFilenameTable[u] = (char*) malloc((finalPathLen+6) * sizeof(char)); /* 
+                                                                                * extra 1 bit for \0,
+                                                                                * extra 1 bit for directory delim,
+                                                                                * extra 4 for .zst if compressing */
         if (!dstFilenameTable) {
             UTIL_DISPLAYLEVEL(1, "Unable to allocate space for file destination\n"); /* NULL entries are fine */
             continue;
@@ -508,7 +509,7 @@ void UTIL_createDestinationDirTableMirrored(const char** filenameTable, unsigned
             strcat(dstFilenameTable[u], filePath);
             UTIL_DISPLAYLEVEL(8, "Final output file path: %s\n", dstFilenameTable[u]);
         } else {
-            dstFilenameTable[u] = NULL;  /* this file exists in directory upstream of cwd, we do NOT process, okurrrr */
+            dstFilenameTable[u] = NULL;  /* this file exists in directory upstream of cwd, we do NOT process */
         }
     } 
 }

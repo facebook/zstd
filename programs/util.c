@@ -127,12 +127,11 @@ int UTIL_createDir(const char* outDirName)
     int r;
     if (UTIL_isDirectory(outDirName))
         return 0;   /* no need to create if directory already exists */
-
 #if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__)
     r = _mkdir(outDirName);
-    if (r || !UTIL_isDirectory(outDirName)) return 1;
 #else
     r = mkdir(outDirName, S_IRWXU | S_IRWXG | S_IRWXO); /* dir has all permissions */
+#endif
     if (r || !UTIL_isDirectory(outDirName)) {
         if (errno != 0) {
             perror("UTIL_createDir: ");
@@ -140,29 +139,155 @@ int UTIL_createDir(const char* outDirName)
         }
         return 1;
     }
-#endif
     errno = 0;
     return 0;   /* success */
 }
 
-int UTIL_getRealPath(const char* relativePath, char* absolutePath) {
-    char *r, c, *deepestAbsolutePathFolder, *pathExtension, *relativePathTemp;
-#if defined(_MSC_VER) || defined (__MINGW32__) || defined (__MSVCRT__)
-    r = _fullpath(absolutePath, relativePath, LIST_SIZE_INCREASE);
-    c = '\\';
-#elif defined (__STDC_VERSION__) && (__STDC_VERSION__ > 199901L)
-    r = realpath(relativePath, absolutePath);
-    c = '/';
-#else
-    absolutePath = NULL;
-    UTIL_DISPLAYLEVEL(1, "Unable to process %s due to platform limitations\n", relativePath);
-    return -1;
-#endif
-    if (r == NULL) {
-        printf("AWW JEEZ %s to: %s \n", relativePath, absolutePath);
+#define MAXSYMLINKS 32
+/* based off of realpath() from OpenBSD*/
+char* UTIL_getRealPathPosixImpl(const char *path, char* resolved) {
+    struct stat sb;
+    char *p, *q, *s;
+    size_t leftLen, resolvedLen;
+    unsigned symlinks;
+    int serrno, slen;
+    char left[LIST_SIZE_INCREASE],
+         next_token[LIST_SIZE_INCREASE],
+         symlink[LIST_SIZE_INCREASE];
+
+    serrno = errno;
+    symlinks = 0;
+    if (path[0] == '/') {
+        resolved[0] = '/';
+        resolved[1] = '\0';
+        if (path[1] == '\0')
+            return (resolved);
+        resolvedLen = 1;
+        strcpy(left, path + 1);
+        leftLen = strlen(left);
+    } else {
+        if (getcwd(resolved, LIST_SIZE_INCREASE) == NULL) {
+            strcpy(resolved, ".");
+            return (NULL);
+        }
+        resolvedLen = strlen(resolved);
+        strcpy(left, path);
+        leftLen = strlen(left);
     }
+    if (leftLen >= sizeof(left) || resolvedLen >= LIST_SIZE_INCREASE) {
+        errno = ENAMETOOLONG;
+        return (NULL);
+    }
+    /*
+     * Iterate over path components in `left'.
+     */
+    while (leftLen != 0) {
+        /*
+         * Extract the next path component and adjust `left'
+         * and its length.
+         */
+        p = strchr(left, '/');
+        s = p ? p : left + leftLen;
+        if ((unsigned long)(s - left) >= sizeof(next_token)) {
+            errno = ENAMETOOLONG;
+            return (NULL);
+        }
+        memcpy(next_token, left, s - left);
+        next_token[s - left] = '\0';
+        leftLen -= s - left;
+        if (p != NULL)
+            memmove(left, s + 1, leftLen + 1);
+        if (resolved[resolvedLen - 1] != '/') {
+            if (resolvedLen + 1 >= LIST_SIZE_INCREASE) {
+                errno = ENAMETOOLONG;
+                return (NULL);
+            }
+            resolved[resolvedLen++] = '/';
+            resolved[resolvedLen] = '\0';
+        }
+        if (next_token[0] == '\0')
+            continue;
+        else if (strcmp(next_token, ".") == 0)
+            continue;
+        else if (strcmp(next_token, "..") == 0) {
+            /*
+             * Strip the last path component except when we have
+             * single "/"
+             */
+            if (resolvedLen > 1) {
+                resolved[resolvedLen - 1] = '\0';
+                q = strrchr(resolved, '/') + 1;
+                *q = '\0';
+                resolvedLen = q - resolved;
+            }
+            continue;
+        }
+        strcat(resolved, next_token);
+        resolvedLen = strlen(resolved);
+        if (resolvedLen >= LIST_SIZE_INCREASE) {
+            errno = ENAMETOOLONG;
+            return (NULL);
+        }
+        if (S_ISLNK(sb.st_mode)) {
+            if (symlinks++ > MAXSYMLINKS /* 32 is too many levels of symlink */) {
+                errno = ELOOP;
+                return (NULL);
+            }
+            slen = readlink(resolved, symlink, sizeof(symlink) - 1);
+            if (slen < 0)
+                return (NULL);
+            symlink[slen] = '\0';
+            if (symlink[0] == '/') {
+                resolved[1] = 0;
+                resolvedLen = 1;
+            } else if (resolvedLen > 1) {
+                /* Strip the last path component. */
+                resolved[resolvedLen - 1] = '\0';
+                q = strrchr(resolved, '/') + 1;
+                *q = '\0';
+                resolvedLen = q - resolved;
+            }
+            /*
+             * If there are any path components left, then
+             * append them to symlink. The result is placed
+             * in `left'.
+             */
+            if (p != NULL) {
+                if (symlink[slen - 1] != '/') {
+                    if ((unsigned long)slen + 1 >= sizeof(symlink)) {
+                        errno = ENAMETOOLONG;
+                        return (NULL);
+                    }
+                    symlink[slen] = '/';
+                    symlink[slen + 1] = 0;
+                }
+                strcat(symlink, left);
+                leftLen = strlen(symlink);
+                if (leftLen >= sizeof(left)) {
+                    errno = ENAMETOOLONG;
+                    return (NULL);
+                }
+            }
+            strcpy(left, symlink);
+            leftLen = strlen(left);
+        }
+    }
+    /*
+     * Remove trailing slash except when the resolved pathname
+     * is a single "/".
+     */
+    if (resolvedLen > 1 && resolved[resolvedLen - 1] == '/')
+        resolved[resolvedLen - 1] = '\0';
+    return (resolved);
+}
+
+int UTIL_getRealPath(const char* relativePath, char* absolutePath) {
+#if defined(_MSC_VER) || defined (__MINGW32__) || defined (__MSVCRT__)
+    char *deepestAbsolutePathFolder, *pathExtension, *relativePathTemp, c, *r;
+    c = '\\';
+    r = _fullpath(absolutePath, relativePath, LIST_SIZE_INCREASE);
     if ((errno == ENOENT) && (absolutePath != NULL)) {
-        /* directory doesn't already exist, so realpath will be too short, but will contain a correct prefix - we must extend */
+        /* directory doesn't already exist, so realpath will be too short, but will contain a correct prefix until the unrecognized file - we must extend */
         deepestAbsolutePathFolder = strrchr(absolutePath, c);   /* last folder/file currently in absolutePath */
         deepestAbsolutePathFolder++;    /* get rid of '/' */
         relativePathTemp = strdup(relativePath);
@@ -171,13 +296,21 @@ int UTIL_getRealPath(const char* relativePath, char* absolutePath) {
         *deepestAbsolutePathFolder = '\0';
         strcat(absolutePath, pathExtension);    /* merge the correct prefix (absolutePath) with extension to desired target (pathExtension) */
         return 0;
-    } else if (errno == 0) {
+    }
+#elif PLATFORM_POSIX_VERSION >= 200112L
+    char *r;
+    r = UTIL_getRealPathPosixImpl(relativePath, absolutePath);
+#else
+    UTIL_DISPLAYLEVEL(1, "System doesn't support output dir functionality\n");
+    exit(1);    
+#endif
+    if (errno == 0) {
         return 0;
     } else {
+        perror("UTIL_getRealPath: ");
+        errno = 0;
         return 1;
     }
-    errno = 0;
-    return 0;
 }
 
 int UTIL_createPath(const char* inputPath, int dirMode)
@@ -241,6 +374,10 @@ int UTIL_checkFilenameCollisions(char** dstFilenameTable, unsigned nbFiles) {
     unsigned u;
 
     dstFilenameTableSorted = (char**) malloc(sizeof(char*) * nbFiles);
+    if (!dstFilenameTableSorted) {
+        UTIL_DISPLAYLEVEL(1, "Unable to malloc new str array, not checking for name collisions\n");
+        return 1;
+    }
     /* approach: sort the table and check for consecutive strings that match */
     for (u = 0; u < nbFiles; ++u) {
         dstFilenameTableSorted[u] = dstFilenameTable[u];
@@ -290,7 +427,11 @@ void UTIL_createDestinationDirTable(const char** filenameTable, unsigned nbFiles
             filename += 1;  /* strrchr includes the first occurrence of 'c', which we need to get rid of */
         }
         finalPathLen = outDirNameAbsoluteLen + strlen(filename);
-        dstFilenameTable[u] = (char*) malloc((finalPathLen+6) * sizeof(char)); /* extra 1 bit for \0, extra 1 bit for directory delim, extra 4 for .zst if compressing*/
+        dstFilenameTable[u] = (char*) malloc((finalPathLen+6) * sizeof(char)); /* extra 1 bit for \0, extra 1 bit for directory delim, extra 4 for .zst if compressing */
+        if (!dstFilenameTable) {
+            UTIL_DISPLAYLEVEL(1, "Unable to allocate space for file destination\n"); /* NULL entries are fine */
+            continue;
+        }
         strcpy(dstFilenameTable[u], outDirNameAbsolute);
         dstFilenameTable[u][outDirNameAbsoluteLen] = c;
         dstFilenameTable[u][outDirNameAbsoluteLen+1] = '\0';
@@ -299,7 +440,8 @@ void UTIL_createDestinationDirTable(const char** filenameTable, unsigned nbFiles
     }
 
     /* check for name collisions and warn if they exist*/
-    UTIL_checkFilenameCollisions(dstFilenameTable, nbFiles);
+    if (UTIL_checkFilenameCollisions(dstFilenameTable, nbFiles))
+        UTIL_DISPLAYLEVEL(1, "Checking name collisions failed\n");
 }
 
 void UTIL_createDestinationDirTableMirrored(const char** filenameTable, unsigned nbFiles,
@@ -338,13 +480,17 @@ void UTIL_createDestinationDirTableMirrored(const char** filenameTable, unsigned
             UTIL_DISPLAYLEVEL(8, "Was unable to get absolute path of source file %s\n", filenameTable[u]);
         }
 
-        /* checks if cwd is prefix of filenametable[u] */
+        /* require cwd to be prefix of filenametable[u] */
         if (strncmp(cwd, srcFileNameAbsolute, cwdLength) == 0) {
             size_t finalPathLen, outDirNameAbsoluteLen;
             outDirNameAbsoluteLen = strlen(outDirNameAbsolute);
-            filePath = srcFileNameAbsolute + cwdLength + 1; /* get relative path of file from cwd */
-            finalPathLen = outDirNameAbsoluteLen + strlen(filePath);   /* combined length of target dir and relative path */
+            filePath = srcFileNameAbsolute + cwdLength + 1;
+            finalPathLen = outDirNameAbsoluteLen + strlen(filePath);
             dstFilenameTable[u] = (char*) malloc((finalPathLen+6) * sizeof(char));
+            if (!dstFilenameTable) {
+                UTIL_DISPLAYLEVEL(1, "Unable to allocate space for file destination\n");
+                continue;
+            }
             strcpy(dstFilenameTable[u], outDirNameAbsolute);    /* final path is: output dir (absolute) + '/' + relative path to file from cwd */
             dstFilenameTable[u][outDirNameAbsoluteLen] = c;
             dstFilenameTable[u][outDirNameAbsoluteLen+1] = '\0';

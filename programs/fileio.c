@@ -531,7 +531,6 @@ static FILE* FIO_openSrcFile(const char* srcFileName)
  * @result : FILE* to `dstFileName`, or NULL if it fails */
 static FILE* FIO_openDstFile(FIO_prefs_t* const prefs, const char* srcFileName, const char* dstFileName)
 {
-    printf("src: %s, dst: %s\n", srcFileName, dstFileName);
     assert(dstFileName != NULL);
     if (!strcmp (dstFileName, stdoutmark)) {
         DISPLAYLEVEL(4,"Using stdout for output \n");
@@ -2262,7 +2261,7 @@ FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
             if (dstFileNamesTable[u] != NULL) {
                 const char* const dstFileName = FIO_determineDstName(dstFileNamesTable[u]);
                 if (dstFileName == NULL) { error=1; continue; }
-                
+
                 error |= FIO_decompressSrcFile(prefs, ress, dstFileName, srcFileName);
             } else {
                 DISPLAYLEVEL(1, "File: %s is upstream of current directory, not processing...\n", srcNamesTable[u]);

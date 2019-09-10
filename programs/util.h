@@ -130,7 +130,7 @@ int UTIL_setFileStat(const char* filename, stat_t* statbuf);
 U32 UTIL_isDirectory(const char* infilename);
 int UTIL_createDir(const char* outDirName);
 char* UTIL_getCwd(char* buf);
-char* UTIL_backwardStrstr(char* haystack, char* needle);    /* returns LAST occurrence of needle in haystack */
+char* UTIL_lastStrstr(char* haystack, char* needle);    /* returns LAST occurrence of needle in haystack */
 int UTIL_getRealPath(const char* relativePath, char* absolutePath);
 int UTIL_createPath(const char* path, int dirMode); /* if trying to create /c/d and c doesn't exist, will attempt to make c/ as well */
 int UTIL_createDirMirrored(char** dstFilenameTable, unsigned nbFiles);

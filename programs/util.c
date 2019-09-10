@@ -86,7 +86,7 @@ U32 UTIL_isDirectory(const char* infilename)
     return 0;
 }
 
-char* UTIL_backwardStrstr(char* haystack, char* needle) {
+char* UTIL_lastStrstr(char* haystack, char* needle) {
     char *result, *ptr, *h;
     
     h = haystack;
@@ -94,8 +94,9 @@ char* UTIL_backwardStrstr(char* haystack, char* needle) {
     if (*needle == '\0') {
         return h;
     }
+
     while (1) {
-        ptr = strstr(h, needle); /* this WILL return NULL at some point */
+        ptr = strstr(h, needle); /* this will return NULL once we hit the last 'needle' */
         if (ptr == NULL)
             break;
         result = ptr;
@@ -145,12 +146,11 @@ int UTIL_createDir(const char* outDirName)
 }
 
 int UTIL_getRealPath(const char* relativePath, char* absolutePath) {
-    char *r, c;
+    char *r, c, *deepestAbsolutePathFolder, *pathExtension, *relativePathTemp;
 #if defined(_MSC_VER) || defined (__MINGW32__) || defined (__MSVCRT__)
     r = _fullpath(absolutePath, relativePath, LIST_SIZE_INCREASE);
     c = '\\';
 #elif defined (__STDC_VERSION__) && (__STDC_VERSION__ > 199901L)
-    char *deepestAbsolutePathFolder, *pathExtension, *relativePathTemp;
     r = realpath(relativePath, absolutePath);
     c = '/';
 #else
@@ -158,15 +158,18 @@ int UTIL_getRealPath(const char* relativePath, char* absolutePath) {
     UTIL_DISPLAYLEVEL(1, "Unable to process %s due to platform limitations\n", relativePath);
     return -1;
 #endif
-    if (errno == ENOENT) {
-        /* directory doesn't already exist, so realpath will be too short */
-        deepestAbsolutePathFolder = strrchr(absolutePath, c);   /* last folder currently in absolutePath */
-        deepestAbsolutePathFolder++;
+    if (r == NULL) {
+        printf("AWW JEEZ %s to: %s \n", relativePath, absolutePath);
+    }
+    if ((errno == ENOENT) && (absolutePath != NULL)) {
+        /* directory doesn't already exist, so realpath will be too short, but will contain a correct prefix - we must extend */
+        deepestAbsolutePathFolder = strrchr(absolutePath, c);   /* last folder/file currently in absolutePath */
+        deepestAbsolutePathFolder++;    /* get rid of '/' */
         relativePathTemp = strdup(relativePath);
-        pathExtension = UTIL_backwardStrstr(relativePathTemp, deepestAbsolutePathFolder);    /* first occurrence of last folder in relativePath */
+        pathExtension = UTIL_lastStrstr(relativePathTemp, deepestAbsolutePathFolder);    /* ptr to last occurrence of last folder/file in relativePath */
         free(relativePathTemp);
         *deepestAbsolutePathFolder = '\0';
-        strcat(absolutePath, pathExtension);
+        strcat(absolutePath, pathExtension);    /* merge the correct prefix (absolutePath) with extension to desired target (pathExtension) */
         return 0;
     } else if (errno == 0) {
         return 0;
@@ -238,13 +241,13 @@ int UTIL_checkFilenameCollisions(char** dstFilenameTable, unsigned nbFiles) {
     unsigned u;
 
     dstFilenameTableSorted = (char**) malloc(sizeof(char*) * nbFiles);
+    /* approach: sort the table and check for consecutive strings that match */
     for (u = 0; u < nbFiles; ++u) {
         dstFilenameTableSorted[u] = dstFilenameTable[u];
     }
     qsort(dstFilenameTableSorted, nbFiles, sizeof(char*), UTIL_compareStr);
     prevElem = dstFilenameTableSorted[0];
     for (u = 1; u < nbFiles; ++u) {
-        printf("currentElem: %s, preveElem: %s\n", dstFilenameTableSorted[u], prevElem);
         if (strcmp(prevElem, dstFilenameTableSorted[u]) == 0) {
             UTIL_DISPLAYLEVEL(1, "WARNING: Two files have same target path + filename : %s\n", prevElem);
         }
@@ -275,7 +278,7 @@ void UTIL_createDestinationDirTable(const char** filenameTable, unsigned nbFiles
         exit(1);
     }
 
-    /* generate the appropriate destination filename table */
+    /* generate the appropriate destination filename table: absolute output dir + filename */
     for (u = 0; u < nbFiles; ++u) {
         const char* filename;
         size_t finalPathLen, outDirNameAbsoluteLen;
@@ -287,10 +290,10 @@ void UTIL_createDestinationDirTable(const char** filenameTable, unsigned nbFiles
             filename += 1;  /* strrchr includes the first occurrence of 'c', which we need to get rid of */
         }
         finalPathLen = outDirNameAbsoluteLen + strlen(filename);
-        dstFilenameTable[u] = (char*) malloc((finalPathLen+6) * sizeof(char)); /* extra 1 bit for \0, extra 1 bit for directory delim extra 4 for .zst if compressing*/
+        dstFilenameTable[u] = (char*) malloc((finalPathLen+6) * sizeof(char)); /* extra 1 bit for \0, extra 1 bit for directory delim, extra 4 for .zst if compressing*/
         strcpy(dstFilenameTable[u], outDirNameAbsolute);
         dstFilenameTable[u][outDirNameAbsoluteLen] = c;
-        dstFilenameTable[u][outDirNameAbsoluteLen+1] = '\0'; /* need null terminator for strcat */
+        dstFilenameTable[u][outDirNameAbsoluteLen+1] = '\0';
         strcat(dstFilenameTable[u], filename);
         UTIL_DISPLAYLEVEL(8, "Final output file path: %s", dstFilenameTable[u]);
     }
@@ -326,8 +329,8 @@ void UTIL_createDestinationDirTableMirrored(const char** filenameTable, unsigned
         UTIL_DISPLAYLEVEL(1, "--output-dir* commands not available on this system\n");
         exit(1);
     }
-    printf("nbfiles: %u\n", nbFiles);
-    /* generate destination files table */
+    
+    /* generate destination files table: output dir (absolute) + (srcFilename absolute - cwd) */
     for (u = 0; u < nbFiles; ++u) {
         char srcFileNameAbsolute[LIST_SIZE_INCREASE];
         err = UTIL_getRealPath(filenameTable[u], srcFileNameAbsolute); /* abs path is stored in outDirNameAbsolute, sans the final "/" */
@@ -342,7 +345,7 @@ void UTIL_createDestinationDirTableMirrored(const char** filenameTable, unsigned
             filePath = srcFileNameAbsolute + cwdLength + 1; /* get relative path of file from cwd */
             finalPathLen = outDirNameAbsoluteLen + strlen(filePath);   /* combined length of target dir and relative path */
             dstFilenameTable[u] = (char*) malloc((finalPathLen+6) * sizeof(char));
-            strcpy(dstFilenameTable[u], outDirNameAbsolute);    /* final path is: output dir (absolute) + / + relative path to file from cwd */
+            strcpy(dstFilenameTable[u], outDirNameAbsolute);    /* final path is: output dir (absolute) + '/' + relative path to file from cwd */
             dstFilenameTable[u][outDirNameAbsoluteLen] = c;
             dstFilenameTable[u][outDirNameAbsoluteLen+1] = '\0';
             strcat(dstFilenameTable[u], filePath);

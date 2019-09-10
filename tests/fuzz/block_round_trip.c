@@ -20,6 +20,7 @@
 #include <string.h>
 #include "fuzz_helpers.h"
 #include "zstd.h"
+#include "fuzz_data_producer.h"
 
 static const int kMaxClevel = 19;
 
@@ -28,13 +29,12 @@ static ZSTD_DCtx *dctx = NULL;
 static void* cBuf = NULL;
 static void* rBuf = NULL;
 static size_t bufSize = 0;
-static uint32_t seed;
 
 static size_t roundTripTest(void *result, size_t resultCapacity,
                             void *compressed, size_t compressedCapacity,
-                            const void *src, size_t srcSize)
+                            const void *src, size_t srcSize,
+                            int cLevel)
 {
-    int const cLevel = FUZZ_rand(&seed) % kMaxClevel;
     ZSTD_parameters const params = ZSTD_getParams(cLevel, srcSize, 0);
     size_t ret = ZSTD_compressBegin_advanced(cctx, NULL, 0, params, srcSize);
     FUZZ_ZASSERT(ret);
@@ -52,10 +52,11 @@ static size_t roundTripTest(void *result, size_t resultCapacity,
 
 int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 {
-    size_t neededBufSize;
+    FUZZ_dataProducer_t *producer = FUZZ_dataProducer_create(src, size);
+    int cLevel = FUZZ_dataProducer_uint32(producer) % kMaxClevel;
+    size = FUZZ_dataProducer_remainingBytes(producer);
 
-    seed = FUZZ_seed(&src, &size);
-    neededBufSize = size;
+    size_t neededBufSize = size;
     if (size > ZSTD_BLOCKSIZE_MAX)
         return 0;
 
@@ -79,11 +80,13 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 
     {
         size_t const result =
-            roundTripTest(rBuf, neededBufSize, cBuf, neededBufSize, src, size);
+            roundTripTest(rBuf, neededBufSize, cBuf, neededBufSize, src, size,
+              cLevel);
         FUZZ_ZASSERT(result);
         FUZZ_ASSERT_MSG(result == size, "Incorrect regenerated size");
         FUZZ_ASSERT_MSG(!memcmp(src, rBuf, size), "Corruption!");
     }
+    FUZZ_dataProducer_free(producer);
 #ifndef STATEFUL_FUZZING
     ZSTD_freeCCtx(cctx); cctx = NULL;
     ZSTD_freeDCtx(dctx); dctx = NULL;

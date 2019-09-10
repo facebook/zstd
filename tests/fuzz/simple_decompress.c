@@ -25,7 +25,6 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 {
   FUZZ_dataProducer_t *producer = FUZZ_dataProducer_create(src, size);
 
-  int i;
   if (!dctx) {
       dctx = ZSTD_createDCtx();
       FUZZ_ASSERT(dctx);
@@ -37,7 +36,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 
   /* Restrict to remaining data. If we run out of data while generating params,
    we should still continue and let decompression happen on empty data. */
-  size = FUZZ_dataProducer_remainingBytes(producer);
+   size = FUZZ_dataProducer_remainingBytes(producer);
 
   ZSTD_decompressDCtx(dctx, rBuf, bufSize, src, size);
   free(rBuf);

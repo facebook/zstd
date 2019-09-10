@@ -2333,8 +2333,8 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
 
     if (frame &&
         /* We don't want to emit our first block as a RLE even if it qualifies because
-         * doing so will cause the decoder to throw a "should consume all input error."
-         * https://github.com/facebook/zstd/blob/dev/programs/fileio.c#L1723
+         * doing so will cause the decoder (cli only) to throw a "should consume all input error."
+         * This is only an issue for zstd <= v1.4.3
          */
         !zc->isFirstBlock &&
         cSize < rleMaxLength &&

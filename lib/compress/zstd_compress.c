@@ -1359,9 +1359,16 @@ static size_t ZSTD_continueCCtx(ZSTD_CCtx* cctx, const ZSTD_CCtx_params* params,
     return 0;
 }
 
+/**
+ * Controls, for this matchState reset, whether the tables need to be cleared /
+ * prepared for the coming compression (ZSTDcrp_makeClean), or whether the
+ * tables can be left unclean (ZSTDcrp_leaveDirty), because we know that a
+ * subsequent operation will overwrite the table space anyways (e.g., copying
+ * the matchState contents in from a CDict).
+ */
 typedef enum {
-    ZSTDcrp_continue,
-    ZSTDcrp_noMemset
+    ZSTDcrp_makeClean,
+    ZSTDcrp_leaveDirty
 } ZSTD_compResetPolicy_e;
 
 /**
@@ -1413,8 +1420,8 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
     RETURN_ERROR_IF(ZSTD_cwksp_reserve_failed(ws), memory_allocation,
                     "failed a workspace allocation in ZSTD_reset_matchState");
 
-    DEBUGLOG(4, "reset table : %u", crp!=ZSTDcrp_noMemset);
-    if (crp!=ZSTDcrp_noMemset) {
+    DEBUGLOG(4, "reset table : %u", crp!=ZSTDcrp_leaveDirty);
+    if (crp!=ZSTDcrp_leaveDirty) {
         /* reset tables only */
         memset(ms->hashTable, 0, hSize * sizeof(U32));
         memset(ms->chainTable, 0, chainSize * sizeof(U32));
@@ -1467,7 +1474,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
     assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
 
     zc->isFirstBlock = 1;
-    if (crp == ZSTDcrp_continue) {
+    if (crp == ZSTDcrp_makeClean) {
         if (ZSTD_equivalentParams(&zc->appliedParams, &params,
                                   zc->inBuffSize,
                                   zc->seqStore.maxNbSeq, zc->seqStore.maxNbLit,
@@ -1688,7 +1695,7 @@ ZSTD_resetCCtx_byAttachingCDict(ZSTD_CCtx* cctx,
         params.cParams = ZSTD_adjustCParams_internal(*cdict_cParams, pledgedSrcSize, 0);
         params.cParams.windowLog = windowLog;
         FORWARD_IF_ERROR(ZSTD_resetCCtx_internal(cctx, params, pledgedSrcSize,
-                                                 ZSTDcrp_continue, zbuff));
+                                                 ZSTDcrp_makeClean, zbuff));
         assert(cctx->appliedParams.cParams.strategy == cdict_cParams->strategy);
     }
 
@@ -1737,7 +1744,7 @@ static size_t ZSTD_resetCCtx_byCopyingCDict(ZSTD_CCtx* cctx,
         params.cParams = *cdict_cParams;
         params.cParams.windowLog = windowLog;
         FORWARD_IF_ERROR(ZSTD_resetCCtx_internal(cctx, params, pledgedSrcSize,
-                                                 ZSTDcrp_noMemset, zbuff));
+                                                 ZSTDcrp_leaveDirty, zbuff));
         assert(cctx->appliedParams.cParams.strategy == cdict_cParams->strategy);
         assert(cctx->appliedParams.cParams.hashLog == cdict_cParams->hashLog);
         assert(cctx->appliedParams.cParams.chainLog == cdict_cParams->chainLog);
@@ -1820,7 +1827,7 @@ static size_t ZSTD_copyCCtx_internal(ZSTD_CCtx* dstCCtx,
         params.cParams = srcCCtx->appliedParams.cParams;
         params.fParams = fParams;
         ZSTD_resetCCtx_internal(dstCCtx, params, pledgedSrcSize,
-                                ZSTDcrp_noMemset, zbuff);
+                                ZSTDcrp_leaveDirty, zbuff);
         assert(dstCCtx->appliedParams.cParams.windowLog == srcCCtx->appliedParams.cParams.windowLog);
         assert(dstCCtx->appliedParams.cParams.strategy == srcCCtx->appliedParams.cParams.strategy);
         assert(dstCCtx->appliedParams.cParams.hashLog == srcCCtx->appliedParams.cParams.hashLog);
@@ -2895,7 +2902,7 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
     }
 
     FORWARD_IF_ERROR( ZSTD_resetCCtx_internal(cctx, *params, pledgedSrcSize,
-                                     ZSTDcrp_continue, zbuff) );
+                                     ZSTDcrp_makeClean, zbuff) );
     {   size_t const dictID = ZSTD_compress_insertDictionary(
                 cctx->blockState.prevCBlock, &cctx->blockState.matchState,
                 params, dict, dictSize, dictContentType, dtlm,
@@ -3161,7 +3168,7 @@ static size_t ZSTD_initCDict_internal(
         &cdict->matchState,
         &cdict->workspace,
         &cParams,
-        ZSTDcrp_continue,
+        ZSTDcrp_makeClean,
         ZSTDirp_reset,
         ZSTD_resetTarget_CDict));
     /* (Maybe) load the dictionary

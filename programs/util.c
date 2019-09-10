@@ -146,16 +146,17 @@ int UTIL_createDir(const char* outDirName)
 #define MAXSYMLINKS 32
 /* based off of realpath() from OpenBSD*/
 char* UTIL_getRealPathPosixImpl(const char *path, char* resolved) {
+#if PLATFORM_POSIX_VERSION >= 200112L
     struct stat sb;
     char *p, *q, *s;
     size_t leftLen, resolvedLen;
     unsigned symlinks;
-    int serrno, slen;
+    int slen;
     char left[LIST_SIZE_INCREASE],
          next_token[LIST_SIZE_INCREASE],
          symlink[LIST_SIZE_INCREASE];
 
-    serrno = errno;
+    sb.st_mode = S_IFREG;
     symlinks = 0;
     if (path[0] == '/') {
         resolved[0] = '/';
@@ -279,6 +280,10 @@ char* UTIL_getRealPathPosixImpl(const char *path, char* resolved) {
     if (resolvedLen > 1 && resolved[resolvedLen - 1] == '/')
         resolved[resolvedLen - 1] = '\0';
     return (resolved);
+#else
+    UTIL_DISPLAYLEVEL("Platform not compatible, not processing %s or %s", path, resolved);
+    return NULL;
+#endif
 }
 
 int UTIL_getRealPath(const char* relativePath, char* absolutePath) {
@@ -304,7 +309,7 @@ int UTIL_getRealPath(const char* relativePath, char* absolutePath) {
     UTIL_DISPLAYLEVEL(1, "System doesn't support output dir functionality\n");
     exit(1);    
 #endif
-    if (errno == 0) {
+    if (errno == 0 && r != NULL) {
         return 0;
     } else {
         perror("UTIL_getRealPath: ");

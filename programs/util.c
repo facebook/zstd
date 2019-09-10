@@ -341,13 +341,9 @@ int UTIL_createPath(const char* inputPath, int dirMode)
     #endif
 
     /* appending a '/' means our path construction includes the last element, otherwise not */
-    if (path) {
-        if (dirMode && strlen(path) < LIST_SIZE_INCREASE) {
-            path[strlen(path)] = c;
-            path[strlen(path)+1] = '\0';
-        }
-    } else {
-        return 1;
+    if (dirMode && strlen(path) < LIST_SIZE_INCREASE) {
+        path[strlen(path)] = c;
+        path[strlen(path)+1] = '\0';
     }
 
     /* approach is to start from the first folder in path, and iteratively try to construct a dir at each '/' until the file */
@@ -370,7 +366,7 @@ int UTIL_createDirMirrored(char** dstFilenameTable, unsigned nbFiles) {
         if (dstFilenameTable[u] != NULL) {
             result = UTIL_createPath(dstFilenameTable[u], 0);
             if (result) {
-                UTIL_DISPLAYLEVEL(8, "Directory creation was unsuccessful\n");
+                UTIL_DISPLAYLEVEL(8, "Directory already creation was unsuccessful\n");
             }
         }
     }

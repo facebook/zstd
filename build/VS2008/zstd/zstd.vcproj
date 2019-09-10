@@ -627,6 +627,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\lib\compress\zstd_cwksp.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\lib\compress\zstd_fast.h"
 				>
 			</File>

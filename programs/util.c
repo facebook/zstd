@@ -293,7 +293,13 @@ int UTIL_getRealPath(const char* relativePath, char* absolutePath) {
         /* directory doesn't already exist, so realpath will be too short, but will contain a correct prefix until the unrecognized file - we must extend */
         deepestAbsolutePathFolder = strrchr(absolutePath, c);   /* last folder/file currently in absolutePath */
         deepestAbsolutePathFolder++;    /* get rid of '/' */
-        relativePathTemp = strdup(relativePath);
+        relativePathTemp = malloc((strlen(relativePath)+1)*sizeof(char));
+        if (relativePathTemp) {
+            memcpy(relativePathTemp, relativePath, strlen(relativePath));
+        } else {
+            UTIL_DISPLAYLEVEL(1, "Error allocating memory for relative path\n");
+            return 0;
+        }
         pathExtension = UTIL_lastStrstr(relativePathTemp, deepestAbsolutePathFolder);    /* ptr to last occurrence of last folder/file in relativePath */
         free(relativePathTemp);
         *deepestAbsolutePathFolder = '\0';
@@ -312,6 +318,7 @@ int UTIL_getRealPath(const char* relativePath, char* absolutePath) {
     } else {
         perror("UTIL_getRealPath: ");
         errno = 0;
+        absolutePath = NULL;
         return 1;
     }
 }
@@ -324,9 +331,9 @@ int UTIL_createPath(const char* inputPath, int dirMode)
     int result;
 
     result = UTIL_getRealPath(inputPath, path);
-    if (result == -1) {
-        UTIL_DISPLAYLEVEL(1, "--output-dir* commands not available on this system\n");
-        exit(1);
+    if (result == 1) {
+        UTIL_DISPLAYLEVEL(1, "Error getting the path\n");
+        return 1;
     }
     c = '/';
     #if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__)   /* windows support */
@@ -334,9 +341,13 @@ int UTIL_createPath(const char* inputPath, int dirMode)
     #endif
 
     /* appending a '/' means our path construction includes the last element, otherwise not */
-    if (dirMode) {
-        path[strlen(path)] = c;
-        path[strlen(path)+1] = '\0';
+    if (path) {
+        if (dirMode && strlen(path) < LIST_SIZE_INCREASE) {
+            path[strlen(path)] = c;
+            path[strlen(path)+1] = '\0';
+        }
+    } else {
+        return 1;
     }
 
     /* approach is to start from the first folder in path, and iteratively try to construct a dir at each '/' until the file */
@@ -359,7 +370,7 @@ int UTIL_createDirMirrored(char** dstFilenameTable, unsigned nbFiles) {
         if (dstFilenameTable[u] != NULL) {
             result = UTIL_createPath(dstFilenameTable[u], 0);
             if (result) {
-                UTIL_DISPLAYLEVEL(8, "Directory already exists or creation was unsuccessful\n");
+                UTIL_DISPLAYLEVEL(8, "Directory creation was unsuccessful\n");
             }
         }
     }
@@ -511,7 +522,6 @@ void UTIL_processMultipleFilenameDestinationDir(char** dstFilenameTable, unsigne
     
     int dirResult;
 
-    dirResult = 0;
     if (mirrored) {
         UTIL_createDestinationDirTableMirrored(filenameTable, nbFiles, outDirName, dstFilenameTable);
         dirResult = UTIL_createDirMirrored(dstFilenameTable, nbFiles);

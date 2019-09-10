@@ -373,10 +373,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\compress\zstd_cwksp.c"
-				>
-			</File>
-			<File
 				RelativePath="..\..\..\lib\compress\zstdmt_compress.c"
 				>
 			</File>

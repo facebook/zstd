@@ -1490,6 +1490,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
 
         /* ldm bucketOffsets table */
         if (params.ldmParams.enableLdm) {
+            /* TODO: avoid memset? */
             size_t const ldmBucketSize =
                   ((size_t)1) << (params.ldmParams.hashLog -
                                   params.ldmParams.bucketSizeLog);
@@ -1514,8 +1515,8 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             ZSTD_resetTarget_CCtx));
 
         /* ldm hash table */
-        /* initialize bucketOffsets table separately for pointer alignment */
         if (params.ldmParams.enableLdm) {
+            /* TODO: avoid memset? */
             size_t const ldmHSize = ((size_t)1) << params.ldmParams.hashLog;
             zc->ldmState.hashTable = (ldmEntry_t*)ZSTD_cwksp_reserve_aligned(ws, ldmHSize * sizeof(ldmEntry_t));
             memset(zc->ldmState.hashTable, 0, ldmHSize * sizeof(ldmEntry_t));

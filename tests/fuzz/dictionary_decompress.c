@@ -24,7 +24,12 @@ static ZSTD_DCtx *dctx = NULL;
 
 int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 {
+    /* Give a random portion of src data to the producer, to use for
+    parameter generation. The rest will be used for (de)compression */
     FUZZ_dataProducer_t *producer = FUZZ_dataProducer_create(src, size);
+    size_t producerSliceSize = FUZZ_dataProducer_uint32Range(producer, 0, size);
+    size = FUZZ_dataProducer_contract(producer, producerSliceSize);
+
     FUZZ_dict_t dict;
     ZSTD_DDict* ddict = NULL;
     int i;
@@ -43,8 +48,8 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
                 (ZSTD_dictLoadMethod_e)FUZZ_dataProducer_uint32Range(producer, 0, 1),
                 (ZSTD_dictContentType_e)FUZZ_dataProducer_uint32Range(producer, 0, 2)));
     }
-    /* Run it 10 times over 10 output sizes. Reuse the context and dict. */
-    for (i = 0; i < 10; ++i) {
+
+    {
         size_t const bufSize = FUZZ_dataProducer_uint32Range(producer, 0, 2 * size);
         void* rBuf = malloc(bufSize);
         FUZZ_ASSERT(rBuf);

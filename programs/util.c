@@ -324,7 +324,7 @@ int UTIL_getRealPath(const char* relativePath, char* absolutePath) {
 
 int UTIL_createPath(const char* inputPath, int dirMode)
 {
-    char path[LIST_SIZE_INCREASE];
+    char path[LIST_SIZE_INCREASE], pathDelim[2];
     char* ptr;
     char c;
     int result;
@@ -341,7 +341,7 @@ int UTIL_createPath(const char* inputPath, int dirMode)
 
     /* appending a '/' means our path construction function includes the last element, otherwise not */
     if (dirMode) {
-        char pathDelim[2];  /* to satisfy msan */
+        /* to satisfy msan */
         pathDelim[0] = c;
         pathDelim[1] = '\0';
         strcat(path, pathDelim);

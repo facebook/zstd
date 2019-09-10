@@ -1962,8 +1962,8 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
     DISPLAYLEVEL(3, "test%3i : ZSTD_getSequences zeros : ", testNb++);
     memset(CNBuffer, 0, 1000000);
-    assert(ZSTD_getSequences(ZSTD_createCCtx(), CNBuffer, 1000000,
-        compressedBuffer, 1000000, 3) == 1000000 / 131071 + 1);
+    assert(ZSTD_getSequences(ZSTD_createCCtx(), compressedBuffer, 1000000,
+        CNBuffer, 1000000) == 1000000 / 131071 + 1);
 
     /* All zeroes test (test bug #137) */
     #define ZEROESLENGTH 100

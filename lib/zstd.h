@@ -1218,8 +1218,8 @@ ZSTDLIB_API unsigned long long ZSTD_decompressBound(const void* src, size_t srcS
  *           or an error code (if srcSize is too small) */
 ZSTDLIB_API size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize);
 
-ZSTDLIB_API size_t ZSTD_getSequences(ZSTD_CCtx* zc, const void* src,
-    size_t srcSize, ZSTD_Sequence* outSeqs, size_t outSeqsSize, int level);
+ZSTDLIB_API size_t ZSTD_getSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
+    size_t outSeqsSize, const void* src, size_t srcSize);
 
 
 /***************************************

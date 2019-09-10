@@ -195,7 +195,7 @@ typedef struct {
 typedef struct {
     int collectSequences;
     ZSTD_Sequence* seqStart;
-    ZSTD_Sequence* seqCurrent;
+    size_t seqIndex;
     size_t maxSequences;
 } SeqCollector;
 

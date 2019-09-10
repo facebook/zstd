@@ -68,13 +68,16 @@ static size_t roundTripTest(void *result, size_t resultCapacity,
 
 int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 {
+    /* Give a random portion of src data to the producer, to use for
+    parameter generation. The rest will be used for (de)compression */
+    FUZZ_dataProducer_t *producer = FUZZ_dataProducer_create(src, size);
+    size_t producerSliceSize = FUZZ_dataProducer_uint32Range(producer, 0, size);
+    size = FUZZ_dataProducer_contract(producer, producerSliceSize);
+
     size_t const rBufSize = size;
     void* rBuf = malloc(rBufSize);
     size_t cBufSize = ZSTD_compressBound(size);
-    void* cBuf;
-
-    FUZZ_dataProducer_t *producer = FUZZ_dataProducer_create(src, size);
-
+    void *cBuf;
     /* Half of the time fuzz with a 1 byte smaller output size.
      * This will still succeed because we force the checksum to be disabled,
      * giving us 4 bytes of overhead.

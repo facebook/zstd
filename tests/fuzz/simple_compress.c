@@ -24,14 +24,17 @@ static ZSTD_CCtx *cctx = NULL;
 
 int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 {
+    /* Give a random portion of src data to the producer, to use for
+    parameter generation. The rest will be used for (de)compression */
     FUZZ_dataProducer_t *producer = FUZZ_dataProducer_create(src, size);
+    size_t producerSliceSize = FUZZ_dataProducer_uint32Range(producer, 0, size);
+    size = FUZZ_dataProducer_contract(producer, producerSliceSize);
 
-    int const level = (int)FUZZ_dataProducer_uint32Range(
-                                producer, 0, 19 + 3) - 3; /* [-3, 19] */
     size_t const maxSize = ZSTD_compressBound(size);
     size_t const bufSize = FUZZ_dataProducer_uint32Range(producer, 0, maxSize);
 
-    size = FUZZ_dataProducer_remainingBytes(producer);
+    int const level = (int)FUZZ_dataProducer_uint32Range(
+      producer, 0, 19 + 3) - 3; /* [-3, 19] */
 
     if (!cctx) {
         cctx = ZSTD_createCCtx();

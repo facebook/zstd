@@ -52,12 +52,19 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     size_t cBufSize = ZSTD_compressBound(size);
     void* cBuf;
 
+    /* Give a random portion of src data to the producer, to use for
+    parameter generation. The rest will be used for (de)compression */
     FUZZ_dataProducer_t *producer = FUZZ_dataProducer_create(src, size);
+    size_t producerSliceSize = FUZZ_dataProducer_uint32Range(producer, 0, size);
+    size = FUZZ_dataProducer_contract(producer, producerSliceSize);
+
     /* Half of the time fuzz with a 1 byte smaller output size.
      * This will still succeed because we don't use a dictionary, so the dictID
      * field is empty, giving us 4 bytes of overhead.
      */
     cBufSize -= FUZZ_dataProducer_uint32Range(producer, 0, 1);
+    size = FUZZ_dataProducer_remainingBytes(producer);
+
     cBuf = malloc(cBufSize);
 
     FUZZ_ASSERT(cBuf && rBuf);

@@ -2291,11 +2291,22 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
             outSeqs[i].rep = 1;
             repIdx = i - outSeqs[i].offset;
 
+            /* Not first block */
             if (repIdx >= 0) {
-                outSeqs[i].offset = outSeqs[repIdx].offset;
-            }
-
-            if (repIdx == -1) {
+                /* Special case where litLength == 0 */
+                if (outSeqs[i].litLength == 0) {
+                    /* When the offset is 3 */
+                    if (outSeqs[i].offset > 2) {
+                        outSeqs[i].offset = outSeqs[repIdx - 1].offset - 1;
+                    /* When the offset is either 1 or 2 */
+                    } else {
+                        outSeqs[i].offset = outSeqs[repIdx - 1].offset;
+                    }
+                } else {
+                    outSeqs[i].offset = outSeqs[repIdx].offset;
+                }
+            /* First block */
+            } else if (repIdx == -1) {
                 outSeqs[i].offset = 1;
             } else if (repIdx == -2) {
                 outSeqs[i].offset = 4;

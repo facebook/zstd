@@ -44,4 +44,10 @@ uint32_t FUZZ_dataProducer_uint32(FUZZ_dataProducer_t *producer);
 /* Returns the size of the remaining bytes of data in the producer */
 size_t FUZZ_dataProducer_remainingBytes(FUZZ_dataProducer_t *producer);
 
+/* Tells the producer to contract to newSize bytes of data it currently uses,
+counted from the end, and forget about the rest. If newSize > current data size,
+nothing happens. Returns the number of bytes the producer won't use anymore,
+after contracting. */
+size_t FUZZ_dataProducer_contract(FUZZ_dataProducer_t *producer, size_t newSize);
+
 #endif // FUZZ_DATA_PRODUCER_H

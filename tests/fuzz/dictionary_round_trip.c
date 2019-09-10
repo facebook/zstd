@@ -19,22 +19,23 @@
 #include <string.h>
 #include "fuzz_helpers.h"
 #include "zstd_helpers.h"
+#include "fuzz_data_producer.h"
 
 static const int kMaxClevel = 19;
 
 static ZSTD_CCtx *cctx = NULL;
 static ZSTD_DCtx *dctx = NULL;
-static uint32_t seed;
 
 static size_t roundTripTest(void *result, size_t resultCapacity,
                             void *compressed, size_t compressedCapacity,
-                            const void *src, size_t srcSize)
+                            const void *src, size_t srcSize,
+                            FUZZ_dataProducer_t *producer)
 {
     ZSTD_dictContentType_e dictContentType = ZSTD_dct_auto;
-    FUZZ_dict_t dict = FUZZ_train(src, srcSize, &seed);
+    FUZZ_dict_t dict = FUZZ_train(src, srcSize, producer);
     size_t cSize;
-    if ((FUZZ_rand(&seed) & 15) == 0) {
-        int const cLevel = FUZZ_rand(&seed) % kMaxClevel;
+    if ((FUZZ_dataProducer_uint32(producer) & 15) == 0) {
+        int const cLevel = FUZZ_dataProducer_uint32(producer) % kMaxClevel;
 
         cSize = ZSTD_compress_usingDict(cctx,
                 compressed, compressedCapacity,
@@ -42,20 +43,20 @@ static size_t roundTripTest(void *result, size_t resultCapacity,
                 dict.buff, dict.size,
                 cLevel);
     } else {
-        dictContentType = FUZZ_rand32(&seed, 0, 2);
-        FUZZ_setRandomParameters(cctx, srcSize, &seed);
+        dictContentType = FUZZ_dataProducer_uint32Range(producer, 0, 2);
+        FUZZ_setRandomParameters(cctx, srcSize, producer);
         /* Disable checksum so we can use sizes smaller than compress bound. */
         FUZZ_ZASSERT(ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 0));
         FUZZ_ZASSERT(ZSTD_CCtx_loadDictionary_advanced(
                 cctx, dict.buff, dict.size,
-                (ZSTD_dictLoadMethod_e)FUZZ_rand32(&seed, 0, 1),
+                (ZSTD_dictLoadMethod_e)FUZZ_dataProducer_uint32Range(producer, 0, 1),
                 dictContentType));
         cSize = ZSTD_compress2(cctx, compressed, compressedCapacity, src, srcSize);
     }
     FUZZ_ZASSERT(cSize);
     FUZZ_ZASSERT(ZSTD_DCtx_loadDictionary_advanced(
         dctx, dict.buff, dict.size,
-        (ZSTD_dictLoadMethod_e)FUZZ_rand32(&seed, 0, 1),
+        (ZSTD_dictLoadMethod_e)FUZZ_dataProducer_uint32Range(producer, 0, 1),
         dictContentType));
     {
         size_t const ret = ZSTD_decompressDCtx(
@@ -72,12 +73,13 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     size_t cBufSize = ZSTD_compressBound(size);
     void* cBuf;
 
-    seed = FUZZ_seed(&src, &size);
+    FUZZ_dataProducer_t *producer = FUZZ_dataProducer_create(src, size);
+
     /* Half of the time fuzz with a 1 byte smaller output size.
      * This will still succeed because we force the checksum to be disabled,
      * giving us 4 bytes of overhead.
      */
-    cBufSize -= FUZZ_rand32(&seed, 0, 1);
+    cBufSize -= FUZZ_dataProducer_uint32Range(producer, 0, 1);
     cBuf = malloc(cBufSize);
 
     if (!cctx) {
@@ -91,13 +93,14 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 
     {
         size_t const result =
-            roundTripTest(rBuf, rBufSize, cBuf, cBufSize, src, size);
+            roundTripTest(rBuf, rBufSize, cBuf, cBufSize, src, size, producer);
         FUZZ_ZASSERT(result);
         FUZZ_ASSERT_MSG(result == size, "Incorrect regenerated size");
         FUZZ_ASSERT_MSG(!memcmp(src, rBuf, size), "Corruption!");
     }
     free(rBuf);
     free(cBuf);
+    FUZZ_dataProducer_free(producer);
 #ifndef STATEFUL_FUZZING
     ZSTD_freeCCtx(cctx); cctx = NULL;
     ZSTD_freeDCtx(dctx); dctx = NULL;

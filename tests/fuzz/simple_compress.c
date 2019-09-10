@@ -18,28 +18,31 @@
 #include <stdio.h>
 #include "fuzz_helpers.h"
 #include "zstd.h"
+#include "fuzz_data_producer.h"
 
 static ZSTD_CCtx *cctx = NULL;
 
 int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 {
-    uint32_t seed = FUZZ_seed(&src, &size);
+    FUZZ_dataProducer_t *producer = FUZZ_dataProducer_create(src, size);
+
+    int const level = (int)FUZZ_dataProducer_uint32Range(
+                                producer, 0, 19 + 3) - 3; /* [-3, 19] */
     size_t const maxSize = ZSTD_compressBound(size);
-    int i;
+    size_t const bufSize = FUZZ_dataProducer_uint32Range(producer, 0, maxSize);
+
+    size = FUZZ_dataProducer_remainingBytes(producer);
+
     if (!cctx) {
         cctx = ZSTD_createCCtx();
         FUZZ_ASSERT(cctx);
     }
-    /* Run it 10 times over 10 output sizes. Reuse the context. */
-    for (i = 0; i < 10; ++i) {
-        int const level = (int)FUZZ_rand32(&seed, 0, 19 + 3) - 3; /* [-3, 19] */
-        size_t const bufSize = FUZZ_rand32(&seed, 0, maxSize);
-        void* rBuf = malloc(bufSize);
-        FUZZ_ASSERT(rBuf);
-        ZSTD_compressCCtx(cctx, rBuf, bufSize, src, size, level);
-        free(rBuf);
-    }
 
+    void *rBuf = malloc(bufSize);
+    FUZZ_ASSERT(rBuf);
+    ZSTD_compressCCtx(cctx, rBuf, bufSize, src, size, level);
+    free(rBuf);
+    FUZZ_dataProducer_free(producer);
 #ifndef STATEFUL_FUZZING
     ZSTD_freeCCtx(cctx); cctx = NULL;
 #endif

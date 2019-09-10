@@ -33,7 +33,6 @@
     <ClCompile Include="..\..\..\lib\compress\zstd_compress.c" />
     <ClCompile Include="..\..\..\lib\compress\zstd_compress_literals.c" />
     <ClCompile Include="..\..\..\lib\compress\zstd_compress_sequences.c" />
-    <ClCompile Include="..\..\..\lib\compress\zstd_cwksp.c" />
     <ClCompile Include="..\..\..\lib\compress\zstd_fast.c" />
     <ClCompile Include="..\..\..\lib\compress\zstd_double_fast.c" />
     <ClCompile Include="..\..\..\lib\compress\zstd_lazy.c" />

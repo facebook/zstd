@@ -433,10 +433,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\compress\zstd_ckwsp.c"
-				>
-			</File>
-			<File
 				RelativePath="..\..\..\lib\decompress\zstd_decompress.c"
 				>
 			</File>

@@ -1077,7 +1077,7 @@ typedef struct {
     unsigned int offset;
     unsigned int litLength;
     unsigned int matchLength;
-    int rep;
+    unsigned int rep;
 } ZSTD_Sequence;
 
 typedef struct {

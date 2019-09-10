@@ -147,7 +147,6 @@ int UTIL_createDir(const char* outDirName)
 /* based off of realpath() from OpenBSD*/
 char* UTIL_getRealPathPosixImpl(const char *path, char* resolved) {
 #if PLATFORM_POSIX_VERSION >= 200112L
-    struct stat sb;
     char *p, *q, *s;
     size_t leftLen, resolvedLen;
     unsigned symlinks;
@@ -156,7 +155,6 @@ char* UTIL_getRealPathPosixImpl(const char *path, char* resolved) {
          next_token[LIST_SIZE_INCREASE],
          symlink[LIST_SIZE_INCREASE];
 
-    sb.st_mode = S_IFREG;
     symlinks = 0;
     if (path[0] == '/') {
         resolved[0] = '/';
@@ -229,7 +227,7 @@ char* UTIL_getRealPathPosixImpl(const char *path, char* resolved) {
             errno = ENAMETOOLONG;
             return (NULL);
         }
-        if (S_ISLNK(sb.st_mode)) {
+        if (UTIL_isLink(resolved)) {
             if (symlinks++ > MAXSYMLINKS /* 32 is too many levels of symlink */) {
                 errno = ELOOP;
                 return (NULL);

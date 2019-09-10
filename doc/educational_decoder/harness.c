@@ -33,7 +33,7 @@ size_t read_file(const char *path, u8 **ptr) {
     }
 
     fseek(f, 0L, SEEK_END);
-    size_t size = ftell(f);
+    size_t size = (size_t)ftell(f);
     rewind(f);
 
     *ptr = malloc(size);

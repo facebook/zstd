@@ -1359,15 +1359,32 @@ static size_t ZSTD_continueCCtx(ZSTD_CCtx* cctx, const ZSTD_CCtx_params* params,
     return 0;
 }
 
-typedef enum { ZSTDcrp_continue, ZSTDcrp_noMemset } ZSTD_compResetPolicy_e;
+typedef enum {
+    ZSTDcrp_continue,
+    ZSTDcrp_noMemset
+} ZSTD_compResetPolicy_e;
 
-typedef enum { ZSTD_resetTarget_CDict, ZSTD_resetTarget_CCtx } ZSTD_resetTarget_e;
+/**
+ * Controls, for this matchState reset, whether indexing can continue where it
+ * left off (ZSTDirp_continue), or whether it needs to be restarted from zero
+ * (ZSTDirp_reset).
+ */
+typedef enum {
+    ZSTDirp_continue,
+    ZSTDirp_reset
+} ZSTD_indexResetPolicy_e;
+
+typedef enum {
+    ZSTD_resetTarget_CDict,
+    ZSTD_resetTarget_CCtx
+} ZSTD_resetTarget_e;
 
 static size_t
 ZSTD_reset_matchState(ZSTD_matchState_t* ms,
                       ZSTD_cwksp* ws,
                 const ZSTD_compressionParameters* cParams,
-                      ZSTD_compResetPolicy_e const crp, ZSTD_resetTarget_e const forWho)
+                const ZSTD_compResetPolicy_e crp,
+                const ZSTD_resetTarget_e forWho)
 {
     size_t const chainSize = (cParams->strategy == ZSTD_fast) ? 0 : ((size_t)1 << cParams->chainLog);
     size_t const hSize = ((size_t)1) << cParams->hashLog;

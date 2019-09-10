@@ -1475,29 +1475,6 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
     assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
 
     zc->isFirstBlock = 1;
-    if (crp == ZSTDcrp_makeClean) {
-        if (ZSTD_equivalentParams(&zc->appliedParams, &params,
-                                  zc->inBuffSize,
-                                  zc->seqStore.maxNbSeq, zc->seqStore.maxNbLit,
-                                  zbuff, pledgedSrcSize) ) {
-            DEBUGLOG(4, "ZSTD_equivalentParams()==1 -> consider continue mode");
-            ZSTD_cwksp_bump_oversized_duration(ws, 0);
-            if (!ZSTD_cwksp_check_wasteful(ws, 0)) {
-                DEBUGLOG(4, "continue mode confirmed (wLog1=%u, blockSize1=%zu)",
-                            zc->appliedParams.cParams.windowLog, zc->blockSize);
-                if (ZSTD_indexTooCloseToMax(zc->blockState.matchState.window)) {
-                    /* prefer a reset, faster than a rescale */
-                    FORWARD_IF_ERROR(ZSTD_reset_matchState(
-                        &zc->blockState.matchState,
-                        ws,
-                        &params.cParams,
-                        crp,
-                        ZSTDirp_reset,
-                        ZSTD_resetTarget_CCtx));
-                }
-                return ZSTD_continueCCtx(zc, &params, pledgedSrcSize);
-    }   }   }
-    DEBUGLOG(4, "ZSTD_equivalentParams()==0 -> reset CCtx");
 
     if (params.ldmParams.enableLdm) {
         /* Adjust long distance matching parameters */

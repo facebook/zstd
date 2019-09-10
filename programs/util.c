@@ -293,7 +293,7 @@ int UTIL_getRealPath(const char* relativePath, char* absolutePath) {
         /* directory doesn't already exist, so realpath will be too short, but will contain a correct prefix until the unrecognized file - we must extend */
         deepestAbsolutePathFolder = strrchr(absolutePath, c);   /* last folder/file currently in absolutePath */
         deepestAbsolutePathFolder++;    /* get rid of '/' */
-        relativePathTemp = malloc((strlen(relativePath)+1)*sizeof(char));
+        relativePathTemp = (char*)malloc((strlen(relativePath)+1)*sizeof(char));
         if (relativePathTemp) {
             memcpy(relativePathTemp, relativePath, strlen(relativePath));
         } else {
@@ -339,10 +339,12 @@ int UTIL_createPath(const char* inputPath, int dirMode)
     c = '\\';
     #endif
 
-    /* appending a '/' means our path construction includes the last element, otherwise not */
+    /* appending a '/' means our path construction function includes the last element, otherwise not */
     if (dirMode) {
-        path[strlen(path)] = c;
-        path[strlen(path)+1] = '\0';
+        char pathDelim[2];  /* to satisfy msan */
+        pathDelim[0] = c;
+        pathDelim[1] = '\0';
+        strcat(path, pathDelim);
     }
 
     /* approach is to start from the first folder in path, and iteratively try to construct a dir at each '/' until the file */

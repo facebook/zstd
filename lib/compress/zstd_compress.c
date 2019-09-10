@@ -1384,6 +1384,7 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
                       ZSTD_cwksp* ws,
                 const ZSTD_compressionParameters* cParams,
                 const ZSTD_compResetPolicy_e crp,
+                const ZSTD_indexResetPolicy_e forceResetIndex,
                 const ZSTD_resetTarget_e forWho)
 {
     size_t const chainSize = (cParams->strategy == ZSTD_fast) ? 0 : ((size_t)1 << cParams->chainLog);
@@ -1391,6 +1392,7 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
     U32    const hashLog3 = ((forWho == ZSTD_resetTarget_CCtx) && cParams->minMatch==3) ? MIN(ZSTD_HASHLOG3_MAX, cParams->windowLog) : 0;
     size_t const h3Size = ((size_t)1) << hashLog3;
 
+    (void)forceResetIndex;
 
     ms->hashLog3 = hashLog3;
     memset(&ms->window, 0, sizeof(ms->window));
@@ -1482,6 +1484,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                         ws,
                         &params.cParams,
                         crp,
+                        ZSTDirp_reset,
                         ZSTD_resetTarget_CCtx));
                 }
                 return ZSTD_continueCCtx(zc, &params, pledgedSrcSize);
@@ -1607,7 +1610,9 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             &zc->blockState.matchState,
             ws,
             &params.cParams,
-            crp, ZSTD_resetTarget_CCtx));
+            crp,
+            ZSTDirp_reset,
+            ZSTD_resetTarget_CCtx));
 
         /* ldm hash table */
         /* initialize bucketOffsets table separately for pointer alignment */
@@ -3156,7 +3161,9 @@ static size_t ZSTD_initCDict_internal(
         &cdict->matchState,
         &cdict->workspace,
         &cParams,
-        ZSTDcrp_continue, ZSTD_resetTarget_CDict));
+        ZSTDcrp_continue,
+        ZSTDirp_reset,
+        ZSTD_resetTarget_CDict));
     /* (Maybe) load the dictionary
      * Skips loading the dictionary if it is <= 8 bytes.
      */

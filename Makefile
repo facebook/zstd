@@ -69,7 +69,7 @@ test: MOREFLAGS += -g -DDEBUGLEVEL=$(DEBUGLEVEL) -Werror
 test:
 	MOREFLAGS="$(MOREFLAGS)" $(MAKE) -j -C $(PRGDIR) allVariants
 	$(MAKE) -C $(TESTDIR) $@
-	$(MAKE) -C doc/educational_decoder test
+	ZSTD=../../programs/zstd $(MAKE) -C doc/educational_decoder test
 
 ## shortest: same as `make check`
 .PHONY: shortest

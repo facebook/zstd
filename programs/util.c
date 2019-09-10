@@ -279,7 +279,7 @@ char* UTIL_getRealPathPosixImpl(const char *path, char* resolved) {
         resolved[resolvedLen - 1] = '\0';
     return (resolved);
 #else
-    UTIL_DISPLAYLEVEL("Platform not compatible, not processing %s or %s", path, resolved);
+    UTIL_DISPLAYLEVEL("1, Platform not compatible, not processing %s or %s", path, resolved);
     return NULL;
 #endif
 }

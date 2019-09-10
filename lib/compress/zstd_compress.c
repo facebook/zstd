@@ -1398,6 +1398,14 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         size_t const matchStateSize = ZSTD_sizeof_matchState(&params.cParams, /* forCCtx */ 1);
         size_t const maxNbLdmSeq = ZSTD_ldm_getMaxNbSeq(params.ldmParams, blockSize);
 
+        ZSTD_indexResetPolicy_e needsIndexReset = ZSTDirp_continue;
+
+        if (ZSTD_indexTooCloseToMax(zc->blockState.matchState.window)) {
+            needsIndexReset = ZSTDirp_reset;
+        }
+
+        ZSTD_cwksp_bump_oversized_duration(ws, 0);
+
         /* Check if workspace is large enough, alloc a new one if needed */
         {   size_t const cctxSpace = zc->staticSize ? sizeof(ZSTD_CCtx) : 0;
             size_t const entropySpace = HUF_WORKSPACE_SIZE;
@@ -1429,6 +1437,8 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                             neededSpace >> 10);
 
                 RETURN_ERROR_IF(zc->staticSize, memory_allocation, "static cctx : no resize");
+
+                needsIndexReset = ZSTDirp_reset;
 
                 ZSTD_cwksp_free(ws, zc->customMem);
                 FORWARD_IF_ERROR(ZSTD_cwksp_create(ws, neededSpace, zc->customMem));
@@ -1500,7 +1510,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             ws,
             &params.cParams,
             crp,
-            ZSTDirp_reset,
+            needsIndexReset,
             ZSTD_resetTarget_CCtx));
 
         /* ldm hash table */

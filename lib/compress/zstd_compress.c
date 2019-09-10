@@ -1399,13 +1399,16 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
     U32    const hashLog3 = ((forWho == ZSTD_resetTarget_CCtx) && cParams->minMatch==3) ? MIN(ZSTD_HASHLOG3_MAX, cParams->windowLog) : 0;
     size_t const h3Size = ((size_t)1) << hashLog3;
 
-    (void)forceResetIndex;
+    if (forceResetIndex == ZSTDirp_reset) {
+        memset(&ms->window, 0, sizeof(ms->window));
+        ms->window.dictLimit = 1;    /* start from 1, so that 1st position is valid */
+        ms->window.lowLimit = 1;     /* it ensures first and later CCtx usages compress the same */
+        ms->window.nextSrc = ms->window.base + 1;   /* see issue #1241 */
+        ZSTD_cwksp_mark_tables_dirty(ws);
+    }
 
     ms->hashLog3 = hashLog3;
-    memset(&ms->window, 0, sizeof(ms->window));
-    ms->window.dictLimit = 1;    /* start from 1, so that 1st position is valid */
-    ms->window.lowLimit = 1;     /* it ensures first and later CCtx usages compress the same */
-    ms->window.nextSrc = ms->window.base + 1;   /* see issue #1241 */
+
     ZSTD_invalidateMatchState(ms);
 
     assert(!ZSTD_cwksp_reserve_failed(ws)); /* check that allocation hasn't already failed */
@@ -1423,9 +1426,7 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
     DEBUGLOG(4, "reset table : %u", crp!=ZSTDcrp_leaveDirty);
     if (crp!=ZSTDcrp_leaveDirty) {
         /* reset tables only */
-        memset(ms->hashTable, 0, hSize * sizeof(U32));
-        memset(ms->chainTable, 0, chainSize * sizeof(U32));
-        memset(ms->hashTable3, 0, h3Size * sizeof(U32));
+        ZSTD_cwksp_clean_tables(ws);
     }
 
     /* opt parser space */

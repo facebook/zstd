@@ -243,7 +243,7 @@ test -f tmp.zst  # destination file should still be present
 rm tmp*
 
 println "\n===> decompression only tests "
-head -c 1M /dev/zero > tmp
+head -c 1048576 /dev/zero > tmp
 $ZSTD -d -o tmp1 "$TESTDIR/golden-decompression/rle-first-block.zst"
 $DIFF -s tmp1 tmp
 rm tmp*

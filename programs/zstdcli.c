@@ -136,8 +136,10 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -q     : suppress warnings; specify twice to suppress errors too\n");
     DISPLAY( " -c     : force write to standard output, even if it is the console\n");
     DISPLAY( " -l     : print information about zstd compressed files \n");
-    DISPLAY( " --output-dir-flat dir    : result(s) stored into toplevel of target existing directory `dir`. If multiple files have the same name, -f will cause the final file to be the output, otherwise the first will be output. Requires POSIX >= 2001.12 \n");
-    DISPLAY( " --output-dir-mirrored dir    : result(s) stored into existing directory `dir`, and mirrors directory structure of the input, relative to cwd. File input upstream from current directory is invalid. Requires POSIX >= 2001.12 \n");
+    #if defined (_BSD_SOURCE)
+    DISPLAY( " --output-dir-flat dir    : result(s) stored into toplevel of target existing directory `dir`. If multiple files have the same name, -f will cause the final file to be the output, otherwise the first will be output.\n");
+    DISPLAY( " --output-dir-mirrored dir    : result(s) stored into existing directory `dir`, and mirrors directory structure of the input, relative to cwd. File input upstream from current directory is invalid.\n");
+    #endif
 #ifndef ZSTD_NOCOMPRESS
     DISPLAY( "--ultra : enable levels beyond %i, up to %i (requires more memory)\n", ZSTDCLI_CLEVEL_MAX, ZSTD_maxCLevel());
     DISPLAY( "--long[=#]: enable long distance matching with given window log (default: %u)\n", g_defaultMaxWindowLog);
@@ -1180,9 +1182,6 @@ int main(int argCount, const char* argv[])
 
         if (outDirName) {
             UTIL_DISPLAYLEVEL(1, "Output of files will be in directory: %s\n", outDirName);
-            if (!UTIL_isDirectory(outDirName)) {
-                errorOut("The target directory doesn't exist, exiting");   /* you need to specify a valid target directory! */
-            }
             dstFilenameTable = (char**)malloc(filenameIdx * sizeof(char*));
             UTIL_processMultipleFilenameDestinationDir(dstFilenameTable, mirroredOutDir, filenameTable, filenameIdx, outDirName);
         } else {
@@ -1210,9 +1209,6 @@ int main(int argCount, const char* argv[])
 
         if (outDirName) {
             UTIL_DISPLAYLEVEL(1, "Output of files will be in directory: %s\n", outDirName);
-            if (!UTIL_isDirectory(outDirName)) {
-                errorOut("The target directory doesn't exist, exiting");   /* you need to specify a valid target directory! */
-            }
             dstFilenameTable = (char**)malloc(filenameIdx * sizeof(char*));
             UTIL_processMultipleFilenameDestinationDir(dstFilenameTable, mirroredOutDir, filenameTable, filenameIdx, outDirName);
         } else {

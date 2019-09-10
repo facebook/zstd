@@ -25,11 +25,12 @@ extern "C" {
 #include <stdio.h>        /* fprintf */
 #include <sys/types.h>    /* stat, utime */
 #include <sys/stat.h>     /* stat, chmod */
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__)
 #  include <sys/utime.h>  /* utime */
 #  include <io.h>         /* _chmod */
+#  include <direct.h>     /* _mkdir, _getcwd */
 #else
-#  include <unistd.h>     /* chown, stat */
+#  include <unistd.h>     /* chown, stat, getcwd */
 #  include <utime.h>      /* utime */
 #endif
 #include <time.h>         /* clock_t, clock, CLOCKS_PER_SEC, nanosleep */
@@ -128,8 +129,10 @@ int UTIL_isRegularFile(const char* infilename);
 int UTIL_setFileStat(const char* filename, stat_t* statbuf);
 U32 UTIL_isDirectory(const char* infilename);
 int UTIL_createDir(const char* outDirName);
+char* UTIL_getCwd(char* buf);
+char* UTIL_backwardStrstr(char* haystack, char* needle);    /* returns LAST occurrence of needle in haystack */
 int UTIL_getRealPath(const char* relativePath, char* absolutePath);
-int UTIL_createPath(const char* path); /* if trying to create /c/d and c doesn't exist, will attempt to make c/ as well */
+int UTIL_createPath(const char* path, int dirMode); /* if trying to create /c/d and c doesn't exist, will attempt to make c/ as well */
 int UTIL_createDirMirrored(char** dstFilenameTable, unsigned nbFiles);
 int UTIL_compareStr(const void *p1, const void *p2);
 int UTIL_checkFilenameCollisions(char** dstFilenameTable, unsigned nbFiles);  /* check if any two filenames are the same in dstFilenameTable */

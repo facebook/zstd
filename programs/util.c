@@ -20,14 +20,6 @@ extern "C" {
 #include <errno.h>
 #include <assert.h>
 
-#if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__)
-#include <direct.h>     /* needed for _mkdir in windows */
-#define currDir _getcwd
-#else
-#include <unistd.h>     /* needed for getcwd in linux */
-#define currDir getcwd
-#endif
-
 int UTIL_fileExist(const char* filename)
 {
     stat_t statbuf;
@@ -94,6 +86,41 @@ U32 UTIL_isDirectory(const char* infilename)
     return 0;
 }
 
+char* UTIL_backwardStrstr(char* haystack, char* needle) {
+    char *result, *ptr, *h;
+    
+    h = haystack;
+    result = NULL;
+    if (*needle == '\0') {
+        return h;
+    }
+    while (1) {
+        ptr = strstr(h, needle); /* this WILL return NULL at some point */
+        if (ptr == NULL)
+            break;
+        result = ptr;
+        h = ptr + 1;
+    }
+    return result;
+}
+
+char* UTIL_getCwd(char* buf) {
+    char* r;
+#if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__)
+    r = _getcwd(buf, LIST_SIZE_INCREASE);
+    if (errno != 0) {
+        perror("UTIL_getCwd: ");
+    }
+#else
+    r = getcwd(buf, LIST_SIZE_INCREASE);
+    if (errno != 0) {
+        perror("UTIL_getCwd: ");
+    }
+#endif
+    errno = 0;
+    return r;
+}
+
 int UTIL_createDir(const char* outDirName)
 {
     int r;
@@ -106,7 +133,10 @@ int UTIL_createDir(const char* outDirName)
 #else
     r = mkdir(outDirName, S_IRWXU | S_IRWXG | S_IRWXO); /* dir has all permissions */
     if (r || !UTIL_isDirectory(outDirName)) {
-        errno = 0;
+        if (errno != 0) {
+            perror("UTIL_createDir: ");
+            errno = 0;
+        }
         return 1;
     }
 #endif
@@ -114,45 +144,68 @@ int UTIL_createDir(const char* outDirName)
     return 0;   /* success */
 }
 
-/* function requires posix >= 2001 */
 int UTIL_getRealPath(const char* relativePath, char* absolutePath) {
+    char *r, c;
 #if defined(_MSC_VER) || defined (__MINGW32__) || defined (__MSVCRT__)
-    if (_fullpath(absolutePath, relativePath, LIST_SIZE_INCREASE) == NULL)
-        return 1;
-#elif (PLATFORM_POSIX_VERSION >= 200112L)
-#define _BSD_SOURCE
-    char* r;
+    r = _fullpath(absolutePath, relativePath, LIST_SIZE_INCREASE);
+    c = '\\';
+#elif defined (__STDC_VERSION__) && (__STDC_VERSION__ > 199901L)
+    char *deepestAbsolutePathFolder, *pathExtension, *relativePathTemp;
     r = realpath(relativePath, absolutePath);
-    if (r == NULL && errno != ENOENT /* we will be using this to generate "FAKE" paths, so ignore this err */) {
-        errno = 0;
+    c = '/';
+#else
+    absolutePath = NULL;
+    UTIL_DISPLAYLEVEL(1, "Unable to process %s due to platform limitations\n", relativePath);
+    return -1;
+#endif
+    if (errno == ENOENT) {
+        /* directory doesn't already exist, so realpath will be too short */
+        deepestAbsolutePathFolder = strrchr(absolutePath, c);   /* last folder currently in absolutePath */
+        deepestAbsolutePathFolder++;
+        relativePathTemp = strdup(relativePath);
+        pathExtension = UTIL_backwardStrstr(relativePathTemp, deepestAbsolutePathFolder);    /* first occurrence of last folder in relativePath */
+        free(relativePathTemp);
+        *deepestAbsolutePathFolder = '\0';
+        strcat(absolutePath, pathExtension);
+        return 0;
+    } else if (errno == 0) {
+        return 0;
+    } else {
         return 1;
     }
-#else
-    UTIL_DISPLAYLEVEL(1, "Unable to process realpath due to platform limitations\n", relativePath, absolutePath);
-    return -1;  /* realpath() not supported */
-#endif
     errno = 0;
     return 0;
 }
 
-int UTIL_createPath(const char* path)
+int UTIL_createPath(const char* inputPath, int dirMode)
 {
+    char path[LIST_SIZE_INCREASE];
     char* ptr;
     char c;
     int result;
 
+    result = UTIL_getRealPath(inputPath, path);
+    if (result == -1) {
+        UTIL_DISPLAYLEVEL(1, "--output-dir* commands not available on this system\n");
+        exit(1);
+    }
     c = '/';
     #if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__)   /* windows support */
     c = '\\';
     #endif
-    result = 0;
 
-    /* approach is to start from the first folder in path, and iteratively try to construct a dir at each '/' */
+    /* appending a '/' means our path construction includes the last element, otherwise not */
+    if (dirMode) {
+        path[strlen(path)] = c;
+        path[strlen(path)+1] = '\0';
+    }
+
+    /* approach is to start from the first folder in path, and iteratively try to construct a dir at each '/' until the file */
     for (ptr = strchr(path+1, c); ptr; ptr = strchr(ptr+1, c)) {
         *ptr = '\0';
         result = UTIL_createDir((const char*) path);
         if (result) {
-            UTIL_DISPLAYLEVEL(9, "Unsuccessful directory creation: either already exists or system error\n");
+            UTIL_DISPLAYLEVEL(1, "Unsuccessful directory creation at %s\n", path);
         }
         *ptr = c;  
     }
@@ -165,7 +218,7 @@ int UTIL_createDirMirrored(char** dstFilenameTable, unsigned nbFiles) {
 
     for (u = 0; u < nbFiles; ++u) {
         if (dstFilenameTable[u] != NULL) {
-            result = UTIL_createPath(dstFilenameTable[u]);
+            result = UTIL_createPath(dstFilenameTable[u], 0);
             if (result) {
                 UTIL_DISPLAYLEVEL(8, "Directory already exists or creation was unsuccessful\n");
             }
@@ -191,8 +244,9 @@ int UTIL_checkFilenameCollisions(char** dstFilenameTable, unsigned nbFiles) {
     qsort(dstFilenameTableSorted, nbFiles, sizeof(char*), UTIL_compareStr);
     prevElem = dstFilenameTableSorted[0];
     for (u = 1; u < nbFiles; ++u) {
+        printf("currentElem: %s, preveElem: %s\n", dstFilenameTableSorted[u], prevElem);
         if (strcmp(prevElem, dstFilenameTableSorted[u]) == 0) {
-            UTIL_DISPLAYLEVEL(1, "WARNING: The two files have name: %s - if you used -f, we are overwriting the previous file \n", prevElem);
+            UTIL_DISPLAYLEVEL(1, "WARNING: Two files have same target path + filename : %s\n", prevElem);
         }
         prevElem = dstFilenameTableSorted[u];
     }
@@ -217,7 +271,7 @@ void UTIL_createDestinationDirTable(const char** filenameTable, unsigned nbFiles
     if (err == 1) {
         UTIL_DISPLAYLEVEL(8, "Was unable to get absolute directory path of target output directory\n");
     } else if (err == -1) {
-        perror("Platform does not support realpath(), output-dir flag unavailable");
+        UTIL_DISPLAYLEVEL(1, "--output-dir* commands not available on this system\n");
         exit(1);
     }
 
@@ -261,7 +315,7 @@ void UTIL_createDestinationDirTableMirrored(const char** filenameTable, unsigned
     c = '\\';
     #endif
     /* store current dir in cwd via _getcwd or getcwd */ 
-    if (currDir(cwd, LIST_SIZE_INCREASE) == NULL) {
+    if (UTIL_getCwd(cwd) == NULL) {
         UTIL_DISPLAYLEVEL(1, "Unable to fetch current directory\n");
     }
     cwdLength = strlen(cwd);
@@ -269,10 +323,10 @@ void UTIL_createDestinationDirTableMirrored(const char** filenameTable, unsigned
     if (err == 1) {
         UTIL_DISPLAYLEVEL(8, "Was unable to get absolute directory path of target output directory\n");
     } else if (err == -1) {
-        perror("Platform does not support realpath(), output-dir flag unavailable, exiting");
+        UTIL_DISPLAYLEVEL(1, "--output-dir* commands not available on this system\n");
         exit(1);
     }
-
+    printf("nbfiles: %u\n", nbFiles);
     /* generate destination files table */
     for (u = 0; u < nbFiles; ++u) {
         char srcFileNameAbsolute[LIST_SIZE_INCREASE];
@@ -311,6 +365,7 @@ void UTIL_processMultipleFilenameDestinationDir(char** dstFilenameTable, unsigne
         dirResult = UTIL_createDirMirrored(dstFilenameTable, nbFiles);
     } else {
         UTIL_createDestinationDirTable(filenameTable, nbFiles, outDirName, dstFilenameTable);
+        dirResult = UTIL_createPath(outDirName, 1);
     }
 
     if (dirResult)

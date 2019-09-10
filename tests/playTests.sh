@@ -275,9 +275,8 @@ mkdir tmpInputTestDir/we/must/go/deeper
 println cool > tmpInputTestDir/we/must/go/deeper/tmp3
 println very > tmpInputTestDir/we/must/go/deeper/tmp4
 mkdir tmpOutDir
-mkdir tmpOutDir/secondDir
 $ZSTD tmp1 tmpInputTestDir/we/must/go/deeper/tmp3 --output-dir-flat tmpOutDir
-$ZSTD tmp2 tmpInputTestDir/we/must/go/deeper/tmp4 --output-dir-mirrored tmpOutDir/secondDir/
+$ZSTD tmp2 tmpInputTestDir/we/must/ -r --output-dir-mirrored tmpOutDir/secondDir/
 test -f tmpOutDir/tmp1.zst
 test -f tmpOutDir/tmp3.zst
 test -f tmpOutDir/secondDir/tmp2.zst

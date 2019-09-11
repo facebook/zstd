@@ -2219,6 +2219,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         }
 
         ZSTD_freeCCtx(cctx);
+        free(staticCCtxBuffer);
     }
     DISPLAYLEVEL(3, "OK \n");
 

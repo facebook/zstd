@@ -1643,6 +1643,8 @@ static size_t ZSTD_resetCCtx_byCopyingCDict(ZSTD_CCtx* cctx,
         assert(cctx->appliedParams.cParams.chainLog == cdict_cParams->chainLog);
     }
 
+    ZSTD_cwksp_mark_tables_dirty(&cctx->workspace);
+
     /* copy tables */
     {   size_t const chainSize = (cdict_cParams->strategy == ZSTD_fast) ? 0 : ((size_t)1 << cdict_cParams->chainLog);
         size_t const hSize =  (size_t)1 << cdict_cParams->hashLog;
@@ -1659,6 +1661,8 @@ static size_t ZSTD_resetCCtx_byCopyingCDict(ZSTD_CCtx* cctx,
         assert(cdict->matchState.hashLog3 == 0);
         memset(cctx->blockState.matchState.hashTable3, 0, h3Size * sizeof(U32));
     }
+
+    ZSTD_cwksp_mark_tables_clean(&cctx->workspace);
 
     /* copy dictionary offsets */
     {   ZSTD_matchState_t const* srcMatchState = &cdict->matchState;
@@ -1728,6 +1732,8 @@ static size_t ZSTD_copyCCtx_internal(ZSTD_CCtx* dstCCtx,
         assert(dstCCtx->blockState.matchState.hashLog3 == srcCCtx->blockState.matchState.hashLog3);
     }
 
+    ZSTD_cwksp_mark_tables_dirty(&dstCCtx->workspace);
+
     /* copy tables */
     {   size_t const chainSize = (srcCCtx->appliedParams.cParams.strategy == ZSTD_fast) ? 0 : ((size_t)1 << srcCCtx->appliedParams.cParams.chainLog);
         size_t const hSize =  (size_t)1 << srcCCtx->appliedParams.cParams.hashLog;
@@ -1737,6 +1743,8 @@ static size_t ZSTD_copyCCtx_internal(ZSTD_CCtx* dstCCtx,
         assert((U32*)dstCCtx->blockState.matchState.hashTable3 == (U32*)dstCCtx->blockState.matchState.chainTable + chainSize);
         memcpy(dstCCtx->blockState.matchState.hashTable, srcCCtx->blockState.matchState.hashTable, tableSpace);   /* presumes all tables follow each other */
     }
+
+    ZSTD_cwksp_mark_tables_clean(&dstCCtx->workspace);
 
     /* copy dictionary offsets */
     {

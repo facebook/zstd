@@ -47,6 +47,23 @@ extern "C" {
 #define MEM_STATIC_ASSERT(c)   { enum { MEM_static_assert = 1/(int)(!!(c)) }; }
 MEM_STATIC void MEM_check(void) { MEM_STATIC_ASSERT((sizeof(size_t)==4) || (sizeof(size_t)==8)); }
 
+/* detects whether we are being compiled under msan */
+#if defined (__has_feature)
+#  if __has_feature(memory_sanitizer)
+#    define MEMORY_SANITIZER 1
+#  endif
+#endif
+
+#if defined (MEMORY_SANITIZER)
+#  include <sanitizer/msan_interface.h>
+#endif
+
+#if defined (MEMORY_SANITIZER)
+#  define MEM_SKIP_MSAN __attribute__((no_sanitize("memory")))
+#else
+#  define MEM_SKIP_MSAN
+#endif
+
 
 /*-**************************************************************
 *  Basic Types

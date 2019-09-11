@@ -1301,7 +1301,7 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
     size_t const chainSize = (cParams->strategy == ZSTD_fast) ? 0 : ((size_t)1 << cParams->chainLog);
     size_t const hSize = ((size_t)1) << cParams->hashLog;
     U32    const hashLog3 = ((forWho == ZSTD_resetTarget_CCtx) && cParams->minMatch==3) ? MIN(ZSTD_HASHLOG3_MAX, cParams->windowLog) : 0;
-    size_t const h3Size = ((size_t)1) << hashLog3;
+    size_t const h3Size = hashLog3 ? ((size_t)1) << hashLog3 : 0;
 
     DEBUGLOG(4, "reset indices : %u", forceResetIndex == ZSTDirp_reset);
     if (forceResetIndex == ZSTDirp_reset) {
@@ -1658,7 +1658,8 @@ static size_t ZSTD_resetCCtx_byCopyingCDict(ZSTD_CCtx* cctx,
     }
 
     /* Zero the hashTable3, since the cdict never fills it */
-    {   size_t const h3Size = (size_t)1 << cctx->blockState.matchState.hashLog3;
+    {   int const h3log = cctx->blockState.matchState.hashLog3;
+        size_t const h3Size = h3log ? ((size_t)1 << h3log) : 0;
         assert(cdict->matchState.hashLog3 == 0);
         memset(cctx->blockState.matchState.hashTable3, 0, h3Size * sizeof(U32));
     }
@@ -1738,7 +1739,8 @@ static size_t ZSTD_copyCCtx_internal(ZSTD_CCtx* dstCCtx,
     /* copy tables */
     {   size_t const chainSize = (srcCCtx->appliedParams.cParams.strategy == ZSTD_fast) ? 0 : ((size_t)1 << srcCCtx->appliedParams.cParams.chainLog);
         size_t const hSize =  (size_t)1 << srcCCtx->appliedParams.cParams.hashLog;
-        size_t const h3Size = (size_t)1 << srcCCtx->blockState.matchState.hashLog3;
+        int const h3log = srcCCtx->blockState.matchState.hashLog3;
+        size_t const h3Size = h3log ? ((size_t)1 << h3log) : 0;
         size_t const tableSpace = (chainSize + hSize + h3Size) * sizeof(U32);
         assert((U32*)dstCCtx->blockState.matchState.chainTable == (U32*)dstCCtx->blockState.matchState.hashTable + hSize);  /* chainTable must follow hashTable */
         assert((U32*)dstCCtx->blockState.matchState.hashTable3 == (U32*)dstCCtx->blockState.matchState.chainTable + chainSize);

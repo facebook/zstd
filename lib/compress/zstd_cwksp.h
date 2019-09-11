@@ -184,6 +184,9 @@ MEM_STATIC void ZSTD_cwksp_internal_advance_phase(
              * by a larger margin than the space that will be consumed. */
             /* TODO: cleaner, compiler warning friendly way to do this??? */
             ws->allocStart = (BYTE*)ws->allocStart - ((size_t)ws->allocStart & (sizeof(U32)-1));
+            if (ws->allocStart < ws->tableValidEnd) {
+                ws->tableValidEnd = ws->allocStart;
+            }
         }
         ws->phase = phase;
     }

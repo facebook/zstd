@@ -56,8 +56,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     /* Give a random portion of src data to the producer, to use for
     parameter generation. The rest will be used for (de)compression */
     FUZZ_dataProducer_t *producer = FUZZ_dataProducer_create(src, size);
-    size_t producerSliceSize = FUZZ_dataProducer_uint32Range(producer, 0, size);
-    size = FUZZ_dataProducer_contract(producer, producerSliceSize);
+    size = FUZZ_dataProducer_reserveDataPrefix(producer);
 
     /* Allocate all buffers and contexts if not already allocated */
     if (!buf) {

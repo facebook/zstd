@@ -65,3 +65,10 @@ size_t FUZZ_dataProducer_contract(FUZZ_dataProducer_t *producer, size_t newSize)
     producer->size = newSize;
     return remaining;
 }
+
+size_t FUZZ_dataProducer_reserveDataPrefix(FUZZ_dataProducer_t *producer)
+{
+    size_t producerSliceSize = FUZZ_dataProducer_uint32Range(
+                                  producer, 0, producer->size);
+    return FUZZ_dataProducer_contract(producer, producerSliceSize);
+}

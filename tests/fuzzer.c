@@ -2150,6 +2150,78 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : table cleanliness through index reduction : ", testNb++);
+    {
+        int cLevel;
+        uint32_t approxIndex = 0;
+        uint32_t maxIndex = ((3U << 29) + (1U << ZSTD_WINDOWLOG_MAX)); /* ZSTD_CURRENT_MAX from zstd_compress_internal.h */
+
+        /* vastly overprovision space in a static context so that we can do all
+         * this without ever reallocating, which would reset the indices */
+        size_t const staticCCtxSize = 2 * ZSTD_estimateCCtxSize(22);
+        void* const staticCCtxBuffer = malloc(staticCCtxSize);
+        ZSTD_CCtx* cctx = ZSTD_initStaticCCtx(staticCCtxBuffer, staticCCtxSize);
+
+        /* bump the indices so the following compressions happen at high
+         * indices. */
+        {
+            ZSTD_outBuffer out = { compressedBuffer, compressedBufferSize, 0 };
+            ZSTD_inBuffer in = { CNBuffer, CNBuffSize, 0 };
+            ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters);
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, -500));
+            while (approxIndex <= (maxIndex / 4) * 3) {
+                CHECK_Z(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_flush));
+                approxIndex += in.pos;
+                CHECK(in.pos == in.size);
+                in.pos = 0;
+                out.pos = 0;
+            }
+            CHECK_Z(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end));
+        }
+
+        /* spew a bunch of stuff into the table area */
+        for (cLevel = 1; cLevel <= 22; cLevel++) {
+            ZSTD_outBuffer out = { compressedBuffer, compressedBufferSize, 0 };
+            ZSTD_inBuffer in = { CNBuffer, CNBuffSize, 0 };
+            ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters);
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, cLevel));
+            CHECK_Z(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_flush));
+            CHECK_Z(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end));
+            approxIndex += in.pos;
+        }
+
+        /* now crank the indices so we overflow */
+        {
+            ZSTD_outBuffer out = { compressedBuffer, compressedBufferSize, 0 };
+            ZSTD_inBuffer in = { CNBuffer, CNBuffSize, 0 };
+            ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters);
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, -500));
+            while (approxIndex <= maxIndex) {
+                CHECK_Z(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_flush));
+                approxIndex += in.pos;
+                CHECK(in.pos == in.size);
+                in.pos = 0;
+                out.pos = 0;
+            }
+            CHECK_Z(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end));
+        }
+
+        /* do a bunch of compressions again in low indices and ensure we don't
+         * hit untracked invalid indices */
+        for (cLevel = 1; cLevel <= 22; cLevel++) {
+            ZSTD_outBuffer out = { compressedBuffer, compressedBufferSize, 0 };
+            ZSTD_inBuffer in = { CNBuffer, CNBuffSize, 0 };
+            ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters);
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, cLevel));
+            CHECK_Z(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_flush));
+            CHECK_Z(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end));
+            approxIndex += in.pos;
+        }
+
+        ZSTD_freeCCtx(cctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
 _end:
     free(CNBuffer);
     free(compressedBuffer);

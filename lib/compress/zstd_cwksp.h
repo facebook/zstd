@@ -267,6 +267,18 @@ MEM_STATIC void* ZSTD_cwksp_reserve_object(ZSTD_cwksp* ws, size_t bytes) {
 
 MEM_STATIC void ZSTD_cwksp_mark_tables_dirty(ZSTD_cwksp* ws) {
     DEBUGLOG(4, "cwksp: ZSTD_cwksp_mark_tables_dirty");
+
+#if defined (MEMORY_SANITIZER) && !defined (ZSTD_MSAN_DONT_POISON_WORKSPACE)
+    /* To validate that the table re-use logic is sound, and that we don't
+     * access table space that we haven't cleaned, we re-"poison" the table
+     * space every time we mark it dirty. */
+    {
+        size_t size = (BYTE*)ws->tableValidEnd - (BYTE*)ws->objectEnd;
+        assert(__msan_test_shadow(ws->objectEnd, size) == -1);
+        __msan_poison(ws->objectEnd, size);
+    }
+#endif
+
     assert(ws->tableValidEnd >= ws->objectEnd);
     assert(ws->tableValidEnd <= ws->allocStart);
     ws->tableValidEnd = ws->objectEnd;
@@ -309,6 +321,18 @@ MEM_STATIC void ZSTD_cwksp_clear_tables(ZSTD_cwksp* ws) {
  */
 MEM_STATIC void ZSTD_cwksp_clear(ZSTD_cwksp* ws) {
     DEBUGLOG(4, "cwksp: clearing!");
+
+#if defined (MEMORY_SANITIZER) && !defined (ZSTD_MSAN_DONT_POISON_WORKSPACE)
+    /* To validate that the context re-use logic is sound, and that we don't
+     * access stuff that this compression hasn't initialized, we re-"poison"
+     * the workspace (or at least the non-static, non-table parts of it)
+     * every time we start a new compression. */
+    {
+        size_t size = (BYTE*)ws->workspaceEnd - (BYTE*)ws->tableValidEnd;
+        __msan_poison(ws->tableValidEnd, size);
+    }
+#endif
+
     ws->tableEnd = ws->objectEnd;
     ws->allocStart = ws->workspaceEnd;
     ws->allocFailed = 0;

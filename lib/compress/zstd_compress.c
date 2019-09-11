@@ -1303,6 +1303,7 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
     U32    const hashLog3 = ((forWho == ZSTD_resetTarget_CCtx) && cParams->minMatch==3) ? MIN(ZSTD_HASHLOG3_MAX, cParams->windowLog) : 0;
     size_t const h3Size = ((size_t)1) << hashLog3;
 
+    DEBUGLOG(4, "reset indices : %u", forceResetIndex == ZSTDirp_reset);
     if (forceResetIndex == ZSTDirp_reset) {
         memset(&ms->window, 0, sizeof(ms->window));
         ms->window.dictLimit = 1;    /* start from 1, so that 1st position is valid */

@@ -2181,7 +2181,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
         /* spew a bunch of stuff into the table area */
         for (cLevel = 1; cLevel <= 22; cLevel++) {
-            ZSTD_outBuffer out = { compressedBuffer, compressedBufferSize, 0 };
+            ZSTD_outBuffer out = { compressedBuffer, compressedBufferSize / cLevel, 0 };
             ZSTD_inBuffer in = { CNBuffer, CNBuffSize, 0 };
             ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters);
             CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, cLevel));
@@ -2209,7 +2209,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         /* do a bunch of compressions again in low indices and ensure we don't
          * hit untracked invalid indices */
         for (cLevel = 1; cLevel <= 22; cLevel++) {
-            ZSTD_outBuffer out = { compressedBuffer, compressedBufferSize, 0 };
+            ZSTD_outBuffer out = { compressedBuffer, compressedBufferSize / cLevel, 0 };
             ZSTD_inBuffer in = { CNBuffer, CNBuffSize, 0 };
             ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters);
             CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, cLevel));

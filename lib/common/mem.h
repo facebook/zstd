@@ -74,6 +74,19 @@ void __msan_poison(const volatile void *a, size_t size);
 intptr_t __msan_test_shadow(const volatile void *x, size_t size);
 #endif
 
+/* detects whether we are being compiled under asan */
+#if defined (__has_feature)
+#  if __has_feature(address_sanitizer)
+#    define ADDRESS_SANITIZER 1
+#  endif
+#elif defined(__SANITIZE_ADDRESS__)
+#  define ADDRESS_SANITIZER 1
+#endif
+
+#if defined (ADDRESS_SANITIZER)
+#  include <sanitizer/asan_interface.h>
+#endif
+
 
 /*-**************************************************************
 *  Basic Types

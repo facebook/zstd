@@ -74,12 +74,6 @@ void __msan_poison(const volatile void *a, size_t size);
 intptr_t __msan_test_shadow(const volatile void *x, size_t size);
 #endif
 
-#if defined (MEMORY_SANITIZER)
-#  define MEM_SKIP_MSAN __attribute__((no_sanitize("memory")))
-#else
-#  define MEM_SKIP_MSAN
-#endif
-
 
 /*-**************************************************************
 *  Basic Types

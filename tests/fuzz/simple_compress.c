@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include "fuzz_helpers.h"
 #include "zstd.h"
+#include "zstd_helpers.h"
 #include "fuzz_data_producer.h"
 
 static ZSTD_CCtx *cctx = NULL;
@@ -32,8 +33,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     size_t const maxSize = ZSTD_compressBound(size);
     size_t const bufSize = FUZZ_dataProducer_uint32Range(producer, 0, maxSize);
 
-    int const level = (int)FUZZ_dataProducer_uint32Range(
-      producer, 0, 19 + 3) - 3; /* [-3, 19] */
+    int const cLevel = FUZZ_dataProducer_int32Range(producer, kMinClevel, kMaxClevel);
 
     if (!cctx) {
         cctx = ZSTD_createCCtx();
@@ -42,7 +42,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 
     void *rBuf = malloc(bufSize);
     FUZZ_ASSERT(rBuf);
-    ZSTD_compressCCtx(cctx, rBuf, bufSize, src, size, level);
+    ZSTD_compressCCtx(cctx, rBuf, bufSize, src, size, cLevel);
     free(rBuf);
     FUZZ_dataProducer_free(producer);
 #ifndef STATEFUL_FUZZING

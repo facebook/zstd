@@ -34,7 +34,7 @@ static ZSTD_outBuffer makeOutBuffer(uint8_t *dst, size_t capacity,
     ZSTD_outBuffer buffer = { dst, 0, 0 };
 
     FUZZ_ASSERT(capacity > 0);
-    buffer.size = (FUZZ_dataProducer_uint32(producer) % capacity) + 1;
+    buffer.size = (FUZZ_dataProducer_uint32Range(producer, 1, capacity));
     FUZZ_ASSERT(buffer.size <= capacity);
 
     return buffer;
@@ -46,7 +46,7 @@ static ZSTD_inBuffer makeInBuffer(const uint8_t **src, size_t *size,
     ZSTD_inBuffer buffer = { *src, 0, 0 };
 
     FUZZ_ASSERT(*size > 0);
-    buffer.size = (FUZZ_dataProducer_uint32(producer) % *size) + 1;
+    buffer.size = (FUZZ_dataProducer_uint32Range(producer, 1, *size));
     FUZZ_ASSERT(buffer.size <= *size);
     *src += buffer.size;
     *size -= buffer.size;
@@ -69,7 +69,7 @@ static size_t compress(uint8_t *dst, size_t capacity,
         while (in.pos < in.size || mode != -1) {
             ZSTD_outBuffer out = makeOutBuffer(dst, capacity, producer);
             /* Previous action finished, pick a new mode. */
-            if (mode == -1) mode = FUZZ_dataProducer_uint32(producer) % 10;
+            if (mode == -1) mode = FUZZ_dataProducer_uint32Range(producer, 0, 9);
             switch (mode) {
                 case 0: /* fall-through */
                 case 1: /* fall-through */
@@ -88,7 +88,7 @@ static size_t compress(uint8_t *dst, size_t capacity,
                     /* Reset the compressor when the frame is finished */
                     if (ret == 0) {
                         ZSTD_CCtx_reset(cctx, ZSTD_reset_session_only);
-                        if ((FUZZ_dataProducer_uint32(producer) & 7) == 0) {
+                        if (FUZZ_dataProducer_uint32Range(producer, 0, 7) == 0) {
                             size_t const remaining = in.size - in.pos;
                             FUZZ_setRandomParameters(cctx, remaining, producer);
                         }

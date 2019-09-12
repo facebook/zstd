@@ -31,7 +31,7 @@ static ZSTD_outBuffer makeOutBuffer(FUZZ_dataProducer_t *producer)
 {
   ZSTD_outBuffer buffer = { buf, 0, 0 };
 
-  buffer.size = (FUZZ_dataProducer_uint32(producer) % kBufSize) + 1;
+  buffer.size = (FUZZ_dataProducer_uint32Range(producer, 1, kBufSize));
   FUZZ_ASSERT(buffer.size <= kBufSize);
 
   return buffer;
@@ -43,7 +43,7 @@ static ZSTD_inBuffer makeInBuffer(const uint8_t **src, size_t *size,
   ZSTD_inBuffer buffer = { *src, 0, 0 };
 
   FUZZ_ASSERT(*size > 0);
-  buffer.size = (FUZZ_dataProducer_uint32(producer) % *size) + 1;
+  buffer.size = (FUZZ_dataProducer_uint32Range(producer, 1, *size));
   FUZZ_ASSERT(buffer.size <= *size);
   *src += buffer.size;
   *size -= buffer.size;

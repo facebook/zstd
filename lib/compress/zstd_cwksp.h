@@ -214,6 +214,11 @@ MEM_STATIC void* ZSTD_cwksp_reserve_internal(
         ws->tableValidEnd = alloc;
     }
     ws->allocStart = alloc;
+
+#if defined (ADDRESS_SANITIZER) && !defined (ZSTD_ASAN_DONT_POISON_WORKSPACE)
+    __asan_unpoison_memory_region(alloc, bytes);
+#endif
+
     return alloc;
 }
 
@@ -254,6 +259,11 @@ MEM_STATIC void* ZSTD_cwksp_reserve_table(ZSTD_cwksp* ws, size_t bytes) {
         return NULL;
     }
     ws->tableEnd = end;
+
+#if defined (ADDRESS_SANITIZER) && !defined (ZSTD_ASAN_DONT_POISON_WORKSPACE)
+    __asan_unpoison_memory_region(alloc, bytes);
+#endif
+
     return alloc;
 }
 
@@ -279,6 +289,11 @@ MEM_STATIC void* ZSTD_cwksp_reserve_object(ZSTD_cwksp* ws, size_t bytes) {
     ws->objectEnd = end;
     ws->tableEnd = end;
     ws->tableValidEnd = end;
+
+#if defined (ADDRESS_SANITIZER) && !defined (ZSTD_ASAN_DONT_POISON_WORKSPACE)
+    __asan_unpoison_memory_region(start, bytes);
+#endif
+
     return start;
 }
 
@@ -331,6 +346,14 @@ MEM_STATIC void ZSTD_cwksp_clean_tables(ZSTD_cwksp* ws) {
  */
 MEM_STATIC void ZSTD_cwksp_clear_tables(ZSTD_cwksp* ws) {
     DEBUGLOG(4, "cwksp: clearing tables!");
+
+#if defined (ADDRESS_SANITIZER) && !defined (ZSTD_ASAN_DONT_POISON_WORKSPACE)
+    {
+        size_t size = (BYTE*)ws->tableValidEnd - (BYTE*)ws->objectEnd;
+        __asan_poison_memory_region(ws->objectEnd, size);
+    }
+#endif
+
     ws->tableEnd = ws->objectEnd;
     ZSTD_cwksp_assert_internal_consistency(ws);
 }
@@ -350,6 +373,13 @@ MEM_STATIC void ZSTD_cwksp_clear(ZSTD_cwksp* ws) {
     {
         size_t size = (BYTE*)ws->workspaceEnd - (BYTE*)ws->tableValidEnd;
         __msan_poison(ws->tableValidEnd, size);
+    }
+#endif
+
+#if defined (ADDRESS_SANITIZER) && !defined (ZSTD_ASAN_DONT_POISON_WORKSPACE)
+    {
+        size_t size = (BYTE*)ws->workspaceEnd - (BYTE*)ws->objectEnd;
+        __asan_poison_memory_region(ws->objectEnd, size);
     }
 #endif
 

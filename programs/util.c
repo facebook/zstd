@@ -57,7 +57,8 @@ int UTIL_setFileStat(const char *filename, stat_t *statbuf)
 #if defined(_WIN32) || (PLATFORM_POSIX_VERSION < 200809L)
     struct utimbuf timebuf;
 #else
-    struct timespec timebuf[2] = {};
+    /* (atime, mtime) */
+    struct timespec timebuf[2] = { {0, UTIME_NOW}, statbuf->st_mtim };
 #endif
 
     if (!UTIL_isRegularFile(filename))
@@ -68,8 +69,6 @@ int UTIL_setFileStat(const char *filename, stat_t *statbuf)
     timebuf.modtime = statbuf->st_mtime;
     res += utime(filename, &timebuf);  /* set access and modification times */
 #else
-    timebuf[0].tv_nsec = UTIME_NOW;
-    timebuf[1].tv_sec = statbuf->st_mtime;
     res += utimensat(AT_FDCWD, filename, timebuf, 0);  /* set access and modification times */
 #endif
 

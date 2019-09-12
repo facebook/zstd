@@ -21,8 +21,6 @@
 #include "zstd_helpers.h"
 #include "fuzz_data_producer.h"
 
-static const int kMaxClevel = 19;
-
 static ZSTD_CCtx *cctx = NULL;
 static ZSTD_DCtx *dctx = NULL;
 
@@ -34,8 +32,8 @@ static size_t roundTripTest(void *result, size_t resultCapacity,
     ZSTD_dictContentType_e dictContentType = ZSTD_dct_auto;
     FUZZ_dict_t dict = FUZZ_train(src, srcSize, producer);
     size_t cSize;
-    if ((FUZZ_dataProducer_uint32(producer) & 15) == 0) {
-        int const cLevel = FUZZ_dataProducer_uint32(producer) % kMaxClevel;
+    if (FUZZ_dataProducer_uint32Range(producer, 0, 15) == 0) {
+        int const cLevel = FUZZ_dataProducer_int32Range(producer, kMinClevel, kMaxClevel);
 
         cSize = ZSTD_compress_usingDict(cctx,
                 compressed, compressedCapacity,

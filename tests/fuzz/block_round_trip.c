@@ -20,9 +20,8 @@
 #include <string.h>
 #include "fuzz_helpers.h"
 #include "zstd.h"
+#include "zstd_helpers.h"
 #include "fuzz_data_producer.h"
-
-static const int kMaxClevel = 19;
 
 static ZSTD_CCtx *cctx = NULL;
 static ZSTD_DCtx *dctx = NULL;
@@ -57,7 +56,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     FUZZ_dataProducer_t *producer = FUZZ_dataProducer_create(src, size);
     size = FUZZ_dataProducer_reserveDataPrefix(producer);
 
-    int cLevel = FUZZ_dataProducer_uint32(producer) % kMaxClevel;
+    int const cLevel = FUZZ_dataProducer_int32Range(producer, kMinClevel, kMaxClevel);
 
     size_t neededBufSize = size;
     if (size > ZSTD_BLOCKSIZE_MAX)

@@ -22,8 +22,6 @@
 #include "zstd_helpers.h"
 #include "fuzz_data_producer.h"
 
-static const int kMaxClevel = 19;
-
 static ZSTD_CCtx *cctx = NULL;
 static ZSTD_DCtx *dctx = NULL;
 
@@ -33,11 +31,12 @@ static size_t roundTripTest(void *result, size_t resultCapacity,
                             FUZZ_dataProducer_t *producer)
 {
     size_t cSize;
-    if (FUZZ_dataProducer_uint32(producer) & 1) {
+    if (FUZZ_dataProducer_uint32Range(producer, 0, 1)) {
         FUZZ_setRandomParameters(cctx, srcSize, producer);
         cSize = ZSTD_compress2(cctx, compressed, compressedCapacity, src, srcSize);
     } else {
-        int const cLevel = FUZZ_dataProducer_uint32(producer) % kMaxClevel;
+      int const cLevel = FUZZ_dataProducer_int32Range(producer, kMinClevel, kMaxClevel);
+
         cSize = ZSTD_compressCCtx(
             cctx, compressed, compressedCapacity, src, srcSize, cLevel);
     }
@@ -62,7 +61,6 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
      * field is empty, giving us 4 bytes of overhead.
      */
     cBufSize -= FUZZ_dataProducer_uint32Range(producer, 0, 1);
-    size = FUZZ_dataProducer_remainingBytes(producer);
 
     cBuf = malloc(cBufSize);
 

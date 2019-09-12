@@ -24,6 +24,9 @@
 extern "C" {
 #endif
 
+extern const int kMinClevel;
+extern const int kMaxClevel;
+
 void FUZZ_setRandomParameters(ZSTD_CCtx *cctx, size_t srcSize, FUZZ_dataProducer_t *producer);
 
 ZSTD_compressionParameters FUZZ_randomCParams(size_t srcSize, FUZZ_dataProducer_t *producer);
@@ -40,7 +43,6 @@ typedef struct {
  * for speed, and doesn't care about dictionary quality.
  */
 FUZZ_dict_t FUZZ_train(void const* src, size_t srcSize, FUZZ_dataProducer_t *producer);
-
 
 #ifdef __cplusplus
 }

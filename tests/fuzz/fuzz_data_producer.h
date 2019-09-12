@@ -41,6 +41,10 @@ uint32_t FUZZ_dataProducer_uint32Range(FUZZ_dataProducer_t *producer, uint32_t m
 /* Returns a uint32 value */
 uint32_t FUZZ_dataProducer_uint32(FUZZ_dataProducer_t *producer);
 
+/* Returns a signed value between [min, ,max] */
+int32_t FUZZ_dataProducer_int32Range(FUZZ_dataProducer_t *producer,
+                                    int32_t min, int32_t max);
+
 /* Returns the size of the remaining bytes of data in the producer */
 size_t FUZZ_dataProducer_remainingBytes(FUZZ_dataProducer_t *producer);
 

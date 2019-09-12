@@ -31,7 +31,6 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 
     FUZZ_dict_t dict;
     ZSTD_DDict* ddict = NULL;
-    int i;
 
     if (!dctx) {
         dctx = ZSTD_createDCtx();
@@ -49,7 +48,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     }
 
     {
-        size_t const bufSize = FUZZ_dataProducer_uint32Range(producer, 0, 2 * size);
+        size_t const bufSize = FUZZ_dataProducer_uint32Range(producer, 0, 10 * size);
         void* rBuf = malloc(bufSize);
         FUZZ_ASSERT(rBuf);
         if (ddict) {

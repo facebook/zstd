@@ -17,6 +17,9 @@
 #include "zstd.h"
 #include "zdict.h"
 
+const int kMinClevel = -3;
+const int kMaxClevel = 19;
+
 static void set(ZSTD_CCtx *cctx, ZSTD_cParameter param, int value)
 {
     FUZZ_ZASSERT(ZSTD_CCtx_setParameter(cctx, param, value));

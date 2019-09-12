@@ -34,6 +34,17 @@ extern "C" {
  * In which case, resize it down to free some memory */
 #define ZSTD_WORKSPACETOOLARGE_MAXDURATION 128
 
+/* Since the workspace is effectively its own little malloc implementation /
+ * arena, when we run under ASAN, we should similarly insert redzones between
+ * each internal element of the workspace, so ASAN will catch overruns that
+ * reach outside an object but that stay inside the workspace.
+ *
+ * This defines the size of that redzone.
+ */
+#ifndef ZSTD_CWKSP_ASAN_REDZONE_SIZE
+#define ZSTD_CWKSP_ASAN_REDZONE_SIZE 8
+#endif
+
 /*-*************************************
 *  Structures
 ***************************************/
@@ -164,6 +175,20 @@ MEM_STATIC size_t ZSTD_cwksp_align(size_t size, size_t const align) {
     size_t const mask = align - 1;
     assert((align & mask) == 0);
     return (size + mask) & ~mask;
+}
+
+/**
+ * Use this to determine how much space in the workspace we will consume to
+ * allocate this object. (Normally it should be exactly the size of the object,
+ * but under special conditions, like ASAN, where we pad each object, it might
+ * be larger.)
+ */
+MEM_STATIC size_t ZSTD_cwksp_alloc_size(size_t size) {
+#if defined (ADDRESS_SANITIZER) && !defined (ZSTD_ASAN_DONT_POISON_WORKSPACE)
+    return size + 2 * ZSTD_CWKSP_ASAN_REDZONE_SIZE;
+#else
+    return size;
+#endif
 }
 
 MEM_STATIC void ZSTD_cwksp_internal_advance_phase(

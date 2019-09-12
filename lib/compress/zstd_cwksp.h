@@ -226,8 +226,14 @@ MEM_STATIC void* ZSTD_cwksp_reserve_internal(
     void* bottom = ws->tableEnd;
     ZSTD_cwksp_internal_advance_phase(ws, phase);
     alloc = (BYTE *)ws->allocStart - bytes;
-    DEBUGLOG(5, "cwksp: reserving %zd bytes, %zd bytes remaining",
-        bytes, ZSTD_cwksp_available_space(ws) - bytes);
+
+#if defined (ADDRESS_SANITIZER) && !defined (ZSTD_ASAN_DONT_POISON_WORKSPACE)
+    /* over-reserve space */
+    alloc = (BYTE *)alloc - 2 * ZSTD_CWKSP_ASAN_REDZONE_SIZE;
+#endif
+
+    DEBUGLOG(5, "cwksp: reserving %p %zd bytes, %zd bytes remaining",
+        alloc, bytes, ZSTD_cwksp_available_space(ws) - bytes);
     ZSTD_cwksp_assert_internal_consistency(ws);
     assert(alloc >= bottom);
     if (alloc < bottom) {
@@ -241,6 +247,9 @@ MEM_STATIC void* ZSTD_cwksp_reserve_internal(
     ws->allocStart = alloc;
 
 #if defined (ADDRESS_SANITIZER) && !defined (ZSTD_ASAN_DONT_POISON_WORKSPACE)
+    /* Move alloc so there's ZSTD_CWKSP_ASAN_REDZONE_SIZE unused space on
+     * either size. */
+    alloc = (BYTE *)alloc + ZSTD_CWKSP_ASAN_REDZONE_SIZE;
     __asan_unpoison_memory_region(alloc, bytes);
 #endif
 
@@ -272,8 +281,14 @@ MEM_STATIC void* ZSTD_cwksp_reserve_table(ZSTD_cwksp* ws, size_t bytes) {
     void* alloc = ws->tableEnd;
     void* end = (BYTE *)alloc + bytes;
     void* top = ws->allocStart;
-    DEBUGLOG(5, "cwksp: reserving table %zd bytes, %zd bytes remaining",
-        bytes, ZSTD_cwksp_available_space(ws) - bytes);
+
+#if defined (ADDRESS_SANITIZER) && !defined (ZSTD_ASAN_DONT_POISON_WORKSPACE)
+    /* over-reserve space */
+    end = (BYTE *)end + 2 * ZSTD_CWKSP_ASAN_REDZONE_SIZE;
+#endif
+
+    DEBUGLOG(5, "cwksp: reserving %p table %zd bytes, %zd bytes remaining",
+        alloc, bytes, ZSTD_cwksp_available_space(ws) - bytes);
     assert((bytes & (sizeof(U32)-1)) == 0);
     ZSTD_cwksp_internal_advance_phase(ws, phase);
     ZSTD_cwksp_assert_internal_consistency(ws);
@@ -286,6 +301,9 @@ MEM_STATIC void* ZSTD_cwksp_reserve_table(ZSTD_cwksp* ws, size_t bytes) {
     ws->tableEnd = end;
 
 #if defined (ADDRESS_SANITIZER) && !defined (ZSTD_ASAN_DONT_POISON_WORKSPACE)
+    /* Move alloc so there's ZSTD_CWKSP_ASAN_REDZONE_SIZE unused space on
+     * either size. */
+    alloc = (BYTE *)alloc + ZSTD_CWKSP_ASAN_REDZONE_SIZE;
     __asan_unpoison_memory_region(alloc, bytes);
 #endif
 
@@ -297,12 +315,18 @@ MEM_STATIC void* ZSTD_cwksp_reserve_table(ZSTD_cwksp* ws, size_t bytes) {
  */
 MEM_STATIC void* ZSTD_cwksp_reserve_object(ZSTD_cwksp* ws, size_t bytes) {
     size_t roundedBytes = ZSTD_cwksp_align(bytes, sizeof(void*));
-    void* start = ws->objectEnd;
-    void* end = (BYTE*)start + roundedBytes;
+    void* alloc = ws->objectEnd;
+    void* end = (BYTE*)alloc + roundedBytes;
+
+#if defined (ADDRESS_SANITIZER) && !defined (ZSTD_ASAN_DONT_POISON_WORKSPACE)
+    /* over-reserve space */
+    end = (BYTE *)end + 2 * ZSTD_CWKSP_ASAN_REDZONE_SIZE;
+#endif
+
     DEBUGLOG(5,
-        "cwksp: reserving object %zd bytes (rounded to %zd), %zd bytes remaining",
-        bytes, roundedBytes, ZSTD_cwksp_available_space(ws) - roundedBytes);
-    assert(((size_t)start & (sizeof(void*)-1)) == 0);
+        "cwksp: reserving %p object %zd bytes (rounded to %zd), %zd bytes remaining",
+        alloc, bytes, roundedBytes, ZSTD_cwksp_available_space(ws) - roundedBytes);
+    assert(((size_t)alloc & (sizeof(void*)-1)) == 0);
     assert((bytes & (sizeof(void*)-1)) == 0);
     ZSTD_cwksp_assert_internal_consistency(ws);
     /* we must be in the first phase, no advance is possible */
@@ -316,10 +340,13 @@ MEM_STATIC void* ZSTD_cwksp_reserve_object(ZSTD_cwksp* ws, size_t bytes) {
     ws->tableValidEnd = end;
 
 #if defined (ADDRESS_SANITIZER) && !defined (ZSTD_ASAN_DONT_POISON_WORKSPACE)
-    __asan_unpoison_memory_region(start, bytes);
+    /* Move alloc so there's ZSTD_CWKSP_ASAN_REDZONE_SIZE unused space on
+     * either size. */
+    alloc = (BYTE *)alloc + ZSTD_CWKSP_ASAN_REDZONE_SIZE;
+    __asan_unpoison_memory_region(alloc, bytes);
 #endif
 
-    return start;
+    return alloc;
 }
 
 MEM_STATIC void ZSTD_cwksp_mark_tables_dirty(ZSTD_cwksp* ws) {

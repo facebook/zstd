@@ -23,26 +23,24 @@ static ZSTD_DCtx *dctx = NULL;
 
 int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 {
-  FUZZ_dataProducer_t *producer = FUZZ_dataProducer_create(src, size);
+    /* Give a random portion of src data to the producer, to use for
+    parameter generation. The rest will be used for (de)compression */
+    FUZZ_dataProducer_t *producer = FUZZ_dataProducer_create(src, size);
+    size = FUZZ_dataProducer_reserveDataPrefix(producer);
 
-  int i;
-  if (!dctx) {
-      dctx = ZSTD_createDCtx();
-      FUZZ_ASSERT(dctx);
-  }
+    if (!dctx) {
+        dctx = ZSTD_createDCtx();
+        FUZZ_ASSERT(dctx);
+    }
 
-  size_t const bufSize = FUZZ_dataProducer_uint32Range(producer, 0, 10 * size);
-  void *rBuf = malloc(bufSize);
-  FUZZ_ASSERT(rBuf);
+    size_t const bufSize = FUZZ_dataProducer_uint32Range(producer, 0, 10 * size);
+    void *rBuf = malloc(bufSize);
+    FUZZ_ASSERT(rBuf);
 
-  /* Restrict to remaining data. If we run out of data while generating params,
-   we should still continue and let decompression happen on empty data. */
-  size = FUZZ_dataProducer_remainingBytes(producer);
+    ZSTD_decompressDCtx(dctx, rBuf, bufSize, src, size);
+    free(rBuf);
 
-  ZSTD_decompressDCtx(dctx, rBuf, bufSize, src, size);
-  free(rBuf);
-
-  FUZZ_dataProducer_free(producer);
+    FUZZ_dataProducer_free(producer);
 
 #ifndef STATEFUL_FUZZING
     ZSTD_freeDCtx(dctx); dctx = NULL;

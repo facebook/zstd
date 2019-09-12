@@ -49,9 +49,37 @@ uint32_t FUZZ_dataProducer_uint32Range(FUZZ_dataProducer_t *producer, uint32_t m
 }
 
 uint32_t FUZZ_dataProducer_uint32(FUZZ_dataProducer_t *producer) {
-  return FUZZ_dataProducer_uint32Range(producer, 0, 0xffffffff);
+    return FUZZ_dataProducer_uint32Range(producer, 0, 0xffffffff);
+}
+
+int32_t FUZZ_dataProducer_int32Range(FUZZ_dataProducer_t *producer,
+                                    int32_t min, int32_t max)
+{
+    FUZZ_ASSERT(min <= max);
+
+    if (min < 0)
+      return (int)FUZZ_dataProducer_uint32Range(producer, 0, max - min) + min;
+
+    return FUZZ_dataProducer_uint32Range(producer, min, max);
 }
 
 size_t FUZZ_dataProducer_remainingBytes(FUZZ_dataProducer_t *producer){
     return producer->size;
+}
+
+size_t FUZZ_dataProducer_contract(FUZZ_dataProducer_t *producer, size_t newSize)
+{
+    newSize = newSize > producer->size ? producer->size : newSize;
+
+    size_t remaining = producer->size - newSize;
+    producer->data = producer->data + remaining;
+    producer->size = newSize;
+    return remaining;
+}
+
+size_t FUZZ_dataProducer_reserveDataPrefix(FUZZ_dataProducer_t *producer)
+{
+    size_t producerSliceSize = FUZZ_dataProducer_uint32Range(
+                                  producer, 0, producer->size);
+    return FUZZ_dataProducer_contract(producer, producerSliceSize);
 }

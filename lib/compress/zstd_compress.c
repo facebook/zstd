@@ -1649,12 +1649,13 @@ static size_t ZSTD_resetCCtx_byCopyingCDict(ZSTD_CCtx* cctx,
     /* copy tables */
     {   size_t const chainSize = (cdict_cParams->strategy == ZSTD_fast) ? 0 : ((size_t)1 << cdict_cParams->chainLog);
         size_t const hSize =  (size_t)1 << cdict_cParams->hashLog;
-        size_t const tableSpace = (chainSize + hSize) * sizeof(U32);
-        assert((U32*)cctx->blockState.matchState.chainTable == (U32*)cctx->blockState.matchState.hashTable + hSize);  /* chainTable must follow hashTable */
-        assert((U32*)cctx->blockState.matchState.hashTable3 == (U32*)cctx->blockState.matchState.chainTable + chainSize);
-        assert((U32*)cdict->matchState.chainTable == (U32*)cdict->matchState.hashTable + hSize);  /* chainTable must follow hashTable */
-        assert((U32*)cdict->matchState.hashTable3 == (U32*)cdict->matchState.chainTable + chainSize);
-        memcpy(cctx->blockState.matchState.hashTable, cdict->matchState.hashTable, tableSpace);   /* presumes all tables follow each other */
+
+        memcpy(cctx->blockState.matchState.hashTable,
+               cdict->matchState.hashTable,
+               hSize * sizeof(U32));
+        memcpy(cctx->blockState.matchState.chainTable,
+               cdict->matchState.chainTable,
+               chainSize * sizeof(U32));
     }
 
     /* Zero the hashTable3, since the cdict never fills it */
@@ -1741,10 +1742,16 @@ static size_t ZSTD_copyCCtx_internal(ZSTD_CCtx* dstCCtx,
         size_t const hSize =  (size_t)1 << srcCCtx->appliedParams.cParams.hashLog;
         int const h3log = srcCCtx->blockState.matchState.hashLog3;
         size_t const h3Size = h3log ? ((size_t)1 << h3log) : 0;
-        size_t const tableSpace = (chainSize + hSize + h3Size) * sizeof(U32);
-        assert((U32*)dstCCtx->blockState.matchState.chainTable == (U32*)dstCCtx->blockState.matchState.hashTable + hSize);  /* chainTable must follow hashTable */
-        assert((U32*)dstCCtx->blockState.matchState.hashTable3 == (U32*)dstCCtx->blockState.matchState.chainTable + chainSize);
-        memcpy(dstCCtx->blockState.matchState.hashTable, srcCCtx->blockState.matchState.hashTable, tableSpace);   /* presumes all tables follow each other */
+
+        memcpy(dstCCtx->blockState.matchState.hashTable,
+               srcCCtx->blockState.matchState.hashTable,
+               hSize * sizeof(U32));
+        memcpy(dstCCtx->blockState.matchState.chainTable,
+               srcCCtx->blockState.matchState.chainTable,
+               chainSize * sizeof(U32));
+        memcpy(dstCCtx->blockState.matchState.hashTable3,
+               srcCCtx->blockState.matchState.hashTable3,
+               h3Size * sizeof(U32));
     }
 
     ZSTD_cwksp_mark_tables_clean(&dstCCtx->workspace);

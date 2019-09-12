@@ -740,10 +740,8 @@ def gen(args):
             for name in os.listdir(samples):
                 samplename = abs_join(samples, name)
                 outname = abs_join(seed, name)
-                rng_seed = os.urandom(args.fuzz_rng_seed_size)
                 with open(samplename, 'rb') as sample:
                     with open(outname, 'wb') as out:
-                        out.write(rng_seed)
                         CHUNK_SIZE = 131072
                         chunk = sample.read(CHUNK_SIZE)
                         while len(chunk) > 0:

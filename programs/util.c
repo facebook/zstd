@@ -54,22 +54,24 @@ int UTIL_getFileStat(const char* infilename, stat_t *statbuf)
 int UTIL_setFileStat(const char *filename, stat_t *statbuf)
 {
     int res = 0;
-#if defined(_WIN32) || (PLATFORM_POSIX_VERSION < 200809L)
-    struct utimbuf timebuf;
-#else
-    /* (atime, mtime) */
-    struct timespec timebuf[2] = { {0, UTIME_NOW}, statbuf->st_mtim };
-#endif
 
     if (!UTIL_isRegularFile(filename))
         return -1;
 
+    /* set access and modification times */
 #if defined(_WIN32) || (PLATFORM_POSIX_VERSION < 200809L)
-    timebuf.actime = time(NULL);
-    timebuf.modtime = statbuf->st_mtime;
-    res += utime(filename, &timebuf);  /* set access and modification times */
+    {
+        struct utimbuf timebuf;
+        timebuf.actime = time(NULL);
+        timebuf.modtime = statbuf->st_mtime;
+        res += utime(filename, &timebuf);
+    }
 #else
-    res += utimensat(AT_FDCWD, filename, timebuf, 0);  /* set access and modification times */
+    {
+        /* (atime, mtime) */
+        struct timespec timebuf[2] = { {0, UTIME_NOW}, statbuf->st_mtim };
+        res += utimensat(AT_FDCWD, filename, timebuf, 0);
+    }
 #endif
 
 #if !defined(_WIN32)

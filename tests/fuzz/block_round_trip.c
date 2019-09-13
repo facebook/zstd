@@ -60,7 +60,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 
     size_t neededBufSize = size;
     if (size > ZSTD_BLOCKSIZE_MAX)
-        return 0;
+        size = ZSTD_BLOCKSIZE_MAX;
 
     /* Allocate all buffers and contexts if not already allocated */
     if (neededBufSize > bufSize || !cBuf || !rBuf) {

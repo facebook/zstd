@@ -2193,18 +2193,7 @@ FIO_determineDstName(const char* srcFileName)
 
     /* check suffix is authorized */
     if (sfnSize <= suffixSize
-        || (   strcmp(suffixPtr, ZSTD_EXTENSION)
-        #ifdef ZSTD_GZDECOMPRESS
-            && strcmp(suffixPtr, GZ_EXTENSION)
-        #endif
-        #ifdef ZSTD_LZMADECOMPRESS
-            && strcmp(suffixPtr, XZ_EXTENSION)
-            && strcmp(suffixPtr, LZMA_EXTENSION)
-        #endif
-        #ifdef ZSTD_LZ4DECOMPRESS
-            && strcmp(suffixPtr, LZ4_EXTENSION)
-        #endif
-            ) ) {
+        || (strstr(SUFFIX_LIST, suffixPtr) == NULL)) {
         DISPLAYLEVEL(1, "zstd: %s: unknown suffix (%s expected). Can't derive the output file name so specify it with -o dstFileName. -- ignored \n",
                      srcFileName, SUFFIX_LIST);
         return NULL;

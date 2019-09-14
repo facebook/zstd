@@ -32,9 +32,13 @@ extern "C" {
 #endif
 #define LZMA_EXTENSION  ".lzma"
 #define XZ_EXTENSION    ".xz"
+#define TXZ_EXTENSION    ".txz"
 #define GZ_EXTENSION    ".gz"
+#define TGZ_EXTENSION    ".tgz"
 #define ZSTD_EXTENSION  ".zst"
+#define TZSTD_EXTENSION  ".tzst"
 #define LZ4_EXTENSION   ".lz4"
+#define TLZ4_EXTENSION   ".tlz4"
 
 
 /*-*************************************

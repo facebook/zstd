@@ -2169,12 +2169,24 @@ FIO_determineDstName(const char* srcFileName)
     static size_t dfnbCapacity = 0;
     static char* dstFileNameBuffer = NULL;   /* using static allocation : this function cannot be multi-threaded */
 
+    const char* suffixlist = ZSTD_EXTENSION
+    #ifdef ZSTD_GZDECOMPRESS
+        "/" GZ_EXTENSION
+    #endif
+    #ifdef ZSTD_LZMADECOMPRESS
+        "/" XZ_EXTENSION "/" LZMA_EXTENSION
+    #endif
+    #ifdef ZSTD_LZ4DECOMPRESS
+        "/" LZ4_EXTENSION
+    #endif
+    ;
+
     size_t const sfnSize = strlen(srcFileName);
     size_t suffixSize;
     const char* const suffixPtr = strrchr(srcFileName, '.');
     if (suffixPtr == NULL) {
-        DISPLAYLEVEL(1, "zstd: %s: unknown suffix -- ignored \n",
-                        srcFileName);
+        DISPLAYLEVEL(1, "zstd: %s: missing suffix (%s expected) -- ignored \n",
+                        srcFileName, suffixlist);
         return NULL;
     }
     suffixSize = strlen(suffixPtr);
@@ -2193,17 +2205,6 @@ FIO_determineDstName(const char* srcFileName)
             && strcmp(suffixPtr, LZ4_EXTENSION)
         #endif
             ) ) {
-        const char* suffixlist = ZSTD_EXTENSION
-        #ifdef ZSTD_GZDECOMPRESS
-            "/" GZ_EXTENSION
-        #endif
-        #ifdef ZSTD_LZMADECOMPRESS
-            "/" XZ_EXTENSION "/" LZMA_EXTENSION
-        #endif
-        #ifdef ZSTD_LZ4DECOMPRESS
-            "/" LZ4_EXTENSION
-        #endif
-        ;
         DISPLAYLEVEL(1, "zstd: %s: unknown suffix (%s expected) -- ignored \n",
                      srcFileName, suffixlist);
         return NULL;

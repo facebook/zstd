@@ -2169,15 +2169,15 @@ FIO_determineDstName(const char* srcFileName)
     static size_t dfnbCapacity = 0;
     static char* dstFileNameBuffer = NULL;   /* using static allocation : this function cannot be multi-threaded */
 
-    const char* SUFFIX_LIST = ZSTD_EXTENSION
+    const char* SUFFIX_LIST = ZSTD_EXTENSION "/" TZSTD_EXTENSION
     #ifdef ZSTD_GZDECOMPRESS
-        "/" GZ_EXTENSION
+        "/" GZ_EXTENSION "/" TGZ_EXTENSION
     #endif
     #ifdef ZSTD_LZMADECOMPRESS
-        "/" XZ_EXTENSION "/" LZMA_EXTENSION
+        "/" XZ_EXTENSION "/" LZMA_EXTENSION "/" TXZ_EXTENSION
     #endif
     #ifdef ZSTD_LZ4DECOMPRESS
-        "/" LZ4_EXTENSION
+        "/" LZ4_EXTENSION "/" TLZ4_EXTENSION
     #endif
     ;
 

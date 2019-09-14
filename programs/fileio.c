@@ -2185,7 +2185,7 @@ FIO_determineDstName(const char* srcFileName)
     size_t suffixSize;
     const char* const suffixPtr = strrchr(srcFileName, '.');
     if (suffixPtr == NULL) {
-        DISPLAYLEVEL(1, "zstd: %s: missing suffix (%s expected) -- ignored \n",
+        DISPLAYLEVEL(1, "zstd: %s: missing suffix (%s expected). Can't derive the output file name so specify it with -o dstFileName. -- ignored \n",
                         srcFileName, SUFFIX_LIST);
         return NULL;
     }
@@ -2205,7 +2205,7 @@ FIO_determineDstName(const char* srcFileName)
             && strcmp(suffixPtr, LZ4_EXTENSION)
         #endif
             ) ) {
-        DISPLAYLEVEL(1, "zstd: %s: unknown suffix (%s expected) -- ignored \n",
+        DISPLAYLEVEL(1, "zstd: %s: unknown suffix (%s expected). Can't derive the output file name so specify it with -o dstFileName. -- ignored \n",
                      srcFileName, SUFFIX_LIST);
         return NULL;
     }

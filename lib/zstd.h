@@ -1641,7 +1641,10 @@ ZSTDLIB_API size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs, const void* dic
 /**! ZSTD_initCStream_advanced() :
  * This function is deprecated, and is approximately equivalent to:
  *     ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);
- *     ZSTD_CCtx_setZstdParams(zcs, params); // Set the zstd params and leave the rest as-is
+ *     // Pseudocode: Set each zstd parameter and leave the rest as-is.
+ *     for ((param, value) : params) {
+ *         ZSTD_CCtx_setParameter(zcs, param, value);
+ *     }
  *     ZSTD_CCtx_setPledgedSrcSize(zcs, pledgedSrcSize);
  *     ZSTD_CCtx_loadDictionary(zcs, dict, dictSize);
  *
@@ -1661,7 +1664,10 @@ ZSTDLIB_API size_t ZSTD_initCStream_usingCDict(ZSTD_CStream* zcs, const ZSTD_CDi
 /**! ZSTD_initCStream_usingCDict_advanced() :
  * This function is deprecated, and is approximately equivalent to:
  *     ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);
- *     ZSTD_CCtx_setZstdFrameParams(zcs, fParams); // Set the zstd frame params and leave the rest as-is
+ *     // Pseudocode: Set each zstd frame parameter and leave the rest as-is.
+ *     for ((fParam, value) : fParams) {
+ *         ZSTD_CCtx_setParameter(zcs, fParam, value);
+ *     }
  *     ZSTD_CCtx_setPledgedSrcSize(zcs, pledgedSrcSize);
  *     ZSTD_CCtx_refCDict(zcs, cdict);
  *

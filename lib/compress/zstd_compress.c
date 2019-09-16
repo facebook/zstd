@@ -2315,10 +2315,6 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
     zc->seqCollector.seqIndex += seqsSize;
 }
 
-/* We call compress2() and collect sequences after each block
- * compression. The function stores the ZSTD_Sequences in outSeqs
- * and returns the number of collected sequences from all blocks.
- */
 size_t ZSTD_getSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
     size_t outSeqsSize, const void* src, size_t srcSize)
 {
@@ -2351,6 +2347,11 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
         if (bss == ZSTDbss_noCompress) { cSize = 0; goto out; }
     }
 
+    if (zc->seqCollector.collectSequences) {
+        ZSTD_copyBlockSequences(zc);
+        return 0;
+    }
+
     /* encode sequences and literals */
     cSize = ZSTD_compressSequences(&zc->seqStore,
             &zc->blockState.prevCBlock->entropy, &zc->blockState.nextCBlock->entropy,
@@ -2359,10 +2360,6 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
             srcSize,
             zc->entropyWorkspace, HUF_WORKSPACE_SIZE /* statically allocated in resetCCtx */,
             zc->bmi2);
-
-    if (zc->seqCollector.collectSequences) {
-        ZSTD_copyBlockSequences(zc);
-    }
 
 out:
     if (!ZSTD_isError(cSize) && cSize != 0) {

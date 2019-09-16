@@ -182,6 +182,10 @@ MEM_STATIC size_t ZSTD_cwksp_align(size_t size, size_t const align) {
  * allocate this object. (Normally it should be exactly the size of the object,
  * but under special conditions, like ASAN, where we pad each object, it might
  * be larger.)
+ *
+ * Since tables aren't currently redzoned, you don't need to call through this
+ * to figure out how much space you need for the matchState tables. Everything
+ * else is though.
  */
 MEM_STATIC size_t ZSTD_cwksp_alloc_size(size_t size) {
 #if defined (ADDRESS_SANITIZER) && !defined (ZSTD_ASAN_DONT_POISON_WORKSPACE)

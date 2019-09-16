@@ -55,7 +55,23 @@ MEM_STATIC void MEM_check(void) { MEM_STATIC_ASSERT((sizeof(size_t)==4) || (size
 #endif
 
 #if defined (MEMORY_SANITIZER)
-#  include <sanitizer/msan_interface.h>
+/* Not all platforms that support msan provide sanitizers/msan_interface.h.
+ * We therefore declare the functions we need ourselves, rather than trying to
+ * include the header file... */
+
+#include <stdint.h> /* intptr_t */
+
+/* Make memory region fully initialized (without changing its contents). */
+void __msan_unpoison(const volatile void *a, size_t size);
+
+/* Make memory region fully uninitialized (without changing its contents).
+   This is a legacy interface that does not update origin information. Use
+   __msan_allocated_memory() instead. */
+void __msan_poison(const volatile void *a, size_t size);
+
+/* Returns the offset of the first (at least partially) poisoned byte in the
+   memory range, or -1 if the whole range is good. */
+intptr_t __msan_test_shadow(const volatile void *x, size_t size);
 #endif
 
 #if defined (MEMORY_SANITIZER)

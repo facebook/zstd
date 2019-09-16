@@ -25,12 +25,17 @@ extern "C" {
 #include <stdio.h>        /* fprintf */
 #include <sys/types.h>    /* stat, utime */
 #include <sys/stat.h>     /* stat, chmod */
-#if defined(_MSC_VER)
+#if defined(_WIN32)
 #  include <sys/utime.h>  /* utime */
 #  include <io.h>         /* _chmod */
 #else
 #  include <unistd.h>     /* chown, stat */
+#if PLATFORM_POSIX_VERSION < 200809L
 #  include <utime.h>      /* utime */
+#else
+#  include <fcntl.h>      /* AT_FDCWD */
+#  include <sys/stat.h>   /* utimensat */
+#endif
 #endif
 #include <time.h>         /* clock_t, clock, CLOCKS_PER_SEC, nanosleep */
 #include "mem.h"          /* U32, U64 */

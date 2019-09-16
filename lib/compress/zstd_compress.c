@@ -2290,13 +2290,13 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
 
         if (outSeqs[i].offset <= ZSTD_REP_NUM) {
             outSeqs[i].rep = outSeqs[i].offset;
-            repIdx = i - outSeqs[i].offset;
+            repIdx = (unsigned int)i - outSeqs[i].offset;
 
             if (outSeqs[i].litLength == 0) {
                 if (outSeqs[i].offset < 3) {
                     --repIdx;
                 } else {
-                    repIdx = i - 1;
+                    repIdx = (unsigned int)i - 1;
                 }
                 ++outSeqs[i].rep;
             }
@@ -2310,7 +2310,7 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
         }
 
         position += outSeqs[i].litLength;
-        outSeqs[i].matchPos = position;
+        outSeqs[i].matchPos = (unsigned int)position;
         position += outSeqs[i].matchLength;
     }
     zc->seqCollector.seqIndex += seqsSize;

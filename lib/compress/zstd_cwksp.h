@@ -133,6 +133,7 @@ typedef struct {
 
     void* objectEnd;
     void* tableEnd;
+    void* tableValidEnd;
     void* allocStart;
 
     int allocFailed;
@@ -145,6 +146,16 @@ typedef struct {
 ***************************************/
 
 MEM_STATIC size_t ZSTD_cwksp_available_space(ZSTD_cwksp* ws);
+
+MEM_STATIC void ZSTD_cwksp_assert_internal_consistency(ZSTD_cwksp* ws) {
+    (void)ws;
+    assert(ws->workspace <= ws->objectEnd);
+    assert(ws->objectEnd <= ws->tableEnd);
+    assert(ws->objectEnd <= ws->tableValidEnd);
+    assert(ws->tableEnd <= ws->allocStart);
+    assert(ws->tableValidEnd <= ws->allocStart);
+    assert(ws->allocStart <= ws->workspaceEnd);
+}
 
 /**
  * Align must be a power of 2.
@@ -161,6 +172,7 @@ MEM_STATIC void ZSTD_cwksp_internal_advance_phase(
     if (phase > ws->phase) {
         if (ws->phase < ZSTD_cwksp_alloc_buffers &&
                 phase >= ZSTD_cwksp_alloc_buffers) {
+            ws->tableValidEnd = ws->objectEnd;
         }
         if (ws->phase < ZSTD_cwksp_alloc_aligned &&
                 phase >= ZSTD_cwksp_alloc_aligned) {
@@ -172,6 +184,9 @@ MEM_STATIC void ZSTD_cwksp_internal_advance_phase(
              * by a larger margin than the space that will be consumed. */
             /* TODO: cleaner, compiler warning friendly way to do this??? */
             ws->allocStart = (BYTE*)ws->allocStart - ((size_t)ws->allocStart & (sizeof(U32)-1));
+            if (ws->allocStart < ws->tableValidEnd) {
+                ws->tableValidEnd = ws->allocStart;
+            }
         }
         ws->phase = phase;
     }
@@ -186,12 +201,17 @@ MEM_STATIC void* ZSTD_cwksp_reserve_internal(
     void* bottom = ws->tableEnd;
     ZSTD_cwksp_internal_advance_phase(ws, phase);
     alloc = (BYTE *)ws->allocStart - bytes;
-    DEBUGLOG(4, "cwksp: reserving %zd bytes, %zd bytes remaining",
+    DEBUGLOG(5, "cwksp: reserving %zd bytes, %zd bytes remaining",
         bytes, ZSTD_cwksp_available_space(ws) - bytes);
+    ZSTD_cwksp_assert_internal_consistency(ws);
     assert(alloc >= bottom);
     if (alloc < bottom) {
+        DEBUGLOG(4, "cwksp: alloc failed!");
         ws->allocFailed = 1;
         return NULL;
+    }
+    if (alloc < ws->tableValidEnd) {
+        ws->tableValidEnd = alloc;
     }
     ws->allocStart = alloc;
     return alloc;
@@ -222,13 +242,14 @@ MEM_STATIC void* ZSTD_cwksp_reserve_table(ZSTD_cwksp* ws, size_t bytes) {
     void* alloc = ws->tableEnd;
     void* end = (BYTE *)alloc + bytes;
     void* top = ws->allocStart;
-    DEBUGLOG(4, "cwksp: reserving table %zd bytes, %zd bytes remaining",
+    DEBUGLOG(5, "cwksp: reserving table %zd bytes, %zd bytes remaining",
         bytes, ZSTD_cwksp_available_space(ws) - bytes);
     assert((bytes & (sizeof(U32)-1)) == 0);
     ZSTD_cwksp_internal_advance_phase(ws, phase);
+    ZSTD_cwksp_assert_internal_consistency(ws);
     assert(end <= top);
     if (end > top) {
-        DEBUGLOG(4, "cwksp: object alloc failed!");
+        DEBUGLOG(4, "cwksp: table alloc failed!");
         ws->allocFailed = 1;
         return NULL;
     }
@@ -243,11 +264,12 @@ MEM_STATIC void* ZSTD_cwksp_reserve_object(ZSTD_cwksp* ws, size_t bytes) {
     size_t roundedBytes = ZSTD_cwksp_align(bytes, sizeof(void*));
     void* start = ws->objectEnd;
     void* end = (BYTE*)start + roundedBytes;
-    DEBUGLOG(4,
+    DEBUGLOG(5,
         "cwksp: reserving object %zd bytes (rounded to %zd), %zd bytes remaining",
         bytes, roundedBytes, ZSTD_cwksp_available_space(ws) - roundedBytes);
     assert(((size_t)start & (sizeof(void*)-1)) == 0);
     assert((bytes & (sizeof(void*)-1)) == 0);
+    ZSTD_cwksp_assert_internal_consistency(ws);
     /* we must be in the first phase, no advance is possible */
     if (ws->phase != ZSTD_cwksp_alloc_objects || end > ws->workspaceEnd) {
         DEBUGLOG(4, "cwksp: object alloc failed!");
@@ -256,7 +278,51 @@ MEM_STATIC void* ZSTD_cwksp_reserve_object(ZSTD_cwksp* ws, size_t bytes) {
     }
     ws->objectEnd = end;
     ws->tableEnd = end;
+    ws->tableValidEnd = end;
     return start;
+}
+
+MEM_STATIC void ZSTD_cwksp_mark_tables_dirty(ZSTD_cwksp* ws) {
+    DEBUGLOG(4, "cwksp: ZSTD_cwksp_mark_tables_dirty");
+
+#if defined (MEMORY_SANITIZER) && !defined (ZSTD_MSAN_DONT_POISON_WORKSPACE)
+    /* To validate that the table re-use logic is sound, and that we don't
+     * access table space that we haven't cleaned, we re-"poison" the table
+     * space every time we mark it dirty. */
+    {
+        size_t size = (BYTE*)ws->tableValidEnd - (BYTE*)ws->objectEnd;
+        assert(__msan_test_shadow(ws->objectEnd, size) == -1);
+        __msan_poison(ws->objectEnd, size);
+    }
+#endif
+
+    assert(ws->tableValidEnd >= ws->objectEnd);
+    assert(ws->tableValidEnd <= ws->allocStart);
+    ws->tableValidEnd = ws->objectEnd;
+    ZSTD_cwksp_assert_internal_consistency(ws);
+}
+
+MEM_STATIC void ZSTD_cwksp_mark_tables_clean(ZSTD_cwksp* ws) {
+    DEBUGLOG(4, "cwksp: ZSTD_cwksp_mark_tables_clean");
+    assert(ws->tableValidEnd >= ws->objectEnd);
+    assert(ws->tableValidEnd <= ws->allocStart);
+    if (ws->tableValidEnd < ws->tableEnd) {
+        ws->tableValidEnd = ws->tableEnd;
+    }
+    ZSTD_cwksp_assert_internal_consistency(ws);
+}
+
+/**
+ * Zero the part of the allocated tables not already marked clean.
+ */
+MEM_STATIC void ZSTD_cwksp_clean_tables(ZSTD_cwksp* ws) {
+    DEBUGLOG(4, "cwksp: ZSTD_cwksp_clean_tables");
+    assert(ws->tableValidEnd >= ws->objectEnd);
+    assert(ws->tableValidEnd <= ws->allocStart);
+    if (ws->tableValidEnd < ws->tableEnd) {
+        memset(ws->tableValidEnd, 0, (BYTE*)ws->tableEnd - (BYTE*)ws->tableValidEnd);
+    }
+    ZSTD_cwksp_mark_tables_clean(ws);
 }
 
 /**
@@ -266,6 +332,7 @@ MEM_STATIC void* ZSTD_cwksp_reserve_object(ZSTD_cwksp* ws, size_t bytes) {
 MEM_STATIC void ZSTD_cwksp_clear_tables(ZSTD_cwksp* ws) {
     DEBUGLOG(4, "cwksp: clearing tables!");
     ws->tableEnd = ws->objectEnd;
+    ZSTD_cwksp_assert_internal_consistency(ws);
 }
 
 /**
@@ -274,12 +341,25 @@ MEM_STATIC void ZSTD_cwksp_clear_tables(ZSTD_cwksp* ws) {
  */
 MEM_STATIC void ZSTD_cwksp_clear(ZSTD_cwksp* ws) {
     DEBUGLOG(4, "cwksp: clearing!");
+
+#if defined (MEMORY_SANITIZER) && !defined (ZSTD_MSAN_DONT_POISON_WORKSPACE)
+    /* To validate that the context re-use logic is sound, and that we don't
+     * access stuff that this compression hasn't initialized, we re-"poison"
+     * the workspace (or at least the non-static, non-table parts of it)
+     * every time we start a new compression. */
+    {
+        size_t size = (BYTE*)ws->workspaceEnd - (BYTE*)ws->tableValidEnd;
+        __msan_poison(ws->tableValidEnd, size);
+    }
+#endif
+
     ws->tableEnd = ws->objectEnd;
     ws->allocStart = ws->workspaceEnd;
     ws->allocFailed = 0;
     if (ws->phase > ZSTD_cwksp_alloc_buffers) {
         ws->phase = ZSTD_cwksp_alloc_buffers;
     }
+    ZSTD_cwksp_assert_internal_consistency(ws);
 }
 
 /**
@@ -293,9 +373,11 @@ MEM_STATIC void ZSTD_cwksp_init(ZSTD_cwksp* ws, void* start, size_t size) {
     ws->workspace = start;
     ws->workspaceEnd = (BYTE*)start + size;
     ws->objectEnd = ws->workspace;
+    ws->tableValidEnd = ws->objectEnd;
     ws->phase = ZSTD_cwksp_alloc_objects;
     ZSTD_cwksp_clear(ws);
     ws->workspaceOversizedDuration = 0;
+    ZSTD_cwksp_assert_internal_consistency(ws);
 }
 
 MEM_STATIC size_t ZSTD_cwksp_create(ZSTD_cwksp* ws, size_t size, ZSTD_customMem customMem) {
@@ -309,9 +391,7 @@ MEM_STATIC size_t ZSTD_cwksp_create(ZSTD_cwksp* ws, size_t size, ZSTD_customMem 
 MEM_STATIC void ZSTD_cwksp_free(ZSTD_cwksp* ws, ZSTD_customMem customMem) {
     DEBUGLOG(4, "cwksp: freeing workspace");
     ZSTD_free(ws->workspace, customMem);
-    ws->workspace = NULL;
-    ws->workspaceEnd = NULL;
-    ZSTD_cwksp_clear(ws);
+    memset(ws, 0, sizeof(ZSTD_cwksp));
 }
 
 /**

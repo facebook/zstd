@@ -19,12 +19,6 @@ extern "C" {
 /*-****************************************
 *  Dependencies
 ******************************************/
-#include <sys/types.h>    /* utime */
-#if defined(_MSC_VER)
-#  include <sys/utime.h>  /* utime */
-#else
-#  include <utime.h>      /* utime */
-#endif
 #include <time.h>         /* clock_t, clock, CLOCKS_PER_SEC */
 
 

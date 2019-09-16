@@ -244,9 +244,9 @@ MEM_STATIC void BIT_flushBitsFast(BIT_CStream_t* bitC)
 {
     size_t const nbBytes = bitC->bitPos >> 3;
     assert(bitC->bitPos < sizeof(bitC->bitContainer) * 8);
+    assert(bitC->ptr <= bitC->endPtr);
     MEM_writeLEST(bitC->ptr, bitC->bitContainer);
     bitC->ptr += nbBytes;
-    assert(bitC->ptr <= bitC->endPtr);
     bitC->bitPos &= 7;
     bitC->bitContainer >>= nbBytes*8;
 }
@@ -260,6 +260,7 @@ MEM_STATIC void BIT_flushBits(BIT_CStream_t* bitC)
 {
     size_t const nbBytes = bitC->bitPos >> 3;
     assert(bitC->bitPos < sizeof(bitC->bitContainer) * 8);
+    assert(bitC->ptr <= bitC->endPtr);
     MEM_writeLEST(bitC->ptr, bitC->bitContainer);
     bitC->ptr += nbBytes;
     if (bitC->ptr > bitC->endPtr) bitC->ptr = bitC->endPtr;

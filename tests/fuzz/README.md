@@ -35,6 +35,8 @@ The environment variables can be overridden with the corresponding flags
 `--cc`, `--cflags`, etc.
 The specific fuzzing engine is selected with `LIB_FUZZING_ENGINE` or
 `--lib-fuzzing-engine`, the default is `libregression.a`.
+Alternatively, you can use Clang's built in fuzzing engine with
+`--enable-fuzzer`.
 It has flags that can easily set up sanitizers `--enable-{a,ub,m}san`, and
 coverage instrumentation `--enable-coverage`.
 It sets sane defaults which can be overridden with flags `--debug`,
@@ -51,22 +53,25 @@ The command used to run the fuzzer is printed for debugging.
 ## LibFuzzer
 
 ```
-# Build libfuzzer if necessary
-make libFuzzer
 # Build the fuzz targets
-./fuzz.py build all --enable-coverage --enable-asan --enable-ubsan --lib-fuzzing-engine Fuzzer/libFuzzer.a --cc clang --cxx clang++
+./fuzz.py build all --enable-fuzzer --enable-asan --enable-ubsan --cc clang --cxx clang++
 # OR equivalently
-CC=clang CXX=clang++ LIB_FUZZING_ENGINE=Fuzzer/libFuzzer.a ./fuzz.py build all --enable-coverage --enable-asan --enable-ubsan
+CC=clang CXX=clang++ ./fuzz.py build all --enable-fuzzer --enable-asan --enable-ubsan
 # Run the fuzzer
-./fuzz.py libfuzzer TARGET -max_len=8192 -jobs=4
+./fuzz.py libfuzzer TARGET <libfuzzer args like -jobs=4>
 ```
 
 where `TARGET` could be `simple_decompress`, `stream_round_trip`, etc.
 
 ### MSAN
 
-Fuzzing with `libFuzzer` and `MSAN` will require building a C++ standard library
-and libFuzzer with MSAN.
+Fuzzing with `libFuzzer` and `MSAN` is as easy as:
+
+```
+CC=clang CXX=clang++ ./fuzz.py build all --enable-fuzzer --enable-msan
+./fuzz.py libfuzzer TARGET <libfuzzer args>
+```
+
 `fuzz.py` respects the environment variables / flags `MSAN_EXTRA_CPPFLAGS`,
 `MSAN_EXTRA_CFLAGS`, `MSAN_EXTRA_CXXFLAGS`, `MSAN_EXTRA_LDFLAGS` to easily pass
 the extra parameters only for MSAN.
@@ -85,7 +90,7 @@ CC=afl-clang CXX=afl-clang++ ./fuzz.py build all --enable-asan --enable-ubsan
 
 ## Regression Testing
 
-The regression rest supports the `all` target to run all the fuzzers in one
+The regression test supports the `all` target to run all the fuzzers in one
 command.
 
 ```

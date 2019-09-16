@@ -19,6 +19,7 @@
 *  Dependencies
 ***************************************/
 #include "zstd_internal.h"
+#include "zstd_cwksp.h"
 #ifdef ZSTD_MULTITHREAD
 #  include "zstdmt_compress.h"
 #endif
@@ -210,6 +211,9 @@ struct ZSTD_CCtx_params_s {
     size_t targetCBlockSize;   /* Tries to fit compressed block size to be around targetCBlockSize.
                                 * No target when targetCBlockSize == 0.
                                 * There is no guarantee on compressed block size */
+    int srcSizeHint;           /* User's best guess of source size.
+                                * Hint is not valid when srcSizeHint == 0.
+                                * There is no guarantee that hint is close to actual source size */
 
     ZSTD_dictAttachPref_e attachDictPref;
     ZSTD_literalCompressionMode_e literalCompressionMode;
@@ -235,9 +239,7 @@ struct ZSTD_CCtx_s {
     ZSTD_CCtx_params appliedParams;
     U32   dictID;
 
-    int workSpaceOversizedDuration;
-    void* workSpace;
-    size_t workSpaceSize;
+    ZSTD_cwksp workspace; /* manages buffer for dynamic allocations */
     size_t blockSize;
     unsigned long long pledgedSrcSizePlusOne;  /* this way, 0 (default) == unknown */
     unsigned long long consumedSrcSize;
@@ -246,6 +248,7 @@ struct ZSTD_CCtx_s {
     ZSTD_customMem customMem;
     size_t staticSize;
     SeqCollector seqCollector;
+    int isFirstBlock;
 
     seqStore_t seqStore;      /* sequences storage ptrs */
     ldmState_t ldmState;      /* long distance matching state */
@@ -918,7 +921,7 @@ ZSTD_compressionParameters ZSTD_getCParamsFromCCtxParams(
 size_t ZSTD_initCStream_internal(ZSTD_CStream* zcs,
                      const void* dict, size_t dictSize,
                      const ZSTD_CDict* cdict,
-                     ZSTD_CCtx_params  params, unsigned long long pledgedSrcSize);
+                     const ZSTD_CCtx_params* params, unsigned long long pledgedSrcSize);
 
 void ZSTD_resetSeqStore(seqStore_t* ssPtr);
 
@@ -933,7 +936,7 @@ size_t ZSTD_compressBegin_advanced_internal(ZSTD_CCtx* cctx,
                                     ZSTD_dictContentType_e dictContentType,
                                     ZSTD_dictTableLoadMethod_e dtlm,
                                     const ZSTD_CDict* cdict,
-                                    ZSTD_CCtx_params params,
+                                    const ZSTD_CCtx_params* params,
                                     unsigned long long pledgedSrcSize);
 
 /* ZSTD_compress_advanced_internal() :
@@ -942,7 +945,7 @@ size_t ZSTD_compress_advanced_internal(ZSTD_CCtx* cctx,
                                        void* dst, size_t dstCapacity,
                                  const void* src, size_t srcSize,
                                  const void* dict,size_t dictSize,
-                                 ZSTD_CCtx_params params);
+                                 const ZSTD_CCtx_params* params);
 
 
 /* ZSTD_writeLastEmptyBlock() :

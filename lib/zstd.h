@@ -15,6 +15,7 @@ extern "C" {
 #define ZSTD_H_235446
 
 /* ======   Dependency   ======*/
+#include <limits.h>   /* INT_MAX */
 #include <stddef.h>   /* size_t */
 
 
@@ -386,6 +387,7 @@ typedef enum {
      * ZSTD_c_forceAttachDict
      * ZSTD_c_literalCompressionMode
      * ZSTD_c_targetCBlockSize
+     * ZSTD_c_srcSizeHint
      * Because they are not stable, it's necessary to define ZSTD_STATIC_LINKING_ONLY to access them.
      * note : never ever use experimentalParam? names directly;
      *        also, the enums values themselves are unstable and can still change.
@@ -396,6 +398,7 @@ typedef enum {
      ZSTD_c_experimentalParam4=1001,
      ZSTD_c_experimentalParam5=1002,
      ZSTD_c_experimentalParam6=1003,
+     ZSTD_c_experimentalParam7=1004,
 } ZSTD_cParameter;
 
 typedef struct {
@@ -1063,6 +1066,8 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 /* Advanced parameter bounds */
 #define ZSTD_TARGETCBLOCKSIZE_MIN   64
 #define ZSTD_TARGETCBLOCKSIZE_MAX   ZSTD_BLOCKSIZE_MAX
+#define ZSTD_SRCSIZEHINT_MIN        0
+#define ZSTD_SRCSIZEHINT_MAX        INT_MAX
 
 /* internal */
 #define ZSTD_HASHLOG3_MAX           17
@@ -1458,6 +1463,12 @@ ZSTDLIB_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* pre
  * There is no guarantee on compressed block size (default:0) */
 #define ZSTD_c_targetCBlockSize ZSTD_c_experimentalParam6
 
+/* User's best guess of source size.
+ * Hint is not valid when srcSizeHint == 0.
+ * There is no guarantee that hint is close to actual source size,
+ * but compression ratio may regress significantly if guess considerably underestimates */
+#define ZSTD_c_srcSizeHint ZSTD_c_experimentalParam7
+
 /*! ZSTD_CCtx_getParameter() :
  *  Get the requested compression parameter value, selected by enum ZSTD_cParameter,
  *  and store it into int* value.
@@ -1647,7 +1658,10 @@ ZSTDLIB_API size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs, const void* dic
 /**! ZSTD_initCStream_advanced() :
  * This function is deprecated, and is approximately equivalent to:
  *     ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);
- *     ZSTD_CCtx_setZstdParams(zcs, params); // Set the zstd params and leave the rest as-is
+ *     // Pseudocode: Set each zstd parameter and leave the rest as-is.
+ *     for ((param, value) : params) {
+ *         ZSTD_CCtx_setParameter(zcs, param, value);
+ *     }
  *     ZSTD_CCtx_setPledgedSrcSize(zcs, pledgedSrcSize);
  *     ZSTD_CCtx_loadDictionary(zcs, dict, dictSize);
  *
@@ -1667,7 +1681,10 @@ ZSTDLIB_API size_t ZSTD_initCStream_usingCDict(ZSTD_CStream* zcs, const ZSTD_CDi
 /**! ZSTD_initCStream_usingCDict_advanced() :
  * This function is deprecated, and is approximately equivalent to:
  *     ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);
- *     ZSTD_CCtx_setZstdFrameParams(zcs, fParams); // Set the zstd frame params and leave the rest as-is
+ *     // Pseudocode: Set each zstd frame parameter and leave the rest as-is.
+ *     for ((fParam, value) : fParams) {
+ *         ZSTD_CCtx_setParameter(zcs, fParam, value);
+ *     }
  *     ZSTD_CCtx_setPledgedSrcSize(zcs, pledgedSrcSize);
  *     ZSTD_CCtx_refCDict(zcs, cdict);
  *

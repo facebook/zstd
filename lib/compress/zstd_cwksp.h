@@ -478,9 +478,10 @@ MEM_STATIC size_t ZSTD_cwksp_create(ZSTD_cwksp* ws, size_t size, ZSTD_customMem 
 }
 
 MEM_STATIC void ZSTD_cwksp_free(ZSTD_cwksp* ws, ZSTD_customMem customMem) {
+    void *ptr = ws->workspace;
     DEBUGLOG(4, "cwksp: freeing workspace");
-    ZSTD_free(ws->workspace, customMem);
     memset(ws, 0, sizeof(ZSTD_cwksp));
+    ZSTD_free(ptr, customMem);
 }
 
 /**

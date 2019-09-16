@@ -1073,11 +1073,11 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 typedef struct ZSTD_CCtx_params_s ZSTD_CCtx_params;
 
 typedef struct {
-    unsigned int matchPos;
-    unsigned int offset;
-    unsigned int litLength;
-    unsigned int matchLength;
-    unsigned int rep;
+    unsigned int matchPos; /* match pos in dst */
+    unsigned int offset; /* offset taking into account rep (different from seqdef) */
+    unsigned int litLength; /* literal length */
+    unsigned int matchLength; /* match length */
+    unsigned int rep; /* 0 when seq not rep and seqDef.offset otherwise */
 } ZSTD_Sequence;
 
 typedef struct {
@@ -1218,6 +1218,12 @@ ZSTDLIB_API unsigned long long ZSTD_decompressBound(const void* src, size_t srcS
  *           or an error code (if srcSize is too small) */
 ZSTDLIB_API size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize);
 
+/*! ZSTD_getSequences() :
+ * Extract sequences from the sequence store
+ * zc can be used to insert custom compression params.
+ * This function invokes ZSTD_compress2
+ * @return : number of sequences extracted
+ */
 ZSTDLIB_API size_t ZSTD_getSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
     size_t outSeqsSize, const void* src, size_t srcSize);
 

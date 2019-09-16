@@ -130,24 +130,23 @@ static void ZSTD_freeCCtxContent(ZSTD_CCtx* cctx)
 {
     assert(cctx != NULL);
     assert(cctx->staticSize == 0);
-    /* Only free workspace if cctx not in workspace, otherwise the workspace
-     * will be freed when the cctx itself is freed. */
-    if ((void*)cctx->workspace.workspace != (void*)cctx) {
-        ZSTD_cwksp_free(&cctx->workspace, cctx->customMem);
-    }
     ZSTD_clearAllDicts(cctx);
 #ifdef ZSTD_MULTITHREAD
     ZSTDMT_freeCCtx(cctx->mtctx); cctx->mtctx = NULL;
 #endif
+    ZSTD_cwksp_free(&cctx->workspace, cctx->customMem);
 }
 
 size_t ZSTD_freeCCtx(ZSTD_CCtx* cctx)
 {
+    int cctxInWorkspace = ZSTD_cwksp_owns_buffer(&cctx->workspace, cctx);
     if (cctx==NULL) return 0;   /* support free on NULL */
     RETURN_ERROR_IF(cctx->staticSize, memory_allocation,
                     "not compatible with static CCtx");
     ZSTD_freeCCtxContent(cctx);
-    ZSTD_free(cctx, cctx->customMem);
+    if (!cctxInWorkspace) {
+        ZSTD_free(cctx, cctx->customMem);
+    }
     return 0;
 }
 
@@ -3204,12 +3203,11 @@ size_t ZSTD_freeCDict(ZSTD_CDict* cdict)
 {
     if (cdict==NULL) return 0;   /* support free on NULL */
     {   ZSTD_customMem const cMem = cdict->customMem;
-        /* Only free workspace if cdict not in workspace, otherwise the
-         * workspace will be freed when the cdict itself is freed. */
-        if ((void*)cdict->workspace.workspace != (void*)cdict) {
-            ZSTD_cwksp_free(&cdict->workspace, cMem);
+        int cdictInWorkspace = ZSTD_cwksp_owns_buffer(&cdict->workspace, cdict);
+        ZSTD_cwksp_free(&cdict->workspace, cMem);
+        if (!cdictInWorkspace) {
+            ZSTD_free(cdict, cMem);
         }
-        ZSTD_free(cdict, cMem);
         return 0;
     }
 }

@@ -218,6 +218,13 @@ MEM_STATIC void ZSTD_cwksp_internal_advance_phase(
 }
 
 /**
+ * Returns whether this object/buffer/etc was allocated in this workspace.
+ */
+MEM_STATIC int ZSTD_cwksp_owns_buffer(const ZSTD_cwksp* ws, const void* ptr) {
+    return (ptr != NULL) && (ws->workspace <= ptr) && (ptr <= ws->workspaceEnd);
+}
+
+/**
  * Internal function. Do not use directly.
  */
 MEM_STATIC void* ZSTD_cwksp_reserve_internal(

@@ -1960,10 +1960,15 @@ static int basicUnitTests(U32 const seed, double compressibility)
         DISPLAYLEVEL(3, "OK \n");
     }
 
-    DISPLAYLEVEL(3, "test%3i : ZSTD_getSequences zeros : ", testNb++);
-    memset(CNBuffer, 0, 1000000);
-    assert(ZSTD_getSequences(ZSTD_createCCtx(), compressedBuffer, 1000000,
-        CNBuffer, 1000000) == 1000000 / 131071 + 1);
+    {
+        ZSTD_CCtx* cctx = ZSTD_createCCtx();
+        assert(cctx != NULL);
+        DISPLAYLEVEL(3, "test%3i : ZSTD_getSequences zeros : ", testNb++);
+        memset(CNBuffer, 0, 1000000);
+        assert(ZSTD_getSequences(cctx, compressedBuffer, 1000000,
+            CNBuffer, 1000000) == 1000000 / 131071 + 1);
+        ZSTD_freeCCtx(cctx);
+    }
 
     /* All zeroes test (test bug #137) */
     #define ZEROESLENGTH 100

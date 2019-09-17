@@ -341,18 +341,18 @@ MEM_STATIC size_t ZSTD_minGain(size_t srcSize, ZSTD_strategy strat)
 }
 
 /*! ZSTD_storeSeq() :
- *  Store a sequence (literal length, literals, offset code and match length code) into seqStore_t.
- *  `offsetCode` : distance to match + 3 (values 1-3 are repCodes).
+ *  Store a sequence (litlen, litPtr, offCode and mlBase) into seqStore_t.
+ *  `offCode` : distance to match + ZSTD_REP_MOVE (values <= ZSTD_REP_MOVE are repCodes).
  *  `mlBase` : matchLength - MINMATCH
 */
-MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const void* literals, U32 offsetCode, size_t mlBase)
+MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const void* literals, U32 offCode, size_t mlBase)
 {
 #if defined(DEBUGLEVEL) && (DEBUGLEVEL >= 6)
     static const BYTE* g_start = NULL;
     if (g_start==NULL) g_start = (const BYTE*)literals;  /* note : index only works for compression within a single segment */
     {   U32 const pos = (U32)((const BYTE*)literals - g_start);
         DEBUGLOG(6, "Cpos%7u :%3u literals, match%4u bytes at offCode%7u",
-               pos, (U32)litLength, (U32)mlBase+MINMATCH, (U32)offsetCode);
+               pos, (U32)litLength, (U32)mlBase+MINMATCH, (U32)offCode);
     }
 #endif
     assert((size_t)(seqStorePtr->sequences - seqStorePtr->sequencesStart) < seqStorePtr->maxNbSeq);
@@ -371,7 +371,7 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const v
     seqStorePtr->sequences[0].litLength = (U16)litLength;
 
     /* match offset */
-    seqStorePtr->sequences[0].offset = offsetCode + 1;
+    seqStorePtr->sequences[0].offset = offCode + 1;
 
     /* match Length */
     if (mlBase>0xFFFF) {

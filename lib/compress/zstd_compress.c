@@ -139,13 +139,15 @@ static void ZSTD_freeCCtxContent(ZSTD_CCtx* cctx)
 
 size_t ZSTD_freeCCtx(ZSTD_CCtx* cctx)
 {
-    int cctxInWorkspace = ZSTD_cwksp_owns_buffer(&cctx->workspace, cctx);
     if (cctx==NULL) return 0;   /* support free on NULL */
     RETURN_ERROR_IF(cctx->staticSize, memory_allocation,
                     "not compatible with static CCtx");
-    ZSTD_freeCCtxContent(cctx);
-    if (!cctxInWorkspace) {
-        ZSTD_free(cctx, cctx->customMem);
+    {
+        int cctxInWorkspace = ZSTD_cwksp_owns_buffer(&cctx->workspace, cctx);
+        ZSTD_freeCCtxContent(cctx);
+        if (!cctxInWorkspace) {
+            ZSTD_free(cctx, cctx->customMem);
+        }
     }
     return 0;
 }
@@ -1077,6 +1079,8 @@ ZSTD_sizeof_matchState(const ZSTD_compressionParameters* const cParams,
     size_t const hSize = ((size_t)1) << cParams->hashLog;
     U32    const hashLog3 = (forCCtx && cParams->minMatch==3) ? MIN(ZSTD_HASHLOG3_MAX, cParams->windowLog) : 0;
     size_t const h3Size = hashLog3 ? ((size_t)1) << hashLog3 : 0;
+    /* We don't use ZSTD_cwksp_alloc_size() here because the tables aren't
+     * surrounded by redzones in ASAN. */
     size_t const tableSpace = chainSize * sizeof(U32)
                             + hSize * sizeof(U32)
                             + h3Size * sizeof(U32);

@@ -2210,8 +2210,9 @@ FIO_determineDstName(const char* srcFileName)
 
     /* return dst name == src name truncated from suffix */
     assert(dstFileNameBuffer != NULL);
-    memcpy(dstFileNameBuffer, srcFileName, sfnSize - suffixSize);
-    dstFileNameBuffer[sfnSize-suffixSize] = '\0';
+    size_t dstFileNameEndPos = sfnSize - suffixSize;
+    memcpy(dstFileNameBuffer, srcFileName, dstFileNameEndPos);
+    dstFileNameBuffer[dstFileNameEndPos] = '\0';
     return dstFileNameBuffer;
 
     /* note : dstFileNameBuffer memory is not going to be free */

@@ -2212,6 +2212,15 @@ FIO_determineDstName(const char* srcFileName)
     assert(dstFileNameBuffer != NULL);
     size_t dstFileNameEndPos = sfnSize - suffixSize;
     memcpy(dstFileNameBuffer, srcFileName, dstFileNameEndPos);
+    /* The short tar extensions tzst, tgz, txz and tlz4 files should have "tar" extension on decompression
+     * To check that the file is one of them we can check that it starts with "t"
+     */
+    if (suffixPtr[1] == 't') {
+        dstFileNameBuffer[dstFileNameEndPos++] = '.';
+        dstFileNameBuffer[dstFileNameEndPos++] = 't';
+        dstFileNameBuffer[dstFileNameEndPos++] = 'a';
+        dstFileNameBuffer[dstFileNameEndPos++] = 'r';
+    }
     dstFileNameBuffer[dstFileNameEndPos] = '\0';
     return dstFileNameBuffer;
 

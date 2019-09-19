@@ -688,7 +688,7 @@ size_t ZSTD_execSequence(BYTE* op,
     }
     op += 8; match += 8;
 
-    if (oMatchEnd > oend-(16-MINMATCH)) {
+    if (oMatchEnd > oend - (8 /* already copied */ + WILDCOPY_OVERLENGTH - MINMATCH)) {
         if (op < oend_w) {
             ZSTD_wildcopy(op, match, oend_w - op, ZSTD_overlap_src_before_dst);
             match += oend_w - op;
@@ -770,7 +770,7 @@ size_t ZSTD_execSequenceLong(BYTE* op,
     }
     op += 8; match += 8;
 
-    if (oMatchEnd > oend-(16-MINMATCH)) {
+    if (oMatchEnd > oend - (8 /* already copied */ + WILDCOPY_OVERLENGTH - MINMATCH)) {
         if (op < oend_w) {
             ZSTD_wildcopy(op, match, oend_w - op, ZSTD_overlap_src_before_dst);
             match += oend_w - op;

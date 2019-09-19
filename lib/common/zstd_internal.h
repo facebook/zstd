@@ -207,7 +207,13 @@ typedef enum {
 } ZSTD_overlap_e;
 
 /*! ZSTD_wildcopy() :
- *  custom version of memcpy(), can overwrite up to WILDCOPY_OVERLENGTH bytes (if length==0) */
+ *  Custom version of memcpy(), can overwrite up to WILDCOPY_OVERLENGTH bytes (if length==0)
+ *  @param ovtype controls the overlap detection
+ *         - ZSTD_no_overlap: The source and destination are guaranteed to be at least VECLEN
+ *           bytes apart.
+ *         - ZSTD_overlap_src_before_dst: The src and dst may overlap, but they MUST be at least
+ *           8 bytes apart. The src buffer must be before the dst buffer.
+ */
 MEM_STATIC FORCE_INLINE_ATTR DONT_VECTORIZE
 void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length, ZSTD_overlap_e ovtype)
 {
@@ -222,8 +228,8 @@ void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length, ZSTD_overlap_e 
       do
           COPY8(op, ip)
       while (op < oend);
-    }
-    else {
+    } else {
+      assert(diff >= VECLEN || diff <= -VECLEN);
       do {
         COPY16(op, ip);
       }
@@ -231,14 +237,18 @@ void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length, ZSTD_overlap_e 
     }
 }
 
-MEM_STATIC void ZSTD_wildcopy_e(void* dst, const void* src, void* dstEnd)   /* should be faster for decoding, but strangely, not verified on all platform */
+/*! ZSTD_wildcopy8() :
+ *  The same as ZSTD_wildcopy(), but it can only overwrite 8 bytes, and works for
+ *  overlapping buffers that are at least 8 bytes apart.
+ */
+MEM_STATIC void ZSTD_wildcopy8(void* dst, const void* src, ptrdiff_t length)
 {
     const BYTE* ip = (const BYTE*)src;
     BYTE* op = (BYTE*)dst;
-    BYTE* const oend = (BYTE*)dstEnd;
-    do
+    BYTE* const oend = (BYTE*)op + length;
+    do {
         COPY8(op, ip)
-    while (op < oend);
+    } while (op < oend);
 }
 
 

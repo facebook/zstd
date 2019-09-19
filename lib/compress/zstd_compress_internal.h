@@ -359,7 +359,10 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const v
     /* copy Literals */
     assert(seqStorePtr->maxNbLit <= 128 KB);
     assert(seqStorePtr->lit + litLength <= seqStorePtr->litStart + seqStorePtr->maxNbLit);
-    ZSTD_wildcopy(seqStorePtr->lit, literals, (ptrdiff_t)litLength, ZSTD_no_overlap);
+    /* We are guaranteed at least 8 bytes of literals space because of HASH_READ_SIZE and
+     * MINMATCH.
+     */
+    ZSTD_wildcopy8(seqStorePtr->lit, literals, (ptrdiff_t)litLength);
     seqStorePtr->lit += litLength;
 
     /* literal Length */

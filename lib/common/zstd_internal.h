@@ -197,7 +197,7 @@ static void ZSTD_copy8(void* dst, const void* src) { memcpy(dst, src, 8); }
 static void ZSTD_copy16(void* dst, const void* src) { memcpy(dst, src, 16); }
 #define COPY16(d,s) { ZSTD_copy16(d,s); d+=16; s+=16; }
 
-#define WILDCOPY_OVERLENGTH 8
+#define WILDCOPY_OVERLENGTH 16
 #define VECLEN 16
 
 typedef enum {
@@ -209,7 +209,7 @@ typedef enum {
 /*! ZSTD_wildcopy() :
  *  custom version of memcpy(), can overwrite up to WILDCOPY_OVERLENGTH bytes (if length==0) */
 MEM_STATIC FORCE_INLINE_ATTR DONT_VECTORIZE
-void ZSTD_wildcopy(void* dst, const void* src, BYTE* oend_g, ptrdiff_t length, ZSTD_overlap_e ovtype)
+void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length, ZSTD_overlap_e ovtype)
 {
     ptrdiff_t diff = (BYTE*)dst - (const BYTE*)src;
     const BYTE* ip = (const BYTE*)src;
@@ -218,61 +218,16 @@ void ZSTD_wildcopy(void* dst, const void* src, BYTE* oend_g, ptrdiff_t length, Z
 
     assert(diff >= 8 || (ovtype == ZSTD_no_overlap && diff < -8));
 
-    if (length < VECLEN || (ovtype == ZSTD_overlap_src_before_dst && diff < VECLEN)) {
+    if (ovtype == ZSTD_overlap_src_before_dst && diff < VECLEN) {
       do
           COPY8(op, ip)
       while (op < oend);
     }
     else {
-      if (oend < oend_g-16) {
-        /* common case */
-        do {
-          COPY16(op, ip);
-        }
-        while (op < oend);
-      }
-      else {
-        do {
-            COPY8(op, ip);
-        }
-        while (op < oend);
-      }
-    }
-}
-
-/*! ZSTD_wildcopy_16min() :
- *  same semantics as ZSTD_wildcopy() except guaranteed to be able to copy 16 bytes at the start */
-MEM_STATIC FORCE_INLINE_ATTR DONT_VECTORIZE
-void ZSTD_wildcopy_16min(void* dst, const void* src, BYTE* oend_g, ptrdiff_t length, ZSTD_overlap_e ovtype)
-{
-    ptrdiff_t diff = (BYTE*)dst - (const BYTE*)src;
-    const BYTE* ip = (const BYTE*)src;
-    BYTE* op = (BYTE*)dst;
-    BYTE* const oend = op + length;
-
-    assert(length >= 8);
-    assert(diff >= 8 || (ovtype == ZSTD_no_overlap && diff < -8));
-
-    if (ovtype == ZSTD_overlap_src_before_dst && diff < VECLEN) {
       do {
-          COPY8(op, ip);
+        COPY16(op, ip);
       }
       while (op < oend);
-    }
-    else {
-      if (oend < oend_g-16) {
-        /* common case */
-        do {
-          COPY16(op, ip);
-        }
-        while (op < oend);
-      }
-      else {
-        do {
-            COPY8(op, ip);
-        }
-        while (op < oend);
-      }
     }
 }
 

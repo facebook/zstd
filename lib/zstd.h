@@ -1078,11 +1078,21 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 typedef struct ZSTD_CCtx_params_s ZSTD_CCtx_params;
 
 typedef struct {
-    unsigned int matchPos; /* match pos in dst */
-    unsigned int offset; /* offset taking into account rep (different from seqdef) */
-    unsigned int litLength; /* literal length */
-    unsigned int matchLength; /* match length */
-    unsigned int rep; /* 0 when seq not rep and seqDef.offset otherwise */
+    unsigned int matchPos; /* Match pos in dst */
+    /* If seqDef.offset > 3, then this is seqDef.offset - 3
+     * If seqDef.offset < 3, then this is the corresponding repeat offset
+     * But if seqDef.offset < 3 and litLength == 0, this is the
+     *   repeat offset before the corresponding repeat offset
+     * And if seqDef.offset == 3 and litLength == 0, this is the
+     *   most recent repeat offset - 1
+     */
+    unsigned int offset;
+    unsigned int litLength; /* Literal length */
+    unsigned int matchLength; /* Match length */
+    /* 0 when seq not rep and seqDef.offset otherwise
+     * when litLength == 0 this will be <= 4, otherwise <= 3 like normal
+     */
+    unsigned int rep;
 } ZSTD_Sequence;
 
 typedef struct {

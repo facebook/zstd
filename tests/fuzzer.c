@@ -2156,9 +2156,9 @@ static int basicUnitTests(U32 const seed, double compressibility)
         size_t approxIndex = 0;
         size_t maxIndex = ((3U << 29) + (1U << ZSTD_WINDOWLOG_MAX)); /* ZSTD_CURRENT_MAX from zstd_compress_internal.h */
 
-        /* vastly overprovision space in a static context so that we can do all
-         * this without ever reallocating, which would reset the indices */
-        size_t const staticCCtxSize = 2 * ZSTD_estimateCCtxSize(22);
+        /* Provision enough space in a static context so that we can do all
+         * this without ever reallocating, which would reset the indices. */
+        size_t const staticCCtxSize = ZSTD_estimateCStreamSize(22);
         void* const staticCCtxBuffer = malloc(staticCCtxSize);
         ZSTD_CCtx* cctx = ZSTD_initStaticCCtx(staticCCtxBuffer, staticCCtxSize);
 

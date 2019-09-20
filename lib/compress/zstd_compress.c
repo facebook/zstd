@@ -2319,6 +2319,9 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
 size_t ZSTD_getSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
     size_t outSeqsSize, const void* src, size_t srcSize)
 {
+    const size_t dstCapacity = ZSTD_compressBound(srcSize);
+    void* dst = ZSTD_malloc(dstCapacity, ZSTD_defaultCMem);
+
     SeqCollector seqCollector;
     seqCollector.collectSequences = 1;
     seqCollector.seqStart = outSeqs;
@@ -2326,8 +2329,8 @@ size_t ZSTD_getSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
     seqCollector.maxSequences = outSeqsSize;
     zc->seqCollector = seqCollector;
 
-    /* We never write to dst when collecing sequences so setting dst = src is harmless */
-    ZSTD_compress2(zc, (void*)src, srcSize, src, srcSize);
+    ZSTD_compress2(zc, dst, dstCapacity, src, srcSize);
+    ZSTD_free(dst, ZSTD_defaultCMem);
     return zc->seqCollector.seqIndex;
 }
 

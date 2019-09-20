@@ -1221,14 +1221,23 @@ ZSTDLIB_API size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize);
 ***************************************/
 
 /*! ZSTD_estimate*() :
- *  These functions make it possible to estimate memory usage
- *  of a future {D,C}Ctx, before its creation.
- *  ZSTD_estimateCCtxSize() will provide a budget large enough for any compression level up to selected one.
- *  It will also consider src size to be arbitrarily "large", which is worst case.
- *  If srcSize is known to always be small, ZSTD_estimateCCtxSize_usingCParams() can provide a tighter estimation.
- *  ZSTD_estimateCCtxSize_usingCParams() can be used in tandem with ZSTD_getCParams() to create cParams from compressionLevel.
- *  ZSTD_estimateCCtxSize_usingCCtxParams() can be used in tandem with ZSTD_CCtxParams_setParameter(). Only single-threaded compression is supported. This function will return an error code if ZSTD_c_nbWorkers is >= 1.
- *  Note : CCtx size estimation is only correct for single-threaded compression. */
+ *  These functions make it possible to estimate memory usage of a future
+ *  {D,C}Ctx, before its creation.
+ *
+ *  ZSTD_estimateCCtxSize() will provide a budget large enough for any
+ *  compression level up to selected one. Unlike ZSTD_estimateCStreamSize*(),
+ *  this estimate does not include space for a window buffer, so this estimate
+ *  is guaranteed to be enough for single-shot compressions, but not streaming
+ *  compressions. It will however assume the input may be arbitrarily large,
+ *  which is the worst case. If srcSize is known to always be small,
+ *  ZSTD_estimateCCtxSize_usingCParams() can provide a tighter estimation.
+ *  ZSTD_estimateCCtxSize_usingCParams() can be used in tandem with
+ *  ZSTD_getCParams() to create cParams from compressionLevel.
+ *  ZSTD_estimateCCtxSize_usingCCtxParams() can be used in tandem with
+ *  ZSTD_CCtxParams_setParameter().
+ *
+ *  Note: only single-threaded compression is supported. This function will
+ *  return an error code if ZSTD_c_nbWorkers is >= 1. */
 ZSTDLIB_API size_t ZSTD_estimateCCtxSize(int compressionLevel);
 ZSTDLIB_API size_t ZSTD_estimateCCtxSize_usingCParams(ZSTD_compressionParameters cParams);
 ZSTDLIB_API size_t ZSTD_estimateCCtxSize_usingCCtxParams(const ZSTD_CCtx_params* params);

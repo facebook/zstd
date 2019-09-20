@@ -344,8 +344,9 @@ MEM_STATIC size_t ZSTD_minGain(size_t srcSize, ZSTD_strategy strat)
  *  Store a sequence (litlen, litPtr, offCode and mlBase) into seqStore_t.
  *  `offCode` : distance to match + ZSTD_REP_MOVE (values <= ZSTD_REP_MOVE are repCodes).
  *  `mlBase` : matchLength - MINMATCH
+ *  Allowed to overread literals up to litLimit.
 */
-MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const void* literals, U32 offCode, size_t mlBase)
+MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const BYTE* literals, const BYTE* litLimit, U32 offCode, size_t mlBase)
 {
 #if defined(DEBUGLEVEL) && (DEBUGLEVEL >= 6)
     static const BYTE* g_start = NULL;
@@ -362,7 +363,11 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const v
     /* We are guaranteed at least 8 bytes of literals space because of HASH_READ_SIZE and
      * MINMATCH.
      */
-    ZSTD_wildcopy8(seqStorePtr->lit, literals, (ptrdiff_t)litLength);
+    assert(litLimit - literals >= HASH_READ_SIZE + MINMATCH);
+    if (litLimit - literals >= WILDCOPY_OVERLENGTH)
+	    ZSTD_wildcopy(seqStorePtr->lit, literals, (ptrdiff_t)litLength, ZSTD_no_overlap);
+    else
+	    ZSTD_wildcopy8(seqStorePtr->lit, literals, (ptrdiff_t)litLength);
     seqStorePtr->lit += litLength;
 
     /* literal Length */

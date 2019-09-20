@@ -761,10 +761,10 @@ size_t ZSTD_execSequence(BYTE* op,
      * without overlap checking.
      */
     if (sequence.offset >= WILDCOPY_VECLEN) {
-        /* Split out matchLength <= 32 since it is nearly always true. +1% on gcc-9.
-	 * We copy 32 bytes here since matches are generally longer than literals.
-	 * In silesia, for example ~10% of matches are longer than 16 bytes.
-	 */
+        /* We bet on a full wildcopy for matches, since we expect matches to be
+         * longer than literals (in general). In silesia, ~10% of matches are longer
+         * than 16 bytes.
+         */
         ZSTD_wildcopy(op, match, (ptrdiff_t)sequence.matchLength, ZSTD_no_overlap);
         return sequenceLength;
     }

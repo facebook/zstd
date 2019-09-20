@@ -197,7 +197,7 @@ static void ZSTD_copy8(void* dst, const void* src) { memcpy(dst, src, 8); }
 static void ZSTD_copy16(void* dst, const void* src) { memcpy(dst, src, 16); }
 #define COPY16(d,s) { ZSTD_copy16(d,s); d+=16; s+=16; }
 
-#define WILDCOPY_OVERLENGTH 16
+#define WILDCOPY_OVERLENGTH 32
 #define WILDCOPY_VECLEN 16
 
 typedef enum {
@@ -237,10 +237,10 @@ void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length, ZSTD_overlap_e 
          * On clang-8 unrolling once is +1.4%, twice is +3.3%, thrice is +3%.
          */
         COPY16(op, ip);
-        if (op >= oend) return;
         COPY16(op, ip);
         if (op >= oend) return;
         do {
+            COPY16(op, ip);
             COPY16(op, ip);
         }
         while (op < oend);
@@ -257,7 +257,7 @@ MEM_STATIC void ZSTD_wildcopy8(void* dst, const void* src, ptrdiff_t length)
     BYTE* op = (BYTE*)dst;
     BYTE* const oend = (BYTE*)op + length;
     do {
-        COPY8(op, ip)
+        COPY8(op, ip);
     } while (op < oend);
 }
 

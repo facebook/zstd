@@ -724,12 +724,14 @@ size_t ZSTD_execSequence(BYTE* op,
     assert(oMatchEnd <= oend_w /* Can wildcopy matches */);
 
     /* Copy Literals:
-     * Split out litLength <= 16 since it is nearly always true. +1% on gcc-9.
+     * Split out litLength <= 16 since it is nearly always true. +1.6% on gcc-9.
+     * We likely don't need the full 32-byte wildcopy.
      */
-    if (sequence.litLength <= 16)
-        ZSTD_copy16(op, *litPtr);
-    else
-        ZSTD_wildcopy(op, (*litPtr), sequence.litLength, ZSTD_no_overlap);
+    assert(WILDCOPY_OVERLENGTH >= 16);
+    ZSTD_copy16(op, (*litPtr));
+    if (sequence.litLength > 16) {
+        ZSTD_wildcopy(op+16, (*litPtr)+16, sequence.litLength-16, ZSTD_no_overlap);
+    }
     op = oLitEnd;
     *litPtr = iLitEnd;   /* update for next sequence */
 
@@ -755,18 +757,18 @@ size_t ZSTD_execSequence(BYTE* op,
     assert(match >= prefixStart);
     assert(sequence.matchLength >= 1);
 
-    /* Nearly all offsets are >= 16 bytes, which means we can use wildcopy
+    /* Nearly all offsets are >= WILDCOPY_VECLEN bytes, which means we can use wildcopy
      * without overlap checking.
      */
-    if (sequence.offset >= 16) {
-        /* Split out matchLength <= 16 since it is nearly always true. +1% on gcc-9. */
-        if (sequence.matchLength <= 16)
-            ZSTD_copy16(op, match);
-        else
-            ZSTD_wildcopy(op, match, (ptrdiff_t)sequence.matchLength, ZSTD_no_overlap);
+    if (sequence.offset >= WILDCOPY_VECLEN) {
+        /* Split out matchLength <= 32 since it is nearly always true. +1% on gcc-9.
+	 * We copy 32 bytes here since matches are generally longer than literals.
+	 * In silesia, for example ~10% of matches are longer than 16 bytes.
+	 */
+        ZSTD_wildcopy(op, match, (ptrdiff_t)sequence.matchLength, ZSTD_no_overlap);
         return sequenceLength;
     }
-    assert(sequence.offset < 16);
+    assert(sequence.offset < WILDCOPY_VECLEN);
 
     /* Copy 8 bytes and spread the offset to be >= 8. */
     ZSTD_overlapCopy8(&op, &match, sequence.offset);

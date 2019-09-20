@@ -360,10 +360,8 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const B
     /* copy Literals */
     assert(seqStorePtr->maxNbLit <= 128 KB);
     assert(seqStorePtr->lit + litLength <= seqStorePtr->litStart + seqStorePtr->maxNbLit);
-    /* We are guaranteed at least 8 bytes of literals space because of HASH_READ_SIZE and
-     * MINMATCH.
-     */
-    assert(litLimit - literals >= HASH_READ_SIZE + MINMATCH);
+    /* We are guaranteed at least 8 bytes of literals space because of HASH_READ_SIZE. */
+    assert(litLimit - literals >= HASH_READ_SIZE);
     if (litLimit - literals >= WILDCOPY_OVERLENGTH)
 	    ZSTD_wildcopy(seqStorePtr->lit, literals, (ptrdiff_t)litLength, ZSTD_no_overlap);
     else

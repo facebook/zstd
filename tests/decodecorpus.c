@@ -758,8 +758,8 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
             DISPLAYLEVEL(7, "        repeat offset: %d\n", (int)repIndex);
         }
         /* use libzstd sequence handling */
-        ZSTD_storeSeq(seqStore, literalLen, literals, offsetCode,
-                      matchLen - MINMATCH);
+        ZSTD_storeSeq(seqStore, literalLen, literals, literals + literalLen,
+                      offsetCode, matchLen - MINMATCH);
 
         literalsSize -= literalLen;
         excessMatch -= (matchLen - MIN_SEQ_LEN);

@@ -340,13 +340,32 @@ MEM_STATIC size_t ZSTD_minGain(size_t srcSize, ZSTD_strategy strat)
     return (srcSize >> minlog) + 2;
 }
 
+/*! ZSTD_safecopyLiterals() :
+ *  memcpy() function that won't read beyond more than WILDCOPY_OVERLENGTH bytes past ilimit_w.
+ *  Only called when the sequence ends past ilimit_w, so it only needs to be optimized for single
+ *  large copies.
+ */
+static void ZSTD_safecopyLiterals(BYTE* op, BYTE const* ip, BYTE const* const iend, BYTE const* ilimit_w) {
+    assert(iend > ilimit_w);
+    if (ip <= ilimit_w) {
+        ZSTD_wildcopy(op, ip, ilimit_w - ip, ZSTD_no_overlap);
+        op += ilimit_w - ip;
+        ip = ilimit_w;
+    }
+    while (ip < iend) *op++ = *ip++;
+}
+
 /*! ZSTD_storeSeq() :
  *  Store a sequence (litlen, litPtr, offCode and mlBase) into seqStore_t.
  *  `offCode` : distance to match + ZSTD_REP_MOVE (values <= ZSTD_REP_MOVE are repCodes).
  *  `mlBase` : matchLength - MINMATCH
+ *  Allowed to overread literals up to litLimit.
 */
-MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const void* literals, U32 offCode, size_t mlBase)
+HINT_INLINE UNUSED_ATTR
+void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const BYTE* literals, const BYTE* litLimit, U32 offCode, size_t mlBase)
 {
+    BYTE const* const litLimit_w = litLimit - WILDCOPY_OVERLENGTH;
+    BYTE const* const litEnd = literals + litLength;
 #if defined(DEBUGLEVEL) && (DEBUGLEVEL >= 6)
     static const BYTE* g_start = NULL;
     if (g_start==NULL) g_start = (const BYTE*)literals;  /* note : index only works for compression within a single segment */
@@ -359,7 +378,19 @@ MEM_STATIC void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const v
     /* copy Literals */
     assert(seqStorePtr->maxNbLit <= 128 KB);
     assert(seqStorePtr->lit + litLength <= seqStorePtr->litStart + seqStorePtr->maxNbLit);
-    ZSTD_wildcopy(seqStorePtr->lit, literals, seqStorePtr->lit + litLength + 8, (ptrdiff_t)litLength, ZSTD_no_overlap);
+    assert(literals + litLength <= litLimit);
+    if (litEnd <= litLimit_w) {
+        /* Common case we can use wildcopy.
+	 * First copy 16 bytes, because literals are likely short.
+	 */
+        assert(WILDCOPY_OVERLENGTH >= 16);
+        ZSTD_copy16(seqStorePtr->lit, literals);
+        if (litLength > 16) {
+            ZSTD_wildcopy(seqStorePtr->lit+16, literals+16, (ptrdiff_t)litLength-16, ZSTD_no_overlap);
+        }
+    } else {
+        ZSTD_safecopyLiterals(seqStorePtr->lit, literals, litEnd, litLimit_w);
+    }
     seqStorePtr->lit += litLength;
 
     /* literal Length */

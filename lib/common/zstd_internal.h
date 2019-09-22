@@ -197,8 +197,8 @@ static void ZSTD_copy8(void* dst, const void* src) { memcpy(dst, src, 8); }
 static void ZSTD_copy16(void* dst, const void* src) { memcpy(dst, src, 16); }
 #define COPY16(d,s) { ZSTD_copy16(d,s); d+=16; s+=16; }
 
-#define WILDCOPY_OVERLENGTH 8
-#define VECLEN 16
+#define WILDCOPY_OVERLENGTH 32
+#define WILDCOPY_VECLEN 16
 
 typedef enum {
     ZSTD_no_overlap,
@@ -207,83 +207,58 @@ typedef enum {
 } ZSTD_overlap_e;
 
 /*! ZSTD_wildcopy() :
- *  custom version of memcpy(), can overwrite up to WILDCOPY_OVERLENGTH bytes (if length==0) */
+ *  Custom version of memcpy(), can over read/write up to WILDCOPY_OVERLENGTH bytes (if length==0)
+ *  @param ovtype controls the overlap detection
+ *         - ZSTD_no_overlap: The source and destination are guaranteed to be at least WILDCOPY_VECLEN bytes apart.
+ *         - ZSTD_overlap_src_before_dst: The src and dst may overlap, but they MUST be at least 8 bytes apart.
+ *           The src buffer must be before the dst buffer.
+ */
 MEM_STATIC FORCE_INLINE_ATTR DONT_VECTORIZE
-void ZSTD_wildcopy(void* dst, const void* src, BYTE* oend_g, ptrdiff_t length, ZSTD_overlap_e ovtype)
+void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length, ZSTD_overlap_e const ovtype)
 {
     ptrdiff_t diff = (BYTE*)dst - (const BYTE*)src;
     const BYTE* ip = (const BYTE*)src;
     BYTE* op = (BYTE*)dst;
     BYTE* const oend = op + length;
 
-    assert(diff >= 8 || (ovtype == ZSTD_no_overlap && diff < -8));
+    assert(diff >= 8 || (ovtype == ZSTD_no_overlap && diff <= -WILDCOPY_VECLEN));
 
-    if (length < VECLEN || (ovtype == ZSTD_overlap_src_before_dst && diff < VECLEN)) {
-      do
-          COPY8(op, ip)
-      while (op < oend);
-    }
-    else {
-      if (oend < oend_g-16) {
-        /* common case */
+    if (ovtype == ZSTD_overlap_src_before_dst && diff < WILDCOPY_VECLEN) {
+        /* Handle short offset copies. */
         do {
-          COPY16(op, ip);
+            COPY8(op, ip)
+        } while (op < oend);
+    } else {
+        assert(diff >= WILDCOPY_VECLEN || diff <= -WILDCOPY_VECLEN);
+        /* Separate out the first two COPY16() calls because the copy length is
+         * almost certain to be short, so the branches have different
+         * probabilities.
+         * On gcc-9 unrolling once is +1.6%, twice is +2%, thrice is +1.8%.
+         * On clang-8 unrolling once is +1.4%, twice is +3.3%, thrice is +3%.
+         */
+        COPY16(op, ip);
+        COPY16(op, ip);
+        if (op >= oend) return;
+        do {
+            COPY16(op, ip);
+            COPY16(op, ip);
         }
         while (op < oend);
-      }
-      else {
-        do {
-            COPY8(op, ip);
-        }
-        while (op < oend);
-      }
-    }
-}
-
-/*! ZSTD_wildcopy_16min() :
- *  same semantics as ZSTD_wildcopy() except guaranteed to be able to copy 16 bytes at the start */
-MEM_STATIC FORCE_INLINE_ATTR DONT_VECTORIZE
-void ZSTD_wildcopy_16min(void* dst, const void* src, BYTE* oend_g, ptrdiff_t length, ZSTD_overlap_e ovtype)
-{
-    ptrdiff_t diff = (BYTE*)dst - (const BYTE*)src;
-    const BYTE* ip = (const BYTE*)src;
-    BYTE* op = (BYTE*)dst;
-    BYTE* const oend = op + length;
-
-    assert(length >= 8);
-    assert(diff >= 8 || (ovtype == ZSTD_no_overlap && diff < -8));
-
-    if (ovtype == ZSTD_overlap_src_before_dst && diff < VECLEN) {
-      do {
-          COPY8(op, ip);
-      }
-      while (op < oend);
-    }
-    else {
-      if (oend < oend_g-16) {
-        /* common case */
-        do {
-          COPY16(op, ip);
-        }
-        while (op < oend);
-      }
-      else {
-        do {
-            COPY8(op, ip);
-        }
-        while (op < oend);
-      }
     }
 }
 
-MEM_STATIC void ZSTD_wildcopy_e(void* dst, const void* src, void* dstEnd)   /* should be faster for decoding, but strangely, not verified on all platform */
+/*! ZSTD_wildcopy8() :
+ *  The same as ZSTD_wildcopy(), but it can only overwrite 8 bytes, and works for
+ *  overlapping buffers that are at least 8 bytes apart.
+ */
+MEM_STATIC void ZSTD_wildcopy8(void* dst, const void* src, ptrdiff_t length)
 {
     const BYTE* ip = (const BYTE*)src;
     BYTE* op = (BYTE*)dst;
-    BYTE* const oend = (BYTE*)dstEnd;
-    do
-        COPY8(op, ip)
-    while (op < oend);
+    BYTE* const oend = (BYTE*)op + length;
+    do {
+        COPY8(op, ip);
+    } while (op < oend);
 }
 
 

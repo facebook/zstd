@@ -94,7 +94,7 @@
 #if defined(__clang__)
 #  define LOOP_UNROLL(x) PRAGMA(clang loop unroll_count(x))
 #  define NO_LOOP_VECTORIZE  PRAGMA(clang loop vectorize(disable))
-#elif defined(__GNUC__)
+#elif defined(__GNUC__) && __GNUC__ >= 8
 #  define LOOP_UNROLL(x) PRAGMA(GCC unroll(x))
 #  define NO_LOOP_VECTORIZE
 #else

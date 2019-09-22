@@ -196,6 +196,13 @@ static void ZSTD_copy8(void* dst, const void* src) { memcpy(dst, src, 8); }
 #define COPY8(d,s) { ZSTD_copy8(d,s); d+=8; s+=8; }
 static void ZSTD_copy16(void* dst, const void* src) { memcpy(dst, src, 16); }
 #define COPY16(d,s) { ZSTD_copy16(d,s); d+=16; s+=16; }
+static void ZSTD_copy32(void* dst, const void* src) { memcpy(dst, src, 32); }
+
+#if defined(__clang__)
+#define COPY32(d,s) { COPY16(d,s); COPY16(d,s) }
+#else
+#define COPY32(d,s) { ZSTD_copy32(d,s); d+=32; s+=32; }
+#endif
 
 #define WILDCOPY_OVERLENGTH 32
 #define WILDCOPY_VECLEN 16
@@ -225,6 +232,7 @@ void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length, ZSTD_overlap_e 
 
     if (ovtype == ZSTD_overlap_src_before_dst && diff < WILDCOPY_VECLEN) {
         /* Handle short offset copies. */
+        NO_LOOP_VECTORIZE
         do {
             COPY8(op, ip)
         } while (op < oend);
@@ -236,12 +244,11 @@ void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length, ZSTD_overlap_e 
          * On gcc-9 unrolling once is +1.6%, twice is +2%, thrice is +1.8%.
          * On clang-8 unrolling once is +1.4%, twice is +3.3%, thrice is +3%.
          */
-        COPY16(op, ip);
-        COPY16(op, ip);
+        COPY32(op, ip);
         if (op >= oend) return;
+        NO_LOOP_VECTORIZE
         do {
-            COPY16(op, ip);
-            COPY16(op, ip);
+            COPY32(op, ip);
         }
         while (op < oend);
     }
@@ -251,11 +258,13 @@ void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length, ZSTD_overlap_e 
  *  The same as ZSTD_wildcopy(), but it can only overwrite 8 bytes, and works for
  *  overlapping buffers that are at least 8 bytes apart.
  */
-MEM_STATIC void ZSTD_wildcopy8(void* dst, const void* src, ptrdiff_t length)
+MEM_STATIC DONT_VECTORIZE
+void ZSTD_wildcopy8(void* dst, const void* src, ptrdiff_t length)
 {
     const BYTE* ip = (const BYTE*)src;
     BYTE* op = (BYTE*)dst;
     BYTE* const oend = (BYTE*)op + length;
+    NO_LOOP_VECTORIZE
     do {
         COPY8(op, ip);
     } while (op < oend);

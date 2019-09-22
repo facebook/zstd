@@ -415,6 +415,7 @@ ZSTD_buildFSETable(ZSTD_seqSymbol* dt,
 
     /* Build Decoding table */
     {   U32 u;
+        LOOP_UNROLL(256)
         for (u=0; u<tableSize; u++) {
             U32 const symbol = tableDecode[u].baseValue;
             U32 const nextState = symbolNext[symbol]++;

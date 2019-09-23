@@ -2323,7 +2323,7 @@ size_t ZSTD_getSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
     void* dst = ZSTD_malloc(dstCapacity, ZSTD_defaultCMem);
     SeqCollector seqCollector;
 
-    assert(dst != NULL);
+    RETURN_ERROR_IF(dst == NULL, memory_allocation);
 
     seqCollector.collectSequences = 1;
     seqCollector.seqStart = outSeqs;

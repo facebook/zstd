@@ -196,10 +196,11 @@ static void ZSTD_copy8(void* dst, const void* src) { memcpy(dst, src, 8); }
 #define COPY8(d,s) { ZSTD_copy8(d,s); d+=8; s+=8; }
 static void ZSTD_copy16(void* dst, const void* src) { memcpy(dst, src, 16); }
 #define COPY16(d,s) { ZSTD_copy16(d,s); d+=16; s+=16; }
-#define COPY32(d,s) { COPY16(d,s); COPY16(d,s) }
+static void ZSTD_copy32(void* dst, const void* src) { memcpy(dst, src, 32); }
+#define COPY32(d,s) { ZSTD_copy32(d,s); d+=32; s+=32; }
 
 #define WILDCOPY_OVERLENGTH 32
-#define WILDCOPY_VECLEN 16
+#define WILDCOPY_VECLEN 32
 
 typedef enum {
     ZSTD_no_overlap,
@@ -247,23 +248,6 @@ void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length, ZSTD_overlap_e 
         while (op < oend);
     }
 }
-
-/*! ZSTD_wildcopy8() :
- *  The same as ZSTD_wildcopy(), but it can only overwrite 8 bytes, and works for
- *  overlapping buffers that are at least 8 bytes apart.
- */
-MEM_STATIC DONT_VECTORIZE
-void ZSTD_wildcopy8(void* dst, const void* src, ptrdiff_t length)
-{
-    const BYTE* ip = (const BYTE*)src;
-    BYTE* op = (BYTE*)dst;
-    BYTE* const oend = (BYTE*)op + length;
-    NO_LOOP_VECTORIZE
-    do {
-        COPY8(op, ip);
-    } while (op < oend);
-}
-
 
 /*-*******************************************
 *  Private declarations
@@ -317,7 +301,7 @@ MEM_STATIC U32 ZSTD_highbit32(U32 val)   /* compress, dictBuilder, decodeCorpus 
         _BitScanReverse(&r, val);
         return (unsigned)r;
 #   elif defined(__GNUC__) && (__GNUC__ >= 3)   /* GCC Intrinsic */
-        return 31 - __builtin_clz(val);
+        return __builtin_clz(val) ^ 31;
 #   elif defined(__ICCARM__)    /* IAR Intrinsic */
         return 31 - __CLZ(val);
 #   else   /* Software version */

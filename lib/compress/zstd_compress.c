@@ -2321,8 +2321,10 @@ size_t ZSTD_getSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
 {
     const size_t dstCapacity = ZSTD_compressBound(srcSize);
     void* dst = ZSTD_malloc(dstCapacity, ZSTD_defaultCMem);
-
     SeqCollector seqCollector;
+
+    assert(dst != NULL);
+
     seqCollector.collectSequences = 1;
     seqCollector.seqStart = outSeqs;
     seqCollector.seqIndex = 0;

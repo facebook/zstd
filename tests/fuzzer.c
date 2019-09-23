@@ -1962,11 +1962,29 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
     {
         ZSTD_CCtx* cctx = ZSTD_createCCtx();
-        assert(cctx != NULL);
+        size_t zerosLength = ZSTD_BLOCKSIZE_MAX * 2 - 1;
+        size_t expectedOffsets[] = {1, 1};
+        size_t expectedLitLengths[] = {2, 1};
+        size_t expectedMatchLengths[] = {ZSTD_BLOCKSIZE_MAX - 2, ZSTD_BLOCKSIZE_MAX - 2};
+        size_t expectedReps[] = {1, 1};
+        size_t expectedMatchPos[] = {2, 1};
+        size_t expectedSequencesSize = 2;
+        size_t sequencesSize;
+        size_t i = 0;
+        ZSTD_Sequence* sequences = (ZSTD_Sequence*)compressedBuffer;
         DISPLAYLEVEL(3, "test%3i : ZSTD_getSequences zeros : ", testNb++);
-        memset(CNBuffer, 0, 1000000);
-        assert(ZSTD_getSequences(cctx, (ZSTD_Sequence*)compressedBuffer, 1000000,
-            CNBuffer, 1000000) == 1000000 / 131071 + 1);
+        assert(cctx != NULL);
+        memset(CNBuffer, 0, zerosLength);
+        sequencesSize = ZSTD_getSequences(cctx, sequences, 10,
+            CNBuffer, zerosLength);
+        assert(sequencesSize == expectedSequencesSize);
+        for (i = 0; i < sequencesSize; ++i) {
+            assert(sequences[i].offset == expectedOffsets[i]);
+            assert(sequences[i].litLength == expectedLitLengths[i]);
+            assert(sequences[i].matchLength == expectedMatchLengths[i]);
+            assert(sequences[i].rep == expectedReps[i]);
+            assert(sequences[i].matchPos == expectedMatchPos[i]);
+        }
         ZSTD_freeCCtx(cctx);
     }
 

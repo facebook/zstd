@@ -398,7 +398,7 @@ typedef enum {
      ZSTD_c_experimentalParam4=1001,
      ZSTD_c_experimentalParam5=1002,
      ZSTD_c_experimentalParam6=1003,
-     ZSTD_c_experimentalParam7=1004,
+     ZSTD_c_experimentalParam7=1004
 } ZSTD_cParameter;
 
 typedef struct {
@@ -1106,7 +1106,7 @@ typedef enum {
 
 typedef enum {
     ZSTD_dlm_byCopy = 0,  /**< Copy dictionary content internally */
-    ZSTD_dlm_byRef = 1,   /**< Reference dictionary content -- the dictionary buffer must outlive its users. */
+    ZSTD_dlm_byRef = 1    /**< Reference dictionary content -- the dictionary buffer must outlive its users. */
 } ZSTD_dictLoadMethod_e;
 
 typedef enum {
@@ -1120,7 +1120,7 @@ typedef enum {
      * This question could be kept for later, when there are actually multiple formats to support,
      * but there is also the question of pinning enum values, and pinning value `0` is especially important */
     ZSTD_f_zstd1 = 0,           /* zstd frame format, specified in zstd_compression_format.md (default) */
-    ZSTD_f_zstd1_magicless = 1, /* Variant of zstd frame format, without initial 4-bytes magic number.
+    ZSTD_f_zstd1_magicless = 1  /* Variant of zstd frame format, without initial 4-bytes magic number.
                                  * Useful to save 4 bytes per generated frame.
                                  * Decoder cannot recognise automatically this format, requiring this instruction. */
 } ZSTD_format_e;
@@ -1154,7 +1154,7 @@ typedef enum {
      */
     ZSTD_dictDefaultAttach = 0, /* Use the default heuristic. */
     ZSTD_dictForceAttach   = 1, /* Never copy the dictionary. */
-    ZSTD_dictForceCopy     = 2, /* Always copy the dictionary. */
+    ZSTD_dictForceCopy     = 2  /* Always copy the dictionary. */
 } ZSTD_dictAttachPref_e;
 
 typedef enum {
@@ -1163,7 +1163,7 @@ typedef enum {
                                *   levels will be compressed. */
   ZSTD_lcm_huffman = 1,       /**< Always attempt Huffman compression. Uncompressed literals will still be
                                *   emitted if Huffman compression is not profitable. */
-  ZSTD_lcm_uncompressed = 2,  /**< Always emit uncompressed literals. */
+  ZSTD_lcm_uncompressed = 2   /**< Always emit uncompressed literals. */
 } ZSTD_literalCompressionMode_e;
 
 

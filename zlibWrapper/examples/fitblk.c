@@ -180,8 +180,8 @@ int main(int argc, char **argv)
     if (ret == Z_STREAM_END && def.avail_out >= EXCESS) {
         /* write block to stdout */
         have = size + EXCESS - def.avail_out;
-   //     if (fwrite(blk, 1, have, stdout) != have || ferror(stdout))
-   //         quit("error writing output");
+   /*     if (fwrite(blk, 1, have, stdout) != have || ferror(stdout))
+    *         quit("error writing output"); */
 
         /* clean up and print results to stderr */
         ret = deflateEnd(&def);
@@ -237,8 +237,8 @@ int main(int argc, char **argv)
 
     /* done -- write block to stdout */
     have = size - def.avail_out;
-//    if (fwrite(blk, 1, have, stdout) != have || ferror(stdout))
-//        quit("error writing output");
+    /* if (fwrite(blk, 1, have, stdout) != have || ferror(stdout))
+     *     quit("error writing output"); */
 
     /* clean up and print results to stderr */
     free(tmp);

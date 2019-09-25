@@ -202,7 +202,7 @@ static void ZSTD_copy16(void* dst, const void* src) { memcpy(dst, src, 16); }
 
 typedef enum {
     ZSTD_no_overlap,
-    ZSTD_overlap_src_before_dst,
+    ZSTD_overlap_src_before_dst
     /*  ZSTD_overlap_dst_before_src, */
 } ZSTD_overlap_e;
 

@@ -99,7 +99,7 @@ typedef struct {
     unsigned long long pledgedSrcSize;
 } ZWRAP_CCtx;
 
-typedef ZWRAP_CCtx internal_state;
+/* typedef ZWRAP_CCtx internal_state; */
 
 
 
@@ -513,7 +513,7 @@ static int ZWRAPD_finishWithErrorMsg(z_streamp strm, char* message)
 
 
 ZEXTERN int ZEXPORT z_inflateInit_ OF((z_streamp strm,
-                                     const char *version, int stream_size))
+                                     const char* version, int stream_size))
 {
     if (g_ZWRAPdecompressionType == ZWRAP_FORCE_ZLIB) {
         strm->reserved = ZWRAP_ZLIB_STREAM;
@@ -524,7 +524,7 @@ ZEXTERN int ZEXPORT z_inflateInit_ OF((z_streamp strm,
         LOG_WRAPPERD("- inflateInit\n");
         if (zwd == NULL) return ZWRAPD_finishWithError(zwd, strm, 0);
 
-        zwd->version = ZSTD_malloc(strlen(version)+1, zwd->customMem);
+        zwd->version = (char*)ZSTD_malloc(strlen(version)+1, zwd->customMem);
         if (zwd->version == NULL) return ZWRAPD_finishWithError(zwd, strm, 0);
         strcpy(zwd->version, version);
 

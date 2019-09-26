@@ -304,6 +304,26 @@ static int FUZ_mallocTests(unsigned seed, double compressibility, unsigned part)
 
 #endif
 
+static void FUZ_decodeSequences(BYTE* dst, ZSTD_Sequence* seqs, size_t seqsSize, BYTE* src, size_t size)
+{
+    size_t i;
+    for(i = 0; i < seqsSize; ++i) {
+        assert(dst + seqs[i].litLength + seqs[i].matchLength < dst + size);
+        assert(src + seqs[i].litLength + seqs[i].matchLength < src + size);
+
+        memcpy(dst, src, seqs[i].litLength);
+        dst += seqs[i].litLength;
+        src += seqs[i].litLength;
+        size -= seqs[i].litLength;
+
+        memcpy(dst, dst-seqs[i].offset, seqs[i].matchLength);
+        dst += seqs[i].matchLength;
+        src += seqs[i].matchLength;
+        size -= seqs[i].matchLength;
+    }
+    memcpy(dst, src, size);
+}
+
 /*=============================================
 *   Unit tests
 =============================================*/
@@ -1960,32 +1980,31 @@ static int basicUnitTests(U32 const seed, double compressibility)
         DISPLAYLEVEL(3, "OK \n");
     }
 
+    DISPLAYLEVEL(3, "test%3i : ZSTD_getSequences decode from sequences test : ", testNb++);
     {
+        size_t srcSize = sizeof(U32) * 1000;
+        BYTE* src = (BYTE*)CNBuffer;
+        BYTE* decoded = (BYTE*)compressedBuffer;
+
         ZSTD_CCtx* cctx = ZSTD_createCCtx();
-        size_t zerosLength = ZSTD_BLOCKSIZE_MAX * 2 - 1;
-        size_t expectedOffsets[] = {1, 1};
-        size_t expectedLitLengths[] = {2, 1};
-        size_t expectedMatchLengths[] = {ZSTD_BLOCKSIZE_MAX - 2, ZSTD_BLOCKSIZE_MAX - 2};
-        size_t expectedReps[] = {1, 1};
-        size_t expectedMatchPos[] = {2, 1};
-        size_t expectedSequencesSize = 2;
-        size_t sequencesSize;
-        size_t i = 0;
-        ZSTD_Sequence* sequences = (ZSTD_Sequence*)compressedBuffer;
-        DISPLAYLEVEL(3, "test%3i : ZSTD_getSequences zeros : ", testNb++);
+        ZSTD_Sequence* seqs = malloc(srcSize * sizeof(ZSTD_Sequence));
+        size_t seqsSize; size_t i;
+        U32 randSeed = seed;
+
         assert(cctx != NULL);
-        memset(CNBuffer, 0, zerosLength);
-        sequencesSize = ZSTD_getSequences(cctx, sequences, 10,
-            CNBuffer, zerosLength);
-        assert(sequencesSize == expectedSequencesSize);
-        for (i = 0; i < sequencesSize; ++i) {
-            assert(sequences[i].offset == expectedOffsets[i]);
-            assert(sequences[i].litLength == expectedLitLengths[i]);
-            assert(sequences[i].matchLength == expectedMatchLengths[i]);
-            assert(sequences[i].rep == expectedReps[i]);
-            assert(sequences[i].matchPos == expectedMatchPos[i]);
-        }
+
+        /* Populate src with random data */
+        for (i = 0; i < srcSize / sizeof(U32); ++i) {*((U32*)src + i) = FUZ_rand(&randSeed);}
+
+        /* get the sequences */
+        seqsSize = ZSTD_getSequences(cctx, seqs, srcSize, src, srcSize);
+
+        /* "decode" and compare the sequences */
+        FUZ_decodeSequences(decoded, seqs, seqsSize, src, srcSize);
+        assert(!memcmp(CNBuffer, compressedBuffer, 5));
+
         ZSTD_freeCCtx(cctx);
+        free(seqs);
     }
 
     /* Multiple blocks of zeros test */

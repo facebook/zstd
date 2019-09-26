@@ -18,12 +18,14 @@ EXAMPLE_PATH = examples
 PROGRAMS_PATH = ../programs
 TEST_FILE = ../doc/zstd_compression_format.md
 
-CPPFLAGS = -DXXH_NAMESPACE=ZSTD_ -I$(ZLIB_PATH) -I$(PROGRAMS_PATH)       \
+CPPFLAGS = -DXXH_NAMESPACE=ZSTD_ -I$(ZLIB_PATH) -I$(PROGRAMS_PATH)      \
            -I$(ZSTDLIBDIR) -I$(ZSTDLIBDIR)/common -I$(ZLIBWRAPPER_PATH)
-CFLAGS  ?= $(MOREFLAGS) -O3 -std=c90 -pedantic -Wno-long-long -Wno-variadic-macros
-CFLAGS  += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wswitch-enum \
+STDFLAGS = -std=c90 -pedantic -Wno-long-long -Wno-variadic-macros -Wc++-compat
+DEBUGFLAGS=-Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wswitch-enum \
            -Wdeclaration-after-statement -Wstrict-prototypes -Wundef     \
            -Wstrict-aliasing=1
+CFLAGS  ?= -O3
+CFLAGS  += $(STDFLAGS) $(DEBUGFLAGS) $(MOREFLAGS)
 
 
 # Define *.exe as extension for Windows systems

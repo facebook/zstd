@@ -70,35 +70,34 @@ valgrindTest: clean example fitblk example_zstd fitblk_zstd zwrapbench
 	$(VALGRIND) ./zwrapbench -rqi1b1e5 ../lib ../programs ../tests
 
 #.c.o:
-#	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
+#	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
 
-minigzip: $(EXAMPLE_PATH)/minigzip.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o $(GZFILES) $(ZSTDLIBRARY)
+minigzip: $(EXAMPLE_PATH)/minigzip.o zstd_zlibwrapper.o $(GZFILES) $(ZSTDLIBRARY)
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $^ $(ZSTDLIBRARY) $(ZLIB_LIBRARY) -o $@
 
-minigzip_zstd: $(EXAMPLE_PATH)/minigzip.o $(ZLIBWRAPPER_PATH)/zstdTurnedOn_zlibwrapper.o $(GZFILES) $(ZSTDLIBRARY)
+minigzip_zstd: $(EXAMPLE_PATH)/minigzip.o zstdTurnedOn_zlibwrapper.o $(GZFILES) $(ZSTDLIBRARY)
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $^ $(ZSTDLIBRARY) $(ZLIB_LIBRARY) -o $@
 
-example: $(EXAMPLE_PATH)/example.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o $(GZFILES) $(ZSTDLIBRARY)
+example: $(EXAMPLE_PATH)/example.o zstd_zlibwrapper.o $(GZFILES) $(ZSTDLIBRARY)
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $^ $(ZLIB_LIBRARY) -o $@
 
-example_zstd: $(EXAMPLE_PATH)/example.o $(ZLIBWRAPPER_PATH)/zstdTurnedOn_zlibwrapper.o $(GZFILES) $(ZSTDLIBRARY)
+example_zstd: $(EXAMPLE_PATH)/example.o zstdTurnedOn_zlibwrapper.o $(GZFILES) $(ZSTDLIBRARY)
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $^ $(ZLIB_LIBRARY) -o $@
 
-fitblk: $(EXAMPLE_PATH)/fitblk.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o $(ZSTDLIBRARY)
+fitblk: $(EXAMPLE_PATH)/fitblk.o zstd_zlibwrapper.o $(ZSTDLIBRARY)
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $^ $(ZLIB_LIBRARY) -o $@
 
-fitblk_zstd: $(EXAMPLE_PATH)/fitblk.o $(ZLIBWRAPPER_PATH)/zstdTurnedOn_zlibwrapper.o $(ZSTDLIBRARY)
+fitblk_zstd: $(EXAMPLE_PATH)/fitblk.o zstdTurnedOn_zlibwrapper.o $(ZSTDLIBRARY)
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $^ $(ZLIB_LIBRARY) -o $@
 
-zwrapbench: $(EXAMPLE_PATH)/zwrapbench.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o $(PROGRAMS_PATH)/util.o $(PROGRAMS_PATH)/timefn.o $(PROGRAMS_PATH)/datagen.o $(ZSTDLIBRARY)
+zwrapbench: $(EXAMPLE_PATH)/zwrapbench.o zstd_zlibwrapper.o $(PROGRAMS_PATH)/util.o $(PROGRAMS_PATH)/timefn.o $(PROGRAMS_PATH)/datagen.o $(ZSTDLIBRARY)
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $^ $(ZLIB_LIBRARY) -o $@
 
 
-$(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o: $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.c $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) -I. -c -o $@ $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.c
+zstd_zlibwrapper.o: $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.c $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.h
 
-$(ZLIBWRAPPER_PATH)/zstdTurnedOn_zlibwrapper.o: $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.c $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) -DZWRAP_USE_ZSTD=1 -I. -c -o $@ $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.c
+zstdTurnedOn_zlibwrapper.o: CPPFLAGS += -DZWRAP_USE_ZSTD=1
+zstdTurnedOn_zlibwrapper.o: $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.c $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.h
 
 $(ZSTDLIBDIR)/libzstd.a:
 	$(MAKE) -C $(ZSTDLIBDIR) libzstd.a

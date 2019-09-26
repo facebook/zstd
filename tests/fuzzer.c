@@ -1987,10 +1987,11 @@ static int basicUnitTests(U32 const seed, double compressibility)
         BYTE* decoded = (BYTE*)compressedBuffer;
 
         ZSTD_CCtx* cctx = ZSTD_createCCtx();
-        ZSTD_Sequence* seqs = malloc(srcSize * sizeof(ZSTD_Sequence));
+        ZSTD_Sequence* seqs = (ZSTD_Sequence*)malloc(srcSize * sizeof(ZSTD_Sequence));
         size_t seqsSize; size_t i;
         U32 randSeed = seed;
 
+        if (seqs == NULL) goto _output_error;
         assert(cctx != NULL);
 
         /* Populate src with random data */

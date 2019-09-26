@@ -1994,7 +1994,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         assert(cctx != NULL);
 
         /* Populate src with random data */
-        for (i = 0; i < srcSize / sizeof(U32); ++i) {*((U32*)src + i) = FUZ_rand(&randSeed);}
+        for (i = 0; i < srcSize / sizeof(U32); ++i) {((U32*)CNBuffer)[i] = FUZ_rand(&randSeed);}
 
         /* get the sequences */
         seqsSize = ZSTD_getSequences(cctx, seqs, srcSize, src, srcSize);

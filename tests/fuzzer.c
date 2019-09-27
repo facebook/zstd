@@ -2002,7 +2002,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
         /* "decode" and compare the sequences */
         FUZ_decodeSequences(decoded, seqs, seqsSize, src, srcSize);
-        assert(!memcmp(CNBuffer, compressedBuffer, 5));
+        assert(!memcmp(CNBuffer, compressedBuffer, srcSize));
 
         ZSTD_freeCCtx(cctx);
         free(seqs);

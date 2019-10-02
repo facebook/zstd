@@ -122,7 +122,7 @@ int UTIL_checkFilenameCollisions(char** dstFilenameTable, unsigned nbFiles) {
 }
 
 void UTIL_createDestinationDirTable(char** dstFilenameTable, const char** filenameTable,
-        const unsigned nbFiles, const char* outDirName, const int compressing)
+        const unsigned nbFiles, const char* outDirName)
 {
     unsigned u;
     const char* c;
@@ -147,11 +147,10 @@ void UTIL_createDestinationDirTable(char** dstFilenameTable, const char** filena
         }
 
         finalPathLen += strlen(filename);
-        dstFilenameTable[u] = compressing ?
-            (char*) malloc((finalPathLen+6) * sizeof(char)) /* 4 more bytes for .zst suffix */
-          : (char*) malloc((finalPathLen+2) * sizeof(char));
+        dstFilenameTable[u] = (char*) malloc((finalPathLen+2) * sizeof(char));
         if (!dstFilenameTable[u]) {
             UTIL_DISPLAYLEVEL(1, "Unable to allocate space for file destination str\n");
+            free(filename);
             continue;
         }
 

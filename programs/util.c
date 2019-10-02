@@ -140,14 +140,22 @@ void UTIL_createDestinationDirTable(char** dstFilenameTable, const char** filena
         filenameBegin = strrchr(filenameTable[u], c[0]);
         if (filenameBegin == NULL) {
             filename = (char*) malloc((strlen(filenameTable[u])+1) * sizeof(char));
+            if (!filename) {
+                UTIL_DISPLAYLEVEL(1, "Unable to allocate space for filename str\n");
+                continue;
+            }
             strcpy(filename, filenameTable[u]);
         } else {
-            filename = (char*) malloc((strlen(filenameBegin+1)) * sizeof(char));
+            filename = (char*) malloc((strlen(filenameBegin+1)+1) * sizeof(char));
+            if (!filename) {
+                UTIL_DISPLAYLEVEL(1, "Unable to allocate space for filename str\n");
+                continue;
+            }
             strcpy(filename, filenameBegin+1);
         }
 
         finalPathLen += strlen(filename);
-        dstFilenameTable[u] = (char*) malloc((finalPathLen+2) * sizeof(char));
+        dstFilenameTable[u] = (char*) malloc((finalPathLen+3) * sizeof(char));
         if (!dstFilenameTable[u]) {
             UTIL_DISPLAYLEVEL(1, "Unable to allocate space for file destination str\n");
             free(filename);

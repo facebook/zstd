@@ -1192,6 +1192,9 @@ int main(int argCount, const char* argv[])
           operationResult = FIO_compressFilename(prefs, outFileName, filenameTable[0], dictFileName, cLevel, compressionParams);
         else
           operationResult = FIO_compressMultipleFilenames(prefs, filenameTable, outDirName, dstFilenameTable, filenameIdx, outFileName, suffix, dictFileName, cLevel, compressionParams);
+        
+        if (dstFilenameTable)
+            UTIL_freeDestinationFilenameTable(dstFilenameTable, filenameIdx);
 #else
         (void)suffix; (void)adapt; (void)rsyncable; (void)ultra; (void)cLevel; (void)ldmFlag; (void)literalCompressionMode; (void)targetCBlockSize; (void)streamSrcSize; (void)srcSizeHint; /* not used when ZSTD_NOCOMPRESS set */
         DISPLAY("Compression not supported \n");
@@ -1224,6 +1227,8 @@ int main(int argCount, const char* argv[])
             operationResult = FIO_decompressFilename(prefs, outFileName, filenameTable[0], dictFileName);
         else
             operationResult = FIO_decompressMultipleFilenames(prefs, filenameTable, filenameIdx, outDirName, dstFilenameTable, outFileName, dictFileName);
+        if (dstFilenameTable)
+            UTIL_freeDestinationFilenameTable(dstFilenameTable, filenameIdx);
 #else
         DISPLAY("Decompression not supported \n");
 #endif

@@ -1453,9 +1453,6 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs, const char** inFileN
     }   }
 
     FIO_freeCResources(ress);
-    if (dstFileNamesTable)
-        UTIL_freeDestinationFilenameTable(dstFileNamesTable, nbFiles);
-        
     return error;
 }
 
@@ -2276,9 +2273,6 @@ FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
     }
 
     FIO_freeDResources(ress);
-    if (outDirName)
-        UTIL_freeDestinationFilenameTable(dstFileNamesTable, nbFiles);
-
     return error;
 }
 

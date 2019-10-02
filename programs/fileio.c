@@ -1453,7 +1453,7 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs, const char** inFileN
     }   }
 
     FIO_freeCResources(ress);
-    if (outDirName)
+    if (dstFileNamesTable)
         UTIL_freeDestinationFilenameTable(dstFileNamesTable, nbFiles);
         
     return error;

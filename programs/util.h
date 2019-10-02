@@ -133,7 +133,7 @@ int UTIL_compareStr(const void *p1, const void *p2);
 int UTIL_checkFilenameCollisions(char** dstFilenameTable, unsigned nbFiles);
 /* Populates dstFilenameTable using outDirName concatenated with entries from filenameTable */
 void UTIL_createDestinationDirTable(char** dstFilenameTable, const char** filenameTable, const unsigned nbFiles,
-    const char* outDirName, const int compressing);
+    const char* outDirName);
 void UTIL_freeDestinationFilenameTable(char** dstDirTable, unsigned nbFiles);
 
 U32 UTIL_isLink(const char* infilename);

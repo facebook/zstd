@@ -1179,7 +1179,7 @@ int main(int argCount, const char* argv[])
             if (UTIL_isDirectory(outDirName)) {
                 DISPLAY("Output of files will be in directory: %s\n", outDirName);
                 dstFilenameTable = (char**)malloc(filenameIdx * sizeof(char*));
-                UTIL_createDestinationDirTable(dstFilenameTable, filenameTable, filenameIdx, outDirName, 1);
+                UTIL_createDestinationDirTable(dstFilenameTable, filenameTable, filenameIdx, outDirName);
             } else {
                 DISPLAY("%s is not a directory!\n", outDirName);
                 CLEAN_RETURN(1);
@@ -1211,7 +1211,7 @@ int main(int argCount, const char* argv[])
             if (UTIL_isDirectory(outDirName)) {
                 DISPLAY("Output of files will be in directory: %s\n", outDirName);
                 dstFilenameTable = (char**)malloc(filenameIdx * sizeof(char*));
-                UTIL_createDestinationDirTable(dstFilenameTable, filenameTable, filenameIdx, outDirName, 1);
+                UTIL_createDestinationDirTable(dstFilenameTable, filenameTable, filenameIdx, outDirName);
             } else {
                 DISPLAY("%s is not a directory!\n", outDirName);
                 CLEAN_RETURN(1);

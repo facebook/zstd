@@ -138,9 +138,11 @@ void UTIL_createDestinationDirTable(char** dstFilenameTable, const char** filena
         finalPathLen = strlen(outDirName);
         filenameBegin = strrchr(filenameTable[u], c[0]);
         if (filenameBegin == NULL) {
-            filename = strdup(filenameTable[u]);
+            filename = (char*) malloc((strlen(filenameTable[u])+1) * sizeof(char));
+            strcpy(filename, filenameTable[u]);
         } else {
-            filename = strdup(filenameBegin+1);
+            filename = (char*) malloc((strlen(filenameBegin+1)) * sizeof(char));
+            strcpy(filename, filenameBegin+1);
         }
 
         finalPathLen += strlen(filename);

@@ -133,7 +133,8 @@ void UTIL_createDestinationDirTable(char** dstFilenameTable, const char** filena
     #endif
 
     for (u = 0; u < nbFiles; ++u) {
-        char* filename, *filenameBegin;
+        char* filename;
+        const char* filenameBegin;
         size_t finalPathLen;
         finalPathLen = strlen(outDirName);
         filenameBegin = strrchr(filenameTable[u], c[0]);

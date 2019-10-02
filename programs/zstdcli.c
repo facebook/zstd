@@ -118,7 +118,6 @@ static int usage(const char* programName)
 #endif
     DISPLAY( " -D file: use `file` as Dictionary \n");
     DISPLAY( " -o file: result stored into `file` (only if 1 input file) \n");
-    DISPLAY( " -O directory: result(s) stored into `directory`, creates one if non-existent \n");
     DISPLAY( " -f     : overwrite output without prompting and (de)compress links \n");
     DISPLAY( "--rm    : remove source file(s) after successful de/compression \n");
     DISPLAY( " -k     : preserve source file(s) (default) \n");
@@ -137,6 +136,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -q     : suppress warnings; specify twice to suppress errors too\n");
     DISPLAY( " -c     : force write to standard output, even if it is the console\n");
     DISPLAY( " -l     : print information about zstd compressed files \n");
+    DISPLAY( " --output-dir-flat directory: results stored into `directory` top level \n");
 #ifndef ZSTD_NOCOMPRESS
     DISPLAY( "--ultra : enable levels beyond %i, up to %i (requires more memory)\n", ZSTDCLI_CLEVEL_MAX, ZSTD_maxCLevel());
     DISPLAY( "--long[=#]: enable long distance matching with given window log (default: %u)\n", g_defaultMaxWindowLog);
@@ -690,6 +690,7 @@ int main(int argCount, const char* argv[])
                     if (!strcmp(argument, "--keep")) { FIO_setRemoveSrcFile(prefs, 0); continue; }
                     if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(prefs, 1); continue; }
                     if (!strcmp(argument, "--priority=rt")) { setRealTimePrio = 1; continue; }
+                    if (!strcmp(argument, "--output-dir-flat")) {nextArgumentIsOutDirName=1; lastCommand=1; continue; }
                     if (!strcmp(argument, "--adapt")) { adapt = 1; continue; }
                     if (longCommandWArg(&argument, "--adapt=")) { adapt = 1; if (!parseAdaptParameters(argument, &adaptMin, &adaptMax)) CLEAN_RETURN(badusage(programName)); continue; }
                     if (!strcmp(argument, "--single-thread")) { nbWorkers = 0; singleThread = 1; continue; }
@@ -856,9 +857,6 @@ int main(int argCount, const char* argv[])
 
                         /* destination file name */
                     case 'o': nextArgumentIsOutFileName=1; lastCommand=1; argument++; break;
-
-                         /* destination directory name */
-                    case 'O': nextArgumentIsOutDirName=1; lastCommand=1; argument++; break;
                    
                         /* limit decompression memory */
                     case 'M':
@@ -1178,9 +1176,14 @@ int main(int argCount, const char* argv[])
         if (adaptMax < cLevel) cLevel = adaptMax;
 
         if (outDirName) {
-            printf("ok\n");
-            dstFilenameTable = (char**)malloc(filenameIdx * sizeof(char*));
-            UTIL_processMultipleFilenameDestinationDir(dstFilenameTable, filenameTable, filenameIdx, outFileName, outDirName);
+            if (UTIL_isDirectory(outDirName)) {
+                DISPLAY("Output of files will be in directory: %s\n", outDirName);
+                dstFilenameTable = (char**)malloc(filenameIdx * sizeof(char*));
+                UTIL_createDestinationDirTable(dstFilenameTable, filenameTable, filenameIdx, outDirName, 1);
+            } else {
+                DISPLAY("%s is not a directory!\n", outDirName);
+                CLEAN_RETURN(1);
+            }
         } else {
             dstFilenameTable = NULL;
         }
@@ -1205,8 +1208,14 @@ int main(int argCount, const char* argv[])
         FIO_setMemLimit(prefs, memLimit);
 
         if (outDirName) {
-            dstFilenameTable = (char**)malloc(filenameIdx * sizeof(char*));
-            UTIL_processMultipleFilenameDestinationDir(dstFilenameTable, filenameTable, filenameIdx, outFileName, outDirName);
+            if (UTIL_isDirectory(outDirName)) {
+                DISPLAY("Output of files will be in directory: %s\n", outDirName);
+                dstFilenameTable = (char**)malloc(filenameIdx * sizeof(char*));
+                UTIL_createDestinationDirTable(dstFilenameTable, filenameTable, filenameIdx, outDirName, 1);
+            } else {
+                DISPLAY("%s is not a directory!\n", outDirName);
+                CLEAN_RETURN(1);
+            }
         } else {
             dstFilenameTable = NULL;
         }

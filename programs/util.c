@@ -90,53 +90,81 @@ U32 UTIL_isDirectory(const char* infilename)
     return 0;
 }
 
-int UTIL_createDir(const char* outDirName)
-{
-    int r;
-    if (UTIL_isDirectory(outDirName))
-        return 0;   /* no need to create if directory already exists */
+int UTIL_compareStr(const void *p1, const void *p2) {
+    return strcmp(* (char * const *) p1, * (char * const *) p2);
+}
 
-#if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__)
-    r = _mkdir(outDirName);
-    if (r || !UTIL_isDirectory(outDirName)) return 1;
-#else
-    r = mkdir(outDirName, S_IRWXU | S_IRWXG | S_IRWXO); /* dir has all permissions */
-    if (r || !UTIL_isDirectory(outDirName)) return 1;
-#endif
+int UTIL_checkFilenameCollisions(char** dstFilenameTable, unsigned nbFiles) {
+    char** dstFilenameTableSorted;
+    char* prevElem;
+    unsigned u;
+
+    dstFilenameTableSorted = (char**) malloc(sizeof(char*) * nbFiles);
+    if (!dstFilenameTableSorted) {
+        UTIL_DISPLAYLEVEL(1, "Unable to malloc new str array, not checking for name collisions\n");
+        return 1;
+    }
+
+    for (u = 0; u < nbFiles; ++u) {
+        dstFilenameTableSorted[u] = dstFilenameTable[u];
+    }
+    qsort(dstFilenameTableSorted, nbFiles, sizeof(char*), UTIL_compareStr);
+    prevElem = dstFilenameTableSorted[0];
+    for (u = 1; u < nbFiles; ++u) {
+        if (strcmp(prevElem, dstFilenameTableSorted[u]) == 0) {
+            UTIL_DISPLAYLEVEL(1, "WARNING: Two files have same filename as source : %s\n", prevElem);
+        }
+        prevElem = dstFilenameTableSorted[u];
+    }
+
+    free(dstFilenameTableSorted);
     return 0;
 }
 
-void UTIL_createDestinationDirTable(const char** filenameTable, unsigned nbFiles,
-                                   const char* outDirName, char** dstFilenameTable)
+void UTIL_createDestinationDirTable(char** dstFilenameTable, const char** filenameTable,
+        const unsigned nbFiles, const char* outDirName, const int compressing)
 {
     unsigned u;
-    char c;
-    c = '/';
+    const char* c;
+    #if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__) /* windows support */
+    c = "\\";
+    #else
+    c = "/";
+    #endif
 
-    /* duplicate source file table */
     for (u = 0; u < nbFiles; ++u) {
-        const char* filename;
+        char* filename, *filenameBegin;
         size_t finalPathLen;
         finalPathLen = strlen(outDirName);
-        filename = strrchr(filenameTable[u], c);    /* filename is the last bit of string after '/' */
+        filenameBegin = strrchr(filenameTable[u], c[0]);
+        if (filenameBegin == NULL) {
+            filename = strdup(filenameTable[u]);
+        } else {
+            filename = strdup(filenameBegin+1);
+        }
+
         finalPathLen += strlen(filename);
-        dstFilenameTable[u] = (char*) malloc((finalPathLen+5) * sizeof(char)); /* extra 1 bit for \0, extra 4 for .zst if compressing*/
+        dstFilenameTable[u] = compressing ?
+            (char*) malloc((finalPathLen+6) * sizeof(char)) /* 4 more bytes for .zst suffix */
+          : (char*) malloc((finalPathLen+2) * sizeof(char));
+        if (!dstFilenameTable[u]) {
+            UTIL_DISPLAYLEVEL(1, "Unable to allocate space for file destination str\n");
+            continue;
+        }
+
         strcpy(dstFilenameTable[u], outDirName);
-        strcat(dstFilenameTable[u], filename);
-    } 
-}
+        if (outDirName[strlen(outDirName)-1] == c[0]) {
+            strcat(dstFilenameTable[u], filename);
+        } else {  
+            strcat(dstFilenameTable[u], c);
+            strcat(dstFilenameTable[u], filename);
+        }
 
-void UTIL_processMultipleFilenameDestinationDir(char** dstFilenameTable,
-                                              const char** filenameTable, unsigned filenameIdx,
-                                              const char* outFileName, const char* outDirName) {
-    int dirResult;
-    dirResult = UTIL_createDir(outDirName);
-    if (dirResult)
-        UTIL_DISPLAYLEVEL(1, "Directory creation unsuccessful\n");
+        free(filename);
+    }
 
-    UTIL_createDestinationDirTable(filenameTable, filenameIdx, outDirName, dstFilenameTable);
-    if (outFileName) {
-        outFileName = dstFilenameTable[0]; /* in case -O is called with single file */
+    if (UTIL_checkFilenameCollisions(dstFilenameTable, nbFiles)) {
+        UTIL_DISPLAYLEVEL(1, "Checking for filename collisions failed");
     }
 }
 

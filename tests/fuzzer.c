@@ -307,7 +307,8 @@ static int FUZ_mallocTests(unsigned seed, double compressibility, unsigned part)
 static void FUZ_decodeSequences(BYTE* dst, ZSTD_Sequence* seqs, size_t seqsSize, BYTE* src, size_t size)
 {
     size_t i;
-    for(i = 0; i < seqsSize; ++i) {
+    size_t j;
+    for(i = 0; i < seqsSize - 1; ++i) {
         assert(dst + seqs[i].litLength + seqs[i].matchLength < dst + size);
         assert(src + seqs[i].litLength + seqs[i].matchLength < src + size);
 
@@ -316,7 +317,8 @@ static void FUZ_decodeSequences(BYTE* dst, ZSTD_Sequence* seqs, size_t seqsSize,
         src += seqs[i].litLength;
         size -= seqs[i].litLength;
 
-        memcpy(dst, dst-seqs[i].offset, seqs[i].matchLength);
+        for (j = 0; j < seqs[i].matchLength; ++j)
+            dst[j] = dst[j - seqs[i].offset];
         dst += seqs[i].matchLength;
         src += seqs[i].matchLength;
         size -= seqs[i].matchLength;
@@ -1982,20 +1984,19 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
     DISPLAYLEVEL(3, "test%3i : ZSTD_getSequences decode from sequences test : ", testNb++);
     {
-        size_t srcSize = sizeof(U32) * 1000;
+        size_t srcSize = 100 KB;
         BYTE* src = (BYTE*)CNBuffer;
         BYTE* decoded = (BYTE*)compressedBuffer;
 
         ZSTD_CCtx* cctx = ZSTD_createCCtx();
         ZSTD_Sequence* seqs = (ZSTD_Sequence*)malloc(srcSize * sizeof(ZSTD_Sequence));
-        size_t seqsSize; size_t i;
-        U32 randSeed = seed;
+        size_t seqsSize;
 
         if (seqs == NULL) goto _output_error;
         assert(cctx != NULL);
 
         /* Populate src with random data */
-        for (i = 0; i < srcSize / sizeof(U32); ++i) {((U32*)CNBuffer)[i] = FUZ_rand(&randSeed);}
+        RDG_genBuffer(CNBuffer, srcSize, compressibility, 0., seed);
 
         /* get the sequences */
         seqsSize = ZSTD_getSequences(cctx, seqs, srcSize, src, srcSize);

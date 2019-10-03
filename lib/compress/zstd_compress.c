@@ -2272,37 +2272,46 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
     size_t seqsSize = seqStore->sequences - seqs;
 
     ZSTD_Sequence* outSeqs = &zc->seqCollector.seqStart[zc->seqCollector.seqIndex];
-    int i;
+    size_t i; size_t position; int repIdx;
 
     assert(zc->seqCollector.seqIndex + 1 < zc->seqCollector.maxSequences);
-    for (i = 0; i < (int)seqsSize; ++i) {
-        unsigned int offsetValue = seqs[i].offset;
+    for (i = 0, position = 0; i < seqsSize; ++i) {
+        outSeqs[i].offset = seqs[i].offset;
         outSeqs[i].litLength = seqs[i].litLength;
-        outSeqs[i].matchLength = seqs[i].matchLength;
-        if (offsetValue > 3) {
-            outSeqs[i].offset = offsetValue - 3;
-        } else {
-            /* special repeat offset case */
-            unsigned int repeatOffset1 = i - 1 >= 0 ? outSeqs[i - 1].offset : 1;
-            unsigned int repeatOffset2 = 1 - 2 >= 0 ? outSeqs[i - 2].offset : 4;
-            unsigned int repeatOffset3 = i - 3 >= 0 ? outSeqs[i - 3].offset : 8;
-            if (seqs[i].litLength != 0) {
-                switch (offsetValue) {
-                    case 1: outSeqs[i].offset = repeatOffset1; break;
-                    case 2: outSeqs[i].offset = repeatOffset2; break;
-                    case 3: outSeqs[i].offset = repeatOffset3; break;
-                }
-            } else {
-                /* offsets shifted by one */
-                switch (offsetValue) {
-                    case 1: outSeqs[i].offset = repeatOffset2; break;
-                    case 2: outSeqs[i].offset = repeatOffset3; break;
-                    /* corner case where offsetValue == 3 */
-                    case 3: outSeqs[i].offset = repeatOffset1 - 1; break;
-                }
+        outSeqs[i].matchLength = seqs[i].matchLength + MINMATCH;
+
+        if (i == seqStore->longLengthPos) {
+            if (seqStore->longLengthID == 1) {
+                outSeqs[i].litLength += 0x10000;
+            } else if (seqStore->longLengthID == 2) {
+                outSeqs[i].matchLength += 0x10000;
             }
         }
 
+        if (outSeqs[i].offset <= ZSTD_REP_NUM) {
+            outSeqs[i].rep = outSeqs[i].offset;
+            repIdx = (unsigned int)i - outSeqs[i].offset;
+
+            if (outSeqs[i].litLength == 0) {
+                if (outSeqs[i].offset < 3) {
+                    --repIdx;
+                } else {
+                    repIdx = (unsigned int)i - 1;
+                }
+                ++outSeqs[i].rep;
+            }
+            assert(repIdx >= -3);
+            outSeqs[i].offset = repIdx >= 0 ? outSeqs[repIdx].offset : repStartValue[-repIdx - 1];
+            if (outSeqs[i].rep == 4) {
+                --outSeqs[i].offset;
+            }
+        } else {
+            outSeqs[i].offset -= ZSTD_REP_NUM;
+        }
+
+        position += outSeqs[i].litLength;
+        outSeqs[i].matchPos = (unsigned int)position;
+        position += outSeqs[i].matchLength;
     }
     zc->seqCollector.seqIndex += seqsSize;
 }

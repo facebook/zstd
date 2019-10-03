@@ -216,7 +216,7 @@ local gzFile gz_open(path, fd, mode)
 #if !defined(NO_snprintf) && !defined(NO_vsnprintf)
         (void)snprintf(state.state->path, len + 1, "%s", (const char *)path);
 #else
-        strcpy(state.state->path, path);
+        strcpy(state.state->path, (const char*)path);
 #endif
 
     /* compute the flags for open() */

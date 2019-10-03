@@ -18,15 +18,15 @@ EXAMPLE_PATH = examples
 PROGRAMS_PATH = ../programs
 TEST_FILE = ../doc/zstd_compression_format.md
 
-CPPFLAGS = -DXXH_NAMESPACE=ZSTD_ -I$(ZLIB_PATH) -I$(PROGRAMS_PATH)      \
-           -I$(ZSTDLIBDIR) -I$(ZSTDLIBDIR)/common -I$(ZLIBWRAPPER_PATH)
-STDFLAGS = -std=c90 -pedantic -Wno-long-long -Wno-variadic-macros -Wc++-compat
-DEBUGFLAGS=-Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wswitch-enum \
-           -Wdeclaration-after-statement -Wstrict-prototypes -Wundef     \
-           -Wstrict-aliasing=1
-CFLAGS  ?= -O3
-CFLAGS  += $(STDFLAGS) $(DEBUGFLAGS) $(MOREFLAGS)
-
+CPPFLAGS += -DXXH_NAMESPACE=ZSTD_ -I$(ZLIB_PATH) -I$(PROGRAMS_PATH)       \
+            -I$(ZSTDLIBDIR) -I$(ZSTDLIBDIR)/common -I$(ZLIBWRAPPER_PATH)
+STDCFLAGS = -std=c90 -pedantic -Wno-long-long -Wno-variadic-macros -Wc++-compat \
+            -DNO_snprintf -DNO_vsnprintf  # strict ISO C90 is missing these prototypes
+DEBUGFLAGS= -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wswitch-enum \
+            -Wdeclaration-after-statement -Wstrict-prototypes -Wundef     \
+            -Wstrict-aliasing=1
+CFLAGS   ?= -O3
+CFLAGS   += $(STDFLAGS) $(DEBUGFLAGS) $(MOREFLAGS)
 
 # Define *.exe as extension for Windows systems
 ifneq (,$(filter Windows%,$(OS)))
@@ -35,6 +35,11 @@ else
 EXT =
 endif
 
+default : release
+
+release : STDFLAGS =
+release : STDCPPFLAGS =
+release : all
 
 all: fitblk example zwrapbench minigzip
 

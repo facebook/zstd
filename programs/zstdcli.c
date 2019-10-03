@@ -585,7 +585,6 @@ int main(int argCount, const char* argv[])
     unsigned recursive = 0;
     unsigned memLimit = 0;
     const char** filenameTable = (const char**)malloc(argCount * sizeof(const char*));   /* argCount >= 1 */
-    char** dstFilenameTable;
     unsigned filenameIdx = 0;
     const char* programName = argv[0];
     const char* outFileName = NULL;
@@ -1175,26 +1174,10 @@ int main(int argCount, const char* argv[])
         if (adaptMin > cLevel) cLevel = adaptMin;
         if (adaptMax < cLevel) cLevel = adaptMax;
 
-        if (outDirName) {
-            if (UTIL_isDirectory(outDirName)) {
-                DISPLAY("Output of files will be in directory: %s\n", outDirName);
-                dstFilenameTable = (char**)malloc(filenameIdx * sizeof(char*));
-                UTIL_createDestinationDirTable(dstFilenameTable, filenameTable, filenameIdx, outDirName);
-            } else {
-                DISPLAY("%s is not a directory!\n", outDirName);
-                CLEAN_RETURN(1);
-            }
-        } else {
-            dstFilenameTable = NULL;
-        }
-
         if ((filenameIdx==1) && outFileName)
           operationResult = FIO_compressFilename(prefs, outFileName, filenameTable[0], dictFileName, cLevel, compressionParams);
         else
-          operationResult = FIO_compressMultipleFilenames(prefs, filenameTable, outDirName, dstFilenameTable, filenameIdx, outFileName, suffix, dictFileName, cLevel, compressionParams);
-        
-        if (dstFilenameTable)
-            UTIL_freeDestinationFilenameTable(dstFilenameTable, filenameIdx);
+          operationResult = FIO_compressMultipleFilenames(prefs, filenameTable, outDirName, filenameIdx, outFileName, suffix, dictFileName, cLevel, compressionParams);
 #else
         (void)suffix; (void)adapt; (void)rsyncable; (void)ultra; (void)cLevel; (void)ldmFlag; (void)literalCompressionMode; (void)targetCBlockSize; (void)streamSrcSize; (void)srcSizeHint; /* not used when ZSTD_NOCOMPRESS set */
         DISPLAY("Compression not supported \n");
@@ -1209,26 +1192,10 @@ int main(int argCount, const char* argv[])
             }
         }
         FIO_setMemLimit(prefs, memLimit);
-
-        if (outDirName) {
-            if (UTIL_isDirectory(outDirName)) {
-                DISPLAY("Output of files will be in directory: %s\n", outDirName);
-                dstFilenameTable = (char**)malloc(filenameIdx * sizeof(char*));
-                UTIL_createDestinationDirTable(dstFilenameTable, filenameTable, filenameIdx, outDirName);
-            } else {
-                DISPLAY("%s is not a directory!\n", outDirName);
-                CLEAN_RETURN(1);
-            }
-        } else {
-            dstFilenameTable = NULL;
-        }
-        
         if (filenameIdx==1 && outFileName)
             operationResult = FIO_decompressFilename(prefs, outFileName, filenameTable[0], dictFileName);
         else
-            operationResult = FIO_decompressMultipleFilenames(prefs, filenameTable, filenameIdx, outDirName, dstFilenameTable, outFileName, dictFileName);
-        if (dstFilenameTable)
-            UTIL_freeDestinationFilenameTable(dstFilenameTable, filenameIdx);
+            operationResult = FIO_decompressMultipleFilenames(prefs, filenameTable, filenameIdx, outDirName, outFileName, dictFileName);
 #else
         DISPLAY("Decompression not supported \n");
 #endif

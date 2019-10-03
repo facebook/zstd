@@ -634,9 +634,7 @@ static size_t FIO_createDictBuffer(void** bufferPtr, const char* fileName)
  * Checks for and warns if there are any files that would have the same output path
  */
 int FIO_checkFilenameCollisions(const char** filenameTable, unsigned nbFiles) {
-    const char** filenameTableSorted;
-    const char* c, *prevElem;
-    char* filename;
+    const char **filenameTableSorted, *c, *prevElem, *filename;
     unsigned u;
 
     #if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__) /* windows support */
@@ -673,13 +671,13 @@ int FIO_checkFilenameCollisions(const char** filenameTable, unsigned nbFiles) {
     return 0;
 }
 
-/* FIO_determineDstFilenameOutdir() :
+/* FIO_createFilename_fromOutDir() :
  * Takes a source file name and specified output directory, and
  * allocates memory for and returns a pointer to final path.
  * This function never returns an error (it may abort() in case of pb)
  */
 static char*
-FIO_determineDstFilenameOutdir(const char* srcFilename, const char* outDirName, const size_t suffixLen)
+FIO_createFilename_fromOutDir(const char* srcFilename, const char* outDirName, const size_t suffixLen)
 {
     const char* c, *filenameBegin;
     char* filename, *result;
@@ -1491,7 +1489,7 @@ FIO_determineCompressedName(const char* srcFileName, const char* outDirName, con
     size_t sfnSize = strlen(srcFileName);
     size_t const suffixSize = strlen(suffix);
     if (outDirName) {
-        outDirFilename = FIO_determineDstFilenameOutdir(srcFileName, outDirName, suffixSize);
+        outDirFilename = FIO_createFilename_fromOutDir(srcFileName, outDirName, suffixSize);
         sfnSize = strlen(outDirFilename);
         assert(outDirFilename != NULL);
     }
@@ -2279,7 +2277,7 @@ FIO_determineDstName(const char* srcFileName, const char* outDirName)
 {
     static size_t dfnbCapacity = 0;
     static char* dstFileNameBuffer = NULL;   /* using static allocation : this function cannot be multi-threaded */
-    char* dstFilenameOutDir = NULL;
+    char* outDirFilename = NULL;
     size_t sfnSize = strlen(srcFileName);
     size_t suffixSize;
     
@@ -2321,9 +2319,9 @@ FIO_determineDstName(const char* srcFileName, const char* outDirName)
         return NULL;
     }
     if (outDirName) {
-        dstFilenameOutDir = FIO_determineDstFilenameOutdir(srcFileName, outDirName, 0);
-        sfnSize = strlen(dstFilenameOutDir);
-        assert(dstFilenameOutDir != NULL);
+        outDirFilename = FIO_createFilename_fromOutDir(srcFileName, outDirName, 0);
+        sfnSize = strlen(outDirFilename);
+        assert(outDirFilename != NULL);
     }
 
     if (dfnbCapacity+suffixSize <= sfnSize+1) {
@@ -2337,9 +2335,9 @@ FIO_determineDstName(const char* srcFileName, const char* outDirName)
 
     /* return dst name == src name truncated from suffix */
     assert(dstFileNameBuffer != NULL);
-    if (dstFilenameOutDir) {
-        memcpy(dstFileNameBuffer, dstFilenameOutDir, sfnSize - suffixSize);
-        free(dstFilenameOutDir);
+    if (outDirFilename) {
+        memcpy(dstFileNameBuffer, outDirFilename, sfnSize - suffixSize);
+        free(outDirFilename);
     } else {
         memcpy(dstFileNameBuffer, srcFileName, sfnSize - suffixSize);
     }

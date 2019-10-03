@@ -130,11 +130,6 @@ U32 UTIL_isDirectory(const char* infilename);
 int UTIL_getFileStat(const char* infilename, stat_t* statbuf);
 int UTIL_isSameFile(const char* file1, const char* file2);
 int UTIL_compareStr(const void *p1, const void *p2);
-int UTIL_checkFilenameCollisions(char** dstFilenameTable, unsigned nbFiles);
-/* Populates dstFilenameTable using outDirName concatenated with entries from filenameTable */
-void UTIL_createDestinationDirTable(char** dstFilenameTable, const char** filenameTable, const unsigned nbFiles,
-    const char* outDirName);
-void UTIL_freeDestinationFilenameTable(char** dstDirTable, unsigned nbFiles);
 
 U32 UTIL_isLink(const char* infilename);
 #define UTIL_FILESIZE_UNKNOWN  ((U64)(-1))

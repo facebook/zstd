@@ -1,10 +1,10 @@
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-<title>zstd 1.4.3 Manual</title>
+<title>zstd 1.4.4 Manual</title>
 </head>
 <body>
-<h1>zstd 1.4.3 Manual</h1>
+<h1>zstd 1.4.4 Manual</h1>
 <hr>
 <a name="Contents"></a><h2>Contents</h2>
 <ol>
@@ -324,6 +324,7 @@ size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);
      * ZSTD_c_forceAttachDict
      * ZSTD_c_literalCompressionMode
      * ZSTD_c_targetCBlockSize
+     * ZSTD_c_srcSizeHint
      * Because they are not stable, it's necessary to define ZSTD_STATIC_LINKING_ONLY to access them.
      * note : never ever use experimentalParam? names directly;
      *        also, the enums values themselves are unstable and can still change.
@@ -334,6 +335,7 @@ size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);
      ZSTD_c_experimentalParam4=1001,
      ZSTD_c_experimentalParam5=1002,
      ZSTD_c_experimentalParam6=1003,
+     ZSTD_c_experimentalParam7=1004,
 } ZSTD_cParameter;
 </b></pre><BR>
 <pre><b>typedef struct {
@@ -1005,14 +1007,23 @@ size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 size_t ZSTD_estimateCCtxSize_usingCParams(ZSTD_compressionParameters cParams);
 size_t ZSTD_estimateCCtxSize_usingCCtxParams(const ZSTD_CCtx_params* params);
 size_t ZSTD_estimateDCtxSize(void);
-</b><p>  These functions make it possible to estimate memory usage
-  of a future {D,C}Ctx, before its creation.
-  ZSTD_estimateCCtxSize() will provide a budget large enough for any compression level up to selected one.
-  It will also consider src size to be arbitrarily "large", which is worst case.
-  If srcSize is known to always be small, ZSTD_estimateCCtxSize_usingCParams() can provide a tighter estimation.
-  ZSTD_estimateCCtxSize_usingCParams() can be used in tandem with ZSTD_getCParams() to create cParams from compressionLevel.
-  ZSTD_estimateCCtxSize_usingCCtxParams() can be used in tandem with ZSTD_CCtxParams_setParameter(). Only single-threaded compression is supported. This function will return an error code if ZSTD_c_nbWorkers is >= 1.
-  Note : CCtx size estimation is only correct for single-threaded compression. 
+</b><p>  These functions make it possible to estimate memory usage of a future
+  {D,C}Ctx, before its creation.
+
+  ZSTD_estimateCCtxSize() will provide a budget large enough for any
+  compression level up to selected one. Unlike ZSTD_estimateCStreamSize*(),
+  this estimate does not include space for a window buffer, so this estimate
+  is guaranteed to be enough for single-shot compressions, but not streaming
+  compressions. It will however assume the input may be arbitrarily large,
+  which is the worst case. If srcSize is known to always be small,
+  ZSTD_estimateCCtxSize_usingCParams() can provide a tighter estimation.
+  ZSTD_estimateCCtxSize_usingCParams() can be used in tandem with
+  ZSTD_getCParams() to create cParams from compressionLevel.
+  ZSTD_estimateCCtxSize_usingCCtxParams() can be used in tandem with
+  ZSTD_CCtxParams_setParameter().
+
+  Note: only single-threaded compression is supported. This function will
+  return an error code if ZSTD_c_nbWorkers is >= 1. 
 </p></pre><BR>
 
 <pre><b>size_t ZSTD_estimateCStreamSize(int compressionLevel);
@@ -1318,7 +1329,10 @@ size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs, const void* dict, size_t di
 </b>/**! ZSTD_initCStream_advanced() :<b>
  * This function is deprecated, and is approximately equivalent to:
  *     ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);
- *     ZSTD_CCtx_setZstdParams(zcs, params); // Set the zstd params and leave the rest as-is
+ *     // Pseudocode: Set each zstd parameter and leave the rest as-is.
+ *     for ((param, value) : params) {
+ *         ZSTD_CCtx_setParameter(zcs, param, value);
+ *     }
  *     ZSTD_CCtx_setPledgedSrcSize(zcs, pledgedSrcSize);
  *     ZSTD_CCtx_loadDictionary(zcs, dict, dictSize);
  *
@@ -1338,7 +1352,10 @@ size_t ZSTD_initCStream_usingCDict(ZSTD_CStream* zcs, const ZSTD_CDict* cdict);
 </b>/**! ZSTD_initCStream_usingCDict_advanced() :<b>
  * This function is deprecated, and is approximately equivalent to:
  *     ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);
- *     ZSTD_CCtx_setZstdFrameParams(zcs, fParams); // Set the zstd frame params and leave the rest as-is
+ *     // Pseudocode: Set each zstd frame parameter and leave the rest as-is.
+ *     for ((fParam, value) : fParams) {
+ *         ZSTD_CCtx_setParameter(zcs, fParam, value);
+ *     }
  *     ZSTD_CCtx_setPledgedSrcSize(zcs, pledgedSrcSize);
  *     ZSTD_CCtx_refCDict(zcs, cdict);
  *

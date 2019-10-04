@@ -34,7 +34,10 @@ static void decompressFile_orDie(const char* fname)
      */
     size_t const toRead = buffInSize;
     size_t read;
+    size_t lastRet = 0;
+    int isEmpty = 1;
     while ( (read = fread_orDie(buffIn, toRead, fin)) ) {
+        isEmpty = 0;
         ZSTD_inBuffer input = { buffIn, read, 0 };
         /* Given a valid frame, zstd won't consume the last byte of the frame
          * until it has flushed all of the decompressed data of the frame.
@@ -53,7 +56,22 @@ static void decompressFile_orDie(const char* fname)
             size_t const ret = ZSTD_decompressStream(dctx, &output , &input);
             CHECK_ZSTD(ret);
             fwrite_orDie(buffOut, output.pos, fout);
+            lastRet = ret;
         }
+    }
+
+    if (isEmpty) {
+        fprintf(stderr, "input is empty\n");
+        exit(1);
+    }
+
+    if (lastRet != 0) {
+        /* The last return value from ZSTD_decompressStream did not end on a
+         * frame, but we reached the end of the file! We assume this is an
+         * error, and the input was truncated.
+         */
+        fprintf(stderr, "EOF before end of stream: %zu\n", lastRet);
+        exit(1);
     }
 
     ZSTD_freeDCtx(dctx);

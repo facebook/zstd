@@ -1,5 +1,5 @@
 .
-.TH "ZSTD" "1" "August 2019" "zstd 1.4.3" "User Commands"
+.TH "ZSTD" "1" "September 2019" "zstd 1.4.4" "User Commands"
 .
 .SH "NAME"
 \fBzstd\fR \- zstd, zstdmt, unzstd, zstdcat \- Compress or decompress \.zst files
@@ -125,6 +125,14 @@ Does not spawn a thread for compression, use a single thread for both I/O and co
 .TP
 \fB\-\-adapt[=min=#,max=#]\fR
 \fBzstd\fR will dynamically adapt compression level to perceived I/O conditions\. Compression level adaptation can be observed live by using command \fB\-v\fR\. Adaptation can be constrained between supplied \fBmin\fR and \fBmax\fR levels\. The feature works when combined with multi\-threading and \fB\-\-long\fR mode\. It does not work with \fB\-\-single\-thread\fR\. It sets window size to 8 MB by default (can be changed manually, see \fBwlog\fR)\. Due to the chaotic nature of dynamic adaptation, compressed result is not reproducible\. \fInote\fR : at the time of this writing, \fB\-\-adapt\fR can remain stuck at low speed when combined with multiple worker threads (>=2)\.
+.
+.TP
+\fB\-\-stream\-size=#\fR
+Sets the pledged source size of input coming from a stream\. This value must be exact, as it will be included in the produced frame header\. Incorrect stream sizes will cause an error\. This information will be used to better optimize compression parameters, resulting in better and potentially faster compression, especially for smaller source sizes\.
+.
+.TP
+\fB\-\-size\-hint=#\fR
+When handling input from a stream, \fBzstd\fR must guess how large the source size will be when optimizing compression parameters\. If the stream size is relatively small, this guess may be a poor one, resulting in a higher compression ratio than expected\. This feature allows for controlling the guess when needed\. Exact guesses result in better compression ratios\. Overestimates result in slightly degraded compression ratios, while underestimates may result in significant degradation\.
 .
 .TP
 \fB\-\-rsyncable\fR

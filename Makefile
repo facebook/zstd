@@ -69,6 +69,7 @@ test: MOREFLAGS += -g -DDEBUGLEVEL=$(DEBUGLEVEL) -Werror
 test:
 	MOREFLAGS="$(MOREFLAGS)" $(MAKE) -j -C $(PRGDIR) allVariants
 	$(MAKE) -C $(TESTDIR) $@
+	ZSTD=../../programs/zstd $(MAKE) -C doc/educational_decoder test
 
 ## shortest: same as `make check`
 .PHONY: shortest
@@ -99,8 +100,8 @@ man:
 contrib: lib
 	$(MAKE) -C contrib/pzstd all
 	$(MAKE) -C contrib/seekable_format/examples all
-	$(MAKE) -C contrib/adaptive-compression all
 	$(MAKE) -C contrib/largeNbDicts all
+	cd contrib/single_file_decoder/ ; ./build_test.sh
 
 .PHONY: cleanTabs
 cleanTabs:
@@ -116,7 +117,6 @@ clean:
 	@$(MAKE) -C contrib/gen_html $@ > $(VOID)
 	@$(MAKE) -C contrib/pzstd $@ > $(VOID)
 	@$(MAKE) -C contrib/seekable_format/examples $@ > $(VOID)
-	@$(MAKE) -C contrib/adaptive-compression $@ > $(VOID)
 	@$(MAKE) -C contrib/largeNbDicts $@ > $(VOID)
 	@$(RM) zstd$(EXT) zstdmt$(EXT) tmp*
 	@$(RM) -r lz4

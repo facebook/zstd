@@ -481,7 +481,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     DISPLAYLEVEL(3, "test%3i : check decompressed result : ", testNb++);
     {   size_t i;
         for (i=0; i<CNBufferSize; i++) {
-            if (((BYTE*)decodedBuffer)[i] != ((BYTE*)CNBuffer)[i]) goto _output_error;;
+            if (((BYTE*)decodedBuffer)[i] != ((BYTE*)CNBuffer)[i]) goto _output_error;
     }   }
     DISPLAYLEVEL(3, "OK \n");
 
@@ -1149,6 +1149,16 @@ static int basicUnitTests(U32 seed, double compressibility)
         ZSTD_resetCStream(zc, ZSTD_CONTENTSIZE_UNKNOWN);
         CHECK(badParameters(zc, params), "Compression parameters do not match");
     }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : ZSTD_c_srcSizeHint bounds : ", testNb++);
+    ZSTD_CCtx_reset(zc, ZSTD_reset_session_and_parameters);
+    CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_srcSizeHint, INT_MAX));
+    {   int srcSizeHint;
+        CHECK_Z(ZSTD_CCtx_getParameter(zc, ZSTD_c_srcSizeHint, &srcSizeHint));
+        CHECK(!(srcSizeHint == INT_MAX), "srcSizeHint doesn't match");
+    }
+    CHECK(!ZSTD_isError(ZSTD_CCtx_setParameter(zc, ZSTD_c_srcSizeHint, -1)), "Out of range doesn't error");
     DISPLAYLEVEL(3, "OK \n");
 
     /* Overlen overwriting window data bug */
@@ -2106,6 +2116,7 @@ static int fuzzerTests_newAPI(U32 seed, int nbTests, int startTest,
                     if (FUZ_rand(&lseed) & 3) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_c_ldmMinMatch, FUZ_randomClampedLength(&lseed, ZSTD_LDM_MINMATCH_MIN, ZSTD_LDM_MINMATCH_MAX), opaqueAPI) );
                     if (FUZ_rand(&lseed) & 3) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_c_ldmBucketSizeLog, FUZ_randomClampedLength(&lseed, ZSTD_LDM_BUCKETSIZELOG_MIN, ZSTD_LDM_BUCKETSIZELOG_MAX), opaqueAPI) );
                     if (FUZ_rand(&lseed) & 3) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_c_ldmHashRateLog, FUZ_randomClampedLength(&lseed, ZSTD_LDM_HASHRATELOG_MIN, ZSTD_LDM_HASHRATELOG_MAX), opaqueAPI) );
+                    if (FUZ_rand(&lseed) & 3) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_c_srcSizeHint, FUZ_randomClampedLength(&lseed, ZSTD_SRCSIZEHINT_MIN, ZSTD_SRCSIZEHINT_MAX), opaqueAPI) );
                 }
 
                 /* mess with frame parameters */

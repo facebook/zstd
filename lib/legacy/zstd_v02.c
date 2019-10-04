@@ -353,7 +353,7 @@ MEM_STATIC unsigned BIT_highbit32 (U32 val)
     _BitScanReverse ( &r, val );
     return (unsigned) r;
 #   elif defined(__GNUC__) && (__GNUC__ >= 3)   /* Use GCC Intrinsic */
-    return 31 - __builtin_clz (val);
+    return __builtin_clz (val) ^ 31;
 #   else   /* Software version */
     static const unsigned DeBruijnClz[32] = { 0, 9, 1, 10, 13, 21, 2, 29, 11, 14, 16, 18, 22, 25, 3, 30, 8, 12, 20, 28, 15, 17, 24, 7, 19, 27, 23, 6, 26, 5, 4, 31 };
     U32 v = val;
@@ -2889,6 +2889,7 @@ static size_t ZSTD_decodeLiteralsBlock(void* ctx,
             const size_t litSize = (MEM_readLE32(istart) & 0xFFFFFF) >> 2;   /* no buffer issue : srcSize >= MIN_CBLOCK_SIZE */
             if (litSize > srcSize-11)   /* risk of reading too far with wildcopy */
             {
+                if (litSize > BLOCKSIZE) return ERROR(corruption_detected);
                 if (litSize > srcSize-3) return ERROR(corruption_detected);
                 memcpy(dctx->litBuffer, istart, litSize);
                 dctx->litPtr = dctx->litBuffer;

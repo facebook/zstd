@@ -115,7 +115,7 @@ static void* ZSTDMT_threadRoutine(void* data)
 
 ZSTDMT_DepThreadPoolCtx* ZSTDMT_depThreadPool_createCtx(size_t maxNbJobs, size_t maxNbThreads)
 {
-	ZSTDMT_DepThreadPoolCtx* ctx = malloc(sizeof(ZSTDMT_DepThreadPoolCtx));
+	ZSTDMT_DepThreadPoolCtx* ctx = (ZSTDMT_DepThreadPoolCtx*)malloc(sizeof(ZSTDMT_DepThreadPoolCtx));
 	size_t i;
 
 	ZSTDMT_checkStatus(pthread_mutex_init(&ctx->mutex, NULL), "Mutex init ctx");
@@ -123,10 +123,10 @@ ZSTDMT_DepThreadPoolCtx* ZSTDMT_depThreadPool_createCtx(size_t maxNbJobs, size_t
 	ctx->nbJobs = 0;
 	ctx->nbJobsRemaining = maxNbJobs;
 	ctx->maxNbThreads = maxNbThreads;
-	ctx->threads = malloc(sizeof(ZSTDMT_DepThreadPoolThread*) * ctx->maxNbThreads);
-	ctx->jobs = malloc(sizeof(ZSTDMT_DepThreadPoolJob*) * ctx->nbJobsRemaining);
+	ctx->threads = (ZSTDMT_DepThreadPoolThread**)malloc(sizeof(ZSTDMT_DepThreadPoolThread*) * ctx->maxNbThreads);
+	ctx->jobs = (ZSTDMT_DepThreadPoolJob**)malloc(sizeof(ZSTDMT_DepThreadPoolJob*) * ctx->nbJobsRemaining);
 	for (i = 0; i < ctx->maxNbThreads; ++i) {
-		ctx->threads[i] = malloc(sizeof(ZSTDMT_DepThreadPoolThread));
+		ctx->threads[i] = (ZSTDMT_DepThreadPoolThread*)malloc(sizeof(ZSTDMT_DepThreadPoolThread));
 		ctx->threads[i]->ctx = ctx;
 		ctx->threads[i]->job = NULL;
 		ZSTDMT_checkStatus(pthread_mutex_init(&ctx->threads[i]->mutex, NULL), "Mutex init thread");
@@ -154,13 +154,13 @@ void ZSTDMT_depThreadPool_destroyCtx(ZSTDMT_DepThreadPoolCtx* ctx)
 size_t ZSTDMT_depThreadPool_addJob(ZSTDMT_DepThreadPoolCtx* ctx, ZSTDMT_depThreadPoolFn fn,
 	void* data, size_t nbDeps, size_t* depJobIds)
 {
-	ZSTDMT_DepThreadPoolJob* job = malloc(sizeof(ZSTDMT_DepThreadPoolJob));
+	ZSTDMT_DepThreadPoolJob* job = (ZSTDMT_DepThreadPoolJob*)malloc(sizeof(ZSTDMT_DepThreadPoolJob));
 	job->fn = fn;
 	job->data = data;
 	job->started = 0;
 	job->finished = 0;
 	job->nbDeps = nbDeps;
-	job->depJobIds = malloc(sizeof(size_t) * nbDeps);
+	job->depJobIds = (size_t*)malloc(sizeof(size_t) * nbDeps);
 	memcpy(job->depJobIds, depJobIds, sizeof(size_t) * nbDeps);
 
 	ZSTDMT_checkStatus(pthread_mutex_lock(&ctx->mutex), "Lock ctx");

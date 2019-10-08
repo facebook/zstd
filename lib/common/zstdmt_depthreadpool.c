@@ -82,6 +82,7 @@ static void* ZSTDMT_threadRoutine(void* data)
 
 		thread->job->fn(thread->job->data);
 		thread->job->finished = 1;
+		free(thread->job->depJobIds);
 		free(thread->job);
 		thread->job = NULL;
 
@@ -149,7 +150,8 @@ size_t ZSTDMT_depThreadPool_addJob(ZSTDMT_DepThreadPoolCtx* ctx, ZSTDMT_depThrea
 	job->started = 0;
 	job->finished = 0;
 	job->nbDeps = nbDeps;
-	job->depJobIds = depJobIds;
+	job->depJobIds = malloc(sizeof(size_t) * nbDeps);
+	memcpy(job->depJobIds, depJobIds, sizeof(size_t) * nbDeps);
 
 	pthread_mutex_lock(&ctx->mutex);
 	ctx->jobs[ctx->nbJobs++] = job;

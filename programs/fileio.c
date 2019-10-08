@@ -658,7 +658,7 @@ int FIO_checkFilenameCollisions(const char** filenameTable, unsigned nbFiles) {
         }
     }
 
-    qsort(filenameTableSorted, nbFiles, sizeof(char*), UTIL_compareStr);
+    qsort((const char**)filenameTableSorted, nbFiles, sizeof(char*), UTIL_compareStr);
     prevElem = filenameTableSorted[0];
     for (u = 1; u < nbFiles; ++u) {
         if (strcmp(prevElem, filenameTableSorted[u]) == 0) {
@@ -667,7 +667,7 @@ int FIO_checkFilenameCollisions(const char** filenameTable, unsigned nbFiles) {
         prevElem = filenameTableSorted[u];
     }
 
-    free(filenameTableSorted);
+    free((const char**)filenameTableSorted);
     return 0;
 }
 

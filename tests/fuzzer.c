@@ -31,6 +31,7 @@
 #include "zstd.h"         /* ZSTD_VERSION_STRING */
 #include "zstd_errors.h"  /* ZSTD_getErrorCode */
 #include "zstdmt_compress.h"
+#include "zstdmt_depthreadpool.h"
 #define ZDICT_STATIC_LINKING_ONLY
 #include "zdict.h"        /* ZDICT_trainFromBuffer */
 #include "datagen.h"      /* RDG_genBuffer */
@@ -304,6 +305,9 @@ static int FUZ_mallocTests(unsigned seed, double compressibility, unsigned part)
 
 #endif
 
+static void FUZ_depThreadPool_callbackFn1(void* data) {*((int*)data) += 10;}
+static void FUZ_depThreadPool_callbackFn2(void* data) {*((int*)data) *= 10;}
+
 /*=============================================
 *   Unit tests
 =============================================*/
@@ -366,6 +370,17 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    /* Need to write some better tests for this */
+    DISPLAYLEVEL(3, "test%3u : ZSTDMT_depThreadPool dep test : ", testNb++);
+    {
+      int data = 0;
+      ZSTDMT_depThreadPoolCtx_t* ctx = ZSTDMT_depThreadPool_createCtx(2, 2);
+      size_t jobId = ZSTDMT_depThreadPool_addJob(ctx, FUZ_depThreadPool_callbackFn1, &data, 1, 0);
+      jobId = ZSTDMT_depThreadPool_addJob(ctx, FUZ_depThreadPool_callbackFn2, &data, 0, jobId);
+      ZSTDMT_depThreadPool_destroyCtx(ctx);
+      assert(data == 100);
+    }
+    DISPLAYLEVEL(3, "OK \n");
 
     DISPLAYLEVEL(3, "test%3i : ZSTD_getFrameContentSize test : ", testNb++);
     {   unsigned long long const rSize = ZSTD_getFrameContentSize(compressedBuffer, cSize);

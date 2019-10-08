@@ -1,7 +1,15 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <pthread.h>
+#include <errno.h>
+#include <string.h>
 #include "zstdmt_depthreadpool.h"
+
+#define err_abort(code,text) do { \
+	fprintf (stderr, "%s at \"%s\":%d: %s\n", \
+		text, __FILE__, __LINE__, strerror (code)); \
+	abort (); \
+} while (0)
 
 /***************************************
 * Definitions
@@ -63,6 +71,8 @@ static ZSTDMT_DepThreadPoolJob* ZSTDMT_getNextJob(ZSTDMT_DepThreadPoolCtx* ctx)
 	return job;
 }
 
+static void ZSTDMT_checkStatus(int status, const char* text) {if (status != 0) err_abort(status, text);}
+
 /* This is the main worker routine. Basically, it waits for a job to become
  * ready for execution by calling ZSTDMT_getNextJob(...) and then runs it!
  * It should only exit when all jobs have finished running */
@@ -71,14 +81,14 @@ static void* ZSTDMT_threadRoutine(void* data)
 	ZSTDMT_DepThreadPoolThread* thread = (ZSTDMT_DepThreadPoolThread*)data;
 	ZSTDMT_DepThreadPoolCtx* ctx = thread->ctx;
 
-	pthread_mutex_lock(&thread->mutex);
+	ZSTDMT_checkStatus(pthread_mutex_lock(&thread->mutex), "Lock thread");
 	thread->job = NULL;
 	while (1) {
-		pthread_mutex_lock(&ctx->mutex);
+		ZSTDMT_checkStatus(pthread_mutex_lock(&ctx->mutex), "Lock ctx");
 		while (ctx->nbJobsRemaining && (thread->job = ZSTDMT_getNextJob(ctx)) == NULL)
-			pthread_cond_wait(&ctx->cond, &ctx->mutex);
+			ZSTDMT_checkStatus(pthread_cond_wait(&ctx->cond, &ctx->mutex), "Cond wait");
 		if (!ctx->nbJobsRemaining) break;
-		pthread_mutex_unlock(&ctx->mutex);
+		ZSTDMT_checkStatus(pthread_mutex_unlock(&ctx->mutex), "Unlock ctx");
 
 		thread->job->fn(thread->job->data);
 		thread->job->finished = 1;
@@ -86,15 +96,15 @@ static void* ZSTDMT_threadRoutine(void* data)
 		free(thread->job);
 		thread->job = NULL;
 
-		pthread_mutex_lock(&ctx->mutex);
+		ZSTDMT_checkStatus(pthread_mutex_lock(&ctx->mutex), "Lock ctx");
 		ctx->nbJobsRemaining--;
 		if (!ctx->nbJobsRemaining) break;
-		pthread_cond_signal(&ctx->cond);
-		pthread_mutex_unlock(&ctx->mutex);
+		ZSTDMT_checkStatus(pthread_cond_signal(&ctx->cond), "Cond signal");
+		ZSTDMT_checkStatus(pthread_mutex_unlock(&ctx->mutex), "Unlock ctx");
 	}
-	pthread_cond_signal(&ctx->cond);
-	pthread_mutex_unlock(&ctx->mutex);
-	pthread_mutex_unlock(&thread->mutex);
+	ZSTDMT_checkStatus(pthread_cond_signal(&ctx->cond), "Cond signal");
+	ZSTDMT_checkStatus(pthread_mutex_unlock(&ctx->mutex), "Unlock ctx");
+	ZSTDMT_checkStatus(pthread_mutex_unlock(&thread->mutex), "Unlock thread");
 
 	return NULL;
 }
@@ -108,8 +118,8 @@ ZSTDMT_DepThreadPoolCtx* ZSTDMT_depThreadPool_createCtx(size_t maxNbJobs, size_t
 	ZSTDMT_DepThreadPoolCtx* ctx = malloc(sizeof(ZSTDMT_DepThreadPoolCtx));
 	size_t i;
 
-	pthread_mutex_init(&ctx->mutex, NULL);
-	pthread_cond_init(&ctx->cond, NULL);
+	ZSTDMT_checkStatus(pthread_mutex_init(&ctx->mutex, NULL), "Mutex init ctx");
+	ZSTDMT_checkStatus(pthread_cond_init(&ctx->cond, NULL), "Cond init ctx");
 	ctx->nbJobs = 0;
 	ctx->nbJobsRemaining = maxNbJobs;
 	ctx->maxNbThreads = maxNbThreads;
@@ -119,8 +129,8 @@ ZSTDMT_DepThreadPoolCtx* ZSTDMT_depThreadPool_createCtx(size_t maxNbJobs, size_t
 		ctx->threads[i] = malloc(sizeof(ZSTDMT_DepThreadPoolThread));
 		ctx->threads[i]->ctx = ctx;
 		ctx->threads[i]->job = NULL;
-		pthread_mutex_init(&ctx->threads[i]->mutex, NULL);
-		pthread_create(&ctx->threads[i]->thread, NULL, ZSTDMT_threadRoutine, ctx->threads[i]);
+		ZSTDMT_checkStatus(pthread_mutex_init(&ctx->threads[i]->mutex, NULL), "Mutex init thread");
+		ZSTDMT_checkStatus(pthread_create(&ctx->threads[i]->thread, NULL, ZSTDMT_threadRoutine, ctx->threads[i]), "Thread create");
 	}
 
 	return ctx;
@@ -131,13 +141,13 @@ void ZSTDMT_depThreadPool_destroyCtx(ZSTDMT_DepThreadPoolCtx* ctx)
 	size_t i;
 	for (i = 0; i < ctx->maxNbThreads; ++i) pthread_join(ctx->threads[i]->thread, NULL);
 	for (i = 0; i < ctx->maxNbThreads; ++i) {
-		pthread_mutex_destroy(&ctx->threads[i]->mutex);
+		ZSTDMT_checkStatus(pthread_mutex_destroy(&ctx->threads[i]->mutex), "Mutex destroy thread");
 		free(ctx->threads[i]);
 	}
 	free(ctx->threads);
 	free(ctx->jobs);
-	pthread_mutex_destroy(&ctx->mutex);
-	pthread_cond_destroy(&ctx->cond);
+	ZSTDMT_checkStatus(pthread_mutex_destroy(&ctx->mutex), "Mutex destroy ctx");
+	ZSTDMT_checkStatus(pthread_cond_destroy(&ctx->cond), "Cond destroy ctx");
 	free(ctx);
 }
 
@@ -153,9 +163,9 @@ size_t ZSTDMT_depThreadPool_addJob(ZSTDMT_DepThreadPoolCtx* ctx, ZSTDMT_depThrea
 	job->depJobIds = malloc(sizeof(size_t) * nbDeps);
 	memcpy(job->depJobIds, depJobIds, sizeof(size_t) * nbDeps);
 
-	pthread_mutex_lock(&ctx->mutex);
+	ZSTDMT_checkStatus(pthread_mutex_lock(&ctx->mutex), "Lock ctx");
 	ctx->jobs[ctx->nbJobs++] = job;
-	pthread_cond_signal(&ctx->cond);
-	pthread_mutex_unlock(&ctx->mutex);
+	ZSTDMT_checkStatus(pthread_cond_signal(&ctx->cond), "Cond signal");
+	ZSTDMT_checkStatus(pthread_mutex_unlock(&ctx->mutex), "Unlock ctx");
   return ctx->nbJobs - 1;
 }

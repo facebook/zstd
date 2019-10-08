@@ -375,8 +375,9 @@ static int basicUnitTests(U32 const seed, double compressibility)
     {
       int data = 0;
       ZSTDMT_depThreadPoolCtx_t* ctx = ZSTDMT_depThreadPool_createCtx(2, 2);
-      size_t jobId = ZSTDMT_depThreadPool_addJob(ctx, FUZ_depThreadPool_callbackFn1, &data, 1, 0);
-      jobId = ZSTDMT_depThreadPool_addJob(ctx, FUZ_depThreadPool_callbackFn2, &data, 0, jobId);
+      size_t jobId = ZSTDMT_depThreadPool_addJob(ctx, FUZ_depThreadPool_callbackFn1, &data, 0, NULL);
+      size_t deps[1] = {jobId};
+      jobId = ZSTDMT_depThreadPool_addJob(ctx, FUZ_depThreadPool_callbackFn2, &data, 1, deps);
       ZSTDMT_depThreadPool_destroyCtx(ctx);
       assert(data == 100);
     }

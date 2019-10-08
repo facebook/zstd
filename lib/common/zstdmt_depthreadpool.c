@@ -10,8 +10,8 @@
 struct ZSTDMT_depThreadPoolJob_s {
 	ZSTDMT_depThreadPoolFn fn;
 	void* data;
-	int independent;
-	size_t depJobId;
+	size_t nbDeps;
+	size_t* depJobIds;
 	int started;
 	int finished;
 };
@@ -44,11 +44,19 @@ static ZSTDMT_depThreadPoolJob_t* ZSTDMT_getNextJob(ZSTDMT_depThreadPoolCtx_t* c
 {
 	ZSTDMT_depThreadPoolJob_t* job = NULL;
 	size_t i;
+	size_t depsSatisfied;
+	size_t j;
 
 	for (i = 0; i < ctx->nbJobs; ++i) {
 		job = ctx->jobs[i];
-		if (job && !job->started && (job->independent || (!job->independent && ctx->jobs[job->depJobId]->finished))) break;
-		else job = NULL;
+		if (job && !job->started){
+			if (job->nbDeps == 0) break;
+			else {
+				for (j = 0, depsSatisfied = 1; j < job->nbDeps; ++j) {depsSatisfied &= ctx->jobs[job->depJobIds[j]]->finished;}
+				if (depsSatisfied) break;
+			}
+		}
+		job = NULL;
 	}
 	if (job) job->started = 1;
 
@@ -133,15 +141,15 @@ void ZSTDMT_depThreadPool_destroyCtx(ZSTDMT_depThreadPoolCtx_t* ctx)
 }
 
 size_t ZSTDMT_depThreadPool_addJob(ZSTDMT_depThreadPoolCtx_t* ctx, ZSTDMT_depThreadPoolFn fn,
-	void* data, int independent, size_t depJobId)
+	void* data, size_t nbDeps, size_t* depJobIds)
 {
 	ZSTDMT_depThreadPoolJob_t* job = malloc(sizeof(ZSTDMT_depThreadPoolJob_t));
 	job->fn = fn;
 	job->data = data;
 	job->started = 0;
 	job->finished = 0;
-	job->independent = independent;
-	job->depJobId = depJobId;
+	job->nbDeps = nbDeps;
+	job->depJobIds = depJobIds;
 
 	pthread_mutex_lock(&ctx->mutex);
 	ctx->jobs[ctx->nbJobs++] = job;

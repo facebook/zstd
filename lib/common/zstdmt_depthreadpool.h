@@ -18,8 +18,8 @@ typedef struct ZSTDMT_depThreadPoolCtx_s ZSTDMT_depThreadPoolCtx_t;          /* 
 
 /* Basic usage:
  * ZSTDMT_depThreadPoolCtx_t* ctx = ZSTDMT_depThreadPool_createCtx(2, 2);
- * ZSTDMT_depThreadPool_addJob(ctx, job1, NULL, 1, 0);
- * ZSTDMT_depThreadPool_addJob(ctx, job1, NULL, 0, 0);
+ * ZSTDMT_depThreadPool_addJob(ctx, job1, NULL, 0, NULL);
+ * ZSTDMT_depThreadPool_addJob(ctx, job2, NULL, 1, arrayWithJob1Id);
  * ZSTDMT_depThreadPool_destroyCtx(ctx); */
 
 /* Create a context supporting 'maxNbJobs' and 'maxNbThreads'
@@ -35,11 +35,11 @@ void ZSTDMT_depThreadPool_destroyCtx(ZSTDMT_depThreadPoolCtx_t* ctx);
 /* Adds a job with potential dependencies to the thread pool
  * @fn: This is the callback function
  * @data: Any args that you want to pass to your callback function
- * @independent: 1 if the job has no dependencies, 0 otherwise
- * @depJobId: The id of the job that must be completed before this one
+ * @nbDeps: Number of dependencies
+ * @depJobIds: The dependencies
  * Note: This only supports having jobs with one dependency.
  * TODO?: Might need to extend this to multiple dependencies but not right now
  * @return: The job id of the newly added job. */
-size_t ZSTDMT_depThreadPool_addJob(ZSTDMT_depThreadPoolCtx_t* ctx, ZSTDMT_depThreadPoolFn fn, void* data, int independent, size_t depJobId);
+size_t ZSTDMT_depThreadPool_addJob(ZSTDMT_depThreadPoolCtx_t* ctx, ZSTDMT_depThreadPoolFn fn, void* data, size_t nbDeps, size_t* depJobIds);
 
 #endif /* ZSTDMT_DEPTHREADPOOL_H_MODULE */

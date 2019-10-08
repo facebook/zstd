@@ -37,8 +37,6 @@ void ZSTDMT_depThreadPool_destroyCtx(ZSTDMT_DepThreadPoolCtx* ctx);
  * @data: Any args that you want to pass to your callback function
  * @nbDeps: Number of dependencies
  * @depJobIds: The dependencies
- * Note: This only supports having jobs with one dependency.
- * TODO?: Might need to extend this to multiple dependencies but not right now
  * @return: The job id of the newly added job. */
 size_t ZSTDMT_depThreadPool_addJob(ZSTDMT_DepThreadPoolCtx* ctx, ZSTDMT_depThreadPoolFn fn, void* data, size_t nbDeps, size_t* depJobIds);
 

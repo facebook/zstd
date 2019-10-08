@@ -118,15 +118,20 @@ ZSTDMT_DepThreadPoolCtx* ZSTDMT_depThreadPool_createCtx(size_t maxNbJobs, size_t
 	ZSTDMT_DepThreadPoolCtx* ctx = (ZSTDMT_DepThreadPoolCtx*)malloc(sizeof(ZSTDMT_DepThreadPoolCtx));
 	size_t i;
 
+	if (ctx == NULL) err_abort(-1, "Malloc ctx");
+
 	ZSTDMT_checkStatus(pthread_mutex_init(&ctx->mutex, NULL), "Mutex init ctx");
 	ZSTDMT_checkStatus(pthread_cond_init(&ctx->cond, NULL), "Cond init ctx");
 	ctx->nbJobs = 0;
 	ctx->nbJobsRemaining = maxNbJobs;
 	ctx->maxNbThreads = maxNbThreads;
 	ctx->threads = (ZSTDMT_DepThreadPoolThread**)malloc(sizeof(ZSTDMT_DepThreadPoolThread*) * ctx->maxNbThreads);
+	if (ctx->threads == NULL) err_abort(-1, "Malloc threads");
 	ctx->jobs = (ZSTDMT_DepThreadPoolJob**)malloc(sizeof(ZSTDMT_DepThreadPoolJob*) * ctx->nbJobsRemaining);
+	if (ctx->jobs == NULL) err_abort(-1, "Malloc jobs");
 	for (i = 0; i < ctx->maxNbThreads; ++i) {
 		ctx->threads[i] = (ZSTDMT_DepThreadPoolThread*)malloc(sizeof(ZSTDMT_DepThreadPoolThread));
+		if (ctx->threads[i] == NULL) err_abort(-1, "Malloc thread");
 		ctx->threads[i]->ctx = ctx;
 		ctx->threads[i]->job = NULL;
 		ZSTDMT_checkStatus(pthread_mutex_init(&ctx->threads[i]->mutex, NULL), "Mutex init thread");
@@ -155,12 +160,14 @@ size_t ZSTDMT_depThreadPool_addJob(ZSTDMT_DepThreadPoolCtx* ctx, ZSTDMT_depThrea
 	void* data, size_t nbDeps, size_t* depJobIds)
 {
 	ZSTDMT_DepThreadPoolJob* job = (ZSTDMT_DepThreadPoolJob*)malloc(sizeof(ZSTDMT_DepThreadPoolJob));
+	if (job == NULL) err_abort(-1, "Malloc job");
 	job->fn = fn;
 	job->data = data;
 	job->started = 0;
 	job->finished = 0;
 	job->nbDeps = nbDeps;
 	job->depJobIds = (size_t*)malloc(sizeof(size_t) * nbDeps);
+	if (job->depJobIds == NULL) err_abort(-1, "Malloc depJobIds");
 	memcpy(job->depJobIds, depJobIds, sizeof(size_t) * nbDeps);
 
 	ZSTDMT_checkStatus(pthread_mutex_lock(&ctx->mutex), "Lock ctx");

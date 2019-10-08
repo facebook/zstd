@@ -658,7 +658,13 @@ int FIO_checkFilenameCollisions(const char** filenameTable, unsigned nbFiles) {
         }
     }
 
-    qsort((const char**)filenameTableSorted, nbFiles, sizeof(char*), UTIL_compareStr);
+    /* Silence VS Compiler bug with warning C4090 */
+    #if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__)
+    #pragma warning (push)
+    #pragma warning (disable : 4090)
+    #endif
+
+    qsort(filenameTableSorted, nbFiles, sizeof(char*), UTIL_compareStr);
     prevElem = filenameTableSorted[0];
     for (u = 1; u < nbFiles; ++u) {
         if (strcmp(prevElem, filenameTableSorted[u]) == 0) {
@@ -667,7 +673,11 @@ int FIO_checkFilenameCollisions(const char** filenameTable, unsigned nbFiles) {
         prevElem = filenameTableSorted[u];
     }
 
-    free((const char**)filenameTableSorted);
+    free(filenameTableSorted);
+
+    #if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__)
+    #pragma warning (pop)
+    #endif
     return 0;
 }
 

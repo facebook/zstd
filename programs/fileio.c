@@ -1553,7 +1553,8 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs, const char** inFileN
             const char* const dstFileName = FIO_determineCompressedName(srcFileName, outDirName, suffix);  /* cannot fail */
             error |= FIO_compressFilename_srcFile(prefs, ress, dstFileName, srcFileName, compressionLevel);
         }
-        FIO_checkFilenameCollisions(inFileNamesTable ,nbFiles);
+        if (outDirName)
+            FIO_checkFilenameCollisions(inFileNamesTable ,nbFiles);
     }
 
     FIO_freeCResources(ress);
@@ -2375,7 +2376,8 @@ FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
 
             error |= FIO_decompressSrcFile(prefs, ress, dstFileName, srcFileName);
         }
-        FIO_checkFilenameCollisions(srcNamesTable ,nbFiles);
+        if (outDirName)
+            FIO_checkFilenameCollisions(srcNamesTable ,nbFiles);
     }
 
     FIO_freeDResources(ress);

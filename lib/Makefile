@@ -191,8 +191,8 @@ lib-release lib-release-mt: DEBUGFLAGS :=
 lib-release: lib
 lib-release-mt: lib-mt
 
-# Special case : building library in single-thread mode _and_ without zstdmt_compress.c
-ZSTDMT_FILES = compress/zstdmt_compress.c
+# Special case : building library in single-thread mode
+ZSTDMT_FILES = compress/zstdmt_compress.c common/zstdmt_depthreadpool.c
 ZSTD_NOMT_FILES = $(filter-out $(ZSTDMT_FILES),$(ZSTD_FILES))
 libzstd-nomt: LDFLAGS += -shared -fPIC -fvisibility=hidden
 libzstd-nomt: $(ZSTD_NOMT_FILES)

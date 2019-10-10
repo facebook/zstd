@@ -42,7 +42,7 @@ extern "C" {
  * This defines the size of that redzone.
  */
 #ifndef ZSTD_CWKSP_ASAN_REDZONE_SIZE
-#define ZSTD_CWKSP_ASAN_REDZONE_SIZE 8
+#define ZSTD_CWKSP_ASAN_REDZONE_SIZE 128
 #endif
 
 /*-*************************************

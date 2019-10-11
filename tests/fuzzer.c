@@ -305,8 +305,12 @@ static int FUZ_mallocTests(unsigned seed, double compressibility, unsigned part)
 
 #endif
 
+#ifdef ZSTD_MULTITHREAD
+
 static void FUZ_depThreadPool_callbackFn1(void* data) {*((int*)data) += 10;}
 static void FUZ_depThreadPool_callbackFn2(void* data) {*((int*)data) *= 10;}
+
+#endif /* ZSTD_MULTITHREAD */
 
 /*=============================================
 *   Unit tests
@@ -370,6 +374,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    #ifdef ZSTD_MULTITHREAD
     /* Need to write some better tests for this */
     DISPLAYLEVEL(3, "test%3u : ZSTDMT_depThreadPool dep test : ", testNb++);
     {
@@ -382,6 +387,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
       assert(data == 100);
     }
     DISPLAYLEVEL(3, "OK \n");
+    #endif /* ZSTD_MULTITHREAD */
 
     DISPLAYLEVEL(3, "test%3i : ZSTD_getFrameContentSize test : ", testNb++);
     {   unsigned long long const rSize = ZSTD_getFrameContentSize(compressedBuffer, cSize);

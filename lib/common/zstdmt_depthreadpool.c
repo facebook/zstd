@@ -5,8 +5,6 @@
 #include "threading.h"
 #include "zstdmt_depthreadpool.h"
 
-#ifdef ZSTD_MULTITHREAD
-
 #define err_abort(code,text) do { \
 	fprintf (stderr, "%s at \"%s\":%d: %s\n", \
 		text, __FILE__, __LINE__, strerror (code)); \
@@ -42,6 +40,8 @@ struct ZSTDMT_DepThreadPoolCtx_s {
 	size_t nbJobs;
 	size_t nbJobsRemaining;
 };
+
+#ifdef ZSTD_MULTITHREAD
 
 /***************************************
 * ZSTDMT_depThreadPool internal

@@ -120,8 +120,9 @@ ZSTDMT_DepThreadPoolCtx* ZSTDMT_depThreadPool_createCtx(size_t maxNbJobs, size_t
 
 	if (ctx == NULL) err_abort(-1, "Malloc ctx");
 
-	ZSTD_pthread_mutex_init(&ctx->mutex, NULL);
-	ZSTD_pthread_cond_init(&ctx->cond, NULL);
+	if (ZSTD_pthread_mutex_init(&ctx->mutex, NULL)) err_abort(-1, "Ctx mutex init");
+	if (ZSTD_pthread_cond_init(&ctx->cond, NULL)) err_abort(-1, "Cond init");
+
 	ctx->nbJobs = 0;
 	ctx->nbJobsRemaining = maxNbJobs;
 	ctx->maxNbThreads = maxNbThreads;
@@ -134,7 +135,9 @@ ZSTDMT_DepThreadPoolCtx* ZSTDMT_depThreadPool_createCtx(size_t maxNbJobs, size_t
 		if (ctx->threads[i] == NULL) err_abort(-1, "Malloc thread");
 		ctx->threads[i]->ctx = ctx;
 		ctx->threads[i]->job = NULL;
-		ZSTD_pthread_mutex_init(&ctx->threads[i]->mutex, NULL);
+
+		if (ZSTD_pthread_mutex_init(&ctx->threads[i]->mutex, NULL)) err_abort(-1, "Thread mutex init");
+
 		ZSTD_pthread_create(&ctx->threads[i]->thread, NULL, ZSTDMT_threadRoutine, ctx->threads[i]);
 	}
 

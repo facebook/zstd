@@ -136,6 +136,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -q     : suppress warnings; specify twice to suppress errors too\n");
     DISPLAY( " -c     : force write to standard output, even if it is the console\n");
     DISPLAY( " -l     : print information about zstd compressed files \n");
+    DISPLAY( " --output-dir-flat directory: results stored into `directory`. Filename collisions mean first file will be compressed. With -f, the last file will be compressed.\n");
 #ifndef ZSTD_NOCOMPRESS
     DISPLAY( "--ultra : enable levels beyond %i, up to %i (requires more memory)\n", ZSTDCLI_CLEVEL_MAX, ZSTD_maxCLevel());
     DISPLAY( "--long[=#]: enable long distance matching with given window log (default: %u)\n", g_defaultMaxWindowLog);
@@ -562,6 +563,7 @@ int main(int argCount, const char* argv[])
         adaptMax = MAXCLEVEL,
         rsyncable = 0,
         nextArgumentIsOutFileName = 0,
+        nextArgumentIsOutDirName = 0,
         nextArgumentIsMaxDict = 0,
         nextArgumentIsDictID = 0,
         nextArgumentsAreFiles = 0,
@@ -586,6 +588,7 @@ int main(int argCount, const char* argv[])
     unsigned filenameIdx = 0;
     const char* programName = argv[0];
     const char* outFileName = NULL;
+    const char* outDirName = NULL;
     const char* dictFileName = NULL;
     const char* suffix = ZSTD_EXTENSION;
     unsigned maxDictSize = g_defaultMaxDictSize;
@@ -686,6 +689,7 @@ int main(int argCount, const char* argv[])
                     if (!strcmp(argument, "--keep")) { FIO_setRemoveSrcFile(prefs, 0); continue; }
                     if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(prefs, 1); continue; }
                     if (!strcmp(argument, "--priority=rt")) { setRealTimePrio = 1; continue; }
+                    if (!strcmp(argument, "--output-dir-flat")) {nextArgumentIsOutDirName=1; lastCommand=1; continue; }
                     if (!strcmp(argument, "--adapt")) { adapt = 1; continue; }
                     if (longCommandWArg(&argument, "--adapt=")) { adapt = 1; if (!parseAdaptParameters(argument, &adaptMin, &adaptMax)) CLEAN_RETURN(badusage(programName)); continue; }
                     if (!strcmp(argument, "--single-thread")) { nbWorkers = 0; singleThread = 1; continue; }
@@ -852,7 +856,7 @@ int main(int argCount, const char* argv[])
 
                         /* destination file name */
                     case 'o': nextArgumentIsOutFileName=1; lastCommand=1; argument++; break;
-
+                   
                         /* limit decompression memory */
                     case 'M':
                         argument++;
@@ -962,6 +966,13 @@ int main(int argCount, const char* argv[])
             lastCommand = 0;
             outFileName = argument;
             if (!strcmp(outFileName, "-")) outFileName = stdoutmark;
+            continue;
+        }
+
+        if (nextArgumentIsOutDirName) {
+            nextArgumentIsOutDirName = 0;
+            lastCommand = 0;
+            outDirName = argument;
             continue;
         }
 
@@ -1166,7 +1177,7 @@ int main(int argCount, const char* argv[])
         if ((filenameIdx==1) && outFileName)
           operationResult = FIO_compressFilename(prefs, outFileName, filenameTable[0], dictFileName, cLevel, compressionParams);
         else
-          operationResult = FIO_compressMultipleFilenames(prefs, filenameTable, filenameIdx, outFileName, suffix, dictFileName, cLevel, compressionParams);
+          operationResult = FIO_compressMultipleFilenames(prefs, filenameTable, outDirName, filenameIdx, outFileName, suffix, dictFileName, cLevel, compressionParams);
 #else
         (void)suffix; (void)adapt; (void)rsyncable; (void)ultra; (void)cLevel; (void)ldmFlag; (void)literalCompressionMode; (void)targetCBlockSize; (void)streamSrcSize; (void)srcSizeHint; /* not used when ZSTD_NOCOMPRESS set */
         DISPLAY("Compression not supported \n");
@@ -1184,7 +1195,7 @@ int main(int argCount, const char* argv[])
         if (filenameIdx==1 && outFileName)
             operationResult = FIO_decompressFilename(prefs, outFileName, filenameTable[0], dictFileName);
         else
-            operationResult = FIO_decompressMultipleFilenames(prefs, filenameTable, filenameIdx, outFileName, dictFileName);
+            operationResult = FIO_decompressMultipleFilenames(prefs, filenameTable, filenameIdx, outDirName, outFileName, dictFileName);
 #else
         DISPLAY("Decompression not supported \n");
 #endif

@@ -20,6 +20,9 @@ extern "C" {
 #include <errno.h>
 #include <assert.h>
 
+#if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__)
+#include <direct.h>     /* needed for _mkdir in windows */
+#endif
 
 int UTIL_fileExist(const char* filename)
 {
@@ -96,6 +99,10 @@ U32 UTIL_isDirectory(const char* infilename)
     if (!r && S_ISDIR(statbuf.st_mode)) return 1;
 #endif
     return 0;
+}
+
+int UTIL_compareStr(const void *p1, const void *p2) {
+    return strcmp(* (char * const *) p1, * (char * const *) p2);
 }
 
 int UTIL_isSameFile(const char* file1, const char* file2)

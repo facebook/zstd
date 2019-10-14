@@ -269,6 +269,24 @@ if [ "$?" -eq 139 ]; then
 fi
 rm tmp*
 
+println "test : compress multiple files into an output directory, --output-dir-flat"
+println henlo > tmp1
+mkdir tmpInputTestDir
+mkdir tmpInputTestDir/we
+mkdir tmpInputTestDir/we/must
+mkdir tmpInputTestDir/we/must/go
+mkdir tmpInputTestDir/we/must/go/deeper
+println cool > tmpInputTestDir/we/must/go/deeper/tmp2
+mkdir tmpOutDir
+$ZSTD tmp1 tmpInputTestDir/we/must/go/deeper/tmp2 --output-dir-flat tmpOutDir
+test -f tmpOutDir/tmp1.zst
+test -f tmpOutDir/tmp2.zst
+println "test : decompress multiple files into an output directory, --output-dir-flat"
+mkdir tmpOutDirDecomp
+$ZSTD tmpOutDir/ -r -d --output-dir-flat tmpOutDirDecomp
+test -f tmpOutDirDecomp/tmp2
+test -f tmpOutDirDecomp/tmp1
+rm -rf tmp*
 
 println "\n===>  Advanced compression parameters "
 println "Hello world!" | $ZSTD --zstd=windowLog=21,      - -o tmp.zst && die "wrong parameters not detected!"
@@ -411,7 +429,6 @@ $ZSTD -dc tmpall* > tmpdec
 ls -ls tmp* # check size of tmpdec (should be 2*(tmp1 + tmp2 + tmp3))
 println "compress multiple files including a missing one (notHere) : "
 $ZSTD -f tmp1 notHere tmp2 && die "missing file not detected!"
-
 
 println "\n===>  stream-size mode"
 

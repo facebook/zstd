@@ -2265,6 +2265,77 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
     return ZSTDbss_compress;
 }
 
+static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
+{
+    const seqStore_t* seqStore = ZSTD_getSeqStore(zc);
+    const seqDef* seqs = seqStore->sequencesStart;
+    size_t seqsSize = seqStore->sequences - seqs;
+
+    ZSTD_Sequence* outSeqs = &zc->seqCollector.seqStart[zc->seqCollector.seqIndex];
+    size_t i; size_t position; int repIdx;
+
+    assert(zc->seqCollector.seqIndex + 1 < zc->seqCollector.maxSequences);
+    for (i = 0, position = 0; i < seqsSize; ++i) {
+        outSeqs[i].offset = seqs[i].offset;
+        outSeqs[i].litLength = seqs[i].litLength;
+        outSeqs[i].matchLength = seqs[i].matchLength + MINMATCH;
+
+        if (i == seqStore->longLengthPos) {
+            if (seqStore->longLengthID == 1) {
+                outSeqs[i].litLength += 0x10000;
+            } else if (seqStore->longLengthID == 2) {
+                outSeqs[i].matchLength += 0x10000;
+            }
+        }
+
+        if (outSeqs[i].offset <= ZSTD_REP_NUM) {
+            outSeqs[i].rep = outSeqs[i].offset;
+            repIdx = (unsigned int)i - outSeqs[i].offset;
+
+            if (outSeqs[i].litLength == 0) {
+                if (outSeqs[i].offset < 3) {
+                    --repIdx;
+                } else {
+                    repIdx = (unsigned int)i - 1;
+                }
+                ++outSeqs[i].rep;
+            }
+            assert(repIdx >= -3);
+            outSeqs[i].offset = repIdx >= 0 ? outSeqs[repIdx].offset : repStartValue[-repIdx - 1];
+            if (outSeqs[i].rep == 4) {
+                --outSeqs[i].offset;
+            }
+        } else {
+            outSeqs[i].offset -= ZSTD_REP_NUM;
+        }
+
+        position += outSeqs[i].litLength;
+        outSeqs[i].matchPos = (unsigned int)position;
+        position += outSeqs[i].matchLength;
+    }
+    zc->seqCollector.seqIndex += seqsSize;
+}
+
+size_t ZSTD_getSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
+    size_t outSeqsSize, const void* src, size_t srcSize)
+{
+    const size_t dstCapacity = ZSTD_compressBound(srcSize);
+    void* dst = ZSTD_malloc(dstCapacity, ZSTD_defaultCMem);
+    SeqCollector seqCollector;
+
+    RETURN_ERROR_IF(dst == NULL, memory_allocation);
+
+    seqCollector.collectSequences = 1;
+    seqCollector.seqStart = outSeqs;
+    seqCollector.seqIndex = 0;
+    seqCollector.maxSequences = outSeqsSize;
+    zc->seqCollector = seqCollector;
+
+    ZSTD_compress2(zc, dst, dstCapacity, src, srcSize);
+    ZSTD_free(dst, ZSTD_defaultCMem);
+    return zc->seqCollector.seqIndex;
+}
+
 /* Returns true if the given block is a RLE block */
 static int ZSTD_isRLE(const BYTE *ip, size_t length) {
     size_t i;
@@ -2294,6 +2365,11 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
     {   const size_t bss = ZSTD_buildSeqStore(zc, src, srcSize);
         FORWARD_IF_ERROR(bss);
         if (bss == ZSTDbss_noCompress) { cSize = 0; goto out; }
+    }
+
+    if (zc->seqCollector.collectSequences) {
+        ZSTD_copyBlockSequences(zc);
+        return 0;
     }
 
     /* encode sequences and literals */
@@ -2360,7 +2436,6 @@ static void ZSTD_overflowCorrectIfNeeded(ZSTD_matchState_t* ms,
     }
 }
 
-
 /*! ZSTD_compress_frameChunk() :
 *   Compress a chunk of data into one or multiple blocks.
 *   All blocks will be terminated, all input will be consumed.
@@ -2405,7 +2480,6 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
                                 op+ZSTD_blockHeaderSize, dstCapacity-ZSTD_blockHeaderSize,
                                 ip, blockSize, 1 /* frame */);
             FORWARD_IF_ERROR(cSize);
-
             if (cSize == 0) {  /* block is not compressible */
                 cSize = ZSTD_noCompressBlock(op, dstCapacity, ip, blockSize, lastBlock);
                 FORWARD_IF_ERROR(cSize);

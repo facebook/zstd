@@ -769,7 +769,7 @@ FIO_compressGzFrame(cRess_t* ress,
         {   size_t const decompBytes = ress->dstBufferSize - strm.avail_out;
             if (decompBytes) {
                 if (fwrite(ress->dstBuffer, 1, decompBytes, ress->dstFile) != decompBytes)
-                    EXM_THROW(73, "Write error : cannot write to output file");
+                    EXM_THROW(73, "Write error : cannot write to output file : %s", strerror(errno));
                 outFileSize += decompBytes;
                 strm.next_out = (Bytef*)ress->dstBuffer;
                 strm.avail_out = (uInt)ress->dstBufferSize;
@@ -1523,7 +1523,7 @@ static unsigned FIO_fwriteSparse(FIO_prefs_t* const prefs, FILE* file, const voi
     if (!prefs->sparseFileSupport) {  /* normal write */
         size_t const sizeCheck = fwrite(buffer, 1, bufferSize, file);
         if (sizeCheck != bufferSize)
-            EXM_THROW(70, "Write error : %s (cannot write decoded block)",
+            EXM_THROW(70, "Write error : cannot write decoded block : %s",
                             strerror(errno));
         return 0;
     }
@@ -1554,7 +1554,8 @@ static unsigned FIO_fwriteSparse(FIO_prefs_t* const prefs, FILE* file, const voi
             ptrT += nb0T;
             {   size_t const sizeCheck = fwrite(ptrT, sizeof(size_t), seg0SizeT, file);
                 if (sizeCheck != seg0SizeT)
-                    EXM_THROW(73, "Write error : cannot write decoded block");
+                    EXM_THROW(73, "Write error : cannot write decoded block : %s",
+                            strerror(errno));
         }   }
         ptrT += seg0SizeT;
     }
@@ -1575,7 +1576,8 @@ static unsigned FIO_fwriteSparse(FIO_prefs_t* const prefs, FILE* file, const voi
                 storedSkips = 0;
                 {   size_t const sizeCheck = fwrite(restPtr, 1, (size_t)(restEnd - restPtr), file);
                     if (sizeCheck != (size_t)(restEnd - restPtr))
-                        EXM_THROW(75, "Write error : cannot write decoded end of block");
+                        EXM_THROW(75, "Write error : cannot write decoded end of block : %s",
+                            strerror(errno));
     }   }   }   }
 
     return storedSkips;
@@ -1593,7 +1595,7 @@ FIO_fwriteSparseEnd(FIO_prefs_t* const prefs, FILE* file, unsigned storedSkips)
          * so that skipped ones get implicitly translated as zero by FS */
         {   const char lastZeroByte[1] = { 0 };
             if (fwrite(lastZeroByte, 1, 1, file) != 1)
-                EXM_THROW(69, "Write error : cannot write last zero");
+                EXM_THROW(69, "Write error : cannot write last zero : %s", strerror(errno));
     }   }
 }
 
@@ -1612,7 +1614,7 @@ static int FIO_passThrough(FIO_prefs_t* const prefs,
     /* assumption : ress->srcBufferLoaded bytes already loaded and stored within buffer */
     {   size_t const sizeCheck = fwrite(buffer, 1, alreadyLoaded, foutput);
         if (sizeCheck != alreadyLoaded) {
-            DISPLAYLEVEL(1, "Pass-through write error \n");
+            DISPLAYLEVEL(1, "Pass-through write error : %s\n", strerror(errno));
             return 1;
     }   }
 
@@ -1783,7 +1785,7 @@ static unsigned long long FIO_decompressGzFrame(dRess_t* ress,
         {   size_t const decompBytes = ress->dstBufferSize - strm.avail_out;
             if (decompBytes) {
                 if (fwrite(ress->dstBuffer, 1, decompBytes, ress->dstFile) != decompBytes) {
-                    DISPLAYLEVEL(1, "zstd: %s \n", strerror(errno));
+                    DISPLAYLEVEL(1, "zstd: fwrite error: %s \n", strerror(errno));
                     decodingError = 1; break;
                 }
                 outFileSize += decompBytes;
@@ -1858,7 +1860,7 @@ static unsigned long long FIO_decompressLzmaFrame(dRess_t* ress, FILE* srcFile, 
         {   size_t const decompBytes = ress->dstBufferSize - strm.avail_out;
             if (decompBytes) {
                 if (fwrite(ress->dstBuffer, 1, decompBytes, ress->dstFile) != decompBytes) {
-                    DISPLAYLEVEL(1, "zstd: %s \n", strerror(errno));
+                    DISPLAYLEVEL(1, "zstd: fwrite error: %s \n", strerror(errno));
                     decodingError = 1; break;
                 }
                 outFileSize += decompBytes;
@@ -1929,7 +1931,7 @@ static unsigned long long FIO_decompressLz4Frame(dRess_t* ress,
             /* Write Block */
             if (decodedBytes) {
                 if (fwrite(ress->dstBuffer, 1, decodedBytes, ress->dstFile) != decodedBytes) {
-                    DISPLAYLEVEL(1, "zstd: %s \n", strerror(errno));
+                    DISPLAYLEVEL(1, "zstd: fwrite error: %s \n", strerror(errno));
                     decodingError = 1; nextToLoad = 0; break;
                 }
                 filesize += decodedBytes;

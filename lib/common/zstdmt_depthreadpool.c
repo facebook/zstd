@@ -1,3 +1,7 @@
+/* TODO: Need to investigate windows support more
+ * Just doing this for the time being */
+#ifdef ZSTD_MULTITHREAD && !defined(_WIN32)
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
@@ -40,8 +44,6 @@ struct ZSTDMT_DepThreadPoolCtx_s {
 	size_t nbJobs;
 	size_t nbJobsRemaining;
 };
-
-#ifdef ZSTD_MULTITHREAD
 
 /***************************************
 * ZSTDMT_depThreadPool internal
@@ -180,4 +182,4 @@ size_t ZSTDMT_depThreadPool_addJob(ZSTDMT_DepThreadPoolCtx* ctx, ZSTDMT_depThrea
   return ctx->nbJobs - 1;
 }
 
-#endif /* ZSTD_MULTITHREAD */
+#endif /* ZSTD_MULTITHREAD && !defined(_WIN32) */

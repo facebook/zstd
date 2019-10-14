@@ -1,6 +1,6 @@
 /* TODO: Need to investigate windows support more
  * Just doing this for the time being */
-#ifdef ZSTD_MULTITHREAD && !defined(_WIN32)
+#if defined(ZSTD_MULTITHREAD) && !defined(_WIN32)
 
 #include <stdlib.h>
 #include <stdio.h>

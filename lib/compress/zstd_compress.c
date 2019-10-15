@@ -51,6 +51,7 @@ struct ZSTD_CDict_s {
     ZSTD_compressedBlockState_t cBlockState;
     ZSTD_customMem customMem;
     U32 dictID;
+    BYTE compressionLevel; /* 0 indicates that advanced API was used to select params */
 };  /* typedef'd to ZSTD_CDict within "zstd.h" */
 
 ZSTD_CCtx* ZSTD_createCCtx(void)

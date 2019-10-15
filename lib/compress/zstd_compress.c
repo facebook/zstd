@@ -2917,7 +2917,7 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
     {   size_t const dictID = cdict ? 
                 ZSTD_compress_insertDictionary(
                         cctx->blockState.prevCBlock, &cctx->blockState.matchState,
-                        &params, cdict->dictContent, cdict->dictContentSize,
+                        &cctx->workspace, params, cdict->dictContent, cdict->dictContentSize,
                         dictContentType, dtlm, cctx->entropyWorkspace)
               : ZSTD_compress_insertDictionary(
                         cctx->blockState.prevCBlock, &cctx->blockState.matchState,
@@ -3237,13 +3237,8 @@ ZSTD_CDict* ZSTD_createCDict_advanced(const void* dictBuffer, size_t dictSize,
         assert(cdict != NULL);
         ZSTD_cwksp_move(&cdict->workspace, &ws);
         cdict->customMem = customMem;
-<<<<<<< HEAD
-        cdict->workspace = workspace;
-        cdict->workspaceSize = workspaceSize;
         cdict->compressionLevel = 0; /* signals advanced API usage */
 
-=======
->>>>>>> 8b6d96827c24dd09109830272f413254833317d9
         if (ZSTD_isError( ZSTD_initCDict_internal(cdict,
                                         dictBuffer, dictSize,
                                         dictLoadMethod, dictContentType,

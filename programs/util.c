@@ -20,6 +20,9 @@ extern "C" {
 #include <errno.h>
 #include <assert.h>
 
+#if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__)
+#include <direct.h>     /* needed for _mkdir in windows */
+#endif
 
 int UTIL_fileExist(const char* filename)
 {
@@ -54,14 +57,25 @@ int UTIL_getFileStat(const char* infilename, stat_t *statbuf)
 int UTIL_setFileStat(const char *filename, stat_t *statbuf)
 {
     int res = 0;
-    struct utimbuf timebuf;
 
     if (!UTIL_isRegularFile(filename))
         return -1;
 
-    timebuf.actime = time(NULL);
-    timebuf.modtime = statbuf->st_mtime;
-    res += utime(filename, &timebuf);  /* set access and modification times */
+    /* set access and modification times */
+#if defined(_WIN32) || (PLATFORM_POSIX_VERSION < 200809L)
+    {
+        struct utimbuf timebuf;
+        timebuf.actime = time(NULL);
+        timebuf.modtime = statbuf->st_mtime;
+        res += utime(filename, &timebuf);
+    }
+#else
+    {
+        /* (atime, mtime) */
+        struct timespec timebuf[2] = { {0, UTIME_NOW}, statbuf->st_mtim };
+        res += utimensat(AT_FDCWD, filename, timebuf, 0);
+    }
+#endif
 
 #if !defined(_WIN32)
     res += chown(filename, statbuf->st_uid, statbuf->st_gid);  /* Copy ownership */
@@ -85,6 +99,10 @@ U32 UTIL_isDirectory(const char* infilename)
     if (!r && S_ISDIR(statbuf.st_mode)) return 1;
 #endif
     return 0;
+}
+
+int UTIL_compareStr(const void *p1, const void *p2) {
+    return strcmp(* (char * const *) p1, * (char * const *) p2);
 }
 
 int UTIL_isSameFile(const char* file1, const char* file2)

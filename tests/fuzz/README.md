@@ -90,7 +90,7 @@ CC=afl-clang CXX=afl-clang++ ./fuzz.py build all --enable-asan --enable-ubsan
 
 ## Regression Testing
 
-The regression rest supports the `all` target to run all the fuzzers in one
+The regression test supports the `all` target to run all the fuzzers in one
 command.
 
 ```

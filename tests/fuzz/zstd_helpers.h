@@ -17,17 +17,21 @@
 #define ZSTD_STATIC_LINKING_ONLY
 
 #include "zstd.h"
+#include "fuzz_data_producer.h"
 #include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void FUZZ_setRandomParameters(ZSTD_CCtx *cctx, size_t srcSize, uint32_t *state);
+extern const int kMinClevel;
+extern const int kMaxClevel;
 
-ZSTD_compressionParameters FUZZ_randomCParams(size_t srcSize, uint32_t *state);
-ZSTD_frameParameters FUZZ_randomFParams(uint32_t *state);
-ZSTD_parameters FUZZ_randomParams(size_t srcSize, uint32_t *state);
+void FUZZ_setRandomParameters(ZSTD_CCtx *cctx, size_t srcSize, FUZZ_dataProducer_t *producer);
+
+ZSTD_compressionParameters FUZZ_randomCParams(size_t srcSize, FUZZ_dataProducer_t *producer);
+ZSTD_frameParameters FUZZ_randomFParams(FUZZ_dataProducer_t *producer);
+ZSTD_parameters FUZZ_randomParams(size_t srcSize, FUZZ_dataProducer_t *producer);
 
 typedef struct {
   void* buff;
@@ -38,8 +42,7 @@ typedef struct {
  * NOTE: Don't use this to train production dictionaries, it is only optimized
  * for speed, and doesn't care about dictionary quality.
  */
-FUZZ_dict_t FUZZ_train(void const* src, size_t srcSize, uint32_t *state);
-
+FUZZ_dict_t FUZZ_train(void const* src, size_t srcSize, FUZZ_dataProducer_t *producer);
 
 #ifdef __cplusplus
 }

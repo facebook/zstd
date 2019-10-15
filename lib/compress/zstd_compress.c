@@ -3178,8 +3178,8 @@ ZSTD_CDict* ZSTD_createCDict(const void* dict, size_t dictSize, int compressionL
 {
     ZSTD_compressionParameters cParams = ZSTD_getCParams(compressionLevel, 0, dictSize);
     ZSTD_CDict* cdict = ZSTD_createCDict_advanced(dict, dictSize,
-                                        ZSTD_dlm_byCopy, ZSTD_dct_auto,
-                                        cParams, ZSTD_defaultCMem);
+                                                  ZSTD_dlm_byCopy, ZSTD_dct_auto,
+                                                  cParams, ZSTD_defaultCMem);
     cdict->compressionLevel = compressionLevel == 0 ? ZSTD_CLEVEL_DEFAULT : compressionLevel;
     return cdict;
 }
@@ -3270,8 +3270,8 @@ size_t ZSTD_compressBegin_usingCDict_advanced(
         params.cParams = (pledgedSrcSize < ZSTD_USE_CDICT_PARAMS_CUTOFF) || (cdict->compressionLevel == 0) ?
                 ZSTD_getCParamsFromCDict(cdict)
               : ZSTD_getCParams(cdict->compressionLevel,
-                                        pledgedSrcSize,
-                                        cdict->dictContentSize);
+                                pledgedSrcSize,
+                                cdict->dictContentSize);
         /* Increase window log to fit the entire dictionary and source if the
          * source size is known. Limit the increase to 19, which is the
          * window log for compression level 1 with the largest source size.

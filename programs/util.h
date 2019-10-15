@@ -90,7 +90,7 @@ extern "C" {
 *  Constants
 ***************************************/
 #define LIST_SIZE_INCREASE   (8*1024)
-
+#define MAX_FILE_OF_FILE_NAMES_SIZE (1<<20)*50
 
 /*-****************************************
 *  Compiler specifics
@@ -140,6 +140,40 @@ U32 UTIL_isLink(const char* infilename);
 U64 UTIL_getFileSize(const char* infilename);
 
 U64 UTIL_getTotalFileSize(const char* const * const fileNamesTable, unsigned nbFiles);
+/*! UTIL_readLineFromFile(char* buf, size_t len, File* file):
+ * @return : int. size next line in file or -1 in case of file ends
+ * function reads next line in the file
+ * Will also modify `*file`, advancing it to position where it stopped reading.
+ */
+int UTIL_readLineFromFile(char* buf, size_t len, FILE* file);
+
+/*Note: tableSize is denotes the total capacity of table*/
+typedef struct
+{
+    const char** fileNames;
+    char* buf;
+    size_t tableSize;
+} FileNamesTable;
+
+/*! UTIL_readFileNamesTableFromFile(const char* inputFileName) :
+ * @return : char** the fileNamesTable or NULL in case of not regular file or file doesn't exist.
+ *  reads fileNamesTable from input fileName.
+ *  Note: inputFileSize should be less than or equal 50MB
+ */
+FileNamesTable* UTIL_createFileNamesTable_fromFileName(const char* inputFileName);
+
+/*!  UTIL_freeFileNamesTable(FileNamesTable* table) :
+ * This function takes an buffered based table and frees it.
+ * @return : void.
+ */
+void UTIL_freeFileNamesTable(FileNamesTable* table);
+
+/*! UTIL_concatenateTwoTables(FileNamesTable* table1,FileNamesTable* table2):
+ * takes table1, its maxSize, table2 and its maxSize, free them and returns its concatenation.
+ * @return : FileNamesTable* concatenation of two tables
+ * note table1 and table2 will be freed
+ */
+FileNamesTable* UTIL_concatenateTwoTables(FileNamesTable* table1, FileNamesTable* table2);
 
 /*
  * A modified version of realloc().

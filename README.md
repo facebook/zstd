@@ -15,6 +15,7 @@ a list of known ports and bindings is provided on [Zstandard homepage](http://ww
 [![Build status][AppveyorDevBadge]][AppveyorLink]
 [![Build status][CircleDevBadge]][CircleLink]
 [![Build status][CirrusDevBadge]][CirrusLink]
+[![Fuzzing Status][OSSFuzzBadge]][OSSFuzzLink]
 
 [travisDevBadge]: https://travis-ci.org/facebook/zstd.svg?branch=dev "Continuous Integration test suite"
 [travisLink]: https://travis-ci.org/facebook/zstd
@@ -24,6 +25,8 @@ a list of known ports and bindings is provided on [Zstandard homepage](http://ww
 [CircleLink]: https://circleci.com/gh/facebook/zstd
 [CirrusDevBadge]: https://api.cirrus-ci.com/github/facebook/zstd.svg?branch=dev
 [CirrusLink]: https://cirrus-ci.com/github/facebook/zstd
+[OSSFuzzBadge]: https://oss-fuzz-build-logs.storage.googleapis.com/badges/zstd.svg
+[OSSFuzzLink]: https://bugs.chromium.org/p/oss-fuzz/issues/list?sort=-opened&can=1&q=proj:zstd
 
 ## Benchmarks
 

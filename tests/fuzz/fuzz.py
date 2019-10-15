@@ -660,7 +660,7 @@ def gen_parser(args):
     parser.add_argument(
         '--max-size-log',
         type=int,
-        default=13,
+        default=18,
         help='Maximum sample size to generate')
     parser.add_argument(
         '--seed',
@@ -720,7 +720,7 @@ def gen(args):
             if info.frame_type == FrameType.BLOCK:
                 cmd += [
                     '--gen-blocks',
-                    '--max-block-size-log={}'.format(args.max_size_log)
+                    '--max-block-size-log={}'.format(min(args.max_size_log, 17))
                 ]
             else:
                 cmd += ['--max-content-size-log={}'.format(args.max_size_log)]
@@ -740,10 +740,8 @@ def gen(args):
             for name in os.listdir(samples):
                 samplename = abs_join(samples, name)
                 outname = abs_join(seed, name)
-                rng_seed = os.urandom(args.fuzz_rng_seed_size)
                 with open(samplename, 'rb') as sample:
                     with open(outname, 'wb') as out:
-                        out.write(rng_seed)
                         CHUNK_SIZE = 131072
                         chunk = sample.read(CHUNK_SIZE)
                         while len(chunk) > 0:

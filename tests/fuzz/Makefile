@@ -40,8 +40,8 @@ FUZZ_LDFLAGS := -pthread $(LDFLAGS)
 FUZZ_ARFLAGS := $(ARFLAGS)
 FUZZ_TARGET_FLAGS = $(FUZZ_CPPFLAGS) $(FUZZ_CXXFLAGS) $(FUZZ_LDFLAGS)
 
-FUZZ_HEADERS := fuzz_helpers.h fuzz.h zstd_helpers.h
-FUZZ_SRC := $(PRGDIR)/util.c zstd_helpers.c
+FUZZ_HEADERS := fuzz_helpers.h fuzz.h zstd_helpers.h fuzz_data_producer.h
+FUZZ_SRC := $(PRGDIR)/util.c zstd_helpers.c fuzz_data_producer.c
 
 ZSTDCOMMON_SRC := $(ZSTDDIR)/common/*.c
 ZSTDCOMP_SRC   := $(ZSTDDIR)/compress/*.c

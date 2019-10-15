@@ -565,6 +565,7 @@ int main(int argCount, const char* argv[])
         nextArgumentIsMaxDict = 0,
         nextArgumentIsDictID = 0,
         nextArgumentsAreFiles = 0,
+        isTableBufferBased = 0,
         nextEntryIsDictionary = 0,
         operationResult = 0,
         separateFiles = 0,
@@ -582,7 +583,9 @@ int main(int argCount, const char* argv[])
     int cLevelLast = -1000000000;
     unsigned recursive = 0;
     unsigned memLimit = 0;
-    const char** filenameTable = (const char**)malloc(argCount * sizeof(const char*));   /* argCount >= 1 */
+    unsigned filenameTableSize = argCount;
+    const char** filenameTable = (const char**)malloc(filenameTableSize * sizeof(const char*));   /* argCount >= 1 */
+    char* tableBuf = NULL;
     unsigned filenameIdx = 0;
     const char* programName = argv[0];
     const char* outFileName = NULL;
@@ -791,6 +794,66 @@ int main(int argCount, const char* argv[])
                         continue;
                     }
 #endif
+
+                    if (longCommandWArg(&argument, "--file=")) {
+                        DISPLAYLEVEL(4, "[TRACE] argument catched\n");
+                        const char* fileName = argument;
+                        DISPLAYLEVEL(4, "[TRACE] fileName: %s\n", fileName);
+                        if(!UTIL_fileExist(fileName) || !UTIL_isRegularFile(fileName)){
+                          DISPLAYLEVEL(1, "[ERROR] wrong fileName: %s\n", fileName);
+                          CLEAN_RETURN(badusage(programName));
+                        }
+
+                        DISPLAYLEVEL(4, "[TRACE] call read function\n");
+                        FileNamesTable* extendedTable = UTIL_createFileNamesTable_fromFileName(fileName);
+                        if(!extendedTable) {
+                          CLEAN_RETURN(badusage(programName));
+                        }
+
+                        DISPLAYLEVEL(4, "[TRACE] call read function is finished\n");
+                        DISPLAYLEVEL(4, "[TRACE] extendedFileNamesTable:\n");
+                        size_t extendedTableSize = extendedTable->tableSize;
+                        const char ** extendedFileNamesTable = extendedTable->fileNames;
+
+                        int i = 0;
+                        for(i = 0; i < extendedTableSize; ++i)
+                            printf("%s\n",extendedFileNamesTable[i]);
+
+                        DISPLAYLEVEL(4, "[TRACE] call concatenation function\n");
+                        DISPLAYLEVEL(4, "[TRACE] filenameidx: %d\n", filenameIdx);
+
+                        for(i = filenameIdx; i < filenameTableSize ; ++i)
+                            filenameTable[i] = NULL;
+
+                        FileNamesTable* curTable = (FileNamesTable*) malloc(sizeof(FileNamesTable));
+                        if(!curTable) {
+                          UTIL_freeFileNamesTable(extendedTable);
+                          CLEAN_RETURN(badusage(programName));
+                        }
+
+                        curTable->fileNames = filenameTable;
+                        curTable->tableSize = filenameTableSize;
+                        curTable->buf = tableBuf;
+
+                        FileNamesTable* concatenatedTables = UTIL_concatenateTwoTables(curTable, extendedTable);
+                        if(!concatenatedTables) {
+                          UTIL_freeFileNamesTable(curTable);
+                          UTIL_freeFileNamesTable(extendedTable);
+                          CLEAN_RETURN(badusage(programName));
+                        }
+
+                        filenameTable = concatenatedTables->fileNames;
+                        filenameTableSize = concatenatedTables->tableSize;
+                        tableBuf = concatenatedTables->buf;
+
+                        filenameIdx += extendedTableSize;
+                        free(concatenatedTables);
+                        isTableBufferBased = 1;
+
+                        DISPLAYLEVEL(1, "[TRACE] call concatenation function is finished\n");
+
+                        continue;
+                    }
                     /* fall-through, will trigger bad_usage() later on */
                 }
 
@@ -1192,6 +1255,13 @@ int main(int argCount, const char* argv[])
 
 _end:
     FIO_freePreferences(prefs);
+
+    if(filenameTable) {
+       if(isTableBufferBased && tableBuf){
+         free(tableBuf);
+       }
+    }
+
 
     if (main_pause) waitEnter();
 #ifdef UTIL_HAS_CREATEFILELIST

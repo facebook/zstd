@@ -247,20 +247,6 @@ void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length, ZSTD_overlap_e 
     }
 }
 
-/*! ZSTD_wildcopy8() :
- *  The same as ZSTD_wildcopy(), but it can only overwrite 8 bytes, and works for
- *  overlapping buffers that are at least 8 bytes apart.
- */
-MEM_STATIC void ZSTD_wildcopy8(void* dst, const void* src, ptrdiff_t length)
-{
-    const BYTE* ip = (const BYTE*)src;
-    BYTE* op = (BYTE*)dst;
-    BYTE* const oend = (BYTE*)op + length;
-    do {
-        COPY8(op, ip);
-    } while (op < oend);
-}
-
 
 /*-*******************************************
 *  Private declarations

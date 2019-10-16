@@ -867,6 +867,24 @@ size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 <BR></pre>
 
 <pre><b>typedef struct {
+    unsigned int matchPos; </b>/* Match pos in dst */<b>
+    </b>/* If seqDef.offset > 3, then this is seqDef.offset - 3<b>
+     * If seqDef.offset < 3, then this is the corresponding repeat offset
+     * But if seqDef.offset < 3 and litLength == 0, this is the
+     *   repeat offset before the corresponding repeat offset
+     * And if seqDef.offset == 3 and litLength == 0, this is the
+     *   most recent repeat offset - 1
+     */
+    unsigned int offset;
+    unsigned int litLength; </b>/* Literal length */<b>
+    unsigned int matchLength; </b>/* Match length */<b>
+    </b>/* 0 when seq not rep and seqDef.offset otherwise<b>
+     * when litLength == 0 this will be <= 4, otherwise <= 3 like normal
+     */
+    unsigned int rep;
+} ZSTD_Sequence;
+</b></pre><BR>
+<pre><b>typedef struct {
     unsigned windowLog;       </b>/**< largest match distance : larger == more compression, more memory needed during decompression */<b>
     unsigned chainLog;        </b>/**< fully searched segment : larger == more compression, slower, more memory (useless for fast) */<b>
     unsigned hashLog;         </b>/**< dispatch table : larger == faster, more memory */<b>
@@ -999,6 +1017,15 @@ size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 </b><p>  srcSize must be >= ZSTD_FRAMEHEADERSIZE_PREFIX.
  @return : size of the Frame Header,
            or an error code (if srcSize is too small) 
+</p></pre><BR>
+
+<pre><b>size_t ZSTD_getSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
+    size_t outSeqsSize, const void* src, size_t srcSize);
+</b><p> Extract sequences from the sequence store
+ zc can be used to insert custom compression params.
+ This function invokes ZSTD_compress2
+ @return : number of sequences extracted
+ 
 </p></pre><BR>
 
 <a name="Chapter16"></a><h2>Memory management</h2><pre></pre>

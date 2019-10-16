@@ -386,7 +386,7 @@ int ZEXPORT gzread(file, buf, len)
     /* get internal structure */
     if (file == NULL)
         return -1;
-    state = (gz_statep)file;
+    state.file = file;
 
     /* check that we're reading and that there's no (serious) error */
     if (state.state->mode != GZ_READ ||
@@ -424,7 +424,7 @@ z_size_t ZEXPORT gzfread(buf, size, nitems, file)
     /* get internal structure */
     if (file == NULL)
         return 0;
-    state = (gz_statep)file;
+    state.file = file;
 
     /* check that we're reading and that there's no (serious) error */
     if (state.state->mode != GZ_READ ||
@@ -470,7 +470,7 @@ int ZEXPORT gzgetc(file)
     /* get internal structure */
     if (file == NULL)
         return -1;
-    state = (gz_statep)file;
+    state.file = file;
 
     /* check that we're reading and that there's no (serious) error */
     if (state.state->mode != GZ_READ ||
@@ -485,7 +485,7 @@ int ZEXPORT gzgetc(file)
     }
 
     /* nothing there -- try gz_read() */
-    ret = (unsigned)gz_read(state, buf, 1);
+    ret = (int)gz_read(state, buf, 1);
     return ret < 1 ? -1 : buf[0];
 }
 
@@ -505,7 +505,7 @@ int ZEXPORT gzungetc(c, file)
     /* get internal structure */
     if (file == NULL)
         return -1;
-    state = (gz_statep)file;
+    state.file = file;
 
     /* check that we're reading and that there's no (serious) error */
     if (state.state->mode != GZ_READ ||
@@ -569,7 +569,7 @@ char * ZEXPORT gzgets(file, buf, len)
     /* check parameters and get internal structure */
     if (file == NULL || buf == NULL || len < 1)
         return NULL;
-    state = (gz_statep)file;
+    state.file = file;
 
     /* check that we're reading and that there's no (serious) error */
     if (state.state->mode != GZ_READ ||
@@ -628,7 +628,7 @@ int ZEXPORT gzdirect(file)
     /* get internal structure */
     if (file == NULL)
         return 0;
-    state = (gz_statep)file;
+    state.file = file;
 
     /* if the state is not known, but we can find out, then do so (this is
        mainly for right after a gzopen() or gzdopen()) */
@@ -649,7 +649,7 @@ int ZEXPORT gzclose_r(file)
     /* get internal structure */
     if (file == NULL)
         return Z_STREAM_ERROR;
-    state = (gz_statep)file;
+    state.file = file;
 
     /* check that we're reading */
     if (state.state->mode != GZ_READ)

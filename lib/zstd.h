@@ -928,7 +928,7 @@ ZSTDLIB_API size_t ZSTD_CCtx_refCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict);
  *  Note 3 : Referencing a prefix involves building tables, which are dependent on compression parameters.
  *           It's a CPU consuming operation, with non-negligible impact on latency.
  *           If there is a need to use the same prefix multiple times, consider loadDictionary instead.
- *  Note 4 : By default, the prefix is interpreted as raw content (ZSTD_dm_rawContent).
+ *  Note 4 : By default, the prefix is interpreted as raw content (ZSTD_dct_rawContent).
  *           Use experimental ZSTD_CCtx_refPrefix_advanced() to alter dictionary interpretation. */
 ZSTDLIB_API size_t ZSTD_CCtx_refPrefix(ZSTD_CCtx* cctx,
                                  const void* prefix, size_t prefixSize);
@@ -972,7 +972,7 @@ ZSTDLIB_API size_t ZSTD_DCtx_refDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict);
  *  Note 2 : Prefix buffer is referenced. It **must** outlive decompression.
  *           Prefix buffer must remain unmodified up to the end of frame,
  *           reached when ZSTD_decompressStream() returns 0.
- *  Note 3 : By default, the prefix is treated as raw content (ZSTD_dm_rawContent).
+ *  Note 3 : By default, the prefix is treated as raw content (ZSTD_dct_rawContent).
  *           Use ZSTD_CCtx_refPrefix_advanced() to alter dictMode (Experimental section)
  *  Note 4 : Referencing a raw content prefix has almost no cpu nor memory cost.
  *           A full dictionary is more costly, as it requires building tables.
@@ -1670,7 +1670,7 @@ ZSTDLIB_API size_t ZSTD_initCStream_srcSize(ZSTD_CStream* zcs, int compressionLe
  *
  * Creates of an internal CDict (incompatible with static CCtx), except if
  * dict == NULL or dictSize < 8, in which case no dict is used.
- * Note: dict is loaded with ZSTD_dm_auto (treated as a full zstd dictionary if
+ * Note: dict is loaded with ZSTD_dct_auto (treated as a full zstd dictionary if
  * it begins with ZSTD_MAGIC_DICTIONARY, else as raw content) and ZSTD_dlm_byCopy.
  */
 ZSTDLIB_API size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs, const void* dict, size_t dictSize, int compressionLevel);
@@ -1685,7 +1685,7 @@ ZSTDLIB_API size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs, const void* dic
  *     ZSTD_CCtx_loadDictionary(zcs, dict, dictSize);
  *
  * pledgedSrcSize must be correct. If srcSize is not known at init time, use
- * value ZSTD_CONTENTSIZE_UNKNOWN. dict is loaded with ZSTD_dm_auto and ZSTD_dlm_byCopy.
+ * value ZSTD_CONTENTSIZE_UNKNOWN. dict is loaded with ZSTD_dct_auto and ZSTD_dlm_byCopy.
  */
 ZSTDLIB_API size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs, const void* dict, size_t dictSize,
                                              ZSTD_parameters params, unsigned long long pledgedSrcSize);

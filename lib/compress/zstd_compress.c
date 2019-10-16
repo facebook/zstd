@@ -3268,7 +3268,6 @@ ZSTD_CDict* ZSTD_createCDict(const void* dict, size_t dictSize, int compressionL
                                                   cParams, ZSTD_defaultCMem);
     if (cdict)
         cdict->compressionLevel = compressionLevel == 0 ? (BYTE)ZSTD_CLEVEL_DEFAULT : (BYTE)compressionLevel;
-        
     return cdict;
 }
 

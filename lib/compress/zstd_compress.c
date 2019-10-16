@@ -2911,7 +2911,7 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
       && (pledgedSrcSize < ZSTD_USE_CDICT_PARAMS_CUTOFF || cdict->compressionLevel == 0) ) {
         return ZSTD_resetCCtx_usingCDict(cctx, cdict, params, pledgedSrcSize, zbuff);
     }
-    
+
     FORWARD_IF_ERROR( ZSTD_resetCCtx_internal(cctx, *params, pledgedSrcSize,
                                      ZSTDcrp_makeClean, zbuff) );
     {   size_t const dictID = cdict ? 
@@ -3259,7 +3259,6 @@ ZSTD_CDict* ZSTD_createCDict(const void* dict, size_t dictSize, int compressionL
                                                   cParams, ZSTD_defaultCMem);
     if (cdict)
         cdict->compressionLevel = compressionLevel == 0 ? (BYTE)ZSTD_CLEVEL_DEFAULT : (BYTE)compressionLevel;
-        
     return cdict;
 }
 

@@ -856,8 +856,7 @@ static size_t decode_literals_compressed(frame_context_t *const ctx,
         // Impossible
         IMPOSSIBLE();
     }
-    if (regenerated_size > MAX_LITERALS_SIZE ||
-        compressed_size >= regenerated_size) {
+    if (regenerated_size > MAX_LITERALS_SIZE) {
         CORRUPTION();
     }
 

@@ -1120,7 +1120,7 @@ int main(int argCount, const char* argv[])
     }
 
 #ifndef ZSTD_NODECOMPRESS
-    if (operation==zom_test) { outFileName=nulmark; FIO_setRemoveSrcFile(prefs, 0); }  /* test mode */
+    if (operation==zom_test) { FIO_setTestMode(prefs, 1); outFileName=nulmark; FIO_setRemoveSrcFile(prefs, 0); }  /* test mode */
 #endif
 
     /* No input filename ==> use stdin and stdout */

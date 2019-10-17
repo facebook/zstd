@@ -39,19 +39,15 @@ static size_t read_file(const char *path, u8 **ptr)
         exit(1);
     }
 
-    size_t pos = 0;
-    while (!feof(f)) {
-        size_t const read = fread(*ptr + pos, 1, size, f);
-        if (ferror(f)) {
-            fprintf(stderr, "error while reading file %s \n", path);
-            exit(1);
-        }
-        pos += read;
+    size_t const read = fread(*ptr, 1, size, f);
+    if (read != size) {  /* must read everything in one pass */
+        fprintf(stderr, "error while reading file %s \n", path);
+        exit(1);
     }
 
     fclose(f);
 
-    return pos;
+    return read;
 }
 
 static void write_file(const char *path, const u8 *ptr, size_t size)

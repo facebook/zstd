@@ -536,7 +536,9 @@ static FILE* FIO_openSrcFile(const char* srcFileName)
 /** FIO_openDstFile() :
  *  condition : `dstFileName` must be non-NULL.
  * @result : FILE* to `dstFileName`, or NULL if it fails */
-static FILE* FIO_openDstFile(FIO_prefs_t* const prefs, const char* srcFileName, const char* dstFileName)
+static FILE*
+FIO_openDstFile(FIO_prefs_t* const prefs,
+          const char* srcFileName, const char* dstFileName)
 {
     if (prefs->testMode) return NULL;  /* do not open file in test mode */
 
@@ -936,14 +938,14 @@ FIO_compressLzmaFrame(cRess_t* ress,
     if (plain_lzma) {
         lzma_options_lzma opt_lzma;
         if (lzma_lzma_preset(&opt_lzma, compressionLevel))
-            EXM_THROW(71, "zstd: %s: lzma_lzma_preset error", srcFileName);
+            EXM_THROW(81, "zstd: %s: lzma_lzma_preset error", srcFileName);
         ret = lzma_alone_encoder(&strm, &opt_lzma); /* LZMA */
         if (ret != LZMA_OK)
-            EXM_THROW(71, "zstd: %s: lzma_alone_encoder error %d", srcFileName, ret);
+            EXM_THROW(82, "zstd: %s: lzma_alone_encoder error %d", srcFileName, ret);
     } else {
         ret = lzma_easy_encoder(&strm, compressionLevel, LZMA_CHECK_CRC64); /* XZ */
         if (ret != LZMA_OK)
-            EXM_THROW(71, "zstd: %s: lzma_easy_encoder error %d", srcFileName, ret);
+            EXM_THROW(83, "zstd: %s: lzma_easy_encoder error %d", srcFileName, ret);
     }
 
     strm.next_in = 0;
@@ -963,11 +965,11 @@ FIO_compressLzmaFrame(cRess_t* ress,
         ret = lzma_code(&strm, action);
 
         if (ret != LZMA_OK && ret != LZMA_STREAM_END)
-            EXM_THROW(72, "zstd: %s: lzma_code encoding error %d", srcFileName, ret);
+            EXM_THROW(84, "zstd: %s: lzma_code encoding error %d", srcFileName, ret);
         {   size_t const compBytes = ress->dstBufferSize - strm.avail_out;
             if (compBytes) {
                 if (fwrite(ress->dstBuffer, 1, compBytes, ress->dstFile) != compBytes)
-                    EXM_THROW(73, "Write error : %s", strerror(errno));
+                    EXM_THROW(85, "Write error : %s", strerror(errno));
                 outFileSize += compBytes;
                 strm.next_out = (BYTE*)ress->dstBuffer;
                 strm.avail_out = ress->dstBufferSize;
@@ -1657,7 +1659,7 @@ FIO_fwriteSparse(const FIO_prefs_t* const prefs,
     if (storedSkips > 1 GB) {
         int const seekResult = LONG_SEEK(file, 1 GB, SEEK_CUR);
         if (seekResult != 0)
-            EXM_THROW(71, "1 GB skip error (sparse file support)");
+            EXM_THROW(91, "1 GB skip error (sparse file support)");
         storedSkips -= 1 GB;
     }
 
@@ -1673,13 +1675,13 @@ FIO_fwriteSparse(const FIO_prefs_t* const prefs,
 
         if (nb0T != seg0SizeT) {   /* not all 0s */
             int const seekResult = LONG_SEEK(file, storedSkips, SEEK_CUR);
-            if (seekResult) EXM_THROW(72, "Sparse skip error ; try --no-sparse");
+            if (seekResult) EXM_THROW(92, "Sparse skip error ; try --no-sparse");
             storedSkips = 0;
             seg0SizeT -= nb0T;
             ptrT += nb0T;
             {   size_t const sizeCheck = fwrite(ptrT, sizeof(size_t), seg0SizeT, file);
                 if (sizeCheck != seg0SizeT)
-                    EXM_THROW(73, "Write error : cannot write decoded block : %s",
+                    EXM_THROW(93, "Write error : cannot write decoded block : %s",
                             strerror(errno));
         }   }
         ptrT += seg0SizeT;
@@ -1697,11 +1699,11 @@ FIO_fwriteSparse(const FIO_prefs_t* const prefs,
             if (restPtr != restEnd) {
                 int seekResult = LONG_SEEK(file, storedSkips, SEEK_CUR);
                 if (seekResult)
-                    EXM_THROW(74, "Sparse skip error ; try --no-sparse");
+                    EXM_THROW(94, "Sparse skip error ; try --no-sparse");
                 storedSkips = 0;
                 {   size_t const sizeCheck = fwrite(restPtr, 1, (size_t)(restEnd - restPtr), file);
                     if (sizeCheck != (size_t)(restEnd - restPtr))
-                        EXM_THROW(75, "Write error : cannot write decoded end of block : %s",
+                        EXM_THROW(95, "Write error : cannot write decoded end of block : %s",
                             strerror(errno));
     }   }   }   }
 
@@ -2383,11 +2385,13 @@ FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
 
     if (outFileName) {
         unsigned u;
-        ress.dstFile = FIO_openDstFile(prefs, NULL, outFileName);
-        if (ress.dstFile == 0) EXM_THROW(71, "cannot open %s", outFileName);
+        if (!prefs->testMode) {
+            ress.dstFile = FIO_openDstFile(prefs, NULL, outFileName);
+            if (ress.dstFile == 0) EXM_THROW(19, "cannot open %s", outFileName);
+        }
         for (u=0; u<nbFiles; u++)
             error |= FIO_decompressSrcFile(prefs, ress, outFileName, srcNamesTable[u]);
-        if (fclose(ress.dstFile))
+        if ((!prefs->testMode) && (fclose(ress.dstFile)))
             EXM_THROW(72, "Write error : %s : cannot properly close output file",
                         strerror(errno));
     } else {

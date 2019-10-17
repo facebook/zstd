@@ -64,11 +64,12 @@ PRGDIR="$SCRIPT_DIR/../programs"
 TESTDIR="$SCRIPT_DIR/../tests"
 UNAME=$(uname)
 
-isTerminal=false
+detectedTerminal=false
 if [ -t 0 ] && [ -t 1 ]
 then
-    isTerminal=true
+    detectedTerminal=true
 fi
+isTerminal=${isTerminal:-$detectedTerminal}
 
 isWindows=false
 INTOVOID="/dev/null"

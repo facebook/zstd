@@ -106,20 +106,23 @@ int UTIL_compareStr(const void *p1, const void *p2) {
     return strcmp(* (char * const *) p1, * (char * const *) p2);
 }
 
-int UTIL_isSameFile(const char* file1, const char* file2)
+int UTIL_isSameFile(const char* fName1, const char* fName2)
 {
-#if defined(_MSC_VER)
+    assert(fName1 != NULL); assert(fName2 != NULL);
+#if defined(_MSC_VER) || defined(_WIN32)
     /* note : Visual does not support file identification by inode.
+     *        inode does not work on Windows, even with a posix layer, like msys2.
      *        The following work-around is limited to detecting exact name repetition only,
      *        aka `filename` is considered different from `subdir/../filename` */
     return !strcmp(file1, file2);
 #else
-    stat_t file1Stat;
-    stat_t file2Stat;
-    return UTIL_getFileStat(file1, &file1Stat)
-        && UTIL_getFileStat(file2, &file2Stat)
-        && (file1Stat.st_dev == file2Stat.st_dev)
-        && (file1Stat.st_ino == file2Stat.st_ino);
+    {   stat_t file1Stat;
+        stat_t file2Stat;
+        return UTIL_getFileStat(fName1, &file1Stat)
+            && UTIL_getFileStat(fName2, &file2Stat)
+            && (file1Stat.st_dev == file2Stat.st_dev)
+            && (file1Stat.st_ino == file2Stat.st_ino);
+    }
 #endif
 }
 

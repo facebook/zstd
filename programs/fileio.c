@@ -648,7 +648,7 @@ int FIO_checkFilenameCollisions(const char** filenameTable, unsigned nbFiles) {
         DISPLAY("Unable to malloc new str array, not checking for name collisions\n");
         return 1;
     }
-    
+
     for (u = 0; u < nbFiles; ++u) {
         filename = strrchr(filenameTable[u], c[0]);
         if (filename == NULL) {
@@ -715,7 +715,7 @@ FIO_createFilename_fromOutDir(const char* srcFilename, const char* outDirName, c
     strcpy(result, outDirName);
     if (outDirName[strlen(outDirName)-1] == c[0]) {
         strcat(result, filename);
-    } else {  
+    } else {
         strcat(result, c);
         strcat(result, filename);
     }
@@ -1493,7 +1493,7 @@ FIO_determineCompressedName(const char* srcFileName, const char* outDirName, con
         sfnSize = strlen(outDirFilename);
         assert(outDirFilename != NULL);
     }
-    
+
     if (dfnbCapacity <= sfnSize+suffixSize+1) {
         /* resize buffer for dstName */
         free(dstFileNameBuffer);
@@ -1522,9 +1522,10 @@ FIO_determineCompressedName(const char* srcFileName, const char* outDirName, con
  * or into one file each (outFileName == NULL, but suffix != NULL),
  * or into a destination folder (specified with -O)
  */
-int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs, const char** inFileNamesTable,
-                                  const char* outDirName, unsigned nbFiles, 
-                                  const char* outFileName, const char* suffix, 
+int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
+                                  const char** inFileNamesTable, unsigned nbFiles,
+                                  const char* outDirName,
+                                  const char* outFileName, const char* suffix,
                                   const char* dictFileName, int compressionLevel,
                                   ZSTD_compressionParameters comprParams)
 {
@@ -2278,7 +2279,7 @@ FIO_determineDstName(const char* srcFileName, const char* outDirName)
     char* outDirFilename = NULL;
     size_t sfnSize = strlen(srcFileName);
     size_t suffixSize;
-    
+
     const char* const suffixPtr = strrchr(srcFileName, '.');
     if (suffixPtr == NULL) {
         DISPLAYLEVEL(1, "zstd: %s: unknown suffix -- ignored \n",
@@ -2328,7 +2329,7 @@ FIO_determineDstName(const char* srcFileName, const char* outDirName)
         dfnbCapacity = sfnSize + 20;
         dstFileNameBuffer = (char*)malloc(dfnbCapacity);
         if (dstFileNameBuffer==NULL)
-            EXM_THROW(74, "%s : not enough memory for dstFileName", strerror(errno)); 
+            EXM_THROW(74, "%s : not enough memory for dstFileName", strerror(errno));
     }
 
     /* return dst name == src name truncated from suffix */

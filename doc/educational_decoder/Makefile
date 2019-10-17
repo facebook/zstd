@@ -29,17 +29,17 @@ harness: $(HARNESS_FILES)
 	$(CC) $(FLAGS) $^ -o $@
 
 clean:
-	@$(RM) -f harness
+	@$(RM) harness
 	@$(RM) -rf harness.dSYM
 
 test: harness
 	#
 	# Testing single-file decompression with educational decoder
 	#
-	@$(ZSTD) README.md -o tmp.zst
+	@$(ZSTD) -f README.md -o tmp.zst
 	@./harness tmp.zst tmp
 	@$(DIFF) -s tmp README.md
-	@$(RM) -f tmp*
+	@$(RM) tmp*
 	#
 	# Testing dictionary decompression with education decoder
 	#
@@ -47,8 +47,8 @@ test: harness
 	@$(ZSTD) --train harness.c zstd_decompress.c zstd_decompress.h README.md \
                   harness.c zstd_decompress.c zstd_decompress.h README.md \
                   harness.c zstd_decompress.c zstd_decompress.h README.md
-	@$(ZSTD) -D dictionary README.md -o tmp.zst
+	@$(ZSTD) -f README.md -D dictionary -o tmp.zst
 	@./harness tmp.zst tmp dictionary
 	@$(DIFF) -s tmp README.md
-	@$(RM) -f tmp* dictionary
+	@$(RM) tmp* dictionary
 	@$(MAKE) clean

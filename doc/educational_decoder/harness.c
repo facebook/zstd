@@ -25,28 +25,29 @@ u8 *input;
 u8 *output;
 u8 *dict;
 
-size_t read_file(const char *path, u8 **ptr) {
-    FILE *f = fopen(path, "rb");
+static size_t read_file(const char *path, u8 **ptr)
+{
+    FILE* const f = fopen(path, "rb");
     if (!f) {
-        fprintf(stderr, "failed to open file %s\n", path);
+        fprintf(stderr, "failed to open file %s \n", path);
         exit(1);
     }
 
     fseek(f, 0L, SEEK_END);
-    size_t size = (size_t)ftell(f);
+    size_t const size = (size_t)ftell(f);
     rewind(f);
 
     *ptr = malloc(size);
     if (!ptr) {
-        fprintf(stderr, "failed to allocate memory to hold %s\n", path);
+        fprintf(stderr, "failed to allocate memory to hold %s \n", path);
         exit(1);
     }
 
     size_t pos = 0;
     while (!feof(f)) {
-        size_t read = fread(&(*ptr)[pos], 1, size, f);
+        size_t const read = fread(*ptr + pos, 1, size, f);
         if (ferror(f)) {
-            fprintf(stderr, "error while reading file %s\n", path);
+            fprintf(stderr, "error while reading file %s \n", path);
             exit(1);
         }
         pos += read;
@@ -57,30 +58,30 @@ size_t read_file(const char *path, u8 **ptr) {
     return pos;
 }
 
-void write_file(const char *path, const u8 *ptr, size_t size) {
-    FILE *f = fopen(path, "wb");
+static void write_file(const char *path, const u8 *ptr, size_t size)
+{
+    FILE* const f = fopen(path, "wb");
 
     size_t written = 0;
     while (written < size) {
-        written += fwrite(&ptr[written], 1, size, f);
+        written += fwrite(ptr+written, 1, size, f);
         if (ferror(f)) {
             fprintf(stderr, "error while writing file %s\n", path);
             exit(1);
-        }
-    }
+    }   }
 
     fclose(f);
 }
 
 int main(int argc, char **argv) {
     if (argc < 3) {
-        fprintf(stderr, "usage: %s <file.zst> <out_path> [dictionary]\n",
+        fprintf(stderr, "usage: %s <file.zst> <out_path> [dictionary] \n",
                 argv[0]);
 
         return 1;
     }
 
-    size_t input_size = read_file(argv[1], &input);
+    size_t const input_size = read_file(argv[1], &input);
     size_t dict_size = 0;
     if (argc >= 4) {
         dict_size = read_file(argv[3], &dict);
@@ -92,17 +93,17 @@ int main(int argc, char **argv) {
         fprintf(stderr, "WARNING: Compressed data does not contain "
                         "decompressed size, going to assume the compression "
                         "ratio is at most %d (decompressed size of at most "
-                        "%zu)\n",
-                MAX_COMPRESSION_RATIO, decompressed_size);
+                        "%u) \n",
+                MAX_COMPRESSION_RATIO, (unsigned)decompressed_size);
     }
     if (decompressed_size > MAX_OUTPUT_SIZE) {
         fprintf(stderr,
-                "Required output size too large for this implementation\n");
+                "Required output size too large for this implementation \n");
         return 1;
     }
     output = malloc(decompressed_size);
     if (!output) {
-        fprintf(stderr, "failed to allocate memory\n");
+        fprintf(stderr, "failed to allocate memory \n");
         return 1;
     }
 
@@ -122,4 +123,5 @@ int main(int argc, char **argv) {
     free(output);
     free(dict);
     input = output = dict = NULL;
+    return 0;
 }

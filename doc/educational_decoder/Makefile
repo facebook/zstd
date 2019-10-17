@@ -7,8 +7,15 @@
 # in the COPYING file in the root directory of this source tree).
 # ################################################################
 
-ZSTD ?= zstd   # requires zstd installation on local system
+ZSTD ?= zstd   # note: requires zstd installation on local system
+
+UNAME?= $(shell uname)
+ifeq ($(UNAME), SunOS)
+DIFF ?= gdiff
+else
 DIFF ?= diff
+endif
+
 HARNESS_FILES=*.c
 
 MULTITHREAD_LDFLAGS = -pthread
@@ -30,7 +37,7 @@ harness: $(HARNESS_FILES)
 
 clean:
 	@$(RM) harness
-	@$(RM) -rf harness.dSYM
+	@$(RM) -rf harness.dSYM  # MacOS specific
 
 test: harness
 	#
@@ -46,7 +53,8 @@ test: harness
 	# note : files are presented multiple for training, to reach minimum threshold
 	@$(ZSTD) --train harness.c zstd_decompress.c zstd_decompress.h README.md \
                   harness.c zstd_decompress.c zstd_decompress.h README.md \
-                  harness.c zstd_decompress.c zstd_decompress.h README.md
+                  harness.c zstd_decompress.c zstd_decompress.h README.md \
+                  -o dictionary
 	@$(ZSTD) -f README.md -D dictionary -o tmp.zst
 	@./harness tmp.zst tmp dictionary
 	@$(DIFF) -s tmp README.md

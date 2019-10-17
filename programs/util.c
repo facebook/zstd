@@ -243,19 +243,20 @@ int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char
     DIR *dir;
     struct dirent *entry;
     char* path;
-    int dirLength, fnameLength, pathLength, nbFiles = 0;
+    size_t dirLength, fnameLength, pathLength;
+    int nbFiles = 0;
 
     if (!(dir = opendir(dirName))) {
         UTIL_DISPLAYLEVEL(1, "Cannot open directory '%s': %s\n", dirName, strerror(errno));
         return 0;
     }
 
-    dirLength = (int)strlen(dirName);
+    dirLength = strlen(dirName);
     errno = 0;
     while ((entry = readdir(dir)) != NULL) {
         if (strcmp (entry->d_name, "..") == 0 ||
             strcmp (entry->d_name, ".") == 0) continue;
-        fnameLength = (int)strlen(entry->d_name);
+        fnameLength = strlen(entry->d_name);
         path = (char*) malloc(dirLength + fnameLength + 2);
         if (!path) { closedir(dir); return 0; }
         memcpy(path, dirName, dirLength);
@@ -277,7 +278,8 @@ int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char
         } else {
             if (*bufStart + *pos + pathLength >= *bufEnd) {
                 ptrdiff_t newListSize = (*bufEnd - *bufStart) + LIST_SIZE_INCREASE;
-                *bufStart = (char*)UTIL_realloc(*bufStart, newListSize);
+                assert(newListSize >= 0);
+                *bufStart = (char*)UTIL_realloc(*bufStart, (size_t)newListSize);
                 *bufEnd = *bufStart + newListSize;
                 if (*bufStart == NULL) { free(path); closedir(dir); return 0; }
             }
@@ -335,7 +337,8 @@ UTIL_createFileList(const char **inputNames, unsigned inputNamesNb,
             size_t const len = strlen(inputNames[i]);
             if (buf + pos + len >= bufend) {
                 ptrdiff_t newListSize = (bufend - buf) + LIST_SIZE_INCREASE;
-                buf = (char*)UTIL_realloc(buf, newListSize);
+                assert(newListSize >= 0);
+                buf = (char*)UTIL_realloc(buf, (size_t)newListSize);
                 bufend = buf + newListSize;
                 if (!buf) return NULL;
             }
@@ -345,7 +348,7 @@ UTIL_createFileList(const char **inputNames, unsigned inputNamesNb,
                 nbFiles++;
             }
         } else {
-            nbFiles += UTIL_prepareFileList(inputNames[i], &buf, &pos, &bufend, followLinks);
+            nbFiles += (unsigned)UTIL_prepareFileList(inputNames[i], &buf, &pos, &bufend, followLinks);
             if (buf == NULL) return NULL;
     }   }
 

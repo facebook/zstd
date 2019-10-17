@@ -404,7 +404,7 @@ MEM_STATIC void ZSTD_cwksp_move(ZSTD_cwksp* dst, ZSTD_cwksp* src) {
 }
 
 MEM_STATIC size_t ZSTD_cwksp_sizeof(const ZSTD_cwksp* ws) {
-    return (BYTE*)ws->workspaceEnd - (BYTE*)ws->workspace;
+    return (size_t)((BYTE*)ws->workspaceEnd - (BYTE*)ws->workspace);
 }
 
 MEM_STATIC int ZSTD_cwksp_reserve_failed(const ZSTD_cwksp* ws) {

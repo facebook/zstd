@@ -104,10 +104,11 @@ int FIO_listMultipleFiles(unsigned numFiles, const char** filenameTable, int dis
 ***************************************/
 /** FIO_compressMultipleFilenames() :
     @return : nb of missing files */
-int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs, const char** inFileNamesTable,
-                                  const char* outDirName, unsigned nbFiles, 
-                                  const char* outFileName, const char* suffix, 
-                                  const char* dictFileName, int compressionLevel, 
+int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
+                                  const char** inFileNamesTable, unsigned nbFiles,
+                                  const char* outDirName,
+                                  const char* outFileName, const char* suffix,
+                                  const char* dictFileName, int compressionLevel,
                                   ZSTD_compressionParameters comprParams);
 
 /** FIO_decompressMultipleFilenames() :

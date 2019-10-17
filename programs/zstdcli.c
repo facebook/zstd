@@ -1177,7 +1177,7 @@ int main(int argCount, const char* argv[])
         if ((filenameIdx==1) && outFileName)
           operationResult = FIO_compressFilename(prefs, outFileName, filenameTable[0], dictFileName, cLevel, compressionParams);
         else
-          operationResult = FIO_compressMultipleFilenames(prefs, filenameTable, outDirName, filenameIdx, outFileName, suffix, dictFileName, cLevel, compressionParams);
+          operationResult = FIO_compressMultipleFilenames(prefs, filenameTable, filenameIdx, outDirName, outFileName, suffix, dictFileName, cLevel, compressionParams);
 #else
         (void)suffix; (void)adapt; (void)rsyncable; (void)ultra; (void)cLevel; (void)ldmFlag; (void)literalCompressionMode; (void)targetCBlockSize; (void)streamSrcSize; (void)srcSizeHint; /* not used when ZSTD_NOCOMPRESS set */
         DISPLAY("Compression not supported \n");

@@ -26,7 +26,7 @@ extern "C" {
 #define stdinmark  "/*stdin*\\"
 #define stdoutmark "/*stdout*\\"
 #ifdef _WIN32
-#  define nulmark "nul"
+#  define nulmark "NUL"
 #else
 #  define nulmark "/dev/null"
 #endif

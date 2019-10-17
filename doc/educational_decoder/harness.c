@@ -85,7 +85,7 @@ int main(int argc, char **argv)
     u8* input;
     size_t const input_size = read_file(argv[1], &input);
 
-    u8* dict;
+    u8* dict = NULL;
     size_t dict_size = 0;
     if (argc >= 4) {
         dict_size = read_file(argv[3], &dict);

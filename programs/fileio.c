@@ -284,9 +284,10 @@ void FIO_addAbortHandler()
 
 
 /*-*************************************
-*  Parameters: Typedefs
+*  Parameters: FIO_prefs_t
 ***************************************/
 
+/* typedef'd to FIO_prefs_t within fileio.h */
 struct FIO_prefs_s {
 
     /* Algorithm preferences */
@@ -308,6 +309,7 @@ struct FIO_prefs_s {
     size_t streamSrcSize;
     size_t targetCBlockSize;
     int srcSizeHint;
+    int testMode;
     ZSTD_literalCompressionMode_e literalCompressionMode;
 
     /* IO preferences */
@@ -355,6 +357,7 @@ FIO_prefs_t* FIO_createPreferences(void)
     ret->streamSrcSize = 0;
     ret->targetCBlockSize = 0;
     ret->srcSizeHint = 0;
+    ret->testMode = 0;
     ret->literalCompressionMode = ZSTD_lcm_auto;
     return ret;
 }
@@ -433,6 +436,10 @@ void FIO_setTargetCBlockSize(FIO_prefs_t* const prefs, size_t targetCBlockSize) 
 
 void FIO_setSrcSizeHint(FIO_prefs_t* const prefs, size_t srcSizeHint) {
     prefs->srcSizeHint = (int)MIN((size_t)INT_MAX, srcSizeHint);
+}
+
+void FIO_setTestMode(FIO_prefs_t* const prefs, int testMode) {
+    prefs->testMode = (testMode!=0);
 }
 
 void FIO_setLiteralCompressionMode(
@@ -1618,13 +1625,19 @@ static void FIO_freeDResources(dRess_t ress)
 
 /** FIO_fwriteSparse() :
 *   @return : storedSkips, to be provided to next call to FIO_fwriteSparse() of LZ4IO_fwriteSparseEnd() */
-static unsigned FIO_fwriteSparse(FIO_prefs_t* const prefs, FILE* file, const void* buffer, size_t bufferSize, unsigned storedSkips)
+static unsigned
+FIO_fwriteSparse(const FIO_prefs_t* const prefs,
+                 FILE* file,
+                 const void* buffer, size_t bufferSize,
+                 unsigned storedSkips)
 {
     const size_t* const bufferT = (const size_t*)buffer;   /* Buffer is supposed malloc'ed, hence aligned on size_t */
     size_t bufferSizeT = bufferSize / sizeof(size_t);
     const size_t* const bufferTEnd = bufferT + bufferSizeT;
     const size_t* ptrT = bufferT;
     static const size_t segmentSizeT = (32 KB) / sizeof(size_t);   /* 0-test re-attempted every 32 KB */
+
+    if (prefs->testMode) return 0;  /* do not output anything in test mode */
 
     if (!prefs->sparseFileSupport) {  /* normal write */
         size_t const sizeCheck = fwrite(buffer, 1, bufferSize, file);
@@ -1690,8 +1703,9 @@ static unsigned FIO_fwriteSparse(FIO_prefs_t* const prefs, FILE* file, const voi
 }
 
 static void
-FIO_fwriteSparseEnd(FIO_prefs_t* const prefs, FILE* file, unsigned storedSkips)
+FIO_fwriteSparseEnd(const FIO_prefs_t* const prefs, FILE* file, unsigned storedSkips)
 {
+    if (prefs->testMode) assert(storedSkips == 0);
     if (storedSkips>0) {
         assert(prefs->sparseFileSupport > 0);  /* storedSkips>0 implies sparse support is enabled */
         (void)prefs;   /* assert can be disabled, in which case prefs becomes unused */
@@ -1708,7 +1722,7 @@ FIO_fwriteSparseEnd(FIO_prefs_t* const prefs, FILE* file, unsigned storedSkips)
 
 /** FIO_passThrough() : just copy input into output, for compatibility with gzip -df mode
     @return : 0 (no error) */
-static int FIO_passThrough(FIO_prefs_t* const prefs,
+static int FIO_passThrough(const FIO_prefs_t* const prefs,
                            FILE* foutput, FILE* finput,
                            void* buffer, size_t bufferSize,
                            size_t alreadyLoaded)
@@ -1748,7 +1762,10 @@ static unsigned FIO_highbit64(unsigned long long v)
 
 /* FIO_zstdErrorHelp() :
  * detailed error message when requested window size is too large */
-static void FIO_zstdErrorHelp(FIO_prefs_t* const prefs, dRess_t* ress, size_t err, char const* srcFileName)
+static void
+FIO_zstdErrorHelp(const FIO_prefs_t* const prefs,
+                  const dRess_t* ress,
+                  size_t err, const char* srcFileName)
 {
     ZSTD_frameHeader header;
 
@@ -1780,12 +1797,10 @@ static void FIO_zstdErrorHelp(FIO_prefs_t* const prefs, dRess_t* ress, size_t er
  *  @return : size of decoded zstd frame, or an error code
 */
 #define FIO_ERROR_FRAME_DECODING   ((unsigned long long)(-2))
-static unsigned long long FIO_decompressZstdFrame(
-                                       FIO_prefs_t* const prefs,
-                                       dRess_t* ress,
-                                       FILE* finput,
-                                       const char* srcFileName,
-                                       U64 alreadyDecoded)
+static unsigned long long
+FIO_decompressZstdFrame(const FIO_prefs_t* const prefs,
+                        dRess_t* ress, FILE* finput,
+                        const char* srcFileName, U64 alreadyDecoded)
 {
     U64 frameSize = 0;
     U32 storedSkips = 0;
@@ -1849,13 +1864,16 @@ static unsigned long long FIO_decompressZstdFrame(
 
 
 #ifdef ZSTD_GZDECOMPRESS
-static unsigned long long FIO_decompressGzFrame(dRess_t* ress,
-                                    FILE* srcFile, const char* srcFileName)
+static unsigned long long
+FIO_decompressGzFrame(const FIO_prefs_t* const prefs,
+                      dRess_t* ress, FILE* srcFile,
+                      const char* srcFileName)
 {
     unsigned long long outFileSize = 0;
     z_stream strm;
     int flush = Z_NO_FLUSH;
     int decodingError = 0;
+    unsigned storedSkips = 0;
 
     strm.zalloc = Z_NULL;
     strm.zfree = Z_NULL;
@@ -1890,10 +1908,7 @@ static unsigned long long FIO_decompressGzFrame(dRess_t* ress,
         }
         {   size_t const decompBytes = ress->dstBufferSize - strm.avail_out;
             if (decompBytes) {
-                if (fwrite(ress->dstBuffer, 1, decompBytes, ress->dstFile) != decompBytes) {
-                    DISPLAYLEVEL(1, "zstd: fwrite error: %s \n", strerror(errno));
-                    decodingError = 1; break;
-                }
+                storedSkips = FIO_fwriteSparse(prefs, ress->dstFile, ress->dstBuffer, decompBytes, storedSkips);
                 outFileSize += decompBytes;
                 strm.next_out = (Bytef*)ress->dstBuffer;
                 strm.avail_out = (uInt)ress->dstBufferSize;
@@ -1910,19 +1925,24 @@ static unsigned long long FIO_decompressGzFrame(dRess_t* ress,
         DISPLAYLEVEL(1, "zstd: %s: inflateEnd error \n", srcFileName);
         decodingError = 1;
     }
+    FIO_fwriteSparseEnd(prefs, ress->dstFile, storedSkips);
     return decodingError ? FIO_ERROR_FRAME_DECODING : outFileSize;
 }
 #endif
 
 
 #ifdef ZSTD_LZMADECOMPRESS
-static unsigned long long FIO_decompressLzmaFrame(dRess_t* ress, FILE* srcFile, const char* srcFileName, int plain_lzma)
+static unsigned long long
+FIO_decompressLzmaFrame(const FIO_prefs_t* const prefs,
+                        dRess_t* ress, FILE* srcFile,
+                        const char* srcFileName, int plain_lzma)
 {
     unsigned long long outFileSize = 0;
     lzma_stream strm = LZMA_STREAM_INIT;
     lzma_action action = LZMA_RUN;
     lzma_ret initRet;
     int decodingError = 0;
+    unsigned storedSkips = 0;
 
     strm.next_in = 0;
     strm.avail_in = 0;
@@ -1965,10 +1985,7 @@ static unsigned long long FIO_decompressLzmaFrame(dRess_t* ress, FILE* srcFile, 
         }
         {   size_t const decompBytes = ress->dstBufferSize - strm.avail_out;
             if (decompBytes) {
-                if (fwrite(ress->dstBuffer, 1, decompBytes, ress->dstFile) != decompBytes) {
-                    DISPLAYLEVEL(1, "zstd: fwrite error: %s \n", strerror(errno));
-                    decodingError = 1; break;
-                }
+                storedSkips = FIO_fwriteSparse(prefs, ress->dstFile, ress->dstBuffer, decompBytes, storedSkips);
                 outFileSize += decompBytes;
                 strm.next_out = (BYTE*)ress->dstBuffer;
                 strm.avail_out = ress->dstBufferSize;
@@ -1980,19 +1997,23 @@ static unsigned long long FIO_decompressLzmaFrame(dRess_t* ress, FILE* srcFile, 
         memmove(ress->srcBuffer, strm.next_in, strm.avail_in);
     ress->srcBufferLoaded = strm.avail_in;
     lzma_end(&strm);
+    FIO_fwriteSparseEnd(prefs, ress->dstFile, storedSkips);
     return decodingError ? FIO_ERROR_FRAME_DECODING : outFileSize;
 }
 #endif
 
 #ifdef ZSTD_LZ4DECOMPRESS
-static unsigned long long FIO_decompressLz4Frame(dRess_t* ress,
-                                    FILE* srcFile, const char* srcFileName)
+static unsigned long long
+FIO_decompressLz4Frame(const FIO_prefs_t* const prefs,
+                       dRess_t* ress, FILE* srcFile,
+                       const char* srcFileName)
 {
     unsigned long long filesize = 0;
     LZ4F_errorCode_t nextToLoad;
     LZ4F_decompressionContext_t dCtx;
     LZ4F_errorCode_t const errorCode = LZ4F_createDecompressionContext(&dCtx, LZ4F_VERSION);
     int decodingError = 0;
+    unsigned storedSkips = 0;
 
     if (LZ4F_isError(errorCode)) {
         DISPLAYLEVEL(1, "zstd: failed to create lz4 decompression context \n");
@@ -2036,10 +2057,7 @@ static unsigned long long FIO_decompressLz4Frame(dRess_t* ress,
 
             /* Write Block */
             if (decodedBytes) {
-                if (fwrite(ress->dstBuffer, 1, decodedBytes, ress->dstFile) != decodedBytes) {
-                    DISPLAYLEVEL(1, "zstd: fwrite error: %s \n", strerror(errno));
-                    decodingError = 1; nextToLoad = 0; break;
-                }
+                storedSkips = FIO_fwriteSparse(prefs, ress->dstFile, ress->dstBuffer, decodedBytes, storedSkips);
                 filesize += decodedBytes;
                 DISPLAYUPDATE(2, "\rDecompressed : %u MB  ", (unsigned)(filesize>>20));
             }
@@ -2060,6 +2078,7 @@ static unsigned long long FIO_decompressLz4Frame(dRess_t* ress,
 
     LZ4F_freeDecompressionContext(dCtx);
     ress->srcBufferLoaded = 0; /* LZ4F will reach exact frame boundary */
+    FIO_fwriteSparseEnd(prefs, ress->dstFile, storedSkips);
 
     return decodingError ? FIO_ERROR_FRAME_DECODING : filesize;
 }
@@ -2073,8 +2092,9 @@ static unsigned long long FIO_decompressLz4Frame(dRess_t* ress,
  * @return : 0 : OK
  *           1 : error
  */
-static int FIO_decompressFrames(FIO_prefs_t* const prefs, dRess_t ress, FILE* srcFile,
-                        const char* dstFileName, const char* srcFileName)
+static int FIO_decompressFrames(const FIO_prefs_t* const prefs,
+                                dRess_t ress, FILE* srcFile,
+                          const char* dstFileName, const char* srcFileName)
 {
     unsigned readSomething = 0;
     unsigned long long filesize = 0;
@@ -2106,7 +2126,7 @@ static int FIO_decompressFrames(FIO_prefs_t* const prefs, dRess_t ress, FILE* sr
             filesize += frameSize;
         } else if (buf[0] == 31 && buf[1] == 139) { /* gz magic number */
 #ifdef ZSTD_GZDECOMPRESS
-            unsigned long long const frameSize = FIO_decompressGzFrame(&ress, srcFile, srcFileName);
+            unsigned long long const frameSize = FIO_decompressGzFrame(prefs, &ress, srcFile, srcFileName);
             if (frameSize == FIO_ERROR_FRAME_DECODING) return 1;
             filesize += frameSize;
 #else
@@ -2116,7 +2136,7 @@ static int FIO_decompressFrames(FIO_prefs_t* const prefs, dRess_t ress, FILE* sr
         } else if ((buf[0] == 0xFD && buf[1] == 0x37)  /* xz magic number */
                 || (buf[0] == 0x5D && buf[1] == 0x00)) { /* lzma header (no magic number) */
 #ifdef ZSTD_LZMADECOMPRESS
-            unsigned long long const frameSize = FIO_decompressLzmaFrame(&ress, srcFile, srcFileName, buf[0] != 0xFD);
+            unsigned long long const frameSize = FIO_decompressLzmaFrame(prefs, &ress, srcFile, srcFileName, buf[0] != 0xFD);
             if (frameSize == FIO_ERROR_FRAME_DECODING) return 1;
             filesize += frameSize;
 #else
@@ -2125,7 +2145,7 @@ static int FIO_decompressFrames(FIO_prefs_t* const prefs, dRess_t ress, FILE* sr
 #endif
         } else if (MEM_readLE32(buf) == LZ4_MAGICNUMBER) {
 #ifdef ZSTD_LZ4DECOMPRESS
-            unsigned long long const frameSize = FIO_decompressLz4Frame(&ress, srcFile, srcFileName);
+            unsigned long long const frameSize = FIO_decompressLz4Frame(prefs, &ress, srcFile, srcFileName);
             if (frameSize == FIO_ERROR_FRAME_DECODING) return 1;
             filesize += frameSize;
 #else
@@ -2165,11 +2185,11 @@ static int FIO_decompressDstFile(FIO_prefs_t* const prefs,
     int transfer_permissions = 0;
     int releaseDstFile = 0;
 
-    if (ress.dstFile == NULL) {
+    if ((ress.dstFile == NULL) && (prefs->testMode==0)) {
         releaseDstFile = 1;
 
         ress.dstFile = FIO_openDstFile(prefs, srcFileName, dstFileName);
-        if (ress.dstFile==0) return 1;
+        if (ress.dstFile==NULL) return 1;
 
         /* Must only be added after FIO_openDstFile() succeeds.
          * Otherwise we may delete the destination file if it already exists,
@@ -2181,7 +2201,6 @@ static int FIO_decompressDstFile(FIO_prefs_t* const prefs,
           && UTIL_getFileStat(srcFileName, &statbuf) )
             transfer_permissions = 1;
     }
-
 
     result = FIO_decompressFrames(prefs, ress, srcFile, dstFileName, srcFileName);
 

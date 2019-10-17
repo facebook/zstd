@@ -287,7 +287,7 @@ static unsigned readU32FromChar(const char** stringPtr) {
  *  If yes, @return 1 and advances *stringPtr to the position which immediately follows longCommand.
  * @return 0 and doesn't modify *stringPtr otherwise.
  */
-static unsigned longCommandWArg(const char** stringPtr, const char* longCommand)
+static int longCommandWArg(const char** stringPtr, const char* longCommand)
 {
     size_t const comSize = strlen(longCommand);
     int const result = !strncmp(*stringPtr, longCommand, comSize);
@@ -430,8 +430,8 @@ static ZDICT_fastCover_params_t defaultFastCoverParams(void)
 static unsigned parseAdaptParameters(const char* stringPtr, int* adaptMinPtr, int* adaptMaxPtr)
 {
     for ( ; ;) {
-        if (longCommandWArg(&stringPtr, "min=")) { *adaptMinPtr = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
-        if (longCommandWArg(&stringPtr, "max=")) { *adaptMaxPtr = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        if (longCommandWArg(&stringPtr, "min=")) { *adaptMinPtr = (int)readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        if (longCommandWArg(&stringPtr, "max=")) { *adaptMaxPtr = (int)readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         DISPLAYLEVEL(4, "invalid compression parameter \n");
         return 0;
     }
@@ -526,7 +526,7 @@ static int init_cLevel(void) {
                 DISPLAYLEVEL(2, "Ignore environment variable setting %s=%s: numeric value too large\n", ENV_CLEVEL, env);
                 return ZSTDCLI_CLEVEL_DEFAULT;
             } else if (*ptr == 0) {
-                return sign * absLevel;
+                return sign * (int)absLevel;
             }
         }
 
@@ -584,7 +584,7 @@ int main(int argCount, const char* argv[])
     int cLevelLast = -1000000000;
     unsigned recursive = 0;
     unsigned memLimit = 0;
-    const char** filenameTable = (const char**)malloc(argCount * sizeof(const char*));   /* argCount >= 1 */
+    const char** filenameTable = (const char**)malloc((size_t)argCount * sizeof(const char*));   /* argCount >= 1 */
     unsigned filenameIdx = 0;
     const char* programName = argv[0];
     const char* outFileName = NULL;
@@ -745,7 +745,7 @@ int main(int argCount, const char* argv[])
                       continue;
                     }
 #endif
-                    if (longCommandWArg(&argument, "--threads=")) { nbWorkers = readU32FromChar(&argument); continue; }
+                    if (longCommandWArg(&argument, "--threads=")) { nbWorkers = (int)readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--memlimit=")) { memLimit = readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--memory=")) { memLimit = readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--memlimit-decompress=")) { memLimit = readU32FromChar(&argument); continue; }
@@ -807,7 +807,7 @@ int main(int argCount, const char* argv[])
 #ifndef ZSTD_NOCOMPRESS
                     /* compression Level */
                     if ((*argument>='0') && (*argument<='9')) {
-                        dictCLevel = cLevel = readU32FromChar(&argument);
+                        dictCLevel = cLevel = (int)readU32FromChar(&argument);
                         continue;
                     }
 #endif
@@ -856,7 +856,7 @@ int main(int argCount, const char* argv[])
 
                         /* destination file name */
                     case 'o': nextArgumentIsOutFileName=1; lastCommand=1; argument++; break;
-                   
+
                         /* limit decompression memory */
                     case 'M':
                         argument++;
@@ -879,7 +879,7 @@ int main(int argCount, const char* argv[])
                     case 'e':
                         /* compression Level */
                         argument++;
-                        cLevelLast = readU32FromChar(&argument);
+                        cLevelLast = (int)readU32FromChar(&argument);
                         break;
 
                         /* Modify Nb Iterations (benchmark only) */
@@ -905,7 +905,7 @@ int main(int argCount, const char* argv[])
                         /* nb of threads (hidden option) */
                     case 'T':
                         argument++;
-                        nbWorkers = readU32FromChar(&argument);
+                        nbWorkers = (int)readU32FromChar(&argument);
                         break;
 
                         /* Dictionary Selection level */
@@ -1042,16 +1042,16 @@ int main(int argCount, const char* argv[])
 #ifndef ZSTD_NOBENCH
         benchParams.blockSize = blockSize;
         benchParams.nbWorkers = nbWorkers;
-        benchParams.realTime = setRealTimePrio;
+        benchParams.realTime = (unsigned)setRealTimePrio;
         benchParams.nbSeconds = bench_nbSeconds;
         benchParams.ldmFlag = ldmFlag;
-        benchParams.ldmMinMatch = g_ldmMinMatch;
-        benchParams.ldmHashLog = g_ldmHashLog;
+        benchParams.ldmMinMatch = (int)g_ldmMinMatch;
+        benchParams.ldmHashLog = (int)g_ldmHashLog;
         if (g_ldmBucketSizeLog != LDM_PARAM_DEFAULT) {
-            benchParams.ldmBucketSizeLog = g_ldmBucketSizeLog;
+            benchParams.ldmBucketSizeLog = (int)g_ldmBucketSizeLog;
         }
         if (g_ldmHashRateLog != LDM_PARAM_DEFAULT) {
-            benchParams.ldmHashRateLog = g_ldmHashRateLog;
+            benchParams.ldmHashRateLog = (int)g_ldmHashRateLog;
         }
         benchParams.literalCompressionMode = literalCompressionMode;
 
@@ -1092,16 +1092,16 @@ int main(int argCount, const char* argv[])
 #ifndef ZSTD_NODICT
         ZDICT_params_t zParams;
         zParams.compressionLevel = dictCLevel;
-        zParams.notificationLevel = g_displayLevel;
+        zParams.notificationLevel = (unsigned)g_displayLevel;
         zParams.dictID = dictID;
         if (dict == cover) {
             int const optimize = !coverParams.k || !coverParams.d;
-            coverParams.nbThreads = nbWorkers;
+            coverParams.nbThreads = (unsigned)nbWorkers;
             coverParams.zParams = zParams;
             operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenameTable, filenameIdx, blockSize, NULL, &coverParams, NULL, optimize);
         } else if (dict == fastCover) {
             int const optimize = !fastCoverParams.k || !fastCoverParams.d;
-            fastCoverParams.nbThreads = nbWorkers;
+            fastCoverParams.nbThreads = (unsigned)nbWorkers;
             fastCoverParams.zParams = zParams;
             operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenameTable, filenameIdx, blockSize, NULL, NULL, &fastCoverParams, optimize);
         } else {
@@ -1156,14 +1156,14 @@ int main(int argCount, const char* argv[])
     if (operation==zom_compress) {
 #ifndef ZSTD_NOCOMPRESS
         FIO_setNbWorkers(prefs, nbWorkers);
-        FIO_setBlockSize(prefs, (U32)blockSize);
-        if (g_overlapLog!=OVERLAP_LOG_DEFAULT) FIO_setOverlapLog(prefs, g_overlapLog);
-        FIO_setLdmFlag(prefs, ldmFlag);
-        FIO_setLdmHashLog(prefs, g_ldmHashLog);
-        FIO_setLdmMinMatch(prefs, g_ldmMinMatch);
-        if (g_ldmBucketSizeLog != LDM_PARAM_DEFAULT) FIO_setLdmBucketSizeLog(prefs, g_ldmBucketSizeLog);
-        if (g_ldmHashRateLog != LDM_PARAM_DEFAULT) FIO_setLdmHashRateLog(prefs, g_ldmHashRateLog);
-        FIO_setAdaptiveMode(prefs, adapt);
+        FIO_setBlockSize(prefs, (int)blockSize);
+        if (g_overlapLog!=OVERLAP_LOG_DEFAULT) FIO_setOverlapLog(prefs, (int)g_overlapLog);
+        FIO_setLdmFlag(prefs, (unsigned)ldmFlag);
+        FIO_setLdmHashLog(prefs, (int)g_ldmHashLog);
+        FIO_setLdmMinMatch(prefs, (int)g_ldmMinMatch);
+        if (g_ldmBucketSizeLog != LDM_PARAM_DEFAULT) FIO_setLdmBucketSizeLog(prefs, (int)g_ldmBucketSizeLog);
+        if (g_ldmHashRateLog != LDM_PARAM_DEFAULT) FIO_setLdmHashRateLog(prefs, (int)g_ldmHashRateLog);
+        FIO_setAdaptiveMode(prefs, (unsigned)adapt);
         FIO_setAdaptMin(prefs, adaptMin);
         FIO_setAdaptMax(prefs, adaptMax);
         FIO_setRsyncable(prefs, rsyncable);

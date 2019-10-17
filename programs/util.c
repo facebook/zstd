@@ -114,7 +114,7 @@ int UTIL_isSameFile(const char* fName1, const char* fName2)
      *        inode does not work on Windows, even with a posix layer, like msys2.
      *        The following work-around is limited to detecting exact name repetition only,
      *        aka `filename` is considered different from `subdir/../filename` */
-    return !strcmp(file1, file2);
+    return !strcmp(fName1, fName2);
 #else
     {   stat_t file1Stat;
         stat_t file2Stat;

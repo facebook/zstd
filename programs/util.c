@@ -328,7 +328,6 @@ UTIL_createFileList(const char **inputNames, unsigned inputNamesNb,
     unsigned i, nbFiles;
     char* buf = (char*)malloc(LIST_SIZE_INCREASE);
     char* bufend = buf + LIST_SIZE_INCREASE;
-    const char** fileTable;
 
     if (!buf) return NULL;
 
@@ -343,7 +342,7 @@ UTIL_createFileList(const char **inputNames, unsigned inputNamesNb,
                 if (!buf) return NULL;
             }
             if (buf + pos + len < bufend) {
-                memcpy(buf+pos, inputNames[i], len+1);  /* with final \0 */
+                memcpy(buf+pos, inputNames[i], len+1);  /* including final \0 */
                 pos += len + 1;
                 nbFiles++;
             }
@@ -354,20 +353,20 @@ UTIL_createFileList(const char **inputNames, unsigned inputNamesNb,
 
     if (nbFiles == 0) { free(buf); return NULL; }
 
-    fileTable = (const char**)malloc((nbFiles+1) * sizeof(const char*));
-    if (!fileTable) { free(buf); return NULL; }
+    {   const char** const fileTable = (const char**)malloc((nbFiles + 1) * sizeof(*fileTable));
+        if (!fileTable) { free(buf); return NULL; }
 
-    for (i=0, pos=0; i<nbFiles; i++) {
-        fileTable[i] = buf + pos;
-        pos += strlen(fileTable[i]) + 1;
+        for (i = 0, pos = 0; i < nbFiles; i++) {
+            fileTable[i] = buf + pos;
+            if (buf + pos > bufend) { free(buf); free((void*)fileTable); return NULL; }
+            pos += strlen(fileTable[i]) + 1;
+        }
+
+        *allocatedBuffer = buf;
+        *allocatedNamesNb = nbFiles;
+
+        return fileTable;
     }
-
-    if (buf + pos > bufend) { free(buf); free((void*)fileTable); return NULL; }
-
-    *allocatedBuffer = buf;
-    *allocatedNamesNb = nbFiles;
-
-    return fileTable;
 }
 
 

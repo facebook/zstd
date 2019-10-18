@@ -399,8 +399,8 @@ int UTIL_countPhysicalCores(void)
         DWORD returnLength = 0;
         size_t byteOffset = 0;
 
-        glpi = (LPFN_GLPI)GetProcAddress(GetModuleHandle(TEXT("kernel32")),
-                                         "GetLogicalProcessorInformation");
+        glpi = (LPFN_GLPI)(void*)GetProcAddress(GetModuleHandle(TEXT("kernel32")),
+                                               "GetLogicalProcessorInformation");
 
         if (glpi == NULL) {
             goto failed;

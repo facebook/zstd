@@ -240,7 +240,7 @@ rm tmp         # erase source file
 touch tmp.zst  # create destination file
 $ZSTD -f tmp && die "attempt to compress a non existing file"
 test -f tmp.zst  # destination file should still be present
-rm tmp*
+rm -rf tmp*  # may also erase tmp* directory from previous failed run
 
 println "\n===> decompression only tests "
 head -c 1048576 /dev/zero > tmp
@@ -284,7 +284,7 @@ test -f tmpOutDir/tmp1.zst
 test -f tmpOutDir/tmp2.zst
 println "test : decompress multiple files into an output directory, --output-dir-flat"
 mkdir tmpOutDirDecomp
-$ZSTD tmpOutDir/ -r -d --output-dir-flat tmpOutDirDecomp
+$ZSTD tmpOutDir -r -d --output-dir-flat tmpOutDirDecomp
 test -f tmpOutDirDecomp/tmp2
 test -f tmpOutDirDecomp/tmp1
 rm -rf tmp*

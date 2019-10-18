@@ -263,6 +263,6 @@
   test_script:
   - ECHO Testing %COMPILER% %PLATFORM% %CONFIGURATION%
   - if [%HOST%]==[mingw] (
-      SET CC=%COMPILER%
+      set "CC=%COMPILER%" &&
       make check
     )

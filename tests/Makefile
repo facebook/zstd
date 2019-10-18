@@ -265,7 +265,7 @@ clean:
 
 
 #----------------------------------------------------------------------------------
-#make valgrindTest is validated only for Linux, macOS, BSD, Hurd and Solaris targets
+# valgrind tests are validated only for some posix platforms
 #----------------------------------------------------------------------------------
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS))
 HOST_OS = POSIX
@@ -287,7 +287,7 @@ valgrindTest: zstd datagen fuzzer fullbench
 endif
 
 
-ifneq (,$(filter MSYS%,$(shell uname)))
+ifneq (,$(filter MINGW% MSYS%,$(shell uname)))
 HOST_OS = MSYS
 endif
 

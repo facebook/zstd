@@ -686,56 +686,50 @@ int FIO_checkFilenameCollisions(const char** filenameTable, unsigned nbFiles) {
     return 0;
 }
 
+static const char*
+extractFilename(const char* path, char separator)
+{
+    const char* search = strrchr(path, separator);
+    if (search == NULL) return path;
+    return search+1;
+}
+
 /* FIO_createFilename_fromOutDir() :
  * Takes a source file name and specified output directory, and
  * allocates memory for and returns a pointer to final path.
  * This function never returns an error (it may abort() in case of pb)
  */
 static char*
-FIO_createFilename_fromOutDir(const char* srcFilename, const char* outDirName, const size_t suffixLen)
+FIO_createFilename_fromOutDir(const char* path, const char* outDirName, const size_t suffixLen)
 {
-    const char* c, *filenameBegin;
-    char* filename, *result;
-    size_t finalPathLen;
+    const char* filenameStart;
+    char separator;
+    char* result;
 
-    #if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__) /* windows support */
-    c = "\\";
-    #else
-    c = "/";
-    #endif
+#if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__) /* windows support */
+    separator = '\\';
+#else
+    separator = '/';
+#endif
 
-    finalPathLen = strlen(outDirName);
-    filenameBegin = strrchr(srcFilename, c[0]);
-    if (filenameBegin == NULL) {
-        filename = (char*) malloc((strlen(srcFilename)+1) * sizeof(char));
-        if (!filename) {
-            EXM_THROW(30, "zstd: %s", strerror(errno));
-        }
-        strcpy(filename, srcFilename);
-    } else {
-        filename = (char*) malloc((strlen(filenameBegin+1)+1) * sizeof(char));
-        if (!filename) {
-            EXM_THROW(30, "zstd: %s", strerror(errno));
-        }
-        strcpy(filename, filenameBegin+1);
-    }
+    filenameStart = extractFilename(path, separator);
+#if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__) /* windows support */
+    filenameStart = extractFilename(filenameStart, '/');  /* sometimes, '/' separator is also used on Windows (mingw+msys2) */
+#endif
 
-    finalPathLen += strlen(filename);
-    result = (char*) malloc((finalPathLen+suffixLen+30) * sizeof(char));
+    result = (char*) calloc(1, strlen(outDirName) + 1 + strlen(filenameStart) + suffixLen + 1);
     if (!result) {
-        free(filename);
-        EXM_THROW(30, "zstd: %s", strerror(errno));
+        EXM_THROW(30, "zstd: FIO_createFilename_fromOutDir: %s", strerror(errno));
     }
 
-    strcpy(result, outDirName);
-    if (outDirName[strlen(outDirName)-1] == c[0]) {
-        strcat(result, filename);
+    memcpy(result, outDirName, strlen(outDirName));
+    if (outDirName[strlen(outDirName)-1] == separator) {
+        memcpy(result + strlen(outDirName), filenameStart, strlen(filenameStart));
     } else {
-        strcat(result, c);
-        strcat(result, filename);
+        memcpy(result + strlen(outDirName), &separator, 1);
+        memcpy(result + strlen(outDirName) + 1, filenameStart, strlen(filenameStart));
     }
 
-    free(filename);
     return result;
 }
 

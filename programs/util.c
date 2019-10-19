@@ -399,6 +399,11 @@ int UTIL_countPhysicalCores(void)
         DWORD returnLength = 0;
         size_t byteOffset = 0;
 
+#ifdef (_MSC_VER)
+/* Visual Studio does not like the following cast */
+#   pragma warning( disable : 4054 )  /* conversion from function ptr to data ptr */
+#   pragma warning( disable : 4055 )  /* conversion from data ptr to function ptr */
+#endif
         glpi = (LPFN_GLPI)(void*)GetProcAddress(GetModuleHandle(TEXT("kernel32")),
                                                "GetLogicalProcessorInformation");
 

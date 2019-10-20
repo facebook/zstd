@@ -2908,7 +2908,8 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
     assert(!((dict) && (cdict)));  /* either dict or cdict, not both */
     if ( (cdict)
       && (cdict->dictContentSize > 0)
-      && (pledgedSrcSize < ZSTD_USE_CDICT_PARAMS_CUTOFF || cdict->compressionLevel == 0) ) {
+      && (pledgedSrcSize < ZSTD_USE_CDICT_PARAMS_CUTOFF || cdict->compressionLevel == 0)
+      && (params->attachDictPref != ZSTD_dictForceInputParams) ) {
         return ZSTD_resetCCtx_usingCDict(cctx, cdict, params, pledgedSrcSize, zbuff);
     }
 

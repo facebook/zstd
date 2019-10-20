@@ -2909,7 +2909,7 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
     if ( (cdict)
       && (cdict->dictContentSize > 0)
       && (pledgedSrcSize < ZSTD_USE_CDICT_PARAMS_CUTOFF || cdict->compressionLevel == 0)
-      && (params->attachDictPref != ZSTD_dictForceInputParams) ) {
+      && (params->attachDictPref != ZSTD_dictForceSource) ) {
         return ZSTD_resetCCtx_usingCDict(cctx, cdict, params, pledgedSrcSize, zbuff);
     }
 
@@ -3348,7 +3348,8 @@ size_t ZSTD_compressBegin_usingCDict_advanced(
     DEBUGLOG(4, "ZSTD_compressBegin_usingCDict_advanced");
     RETURN_ERROR_IF(cdict==NULL, dictionary_wrong);
     {   ZSTD_CCtx_params params = cctx->requestedParams;
-        params.cParams = (pledgedSrcSize < ZSTD_USE_CDICT_PARAMS_CUTOFF) || (cdict->compressionLevel == 0) ?
+        params.cParams = ( (pledgedSrcSize < ZSTD_USE_CDICT_PARAMS_CUTOFF) || (cdict->compressionLevel == 0) )
+                      && (params->attachDictPref != ZSTD_dictForceSource) ?
                 ZSTD_getCParamsFromCDict(cdict)
               : ZSTD_getCParams(cdict->compressionLevel,
                                 pledgedSrcSize,

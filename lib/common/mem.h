@@ -74,10 +74,50 @@ void __msan_poison(const volatile void *a, size_t size);
 intptr_t __msan_test_shadow(const volatile void *x, size_t size);
 #endif
 
-#if defined (MEMORY_SANITIZER)
-#  define MEM_SKIP_MSAN __attribute__((no_sanitize("memory")))
-#else
-#  define MEM_SKIP_MSAN
+/* detects whether we are being compiled under asan */
+#if defined (__has_feature)
+#  if __has_feature(address_sanitizer)
+#    define ADDRESS_SANITIZER 1
+#  endif
+#elif defined(__SANITIZE_ADDRESS__)
+#  define ADDRESS_SANITIZER 1
+#endif
+
+#if defined (ADDRESS_SANITIZER)
+/* Not all platforms that support asan provide sanitizers/asan_interface.h.
+ * We therefore declare the functions we need ourselves, rather than trying to
+ * include the header file... */
+
+/**
+ * Marks a memory region (<c>[addr, addr+size)</c>) as unaddressable.
+ *
+ * This memory must be previously allocated by your program. Instrumented
+ * code is forbidden from accessing addresses in this region until it is
+ * unpoisoned. This function is not guaranteed to poison the entire region -
+ * it could poison only a subregion of <c>[addr, addr+size)</c> due to ASan
+ * alignment restrictions.
+ *
+ * \note This function is not thread-safe because no two threads can poison or
+ * unpoison memory in the same memory region simultaneously.
+ *
+ * \param addr Start of memory region.
+ * \param size Size of memory region. */
+void __asan_poison_memory_region(void const volatile *addr, size_t size);
+
+/**
+ * Marks a memory region (<c>[addr, addr+size)</c>) as addressable.
+ *
+ * This memory must be previously allocated by your program. Accessing
+ * addresses in this region is allowed until this region is poisoned again.
+ * This function could unpoison a super-region of <c>[addr, addr+size)</c> due
+ * to ASan alignment restrictions.
+ *
+ * \note This function is not thread-safe because no two threads can
+ * poison or unpoison memory in the same memory region simultaneously.
+ *
+ * \param addr Start of memory region.
+ * \param size Size of memory region. */
+void __asan_unpoison_memory_region(void const volatile *addr, size_t size);
 #endif
 
 

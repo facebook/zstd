@@ -1177,7 +1177,7 @@ typedef enum {
     ZSTD_dictDefaultAttach = 0, /* Use the default heuristic. */
     ZSTD_dictForceAttach   = 1, /* Never copy the dictionary. */
     ZSTD_dictForceCopy     = 2, /* Always copy the dictionary. */
-    ZSTD_dictForceSource = 3, /* Always use src input to determine tables */
+    ZSTD_dictForceSource   = 3, /* Always use src input to determine tables */
 } ZSTD_dictAttachPref_e;
 
 typedef enum {

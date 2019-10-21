@@ -287,6 +287,10 @@ mkdir tmpOutDirDecomp
 $ZSTD tmpOutDir -r -d --output-dir-flat tmpOutDirDecomp
 test -f tmpOutDirDecomp/tmp2
 test -f tmpOutDirDecomp/tmp1
+rm -f tmpOutDirDecomp/*
+$ZSTD tmpOutDir -r -d --output-dir-flat=tmpOutDirDecomp
+test -f tmpOutDirDecomp/tmp2
+test -f tmpOutDirDecomp/tmp1
 rm -rf tmp*
 
 println "\n===>  Advanced compression parameters "

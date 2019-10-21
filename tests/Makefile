@@ -250,7 +250,8 @@ clean:
 	$(MAKE) -C $(ZSTDDIR) clean
 	$(MAKE) -C $(PRGDIR) clean
 	@$(RM) -fR $(TESTARTEFACT)
-	@$(RM) -f core *.o tmp* *.tmp result* *.gcda dictionary *.zst \
+	@$(RM) -rf tmp*  # some test directories are named tmp*
+	@$(RM) core *.o *.tmp result* *.gcda dictionary *.zst \
         $(PRGDIR)/zstd$(EXT) $(PRGDIR)/zstd32$(EXT) \
         fullbench$(EXT) fullbench32$(EXT) \
         fullbench-lib$(EXT) fullbench-dll$(EXT) \
@@ -264,7 +265,7 @@ clean:
 
 
 #----------------------------------------------------------------------------------
-#make valgrindTest is validated only for Linux, macOS, BSD, Hurd and Solaris targets
+# valgrind tests are validated only for some posix platforms
 #----------------------------------------------------------------------------------
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS))
 HOST_OS = POSIX
@@ -286,7 +287,7 @@ valgrindTest: zstd datagen fuzzer fullbench
 endif
 
 
-ifneq (,$(filter MSYS%,$(shell uname)))
+ifneq (,$(filter MINGW% MSYS%,$(shell uname)))
 HOST_OS = MSYS
 endif
 

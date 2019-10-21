@@ -284,9 +284,10 @@ void FIO_addAbortHandler()
 
 
 /*-*************************************
-*  Parameters: Typedefs
+*  Parameters: FIO_prefs_t
 ***************************************/
 
+/* typedef'd to FIO_prefs_t within fileio.h */
 struct FIO_prefs_s {
 
     /* Algorithm preferences */
@@ -308,6 +309,7 @@ struct FIO_prefs_s {
     size_t streamSrcSize;
     size_t targetCBlockSize;
     int srcSizeHint;
+    int testMode;
     ZSTD_literalCompressionMode_e literalCompressionMode;
 
     /* IO preferences */
@@ -355,6 +357,7 @@ FIO_prefs_t* FIO_createPreferences(void)
     ret->streamSrcSize = 0;
     ret->targetCBlockSize = 0;
     ret->srcSizeHint = 0;
+    ret->testMode = 0;
     ret->literalCompressionMode = ZSTD_lcm_auto;
     return ret;
 }
@@ -433,6 +436,10 @@ void FIO_setTargetCBlockSize(FIO_prefs_t* const prefs, size_t targetCBlockSize) 
 
 void FIO_setSrcSizeHint(FIO_prefs_t* const prefs, size_t srcSizeHint) {
     prefs->srcSizeHint = (int)MIN((size_t)INT_MAX, srcSizeHint);
+}
+
+void FIO_setTestMode(FIO_prefs_t* const prefs, int testMode) {
+    prefs->testMode = (testMode!=0);
 }
 
 void FIO_setLiteralCompressionMode(
@@ -529,8 +536,12 @@ static FILE* FIO_openSrcFile(const char* srcFileName)
 /** FIO_openDstFile() :
  *  condition : `dstFileName` must be non-NULL.
  * @result : FILE* to `dstFileName`, or NULL if it fails */
-static FILE* FIO_openDstFile(FIO_prefs_t* const prefs, const char* srcFileName, const char* dstFileName)
+static FILE*
+FIO_openDstFile(FIO_prefs_t* const prefs,
+          const char* srcFileName, const char* dstFileName)
 {
+    if (prefs->testMode) return NULL;  /* do not open file in test mode */
+
     assert(dstFileName != NULL);
     if (!strcmp (dstFileName, stdoutmark)) {
         DISPLAYLEVEL(4,"Using stdout for output \n");
@@ -555,10 +566,14 @@ static FILE* FIO_openDstFile(FIO_prefs_t* const prefs, const char* srcFileName, 
     if (UTIL_isRegularFile(dstFileName)) {
         /* Check if destination file already exists */
         FILE* const fCheck = fopen( dstFileName, "rb" );
+#if !defined(_WIN32)
+        /* this test does not work on Windows :
+         * `NUL` and `nul` are detected as regular files */
         if (!strcmp(dstFileName, nulmark)) {
             EXM_THROW(40, "%s is unexpectedly categorized as a regular file",
                         dstFileName);
         }
+#endif
         if (fCheck != NULL) {  /* dst file exists, authorization prompt */
             fclose(fCheck);
             if (!prefs->overwrite) {
@@ -648,7 +663,7 @@ int FIO_checkFilenameCollisions(const char** filenameTable, unsigned nbFiles) {
         DISPLAY("Unable to malloc new str array, not checking for name collisions\n");
         return 1;
     }
-    
+
     for (u = 0; u < nbFiles; ++u) {
         filename = strrchr(filenameTable[u], c[0]);
         if (filename == NULL) {
@@ -671,56 +686,50 @@ int FIO_checkFilenameCollisions(const char** filenameTable, unsigned nbFiles) {
     return 0;
 }
 
+static const char*
+extractFilename(const char* path, char separator)
+{
+    const char* search = strrchr(path, separator);
+    if (search == NULL) return path;
+    return search+1;
+}
+
 /* FIO_createFilename_fromOutDir() :
  * Takes a source file name and specified output directory, and
  * allocates memory for and returns a pointer to final path.
  * This function never returns an error (it may abort() in case of pb)
  */
 static char*
-FIO_createFilename_fromOutDir(const char* srcFilename, const char* outDirName, const size_t suffixLen)
+FIO_createFilename_fromOutDir(const char* path, const char* outDirName, const size_t suffixLen)
 {
-    const char* c, *filenameBegin;
-    char* filename, *result;
-    size_t finalPathLen;
+    const char* filenameStart;
+    char separator;
+    char* result;
 
-    #if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__) /* windows support */
-    c = "\\";
-    #else
-    c = "/";
-    #endif
+#if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__) /* windows support */
+    separator = '\\';
+#else
+    separator = '/';
+#endif
 
-    finalPathLen = strlen(outDirName);
-    filenameBegin = strrchr(srcFilename, c[0]);
-    if (filenameBegin == NULL) {
-        filename = (char*) malloc((strlen(srcFilename)+1) * sizeof(char));
-        if (!filename) {
-            EXM_THROW(30, "zstd: %s", strerror(errno));
-        }
-        strcpy(filename, srcFilename);
-    } else {
-        filename = (char*) malloc((strlen(filenameBegin+1)+1) * sizeof(char));
-        if (!filename) {
-            EXM_THROW(30, "zstd: %s", strerror(errno));
-        }
-        strcpy(filename, filenameBegin+1);
-    }
+    filenameStart = extractFilename(path, separator);
+#if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__) /* windows support */
+    filenameStart = extractFilename(filenameStart, '/');  /* sometimes, '/' separator is also used on Windows (mingw+msys2) */
+#endif
 
-    finalPathLen += strlen(filename);
-    result = (char*) malloc((finalPathLen+suffixLen+30) * sizeof(char));
+    result = (char*) calloc(1, strlen(outDirName) + 1 + strlen(filenameStart) + suffixLen + 1);
     if (!result) {
-        free(filename);
-        EXM_THROW(30, "zstd: %s", strerror(errno));
+        EXM_THROW(30, "zstd: FIO_createFilename_fromOutDir: %s", strerror(errno));
     }
 
-    strcpy(result, outDirName);
-    if (outDirName[strlen(outDirName)-1] == c[0]) {
-        strcat(result, filename);
-    } else {  
-        strcat(result, c);
-        strcat(result, filename);
+    memcpy(result, outDirName, strlen(outDirName));
+    if (outDirName[strlen(outDirName)-1] == separator) {
+        memcpy(result + strlen(outDirName), filenameStart, strlen(filenameStart));
+    } else {
+        memcpy(result + strlen(outDirName), &separator, 1);
+        memcpy(result + strlen(outDirName) + 1, filenameStart, strlen(filenameStart));
     }
 
-    free(filename);
     return result;
 }
 
@@ -825,13 +834,12 @@ static void FIO_freeCResources(cRess_t ress)
 
 #ifdef ZSTD_GZCOMPRESS
 static unsigned long long
-FIO_compressGzFrame(cRess_t* ress,
+FIO_compressGzFrame(const cRess_t* ress,  /* buffers & handlers are used, but not changed */
                     const char* srcFileName, U64 const srcFileSize,
                     int compressionLevel, U64* readsize)
 {
     unsigned long long inFileSize = 0, outFileSize = 0;
     z_stream strm;
-    int ret;
 
     if (compressionLevel > Z_BEST_COMPRESSION)
         compressionLevel = Z_BEST_COMPRESSION;
@@ -840,11 +848,12 @@ FIO_compressGzFrame(cRess_t* ress,
     strm.zfree = Z_NULL;
     strm.opaque = Z_NULL;
 
-    ret = deflateInit2(&strm, compressionLevel, Z_DEFLATED,
+    {   int const ret = deflateInit2(&strm, compressionLevel, Z_DEFLATED,
                         15 /* maxWindowLogSize */ + 16 /* gzip only */,
                         8, Z_DEFAULT_STRATEGY); /* see http://www.zlib.net/manual.html */
-    if (ret != Z_OK)
-        EXM_THROW(71, "zstd: %s: deflateInit2 error %d \n", srcFileName, ret);
+        if (ret != Z_OK) {
+            EXM_THROW(71, "zstd: %s: deflateInit2 error %d \n", srcFileName, ret);
+    }   }
 
     strm.next_in = 0;
     strm.avail_in = 0;
@@ -852,6 +861,7 @@ FIO_compressGzFrame(cRess_t* ress,
     strm.avail_out = (uInt)ress->dstBufferSize;
 
     while (1) {
+        int ret;
         if (strm.avail_in == 0) {
             size_t const inSize = fread(ress->srcBuffer, 1, ress->srcBufferSize, ress->srcFile);
             if (inSize == 0) break;
@@ -862,32 +872,31 @@ FIO_compressGzFrame(cRess_t* ress,
         ret = deflate(&strm, Z_NO_FLUSH);
         if (ret != Z_OK)
             EXM_THROW(72, "zstd: %s: deflate error %d \n", srcFileName, ret);
-        {   size_t const decompBytes = ress->dstBufferSize - strm.avail_out;
-            if (decompBytes) {
-                if (fwrite(ress->dstBuffer, 1, decompBytes, ress->dstFile) != decompBytes)
-                    EXM_THROW(73, "Write error : cannot write to output file : %s", strerror(errno));
-                outFileSize += decompBytes;
+        {   size_t const cSize = ress->dstBufferSize - strm.avail_out;
+            if (cSize) {
+                if (fwrite(ress->dstBuffer, 1, cSize, ress->dstFile) != cSize)
+                    EXM_THROW(73, "Write error : cannot write to output file : %s ", strerror(errno));
+                outFileSize += cSize;
                 strm.next_out = (Bytef*)ress->dstBuffer;
                 strm.avail_out = (uInt)ress->dstBufferSize;
-            }
-        }
-        if (srcFileSize == UTIL_FILESIZE_UNKNOWN)
-            DISPLAYUPDATE(2, "\rRead : %u MB ==> %.2f%%",
+        }   }
+        if (srcFileSize == UTIL_FILESIZE_UNKNOWN) {
+            DISPLAYUPDATE(2, "\rRead : %u MB ==> %.2f%% ",
                             (unsigned)(inFileSize>>20),
                             (double)outFileSize/inFileSize*100)
-        else
-            DISPLAYUPDATE(2, "\rRead : %u / %u MB ==> %.2f%%",
+        } else {
+            DISPLAYUPDATE(2, "\rRead : %u / %u MB ==> %.2f%% ",
                             (unsigned)(inFileSize>>20), (unsigned)(srcFileSize>>20),
                             (double)outFileSize/inFileSize*100);
-    }
+    }   }
 
     while (1) {
-        ret = deflate(&strm, Z_FINISH);
-        {   size_t const decompBytes = ress->dstBufferSize - strm.avail_out;
-            if (decompBytes) {
-                if (fwrite(ress->dstBuffer, 1, decompBytes, ress->dstFile) != decompBytes)
-                    EXM_THROW(75, "Write error : %s", strerror(errno));
-                outFileSize += decompBytes;
+        int const ret = deflate(&strm, Z_FINISH);
+        {   size_t const cSize = ress->dstBufferSize - strm.avail_out;
+            if (cSize) {
+                if (fwrite(ress->dstBuffer, 1, cSize, ress->dstFile) != cSize)
+                    EXM_THROW(75, "Write error : %s ", strerror(errno));
+                outFileSize += cSize;
                 strm.next_out = (Bytef*)ress->dstBuffer;
                 strm.avail_out = (uInt)ress->dstBufferSize;
         }   }
@@ -896,11 +905,11 @@ FIO_compressGzFrame(cRess_t* ress,
             EXM_THROW(77, "zstd: %s: deflate error %d \n", srcFileName, ret);
     }
 
-    ret = deflateEnd(&strm);
-    if (ret != Z_OK)
-        EXM_THROW(79, "zstd: %s: deflateEnd error %d \n", srcFileName, ret);
+    {   int const ret = deflateEnd(&strm);
+        if (ret != Z_OK) {
+            EXM_THROW(79, "zstd: %s: deflateEnd error %d \n", srcFileName, ret);
+    }   }
     *readsize = inFileSize;
-
     return outFileSize;
 }
 #endif
@@ -923,14 +932,14 @@ FIO_compressLzmaFrame(cRess_t* ress,
     if (plain_lzma) {
         lzma_options_lzma opt_lzma;
         if (lzma_lzma_preset(&opt_lzma, compressionLevel))
-            EXM_THROW(71, "zstd: %s: lzma_lzma_preset error", srcFileName);
+            EXM_THROW(81, "zstd: %s: lzma_lzma_preset error", srcFileName);
         ret = lzma_alone_encoder(&strm, &opt_lzma); /* LZMA */
         if (ret != LZMA_OK)
-            EXM_THROW(71, "zstd: %s: lzma_alone_encoder error %d", srcFileName, ret);
+            EXM_THROW(82, "zstd: %s: lzma_alone_encoder error %d", srcFileName, ret);
     } else {
         ret = lzma_easy_encoder(&strm, compressionLevel, LZMA_CHECK_CRC64); /* XZ */
         if (ret != LZMA_OK)
-            EXM_THROW(71, "zstd: %s: lzma_easy_encoder error %d", srcFileName, ret);
+            EXM_THROW(83, "zstd: %s: lzma_easy_encoder error %d", srcFileName, ret);
     }
 
     strm.next_in = 0;
@@ -950,11 +959,11 @@ FIO_compressLzmaFrame(cRess_t* ress,
         ret = lzma_code(&strm, action);
 
         if (ret != LZMA_OK && ret != LZMA_STREAM_END)
-            EXM_THROW(72, "zstd: %s: lzma_code encoding error %d", srcFileName, ret);
+            EXM_THROW(84, "zstd: %s: lzma_code encoding error %d", srcFileName, ret);
         {   size_t const compBytes = ress->dstBufferSize - strm.avail_out;
             if (compBytes) {
                 if (fwrite(ress->dstBuffer, 1, compBytes, ress->dstFile) != compBytes)
-                    EXM_THROW(73, "Write error : %s", strerror(errno));
+                    EXM_THROW(85, "Write error : %s", strerror(errno));
                 outFileSize += compBytes;
                 strm.next_out = (BYTE*)ress->dstBuffer;
                 strm.avail_out = ress->dstBufferSize;
@@ -1493,7 +1502,7 @@ FIO_determineCompressedName(const char* srcFileName, const char* outDirName, con
         sfnSize = strlen(outDirFilename);
         assert(outDirFilename != NULL);
     }
-    
+
     if (dfnbCapacity <= sfnSize+suffixSize+1) {
         /* resize buffer for dstName */
         free(dstFileNameBuffer);
@@ -1522,9 +1531,10 @@ FIO_determineCompressedName(const char* srcFileName, const char* outDirName, con
  * or into one file each (outFileName == NULL, but suffix != NULL),
  * or into a destination folder (specified with -O)
  */
-int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs, const char** inFileNamesTable,
-                                  const char* outDirName, unsigned nbFiles, 
-                                  const char* outFileName, const char* suffix, 
+int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
+                                  const char** inFileNamesTable, unsigned nbFiles,
+                                  const char* outDirName,
+                                  const char* outFileName, const char* suffix,
                                   const char* dictFileName, int compressionLevel,
                                   ZSTD_compressionParameters comprParams)
 {
@@ -1617,13 +1627,19 @@ static void FIO_freeDResources(dRess_t ress)
 
 /** FIO_fwriteSparse() :
 *   @return : storedSkips, to be provided to next call to FIO_fwriteSparse() of LZ4IO_fwriteSparseEnd() */
-static unsigned FIO_fwriteSparse(FIO_prefs_t* const prefs, FILE* file, const void* buffer, size_t bufferSize, unsigned storedSkips)
+static unsigned
+FIO_fwriteSparse(const FIO_prefs_t* const prefs,
+                 FILE* file,
+                 const void* buffer, size_t bufferSize,
+                 unsigned storedSkips)
 {
     const size_t* const bufferT = (const size_t*)buffer;   /* Buffer is supposed malloc'ed, hence aligned on size_t */
     size_t bufferSizeT = bufferSize / sizeof(size_t);
     const size_t* const bufferTEnd = bufferT + bufferSizeT;
     const size_t* ptrT = bufferT;
     static const size_t segmentSizeT = (32 KB) / sizeof(size_t);   /* 0-test re-attempted every 32 KB */
+
+    if (prefs->testMode) return 0;  /* do not output anything in test mode */
 
     if (!prefs->sparseFileSupport) {  /* normal write */
         size_t const sizeCheck = fwrite(buffer, 1, bufferSize, file);
@@ -1637,7 +1653,7 @@ static unsigned FIO_fwriteSparse(FIO_prefs_t* const prefs, FILE* file, const voi
     if (storedSkips > 1 GB) {
         int const seekResult = LONG_SEEK(file, 1 GB, SEEK_CUR);
         if (seekResult != 0)
-            EXM_THROW(71, "1 GB skip error (sparse file support)");
+            EXM_THROW(91, "1 GB skip error (sparse file support)");
         storedSkips -= 1 GB;
     }
 
@@ -1653,13 +1669,13 @@ static unsigned FIO_fwriteSparse(FIO_prefs_t* const prefs, FILE* file, const voi
 
         if (nb0T != seg0SizeT) {   /* not all 0s */
             int const seekResult = LONG_SEEK(file, storedSkips, SEEK_CUR);
-            if (seekResult) EXM_THROW(72, "Sparse skip error ; try --no-sparse");
+            if (seekResult) EXM_THROW(92, "Sparse skip error ; try --no-sparse");
             storedSkips = 0;
             seg0SizeT -= nb0T;
             ptrT += nb0T;
             {   size_t const sizeCheck = fwrite(ptrT, sizeof(size_t), seg0SizeT, file);
                 if (sizeCheck != seg0SizeT)
-                    EXM_THROW(73, "Write error : cannot write decoded block : %s",
+                    EXM_THROW(93, "Write error : cannot write decoded block : %s",
                             strerror(errno));
         }   }
         ptrT += seg0SizeT;
@@ -1677,11 +1693,11 @@ static unsigned FIO_fwriteSparse(FIO_prefs_t* const prefs, FILE* file, const voi
             if (restPtr != restEnd) {
                 int seekResult = LONG_SEEK(file, storedSkips, SEEK_CUR);
                 if (seekResult)
-                    EXM_THROW(74, "Sparse skip error ; try --no-sparse");
+                    EXM_THROW(94, "Sparse skip error ; try --no-sparse");
                 storedSkips = 0;
                 {   size_t const sizeCheck = fwrite(restPtr, 1, (size_t)(restEnd - restPtr), file);
                     if (sizeCheck != (size_t)(restEnd - restPtr))
-                        EXM_THROW(75, "Write error : cannot write decoded end of block : %s",
+                        EXM_THROW(95, "Write error : cannot write decoded end of block : %s",
                             strerror(errno));
     }   }   }   }
 
@@ -1689,8 +1705,9 @@ static unsigned FIO_fwriteSparse(FIO_prefs_t* const prefs, FILE* file, const voi
 }
 
 static void
-FIO_fwriteSparseEnd(FIO_prefs_t* const prefs, FILE* file, unsigned storedSkips)
+FIO_fwriteSparseEnd(const FIO_prefs_t* const prefs, FILE* file, unsigned storedSkips)
 {
+    if (prefs->testMode) assert(storedSkips == 0);
     if (storedSkips>0) {
         assert(prefs->sparseFileSupport > 0);  /* storedSkips>0 implies sparse support is enabled */
         (void)prefs;   /* assert can be disabled, in which case prefs becomes unused */
@@ -1707,7 +1724,7 @@ FIO_fwriteSparseEnd(FIO_prefs_t* const prefs, FILE* file, unsigned storedSkips)
 
 /** FIO_passThrough() : just copy input into output, for compatibility with gzip -df mode
     @return : 0 (no error) */
-static int FIO_passThrough(FIO_prefs_t* const prefs,
+static int FIO_passThrough(const FIO_prefs_t* const prefs,
                            FILE* foutput, FILE* finput,
                            void* buffer, size_t bufferSize,
                            size_t alreadyLoaded)
@@ -1747,7 +1764,10 @@ static unsigned FIO_highbit64(unsigned long long v)
 
 /* FIO_zstdErrorHelp() :
  * detailed error message when requested window size is too large */
-static void FIO_zstdErrorHelp(FIO_prefs_t* const prefs, dRess_t* ress, size_t err, char const* srcFileName)
+static void
+FIO_zstdErrorHelp(const FIO_prefs_t* const prefs,
+                  const dRess_t* ress,
+                  size_t err, const char* srcFileName)
 {
     ZSTD_frameHeader header;
 
@@ -1779,12 +1799,10 @@ static void FIO_zstdErrorHelp(FIO_prefs_t* const prefs, dRess_t* ress, size_t er
  *  @return : size of decoded zstd frame, or an error code
 */
 #define FIO_ERROR_FRAME_DECODING   ((unsigned long long)(-2))
-static unsigned long long FIO_decompressZstdFrame(
-                                       FIO_prefs_t* const prefs,
-                                       dRess_t* ress,
-                                       FILE* finput,
-                                       const char* srcFileName,
-                                       U64 alreadyDecoded)
+static unsigned long long
+FIO_decompressZstdFrame(const FIO_prefs_t* const prefs,
+                        dRess_t* ress, FILE* finput,
+                        const char* srcFileName, U64 alreadyDecoded)
 {
     U64 frameSize = 0;
     U32 storedSkips = 0;
@@ -1848,13 +1866,16 @@ static unsigned long long FIO_decompressZstdFrame(
 
 
 #ifdef ZSTD_GZDECOMPRESS
-static unsigned long long FIO_decompressGzFrame(dRess_t* ress,
-                                    FILE* srcFile, const char* srcFileName)
+static unsigned long long
+FIO_decompressGzFrame(const FIO_prefs_t* const prefs,
+                      dRess_t* ress, FILE* srcFile,
+                      const char* srcFileName)
 {
     unsigned long long outFileSize = 0;
     z_stream strm;
     int flush = Z_NO_FLUSH;
     int decodingError = 0;
+    unsigned storedSkips = 0;
 
     strm.zalloc = Z_NULL;
     strm.zfree = Z_NULL;
@@ -1889,10 +1910,7 @@ static unsigned long long FIO_decompressGzFrame(dRess_t* ress,
         }
         {   size_t const decompBytes = ress->dstBufferSize - strm.avail_out;
             if (decompBytes) {
-                if (fwrite(ress->dstBuffer, 1, decompBytes, ress->dstFile) != decompBytes) {
-                    DISPLAYLEVEL(1, "zstd: fwrite error: %s \n", strerror(errno));
-                    decodingError = 1; break;
-                }
+                storedSkips = FIO_fwriteSparse(prefs, ress->dstFile, ress->dstBuffer, decompBytes, storedSkips);
                 outFileSize += decompBytes;
                 strm.next_out = (Bytef*)ress->dstBuffer;
                 strm.avail_out = (uInt)ress->dstBufferSize;
@@ -1909,19 +1927,24 @@ static unsigned long long FIO_decompressGzFrame(dRess_t* ress,
         DISPLAYLEVEL(1, "zstd: %s: inflateEnd error \n", srcFileName);
         decodingError = 1;
     }
+    FIO_fwriteSparseEnd(prefs, ress->dstFile, storedSkips);
     return decodingError ? FIO_ERROR_FRAME_DECODING : outFileSize;
 }
 #endif
 
 
 #ifdef ZSTD_LZMADECOMPRESS
-static unsigned long long FIO_decompressLzmaFrame(dRess_t* ress, FILE* srcFile, const char* srcFileName, int plain_lzma)
+static unsigned long long
+FIO_decompressLzmaFrame(const FIO_prefs_t* const prefs,
+                        dRess_t* ress, FILE* srcFile,
+                        const char* srcFileName, int plain_lzma)
 {
     unsigned long long outFileSize = 0;
     lzma_stream strm = LZMA_STREAM_INIT;
     lzma_action action = LZMA_RUN;
     lzma_ret initRet;
     int decodingError = 0;
+    unsigned storedSkips = 0;
 
     strm.next_in = 0;
     strm.avail_in = 0;
@@ -1964,10 +1987,7 @@ static unsigned long long FIO_decompressLzmaFrame(dRess_t* ress, FILE* srcFile, 
         }
         {   size_t const decompBytes = ress->dstBufferSize - strm.avail_out;
             if (decompBytes) {
-                if (fwrite(ress->dstBuffer, 1, decompBytes, ress->dstFile) != decompBytes) {
-                    DISPLAYLEVEL(1, "zstd: fwrite error: %s \n", strerror(errno));
-                    decodingError = 1; break;
-                }
+                storedSkips = FIO_fwriteSparse(prefs, ress->dstFile, ress->dstBuffer, decompBytes, storedSkips);
                 outFileSize += decompBytes;
                 strm.next_out = (BYTE*)ress->dstBuffer;
                 strm.avail_out = ress->dstBufferSize;
@@ -1979,19 +1999,23 @@ static unsigned long long FIO_decompressLzmaFrame(dRess_t* ress, FILE* srcFile, 
         memmove(ress->srcBuffer, strm.next_in, strm.avail_in);
     ress->srcBufferLoaded = strm.avail_in;
     lzma_end(&strm);
+    FIO_fwriteSparseEnd(prefs, ress->dstFile, storedSkips);
     return decodingError ? FIO_ERROR_FRAME_DECODING : outFileSize;
 }
 #endif
 
 #ifdef ZSTD_LZ4DECOMPRESS
-static unsigned long long FIO_decompressLz4Frame(dRess_t* ress,
-                                    FILE* srcFile, const char* srcFileName)
+static unsigned long long
+FIO_decompressLz4Frame(const FIO_prefs_t* const prefs,
+                       dRess_t* ress, FILE* srcFile,
+                       const char* srcFileName)
 {
     unsigned long long filesize = 0;
     LZ4F_errorCode_t nextToLoad;
     LZ4F_decompressionContext_t dCtx;
     LZ4F_errorCode_t const errorCode = LZ4F_createDecompressionContext(&dCtx, LZ4F_VERSION);
     int decodingError = 0;
+    unsigned storedSkips = 0;
 
     if (LZ4F_isError(errorCode)) {
         DISPLAYLEVEL(1, "zstd: failed to create lz4 decompression context \n");
@@ -2035,10 +2059,7 @@ static unsigned long long FIO_decompressLz4Frame(dRess_t* ress,
 
             /* Write Block */
             if (decodedBytes) {
-                if (fwrite(ress->dstBuffer, 1, decodedBytes, ress->dstFile) != decodedBytes) {
-                    DISPLAYLEVEL(1, "zstd: fwrite error: %s \n", strerror(errno));
-                    decodingError = 1; nextToLoad = 0; break;
-                }
+                storedSkips = FIO_fwriteSparse(prefs, ress->dstFile, ress->dstBuffer, decodedBytes, storedSkips);
                 filesize += decodedBytes;
                 DISPLAYUPDATE(2, "\rDecompressed : %u MB  ", (unsigned)(filesize>>20));
             }
@@ -2059,6 +2080,7 @@ static unsigned long long FIO_decompressLz4Frame(dRess_t* ress,
 
     LZ4F_freeDecompressionContext(dCtx);
     ress->srcBufferLoaded = 0; /* LZ4F will reach exact frame boundary */
+    FIO_fwriteSparseEnd(prefs, ress->dstFile, storedSkips);
 
     return decodingError ? FIO_ERROR_FRAME_DECODING : filesize;
 }
@@ -2072,8 +2094,9 @@ static unsigned long long FIO_decompressLz4Frame(dRess_t* ress,
  * @return : 0 : OK
  *           1 : error
  */
-static int FIO_decompressFrames(FIO_prefs_t* const prefs, dRess_t ress, FILE* srcFile,
-                        const char* dstFileName, const char* srcFileName)
+static int FIO_decompressFrames(const FIO_prefs_t* const prefs,
+                                dRess_t ress, FILE* srcFile,
+                          const char* dstFileName, const char* srcFileName)
 {
     unsigned readSomething = 0;
     unsigned long long filesize = 0;
@@ -2105,7 +2128,7 @@ static int FIO_decompressFrames(FIO_prefs_t* const prefs, dRess_t ress, FILE* sr
             filesize += frameSize;
         } else if (buf[0] == 31 && buf[1] == 139) { /* gz magic number */
 #ifdef ZSTD_GZDECOMPRESS
-            unsigned long long const frameSize = FIO_decompressGzFrame(&ress, srcFile, srcFileName);
+            unsigned long long const frameSize = FIO_decompressGzFrame(prefs, &ress, srcFile, srcFileName);
             if (frameSize == FIO_ERROR_FRAME_DECODING) return 1;
             filesize += frameSize;
 #else
@@ -2115,7 +2138,7 @@ static int FIO_decompressFrames(FIO_prefs_t* const prefs, dRess_t ress, FILE* sr
         } else if ((buf[0] == 0xFD && buf[1] == 0x37)  /* xz magic number */
                 || (buf[0] == 0x5D && buf[1] == 0x00)) { /* lzma header (no magic number) */
 #ifdef ZSTD_LZMADECOMPRESS
-            unsigned long long const frameSize = FIO_decompressLzmaFrame(&ress, srcFile, srcFileName, buf[0] != 0xFD);
+            unsigned long long const frameSize = FIO_decompressLzmaFrame(prefs, &ress, srcFile, srcFileName, buf[0] != 0xFD);
             if (frameSize == FIO_ERROR_FRAME_DECODING) return 1;
             filesize += frameSize;
 #else
@@ -2124,7 +2147,7 @@ static int FIO_decompressFrames(FIO_prefs_t* const prefs, dRess_t ress, FILE* sr
 #endif
         } else if (MEM_readLE32(buf) == LZ4_MAGICNUMBER) {
 #ifdef ZSTD_LZ4DECOMPRESS
-            unsigned long long const frameSize = FIO_decompressLz4Frame(&ress, srcFile, srcFileName);
+            unsigned long long const frameSize = FIO_decompressLz4Frame(prefs, &ress, srcFile, srcFileName);
             if (frameSize == FIO_ERROR_FRAME_DECODING) return 1;
             filesize += frameSize;
 #else
@@ -2164,11 +2187,11 @@ static int FIO_decompressDstFile(FIO_prefs_t* const prefs,
     int transfer_permissions = 0;
     int releaseDstFile = 0;
 
-    if (ress.dstFile == NULL) {
+    if ((ress.dstFile == NULL) && (prefs->testMode==0)) {
         releaseDstFile = 1;
 
         ress.dstFile = FIO_openDstFile(prefs, srcFileName, dstFileName);
-        if (ress.dstFile==0) return 1;
+        if (ress.dstFile==NULL) return 1;
 
         /* Must only be added after FIO_openDstFile() succeeds.
          * Otherwise we may delete the destination file if it already exists,
@@ -2180,7 +2203,6 @@ static int FIO_decompressDstFile(FIO_prefs_t* const prefs,
           && UTIL_getFileStat(srcFileName, &statbuf) )
             transfer_permissions = 1;
     }
-
 
     result = FIO_decompressFrames(prefs, ress, srcFile, dstFileName, srcFileName);
 
@@ -2278,7 +2300,7 @@ FIO_determineDstName(const char* srcFileName, const char* outDirName)
     char* outDirFilename = NULL;
     size_t sfnSize = strlen(srcFileName);
     size_t suffixSize;
-    
+
     const char* const suffixPtr = strrchr(srcFileName, '.');
     if (suffixPtr == NULL) {
         DISPLAYLEVEL(1, "zstd: %s: unknown suffix -- ignored \n",
@@ -2328,7 +2350,7 @@ FIO_determineDstName(const char* srcFileName, const char* outDirName)
         dfnbCapacity = sfnSize + 20;
         dstFileNameBuffer = (char*)malloc(dfnbCapacity);
         if (dstFileNameBuffer==NULL)
-            EXM_THROW(74, "%s : not enough memory for dstFileName", strerror(errno)); 
+            EXM_THROW(74, "%s : not enough memory for dstFileName", strerror(errno));
     }
 
     /* return dst name == src name truncated from suffix */
@@ -2357,11 +2379,13 @@ FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
 
     if (outFileName) {
         unsigned u;
-        ress.dstFile = FIO_openDstFile(prefs, NULL, outFileName);
-        if (ress.dstFile == 0) EXM_THROW(71, "cannot open %s", outFileName);
+        if (!prefs->testMode) {
+            ress.dstFile = FIO_openDstFile(prefs, NULL, outFileName);
+            if (ress.dstFile == 0) EXM_THROW(19, "cannot open %s", outFileName);
+        }
         for (u=0; u<nbFiles; u++)
             error |= FIO_decompressSrcFile(prefs, ress, outFileName, srcNamesTable[u]);
-        if (fclose(ress.dstFile))
+        if ((!prefs->testMode) && (fclose(ress.dstFile)))
             EXM_THROW(72, "Write error : %s : cannot properly close output file",
                         strerror(errno));
     } else {

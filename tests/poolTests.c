@@ -46,7 +46,7 @@ static int testOrder(size_t numThreads, size_t queueSize)
   POOL_ctx* const ctx = POOL_create(numThreads, queueSize);
   ASSERT_TRUE(ctx);
   data.i = 0;
-  (void)ZSTD_pthread_mutex_init(&data.mutex, NULL);
+  ASSERT_FALSE(ZSTD_pthread_mutex_init(&data.mutex, NULL));
   { size_t i;
     for (i = 0; i < 16; ++i) {
       POOL_add(ctx, &fn, &data);

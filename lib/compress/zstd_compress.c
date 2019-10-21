@@ -2917,7 +2917,7 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
     }
 
     FORWARD_IF_ERROR( ZSTD_resetCCtx_internal(cctx, *params, pledgedSrcSize,
-                                     ZSTDcrp_continue, zbuff) );
+                                     ZSTDcrp_makeClean, zbuff) );
     {   size_t const dictID = cdict ? 
                 ZSTD_compress_insertDictionary(
                         cctx->blockState.prevCBlock, &cctx->blockState.matchState,
@@ -2925,7 +2925,8 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
                         dictContentType, dtlm, cctx->entropyWorkspace)
               : ZSTD_compress_insertDictionary(
                         cctx->blockState.prevCBlock, &cctx->blockState.matchState,
-                        params, dict, dictSize, dictContentType, dtlm, cctx->entropyWorkspace);
+                        &cctx->workspace, params, dict, dictSize,
+                        dictContentType, dtlm, cctx->entropyWorkspace);
         FORWARD_IF_ERROR(dictID);
         assert(dictID <= UINT_MAX);
         cctx->dictID = (U32)dictID;

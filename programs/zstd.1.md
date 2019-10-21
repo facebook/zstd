@@ -214,6 +214,16 @@ the last one takes effect.
 * `--`:
     All arguments after `--` are treated as files
 
+### Restricted usage of Environment Variables
+
+Using environment variables to set parameters has security implications.
+Therefore, this avenue is intentionally restricted.
+Only `ZSTD_CLEVEL` is supported currently, for setting compression level.
+`ZSTD_CLEVEL` can be used to set the level between 1 and 19 (the "normal" range).
+If the value of `ZSTD_CLEVEL` is not a valid integer, it will be ignored with a warning message.
+`ZSTD_CLEVEL` just replaces the default compression level (`3`).
+It can be overridden by corresponding command line arguments.
+
 
 DICTIONARY BUILDER
 ------------------

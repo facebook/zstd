@@ -216,7 +216,7 @@ local gzFile gz_open(path, fd, mode)
 #if !defined(NO_snprintf) && !defined(NO_vsnprintf)
         (void)snprintf(state.state->path, len + 1, "%s", (const char *)path);
 #else
-        strcpy(state.state->path, path);
+        strcpy(state.state->path, (const char*)path);
 #endif
 
     /* compute the flags for open() */
@@ -325,7 +325,7 @@ int ZEXPORT gzbuffer(file, size)
     /* get internal structure and check integrity */
     if (file == NULL)
         return -1;
-    state = (gz_statep)file;
+    state.file = file;
     if (state.state->mode != GZ_READ && state.state->mode != GZ_WRITE)
         return -1;
 
@@ -351,7 +351,7 @@ int ZEXPORT gzrewind(file)
     /* get internal structure */
     if (file == NULL)
         return -1;
-    state = (gz_statep)file;
+    state.file = file;
 
     /* check that we're reading and that there's no error */
     if (state.state->mode != GZ_READ ||
@@ -378,7 +378,7 @@ z_off64_t ZEXPORT gzseek64(file, offset, whence)
     /* get internal structure and check integrity */
     if (file == NULL)
         return -1;
-    state = (gz_statep)file;
+    state.file = file;
     if (state.state->mode != GZ_READ && state.state->mode != GZ_WRITE)
         return -1;
 
@@ -463,7 +463,7 @@ z_off64_t ZEXPORT gztell64(file)
     /* get internal structure and check integrity */
     if (file == NULL)
         return -1;
-    state = (gz_statep)file;
+    state.file = file;
     if (state.state->mode != GZ_READ && state.state->mode != GZ_WRITE)
         return -1;
 
@@ -491,7 +491,7 @@ z_off64_t ZEXPORT gzoffset64(file)
     /* get internal structure and check integrity */
     if (file == NULL)
         return -1;
-    state = (gz_statep)file;
+    state.file = file;
     if (state.state->mode != GZ_READ && state.state->mode != GZ_WRITE)
         return -1;
 
@@ -523,7 +523,7 @@ int ZEXPORT gzeof(file)
     /* get internal structure and check integrity */
     if (file == NULL)
         return 0;
-    state = (gz_statep)file;
+    state.file = file;
     if (state.state->mode != GZ_READ && state.state->mode != GZ_WRITE)
         return 0;
 
@@ -541,7 +541,7 @@ const char * ZEXPORT gzerror(file, errnum)
     /* get internal structure and check integrity */
     if (file == NULL)
         return NULL;
-    state = (gz_statep)file;
+    state.file = file;
     if (state.state->mode != GZ_READ && state.state->mode != GZ_WRITE)
         return NULL;
 
@@ -561,7 +561,7 @@ void ZEXPORT gzclearerr(file)
     /* get internal structure and check integrity */
     if (file == NULL)
         return;
-    state = (gz_statep)file;
+    state.file = file;
     if (state.state->mode != GZ_READ && state.state->mode != GZ_WRITE)
         return;
 

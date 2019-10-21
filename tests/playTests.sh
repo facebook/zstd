@@ -64,11 +64,12 @@ PRGDIR="$SCRIPT_DIR/../programs"
 TESTDIR="$SCRIPT_DIR/../tests"
 UNAME=$(uname)
 
-isTerminal=false
+detectedTerminal=false
 if [ -t 0 ] && [ -t 1 ]
 then
-    isTerminal=true
+    detectedTerminal=true
 fi
+isTerminal=${isTerminal:-$detectedTerminal}
 
 isWindows=false
 INTOVOID="/dev/null"
@@ -211,8 +212,8 @@ $ZSTD tmp -c --no-compress-literals -19      | $ZSTD -t
 $ZSTD tmp -c --compress-literals    -1       | $ZSTD -t
 $ZSTD tmp -c --compress-literals    --fast=1 | $ZSTD -t
 $ZSTD tmp -c --compress-literals    -19      | $ZSTD -t
-$ZSTD -b --fast=1 -i1e1 tmp --compress-literals
-$ZSTD -b --fast=1 -i1e1 tmp --no-compress-literals
+$ZSTD -b --fast=1 -i0e1 tmp --compress-literals
+$ZSTD -b --fast=1 -i0e1 tmp --no-compress-literals
 
 println "test : file removal"
 $ZSTD -f --rm tmp
@@ -239,7 +240,7 @@ rm tmp         # erase source file
 touch tmp.zst  # create destination file
 $ZSTD -f tmp && die "attempt to compress a non existing file"
 test -f tmp.zst  # destination file should still be present
-rm tmp*
+rm -rf tmp*  # may also erase tmp* directory from previous failed run
 
 println "\n===> decompression only tests "
 head -c 1048576 /dev/zero > tmp
@@ -283,7 +284,7 @@ test -f tmpOutDir/tmp1.zst
 test -f tmpOutDir/tmp2.zst
 println "test : decompress multiple files into an output directory, --output-dir-flat"
 mkdir tmpOutDirDecomp
-$ZSTD tmpOutDir/ -r -d --output-dir-flat tmpOutDirDecomp
+$ZSTD tmpOutDir -r -d --output-dir-flat tmpOutDirDecomp
 test -f tmpOutDirDecomp/tmp2
 test -f tmpOutDirDecomp/tmp1
 rm -rf tmp*
@@ -577,30 +578,27 @@ println "- Create dictionary with short dictID"
 $ZSTD --train-fastcover=k=46,d=8,f=15,split=80 "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o tmpDict1
 cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
 println "- Create dictionaries with shrink-dict flag enabled"
-$ZSTD --train-fastcover=steps=256,shrink "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpShrinkDict
-$ZSTD --train-fastcover=steps=256,shrink=1 "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpShrinkDict1
-$ZSTD --train-fastcover=steps=256,shrink=5 "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpShrinkDict2
+$ZSTD --train-fastcover=steps=1,shrink "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpShrinkDict
+$ZSTD --train-fastcover=steps=1,shrink=1 "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpShrinkDict1
+$ZSTD --train-fastcover=steps=1,shrink=5 "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpShrinkDict2
 println "- Create dictionary with size limit"
-$ZSTD --train-fastcover=steps=8 "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpDict2 --maxdict=4K
-println "- Compare size of dictionary from 90% training samples with 80% training samples"
-$ZSTD --train-fastcover=split=90 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
-$ZSTD --train-fastcover=split=80 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
+$ZSTD --train-fastcover=steps=1 "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpDict2 --maxdict=4K
 println "- Create dictionary using all samples for both training and testing"
-$ZSTD --train-fastcover=split=100 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
+$ZSTD --train-fastcover=k=56,d=8,split=100 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
 println "- Create dictionary using f=16"
-$ZSTD --train-fastcover=f=16 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
-$ZSTD --train-fastcover=accel=15 -r "$TESTDIR"/*.c "$PRGDIR"/*.c && die "Created dictionary using accel=15"
+$ZSTD --train-fastcover=k=56,d=8,f=16 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
+$ZSTD --train-fastcover=k=56,d=8,accel=15 -r "$TESTDIR"/*.c "$PRGDIR"/*.c && die "Created dictionary using accel=15"
 println "- Create dictionary using accel=2"
-$ZSTD --train-fastcover=accel=2 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
+$ZSTD --train-fastcover=k=56,d=8,accel=2 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
 println "- Create dictionary using accel=10"
-$ZSTD --train-fastcover=accel=10 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
+$ZSTD --train-fastcover=k=56,d=8,accel=10 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
 println "- Create dictionary with multithreading"
 $ZSTD --train-fastcover -T4 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
 println "- Test -o before --train-fastcover"
 rm -f tmpDict dictionary
-$ZSTD -o tmpDict --train-fastcover "$TESTDIR"/*.c "$PRGDIR"/*.c
+$ZSTD -o tmpDict --train-fastcover=k=56,d=8 "$TESTDIR"/*.c "$PRGDIR"/*.c
 test -f tmpDict
-$ZSTD --train-fastcover "$TESTDIR"/*.c "$PRGDIR"/*.c
+$ZSTD --train-fastcover=k=56,d=8 "$TESTDIR"/*.c "$PRGDIR"/*.c
 test -f dictionary
 rm tmp* dictionary
 
@@ -674,10 +672,10 @@ $ZSTD -i0b0e3 tmp1
 println "bench negative level"
 $ZSTD -bi0 --fast tmp1
 println "with recursive and quiet modes"
-$ZSTD -rqi1b1e2 tmp1
+$ZSTD -rqi0b1e2 tmp1
 println "benchmark decompression only"
 $ZSTD -f tmp1
-$ZSTD -b -d -i1 tmp1.zst
+$ZSTD -b -d -i0 tmp1.zst
 
 println "\n===>  zstd compatibility tests "
 

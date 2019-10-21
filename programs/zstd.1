@@ -1,5 +1,5 @@
 .
-.TH "ZSTD" "1" "September 2019" "zstd 1.4.4" "User Commands"
+.TH "ZSTD" "1" "October 2019" "zstd 1.4.4" "User Commands"
 .
 .SH "NAME"
 \fBzstd\fR \- zstd, zstdmt, unzstd, zstdcat \- Compress or decompress \.zst files
@@ -205,6 +205,9 @@ add integrity check computed from uncompressed data (default: enabled)
 .TP
 \fB\-\-\fR
 All arguments after \fB\-\-\fR are treated as files
+.
+.SS "Restricted usage of Environment Variables"
+Using environment variables to set parameters has security implications\. Therefore, this avenue is intentionally restricted\. Only \fBZSTD_CLEVEL\fR is supported currently, for setting compression level\. \fBZSTD_CLEVEL\fR can be used to set the level between 1 and 19 (the "normal" range)\. If the value of \fBZSTD_CLEVEL\fR is not a valid integer, it will be ignored with a warning message\. \fBZSTD_CLEVEL\fR just replaces the default compression level (\fB3\fR)\. It can be overridden by corresponding command line arguments\.
 .
 .SH "DICTIONARY BUILDER"
 \fBzstd\fR offers \fIdictionary\fR compression, which greatly improves efficiency on small files and messages\. It\'s possible to train \fBzstd\fR with a set of samples, the result of which is saved into a file called a \fBdictionary\fR\. Then during compression and decompression, reference the same dictionary, using command \fB\-D dictionaryFileName\fR\. Compression of small files similar to the sample set will be greatly improved\.

@@ -834,13 +834,12 @@ static void FIO_freeCResources(cRess_t ress)
 
 #ifdef ZSTD_GZCOMPRESS
 static unsigned long long
-FIO_compressGzFrame(cRess_t* ress,
+FIO_compressGzFrame(const cRess_t* ress,  /* buffers & handlers are used, but not changed */
                     const char* srcFileName, U64 const srcFileSize,
                     int compressionLevel, U64* readsize)
 {
     unsigned long long inFileSize = 0, outFileSize = 0;
     z_stream strm;
-    int ret;
 
     if (compressionLevel > Z_BEST_COMPRESSION)
         compressionLevel = Z_BEST_COMPRESSION;
@@ -849,11 +848,12 @@ FIO_compressGzFrame(cRess_t* ress,
     strm.zfree = Z_NULL;
     strm.opaque = Z_NULL;
 
-    ret = deflateInit2(&strm, compressionLevel, Z_DEFLATED,
+    {   int const ret = deflateInit2(&strm, compressionLevel, Z_DEFLATED,
                         15 /* maxWindowLogSize */ + 16 /* gzip only */,
                         8, Z_DEFAULT_STRATEGY); /* see http://www.zlib.net/manual.html */
-    if (ret != Z_OK)
-        EXM_THROW(71, "zstd: %s: deflateInit2 error %d \n", srcFileName, ret);
+        if (ret != Z_OK) {
+            EXM_THROW(71, "zstd: %s: deflateInit2 error %d \n", srcFileName, ret);
+    }   }
 
     strm.next_in = 0;
     strm.avail_in = 0;
@@ -861,6 +861,7 @@ FIO_compressGzFrame(cRess_t* ress,
     strm.avail_out = (uInt)ress->dstBufferSize;
 
     while (1) {
+        int ret;
         if (strm.avail_in == 0) {
             size_t const inSize = fread(ress->srcBuffer, 1, ress->srcBufferSize, ress->srcFile);
             if (inSize == 0) break;
@@ -871,32 +872,31 @@ FIO_compressGzFrame(cRess_t* ress,
         ret = deflate(&strm, Z_NO_FLUSH);
         if (ret != Z_OK)
             EXM_THROW(72, "zstd: %s: deflate error %d \n", srcFileName, ret);
-        {   size_t const decompBytes = ress->dstBufferSize - strm.avail_out;
-            if (decompBytes) {
-                if (fwrite(ress->dstBuffer, 1, decompBytes, ress->dstFile) != decompBytes)
-                    EXM_THROW(73, "Write error : cannot write to output file : %s", strerror(errno));
-                outFileSize += decompBytes;
+        {   size_t const cSize = ress->dstBufferSize - strm.avail_out;
+            if (cSize) {
+                if (fwrite(ress->dstBuffer, 1, cSize, ress->dstFile) != cSize)
+                    EXM_THROW(73, "Write error : cannot write to output file : %s ", strerror(errno));
+                outFileSize += cSize;
                 strm.next_out = (Bytef*)ress->dstBuffer;
                 strm.avail_out = (uInt)ress->dstBufferSize;
-            }
-        }
-        if (srcFileSize == UTIL_FILESIZE_UNKNOWN)
-            DISPLAYUPDATE(2, "\rRead : %u MB ==> %.2f%%",
+        }   }
+        if (srcFileSize == UTIL_FILESIZE_UNKNOWN) {
+            DISPLAYUPDATE(2, "\rRead : %u MB ==> %.2f%% ",
                             (unsigned)(inFileSize>>20),
                             (double)outFileSize/inFileSize*100)
-        else
-            DISPLAYUPDATE(2, "\rRead : %u / %u MB ==> %.2f%%",
+        } else {
+            DISPLAYUPDATE(2, "\rRead : %u / %u MB ==> %.2f%% ",
                             (unsigned)(inFileSize>>20), (unsigned)(srcFileSize>>20),
                             (double)outFileSize/inFileSize*100);
-    }
+    }   }
 
     while (1) {
-        ret = deflate(&strm, Z_FINISH);
-        {   size_t const decompBytes = ress->dstBufferSize - strm.avail_out;
-            if (decompBytes) {
-                if (fwrite(ress->dstBuffer, 1, decompBytes, ress->dstFile) != decompBytes)
-                    EXM_THROW(75, "Write error : %s", strerror(errno));
-                outFileSize += decompBytes;
+        int const ret = deflate(&strm, Z_FINISH);
+        {   size_t const cSize = ress->dstBufferSize - strm.avail_out;
+            if (cSize) {
+                if (fwrite(ress->dstBuffer, 1, cSize, ress->dstFile) != cSize)
+                    EXM_THROW(75, "Write error : %s ", strerror(errno));
+                outFileSize += cSize;
                 strm.next_out = (Bytef*)ress->dstBuffer;
                 strm.avail_out = (uInt)ress->dstBufferSize;
         }   }
@@ -905,11 +905,11 @@ FIO_compressGzFrame(cRess_t* ress,
             EXM_THROW(77, "zstd: %s: deflate error %d \n", srcFileName, ret);
     }
 
-    ret = deflateEnd(&strm);
-    if (ret != Z_OK)
-        EXM_THROW(79, "zstd: %s: deflateEnd error %d \n", srcFileName, ret);
+    {   int const ret = deflateEnd(&strm);
+        if (ret != Z_OK) {
+            EXM_THROW(79, "zstd: %s: deflateEnd error %d \n", srcFileName, ret);
+    }   }
     *readsize = inFileSize;
-
     return outFileSize;
 }
 #endif

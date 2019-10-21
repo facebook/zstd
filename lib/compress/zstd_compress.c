@@ -387,7 +387,7 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
     case ZSTD_c_forceAttachDict:
         ZSTD_STATIC_ASSERT(ZSTD_dictDefaultAttach < ZSTD_dictForceCopy);
         bounds.lowerBound = ZSTD_dictDefaultAttach;
-        bounds.upperBound = ZSTD_dictForceSource;       /* note : how to ensure at compile time that this is the highest value enum ? */
+        bounds.upperBound = ZSTD_dictForceLoad;       /* note : how to ensure at compile time that this is the highest value enum ? */
         return bounds;
 
     case ZSTD_c_literalCompressionMode:
@@ -2890,7 +2890,8 @@ ZSTD_compress_insertDictionary(ZSTD_compressedBlockState_t* bs,
         bs, ms, ws, params, dict, dictSize, dtlm, workspace);
 }
 
-#define ZSTD_USE_CDICT_PARAMS_CUTOFF (1 MB)
+#define ZSTD_USE_CDICT_PARAMS_SRCSIZE_CUTOFF (128 KB)
+#define ZSTD_USE_CDICT_PARAMS_DICTSIZE_MULTIPLIER (6)
 
 /*! ZSTD_compressBegin_internal() :
  * @return : 0, or an error code */
@@ -2908,8 +2909,10 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
     assert(!((dict) && (cdict)));  /* either dict or cdict, not both */
     if ( (cdict)
       && (cdict->dictContentSize > 0)
-      && (pledgedSrcSize < ZSTD_USE_CDICT_PARAMS_CUTOFF || cdict->compressionLevel == 0)
-      && (params->attachDictPref != ZSTD_dictForceSource) ) {
+      && ( (pledgedSrcSize < ZSTD_USE_CDICT_PARAMS_SRCSIZE_CUTOFF
+          || pledgedSrcSize < cdict->dictContentSize * ZSTD_USE_CDICT_PARAMS_DICTSIZE_MULTIPLIER)
+        || cdict->compressionLevel == 0)
+      && (params->attachDictPref != ZSTD_dictForceLoad) ) {
         return ZSTD_resetCCtx_usingCDict(cctx, cdict, params, pledgedSrcSize, zbuff);
     }
 
@@ -3357,8 +3360,10 @@ size_t ZSTD_compressBegin_usingCDict_advanced(
     DEBUGLOG(4, "ZSTD_compressBegin_usingCDict_advanced");
     RETURN_ERROR_IF(cdict==NULL, dictionary_wrong);
     {   ZSTD_CCtx_params params = cctx->requestedParams;
-        params.cParams = ( (pledgedSrcSize < ZSTD_USE_CDICT_PARAMS_CUTOFF) || (cdict->compressionLevel == 0) )
-                      && (params.attachDictPref != ZSTD_dictForceSource) ?
+        params.cParams = ( (pledgedSrcSize < ZSTD_USE_CDICT_PARAMS_SRCSIZE_CUTOFF
+                          || pledgedSrcSize < cdict->dictContentSize * ZSTD_USE_CDICT_PARAMS_DICTSIZE_MULTIPLIER)
+                        || (cdict->compressionLevel == 0) )
+                      && (params.attachDictPref != ZSTD_dictForceLoad) ?
                 ZSTD_getCParamsFromCDict(cdict)
               : ZSTD_getCParams(cdict->compressionLevel,
                                 pledgedSrcSize,

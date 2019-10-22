@@ -31,7 +31,7 @@
 /* ===   Constants   === */
 #define Z_INFLATE_SYNC              8
 #define ZLIB_HEADERSIZE             4
-#define ZSTD_HEADERSIZE             ZSTD_FRAMEHEADERSIZE_MIN
+#define ZSTD_HEADERSIZE             ZSTD_FRAMEHEADERSIZE_MIN(ZSTD_f_zstd1)
 #define ZWRAP_DEFAULT_CLEVEL        3   /* Z_DEFAULT_COMPRESSION is translated to ZWRAP_DEFAULT_CLEVEL for zstd */
 
 
@@ -457,7 +457,7 @@ static void ZWRAP_initDCtx(ZWRAP_DCtx* zwd)
 static ZWRAP_DCtx* ZWRAP_createDCtx(z_streamp strm)
 {
     ZWRAP_DCtx* zwd;
-    MEM_STATIC_ASSERT(sizeof(zwd->headerBuf) >= ZSTD_FRAMEHEADERSIZE_MIN);   /* check static buffer size condition */
+    MEM_STATIC_ASSERT(sizeof(zwd->headerBuf) >= ZSTD_HEADERSIZE);   /* check static buffer size condition */
 
     if (strm->zalloc && strm->zfree) {
         zwd = (ZWRAP_DCtx*)strm->zalloc(strm->opaque, 1, sizeof(ZWRAP_DCtx));

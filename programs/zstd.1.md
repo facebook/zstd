@@ -191,6 +191,13 @@ the last one takes effect.
     This is the default behavior.
 * `-r`:
     operate recursively on directories
+* `--output-dir-flat[=dir]`:
+    resulting files are stored into target `dir` directory,
+    instead of same directory as origin file.
+    Be aware that this command can introduce name collision issues,
+    if multiple files, from different directories, end up having the same name.
+    Collision resolution ensures first file with a given name will be present in `dir`,
+    while in combination with `-f`, the last file will be present instead.
 * `--format=FORMAT`:
     compress and decompress in other formats. If compiled with
     support, zstd can compress to or decompress from other compression algorithm

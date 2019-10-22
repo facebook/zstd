@@ -1017,8 +1017,8 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
  * Some of them might be removed in the future (especially when redundant with existing stable functions)
  * ***************************************************************************************/
 
-#define ZSTD_FRAMEHEADERSIZE_PREFIX 5   /* minimum input size required to query frame header size */
-#define ZSTD_FRAMEHEADERSIZE_MIN    6
+#define ZSTD_FRAMEHEADERSIZE_PREFIX(format) ((format) == ZSTD_f_zstd1 ? 5 : 1)   /* minimum input size required to query frame header size */
+#define ZSTD_FRAMEHEADERSIZE_MIN(format)    ((format) == ZSTD_f_zstd1 ? 6 : 2)
 #define ZSTD_FRAMEHEADERSIZE_MAX   18   /* can be useful for static allocation */
 #define ZSTD_SKIPPABLEHEADERSIZE    8
 

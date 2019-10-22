@@ -2443,7 +2443,7 @@ FIO_analyzeFrames(fileInfo_t* info, FILE* const srcFile)
     for ( ; ; ) {
         BYTE headerBuffer[ZSTD_FRAMEHEADERSIZE_MAX];
         size_t const numBytesRead = fread(headerBuffer, 1, sizeof(headerBuffer), srcFile);
-        if (numBytesRead < ZSTD_FRAMEHEADERSIZE_MIN) {
+        if (numBytesRead < ZSTD_FRAMEHEADERSIZE_MIN(ZSTD_f_zstd1)) {
             if ( feof(srcFile)
               && (numBytesRead == 0)
               && (info->compressedSize > 0)

@@ -450,7 +450,7 @@ static int benchMem(unsigned benchNb,
     case 31:  /* ZSTD_decodeLiteralsBlock : starts literals block in dstBuff2 */
         {   size_t frameHeaderSize;
             g_cSize = ZSTD_compress(dstBuff, dstBuffSize, src, srcSize, cLevel);
-            frameHeaderSize = ZSTD_frameHeaderSize(dstBuff, ZSTD_FRAMEHEADERSIZE_PREFIX);
+            frameHeaderSize = ZSTD_frameHeaderSize(dstBuff, ZSTD_FRAMEHEADERSIZE_PREFIX(ZSTD_f_zstd1));
             CONTROL(!ZSTD_isError(frameHeaderSize));
             /* check block is compressible, hence contains a literals section */
             {   blockProperties_t bp;
@@ -471,10 +471,10 @@ static int benchMem(unsigned benchNb,
             const BYTE* ip = dstBuff;
             const BYTE* iend;
             {   size_t const cSize = ZSTD_compress(dstBuff, dstBuffSize, src, srcSize, cLevel);
-                CONTROL(cSize > ZSTD_FRAMEHEADERSIZE_PREFIX);
+                CONTROL(cSize > ZSTD_FRAMEHEADERSIZE_PREFIX(ZSTD_f_zstd1));
             }
             /* Skip frame Header */
-            {   size_t const frameHeaderSize = ZSTD_frameHeaderSize(dstBuff, ZSTD_FRAMEHEADERSIZE_PREFIX);
+            {   size_t const frameHeaderSize = ZSTD_frameHeaderSize(dstBuff, ZSTD_FRAMEHEADERSIZE_PREFIX(ZSTD_f_zstd1));
                 CONTROL(!ZSTD_isError(frameHeaderSize));
                 ip += frameHeaderSize;
             }

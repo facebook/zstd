@@ -1886,6 +1886,36 @@ static int basicUnitTests(U32 const seed, double compressibility)
             DISPLAYLEVEL(3, "streaming OK : regenerated %u bytes \n", (unsigned)out.pos);
         }
 
+        /* basic block compression */
+        DISPLAYLEVEL(3, "test%3i : empty magic-less format test : ", testNb++);
+        CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_format, ZSTD_f_zstd1_magicless) );
+        {   ZSTD_inBuffer in = { CNBuffer, 0, 0 };
+            ZSTD_outBuffer out = { compressedBuffer, ZSTD_compressBound(0), 0 };
+            size_t const result = ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end);
+            if (result != 0) goto _output_error;
+            if (in.pos != in.size) goto _output_error;
+            cSize = out.pos;
+        }
+        DISPLAYLEVEL(3, "OK (compress : %u -> %u bytes)\n", (unsigned)0, (unsigned)cSize);
+
+        DISPLAYLEVEL(3, "test%3i : decompress of empty magic-less frame : ", testNb++);
+        ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters);
+        CHECK( ZSTD_DCtx_setParameter(dctx, ZSTD_d_format, ZSTD_f_zstd1_magicless) );
+        /* one shot */
+        {   size_t const result = ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize);
+            if (result != 0) goto _output_error;
+            DISPLAYLEVEL(3, "one-shot OK, ");
+        }
+        /* streaming */
+        {   ZSTD_inBuffer in = { compressedBuffer, cSize, 0 };
+            ZSTD_outBuffer out = { decodedBuffer, CNBuffSize, 0 };
+            size_t const result = ZSTD_decompressStream(dctx, &out, &in);
+            if (result != 0) goto _output_error;
+            if (in.pos != in.size) goto _output_error;
+            if (out.pos != 0) goto _output_error;
+            DISPLAYLEVEL(3, "streaming OK : regenerated %u bytes \n", (unsigned)out.pos);
+        }
+
         ZSTD_freeCCtx(cctx);
         ZSTD_freeDCtx(dctx);
     }

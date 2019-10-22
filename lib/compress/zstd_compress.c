@@ -238,10 +238,10 @@ size_t ZSTD_CCtxParams_init_advanced(ZSTD_CCtx_params* cctxParams, ZSTD_paramete
     RETURN_ERROR_IF(!cctxParams, GENERIC);
     FORWARD_IF_ERROR( ZSTD_checkCParams(params.cParams) );
     memset(cctxParams, 0, sizeof(*cctxParams));
+    assert(!ZSTD_checkCParams(params.cParams));
     cctxParams->cParams = params.cParams;
     cctxParams->fParams = params.fParams;
     cctxParams->compressionLevel = ZSTD_CLEVEL_DEFAULT;   /* should not matter, as all cParams are presumed properly defined */
-    assert(!ZSTD_checkCParams(params.cParams));
     return 0;
 }
 
@@ -251,10 +251,10 @@ static ZSTD_CCtx_params ZSTD_assignParamsToCCtxParams(
         const ZSTD_CCtx_params* cctxParams, ZSTD_parameters params)
 {
     ZSTD_CCtx_params ret = *cctxParams;
+    assert(!ZSTD_checkCParams(params.cParams));
     ret.cParams = params.cParams;
     ret.fParams = params.fParams;
     ret.compressionLevel = ZSTD_CLEVEL_DEFAULT;   /* should not matter, as all cParams are presumed properly defined */
-    assert(!ZSTD_checkCParams(params.cParams));
     return ret;
 }
 
@@ -533,33 +533,33 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
         if (value) {  /* 0 : does not change current level */
             CCtxParams->compressionLevel = value;
         }
-        if (CCtxParams->compressionLevel >= 0) return CCtxParams->compressionLevel;
+        if (CCtxParams->compressionLevel >= 0) return (size_t)CCtxParams->compressionLevel;
         return 0;  /* return type (size_t) cannot represent negative values */
     }
 
     case ZSTD_c_windowLog :
         if (value!=0)   /* 0 => use default */
             BOUNDCHECK(ZSTD_c_windowLog, value);
-        CCtxParams->cParams.windowLog = value;
+        CCtxParams->cParams.windowLog = (U32)value;
         return CCtxParams->cParams.windowLog;
 
     case ZSTD_c_hashLog :
         if (value!=0)   /* 0 => use default */
             BOUNDCHECK(ZSTD_c_hashLog, value);
-        CCtxParams->cParams.hashLog = value;
+        CCtxParams->cParams.hashLog = (U32)value;
         return CCtxParams->cParams.hashLog;
 
     case ZSTD_c_chainLog :
         if (value!=0)   /* 0 => use default */
             BOUNDCHECK(ZSTD_c_chainLog, value);
-        CCtxParams->cParams.chainLog = value;
+        CCtxParams->cParams.chainLog = (U32)value;
         return CCtxParams->cParams.chainLog;
 
     case ZSTD_c_searchLog :
         if (value!=0)   /* 0 => use default */
             BOUNDCHECK(ZSTD_c_searchLog, value);
-        CCtxParams->cParams.searchLog = value;
-        return value;
+        CCtxParams->cParams.searchLog = (U32)value;
+        return (size_t)value;
 
     case ZSTD_c_minMatch :
         if (value!=0)   /* 0 => use default */
@@ -3810,7 +3810,7 @@ size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
             if (cctx->mtctx == NULL) {
                 DEBUGLOG(4, "ZSTD_compressStream2: creating new mtctx for nbWorkers=%u",
                             params.nbWorkers);
-                cctx->mtctx = ZSTDMT_createCCtx_advanced(params.nbWorkers, cctx->customMem);
+                cctx->mtctx = ZSTDMT_createCCtx_advanced((U32)params.nbWorkers, cctx->customMem);
                 RETURN_ERROR_IF(cctx->mtctx == NULL, memory_allocation);
             }
             /* mt compression */
@@ -3938,8 +3938,8 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
     { 19, 12, 13,  1,  6,  1, ZSTD_fast    },  /* base for negative levels */
     { 19, 13, 14,  1,  7,  0, ZSTD_fast    },  /* level  1 */
     { 20, 15, 16,  1,  6,  0, ZSTD_fast    },  /* level  2 */
-    { 21, 16, 17,  1,  5,  1, ZSTD_dfast   },  /* level  3 */
-    { 21, 18, 18,  1,  5,  1, ZSTD_dfast   },  /* level  4 */
+    { 21, 16, 17,  1,  5,  0, ZSTD_dfast   },  /* level  3 */
+    { 21, 18, 18,  1,  5,  0, ZSTD_dfast   },  /* level  4 */
     { 21, 18, 19,  2,  5,  2, ZSTD_greedy  },  /* level  5 */
     { 21, 19, 19,  3,  5,  4, ZSTD_greedy  },  /* level  6 */
     { 21, 19, 19,  3,  5,  8, ZSTD_lazy    },  /* level  7 */
@@ -3963,8 +3963,8 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
     /* W,  C,  H,  S,  L,  T, strat */
     { 18, 12, 13,  1,  5,  1, ZSTD_fast    },  /* base for negative levels */
     { 18, 13, 14,  1,  6,  0, ZSTD_fast    },  /* level  1 */
-    { 18, 14, 14,  1,  5,  1, ZSTD_dfast   },  /* level  2 */
-    { 18, 16, 16,  1,  4,  1, ZSTD_dfast   },  /* level  3 */
+    { 18, 14, 14,  1,  5,  0, ZSTD_dfast   },  /* level  2 */
+    { 18, 16, 16,  1,  4,  0, ZSTD_dfast   },  /* level  3 */
     { 18, 16, 17,  2,  5,  2, ZSTD_greedy  },  /* level  4.*/
     { 18, 18, 18,  3,  5,  2, ZSTD_greedy  },  /* level  5.*/
     { 18, 18, 19,  3,  5,  4, ZSTD_lazy    },  /* level  6.*/
@@ -3990,8 +3990,8 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
     { 17, 12, 12,  1,  5,  1, ZSTD_fast    },  /* base for negative levels */
     { 17, 12, 13,  1,  6,  0, ZSTD_fast    },  /* level  1 */
     { 17, 13, 15,  1,  5,  0, ZSTD_fast    },  /* level  2 */
-    { 17, 15, 16,  2,  5,  1, ZSTD_dfast   },  /* level  3 */
-    { 17, 17, 17,  2,  4,  1, ZSTD_dfast   },  /* level  4 */
+    { 17, 15, 16,  2,  5,  0, ZSTD_dfast   },  /* level  3 */
+    { 17, 17, 17,  2,  4,  0, ZSTD_dfast   },  /* level  4 */
     { 17, 16, 17,  3,  4,  2, ZSTD_greedy  },  /* level  5 */
     { 17, 17, 17,  3,  4,  4, ZSTD_lazy    },  /* level  6 */
     { 17, 17, 17,  3,  4,  8, ZSTD_lazy2   },  /* level  7 */
@@ -4016,7 +4016,7 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
     { 14, 12, 13,  1,  5,  1, ZSTD_fast    },  /* base for negative levels */
     { 14, 14, 15,  1,  5,  0, ZSTD_fast    },  /* level  1 */
     { 14, 14, 15,  1,  4,  0, ZSTD_fast    },  /* level  2 */
-    { 14, 14, 15,  2,  4,  1, ZSTD_dfast   },  /* level  3 */
+    { 14, 14, 15,  2,  4,  0, ZSTD_dfast   },  /* level  3 */
     { 14, 14, 14,  4,  4,  2, ZSTD_greedy  },  /* level  4 */
     { 14, 14, 14,  3,  4,  4, ZSTD_lazy    },  /* level  5.*/
     { 14, 14, 14,  4,  4,  8, ZSTD_lazy2   },  /* level  6 */

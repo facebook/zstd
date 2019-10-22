@@ -45,7 +45,6 @@
 #define NBLOOPS    6
 #define TIMELOOP_S 2
 
-#define KNUTH      2654435761U
 #define MAX_MEM    (1984 MB)
 
 #define DEFAULT_CLEVEL 1
@@ -722,7 +721,7 @@ static int usage_advanced(const char* exename)
     DISPLAY( "\nAdvanced options :\n");
     DISPLAY( " -b#    : test only function # \n");
     DISPLAY( " -l#    : benchmark functions at that compression level (default : %i)\n", DEFAULT_CLEVEL);
-    DISPLAY( " --zstd : custom parameter selection. Format same as zstdcli \n");
+    DISPLAY( "--zstd= : custom parameter selection. Format same as zstdcli \n");
     DISPLAY( " -P#    : sample compressibility (default : %.1f%%)\n", COMPRESSIBILITY_DEFAULT * 100);
     DISPLAY( " -B#    : sample size (default : %u)\n", (unsigned)kSampleSizeDefault);
     DISPLAY( " -i#    : iteration loops [1-9](default : %i)\n", NBLOOPS);

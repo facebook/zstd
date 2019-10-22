@@ -175,6 +175,10 @@ keep source file(s) after successful compression or decompression\. This is the 
 operate recursively on directories
 .
 .TP
+\fB\-\-output\-dir\-flat[=dir]\fR
+resulting files are stored into target \fBdir\fR directory, instead of same directory as origin file\. Be aware that this command can introduce name collision issues, if multiple files, from different directories, end up having the same name\. Collision resolution ensures first file with a given name will be present in \fBdir\fR, while in combination with \fB\-f\fR, the last file will be present instead\.
+.
+.TP
 \fB\-\-format=FORMAT\fR
 compress and decompress in other formats\. If compiled with support, zstd can compress to or decompress from other compression algorithm formats\. Possibly available options are \fBzstd\fR, \fBgzip\fR, \fBxz\fR, \fBlzma\fR, and \fBlz4\fR\. If no such format is provided, \fBzstd\fR is the default\.
 .

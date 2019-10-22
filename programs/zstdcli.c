@@ -136,11 +136,10 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -q     : suppress warnings; specify twice to suppress errors too\n");
     DISPLAY( " -c     : force write to standard output, even if it is the console\n");
     DISPLAY( " -l     : print information about zstd compressed files \n");
-    DISPLAY( " --output-dir-flat directory: results stored into `directory`. Filename collisions mean first file will be compressed. With -f, the last file will be compressed.\n");
 #ifndef ZSTD_NOCOMPRESS
     DISPLAY( "--ultra : enable levels beyond %i, up to %i (requires more memory)\n", ZSTDCLI_CLEVEL_MAX, ZSTD_maxCLevel());
     DISPLAY( "--long[=#]: enable long distance matching with given window log (default: %u)\n", g_defaultMaxWindowLog);
-    DISPLAY( "--fast[=#]: switch to ultra fast compression level (default: %u)\n", 1);
+    DISPLAY( "--fast[=#]: switch to very fast compression levels (default: %u)\n", 1);
     DISPLAY( "--adapt : dynamically adapt compression level to I/O conditions \n");
     DISPLAY( "--stream-size=# : optimize compression parameters for streaming input of given number of bytes \n");
     DISPLAY( "--size-hint=# optimize compression parameters for streaming input of approximately this size\n");
@@ -148,7 +147,7 @@ static int usage_advanced(const char* programName)
 #ifdef ZSTD_MULTITHREAD
     DISPLAY( " -T#    : spawns # compression threads (default: 1, 0==# cores) \n");
     DISPLAY( " -B#    : select size of each job (default: 0==automatic) \n");
-    DISPLAY( " --rsyncable : compress using a rsync-friendly method (-B sets block size) \n");
+    DISPLAY( "--rsyncable : compress using a rsync-friendly method (-B sets block size) \n");
 #endif
     DISPLAY( "--no-dictID : don't write dictID into header (dictionary compression)\n");
     DISPLAY( "--[no-]check : integrity check (default: enabled) \n");
@@ -156,6 +155,7 @@ static int usage_advanced(const char* programName)
 #endif
 #ifdef UTIL_HAS_CREATEFILELIST
     DISPLAY( " -r     : operate recursively on directories \n");
+    DISPLAY( "--output-dir-flat[=directory]: all resulting files stored into `directory`. \n");
 #endif
     DISPLAY( "--format=zstd : compress files to the .zst format (default) \n");
 #ifdef ZSTD_GZCOMPRESS
@@ -756,6 +756,7 @@ int main(int argCount, const char* argv[])
                     if (longCommandWArg(&argument, "--stream-size=")) { streamSrcSize = readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--target-compressed-block-size=")) { targetCBlockSize = readU32FromChar(&argument); continue; }
                     if (longCommandWArg(&argument, "--size-hint=")) { srcSizeHint = readU32FromChar(&argument); continue; }
+                    if (longCommandWArg(&argument, "--output-dir-flat=")) { outDirName = argument; continue; }
                     if (longCommandWArg(&argument, "--long")) {
                         unsigned ldmWindowLog = 0;
                         ldmFlag = 1;

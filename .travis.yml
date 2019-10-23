@@ -222,5 +222,12 @@ matrix:
         - tree ./staging
       after_failure:
         - cat "$TRAVIS_BUILD_DIR"/builddir/meson-logs/testlog.txt
+
+    # arm 64
+    - name: arm64
+      os: linux
+      arch: arm64
+      script:
+        - make check
   allow_failures:
     - env: ALLOW_FAILURES=true

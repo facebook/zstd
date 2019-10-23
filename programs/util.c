@@ -251,12 +251,13 @@ UTIL_createFileNamesTable_fromFileName(const char* inputFileName) {
       return NULL;
     }
 
-    int nbFiles = readFromFile(buf, inputFileSize, inputFileName);
+    int ret_nbFiles = readFromFile(buf, inputFileSize, inputFileName);
 
-    if(nbFiles <= 0) {
+    if(ret_nbFiles <= 0) {
       free(buf);
       return NULL;
     }
+     unsigned nbFiles = ret_nbFiles;
 
     UTIL_DISPLAY("[TRACE] file closed with %d read lines\n", nbFiles);
 
@@ -328,7 +329,7 @@ UTIL_concatenateTwoTables(FileNamesTable* table1, FileNamesTable* table2) {
       return NULL;
     }
 
-    int newTotalTableSize = getTotalTableSize(table1) + getTotalTableSize(table2);
+    size_t newTotalTableSize = getTotalTableSize(table1) + getTotalTableSize(table2);
     UTIL_DISPLAY("[TRACE] buf total size is: %d\n", newTotalTableSize);
 
     char* buf = (char*) malloc(newTotalTableSize * sizeof(char));

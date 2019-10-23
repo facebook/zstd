@@ -587,6 +587,9 @@ int main(int argCount, const char* argv[])
     unsigned memLimit = 0;
     unsigned filenameTableSize = argCount;
     const char** filenameTable = (const char**)malloc(filenameTableSize * sizeof(const char*));   /* argCount >= 1 */
+    FileNamesTable* extendedTable = NULL;
+    FileNamesTable* concatenatedTables = NULL;
+    FileNamesTable* curTable = (FileNamesTable*) malloc(sizeof(FileNamesTable));
     char* tableBuf = NULL;
     unsigned filenameIdx = 0;
     const char* programName = argv[0];
@@ -622,6 +625,9 @@ int main(int argCount, const char* argv[])
     (void)memLimit;   /* not used when ZSTD_NODECOMPRESS set */
     if (filenameTable==NULL) { DISPLAY("zstd: %s \n", strerror(errno)); exit(1); }
     filenameTable[0] = stdinmark;
+    curTable->fileNames = filenameTable;
+    curTable->tableSize = filenameTableSize;
+    curTable->buf = tableBuf;
     g_displayOut = stderr;
     cLevel = init_cLevel();
     programName = lastNameFromPath(programName);
@@ -803,26 +809,24 @@ int main(int argCount, const char* argv[])
                     if (longCommandWArg(&argument, "--file=")) {
                         DISPLAYLEVEL(4, "[TRACE] argument catched\n");
                         const char* fileName = argument;
-                        DISPLAYLEVEL(4, "[TRACE] fileName: %s\n", fileName);
-                        if(!UTIL_fileExist(fileName) || !UTIL_isRegularFile(fileName)){
-                          DISPLAYLEVEL(1, "[ERROR] wrong fileName: %s\n", fileName);
+                        DISPLAYLEVEL(4, "[TRACE] fileName: %s\n", argument);
+                        if(!UTIL_fileExist(fileName) || !UTIL_isRegularFile(argument)){
+                          DISPLAYLEVEL(1, "[ERROR] wrong fileName: %s\n", argument);
                           CLEAN_RETURN(badusage(programName));
                         }
 
                         DISPLAYLEVEL(4, "[TRACE] call read function\n");
-                        FileNamesTable* extendedTable = UTIL_createFileNamesTable_fromFileName(fileName);
+                        extendedTable = UTIL_createFileNamesTable_fromFileName(argument);
                         if(!extendedTable) {
                           CLEAN_RETURN(badusage(programName));
                         }
 
                         DISPLAYLEVEL(4, "[TRACE] call read function is finished\n");
                         DISPLAYLEVEL(4, "[TRACE] extendedFileNamesTable:\n");
-                        size_t extendedTableSize = extendedTable->tableSize;
-                        const char ** extendedFileNamesTable = extendedTable->fileNames;
 
-                        int i = 0;
-                        for(i = 0; i < extendedTableSize; ++i)
-                            printf("%s\n",extendedFileNamesTable[i]);
+                        unsigned i = 0;
+                        for(i = 0; i < extendedTable->tableSize; ++i)
+                            printf("%s\n",extendedTable->fileNames[i]);
 
                         DISPLAYLEVEL(4, "[TRACE] call concatenation function\n");
                         DISPLAYLEVEL(4, "[TRACE] filenameidx: %d\n", filenameIdx);
@@ -830,7 +834,6 @@ int main(int argCount, const char* argv[])
                         for(i = filenameIdx; i < filenameTableSize ; ++i)
                             filenameTable[i] = NULL;
 
-                        FileNamesTable* curTable = (FileNamesTable*) malloc(sizeof(FileNamesTable));
                         if(!curTable) {
                           UTIL_freeFileNamesTable(extendedTable);
                           CLEAN_RETURN(badusage(programName));
@@ -840,7 +843,7 @@ int main(int argCount, const char* argv[])
                         curTable->tableSize = filenameTableSize;
                         curTable->buf = tableBuf;
 
-                        FileNamesTable* concatenatedTables = UTIL_concatenateTwoTables(curTable, extendedTable);
+                        concatenatedTables = UTIL_concatenateTwoTables(curTable, extendedTable);
                         if(!concatenatedTables) {
                           UTIL_freeFileNamesTable(curTable);
                           UTIL_freeFileNamesTable(extendedTable);
@@ -851,8 +854,7 @@ int main(int argCount, const char* argv[])
                         filenameTableSize = concatenatedTables->tableSize;
                         tableBuf = concatenatedTables->buf;
 
-                        filenameIdx += extendedTableSize;
-                        free(concatenatedTables);
+                        filenameIdx += extendedTable->tableSize;
                         isTableBufferBased = 1;
 
                         DISPLAYLEVEL(1, "[TRACE] call concatenation function is finished\n");
@@ -1273,7 +1275,9 @@ _end:
          free(tableBuf);
        }
     }
-
+    UTIL_freeFileNamesTable(curTable);
+    UTIL_freeFileNamesTable(extendedTable);
+    UTIL_freeFileNamesTable(concatenatedTables);
 
     if (main_pause) waitEnter();
 #ifdef UTIL_HAS_CREATEFILELIST

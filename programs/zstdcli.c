@@ -808,9 +808,8 @@ int main(int argCount, const char* argv[])
 
                     if (longCommandWArg(&argument, "--file=")) {
                         DISPLAYLEVEL(4, "[TRACE] argument catched\n");
-                        const char* fileName = argument;
                         DISPLAYLEVEL(4, "[TRACE] fileName: %s\n", argument);
-                        if(!UTIL_fileExist(fileName) || !UTIL_isRegularFile(argument)){
+                        if(!UTIL_fileExist(argument) || !UTIL_isRegularFile(argument)){
                           DISPLAYLEVEL(1, "[ERROR] wrong fileName: %s\n", argument);
                           CLEAN_RETURN(badusage(programName));
                         }
@@ -824,7 +823,7 @@ int main(int argCount, const char* argv[])
                         DISPLAYLEVEL(4, "[TRACE] call read function is finished\n");
                         DISPLAYLEVEL(4, "[TRACE] extendedFileNamesTable:\n");
 
-                        unsigned i = 0;
+                        unsigned i;
                         for(i = 0; i < extendedTable->tableSize; ++i)
                             printf("%s\n",extendedTable->fileNames[i]);
 

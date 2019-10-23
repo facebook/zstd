@@ -283,7 +283,7 @@ UTIL_createFileNamesTable_fromFileName(const char* inputFileName) {
     UTIL_DISPLAY("[TRACE] migration done\n");
 
 
-    UTIL_DISPLAY("[TRACE] pos %zu  inputFileSize %lu\n", pos, inputFileSize);
+    UTIL_DISPLAY("[TRACE] pos %zu  inputFileSize %llu\n", pos, inputFileSize);
     if(pos > inputFileSize){
       UTIL_freeFileNamesTable(filesTable);
       if(buf) free(buf);
@@ -330,7 +330,7 @@ UTIL_concatenateTwoTables(FileNamesTable* table1, FileNamesTable* table2) {
     }
 
     size_t newTotalTableSize = getTotalTableSize(table1) + getTotalTableSize(table2);
-    UTIL_DISPLAY("[TRACE] buf total size is: %d\n", newTotalTableSize);
+    UTIL_DISPLAY("[TRACE] buf total size is: %zu\n", newTotalTableSize);
 
     char* buf = (char*) malloc(newTotalTableSize * sizeof(char));
     if(!buf) {

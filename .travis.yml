@@ -26,6 +26,12 @@ env:
 matrix:
   fast_finish: true
   include:
+    - name: arm64
+      os: linux
+      arch: arm64
+      script:
+        - make check
+
     - name: Trusty (Test All)
       script:
         - make test
@@ -223,11 +229,5 @@ matrix:
       after_failure:
         - cat "$TRAVIS_BUILD_DIR"/builddir/meson-logs/testlog.txt
 
-    # arm 64
-    - name: arm64
-      os: linux
-      arch: arm64
-      script:
-        - make check
   allow_failures:
     - env: ALLOW_FAILURES=true

@@ -1152,7 +1152,7 @@ typedef enum {
      * to evolve and should be considered only in the context of extremely
      * advanced performance tuning.
      *
-     * Zstd currently supports the use of a CDict in two ways:
+     * Zstd currently supports the use of a CDict in three ways:
      *
      * - The contents of the CDict can be copied into the working context. This
      *   means that the compression can search both the dictionary and input
@@ -1167,6 +1167,12 @@ typedef enum {
      *   tables. However, this model incurs no start-up cost (as long as the
      *   working context's tables can be reused). For small inputs, this can be
      *   faster than copying the CDict's tables.
+     * 
+     * - The CDict's tables are not used at all, and instead we use the working
+     *   context alone to reload the dictionary and use params based on the source
+     *   size. See ZSTD_compress_insertDictionary() and ZSTD_compress_usingDict().
+     *   This method is effective when the dictionary sizes are very small relative
+     *   to the input size, and the input size is fairly large to begin with.
      *
      * Zstd has a simple internal heuristic that selects which strategy to use
      * at the beginning of a compression. However, if experimentation shows that
@@ -1175,7 +1181,8 @@ typedef enum {
      */
     ZSTD_dictDefaultAttach = 0, /* Use the default heuristic. */
     ZSTD_dictForceAttach   = 1, /* Never copy the dictionary. */
-    ZSTD_dictForceCopy     = 2  /* Always copy the dictionary. */
+    ZSTD_dictForceCopy     = 2, /* Always copy the dictionary. */
+    ZSTD_dictForceLoad     = 3  /* Always reload the dictionary */
 } ZSTD_dictAttachPref_e;
 
 typedef enum {

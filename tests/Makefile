@@ -160,19 +160,13 @@ fuzzer-dll : LDFLAGS+= -L$(ZSTDDIR) -lzstd
 fuzzer-dll : $(ZSTDDIR)/common/xxhash.c $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/datagen.c fuzzer.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(filter %.c,$^) $(LDFLAGS) -o $@$(EXT)
 
-zbufftest : CPPFLAGS += -I$(ZSTDDIR)/deprecated
-zbufftest : CFLAGS += -Wno-deprecated-declarations   # required to silence deprecation warnings
-zbufftest : $(ZSTD_OBJECTS) $(ZBUFF_FILES) $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/datagen.c zbufftest.c
-	$(CC) $(FLAGS) $^ -o $@$(EXT)
-
-zbufftest32 : CPPFLAGS += -I$(ZSTDDIR)/deprecated
-zbufftest32 : CFLAGS += -Wno-deprecated-declarations -m32
-zbufftest32 : $(ZSTD_FILES) $(ZBUFF_FILES) $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/datagen.c zbufftest.c
+zbufftest zbufftest32 zbufftest-dll : CPPFLAGS += -I$(ZSTDDIR)/deprecated
+zbufftest zbufftest32 zbufftest-dll : CFLAGS += -Wno-deprecated-declarations   # required to silence deprecation warnings
+zbufftest32 : CFLAGS +=  -m32
+zbufftest zbufftest32 : $(ZSTD_OBJECTS) $(ZBUFF_FILES) $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/datagen.c zbufftest.c
 	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
 zbufftest-dll : zstd-dll
-zbufftest-dll : CPPFLAGS += -I$(ZSTDDIR)/deprecated
-zbufftest-dll : CFLAGS += -Wno-deprecated-declarations   # required to silence deprecation warnings
 zbufftest-dll : LDFLAGS+= -L$(ZSTDDIR) -lzstd
 zbufftest-dll : $(ZSTDDIR)/common/xxhash.c $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/datagen.c zbufftest.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(filter %.c,$^) $(LDFLAGS) -o $@$(EXT)

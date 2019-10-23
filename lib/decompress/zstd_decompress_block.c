@@ -151,7 +151,9 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                             dctx->entropy.hufTable, dctx->litBuffer, litSize,
                             istart+lhSize, litCSize, dctx->workspace,
                             sizeof(dctx->workspace), dctx->bmi2);
+
 #endif
+
                     } else {
                         hufSuccess = HUF_decompress4X_hufOnly_wksp_bmi2(
                             dctx->entropy.hufTable, dctx->litBuffer, litSize,
@@ -159,7 +161,6 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                             sizeof(dctx->workspace), dctx->bmi2);
                     }
                 }
-
                 RETURN_ERROR_IF(HUF_isError(hufSuccess), corruption_detected);
 
                 dctx->litPtr = dctx->litBuffer;
@@ -427,10 +428,16 @@ ZSTD_buildFSETable(ZSTD_seqSymbol* dt,
 }
 
 
+size_t ZSTD_buildSeqTable(ZSTD_seqSymbol* DTableSpace, const ZSTD_seqSymbol** DTablePtr,
+                                 symbolEncodingType_e type, unsigned max, U32 maxLog,
+                                 const void* src, size_t srcSize,
+                                 const U32* baseValue, const U32* nbAdditionalBits,
+                                 const ZSTD_seqSymbol* defaultTable, U32 flagRepeatTable,
+                                 int ddictIsCold, int nbSeq);
 /*! ZSTD_buildSeqTable() :
  * @return : nb bytes read from src,
  *           or an error code if it fails */
-static size_t ZSTD_buildSeqTable(ZSTD_seqSymbol* DTableSpace, const ZSTD_seqSymbol** DTablePtr,
+size_t ZSTD_buildSeqTable(ZSTD_seqSymbol* DTableSpace, const ZSTD_seqSymbol** DTablePtr,
                                  symbolEncodingType_e type, unsigned max, U32 maxLog,
                                  const void* src, size_t srcSize,
                                  const U32* baseValue, const U32* nbAdditionalBits,
@@ -700,7 +707,11 @@ size_t ZSTD_execSequenceEnd(BYTE* op,
     return sequenceLength;
 }
 
-HINT_INLINE
+size_t ZSTD_execSequence(BYTE* op,
+                         BYTE* const oend, seq_t sequence,
+                         const BYTE** litPtr, const BYTE* const litLimit,
+                         const BYTE* const prefixStart, const BYTE* const virtualStart, const BYTE* const dictEnd);
+
 size_t ZSTD_execSequence(BYTE* op,
                          BYTE* const oend, seq_t sequence,
                          const BYTE** litPtr, const BYTE* const litLimit,
@@ -815,8 +826,7 @@ ZSTD_updateFseState(ZSTD_fseState* DStatePtr, BIT_DStream_t* bitD)
 typedef enum { ZSTD_lo_isRegularOffset, ZSTD_lo_isLongOffset=1 } ZSTD_longOffset_e;
 
 #ifndef ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG
-FORCE_INLINE_TEMPLATE seq_t
-ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e longOffsets)
+seq_t ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e longOffsets)
 {
     seq_t seq;
     U32 const llBits = seqState->stateLL.table[seqState->stateLL.state].nbAdditionalBits;

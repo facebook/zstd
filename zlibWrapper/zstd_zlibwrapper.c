@@ -31,7 +31,7 @@
 /* ===   Constants   === */
 #define Z_INFLATE_SYNC              8
 #define ZLIB_HEADERSIZE             4
-#define ZSTD_HEADERSIZE             ZSTD_FRAMEHEADERSIZE_MIN
+#define ZSTD_HEADERSIZE             ZSTD_FRAMEHEADERSIZE_MIN(ZSTD_f_zstd1)
 #define ZWRAP_DEFAULT_CLEVEL        3   /* Z_DEFAULT_COMPRESSION is translated to ZWRAP_DEFAULT_CLEVEL for zstd */
 
 
@@ -54,7 +54,7 @@ int ZWRAP_isUsingZSTDcompression(void) { return g_ZWRAP_useZSTDcompression; }
 
 static ZWRAP_decompress_type g_ZWRAPdecompressionType = ZWRAP_AUTO;
 
-void ZWRAP_setDecompressionType(ZWRAP_decompress_type type) { g_ZWRAPdecompressionType = type; };
+void ZWRAP_setDecompressionType(ZWRAP_decompress_type type) { g_ZWRAPdecompressionType = type; }
 
 ZWRAP_decompress_type ZWRAP_getDecompressionType(void) { return g_ZWRAPdecompressionType; }
 
@@ -99,7 +99,7 @@ typedef struct {
     unsigned long long pledgedSrcSize;
 } ZWRAP_CCtx;
 
-typedef ZWRAP_CCtx internal_state;
+/* typedef ZWRAP_CCtx internal_state; */
 
 
 
@@ -121,8 +121,10 @@ static ZWRAP_CCtx* ZWRAP_createCCtx(z_streamp strm)
         if (zwc==NULL) return NULL;
         memset(zwc, 0, sizeof(ZWRAP_CCtx));
         memcpy(&zwc->allocFunc, strm, sizeof(z_stream));
-        { ZSTD_customMem const ZWRAP_customMem = { ZWRAP_allocFunction, ZWRAP_freeFunction, &zwc->allocFunc };
-          zwc->customMem = ZWRAP_customMem; }
+        {   ZSTD_customMem ZWRAP_customMem = { ZWRAP_allocFunction, ZWRAP_freeFunction, NULL };
+            ZWRAP_customMem.opaque = &zwc->allocFunc;
+            zwc->customMem = ZWRAP_customMem;
+        }
     } else {
         zwc = (ZWRAP_CCtx*)calloc(1, sizeof(*zwc));
         if (zwc==NULL) return NULL;
@@ -455,15 +457,17 @@ static void ZWRAP_initDCtx(ZWRAP_DCtx* zwd)
 static ZWRAP_DCtx* ZWRAP_createDCtx(z_streamp strm)
 {
     ZWRAP_DCtx* zwd;
-    MEM_STATIC_ASSERT(sizeof(zwd->headerBuf) >= ZSTD_FRAMEHEADERSIZE_MIN);   /* check static buffer size condition */
+    MEM_STATIC_ASSERT(sizeof(zwd->headerBuf) >= ZSTD_HEADERSIZE);   /* check static buffer size condition */
 
     if (strm->zalloc && strm->zfree) {
         zwd = (ZWRAP_DCtx*)strm->zalloc(strm->opaque, 1, sizeof(ZWRAP_DCtx));
         if (zwd==NULL) return NULL;
         memset(zwd, 0, sizeof(ZWRAP_DCtx));
         zwd->allocFunc = *strm;  /* just to copy zalloc, zfree & opaque */
-        { ZSTD_customMem const ZWRAP_customMem = { ZWRAP_allocFunction, ZWRAP_freeFunction, &zwd->allocFunc };
-          zwd->customMem = ZWRAP_customMem; }
+        {   ZSTD_customMem ZWRAP_customMem = { ZWRAP_allocFunction, ZWRAP_freeFunction, NULL };
+            ZWRAP_customMem.opaque = &zwd->allocFunc;
+            zwd->customMem = ZWRAP_customMem;
+        }
     } else {
         zwd = (ZWRAP_DCtx*)calloc(1, sizeof(*zwd));
         if (zwd==NULL) return NULL;
@@ -509,7 +513,7 @@ static int ZWRAPD_finishWithErrorMsg(z_streamp strm, char* message)
 
 
 ZEXTERN int ZEXPORT z_inflateInit_ OF((z_streamp strm,
-                                     const char *version, int stream_size))
+                                     const char* version, int stream_size))
 {
     if (g_ZWRAPdecompressionType == ZWRAP_FORCE_ZLIB) {
         strm->reserved = ZWRAP_ZLIB_STREAM;
@@ -520,7 +524,7 @@ ZEXTERN int ZEXPORT z_inflateInit_ OF((z_streamp strm,
         LOG_WRAPPERD("- inflateInit\n");
         if (zwd == NULL) return ZWRAPD_finishWithError(zwd, strm, 0);
 
-        zwd->version = ZSTD_malloc(strlen(version)+1, zwd->customMem);
+        zwd->version = (char*)ZSTD_malloc(strlen(version)+1, zwd->customMem);
         if (zwd->version == NULL) return ZWRAPD_finishWithError(zwd, strm, 0);
         strcpy(zwd->version, version);
 
@@ -1003,7 +1007,7 @@ ZEXTERN int ZEXPORT z_inflateBackEnd OF((z_streamp strm))
 }
 
 
-ZEXTERN uLong ZEXPORT z_zlibCompileFlags OF((void)) { return zlibCompileFlags(); };
+ZEXTERN uLong ZEXPORT z_zlibCompileFlags OF((void)) { return zlibCompileFlags(); }
 
 
 

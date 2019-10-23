@@ -304,6 +304,28 @@ static int FUZ_mallocTests(unsigned seed, double compressibility, unsigned part)
 
 #endif
 
+static void FUZ_decodeSequences(BYTE* dst, ZSTD_Sequence* seqs, size_t seqsSize, BYTE* src, size_t size)
+{
+    size_t i;
+    size_t j;
+    for(i = 0; i < seqsSize - 1; ++i) {
+        assert(dst + seqs[i].litLength + seqs[i].matchLength < dst + size);
+        assert(src + seqs[i].litLength + seqs[i].matchLength < src + size);
+
+        memcpy(dst, src, seqs[i].litLength);
+        dst += seqs[i].litLength;
+        src += seqs[i].litLength;
+        size -= seqs[i].litLength;
+
+        for (j = 0; j < seqs[i].matchLength; ++j)
+            dst[j] = dst[j - seqs[i].offset];
+        dst += seqs[i].matchLength;
+        src += seqs[i].matchLength;
+        size -= seqs[i].matchLength;
+    }
+    memcpy(dst, src, size);
+}
+
 /*=============================================
 *   Unit tests
 =============================================*/
@@ -1365,7 +1387,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         }
         DISPLAYLEVEL(3, "OK \n");
 
-        DISPLAYLEVEL(3, "test%3i : Building cdict w/ ZSTD_dm_fullDict on a good dictionary : ", testNb++);
+        DISPLAYLEVEL(3, "test%3i : Building cdict w/ ZSTD_dct_fullDict on a good dictionary : ", testNb++);
         {   ZSTD_compressionParameters const cParams = ZSTD_getCParams(1, CNBuffSize, dictSize);
             ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dictBuffer, dictSize, ZSTD_dlm_byRef, ZSTD_dct_fullDict, cParams, ZSTD_defaultCMem);
             if (cdict==NULL) goto _output_error;
@@ -1373,7 +1395,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         }
         DISPLAYLEVEL(3, "OK \n");
 
-        DISPLAYLEVEL(3, "test%3i : Building cdict w/ ZSTD_dm_fullDict on a rawContent (must fail) : ", testNb++);
+        DISPLAYLEVEL(3, "test%3i : Building cdict w/ ZSTD_dct_fullDict on a rawContent (must fail) : ", testNb++);
         {   ZSTD_compressionParameters const cParams = ZSTD_getCParams(1, CNBuffSize, dictSize);
             ZSTD_CDict* const cdict = ZSTD_createCDict_advanced((const char*)dictBuffer+1, dictSize-1, ZSTD_dlm_byRef, ZSTD_dct_fullDict, cParams, ZSTD_defaultCMem);
             if (cdict!=NULL) goto _output_error;
@@ -1381,7 +1403,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         }
         DISPLAYLEVEL(3, "OK \n");
 
-        DISPLAYLEVEL(3, "test%3i : Loading rawContent starting with dict header w/ ZSTD_dm_auto should fail : ", testNb++);
+        DISPLAYLEVEL(3, "test%3i : Loading rawContent starting with dict header w/ ZSTD_dct_auto should fail : ", testNb++);
         {
             size_t ret;
             MEM_writeLE32((char*)dictBuffer+2, ZSTD_MAGIC_DICTIONARY);
@@ -1395,7 +1417,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         }
         DISPLAYLEVEL(3, "OK \n");
 
-        DISPLAYLEVEL(3, "test%3i : Loading rawContent starting with dict header w/ ZSTD_dm_rawContent should pass : ", testNb++);
+        DISPLAYLEVEL(3, "test%3i : Loading rawContent starting with dict header w/ ZSTD_dct_rawContent should pass : ", testNb++);
         {
             size_t ret;
             MEM_writeLE32((char*)dictBuffer+2, ZSTD_MAGIC_DICTIONARY);
@@ -1864,6 +1886,36 @@ static int basicUnitTests(U32 const seed, double compressibility)
             DISPLAYLEVEL(3, "streaming OK : regenerated %u bytes \n", (unsigned)out.pos);
         }
 
+        /* basic block compression */
+        DISPLAYLEVEL(3, "test%3i : empty magic-less format test : ", testNb++);
+        CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_format, ZSTD_f_zstd1_magicless) );
+        {   ZSTD_inBuffer in = { CNBuffer, 0, 0 };
+            ZSTD_outBuffer out = { compressedBuffer, ZSTD_compressBound(0), 0 };
+            size_t const result = ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end);
+            if (result != 0) goto _output_error;
+            if (in.pos != in.size) goto _output_error;
+            cSize = out.pos;
+        }
+        DISPLAYLEVEL(3, "OK (compress : %u -> %u bytes)\n", (unsigned)0, (unsigned)cSize);
+
+        DISPLAYLEVEL(3, "test%3i : decompress of empty magic-less frame : ", testNb++);
+        ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters);
+        CHECK( ZSTD_DCtx_setParameter(dctx, ZSTD_d_format, ZSTD_f_zstd1_magicless) );
+        /* one shot */
+        {   size_t const result = ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize);
+            if (result != 0) goto _output_error;
+            DISPLAYLEVEL(3, "one-shot OK, ");
+        }
+        /* streaming */
+        {   ZSTD_inBuffer in = { compressedBuffer, cSize, 0 };
+            ZSTD_outBuffer out = { decodedBuffer, CNBuffSize, 0 };
+            size_t const result = ZSTD_decompressStream(dctx, &out, &in);
+            if (result != 0) goto _output_error;
+            if (in.pos != in.size) goto _output_error;
+            if (out.pos != 0) goto _output_error;
+            DISPLAYLEVEL(3, "streaming OK : regenerated %u bytes \n", (unsigned)out.pos);
+        }
+
         ZSTD_freeCCtx(cctx);
         ZSTD_freeDCtx(dctx);
     }
@@ -1960,6 +2012,33 @@ static int basicUnitTests(U32 const seed, double compressibility)
         DISPLAYLEVEL(3, "OK \n");
     }
 
+    DISPLAYLEVEL(3, "test%3i : ZSTD_getSequences decode from sequences test : ", testNb++);
+    {
+        size_t srcSize = 100 KB;
+        BYTE* src = (BYTE*)CNBuffer;
+        BYTE* decoded = (BYTE*)compressedBuffer;
+
+        ZSTD_CCtx* cctx = ZSTD_createCCtx();
+        ZSTD_Sequence* seqs = (ZSTD_Sequence*)malloc(srcSize * sizeof(ZSTD_Sequence));
+        size_t seqsSize;
+
+        if (seqs == NULL) goto _output_error;
+        assert(cctx != NULL);
+
+        /* Populate src with random data */
+        RDG_genBuffer(CNBuffer, srcSize, compressibility, 0., seed);
+
+        /* get the sequences */
+        seqsSize = ZSTD_getSequences(cctx, seqs, srcSize, src, srcSize);
+
+        /* "decode" and compare the sequences */
+        FUZ_decodeSequences(decoded, seqs, seqsSize, src, srcSize);
+        assert(!memcmp(CNBuffer, compressedBuffer, srcSize));
+
+        ZSTD_freeCCtx(cctx);
+        free(seqs);
+    }
+
     /* Multiple blocks of zeros test */
     #define LONGZEROSLENGTH 1000000 /* 1MB of zeros */
     DISPLAYLEVEL(3, "test%3i : compress %u zeroes : ", testNb++, LONGZEROSLENGTH);
@@ -1971,7 +2050,6 @@ static int basicUnitTests(U32 const seed, double compressibility)
     { CHECK_NEWV(r, ZSTD_decompress(decodedBuffer, LONGZEROSLENGTH, compressedBuffer, cSize) );
       if (r != LONGZEROSLENGTH) goto _output_error; }
     DISPLAYLEVEL(3, "OK \n");
-
 
     /* All zeroes test (test bug #137) */
     #define ZEROESLENGTH 100
@@ -2156,9 +2234,9 @@ static int basicUnitTests(U32 const seed, double compressibility)
         size_t approxIndex = 0;
         size_t maxIndex = ((3U << 29) + (1U << ZSTD_WINDOWLOG_MAX)); /* ZSTD_CURRENT_MAX from zstd_compress_internal.h */
 
-        /* vastly overprovision space in a static context so that we can do all
-         * this without ever reallocating, which would reset the indices */
-        size_t const staticCCtxSize = 2 * ZSTD_estimateCCtxSize(22);
+        /* Provision enough space in a static context so that we can do all
+         * this without ever reallocating, which would reset the indices. */
+        size_t const staticCCtxSize = ZSTD_estimateCStreamSize(22);
         void* const staticCCtxBuffer = malloc(staticCCtxSize);
         ZSTD_CCtx* cctx = ZSTD_initStaticCCtx(staticCCtxBuffer, staticCCtxSize);
 

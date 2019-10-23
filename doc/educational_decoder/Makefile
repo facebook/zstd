@@ -7,8 +7,15 @@
 # in the COPYING file in the root directory of this source tree).
 # ################################################################
 
-ZSTD ?= zstd   # requires zstd installation on local system
+ZSTD ?= zstd   # note: requires zstd installation on local system
+
+UNAME?= $(shell uname)
+ifeq ($(UNAME), SunOS)
+DIFF ?= gdiff
+else
 DIFF ?= diff
+endif
+
 HARNESS_FILES=*.c
 
 MULTITHREAD_LDFLAGS = -pthread
@@ -29,26 +36,27 @@ harness: $(HARNESS_FILES)
 	$(CC) $(FLAGS) $^ -o $@
 
 clean:
-	@$(RM) -f harness
-	@$(RM) -rf harness.dSYM
+	@$(RM) harness
+	@$(RM) -rf harness.dSYM  # MacOS specific
 
 test: harness
 	#
 	# Testing single-file decompression with educational decoder
 	#
-	@$(ZSTD) README.md -o tmp.zst
+	@$(ZSTD) -f README.md -o tmp.zst
 	@./harness tmp.zst tmp
 	@$(DIFF) -s tmp README.md
-	@$(RM) -f tmp*
+	@$(RM) tmp*
 	#
 	# Testing dictionary decompression with education decoder
 	#
 	# note : files are presented multiple for training, to reach minimum threshold
 	@$(ZSTD) --train harness.c zstd_decompress.c zstd_decompress.h README.md \
                   harness.c zstd_decompress.c zstd_decompress.h README.md \
-                  harness.c zstd_decompress.c zstd_decompress.h README.md
-	@$(ZSTD) -D dictionary README.md -o tmp.zst
+                  harness.c zstd_decompress.c zstd_decompress.h README.md \
+                  -o dictionary
+	@$(ZSTD) -f README.md -D dictionary -o tmp.zst
 	@./harness tmp.zst tmp dictionary
 	@$(DIFF) -s tmp README.md
-	@$(RM) -f tmp* dictionary
+	@$(RM) tmp* dictionary
 	@$(MAKE) clean

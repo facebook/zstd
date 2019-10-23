@@ -1080,4 +1080,14 @@ test -f dictionary
 rm -f tmp* dictionary
 
 
+println "\n===>  zstd fifo named pipe test "
+head -c 10 /dev/zero > tmp_original
+mkfifo named_pipe
+head -c 10 /dev/zero > named_pipe &
+$ZSTD named_pipe -o tmp_compressed
+$ZSTD -d -o tmp_decompressed tmp_compressed
+$DIFF -s tmp_original tmp_decompressed
+rm -rf tmp*
+rm -rf named_pipe
+
 rm -f tmp*

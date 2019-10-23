@@ -258,7 +258,7 @@ int ZEXPORT gzwrite(file, buf, len)
     /* get internal structure */
     if (file == NULL)
         return 0;
-    state = (gz_statep)file;
+    state.file = file;
 
     /* check that we're writing and that there's no error */
     if (state.state->mode != GZ_WRITE || state.state->err != Z_OK)
@@ -289,7 +289,7 @@ z_size_t ZEXPORT gzfwrite(buf, size, nitems, file)
     assert(size != 0);
     if (file == NULL)
         return 0;
-    state = (gz_statep)file;
+    state.file = file;
 
     /* check that we're writing and that there's no error */
     if (state.state->mode != GZ_WRITE || state.state->err != Z_OK)
@@ -319,7 +319,7 @@ int ZEXPORT gzputc(file, c)
     /* get internal structure */
     if (file == NULL)
         return -1;
-    state = (gz_statep)file;
+    state.file = file;
     strm = &(state.state->strm);
 
     /* check that we're writing and that there's no error */
@@ -366,7 +366,7 @@ int ZEXPORT gzputs(file, str)
     /* get internal structure */
     if (file == NULL)
         return -1;
-    state = (gz_statep)file;
+    state.file = file;
 
     /* check that we're writing and that there's no error */
     if (state.state->mode != GZ_WRITE || state.state->err != Z_OK)
@@ -393,7 +393,7 @@ int ZEXPORTVA gzvprintf(gzFile file, const char *format, va_list va)
     /* get internal structure */
     if (file == NULL)
         return Z_STREAM_ERROR;
-    state = (gz_statep)file;
+    state.file = file;
     strm = &(state.state->strm);
 
     /* check that we're writing and that there's no error */
@@ -565,7 +565,7 @@ int ZEXPORT gzflush(file, flush)
     /* get internal structure */
     if (file == NULL)
         return Z_STREAM_ERROR;
-    state = (gz_statep)file;
+    state.file = file;
 
     /* check that we're writing and that there's no error */
     if (state.state->mode != GZ_WRITE || state.state->err != Z_OK)
@@ -599,7 +599,7 @@ int ZEXPORT gzsetparams(file, level, strategy)
     /* get internal structure */
     if (file == NULL)
         return Z_STREAM_ERROR;
-    state = (gz_statep)file;
+    state.file = file;
     strm = &(state.state->strm);
 
     /* check that we're writing and that there's no error */
@@ -639,7 +639,7 @@ int ZEXPORT gzclose_w(file)
     /* get internal structure */
     if (file == NULL)
         return Z_STREAM_ERROR;
-    state = (gz_statep)file;
+    state.file = file;
 
     /* check that we're writing */
     if (state.state->mode != GZ_WRITE)

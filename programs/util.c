@@ -20,6 +20,9 @@ extern "C" {
 #include <errno.h>
 #include <assert.h>
 
+#if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__)
+#include <direct.h>     /* needed for _mkdir in windows */
+#endif
 
 int UTIL_fileExist(const char* filename)
 {
@@ -69,7 +72,8 @@ int UTIL_setFileStat(const char *filename, stat_t *statbuf)
 #else
     {
         /* (atime, mtime) */
-        struct timespec timebuf[2] = { {0, UTIME_NOW}, statbuf->st_mtim };
+        struct timespec timebuf[2] = { {0, UTIME_NOW} };
+        timebuf[1] = statbuf->st_mtim;
         res += utimensat(AT_FDCWD, filename, timebuf, 0);
     }
 #endif
@@ -98,20 +102,27 @@ U32 UTIL_isDirectory(const char* infilename)
     return 0;
 }
 
-int UTIL_isSameFile(const char* file1, const char* file2)
+int UTIL_compareStr(const void *p1, const void *p2) {
+    return strcmp(* (char * const *) p1, * (char * const *) p2);
+}
+
+int UTIL_isSameFile(const char* fName1, const char* fName2)
 {
-#if defined(_MSC_VER)
+    assert(fName1 != NULL); assert(fName2 != NULL);
+#if defined(_MSC_VER) || defined(_WIN32)
     /* note : Visual does not support file identification by inode.
+     *        inode does not work on Windows, even with a posix layer, like msys2.
      *        The following work-around is limited to detecting exact name repetition only,
      *        aka `filename` is considered different from `subdir/../filename` */
-    return !strcmp(file1, file2);
+    return !strcmp(fName1, fName2);
 #else
-    stat_t file1Stat;
-    stat_t file2Stat;
-    return UTIL_getFileStat(file1, &file1Stat)
-        && UTIL_getFileStat(file2, &file2Stat)
-        && (file1Stat.st_dev == file2Stat.st_dev)
-        && (file1Stat.st_ino == file2Stat.st_ino);
+    {   stat_t file1Stat;
+        stat_t file2Stat;
+        return UTIL_getFileStat(fName1, &file1Stat)
+            && UTIL_getFileStat(fName2, &file2Stat)
+            && (file1Stat.st_dev == file2Stat.st_dev)
+            && (file1Stat.st_ino == file2Stat.st_ino);
+    }
 #endif
 }
 
@@ -461,19 +472,20 @@ int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char
     DIR *dir;
     struct dirent *entry;
     char* path;
-    int dirLength, fnameLength, pathLength, nbFiles = 0;
+    size_t dirLength, fnameLength, pathLength;
+    int nbFiles = 0;
 
     if (!(dir = opendir(dirName))) {
         UTIL_DISPLAYLEVEL(1, "Cannot open directory '%s': %s\n", dirName, strerror(errno));
         return 0;
     }
 
-    dirLength = (int)strlen(dirName);
+    dirLength = strlen(dirName);
     errno = 0;
     while ((entry = readdir(dir)) != NULL) {
         if (strcmp (entry->d_name, "..") == 0 ||
             strcmp (entry->d_name, ".") == 0) continue;
-        fnameLength = (int)strlen(entry->d_name);
+        fnameLength = strlen(entry->d_name);
         path = (char*) malloc(dirLength + fnameLength + 2);
         if (!path) { closedir(dir); return 0; }
         memcpy(path, dirName, dirLength);
@@ -495,7 +507,8 @@ int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char
         } else {
             if (*bufStart + *pos + pathLength >= *bufEnd) {
                 ptrdiff_t newListSize = (*bufEnd - *bufStart) + LIST_SIZE_INCREASE;
-                *bufStart = (char*)UTIL_realloc(*bufStart, newListSize);
+                assert(newListSize >= 0);
+                *bufStart = (char*)UTIL_realloc(*bufStart, (size_t)newListSize);
                 *bufEnd = *bufStart + newListSize;
                 if (*bufStart == NULL) { free(path); closedir(dir); return 0; }
             }
@@ -544,7 +557,6 @@ UTIL_createFileList(const char **inputNames, unsigned inputNamesNb,
     unsigned i, nbFiles;
     char* buf = (char*)malloc(LIST_SIZE_INCREASE);
     char* bufend = buf + LIST_SIZE_INCREASE;
-    const char** fileTable;
 
     if (!buf) return NULL;
 
@@ -553,36 +565,37 @@ UTIL_createFileList(const char **inputNames, unsigned inputNamesNb,
             size_t const len = strlen(inputNames[i]);
             if (buf + pos + len >= bufend) {
                 ptrdiff_t newListSize = (bufend - buf) + LIST_SIZE_INCREASE;
-                buf = (char*)UTIL_realloc(buf, newListSize);
+                assert(newListSize >= 0);
+                buf = (char*)UTIL_realloc(buf, (size_t)newListSize);
                 bufend = buf + newListSize;
                 if (!buf) return NULL;
             }
             if (buf + pos + len < bufend) {
-                memcpy(buf+pos, inputNames[i], len+1);  /* with final \0 */
+                memcpy(buf+pos, inputNames[i], len+1);  /* including final \0 */
                 pos += len + 1;
                 nbFiles++;
             }
         } else {
-            nbFiles += UTIL_prepareFileList(inputNames[i], &buf, &pos, &bufend, followLinks);
+            nbFiles += (unsigned)UTIL_prepareFileList(inputNames[i], &buf, &pos, &bufend, followLinks);
             if (buf == NULL) return NULL;
     }   }
 
     if (nbFiles == 0) { free(buf); return NULL; }
 
-    fileTable = (const char**)malloc((nbFiles+1) * sizeof(const char*));
-    if (!fileTable) { free(buf); return NULL; }
+    {   const char** const fileTable = (const char**)malloc((nbFiles + 1) * sizeof(*fileTable));
+        if (!fileTable) { free(buf); return NULL; }
 
-    for (i=0, pos=0; i<nbFiles; i++) {
-        fileTable[i] = buf + pos;
-        pos += strlen(fileTable[i]) + 1;
+        for (i = 0, pos = 0; i < nbFiles; i++) {
+            fileTable[i] = buf + pos;
+            if (buf + pos > bufend) { free(buf); free((void*)fileTable); return NULL; }
+            pos += strlen(fileTable[i]) + 1;
+        }
+
+        *allocatedBuffer = buf;
+        *allocatedNamesNb = nbFiles;
+
+        return fileTable;
     }
-
-    if (buf + pos > bufend) { free(buf); free((void*)fileTable); return NULL; }
-
-    *allocatedBuffer = buf;
-    *allocatedNamesNb = nbFiles;
-
-    return fileTable;
 }
 
 
@@ -615,8 +628,13 @@ int UTIL_countPhysicalCores(void)
         DWORD returnLength = 0;
         size_t byteOffset = 0;
 
-        glpi = (LPFN_GLPI)GetProcAddress(GetModuleHandle(TEXT("kernel32")),
-                                         "GetLogicalProcessorInformation");
+#if defined(_MSC_VER)
+/* Visual Studio does not like the following cast */
+#   pragma warning( disable : 4054 )  /* conversion from function ptr to data ptr */
+#   pragma warning( disable : 4055 )  /* conversion from data ptr to function ptr */
+#endif
+        glpi = (LPFN_GLPI)(void*)GetProcAddress(GetModuleHandle(TEXT("kernel32")),
+                                               "GetLogicalProcessorInformation");
 
         if (glpi == NULL) {
             goto failed;

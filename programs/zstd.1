@@ -1,5 +1,5 @@
 .
-.TH "ZSTD" "1" "August 2019" "zstd 1.4.3" "User Commands"
+.TH "ZSTD" "1" "October 2019" "zstd 1.4.4" "User Commands"
 .
 .SH "NAME"
 \fBzstd\fR \- zstd, zstdmt, unzstd, zstdcat \- Compress or decompress \.zst files
@@ -127,6 +127,14 @@ Does not spawn a thread for compression, use a single thread for both I/O and co
 \fBzstd\fR will dynamically adapt compression level to perceived I/O conditions\. Compression level adaptation can be observed live by using command \fB\-v\fR\. Adaptation can be constrained between supplied \fBmin\fR and \fBmax\fR levels\. The feature works when combined with multi\-threading and \fB\-\-long\fR mode\. It does not work with \fB\-\-single\-thread\fR\. It sets window size to 8 MB by default (can be changed manually, see \fBwlog\fR)\. Due to the chaotic nature of dynamic adaptation, compressed result is not reproducible\. \fInote\fR : at the time of this writing, \fB\-\-adapt\fR can remain stuck at low speed when combined with multiple worker threads (>=2)\.
 .
 .TP
+\fB\-\-stream\-size=#\fR
+Sets the pledged source size of input coming from a stream\. This value must be exact, as it will be included in the produced frame header\. Incorrect stream sizes will cause an error\. This information will be used to better optimize compression parameters, resulting in better and potentially faster compression, especially for smaller source sizes\.
+.
+.TP
+\fB\-\-size\-hint=#\fR
+When handling input from a stream, \fBzstd\fR must guess how large the source size will be when optimizing compression parameters\. If the stream size is relatively small, this guess may be a poor one, resulting in a higher compression ratio than expected\. This feature allows for controlling the guess when needed\. Exact guesses result in better compression ratios\. Overestimates result in slightly degraded compression ratios, while underestimates may result in significant degradation\.
+.
+.TP
 \fB\-\-rsyncable\fR
 \fBzstd\fR will periodically synchronize the compression state to make the compressed file more rsync\-friendly\. There is a negligible impact to compression ratio, and the faster compression levels will see a small compression speed hit\. This feature does not work with \fB\-\-single\-thread\fR\. You probably don\'t want to use it with long range mode, since it will decrease the effectiveness of the synchronization points, but your milage may vary\.
 .
@@ -167,6 +175,10 @@ keep source file(s) after successful compression or decompression\. This is the 
 operate recursively on directories
 .
 .TP
+\fB\-\-output\-dir\-flat[=dir]\fR
+resulting files are stored into target \fBdir\fR directory, instead of same directory as origin file\. Be aware that this command can introduce name collision issues, if multiple files, from different directories, end up having the same name\. Collision resolution ensures first file with a given name will be present in \fBdir\fR, while in combination with \fB\-f\fR, the last file will be present instead\.
+.
+.TP
 \fB\-\-format=FORMAT\fR
 compress and decompress in other formats\. If compiled with support, zstd can compress to or decompress from other compression algorithm formats\. Possibly available options are \fBzstd\fR, \fBgzip\fR, \fBxz\fR, \fBlzma\fR, and \fBlz4\fR\. If no such format is provided, \fBzstd\fR is the default\.
 .
@@ -197,6 +209,9 @@ add integrity check computed from uncompressed data (default: enabled)
 .TP
 \fB\-\-\fR
 All arguments after \fB\-\-\fR are treated as files
+.
+.SS "Restricted usage of Environment Variables"
+Using environment variables to set parameters has security implications\. Therefore, this avenue is intentionally restricted\. Only \fBZSTD_CLEVEL\fR is supported currently, for setting compression level\. \fBZSTD_CLEVEL\fR can be used to set the level between 1 and 19 (the "normal" range)\. If the value of \fBZSTD_CLEVEL\fR is not a valid integer, it will be ignored with a warning message\. \fBZSTD_CLEVEL\fR just replaces the default compression level (\fB3\fR)\. It can be overridden by corresponding command line arguments\.
 .
 .SH "DICTIONARY BUILDER"
 \fBzstd\fR offers \fIdictionary\fR compression, which greatly improves efficiency on small files and messages\. It\'s possible to train \fBzstd\fR with a set of samples, the result of which is saved into a file called a \fBdictionary\fR\. Then during compression and decompression, reference the same dictionary, using command \fB\-D dictionaryFileName\fR\. Compression of small files similar to the sample set will be greatly improved\.

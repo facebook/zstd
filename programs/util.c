@@ -182,9 +182,8 @@ int UTIL_readLineFromFile(char* buf, size_t len, FILE* file) {
       UTIL_DISPLAYLEVEL(1, "[ERROR] end of file reached and need to read\n");
       return -1;
     }
-    UTIL_DISPLAY("[TRACE] read line\n");
 
-    fgetsCheck = fgets(buf, len, file);
+    fgetsCheck = fgets(buf, (int) len, file);
 
     if(fgetsCheck == NULL || fgetsCheck != buf) {
       UTIL_DISPLAYLEVEL(1, "[ERROR][UTIL_readLineFromFile] fgets has a problem check: %s buf: %s \n",
@@ -192,7 +191,6 @@ int UTIL_readLineFromFile(char* buf, size_t len, FILE* file) {
       return -1;
     }
 
-    UTIL_DISPLAY("[TRACE] length of Line: %d\n" , (int)strlen(buf));
     return (int) strlen(buf)-1;   /* -1 to ignore '\n' character */
 }
 
@@ -203,7 +201,6 @@ static int readFromFile(char* buf, size_t inputFileSize, const char* inputFileNa
   int nbFiles = -1;
   unsigned pos = 0;
 
-  UTIL_DISPLAY("[TRACE] open file\n");
 
   if(!buf) {
     UTIL_DISPLAYLEVEL(1, "[ERROR][UTIL_readFileNamesTableFromFile] Can't create buffer.\n");
@@ -219,12 +216,9 @@ static int readFromFile(char* buf, size_t inputFileSize, const char* inputFileNa
     if(UTIL_readLineFromFile(buf+pos, inputFileSize, inputFile) > 0) {
       int len = (int) strlen(buf+pos);
       buf[pos+len-1] = '\0'; /* replace '\n' with '\0'*/
-      UTIL_DISPLAY("[TRACE] line: %s\n", buf+pos);
       pos += len;
       ++nbFiles;
     }
-    else
-      UTIL_DISPLAY("[TRACE] ignored line: %s", buf+pos);
   }
 
   fclose(inputFile);
@@ -249,7 +243,6 @@ UTIL_createFileNamesTable_fromFileName(const char* inputFileName) {
     if(!UTIL_fileExist(inputFileName) || !UTIL_isRegularFile(inputFileName))
       return NULL;
 
-    UTIL_DISPLAY("[TRACE] start function readFileNamesTableFromFile\n");
     inputFileSize = UTIL_getFileSize(inputFileName) + 1; /* (+1) to add '\0' at the end of last filename */
 
     if(inputFileSize > MAX_FILE_OF_FILE_NAMES_SIZE)
@@ -269,7 +262,6 @@ UTIL_createFileNamesTable_fromFileName(const char* inputFileName) {
     }
     nbFiles = ret_nbFiles;
 
-    UTIL_DISPLAY("[TRACE] file closed with %d read lines\n", nbFiles);
 
     if(!filesTable) {
       free(buf);
@@ -280,7 +272,6 @@ UTIL_createFileNamesTable_fromFileName(const char* inputFileName) {
     filesTable->tableSize = nbFiles;
     filesTable->fileNames = (const char**) malloc((nbFiles+1) * sizeof(char*));
 
-    UTIL_DISPLAY("[TRACE] Start migration\n");
 
 
     for(i = 0, pos = 0; i < nbFiles; ++i) {
@@ -288,8 +279,6 @@ UTIL_createFileNamesTable_fromFileName(const char* inputFileName) {
       UTIL_DISPLAY("[TRACE] file %zu: %s\n", i, filesTable->fileNames[i]);
       pos += strlen(buf+pos)+1;
     }
-
-    UTIL_DISPLAY("[TRACE] migration done\n");
 
 
     if(pos > inputFileSize){
@@ -299,7 +288,6 @@ UTIL_createFileNamesTable_fromFileName(const char* inputFileName) {
     }
 
     filesTable->buf = buf;
-    UTIL_DISPLAY("[TRACE] finished reading\n");
 
     return filesTable;
 }
@@ -334,9 +322,6 @@ UTIL_concatenateTwoTables(FileNamesTable* table1, FileNamesTable* table2) {
 
     char* buf = NULL;
 
-    UTIL_DISPLAY("[TRACE] Start concatenation\n");
-
-    UTIL_DISPLAY("[TRACE] newTable created\n");
 
     if(!newTable) {
       UTIL_DISPLAYLEVEL(1, "[ERROR][UTIL_concatenateTwoTables] Can't create new table for concatenation output.\n");
@@ -344,7 +329,6 @@ UTIL_concatenateTwoTables(FileNamesTable* table1, FileNamesTable* table2) {
     }
 
     newTotalTableSize = getTotalTableSize(table1) + getTotalTableSize(table2);
-    UTIL_DISPLAY("[TRACE] buf total size is: %zu\n", newTotalTableSize);
 
     buf = (char*) malloc(newTotalTableSize * sizeof(char));
     if(!buf) {
@@ -368,7 +352,6 @@ UTIL_concatenateTwoTables(FileNamesTable* table1, FileNamesTable* table2) {
     for (i = 0; i < newTable->tableSize; ++i)
       newTable->fileNames[i] = NULL;
 
-    UTIL_DISPLAY("[TRACE] add table1 concatenation of size %zu\n", table1->tableSize);
     for( ; idx1 < table1->tableSize && table1->fileNames[idx1] && pos < newTotalTableSize; ++idx1, ++newTableIdx) {
       size_t curLen = strlen(table1->fileNames[idx1]);
       memcpy(buf+pos, table1->fileNames[idx1], curLen);
@@ -376,9 +359,7 @@ UTIL_concatenateTwoTables(FileNamesTable* table1, FileNamesTable* table2) {
       pos += curLen+1;
     }
 
-    UTIL_DISPLAY("[TRACE] table1 actual size %u\n", idx1);
 
-    UTIL_DISPLAY("[TRACE] add table2 concatenation of size %zu\n", table2->tableSize);
     for( ; idx2 < table2->tableSize && table2->fileNames[idx2] && pos < newTotalTableSize ; ++idx2, ++newTableIdx) {
       size_t curLen = strlen(table2->fileNames[idx2]);
       memcpy(buf+pos, table2->fileNames[idx2], curLen);
@@ -392,28 +373,12 @@ UTIL_concatenateTwoTables(FileNamesTable* table1, FileNamesTable* table2) {
       return NULL;
     }
 
-    UTIL_DISPLAY("[TRACE] table2 actual size %u\n", idx2);
-    UTIL_DISPLAY("[TRACE] new table actual size %u\n", newTableIdx);
-
     assert(newTableIdx == newTable->tableSize || newTable->fileNames[newTableIdx] == NULL);
-
-    UTIL_DISPLAY("[TRACE] table1:\n");
-    for(idx1 = 0 ; idx1 < table1->tableSize && table1->fileNames[idx1] ; ++idx1)
-      UTIL_DISPLAY("[TRACE] %u %s\n", idx1, table1->fileNames[idx1]);
-
-    UTIL_DISPLAY("[TRACE] table2:\n");
-    for(idx2 = 0 ; idx2 < table2->tableSize && table2->fileNames[idx2] ; ++idx2)
-      UTIL_DISPLAY("[TRACE] %u %s\n", idx2, table2->fileNames[idx2]);
-
-    UTIL_DISPLAY("[TRACE] new table:\n");
-    for(newTableIdx = 0; newTableIdx < newTable->tableSize && newTable->fileNames[newTableIdx] ; ++newTableIdx)
-      UTIL_DISPLAY("[TRACE] %u %s\n", newTableIdx, newTable->fileNames[newTableIdx]);
 
     newTable->buf = buf;
 
     UTIL_freeFileNamesTable(table1);
     UTIL_freeFileNamesTable(table2);
-    UTIL_DISPLAY("[TRACE] concatenation finished\n");
 
     return newTable;
 }

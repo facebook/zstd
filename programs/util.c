@@ -199,10 +199,11 @@ int UTIL_readLineFromFile(char* buf, size_t len, FILE* file) {
 /* Warning: inputFileSize should be less than or equal buf capacity and buf should be initialized*/
 static int readFromFile(char* buf, size_t inputFileSize, const char* inputFileName) {
 
-  UTIL_DISPLAY("[TRACE] open file\n");
   FILE* inputFile = fopen(inputFileName, "r");
   int nbFiles = -1;
   unsigned pos = 0;
+
+  UTIL_DISPLAY("[TRACE] open file\n");
 
   if(!buf) {
     UTIL_DISPLAYLEVEL(1, "[ERROR][UTIL_readFileNamesTableFromFile] Can't create buffer.\n");
@@ -239,6 +240,7 @@ UTIL_createFileNamesTable_fromFileName(const char* inputFileName) {
     U64 inputFileSize = 0;
     unsigned nbFiles = 0;
     int ret_nbFiles = -1;
+    char* buf = NULL;
 
     FileNamesTable* filesTable = (FileNamesTable*) malloc(sizeof(FileNamesTable));;
 
@@ -254,7 +256,7 @@ UTIL_createFileNamesTable_fromFileName(const char* inputFileName) {
     if(inputFileSize > MAX_FILE_OF_FILE_NAMES_SIZE)
       return NULL;
 
-    char* buf = (char*) malloc(inputFileSize * sizeof(char));
+    buf = (char*) malloc(inputFileSize * sizeof(char));
     if(!buf) {
       UTIL_DISPLAYLEVEL(1, "[ERROR][UTIL_readFileNamesTableFromFile] Can't create buffer.\n");
       return NULL;

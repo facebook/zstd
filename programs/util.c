@@ -293,7 +293,6 @@ UTIL_createFileNamesTable_fromFileName(const char* inputFileName) {
     UTIL_DISPLAY("[TRACE] migration done\n");
 
 
-    UTIL_DISPLAY("[TRACE] pos %zu  inputFileSize %lu\n", pos, inputFileSize);
     if(pos > inputFileSize){
       UTIL_freeFileNamesTable(filesTable);
       if(buf) free(buf);

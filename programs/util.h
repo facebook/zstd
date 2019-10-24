@@ -151,8 +151,8 @@ int UTIL_readLineFromFile(char* buf, size_t len, FILE* file);
 /*Note: tableSize is denotes the total capacity of table*/
 typedef struct
 {
-    const char** fileNames = NULL;
-    char* buf = NULL;
+    const char** fileNames;
+    char* buf;
     size_t tableSize;
 } FileNamesTable;
 
@@ -162,6 +162,16 @@ typedef struct
  *  Note: inputFileSize should be less than or equal 50MB
  */
 FileNamesTable* UTIL_createFileNamesTable_fromFileName(const char* inputFileName);
+
+
+/*!  UTIL_freeFileNamesTable(const char** filenames, char* buf, size_t tableSize) :
+ * This function takes an buffered based filename, buf and tableSize to create its object.
+ * @return : FileNamesTable*
+ */
+
+FileNamesTable*
+UTIL_createFileNamesTable(const char** filenames, char* buf, size_t tableSize);
+
 
 /*!  UTIL_freeFileNamesTable(FileNamesTable* table) :
  * This function takes an buffered based table and frees it.

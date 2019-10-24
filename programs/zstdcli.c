@@ -818,16 +818,12 @@ int main(int argCount, const char* argv[])
 
                         filenameTable[filenameIdx] = NULL; // marking end of table
 
-                        curTable = (FileNamesTable*) malloc(sizeof(FileNamesTable));
+                        curTable = UTIL_createFileNamesTable(filenameTable, tableBuf, filenameTableSize);
 
                         if(!curTable) {
                           UTIL_freeFileNamesTable(extendedTable);
                           CLEAN_RETURN(badusage(programName));
                         }
-
-                        curTable->fileNames = filenameTable;
-                        curTable->tableSize = filenameTableSize;
-                        curTable->buf = tableBuf;
 
                         concatenatedTables = UTIL_concatenateTwoTables(curTable, extendedTable);
                         if(!concatenatedTables) {

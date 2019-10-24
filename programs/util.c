@@ -296,7 +296,7 @@ void UTIL_freeFileNamesTable(FileNamesTable* table) {
       free(table->fileNames);
     }
 
-    if(table->buf) {
+    if(table && table->buf) {
       free(table->buf);
     }
 

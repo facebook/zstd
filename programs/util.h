@@ -151,8 +151,8 @@ int UTIL_readLineFromFile(char* buf, size_t len, FILE* file);
 /*Note: tableSize is denotes the total capacity of table*/
 typedef struct
 {
-    const char** fileNames;
-    char* buf;
+    const char** fileNames = NULL;
+    char* buf = NULL;
     size_t tableSize;
 } FileNamesTable;
 

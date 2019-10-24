@@ -585,7 +585,7 @@ int main(int argCount, const char* argv[])
     int cLevelLast = -1000000000;
     unsigned recursive = 0;
     unsigned memLimit = 0;
-    unsigned filenameTableSize = argCount;
+    size_t filenameTableSize = argCount;
     const char** filenameTable = (const char**)malloc(filenameTableSize * sizeof(const char*));   /* argCount >= 1 */
     FileNamesTable* extendedTable = NULL;
     FileNamesTable* concatenatedTables = NULL;
@@ -804,24 +804,17 @@ int main(int argCount, const char* argv[])
 #endif
 
                     if (longCommandWArg(&argument, "--file=")) {
-                        DISPLAYLEVEL(4, "[TRACE] argument catched\n");
-                        DISPLAYLEVEL(4, "[TRACE] fileName: %s\n", argument);
+
                         if(!UTIL_fileExist(argument) || !UTIL_isRegularFile(argument)){
                           DISPLAYLEVEL(1, "[ERROR] wrong fileName: %s\n", argument);
                           CLEAN_RETURN(badusage(programName));
                         }
 
-                        DISPLAYLEVEL(4, "[TRACE] call read function\n");
                         extendedTable = UTIL_createFileNamesTable_fromFileName(argument);
                         if(!extendedTable) {
                           CLEAN_RETURN(badusage(programName));
                         }
 
-                        DISPLAYLEVEL(4, "[TRACE] call read function is finished\n");
-                        DISPLAYLEVEL(4, "[TRACE] extendedFileNamesTable:\n");
-
-                        DISPLAYLEVEL(4, "[TRACE] call concatenation function\n");
-                        DISPLAYLEVEL(4, "[TRACE] filenameidx: %d\n", filenameIdx);
 
                         filenameTable[filenameIdx] = NULL; // marking end of table
 
@@ -849,8 +842,6 @@ int main(int argCount, const char* argv[])
 
                         filenameIdx += extendedTable->tableSize;
                         isTableBufferBased = 1;
-
-                        DISPLAYLEVEL(1, "[TRACE] call concatenation function is finished\n");
 
                         continue;
                     }

@@ -589,7 +589,7 @@ int main(int argCount, const char* argv[])
     const char** filenameTable = (const char**)malloc(filenameTableSize * sizeof(const char*));   /* argCount >= 1 */
     FileNamesTable* extendedTable = NULL;
     FileNamesTable* concatenatedTables = NULL;
-    FileNamesTable* curTable = (FileNamesTable*) malloc(sizeof(FileNamesTable));
+    FileNamesTable* curTable = NULL;
     char* tableBuf = NULL;
     unsigned filenameIdx = 0;
     const char* programName = argv[0];
@@ -625,9 +625,6 @@ int main(int argCount, const char* argv[])
     (void)memLimit;   /* not used when ZSTD_NODECOMPRESS set */
     if (filenameTable==NULL) { DISPLAY("zstd: %s \n", strerror(errno)); exit(1); }
     filenameTable[0] = stdinmark;
-    curTable->fileNames = filenameTable;
-    curTable->tableSize = filenameTableSize;
-    curTable->buf = tableBuf;
     g_displayOut = stderr;
     cLevel = init_cLevel();
     programName = lastNameFromPath(programName);
@@ -823,15 +820,16 @@ int main(int argCount, const char* argv[])
                         DISPLAYLEVEL(4, "[TRACE] call read function is finished\n");
                         DISPLAYLEVEL(4, "[TRACE] extendedFileNamesTable:\n");
 
-                        unsigned i;
-                        for(i = 0; i < extendedTable->tableSize; ++i)
-                            printf("%s\n",extendedTable->fileNames[i]);
 
                         DISPLAYLEVEL(4, "[TRACE] call concatenation function\n");
                         DISPLAYLEVEL(4, "[TRACE] filenameidx: %d\n", filenameIdx);
 
-                        for(i = filenameIdx; i < filenameTableSize ; ++i)
-                            filenameTable[i] = NULL;
+                        // unsigned i = 0;
+                        // for(i = filenameIdx; i < filenameTableSize ; ++i)
+                          filenameTable[filenameIdx] = NULL; // marking end of table
+
+
+                        curTable = (FileNamesTable*) malloc(sizeof(FileNamesTable));
 
                         if(!curTable) {
                           UTIL_freeFileNamesTable(extendedTable);

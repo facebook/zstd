@@ -241,10 +241,9 @@ UTIL_createFileNamesTable_fromFileName(const char* inputFileName) {
     unsigned nbFiles = 0;
     int ret_nbFiles = -1;
     char* buf = NULL;
-
-    FileNamesTable* filesTable = (FileNamesTable*) malloc(sizeof(FileNamesTable));;
-
     size_t i = 0, pos = 0;
+
+    FileNamesTable* filesTable = (FileNamesTable*) malloc(sizeof(FileNamesTable));
 
     UTIL_DISPLAY("file check\n");
     if(!UTIL_fileExist(inputFileName) || !UTIL_isRegularFile(inputFileName))
@@ -329,10 +328,11 @@ FileNamesTable*
 UTIL_concatenateTwoTables(FileNamesTable* table1, FileNamesTable* table2) {
     unsigned newTableIdx = 0, idx1 = 0, idx2 = 0;
     size_t i = 0, pos = 0;
-
     size_t newTotalTableSize = 0;
 
     FileNamesTable* newTable = (FileNamesTable*) malloc(sizeof(FileNamesTable));
+
+    char* buf = NULL;
 
     UTIL_DISPLAY("[TRACE] Start concatenation\n");
 
@@ -346,7 +346,7 @@ UTIL_concatenateTwoTables(FileNamesTable* table1, FileNamesTable* table2) {
     newTotalTableSize = getTotalTableSize(table1) + getTotalTableSize(table2);
     UTIL_DISPLAY("[TRACE] buf total size is: %zu\n", newTotalTableSize);
 
-    char* buf = (char*) malloc(newTotalTableSize * sizeof(char));
+    buf = (char*) malloc(newTotalTableSize * sizeof(char));
     if(!buf) {
       UTIL_freeFileNamesTable(newTable);
       UTIL_DISPLAYLEVEL(1, "[ERROR][UTIL_concatenateTwoTables] Can't create buf for concatenation output.\n");

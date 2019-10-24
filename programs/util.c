@@ -237,9 +237,8 @@ UTIL_createFileNamesTable_fromFileName(const char* inputFileName) {
     char* buf = NULL;
     size_t i = 0, pos = 0;
 
-    FileNamesTable* filesTable = (FileNamesTable*) malloc(sizeof(FileNamesTable));
+    FileNamesTable* filesTable = NULL;
 
-    UTIL_DISPLAY("file check\n");
     if(!UTIL_fileExist(inputFileName) || !UTIL_isRegularFile(inputFileName))
       return NULL;
 
@@ -262,7 +261,7 @@ UTIL_createFileNamesTable_fromFileName(const char* inputFileName) {
     }
     nbFiles = ret_nbFiles;
 
-
+    filesTable = (FileNamesTable*) malloc(sizeof(FileNamesTable));
     if(!filesTable) {
       free(buf);
       UTIL_DISPLAYLEVEL(1, "[ERROR][UTIL_readFileNamesTableFromFile] Can't create table for files.\n");
@@ -294,10 +293,13 @@ UTIL_createFileNamesTable_fromFileName(const char* inputFileName) {
 void UTIL_freeFileNamesTable(FileNamesTable* table) {
   if(table) {
     if(table->fileNames) {
-      if(table->buf)
-        free(table->buf);
       free(table->fileNames);
     }
+
+    if(table->buf) {
+      free(table->buf);
+    }
+
     free(table);
   }
 }
@@ -317,10 +319,12 @@ UTIL_concatenateTwoTables(FileNamesTable* table1, FileNamesTable* table2) {
     size_t i = 0, pos = 0;
     size_t newTotalTableSize = 0;
 
-    FileNamesTable* newTable = (FileNamesTable*) malloc(sizeof(FileNamesTable));
+    FileNamesTable* newTable = NULL;
 
     char* buf = NULL;
 
+
+    newTable = (FileNamesTable*) malloc(sizeof(FileNamesTable));
 
     if(!newTable) {
       UTIL_DISPLAYLEVEL(1, "[ERROR][UTIL_concatenateTwoTables] Can't create new table for concatenation output.\n");
@@ -371,8 +375,6 @@ UTIL_concatenateTwoTables(FileNamesTable* table1, FileNamesTable* table2) {
       if(buf) free(buf);
       return NULL;
     }
-
-    assert(newTableIdx == newTable->tableSize || newTable->fileNames[newTableIdx] == NULL);
 
     newTable->buf = buf;
 

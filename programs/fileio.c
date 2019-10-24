@@ -2298,44 +2298,35 @@ FIO_determineDstName(const char* srcFileName, const char* outDirName)
     static size_t dfnbCapacity = 0;
     static char* dstFileNameBuffer = NULL;   /* using static allocation : this function cannot be multi-threaded */
     char* outDirFilename = NULL;
+
+    const char* SUFFIX_LIST = ZSTD_EXTENSION "/" TZSTD_EXTENSION
+    #ifdef ZSTD_GZDECOMPRESS
+        "/" GZ_EXTENSION "/" TGZ_EXTENSION
+    #endif
+    #ifdef ZSTD_LZMADECOMPRESS
+        "/" XZ_EXTENSION "/" LZMA_EXTENSION "/" TXZ_EXTENSION
+    #endif
+    #ifdef ZSTD_LZ4DECOMPRESS
+        "/" LZ4_EXTENSION "/" TLZ4_EXTENSION
+    #endif
+    ;
+
     size_t sfnSize = strlen(srcFileName);
     size_t suffixSize;
 
     const char* const suffixPtr = strrchr(srcFileName, '.');
     if (suffixPtr == NULL) {
-        DISPLAYLEVEL(1, "zstd: %s: unknown suffix -- ignored \n",
-                        srcFileName);
+        DISPLAYLEVEL(1, "zstd: %s: missing suffix (%s expected). Can't derive the output file name so specify it with -o dstFileName. -- ignored \n",
+                        srcFileName, SUFFIX_LIST);
         return NULL;
     }
     suffixSize = strlen(suffixPtr);
 
     /* check suffix is authorized */
     if (sfnSize <= suffixSize
-        || (   strcmp(suffixPtr, ZSTD_EXTENSION)
-        #ifdef ZSTD_GZDECOMPRESS
-            && strcmp(suffixPtr, GZ_EXTENSION)
-        #endif
-        #ifdef ZSTD_LZMADECOMPRESS
-            && strcmp(suffixPtr, XZ_EXTENSION)
-            && strcmp(suffixPtr, LZMA_EXTENSION)
-        #endif
-        #ifdef ZSTD_LZ4DECOMPRESS
-            && strcmp(suffixPtr, LZ4_EXTENSION)
-        #endif
-            ) ) {
-        const char* suffixlist = ZSTD_EXTENSION
-        #ifdef ZSTD_GZDECOMPRESS
-            "/" GZ_EXTENSION
-        #endif
-        #ifdef ZSTD_LZMADECOMPRESS
-            "/" XZ_EXTENSION "/" LZMA_EXTENSION
-        #endif
-        #ifdef ZSTD_LZ4DECOMPRESS
-            "/" LZ4_EXTENSION
-        #endif
-        ;
-        DISPLAYLEVEL(1, "zstd: %s: unknown suffix (%s expected) -- ignored \n",
-                     srcFileName, suffixlist);
+        || (strstr(SUFFIX_LIST, suffixPtr) == NULL)) {
+        DISPLAYLEVEL(1, "zstd: %s: unknown suffix (%s expected). Can't derive the output file name so specify it with -o dstFileName. -- ignored \n",
+                     srcFileName, SUFFIX_LIST);
         return NULL;
     }
     if (outDirName) {
@@ -2355,13 +2346,23 @@ FIO_determineDstName(const char* srcFileName, const char* outDirName)
 
     /* return dst name == src name truncated from suffix */
     assert(dstFileNameBuffer != NULL);
+    size_t dstFileNameEndPos = sfnSize - suffixSize;
     if (outDirFilename) {
-        memcpy(dstFileNameBuffer, outDirFilename, sfnSize - suffixSize);
+        memcpy(dstFileNameBuffer, outDirFilename, dstFileNameEndPos);
         free(outDirFilename);
     } else {
-        memcpy(dstFileNameBuffer, srcFileName, sfnSize - suffixSize);
+        memcpy(dstFileNameBuffer, srcFileName, dstFileNameEndPos);
     }
-    dstFileNameBuffer[sfnSize-suffixSize] = '\0';
+    /* The short tar extensions tzst, tgz, txz and tlz4 files should have "tar" extension on decompression
+     * To check that the file is one of them we can check that it starts with "t"
+     */
+    if (suffixPtr[1] == 't') {
+        dstFileNameBuffer[dstFileNameEndPos++] = '.';
+        dstFileNameBuffer[dstFileNameEndPos++] = 't';
+        dstFileNameBuffer[dstFileNameEndPos++] = 'a';
+        dstFileNameBuffer[dstFileNameEndPos++] = 'r';
+    }
+    dstFileNameBuffer[dstFileNameEndPos] = '\0';
     return dstFileNameBuffer;
 
     /* note : dstFileNameBuffer memory is not going to be free */

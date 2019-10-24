@@ -126,6 +126,19 @@ int UTIL_isSameFile(const char* fName1, const char* fName2)
 #endif
 }
 
+U32 UTIL_isFIFO(const char* infilename)
+{
+/* macro guards, as defined in : https://linux.die.net/man/2/lstat */
+#if PLATFORM_POSIX_VERSION >= 200112L
+    stat_t statbuf;
+    int r = UTIL_getFileStat(infilename, &statbuf);
+    if (!r && S_ISFIFO(statbuf.st_mode)) return 1;
+#endif
+    (void)infilename;
+    return 0;
+}
+
+
 U32 UTIL_isLink(const char* infilename)
 {
 /* macro guards, as defined in : https://linux.die.net/man/2/lstat */

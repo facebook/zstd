@@ -308,6 +308,7 @@ void UTIL_freeFileNamesTable(FileNamesTable* table) {
 }
 
 static size_t getTotalTableSize(FileNamesTable* table) {
+  UTIL_DISPLAY("[TRACE] getTotalTableSize \n");
   size_t i = 0, totalSize = 0;
   for(i = 0 ; i < table->tableSize && table->fileNames[i] ; ++i) {
     totalSize += strlen(table->fileNames[i]) + 1; /* +1 to add '\0' at the end of each fileName */
@@ -323,6 +324,8 @@ UTIL_concatenateTwoTables(FileNamesTable* table1, FileNamesTable* table2) {
     size_t i = 0;
 
     FileNamesTable* newTable = (FileNamesTable*) malloc(sizeof(FileNamesTable));
+
+    UTIL_DISPLAY("[TRACE] newTable created\n");
 
     if(!newTable) {
       UTIL_DISPLAYLEVEL(1, "[ERROR][UTIL_concatenateTwoTables] Can't create new table for concatenation output.\n");

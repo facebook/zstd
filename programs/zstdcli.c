@@ -820,14 +820,10 @@ int main(int argCount, const char* argv[])
                         DISPLAYLEVEL(4, "[TRACE] call read function is finished\n");
                         DISPLAYLEVEL(4, "[TRACE] extendedFileNamesTable:\n");
 
-
                         DISPLAYLEVEL(4, "[TRACE] call concatenation function\n");
                         DISPLAYLEVEL(4, "[TRACE] filenameidx: %d\n", filenameIdx);
 
-                        // unsigned i = 0;
-                        // for(i = filenameIdx; i < filenameTableSize ; ++i)
-                          filenameTable[filenameIdx] = NULL; // marking end of table
-
+                        filenameTable[filenameIdx] = NULL; // marking end of table
 
                         curTable = (FileNamesTable*) malloc(sizeof(FileNamesTable));
 

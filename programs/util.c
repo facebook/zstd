@@ -276,7 +276,6 @@ UTIL_createFileNamesTable_fromFileName(const char* inputFileName) {
 
     for(i = 0, pos = 0; i < nbFiles; ++i) {
       filesTable->fileNames[i] = buf+pos;
-      UTIL_DISPLAY("[TRACE] file %zu: %s\n", i, filesTable->fileNames[i]);
       pos += strlen(buf+pos)+1;
     }
 

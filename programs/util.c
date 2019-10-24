@@ -247,7 +247,7 @@ UTIL_createFileNamesTable_fromFileName(const char* inputFileName) {
     if(inputFileSize > MAX_FILE_OF_FILE_NAMES_SIZE)
       return NULL;
 
-    buf = (char*) malloc(inputFileSize * sizeof(char));
+    buf = (char*) malloc((size_t) inputFileSize * sizeof(char));
     if(!buf) {
       UTIL_DISPLAYLEVEL(1, "[ERROR][UTIL_readFileNamesTableFromFile] Can't create buffer.\n");
       return NULL;

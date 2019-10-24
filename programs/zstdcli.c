@@ -836,7 +836,7 @@ int main(int argCount, const char* argv[])
                         filenameTableSize = concatenatedTables->tableSize;
                         tableBuf = concatenatedTables->buf;
 
-                        filenameIdx += extendedTable->tableSize;
+                        filenameIdx += (unsigned) extendedTable->tableSize;
                         isTableBufferBased = 1;
 
                         continue;

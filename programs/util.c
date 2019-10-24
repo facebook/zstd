@@ -305,7 +305,7 @@ UTIL_createFileNamesTable(const char** filenames, char* buf, size_t tableSize){
 void UTIL_freeFileNamesTable(FileNamesTable* table) {
   if(table) {
     if(table->fileNames) {
-      free(table->fileNames);
+      free((void*)table->fileNames);
     }
 
     if(table && table->buf) {

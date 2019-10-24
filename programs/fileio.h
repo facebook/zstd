@@ -26,7 +26,7 @@ extern "C" {
 #define stdinmark  "/*stdin*\\"
 #define stdoutmark "/*stdout*\\"
 #ifdef _WIN32
-#  define nulmark "nul"
+#  define nulmark "NUL"
 #else
 #  define nulmark "/dev/null"
 #endif
@@ -78,6 +78,7 @@ void FIO_setRsyncable(FIO_prefs_t* const prefs, int rsyncable);
 void FIO_setStreamSrcSize(FIO_prefs_t* const prefs, size_t streamSrcSize);
 void FIO_setTargetCBlockSize(FIO_prefs_t* const prefs, size_t targetCBlockSize);
 void FIO_setSrcSizeHint(FIO_prefs_t* const prefs, size_t srcSizeHint);
+void FIO_setTestMode(FIO_prefs_t* const prefs, int testMode);
 void FIO_setLiteralCompressionMode(
         FIO_prefs_t* const prefs,
         ZSTD_literalCompressionMode_e mode);
@@ -89,13 +90,14 @@ void FIO_setNotificationLevel(int level);
 *  Single File functions
 ***************************************/
 /** FIO_compressFilename() :
-    @return : 0 == ok;  1 == pb with src file. */
+ * @return : 0 == ok;  1 == pb with src file. */
 int FIO_compressFilename (FIO_prefs_t* const prefs,
-                          const char* outfilename, const char* infilename, const char* dictFileName,
-                          int compressionLevel, ZSTD_compressionParameters comprParams);
+                          const char* outfilename, const char* infilename,
+                          const char* dictFileName, int compressionLevel,
+                          ZSTD_compressionParameters comprParams);
 
 /** FIO_decompressFilename() :
-    @return : 0 == ok;  1 == pb with src file. */
+ * @return : 0 == ok;  1 == pb with src file. */
 int FIO_decompressFilename (FIO_prefs_t* const prefs,
                             const char* outfilename, const char* infilename, const char* dictFileName);
 
@@ -106,19 +108,27 @@ int FIO_listMultipleFiles(unsigned numFiles, const char** filenameTable, int dis
 *  Multiple File functions
 ***************************************/
 /** FIO_compressMultipleFilenames() :
-    @return : nb of missing files */
+ * @return : nb of missing files */
 int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
-                                  const char** srcNamesTable, unsigned nbFiles,
+                                  const char** inFileNamesTable, unsigned nbFiles,
+                                  const char* outDirName,
                                   const char* outFileName, const char* suffix,
                                   const char* dictFileName, int compressionLevel,
                                   ZSTD_compressionParameters comprParams);
 
 /** FIO_decompressMultipleFilenames() :
-    @return : nb of missing or skipped files */
+ * @return : nb of missing or skipped files */
 int FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
                                     const char** srcNamesTable, unsigned nbFiles,
+                                    const char* outDirName,
                                     const char* outFileName,
                                     const char* dictFileName);
+
+/* FIO_checkFilenameCollisions() :
+ * Checks for and warns if there are any files that would have the same output path
+ */
+int FIO_checkFilenameCollisions(const char** filenameTable, unsigned nbFiles);
+
 
 
 /*-*************************************

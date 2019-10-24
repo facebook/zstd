@@ -134,7 +134,9 @@ int UTIL_setFileStat(const char* filename, stat_t* statbuf);
 U32 UTIL_isDirectory(const char* infilename);
 int UTIL_getFileStat(const char* infilename, stat_t* statbuf);
 int UTIL_isSameFile(const char* file1, const char* file2);
+int UTIL_compareStr(const void *p1, const void *p2);
 
+U32 UTIL_isFIFO(const char* infilename);
 U32 UTIL_isLink(const char* infilename);
 #define UTIL_FILESIZE_UNKNOWN  ((U64)(-1))
 U64 UTIL_getFileSize(const char* infilename);

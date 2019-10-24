@@ -26,6 +26,12 @@ env:
 matrix:
   fast_finish: true
   include:
+    - name: arm64
+      os: linux
+      arch: arm64
+      script:
+        - make check
+
     - name: Trusty (Test All)
       script:
         - make test
@@ -54,7 +60,10 @@ matrix:
     - name: Trusty (clang-3.8 + MSan + Test Zstd)
       script:
         - make clang38install
-        - CC=clang-3.8 make clean msan-test-zstd
+        # External libraries must be turned off when using MSAN tests,
+        # because they are not msan-instrumented,
+        # so any data coming from these libraries is always considered "uninitialized"
+        - CC=clang-3.8 make clean msan-test-zstd HAVE_ZLIB=0 HAVE_LZ4=0 HAVE_LZMA=0
 
     - name: Trusty (Minimal Decompressor Macros)
       script:
@@ -219,5 +228,6 @@ matrix:
         - tree ./staging
       after_failure:
         - cat "$TRAVIS_BUILD_DIR"/builddir/meson-logs/testlog.txt
+
   allow_failures:
     - env: ALLOW_FAILURES=true

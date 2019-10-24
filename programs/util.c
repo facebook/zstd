@@ -253,7 +253,7 @@ UTIL_createFileNamesTable_fromFileName(const char* inputFileName) {
       return NULL;
     }
 
-    ret_nbFiles = readFromFile(buf, inputFileSize, inputFileName);
+    ret_nbFiles = readFromFile(buf, (size_t) inputFileSize, inputFileName);
 
     if(ret_nbFiles <= 0) {
       free(buf);

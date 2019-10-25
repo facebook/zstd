@@ -142,12 +142,6 @@ U32 UTIL_isLink(const char* infilename);
 U64 UTIL_getFileSize(const char* infilename);
 
 U64 UTIL_getTotalFileSize(const char* const * const fileNamesTable, unsigned nbFiles);
-/*! UTIL_readLineFromFile(char* buf, size_t len, File* file):
- * @return : int. size next line in file or -1 in case of file ends
- * function reads next line in the file
- * Will also modify `*file`, advancing it to position where it stopped reading.
- */
-int UTIL_readLineFromFile(char* buf, size_t len, FILE* file);
 
 /*Note: tableSize is denotes the total capacity of table*/
 typedef struct
@@ -171,7 +165,7 @@ FileNamesTable* UTIL_createFileNamesTable_fromFileName(const char* inputFileName
  */
 
 FileNamesTable*
-UTIL_createFileNamesTable(const char** filenames, char* buf, size_t tableSize);
+UTIL_createFileNamesTable(const char** filenames, size_t tableSize, char* buf);
 
 
 /*!  UTIL_freeFileNamesTable(FileNamesTable* table) :

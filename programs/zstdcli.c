@@ -38,8 +38,7 @@
 #ifndef ZSTD_NODICT
 #  include "dibio.h"  /* ZDICT_cover_params_t, DiB_trainFromFiles() */
 #endif
-#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_minCLevel */
-#include "zstd.h"     /* ZSTD_VERSION_STRING, ZSTD_maxCLevel */
+#include "zstd.h"     /* ZSTD_VERSION_STRING, ZSTD_minCLevel, ZSTD_maxCLevel */
 
 
 /*-************************************
@@ -587,9 +586,6 @@ int main(int argCount, const char* argv[])
     unsigned memLimit = 0;
     size_t filenameTableSize = argCount;
     const char** filenameTable = (const char**)malloc(filenameTableSize * sizeof(const char*));   /* argCount >= 1 */
-    FileNamesTable* extendedTable = NULL;
-    FileNamesTable* concatenatedTables = NULL;
-    FileNamesTable* curTable = NULL;
     char* tableBuf = NULL;
     unsigned filenameIdx = 0;
     const char* programName = argv[0];
@@ -804,40 +800,49 @@ int main(int argCount, const char* argv[])
 #endif
 
                     if (longCommandWArg(&argument, "--file=")) {
+                        FileNamesTable* extendedTable;
+                        FileNamesTable* curTable;
+                        FileNamesTable* concatenatedTables;
 
-                        if(!UTIL_fileExist(argument) || !UTIL_isRegularFile(argument)){
-                          DISPLAYLEVEL(1, "[ERROR] wrong fileName: %s\n", argument);
-                          CLEAN_RETURN(badusage(programName));
+                        if (!UTIL_fileExist(argument) || !UTIL_isRegularFile(argument)){
+                            DISPLAYLEVEL(1, "[ERROR] wrong fileName: %s\n", argument);
+                            CLEAN_RETURN(badusage(programName));
                         }
 
                         extendedTable = UTIL_createFileNamesTable_fromFileName(argument);
-                        if(!extendedTable) {
-                          CLEAN_RETURN(badusage(programName));
+                        if (!extendedTable) {
+                            CLEAN_RETURN(badusage(programName));
                         }
 
 
                         filenameTable[filenameIdx] = NULL; // marking end of table
+                        filenameIdx += (unsigned) extendedTable->tableSize;
 
-                        curTable = UTIL_createFileNamesTable(filenameTable, tableBuf, filenameTableSize);
+                        curTable = UTIL_createFileNamesTable(filenameTable, filenameTableSize, tableBuf);
 
-                        if(!curTable) {
-                          UTIL_freeFileNamesTable(extendedTable);
-                          CLEAN_RETURN(badusage(programName));
+                        if (!curTable) {
+                            UTIL_freeFileNamesTable(extendedTable);
+                            CLEAN_RETURN(badusage(programName));
                         }
 
                         concatenatedTables = UTIL_concatenateTwoTables(curTable, extendedTable);
-                        if(!concatenatedTables) {
-                          UTIL_freeFileNamesTable(curTable);
-                          UTIL_freeFileNamesTable(extendedTable);
-                          CLEAN_RETURN(badusage(programName));
+                        if (!concatenatedTables) {
+                            if (!isTableBufferBased) curTable->buf = NULL;
+                            UTIL_freeFileNamesTable(curTable);
+                            UTIL_freeFileNamesTable(extendedTable);
+                            CLEAN_RETURN(badusage(programName));
                         }
 
+                        /* transfer ownership */
                         filenameTable = concatenatedTables->fileNames;
                         filenameTableSize = concatenatedTables->tableSize;
                         tableBuf = concatenatedTables->buf;
+                        concatenatedTables->fileNames = NULL;
+                        concatenatedTables->tableSize = 0;
+                        concatenatedTables->buf = NULL;
+                        UTIL_freeFileNamesTable(concatenatedTables);
 
-                        filenameIdx += (unsigned) extendedTable->tableSize;
-                        isTableBufferBased = 1;
+                        isTableBufferBased = 1;   /* file names are now in heap */
 
                         continue;
                     }
@@ -1106,7 +1111,7 @@ int main(int argCount, const char* argv[])
         if (cLevelLast < cLevel) cLevelLast = cLevel;
         if (cLevelLast > cLevel)
             DISPLAYLEVEL(3, "Benchmarking levels from %d to %d\n", cLevel, cLevelLast);
-        if(filenameIdx) {
+        if (filenameIdx) {
             if(separateFiles) {
                 unsigned i;
                 for(i = 0; i < filenameIdx; i++) {
@@ -1114,18 +1119,15 @@ int main(int argCount, const char* argv[])
                     DISPLAYLEVEL(3, "Benchmarking %s \n", filenameTable[i]);
                     for(c = cLevel; c <= cLevelLast; c++) {
                         BMK_benchFilesAdvanced(&filenameTable[i], 1, dictFileName, c, &compressionParams, g_displayLevel, &benchParams);
-                    }
-                }
+                }   }
             } else {
                 for(; cLevel <= cLevelLast; cLevel++) {
                     BMK_benchFilesAdvanced(filenameTable, filenameIdx, dictFileName, cLevel, &compressionParams, g_displayLevel, &benchParams);
-                }
-            }
+            }   }
         } else {
             for(; cLevel <= cLevelLast; cLevel++) {
                 BMK_syntheticTest(cLevel, compressibility, &compressionParams, g_displayLevel, &benchParams);
-            }
-        }
+        }   }
 
 #else
         (void)bench_nbSeconds; (void)blockSize; (void)setRealTimePrio; (void)separateFiles; (void)compressibility;
@@ -1238,10 +1240,11 @@ int main(int argCount, const char* argv[])
             }
         }
         FIO_setMemLimit(prefs, memLimit);
-        if (filenameIdx==1 && outFileName)
+        if (filenameIdx==1 && outFileName) {
             operationResult = FIO_decompressFilename(prefs, outFileName, filenameTable[0], dictFileName);
-        else
+        } else {
             operationResult = FIO_decompressMultipleFilenames(prefs, filenameTable, filenameIdx, outDirName, outFileName, dictFileName);
+        }
 #else
         DISPLAY("Decompression not supported \n");
 #endif
@@ -1255,9 +1258,6 @@ _end:
          free(tableBuf);
        }
     }
-    UTIL_freeFileNamesTable(curTable);
-    UTIL_freeFileNamesTable(extendedTable);
-    UTIL_freeFileNamesTable(concatenatedTables);
 
     if (main_pause) waitEnter();
 #ifdef UTIL_HAS_CREATEFILELIST

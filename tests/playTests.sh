@@ -293,49 +293,45 @@ test -f tmpOutDirDecomp/tmp2
 test -f tmpOutDirDecomp/tmp1
 rm -rf tmp*
 
+
 println "test : compress multiple files reading them from a file, --file=FILE"
-mkdir tmpInputTestDir
-println "Hello world!, file1" > tmpInputTestDir/file1
-println "Hello world!, file2" > tmpInputTestDir/file2
-println tmpInputTestDir/file1 > tmp
-println tmpInputTestDir/file2 >> tmp
-$ZSTD -f --file=tmp
-test -f tmpInputTestDir/file2.zst
-test -f tmpInputTestDir/file1.zst
-rm tmpInputTestDir/*.zst
+println "Hello world!, file1" > tmp1
+println "Hello world!, file2" > tmp2
+println tmp1 > tmp_fileList
+println tmp2 >> tmp_fileList
+$ZSTD -f --file=tmp_fileList
+test -f tmp2.zst
+test -f tmp1.zst
+rm -f *.zst
 
 println "test : compress multiple files reading them from multiple files, --file=FILE"
-println "Hello world!, file3" > tmpInputTestDir/file3
-println "Hello world!, file4" > tmpInputTestDir/file4
-println tmpInputTestDir/file3 > tmp1
-println tmpInputTestDir/file4 >> tmp1
-$ZSTD -f --file=tmp --file=tmp1
-test -f tmpInputTestDir/file1.zst
-test -f tmpInputTestDir/file2.zst
-test -f tmpInputTestDir/file3.zst
-test -f tmpInputTestDir/file4.zst
+println "Hello world!, file3" > tmp3
+println "Hello world!, file4" > tmp4
+println tmp3 > tmp_fileList2
+println tmp4 >> tmp_fileList2
+$ZSTD -f --file=tmp_fileList --file=tmp_fileList2
+test -f tmp1.zst
+test -f tmp2.zst
+test -f tmp3.zst
+test -f tmp4.zst
 
 println "test : decompress multiple files reading them from a file, --file=FILE"
-rm tmpInputTestDir/file1
-rm tmpInputTestDir/file2
-println tmpInputTestDir/file1.zst > tmpZst
-println tmpInputTestDir/file2.zst >> tmpZst
+rm -f tmp1 tmp2
+println tmp1.zst > tmpZst
+println tmp2.zst >> tmpZst
 $ZSTD -d -f --file=tmpZst
-test -f tmpInputTestDir/file2
-test -f tmpInputTestDir/file1
+test -f tmp1
+test -f tmp2
 
 println "test : decompress multiple files reading them from multiple files, --file=FILE"
-rm tmpInputTestDir/file1
-rm tmpInputTestDir/file2
-rm tmpInputTestDir/file3
-rm tmpInputTestDir/file4
-println tmpInputTestDir/file3.zst > tmpZst1
-println tmpInputTestDir/file4.zst >> tmpZst1
-$ZSTD -d -f --file=tmpZst --file=tmpZst1
-test -f tmpInputTestDir/file1
-test -f tmpInputTestDir/file2
-test -f tmpInputTestDir/file3
-test -f tmpInputTestDir/file4
+rm -f tmp1 tmp2 tmp3 tmp4
+println tmp3.zst > tmpZst2
+println tmp4.zst >> tmpZst2
+$ZSTD -d -f --file=tmpZst --file=tmpZst2
+test -f tmp1
+test -f tmp2
+test -f tmp3
+test -f tmp4
 
 rm -rf tmp*
 

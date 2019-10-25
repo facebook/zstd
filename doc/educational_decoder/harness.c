@@ -21,88 +21,90 @@ typedef unsigned char u8;
 // Protect against allocating too much memory for output
 #define MAX_OUTPUT_SIZE ((size_t)1024 * 1024 * 1024)
 
-u8 *input;
-u8 *output;
-u8 *dict;
-
-size_t read_file(const char *path, u8 **ptr) {
-    FILE *f = fopen(path, "rb");
+static size_t read_file(const char *path, u8 **ptr)
+{
+    FILE* const f = fopen(path, "rb");
     if (!f) {
-        fprintf(stderr, "failed to open file %s\n", path);
+        fprintf(stderr, "failed to open file %s \n", path);
         exit(1);
     }
 
     fseek(f, 0L, SEEK_END);
-    size_t size = ftell(f);
+    size_t const size = (size_t)ftell(f);
     rewind(f);
 
     *ptr = malloc(size);
     if (!ptr) {
-        fprintf(stderr, "failed to allocate memory to hold %s\n", path);
+        fprintf(stderr, "failed to allocate memory to hold %s \n", path);
         exit(1);
     }
 
-    size_t pos = 0;
-    while (!feof(f)) {
-        size_t read = fread(&(*ptr)[pos], 1, size, f);
-        if (ferror(f)) {
-            fprintf(stderr, "error while reading file %s\n", path);
-            exit(1);
-        }
-        pos += read;
+    size_t const read = fread(*ptr, 1, size, f);
+    if (read != size) {  /* must read everything in one pass */
+        fprintf(stderr, "error while reading file %s \n", path);
+        exit(1);
     }
 
     fclose(f);
 
-    return pos;
+    return read;
 }
 
-void write_file(const char *path, const u8 *ptr, size_t size) {
-    FILE *f = fopen(path, "wb");
+static void write_file(const char *path, const u8 *ptr, size_t size)
+{
+    FILE* const f = fopen(path, "wb");
+    if (!f) {
+        fprintf(stderr, "failed to open file %s \n", path);
+        exit(1);
+    }
 
     size_t written = 0;
     while (written < size) {
-        written += fwrite(&ptr[written], 1, size, f);
+        written += fwrite(ptr+written, 1, size, f);
         if (ferror(f)) {
             fprintf(stderr, "error while writing file %s\n", path);
             exit(1);
-        }
-    }
+    }   }
 
     fclose(f);
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
     if (argc < 3) {
-        fprintf(stderr, "usage: %s <file.zst> <out_path> [dictionary]\n",
+        fprintf(stderr, "usage: %s <file.zst> <out_path> [dictionary] \n",
                 argv[0]);
 
         return 1;
     }
 
-    size_t input_size = read_file(argv[1], &input);
+    u8* input;
+    size_t const input_size = read_file(argv[1], &input);
+
+    u8* dict = NULL;
     size_t dict_size = 0;
     if (argc >= 4) {
         dict_size = read_file(argv[3], &dict);
     }
 
-    size_t decompressed_size = ZSTD_get_decompressed_size(input, input_size);
-    if (decompressed_size == (size_t)-1) {
-        decompressed_size = MAX_COMPRESSION_RATIO * input_size;
+    size_t out_capacity = ZSTD_get_decompressed_size(input, input_size);
+    if (out_capacity == (size_t)-1) {
+        out_capacity = MAX_COMPRESSION_RATIO * input_size;
         fprintf(stderr, "WARNING: Compressed data does not contain "
                         "decompressed size, going to assume the compression "
                         "ratio is at most %d (decompressed size of at most "
-                        "%zu)\n",
-                MAX_COMPRESSION_RATIO, decompressed_size);
+                        "%u) \n",
+                MAX_COMPRESSION_RATIO, (unsigned)out_capacity);
     }
-    if (decompressed_size > MAX_OUTPUT_SIZE) {
+    if (out_capacity > MAX_OUTPUT_SIZE) {
         fprintf(stderr,
-                "Required output size too large for this implementation\n");
+                "Required output size too large for this implementation \n");
         return 1;
     }
-    output = malloc(decompressed_size);
+
+    u8* const output = malloc(out_capacity);
     if (!output) {
-        fprintf(stderr, "failed to allocate memory\n");
+        fprintf(stderr, "failed to allocate memory \n");
         return 1;
     }
 
@@ -110,16 +112,17 @@ int main(int argc, char **argv) {
     if (dict) {
         parse_dictionary(parsed_dict, dict, dict_size);
     }
-    size_t decompressed =
-        ZSTD_decompress_with_dict(output, decompressed_size,
-                                  input, input_size, parsed_dict);
+    size_t const decompressed_size =
+        ZSTD_decompress_with_dict(output, out_capacity,
+                                  input, input_size,
+                                  parsed_dict);
 
     free_dictionary(parsed_dict);
 
-    write_file(argv[2], output, decompressed);
+    write_file(argv[2], output, decompressed_size);
 
     free(input);
     free(output);
     free(dict);
-    input = output = dict = NULL;
+    return 0;
 }

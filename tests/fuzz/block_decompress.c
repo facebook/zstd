@@ -28,8 +28,6 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 {
     size_t const neededBufSize = ZSTD_BLOCKSIZE_MAX;
 
-    FUZZ_seed(&src, &size);
-
     /* Allocate all buffers and contexts if not already allocated */
     if (neededBufSize > bufSize) {
         free(rBuf);

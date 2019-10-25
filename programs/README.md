@@ -173,10 +173,13 @@ Benchmark arguments :
 ```
 
 #### Restricted usage of Environment Variables
-Using environment variables to set compression/decompression parameters has security implications. Therefore,
-we intentionally restrict its usage. Currently, only `ZSTD_CLEVEL` is supported for setting compression level.
+Using environment variables to set parameters has security implications.
+Therefore, this avenue is intentionally restricted.
+Only `ZSTD_CLEVEL` is supported currently, for setting compression level.
+`ZSTD_CLEVEL` can be used to set the level between 1 and 19 (the "normal" range).
 If the value of `ZSTD_CLEVEL` is not a valid integer, it will be ignored with a warning message.
-Note that command line options will override corresponding environment variable settings.
+`ZSTD_CLEVEL` just replaces the default compression level (`3`).
+It can be overridden by corresponding command line arguments.
 
 #### Long distance matching mode
 The long distance matching mode, enabled with `--long`, is designed to improve

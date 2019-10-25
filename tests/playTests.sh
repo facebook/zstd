@@ -64,11 +64,12 @@ PRGDIR="$SCRIPT_DIR/../programs"
 TESTDIR="$SCRIPT_DIR/../tests"
 UNAME=$(uname)
 
-isTerminal=false
+detectedTerminal=false
 if [ -t 0 ] && [ -t 1 ]
 then
-    isTerminal=true
+    detectedTerminal=true
 fi
+isTerminal=${isTerminal:-$detectedTerminal}
 
 isWindows=false
 INTOVOID="/dev/null"
@@ -106,7 +107,6 @@ then
 else
     hasMT="true"
 fi
-
 
 
 println "\n===>  simple tests "
@@ -212,8 +212,8 @@ $ZSTD tmp -c --no-compress-literals -19      | $ZSTD -t
 $ZSTD tmp -c --compress-literals    -1       | $ZSTD -t
 $ZSTD tmp -c --compress-literals    --fast=1 | $ZSTD -t
 $ZSTD tmp -c --compress-literals    -19      | $ZSTD -t
-$ZSTD -b --fast=1 -i1e1 tmp --compress-literals
-$ZSTD -b --fast=1 -i1e1 tmp --no-compress-literals
+$ZSTD -b --fast=1 -i0e1 tmp --compress-literals
+$ZSTD -b --fast=1 -i0e1 tmp --no-compress-literals
 
 println "test : file removal"
 $ZSTD -f --rm tmp
@@ -240,8 +240,13 @@ rm tmp         # erase source file
 touch tmp.zst  # create destination file
 $ZSTD -f tmp && die "attempt to compress a non existing file"
 test -f tmp.zst  # destination file should still be present
-rm tmp*
+rm -rf tmp*  # may also erase tmp* directory from previous failed run
 
+println "\n===> decompression only tests "
+head -c 1048576 /dev/zero > tmp
+$ZSTD -d -o tmp1 "$TESTDIR/golden-decompression/rle-first-block.zst"
+$DIFF -s tmp1 tmp
+rm tmp*
 
 println "test : compress multiple files"
 println hello > tmp1
@@ -265,6 +270,28 @@ if [ "$?" -eq 139 ]; then
 fi
 rm tmp*
 
+println "test : compress multiple files into an output directory, --output-dir-flat"
+println henlo > tmp1
+mkdir tmpInputTestDir
+mkdir tmpInputTestDir/we
+mkdir tmpInputTestDir/we/must
+mkdir tmpInputTestDir/we/must/go
+mkdir tmpInputTestDir/we/must/go/deeper
+println cool > tmpInputTestDir/we/must/go/deeper/tmp2
+mkdir tmpOutDir
+$ZSTD tmp1 tmpInputTestDir/we/must/go/deeper/tmp2 --output-dir-flat tmpOutDir
+test -f tmpOutDir/tmp1.zst
+test -f tmpOutDir/tmp2.zst
+println "test : decompress multiple files into an output directory, --output-dir-flat"
+mkdir tmpOutDirDecomp
+$ZSTD tmpOutDir -r -d --output-dir-flat tmpOutDirDecomp
+test -f tmpOutDirDecomp/tmp2
+test -f tmpOutDirDecomp/tmp1
+rm -f tmpOutDirDecomp/*
+$ZSTD tmpOutDir -r -d --output-dir-flat=tmpOutDirDecomp
+test -f tmpOutDirDecomp/tmp2
+test -f tmpOutDirDecomp/tmp1
+rm -rf tmp*
 
 println "\n===>  Advanced compression parameters "
 println "Hello world!" | $ZSTD --zstd=windowLog=21,      - -o tmp.zst && die "wrong parameters not detected!"
@@ -408,6 +435,52 @@ ls -ls tmp* # check size of tmpdec (should be 2*(tmp1 + tmp2 + tmp3))
 println "compress multiple files including a missing one (notHere) : "
 $ZSTD -f tmp1 notHere tmp2 && die "missing file not detected!"
 
+println "\n===>  stream-size mode"
+
+./datagen -g11000 > tmp
+println "test : basic file compression vs sized streaming compression"
+file_size=$($ZSTD -14 -f tmp -o tmp.zst && wc -c < tmp.zst)
+stream_size=$(cat tmp | $ZSTD -14 --stream-size=11000 | wc -c)
+if [ "$stream_size" -gt "$file_size" ]; then
+  die "hinted compression larger than expected"
+fi
+println "test : sized streaming compression and decompression"
+cat tmp | $ZSTD -14 -f tmp -o --stream-size=11000 tmp.zst
+$ZSTD -df tmp.zst -o tmp_decompress
+cmp tmp tmp_decompress || die "difference between original and decompressed file"
+println "test : incorrect stream size"
+cat tmp | $ZSTD -14 -f -o tmp.zst --stream-size=11001 && die "should fail with incorrect stream size"
+
+
+println "\n===>  size-hint mode"
+
+./datagen -g11000 > tmp
+./datagen -g11000 > tmp2
+./datagen > tmpDict
+println "test : basic file compression vs hinted streaming compression"
+file_size=$($ZSTD -14 -f tmp -o tmp.zst && wc -c < tmp.zst)
+stream_size=$(cat tmp | $ZSTD -14 --size-hint=11000 | wc -c)
+if [ "$stream_size" -ge "$file_size" ]; then
+  die "hinted compression larger than expected"
+fi
+println "test : hinted streaming compression and decompression"
+cat tmp | $ZSTD -14 -f -o tmp.zst --size-hint=11000
+$ZSTD -df tmp.zst -o tmp_decompress
+cmp tmp tmp_decompress || die "difference between original and decompressed file"
+println "test : hinted streaming compression with dictionary"
+cat tmp | $ZSTD -14 -f -D tmpDict --size-hint=11000 | $ZSTD -t -D tmpDict
+println "test : multiple file compression with hints and dictionary"
+$ZSTD -14 -f -D tmpDict --size-hint=11000 tmp tmp2
+$ZSTD -14 -f -o tmp1_.zst -D tmpDict --size-hint=11000 tmp
+$ZSTD -14 -f -o tmp2_.zst -D tmpDict --size-hint=11000 tmp2
+cmp tmp.zst tmp1_.zst || die "first file's output differs"
+cmp tmp2.zst tmp2_.zst || die "second file's output differs"
+println "test : incorrect hinted stream sizes"
+cat tmp | $ZSTD -14 -f --size-hint=11050 | $ZSTD -t  # slightly too high
+cat tmp | $ZSTD -14 -f --size-hint=10950 | $ZSTD -t  # slightly too low
+cat tmp | $ZSTD -14 -f --size-hint=22000 | $ZSTD -t  # considerably too high
+cat tmp | $ZSTD -14 -f --size-hint=5500  | $ZSTD -t  # considerably too low
+
 
 println "\n===>  dictionary tests "
 
@@ -480,6 +553,15 @@ $ZSTD -o tmpDict --train "$TESTDIR"/*.c "$PRGDIR"/*.c
 test -f tmpDict
 $ZSTD --train "$TESTDIR"/*.c "$PRGDIR"/*.c
 test -f dictionary
+println "- Test dictionary training fails"
+echo "000000000000000000000000000000000" > tmpz
+$ZSTD --train tmpz tmpz tmpz tmpz tmpz tmpz tmpz tmpz tmpz && die "Dictionary training should fail : source is all zeros"
+if [ -n "$hasMT" ]
+then
+  $ZSTD --train -T0 tmpz tmpz tmpz tmpz tmpz tmpz tmpz tmpz tmpz && die "Dictionary training should fail : source is all zeros"
+  println "- Create dictionary with multithreading enabled"
+  $ZSTD --train -T0 "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpDict
+fi
 rm tmp* dictionary
 
 
@@ -500,30 +582,27 @@ println "- Create dictionary with short dictID"
 $ZSTD --train-fastcover=k=46,d=8,f=15,split=80 "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o tmpDict1
 cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"
 println "- Create dictionaries with shrink-dict flag enabled"
-$ZSTD --train-fastcover=steps=256,shrink "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpShrinkDict
-$ZSTD --train-fastcover=steps=256,shrink=1 "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpShrinkDict1
-$ZSTD --train-fastcover=steps=256,shrink=5 "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpShrinkDict2
+$ZSTD --train-fastcover=steps=1,shrink "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpShrinkDict
+$ZSTD --train-fastcover=steps=1,shrink=1 "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpShrinkDict1
+$ZSTD --train-fastcover=steps=1,shrink=5 "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpShrinkDict2
 println "- Create dictionary with size limit"
-$ZSTD --train-fastcover=steps=8 "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpDict2 --maxdict=4K
-println "- Compare size of dictionary from 90% training samples with 80% training samples"
-$ZSTD --train-fastcover=split=90 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
-$ZSTD --train-fastcover=split=80 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
+$ZSTD --train-fastcover=steps=1 "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpDict2 --maxdict=4K
 println "- Create dictionary using all samples for both training and testing"
-$ZSTD --train-fastcover=split=100 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
+$ZSTD --train-fastcover=k=56,d=8,split=100 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
 println "- Create dictionary using f=16"
-$ZSTD --train-fastcover=f=16 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
-$ZSTD --train-fastcover=accel=15 -r "$TESTDIR"/*.c "$PRGDIR"/*.c && die "Created dictionary using accel=15"
+$ZSTD --train-fastcover=k=56,d=8,f=16 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
+$ZSTD --train-fastcover=k=56,d=8,accel=15 -r "$TESTDIR"/*.c "$PRGDIR"/*.c && die "Created dictionary using accel=15"
 println "- Create dictionary using accel=2"
-$ZSTD --train-fastcover=accel=2 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
+$ZSTD --train-fastcover=k=56,d=8,accel=2 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
 println "- Create dictionary using accel=10"
-$ZSTD --train-fastcover=accel=10 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
+$ZSTD --train-fastcover=k=56,d=8,accel=10 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
 println "- Create dictionary with multithreading"
 $ZSTD --train-fastcover -T4 -r "$TESTDIR"/*.c "$PRGDIR"/*.c
 println "- Test -o before --train-fastcover"
 rm -f tmpDict dictionary
-$ZSTD -o tmpDict --train-fastcover "$TESTDIR"/*.c "$PRGDIR"/*.c
+$ZSTD -o tmpDict --train-fastcover=k=56,d=8 "$TESTDIR"/*.c "$PRGDIR"/*.c
 test -f tmpDict
-$ZSTD --train-fastcover "$TESTDIR"/*.c "$PRGDIR"/*.c
+$ZSTD --train-fastcover=k=56,d=8 "$TESTDIR"/*.c "$PRGDIR"/*.c
 test -f dictionary
 rm tmp* dictionary
 
@@ -583,8 +662,8 @@ $ZSTD -t tmpSplit.* && die "bad file not detected !"
 
 println "\n===>  golden files tests "
 
-$ZSTD -t -r "$TESTDIR/files"
-$ZSTD -c -r "$TESTDIR/files" | $ZSTD -t
+$ZSTD -t -r "$TESTDIR/golden-compression"
+$ZSTD -c -r "$TESTDIR/golden-compression" | $ZSTD -t
 
 
 println "\n===>  benchmark mode tests "
@@ -597,10 +676,10 @@ $ZSTD -i0b0e3 tmp1
 println "bench negative level"
 $ZSTD -bi0 --fast tmp1
 println "with recursive and quiet modes"
-$ZSTD -rqi1b1e2 tmp1
+$ZSTD -rqi0b1e2 tmp1
 println "benchmark decompression only"
 $ZSTD -f tmp1
-$ZSTD -b -d -i1 tmp1.zst
+$ZSTD -b -d -i0 tmp1.zst
 
 println "\n===>  zstd compatibility tests "
 

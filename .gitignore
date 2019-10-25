@@ -23,6 +23,7 @@ zstdmt
 # Test artefacts
 tmp*
 dictionary.
+dictionary
 NUL
 
 # Build artefacts

@@ -992,25 +992,15 @@ int main(int argCount, const char* argv[])
     if (!followLinks) {
         unsigned u;
         for (u=0, fileNamesNb=0; u<filenameIdx; u++) {
-
-#ifdef _MSC_VER
-
-            if (UTIL_isLink(filenameTable[u])) {
-                DISPLAYLEVEL(2, "Warning : %s is a symbolic link, ignoring\n", filenameTable[u]);
-            } else {
-                filenameTable[fileNamesNb++] = filenameTable[u];
-            }
-
-#else
-
-            if (UTIL_isLink(filenameTable[u]) && !UTIL_isFIFO(filenameTable[u])) {
-                DISPLAYLEVEL(2, "Warning : %s is a symbolic link, ignoring\n", filenameTable[u]);
-            } else {
-                filenameTable[fileNamesNb++] = filenameTable[u];
-            }
-
+            if (UTIL_isLink(filenameTable[u])
+#ifndef _MSC_VER
+                && !UTIL_isFIFO(filenameTable[u])
 #endif /* _MSC_VER */
-
+            ) {
+                DISPLAYLEVEL(2, "Warning : %s is a symbolic link, ignoring\n", filenameTable[u]);
+            } else {
+                filenameTable[fileNamesNb++] = filenameTable[u];
+            }
         }
         if (fileNamesNb == 0 && filenameIdx > 0)
             CLEAN_RETURN(1);

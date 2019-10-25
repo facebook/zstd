@@ -264,5 +264,6 @@
   - ECHO Testing %COMPILER% %PLATFORM% %CONFIGURATION%
   - if [%HOST%]==[mingw] (
       set "CC=%COMPILER%" &&
-      make check
+      make check &&
+      sh -e playTests.sh --test-large-data
     )

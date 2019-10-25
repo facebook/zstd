@@ -24,6 +24,32 @@ extern "C" {
 #include <direct.h>     /* needed for _mkdir in windows */
 #endif
 
+
+/*-****************************************
+*  Internal Macros
+******************************************/
+
+/* CONTROL is like an assert(), but is never disabled.
+ * Since it's always active, it can trigger side effects.
+ */
+#define CONTROL(c)  {         \
+    if (!(c)) {               \
+        UTIL_DISPLAYLEVEL(1, "Error : %s, %i : %s",  \
+                          __FILE__, __LINE__, #c);   \
+        abort();              \
+}   }
+
+
+/*-****************************************
+*  Console log
+******************************************/
+int g_utilDisplayLevel;
+
+
+/*-****************************************
+*  Public API
+******************************************/
+
 int UTIL_fileExist(const char* filename)
 {
     stat_t statbuf;
@@ -188,220 +214,174 @@ U64 UTIL_getTotalFileSize(const char* const * const fileNamesTable, unsigned nbF
 }
 
 
-int UTIL_readLineFromFile(char* buf, size_t len, FILE* file) {
-    char* fgetsCheck = NULL;
-
-    if (feof(file)) {
-      UTIL_DISPLAYLEVEL(1, "[ERROR] end of file reached and need to read\n");
-      return -1;
-    }
-
-    fgetsCheck = fgets(buf, (int) len, file);
-
-    if(fgetsCheck == NULL || fgetsCheck != buf) {
-      UTIL_DISPLAYLEVEL(1, "[ERROR][UTIL_readLineFromFile] fgets has a problem check: %s buf: %s \n",
-        fgetsCheck == NULL ? "NULL" : fgetsCheck, buf);
-      return -1;
-    }
-
-    return (int) strlen(buf)-1;   /* -1 to ignore '\n' character */
+/* condition : @file must be valid, and not have reached its end.
+ * @return : length of line written into buf, without the final '\n',
+ *           or 0, if there is no new line */
+static size_t readLineFromFile(char* buf, size_t len, FILE* file)
+{
+    fprintf(stderr, "readLineFromFile \n");
+    assert(!feof(file));
+    CONTROL( fgets(buf, (int) len, file) == buf );  /* requires success */
+    fprintf(stderr, "line = %s \n", buf);
+    if (strlen(buf)==0) return 0;
+    return strlen(buf) - (buf[strlen(buf)-1] == '\n');   /* -1 to ignore final '\n' character */
 }
 
-/* Warning: inputFileSize should be less than or equal buf capacity and buf should be initialized*/
-static int readFromFile(char* buf, size_t inputFileSize, const char* inputFileName) {
+/* Conditions :
+ *   size of @inputFileName file must be < @dstCapacity
+ *   @dst must be initialized
+ * @return : nb of lines
+ *       or -1 if there's an error
+ */
+static int
+readLinesFromFile(void* dst, size_t dstCapacity,
+            const char* inputFileName)
+{
+    int nbFiles = 0;
+    unsigned pos = 0;
+    char* const buf = (char*)dst;
+    FILE* const inputFile = fopen(inputFileName, "r");
 
-  FILE* inputFile = fopen(inputFileName, "r");
-  int nbFiles = -1;
-  unsigned pos = 0;
+    assert(dst != NULL);
 
+    fprintf(stderr, "readLinesFromFile %s \n", inputFileName);
 
-  if(!buf) {
-    UTIL_DISPLAYLEVEL(1, "[ERROR][UTIL_readFileNamesTableFromFile] Can't create buffer.\n");
-    return -1;
-  }
-
-  if(!inputFile) {
-    UTIL_DISPLAYLEVEL(1, "[ERROR][UTIL_readFileNamesTableFromFile] Can't open file to read input file names.\n");
-    return -1;
-  }
-
-  for(nbFiles=0; !feof(inputFile) ; ) {
-    if(UTIL_readLineFromFile(buf+pos, inputFileSize, inputFile) > 0) {
-      int len = (int) strlen(buf+pos);
-      buf[pos+len-1] = '\0'; /* replace '\n' with '\0'*/
-      pos += len;
-      ++nbFiles;
+    if(!inputFile) {
+        if (g_utilDisplayLevel >= 1) perror("zstd:util:readLinesFromFile");
+        return -1;
     }
-  }
 
-  fclose(inputFile);
+    while ( !feof(inputFile) ) {
+        size_t const lineLength = readLineFromFile(buf+pos, dstCapacity-pos, inputFile);
+        if (lineLength == 0) break;
+        assert(pos + lineLength < dstCapacity);
+        buf[pos+lineLength] = '\0'; /* replace '\n' with '\0'*/
+        pos += lineLength + 1;
+        ++nbFiles;
+        fprintf(stderr, "nbFiles = %i \n", nbFiles);
+    }
 
-  if(pos > inputFileSize) return -1;
+    CONTROL( fclose(inputFile) == 0 );
 
-  return nbFiles;
+    return nbFiles;
 }
 
 /*Note: buf is not freed in case function successfully created table because filesTable->fileNames[0] = buf*/
 FileNamesTable*
-UTIL_createFileNamesTable_fromFileName(const char* inputFileName) {
-    U64 inputFileSize = 0;
-    unsigned nbFiles = 0;
-    int ret_nbFiles = -1;
-    char* buf = NULL;
-    size_t i = 0, pos = 0;
+UTIL_createFileNamesTable_fromFileName(const char* inputFileName)
+{
+    size_t nbFiles = 0;
+    char* buf;
+    size_t bufSize;
+    size_t pos = 0;
 
-    FileNamesTable* filesTable = NULL;
+    if (!UTIL_fileExist(inputFileName) || !UTIL_isRegularFile(inputFileName))
+        return NULL;
 
-    if(!UTIL_fileExist(inputFileName) || !UTIL_isRegularFile(inputFileName))
-      return NULL;
-
-    inputFileSize = UTIL_getFileSize(inputFileName) + 1; /* (+1) to add '\0' at the end of last filename */
-
-    if(inputFileSize > MAX_FILE_OF_FILE_NAMES_SIZE)
-      return NULL;
-
-    buf = (char*) malloc((size_t) inputFileSize * sizeof(char));
-    if(!buf) {
-      UTIL_DISPLAYLEVEL(1, "[ERROR][UTIL_readFileNamesTableFromFile] Can't create buffer.\n");
-      return NULL;
+    {   U64 const inputFileSize = UTIL_getFileSize(inputFileName);
+        if(inputFileSize > MAX_FILE_OF_FILE_NAMES_SIZE)
+            return NULL;
+        bufSize = inputFileSize + 1; /* (+1) to add '\0' at the end of last filename */
     }
 
-    ret_nbFiles = readFromFile(buf, (size_t) inputFileSize, inputFileName);
+    buf = (char*) malloc(bufSize);
+    CONTROL( buf != NULL );
 
-    if(ret_nbFiles <= 0) {
-      free(buf);
-      return NULL;
-    }
-    nbFiles = ret_nbFiles;
+    {   int const ret_nbFiles = readLinesFromFile(buf, bufSize, inputFileName);
 
-    filesTable = UTIL_createFileNamesTable(NULL, NULL, 0);
-    if(!filesTable) {
-      free(buf);
-      UTIL_DISPLAYLEVEL(1, "[ERROR][UTIL_readFileNamesTableFromFile] Can't create table for files.\n");
-      return NULL;
+        if (ret_nbFiles <= 0) {
+          free(buf);
+          return NULL;
+        }
+        nbFiles = (size_t)ret_nbFiles;
     }
 
-    filesTable->tableSize = nbFiles;
-    filesTable->fileNames = (const char**) malloc((nbFiles+1) * sizeof(char*));
+    {   const char** filenamesTable = (const char**) malloc(nbFiles * sizeof(*filenamesTable));
+        CONTROL(filenamesTable != NULL);
 
+        {   size_t fnb;
+            for (fnb = 0, pos = 0; fnb < nbFiles; fnb++) {
+                filenamesTable[fnb] = buf+pos;
+                pos += strlen(buf+pos)+1;  /* +1 for the finishing `\0` */
+        }   }
+        assert(pos <= bufSize);
 
-
-    for(i = 0, pos = 0; i < nbFiles; ++i) {
-      filesTable->fileNames[i] = buf+pos;
-      pos += strlen(buf+pos)+1;
+        return UTIL_createFileNamesTable(filenamesTable, nbFiles, buf);
     }
-
-
-    if(pos > inputFileSize){
-      UTIL_freeFileNamesTable(filesTable);
-      if(buf) free(buf);
-      return NULL;
-    }
-
-    filesTable->buf = buf;
-
-    return filesTable;
 }
 
 FileNamesTable*
-UTIL_createFileNamesTable(const char** filenames, char* buf, size_t tableSize){
-  FileNamesTable* table = (FileNamesTable*) malloc(sizeof(FileNamesTable));
-  if(!table) {
-    return NULL;
-  }
-  table->fileNames = filenames;
-  table->buf = buf;
-  table->tableSize = tableSize;
-  return table;
+UTIL_createFileNamesTable(const char** filenames, size_t tableSize, char* buf)
+{
+    FileNamesTable* const table = (FileNamesTable*) malloc(sizeof(*table));
+    if(!table) return NULL;
+    table->fileNames = filenames;
+    table->buf = buf;
+    table->tableSize = tableSize;
+    return table;
 }
 
-void UTIL_freeFileNamesTable(FileNamesTable* table) {
-  if(table) {
-    if(table->fileNames) {
-      free((void*)table->fileNames);
-    }
-
-    if(table && table->buf) {
-      free(table->buf);
-    }
-
+void UTIL_freeFileNamesTable(FileNamesTable* table)
+{
+    if (table==NULL) return;
+    free((void*)table->fileNames);
+    free(table->buf);
     free(table);
-  }
 }
 
-static size_t getTotalTableSize(FileNamesTable* table) {
-  size_t i = 0, totalSize = 0;
-  for(i = 0 ; i < table->tableSize && table->fileNames[i] ; ++i) {
-    totalSize += strlen(table->fileNames[i]) + 1; /* +1 to add '\0' at the end of each fileName */
-  }
-
-  return totalSize;
+static size_t getTotalTableSize(FileNamesTable* table)
+{
+    size_t fnb = 0, totalSize = 0;
+    for(fnb = 0 ; fnb < table->tableSize && table->fileNames[fnb] ; ++fnb) {
+        totalSize += strlen(table->fileNames[fnb]) + 1; /* +1 to add '\0' at the end of each fileName */
+    }
+    return totalSize;
 }
 
 FileNamesTable*
-UTIL_concatenateTwoTables(FileNamesTable* table1, FileNamesTable* table2) {
-    unsigned newTableIdx = 0, idx1 = 0, idx2 = 0;
-    size_t i = 0, pos = 0;
-    size_t newTotalTableSize = 0;
+UTIL_concatenateTwoTables(FileNamesTable* table1, FileNamesTable* table2)
+{
+    unsigned newTableIdx = 0;
+    size_t pos = 0;
+    size_t newTotalTableSize;
+    char* buf;
 
-    FileNamesTable* newTable = NULL;
+    fprintf(stderr, "UTIL_concatenateTwoTables \n");
 
-    char* buf = NULL;
-
-
-    newTable = UTIL_createFileNamesTable(NULL, NULL, 0);
-
-    if(!newTable) {
-      UTIL_DISPLAYLEVEL(1, "[ERROR][UTIL_concatenateTwoTables] Can't create new table for concatenation output.\n");
-      return NULL;
-    }
+    FileNamesTable* const newTable = UTIL_createFileNamesTable(NULL, 0, NULL);
+    CONTROL( newTable != NULL );
 
     newTotalTableSize = getTotalTableSize(table1) + getTotalTableSize(table2);
 
-    buf = (char*) malloc(newTotalTableSize * sizeof(char));
-    if(!buf) {
-      UTIL_freeFileNamesTable(newTable);
-      UTIL_DISPLAYLEVEL(1, "[ERROR][UTIL_concatenateTwoTables] Can't create buf for concatenation output.\n");
-      return NULL;
-    }
-
-    for(i = 0; i < newTotalTableSize ; ++i) buf[i] = '\0';
-
-    newTable->tableSize = table1->tableSize + table2->tableSize;
-    newTable->fileNames = (const char **) malloc(newTable->tableSize * sizeof(char*));
-
-    if(!newTable->fileNames) {
-      UTIL_freeFileNamesTable(newTable);
-      if(buf) free(buf);
-      UTIL_DISPLAYLEVEL(1, "[ERROR][UTIL_concatenateTwoTables] Can't create new table for concatenation output.\n");
-      return NULL;
-    }
-
-    for (i = 0; i < newTable->tableSize; ++i)
-      newTable->fileNames[i] = NULL;
-
-    for( ; idx1 < table1->tableSize && table1->fileNames[idx1] && pos < newTotalTableSize; ++idx1, ++newTableIdx) {
-      size_t curLen = strlen(table1->fileNames[idx1]);
-      memcpy(buf+pos, table1->fileNames[idx1], curLen);
-      newTable->fileNames[newTableIdx] = buf+pos;
-      pos += curLen+1;
-    }
-
-
-    for( ; idx2 < table2->tableSize && table2->fileNames[idx2] && pos < newTotalTableSize ; ++idx2, ++newTableIdx) {
-      size_t curLen = strlen(table2->fileNames[idx2]);
-      memcpy(buf+pos, table2->fileNames[idx2], curLen);
-      newTable->fileNames[newTableIdx] = buf+pos;
-      pos += curLen+1;
-    }
-
-    if(pos > newTotalTableSize) {
-      UTIL_freeFileNamesTable(newTable);
-      if(buf) free(buf);
-      return NULL;
-    }
+    buf = (char*) calloc(newTotalTableSize, sizeof(*buf));
+    CONTROL ( buf != NULL );
 
     newTable->buf = buf;
+    fprintf(stderr, "Size table1 = %u ,  table2 = %u \n", (unsigned)table1->tableSize, (unsigned)table2->tableSize);
+    newTable->tableSize = table1->tableSize + table2->tableSize;
+    newTable->fileNames = (const char **) calloc(newTable->tableSize, sizeof(*(newTable->fileNames)));
+    CONTROL ( newTable->fileNames != NULL );
+
+    {   unsigned idx1;
+        for( idx1=0 ; (idx1 < table1->tableSize) && table1->fileNames[idx1] && (pos < newTotalTableSize); ++idx1, ++newTableIdx) {
+            size_t const curLen = strlen(table1->fileNames[idx1]);
+            memcpy(buf+pos, table1->fileNames[idx1], curLen);
+            assert(newTableIdx <= newTable->tableSize);
+            newTable->fileNames[newTableIdx] = buf+pos;
+            pos += curLen+1;
+    }   }
+
+    {   unsigned idx2;
+        for( idx2=0 ; (idx2 < table2->tableSize) && table2->fileNames[idx2] && (pos < newTotalTableSize) ; ++idx2, ++newTableIdx) {
+            size_t const curLen = strlen(table2->fileNames[idx2]);
+            memcpy(buf+pos, table2->fileNames[idx2], curLen);
+            assert(newTableIdx <= newTable->tableSize);
+            newTable->fileNames[newTableIdx] = buf+pos;
+            pos += curLen+1;
+    }   }
+    assert(pos <= newTotalTableSize);
+    fprintf(stderr, "newTableIdx = %u ,  newTable->tableSize = %u \n", newTableIdx, (unsigned)newTable->tableSize);
+    newTable->tableSize = newTableIdx;
 
     UTIL_freeFileNamesTable(table1);
     UTIL_freeFileNamesTable(table2);
@@ -410,14 +390,17 @@ UTIL_concatenateTwoTables(FileNamesTable* table1, FileNamesTable* table2) {
 }
 
 #ifdef _WIN32
-int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd, int followLinks)
+int UTIL_prepareFileList(const char* dirName,
+                         char** bufStart, size_t* pos,
+                         char** bufEnd, int followLinks)
 {
     char* path;
-    int dirLength, fnameLength, pathLength, nbFiles = 0;
+    size_t dirLength;
+    int pathLength, nbFiles = 0;
     WIN32_FIND_DATAA cFile;
     HANDLE hFile;
 
-    dirLength = (int)strlen(dirName);
+    dirLength = strlen(dirName);
     path = (char*) malloc(dirLength + 3);
     if (!path) return 0;
 
@@ -434,7 +417,7 @@ int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char
     free(path);
 
     do {
-        fnameLength = (int)strlen(cFile.cFileName);
+        size_t const fnameLength = strlen(cFile.cFileName);
         path = (char*) malloc(dirLength + fnameLength + 2);
         if (!path) { FindClose(hFile); return 0; }
         memcpy(path, dirName, dirLength);
@@ -462,8 +445,7 @@ int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char
                 memcpy(*bufStart + *pos, path, pathLength+1 /* include final \0 */);
                 *pos += pathLength + 1;
                 nbFiles++;
-            }
-        }
+        }   }
         free(path);
     } while (FindNextFileA(hFile, &cFile));
 
@@ -473,12 +455,13 @@ int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char
 
 #elif defined(__linux__) || (PLATFORM_POSIX_VERSION >= 200112L)  /* opendir, readdir require POSIX.1-2001 */
 
-int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd, int followLinks)
+int UTIL_prepareFileList(const char *dirName,
+                         char** bufStart, size_t* pos,
+                         char** bufEnd, int followLinks)
 {
-    DIR *dir;
-    struct dirent *entry;
-    char* path;
-    size_t dirLength, fnameLength, pathLength;
+    DIR* dir;
+    struct dirent * entry;
+    size_t dirLength;
     int nbFiles = 0;
 
     if (!(dir = opendir(dirName))) {
@@ -489,6 +472,8 @@ int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char
     dirLength = strlen(dirName);
     errno = 0;
     while ((entry = readdir(dir)) != NULL) {
+        char* path;
+        size_t fnameLength, pathLength;
         if (strcmp (entry->d_name, "..") == 0 ||
             strcmp (entry->d_name, ".") == 0) continue;
         fnameLength = strlen(entry->d_name);
@@ -522,8 +507,7 @@ int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char
                 memcpy(*bufStart + *pos, path, pathLength + 1);  /* with final \0 */
                 *pos += pathLength + 1;
                 nbFiles++;
-            }
-        }
+        }   }
         free(path);
         errno = 0; /* clear errno after UTIL_isDirectory, UTIL_prepareFileList */
     }
@@ -604,11 +588,6 @@ UTIL_createFileList(const char **inputNames, unsigned inputNamesNb,
     }
 }
 
-
-/*-****************************************
-*  Console log
-******************************************/
-int g_utilDisplayLevel;
 
 
 

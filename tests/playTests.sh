@@ -865,14 +865,14 @@ if [ $GZIPMODE -eq 1 ]; then
 fi
 
 if [ $LZMAMODE -eq 1 ]; then
-    tar c tmp | xz > tmp.txz
+    tar c tmp | $ZSTD --format=xz > tmp.txz
     $ZSTD -d tmp.txz
     [ -e tmp.tar ] || die ".txz failed to decompress to .tar!"
     rm -f tmp.tar tmp.txz
 fi
 
 if [ $LZ4MODE -eq 1 ]; then
-    tar c tmp | lz4 > tmp.tlz4
+    tar c tmp | $ZSTD --format=lz4 > tmp.tlz4
     $ZSTD -d tmp.tlz4
     [ -e tmp.tar ] || die ".tlz4 failed to decompress to .tar!"
     rm -f tmp.tar tmp.tlz4

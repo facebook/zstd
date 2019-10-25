@@ -2400,7 +2400,6 @@ FIO_determineDstName(const char* srcFileName, const char* outDirName)
     /* The short tar extensions tzst, tgz, txz and tlz4 files should have "tar"
      * extension on decompression. Also writes terminating null. */
     strcpy(dstFileNameBuffer + dstFileNameEndPos, dstSuffix);
-    dstFileNameEndPos += dstSuffixLen;
     return dstFileNameBuffer;
 
     /* note : dstFileNameBuffer memory is not going to be free */

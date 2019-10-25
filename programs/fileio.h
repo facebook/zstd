@@ -31,7 +31,8 @@ extern "C" {
 #  define nulmark "/dev/null"
 #endif
 
-/* We test whether the extension we found starts with 't', and if so, we append
+/**
+ * We test whether the extension we found starts with 't', and if so, we append
  * ".tar" to the end of the output name.
  */
 #define LZMA_EXTENSION  ".lzma"

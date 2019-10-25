@@ -134,6 +134,7 @@ int UTIL_setFileStat(const char* filename, stat_t* statbuf);
 U32 UTIL_isDirectory(const char* infilename);
 int UTIL_getFileStat(const char* infilename, stat_t* statbuf);
 int UTIL_isSameFile(const char* file1, const char* file2);
+int UTIL_compareStr(const void *p1, const void *p2);
 
 #ifndef _MSC_VER
 U32 UTIL_isFIFO(const char* infilename);

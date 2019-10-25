@@ -193,6 +193,13 @@ typedef struct {
   size_t capacity; /* The capacity starting from `seq` pointer */
 } rawSeqStore_t;
 
+typedef struct {
+    int collectSequences;
+    ZSTD_Sequence* seqStart;
+    size_t seqIndex;
+    size_t maxSequences;
+} SeqCollector;
+
 struct ZSTD_CCtx_params_s {
     ZSTD_format_e format;
     ZSTD_compressionParameters cParams;
@@ -240,6 +247,7 @@ struct ZSTD_CCtx_s {
     XXH64_state_t xxhState;
     ZSTD_customMem customMem;
     size_t staticSize;
+    SeqCollector seqCollector;
     int isFirstBlock;
 
     seqStore_t seqStore;      /* sequences storage ptrs */

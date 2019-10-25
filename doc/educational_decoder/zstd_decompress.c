@@ -856,8 +856,7 @@ static size_t decode_literals_compressed(frame_context_t *const ctx,
         // Impossible
         IMPOSSIBLE();
     }
-    if (regenerated_size > MAX_LITERALS_SIZE ||
-        compressed_size >= regenerated_size) {
+    if (regenerated_size > MAX_LITERALS_SIZE) {
         CORRUPTION();
     }
 
@@ -1530,7 +1529,7 @@ void free_dictionary(dictionary_t *const dict) {
 /******* END DICTIONARY PARSING ***********************************************/
 
 /******* IO STREAM OPERATIONS *************************************************/
-#define UNALIGNED() ERROR("Attempting to operate on a non-byte aligned stream")
+
 /// Reads `num` bits from a bitstream, and updates the internal offset
 static inline u64 IO_read_bits(istream_t *const in, const int num_bits) {
     if (num_bits > 64 || num_bits <= 0) {
@@ -1609,7 +1608,7 @@ static inline const u8 *IO_get_read_ptr(istream_t *const in, size_t len) {
         INP_SIZE();
     }
     if (in->bit_offset != 0) {
-        UNALIGNED();
+        ERROR("Attempting to operate on a non-byte aligned stream");
     }
     const u8 *const ptr = in->ptr;
     in->ptr += len;
@@ -1635,7 +1634,7 @@ static inline void IO_advance_input(istream_t *const in, size_t len) {
          INP_SIZE();
     }
     if (in->bit_offset != 0) {
-        UNALIGNED();
+        ERROR("Attempting to operate on a non-byte aligned stream");
     }
 
     in->ptr += len;

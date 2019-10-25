@@ -45,7 +45,6 @@
 #define NBLOOPS    6
 #define TIMELOOP_S 2
 
-#define KNUTH      2654435761U
 #define MAX_MEM    (1984 MB)
 
 #define DEFAULT_CLEVEL 1
@@ -450,7 +449,7 @@ static int benchMem(unsigned benchNb,
     case 31:  /* ZSTD_decodeLiteralsBlock : starts literals block in dstBuff2 */
         {   size_t frameHeaderSize;
             g_cSize = ZSTD_compress(dstBuff, dstBuffSize, src, srcSize, cLevel);
-            frameHeaderSize = ZSTD_frameHeaderSize(dstBuff, ZSTD_FRAMEHEADERSIZE_PREFIX);
+            frameHeaderSize = ZSTD_frameHeaderSize(dstBuff, ZSTD_FRAMEHEADERSIZE_PREFIX(ZSTD_f_zstd1));
             CONTROL(!ZSTD_isError(frameHeaderSize));
             /* check block is compressible, hence contains a literals section */
             {   blockProperties_t bp;
@@ -471,10 +470,10 @@ static int benchMem(unsigned benchNb,
             const BYTE* ip = dstBuff;
             const BYTE* iend;
             {   size_t const cSize = ZSTD_compress(dstBuff, dstBuffSize, src, srcSize, cLevel);
-                CONTROL(cSize > ZSTD_FRAMEHEADERSIZE_PREFIX);
+                CONTROL(cSize > ZSTD_FRAMEHEADERSIZE_PREFIX(ZSTD_f_zstd1));
             }
             /* Skip frame Header */
-            {   size_t const frameHeaderSize = ZSTD_frameHeaderSize(dstBuff, ZSTD_FRAMEHEADERSIZE_PREFIX);
+            {   size_t const frameHeaderSize = ZSTD_frameHeaderSize(dstBuff, ZSTD_FRAMEHEADERSIZE_PREFIX(ZSTD_f_zstd1));
                 CONTROL(!ZSTD_isError(frameHeaderSize));
                 ip += frameHeaderSize;
             }
@@ -722,7 +721,7 @@ static int usage_advanced(const char* exename)
     DISPLAY( "\nAdvanced options :\n");
     DISPLAY( " -b#    : test only function # \n");
     DISPLAY( " -l#    : benchmark functions at that compression level (default : %i)\n", DEFAULT_CLEVEL);
-    DISPLAY( " --zstd : custom parameter selection. Format same as zstdcli \n");
+    DISPLAY( "--zstd= : custom parameter selection. Format same as zstdcli \n");
     DISPLAY( " -P#    : sample compressibility (default : %.1f%%)\n", COMPRESSIBILITY_DEFAULT * 100);
     DISPLAY( " -B#    : sample size (default : %u)\n", (unsigned)kSampleSizeDefault);
     DISPLAY( " -i#    : iteration loops [1-9](default : %i)\n", NBLOOPS);

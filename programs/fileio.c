@@ -1496,17 +1496,17 @@ FIO_determineCompressedName(const char* srcFileName, const char* outDirName, con
     static char* dstFileNameBuffer = NULL;   /* using static allocation : this function cannot be multi-threaded */
     char* outDirFilename = NULL;
     size_t sfnSize = strlen(srcFileName);
-    size_t const suffixSize = strlen(suffix);
+    size_t const srcSuffixLen = strlen(suffix);
     if (outDirName) {
-        outDirFilename = FIO_createFilename_fromOutDir(srcFileName, outDirName, suffixSize);
+        outDirFilename = FIO_createFilename_fromOutDir(srcFileName, outDirName, srcSuffixLen);
         sfnSize = strlen(outDirFilename);
         assert(outDirFilename != NULL);
     }
 
-    if (dfnbCapacity <= sfnSize+suffixSize+1) {
+    if (dfnbCapacity <= sfnSize+srcSuffixLen+1) {
         /* resize buffer for dstName */
         free(dstFileNameBuffer);
-        dfnbCapacity = sfnSize + suffixSize + 30;
+        dfnbCapacity = sfnSize + srcSuffixLen + 30;
         dstFileNameBuffer = (char*)malloc(dfnbCapacity);
         if (!dstFileNameBuffer) {
             EXM_THROW(30, "zstd: %s", strerror(errno));
@@ -1520,7 +1520,7 @@ FIO_determineCompressedName(const char* srcFileName, const char* outDirName, con
     } else {
         memcpy(dstFileNameBuffer, srcFileName, sfnSize);
     }
-    memcpy(dstFileNameBuffer+sfnSize, suffix, suffixSize+1 /* Include terminating null */);
+    memcpy(dstFileNameBuffer+sfnSize, suffix, srcSuffixLen+1 /* Include terminating null */);
     return dstFileNameBuffer;
 }
 
@@ -2287,6 +2287,37 @@ int FIO_decompressFilename(FIO_prefs_t* const prefs,
     return decodingError;
 }
 
+static const char *suffixList[] = {
+    ZSTD_EXTENSION,
+    TZSTD_EXTENSION,
+#ifdef ZSTD_GZDECOMPRESS
+    GZ_EXTENSION,
+    TGZ_EXTENSION,
+#endif
+#ifdef ZSTD_LZMADECOMPRESS
+    LZMA_EXTENSION,
+    XZ_EXTENSION,
+    TXZ_EXTENSION,
+#endif
+#ifdef ZSTD_LZ4DECOMPRESS
+    LZ4_EXTENSION,
+    TLZ4_EXTENSION,
+#endif
+    NULL
+};
+
+static const char *suffixListStr =
+    ZSTD_EXTENSION "/" TZSTD_EXTENSION
+#ifdef ZSTD_GZDECOMPRESS
+    "/" GZ_EXTENSION "/" TGZ_EXTENSION
+#endif
+#ifdef ZSTD_LZMADECOMPRESS
+    "/" LZMA_EXTENSION "/" XZ_EXTENSION "/" TXZ_EXTENSION
+#endif
+#ifdef ZSTD_LZ4DECOMPRESS
+    "/" LZ4_EXTENSION "/" TLZ4_EXTENSION
+#endif
+;
 
 /* FIO_determineDstName() :
  * create a destination filename from a srcFileName.
@@ -2297,72 +2328,79 @@ FIO_determineDstName(const char* srcFileName, const char* outDirName)
 {
     static size_t dfnbCapacity = 0;
     static char* dstFileNameBuffer = NULL;   /* using static allocation : this function cannot be multi-threaded */
+    size_t dstFileNameEndPos;
     char* outDirFilename = NULL;
-
-    const char* SUFFIX_LIST = ZSTD_EXTENSION "/" TZSTD_EXTENSION
-    #ifdef ZSTD_GZDECOMPRESS
-        "/" GZ_EXTENSION "/" TGZ_EXTENSION
-    #endif
-    #ifdef ZSTD_LZMADECOMPRESS
-        "/" XZ_EXTENSION "/" LZMA_EXTENSION "/" TXZ_EXTENSION
-    #endif
-    #ifdef ZSTD_LZ4DECOMPRESS
-        "/" LZ4_EXTENSION "/" TLZ4_EXTENSION
-    #endif
-    ;
+    const char* dstSuffix = "";
+    size_t dstSuffixLen = 0;
 
     size_t sfnSize = strlen(srcFileName);
-    size_t suffixSize;
 
-    const char* const suffixPtr = strrchr(srcFileName, '.');
-    if (suffixPtr == NULL) {
-        DISPLAYLEVEL(1, "zstd: %s: missing suffix (%s expected). Can't derive the output file name so specify it with -o dstFileName. -- ignored \n",
-                        srcFileName, SUFFIX_LIST);
+    size_t srcSuffixLen;
+    const char* const srcSuffix = strrchr(srcFileName, '.');
+    if (srcSuffix == NULL) {
+        DISPLAYLEVEL(1,
+            "zstd: %s: unknown suffix (%s expected). "
+            "Can't derive the output file name. "
+            "Specify it with -o dstFileName. Ignoring.\n",
+            srcFileName, suffixListStr);
         return NULL;
     }
-    suffixSize = strlen(suffixPtr);
+    srcSuffixLen = strlen(srcSuffix);
 
-    /* check suffix is authorized */
-    if (sfnSize <= suffixSize
-        || (strstr(SUFFIX_LIST, suffixPtr) == NULL)) {
-        DISPLAYLEVEL(1, "zstd: %s: unknown suffix (%s expected). Can't derive the output file name so specify it with -o dstFileName. -- ignored \n",
-                     srcFileName, SUFFIX_LIST);
-        return NULL;
+    {
+        const char** matchedSuffixPtr;
+        for (matchedSuffixPtr = suffixList; *matchedSuffixPtr != NULL; matchedSuffixPtr++) {
+            if (!strcmp(*matchedSuffixPtr, srcSuffix)) {
+                break;
+            }
+        }
+
+        /* check suffix is authorized */
+        if (sfnSize <= srcSuffixLen || *matchedSuffixPtr == NULL) {
+            DISPLAYLEVEL(1,
+                "zstd: %s: unknown suffix (%s expected). "
+                "Can't derive the output file name. "
+                "Specify it with -o dstFileName. Ignoring.\n",
+                srcFileName, suffixListStr);
+            return NULL;
+        }
+
+        if ((*matchedSuffixPtr)[1] == 't') {
+            dstSuffix = ".tar";
+            dstSuffixLen = strlen(dstSuffix);
+        }
     }
+
     if (outDirName) {
         outDirFilename = FIO_createFilename_fromOutDir(srcFileName, outDirName, 0);
         sfnSize = strlen(outDirFilename);
         assert(outDirFilename != NULL);
     }
 
-    if (dfnbCapacity+suffixSize <= sfnSize+1) {
+    if (dfnbCapacity+srcSuffixLen <= sfnSize+1+dstSuffixLen) {
         /* allocate enough space to write dstFilename into it */
         free(dstFileNameBuffer);
         dfnbCapacity = sfnSize + 20;
         dstFileNameBuffer = (char*)malloc(dfnbCapacity);
         if (dstFileNameBuffer==NULL)
-            EXM_THROW(74, "%s : not enough memory for dstFileName", strerror(errno));
+            EXM_THROW(74, "%s : not enough memory for dstFileName",
+                      strerror(errno));
     }
 
     /* return dst name == src name truncated from suffix */
     assert(dstFileNameBuffer != NULL);
-    size_t dstFileNameEndPos = sfnSize - suffixSize;
+    dstFileNameEndPos = sfnSize - srcSuffixLen;
     if (outDirFilename) {
         memcpy(dstFileNameBuffer, outDirFilename, dstFileNameEndPos);
         free(outDirFilename);
     } else {
         memcpy(dstFileNameBuffer, srcFileName, dstFileNameEndPos);
     }
-    /* The short tar extensions tzst, tgz, txz and tlz4 files should have "tar" extension on decompression
-     * To check that the file is one of them we can check that it starts with "t"
-     */
-    if (suffixPtr[1] == 't') {
-        dstFileNameBuffer[dstFileNameEndPos++] = '.';
-        dstFileNameBuffer[dstFileNameEndPos++] = 't';
-        dstFileNameBuffer[dstFileNameEndPos++] = 'a';
-        dstFileNameBuffer[dstFileNameEndPos++] = 'r';
-    }
-    dstFileNameBuffer[dstFileNameEndPos] = '\0';
+
+    /* The short tar extensions tzst, tgz, txz and tlz4 files should have "tar"
+     * extension on decompression. Also writes terminating null. */
+    strcpy(dstFileNameBuffer + dstFileNameEndPos, dstSuffix);
+    dstFileNameEndPos += dstSuffixLen;
     return dstFileNameBuffer;
 
     /* note : dstFileNameBuffer memory is not going to be free */

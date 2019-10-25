@@ -567,6 +567,7 @@ int main(int argCount, const char* argv[])
         nextArgumentIsMaxDict = 0,
         nextArgumentIsDictID = 0,
         nextArgumentsAreFiles = 0,
+        isTableBufferBased = 0,
         nextEntryIsDictionary = 0,
         operationResult = 0,
         separateFiles = 0,
@@ -584,7 +585,12 @@ int main(int argCount, const char* argv[])
     int cLevelLast = -1000000000;
     unsigned recursive = 0;
     unsigned memLimit = 0;
-    const char** filenameTable = (const char**)malloc((size_t)argCount * sizeof(const char*));   /* argCount >= 1 */
+    size_t filenameTableSize = argCount;
+    const char** filenameTable = (const char**)malloc(filenameTableSize * sizeof(const char*));   /* argCount >= 1 */
+    FileNamesTable* extendedTable = NULL;
+    FileNamesTable* concatenatedTables = NULL;
+    FileNamesTable* curTable = NULL;
+    char* tableBuf = NULL;
     unsigned filenameIdx = 0;
     const char* programName = argv[0];
     const char* outFileName = NULL;
@@ -796,6 +802,45 @@ int main(int argCount, const char* argv[])
                         continue;
                     }
 #endif
+
+                    if (longCommandWArg(&argument, "--file=")) {
+
+                        if(!UTIL_fileExist(argument) || !UTIL_isRegularFile(argument)){
+                          DISPLAYLEVEL(1, "[ERROR] wrong fileName: %s\n", argument);
+                          CLEAN_RETURN(badusage(programName));
+                        }
+
+                        extendedTable = UTIL_createFileNamesTable_fromFileName(argument);
+                        if(!extendedTable) {
+                          CLEAN_RETURN(badusage(programName));
+                        }
+
+
+                        filenameTable[filenameIdx] = NULL; // marking end of table
+
+                        curTable = UTIL_createFileNamesTable(filenameTable, tableBuf, filenameTableSize);
+
+                        if(!curTable) {
+                          UTIL_freeFileNamesTable(extendedTable);
+                          CLEAN_RETURN(badusage(programName));
+                        }
+
+                        concatenatedTables = UTIL_concatenateTwoTables(curTable, extendedTable);
+                        if(!concatenatedTables) {
+                          UTIL_freeFileNamesTable(curTable);
+                          UTIL_freeFileNamesTable(extendedTable);
+                          CLEAN_RETURN(badusage(programName));
+                        }
+
+                        filenameTable = concatenatedTables->fileNames;
+                        filenameTableSize = concatenatedTables->tableSize;
+                        tableBuf = concatenatedTables->buf;
+
+                        filenameIdx += (unsigned) extendedTable->tableSize;
+                        isTableBufferBased = 1;
+
+                        continue;
+                    }
                     /* fall-through, will trigger bad_usage() later on */
                 }
 
@@ -1204,6 +1249,15 @@ int main(int argCount, const char* argv[])
 
 _end:
     FIO_freePreferences(prefs);
+
+    if(filenameTable) {
+       if(isTableBufferBased && tableBuf){
+         free(tableBuf);
+       }
+    }
+    UTIL_freeFileNamesTable(curTable);
+    UTIL_freeFileNamesTable(extendedTable);
+    UTIL_freeFileNamesTable(concatenatedTables);
 
     if (main_pause) waitEnter();
 #ifdef UTIL_HAS_CREATEFILELIST

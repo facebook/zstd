@@ -293,6 +293,53 @@ test -f tmpOutDirDecomp/tmp2
 test -f tmpOutDirDecomp/tmp1
 rm -rf tmp*
 
+println "test : compress multiple files reading them from a file, --file=FILE"
+mkdir tmpInputTestDir
+println "Hello world!, file1" > tmpInputTestDir/file1
+println "Hello world!, file2" > tmpInputTestDir/file2
+println tmpInputTestDir/file1 > tmp
+println tmpInputTestDir/file2 >> tmp
+$ZSTD -f --file=tmp
+test -f tmpInputTestDir/file2.zst
+test -f tmpInputTestDir/file1.zst
+rm tmpInputTestDir/*.zst
+
+println "test : compress multiple files reading them from multiple files, --file=FILE"
+println "Hello world!, file3" > tmpInputTestDir/file3
+println "Hello world!, file4" > tmpInputTestDir/file4
+println tmpInputTestDir/file3 > tmp1
+println tmpInputTestDir/file4 >> tmp1
+$ZSTD -f --file=tmp --file=tmp1
+test -f tmpInputTestDir/file1.zst
+test -f tmpInputTestDir/file2.zst
+test -f tmpInputTestDir/file3.zst
+test -f tmpInputTestDir/file4.zst
+
+println "test : decompress multiple files reading them from a file, --file=FILE"
+rm tmpInputTestDir/file1
+rm tmpInputTestDir/file2
+println tmpInputTestDir/file1.zst > tmpZst
+println tmpInputTestDir/file2.zst >> tmpZst
+$ZSTD -d -f --file=tmpZst
+test -f tmpInputTestDir/file2
+test -f tmpInputTestDir/file1
+
+println "test : decompress multiple files reading them from multiple files, --file=FILE"
+rm tmpInputTestDir/file1
+rm tmpInputTestDir/file2
+rm tmpInputTestDir/file3
+rm tmpInputTestDir/file4
+println tmpInputTestDir/file3.zst > tmpZst1
+println tmpInputTestDir/file4.zst >> tmpZst1
+$ZSTD -d -f --file=tmpZst --file=tmpZst1
+test -f tmpInputTestDir/file1
+test -f tmpInputTestDir/file2
+test -f tmpInputTestDir/file3
+test -f tmpInputTestDir/file4
+
+rm -rf tmp*
+
+
 println "\n===>  Advanced compression parameters "
 println "Hello world!" | $ZSTD --zstd=windowLog=21,      - -o tmp.zst && die "wrong parameters not detected!"
 println "Hello world!" | $ZSTD --zstd=windowLo=21        - -o tmp.zst && die "wrong parameters not detected!"

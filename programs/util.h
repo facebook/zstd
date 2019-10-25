@@ -127,6 +127,8 @@ extern int g_utilDisplayLevel;
     typedef struct stat stat_t;
 #endif
 
+int g_excludeCompressedFiles;
+static const char compressedFileExtensions[4][10] = {".zst",".gz",".xz",".lz4"};
 
 int UTIL_fileExist(const char* filename);
 int UTIL_isRegularFile(const char* infilename);
@@ -135,6 +137,8 @@ U32 UTIL_isDirectory(const char* infilename);
 int UTIL_getFileStat(const char* infilename, stat_t* statbuf);
 int UTIL_isSameFile(const char* file1, const char* file2);
 int UTIL_compareStr(const void *p1, const void *p2);
+int UTIL_isPrecompressedFile(const char* infilename);
+int compareExtensions(const char* infilename, const char extensionList[4][10]);
 
 U32 UTIL_isFIFO(const char* infilename);
 U32 UTIL_isLink(const char* infilename);

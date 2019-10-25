@@ -1453,7 +1453,12 @@ FIO_compressFilename_srcFile(FIO_prefs_t* const prefs,
 
     ress.srcFile = FIO_openSrcFile(srcFileName);
     if (ress.srcFile == NULL) return 1;   /* srcFile could not be opened */
-
+    if (g_excludeCompressedFiles && !UTIL_isPrecompressedFile(srcFileName)) {  /* precompressed file (--exclude-compressed). DO NOT COMPRESS */
+        DISPLAYLEVEL(4, "Precompressed file: %s \n", srcFileName);
+        fclose(ress.srcFile);
+        ress.srcFile = NULL;
+        return 0;
+    }
     result = FIO_compressFilename_dstFile(prefs, ress, dstFileName, srcFileName, compressionLevel);
 
     fclose(ress.srcFile);

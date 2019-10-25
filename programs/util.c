@@ -326,6 +326,27 @@ int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char
 
 #endif /* #ifdef _WIN32 */
 
+/* Check if the file is precompressed (.zst, .lz4, .gz, .xz).
+YES => Skip the file (return 0)
+NO => return 1
+*/
+int UTIL_isPrecompressedFile(const char *inputName)
+{
+    return compareExtensions(inputName,compressedFileExtensions);
+}
+
+int compareExtensions(const char* infilename, const char extensionList[4][10])
+{
+   int i=0;
+   //char* ext = strchr(infilename, '.');
+   for(i=0;i<4;i++)
+   {
+     char* ext = strstr(infilename,extensionList[i]);
+     if(ext)
+        return 0;
+   }
+   return 1;
+}
 /*
  * UTIL_createFileList - takes a list of files and directories (params: inputNames, inputNamesNb), scans directories,
  *                       and returns a new list of files (params: return value, allocatedBuffer, allocatedNamesNb).

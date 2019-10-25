@@ -215,6 +215,25 @@ $ZSTD tmp -c --compress-literals    -19      | $ZSTD -t
 $ZSTD -b --fast=1 -i0e1 tmp --compress-literals
 $ZSTD -b --fast=1 -i0e1 tmp --no-compress-literals
 
+println "test: --exclude-compressed flag"
+mkdir precompressedFilterTestDir
+./datagen $size > precompressedFilterTestDir/input.5
+./datagen $size > precompressedFilterTestDir/input.6
+$ZSTD --exclude-compressed --long --rm -r precompressedFilterTestDir
+sleep 5
+./datagen $size > precompressedFilterTestDir/input.7
+./datagen $size > precompressedFilterTestDir/input.8
+$ZSTD --exclude-compressed --long --rm -r precompressedFilterTestDir
+file1timestamp=`date -r precompressedFilterTestDir/input.5.zst +%s`
+file2timestamp=`date -r precompressedFilterTestDir/input.7.zst +%s`
+if [[ $file2timestamp -ge $file1timestamp ]]; then
+  println "Test is successful. input.5.zst is not precompressed and therefore not compressed/modified again."
+else
+  println "Test is not successful"
+fi
+println "Test completed"
+sleep 5
+
 println "test : file removal"
 $ZSTD -f --rm tmp
 test ! -f tmp  # tmp should no longer be present

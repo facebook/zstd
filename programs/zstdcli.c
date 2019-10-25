@@ -118,6 +118,7 @@ static int usage(const char* programName)
 #endif
     DISPLAY( " -D file: use `file` as Dictionary \n");
     DISPLAY( " -o file: result stored into `file` (only if 1 input file) \n");
+    DISPLAY( "--exclude-compressed:  only compress files that are not previously compressed \n");
     DISPLAY( " -f     : overwrite output without prompting and (de)compress links \n");
     DISPLAY( "--rm    : remove source file(s) after successful de/compression \n");
     DISPLAY( " -k     : preserve source file(s) (default) \n");
@@ -708,7 +709,7 @@ int main(int argCount, const char* argv[])
                     if (!strcmp(argument, "--compress-literals")) { literalCompressionMode = ZSTD_lcm_huffman; continue; }
                     if (!strcmp(argument, "--no-compress-literals")) { literalCompressionMode = ZSTD_lcm_uncompressed; continue; }
                     if (!strcmp(argument, "--no-progress")) { FIO_setNoProgress(1); continue; }
-
+                    if (!strcmp(argument, "--exclude-compressed")) { g_excludeCompressedFiles = 1; continue; }
                     /* long commands with arguments */
 #ifndef ZSTD_NODICT
                     if (longCommandWArg(&argument, "--train-cover")) {

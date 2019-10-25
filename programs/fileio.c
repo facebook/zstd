@@ -513,11 +513,23 @@ static FILE* FIO_openSrcFile(const char* srcFileName)
         return NULL;
     }
 
+#ifdef _MSC_VER
+
+    if (!UTIL_isRegularFile(srcFileName)) {
+        DISPLAYLEVEL(1, "zstd: %s is not a regular file -- ignored \n",
+                        srcFileName);
+        return NULL;
+    }
+
+#else
+
     if (!UTIL_isRegularFile(srcFileName) && !UTIL_isFIFO(srcFileName)) {
         DISPLAYLEVEL(1, "zstd: %s is not a regular file -- ignored \n",
                         srcFileName);
         return NULL;
     }
+
+#endif /* _MSC_VER */
 
     {   FILE* const f = fopen(srcFileName, "rb");
         if (f == NULL)

@@ -385,8 +385,8 @@ int UTIL_prepareFileList(const char* dirName,
                          char** bufEnd, int followLinks)
 {
     char* path;
-    size_t dirLength;
-    int pathLength, nbFiles = 0;
+    size_t dirLength, pathLength;
+    int nbFiles = 0;
     WIN32_FIND_DATAA cFile;
     HANDLE hFile;
 

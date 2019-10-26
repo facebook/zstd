@@ -219,10 +219,8 @@ U64 UTIL_getTotalFileSize(const char* const * const fileNamesTable, unsigned nbF
  *           or 0, if there is no new line */
 static size_t readLineFromFile(char* buf, size_t len, FILE* file)
 {
-    fprintf(stderr, "readLineFromFile \n");
     assert(!feof(file));
     CONTROL( fgets(buf, (int) len, file) == buf );  /* requires success */
-    fprintf(stderr, "line = %s \n", buf);
     if (strlen(buf)==0) return 0;
     return strlen(buf) - (buf[strlen(buf)-1] == '\n');   /* -1 to ignore final '\n' character */
 }
@@ -244,8 +242,6 @@ readLinesFromFile(void* dst, size_t dstCapacity,
 
     assert(dst != NULL);
 
-    fprintf(stderr, "readLinesFromFile %s \n", inputFileName);
-
     if(!inputFile) {
         if (g_utilDisplayLevel >= 1) perror("zstd:util:readLinesFromFile");
         return -1;
@@ -258,7 +254,6 @@ readLinesFromFile(void* dst, size_t dstCapacity,
         buf[pos+lineLength] = '\0'; /* replace '\n' with '\0'*/
         pos += lineLength + 1;
         ++nbFiles;
-        fprintf(stderr, "nbFiles = %i \n", nbFiles);
     }
 
     CONTROL( fclose(inputFile) == 0 );
@@ -346,8 +341,6 @@ UTIL_concatenateTwoTables(FileNamesTable* table1, FileNamesTable* table2)
     size_t newTotalTableSize;
     char* buf;
 
-    fprintf(stderr, "UTIL_concatenateTwoTables \n");
-
     FileNamesTable* const newTable = UTIL_createFileNamesTable(NULL, 0, NULL);
     CONTROL( newTable != NULL );
 
@@ -357,7 +350,6 @@ UTIL_concatenateTwoTables(FileNamesTable* table1, FileNamesTable* table2)
     CONTROL ( buf != NULL );
 
     newTable->buf = buf;
-    fprintf(stderr, "Size table1 = %u ,  table2 = %u \n", (unsigned)table1->tableSize, (unsigned)table2->tableSize);
     newTable->tableSize = table1->tableSize + table2->tableSize;
     newTable->fileNames = (const char **) calloc(newTable->tableSize, sizeof(*(newTable->fileNames)));
     CONTROL ( newTable->fileNames != NULL );
@@ -380,7 +372,6 @@ UTIL_concatenateTwoTables(FileNamesTable* table1, FileNamesTable* table2)
             pos += curLen+1;
     }   }
     assert(pos <= newTotalTableSize);
-    fprintf(stderr, "newTableIdx = %u ,  newTable->tableSize = %u \n", newTableIdx, (unsigned)newTable->tableSize);
     newTable->tableSize = newTableIdx;
 
     UTIL_freeFileNamesTable(table1);

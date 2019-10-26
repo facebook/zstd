@@ -333,6 +333,14 @@ test -f tmp2
 test -f tmp3
 test -f tmp4
 
+println "test : survive a list of files which is text garbage (--file=FILE)"
+./datagen > tmp_badList
+$ZSTD -f --file=tmp_badList && die "should have failed : list is text garbage"
+
+println "test : survive a list of files which is binary garbage (--file=FILE)"
+./datagen -P0 -g1M > tmp_badList
+$ZSTD -qq -f --file=tmp_badList && die "should have failed : list is binary garbage"  # let's avoid printing binary garbage on console
+
 rm -rf tmp*
 
 

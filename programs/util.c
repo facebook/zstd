@@ -36,7 +36,7 @@ extern "C" {
     if (!(c)) {               \
         UTIL_DISPLAYLEVEL(1, "Error : %s, %i : %s",  \
                           __FILE__, __LINE__, #c);   \
-        abort();              \
+        exit(1);              \
 }   }
 
 
@@ -235,7 +235,7 @@ readLinesFromFile(void* dst, size_t dstCapacity,
             const char* inputFileName)
 {
     int nbFiles = 0;
-    unsigned pos = 0;
+    size_t pos = 0;
     char* const buf = (char*)dst;
     FILE* const inputFile = fopen(inputFileName, "r");
 

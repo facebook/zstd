@@ -275,7 +275,7 @@ UTIL_createFileNamesTable_fromFileName(const char* inputFileName)
     {   U64 const inputFileSize = UTIL_getFileSize(inputFileName);
         if(inputFileSize > MAX_FILE_OF_FILE_NAMES_SIZE)
             return NULL;
-        bufSize = inputFileSize + 1; /* (+1) to add '\0' at the end of last filename */
+        bufSize = (size_t)(inputFileSize + 1); /* (+1) to add '\0' at the end of last filename */
     }
 
     buf = (char*) malloc(bufSize);

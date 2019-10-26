@@ -814,7 +814,7 @@ int main(int argCount, const char* argv[])
                         }
 
 
-                        filenameTable[filenameIdx] = NULL; // marking end of table
+                        filenameTable[filenameIdx] = NULL;   /* marking end of table */
                         filenameIdx += (unsigned) extendedTable->tableSize;
 
                         curTable = UTIL_createFileNamesTable(filenameTable, filenameTableSize, tableBuf);
@@ -1054,8 +1054,7 @@ int main(int argCount, const char* argv[])
                 DISPLAYLEVEL(2, "Warning : %s is a symbolic link, ignoring\n", filenameTable[u]);
             } else {
                 filenameTable[fileNamesNb++] = filenameTable[u];
-            }
-        }
+        }   }
         if (fileNamesNb == 0 && filenameIdx > 0)
             CLEAN_RETURN(1);
         filenameIdx = fileNamesNb;
@@ -1068,8 +1067,7 @@ int main(int argCount, const char* argv[])
             free((void*)filenameTable);
             filenameTable = extendedFileList;
             filenameIdx = fileNamesNb;
-        }
-    }
+    }   }
 #else
     (void)followLinks;
 #endif
@@ -1257,6 +1255,7 @@ _end:
         UTIL_freeFileList(extendedFileList, fileNamesBuf);
     else
 #endif
-        free((void*)filenameTable);
+    free((void*)filenameTable);
+
     return operationResult;
 }

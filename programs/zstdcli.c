@@ -566,7 +566,6 @@ int main(int argCount, const char* argv[])
         nextArgumentIsMaxDict = 0,
         nextArgumentIsDictID = 0,
         nextArgumentsAreFiles = 0,
-        isTableBufferBased = 0,
         nextEntryIsDictionary = 0,
         operationResult = 0,
         separateFiles = 0,
@@ -827,7 +826,6 @@ int main(int argCount, const char* argv[])
 
                         concatenatedTables = UTIL_concatenateTwoTables(curTable, extendedTable);
                         if (!concatenatedTables) {
-                            if (!isTableBufferBased) curTable->buf = NULL;
                             UTIL_freeFileNamesTable(curTable);
                             UTIL_freeFileNamesTable(extendedTable);
                             CLEAN_RETURN(badusage(programName));
@@ -841,8 +839,6 @@ int main(int argCount, const char* argv[])
                         concatenatedTables->tableSize = 0;
                         concatenatedTables->buf = NULL;
                         UTIL_freeFileNamesTable(concatenatedTables);
-
-                        isTableBufferBased = 1;   /* file names are now in heap */
 
                         continue;
                     }
@@ -1253,11 +1249,7 @@ int main(int argCount, const char* argv[])
 _end:
     FIO_freePreferences(prefs);
 
-    if(filenameTable) {
-       if(isTableBufferBased && tableBuf){
-         free(tableBuf);
-       }
-    }
+    free(tableBuf);
 
     if (main_pause) waitEnter();
 #ifdef UTIL_HAS_CREATEFILELIST

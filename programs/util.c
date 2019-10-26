@@ -200,17 +200,16 @@ U64 UTIL_getFileSize(const char* infilename)
 }
 
 
-U64 UTIL_getTotalFileSize(const char* const * const fileNamesTable, unsigned nbFiles)
+U64 UTIL_getTotalFileSize(const char* const * fileNamesTable, unsigned nbFiles)
 {
     U64 total = 0;
-    int error = 0;
     unsigned n;
     for (n=0; n<nbFiles; n++) {
         U64 const size = UTIL_getFileSize(fileNamesTable[n]);
-        error |= (size == UTIL_FILESIZE_UNKNOWN);
+        if (size == UTIL_FILESIZE_UNKNOWN) return UTIL_FILESIZE_UNKNOWN;
         total += size;
     }
-    return error ? UTIL_FILESIZE_UNKNOWN : total;
+    return total;
 }
 
 
@@ -222,7 +221,7 @@ static size_t readLineFromFile(char* buf, size_t len, FILE* file)
     assert(!feof(file));
     CONTROL( fgets(buf, (int) len, file) == buf );  /* requires success */
     if (strlen(buf)==0) return 0;
-    return strlen(buf) - (buf[strlen(buf)-1] == '\n');   /* -1 to ignore final '\n' character */
+    return strlen(buf) - (buf[strlen(buf)-1] == '\n');   /* ignore final '\n' character */
 }
 
 /* Conditions :

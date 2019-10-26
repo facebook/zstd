@@ -141,7 +141,7 @@ U32 UTIL_isLink(const char* infilename);
 #define UTIL_FILESIZE_UNKNOWN  ((U64)(-1))
 U64 UTIL_getFileSize(const char* infilename);
 
-U64 UTIL_getTotalFileSize(const char* const * const fileNamesTable, unsigned nbFiles);
+U64 UTIL_getTotalFileSize(const char* const * fileNamesTable, unsigned nbFiles);
 
 /*Note: tableSize is denotes the total capacity of table*/
 typedef struct
@@ -151,35 +151,35 @@ typedef struct
     size_t tableSize;
 } FileNamesTable;
 
-/*! UTIL_readFileNamesTableFromFile(const char* inputFileName) :
- * @return : char** the fileNamesTable or NULL in case of not regular file or file doesn't exist.
- *  reads fileNamesTable from input fileName.
- *  Note: inputFileSize should be less than or equal 50MB
+/*! UTIL_readFileNamesTableFromFile() :
+ *  reads fileNamesTable from @inputFileName.
+ * @return : a FileNamesTable*, or NULL in case of error (ex: file doesn't exist).
+ *  Note: inputFileSize must be less than 50MB
  */
-FileNamesTable* UTIL_createFileNamesTable_fromFileName(const char* inputFileName);
+FileNamesTable*
+UTIL_createFileNamesTable_fromFileName(const char* inputFileName);
 
 
-/*!  UTIL_freeFileNamesTable(const char** filenames, char* buf, size_t tableSize) :
- * This function takes an buffered based filename, buf and tableSize to create its object.
- * @return : FileNamesTable*
+/*! UTIL_freeFileNamesTable() :
+ *  This function references its arguments inside the created object.
+ * @return : FileNamesTable*, or NULL, if allocation fails.
  */
 
 FileNamesTable*
 UTIL_createFileNamesTable(const char** filenames, size_t tableSize, char* buf);
 
 
-/*!  UTIL_freeFileNamesTable(FileNamesTable* table) :
- * This function takes an buffered based table and frees it.
- * @return : void.
+/*! UTIL_freeFileNamesTable() :
+ *  This function is compatible with NULL argument and never fails.
  */
 void UTIL_freeFileNamesTable(FileNamesTable* table);
 
-/*! UTIL_concatenateTwoTables(FileNamesTable* table1,FileNamesTable* table2):
- * takes table1, its maxSize, table2 and its maxSize, free them and returns its concatenation.
- * @return : FileNamesTable* concatenation of two tables
- * note table1 and table2 will be freed
+/*! UTIL_concatenateTwoTables():
+ * @return : FileNamesTable*, concatenation of @table1 and @table2
+ *  note: @table1 and @table2 are consumed (freed) by this operation
  */
-FileNamesTable* UTIL_concatenateTwoTables(FileNamesTable* table1, FileNamesTable* table2);
+FileNamesTable*
+UTIL_concatenateTwoTables(FileNamesTable* table1, FileNamesTable* table2);
 
 /*
  * A modified version of realloc().

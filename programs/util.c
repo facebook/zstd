@@ -330,6 +330,7 @@ int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char
 YES => Skip the file (return 0)
 NO => return 1
 */
+
 int UTIL_isCompressedFile(const char *inputName)
 {
     return compareExtensions(inputName,g_compressedFileExtensions);
@@ -337,12 +338,14 @@ int UTIL_isCompressedFile(const char *inputName)
 
 int compareExtensions(const char* infilename, const char* extensionList[])
 {
+  int i=0;
    while(*extensionList != NULL)
    {
      const char* ext = strstr(infilename,extensionList[i]);
      if(ext)
         return 1;
       ++extensionList;
+      i++;
    }
    return 0;
 }

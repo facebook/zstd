@@ -151,20 +151,19 @@ typedef struct
     size_t tableSize;
 } FileNamesTable;
 
-/*! UTIL_readFileNamesTableFromFile() :
- *  reads fileNamesTable from @inputFileName.
- * @return : a FileNamesTable*, or NULL in case of error (ex: file doesn't exist).
+/*! UTIL_createFileNamesTable_fromFileName() :
+ *  read filenames from @inputFileName, and store them into returned object.
+ * @return : a FileNamesTable*, or NULL in case of error (ex: @inputFileName doesn't exist).
  *  Note: inputFileSize must be less than 50MB
  */
 FileNamesTable*
 UTIL_createFileNamesTable_fromFileName(const char* inputFileName);
 
-
-/*! UTIL_freeFileNamesTable() :
- *  This function references its arguments inside the created object.
+/*! UTIL_createFileNamesTable() :
+ *  This function takes ownership of its arguments, @filenames and @buf,
+ *  and store them inside the created object.
  * @return : FileNamesTable*, or NULL, if allocation fails.
  */
-
 FileNamesTable*
 UTIL_createFileNamesTable(const char** filenames, size_t tableSize, char* buf);
 
@@ -204,8 +203,9 @@ int UTIL_prepareFileList(const char* dirName, char** bufStart, size_t* pos, char
 #endif /* #ifdef _WIN32 */
 
 /*
- * UTIL_createFileList - takes a list of files and directories (params: inputNames, inputNamesNb), scans directories,
- *                       and returns a new list of files (params: return value, allocatedBuffer, allocatedNamesNb).
+ * UTIL_createFileList() :
+ * takes a list of files and directories (params: inputNames, inputNamesNb), scans directories,
+ * and returns a new list of files (params: return value, allocatedBuffer, allocatedNamesNb).
  * After finishing usage of the list the structures should be freed with UTIL_freeFileList(params: return value, allocatedBuffer)
  * In case of error UTIL_createFileList returns NULL and UTIL_freeFileList should not be called.
  */

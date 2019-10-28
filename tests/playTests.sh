@@ -242,11 +242,13 @@ $ZSTD -f tmp && die "attempt to compress a non existing file"
 test -f tmp.zst  # destination file should still be present
 rm -rf tmp*  # may also erase tmp* directory from previous failed run
 
+
 println "\n===> decompression only tests "
 head -c 1048576 /dev/zero > tmp
 $ZSTD -d -o tmp1 "$TESTDIR/golden-decompression/rle-first-block.zst"
 $DIFF -s tmp1 tmp
 rm tmp*
+
 
 println "test : compress multiple files"
 println hello > tmp1
@@ -268,7 +270,32 @@ $ZSTD tmp1 tmp2 -o tmpexists && die "should have refused to overwrite"
 if [ "$?" -eq 139 ]; then
   die "should not have segfaulted"
 fi
+println "\n===>  multiple files and shell completion "
+./datagen -s1        > tmp1 2> $INTOVOID
+./datagen -s2 -g100K > tmp2 2> $INTOVOID
+./datagen -s3 -g1M   > tmp3 2> $INTOVOID
+println "compress tmp* : "
+$ZSTD -f tmp*
+test -f tmp1.zst
+test -f tmp2.zst
+test -f tmp3.zst
+rm tmp1 tmp2 tmp3
+println "decompress tmp* : "
+$ZSTD -df ./*.zst
+test -f tmp1
+test -f tmp2
+test -f tmp3
+println "compress tmp* into stdout > tmpall : "
+$ZSTD -c tmp1 tmp2 tmp3 > tmpall
+test -f tmpall  # should check size of tmpall (should be tmp1.zst + tmp2.zst + tmp3.zst)
+println "decompress tmpall* into stdout > tmpdec : "
+cp tmpall tmpall2
+$ZSTD -dc tmpall* > tmpdec
+test -f tmpdec  # should check size of tmpdec (should be 2*(tmp1 + tmp2 + tmp3))
+println "compress multiple files including a missing one (notHere) : "
+$ZSTD -f tmp1 notHere tmp2 && die "missing file not detected!"
 rm tmp*
+
 
 println "test : compress multiple files into an output directory, --output-dir-flat"
 println henlo > tmp1
@@ -302,9 +329,16 @@ println tmp2 >> tmp_fileList
 $ZSTD -f --filelist=tmp_fileList
 test -f tmp2.zst
 test -f tmp1.zst
+
+println "test : reading file list from a symlink, --filelist=FILE"
 rm -f *.zst
+ln -s tmp_fileList tmp_symLink
+$ZSTD -f --filelist=tmp_symLink
+test -f tmp2.zst
+test -f tmp1.zst
 
 println "test : compress multiple files reading them from multiple files, --filelist=FILE"
+rm -f *.zst
 println "Hello world!, file3" > tmp3
 println "Hello world!, file4" > tmp4
 println tmp3 > tmp_fileList2
@@ -463,28 +497,6 @@ ls -ls tmpSparse*  # look at file size and block size on disk
 $DIFF tmpSparse2M tmpSparseRegenerated
 rm tmpSparse*
 
-
-println "\n===>  multiple files tests "
-
-./datagen -s1        > tmp1 2> $INTOVOID
-./datagen -s2 -g100K > tmp2 2> $INTOVOID
-./datagen -s3 -g1M   > tmp3 2> $INTOVOID
-println "compress tmp* : "
-$ZSTD -f tmp*
-ls -ls tmp*
-rm tmp1 tmp2 tmp3
-println "decompress tmp* : "
-$ZSTD -df ./*.zst
-ls -ls tmp*
-println "compress tmp* into stdout > tmpall : "
-$ZSTD -c tmp1 tmp2 tmp3 > tmpall
-ls -ls tmp*  # check size of tmpall (should be tmp1.zst + tmp2.zst + tmp3.zst)
-println "decompress tmpall* into stdout > tmpdec : "
-cp tmpall tmpall2
-$ZSTD -dc tmpall* > tmpdec
-ls -ls tmp* # check size of tmpdec (should be 2*(tmp1 + tmp2 + tmp3))
-println "compress multiple files including a missing one (notHere) : "
-$ZSTD -f tmp1 notHere tmp2 && die "missing file not detected!"
 
 println "\n===>  stream-size mode"
 
@@ -710,7 +722,6 @@ $ZSTD -t tmpSplit.* && die "bad file not detected !"
 ./datagen | $ZSTD -c | $ZSTD -t
 
 
-
 println "\n===>  golden files tests "
 
 $ZSTD -t -r "$TESTDIR/golden-compression"
@@ -732,12 +743,14 @@ println "benchmark decompression only"
 $ZSTD -f tmp1
 $ZSTD -b -d -i0 tmp1.zst
 
+
 println "\n===>  zstd compatibility tests "
 
 ./datagen > tmp
 rm -f tmp.zst
 $ZSTD --format=zstd -f tmp
 test -f tmp.zst
+
 
 println "\n===>  gzip compatibility tests "
 

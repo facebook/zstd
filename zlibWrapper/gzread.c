@@ -8,6 +8,14 @@
 
 #include "gzguts.h"
 
+/* fix for Visual Studio, which doesn't support ssize_t type.
+ * see https://github.com/facebook/zstd/issues/1800#issuecomment-545945050 */
+#if defined(_MSC_VER) && !defined(ssize_t)
+#  include <BaseTsd.h>
+   typedef SSIZE_T ssize_t;
+#endif
+
+
 /* Local functions */
 local int gz_load OF((gz_statep, unsigned char *, unsigned, unsigned *));
 local int gz_avail OF((gz_statep));

@@ -375,6 +375,10 @@ println "test : survive a list of files which is binary garbage (--filelist=FILE
 ./datagen -P0 -g1M > tmp_badList
 $ZSTD -qq -f --filelist=tmp_badList && die "should have failed : list is binary garbage"  # let's avoid printing binary garbage on console
 
+println "test : try to overflow internal list of files (--filelist=FILE)"
+touch tmp1 tmp2 tmp3 tmp4 tmp5 tmp6
+ls tmp* > tmpList
+$ZSTD -f tmp1 --filelist=tmpList --filelist=tmpList tmp2 tmp3  # can trigger an overflow of internal file list
 rm -rf tmp*
 
 

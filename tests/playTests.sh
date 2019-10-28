@@ -232,6 +232,7 @@ else
   println "Test is not successful"
 fi
 println "Test completed"
+sleep 5
 
 println "test : file removal"
 $ZSTD -f --rm tmp

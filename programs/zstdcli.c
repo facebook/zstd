@@ -118,7 +118,6 @@ static int usage(const char* programName)
 #endif
     DISPLAY( " -D file: use `file` as Dictionary \n");
     DISPLAY( " -o file: result stored into `file` (only if 1 input file) \n");
-    DISPLAY( "--exclude-compressed:  only compress files that are not previously compressed \n");
     DISPLAY( " -f     : overwrite output without prompting and (de)compress links \n");
     DISPLAY( "--rm    : remove source file(s) after successful de/compression \n");
     DISPLAY( " -k     : preserve source file(s) (default) \n");
@@ -137,6 +136,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -q     : suppress warnings; specify twice to suppress errors too\n");
     DISPLAY( " -c     : force write to standard output, even if it is the console\n");
     DISPLAY( " -l     : print information about zstd compressed files \n");
+    DISPLAY( "--exclude-compressed:  only compress files that are not previously compressed \n");
 #ifndef ZSTD_NOCOMPRESS
     DISPLAY( "--ultra : enable levels beyond %i, up to %i (requires more memory)\n", ZSTDCLI_CLEVEL_MAX, ZSTD_maxCLevel());
     DISPLAY( "--long[=#]: enable long distance matching with given window log (default: %u)\n", g_defaultMaxWindowLog);

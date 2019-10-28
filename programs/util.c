@@ -330,22 +330,21 @@ int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char
 YES => Skip the file (return 0)
 NO => return 1
 */
-int UTIL_isPrecompressedFile(const char *inputName)
+int UTIL_isCompressedFile(const char *inputName)
 {
-    return compareExtensions(inputName,compressedFileExtensions);
+    return compareExtensions(inputName,g_compressedFileExtensions);
 }
 
-int compareExtensions(const char* infilename, const char extensionList[4][10])
+int compareExtensions(const char* infilename, const char* extensionList[])
 {
-   int i=0;
-   //char* ext = strchr(infilename, '.');
-   for(i=0;i<4;i++)
+   while(*extensionList != NULL)
    {
-     char* ext = strstr(infilename,extensionList[i]);
+     const char* ext = strstr(infilename,extensionList[i]);
      if(ext)
-        return 0;
+        return 1;
+      ++extensionList;
    }
-   return 1;
+   return 0;
 }
 /*
  * UTIL_createFileList - takes a list of files and directories (params: inputNames, inputNamesNb), scans directories,

@@ -1453,8 +1453,13 @@ FIO_compressFilename_srcFile(FIO_prefs_t* const prefs,
 
     ress.srcFile = FIO_openSrcFile(srcFileName);
     if (ress.srcFile == NULL) return 1;   /* srcFile could not be opened */
-    if (g_excludeCompressedFiles && !UTIL_isPrecompressedFile(srcFileName)) {  /* precompressed file (--exclude-compressed). DO NOT COMPRESS */
-        DISPLAYLEVEL(4, "Precompressed file: %s \n", srcFileName);
+
+    /* Check if "srcFile" is compressed. Only done if --exclude-compressed flag is used
+    * YES => ZSTD will not compress the file.
+    * NO => ZSTD will resume with compress operation.
+    */
+    if (g_excludeCompressedFiles && UTIL_isCompressedFile(srcFileName)) {  /* precompressed file (--exclude-compressed). DO NOT COMPRESS */
+        DISPLAYLEVEL(4, "File is already compressed : %s \n", srcFileName);
         fclose(ress.srcFile);
         ress.srcFile = NULL;
         return 0;

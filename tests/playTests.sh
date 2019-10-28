@@ -845,6 +845,46 @@ if [ $LZ4MODE -ne 1 ]; then
     grep ".lz4" tmplg > $INTOVOID && die "Unsupported suffix listed"
 fi
 
+println "\n===>  tar extension tests "
+
+rm -f tmp tmp.tar tmp.tzst tmp.tgz tmp.txz tmp.tlz4
+
+./datagen > tmp
+tar cf tmp.tar tmp
+$ZSTD tmp.tar -o tmp.tzst
+rm tmp.tar
+$ZSTD -d tmp.tzst
+[ -e tmp.tar ] || die ".tzst failed to decompress to .tar!"
+rm -f tmp.tar tmp.tzst
+
+if [ $GZIPMODE -eq 1 ]; then
+    tar czf tmp.tgz tmp
+    $ZSTD -d tmp.tgz
+    [ -e tmp.tar ] || die ".tgz failed to decompress to .tar!"
+    rm -f tmp.tar tmp.tgz
+fi
+
+if [ $LZMAMODE -eq 1 ]; then
+    tar c tmp | $ZSTD --format=xz > tmp.txz
+    $ZSTD -d tmp.txz
+    [ -e tmp.tar ] || die ".txz failed to decompress to .tar!"
+    rm -f tmp.tar tmp.txz
+fi
+
+if [ $LZ4MODE -eq 1 ]; then
+    tar c tmp | $ZSTD --format=lz4 > tmp.tlz4
+    $ZSTD -d tmp.tlz4
+    [ -e tmp.tar ] || die ".tlz4 failed to decompress to .tar!"
+    rm -f tmp.tar tmp.tlz4
+fi
+
+touch tmp.t tmp.tz tmp.tzs
+! $ZSTD -d tmp.t
+! $ZSTD -d tmp.tz
+! $ZSTD -d tmp.tzs
+
+exit
+
 println "\n===>  zstd round-trip tests "
 
 roundTripTest

@@ -154,7 +154,8 @@ static int usage_advanced(const char* programName)
 #endif
 #ifdef UTIL_HAS_CREATEFILELIST
     DISPLAY( " -r     : operate recursively on directories \n");
-    DISPLAY( "--output-dir-flat[=directory]: all resulting files stored into `directory`. \n");
+    DISPLAY( "--filelist=FILE : read a list of files from FILE. \n");
+    DISPLAY( "--output-dir-flat=DIR : all resulting files are stored into DIR. \n");
 #endif
     DISPLAY( "--format=zstd : compress files to the .zst format (default) \n");
 #ifdef ZSTD_GZCOMPRESS
@@ -798,7 +799,13 @@ int main(int argCount, const char* argv[])
                     }
 #endif
 
-                    if (longCommandWArg(&argument, "--file=")) {
+                    if (longCommandWArg(&argument, "--filelist=")) {
+                        /* note : in theory, it's better to just store the arguments at this stage,
+                         *    and only start to load & interpret the file after command line is parsed.
+                         *    For a single file, it would be easy to just store its name here, and parse later.
+                         *    However, this implementation makes it possible to read multiple files.
+                         *    An equivalent will have to be able to store multiple file names.
+                         */
                         FileNamesTable* extendedTable;
                         FileNamesTable* curTable;
                         FileNamesTable* concatenatedTables;

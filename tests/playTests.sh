@@ -294,52 +294,52 @@ test -f tmpOutDirDecomp/tmp1
 rm -rf tmp*
 
 
-println "test : compress multiple files reading them from a file, --file=FILE"
+println "test : compress multiple files reading them from a file, --filelist=FILE"
 println "Hello world!, file1" > tmp1
 println "Hello world!, file2" > tmp2
 println tmp1 > tmp_fileList
 println tmp2 >> tmp_fileList
-$ZSTD -f --file=tmp_fileList
+$ZSTD -f --filelist=tmp_fileList
 test -f tmp2.zst
 test -f tmp1.zst
 rm -f *.zst
 
-println "test : compress multiple files reading them from multiple files, --file=FILE"
+println "test : compress multiple files reading them from multiple files, --filelist=FILE"
 println "Hello world!, file3" > tmp3
 println "Hello world!, file4" > tmp4
 println tmp3 > tmp_fileList2
 println tmp4 >> tmp_fileList2
-$ZSTD -f --file=tmp_fileList --file=tmp_fileList2
+$ZSTD -f --filelist=tmp_fileList --filelist=tmp_fileList2
 test -f tmp1.zst
 test -f tmp2.zst
 test -f tmp3.zst
 test -f tmp4.zst
 
-println "test : decompress multiple files reading them from a file, --file=FILE"
+println "test : decompress multiple files reading them from a file, --filelist=FILE"
 rm -f tmp1 tmp2
 println tmp1.zst > tmpZst
 println tmp2.zst >> tmpZst
-$ZSTD -d -f --file=tmpZst
+$ZSTD -d -f --filelist=tmpZst
 test -f tmp1
 test -f tmp2
 
-println "test : decompress multiple files reading them from multiple files, --file=FILE"
+println "test : decompress multiple files reading them from multiple files, --filelist=FILE"
 rm -f tmp1 tmp2 tmp3 tmp4
 println tmp3.zst > tmpZst2
 println tmp4.zst >> tmpZst2
-$ZSTD -d -f --file=tmpZst --file=tmpZst2
+$ZSTD -d -f --filelist=tmpZst --filelist=tmpZst2
 test -f tmp1
 test -f tmp2
 test -f tmp3
 test -f tmp4
 
-println "test : survive a list of files which is text garbage (--file=FILE)"
+println "test : survive a list of files which is text garbage (--filelist=FILE)"
 ./datagen > tmp_badList
-$ZSTD -f --file=tmp_badList && die "should have failed : list is text garbage"
+$ZSTD -f --filelist=tmp_badList && die "should have failed : list is text garbage"
 
-println "test : survive a list of files which is binary garbage (--file=FILE)"
+println "test : survive a list of files which is binary garbage (--filelist=FILE)"
 ./datagen -P0 -g1M > tmp_badList
-$ZSTD -qq -f --file=tmp_badList && die "should have failed : list is binary garbage"  # let's avoid printing binary garbage on console
+$ZSTD -qq -f --filelist=tmp_badList && die "should have failed : list is binary garbage"  # let's avoid printing binary garbage on console
 
 rm -rf tmp*
 

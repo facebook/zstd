@@ -866,9 +866,8 @@ else
 fi
 
 
-println "\n===>  lz4 frame tests "
-
 if [ $LZ4MODE -eq 1 ]; then
+    println "\n===>  lz4 frame tests "
     ./datagen > tmp
     $ZSTD -f --format=lz4 tmp
     $ZSTD -f tmp
@@ -876,8 +875,9 @@ if [ $LZ4MODE -eq 1 ]; then
     truncateLastByte tmp.lz4 | $ZSTD -t > $INTOVOID && die "incomplete frame not detected !"
     rm tmp*
 else
-    println "lz4 mode not supported"
+    println "\nlz4 mode not supported"
 fi
+
 
 println "\n===> suffix list test"
 
@@ -895,6 +895,7 @@ fi
 if [ $LZ4MODE -ne 1 ]; then
     grep ".lz4" tmplg > $INTOVOID && die "Unsupported suffix listed"
 fi
+
 
 println "\n===>  tar extension tests "
 
@@ -934,7 +935,6 @@ touch tmp.t tmp.tz tmp.tzs
 ! $ZSTD -d tmp.tz
 ! $ZSTD -d tmp.tzs
 
-exit
 
 println "\n===>  zstd round-trip tests "
 

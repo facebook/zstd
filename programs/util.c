@@ -214,14 +214,18 @@ U64 UTIL_getTotalFileSize(const char* const * fileNamesTable, unsigned nbFiles)
 
 
 /* condition : @file must be valid, and not have reached its end.
- * @return : length of line written into buf, without the final '\n',
+ * @return : length of line written into @buf, ended with `\0` instead of '\n',
  *           or 0, if there is no new line */
 static size_t readLineFromFile(char* buf, size_t len, FILE* file)
 {
     assert(!feof(file));
     CONTROL( fgets(buf, (int) len, file) == buf );  /* requires success */
-    if (strlen(buf)==0) return 0;
-    return strlen(buf) - (buf[strlen(buf)-1] == '\n');   /* ignore final '\n' character */
+    {   size_t linelen = strlen(buf);
+        if (strlen(buf)==0) return 0;
+        if (buf[linelen-1] == '\n') linelen--;
+        buf[linelen] = '\0';
+        return linelen+1;
+    }
 }
 
 /* Conditions :
@@ -250,8 +254,7 @@ readLinesFromFile(void* dst, size_t dstCapacity,
         size_t const lineLength = readLineFromFile(buf+pos, dstCapacity-pos, inputFile);
         if (lineLength == 0) break;
         assert(pos + lineLength < dstCapacity);
-        buf[pos+lineLength] = '\0'; /* replace '\n' with '\0'*/
-        pos += lineLength + 1;
+        pos += lineLength;
         ++nbFiles;
     }
 

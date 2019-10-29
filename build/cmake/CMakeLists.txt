@@ -129,7 +129,7 @@ option(ZSTD_PROGRAMS_LINK_SHARED "PROGRAMS LINK SHARED" OFF)
 if (ZSTD_BUILD_PROGRAMS)
     if (NOT ZSTD_BUILD_STATIC AND NOT ZSTD_PROGRAMS_LINK_SHARED)
         message(SEND_ERROR "You need to build static library to build zstd CLI")
-    elseif(ZSTD_BUILD_STATIC AND ZSTD_PROGRAMS_LINK_SHARED)
+    elseif(NOT ZSTD_BUILD_SHARED AND ZSTD_PROGRAMS_LINK_SHARED)
         message(SEND_ERROR "You need to build shared library to build zstd CLI")
     endif ()
 

@@ -225,8 +225,8 @@ sleep 5
 ./datagen $size > precompressedFilterTestDir/input.7
 ./datagen $size > precompressedFilterTestDir/input.8
 $ZSTD --exclude-compressed --long --rm -r precompressedFilterTestDir
-test ! -f input.5.zst.zst
-test ! -f input.6.zst.zst
+test ! -f precompressedFilterTestDir/input.5.zst.zst
+test ! -f precompressedFilterTestDir/input.6.zst.zst
 file1timestamp=`date -r precompressedFilterTestDir/input.5.zst +%s`
 file2timestamp=`date -r precompressedFilterTestDir/input.7.zst +%s`
 if [[ $file2timestamp -ge $file1timestamp ]]; then
@@ -234,6 +234,16 @@ if [[ $file2timestamp -ge $file1timestamp ]]; then
 else
   println "Test is not successful"
 fi
+#File Extension check.
+./datagen $size > precompressedFilterTestDir/input.zstbar
+$ZSTD --exclude-compressed --long --rm -r precompressedFilterTestDir
+#ZSTD should compress input.zstbar
+test -f precompressedFilterTestDir/input.zstbar.zst
+#Check without the --exclude-compressed flag
+$ZSTD --long --rm -r precompressedFilterTestDir
+#Files should get compressed again without the --exclude-compressed flag.
+test -f precompressedFilterTestDir/input.5.zst.zst
+test -f precompressedFilterTestDir/input.6.zst.zst
 println "Test completed"
 
 println "test : file removal"

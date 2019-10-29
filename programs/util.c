@@ -334,13 +334,16 @@ NO => return 0
 int UTIL_isCompressedFile(const char *inputName, const char *extensionList[])
 {
   const char* ext = UTIL_getFileExtension(inputName);
-   while(*extensionList!=NULL)
-   {
-     const char* isCompressedExtension = strstr(ext,*extensionList);
-     if(isCompressedExtension)
-        return 1;
-      ++extensionList;
-   }
+  if(strcmp(ext,""))
+  {
+     while(*extensionList!=NULL)
+     {
+       const char* isCompressedExtension = strstr(ext,*extensionList);
+       if(isCompressedExtension)
+          return 1;
+        ++extensionList;
+     }
+  }
    return 0;
 }
 

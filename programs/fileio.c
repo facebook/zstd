@@ -1430,6 +1430,9 @@ static int FIO_compressFilename_dstFile(FIO_prefs_t* const prefs,
     return result;
 }
 
+/* List used to compare file extensions (used with --exclude-compressed flag)
+* Different from the suffixList and should only apply to ZSTD compress operationResult
+*/
 static const char *compressedFileExtensions[] = {
     ZSTD_EXTENSION,
     TZSTD_EXTENSION,

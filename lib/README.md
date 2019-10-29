@@ -27,10 +27,10 @@ Enabling multithreading requires 2 conditions :
 Both conditions are automatically applied when invoking `make lib-mt` target.
 
 When linking a POSIX program with a multithreaded version of `libzstd`,
-note that it's necessary to request the `-pthread` flag during link stage.
+note that it's necessary to invoke the `-pthread` flag during link stage.
 
 Multithreading capabilities are exposed
-via the [advanced API defined in `lib/zstd.h`](https://github.com/facebook/zstd/blob/v1.3.8/lib/zstd.h#L592).
+via the [advanced API defined in `lib/zstd.h`](https://github.com/facebook/zstd/blob/v1.4.3/lib/zstd.h#L351).
 
 
 #### API
@@ -111,6 +111,17 @@ The file structure is designed to make this selection manually achievable for an
 - While invoking `make libzstd`, the build macro `ZSTD_LEGACY_MULTITHREADED_API=1`
   will expose the deprecated `ZSTDMT` API exposed by `zstdmt_compress.h` in
   the shared library, which is now hidden by default.
+
+- The build macro `DYNAMIC_BMI2` can be set to 1 or 0 in order to generate binaries
+  which can detect at runtime the presence of BMI2 instructions, and use them only if present.
+  These instructions contribute to better performance, notably on the decoder side.
+  By default, this feature is automatically enabled on detecting
+  the right instruction set (x64) and compiler (clang or gcc >= 5).
+  It's obviously disabled for different cpus,
+  or when BMI2 instruction set is _required_ by the compiler command line
+  (in this case, only the BMI2 code path is generated).
+  Setting this macro will either force to generate the BMI2 dispatcher (1)
+  or prevent it (0). It overrides automatic detection.
 
 
 #### Windows : using MinGW+MSYS to create DLL

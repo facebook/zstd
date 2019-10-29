@@ -326,11 +326,6 @@ int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char
 
 #endif /* #ifdef _WIN32 */
 
-/* Check if the file is Compressed by comparing it with compressFileExtension list.
-YES => Skip the file (return 1)
-NO => return 0
-*/
-
 int UTIL_isCompressedFile(const char *inputName, const char *extensionList[])
 {
   const char* ext = UTIL_getFileExtension(inputName);
@@ -338,8 +333,8 @@ int UTIL_isCompressedFile(const char *inputName, const char *extensionList[])
   {
      while(*extensionList!=NULL)
      {
-       const char* isCompressedExtension = strstr(ext,*extensionList);
-       if(isCompressedExtension)
+       const int isCompressedExtension = strcmp(ext,*extensionList);
+       if(isCompressedExtension==0)
           return 1;
         ++extensionList;
      }

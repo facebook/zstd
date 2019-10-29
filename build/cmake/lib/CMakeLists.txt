@@ -134,11 +134,10 @@ if (UNIX)
     # pkg-config
     set(PREFIX "${CMAKE_INSTALL_PREFIX}")
     set(LIBDIR "${CMAKE_INSTALL_FULL_LIBDIR}")
-    set(INCLUDEDIR "${CMAKE_INSTALL_FULL_INCLUDEDIR}")
     set(VERSION "${zstd_VERSION_MAJOR}.${zstd_VERSION_MINOR}.${zstd_VERSION_PATCH}")
     add_custom_target(libzstd.pc ALL
             ${CMAKE_COMMAND} -DIN="${LIBRARY_DIR}/libzstd.pc.in" -DOUT="libzstd.pc"
-            -DPREFIX="${PREFIX}" -DLIBDIR="${LIBDIR}" -DINCLUDEDIR="${INCLUDEDIR}" -DVERSION="${VERSION}"
+            -DPREFIX="${PREFIX}" -DVERSION="${VERSION}"
             -P "${CMAKE_CURRENT_SOURCE_DIR}/pkgconfig.cmake"
             COMMENT "Creating pkg-config file")
 

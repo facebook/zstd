@@ -139,7 +139,6 @@ int UTIL_compareStr(const void *p1, const void *p2);
 #ifndef _MSC_VER
 U32 UTIL_isFIFO(const char* infilename);
 #endif
-
 U32 UTIL_isLink(const char* infilename);
 #define UTIL_FILESIZE_UNKNOWN  ((U64)(-1))
 U64 UTIL_getFileSize(const char* infilename);

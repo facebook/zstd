@@ -808,12 +808,17 @@ ZSTDLIB_API size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
 typedef struct ZSTD_CDict_s ZSTD_CDict;
 
 /*! ZSTD_createCDict() :
- *  When compressing multiple messages / blocks using the same dictionary, it's recommended to load it only once.
- *  ZSTD_createCDict() will create a digested dictionary, ready to start future compression operations without startup cost.
+ *  When compressing multiple messages or blocks using the same dictionary,
+ *  it's recommended to digest the dictionary only once, since it's a costly operation.
+ *  ZSTD_createCDict() will create a state from digesting a dictionary.
+ *  The resulting state can be used for future compression operations with very limited startup cost.
  *  ZSTD_CDict can be created once and shared by multiple threads concurrently, since its usage is read-only.
- * `dictBuffer` can be released after ZSTD_CDict creation, because its content is copied within CDict.
- *  Consider experimental function `ZSTD_createCDict_byReference()` if you prefer to not duplicate `dictBuffer` content.
- *  Note : A ZSTD_CDict can be created from an empty dictBuffer, but it is inefficient when used to compress small data. */
+ * @dictBuffer can be released after ZSTD_CDict creation, because its content is copied within CDict.
+ *  Note 1 : Consider experimental function `ZSTD_createCDict_byReference()` if you prefer to not duplicate @dictBuffer content.
+ *  Note 2 : A ZSTD_CDict can be created from an empty @dictBuffer,
+ *      in which case the only thing that it transports is the @compressionLevel.
+ *      This can be useful in a pipeline featuring ZSTD_compress_usingCDict() exclusively,
+ *      expecting a ZSTD_CDict parameter with any data, including those without a known dictionary. */
 ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict(const void* dictBuffer, size_t dictSize,
                                          int compressionLevel);
 
@@ -1152,7 +1157,7 @@ typedef enum {
      * to evolve and should be considered only in the context of extremely
      * advanced performance tuning.
      *
-     * Zstd currently supports the use of a CDict in two ways:
+     * Zstd currently supports the use of a CDict in three ways:
      *
      * - The contents of the CDict can be copied into the working context. This
      *   means that the compression can search both the dictionary and input
@@ -1168,6 +1173,12 @@ typedef enum {
      *   working context's tables can be reused). For small inputs, this can be
      *   faster than copying the CDict's tables.
      *
+     * - The CDict's tables are not used at all, and instead we use the working
+     *   context alone to reload the dictionary and use params based on the source
+     *   size. See ZSTD_compress_insertDictionary() and ZSTD_compress_usingDict().
+     *   This method is effective when the dictionary sizes are very small relative
+     *   to the input size, and the input size is fairly large to begin with.
+     *
      * Zstd has a simple internal heuristic that selects which strategy to use
      * at the beginning of a compression. However, if experimentation shows that
      * Zstd is making poor choices, it is possible to override that choice with
@@ -1175,7 +1186,8 @@ typedef enum {
      */
     ZSTD_dictDefaultAttach = 0, /* Use the default heuristic. */
     ZSTD_dictForceAttach   = 1, /* Never copy the dictionary. */
-    ZSTD_dictForceCopy     = 2  /* Always copy the dictionary. */
+    ZSTD_dictForceCopy     = 2, /* Always copy the dictionary. */
+    ZSTD_dictForceLoad     = 3  /* Always reload the dictionary */
 } ZSTD_dictAttachPref_e;
 
 typedef enum {

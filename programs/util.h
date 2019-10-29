@@ -39,7 +39,6 @@ extern "C" {
 #endif
 #include <time.h>         /* clock_t, clock, CLOCKS_PER_SEC, nanosleep */
 #include "mem.h"          /* U32, U64 */
-#include "fileio.h"
 
 /*-************************************************************
 * Avoid fseek()'s 2GiB barrier with MSVC, macOS, *BSD, MinGW
@@ -127,19 +126,6 @@ extern int g_utilDisplayLevel;
     typedef struct stat stat_t;
 #endif
 
-int g_excludeCompressedFiles;
-static const char *g_compressedFileExtensions[] = {
-    ZSTD_EXTENSION,
-    TZSTD_EXTENSION,
-    GZ_EXTENSION,
-    TGZ_EXTENSION,
-    LZMA_EXTENSION,
-    XZ_EXTENSION,
-    TXZ_EXTENSION,
-    LZ4_EXTENSION,
-    TLZ4_EXTENSION,
-    NULL
-};
 
 int UTIL_fileExist(const char* filename);
 int UTIL_isRegularFile(const char* infilename);
@@ -148,9 +134,7 @@ U32 UTIL_isDirectory(const char* infilename);
 int UTIL_getFileStat(const char* infilename, stat_t* statbuf);
 int UTIL_isSameFile(const char* file1, const char* file2);
 int UTIL_compareStr(const void *p1, const void *p2);
-int UTIL_isCompressedFile(const char* infilename);
-int compareExtensions(const char* infilename, const char *extensionList[]);
-
+int UTIL_isCompressedFile(const char* infilename, const char *extensionList[]);
 U32 UTIL_isFIFO(const char* infilename);
 U32 UTIL_isLink(const char* infilename);
 #define UTIL_FILESIZE_UNKNOWN  ((U64)(-1))

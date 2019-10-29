@@ -709,7 +709,7 @@ int main(int argCount, const char* argv[])
                     if (!strcmp(argument, "--compress-literals")) { literalCompressionMode = ZSTD_lcm_huffman; continue; }
                     if (!strcmp(argument, "--no-compress-literals")) { literalCompressionMode = ZSTD_lcm_uncompressed; continue; }
                     if (!strcmp(argument, "--no-progress")) { FIO_setNoProgress(1); continue; }
-                    if (!strcmp(argument, "--exclude-compressed")) { g_excludeCompressedFiles = 1; continue; }
+                    if (!strcmp(argument, "--exclude-compressed")) { FIO_setExcludeCompressedFile(prefs, 1); continue; }
                     /* long commands with arguments */
 #ifndef ZSTD_NODICT
                     if (longCommandWArg(&argument, "--train-cover")) {

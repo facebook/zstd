@@ -48,6 +48,7 @@
 #  define ZDICT_STATIC_LINKING_ONLY
 #endif
 #include "zdict.h"
+#include "decompress/zstd_decompress_internal.h" /* ZSTD_entropyDTables_t */
 
 
 /*-*************************************
@@ -99,6 +100,17 @@ unsigned ZDICT_getDictID(const void* dictBuffer, size_t dictSize)
     return MEM_readLE32((const char*)dictBuffer + 4);
 }
 
+size_t ZDICT_getDictHeaderSize(const void* dictBuffer, size_t dictSize)
+{
+    if (dictSize <= 8 || MEM_readLE32(dictBuffer) != ZSTD_MAGIC_DICTIONARY) return 0;
+
+    {   ZSTD_entropyDTables_t dummyEntropyTables;
+        size_t headerSize;
+        dummyEntropyTables.hufTable[0] = (HUF_DTable)((HufLog)*0x1000001);
+        headerSize = ZSTD_loadDEntropy(&dummyEntropyTables, dictBuffer, dictSize);
+        return ZSTD_isError(headerSize) ? 0 : headerSize;
+    }
+}
 
 /*-********************************************************
 *  Dictionary training functions

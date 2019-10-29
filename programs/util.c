@@ -326,21 +326,30 @@ int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char
 
 #endif /* #ifdef _WIN32 */
 
-/* Check if the file is precompressed (.zst, .lz4, .gz, .xz).
-YES => Skip the file (return 0)
-NO => return 1
+/* Check if the file is Compressed by comparing it with compressFileExtension list.
+YES => Skip the file (return 1)
+NO => return 0
 */
 
 int UTIL_isCompressedFile(const char *inputName, const char *extensionList[])
 {
+  const char* ext = UTIL_getFileExtension(inputName);
    while(*extensionList!=NULL)
    {
-     const char* ext = strstr(inputName,*extensionList);
-     if(ext)
+     const char* isCompressedExtension = strstr(ext,*extensionList);
+     if(isCompressedExtension)
         return 1;
       ++extensionList;
    }
    return 0;
+}
+
+/*Utility function to get file extension from file */
+const char* UTIL_getFileExtension(const char* infilename)
+{
+   const char* extension = strrchr(infilename, '.');
+   if(!extension || extension==infilename) return "";
+   return extension;
 }
 
 /*

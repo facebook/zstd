@@ -230,12 +230,11 @@ test ! -f input.6.zst.zst
 file1timestamp=`date -r precompressedFilterTestDir/input.5.zst +%s`
 file2timestamp=`date -r precompressedFilterTestDir/input.7.zst +%s`
 if [[ $file2timestamp -ge $file1timestamp ]]; then
-  println "Test is successful. input.5.zst is not precompressed and therefore not compressed/modified again."
+  println "Test is successful. input.5.zst is precompressed and therefore not compressed/modified again."
 else
   println "Test is not successful"
 fi
 println "Test completed"
-sleep 5
 
 println "test : file removal"
 $ZSTD -f --rm tmp

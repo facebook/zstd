@@ -329,15 +329,12 @@ int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char
 int UTIL_isCompressedFile(const char *inputName, const char *extensionList[])
 {
   const char* ext = UTIL_getFileExtension(inputName);
-  if(strcmp(ext,""))
+  while(*extensionList!=NULL)
   {
-     while(*extensionList!=NULL)
-     {
-       const int isCompressedExtension = strcmp(ext,*extensionList);
-       if(isCompressedExtension==0)
-          return 1;
-        ++extensionList;
-     }
+    const int isCompressedExtension = strcmp(ext,*extensionList);
+    if(isCompressedExtension==0)
+      return 1;
+    ++extensionList;
   }
    return 0;
 }

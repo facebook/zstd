@@ -224,6 +224,8 @@ sleep 5
 ./datagen $size > precompressedFilterTestDir/input.7
 ./datagen $size > precompressedFilterTestDir/input.8
 $ZSTD --exclude-compressed --long --rm -r precompressedFilterTestDir
+test ! -f input.5.zst.zst
+test ! -f input.6.zst.zst
 file1timestamp=`date -r precompressedFilterTestDir/input.5.zst +%s`
 file2timestamp=`date -r precompressedFilterTestDir/input.7.zst +%s`
 if [[ $file2timestamp -ge $file1timestamp ]]; then
@@ -232,6 +234,7 @@ else
   println "Test is not successful"
 fi
 println "Test completed"
+sleep 5
 
 println "test : file removal"
 $ZSTD -f --rm tmp

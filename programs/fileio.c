@@ -319,6 +319,8 @@ struct FIO_prefs_s {
     /* Computation resources preferences */
     unsigned memLimit;
     int nbWorkers;
+
+    int excludeCompressedFiles;
 };
 
 
@@ -359,6 +361,7 @@ FIO_prefs_t* FIO_createPreferences(void)
     ret->srcSizeHint = 0;
     ret->testMode = 0;
     ret->literalCompressionMode = ZSTD_lcm_auto;
+    ret->excludeCompressedFiles = 0;
     return ret;
 }
 
@@ -401,6 +404,8 @@ void FIO_setNbWorkers(FIO_prefs_t* const prefs, int nbWorkers) {
 #endif
     prefs->nbWorkers = nbWorkers;
 }
+
+void FIO_setExcludeCompressedFile(FIO_prefs_t* const prefs, int excludeCompressedFiles) { prefs->excludeCompressedFiles = excludeCompressedFiles; }
 
 void FIO_setBlockSize(FIO_prefs_t* const prefs, int blockSize) {
     if (blockSize && prefs->nbWorkers==0)
@@ -1425,6 +1430,18 @@ static int FIO_compressFilename_dstFile(FIO_prefs_t* const prefs,
     return result;
 }
 
+static const char *compressedFileExtensions[] = {
+    ZSTD_EXTENSION,
+    TZSTD_EXTENSION,
+    GZ_EXTENSION,
+    TGZ_EXTENSION,
+    LZMA_EXTENSION,
+    XZ_EXTENSION,
+    TXZ_EXTENSION,
+    LZ4_EXTENSION,
+    TLZ4_EXTENSION,
+    NULL
+};
 
 /*! FIO_compressFilename_srcFile() :
  *  @return : 0 : compression completed correctly,
@@ -1451,19 +1468,18 @@ FIO_compressFilename_srcFile(FIO_prefs_t* const prefs,
         return 1;
     }
 
+    /* Check if "srcFile" is compressed. Only done if --exclude-compressed flag is used
+    * YES => ZSTD will skip compression of the file and will return 0.
+    * NO => ZSTD will resume with compress operation.
+    */
+    if (prefs->excludeCompressedFiles == 1 && UTIL_isCompressedFile(srcFileName, compressedFileExtensions)) {
+        DISPLAYLEVEL(4, "File is already compressed : %s \n", srcFileName);
+        return 0;
+    }
+
     ress.srcFile = FIO_openSrcFile(srcFileName);
     if (ress.srcFile == NULL) return 1;   /* srcFile could not be opened */
 
-    /* Check if "srcFile" is compressed. Only done if --exclude-compressed flag is used
-    * YES => ZSTD will not compress the file.
-    * NO => ZSTD will resume with compress operation.
-    */
-    if (g_excludeCompressedFiles && UTIL_isCompressedFile(srcFileName)) {  /* precompressed file (--exclude-compressed). DO NOT COMPRESS */
-        DISPLAYLEVEL(4, "File is already compressed : %s \n", srcFileName);
-        fclose(ress.srcFile);
-        ress.srcFile = NULL;
-        return 0;
-    }
     result = FIO_compressFilename_dstFile(prefs, ress, dstFileName, srcFileName, compressionLevel);
 
     fclose(ress.srcFile);

@@ -331,24 +331,18 @@ YES => Skip the file (return 0)
 NO => return 1
 */
 
-int UTIL_isCompressedFile(const char *inputName)
+int UTIL_isCompressedFile(const char *inputName, const char *extensionList[])
 {
-    return compareExtensions(inputName,g_compressedFileExtensions);
-}
-
-int compareExtensions(const char* infilename, const char* extensionList[])
-{
-  int i=0;
-   while(*extensionList != NULL)
+   while(*extensionList!=NULL)
    {
-     const char* ext = strstr(infilename,extensionList[i]);
+     const char* ext = strstr(inputName,*extensionList);
      if(ext)
         return 1;
       ++extensionList;
-      i++;
    }
    return 0;
 }
+
 /*
  * UTIL_createFileList - takes a list of files and directories (params: inputNames, inputNamesNb), scans directories,
  *                       and returns a new list of files (params: return value, allocatedBuffer, allocatedNamesNb).

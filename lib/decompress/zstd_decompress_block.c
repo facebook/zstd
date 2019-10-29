@@ -617,7 +617,7 @@ static void ZSTD_safecopy(BYTE* op, BYTE* const oend_w, BYTE const* ip, ptrdiff_
     ptrdiff_t const diff = op - ip;
     BYTE* const oend = op + length;
 
-    assert((ovtype == ZSTD_no_overlap && (diff <= -8 || diff >= 8)) ||
+    assert((ovtype == ZSTD_no_overlap && (diff <= -8 || diff >= 8 || op >= oend_w)) ||
            (ovtype == ZSTD_overlap_src_before_dst && diff >= 0));
 
     if (length < 8) {

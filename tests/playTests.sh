@@ -216,7 +216,7 @@ $ZSTD -b --fast=1 -i0e1 tmp --compress-literals
 $ZSTD -b --fast=1 -i0e1 tmp --no-compress-literals
 
 println "test: --exclude-compressed flag"
-mkdir precompressedFilterTestDir
+mkdir -p precompressedFilterTestDir
 ./datagen $size > precompressedFilterTestDir/input.5
 ./datagen $size > precompressedFilterTestDir/input.6
 $ZSTD --exclude-compressed --long --rm -r precompressedFilterTestDir

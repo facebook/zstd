@@ -136,6 +136,7 @@ static int usage_advanced(const char* programName)
     DISPLAY( " -q     : suppress warnings; specify twice to suppress errors too\n");
     DISPLAY( " -c     : force write to standard output, even if it is the console\n");
     DISPLAY( " -l     : print information about zstd compressed files \n");
+    DISPLAY( "--exclude-compressed:  only compress files that are not previously compressed \n");
 #ifndef ZSTD_NOCOMPRESS
     DISPLAY( "--ultra : enable levels beyond %i, up to %i (requires more memory)\n", ZSTDCLI_CLEVEL_MAX, ZSTD_maxCLevel());
     DISPLAY( "--long[=#]: enable long distance matching with given window log (default: %u)\n", g_defaultMaxWindowLog);
@@ -708,7 +709,7 @@ int main(int argCount, const char* argv[])
                     if (!strcmp(argument, "--compress-literals")) { literalCompressionMode = ZSTD_lcm_huffman; continue; }
                     if (!strcmp(argument, "--no-compress-literals")) { literalCompressionMode = ZSTD_lcm_uncompressed; continue; }
                     if (!strcmp(argument, "--no-progress")) { FIO_setNoProgress(1); continue; }
-
+                    if (!strcmp(argument, "--exclude-compressed")) { FIO_setExcludeCompressedFile(prefs, 1); continue; }
                     /* long commands with arguments */
 #ifndef ZSTD_NODICT
                     if (longCommandWArg(&argument, "--train-cover")) {

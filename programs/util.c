@@ -326,6 +326,27 @@ int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char
 
 #endif /* #ifdef _WIN32 */
 
+int UTIL_isCompressedFile(const char *inputName, const char *extensionList[])
+{
+  const char* ext = UTIL_getFileExtension(inputName);
+  while(*extensionList!=NULL)
+  {
+    const int isCompressedExtension = strcmp(ext,*extensionList);
+    if(isCompressedExtension==0)
+      return 1;
+    ++extensionList;
+  }
+   return 0;
+}
+
+/*Utility function to get file extension from file */
+const char* UTIL_getFileExtension(const char* infilename)
+{
+   const char* extension = strrchr(infilename, '.');
+   if(!extension || extension==infilename) return "";
+   return extension;
+}
+
 /*
  * UTIL_createFileList - takes a list of files and directories (params: inputNames, inputNamesNb), scans directories,
  *                       and returns a new list of files (params: return value, allocatedBuffer, allocatedNamesNb).

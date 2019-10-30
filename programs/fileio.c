@@ -319,6 +319,8 @@ struct FIO_prefs_s {
     /* Computation resources preferences */
     unsigned memLimit;
     int nbWorkers;
+
+    int excludeCompressedFiles;
 };
 
 
@@ -359,6 +361,7 @@ FIO_prefs_t* FIO_createPreferences(void)
     ret->srcSizeHint = 0;
     ret->testMode = 0;
     ret->literalCompressionMode = ZSTD_lcm_auto;
+    ret->excludeCompressedFiles = 0;
     return ret;
 }
 
@@ -401,6 +404,8 @@ void FIO_setNbWorkers(FIO_prefs_t* const prefs, int nbWorkers) {
 #endif
     prefs->nbWorkers = nbWorkers;
 }
+
+void FIO_setExcludeCompressedFile(FIO_prefs_t* const prefs, int excludeCompressedFiles) { prefs->excludeCompressedFiles = excludeCompressedFiles; }
 
 void FIO_setBlockSize(FIO_prefs_t* const prefs, int blockSize) {
     if (blockSize && prefs->nbWorkers==0)
@@ -1425,6 +1430,21 @@ static int FIO_compressFilename_dstFile(FIO_prefs_t* const prefs,
     return result;
 }
 
+/* List used to compare file extensions (used with --exclude-compressed flag)
+* Different from the suffixList and should only apply to ZSTD compress operationResult
+*/
+static const char *compressedFileExtensions[] = {
+    ZSTD_EXTENSION,
+    TZSTD_EXTENSION,
+    GZ_EXTENSION,
+    TGZ_EXTENSION,
+    LZMA_EXTENSION,
+    XZ_EXTENSION,
+    TXZ_EXTENSION,
+    LZ4_EXTENSION,
+    TLZ4_EXTENSION,
+    NULL
+};
 
 /*! FIO_compressFilename_srcFile() :
  *  @return : 0 : compression completed correctly,
@@ -1449,6 +1469,15 @@ FIO_compressFilename_srcFile(FIO_prefs_t* const prefs,
     if (ress.dictFileName != NULL && UTIL_isSameFile(srcFileName, ress.dictFileName)) {
         DISPLAYLEVEL(1, "zstd: cannot use %s as an input file and dictionary \n", srcFileName);
         return 1;
+    }
+
+    /* Check if "srcFile" is compressed. Only done if --exclude-compressed flag is used
+    * YES => ZSTD will skip compression of the file and will return 0.
+    * NO => ZSTD will resume with compress operation.
+    */
+    if (prefs->excludeCompressedFiles == 1 && UTIL_isCompressedFile(srcFileName, compressedFileExtensions)) {
+        DISPLAYLEVEL(4, "File is already compressed : %s \n", srcFileName);
+        return 0;
     }
 
     ress.srcFile = FIO_openSrcFile(srcFileName);

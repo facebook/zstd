@@ -93,6 +93,7 @@ void FIO_setLiteralCompressionMode(
 
 void FIO_setNoProgress(unsigned noProgress);
 void FIO_setNotificationLevel(int level);
+void FIO_setExcludeCompressedFile(FIO_prefs_t* const prefs, int excludeCompressedFiles);
 
 /*-*************************************
 *  Single File functions

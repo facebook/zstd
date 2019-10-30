@@ -525,7 +525,11 @@ static FILE* FIO_openSrcFile(const char* srcFileName)
         return NULL;
     }
 
-    if (!UTIL_isRegularFile(srcFileName) && !UTIL_isFIFO(srcFileName)) {
+    if (!UTIL_isRegularFile(srcFileName)
+#ifndef _MSC_VER
+        && !UTIL_isFIFO(srcFileName)
+#endif /* _MSC_VER */
+    ) {
         DISPLAYLEVEL(1, "zstd: %s is not a regular file -- ignored \n",
                         srcFileName);
         return NULL;

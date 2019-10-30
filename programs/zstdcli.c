@@ -1005,7 +1005,11 @@ int main(int argCount, const char* argv[])
     if (!followLinks) {
         unsigned u;
         for (u=0, fileNamesNb=0; u<filenameIdx; u++) {
-            if (UTIL_isLink(filenameTable[u]) && !UTIL_isFIFO(filenameTable[u])) {
+            if (UTIL_isLink(filenameTable[u])
+#ifndef _MSC_VER
+                && !UTIL_isFIFO(filenameTable[u])
+#endif /* _MSC_VER */
+            ) {
                 DISPLAYLEVEL(2, "Warning : %s is a symbolic link, ignoring\n", filenameTable[u]);
             } else {
                 filenameTable[fileNamesNb++] = filenameTable[u];

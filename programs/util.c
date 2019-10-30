@@ -126,6 +126,8 @@ int UTIL_isSameFile(const char* fName1, const char* fName2)
 #endif
 }
 
+#ifndef _MSC_VER
+/* Using this to distinguish named pipes */
 U32 UTIL_isFIFO(const char* infilename)
 {
 /* macro guards, as defined in : https://linux.die.net/man/2/lstat */
@@ -137,7 +139,7 @@ U32 UTIL_isFIFO(const char* infilename)
     (void)infilename;
     return 0;
 }
-
+#endif
 
 U32 UTIL_isLink(const char* infilename)
 {

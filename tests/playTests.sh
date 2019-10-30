@@ -1170,6 +1170,8 @@ test -f dictionary
 rm -f tmp* dictionary
 
 
+if [ "$isWindows" = false ] ; then
+
 println "\n===>  zstd fifo named pipe test "
 head -c 10 /dev/zero > tmp_original
 mkfifo named_pipe
@@ -1179,5 +1181,7 @@ $ZSTD -d -o tmp_decompressed tmp_compressed
 $DIFF -s tmp_original tmp_decompressed
 rm -rf tmp*
 rm -rf named_pipe
+
+fi
 
 rm -f tmp*

@@ -92,7 +92,7 @@ extern "C" {
 
 #    if defined(__linux__) || defined(__linux)
 #      ifndef _POSIX_C_SOURCE
-#        define _POSIX_C_SOURCE 200112L  /* feature test macro : https://www.gnu.org/software/libc/manual/html_node/Feature-Test-Macros.html */
+#        define _POSIX_C_SOURCE 200809L  /* feature test macro : https://www.gnu.org/software/libc/manual/html_node/Feature-Test-Macros.html */
 #      endif
 #    endif
 #    include <unistd.h>  /* declares _POSIX_VERSION */

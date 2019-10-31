@@ -395,7 +395,7 @@ size_t ZSTD_decompress_with_dict(void *const dst, const size_t dst_len,
     /* this decoder assumes decompression of a single frame */
     decode_frame(&out, &in, parsed_dict);
 
-    return out.ptr - (u8 *)dst;
+    return (size_t)(out.ptr - (u8 *)dst);
 }
 
 /******* FRAME DECODING ******************************************************/
@@ -416,7 +416,7 @@ static void decompress_data(frame_context_t *const ctx, ostream_t *const out,
 
 static void decode_frame(ostream_t *const out, istream_t *const in,
                          const dictionary_t *const dict) {
-    const u32 magic_number = IO_read_bits(in, 32);
+    const u32 magic_number = (u32)IO_read_bits(in, 32);
     // Zstandard frame
     //
     // "Magic_Number
@@ -497,7 +497,7 @@ static void parse_frame_header(frame_header_t *const header,
     // 3    Reserved_bit
     // 2    Content_Checksum_flag
     // 1-0  Dictionary_ID_flag"
-    const u8 descriptor = IO_read_bits(in, 8);
+    const u8 descriptor = (u8)IO_read_bits(in, 8);
 
     // decode frame header descriptor into flags
     const u8 frame_content_size_flag = descriptor >> 6;
@@ -521,7 +521,7 @@ static void parse_frame_header(frame_header_t *const header,
         //
         // Bit numbers  7-3         2-0
         // Field name   Exponent    Mantissa"
-        u8 window_descriptor = IO_read_bits(in, 8);
+        u8 window_descriptor = (u8)IO_read_bits(in, 8);
         u8 exponent = window_descriptor >> 3;
         u8 mantissa = window_descriptor & 7;
 
@@ -541,7 +541,7 @@ static void parse_frame_header(frame_header_t *const header,
         const int bytes_array[] = {0, 1, 2, 4};
         const int bytes = bytes_array[dictionary_id_flag];
 
-        header->dictionary_id = IO_read_bits(in, bytes * 8);
+        header->dictionary_id = (u32)IO_read_bits(in, bytes * 8);
     } else {
         header->dictionary_id = 0;
     }
@@ -633,8 +633,8 @@ static void decompress_data(frame_context_t *const ctx, ostream_t *const out,
         //
         // The next 2 bits represent the Block_Type, while the remaining 21 bits
         // represent the Block_Size. Format is little-endian."
-        last_block = IO_read_bits(in, 1);
-        const int block_type = IO_read_bits(in, 2);
+        last_block = (int)IO_read_bits(in, 1);
+        const int block_type = (int)IO_read_bits(in, 2);
         const size_t block_len = IO_read_bits(in, 21);
 
         switch (block_type) {
@@ -748,8 +748,8 @@ static size_t decode_literals(frame_context_t *const ctx, istream_t *const in,
     // types"
     //
     // size_format takes between 1 and 2 bits
-    int block_type = IO_read_bits(in, 2);
-    int size_format = IO_read_bits(in, 2);
+    int block_type = (int)IO_read_bits(in, 2);
+    int size_format = (int)IO_read_bits(in, 2);
 
     if (block_type <= 1) {
         // Raw or RLE literals block
@@ -833,6 +833,7 @@ static size_t decode_literals_compressed(frame_context_t *const ctx,
         // bits (0-1023)."
         num_streams = 1;
     // Fall through as it has the same size format
+        /* fallthrough */
     case 1:
         // "4 streams. Both Compressed_Size and Regenerated_Size use 10 bits
         // (0-1023)."
@@ -855,8 +856,7 @@ static size_t decode_literals_compressed(frame_context_t *const ctx,
         // Impossible
         IMPOSSIBLE();
     }
-    if (regenerated_size > MAX_LITERALS_SIZE ||
-        compressed_size >= regenerated_size) {
+    if (regenerated_size > MAX_LITERALS_SIZE) {
         CORRUPTION();
     }
 
@@ -1005,7 +1005,7 @@ static const i16 SEQ_MATCH_LENGTH_DEFAULT_DIST[53] = {
 static const u32 SEQ_LITERAL_LENGTH_BASELINES[36] = {
     0,  1,  2,   3,   4,   5,    6,    7,    8,    9,     10,    11,
     12, 13, 14,  15,  16,  18,   20,   22,   24,   28,    32,    40,
-    48, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65538};
+    48, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536};
 static const u8 SEQ_LITERAL_LENGTH_EXTRA_BITS[36] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0,  0,  0,  0,  1,  1,
     1, 1, 2, 2, 3, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
@@ -1021,7 +1021,7 @@ static const u8 SEQ_MATCH_LENGTH_EXTRA_BITS[53] = {
     2, 2, 3, 3, 4, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
 
 /// Offset decoding is simpler so we just need a maximum code value
-static const u8 SEQ_MAX_CODES[3] = {35, -1, 52};
+static const u8 SEQ_MAX_CODES[3] = {35, (u8)-1, 52};
 
 static void decompress_sequences(frame_context_t *const ctx,
                                  istream_t *const in,
@@ -1132,7 +1132,7 @@ static void decompress_sequences(frame_context_t *const ctx, istream_t *in,
     // a single 1-bit and then fills the byte with 0-7 0 bits of padding."
     const int padding = 8 - highest_set_bit(src[len - 1]);
     // The offset starts at the end because FSE streams are read backwards
-    i64 bit_offset = len * 8 - padding;
+    i64 bit_offset = (i64)(len * 8 - (size_t)padding);
 
     // "The bitstream starts with initial state values, each using the required
     // number of bits in their respective accuracy, decoded previously from
@@ -1409,7 +1409,7 @@ size_t ZSTD_get_decompressed_size(const void *src, const size_t src_len) {
 
     // get decompressed size from ZSTD frame header
     {
-        const u32 magic_number = IO_read_bits(&in, 32);
+        const u32 magic_number = (u32)IO_read_bits(&in, 32);
 
         if (magic_number == 0xFD2FB528U) {
             // ZSTD frame
@@ -1418,7 +1418,7 @@ size_t ZSTD_get_decompressed_size(const void *src, const size_t src_len) {
 
             if (header.frame_content_size == 0 && !header.single_segment_flag) {
                 // Content size not provided, we can't tell
-                return -1;
+                return (size_t)-1;
             }
 
             return header.frame_content_size;
@@ -1529,7 +1529,7 @@ void free_dictionary(dictionary_t *const dict) {
 /******* END DICTIONARY PARSING ***********************************************/
 
 /******* IO STREAM OPERATIONS *************************************************/
-#define UNALIGNED() ERROR("Attempting to operate on a non-byte aligned stream")
+
 /// Reads `num` bits from a bitstream, and updates the internal offset
 static inline u64 IO_read_bits(istream_t *const in, const int num_bits) {
     if (num_bits > 64 || num_bits <= 0) {
@@ -1608,7 +1608,7 @@ static inline const u8 *IO_get_read_ptr(istream_t *const in, size_t len) {
         INP_SIZE();
     }
     if (in->bit_offset != 0) {
-        UNALIGNED();
+        ERROR("Attempting to operate on a non-byte aligned stream");
     }
     const u8 *const ptr = in->ptr;
     in->ptr += len;
@@ -1634,7 +1634,7 @@ static inline void IO_advance_input(istream_t *const in, size_t len) {
          INP_SIZE();
     }
     if (in->bit_offset != 0) {
-        UNALIGNED();
+        ERROR("Attempting to operate on a non-byte aligned stream");
     }
 
     in->ptr += len;

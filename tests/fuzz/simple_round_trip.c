@@ -20,23 +20,23 @@
 #include <string.h>
 #include "fuzz_helpers.h"
 #include "zstd_helpers.h"
-
-static const int kMaxClevel = 19;
+#include "fuzz_data_producer.h"
 
 static ZSTD_CCtx *cctx = NULL;
 static ZSTD_DCtx *dctx = NULL;
-static uint32_t seed;
 
 static size_t roundTripTest(void *result, size_t resultCapacity,
                             void *compressed, size_t compressedCapacity,
-                            const void *src, size_t srcSize)
+                            const void *src, size_t srcSize,
+                            FUZZ_dataProducer_t *producer)
 {
     size_t cSize;
-    if (FUZZ_rand(&seed) & 1) {
-        FUZZ_setRandomParameters(cctx, srcSize, &seed);
+    if (FUZZ_dataProducer_uint32Range(producer, 0, 1)) {
+        FUZZ_setRandomParameters(cctx, srcSize, producer);
         cSize = ZSTD_compress2(cctx, compressed, compressedCapacity, src, srcSize);
     } else {
-        int const cLevel = FUZZ_rand(&seed) % kMaxClevel;
+      int const cLevel = FUZZ_dataProducer_int32Range(producer, kMinClevel, kMaxClevel);
+
         cSize = ZSTD_compressCCtx(
             cctx, compressed, compressedCapacity, src, srcSize, cLevel);
     }
@@ -51,12 +51,17 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     size_t cBufSize = ZSTD_compressBound(size);
     void* cBuf;
 
-    seed = FUZZ_seed(&src, &size);
+    /* Give a random portion of src data to the producer, to use for
+    parameter generation. The rest will be used for (de)compression */
+    FUZZ_dataProducer_t *producer = FUZZ_dataProducer_create(src, size);
+    size = FUZZ_dataProducer_reserveDataPrefix(producer);
+
     /* Half of the time fuzz with a 1 byte smaller output size.
      * This will still succeed because we don't use a dictionary, so the dictID
      * field is empty, giving us 4 bytes of overhead.
      */
-    cBufSize -= FUZZ_rand32(&seed, 0, 1);
+    cBufSize -= FUZZ_dataProducer_uint32Range(producer, 0, 1);
+
     cBuf = malloc(cBufSize);
 
     FUZZ_ASSERT(cBuf && rBuf);
@@ -72,13 +77,14 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 
     {
         size_t const result =
-            roundTripTest(rBuf, rBufSize, cBuf, cBufSize, src, size);
+            roundTripTest(rBuf, rBufSize, cBuf, cBufSize, src, size, producer);
         FUZZ_ZASSERT(result);
         FUZZ_ASSERT_MSG(result == size, "Incorrect regenerated size");
         FUZZ_ASSERT_MSG(!memcmp(src, rBuf, size), "Corruption!");
     }
     free(rBuf);
     free(cBuf);
+    FUZZ_dataProducer_free(producer);
 #ifndef STATEFUL_FUZZING
     ZSTD_freeCCtx(cctx); cctx = NULL;
     ZSTD_freeDCtx(dctx); dctx = NULL;

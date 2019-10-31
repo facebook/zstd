@@ -205,7 +205,6 @@ BMK_benchOutcome_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
 
 
 
-
 #endif   /* BENCH_ZSTD_H_3242387 */
 
 #if defined (__cplusplus)

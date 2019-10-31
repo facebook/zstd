@@ -133,12 +133,11 @@ endif ()
 if (UNIX)
     # pkg-config
     set(PREFIX "${CMAKE_INSTALL_PREFIX}")
-    set(LIBDIR "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
-    set(INCLUDEDIR "${CMAKE_INSTALL_PREFIX}/include")
+    set(LIBDIR "${CMAKE_INSTALL_FULL_LIBDIR}")
     set(VERSION "${zstd_VERSION_MAJOR}.${zstd_VERSION_MINOR}.${zstd_VERSION_PATCH}")
     add_custom_target(libzstd.pc ALL
             ${CMAKE_COMMAND} -DIN="${LIBRARY_DIR}/libzstd.pc.in" -DOUT="libzstd.pc"
-            -DPREFIX="${PREFIX}" -DLIBDIR="${LIBDIR}" -DINCLUDEDIR="${INCLUDEDIR}" -DVERSION="${VERSION}"
+            -DPREFIX="${PREFIX}" -DVERSION="${VERSION}"
             -P "${CMAKE_CURRENT_SOURCE_DIR}/pkgconfig.cmake"
             COMMENT "Creating pkg-config file")
 
@@ -152,10 +151,10 @@ install(FILES
     ${LIBRARY_DIR}/dictBuilder/zdict.h
     ${LIBRARY_DIR}/dictBuilder/cover.h
     ${LIBRARY_DIR}/common/zstd_errors.h
-    DESTINATION "include")
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 
 if (ZSTD_BUILD_SHARED)
-    install(TARGETS libzstd_shared RUNTIME DESTINATION "bin"
+    install(TARGETS libzstd_shared RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
                                    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
                                    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
 endif()

@@ -16,7 +16,7 @@ Distribution of this document is unlimited.
 
 ### Version
 
-0.3.2 (17/07/19)
+0.3.4 (16/08/19)
 
 
 Introduction
@@ -358,6 +358,7 @@ It may be followed by an optional `Content_Checksum`
 __`Block_Type`__
 
 The next 2 bits represent the `Block_Type`.
+`Block_Type` influences the meaning of `Block_Size`.
 There are 4 block types :
 
 |    Value     |      0      |      1      |         2          |     3     |
@@ -384,9 +385,12 @@ There are 4 block types :
 __`Block_Size`__
 
 The upper 21 bits of `Block_Header` represent the `Block_Size`.
-`Block_Size` is the size of the block excluding the header.
-A block can contain any number of bytes (even zero), up to
-`Block_Maximum_Decompressed_Size`, which is the smallest of:
+When `Block_Type` is `Compressed_Block` or `Raw_Block`,
+`Block_Size` is the size of `Block_Content`, hence excluding `Block_Header`.  
+When `Block_Type` is `RLE_Block`, `Block_Content`’s size is always 1,
+and `Block_Size` represents the number of times this byte must be repeated.
+A block can contain and decompress into any number of bytes (even zero),
+up to `Block_Maximum_Decompressed_Size`, which is the smallest of:
 -  Window_Size
 -  128 KB
 
@@ -1103,18 +1107,18 @@ It follows the following build rule :
 
 The table has a size of `Table_Size = 1 << Accuracy_Log`.
 Each cell describes the symbol decoded,
-and instructions to get the next state.
+and instructions to get the next state (`Number_of_Bits` and `Baseline`).
 
 Symbols are scanned in their natural order for "less than 1" probabilities.
 Symbols with this probability are being attributed a single cell,
 starting from the end of the table and retreating.
 These symbols define a full state reset, reading `Accuracy_Log` bits.
 
-All remaining symbols are allocated in their natural order.
-Starting from symbol `0` and table position `0`,
+Then, all remaining symbols, sorted in natural order, are allocated cells.
+Starting from symbol `0` (if it exists), and table position `0`,
 each symbol gets allocated as many cells as its probability.
 Cell allocation is spreaded, not linear :
-each successor position follow this rule :
+each successor position follows this rule :
 
 ```
 position += (tableSize>>1) + (tableSize>>3) + 3;
@@ -1126,40 +1130,41 @@ A position is skipped if already occupied by a "less than 1" probability symbol.
 each position in the table, switching to the next symbol when enough
 states have been allocated to the current one.
 
-The result is a list of state values.
-Each state will decode the current symbol.
+The process guarantees that the table is entirely filled.
+Each cell corresponds to a state value, which contains the symbol being decoded.
 
-To get the `Number_of_Bits` and `Baseline` required for next state,
-it's first necessary to sort all states in their natural order.
-The lower states will need 1 more bit than higher ones.
+To add the `Number_of_Bits` and `Baseline` required to retrieve next state,
+it's first necessary to sort all occurrences of each symbol in state order.
+Lower states will need 1 more bit than higher ones.
 The process is repeated for each symbol.
 
 __Example__ :
-Presuming a symbol has a probability of 5.
-It receives 5 state values. States are sorted in natural order.
+Presuming a symbol has a probability of 5,
+it receives 5 cells, corresponding to 5 state values.
+These state values are then sorted in natural order.
 
-Next power of 2 is 8.
-Space of probabilities is divided into 8 equal parts.
-Presuming the `Accuracy_Log` is 7, it defines 128 states.
+Next power of 2 after 5 is 8.
+Space of probabilities must be divided into 8 equal parts.
+Presuming the `Accuracy_Log` is 7, it defines a space of 128 states.
 Divided by 8, each share is 16 large.
 
-In order to reach 8, 8-5=3 lowest states will count "double",
-doubling the number of shares (32 in width),
-requiring one more bit in the process.
+In order to reach 8 shares, 8-5=3 lowest states will count "double",
+doubling their shares (32 in width), hence requiring one more bit.
 
 Baseline is assigned starting from the higher states using fewer bits,
-and proceeding naturally, then resuming at the first state,
-each takes its allocated width from Baseline.
+increasing at each state, then resuming at the first state,
+each state takes its allocated width from Baseline.
 
-| state order      |   0   |   1   |    2   |   3  |   4   |
-| ---------------- | ----- | ----- | ------ | ---- | ----- |
-| width            |  32   |  32   |   32   |  16  |  16   |
-| `Number_of_Bits` |   5   |   5   |    5   |   4  |   4   |
-| range number     |   2   |   4   |    6   |   0  |   1   |
-| `Baseline`       |  32   |  64   |   96   |   0  |  16   |
-| range            | 32-63 | 64-95 | 96-127 | 0-15 | 16-31 |
+| state value      |   1   |  39   |   77   |  84  |  122   |
+| state order      |   0   |   1   |    2   |   3  |    4   |
+| ---------------- | ----- | ----- | ------ | ---- | ------ |
+| width            |  32   |  32   |   32   |  16  |   16   |
+| `Number_of_Bits` |   5   |   5   |    5   |   4  |    4   |
+| range number     |   2   |   4   |    6   |   0  |    1   |
+| `Baseline`       |  32   |  64   |   96   |   0  |   16   |
+| range            | 32-63 | 64-95 | 96-127 | 0-15 | 16-31  |
 
-The next state is determined from current state
+During decoding, the next state value is determined from current state value,
 by reading the required `Number_of_Bits`, and adding the specified `Baseline`.
 
 See [Appendix A] for the results of this process applied to the default distributions.
@@ -1653,6 +1658,8 @@ or at least provide a meaningful error code explaining for which reason it canno
 
 Version changes
 ---------------
+- 0.3.4 : clarifications for FSE decoding table
+- 0.3.3 : clarifications for field Block_Size
 - 0.3.2 : remove additional block size restriction on compressed blocks
 - 0.3.1 : minor clarification regarding offset history update rules
 - 0.3.0 : minor edits to match RFC8478

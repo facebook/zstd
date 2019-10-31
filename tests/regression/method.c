@@ -444,6 +444,8 @@ static int init_cstream(
         ZSTD_parameters const params = config_get_zstd_params(config, 0, 0);
         ZSTD_CDict* dict = NULL;
         if (cdict) {
+            if (!config->use_dictionary)
+              return 1;
             *cdict = ZSTD_createCDict_advanced(
                 state->dictionary.data,
                 state->dictionary.size,
@@ -459,14 +461,18 @@ static int init_cstream(
         } else {
             zret = ZSTD_initCStream_advanced(
                 zcs,
-                state->dictionary.data,
-                state->dictionary.size,
+                config->use_dictionary ? state->dictionary.data : NULL,
+                config->use_dictionary ? state->dictionary.size : 0,
                 params,
                 ZSTD_CONTENTSIZE_UNKNOWN);
         }
     } else {
         int const level = config_get_level(config);
+        if (level == CONFIG_NO_LEVEL)
+            return 1;
         if (cdict) {
+            if (!config->use_dictionary)
+              return 1;
             *cdict = ZSTD_createCDict(
                 state->dictionary.data,
                 state->dictionary.size,
@@ -477,7 +483,10 @@ static int init_cstream(
             zret = ZSTD_initCStream_usingCDict(zcs, *cdict);
         } else if (config->use_dictionary) {
             zret = ZSTD_initCStream_usingDict(
-                zcs, state->dictionary.data, state->dictionary.size, level);
+                zcs,
+                state->dictionary.data,
+                state->dictionary.size,
+                level);
         } else {
             zret = ZSTD_initCStream(zcs, level);
         }
@@ -506,9 +515,17 @@ static result_t old_streaming_compress_internal(
     result = result_error(result_error_compression_error);
     goto out;
   }
+  if (!advanced && config_get_level(config) == CONFIG_NO_LEVEL) {
+    result = result_error(result_error_skip);
+    goto out;
+  }
+  if (cdict && !config->use_dictionary) {
+    result = result_error(result_error_skip);
+    goto out;
+  }
   if (init_cstream(state, zcs, config, advanced, cdict ? &cd : NULL)) {
-      result = result_error(result_error_compression_error);
-      goto out;
+    result = result_error(result_error_compression_error);
+    goto out;
   }
 
   result_data_t data = {.total_size = 0};
@@ -629,21 +646,21 @@ method_t const old_streaming = {
 method_t const old_streaming_advanced = {
     .name = "old streaming advanced",
     .create = buffer_state_create,
-    .compress = old_streaming_compress,
+    .compress = old_streaming_compress_advanced,
     .destroy = buffer_state_destroy,
 };
 
 method_t const old_streaming_cdict = {
     .name = "old streaming cdcit",
     .create = buffer_state_create,
-    .compress = old_streaming_compress,
+    .compress = old_streaming_compress_cdict,
     .destroy = buffer_state_destroy,
 };
 
 method_t const old_streaming_advanced_cdict = {
     .name = "old streaming advanced cdict",
     .create = buffer_state_create,
-    .compress = old_streaming_compress,
+    .compress = old_streaming_compress_cdict_advanced,
     .destroy = buffer_state_destroy,
 };
 

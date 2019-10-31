@@ -21,10 +21,6 @@
 int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 {
     ZSTD_frameHeader zfh;
-    /* Consume the seed to be compatible with the corpora of other decompression
-     * fuzzers.
-     */
-    FUZZ_seed(&src, &size);
     /* You can fuzz any helper functions here that are fast, and take zstd
      * compressed data as input. E.g. don't expect the input to be a dictionary,
      * so don't fuzz ZSTD_getDictID_fromDict().

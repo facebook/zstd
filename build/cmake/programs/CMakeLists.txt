@@ -21,25 +21,31 @@ if (ZSTD_LEGACY_SUPPORT)
     include_directories(${PROGRAMS_LEGACY_DIR} ${LIBRARY_DIR}/legacy)
 endif ()
 
+if (ZSTD_PROGRAMS_LINK_SHARED)
+    set(PROGRAMS_ZSTD_LINK_TARGET libzstd_shared)
+else ()
+    set(PROGRAMS_ZSTD_LINK_TARGET libzstd_static)
+endif ()
+
 if (MSVC)
     set(MSVC_RESOURCE_DIR ${ZSTD_SOURCE_DIR}/build/VS2010/zstd)
     set(PlatformDependResources ${MSVC_RESOURCE_DIR}/zstd.rc)
 endif ()
 
 add_executable(zstd ${PROGRAMS_DIR}/zstdcli.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/timefn.c ${PROGRAMS_DIR}/fileio.c ${PROGRAMS_DIR}/benchfn.c ${PROGRAMS_DIR}/benchzstd.c ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/dibio.c ${PlatformDependResources})
-target_link_libraries(zstd libzstd_static)
+target_link_libraries(zstd ${PROGRAMS_ZSTD_LINK_TARGET})
 if (CMAKE_SYSTEM_NAME MATCHES "(Solaris|SunOS)")
     target_link_libraries(zstd rt)
 endif ()
-install(TARGETS zstd RUNTIME DESTINATION "bin")
+install(TARGETS zstd RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 
 if (UNIX)
     add_custom_target(zstdcat ALL ${CMAKE_COMMAND} -E create_symlink zstd zstdcat DEPENDS zstd COMMENT "Creating zstdcat symlink")
     add_custom_target(unzstd ALL ${CMAKE_COMMAND} -E create_symlink zstd unzstd DEPENDS zstd COMMENT "Creating unzstd symlink")
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/zstdcat DESTINATION "bin")
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/unzstd DESTINATION "bin")
-    install(PROGRAMS ${PROGRAMS_DIR}/zstdgrep DESTINATION "bin")
-    install(PROGRAMS ${PROGRAMS_DIR}/zstdless DESTINATION "bin")
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/zstdcat DESTINATION "${CMAKE_INSTALL_BINDIR}")
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/unzstd DESTINATION "${CMAKE_INSTALL_BINDIR}")
+    install(PROGRAMS ${PROGRAMS_DIR}/zstdgrep DESTINATION "${CMAKE_INSTALL_BINDIR}")
+    install(PROGRAMS ${PROGRAMS_DIR}/zstdless DESTINATION "${CMAKE_INSTALL_BINDIR}")
 
     add_custom_target(zstd.1 ALL
         ${CMAKE_COMMAND} -E copy ${PROGRAMS_DIR}/zstd.1 .
@@ -56,17 +62,19 @@ if (UNIX)
     # Define MAN_INSTALL_DIR if necessary
     if (MAN_INSTALL_DIR)
     else ()
-      set(MAN_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/share/man/man1)
+        set(MAN_INSTALL_DIR ${CMAKE_INSTALL_MANDIR}/man1)
     endif ()
 
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/zstd.1 DESTINATION "${MAN_INSTALL_DIR}")
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/zstdcat.1 DESTINATION "${MAN_INSTALL_DIR}")
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/unzstd.1 DESTINATION "${MAN_INSTALL_DIR}")
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/zstdgrep.1 DESTINATION "${MAN_INSTALL_DIR}")
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/zstdless.1 DESTINATION "${MAN_INSTALL_DIR}")
+    install(FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/zstd.1
+        ${CMAKE_CURRENT_BINARY_DIR}/zstdcat.1
+        ${CMAKE_CURRENT_BINARY_DIR}/unzstd.1
+        ${CMAKE_CURRENT_BINARY_DIR}/zstdgrep.1
+        ${CMAKE_CURRENT_BINARY_DIR}/zstdless.1
+        DESTINATION "${MAN_INSTALL_DIR}")
 
     add_executable(zstd-frugal ${PROGRAMS_DIR}/zstdcli.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/timefn.c ${PROGRAMS_DIR}/fileio.c)
-    target_link_libraries(zstd-frugal libzstd_static)
+    target_link_libraries(zstd-frugal ${PROGRAMS_ZSTD_LINK_TARGET})
     set_property(TARGET zstd-frugal APPEND PROPERTY COMPILE_DEFINITIONS "ZSTD_NOBENCH;ZSTD_NODICT")
 endif ()
 
@@ -79,7 +87,7 @@ if (ZSTD_MULTITHREAD_SUPPORT)
         target_link_libraries(zstd ${THREADS_LIBS})
 
         add_custom_target(zstdmt ALL ${CMAKE_COMMAND} -E create_symlink zstd zstdmt DEPENDS zstd COMMENT "Creating zstdmt symlink")
-        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/zstdmt DESTINATION "bin")
+        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/zstdmt DESTINATION "${CMAKE_INSTALL_BINDIR}")
     endif ()
 endif ()
 

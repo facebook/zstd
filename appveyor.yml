@@ -1,3 +1,7 @@
+# Following tests are run _only_ on master branch
+# To reproduce these tests, it's possible to push into a branch `appveyorTest`
+# or a branch `visual*`, they will intentionnally trigger `master` tests
+
 -
   version: 1.0.{build}
   branches:
@@ -169,12 +173,15 @@
       sh -e playTests.sh --test-large-data &&
       fullbench.exe -i1 &&
       fullbench.exe -i1 -P0 &&
-      fuzzer_VS2008_%PLATFORM%_Release.exe %FUZZERTEST% &&
-      fuzzer_VS2010_%PLATFORM%_Release.exe %FUZZERTEST% &&
       fuzzer_VS2012_%PLATFORM%_Release.exe %FUZZERTEST% &&
       fuzzer_VS2013_%PLATFORM%_Release.exe %FUZZERTEST% &&
       fuzzer_VS2015_%PLATFORM%_Release.exe %FUZZERTEST%
     )
+
+
+# The following tests are for regular pushes
+# into `dev` or some feature branch
+# There run less tests, for shorter feedback loop
 
 -
   version: 1.0.{build}
@@ -248,4 +255,12 @@
       MD5sum build/VS2010/bin/%PLATFORM%_%CONFIGURATION%/*.exe &&
       COPY build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\fuzzer.exe tests\fuzzer_VS2015_%PLATFORM%_%CONFIGURATION%.exe &&
       COPY build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\*.exe tests\
+    )
+
+
+  test_script:
+  - ECHO Testing %COMPILER% %PLATFORM% %CONFIGURATION%
+  - if [%HOST%]==[mingw] (
+      set "CC=%COMPILER%" &&
+      make check
     )

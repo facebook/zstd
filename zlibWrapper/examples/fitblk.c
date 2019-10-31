@@ -159,7 +159,7 @@ int main(int argc, char **argv)
     if (ZWRAP_isUsingZSTDcompression()) printf("zstd version %s\n", zstdVersion());
 
     /* allocate memory for buffers and compression engine */
-    blk = malloc(size + EXCESS);
+    blk = (unsigned char*)malloc(size + EXCESS);
     def.zalloc = Z_NULL;
     def.zfree = Z_NULL;
     def.opaque = Z_NULL;
@@ -180,8 +180,8 @@ int main(int argc, char **argv)
     if (ret == Z_STREAM_END && def.avail_out >= EXCESS) {
         /* write block to stdout */
         have = size + EXCESS - def.avail_out;
-   //     if (fwrite(blk, 1, have, stdout) != have || ferror(stdout))
-   //         quit("error writing output");
+   /*     if (fwrite(blk, 1, have, stdout) != have || ferror(stdout))
+    *         quit("error writing output"); */
 
         /* clean up and print results to stderr */
         ret = deflateEnd(&def);
@@ -200,7 +200,7 @@ int main(int argc, char **argv)
     inf.avail_in = 0;
     inf.next_in = Z_NULL;
     ret = inflateInit(&inf);
-    tmp = malloc(size + EXCESS);
+    tmp = (unsigned char*)malloc(size + EXCESS);
     if (ret != Z_OK || tmp == NULL)
         quit("out of memory");
     ret = deflateReset(&def);
@@ -237,8 +237,8 @@ int main(int argc, char **argv)
 
     /* done -- write block to stdout */
     have = size - def.avail_out;
-//    if (fwrite(blk, 1, have, stdout) != have || ferror(stdout))
-//        quit("error writing output");
+    /* if (fwrite(blk, 1, have, stdout) != have || ferror(stdout))
+     *     quit("error writing output"); */
 
     /* clean up and print results to stderr */
     free(tmp);

@@ -18,13 +18,15 @@ EXAMPLE_PATH = examples
 PROGRAMS_PATH = ../programs
 TEST_FILE = ../doc/zstd_compression_format.md
 
-CPPFLAGS = -DXXH_NAMESPACE=ZSTD_ -I$(ZLIB_PATH) -I$(PROGRAMS_PATH)       \
-           -I$(ZSTDLIBDIR) -I$(ZSTDLIBDIR)/common -I$(ZLIBWRAPPER_PATH)
-CFLAGS  ?= $(MOREFLAGS) -O3 -std=gnu99
-CFLAGS  += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wswitch-enum \
-           -Wdeclaration-after-statement -Wstrict-prototypes -Wundef     \
-           -Wstrict-aliasing=1
-
+CPPFLAGS += -DXXH_NAMESPACE=ZSTD_ -I$(ZLIB_PATH) -I$(PROGRAMS_PATH)       \
+            -I$(ZSTDLIBDIR) -I$(ZSTDLIBDIR)/common -I$(ZLIBWRAPPER_PATH)
+STDFLAGS  = -std=c90 -pedantic -Wno-long-long -Wno-variadic-macros -Wc++-compat \
+            -DNO_snprintf -DNO_vsnprintf  # strict ISO C90 is missing these prototypes
+DEBUGFLAGS= -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow -Wswitch-enum \
+            -Wdeclaration-after-statement -Wstrict-prototypes -Wundef     \
+            -Wstrict-aliasing=1
+CFLAGS   ?= -O3
+CFLAGS   += $(STDFLAGS) $(DEBUGFLAGS) $(MOREFLAGS)
 
 # Define *.exe as extension for Windows systems
 ifneq (,$(filter Windows%,$(OS)))
@@ -33,6 +35,11 @@ else
 EXT =
 endif
 
+default : release
+
+release : STDFLAGS =
+release : DEBUGFLAGS =
+release : all
 
 all: fitblk example zwrapbench minigzip
 
@@ -68,35 +75,35 @@ valgrindTest: clean example fitblk example_zstd fitblk_zstd zwrapbench
 	$(VALGRIND) ./zwrapbench -rqi1b1e5 ../lib ../programs ../tests
 
 #.c.o:
-#	$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
+#	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
 
-minigzip: $(EXAMPLE_PATH)/minigzip.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o $(GZFILES) $(ZSTDLIBRARY)
+minigzip: $(EXAMPLE_PATH)/minigzip.o zstd_zlibwrapper.o $(GZFILES) $(ZSTDLIBRARY)
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $^ $(ZSTDLIBRARY) $(ZLIB_LIBRARY) -o $@
 
-minigzip_zstd: $(EXAMPLE_PATH)/minigzip.o $(ZLIBWRAPPER_PATH)/zstdTurnedOn_zlibwrapper.o $(GZFILES) $(ZSTDLIBRARY)
+minigzip_zstd: $(EXAMPLE_PATH)/minigzip.o zstdTurnedOn_zlibwrapper.o $(GZFILES) $(ZSTDLIBRARY)
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $^ $(ZSTDLIBRARY) $(ZLIB_LIBRARY) -o $@
 
-example: $(EXAMPLE_PATH)/example.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o $(GZFILES) $(ZSTDLIBRARY)
+example: $(EXAMPLE_PATH)/example.o zstd_zlibwrapper.o $(GZFILES) $(ZSTDLIBRARY)
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $^ $(ZLIB_LIBRARY) -o $@
 
-example_zstd: $(EXAMPLE_PATH)/example.o $(ZLIBWRAPPER_PATH)/zstdTurnedOn_zlibwrapper.o $(GZFILES) $(ZSTDLIBRARY)
+example_zstd: $(EXAMPLE_PATH)/example.o zstdTurnedOn_zlibwrapper.o $(GZFILES) $(ZSTDLIBRARY)
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $^ $(ZLIB_LIBRARY) -o $@
 
-fitblk: $(EXAMPLE_PATH)/fitblk.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o $(ZSTDLIBRARY)
+fitblk: $(EXAMPLE_PATH)/fitblk.o zstd_zlibwrapper.o $(ZSTDLIBRARY)
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $^ $(ZLIB_LIBRARY) -o $@
 
-fitblk_zstd: $(EXAMPLE_PATH)/fitblk.o $(ZLIBWRAPPER_PATH)/zstdTurnedOn_zlibwrapper.o $(ZSTDLIBRARY)
+fitblk_zstd: $(EXAMPLE_PATH)/fitblk.o zstdTurnedOn_zlibwrapper.o $(ZSTDLIBRARY)
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $^ $(ZLIB_LIBRARY) -o $@
 
-zwrapbench: $(EXAMPLE_PATH)/zwrapbench.o $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o $(PROGRAMS_PATH)/util.o $(PROGRAMS_PATH)/timefn.o $(PROGRAMS_PATH)/datagen.o $(ZSTDLIBRARY)
+zwrapbench: $(EXAMPLE_PATH)/zwrapbench.o zstd_zlibwrapper.o $(PROGRAMS_PATH)/util.o $(PROGRAMS_PATH)/timefn.o $(PROGRAMS_PATH)/datagen.o $(ZSTDLIBRARY)
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $^ $(ZLIB_LIBRARY) -o $@
 
 
-$(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.o: $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.c $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) -I. -c -o $@ $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.c
+zstd_zlibwrapper.o: $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.c $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.h
 
-$(ZLIBWRAPPER_PATH)/zstdTurnedOn_zlibwrapper.o: $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.c $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) -DZWRAP_USE_ZSTD=1 -I. -c -o $@ $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.c
+zstdTurnedOn_zlibwrapper.o: CPPFLAGS += -DZWRAP_USE_ZSTD=1
+zstdTurnedOn_zlibwrapper.o: $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.c $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< -c -o $@
 
 $(ZSTDLIBDIR)/libzstd.a:
 	$(MAKE) -C $(ZSTDLIBDIR) libzstd.a

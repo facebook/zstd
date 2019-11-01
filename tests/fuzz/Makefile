@@ -73,7 +73,8 @@ FUZZ_TARGETS :=       \
 	dictionary_round_trip \
 	dictionary_decompress \
 	zstd_frame_info \
-	simple_compress
+	simple_compress \
+	dict_loader
 
 all: $(FUZZ_TARGETS)
 
@@ -109,6 +110,9 @@ simple_compress: $(FUZZ_HEADERS) $(FUZZ_OBJ) simple_compress.o
 
 zstd_frame_info: $(FUZZ_HEADERS) $(FUZZ_OBJ) zstd_frame_info.o
 	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_OBJ) zstd_frame_info.o $(LIB_FUZZING_ENGINE) -o $@
+
+dictionary_loader: $(FUZZ_HEADERS) $(FUZZ_OBJ) dictionary_loader.o
+	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_OBJ) dictionary_loader.o $(LIB_FUZZING_ENGINE) -o $@
 
 libregression.a: $(FUZZ_HEADERS) $(PRGDIR)/util.h $(PRGDIR)/util.c regression_driver.o
 	$(AR) $(FUZZ_ARFLAGS) $@ regression_driver.o

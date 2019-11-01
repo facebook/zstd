@@ -74,7 +74,7 @@ FUZZ_TARGETS :=       \
 	dictionary_decompress \
 	zstd_frame_info \
 	simple_compress \
-	dict_loader
+	dictionary_loader
 
 all: $(FUZZ_TARGETS)
 

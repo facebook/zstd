@@ -1137,7 +1137,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         size_t* const samplesSizes = (size_t*) malloc(nbSamples * sizeof(size_t));
         size_t dictSize;
         U32 dictID;
-        U32 dictHeaderSize;
+        size_t dictHeaderSize;
 
         if (dictBuffer==NULL || samplesSizes==NULL) {
             free(dictBuffer);

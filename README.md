@@ -43,7 +43,7 @@ on the [Silesia compression corpus].
 
 | Compressor name         | Ratio | Compression| Decompress.|
 | ---------------         | ------| -----------| ---------- |
-| **zstd 1.4.0 -1**       | 2.884 |   530 MB/s |  1360 MB/s |
+| **zstd 1.4.4 -1**       | 2.884 |   520 MB/s |  1600 MB/s |
 | zlib 1.2.11 -1          | 2.743 |   110 MB/s |   440 MB/s |
 | brotli 1.0.7 -0         | 2.701 |   430 MB/s |   470 MB/s |
 | quicklz 1.5.0 -1        | 2.238 |   600 MB/s |   800 MB/s |

@@ -104,10 +104,11 @@ size_t ZDICT_getDictHeaderSize(const void* dictBuffer, size_t dictSize)
 {
     if (dictSize <= 8 || MEM_readLE32(dictBuffer) != ZSTD_MAGIC_DICTIONARY) return 0;
 
-    {   ZSTD_entropyDTables_t dummyEntropyTables;
-        size_t headerSize;
-        dummyEntropyTables.hufTable[0] = (HUF_DTable)((HufLog)*0x1000001);
-        headerSize = ZSTD_loadDEntropy(&dummyEntropyTables, dictBuffer, dictSize);
+    {   size_t headerSize;
+        ZSTD_entropyDTables_t* dummyEntropyTables = (ZSTD_entropyDTables_t*)malloc(sizeof(ZSTD_entropyDTables_t));
+        dummyEntropyTables->hufTable[0] = (HUF_DTable)((HufLog)*0x1000001);
+        headerSize = ZSTD_loadDEntropy(dummyEntropyTables, dictBuffer, dictSize);
+        free(dummyEntropyTables);
         return ZSTD_isError(headerSize) ? 0 : headerSize;
     }
 }

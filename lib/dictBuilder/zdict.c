@@ -106,6 +106,9 @@ size_t ZDICT_getDictHeaderSize(const void* dictBuffer, size_t dictSize)
 
     {   size_t headerSize;
         ZSTD_entropyDTables_t* dummyEntropyTables = (ZSTD_entropyDTables_t*)malloc(sizeof(ZSTD_entropyDTables_t));
+        if (!dummyEntropyTables) {
+            return 0;
+        }
         dummyEntropyTables->hufTable[0] = (HUF_DTable)((HufLog)*0x1000001);
         headerSize = ZSTD_loadDEntropy(dummyEntropyTables, dictBuffer, dictSize);
         free(dummyEntropyTables);

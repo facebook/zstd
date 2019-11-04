@@ -27,6 +27,7 @@ def abs_join(a, *p):
 class InputType(object):
     RAW_DATA = 1
     COMPRESSED_DATA = 2
+    DICTIONARY_DATA = 3
 
 
 class FrameType(object):
@@ -54,6 +55,7 @@ TARGET_INFO = {
     'dictionary_decompress': TargetInfo(InputType.COMPRESSED_DATA),
     'zstd_frame_info': TargetInfo(InputType.COMPRESSED_DATA),
     'simple_compress': TargetInfo(InputType.RAW_DATA),
+    'dictionary_loader': TargetInfo(InputType.DICTIONARY_DATA),
 }
 TARGETS = list(TARGET_INFO.keys())
 ALL_TARGETS = TARGETS + ['all']
@@ -73,6 +75,7 @@ LIB_FUZZING_ENGINE = os.environ.get('LIB_FUZZING_ENGINE', 'libregression.a')
 AFL_FUZZ = os.environ.get('AFL_FUZZ', 'afl-fuzz')
 DECODECORPUS = os.environ.get('DECODECORPUS',
                               abs_join(FUZZ_DIR, '..', 'decodecorpus'))
+ZSTD = os.environ.get('ZSTD', abs_join(FUZZ_DIR, '..', '..', 'zstd'))
 
 # Sanitizer environment variables
 MSAN_EXTRA_CPPFLAGS = os.environ.get('MSAN_EXTRA_CPPFLAGS', '')
@@ -674,6 +677,11 @@ def gen_parser(args):
         help="decodecorpus binary (default: $DECODECORPUS='{}')".format(
             DECODECORPUS))
     parser.add_argument(
+        '--zstd',
+        type=str,
+        default=ZSTD,
+        help="zstd binary (default: $ZSTD='{}')".format(ZSTD))
+    parser.add_argument(
         '--fuzz-rng-seed-size',
         type=int,
         default=4,
@@ -707,46 +715,66 @@ def gen(args):
         return 1
 
     seed = create(args.seed)
-    with tmpdir() as compressed:
-        with tmpdir() as decompressed:
-            cmd = [
-                args.decodecorpus,
-                '-n{}'.format(args.number),
-                '-p{}/'.format(compressed),
-                '-o{}'.format(decompressed),
+    with tmpdir() as compressed, tmpdir() as decompressed, tmpdir() as dict:
+        info = TARGET_INFO[args.TARGET]
+
+        if info.input_type == InputType.DICTIONARY_DATA:
+            number = max(args.number, 1000)
+        else:
+            number = args.number
+        cmd = [
+            args.decodecorpus,
+            '-n{}'.format(args.number),
+            '-p{}/'.format(compressed),
+            '-o{}'.format(decompressed),
+        ]
+
+        if info.frame_type == FrameType.BLOCK:
+            cmd += [
+                '--gen-blocks',
+                '--max-block-size-log={}'.format(min(args.max_size_log, 17))
             ]
+        else:
+            cmd += ['--max-content-size-log={}'.format(args.max_size_log)]
 
-            info = TARGET_INFO[args.TARGET]
-            if info.frame_type == FrameType.BLOCK:
-                cmd += [
-                    '--gen-blocks',
-                    '--max-block-size-log={}'.format(min(args.max_size_log, 17))
+        print(' '.join(cmd))
+        subprocess.check_call(cmd)
+
+        if info.input_type == InputType.RAW_DATA:
+            print('using decompressed data in {}'.format(decompressed))
+            samples = decompressed
+        elif info.input_type == InputType.COMPRESSED_DATA:
+            print('using compressed data in {}'.format(compressed))
+            samples = compressed
+        else:
+            assert info.input_type == InputType.DICTIONARY_DATA
+            print('making dictionary data from {}'.format(decompressed))
+            samples = dict
+            min_dict_size_log = 9
+            max_dict_size_log = max(min_dict_size_log + 1, args.max_size_log)
+            for dict_size_log in range(min_dict_size_log, max_dict_size_log):
+                dict_size = 1 << dict_size_log
+                cmd = [
+                    args.zstd,
+                    '--train',
+                    '-r', decompressed,
+                    '--maxdict={}'.format(dict_size),
+                    '-o', abs_join(dict, '{}.zstd-dict'.format(dict_size))
                 ]
-            else:
-                cmd += ['--max-content-size-log={}'.format(args.max_size_log)]
+                print(' '.join(cmd))
+                subprocess.check_call(cmd)
 
-            print(' '.join(cmd))
-            subprocess.check_call(cmd)
-
-            if info.input_type == InputType.RAW_DATA:
-                print('using decompressed data in {}'.format(decompressed))
-                samples = decompressed
-            else:
-                assert info.input_type == InputType.COMPRESSED_DATA
-                print('using compressed data in {}'.format(compressed))
-                samples = compressed
-
-            # Copy the samples over and prepend the RNG seeds
-            for name in os.listdir(samples):
-                samplename = abs_join(samples, name)
-                outname = abs_join(seed, name)
-                with open(samplename, 'rb') as sample:
-                    with open(outname, 'wb') as out:
-                        CHUNK_SIZE = 131072
+        # Copy the samples over and prepend the RNG seeds
+        for name in os.listdir(samples):
+            samplename = abs_join(samples, name)
+            outname = abs_join(seed, name)
+            with open(samplename, 'rb') as sample:
+                with open(outname, 'wb') as out:
+                    CHUNK_SIZE = 131072
+                    chunk = sample.read(CHUNK_SIZE)
+                    while len(chunk) > 0:
+                        out.write(chunk)
                         chunk = sample.read(CHUNK_SIZE)
-                        while len(chunk) > 0:
-                            out.write(chunk)
-                            chunk = sample.read(CHUNK_SIZE)
     return 0
 
 

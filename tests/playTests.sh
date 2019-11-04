@@ -215,6 +215,37 @@ $ZSTD tmp -c --compress-literals    -19      | $ZSTD -t
 $ZSTD -b --fast=1 -i0e1 tmp --compress-literals
 $ZSTD -b --fast=1 -i0e1 tmp --no-compress-literals
 
+println "test: --exclude-compressed flag"
+rm -rf precompressedFilterTestDir
+mkdir -p precompressedFilterTestDir
+./datagen $size > precompressedFilterTestDir/input.5
+./datagen $size > precompressedFilterTestDir/input.6
+$ZSTD --exclude-compressed --long --rm -r precompressedFilterTestDir
+sleep 5
+./datagen $size > precompressedFilterTestDir/input.7
+./datagen $size > precompressedFilterTestDir/input.8
+$ZSTD --exclude-compressed --long --rm -r precompressedFilterTestDir
+test ! -f precompressedFilterTestDir/input.5.zst.zst
+test ! -f precompressedFilterTestDir/input.6.zst.zst
+file1timestamp=`date -r precompressedFilterTestDir/input.5.zst +%s`
+file2timestamp=`date -r precompressedFilterTestDir/input.7.zst +%s`
+if [[ $file2timestamp -ge $file1timestamp ]]; then
+  println "Test is successful. input.5.zst is precompressed and therefore not compressed/modified again."
+else
+  println "Test is not successful"
+fi
+#File Extension check.
+./datagen $size > precompressedFilterTestDir/input.zstbar
+$ZSTD --exclude-compressed --long --rm -r precompressedFilterTestDir
+#ZSTD should compress input.zstbar
+test -f precompressedFilterTestDir/input.zstbar.zst
+#Check without the --exclude-compressed flag
+$ZSTD --long --rm -r precompressedFilterTestDir
+#Files should get compressed again without the --exclude-compressed flag.
+test -f precompressedFilterTestDir/input.5.zst.zst
+test -f precompressedFilterTestDir/input.6.zst.zst
+println "Test completed"
+
 println "test : file removal"
 $ZSTD -f --rm tmp
 test ! -f tmp  # tmp should no longer be present
@@ -845,6 +876,46 @@ if [ $LZ4MODE -ne 1 ]; then
     grep ".lz4" tmplg > $INTOVOID && die "Unsupported suffix listed"
 fi
 
+println "\n===>  tar extension tests "
+
+rm -f tmp tmp.tar tmp.tzst tmp.tgz tmp.txz tmp.tlz4
+
+./datagen > tmp
+tar cf tmp.tar tmp
+$ZSTD tmp.tar -o tmp.tzst
+rm tmp.tar
+$ZSTD -d tmp.tzst
+[ -e tmp.tar ] || die ".tzst failed to decompress to .tar!"
+rm -f tmp.tar tmp.tzst
+
+if [ $GZIPMODE -eq 1 ]; then
+    tar czf tmp.tgz tmp
+    $ZSTD -d tmp.tgz
+    [ -e tmp.tar ] || die ".tgz failed to decompress to .tar!"
+    rm -f tmp.tar tmp.tgz
+fi
+
+if [ $LZMAMODE -eq 1 ]; then
+    tar c tmp | $ZSTD --format=xz > tmp.txz
+    $ZSTD -d tmp.txz
+    [ -e tmp.tar ] || die ".txz failed to decompress to .tar!"
+    rm -f tmp.tar tmp.txz
+fi
+
+if [ $LZ4MODE -eq 1 ]; then
+    tar c tmp | $ZSTD --format=lz4 > tmp.tlz4
+    $ZSTD -d tmp.tlz4
+    [ -e tmp.tar ] || die ".tlz4 failed to decompress to .tar!"
+    rm -f tmp.tar tmp.tlz4
+fi
+
+touch tmp.t tmp.tz tmp.tzs
+! $ZSTD -d tmp.t
+! $ZSTD -d tmp.tz
+! $ZSTD -d tmp.tzs
+
+exit
+
 println "\n===>  zstd round-trip tests "
 
 roundTripTest
@@ -1098,5 +1169,19 @@ $ZSTD --train-cover "$TESTDIR"/*.c "$PRGDIR"/*.c
 test -f dictionary
 rm -f tmp* dictionary
 
+
+if [ "$isWindows" = false ] ; then
+
+println "\n===>  zstd fifo named pipe test "
+head -c 10 /dev/zero > tmp_original
+mkfifo named_pipe
+head -c 10 /dev/zero > named_pipe &
+$ZSTD named_pipe -o tmp_compressed
+$ZSTD -d -o tmp_decompressed tmp_compressed
+$DIFF -s tmp_original tmp_decompressed
+rm -rf tmp*
+rm -rf named_pipe
+
+fi
 
 rm -f tmp*

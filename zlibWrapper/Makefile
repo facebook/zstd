@@ -103,6 +103,7 @@ zstd_zlibwrapper.o: $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.c $(ZLIBWRAPPER_PATH)/z
 
 zstdTurnedOn_zlibwrapper.o: CPPFLAGS += -DZWRAP_USE_ZSTD=1
 zstdTurnedOn_zlibwrapper.o: $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.c $(ZLIBWRAPPER_PATH)/zstd_zlibwrapper.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< -c -o $@
 
 $(ZSTDLIBDIR)/libzstd.a:
 	$(MAKE) -C $(ZSTDLIBDIR) libzstd.a

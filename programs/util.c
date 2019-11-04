@@ -126,6 +126,21 @@ int UTIL_isSameFile(const char* fName1, const char* fName2)
 #endif
 }
 
+#ifndef _MSC_VER
+/* Using this to distinguish named pipes */
+U32 UTIL_isFIFO(const char* infilename)
+{
+/* macro guards, as defined in : https://linux.die.net/man/2/lstat */
+#if PLATFORM_POSIX_VERSION >= 200112L
+    stat_t statbuf;
+    int r = UTIL_getFileStat(infilename, &statbuf);
+    if (!r && S_ISFIFO(statbuf.st_mode)) return 1;
+#endif
+    (void)infilename;
+    return 0;
+}
+#endif
+
 U32 UTIL_isLink(const char* infilename)
 {
 /* macro guards, as defined in : https://linux.die.net/man/2/lstat */
@@ -312,6 +327,27 @@ int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char
 }
 
 #endif /* #ifdef _WIN32 */
+
+int UTIL_isCompressedFile(const char *inputName, const char *extensionList[])
+{
+  const char* ext = UTIL_getFileExtension(inputName);
+  while(*extensionList!=NULL)
+  {
+    const int isCompressedExtension = strcmp(ext,*extensionList);
+    if(isCompressedExtension==0)
+      return 1;
+    ++extensionList;
+  }
+   return 0;
+}
+
+/*Utility function to get file extension from file */
+const char* UTIL_getFileExtension(const char* infilename)
+{
+   const char* extension = strrchr(infilename, '.');
+   if(!extension || extension==infilename) return "";
+   return extension;
+}
 
 /*
  * UTIL_createFileList - takes a list of files and directories (params: inputNames, inputNamesNb), scans directories,

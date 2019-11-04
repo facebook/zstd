@@ -319,6 +319,8 @@ struct FIO_prefs_s {
     /* Computation resources preferences */
     unsigned memLimit;
     int nbWorkers;
+
+    int excludeCompressedFiles;
 };
 
 
@@ -359,6 +361,7 @@ FIO_prefs_t* FIO_createPreferences(void)
     ret->srcSizeHint = 0;
     ret->testMode = 0;
     ret->literalCompressionMode = ZSTD_lcm_auto;
+    ret->excludeCompressedFiles = 0;
     return ret;
 }
 
@@ -401,6 +404,8 @@ void FIO_setNbWorkers(FIO_prefs_t* const prefs, int nbWorkers) {
 #endif
     prefs->nbWorkers = nbWorkers;
 }
+
+void FIO_setExcludeCompressedFile(FIO_prefs_t* const prefs, int excludeCompressedFiles) { prefs->excludeCompressedFiles = excludeCompressedFiles; }
 
 void FIO_setBlockSize(FIO_prefs_t* const prefs, int blockSize) {
     if (blockSize && prefs->nbWorkers==0)
@@ -520,7 +525,11 @@ static FILE* FIO_openSrcFile(const char* srcFileName)
         return NULL;
     }
 
-    if (!UTIL_isRegularFile(srcFileName)) {
+    if (!UTIL_isRegularFile(srcFileName)
+#ifndef _MSC_VER
+        && !UTIL_isFIFO(srcFileName)
+#endif /* _MSC_VER */
+    ) {
         DISPLAYLEVEL(1, "zstd: %s is not a regular file -- ignored \n",
                         srcFileName);
         return NULL;
@@ -1425,6 +1434,21 @@ static int FIO_compressFilename_dstFile(FIO_prefs_t* const prefs,
     return result;
 }
 
+/* List used to compare file extensions (used with --exclude-compressed flag)
+* Different from the suffixList and should only apply to ZSTD compress operationResult
+*/
+static const char *compressedFileExtensions[] = {
+    ZSTD_EXTENSION,
+    TZSTD_EXTENSION,
+    GZ_EXTENSION,
+    TGZ_EXTENSION,
+    LZMA_EXTENSION,
+    XZ_EXTENSION,
+    TXZ_EXTENSION,
+    LZ4_EXTENSION,
+    TLZ4_EXTENSION,
+    NULL
+};
 
 /*! FIO_compressFilename_srcFile() :
  *  @return : 0 : compression completed correctly,
@@ -1449,6 +1473,15 @@ FIO_compressFilename_srcFile(FIO_prefs_t* const prefs,
     if (ress.dictFileName != NULL && UTIL_isSameFile(srcFileName, ress.dictFileName)) {
         DISPLAYLEVEL(1, "zstd: cannot use %s as an input file and dictionary \n", srcFileName);
         return 1;
+    }
+
+    /* Check if "srcFile" is compressed. Only done if --exclude-compressed flag is used
+    * YES => ZSTD will skip compression of the file and will return 0.
+    * NO => ZSTD will resume with compress operation.
+    */
+    if (prefs->excludeCompressedFiles == 1 && UTIL_isCompressedFile(srcFileName, compressedFileExtensions)) {
+        DISPLAYLEVEL(4, "File is already compressed : %s \n", srcFileName);
+        return 0;
     }
 
     ress.srcFile = FIO_openSrcFile(srcFileName);
@@ -1496,17 +1529,17 @@ FIO_determineCompressedName(const char* srcFileName, const char* outDirName, con
     static char* dstFileNameBuffer = NULL;   /* using static allocation : this function cannot be multi-threaded */
     char* outDirFilename = NULL;
     size_t sfnSize = strlen(srcFileName);
-    size_t const suffixSize = strlen(suffix);
+    size_t const srcSuffixLen = strlen(suffix);
     if (outDirName) {
-        outDirFilename = FIO_createFilename_fromOutDir(srcFileName, outDirName, suffixSize);
+        outDirFilename = FIO_createFilename_fromOutDir(srcFileName, outDirName, srcSuffixLen);
         sfnSize = strlen(outDirFilename);
         assert(outDirFilename != NULL);
     }
 
-    if (dfnbCapacity <= sfnSize+suffixSize+1) {
+    if (dfnbCapacity <= sfnSize+srcSuffixLen+1) {
         /* resize buffer for dstName */
         free(dstFileNameBuffer);
-        dfnbCapacity = sfnSize + suffixSize + 30;
+        dfnbCapacity = sfnSize + srcSuffixLen + 30;
         dstFileNameBuffer = (char*)malloc(dfnbCapacity);
         if (!dstFileNameBuffer) {
             EXM_THROW(30, "zstd: %s", strerror(errno));
@@ -1520,7 +1553,7 @@ FIO_determineCompressedName(const char* srcFileName, const char* outDirName, con
     } else {
         memcpy(dstFileNameBuffer, srcFileName, sfnSize);
     }
-    memcpy(dstFileNameBuffer+sfnSize, suffix, suffixSize+1 /* Include terminating null */);
+    memcpy(dstFileNameBuffer+sfnSize, suffix, srcSuffixLen+1 /* Include terminating null */);
     return dstFileNameBuffer;
 }
 
@@ -2287,6 +2320,37 @@ int FIO_decompressFilename(FIO_prefs_t* const prefs,
     return decodingError;
 }
 
+static const char *suffixList[] = {
+    ZSTD_EXTENSION,
+    TZSTD_EXTENSION,
+#ifdef ZSTD_GZDECOMPRESS
+    GZ_EXTENSION,
+    TGZ_EXTENSION,
+#endif
+#ifdef ZSTD_LZMADECOMPRESS
+    LZMA_EXTENSION,
+    XZ_EXTENSION,
+    TXZ_EXTENSION,
+#endif
+#ifdef ZSTD_LZ4DECOMPRESS
+    LZ4_EXTENSION,
+    TLZ4_EXTENSION,
+#endif
+    NULL
+};
+
+static const char *suffixListStr =
+    ZSTD_EXTENSION "/" TZSTD_EXTENSION
+#ifdef ZSTD_GZDECOMPRESS
+    "/" GZ_EXTENSION "/" TGZ_EXTENSION
+#endif
+#ifdef ZSTD_LZMADECOMPRESS
+    "/" LZMA_EXTENSION "/" XZ_EXTENSION "/" TXZ_EXTENSION
+#endif
+#ifdef ZSTD_LZ4DECOMPRESS
+    "/" LZ4_EXTENSION "/" TLZ4_EXTENSION
+#endif
+;
 
 /* FIO_determineDstName() :
  * create a destination filename from a srcFileName.
@@ -2297,71 +2361,78 @@ FIO_determineDstName(const char* srcFileName, const char* outDirName)
 {
     static size_t dfnbCapacity = 0;
     static char* dstFileNameBuffer = NULL;   /* using static allocation : this function cannot be multi-threaded */
+    size_t dstFileNameEndPos;
     char* outDirFilename = NULL;
+    const char* dstSuffix = "";
+    size_t dstSuffixLen = 0;
+
     size_t sfnSize = strlen(srcFileName);
-    size_t suffixSize;
 
-    const char* const suffixPtr = strrchr(srcFileName, '.');
-    if (suffixPtr == NULL) {
-        DISPLAYLEVEL(1, "zstd: %s: unknown suffix -- ignored \n",
-                        srcFileName);
+    size_t srcSuffixLen;
+    const char* const srcSuffix = strrchr(srcFileName, '.');
+    if (srcSuffix == NULL) {
+        DISPLAYLEVEL(1,
+            "zstd: %s: unknown suffix (%s expected). "
+            "Can't derive the output file name. "
+            "Specify it with -o dstFileName. Ignoring.\n",
+            srcFileName, suffixListStr);
         return NULL;
     }
-    suffixSize = strlen(suffixPtr);
+    srcSuffixLen = strlen(srcSuffix);
 
-    /* check suffix is authorized */
-    if (sfnSize <= suffixSize
-        || (   strcmp(suffixPtr, ZSTD_EXTENSION)
-        #ifdef ZSTD_GZDECOMPRESS
-            && strcmp(suffixPtr, GZ_EXTENSION)
-        #endif
-        #ifdef ZSTD_LZMADECOMPRESS
-            && strcmp(suffixPtr, XZ_EXTENSION)
-            && strcmp(suffixPtr, LZMA_EXTENSION)
-        #endif
-        #ifdef ZSTD_LZ4DECOMPRESS
-            && strcmp(suffixPtr, LZ4_EXTENSION)
-        #endif
-            ) ) {
-        const char* suffixlist = ZSTD_EXTENSION
-        #ifdef ZSTD_GZDECOMPRESS
-            "/" GZ_EXTENSION
-        #endif
-        #ifdef ZSTD_LZMADECOMPRESS
-            "/" XZ_EXTENSION "/" LZMA_EXTENSION
-        #endif
-        #ifdef ZSTD_LZ4DECOMPRESS
-            "/" LZ4_EXTENSION
-        #endif
-        ;
-        DISPLAYLEVEL(1, "zstd: %s: unknown suffix (%s expected) -- ignored \n",
-                     srcFileName, suffixlist);
-        return NULL;
+    {
+        const char** matchedSuffixPtr;
+        for (matchedSuffixPtr = suffixList; *matchedSuffixPtr != NULL; matchedSuffixPtr++) {
+            if (!strcmp(*matchedSuffixPtr, srcSuffix)) {
+                break;
+            }
+        }
+
+        /* check suffix is authorized */
+        if (sfnSize <= srcSuffixLen || *matchedSuffixPtr == NULL) {
+            DISPLAYLEVEL(1,
+                "zstd: %s: unknown suffix (%s expected). "
+                "Can't derive the output file name. "
+                "Specify it with -o dstFileName. Ignoring.\n",
+                srcFileName, suffixListStr);
+            return NULL;
+        }
+
+        if ((*matchedSuffixPtr)[1] == 't') {
+            dstSuffix = ".tar";
+            dstSuffixLen = strlen(dstSuffix);
+        }
     }
+
     if (outDirName) {
         outDirFilename = FIO_createFilename_fromOutDir(srcFileName, outDirName, 0);
         sfnSize = strlen(outDirFilename);
         assert(outDirFilename != NULL);
     }
 
-    if (dfnbCapacity+suffixSize <= sfnSize+1) {
+    if (dfnbCapacity+srcSuffixLen <= sfnSize+1+dstSuffixLen) {
         /* allocate enough space to write dstFilename into it */
         free(dstFileNameBuffer);
         dfnbCapacity = sfnSize + 20;
         dstFileNameBuffer = (char*)malloc(dfnbCapacity);
         if (dstFileNameBuffer==NULL)
-            EXM_THROW(74, "%s : not enough memory for dstFileName", strerror(errno));
+            EXM_THROW(74, "%s : not enough memory for dstFileName",
+                      strerror(errno));
     }
 
     /* return dst name == src name truncated from suffix */
     assert(dstFileNameBuffer != NULL);
+    dstFileNameEndPos = sfnSize - srcSuffixLen;
     if (outDirFilename) {
-        memcpy(dstFileNameBuffer, outDirFilename, sfnSize - suffixSize);
+        memcpy(dstFileNameBuffer, outDirFilename, dstFileNameEndPos);
         free(outDirFilename);
     } else {
-        memcpy(dstFileNameBuffer, srcFileName, sfnSize - suffixSize);
+        memcpy(dstFileNameBuffer, srcFileName, dstFileNameEndPos);
     }
-    dstFileNameBuffer[sfnSize-suffixSize] = '\0';
+
+    /* The short tar extensions tzst, tgz, txz and tlz4 files should have "tar"
+     * extension on decompression. Also writes terminating null. */
+    strcpy(dstFileNameBuffer + dstFileNameEndPos, dstSuffix);
     return dstFileNameBuffer;
 
     /* note : dstFileNameBuffer memory is not going to be free */

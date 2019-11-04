@@ -30,11 +30,23 @@ extern "C" {
 #else
 #  define nulmark "/dev/null"
 #endif
+
+/**
+ * We test whether the extension we found starts with 't', and if so, we append
+ * ".tar" to the end of the output name.
+ */
 #define LZMA_EXTENSION  ".lzma"
 #define XZ_EXTENSION    ".xz"
+#define TXZ_EXTENSION   ".txz"
+
 #define GZ_EXTENSION    ".gz"
+#define TGZ_EXTENSION   ".tgz"
+
 #define ZSTD_EXTENSION  ".zst"
+#define TZSTD_EXTENSION ".tzst"
+
 #define LZ4_EXTENSION   ".lz4"
+#define TLZ4_EXTENSION  ".tlz4"
 
 
 /*-*************************************
@@ -81,6 +93,7 @@ void FIO_setLiteralCompressionMode(
 
 void FIO_setNoProgress(unsigned noProgress);
 void FIO_setNotificationLevel(int level);
+void FIO_setExcludeCompressedFile(FIO_prefs_t* const prefs, int excludeCompressedFiles);
 
 /*-*************************************
 *  Single File functions

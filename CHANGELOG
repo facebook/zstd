@@ -1,8 +1,33 @@
+v1.4.4
+perf: Improved decompression speed, by > 10%, by @terrelln
+perf: Better compression speed when re-using a context, by @felixhandte
+perf: Fix compression ratio when compressing large files with small dictionary, by @senhuang42
+perf: zstd reference encoder can generate RLE blocks, by @bimbashrestha
+perf: minor generic speed optimization, by @davidbolvansky
+api: new ability to extract sequences from the parser for analysis, by @bimbashrestha
+api: fixed decoding of magic-less frames, by @terrelln
+api: fixed ZSTD_initCStream_advanced() performance with fast modes, reported by @QrczakMK
+cli: Named pipes support, by @bimbashrestha
+cli: short tar's extension support, by @stokito
+cli: command --output-dir-flat= , generates target files into requested directory, by @senhuang42
+cli: commands --stream-size=# and --size-hint=#, by @nmagerko
+cli: command --exclude-compressed, by @shashank0791
+cli: faster `-t` test mode
+cli: improved some error messages, by @vangyzen
+cli: rare deadlock condition within dictionary builder, by @terrelln
+build: single-file decoder with emscripten compilation script, by @cwoffenden
+build: fixed zlibWrapper compilation on Visual Studio, reported by @bluenlive
+build: fixed deprecation warning for certain gcc version, reported by @jasonma163
+build: fix compilation on old gcc versions, by @cemeyer
+build: improved installation directories for cmake script, by Dmitri Shubin
+pack: modified pkgconfig, for better integration into openwrt, requested by @neheb
+misc: Improved documentation : ZSTD_CLEVEL, DYNAMIC_BMI2, ZSTD_CDict, function deprecation, zstd format
+misc: fixed educational decoder : accept larger literals section, and removed UNALIGNED() macro
+
 v1.4.3
 bug: Fix Dictionary Compression Ratio Regression by @cyan4973 (#1709)
-bug: Fix Buffer Overflow in v0.3 Decompression by @felixhandte (#1722)
+bug: Fix Buffer Overflow in legacy v0.3 decompression by @felixhandte (#1722)
 build: Add support for IAR C/C++ Compiler for Arm by @joseph0918 (#1705)
-misc: Add NULL pointer check in util.c by @leeyoung624 (#1706)
 
 v1.4.2
 bug: Fix bug in zstd-0.5 decoder by @terrelln (#1696)

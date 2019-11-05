@@ -651,12 +651,15 @@ static size_t ZSTD_compressSubBlock_multi(const seqStore_t* seqStorePtr,
     litSize = 0;
     seqCount = 0;
     while (sp + seqCount < send) {
-        // TODO this is crude estimate for now...
-        // Ask Yann, Nick for feedback.
         const seqDef* const sequence = sp + seqCount;
         const U32 lastSequence = sequence+1 == send;
         litSize = (sequence == send) ? (size_t)(lend-lp) : litSize + sequence->litLength;
         seqCount++;
+        /* I think there is an optimization opportunity here.
+         * Calling ZSTD_estimateSubBlockSize for every sequence can be wasteful
+         * since it recalculates estimate from scratch.
+         * For example, it would recount literal distribution and symbol codes everytime. 
+         */
         cBlockSizeEstimate = ZSTD_estimateSubBlockSize(lp, litSize, ofCodePtr, llCodePtr, mlCodePtr, seqCount,
                                                        entropy, entropyMetadata,
                                                        workspace, wkspSize, writeEntropy);

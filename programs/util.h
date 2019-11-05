@@ -40,7 +40,6 @@ extern "C" {
 #include <time.h>         /* clock_t, clock, CLOCKS_PER_SEC, nanosleep */
 #include "mem.h"          /* U32, U64 */
 
-
 /*-************************************************************
 * Avoid fseek()'s 2GiB barrier with MSVC, macOS, *BSD, MinGW
 ***************************************************************/
@@ -135,8 +134,12 @@ U32 UTIL_isDirectory(const char* infilename);
 int UTIL_getFileStat(const char* infilename, stat_t* statbuf);
 int UTIL_isSameFile(const char* file1, const char* file2);
 int UTIL_compareStr(const void *p1, const void *p2);
+int UTIL_isCompressedFile(const char* infilename, const char *extensionList[]);
+const char* UTIL_getFileExtension(const char* infilename);
 
+#ifndef _MSC_VER
 U32 UTIL_isFIFO(const char* infilename);
+#endif
 U32 UTIL_isLink(const char* infilename);
 #define UTIL_FILESIZE_UNKNOWN  ((U64)(-1))
 U64 UTIL_getFileSize(const char* infilename);

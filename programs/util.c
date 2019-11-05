@@ -24,6 +24,11 @@ extern "C" {
 #include <direct.h>     /* needed for _mkdir in windows */
 #endif
 
+#if defined(__linux__) || (PLATFORM_POSIX_VERSION >= 200112L)  /* opendir, readdir require POSIX.1-2001 */
+#  include <dirent.h>       /* opendir, readdir */
+#  include <string.h>       /* strerror, memcpy */
+#endif /* #ifdef _WIN32 */
+
 
 /*-****************************************
 *  Internal Macros
@@ -38,6 +43,19 @@ extern "C" {
                           __FILE__, __LINE__, #c);   \
         exit(1);              \
 }   }
+
+
+/*
+ * A modified version of realloc().
+ * If UTIL_realloc() fails the original block is freed.
+ */
+UTIL_STATIC void* UTIL_realloc(void *ptr, size_t size)
+{
+    void *newptr = realloc(ptr, size);
+    if (newptr) return newptr;
+    free(ptr);
+    return NULL;
+}
 
 
 /*-****************************************
@@ -385,9 +403,9 @@ UTIL_concatenateTwoTables(FileNamesTable* table1, FileNamesTable* table2)
 }
 
 #ifdef _WIN32
-int UTIL_prepareFileList(const char* dirName,
-                         char** bufStart, size_t* pos,
-                         char** bufEnd, int followLinks)
+static int UTIL_prepareFileList(const char* dirName,
+                                char** bufStart, size_t* pos,
+                                char** bufEnd, int followLinks)
 {
     char* path;
     size_t dirLength, pathLength;
@@ -450,9 +468,9 @@ int UTIL_prepareFileList(const char* dirName,
 
 #elif defined(__linux__) || (PLATFORM_POSIX_VERSION >= 200112L)  /* opendir, readdir require POSIX.1-2001 */
 
-int UTIL_prepareFileList(const char *dirName,
-                         char** bufStart, size_t* pos,
-                         char** bufEnd, int followLinks)
+static int UTIL_prepareFileList(const char *dirName,
+                                char** bufStart, size_t* pos,
+                                char** bufEnd, int followLinks)
 {
     DIR* dir;
     struct dirent * entry;
@@ -518,7 +536,9 @@ int UTIL_prepareFileList(const char *dirName,
 
 #else
 
-int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd, int followLinks)
+static int UTIL_prepareFileList(const char *dirName,
+                                char** bufStart, size_t* pos,
+                                char** bufEnd, int followLinks)
 {
     (void)bufStart; (void)bufEnd; (void)pos; (void)followLinks;
     UTIL_DISPLAYLEVEL(1, "Directory %s ignored (compiled without _WIN32 or _POSIX_C_SOURCE)\n", dirName);
@@ -604,6 +624,12 @@ UTIL_createFileList(const char **inputNames, unsigned inputNamesNb,
     }
 }
 
+
+void UTIL_freeFileList(const char** filenameTable, char* allocatedBuffer)
+{
+    if (allocatedBuffer) free(allocatedBuffer);
+    if (filenameTable) free((void*)filenameTable);
+}
 
 
 

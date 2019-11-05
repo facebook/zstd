@@ -2580,7 +2580,7 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
             } else {
                 cSize = ZSTD_compressBlock_internal(cctx,
                                         op+ZSTD_blockHeaderSize, dstCapacity-ZSTD_blockHeaderSize,
-                                        ip, blockSize);
+                                        ip, blockSize, 0 /* frame */);
                 FORWARD_IF_ERROR(cSize);
 
                 if (cSize == 0) {  /* block is not compressible */

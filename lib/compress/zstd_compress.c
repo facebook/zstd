@@ -2771,7 +2771,7 @@ static size_t ZSTD_checkDictNCount(short* normalizedCounter, unsigned dictMaxSym
 /*! ZSTD_loadZstdDictionary() :
  * @return : dictID, or an error code
  *  assumptions : magic number supposed already checked
- *                dictSize supposed > 8
+ *                dictSize supposed >= 8
  */
 static size_t ZSTD_loadZstdDictionary(ZSTD_compressedBlockState_t* bs,
                                       ZSTD_matchState_t* ms,
@@ -2788,7 +2788,7 @@ static size_t ZSTD_loadZstdDictionary(ZSTD_compressedBlockState_t* bs,
     size_t dictID;
 
     ZSTD_STATIC_ASSERT(HUF_WORKSPACE_SIZE >= (1<<MAX(MLFSELog,LLFSELog)));
-    assert(dictSize > 8);
+    assert(dictSize >= 8);
     assert(MEM_readLE32(dictPtr) == ZSTD_MAGIC_DICTIONARY);
 
     dictPtr += 4;   /* skip magic number */
@@ -2890,7 +2890,10 @@ ZSTD_compress_insertDictionary(ZSTD_compressedBlockState_t* bs,
                                void* workspace)
 {
     DEBUGLOG(4, "ZSTD_compress_insertDictionary (dictSize=%u)", (U32)dictSize);
-    if ((dict==NULL) || (dictSize<=8)) return 0;
+    if ((dict==NULL) || (dictSize<8)) {
+        RETURN_ERROR_IF(dictContentType == ZSTD_dct_fullDict, dictionary_wrong);
+        return 0;
+    }
 
     ZSTD_reset_compressedBlockState(bs);
 
@@ -2934,6 +2937,7 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
       && (cdict->dictContentSize > 0)
       && ( pledgedSrcSize < ZSTD_USE_CDICT_PARAMS_SRCSIZE_CUTOFF
         || pledgedSrcSize < cdict->dictContentSize * ZSTD_USE_CDICT_PARAMS_DICTSIZE_MULTIPLIER
+        || pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN
         || cdict->compressionLevel == 0)
       && (params->attachDictPref != ZSTD_dictForceLoad) ) {
         return ZSTD_resetCCtx_usingCDict(cctx, cdict, params, pledgedSrcSize, zbuff);
@@ -2941,7 +2945,7 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
 
     FORWARD_IF_ERROR( ZSTD_resetCCtx_internal(cctx, *params, pledgedSrcSize,
                                      ZSTDcrp_makeClean, zbuff) );
-    {   size_t const dictID = cdict ? 
+    {   size_t const dictID = cdict ?
                 ZSTD_compress_insertDictionary(
                         cctx->blockState.prevCBlock, &cctx->blockState.matchState,
                         &cctx->workspace, params, cdict->dictContent, cdict->dictContentSize,
@@ -3218,7 +3222,7 @@ static size_t ZSTD_initCDict_internal(
         ZSTDirp_reset,
         ZSTD_resetTarget_CDict));
     /* (Maybe) load the dictionary
-     * Skips loading the dictionary if it is <= 8 bytes.
+     * Skips loading the dictionary if it is < 8 bytes.
      */
     {   ZSTD_CCtx_params params;
         memset(&params, 0, sizeof(params));
@@ -3381,6 +3385,7 @@ size_t ZSTD_compressBegin_usingCDict_advanced(
     {   ZSTD_CCtx_params params = cctx->requestedParams;
         params.cParams = ( pledgedSrcSize < ZSTD_USE_CDICT_PARAMS_SRCSIZE_CUTOFF
                         || pledgedSrcSize < cdict->dictContentSize * ZSTD_USE_CDICT_PARAMS_DICTSIZE_MULTIPLIER
+                        || pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN
                         || cdict->compressionLevel == 0 )
                       && (params.attachDictPref != ZSTD_dictForceLoad) ?
                 ZSTD_getCParamsFromCDict(cdict)

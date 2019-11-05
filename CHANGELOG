@@ -11,6 +11,7 @@ cli: Named pipes support, by @bimbashrestha
 cli: short tar's extension support, by @stokito
 cli: command --output-dir-flat= , generates target files into requested directory, by @senhuang42
 cli: commands --stream-size=# and --size-hint=#, by @nmagerko
+cli: command --exclude-compressed, by @shashank0791
 cli: faster `-t` test mode
 cli: improved some error messages, by @vangyzen
 cli: rare deadlock condition within dictionary builder, by @terrelln

@@ -86,7 +86,7 @@ static size_t ZSTD_entropyCost(unsigned const* count, unsigned const max, size_t
  * Returns the cost in bits of encoding the distribution in count using ctable.
  * Returns an error if ctable cannot represent all the symbols in count.
  */
-static size_t ZSTD_fseBitCost(
+size_t ZSTD_fseBitCost(
     FSE_CTable const* ctable,
     unsigned const* count,
     unsigned const max)
@@ -117,8 +117,8 @@ static size_t ZSTD_fseBitCost(
  * table described by norm. The max symbol support by norm is assumed >= max.
  * norm must be valid for every symbol with non-zero probability in count.
  */
-static size_t ZSTD_crossEntropyCost(short const* norm, unsigned accuracyLog,
-                                    unsigned const* count, unsigned const max)
+size_t ZSTD_crossEntropyCost(short const* norm, unsigned accuracyLog,
+                             unsigned const* count, unsigned const max)
 {
     unsigned const shift = 8 - accuracyLog;
     size_t cost = 0;

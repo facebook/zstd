@@ -146,7 +146,20 @@ U64 UTIL_getFileSize(const char* infilename);
 
 U64 UTIL_getTotalFileSize(const char* const * fileNamesTable, unsigned nbFiles);
 
-/*Note: tableSize is denotes the total capacity of table*/
+
+/*-****************************************
+ *  Lists of Filenames
+ ******************************************/
+
+#ifdef _WIN32
+#  define UTIL_HAS_CREATEFILELIST
+#elif defined(__linux__) || (PLATFORM_POSIX_VERSION >= 200112L)  /* opendir, readdir require POSIX.1-2001 */
+#  define UTIL_HAS_CREATEFILELIST
+#else
+   /* do not define UTIL_HAS_CREATEFILELIST */
+#endif /* #ifdef _WIN32 */
+
+/*Note: tableSize denotes the total capacity of table*/
 typedef struct
 {
     const char** fileNames;
@@ -183,47 +196,28 @@ void UTIL_freeFileNamesTable(FileNamesTable* table);
 FileNamesTable*
 UTIL_concatenateTwoTables(FileNamesTable* table1, FileNamesTable* table2);
 
-/*
- * A modified version of realloc().
- * If UTIL_realloc() fails the original block is freed.
-*/
-UTIL_STATIC void* UTIL_realloc(void *ptr, size_t size)
-{
-    void *newptr = realloc(ptr, size);
-    if (newptr) return newptr;
-    free(ptr);
-    return NULL;
-}
-
-int UTIL_prepareFileList(const char* dirName, char** bufStart, size_t* pos, char** bufEnd, int followLinks);
-#ifdef _WIN32
-#  define UTIL_HAS_CREATEFILELIST
-#elif defined(__linux__) || (PLATFORM_POSIX_VERSION >= 200112L)  /* opendir, readdir require POSIX.1-2001 */
-#  define UTIL_HAS_CREATEFILELIST
-#  include <dirent.h>       /* opendir, readdir */
-#  include <string.h>       /* strerror, memcpy */
-#else
-#endif /* #ifdef _WIN32 */
 
 /*
  * UTIL_createFileList() :
- * takes a list of files and directories (params: inputNames, inputNamesNb), scans directories,
- * and returns a new list of files (params: return value, allocatedBuffer, allocatedNamesNb).
- * After finishing usage of the list the structures should be freed with UTIL_freeFileList(params: return value, allocatedBuffer)
- * In case of error UTIL_createFileList returns NULL and UTIL_freeFileList should not be called.
+ * takes a list of files and directories (@inputNames, @inputNamesNb),
+ * scans directories, and returns a new list of files (@return, @allocatedBuffer, @allocatedNamesNb).
+ * In case of error, UTIL_createFileList() returns NULL.
+ * After list's end of life, the structures should be freed with UTIL_freeFileList (@return, @allocatedBuffer).
  */
 const char**
 UTIL_createFileList(const char **inputNames, unsigned inputNamesNb,
                     char** allocatedBuffer, unsigned* allocatedNamesNb,
                     int followLinks);
 
-UTIL_STATIC void UTIL_freeFileList(const char** filenameTable, char* allocatedBuffer)
-{
-    if (allocatedBuffer) free(allocatedBuffer);
-    if (filenameTable) free((void*)filenameTable);
-}
+void UTIL_freeFileList(const char** filenameTable, char* allocatedBuffer);
+
+
+/*-****************************************
+ *  System
+ ******************************************/
 
 int UTIL_countPhysicalCores(void);
+
 
 #if defined (__cplusplus)
 }

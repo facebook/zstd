@@ -251,6 +251,34 @@ void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length, ZSTD_overlap_e 
 /*-*******************************************
 *  Private declarations
 *********************************************/
+/**
+ * ZSTD_seqSymbol, ZSTD_entropyDTables_t, ZSTD_loadDEntropy(), and SEQSYMBOL_TABLE_SIZE()
+ * are used by ZDICT_getDictHeaderSize() and various functions in zstd_decompress.h
+ */
+
+ typedef struct {
+     U16  nextState;
+     BYTE nbAdditionalBits;
+     BYTE nbBits;
+     U32  baseValue;
+ } ZSTD_seqSymbol;
+
+#define SEQSYMBOL_TABLE_SIZE(log)   (1 + (1 << (log)))
+
+typedef struct {
+    ZSTD_seqSymbol LLTable[SEQSYMBOL_TABLE_SIZE(LLFSELog)];    /* Note : Space reserved for FSE Tables */
+    ZSTD_seqSymbol OFTable[SEQSYMBOL_TABLE_SIZE(OffFSELog)];   /* is also used as temporary workspace while building hufTable during DDict creation */
+    ZSTD_seqSymbol MLTable[SEQSYMBOL_TABLE_SIZE(MLFSELog)];    /* and therefore must be at least HUF_DECOMPRESS_WORKSPACE_SIZE large */
+    HUF_DTable hufTable[HUF_DTABLE_SIZE(HufLog)];  /* can accommodate HUF_decompress4X */
+    U32 rep[ZSTD_REP_NUM];
+} ZSTD_entropyDTables_t;
+
+/*! ZSTD_loadDEntropy() :
+ *  dict : must point at beginning of a valid zstd dictionary.
+ * @return : size of entropy tables read (includes 8-byte magic number and dictionary ID) */
+size_t ZSTD_loadDEntropy(ZSTD_entropyDTables_t* entropy,
+                   const void* const dict, size_t const dictSize);
+
 typedef struct seqDef_s {
     U32 offset;
     U16 litLength;

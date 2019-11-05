@@ -48,7 +48,6 @@
 #  define ZDICT_STATIC_LINKING_ONLY
 #endif
 #include "zdict.h"
-#include "decompress/zstd_decompress_internal.h" /* ZSTD_entropyDTables_t */
 
 
 /*-*************************************
@@ -109,6 +108,7 @@ size_t ZDICT_getDictHeaderSize(const void* dictBuffer, size_t dictSize)
         if (!dummyEntropyTables) {
             return 0;
         }
+
         dummyEntropyTables->hufTable[0] = (HUF_DTable)((HufLog)*0x1000001);
         headerSize = ZSTD_loadDEntropy(dummyEntropyTables, dictBuffer, dictSize);
         free(dummyEntropyTables);

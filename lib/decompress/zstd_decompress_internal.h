@@ -64,23 +64,6 @@ static const U32 ML_base[MaxML+1] = {
      U32 tableLog;
  } ZSTD_seqSymbol_header;
 
- typedef struct {
-     U16  nextState;
-     BYTE nbAdditionalBits;
-     BYTE nbBits;
-     U32  baseValue;
- } ZSTD_seqSymbol;
-
- #define SEQSYMBOL_TABLE_SIZE(log)   (1 + (1 << (log)))
-
-typedef struct {
-    ZSTD_seqSymbol LLTable[SEQSYMBOL_TABLE_SIZE(LLFSELog)];    /* Note : Space reserved for FSE Tables */
-    ZSTD_seqSymbol OFTable[SEQSYMBOL_TABLE_SIZE(OffFSELog)];   /* is also used as temporary workspace while building hufTable during DDict creation */
-    ZSTD_seqSymbol MLTable[SEQSYMBOL_TABLE_SIZE(MLFSELog)];    /* and therefore must be at least HUF_DECOMPRESS_WORKSPACE_SIZE large */
-    HUF_DTable hufTable[HUF_DTABLE_SIZE(HufLog)];  /* can accommodate HUF_decompress4X */
-    U32 rep[ZSTD_REP_NUM];
-} ZSTD_entropyDTables_t;
-
 typedef enum { ZSTDds_getFrameHeaderSize, ZSTDds_decodeFrameHeader,
                ZSTDds_decodeBlockHeader, ZSTDds_decompressBlock,
                ZSTDds_decompressLastBlock, ZSTDds_checkChecksum,
@@ -157,12 +140,6 @@ struct ZSTD_DCtx_s
 /*-*******************************************************
  *  Shared internal functions
  *********************************************************/
-
-/*! ZSTD_loadDEntropy() :
- *  dict : must point at beginning of a valid zstd dictionary.
- * @return : size of entropy tables read */
-size_t ZSTD_loadDEntropy(ZSTD_entropyDTables_t* entropy,
-                   const void* const dict, size_t const dictSize);
 
 /*! ZSTD_checkContinuity() :
  *  check if next `dst` follows previous position, where decompression ended.

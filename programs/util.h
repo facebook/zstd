@@ -159,12 +159,12 @@ U64 UTIL_getTotalFileSize(const char* const * fileNamesTable, unsigned nbFiles);
    /* do not define UTIL_HAS_CREATEFILELIST */
 #endif /* #ifdef _WIN32 */
 
-/*Note: tableSize denotes the total capacity of table*/
 typedef struct
 {
     const char** fileNames;
-    char* buf;
-    size_t tableSize;
+    char* buf;            /* fileNames are stored in this buffer (or are read-only) */
+    size_t tableSize;     /* nb of fileNames */
+    size_t tableCapacity;
 } FileNamesTable;
 
 /*! UTIL_createFileNamesTable_fromFileName() :
@@ -183,7 +183,6 @@ UTIL_createFileNamesTable_fromFileName(const char* inputFileName);
 FileNamesTable*
 UTIL_createFileNamesTable(const char** filenames, size_t tableSize, char* buf);
 
-
 /*! UTIL_freeFileNamesTable() :
  *  This function is compatible with NULL argument and never fails.
  */
@@ -197,19 +196,31 @@ FileNamesTable*
 UTIL_concatenateTwoTables(FileNamesTable* table1, FileNamesTable* table2);
 
 
-/*
- * UTIL_createFileList() :
- * takes a list of files and directories (@inputNames, @inputNamesNb),
- * scans directories, and returns a new list of files (@return, @allocatedBuffer, @allocatedNamesNb).
- * In case of error, UTIL_createFileList() returns NULL.
- * After list's end of life, the structures should be freed with UTIL_freeFileList (@return, @allocatedBuffer).
+/*! UTIL_expandFileNamesTable() :
+ *  read names from @fnt, expand those corresponding to directories
+ * @return : an expanded FileNamesTable*, with only file names,
+ *        or NULL in case of error.
+ *  Note: the function takes ownership of fnt, and consumes it (free it)
  */
-const char**
-UTIL_createFileList(const char **inputNames, unsigned inputNamesNb,
-                    char** allocatedBuffer, unsigned* allocatedNamesNb,
-                    int followLinks);
+FileNamesTable* UTIL_expandFileNamesTable(FileNamesTable* fnt, int followLinks);
 
-void UTIL_freeFileList(const char** filenameTable, char* allocatedBuffer);
+
+/*! UTIL_allocateFileNamesTable() :
+ *  Allocates a table of const char*, to insert read-only names later on.
+ *  The created FileNamesTable* doesn't hold a buffer.
+ * @return : FileNamesTable*, or NULL, if allocation fails.
+ */
+FileNamesTable* UTIL_allocateFileNamesTable(size_t tableSize);
+
+
+/*! UTIL_refFilename() :
+ *  Add a read-only name to reference into @fnt table.
+ *  Since @filename is only referenced, its lifetime must outlive @fnt.
+ *  This function never fails, but it can abort().
+ *  Internal table must be large enough to reference a new member
+ *  (capacity > size), otherwise the function will abort().
+ */
+void UTIL_refFilename(FileNamesTable* fnt, const char* filename);
 
 
 /*-****************************************

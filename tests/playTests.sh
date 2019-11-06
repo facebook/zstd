@@ -274,7 +274,7 @@ test -f tmp.zst  # destination file should still be present
 rm -rf tmp*  # may also erase tmp* directory from previous failed run
 
 println "\n===> decompression only tests "
-head -c 1048576 /dev/zero > tmp
+dd bs=1 count=1048576 if=/dev/zero of=tmp
 $ZSTD -d -o tmp1 "$TESTDIR/golden-decompression/rle-first-block.zst"
 $DIFF -s tmp1 tmp
 rm tmp*
@@ -1173,9 +1173,9 @@ rm -f tmp* dictionary
 if [ "$isWindows" = false ] ; then
 
 println "\n===>  zstd fifo named pipe test "
-head -c 10 /dev/zero > tmp_original
+dd bs=1 count=10 if=/dev/zero of=tmp_original
 mkfifo named_pipe
-head -c 10 /dev/zero > named_pipe &
+dd bs=1 count=10 if=/dev/zero of=named_pipe &
 $ZSTD named_pipe -o tmp_compressed
 $ZSTD -d -o tmp_decompressed tmp_compressed
 $DIFF -s tmp_original tmp_decompressed

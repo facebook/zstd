@@ -32,8 +32,8 @@ int main(int argc, char const **argv) {
 #else
   files = UTIL_createFNT_fromROTable(fnTable, numFiles);
   if (!files) numFiles = 0;
+  assert(numFiles == files->tableSize);
 #endif
-  if (files) assert(numFiles == files->tableSize);
   if (numFiles == 0)
     fprintf(stderr, "WARNING: No files passed to %s\n", argv[0]);
   for (i = 0; i < numFiles; ++i) {

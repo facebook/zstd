@@ -339,8 +339,13 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
         return bounds;
 
     case ZSTD_c_overlapLog:
+#ifdef ZSTD_MULTITHREAD
         bounds.lowerBound = ZSTD_OVERLAPLOG_MIN;
         bounds.upperBound = ZSTD_OVERLAPLOG_MAX;
+#else
+        bounds.lowerBound = 0;
+        bounds.upperBound = 0;
+#endif
         return bounds;
 
     case ZSTD_c_enableLongDistanceMatching:

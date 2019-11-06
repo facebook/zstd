@@ -188,21 +188,28 @@ UTIL_createFileNamesTable(const char** filenames, size_t tableSize, char* buf);
  */
 void UTIL_freeFileNamesTable(FileNamesTable* table);
 
-/*! UTIL_concatenateTwoTables():
+/*! UTIL_mergeFileNamesTable():
  * @return : FileNamesTable*, concatenation of @table1 and @table2
  *  note: @table1 and @table2 are consumed (freed) by this operation
  */
 FileNamesTable*
-UTIL_concatenateTwoTables(FileNamesTable* table1, FileNamesTable* table2);
+UTIL_mergeFileNamesTable(FileNamesTable* table1, FileNamesTable* table2);
 
 
-/*! UTIL_expandFileNamesTable() :
- *  read names from @fnt, expand those corresponding to directories
- * @return : an expanded FileNamesTable*, with only file names,
- *        or NULL in case of error.
- *  Note: the function takes ownership of fnt, and consumes it (free it)
+/*! UTIL_expandFNT() :
+ *  read names from @fnt, and expand those corresponding to directories
+ *  update @fnt, now containing only file names,
+ * @return : 0 in case of success, 1 if error
+ *  note : in case of error, @fnt[0] is NULL
  */
-FileNamesTable* UTIL_expandFileNamesTable(FileNamesTable* fnt, int followLinks);
+void UTIL_expandFNT(FileNamesTable** fnt, int followLinks);
+
+/*! UTIL_createExpandedFNT() :
+ *  read names from @filenames, and expand those corresponding to directories
+ * @return : an expanded FileNamesTable*, where each name is a file
+ *        or NULL in case of error
+ */
+FileNamesTable* UTIL_createExpandedFNT(const char** filenames, size_t nbFilenames, int followLinks);
 
 
 /*! UTIL_allocateFileNamesTable() :

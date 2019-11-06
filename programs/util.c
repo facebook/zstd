@@ -642,6 +642,15 @@ void UTIL_expandFNT(FileNamesTable** fnt, int followLinks)
     *fnt = newFNT;
 }
 
+FileNamesTable* UTIL_createFNT_fromROTable(const char** filenames, size_t nbFilenames)
+{
+    size_t const sizeof_FNTable = nbFilenames * sizeof(*filenames);
+    const char** const newFNTable = (const char**)malloc(sizeof_FNTable);
+    if (newFNTable==NULL) return NULL;
+    memcpy(newFNTable, filenames, sizeof_FNTable);
+    return UTIL_createFileNamesTable(newFNTable, nbFilenames, NULL);
+}
+
 
 /*-****************************************
 *  count the number of physical cores

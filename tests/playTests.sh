@@ -92,6 +92,11 @@ case "$UNAME" in
   *) MD5SUM="md5sum" ;;
 esac
 
+MTIME="stat -c %Y"
+case "$UNAME" in
+    Darwin | FreeBSD | OpenBSD) MTIME="stat -f %m" ;;
+esac
+
 DIFF="diff"
 case "$UNAME" in
   SunOS) DIFF="gdiff" ;;
@@ -227,8 +232,8 @@ sleep 5
 $ZSTD --exclude-compressed --long --rm -r precompressedFilterTestDir
 test ! -f precompressedFilterTestDir/input.5.zst.zst
 test ! -f precompressedFilterTestDir/input.6.zst.zst
-file1timestamp=`date -r precompressedFilterTestDir/input.5.zst +%s`
-file2timestamp=`date -r precompressedFilterTestDir/input.7.zst +%s`
+file1timestamp=`$MTIME precompressedFilterTestDir/input.5.zst`
+file2timestamp=`$MTIME precompressedFilterTestDir/input.7.zst`
 if [[ $file2timestamp -ge $file1timestamp ]]; then
   println "Test is successful. input.5.zst is precompressed and therefore not compressed/modified again."
 else

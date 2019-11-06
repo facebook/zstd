@@ -158,7 +158,7 @@ default: zstd-release
 all: zstd
 
 .PHONY: allVariants
-allVariants: zstd zstd-compress zstd-decompress zstd-small zstd-nolegacy
+allVariants: zstd zstd-compress zstd-decompress zstd-small zstd-nolegacy zstd-dictBuilder
 
 $(ZSTDDECOMP_O): CFLAGS += $(ALIGN_LOOP)
 
@@ -231,6 +231,10 @@ zstd-decompress: $(ZSTDCOMMON_FILES) $(ZSTDDECOMP_FILES) zstdcli.c util.c timefn
 zstd-compress: $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) zstdcli.c util.c timefn.c fileio.c
 	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS $^ -o $@$(EXT)
 
+zstd-dictBuilder: CPPFLAGS += -DZSTD_NOBENCH -DZSTD_NODECOMPRESS
+zstd-dictBuilder: $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) $(ZDICT_FILES) zstdcli.c util.c timefn.c fileio.c dibio.c
+	$(CC) $(FLAGS) $^ -o $@$(EXT)
+
 zstdmt: zstd
 	ln -sf zstd zstdmt
 
@@ -245,7 +249,7 @@ clean:
 	@$(RM) core *.o tmp* result* *.gcda dictionary *.zst \
         zstd$(EXT) zstd32$(EXT) zstd-compress$(EXT) zstd-decompress$(EXT) \
         zstd-small$(EXT) zstd-frugal$(EXT) zstd-nolegacy$(EXT) zstd4$(EXT) \
-        *.gcda default.profraw have_zlib$(EXT)
+        zstd-dictBuilder$(EXT) *.gcda default.profraw have_zlib$(EXT)
 	@echo Cleaning completed
 
 MD2ROFF = ronn

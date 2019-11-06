@@ -647,7 +647,7 @@ FileNamesTable* UTIL_createFNT_fromROTable(const char** filenames, size_t nbFile
     size_t const sizeof_FNTable = nbFilenames * sizeof(*filenames);
     const char** const newFNTable = (const char**)malloc(sizeof_FNTable);
     if (newFNTable==NULL) return NULL;
-    memcpy(newFNTable, filenames, sizeof_FNTable);
+    memcpy((void*)newFNTable, filenames, sizeof_FNTable);  /* void* : mitigate a Visual compiler bug or limitation */
     return UTIL_createFileNamesTable(newFNTable, nbFilenames, NULL);
 }
 

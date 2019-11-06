@@ -1,5 +1,5 @@
 .
-.TH "ZSTD" "1" "October 2019" "zstd 1.4.4" "User Commands"
+.TH "ZSTD" "1" "November 2019" "zstd 1.4.4" "User Commands"
 .
 .SH "NAME"
 \fBzstd\fR \- zstd, zstdmt, unzstd, zstdcat \- Compress or decompress \.zst files
@@ -156,7 +156,7 @@ Note: If \fBwindowLog\fR is set to larger than 27, \fB\-\-long=windowLog\fR or \
 \fB\-r\fR: operate recursively on directories
 .
 .IP "\(bu" 4
-\fB\-\-filelist=FILE\fR read a list of files to process as content from \fBFILE\fR\. Format is compatible with \fBls\fR output, with one file per file\.
+\fB\-\-filelist=FILE\fR read a list of files to process as content from \fBFILE\fR\. Format is compatible with \fBls\fR output, with one file per line\.
 .
 .IP "\(bu" 4
 \fB\-\-output\-dir\-flat[=dir]\fR: resulting files are stored into target \fBdir\fR directory, instead of same directory as origin file\. Be aware that this command can introduce name collision issues, if multiple files, from different directories, end up having the same name\. Collision resolution ensures first file with a given name will be present in \fBdir\fR, while in combination with \fB\-f\fR, the last file will be present instead\.

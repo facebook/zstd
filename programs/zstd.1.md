@@ -193,7 +193,7 @@ the last one takes effect.
     operate recursively on directories
 * `--filelist=FILE`
     read a list of files to process as content from `FILE`.
-    Format is compatible with `ls` output, with one file per file.
+    Format is compatible with `ls` output, with one file per line.
 * `--output-dir-flat[=dir]`:
     resulting files are stored into target `dir` directory,
     instead of same directory as origin file.

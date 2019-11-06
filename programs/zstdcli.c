@@ -1029,12 +1029,12 @@ int main(int argCount, const char* argv[])
                 DISPLAYLEVEL(1, "zstd: error reading %s \n", file_of_names->fileNames[flNb]);
                 CLEAN_RETURN(1);
             }
-            filenames = UTIL_concatenateTwoTables(filenames, fnt);
+            filenames = UTIL_mergeFileNamesTable(filenames, fnt);
         }
     }
 
     if (recursive) {  /* at this stage, filenameTable is a list of paths, which can contain both files and directories */
-        filenames = UTIL_expandFileNamesTable(filenames, followLinks);
+        UTIL_expandFNT(&filenames, followLinks);
     }
 #else
     (void)followLinks;

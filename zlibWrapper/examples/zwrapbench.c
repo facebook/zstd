@@ -986,7 +986,7 @@ int main(int argCount, char** argv)
 
 #ifdef UTIL_HAS_CREATEFILELIST
     if (recursive) {
-        filenames = UTIL_expandFileNamesTable(filenames, 1);
+        UTIL_expandFNT(&filenames, 1);
     }
 #endif
 

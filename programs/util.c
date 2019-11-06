@@ -374,7 +374,7 @@ static size_t getTotalTableSize(FileNamesTable* table)
 }
 
 FileNamesTable*
-UTIL_concatenateTwoTables(FileNamesTable* table1, FileNamesTable* table2)
+UTIL_mergeFileNamesTable(FileNamesTable* table1, FileNamesTable* table2)
 {
     unsigned newTableIdx = 0;
     size_t pos = 0;
@@ -587,13 +587,11 @@ const char* UTIL_getFileExtension(const char* infilename)
 }
 
 
-static FileNamesTable*
-createFNT_fromFNT(FileNamesTable* fnt, int followLinks)
+FileNamesTable*
+UTIL_createExpandedFNT(const char** inputNames, size_t nbIfns, int followLinks)
 {
     size_t pos;
-    size_t const nbIfns = fnt->tableSize;
     unsigned nbFiles;
-    const char** const inputNames = fnt->fileNames;
     char* buf = (char*)malloc(LIST_SIZE_INCREASE);
     char* bufend = buf + LIST_SIZE_INCREASE;
 
@@ -637,12 +635,11 @@ createFNT_fromFNT(FileNamesTable* fnt, int followLinks)
 }
 
 
-FileNamesTable*
-UTIL_expandFileNamesTable(FileNamesTable* fnt, int followLinks)
+void UTIL_expandFNT(FileNamesTable** fnt, int followLinks)
 {
-    FileNamesTable* const newFNT = createFNT_fromFNT(fnt, followLinks);
-    UTIL_freeFileNamesTable(fnt);
-    return newFNT;
+    FileNamesTable* const newFNT = UTIL_createExpandedFNT((*fnt)->fileNames, (*fnt)->tableSize, followLinks);
+    UTIL_freeFileNamesTable(*fnt);
+    *fnt = newFNT;
 }
 
 

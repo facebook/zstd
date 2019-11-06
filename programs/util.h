@@ -204,6 +204,14 @@ UTIL_mergeFileNamesTable(FileNamesTable* table1, FileNamesTable* table2);
  */
 void UTIL_expandFNT(FileNamesTable** fnt, int followLinks);
 
+/*! UTIL_createFNT_fromROTable() :
+ *  copy the @filenames pointer table inside the returned object.
+ *  The names themselves are still stored in their original buffer, which must outlive the object.
+ * @return : a FileNamesTable* object,
+ *        or NULL in case of error
+ */
+FileNamesTable* UTIL_createFNT_fromROTable(const char** filenames, size_t nbFilenames);
+
 /*! UTIL_createExpandedFNT() :
  *  read names from @filenames, and expand those corresponding to directories
  * @return : an expanded FileNamesTable*, where each name is a file

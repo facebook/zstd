@@ -2775,6 +2775,10 @@ size_t ZSTD_loadCEntropy(ZSTD_compressedBlockState_t* bs, void* workspace,
     const BYTE* dictPtr = (const BYTE*)dict + 8;    /* skip magic num and dict ID */
     const BYTE* const dictEnd = dictPtr + dictSize;
 
+    ZSTD_STATIC_ASSERT(HUF_WORKSPACE_SIZE >= (1<<MAX(MLFSELog,LLFSELog)));
+    assert(dictSize >= 8);
+    assert(MEM_readLE32(dictPtr) == ZSTD_MAGIC_DICTIONARY);
+
     {   unsigned maxSymbolValue = 255;
         size_t const hufHeaderSize = HUF_readCTable((HUF_CElt*)bs->entropy.huf.CTable, &maxSymbolValue, dictPtr, dictEnd-dictPtr);
         RETURN_ERROR_IF(HUF_isError(hufHeaderSize), dictionary_corrupted);
@@ -2831,7 +2835,7 @@ size_t ZSTD_loadCEntropy(ZSTD_compressedBlockState_t* bs, void* workspace,
     bs->rep[1] = MEM_readLE32(dictPtr+4);
     bs->rep[2] = MEM_readLE32(dictPtr+8);
     dictPtr += 12;
-    DEBUGLOG(1, "size %u)", (unsigned)(dictPtr - (const BYTE*)dict));
+    
     return dictPtr - (const BYTE*)dict;
 }
 
@@ -2859,17 +2863,10 @@ static size_t ZSTD_loadZstdDictionary(ZSTD_compressedBlockState_t* bs,
     size_t dictID;
     size_t eSize;
 
-    ZSTD_STATIC_ASSERT(HUF_WORKSPACE_SIZE >= (1<<MAX(MLFSELog,LLFSELog)));
-    assert(dictSize > 8);
-    assert(MEM_readLE32(dictPtr) == ZSTD_MAGIC_DICTIONARY);
-
+    dictID = params->fParams.noDictIDFlag ? 0 :  MEM_readLE32(dictPtr + 4 /* skip magic number */ );
     eSize = ZSTD_loadCEntropy(bs, workspace, offcodeNCount, &offcodeMaxValue, dict, dictSize);
-
-    dictPtr += 4;   /* skip magic number */
-    dictID = params->fParams.noDictIDFlag ? 0 :  MEM_readLE32(dictPtr);
-    dictPtr += 4;
-
-    dictPtr += eSize - 8;
+    FORWARD_IF_ERROR(eSize);
+    dictPtr += eSize;
 
     {   size_t const dictContentSize = (size_t)(dictEnd - dictPtr);
         U32 offcodeMax = MaxOff;

@@ -106,15 +106,22 @@ size_t ZDICT_getDictHeaderSize(const void* dictBuffer, size_t dictSize)
 
     {   size_t headerSize;
         unsigned offcodeMaxValue = MaxOff;
-        ZSTD_compressedBlockState_t* dummyBs = (ZSTD_compressedBlockState_t*)malloc(sizeof(ZSTD_compressedBlockState_t));
+        ZSTD_compressedBlockState_t* bs = (ZSTD_compressedBlockState_t*)malloc(sizeof(ZSTD_compressedBlockState_t));
         U32* wksp = (U32*)malloc(HUF_WORKSPACE_SIZE);
         short* offcodeNCount = (short*)malloc((MaxOff+1)*sizeof(short));
-        if (!dummyBs || !wksp || !offcodeNCount) {
+        if (!bs || !wksp || !offcodeNCount) {
             return ERROR(memory_allocation);
         }
 
-        headerSize = ZSTD_loadCEntropy(dummyBs, wksp, offcodeNCount, &offcodeMaxValue, dictBuffer, dictSize);
-        free(dummyBs);
+        int i;
+        for (i = 0; i < ZSTD_REP_NUM; ++i)
+            bs->rep[i] = repStartValue[i];
+        bs->entropy.huf.repeatMode = HUF_repeat_none;
+        bs->entropy.fse.offcode_repeatMode = FSE_repeat_none;
+        bs->entropy.fse.matchlength_repeatMode = FSE_repeat_none;
+        bs->entropy.fse.litlength_repeatMode = FSE_repeat_none;
+        headerSize = ZSTD_loadCEntropy(bs, wksp, offcodeNCount, &offcodeMaxValue, dictBuffer, dictSize);
+        free(bs);
         free(wksp);
         free(offcodeNCount);
         return headerSize;

@@ -1248,7 +1248,7 @@ static void ZSTD_assertEqualCParams(ZSTD_compressionParameters cParams1,
     assert(cParams1.strategy     == cParams2.strategy);
 }
 
-static void ZSTD_reset_compressedBlockState(ZSTD_compressedBlockState_t* bs)
+void ZSTD_reset_compressedBlockState(ZSTD_compressedBlockState_t* bs)
 {
     int i;
     for (i = 0; i < ZSTD_REP_NUM; ++i)
@@ -2835,7 +2835,7 @@ size_t ZSTD_loadCEntropy(ZSTD_compressedBlockState_t* bs, void* workspace,
     bs->rep[1] = MEM_readLE32(dictPtr+4);
     bs->rep[2] = MEM_readLE32(dictPtr+8);
     dictPtr += 12;
-    
+
     return dictPtr - (const BYTE*)dict;
 }
 
@@ -2846,7 +2846,7 @@ size_t ZSTD_loadCEntropy(ZSTD_compressedBlockState_t* bs, void* workspace,
 /*! ZSTD_loadZstdDictionary() :
  * @return : dictID, or an error code
  *  assumptions : magic number supposed already checked
- *                dictSize supposed > 8
+ *                dictSize supposed >= 8
  */
 static size_t ZSTD_loadZstdDictionary(ZSTD_compressedBlockState_t* bs,
                                       ZSTD_matchState_t* ms,

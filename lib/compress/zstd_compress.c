@@ -2772,7 +2772,7 @@ size_t ZSTD_loadCEntropy(ZSTD_compressedBlockState_t* bs, void* workspace,
                          short* offcodeNCount, unsigned* offcodeMaxValue,
                          const void* const dict, size_t dictSize) 
 {
-    const BYTE* dictPtr = (const BYTE*)dict + 8;
+    const BYTE* dictPtr = (const BYTE*)dict + 8;    /* skip magic num and dict ID */
     const BYTE* const dictEnd = dictPtr + dictSize;
 
     {   unsigned maxSymbolValue = 255;
@@ -2869,7 +2869,7 @@ static size_t ZSTD_loadZstdDictionary(ZSTD_compressedBlockState_t* bs,
     dictID = params->fParams.noDictIDFlag ? 0 :  MEM_readLE32(dictPtr);
     dictPtr += 4;
 
-    dictPtr += eSize - 8;   /* size of header + magic number already accounted for */
+    dictPtr += eSize - 8;
 
     {   size_t const dictContentSize = (size_t)(dictEnd - dictPtr);
         U32 offcodeMax = MaxOff;

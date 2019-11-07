@@ -112,7 +112,7 @@ size_t ZDICT_getDictHeaderSize(const void* dictBuffer, size_t dictSize)
         if (!bs || !wksp || !offcodeNCount) {
             return ERROR(memory_allocation);
         }
-        
+
         ZSTD_reset_compressedBlockState(bs);
         headerSize = ZSTD_loadCEntropy(bs, wksp, offcodeNCount, &offcodeMaxValue, dictBuffer, dictSize);
         free(bs);

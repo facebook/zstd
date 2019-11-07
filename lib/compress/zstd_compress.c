@@ -2772,8 +2772,8 @@ size_t ZSTD_loadCEntropy(ZSTD_compressedBlockState_t* bs, void* workspace,
                          short* offcodeNCount, unsigned* offcodeMaxValue,
                          const void* const dict, size_t dictSize) 
 {
-    const BYTE* dictPtr = (const BYTE*)dict;
-    const BYTE* const dictEnd = dictPtr + dictSize - 8;
+    const BYTE* dictPtr = (const BYTE*)dict + 8;
+    const BYTE* const dictEnd = dictPtr + dictSize;
 
     {   unsigned maxSymbolValue = 255;
         size_t const hufHeaderSize = HUF_readCTable((HUF_CElt*)bs->entropy.huf.CTable, &maxSymbolValue, dictPtr, dictEnd-dictPtr);
@@ -2852,15 +2852,17 @@ static size_t ZSTD_loadZstdDictionary(ZSTD_compressedBlockState_t* bs,
                                       ZSTD_dictTableLoadMethod_e dtlm,
                                       void* workspace)
 {
-    size_t dictID;
-    size_t eSize;
     const BYTE* dictPtr = (const BYTE*)dict;
     const BYTE* const dictEnd = dictPtr + dictSize;
     short offcodeNCount[MaxOff+1];
     unsigned offcodeMaxValue = MaxOff;
+    size_t dictID;
+    size_t eSize;
+
     ZSTD_STATIC_ASSERT(HUF_WORKSPACE_SIZE >= (1<<MAX(MLFSELog,LLFSELog)));
     assert(dictSize > 8);
     assert(MEM_readLE32(dictPtr) == ZSTD_MAGIC_DICTIONARY);
+
     eSize = ZSTD_loadCEntropy(bs, workspace, offcodeNCount, &offcodeMaxValue, dict, dictSize);
 
     dictPtr += 4;   /* skip magic number */

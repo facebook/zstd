@@ -48,7 +48,7 @@
 #  define ZDICT_STATIC_LINKING_ONLY
 #endif
 #include "zdict.h"
-#include "decompress/zstd_decompress_internal.h" /* ZSTD_entropyDTables_t */
+#include "compress/zstd_compress_internal.h" /* ZSTD_loadCEntropy() */
 
 
 /*-*************************************
@@ -105,14 +105,19 @@ size_t ZDICT_getDictHeaderSize(const void* dictBuffer, size_t dictSize)
     if (dictSize <= 8 || MEM_readLE32(dictBuffer) != ZSTD_MAGIC_DICTIONARY) return 0;
 
     {   size_t headerSize;
-        ZSTD_entropyDTables_t* dummyEntropyTables = (ZSTD_entropyDTables_t*)malloc(sizeof(ZSTD_entropyDTables_t));
-        if (!dummyEntropyTables) {
+        unsigned offcodeMaxValue = MaxOff;
+        ZSTD_compressedBlockState_t* dummyBs = (ZSTD_compressedBlockState_t*)malloc(sizeof(ZSTD_compressedBlockState_t));
+        U32* wksp = (U32*)malloc(HUF_WORKSPACE_SIZE);
+        short* offcodeNCount = (short*)malloc((MaxOff+1)*sizeof(short));
+        if (!dummyBs || !wksp) {
             return 0;
         }
-        dummyEntropyTables->hufTable[0] = (HUF_DTable)((HufLog)*0x1000001);
-        headerSize = ZSTD_loadDEntropy(dummyEntropyTables, dictBuffer, dictSize);
-        free(dummyEntropyTables);
-        return ZSTD_isError(headerSize) ? 0 : headerSize;
+
+        headerSize = ZSTD_loadCEntropy(dummyBs, wksp, offcodeNCount, &offcodeMaxValue, dictBuffer, dictSize);
+        free(dummyBs);
+        free(wksp);
+        free(offcodeNCount);
+        return headerSize;
     }
 }
 

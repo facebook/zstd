@@ -117,7 +117,7 @@ size_t ZDICT_getDictHeaderSize(const void* dictBuffer, size_t dictSize)
         free(dummyBs);
         free(wksp);
         free(offcodeNCount);
-        return headerSize;  /* this may be an error value if ZSTD_loadCEntropy() encountered an error */
+        return headerSize;
     }
 }
 

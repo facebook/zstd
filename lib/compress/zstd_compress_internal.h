@@ -930,7 +930,17 @@ MEM_STATIC void ZSTD_debugTable(const U32* table, U32 max)
 #if defined (__cplusplus)
 }
 #endif
+/* ===============================================================
+ * Public declarations
+ * These prototypes may be called from sources not in lib/compress
+ * =============================================================== */
 
+/* ZSTD_loadCEntropy() :
+ * dict : must point at beginning of a valid zstd dictionary.
+ * return : size of entropy tables read */
+size_t ZSTD_loadCEntropy(ZSTD_compressedBlockState_t* bs, void* workspace,
+                         short* offcodeNCount, unsigned* offcodeMaxValue,
+                         const void* const dict, size_t dictSize);
 
 /* ==============================================================
  * Private declarations

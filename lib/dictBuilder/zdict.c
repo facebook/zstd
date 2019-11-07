@@ -107,14 +107,15 @@ size_t ZDICT_getDictHeaderSize(const void* dictBuffer, size_t dictSize)
     {   size_t headerSize;
         unsigned offcodeMaxValue = MaxOff;
         ZSTD_compressedBlockState_t* bs = (ZSTD_compressedBlockState_t*)malloc(sizeof(ZSTD_compressedBlockState_t));
+        if (!bs) return ERROR(memory_allocation);
         U32* wksp = (U32*)malloc(HUF_WORKSPACE_SIZE);
+        if (!wksp) return ERROR(memory_allocation);
         short* offcodeNCount = (short*)malloc((MaxOff+1)*sizeof(short));
-        if (!bs || !wksp || !offcodeNCount) {
-            return ERROR(memory_allocation);
-        }
+        if (!offcodeNCount) return ERROR(memory_allocation);
 
         ZSTD_reset_compressedBlockState(bs);
         headerSize = ZSTD_loadCEntropy(bs, wksp, offcodeNCount, &offcodeMaxValue, dictBuffer, dictSize);
+        
         free(bs);
         free(wksp);
         free(offcodeNCount);

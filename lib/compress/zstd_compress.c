@@ -2772,8 +2772,9 @@ size_t ZSTD_loadCEntropy(ZSTD_compressedBlockState_t* bs, void* workspace,
                          short* offcodeNCount, unsigned* offcodeMaxValue,
                          const void* const dict, size_t dictSize) 
 {
-    const BYTE* dictPtr = (const BYTE*)dict + 8;    /* skip magic num and dict ID */
+    const BYTE* dictPtr = (const BYTE*)dict;    /* skip magic num and dict ID */
     const BYTE* const dictEnd = dictPtr + dictSize;
+    dictPtr += 8;
 
     {   unsigned maxSymbolValue = 255;
         size_t const hufHeaderSize = HUF_readCTable((HUF_CElt*)bs->entropy.huf.CTable, &maxSymbolValue, dictPtr, dictEnd-dictPtr);

@@ -112,14 +112,8 @@ size_t ZDICT_getDictHeaderSize(const void* dictBuffer, size_t dictSize)
         if (!bs || !wksp || !offcodeNCount) {
             return ERROR(memory_allocation);
         }
-
-        int i;
-        for (i = 0; i < ZSTD_REP_NUM; ++i)
-            bs->rep[i] = repStartValue[i];
-        bs->entropy.huf.repeatMode = HUF_repeat_none;
-        bs->entropy.fse.offcode_repeatMode = FSE_repeat_none;
-        bs->entropy.fse.matchlength_repeatMode = FSE_repeat_none;
-        bs->entropy.fse.litlength_repeatMode = FSE_repeat_none;
+        
+        ZSTD_reset_compressedBlockState(bs);
         headerSize = ZSTD_loadCEntropy(bs, wksp, offcodeNCount, &offcodeMaxValue, dictBuffer, dictSize);
         free(bs);
         free(wksp);

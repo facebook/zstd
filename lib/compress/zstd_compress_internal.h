@@ -945,6 +945,8 @@ size_t ZSTD_loadCEntropy(ZSTD_compressedBlockState_t* bs, void* workspace,
                          short* offcodeNCount, unsigned* offcodeMaxValue,
                          const void* const dict, size_t dictSize);
 
+void ZSTD_reset_compressedBlockState(ZSTD_compressedBlockState_t* bs);
+
 /* ==============================================================
  * Private declarations
  * These prototypes shall only be called from within lib/compress

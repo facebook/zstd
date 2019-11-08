@@ -102,25 +102,26 @@ unsigned ZDICT_getDictID(const void* dictBuffer, size_t dictSize)
 
 size_t ZDICT_getDictHeaderSize(const void* dictBuffer, size_t dictSize)
 {
+    size_t headerSize;
     if (dictSize <= 8 || MEM_readLE32(dictBuffer) != ZSTD_MAGIC_DICTIONARY) return ERROR(dictionary_corrupted);
 
-    {   size_t headerSize;
-        unsigned offcodeMaxValue = MaxOff;
+    {   unsigned offcodeMaxValue = MaxOff;
         ZSTD_compressedBlockState_t* bs = (ZSTD_compressedBlockState_t*)malloc(sizeof(ZSTD_compressedBlockState_t));
-        if (!bs) return ERROR(memory_allocation);
         U32* wksp = (U32*)malloc(HUF_WORKSPACE_SIZE);
-        if (!wksp) return ERROR(memory_allocation);
         short* offcodeNCount = (short*)malloc((MaxOff+1)*sizeof(short));
-        if (!offcodeNCount) return ERROR(memory_allocation);
+        if (!bs || !wksp || !offcodeNCount) {
+            headerSize = ERROR(memory_allocation);
+        } else {
+            ZSTD_reset_compressedBlockState(bs);
+            headerSize = ZSTD_loadCEntropy(bs, wksp, offcodeNCount, &offcodeMaxValue, dictBuffer, dictSize);
+        }
 
-        ZSTD_reset_compressedBlockState(bs);
-        headerSize = ZSTD_loadCEntropy(bs, wksp, offcodeNCount, &offcodeMaxValue, dictBuffer, dictSize);
-        
         free(bs);
         free(wksp);
         free(offcodeNCount);
-        return headerSize;
     }
+
+    return headerSize;
 }
 
 /*-********************************************************

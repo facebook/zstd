@@ -884,6 +884,28 @@ static int basicUnitTests(U32 const seed, double compressibility)
         ZSTDMT_freeCCtx(mtctx);
     }
 
+    DISPLAYLEVEL(3, "test%3u : compress empty string and decompress with small window log : ", testNb++);
+    {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+        char out[32];
+        if (cctx == NULL || dctx == NULL) goto _output_error;
+        CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_contentSizeFlag, 0) );
+        CHECK_VAR(cSize, ZSTD_compress2(cctx, out, sizeof(out), NULL, 0) );
+        DISPLAYLEVEL(3, "OK (%u bytes)\n", (unsigned)cSize);
+
+        CHECK( ZSTD_DCtx_setParameter(dctx, ZSTD_d_windowLogMax, 10) );
+        {   char const* outPtr = out;
+            ZSTD_inBuffer inBuffer = { outPtr, cSize, 0 };
+            ZSTD_outBuffer outBuffer = { NULL, 0, 0 };
+            size_t dSize;
+            CHECK_VAR(dSize, ZSTD_decompressStream(dctx, &outBuffer, &inBuffer) );
+            if (dSize != 0) goto _output_error;
+        }
+
+        ZSTD_freeDCtx(dctx);
+        ZSTD_freeCCtx(cctx);
+    }
+
     DISPLAYLEVEL(3, "test%3i : compress -T2 with/without literals compression : ", testNb++)
     {   ZSTD_CCtx* cctx = ZSTD_createCCtx();
         size_t cSize1, cSize2;

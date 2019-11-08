@@ -940,6 +940,7 @@ MEM_STATIC void ZSTD_debugTable(const U32* table, U32 max)
 /* ZSTD_getCParamsFromCCtxParams() :
  * cParams are built depending on compressionLevel, src size hints,
  * LDM and manually set compression parameters.
+ * Note: srcSizeHint == 0 means 0!
  */
 ZSTD_compressionParameters ZSTD_getCParamsFromCCtxParams(
         const ZSTD_CCtx_params* CCtxParams, U64 srcSizeHint, size_t dictSize);

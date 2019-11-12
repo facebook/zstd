@@ -350,10 +350,10 @@ INSTALL_MAN     ?= $(INSTALL_DATA)
 install: zstd
 	@echo Installing binaries
 	@$(INSTALL) -d -m 755 $(DESTDIR)$(BINDIR)/ $(DESTDIR)$(MAN1DIR)/
-	@$(INSTALL_PROGRAM) zstd $(DESTDIR)$(BINDIR)/zstd
-	@ln -sf zstd $(DESTDIR)$(BINDIR)/zstdcat
-	@ln -sf zstd $(DESTDIR)$(BINDIR)/unzstd
-	@ln -sf zstd $(DESTDIR)$(BINDIR)/zstdmt
+	@$(INSTALL_PROGRAM) zstd$(EXT) $(DESTDIR)$(BINDIR)/zstd$(EXT)
+	@ln -sf zstd$(EXT) $(DESTDIR)$(BINDIR)/zstdcat$(EXT)
+	@ln -sf zstd$(EXT) $(DESTDIR)$(BINDIR)/unzstd$(EXT)
+	@ln -sf zstd$(EXT) $(DESTDIR)$(BINDIR)/zstdmt$(EXT)
 	@$(INSTALL_SCRIPT) zstdless $(DESTDIR)$(BINDIR)/zstdless
 	@$(INSTALL_SCRIPT) zstdgrep $(DESTDIR)$(BINDIR)/zstdgrep
 	@echo Installing man pages

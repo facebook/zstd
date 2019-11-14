@@ -48,6 +48,7 @@
 #  define ZDICT_STATIC_LINKING_ONLY
 #endif
 #include "zdict.h"
+#include "compress/zstd_compress_internal.h" /* ZSTD_loadCEntropy() */
 
 
 /*-*************************************
@@ -99,6 +100,29 @@ unsigned ZDICT_getDictID(const void* dictBuffer, size_t dictSize)
     return MEM_readLE32((const char*)dictBuffer + 4);
 }
 
+size_t ZDICT_getDictHeaderSize(const void* dictBuffer, size_t dictSize)
+{
+    size_t headerSize;
+    if (dictSize <= 8 || MEM_readLE32(dictBuffer) != ZSTD_MAGIC_DICTIONARY) return ERROR(dictionary_corrupted);
+
+    {   unsigned offcodeMaxValue = MaxOff;
+        ZSTD_compressedBlockState_t* bs = (ZSTD_compressedBlockState_t*)malloc(sizeof(ZSTD_compressedBlockState_t));
+        U32* wksp = (U32*)malloc(HUF_WORKSPACE_SIZE);
+        short* offcodeNCount = (short*)malloc((MaxOff+1)*sizeof(short));
+        if (!bs || !wksp || !offcodeNCount) {
+            headerSize = ERROR(memory_allocation);
+        } else {
+            ZSTD_reset_compressedBlockState(bs);
+            headerSize = ZSTD_loadCEntropy(bs, wksp, offcodeNCount, &offcodeMaxValue, dictBuffer, dictSize);
+        }
+
+        free(bs);
+        free(wksp);
+        free(offcodeNCount);
+    }
+
+    return headerSize;
+}
 
 /*-********************************************************
 *  Dictionary training functions

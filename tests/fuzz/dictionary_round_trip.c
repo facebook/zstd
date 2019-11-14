@@ -73,7 +73,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 
     size_t const rBufSize = size;
     void* rBuf = malloc(rBufSize);
-    size_t cBufSize = ZSTD_compressBound(size);
+    size_t cBufSize = ZSTD_compressBound(size) * 2;
     void *cBuf;
     /* Half of the time fuzz with a 1 byte smaller output size.
      * This will still succeed because we force the checksum to be disabled,

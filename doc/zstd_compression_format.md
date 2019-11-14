@@ -16,7 +16,7 @@ Distribution of this document is unlimited.
 
 ### Version
 
-0.3.4 (16/08/19)
+0.3.5 (13/11/19)
 
 
 Introduction
@@ -341,6 +341,8 @@ The structure of a block is as follows:
 |:--------------:|:---------------:|
 |    3 bytes     |     n bytes     |
 
+__`Block_Header`__
+
 `Block_Header` uses 3 bytes, written using __little-endian__ convention.
 It contains 3 fields :
 
@@ -385,17 +387,30 @@ There are 4 block types :
 __`Block_Size`__
 
 The upper 21 bits of `Block_Header` represent the `Block_Size`.
+
 When `Block_Type` is `Compressed_Block` or `Raw_Block`,
-`Block_Size` is the size of `Block_Content`, hence excluding `Block_Header`.  
-When `Block_Type` is `RLE_Block`, `Block_Content`’s size is always 1,
-and `Block_Size` represents the number of times this byte must be repeated.
-A block can contain and decompress into any number of bytes (even zero),
-up to `Block_Maximum_Decompressed_Size`, which is the smallest of:
--  Window_Size
+`Block_Size` is the size of `Block_Content` (hence excluding `Block_Header`).  
+
+When `Block_Type` is `RLE_Block`, since `Block_Content`’s size is always 1,
+`Block_Size` represents the number of times this byte must be repeated.
+
+`Block_Size` is limited by `Block_Maximum_Size` (see below).
+
+__`Block_Content`__ and __`Block_Maximum_Size`__
+
+The size of `Block_Content` is limited by `Block_Maximum_Size`,
+which is the smallest of:
+-  `Window_Size`
 -  128 KB
 
-If this condition cannot be respected when generating a `Compressed_Block`,
-the block must be sent uncompressed instead (`Raw_Block`).
+`Block_Maximum_Size` is constant for a given frame.
+This maximum is applicable to both the decompressed size
+and the compressed size of any block in the frame.
+
+The reasoning for this limit is that a decoder can read this information
+at the beginning of a frame and use it to allocate buffers.
+The guarantees on the size of blocks ensure that
+the buffers will be large enough for any following block of the valid frame.
 
 
 Compressed Blocks
@@ -1658,6 +1673,7 @@ or at least provide a meaningful error code explaining for which reason it canno
 
 Version changes
 ---------------
+- 0.3.5 : clarifications for Block_Maximum_Size
 - 0.3.4 : clarifications for FSE decoding table
 - 0.3.3 : clarifications for field Block_Size
 - 0.3.2 : remove additional block size restriction on compressed blocks

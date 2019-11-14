@@ -1251,7 +1251,7 @@ static void ZSTD_assertEqualCParams(ZSTD_compressionParameters cParams1,
     assert(cParams1.strategy     == cParams2.strategy);
 }
 
-static void ZSTD_reset_compressedBlockState(ZSTD_compressedBlockState_t* bs)
+void ZSTD_reset_compressedBlockState(ZSTD_compressedBlockState_t* bs)
 {
     int i;
     for (i = 0; i < ZSTD_REP_NUM; ++i)
@@ -2772,37 +2772,13 @@ static size_t ZSTD_checkDictNCount(short* normalizedCounter, unsigned dictMaxSym
     return 0;
 }
 
-
-/* Dictionary format :
- * See :
- * https://github.com/facebook/zstd/blob/master/doc/zstd_compression_format.md#dictionary-format
- */
-/*! ZSTD_loadZstdDictionary() :
- * @return : dictID, or an error code
- *  assumptions : magic number supposed already checked
- *                dictSize supposed >= 8
- */
-static size_t ZSTD_loadZstdDictionary(ZSTD_compressedBlockState_t* bs,
-                                      ZSTD_matchState_t* ms,
-                                      ZSTD_cwksp* ws,
-                                      ZSTD_CCtx_params const* params,
-                                      const void* dict, size_t dictSize,
-                                      ZSTD_dictTableLoadMethod_e dtlm,
-                                      void* workspace)
+size_t ZSTD_loadCEntropy(ZSTD_compressedBlockState_t* bs, void* workspace,
+                         short* offcodeNCount, unsigned* offcodeMaxValue,
+                         const void* const dict, size_t dictSize) 
 {
-    const BYTE* dictPtr = (const BYTE*)dict;
+    const BYTE* dictPtr = (const BYTE*)dict;    /* skip magic num and dict ID */
     const BYTE* const dictEnd = dictPtr + dictSize;
-    short offcodeNCount[MaxOff+1];
-    unsigned offcodeMaxValue = MaxOff;
-    size_t dictID;
-
-    ZSTD_STATIC_ASSERT(HUF_WORKSPACE_SIZE >= (1<<MAX(MLFSELog,LLFSELog)));
-    assert(dictSize >= 8);
-    assert(MEM_readLE32(dictPtr) == ZSTD_MAGIC_DICTIONARY);
-
-    dictPtr += 4;   /* skip magic number */
-    dictID = params->fParams.noDictIDFlag ? 0 :  MEM_readLE32(dictPtr);
-    dictPtr += 4;
+    dictPtr += 8;
 
     {   unsigned maxSymbolValue = 255;
         size_t const hufHeaderSize = HUF_readCTable((HUF_CElt*)bs->entropy.huf.CTable, &maxSymbolValue, dictPtr, dictEnd-dictPtr);
@@ -2812,7 +2788,7 @@ static size_t ZSTD_loadZstdDictionary(ZSTD_compressedBlockState_t* bs,
     }
 
     {   unsigned offcodeLog;
-        size_t const offcodeHeaderSize = FSE_readNCount(offcodeNCount, &offcodeMaxValue, &offcodeLog, dictPtr, dictEnd-dictPtr);
+        size_t const offcodeHeaderSize = FSE_readNCount(offcodeNCount, offcodeMaxValue, &offcodeLog, dictPtr, dictEnd-dictPtr);
         RETURN_ERROR_IF(FSE_isError(offcodeHeaderSize), dictionary_corrupted);
         RETURN_ERROR_IF(offcodeLog > OffFSELog, dictionary_corrupted);
         /* Defer checking offcodeMaxValue because we need to know the size of the dictionary content */
@@ -2860,6 +2836,42 @@ static size_t ZSTD_loadZstdDictionary(ZSTD_compressedBlockState_t* bs,
     bs->rep[1] = MEM_readLE32(dictPtr+4);
     bs->rep[2] = MEM_readLE32(dictPtr+8);
     dictPtr += 12;
+
+    return dictPtr - (const BYTE*)dict;
+}
+
+/* Dictionary format :
+ * See :
+ * https://github.com/facebook/zstd/blob/master/doc/zstd_compression_format.md#dictionary-format
+ */
+/*! ZSTD_loadZstdDictionary() :
+ * @return : dictID, or an error code
+ *  assumptions : magic number supposed already checked
+ *                dictSize supposed >= 8
+ */
+static size_t ZSTD_loadZstdDictionary(ZSTD_compressedBlockState_t* bs,
+                                      ZSTD_matchState_t* ms,
+                                      ZSTD_cwksp* ws,
+                                      ZSTD_CCtx_params const* params,
+                                      const void* dict, size_t dictSize,
+                                      ZSTD_dictTableLoadMethod_e dtlm,
+                                      void* workspace)
+{
+    const BYTE* dictPtr = (const BYTE*)dict;
+    const BYTE* const dictEnd = dictPtr + dictSize;
+    short offcodeNCount[MaxOff+1];
+    unsigned offcodeMaxValue = MaxOff;
+    size_t dictID;
+    size_t eSize;
+
+    ZSTD_STATIC_ASSERT(HUF_WORKSPACE_SIZE >= (1<<MAX(MLFSELog,LLFSELog)));
+    assert(dictSize >= 8);
+    assert(MEM_readLE32(dictPtr) == ZSTD_MAGIC_DICTIONARY);
+
+    dictID = params->fParams.noDictIDFlag ? 0 :  MEM_readLE32(dictPtr + 4 /* skip magic number */ );
+    eSize = ZSTD_loadCEntropy(bs, workspace, offcodeNCount, &offcodeMaxValue, dict, dictSize);
+    FORWARD_IF_ERROR(eSize);
+    dictPtr += eSize;
 
     {   size_t const dictContentSize = (size_t)(dictEnd - dictPtr);
         U32 offcodeMax = MaxOff;

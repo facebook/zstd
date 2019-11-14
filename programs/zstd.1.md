@@ -402,7 +402,7 @@ The list of available _options_:
     Bigger hash tables cause less collisions which usually makes compression
     faster, but requires more memory during compression.
 
-    The minimum _hlog_ is 6 (64 B) and the maximum is 26 (128 MiB).
+    The minimum _hlog_ is 6 (64 B) and the maximum is 26 (64 MiB).
 
 - `chainLog`=_clog_, `clog`=_clog_:
     Specify the maximum number of bits for a hash chain or a binary tree.

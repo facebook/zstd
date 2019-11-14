@@ -20,7 +20,6 @@
 #include "fse.h"
 #define HUF_STATIC_LINKING_ONLY
 #include "huf.h"
-#include "zstd_compress_superblock.h"
 #include "zstd_compress_internal.h"
 #include "zstd_compress_sequences.h"
 #include "zstd_compress_literals.h"
@@ -29,6 +28,7 @@
 #include "zstd_lazy.h"
 #include "zstd_opt.h"
 #include "zstd_ldm.h"
+#include "zstd_compress_superblock.h"
 
 
 /*-*************************************

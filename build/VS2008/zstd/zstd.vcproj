@@ -433,6 +433,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\lib\compress\zstd_compress_superblock.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\lib\decompress\zstd_decompress.c"
 				>
 			</File>
@@ -628,6 +632,10 @@
 			</File>
 			<File
 				RelativePath="..\..\..\lib\compress\zstd_cwksp.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\lib\compress\zstd_compress_superblock.h"
 				>
 			</File>
 			<File

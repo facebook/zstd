@@ -2572,23 +2572,25 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
         /* Ensure hash/chain table insertion resumes no sooner than lowlimit */
         if (ms->nextToUpdate < ms->window.lowLimit) ms->nextToUpdate = ms->window.lowLimit;
 
-        {   int useTargetCBlockSize = ZSTD_useTargetCBlockSize(&cctx->appliedParams);
-            size_t cSize = 0;
+        {   size_t cSize;
+            int useTargetCBlockSize = ZSTD_useTargetCBlockSize(&cctx->appliedParams);
             if (useTargetCBlockSize) {
                 cSize = ZSTD_compressBlock_targetCBlockSize(cctx, op, dstCapacity, ip, blockSize, lastBlock);
                 FORWARD_IF_ERROR(cSize);
             } else {
                 cSize = ZSTD_compressBlock_internal(cctx,
                                         op+ZSTD_blockHeaderSize, dstCapacity-ZSTD_blockHeaderSize,
-                                        ip, blockSize, 0 /* frame */);
+                                        ip, blockSize, 1 /* frame */);
                 FORWARD_IF_ERROR(cSize);
 
                 if (cSize == 0) {  /* block is not compressible */
                     cSize = ZSTD_noCompressBlock(op, dstCapacity, ip, blockSize, lastBlock);
                     FORWARD_IF_ERROR(cSize);
                 } else {
-                    U32 const cBlockHeader24 = lastBlock + (((U32)bt_compressed)<<1) + (U32)(cSize << 3);
-                    MEM_writeLE24(op, cBlockHeader24);
+                    U32 const cBlockHeader = cSize == 1 ?
+                        lastBlock + (((U32)bt_rle)<<1) + (U32)(blockSize << 3) :
+                        lastBlock + (((U32)bt_compressed)<<1) + (U32)(cSize << 3);
+                    MEM_writeLE24(op, cBlockHeader);
                     cSize += ZSTD_blockHeaderSize;
                 }
             }

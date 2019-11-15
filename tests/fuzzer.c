@@ -1999,7 +1999,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
     /* long rle test */
     {   size_t sampleSize = 0;
-        size_t expectedCompressedSize = 39; /* two RLE blocks, zstd 1.4.4 */
+        size_t expectedCompressedSize = 39; /* block 1: RLE, block 2: compressed, block 3: RLE, zstd 1.4.4 */
         DISPLAYLEVEL(3, "test%3i : Long RLE test : ", testNb++);
         memset((char*)CNBuffer+sampleSize, 'B', 256 KB - 1);
         sampleSize += 256 KB - 1;

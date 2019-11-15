@@ -21,6 +21,7 @@
 #include "fuzz_helpers.h"
 #include "zstd_helpers.h"
 #include "fuzz_data_producer.h"
+#include "error_private.h"
 
 ZSTD_CCtx *cctx = NULL;
 static ZSTD_DCtx *dctx = NULL;
@@ -84,6 +85,8 @@ static size_t compress(uint8_t *dst, size_t capacity,
                 case 3: {
                     size_t ret =
                         ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end);
+                    if (ZSTD_isError(ret) && ZSTD_getErrorCode(ret) == ZSTD_error_dstSize_tooSmall)
+                        return ret;
                     FUZZ_ZASSERT(ret);
                     /* Reset the compressor when the frame is finished */
                     if (ret == 0) {
@@ -126,6 +129,8 @@ static size_t compress(uint8_t *dst, size_t capacity,
 int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 {
     size_t neededBufSize;
+    /* Try to double 'neededBufSize' this many times before failing */
+    int maxDoubleSizeIterations = 10;
 
     /* Give a random portion of src data to the producer, to use for
     parameter generation. The rest will be used for (de)compression */
@@ -134,31 +139,40 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 
     neededBufSize = ZSTD_compressBound(size) * 15;
 
-    /* Allocate all buffers and contexts if not already allocated */
-    if (neededBufSize > bufSize) {
-        free(cBuf);
-        free(rBuf);
-        cBuf = (uint8_t*)malloc(neededBufSize);
-        rBuf = (uint8_t*)malloc(neededBufSize);
-        bufSize = neededBufSize;
-        FUZZ_ASSERT(cBuf && rBuf);
-    }
-    if (!cctx) {
-        cctx = ZSTD_createCCtx();
-        FUZZ_ASSERT(cctx);
-    }
-    if (!dctx) {
-        dctx = ZSTD_createDCtx();
-        FUZZ_ASSERT(dctx);
-    }
+    for (; maxDoubleSizeIterations >= 0; maxDoubleSizeIterations--){
+        /* Allocate all buffers and contexts if not already allocated */
+        if (neededBufSize > bufSize) {
+            free(cBuf);
+            free(rBuf);
+            cBuf = (uint8_t*)malloc(neededBufSize);
+            rBuf = (uint8_t*)malloc(neededBufSize);
+            bufSize = neededBufSize;
+            FUZZ_ASSERT(cBuf && rBuf);
+        }
+        if (!cctx) {
+            cctx = ZSTD_createCCtx();
+            FUZZ_ASSERT(cctx);
+        }
+        if (!dctx) {
+            dctx = ZSTD_createDCtx();
+            FUZZ_ASSERT(dctx);
+        }
 
-    {
-        size_t const cSize = compress(cBuf, neededBufSize, src, size, producer);
-        size_t const rSize =
-            ZSTD_decompressDCtx(dctx, rBuf, neededBufSize, cBuf, cSize);
-        FUZZ_ZASSERT(rSize);
-        FUZZ_ASSERT_MSG(rSize == size, "Incorrect regenerated size");
-        FUZZ_ASSERT_MSG(!memcmp(src, rBuf, size), "Corruption!");
+        {
+            size_t const cSize = compress(cBuf, neededBufSize, src, size, producer);
+            /* Double the neededBufSize if its too small */
+            if (ZSTD_isError(cSize) && ZSTD_getErrorCode(cSize) == ZSTD_error_dstSize_tooSmall) {
+                if (maxDoubleSizeIterations == 0) FUZZ_ZASSERT(cSize);
+                neededBufSize *= 2;
+                continue;
+            }
+            size_t const rSize =
+                ZSTD_decompressDCtx(dctx, rBuf, neededBufSize, cBuf, cSize);
+            FUZZ_ZASSERT(rSize);
+            FUZZ_ASSERT_MSG(rSize == size, "Incorrect regenerated size");
+            FUZZ_ASSERT_MSG(!memcmp(src, rBuf, size), "Corruption!");
+        }
+        break;
     }
 
     FUZZ_dataProducer_free(producer);

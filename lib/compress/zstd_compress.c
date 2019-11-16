@@ -2482,7 +2482,7 @@ static size_t ZSTD_compressBlock_targetCBlockSize(ZSTD_CCtx* zc,
          * targetCBlockSize is best effort not a guarantee. */
         if (cSize == ERROR(dstSize_tooSmall) || (dstCapacity - cSize) < 4) {
             /* We check (dstCapacity - cSize) < 4 above because we have to make sure
-             * to leave enouch room for the checksum that will eventually get added in
+             * to leave enough room for the checksum that will eventually get added in
              * the epilogue. Otherwise, we're just going to throw the dstSize_tooSmall
              * error there instead of here */
             BYTE* const ostart = (BYTE*)dst;

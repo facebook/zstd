@@ -2480,8 +2480,11 @@ static size_t ZSTD_compressBlock_targetCBlockSize(ZSTD_CCtx* zc,
          * enough for SuperBlock compression.
          * In such case, fall back to normal compression. This is possible because
          * targetCBlockSize is best effort not a guarantee. */
-        if (cSize != ERROR(dstSize_tooSmall)) return cSize;
-        else {
+        if (cSize == ERROR(dstSize_tooSmall) || (dstCapacity - cSize) < 4) {
+            /* We check (dstCapacity - cSize) < 4 above because we have to make sure
+             * to leave enouch room for the checksum that will eventually get added in
+             * the epilogue. Otherwise, we're just going to throw the dstSize_tooSmall
+             * error there instead of here */
             BYTE* const ostart = (BYTE*)dst;
             /* If ZSTD_noCompressSuperBlock fails with dstSize_tooSmall,
              * compress normally.
@@ -2498,7 +2501,7 @@ static size_t ZSTD_compressBlock_targetCBlockSize(ZSTD_CCtx* zc,
                 MEM_writeLE24(ostart, cBlockHeader24);
                 cSize += ZSTD_blockHeaderSize;
             }
-        }
+        } else return cSize;
     }
 
     if (!ZSTD_isError(cSize) && cSize != 0) {
@@ -2853,7 +2856,7 @@ static size_t ZSTD_checkDictNCount(short* normalizedCounter, unsigned dictMaxSym
 
 size_t ZSTD_loadCEntropy(ZSTD_compressedBlockState_t* bs, void* workspace,
                          short* offcodeNCount, unsigned* offcodeMaxValue,
-                         const void* const dict, size_t dictSize) 
+                         const void* const dict, size_t dictSize)
 {
     const BYTE* dictPtr = (const BYTE*)dict;    /* skip magic num and dict ID */
     const BYTE* const dictEnd = dictPtr + dictSize;

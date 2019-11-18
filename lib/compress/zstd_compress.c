@@ -2496,7 +2496,13 @@ static size_t ZSTD_compressBlock_targetCBlockSize(ZSTD_CCtx* zc,
                     srcSize,
                     zc->entropyWorkspace, HUF_WORKSPACE_SIZE /* statically allocated in resetCCtx */,
                     zc->bmi2);
-            if (!ZSTD_isError(cSize) && cSize != 0) {
+
+            if (cSize == 0) {
+                /* If compressSequences didn't work, we just output a regular
+                 * uncompressed block */
+                cSize = ZSTD_noCompressBlock(dst, dstCapacity, src, srcSize, lastBlock);
+                FORWARD_IF_ERROR(cSize);
+            } else {
                 U32 const cBlockHeader24 = lastBlock + (((U32)bt_compressed)<<1) + (U32)(cSize << 3);
                 MEM_writeLE24(ostart, cBlockHeader24);
                 cSize += ZSTD_blockHeaderSize;

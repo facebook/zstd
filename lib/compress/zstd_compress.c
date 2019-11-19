@@ -2480,13 +2480,11 @@ static size_t ZSTD_compressBlock_targetCBlockSize(ZSTD_CCtx* zc,
          * enough for SuperBlock compression.
          * In such case, fall back to normal compression. This is possible because
          * targetCBlockSize is best effort not a guarantee. */
-        if (cSize != ERROR(dstSize_tooSmall) && (dstCapacity - cSize) >= 4)
+        if (cSize == ERROR(dstSize_tooSmall) || (dstCapacity - cSize) < 4) {
             /* We check (dstCapacity - cSize) >= 4 above because we have to make sure
              * to leave enough room for the checksum that will eventually get added in
              * the epilogue. Otherwise, we're just going to throw the dstSize_tooSmall
              * error there instead of here */
-            return cSize;
-        else {
             BYTE* const ostart = (BYTE*)dst;
             /* If ZSTD_noCompressSuperBlock fails with dstSize_tooSmall,
              * compress normally.

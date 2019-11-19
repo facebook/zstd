@@ -191,7 +191,7 @@ size_t HUF_readDTableX1_wksp(HUF_DTable* DTable, const void* src, size_t srcSize
             HUF_DEltX1 D;
             D.byte = (BYTE)n;
             D.nbBits = (BYTE)(tableLog + 1 - w);
-            rankVal[w] = uEnd;
+            rankVal[w] = (U32)uEnd;
             if (length < 4) {
                 /* Use length in the loop bound so the compiler knows it is short. */
                 for (u = 0; u < length; ++u)

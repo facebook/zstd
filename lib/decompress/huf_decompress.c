@@ -181,17 +181,29 @@ size_t HUF_readDTableX1_wksp(HUF_DTable* DTable, const void* src, size_t srcSize
 
     /* fill DTable */
     {   U32 n;
-        for (n=0; n<nbSymbols; n++) {
-            U32 const w = huffWeight[n];
-            U32 const length = (1 << w) >> 1;
-            U32 u;
+        size_t const nEnd = nbSymbols;
+        for (n=0; n<nEnd; n++) {
+            size_t const w = huffWeight[n];
+            size_t const length = (1 << w) >> 1;
+            size_t const uStart = rankVal[w];
+            size_t const uEnd = uStart + length;
+            size_t u;
             HUF_DEltX1 D;
-            D.byte = (BYTE)n; D.nbBits = (BYTE)(tableLog + 1 - w);
-            for (u = rankVal[w]; u < rankVal[w] + length; u++)
-                dt[u] = D;
-            rankVal[w] += length;
-    }   }
-
+            D.byte = (BYTE)n;
+            D.nbBits = (BYTE)(tableLog + 1 - w);
+            rankVal[w] = uEnd;
+            if (length < 4) {
+                /* Use length in the loop bound so the compiler knows it is short. */
+                for (u = 0; u < length; ++u)
+                    dt[uStart + u] = D;
+            } else {
+                /* Unroll the loop 4 times, we know it is a power of 2. */
+                for (u = uStart; u < uEnd; u += 4) {
+                    dt[u + 0] = D;
+                    dt[u + 1] = D;
+                    dt[u + 2] = D;
+                    dt[u + 3] = D;
+    }   }   }   }
     return iSize;
 }
 

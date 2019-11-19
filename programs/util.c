@@ -73,7 +73,7 @@ int UTIL_setFileStat(const char *filename, stat_t *statbuf)
     {
         /* (atime, mtime) */
         struct timespec timebuf[2] = { {0, UTIME_NOW} };
-        timebuf[1] = statbuf->st_mtime;
+        timebuf[1].tv_sec = statbuf->st_mtime;
         res += utimensat(AT_FDCWD, filename, timebuf, 0);
     }
 #endif

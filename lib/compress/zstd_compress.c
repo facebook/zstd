@@ -2457,6 +2457,7 @@ static size_t ZSTD_compressBlock_targetCBlockSize(ZSTD_CCtx* zc,
                                const void* src, size_t srcSize,
                                U32 lastBlock) {
     size_t cSize = 0;
+    int usingNoCompressSuperBlock = 0;
     DEBUGLOG(5, "ZSTD_compressBlock_targetCBlockSize (dstCapacity=%u, dictLimit=%u, nextToUpdate=%u, srcSize=%zu)",
                 (unsigned)dstCapacity, (unsigned)zc->blockState.matchState.window.dictLimit, (unsigned)zc->blockState.matchState.nextToUpdate, srcSize);
 
@@ -2470,7 +2471,6 @@ static size_t ZSTD_compressBlock_targetCBlockSize(ZSTD_CCtx* zc,
      * encode using ZSTD_noCompressSuperBlock writing sub blocks
      * in uncompressed mode.
      */
-    int usingNoCompressSuperBlock = 0;
     if (cSize == 0) {
         cSize = ZSTD_noCompressSuperBlock(dst, dstCapacity, src, srcSize, zc->appliedParams.targetCBlockSize, lastBlock);
         usingNoCompressSuperBlock = 1;

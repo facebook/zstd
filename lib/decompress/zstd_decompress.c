@@ -618,7 +618,7 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
 {
     const BYTE* ip = (const BYTE*)(*srcPtr);
     BYTE* const ostart = (BYTE* const)dst;
-    BYTE* const oend = ostart + dstCapacity;
+    BYTE* const oend = dstCapacity != 0 ? ostart + dstCapacity : ostart;
     BYTE* op = ostart;
     size_t remainingSrcSize = *srcSizePtr;
 
@@ -669,7 +669,9 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
         if (ZSTD_isError(decodedSize)) return decodedSize;
         if (dctx->fParams.checksumFlag)
             XXH64_update(&dctx->xxhState, op, decodedSize);
-        op += decodedSize;
+        if (decodedSize != 0)
+            op += decodedSize;
+        assert(ip != NULL);
         ip += cBlockSize;
         remainingSrcSize -= cBlockSize;
         if (blockProperties.lastBlock) break;
@@ -776,7 +778,8 @@ static size_t ZSTD_decompressMultiFrame(ZSTD_DCtx* dctx,
                 "error.");
             if (ZSTD_isError(res)) return res;
             assert(res <= dstCapacity);
-            dst = (BYTE*)dst + res;
+            if (res != 0)
+                dst = (BYTE*)dst + res;
             dstCapacity -= res;
         }
         moreThan1Frame = 1;
@@ -1486,11 +1489,13 @@ MEM_STATIC size_t ZSTD_limitCopy(void* dst, size_t dstCapacity, const void* src,
 
 size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inBuffer* input)
 {
-    const char* const istart = (const char*)(input->src) + input->pos;
-    const char* const iend = (const char*)(input->src) + input->size;
+    const char* const src = (const char*)input->src;
+    const char* const istart = input->pos != 0 ? src + input->pos : src;
+    const char* const iend = input->size != 0 ? src + input->size : src;
     const char* ip = istart;
-    char* const ostart = (char*)(output->dst) + output->pos;
-    char* const oend = (char*)(output->dst) + output->size;
+    char* const dst = (char*)output->dst;
+    char* const ostart = output->pos != 0 ? dst + output->pos : dst;
+    char* const oend = output->size != 0 ? dst + output->size : dst;
     char* op = ostart;
     U32 someMoreWork = 1;
 

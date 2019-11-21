@@ -2470,8 +2470,10 @@ static size_t ZSTD_compressBlock_targetCBlockSize(ZSTD_CCtx* zc,
      * encode using ZSTD_noCompressSuperBlock writing sub blocks
      * in uncompressed mode.
      */
+    int usingNoCompressSuperBlock = 0;
     if (cSize == 0) {
         cSize = ZSTD_noCompressSuperBlock(dst, dstCapacity, src, srcSize, zc->appliedParams.targetCBlockSize, lastBlock);
+        usingNoCompressSuperBlock = 1;
         /* In compression, there is an assumption that a compressed block is always
          * within the size of ZSTD_compressBound(). However, SuperBlock compression
          * can exceed the limit due to overhead of headers from SubBlocks.
@@ -2511,7 +2513,7 @@ static size_t ZSTD_compressBlock_targetCBlockSize(ZSTD_CCtx* zc,
         }
     }
 
-    if (!ZSTD_isError(cSize) && cSize != 0) {
+    if (!ZSTD_isError(cSize) && !usingNoCompressSuperBlock) {
         /* confirm repcodes and entropy tables when emitting a compressed block */
         ZSTD_compressedBlockState_t* const tmp = zc->blockState.prevCBlock;
         zc->blockState.prevCBlock = zc->blockState.nextCBlock;

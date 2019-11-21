@@ -490,7 +490,7 @@ static int ZSTDMT_serialState_reset(serialState_t* serialState, ZSTDMT_seqPool* 
         /* Size the seq pool tables */
         ZSTDMT_setNbSeq(seqPool, ZSTD_ldm_getMaxNbSeq(params.ldmParams, jobSize));
         /* Reset the window */
-        ZSTD_window_clear(&serialState->ldmState.window);
+        ZSTD_window_init(&serialState->ldmState.window);
         serialState->ldmWindow = serialState->ldmState.window;
         /* Resize tables and output space if necessary. */
         if (serialState->ldmState.hashTable == NULL || serialState->params.ldmParams.hashLog < hashLog) {
@@ -1786,7 +1786,7 @@ static int ZSTDMT_isOverlapped(buffer_t buffer, range_t range)
     BYTE const* const bufferStart = (BYTE const*)buffer.start;
     BYTE const* const bufferEnd = bufferStart + buffer.capacity;
     BYTE const* const rangeStart = (BYTE const*)range.start;
-    BYTE const* const rangeEnd = rangeStart + range.size;
+    BYTE const* const rangeEnd = range.size != 0 ? rangeStart + range.size : rangeStart;
 
     if (rangeStart == NULL || bufferStart == NULL)
         return 0;

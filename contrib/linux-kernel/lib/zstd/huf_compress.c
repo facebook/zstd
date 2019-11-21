@@ -130,7 +130,7 @@ size_t HUF_compressWeights_wksp(void *dst, size_t dstSize, const void *weightTab
 	}
 
 	/* Compress */
-	CHECK_F(FSE_buildCTable_wksp(CTable, norm, maxSymbolValue, tableLog, workspace, workspaceSize));
+	CHECK_F(FSE_buildCTable_wksp(CTable, norm, maxSymbolValue, tableLog, workspace, workspaceSize, NULL));
 	{
 		CHECK_V_F(cSize, FSE_compress_usingCTable(op, oend - op, weightTable, wtSize, CTable));
 		if (cSize == 0)

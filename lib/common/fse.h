@@ -344,7 +344,7 @@ size_t FSE_buildCTable_rle (FSE_CTable* ct, unsigned char symbolValue);
  * Same as FSE_buildCTable(), but using an externally allocated scratch buffer (`workSpace`).
  * `wkspSize` must be >= `(1<<tableLog)`.
  */
-size_t FSE_buildCTable_wksp(FSE_CTable* ct, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog, void* workSpace, size_t wkspSize);
+size_t FSE_buildCTable_wksp(FSE_CTable* ct, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog, void* workSpace, size_t wkspSize, size_t* hasNoZeroWeights);
 
 size_t FSE_buildDTable_raw (FSE_DTable* dt, unsigned nbBits);
 /**< build a fake FSE_DTable, designed to read a flat distribution where each symbol uses nbBits */

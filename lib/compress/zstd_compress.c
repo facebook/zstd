@@ -2876,6 +2876,7 @@ size_t ZSTD_loadCEntropy(ZSTD_compressedBlockState_t* bs, void* workspace,
     }
 
     {   unsigned offcodeLog;
+        size_t hasNoZeroWeights;
         size_t const offcodeHeaderSize = FSE_readNCount(offcodeNCount, offcodeMaxValue, &offcodeLog, dictPtr, dictEnd-dictPtr);
         RETURN_ERROR_IF(FSE_isError(offcodeHeaderSize), dictionary_corrupted);
         RETURN_ERROR_IF(offcodeLog > OffFSELog, dictionary_corrupted);
@@ -2884,14 +2885,19 @@ size_t ZSTD_loadCEntropy(ZSTD_compressedBlockState_t* bs, void* workspace,
         RETURN_ERROR_IF(FSE_isError(FSE_buildCTable_wksp(
                 bs->entropy.fse.offcodeCTable,
                 offcodeNCount, MaxOff, offcodeLog,
-                workspace, HUF_WORKSPACE_SIZE)),
+                workspace, HUF_WORKSPACE_SIZE, &hasNoZeroWeights)),
             dictionary_corrupted);
         dictPtr += offcodeHeaderSize;
+
+        if (hasNoZeroWeights)
+            bs->entropy.fse.offcode_repeatMode = FSE_repeat_valid;
+        else bs->entropy.fse.offcode_repeatMode = FSE_repeat_check;
     }
 
     {   short matchlengthNCount[MaxML+1];
         unsigned matchlengthMaxValue = MaxML, matchlengthLog;
         size_t const matchlengthHeaderSize = FSE_readNCount(matchlengthNCount, &matchlengthMaxValue, &matchlengthLog, dictPtr, dictEnd-dictPtr);
+        size_t hasNoZeroWeights;
         RETURN_ERROR_IF(FSE_isError(matchlengthHeaderSize), dictionary_corrupted);
         RETURN_ERROR_IF(matchlengthLog > MLFSELog, dictionary_corrupted);
         /* Every match length code must have non-zero probability */
@@ -2899,14 +2905,19 @@ size_t ZSTD_loadCEntropy(ZSTD_compressedBlockState_t* bs, void* workspace,
         RETURN_ERROR_IF(FSE_isError(FSE_buildCTable_wksp(
                 bs->entropy.fse.matchlengthCTable,
                 matchlengthNCount, matchlengthMaxValue, matchlengthLog,
-                workspace, HUF_WORKSPACE_SIZE)),
+                workspace, HUF_WORKSPACE_SIZE, &hasNoZeroWeights)),
             dictionary_corrupted);
         dictPtr += matchlengthHeaderSize;
+
+        if (hasNoZeroWeights)
+            bs->entropy.fse.matchlength_repeatMode = FSE_repeat_valid;
+        else bs->entropy.fse.matchlength_repeatMode = FSE_repeat_check;
     }
 
     {   short litlengthNCount[MaxLL+1];
         unsigned litlengthMaxValue = MaxLL, litlengthLog;
         size_t const litlengthHeaderSize = FSE_readNCount(litlengthNCount, &litlengthMaxValue, &litlengthLog, dictPtr, dictEnd-dictPtr);
+        size_t hasNoZeroWeights;
         RETURN_ERROR_IF(FSE_isError(litlengthHeaderSize), dictionary_corrupted);
         RETURN_ERROR_IF(litlengthLog > LLFSELog, dictionary_corrupted);
         /* Every literal length code must have non-zero probability */
@@ -2914,9 +2925,13 @@ size_t ZSTD_loadCEntropy(ZSTD_compressedBlockState_t* bs, void* workspace,
         RETURN_ERROR_IF(FSE_isError(FSE_buildCTable_wksp(
                 bs->entropy.fse.litlengthCTable,
                 litlengthNCount, litlengthMaxValue, litlengthLog,
-                workspace, HUF_WORKSPACE_SIZE)),
+                workspace, HUF_WORKSPACE_SIZE, &hasNoZeroWeights)),
             dictionary_corrupted);
         dictPtr += litlengthHeaderSize;
+
+        if (hasNoZeroWeights)
+            bs->entropy.fse.litlength_repeatMode = FSE_repeat_valid;
+        else bs->entropy.fse.litlength_repeatMode = FSE_repeat_check;
     }
 
     RETURN_ERROR_IF(dictPtr+12 > dictEnd, dictionary_corrupted);
@@ -2976,9 +2991,6 @@ static size_t ZSTD_loadZstdDictionary(ZSTD_compressedBlockState_t* bs,
                 RETURN_ERROR_IF(bs->rep[u] > dictContentSize, dictionary_corrupted);
         }   }
 
-        bs->entropy.fse.offcode_repeatMode = FSE_repeat_valid;
-        bs->entropy.fse.matchlength_repeatMode = FSE_repeat_valid;
-        bs->entropy.fse.litlength_repeatMode = FSE_repeat_valid;
         FORWARD_IF_ERROR(ZSTD_loadDictionaryContent(
             ms, ws, params, dictPtr, dictContentSize, dtlm));
         return dictID;

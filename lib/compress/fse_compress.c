@@ -85,7 +85,7 @@
  */
 size_t FSE_buildCTable_wksp(FSE_CTable* ct,
                       const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog,
-                            void* workSpace, size_t wkspSize)
+                            void* workSpace, size_t wkspSize, size_t* hasNoZeroWeights)
 {
     U32 const tableSize = 1 << tableLog;
     U32 const tableMask = tableSize - 1;
@@ -98,6 +98,8 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct,
 
     FSE_FUNCTION_TYPE* const tableSymbol = (FSE_FUNCTION_TYPE*)workSpace;
     U32 highThreshold = tableSize-1;
+    size_t hasNoZeroWeightsInner = 1;
+    hasNoZeroWeights = hasNoZeroWeights == NULL ? &hasNoZeroWeightsInner : hasNoZeroWeights;
 
     /* CTable header */
     if (((size_t)1 << tableLog) * sizeof(FSE_FUNCTION_TYPE) > wkspSize) return ERROR(tableLog_tooLarge);
@@ -131,6 +133,7 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct,
         for (symbol=0; symbol<=maxSymbolValue; symbol++) {
             int nbOccurrences;
             int const freq = normalizedCounter[symbol];
+            *hasNoZeroWeights *= freq;
             for (nbOccurrences=0; nbOccurrences<freq; nbOccurrences++) {
                 tableSymbol[position] = (FSE_FUNCTION_TYPE)symbol;
                 position = (position + step) & tableMask;
@@ -192,7 +195,7 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct,
 size_t FSE_buildCTable(FSE_CTable* ct, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog)
 {
     FSE_FUNCTION_TYPE tableSymbol[FSE_MAX_TABLESIZE];   /* memset() is not necessary, even if static analyzer complain about it */
-    return FSE_buildCTable_wksp(ct, normalizedCounter, maxSymbolValue, tableLog, tableSymbol, sizeof(tableSymbol));
+    return FSE_buildCTable_wksp(ct, normalizedCounter, maxSymbolValue, tableLog, tableSymbol, sizeof(tableSymbol), NULL);
 }
 
 
@@ -687,7 +690,7 @@ size_t FSE_compress_wksp (void* dst, size_t dstSize, const void* src, size_t src
     }
 
     /* Compress */
-    CHECK_F( FSE_buildCTable_wksp(CTable, norm, maxSymbolValue, tableLog, scratchBuffer, scratchBufferSize) );
+    CHECK_F( FSE_buildCTable_wksp(CTable, norm, maxSymbolValue, tableLog, scratchBuffer, scratchBufferSize, NULL) );
     {   CHECK_V_F(cSize, FSE_compress_usingCTable(op, oend - op, src, srcSize, CTable) );
         if (cSize == 0) return 0;   /* not enough space for compressed data */
         op += cSize;

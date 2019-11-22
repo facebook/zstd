@@ -490,6 +490,19 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : compress a NULL input with each level : ", testNb++);
+    {   int level = -1;
+        ZSTD_CCtx* cctx = ZSTD_createCCtx();
+        if (!cctx) goto _output_error;
+        for (level = -1; level <= ZSTD_maxCLevel(); ++level) {
+          CHECK_Z( ZSTD_compress(compressedBuffer, compressedBufferSize, NULL, 0, level) );
+          CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, level) );
+          CHECK_Z( ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, NULL, 0) );
+        }
+        ZSTD_freeCCtx(cctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     DISPLAYLEVEL(3, "test%3d : check CCtx size after compressing empty input : ", testNb++);
     {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
         size_t const r = ZSTD_compressCCtx(cctx, compressedBuffer, compressedBufferSize, NULL, 0, 19);

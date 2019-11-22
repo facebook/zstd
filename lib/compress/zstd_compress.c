@@ -1336,10 +1336,7 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
 
     DEBUGLOG(4, "reset indices : %u", forceResetIndex == ZSTDirp_reset);
     if (forceResetIndex == ZSTDirp_reset) {
-        memset(&ms->window, 0, sizeof(ms->window));
-        ms->window.dictLimit = 1;    /* start from 1, so that 1st position is valid */
-        ms->window.lowLimit = 1;     /* it ensures first and later CCtx usages compress the same */
-        ms->window.nextSrc = ms->window.base + 1;   /* see issue #1241 */
+        ZSTD_window_init(&ms->window);
         ZSTD_cwksp_mark_tables_dirty(ws);
     }
 
@@ -1432,7 +1429,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         size_t const matchStateSize = ZSTD_sizeof_matchState(&params.cParams, /* forCCtx */ 1);
         size_t const maxNbLdmSeq = ZSTD_ldm_getMaxNbSeq(params.ldmParams, blockSize);
 
-        ZSTD_indexResetPolicy_e needsIndexReset = ZSTDirp_continue;
+        ZSTD_indexResetPolicy_e needsIndexReset = zc->initialized ? ZSTDirp_continue : ZSTDirp_reset;
 
         if (ZSTD_indexTooCloseToMax(zc->blockState.matchState.window)) {
             needsIndexReset = ZSTDirp_reset;
@@ -1557,11 +1554,12 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             zc->ldmSequences = (rawSeq*)ZSTD_cwksp_reserve_aligned(ws, maxNbLdmSeq * sizeof(rawSeq));
             zc->maxNbLdmSequences = maxNbLdmSeq;
 
-            memset(&zc->ldmState.window, 0, sizeof(zc->ldmState.window));
+            ZSTD_window_init(&zc->ldmState.window);
             ZSTD_window_clear(&zc->ldmState.window);
         }
 
         DEBUGLOG(3, "wksp: finished allocating, %zd bytes remain available", ZSTD_cwksp_available_space(ws));
+        zc->initialized = 1;
 
         return 0;
     }
@@ -3757,11 +3755,11 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                                           ZSTD_EndDirective const flushMode)
 {
     const char* const istart = (const char*)input->src;
-    const char* const iend = istart + input->size;
-    const char* ip = istart + input->pos;
+    const char* const iend = input->size != 0 ? istart + input->size : istart;
+    const char* ip = input->pos != 0 ? istart + input->pos : istart;
     char* const ostart = (char*)output->dst;
-    char* const oend = ostart + output->size;
-    char* op = ostart + output->pos;
+    char* const oend = output->size != 0 ? ostart + output->size : ostart;
+    char* op = output->pos != 0 ? ostart + output->pos : ostart;
     U32 someMoreWork = 1;
 
     /* check expectations */
@@ -3800,7 +3798,8 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                                         zcs->inBuff + zcs->inBuffPos, toLoad,
                                         ip, iend-ip);
                 zcs->inBuffPos += loaded;
-                ip += loaded;
+                if (loaded != 0)
+                    ip += loaded;
                 if ( (flushMode == ZSTD_e_continue)
                   && (zcs->inBuffPos < zcs->inBuffTarget) ) {
                     /* not enough input to fill full block : stop here */
@@ -3860,7 +3859,8 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                             zcs->outBuff + zcs->outBuffFlushedSize, toFlush);
                 DEBUGLOG(5, "toFlush: %u into %u ==> flushed: %u",
                             (unsigned)toFlush, (unsigned)(oend-op), (unsigned)flushed);
-                op += flushed;
+                if (flushed)
+                    op += flushed;
                 zcs->outBuffFlushedSize += flushed;
                 if (toFlush!=flushed) {
                     /* flush not fully completed, presumably because dst is too small */

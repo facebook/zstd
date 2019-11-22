@@ -444,7 +444,6 @@ static int HUF_validateCTable(const HUF_CElt* CTable, const unsigned* count, uns
   int s;
   for (s = 0; s <= (int)maxSymbolValue; ++s) {
     bad |= (count[s] != 0) & (CTable[s].nbBits == 0);
-    bad |= (count[s] == 0) & (CTable[s].nbBits != 0);
   }
   return !bad;
 }

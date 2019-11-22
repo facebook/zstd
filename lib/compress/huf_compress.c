@@ -196,7 +196,7 @@ size_t HUF_readCTable (HUF_CElt* CTable, unsigned* maxSymbolValuePtr, const void
     {   U32 n; for (n=0; n<nbSymbols; n++) {
             const U32 w = huffWeight[n];
             *hasNoZeroWeights *= w;
-            CTable[n].nbBits = (BYTE)(tableLog + 1 - w);
+            CTable[n].nbBits = (w != 0) * (BYTE)(tableLog + 1 - w);
     }   }
 
     /* fill val */

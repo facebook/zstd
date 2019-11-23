@@ -487,6 +487,13 @@ cmp tmp tmp_decompress || die "difference between original and decompressed file
 println "test : incorrect stream size"
 cat tmp | $ZSTD -14 -f -o tmp.zst --stream-size=11001 && die "should fail with incorrect stream size"
 
+println "\n===>  zstd zero weight dict test "
+rm -f tmp*
+cp "$TESTDIR/dict-files/zero-weight-dict" tmp_input
+$ZSTD -D "$TESTDIR/dict-files/zero-weight-dict" tmp_input
+$ZSTD -D "$TESTDIR/dict-files/zero-weight-dict" -d tmp_input.zst -o tmp_decomp
+$DIFF tmp_decomp tmp_input
+rm -rf tmp*
 
 println "\n===>  size-hint mode"
 
@@ -1173,7 +1180,6 @@ test -f tmpDict
 $ZSTD --train-cover "$TESTDIR"/*.c "$PRGDIR"/*.c
 test -f dictionary
 rm -f tmp* dictionary
-
 
 if [ "$isWindows" = false ] ; then
 

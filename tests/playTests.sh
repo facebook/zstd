@@ -495,6 +495,15 @@ $ZSTD -D "$TESTDIR/dict-files/zero-weight-dict" -d tmp_input.zst -o tmp_decomp
 $DIFF tmp_decomp tmp_input
 rm -rf tmp*
 
+println "\n===>  zstd (valid) zero weight dict test "
+rm -f tmp*
+# 0 has a non-zero weight in the dictionary
+echo "0000000000000000000000000" > tmp_input
+$ZSTD -D "$TESTDIR/dict-files/zero-weight-dict" tmp_input
+$ZSTD -D "$TESTDIR/dict-files/zero-weight-dict" -d tmp_input.zst -o tmp_decomp
+$DIFF tmp_decomp tmp_input
+rm -rf tmp*
+
 println "\n===>  size-hint mode"
 
 ./datagen -g11000 > tmp

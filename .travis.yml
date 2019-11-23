@@ -32,7 +32,7 @@ matrix:
       script:
         - make check
 
-    - name: Trusty (Test All)
+    - name: make test (complete)
       script:
         - make test
 
@@ -80,43 +80,43 @@ matrix:
         - make clean
         - make -j check MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
 
-    - name: Trusty (CMake)
+    - name: cmake test
       script:
         - make cmakebuild
 
-    - name: Trusty (Static Analyze)
+    - name: static analyzer scanbuild
       script:
         - make staticAnalyze
 
-    - name: Trusty (gcc-8 + ASan + UBSan + Fuzz Test)
+    - name: gcc-8 + ASan + UBSan + Fuzz Test
       script:
         - make gcc8install
         - CC=gcc-8 make clean uasan-fuzztest
 
-    - name: Trusty (gcc-6 + ASan + UBSan + Fuzz Test 32bit)
+    - name: gcc-6 + ASan + UBSan + Fuzz Test 32bit
       script:
         - make gcc6install libc6install
         - CC=gcc-6 CFLAGS="-O2 -m32" make uasan-fuzztest   # can complain about pointer overflow
 
-    - name: Trusty (clang-3.8 + MSan + Fuzz Test)
+    - name: clang-3.8 + MSan + Fuzz Test
       script:
         - make clang38install
         - CC=clang-3.8 make clean msan-fuzztest
 
-    - name: Trusty (ASan + UBSan + MSan + Regression Test)
+    - name: ASan + UBSan + MSan + Regression Test
       script:
         - make -j uasanregressiontest
         - make clean
         - make -j msanregressiontest
 
-    - name: Trusty (Valgrind + Fuzz Test Stack Mode)
+    - name: Valgrind + Fuzz Test Stack Mode
       script:
         - make valgrindinstall
         - make -C tests clean valgrindTest
         - make clean
         - make -C tests test-fuzzer-stackmode
 
-    - name: Trusty (ARM + Fuzz Test)
+    - name: Qemu ARM emulation + Fuzz Test
       script:
         - make arminstall
         - make armfuzz
@@ -127,12 +127,12 @@ matrix:
         - make arminstall
         - make aarch64fuzz
 
-    - name: Trusty (PPC + Fuzz Test)
+    - name: PPC + Fuzz Test
       script:
         - make ppcinstall
         - make ppcfuzz
 
-    - name: Trusty (Versions Compatibility Test)
+    - name: Versions Compatibility Test
       script:
         - make -C tests versionsTest
 

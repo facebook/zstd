@@ -315,6 +315,10 @@ then
     println "\n===> checking /dev/null permissions are unaltered "
     ./datagen > tmp
     sudo $ZSTD tmp -o $INTOVOID   # sudo rights could modify /dev/null permissions
+    sudo $ZSTD tmp -c > $INTOVOID
+    $ZSTD tmp -f -o tmp.zst
+    sudo $ZSTD -d tmp.zst -c > $INTOVOID
+    sudo $ZSTD -d tmp.zst -o $INTOVOID
     ls -las $INTOVOID | grep "rw-rw-rw-"
 fi
 

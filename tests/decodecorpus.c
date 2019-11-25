@@ -852,7 +852,7 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
             LLtype = set_rle;
         } else if (!(RAND(seed) & 3)) {
             /* maybe use the default distribution */
-            FSE_buildCTable_wksp(CTable_LitLength, LL_defaultNorm, MaxLL, LL_defaultNormLog, scratchBuffer, sizeof(scratchBuffer), NULL);
+            FSE_buildCTable_wksp(CTable_LitLength, LL_defaultNorm, MaxLL, LL_defaultNormLog, scratchBuffer, sizeof(scratchBuffer));
             LLtype = set_basic;
         } else {
             /* fall back on a full table */
@@ -863,7 +863,7 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
             { size_t const NCountSize = FSE_writeNCount(op, oend-op, norm, max, tableLog);   /* overflow protected */
               if (FSE_isError(NCountSize)) return ERROR(GENERIC);
               op += NCountSize; }
-            FSE_buildCTable_wksp(CTable_LitLength, norm, max, tableLog, scratchBuffer, sizeof(scratchBuffer), NULL);
+            FSE_buildCTable_wksp(CTable_LitLength, norm, max, tableLog, scratchBuffer, sizeof(scratchBuffer));
             LLtype = set_compressed;
     }   }
 
@@ -881,7 +881,7 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
             FSE_buildCTable_rle(CTable_OffsetBits, (BYTE)max);
             Offtype = set_rle;
         } else if (!(RAND(seed) & 3)) {
-            FSE_buildCTable_wksp(CTable_OffsetBits, OF_defaultNorm, DefaultMaxOff, OF_defaultNormLog, scratchBuffer, sizeof(scratchBuffer), NULL);
+            FSE_buildCTable_wksp(CTable_OffsetBits, OF_defaultNorm, DefaultMaxOff, OF_defaultNormLog, scratchBuffer, sizeof(scratchBuffer));
             Offtype = set_basic;
         } else {
             size_t nbSeq_1 = nbSeq;
@@ -891,7 +891,7 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
             { size_t const NCountSize = FSE_writeNCount(op, oend-op, norm, max, tableLog);   /* overflow protected */
               if (FSE_isError(NCountSize)) return ERROR(GENERIC);
               op += NCountSize; }
-            FSE_buildCTable_wksp(CTable_OffsetBits, norm, max, tableLog, scratchBuffer, sizeof(scratchBuffer), NULL);
+            FSE_buildCTable_wksp(CTable_OffsetBits, norm, max, tableLog, scratchBuffer, sizeof(scratchBuffer));
             Offtype = set_compressed;
     }   }
 
@@ -910,7 +910,7 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
             MLtype = set_rle;
         } else if (!(RAND(seed) & 3)) {
             /* sometimes do default distribution */
-            FSE_buildCTable_wksp(CTable_MatchLength, ML_defaultNorm, MaxML, ML_defaultNormLog, scratchBuffer, sizeof(scratchBuffer), NULL);
+            FSE_buildCTable_wksp(CTable_MatchLength, ML_defaultNorm, MaxML, ML_defaultNormLog, scratchBuffer, sizeof(scratchBuffer));
             MLtype = set_basic;
         } else {
             /* fall back on table */
@@ -921,7 +921,7 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
             { size_t const NCountSize = FSE_writeNCount(op, oend-op, norm, max, tableLog);   /* overflow protected */
               if (FSE_isError(NCountSize)) return ERROR(GENERIC);
               op += NCountSize; }
-            FSE_buildCTable_wksp(CTable_MatchLength, norm, max, tableLog, scratchBuffer, sizeof(scratchBuffer), NULL);
+            FSE_buildCTable_wksp(CTable_MatchLength, norm, max, tableLog, scratchBuffer, sizeof(scratchBuffer));
             MLtype = set_compressed;
     }   }
     frame->stats.fseInit = 1;

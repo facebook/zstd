@@ -502,7 +502,7 @@ static int FIO_remove(const char* path)
 #if defined(_WIN32) || defined(WIN32)
     /* windows doesn't allow remove read-only files,
      * so try to make it writable first */
-    chmod(path, _S_IWRITE);
+    UTIL_chmod(path, _S_IWRITE);
 #endif
     return remove(path);
 }
@@ -526,9 +526,7 @@ static FILE* FIO_openSrcFile(const char* srcFileName)
     }
 
     if (!UTIL_isRegularFile(srcFileName)
-#ifndef _MSC_VER
-        && !UTIL_isFIFO(srcFileName)
-#endif /* _MSC_VER */
+     && !UTIL_isFIFO(srcFileName)
     ) {
         DISPLAYLEVEL(1, "zstd: %s is not a regular file -- ignored \n",
                         srcFileName);
@@ -613,7 +611,7 @@ FIO_openDstFile(FIO_prefs_t* const prefs,
                && strcmp (srcFileName, stdinmark)
                && strcmp(dstFileName, nulmark) ) {
             /* reduce rights on newly created dst file while compression is ongoing */
-            chmod(dstFileName, 00600);
+            UTIL_chmod(dstFileName, 00600);
         }
         return f;
     }

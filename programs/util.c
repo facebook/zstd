@@ -629,8 +629,19 @@ UTIL_createExpandedFNT(const char** inputNames, size_t nbIfns, int followLinks)
             if (buf + pos > bufend) { free(buf); free((void*)fileNamesTable); return NULL; }
             pos += strlen(fileNamesTable[ifnNb]) + 1;
         }
-
-        return UTIL_assembleFileNamesTable(fileNamesTable, nbFiles, buf);
+        {   FileNamesTable* const fnt = UTIL_assembleFileNamesTable(fileNamesTable, nbFiles, buf);
+#ifdef __clang_analyzer__
+            /* scan-build does not understand ownership transfer.
+             * In _some_ versions, it believes that there is a leak of @buf and @fileNamesTable
+             * on leaving the function, which is not the case,
+             * as they are referenced inside the object created by UTIL_assembleFileNamesTable().
+             * In order to silence this false warning, let's "pretend" that these memory objects are freed.
+             * This directive is only read by scan-build, due to __clang_analyzer__ macros */
+             free(buf);
+             free(fileNamesTable);
+#endif
+            return fnt;
+        }
     }
 }
 
@@ -648,7 +659,18 @@ FileNamesTable* UTIL_createFNT_fromROTable(const char** filenames, size_t nbFile
     const char** const newFNTable = (const char**)malloc(sizeof_FNTable);
     if (newFNTable==NULL) return NULL;
     memcpy((void*)newFNTable, filenames, sizeof_FNTable);  /* void* : mitigate a Visual compiler bug or limitation */
-    return UTIL_assembleFileNamesTable(newFNTable, nbFilenames, NULL);
+    {   FileNamesTable* const fnt = UTIL_assembleFileNamesTable(newFNTable, nbFilenames, NULL);;
+#ifdef __clang_analyzer__
+        /* scan-build does not understand ownership transfer.
+         * In _some_ versions, it believes that there is a leak of @newFNTable
+         * on leaving the function, which is not the case,
+         * as they are referenced inside the object created by UTIL_assembleFileNamesTable().
+         * In order to silence this false warning, let's "pretend" that these memory objects are freed.
+         * This directive is only read by scan-build, due to __clang_analyzer__ macros */
+         free(newFNTable);
+#endif
+        return fnt;
+    }
 }
 
 

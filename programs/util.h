@@ -115,6 +115,7 @@ extern int g_utilDisplayLevel;
 ******************************************/
 #if defined(_MSC_VER)
     typedef struct __stat64 stat_t;
+    typedef int mode_t;
 #else
     typedef struct stat stat_t;
 #endif

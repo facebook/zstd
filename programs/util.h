@@ -30,12 +30,12 @@ extern "C" {
 #  include <io.h>         /* _chmod */
 #else
 #  include <unistd.h>     /* chown, stat */
-#if PLATFORM_POSIX_VERSION < 200809L
-#  include <utime.h>      /* utime */
-#else
-#  include <fcntl.h>      /* AT_FDCWD */
-#  include <sys/stat.h>   /* utimensat */
-#endif
+#  if PLATFORM_POSIX_VERSION < 200809L
+#    include <utime.h>      /* utime */
+#  else
+#    include <fcntl.h>      /* AT_FDCWD */
+#    include <sys/stat.h>   /* utimensat */
+#  endif
 #endif
 #include <time.h>         /* clock_t, clock, CLOCKS_PER_SEC, nanosleep */
 #include "mem.h"          /* U32, U64 */
@@ -85,12 +85,6 @@ extern "C" {
 #endif
 
 
-/*-*************************************
-*  Constants
-***************************************/
-#define LIST_SIZE_INCREASE   (8*1024)
-
-
 /*-****************************************
 *  Compiler specifics
 ******************************************/
@@ -120,7 +114,6 @@ extern int g_utilDisplayLevel;
 *  File functions
 ******************************************/
 #if defined(_MSC_VER)
-    #define chmod _chmod
     typedef struct __stat64 stat_t;
 #else
     typedef struct stat stat_t;
@@ -129,30 +122,29 @@ extern int g_utilDisplayLevel;
 
 int UTIL_fileExist(const char* filename);
 int UTIL_isRegularFile(const char* infilename);
-int UTIL_setFileStat(const char* filename, stat_t* statbuf);
-U32 UTIL_isDirectory(const char* infilename);
-int UTIL_getFileStat(const char* infilename, stat_t* statbuf);
+int UTIL_isDirectory(const char* infilename);
 int UTIL_isSameFile(const char* file1, const char* file2);
-int UTIL_compareStr(const void *p1, const void *p2);
 int UTIL_isCompressedFile(const char* infilename, const char *extensionList[]);
-const char* UTIL_getFileExtension(const char* infilename);
+int UTIL_isLink(const char* infilename);
+int UTIL_isFIFO(const char* infilename);
 
-#ifndef _MSC_VER
-U32 UTIL_isFIFO(const char* infilename);
-#endif
-U32 UTIL_isLink(const char* infilename);
 #define UTIL_FILESIZE_UNKNOWN  ((U64)(-1))
 U64 UTIL_getFileSize(const char* infilename);
-
 U64 UTIL_getTotalFileSize(const char* const * const fileNamesTable, unsigned nbFiles);
+int UTIL_getFileStat(const char* infilename, stat_t* statbuf);
+int UTIL_setFileStat(const char* filename, stat_t* statbuf);
+int UTIL_chmod(char const* filename, mode_t permissions);   /*< like chmod, but avoid changing permission of /dev/null */
+int UTIL_compareStr(const void *p1, const void *p2);
+const char* UTIL_getFileExtension(const char* infilename);
+
 
 /*
  * A modified version of realloc().
  * If UTIL_realloc() fails the original block is freed.
 */
-UTIL_STATIC void* UTIL_realloc(void *ptr, size_t size)
+UTIL_STATIC void* UTIL_realloc(void* ptr, size_t size)
 {
-    void *newptr = realloc(ptr, size);
+    void* const newptr = realloc(ptr, size);
     if (newptr) return newptr;
     free(ptr);
     return NULL;

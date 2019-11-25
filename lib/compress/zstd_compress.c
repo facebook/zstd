@@ -2967,6 +2967,12 @@ static size_t ZSTD_loadZstdDictionary(ZSTD_compressedBlockState_t* bs,
     size_t dictID;
     size_t eSize;
 
+    /* Looks like these need to be initialized to satisfy msan on arm clang? */
+    bs->entropy.huf.repeatMode = HUF_repeat_check;
+    bs->entropy.fse.offcode_repeatMode = FSE_repeat_check;
+    bs->entropy.fse.matchlength_repeatMode = FSE_repeat_check;
+    bs->entropy.fse.litlength_repeatMode = FSE_repeat_check;
+
     ZSTD_STATIC_ASSERT(HUF_WORKSPACE_SIZE >= (1<<MAX(MLFSELog,LLFSELog)));
     assert(dictSize >= 8);
     assert(MEM_readLE32(dictPtr) == ZSTD_MAGIC_DICTIONARY);

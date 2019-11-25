@@ -323,12 +323,12 @@ UTIL_createFileNamesTable_fromFileName(const char* inputFileName)
         }   }
         assert(pos <= bufSize);
 
-        return UTIL_createFileNamesTable(filenamesTable, nbFiles, buf);
+        return UTIL_assembleFileNamesTable(filenamesTable, nbFiles, buf);
     }
 }
 
 FileNamesTable*
-UTIL_createFileNamesTable(const char** filenames, size_t tableSize, char* buf)
+UTIL_assembleFileNamesTable(const char** filenames, size_t tableSize, char* buf)
 {
     FileNamesTable* const table = (FileNamesTable*) malloc(sizeof(*table));
     if(!table) return NULL;
@@ -352,7 +352,7 @@ FileNamesTable* UTIL_allocateFileNamesTable(size_t tableSize)
     const char** const fnTable = (const char**)malloc(tableSize * sizeof(*fnTable));
     FileNamesTable* fnt;
     if (fnTable==NULL) return NULL;
-    fnt = UTIL_createFileNamesTable(fnTable, tableSize, NULL);
+    fnt = UTIL_assembleFileNamesTable(fnTable, tableSize, NULL);
     fnt->tableSize = 0;   /* the table is empty */
     return fnt;
 }
@@ -381,7 +381,7 @@ UTIL_mergeFileNamesTable(FileNamesTable* table1, FileNamesTable* table2)
     size_t newTotalTableSize;
     char* buf;
 
-    FileNamesTable* const newTable = UTIL_createFileNamesTable(NULL, 0, NULL);
+    FileNamesTable* const newTable = UTIL_assembleFileNamesTable(NULL, 0, NULL);
     CONTROL( newTable != NULL );
 
     newTotalTableSize = getTotalTableSize(table1) + getTotalTableSize(table2);
@@ -630,7 +630,7 @@ UTIL_createExpandedFNT(const char** inputNames, size_t nbIfns, int followLinks)
             pos += strlen(fileNamesTable[ifnNb]) + 1;
         }
 
-        return UTIL_createFileNamesTable(fileNamesTable, nbFiles, buf);
+        return UTIL_assembleFileNamesTable(fileNamesTable, nbFiles, buf);
     }
 }
 
@@ -648,7 +648,7 @@ FileNamesTable* UTIL_createFNT_fromROTable(const char** filenames, size_t nbFile
     const char** const newFNTable = (const char**)malloc(sizeof_FNTable);
     if (newFNTable==NULL) return NULL;
     memcpy((void*)newFNTable, filenames, sizeof_FNTable);  /* void* : mitigate a Visual compiler bug or limitation */
-    return UTIL_createFileNamesTable(newFNTable, nbFilenames, NULL);
+    return UTIL_assembleFileNamesTable(newFNTable, nbFilenames, NULL);
 }
 
 

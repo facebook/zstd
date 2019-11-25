@@ -175,13 +175,13 @@ typedef struct
 FileNamesTable*
 UTIL_createFileNamesTable_fromFileName(const char* inputFileName);
 
-/*! UTIL_createFileNamesTable() :
+/*! UTIL_assembleFileNamesTable() :
  *  This function takes ownership of its arguments, @filenames and @buf,
  *  and store them inside the created object.
  * @return : FileNamesTable*, or NULL, if allocation fails.
  */
 FileNamesTable*
-UTIL_createFileNamesTable(const char** filenames, size_t tableSize, char* buf);
+UTIL_assembleFileNamesTable(const char** filenames, size_t tableSize, char* buf);
 
 /*! UTIL_freeFileNamesTable() :
  *  This function is compatible with NULL argument and never fails.

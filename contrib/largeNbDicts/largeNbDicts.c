@@ -770,7 +770,7 @@ int main (int argc, const char** argv)
 
     if (argc < 2) return bad_usage(exeName);
 
-    const char** nameTable = (const char**)malloc(argc * sizeof(const char*));
+    const char** nameTable = (const char**)malloc((size_t)argc * sizeof(const char*));
     assert(nameTable != NULL);
     unsigned nameIdx = 0;
 
@@ -805,7 +805,7 @@ int main (int argc, const char** argv)
 #endif
         filenameTable = UTIL_createExpandedFNT(nameTable, nameIdx, 1 /* follow_links */);
     } else {
-        filenameTable = UTIL_createFileNamesTable(nameTable, nameIdx, NULL);
+        filenameTable = UTIL_assembleFileNamesTable(nameTable, nameIdx, NULL);
         nameTable = NULL;  /* UTIL_createFileNamesTable() takes ownership of nameTable */
     }
 

@@ -1005,12 +1005,10 @@ int main(int argCount, const char* argv[])
         unsigned u, fileNamesNb;
         unsigned const nbFilenames = (unsigned)filenames->tableSize;
         for (u=0, fileNamesNb=0; u<nbFilenames; u++) {
-            if (UTIL_isLink(filenames->fileNames[u])
-#ifndef _MSC_VER
-                && !UTIL_isFIFO(filenames->fileNames[u])
-#endif /* _MSC_VER */
+            if ( UTIL_isLink(filenames->fileNames[u])
+             && !UTIL_isFIFO(filenames->fileNames[u])
             ) {
-                DISPLAYLEVEL(2, "Warning : %s is a symbolic link, ignoring\n", filenames->fileNames[u]);
+                DISPLAYLEVEL(2, "Warning : %s is a symbolic link, ignoring \n", filenames->fileNames[u]);
             } else {
                 filenames->fileNames[fileNamesNb++] = filenames->fileNames[u];
         }   }

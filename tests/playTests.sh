@@ -92,6 +92,11 @@ case "$UNAME" in
   *) MD5SUM="md5sum" ;;
 esac
 
+MTIME="stat -c %Y"
+case "$UNAME" in
+    Darwin | FreeBSD | OpenBSD) MTIME="stat -f %m" ;;
+esac
+
 DIFF="diff"
 case "$UNAME" in
   SunOS) DIFF="gdiff" ;;
@@ -215,20 +220,19 @@ $ZSTD tmp -c --compress-literals    -19      | $ZSTD -t
 $ZSTD -b --fast=1 -i0e1 tmp --compress-literals
 $ZSTD -b --fast=1 -i0e1 tmp --no-compress-literals
 
-println "test: --exclude-compressed flag"
+println "\n===>  --exclude-compressed flag"
 rm -rf precompressedFilterTestDir
 mkdir -p precompressedFilterTestDir
 ./datagen $size > precompressedFilterTestDir/input.5
 ./datagen $size > precompressedFilterTestDir/input.6
 $ZSTD --exclude-compressed --long --rm -r precompressedFilterTestDir
-sleep 5
 ./datagen $size > precompressedFilterTestDir/input.7
 ./datagen $size > precompressedFilterTestDir/input.8
 $ZSTD --exclude-compressed --long --rm -r precompressedFilterTestDir
 test ! -f precompressedFilterTestDir/input.5.zst.zst
 test ! -f precompressedFilterTestDir/input.6.zst.zst
-file1timestamp=`date -r precompressedFilterTestDir/input.5.zst +%s`
-file2timestamp=`date -r precompressedFilterTestDir/input.7.zst +%s`
+file1timestamp=`$MTIME precompressedFilterTestDir/input.5.zst`
+file2timestamp=`$MTIME precompressedFilterTestDir/input.7.zst`
 if [[ $file2timestamp -ge $file1timestamp ]]; then
   println "Test is successful. input.5.zst is precompressed and therefore not compressed/modified again."
 else
@@ -246,7 +250,7 @@ test -f precompressedFilterTestDir/input.5.zst.zst
 test -f precompressedFilterTestDir/input.6.zst.zst
 println "Test completed"
 
-println "test : file removal"
+println "\n===>  file removal"
 $ZSTD -f --rm tmp
 test ! -f tmp  # tmp should no longer be present
 $ZSTD -f -d --rm tmp.zst
@@ -274,14 +278,17 @@ test -f tmp.zst  # destination file should still be present
 rm -rf tmp*  # may also erase tmp* directory from previous failed run
 
 
-println "\n===> decompression only tests "
-head -c 1048576 /dev/zero > tmp
+println "\n===>  decompression only tests "
+# the following test verifies that the decoder is compatible with RLE as first block
+# older versions of zstd cli are not able to decode such corner case.
+# As a consequence, the zstd cli do not generate them, to maintain compatibility with older versions.
+dd bs=1048576 count=1 if=/dev/zero of=tmp
 $ZSTD -d -o tmp1 "$TESTDIR/golden-decompression/rle-first-block.zst"
 $DIFF -s tmp1 tmp
 rm tmp*
 
 
-println "test : compress multiple files"
+println "\n===>  compress multiple files"
 println hello > tmp1
 println world > tmp2
 $ZSTD tmp1 tmp2 -o "$INTOVOID" -f
@@ -328,7 +335,22 @@ $ZSTD -f tmp1 notHere tmp2 && die "missing file not detected!"
 rm tmp*
 
 
-println "test : compress multiple files into an output directory, --output-dir-flat"
+if [ -n "$DEVNULLRIGHTS" ]
+then
+    # these tests requires sudo rights, which is uncommon.
+    # they are only triggered if DEVNULLRIGHTS macro is defined.
+    println "\n===> checking /dev/null permissions are unaltered "
+    ./datagen > tmp
+    sudo $ZSTD tmp -o $INTOVOID   # sudo rights could modify /dev/null permissions
+    sudo $ZSTD tmp -c > $INTOVOID
+    $ZSTD tmp -f -o tmp.zst
+    sudo $ZSTD -d tmp.zst -c > $INTOVOID
+    sudo $ZSTD -d tmp.zst -o $INTOVOID
+    ls -las $INTOVOID | grep "rw-rw-rw-"
+fi
+
+
+println "\n===>  compress multiple files into an output directory, --output-dir-flat"
 println henlo > tmp1
 mkdir tmpInputTestDir
 mkdir tmpInputTestDir/we
@@ -436,7 +458,6 @@ $ZSTD -dcf tmp1
 
 
 println "\n===>  frame concatenation "
-
 println "hello " > hello.tmp
 println "world!" > world.tmp
 cat hello.tmp world.tmp > helloworld.tmp
@@ -1241,9 +1262,9 @@ rm -f tmp* dictionary
 if [ "$isWindows" = false ] ; then
 
 println "\n===>  zstd fifo named pipe test "
-head -c 10 /dev/zero > tmp_original
+dd bs=1 count=10 if=/dev/zero of=tmp_original
 mkfifo named_pipe
-head -c 10 /dev/zero > named_pipe &
+dd bs=1 count=10 if=/dev/zero of=named_pipe &
 $ZSTD named_pipe -o tmp_compressed
 $ZSTD -d -o tmp_decompressed tmp_compressed
 $DIFF -s tmp_original tmp_decompressed

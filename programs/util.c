@@ -49,8 +49,11 @@ extern "C" {
 *  Internal Macros
 ******************************************/
 
-/* CONTROL is like an assert(), but is never disabled.
- * Since it's always active, it can trigger side effects.
+/* CONTROL is almost like an assert(), but is never disabled.
+ * It's designed for failures that may happen rarely,
+ * but we don't want to maintain a specific error code path for them,
+ * such as a malloc() returning NULL for example.
+ * Since it's always active, this macro can trigger side effects.
  */
 #define CONTROL(c)  {         \
     if (!(c)) {               \
@@ -59,8 +62,11 @@ extern "C" {
         exit(1);              \
 }   }
 
-/*
- * A modified version of realloc().
+/* console log */
+#define UTIL_DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
+#define UTIL_DISPLAYLEVEL(l, ...) { if (g_utilDisplayLevel>=l) { UTIL_DISPLAY(__VA_ARGS__); } }
+
+/* A modified version of realloc().
  * If UTIL_realloc() fails the original block is freed.
  */
 UTIL_STATIC void* UTIL_realloc(void *ptr, size_t size)

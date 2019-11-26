@@ -372,7 +372,7 @@ FileNamesTable* UTIL_allocateFileNamesTable(size_t tableSize)
 
 void UTIL_refFilename(FileNamesTable* fnt, const char* filename)
 {
-    if (fnt->tableCapacity <= fnt->tableSize) abort();
+    assert(fnt->tableSize < fnt->tableCapacity);
     fnt->fileNames[fnt->tableSize] = filename;
     fnt->tableSize++;
 }

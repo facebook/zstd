@@ -366,7 +366,7 @@ FileNamesTable*
 UTIL_assembleFileNamesTable(const char** filenames, size_t tableSize, char* buf)
 {
     FileNamesTable* const table = (FileNamesTable*) malloc(sizeof(*table));
-    if(!table) return NULL;
+    CONTROL(table != NULL);
     table->fileNames = filenames;
     table->buf = buf;
     table->tableSize = tableSize;
@@ -579,7 +579,7 @@ static int UTIL_prepareFileList(const char *dirName,
     }
 
     if (errno != 0) {
-        UTIL_DISPLAYLEVEL(1, "readdir(%s) error: %s\n", dirName, strerror(errno));
+        UTIL_DISPLAYLEVEL(1, "readdir(%s) error: %s \n", dirName, strerror(errno));
         free(*bufStart);
         *bufStart = NULL;
     }
@@ -594,7 +594,7 @@ static int UTIL_prepareFileList(const char *dirName,
                                 char** bufEnd, int followLinks)
 {
     (void)bufStart; (void)bufEnd; (void)pos; (void)followLinks;
-    UTIL_DISPLAYLEVEL(1, "Directory %s ignored (compiled without _WIN32 or _POSIX_C_SOURCE)\n", dirName);
+    UTIL_DISPLAYLEVEL(1, "Directory %s ignored (compiled without _WIN32 or _POSIX_C_SOURCE) \n", dirName);
     return 0;
 }
 
@@ -665,7 +665,8 @@ UTIL_createExpandedFNT(const char** inputNames, size_t nbIfns, int followLinks)
             pos += strlen(fileNamesTable[ifnNb]) + 1;
         }
         {   FileNamesTable* const fnt = UTIL_assembleFileNamesTable(fileNamesTable, nbFiles, buf);
-#ifdef __clang_analyzer__
+#if 0 && defined(__clang_analyzer__)
+            /* note : this trick might not be necessary anymore */
             /* scan-build does not understand ownership transfer.
              * In _some_ versions, it believes that there is a leak of @buf and @fileNamesTable
              * on leaving the function, which is not the case,
@@ -761,8 +762,7 @@ int UTIL_countPhysicalCores(void)
                 }
             } else {
                 done = TRUE;
-            }
-        }
+        }   }
 
         ptr = buffer;
 
@@ -874,8 +874,7 @@ int UTIL_countPhysicalCores(void)
             } else if (ferror(cpuinfo)) {
                 /* fall back on the sysconf value */
                 goto failed;
-            }
-        }
+        }   }
         if (siblings && cpu_cores) {
             ratio = siblings / cpu_cores;
         }

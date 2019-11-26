@@ -18,6 +18,7 @@ extern "C" {
 ******************************************/
 #include "util.h"       /* note : ensure that platform.h is included first ! */
 #include <stdlib.h>     /* malloc, realloc, free */
+#include <stdio.h>      /* fprintf */
 #include <time.h>       /* clock_t, clock, CLOCKS_PER_SEC, nanosleep */
 #include <errno.h>
 #include <assert.h>

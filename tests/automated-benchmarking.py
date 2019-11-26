@@ -9,10 +9,7 @@ import numpy as np
 GITHUB_URL = "https://github.com/facebook/zstd"
 WORKING_DIR = "zstd-automated-benchmarking"
 LEVELS = [1, 2, 3, 4, 5]
-BUILDS = [
-    {"compiler": "clang", "mode": "64"},
-    {"compiler": "gcc", "mode": "64"}
-]
+BUILDS = [{"compiler": "clang", "mode": "64"}, {"compiler": "gcc", "mode": "64"}]
 
 # Not sure what the threshold for triggering alarms should be
 # 1% regression sounds like a little too sensitive but the desktop
@@ -183,7 +180,28 @@ if __name__ == "__main__":
     parser.add_argument(
         "emails", help="Email addresses of people who will be alerted upon regression"
     )
+    parser.add_argument("github_url", help="Url of the git repo", default=GITHUB_URL)
+    parser.add_argument(
+        "working_dir",
+        help="Name of directory where everything will be checkout out and built",
+        default=WORKING_DIR,
+    )
+    parser.add_argument(
+        "levels", help="Which levels to test eg ('1,2,3,4,5')", default="1,2,3,4,5"
+    )
+    parser.add_argument(
+        "builds",
+        help="format: 'compiler|mode,compiler|mode'. eg ('gcc|64,clang|64')",
+        default="gcc|64,clang|64",
+    )
     args = parser.parse_args()
     filenames = glob.glob("{}/**".format(args.filenames))
     emails = args.emails
+    GITHUB_URL = args.github_url
+    WORKING_DIR = args.working_dir
+    LEVELS = [int(l) for l in args.levels.split(",")]
+    BUILDS = [
+        {"compiler": b.split("|")[0], "mode": b.split("|")[1]}
+        for b in args.builds.split(",")
+    ]
     start_benchmarking(filenames, emails)

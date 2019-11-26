@@ -24,6 +24,21 @@ extern "C" {
 #include <direct.h>     /* needed for _mkdir in windows */
 #endif
 
+#if defined(_MSC_VER)
+    #define chmod _chmod
+#endif
+
+
+/*-*************************************
+*  Constants
+***************************************/
+#define LIST_SIZE_INCREASE   (8*1024)
+
+
+/*-*************************************
+*  Functions
+***************************************/
+
 int UTIL_fileExist(const char* filename)
 {
     stat_t statbuf;
@@ -54,6 +69,13 @@ int UTIL_getFileStat(const char* infilename, stat_t *statbuf)
     return 1;
 }
 
+/* like chmod, but avoid changing permission of /dev/null */
+int UTIL_chmod(char const* filename, mode_t permissions)
+{
+    if (!strcmp(filename, "/dev/null")) return 0;   /* pretend success, but don't change anything */
+    return chmod(filename, permissions);
+}
+
 int UTIL_setFileStat(const char *filename, stat_t *statbuf)
 {
     int res = 0;
@@ -82,21 +104,20 @@ int UTIL_setFileStat(const char *filename, stat_t *statbuf)
     res += chown(filename, statbuf->st_uid, statbuf->st_gid);  /* Copy ownership */
 #endif
 
-    res += chmod(filename, statbuf->st_mode & 07777);  /* Copy file permissions */
+    res += UTIL_chmod(filename, statbuf->st_mode & 07777);  /* Copy file permissions */
 
     errno = 0;
     return -res; /* number of errors is returned */
 }
 
-U32 UTIL_isDirectory(const char* infilename)
+int UTIL_isDirectory(const char* infilename)
 {
-    int r;
     stat_t statbuf;
 #if defined(_MSC_VER)
-    r = _stat64(infilename, &statbuf);
+    int const r = _stat64(infilename, &statbuf);
     if (!r && (statbuf.st_mode & _S_IFDIR)) return 1;
 #else
-    r = stat(infilename, &statbuf);
+    int const r = stat(infilename, &statbuf);
     if (!r && S_ISDIR(statbuf.st_mode)) return 1;
 #endif
     return 0;
@@ -126,28 +147,25 @@ int UTIL_isSameFile(const char* fName1, const char* fName2)
 #endif
 }
 
-#ifndef _MSC_VER
-/* Using this to distinguish named pipes */
-U32 UTIL_isFIFO(const char* infilename)
+/* UTIL_isFIFO : distinguish named pipes */
+int UTIL_isFIFO(const char* infilename)
 {
 /* macro guards, as defined in : https://linux.die.net/man/2/lstat */
 #if PLATFORM_POSIX_VERSION >= 200112L
     stat_t statbuf;
-    int r = UTIL_getFileStat(infilename, &statbuf);
+    int const r = UTIL_getFileStat(infilename, &statbuf);
     if (!r && S_ISFIFO(statbuf.st_mode)) return 1;
 #endif
     (void)infilename;
     return 0;
 }
-#endif
 
-U32 UTIL_isLink(const char* infilename)
+int UTIL_isLink(const char* infilename)
 {
 /* macro guards, as defined in : https://linux.die.net/man/2/lstat */
 #if PLATFORM_POSIX_VERSION >= 200112L
-    int r;
     stat_t statbuf;
-    r = lstat(infilename, &statbuf);
+    int const r = lstat(infilename, &statbuf);
     if (!r && S_ISLNK(statbuf.st_mode)) return 1;
 #endif
     (void)infilename;

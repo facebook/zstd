@@ -1005,16 +1005,13 @@ int main(int argCount, const char* argv[])
     if (!followLinks) {
         unsigned u;
         for (u=0, fileNamesNb=0; u<filenameIdx; u++) {
-            if (UTIL_isLink(filenameTable[u])
-#ifndef _MSC_VER
-                && !UTIL_isFIFO(filenameTable[u])
-#endif /* _MSC_VER */
+            if ( UTIL_isLink(filenameTable[u])
+             && !UTIL_isFIFO(filenameTable[u])
             ) {
                 DISPLAYLEVEL(2, "Warning : %s is a symbolic link, ignoring\n", filenameTable[u]);
             } else {
                 filenameTable[fileNamesNb++] = filenameTable[u];
-            }
-        }
+        }   }
         if (fileNamesNb == 0 && filenameIdx > 0)
             CLEAN_RETURN(1);
         filenameIdx = fileNamesNb;
@@ -1027,8 +1024,7 @@ int main(int argCount, const char* argv[])
             free((void*)filenameTable);
             filenameTable = extendedFileList;
             filenameIdx = fileNamesNb;
-        }
-    }
+    }   }
 #else
     (void)followLinks;
 #endif
@@ -1074,18 +1070,15 @@ int main(int argCount, const char* argv[])
                     DISPLAYLEVEL(3, "Benchmarking %s \n", filenameTable[i]);
                     for(c = cLevel; c <= cLevelLast; c++) {
                         BMK_benchFilesAdvanced(&filenameTable[i], 1, dictFileName, c, &compressionParams, g_displayLevel, &benchParams);
-                    }
-                }
+                }   }
             } else {
                 for(; cLevel <= cLevelLast; cLevel++) {
                     BMK_benchFilesAdvanced(filenameTable, filenameIdx, dictFileName, cLevel, &compressionParams, g_displayLevel, &benchParams);
-                }
-            }
+            }   }
         } else {
             for(; cLevel <= cLevelLast; cLevel++) {
                 BMK_syntheticTest(cLevel, compressibility, &compressionParams, g_displayLevel, &benchParams);
-            }
-        }
+        }   }
 
 #else
         (void)bench_nbSeconds; (void)blockSize; (void)setRealTimePrio; (void)separateFiles; (void)compressibility;

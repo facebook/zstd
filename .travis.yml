@@ -34,7 +34,8 @@ matrix:
 
     - name: make test (complete)
       script:
-        - make test
+        # DEVNULLRIGHTS : will request sudo rights to test permissions on /dev/null
+        - DEVNULLRIGHTS=test make test
 
     - name: gcc-6 + gcc-7 compilation
       script:

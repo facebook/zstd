@@ -249,6 +249,7 @@ struct ZSTD_CCtx_s {
     size_t staticSize;
     SeqCollector seqCollector;
     int isFirstBlock;
+    int initialized;
 
     seqStore_t seqStore;      /* sequences storage ptrs */
     ldmState_t ldmState;      /* long distance matching state */
@@ -335,6 +336,20 @@ MEM_STATIC int ZSTD_cParam_withinBounds(ZSTD_cParameter cParam, int value)
     if (value > bounds.upperBound) return 0;
     return 1;
 }
+
+/* ZSTD_noCompressBlock() :
+ * Writes uncompressed block to dst buffer from given src.
+ * Returns the size of the block */
+MEM_STATIC size_t ZSTD_noCompressBlock (void* dst, size_t dstCapacity, const void* src, size_t srcSize, U32 lastBlock)
+{
+    U32 const cBlockHeader24 = lastBlock + (((U32)bt_raw)<<1) + (U32)(srcSize << 3);
+    RETURN_ERROR_IF(srcSize + ZSTD_blockHeaderSize > dstCapacity,
+                    dstSize_tooSmall);
+    MEM_writeLE24(dst, cBlockHeader24);
+    memcpy((BYTE*)dst + ZSTD_blockHeaderSize, src, srcSize);
+    return ZSTD_blockHeaderSize + srcSize;
+}
+
 
 /* ZSTD_minGain() :
  * minimum compression required
@@ -844,6 +859,15 @@ ZSTD_checkDictValidity(const ZSTD_window_t* window,
     }   }   }
 }
 
+MEM_STATIC void ZSTD_window_init(ZSTD_window_t* window) {
+    memset(window, 0, sizeof(*window));
+    window->base = (BYTE const*)"";
+    window->dictBase = (BYTE const*)"";
+    window->dictLimit = 1;    /* start from 1, so that 1st position is valid */
+    window->lowLimit = 1;     /* it ensures first and later CCtx usages compress the same */
+    window->nextSrc = window->base + 1;   /* see issue #1241 */
+}
+
 /**
  * ZSTD_window_update():
  * Updates the window by appending [src, src + srcSize) to the window.
@@ -857,6 +881,10 @@ MEM_STATIC U32 ZSTD_window_update(ZSTD_window_t* window,
     BYTE const* const ip = (BYTE const*)src;
     U32 contiguous = 1;
     DEBUGLOG(5, "ZSTD_window_update");
+    if (srcSize == 0)
+        return contiguous;
+    assert(window->base != NULL);
+    assert(window->dictBase != NULL);
     /* Check if blocks follow each other */
     if (src != window->nextSrc) {
         /* not contiguous */
@@ -931,6 +959,21 @@ MEM_STATIC void ZSTD_debugTable(const U32* table, U32 max)
 }
 #endif
 
+/* ===============================================================
+ * Shared internal declarations
+ * These prototypes may be called from sources not in lib/compress
+ * =============================================================== */
+
+/* ZSTD_loadCEntropy() :
+ * dict : must point at beginning of a valid zstd dictionary.
+ * return : size of dictionary header (size of magic number + dict ID + entropy tables)
+ * assumptions : magic number supposed already checked
+ *               and dictSize >= 8 */
+size_t ZSTD_loadCEntropy(ZSTD_compressedBlockState_t* bs, void* workspace,
+                         short* offcodeNCount, unsigned* offcodeMaxValue,
+                         const void* const dict, size_t dictSize);
+
+void ZSTD_reset_compressedBlockState(ZSTD_compressedBlockState_t* bs);
 
 /* ==============================================================
  * Private declarations
@@ -940,6 +983,7 @@ MEM_STATIC void ZSTD_debugTable(const U32* table, U32 max)
 /* ZSTD_getCParamsFromCCtxParams() :
  * cParams are built depending on compressionLevel, src size hints,
  * LDM and manually set compression parameters.
+ * Note: srcSizeHint == 0 means 0!
  */
 ZSTD_compressionParameters ZSTD_getCParamsFromCCtxParams(
         const ZSTD_CCtx_params* CCtxParams, U64 srcSizeHint, size_t dictSize);

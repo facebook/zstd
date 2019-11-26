@@ -102,11 +102,11 @@ size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
         cLitSize = singleStream ?
             HUF_compress1X_repeat(
                 ostart+lhSize, dstCapacity-lhSize, src, srcSize,
-                255, 11, entropyWorkspace, entropyWorkspaceSize,
+                HUF_SYMBOLVALUE_MAX, HUF_TABLELOG_DEFAULT, entropyWorkspace, entropyWorkspaceSize,
                 (HUF_CElt*)nextHuf->CTable, &repeat, preferRepeat, bmi2) :
             HUF_compress4X_repeat(
                 ostart+lhSize, dstCapacity-lhSize, src, srcSize,
-                255, 11, entropyWorkspace, entropyWorkspaceSize,
+                HUF_SYMBOLVALUE_MAX, HUF_TABLELOG_DEFAULT, entropyWorkspace, entropyWorkspaceSize,
                 (HUF_CElt*)nextHuf->CTable, &repeat, preferRepeat, bmi2);
         if (repeat != HUF_repeat_none) {
             /* reused the existing table */

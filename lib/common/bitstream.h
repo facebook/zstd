@@ -48,6 +48,7 @@ extern "C" {
 *  Dependencies
 ******************************************/
 #include "mem.h"            /* unaligned access routines */
+#include "compiler.h"       /* UNLIKELY() */
 #include "debug.h"          /* assert(), DEBUGLOG(), RAWLOG() */
 #include "error_private.h"  /* error codes and messages */
 
@@ -411,6 +412,23 @@ MEM_STATIC size_t BIT_readBitsFast(BIT_DStream_t* bitD, unsigned nbBits)
     return value;
 }
 
+/*! BIT_reloadDStreamFast() :
+ *  Similar to BIT_reloadDStream(), but with two differences:
+ *  1. bitsConsumed <= sizeof(bitD->bitContainer)*8 must hold!
+ *  2. Returns BIT_DStream_overflow when bitD->ptr < bitD->limitPtr, at this
+ *     point you must use BIT_reloadDStream() to reload.
+ */
+MEM_STATIC BIT_DStream_status BIT_reloadDStreamFast(BIT_DStream_t* bitD)
+{
+    if (UNLIKELY(bitD->ptr < bitD->limitPtr))
+        return BIT_DStream_overflow;
+    assert(bitD->bitsConsumed <= sizeof(bitD->bitContainer)*8);
+    bitD->ptr -= bitD->bitsConsumed >> 3;
+    bitD->bitsConsumed &= 7;
+    bitD->bitContainer = MEM_readLEST(bitD->ptr);
+    return BIT_DStream_unfinished;
+}
+
 /*! BIT_reloadDStream() :
  *  Refill `bitD` from buffer previously set in BIT_initDStream() .
  *  This function is safe, it guarantees it will not read beyond src buffer.
@@ -422,10 +440,7 @@ MEM_STATIC BIT_DStream_status BIT_reloadDStream(BIT_DStream_t* bitD)
         return BIT_DStream_overflow;
 
     if (bitD->ptr >= bitD->limitPtr) {
-        bitD->ptr -= bitD->bitsConsumed >> 3;
-        bitD->bitsConsumed &= 7;
-        bitD->bitContainer = MEM_readLEST(bitD->ptr);
-        return BIT_DStream_unfinished;
+        return BIT_reloadDStreamFast(bitD);
     }
     if (bitD->ptr == bitD->start) {
         if (bitD->bitsConsumed < sizeof(bitD->bitContainer)*8) return BIT_DStream_endOfBuffer;

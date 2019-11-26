@@ -2853,14 +2853,23 @@ static size_t ZSTD_checkDictNCount(short* normalizedCounter, unsigned dictMaxSym
 
 size_t ZSTD_loadCEntropy(ZSTD_compressedBlockState_t* bs, void* workspace,
                          short* offcodeNCount, unsigned* offcodeMaxValue,
-                         const void* const dict, size_t dictSize) 
+                         const void* const dict, size_t dictSize)
 {
     const BYTE* dictPtr = (const BYTE*)dict;    /* skip magic num and dict ID */
     const BYTE* const dictEnd = dictPtr + dictSize;
     dictPtr += 8;
 
     {   unsigned maxSymbolValue = 255;
-        size_t const hufHeaderSize = HUF_readCTable((HUF_CElt*)bs->entropy.huf.CTable, &maxSymbolValue, dictPtr, dictEnd-dictPtr);
+        unsigned hasZeroWeights;
+        size_t const hufHeaderSize = HUF_readCTable((HUF_CElt*)bs->entropy.huf.CTable, &maxSymbolValue, dictPtr,
+            dictEnd-dictPtr, &hasZeroWeights);
+
+        /* We only set the loaded table as valid if it contains all non-zero
+         * weights. Otherwise, we set it to check */
+        if (!hasZeroWeights)
+            bs->entropy.huf.repeatMode = HUF_repeat_valid;
+        else bs->entropy.huf.repeatMode = HUF_repeat_check;
+
         RETURN_ERROR_IF(HUF_isError(hufHeaderSize), dictionary_corrupted);
         RETURN_ERROR_IF(maxSymbolValue < 255, dictionary_corrupted);
         dictPtr += hufHeaderSize;
@@ -2967,7 +2976,6 @@ static size_t ZSTD_loadZstdDictionary(ZSTD_compressedBlockState_t* bs,
                 RETURN_ERROR_IF(bs->rep[u] > dictContentSize, dictionary_corrupted);
         }   }
 
-        bs->entropy.huf.repeatMode = HUF_repeat_valid;
         bs->entropy.fse.offcode_repeatMode = FSE_repeat_valid;
         bs->entropy.fse.matchlength_repeatMode = FSE_repeat_valid;
         bs->entropy.fse.litlength_repeatMode = FSE_repeat_valid;

@@ -2860,13 +2860,13 @@ size_t ZSTD_loadCEntropy(ZSTD_compressedBlockState_t* bs, void* workspace,
     dictPtr += 8;
 
     {   unsigned maxSymbolValue = 255;
-        size_t hasNoZeroWeights;
+        unsigned hasZeroWeights;
         size_t const hufHeaderSize = HUF_readCTable((HUF_CElt*)bs->entropy.huf.CTable, &maxSymbolValue, dictPtr,
-            dictEnd-dictPtr, &hasNoZeroWeights);
+            dictEnd-dictPtr, &hasZeroWeights);
 
         /* We only set the loaded table as valid if it contains all non-zero
          * weights. Otherwise, we set it to check */
-        if (hasNoZeroWeights)
+        if (!hasZeroWeights)
             bs->entropy.huf.repeatMode = HUF_repeat_valid;
         else bs->entropy.huf.repeatMode = HUF_repeat_check;
 

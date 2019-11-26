@@ -110,6 +110,16 @@ matrix:
         - make clean
         - make -j msanregressiontest
 
+    - name: C++, gnu90 and c99 compatibility   # ~3mn
+      script:
+        - make cxxtest
+        - make clean
+        - make gnu90build
+        - make clean
+        - make c99build
+        - make clean
+        - make travis-install    # just ensures `make install` works
+
     - name: Valgrind + Fuzz Test Stack Mode    # ~ 7mn
       script:
         - make valgrindinstall
@@ -122,7 +132,7 @@ matrix:
         - make arminstall
         - make armfuzz
 
-    - name: aarch64 + Fuzz Test (on Xenial)    # ~14mn
+    - name: Qemu aarch64 + Fuzz Test (on Xenial)    # ~14mn
       dist: xenial
       script:
         - make arminstall
@@ -157,17 +167,6 @@ matrix:
         - make clang38install
         - CC=clang-3.8 make tsan-test-zstream
         - CC=clang-3.8 make tsan-fuzztest
-
-    - name: C++, gnu90 and c99 compatibility   # ~3mn
-      if: branch = master
-      script:
-        - make cxxtest
-        - make clean
-        - make gnu90build
-        - make clean
-        - make c99build
-        - make clean
-        - make travis-install    # just ensures `make install` works
 
     - name: PPC64    # ~13mn
       if: branch = master

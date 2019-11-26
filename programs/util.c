@@ -17,8 +17,23 @@ extern "C" {
 *  Dependencies
 ******************************************/
 #include "util.h"       /* note : ensure that platform.h is included first ! */
+#include <stdlib.h>     /* malloc, realloc, free */
+#include <time.h>       /* clock_t, clock, CLOCKS_PER_SEC, nanosleep */
 #include <errno.h>
 #include <assert.h>
+
+#if defined(_WIN32)
+#  include <sys/utime.h>  /* utime */
+#  include <io.h>         /* _chmod */
+#else
+#  include <unistd.h>     /* chown, stat */
+#  if PLATFORM_POSIX_VERSION < 200809L
+#    include <utime.h>    /* utime */
+#  else
+#    include <fcntl.h>    /* AT_FDCWD */
+#    include <sys/stat.h> /* utimensat */
+#  endif
+#endif
 
 #if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__)
 #include <direct.h>     /* needed for _mkdir in windows */

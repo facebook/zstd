@@ -25,17 +25,18 @@ extern "C" {
 #include <sys/stat.h>     /* stat, chmod */
 #include "mem.h"          /* U64 */
 
+
 /*-************************************************************
 * Avoid fseek()'s 2GiB barrier with MSVC, macOS, *BSD, MinGW
 ***************************************************************/
 #if defined(_MSC_VER) && (_MSC_VER >= 1400)
-#   define UTIL_fseek _fseeki64
+#  define UTIL_fseek _fseeki64
 #elif !defined(__64BIT__) && (PLATFORM_POSIX_VERSION >= 200112L) /* No point defining Large file for 64 bit */
 #  define UTIL_fseek fseeko
 #elif defined(__MINGW32__) && defined(__MSVCRT__) && !defined(__STRICT_ANSI__) && !defined(__NO_MINGW_LFS)
-#   define UTIL_fseek fseeko64
+#  define UTIL_fseek fseeko64
 #else
-#   define UTIL_fseek fseek
+#  define UTIL_fseek fseek
 #endif
 
 
@@ -126,17 +127,8 @@ const char* UTIL_getFileExtension(const char* infilename);
  *  Lists of Filenames
  ******************************************/
 
-#ifdef _WIN32
-#  define UTIL_HAS_CREATEFILELIST
-#elif defined(__linux__) || (PLATFORM_POSIX_VERSION >= 200112L)  /* opendir, readdir require POSIX.1-2001 */
-#  define UTIL_HAS_CREATEFILELIST
-#else
-   /* do not define UTIL_HAS_CREATEFILELIST */
-#endif /* #ifdef _WIN32 */
-
 typedef struct
-{
-    const char** fileNames;
+{   const char** fileNames;
     char* buf;            /* fileNames are stored in this buffer (or are read-only) */
     size_t tableSize;     /* nb of fileNames */
     size_t tableCapacity;
@@ -153,7 +145,9 @@ UTIL_createFileNamesTable_fromFileName(const char* inputFileName);
 /*! UTIL_assembleFileNamesTable() :
  *  This function takes ownership of its arguments, @filenames and @buf,
  *  and store them inside the created object.
- * @return : FileNamesTable*, or NULL, if allocation fails.
+ *  note : this function never fails,
+ *         it will rather exit() the program if internal allocation fails.
+ * @return : resulting FileNamesTable* object.
  */
 FileNamesTable*
 UTIL_assembleFileNamesTable(const char** filenames, size_t tableSize, char* buf);
@@ -185,15 +179,8 @@ void UTIL_expandFNT(FileNamesTable** fnt, int followLinks);
  * @return : a FileNamesTable* object,
  *        or NULL in case of error
  */
-FileNamesTable* UTIL_createFNT_fromROTable(const char** filenames, size_t nbFilenames);
-
-/*! UTIL_createExpandedFNT() :
- *  read names from @filenames, and expand those corresponding to directories
- * @return : an expanded FileNamesTable*, where each name is a file
- *        or NULL in case of error
- */
-FileNamesTable* UTIL_createExpandedFNT(const char** filenames, size_t nbFilenames, int followLinks);
-
+FileNamesTable*
+UTIL_createFNT_fromROTable(const char** filenames, size_t nbFilenames);
 
 /*! UTIL_allocateFileNamesTable() :
  *  Allocates a table of const char*, to insert read-only names later on.
@@ -210,6 +197,28 @@ FileNamesTable* UTIL_allocateFileNamesTable(size_t tableSize);
  *  otherwise its UB (protected by an `assert()`).
  */
 void UTIL_refFilename(FileNamesTable* fnt, const char* filename);
+
+
+/* UTIL_createExpandedFNT() is only active if UTIL_HAS_CREATEFILELIST is defined.
+ * Otherwise, UTIL_createExpandedFNT() is a shell function which does nothing
+ * apart from displaying a warning message.
+ */
+#ifdef _WIN32
+#  define UTIL_HAS_CREATEFILELIST
+#elif defined(__linux__) || (PLATFORM_POSIX_VERSION >= 200112L)  /* opendir, readdir require POSIX.1-2001 */
+#  define UTIL_HAS_CREATEFILELIST
+#else
+   /* do not define UTIL_HAS_CREATEFILELIST */
+#endif
+
+/*! UTIL_createExpandedFNT() :
+ *  read names from @filenames, and expand those corresponding to directories.
+ *  links are followed or not depending on @followLinks directive.
+ * @return : an expanded FileNamesTable*, where each name is a file
+ *        or NULL in case of error
+ */
+FileNamesTable*
+UTIL_createExpandedFNT(const char** filenames, size_t nbFilenames, int followLinks);
 
 
 /*-****************************************

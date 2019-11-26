@@ -221,11 +221,10 @@ FileNamesTable* UTIL_allocateFileNamesTable(size_t tableSize);
 
 
 /*! UTIL_refFilename() :
- *  Add a read-only name to reference into @fnt table.
- *  Since @filename is only referenced, its lifetime must outlive @fnt.
- *  This function never fails, but it can abort().
- *  Internal table must be large enough to reference a new member
- *  (capacity > size), otherwise the function will abort().
+ *  Add a reference to read-only name into @fnt table.
+ *  As @filename is only referenced, its lifetime must outlive @fnt.
+ *  Internal table must be large enough to reference a new member,
+ *  otherwise its UB (protected by an `assert()`).
  */
 void UTIL_refFilename(FileNamesTable* fnt, const char* filename);
 

@@ -2457,7 +2457,7 @@ static size_t ZSTD_compressBlock_targetCBlockSize(ZSTD_CCtx* zc,
                                const void* src, size_t srcSize,
                                U32 lastBlock) {
     size_t cSize = 0;
-    int usingNoCompressSuperBlock = 0;
+    int compressSuperBlock = 1;
     DEBUGLOG(5, "ZSTD_compressBlock_targetCBlockSize (dstCapacity=%u, dictLimit=%u, nextToUpdate=%u, srcSize=%zu)",
                 (unsigned)dstCapacity, (unsigned)zc->blockState.matchState.window.dictLimit, (unsigned)zc->blockState.matchState.nextToUpdate, srcSize);
 
@@ -2473,7 +2473,7 @@ static size_t ZSTD_compressBlock_targetCBlockSize(ZSTD_CCtx* zc,
      */
     if (cSize == 0) {
         cSize = ZSTD_noCompressSuperBlock(dst, dstCapacity, src, srcSize, zc->appliedParams.targetCBlockSize, lastBlock);
-        usingNoCompressSuperBlock = 1;
+        compressSuperBlock = 0;
         /* In compression, there is an assumption that a compressed block is always
          * within the size of ZSTD_compressBound(). However, SuperBlock compression
          * can exceed the limit due to overhead of headers from SubBlocks.
@@ -2491,6 +2491,7 @@ static size_t ZSTD_compressBlock_targetCBlockSize(ZSTD_CCtx* zc,
             /* If ZSTD_noCompressSuperBlock fails with dstSize_tooSmall,
              * compress normally.
              */
+            compressSuperBlock = 1;
             cSize = ZSTD_compressSequences(&zc->seqStore,
                     &zc->blockState.prevCBlock->entropy, &zc->blockState.nextCBlock->entropy,
                     &zc->appliedParams,
@@ -2501,6 +2502,7 @@ static size_t ZSTD_compressBlock_targetCBlockSize(ZSTD_CCtx* zc,
 
             FORWARD_IF_ERROR(cSize);
             if (cSize == 0) {
+                compressSuperBlock = 0;
                 /* If compressSequences didn't work, we just output a regular
                  * uncompressed block */
                 cSize = ZSTD_noCompressBlock(dst, dstCapacity, src, srcSize, lastBlock);
@@ -2513,7 +2515,7 @@ static size_t ZSTD_compressBlock_targetCBlockSize(ZSTD_CCtx* zc,
         }
     }
 
-    if (!ZSTD_isError(cSize) && !usingNoCompressSuperBlock) {
+    if (!ZSTD_isError(cSize) && compressSuperBlock) {
         /* confirm repcodes and entropy tables when emitting a compressed block */
         ZSTD_compressedBlockState_t* const tmp = zc->blockState.prevCBlock;
         zc->blockState.prevCBlock = zc->blockState.nextCBlock;

@@ -81,7 +81,7 @@ matrix:
         - make clean
         - make -j check MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
 
-    - name: cmake test    # ~2mn
+    - name: cmake build check    # ~2mn
       script:
         - make cmakebuild
 
@@ -122,7 +122,7 @@ matrix:
         - make arminstall
         - make armfuzz
 
-    - name: Xenial (AARCH64 + Fuzz Test)    # ~14mn
+    - name: aarch64 + Fuzz Test (on Xenial)    # ~14mn
       dist: xenial
       script:
         - make arminstall
@@ -133,10 +133,6 @@ matrix:
         - make ppcinstall
         - make ppcfuzz
 
-    - name: Versions Compatibility Test   # 11.5mn
-      script:
-        - make -C tests versionsTest
-
     # check release number (release only)
     - name: Tag-Specific Test
       if: tag =~ ^v[0-9]\.[0-9]
@@ -146,10 +142,14 @@ matrix:
 
     # tests for master branch and cron job only
     - name: OS-X    # ~13mn
-      if: branch = master
       os: osx
       script:
         - make test
+
+    - name: Versions Compatibility Test   # 11.5mn
+      if: branch = master
+      script:
+        - make -C tests versionsTest
 
     - name: thread sanitizer   # ~29mn
       if: branch = master
@@ -158,20 +158,16 @@ matrix:
         - CC=clang-3.8 make tsan-test-zstream
         - CC=clang-3.8 make tsan-fuzztest
 
-    - name: C++ and gnu90 compatibility   # ~2.5mn
+    - name: C++, gnu90 and c99 compatibility   # ~3mn
       if: branch = master
       script:
         - make cxxtest
         - make clean
         - make gnu90build
         - make clean
-        - make travis-install    # just ensures `make install` works
-
-    - name: c99 compatibility    # ~1.5mn
-      if: branch = master
-      script:
         - make c99build
-        - make -C tests test-zstd
+        - make clean
+        - make travis-install    # just ensures `make install` works
 
     - name: PPC64    # ~13mn
       if: branch = master

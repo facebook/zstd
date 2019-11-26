@@ -114,6 +114,7 @@ else
 fi
 
 
+
 println "\n===>  simple tests "
 
 ./datagen > tmp
@@ -335,8 +336,20 @@ $ZSTD -f tmp1 notHere tmp2 && die "missing file not detected!"
 rm tmp*
 
 
-if [ -n "$DEVNULLRIGHTS" ]
-then
+if [ "$isWindows" = false ] ; then
+    println "\n===>  zstd fifo named pipe test "
+    echo "Hello World!" > tmp_original
+    mkfifo tmp_named_pipe
+    # note : fifo test doesn't work in combination with `dd` or `cat`
+    echo "Hello World!" > tmp_named_pipe &
+    $ZSTD tmp_named_pipe -o tmp_compressed
+    $ZSTD -d -o tmp_decompressed tmp_compressed
+    $DIFF -s tmp_original tmp_decompressed
+    rm -rf tmp*
+fi
+
+
+if [ -n "$DEVNULLRIGHTS" ] ; then
     # these tests requires sudo rights, which is uncommon.
     # they are only triggered if DEVNULLRIGHTS macro is defined.
     println "\n===> checking /dev/null permissions are unaltered "
@@ -1258,19 +1271,5 @@ $ZSTD --train-cover "$TESTDIR"/*.c "$PRGDIR"/*.c
 test -f dictionary
 rm -f tmp* dictionary
 
-
-if [ "$isWindows" = false ] ; then
-
-println "\n===>  zstd fifo named pipe test "
-dd bs=1 count=10 if=/dev/zero of=tmp_original
-mkfifo named_pipe
-dd bs=1 count=10 if=/dev/zero of=named_pipe &
-$ZSTD named_pipe -o tmp_compressed
-$ZSTD -d -o tmp_decompressed tmp_compressed
-$DIFF -s tmp_original tmp_decompressed
-rm -rf tmp*
-rm -rf named_pipe
-
-fi
 
 rm -f tmp*

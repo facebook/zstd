@@ -131,7 +131,7 @@ int UTIL_isFIFO(const char* infilename);
 
 #define UTIL_FILESIZE_UNKNOWN  ((U64)(-1))
 U64 UTIL_getFileSize(const char* infilename);
-U64 UTIL_getTotalFileSize(const char* const * const fileNamesTable, unsigned nbFiles);
+U64 UTIL_getTotalFileSize(const char* const * fileNamesTable, unsigned nbFiles);
 int UTIL_getFileStat(const char* infilename, stat_t* statbuf);
 int UTIL_setFileStat(const char* filename, stat_t* statbuf);
 int UTIL_chmod(char const* filename, mode_t permissions);   /*< like chmod, but avoid changing permission of /dev/null */

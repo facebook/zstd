@@ -1,4 +1,5 @@
 #! /usr/bin/env python3
+# THIS BENCHMARK IS BEING REPLACED BY automated-bencmarking.py
 
 # ################################################################
 # Copyright (c) 2016-present, Przemyslaw Skibinski, Yann Collet, Facebook, Inc.

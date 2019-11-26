@@ -1,7 +1,6 @@
 # Medium Tests: Run on all commits/PRs to dev branch
 
 language: c
-dist: trusty
 
 git:
   depth: 1

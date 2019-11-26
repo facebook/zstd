@@ -19,7 +19,7 @@ BUILDS = [
 # that I'm running it on is pretty stable so I think this is fine
 CSPEED_REGRESSION_TOLERANCE = 0.01
 DSPEED_REGRESSION_TOLERANCE = 0.01
-N_BENCHMARK_ITERATIONS = 1
+N_BENCHMARK_ITERATIONS = 5
 
 
 def clean():
@@ -175,7 +175,6 @@ def start_benchmarking(filenames, emails):
             print(body)
         else:
             print("No regressions")
-        return None
 
 
 if __name__ == "__main__":

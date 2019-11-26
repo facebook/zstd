@@ -3,8 +3,6 @@ import glob
 import os
 import re
 
-import numpy as np
-
 
 GITHUB_URL = "https://github.com/facebook/zstd"
 WORKING_DIR = "zstd-automated-benchmarking"
@@ -60,7 +58,8 @@ def bench(executable, level, filename):
 
 
 def bench_n(executable, level, filename, n=N_BENCHMARK_ITERATIONS):
-    speeds = np.max([bench(executable, level, filename) for _ in range(n)], axis=0)
+    speeds_arr = [bench(executable, level, filename) for _ in range(n)]
+    speeds = (max(b[0] for b in speeds_arr), max(b[1] for b in speeds_arr))
     print(
         "Bench (executable={} level={} filename={}, iterations={}):\n\t[cspeed: {} MB/s, dspeed: {} MB/s]".format(
             os.path.basename(executable),
@@ -92,7 +91,7 @@ def bench_cycle(version, filenames):
         executable = build(version, b["compiler"], b["mode"])
         res.append([[bench_n(executable, l, f) for f in filenames] for l in LEVELS])
     print("Benchmarked version {}".format(version))
-    return np.array(res)
+    return res
 
 
 def compare_versions(old_version, new_version, filenames):

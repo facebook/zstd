@@ -2861,6 +2861,7 @@ size_t ZSTD_loadCEntropy(ZSTD_compressedBlockState_t* bs, void* workspace,
 
     {   unsigned maxSymbolValue = 255;
         unsigned hasZeroWeights = 1;
+        bs->entropy.huf.repeatMode = HUF_repeat_check;
         size_t const hufHeaderSize = HUF_readCTable((HUF_CElt*)bs->entropy.huf.CTable, &maxSymbolValue, dictPtr,
             dictEnd-dictPtr, &hasZeroWeights);
 
@@ -2868,7 +2869,6 @@ size_t ZSTD_loadCEntropy(ZSTD_compressedBlockState_t* bs, void* workspace,
          * weights. Otherwise, we set it to check */
         if (!hasZeroWeights)
             bs->entropy.huf.repeatMode = HUF_repeat_valid;
-        else bs->entropy.huf.repeatMode = HUF_repeat_check;
 
         RETURN_ERROR_IF(HUF_isError(hufHeaderSize), dictionary_corrupted);
         RETURN_ERROR_IF(maxSymbolValue < 255, dictionary_corrupted);

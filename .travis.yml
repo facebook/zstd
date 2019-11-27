@@ -85,7 +85,7 @@ matrix:
         - make cmakebuild
 
     - name: static analyzer scanbuild    # ~26mn
-      dist: trusty  # note : it's important to pin down a version of static analyzer, since newer versions find different false positives 
+      dist: trusty  # note : it's important to pin down a version of static analyzer, since newer versions find different false positives
       script:
         - make staticAnalyze
 
@@ -120,6 +120,11 @@ matrix:
         - make clean
         - make travis-install    # just ensures `make install` works
 
+    - name: mingw cross-compilation
+      script :
+        - sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix;
+        - CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++ make
+
     - name: Valgrind + Fuzz Test Stack Mode    # ~ 7mn
       script:
         - make valgrindinstall
@@ -131,12 +136,6 @@ matrix:
       script:
         - make arminstall
         - make armfuzz
-
-    - name: Qemu aarch64 + Fuzz Test (on Xenial)    # ~14mn
-      dist: xenial
-      script:
-        - make arminstall
-        - make aarch64fuzz
 
     - name: Qemu PPC + Fuzz Test    # ~13mn
       dist: trusty   # it seems ppc cross-compilation fails on "current"
@@ -174,6 +173,14 @@ matrix:
       script:
         - make ppcinstall
         - make ppc64fuzz
+
+    # note : we already have aarch64 tests on hardware
+    - name: Qemu aarch64 + Fuzz Test (on Xenial)    # ~14mn
+      if: branch = master
+      dist: xenial
+      script:
+        - make arminstall
+        - make aarch64fuzz
 
     - name: zlib wrapper test    # ~7.5mn
       if: branch = master

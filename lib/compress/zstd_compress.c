@@ -2860,7 +2860,7 @@ size_t ZSTD_loadCEntropy(ZSTD_compressedBlockState_t* bs, void* workspace,
     dictPtr += 8;
 
     {   unsigned maxSymbolValue = 255;
-        unsigned hasZeroWeights;
+        unsigned hasZeroWeights = 0;
         size_t const hufHeaderSize = HUF_readCTable((HUF_CElt*)bs->entropy.huf.CTable, &maxSymbolValue, dictPtr,
             dictEnd-dictPtr, &hasZeroWeights);
 

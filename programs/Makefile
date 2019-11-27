@@ -165,15 +165,15 @@ $(ZSTDDECOMP_O): CFLAGS += $(ALIGN_LOOP)
 zstd : CPPFLAGS += $(THREAD_CPP) $(ZLIBCPP) $(LZMACPP) $(LZ4CPP)
 zstd : LDFLAGS += $(THREAD_LD) $(ZLIBLD) $(LZMALD) $(LZ4LD) $(DEBUGFLAGS_LD)
 zstd : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
+ifneq (,$(filter Windows%,$(OS)))
+zstd : $(RES_FILE)
+endif
 zstd : $(ZSTDLIB_FILES) zstdcli.o util.o timefn.o fileio.o benchfn.o benchzstd.o datagen.o dibio.o
 	@echo "$(THREAD_MSG)"
 	@echo "$(ZLIB_MSG)"
 	@echo "$(LZMA_MSG)"
 	@echo "$(LZ4_MSG)"
-ifneq (,$(filter Windows%,$(OS)))
-	windres/generate_res.bat
-endif
-	$(CC) $(FLAGS) $^ $(RES_FILE) -o $@$(EXT) $(LDFLAGS)
+	$(CC) $(FLAGS) $^ -o $@$(EXT) $(LDFLAGS)
 
 .PHONY: zstd-release
 zstd-release: DEBUGFLAGS := -DBACKTRACE_ENABLE=0
@@ -183,11 +183,11 @@ zstd-release: zstd
 zstd32 : CPPFLAGS += $(THREAD_CPP)
 zstd32 : LDFLAGS  += $(THREAD_LD)
 zstd32 : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
-zstd32 : $(ZSTDLIB_FILES) zstdcli.c util.c timefn.c fileio.c benchfn.c benchzstd.c datagen.c dibio.c
 ifneq (,$(filter Windows%,$(OS)))
-	windres/generate_res.bat
+zstd32 : $(RES32_FILE)
 endif
-	$(CC) -m32 $(FLAGS) $^ $(RES32_FILE) -o $@$(EXT)
+zstd32 : $(ZSTDLIB_FILES) zstdcli.c util.c timefn.c fileio.c benchfn.c benchzstd.c datagen.c dibio.c
+	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
 zstd-nolegacy : $(ZSTD_FILES) $(ZDICT_FILES) zstdcli.o util.o fileio.c benchfn.o benchzstd.o timefn.o datagen.o dibio.o
 	$(CC) $(FLAGS) $^ -o $@$(EXT) $(LDFLAGS)
@@ -239,8 +239,16 @@ zstdmt: zstd
 	ln -sf zstd zstdmt
 
 .PHONY: generate_res
-generate_res:
-	windres/generate_res.bat
+generate_res: $(RES64_FILE) $(RES32_FILE)
+
+ifneq (,$(filter Windows%,$(OS)))
+RC ?= windres
+# http://stackoverflow.com/questions/708238/how-do-i-add-an-icon-to-a-mingw-gcc-compiled-executable
+$(RES64_FILE): windres/zstd.rc
+	$(RC) -o $@ -I ../lib -I windres -i $< -O coff -F pe-x86-64
+$(RES32_FILE): windres/zstd.rc
+	$(RC) -o $@ -I ../lib -I windres -i $< -O coff -F pe-i386
+endif
 
 .PHONY: clean
 clean:
@@ -346,10 +354,10 @@ INSTALL_MAN     ?= $(INSTALL_DATA)
 install: zstd
 	@echo Installing binaries
 	@$(INSTALL) -d -m 755 $(DESTDIR)$(BINDIR)/ $(DESTDIR)$(MAN1DIR)/
-	@$(INSTALL_PROGRAM) zstd $(DESTDIR)$(BINDIR)/zstd
-	@ln -sf zstd $(DESTDIR)$(BINDIR)/zstdcat
-	@ln -sf zstd $(DESTDIR)$(BINDIR)/unzstd
-	@ln -sf zstd $(DESTDIR)$(BINDIR)/zstdmt
+	@$(INSTALL_PROGRAM) zstd$(EXT) $(DESTDIR)$(BINDIR)/zstd$(EXT)
+	@ln -sf zstd$(EXT) $(DESTDIR)$(BINDIR)/zstdcat$(EXT)
+	@ln -sf zstd$(EXT) $(DESTDIR)$(BINDIR)/unzstd$(EXT)
+	@ln -sf zstd$(EXT) $(DESTDIR)$(BINDIR)/zstdmt$(EXT)
 	@$(INSTALL_SCRIPT) zstdless $(DESTDIR)$(BINDIR)/zstdless
 	@$(INSTALL_SCRIPT) zstdgrep $(DESTDIR)$(BINDIR)/zstdgrep
 	@echo Installing man pages

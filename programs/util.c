@@ -625,14 +625,13 @@ const char* UTIL_getFileExtension(const char* infilename)
 FileNamesTable*
 UTIL_createExpandedFNT(const char** inputNames, size_t nbIfns, int followLinks)
 {
-    size_t pos;
     unsigned nbFiles;
     char* buf = (char*)malloc(LIST_SIZE_INCREASE);
     char* bufend = buf + LIST_SIZE_INCREASE;
 
     if (!buf) return NULL;
 
-    {   size_t ifnNb;
+    {   size_t ifnNb, pos;
         for (ifnNb=0, pos=0, nbFiles=0; ifnNb<nbIfns; ifnNb++) {
             if (!UTIL_isDirectory(inputNames[ifnNb])) {
                 size_t const len = strlen(inputNames[ifnNb]);
@@ -640,8 +639,8 @@ UTIL_createExpandedFNT(const char** inputNames, size_t nbIfns, int followLinks)
                     ptrdiff_t newListSize = (bufend - buf) + LIST_SIZE_INCREASE;
                     assert(newListSize >= 0);
                     buf = (char*)UTIL_realloc(buf, (size_t)newListSize);
-                    bufend = buf + newListSize;
                     if (!buf) return NULL;
+                    bufend = buf + newListSize;
                 }
                 if (buf + pos + len < bufend) {
                     memcpy(buf+pos, inputNames[ifnNb], len+1);  /* including final \0 */
@@ -655,7 +654,7 @@ UTIL_createExpandedFNT(const char** inputNames, size_t nbIfns, int followLinks)
 
     if (nbFiles == 0) { free(buf); return NULL; }
 
-    {   size_t ifnNb;
+    {   size_t ifnNb, pos;
         const char** const fileNamesTable = (const char**)malloc((nbFiles + 1) * sizeof(*fileNamesTable));
         if (!fileNamesTable) { free(buf); return NULL; }
 
@@ -664,20 +663,7 @@ UTIL_createExpandedFNT(const char** inputNames, size_t nbIfns, int followLinks)
             if (buf + pos > bufend) { free(buf); free((void*)fileNamesTable); return NULL; }
             pos += strlen(fileNamesTable[ifnNb]) + 1;
         }
-        {   FileNamesTable* const fnt = UTIL_assembleFileNamesTable(fileNamesTable, nbFiles, buf);
-#if 0 && defined(__clang_analyzer__)
-            /* note : this trick might not be necessary anymore */
-            /* scan-build does not understand ownership transfer.
-             * In _some_ versions, it believes that there is a leak of @buf and @fileNamesTable
-             * on leaving the function, which is not the case,
-             * as they are referenced inside the object created by UTIL_assembleFileNamesTable().
-             * In order to silence this false warning, let's "pretend" that these memory objects are freed.
-             * This directive is only read by scan-build, due to __clang_analyzer__ macros */
-             free(buf);
-             free(fileNamesTable);
-#endif
-            return fnt;
-        }
+        return UTIL_assembleFileNamesTable(fileNamesTable, nbFiles, buf);
     }
 }
 
@@ -695,18 +681,7 @@ FileNamesTable* UTIL_createFNT_fromROTable(const char** filenames, size_t nbFile
     const char** const newFNTable = (const char**)malloc(sizeof_FNTable);
     if (newFNTable==NULL) return NULL;
     memcpy((void*)newFNTable, filenames, sizeof_FNTable);  /* void* : mitigate a Visual compiler bug or limitation */
-    {   FileNamesTable* const fnt = UTIL_assembleFileNamesTable(newFNTable, nbFilenames, NULL);;
-#ifdef __clang_analyzer__
-        /* scan-build does not understand ownership transfer.
-         * In _some_ versions, it believes that there is a leak of @newFNTable
-         * on leaving the function, which is not the case,
-         * as they are referenced inside the object created by UTIL_assembleFileNamesTable().
-         * In order to silence this false warning, let's "pretend" that these memory objects are freed.
-         * This directive is only read by scan-build, due to __clang_analyzer__ macros */
-         free(newFNTable);
-#endif
-        return fnt;
-    }
+    return UTIL_assembleFileNamesTable(newFNTable, nbFilenames, NULL);
 }
 
 

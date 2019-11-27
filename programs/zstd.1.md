@@ -402,7 +402,7 @@ The list of available _options_:
     Bigger hash tables cause less collisions which usually makes compression
     faster, but requires more memory during compression.
 
-    The minimum _hlog_ is 6 (64 B) and the maximum is 26 (128 MiB).
+    The minimum _hlog_ is 6 (64 B) and the maximum is 30 (1 GiB).
 
 - `chainLog`=_clog_, `clog`=_clog_:
     Specify the maximum number of bits for a hash chain or a binary tree.
@@ -413,7 +413,8 @@ The list of available _options_:
     compression.
     This option is ignored for the ZSTD_fast strategy.
 
-    The minimum _clog_ is 6 (64 B) and the maximum is 28 (256 MiB).
+    The minimum _clog_ is 6 (64 B) and the maximum is 29 (524 Mib) on 32-bit platforms
+    and 30 (1 Gib) on 64-bit platforms.
 
 - `searchLog`=_slog_, `slog`=_slog_:
     Specify the maximum number of searches in a hash chain or a binary tree
@@ -422,7 +423,7 @@ The list of available _options_:
     More searches increases the chance to find a match which usually increases
     compression ratio but decreases compression speed.
 
-    The minimum _slog_ is 1 and the maximum is 26.
+    The minimum _slog_ is 1 and the maximum is 'windowLog' - 1.
 
 - `minMatch`=_mml_, `mml`=_mml_:
     Specify the minimum searched length of a match in a hash table.
@@ -447,7 +448,7 @@ The list of available _options_:
 
     For all other strategies, this field has no impact.
 
-    The minimum _tlen_ is 0 and the maximum is 999.
+    The minimum _tlen_ is 0 and the maximum is 128 Kib.
 
 - `overlapLog`=_ovlog_,  `ovlog`=_ovlog_:
     Determine `overlapSize`, amount of data reloaded from previous job.
@@ -470,7 +471,7 @@ The list of available _options_:
     Bigger hash tables usually improve compression ratio at the expense of more
     memory during compression and a decrease in compression speed.
 
-    The minimum _lhlog_ is 6 and the maximum is 26 (default: 20).
+    The minimum _lhlog_ is 6 and the maximum is 30 (default: 20).
 
 - `ldmMinMatch`=_lmml_, `lmml`=_lmml_:
     Specify the minimum searched length of a match for long distance matching.
@@ -490,7 +491,7 @@ The list of available _options_:
     Larger bucket sizes improve collision resolution but decrease compression
     speed.
 
-    The minimum _lblog_ is 0 and the maximum is 8 (default: 3).
+    The minimum _lblog_ is 1 and the maximum is 8 (default: 3).
 
 - `ldmHashRateLog`=_lhrlog_, `lhrlog`=_lhrlog_:
     Specify the frequency of inserting entries into the long distance matching

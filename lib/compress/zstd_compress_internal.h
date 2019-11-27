@@ -249,6 +249,7 @@ struct ZSTD_CCtx_s {
     size_t staticSize;
     SeqCollector seqCollector;
     int isFirstBlock;
+    int initialized;
 
     seqStore_t seqStore;      /* sequences storage ptrs */
     ldmState_t ldmState;      /* long distance matching state */
@@ -858,6 +859,15 @@ ZSTD_checkDictValidity(const ZSTD_window_t* window,
     }   }   }
 }
 
+MEM_STATIC void ZSTD_window_init(ZSTD_window_t* window) {
+    memset(window, 0, sizeof(*window));
+    window->base = (BYTE const*)"";
+    window->dictBase = (BYTE const*)"";
+    window->dictLimit = 1;    /* start from 1, so that 1st position is valid */
+    window->lowLimit = 1;     /* it ensures first and later CCtx usages compress the same */
+    window->nextSrc = window->base + 1;   /* see issue #1241 */
+}
+
 /**
  * ZSTD_window_update():
  * Updates the window by appending [src, src + srcSize) to the window.
@@ -871,6 +881,10 @@ MEM_STATIC U32 ZSTD_window_update(ZSTD_window_t* window,
     BYTE const* const ip = (BYTE const*)src;
     U32 contiguous = 1;
     DEBUGLOG(5, "ZSTD_window_update");
+    if (srcSize == 0)
+        return contiguous;
+    assert(window->base != NULL);
+    assert(window->dictBase != NULL);
     /* Check if blocks follow each other */
     if (src != window->nextSrc) {
         /* not contiguous */

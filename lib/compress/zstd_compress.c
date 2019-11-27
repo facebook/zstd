@@ -2857,10 +2857,10 @@ size_t ZSTD_loadCEntropy(ZSTD_compressedBlockState_t* bs, void* workspace,
 {
     const BYTE* dictPtr = (const BYTE*)dict;    /* skip magic num and dict ID */
     const BYTE* const dictEnd = dictPtr + dictSize;
+    unsigned hasZeroWeights = 1;
     dictPtr += 8;
 
     {   unsigned maxSymbolValue = 255;
-        unsigned hasZeroWeights = 1;
         bs->entropy.huf.repeatMode = HUF_repeat_check;
         size_t const hufHeaderSize = HUF_readCTable((HUF_CElt*)bs->entropy.huf.CTable, &maxSymbolValue, dictPtr,
             dictEnd-dictPtr, &hasZeroWeights);

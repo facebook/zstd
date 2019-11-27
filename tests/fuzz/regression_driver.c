@@ -18,24 +18,26 @@
 int main(int argc, char const **argv) {
   size_t const kMaxFileSize = (size_t)1 << 27;
   int const kFollowLinks = 1;
-  char *fileNamesBuf = NULL;
-  char const **files = argv + 1;
-  unsigned numFiles = argc - 1;
+  FileNamesTable* files;
+  const char** const fnTable = argv + 1;
+  unsigned numFiles = (unsigned)(argc - 1);
   uint8_t *buffer = NULL;
   size_t bufferSize = 0;
   unsigned i;
   int ret;
 
 #ifdef UTIL_HAS_CREATEFILELIST
-  files = UTIL_createFileList(files, numFiles, &fileNamesBuf, &numFiles,
-                              kFollowLinks);
-  if (!files)
-    numFiles = 0;
+  files = UTIL_createExpandedFNT(fnTable, numFiles, kFollowLinks);
+  if (!files) numFiles = 0;
+#else
+  files = UTIL_createFNT_fromROTable(fnTable, numFiles);
+  if (!files) numFiles = 0;
+  assert(numFiles == files->tableSize);
 #endif
   if (numFiles == 0)
     fprintf(stderr, "WARNING: No files passed to %s\n", argv[0]);
   for (i = 0; i < numFiles; ++i) {
-    char const *fileName = files[i];
+    char const *fileName = files->fileNames[i];
     DEBUGLOG(3, "Running %s", fileName);
     size_t const fileSize = UTIL_getFileSize(fileName);
     size_t readSize;
@@ -70,8 +72,6 @@ int main(int argc, char const **argv) {
 
   ret = 0;
   free(buffer);
-#ifdef UTIL_HAS_CREATEFILELIST
-  UTIL_freeFileList(files, fileNamesBuf);
-#endif
+  UTIL_freeFileNamesTable(files);
   return ret;
 }

@@ -102,25 +102,6 @@ int data_buffer_compare(data_buffer_t buffer1, data_buffer_t buffer2);
  */
 void data_buffer_free(data_buffer_t buffer);
 
-typedef struct {
-    char* buffer;
-    char const** filenames;
-    unsigned size;
-} data_filenames_t;
-
-/**
- * Get a recursive list of filenames in the data object. If it is a file, it
- * will only contain one entry. If it is a directory, it will recursively walk
- * the directory.
- *
- * @returns The list of filenames, which has size 0 and NULL pointers on error.
- */
-data_filenames_t data_filenames_get(data_t const* data);
-
-/**
- * Frees the filenames table.
- */
-void data_filenames_free(data_filenames_t filenames);
 
 typedef struct {
     data_buffer_t const* buffers;

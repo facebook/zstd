@@ -38,8 +38,7 @@
 #ifndef ZSTD_NODICT
 #  include "dibio.h"  /* ZDICT_cover_params_t, DiB_trainFromFiles() */
 #endif
-#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_minCLevel */
-#include "zstd.h"     /* ZSTD_VERSION_STRING, ZSTD_maxCLevel */
+#include "zstd.h"     /* ZSTD_VERSION_STRING, ZSTD_minCLevel, ZSTD_maxCLevel */
 
 
 /*-************************************
@@ -156,7 +155,8 @@ static int usage_advanced(const char* programName)
 #endif
 #ifdef UTIL_HAS_CREATEFILELIST
     DISPLAY( " -r     : operate recursively on directories \n");
-    DISPLAY( "--output-dir-flat[=directory]: all resulting files stored into `directory`. \n");
+    DISPLAY( "--filelist=FILE : read a list of files from FILE. \n");
+    DISPLAY( "--output-dir-flat=DIR : all resulting files are stored into DIR. \n");
 #endif
     DISPLAY( "--format=zstd : compress files to the .zst format (default) \n");
 #ifdef ZSTD_GZCOMPRESS
@@ -585,8 +585,8 @@ int main(int argCount, const char* argv[])
     int cLevelLast = -1000000000;
     unsigned recursive = 0;
     unsigned memLimit = 0;
-    const char** filenameTable = (const char**)malloc((size_t)argCount * sizeof(const char*));   /* argCount >= 1 */
-    unsigned filenameIdx = 0;
+    FileNamesTable* filenames = UTIL_allocateFileNamesTable((size_t)argCount);  /* argCount >= 1 */
+    FileNamesTable* file_of_names = UTIL_allocateFileNamesTable((size_t)argCount);  /* argCount >= 1 */
     const char* programName = argv[0];
     const char* outFileName = NULL;
     const char* outDirName = NULL;
@@ -599,11 +599,6 @@ int main(int argCount, const char* argv[])
     size_t srcSizeHint = 0;
     int dictCLevel = g_defaultDictCLevel;
     unsigned dictSelect = g_defaultSelectivityLevel;
-#ifdef UTIL_HAS_CREATEFILELIST
-    const char** extendedFileList = NULL;
-    char* fileNamesBuf = NULL;
-    unsigned fileNamesNb;
-#endif
 #ifndef ZSTD_NODICT
     ZDICT_cover_params_t coverParams = defaultCoverParams();
     ZDICT_fastCover_params_t fastCoverParams = defaultFastCoverParams();
@@ -618,8 +613,7 @@ int main(int argCount, const char* argv[])
     /* init */
     (void)recursive; (void)cLevelLast;    /* not used when ZSTD_NOBENCH set */
     (void)memLimit;   /* not used when ZSTD_NODECOMPRESS set */
-    if (filenameTable==NULL) { DISPLAY("zstd: %s \n", strerror(errno)); exit(1); }
-    filenameTable[0] = stdinmark;
+    if ((filenames==NULL) || (file_of_names==NULL)) { DISPLAY("zstd: allocation error \n"); exit(1); }
     g_displayOut = stderr;
     cLevel = init_cLevel();
     programName = lastNameFromPath(programName);
@@ -649,312 +643,317 @@ int main(int argCount, const char* argv[])
     /* command switches */
     for (argNb=1; argNb<argCount; argNb++) {
         const char* argument = argv[argNb];
-        if(!argument) continue;   /* Protection if argument empty */
+        if (!argument) continue;   /* Protection if argument empty */
 
-        if (nextArgumentsAreFiles==0) {
-            /* "-" means stdin/stdout */
-            if (!strcmp(argument, "-")){
-                if (!filenameIdx) {
-                    filenameIdx=1, filenameTable[0]=stdinmark;
-                    outFileName=stdoutmark;
-                    g_displayLevel-=(g_displayLevel==2);
-                    continue;
-            }   }
+        if (nextArgumentsAreFiles) {
+            UTIL_refFilename(filenames, argument);
+            continue;
+        }
 
-            /* Decode commands (note : aggregated commands are allowed) */
-            if (argument[0]=='-') {
+        /* "-" means stdin/stdout */
+        if (!strcmp(argument, "-")){
+            UTIL_refFilename(filenames, stdinmark);
+            continue;
+        }
 
-                if (argument[1]=='-') {
-                    /* long commands (--long-word) */
-                    if (!strcmp(argument, "--")) { nextArgumentsAreFiles=1; continue; }   /* only file names allowed from now on */
-                    if (!strcmp(argument, "--list")) { operation=zom_list; continue; }
-                    if (!strcmp(argument, "--compress")) { operation=zom_compress; continue; }
-                    if (!strcmp(argument, "--decompress")) { operation=zom_decompress; continue; }
-                    if (!strcmp(argument, "--uncompress")) { operation=zom_decompress; continue; }
-                    if (!strcmp(argument, "--force")) { FIO_overwriteMode(prefs); forceStdout=1; followLinks=1; continue; }
-                    if (!strcmp(argument, "--version")) { g_displayOut=stdout; DISPLAY(WELCOME_MESSAGE); CLEAN_RETURN(0); }
-                    if (!strcmp(argument, "--help")) { g_displayOut=stdout; CLEAN_RETURN(usage_advanced(programName)); }
-                    if (!strcmp(argument, "--verbose")) { g_displayLevel++; continue; }
-                    if (!strcmp(argument, "--quiet")) { g_displayLevel--; continue; }
-                    if (!strcmp(argument, "--stdout")) { forceStdout=1; outFileName=stdoutmark; g_displayLevel-=(g_displayLevel==2); continue; }
-                    if (!strcmp(argument, "--ultra")) { ultra=1; continue; }
-                    if (!strcmp(argument, "--check")) { FIO_setChecksumFlag(prefs, 2); continue; }
-                    if (!strcmp(argument, "--no-check")) { FIO_setChecksumFlag(prefs, 0); continue; }
-                    if (!strcmp(argument, "--sparse")) { FIO_setSparseWrite(prefs, 2); continue; }
-                    if (!strcmp(argument, "--no-sparse")) { FIO_setSparseWrite(prefs, 0); continue; }
-                    if (!strcmp(argument, "--test")) { operation=zom_test; continue; }
-                    if (!strcmp(argument, "--train")) { operation=zom_train; if (outFileName==NULL) outFileName=g_defaultDictName; continue; }
-                    if (!strcmp(argument, "--maxdict")) { nextArgumentIsMaxDict=1; lastCommand=1; continue; }  /* kept available for compatibility with old syntax ; will be removed one day */
-                    if (!strcmp(argument, "--dictID")) { nextArgumentIsDictID=1; lastCommand=1; continue; }  /* kept available for compatibility with old syntax ; will be removed one day */
-                    if (!strcmp(argument, "--no-dictID")) { FIO_setDictIDFlag(prefs, 0); continue; }
-                    if (!strcmp(argument, "--keep")) { FIO_setRemoveSrcFile(prefs, 0); continue; }
-                    if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(prefs, 1); continue; }
-                    if (!strcmp(argument, "--priority=rt")) { setRealTimePrio = 1; continue; }
-                    if (!strcmp(argument, "--output-dir-flat")) {nextArgumentIsOutDirName=1; lastCommand=1; continue; }
-                    if (!strcmp(argument, "--adapt")) { adapt = 1; continue; }
-                    if (longCommandWArg(&argument, "--adapt=")) { adapt = 1; if (!parseAdaptParameters(argument, &adaptMin, &adaptMax)) CLEAN_RETURN(badusage(programName)); continue; }
-                    if (!strcmp(argument, "--single-thread")) { nbWorkers = 0; singleThread = 1; continue; }
-                    if (!strcmp(argument, "--format=zstd")) { suffix = ZSTD_EXTENSION; FIO_setCompressionType(prefs, FIO_zstdCompression); continue; }
+        /* Decode commands (note : aggregated commands are allowed) */
+        if (argument[0]=='-') {
+
+            if (argument[1]=='-') {
+                /* long commands (--long-word) */
+                if (!strcmp(argument, "--")) { nextArgumentsAreFiles=1; continue; }   /* only file names allowed from now on */
+                if (!strcmp(argument, "--list")) { operation=zom_list; continue; }
+                if (!strcmp(argument, "--compress")) { operation=zom_compress; continue; }
+                if (!strcmp(argument, "--decompress")) { operation=zom_decompress; continue; }
+                if (!strcmp(argument, "--uncompress")) { operation=zom_decompress; continue; }
+                if (!strcmp(argument, "--force")) { FIO_overwriteMode(prefs); forceStdout=1; followLinks=1; continue; }
+                if (!strcmp(argument, "--version")) { g_displayOut=stdout; DISPLAY(WELCOME_MESSAGE); CLEAN_RETURN(0); }
+                if (!strcmp(argument, "--help")) { g_displayOut=stdout; CLEAN_RETURN(usage_advanced(programName)); }
+                if (!strcmp(argument, "--verbose")) { g_displayLevel++; continue; }
+                if (!strcmp(argument, "--quiet")) { g_displayLevel--; continue; }
+                if (!strcmp(argument, "--stdout")) { forceStdout=1; outFileName=stdoutmark; g_displayLevel-=(g_displayLevel==2); continue; }
+                if (!strcmp(argument, "--ultra")) { ultra=1; continue; }
+                if (!strcmp(argument, "--check")) { FIO_setChecksumFlag(prefs, 2); continue; }
+                if (!strcmp(argument, "--no-check")) { FIO_setChecksumFlag(prefs, 0); continue; }
+                if (!strcmp(argument, "--sparse")) { FIO_setSparseWrite(prefs, 2); continue; }
+                if (!strcmp(argument, "--no-sparse")) { FIO_setSparseWrite(prefs, 0); continue; }
+                if (!strcmp(argument, "--test")) { operation=zom_test; continue; }
+                if (!strcmp(argument, "--train")) { operation=zom_train; if (outFileName==NULL) outFileName=g_defaultDictName; continue; }
+                if (!strcmp(argument, "--maxdict")) { nextArgumentIsMaxDict=1; lastCommand=1; continue; }  /* kept available for compatibility with old syntax ; will be removed one day */
+                if (!strcmp(argument, "--dictID")) { nextArgumentIsDictID=1; lastCommand=1; continue; }  /* kept available for compatibility with old syntax ; will be removed one day */
+                if (!strcmp(argument, "--no-dictID")) { FIO_setDictIDFlag(prefs, 0); continue; }
+                if (!strcmp(argument, "--keep")) { FIO_setRemoveSrcFile(prefs, 0); continue; }
+                if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(prefs, 1); continue; }
+                if (!strcmp(argument, "--priority=rt")) { setRealTimePrio = 1; continue; }
+                if (!strcmp(argument, "--output-dir-flat")) {nextArgumentIsOutDirName=1; lastCommand=1; continue; }
+                if (!strcmp(argument, "--adapt")) { adapt = 1; continue; }
+                if (longCommandWArg(&argument, "--adapt=")) { adapt = 1; if (!parseAdaptParameters(argument, &adaptMin, &adaptMax)) CLEAN_RETURN(badusage(programName)); continue; }
+                if (!strcmp(argument, "--single-thread")) { nbWorkers = 0; singleThread = 1; continue; }
+                if (!strcmp(argument, "--format=zstd")) { suffix = ZSTD_EXTENSION; FIO_setCompressionType(prefs, FIO_zstdCompression); continue; }
 #ifdef ZSTD_GZCOMPRESS
-                    if (!strcmp(argument, "--format=gzip")) { suffix = GZ_EXTENSION; FIO_setCompressionType(prefs, FIO_gzipCompression); continue; }
+                if (!strcmp(argument, "--format=gzip")) { suffix = GZ_EXTENSION; FIO_setCompressionType(prefs, FIO_gzipCompression); continue; }
 #endif
 #ifdef ZSTD_LZMACOMPRESS
-                    if (!strcmp(argument, "--format=lzma")) { suffix = LZMA_EXTENSION; FIO_setCompressionType(prefs, FIO_lzmaCompression);  continue; }
-                    if (!strcmp(argument, "--format=xz")) { suffix = XZ_EXTENSION; FIO_setCompressionType(prefs, FIO_xzCompression);  continue; }
+                if (!strcmp(argument, "--format=lzma")) { suffix = LZMA_EXTENSION; FIO_setCompressionType(prefs, FIO_lzmaCompression);  continue; }
+                if (!strcmp(argument, "--format=xz")) { suffix = XZ_EXTENSION; FIO_setCompressionType(prefs, FIO_xzCompression);  continue; }
 #endif
 #ifdef ZSTD_LZ4COMPRESS
-                    if (!strcmp(argument, "--format=lz4")) { suffix = LZ4_EXTENSION; FIO_setCompressionType(prefs, FIO_lz4Compression);  continue; }
+                if (!strcmp(argument, "--format=lz4")) { suffix = LZ4_EXTENSION; FIO_setCompressionType(prefs, FIO_lz4Compression);  continue; }
 #endif
-                    if (!strcmp(argument, "--rsyncable")) { rsyncable = 1; continue; }
-                    if (!strcmp(argument, "--compress-literals")) { literalCompressionMode = ZSTD_lcm_huffman; continue; }
-                    if (!strcmp(argument, "--no-compress-literals")) { literalCompressionMode = ZSTD_lcm_uncompressed; continue; }
-                    if (!strcmp(argument, "--no-progress")) { FIO_setNoProgress(1); continue; }
-                    if (!strcmp(argument, "--exclude-compressed")) { FIO_setExcludeCompressedFile(prefs, 1); continue; }
-                    /* long commands with arguments */
+                if (!strcmp(argument, "--rsyncable")) { rsyncable = 1; continue; }
+                if (!strcmp(argument, "--compress-literals")) { literalCompressionMode = ZSTD_lcm_huffman; continue; }
+                if (!strcmp(argument, "--no-compress-literals")) { literalCompressionMode = ZSTD_lcm_uncompressed; continue; }
+                if (!strcmp(argument, "--no-progress")) { FIO_setNoProgress(1); continue; }
+                if (!strcmp(argument, "--exclude-compressed")) { FIO_setExcludeCompressedFile(prefs, 1); continue; }
+                /* long commands with arguments */
 #ifndef ZSTD_NODICT
-                    if (longCommandWArg(&argument, "--train-cover")) {
-                      operation = zom_train;
-                      if (outFileName == NULL)
-                          outFileName = g_defaultDictName;
-                      dict = cover;
-                      /* Allow optional arguments following an = */
-                      if (*argument == 0) { memset(&coverParams, 0, sizeof(coverParams)); }
-                      else if (*argument++ != '=') { CLEAN_RETURN(badusage(programName)); }
-                      else if (!parseCoverParameters(argument, &coverParams)) { CLEAN_RETURN(badusage(programName)); }
-                      continue;
-                    }
-                    if (longCommandWArg(&argument, "--train-fastcover")) {
-                      operation = zom_train;
-                      if (outFileName == NULL)
-                          outFileName = g_defaultDictName;
-                      dict = fastCover;
-                      /* Allow optional arguments following an = */
-                      if (*argument == 0) { memset(&fastCoverParams, 0, sizeof(fastCoverParams)); }
-                      else if (*argument++ != '=') { CLEAN_RETURN(badusage(programName)); }
-                      else if (!parseFastCoverParameters(argument, &fastCoverParams)) { CLEAN_RETURN(badusage(programName)); }
-                      continue;
-                    }
-                    if (longCommandWArg(&argument, "--train-legacy")) {
-                      operation = zom_train;
-                      if (outFileName == NULL)
-                          outFileName = g_defaultDictName;
-                      dict = legacy;
-                      /* Allow optional arguments following an = */
-                      if (*argument == 0) { continue; }
-                      else if (*argument++ != '=') { CLEAN_RETURN(badusage(programName)); }
-                      else if (!parseLegacyParameters(argument, &dictSelect)) { CLEAN_RETURN(badusage(programName)); }
-                      continue;
-                    }
+                if (longCommandWArg(&argument, "--train-cover")) {
+                  operation = zom_train;
+                  if (outFileName == NULL)
+                      outFileName = g_defaultDictName;
+                  dict = cover;
+                  /* Allow optional arguments following an = */
+                  if (*argument == 0) { memset(&coverParams, 0, sizeof(coverParams)); }
+                  else if (*argument++ != '=') { CLEAN_RETURN(badusage(programName)); }
+                  else if (!parseCoverParameters(argument, &coverParams)) { CLEAN_RETURN(badusage(programName)); }
+                  continue;
+                }
+                if (longCommandWArg(&argument, "--train-fastcover")) {
+                  operation = zom_train;
+                  if (outFileName == NULL)
+                      outFileName = g_defaultDictName;
+                  dict = fastCover;
+                  /* Allow optional arguments following an = */
+                  if (*argument == 0) { memset(&fastCoverParams, 0, sizeof(fastCoverParams)); }
+                  else if (*argument++ != '=') { CLEAN_RETURN(badusage(programName)); }
+                  else if (!parseFastCoverParameters(argument, &fastCoverParams)) { CLEAN_RETURN(badusage(programName)); }
+                  continue;
+                }
+                if (longCommandWArg(&argument, "--train-legacy")) {
+                  operation = zom_train;
+                  if (outFileName == NULL)
+                      outFileName = g_defaultDictName;
+                  dict = legacy;
+                  /* Allow optional arguments following an = */
+                  if (*argument == 0) { continue; }
+                  else if (*argument++ != '=') { CLEAN_RETURN(badusage(programName)); }
+                  else if (!parseLegacyParameters(argument, &dictSelect)) { CLEAN_RETURN(badusage(programName)); }
+                  continue;
+                }
 #endif
-                    if (longCommandWArg(&argument, "--threads=")) { nbWorkers = (int)readU32FromChar(&argument); continue; }
-                    if (longCommandWArg(&argument, "--memlimit=")) { memLimit = readU32FromChar(&argument); continue; }
-                    if (longCommandWArg(&argument, "--memory=")) { memLimit = readU32FromChar(&argument); continue; }
-                    if (longCommandWArg(&argument, "--memlimit-decompress=")) { memLimit = readU32FromChar(&argument); continue; }
-                    if (longCommandWArg(&argument, "--block-size=")) { blockSize = readU32FromChar(&argument); continue; }
-                    if (longCommandWArg(&argument, "--maxdict=")) { maxDictSize = readU32FromChar(&argument); continue; }
-                    if (longCommandWArg(&argument, "--dictID=")) { dictID = readU32FromChar(&argument); continue; }
-                    if (longCommandWArg(&argument, "--zstd=")) { if (!parseCompressionParameters(argument, &compressionParams)) CLEAN_RETURN(badusage(programName)); continue; }
-                    if (longCommandWArg(&argument, "--stream-size=")) { streamSrcSize = readU32FromChar(&argument); continue; }
-                    if (longCommandWArg(&argument, "--target-compressed-block-size=")) { targetCBlockSize = readU32FromChar(&argument); continue; }
-                    if (longCommandWArg(&argument, "--size-hint=")) { srcSizeHint = readU32FromChar(&argument); continue; }
-                    if (longCommandWArg(&argument, "--output-dir-flat=")) { outDirName = argument; continue; }
-                    if (longCommandWArg(&argument, "--long")) {
-                        unsigned ldmWindowLog = 0;
-                        ldmFlag = 1;
-                        /* Parse optional window log */
-                        if (*argument == '=') {
-                            ++argument;
-                            ldmWindowLog = readU32FromChar(&argument);
-                        } else if (*argument != 0) {
-                            /* Invalid character following --long */
-                            CLEAN_RETURN(badusage(programName));
-                        }
-                        /* Only set windowLog if not already set by --zstd */
-                        if (compressionParams.windowLog == 0)
-                            compressionParams.windowLog = ldmWindowLog;
-                        continue;
+                if (longCommandWArg(&argument, "--threads=")) { nbWorkers = (int)readU32FromChar(&argument); continue; }
+                if (longCommandWArg(&argument, "--memlimit=")) { memLimit = readU32FromChar(&argument); continue; }
+                if (longCommandWArg(&argument, "--memory=")) { memLimit = readU32FromChar(&argument); continue; }
+                if (longCommandWArg(&argument, "--memlimit-decompress=")) { memLimit = readU32FromChar(&argument); continue; }
+                if (longCommandWArg(&argument, "--block-size=")) { blockSize = readU32FromChar(&argument); continue; }
+                if (longCommandWArg(&argument, "--maxdict=")) { maxDictSize = readU32FromChar(&argument); continue; }
+                if (longCommandWArg(&argument, "--dictID=")) { dictID = readU32FromChar(&argument); continue; }
+                if (longCommandWArg(&argument, "--zstd=")) { if (!parseCompressionParameters(argument, &compressionParams)) CLEAN_RETURN(badusage(programName)); continue; }
+                if (longCommandWArg(&argument, "--stream-size=")) { streamSrcSize = readU32FromChar(&argument); continue; }
+                if (longCommandWArg(&argument, "--target-compressed-block-size=")) { targetCBlockSize = readU32FromChar(&argument); continue; }
+                if (longCommandWArg(&argument, "--size-hint=")) { srcSizeHint = readU32FromChar(&argument); continue; }
+                if (longCommandWArg(&argument, "--output-dir-flat=")) { outDirName = argument; continue; }
+                if (longCommandWArg(&argument, "--long")) {
+                    unsigned ldmWindowLog = 0;
+                    ldmFlag = 1;
+                    /* Parse optional window log */
+                    if (*argument == '=') {
+                        ++argument;
+                        ldmWindowLog = readU32FromChar(&argument);
+                    } else if (*argument != 0) {
+                        /* Invalid character following --long */
+                        CLEAN_RETURN(badusage(programName));
                     }
+                    /* Only set windowLog if not already set by --zstd */
+                    if (compressionParams.windowLog == 0)
+                        compressionParams.windowLog = ldmWindowLog;
+                    continue;
+                }
 #ifndef ZSTD_NOCOMPRESS   /* linking ZSTD_minCLevel() requires compression support */
-                    if (longCommandWArg(&argument, "--fast")) {
-                        /* Parse optional acceleration factor */
-                        if (*argument == '=') {
-                            U32 const maxFast = (U32)-ZSTD_minCLevel();
-                            U32 fastLevel;
-                            ++argument;
-                            fastLevel = readU32FromChar(&argument);
-                            if (fastLevel > maxFast) fastLevel = maxFast;
-                            if (fastLevel) {
-                              dictCLevel = cLevel = -(int)fastLevel;
-                            } else {
-                              CLEAN_RETURN(badusage(programName));
-                            }
-                        } else if (*argument != 0) {
-                            /* Invalid character following --fast */
-                            CLEAN_RETURN(badusage(programName));
+                if (longCommandWArg(&argument, "--fast")) {
+                    /* Parse optional acceleration factor */
+                    if (*argument == '=') {
+                        U32 const maxFast = (U32)-ZSTD_minCLevel();
+                        U32 fastLevel;
+                        ++argument;
+                        fastLevel = readU32FromChar(&argument);
+                        if (fastLevel > maxFast) fastLevel = maxFast;
+                        if (fastLevel) {
+                          dictCLevel = cLevel = -(int)fastLevel;
                         } else {
-                            cLevel = -1;  /* default for --fast */
+                          CLEAN_RETURN(badusage(programName));
                         }
-                        continue;
+                    } else if (*argument != 0) {
+                        /* Invalid character following --fast */
+                        CLEAN_RETURN(badusage(programName));
+                    } else {
+                        cLevel = -1;  /* default for --fast */
                     }
+                    continue;
+                }
 #endif
-                    /* fall-through, will trigger bad_usage() later on */
+
+                if (longCommandWArg(&argument, "--filelist=")) {
+                    UTIL_refFilename(file_of_names, argument);
+                    continue;
                 }
 
-                argument++;
-                while (argument[0]!=0) {
-                    if (lastCommand) {
-                        DISPLAY("error : command must be followed by argument \n");
-                        CLEAN_RETURN(1);
-                    }
+                /* fall-through, will trigger bad_usage() later on */
+            }
+
+            argument++;
+            while (argument[0]!=0) {
+                if (lastCommand) {
+                    DISPLAY("error : command must be followed by argument \n");
+                    CLEAN_RETURN(1);
+                }
 #ifndef ZSTD_NOCOMPRESS
-                    /* compression Level */
-                    if ((*argument>='0') && (*argument<='9')) {
-                        dictCLevel = cLevel = (int)readU32FromChar(&argument);
-                        continue;
-                    }
+                /* compression Level */
+                if ((*argument>='0') && (*argument<='9')) {
+                    dictCLevel = cLevel = (int)readU32FromChar(&argument);
+                    continue;
+                }
 #endif
 
-                    switch(argument[0])
-                    {
-                        /* Display help */
-                    case 'V': g_displayOut=stdout; printVersion(); CLEAN_RETURN(0);   /* Version Only */
-                    case 'H':
-                    case 'h': g_displayOut=stdout; CLEAN_RETURN(usage_advanced(programName));
+                switch(argument[0])
+                {
+                    /* Display help */
+                case 'V': g_displayOut=stdout; printVersion(); CLEAN_RETURN(0);   /* Version Only */
+                case 'H':
+                case 'h': g_displayOut=stdout; CLEAN_RETURN(usage_advanced(programName));
 
-                         /* Compress */
-                    case 'z': operation=zom_compress; argument++; break;
+                     /* Compress */
+                case 'z': operation=zom_compress; argument++; break;
 
-                         /* Decoding */
-                    case 'd':
+                     /* Decoding */
+                case 'd':
 #ifndef ZSTD_NOBENCH
-                            benchParams.mode = BMK_decodeOnly;
-                            if (operation==zom_bench) { argument++; break; }  /* benchmark decode (hidden option) */
+                        benchParams.mode = BMK_decodeOnly;
+                        if (operation==zom_bench) { argument++; break; }  /* benchmark decode (hidden option) */
 #endif
-                            operation=zom_decompress; argument++; break;
+                        operation=zom_decompress; argument++; break;
 
-                        /* Force stdout, even if stdout==console */
-                    case 'c': forceStdout=1; outFileName=stdoutmark; argument++; break;
+                    /* Force stdout, even if stdout==console */
+                case 'c': forceStdout=1; outFileName=stdoutmark; argument++; break;
 
-                        /* Use file content as dictionary */
-                    case 'D': nextEntryIsDictionary = 1; lastCommand = 1; argument++; break;
+                    /* Use file content as dictionary */
+                case 'D': nextEntryIsDictionary = 1; lastCommand = 1; argument++; break;
 
-                        /* Overwrite */
-                    case 'f': FIO_overwriteMode(prefs); forceStdout=1; followLinks=1; argument++; break;
+                    /* Overwrite */
+                case 'f': FIO_overwriteMode(prefs); forceStdout=1; followLinks=1; argument++; break;
 
-                        /* Verbose mode */
-                    case 'v': g_displayLevel++; argument++; break;
+                    /* Verbose mode */
+                case 'v': g_displayLevel++; argument++; break;
 
-                        /* Quiet mode */
-                    case 'q': g_displayLevel--; argument++; break;
+                    /* Quiet mode */
+                case 'q': g_displayLevel--; argument++; break;
 
-                        /* keep source file (default) */
-                    case 'k': FIO_setRemoveSrcFile(prefs, 0); argument++; break;
+                    /* keep source file (default) */
+                case 'k': FIO_setRemoveSrcFile(prefs, 0); argument++; break;
 
-                        /* Checksum */
-                    case 'C': FIO_setChecksumFlag(prefs, 2); argument++; break;
+                    /* Checksum */
+                case 'C': FIO_setChecksumFlag(prefs, 2); argument++; break;
 
-                        /* test compressed file */
-                    case 't': operation=zom_test; argument++; break;
+                    /* test compressed file */
+                case 't': operation=zom_test; argument++; break;
 
-                        /* destination file name */
-                    case 'o': nextArgumentIsOutFileName=1; lastCommand=1; argument++; break;
+                    /* destination file name */
+                case 'o': nextArgumentIsOutFileName=1; lastCommand=1; argument++; break;
 
-                        /* limit decompression memory */
-                    case 'M':
-                        argument++;
-                        memLimit = readU32FromChar(&argument);
-                        break;
-                    case 'l': operation=zom_list; argument++; break;
+                    /* limit decompression memory */
+                case 'M':
+                    argument++;
+                    memLimit = readU32FromChar(&argument);
+                    break;
+                case 'l': operation=zom_list; argument++; break;
 #ifdef UTIL_HAS_CREATEFILELIST
-                        /* recursive */
-                    case 'r': recursive=1; argument++; break;
+                    /* recursive */
+                case 'r': recursive=1; argument++; break;
 #endif
 
 #ifndef ZSTD_NOBENCH
-                        /* Benchmark */
-                    case 'b':
-                        operation=zom_bench;
-                        argument++;
-                        break;
+                    /* Benchmark */
+                case 'b':
+                    operation=zom_bench;
+                    argument++;
+                    break;
 
-                        /* range bench (benchmark only) */
-                    case 'e':
-                        /* compression Level */
-                        argument++;
-                        cLevelLast = (int)readU32FromChar(&argument);
-                        break;
+                    /* range bench (benchmark only) */
+                case 'e':
+                    /* compression Level */
+                    argument++;
+                    cLevelLast = (int)readU32FromChar(&argument);
+                    break;
 
-                        /* Modify Nb Iterations (benchmark only) */
-                    case 'i':
-                        argument++;
-                        bench_nbSeconds = readU32FromChar(&argument);
-                        break;
+                    /* Modify Nb Iterations (benchmark only) */
+                case 'i':
+                    argument++;
+                    bench_nbSeconds = readU32FromChar(&argument);
+                    break;
 
-                        /* cut input into blocks (benchmark only) */
-                    case 'B':
-                        argument++;
-                        blockSize = readU32FromChar(&argument);
-                        break;
+                    /* cut input into blocks (benchmark only) */
+                case 'B':
+                    argument++;
+                    blockSize = readU32FromChar(&argument);
+                    break;
 
-                        /* benchmark files separately (hidden option) */
-                    case 'S':
-                        argument++;
-                        separateFiles = 1;
-                        break;
+                    /* benchmark files separately (hidden option) */
+                case 'S':
+                    argument++;
+                    separateFiles = 1;
+                    break;
 
 #endif   /* ZSTD_NOBENCH */
 
-                        /* nb of threads (hidden option) */
-                    case 'T':
-                        argument++;
-                        nbWorkers = (int)readU32FromChar(&argument);
-                        break;
-
-                        /* Dictionary Selection level */
-                    case 's':
-                        argument++;
-                        dictSelect = readU32FromChar(&argument);
-                        break;
-
-                        /* Pause at the end (-p) or set an additional param (-p#) (hidden option) */
-                    case 'p': argument++;
-#ifndef ZSTD_NOBENCH
-                        if ((*argument>='0') && (*argument<='9')) {
-                            benchParams.additionalParam = (int)readU32FromChar(&argument);
-                        } else
-#endif
-                            main_pause=1;
-                        break;
-
-                        /* Select compressibility of synthetic sample */
-                    case 'P':
-                    {   argument++;
-                        compressibility = (double)readU32FromChar(&argument) / 100;
-                    }
+                    /* nb of threads (hidden option) */
+                case 'T':
+                    argument++;
+                    nbWorkers = (int)readU32FromChar(&argument);
                     break;
 
-                        /* unknown command */
-                    default : CLEAN_RETURN(badusage(programName));
-                    }
+                    /* Dictionary Selection level */
+                case 's':
+                    argument++;
+                    dictSelect = readU32FromChar(&argument);
+                    break;
+
+                    /* Pause at the end (-p) or set an additional param (-p#) (hidden option) */
+                case 'p': argument++;
+#ifndef ZSTD_NOBENCH
+                    if ((*argument>='0') && (*argument<='9')) {
+                        benchParams.additionalParam = (int)readU32FromChar(&argument);
+                    } else
+#endif
+                        main_pause=1;
+                    break;
+
+                    /* Select compressibility of synthetic sample */
+                case 'P':
+                {   argument++;
+                    compressibility = (double)readU32FromChar(&argument) / 100;
                 }
-                continue;
-            }   /* if (argument[0]=='-') */
+                break;
 
-            if (nextArgumentIsMaxDict) {  /* kept available for compatibility with old syntax ; will be removed one day */
-                nextArgumentIsMaxDict = 0;
-                lastCommand = 0;
-                maxDictSize = readU32FromChar(&argument);
-                continue;
+                    /* unknown command */
+                default : CLEAN_RETURN(badusage(programName));
+                }
             }
+            continue;
+        }   /* if (argument[0]=='-') */
 
-            if (nextArgumentIsDictID) {  /* kept available for compatibility with old syntax ; will be removed one day */
-                nextArgumentIsDictID = 0;
-                lastCommand = 0;
-                dictID = readU32FromChar(&argument);
-                continue;
-            }
+        if (nextArgumentIsMaxDict) {  /* kept available for compatibility with old syntax ; will be removed one day */
+            nextArgumentIsMaxDict = 0;
+            lastCommand = 0;
+            maxDictSize = readU32FromChar(&argument);
+            continue;
+        }
 
-        }   /* if (nextArgumentIsAFile==0) */
+        if (nextArgumentIsDictID) {  /* kept available for compatibility with old syntax ; will be removed one day */
+            nextArgumentIsDictID = 0;
+            lastCommand = 0;
+            dictID = readU32FromChar(&argument);
+            continue;
+        }
 
         if (nextEntryIsDictionary) {
             nextEntryIsDictionary = 0;
@@ -978,8 +977,8 @@ int main(int argCount, const char* argv[])
             continue;
         }
 
-        /* add filename to list */
-        filenameTable[filenameIdx++] = argument;
+        /* none of the above : add filename to list */
+        UTIL_refFilename(filenames, argument);
     }
 
     if (lastCommand) { /* forgotten argument */
@@ -1003,35 +1002,45 @@ int main(int argCount, const char* argv[])
 #ifdef UTIL_HAS_CREATEFILELIST
     g_utilDisplayLevel = g_displayLevel;
     if (!followLinks) {
-        unsigned u;
-        for (u=0, fileNamesNb=0; u<filenameIdx; u++) {
-            if ( UTIL_isLink(filenameTable[u])
-             && !UTIL_isFIFO(filenameTable[u])
+        unsigned u, fileNamesNb;
+        unsigned const nbFilenames = (unsigned)filenames->tableSize;
+        for (u=0, fileNamesNb=0; u<nbFilenames; u++) {
+            if ( UTIL_isLink(filenames->fileNames[u])
+             && !UTIL_isFIFO(filenames->fileNames[u])
             ) {
-                DISPLAYLEVEL(2, "Warning : %s is a symbolic link, ignoring\n", filenameTable[u]);
+                DISPLAYLEVEL(2, "Warning : %s is a symbolic link, ignoring \n", filenames->fileNames[u]);
             } else {
-                filenameTable[fileNamesNb++] = filenameTable[u];
+                filenames->fileNames[fileNamesNb++] = filenames->fileNames[u];
         }   }
-        if (fileNamesNb == 0 && filenameIdx > 0)
+        if (fileNamesNb == 0 && nbFilenames > 0)  /* all names are eliminated */
             CLEAN_RETURN(1);
-        filenameIdx = fileNamesNb;
+        filenames->tableSize = fileNamesNb;
+    }   /* if (!followLinks) */
+
+    /* read names from a file */
+    if (file_of_names->tableSize) {
+        size_t const nbFileLists = file_of_names->tableSize;
+        size_t flNb;
+        for (flNb=0; flNb < nbFileLists; flNb++) {
+            FileNamesTable* const fnt = UTIL_createFileNamesTable_fromFileName(file_of_names->fileNames[flNb]);
+            if (fnt==NULL) {
+                DISPLAYLEVEL(1, "zstd: error reading %s \n", file_of_names->fileNames[flNb]);
+                CLEAN_RETURN(1);
+            }
+            filenames = UTIL_mergeFileNamesTable(filenames, fnt);
+        }
     }
+
     if (recursive) {  /* at this stage, filenameTable is a list of paths, which can contain both files and directories */
-        extendedFileList = UTIL_createFileList(filenameTable, filenameIdx, &fileNamesBuf, &fileNamesNb, followLinks);
-        if (extendedFileList) {
-            unsigned u;
-            for (u=0; u<fileNamesNb; u++) DISPLAYLEVEL(4, "%u %s\n", u, extendedFileList[u]);
-            free((void*)filenameTable);
-            filenameTable = extendedFileList;
-            filenameIdx = fileNamesNb;
-    }   }
+        UTIL_expandFNT(&filenames, followLinks);
+    }
 #else
     (void)followLinks;
 #endif
 
     if (operation == zom_list) {
 #ifndef ZSTD_NODECOMPRESS
-        int const ret = FIO_listMultipleFiles(filenameIdx, filenameTable, g_displayLevel);
+        int const ret = FIO_listMultipleFiles((unsigned)filenames->tableSize, filenames->fileNames, g_displayLevel);
         CLEAN_RETURN(ret);
 #else
         DISPLAY("file information is not supported \n");
@@ -1062,18 +1071,18 @@ int main(int argCount, const char* argv[])
         if (cLevelLast < cLevel) cLevelLast = cLevel;
         if (cLevelLast > cLevel)
             DISPLAYLEVEL(3, "Benchmarking levels from %d to %d\n", cLevel, cLevelLast);
-        if(filenameIdx) {
+        if (filenames->tableSize > 0) {
             if(separateFiles) {
                 unsigned i;
-                for(i = 0; i < filenameIdx; i++) {
+                for(i = 0; i < filenames->tableSize; i++) {
                     int c;
-                    DISPLAYLEVEL(3, "Benchmarking %s \n", filenameTable[i]);
+                    DISPLAYLEVEL(3, "Benchmarking %s \n", filenames->fileNames[i]);
                     for(c = cLevel; c <= cLevelLast; c++) {
-                        BMK_benchFilesAdvanced(&filenameTable[i], 1, dictFileName, c, &compressionParams, g_displayLevel, &benchParams);
+                        BMK_benchFilesAdvanced(&filenames->fileNames[i], 1, dictFileName, c, &compressionParams, g_displayLevel, &benchParams);
                 }   }
             } else {
                 for(; cLevel <= cLevelLast; cLevel++) {
-                    BMK_benchFilesAdvanced(filenameTable, filenameIdx, dictFileName, cLevel, &compressionParams, g_displayLevel, &benchParams);
+                    BMK_benchFilesAdvanced(filenames->fileNames, (unsigned)filenames->tableSize, dictFileName, cLevel, &compressionParams, g_displayLevel, &benchParams);
             }   }
         } else {
             for(; cLevel <= cLevelLast; cLevel++) {
@@ -1097,18 +1106,18 @@ int main(int argCount, const char* argv[])
             int const optimize = !coverParams.k || !coverParams.d;
             coverParams.nbThreads = (unsigned)nbWorkers;
             coverParams.zParams = zParams;
-            operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenameTable, filenameIdx, blockSize, NULL, &coverParams, NULL, optimize);
+            operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenames->fileNames, (unsigned)filenames->tableSize, blockSize, NULL, &coverParams, NULL, optimize);
         } else if (dict == fastCover) {
             int const optimize = !fastCoverParams.k || !fastCoverParams.d;
             fastCoverParams.nbThreads = (unsigned)nbWorkers;
             fastCoverParams.zParams = zParams;
-            operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenameTable, filenameIdx, blockSize, NULL, NULL, &fastCoverParams, optimize);
+            operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenames->fileNames, (unsigned)filenames->tableSize, blockSize, NULL, NULL, &fastCoverParams, optimize);
         } else {
             ZDICT_legacy_params_t dictParams;
             memset(&dictParams, 0, sizeof(dictParams));
             dictParams.selectivityLevel = dictSelect;
             dictParams.zParams = zParams;
-            operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenameTable, filenameIdx, blockSize, &dictParams, NULL, NULL, 0);
+            operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenames->fileNames, (unsigned)filenames->tableSize, blockSize, &dictParams, NULL, NULL, 0);
         }
 #else
         (void)dictCLevel; (void)dictSelect; (void)dictID;  (void)maxDictSize; /* not used when ZSTD_NODICT set */
@@ -1123,16 +1132,16 @@ int main(int argCount, const char* argv[])
 #endif
 
     /* No input filename ==> use stdin and stdout */
-    filenameIdx += !filenameIdx;   /* filenameTable[0] is stdin by default */
-    if (!strcmp(filenameTable[0], stdinmark) && !outFileName)
+    if (filenames->tableSize == 0) UTIL_refFilename(filenames, stdinmark);
+    if (!strcmp(filenames->fileNames[0], stdinmark) && !outFileName)
         outFileName = stdoutmark;  /* when input is stdin, default output is stdout */
 
     /* Check if input/output defined as console; trigger an error in this case */
-    if (!strcmp(filenameTable[0], stdinmark) && IS_CONSOLE(stdin) )
+    if (!strcmp(filenames->fileNames[0], stdinmark) && IS_CONSOLE(stdin) )
         CLEAN_RETURN(badusage(programName));
     if ( outFileName && !strcmp(outFileName, stdoutmark)
       && IS_CONSOLE(stdout)
-      && !strcmp(filenameTable[0], stdinmark)
+      && !strcmp(filenames->fileNames[0], stdinmark)
       && !forceStdout
       && operation!=zom_decompress )
         CLEAN_RETURN(badusage(programName));
@@ -1147,8 +1156,8 @@ int main(int argCount, const char* argv[])
 #endif
 
     /* No status message in pipe mode (stdin - stdout) or multi-files mode */
-    if (!strcmp(filenameTable[0], stdinmark) && outFileName && !strcmp(outFileName,stdoutmark) && (g_displayLevel==2)) g_displayLevel=1;
-    if ((filenameIdx>1) & (g_displayLevel==2)) g_displayLevel=1;
+    if (!strcmp(filenames->fileNames[0], stdinmark) && outFileName && !strcmp(outFileName,stdoutmark) && (g_displayLevel==2)) g_displayLevel=1;
+    if ((filenames->tableSize > 1) & (g_displayLevel==2)) g_displayLevel=1;
 
     /* IO Stream/File */
     FIO_setNotificationLevel(g_displayLevel);
@@ -1173,10 +1182,10 @@ int main(int argCount, const char* argv[])
         if (adaptMin > cLevel) cLevel = adaptMin;
         if (adaptMax < cLevel) cLevel = adaptMax;
 
-        if ((filenameIdx==1) && outFileName)
-          operationResult = FIO_compressFilename(prefs, outFileName, filenameTable[0], dictFileName, cLevel, compressionParams);
+        if ((filenames->tableSize==1) && outFileName)
+          operationResult = FIO_compressFilename(prefs, outFileName, filenames->fileNames[0], dictFileName, cLevel, compressionParams);
         else
-          operationResult = FIO_compressMultipleFilenames(prefs, filenameTable, filenameIdx, outDirName, outFileName, suffix, dictFileName, cLevel, compressionParams);
+          operationResult = FIO_compressMultipleFilenames(prefs, filenames->fileNames, (unsigned)filenames->tableSize, outDirName, outFileName, suffix, dictFileName, cLevel, compressionParams);
 #else
         (void)suffix; (void)adapt; (void)rsyncable; (void)ultra; (void)cLevel; (void)ldmFlag; (void)literalCompressionMode; (void)targetCBlockSize; (void)streamSrcSize; (void)srcSizeHint; /* not used when ZSTD_NOCOMPRESS set */
         DISPLAY("Compression not supported \n");
@@ -1191,10 +1200,11 @@ int main(int argCount, const char* argv[])
             }
         }
         FIO_setMemLimit(prefs, memLimit);
-        if (filenameIdx==1 && outFileName)
-            operationResult = FIO_decompressFilename(prefs, outFileName, filenameTable[0], dictFileName);
-        else
-            operationResult = FIO_decompressMultipleFilenames(prefs, filenameTable, filenameIdx, outDirName, outFileName, dictFileName);
+        if (filenames->tableSize == 1 && outFileName) {
+            operationResult = FIO_decompressFilename(prefs, outFileName, filenames->fileNames[0], dictFileName);
+        } else {
+            operationResult = FIO_decompressMultipleFilenames(prefs, filenames->fileNames, (unsigned)filenames->tableSize, outDirName, outFileName, dictFileName);
+        }
 #else
         DISPLAY("Decompression not supported \n");
 #endif
@@ -1202,13 +1212,9 @@ int main(int argCount, const char* argv[])
 
 _end:
     FIO_freePreferences(prefs);
-
     if (main_pause) waitEnter();
-#ifdef UTIL_HAS_CREATEFILELIST
-    if (extendedFileList)
-        UTIL_freeFileList(extendedFileList, fileNamesBuf);
-    else
-#endif
-        free((void*)filenameTable);
+    UTIL_freeFileNamesTable(filenames);
+    UTIL_freeFileNamesTable(file_of_names);
+
     return operationResult;
 }

@@ -429,14 +429,14 @@ void shuffleDictionaries(ddict_collection_t dicts)
 {
     size_t const nbDicts = dicts.nbDDict;
     for (size_t r=0; r<nbDicts; r++) {
-        size_t const d = rand() % nbDicts;
+        size_t const d = (size_t)rand() % nbDicts;
         ZSTD_DDict* tmpd = dicts.ddicts[d];
         dicts.ddicts[d] = dicts.ddicts[r];
         dicts.ddicts[r] = tmpd;
     }
     for (size_t r=0; r<nbDicts; r++) {
-        size_t const d1 = rand() % nbDicts;
-        size_t const d2 = rand() % nbDicts;
+        size_t const d1 = (size_t)rand() % nbDicts;
+        size_t const d2 = (size_t)rand() % nbDicts;
         ZSTD_DDict* tmpd = dicts.ddicts[d1];
         dicts.ddicts[d1] = dicts.ddicts[d2];
         dicts.ddicts[d2] = tmpd;
@@ -528,7 +528,7 @@ size_t decompress(const void* src, size_t srcSize, void* dst, size_t dstCapacity
 static int benchMem(slice_collection_t dstBlocks,
                     slice_collection_t srcBlocks,
                     ddict_collection_t dictionaries,
-                    int nbRounds)
+                    unsigned nbRounds)
 {
     assert(dstBlocks.nbSlices == srcBlocks.nbSlices);
 
@@ -586,7 +586,7 @@ int bench(const char** fileNameTable, unsigned nbFiles,
           const char* dictionary,
           size_t blockSize, int clevel,
           unsigned nbDictMax, unsigned nbBlocks,
-          int nbRounds)
+          unsigned nbRounds)
 {
     int result = 0;
 
@@ -707,7 +707,7 @@ static unsigned readU32FromChar(const char** stringPtr)
     while ((**stringPtr >='0') && (**stringPtr <='9')) {
         unsigned const max = (((unsigned)(-1)) / 10) - 1;
         assert(result <= max);   /* check overflow */
-        result *= 10, result += **stringPtr - '0', (*stringPtr)++ ;
+        result *= 10, result += (unsigned)**stringPtr - '0', (*stringPtr)++ ;
     }
     if ((**stringPtr=='K') || (**stringPtr=='M')) {
         unsigned const maxK = ((unsigned)(-1)) >> 10;
@@ -729,7 +729,7 @@ static unsigned readU32FromChar(const char** stringPtr)
  *  If yes, @return 1 and advances *stringPtr to the position which immediately follows longCommand.
  * @return 0 and doesn't modify *stringPtr otherwise.
  */
-static unsigned longCommandWArg(const char** stringPtr, const char* longCommand)
+static int longCommandWArg(const char** stringPtr, const char* longCommand)
 {
     size_t const comSize = strlen(longCommand);
     int const result = !strncmp(*stringPtr, longCommand, comSize);
@@ -765,12 +765,12 @@ int bad_usage(const char* exeName)
 int main (int argc, const char** argv)
 {
     int recursiveMode = 0;
-    int nbRounds = BENCH_TIME_DEFAULT_S;
+    unsigned nbRounds = BENCH_TIME_DEFAULT_S;
     const char* const exeName = argv[0];
 
     if (argc < 2) return bad_usage(exeName);
 
-    const char** nameTable = (const char**)malloc(argc * sizeof(const char*));
+    const char** nameTable = (const char**)malloc((size_t)argc * sizeof(const char*));
     assert(nameTable != NULL);
     unsigned nameIdx = 0;
 
@@ -791,26 +791,27 @@ int main (int argc, const char** argv)
         if (longCommandWArg(&argument, "--blockSize=")) { blockSize = readU32FromChar(&argument); continue; }
         if (longCommandWArg(&argument, "--nbDicts=")) { nbDicts = readU32FromChar(&argument); continue; }
         if (longCommandWArg(&argument, "--nbBlocks=")) { nbBlocks = readU32FromChar(&argument); continue; }
-        if (longCommandWArg(&argument, "--clevel=")) { cLevel = readU32FromChar(&argument); continue; }
-        if (longCommandWArg(&argument, "-")) { cLevel = readU32FromChar(&argument); continue; }
+        if (longCommandWArg(&argument, "--clevel=")) { cLevel = (int)readU32FromChar(&argument); continue; }
+        if (longCommandWArg(&argument, "-")) { cLevel = (int)readU32FromChar(&argument); continue; }
         /* anything that's not a command is a filename */
         nameTable[nameIdx++] = argument;
     }
 
-    const char** filenameTable = nameTable;
-    unsigned nbFiles = nameIdx;
-    char* buffer_containing_filenames = NULL;
+    FileNamesTable* filenameTable;
 
     if (recursiveMode) {
 #ifndef UTIL_HAS_CREATEFILELIST
         assert(0);   /* missing capability, do not run */
 #endif
-        filenameTable = UTIL_createFileList(nameTable, nameIdx, &buffer_containing_filenames, &nbFiles, 1 /* follow_links */);
+        filenameTable = UTIL_createExpandedFNT(nameTable, nameIdx, 1 /* follow_links */);
+    } else {
+        filenameTable = UTIL_assembleFileNamesTable(nameTable, nameIdx, NULL);
+        nameTable = NULL;  /* UTIL_createFileNamesTable() takes ownership of nameTable */
     }
 
-    int result = bench(filenameTable, nbFiles, dictionary, blockSize, cLevel, nbDicts, nbBlocks, nbRounds);
+    int result = bench(filenameTable->fileNames, (unsigned)filenameTable->tableSize, dictionary, blockSize, cLevel, nbDicts, nbBlocks, nbRounds);
 
-    free(buffer_containing_filenames);
+    UTIL_freeFileNamesTable(filenameTable);
     free(nameTable);
 
     return result;

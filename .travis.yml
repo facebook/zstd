@@ -85,6 +85,7 @@ matrix:
         - make cmakebuild
 
     - name: static analyzer scanbuild    # ~26mn
+      dist: trusty  # note : it's important to pin down a version of static analyzer, since newer versions find different false positives 
       script:
         - make staticAnalyze
 
@@ -137,7 +138,8 @@ matrix:
         - make arminstall
         - make aarch64fuzz
 
-    - name: PPC + Fuzz Test    # ~13mn
+    - name: Qemu PPC + Fuzz Test    # ~13mn
+      dist: trusty   # it seems ppc cross-compilation fails on "current"
       script:
         - make ppcinstall
         - make ppcfuzz

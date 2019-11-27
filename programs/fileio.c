@@ -1769,7 +1769,7 @@ static int FIO_passThrough(const FIO_prefs_t* const prefs,
                            size_t alreadyLoaded)
 {
     size_t const blockSize = MIN(64 KB, bufferSize);
-    size_t readFromInput = 1;
+    size_t readFromInput;
     unsigned storedSkips = 0;
 
     /* assumption : ress->srcBufferLoaded bytes already loaded and stored within buffer */
@@ -1779,10 +1779,15 @@ static int FIO_passThrough(const FIO_prefs_t* const prefs,
             return 1;
     }   }
 
-    while (readFromInput) {
+    do {
         readFromInput = fread(buffer, 1, blockSize, finput);
         storedSkips = FIO_fwriteSparse(prefs, foutput, buffer, readFromInput, storedSkips);
+    } while (readFromInput == blockSize);
+    if (ferror(finput)) {
+        DISPLAYLEVEL(1, "Pass-through read error : %s\n", strerror(errno));
+        return 1;
     }
+    assert(feof(finput));
 
     FIO_fwriteSparseEnd(prefs, foutput, storedSkips);
     return 0;

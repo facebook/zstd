@@ -158,10 +158,10 @@ libzstd.a-mt: libzstd.a
 
 ifneq (,$(filter Windows%,$(OS)))
 
-LIBZSTD = dll\libzstd.dll
+LIBZSTD = dll/libzstd-$(LIBVER_MAJOR).dll
 $(LIBZSTD): $(ZSTD_FILES)
 	@echo compiling dynamic library $(LIBVER)
-	$(CC) $(FLAGS) -DZSTD_DLL_EXPORT=1 -Wl,--out-implib,dll\libzstd.dll.a -shared $^ -o $@
+	$(CC) $(FLAGS) -DZSTD_DLL_EXPORT=1 -Wl,--out-implib,dll/libzstd.dll.a -shared $^ -o $@
 
 else
 
@@ -210,7 +210,7 @@ clean:
 #-----------------------------------------------------------------------------
 # make install is validated only for Linux, macOS, BSD, Hurd and Solaris targets
 #-----------------------------------------------------------------------------
-ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku))
+ifneq (,$(filter Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku MINGW%,$(shell uname)))
 
 DESTDIR     ?=
 # directory variables : GNU conventions prefer lowercase
@@ -223,6 +223,8 @@ libdir      ?= $(exec_prefix)/lib
 LIBDIR      ?= $(libdir)
 includedir  ?= $(PREFIX)/include
 INCLUDEDIR  ?= $(includedir)
+bindir      ?= $(PREFIX)/bin
+BINDIR      ?= $(bindir)
 
 ifneq (,$(filter $(shell uname),FreeBSD NetBSD DragonFly))
 PKGCONFIGDIR ?= $(PREFIX)/libdata/pkgconfig
@@ -262,9 +264,15 @@ install-static: libzstd.a
 install-shared: libzstd
 	@echo Installing shared library
 	@$(INSTALL) -d -m 755 $(DESTDIR)$(LIBDIR)/
+ifneq (,$(filter MINGW%,$(shell uname)))
+	@$(INSTALL) -d -m 755 $(DESTDIR)$(BINDIR)/
+	@$(INSTALL_PROGRAM) $(LIBZSTD) $(DESTDIR)$(BINDIR)
+	@$(INSTALL_PROGRAM) dll/libzstd.dll.a $(DESTDIR)$(LIBDIR)
+else
 	@$(INSTALL_PROGRAM) $(LIBZSTD) $(DESTDIR)$(LIBDIR)
 	@ln -sf $(LIBZSTD) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_MAJOR)
 	@ln -sf $(LIBZSTD) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT)
+endif
 
 install-includes:
 	@echo Installing includes
@@ -276,9 +284,14 @@ install-includes:
 
 uninstall:
 	@$(RM) $(DESTDIR)$(LIBDIR)/libzstd.a
+ifneq (,$(filter MINGW%,$(shell uname)))
+	@$(RM) $(DESTDIR)$(BINDIR)/$(LIBZSTD)
+	@$(RM) $(DESTDIR)$(LIBDIR)/libzstd.dll.a
+else
 	@$(RM) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT)
 	@$(RM) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_MAJOR)
 	@$(RM) $(DESTDIR)$(LIBDIR)/$(LIBZSTD)
+endif
 	@$(RM) $(DESTDIR)$(PKGCONFIGDIR)/libzstd.pc
 	@$(RM) $(DESTDIR)$(INCLUDEDIR)/zstd.h
 	@$(RM) $(DESTDIR)$(INCLUDEDIR)/zstd_errors.h

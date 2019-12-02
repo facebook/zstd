@@ -362,16 +362,22 @@ UTIL_createFileNamesTable_fromFileName(const char* inputFileName)
     }
 }
 
-FileNamesTable*
-UTIL_assembleFileNamesTable(const char** filenames, size_t tableSize, char* buf)
+static FileNamesTable*
+UTIL_assembleFileNamesTable2(const char** filenames, size_t tableSize, size_t tableCapacity, char* buf)
 {
     FileNamesTable* const table = (FileNamesTable*) malloc(sizeof(*table));
     CONTROL(table != NULL);
     table->fileNames = filenames;
     table->buf = buf;
     table->tableSize = tableSize;
-    table->tableCapacity = tableSize;
+    table->tableCapacity = tableCapacity;
     return table;
+}
+
+FileNamesTable*
+UTIL_assembleFileNamesTable(const char** filenames, size_t tableSize, char* buf)
+{
+    return UTIL_assembleFileNamesTable2(filenames, tableSize, tableSize, buf);
 }
 
 void UTIL_freeFileNamesTable(FileNamesTable* table)
@@ -652,10 +658,11 @@ UTIL_createExpandedFNT(const char** inputNames, size_t nbIfns, int followLinks)
                 if (buf == NULL) return NULL;
     }   }   }
 
-    if (nbFiles == 0) { free(buf); return NULL; }
+    /* note : even if nbFiles==0, function returns a valid, though empty, FileNamesTable* object */
 
     {   size_t ifnNb, pos;
-        const char** const fileNamesTable = (const char**)malloc((nbFiles + 1) * sizeof(*fileNamesTable));
+        size_t const fntCapacity = nbFiles + 1;  /* minimum 1, allows adding one reference, typically stdin */
+        const char** const fileNamesTable = (const char**)malloc(fntCapacity * sizeof(*fileNamesTable));
         if (!fileNamesTable) { free(buf); return NULL; }
 
         for (ifnNb = 0, pos = 0; ifnNb < nbFiles; ifnNb++) {
@@ -663,7 +670,7 @@ UTIL_createExpandedFNT(const char** inputNames, size_t nbIfns, int followLinks)
             if (buf + pos > bufend) { free(buf); free((void*)fileNamesTable); return NULL; }
             pos += strlen(fileNamesTable[ifnNb]) + 1;
         }
-        return UTIL_assembleFileNamesTable(fileNamesTable, nbFiles, buf);
+        return UTIL_assembleFileNamesTable2(fileNamesTable, nbFiles, fntCapacity, buf);
     }
 }
 
@@ -671,6 +678,7 @@ UTIL_createExpandedFNT(const char** inputNames, size_t nbIfns, int followLinks)
 void UTIL_expandFNT(FileNamesTable** fnt, int followLinks)
 {
     FileNamesTable* const newFNT = UTIL_createExpandedFNT((*fnt)->fileNames, (*fnt)->tableSize, followLinks);
+    CONTROL(newFNT != NULL);
     UTIL_freeFileNamesTable(*fnt);
     *fnt = newFNT;
 }

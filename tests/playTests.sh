@@ -142,7 +142,7 @@ ZSTD_CLEVEL=-   $ZSTD -f tmp # malformed env var, warn and revert to default set
 ZSTD_CLEVEL=a   $ZSTD -f tmp # malformed env var, warn and revert to default setting
 ZSTD_CLEVEL=+a  $ZSTD -f tmp # malformed env var, warn and revert to default setting
 ZSTD_CLEVEL=3a7 $ZSTD -f tmp # malformed env var, warn and revert to default setting
-ZSTD_CLEVEL=50000000000  $ZSTD -f tmp # numeric value too large, warn and revert to default setting
+ZSTD_CLEVEL=50000000000 $ZSTD -f tmp # numeric value too large, warn and revert to default setting
 println "test : override ZSTD_CLEVEL with command line option"
 ZSTD_CLEVEL=12  $ZSTD --fast=3 -f tmp # overridden by command line option
 println "test : compress to stdout"
@@ -239,17 +239,23 @@ if [[ $file2timestamp -ge $file1timestamp ]]; then
 else
   println "Test is not successful"
 fi
-#File Extension check.
+# File Extension check.
 ./datagen $size > precompressedFilterTestDir/input.zstbar
 $ZSTD --exclude-compressed --long --rm -r precompressedFilterTestDir
-#ZSTD should compress input.zstbar
+# ZSTD should compress input.zstbar
 test -f precompressedFilterTestDir/input.zstbar.zst
-#Check without the --exclude-compressed flag
+# Check without the --exclude-compressed flag
 $ZSTD --long --rm -r precompressedFilterTestDir
-#Files should get compressed again without the --exclude-compressed flag.
+# Files should get compressed again without the --exclude-compressed flag.
 test -f precompressedFilterTestDir/input.5.zst.zst
 test -f precompressedFilterTestDir/input.6.zst.zst
 println "Test completed"
+
+
+println "\n===>  recursive mode test "
+# combination of -r with empty list of input file
+$ZSTD -c -r < tmp > tmp.zst
+
 
 println "\n===>  file removal"
 $ZSTD -f --rm tmp

@@ -27,10 +27,12 @@
 **************************************/
 #include "platform.h" /* IS_CONSOLE, PLATFORM_POSIX_VERSION */
 #include "util.h"     /* UTIL_HAS_CREATEFILELIST, UTIL_createFileList */
-#include <stdio.h>    /* fprintf(), stdin, stdout, stderr */
 #include <stdlib.h>   /* getenv */
 #include <string.h>   /* strcmp, strlen */
+#include <stdio.h>    /* fprintf(), stdin, stdout, stderr */
 #include <errno.h>    /* errno */
+#include <assert.h>   /* assert */
+
 #include "fileio.h"   /* stdinmark, stdoutmark, ZSTD_EXTENSION */
 #ifndef ZSTD_NOBENCH
 #  include "benchzstd.h"  /* BMK_benchFiles */
@@ -508,11 +510,13 @@ static void printVersion(void)
 /* Environment variables for parameter setting */
 #define ENV_CLEVEL "ZSTD_CLEVEL"
 
-/* functions that pick up environment variables */
+/* pick up environment variables
+ * requirement : g_displayOut must be set */
 static int init_cLevel(void) {
     const char* const env = getenv(ENV_CLEVEL);
-    if (env) {
-        const char *ptr = env;
+    assert(g_displayOut == stderr);  /* to print error messages */
+    if (env != NULL) {
+        const char* ptr = env;
         int sign = 1;
         if (*ptr == '-') {
             sign = -1;
@@ -524,14 +528,13 @@ static int init_cLevel(void) {
         if ((*ptr>='0') && (*ptr<='9')) {
             unsigned absLevel;
             if (readU32FromCharChecked(&ptr, &absLevel)) {
-                DISPLAYLEVEL(2, "Ignore environment variable setting %s=%s: numeric value too large\n", ENV_CLEVEL, env);
+                DISPLAYLEVEL(2, "Ignore environment variable setting %s=%s: numeric value too large \n", ENV_CLEVEL, env);
                 return ZSTDCLI_CLEVEL_DEFAULT;
             } else if (*ptr == 0) {
                 return sign * (int)absLevel;
-            }
-        }
+        }   }
 
-        DISPLAYLEVEL(2, "Ignore environment variable setting %s=%s: not a valid integer value\n", ENV_CLEVEL, env);
+        DISPLAYLEVEL(2, "Ignore environment variable setting %s=%s: not a valid integer value \n", ENV_CLEVEL, env);
     }
 
     return ZSTDCLI_CLEVEL_DEFAULT;
@@ -543,14 +546,14 @@ typedef enum { zom_compress, zom_decompress, zom_test, zom_bench, zom_train, zom
 
 #ifdef ZSTD_NOCOMPRESS
 /* symbols from compression library are not defined and should not be invoked */
-# define MINCLEVEL  -50
+# define MINCLEVEL  -99
 # define MAXCLEVEL   22
 #else
 # define MINCLEVEL  ZSTD_minCLevel()
 # define MAXCLEVEL  ZSTD_maxCLevel()
 #endif
 
-int main(int argCount, const char* argv[])
+int main(int const argCount, const char* argv[])
 {
     int argNb,
         followLinks = 0,
@@ -582,7 +585,7 @@ int main(int argCount, const char* argv[])
     zstd_operation_mode operation = zom_compress;
     ZSTD_compressionParameters compressionParams;
     int cLevel;
-    int cLevelLast = -1000000000;
+    int cLevelLast = MINCLEVEL - 1;  /* lower than minimum */
     unsigned recursive = 0;
     unsigned memLimit = 0;
     FileNamesTable* filenames = UTIL_allocateFileNamesTable((size_t)argCount);  /* argCount >= 1 */
@@ -613,9 +616,10 @@ int main(int argCount, const char* argv[])
     /* init */
     (void)recursive; (void)cLevelLast;    /* not used when ZSTD_NOBENCH set */
     (void)memLimit;   /* not used when ZSTD_NODECOMPRESS set */
+    assert(argCount >= 1);
     if ((filenames==NULL) || (file_of_names==NULL)) { DISPLAY("zstd: allocation error \n"); exit(1); }
     g_displayOut = stderr;
-    cLevel = init_cLevel();
+    cLevel = init_cLevel();   /* must be done after setting g_displayOut, since some error message might be printed */
     programName = lastNameFromPath(programName);
 #ifdef ZSTD_MULTITHREAD
     nbWorkers = 1;

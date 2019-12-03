@@ -1173,6 +1173,17 @@ roundTripTest -g1M -P50 "1 --single-thread --long=29" " --long=28 --memory=512MB
 roundTripTest -g1M -P50 "1 --single-thread --long=29" " --zstd=wlog=28 --memory=512MB"
 
 
+
+
+if [ "$1" != "--test-large-data" ]; then
+    println "Skipping large data tests"
+    exit 0
+fi
+
+
+#############################################################################
+
+
 if [ -n "$hasMT" ]
 then
     println "\n===>   adaptive mode "
@@ -1189,14 +1200,6 @@ then
     $ZSTD -f -vv --rsyncable --single-thread tmp && die "--rsyncable must fail with --single-thread"
 fi
 
-
-if [ "$1" != "--test-large-data" ]; then
-    println "Skipping large data tests"
-    exit 0
-fi
-
-
-#############################################################################
 
 println "\n===>   large files tests "
 

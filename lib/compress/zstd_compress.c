@@ -2458,26 +2458,24 @@ static void ZSTD_confirmRepcodesAndEntropyTables(ZSTD_CCtx* zc)
 }
 
 static size_t ZSTD_compressBlock_targetCBlockSize_body(ZSTD_CCtx* zc,
-                               const size_t bss, void* dst, size_t dstCapacity,
+                               void* dst, size_t dstCapacity,
                                const void* src, size_t srcSize,
-                               U32 lastBlock)
+                               const size_t bss, U32 lastBlock)
 {
     /* Attempt superblock compression and return early if successful */
-    {
-        if (bss == ZSTDbss_compress) {
-            size_t cSize = ZSTD_compressSuperBlock(zc, dst, dstCapacity, lastBlock);
-            FORWARD_IF_ERROR(cSize);
-            if (cSize != 0) {
-                ZSTD_confirmRepcodesAndEntropyTables(zc);
-                return cSize;
-            }
+    if (bss == ZSTDbss_compress) {
+        size_t const cSize = ZSTD_compressSuperBlock(zc, dst, dstCapacity, lastBlock);
+        FORWARD_IF_ERROR(cSize);
+        if (cSize != 0) {
+            ZSTD_confirmRepcodesAndEntropyTables(zc);
+            return cSize;
         }
     }
 
     /* Superblock compression failed, attempt to emit noCompress superblocks
      * and return early if that is successful and we have enough room for checksum */
     {
-        size_t cSize = ZSTD_noCompressSuperBlock(dst, dstCapacity, src, srcSize, zc->appliedParams.targetCBlockSize, lastBlock);
+        size_t const cSize = ZSTD_noCompressSuperBlock(dst, dstCapacity, src, srcSize, zc->appliedParams.targetCBlockSize, lastBlock);
         if (cSize != ERROR(dstSize_tooSmall) && (dstCapacity - cSize) >= 4)
             return cSize;
     }
@@ -2485,7 +2483,7 @@ static size_t ZSTD_compressBlock_targetCBlockSize_body(ZSTD_CCtx* zc,
     /* noCompress superblock emission failed. Attempt to compress normally
      * and return early if that is successful */
     {
-        size_t cSize = ZSTD_compressSequences(&zc->seqStore,
+        size_t const cSize = ZSTD_compressSequences(&zc->seqStore,
             &zc->blockState.prevCBlock->entropy, &zc->blockState.nextCBlock->entropy,
             &zc->appliedParams, (BYTE*)dst+ZSTD_blockHeaderSize, dstCapacity-ZSTD_blockHeaderSize,
             srcSize, zc->entropyWorkspace, HUF_WORKSPACE_SIZE, zc->bmi2);
@@ -2493,9 +2491,8 @@ static size_t ZSTD_compressBlock_targetCBlockSize_body(ZSTD_CCtx* zc,
         if (cSize != 0) {
             U32 const cBlockHeader24 = lastBlock + (((U32)bt_compressed)<<1) + (U32)(cSize << 3);
             MEM_writeLE24((BYTE*)dst, cBlockHeader24);
-            cSize += ZSTD_blockHeaderSize;
             ZSTD_confirmRepcodesAndEntropyTables(zc);
-            return cSize;
+            return cSize + ZSTD_blockHeaderSize;
         }
     }
 
@@ -2514,7 +2511,7 @@ static size_t ZSTD_compressBlock_targetCBlockSize(ZSTD_CCtx* zc,
                 (unsigned)dstCapacity, (unsigned)zc->blockState.matchState.window.dictLimit, (unsigned)zc->blockState.matchState.nextToUpdate, srcSize);
     FORWARD_IF_ERROR(bss);
 
-    cSize = ZSTD_compressBlock_targetCBlockSize_body(zc, bss, dst, dstCapacity, src, srcSize, lastBlock);
+    cSize = ZSTD_compressBlock_targetCBlockSize_body(zc, dst, dstCapacity, src, srcSize, bss, lastBlock);
     FORWARD_IF_ERROR(cSize);
 
     if (zc->blockState.prevCBlock->entropy.fse.offcode_repeatMode == FSE_repeat_valid)

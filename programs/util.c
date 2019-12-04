@@ -145,6 +145,10 @@ int UTIL_setFileStat(const char *filename, stat_t *statbuf)
         return -1;
 
     /* set access and modification times */
+    /* We check that st_mtime is a macro here in order to give us confidence
+     * that struct stat has a struct timespec st_mtim member. We need this
+     * check because there are some platforms that claim to be POSIX 2008
+     * compliant but which do not have st_mtim... */
 #if (PLATFORM_POSIX_VERSION >= 200809L) && defined(st_mtime)
     {
         /* (atime, mtime) */

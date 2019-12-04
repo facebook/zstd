@@ -138,17 +138,25 @@ int UTIL_chmod(char const* filename, mode_t permissions, int onlyRegularFiles)
     return chmod(filename, permissions);
 }
 
-int UTIL_chown(char const* filename, uid_t owner, gid_t group, int onlyRegularFiles) {
+#if !defined(_WIN32)
+static int UTIL_chown(char const* filename,
+                      uid_t owner,
+                      gid_t group,
+                      int onlyRegularFiles) {
     if (onlyRegularFiles && !UTIL_isRegularFile(filename)) {
         return 0;
     }
-#if !defined(_WIN32)
     return chown(filename, owner, group);
-#else
-    /* windows doesn't have the chown concept. */
-    return 0;
-#endif
 }
+#else
+/* windows doesn't have any of this */
+static int UTIL_chown(char const* /* filename */,
+                      int /* owner */,
+                      int /* group */,
+                      int /* onlyRegularFiles */) {
+    return 0;
+}
+#endif
 
 int UTIL_setFileStat(const char *filename, stat_t *statbuf)
 {

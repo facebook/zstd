@@ -130,11 +130,24 @@ int UTIL_getFileStat(const char* infilename, stat_t *statbuf)
     return 1;
 }
 
-/* like chmod, but avoid changing permission of /dev/null */
-int UTIL_chmod(char const* filename, mode_t permissions)
+int UTIL_chmod(char const* filename, mode_t permissions, int onlyRegularFiles)
 {
-    if (!strcmp(filename, "/dev/null")) return 0;   /* pretend success, but don't change anything */
+    if (onlyRegularFiles && !UTIL_isRegularFile(filename)) {
+        return 0;
+    }
     return chmod(filename, permissions);
+}
+
+int UTIL_chown(char const* filename, uid_t owner, gid_t group, int onlyRegularFiles) {
+    if (onlyRegularFiles && !UTIL_isRegularFile(filename)) {
+        return 0;
+    }
+#if !defined(_WIN32)
+    return chown(filename, owner, group);
+#else
+    /* windows doesn't have the chown concept. */
+    return 0;
+#endif
 }
 
 int UTIL_setFileStat(const char *filename, stat_t *statbuf)
@@ -165,11 +178,11 @@ int UTIL_setFileStat(const char *filename, stat_t *statbuf)
     }
 #endif
 
-#if !defined(_WIN32)
-    res += chown(filename, statbuf->st_uid, statbuf->st_gid);  /* Copy ownership */
-#endif
+    /* Copy ownership */
+    res += UTIL_chown(filename, statbuf->st_uid, statbuf->st_gid, 0 /* onlyRegularFiles: already checked above */);
 
-    res += UTIL_chmod(filename, statbuf->st_mode & 07777);  /* Copy file permissions */
+    /* Copy file permissions */
+    res += UTIL_chmod(filename, statbuf->st_mode & 07777, 0 /* onlyRegularFiles: already checked above */);
 
     errno = 0;
     return -res; /* number of errors is returned */

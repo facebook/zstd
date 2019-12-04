@@ -100,6 +100,8 @@ extern int g_utilDisplayLevel;
 #if defined(_MSC_VER)
     typedef struct __stat64 stat_t;
     typedef int mode_t;
+    typedef int uid_t;
+    typedef int gid_t;
 #else
     typedef struct stat stat_t;
 #endif
@@ -118,7 +120,8 @@ U64 UTIL_getFileSize(const char* infilename);
 U64 UTIL_getTotalFileSize(const char* const * fileNamesTable, unsigned nbFiles);
 int UTIL_getFileStat(const char* infilename, stat_t* statbuf);
 int UTIL_setFileStat(const char* filename, stat_t* statbuf);
-int UTIL_chmod(char const* filename, mode_t permissions);   /*< like chmod, but avoid changing permission of /dev/null */
+int UTIL_chmod(char const* filename, mode_t permissions, int onlyRegularFiles);   /*< like chmod, but avoid changing permission of special files */
+int UTIL_chown(char const* filename, uid_t owner, gid_t group, int onlyRegularFiles);   /*< like chown, but avoid changing permission of special files */
 int UTIL_compareStr(const void *p1, const void *p2);
 const char* UTIL_getFileExtension(const char* infilename);
 

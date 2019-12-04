@@ -509,7 +509,7 @@ static int FIO_remove(const char* path)
 #if defined(_WIN32) || defined(WIN32)
     /* windows doesn't allow remove read-only files,
      * so try to make it writable first */
-    UTIL_chmod(path, _S_IWRITE);
+    UTIL_chmod(path, _S_IWRITE, 0 /* onlyRegularFiles: already checked above */);
 #endif
     return remove(path);
 }
@@ -618,7 +618,7 @@ FIO_openDstFile(FIO_prefs_t* const prefs,
                && strcmp (srcFileName, stdinmark)
                && strcmp(dstFileName, nulmark) ) {
             /* reduce rights on newly created dst file while compression is ongoing */
-            UTIL_chmod(dstFileName, 00600);
+            UTIL_chmod(dstFileName, 00600, 1 /* onlyRegularFiles */);
         }
         return f;
     }

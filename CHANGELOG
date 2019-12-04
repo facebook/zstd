@@ -1,3 +1,10 @@
+v1.4.5
+perf: Improved decompression speed, +10% on clang, +5% on gcc, by @terrelln
+cli: new command : provide list of files to de/compress within a file with --filelist=FILE, by @AhmedAbdellah19
+api: low latency blocks, new experimental parameter by @ephiepark
+build: mingw cross-compilation from unix, by @Ericson2314
+misc: bitflip analyzer tool, by @felixhandte
+
 v1.4.4
 perf: Improved decompression speed, by > 10%, by @terrelln
 perf: Better compression speed when re-using a context, by @felixhandte

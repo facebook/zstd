@@ -109,6 +109,15 @@ extern "C" {
 #endif   /* PLATFORM_POSIX_VERSION */
 
 
+#if PLATFORM_POSIX_VERSION > 1
+   /* glibc < 2.26 may not expose struct timespec def without this.
+    * See issue #1920. */
+#  ifndef _ATFILE_SOURCE
+#    define _ATFILE_SOURCE
+#  endif
+#endif
+
+
 /*-*********************************************
 *  Detect if isatty() and fileno() are available
 ************************************************/

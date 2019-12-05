@@ -102,9 +102,11 @@ case "$UNAME" in
   SunOS) DIFF="gdiff" ;;
 esac
 
-println "\nStarting playTests.sh isWindows=$isWindows ZSTD='$ZSTD'"
+println "\nStarting playTests.sh isWindows=$isWindows EXE_PREFIX='$EXE_PREFIX' ZSTD_BIN='$ZSTD_BIN'"
 
-[ -n "$ZSTD" ] || die "ZSTD variable must be defined!"
+[ -n "$ZSTD_BIN" ] || die "ZSTD_BIN variable must be defined!"
+
+ZSTD="$EXE_PREFIX $ZSTD_BIN"
 
 if echo hello | $ZSTD -v -T2 2>&1 > $INTOVOID | grep -q 'multi-threading is disabled'
 then
@@ -493,19 +495,19 @@ cat hello.zstd world.zstd > helloworld.zstd
 $ZSTD -dc helloworld.zstd > result.tmp
 $DIFF helloworld.tmp result.tmp
 println "testing zstdcat symlink"
-ln -sf $ZSTD zstdcat
-./zstdcat helloworld.zstd > result.tmp
+ln -sf $ZSTD_BIN zstdcat
+$EXE_PREFIX ./zstdcat helloworld.zstd > result.tmp
 $DIFF helloworld.tmp result.tmp
 ln -s helloworld.zstd helloworld.link.zstd
-./zstdcat helloworld.link.zstd > result.tmp
+$EXE_PREFIX ./zstdcat helloworld.link.zstd > result.tmp
 $DIFF helloworld.tmp result.tmp
 rm zstdcat
 rm result.tmp
 println "testing zcat symlink"
-ln -sf $ZSTD zcat
-./zcat helloworld.zstd > result.tmp
+ln -sf $ZSTD_BIN zcat
+$EXE_PREFIX ./zcat helloworld.zstd > result.tmp
 $DIFF helloworld.tmp result.tmp
-./zcat helloworld.link.zstd > result.tmp
+$EXE_PREFIX ./zcat helloworld.link.zstd > result.tmp
 $DIFF helloworld.tmp result.tmp
 rm zcat
 rm ./*.tmp ./*.zstd

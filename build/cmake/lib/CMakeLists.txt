@@ -127,6 +127,7 @@ if (ZSTD_BUILD_STATIC)
     set_target_properties(
             libzstd_static
             PROPERTIES
+            POSITION_INDEPENDENT_CODE On
             OUTPUT_NAME ${STATIC_LIBRARY_BASE_NAME})
 endif ()
 
@@ -146,21 +147,42 @@ endif ()
 
 # install target
 install(FILES
-    ${LIBRARY_DIR}/zstd.h
-    ${LIBRARY_DIR}/deprecated/zbuff.h
-    ${LIBRARY_DIR}/dictBuilder/zdict.h
-    ${LIBRARY_DIR}/dictBuilder/cover.h
-    ${LIBRARY_DIR}/common/zstd_errors.h
+    "${LIBRARY_DIR}/zstd.h"
+    "${LIBRARY_DIR}/deprecated/zbuff.h"
+    "${LIBRARY_DIR}/dictBuilder/zdict.h"
+    "${LIBRARY_DIR}/dictBuilder/cover.h"
+    "${LIBRARY_DIR}/common/zstd_errors.h"
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 
 if (ZSTD_BUILD_SHARED)
-    install(TARGETS libzstd_shared RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+    install(TARGETS libzstd_shared EXPORT zstdExports
+                                   INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+                                   ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
                                    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-                                   ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+    )
 endif()
 if (ZSTD_BUILD_STATIC)
-    install(TARGETS libzstd_static ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+    install(TARGETS libzstd_static EXPORT zstdExports
+                                   INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+                                   ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+                                   LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    )
 endif ()
+
+# export targets + find config
+configure_file(
+  "config.cmake.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/zstdConfig.cmake"
+  @ONLY
+)
+install(FILES
+  "${CMAKE_CURRENT_BINARY_DIR}/zstdConfig.cmake"
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/zstd"
+)
+install(EXPORT zstdExports
+  NAMESPACE zstd::
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/zstd"
+)
 
 # uninstall target
 if (NOT TARGET uninstall)

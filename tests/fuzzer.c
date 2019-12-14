@@ -492,7 +492,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
     DISPLAYLEVEL(3, "test%3d: superblock uncompressable data, too many nocompress superblocks : ", testNb++)
     {
         ZSTD_CCtx* cctx = ZSTD_createCCtx();
-        void* src = CNBuffer; void* dst = compressedBuffer;
+        BYTE* src = CNBuffer; BYTE* dst = compressedBuffer;
         size_t srcSize = 321656; size_t dstCapacity = ZSTD_compressBound(srcSize);
 
         /* This is the number of bytes to stream before ending. This value
@@ -511,7 +511,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         const size_t compressablePartSize = srcSize/3;
         const size_t uncompressablePartSize = srcSize-compressablePartSize;
         RDG_genBuffer(CNBuffer, compressablePartSize, 0.5, 0.5, seed);
-        RDG_genBuffer((void*)((char*)CNBuffer+compressablePartSize), uncompressablePartSize, 0, 0, seed);
+        RDG_genBuffer(CNBuffer+compressablePartSize, uncompressablePartSize, 0, 0, seed);
 
         /* Setting target block size so that superblock is used */
 

@@ -511,7 +511,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         const size_t compressablePartSize = srcSize/3;
         const size_t uncompressablePartSize = srcSize-compressablePartSize;
         RDG_genBuffer(CNBuffer, compressablePartSize, 0.5, 0.5, seed);
-        RDG_genBuffer(CNBuffer+compressablePartSize, uncompressablePartSize, 0, 0, seed);
+        RDG_genBuffer((void*)((char*)CNBuffer+compressablePartSize), uncompressablePartSize, 0, 0, seed);
 
         /* Setting target block size so that superblock is used */
 

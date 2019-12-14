@@ -44,5 +44,6 @@ _zstdbench/
 googletest/
 *.d
 *.vscode
+*.code-workspace
 compile_commands.json
 .clangd

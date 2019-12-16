@@ -244,6 +244,7 @@ libzstd.pc:
 libzstd.pc: libzstd.pc.in
 	@echo creating pkgconfig
 	@sed -e 's|@PREFIX@|$(PREFIX)|' \
+             -e 's|@LIBDIR@|$(LIBDIR)|' \
              -e 's|@VERSION@|$(VERSION)|' \
              $< >$@
 

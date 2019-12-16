@@ -5,7 +5,7 @@
 prefix=@PREFIX@
 exec_prefix=${prefix}
 includedir=${prefix}/include
-libdir=${exec_prefix}/lib
+libdir=@LIBDIR@
 
 Name: zstd
 Description: fast lossless compression algorithm library

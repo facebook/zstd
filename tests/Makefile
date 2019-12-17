@@ -237,6 +237,9 @@ poolTests : $(PRGDIR)/util.c $(PRGDIR)/timefn.c poolTests.c $(ZSTDDIR)/common/po
 versionsTest: clean
 	$(PYTHON) test-zstd-versions.py
 
+automated_benchmarking: clean
+	$(PYTHON) automated_benchmarking.py fuzz "1" "1" 1 ""
+
 checkTag: checkTag.c $(ZSTDDIR)/zstd.h
 	$(CC) $(FLAGS) $< -o $@$(EXT)
 
@@ -308,7 +311,7 @@ shortest: test-zstd
 fuzztest: test-fuzzer test-zstream test-decodecorpus
 
 .PHONY: test
-test: test-zstd test-fullbench test-fuzzer test-zstream test-invalidDictionaries test-legacy test-decodecorpus
+test: test-zstd test-fullbench test-fuzzer test-zstream test-invalidDictionaries test-legacy test-decodecorpus automated_benchmarking
 ifeq ($(QEMU_SYS),)
 test: test-pool
 endif

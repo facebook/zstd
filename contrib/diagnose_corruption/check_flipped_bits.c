@@ -214,4 +214,6 @@ int main(int argc, char* argv[]) {
   perturb_bytes(&stuff);
 
   free_stuff(&stuff);
+
+  return 0;
 }

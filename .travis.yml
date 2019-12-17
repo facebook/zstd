@@ -1,7 +1,6 @@
 # Medium Tests: Run on all commits/PRs to dev branch
 
 language: c
-dist: trusty
 
 git:
   depth: 1
@@ -26,7 +25,7 @@ env:
 matrix:
   fast_finish: true
   include:
-    - name: arm64
+    - name: arm64    # ~2.5 mn
       os: linux
       arch: arm64
       script:
@@ -38,30 +37,31 @@ matrix:
 
     - name: make test (complete)
       script:
-        - make test
+        # DEVNULLRIGHTS : will request sudo rights to test permissions on /dev/null
+        - DEVNULLRIGHTS=test make test
 
-    - name: gcc-6 + gcc-7 compilation
+    - name: gcc-6 + gcc-7 compilation   # ~ 3mn
       script:
         - make gcc6install gcc7install
         - CC=gcc-6 CFLAGS=-Werror make -j all
         - make clean
         - CC=gcc-7 CFLAGS=-Werror make -j all
 
-    - name: gcc-8 + ASan + UBSan + Test Zstd
+    - name: gcc-8 + ASan + UBSan + Test Zstd   # ~6.5mn
       script:
         - make gcc8install
         - CC=gcc-8 CFLAGS="-Werror" make -j all
         - make clean
         - CC=gcc-8 make -j uasan-test-zstd </dev/null   # test when stdin is not a tty
 
-    - name: gcc-6 + ASan + UBSan + Test Zstd, 32bit mode
+    - name: gcc-6 + ASan + UBSan + Test Zstd, 32bit mode    # ~4mn
       script:
         - make gcc6install libc6install
         - CC=gcc-6 CFLAGS="-Werror -m32" make -j all32
         - make clean
         - CC=gcc-6 make -j uasan-test-zstd32   # note : can complain about pointer overflow
 
-    - name: Trusty (clang-3.8 + MSan + Test Zstd)
+    - name: clang-3.8 + MSan + Test Zstd    # ~3.5mn
       script:
         - make clang38install
         # External libraries must be turned off when using MSAN tests,
@@ -69,7 +69,7 @@ matrix:
         # so any data coming from these libraries is always considered "uninitialized"
         - CC=clang-3.8 make clean msan-test-zstd HAVE_ZLIB=0 HAVE_LZ4=0 HAVE_LZMA=0
 
-    - name: Trusty (Minimal Decompressor Macros)
+    - name: Minimal Decompressor Macros    # ~5mn
       script:
         - make clean
         - CFLAGS=-Werror make -j all MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X1 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT"
@@ -84,63 +84,70 @@ matrix:
         - make clean
         - make -j check MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
 
-    - name: cmake test
+    - name: cmake build check    # ~2mn
       script:
         - make cmakebuild
 
-    - name: static analyzer scanbuild
+    - name: static analyzer scanbuild    # ~26mn
+      dist: trusty  # note : it's important to pin down a version of static analyzer, since different versions report different false positives
       script:
         - make staticAnalyze
 
-    - name: gcc-8 + ASan + UBSan + Fuzz Test
+    - name: gcc-8 + ASan + UBSan + Fuzz Test    # ~19mn
       script:
         - make gcc8install
         - CC=gcc-8 make clean uasan-fuzztest
 
-    - name: gcc-6 + ASan + UBSan + Fuzz Test 32bit
+    - name: gcc-6 + ASan + UBSan + Fuzz Test 32bit    # ~15.5mn
       script:
         - make gcc6install libc6install
         - CC=gcc-6 CFLAGS="-O2 -m32" make uasan-fuzztest   # can complain about pointer overflow
 
-    - name: clang-3.8 + MSan + Fuzz Test
+    - name: clang-3.8 + MSan + Fuzz Test     # ~14.5mn
       script:
         - make clang38install
         - CC=clang-3.8 make clean msan-fuzztest
 
-    - name: ASan + UBSan + MSan + Regression Test
+    - name: ASan + UBSan + MSan + Regression Test    # ~ 4.5mn
       script:
         - make -j uasanregressiontest
         - make clean
         - make -j msanregressiontest
 
-    - name: Valgrind + Fuzz Test Stack Mode
+    - name: C++, gnu90 and c99 compatibility   # ~3mn
+      script:
+        - make cxxtest
+        - make clean
+        - make gnu90build
+        - make clean
+        - make c99build
+        - make clean
+        - make travis-install    # just ensures `make install` works
+
+    - name: mingw cross-compilation
+      script :
+        - sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix;
+        - CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++ CFLAGS="-Werror -O1" make zstd
+
+    - name: Valgrind + Fuzz Test Stack Mode    # ~ 7mn
       script:
         - make valgrindinstall
         - make -C tests clean valgrindTest
         - make clean
         - make -C tests test-fuzzer-stackmode
 
-    - name: Qemu ARM emulation + Fuzz Test
+    - name: Qemu ARM emulation + Fuzz Test    # ~13.5mn
       script:
         - make arminstall
         - make armfuzz
 
-    - name: Xenial (AARCH64 + Fuzz Test)
-      dist: xenial
-      script:
-        - make arminstall
-        - make aarch64fuzz
-
-    - name: PPC + Fuzz Test
+    - name: Qemu PPC + Fuzz Test    # ~13mn
+      dist: trusty   # it seems ppc cross-compilation fails on "current"
       script:
         - make ppcinstall
         - make ppcfuzz
 
-    - name: Versions Compatibility Test
-      script:
-        - make -C tests versionsTest
-
-    # check release number
+    # check release number (release only)
     - name: Tag-Specific Test
       if: tag =~ ^v[0-9]\.[0-9]
       script:
@@ -148,48 +155,45 @@ matrix:
         - tests/checkTag "$TRAVIS_BRANCH"
 
     # tests for master branch and cron job only
-    - name: OS-X
-      if: branch = master
+    - name: OS-X    # ~13mn
       os: osx
       script:
         - make test
 
-    - name: thread sanitizer
+    - name: Versions Compatibility Test   # 11.5mn
+      if: branch = master
+      script:
+        - make -C tests versionsTest
+
+    - name: thread sanitizer   # ~29mn
       if: branch = master
       script:
         - make clang38install
         - CC=clang-3.8 make tsan-test-zstream
         - CC=clang-3.8 make tsan-fuzztest
 
-    - name: C++ and gnu90 compatibility
-      if: branch = master
-      script:
-        - make cxxtest
-        - make clean
-        - make gnu90build
-        - make clean
-        - make travis-install    # just ensures `make install` works
-
-    - name: c99 compatibility
-      if: branch = master
-      script:
-        - make c99build
-        - make -C tests test-zstd
-
-    - name: PPC64
+    - name: PPC64    # ~13mn
       if: branch = master
       script:
         - make ppcinstall
         - make ppc64fuzz
 
-    - name: zlib wrapper test
+    # note : we already have aarch64 tests on hardware
+    - name: Qemu aarch64 + Fuzz Test (on Xenial)    # ~14mn
+      if: branch = master
+      dist: xenial
+      script:
+        - make arminstall
+        - make aarch64fuzz
+
+    - name: zlib wrapper test    # ~7.5mn
       if: branch = master
       script:
         - make gpp6install valgrindinstall
         - make -C zlibWrapper test
         - make -C zlibWrapper valgrindTest
 
-    - name: LZ4, thread pool, and partial libs tests
+    - name: LZ4, thread pool, and partial libs tests    # ~2mn
       if: branch = master
       script:
         - make lz4install
@@ -200,8 +204,8 @@ matrix:
         - bash tests/libzstd_partial_builds.sh
 
     # meson dedicated test
-    - name: Xenial (Meson + clang)
-      # env: ALLOW_FAILURES=true
+    - name: Xenial (Meson + clang)    # ~8mn
+      if: branch = master
       dist: xenial
       language: cpp
       compiler: clang

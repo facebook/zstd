@@ -41,7 +41,7 @@ extern "C" {
 ******************************************/
 #if defined(_WIN32)   /* Windows */
 
-    #include <Windows.h>   /* LARGE_INTEGER */
+    #include <windows.h>   /* LARGE_INTEGER */
     typedef LARGE_INTEGER UTIL_time_t;
     #define UTIL_TIME_INITIALIZER { { 0, 0 } }
 

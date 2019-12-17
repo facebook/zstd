@@ -502,7 +502,7 @@ static int FIO_remove(const char* path)
 #if defined(_WIN32) || defined(WIN32)
     /* windows doesn't allow remove read-only files,
      * so try to make it writable first */
-    chmod(path, _S_IWRITE);
+    UTIL_chmod(path, _S_IWRITE);
 #endif
     return remove(path);
 }
@@ -526,9 +526,7 @@ static FILE* FIO_openSrcFile(const char* srcFileName)
     }
 
     if (!UTIL_isRegularFile(srcFileName)
-#ifndef _MSC_VER
-        && !UTIL_isFIFO(srcFileName)
-#endif /* _MSC_VER */
+     && !UTIL_isFIFO(srcFileName)
     ) {
         DISPLAYLEVEL(1, "zstd: %s is not a regular file -- ignored \n",
                         srcFileName);
@@ -609,8 +607,11 @@ FIO_openDstFile(FIO_prefs_t* const prefs,
     {   FILE* const f = fopen( dstFileName, "wb" );
         if (f == NULL) {
             DISPLAYLEVEL(1, "zstd: %s: %s\n", dstFileName, strerror(errno));
-        } else if(srcFileName != NULL && strcmp (srcFileName, stdinmark)) {
-            chmod(dstFileName, 00600);
+        } else if (srcFileName != NULL
+               && strcmp (srcFileName, stdinmark)
+               && strcmp(dstFileName, nulmark) ) {
+            /* reduce rights on newly created dst file while compression is ongoing */
+            UTIL_chmod(dstFileName, 00600);
         }
         return f;
     }
@@ -1393,7 +1394,7 @@ static int FIO_compressFilename_dstFile(FIO_prefs_t* const prefs,
     assert(ress.srcFile != NULL);
     if (ress.dstFile == NULL) {
         closeDstFile = 1;
-        DISPLAYLEVEL(6, "FIO_compressFilename_dstFile: opening dst: %s", dstFileName);
+        DISPLAYLEVEL(6, "FIO_compressFilename_dstFile: opening dst: %s \n", dstFileName);
         ress.dstFile = FIO_openDstFile(prefs, srcFileName, dstFileName);
         if (ress.dstFile==NULL) return 1;  /* could not open dstFileName */
         /* Must only be added after FIO_openDstFile() succeeds.
@@ -1415,6 +1416,7 @@ static int FIO_compressFilename_dstFile(FIO_prefs_t* const prefs,
 
         clearHandler();
 
+        DISPLAYLEVEL(6, "FIO_compressFilename_dstFile: closing dst: %s \n", dstFileName);
         if (fclose(dstFile)) { /* error closing dstFile */
             DISPLAYLEVEL(1, "zstd: %s: %s \n", dstFileName, strerror(errno));
             result=1;
@@ -1427,7 +1429,10 @@ static int FIO_compressFilename_dstFile(FIO_prefs_t* const prefs,
         } else if ( strcmp(dstFileName, stdoutmark)
                  && strcmp(dstFileName, nulmark)
                  && transfer_permissions) {
+            DISPLAYLEVEL(6, "FIO_compressFilename_dstFile: transfering permissions into dst: %s \n", dstFileName);
             UTIL_setFileStat(dstFileName, &statbuf);
+        } else {
+            DISPLAYLEVEL(6, "FIO_compressFilename_dstFile: do not transfer permissions into dst: %s \n", dstFileName);
         }
     }
 
@@ -1462,6 +1467,7 @@ FIO_compressFilename_srcFile(FIO_prefs_t* const prefs,
                              int compressionLevel)
 {
     int result;
+    DISPLAYLEVEL(6, "FIO_compressFilename_srcFile: %s \n", srcFileName);
 
     /* ensure src is not a directory */
     if (UTIL_isDirectory(srcFileName)) {
@@ -1763,7 +1769,7 @@ static int FIO_passThrough(const FIO_prefs_t* const prefs,
                            size_t alreadyLoaded)
 {
     size_t const blockSize = MIN(64 KB, bufferSize);
-    size_t readFromInput = 1;
+    size_t readFromInput;
     unsigned storedSkips = 0;
 
     /* assumption : ress->srcBufferLoaded bytes already loaded and stored within buffer */
@@ -1773,10 +1779,15 @@ static int FIO_passThrough(const FIO_prefs_t* const prefs,
             return 1;
     }   }
 
-    while (readFromInput) {
+    do {
         readFromInput = fread(buffer, 1, blockSize, finput);
         storedSkips = FIO_fwriteSparse(prefs, foutput, buffer, readFromInput, storedSkips);
+    } while (readFromInput == blockSize);
+    if (ferror(finput)) {
+        DISPLAYLEVEL(1, "Pass-through read error : %s\n", strerror(errno));
+        return 1;
     }
+    assert(feof(finput));
 
     FIO_fwriteSparseEnd(prefs, foutput, storedSkips);
     return 0;

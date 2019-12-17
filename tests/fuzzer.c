@@ -427,7 +427,6 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }   }
     DISPLAYLEVEL(3, "OK \n");
 
-
     DISPLAYLEVEL(3, "test%3i : decompress with null dict : ", testNb++);
     {   ZSTD_DCtx* const dctx = ZSTD_createDCtx(); assert(dctx != NULL);
         {   size_t const r = ZSTD_decompress_usingDict(dctx,
@@ -490,6 +489,19 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3d: superblock enough room for checksum : ", testNb++)
+    {
+        /* This tests whether or not we leave enough room for the checksum at the end
+         * of the dst buffer. The bug that motivated this test was found by the
+         * stream_round_trip fuzzer but this crashes for the same reason and is
+         * far more compact than re-creating the stream_round_trip fuzzer's code path */
+        ZSTD_CCtx *cctx = ZSTD_createCCtx();
+        ZSTD_CCtx_setParameter(cctx, ZSTD_c_targetCBlockSize, 64);
+        assert(!ZSTD_isError(ZSTD_compress2(cctx, compressedBuffer, 1339, CNBuffer, 1278)));
+        ZSTD_freeCCtx(cctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+  
     DISPLAYLEVEL(3, "test%3i : compress a NULL input with each level : ", testNb++);
     {   int level = -1;
         ZSTD_CCtx* cctx = ZSTD_createCCtx();

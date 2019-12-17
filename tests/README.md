@@ -34,7 +34,7 @@ continuously run mode 1 when a new pull request is added or when an existing pul
 request gets a new commit.
 
 ```
-Example usage: python automated_benchmarking.py fuzz "1,2,3" "0" 1 ""
+Example usage: python automated_benchmarking.py fuzz "1,2,3" "0" "1" ""
 ```
 
 ```

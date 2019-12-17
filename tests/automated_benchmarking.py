@@ -114,8 +114,9 @@ def benchmark_n(executable, level, filename, n):
 
 
 def benchmark(build, filenames, levels, iterations):
+    executable = clone_and_build(build)
     return [
-        [benchmark_n(clone_and_build(build), l, f, iterations) for f in filenames] for l in levels
+        [benchmark_n(executable, l, f, iterations) for f in filenames] for l in levels
     ]
 
 
@@ -167,7 +168,9 @@ def main(filenames, levels, iterations, builds=None, emails=None, continuous=Fal
         builds = get_new_open_pr_builds()
     while True:
         for test_build in builds:
-            regressions = get_regressions(MASTER_BUILD, test_build, iterations, filenames, levels)
+            regressions = get_regressions(
+                MASTER_BUILD, test_build, iterations, filenames, levels
+            )
             body = "\n".join(regressions)
             if len(regressions) > 0:
                 if emails != None:

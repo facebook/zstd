@@ -32,6 +32,10 @@ matrix:
       script:
         - make check
 
+    - name: make benchmarking
+      script:
+        - make benchmarking
+
     - name: make test (complete)
       script:
         - make test

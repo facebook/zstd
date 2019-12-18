@@ -2568,7 +2568,7 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
      * greater than the optimistic number of blocks we still have remaining.
      * This might be UNset when data is uncompressable and we're streaming.  */
 
-    int enoughDstCapacityForNoCompressSuperBlocks =
+    const int enoughDstCapacityForNoCompressSuperBlocks =
         (dstCapacity / (blockSize + 7 /* header + checksum */)) > (srcSize / blockSize);
     assert(cctx->appliedParams.cParams.windowLog <= ZSTD_WINDOWLOG_MAX);
 

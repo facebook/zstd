@@ -152,6 +152,7 @@ matrix:
 
     # tests for master branch and cron job only
     - name: OS-X    # ~13mn
+      if: branch = master
       os: osx
       script:
         - make test
@@ -168,11 +169,18 @@ matrix:
         - CC=clang-3.8 make tsan-test-zstream
         - CC=clang-3.8 make tsan-fuzztest
 
-    - name: PPC64    # ~13mn
+    - name: Qemu PPC64 + Fuzz test  # ~13mn
       if: branch = master
       script:
         - make ppcinstall
         - make ppc64fuzz
+
+    - name: PPC64LE + Fuzz test  # ~13mn
+      if: branch = master
+      arch: ppc64le
+      script:
+        - cat /proc/cpuinfo
+        - make test
 
     # note : we already have aarch64 tests on hardware
     - name: Qemu aarch64 + Fuzz Test (on Xenial)    # ~14mn

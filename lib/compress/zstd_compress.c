@@ -2462,6 +2462,7 @@ static size_t ZSTD_compressBlock_targetCBlockSize_body(ZSTD_CCtx* zc,
                                const void* src, size_t srcSize,
                                const size_t bss, U32 lastBlock)
 {
+    DEBUGLOG(6, "Attempting ZSTD_compressSuperBlock()");
     /* Attempt superblock compression and return early if successful */
     if (bss == ZSTDbss_compress) {
         size_t const cSize = ZSTD_compressSuperBlock(zc, dst, dstCapacity, lastBlock);
@@ -2472,6 +2473,7 @@ static size_t ZSTD_compressBlock_targetCBlockSize_body(ZSTD_CCtx* zc,
         }
     }
 
+    DEBUGLOG(6, "Attempting ZSTD_noCompressSuperBlock()");
     /* Superblock compression failed, attempt to emit noCompress superblocks
      * and return early if that is successful and we have enough room for checksum */
     {
@@ -2480,6 +2482,7 @@ static size_t ZSTD_compressBlock_targetCBlockSize_body(ZSTD_CCtx* zc,
             return cSize;
     }
 
+    DEBUGLOG(6, "Attempting ZSTD_compressSequences() on superblock");
     /* noCompress superblock emission failed. Attempt to compress normally
      * and return early if that is successful */
     {
@@ -2496,6 +2499,7 @@ static size_t ZSTD_compressBlock_targetCBlockSize_body(ZSTD_CCtx* zc,
         }
     }
 
+    DEBUGLOG(6, "Resorting to ZSTD_noCompressBlock() on superblock");
     /* Everything failed. Just emit a regular noCompress block */
     return ZSTD_noCompressBlock(dst, dstCapacity, src, srcSize, lastBlock);
 }

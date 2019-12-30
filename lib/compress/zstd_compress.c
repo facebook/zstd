@@ -2574,7 +2574,9 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
 
     const size_t targetCBlockSize = cctx->appliedParams.targetCBlockSize;
     const int enoughDstCapacityForNoCompressSuperBlocks = !targetCBlockSize ? 0 :
-        (dstCapacity / (targetCBlockSize + 7 /* header + checksum */)) > (srcSize / targetCBlockSize);
+        ((dstCapacity - ZSTD_FRAMECHECKSUMSIZE) / (targetCBlockSize + ZSTD_BLOCKHEADERSIZE)) > (srcSize / targetCBlockSize);
+    assert(dstCapacity > 4);
+
     assert(cctx->appliedParams.cParams.windowLog <= ZSTD_WINDOWLOG_MAX);
 
     DEBUGLOG(5, "ZSTD_compress_frameChunk (blockSize=%u)", (unsigned)blockSize);

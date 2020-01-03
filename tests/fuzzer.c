@@ -508,7 +508,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
          * they come from). Do this enough times, and we'll run out of room
          * and throw a dstSize_tooSmall error. */
 
-        const size_t compressiblePartSize = srcSize/3;
+        const size_t compressiblePartSize = srcSize/5;
         const size_t uncompressiblePartSize = srcSize-compressiblePartSize;
         RDG_genBuffer(CNBuffer, compressiblePartSize, 0.5, 0.5, seed);
         RDG_genBuffer((BYTE*)CNBuffer+compressiblePartSize, uncompressiblePartSize, 0, 0, seed);

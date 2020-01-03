@@ -8,7 +8,7 @@ import urllib.request
 
 
 GITHUB_API_PR_URL = "https://api.github.com/repos/facebook/zstd/pulls?state=open"
-GIRHUB_URL_TEMPLATE = "https://github.com/{}/zstd"
+GITHUB_URL_TEMPLATE = "https://github.com/{}/zstd"
 MASTER_BUILD = {"user": "facebook", "branch": "dev", "hash": None}
 PREVIOUS_PRS_FILENAME = "prev_prs.pk"
 
@@ -65,7 +65,7 @@ def get_builds_for_latest_hash():
 
 
 def clone_and_build(build):
-    github_url = "https://github.com/{}/zstd".format(build["user"])
+    github_url = GITHUB_URL_TEMPLATE.format(build["user"])
     os.system(
         """
         rm -rf zstd-{sha} &&

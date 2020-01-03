@@ -2548,29 +2548,6 @@ static void ZSTD_overflowCorrectIfNeeded(ZSTD_matchState_t* ms,
     }
 }
 
-/*! ZSTD_enoughSuperBlockDstCapacityRemaining()
- * Returns true if there is enough room in dstCapacity to fit the remaining
- * data if the remaining data were all compressed as noCompress superblocks.
- * Note: assumes that targetCBlockSize is not 0 (ie. we are using superblocks)
- * and dstCapacity > 4 */
-static int ZSTD_enoughSuperBlockDstCapacityRemaining(ZSTD_CCtx* cctx, size_t dstCapacity, size_t srcSize)
-{
-    const size_t targetCBlockSize = cctx->appliedParams.targetCBlockSize;
-    const size_t nbDstCapacityBlocks = (dstCapacity - ZSTD_FRAMECHECKSUMSIZE) / (targetCBlockSize + ZSTD_BLOCKHEADERSIZE);
-    const size_t nbSrcSizeBlocks = srcSize / targetCBlockSize;
-    int enoughCapacity = nbDstCapacityBlocks >= nbSrcSizeBlocks;
-
-    assert(dstCapacity > 4);
-
-    DEBUGLOG(6, "ZSTD_enoughDstCapacityRemaining(dstCapacity=%u srcSize=%u)",
-        (unsigned)dstCapacity, (unsigned)srcSize);
-    DEBUGLOG(9, "nbDstCapacityBlocks=%u nbSrcSizeBlocks=%u enoughCapacity=%u",
-        (unsigned)nbDstCapacityBlocks, (unsigned)nbSrcSizeBlocks, (unsigned)enoughCapacity);
-
-    return enoughCapacity;
-}
-
-
 /*! ZSTD_compress_frameChunk() :
 *   Compress a chunk of data into one or multiple blocks.
 *   All blocks will be terminated, all input will be consumed.
@@ -2613,8 +2590,7 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
         if (ms->nextToUpdate < ms->window.lowLimit) ms->nextToUpdate = ms->window.lowLimit;
 
         {   size_t cSize;
-            if (ZSTD_useTargetCBlockSize(&cctx->appliedParams)
-              && ZSTD_enoughSuperBlockDstCapacityRemaining(cctx, dstCapacity, srcSize)) {
+            if (ZSTD_useTargetCBlockSize(&cctx->appliedParams)) {
                 cSize = ZSTD_compressBlock_targetCBlockSize(cctx, op, dstCapacity, ip, blockSize, lastBlock);
                 FORWARD_IF_ERROR(cSize);
             } else {

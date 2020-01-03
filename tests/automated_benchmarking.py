@@ -65,24 +65,29 @@ def get_builds_for_latest_hash():
 
 
 def clone_and_build(build):
-    github_url = GITHUB_URL_TEMPLATE.format(build["user"])
-    os.system(
-        """
-        rm -rf zstd-{sha} &&
-        git clone {github_url} zstd-{sha} &&
-        cd zstd-{sha} &&
-        {checkout_command}
-        make &&
-        cd ../
-    """.format(
-            github_url=github_url,
-            sha=build["hash"],
-            checkout_command="git checkout {} &&".format(build["hash"])
-            if build["hash"] != None
-            else "",
+    if build["user"] != None:
+        github_url = GITHUB_URL_TEMPLATE.format(build["user"])
+        os.system(
+            """
+            rm -rf zstd-{user}-{sha} &&
+            git clone {github_url} zstd-{user}-{sha} &&
+            cd zstd-{user}-{sha} &&
+            {checkout_command}
+            make &&
+            cd ../
+        """.format(
+                user=build["user"],
+                github_url=github_url,
+                sha=build["hash"],
+                checkout_command="git checkout {} &&".format(build["hash"])
+                if build["hash"] != None
+                else "",
+            )
         )
-    )
-    return "zstd-{sha}/zstd".format(sha=build["hash"])
+        return "zstd-{user}-{sha}/zstd".format(user=build["user"], sha=build["hash"])
+    else:
+        os.system("cd ../ && make && cd tests")
+        return "../zstd"
 
 
 def benchmark_single(executable, level, filename):
@@ -193,7 +198,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("levels", help="levels to test eg ('1,2,3')", default="1,2,3")
     parser.add_argument(
-        "mode", help="'fastmode', 'onetime' or 'continuous'", default="onetime"
+        "mode", help="'fastmode', 'onetime', 'current' or 'continuous'", default="onetime"
     )
     parser.add_argument(
         "iterations", help="number of benchmark iterations to run", default=5
@@ -213,6 +218,9 @@ if __name__ == "__main__":
 
     if mode == "onetime":
         main(filenames, levels, iterations)
+    elif mode == "current":
+        builds = [{"user": None, "branch": "None", "hash": None}]
+        main(filenames, levels, iterations, builds)
     elif mode == "fastmode":
         builds = [{"user": "facebook", "branch": "master", "hash": None}]
         main(filenames, levels, iterations, builds)

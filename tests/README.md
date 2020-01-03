@@ -33,7 +33,7 @@ pull requests from the zstd repo and compare facebook:dev to all of them once, c
 will continuously get pull requests from the zstd repo and run benchmarks against facebook:dev.
 
 ```
-Example usage: python automated_benchmarking.py golden-compression 1 fastmode 1 ""
+Example usage: python automated_benchmarking.py golden-compression 1 current 1 ""
 ```
 
 ```

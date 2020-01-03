@@ -162,7 +162,6 @@ def get_regressions(baseline_build, test_build, iterations, filenames, levels):
                 )
     return regressions
 
-
 def main(filenames, levels, iterations, builds=None, emails=None, continuous=False):
     if builds == None:
         builds = get_new_open_pr_builds()
@@ -194,14 +193,14 @@ if __name__ == "__main__":
     )
     parser.add_argument("levels", help="levels to test eg ('1,2,3')", default="1,2,3")
     parser.add_argument(
-        "mode", help="0: regular, 1: pull request ci, 2: continuous", default="0"
+        "mode", help="'fastmode', 'onetime' or 'continuous'", default="onetime"
     )
     parser.add_argument(
         "iterations", help="number of benchmark iterations to run", default=5
     )
     parser.add_argument(
         "emails",
-        help="email addresses of people who will be alerted upon regression. Only for mode 2",
+        help="email addresses of people who will be alerted upon regression. Only for continuous mode",
         default=None,
     )
 
@@ -212,9 +211,10 @@ if __name__ == "__main__":
     iterations = int(args.iterations)
     emails = args.emails
 
-    if mode == "0":
+    if mode == "onetime":
         main(filenames, levels, iterations)
-    elif mode == "1":
-        main(filenames, levels, iterations, get_builds_for_latest_hash())
+    elif mode == "fastmode":
+        builds = [{"user": "facebook", "branch": "master", "hash": None}]
+        main(filenames, levels, iterations, builds)
     else:
         main(filenames, levels, iterations, None, emails, True)

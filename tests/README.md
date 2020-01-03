@@ -27,14 +27,13 @@ them against facebook:dev to detect regressions. This script currently runs on a
 desktop machine for every pull request that is made to the zstd repo but can also
 be run on any machine via the command line interface.
 
-There are three modes of usage for this script: mode 0 will fetch all open pull requests
-in the repo and benchmark them against dev, mode 1 will fetch the pull request
-associated with the current hash and benchmark that against dev, and mode 3 will
-continuously run mode 1 when a new pull request is added or when an existing pull
-request gets a new commit.
+There are three modes of usage for this script: fastmone will just run a minimal single
+build comparison (between facebook:dev and facebook:master), onetime will pull all the current
+pull requests from the zstd repo and compare facebook:dev to all of them once, continuous
+will continuously get pull requests from the zstd repo and run benchmarks against facebook:dev.
 
 ```
-Example usage: python automated_benchmarking.py fuzz "1,2,3" "0" "1" ""
+Example usage: python automated_benchmarking.py golden-compression 1 fastmode 1 ""
 ```
 
 ```

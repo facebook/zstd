@@ -145,19 +145,23 @@ int UTIL_setFileStat(const char *filename, stat_t *statbuf)
         return -1;
 
     /* set access and modification times */
-#if defined(_WIN32) || (PLATFORM_POSIX_VERSION < 200809L)
+    /* We check that st_mtime is a macro here in order to give us confidence
+     * that struct stat has a struct timespec st_mtim member. We need this
+     * check because there are some platforms that claim to be POSIX 2008
+     * compliant but which do not have st_mtim... */
+#if (PLATFORM_POSIX_VERSION >= 200809L) && defined(st_mtime)
+    {
+        /* (atime, mtime) */
+        struct timespec timebuf[2] = { {0, UTIME_NOW} };
+        timebuf[1] = statbuf->st_mtim;
+        res += utimensat(AT_FDCWD, filename, timebuf, 0);
+    }
+#else
     {
         struct utimbuf timebuf;
         timebuf.actime = time(NULL);
         timebuf.modtime = statbuf->st_mtime;
         res += utime(filename, &timebuf);
-    }
-#else
-    {
-        /* (atime, mtime) */
-        struct timespec timebuf[2] = { {0, UTIME_NOW} };
-        timebuf[1].tv_sec = statbuf->st_mtime;
-        res += utimensat(AT_FDCWD, filename, timebuf, 0);
     }
 #endif
 

@@ -137,6 +137,13 @@ matrix:
         - make arminstall
         - make armfuzz
 
+    # Introduced to check compat with old toolchains, to prevent e.g. #1872
+    - name: ARM Build Test (on Trusty)
+      dist: trusty
+      script:
+        - make arminstall
+        - make armbuild
+
     - name: Qemu PPC + Fuzz Test    # ~13mn
       dist: trusty   # it seems ppc cross-compilation fails on "current"
       script:

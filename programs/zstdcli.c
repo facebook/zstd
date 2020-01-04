@@ -570,6 +570,7 @@ int main(int const argCount, const char* argv[])
         adaptMax = MAXCLEVEL,
         rsyncable = 0,
         nextArgumentIsOutFileName = 0,
+        nextArgumentIsDiffFromDictFileName = 0,
         nextArgumentIsOutDirName = 0,
         nextArgumentIsMaxDict = 0,
         nextArgumentIsDictID = 0,
@@ -597,6 +598,7 @@ int main(int const argCount, const char* argv[])
     const char* outFileName = NULL;
     const char* outDirName = NULL;
     const char* dictFileName = NULL;
+    const char* diffFromDictFileName = NULL;
     const char* suffix = ZSTD_EXTENSION;
     unsigned maxDictSize = g_defaultMaxDictSize;
     unsigned dictID = 0;
@@ -618,7 +620,7 @@ int main(int const argCount, const char* argv[])
 
     /* init */
     (void)recursive; (void)cLevelLast;    /* not used when ZSTD_NOBENCH set */
-    (void)memLimit;   /* not used when ZSTD_NODECOMPRESS set */
+    (void)memLimit;
     assert(argCount >= 1);
     if ((filenames==NULL) || (file_of_names==NULL)) { DISPLAY("zstd: allocation error \n"); exit(1); }
     programName = lastNameFromPath(programName);
@@ -691,6 +693,7 @@ int main(int const argCount, const char* argv[])
                 if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(prefs, 1); continue; }
                 if (!strcmp(argument, "--priority=rt")) { setRealTimePrio = 1; continue; }
                 if (!strcmp(argument, "--output-dir-flat")) {nextArgumentIsOutDirName=1; lastCommand=1; continue; }
+                if (!strcmp(argument, "--diff-from")) {nextArgumentIsDiffFromDictFileName=1; lastCommand=1; continue; }
                 if (!strcmp(argument, "--adapt")) { adapt = 1; continue; }
                 if (longCommandWArg(&argument, "--adapt=")) { adapt = 1; if (!parseAdaptParameters(argument, &adaptMin, &adaptMax)) { badusage(programName); CLEAN_RETURN(1); } continue; }
                 if (!strcmp(argument, "--single-thread")) { nbWorkers = 0; singleThread = 1; continue; }
@@ -758,6 +761,7 @@ int main(int const argCount, const char* argv[])
                 if (longCommandWArg(&argument, "--target-compressed-block-size=")) { targetCBlockSize = readU32FromChar(&argument); continue; }
                 if (longCommandWArg(&argument, "--size-hint=")) { srcSizeHint = readU32FromChar(&argument); continue; }
                 if (longCommandWArg(&argument, "--output-dir-flat=")) { outDirName = argument; continue; }
+                if (longCommandWArg(&argument, "--diff-from=")) { diffFromDictFileName = argument; continue; }
                 if (longCommandWArg(&argument, "--long")) {
                     unsigned ldmWindowLog = 0;
                     ldmFlag = 1;
@@ -868,7 +872,7 @@ int main(int const argCount, const char* argv[])
                     /* destination file name */
                 case 'o': nextArgumentIsOutFileName=1; lastCommand=1; argument++; break;
 
-                    /* limit decompression memory */
+                    /* limit memory */
                 case 'M':
                     argument++;
                     memLimit = readU32FromChar(&argument);
@@ -948,6 +952,13 @@ int main(int const argCount, const char* argv[])
             }
             continue;
         }   /* if (argument[0]=='-') */
+
+        if (nextArgumentIsDiffFromDictFileName) {
+            nextArgumentIsDiffFromDictFileName = 0;
+            lastCommand = 0;
+            diffFromDictFileName = argument;
+            continue;
+        }
 
         if (nextArgumentIsMaxDict) {  /* kept available for compatibility with old syntax ; will be removed one day */
             nextArgumentIsMaxDict = 0;
@@ -1173,6 +1184,17 @@ int main(int const argCount, const char* argv[])
 
     /* IO Stream/File */
     FIO_setNotificationLevel(g_displayLevel);
+    FIO_setDiffFromMode(prefs, diffFromDictFileName != NULL);
+    if (diffFromDictFileName != NULL) {
+        dictFileName = diffFromDictFileName;
+    }
+    if (memLimit == 0) {
+        if (compressionParams.windowLog == 0) {
+            memLimit = (U32)1 << g_defaultMaxWindowLog;
+        } else {
+            memLimit = (U32)1 << (compressionParams.windowLog & 31);
+    }   }
+    FIO_setMemLimit(prefs, memLimit);
     if (operation==zom_compress) {
 #ifndef ZSTD_NOCOMPRESS
         FIO_setNbWorkers(prefs, nbWorkers);
@@ -1204,13 +1226,6 @@ int main(int const argCount, const char* argv[])
 #endif
     } else {  /* decompression or test */
 #ifndef ZSTD_NODECOMPRESS
-        if (memLimit == 0) {
-            if (compressionParams.windowLog == 0) {
-                memLimit = (U32)1 << g_defaultMaxWindowLog;
-            } else {
-                memLimit = (U32)1 << (compressionParams.windowLog & 31);
-        }   }
-        FIO_setMemLimit(prefs, memLimit);
         if (filenames->tableSize == 1 && outFileName) {
             operationResult = FIO_decompressFilename(prefs, outFileName, filenames->fileNames[0], dictFileName);
         } else {

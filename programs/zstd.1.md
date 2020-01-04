@@ -122,6 +122,11 @@ the last one takes effect.
 
     Note: If `windowLog` is set to larger than 27, `--long=windowLog` or
     `--memory=windowSize` needs to be passed to the decompressor.
+* `-M#`, `--memory=#`:
+    Set a memory usage limit for decompression. By default, Zstandard uses 128 MB
+    as the maximum amount of memory the decompressor is allowed to use, but you can
+    override this manually if need be in either direction (ie. you can increase or
+    decrease it).
 * `-T#`, `--threads=#`:
     Compress using `#` working threads (default: 1).
     If `#` is 0, attempt to detect and use the number of physical CPU cores.

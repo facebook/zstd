@@ -27,7 +27,7 @@ them against facebook:dev to detect regressions. This script currently runs on a
 desktop machine for every pull request that is made to the zstd repo but can also
 be run on any machine via the command line interface.
 
-There are three modes of usage for this script: fastmone will just run a minimal single
+There are three modes of usage for this script: fastmode will just run a minimal single
 build comparison (between facebook:dev and facebook:master), onetime will pull all the current
 pull requests from the zstd repo and compare facebook:dev to all of them once, continuous
 will continuously get pull requests from the zstd repo and run benchmarks against facebook:dev.

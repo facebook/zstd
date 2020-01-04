@@ -2462,6 +2462,7 @@ static size_t ZSTD_compressBlock_targetCBlockSize_body(ZSTD_CCtx* zc,
                                const void* src, size_t srcSize,
                                const size_t bss, U32 lastBlock)
 {
+    DEBUGLOG(6, "Attempting ZSTD_compressSuperBlock()");
     /* Attempt superblock compression and return early if successful */
     if (bss == ZSTDbss_compress) {
         size_t const cSize = ZSTD_compressSuperBlock(zc, dst, dstCapacity, lastBlock);
@@ -2472,6 +2473,7 @@ static size_t ZSTD_compressBlock_targetCBlockSize_body(ZSTD_CCtx* zc,
         }
     }
 
+    DEBUGLOG(6, "Attempting ZSTD_noCompressSuperBlock()");
     /* Superblock compression failed, attempt to emit noCompress superblocks
      * and return early if that is successful and we have enough room for checksum */
     {
@@ -2480,6 +2482,7 @@ static size_t ZSTD_compressBlock_targetCBlockSize_body(ZSTD_CCtx* zc,
             return cSize;
     }
 
+    DEBUGLOG(6, "Attempting ZSTD_compressSequences() on superblock");
     /* noCompress superblock emission failed. Attempt to compress normally
      * and return early if that is successful */
     {
@@ -2496,6 +2499,7 @@ static size_t ZSTD_compressBlock_targetCBlockSize_body(ZSTD_CCtx* zc,
         }
     }
 
+    DEBUGLOG(6, "Resorting to ZSTD_noCompressBlock() on superblock");
     /* Everything failed. Just emit a regular noCompress block */
     return ZSTD_noCompressBlock(dst, dstCapacity, src, srcSize, lastBlock);
 }
@@ -2563,13 +2567,6 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
     BYTE* op = ostart;
     U32 const maxDist = (U32)1 << cctx->appliedParams.cParams.windowLog;
 
-    /* This bool is set if there is enough room to output all noCompress superblocks.
-     * Just checks if the number of compressed blocks we can fit in dstCapacity is
-     * greater than the optimistic number of blocks we still have remaining.
-     * This might be UNset when data is uncompressable and we're streaming.  */
-
-    const int enoughDstCapacityForNoCompressSuperBlocks =
-        (dstCapacity / (blockSize + 7 /* header + checksum */)) > (srcSize / blockSize);
     assert(cctx->appliedParams.cParams.windowLog <= ZSTD_WINDOWLOG_MAX);
 
     DEBUGLOG(5, "ZSTD_compress_frameChunk (blockSize=%u)", (unsigned)blockSize);
@@ -2593,8 +2590,7 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
         if (ms->nextToUpdate < ms->window.lowLimit) ms->nextToUpdate = ms->window.lowLimit;
 
         {   size_t cSize;
-            int useTargetCBlockSize = ZSTD_useTargetCBlockSize(&cctx->appliedParams);
-            if (useTargetCBlockSize && enoughDstCapacityForNoCompressSuperBlocks) {
+            if (ZSTD_useTargetCBlockSize(&cctx->appliedParams)) {
                 cSize = ZSTD_compressBlock_targetCBlockSize(cctx, op, dstCapacity, ip, blockSize, lastBlock);
                 FORWARD_IF_ERROR(cSize);
             } else {
@@ -3800,6 +3796,7 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
 
         case zcss_load:
             if ( (flushMode == ZSTD_e_end)
+              && !ZSTD_useTargetCBlockSize(&zcs->appliedParams)
               && ((size_t)(oend-op) >= ZSTD_compressBound(iend-ip))  /* enough dstCapacity */
               && (zcs->inBuffPos == 0) ) {
                 /* shortcut to compression pass directly into output buffer */

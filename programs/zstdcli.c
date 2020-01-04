@@ -579,8 +579,7 @@ int main(int const argCount, const char* argv[])
         separateFiles = 0,
         setRealTimePrio = 0,
         singleThread = 0,
-        ultra=0,
-        diffFrom = 0;
+        ultra=0;
     double compressibility = 0.5;
     unsigned bench_nbSeconds = 3;   /* would be better if this value was synchronized from bench */
     size_t blockSize = 0;
@@ -597,7 +596,6 @@ int main(int const argCount, const char* argv[])
     const char* programName = argv[0];
     const char* outFileName = NULL;
     const char* outDirName = NULL;
-    const char* diffFromDict = NULL;
     const char* dictFileName = NULL;
     const char* suffix = ZSTD_EXTENSION;
     unsigned maxDictSize = g_defaultMaxDictSize;
@@ -685,7 +683,6 @@ int main(int const argCount, const char* argv[])
                 if (!strcmp(argument, "--sparse")) { FIO_setSparseWrite(prefs, 2); continue; }
                 if (!strcmp(argument, "--no-sparse")) { FIO_setSparseWrite(prefs, 0); continue; }
                 if (!strcmp(argument, "--test")) { operation=zom_test; continue; }
-                if (!strcmp(argument, "--diff-from")) { diffFrom = 1; continue; }
                 if (!strcmp(argument, "--train")) { operation=zom_train; if (outFileName==NULL) outFileName=g_defaultDictName; continue; }
                 if (!strcmp(argument, "--maxdict")) { nextArgumentIsMaxDict=1; lastCommand=1; continue; }  /* kept available for compatibility with old syntax ; will be removed one day */
                 if (!strcmp(argument, "--dictID")) { nextArgumentIsDictID=1; lastCommand=1; continue; }  /* kept available for compatibility with old syntax ; will be removed one day */
@@ -761,7 +758,6 @@ int main(int const argCount, const char* argv[])
                 if (longCommandWArg(&argument, "--target-compressed-block-size=")) { targetCBlockSize = readU32FromChar(&argument); continue; }
                 if (longCommandWArg(&argument, "--size-hint=")) { srcSizeHint = readU32FromChar(&argument); continue; }
                 if (longCommandWArg(&argument, "--output-dir-flat=")) { outDirName = argument; continue; }
-                if (longCommandWArg(&argument, "--diff-from=")) { diffFromDict = argument; printf("diff from dir %s\n", diffFromDict); continue; }
                 if (longCommandWArg(&argument, "--long")) {
                     unsigned ldmWindowLog = 0;
                     ldmFlag = 1;

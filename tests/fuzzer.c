@@ -501,14 +501,14 @@ static int basicUnitTests(U32 const seed, double compressibility)
         const size_t streamCompressThreshold = 161792;
         const size_t streamCompressDelta = 1024;
 
-        /* The first 1/3 of the buffer is compressible and the last 2/3 is
+        /* The first 1/5 of the buffer is compressible and the last 4/5 is
          * uncompressible. This is an approximation of the type of data
          * the fuzzer generated to catch this bug. Streams like this were making
          * zstd generate noCompress superblocks (which are larger than the src
          * they come from). Do this enough times, and we'll run out of room
          * and throw a dstSize_tooSmall error. */
 
-        const size_t compressiblePartSize = srcSize/3;
+        const size_t compressiblePartSize = srcSize/5;
         const size_t uncompressiblePartSize = srcSize-compressiblePartSize;
         RDG_genBuffer(CNBuffer, compressiblePartSize, 0.5, 0.5, seed);
         RDG_genBuffer((BYTE*)CNBuffer+compressiblePartSize, uncompressiblePartSize, 0, 0, seed);

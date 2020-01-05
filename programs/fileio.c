@@ -1587,7 +1587,7 @@ static size_t FIO_getLargestFileSize(const char** inFileNames, unsigned nbFiles)
 {
     size_t i; size_t fileSize; size_t maxFileSize = 0;
     for (i = 0; i < nbFiles; i++) {
-        fileSize = UTIL_getFileSize(inFileNames[i]);
+        fileSize = (size_t)UTIL_getFileSize(inFileNames[i]);
         maxFileSize = fileSize > maxFileSize ? fileSize : maxFileSize;
     }
     return maxFileSize;

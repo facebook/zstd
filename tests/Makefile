@@ -237,6 +237,9 @@ poolTests : $(PRGDIR)/util.c $(PRGDIR)/timefn.c poolTests.c $(ZSTDDIR)/common/po
 versionsTest: clean
 	$(PYTHON) test-zstd-versions.py
 
+automated_benchmarking: clean
+	$(PYTHON) automated_benchmarking.py golden-compression 1 current 1 "" 60
+
 checkTag: checkTag.c $(ZSTDDIR)/zstd.h
 	$(CC) $(FLAGS) $< -o $@$(EXT)
 

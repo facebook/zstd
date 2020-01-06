@@ -20,8 +20,39 @@ This script creates `versionsTest` directory to which zstd repository is cloned.
 Then all tagged (released) versions of zstd are compiled.
 In the following step interoperability between zstd versions is checked.
 
+#### `automated-benchmarking.py` - script for benchmarking zstd prs to dev
+
+This script benchmarks facebook:dev and changes from pull requests made to zstd and compares
+them against facebook:dev to detect regressions. This script currently runs on a dedicated
+desktop machine for every pull request that is made to the zstd repo but can also
+be run on any machine via the command line interface.
+
+There are three modes of usage for this script: fastmode will just run a minimal single
+build comparison (between facebook:dev and facebook:master), onetime will pull all the current
+pull requests from the zstd repo and compare facebook:dev to all of them once, continuous
+will continuously get pull requests from the zstd repo and run benchmarks against facebook:dev.
+
+```
+Example usage: python automated_benchmarking.py golden-compression 1 current 1 "" 60
+```
+
+```
+usage: automated_benchmarking.py [-h] directory levels mode emails
+
+positional arguments:
+  directory   directory with files to benchmark
+  levels      levels to test eg ('1,2,3')
+  mode        'fastmode', 'onetime', 'current' or 'continuous'
+  iterations  number of benchmark iterations to run
+  emails      email addresses of people who will be alerted upon regression.
+              Only for continuous mode
+  frequency   specifies the number of seconds to wait before each successive
+              check for new PRs in continuous mode
+```
 
 #### `test-zstd-speed.py` - script for testing zstd speed difference between commits
+
+DEPRECATED
 
 This script creates `speedTest` directory to which zstd repository is cloned.
 Then it compiles all branches of zstd and performs a speed benchmark for a given list of files (the `testFileNames` parameter).

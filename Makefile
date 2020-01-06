@@ -80,6 +80,13 @@ shortest:
 .PHONY: check
 check: shortest
 
+.PHONY: automated_benchmarking
+automated_benchmarking:
+	$(MAKE) -C $(TESTDIR) $@
+
+.PHONY: benchmarking
+benchmarking: automated_benchmarking
+
 ## examples: build all examples in `/examples` directory
 .PHONY: examples
 examples: lib

@@ -126,6 +126,8 @@ the last one takes effect.
     Specify the file to be used as a reference point for zstd's diff engine.
     This is effectively dictionary compression with some convenient parameter
     selection, namely that windowSize > srcSize.
+
+    Note: cannot use both this and -D together
 * `-M#`, `--memory=#`:
     Set a memory usage limit. By default, Zstandard uses 128 MB for decompression
     as the maximum amount of memory the decompressor is allowed to use, but you can

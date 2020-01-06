@@ -903,7 +903,7 @@ int UTIL_countPhysicalCores(void)
     return numPhysicalCores;
 }
 
-#elif defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+#elif defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || defined(__CYGWIN__)
 
 /* Use POSIX sysconf
  * see: man 3 sysconf */

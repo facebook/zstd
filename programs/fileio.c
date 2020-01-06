@@ -491,7 +491,7 @@ void FIO_setLdmHashRateLog(FIO_prefs_t* const prefs, int ldmHashRateLog) {
 
 void FIO_setDiffFromMode(FIO_prefs_t* const prefs, int diffFromMode)
 {
-    prefs->diffFromMode = diffFromMode;
+    prefs->diffFromMode = diffFromMode != 0;
 }
 
 /*-*************************************

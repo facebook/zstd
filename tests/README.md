@@ -33,7 +33,7 @@ pull requests from the zstd repo and compare facebook:dev to all of them once, c
 will continuously get pull requests from the zstd repo and run benchmarks against facebook:dev.
 
 ```
-Example usage: python automated_benchmarking.py golden-compression 1 current 1 ""
+Example usage: python automated_benchmarking.py golden-compression 1 current 1 "" 60
 ```
 
 ```
@@ -42,10 +42,12 @@ usage: automated_benchmarking.py [-h] directory levels mode emails
 positional arguments:
   directory   directory with files to benchmark
   levels      levels to test eg ('1,2,3')
-  mode        0: regular, 1: pull request ci, 2: continuous
+  mode        'fastmode', 'onetime', 'current' or 'continuous'
   iterations  number of benchmark iterations to run
   emails      email addresses of people who will be alerted upon regression.
-              Only for mode 2
+              Only for continuous mode
+  frequency   specifies the number of seconds to wait before each successive
+              check for new PRs in continuous mode
 ```
 
 #### `test-zstd-speed.py` - script for testing zstd speed difference between commits

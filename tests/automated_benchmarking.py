@@ -2,6 +2,7 @@ import argparse
 import glob
 import json
 import os
+import time
 import pickle as pk
 import subprocess
 import urllib.request
@@ -10,6 +11,9 @@ import urllib.request
 GITHUB_API_PR_URL = "https://api.github.com/repos/facebook/zstd/pulls?state=open"
 GITHUB_URL_TEMPLATE = "https://github.com/{}/zstd"
 MASTER_BUILD = {"user": "facebook", "branch": "dev", "hash": None}
+
+# check to see if there are any new PRs every minute
+MAX_API_CALL_FREQUENCY_SEC = 60
 PREVIOUS_PRS_FILENAME = "prev_prs.pk"
 
 # Not sure what the threshold for triggering alarms should be
@@ -189,6 +193,7 @@ def main(filenames, levels, iterations, builds=None, emails=None, continuous=Fal
                 print(body)
         if not continuous:
             break
+        time.sleep(MAX_API_CALL_FREQUENCY_SEC)
 
 
 if __name__ == "__main__":

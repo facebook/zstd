@@ -13,7 +13,7 @@ GITHUB_URL_TEMPLATE = "https://github.com/{}/zstd"
 MASTER_BUILD = {"user": "facebook", "branch": "dev", "hash": None}
 
 # check to see if there are any new PRs every minute
-MAX_API_CALL_FREQUENCY_SEC = 60
+DEFAULT_MAX_API_CALL_FREQUENCY_SEC = 60
 PREVIOUS_PRS_FILENAME = "prev_prs.pk"
 
 # Not sure what the threshold for triggering alarms should be
@@ -171,7 +171,7 @@ def get_regressions(baseline_build, test_build, iterations, filenames, levels):
                 )
     return regressions
 
-def main(filenames, levels, iterations, builds=None, emails=None, continuous=False):
+def main(filenames, levels, iterations, builds=None, emails=None, continuous=False, frequency=DEFAULT_MAX_API_CALL_FREQUENCY_SEC):
     if builds == None:
         builds = get_new_open_pr_builds()
     while True:
@@ -193,7 +193,7 @@ def main(filenames, levels, iterations, builds=None, emails=None, continuous=Fal
                 print(body)
         if not continuous:
             break
-        time.sleep(MAX_API_CALL_FREQUENCY_SEC)
+        time.sleep(frequency)
 
 
 if __name__ == "__main__":
@@ -213,6 +213,11 @@ if __name__ == "__main__":
         help="email addresses of people who will be alerted upon regression. Only for continuous mode",
         default=None,
     )
+    parser.add_argument(
+        "frequency",
+        help="specifies the number of seconds to wait before each successive check for new PRs in continuous mode",
+        default=DEFAULT_MAX_API_CALL_FREQUENCY_SEC
+    )
 
     args = parser.parse_args()
     filenames = glob.glob("{}/**".format(args.directory))
@@ -220,14 +225,15 @@ if __name__ == "__main__":
     mode = args.mode
     iterations = int(args.iterations)
     emails = args.emails
+    frequency = int(args.frequency)
 
     if mode == "onetime":
-        main(filenames, levels, iterations)
+        main(filenames, levels, iterations, frequency=frequency)
     elif mode == "current":
         builds = [{"user": None, "branch": "None", "hash": None}]
-        main(filenames, levels, iterations, builds)
+        main(filenames, levels, iterations, builds, frequency=frequency)
     elif mode == "fastmode":
         builds = [{"user": "facebook", "branch": "master", "hash": None}]
-        main(filenames, levels, iterations, builds)
+        main(filenames, levels, iterations, builds, frequency=frequency)
     else:
-        main(filenames, levels, iterations, None, emails, True)
+        main(filenames, levels, iterations, None, emails, True, frequency=frequency)

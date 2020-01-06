@@ -570,7 +570,6 @@ int main(int const argCount, const char* argv[])
         adaptMax = MAXCLEVEL,
         rsyncable = 0,
         nextArgumentIsOutFileName = 0,
-        nextArgumentIsDiffFromDictFileName = 0,
         nextArgumentIsOutDirName = 0,
         nextArgumentIsMaxDict = 0,
         nextArgumentIsDictID = 0,
@@ -693,7 +692,6 @@ int main(int const argCount, const char* argv[])
                 if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(prefs, 1); continue; }
                 if (!strcmp(argument, "--priority=rt")) { setRealTimePrio = 1; continue; }
                 if (!strcmp(argument, "--output-dir-flat")) {nextArgumentIsOutDirName=1; lastCommand=1; continue; }
-                if (!strcmp(argument, "--diff-from")) {nextArgumentIsDiffFromDictFileName=1; lastCommand=1; continue; }
                 if (!strcmp(argument, "--adapt")) { adapt = 1; continue; }
                 if (longCommandWArg(&argument, "--adapt=")) { adapt = 1; if (!parseAdaptParameters(argument, &adaptMin, &adaptMax)) { badusage(programName); CLEAN_RETURN(1); } continue; }
                 if (!strcmp(argument, "--single-thread")) { nbWorkers = 0; singleThread = 1; continue; }
@@ -952,13 +950,6 @@ int main(int const argCount, const char* argv[])
             }
             continue;
         }   /* if (argument[0]=='-') */
-
-        if (nextArgumentIsDiffFromDictFileName) {
-            nextArgumentIsDiffFromDictFileName = 0;
-            lastCommand = 0;
-            diffFromDictFileName = argument;
-            continue;
-        }
 
         if (nextArgumentIsMaxDict) {  /* kept available for compatibility with old syntax ; will be removed one day */
             nextArgumentIsMaxDict = 0;

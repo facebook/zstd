@@ -21,7 +21,8 @@ cli: commands --stream-size=# and --size-hint=#, by @nmagerko
 cli: command --exclude-compressed, by @shashank0791
 cli: faster `-t` test mode
 cli: improved some error messages, by @vangyzen
-cli: rare deadlock condition within dictionary builder, by @terrelln
+cli: fix command `-D dictionary` on Windows, reported by @artyompetrov
+cli: fix rare deadlock condition within dictionary builder, by @terrelln
 build: single-file decoder with emscripten compilation script, by @cwoffenden
 build: fixed zlibWrapper compilation on Visual Studio, reported by @bluenlive
 build: fixed deprecation warning for certain gcc version, reported by @jasonma163

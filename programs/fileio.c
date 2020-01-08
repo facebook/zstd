@@ -322,7 +322,7 @@ struct FIO_prefs_s {
     int nbWorkers;
 
     int excludeCompressedFiles;
-    int diffFromMode;
+    int patchFromMode;
 };
 
 
@@ -489,9 +489,9 @@ void FIO_setLdmHashRateLog(FIO_prefs_t* const prefs, int ldmHashRateLog) {
     prefs->ldmHashRateLog = ldmHashRateLog;
 }
 
-void FIO_setDiffFromMode(FIO_prefs_t* const prefs, int diffFromMode)
+void FIO_setPatchFromMode(FIO_prefs_t* const prefs, int value)
 {
-    prefs->diffFromMode = diffFromMode != 0;
+    prefs->patchFromMode = value != 0;
 }
 
 /*-*************************************
@@ -645,7 +645,7 @@ static size_t FIO_createDictBuffer(FIO_prefs_t* const prefs, void** bufferPtr, c
 
     fileSize = UTIL_getFileSize(fileName);
     {
-        size_t dictSizeMax = prefs->diffFromMode ? prefs->memLimit : DICTSIZE_MAX;
+        size_t dictSizeMax = prefs->patchFromMode ? prefs->memLimit : DICTSIZE_MAX;
         if (fileSize >  dictSizeMax) {
             EXM_THROW(32, "Dictionary file %s is too large (> %u bytes)",
                             fileName,  (unsigned)dictSizeMax);   /* avoid extreme cases */
@@ -803,7 +803,7 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
         if (prefs->adaptiveMode && !prefs->ldmFlag && !comprParams.windowLog)
             comprParams.windowLog = ADAPT_WINDOWLOG_DEFAULT;
 
-        if (prefs->diffFromMode) {
+        if (prefs->patchFromMode) {
             comprParams.windowLog = FIO_log2(maxSrcFileSize + DIFFFROM_WINDOWSIZE_EXTRA_BYTES);
         }
 

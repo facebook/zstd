@@ -597,7 +597,7 @@ int main(int const argCount, const char* argv[])
     const char* outFileName = NULL;
     const char* outDirName = NULL;
     const char* dictFileName = NULL;
-    const char* diffFromDictFileName = NULL;
+    const char* patchFromDictFileName = NULL;
     const char* suffix = ZSTD_EXTENSION;
     unsigned maxDictSize = g_defaultMaxDictSize;
     unsigned dictID = 0;
@@ -759,7 +759,7 @@ int main(int const argCount, const char* argv[])
                 if (longCommandWArg(&argument, "--target-compressed-block-size=")) { targetCBlockSize = readU32FromChar(&argument); continue; }
                 if (longCommandWArg(&argument, "--size-hint=")) { srcSizeHint = readU32FromChar(&argument); continue; }
                 if (longCommandWArg(&argument, "--output-dir-flat=")) { outDirName = argument; continue; }
-                if (longCommandWArg(&argument, "--diff-from=")) { diffFromDictFileName = argument; continue; }
+                if (longCommandWArg(&argument, "--patch-from=")) { patchFromDictFileName = argument; continue; }
                 if (longCommandWArg(&argument, "--long")) {
                     unsigned ldmWindowLog = 0;
                     ldmFlag = 1;
@@ -1169,7 +1169,7 @@ int main(int const argCount, const char* argv[])
     }   }
 #endif
 
-    if (dictFileName != NULL && diffFromDictFileName != NULL) {
+    if (dictFileName != NULL && patchFromDictFileName != NULL) {
         DISPLAY("error : can't use -D and --diff-from=# at the same time \n");
         CLEAN_RETURN(1);
     }
@@ -1180,9 +1180,9 @@ int main(int const argCount, const char* argv[])
 
     /* IO Stream/File */
     FIO_setNotificationLevel(g_displayLevel);
-    FIO_setDiffFromMode(prefs, diffFromDictFileName != NULL);
-    if (diffFromDictFileName != NULL) {
-        dictFileName = diffFromDictFileName;
+    FIO_setPatchFromMode(prefs, patchFromDictFileName != NULL);
+    if (patchFromDictFileName != NULL) {
+        dictFileName = patchFromDictFileName;
     }
     if (memLimit == 0) {
         if (compressionParams.windowLog == 0) {

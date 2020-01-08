@@ -1177,10 +1177,10 @@ roundTripTest -g1M -P50 "1 --single-thread --long=29" " --zstd=wlog=28 --memory=
 
 
 
-if [ "$1" != "--test-large-data" ]; then
-    println "Skipping large data tests"
-    exit 0
-fi
+# if [ "$1" != "--test-large-data" ]; then
+#     println "Skipping large data tests"
+#     exit 0
+# fi
 
 
 #############################################################################
@@ -1206,8 +1206,8 @@ println "\n===> diff-from tests"
 
 ./datagen -g1000 -P50 > tmp_dict
 ./datagen -g1000 -P10 > tmp_patch
-$ZSTD --memory=10000 --diff-from=tmp_dict tmp_patch -o tmp_patch_diff
-$ZSTD -d --memory=10000 --diff-from=tmp_dict tmp_patch_diff -o tmp_patch_recon
+$ZSTD --memory=10000 --patch-from=tmp_dict tmp_patch -o tmp_patch_diff
+$ZSTD -d --memory=10000 --patch-from=tmp_dict tmp_patch_diff -o tmp_patch_recon
 $DIFF -s tmp_patch_recon tmp_patch
 rm -rf tmp_*
 

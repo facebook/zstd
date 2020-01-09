@@ -4000,7 +4000,9 @@ size_t ZBUFFv06_decompressInit(ZBUFFv06_DCtx* zbd)
 MEM_STATIC size_t ZBUFFv06_limitCopy(void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
     size_t length = MIN(dstCapacity, srcSize);
-    memcpy(dst, src, length);
+    if (length > 0) {
+        memcpy(dst, src, length);
+    }
     return length;
 }
 

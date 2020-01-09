@@ -1177,10 +1177,10 @@ roundTripTest -g1M -P50 "1 --single-thread --long=29" " --zstd=wlog=28 --memory=
 
 
 
-# if [ "$1" != "--test-large-data" ]; then
-#     println "Skipping large data tests"
-#     exit 0
-# fi
+if [ "$1" != "--test-large-data" ]; then
+    println "Skipping large data tests"
+    exit 0
+fi
 
 
 #############################################################################

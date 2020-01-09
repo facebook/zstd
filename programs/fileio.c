@@ -645,7 +645,7 @@ static size_t FIO_createDictBuffer(FIO_prefs_t* const prefs, void** bufferPtr, c
 
     fileSize = UTIL_getFileSize(fileName);
     {
-        size_t dictSizeMax = prefs->patchFromMode ? prefs->memLimit : DICTSIZE_MAX;
+        size_t const dictSizeMax = prefs->patchFromMode ? prefs->memLimit : DICTSIZE_MAX;
         if (fileSize >  dictSizeMax) {
             EXM_THROW(32, "Dictionary file %s is too large (> %u bytes)",
                             fileName,  (unsigned)dictSizeMax);   /* avoid extreme cases */

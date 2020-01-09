@@ -768,11 +768,17 @@ typedef struct {
     ZSTD_CStream* cctx;
 } cRess_t;
 
-static unsigned int FIO_log2(const size_t x)
+/* FIO_highbit64() :
+ * gives position of highest bit.
+ * note : only works for v > 0 !
+ */
+static unsigned FIO_highbit64(unsigned long long v)
 {
-    size_t tmp = x; int res = 0;
-    while (tmp >>= 1) res++;
-    return res;
+    unsigned count = 0;
+    assert(v != 0);
+    v >>= 1;
+    while (v) { v >>= 1; count++; }
+    return count;
 }
 
 static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
@@ -804,7 +810,7 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
             comprParams.windowLog = ADAPT_WINDOWLOG_DEFAULT;
 
         if (prefs->patchFromMode) {
-            comprParams.windowLog = FIO_log2(maxSrcFileSize + PATCHFROM_WINDOWSIZE_EXTRA_BYTES);
+            comprParams.windowLog = FIO_highbit64((unsigned long long)maxSrcFileSize + PATCHFROM_WINDOWSIZE_EXTRA_BYTES);
         }
 
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_contentSizeFlag, 1) );  /* always enable content size when available (note: supposed to be default) */
@@ -1822,19 +1828,6 @@ static int FIO_passThrough(const FIO_prefs_t* const prefs,
 
     FIO_fwriteSparseEnd(prefs, foutput, storedSkips);
     return 0;
-}
-
-/* FIO_highbit64() :
- * gives position of highest bit.
- * note : only works for v > 0 !
- */
-static unsigned FIO_highbit64(unsigned long long v)
-{
-    unsigned count = 0;
-    assert(v != 0);
-    v >>= 1;
-    while (v) { v >>= 1; count++; }
-    return count;
 }
 
 /* FIO_zstdErrorHelp() :

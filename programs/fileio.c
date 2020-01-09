@@ -752,6 +752,20 @@ FIO_createFilename_fromOutDir(const char* path, const char* outDirName, const si
     return result;
 }
 
+/* FIO_highbit64() :
+ * gives position of highest bit.
+ * note : only works for v > 0 !
+ */
+static unsigned FIO_highbit64(unsigned long long v)
+{
+    unsigned count = 0;
+    assert(v != 0);
+    v >>= 1;
+    while (v) { v >>= 1; count++; }
+    return count;
+}
+
+
 #ifndef ZSTD_NOCOMPRESS
 
 /* **********************************************************************
@@ -767,19 +781,6 @@ typedef struct {
     const char* dictFileName;
     ZSTD_CStream* cctx;
 } cRess_t;
-
-/* FIO_highbit64() :
- * gives position of highest bit.
- * note : only works for v > 0 !
- */
-static unsigned FIO_highbit64(unsigned long long v)
-{
-    unsigned count = 0;
-    assert(v != 0);
-    v >>= 1;
-    while (v) { v >>= 1; count++; }
-    return count;
-}
 
 static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
                                     const char* dictFileName, const size_t maxSrcFileSize,

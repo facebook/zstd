@@ -630,7 +630,7 @@ FIO_openDstFile(FIO_prefs_t* const prefs,
  * @return : loaded size
  *  if fileName==NULL, returns 0 and a NULL pointer
  */
-static size_t FIO_createDictBuffer(FIO_prefs_t* const prefs, void** bufferPtr, const char* fileName)
+static size_t FIO_createDictBuffer(void** bufferPtr, const char* fileName, FIO_prefs_t* const prefs)
 {
     FILE* fileHandle;
     U64 fileSize;
@@ -801,7 +801,7 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
 
     /* Advanced parameters, including dictionary */
     {   void* dictBuffer;
-        size_t const dictBuffSize = FIO_createDictBuffer(prefs, &dictBuffer, dictFileName);   /* works with dictFileName==NULL */
+        size_t const dictBuffSize = FIO_createDictBuffer(&dictBuffer, dictFileName, prefs);   /* works with dictFileName==NULL */
         if (dictFileName && (dictBuffer==NULL))
             EXM_THROW(32, "allocation error : can't create dictBuffer");
         ress.dictFileName = dictFileName;
@@ -1685,7 +1685,7 @@ static dRess_t FIO_createDResources(FIO_prefs_t* const prefs, const char* dictFi
 
     /* dictionary */
     {   void* dictBuffer;
-        size_t const dictBufferSize = FIO_createDictBuffer(prefs, &dictBuffer, dictFileName);
+        size_t const dictBufferSize = FIO_createDictBuffer(&dictBuffer, dictFileName, prefs);
         CHECK( ZSTD_initDStream_usingDict(ress.dctx, dictBuffer, dictBufferSize) );
         free(dictBuffer);
     }

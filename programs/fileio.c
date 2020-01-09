@@ -77,7 +77,7 @@
 
 #define FNSPACE 30
 
-#define DIFFFROM_WINDOWSIZE_EXTRA_BYTES 1 KB
+#define PATCHFROM_WINDOWSIZE_EXTRA_BYTES 1 KB
 
 /*-*************************************
 *  Macros
@@ -804,7 +804,7 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
             comprParams.windowLog = ADAPT_WINDOWLOG_DEFAULT;
 
         if (prefs->patchFromMode) {
-            comprParams.windowLog = FIO_log2(maxSrcFileSize + DIFFFROM_WINDOWSIZE_EXTRA_BYTES);
+            comprParams.windowLog = FIO_log2(maxSrcFileSize + PATCHFROM_WINDOWSIZE_EXTRA_BYTES);
         }
 
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_contentSizeFlag, 1) );  /* always enable content size when available (note: supposed to be default) */

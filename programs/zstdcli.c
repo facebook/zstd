@@ -1170,7 +1170,7 @@ int main(int const argCount, const char* argv[])
 #endif
 
     if (dictFileName != NULL && patchFromDictFileName != NULL) {
-        DISPLAY("error : can't use -D and --diff-from=# at the same time \n");
+        DISPLAY("error : can't use -D and --patch-from=# at the same time \n");
         CLEAN_RETURN(1);
     }
 

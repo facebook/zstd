@@ -1202,7 +1202,7 @@ then
     $ZSTD -f -vv --rsyncable --single-thread tmp && die "--rsyncable must fail with --single-thread"
 fi
 
-println "\n===> diff-from tests"
+println "\n===> patch-from tests"
 
 ./datagen -g1000 -P50 > tmp_dict
 ./datagen -g1000 -P10 > tmp_patch

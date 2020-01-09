@@ -1482,7 +1482,9 @@ size_t ZSTD_estimateDStreamSize_fromFrame(const void* src, size_t srcSize)
 MEM_STATIC size_t ZSTD_limitCopy(void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
     size_t const length = MIN(dstCapacity, srcSize);
-    memcpy(dst, src, length);
+    if (length > 0) {
+        memcpy(dst, src, length);
+    }
     return length;
 }
 

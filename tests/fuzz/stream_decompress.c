@@ -27,26 +27,35 @@ static ZSTD_DStream *dstream = NULL;
 static void* buf = NULL;
 uint32_t seed;
 
-static ZSTD_outBuffer makeOutBuffer(FUZZ_dataProducer_t *producer)
+static ZSTD_outBuffer makeOutBuffer(FUZZ_dataProducer_t *producer, uint32_t min)
 {
   ZSTD_outBuffer buffer = { buf, 0, 0 };
 
-  buffer.size = (FUZZ_dataProducer_uint32Range(producer, 1, kBufSize));
+  buffer.size = (FUZZ_dataProducer_uint32Range(producer, min, kBufSize));
   FUZZ_ASSERT(buffer.size <= kBufSize);
+
+  if (buffer.size == 0) {
+    buffer.dst = NULL;
+  }
 
   return buffer;
 }
 
 static ZSTD_inBuffer makeInBuffer(const uint8_t **src, size_t *size,
-                                  FUZZ_dataProducer_t *producer)
+                                  FUZZ_dataProducer_t *producer,
+                                  uint32_t min)
 {
   ZSTD_inBuffer buffer = { *src, 0, 0 };
 
   FUZZ_ASSERT(*size > 0);
-  buffer.size = (FUZZ_dataProducer_uint32Range(producer, 1, *size));
+  buffer.size = (FUZZ_dataProducer_uint32Range(producer, min, *size));
   FUZZ_ASSERT(buffer.size <= *size);
   *src += buffer.size;
   *size -= buffer.size;
+
+  if (buffer.size == 0) {
+    buffer.src = NULL;
+  }
 
   return buffer;
 }
@@ -56,6 +65,10 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     /* Give a random portion of src data to the producer, to use for
     parameter generation. The rest will be used for (de)compression */
     FUZZ_dataProducer_t *producer = FUZZ_dataProducer_create(src, size);
+    /* Guarantee forward progress by refusing to generate 2 zero sized
+     * buffers in a row. */
+    int prevInWasZero = 0;
+    int prevOutWasZero = 0;
     size = FUZZ_dataProducer_reserveDataPrefix(producer);
 
     /* Allocate all buffers and contexts if not already allocated */
@@ -72,9 +85,11 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     }
 
     while (size > 0) {
-        ZSTD_inBuffer in = makeInBuffer(&src, &size, producer);
+        ZSTD_inBuffer in = makeInBuffer(&src, &size, producer, prevInWasZero ? 1 : 0);
+        prevInWasZero = in.size == 0;
         while (in.pos != in.size) {
-            ZSTD_outBuffer out = makeOutBuffer(producer);
+            ZSTD_outBuffer out = makeOutBuffer(producer, prevOutWasZero ? 1 : 0);
+            prevOutWasZero = out.size == 0;
             size_t const rc = ZSTD_decompressStream(dstream, &out, &in);
             if (ZSTD_isError(rc)) goto error;
         }

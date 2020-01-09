@@ -96,6 +96,13 @@ static size_t compress(uint8_t *dst, size_t capacity,
                     }
                     break;
                 }
+                case 4: {
+                    ZSTD_inBuffer nullIn = { NULL, 0, 0 };
+                    ZSTD_outBuffer nullOut = { NULL, 0, 0 };
+                    size_t const ret = ZSTD_compressStream2(cctx, &nullOut, &nullIn, ZSTD_e_continue);
+                    FUZZ_ZASSERT(ret);
+                }
+                /* fall-through */
                 default: {
                     size_t const ret =
                         ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_continue);

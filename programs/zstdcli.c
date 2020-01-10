@@ -597,6 +597,7 @@ int main(int const argCount, const char* argv[])
     const char* outFileName = NULL;
     const char* outDirName = NULL;
     const char* dictFileName = NULL;
+    const char* patchFromDictFileName = NULL;
     const char* suffix = ZSTD_EXTENSION;
     unsigned maxDictSize = g_defaultMaxDictSize;
     unsigned dictID = 0;
@@ -618,7 +619,7 @@ int main(int const argCount, const char* argv[])
 
     /* init */
     (void)recursive; (void)cLevelLast;    /* not used when ZSTD_NOBENCH set */
-    (void)memLimit;   /* not used when ZSTD_NODECOMPRESS set */
+    (void)memLimit;
     assert(argCount >= 1);
     if ((filenames==NULL) || (file_of_names==NULL)) { DISPLAY("zstd: allocation error \n"); exit(1); }
     programName = lastNameFromPath(programName);
@@ -758,6 +759,7 @@ int main(int const argCount, const char* argv[])
                 if (longCommandWArg(&argument, "--target-compressed-block-size=")) { targetCBlockSize = readU32FromChar(&argument); continue; }
                 if (longCommandWArg(&argument, "--size-hint=")) { srcSizeHint = readU32FromChar(&argument); continue; }
                 if (longCommandWArg(&argument, "--output-dir-flat=")) { outDirName = argument; continue; }
+                if (longCommandWArg(&argument, "--patch-from=")) { patchFromDictFileName = argument; continue; }
                 if (longCommandWArg(&argument, "--long")) {
                     unsigned ldmWindowLog = 0;
                     ldmFlag = 1;
@@ -868,7 +870,7 @@ int main(int const argCount, const char* argv[])
                     /* destination file name */
                 case 'o': nextArgumentIsOutFileName=1; lastCommand=1; argument++; break;
 
-                    /* limit decompression memory */
+                    /* limit memory */
                 case 'M':
                     argument++;
                     memLimit = readU32FromChar(&argument);
@@ -1167,12 +1169,28 @@ int main(int const argCount, const char* argv[])
     }   }
 #endif
 
+    if (dictFileName != NULL && patchFromDictFileName != NULL) {
+        DISPLAY("error : can't use -D and --patch-from=# at the same time \n");
+        CLEAN_RETURN(1);
+    }
+
     /* No status message in pipe mode (stdin - stdout) or multi-files mode */
     if (!strcmp(filenames->fileNames[0], stdinmark) && outFileName && !strcmp(outFileName,stdoutmark) && (g_displayLevel==2)) g_displayLevel=1;
     if ((filenames->tableSize > 1) & (g_displayLevel==2)) g_displayLevel=1;
 
     /* IO Stream/File */
     FIO_setNotificationLevel(g_displayLevel);
+    FIO_setPatchFromMode(prefs, patchFromDictFileName != NULL);
+    if (patchFromDictFileName != NULL) {
+        dictFileName = patchFromDictFileName;
+    }
+    if (memLimit == 0) {
+        if (compressionParams.windowLog == 0) {
+            memLimit = (U32)1 << g_defaultMaxWindowLog;
+        } else {
+            memLimit = (U32)1 << (compressionParams.windowLog & 31);
+    }   }
+    FIO_setMemLimit(prefs, memLimit);
     if (operation==zom_compress) {
 #ifndef ZSTD_NOCOMPRESS
         FIO_setNbWorkers(prefs, nbWorkers);
@@ -1204,13 +1222,6 @@ int main(int const argCount, const char* argv[])
 #endif
     } else {  /* decompression or test */
 #ifndef ZSTD_NODECOMPRESS
-        if (memLimit == 0) {
-            if (compressionParams.windowLog == 0) {
-                memLimit = (U32)1 << g_defaultMaxWindowLog;
-            } else {
-                memLimit = (U32)1 << (compressionParams.windowLog & 31);
-        }   }
-        FIO_setMemLimit(prefs, memLimit);
         if (filenames->tableSize == 1 && outFileName) {
             operationResult = FIO_decompressFilename(prefs, outFileName, filenames->fileNames[0], dictFileName);
         } else {

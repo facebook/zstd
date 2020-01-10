@@ -122,11 +122,20 @@ the last one takes effect.
 
     Note: If `windowLog` is set to larger than 27, `--long=windowLog` or
     `--memory=windowSize` needs to be passed to the decompressor.
+* `--patch-from=FILE`:
+    Specify the file to be used as a reference point for zstd's diff engine.
+    This is effectively dictionary compression with some convenient parameter
+    selection, namely that windowSize > srcSize.
+
+    Note: cannot use both this and -D together
 * `-M#`, `--memory=#`:
-    Set a memory usage limit for decompression. By default, Zstandard uses 128 MB
+    Set a memory usage limit. By default, Zstandard uses 128 MB for decompression
     as the maximum amount of memory the decompressor is allowed to use, but you can
     override this manually if need be in either direction (ie. you can increase or
     decrease it).
+
+    This is also used during compression when using with --patch-from=. In this case,
+    this parameter overrides that maximum size allowed for a dictionary. (128 MB).
 * `-T#`, `--threads=#`:
     Compress using `#` working threads (default: 1).
     If `#` is 0, attempt to detect and use the number of physical CPU cores.

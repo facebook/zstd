@@ -1273,6 +1273,43 @@ static int basicUnitTests(U32 seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : raw block can be streamed: ", testNb++);
+    {   size_t const inputSize = 10000;
+        size_t const compCapacity = ZSTD_compressBound(inputSize);
+        BYTE* const input = (BYTE*)malloc(inputSize);
+        BYTE* const comp = (BYTE*)malloc(compCapacity);
+        BYTE* const decomp = (BYTE*)malloc(inputSize);
+
+        CHECK(input == NULL || comp == NULL || decomp == NULL, "failed to alloc buffers");
+
+        RDG_genBuffer(input, inputSize, 0.0, 0.0, seed);
+        {   size_t const compSize = ZSTD_compress(comp, compCapacity, input, inputSize, -(int)inputSize);
+            ZSTD_inBuffer in = { comp, 0, 0 };
+            ZSTD_outBuffer out = { decomp, 0, 0 };
+            CHECK_Z(compSize);
+            CHECK_Z( ZSTD_DCtx_reset(zd, ZSTD_reset_session_and_parameters) );
+            while (in.size < compSize) {
+                in.size = MIN(in.size + 100, compSize);
+                while (in.pos < in.size) {
+                    size_t const outPos = out.pos;
+                    if (out.pos == out.size) {
+                        out.size = MIN(out.size + 10, inputSize);
+                    }
+                    CHECK_Z( ZSTD_decompressStream(zd, &out, &in) );
+                    CHECK(!(out.pos > outPos), "We are not streaming (no output generated)");
+                }
+            }
+            CHECK(in.pos != compSize, "Not all input consumed!");
+            CHECK(out.pos != inputSize, "Not all output produced!");
+        }
+        CHECK(memcmp(input, decomp, inputSize), "round trip failed!");
+
+        free(input);
+        free(comp);
+        free(decomp);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     DISPLAYLEVEL(3, "test%3i : dictionary + uncompressible block + reusing tables checks offset table validity: ", testNb++);
     {   ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(
             dictionary.start, dictionary.filled,

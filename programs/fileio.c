@@ -77,6 +77,7 @@
 
 #define FNSPACE 30
 
+#define PATCHFROM_WINDOWSIZE_EXTRA_BYTES 1 KB
 
 /*-*************************************
 *  Macros
@@ -321,6 +322,7 @@ struct FIO_prefs_s {
     int nbWorkers;
 
     int excludeCompressedFiles;
+    int patchFromMode;
 };
 
 
@@ -487,6 +489,10 @@ void FIO_setLdmHashRateLog(FIO_prefs_t* const prefs, int ldmHashRateLog) {
     prefs->ldmHashRateLog = ldmHashRateLog;
 }
 
+void FIO_setPatchFromMode(FIO_prefs_t* const prefs, int value)
+{
+    prefs->patchFromMode = value != 0;
+}
 
 /*-*************************************
 *  Functions
@@ -624,7 +630,7 @@ FIO_openDstFile(FIO_prefs_t* const prefs,
  * @return : loaded size
  *  if fileName==NULL, returns 0 and a NULL pointer
  */
-static size_t FIO_createDictBuffer(void** bufferPtr, const char* fileName)
+static size_t FIO_createDictBuffer(void** bufferPtr, const char* fileName, FIO_prefs_t* const prefs)
 {
     FILE* fileHandle;
     U64 fileSize;
@@ -638,9 +644,12 @@ static size_t FIO_createDictBuffer(void** bufferPtr, const char* fileName)
     if (fileHandle==NULL) EXM_THROW(31, "%s: %s", fileName, strerror(errno));
 
     fileSize = UTIL_getFileSize(fileName);
-    if (fileSize > DICTSIZE_MAX) {
-        EXM_THROW(32, "Dictionary file %s is too large (> %u MB)",
-                        fileName, DICTSIZE_MAX >> 20);   /* avoid extreme cases */
+    {
+        size_t const dictSizeMax = prefs->patchFromMode ? prefs->memLimit : DICTSIZE_MAX;
+        if (fileSize >  dictSizeMax) {
+            EXM_THROW(32, "Dictionary file %s is too large (> %u bytes)",
+                            fileName,  (unsigned)dictSizeMax);   /* avoid extreme cases */
+        }
     }
     *bufferPtr = malloc((size_t)fileSize);
     if (*bufferPtr==NULL) EXM_THROW(34, "%s", strerror(errno));
@@ -743,6 +752,20 @@ FIO_createFilename_fromOutDir(const char* path, const char* outDirName, const si
     return result;
 }
 
+/* FIO_highbit64() :
+ * gives position of highest bit.
+ * note : only works for v > 0 !
+ */
+static unsigned FIO_highbit64(unsigned long long v)
+{
+    unsigned count = 0;
+    assert(v != 0);
+    v >>= 1;
+    while (v) { v >>= 1; count++; }
+    return count;
+}
+
+
 #ifndef ZSTD_NOCOMPRESS
 
 /* **********************************************************************
@@ -760,8 +783,8 @@ typedef struct {
 } cRess_t;
 
 static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
-                                    const char* dictFileName, int cLevel,
-                                    ZSTD_compressionParameters comprParams) {
+                                    const char* dictFileName, const size_t maxSrcFileSize,
+                                    int cLevel, ZSTD_compressionParameters comprParams) {
     cRess_t ress;
     memset(&ress, 0, sizeof(ress));
 
@@ -779,13 +802,17 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
 
     /* Advanced parameters, including dictionary */
     {   void* dictBuffer;
-        size_t const dictBuffSize = FIO_createDictBuffer(&dictBuffer, dictFileName);   /* works with dictFileName==NULL */
+        size_t const dictBuffSize = FIO_createDictBuffer(&dictBuffer, dictFileName, prefs);   /* works with dictFileName==NULL */
         if (dictFileName && (dictBuffer==NULL))
             EXM_THROW(32, "allocation error : can't create dictBuffer");
         ress.dictFileName = dictFileName;
 
         if (prefs->adaptiveMode && !prefs->ldmFlag && !comprParams.windowLog)
             comprParams.windowLog = ADAPT_WINDOWLOG_DEFAULT;
+
+        if (prefs->patchFromMode) {
+            comprParams.windowLog = FIO_highbit64((unsigned long long)maxSrcFileSize + PATCHFROM_WINDOWSIZE_EXTRA_BYTES);
+        }
 
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_contentSizeFlag, 1) );  /* always enable content size when available (note: supposed to be default) */
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_dictIDFlag, prefs->dictIDFlag) );
@@ -1515,7 +1542,7 @@ int FIO_compressFilename(FIO_prefs_t* const prefs, const char* dstFileName,
                          const char* srcFileName, const char* dictFileName,
                          int compressionLevel,  ZSTD_compressionParameters comprParams)
 {
-    cRess_t const ress = FIO_createCResources(prefs, dictFileName, compressionLevel, comprParams);
+    cRess_t const ress = FIO_createCResources(prefs, dictFileName, (size_t)UTIL_getFileSize(srcFileName), compressionLevel, comprParams);
     int const result = FIO_compressFilename_srcFile(prefs, ress, dstFileName, srcFileName, compressionLevel);
 
 
@@ -1563,6 +1590,15 @@ FIO_determineCompressedName(const char* srcFileName, const char* outDirName, con
     return dstFileNameBuffer;
 }
 
+static size_t FIO_getLargestFileSize(const char** inFileNames, unsigned nbFiles)
+{
+    size_t i, fileSize, maxFileSize = 0;
+    for (i = 0; i < nbFiles; i++) {
+        fileSize = (size_t)UTIL_getFileSize(inFileNames[i]);
+        maxFileSize = fileSize > maxFileSize ? fileSize : maxFileSize;
+    }
+    return maxFileSize;
+}
 
 /* FIO_compressMultipleFilenames() :
  * compress nbFiles files
@@ -1578,7 +1614,9 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
                                   ZSTD_compressionParameters comprParams)
 {
     int error = 0;
-    cRess_t ress = FIO_createCResources(prefs, dictFileName, compressionLevel, comprParams);
+    cRess_t ress = FIO_createCResources(prefs, dictFileName,
+        FIO_getLargestFileSize(inFileNamesTable, nbFiles),
+        compressionLevel, comprParams);
 
     /* init */
     assert(outFileName != NULL || suffix != NULL);
@@ -1648,7 +1686,7 @@ static dRess_t FIO_createDResources(FIO_prefs_t* const prefs, const char* dictFi
 
     /* dictionary */
     {   void* dictBuffer;
-        size_t const dictBufferSize = FIO_createDictBuffer(&dictBuffer, dictFileName);
+        size_t const dictBufferSize = FIO_createDictBuffer(&dictBuffer, dictFileName, prefs);
         CHECK( ZSTD_initDStream_usingDict(ress.dctx, dictBuffer, dictBufferSize) );
         free(dictBuffer);
     }
@@ -1791,19 +1829,6 @@ static int FIO_passThrough(const FIO_prefs_t* const prefs,
 
     FIO_fwriteSparseEnd(prefs, foutput, storedSkips);
     return 0;
-}
-
-/* FIO_highbit64() :
- * gives position of highest bit.
- * note : only works for v > 0 !
- */
-static unsigned FIO_highbit64(unsigned long long v)
-{
-    unsigned count = 0;
-    assert(v != 0);
-    v >>= 1;
-    while (v) { v >>= 1; count++; }
-    return count;
 }
 
 /* FIO_zstdErrorHelp() :

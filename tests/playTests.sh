@@ -1202,6 +1202,14 @@ then
     $ZSTD -f -vv --rsyncable --single-thread tmp && die "--rsyncable must fail with --single-thread"
 fi
 
+println "\n===> patch-from tests"
+
+./datagen -g1000 -P50 > tmp_dict
+./datagen -g1000 -P10 > tmp_patch
+$ZSTD --memory=10000 --patch-from=tmp_dict tmp_patch -o tmp_patch_diff
+$ZSTD -d --memory=10000 --patch-from=tmp_dict tmp_patch_diff -o tmp_patch_recon
+$DIFF -s tmp_patch_recon tmp_patch
+rm -rf tmp_*
 
 println "\n===>   large files tests "
 

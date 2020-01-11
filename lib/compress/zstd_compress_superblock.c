@@ -658,7 +658,7 @@ static size_t ZSTD_compressSubBlock_multi(const seqStore_t* seqStorePtr,
         /* I think there is an optimization opportunity here.
          * Calling ZSTD_estimateSubBlockSize for every sequence can be wasteful
          * since it recalculates estimate from scratch.
-         * For example, it would recount literal distribution and symbol codes everytime. 
+         * For example, it would recount literal distribution and symbol codes everytime.
          */
         cBlockSizeEstimate = ZSTD_estimateSubBlockSize(lp, litSize, ofCodePtr, llCodePtr, mlCodePtr, seqCount,
                                                        entropy, entropyMetadata,
@@ -715,28 +715,4 @@ size_t ZSTD_compressSuperBlock(ZSTD_CCtx* zc,
             dst, dstCapacity,
             zc->bmi2, lastBlock,
             zc->entropyWorkspace, HUF_WORKSPACE_SIZE /* statically allocated in resetCCtx */);
-}
-
-size_t ZSTD_noCompressSuperBlock(void* dst, size_t dstCapacity,
-                                 const void* src, size_t srcSize,
-                                 size_t targetCBlockSize,
-                                 unsigned lastBlock) {
-    const BYTE* const istart = (const BYTE*)src;
-    const BYTE* const iend = istart + srcSize;
-    const BYTE* ip = istart;
-    BYTE* const ostart = (BYTE*)dst;
-    BYTE* const oend = ostart + dstCapacity;
-    BYTE* op = ostart;
-    DEBUGLOG(5, "ZSTD_noCompressSuperBlock (dstCapacity=%zu, srcSize=%zu, targetCBlockSize=%zu)",
-                dstCapacity, srcSize, targetCBlockSize);
-    while (ip < iend) {
-        size_t remaining = iend-ip;
-        unsigned lastSubBlock = remaining <= targetCBlockSize;
-        size_t blockSize = lastSubBlock ? remaining : targetCBlockSize;
-        size_t cSize = ZSTD_noCompressBlock(op, oend-op, ip, blockSize, lastSubBlock && lastBlock);
-        FORWARD_IF_ERROR(cSize);
-        ip += blockSize;
-        op += cSize;
-    }
-    return op-ostart;
 }

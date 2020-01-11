@@ -28,14 +28,4 @@ size_t ZSTD_compressSuperBlock(ZSTD_CCtx* zc,
                                void* dst, size_t dstCapacity,
                                unsigned lastBlock);
 
-/* ZSTD_noCompressSuperBlock() :
-* Used to break a super block into multiple uncompressed sub blocks
-* when targetCBlockSize is being used.
-* The given block will be broken into multiple uncompressed sub blocks that are
-* around targetCBlockSize. */
-size_t ZSTD_noCompressSuperBlock(void* dst, size_t dstCapacity,
-                                 const void* src, size_t srcSize,
-                                 size_t targetCBlockSize,
-                                 unsigned lastBlock);
-
 #endif /* ZSTD_COMPRESS_ADVANCED_H */

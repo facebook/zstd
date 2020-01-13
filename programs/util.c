@@ -278,7 +278,9 @@ U64 UTIL_getTotalFileSize(const char* const * fileNamesTable, unsigned nbFiles)
 static size_t readLineFromFile(char* buf, size_t len, FILE* file)
 {
     assert(!feof(file));
-    CONTROL( fgets(buf, (int) len, file) == buf );  /* requires success */
+    /* Work around Cygwin problem when len == 1 it returns NULL. */
+    if (len <= 1) return 0;
+    CONTROL( fgets(buf, (int) len, file) );
     {   size_t linelen = strlen(buf);
         if (strlen(buf)==0) return 0;
         if (buf[linelen-1] == '\n') linelen--;

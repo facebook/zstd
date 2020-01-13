@@ -23,6 +23,8 @@ else()
 endif()
 cmake_policy(VERSION ${ZSTD_CMAKE_POLICY_VERSION})
 
+set(CMAKE_BUILD_WITH_INSTALL_RPATH on)
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules")
 set(ZSTD_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../..")
 set(LIBRARY_DIR ${ZSTD_SOURCE_DIR}/lib)
@@ -137,6 +139,7 @@ if (ZSTD_BUILD_PROGRAMS)
 endif ()
 
 if (ZSTD_BUILD_TESTS)
+    enable_testing()
     if (NOT ZSTD_BUILD_STATIC)
         message(SEND_ERROR "You need to build static library to build tests")
     endif ()

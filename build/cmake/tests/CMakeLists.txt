@@ -52,6 +52,10 @@ target_link_libraries(fuzzer libzstd_static)
 add_executable(zstreamtest ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/timefn.c ${TESTS_DIR}/seqgen.c ${TESTS_DIR}/zstreamtest.c)
 target_link_libraries(zstreamtest libzstd_static)
 
+add_test(
+    NAME playTests
+    COMMAND sh -c "ZSTD_BIN='$<TARGET_FILE:zstd>' DATAGEN_BIN='$<TARGET_FILE:datagen>' '${TESTS_DIR}/playTests.sh'")
+
 if (UNIX)
     add_executable(paramgrill ${PROGRAMS_DIR}/benchfn.c ${PROGRAMS_DIR}/benchzstd.c ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/timefn.c ${TESTS_DIR}/paramgrill.c)
     target_link_libraries(paramgrill libzstd_static m) #m is math library

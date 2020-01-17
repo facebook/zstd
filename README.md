@@ -143,6 +143,11 @@ example about how Meson is used to build this project.
 
 Note that default build type is **release**.
 
+### VCPKG
+If you are using the [vcpkg](https://github.com/Microsoft/vcpkg/) dependency manager,
+you can build and install zstd with CMake integration in a single command:
+- `vcpkg install zstd`
+
 ### Visual Studio (Windows)
 
 Going into `build` directory, you will find additional possibilities:

@@ -153,6 +153,7 @@ static void usage_advanced(const char* programName)
 # ifdef ZSTD_MULTITHREAD
     DISPLAYOUT( " -T#    : spawns # compression threads (default: 1, 0==# cores) \n");
     DISPLAYOUT( " -B#    : select size of each job (default: 0==automatic) \n");
+    DISPLAYOUT( " --single-thread : use a single thread for both I/O and compression (result slightly different than -T1)\n");
     DISPLAYOUT( "--rsyncable : compress using a rsync-friendly method (-B sets block size) \n");
 # endif
     DISPLAYOUT( "--no-dictID : don't write dictID into header (dictionary compression)\n");

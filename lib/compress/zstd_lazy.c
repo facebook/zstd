@@ -154,7 +154,7 @@ ZSTD_DUBT_findBetterDictMatch (
         const BYTE* const ip, const BYTE* const iend,
         size_t* offsetPtr,
         size_t bestLength,
-        U32 nbCompares,
+        size_t nbCompares,
         U32 const mls,
         const ZSTD_dictMode_e dictMode)
 {

@@ -745,7 +745,10 @@ MEM_STATIC U32 ZSTD_window_correctOverflow(ZSTD_window_t* window, U32 cycleLog,
      */
     U32 const cycleMask = (1U << cycleLog) - 1;
     U32 const current = (U32)((BYTE const*)src - window->base);
-    U32 const newCurrent = (current & cycleMask) + maxDist;
+    U32 const currentCycle0 = current & cycleMask;
+    /* Exclude zero so that newCurrent - maxDist >= 1. */
+    U32 const currentCycle1 = currentCycle0 == 0 ? (1U << cycleLog) : currentCycle0;
+    U32 const newCurrent = currentCycle1 + maxDist;
     U32 const correction = current - newCurrent;
     assert((maxDist & cycleMask) == 0);
     assert(current > newCurrent);
@@ -754,8 +757,17 @@ MEM_STATIC U32 ZSTD_window_correctOverflow(ZSTD_window_t* window, U32 cycleLog,
 
     window->base += correction;
     window->dictBase += correction;
-    window->lowLimit -= correction;
-    window->dictLimit -= correction;
+    if (window->lowLimit <= correction) window->lowLimit = 1;
+    else window->lowLimit -= correction;
+    if (window->dictLimit <= correction) window->dictLimit = 1;
+    else window->dictLimit -= correction;
+
+    /* Ensure we can still reference the full window. */
+    assert(newCurrent >= maxDist);
+    assert(newCurrent - maxDist >= 1);
+    /* Ensure that lowLimit and dictLimit didn't underflow. */
+    assert(window->lowLimit <= newCurrent);
+    assert(window->dictLimit <= newCurrent);
 
     DEBUGLOG(4, "Correction of 0x%x bytes to lowLimit=0x%x", correction,
              window->lowLimit);

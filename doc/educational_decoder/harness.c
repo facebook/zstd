@@ -46,6 +46,7 @@ static size_t read_file(const char *path, u8 **ptr)
     }
 
     fclose(f);
+    free(ptr);
 
     return read;
 }

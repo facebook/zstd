@@ -95,7 +95,6 @@ def clone_and_build(build):
 
 
 def parse_benchmark_output(output):
-    print(output)
     idx = [i for i, d in enumerate(output) if d == "MB/s"]
     return [float(output[idx[0] - 1]), float(output[idx[1] - 1])]
 

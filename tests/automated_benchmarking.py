@@ -94,20 +94,44 @@ def clone_and_build(build):
         return "../zstd"
 
 
+def parse_benchmark_output(output):
+    print(output)
+    idx = [i for i, d in enumerate(output) if d == "MB/s"]
+    return [float(output[idx[0] - 1]), float(output[idx[1] - 1])]
+
+
+def benchmark_single_treat_as_dict(executable, level, filename):
+    os.system(
+        """
+            rm -rf tmp_dict tmp_data &&
+            head -c {half_size} {filename} > tmp_dict &&
+            tail -c {half_size} {filename} > tmp_data
+        """.format(
+            half_size=int(os.path.getsize(filename)/2),
+            filename=filename
+        )
+    )
+    return parse_benchmark_output((
+        subprocess.run(
+            [executable, "-qb{}".format(level), "-D", "tmp_dict", "tmp_data"], stderr=subprocess.PIPE
+        )
+        .stderr.decode("utf-8")
+        .split(" ")
+    ))
+
+
 def benchmark_single(executable, level, filename):
-    tmp = (
+    return parse_benchmark_output((
         subprocess.run(
             [executable, "-qb{}".format(level), filename], stderr=subprocess.PIPE
         )
         .stderr.decode("utf-8")
         .split(" ")
-    )
-    idx = [i for i, d in enumerate(tmp) if d == "MB/s"]
-    return [float(tmp[idx[0] - 1]), float(tmp[idx[1] - 1])]
+    ))
 
 
-def benchmark_n(executable, level, filename, n):
-    speeds_arr = [benchmark_single(executable, level, filename) for _ in range(n)]
+def benchmark_n(executable, level, filename, n, treat_as_dict):
+    speeds_arr = [benchmark_single_treat_as_dict(executable, level, filename) if treat_as_dict else benchmark_single(executable, level, filename) for _ in range(n)]
     cspeed, dspeed = max(b[0] for b in speeds_arr), max(b[1] for b in speeds_arr)
     print(
         "Bench (executable={} level={} filename={}, iterations={}):\n\t[cspeed: {} MB/s, dspeed: {} MB/s]".format(
@@ -122,16 +146,16 @@ def benchmark_n(executable, level, filename, n):
     return (cspeed, dspeed)
 
 
-def benchmark(build, filenames, levels, iterations):
+def benchmark(build, filenames, levels, iterations, treat_as_dict):
     executable = clone_and_build(build)
     return [
-        [benchmark_n(executable, l, f, iterations) for f in filenames] for l in levels
+        [benchmark_n(executable, l, f, iterations, treat_as_dict) for f in filenames] for l in levels
     ]
 
 
-def get_regressions(baseline_build, test_build, iterations, filenames, levels):
-    old = benchmark(baseline_build, filenames, levels, iterations)
-    new = benchmark(test_build, filenames, levels, iterations)
+def get_regressions(baseline_build, test_build, iterations, filenames, levels, treat_as_dict):
+    old = benchmark(baseline_build, filenames, levels, iterations, treat_as_dict)
+    new = benchmark(test_build, filenames, levels, iterations, treat_as_dict)
     regressions = []
     for j, level in enumerate(levels):
         for k, filename in enumerate(filenames):
@@ -171,13 +195,13 @@ def get_regressions(baseline_build, test_build, iterations, filenames, levels):
                 )
     return regressions
 
-def main(filenames, levels, iterations, builds=None, emails=None, continuous=False, frequency=DEFAULT_MAX_API_CALL_FREQUENCY_SEC):
+def main(filenames, levels, iterations, builds=None, emails=None, continuous=False, frequency=DEFAULT_MAX_API_CALL_FREQUENCY_SEC, treat_as_dict=False):
     if builds == None:
         builds = get_new_open_pr_builds()
     while True:
         for test_build in builds:
             regressions = get_regressions(
-                MASTER_BUILD, test_build, iterations, filenames, levels
+                MASTER_BUILD, test_build, iterations, filenames, levels, treat_as_dict
             )
             body = "\n".join(regressions)
             if len(regressions) > 0:
@@ -198,26 +222,14 @@ def main(filenames, levels, iterations, builds=None, emails=None, continuous=Fal
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "directory", help="directory with files to benchmark", default="fuzz"
-    )
-    parser.add_argument("levels", help="levels to test eg ('1,2,3')", default="1,2,3")
-    parser.add_argument(
-        "mode", help="'fastmode', 'onetime', 'current' or 'continuous'", default="onetime"
-    )
-    parser.add_argument(
-        "iterations", help="number of benchmark iterations to run", default=5
-    )
-    parser.add_argument(
-        "emails",
-        help="email addresses of people who will be alerted upon regression. Only for continuous mode",
-        default=None,
-    )
-    parser.add_argument(
-        "frequency",
-        help="specifies the number of seconds to wait before each successive check for new PRs in continuous mode",
-        default=DEFAULT_MAX_API_CALL_FREQUENCY_SEC
-    )
+
+    parser.add_argument("--directory", help="directory with files to benchmark", default="golden-compression")
+    parser.add_argument("--levels", help="levels to test eg ('1,2,3')", default="1")
+    parser.add_argument("--iterations", help="number of benchmark iterations to run", default="1")
+    parser.add_argument("--emails", help="email addresses of people who will be alerted upon regression. Only for continuous mode", default=None)
+    parser.add_argument("--frequency", help="specifies the number of seconds to wait before each successive check for new PRs in continuous mode", default=DEFAULT_MAX_API_CALL_FREQUENCY_SEC)
+    parser.add_argument("--mode", help="'fastmode', 'onetime', 'current', or 'continuous' (see README.md for details)", default="current")
+    parser.add_argument("--dict", help="will the split the input file into two halfs and treat the first half as a dictionary for the second", default=False)
 
     args = parser.parse_args()
     filenames = glob.glob("{}/**".format(args.directory))
@@ -226,14 +238,19 @@ if __name__ == "__main__":
     iterations = int(args.iterations)
     emails = args.emails
     frequency = int(args.frequency)
+    treat_as_dict = bool(args.dict)
+
+    if (len(filenames) == 0):
+        print("0 files found")
+        quit()
 
     if mode == "onetime":
-        main(filenames, levels, iterations, frequency=frequency)
+        main(filenames, levels, iterations, frequency=frequency, treat_as_dict=treat_as_dict)
     elif mode == "current":
         builds = [{"user": None, "branch": "None", "hash": None}]
-        main(filenames, levels, iterations, builds, frequency=frequency)
+        main(filenames, levels, iterations, builds, frequency=frequency, treat_as_dict=treat_as_dict)
     elif mode == "fastmode":
         builds = [{"user": "facebook", "branch": "master", "hash": None}]
-        main(filenames, levels, iterations, builds, frequency=frequency)
+        main(filenames, levels, iterations, builds, frequency=frequency, treat_as_dict=treat_as_dict)
     else:
-        main(filenames, levels, iterations, None, emails, True, frequency=frequency)
+        main(filenames, levels, iterations, None, emails, True, frequency=frequency, treat_as_dict=treat_as_dict)

@@ -84,7 +84,7 @@ PTime UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd)
 
 
 #elif (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) /* C11 */) \
-    && defined(TIME_UTC) /* C11 requires timespec_get, but FreeBSD 11 lacks it, while still claiming C11 compliance */
+    && defined(TIME_UTC) && !defined(__ANDROID__) /* C11 requires timespec_get, but FreeBSD 11 lacks it, while still claiming C11 compliance */
 
 #include <stdlib.h>   /* abort */
 #include <stdio.h>    /* perror */

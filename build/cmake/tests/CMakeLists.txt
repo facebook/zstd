@@ -38,7 +38,7 @@ set(CMAKE_INCLUDE_CURRENT_DIR TRUE)
 set(LIBRARY_DIR ${ZSTD_SOURCE_DIR}/lib)
 set(PROGRAMS_DIR ${ZSTD_SOURCE_DIR}/programs)
 set(TESTS_DIR ${ZSTD_SOURCE_DIR}/tests)
-include_directories(${TESTS_DIR} ${PROGRAMS_DIR} ${LIBRARY_DIR} ${LIBRARY_DIR}/common ${LIBRARY_DIR}/compress ${LIBRARY_DIR}/dictBuilder)
+include_directories(${TESTS_DIR} ${PROGRAMS_DIR} ${LIBRARY_DIR} ${LIBRARY_DIR}/common ${LIBRARY_DIR}/compress ${LIBRARY_DIR}/dictBuilder ${LIBRARY_DIR}/deprecated)
 
 add_executable(datagen ${PROGRAMS_DIR}/datagen.c ${TESTS_DIR}/datagencli.c)
 target_link_libraries(datagen libzstd_static)

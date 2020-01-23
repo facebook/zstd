@@ -14,6 +14,7 @@
 #include "debug.h"     /* assert */
 #include "zstd_internal.h"  /* ZSTD_malloc, ZSTD_free */
 #include "pool.h"
+#include "zstd_seccomp.h" /* ZSTD_disable_syscalls_for_worker_thread */
 
 /* ======   Compiler specifics   ====== */
 #if defined(_MSC_VER)
@@ -67,6 +68,9 @@ struct POOL_ctx_s {
 static void* POOL_thread(void* opaque) {
     POOL_ctx* const ctx = (POOL_ctx*)opaque;
     if (!ctx) { return NULL; }
+
+    if (!ZSTD_disable_syscalls_for_worker_thread()) { return NULL; }
+
     for (;;) {
         /* Lock the mutex and wait for a non-empty queue or until shutdown */
         ZSTD_pthread_mutex_lock(&ctx->queueMutex);

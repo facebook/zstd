@@ -17,6 +17,11 @@
  * measure, so that if someone were to figure out a remote code execution bug
  * in Zstd, they would be limited to a small set of syscalls, hopefully without
  * really any of the interesting ones (exec, clone, accept, connect, etc.).
+ *
+ * So far this functionality has only been implemented for Linux, via the
+ * `seccomp()` API. The build macros `ZSTD_FORCE_USE_SECCOMP` and
+ * `ZSTD_TRY_USE_SECCOMP` control whether we use this functionality or not.
+ * Otherwise, for the time being, it is disabled by default.
  */
 
 /**

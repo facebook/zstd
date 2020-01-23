@@ -52,6 +52,13 @@ target_link_libraries(fuzzer libzstd_static)
 add_executable(zstreamtest ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/timefn.c ${TESTS_DIR}/seqgen.c ${TESTS_DIR}/zstreamtest.c)
 target_link_libraries(zstreamtest libzstd_static)
 
+add_executable(symbols ${TESTS_DIR}/symbols.c)
+target_link_libraries(symbols libzstd_shared)
+
+add_test(
+    NAME symbolsTest
+    COMMAND ./symbols)
+
 add_test(
     NAME playTests
     COMMAND sh -c "ZSTD_BIN='$<TARGET_FILE:zstd>' DATAGEN_BIN='$<TARGET_FILE:datagen>' '${TESTS_DIR}/playTests.sh'")

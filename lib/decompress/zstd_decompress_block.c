@@ -1285,6 +1285,17 @@ ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
 }
 
 
+void ZSTD_checkContinuity(ZSTD_DCtx* dctx, const void* dst)
+{
+    if (dst != dctx->previousDstEnd) {   /* not contiguous */
+        dctx->dictEnd = dctx->previousDstEnd;
+        dctx->virtualStart = (const char*)dst - ((const char*)(dctx->previousDstEnd) - (const char*)(dctx->prefixStart));
+        dctx->prefixStart = dst;
+        dctx->previousDstEnd = dst;
+    }
+}
+
+
 size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx,
                             void* dst, size_t dstCapacity,
                       const void* src, size_t srcSize)

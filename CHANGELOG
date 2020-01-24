@@ -1,7 +1,9 @@
 v1.4.5
-perf: Improved decompression speed, +10% on clang, +5% on gcc, by @terrelln
-cli: new command : provide list of files to de/compress within a file with --filelist=FILE, by @AhmedAbdellah19
-api: low latency blocks, new experimental parameter by @ephiepark
+fix : Compression ratio regression on huge files (> 3 GB) using high levels (--ultra) and multithreading, by @terrelln
+perf: Improved decompression speed: x64 : +10% (clang) / +5% (gcc); ARM : from +15% to +50%, depending on chip, by @terrelln
+cli: new command --filelist=FILE : provide list of files within a file, by @AhmedAbdellah19
+cli: new command --patch-from=FILE (experimental) : generate diff from 2 files, by @bimbashrestha
+api: controlled block size for lower latency, new experimental parameter by @ephiepark
 build: mingw cross-compilation from unix, by @Ericson2314
 misc: bitflip analyzer tool, by @felixhandte
 

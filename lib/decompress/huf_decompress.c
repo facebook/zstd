@@ -817,7 +817,7 @@ HUF_decompress4X2_usingDTable_internal_body(
 
         /* 16-32 symbols per loop (4-8 symbols per stream) */
         for ( ; (endSignal) & (op4 < olimit); ) {
-#ifdef __clang__
+#if defined(__clang__) && (defined(__x86_64__) || defined(__i386__))
             HUF_DECODE_SYMBOLX2_2(op1, &bitD1);
             HUF_DECODE_SYMBOLX2_1(op1, &bitD1);
             HUF_DECODE_SYMBOLX2_2(op1, &bitD1);
@@ -855,10 +855,11 @@ HUF_decompress4X2_usingDTable_internal_body(
             HUF_DECODE_SYMBOLX2_0(op2, &bitD2);
             HUF_DECODE_SYMBOLX2_0(op3, &bitD3);
             HUF_DECODE_SYMBOLX2_0(op4, &bitD4);
-            endSignal &= BIT_reloadDStreamFast(&bitD1) == BIT_DStream_unfinished;
-            endSignal &= BIT_reloadDStreamFast(&bitD2) == BIT_DStream_unfinished;
-            endSignal &= BIT_reloadDStreamFast(&bitD3) == BIT_DStream_unfinished;
-            endSignal &= BIT_reloadDStreamFast(&bitD4) == BIT_DStream_unfinished;
+            endSignal = LIKELY(
+                        (BIT_reloadDStreamFast(&bitD1) == BIT_DStream_unfinished)
+                      & (BIT_reloadDStreamFast(&bitD2) == BIT_DStream_unfinished)
+                      & (BIT_reloadDStreamFast(&bitD3) == BIT_DStream_unfinished)
+                      & (BIT_reloadDStreamFast(&bitD4) == BIT_DStream_unfinished));
 #endif
         }
 

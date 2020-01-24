@@ -580,7 +580,7 @@ typedef struct {
  *  Precondition: *ip <= *op
  *  Postcondition: *op - *op >= 8
  */
-static void ZSTD_overlapCopy8(BYTE** op, BYTE const** ip, size_t offset) {
+HINT_INLINE void ZSTD_overlapCopy8(BYTE** op, BYTE const** ip, size_t offset) {
     assert(*ip <= *op);
     if (offset < 8) {
         /* close range match, overlap */
@@ -1281,6 +1281,17 @@ ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
         /* else */
         return ZSTD_decompressSequences(dctx, dst, dstCapacity, ip, srcSize, nbSeq, isLongOffset);
 #endif
+    }
+}
+
+
+void ZSTD_checkContinuity(ZSTD_DCtx* dctx, const void* dst)
+{
+    if (dst != dctx->previousDstEnd) {   /* not contiguous */
+        dctx->dictEnd = dctx->previousDstEnd;
+        dctx->virtualStart = (const char*)dst - ((const char*)(dctx->previousDstEnd) - (const char*)(dctx->prefixStart));
+        dctx->prefixStart = dst;
+        dctx->previousDstEnd = dst;
     }
 }
 

@@ -36,7 +36,7 @@ harness: $(HARNESS_FILES)
 	$(CC) $(FLAGS) $^ -o $@
 
 clean:
-	@$(RM) harness
+	@$(RM) harness *.o
 	@$(RM) -rf harness.dSYM  # MacOS specific
 
 test: harness
@@ -59,4 +59,3 @@ test: harness
 	@./harness tmp.zst tmp dictionary
 	@$(DIFF) -s tmp README.md
 	@$(RM) tmp* dictionary
-	@$(MAKE) clean

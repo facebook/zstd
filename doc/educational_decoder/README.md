@@ -13,6 +13,13 @@ It also contains implementations of Huffman and FSE table decoding.
 [Zstandard format specification]: https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md
 [format specification]: https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md
 
+While the library's primary objective is code clarity,
+it also happens to compile into a small object file.
+The object file can be made even smaller by removing error messages,
+using the macro directive `ZDEC_NO_MESSAGE` at compilation time.
+This can be reduced even further by foregoing dictionary support,
+by defining `ZDEC_NO_DICTIONARY`.
+
 `harness.c` provides a simple test harness around the decoder:
 
     harness <input-file> <output-file> [dictionary]

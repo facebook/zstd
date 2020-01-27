@@ -95,7 +95,12 @@ int main(int argc, char **argv)
 
     dictionary_t* const parsed_dict = create_dictionary();
     if (dict.size) {
+#if defined (ZDEC_NO_DICTIONARY)
+        printf("dict.size = %zu \n", dict.size);
+        ERR_OUT("no dictionary support \n");
+#else
         parse_dictionary(parsed_dict, dict.address, dict.size);
+#endif
     }
     size_t const decompressed_size =
         ZSTD_decompress_with_dict(output, out_capacity,

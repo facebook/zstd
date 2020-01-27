@@ -99,26 +99,6 @@ def parse_benchmark_output(output):
     return [float(output[idx[0] - 1]), float(output[idx[1] - 1])]
 
 
-def benchmark_single_treat_as_dict(executable, level, filename):
-    os.system(
-        """
-            rm -rf tmp_dict tmp_data &&
-            head -c {half_size} {filename} > tmp_dict &&
-            tail -c {half_size} {filename} > tmp_data
-        """.format(
-            half_size=int(os.path.getsize(filename)/2),
-            filename=filename
-        )
-    )
-    return parse_benchmark_output((
-        subprocess.run(
-            [executable, "-qb{}".format(level), "-D", "tmp_dict", "tmp_data"], stderr=subprocess.PIPE
-        )
-        .stderr.decode("utf-8")
-        .split(" ")
-    ))
-
-
 def benchmark_single(executable, level, filename):
     return parse_benchmark_output((
         subprocess.run(
@@ -129,8 +109,8 @@ def benchmark_single(executable, level, filename):
     ))
 
 
-def benchmark_n(executable, level, filename, n, treat_as_dict):
-    speeds_arr = [benchmark_single_treat_as_dict(executable, level, filename) if treat_as_dict else benchmark_single(executable, level, filename) for _ in range(n)]
+def benchmark_n(executable, level, filename, n):
+    speeds_arr = [benchmark_single(executable, level, filename) for _ in range(n)]
     cspeed, dspeed = max(b[0] for b in speeds_arr), max(b[1] for b in speeds_arr)
     print(
         "Bench (executable={} level={} filename={}, iterations={}):\n\t[cspeed: {} MB/s, dspeed: {} MB/s]".format(
@@ -145,28 +125,62 @@ def benchmark_n(executable, level, filename, n, treat_as_dict):
     return (cspeed, dspeed)
 
 
-def benchmark(build, filenames, levels, iterations, treat_as_dict):
+def benchmark(build, filenames, levels, iterations):
     executable = clone_and_build(build)
     return [
-        [benchmark_n(executable, l, f, iterations, treat_as_dict) for f in filenames] for l in levels
+        [benchmark_n(executable, l, f, iterations) for f in filenames] for l in levels
     ]
 
 
-def get_regressions(baseline_build, test_build, iterations, filenames, levels, treat_as_dict):
-    old = benchmark(baseline_build, filenames, levels, iterations, treat_as_dict)
-    new = benchmark(test_build, filenames, levels, iterations, treat_as_dict)
+def benchmark_dictionary_single(executable, filenames_directory, dictionary_filename, level, iterations):
+    cspeeds, dspeeds = [], []
+    for _ in range(iterations):
+        output = subprocess.run([executable, "-qb{}".format(level), "-D", dictionary_filename, "-r", filenames_directory], stderr=subprocess.PIPE).stderr.decode("utf-8").split(" ")
+        cspeed, dspeed = parse_benchmark_output(output)
+        cspeeds.append(cspeed)
+        dspeeds.append(dspeed)
+    max_cspeed, max_dspeed = max(cspeeds), max(dspeeds)
+    print(
+        "Bench (executable={} level={} filenames_directory={}, dictionary_filename={}, iterations={}):\n\t[cspeed: {} MB/s, dspeed: {} MB/s]".format(
+            os.path.basename(executable),
+            level,
+            os.path.basename(filenames_directory),
+            os.path.basename(dictionary_filename),
+            iterations,
+            max_cspeed,
+            max_dspeed,
+        )
+    )
+    return (max_cspeed, max_dspeed)
+
+
+def benchmark_dictionary(build, filenames_directory, dictionary_filename, levels, iterations):
+    executable = clone_and_build(build)
+    return [benchmark_dictionary_single(executable, filenames_directory, dictionary_filename, l, iterations) for l in levels]
+
+
+def parse_regressions_and_labels(old_cspeed, new_cspeed, old_dspeed, new_dspeed, baseline_build, test_build):
+    cspeed_reg = (old_cspeed - new_cspeed) / old_cspeed
+    dspeed_reg = (old_dspeed - new_dspeed) / old_dspeed
+    baseline_label = "{}:{} ({})".format(
+        baseline_build["user"], baseline_build["branch"], baseline_build["hash"]
+    )
+    test_label = "{}:{} ({})".format(
+        test_build["user"], test_build["branch"], test_build["hash"]
+    )
+    return cspeed_reg, dspeed_reg, baseline_label, test_label
+
+
+def get_regressions(baseline_build, test_build, iterations, filenames, levels):
+    old = benchmark(baseline_build, filenames, levels, iterations)
+    new = benchmark(test_build, filenames, levels, iterations)
     regressions = []
     for j, level in enumerate(levels):
         for k, filename in enumerate(filenames):
             old_cspeed, old_dspeed = old[j][k]
             new_cspeed, new_dspeed = new[j][k]
-            cspeed_reg = (old_cspeed - new_cspeed) / old_cspeed
-            dspeed_reg = (old_dspeed - new_dspeed) / old_dspeed
-            baseline_label = "{}:{} ({})".format(
-                baseline_build["user"], baseline_build["branch"], baseline_build["hash"]
-            )
-            test_label = "{}:{} ({})".format(
-                test_build["user"], test_build["branch"], test_build["hash"]
+            cspeed_reg, dspeed_reg, baseline_build, test_label = parse_regressions_and_labels(
+                old_cspeed, new_cspeed, old_dspeed, new_dspeed, baseline_build, test_build
             )
             if cspeed_reg > CSPEED_REGRESSION_TOLERANCE:
                 regressions.append(
@@ -194,14 +208,58 @@ def get_regressions(baseline_build, test_build, iterations, filenames, levels, t
                 )
     return regressions
 
-def main(filenames, levels, iterations, builds=None, emails=None, continuous=False, frequency=DEFAULT_MAX_API_CALL_FREQUENCY_SEC, treat_as_dict=False):
+def get_regressions_dictionary(baseline_build, test_build, filenames_directory, dictionary_filename, levels, iterations):
+    old = benchmark_dictionary(baseline_build, filenames_directory, dictionary_filename, levels, iterations)
+    new = benchmark_dictionary(test_build, filenames_directory, dictionary_filename, levels, iterations)
+    regressions = []
+    for j, level in enumerate(levels):
+        old_cspeed, old_dspeed = old[j]
+        new_cspeed, new_dspeed = new[j]
+        cspeed_reg, dspeed_reg, baesline_label, test_label = parse_regressions_and_labels(
+            old_cspeed, new_cspeed, old_dspeed, new_dspeed, baseline_build, test_build
+        )
+        if cspeed_reg > CSPEED_REGRESSION_TOLERANCE:
+            regressions.append(
+                "[COMPRESSION REGRESSION] (level={} filenames_directory={} dictionary_filename={})\n\t{} -> {}\n\t{} -> {} ({:0.2f}%)".format(
+                    level,
+                    filenames_directory,
+                    dictionary_filename,
+                    baseline_label,
+                    test_label,
+                    old_cspeed,
+                    new_cspeed,
+                    cspeed_reg * 100.0,
+                )
+            )
+        if dspeed_reg > DSPEED_REGRESSION_TOLERANCE:
+            regressions.append(
+                "[DECOMPRESSION REGRESSION] (level={} filenames_directory={} dictionary_filename={})\n\t{} -> {}\n\t{} -> {} ({:0.2f}%)".format(
+                    level,
+                    filenames_directory,
+                    dictionary_filename,
+                    baseline_label,
+                    test_label,
+                    old_dspeed,
+                    new_dspeed,
+                    dspeed_reg * 100.0,
+                )
+            )
+        return regressions
+
+
+def main(filenames, levels, iterations, builds=None, emails=None, continuous=False, frequency=DEFAULT_MAX_API_CALL_FREQUENCY_SEC, dictionary_filename=None):
     if builds == None:
         builds = get_new_open_pr_builds()
     while True:
         for test_build in builds:
-            regressions = get_regressions(
-                MASTER_BUILD, test_build, iterations, filenames, levels, treat_as_dict
-            )
+            if dictionary_filename == None:
+                regressions = get_regressions(
+                    MASTER_BUILD, test_build, iterations, filenames, levels
+                )
+            else:
+                regressions = get_regressions_dictionary(
+                    MASTER_BUILD, test_build, filenames, dictionary_filename, levels, iterations
+                )
             body = "\n".join(regressions)
             if len(regressions) > 0:
                 if emails != None:
@@ -228,28 +286,31 @@ if __name__ == "__main__":
     parser.add_argument("--emails", help="email addresses of people who will be alerted upon regression. Only for continuous mode", default=None)
     parser.add_argument("--frequency", help="specifies the number of seconds to wait before each successive check for new PRs in continuous mode", default=DEFAULT_MAX_API_CALL_FREQUENCY_SEC)
     parser.add_argument("--mode", help="'fastmode', 'onetime', 'current', or 'continuous' (see README.md for details)", default="current")
-    parser.add_argument("--dict", help="will the split the input file into two halfs and treat the first half as a dictionary for the second", default=False)
+    parser.add_argument("--dict", help="filename of dictionary to use (when set, this dictioanry will be used to compress the files provided inside --directory)", default=None)
 
     args = parser.parse_args()
-    filenames = glob.glob("{}/**".format(args.directory))
+    filenames = args.directory
     levels = [int(l) for l in args.levels.split(",")]
     mode = args.mode
     iterations = int(args.iterations)
     emails = args.emails
     frequency = int(args.frequency)
-    treat_as_dict = bool(args.dict)
+    dictionary_filename = args.dict
+
+    if dictionary_filename == None:
+        filenames = glob.glob("{}/**".format(filenames))
 
     if (len(filenames) == 0):
         print("0 files found")
         quit()
 
     if mode == "onetime":
-        main(filenames, levels, iterations, frequency=frequency, treat_as_dict=treat_as_dict)
+        main(filenames, levels, iterations, frequency=frequenc, dictionary_filename=dictionary_filename)
     elif mode == "current":
         builds = [{"user": None, "branch": "None", "hash": None}]
-        main(filenames, levels, iterations, builds, frequency=frequency, treat_as_dict=treat_as_dict)
+        main(filenames, levels, iterations, builds, frequency=frequency, dictionary_filename=dictionary_filename)
     elif mode == "fastmode":
         builds = [{"user": "facebook", "branch": "master", "hash": None}]
-        main(filenames, levels, iterations, builds, frequency=frequency, treat_as_dict=treat_as_dict)
+        main(filenames, levels, iterations, builds, frequency=frequency, dictionary_filename=dictionary_filename)
     else:
-        main(filenames, levels, iterations, None, emails, True, frequency=frequency, treat_as_dict=treat_as_dict)
+        main(filenames, levels, iterations, None, emails, True, frequency=frequency, dictionary_filename=dictionary_filename)

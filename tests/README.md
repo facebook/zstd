@@ -56,8 +56,9 @@ optional arguments:
                         successive check for new PRs in continuous mode
   --mode MODE           'fastmode', 'onetime', 'current', or 'continuous' (see
                         README.md for details)
-  --dict DICT           will the split the input file into two halfs and treat
-                        the first half as a dictionary for the second
+  --dict DICT           filename of dictionary to use (when set, this
+                        dictioanry will be used to compress the files provided
+                        inside --directory)
 ```
 
 #### `test-zstd-speed.py` - script for testing zstd speed difference between commits

@@ -85,28 +85,48 @@ The file structure is designed to make this selection manually achievable for an
 
 - While invoking `make libzstd`, it's possible to define build macros
         `ZSTD_LIB_COMPRESSION, ZSTD_LIB_DECOMPRESSION`, `ZSTD_LIB_DICTBUILDER`,
-        and `ZSTD_LIB_DEPRECATED` as `0` to forgo compilation of the corresponding features.
-        This will also disable compilation of all dependencies
-        (eg. `ZSTD_LIB_COMPRESSION=0` will also disable dictBuilder).
+        and `ZSTD_LIB_DEPRECATED` as `0` to forgo compilation of the
+        corresponding features. This will also disable compilation of all
+        dependencies (eg. `ZSTD_LIB_COMPRESSION=0` will also disable
+        dictBuilder).
 
-- There are some additional build macros that can be used to minify the decoder.
+- There are a number of options that can help minimize the binary size of
+  `libzstd`.
 
-  Zstandard often has more than one implementation of a piece of functionality,
-  where each implementation optimizes for different scenarios. For example, the
-  Huffman decoder has complementary implementations that decode the stream one
-  symbol at a time or two symbols at a time. Zstd normally includes both (and
-  dispatches between them at runtime), but by defining `HUF_FORCE_DECOMPRESS_X1`
-  or `HUF_FORCE_DECOMPRESS_X2`, you can force the use of one or the other, avoiding
+  The first step is to select the components needed (using the above-described
+  `ZSTD_LIB_COMPRESSION` etc.).
+
+  The next step is to set `ZSTD_LIB_MINIFY` to `1` when invoking `make`. This
+  disables various optional components and changes the compilation flags to
+  prioritize space-saving.
+
+  Detailed options: Zstandard's code and build environment is set up by default
+  to optimize above all else for performance. In pursuit of this goal, Zstandard
+  makes significant trade-offs in code size. For example, Zstandard often has
+  more than one implementation of a particular component, with each
+  implementation optimized for different scenarios. For example, the Huffman
+  decoder has complementary implementations that decode the stream one symbol at
+  a time or two symbols at a time. Zstd normally includes both (and dispatches
+  between them at runtime), but by defining `HUF_FORCE_DECOMPRESS_X1` or
+  `HUF_FORCE_DECOMPRESS_X2`, you can force the use of one or the other, avoiding
   compilation of the other. Similarly, `ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT`
   and `ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG` force the compilation and use of
   only one or the other of two decompression implementations. The smallest
   binary is achieved by using `HUF_FORCE_DECOMPRESS_X1` and
-  `ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT`.
+  `ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT` (implied by `ZSTD_LIB_MINIFY`).
 
   For squeezing the last ounce of size out, you can also define
   `ZSTD_NO_INLINE`, which disables inlining, and `ZSTD_STRIP_ERROR_STRINGS`,
   which removes the error messages that are otherwise returned by
-  `ZSTD_getErrorName`.
+  `ZSTD_getErrorName` (implied by `ZSTD_LIB_MINIFY`).
+
+  Finally, when integrating into your application, make sure you're doing link-
+  time optimation and unused symbol garbage collection (via some combination of,
+  e.g., `-flto`, `-ffat-lto-objects`, `-fuse-linker-plugin`,
+  `-ffunction-sections`, `-fdata-sections`, `-fmerge-all-constants`,
+  `-Wl,--gc-sections`, `-Wl,-z,norelro`, and an archiver that understands
+  the compiler's intermediate representation, e.g., `AR=gcc-ar`). Consult your
+  compiler's documentation.
 
 - While invoking `make libzstd`, the build macro `ZSTD_LEGACY_MULTITHREADED_API=1`
   will expose the deprecated `ZSTDMT` API exposed by `zstdmt_compress.h` in

@@ -33,21 +33,32 @@ pull requests from the zstd repo and compare facebook:dev to all of them once, c
 will continuously get pull requests from the zstd repo and run benchmarks against facebook:dev.
 
 ```
-Example usage: python automated_benchmarking.py golden-compression 1 current 1 "" 60
+Example usage: python automated_benchmarking.py
 ```
 
 ```
-usage: automated_benchmarking.py [-h] directory levels mode emails
+usage: automated_benchmarking.py [-h] [--directory DIRECTORY]
+                                 [--levels LEVELS] [--iterations ITERATIONS]
+                                 [--emails EMAILS] [--frequency FREQUENCY]
+                                 [--mode MODE] [--dict DICT]
 
-positional arguments:
-  directory   directory with files to benchmark
-  levels      levels to test eg ('1,2,3')
-  mode        'fastmode', 'onetime', 'current' or 'continuous'
-  iterations  number of benchmark iterations to run
-  emails      email addresses of people who will be alerted upon regression.
-              Only for continuous mode
-  frequency   specifies the number of seconds to wait before each successive
-              check for new PRs in continuous mode
+optional arguments:
+  -h, --help            show this help message and exit
+  --directory DIRECTORY
+                        directory with files to benchmark
+  --levels LEVELS       levels to test eg ('1,2,3')
+  --iterations ITERATIONS
+                        number of benchmark iterations to run
+  --emails EMAILS       email addresses of people who will be alerted upon
+                        regression. Only for continuous mode
+  --frequency FREQUENCY
+                        specifies the number of seconds to wait before each
+                        successive check for new PRs in continuous mode
+  --mode MODE           'fastmode', 'onetime', 'current', or 'continuous' (see
+                        README.md for details)
+  --dict DICT           filename of dictionary to use (when set, this
+                        dictioanry will be used to compress the files provided
+                        inside --directory)
 ```
 
 #### `test-zstd-speed.py` - script for testing zstd speed difference between commits

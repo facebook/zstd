@@ -225,9 +225,9 @@ decodecorpus : $(filter-out zstdc_zstd_compress.o, $(ZSTD_OBJECTS)) $(ZDICT_FILE
 symbols  : symbols.c zstd-dll
 ifneq (,$(filter Windows%,$(OS)))
 	cp $(ZSTDDIR)/dll/libzstd.dll .
-	$(CC) $(FLAGS) $< -o $@$(EXT) -DZSTD_DLL_IMPORT=1 libzstd.dll
+	$(CC) $(FLAGS) $< -o $@$(EXT) -fvisibility=hidden -DZSTD_DLL_IMPORT=1 libzstd.dll
 else
-	$(CC) $(FLAGS) $< -o $@$(EXT) -Wl,-rpath=$(ZSTDDIR) $(ZSTDDIR)/libzstd.so   # broken on Mac
+	$(CC) $(FLAGS) $< -o $@$(EXT) -fvisibility=hidden -Wl,-rpath=$(ZSTDDIR) $(ZSTDDIR)/libzstd.so   # broken on Mac
 endif
 
 poolTests : $(PRGDIR)/util.c $(PRGDIR)/timefn.c poolTests.c $(ZSTDDIR)/common/pool.c $(ZSTDDIR)/common/threading.c $(ZSTDDIR)/common/zstd_common.c $(ZSTDDIR)/common/error_private.c

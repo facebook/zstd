@@ -179,7 +179,7 @@ def get_regressions(baseline_build, test_build, iterations, filenames, levels):
         for k, filename in enumerate(filenames):
             old_cspeed, old_dspeed = old[j][k]
             new_cspeed, new_dspeed = new[j][k]
-            cspeed_reg, dspeed_reg, baseline_build, test_label = parse_regressions_and_labels(
+            cspeed_reg, dspeed_reg, baseline_label, test_label = parse_regressions_and_labels(
                 old_cspeed, new_cspeed, old_dspeed, new_dspeed, baseline_build, test_build
             )
             if cspeed_reg > CSPEED_REGRESSION_TOLERANCE:

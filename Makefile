@@ -359,7 +359,6 @@ cmakebuild:
 	cd $(BUILDIR)/cmake/build; cmake -DCMAKE_INSTALL_PREFIX:PATH=~/install_test_dir $(CMAKE_PARAMS) ..
 	$(MAKE) -C $(BUILDIR)/cmake/build -j4;
 	$(MAKE) -C $(BUILDIR)/cmake/build install;
-	$(MAKE) -C $(BUILDIR)/cmake/build uninstall;
 	cd $(BUILDIR)/cmake/build; ctest -V
 
 c89build: clean

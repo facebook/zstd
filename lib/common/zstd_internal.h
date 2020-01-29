@@ -215,7 +215,7 @@ typedef enum {
  *         - ZSTD_overlap_src_before_dst: The src and dst may overlap, but they MUST be at least 8 bytes apart.
  *           The src buffer must be before the dst buffer.
  */
-MEM_STATIC FORCE_INLINE_ATTR DONT_VECTORIZE
+MEM_STATIC FORCE_INLINE_ATTR 
 void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length, ZSTD_overlap_e const ovtype)
 {
     ptrdiff_t diff = (BYTE*)dst - (const BYTE*)src;
@@ -232,13 +232,12 @@ void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length, ZSTD_overlap_e 
         } while (op < oend);
     } else {
         assert(diff >= WILDCOPY_VECLEN || diff <= -WILDCOPY_VECLEN);
-        /* Separate out the first two COPY16() calls because the copy length is
+        /* Separate out the first COPY16() call because the copy length is
          * almost certain to be short, so the branches have different
-         * probabilities.
-         * On gcc-9 unrolling once is +1.6%, twice is +2%, thrice is +1.8%.
-         * On clang-8 unrolling once is +1.4%, twice is +3.3%, thrice is +3%.
+         * probabilities. Since it is almost certain to be short, only do
+	 * one COPY16() in the first call. Then, do two calls per loop since
+	 * at that point it is more likely to have a high trip count.
          */
-        COPY16(op, ip);
         COPY16(op, ip);
         if (op >= oend) return;
         do {

@@ -87,6 +87,7 @@ matrix:
     - name: cmake build and test check    # ~2mn
       script:
         - make cmakebuild
+        - make -C tests test-symbols
 
     - name: static analyzer scanbuild    # ~26mn
       dist: trusty  # note : it's important to pin down a version of static analyzer, since different versions report different false positives

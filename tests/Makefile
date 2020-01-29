@@ -20,7 +20,6 @@
 
 ZSTDDIR = ../lib
 PRGDIR  = ../programs
-BUILDIR = ../build
 PYTHON ?= python3
 TESTARTEFACT := versionsTest
 
@@ -228,15 +227,7 @@ ifneq (,$(filter Windows%,$(OS)))
 	cp $(ZSTDDIR)/dll/libzstd.dll .
 	$(CC) $(FLAGS) $< -o $@$(EXT) -DZSTD_DLL_IMPORT=1 libzstd.dll
 else
-	cmake --version
-	$(RM) -r $(BUILDIR)/cmake/build
-	mkdir $(BUILDIR)/cmake/build
-	$(RM) -r $(BUILDIR)/cmake/install
-	mkdir $(BUILDIR)/cmake/install
-	cd $(BUILDIR)/cmake/build; cmake -DCMAKE_INSTALL_PREFIX:PATH=../install -DZSTD_BUILD_SHARED:BOOL=ON $(CMAKE_PARAMS) ..
-	$(MAKE) -C $(BUILDIR)/cmake/build -j4;
-	$(MAKE) -C $(BUILDIR)/cmake/build install;
-	$(CC) $(FLAGS) $< -o $@$(EXT) -Wl,-rpath=$(ZSTDDIR) -L$(BUILDIR)/cmake/install/lib64 -L$(BUILDIR)/cmake/install/lib -lzstd
+	$(CC) $(FLAGS) $< -o $@$(EXT) -Wl,-rpath=$(ZSTDDIR) $(ZSTDDIR)/libzstd.so   # broken on Mac
 endif
 
 poolTests : $(PRGDIR)/util.c $(PRGDIR)/timefn.c poolTests.c $(ZSTDDIR)/common/pool.c $(ZSTDDIR)/common/threading.c $(ZSTDDIR)/common/zstd_common.c $(ZSTDDIR)/common/error_private.c

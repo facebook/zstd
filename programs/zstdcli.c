@@ -41,6 +41,7 @@
 #  include "dibio.h"  /* ZDICT_cover_params_t, DiB_trainFromFiles() */
 #endif
 #include "zstd.h"     /* ZSTD_VERSION_STRING, ZSTD_minCLevel, ZSTD_maxCLevel */
+#include "zstd_compress_internal.h" /* ZSTD_compressionParameters, ZSTD_strategyMap */
 
 
 /*-************************************
@@ -580,6 +581,7 @@ int main(int const argCount, const char* argv[])
         separateFiles = 0,
         setRealTimePrio = 0,
         singleThread = 0,
+        showDefaultCParams = 0,
         ultra=0;
     double compressibility = 0.5;
     unsigned bench_nbSeconds = 3;   /* would be better if this value was synchronized from bench */
@@ -693,6 +695,7 @@ int main(int const argCount, const char* argv[])
                 if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(prefs, 1); continue; }
                 if (!strcmp(argument, "--priority=rt")) { setRealTimePrio = 1; continue; }
                 if (!strcmp(argument, "--output-dir-flat")) {nextArgumentIsOutDirName=1; lastCommand=1; continue; }
+                if (!strcmp(argument, "--show-default-cparams")) { showDefaultCParams = 1; continue; }
                 if (!strcmp(argument, "--adapt")) { adapt = 1; continue; }
                 if (longCommandWArg(&argument, "--adapt=")) { adapt = 1; if (!parseAdaptParameters(argument, &adaptMin, &adaptMax)) { badusage(programName); CLEAN_RETURN(1); } continue; }
                 if (!strcmp(argument, "--single-thread")) { nbWorkers = 0; singleThread = 1; continue; }
@@ -1170,6 +1173,17 @@ int main(int const argCount, const char* argv[])
     }   }
 #endif
 
+    if (showDefaultCParams) {
+        if (operation == zom_decompress) {
+            DISPLAY("error : can't use --show-default-cparams in decomrpession mode \n");
+            CLEAN_RETURN(1);
+        }
+        if (!UTIL_isRegularFile(filenames->fileNames[0])) {
+            DISPLAY("error : can't use --show-default-cparams with non-regular files \n");
+            CLEAN_RETURN(1);
+        }
+    }
+
     if (dictFileName != NULL && patchFromDictFileName != NULL) {
         DISPLAY("error : can't use -D and --patch-from=# at the same time \n");
         CLEAN_RETURN(1);
@@ -1212,6 +1226,25 @@ int main(int const argCount, const char* argv[])
         FIO_setLiteralCompressionMode(prefs, literalCompressionMode);
         if (adaptMin > cLevel) cLevel = adaptMin;
         if (adaptMax < cLevel) cLevel = adaptMax;
+
+        if (showDefaultCParams) {
+            size_t fileNb;
+            static const char* ZSTD_strategyMap[9 + 1] = { "", "ZSTD_fast",
+                "ZSTD_dfast", "ZSTD_greedy", "ZSTD_lazy", "ZSTD_lazy2", "ZSTD_btlazy2",
+                "ZSTD_btopt", "ZSTD_btultra", "ZSTD_btultra2"};
+            for (fileNb = 0; fileNb < (size_t)filenames->tableSize; fileNb++) {
+                const size_t fileSize = UTIL_getFileSize(filenames->fileNames[fileNb]);
+                const size_t cParamsIdx = (fileSize < 16 KB) ? 3 : ( (fileSize < 128 KB) ? 2 : ( (fileSize < 256 KB) ? 1 : 0) );
+                ZSTD_compressionParameters cParams = ZSTD_defaultCParameters[cParamsIdx][cLevel];
+                DISPLAY("%s (%u bytes)\n", filenames->fileNames[fileNb], (unsigned)fileSize);
+                DISPLAY(" - windowLog    : %u\n", (unsigned)cParams.windowLog);
+                DISPLAY(" - chainLog     : %u\n", (unsigned)cParams.chainLog);
+                DISPLAY(" - searchLog    : %u\n", (unsigned)cParams.searchLog);
+                DISPLAY(" - minMatch     : %u\n", (unsigned)cParams.minMatch);
+                DISPLAY(" - targetLength : %u\n", (unsigned)cParams.targetLength);
+                DISPLAY(" - strategy     : %s\n", ZSTD_strategyMap[(int)cParams.strategy]);
+            }
+        }
 
         if ((filenames->tableSize==1) && outFileName)
           operationResult = FIO_compressFilename(prefs, outFileName, filenames->fileNames[0], dictFileName, cLevel, compressionParams);

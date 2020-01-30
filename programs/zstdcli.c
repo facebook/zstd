@@ -1233,7 +1233,7 @@ int main(int const argCount, const char* argv[])
                 "ZSTD_dfast", "ZSTD_greedy", "ZSTD_lazy", "ZSTD_lazy2", "ZSTD_btlazy2",
                 "ZSTD_btopt", "ZSTD_btultra", "ZSTD_btultra2"};
             for (fileNb = 0; fileNb < (size_t)filenames->tableSize; fileNb++) {
-                const size_t fileSize = UTIL_getFileSize(filenames->fileNames[fileNb]);
+                const size_t fileSize = (size_t)UTIL_getFileSize(filenames->fileNames[fileNb]);
                 const size_t cParamsIdx = (fileSize < 16 KB) ? 3 : ( (fileSize < 128 KB) ? 2 : ( (fileSize < 256 KB) ? 1 : 0) );
                 ZSTD_compressionParameters cParams = ZSTD_defaultCParameters[cParamsIdx][cLevel];
                 DISPLAY("%s (%u bytes)\n", filenames->fileNames[fileNb], (unsigned)fileSize);

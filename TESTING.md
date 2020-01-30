@@ -19,7 +19,7 @@ Medium tests run on every commit and pull request to `dev` branch, on TravisCI.
 They consist of the following tests:
 - The following tests run with UBsan and Asan on x86_64 and x86, as well as with
   Msan on x86_64
-  - `tests/playTests.sh --test-long-data`
+  - `tests/playTests.sh --test-large-data`
   - Fuzzer tests: `tests/fuzzer.c`, `tests/zstreamtest.c`, and `tests/decodecorpus.c`
 - `tests/zstreamtest.c` under Tsan (streaming mode, including multithreaded mode)
 - Valgrind Test (`make -C tests valgrindTest`) (testing CLI and fuzzer under valgrind)

@@ -544,7 +544,7 @@ static int init_cLevel(void) {
     return ZSTDCLI_CLEVEL_DEFAULT;
 }
 
-#define ZSTD_NB_STRATEGIES 9
+#define ZSTD_NB_STRATEGIES ZSTD_STRATEGY_MAX
 static const char* ZSTD_strategyMap[ZSTD_NB_STRATEGIES + 1] = { "", "ZSTD_fast",
                 "ZSTD_dfast", "ZSTD_greedy", "ZSTD_lazy", "ZSTD_lazy2", "ZSTD_btlazy2",
                 "ZSTD_btopt", "ZSTD_btultra", "ZSTD_btultra2"};
@@ -1240,6 +1240,7 @@ int main(int const argCount, const char* argv[])
                 DISPLAY(" - searchLog    : %u\n", cParams.searchLog);
                 DISPLAY(" - minMatch     : %u\n", cParams.minMatch);
                 DISPLAY(" - targetLength : %u\n", cParams.targetLength);
+                assert(cParams.strategy < ZSTD_NB_STRATEGIES + 1);
                 DISPLAY(" - strategy     : %s\n", ZSTD_strategyMap[(int)cParams.strategy]);
             }
         }

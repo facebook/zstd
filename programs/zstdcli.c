@@ -1230,9 +1230,9 @@ int main(int const argCount, const char* argv[])
         if (showDefaultCParams) {
             size_t fileNb;
             for (fileNb = 0; fileNb < (size_t)filenames->tableSize; fileNb++) {
-                const size_t fileSize = UTIL_isRegularFile(filenames->fileNames[fileNb]) ? (size_t)UTIL_getFileSize(filenames->fileNames[fileNb]) : 0;
+                unsigned long long fileSize = UTIL_isRegularFile(filenames->fileNames[fileNb]) ? UTIL_getFileSize(filenames->fileNames[fileNb]) : 0;
                 const size_t dictSize = dictFileName != NULL ? (size_t)UTIL_getFileSize(dictFileName) : 0;
-                const ZSTD_compressionParameters cParams = ZSTD_getCParams(cLevel, (unsigned long long)fileSize, dictSize);
+                const ZSTD_compressionParameters cParams = ZSTD_getCParams(cLevel, fileSize, dictSize);
                 if (fileSize) DISPLAY("%s (%u bytes)\n", filenames->fileNames[fileNb], (unsigned)fileSize);
                 else DISPLAY("%s (src size unknown)\n", filenames->fileNames[fileNb]);
                 DISPLAY(" - windowLog    : %u\n", (unsigned)cParams.windowLog);

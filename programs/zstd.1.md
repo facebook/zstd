@@ -248,6 +248,14 @@ If the value of `ZSTD_CLEVEL` is not a valid integer, it will be ignored with a 
 `ZSTD_CLEVEL` just replaces the default compression level (`3`).
 It can be overridden by corresponding command line arguments.
 
+### Misc. arguments
+
+* `--show-default-cparams`:
+    Shows the default compresssion parameters that will be used for a
+    particular src file. If the provided src file is not a regular file
+    (eg. named pipe), the cli will just output the default paramters.
+    That is, the parameters that are used when the src size is
+    unknown.
 
 DICTIONARY BUILDER
 ------------------
@@ -362,11 +370,6 @@ Compression of small files similar to the sample set will be greatly improved.
     `zstd --train-legacy FILEs`
 
     `zstd --train-legacy=selectivity=8 FILEs`
-
-* `--show-default-cparams`:
-    Shows the default compresssion parameters that will be used for a
-    particular src file. If the provided src file is not a regular file
-    (eg. named pipe), the cli will just output the default paramters.
 
 
 BENCHMARK

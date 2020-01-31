@@ -363,6 +363,11 @@ Compression of small files similar to the sample set will be greatly improved.
 
     `zstd --train-legacy=selectivity=8 FILEs`
 
+* `--show-default-cparams`:
+    Shows the default compresssion parameters that will be used for a
+    particular src file. If the provided src file is not a regular file
+    (eg. named pipe), the cli will just output the default paramters.
+
 
 BENCHMARK
 ---------

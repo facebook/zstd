@@ -41,7 +41,6 @@
 #  include "dibio.h"  /* ZDICT_cover_params_t, DiB_trainFromFiles() */
 #endif
 #include "zstd.h"     /* ZSTD_VERSION_STRING, ZSTD_minCLevel, ZSTD_maxCLevel */
-#include "zstd_compress_internal.h" /* ZSTD_compressionParameters */
 
 
 /*-************************************
@@ -544,6 +543,11 @@ static int init_cLevel(void) {
 
     return ZSTDCLI_CLEVEL_DEFAULT;
 }
+
+#define ZSTD_NB_STRATEGIES 9
+static const char* ZSTD_strategyMap[ZSTD_NB_STRATEGIES + 1] = { "", "ZSTD_fast",
+                "ZSTD_dfast", "ZSTD_greedy", "ZSTD_lazy", "ZSTD_lazy2", "ZSTD_btlazy2",
+                "ZSTD_btopt", "ZSTD_btultra", "ZSTD_btultra2"};
 
 typedef enum { zom_compress, zom_decompress, zom_test, zom_bench, zom_train, zom_list } zstd_operation_mode;
 
@@ -1178,10 +1182,6 @@ int main(int const argCount, const char* argv[])
             DISPLAY("error : can't use --show-default-cparams in decomrpession mode \n");
             CLEAN_RETURN(1);
         }
-        if (!UTIL_isRegularFile(filenames->fileNames[0])) {
-            DISPLAY("error : can't use --show-default-cparams with non-regular files \n");
-            CLEAN_RETURN(1);
-        }
     }
 
     if (dictFileName != NULL && patchFromDictFileName != NULL) {
@@ -1229,14 +1229,12 @@ int main(int const argCount, const char* argv[])
 
         if (showDefaultCParams) {
             size_t fileNb;
-            static const char* ZSTD_strategyMap[9 + 1] = { "", "ZSTD_fast",
-                "ZSTD_dfast", "ZSTD_greedy", "ZSTD_lazy", "ZSTD_lazy2", "ZSTD_btlazy2",
-                "ZSTD_btopt", "ZSTD_btultra", "ZSTD_btultra2"};
             for (fileNb = 0; fileNb < (size_t)filenames->tableSize; fileNb++) {
-                const size_t fileSize = (size_t)UTIL_getFileSize(filenames->fileNames[fileNb]);
-                const size_t cParamsIdx = (fileSize < 16 KB) ? 3 : ( (fileSize < 128 KB) ? 2 : ( (fileSize < 256 KB) ? 1 : 0) );
-                ZSTD_compressionParameters cParams = ZSTD_defaultCParameters[cParamsIdx][cLevel];
-                DISPLAY("%s (%u bytes)\n", filenames->fileNames[fileNb], (unsigned)fileSize);
+                const size_t fileSize = UTIL_isRegularFile(filenames->fileNames[fileNb]) ? (size_t)UTIL_getFileSize(filenames->fileNames[fileNb]) : 0;
+                const size_t dictSize = dictFileName != NULL ? (size_t)UTIL_getFileSize(dictFileName) : 0;
+                const ZSTD_compressionParameters cParams = ZSTD_getCParams(cLevel, (unsigned long long)fileSize, dictSize);
+                if (fileSize) DISPLAY("%s (%u bytes)\n", filenames->fileNames[fileNb], (unsigned)fileSize);
+                else DISPLAY("%s (src size unknown)\n", filenames->fileNames[fileNb]);
                 DISPLAY(" - windowLog    : %u\n", (unsigned)cParams.windowLog);
                 DISPLAY(" - chainLog     : %u\n", (unsigned)cParams.chainLog);
                 DISPLAY(" - searchLog    : %u\n", (unsigned)cParams.searchLog);

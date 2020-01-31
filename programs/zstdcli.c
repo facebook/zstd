@@ -544,7 +544,10 @@ static int init_cLevel(void) {
     return ZSTDCLI_CLEVEL_DEFAULT;
 }
 
+#define ZSTD_CLI_STATIC_ASSERT(c) (void)sizeof(char[(c) ? 1 : -1])
+
 #define ZSTD_NB_STRATEGIES ZSTD_STRATEGY_MAX
+
 static const char* ZSTD_strategyMap[ZSTD_NB_STRATEGIES + 1] = { "", "ZSTD_fast",
                 "ZSTD_dfast", "ZSTD_greedy", "ZSTD_lazy", "ZSTD_lazy2", "ZSTD_btlazy2",
                 "ZSTD_btopt", "ZSTD_btultra", "ZSTD_btultra2"};
@@ -1226,6 +1229,8 @@ int main(int const argCount, const char* argv[])
         FIO_setLiteralCompressionMode(prefs, literalCompressionMode);
         if (adaptMin > cLevel) cLevel = adaptMin;
         if (adaptMax < cLevel) cLevel = adaptMax;
+
+        ZSTD_CLI_STATIC_ASSERT(ZSTD_NB_STRATEGIES >= ZSTD_STRATEGY_MIN && ZSTD_NB_STRATEGIES <= ZSTD_STRATEGY_MAX);
 
         if (showDefaultCParams) {
             size_t fileNb;

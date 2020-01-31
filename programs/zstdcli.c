@@ -1233,13 +1233,13 @@ int main(int const argCount, const char* argv[])
                 unsigned long long fileSize = UTIL_isRegularFile(filenames->fileNames[fileNb]) ? UTIL_getFileSize(filenames->fileNames[fileNb]) : 0;
                 const size_t dictSize = dictFileName != NULL ? (size_t)UTIL_getFileSize(dictFileName) : 0;
                 const ZSTD_compressionParameters cParams = ZSTD_getCParams(cLevel, fileSize, dictSize);
-                if (fileSize) DISPLAY("%s (%u bytes)\n", filenames->fileNames[fileNb], (unsigned)fileSize);
+                if (fileSize) DISPLAY("%s (%u bytes)\n", filenames->fileNames[fileNb], fileSize);
                 else DISPLAY("%s (src size unknown)\n", filenames->fileNames[fileNb]);
-                DISPLAY(" - windowLog    : %u\n", (unsigned)cParams.windowLog);
-                DISPLAY(" - chainLog     : %u\n", (unsigned)cParams.chainLog);
-                DISPLAY(" - searchLog    : %u\n", (unsigned)cParams.searchLog);
-                DISPLAY(" - minMatch     : %u\n", (unsigned)cParams.minMatch);
-                DISPLAY(" - targetLength : %u\n", (unsigned)cParams.targetLength);
+                DISPLAY(" - windowLog    : %u\n", cParams.windowLog);
+                DISPLAY(" - chainLog     : %u\n", cParams.chainLog);
+                DISPLAY(" - searchLog    : %u\n", cParams.searchLog);
+                DISPLAY(" - minMatch     : %u\n", cParams.minMatch);
+                DISPLAY(" - targetLength : %u\n", cParams.targetLength);
                 DISPLAY(" - strategy     : %s\n", ZSTD_strategyMap[(int)cParams.strategy]);
             }
         }

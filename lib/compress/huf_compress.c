@@ -299,7 +299,7 @@ static void HUF_sort(nodeElt* huffNode, const unsigned* count, U32 maxSymbolValu
 {
     U32 n;
 
-    memset(rank, 0, sizeof(rankPos)*32);
+    memset(rank, 0, sizeof(rankPos) * 32);
     for (n=0; n<=maxSymbolValue; n++) {
         U32 r = BIT_highbit32(count[n] + 1);
         rank[r].base ++;
@@ -334,11 +334,11 @@ size_t HUF_buildCTable_wksp (HUF_CElt* tree, const unsigned* count, U32 maxSymbo
     int lowS, lowN;
     U16 nodeNb = STARTNODE;
     U32 nodeRoot;
-    rankPos rank[32];
-
+    rankPos* rank = (rankPos *)(huffNode + 1);
+    DEBUGLOG(3, "workspace %p huffnode0 %p huffnode %p rank %p workspaceend %p", workSpace, huffNode0, huffNode, rank, ((BYTE*)workSpace) + wkspSize);
     /* safety checks */
     if (((size_t)workSpace & 3) != 0) return ERROR(GENERIC);  /* must be aligned on 4-bytes boundaries */
-    if (wkspSize < sizeof(huffNodeTable)) return ERROR(workSpace_tooSmall);
+    if (wkspSize < sizeof(huffNodeTable) + sizeof(rankPos) * 32) return ERROR(workSpace_tooSmall);
     if (maxNbBits == 0) maxNbBits = HUF_TABLELOG_DEFAULT;
     if (maxSymbolValue > HUF_SYMBOLVALUE_MAX) return ERROR(maxSymbolValue_tooLarge);
     memset(huffNode0, 0, sizeof(huffNodeTable));
@@ -403,8 +403,9 @@ size_t HUF_buildCTable_wksp (HUF_CElt* tree, const unsigned* count, U32 maxSymbo
  */
 size_t HUF_buildCTable (HUF_CElt* tree, const unsigned* count, unsigned maxSymbolValue, unsigned maxNbBits)
 {
-    huffNodeTable nodeTable;
-    return HUF_buildCTable_wksp(tree, count, maxSymbolValue, maxNbBits, nodeTable, sizeof(nodeTable));
+    U32 workspace[HUF_WORKSPACE_SIZE_U32];
+    DEBUGLOG(3, "!!!");
+    return HUF_buildCTable_wksp(tree, count, maxSymbolValue, maxNbBits, workspace, sizeof(workspace));
 }
 
 size_t HUF_estimateCompressedSize(const HUF_CElt* CTable, const unsigned* count, unsigned maxSymbolValue)

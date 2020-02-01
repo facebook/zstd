@@ -295,12 +295,11 @@ typedef struct {
     U32 current;
 } rankPos;
 
-static void HUF_sort(nodeElt* huffNode, const unsigned* count, U32 maxSymbolValue)
+static void HUF_sort(nodeElt* huffNode, const unsigned* count, U32 maxSymbolValue, rankPos* rank)
 {
-    rankPos rank[32];
     U32 n;
 
-    memset(rank, 0, sizeof(rank));
+    memset(rank, 0, sizeof(rankPos)*32);
     for (n=0; n<=maxSymbolValue; n++) {
         U32 r = BIT_highbit32(count[n] + 1);
         rank[r].base ++;
@@ -335,6 +334,7 @@ size_t HUF_buildCTable_wksp (HUF_CElt* tree, const unsigned* count, U32 maxSymbo
     int lowS, lowN;
     U16 nodeNb = STARTNODE;
     U32 nodeRoot;
+    rankPos rank[32];
 
     /* safety checks */
     if (((size_t)workSpace & 3) != 0) return ERROR(GENERIC);  /* must be aligned on 4-bytes boundaries */
@@ -344,7 +344,7 @@ size_t HUF_buildCTable_wksp (HUF_CElt* tree, const unsigned* count, U32 maxSymbo
     memset(huffNode0, 0, sizeof(huffNodeTable));
 
     /* sort, decreasing order */
-    HUF_sort(huffNode, count, maxSymbolValue);
+    HUF_sort(huffNode, count, maxSymbolValue, rank);
 
     /* init for parents */
     nonNullRank = maxSymbolValue;

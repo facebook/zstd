@@ -544,9 +544,7 @@ static int init_cLevel(void) {
     return ZSTDCLI_CLEVEL_DEFAULT;
 }
 
-#define ZSTD_CLI_STATIC_ASSERT(c) (void)sizeof(char[(c) ? 1 : -1])
-
-#define ZSTD_NB_STRATEGIES ZSTD_STRATEGY_MAX
+#define ZSTD_NB_STRATEGIES 9
 
 static const char* ZSTD_strategyMap[ZSTD_NB_STRATEGIES + 1] = { "", "ZSTD_fast",
                 "ZSTD_dfast", "ZSTD_greedy", "ZSTD_lazy", "ZSTD_lazy2", "ZSTD_btlazy2",
@@ -1230,7 +1228,9 @@ int main(int const argCount, const char* argv[])
         if (adaptMin > cLevel) cLevel = adaptMin;
         if (adaptMax < cLevel) cLevel = adaptMax;
 
-        ZSTD_CLI_STATIC_ASSERT(ZSTD_NB_STRATEGIES >= ZSTD_STRATEGY_MIN && ZSTD_NB_STRATEGIES <= ZSTD_STRATEGY_MAX);
+        /* Compare strategies constant with the ground truth */
+        { ZSTD_bounds strategyBounds = ZSTD_cParam_getBounds(ZSTD_c_strategy);
+          assert(ZSTD_NB_STRATEGIES == strategyBounds.upperBound);}
 
         if (showDefaultCParams) {
             size_t fileNb;

@@ -109,11 +109,11 @@ MEM_STATIC size_t BIT_closeCStream(BIT_CStream_t* bitC);
 *  bitStream decoding API (read backward)
 **********************************************/
 typedef struct {
-    size_t   bitContainer;
-    unsigned bitsConsumed;
     const char* ptr;
     const char* start;
     const char* limitPtr;
+    size_t   bitContainer;
+    unsigned bitsConsumed;
 } BIT_DStream_t;
 
 typedef enum { BIT_DStream_unfinished = 0,

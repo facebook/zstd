@@ -457,6 +457,18 @@ ls tmp* > tmpList
 $ZSTD -f tmp1 --filelist=tmpList --filelist=tmpList tmp2 tmp3  # can trigger an overflow of internal file list
 rm -rf tmp*
 
+println "test : show-default-cparams regular"
+$DATAGEN > tmp
+$ZSTD --show-default-cparams -f tmp
+rm -rf tmp*
+
+println "test : show-default-cparams recursive"
+mkdir tmp_files
+$DATAGEN -g15000 > tmp_files/tmp1
+$DATAGEN -g129000 > tmp_files/tmp2
+$DATAGEN -g257000 > tmp_files/tmp3
+$ZSTD --show-default-cparams -f -r tmp_files
+rm -rf tmp*
 
 println "\n===>  Advanced compression parameters "
 println "Hello world!" | $ZSTD --zstd=windowLog=21,      - -o tmp.zst && die "wrong parameters not detected!"

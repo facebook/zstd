@@ -544,6 +544,12 @@ static int init_cLevel(void) {
     return ZSTDCLI_CLEVEL_DEFAULT;
 }
 
+#define ZSTD_NB_STRATEGIES 9
+
+static const char* ZSTD_strategyMap[ZSTD_NB_STRATEGIES + 1] = { "", "ZSTD_fast",
+                "ZSTD_dfast", "ZSTD_greedy", "ZSTD_lazy", "ZSTD_lazy2", "ZSTD_btlazy2",
+                "ZSTD_btopt", "ZSTD_btultra", "ZSTD_btultra2"};
+
 typedef enum { zom_compress, zom_decompress, zom_test, zom_bench, zom_train, zom_list } zstd_operation_mode;
 
 #define CLEAN_RETURN(i) { operationResult = (i); goto _end; }
@@ -580,6 +586,7 @@ int main(int const argCount, const char* argv[])
         separateFiles = 0,
         setRealTimePrio = 0,
         singleThread = 0,
+        showDefaultCParams = 0,
         ultra=0;
     double compressibility = 0.5;
     unsigned bench_nbSeconds = 3;   /* would be better if this value was synchronized from bench */
@@ -693,6 +700,7 @@ int main(int const argCount, const char* argv[])
                 if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(prefs, 1); continue; }
                 if (!strcmp(argument, "--priority=rt")) { setRealTimePrio = 1; continue; }
                 if (!strcmp(argument, "--output-dir-flat")) {nextArgumentIsOutDirName=1; lastCommand=1; continue; }
+                if (!strcmp(argument, "--show-default-cparams")) { showDefaultCParams = 1; continue; }
                 if (!strcmp(argument, "--adapt")) { adapt = 1; continue; }
                 if (longCommandWArg(&argument, "--adapt=")) { adapt = 1; if (!parseAdaptParameters(argument, &adaptMin, &adaptMax)) { badusage(programName); CLEAN_RETURN(1); } continue; }
                 if (!strcmp(argument, "--single-thread")) { nbWorkers = 0; singleThread = 1; continue; }
@@ -1170,6 +1178,13 @@ int main(int const argCount, const char* argv[])
     }   }
 #endif
 
+    if (showDefaultCParams) {
+        if (operation == zom_decompress) {
+            DISPLAY("error : can't use --show-default-cparams in decomrpession mode \n");
+            CLEAN_RETURN(1);
+        }
+    }
+
     if (dictFileName != NULL && patchFromDictFileName != NULL) {
         DISPLAY("error : can't use -D and --patch-from=# at the same time \n");
         CLEAN_RETURN(1);
@@ -1213,12 +1228,34 @@ int main(int const argCount, const char* argv[])
         if (adaptMin > cLevel) cLevel = adaptMin;
         if (adaptMax < cLevel) cLevel = adaptMax;
 
+        /* Compare strategies constant with the ground truth */
+        { ZSTD_bounds strategyBounds = ZSTD_cParam_getBounds(ZSTD_c_strategy);
+          assert(ZSTD_NB_STRATEGIES == strategyBounds.upperBound);}
+
+        if (showDefaultCParams) {
+            size_t fileNb;
+            for (fileNb = 0; fileNb < (size_t)filenames->tableSize; fileNb++) {
+                unsigned long long fileSize = UTIL_getFileSize(filenames->fileNames[fileNb]);
+                const size_t dictSize = dictFileName != NULL ? (size_t)UTIL_getFileSize(dictFileName) : 0;
+                const ZSTD_compressionParameters cParams = ZSTD_getCParams(cLevel, fileSize, dictSize);
+                if (fileSize != UTIL_FILESIZE_UNKNOWN) DISPLAY("%s (%u bytes)\n", filenames->fileNames[fileNb], (unsigned)fileSize);
+                else DISPLAY("%s (src size unknown)\n", filenames->fileNames[fileNb]);
+                DISPLAY(" - windowLog    : %u\n", cParams.windowLog);
+                DISPLAY(" - chainLog     : %u\n", cParams.chainLog);
+                DISPLAY(" - searchLog    : %u\n", cParams.searchLog);
+                DISPLAY(" - minMatch     : %u\n", cParams.minMatch);
+                DISPLAY(" - targetLength : %u\n", cParams.targetLength);
+                assert(cParams.strategy < ZSTD_NB_STRATEGIES + 1);
+                DISPLAY(" - strategy     : %s\n", ZSTD_strategyMap[(int)cParams.strategy]);
+            }
+        }
+
         if ((filenames->tableSize==1) && outFileName)
           operationResult = FIO_compressFilename(prefs, outFileName, filenames->fileNames[0], dictFileName, cLevel, compressionParams);
         else
           operationResult = FIO_compressMultipleFilenames(prefs, filenames->fileNames, (unsigned)filenames->tableSize, outDirName, outFileName, suffix, dictFileName, cLevel, compressionParams);
 #else
-        (void)suffix; (void)adapt; (void)rsyncable; (void)ultra; (void)cLevel; (void)ldmFlag; (void)literalCompressionMode; (void)targetCBlockSize; (void)streamSrcSize; (void)srcSizeHint; /* not used when ZSTD_NOCOMPRESS set */
+        (void)suffix; (void)adapt; (void)rsyncable; (void)ultra; (void)cLevel; (void)ldmFlag; (void)literalCompressionMode; (void)targetCBlockSize; (void)streamSrcSize; (void)srcSizeHint; (void)ZSTD_strategyMap; /* not used when ZSTD_NOCOMPRESS set */
         DISPLAY("Compression not supported \n");
 #endif
     } else {  /* decompression or test */

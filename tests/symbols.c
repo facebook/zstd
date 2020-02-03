@@ -21,15 +21,13 @@
 #include "zdict.h"
 
 /* Symbols that aren't being tested for in:
- * ["zstreamtest.c", "fuzzer.c", "fullbench.c", "longmatch.c", "legacy.c", "poolTests.c", "invalidDictionaries.c", "decodecorpus.c"] */
+ * ["zstreamtest.c", "fuzzer.c", "fullbench.c", "longmatch.c", "legacy.c",
+ *    "poolTests.c", "invalidDictionaries.c", "decodecorpus.c", "fileio.c",
+ *    "dibio.c", "benchzstd.c", "zstdcli.c"] */
 static const void *symbols[] = {
   ZSTD_versionNumber,
   ZSTD_getDecompressedSize,
-  ZSTD_CStreamInSize,
-  ZSTD_CStreamOutSize,
-  ZSTD_DStreamInSize,
   ZSTD_checkCParams,
-  ZSTD_isFrame,
   ZSTD_createDCtx_advanced,
   ZSTD_sizeof_DCtx,
   ZSTD_getDictID_fromDDict,
@@ -57,8 +55,6 @@ static const void *symbols[] = {
   ZBUFF_createCCtx_advanced,
   ZBUFF_createDCtx_advanced,
   ZBUFF_compressInit_advanced,
-  ZDICT_trainFromBuffer_fastCover,
-  ZDICT_trainFromBuffer_legacy,
   ZDICT_addEntropyTablesFromBuffer,
   NULL,
 };

@@ -375,7 +375,6 @@ BMK_benchMemAdvancedNoAlloc(
                 resPtr += thisBlockSize;
                 remaining -= thisBlockSize;
                 if (adv->mode == BMK_decodeOnly) {
-                    assert(nbBlocks==0);
                     cSizes[nbBlocks] = thisBlockSize;
                     benchResult.cSize = thisBlockSize;
                 }
@@ -483,7 +482,7 @@ BMK_benchMemAdvancedNoAlloc(
                 {   int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
                     DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.*f),%6.*f MB/s ,%6.1f MB/s \r",
                             marks[markNb], displayName,
-                            (unsigned)srcSize, (unsigned)benchResult.cSize,
+                            (unsigned)srcSize, (unsigned)cSize,
                             ratioAccuracy, ratio,
                             benchResult.cSpeed < (10 MB) ? 2 : 1, (double)benchResult.cSpeed / MB_UNIT,
                             (double)benchResult.dSpeed / MB_UNIT);

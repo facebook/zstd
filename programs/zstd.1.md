@@ -228,6 +228,12 @@ the last one takes effect.
     `-vvV` also displays POSIX support.
 * `-v`:
     verbose mode
+* `--show-default-cparams`:
+    Shows the default compresssion parameters that will be used for a
+    particular src file. If the provided src file is not a regular file
+    (eg. named pipe), the cli will just output the default paramters.
+    That is, the parameters that are used when the src size is
+    unknown.
 * `-q`, `--quiet`:
     suppress warnings, interactivity, and notifications.
     specify twice to suppress errors too.

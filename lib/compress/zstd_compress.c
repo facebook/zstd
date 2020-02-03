@@ -3059,8 +3059,9 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
     {   size_t const dictID = cdict ?
                 ZSTD_compress_insertDictionary(
                         cctx->blockState.prevCBlock, &cctx->blockState.matchState,
-                        &cctx->workspace, &cctx->appliedParams, cdict->dictContent, cdict->dictContentSize,
-                        dictContentType, dtlm, cctx->entropyWorkspace)
+                        &cctx->workspace, &cctx->appliedParams, cdict->dictContent,
+                        cdict->dictContentSize, dictContentType, dtlm,
+                        cctx->entropyWorkspace)
               : ZSTD_compress_insertDictionary(
                         cctx->blockState.prevCBlock, &cctx->blockState.matchState,
                         &cctx->workspace, &cctx->appliedParams, dict, dictSize,

@@ -25,19 +25,6 @@
  *    "poolTests.c", "invalidDictionaries.c", "decodecorpus.c", "fileio.c",
  *    "dibio.c", "benchzstd.c", "zstdcli.c"] */
 static const void *symbols[] = {
-  ZSTD_versionNumber,
-  ZSTD_getDecompressedSize,
-  ZSTD_checkCParams,
-  ZSTD_createDCtx_advanced,
-  ZSTD_sizeof_DCtx,
-  ZSTD_getDictID_fromDDict,
-  ZSTD_createDStream_advanced,
-  ZSTD_copyDCtx,
-  ZSTD_nextInputType,
-  ZBUFF_recommendedCInSize,
-  ZBUFF_recommendedCOutSize,
-  ZBUFF_recommendedDInSize,
-  ZBUFF_recommendedDOutSize,
   ZDICT_addEntropyTablesFromBuffer,
   NULL,
 };

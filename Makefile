@@ -65,7 +65,7 @@ zlibwrapper: lib
 ## test: run long-duration tests
 .PHONY: test
 DEBUGLEVEL ?= 1
-test: MOREFLAGS += -g -DDEBUGLEVEL=$(DEBUGLEVEL) -Werror
+test: MOREFLAGS += -g -DDEBUGLEVEL=$(DEBUGLEVEL) -Werror -pedantic
 test:
 	MOREFLAGS="$(MOREFLAGS)" $(MAKE) -j -C $(PRGDIR) allVariants
 	$(MAKE) -C $(TESTDIR) $@

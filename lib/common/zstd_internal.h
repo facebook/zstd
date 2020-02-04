@@ -54,26 +54,65 @@ extern "C" {
 #define MAX(a,b) ((a)>(b) ? (a) : (b))
 
 /**
+ * Reduce a variadic's macro arguments to the 16th argument.
+ * To be used in bypassing the C99 standard for 0 variadic
+ * arguments in a variadic macro (see the macros that use
+ * it below). Note that this essentially limits the maximum
+ * arguments to 16 (which should be sufficient however).
+*/
+#define _REDUCE_MACRO(\
+    _1, _2, _3, _4, \
+    _5, _6, _7, _8, \
+    _9, _10, _11, _12, \
+    _13, _14, _15, _16, ...) _16
+
+/**
  * Return the specified error if the condition evaluates to true.
  *
  * In debug modes, prints additional information.
  * In order to do that (particularly, printing the conditional that failed),
  * this can't just wrap RETURN_ERROR().
+ *
+ * To conform with the ISO C99, in which a variadic macro is not valid with
+ * 0 variadic arguments, this is one possible solution side-pass it.
  */
-#define RETURN_ERROR_IF(cond, err, ...) \
+#define RETURN_ERROR_IF2(cond, err) \
+  if (cond) { \
+    RAWLOG(3, "%s:%d: ERROR!: check %s failed, returning %s", __FILE__, __LINE__, ZSTD_QUOTE(cond), ZSTD_QUOTE(ERROR(err))); \
+    return ERROR(err); \
+  }
+
+#define RETURN_ERROR_IF_MORE(cond, err, ...) \
   if (cond) { \
     RAWLOG(3, "%s:%d: ERROR!: check %s failed, returning %s", __FILE__, __LINE__, ZSTD_QUOTE(cond), ZSTD_QUOTE(ERROR(err))); \
     RAWLOG(3, ": " __VA_ARGS__); \
     RAWLOG(3, "\n"); \
     return ERROR(err); \
   }
+#define _RM_RET_IF(c, e, ...) RETURN_ERROR_IF_MORE(c, e, __VA_ARGS__)
+
+#define RETURN_ERROR_IF(...) \
+    _REDUCE_MACRO(__VA_ARGS__, \
+        _RM_RET_IF, _RM_RET_IF, _RM_RET_IF, _RM_RET_IF, \
+        _RM_RET_IF, _RM_RET_IF, _RM_RET_IF, _RM_RET_IF, \
+        _RM_RET_IF, _RM_RET_IF, _RM_RET_IF, _RM_RET_IF, \
+        _RM_RET_IF, RETURN_ERROR_IF2,)(__VA_ARGS__)
 
 /**
  * Unconditionally return the specified error.
  *
  * In debug modes, prints additional information.
+ *
+ * To conform with the ISO C99, in which a variadic macro is not valid with
+ * 0 variadic arguments, this is one possible solution side-pass it.
  */
-#define RETURN_ERROR(err, ...) \
+#define RETURN_ERROR1(err) \
+  do { \
+    RAWLOG(3, "%s:%d: ERROR!: unconditional check failed, returning %s", __FILE__, __LINE__, ZSTD_QUOTE(ERROR(err))); \
+    return ERROR(err); \
+  } while(0);
+
+#define RETURN_ERROR_MORE(err, ...) \
   do { \
     RAWLOG(3, "%s:%d: ERROR!: unconditional check failed, returning %s", __FILE__, __LINE__, ZSTD_QUOTE(ERROR(err))); \
     RAWLOG(3, ": " __VA_ARGS__); \
@@ -81,12 +120,33 @@ extern "C" {
     return ERROR(err); \
   } while(0);
 
+#define _RM_RET(e, ...) RETURN_ERROR_MORE(e, __VA_ARGS__)
+
+#define RETURN_ERROR(...) \
+    _REDUCE_MACRO(__VA_ARGS__, \
+        _RM_RET, _RM_RET, _RM_RET, _RM_RET, \
+        _RM_RET, _RM_RET, _RM_RET, _RM_RET, \
+        _RM_RET, _RM_RET, _RM_RET, _RM_RET, \
+        _RM_RET, _RM_RET, RETURN_ERROR1,)(__VA_ARGS__)
+
 /**
  * If the provided expression evaluates to an error code, returns that error code.
  *
  * In debug modes, prints additional information.
+ *
+ * To conform with the ISO C99, in which a variadic macro is not valid with
+ * 0 variadic arguments, this is one possible solution side-pass it.
  */
-#define FORWARD_IF_ERROR(err, ...) \
+#define FORWARD_IF_ERROR1(err) \
+  do { \
+    size_t const err_code = (err); \
+    if (ERR_isError(err_code)) { \
+      RAWLOG(3, "%s:%d: ERROR!: forwarding error in %s: %s", __FILE__, __LINE__, ZSTD_QUOTE(err), ERR_getErrorName(err_code)); \
+      return err_code; \
+    } \
+  } while(0);
+
+#define FORWARD_IF_ERROR_MORE(err, ...) \
   do { \
     size_t const err_code = (err); \
     if (ERR_isError(err_code)) { \
@@ -96,6 +156,15 @@ extern "C" {
       return err_code; \
     } \
   } while(0);
+
+#define _RM_FIF(e, ...) FORWARD_IF_ERROR_MORE(e, __VA_ARGS__)
+
+#define FORWARD_IF_ERROR(...) \
+    _REDUCE_MACRO(__VA_ARGS__, \
+        _RM_FIF, _RM_FIF, _RM_FIF, _RM_FIF, \
+        _RM_FIF, _RM_FIF, _RM_FIF, _RM_FIF, \
+        _RM_FIF, _RM_FIF, _RM_FIF, _RM_FIF, \
+        _RM_FIF, _RM_FIF, FORWARD_IF_ERROR1,)(__VA_ARGS__)
 
 
 /*-*************************************

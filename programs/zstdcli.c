@@ -1240,13 +1240,13 @@ int main(int const argCount, const char* argv[])
                 const ZSTD_compressionParameters cParams = ZSTD_getCParams(cLevel, fileSize, dictSize);
                 if (fileSize != UTIL_FILESIZE_UNKNOWN) DISPLAY("%s (%u bytes)\n", filenames->fileNames[fileNb], (unsigned)fileSize);
                 else DISPLAY("%s (src size unknown)\n", filenames->fileNames[fileNb]);
-                DISPLAY(" - windowLog    : %u\n", cParams.windowLog);
-                DISPLAY(" - chainLog     : %u\n", cParams.chainLog);
-                DISPLAY(" - searchLog    : %u\n", cParams.searchLog);
-                DISPLAY(" - minMatch     : %u\n", cParams.minMatch);
-                DISPLAY(" - targetLength : %u\n", cParams.targetLength);
+                DISPLAY(" - windowLog           : %u\n", cParams.windowLog);
+                DISPLAY(" - chainLog            : %u\n", cParams.chainLog);
+                DISPLAY(" - searchLog           : %u\n", cParams.searchLog);
+                DISPLAY(" - minMatch            : %u\n", cParams.minMatch);
+                DISPLAY(" - targetLength        : %u\n", cParams.targetLength);
                 assert(cParams.strategy < ZSTD_NB_STRATEGIES + 1);
-                DISPLAY(" - strategy     : %s\n", ZSTD_strategyMap[(int)cParams.strategy]);
+                DISPLAY(" - strategy (level=%i) : %s\n", cLevel, ZSTD_strategyMap[(int)cParams.strategy]);
             }
         }
 

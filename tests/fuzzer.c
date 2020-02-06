@@ -366,6 +366,11 @@ static int basicUnitTests(U32 const seed, double compressibility)
         DISPLAYLEVEL(3, "%i (OK) \n", mcl);
     }
 
+    DISPLAYLEVEL(3, "test%3u : ZSTD_versionNumber : ", testNb++);
+    {   unsigned const vn = ZSTD_versionNumber();
+        DISPLAYLEVEL(3, "%u (OK) \n", vn);
+    }
+
     DISPLAYLEVEL(3, "test%3u : compress %u bytes : ", testNb++, (unsigned)CNBuffSize);
     {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
         if (cctx==NULL) goto _output_error;
@@ -389,9 +394,14 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
-
     DISPLAYLEVEL(3, "test%3i : ZSTD_getFrameContentSize test : ", testNb++);
     {   unsigned long long const rSize = ZSTD_getFrameContentSize(compressedBuffer, cSize);
+        if (rSize != CNBuffSize) goto _output_error;
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : ZSTD_getDecompressedSize test : ", testNb++);
+    {   unsigned long long const rSize = ZSTD_getDecompressedSize(compressedBuffer, cSize);
         if (rSize != CNBuffSize) goto _output_error;
     }
     DISPLAYLEVEL(3, "OK \n");
@@ -427,6 +437,31 @@ static int basicUnitTests(U32 const seed, double compressibility)
             if (((BYTE*)decodedBuffer)[u] != ((BYTE*)CNBuffer)[u]) goto _output_error;
     }   }
     DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : ZSTD_checkCParams : ", testNb++);
+    {
+        ZSTD_parameters params = ZSTD_getParams(3, 0, 0);
+        assert(!ZSTD_checkCParams(params.cParams));
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : ZSTD_createDCtx_advanced and ZSTD_sizeof_DCtx: ", testNb++);
+    {
+        ZSTD_DCtx* const dctx = ZSTD_createDCtx_advanced(ZSTD_defaultCMem);
+        assert(dctx != NULL);
+        assert(ZSTD_sizeof_DCtx(dctx) != 0);
+        ZSTD_freeDCtx(dctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : misc unaccounted for zstd symbols : ", testNb++);
+    {
+        DISPLAYLEVEL(3, "%p ", ZSTD_getDictID_fromDDict);
+        DISPLAYLEVEL(3, "%p ", ZSTD_createDStream_advanced);
+        DISPLAYLEVEL(3, "%p ", ZSTD_copyDCtx);
+        DISPLAYLEVEL(3, "%p ", ZSTD_nextInputType);
+    }
+    DISPLAYLEVEL(3, ": OK \n");
 
     DISPLAYLEVEL(3, "test%3i : decompress with null dict : ", testNb++);
     {   ZSTD_DCtx* const dctx = ZSTD_createDCtx(); assert(dctx != NULL);

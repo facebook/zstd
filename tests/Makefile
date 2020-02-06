@@ -222,14 +222,6 @@ legacy : $(ZSTD_FILES) $(wildcard $(ZSTDDIR)/legacy/*.c) legacy.c
 decodecorpus : $(filter-out zstdc_zstd_compress.o, $(ZSTD_OBJECTS)) $(ZDICT_FILES) $(PRGDIR)/util.c $(PRGDIR)/timefn.c decodecorpus.c
 	$(CC) $(FLAGS) $^ -o $@$(EXT) -lm
 
-symbols  : symbols.c zstd-dll
-ifneq (,$(filter Windows%,$(OS)))
-	cp $(ZSTDDIR)/dll/libzstd.dll .
-	$(CC) $(FLAGS) $< -o $@$(EXT) -DZSTD_DLL_IMPORT=1 libzstd.dll
-else
-	$(CC) $(FLAGS) $< -o $@$(EXT) -Wl,-rpath=$(ZSTDDIR) $(ZSTDDIR)/libzstd.so   # broken on Mac
-endif
-
 poolTests : $(PRGDIR)/util.c $(PRGDIR)/timefn.c poolTests.c $(ZSTDDIR)/common/pool.c $(ZSTDDIR)/common/threading.c $(ZSTDDIR)/common/zstd_common.c $(ZSTDDIR)/common/error_private.c
 	$(CC) $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
 
@@ -403,9 +395,6 @@ test-bigdict: bigdict
 
 test-invalidDictionaries: invalidDictionaries
 	$(QEMU_SYS) ./invalidDictionaries
-
-test-symbols: symbols
-	$(QEMU_SYS) ./symbols
 
 test-legacy: legacy
 	$(QEMU_SYS) ./legacy

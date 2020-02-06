@@ -131,14 +131,6 @@ decodecorpus = executable('decodecorpus',
   dependencies: [ libzstd_dep, libm_dep ],
   install: false)
 
-symbols_sources = [join_paths(zstd_rootdir, 'tests/symbols.c')]
-symbols = executable('symbols',
-  symbols_sources,
-  include_directories: test_includes,
-  c_args: host_machine_os == os_windows ? '-DZSTD_DLL_IMPORT=1' : [],
-  dependencies: [ libzstd_dep ],
-  install: false)
-
 poolTests_sources = [join_paths(zstd_rootdir, 'programs/util.c'),
   join_paths(zstd_rootdir, 'programs/timefn.c'),
   join_paths(zstd_rootdir, 'tests/poolTests.c'),
@@ -219,7 +211,6 @@ test('test-zstream-3',
   timeout: 120)
 test('test-longmatch', longmatch, timeout: 36)
 test('test-invalidDictionaries', invalidDictionaries) # should be fast
-test('test-symbols', symbols) # should be fast
 if 0 < legacy_level and legacy_level <= 4
   test('test-legacy', legacy) # should be fast
 endif

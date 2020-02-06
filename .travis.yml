@@ -168,6 +168,11 @@ matrix:
       script:
         - make test
 
+    - name: zbuff test
+      if: branch = master
+      script:
+        - make test-zbuff
+
     - name: Versions Compatibility Test   # 11.5mn
       if: branch = master
       script:

@@ -1,0 +1,22 @@
+name: CIFuzz
+on: [pull_request]
+jobs:
+  Fuzzing:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Build Fuzzers
+      uses: google/oss-fuzz/infra/cifuzz/actions/build_fuzzers@master
+      with:
+        project-name: 'zstd'
+        dry-run: true
+    - name: Run Fuzzers
+      uses: google/oss-fuzz/infra/cifuzz/actions/run_fuzzers@master
+      with:
+        fuzz-time: 600
+        dry-run: true
+    - name: Upload Crash
+      uses: actions/upload-artifact@v1
+      if: failure()
+      with:
+        name: bug_report
+        path: ./out/bug_report

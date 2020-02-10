@@ -730,7 +730,7 @@ size_t ZSTD_execSequence(BYTE* op,
     assert(WILDCOPY_OVERLENGTH >= 16);
     ZSTD_copy16(op, (*litPtr));
     if (UNLIKELY(sequence.litLength > 16)) {
-        ZSTD_wildcopy(op+16, (*litPtr)+16, sequence.litLength-16, ZSTD_no_overlap);
+        ZSTD_wildcopy(op+16, (*litPtr)+16, sequence.litLength, ZSTD_no_overlap);
     }
     op = oLitEnd;
     *litPtr = iLitEnd;   /* update for next sequence */
@@ -776,7 +776,7 @@ size_t ZSTD_execSequence(BYTE* op,
     /* If the match length is > 8 bytes, then continue with the wildcopy. */
     if (sequence.matchLength > 8) {
         assert(op < oMatchEnd);
-        ZSTD_wildcopy(op, match, (ptrdiff_t)sequence.matchLength-8, ZSTD_overlap_src_before_dst);
+        ZSTD_wildcopy(op, match, (ptrdiff_t)sequence.matchLength, ZSTD_overlap_src_before_dst);
     }
     return sequenceLength;
 }

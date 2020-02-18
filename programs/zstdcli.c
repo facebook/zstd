@@ -254,10 +254,12 @@ static int readU32FromCharChecked(const char** stringPtr, unsigned* value)
 {
     unsigned result = 0;
     while ((**stringPtr >='0') && (**stringPtr <='9')) {
-        unsigned const max = (((unsigned)(-1)) / 10) - 1;
+        unsigned const max = ((unsigned)(-1)) / 10;
+        unsigned last = result;
         if (result > max) return 1; /* overflow error */
         result *= 10;
         result += (unsigned)(**stringPtr - '0');
+        if (result < last) return 1; /* overflow error */
         (*stringPtr)++ ;
     }
     if ((**stringPtr=='K') || (**stringPtr=='M')) {

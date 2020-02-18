@@ -93,7 +93,7 @@ Our contribution process works in three main stages:
         * You will have to iterate on your changes with feedback from other collaborators to reach a point
         where your pull request can be safely merged.
         * To avoid too many comments on style and convention, make sure that you have a
-        look at your style section below before creating a pull request.
+        look at our style section below before creating a pull request.
         * Eventually, someone from the zstd team will approve your pull request and not long after merge it into
         the dev branch.
     * Housekeeping:
@@ -105,9 +105,6 @@ Our contribution process works in three main stages:
         that contributers track the activity on their pull request and corresponding issue(s) page(s) until
         their change makes it to the next release of zstd. Users will often discover bugs in your code or
         suggest ways to refine and improve your initial changes even after the pull request is merged.
-
-## Zstandard style and conventions
-
 
 ## Setting up continuous integration (CI) on your fork
 Zstd uses a number of different continuous integration (CI) tools to ensure that new changes

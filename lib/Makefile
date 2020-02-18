@@ -227,11 +227,20 @@ INCLUDEDIR  ?= $(includedir)
 PCLIBDIR ?= $(shell echo "$(LIBDIR)" | sed -n -e "s@^$(exec_prefix)\\(/\\|$$\\)@@p")
 PCINCDIR ?= $(shell echo "$(INCLUDEDIR)" | sed -n -e "s@^$(prefix)\\(/\\|$$\\)@@p")
 
+ifeq (,$(PCLIBDIR))
+# Additional prefix check is required, since the empty string is technically a
+# valid PCLIBDIR
 ifeq (,$(shell echo "$(LIBDIR)" | sed -n -e "\\@^$(exec_prefix)\\(/\\|$$\\)@ p"))
 $(error configured libdir ($(LIBDIR)) is outside of prefix ($(prefix)), can't generate pkg-config file)
 endif
+endif
+
+ifeq (,$(PCINCDIR))
+# Additional prefix check is required, since the empty string is technically a
+# valid PCINCDIR
 ifeq (,$(shell echo "$(INCLUDEDIR)" | sed -n -e "\\@^$(prefix)\\(/\\|$$\\)@ p"))
 $(error configured includedir ($(INCLUDEDIR)) is outside of exec_prefix ($(exec_prefix)), can't generate pkg-config file)
+endif
 endif
 
 ifneq (,$(filter $(shell uname),FreeBSD NetBSD DragonFly))

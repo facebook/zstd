@@ -26,6 +26,89 @@ to do this once to work on any of Facebook's open source projects.
 
 Complete your CLA here: <https://code.facebook.com/cla>
 
+## Workflow
+Zstd uses a branch-based workflow for making changes to the codebase. Typically, zstd
+will use a new branch per sizable topic. For smaller changes, it is okay to lump multiple
+related changes into a branch.
+
+Our contribution process works in three main stages:
+1. Local development
+    * Update:
+        * Checkout your fork of zstd if you have not already
+        ```
+        git checkout https://github.com/<username>/zstd
+        cd zstd
+        ```
+        * Update your local dev branch
+        ```
+        git pull https://github.com/facebook/zstd dev
+        git push origin dev
+        ```
+    * Topic and deveopment:
+        * Make a new branch on your fork about the topic you're developing for
+        ```
+        # branch names should be consise but sufficiently informative
+        git checkout -b <branch-name>
+        git push origin <branch-name>
+        ```
+        * Make commits and push
+        ```
+        # make some changes =
+        git add -u && git commit -m <message>
+        git push origin <branch-name>
+        ```
+        * Note: run local tests to ensure that your changes didn't break existing functionality
+            * Quick check
+            ```
+            make shortest
+            ```
+            * Longer check
+            ```
+            make test
+            ```
+2. Code Review and CI tests
+    * Ensure CI tests pass:
+        * Before sharing anything to the community, make sure that all CI tests pass on your local fork.
+        See our section on setting up your CI environment for more information on how to do this.
+    * Create a pull request:
+        * When you are ready to share you changes to the community, create a pull request from your branch
+        to facebook:dev. You can do this very easily by clicking 'Create Pull Request' on your fork's home
+        page.
+        * From there, select the branch where you made changes as your source branch and facebook:dev
+        as the destination.
+        * Examine the diff presented between the two branches to make sure there is nothing unexpected.
+    * Write a good pull request description:
+        * While there is no strict template that our contributers follow, we would like them to
+        sufficiently summarize and motivate the changes they are proposing. We recommend all pull requests,
+        at least indirectly, address the following points.
+            * Is this pull request important and why?
+            * Is it addressing an issue? If so, what issue? (provide links for convenience please)
+            * Is this a new feature? If so, why is it useful and/or necessary?
+            * Are there background references and documents that reviewers should be aware of to properly assess this change?
+        * Note: make sure to point out any design and architectural decisions that you made and the rationale behind them.
+        * Note: if you have been working with a specific user and would like them to review your work, make sure you mention them using (@<username>)
+    * Submit the pull request and iterate with feedback.
+3. Merge and Release
+    * Getting approval:
+        * You will have to iterate on your changes with feedback from other collaborators to reach a point
+        where your pull request can be safely merged.
+        * To avoid too many comments on style and convention, make sure that you have a
+        look at your style section below before creating a pull request.
+        * Eventually, someone from the zstd team will approve your pull request and not long after merge it into
+        the dev branch.
+    * Housekeeping:
+        * Most PRs are linked with one or more Github issues. If this is the case for your PR, make sure
+        the corresponding issue is mentioned. If your change 'fixes' or completely addresses the
+        issue at hand, then please indicate this by requesting that an issue be closed by commenting.
+        * Just because your changes have been merged does not mean the topic or larger issue is complete. Remember
+        that the change must make it to an official zstd release for it to be meaningful. We recommend
+        that contributers track the activity on their pull request and corresponding issue(s) page(s) until
+        their change makes it to the next release of zstd. Users will often discover bugs in your code or
+        suggest ways to refine and improve your initial changes even after the pull request is merged.
+
+## Zstandard style and conventions
+
+
 ## Setting up continuous integration (CI) on your fork
 Zstd uses a number of different continuous integration (CI) tools to ensure that new changes
 are well tested before they make it to an official release. Specifically, we use the platforms

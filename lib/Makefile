@@ -224,6 +224,16 @@ LIBDIR      ?= $(libdir)
 includedir  ?= $(PREFIX)/include
 INCLUDEDIR  ?= $(includedir)
 
+PCLIBDIR ?= $(shell echo "$(LIBDIR)" | sed -n -e "s@^$(exec_prefix)\\(/\\|$$\\)@@p")
+PCINCDIR ?= $(shell echo "$(INCLUDEDIR)" | sed -n -e "s@^$(prefix)\\(/\\|$$\\)@@p")
+
+ifeq (,$(shell echo "$(LIBDIR)" | sed -n -e "\\@^$(exec_prefix)\\(/\\|$$\\)@ p"))
+$(error configured libdir ($(LIBDIR)) is outside of prefix ($(prefix)), can't generate pkg-config file)
+endif
+ifeq (,$(shell echo "$(INCLUDEDIR)" | sed -n -e "\\@^$(prefix)\\(/\\|$$\\)@ p"))
+$(error configured includedir ($(INCLUDEDIR)) is outside of exec_prefix ($(exec_prefix)), can't generate pkg-config file)
+endif
+
 ifneq (,$(filter $(shell uname),FreeBSD NetBSD DragonFly))
 PKGCONFIGDIR ?= $(PREFIX)/libdata/pkgconfig
 else
@@ -239,11 +249,11 @@ endif
 INSTALL_PROGRAM ?= $(INSTALL)
 INSTALL_DATA    ?= $(INSTALL) -m 644
 
-
-libzstd.pc:
 libzstd.pc: libzstd.pc.in
 	@echo creating pkgconfig
 	@sed -e 's|@PREFIX@|$(PREFIX)|' \
+             -e 's|@LIBDIR@|$(PCLIBDIR)|' \
+             -e 's|@INCLUDEDIR@|$(PCINCDIR)|' \
              -e 's|@VERSION@|$(VERSION)|' \
              $< >$@
 

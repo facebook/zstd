@@ -219,27 +219,28 @@ DESTDIR     ?=
 prefix      ?= /usr/local
 PREFIX      ?= $(prefix)
 exec_prefix ?= $(PREFIX)
-libdir      ?= $(exec_prefix)/lib
+EXEC_PREFIX ?= $(exec_prefix)
+libdir      ?= $(EXEC_PREFIX)/lib
 LIBDIR      ?= $(libdir)
 includedir  ?= $(PREFIX)/include
 INCLUDEDIR  ?= $(includedir)
 
-PCLIBDIR ?= $(shell echo "$(LIBDIR)" | sed -n -e "s@^$(exec_prefix)\\(/\\|$$\\)@@p")
-PCINCDIR ?= $(shell echo "$(INCLUDEDIR)" | sed -n -e "s@^$(prefix)\\(/\\|$$\\)@@p")
+PCLIBDIR ?= $(shell echo "$(LIBDIR)" | sed -n -e "s@^$(EXEC_PREFIX)\\(/\\|$$\\)@@p")
+PCINCDIR ?= $(shell echo "$(INCLUDEDIR)" | sed -n -e "s@^$(PREFIX)\\(/\\|$$\\)@@p")
 
 ifeq (,$(PCLIBDIR))
 # Additional prefix check is required, since the empty string is technically a
 # valid PCLIBDIR
-ifeq (,$(shell echo "$(LIBDIR)" | sed -n -e "\\@^$(exec_prefix)\\(/\\|$$\\)@ p"))
-$(error configured libdir ($(LIBDIR)) is outside of prefix ($(prefix)), can't generate pkg-config file)
+ifeq (,$(shell echo "$(LIBDIR)" | sed -n -e "\\@^$(EXEC_PREFIX)\\(/\\|$$\\)@ p"))
+$(error configured libdir ($(LIBDIR)) is outside of prefix ($(PREFIX)), can't generate pkg-config file)
 endif
 endif
 
 ifeq (,$(PCINCDIR))
 # Additional prefix check is required, since the empty string is technically a
 # valid PCINCDIR
-ifeq (,$(shell echo "$(INCLUDEDIR)" | sed -n -e "\\@^$(prefix)\\(/\\|$$\\)@ p"))
-$(error configured includedir ($(INCLUDEDIR)) is outside of exec_prefix ($(exec_prefix)), can't generate pkg-config file)
+ifeq (,$(shell echo "$(INCLUDEDIR)" | sed -n -e "\\@^$(PREFIX)\\(/\\|$$\\)@ p"))
+$(error configured includedir ($(INCLUDEDIR)) is outside of exec_prefix ($(EXEC_PREFIX)), can't generate pkg-config file)
 endif
 endif
 

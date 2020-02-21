@@ -284,9 +284,54 @@ static int readU32FromCharChecked(const char** stringPtr, unsigned* value)
  *  Will also modify `*stringPtr`, advancing it to position where it stopped reading.
  *  Note : function will exit() program if digit sequence overflows */
 static unsigned readU32FromChar(const char** stringPtr) {
-    static const char errorMsg[] = "error: numeric value too large";
+    static const char errorMsg[] = "error: numeric value overflows 32-bit unsigned int";
     unsigned result;
     if (readU32FromCharChecked(stringPtr, &result)) { errorOut(errorMsg); }
+    return result;
+}
+
+/*! readSizeTFromCharChecked() :
+ * @return 0 if success, and store the result in *value.
+ *  allows and interprets K, KB, KiB, M, MB and MiB suffix.
+ *  Will also modify `*stringPtr`, advancing it to position where it stopped reading.
+ * @return 1 if an overflow error occurs */
+static int readSizeTFromCharChecked(const char** stringPtr, size_t* value)
+{
+    size_t result = 0;
+    while ((**stringPtr >='0') && (**stringPtr <='9')) {
+        size_t const max = ((size_t)(-1)) / 10;
+        size_t last = result;
+        if (result > max) return 1; /* overflow error */
+        result *= 10;
+        result += (size_t)(**stringPtr - '0');
+        if (result < last) return 1; /* overflow error */
+        (*stringPtr)++ ;
+    }
+    if ((**stringPtr=='K') || (**stringPtr=='M')) {
+        size_t const maxK = ((size_t)(-1)) >> 10;
+        if (result > maxK) return 1; /* overflow error */
+        result <<= 10;
+        if (**stringPtr=='M') {
+            if (result > maxK) return 1; /* overflow error */
+            result <<= 10;
+        }
+        (*stringPtr)++;  /* skip `K` or `M` */
+        if (**stringPtr=='i') (*stringPtr)++;
+        if (**stringPtr=='B') (*stringPtr)++;
+    }
+    *value = result;
+    return 0;
+}
+
+/*! readSizeTFromChar() :
+ * @return : size_t value read from input in `char` format.
+ *  allows and interprets K, KB, KiB, M, MB and MiB suffix.
+ *  Will also modify `*stringPtr`, advancing it to position where it stopped reading.
+ *  Note : function will exit() program if digit sequence overflows */
+static size_t readSizeTFromChar(const char** stringPtr) {
+    static const char errorMsg[] = "error: numeric value overflows size_t";
+    size_t result;
+    if (readSizeTFromCharChecked(stringPtr, &result)) { errorOut(errorMsg); }
     return result;
 }
 
@@ -762,13 +807,13 @@ int main(int const argCount, const char* argv[])
                 if (longCommandWArg(&argument, "--memlimit=")) { memLimit = readU32FromChar(&argument); continue; }
                 if (longCommandWArg(&argument, "--memory=")) { memLimit = readU32FromChar(&argument); continue; }
                 if (longCommandWArg(&argument, "--memlimit-decompress=")) { memLimit = readU32FromChar(&argument); continue; }
-                if (longCommandWArg(&argument, "--block-size=")) { blockSize = readU32FromChar(&argument); continue; }
+                if (longCommandWArg(&argument, "--block-size=")) { blockSize = readSizeTFromChar(&argument); continue; }
                 if (longCommandWArg(&argument, "--maxdict=")) { maxDictSize = readU32FromChar(&argument); continue; }
                 if (longCommandWArg(&argument, "--dictID=")) { dictID = readU32FromChar(&argument); continue; }
                 if (longCommandWArg(&argument, "--zstd=")) { if (!parseCompressionParameters(argument, &compressionParams)) { badusage(programName); CLEAN_RETURN(1); } continue; }
-                if (longCommandWArg(&argument, "--stream-size=")) { streamSrcSize = readU32FromChar(&argument); continue; }
-                if (longCommandWArg(&argument, "--target-compressed-block-size=")) { targetCBlockSize = readU32FromChar(&argument); continue; }
-                if (longCommandWArg(&argument, "--size-hint=")) { srcSizeHint = readU32FromChar(&argument); continue; }
+                if (longCommandWArg(&argument, "--stream-size=")) { streamSrcSize = readSizeTFromChar(&argument); continue; }
+                if (longCommandWArg(&argument, "--target-compressed-block-size=")) { targetCBlockSize = readSizeTFromChar(&argument); continue; }
+                if (longCommandWArg(&argument, "--size-hint=")) { srcSizeHint = readSizeTFromChar(&argument); continue; }
                 if (longCommandWArg(&argument, "--output-dir-flat=")) { outDirName = argument; continue; }
                 if (longCommandWArg(&argument, "--patch-from=")) { patchFromDictFileName = argument; continue; }
                 if (longCommandWArg(&argument, "--long")) {

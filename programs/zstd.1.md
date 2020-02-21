@@ -456,17 +456,17 @@ The list of available _options_:
 
     The minimum _mml_ is 3 and the maximum is 7.
 
-- `targetLen`=_tlen_, `tlen`=_tlen_:
+- `targetLength`=_tlen_, `tlen`=_tlen_:
     The impact of this field vary depending on selected strategy.
 
     For ZSTD\_btopt, ZSTD\_btultra and ZSTD\_btultra2, it specifies
     the minimum match length that causes match finder to stop searching.
-    A larger `targetLen` usually improves compression ratio
+    A larger `targetLength` usually improves compression ratio
     but decreases compression speed.
 
     For ZSTD\_fast, it triggers ultra-fast mode when > 0.
     The value represents the amount of data skipped between match sampling.
-    Impact is reversed : a larger `targetLen` increases compression speed
+    Impact is reversed : a larger `targetLength` increases compression speed
     but decreases compression ratio.
 
     For all other strategies, this field has no impact.

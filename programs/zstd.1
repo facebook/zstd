@@ -1,5 +1,5 @@
 .
-.TH "ZSTD" "1" "November 2019" "zstd 1.4.4" "User Commands"
+.TH "ZSTD" "1" "February 2020" "zstd 1.4.5" "User Commands"
 .
 .SH "NAME"
 \fBzstd\fR \- zstd, zstdmt, unzstd, zstdcat \- Compress or decompress \.zst files
@@ -111,6 +111,18 @@ Display information related to a zstd compressed file, such as size, ratio, and 
 Note: If \fBwindowLog\fR is set to larger than 27, \fB\-\-long=windowLog\fR or \fB\-\-memory=windowSize\fR needs to be passed to the decompressor\.
 .
 .IP "\(bu" 4
+\fB\-\-patch\-from=FILE\fR: Specify the file to be used as a reference point for zstd\'s diff engine\. This is effectively dictionary compression with some convenient parameter selection, namely that windowSize > srcSize\.
+.
+.IP
+Note: cannot use both this and \-D together
+.
+.IP "\(bu" 4
+\fB\-M#\fR, \fB\-\-memory=#\fR: Set a memory usage limit\. By default, Zstandard uses 128 MB for decompression as the maximum amount of memory the decompressor is allowed to use, but you can override this manually if need be in either direction (ie\. you can increase or decrease it)\.
+.
+.IP
+This is also used during compression when using with \-\-patch\-from=\. In this case, this parameter overrides that maximum size allowed for a dictionary\. (128 MB)\.
+.
+.IP "\(bu" 4
 \fB\-T#\fR, \fB\-\-threads=#\fR: Compress using \fB#\fR working threads (default: 1)\. If \fB#\fR is 0, attempt to detect and use the number of physical CPU cores\. In all cases, the nb of threads is capped to ZSTDMT_NBTHREADS_MAX==200\. This modifier does nothing if \fBzstd\fR is compiled without multithread support\.
 .
 .IP "\(bu" 4
@@ -171,7 +183,10 @@ Note: If \fBwindowLog\fR is set to larger than 27, \fB\-\-long=windowLog\fR or \
 \fB\-V\fR, \fB\-\-version\fR: display version number and exit\. Advanced : \fB\-vV\fR also displays supported formats\. \fB\-vvV\fR also displays POSIX support\.
 .
 .IP "\(bu" 4
-\fB\-v\fR: verbose mode
+\fB\-v\fR, \fB\-\-verbose\fR: verbose mode
+.
+.IP "\(bu" 4
+\fB\-\-show\-default\-cparams\fR: Shows the default compresssion parameters that will be used for a particular src file\. If the provided src file is not a regular file (eg\. named pipe), the cli will just output the default paramters\. That is, the parameters that are used when the src size is unknown\.
 .
 .IP "\(bu" 4
 \fB\-q\fR, \fB\-\-quiet\fR: suppress warnings, interactivity, and notifications\. specify twice to suppress errors too\.
@@ -338,7 +353,7 @@ Specify the maximum number of bits for a hash table\.
 Bigger hash tables cause less collisions which usually makes compression faster, but requires more memory during compression\.
 .
 .IP
-The minimum \fIhlog\fR is 6 (64 B) and the maximum is 26 (128 MiB)\.
+The minimum \fIhlog\fR is 6 (64 B) and the maximum is 30 (1 GiB)\.
 .
 .TP
 \fBchainLog\fR=\fIclog\fR, \fBclog\fR=\fIclog\fR
@@ -348,7 +363,7 @@ Specify the maximum number of bits for a hash chain or a binary tree\.
 Higher numbers of bits increases the chance to find a match which usually improves compression ratio\. It also slows down compression speed and increases memory requirements for compression\. This option is ignored for the ZSTD_fast strategy\.
 .
 .IP
-The minimum \fIclog\fR is 6 (64 B) and the maximum is 28 (256 MiB)\.
+The minimum \fIclog\fR is 6 (64 B) and the maximum is 29 (524 Mib) on 32\-bit platforms and 30 (1 Gib) on 64\-bit platforms\.
 .
 .TP
 \fBsearchLog\fR=\fIslog\fR, \fBslog\fR=\fIslog\fR
@@ -358,7 +373,7 @@ Specify the maximum number of searches in a hash chain or a binary tree using lo
 More searches increases the chance to find a match which usually increases compression ratio but decreases compression speed\.
 .
 .IP
-The minimum \fIslog\fR is 1 and the maximum is 26\.
+The minimum \fIslog\fR is 1 and the maximum is \'windowLog\' \- 1\.
 .
 .TP
 \fBminMatch\fR=\fImml\fR, \fBmml\fR=\fImml\fR
@@ -384,7 +399,7 @@ For ZSTD_fast, it triggers ultra\-fast mode when > 0\. The value represents the 
 For all other strategies, this field has no impact\.
 .
 .IP
-The minimum \fItlen\fR is 0 and the maximum is 999\.
+The minimum \fItlen\fR is 0 and the maximum is 128 Kib\.
 .
 .TP
 \fBoverlapLog\fR=\fIovlog\fR, \fBovlog\fR=\fIovlog\fR
@@ -404,7 +419,7 @@ This option is ignored unless long distance matching is enabled\.
 Bigger hash tables usually improve compression ratio at the expense of more memory during compression and a decrease in compression speed\.
 .
 .IP
-The minimum \fIlhlog\fR is 6 and the maximum is 26 (default: 20)\.
+The minimum \fIlhlog\fR is 6 and the maximum is 30 (default: 20)\.
 .
 .TP
 \fBldmMinMatch\fR=\fIlmml\fR, \fBlmml\fR=\fIlmml\fR
@@ -430,7 +445,7 @@ This option is ignored unless long distance matching is enabled\.
 Larger bucket sizes improve collision resolution but decrease compression speed\.
 .
 .IP
-The minimum \fIlblog\fR is 0 and the maximum is 8 (default: 3)\.
+The minimum \fIlblog\fR is 1 and the maximum is 8 (default: 3)\.
 .
 .TP
 \fBldmHashRateLog\fR=\fIlhrlog\fR, \fBlhrlog\fR=\fIlhrlog\fR

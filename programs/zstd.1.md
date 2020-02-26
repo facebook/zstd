@@ -226,7 +226,7 @@ the last one takes effect.
     display version number and exit.
     Advanced : `-vV` also displays supported formats.
     `-vvV` also displays POSIX support.
-* `-v`:
+* `-v`, `--verbose`:
     verbose mode
 * `--show-default-cparams`:
     Shows the default compresssion parameters that will be used for a

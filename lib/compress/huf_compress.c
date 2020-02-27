@@ -289,28 +289,34 @@ static U32 HUF_setMaxHeight(nodeElt* huffNode, U32 lastNonNull, U32 maxNbBits)
     return maxNbBits;
 }
 
-
 typedef struct {
     U32 base;
     U32 current;
 } rankPos;
 
-static void HUF_sort(nodeElt* huffNode, const unsigned* count, U32 maxSymbolValue, rankPos* rank)
+typedef nodeElt huffNodeTable[HUF_CTABLE_WORKSPACE_SIZE_U32];
+
+typedef struct {
+  rankPos rankPosition[32];
+  huffNodeTable huffNodeTbl;
+} HUF_buildCTable_wksp_tables;
+
+static void HUF_sort(nodeElt* huffNode, const unsigned* count, U32 maxSymbolValue, rankPos* rankPosition)
 {
     U32 n;
 
-    memset(rank, 0, sizeof(rankPos) * 32);
+    memset(rankPosition, 0, sizeof(*rankPosition));
     for (n=0; n<=maxSymbolValue; n++) {
         U32 r = BIT_highbit32(count[n] + 1);
-        rank[r].base ++;
+        rankPosition[r].base ++;
     }
-    for (n=30; n>0; n--) rank[n-1].base += rank[n].base;
-    for (n=0; n<32; n++) rank[n].current = rank[n].base;
+    for (n=30; n>0; n--) rankPosition[n-1].base += rankPosition[n].base;
+    for (n=0; n<32; n++) rankPosition[n].current = rankPosition[n].base;
     for (n=0; n<=maxSymbolValue; n++) {
         U32 const c = count[n];
         U32 const r = BIT_highbit32(c+1) + 1;
-        U32 pos = rank[r].current++;
-        while ((pos > rank[r].base) && (c > huffNode[pos-1].count)) {
+        U32 pos = rankPosition[r].current++;
+        while ((pos > rankPosition[r].base) && (c > huffNode[pos-1].count)) {
             huffNode[pos] = huffNode[pos-1];
             pos--;
         }
@@ -325,26 +331,28 @@ static void HUF_sort(nodeElt* huffNode, const unsigned* count, U32 maxSymbolValu
  *  `workSpace` must be aligned on 4-bytes boundaries, and be at least as large as a table of HUF_CTABLE_WORKSPACE_SIZE_U32 unsigned.
  */
 #define STARTNODE (HUF_SYMBOLVALUE_MAX+1)
-typedef nodeElt huffNodeTable[HUF_CTABLE_WORKSPACE_SIZE_U32];
+
 size_t HUF_buildCTable_wksp (HUF_CElt* tree, const unsigned* count, U32 maxSymbolValue, U32 maxNbBits, void* workSpace, size_t wkspSize)
 {
-    nodeElt* const huffNode0 = (nodeElt*)workSpace;
+    HUF_buildCTable_wksp_tables* const wksp_tables = (HUF_buildCTable_wksp_tables*)workSpace;
+    nodeElt* const huffNode0 = wksp_tables->huffNodeTbl;
     nodeElt* const huffNode = huffNode0+1;
     U32 n, nonNullRank;
     int lowS, lowN;
     U16 nodeNb = STARTNODE;
     U32 nodeRoot;
-    rankPos* rank = (rankPos *)(huffNode0 + HUF_CTABLE_WORKSPACE_SIZE / sizeof(nodeElt*));
 
     /* safety checks */
     if (((size_t)workSpace & 3) != 0) return ERROR(GENERIC);  /* must be aligned on 4-bytes boundaries */
-    if (wkspSize < sizeof(huffNodeTable) + sizeof(rankPos) * 32) return ERROR(workSpace_tooSmall);
+    if (wkspSize < sizeof(HUF_buildCTable_wksp_tables))
+      return ERROR(workSpace_tooSmall);
     if (maxNbBits == 0) maxNbBits = HUF_TABLELOG_DEFAULT;
-    if (maxSymbolValue > HUF_SYMBOLVALUE_MAX) return ERROR(maxSymbolValue_tooLarge);
+    if (maxSymbolValue > HUF_SYMBOLVALUE_MAX)
+      return ERROR(maxSymbolValue_tooLarge);
     memset(huffNode0, 0, sizeof(huffNodeTable));
 
     /* sort, decreasing order */
-    HUF_sort(huffNode, count, maxSymbolValue, rank);
+    HUF_sort(huffNode, count, maxSymbolValue, wksp_tables->rankPosition);
 
     /* init for parents */
     nonNullRank = maxSymbolValue;

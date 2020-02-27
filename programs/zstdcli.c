@@ -1289,6 +1289,7 @@ int main(int const argCount, const char* argv[])
                 else DISPLAY("%s (src size unknown)\n", filenames->fileNames[fileNb]);
                 DISPLAY(" - windowLog     : %u\n", cParams.windowLog);
                 DISPLAY(" - chainLog      : %u\n", cParams.chainLog);
+                DISPLAY(" - hashLog       : %u\n", cParams.hashLog);
                 DISPLAY(" - searchLog     : %u\n", cParams.searchLog);
                 DISPLAY(" - minMatch      : %u\n", cParams.minMatch);
                 DISPLAY(" - targetLength  : %u\n", cParams.targetLength);

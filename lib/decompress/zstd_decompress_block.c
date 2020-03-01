@@ -563,13 +563,13 @@ typedef struct {
 } ZSTD_fseState;
 
 typedef struct {
+    BIT_DStream_t DStream;
     ZSTD_fseState stateLL;
     ZSTD_fseState stateOffb;
     ZSTD_fseState stateML;
+    size_t prevOffset[ZSTD_REP_NUM];
     const BYTE* prefixStart;
     const BYTE* dictEnd;
-    BIT_DStream_t DStream;
-    size_t prevOffset[ZSTD_REP_NUM];
     size_t pos;
 } seqState_t;
 

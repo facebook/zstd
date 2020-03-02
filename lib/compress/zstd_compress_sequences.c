@@ -96,17 +96,21 @@ size_t ZSTD_fseBitCost(
     unsigned s;
     FSE_CState_t cstate;
     FSE_initCState(&cstate, ctable);
-    RETURN_ERROR_IF(ZSTD_getFSEMaxSymbolValue(ctable) < max, GENERIC,
-                    "Repeat FSE_CTable has maxSymbolValue %u < %u",
+    if (ZSTD_getFSEMaxSymbolValue(ctable) < max) {
+        DEBUGLOG(5, "Repeat FSE_CTable has maxSymbolValue %u < %u",
                     ZSTD_getFSEMaxSymbolValue(ctable), max);
+        return ERROR(GENERIC);
+    }
     for (s = 0; s <= max; ++s) {
         unsigned const tableLog = cstate.stateLog;
         unsigned const badCost = (tableLog + 1) << kAccuracyLog;
         unsigned const bitCost = FSE_bitCost(cstate.symbolTT, tableLog, s, kAccuracyLog);
         if (count[s] == 0)
             continue;
-        RETURN_ERROR_IF(bitCost >= badCost, GENERIC,
-                        "Repeat FSE_CTable has Prob[%u] == 0", s);
+        if (bitCost >= badCost) {
+            DEBUGLOG(5, "Repeat FSE_CTable has Prob[%u] == 0", s);
+            return ERROR(GENERIC);
+        }
         cost += count[s] * bitCost;
     }
     return cost >> kAccuracyLog;

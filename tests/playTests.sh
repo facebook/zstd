@@ -63,6 +63,7 @@ SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 PRGDIR="$SCRIPT_DIR/../programs"
 TESTDIR="$SCRIPT_DIR/../tests"
 UNAME=$(uname)
+ZSTDGREP="$PRGDIR/zstdgrep"
 
 detectedTerminal=false
 if [ -t 0 ] && [ -t 1 ]
@@ -224,6 +225,17 @@ $ZSTD tmp -c --compress-literals    --fast=1 | $ZSTD -t
 $ZSTD tmp -c --compress-literals    -19      | $ZSTD -t
 $ZSTD -b --fast=1 -i0e1 tmp --compress-literals
 $ZSTD -b --fast=1 -i0e1 tmp --no-compress-literals
+
+println "\n===> zstdgrep tests"
+ln -sf $ZSTD_BIN zstdcat
+rm -f tmp_grep
+echo "1234" > tmp_grep
+$ZSTD -f tmp_grep
+lines=$(ZCAT=./zstdcat $ZSTDGREP 2>&1 "1234" tmp_grep tmp_grep.zst | wc -l)
+test 2 -eq $lines
+ZCAT=./zstdcat $ZSTDGREP 2>&1 "1234" tmp_grep_bad.zst && die "Should have failed"
+ZCAT=./zstdcat $ZSTDGREP 2>&1 "1234" tmp_grep_bad.zst | grep "No such file or directory" || true
+rm -f tmp_grep*
 
 println "\n===>  --exclude-compressed flag"
 rm -rf precompressedFilterTestDir

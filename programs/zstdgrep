@@ -109,7 +109,7 @@ if [ "$#" -lt 1 ]; then
     # ... on stdin
     set -f # Disable file name generation (globbing).
     # shellcheck disable=SC2086
-    "${zcat}" -fq - | "${grep}" ${grep_args} -- "${pattern}" -
+    "${zcat}" - | "${grep}" ${grep_args} -- "${pattern}" -
     EXIT_CODE=$?
     set +f
 else
@@ -121,9 +121,9 @@ else
     while [ "$#" -gt 0 ]; do
         # shellcheck disable=SC2086
         if [ $pattern_found -eq 2 ]; then
-            "${zcat}" -fq -- "$1" | "${grep}" --label="${1}" ${grep_args} -- -
+            "${zcat}" -- "$1" | "${grep}" --label="${1}" ${grep_args} -- -
         else
-            "${zcat}" -fq -- "$1" | "${grep}" --label="${1}" ${grep_args} -- "${pattern}" -
+            "${zcat}" -- "$1" | "${grep}" --label="${1}" ${grep_args} -- "${pattern}" -
         fi
         [ "$?" -ne 0 ] && EXIT_CODE=1
         shift

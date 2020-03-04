@@ -25,6 +25,22 @@ env:
 matrix:
   fast_finish: true
   include:
+    - name: icc
+      compiler: icc
+      env:
+      - C_COMPILER=icc
+      - CXX_COMPILER=icpc
+      install:
+      - source /opt/intel/inteloneapi/compiler/latest/env/vars.sh
+      addons:
+        apt:
+          sources:
+          - sourceline: 'deb https://apt.repos.intel.com/oneapi all main'
+            key_url: 'https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB'
+          packages:
+          - intel-oneapi-icc
+      script: make check
+
     - name: arm64    # ~2.5 mn
       os: linux
       arch: arm64

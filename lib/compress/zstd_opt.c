@@ -881,6 +881,11 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
             { U32 i ; for (i=0; i<ZSTD_REP_NUM; i++) opt[0].rep[i] = rep[i]; }
             opt[0].mlen = 0;  /* means is_a_literal */
             opt[0].litlen = litlen;
+            /* We don't need to include the actual price of the literals because
+             * it is static for the duration of the forward pass, and is included
+             * in every price. We include the literal length to avoid negative
+             * prices when we subtract the previous literal length.
+             */
             opt[0].price = ZSTD_litLengthPrice(litlen, optStatePtr, optLevel);
 
             /* large match -> immediate encoding */

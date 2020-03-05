@@ -1017,6 +1017,17 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
 _shortestPath:   /* cur, last_pos, best_mlen, best_off have to be set */
         assert(opt[0].mlen == 0);
 
+        /* Set the next chunk's repcodes based on the repcodes of the beginning
+         * of the last match, and the last sequence. This avoids us having to
+         * update them while traversing the sequences.
+         */
+        if (lastSequence.mlen != 0) {
+            repcodes_t reps = ZSTD_updateRep(opt[cur].rep, lastSequence.off, lastSequence.litlen==0);
+            memcpy(rep, &reps, sizeof(reps));
+        } else {
+            memcpy(rep, opt[cur].rep, sizeof(repcodes_t));
+        }
+
         {   U32 const storeEnd = cur + 1;
             U32 storeStart = storeEnd;
             U32 seqPos = cur;
@@ -1053,20 +1064,6 @@ _shortestPath:   /* cur, last_pos, best_mlen, best_off have to be set */
                         continue;   /* will finish */
                     }
 
-                    /* repcodes update : like ZSTD_updateRep(), but update in place */
-                    if (offCode >= ZSTD_REP_NUM) {  /* full offset */
-                        rep[2] = rep[1];
-                        rep[1] = rep[0];
-                        rep[0] = offCode - ZSTD_REP_MOVE;
-                    } else {   /* repcode */
-                        U32 const repCode = offCode + (llen==0);
-                        if (repCode) {  /* note : if repCode==0, no change */
-                            U32 const currentOffset = (repCode==ZSTD_REP_NUM) ? (rep[0] - 1) : rep[repCode];
-                            if (repCode >= 2) rep[2] = rep[1];
-                            rep[1] = rep[0];
-                            rep[0] = currentOffset;
-                    }   }
-
                     assert(anchor + llen <= iend);
                     ZSTD_updateStats(optStatePtr, llen, anchor, offCode, mlen);
                     ZSTD_storeSeq(seqStore, llen, anchor, iend, offCode, mlen-MINMATCH);
@@ -1075,7 +1072,6 @@ _shortestPath:   /* cur, last_pos, best_mlen, best_off have to be set */
             }   }
             ZSTD_setBasePrices(optStatePtr, optLevel);
         }
-
     }   /* while (ip < ilimit) */
 
     /* Return the last literals size */

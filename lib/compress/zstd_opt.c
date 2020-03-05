@@ -249,40 +249,6 @@ static U32 ZSTD_litLengthPrice(U32 const litLength, const optState_t* const optP
     }
 }
 
-/* ZSTD_litLengthContribution() :
- * @return ( cost(litlength) - cost(0) )
- * this value can then be added to rawLiteralsCost()
- * to provide a cost which is directly comparable to a match ending at same position */
-static int ZSTD_litLengthContribution(U32 const litLength, const optState_t* const optPtr, int optLevel)
-{
-    if (optPtr->priceType >= zop_predef) return (int)WEIGHT(litLength, optLevel);
-
-    /* dynamic statistics */
-    {   U32 const llCode = ZSTD_LLcode(litLength);
-        int const contribution = (int)(LL_bits[llCode] * BITCOST_MULTIPLIER)
-                               + (int)WEIGHT(optPtr->litLengthFreq[0], optLevel)   /* note: log2litLengthSum cancel out */
-                               - (int)WEIGHT(optPtr->litLengthFreq[llCode], optLevel);
-#if 1
-        return contribution;
-#else
-        return MAX(0, contribution); /* sometimes better, sometimes not ... */
-#endif
-    }
-}
-
-/* ZSTD_literalsContribution() :
- * creates a fake cost for the literals part of a sequence
- * which can be compared to the ending cost of a match
- * should a new match start at this position */
-static int ZSTD_literalsContribution(const BYTE* const literals, U32 const litLength,
-                                     const optState_t* const optPtr,
-                                     int optLevel)
-{
-    int const contribution = (int)ZSTD_rawLiteralsCost(literals, litLength, optPtr, optLevel)
-                           + ZSTD_litLengthContribution(litLength, optPtr, optLevel);
-    return contribution;
-}
-
 /* ZSTD_getMatchPrice() :
  * Provides the cost of the match part (offset + matchLength) of a sequence
  * Must be combined with ZSTD_fullLiteralsCost() to get the full cost of a sequence.
@@ -894,7 +860,12 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
             { U32 i ; for (i=0; i<ZSTD_REP_NUM; i++) opt[0].rep[i] = rep[i]; }
             opt[0].mlen = 0;  /* means is_a_literal */
             opt[0].litlen = litlen;
-            opt[0].price = ZSTD_literalsContribution(anchor, litlen, optStatePtr, optLevel);
+            /* We don't need to include the actual price of the literals because
+             * it is static for the duration of the forward pass, and is included
+             * in every price. We include the literal length to avoid negative
+             * prices when we subtract the previous literal length.
+             */
+            opt[0].price = ZSTD_litLengthPrice(litlen, optStatePtr, optLevel);
 
             /* large match -> immediate encoding */
             {   U32 const maxML = matches[nbMatches-1].len;

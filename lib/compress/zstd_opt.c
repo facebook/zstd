@@ -894,7 +894,6 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
                 for (matchNb = 0; matchNb < nbMatches; matchNb++) {
                     U32 const offset = matches[matchNb].off;
                     U32 const end = matches[matchNb].len;
-                    repcodes_t const repHistory = ZSTD_updateRep(rep, offset, ll0);
                     for ( ; pos <= end ; pos++ ) {
                         U32 const matchPrice = ZSTD_getMatchPrice(offset, pos, optStatePtr, optLevel);
                         U32 const sequencePrice = literalsPrice + matchPrice;
@@ -904,8 +903,6 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
                         opt[pos].off = offset;
                         opt[pos].litlen = litlen;
                         opt[pos].price = sequencePrice;
-                        ZSTD_STATIC_ASSERT(sizeof(opt[pos].rep) == sizeof(repHistory));
-                        memcpy(opt[pos].rep, &repHistory, sizeof(repHistory));
                 }   }
                 last_pos = pos-1;
             }
@@ -932,12 +929,26 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
                     opt[cur].off = 0;
                     opt[cur].litlen = litlen;
                     opt[cur].price = price;
-                    memcpy(opt[cur].rep, opt[cur-1].rep, sizeof(opt[cur].rep));
                 } else {
                     DEBUGLOG(7, "cPos:%zi==rPos:%u : literal would cost more (%.2f>%.2f) (hist:%u,%u,%u)",
                                 inr-istart, cur, ZSTD_fCost(price), ZSTD_fCost(opt[cur].price),
                                 opt[cur].rep[0], opt[cur].rep[1], opt[cur].rep[2]);
                 }
+            }
+
+            /* Set the repcodes of the current position. We must do it here
+             * because we rely on the repcodes of the 2nd to last sequence being
+             * correct to set the next chunks repcodes during the backward
+             * traversal.
+             */
+            ZSTD_STATIC_ASSERT(sizeof(opt[cur].rep) == sizeof(repcodes_t));
+            assert(cur >= opt[cur].mlen);
+            if (opt[cur].mlen != 0) {
+                U32 const prev = cur - opt[cur].mlen;
+                repcodes_t newReps = ZSTD_updateRep(opt[prev].rep, opt[cur].off, opt[cur].litlen==0);
+                memcpy(opt[cur].rep, &newReps, sizeof(repcodes_t));
+            } else {
+                memcpy(opt[cur].rep, opt[cur - 1].rep, sizeof(repcodes_t));
             }
 
             /* last match must start at a minimum distance of 8 from oend */
@@ -980,7 +991,6 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
                 /* set prices using matches found at position == cur */
                 for (matchNb = 0; matchNb < nbMatches; matchNb++) {
                     U32 const offset = matches[matchNb].off;
-                    repcodes_t const repHistory = ZSTD_updateRep(opt[cur].rep, offset, ll0);
                     U32 const lastML = matches[matchNb].len;
                     U32 const startML = (matchNb>0) ? matches[matchNb-1].len+1 : minMatch;
                     U32 mlen;
@@ -1000,8 +1010,6 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
                             opt[pos].off = offset;
                             opt[pos].litlen = litlen;
                             opt[pos].price = price;
-                            ZSTD_STATIC_ASSERT(sizeof(opt[pos].rep) == sizeof(repHistory));
-                            memcpy(opt[pos].rep, &repHistory, sizeof(repHistory));
                         } else {
                             DEBUGLOG(7, "rPos:%u (ml=%2u) => new price is worse (%.2f>=%.2f)",
                                         pos, mlen, ZSTD_fCost(price), ZSTD_fCost(opt[pos].price));

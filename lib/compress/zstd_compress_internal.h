@@ -465,7 +465,7 @@ static unsigned ZSTD_NbCommonBytes (size_t val)
         } else { /* 32 bits */
 #       if defined(_MSC_VER)
             unsigned long r=0;
-            _BitScanForward( &r, (U32)val ) ? return (unsigned)(r >> 3) : 0;
+            return _BitScanForward( &r, (U32)val ) ? return (unsigned)(r >> 3) : 0;
 #       elif defined(__GNUC__) && (__GNUC__ >= 3)
             return (__builtin_ctz((U32)val) >> 3);
 #       else
@@ -480,7 +480,7 @@ static unsigned ZSTD_NbCommonBytes (size_t val)
         if (MEM_64bits()) {
 #       if defined(_MSC_VER) && defined(_WIN64)
             unsigned long r = 0;
-            _BitScanReverse64( &r, val ) ? (unsigned)(r >> 3) : 0;
+            return _BitScanReverse64( &r, val ) ? (unsigned)(r >> 3) : 0;
 #       elif defined(__GNUC__) && (__GNUC__ >= 4)
             return (__builtin_clzll(val) >> 3);
 #       else
@@ -494,7 +494,7 @@ static unsigned ZSTD_NbCommonBytes (size_t val)
         } else { /* 32 bits */
 #       if defined(_MSC_VER)
             unsigned long r = 0;
-            _BitScanReverse( &r, (unsigned long)val ) ? (unsigned)(r >> 3) : 0;
+            return _BitScanReverse( &r, (unsigned long)val ) ? (unsigned)(r >> 3) : 0;
 #       elif defined(__GNUC__) && (__GNUC__ >= 3)
             return (__builtin_clz((U32)val) >> 3);
 #       else

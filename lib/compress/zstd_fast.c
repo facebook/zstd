@@ -80,6 +80,10 @@ ZSTD_compressBlock_fast_generic(
     }
 
     /* Main Search Loop */
+#ifdef __INTEL_COMPILER
+    #pragma vector always
+    #pragma ivdep
+#endif
     while (ip1 < ilimit) {   /* < instead of <=, because check at ip0+2 */
         size_t mLength;
         BYTE const* ip2 = ip0 + 2;

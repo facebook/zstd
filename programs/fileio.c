@@ -323,6 +323,7 @@ struct FIO_prefs_s {
 
     int excludeCompressedFiles;
     int patchFromMode;
+    int contentSize;
 };
 
 
@@ -492,6 +493,11 @@ void FIO_setLdmHashRateLog(FIO_prefs_t* const prefs, int ldmHashRateLog) {
 void FIO_setPatchFromMode(FIO_prefs_t* const prefs, int value)
 {
     prefs->patchFromMode = value != 0;
+}
+
+void FIO_setContentSize(FIO_prefs_t* const prefs, int value)
+{
+    prefs->contentSize = value != 0;
 }
 
 /*-*************************************
@@ -817,6 +823,7 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_contentSizeFlag, 1) );  /* always enable content size when available (note: supposed to be default) */
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_dictIDFlag, prefs->dictIDFlag) );
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_checksumFlag, prefs->checksumFlag) );
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_contentSizeFlag, prefs->contentSize) );
         /* compression level */
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_compressionLevel, cLevel) );
         /* max compressed block size */

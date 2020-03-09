@@ -634,7 +634,8 @@ int main(int const argCount, const char* argv[])
         setRealTimePrio = 0,
         singleThread = 0,
         showDefaultCParams = 0,
-        ultra=0;
+        ultra=0,
+        noContentSize=0;
     double compressibility = 0.5;
     unsigned bench_nbSeconds = 3;   /* would be better if this value was synchronized from bench */
     size_t blockSize = 0;
@@ -748,6 +749,7 @@ int main(int const argCount, const char* argv[])
                 if (!strcmp(argument, "--priority=rt")) { setRealTimePrio = 1; continue; }
                 if (!strcmp(argument, "--output-dir-flat")) {nextArgumentIsOutDirName=1; lastCommand=1; continue; }
                 if (!strcmp(argument, "--show-default-cparams")) { showDefaultCParams = 1; continue; }
+                if (!strcmp(argument, "--no-content-size")) { noContentSize = 1; continue; }
                 if (!strcmp(argument, "--adapt")) { adapt = 1; continue; }
                 if (longCommandWArg(&argument, "--adapt=")) { adapt = 1; if (!parseAdaptParameters(argument, &adaptMin, &adaptMax)) { badusage(programName); CLEAN_RETURN(1); } continue; }
                 if (!strcmp(argument, "--single-thread")) { nbWorkers = 0; singleThread = 1; continue; }
@@ -1256,6 +1258,7 @@ int main(int const argCount, const char* argv[])
     FIO_setMemLimit(prefs, memLimit);
     if (operation==zom_compress) {
 #ifndef ZSTD_NOCOMPRESS
+        FIO_setNoContentSize(prefs, noContentSize);
         FIO_setNbWorkers(prefs, nbWorkers);
         FIO_setBlockSize(prefs, (int)blockSize);
         if (g_overlapLog!=OVERLAP_LOG_DEFAULT) FIO_setOverlapLog(prefs, (int)g_overlapLog);

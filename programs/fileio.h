@@ -95,6 +95,7 @@ void FIO_setNoProgress(unsigned noProgress);
 void FIO_setNotificationLevel(int level);
 void FIO_setExcludeCompressedFile(FIO_prefs_t* const prefs, int excludeCompressedFiles);
 void FIO_setPatchFromMode(FIO_prefs_t* const prefs, int value);
+void FIO_setNoContentSize(FIO_prefs_t* const prefs, int value);
 
 /*-*************************************
 *  Single File functions

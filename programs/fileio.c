@@ -323,7 +323,7 @@ struct FIO_prefs_s {
 
     int excludeCompressedFiles;
     int patchFromMode;
-    int noContentSize;
+    int contentSize;
 };
 
 
@@ -495,9 +495,9 @@ void FIO_setPatchFromMode(FIO_prefs_t* const prefs, int value)
     prefs->patchFromMode = value != 0;
 }
 
-void FIO_setNoContentSize(FIO_prefs_t* const prefs, int value)
+void FIO_setContentSize(FIO_prefs_t* const prefs, int value)
 {
-    prefs->noContentSize = value != 0;
+    prefs->contentSize = value != 0;
 }
 
 /*-*************************************
@@ -1342,7 +1342,7 @@ FIO_compressFilename_internal(FIO_prefs_t* const prefs,
     clock_t const cpuStart = clock();
     U64 readsize = 0;
     U64 compressedfilesize = 0;
-    U64 const fileSize = !prefs->noContentSize ? UTIL_getFileSize(srcFileName) : UTIL_FILESIZE_UNKNOWN;
+    U64 const fileSize = prefs->contentSize ? UTIL_getFileSize(srcFileName) : UTIL_FILESIZE_UNKNOWN;
     DISPLAYLEVEL(5, "%s: %u bytes \n", srcFileName, (unsigned)fileSize);
 
     /* compression format selection */

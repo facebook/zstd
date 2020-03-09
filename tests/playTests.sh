@@ -469,6 +469,19 @@ ls tmp* > tmpList
 $ZSTD -f tmp1 --filelist=tmpList --filelist=tmpList tmp2 tmp3  # can trigger an overflow of internal file list
 rm -rf tmp*
 
+println "\n===> --[no-]content-size tests"
+
+$DATAGEN > tmp_contentsize
+$ZSTD -f tmp_contentsize
+$ZSTD -lv tmp_contentsize.zst | grep "Decompressed Size:"
+$ZSTD -f --no-content-size tmp_contentsize
+$ZSTD -lv tmp_contentsize.zst | grep "Decompressed Size:" && die
+$ZSTD -f --content-size tmp_contentsize
+$ZSTD -lv tmp_contentsize.zst | grep "Decompressed Size:"
+$ZSTD -f --content-size --no-content-size tmp_contentsize
+$ZSTD -lv tmp_contentsize.zst | grep "Decompressed Size:" && die
+rm -rf tmp*
+
 println "test : show-default-cparams regular"
 $DATAGEN > tmp
 $ZSTD --show-default-cparams -f tmp

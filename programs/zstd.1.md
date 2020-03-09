@@ -198,6 +198,10 @@ the last one takes effect.
     default: enabled when output is into a file,
     and disabled when output is stdout.
     This setting overrides default and can force sparse mode over stdout.
+* `--[no-]content-size`:
+    enable / disable whether or not the original size of the file is placed in
+    the header of the compressed file. The default option is 
+    --content-size (meaning that the original size will be placed in the header).
 * `--rm`:
     remove source file(s) after successful compression or decompression
 * `-k`, `--keep`:

@@ -81,8 +81,11 @@ ZSTD_compressBlock_fast_generic(
 
     /* Main Search Loop */
 #ifdef __INTEL_COMPILER
+    /* From intel 'The vector pragma indicates that the loop should be 
+     * vectorized if it is legal to do so'. Can be used together with 
+     * #pragma ivdep (but have opted to exclude that because intel 
+     * warns against using it).*/
     #pragma vector always
-    #pragma ivdep
 #endif
     while (ip1 < ilimit) {   /* < instead of <=, because check at ip0+2 */
         size_t mLength;

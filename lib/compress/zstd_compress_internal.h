@@ -465,7 +465,7 @@ static unsigned ZSTD_NbCommonBytes (size_t val)
         } else { /* 32 bits */
 #       if defined(_MSC_VER)
             unsigned long r=0;
-            return _BitScanForward( &r, (U32)val ) ? return (unsigned)(r >> 3) : 0;
+            return _BitScanForward( &r, (U32)val ) ? (unsigned)(r >> 3) : 0;
 #       elif defined(__GNUC__) && (__GNUC__ >= 3)
             return (__builtin_ctz((U32)val) >> 3);
 #       else

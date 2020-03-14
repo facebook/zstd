@@ -134,6 +134,10 @@ typedef struct {
 
 typedef struct ZSTD_matchState_t ZSTD_matchState_t;
 struct ZSTD_matchState_t {
+    U32* hashTable;
+    U32* chainTable;
+    U32* hashTable3;
+    U32 hashLog3;           /* dispatch table for matches of len==3 : larger == faster, more memory */
     ZSTD_window_t window;   /* State for window round buffer management */
     U32 loadedDictEnd;      /* index of end of dictionary, within context's referential.
                              * When loadedDictEnd != 0, a dictionary is in use, and still valid.
@@ -143,10 +147,6 @@ struct ZSTD_matchState_t {
                              * loadedDictEnd == dictSize, since referential starts from zero.
                              */
     U32 nextToUpdate;       /* index from which to continue table update */
-    U32 hashLog3;           /* dispatch table for matches of len==3 : larger == faster, more memory */
-    U32* hashTable;
-    U32* hashTable3;
-    U32* chainTable;
     optState_t opt;         /* optimal parser state */
     const ZSTD_matchState_t* dictMatchState;
     ZSTD_compressionParameters cParams;

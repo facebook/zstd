@@ -21,6 +21,9 @@
 ***************************************/
 #include "compiler.h"
 #include "mem.h"
+#ifdef __aarch64__
+#include "arm_neon.h"
+#endif
 #include "debug.h"                 /* assert, DEBUGLOG, RAWLOG, g_debuglevel */
 #include "error_private.h"
 #define ZSTD_STATIC_LINKING_ONLY
@@ -193,10 +196,22 @@ static const U32 OF_defaultNormLog = OF_DEFAULTNORMLOG;
 /*-*******************************************
 *  Shared functions to include for inlining
 *********************************************/
-static void ZSTD_copy8(void* dst, const void* src) { memcpy(dst, src, 8); }
+static void ZSTD_copy8(void* dst, const void* src) {
+#ifdef __aarch64__
+    vst1_u8((uint8_t*)dst, vld1_u8((const uint8_t*)src));
+#else
+    memcpy(dst, src, 8);
+#endif
+}
 
 #define COPY8(d,s) { ZSTD_copy8(d,s); d+=8; s+=8; }
-static void ZSTD_copy16(void* dst, const void* src) { memcpy(dst, src, 16); }
+static void ZSTD_copy16(void* dst, const void* src) {
+#ifdef __aarch64__
+    vst1q_u8((uint8_t*)dst, vld1q_u8((const uint8_t*)src));
+#else
+    memcpy(dst, src, 16);
+#endif
+}
 #define COPY16(d,s) { ZSTD_copy16(d,s); d+=16; s+=16; }
 
 #define WILDCOPY_OVERLENGTH 32
@@ -238,8 +253,10 @@ void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length, ZSTD_overlap_e 
 	 * one COPY16() in the first call. Then, do two calls per loop since
 	 * at that point it is more likely to have a high trip count.
          */
+#ifndef __aarch64__
         COPY16(op, ip);
         if (op >= oend) return;
+#endif
         do {
             COPY16(op, ip);
             COPY16(op, ip);

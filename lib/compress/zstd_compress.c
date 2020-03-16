@@ -1854,6 +1854,20 @@ ZSTD_reduceTable_internal (U32* const table, U32 const size, U32 const reducerVa
 
     for (rowNb=0 ; rowNb < nbRows ; rowNb++) {
         int column;
+#ifdef __aarch64__
+        for (column=0; column<ZSTD_ROWSIZE; column+=4) {
+            uint32x4_t const zero = {0, 0, 0, 0};
+            uint32x4_t const reducer = vdupq_n_u32(reducerValue);
+            uint32x4_t data = vld1q_u32(table + cellNb);
+            if (preserveMark) {
+                uint32x4_t const mark = {ZSTD_DUBT_UNSORTED_MARK, ZSTD_DUBT_UNSORTED_MARK, ZSTD_DUBT_UNSORTED_MARK, ZSTD_DUBT_UNSORTED_MARK};
+                data = vbslq_u32(vceqq_u32(data, mark), vaddq_u32(data, reducer), data);
+            }
+            data = vbslq_u32(vcltq_u32(data, reducer), zero, vsubq_u32(data, reducer));
+            vst1q_u32(table + cellNb, data);
+            cellNb+=4;
+        }
+#else
         for (column=0; column<ZSTD_ROWSIZE; column++) {
             if (preserveMark) {
                 U32 const adder = (table[cellNb] == ZSTD_DUBT_UNSORTED_MARK) ? reducerValue : 0;
@@ -1862,7 +1876,9 @@ ZSTD_reduceTable_internal (U32* const table, U32 const size, U32 const reducerVa
             if (table[cellNb] < reducerValue) table[cellNb] = 0;
             else table[cellNb] -= reducerValue;
             cellNb++;
-    }   }
+        }
+#endif
+    }
 }
 
 static void ZSTD_reduceTable(U32* const table, U32 const size, U32 const reducerValue)

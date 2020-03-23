@@ -32,6 +32,16 @@
 
 project(tests)
 
+# name: Cache variable name. The value is expected to be a semicolon-separated
+# list of command line flags
+# default_value: Value to initialize the option with. Can be space separated.
+function(AddTestFlagsOption name default_value doc)
+    string(STRIP "${default_value}" default_value)
+    string(REGEX REPLACE " +" ";" default_value "${default_value}")
+    set(${name} ${default_value} CACHE STRING "${doc}")
+    mark_as_advanced(${name})
+endfunction()
+
 set(CMAKE_INCLUDE_CURRENT_DIR TRUE)
 
 # Define programs directory, where sources and header files are located
@@ -43,18 +53,52 @@ include_directories(${TESTS_DIR} ${PROGRAMS_DIR} ${LIBRARY_DIR} ${LIBRARY_DIR}/c
 add_executable(datagen ${PROGRAMS_DIR}/datagen.c ${TESTS_DIR}/datagencli.c)
 target_link_libraries(datagen libzstd_static)
 
+#
+# fullbench
+#
 add_executable(fullbench ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/timefn.c ${PROGRAMS_DIR}/benchfn.c ${PROGRAMS_DIR}/benchzstd.c ${TESTS_DIR}/fullbench.c)
 target_link_libraries(fullbench libzstd_static)
+add_test(NAME fullbench COMMAND fullbench)
 
+#
+# fuzzer
+#
 add_executable(fuzzer ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/timefn.c ${TESTS_DIR}/fuzzer.c)
 target_link_libraries(fuzzer libzstd_static)
+AddTestFlagsOption(ZSTD_FUZZER_FLAGS "$ENV{FUZZERTEST} $ENV{FUZZER_FLAGS}"
+    "Semicolon-separated list of flags to pass to the fuzzer test (see `fuzzer -h` for usage)")
+add_test(NAME fuzzer COMMAND fuzzer ${ZSTD_FUZZER_FLAGS})
+# Disable the timeout since the run time is too long for the default timeout of
+# 1500 seconds and varies considerably between low-end and high-end CPUs.
+set_tests_properties(fuzzer PROPERTIES TIMEOUT 0)
 
+#
+# zstreamtest
+#
 add_executable(zstreamtest ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/timefn.c ${TESTS_DIR}/seqgen.c ${TESTS_DIR}/zstreamtest.c)
 target_link_libraries(zstreamtest libzstd_static)
+AddTestFlagsOption(ZSTD_ZSTREAM_FLAGS "$ENV{ZSTREAM_TESTTIME} $ENV{FUZZER_FLAGS}"
+    "Semicolon-separated list of flags to pass to the zstreamtest test (see `zstreamtest -h` for usage)")
+add_test(NAME zstreamtest COMMAND zstreamtest ${ZSTD_ZSTREAM_FLAGS})
 
-add_test(
-    NAME playTests
-    COMMAND sh -c "ZSTD_BIN='$<TARGET_FILE:zstd>' DATAGEN_BIN='$<TARGET_FILE:datagen>' '${TESTS_DIR}/playTests.sh'")
+#
+# playTests.sh
+#
+AddTestFlagsOption(ZSTD_PLAYTESTS_FLAGS "--test-large-data"
+    "Semicolon-separated list of flags to pass to the playTests.sh test")
+add_test(NAME playTests COMMAND sh -c "${TESTS_DIR}/playTests.sh" ${ZSTD_PLAYTESTS_FLAGS})
+if (ZSTD_BUILD_PROGRAMS)
+    set_property(TEST playTests APPEND PROPERTY ENVIRONMENT
+        "ZSTD_BIN=$<TARGET_FILE:zstd>"
+        "DATAGEN_BIN=$<TARGET_FILE:datagen>"
+        )
+else()
+    message(STATUS "Disabling playTests.sh test because ZSTD_BUILD_PROGRAMS is not enabled")
+    set_tests_properties(playTests PROPERTIES DISABLED YES)
+endif()
+
+# Label the "Medium" set of tests (see TESTING.md)
+set_property(TEST fuzzer zstreamtest playTests APPEND PROPERTY LABELS Medium)
 
 if (UNIX)
     add_executable(paramgrill ${PROGRAMS_DIR}/benchfn.c ${PROGRAMS_DIR}/benchzstd.c ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/timefn.c ${TESTS_DIR}/paramgrill.c)

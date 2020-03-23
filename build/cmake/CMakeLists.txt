@@ -103,7 +103,14 @@ endif ()
 
 option(ZSTD_BUILD_PROGRAMS "BUILD PROGRAMS" ON)
 option(ZSTD_BUILD_CONTRIB "BUILD CONTRIB" OFF)
-option(ZSTD_BUILD_TESTS "BUILD TESTS" OFF)
+
+# Respect the conventional CMake option for enabling tests if it was specified on the first configure
+if (BUILD_TESTING)
+    set(ZSTD_BUILD_TESTS_default ON)
+else()
+    set(ZSTD_BUILD_TESTS_default OFF)
+endif()
+option(ZSTD_BUILD_TESTS "BUILD TESTS" ${ZSTD_BUILD_TESTS_default})
 if (MSVC)
     option(ZSTD_USE_STATIC_RUNTIME "LINK TO STATIC RUN-TIME LIBRARIES" OFF)
 endif ()

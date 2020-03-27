@@ -19,11 +19,11 @@
 /*-*************************************
 *  Dependencies
 ***************************************/
+#ifdef __aarch64__
+#include <arm_neon.h>
+#endif
 #include "compiler.h"
 #include "mem.h"
-#ifdef __aarch64__
-#include "arm_neon.h"
-#endif
 #include "debug.h"                 /* assert, DEBUGLOG, RAWLOG, g_debuglevel */
 #include "error_private.h"
 #define ZSTD_STATIC_LINKING_ONLY

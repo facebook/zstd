@@ -905,6 +905,8 @@ ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e longOffsets, c
         seq.match = matchBase + pos - seq.offset;  /* note : this operation can overflow when seq.offset is really too large, which can only happen when input is corrupted.
                                                     * No consequence though : no memory access will occur, offset is only used for prefetching */
         seqState->pos = pos + seq.matchLength;
+    } else {
+        seq.match = NULL;
     }
 
     /* ANS state update

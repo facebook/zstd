@@ -845,6 +845,7 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
     assert(optLevel <= 2);
     ZSTD_rescaleFreqs(optStatePtr, (const BYTE*)src, srcSize, optLevel);
     ip += (ip==prefixStart);
+    memset(&lastSequence, 0, sizeof(lastSequence));
 
     /* Match Loop */
     while (ip < ilimit) {

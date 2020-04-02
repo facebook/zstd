@@ -281,8 +281,8 @@ void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length, ZSTD_overlap_e 
         /* Separate out the first COPY16() call because the copy length is
          * almost certain to be short, so the branches have different
          * probabilities. Since it is almost certain to be short, only do
-	 * one COPY16() in the first call. Then, do two calls per loop since
-	 * at that point it is more likely to have a high trip count.
+         * one COPY16() in the first call. Then, do two calls per loop since
+         * at that point it is more likely to have a high trip count.
          */
 #ifndef __aarch64__
         COPY16(op, ip);

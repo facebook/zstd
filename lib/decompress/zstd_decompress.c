@@ -111,6 +111,7 @@ static void ZSTD_initDCtx_internal(ZSTD_DCtx* dctx)
     dctx->legacyContext = NULL;
     dctx->previousLegacyVersion = 0;
     dctx->noForwardProgress = 0;
+    dctx->oversizedDuration = 0;
     dctx->bmi2 = ZSTD_cpuid_bmi2(ZSTD_cpuid());
 }
 

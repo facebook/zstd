@@ -100,6 +100,8 @@ static char* readFile(const char* filename, size_t* size) {
   buf = malloc(*size);
   if (buf == NULL) {
     fprintf(stderr, "malloc failed\n");
+    fclose(f);
+    return NULL;
   }
 
   bytes_read = fread(buf, 1, *size, f);

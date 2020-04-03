@@ -5,12 +5,19 @@
 # Note: this POSIX-compliant script is many times slower than the original bash
 # implementation (due to the grep calls) but it runs and works everywhere.
 # 
-# TODO: ROOTS and FOUND as arrays (since they fail on paths with spaces)
+# TODO: ROOTS, FOUND, etc., as arrays (since they fail on paths with spaces)
+# TODO: revert to Bash-only regex (the grep ones being too slow)
 # 
-# Author: Carl Woffenden, Numfum GmbH (released under a CC0 license)
+# Author: Carl Woffenden, Numfum GmbH (this script released under a CC0 license/Public Domain)
 
 # Common file roots
-ROOTS="./"
+ROOTS="."
+
+# -x option excluded includes
+XINCS=""
+
+# -k option includes to keep as include directives
+KINCS=""
 
 # Files previously visited
 FOUND=""
@@ -18,10 +25,16 @@ FOUND=""
 # Optional destination file (empty string to write to stdout)
 DESTN=""
 
+# Whether the "#pragma once" directives should be written to the output
+PONCE=0
+
 # Prints the script usage then exits
 usage() {
-  echo "Usage: $0 [-r <path>] [-o <outfile>] infile"
-  echo "  -r file root search paths"
+  echo "Usage: $0 [-r <path>] [-x <header>] [-k <header>] [-o <outfile>] infile"
+  echo "  -r file root search path"
+  echo "  -x file to completely exclude from inlining"
+  echo "  -k file to exclude from inlining but keep the include directive"
+  echo "  -p keep any '#pragma once' directives (removed by default)"
   echo "  -o output file (otherwise stdout)"
   echo "Example: $0 -r ../my/path - r ../other/path -o out.c in.c"
   exit 1
@@ -29,10 +42,10 @@ usage() {
 
 # Tests that the grep implementation works as expected (older OSX grep fails)
 test_grep() {
-	if ! echo '#include "foo"' | grep -Eq '^\s*#\s*include\s*".+"'; then
-		echo "Aborting: the grep implementation fails to parse include lines"
-		exit 1
-	fi
+  if ! echo '#include "foo"' | grep -Eq '^\s*#\s*include\s*".+"'; then
+    echo "Aborting: the grep implementation fails to parse include lines"
+    exit 1
+  fi
 }
 
 # Tests if list $1 has item $2 (returning zero on a match)
@@ -57,34 +70,54 @@ write_line() {
 add_file() {
   # Match the path
   local file=
-  if [ -f "$1" ]; then
-    file="$1"
-  else
-    for root in $ROOTS; do
-      if test -f "$root/$1"; then
-        file="$root/$1"
-      fi
-    done
-  fi
+  for root in $ROOTS; do
+    if [ -f "$root/$1" ]; then
+      file="$root/$1"
+    fi
+  done
   if [ -n "$file" ]; then
+    if [ -n "$DESTN" ]; then
+      # Log but only if not writing to stdout
+      echo "Processing: $file"
+    fi
     # Read the file
     local line=
     while IFS= read -r line; do
       if echo "$line" | grep -Eq '^\s*#\s*include\s*".+"'; then
         # We have an include directive so strip the (first) file
         local inc=$(echo "$line" | grep -Eo '".*"' | grep -Eo '\w*(\.?\w+)+' | head -1)
-        if ! list_has_item "$FOUND" "$inc"; then
-          # And we've not previously encountered it
-          FOUND="$FOUND $inc"
-          write_line "/**** start inlining $inc ****/"
-          add_file "$inc"
-          write_line "/**** ended inlining $inc ****/"
+        if list_has_item "$XINCS" "$inc"; then
+          # The file was excluded so error if the source attempts to use it
+          write_line "#error Using excluded file: $inc"
         else
-          write_line "/**** skipping file: $inc ****/"
+          if ! list_has_item "$FOUND" "$inc"; then
+            # The file was not previously encountered
+            FOUND="$FOUND $inc"
+            if list_has_item "$KINCS" "$inc"; then
+              # But the include was flagged to keep as included
+              write_line "/**** *NOT* inlining $inc ****/"
+              write_line "$line"
+            else
+              # The file was neither excluded nor seen before so inline it
+              write_line "/**** start inlining $inc ****/"
+              add_file "$inc"
+              write_line "/**** ended inlining $inc ****/"
+            fi
+          else
+            write_line "/**** skipping file: $inc ****/"
+          fi
         fi
       else
-        # Otherwise write the source line
-        write_line "$line"
+        # Skip any 'pragma once' directives, otherwise write the source line
+        local write=$PONCE
+        if [ $write -eq 0 ]; then
+          if echo "$line" | grep -Eqv '^\s*#\s*pragma\s*once\s*'; then
+            write=1
+          fi
+        fi
+        if [ $write -ne 0 ]; then
+          write_line "$line"
+        fi
       fi
     done < "$file"
   else
@@ -92,10 +125,19 @@ add_file() {
   fi
 }
 
-while getopts ":r:o:" opts; do
+while getopts ":r:x:k:po:" opts; do
   case $opts in
   r)
-    ROOTS="$OPTARG $ROOTS"
+    ROOTS="$ROOTS $OPTARG"
+    ;;
+  x)
+    XINCS="$XINCS $OPTARG"
+    ;;
+  k)
+    KINCS="$KINCS $OPTARG"
+    ;;
+  p)
+    PONCE=1
     ;;
   o)
     DESTN="$OPTARG"

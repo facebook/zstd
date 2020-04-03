@@ -1,8 +1,5 @@
 #!/bin/sh
 
-# Where to find the sources
-ZSTD_SRC_ROOT="../../lib"
-
 # Temporary compiled binary
 OUT_FILE="tempbin"
 

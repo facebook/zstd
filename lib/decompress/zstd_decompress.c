@@ -1512,9 +1512,7 @@ static int ZSTD_isOversized(ZSTD_DStream* zds)
 {
     size_t const neededInBuffSize = MAX(zds->fParams.blockSizeMax, 4 /* frame checksum */);
     size_t const neededOutBuffSize = ZSTD_decodingBufferSize_min(zds->fParams.windowSize, zds->fParams.frameContentSize);
-    int const inOversized = zds->inBuffSize >= neededInBuffSize * ZSTD_OVERSIZED_FACTOR;
-    int const outOversized = zds->outBuffSize >= neededOutBuffSize * ZSTD_OVERSIZED_FACTOR;
-    return inOversized || outOversized;
+    return (zds->inBuffSize + zds->outBuffSize) >= (neededInBuffSize + neededOutBuffSize) * ZSTD_OVERSIZED_FACTOR;
 }
 
 static void ZSTD_updateOversizedDuration(ZSTD_DStream* zds)

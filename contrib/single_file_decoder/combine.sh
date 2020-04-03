@@ -8,7 +8,7 @@
 # TODO: ROOTS, FOUND, etc., as arrays (since they fail on paths with spaces)
 # TODO: revert to Bash-only regex (the grep ones being too slow)
 # 
-# Author: Carl Woffenden, Numfum GmbH (this script released under a CC0 license/Public Domain)
+# Author: Carl Woffenden, Numfum GmbH (this script is released under a CC0 license/Public Domain)
 
 # Common file roots
 ROOTS="."

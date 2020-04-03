@@ -1515,7 +1515,10 @@ static int ZSTD_DCtx_isOverflow(ZSTD_DStream* zds, size_t const neededInBuffSize
 
 static void ZSTD_DCtx_updateOversizedDuration(ZSTD_DStream* zds, size_t const neededInBuffSize, size_t const neededOutBuffSize)
 {
-    zds->oversizedDuration += ZSTD_DCtx_isOverflow(zds, neededInBuffSize, neededOutBuffSize) != 0;
+    if (ZSTD_DCtx_isOverflow(zds, neededInBuffSize, neededOutBuffSize))
+        zds->oversizedDuration++;
+    else 
+        zds->oversizedDuration = 0;
 }
 
 static int ZSTD_DCtx_isOversizedTooLong(ZSTD_DStream* zds)

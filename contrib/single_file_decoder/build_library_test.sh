@@ -22,7 +22,7 @@ echo "Single file library creation script: PASSED"
 cp "$ZSTD_SRC_ROOT/zstd.h" zstd.h
 
 # Compile the generated output
-cc -Wall -Wextra -Werror -I. -Os -g0 -o $OUT_FILE zstd.c examples/roundtrip.c
+cc -Wall -Wextra -Werror -pthread -I. -Os -g0 -o $OUT_FILE zstd.c examples/roundtrip.c
 # Did compilation work?
 if [ $? -ne 0 ]; then
   echo "Compiling roundtrip.c: FAILED"

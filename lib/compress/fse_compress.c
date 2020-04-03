@@ -626,7 +626,9 @@ size_t FSE_compress_usingCTable (void* dst, size_t dstSize,
 size_t FSE_compressBound(size_t size) { return FSE_COMPRESSBOUND(size); }
 
 #define CHECK_V_F(e, f) size_t const e = f; if (ERR_isError(e)) return e
+#ifndef CHECK_F
 #define CHECK_F(f)   { CHECK_V_F(_var_err__, f); }
+#endif
 
 /* FSE_compress_wksp() :
  * Same as FSE_compress2(), but using an externally allocated scratch buffer (`workSpace`).

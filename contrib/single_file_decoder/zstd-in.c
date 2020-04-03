@@ -1,10 +1,10 @@
 /**
- * \file zstddeclib.c
- * Single-file Zstandard decompressor.
+ * \file zstd.c
+ * Single-file Zstandard library.
  * 
  * Generate using:
  * \code
- *	combine.sh -r ../../lib -r ../../lib/common -r ../../lib/decompress -o zstddeclib.c zstddeclib-in.c
+ *	combine.sh -r ../../lib -r ../../lib/common -r ../../lib/compress -r ../../lib/decompress -k zstd.h -o zstd.c zstd-in.c
  * \endcode
  */
 /*
@@ -17,13 +17,15 @@
  * You may select, at your option, one of the above-listed licenses.
  */
 /*
- * Settings to bake for the standalone decompressor.
+ * Settings to bake for the single library file.
  * 
  * Note: It's important that none of these affects 'zstd.h' (only the
  * implementation files we're amalgamating).
  * 
  * Note: MEM_MODULE stops xxhash redefining BYTE, U16, etc., which are also
  * defined in mem.h (breaking C99 compatibility).
+ * 
+ * Note: multithreading is enabled for all platforms apart from Emscripten.
  */
 #define DEBUGLEVEL 0
 #define MEM_MODULE
@@ -31,18 +33,39 @@
 #define XXH_PRIVATE_API
 #define XXH_INLINE_ALL
 #define ZSTD_LEGACY_SUPPORT 0
-#define ZSTD_LIB_COMPRESSION 0
+#define ZSTD_LIB_DICTBUILDER 0
 #define ZSTD_LIB_DEPRECATED 0
 #define ZSTD_NOBENCH
-#define ZSTD_STRIP_ERROR_STRINGS
+#ifndef __EMSCRIPTEN__
+#define ZSTD_MULTITHREAD
+#endif
 
 /* common */
 #include "debug.c"
 #include "entropy_common.c"
 #include "error_private.c"
 #include "fse_decompress.c"
+#include "threading.c"
+#include "pool.c"
 #include "xxhash.c"
 #include "zstd_common.c"
+
+/* compress */
+#include "fse_compress.c"
+#include "hist.c"
+#include "huf_compress.c"
+#include "zstd_compress_literals.c"
+#include "zstd_compress_sequences.c"
+#include "zstd_compress_superblock.c"
+#include "zstd_compress.c"
+#include "zstd_double_fast.c"
+#include "zstd_fast.c"
+#include "zstd_lazy.c"
+#include "zstd_ldm.c"
+#include "zstd_opt.c"
+#ifdef ZSTD_MULTITHREAD
+#include "zstdmt_compress.c"
+#endif
 
 /* decompress */
 #include "huf_decompress.c"

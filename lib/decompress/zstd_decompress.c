@@ -1508,17 +1508,17 @@ MEM_STATIC size_t ZSTD_limitCopy(void* dst, size_t dstCapacity, const void* src,
     return length;
 }
 
-static int ZSTD_isOversized(ZSTD_DStream* zds, size_t const neededInBuffSize, size_t const neededOutBuffSize)
+static int ZSTD_DCtx_isOverflow(ZSTD_DStream* zds, size_t const neededInBuffSize, size_t const neededOutBuffSize)
 {
     return (zds->inBuffSize + zds->outBuffSize) >= (neededInBuffSize + neededOutBuffSize) * ZSTD_OVERSIZED_FACTOR;
 }
 
-static void ZSTD_updateOversizedDuration(ZSTD_DStream* zds, size_t const neededInBuffSize, size_t const neededOutBuffSize)
+static void ZSTD_DCtx_updateOversizedDuration(ZSTD_DStream* zds, size_t const neededInBuffSize, size_t const neededOutBuffSize)
 {
-    zds->oversizedDuration += ZSTD_isOversized(zds, neededInBuffSize, neededOutBuffSize) != 0;
+    zds->oversizedDuration += ZSTD_DCtx_isOverflow(zds, neededInBuffSize, neededOutBuffSize) != 0;
 }
 
-static int ZSTD_isOversizedTooLong(ZSTD_DStream* zds)
+static int ZSTD_DCtx_isOversizedTooLong(ZSTD_DStream* zds)
 {
     return zds->oversizedDuration >= ZSTD_OVERSIZED_MAXDURATION;
 }
@@ -1652,10 +1652,10 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             {   size_t const neededInBuffSize = MAX(zds->fParams.blockSizeMax, 4 /* frame checksum */);
                 size_t const neededOutBuffSize = ZSTD_decodingBufferSize_min(zds->fParams.windowSize, zds->fParams.frameContentSize);
 
-                ZSTD_updateOversizedDuration(zds, neededInBuffSize, neededOutBuffSize);
+                ZSTD_DCtx_updateOversizedDuration(zds, neededInBuffSize, neededOutBuffSize);
 
                 {   int const tooSmall = (zds->inBuffSize < neededInBuffSize) || (zds->outBuffSize < neededOutBuffSize);
-                    int const tooLarge = ZSTD_isOversizedTooLong(zds);
+                    int const tooLarge = ZSTD_DCtx_isOversizedTooLong(zds);
                     
                     if (tooSmall || tooLarge) {
                         size_t const bufferSize = neededInBuffSize + neededOutBuffSize;

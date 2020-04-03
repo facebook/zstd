@@ -1508,16 +1508,14 @@ MEM_STATIC size_t ZSTD_limitCopy(void* dst, size_t dstCapacity, const void* src,
     return length;
 }
 
-static int ZSTD_isOversized(ZSTD_DStream* zds)
+static int ZSTD_isOversized(ZSTD_DStream* zds, size_t const neededInBuffSize, size_t const neededOutBuffSize)
 {
-    size_t const neededInBuffSize = MAX(zds->fParams.blockSizeMax, 4 /* frame checksum */);
-    size_t const neededOutBuffSize = ZSTD_decodingBufferSize_min(zds->fParams.windowSize, zds->fParams.frameContentSize);
     return (zds->inBuffSize + zds->outBuffSize) >= (neededInBuffSize + neededOutBuffSize) * ZSTD_OVERSIZED_FACTOR;
 }
 
-static void ZSTD_updateOversizedDuration(ZSTD_DStream* zds)
+static void ZSTD_updateOversizedDuration(ZSTD_DStream* zds, size_t const neededInBuffSize, size_t const neededOutBuffSize)
 {
-    zds->oversizedDuration += ZSTD_isOversized(zds) != 0;
+    zds->oversizedDuration += ZSTD_isOversized(zds, neededInBuffSize, neededOutBuffSize) != 0;
 }
 
 static int ZSTD_isOversizedTooLong(ZSTD_DStream* zds)
@@ -1650,37 +1648,38 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             RETURN_ERROR_IF(zds->fParams.windowSize > zds->maxWindowSize,
                             frameParameter_windowTooLarge);
 
-            ZSTD_updateOversizedDuration(zds);
             /* Adapt buffer sizes to frame header instructions */
             {   size_t const neededInBuffSize = MAX(zds->fParams.blockSizeMax, 4 /* frame checksum */);
                 size_t const neededOutBuffSize = ZSTD_decodingBufferSize_min(zds->fParams.windowSize, zds->fParams.frameContentSize);
 
-                int const tooSmall = (zds->inBuffSize < neededInBuffSize) || (zds->outBuffSize < neededOutBuffSize);
-                int const tooLarge = ZSTD_isOversizedTooLong(zds);
-                
-                if (tooSmall || tooLarge) {
-                    size_t const bufferSize = neededInBuffSize + neededOutBuffSize;
-                    DEBUGLOG(4, "inBuff  : from %u to %u",
-                                (U32)zds->inBuffSize, (U32)neededInBuffSize);
-                    DEBUGLOG(4, "outBuff : from %u to %u",
-                                (U32)zds->outBuffSize, (U32)neededOutBuffSize);
-                    if (zds->staticSize) {  /* static DCtx */
-                        DEBUGLOG(4, "staticSize : %u", (U32)zds->staticSize);
-                        assert(zds->staticSize >= sizeof(ZSTD_DCtx));  /* controlled at init */
-                        RETURN_ERROR_IF(
-                            bufferSize > zds->staticSize - sizeof(ZSTD_DCtx),
-                            memory_allocation);
-                    } else {
-                        ZSTD_free(zds->inBuff, zds->customMem);
-                        zds->inBuffSize = 0;
-                        zds->outBuffSize = 0;
-                        zds->inBuff = (char*)ZSTD_malloc(bufferSize, zds->customMem);
-                        RETURN_ERROR_IF(zds->inBuff == NULL, memory_allocation);
-                    }
-                    zds->inBuffSize = neededInBuffSize;
-                    zds->outBuff = zds->inBuff + zds->inBuffSize;
-                    zds->outBuffSize = neededOutBuffSize;
-            }   }
+                ZSTD_updateOversizedDuration(zds, neededInBuffSize, neededOutBuffSize);
+
+                {   int const tooSmall = (zds->inBuffSize < neededInBuffSize) || (zds->outBuffSize < neededOutBuffSize);
+                    int const tooLarge = ZSTD_isOversizedTooLong(zds);
+                    
+                    if (tooSmall || tooLarge) {
+                        size_t const bufferSize = neededInBuffSize + neededOutBuffSize;
+                        DEBUGLOG(4, "inBuff  : from %u to %u",
+                                    (U32)zds->inBuffSize, (U32)neededInBuffSize);
+                        DEBUGLOG(4, "outBuff : from %u to %u",
+                                    (U32)zds->outBuffSize, (U32)neededOutBuffSize);
+                        if (zds->staticSize) {  /* static DCtx */
+                            DEBUGLOG(4, "staticSize : %u", (U32)zds->staticSize);
+                            assert(zds->staticSize >= sizeof(ZSTD_DCtx));  /* controlled at init */
+                            RETURN_ERROR_IF(
+                                bufferSize > zds->staticSize - sizeof(ZSTD_DCtx),
+                                memory_allocation);
+                        } else {
+                            ZSTD_free(zds->inBuff, zds->customMem);
+                            zds->inBuffSize = 0;
+                            zds->outBuffSize = 0;
+                            zds->inBuff = (char*)ZSTD_malloc(bufferSize, zds->customMem);
+                            RETURN_ERROR_IF(zds->inBuff == NULL, memory_allocation);
+                        }
+                        zds->inBuffSize = neededInBuffSize;
+                        zds->outBuff = zds->inBuff + zds->inBuffSize;
+                        zds->outBuffSize = neededOutBuffSize;
+            }   }   }
             zds->streamStage = zdss_read;
             /* fall-through */
 

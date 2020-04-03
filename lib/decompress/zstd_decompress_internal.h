@@ -95,9 +95,6 @@ typedef enum {
     ZSTD_use_once = 1            /* Use the dictionary once and set to ZSTD_dont_use */
 } ZSTD_dictUses_e;
 
-#define ZSTD_OVERSIZED_MAXDURATION 128
-#define ZSTD_OVERSIZED_FACTOR 3
-
 struct ZSTD_DCtx_s
 {
     const ZSTD_seqSymbol* LLTptr;

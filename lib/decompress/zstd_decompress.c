@@ -1508,6 +1508,24 @@ MEM_STATIC size_t ZSTD_limitCopy(void* dst, size_t dstCapacity, const void* src,
     return length;
 }
 
+static int ZSTD_isOversized(ZSTD_DStream* zds)
+{
+    size_t const neededInBuffSize = MAX(zds->fParams.blockSizeMax, 4 /* frame checksum */);
+    size_t const neededOutBuffSize = ZSTD_decodingBufferSize_min(zds->fParams.windowSize, zds->fParams.frameContentSize);
+    int const inOversized = zds->inBuffSize >= neededInBuffSize * ZSTD_OVERSIZED_FACTOR;
+    int const outOversized = zds->outBuffSize >= neededOutBuffSize * ZSTD_OVERSIZED_FACTOR;
+    return inOversized || outOversized;
+}
+
+static void ZSTD_updateOversizedDuration(ZSTD_DStream* zds)
+{
+    zds->oversizedDuration += ZSTD_isOversized(zds) != 0;
+}
+
+static int ZSTD_isOversizedTooLong(ZSTD_DStream* zds)
+{
+    return zds->oversizedDuration >= ZSTD_OVERSIZED_MAXDURATION;
+}
 
 size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inBuffer* input)
 {
@@ -1634,10 +1652,15 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             RETURN_ERROR_IF(zds->fParams.windowSize > zds->maxWindowSize,
                             frameParameter_windowTooLarge);
 
+            ZSTD_updateOversizedDuration(zds);
             /* Adapt buffer sizes to frame header instructions */
             {   size_t const neededInBuffSize = MAX(zds->fParams.blockSizeMax, 4 /* frame checksum */);
                 size_t const neededOutBuffSize = ZSTD_decodingBufferSize_min(zds->fParams.windowSize, zds->fParams.frameContentSize);
-                if ((zds->inBuffSize < neededInBuffSize) || (zds->outBuffSize < neededOutBuffSize)) {
+
+                int const tooSmall = (zds->inBuffSize < neededInBuffSize) || (zds->outBuffSize < neededOutBuffSize);
+                int const tooLarge = ZSTD_isOversizedTooLong(zds);
+                
+                if (tooSmall || tooLarge) {
                     size_t const bufferSize = neededInBuffSize + neededOutBuffSize;
                     DEBUGLOG(4, "inBuff  : from %u to %u",
                                 (U32)zds->inBuffSize, (U32)neededInBuffSize);

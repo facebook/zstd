@@ -105,6 +105,7 @@ static char* readFile(const char* filename, size_t* size) {
   bytes_read = fread(buf, 1, *size, f);
   if (bytes_read != *size) {
     fprintf(stderr, "failed to read whole file\n");
+    fclose(f);
     free(buf);
     return NULL;
   }

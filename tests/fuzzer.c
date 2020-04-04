@@ -525,7 +525,48 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
-    DISPLAYLEVEL(3, "test%3d: superblock uncompressible data, too many nocompress superblocks : ", testNb++)
+    DISPLAYLEVEL(3, "test%3d: check DCtx size is reduced after many oversized calls : ", testNb++);
+    {
+        size_t const largeFrameSrcSize = 200;
+        size_t const smallFrameSrcSize = 10;
+        size_t const nbFrames = 256;
+
+        size_t i = 0, consumed = 0, produced = 0, prevDCtxSize = 0;
+        int sizeReduced = 0;
+
+        BYTE* const dst = (BYTE*)compressedBuffer;
+        ZSTD_DCtx* dctx = ZSTD_createDCtx();
+        
+        /* create a large frame and then a bunch of small frames */
+        size_t srcSize = ZSTD_compress((void*)dst, 
+            compressedBufferSize, CNBuffer, largeFrameSrcSize, 3);
+        for (i = 0; i < nbFrames; i++) 
+            srcSize += ZSTD_compress((void*)(dst + srcSize), 
+                compressedBufferSize - srcSize, CNBuffer, 
+                smallFrameSrcSize, 3);
+            
+        /* decompressStream and make sure that dctx size was reduced at least once */
+        while (consumed < srcSize) {
+            ZSTD_inBuffer in = {(void*)(dst + consumed), MIN(1, srcSize - consumed), 0};
+            ZSTD_outBuffer out = {(BYTE*)CNBuffer + produced, CNBuffSize - produced, 0};
+            ZSTD_decompressStream(dctx, &out, &in);
+            consumed += in.pos;
+            produced += out.pos;
+
+            /* success! size was reduced from the previous frame */
+            if (prevDCtxSize > ZSTD_sizeof_DCtx(dctx))
+                sizeReduced = 1;
+
+            prevDCtxSize = ZSTD_sizeof_DCtx(dctx);
+        }
+
+        assert(sizeReduced);
+
+        ZSTD_freeDCtx(dctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3d: superblock uncompressible data, too many nocompress superblocks : ", testNb++);
     {
         ZSTD_CCtx* const cctx = ZSTD_createCCtx();
         const BYTE* src = (BYTE*)CNBuffer; BYTE* dst = (BYTE*)compressedBuffer;

@@ -593,8 +593,6 @@ static int init_cLevel(void) {
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
-#define PATCHFROM_LONG_THRESH 32 MB
-
 #define ZSTD_NB_STRATEGIES 9
 
 static const char* ZSTD_strategyMap[ZSTD_NB_STRATEGIES + 1] = { "", "ZSTD_fast",
@@ -1272,7 +1270,6 @@ int main(int const argCount, const char* argv[])
             const unsigned long long dictSize = UTIL_getFileSize(patchFromDictFileName);
             if (fileSize != UTIL_FILESIZE_UNKNOWN && dictSize != UTIL_FILESIZE_UNKNOWN) {
                 memLimit = MAX(memLimit, MAX((unsigned)dictSize, (unsigned)fileSize));
-                ldmFlag = fileSize + dictSize > PATCHFROM_LONG_THRESH;
             }
         }
         FIO_setMemLimit(prefs, memLimit);

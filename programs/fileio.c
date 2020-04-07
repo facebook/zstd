@@ -821,6 +821,8 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
         if (fileWindowLog > ZSTD_WINDOWLOG_MAX)
             DISPLAYLEVEL(1, "Max window log exceeded by file (compression ratio will suffer).");
         comprParams.windowLog = MIN(ZSTD_WINDOWLOG_MAX, fileWindowLog);
+        if (fileWindowLog > comprParams.chainLog)
+            FIO_setLdmFlag(prefs, 1);
     }
 
     CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_contentSizeFlag, prefs->contentSize) );  /* always enable content size when available (note: supposed to be default) */

@@ -24,16 +24,6 @@ extern "C" {
 *  Constants
 ***************************************/
 
-/* define "workspace is too large" as this number of times larger than needed */
-#define ZSTD_WORKSPACETOOLARGE_FACTOR 3
-
-/* when workspace is continuously too large
- * during at least this number of times,
- * context's memory usage is considered wasteful,
- * because it's sized to handle a worst case scenario which rarely happens.
- * In which case, resize it down to free some memory */
-#define ZSTD_WORKSPACETOOLARGE_MAXDURATION 128
-
 /* Since the workspace is effectively its own little malloc implementation /
  * arena, when we run under ASAN, we should similarly insert redzones between
  * each internal element of the workspace, so ASAN will catch overruns that

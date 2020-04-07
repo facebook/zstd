@@ -1271,7 +1271,7 @@ int main(int const argCount, const char* argv[])
             const unsigned long long fileSize = UTIL_getFileSize(srcFileName);
             const unsigned long long dictSize = UTIL_getFileSize(patchFromDictFileName);
             if (fileSize != UTIL_FILESIZE_UNKNOWN && dictSize != UTIL_FILESIZE_UNKNOWN) {
-                memLimit = MAX(memLimit, MAX(dictSize, fileSize));
+                memLimit = MAX(memLimit, MAX((unsigned)dictSize, (unsigned)fileSize));
                 ldmFlag = fileSize + dictSize > PATCHFROM_LONG_THRESH;
             }
         }

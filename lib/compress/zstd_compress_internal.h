@@ -166,6 +166,7 @@ typedef struct {
 typedef struct {
     ZSTD_window_t window;   /* State for the window round buffer management */
     ldmEntry_t* hashTable;
+    U32 loadedDictEnd;
     BYTE* bucketOffsets;    /* Next position in bucket to insert entry */
     U64 hashPower;          /* Used to compute the rolling hash.
                              * Depends on ldmParams.minMatchLength */

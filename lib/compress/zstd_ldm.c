@@ -224,6 +224,17 @@ static U64 ZSTD_ldm_fillLdmHashTable(ldmState_t* state,
     return rollingHash;
 }
 
+void ZSTD_ldm_fillHashTable(
+            ldmState_t* state, const BYTE* ip,
+            const BYTE* iend, ldmParams_t const* params)
+{
+    U64 startingHash = ZSTD_rollingHash_compute(ip, params->minMatchLength);
+    ZSTD_ldm_fillLdmHashTable(
+        state, startingHash, ip, iend - params->minMatchLength, state->window.base,
+        params->hashLog - params->bucketSizeLog,
+        *params);
+}
+
 
 /** ZSTD_ldm_limitTableUpdate() :
  *
@@ -459,7 +470,7 @@ size_t ZSTD_ldm_generateSequences(
          *       * Try invalidation after the sequence generation and test the
          *         the offset against maxDist directly.
          */
-        ZSTD_window_enforceMaxDist(&ldmState->window, chunkEnd, maxDist, NULL, NULL);
+        ZSTD_window_enforceMaxDist(&ldmState->window, chunkEnd, maxDist, &ldmState->loadedDictEnd, NULL);
         /* 3. Generate the sequences for the chunk, and get newLeftoverSize. */
         newLeftoverSize = ZSTD_ldm_generateSequences_internal(
             ldmState, sequences, params, chunkStart, chunkSize);
@@ -567,7 +578,6 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
         if (sequence.offset == 0)
             break;
 
-        assert(sequence.offset <= (1U << cParams->windowLog));
         assert(ip + sequence.litLength + sequence.matchLength <= iend);
 
         /* Fill tables for block compressor */

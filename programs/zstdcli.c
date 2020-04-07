@@ -591,6 +591,10 @@ static int init_cLevel(void) {
     return ZSTDCLI_CLEVEL_DEFAULT;
 }
 
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+
+#define PATCHFROM_LONG_THRESH 32 MB
+
 #define ZSTD_NB_STRATEGIES 9
 
 static const char* ZSTD_strategyMap[ZSTD_NB_STRATEGIES + 1] = { "", "ZSTD_fast",
@@ -1240,6 +1244,11 @@ int main(int const argCount, const char* argv[])
         CLEAN_RETURN(1);
     }
 
+    if (patchFromDictFileName != NULL && filenames->tableSize > 1) {
+        DISPLAY("error : can't use --patch-from=# on multiple files \n");
+        CLEAN_RETURN(1);
+    }
+
     /* No status message in pipe mode (stdin - stdout) or multi-files mode */
     if (!strcmp(filenames->fileNames[0], stdinmark) && outFileName && !strcmp(outFileName,stdoutmark) && (g_displayLevel==2)) g_displayLevel=1;
     if ((filenames->tableSize > 1) & (g_displayLevel==2)) g_displayLevel=1;
@@ -1247,18 +1256,26 @@ int main(int const argCount, const char* argv[])
     /* IO Stream/File */
     FIO_setNotificationLevel(g_displayLevel);
     FIO_setPatchFromMode(prefs, patchFromDictFileName != NULL);
-    if (patchFromDictFileName != NULL) {
-        dictFileName = patchFromDictFileName;
-    }
     if (memLimit == 0) {
         if (compressionParams.windowLog == 0) {
             memLimit = (U32)1 << g_defaultMaxWindowLog;
         } else {
             memLimit = (U32)1 << (compressionParams.windowLog & 31);
     }   }
-    FIO_setMemLimit(prefs, memLimit);
+    if (patchFromDictFileName != NULL)
+        dictFileName = patchFromDictFileName;
     if (operation==zom_compress) {
 #ifndef ZSTD_NOCOMPRESS
+        if (patchFromDictFileName != NULL) {
+            const char* const srcFileName = filenames->fileNames[0];
+            const unsigned long long fileSize = UTIL_getFileSize(srcFileName);
+            const unsigned long long dictSize = UTIL_getFileSize(patchFromDictFileName);
+            if (fileSize != UTIL_FILESIZE_UNKNOWN && dictSize != UTIL_FILESIZE_UNKNOWN) {
+                memLimit = MAX(memLimit, MAX(dictSize, fileSize));
+                ldmFlag = fileSize + dictSize > PATCHFROM_LONG_THRESH;
+            }
+        }
+        FIO_setMemLimit(prefs, memLimit);
         FIO_setContentSize(prefs, contentSize);
         FIO_setNbWorkers(prefs, nbWorkers);
         FIO_setBlockSize(prefs, (int)blockSize);
@@ -1312,6 +1329,7 @@ int main(int const argCount, const char* argv[])
 #endif
     } else {  /* decompression or test */
 #ifndef ZSTD_NODECOMPRESS
+        FIO_setMemLimit(prefs, memLimit);
         if (filenames->tableSize == 1 && outFileName) {
             operationResult = FIO_decompressFilename(prefs, outFileName, filenames->fileNames[0], dictFileName);
         } else {

@@ -77,8 +77,6 @@
 
 #define FNSPACE 30
 
-#define PATCHFROM_WINDOWSIZE_EXTRA_BYTES 1 KB
-
 /*-*************************************
 *  Macros
 ***************************************/
@@ -784,6 +782,8 @@ typedef struct {
     size_t srcBufferSize;
     void*  dstBuffer;
     size_t dstBufferSize;
+    void* dictBuffer;
+    size_t dictBufferSize;
     const char* dictFileName;
     ZSTD_CStream* cctx;
 } cRess_t;
@@ -803,68 +803,72 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
     ress.srcBuffer = malloc(ress.srcBufferSize);
     ress.dstBufferSize = ZSTD_CStreamOutSize();
     ress.dstBuffer = malloc(ress.dstBufferSize);
+    ress.dictBufferSize = FIO_createDictBuffer(&ress.dictBuffer, dictFileName, prefs);   /* works with dictFileName==NULL */
     if (!ress.srcBuffer || !ress.dstBuffer)
         EXM_THROW(31, "allocation error : not enough memory");
 
     /* Advanced parameters, including dictionary */
-    {   void* dictBuffer;
-        size_t const dictBuffSize = FIO_createDictBuffer(&dictBuffer, dictFileName, prefs);   /* works with dictFileName==NULL */
-        if (dictFileName && (dictBuffer==NULL))
-            EXM_THROW(32, "allocation error : can't create dictBuffer");
-        ress.dictFileName = dictFileName;
+    if (dictFileName && (ress.dictBuffer==NULL))
+        EXM_THROW(32, "allocation error : can't create dictBuffer");
+    ress.dictFileName = dictFileName;
 
-        if (prefs->adaptiveMode && !prefs->ldmFlag && !comprParams.windowLog)
-            comprParams.windowLog = ADAPT_WINDOWLOG_DEFAULT;
+    if (prefs->adaptiveMode && !prefs->ldmFlag && !comprParams.windowLog)
+        comprParams.windowLog = ADAPT_WINDOWLOG_DEFAULT;
 
-        if (prefs->patchFromMode) {
-            comprParams.windowLog = FIO_highbit64((unsigned long long)maxSrcFileSize + PATCHFROM_WINDOWSIZE_EXTRA_BYTES);
-        }
-
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_contentSizeFlag, 1) );  /* always enable content size when available (note: supposed to be default) */
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_dictIDFlag, prefs->dictIDFlag) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_checksumFlag, prefs->checksumFlag) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_contentSizeFlag, prefs->contentSize) );
-        /* compression level */
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_compressionLevel, cLevel) );
-        /* max compressed block size */
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_targetCBlockSize, (int)prefs->targetCBlockSize) );
-        /* source size hint */
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_srcSizeHint, (int)prefs->srcSizeHint) );
-        /* long distance matching */
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_enableLongDistanceMatching, prefs->ldmFlag) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_ldmHashLog, prefs->ldmHashLog) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_ldmMinMatch, prefs->ldmMinMatch) );
-        if (prefs->ldmBucketSizeLog != FIO_LDM_PARAM_NOTSET) {
-            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_ldmBucketSizeLog, prefs->ldmBucketSizeLog) );
-        }
-        if (prefs->ldmHashRateLog != FIO_LDM_PARAM_NOTSET) {
-            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_ldmHashRateLog, prefs->ldmHashRateLog) );
-        }
-        /* compression parameters */
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_windowLog, (int)comprParams.windowLog) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_chainLog, (int)comprParams.chainLog) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_hashLog, (int)comprParams.hashLog) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_searchLog, (int)comprParams.searchLog) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_minMatch, (int)comprParams.minMatch) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_targetLength, (int)comprParams.targetLength) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_strategy, comprParams.strategy) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_literalCompressionMode, (int)prefs->literalCompressionMode) );
-        /* multi-threading */
-#ifdef ZSTD_MULTITHREAD
-        DISPLAYLEVEL(5,"set nb workers = %u \n", prefs->nbWorkers);
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_nbWorkers, prefs->nbWorkers) );
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_jobSize, prefs->blockSize) );
-        if (prefs->overlapLog != FIO_OVERLAP_LOG_NOTSET) {
-            DISPLAYLEVEL(3,"set overlapLog = %u \n", prefs->overlapLog);
-            CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_overlapLog, prefs->overlapLog) );
-        }
-        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_rsyncable, prefs->rsyncable) );
-#endif
-        /* dictionary */
-        CHECK( ZSTD_CCtx_loadDictionary(ress.cctx, dictBuffer, dictBuffSize) );
-        free(dictBuffer);
+    if (prefs->patchFromMode) {
+        /* Make sure there is enough room for dict and src in long mode */
+        unsigned const fileWindowLog = FIO_highbit64((unsigned long long)maxSrcFileSize) + 1;
+        if (fileWindowLog > ZSTD_WINDOWLOG_MAX)
+            DISPLAYLEVEL(1, "Max window log exceeded by file (compression ratio will suffer).");
+        comprParams.windowLog = MIN(ZSTD_WINDOWLOG_MAX, fileWindowLog);
     }
 
+    CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_contentSizeFlag, prefs->contentSize) );  /* always enable content size when available (note: supposed to be default) */
+    CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_dictIDFlag, prefs->dictIDFlag) );
+    CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_checksumFlag, prefs->checksumFlag) );
+    /* compression level */
+    CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_compressionLevel, cLevel) );
+    /* max compressed block size */
+    CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_targetCBlockSize, (int)prefs->targetCBlockSize) );
+    /* source size hint */
+    CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_srcSizeHint, (int)prefs->srcSizeHint) );
+    /* long distance matching */
+    CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_enableLongDistanceMatching, prefs->ldmFlag) );
+    CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_ldmHashLog, prefs->ldmHashLog) );
+    CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_ldmMinMatch, prefs->ldmMinMatch) );
+    if (prefs->ldmBucketSizeLog != FIO_LDM_PARAM_NOTSET) {
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_ldmBucketSizeLog, prefs->ldmBucketSizeLog) );
+    }
+    if (prefs->ldmHashRateLog != FIO_LDM_PARAM_NOTSET) {
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_ldmHashRateLog, prefs->ldmHashRateLog) );
+    }
+    /* compression parameters */
+    CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_windowLog, (int)comprParams.windowLog) );
+    CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_chainLog, (int)comprParams.chainLog) );
+    CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_hashLog, (int)comprParams.hashLog) );
+    CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_searchLog, (int)comprParams.searchLog) );
+    CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_minMatch, (int)comprParams.minMatch) );
+    CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_targetLength, (int)comprParams.targetLength) );
+    CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_strategy, comprParams.strategy) );
+    CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_literalCompressionMode, (int)prefs->literalCompressionMode) );
+    /* multi-threading */
+#ifdef ZSTD_MULTITHREAD
+    DISPLAYLEVEL(5,"set nb workers = %u \n", prefs->nbWorkers);
+    CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_nbWorkers, prefs->nbWorkers) );
+    CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_jobSize, prefs->blockSize) );
+    if (prefs->overlapLog != FIO_OVERLAP_LOG_NOTSET) {
+        DISPLAYLEVEL(3,"set overlapLog = %u \n", prefs->overlapLog);
+        CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_overlapLog, prefs->overlapLog) );
+    }
+    CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_rsyncable, prefs->rsyncable) );
+#endif
+    /* dictionary */
+    if (prefs->patchFromMode) {
+        CHECK( ZSTD_CCtx_refPrefix(ress.cctx, ress.dictBuffer, ress.dictBufferSize) );
+    } else {
+        CHECK( ZSTD_CCtx_loadDictionary(ress.cctx, ress.dictBuffer, ress.dictBufferSize) );
+    }
+    
     return ress;
 }
 
@@ -872,6 +876,7 @@ static void FIO_freeCResources(cRess_t ress)
 {
     free(ress.srcBuffer);
     free(ress.dstBuffer);
+    free(ress.dictBuffer);
     ZSTD_freeCStream(ress.cctx);   /* never fails */
 }
 

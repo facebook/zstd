@@ -24,6 +24,10 @@ extern "C" {
 
 #define ZSTD_LDM_DEFAULT_WINDOW_LOG ZSTD_WINDOWLOG_LIMIT_DEFAULT
 
+void ZSTD_ldm_fillHashTable(
+            ldmState_t* state, const BYTE* ip,
+            const BYTE* iend, ldmParams_t const* params);
+
 /**
  * ZSTD_ldm_generateSequences():
  *

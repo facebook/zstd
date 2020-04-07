@@ -109,8 +109,8 @@ contrib: lib
 	$(MAKE) -C contrib/pzstd all
 	$(MAKE) -C contrib/seekable_format/examples all
 	$(MAKE) -C contrib/largeNbDicts all
-	cd contrib/single_file_decoder/ ; ./build_decoder_test.sh
-	cd contrib/single_file_decoder/ ; ./build_library_test.sh
+	cd contrib/single_file_libs/ ; ./build_decoder_test.sh
+	cd contrib/single_file_libs/ ; ./build_library_test.sh
 
 .PHONY: cleanTabs
 cleanTabs:

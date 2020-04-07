@@ -40,8 +40,6 @@
 ****************************************************************/
 #define HUF_isError ERR_isError
 #define HUF_STATIC_ASSERT(c) DEBUG_STATIC_ASSERT(c)   /* use only *after* variable declarations */
-#define CHECK_V_F(e, f) size_t const e = f; if (ERR_isError(e)) return e
-#define CHECK_F(f)   { CHECK_V_F(_var_err__, f); }
 
 
 /* **************************************************************

@@ -3749,14 +3749,6 @@ static size_t ZSTD_nextInputSizeHint(const ZSTD_CCtx* cctx)
     return hintInSize;
 }
 
-static size_t ZSTD_limitCopy(void* dst, size_t dstCapacity,
-                       const void* src, size_t srcSize)
-{
-    size_t const length = MIN(dstCapacity, srcSize);
-    if (length) memcpy(dst, src, length);
-    return length;
-}
-
 /** ZSTD_compressStream_generic():
  *  internal function for all *compressStream*() variants
  *  non-static, because can be called from zstdmt_compress.c

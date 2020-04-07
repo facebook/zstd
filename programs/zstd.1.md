@@ -128,6 +128,12 @@ the last one takes effect.
     selection, namely that windowSize > srcSize.
 
     Note: cannot use both this and -D together
+    Note: consider using --patch-from with `--long` mode on large files
+    Note: `--long` mode will be automatically activated if chainLog < fileLog
+        (fileLog being the windowLog requried to cover the whole file)
+    Note: for level 19, you can get increased compression ratio at the cost 
+        of speed by specifying `--zstd=targetLength=` to be something large 
+        (i.e 4096)
 * `-M#`, `--memory=#`:
     Set a memory usage limit. By default, Zstandard uses 128 MB for decompression
     as the maximum amount of memory the decompressor is allowed to use, but you can

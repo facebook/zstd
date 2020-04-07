@@ -1499,7 +1499,6 @@ size_t ZSTD_estimateDStreamSize_fromFrame(const void* src, size_t srcSize)
 
 /* *****   Decompression   ***** */
 
-
 static int ZSTD_DCtx_isOverflow(ZSTD_DStream* zds, size_t const neededInBuffSize, size_t const neededOutBuffSize)
 {
     return (zds->inBuffSize + zds->outBuffSize) >= (neededInBuffSize + neededOutBuffSize) * ZSTD_WORKSPACETOOLARGE_FACTOR;

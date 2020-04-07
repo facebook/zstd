@@ -41,9 +41,6 @@
 *  Error Management
 ****************************************************************/
 #define HUF_isError ERR_isError
-#ifndef CHECK_F
-#define CHECK_F(f) { size_t const err_ = (f); if (HUF_isError(err_)) return err_; }
-#endif
 
 
 /* **************************************************************

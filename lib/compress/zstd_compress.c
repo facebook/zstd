@@ -945,9 +945,11 @@ size_t ZSTD_CCtx_refPrefix_advanced(
 {
     RETURN_ERROR_IF(cctx->streamStage != zcss_init, stage_wrong);
     ZSTD_clearAllDicts(cctx);
-    cctx->prefixDict.dict = prefix;
-    cctx->prefixDict.dictSize = prefixSize;
-    cctx->prefixDict.dictContentType = dictContentType;
+    if (prefix != NULL && prefixSize > 0) {
+        cctx->prefixDict.dict = prefix;
+        cctx->prefixDict.dictSize = prefixSize;
+        cctx->prefixDict.dictContentType = dictContentType;
+    }
     return 0;
 }
 

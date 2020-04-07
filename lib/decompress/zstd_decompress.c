@@ -1498,17 +1498,6 @@ size_t ZSTD_estimateDStreamSize_fromFrame(const void* src, size_t srcSize)
 
 /* *****   Decompression   ***** */
 
-#ifndef ZSTD_COMPRESS_H /* zstd_compress.c has the same function */
-MEM_STATIC size_t ZSTD_limitCopy(void* dst, size_t dstCapacity, const void* src, size_t srcSize)
-{
-    size_t const length = MIN(dstCapacity, srcSize);
-    if (length > 0) {
-        memcpy(dst, src, length);
-    }
-    return length;
-}
-#endif
-
 size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inBuffer* input)
 {
     const char* const src = (const char*)input->src;

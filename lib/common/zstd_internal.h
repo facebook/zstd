@@ -248,6 +248,15 @@ void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length, ZSTD_overlap_e 
     }
 }
 
+MEM_STATIC size_t ZSTD_limitCopy(void* dst, size_t dstCapacity, const void* src, size_t srcSize)
+{
+    size_t const length = MIN(dstCapacity, srcSize);
+    if (length > 0) {
+        memcpy(dst, src, length);
+    }
+    return length;
+}
+
 /* define "workspace is too large" as this number of times larger than needed */
 #define ZSTD_WORKSPACETOOLARGE_FACTOR 3
 

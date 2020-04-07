@@ -1499,15 +1499,6 @@ size_t ZSTD_estimateDStreamSize_fromFrame(const void* src, size_t srcSize)
 
 /* *****   Decompression   ***** */
 
-MEM_STATIC size_t ZSTD_limitCopy(void* dst, size_t dstCapacity, const void* src, size_t srcSize)
-{
-    size_t const length = MIN(dstCapacity, srcSize);
-    if (length > 0) {
-        memcpy(dst, src, length);
-    }
-    return length;
-}
-
 static int ZSTD_DCtx_isOverflow(ZSTD_DStream* zds, size_t const neededInBuffSize, size_t const neededOutBuffSize)
 {
     return (zds->inBuffSize + zds->outBuffSize) >= (neededInBuffSize + neededOutBuffSize) * ZSTD_WORKSPACETOOLARGE_FACTOR;

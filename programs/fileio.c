@@ -799,15 +799,26 @@ static void FIO_adjustMemLimitForPatchFromMode(FIO_prefs_t* const prefs,
 
 static void FIO_adjustParamsForPatchFromMode(FIO_prefs_t* const prefs, 
                                     ZSTD_compressionParameters* comprParams,
-                                    size_t const dictSize, size_t const maxSrcFileSize)
+                                    size_t const dictSize, size_t const maxSrcFileSize,
+                                    int cLevel)
 {
     unsigned const fileWindowLog = FIO_highbit64((unsigned long long)maxSrcFileSize) + 1;
+    ZSTD_compressionParameters const cParams = ZSTD_getCParams(cLevel, maxSrcFileSize, dictSize);
     FIO_adjustMemLimitForPatchFromMode(prefs, dictSize, maxSrcFileSize);
     if (fileWindowLog > ZSTD_WINDOWLOG_MAX)
-        DISPLAYLEVEL(1, "Max window log exceeded by file (compression ratio will suffer).");
+        DISPLAYLEVEL(1, "Max window log exceeded by file (compression ratio will suffer)\n");
     comprParams->windowLog = MIN(ZSTD_WINDOWLOG_MAX, fileWindowLog);
-    if (fileWindowLog > comprParams->chainLog)
+    if (fileWindowLog > comprParams->chainLog) {
+        if (!prefs->ldmFlag)
+            DISPLAYLEVEL(1, "long mode automaticaly triggered\n");
         FIO_setLdmFlag(prefs, 1);
+    }
+    if (cParams.strategy >= ZSTD_btopt) {
+        DISPLAYLEVEL(1, "[Optimal parser notes] Consider the following to improve patch size at the cost of speed:\n");
+        DISPLAYLEVEL(1, "- Set a larger targetLength (eg. --zstd=targetLength=4096)\n");
+        DISPLAYLEVEL(1, "- Set a larger chainLog (eg. --zstd=chainLog=31)\n");
+        DISPLAYLEVEL(1, "Also consdier playing around with searchLog and hashLog\n");
+    }
 }
 
 static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
@@ -838,7 +849,7 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
         comprParams.windowLog = ADAPT_WINDOWLOG_DEFAULT;
 
     if (prefs->patchFromMode)
-        FIO_adjustParamsForPatchFromMode(prefs, &comprParams, ress.dictBufferSize, maxSrcFileSize);
+        FIO_adjustParamsForPatchFromMode(prefs, &comprParams, ress.dictBufferSize, maxSrcFileSize, cLevel);
 
     CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_contentSizeFlag, prefs->contentSize) );  /* always enable content size when available (note: supposed to be default) */
     CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_dictIDFlag, prefs->dictIDFlag) );

@@ -607,6 +607,54 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : testing refPrefx vs refPrefx + ldm (size comparison) : ", testNb++);
+    {
+        /* test a big buffer so that ldm can take effect */
+        size_t const size = 100 MB;
+        size_t const windowLog = 27;
+        size_t const dstSize = ZSTD_compressBound(size);
+
+        void* dict = (void*)malloc(size);
+        void* src = (void*)malloc(size);
+        void* dst = (void*)malloc(dstSize);
+
+        size_t refPrefixCompressedSize = 0;
+        size_t refPrefixLdmComrpessedSize = 0;
+
+        ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        
+        /* make dict and src the same uncompressible data */
+        RDG_genBuffer(src, size, 0, 0, seed);
+        memcpy(dict, src, size);
+        assert(!memcmp(dict, src, size));
+        
+        /* set level 1 and windowLog to cover src */
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, 1));
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_windowLog, windowLog));
+
+        /* compress on level 1 using just refPrefix and no ldm */
+        ZSTD_CCtx_refPrefix(cctx, dict, size);
+        refPrefixCompressedSize = ZSTD_compress2(cctx, dst, dstSize, src, size);
+        assert(!ZSTD_isError(refPrefixCompressedSize));
+         
+        /* compress on level 1 using refPrefix and ldm */
+        ZSTD_CCtx_refPrefix(cctx, dict, size);;
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, 1))
+        refPrefixLdmComrpessedSize = ZSTD_compress2(cctx, dst, dstSize, src, size);
+        assert(!ZSTD_isError(refPrefixLdmComrpessedSize));
+
+        /* make sure that refPrefixCompressedSize is greater */
+        assert(refPrefixCompressedSize > refPrefixLdmComrpessedSize);
+        /* make sure the ldm comrpessed size is less than 1% of original */
+        assert((double)refPrefixLdmComrpessedSize / (double)size < 0.01);
+
+        ZSTD_freeCCtx(cctx); 
+        free(dict);
+        free(src);
+        free(dst);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     DISPLAYLEVEL(3, "test%3d: superblock uncompressible data, too many nocompress superblocks : ", testNb++);
     {
         ZSTD_CCtx* const cctx = ZSTD_createCCtx();

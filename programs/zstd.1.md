@@ -128,9 +128,9 @@ the last one takes effect.
     selection, namely that windowSize > srcSize.
 
     Note: cannot use both this and -D together
-    Note: consider using --patch-from with `--long` mode on large files
     Note: `--long` mode will be automatically activated if chainLog < fileLog
-        (fileLog being the windowLog requried to cover the whole file)
+        (fileLog being the windowLog requried to cover the whole file). You 
+        can also manually force it.
     Note: for level 19, you can get increased compression ratio at the cost 
         of speed by specifying `--zstd=targetLength=` to be something large 
         (i.e 4096)

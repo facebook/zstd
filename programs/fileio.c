@@ -788,6 +788,18 @@ typedef struct {
     ZSTD_CStream* cctx;
 } cRess_t;
 
+static void FIO_adjustParamsForPatchFromMode(FIO_prefs_t* const prefs, 
+                                    ZSTD_compressionParameters* comprParams,
+                                    size_t const maxSrcFileSize)
+{
+    unsigned const fileWindowLog = FIO_highbit64((unsigned long long)maxSrcFileSize) + 1;
+    if (fileWindowLog > ZSTD_WINDOWLOG_MAX)
+        DISPLAYLEVEL(1, "Max window log exceeded by file (compression ratio will suffer).");
+    comprParams->windowLog = MIN(ZSTD_WINDOWLOG_MAX, fileWindowLog);
+    if (fileWindowLog > comprParams->chainLog)
+        FIO_setLdmFlag(prefs, 1);
+}
+
 static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
                                     const char* dictFileName, const size_t maxSrcFileSize,
                                     int cLevel, ZSTD_compressionParameters comprParams) {
@@ -815,15 +827,8 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
     if (prefs->adaptiveMode && !prefs->ldmFlag && !comprParams.windowLog)
         comprParams.windowLog = ADAPT_WINDOWLOG_DEFAULT;
 
-    if (prefs->patchFromMode) {
-        /* Make sure there is enough room for dict and src in long mode */
-        unsigned const fileWindowLog = FIO_highbit64((unsigned long long)maxSrcFileSize) + 1;
-        if (fileWindowLog > ZSTD_WINDOWLOG_MAX)
-            DISPLAYLEVEL(1, "Max window log exceeded by file (compression ratio will suffer).");
-        comprParams.windowLog = MIN(ZSTD_WINDOWLOG_MAX, fileWindowLog);
-        if (fileWindowLog > comprParams.chainLog)
-            FIO_setLdmFlag(prefs, 1);
-    }
+    if (prefs->patchFromMode)
+        FIO_adjustParamsForPatchFromMode(prefs, &comprParams, maxSrcFileSize);
 
     CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_contentSizeFlag, prefs->contentSize) );  /* always enable content size when available (note: supposed to be default) */
     CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_dictIDFlag, prefs->dictIDFlag) );

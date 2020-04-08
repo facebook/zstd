@@ -43,9 +43,7 @@ static size_t roundTripTest(void *result, size_t resultCapacity,
                 dict.buff, dict.size,
                 cLevel);
     } else {
-        /* refPrefix seems to fail when not used with auto? */
-        if (!refPrefix)
-            dictContentType = FUZZ_dataProducer_uint32Range(producer, 0, 2);
+        dictContentType = FUZZ_dataProducer_uint32Range(producer, 0, 2);
         FUZZ_setRandomParameters(cctx, srcSize, producer);
         /* Disable checksum so we can use sizes smaller than compress bound. */
         FUZZ_ZASSERT(ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 0));

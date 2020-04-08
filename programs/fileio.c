@@ -788,11 +788,21 @@ typedef struct {
     ZSTD_CStream* cctx;
 } cRess_t;
 
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+
+static void FIO_adjustMemLimitForPatchFromMode(FIO_prefs_t* const prefs,
+                                    size_t const dictSize, size_t const maxSrcFileSize)
+{
+    if (dictSize != UTIL_FILESIZE_UNKNOWN && maxSrcFileSize != UTIL_FILESIZE_UNKNOWN)
+        FIO_setMemLimit(prefs, MAX(prefs->memLimit, MAX((unsigned)dictSize, (unsigned)maxSrcFileSize)));
+}
+
 static void FIO_adjustParamsForPatchFromMode(FIO_prefs_t* const prefs, 
                                     ZSTD_compressionParameters* comprParams,
-                                    size_t const maxSrcFileSize)
+                                    size_t const dictSize, size_t const maxSrcFileSize)
 {
     unsigned const fileWindowLog = FIO_highbit64((unsigned long long)maxSrcFileSize) + 1;
+    FIO_adjustMemLimitForPatchFromMode(prefs, dictSize, maxSrcFileSize);
     if (fileWindowLog > ZSTD_WINDOWLOG_MAX)
         DISPLAYLEVEL(1, "Max window log exceeded by file (compression ratio will suffer).");
     comprParams->windowLog = MIN(ZSTD_WINDOWLOG_MAX, fileWindowLog);
@@ -828,7 +838,7 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
         comprParams.windowLog = ADAPT_WINDOWLOG_DEFAULT;
 
     if (prefs->patchFromMode)
-        FIO_adjustParamsForPatchFromMode(prefs, &comprParams, maxSrcFileSize);
+        FIO_adjustParamsForPatchFromMode(prefs, &comprParams, ress.dictBufferSize, maxSrcFileSize);
 
     CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_contentSizeFlag, prefs->contentSize) );  /* always enable content size when available (note: supposed to be default) */
     CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_dictIDFlag, prefs->dictIDFlag) );
@@ -1698,6 +1708,9 @@ static dRess_t FIO_createDResources(FIO_prefs_t* const prefs, const char* dictFi
     dRess_t ress;
     memset(&ress, 0, sizeof(ress));
 
+    if (prefs->patchFromMode)
+        FIO_adjustMemLimitForPatchFromMode(prefs, UTIL_getFileSize(dictFileName), 0 /* just use the dict size */);
+    
     /* Allocation */
     ress.dctx = ZSTD_createDStream();
     if (ress.dctx==NULL)

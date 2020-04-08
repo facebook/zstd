@@ -591,8 +591,6 @@ static int init_cLevel(void) {
     return ZSTDCLI_CLEVEL_DEFAULT;
 }
 
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
-
 #define ZSTD_NB_STRATEGIES 9
 
 static const char* ZSTD_strategyMap[ZSTD_NB_STRATEGIES + 1] = { "", "ZSTD_fast",
@@ -1260,15 +1258,8 @@ int main(int const argCount, const char* argv[])
         } else {
             memLimit = (U32)1 << (compressionParams.windowLog & 31);
     }   }
-    if (patchFromDictFileName != NULL) {
-        const char* const srcFileName = filenames->fileNames[0];
-        const unsigned long long fileSize = UTIL_getFileSize(srcFileName);
-        const unsigned long long dictSize = UTIL_getFileSize(patchFromDictFileName);
+    if (patchFromDictFileName != NULL)
         dictFileName = patchFromDictFileName;
-        if (fileSize != UTIL_FILESIZE_UNKNOWN && dictSize != UTIL_FILESIZE_UNKNOWN) {
-            memLimit = MAX(memLimit, MAX((unsigned)dictSize, (unsigned)fileSize));
-        }
-    }
     FIO_setMemLimit(prefs, memLimit);
     if (operation==zom_compress) {
 #ifndef ZSTD_NOCOMPRESS

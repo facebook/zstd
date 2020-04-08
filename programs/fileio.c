@@ -791,10 +791,11 @@ typedef struct {
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 static void FIO_adjustMemLimitForPatchFromMode(FIO_prefs_t* const prefs,
-                                    size_t const dictSize, size_t const maxSrcFileSize)
+                                    unsigned long long const dictSize,  
+                                    unsigned long long const maxSrcFileSize)
 {
     if (dictSize != UTIL_FILESIZE_UNKNOWN && maxSrcFileSize != UTIL_FILESIZE_UNKNOWN)
-        FIO_setMemLimit(prefs, MAX(prefs->memLimit, MAX((unsigned)dictSize, (unsigned)maxSrcFileSize)));
+        FIO_setMemLimit(prefs, MAX(prefs->memLimit, MAX(dictSize, maxSrcFileSize)));
 }
 
 static void FIO_adjustParamsForPatchFromMode(FIO_prefs_t* const prefs, 
@@ -804,7 +805,7 @@ static void FIO_adjustParamsForPatchFromMode(FIO_prefs_t* const prefs,
 {
     unsigned const fileWindowLog = FIO_highbit64((unsigned long long)maxSrcFileSize) + 1;
     ZSTD_compressionParameters const cParams = ZSTD_getCParams(cLevel, maxSrcFileSize, dictSize);
-    FIO_adjustMemLimitForPatchFromMode(prefs, dictSize, maxSrcFileSize);
+    FIO_adjustMemLimitForPatchFromMode(prefs, (unsigned long long)dictSize, (unsigned long long)maxSrcFileSize);
     if (fileWindowLog > ZSTD_WINDOWLOG_MAX)
         DISPLAYLEVEL(1, "Max window log exceeded by file (compression ratio will suffer)\n");
     comprParams->windowLog = MIN(ZSTD_WINDOWLOG_MAX, fileWindowLog);

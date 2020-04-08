@@ -198,6 +198,9 @@ size_t ZSTD_compressBlock_doubleFast_generic(
         }   }
 
         ip += ((ip-anchor) >> kSearchStrength) + 1;
+#if defined(__aarch64__)
+        PREFETCH_L1(ip+256);
+#endif
         continue;
 
 _search_next_long:

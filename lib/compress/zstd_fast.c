@@ -102,6 +102,11 @@ ZSTD_compressBlock_fast_generic(
         const BYTE* match0 = base + matchIndex0;
         const BYTE* match1 = base + matchIndex1;
         U32 offcode;
+
+#if defined(__aarch64__)
+        PREFETCH_L1(ip0+256);
+#endif
+
         hashTable[h0] = current0;   /* update hash table */
         hashTable[h1] = current1;   /* update hash table */
 

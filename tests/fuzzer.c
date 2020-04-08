@@ -589,6 +589,24 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : testing dict compression with enableLdm and forceMaxWindow : ", testNb++);
+    {
+        ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        void* dict = (void*)malloc(CNBuffSize);
+        
+        RDG_genBuffer(dict, CNBuffSize, 0.5, 0.5, seed);
+        RDG_genBuffer(CNBuffer, CNBuffSize, 0.6, 0.6, seed);
+        
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_forceMaxWindow, 1));
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, 1));
+        assert(!ZSTD_isError(ZSTD_compress_usingDict(cctx, compressedBuffer, compressedBufferSize, 
+            CNBuffer, CNBuffSize, dict, CNBuffSize, 3)));
+        
+        ZSTD_freeCCtx(cctx); 
+        free(dict);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     DISPLAYLEVEL(3, "test%3d: superblock uncompressible data, too many nocompress superblocks : ", testNb++);
     {
         ZSTD_CCtx* const cctx = ZSTD_createCCtx();

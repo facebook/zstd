@@ -835,6 +835,11 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
     ress.srcBufferSize = ZSTD_CStreamInSize();
     ress.srcBuffer = malloc(ress.srcBufferSize);
     ress.dstBufferSize = ZSTD_CStreamOutSize();
+
+    /* need to update memLimit before calling createDictBuffer
+     * because of memLimit check inside it */
+    if (prefs->patchFromMode)
+        FIO_adjustParamsForPatchFromMode(prefs, &comprParams, (size_t)UTIL_getFileSize(dictFileName), maxSrcFileSize, cLevel);
     ress.dstBuffer = malloc(ress.dstBufferSize);
     ress.dictBufferSize = FIO_createDictBuffer(&ress.dictBuffer, dictFileName, prefs);   /* works with dictFileName==NULL */
     if (!ress.srcBuffer || !ress.dstBuffer)
@@ -847,9 +852,6 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
 
     if (prefs->adaptiveMode && !prefs->ldmFlag && !comprParams.windowLog)
         comprParams.windowLog = ADAPT_WINDOWLOG_DEFAULT;
-
-    if (prefs->patchFromMode)
-        FIO_adjustParamsForPatchFromMode(prefs, &comprParams, ress.dictBufferSize, maxSrcFileSize, cLevel);
 
     CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_contentSizeFlag, prefs->contentSize) );  /* always enable content size when available (note: supposed to be default) */
     CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_dictIDFlag, prefs->dictIDFlag) );

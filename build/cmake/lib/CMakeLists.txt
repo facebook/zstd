@@ -169,21 +169,6 @@ if (ZSTD_BUILD_STATIC)
     )
 endif ()
 
-# export targets + find config
-configure_file(
-  "config.cmake.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/zstdConfig.cmake"
-  @ONLY
-)
-install(FILES
-  "${CMAKE_CURRENT_BINARY_DIR}/zstdConfig.cmake"
-  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/zstd"
-)
-install(EXPORT zstdExports
-  NAMESPACE zstd::
-  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/zstd"
-)
-
 # uninstall target
 if (NOT TARGET uninstall)
     configure_file(

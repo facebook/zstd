@@ -611,7 +611,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
     {
         /* test a big buffer so that ldm can take effect */
         size_t const size = 100 MB;
-        size_t const windowLog = 27;
+        int const windowLog = 27;
         size_t const dstSize = ZSTD_compressBound(size);
 
         void* dict = (void*)malloc(size);

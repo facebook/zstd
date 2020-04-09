@@ -795,7 +795,7 @@ static void FIO_adjustMemLimitForPatchFromMode(FIO_prefs_t* const prefs,
                                     unsigned long long const maxSrcFileSize)
 {
     if (dictSize != UTIL_FILESIZE_UNKNOWN && maxSrcFileSize != UTIL_FILESIZE_UNKNOWN)
-        FIO_setMemLimit(prefs, MAX(prefs->memLimit, MAX(dictSize, maxSrcFileSize)));
+        FIO_setMemLimit(prefs, MAX(prefs->memLimit, MAX((unsigned)dictSize, (unsigned)maxSrcFileSize)));
 }
 
 static void FIO_adjustParamsForPatchFromMode(FIO_prefs_t* const prefs, 

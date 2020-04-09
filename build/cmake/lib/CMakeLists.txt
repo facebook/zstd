@@ -77,8 +77,10 @@ if (MSVC)
 endif ()
 
 # Split project to static and shared libraries build
+set(library_targets)
 if (ZSTD_BUILD_SHARED)
     add_library(libzstd_shared SHARED ${Sources} ${Headers} ${PlatformDependResources})
+    list(APPEND library_targets libzstd_shared)
     if (ZSTD_MULTITHREAD_SUPPORT)
         set_property(TARGET libzstd_shared APPEND PROPERTY COMPILE_DEFINITIONS "ZSTD_MULTITHREAD")
         if (UNIX)
@@ -88,6 +90,7 @@ if (ZSTD_BUILD_SHARED)
 endif ()
 if (ZSTD_BUILD_STATIC)
     add_library(libzstd_static STATIC ${Sources} ${Headers})
+    list(APPEND library_targets libzstd_static)
     if (ZSTD_MULTITHREAD_SUPPORT)
         set_property(TARGET libzstd_static APPEND PROPERTY COMPILE_DEFINITIONS "ZSTD_MULTITHREAD")
         if (UNIX)
@@ -135,7 +138,7 @@ if (UNIX)
     # pkg-config
     set(PREFIX "${CMAKE_INSTALL_PREFIX}")
     set(LIBDIR "${CMAKE_INSTALL_FULL_LIBDIR}")
-    set(VERSION "${zstd_VERSION_MAJOR}.${zstd_VERSION_MINOR}.${zstd_VERSION_PATCH}")
+    set(VERSION "${zstd_VERSION}")
     add_custom_target(libzstd.pc ALL
             ${CMAKE_COMMAND} -DIN="${LIBRARY_DIR}/libzstd.pc.in" -DOUT="libzstd.pc"
             -DPREFIX="${PREFIX}" -DVERSION="${VERSION}"
@@ -154,20 +157,12 @@ install(FILES
     "${LIBRARY_DIR}/common/zstd_errors.h"
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 
-if (ZSTD_BUILD_SHARED)
-    install(TARGETS libzstd_shared EXPORT zstdExports
-                                   INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
-                                   ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-                                   LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+install(TARGETS ${library_targets}
+    EXPORT zstdExports
+    INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     )
-endif()
-if (ZSTD_BUILD_STATIC)
-    install(TARGETS libzstd_static EXPORT zstdExports
-                                   INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
-                                   ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-                                   LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-    )
-endif ()
 
 # uninstall target
 if (NOT TARGET uninstall)

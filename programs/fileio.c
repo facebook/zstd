@@ -807,7 +807,7 @@ static void FIO_adjustParamsForPatchFromMode(FIO_prefs_t* const prefs,
                                     int cLevel)
 {
     unsigned const fileWindowLog = FIO_highbit64(maxSrcFileSize) + 1;
-    ZSTD_compressionParameters const cParams = ZSTD_getCParams(cLevel, maxSrcFileSize, dictSize);
+    ZSTD_compressionParameters const cParams = ZSTD_getCParams(cLevel, (size_t)maxSrcFileSize, (size_t)dictSize);
     FIO_adjustMemLimitForPatchFromMode(prefs, dictSize, maxSrcFileSize);
     if (fileWindowLog > ZSTD_WINDOWLOG_MAX)
         DISPLAYLEVEL(1, "Max window log exceeded by file (compression ratio will suffer)\n");

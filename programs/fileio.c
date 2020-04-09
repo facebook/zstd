@@ -822,7 +822,7 @@ static void FIO_adjustParamsForPatchFromMode(FIO_prefs_t* const prefs,
 }
 
 static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
-                                    const char* dictFileName, const size_t maxSrcFileSize,
+                                    const char* dictFileName, unsigned long long const maxSrcFileSize,
                                     int cLevel, ZSTD_compressionParameters comprParams) {
     cRess_t ress;
     memset(&ress, 0, sizeof(ress));
@@ -1591,7 +1591,7 @@ int FIO_compressFilename(FIO_prefs_t* const prefs, const char* dstFileName,
                          const char* srcFileName, const char* dictFileName,
                          int compressionLevel,  ZSTD_compressionParameters comprParams)
 {
-    cRess_t const ress = FIO_createCResources(prefs, dictFileName, (size_t)UTIL_getFileSize(srcFileName), compressionLevel, comprParams);
+    cRess_t const ress = FIO_createCResources(prefs, dictFileName, UTIL_getFileSize(srcFileName), compressionLevel, comprParams);
     int const result = FIO_compressFilename_srcFile(prefs, ress, dstFileName, srcFileName, compressionLevel);
 
 
@@ -1639,11 +1639,12 @@ FIO_determineCompressedName(const char* srcFileName, const char* outDirName, con
     return dstFileNameBuffer;
 }
 
-static size_t FIO_getLargestFileSize(const char** inFileNames, unsigned nbFiles)
+static unsigned long long FIO_getLargestFileSize(const char** inFileNames, unsigned nbFiles)
 {
-    size_t i, fileSize, maxFileSize = 0;
+    size_t i;
+    unsigned long long fileSize, maxFileSize = 0;
     for (i = 0; i < nbFiles; i++) {
-        fileSize = (size_t)UTIL_getFileSize(inFileNames[i]);
+        fileSize = UTIL_getFileSize(inFileNames[i]);
         maxFileSize = fileSize > maxFileSize ? fileSize : maxFileSize;
     }
     return maxFileSize;

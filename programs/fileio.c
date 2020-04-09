@@ -769,6 +769,15 @@ static unsigned FIO_highbit64(unsigned long long v)
     return count;
 }
 
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+
+static void FIO_adjustMemLimitForPatchFromMode(FIO_prefs_t* const prefs,
+                                    unsigned long long const dictSize,  
+                                    unsigned long long const maxSrcFileSize)
+{
+    if (dictSize != UTIL_FILESIZE_UNKNOWN && maxSrcFileSize != UTIL_FILESIZE_UNKNOWN)
+        FIO_setMemLimit(prefs, MAX(prefs->memLimit, MAX((unsigned)dictSize, (unsigned)maxSrcFileSize)));
+}
 
 #ifndef ZSTD_NOCOMPRESS
 
@@ -787,16 +796,6 @@ typedef struct {
     const char* dictFileName;
     ZSTD_CStream* cctx;
 } cRess_t;
-
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
-
-static void FIO_adjustMemLimitForPatchFromMode(FIO_prefs_t* const prefs,
-                                    unsigned long long const dictSize,  
-                                    unsigned long long const maxSrcFileSize)
-{
-    if (dictSize != UTIL_FILESIZE_UNKNOWN && maxSrcFileSize != UTIL_FILESIZE_UNKNOWN)
-        FIO_setMemLimit(prefs, MAX(prefs->memLimit, MAX((unsigned)dictSize, (unsigned)maxSrcFileSize)));
-}
 
 static void FIO_adjustParamsForPatchFromMode(FIO_prefs_t* const prefs, 
                                     ZSTD_compressionParameters* comprParams,

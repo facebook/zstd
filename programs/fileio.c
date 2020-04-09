@@ -775,8 +775,11 @@ static void FIO_adjustMemLimitForPatchFromMode(FIO_prefs_t* const prefs,
                                     unsigned long long const dictSize,  
                                     unsigned long long const maxSrcFileSize)
 {
-    if (dictSize != UTIL_FILESIZE_UNKNOWN && maxSrcFileSize != UTIL_FILESIZE_UNKNOWN)
-        FIO_setMemLimit(prefs, MAX(prefs->memLimit, MAX((unsigned)dictSize, (unsigned)maxSrcFileSize)));
+    unsigned long long maxSize = MAX(prefs->memLimit, MAX(dictSize, maxSrcFileSize));
+    assert(maxSize != UTIL_FILESIZE_UNKNOWN);
+    if (maxSize > UINT_MAX)
+        EXM_THROW(42, "Can't handle files larger than %u GB\n", UINT_MAX/(1 GB) + 1);
+    FIO_setMemLimit(prefs, (unsigned)maxSize);
 }
 
 #ifndef ZSTD_NOCOMPRESS

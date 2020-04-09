@@ -142,7 +142,7 @@ if (UNIX)
             -P "${CMAKE_CURRENT_SOURCE_DIR}/pkgconfig.cmake"
             COMMENT "Creating pkg-config file")
 
-    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libzstd.pc" DESTINATION "${LIBDIR}/pkgconfig")
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libzstd.pc" DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
 endif ()
 
 # install target

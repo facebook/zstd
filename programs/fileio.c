@@ -799,12 +799,13 @@ typedef struct {
 
 static void FIO_adjustParamsForPatchFromMode(FIO_prefs_t* const prefs, 
                                     ZSTD_compressionParameters* comprParams,
-                                    size_t const dictSize, size_t const maxSrcFileSize,
+                                    unsigned long long const dictSize, 
+                                    unsigned long long const maxSrcFileSize,
                                     int cLevel)
 {
-    unsigned const fileWindowLog = FIO_highbit64((unsigned long long)maxSrcFileSize) + 1;
+    unsigned const fileWindowLog = FIO_highbit64(maxSrcFileSize) + 1;
     ZSTD_compressionParameters const cParams = ZSTD_getCParams(cLevel, maxSrcFileSize, dictSize);
-    FIO_adjustMemLimitForPatchFromMode(prefs, (unsigned long long)dictSize, (unsigned long long)maxSrcFileSize);
+    FIO_adjustMemLimitForPatchFromMode(prefs, dictSize, maxSrcFileSize);
     if (fileWindowLog > ZSTD_WINDOWLOG_MAX)
         DISPLAYLEVEL(1, "Max window log exceeded by file (compression ratio will suffer)\n");
     comprParams->windowLog = MIN(ZSTD_WINDOWLOG_MAX, fileWindowLog);
@@ -839,7 +840,7 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
     /* need to update memLimit before calling createDictBuffer
      * because of memLimit check inside it */
     if (prefs->patchFromMode)
-        FIO_adjustParamsForPatchFromMode(prefs, &comprParams, (size_t)UTIL_getFileSize(dictFileName), maxSrcFileSize, cLevel);
+        FIO_adjustParamsForPatchFromMode(prefs, &comprParams, UTIL_getFileSize(dictFileName), maxSrcFileSize, cLevel);
     ress.dstBuffer = malloc(ress.dstBufferSize);
     ress.dictBufferSize = FIO_createDictBuffer(&ress.dictBuffer, dictFileName, prefs);   /* works with dictFileName==NULL */
     if (!ress.srcBuffer || !ress.dstBuffer)

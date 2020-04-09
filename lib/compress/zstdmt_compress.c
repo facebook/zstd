@@ -461,36 +461,36 @@ typedef struct {
     ZSTD_window_t ldmWindow;  /* A thread-safe copy of ldmState.window */
 } serialState_t;
 
-static int ZSTDMT_serialState_reset(serialState_t* serialState, ZSTDMT_seqPool* seqPool, 
-                        ZSTD_CCtx_params* paramsPtr, size_t jobSize, const void* dict, 
-                        const size_t dictSize)
+static int ZSTDMT_serialState_reset(serialState_t* serialState, 
+                        ZSTDMT_seqPool* seqPool, ZSTD_CCtx_params params, 
+                        size_t jobSize, const void* dict, size_t const dictSize)
 {
     /* Adjust parameters */
-    if (paramsPtr->ldmParams.enableLdm) {
-        DEBUGLOG(4, "LDM window size = %u KB", (1U << paramsPtr->cParams.windowLog) >> 10);
-        ZSTD_ldm_adjustParameters(&paramsPtr->ldmParams, &paramsPtr->cParams);
-        assert(paramsPtr->ldmParams.hashLog >= paramsPtr->ldmParams.bucketSizeLog);
-        assert(paramsPtr->ldmParams.hashRateLog < 32);
+    if (params.ldmParams.enableLdm) {
+        DEBUGLOG(4, "LDM window size = %u KB", (1U << params.cParams.windowLog) >> 10);
+        ZSTD_ldm_adjustParameters(&params.ldmParams, &params.cParams);
+        assert(params.ldmParams.hashLog >= params.ldmParams.bucketSizeLog);
+        assert(params.ldmParams.hashRateLog < 32);
         serialState->ldmState.hashPower =
-                ZSTD_rollingHash_primePower(paramsPtr->ldmParams.minMatchLength);
+                ZSTD_rollingHash_primePower(params.ldmParams.minMatchLength);
     } else {
-        memset(&paramsPtr->ldmParams, 0, sizeof(paramsPtr->ldmParams));
+        memset(&params.ldmParams, 0, sizeof(params.ldmParams));
     }
     serialState->nextJobID = 0;
-    if (paramsPtr->fParams.checksumFlag)
+    if (params.fParams.checksumFlag)
         XXH64_reset(&serialState->xxhState, 0);
-    if (paramsPtr->ldmParams.enableLdm) {
-        ZSTD_customMem cMem = paramsPtr->customMem;
-        unsigned const hashLog = paramsPtr->ldmParams.hashLog;
+    if (params.ldmParams.enableLdm) {
+        ZSTD_customMem cMem = params.customMem;
+        unsigned const hashLog = params.ldmParams.hashLog;
         size_t const hashSize = ((size_t)1 << hashLog) * sizeof(ldmEntry_t);
         unsigned const bucketLog =
-            paramsPtr->ldmParams.hashLog - paramsPtr->ldmParams.bucketSizeLog;
+            params.ldmParams.hashLog - params.ldmParams.bucketSizeLog;
         size_t const bucketSize = (size_t)1 << bucketLog;
         unsigned const prevBucketLog =
             serialState->params.ldmParams.hashLog -
             serialState->params.ldmParams.bucketSizeLog;
         /* Size the seq pool tables */
-        ZSTDMT_setNbSeq(seqPool, ZSTD_ldm_getMaxNbSeq(paramsPtr->ldmParams, jobSize));
+        ZSTDMT_setNbSeq(seqPool, ZSTD_ldm_getMaxNbSeq(params.ldmParams, jobSize));
         /* Reset the window */
         ZSTD_window_init(&serialState->ldmState.window);
         serialState->ldmWindow = serialState->ldmState.window;
@@ -509,14 +509,15 @@ static int ZSTDMT_serialState_reset(serialState_t* serialState, ZSTDMT_seqPool* 
         memset(serialState->ldmState.hashTable, 0, hashSize);
         memset(serialState->ldmState.bucketOffsets, 0, bucketSize);
     }
-    serialState->params = *paramsPtr;
-    serialState->params.jobSize = (U32)jobSize;
 
     /* Update window state and fill hash table with dict */
-    if (paramsPtr->ldmParams.enableLdm && dict) {
+    if (params.ldmParams.enableLdm && dict) {
         ZSTD_window_update(&serialState->ldmState.window, dict, dictSize);
-        ZSTD_ldm_fillHashTable(&serialState->ldmState, (const BYTE*)dict, (const BYTE*)dict + dictSize, &paramsPtr->ldmParams);
+        ZSTD_ldm_fillHashTable(&serialState->ldmState, (const BYTE*)dict, (const BYTE*)dict + dictSize, &params.ldmParams);
     }
+
+    serialState->params = params;
+    serialState->params.jobSize = (U32)jobSize;
     return 0;
 }
 
@@ -1275,7 +1276,7 @@ static size_t ZSTDMT_compress_advanced_internal(
 
     assert(avgJobSize >= 256 KB);  /* condition for ZSTD_compressBound(A) + ZSTD_compressBound(B) <= ZSTD_compressBound(A+B), required to compress directly into Dst (no additional buffer) */
     ZSTDMT_setBufferSize(mtctx->bufPool, ZSTD_compressBound(avgJobSize) );
-    if (ZSTDMT_serialState_reset(&mtctx->serial, mtctx->seqPool, &params, avgJobSize, NULL, 0))
+    if (ZSTDMT_serialState_reset(&mtctx->serial, mtctx->seqPool, params, avgJobSize, NULL, 0))
         return ERROR(memory_allocation);
 
     FORWARD_IF_ERROR( ZSTDMT_expandJobsTable(mtctx, nbJobs) );  /* only expands if necessary */
@@ -1508,7 +1509,7 @@ size_t ZSTDMT_initCStream_internal(
     mtctx->allJobsCompleted = 0;
     mtctx->consumed = 0;
     mtctx->produced = 0;
-    if (ZSTDMT_serialState_reset(&mtctx->serial, mtctx->seqPool, &params, mtctx->targetSectionSize, dict, dictSize))
+    if (ZSTDMT_serialState_reset(&mtctx->serial, mtctx->seqPool, params, mtctx->targetSectionSize, dict, dictSize))
         return ERROR(memory_allocation);
     return 0;
 }

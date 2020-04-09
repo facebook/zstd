@@ -607,6 +607,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    /* Note: this test takes 0.5 seconds to run */
     DISPLAYLEVEL(3, "test%3i : testing refPrefx vs refPrefx + ldm (size comparison) : ", testNb++);
     {
         /* test a big buffer so that ldm can take effect */
@@ -617,11 +618,14 @@ static int basicUnitTests(U32 const seed, double compressibility)
         void* dict = (void*)malloc(size);
         void* src = (void*)malloc(size);
         void* dst = (void*)malloc(dstSize);
+        void* recon = (void*)malloc(size);
 
         size_t refPrefixCompressedSize = 0;
         size_t refPrefixLdmComrpessedSize = 0;
+        size_t reconSize = 0;
 
         ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        ZSTD_DCtx* const dctx = ZSTD_createDCtx();
         
         /* make dict and src the same uncompressible data */
         RDG_genBuffer(src, size, 0, 0, seed);
@@ -636,6 +640,13 @@ static int basicUnitTests(U32 const seed, double compressibility)
         ZSTD_CCtx_refPrefix(cctx, dict, size);
         refPrefixCompressedSize = ZSTD_compress2(cctx, dst, dstSize, src, size);
         assert(!ZSTD_isError(refPrefixCompressedSize));
+
+        /* test round trip just refPrefix */
+        ZSTD_DCtx_refPrefix(dctx, dict, size);
+        reconSize = ZSTD_decompressDCtx(dctx, recon, size, dst, refPrefixCompressedSize);
+        assert(!ZSTD_isError(reconSize));
+        assert(reconSize == size);
+        assert(!memcmp(recon, src, size));
          
         /* compress on level 1 using refPrefix and ldm */
         ZSTD_CCtx_refPrefix(cctx, dict, size);;
@@ -643,12 +654,21 @@ static int basicUnitTests(U32 const seed, double compressibility)
         refPrefixLdmComrpessedSize = ZSTD_compress2(cctx, dst, dstSize, src, size);
         assert(!ZSTD_isError(refPrefixLdmComrpessedSize));
 
+        /* test round trip refPrefix + ldm*/
+        ZSTD_DCtx_refPrefix(dctx, dict, size);
+        reconSize = ZSTD_decompressDCtx(dctx, recon, size, dst, refPrefixLdmComrpessedSize);
+        assert(!ZSTD_isError(reconSize));
+        assert(reconSize == size);
+        assert(!memcmp(recon, src, size));
+
         /* make sure that refPrefixCompressedSize is greater */
         assert(refPrefixCompressedSize > refPrefixLdmComrpessedSize);
         /* make sure the ldm comrpessed size is less than 1% of original */
         assert((double)refPrefixLdmComrpessedSize / (double)size < 0.01);
 
+        ZSTD_freeDCtx(dctx);
         ZSTD_freeCCtx(cctx); 
+        free(recon);
         free(dict);
         free(src);
         free(dst);

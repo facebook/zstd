@@ -285,14 +285,19 @@ void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length, ZSTD_overlap_e 
          * at that point it is more likely to have a high trip count.
          */
 #ifndef __aarch64__
+        do {
+            COPY16(op, ip);
+        }
+        while (op < oend);
+#else
         COPY16(op, ip);
         if (op >= oend) return;
-#endif
         do {
             COPY16(op, ip);
             COPY16(op, ip);
         }
         while (op < oend);
+#endif
     }
 }
 

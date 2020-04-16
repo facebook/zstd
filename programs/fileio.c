@@ -45,6 +45,7 @@
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_magicNumber, ZSTD_frameHeaderSize_max */
 #include "zstd.h"
 #include "zstd_errors.h"           /* ZSTD_error_frameParameter_windowTooLarge */
+#include "zstd_compress_internal.h"
 
 #if defined(ZSTD_GZCOMPRESS) || defined(ZSTD_GZDECOMPRESS)
 #  include <zlib.h>
@@ -68,10 +69,6 @@
 /*-*************************************
 *  Constants
 ***************************************/
-#define KB *(1<<10)
-#define MB *(1<<20)
-#define GB *(1U<<30)
-
 #define ADAPT_WINDOWLOG_DEFAULT 23   /* 8 MB */
 #define DICTSIZE_MAX (32 MB)   /* protection against large input (attack scenario) */
 
@@ -768,8 +765,6 @@ static unsigned FIO_highbit64(unsigned long long v)
     while (v) { v >>= 1; count++; }
     return count;
 }
-
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 static void FIO_adjustMemLimitForPatchFromMode(FIO_prefs_t* const prefs,
                                     unsigned long long const dictSize,  

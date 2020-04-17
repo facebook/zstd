@@ -166,6 +166,7 @@ typedef struct {
 typedef struct {
     ZSTD_window_t window;   /* State for the window round buffer management */
     ldmEntry_t* hashTable;
+    U32 loadedDictEnd;
     BYTE* bucketOffsets;    /* Next position in bucket to insert entry */
     U64 hashPower;          /* Used to compute the rolling hash.
                              * Depends on ldmParams.minMatchLength */
@@ -1051,5 +1052,8 @@ size_t ZSTD_writeLastEmptyBlock(void* dst, size_t dstCapacity);
  */
 size_t ZSTD_referenceExternalSequences(ZSTD_CCtx* cctx, rawSeq* seq, size_t nbSeq);
 
+/** ZSTD_cycleLog() :
+ *  condition for correct operation : hashLog > 1 */
+U32 ZSTD_cycleLog(U32 hashLog, ZSTD_strategy strat);
 
 #endif /* ZSTD_COMPRESS_H */

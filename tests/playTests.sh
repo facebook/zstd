@@ -1262,10 +1262,19 @@ println "\n===> patch-from tests"
 
 datagen -g1000 -P50 > tmp_dict
 datagen -g1000 -P10 > tmp_patch
-zstd --memory=10000 --patch-from=tmp_dict tmp_patch -o tmp_patch_diff
-zstd -d --memory=10000 --patch-from=tmp_dict tmp_patch_diff -o tmp_patch_recon
+zstd --patch-from=tmp_dict tmp_patch -o tmp_patch_diff
+zstd -d --patch-from=tmp_dict tmp_patch_diff -o tmp_patch_recon
 $DIFF -s tmp_patch_recon tmp_patch
 rm -rf tmp_*
+
+println "\n===> patch-from recursive tests"
+
+mkdir tmp_dir
+datagen > tmp_dir/tmp1 
+datagen > tmp_dir/tmp2
+datagen > tmp_dict
+zstd --patch-from=tmp_dict -r tmp_dir && die
+rm -rf tmp* 
 
 println "\n===>   large files tests "
 

@@ -536,15 +536,15 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
         BYTE* const dst = (BYTE*)compressedBuffer;
         ZSTD_DCtx* dctx = ZSTD_createDCtx();
-        
+
         /* create a large frame and then a bunch of small frames */
-        size_t srcSize = ZSTD_compress((void*)dst, 
+        size_t srcSize = ZSTD_compress((void*)dst,
             compressedBufferSize, CNBuffer, largeFrameSrcSize, 3);
-        for (i = 0; i < nbFrames; i++) 
-            srcSize += ZSTD_compress((void*)(dst + srcSize), 
-                compressedBufferSize - srcSize, CNBuffer, 
+        for (i = 0; i < nbFrames; i++)
+            srcSize += ZSTD_compress((void*)(dst + srcSize),
+                compressedBufferSize - srcSize, CNBuffer,
                 smallFrameSrcSize, 3);
-            
+
         /* decompressStream and make sure that dctx size was reduced at least once */
         while (consumed < srcSize) {
             ZSTD_inBuffer in = {(void*)(dst + consumed), MIN(1, srcSize - consumed), 0};
@@ -563,6 +563,115 @@ static int basicUnitTests(U32 const seed, double compressibility)
         assert(sizeReduced);
 
         ZSTD_freeDCtx(dctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : ldm fill dict out-of-bounds check", testNb++);
+    {
+        ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+
+        size_t const size = (1U << 10);
+        size_t const dstCapacity = ZSTD_compressBound(size);
+        void* dict = (void*)malloc(size);
+        void* src = (void*)malloc(size);
+        void* dst = (void*)malloc(dstCapacity);
+
+        RDG_genBuffer(dict, size, 0.5, 0.5, seed);
+        RDG_genBuffer(src, size, 0.5, 0.5, seed);
+
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, 1));
+        assert(!ZSTD_isError(ZSTD_compress_usingDict(cctx, dst, dstCapacity, src, size, dict, size, 3)));
+
+        ZSTD_freeCCtx(cctx);
+        free(dict);
+        free(src);
+        free(dst);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : testing dict compression with enableLdm and forceMaxWindow : ", testNb++);
+    {
+        ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        void* dict = (void*)malloc(CNBuffSize);
+
+        RDG_genBuffer(dict, CNBuffSize, 0.5, 0.5, seed);
+        RDG_genBuffer(CNBuffer, CNBuffSize, 0.6, 0.6, seed);
+
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_forceMaxWindow, 1));
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, 1));
+        assert(!ZSTD_isError(ZSTD_compress_usingDict(cctx, compressedBuffer, compressedBufferSize,
+            CNBuffer, CNBuffSize, dict, CNBuffSize, 3)));
+
+        ZSTD_freeCCtx(cctx);
+        free(dict);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    /* Note: this test takes 0.5 seconds to run */
+    DISPLAYLEVEL(3, "test%3i : testing refPrefx vs refPrefx + ldm (size comparison) : ", testNb++);
+    {
+        /* test a big buffer so that ldm can take effect */
+        size_t const size = 100 MB;
+        int const windowLog = 27;
+        size_t const dstSize = ZSTD_compressBound(size);
+
+        void* dict = (void*)malloc(size);
+        void* src = (void*)malloc(size);
+        void* dst = (void*)malloc(dstSize);
+        void* recon = (void*)malloc(size);
+
+        size_t refPrefixCompressedSize = 0;
+        size_t refPrefixLdmComrpessedSize = 0;
+        size_t reconSize = 0;
+
+        ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+
+        /* make dict and src the same uncompressible data */
+        RDG_genBuffer(src, size, 0, 0, seed);
+        memcpy(dict, src, size);
+        assert(!memcmp(dict, src, size));
+
+        /* set level 1 and windowLog to cover src */
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, 1));
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_windowLog, windowLog));
+
+        /* compress on level 1 using just refPrefix and no ldm */
+        ZSTD_CCtx_refPrefix(cctx, dict, size);
+        refPrefixCompressedSize = ZSTD_compress2(cctx, dst, dstSize, src, size);
+        assert(!ZSTD_isError(refPrefixCompressedSize));
+
+        /* test round trip just refPrefix */
+        ZSTD_DCtx_refPrefix(dctx, dict, size);
+        reconSize = ZSTD_decompressDCtx(dctx, recon, size, dst, refPrefixCompressedSize);
+        assert(!ZSTD_isError(reconSize));
+        assert(reconSize == size);
+        assert(!memcmp(recon, src, size));
+
+        /* compress on level 1 using refPrefix and ldm */
+        ZSTD_CCtx_refPrefix(cctx, dict, size);;
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, 1))
+        refPrefixLdmComrpessedSize = ZSTD_compress2(cctx, dst, dstSize, src, size);
+        assert(!ZSTD_isError(refPrefixLdmComrpessedSize));
+
+        /* test round trip refPrefix + ldm*/
+        ZSTD_DCtx_refPrefix(dctx, dict, size);
+        reconSize = ZSTD_decompressDCtx(dctx, recon, size, dst, refPrefixLdmComrpessedSize);
+        assert(!ZSTD_isError(reconSize));
+        assert(reconSize == size);
+        assert(!memcmp(recon, src, size));
+
+        /* make sure that refPrefixCompressedSize is significantly greater */
+        assert(refPrefixCompressedSize > 10 * refPrefixLdmComrpessedSize);
+        /* make sure the ldm comrpessed size is less than 1% of original */
+        assert((double)refPrefixLdmComrpessedSize / (double)size < 0.01);
+
+        ZSTD_freeDCtx(dctx);
+        ZSTD_freeCCtx(cctx);
+        free(recon);
+        free(dict);
+        free(src);
+        free(dst);
     }
     DISPLAYLEVEL(3, "OK \n");
 

@@ -3950,9 +3950,14 @@ size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
 
 
 #ifdef ZSTD_MULTITHREAD
+
+/* Invoke fuzzing every time for mt even on small files */
+#ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
         if ((cctx->pledgedSrcSizePlusOne-1) <= ZSTDMT_JOBSIZE_MIN) {
             params.nbWorkers = 0; /* do not invoke multi-threading when src size is too small */
         }
+#endif
+
         if (params.nbWorkers > 0) {
             /* mt context creation */
             if (cctx->mtctx == NULL) {

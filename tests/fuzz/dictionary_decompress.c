@@ -42,9 +42,14 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
         ddict = ZSTD_createDDict(dict.buff, dict.size);
         FUZZ_ASSERT(ddict);
     } else {
-        FUZZ_ZASSERT(ZSTD_DCtx_loadDictionary_advanced(
+        if (FUZZ_dataProducer_uint32Range(producer, 0, 1) == 0)
+            FUZZ_ZASSERT(ZSTD_DCtx_loadDictionary_advanced(
                 dctx, dict.buff, dict.size,
                 (ZSTD_dictLoadMethod_e)FUZZ_dataProducer_uint32Range(producer, 0, 1),
+                (ZSTD_dictContentType_e)FUZZ_dataProducer_uint32Range(producer, 0, 2)));
+        else
+            FUZZ_ZASSERT(ZSTD_DCtx_refPrefix_advanced(
+                dctx, dict.buff, dict.size,
                 (ZSTD_dictContentType_e)FUZZ_dataProducer_uint32Range(producer, 0, 2)));
     }
 

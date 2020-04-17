@@ -1240,6 +1240,11 @@ int main(int const argCount, const char* argv[])
         CLEAN_RETURN(1);
     }
 
+    if (patchFromDictFileName != NULL && filenames->tableSize > 1) {
+        DISPLAY("error : can't use --patch-from=# on multiple files \n");
+        CLEAN_RETURN(1);
+    }
+
     /* No status message in pipe mode (stdin - stdout) or multi-files mode */
     if (!strcmp(filenames->fileNames[0], stdinmark) && outFileName && !strcmp(outFileName,stdoutmark) && (g_displayLevel==2)) g_displayLevel=1;
     if ((filenames->tableSize > 1) & (g_displayLevel==2)) g_displayLevel=1;
@@ -1247,15 +1252,14 @@ int main(int const argCount, const char* argv[])
     /* IO Stream/File */
     FIO_setNotificationLevel(g_displayLevel);
     FIO_setPatchFromMode(prefs, patchFromDictFileName != NULL);
-    if (patchFromDictFileName != NULL) {
-        dictFileName = patchFromDictFileName;
-    }
     if (memLimit == 0) {
         if (compressionParams.windowLog == 0) {
             memLimit = (U32)1 << g_defaultMaxWindowLog;
         } else {
             memLimit = (U32)1 << (compressionParams.windowLog & 31);
     }   }
+    if (patchFromDictFileName != NULL)
+        dictFileName = patchFromDictFileName;
     FIO_setMemLimit(prefs, memLimit);
     if (operation==zom_compress) {
 #ifndef ZSTD_NOCOMPRESS

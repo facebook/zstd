@@ -131,9 +131,11 @@ the last one takes effect.
     Note: `--long` mode will be automatically activated if chainLog < fileLog
         (fileLog being the windowLog requried to cover the whole file). You 
         can also manually force it.
+	Node: for all levels, you can use --patch-from in --single-thread mode
+		to improve compression ratio at the cost of speed
     Note: for level 19, you can get increased compression ratio at the cost 
         of speed by specifying `--zstd=targetLength=` to be something large 
-        (i.e 4096)
+        (i.e 4096), and by setting a large `--zstd=chainLog=`
 * `-M#`, `--memory=#`:
     Set a memory usage limit. By default, Zstandard uses 128 MB for decompression
     as the maximum amount of memory the decompressor is allowed to use, but you can

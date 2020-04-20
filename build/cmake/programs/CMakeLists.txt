@@ -83,9 +83,11 @@ endif ()
 if (ZSTD_MULTITHREAD_SUPPORT)
     set_property(TARGET zstd APPEND PROPERTY COMPILE_DEFINITIONS "ZSTD_MULTITHREAD")
 
-    if (UNIX)
+    if (UNIX OR MSYS)
         target_link_libraries(zstd ${THREADS_LIBS})
+    endif ()
 
+    if (UNIX)
         add_custom_target(zstdmt ALL ${CMAKE_COMMAND} -E create_symlink zstd zstdmt DEPENDS zstd COMMENT "Creating zstdmt symlink")
         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/zstdmt DESTINATION "${CMAKE_INSTALL_BINDIR}")
     endif ()

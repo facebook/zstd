@@ -767,7 +767,7 @@ static unsigned FIO_highbit64(unsigned long long v)
 }
 
 static void FIO_adjustMemLimitForPatchFromMode(FIO_prefs_t* const prefs,
-                                    unsigned long long const dictSize,  
+                                    unsigned long long const dictSize,
                                     unsigned long long const maxSrcFileSize)
 {
     unsigned long long maxSize = MAX(prefs->memLimit, MAX(dictSize, maxSrcFileSize));
@@ -795,9 +795,9 @@ typedef struct {
     ZSTD_CStream* cctx;
 } cRess_t;
 
-static void FIO_adjustParamsForPatchFromMode(FIO_prefs_t* const prefs, 
+static void FIO_adjustParamsForPatchFromMode(FIO_prefs_t* const prefs,
                                     ZSTD_compressionParameters* comprParams,
-                                    unsigned long long const dictSize, 
+                                    unsigned long long const dictSize,
                                     unsigned long long const maxSrcFileSize,
                                     int cLevel)
 {
@@ -807,7 +807,7 @@ static void FIO_adjustParamsForPatchFromMode(FIO_prefs_t* const prefs,
     if (fileWindowLog > ZSTD_WINDOWLOG_MAX)
         DISPLAYLEVEL(1, "Max window log exceeded by file (compression ratio will suffer)\n");
     comprParams->windowLog = MIN(ZSTD_WINDOWLOG_MAX, fileWindowLog);
-    if (fileWindowLog > ZSTD_cycleLog(comprParams->hashLog, cParams.strategy)) {
+    if (fileWindowLog > ZSTD_cycleLog(cParams.hashLog, cParams.strategy)) {
         if (!prefs->ldmFlag)
             DISPLAYLEVEL(1, "long mode automaticaly triggered\n");
         FIO_setLdmFlag(prefs, 1);
@@ -898,7 +898,7 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
     } else {
         CHECK( ZSTD_CCtx_loadDictionary(ress.cctx, ress.dictBuffer, ress.dictBufferSize) );
     }
-    
+
     return ress;
 }
 
@@ -1724,7 +1724,7 @@ static dRess_t FIO_createDResources(FIO_prefs_t* const prefs, const char* dictFi
 
     if (prefs->patchFromMode)
         FIO_adjustMemLimitForPatchFromMode(prefs, UTIL_getFileSize(dictFileName), 0 /* just use the dict size */);
-    
+
     /* Allocation */
     ress.dctx = ZSTD_createDStream();
     if (ress.dctx==NULL)

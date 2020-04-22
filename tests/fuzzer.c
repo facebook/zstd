@@ -2532,6 +2532,41 @@ static int basicUnitTests(U32 const seed, double compressibility)
         FSE_normalizeCount(norm, tableLog, count, nbSeq, maxSymbolValue);
     }
     DISPLAYLEVEL(3, "OK \n");
+#ifdef ZSTD_MULTITHREAD
+    DISPLAYLEVEL(3, "test%3i passing wrong full dict should fail on compressStream2 refPrefix ", testNb++);
+    {
+        ZSTD_CCtx* cctx = ZSTD_createCCtx();
+         /* A little more than ZSTDMT_JOBSIZE_MIN */
+        size_t const srcSize = 1 MB + 5;
+        size_t const dstSize = ZSTD_compressBound(srcSize);
+        void* const src = CNBuffer;
+        void* const dst = compressedBuffer;
+        void* dict = (void*)malloc(srcSize);
+
+        RDG_genBuffer(src, srcSize, compressibility, 0.5, seed);
+        RDG_genBuffer(dict, srcSize, compressibility, 0., seed);
+
+        /* Make sure there is no ZSTD_MAGIC_NUMBER */
+        memset(dict, 0, sizeof(U32));
+
+        /* something more than 1 */
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 2));
+        /* lie and claim this is a full dict */
+        CHECK_Z(ZSTD_CCtx_refPrefix_advanced(cctx, dict, srcSize, ZSTD_dct_fullDict));
+
+        {
+            ZSTD_outBuffer out = {dst, dstSize, 0};
+            ZSTD_inBuffer in = {src, srcSize, 0};
+
+            /* should fail because its not a full dict like we said it was */
+            assert(ZSTD_isError(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_flush)));
+        }
+
+        ZSTD_freeCCtx(cctx);
+        free(dict);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+#endif
 
     DISPLAYLEVEL(3, "test%3i : table cleanliness through index reduction : ", testNb++);
     {

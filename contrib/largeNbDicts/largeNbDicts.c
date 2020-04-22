@@ -781,8 +781,10 @@ int bench(const char** fileNameTable, unsigned nbFiles,
         CONTROL(resultCollection.buffer.ptr != NULL);
 
         for (size_t i = 0; i < srcSlices.nbSlices; i++) {
-            memcpy(resultCollection.slices.slicePtrs[i], srcSlices.slicePtrs[i], srcSlices.capacities[i]);
-            resultCollection.slices.capacities[i] = srcSlices.capacities[i];
+            if (resultCollection.slices.slicePtrs[i] != NULL) {
+                memcpy(resultCollection.slices.slicePtrs[i], srcSlices.slicePtrs[i], srcSlices.capacities[i]);
+                resultCollection.slices.capacities[i] = srcSlices.capacities[i];
+            }
         }
         result = benchMem(dstSlices, resultCollection.slices, ddictionaries, cdictionaries, nbRounds, benchCompression);
 

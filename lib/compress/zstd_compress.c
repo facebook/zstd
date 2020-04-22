@@ -2813,7 +2813,7 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
 
         ZSTD_overflowCorrectIfNeeded(ms, ws, params, ip, ichunk);
 
-        if (params->ldmParams.enableLdm && ls != NULL && srcSize >= params->ldmParams.minMatchLength)
+        if (params->ldmParams.enableLdm && ls != NULL && srcSize > params->ldmParams.minMatchLength)
             ZSTD_ldm_fillHashTable(ls, (const BYTE*)src, (const BYTE*)src + srcSize, &params->ldmParams);
 
         switch(params->cParams.strategy)

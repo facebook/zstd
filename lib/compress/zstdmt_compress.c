@@ -1261,7 +1261,9 @@ static size_t ZSTDMT_compress_advanced_internal(
     unsigned const compressWithinDst = (dstCapacity >= ZSTD_compressBound(srcSize)) ? nbJobs : (unsigned)(dstCapacity / ZSTD_compressBound(avgJobSize));  /* presumes avgJobSize >= 256 KB, which should be the case */
     size_t frameStartPos = 0, dstBufferPos = 0;
     assert(jobParams.nbWorkers == 0);
+#ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
     assert(mtctx->cctxPool->totalCCtx == params.nbWorkers);
+#endif
 
     params.jobSize = (U32)avgJobSize;
     DEBUGLOG(4, "ZSTDMT_compress_advanced_internal: nbJobs=%2u (rawSize=%u bytes; fixedSize=%u) ",

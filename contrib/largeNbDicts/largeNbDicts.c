@@ -456,7 +456,26 @@ static ddict_collection_t createDDictCollection(const void* dictBuffer, size_t d
 
 
 /* mess with addresses, so that linear scanning dictionaries != linear address scanning */
-void shuffleDictionaries(ddict_collection_t dicts)
+void shuffleCDictionaries(cdict_collection_t dicts)
+{
+    size_t const nbDicts = dicts.nbCDict;
+    for (size_t r=0; r<nbDicts; r++) {
+        size_t const d = (size_t)rand() % nbDicts;
+        ZSTD_CDict* tmpd = dicts.cdicts[d];
+        dicts.cdicts[d] = dicts.cdicts[r];
+        dicts.cdicts[r] = tmpd;
+    }
+    for (size_t r=0; r<nbDicts; r++) {
+        size_t const d1 = (size_t)rand() % nbDicts;
+        size_t const d2 = (size_t)rand() % nbDicts;
+        ZSTD_CDict* tmpd = dicts.cdicts[d1];
+        dicts.cdicts[d1] = dicts.cdicts[d2];
+        dicts.cdicts[d2] = tmpd;
+    }
+}
+
+/* mess with addresses, so that linear scanning dictionaries != linear address scanning */
+void shuffleDDictionaries(ddict_collection_t dicts)
 {
     size_t const nbDicts = dicts.nbDDict;
     for (size_t r=0; r<nbDicts; r++) {
@@ -702,7 +721,7 @@ int bench(const char** fileNameTable, unsigned nbFiles,
     ddict_collection_t const dictionaries = createDDictCollection(dictBuffer.ptr, dictBuffer.size, nbDicts);
     CONTROL(dictionaries.ddicts != NULL);
 
-    shuffleDictionaries(dictionaries);
+    shuffleDDictionaries(dictionaries);
 
     buffer_collection_t resultCollection = createBufferCollection_fromSliceCollectionSizes(srcSlices);
     CONTROL(resultCollection.buffer.ptr != NULL);

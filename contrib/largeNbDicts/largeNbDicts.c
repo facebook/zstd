@@ -582,6 +582,22 @@ void freeDecompressInstructions(decompressInstructions di)
 }
 
 /* benched function */
+size_t compress(const void* src, size_t srcSize, void* dst, size_t dstCapacity, void* payload)
+{
+    compressInstructions* const ci = (compressInstructions*) payload;
+
+    size_t const result = ZSTD_compress_usingCDict(ci->cctx,
+                                        dst, dstCapacity,
+                                        src, srcSize,
+                                        ci->dictionaries.cdicts[ci->dictNb]);
+
+    ci->dictNb = ci->dictNb + 1;
+    if (ci->dictNb >= ci->nbDicts) ci->dictNb = 0;
+
+    return result;
+}
+
+/* benched function */
 size_t decompress(const void* src, size_t srcSize, void* dst, size_t dstCapacity, void* payload)
 {
     decompressInstructions* const di = (decompressInstructions*) payload;

@@ -397,6 +397,37 @@ typedef struct {
     size_t nbDDict;
 } ddict_collection_t;
 
+typedef struct {
+    ZSTD_CDict** cdicts;
+    size_t nbCDict;
+} cdict_collection_t;
+
+static const cdict_collection_t kNullCDictCollection = { NULL, 0 };
+
+static void freeCDictCollection(cdict_collection_t cdictc)
+{
+    for (size_t dictNb=0; dictNb < cdictc.nbCDict; dictNb++) {
+        ZSTD_freeCDict(cdictc.cdicts[dictNb]);
+    }
+    free(cdictc.cdicts);
+}
+
+/* returns .buffers=NULL if operation fails */
+static cdict_collection_t createCDictCollection(const void* dictBuffer, size_t dictSize, size_t nbCDict, int cLevel)
+{
+    ZSTD_CDict** const cdicts = malloc(nbCDict * sizeof(ZSTD_DDict*));
+    assert(cdicts != NULL);
+    if (cdicts==NULL) return kNullCDictCollection;
+    for (size_t dictNb=0; dictNb < nbCDict; dictNb++) {
+        cdicts[dictNb] = ZSTD_createCDict(dictBuffer, dictSize, cLevel);
+        assert(cdicts[dictNb] != NULL);
+    }
+    cdict_collection_t cdictc;
+    cdictc.cdicts = cdicts;
+    cdictc.nbCDict = nbCDict;
+    return cdictc;
+}
+
 static const ddict_collection_t kNullDDictCollection = { NULL, 0 };
 
 static void freeDDictCollection(ddict_collection_t ddictc)

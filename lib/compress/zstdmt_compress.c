@@ -461,8 +461,8 @@ typedef struct {
     ZSTD_window_t ldmWindow;  /* A thread-safe copy of ldmState.window */
 } serialState_t;
 
-static int ZSTDMT_serialState_reset(serialState_t* serialState, 
-                        ZSTDMT_seqPool* seqPool, ZSTD_CCtx_params params, 
+static int ZSTDMT_serialState_reset(serialState_t* serialState,
+                        ZSTDMT_seqPool* seqPool, ZSTD_CCtx_params params,
                         size_t jobSize, const void* dict, size_t const dictSize)
 {
     /* Adjust parameters */
@@ -1417,7 +1417,10 @@ size_t ZSTDMT_initCStream_internal(
     if (params.jobSize != 0 && params.jobSize < ZSTDMT_JOBSIZE_MIN) params.jobSize = ZSTDMT_JOBSIZE_MIN;
     if (params.jobSize > (size_t)ZSTDMT_JOBSIZE_MAX) params.jobSize = (size_t)ZSTDMT_JOBSIZE_MAX;
 
+/* always trigger mt when fuzzing */
+#ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
     mtctx->singleBlockingThread = (pledgedSrcSize <= ZSTDMT_JOBSIZE_MIN);  /* do not trigger multi-threading when srcSize is too small */
+#endif
     if (mtctx->singleBlockingThread) {
         ZSTD_CCtx_params const singleThreadParams = ZSTDMT_initJobCCtxParams(&params);
         DEBUGLOG(5, "ZSTDMT_initCStream_internal: switch to single blocking thread mode");

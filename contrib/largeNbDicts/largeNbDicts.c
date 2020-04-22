@@ -536,6 +536,29 @@ static size_t compressBlocks(size_t* cSizes,   /* optional (can be NULL). If pre
 /* ---  Benchmark  --- */
 
 typedef struct {
+    ZSTD_CCtx* cctx;
+    size_t nbDicts;
+    size_t dictNb;
+    cdict_collection_t dictionaries;
+} compressInstructions;
+
+compressInstructions createCompressInstructions(cdict_collection_t dictionaries)
+{
+    compressInstructions ci;
+    ci.cctx = ZSTD_createCCtx();
+    assert(ci.cctx != NULL);
+    ci.nbDicts = dictionaries.nbCDict;
+    ci.dictNb = 0;
+    ci.dictionaries = dictionaries;
+    return ci;
+}
+
+void freeCompressInstructions(compressInstructions ci)
+{
+    ZSTD_freeCCtx(ci.cctx);
+}
+
+typedef struct {
     ZSTD_DCtx* dctx;
     size_t nbDicts;
     size_t dictNb;

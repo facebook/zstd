@@ -3965,7 +3965,7 @@ size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
             DEBUGLOG(4, "call ZSTDMT_initCStream_internal as nbWorkers=%u", params.nbWorkers);
             FORWARD_IF_ERROR( ZSTDMT_initCStream_internal(
                         cctx->mtctx,
-                        prefixDict.dict, prefixDict.dictSize, ZSTD_dct_rawContent,
+                        prefixDict.dict, prefixDict.dictSize, prefixDict.dictContentType,
                         cctx->cdict, params, cctx->pledgedSrcSizePlusOne-1) );
             cctx->streamStage = zcss_load;
             cctx->appliedParams.nbWorkers = params.nbWorkers;

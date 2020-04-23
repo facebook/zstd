@@ -1270,11 +1270,18 @@ rm -rf tmp_*
 println "\n===> patch-from recursive tests"
 
 mkdir tmp_dir
-datagen > tmp_dir/tmp1 
+datagen > tmp_dir/tmp1
 datagen > tmp_dir/tmp2
 datagen > tmp_dict
 zstd --patch-from=tmp_dict -r tmp_dir && die
-rm -rf tmp* 
+rm -rf tmp*
+
+println "\n===> patch-from long mode trigger larger file test"
+
+datagen -g5000000 > tmp_dict
+datagen -g5000000 > tmp_patch
+zstd -15 --patch-from=tmp_dict tmp_patch 2>&1 | grep "long mode automaticaly triggered"
+rm -rf tmp*
 
 println "\n===>   large files tests "
 

@@ -419,7 +419,7 @@ static cdict_collection_t createCDictCollection(const void* dictBuffer, size_t d
     if (cdicts==NULL) return kNullCDictCollection;
     for (size_t dictNb=0; dictNb < nbCDict; dictNb++) {
         cdicts[dictNb] = ZSTD_createCDict(dictBuffer, dictSize, cLevel);
-        assert(cdicts[dictNb] != NULL);
+        CONTROL(cdicts[dictNb] != NULL);
     }
     cdict_collection_t cdictc;
     cdictc.cdicts = cdicts;

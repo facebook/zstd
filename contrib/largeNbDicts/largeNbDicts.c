@@ -334,6 +334,18 @@ createBufferCollection_fromSliceCollectionSizes(slice_collection_t sc)
     return result;
 }
 
+static buffer_collection_t
+createBufferCollection_fromSliceCollection(slice_collection_t sc)
+{
+    buffer_collection_t result = createBufferCollection_fromSliceCollectionSizes(sc);
+    for (size_t i = 0; i < sc.nbSlices; i++) {
+        if (result.slices.slicePtrs[i] != NULL) {
+            memcpy(result.slices.slicePtrs[i], sc.slicePtrs[i], sc.capacities[i]);
+            result.slices.capacities[i] = sc.capacities[i];
+        }
+    }
+    return result;
+}
 
 /* @return : kBuffNull if any error */
 static buffer_collection_t
@@ -776,15 +788,9 @@ int bench(const char** fileNameTable, unsigned nbFiles,
 
         shuffleCDictionaries(cdictionaries);
 
-        buffer_collection_t resultCollection = createBufferCollection_fromSliceCollectionSizes(srcSlices);
+        buffer_collection_t resultCollection = createBufferCollection_fromSliceCollection(srcSlices);
         CONTROL(resultCollection.buffer.ptr != NULL);
 
-        for (size_t i = 0; i < srcSlices.nbSlices; i++) {
-            if (resultCollection.slices.slicePtrs[i] != NULL) {
-                memcpy(resultCollection.slices.slicePtrs[i], srcSlices.slicePtrs[i], srcSlices.capacities[i]);
-                resultCollection.slices.capacities[i] = srcSlices.capacities[i];
-            }
-        }
         result = benchMem(dstSlices, resultCollection.slices, ddictionaries, cdictionaries, nbRounds, benchCompression);
 
         freeBufferCollection(resultCollection);

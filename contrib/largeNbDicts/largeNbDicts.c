@@ -416,7 +416,6 @@ static void freeCDictCollection(cdict_collection_t cdictc)
 static cdict_collection_t createCDictCollection(const void* dictBuffer, size_t dictSize, size_t nbCDict, int cLevel)
 {
     ZSTD_CDict** const cdicts = malloc(nbCDict * sizeof(ZSTD_CDict*));
-    assert(cdicts != NULL);
     if (cdicts==NULL) return kNullCDictCollection;
     for (size_t dictNb=0; dictNb < nbCDict; dictNb++) {
         cdicts[dictNb] = ZSTD_createCDict(dictBuffer, dictSize, cLevel);

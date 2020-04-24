@@ -546,7 +546,7 @@ compressInstructions createCompressInstructions(cdict_collection_t dictionaries)
 {
     compressInstructions ci;
     ci.cctx = ZSTD_createCCtx();
-    assert(ci.cctx != NULL);
+    CONTROL(ci.cctx != NULL);
     ci.nbDicts = dictionaries.nbCDict;
     ci.dictNb = 0;
     ci.dictionaries = dictionaries;

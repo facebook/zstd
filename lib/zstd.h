@@ -522,7 +522,7 @@ typedef enum {
     /* note : additional experimental parameters are also available
      * within the experimental section of the API.
      * At the time of this writing, they include :
-     * ZSTD_c_format
+     * ZSTD_d_format
      * Because they are not stable, it's necessary to define ZSTD_STATIC_LINKING_ONLY to access them.
      * note : never ever use experimentalParam? names directly
      */

@@ -339,7 +339,7 @@ createBufferCollection_fromSliceCollection(slice_collection_t sc)
 {
     buffer_collection_t result = createBufferCollection_fromSliceCollectionSizes(sc);
     for (size_t i = 0; i < sc.nbSlices; i++) {
-        if (result.slices.slicePtrs[i] != NULL) {
+        if (result.slices != NULL && result.slices.slicePtrs[i] != NULL) {
             memcpy(result.slices.slicePtrs[i], sc.slicePtrs[i], sc.capacities[i]);
             result.slices.capacities[i] = sc.capacities[i];
         }

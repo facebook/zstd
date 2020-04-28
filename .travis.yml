@@ -100,7 +100,7 @@ matrix:
         - make clean
         - make -j check MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
 
-    - name: cmake build and test check    # ~2mn
+    - name: cmake build and test check    # ~6mn
       script:
         - make cmakebuild
 

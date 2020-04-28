@@ -249,9 +249,9 @@
       C:\cygwin64\bin\bash --login -c "
         set -e;
         cd build/cmake;
-        CFLAGS='-Werror' cmake -G 'Unix Makefiles' -DCMAKE_BUILD_TYPE=Debug -DZSTD_BUILD_TESTS:BOOL=ON .;
+        CFLAGS='-Werror' cmake -G 'Unix Makefiles' -DCMAKE_BUILD_TYPE=Debug -DZSTD_BUILD_TESTS:BOOL=ON -DZSTD_FUZZER_FLAGS=-T30s .;
         make -j4;
-        ctest -V;
+        ctest -V -L Medium;
       "
     )
   - if [%HOST%]==[mingw] (

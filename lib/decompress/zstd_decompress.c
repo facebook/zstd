@@ -1526,6 +1526,7 @@ static int ZSTD_DCtx_isOversizedTooLong(ZSTD_DStream* zds)
     return zds->oversizedDuration >= ZSTD_WORKSPACETOOLARGE_MAXDURATION;
 }
 
+/* Checks that the output buffer hasn't changed if ZSTD_obm_stable is used. */
 static size_t ZSTD_checkOutBuffer(ZSTD_DStream const* zds, ZSTD_outBuffer const* output)
 {
     ZSTD_outBuffer const expect = zds->expectedOutBuffer;
@@ -1543,6 +1544,11 @@ static size_t ZSTD_checkOutBuffer(ZSTD_DStream const* zds, ZSTD_outBuffer const*
     RETURN_ERROR(dstBuffer_wrong, "ZSTD_obm_stable enabled but output differs!");
 }
 
+/* Calls ZSTD_decompressContinue() with the right parameters for ZSTD_decompressStream()
+ * and updates the stage and the output buffer state. This call is extracted so it can be
+ * used both when reading directly from the ZSTD_inBuffer, and in buffered input mode.
+ * NOTE: You must break after calling this function since the streamStage is modified.
+ */
 static size_t ZSTD_decompressContinueStream(
             ZSTD_DStream* zds, char** op, char* oend,
             void const* src, size_t srcSize) {
@@ -1559,10 +1565,12 @@ static size_t ZSTD_decompressContinueStream(
             zds->streamStage = zdss_flush;
         }
     } else {
+        /* Write directly into the output buffer */
         size_t const dstSize = isSkipFrame ? 0 : oend - *op;
         size_t const decodedSize = ZSTD_decompressContinue(zds, *op, dstSize, src, srcSize);
         FORWARD_IF_ERROR(decodedSize);
         *op += decodedSize;
+        /* Flushing is not needed. */
         zds->streamStage = zdss_read;
         assert(*op <= oend);
         assert(zds->outBufferMode == ZSTD_obm_stable);

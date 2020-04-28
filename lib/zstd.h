@@ -523,10 +523,12 @@ typedef enum {
      * within the experimental section of the API.
      * At the time of this writing, they include :
      * ZSTD_d_format
+     * ZSTD_d_stableOutBuffer
      * Because they are not stable, it's necessary to define ZSTD_STATIC_LINKING_ONLY to access them.
      * note : never ever use experimentalParam? names directly
      */
-     ZSTD_d_experimentalParam1=1000
+     ZSTD_d_experimentalParam1=1000,
+     ZSTD_d_experimentalParam2=1001
 
 } ZSTD_dParameter;
 
@@ -1645,6 +1647,29 @@ ZSTDLIB_API size_t ZSTD_DCtx_setMaxWindowSize(ZSTD_DCtx* dctx, size_t maxWindowS
  * allowing selection between ZSTD_format_e input compression formats
  */
 #define ZSTD_d_format ZSTD_d_experimentalParam1
+/* ZSTD_d_stableOutBuffer
+ * Experimental parameter.
+ * Default is 0 == disabled. Set to 1 to enable.
+ *
+ * Tells the decompressor that the ZSTD_outBuffer will ALWAYS be the same
+ * between calls, except for the modifications that zstd makes to pos (the
+ * caller must not modify pos). This is checked by the decompressor, and
+ * decompression will fail if it ever changes. Therefore the ZSTD_outBuffer
+ * MUST be large enough to fit the entire decompressed frame. This will be
+ * checked when the frame content size is known.
+ *
+ * When this flags is enabled zstd won't allocate an output buffer, because
+ * it can write directly to the ZSTD_outBuffer, but it will still allocate
+ * an input buffer large enough to fit any compressed block. This will also
+ * avoid the memcpy() from the internal output buffer to the ZSTD_outBuffer.
+ * If you need to avoid the input buffer allocation use the buffer-less
+ * streaming API.
+ *
+ * NOTE: So long as the ZSTD_outBuffer always points to valid memory, using
+ * this flag is ALWAYS memory safe, and will never access out-of-bounds
+ * memory. However, decompression WILL fail if you violate the preconditions.
+ */
+#define ZSTD_d_stableOutBuffer ZSTD_d_experimentalParam2
 
 /*! ZSTD_DCtx_setFormat() :
  *  Instruct the decoder context about what kind of data to decode next.

@@ -76,6 +76,7 @@ typedef enum {
   /* following error codes are __NOT STABLE__, they can be removed or changed in future versions */
   ZSTD_error_frameIndex_tooLarge = 100,
   ZSTD_error_seekableIO          = 102,
+  ZSTD_error_dstBuffer_wrong     = 104,
   ZSTD_error_maxCode = 120  /* never EVER use this value directly, it can change in future versions! Use ZSTD_isError() instead */
 } ZSTD_ErrorCode;
 

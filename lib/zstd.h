@@ -1656,7 +1656,9 @@ ZSTDLIB_API size_t ZSTD_DCtx_setMaxWindowSize(ZSTD_DCtx* dctx, size_t maxWindowS
  * caller must not modify pos). This is checked by the decompressor, and
  * decompression will fail if it ever changes. Therefore the ZSTD_outBuffer
  * MUST be large enough to fit the entire decompressed frame. This will be
- * checked when the frame content size is known.
+ * checked when the frame content size is known. The data in the ZSTD_outBuffer
+ * in the range [dst, dst + pos) MUST not be modified during decompression
+ * or you will get data corruption.
  *
  * When this flags is enabled zstd won't allocate an output buffer, because
  * it can write directly to the ZSTD_outBuffer, but it will still allocate
@@ -1668,6 +1670,12 @@ ZSTDLIB_API size_t ZSTD_DCtx_setMaxWindowSize(ZSTD_DCtx* dctx, size_t maxWindowS
  * NOTE: So long as the ZSTD_outBuffer always points to valid memory, using
  * this flag is ALWAYS memory safe, and will never access out-of-bounds
  * memory. However, decompression WILL fail if you violate the preconditions.
+ *
+ * WARNING: The data in the ZSTD_outBuffer in the range [dst, dst + pos) MUST
+ * not be modified during decompression or you will get data corruption. This
+ * is because zstd needs to reference data in the ZSTD_outBuffer to regenerate
+ * matches. Normally zstd maintains its own buffer for this purpose, but passing
+ * this flag tells zstd to use the user provided buffer.
  */
 #define ZSTD_d_stableOutBuffer ZSTD_d_experimentalParam2
 

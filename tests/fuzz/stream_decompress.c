@@ -70,6 +70,8 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
      * buffers in a row. */
     int prevInWasZero = 0;
     int prevOutWasZero = 0;
+    int stableOutBuffer;
+    ZSTD_outBuffer out;
     size = FUZZ_dataProducer_reserveDataPrefix(producer);
 
     /* Allocate all buffers and contexts if not already allocated */
@@ -85,11 +87,21 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
         FUZZ_ZASSERT(ZSTD_DCtx_reset(dstream, ZSTD_reset_session_only));
     }
 
+    stableOutBuffer = FUZZ_dataProducer_uint32Range(producer, 0, 10) == 5;
+    if (stableOutBuffer) {
+      FUZZ_ZASSERT(ZSTD_DCtx_setParameter(dstream, ZSTD_d_stableOutBuffer, 1));
+      out.dst = buf;
+      out.size = kBufSize;
+      out.pos = 0;
+    }
+
     while (size > 0) {
         ZSTD_inBuffer in = makeInBuffer(&src, &size, producer, prevInWasZero ? 1 : 0);
         prevInWasZero = in.size == 0;
         while (in.pos != in.size) {
-            ZSTD_outBuffer out = makeOutBuffer(producer, prevOutWasZero ? 1 : 0);
+            if (!stableOutBuffer || FUZZ_dataProducer_uint32Range(producer, 0, 100) == 55) {
+              out = makeOutBuffer(producer, prevOutWasZero ? 1 : 0);
+            }
             prevOutWasZero = out.size == 0;
             size_t const rc = ZSTD_decompressStream(dstream, &out, &in);
             if (ZSTD_isError(rc)) goto error;

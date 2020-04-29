@@ -181,16 +181,13 @@ lib : libzstd.a libzstd
 
 %-mt : CPPFLAGS += -DZSTD_MULTITHREAD
 %-mt : LDFLAGS  += -pthread
-
-libzstd-mt : libzstd
-
-libzstd.a-mt: libzstd.a
-
-lib-mt : lib
+%-mt : %
+	@echo multi-threading build completed
 
 %-release : DEBUGFLAGS :=
-lib-release: lib
-lib-mt-release : lib-mt
+%-release : %
+	@echo release build completed
+
 
 # Special case : building library in single-thread mode _and_ without zstdmt_compress.c
 ZSTDMT_FILES = compress/zstdmt_compress.c

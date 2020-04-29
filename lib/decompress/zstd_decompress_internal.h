@@ -95,6 +95,11 @@ typedef enum {
     ZSTD_use_once = 1            /* Use the dictionary once and set to ZSTD_dont_use */
 } ZSTD_dictUses_e;
 
+typedef enum {
+    ZSTD_obm_buffered = 0,  /* Buffer the output */
+    ZSTD_obm_stable = 1     /* ZSTD_outBuffer is stable */
+} ZSTD_outBufferMode_e;
+
 struct ZSTD_DCtx_s
 {
     const ZSTD_seqSymbol* LLTptr;
@@ -147,6 +152,8 @@ struct ZSTD_DCtx_s
     U32 legacyVersion;
     U32 hostageByte;
     int noForwardProgress;
+    ZSTD_outBufferMode_e outBufferMode;
+    ZSTD_outBuffer expectedOutBuffer;
 
     /* workspace */
     BYTE litBuffer[ZSTD_BLOCKSIZE_MAX + WILDCOPY_OVERLENGTH];

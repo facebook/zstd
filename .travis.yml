@@ -64,6 +64,9 @@ matrix:
         - CC=gcc-7 CFLAGS=-Werror make -j all
         - make clean
         - LDFLAGS=-Wl,--no-undefined make -C lib libzstd-mt
+        - make -C tests zbufftest-dll
+        # LDFLAGS=-Wl,--no-undefined : will make the linker fail if dll is underlinked
+        # zbufftest-dll : test that a user program can link to multi-threaded libzstd without specifying -pthread
 
     - name: gcc-8 + ASan + UBSan + Test Zstd   # ~6.5mn
       script:

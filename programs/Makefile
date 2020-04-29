@@ -79,6 +79,9 @@ endif
 # Sort files in alphabetical order for reproducible builds
 ZSTDLIB_FILES := $(sort $(wildcard $(ZSTD_FILES)) $(wildcard $(ZSTDLEGACY_FILES)) $(wildcard $(ZDICT_FILES)))
 
+ZSTD_CLI_FILES := $(wildcard *.c)
+ZSTD_CLI_OBJ := $(patsubst %.c,%.o,$(ZSTD_CLI_FILES))
+
 # Define *.exe as extension for Windows systems
 ifneq (,$(filter Windows%,$(OS)))
 EXT =.exe
@@ -172,7 +175,7 @@ zstd : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 ifneq (,$(filter Windows%,$(OS)))
 zstd : $(RES_FILE)
 endif
-zstd : $(ZSTDLIB_FILES) zstdcli.o util.o timefn.o fileio.o benchfn.o benchzstd.o datagen.o dibio.o
+zstd : $(ZSTDLIB_FILES) $(ZSTD_CLI_OBJ)
 	@echo "$(THREAD_MSG)"
 	@echo "$(ZLIB_MSG)"
 	@echo "$(LZMA_MSG)"
@@ -190,10 +193,10 @@ zstd32 : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 ifneq (,$(filter Windows%,$(OS)))
 zstd32 : $(RES32_FILE)
 endif
-zstd32 : $(ZSTDLIB_FILES) zstdcli.c util.c timefn.c fileio.c benchfn.c benchzstd.c datagen.c dibio.c
+zstd32 : $(ZSTDLIB_FILES) $(ZSTD_CLI_FILES)
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
-zstd-nolegacy : $(ZSTD_FILES) $(ZDICT_FILES) zstdcli.o util.o fileio.c benchfn.o benchzstd.o timefn.o datagen.o dibio.o
+zstd-nolegacy : $(ZSTD_FILES) $(ZDICT_FILES) $(ZSTD_CLI_OBJ)
 	$(CC) $(FLAGS) $^ -o $@$(EXT) $(LDFLAGS)
 
 zstd-nomt : THREAD_CPP :=
@@ -210,6 +213,19 @@ zstd-noxz : LZMACPP :=
 zstd-noxz : LZMALD  :=
 zstd-noxz : LZMA_MSG := - xz/lzma support is disabled
 zstd-noxz : zstd
+
+# note : the following target doesn't build
+#        because zstd uses non-public symbols from libzstd
+#        such as XXH64 (for benchmark),
+#        ZDICT_trainFromBuffer_unsafe_legacy for dictionary builder
+#        and ZSTD_cycleLog (likely for --patch-from)
+#        It's unclear at this stage if this is a scenario we want to support
+## zstd-dll: zstd executable linked to dynamic library libzstd (must already exist)
+.PHONY: zstd-dll
+zstd-dll : LDFLAGS+= -L$(ZSTDDIR) -lzstd
+zstd-dll : ZSTDLIB_FILES =
+zstd-dll : $(ZSTD_CLI_OBJ)
+	$(CC) $(FLAGS) $^ -o $@$(EXT) $(LDFLAGS)
 
 
 zstd-pgo :

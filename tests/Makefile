@@ -91,6 +91,7 @@ allnothread: MULTITHREAD_CPP=
 allnothread: MULTITHREAD_LD=
 allnothread: fullbench fuzzer paramgrill datagen decodecorpus
 
+# note : broken : requires symbols unavailable from dynamic library
 dll: fuzzer-dll zstreamtest-dll
 
 PHONY: zstd zstd32 zstd-nolegacy  # must be phony, only external makefile knows how to build them, or if they need an update
@@ -98,11 +99,14 @@ zstd zstd32 zstd-nolegacy:
 	$(MAKE) -C $(PRGDIR) $@ MOREFLAGS+="$(DEBUGFLAGS)"
 
 gzstd:
-	$(MAKE) -C $(PRGDIR) zstd HAVE_ZLIB=1 MOREFLAGS+="$(DEBUGFLAGS)"
+	$(MAKE) -C $(PRGDIR) $@ HAVE_ZLIB=1 MOREFLAGS+="$(DEBUGFLAGS)"
 
-.PHONY: zstd-dll
-zstd-dll :
+.PHONY: libzstd
+libzstd :
 	$(MAKE) -C $(ZSTDDIR) libzstd
+
+%-dll : libzstd
+%-dll : LDFLAGS+= -L$(ZSTDDIR) -lzstd
 
 .PHONY: zstd-staticLib
 zstd-staticLib :
@@ -141,9 +145,7 @@ fullbench-lib : zstd-staticLib
 fullbench-lib : $(PRGDIR)/datagen.c $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/benchfn.c fullbench.c
 	$(CC) $(FLAGS) $(filter %.c,$^) -o $@$(EXT) $(ZSTDDIR)/libzstd.a
 
-# note : broken : requires unavailable symbols
-fullbench-dll : zstd-dll
-fullbench-dll : LDFLAGS+= -L$(ZSTDDIR) -lzstd
+# note : broken : requires symbols unavailable from dynamic library
 fullbench-dll: $(PRGDIR)/datagen.c $(PRGDIR)/util.c $(PRGDIR)/benchfn.c $(PRGDIR)/timefn.c fullbench.c
 #	$(CC) $(FLAGS) $(filter %.c,$^) -o $@$(EXT) -DZSTD_DLL_IMPORT=1 $(ZSTDDIR)/dll/libzstd.dll
 	$(CC) $(FLAGS) $(filter %.c,$^) -o $@$(EXT)
@@ -156,8 +158,7 @@ fuzzer32: $(ZSTD_FILES)
 fuzzer fuzzer32 : $(ZDICT_FILES) $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/datagen.c fuzzer.c
 	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
-fuzzer-dll : zstd-dll
-fuzzer-dll : LDFLAGS+= -L$(ZSTDDIR) -lzstd
+# note : broken : requires symbols unavailable from dynamic library
 fuzzer-dll : $(ZSTDDIR)/common/xxhash.c $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/datagen.c fuzzer.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(filter %.c,$^) $(LDFLAGS) -o $@$(EXT)
 
@@ -167,8 +168,6 @@ zbufftest32 : CFLAGS +=  -m32
 zbufftest zbufftest32 : $(ZSTD_OBJECTS) $(ZBUFF_FILES) $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/datagen.c zbufftest.c
 	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
-zbufftest-dll : zstd-dll
-zbufftest-dll : LDFLAGS+= -L$(ZSTDDIR) -lzstd
 zbufftest-dll : $(ZSTDDIR)/common/xxhash.c $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/datagen.c zbufftest.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(filter %.c,$^) $(LDFLAGS) -o $@$(EXT)
 
@@ -191,8 +190,7 @@ zstreamtest_tsan : CFLAGS += -fsanitize=thread
 zstreamtest_tsan : $(ZSTREAMFILES)
 	$(CC) $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
 
-zstreamtest-dll : zstd-dll
-zstreamtest-dll : LDFLAGS+= -L$(ZSTDDIR) -lzstd
+# note : broken : requires symbols unavailable from dynamic library
 zstreamtest-dll : $(ZSTDDIR)/common/xxhash.c  # xxh symbols not exposed from dll
 zstreamtest-dll : $(ZSTREAM_LOCAL_FILES)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(filter %.c,$^) $(LDFLAGS) -o $@$(EXT)

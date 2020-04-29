@@ -417,7 +417,7 @@ size_t HUF_estimateCompressedSize(const HUF_CElt* CTable, const unsigned* count,
     return nbBits >> 3;
 }
 
-static int HUF_validateCTable(const HUF_CElt* CTable, const unsigned* count, unsigned maxSymbolValue) {
+int HUF_validateCTable(const HUF_CElt* CTable, const unsigned* count, unsigned maxSymbolValue) {
   int bad = 0;
   int s;
   for (s = 0; s <= (int)maxSymbolValue; ++s) {

@@ -36,6 +36,7 @@ size_t ZSTD_noCompressLiterals (void* dst, size_t dstCapacity, const void* src, 
     }
 
     memcpy(ostart + flSize, src, srcSize);
+    DEBUGLOG(5, "Raw literals: %u -> %u", (U32)srcSize, (U32)(srcSize + flSize));
     return srcSize + flSize;
 }
 
@@ -62,6 +63,7 @@ size_t ZSTD_compressRleLiteralsBlock (void* dst, size_t dstCapacity, const void*
     }
 
     ostart[flSize] = *(const BYTE*)src;
+    DEBUGLOG(5, "RLE literals: %u -> %u", (U32)srcSize, (U32)flSize + 1);
     return flSize+1;
 }
 
@@ -80,8 +82,8 @@ size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
     symbolEncodingType_e hType = set_compressed;
     size_t cLitSize;
 
-    DEBUGLOG(5,"ZSTD_compressLiterals (disableLiteralCompression=%i)",
-                disableLiteralCompression);
+    DEBUGLOG(5,"ZSTD_compressLiterals (disableLiteralCompression=%i srcSize=%u)",
+                disableLiteralCompression, (U32)srcSize);
 
     /* Prepare nextEntropy assuming reusing the existing table */
     memcpy(nextHuf, prevHuf, sizeof(*prevHuf));
@@ -110,6 +112,7 @@ size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
                 (HUF_CElt*)nextHuf->CTable, &repeat, preferRepeat, bmi2);
         if (repeat != HUF_repeat_none) {
             /* reused the existing table */
+            DEBUGLOG(5, "Reusing previous huffman table");
             hType = set_repeat;
         }
     }
@@ -150,5 +153,6 @@ size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
     default:  /* not possible : lhSize is {3,4,5} */
         assert(0);
     }
+    DEBUGLOG(5, "Compressed literals: %u -> %u", (U32)srcSize, (U32)(lhSize+cLitSize));
     return lhSize+cLitSize;
 }

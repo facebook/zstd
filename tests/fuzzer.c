@@ -708,8 +708,8 @@ static int basicUnitTests(U32 const seed, double compressibility)
           for (read = 0; read < streamCompressThreshold; read += streamCompressDelta) {
             ZSTD_inBuffer in = {src, streamCompressDelta, 0};
             ZSTD_outBuffer out = {dst, dstCapacity, 0};
-            assert(!ZSTD_isError(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_continue)));
-            assert(!ZSTD_isError(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end)));
+            CHECK_Z(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_continue));
+            CHECK_Z(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end));
             src += streamCompressDelta; srcSize -= streamCompressDelta;
             dst += out.pos; dstCapacity -= out.pos;}}
 
@@ -717,7 +717,35 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
         { ZSTD_inBuffer in = {src, srcSize, 0};
           ZSTD_outBuffer out = {dst, dstCapacity, 0};
-          assert(!ZSTD_isError(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end)));}
+          CHECK_Z(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end));}
+        ZSTD_freeCCtx(cctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3d: superblock with no literals : ", testNb++);
+    /* Generate the same data 20 times over */
+    {
+        size_t const avgChunkSize = CNBuffSize / 20;
+        size_t b;
+        for (b = 0; b < CNBuffSize; b += avgChunkSize) {
+            size_t const chunkSize = MIN(CNBuffSize - b, avgChunkSize);
+            RDG_genBuffer((char*)CNBuffer + b, chunkSize, compressibility, 0. /* auto */, seed);
+        }
+    }
+    {
+        ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        size_t const normalCSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize);
+        size_t const allowedExpansion = (CNBuffSize * 3 / 1000);
+        size_t superCSize;
+        CHECK_Z(normalCSize);
+        ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, 19);
+        ZSTD_CCtx_setParameter(cctx, ZSTD_c_targetCBlockSize, 1000);
+        superCSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize);
+        CHECK_Z(superCSize);
+        if (superCSize > normalCSize + allowedExpansion) {
+            DISPLAYLEVEL(1, "Superblock too big: %u > %u + %u \n", (U32)superCSize, (U32)normalCSize, (U32)allowedExpansion);
+            goto _output_error;
+        }
         ZSTD_freeCCtx(cctx);
     }
     DISPLAYLEVEL(3, "OK \n");

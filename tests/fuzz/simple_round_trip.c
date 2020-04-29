@@ -32,9 +32,12 @@ static size_t roundTripTest(void *result, size_t resultCapacity,
                             FUZZ_dataProducer_t *producer)
 {
     size_t cSize;
+    size_t dSize;
+    int targetCBlockSize = 0;
     if (FUZZ_dataProducer_uint32Range(producer, 0, 1)) {
         FUZZ_setRandomParameters(cctx, srcSize, producer);
         cSize = ZSTD_compress2(cctx, compressed, compressedCapacity, src, srcSize);
+        FUZZ_ZASSERT(ZSTD_CCtx_getParameter(cctx, ZSTD_c_targetCBlockSize, &targetCBlockSize));
     } else {
       int const cLevel = FUZZ_dataProducer_int32Range(producer, kMinClevel, kMaxClevel);
 
@@ -42,14 +45,33 @@ static size_t roundTripTest(void *result, size_t resultCapacity,
             cctx, compressed, compressedCapacity, src, srcSize, cLevel);
     }
     FUZZ_ZASSERT(cSize);
-    return ZSTD_decompressDCtx(dctx, result, resultCapacity, compressed, cSize);
+    dSize = ZSTD_decompressDCtx(dctx, result, resultCapacity, compressed, cSize);
+    FUZZ_ZASSERT(dSize);
+    /* When superblock is enabled make sure we don't expand the block more than expected. */
+    if (targetCBlockSize != 0) {
+        size_t normalCSize;
+        FUZZ_ZASSERT(ZSTD_CCtx_setParameter(cctx, ZSTD_c_targetCBlockSize, 0));
+        normalCSize = ZSTD_compress2(cctx, compressed, compressedCapacity, src, srcSize);
+        FUZZ_ZASSERT(normalCSize);
+        {
+            size_t const bytesPerBlock = 3 /* block header */
+                + 5 /* Literal header */
+                + 6 /* Huffman jump table */
+                + 3 /* number of sequences */
+                + 1 /* symbol compression modes */;
+            size_t const expectedExpansion = bytesPerBlock * (1 + (normalCSize / MAX(1, targetCBlockSize)));
+            size_t const allowedExpansion = (srcSize >> 4) + 3 * expectedExpansion + 10;
+            FUZZ_ASSERT(cSize <= normalCSize + allowedExpansion);
+        }
+    }
+    return dSize;
 }
 
 int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 {
     size_t const rBufSize = size;
     void* rBuf = malloc(rBufSize);
-    size_t cBufSize = ZSTD_compressBound(size) * 2;
+    size_t cBufSize = ZSTD_compressBound(size);
     void* cBuf;
 
     /* Give a random portion of src data to the producer, to use for

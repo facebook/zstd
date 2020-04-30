@@ -2761,7 +2761,7 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* cctx,
     {   size_t const cSize = frame ?
                              ZSTD_compress_frameChunk (cctx, dst, dstCapacity, src, srcSize, lastFrameChunk) :
                              ZSTD_compressBlock_internal (cctx, dst, dstCapacity, src, srcSize, 0 /* frame */);
-        FORWARD_IF_ERROR(cSize, frame ? "ZSTD_compress_frameChunk failed" : "ZSTD_compressBlock_internal failed");
+        FORWARD_IF_ERROR(cSize, "%s", frame ? "ZSTD_compress_frameChunk failed" : "ZSTD_compressBlock_internal failed");
         cctx->consumedSrcSize += srcSize;
         cctx->producedCSize += (cSize + fhSize);
         assert(!(cctx->appliedParams.fParams.contentSizeFlag && cctx->pledgedSrcSizePlusOne == 0));
@@ -3866,7 +3866,7 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                                     zcs->inBuff + zcs->inToCompress, iSize) :
                         ZSTD_compressContinue(zcs, cDst, oSize,
                                     zcs->inBuff + zcs->inToCompress, iSize);
-                FORWARD_IF_ERROR(cSize, lastBlock ? "ZSTD_compressEnd failed" : "ZSTD_compressContinue failed");
+                FORWARD_IF_ERROR(cSize, "%s", lastBlock ? "ZSTD_compressEnd failed" : "ZSTD_compressContinue failed");
                 zcs->frameEnded = lastBlock;
                 /* prepare next block */
                 zcs->inBuffTarget = zcs->inBuffPos + zcs->blockSize;

@@ -262,7 +262,7 @@ size_t FSE_decompress_wksp(void* dst, size_t dstCapacity, const void* cSrc, size
     /* normal FSE decoding mode */
     size_t const NCountLength = FSE_readNCount (counting, &maxSymbolValue, &tableLog, istart, cSrcSize);
     if (FSE_isError(NCountLength)) return NCountLength;
-    //if (NCountLength >= cSrcSize) return ERROR(srcSize_wrong);   /* too small input size; supposed to be already checked in NCountLength, only remaining case : NCountLength==cSrcSize */
+    /* if (NCountLength >= cSrcSize) return ERROR(srcSize_wrong); */  /* too small input size; supposed to be already checked in NCountLength, only remaining case : NCountLength==cSrcSize */
     if (tableLog > maxLog) return ERROR(tableLog_tooLarge);
     ip += NCountLength;
     cSrcSize -= NCountLength;

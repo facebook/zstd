@@ -370,7 +370,7 @@ MEM_STATIC size_t ZSTD_noCompressBlock (void* dst, size_t dstCapacity, const voi
 {
     U32 const cBlockHeader24 = lastBlock + (((U32)bt_raw)<<1) + (U32)(srcSize << 3);
     RETURN_ERROR_IF(srcSize + ZSTD_blockHeaderSize > dstCapacity,
-                    dstSize_tooSmall);
+                    dstSize_tooSmall, "dst buf too small for uncompressed block");
     MEM_writeLE24(dst, cBlockHeader24);
     memcpy((BYTE*)dst + ZSTD_blockHeaderSize, src, srcSize);
     return ZSTD_blockHeaderSize + srcSize;

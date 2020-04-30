@@ -53,9 +53,29 @@ extern "C" {
 #define MIN(a,b) ((a)<(b) ? (a) : (b))
 #define MAX(a,b) ((a)>(b) ? (a) : (b))
 
-static INLINE_KEYWORD UNUSED_ATTR void _force_has_formatting_string(const char *format, ...) {
+/**
+ * Ignore: this is an internal helper.
+ *
+ * This is a helper function to help force C99-correctness during compilation.
+ * Under strict compilation modes, variadic macro arguments can't be empty.
+ * However, variadic function arguments can be. Using a function therefore lets
+ * us statically check that at least one (string) argument was passed,
+ * independent of the compilation flags.
+ */
+HINT_INLINE UNUSED_ATTR void _force_has_format_string(const char *format, ...) {
   (void)format;
 }
+
+/**
+ * Ignore: this is an internal helper.
+ *
+ * We want to force this function invocation to be syntactically correct, but
+ * we don't want to force runtime evaluation of its arguments.
+ */
+#define _FORCE_HAS_FORMAT_STRING(...) \
+  if (0) { \
+    _force_has_format_string(__VA_ARGS__); \
+  }
 
 /**
  * Return the specified error if the condition evaluates to true.
@@ -68,7 +88,7 @@ static INLINE_KEYWORD UNUSED_ATTR void _force_has_formatting_string(const char *
   if (cond) { \
     RAWLOG(3, "%s:%d: ERROR!: check %s failed, returning %s", \
            __FILE__, __LINE__, ZSTD_QUOTE(cond), ZSTD_QUOTE(ERROR(err))); \
-    _force_has_formatting_string(__VA_ARGS__); \
+    _FORCE_HAS_FORMAT_STRING(__VA_ARGS__); \
     RAWLOG(3, ": " __VA_ARGS__); \
     RAWLOG(3, "\n"); \
     return ERROR(err); \
@@ -83,7 +103,7 @@ static INLINE_KEYWORD UNUSED_ATTR void _force_has_formatting_string(const char *
   do { \
     RAWLOG(3, "%s:%d: ERROR!: unconditional check failed, returning %s", \
            __FILE__, __LINE__, ZSTD_QUOTE(ERROR(err))); \
-    _force_has_formatting_string(__VA_ARGS__); \
+    _FORCE_HAS_FORMAT_STRING(__VA_ARGS__); \
     RAWLOG(3, ": " __VA_ARGS__); \
     RAWLOG(3, "\n"); \
     return ERROR(err); \
@@ -100,7 +120,7 @@ static INLINE_KEYWORD UNUSED_ATTR void _force_has_formatting_string(const char *
     if (ERR_isError(err_code)) { \
       RAWLOG(3, "%s:%d: ERROR!: forwarding error in %s: %s", \
              __FILE__, __LINE__, ZSTD_QUOTE(err), ERR_getErrorName(err_code)); \
-      _force_has_formatting_string(__VA_ARGS__); \
+      _FORCE_HAS_FORMAT_STRING(__VA_ARGS__); \
       RAWLOG(3, ": " __VA_ARGS__); \
       RAWLOG(3, "\n"); \
       return err_code; \

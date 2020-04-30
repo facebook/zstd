@@ -154,9 +154,6 @@ libzstd.a: $(ZSTD_OBJ)
 	@echo compiling static library
 	@$(AR) $(ARFLAGS) $@ $^
 
-libzstd.a-mt: CPPFLAGS += -DZSTD_MULTITHREAD
-libzstd.a-mt: libzstd.a
-
 ifneq (,$(filter Windows%,$(OS)))
 
 LIBZSTD = dll\libzstd.dll
@@ -180,17 +177,17 @@ endif
 
 libzstd : $(LIBZSTD)
 
-libzstd-mt : CPPFLAGS += -DZSTD_MULTITHREAD
-libzstd-mt : libzstd
+lib : libzstd.a libzstd
 
-lib: libzstd.a libzstd
+%-mt : CPPFLAGS += -DZSTD_MULTITHREAD
+%-mt : LDFLAGS  += -pthread
+%-mt : %
+	@echo multi-threading build completed
 
-lib-mt: CPPFLAGS += -DZSTD_MULTITHREAD
-lib-mt: lib
+%-release : DEBUGFLAGS :=
+%-release : %
+	@echo release build completed
 
-lib-release lib-release-mt: DEBUGFLAGS :=
-lib-release: lib
-lib-release-mt: lib-mt
 
 # Special case : building library in single-thread mode _and_ without zstdmt_compress.c
 ZSTDMT_FILES = compress/zstdmt_compress.c

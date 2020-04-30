@@ -79,6 +79,9 @@ endif
 # Sort files in alphabetical order for reproducible builds
 ZSTDLIB_FILES := $(sort $(wildcard $(ZSTD_FILES)) $(wildcard $(ZSTDLEGACY_FILES)) $(wildcard $(ZDICT_FILES)))
 
+ZSTD_CLI_FILES := $(wildcard *.c)
+ZSTD_CLI_OBJ := $(patsubst %.c,%.o,$(ZSTD_CLI_FILES))
+
 # Define *.exe as extension for Windows systems
 ifneq (,$(filter Windows%,$(OS)))
 EXT =.exe
@@ -172,7 +175,7 @@ zstd : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 ifneq (,$(filter Windows%,$(OS)))
 zstd : $(RES_FILE)
 endif
-zstd : $(ZSTDLIB_FILES) zstdcli.o util.o timefn.o fileio.o benchfn.o benchzstd.o datagen.o dibio.o
+zstd : $(ZSTDLIB_FILES) $(ZSTD_CLI_OBJ)
 	@echo "$(THREAD_MSG)"
 	@echo "$(ZLIB_MSG)"
 	@echo "$(LZMA_MSG)"
@@ -190,10 +193,12 @@ zstd32 : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 ifneq (,$(filter Windows%,$(OS)))
 zstd32 : $(RES32_FILE)
 endif
-zstd32 : $(ZSTDLIB_FILES) zstdcli.c util.c timefn.c fileio.c benchfn.c benchzstd.c datagen.c dibio.c
+zstd32 : $(ZSTDLIB_FILES) $(ZSTD_CLI_FILES)
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
-zstd-nolegacy : $(ZSTD_FILES) $(ZDICT_FILES) zstdcli.o util.o fileio.c benchfn.o benchzstd.o timefn.o datagen.o dibio.o
+## zstd-nolegacy: same scope as zstd, with just support of legacy formats removed
+zstd-nolegacy : LDFLAGS += $(THREAD_LD) $(ZLIBLD) $(LZMALD) $(LZ4LD) $(DEBUGFLAGS_LD)
+zstd-nolegacy : $(ZSTD_FILES) $(ZDICT_FILES) $(ZSTD_CLI_OBJ)
 	$(CC) $(FLAGS) $^ -o $@$(EXT) $(LDFLAGS)
 
 zstd-nomt : THREAD_CPP :=
@@ -211,6 +216,19 @@ zstd-noxz : LZMALD  :=
 zstd-noxz : LZMA_MSG := - xz/lzma support is disabled
 zstd-noxz : zstd
 
+# note : the following target doesn't build
+#        because zstd uses non-public symbols from libzstd
+#        such as XXH64 (for benchmark),
+#        ZDICT_trainFromBuffer_unsafe_legacy for dictionary builder
+#        and ZSTD_cycleLog (likely for --patch-from)
+#        It's unclear at this stage if this is a scenario we want to support
+## zstd-dll: zstd executable linked to dynamic library libzstd (must already exist)
+.PHONY: zstd-dll
+zstd-dll : LDFLAGS+= -L$(ZSTDDIR) -lzstd
+zstd-dll : ZSTDLIB_FILES =
+zstd-dll : $(ZSTD_CLI_OBJ)
+	$(CC) $(FLAGS) $^ -o $@$(EXT) $(LDFLAGS)
+
 
 zstd-pgo :
 	$(MAKE) clean
@@ -224,7 +242,7 @@ zstd-pgo :
 	$(RM) zstd *.o $(ZSTDDECOMP_O) $(ZSTDDIR)/compress/*.o
 	$(MAKE) zstd MOREFLAGS=-fprofile-use
 
-# minimal target, with only zstd compression and decompression. no bench. no legacy.
+## zstd-small: minimal target, supporting only zstd compression and decompression. no bench. no legacy. no other format.
 zstd-small: CFLAGS = -Os -s
 zstd-frugal zstd-small: $(ZSTD_FILES) zstdcli.c util.c timefn.c fileio.c
 	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT $^ -o $@$(EXT)
@@ -235,6 +253,7 @@ zstd-decompress: $(ZSTDCOMMON_FILES) $(ZSTDDECOMP_FILES) zstdcli.c util.c timefn
 zstd-compress: $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) zstdcli.c util.c timefn.c fileio.c
 	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS $^ -o $@$(EXT)
 
+## zstd-dictBuilder: executable supporting dictionary creation and compression (only)
 zstd-dictBuilder: CPPFLAGS += -DZSTD_NOBENCH -DZSTD_NODECOMPRESS
 zstd-dictBuilder: $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) $(ZDICT_FILES) zstdcli.c util.c timefn.c fileio.c dibio.c
 	$(CC) $(FLAGS) $^ -o $@$(EXT)
@@ -302,6 +321,7 @@ ifeq ($HAVE_COLORNEVER, 1)
 EGREP_OPTIONS += --color=never
 endif
 EGREP = egrep $(EGREP_OPTIONS)
+AWK = awk
 
 # Print a two column output of targets and their description. To add a target description, put a
 # comment in the Makefile with the format "## <TARGET>: <DESCRIPTION>".  For example:
@@ -310,14 +330,14 @@ EGREP = egrep $(EGREP_OPTIONS)
 .PHONY: list
 list:
 	@TARGETS=$$($(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null \
-		| awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' \
+		| $(AWK) -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' \
 		| $(EGREP) -v  -e '^[^[:alnum:]]' | sort); \
 	{ \
 	    printf "Target Name\tDescription\n"; \
 	    printf "%0.s-" {1..16}; printf "\t"; printf "%0.s-" {1..40}; printf "\n"; \
 	    for target in $$TARGETS; do \
 	        line=$$($(EGREP) "^##[[:space:]]+$$target:" $(lastword $(MAKEFILE_LIST))); \
-	        description=$$(echo $$line | awk '{i=index($$0,":"); print substr($$0,i+1)}' | xargs); \
+	        description=$$(echo $$line | $(AWK) '{i=index($$0,":"); print substr($$0,i+1)}' | xargs); \
 	        printf "$$target\t$$description\n"; \
 	    done \
 	} | column -t -s $$'\t'

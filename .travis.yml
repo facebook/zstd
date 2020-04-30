@@ -56,12 +56,17 @@ matrix:
         # DEVNULLRIGHTS : will request sudo rights to test permissions on /dev/null
         - DEVNULLRIGHTS=test make test
 
-    - name: gcc-6 + gcc-7 compilation   # ~ 3mn
+    - name: gcc-6 + gcc-7 + libzstdmt compilation   # ~ 6mn
       script:
         - make gcc6install gcc7install
         - CC=gcc-6 CFLAGS=-Werror make -j all
         - make clean
         - CC=gcc-7 CFLAGS=-Werror make -j all
+        - make clean
+        - LDFLAGS=-Wl,--no-undefined make -C lib libzstd-mt
+        - make -C tests zbufftest-dll
+        # LDFLAGS=-Wl,--no-undefined : will make the linker fail if dll is underlinked
+        # zbufftest-dll : test that a user program can link to multi-threaded libzstd without specifying -pthread
 
     - name: gcc-8 + ASan + UBSan + Test Zstd   # ~6.5mn
       script:

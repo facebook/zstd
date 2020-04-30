@@ -62,7 +62,8 @@ extern "C" {
  * us statically check that at least one (string) argument was passed,
  * independent of the compilation flags.
  */
-HINT_INLINE UNUSED_ATTR void _force_has_format_string(const char *format, ...) {
+static INLINE_KEYWORD UNUSED_ATTR
+void _force_has_format_string(const char *format, ...) {
   (void)format;
 }
 

@@ -107,7 +107,7 @@ ZSTD_loadEntropy_intoDDict(ZSTD_DDict* ddict,
     /* load entropy tables */
     RETURN_ERROR_IF(ZSTD_isError(ZSTD_loadDEntropy(
             &ddict->entropy, ddict->dictContent, ddict->dictSize)),
-        dictionary_corrupted);
+        dictionary_corrupted, "");
     ddict->entropyPresent = 1;
     return 0;
 }
@@ -133,7 +133,7 @@ static size_t ZSTD_initDDict_internal(ZSTD_DDict* ddict,
     ddict->entropy.hufTable[0] = (HUF_DTable)((HufLog)*0x1000001);  /* cover both little and big endian */
 
     /* parse dictionary content */
-    FORWARD_IF_ERROR( ZSTD_loadEntropy_intoDDict(ddict, dictContentType) );
+    FORWARD_IF_ERROR( ZSTD_loadEntropy_intoDDict(ddict, dictContentType) , "");
 
     return 0;
 }

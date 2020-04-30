@@ -257,7 +257,7 @@ static U64 FSE_read64(const void* memPtr)
     U64 val; memcpy(&val, memPtr, sizeof(val)); return val;
 }
 
-#endif // FSE_FORCE_MEMORY_ACCESS
+#endif /* FSE_FORCE_MEMORY_ACCESS */
 
 static U16 FSE_readLE16(const void* memPtr)
 {
@@ -1092,7 +1092,7 @@ static size_t HUF_decompress_usingDTable(   /* -3% slower when non static */
         const size_t length1 = FSE_readLE16(jumpTable);
         const size_t length2 = FSE_readLE16(jumpTable+1);
         const size_t length3 = FSE_readLE16(jumpTable+2);
-        const size_t length4 = cSrcSize - 6 - length1 - length2 - length3;   // check coherency !!
+        const size_t length4 = cSrcSize - 6 - length1 - length2 - length3;   /* check coherency !! */
         const char* const start1 = (const char*)(cSrc) + 6;
         const char* const start2 = start1 + length1;
         const char* const start3 = start2 + length2;
@@ -1150,11 +1150,11 @@ static size_t HUF_decompress_usingDTable(   /* -3% slower when non static */
 
         /* tail */
         {
-            // bitTail = bitD1;   // *much* slower : -20% !??!
+            /* bitTail = bitD1; */   /* *much* slower : -20% !??! */
             FSE_DStream_t bitTail;
             bitTail.ptr = bitD1.ptr;
             bitTail.bitsConsumed = bitD1.bitsConsumed;
-            bitTail.bitContainer = bitD1.bitContainer;   // required in case of FSE_DStream_endOfBuffer
+            bitTail.bitContainer = bitD1.bitContainer;   /* required in case of FSE_DStream_endOfBuffer */
             bitTail.start = start1;
             for ( ; (FSE_reloadDStream(&bitTail) < FSE_DStream_completed) && (op<omax) ; op++)
             {
@@ -1502,7 +1502,7 @@ static size_t ZSTD_decompressLiterals(void* ctx,
     if (srcSize <= 3) return ERROR(corruption_detected);
 
     litSize = ip[1] + (ip[0]<<8);
-    litSize += ((ip[-3] >> 3) & 7) << 16;   // mmmmh....
+    litSize += ((ip[-3] >> 3) & 7) << 16;   /* mmmmh.... */
     op = oend - litSize;
 
     (void)ctx;

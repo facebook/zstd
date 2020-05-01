@@ -291,6 +291,31 @@ typedef struct {
     U32   longLengthPos;
 } seqStore_t;
 
+typedef struct {
+    U32 litLength;
+    U32 matchLength;
+} ZSTD_sequenceLength;
+
+/**
+ * Returns the ZSTD_sequenceLength for the given sequences. It handles the decoding of long sequences
+ * indicated by longLengthPos and longLengthID, and adds MINMATCH back to matchLength.
+ */
+MEM_STATIC ZSTD_sequenceLength ZSTD_getSequenceLength(seqStore_t const* seqStore, seqDef const* seq)
+{
+    ZSTD_sequenceLength seqLen;
+    seqLen.litLength = seq->litLength;
+    seqLen.matchLength = seq->matchLength + MINMATCH;
+    if (seqStore->longLengthPos == (U32)(seq - seqStore->sequencesStart)) {
+        if (seqStore->longLengthID == 1) {
+            seqLen.litLength += 0xFFFF;
+        }
+        if (seqStore->longLengthID == 2) {
+            seqLen.matchLength += 0xFFFF;
+        }
+    }
+    return seqLen;
+}
+
 /**
  * Contains the compressed frame size and an upper-bound for the decompressed frame size.
  * Note: before using `compressedSize`, check for errors using ZSTD_isError().

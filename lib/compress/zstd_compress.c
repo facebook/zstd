@@ -1928,21 +1928,6 @@ void ZSTD_seqToCodes(const seqStore_t* seqStorePtr)
         mlCodeTable[seqStorePtr->longLengthPos] = MaxML;
 }
 
-static int ZSTD_disableLiteralsCompression(const ZSTD_CCtx_params* cctxParams)
-{
-    switch (cctxParams->literalCompressionMode) {
-    case ZSTD_lcm_huffman:
-        return 0;
-    case ZSTD_lcm_uncompressed:
-        return 1;
-    default:
-        assert(0 /* impossible: pre-validated */);
-        /* fall-through */
-    case ZSTD_lcm_auto:
-        return (cctxParams->cParams.strategy == ZSTD_fast) && (cctxParams->cParams.targetLength > 0);
-    }
-}
-
 /* ZSTD_useTargetCBlockSize():
  * Returns if target compressed block size param is being used.
  * If used, compression will do best effort to make a compressed block size to be around targetCBlockSize.
@@ -2387,6 +2372,18 @@ static int ZSTD_isRLE(const BYTE *ip, size_t length) {
     return 1;
 }
 
+/* Returns true if the given block may be RLE.
+ * This is just a heuristic based on the compressibility.
+ * It may return both false positives and false negatives.
+ */
+static int ZSTD_maybeRLE(seqStore_t const* seqStore)
+{
+    size_t const nbSeqs = (size_t)(seqStore->sequences - seqStore->sequencesStart);
+    size_t const nbLits = (size_t)(seqStore->lit - seqStore->litStart);
+
+    return nbSeqs < 4 && nbLits < 10;
+}
+
 static void ZSTD_confirmRepcodesAndEntropyTables(ZSTD_CCtx* zc)
 {
     ZSTD_compressedBlockState_t* const tmp = zc->blockState.prevCBlock;
@@ -2463,6 +2460,16 @@ static size_t ZSTD_compressBlock_targetCBlockSize_body(ZSTD_CCtx* zc,
 {
     DEBUGLOG(6, "Attempting ZSTD_compressSuperBlock()");
     if (bss == ZSTDbss_compress) {
+        if (/* We don't want to emit our first block as a RLE even if it qualifies because
+            * doing so will cause the decoder (cli only) to throw a "should consume all input error."
+            * This is only an issue for zstd <= v1.4.3
+            */
+            !zc->isFirstBlock &&
+            ZSTD_maybeRLE(&zc->seqStore) &&
+            ZSTD_isRLE((BYTE const*)src, srcSize))
+        {
+            return ZSTD_rleCompressBlock(dst, dstCapacity, *(BYTE const*)src, srcSize, lastBlock);
+        }
         /* Attempt superblock compression.
          *
          * Note that compressed size of ZSTD_compressSuperBlock() is not bound by the
@@ -2481,12 +2488,15 @@ static size_t ZSTD_compressBlock_targetCBlockSize_body(ZSTD_CCtx* zc,
          *   * cSize >= blockBound(srcSize): We have expanded the block too much so
          *     emit an uncompressed block.
          */
-        size_t const cSize = ZSTD_compressSuperBlock(zc, dst, dstCapacity, lastBlock);
-        if (cSize != ERROR(dstSize_tooSmall)) {
-            FORWARD_IF_ERROR(cSize);
-            if (cSize != 0 && cSize < srcSize + ZSTD_blockHeaderSize) {
-                ZSTD_confirmRepcodesAndEntropyTables(zc);
-                return cSize;
+        {
+            size_t const cSize = ZSTD_compressSuperBlock(zc, dst, dstCapacity, src, srcSize, lastBlock);
+            if (cSize != ERROR(dstSize_tooSmall)) {
+                size_t const maxCSize = srcSize - ZSTD_minGain(srcSize, zc->appliedParams.cParams.strategy);
+                FORWARD_IF_ERROR(cSize);
+                if (cSize != 0 && cSize < maxCSize + ZSTD_blockHeaderSize) {
+                    ZSTD_confirmRepcodesAndEntropyTables(zc);
+                    return cSize;
+                }
             }
         }
     }

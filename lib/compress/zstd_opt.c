@@ -765,30 +765,6 @@ FORCE_INLINE_TEMPLATE U32 ZSTD_BtGetAllMatches (
 /*-*******************************
 *  Optimal parser
 *********************************/
-typedef struct repcodes_s {
-    U32 rep[3];
-} repcodes_t;
-
-static repcodes_t ZSTD_updateRep(U32 const rep[3], U32 const offset, U32 const ll0)
-{
-    repcodes_t newReps;
-    if (offset >= ZSTD_REP_NUM) {  /* full offset */
-        newReps.rep[2] = rep[1];
-        newReps.rep[1] = rep[0];
-        newReps.rep[0] = offset - ZSTD_REP_MOVE;
-    } else {   /* repcode */
-        U32 const repCode = offset + ll0;
-        if (repCode > 0) {  /* note : if repCode==0, no change */
-            U32 const currentOffset = (repCode==ZSTD_REP_NUM) ? (rep[0] - 1) : rep[repCode];
-            newReps.rep[2] = (repCode >= 2) ? rep[1] : rep[2];
-            newReps.rep[1] = rep[0];
-            newReps.rep[0] = currentOffset;
-        } else {   /* repCode == 0 */
-            memcpy(&newReps, rep, sizeof(newReps));
-        }
-    }
-    return newReps;
-}
 
 
 static U32 ZSTD_totalLen(ZSTD_optimal_t sol)

@@ -709,7 +709,9 @@ FORCE_INLINE_TEMPLATE XXH_errorcode XXH64_update_endian (XXH64_state_t* state, c
     state->total_len += len;
 
     if (state->memsize + len < 32) {  /* fill in tmp buffer */
-        XXH_memcpy(((BYTE*)state->mem64) + state->memsize, input, len);
+        if (input != NULL) {
+            XXH_memcpy(((BYTE*)state->mem64) + state->memsize, input, len);
+        }
         state->memsize += (U32)len;
         return XXH_OK;
     }

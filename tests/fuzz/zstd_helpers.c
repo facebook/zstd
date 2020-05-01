@@ -106,14 +106,13 @@ FUZZ_dict_t FUZZ_train(void const* src, size_t srcSize, FUZZ_dataProducer_t *pro
 {
     size_t const dictSize = MAX(srcSize / 8, 1024);
     size_t const totalSampleSize = dictSize * 11;
-    FUZZ_dict_t dict = { malloc(dictSize), dictSize };
-    char* const samples = (char*)malloc(totalSampleSize);
+    FUZZ_dict_t dict = { FUZZ_malloc(dictSize), dictSize };
+    char* const samples = (char*)FUZZ_malloc(totalSampleSize);
     unsigned nbSamples = 100;
-    size_t* const samplesSizes = (size_t*)malloc(sizeof(size_t) * nbSamples);
+    size_t* const samplesSizes = (size_t*)FUZZ_malloc(sizeof(size_t) * nbSamples);
     size_t pos = 0;
     size_t sample = 0;
     ZDICT_fastCover_params_t params;
-    FUZZ_ASSERT(dict.buff && samples && samplesSizes);
 
     for (sample = 0; sample < nbSamples; ++sample) {
       size_t const remaining = totalSampleSize - pos;
@@ -123,7 +122,6 @@ FUZZ_dict_t FUZZ_train(void const* src, size_t srcSize, FUZZ_dataProducer_t *pro
       memcpy(samples + pos, src + offset, toCopy);
       pos += toCopy;
       samplesSizes[sample] = toCopy;
-
     }
     memset(samples + pos, 0, totalSampleSize - pos);
 

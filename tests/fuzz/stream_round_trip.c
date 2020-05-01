@@ -146,10 +146,9 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     if (neededBufSize > bufSize) {
         free(cBuf);
         free(rBuf);
-        cBuf = (uint8_t*)malloc(neededBufSize);
-        rBuf = (uint8_t*)malloc(neededBufSize);
+        cBuf = (uint8_t*)FUZZ_malloc(neededBufSize);
+        rBuf = (uint8_t*)FUZZ_malloc(neededBufSize);
         bufSize = neededBufSize;
-        FUZZ_ASSERT(cBuf && rBuf);
     }
     if (!cctx) {
         cctx = ZSTD_createCCtx();
@@ -166,7 +165,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
             ZSTD_decompressDCtx(dctx, rBuf, neededBufSize, cBuf, cSize);
         FUZZ_ZASSERT(rSize);
         FUZZ_ASSERT_MSG(rSize == size, "Incorrect regenerated size");
-        FUZZ_ASSERT_MSG(!memcmp(src, rBuf, size), "Corruption!");
+        FUZZ_ASSERT_MSG(!FUZZ_memcmp(src, rBuf, size), "Corruption!");
     }
 
     FUZZ_dataProducer_free(producer);

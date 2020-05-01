@@ -538,6 +538,12 @@ static int basicUnitTests(U32 const seed, double compressibility)
       if (ZSTD_getErrorCode(r) != ZSTD_error_srcSize_wrong) goto _output_error; }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : decompress into NULL buffer : ", testNb++);
+    { size_t const r = ZSTD_decompress(NULL, 0, compressedBuffer, compressedBufferSize);
+      if (!ZSTD_isError(r)) goto _output_error;
+      if (ZSTD_getErrorCode(r) != ZSTD_error_dstSize_tooSmall) goto _output_error; }
+    DISPLAYLEVEL(3, "OK \n");
+
     DISPLAYLEVEL(3, "test%3i : ZSTD_decompressBound test with content size missing : ", testNb++);
     {   /* create compressed buffer with content size missing */
         ZSTD_CCtx* const cctx = ZSTD_createCCtx();

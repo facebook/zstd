@@ -35,8 +35,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     }
 
     size_t const bufSize = FUZZ_dataProducer_uint32Range(producer, 0, 10 * size);
-    void *rBuf = malloc(bufSize);
-    FUZZ_ASSERT(rBuf);
+    void *rBuf = FUZZ_malloc(bufSize);
 
     ZSTD_decompressDCtx(dctx, rBuf, bufSize, src, size);
     free(rBuf);

@@ -337,13 +337,37 @@ createBufferCollection_fromSliceCollectionSizes(slice_collection_t sc)
 static buffer_collection_t
 createBufferCollection_fromSliceCollection(slice_collection_t sc)
 {
-    buffer_collection_t result = createBufferCollection_fromSliceCollectionSizes(sc);
-    for (size_t i = 0; i < sc.nbSlices; i++) {
-        if (result.slices.slicePtrs != NULL && result.slices.slicePtrs[i] != NULL) {
-            memcpy(result.slices.slicePtrs[i], sc.slicePtrs[i], sc.capacities[i]);
-            result.slices.capacities[i] = sc.capacities[i];
-        }
+    size_t const bufferSize = sliceCollection_totalCapacity(sc);
+
+    buffer_t buffer = createBuffer(bufferSize);
+    CONTROL(buffer.ptr != NULL);
+
+    size_t const nbSlices = sc.nbSlices;
+    void** const slices = (void**)malloc(nbSlices * sizeof(*slices));
+    CONTROL(slices != NULL);
+
+    size_t* const capacities = (size_t*)malloc(nbSlices * sizeof(*capacities));
+    CONTROL(capacities != NULL);
+
+    char* const ptr = (char*)buffer.ptr;
+    size_t pos = 0;
+    for (size_t n=0; n < nbSlices; n++) {
+        capacities[n] = sc.capacities[n];
+        slices[n] = ptr + pos;
+        pos += capacities[n];
     }
+
+    for (size_t i = 0; i < nbSlices; i++) {
+        memcpy(slices[i], sc.slicePtrs[i], sc.capacities[i]);
+        capacities[i] = sc.capacities[i];
+    }
+
+    buffer_collection_t result;
+    result.buffer = buffer;
+    result.slices.nbSlices = nbSlices;
+    result.slices.capacities = capacities;
+    result.slices.slicePtrs = slices;
+
     return result;
 }
 

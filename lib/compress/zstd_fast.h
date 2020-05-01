@@ -15,7 +15,7 @@
 extern "C" {
 #endif
 
-#include "mem.h"      /* U32 */
+#include "../common/mem.h"      /* U32 */
 #include "zstd_compress_internal.h"
 
 void ZSTD_fillHashTable(ZSTD_matchState_t* ms,

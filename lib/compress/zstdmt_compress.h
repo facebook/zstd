@@ -40,7 +40,7 @@
 /* ===   Dependencies   === */
 #include <stddef.h>                /* size_t */
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_parameters */
-#include "zstd.h"            /* ZSTD_inBuffer, ZSTD_outBuffer, ZSTDLIB_API */
+#include "../zstd.h"            /* ZSTD_inBuffer, ZSTD_outBuffer, ZSTDLIB_API */
 
 
 /* ===   Constants   === */

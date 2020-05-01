@@ -11,12 +11,13 @@
  /*-*************************************
  *  Dependencies
  ***************************************/
-#include "hist.h"           /* HIST_countFast_wksp */
+#include "zstd_compress_superblock.h"
+
+#include "../common/zstd_internal.h"  /* ZSTD_getSequenceLength */
+#include "hist.h"                     /* HIST_countFast_wksp */
 #include "zstd_compress_internal.h"
 #include "zstd_compress_sequences.h"
 #include "zstd_compress_literals.h"
-#include "zstd_compress_superblock.h"
-#include "zstd_internal.h"  /* ZSTD_getSequenceLength */
 
 /*-*************************************
 *  Superblock entropy buffer structs

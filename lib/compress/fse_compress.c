@@ -17,14 +17,14 @@
 ****************************************************************/
 #include <stdlib.h>     /* malloc, free, qsort */
 #include <string.h>     /* memcpy, memset */
-#include "compiler.h"
-#include "mem.h"        /* U32, U16, etc. */
-#include "debug.h"      /* assert, DEBUGLOG */
+#include "../common/compiler.h"
+#include "../common/mem.h"        /* U32, U16, etc. */
+#include "../common/debug.h"      /* assert, DEBUGLOG */
 #include "hist.h"       /* HIST_count_wksp */
-#include "bitstream.h"
+#include "../common/bitstream.h"
 #define FSE_STATIC_LINKING_ONLY
-#include "fse.h"
-#include "error_private.h"
+#include "../common/fse.h"
+#include "../common/error_private.h"
 
 
 /* **************************************************************

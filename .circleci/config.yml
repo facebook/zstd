@@ -13,7 +13,7 @@ jobs:
           name: Test
           command: |
             ./tests/test-license.py
-            cc -v; CFLAGS="-O0 -Werror" make all && make clean
+            cc -v; CFLAGS="-O0 -Werror -pedantic" make all && make clean
             make c99build         ; make clean
             make c11build         ; make clean
             make aarch64build     ; make clean

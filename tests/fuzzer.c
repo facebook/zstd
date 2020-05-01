@@ -473,10 +473,22 @@ static int basicUnitTests(U32 const seed, double compressibility)
         const void *voidptr_copyDCtx;
         const void *voidptr_nextInputType;
         DEBUG_STATIC_ASSERT(sizeof(funcptr_getDictID) == sizeof(voidptr_getDictID));
-        memcpy(&voidptr_getDictID    , &funcptr_getDictID    , sizeof(void*));
-        memcpy(&voidptr_createDStream, &funcptr_createDStream, sizeof(void*));
-        memcpy(&voidptr_copyDCtx     , &funcptr_copyDCtx     , sizeof(void*));
-        memcpy(&voidptr_nextInputType, &funcptr_nextInputType, sizeof(void*));
+        memcpy(
+            (void*)&voidptr_getDictID,
+            (const void*)&funcptr_getDictID,
+            sizeof(void*));
+        memcpy(
+            (void*)&voidptr_createDStream,
+            (const void*)&funcptr_createDStream,
+            sizeof(void*));
+        memcpy(
+            (void*)&voidptr_copyDCtx,
+            (const void*)&funcptr_copyDCtx,
+            sizeof(void*));
+        memcpy(
+            (void*)&voidptr_nextInputType,
+            (const void*)&funcptr_nextInputType,
+            sizeof(void*));
         DISPLAYLEVEL(3, "%p ", voidptr_getDictID);
         DISPLAYLEVEL(3, "%p ", voidptr_createDStream);
         DISPLAYLEVEL(3, "%p ", voidptr_copyDCtx);

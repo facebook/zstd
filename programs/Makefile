@@ -43,9 +43,7 @@ else
 ALIGN_LOOP =
 endif
 
-CPPFLAGS+= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
-           -I$(ZSTDDIR)/dictBuilder \
-           -DXXH_NAMESPACE=ZSTD_
+CPPFLAGS+= -DXXH_NAMESPACE=ZSTD_
 ifeq ($(OS),Windows_NT)   # MinGW assumed
 CPPFLAGS   += -D__USE_MINGW_ANSI_STDIO   # compatibility with %zu formatting
 endif
@@ -72,7 +70,6 @@ ifneq ($(ZSTD_LEGACY_SUPPORT), 0)
 ifeq ($(shell test $(ZSTD_LEGACY_SUPPORT) -lt 8; echo $$?), 0)
 	ZSTDLEGACY_FILES += $(shell ls $(ZSTDDIR)/legacy/*.c | $(GREP) 'v0[$(ZSTD_LEGACY_SUPPORT)-7]')
 endif
-	CPPFLAGS += -I$(ZSTDDIR)/legacy
 else
 endif
 

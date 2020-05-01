@@ -4,7 +4,7 @@
  *
  * Generate using:
  * \code
- *	combine.sh -r ../../lib -r ../../lib/common -r ../../lib/compress -r ../../lib/decompress -k zstd.h -o zstd.c zstd-in.c
+ *	combine.sh -r ../../lib -k zstd.h -o zstd.c zstd-in.c
  * \endcode
  */
 /*
@@ -46,34 +46,31 @@
 #define ZSTD_MULTITHREAD
 #endif
 
-/* lib/common */
-#include "debug.c"
-#include "entropy_common.c"
-#include "error_private.c"
-#include "fse_decompress.c"
-#include "threading.c"
-#include "pool.c"
-#include "zstd_common.c"
+#include "common/debug.c"
+#include "common/entropy_common.c"
+#include "common/error_private.c"
+#include "common/fse_decompress.c"
+#include "common/threading.c"
+#include "common/pool.c"
+#include "common/zstd_common.c"
 
-/* lib/compress */
-#include "fse_compress.c"
-#include "hist.c"
-#include "huf_compress.c"
-#include "zstd_compress_literals.c"
-#include "zstd_compress_sequences.c"
-#include "zstd_compress_superblock.c"
-#include "zstd_compress.c"
-#include "zstd_double_fast.c"
-#include "zstd_fast.c"
-#include "zstd_lazy.c"
-#include "zstd_ldm.c"
-#include "zstd_opt.c"
+#include "compress/fse_compress.c"
+#include "compress/hist.c"
+#include "compress/huf_compress.c"
+#include "compress/zstd_compress_literals.c"
+#include "compress/zstd_compress_sequences.c"
+#include "compress/zstd_compress_superblock.c"
+#include "compress/zstd_compress.c"
+#include "compress/zstd_double_fast.c"
+#include "compress/zstd_fast.c"
+#include "compress/zstd_lazy.c"
+#include "compress/zstd_ldm.c"
+#include "compress/zstd_opt.c"
 #ifdef ZSTD_MULTITHREAD
-#include "zstdmt_compress.c"
+#include "compress/zstdmt_compress.c"
 #endif
 
-/* lib/decompress */
-#include "huf_decompress.c"
-#include "zstd_ddict.c"
-#include "zstd_decompress.c"
-#include "zstd_decompress_block.c"
+#include "decompress/huf_decompress.c"
+#include "decompress/zstd_ddict.c"
+#include "decompress/zstd_decompress.c"
+#include "decompress/zstd_decompress_block.c"

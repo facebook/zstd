@@ -70,7 +70,7 @@ static size_t roundTripTest(void *result, size_t resultCapacity,
 int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 {
     size_t const rBufSize = size;
-    void* rBuf = malloc(rBufSize);
+    void* rBuf = FUZZ_malloc(rBufSize);
     size_t cBufSize = ZSTD_compressBound(size);
     void* cBuf;
 
@@ -85,9 +85,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
      */
     cBufSize -= FUZZ_dataProducer_uint32Range(producer, 0, 1);
 
-    cBuf = malloc(cBufSize);
-
-    FUZZ_ASSERT(cBuf && rBuf);
+    cBuf = FUZZ_malloc(cBufSize);
 
     if (!cctx) {
         cctx = ZSTD_createCCtx();
@@ -103,7 +101,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
             roundTripTest(rBuf, rBufSize, cBuf, cBufSize, src, size, producer);
         FUZZ_ZASSERT(result);
         FUZZ_ASSERT_MSG(result == size, "Incorrect regenerated size");
-        FUZZ_ASSERT_MSG(!memcmp(src, rBuf, size), "Corruption!");
+        FUZZ_ASSERT_MSG(!FUZZ_memcmp(src, rBuf, size), "Corruption!");
     }
     free(rBuf);
     free(cBuf);

@@ -3272,7 +3272,9 @@ static size_t ZSTDv07_getcBlockSize(const void* src, size_t srcSize, blockProper
 static size_t ZSTDv07_copyRawBlock(void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
     if (srcSize > dstCapacity) return ERROR(dstSize_tooSmall);
-    memcpy(dst, src, srcSize);
+    if (srcSize > 0) {
+        memcpy(dst, src, srcSize);
+    }
     return srcSize;
 }
 
@@ -3714,8 +3716,10 @@ static size_t ZSTDv07_decompressSequences(
     {   size_t const lastLLSize = litEnd - litPtr;
         /* if (litPtr > litEnd) return ERROR(corruption_detected); */   /* too many literals already used */
         if (lastLLSize > (size_t)(oend-op)) return ERROR(dstSize_tooSmall);
-        memcpy(op, litPtr, lastLLSize);
-        op += lastLLSize;
+        if (lastLLSize > 0) {
+            memcpy(op, litPtr, lastLLSize);
+            op += lastLLSize;
+        }
     }
 
     return op-ostart;
@@ -3776,7 +3780,9 @@ ZSTDLIBv07_API size_t ZSTDv07_insertBlock(ZSTDv07_DCtx* dctx, const void* blockS
 static size_t ZSTDv07_generateNxBytes(void* dst, size_t dstCapacity, BYTE byte, size_t length)
 {
     if (length > dstCapacity) return ERROR(dstSize_tooSmall);
-    memset(dst, byte, length);
+    if (length > 0) {
+        memset(dst, byte, length);
+    }
     return length;
 }
 

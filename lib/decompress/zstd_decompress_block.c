@@ -665,15 +665,15 @@ size_t ZSTD_execSequenceEnd(BYTE* op,
 {
     BYTE* const oLitEnd = op + sequence.litLength;
     size_t const sequenceLength = sequence.litLength + sequence.matchLength;
-    BYTE* const oMatchEnd = op + sequenceLength;   /* risk : address space overflow (32-bits) */
     const BYTE* const iLitEnd = *litPtr + sequence.litLength;
     const BYTE* match = oLitEnd - sequence.offset;
     BYTE* const oend_w = oend - WILDCOPY_OVERLENGTH;
 
-    /* bounds checks */
-    assert(oLitEnd < oMatchEnd);
-    RETURN_ERROR_IF(oMatchEnd > oend, dstSize_tooSmall, "last match must fit within dstBuffer");
-    RETURN_ERROR_IF(iLitEnd > litLimit, corruption_detected, "try to read beyond literal buffer");
+    /* bounds checks : careful of address space overflow in 32-bit mode */
+    RETURN_ERROR_IF(sequenceLength > (size_t)(oend - op), dstSize_tooSmall, "last match must fit within dstBuffer");
+    RETURN_ERROR_IF(sequence.litLength > (size_t)(litLimit - *litPtr), corruption_detected, "try to read beyond literal buffer");
+    assert(op < op + sequenceLength);
+    assert(oLitEnd < op + sequenceLength);
 
     /* copy literals */
     ZSTD_safecopy(op, oend_w, *litPtr, sequence.litLength, ZSTD_no_overlap);
@@ -709,16 +709,27 @@ size_t ZSTD_execSequence(BYTE* op,
     BYTE* const oLitEnd = op + sequence.litLength;
     size_t const sequenceLength = sequence.litLength + sequence.matchLength;
     BYTE* const oMatchEnd = op + sequenceLength;   /* risk : address space overflow (32-bits) */
-    BYTE* const oend_w = oend - WILDCOPY_OVERLENGTH;
+    BYTE* const oend_w = oend - WILDCOPY_OVERLENGTH;   /* risk : address space underflow on oend=NULL */
     const BYTE* const iLitEnd = *litPtr + sequence.litLength;
     const BYTE* match = oLitEnd - sequence.offset;
 
-    /* Errors and uncommon cases handled here. */
-    assert(oLitEnd < oMatchEnd);
-    if (UNLIKELY(iLitEnd > litLimit || oMatchEnd > oend_w))
+    assert(op != NULL /* Precondition */);
+    assert(oend_w < oend /* No underflow */);
+    /* Handle edge cases in a slow path:
+     *   - Read beyond end of literals
+     *   - Match end is within WILDCOPY_OVERLIMIT of oend
+     *   - 32-bit mode and the match length overflows
+     */
+    if (UNLIKELY(
+            iLitEnd > litLimit ||
+            oMatchEnd > oend_w ||
+            (MEM_32bits() && (size_t)(oend - op) < sequenceLength + WILDCOPY_OVERLENGTH)))
         return ZSTD_execSequenceEnd(op, oend, sequence, litPtr, litLimit, prefixStart, virtualStart, dictEnd);
 
     /* Assumptions (everything else goes into ZSTD_execSequenceEnd()) */
+    assert(op <= oLitEnd /* No overflow */);
+    assert(oLitEnd < oMatchEnd /* Non-zero match & no overflow */);
+    assert(oMatchEnd <= oend /* No underflow */);
     assert(iLitEnd <= litLimit /* Literal length is in bounds */);
     assert(oLitEnd <= oend_w /* Can wildcopy literals */);
     assert(oMatchEnd <= oend_w /* Can wildcopy matches */);
@@ -968,6 +979,7 @@ ZSTD_decompressSequences_body( ZSTD_DCtx* dctx,
         ZSTD_initFseState(&seqState.stateLL, &seqState.DStream, dctx->LLTptr);
         ZSTD_initFseState(&seqState.stateOffb, &seqState.DStream, dctx->OFTptr);
         ZSTD_initFseState(&seqState.stateML, &seqState.DStream, dctx->MLTptr);
+        assert(dst != NULL);
 
         ZSTD_STATIC_ASSERT(
                 BIT_DStream_unfinished < BIT_DStream_completed &&
@@ -1043,8 +1055,10 @@ ZSTD_decompressSequences_body( ZSTD_DCtx* dctx,
     /* last literal segment */
     {   size_t const lastLLSize = litEnd - litPtr;
         RETURN_ERROR_IF(lastLLSize > (size_t)(oend-op), dstSize_tooSmall, "");
-        memcpy(op, litPtr, lastLLSize);
-        op += lastLLSize;
+        if (op != NULL) {
+            memcpy(op, litPtr, lastLLSize);
+            op += lastLLSize;
+        }
     }
 
     return op-ostart;
@@ -1093,6 +1107,7 @@ ZSTD_decompressSequencesLong_body(
         seqState.prefixStart = prefixStart;
         seqState.pos = (size_t)(op-prefixStart);
         seqState.dictEnd = dictEnd;
+        assert(dst != NULL);
         assert(iend >= ip);
         RETURN_ERROR_IF(
             ERR_isError(BIT_initDStream(&seqState.DStream, ip, iend-ip)),
@@ -1134,8 +1149,10 @@ ZSTD_decompressSequencesLong_body(
     /* last literal segment */
     {   size_t const lastLLSize = litEnd - litPtr;
         RETURN_ERROR_IF(lastLLSize > (size_t)(oend-op), dstSize_tooSmall, "");
-        memcpy(op, litPtr, lastLLSize);
-        op += lastLLSize;
+        if (op != NULL) {
+            memcpy(op, litPtr, lastLLSize);
+            op += lastLLSize;
+        }
     }
 
     return op-ostart;
@@ -1255,7 +1272,6 @@ ZSTD_getLongOffsetsShare(const ZSTD_seqSymbol* offTable)
 }
 #endif
 
-
 size_t
 ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
                               void* dst, size_t dstCapacity,
@@ -1296,6 +1312,8 @@ ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
         if (ZSTD_isError(seqHSize)) return seqHSize;
         ip += seqHSize;
         srcSize -= seqHSize;
+
+        RETURN_ERROR_IF(dst == NULL && nbSeq > 0, dstSize_tooSmall, "NULL not handled");
 
 #if !defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT) && \
     !defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG)

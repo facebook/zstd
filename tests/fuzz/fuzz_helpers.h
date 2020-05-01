@@ -56,6 +56,17 @@ extern "C" {
 #define FUZZ_STATIC static
 #endif
 
+/**
+ * malloc except return NULL for zero sized data and FUZZ_ASSERT
+ * that malloc doesn't fail.
+ */
+void* FUZZ_malloc(size_t size);
+
+/**
+ * memcmp but accepts NULL.
+ */
+int FUZZ_memcmp(void const* lhs, void const* rhs, size_t size);
+
 #ifdef __cplusplus
 }
 #endif

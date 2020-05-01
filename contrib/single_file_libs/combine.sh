@@ -66,33 +66,43 @@ write_line() {
   fi
 }
 
-# Adds the contents of $1 with any of its includes inlined
-add_file() {
-  # Match the path
-  local file=
-  for root in $ROOTS; do
-    if [ -f "$root/$1" ]; then
-      file="$root/$1"
+# Find this file!
+resolve_include() {
+  local srcdir=$1
+  local inc=$2
+  for root in $srcdir $ROOTS; do
+    if [ -f "$root/$inc" ]; then
+      echo "$(realpath --relative-to . "$root/$inc")"
+      return 0
     fi
   done
+  return 1
+}
+
+# Adds the contents of $1 with any of its includes inlined
+add_file() {
+  local file=$1
   if [ -n "$file" ]; then
     if [ -n "$DESTN" ]; then
       # Log but only if not writing to stdout
       echo "Processing: $file"
     fi
+    # Get directory to resolve relative includes
+    local srcdir="$(dirname "$file")"
     # Read the file
     local line=
     while IFS= read -r line; do
       if echo "$line" | grep -Eq '^\s*#\s*include\s*".+"'; then
         # We have an include directive so strip the (first) file
-        local inc=$(echo "$line" | grep -Eo '".*"' | grep -Eo '\w*(\.?\w+)+' | head -1)
+        local inc=$(echo "$line" | grep -Eo '".*"' | sed 's/"\([^"]\+\)"/\1/' | head -1)
+        local res_inc="$(resolve_include "$srcdir" "$inc")"
         if list_has_item "$XINCS" "$inc"; then
           # The file was excluded so error if the source attempts to use it
           write_line "#error Using excluded file: $inc"
         else
-          if ! list_has_item "$FOUND" "$inc"; then
+          if ! list_has_item "$FOUND" "$res_inc"; then
             # The file was not previously encountered
-            FOUND="$FOUND $inc"
+            FOUND="$FOUND $res_inc"
             if list_has_item "$KINCS" "$inc"; then
               # But the include was flagged to keep as included
               write_line "/**** *NOT* inlining $inc ****/"
@@ -100,7 +110,7 @@ add_file() {
             else
               # The file was neither excluded nor seen before so inline it
               write_line "/**** start inlining $inc ****/"
-              add_file "$inc"
+              add_file "$res_inc"
               write_line "/**** ended inlining $inc ****/"
             fi
           else
@@ -122,6 +132,10 @@ add_file() {
     done < "$file"
   else
     write_line "#error Unable to find \"$1\""
+    if [ -n "$DESTN" ]; then
+      # Log but only if not writing to stdout
+      echo "Error: Unable to find: \"$1\""
+    fi
   fi
 }
 
@@ -155,7 +169,7 @@ if [ -n "$1" ]; then
       printf "" > "$DESTN"
     fi
     test_grep
-    add_file $1
+    add_file "$1"
   else
     echo "Input file not found: \"$1\""
     exit 1

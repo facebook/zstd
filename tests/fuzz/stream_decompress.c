@@ -76,9 +76,8 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 
     /* Allocate all buffers and contexts if not already allocated */
     if (!buf) {
-      buf = malloc(kBufSize);
-        FUZZ_ASSERT(buf);
-      }
+        buf = FUZZ_malloc(kBufSize);
+    }
 
     if (!dstream) {
         dstream = ZSTD_createDStream();
@@ -99,7 +98,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
         ZSTD_inBuffer in = makeInBuffer(&src, &size, producer, prevInWasZero ? 1 : 0);
         prevInWasZero = in.size == 0;
         while (in.pos != in.size) {
-            if (!stableOutBuffer || FUZZ_dataProducer_uint32Range(producer, 0, 100) == 55) {
+            if (!stableOutBuffer || prevOutWasZero || FUZZ_dataProducer_uint32Range(producer, 0, 100) == 55) {
               out = makeOutBuffer(producer, prevOutWasZero ? 1 : 0);
             }
             prevOutWasZero = out.size == 0;

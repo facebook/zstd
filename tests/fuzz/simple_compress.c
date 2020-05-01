@@ -41,8 +41,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
         FUZZ_ASSERT(cctx);
     }
 
-    void *rBuf = malloc(bufSize);
-    FUZZ_ASSERT(rBuf);
+    void *rBuf = FUZZ_malloc(bufSize);
     ZSTD_compressCCtx(cctx, rBuf, bufSize, src, size, cLevel);
     free(rBuf);
     FUZZ_dataProducer_free(producer);

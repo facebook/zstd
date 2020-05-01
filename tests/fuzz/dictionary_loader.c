@@ -79,11 +79,9 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     DEBUGLOG(2, "Dict content type %d", dct);
     DEBUGLOG(2, "Dict size %u", (unsigned)size);
 
-    void* const rBuf = malloc(size);
-    FUZZ_ASSERT(rBuf);
+    void* const rBuf = FUZZ_malloc(size);
     size_t const cBufSize = ZSTD_compressBound(size);
-    void* const cBuf = malloc(cBufSize);
-    FUZZ_ASSERT(cBuf);
+    void* const cBuf = FUZZ_malloc(cBufSize);
 
     size_t const cSize =
             compress(cBuf, cBufSize, src, size, src, size, dlm, dct, refPrefix);
@@ -95,7 +93,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     size_t const rSize =
             decompress(rBuf, size, cBuf, cSize, src, size, dlm, dct, refPrefix);
     FUZZ_ASSERT_MSG(rSize == size, "Incorrect regenerated size");
-    FUZZ_ASSERT_MSG(!memcmp(src, rBuf, size), "Corruption!");
+    FUZZ_ASSERT_MSG(!FUZZ_memcmp(src, rBuf, size), "Corruption!");
 
 out:
     free(cBuf);

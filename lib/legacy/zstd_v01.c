@@ -1078,7 +1078,7 @@ static size_t HUF_decompress_usingDTable(   /* -3% slower when non static */
         BYTE* const ostart = (BYTE*) dst;
         BYTE* op = ostart;
         BYTE* const omax = op + maxDstSize;
-        BYTE* const olimit = omax-15;
+        BYTE* const olimit = maxDstSize < 15 ? op : omax-15;
 
         const void* ptr = DTable;
         const HUF_DElt* const dt = (const HUF_DElt*)(ptr)+1;
@@ -1483,7 +1483,9 @@ static size_t ZSTDv01_getcBlockSize(const void* src, size_t srcSize, blockProper
 static size_t ZSTD_copyUncompressedBlock(void* dst, size_t maxDstSize, const void* src, size_t srcSize)
 {
     if (srcSize > maxDstSize) return ERROR(dstSize_tooSmall);
-    memcpy(dst, src, srcSize);
+    if (srcSize > 0) {
+        memcpy(dst, src, srcSize);
+    }
     return srcSize;
 }
 
@@ -1541,7 +1543,9 @@ static size_t ZSTDv01_decodeLiteralsBlock(void* ctx,
             size_t rleSize = litbp.origSize;
             if (rleSize>maxDstSize) return ERROR(dstSize_tooSmall);
             if (!srcSize) return ERROR(srcSize_wrong);
-            memset(oend - rleSize, *ip, rleSize);
+            if (rleSize > 0) {
+                memset(oend - rleSize, *ip, rleSize);
+            }
             *litStart = oend - rleSize;
             *litSize = rleSize;
             ip++;
@@ -1901,8 +1905,10 @@ static size_t ZSTD_decompressSequences(
         {
             size_t lastLLSize = litEnd - litPtr;
             if (op+lastLLSize > oend) return ERROR(dstSize_tooSmall);
-            if (op != litPtr) memmove(op, litPtr, lastLLSize);
-            op += lastLLSize;
+            if (lastLLSize > 0) {
+                if (op != litPtr) memmove(op, litPtr, lastLLSize);
+                op += lastLLSize;
+            }
         }
     }
 

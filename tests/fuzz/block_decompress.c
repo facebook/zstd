@@ -32,9 +32,8 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     /* Allocate all buffers and contexts if not already allocated */
     if (neededBufSize > bufSize) {
         free(rBuf);
-        rBuf = malloc(neededBufSize);
+        rBuf = FUZZ_malloc(neededBufSize);
         bufSize = neededBufSize;
-        FUZZ_ASSERT(rBuf);
     }
     if (!dctx) {
         dctx = ZSTD_createDCtx();

@@ -1452,12 +1452,12 @@ static int basicUnitTests(U32 seed, double compressibility)
 
         /* and includes a very long backref */
         cursegmentlen = 128;
-        memcpy(inbuf + inbufpos, dictionary.start + 256, cursegmentlen);
+        memcpy(inbuf + inbufpos, (BYTE*)dictionary.start + 256, cursegmentlen);
         inbufpos += cursegmentlen;
 
         /* and includes a very long backref */
         cursegmentlen = 128;
-        memcpy(inbuf + inbufpos, dictionary.start + 128, cursegmentlen);
+        memcpy(inbuf + inbufpos, (BYTE*)dictionary.start + 128, cursegmentlen);
         inbufpos += cursegmentlen;
 
         ret = ZSTD_compress_usingCDict(zc, outbuf, outbufsize, inbuf, inbufpos, cdict);
@@ -1500,7 +1500,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         }
         /* Write several very long offset matches into the dictionary */
         for (offset = 1024; offset >= 0; offset -= 128) {
-          ZSTD_inBuffer in = {dictionary.start + offset, 128, 0};
+          ZSTD_inBuffer in = {(BYTE*)dictionary.start + offset, 128, 0};
           ZSTD_EndDirective flush = offset > 0 ? ZSTD_e_continue : ZSTD_e_end;
           CHECK_Z(ZSTD_compressStream2(zc, &out, &in, flush));
           CHECK(in.pos != in.size, "input not fully consumed");

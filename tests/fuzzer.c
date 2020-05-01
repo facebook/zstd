@@ -28,6 +28,7 @@
 #undef NDEBUG
 #include <assert.h>
 #define ZSTD_STATIC_LINKING_ONLY  /* ZSTD_compressContinue, ZSTD_compressBlock */
+#include "debug.h"        /* DEBUG_STATIC_ASSERT */
 #include "fse.h"
 #include "zstd.h"         /* ZSTD_VERSION_STRING */
 #include "zstd_errors.h"  /* ZSTD_getErrorCode */
@@ -456,10 +457,30 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
     DISPLAYLEVEL(3, "test%3i : misc unaccounted for zstd symbols : ", testNb++);
     {
-        DISPLAYLEVEL(3, "%p ", ZSTD_getDictID_fromDDict);
-        DISPLAYLEVEL(3, "%p ", ZSTD_createDStream_advanced);
-        DISPLAYLEVEL(3, "%p ", ZSTD_copyDCtx);
-        DISPLAYLEVEL(3, "%p ", ZSTD_nextInputType);
+        /* %p takes a void*. In ISO C, it's illegal to cast a function pointer
+         * to a data pointer. (Although in POSIX you're required to be allowed
+         * to do it...) So we have to fall back to our trusty friend memcpy. */
+        unsigned (* const funcptr_getDictID)(const ZSTD_DDict* ddict) =
+            ZSTD_getDictID_fromDDict;
+        ZSTD_DStream* (* const funcptr_createDStream)(
+            ZSTD_customMem customMem) = ZSTD_createDStream_advanced;
+        void (* const funcptr_copyDCtx)(
+            ZSTD_DCtx* dctx, const ZSTD_DCtx* preparedDCtx) = ZSTD_copyDCtx;
+        ZSTD_nextInputType_e (* const funcptr_nextInputType)(ZSTD_DCtx* dctx) =
+            ZSTD_nextInputType;
+        const void *voidptr_getDictID;
+        const void *voidptr_createDStream;
+        const void *voidptr_copyDCtx;
+        const void *voidptr_nextInputType;
+        DEBUG_STATIC_ASSERT(sizeof(funcptr_getDictID) == sizeof(voidptr_getDictID));
+        memcpy(&voidptr_getDictID    , &funcptr_getDictID    , sizeof(void*));
+        memcpy(&voidptr_createDStream, &funcptr_createDStream, sizeof(void*));
+        memcpy(&voidptr_copyDCtx     , &funcptr_copyDCtx     , sizeof(void*));
+        memcpy(&voidptr_nextInputType, &funcptr_nextInputType, sizeof(void*));
+        DISPLAYLEVEL(3, "%p ", voidptr_getDictID);
+        DISPLAYLEVEL(3, "%p ", voidptr_createDStream);
+        DISPLAYLEVEL(3, "%p ", voidptr_copyDCtx);
+        DISPLAYLEVEL(3, "%p ", voidptr_nextInputType);
     }
     DISPLAYLEVEL(3, ": OK \n");
 

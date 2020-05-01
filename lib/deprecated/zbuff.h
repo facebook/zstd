@@ -28,7 +28,7 @@ extern "C" {
 *  Dependencies
 ***************************************/
 #include <stddef.h>      /* size_t */
-#include "zstd.h"        /* ZSTD_CStream, ZSTD_DStream, ZSTDLIB_API */
+#include "../zstd.h"        /* ZSTD_CStream, ZSTD_DStream, ZSTDLIB_API */
 
 
 /* ***************************************************************
@@ -186,7 +186,7 @@ ZBUFF_DEPRECATED("use ZSTD_DStreamOutSize") size_t ZBUFF_recommendedDOutSize(voi
 
 /*--- Dependency ---*/
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_parameters, ZSTD_customMem */
-#include "zstd.h"
+#include "../zstd.h"
 
 
 /*--- Custom memory allocator ---*/

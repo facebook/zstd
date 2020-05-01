@@ -24,7 +24,7 @@
 #include "debug.h"                 /* assert, DEBUGLOG, RAWLOG, g_debuglevel */
 #include "error_private.h"
 #define ZSTD_STATIC_LINKING_ONLY
-#include "zstd.h"
+#include "../zstd.h"
 #define FSE_STATIC_LINKING_ONLY
 #include "fse.h"
 #define HUF_STATIC_LINKING_ONLY

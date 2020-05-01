@@ -11,7 +11,7 @@
 /*-*************************************
 *  Dependencies
 ***************************************/
-#include "error_private.h"
+#include "../common/error_private.h"
 #include "zbuff.h"
 
 /*-****************************************

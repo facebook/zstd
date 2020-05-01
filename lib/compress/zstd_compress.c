@@ -13,13 +13,13 @@
 ***************************************/
 #include <limits.h>         /* INT_MAX */
 #include <string.h>         /* memset */
-#include "cpu.h"
-#include "mem.h"
-#include "hist.h"           /* HIST_countFast_wksp */
+#include "../common/cpu.h"
+#include "../common/mem.h"
+#include "hist.h"       /* HIST_countFast_wksp */
 #define FSE_STATIC_LINKING_ONLY   /* FSE_encodeSymbol */
-#include "fse.h"
+#include "../common/fse.h"
 #define HUF_STATIC_LINKING_ONLY
-#include "huf.h"
+#include "../common/huf.h"
 #include "zstd_compress_internal.h"
 #include "zstd_compress_sequences.h"
 #include "zstd_compress_literals.h"

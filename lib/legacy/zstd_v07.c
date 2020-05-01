@@ -17,14 +17,14 @@
 #ifndef XXH_STATIC_LINKING_ONLY
 #  define XXH_STATIC_LINKING_ONLY    /* XXH64_state_t */
 #endif
-#include "xxhash.h"                  /* XXH64_* */
+#include "../common/xxhash.h"                  /* XXH64_* */
 #include "zstd_v07.h"
 
 #define FSEv07_STATIC_LINKING_ONLY   /* FSEv07_MIN_TABLELOG */
 #define HUFv07_STATIC_LINKING_ONLY   /* HUFv07_TABLELOG_ABSOLUTEMAX */
 #define ZSTDv07_STATIC_LINKING_ONLY
 
-#include "error_private.h"
+#include "../common/error_private.h"
 
 
 #ifdef ZSTDv07_STATIC_LINKING_ONLY

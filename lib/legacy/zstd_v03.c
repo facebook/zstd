@@ -191,7 +191,7 @@ MEM_STATIC void MEM_write16(void* memPtr, U16 value)
 }
 
 
-#endif // MEM_FORCE_MEMORY_ACCESS
+#endif /* MEM_FORCE_MEMORY_ACCESS */
 
 
 MEM_STATIC U16 MEM_readLE16(const void* memPtr)

@@ -18,7 +18,7 @@ size_t ZSTD_noCompressLiterals (void* dst, size_t dstCapacity, const void* src, 
     BYTE* const ostart = (BYTE* const)dst;
     U32   const flSize = 1 + (srcSize>31) + (srcSize>4095);
 
-    RETURN_ERROR_IF(srcSize + flSize > dstCapacity, dstSize_tooSmall);
+    RETURN_ERROR_IF(srcSize + flSize > dstCapacity, dstSize_tooSmall, "");
 
     switch(flSize)
     {

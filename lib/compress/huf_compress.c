@@ -88,18 +88,18 @@ static size_t HUF_compressWeights (void* dst, size_t dstSize, const void* weight
     CHECK_F( FSE_normalizeCount(norm, tableLog, count, wtSize, maxSymbolValue) );
 
     /* Write table description header */
-    {   CHECK_V_F(hSize, FSE_writeNCount(op, oend-op, norm, maxSymbolValue, tableLog) );
+    {   CHECK_V_F(hSize, FSE_writeNCount(op, (size_t)(oend-op), norm, maxSymbolValue, tableLog) );
         op += hSize;
     }
 
     /* Compress */
     CHECK_F( FSE_buildCTable_wksp(CTable, norm, maxSymbolValue, tableLog, scratchBuffer, sizeof(scratchBuffer)) );
-    {   CHECK_V_F(cSize, FSE_compress_usingCTable(op, oend - op, weightTable, wtSize, CTable) );
+    {   CHECK_V_F(cSize, FSE_compress_usingCTable(op, (size_t)(oend - op), weightTable, wtSize, CTable) );
         if (cSize == 0) return 0;   /* not enough space for compressed data */
         op += cSize;
     }
 
-    return op-ostart;
+    return (size_t)(op-ostart);
 }
 
 
@@ -220,7 +220,7 @@ static U32 HUF_setMaxHeight(nodeElt* huffNode, U32 lastNonNull, U32 maxNbBits)
     /* there are several too large elements (at least >= 2) */
     {   int totalCost = 0;
         const U32 baseCost = 1 << (largestBits - maxNbBits);
-        U32 n = lastNonNull;
+        int n = (int)lastNonNull;
 
         while (huffNode[n].nbBits > maxNbBits) {
             totalCost += baseCost - (1 << (largestBits - huffNode[n].nbBits));
@@ -235,22 +235,22 @@ static U32 HUF_setMaxHeight(nodeElt* huffNode, U32 lastNonNull, U32 maxNbBits)
         /* repay normalized cost */
         {   U32 const noSymbol = 0xF0F0F0F0;
             U32 rankLast[HUF_TABLELOG_MAX+2];
-            int pos;
 
             /* Get pos of last (smallest) symbol per rank */
             memset(rankLast, 0xF0, sizeof(rankLast));
             {   U32 currentNbBits = maxNbBits;
+                int pos;
                 for (pos=n ; pos >= 0; pos--) {
                     if (huffNode[pos].nbBits >= currentNbBits) continue;
                     currentNbBits = huffNode[pos].nbBits;   /* < maxNbBits */
-                    rankLast[maxNbBits-currentNbBits] = pos;
+                    rankLast[maxNbBits-currentNbBits] = (U32)pos;
             }   }
 
             while (totalCost > 0) {
-                U32 nBitsToDecrease = BIT_highbit32(totalCost) + 1;
+                U32 nBitsToDecrease = BIT_highbit32((U32)totalCost) + 1;
                 for ( ; nBitsToDecrease > 1; nBitsToDecrease--) {
-                    U32 highPos = rankLast[nBitsToDecrease];
-                    U32 lowPos = rankLast[nBitsToDecrease-1];
+                    U32 const highPos = rankLast[nBitsToDecrease];
+                    U32 const lowPos = rankLast[nBitsToDecrease-1];
                     if (highPos == noSymbol) continue;
                     if (lowPos == noSymbol) break;
                     {   U32 const highTotal = huffNode[highPos].count;
@@ -277,7 +277,8 @@ static U32 HUF_setMaxHeight(nodeElt* huffNode, U32 lastNonNull, U32 maxNbBits)
                 if (rankLast[1] == noSymbol) {  /* special case : no rank 1 symbol (using maxNbBits-1); let's create one from largest rank 0 (using maxNbBits) */
                     while (huffNode[n].nbBits == maxNbBits) n--;
                     huffNode[n+1].nbBits--;
-                    rankLast[1] = n+1;
+                    assert(n >= 0);
+                    rankLast[1] = (U32)(n+1);
                     totalCost++;
                     continue;
                 }
@@ -339,10 +340,10 @@ size_t HUF_buildCTable_wksp (HUF_CElt* tree, const unsigned* count, U32 maxSymbo
     HUF_buildCTable_wksp_tables* const wksp_tables = (HUF_buildCTable_wksp_tables*)workSpace;
     nodeElt* const huffNode0 = wksp_tables->huffNodeTbl;
     nodeElt* const huffNode = huffNode0+1;
-    U32 n, nonNullRank;
+    int nonNullRank;
     int lowS, lowN;
-    U16 nodeNb = STARTNODE;
-    U32 nodeRoot;
+    int nodeNb = STARTNODE;
+    int n, nodeRoot;
 
     /* safety checks */
     if (((size_t)workSpace & 3) != 0) return ERROR(GENERIC);  /* must be aligned on 4-bytes boundaries */
@@ -357,21 +358,21 @@ size_t HUF_buildCTable_wksp (HUF_CElt* tree, const unsigned* count, U32 maxSymbo
     HUF_sort(huffNode, count, maxSymbolValue, wksp_tables->rankPosition);
 
     /* init for parents */
-    nonNullRank = maxSymbolValue;
+    nonNullRank = (int)maxSymbolValue;
     while(huffNode[nonNullRank].count == 0) nonNullRank--;
     lowS = nonNullRank; nodeRoot = nodeNb + lowS - 1; lowN = nodeNb;
     huffNode[nodeNb].count = huffNode[lowS].count + huffNode[lowS-1].count;
-    huffNode[lowS].parent = huffNode[lowS-1].parent = nodeNb;
+    huffNode[lowS].parent = huffNode[lowS-1].parent = (U16)nodeNb;
     nodeNb++; lowS-=2;
     for (n=nodeNb; n<=nodeRoot; n++) huffNode[n].count = (U32)(1U<<30);
     huffNode0[0].count = (U32)(1U<<31);  /* fake entry, strong barrier */
 
     /* create parents */
     while (nodeNb <= nodeRoot) {
-        U32 n1 = (huffNode[lowS].count < huffNode[lowN].count) ? lowS-- : lowN++;
-        U32 n2 = (huffNode[lowS].count < huffNode[lowN].count) ? lowS-- : lowN++;
+        int const n1 = (huffNode[lowS].count < huffNode[lowN].count) ? lowS-- : lowN++;
+        int const n2 = (huffNode[lowS].count < huffNode[lowN].count) ? lowS-- : lowN++;
         huffNode[nodeNb].count = huffNode[n1].count + huffNode[n2].count;
-        huffNode[n1].parent = huffNode[n2].parent = nodeNb;
+        huffNode[n1].parent = huffNode[n2].parent = (U16)nodeNb;
         nodeNb++;
     }
 
@@ -383,24 +384,25 @@ size_t HUF_buildCTable_wksp (HUF_CElt* tree, const unsigned* count, U32 maxSymbo
         huffNode[n].nbBits = huffNode[ huffNode[n].parent ].nbBits + 1;
 
     /* enforce maxTableLog */
-    maxNbBits = HUF_setMaxHeight(huffNode, nonNullRank, maxNbBits);
+    maxNbBits = HUF_setMaxHeight(huffNode, (U32)nonNullRank, maxNbBits);
 
     /* fill result into tree (val, nbBits) */
     {   U16 nbPerRank[HUF_TABLELOG_MAX+1] = {0};
         U16 valPerRank[HUF_TABLELOG_MAX+1] = {0};
+        int const alphabetSize = (int)(maxSymbolValue + 1);
         if (maxNbBits > HUF_TABLELOG_MAX) return ERROR(GENERIC);   /* check fit into table */
         for (n=0; n<=nonNullRank; n++)
             nbPerRank[huffNode[n].nbBits]++;
         /* determine stating value per rank */
         {   U16 min = 0;
-            for (n=maxNbBits; n>0; n--) {
+            for (n=(int)maxNbBits; n>0; n--) {
                 valPerRank[n] = min;      /* get starting value within each rank */
                 min += nbPerRank[n];
                 min >>= 1;
         }   }
-        for (n=0; n<=maxSymbolValue; n++)
+        for (n=0; n<alphabetSize; n++)
             tree[huffNode[n].byte].nbBits = huffNode[n].nbBits;   /* push nbBits per symbol, symbol order */
-        for (n=0; n<=maxSymbolValue; n++)
+        for (n=0; n<alphabetSize; n++)
             tree[n].val = valPerRank[tree[n].nbBits]++;   /* assign value within rank, symbol order */
     }
 
@@ -466,7 +468,7 @@ HUF_compress1X_usingCTable_internal_body(void* dst, size_t dstSize,
 
     /* init */
     if (dstSize < 8) return 0;   /* not enough space to compress */
-    { size_t const initErr = BIT_initCStream(&bitC, op, oend-op);
+    { size_t const initErr = BIT_initCStream(&bitC, op, (size_t)(oend-op));
       if (HUF_isError(initErr)) return 0; }
 
     n = srcSize & ~3;  /* join to mod 4 */

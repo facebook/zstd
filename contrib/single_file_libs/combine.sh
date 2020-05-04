@@ -72,7 +72,11 @@ resolve_include() {
   local inc=$2
   for root in $srcdir $ROOTS; do
     if [ -f "$root/$inc" ]; then
-      echo "$(realpath --relative-to . "$root/$inc")"
+      local relpath="$(realpath --relative-to . "$root/$inc")"
+      if [ "$?" -eq "0" ]; then # not all realpaths support --relative-to
+        relpath="$(realpath "$root/$inc")"
+      fi
+      echo "$relpath"
       return 0
     fi
   done

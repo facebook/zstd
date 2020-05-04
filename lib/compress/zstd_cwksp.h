@@ -458,7 +458,7 @@ MEM_STATIC void ZSTD_cwksp_init(ZSTD_cwksp* ws, void* start, size_t size) {
 MEM_STATIC size_t ZSTD_cwksp_create(ZSTD_cwksp* ws, size_t size, ZSTD_customMem customMem) {
     void* workspace = ZSTD_malloc(size, customMem);
     DEBUGLOG(4, "cwksp: creating new workspace with %zd bytes", size);
-    RETURN_ERROR_IF(workspace == NULL, memory_allocation);
+    RETURN_ERROR_IF(workspace == NULL, memory_allocation, "NULL pointer!");
     ZSTD_cwksp_init(ws, workspace, size);
     return 0;
 }

@@ -565,7 +565,8 @@ HUF_compress4X_usingCTable_internal(void* dst, size_t dstSize,
     if (srcSize < 12) return 0;   /* no saving possible : too small input */
     op += 6;   /* jumpTable */
 
-    {   CHECK_V_F(cSize, HUF_compress1X_usingCTable_internal(op, oend-op, ip, segmentSize, CTable, bmi2) );
+    assert(op <= oend);
+    {   CHECK_V_F(cSize, HUF_compress1X_usingCTable_internal(op, (size_t)(oend-op), ip, segmentSize, CTable, bmi2) );
         if (cSize==0) return 0;
         assert(cSize <= 65535);
         MEM_writeLE16(ostart, (U16)cSize);
@@ -573,7 +574,8 @@ HUF_compress4X_usingCTable_internal(void* dst, size_t dstSize,
     }
 
     ip += segmentSize;
-    {   CHECK_V_F(cSize, HUF_compress1X_usingCTable_internal(op, oend-op, ip, segmentSize, CTable, bmi2) );
+    assert(op <= oend);
+    {   CHECK_V_F(cSize, HUF_compress1X_usingCTable_internal(op, (size_t)(oend-op), ip, segmentSize, CTable, bmi2) );
         if (cSize==0) return 0;
         assert(cSize <= 65535);
         MEM_writeLE16(ostart+2, (U16)cSize);
@@ -581,7 +583,8 @@ HUF_compress4X_usingCTable_internal(void* dst, size_t dstSize,
     }
 
     ip += segmentSize;
-    {   CHECK_V_F(cSize, HUF_compress1X_usingCTable_internal(op, oend-op, ip, segmentSize, CTable, bmi2) );
+    assert(op <= oend);
+    {   CHECK_V_F(cSize, HUF_compress1X_usingCTable_internal(op, (size_t)(oend-op), ip, segmentSize, CTable, bmi2) );
         if (cSize==0) return 0;
         assert(cSize <= 65535);
         MEM_writeLE16(ostart+4, (U16)cSize);
@@ -589,12 +592,14 @@ HUF_compress4X_usingCTable_internal(void* dst, size_t dstSize,
     }
 
     ip += segmentSize;
-    {   CHECK_V_F(cSize, HUF_compress1X_usingCTable_internal(op, oend-op, ip, iend-ip, CTable, bmi2) );
+    assert(op <= oend);
+    assert(ip <= iend);
+    {   CHECK_V_F(cSize, HUF_compress1X_usingCTable_internal(op, (size_t)(oend-op), ip, (size_t)(iend-ip), CTable, bmi2) );
         if (cSize==0) return 0;
         op += cSize;
     }
 
-    return op-ostart;
+    return (size_t)(op-ostart);
 }
 
 size_t HUF_compress4X_usingCTable(void* dst, size_t dstSize, const void* src, size_t srcSize, const HUF_CElt* CTable)
@@ -610,14 +615,15 @@ static size_t HUF_compressCTable_internal(
                 HUF_nbStreams_e nbStreams, const HUF_CElt* CTable, const int bmi2)
 {
     size_t const cSize = (nbStreams==HUF_singleStream) ?
-                         HUF_compress1X_usingCTable_internal(op, oend - op, src, srcSize, CTable, bmi2) :
-                         HUF_compress4X_usingCTable_internal(op, oend - op, src, srcSize, CTable, bmi2);
+                         HUF_compress1X_usingCTable_internal(op, (size_t)(oend - op), src, srcSize, CTable, bmi2) :
+                         HUF_compress4X_usingCTable_internal(op, (size_t)(oend - op), src, srcSize, CTable, bmi2);
     if (HUF_isError(cSize)) { return cSize; }
     if (cSize==0) { return 0; }   /* uncompressible */
     op += cSize;
     /* check compressibility */
+    assert(op >= ostart);
     if ((size_t)(op-ostart) >= srcSize-1) { return 0; }
-    return op-ostart;
+    return (size_t)(op-ostart);
 }
 
 typedef struct {

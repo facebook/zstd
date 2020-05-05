@@ -46,7 +46,7 @@ test_deps() {
     echo "Aborting: the grep implementation fails to parse include lines"
     exit 1
   fi
-  if ! echo '"foo.h"' | sed 's/"\([^"]\+\)"/\1/' | grep -Eq '^foo\.h$'; then
+  if ! echo '"foo.h"' | sed -E 's/"([^"]+)"/\1/' | grep -Eq '^foo\.h$'; then
     echo "Aborting: sed is unavailable or non-functional"
     exit 1
   fi
@@ -120,7 +120,7 @@ add_file() {
     while IFS= read -r line; do
       if echo "$line" | grep -Eq '^\s*#\s*include\s*".+"'; then
         # We have an include directive so strip the (first) file
-        local inc=$(echo "$line" | grep -Eo '".*"' | sed 's/"\([^"]\+\)"/\1/' | head -1)
+        local inc=$(echo "$line" | grep -Eo '".*"' | sed -E 's/"([^"]+)"/\1/' | head -1)
         local res_inc="$(resolve_include "$srcdir" "$inc")"
         if list_has_item "$XINCS" "$inc"; then
           # The file was excluded so error if the source attempts to use it

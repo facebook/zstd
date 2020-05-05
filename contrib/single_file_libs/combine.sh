@@ -72,11 +72,28 @@ resolve_include() {
   local inc=$2
   for root in $srcdir $ROOTS; do
     if [ -f "$root/$inc" ]; then
+      # Try to reduce the file path into a canonical form (so that multiple)
+      # includes of the same file are successfully deduplicated, even if they
+      # are expressed differently.
       local relpath="$(realpath --relative-to . "$root/$inc")"
-      if [ "$?" -eq "0" ]; then # not all realpaths support --relative-to
-        relpath="$(realpath "$root/$inc")"
+      if [ "$relpath" != "" ]; then # not all realpaths support --relative-to
+        echo "$relpath"
+        return 0
       fi
-      echo "$relpath"
+      local relpath="$(realpath "$root/$inc")"
+      if [ "$relpath" != "" ]; then # not all distros have realpath...
+        echo "$relpath"
+        return 0
+      fi
+      # Worst case, fall back to just the root + relative include path. The
+      # problem with this is that it is possible to emit multiple different
+      # resolved paths to the same file, depending on exactly how its included.
+      # Since the main loop below keeps a list of the resolved paths it's
+      # already included, in order to avoid repeated includes, this failure to
+      # produce a canonical/reduced path can lead to multiple inclusions of the
+      # same file. But it seems like the resulting single file library still
+      # works (hurray include guards!), so I guess it's ok.
+      echo "$root/$inc"
       return 0
     fi
   done
@@ -91,7 +108,7 @@ add_file() {
       # Log but only if not writing to stdout
       echo "Processing: $file"
     fi
-    # Get directory to resolve relative includes
+    # Get directory of the current so we can resolve relative includes
     local srcdir="$(dirname "$file")"
     # Read the file
     local line=

@@ -111,7 +111,7 @@ size_t ZSTD_fseBitCost(
             DEBUGLOG(5, "Repeat FSE_CTable has Prob[%u] == 0", s);
             return ERROR(GENERIC);
         }
-        cost += count[s] * bitCost;
+        cost += (size_t)count[s] * bitCost;
     }
     return cost >> kAccuracyLog;
 }
@@ -129,7 +129,7 @@ size_t ZSTD_crossEntropyCost(short const* norm, unsigned accuracyLog,
     unsigned s;
     assert(accuracyLog <= 8);
     for (s = 0; s <= max; ++s) {
-        unsigned const normAcc = norm[s] != -1 ? norm[s] : 1;
+        unsigned const normAcc = (norm[s] != -1) ? (unsigned)norm[s] : 1;
         unsigned const norm256 = normAcc << shift;
         assert(norm256 > 0);
         assert(norm256 < 256);
@@ -294,7 +294,7 @@ ZSTD_encodeSequences_body(
     if (MEM_32bits()) BIT_flushBits(&blockStream);
     if (longOffsets) {
         U32 const ofBits = ofCodeTable[nbSeq-1];
-        int const extraBits = ofBits - MIN(ofBits, STREAM_ACCUMULATOR_MIN-1);
+        unsigned const extraBits = ofBits - MIN(ofBits, STREAM_ACCUMULATOR_MIN-1);
         if (extraBits) {
             BIT_addBits(&blockStream, sequences[nbSeq-1].offset, extraBits);
             BIT_flushBits(&blockStream);
@@ -331,7 +331,7 @@ ZSTD_encodeSequences_body(
             BIT_addBits(&blockStream, sequences[n].matchLength, mlBits);
             if (MEM_32bits() || (ofBits+mlBits+llBits > 56)) BIT_flushBits(&blockStream);
             if (longOffsets) {
-                int const extraBits = ofBits - MIN(ofBits, STREAM_ACCUMULATOR_MIN-1);
+                unsigned const extraBits = ofBits - MIN(ofBits, STREAM_ACCUMULATOR_MIN-1);
                 if (extraBits) {
                     BIT_addBits(&blockStream, sequences[n].offset, extraBits);
                     BIT_flushBits(&blockStream);                            /* (7)*/

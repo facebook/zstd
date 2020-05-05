@@ -83,12 +83,12 @@ resolve_include() {
       # Try to reduce the file path into a canonical form (so that multiple)
       # includes of the same file are successfully deduplicated, even if they
       # are expressed differently.
-      local relpath="$(realpath --relative-to . "$root/$inc")"
+      local relpath="$(realpath --relative-to . "$root/$inc" 2>/dev/null)"
       if [ "$relpath" != "" ]; then # not all realpaths support --relative-to
         echo "$relpath"
         return 0
       fi
-      local relpath="$(realpath "$root/$inc")"
+      local relpath="$(realpath "$root/$inc" 2>/dev/null)"
       if [ "$relpath" != "" ]; then # not all distros have realpath...
         echo "$relpath"
         return 0
@@ -125,7 +125,7 @@ add_file() {
         if list_has_item "$XINCS" "$inc"; then
           # The file was excluded so error if the source attempts to use it
           write_line "#error Using excluded file: $inc"
-          log_line "Excluding: $res_inc ($inc)"
+          log_line "Excluding: $inc"
         else
           if ! list_has_item "$FOUND" "$res_inc"; then
             # The file was not previously encountered
@@ -134,7 +134,7 @@ add_file() {
               # But the include was flagged to keep as included
               write_line "/**** *NOT* inlining $inc ****/"
               write_line "$line"
-              log_line "Not Inlining: $res_inc ($inc)"
+              log_line "Not Inlining: $inc"
             else
               # The file was neither excluded nor seen before so inline it
               write_line "/**** start inlining $inc ****/"
@@ -143,7 +143,6 @@ add_file() {
             fi
           else
             write_line "/**** skipping file: $inc ****/"
-            log_line "Skipping: $res_inc ($inc)"
           fi
         fi
       else

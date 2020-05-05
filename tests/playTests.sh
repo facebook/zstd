@@ -254,6 +254,38 @@ ZCAT=./zstdcat $ZSTDGREP 2>&1 "1234" tmp_grep_bad.zst && die "Should have failed
 ZCAT=./zstdcat $ZSTDGREP 2>&1 "1234" tmp_grep_bad.zst | grep "No such file or directory" || true
 rm -f tmp_grep*
 
+println "\n===> zstdgrep pipe in with -f "
+echo "start" > tmp_grep
+echo "stop" >> tmp_grep
+echo "start" | ZCAT=./zstdcat $ZSTDGREP -f - tmp_grep > tmp_grep_out1
+echo "start" | grep -f - tmp_grep > tmp_grep_out2
+$DIFF tmp_grep_out1 tmp_grep_out2
+rm -f tmp_grep*
+
+println "\n===> zstdgrep --regexp= multiple"
+echo "start" > tmp_grep
+echo "stop" >> tmp_grep
+ZCAT=./zstdcat $ZSTDGREP --regexp=start --regexp=stop tmp_grep > tmp_grep_out1
+grep -e start -e stop tmp_grep > tmp_grep_out2
+$DIFF tmp_grep_out1 tmp_grep_out2
+rm -f tmp_grep*
+
+println "\n===> zstdgrep multiple -e"
+echo "start" > tmp_grep
+echo "stop" >> tmp_grep
+ZCAT=./zstdcat $ZSTDGREP -e start -e stop tmp_grep > tmp_grep_out1
+grep -e start -e stop tmp_grep > tmp_grep_out2
+$DIFF tmp_grep_out1 tmp_grep_out2
+rm -f tmp_grep*
+
+println "\n===> zstdgrep multiple --regexp"
+echo "start" > tmp_grep
+echo "stop" >> tmp_grep
+ZCAT=./zstdcat $ZSTDGREP --regexp start --regexp stop tmp_grep > tmp_grep_out1
+grep -e start -e stop tmp_grep > tmp_grep_out2
+$DIFF tmp_grep_out1 tmp_grep_out2
+rm -f tmp_grep*
+
 println "\n===>  --exclude-compressed flag"
 rm -rf precompressedFilterTestDir
 mkdir -p precompressedFilterTestDir

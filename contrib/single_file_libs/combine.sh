@@ -41,9 +41,13 @@ usage() {
 }
 
 # Tests that the grep implementation works as expected (older OSX grep fails)
-test_grep() {
+test_deps() {
   if ! echo '#include "foo"' | grep -Eq '^\s*#\s*include\s*".+"'; then
     echo "Aborting: the grep implementation fails to parse include lines"
+    exit 1
+  fi
+  if ! echo '"foo.h"' | sed 's/"\([^"]\+\)"/\1/' | grep -Eq '^foo\.h$'; then
+    echo "Aborting: sed is unavailable or non-functional"
     exit 1
   fi
 }
@@ -64,6 +68,10 @@ write_line() {
   else
     printf '%s\n' "$@"
   fi
+}
+
+log_line() {
+  echo $@ >&2
 }
 
 # Find this file!
@@ -104,10 +112,7 @@ resolve_include() {
 add_file() {
   local file=$1
   if [ -n "$file" ]; then
-    if [ -n "$DESTN" ]; then
-      # Log but only if not writing to stdout
-      echo "Processing: $file"
-    fi
+    log_line "Processing: $file"
     # Get directory of the current so we can resolve relative includes
     local srcdir="$(dirname "$file")"
     # Read the file
@@ -120,6 +125,7 @@ add_file() {
         if list_has_item "$XINCS" "$inc"; then
           # The file was excluded so error if the source attempts to use it
           write_line "#error Using excluded file: $inc"
+          log_line "Excluding: $res_inc ($inc)"
         else
           if ! list_has_item "$FOUND" "$res_inc"; then
             # The file was not previously encountered
@@ -128,6 +134,7 @@ add_file() {
               # But the include was flagged to keep as included
               write_line "/**** *NOT* inlining $inc ****/"
               write_line "$line"
+              log_line "Not Inlining: $res_inc ($inc)"
             else
               # The file was neither excluded nor seen before so inline it
               write_line "/**** start inlining $inc ****/"
@@ -136,6 +143,7 @@ add_file() {
             fi
           else
             write_line "/**** skipping file: $inc ****/"
+            log_line "Skipping: $res_inc ($inc)"
           fi
         fi
       else
@@ -153,10 +161,7 @@ add_file() {
     done < "$file"
   else
     write_line "#error Unable to find \"$1\""
-    if [ -n "$DESTN" ]; then
-      # Log but only if not writing to stdout
-      echo "Error: Unable to find: \"$1\""
-    fi
+    log_line "Error: Unable to find: \"$1\""
   fi
 }
 
@@ -189,7 +194,7 @@ if [ -n "$1" ]; then
     if [ -n "$DESTN" ]; then
       printf "" > "$DESTN"
     fi
-    test_grep
+    test_deps
     add_file "$1"
   else
     echo "Input file not found: \"$1\""

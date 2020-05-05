@@ -46,6 +46,24 @@ escape='
   $s/$/'\''/
 '
 
+# We might want to create a c program in the future
+# and replace this file with that if these
+# unsupported options become necessary
+usage="Usage: $0 [OPTION]... [-e] PATTERN [FILE]...
+OPTIONs are the same as grep with the exception of
+the following unsupported options:
+    --dereference-recursive (-R)
+    --directories (-d)
+    --exclude
+    --exclude-from
+    --exclude-dir
+    --include
+    --null (-Z),
+    --null-data (-z)
+    --recursive (-r)
+grep --help below:
+"
+
 operands=
 files_with_matches=0
 files_without_matches=0
@@ -97,6 +115,7 @@ while [ "$#" -gt 0 ] && [ "${endofopts}" -eq 0 ]; do
                         optarg=" '"$(sed "$escape") || exit 2;;
                 esac
                 pattern_found=1;;
+            (--h | --he | --hel | --help) echo "$usage"; eval "$grep --help" || exit 2; exit;;
             (-H | --wi | --wit | --with | --with- | --with-f | --with-fi \
             | --with-fil | --with-file | --with-filen | --with-filena | --with-filenam \
             | --with-filename)

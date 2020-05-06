@@ -11,8 +11,8 @@
 #ifndef ZSTD_COMPRESS_SEQUENCES_H
 #define ZSTD_COMPRESS_SEQUENCES_H
 
-#include "fse.h" /* FSE_repeat, FSE_CTable */
-#include "zstd_internal.h" /* symbolEncodingType_e, ZSTD_strategy */
+#include "../common/fse.h" /* FSE_repeat, FSE_CTable */
+#include "../common/zstd_internal.h" /* symbolEncodingType_e, ZSTD_strategy */
 
 typedef enum {
     ZSTD_defaultDisallowed = 0,

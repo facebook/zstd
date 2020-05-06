@@ -19,7 +19,7 @@ extern "C" {
 *  Dependencies
 ***************************************/
 #include <stddef.h>   /* size_t */
-#include "mem.h"      /* U64, U32 */
+#include "../common/mem.h"      /* U64, U32 */
 
 
 /* *************************************

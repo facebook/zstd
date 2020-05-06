@@ -10,7 +10,7 @@
 
 #include "zstd_ldm.h"
 
-#include "debug.h"
+#include "../common/debug.h"
 #include "zstd_fast.h"          /* ZSTD_fillHashTable() */
 #include "zstd_double_fast.h"   /* ZSTD_fillDoubleHashTable() */
 

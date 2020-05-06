@@ -19,7 +19,7 @@
 *  Dependencies
 ***************************************/
 #define ZDICT_STATIC_LINKING_ONLY
-#include "zdict.h"     /* ZDICT_params_t */
+#include "../lib/dictBuilder/zdict.h"     /* ZDICT_params_t */
 
 
 /*-*************************************

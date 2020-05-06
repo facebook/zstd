@@ -24,7 +24,7 @@ extern "C" {
 /* ===  Dependencies  === */
 #include <stddef.h>   /* size_t */
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_compressionParameters */
-#include "zstd.h"     /* ZSTD_compressionParameters */
+#include "../lib/zstd.h"     /* ZSTD_compressionParameters */
 
 
 /* ===  Constants  === */

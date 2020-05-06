@@ -4,7 +4,7 @@
  *
  * Generate using:
  * \code
- *	combine.sh -r ../../lib -r ../../lib/common -r ../../lib/decompress -o zstddeclib.c zstddeclib-in.c
+ *	combine.sh -r ../../lib -o zstddeclib.c zstddeclib-in.c
  * \endcode
  */
 /*
@@ -42,15 +42,13 @@
 #define ZSTD_NOBENCH
 #define ZSTD_STRIP_ERROR_STRINGS
 
-/* lib/common */
-#include "debug.c"
-#include "entropy_common.c"
-#include "error_private.c"
-#include "fse_decompress.c"
-#include "zstd_common.c"
+#include "common/debug.c"
+#include "common/entropy_common.c"
+#include "common/error_private.c"
+#include "common/fse_decompress.c"
+#include "common/zstd_common.c"
 
-/* lib/decompress */
-#include "huf_decompress.c"
-#include "zstd_ddict.c"
-#include "zstd_decompress.c"
-#include "zstd_decompress_block.c"
+#include "decompress/huf_decompress.c"
+#include "decompress/zstd_ddict.c"
+#include "decompress/zstd_decompress.c"
+#include "decompress/zstd_decompress_block.c"

@@ -11,7 +11,7 @@
 
 /*- Dependencies -*/
 #include "zstd_v05.h"
-#include "error_private.h"
+#include "../common/error_private.h"
 
 
 /* ******************************************************************

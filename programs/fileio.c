@@ -39,13 +39,13 @@
 #  include <io.h>
 #endif
 
-#include "mem.h"       /* U32, U64 */
+#include "../lib/common/mem.h"     /* U32, U64 */
 #include "fileio.h"
 
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_magicNumber, ZSTD_frameHeaderSize_max */
-#include "zstd.h"
-#include "zstd_errors.h"           /* ZSTD_error_frameParameter_windowTooLarge */
-#include "zstd_compress_internal.h"
+#include "../lib/zstd.h"
+#include "../lib/common/zstd_errors.h"  /* ZSTD_error_frameParameter_windowTooLarge */
+#include "../lib/compress/zstd_compress_internal.h"
 
 #if defined(ZSTD_GZCOMPRESS) || defined(ZSTD_GZDECOMPRESS)
 #  include <zlib.h>

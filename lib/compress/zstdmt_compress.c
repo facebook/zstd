@@ -22,9 +22,9 @@
 /* ======   Dependencies   ====== */
 #include <string.h>      /* memcpy, memset */
 #include <limits.h>      /* INT_MAX, UINT_MAX */
-#include "mem.h"         /* MEM_STATIC */
-#include "pool.h"        /* threadpool */
-#include "threading.h"   /* mutex */
+#include "../common/mem.h"         /* MEM_STATIC */
+#include "../common/pool.h"        /* threadpool */
+#include "../common/threading.h"   /* mutex */
 #include "zstd_compress_internal.h"  /* MIN, ERROR, ZSTD_*, ZSTD_highbit32 */
 #include "zstd_ldm.h"
 #include "zstdmt_compress.h"

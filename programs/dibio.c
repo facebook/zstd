@@ -30,8 +30,8 @@
 #include <assert.h>
 
 #include "timefn.h"         /* UTIL_time_t, UTIL_clockSpanMicro, UTIL_getTime */
-#include "mem.h"            /* read */
-#include "error_private.h"
+#include "../lib/common/mem.h"  /* read */
+#include "../lib/common/error_private.h"
 #include "dibio.h"
 
 

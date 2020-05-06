@@ -18,9 +18,9 @@ extern "C" {
 /* *************************************
 *  Includes
 ***************************************/
-#include "mem.h"            /* MEM_STATIC */
-#include "error_private.h"  /* ERROR */
-#include "zstd_internal.h"  /* ZSTD_inBuffer, ZSTD_outBuffer, ZSTD_frameSizeInfo */
+#include "../common/mem.h"            /* MEM_STATIC */
+#include "../common/error_private.h"  /* ERROR */
+#include "../common/zstd_internal.h"  /* ZSTD_inBuffer, ZSTD_outBuffer, ZSTD_frameSizeInfo */
 
 #if !defined (ZSTD_LEGACY_SUPPORT) || (ZSTD_LEGACY_SUPPORT == 0)
 #  undef ZSTD_LEGACY_SUPPORT

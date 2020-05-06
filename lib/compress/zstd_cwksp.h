@@ -14,7 +14,7 @@
 /*-*************************************
 *  Dependencies
 ***************************************/
-#include "zstd_internal.h"
+#include "../common/zstd_internal.h"
 
 #if defined (__cplusplus)
 extern "C" {

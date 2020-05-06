@@ -15,14 +15,14 @@
 *  Dependencies
 *********************************************************/
 #include <string.h>      /* memcpy, memmove, memset */
-#include "compiler.h"    /* prefetch */
-#include "cpu.h"         /* bmi2 */
-#include "mem.h"         /* low level memory routines */
+#include "../common/compiler.h"    /* prefetch */
+#include "../common/cpu.h"         /* bmi2 */
+#include "../common/mem.h"         /* low level memory routines */
 #define FSE_STATIC_LINKING_ONLY
-#include "fse.h"
+#include "../common/fse.h"
 #define HUF_STATIC_LINKING_ONLY
-#include "huf.h"
-#include "zstd_internal.h"
+#include "../common/huf.h"
+#include "../common/zstd_internal.h"
 #include "zstd_decompress_internal.h"   /* ZSTD_DCtx */
 #include "zstd_ddict.h"  /* ZSTD_DDictDictContent */
 #include "zstd_decompress_block.h"

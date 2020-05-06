@@ -28,8 +28,6 @@ zcat=${ZCAT:-zstdcat}
 endofopts=0
 pattern_found=0
 grep_args=""
-hyphen=0
-silent=0
 
 prog=${0##*/}
 
@@ -43,92 +41,158 @@ esac
 # skip all options and pass them on to grep taking care of options
 # with arguments, and if -e was supplied
 
+escape='
+  s/'\''/'\''\\'\'''\''/g
+  $s/$/'\''/
+'
+
+# We might want to create a c program in the future
+# and replace this file with that if these
+# unsupported options become necessary
+usage="Usage: $0 [OPTION]... [-e] PATTERN [FILE]...
+OPTIONs are the same as grep with the exception of
+the following unsupported options:
+    --dereference-recursive (-R)
+    --directories (-d)
+    --exclude
+    --exclude-from
+    --exclude-dir
+    --include
+    --null (-Z),
+    --null-data (-z)
+    --recursive (-r)
+grep --help below:
+"
+
+operands=
+files_with_matches=0
+files_without_matches=0
+no_filename=0
+with_filename=0
+
 while [ "$#" -gt 0 ] && [ "${endofopts}" -eq 0 ]; do
-    case "$1" in
-    # from GNU grep-2.5.1 -- keep in sync!
-        -[ABCDXdefm])
-            if [ "$#" -lt 2 ]; then
-                printf '%s: missing argument for %s flag\n' "${prog}" "$1" >&2
-                exit 1
-            fi
-            case "$1" in
-                -e)
-                    pattern="$2"
-                    pattern_found=1
-                    shift 2
-                    break
-                    ;;
-                -f)
-                    pattern_found=2
-                    ;;
-                *)
-                    ;;
+    option=$1
+    shift
+    optarg=
+
+    case $option in
+        (-[0123456789EFGHIKLPRTUVZabchilnoqrsuvwxyz]?*)
+            arg2=-\'$(expr "X$option" : 'X-.[0-9]*\(.*\)' | sed "$escape")
+            eval "set -- $arg2 "'${1+"$@"}'
+            option=$(expr "X$option" : 'X\(-.[0-9]*\)');;
+        (--binary-*=* | --[lm]a*=* | --reg*=*) ;;
+        (-[ABCDXdefm] | binary-* | --file | --[lm]a* | --reg*)
+            case ${1?"$option option requires an argument"} in
+                (*\'*) optarg=" '"$(printf '%s\n' "$1" | sed "$escape");;
+                (*) optarg=" '$1'";;
             esac
-            grep_args="${grep_args} $1 $2"
-            shift 2
-            ;;
-        --)
-            shift
+            shift;;
+        (-f?*\'*) optarg=" '"$(expr "X$option" : 'X-f\(.*\)' | sed "$escape"); option=-f;;
+        (-f?*) optarg=" '"$(expr "X$option" : 'X-f\(.*\)')\'; option=-f;;
+        (--file=*\'*) optarg=" '"$(expr "X$option" : 'X--file=\(.*\)' | sed "$escape"); option=--file;;
+        (--file=*) optarg=" '"$(expr "X$option" : 'X--file=\(.*\)')\'; option=--file;;
+        (--) endofopts=1; break;;
+        (-?*) ;;
+        (*)
+            case $option in
+                (*\'*) operands="$operands '"$(printf '%s\n' "$option" | sed "$escape");;
+                (*) operands="$operands '$option'";;
+            esac
+            ${POSIXLY_CORRECT+break}
             endofopts=1
-            ;;
-        -)
-            hyphen=1
-            shift
-            ;;
-        -h)
-            silent=1
-            shift
-            ;;
-        -*)
-            grep_args="${grep_args} $1"
-            shift
-            ;;
-        *)
-            # pattern to grep for
-            endofopts=1
-            ;;
-    esac
-done
+            continue;;
+        esac
 
-# if no -e option was found, take next argument as grep-pattern
-if [ "${pattern_found}" -lt 1 ]; then
-    if [ "$#" -ge 1 ]; then
-        pattern="$1"
-        shift
-    elif [ "${hyphen}" -gt 0 ]; then
-        pattern="-"
-    else
-        printf '%s: missing pattern\n' "${prog}" >&2
-        exit 1
-    fi
-fi
+        case $option in
+            (-[drRzZ] | --di* | --exc* | --inc* | --rec* | --nu*)
+                printf >&2 '%s: %s: option not supported\n' "$0" "$option"
+                exit 2;;
+            (-e* | --reg*) pattern_found=1;;
+            (-f | --file)
+                case $optarg in
+                    (" '-'" | " '/dev/stdin'" | " '/dev/fd/0'")
+                        option=-e
+                        optarg=" '"$(sed "$escape") || exit 2;;
+                esac
+                pattern_found=1;;
+            (--h | --he | --hel | --help) echo "$usage"; eval "$grep --help" || exit 2; exit;;
+            (-H | --wi | --wit | --with | --with- | --with-f | --with-fi \
+            | --with-fil | --with-file | --with-filen | --with-filena | --with-filenam \
+            | --with-filename)
+                with_filename=1
+                continue;;
+            (-l | --files-with-*) files_with_matches=1;;
+            (-L | --files-witho*) files_without_matches=1;;
+            (-h | --no-f*) no_filename=1;;
+        esac
 
-EXIT_CODE=0
-# call grep ...
-if [ "$#" -lt 1 ]; then
-    # ... on stdin
-    set -f # Disable file name generation (globbing).
-    # shellcheck disable=SC2086
-    "${zcat}" - | "${grep}" ${grep_args} -- "${pattern}" -
-    EXIT_CODE=$?
-    set +f
-else
-    # ... on all files given on the command line
-    if [ "${silent}" -lt 1 ] && [ "$#" -gt 1 ]; then
-        grep_args="-H ${grep_args}"
-    fi
-    set -f
-    while [ "$#" -gt 0 ]; do
-        # shellcheck disable=SC2086
-        if [ $pattern_found -eq 2 ]; then
-            "${zcat}" -- "$1" | "${grep}" --label="${1}" ${grep_args} -- -
-        else
-            "${zcat}" -- "$1" | "${grep}" --label="${1}" ${grep_args} -- "${pattern}" -
-        fi
-        [ "$?" -ne 0 ] && EXIT_CODE=1
-        shift
+        case $option in
+            (*\'?*) option=\'$(printf '%s\n' "$option" | sed "$escape");;
+            (*) option="'$option'";;
+        esac
+
+        grep_args="$option$optarg"
+        grep="$grep $grep_args"
     done
-    set +f
+
+eval "set -- $operands "'${1+"$@"}'
+
+if test $pattern_found -eq 0; then
+    case ${1?"missing pattern; try \`$0 --help' for help"} in
+        (*\'*) grep="$grep -- '"$(printf '%s\n' "$1" | sed "$escape");;
+        (*) grep="$grep -- '$1'";;
+    esac
+    shift
 fi
 
-exit "${EXIT_CODE}"
+if test $# -eq 0; then
+    set -- -
+fi
+
+exec 3>&1
+res=0
+
+for i do
+    zcat_status=$(
+        exec 5>&1
+        ($zcat -- "$i" 5>&-; echo $? >&5) 3>&- |
+        if test $files_with_matches -eq 1; then
+            eval "$grep" >/dev/null && { printf '%s\n' "$i" || exit 2; }
+        elif test $files_without_matches -eq 1; then
+            eval "$grep" >/dev/null || {
+                r=$?
+                if test $r -eq 1; then
+                printf '%s\n' "$i" || r=2
+                fi
+                exit $r
+            }
+        elif test $with_filename -eq 0 && { test $# -eq 1 || test $no_filename -eq 1; }; then
+            eval "$grep"
+        else
+            case $i in
+            (*'
+        '* | *'&'* | *'\'* | *'|'*)
+                i=$(printf '%s\n' "$i" |
+                    sed '
+                    $!N
+                    $s/[&\|]/\\&/g
+                    $s/\n/\\n/g
+                    ');;
+            esac
+            sed_script="s|^|$i:|"
+
+            # Fail if grep or sed fails.
+            r=$(
+                exec 4>&1
+                (eval "$grep" 4>&-; echo $? >&4) 3>&- | sed "$sed_script" >&3 4>&-
+            ) && exit $r
+            r=$?
+            test 1 -lt $r && exit $r || exit 2
+        fi >&3 5>&-
+    )
+    r=$?
+    test 128 -lt $r && exit $r
+    test "$zcat_status" -eq 0 || test "$zcat_status" -eq 2 || r=2
+    test $res -lt $r && res=$r
+done
+exit $res

@@ -70,7 +70,7 @@ AddTestFlagsOption(ZSTD_FUZZER_FLAGS "$ENV{FUZZERTEST} $ENV{FUZZER_FLAGS}"
 add_test(NAME fuzzer COMMAND fuzzer ${ZSTD_FUZZER_FLAGS})
 # Disable the timeout since the run time is too long for the default timeout of
 # 1500 seconds and varies considerably between low-end and high-end CPUs.
-set_tests_properties(fuzzer PROPERTIES TIMEOUT 0)
+# set_tests_properties(fuzzer PROPERTIES TIMEOUT 0)
 
 #
 # zstreamtest

@@ -12,10 +12,10 @@
 #include <stdlib.h> /* malloc, free, qsort */
 #include <string.h> /* memset */
 #include <time.h>   /* clock */
-#include "mem.h" /* read */
-#include "pool.h"
-#include "threading.h"
-#include "zstd_internal.h" /* includes zstd.h */
+#include "../common/mem.h" /* read */
+#include "../common/pool.h"
+#include "../common/threading.h"
+#include "../common/zstd_internal.h" /* includes zstd.h */
 #ifndef ZDICT_STATIC_LINKING_ONLY
 #define ZDICT_STATIC_LINKING_ONLY
 #endif

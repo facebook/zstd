@@ -25,14 +25,14 @@
 ****************************************************************/
 #include <string.h>     /* memcpy, memset */
 #include <stdio.h>      /* printf (debug) */
-#include "compiler.h"
-#include "bitstream.h"
+#include "../common/compiler.h"
+#include "../common/bitstream.h"
 #include "hist.h"
 #define FSE_STATIC_LINKING_ONLY   /* FSE_optimalTableLog_internal */
-#include "fse.h"        /* header compression */
+#include "../common/fse.h"        /* header compression */
 #define HUF_STATIC_LINKING_ONLY
-#include "huf.h"
-#include "error_private.h"
+#include "../common/huf.h"
+#include "../common/error_private.h"
 
 
 /* **************************************************************

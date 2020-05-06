@@ -14,7 +14,7 @@
 #include <stddef.h>    /* size_t, ptrdiff_t */
 #include <string.h>    /* memcpy */
 #include <stdlib.h>    /* malloc, free, qsort */
-#include "error_private.h"
+#include "../common/error_private.h"
 
 
 

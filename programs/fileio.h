@@ -13,7 +13,7 @@
 #define FILEIO_H_23981798732
 
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_compressionParameters */
-#include "zstd.h"                  /* ZSTD_* */
+#include "../lib/zstd.h"           /* ZSTD_* */
 
 #if defined (__cplusplus)
 extern "C" {

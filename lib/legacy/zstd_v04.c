@@ -16,7 +16,7 @@
 #include <string.h>    /* memcpy */
 
 #include "zstd_v04.h"
-#include "error_private.h"
+#include "../common/error_private.h"
 
 
 /* ******************************************************************

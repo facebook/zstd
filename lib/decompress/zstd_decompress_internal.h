@@ -19,8 +19,8 @@
 /*-*******************************************************
  *  Dependencies
  *********************************************************/
-#include "mem.h"             /* BYTE, U16, U32 */
-#include "zstd_internal.h"   /* ZSTD_seqSymbol */
+#include "../common/mem.h"             /* BYTE, U16, U32 */
+#include "../common/zstd_internal.h"   /* ZSTD_seqSymbol */
 
 
 

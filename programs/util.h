@@ -23,7 +23,7 @@ extern "C" {
 #include <stddef.h>       /* size_t, ptrdiff_t */
 #include <sys/types.h>    /* stat, utime */
 #include <sys/stat.h>     /* stat, chmod */
-#include "mem.h"          /* U64 */
+#include "../lib/common/mem.h"          /* U64 */
 
 
 /*-************************************************************

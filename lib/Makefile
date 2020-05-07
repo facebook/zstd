@@ -8,6 +8,8 @@
 # You may select, at your option, one of the above-listed licenses.
 # ################################################################
 
+Q = $(if $(filter 1,$(V) $(VERBOSE)),,@)
+
 # Version numbers
 LIBVER_MAJOR_SCRIPT:=`sed -n '/define ZSTD_VERSION_MAJOR/s/.*[[:blank:]]\([0-9][0-9]*\).*/\1/p' < ./zstd.h`
 LIBVER_MINOR_SCRIPT:=`sed -n '/define ZSTD_VERSION_MINOR/s/.*[[:blank:]]\([0-9][0-9]*\).*/\1/p' < ./zstd.h`
@@ -178,7 +180,7 @@ all: lib
 libzstd.a: ARFLAGS = rcs
 libzstd.a: $(ZSTD_OBJ)
 	@echo compiling static library
-	@$(AR) $(ARFLAGS) $@ $^
+	$(Q)$(AR) $(ARFLAGS) $@ $^
 
 ifneq (,$(filter Windows%,$(OS)))
 
@@ -193,23 +195,26 @@ LIBZSTD = libzstd.$(SHARED_EXT_VER)
 $(LIBZSTD): LDFLAGS += -shared -fPIC -fvisibility=hidden
 $(LIBZSTD): $(ZSTD_FILES)
 	@echo compiling dynamic library $(LIBVER)
-	@$(CC) $(FLAGS) $^ $(LDFLAGS) $(SONAME_FLAGS) -o $@
+	$(Q)$(CC) $(FLAGS) $^ $(LDFLAGS) $(SONAME_FLAGS) -o $@
 	@echo creating versioned links
-	@ln -sf $@ libzstd.$(SHARED_EXT_MAJOR)
-	@ln -sf $@ libzstd.$(SHARED_EXT)
+	$(Q)ln -sf $@ libzstd.$(SHARED_EXT_MAJOR)
+	$(Q)ln -sf $@ libzstd.$(SHARED_EXT)
 
 endif
 
-
+.PHONY: libzstd
 libzstd : $(LIBZSTD)
 
+.PHONY: lib
 lib : libzstd.a libzstd
 
+.PHONY: lib-mt
 %-mt : CPPFLAGS += -DZSTD_MULTITHREAD
 %-mt : LDFLAGS  += -pthread
 %-mt : %
 	@echo multi-threading build completed
 
+.PHONY: lib-release
 %-release : DEBUGFLAGS :=
 %-release : %
 	@echo release build completed
@@ -222,17 +227,17 @@ libzstd-nomt: LDFLAGS += -shared -fPIC -fvisibility=hidden
 libzstd-nomt: $(ZSTD_NOMT_FILES)
 	@echo compiling single-thread dynamic library $(LIBVER)
 	@echo files : $(ZSTD_NOMT_FILES)
-	@$(CC) $(FLAGS) $^ $(LDFLAGS) $(SONAME_FLAGS) -o $@
+	$(Q)$(CC) $(FLAGS) $^ $(LDFLAGS) $(SONAME_FLAGS) -o $@
 
 clean:
-	@$(RM) -r *.dSYM   # macOS-specific
-	@$(RM) core *.o *.a *.gcda *.$(SHARED_EXT) *.$(SHARED_EXT).* libzstd.pc
-	@$(RM) dll/libzstd.dll dll/libzstd.lib libzstd-nomt*
-	@$(RM) common/*.o compress/*.o decompress/*.o dictBuilder/*.o legacy/*.o deprecated/*.o
+	$(Q)$(RM) -r *.dSYM   # macOS-specific
+	$(Q)$(RM) core *.o *.a *.gcda *.$(SHARED_EXT) *.$(SHARED_EXT).* libzstd.pc
+	$(Q)$(RM) dll/libzstd.dll dll/libzstd.lib libzstd-nomt*
+	$(Q)$(RM) common/*.o compress/*.o decompress/*.o dictBuilder/*.o legacy/*.o deprecated/*.o
 	@echo Cleaning library completed
 
 #-----------------------------------------------------------------------------
-# make install is validated only for Linux, macOS, BSD, Hurd and Solaris targets
+# make install is validated only for below listed environments
 #-----------------------------------------------------------------------------
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku))
 
@@ -267,7 +272,7 @@ INSTALL_DATA    ?= $(INSTALL) -m 644
 libzstd.pc:
 libzstd.pc: libzstd.pc.in
 	@echo creating pkgconfig
-	@sed -e 's|@PREFIX@|$(PREFIX)|' \
+	$(Q)sed -e 's|@PREFIX@|$(PREFIX)|' \
              -e 's|@VERSION@|$(VERSION)|' \
              $< >$@
 
@@ -275,39 +280,39 @@ install: install-pc install-static install-shared install-includes
 	@echo zstd static and shared library installed
 
 install-pc: libzstd.pc
-	@$(INSTALL) -d -m 755 $(DESTDIR)$(PKGCONFIGDIR)/
-	@$(INSTALL_DATA) libzstd.pc $(DESTDIR)$(PKGCONFIGDIR)/
+	$(Q)$(INSTALL) -d -m 755 $(DESTDIR)$(PKGCONFIGDIR)/
+	$(Q)$(INSTALL_DATA) libzstd.pc $(DESTDIR)$(PKGCONFIGDIR)/
 
 install-static: libzstd.a
 	@echo Installing static library
-	@$(INSTALL) -d -m 755 $(DESTDIR)$(LIBDIR)/
-	@$(INSTALL_DATA) libzstd.a $(DESTDIR)$(LIBDIR)
+	$(Q)$(INSTALL) -d -m 755 $(DESTDIR)$(LIBDIR)/
+	$(Q)$(INSTALL_DATA) libzstd.a $(DESTDIR)$(LIBDIR)
 
 install-shared: libzstd
 	@echo Installing shared library
-	@$(INSTALL) -d -m 755 $(DESTDIR)$(LIBDIR)/
-	@$(INSTALL_PROGRAM) $(LIBZSTD) $(DESTDIR)$(LIBDIR)
-	@ln -sf $(LIBZSTD) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_MAJOR)
-	@ln -sf $(LIBZSTD) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT)
+	$(Q)$(INSTALL) -d -m 755 $(DESTDIR)$(LIBDIR)/
+	$(Q)$(INSTALL_PROGRAM) $(LIBZSTD) $(DESTDIR)$(LIBDIR)
+	$(Q)ln -sf $(LIBZSTD) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_MAJOR)
+	$(Q)ln -sf $(LIBZSTD) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT)
 
 install-includes:
 	@echo Installing includes
-	@$(INSTALL) -d -m 755 $(DESTDIR)$(INCLUDEDIR)/
-	@$(INSTALL_DATA) zstd.h $(DESTDIR)$(INCLUDEDIR)
-	@$(INSTALL_DATA) common/zstd_errors.h $(DESTDIR)$(INCLUDEDIR)
-	@$(INSTALL_DATA) deprecated/zbuff.h $(DESTDIR)$(INCLUDEDIR)     # prototypes generate deprecation warnings
-	@$(INSTALL_DATA) dictBuilder/zdict.h $(DESTDIR)$(INCLUDEDIR)
+	$(Q)$(INSTALL) -d -m 755 $(DESTDIR)$(INCLUDEDIR)/
+	$(Q)$(INSTALL_DATA) zstd.h $(DESTDIR)$(INCLUDEDIR)
+	$(Q)$(INSTALL_DATA) common/zstd_errors.h $(DESTDIR)$(INCLUDEDIR)
+	$(Q)$(INSTALL_DATA) deprecated/zbuff.h $(DESTDIR)$(INCLUDEDIR)     # prototypes generate deprecation warnings
+	$(Q)$(INSTALL_DATA) dictBuilder/zdict.h $(DESTDIR)$(INCLUDEDIR)
 
 uninstall:
-	@$(RM) $(DESTDIR)$(LIBDIR)/libzstd.a
-	@$(RM) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT)
-	@$(RM) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_MAJOR)
-	@$(RM) $(DESTDIR)$(LIBDIR)/$(LIBZSTD)
-	@$(RM) $(DESTDIR)$(PKGCONFIGDIR)/libzstd.pc
-	@$(RM) $(DESTDIR)$(INCLUDEDIR)/zstd.h
-	@$(RM) $(DESTDIR)$(INCLUDEDIR)/zstd_errors.h
-	@$(RM) $(DESTDIR)$(INCLUDEDIR)/zbuff.h   # Deprecated streaming functions
-	@$(RM) $(DESTDIR)$(INCLUDEDIR)/zdict.h
+	$(Q)$(RM) $(DESTDIR)$(LIBDIR)/libzstd.a
+	$(Q)$(RM) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT)
+	$(Q)$(RM) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_MAJOR)
+	$(Q)$(RM) $(DESTDIR)$(LIBDIR)/$(LIBZSTD)
+	$(Q)$(RM) $(DESTDIR)$(PKGCONFIGDIR)/libzstd.pc
+	$(Q)$(RM) $(DESTDIR)$(INCLUDEDIR)/zstd.h
+	$(Q)$(RM) $(DESTDIR)$(INCLUDEDIR)/zstd_errors.h
+	$(Q)$(RM) $(DESTDIR)$(INCLUDEDIR)/zbuff.h   # Deprecated streaming functions
+	$(Q)$(RM) $(DESTDIR)$(INCLUDEDIR)/zdict.h
 	@echo zstd libraries successfully uninstalled
 
 endif

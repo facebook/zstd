@@ -81,9 +81,9 @@ ZSTD_compressBlock_fast_generic(
 
     /* Main Search Loop */
 #ifdef __INTEL_COMPILER
-    /* From intel 'The vector pragma indicates that the loop should be 
-     * vectorized if it is legal to do so'. Can be used together with 
-     * #pragma ivdep (but have opted to exclude that because intel 
+    /* From intel 'The vector pragma indicates that the loop should be
+     * vectorized if it is legal to do so'. Can be used together with
+     * #pragma ivdep (but have opted to exclude that because intel
      * warns against using it).*/
     #pragma vector always
 #endif
@@ -98,7 +98,7 @@ ZSTD_compressBlock_fast_generic(
         U32 const current1 = (U32)(ip1-base);
         U32 const matchIndex0 = hashTable[h0];
         U32 const matchIndex1 = hashTable[h1];
-        BYTE const* repMatch = ip2-offset_1;
+        BYTE const* repMatch = ip2 - offset_1;
         const BYTE* match0 = base + matchIndex0;
         const BYTE* match1 = base + matchIndex1;
         U32 offcode;
@@ -113,9 +113,10 @@ ZSTD_compressBlock_fast_generic(
         assert(ip0 + 1 == ip1);
 
         if ((offset_1 > 0) & (MEM_read32(repMatch) == MEM_read32(ip2))) {
-            mLength = ip2[-1] == repMatch[-1] ? 1 : 0;
+            mLength = (ip2[-1] == repMatch[-1]) ? 1 : 0;
             ip0 = ip2 - mLength;
             match0 = repMatch - mLength;
+            mLength += 4;
             offcode = 0;
             goto _match;
         }
@@ -140,19 +141,18 @@ _offset: /* Requires: ip0, match0 */
         offset_2 = offset_1;
         offset_1 = (U32)(ip0-match0);
         offcode = offset_1 + ZSTD_REP_MOVE;
-        mLength = 0;
+        mLength = 4;
         /* Count the backwards match length */
         while (((ip0>anchor) & (match0>prefixStart))
              && (ip0[-1] == match0[-1])) { ip0--; match0--; mLength++; } /* catch up */
 
 _match: /* Requires: ip0, match0, offcode */
         /* Count the forward length */
-        mLength += ZSTD_count(ip0+mLength+4, match0+mLength+4, iend) + 4;
+        mLength += ZSTD_count(ip0+mLength, match0+mLength, iend);
         ZSTD_storeSeq(seqStore, (size_t)(ip0-anchor), anchor, iend, offcode, mLength-MINMATCH);
         /* match found */
         ip0 += mLength;
         anchor = ip0;
-        ip1 = ip0 + 1;
 
         if (ip0 <= ilimit) {
             /* Fill Table */
@@ -160,19 +160,18 @@ _match: /* Requires: ip0, match0, offcode */
             hashTable[ZSTD_hashPtr(base+current0+2, hlog, mls)] = current0+2;  /* here because current+2 could be > iend-8 */
             hashTable[ZSTD_hashPtr(ip0-2, hlog, mls)] = (U32)(ip0-2-base);
 
-            while ( ((ip0 <= ilimit) & (offset_2>0))  /* offset_2==0 means offset_2 is invalidated */
-                 && (MEM_read32(ip0) == MEM_read32(ip0 - offset_2)) ) {
-                /* store sequence */
-                size_t const rLength = ZSTD_count(ip0+4, ip0+4-offset_2, iend) + 4;
-                { U32 const tmpOff = offset_2; offset_2 = offset_1; offset_1 = tmpOff; } /* swap offset_2 <=> offset_1 */
-                hashTable[ZSTD_hashPtr(ip0, hlog, mls)] = (U32)(ip0-base);
-                ip0 += rLength;
-                ip1 = ip0 + 1;
-                ZSTD_storeSeq(seqStore, 0 /*litLen*/, anchor, iend, 0 /*offCode*/, rLength-MINMATCH);
-                anchor = ip0;
-                continue;   /* faster when present (confirmed on gcc-8) ... (?) */
-            }
-        }
+            if (offset_2 > 0) { /* offset_2==0 means offset_2 is invalidated */
+                while ( (ip0 <= ilimit) && (MEM_read32(ip0) == MEM_read32(ip0 - offset_2)) ) {
+                    /* store sequence */
+                    size_t const rLength = ZSTD_count(ip0+4, ip0+4-offset_2, iend) + 4;
+                    { U32 const tmpOff = offset_2; offset_2 = offset_1; offset_1 = tmpOff; } /* swap offset_2 <=> offset_1 */
+                    hashTable[ZSTD_hashPtr(ip0, hlog, mls)] = (U32)(ip0-base);
+                    ip0 += rLength;
+                    ZSTD_storeSeq(seqStore, 0 /*litLen*/, anchor, iend, 0 /*offCode*/, rLength-MINMATCH);
+                    anchor = ip0;
+                    continue;   /* faster when present (confirmed on gcc-8) ... (?) */
+        }   }   }
+        ip1 = ip0 + 1;
     }
 
     /* save reps for next block */

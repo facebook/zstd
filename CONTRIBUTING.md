@@ -70,6 +70,8 @@ Our contribution process works in three main stages:
     * Ensure CI tests pass:
         * Before sharing anything to the community, make sure that all CI tests pass on your local fork.
         See our section on setting up your CI environment for more information on how to do this.
+        * Ensure that static analysis passes on your development machine. See the Static Analysis section
+        below to see how to do this.
     * Create a pull request:
         * When you are ready to share you changes to the community, create a pull request from your branch
         to facebook:dev. You can do this very easily by clicking 'Create Pull Request' on your fork's home
@@ -105,6 +107,24 @@ Our contribution process works in three main stages:
         that contributers track the activity on their pull request and corresponding issue(s) page(s) until
         their change makes it to the next release of zstd. Users will often discover bugs in your code or
         suggest ways to refine and improve your initial changes even after the pull request is merged.
+
+## Static Analysis
+Static analysis is a process for examining the correctness or validity of a program without actually
+executing it. It usually helps us find many simple bugs. Zstd uses clang's `scan-build` tool for
+static analysis. You can install it by following the instructions for your OS on https://clang-analyzer.llvm.org/scan-build.
+
+Once installed, you can ensure that our static analysis tests pass on your local development machine
+by running:
+```
+make staticAnalyze
+```
+
+In general, you can use `scan-build` to static analyze any build script. For example, to static analyze
+just `contrib/largeNbDicts` and nothing else, you can run:
+
+```
+scan-build make -C contrib/largeNbDicts largeNbDicts
+```
 
 ## Setting up continuous integration (CI) on your fork
 Zstd uses a number of different continuous integration (CI) tools to ensure that new changes

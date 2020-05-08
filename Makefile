@@ -45,7 +45,7 @@ allmost: allzstd zlibwrapper
 
 # skip zwrapper, can't build that on alternate architectures without the proper zlib installed
 .PHONY: allzstd
-allzstd: lib
+allzstd: lib-all
 	$(MAKE) -C $(PRGDIR) all
 	$(MAKE) -C $(TESTDIR) all
 
@@ -55,7 +55,7 @@ all32:
 	$(MAKE) -C $(TESTDIR) all32
 
 .PHONY: lib lib-release libzstd.a
-lib lib-release :
+lib lib-release lib-all :
 	@$(MAKE) -C $(ZSTDDIR) $@
 
 .PHONY: zstd zstd-release

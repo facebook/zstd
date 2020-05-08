@@ -180,9 +180,12 @@ else
 endif
 
 
-.PHONY: default all clean install uninstall
+.PHONY: default lib-all all clean install uninstall
 
 default: lib-release
+
+# alias
+lib-all: all
 
 all: lib
 
@@ -250,6 +253,8 @@ clean:
 #-----------------------------------------------------------------------------
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku))
 
+all: libzstd.pc
+
 DESTDIR     ?=
 # directory variables : GNU conventions prefer lowercase
 # see https://www.gnu.org/prep/standards/html_node/Makefile-Conventions.html
@@ -257,10 +262,30 @@ DESTDIR     ?=
 prefix      ?= /usr/local
 PREFIX      ?= $(prefix)
 exec_prefix ?= $(PREFIX)
-libdir      ?= $(exec_prefix)/lib
+EXEC_PREFIX ?= $(exec_prefix)
+libdir      ?= $(EXEC_PREFIX)/lib
 LIBDIR      ?= $(libdir)
 includedir  ?= $(PREFIX)/include
 INCLUDEDIR  ?= $(includedir)
+
+PCLIBDIR ?= $(shell echo "$(LIBDIR)" | sed -n -E -e "s@^$(EXEC_PREFIX)(/|$$)@@p")
+PCINCDIR ?= $(shell echo "$(INCLUDEDIR)" | sed -n -E -e "s@^$(PREFIX)(/|$$)@@p")
+
+ifeq (,$(PCLIBDIR))
+# Additional prefix check is required, since the empty string is technically a
+# valid PCLIBDIR
+ifeq (,$(shell echo "$(LIBDIR)" | sed -n -E -e "\\@^$(EXEC_PREFIX)(/|$$)@ p"))
+$(error configured libdir ($(LIBDIR)) is outside of prefix ($(PREFIX)), can't generate pkg-config file)
+endif
+endif
+
+ifeq (,$(PCINCDIR))
+# Additional prefix check is required, since the empty string is technically a
+# valid PCINCDIR
+ifeq (,$(shell echo "$(INCLUDEDIR)" | sed -n -E -e "\\@^$(PREFIX)(/|$$)@ p"))
+$(error configured includedir ($(INCLUDEDIR)) is outside of exec_prefix ($(EXEC_PREFIX)), can't generate pkg-config file)
+endif
+endif
 
 ifneq (,$(filter $(shell uname),FreeBSD NetBSD DragonFly))
 PKGCONFIGDIR ?= $(PREFIX)/libdata/pkgconfig
@@ -281,9 +306,11 @@ INSTALL_DATA    ?= $(INSTALL) -m 644
 libzstd.pc:
 libzstd.pc: libzstd.pc.in
 	@echo creating pkgconfig
-	$(Q)sed -e 's|@PREFIX@|$(PREFIX)|' \
-             -e 's|@VERSION@|$(VERSION)|' \
-             $< >$@
+	$(Q)@sed -E -e 's|@PREFIX@|$(PREFIX)|' \
+          -e 's|@LIBDIR@|$(PCLIBDIR)|' \
+          -e 's|@INCLUDEDIR@|$(PCINCDIR)|' \
+          -e 's|@VERSION@|$(VERSION)|' \
+          $< >$@
 
 install: install-pc install-static install-shared install-includes
 	@echo zstd static and shared library installed

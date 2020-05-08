@@ -123,7 +123,7 @@ static void usage(FILE* f, const char* programName)
     DISPLAY_F(f, " -d     : decompression \n");
 #endif
     DISPLAY_F(f, " -D DICT: use DICT as Dictionary for compression or decompression \n");
-    DISPLAY_F(f, " -o file: result stored into file \n");
+    DISPLAY_F(f, " -o file: result stored into `file` (only 1 output file) \n");
     DISPLAY_F(f, " -f     : overwrite output without prompting, also (de)compress links \n");
     DISPLAY_F(f, "--rm    : remove source file(s) after successful de/compression \n");
     DISPLAY_F(f, " -k     : preserve source file(s) (default) \n");

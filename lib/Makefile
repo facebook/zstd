@@ -10,6 +10,15 @@
 
 Q = $(if $(filter 1,$(V) $(VERBOSE)),,@)
 
+# When cross-compiling from linux to windows, you might
+# need to specify this as "Windows." Fedora build fails
+# without it.
+#
+# Note: mingw-w64 build from linux to windows does not
+# fail on other tested distros (ubuntu, debian) even
+# without manually specifying the TARGET_SYSTEM.
+TARGET_SYSTEM ?= $(OS)
+
 # Version numbers
 LIBVER_MAJOR_SCRIPT:=`sed -n '/define ZSTD_VERSION_MAJOR/s/.*[[:blank:]]\([0-9][0-9]*\).*/\1/p' < ./zstd.h`
 LIBVER_MINOR_SCRIPT:=`sed -n '/define ZSTD_VERSION_MINOR/s/.*[[:blank:]]\([0-9][0-9]*\).*/\1/p' < ./zstd.h`
@@ -23,7 +32,7 @@ VERSION?= $(LIBVER)
 CCVER := $(shell $(CC) --version)
 
 CPPFLAGS+= -DXXH_NAMESPACE=ZSTD_
-ifeq ($(OS),Windows_NT)   # MinGW assumed
+ifeq ($(TARGET_SYSTEM),Windows_NT)   # MinGW assumed
 CPPFLAGS   += -D__USE_MINGW_ANSI_STDIO   # compatibility with %zu formatting
 endif
 DEBUGFLAGS= -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
@@ -182,7 +191,7 @@ libzstd.a: $(ZSTD_OBJ)
 	@echo compiling static library
 	$(Q)$(AR) $(ARFLAGS) $@ $^
 
-ifneq (,$(filter Windows%,$(OS)))
+ifneq (,$(filter Windows%,$(TARGET_SYSTEM)))
 
 LIBZSTD = dll\libzstd.dll
 $(LIBZSTD): $(ZSTD_FILES)

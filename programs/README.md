@@ -61,6 +61,24 @@ There are however other Makefile targets that create different variations of CLI
   In which case, linking stage will fail if `lz4` library cannot be found.
   This is useful to prevent silent feature disabling.
 
+- __ZSTD_NOBENCH__ : `zstd` cli will be compiled without its integrated benchmark module.
+  This can be useful to produce smaller binaries.
+  In this case, the corresponding unit can also be excluded from compilation target.
+
+- __ZSTD_NODICT__ : `zstd` cli will be compiled without support for the integrated dictionary builder.
+  This can be useful to produce smaller binaries.
+  In this case, the corresponding unit can also be excluded from compilation target.
+
+- __ZSTD_NOCOMPRESS__ : `zstd` cli will be compiled without support for compression.
+  The resulting binary will only be able to decompress files.
+  This can be useful to produce smaller binaries.
+  A corresponding `Makefile` target using this ability is `zstd-decompress`.
+
+- __ZSTD_NODECOMPRESS__ : `zstd` cli will be compiled without support for decompression.
+  The resulting binary will only be able to compress files.
+  This can be useful to produce smaller binaries.
+  A corresponding `Makefile` target using this ability is `zstd-compress`.
+
 - __BACKTRACE__ : `zstd` can display a stack backtrace when execution
   generates a runtime exception. By default, this feature may be
   degraded/disabled on some platforms unless additional compiler directives are

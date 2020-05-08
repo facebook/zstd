@@ -184,6 +184,7 @@ matrix:
       os: osx
       script:
         - make test
+        - make -C lib all
 
     - name: zbuff test
       if: branch = master

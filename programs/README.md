@@ -142,23 +142,34 @@ Advanced arguments :
  -q     : suppress warnings; specify twice to suppress errors too
  -c     : force write to standard output, even if it is the console
  -l     : print information about zstd compressed files
+--exclude-compressed:  only compress files that are not previously compressed
 --ultra : enable levels beyond 19, up to 22 (requires more memory)
---long  : enable long distance matching (requires more memory)
+--long[=#]: enable long distance matching with given window log (default: 27)
+--fast[=#]: switch to very fast compression levels (default: 1)
+--adapt : dynamically adapt compression level to I/O conditions
+--stream-size=# : optimize compression parameters for streaming input of given number of bytes
+--size-hint=# optimize compression parameters for streaming input of approximately this size
+--target-compressed-block-size=# : make compressed block near targeted size
+ -T#    : spawns # compression threads (default: 1, 0==# cores)
+ -B#    : select size of each job (default: 0==automatic)
+--rsyncable : compress using a rsync-friendly method (-B sets block size)
 --no-dictID : don't write dictID into header (dictionary compression)
 --[no-]check : integrity check (default: enabled)
+--[no-]compress-literals : force (un)compressed literals
  -r     : operate recursively on directories
+--output-dir-flat[=directory]: all resulting files stored into `directory`.
+--format=zstd : compress files to the .zst format (default)
 --format=gzip : compress files to the .gz format
---format=xz : compress files to the .xz format
---format=lzma : compress files to the .lzma format
 --test  : test compressed file integrity
 --[no-]sparse : sparse mode (default: disabled)
  -M#    : Set a memory usage limit for decompression
+--no-progress : do not display the progress bar
 --      : All arguments after "--" are treated as files
 
 Dictionary builder :
 --train ## : create a dictionary from a training set of files
 --train-cover[=k=#,d=#,steps=#,split=#,shrink[=#]] : use the cover algorithm with optional args
---train-fastcover[=k=#,d=#,f=#,steps=#,split=#,shrink[=#],accel=#] : use the fastcover algorithm with optional args
+--train-fastcover[=k=#,d=#,f=#,steps=#,split=#,accel=#,shrink[=#]] : use the fast cover algorithm with optional args
 --train-legacy[=s=#] : use the legacy algorithm with selectivity (default: 9)
  -o file : `file` is dictionary name (default: dictionary)
 --maxdict=# : limit dictionary to specified size (default: 112640)
@@ -208,12 +219,12 @@ Compression Speed vs Ratio | Decompression Speed
 
 | Method | Compression ratio | Compression speed | Decompression speed  |
 |:-------|------------------:|-------------------------:|---------------------------:|
-| `zstd -1`   | `5.065`   | `284.8 MB/s`  | `759.3 MB/s`  |
+| `zstd -1`  | `5.065`    | `284.8 MB/s`  | `759.3 MB/s`  |
 | `zstd -5`  | `5.826`    | `124.9 MB/s`  | `674.0 MB/s`  |
 | `zstd -10` | `6.504`    | `29.5 MB/s`   | `771.3 MB/s`  |
 | `zstd -1 --long` | `17.426` | `220.6 MB/s` | `1638.4 MB/s` |
-| `zstd -5 --long` | `19.661` | `165.5 MB/s` | `1530.6 MB/s`|
-| `zstd -10 --long`| `21.949` | `75.6 MB/s` | `1632.6 MB/s`|
+| `zstd -5 --long` | `19.661` | `165.5 MB/s` | `1530.6 MB/s` |
+| `zstd -10 --long`| `21.949` |  `75.6 MB/s` | `1632.6 MB/s` |
 
 On this file, the compression ratio improves significantly with minimal impact
 on compression speed, and the decompression speed doubles.

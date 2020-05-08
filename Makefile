@@ -18,7 +18,16 @@ FUZZDIR  = $(TESTDIR)/fuzz
 # Define nul output
 VOID = /dev/null
 
-ifneq (,$(filter Windows%,$(OS)))
+# When cross-compiling from linux to windows, you might
+# need to specify this as "Windows." Fedora build fails
+# without it.
+#
+# Note: mingw-w64 build from linux to windows does not
+# fail on other tested distros (ubuntu, debian) even
+# without manually specifying the TARGET_SYSTEM.
+TARGET_SYSTEM ?= $(OS)
+
+ifneq (,$(filter Windows%,$(TARGET_SYSTEM)))
 EXT =.exe
 else
 EXT =

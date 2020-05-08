@@ -1285,7 +1285,8 @@ int main(int const argCount, const char* argv[])
 
         /* Compare strategies constant with the ground truth */
         { ZSTD_bounds strategyBounds = ZSTD_cParam_getBounds(ZSTD_c_strategy);
-          assert(ZSTD_NB_STRATEGIES == strategyBounds.upperBound);}
+          assert(ZSTD_NB_STRATEGIES == strategyBounds.upperBound);
+          (void)strategyBounds; }
 
         if (showDefaultCParams) {
             size_t fileNb;

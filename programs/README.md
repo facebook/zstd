@@ -121,55 +121,66 @@ The `-i` parameter selects minimal time used for each of tested levels.
 #### Usage of Command Line Interface
 The full list of options can be obtained with `-h` or `-H` parameter:
 ```
-Usage :
-      zstd [args] [FILE(s)] [-o file]
+Usage : 
+      zstd [args] [FILE(s)] [-o file] 
 
-FILE    : a filename
+FILE    : a filename 
           with no FILE, or when FILE is - , read standard input
-Arguments :
- -#     : # compression level (1-19, default: 3)
- -d     : decompression
- -D file: use `file` as Dictionary
- -o file: result stored into `file` (only if 1 input file)
- -f     : overwrite output without prompting and (de)compress links
---rm    : remove source file(s) after successful de/compression
- -k     : preserve source file(s) (default)
- -h/-H  : display help/long help and exit
+Arguments : 
+ -#     : # compression level (1-19, default: 3) 
+ -d     : decompression 
+ -D file: use `file` as Dictionary 
+ -o file: result stored into `file` (only if 1 input file) 
+ -f     : overwrite output without prompting and (de)compress links 
+--rm    : remove source file(s) after successful de/compression 
+ -k     : preserve source file(s) (default) 
+ -h/-H  : display help/long help and exit 
 
-Advanced arguments :
- -V     : display Version number and exit
+Advanced arguments : 
+ -V     : display Version number and exit 
  -v     : verbose mode; specify multiple times to increase verbosity
  -q     : suppress warnings; specify twice to suppress errors too
  -c     : force write to standard output, even if it is the console
- -l     : print information about zstd compressed files
+ -l     : print information about zstd compressed files 
+--exclude-compressed:  only compress files that are not previously compressed 
 --ultra : enable levels beyond 19, up to 22 (requires more memory)
---long  : enable long distance matching (requires more memory)
+--long[=#]: enable long distance matching with given window log (default: 27)
+--fast[=#]: switch to very fast compression levels (default: 1)
+--adapt : dynamically adapt compression level to I/O conditions 
+--stream-size=# : optimize compression parameters for streaming input of given number of bytes 
+--size-hint=# optimize compression parameters for streaming input of approximately this size
+--target-compressed-block-size=# : make compressed block near targeted size 
+ -T#    : spawns # compression threads (default: 1, 0==# cores) 
+ -B#    : select size of each job (default: 0==automatic) 
+--rsyncable : compress using a rsync-friendly method (-B sets block size) 
 --no-dictID : don't write dictID into header (dictionary compression)
---[no-]check : integrity check (default: enabled)
- -r     : operate recursively on directories
---format=gzip : compress files to the .gz format
---format=xz : compress files to the .xz format
---format=lzma : compress files to the .lzma format
---test  : test compressed file integrity
+--[no-]check : integrity check (default: enabled) 
+--[no-]compress-literals : force (un)compressed literals 
+ -r     : operate recursively on directories 
+--output-dir-flat[=directory]: all resulting files stored into `directory`. 
+--format=zstd : compress files to the .zst format (default) 
+--format=gzip : compress files to the .gz format 
+--test  : test compressed file integrity 
 --[no-]sparse : sparse mode (default: disabled)
- -M#    : Set a memory usage limit for decompression
---      : All arguments after "--" are treated as files
+ -M#    : Set a memory usage limit for decompression 
+--no-progress : do not display the progress bar 
+--      : All arguments after "--" are treated as files 
 
-Dictionary builder :
---train ## : create a dictionary from a training set of files
+Dictionary builder : 
+--train ## : create a dictionary from a training set of files 
 --train-cover[=k=#,d=#,steps=#,split=#,shrink[=#]] : use the cover algorithm with optional args
---train-fastcover[=k=#,d=#,f=#,steps=#,split=#,shrink[=#],accel=#] : use the fastcover algorithm with optional args
+--train-fastcover[=k=#,d=#,f=#,steps=#,split=#,accel=#,shrink[=#]] : use the fast cover algorithm with optional args
 --train-legacy[=s=#] : use the legacy algorithm with selectivity (default: 9)
- -o file : `file` is dictionary name (default: dictionary)
---maxdict=# : limit dictionary to specified size (default: 112640)
+ -o file : `file` is dictionary name (default: dictionary) 
+--maxdict=# : limit dictionary to specified size (default: 112640) 
 --dictID=# : force dictionary ID to specified value (default: random)
 
-Benchmark arguments :
- -b#    : benchmark file(s), using # compression level (default: 3)
+Benchmark arguments : 
+ -b#    : benchmark file(s), using # compression level (default: 3) 
  -e#    : test all compression levels from -bX to # (default: 1)
- -i#    : minimum evaluation time in seconds (default: 3s)
+ -i#    : minimum evaluation time in seconds (default: 3s) 
  -B#    : cut file into independent blocks of size # (default: no block)
---priority=rt : set process priority to real-time
+--priority=rt : set process priority to real-time 
 ```
 
 #### Restricted usage of Environment Variables
@@ -231,7 +242,6 @@ The below table illustrates this on the [Silesia compression corpus].
 | `zstd -5 --long` | `3.319` | `51.7 MB/s`       | `371.9 MB/s`   |
 | `zstd -10`       | `3.523` | `16.4 MB/s`       | `489.2 MB/s`   |
 | `zstd -10 --long`| `3.566` | `16.2 MB/s`       | `415.7 MB/s`   |
-
 
 #### zstdgrep
 

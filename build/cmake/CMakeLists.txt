@@ -165,3 +165,39 @@ add_custom_target(clean-all
    COMMAND ${CMAKE_BUILD_TOOL} clean
    COMMAND rm -rf ${CMAKE_BINARY_DIR}/
 )
+
+#-----------------------------------------------------------------------------
+# Generate Package Config files
+#
+# This section is based on the boiler plate code from:
+# https://cmake.org/cmake/help/latest/manual/cmake-packages.7.html#creating-packages
+#-----------------------------------------------------------------------------
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/zstdConfigVersion.cmake"
+    VERSION ${zstd_VERSION}
+    COMPATIBILITY SameMajorVersion
+    )
+
+# A Package Config file that works from the build directory
+export(EXPORT zstdExports
+    FILE "${CMAKE_CURRENT_BINARY_DIR}/zstdTargets.cmake"
+    NAMESPACE zstd::
+    )
+configure_file(zstdConfig.cmake
+    "${CMAKE_CURRENT_BINARY_DIR}/zstdConfig.cmake"
+    COPYONLY
+    )
+
+# A Package Config file that works from the installation directory
+set(ConfigPackageLocation ${CMAKE_INSTALL_LIBDIR}/cmake/zstd)
+install(EXPORT zstdExports
+    FILE zstdTargets.cmake
+    NAMESPACE zstd::
+    DESTINATION ${ConfigPackageLocation}
+    )
+install(FILES
+    zstdConfig.cmake
+    "${CMAKE_CURRENT_BINARY_DIR}/zstdConfigVersion.cmake"
+    DESTINATION ${ConfigPackageLocation}
+    )

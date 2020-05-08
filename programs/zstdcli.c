@@ -122,9 +122,9 @@ static void usage(FILE* f, const char* programName)
 #ifndef ZSTD_NODECOMPRESS
     DISPLAY_F(f, " -d     : decompression \n");
 #endif
-    DISPLAY_F(f, " -D file: use `file` as Dictionary \n");
-    DISPLAY_F(f, " -o file: result stored into `file` (only if 1 input file) \n");
-    DISPLAY_F(f, " -f     : overwrite output without prompting and (de)compress links \n");
+    DISPLAY_F(f, " -D DICT: use DICT as Dictionary for compression or decompression \n");
+    DISPLAY_F(f, " -o file: result stored into file \n");
+    DISPLAY_F(f, " -f     : overwrite output without prompting, also (de)compress links \n");
     DISPLAY_F(f, "--rm    : remove source file(s) after successful de/compression \n");
     DISPLAY_F(f, " -k     : preserve source file(s) (default) \n");
     DISPLAY_F(f, " -h/-H  : display help/long help and exit \n");
@@ -137,34 +137,42 @@ static void usage_advanced(const char* programName)
     DISPLAYOUT( "\n");
     DISPLAYOUT( "Advanced arguments : \n");
     DISPLAYOUT( " -V     : display Version number and exit \n");
-    DISPLAYOUT( " -v     : verbose mode; specify multiple times to increase verbosity\n");
-    DISPLAYOUT( " -q     : suppress warnings; specify twice to suppress errors too\n");
-    DISPLAYOUT( " -c     : force write to standard output, even if it is the console\n");
-    DISPLAYOUT( " -l     : print information about zstd compressed files \n");
-    DISPLAYOUT( "--exclude-compressed: only compress files that are not previously compressed \n");
+
+    DISPLAYOUT( " -c     : force write to standard output, even if it is the console \n");
+
+    DISPLAYOUT( " -v     : verbose mode; specify multiple times to increase verbosity \n");
+    DISPLAYOUT( " -q     : suppress warnings; specify twice to suppress errors too \n");
+    DISPLAYOUT( "--no-progress : do not display the progress counter \n");
+
+#ifdef UTIL_HAS_CREATEFILELIST
+    DISPLAYOUT( " -r     : operate recursively on directories \n");
+    DISPLAYOUT( "--filelist=FILE : read list of files to operate upon from FILE \n");
+    DISPLAYOUT( "--output-dir-flat=DIR : all resulting files are stored into DIR \n");
+#endif
+
+    DISPLAYOUT( "--      : All arguments after \"--\" are treated as files \n");
+
 #ifndef ZSTD_NOCOMPRESS
-    DISPLAYOUT( "--ultra : enable levels beyond %i, up to %i (requires more memory)\n", ZSTDCLI_CLEVEL_MAX, ZSTD_maxCLevel());
-    DISPLAYOUT( "--long[=#]: enable long distance matching with given window log (default: %u)\n", g_defaultMaxWindowLog);
-    DISPLAYOUT( "--fast[=#]: switch to very fast compression levels (default: %u)\n", 1);
+    DISPLAYOUT( "\n");
+    DISPLAYOUT( "Advanced compression arguments : \n");
+    DISPLAYOUT( "--ultra : enable levels beyond %i, up to %i (requires more memory) \n", ZSTDCLI_CLEVEL_MAX, ZSTD_maxCLevel());
+    DISPLAYOUT( "--long[=#]: enable long distance matching with given window log (default: %u) \n", g_defaultMaxWindowLog);
+    DISPLAYOUT( "--fast[=#]: switch to very fast compression levels (default: %u) \n", 1);
     DISPLAYOUT( "--adapt : dynamically adapt compression level to I/O conditions \n");
-    DISPLAYOUT( "--stream-size=# : optimize compression parameters for streaming input of given number of bytes \n");
-    DISPLAYOUT( "--size-hint=# optimize compression parameters for streaming input of approximately this size\n");
-    DISPLAYOUT( "--target-compressed-block-size=# : make compressed block near targeted size \n");
 # ifdef ZSTD_MULTITHREAD
     DISPLAYOUT( " -T#    : spawns # compression threads (default: 1, 0==# cores) \n");
     DISPLAYOUT( " -B#    : select size of each job (default: 0==automatic) \n");
-    DISPLAYOUT( " --single-thread : use a single thread for both I/O and compression (result slightly different than -T1)\n");
+    DISPLAYOUT( "--single-thread : use a single thread for both I/O and compression (result slightly different than -T1) \n");
     DISPLAYOUT( "--rsyncable : compress using a rsync-friendly method (-B sets block size) \n");
 # endif
-    DISPLAYOUT( "--no-dictID : don't write dictID into header (dictionary compression)\n");
-    DISPLAYOUT( "--[no-]check : integrity check (default: enabled) \n");
+    DISPLAYOUT( "--exclude-compressed: only compress files that are not already compressed \n");
+    DISPLAYOUT( "--stream-size=# : specify size of streaming input from `stdin` \n");
+    DISPLAYOUT( "--size-hint=# optimize compression parameters for streaming input of approximately this size \n");
+    DISPLAYOUT( "--target-compressed-block-size=# : generate compressed block of approximately targeted size \n");
+    DISPLAYOUT( "--no-dictID : don't write dictID into header (dictionary compression only) \n");
+    DISPLAYOUT( "--[no-]check : add XXH64 integrity checksum to frame (default: enabled) \n");
     DISPLAYOUT( "--[no-]compress-literals : force (un)compressed literals \n");
-#endif  /* !ZSTD_NOCOMPRESS */
-#ifdef UTIL_HAS_CREATEFILELIST
-    DISPLAYOUT( " -r     : operate recursively on directories \n");
-    DISPLAYOUT( "--filelist=FILE : read a list of files from FILE. \n");
-    DISPLAYOUT( "--output-dir-flat=DIR : all resulting files are stored into DIR. \n");
-#endif
+
     DISPLAYOUT( "--format=zstd : compress files to the .zst format (default) \n");
 #ifdef ZSTD_GZCOMPRESS
     DISPLAYOUT( "--format=gzip : compress files to the .gz format \n");
@@ -176,37 +184,44 @@ static void usage_advanced(const char* programName)
 #ifdef ZSTD_LZ4COMPRESS
     DISPLAYOUT( "--format=lz4 : compress files to the .lz4 format \n");
 #endif
+#endif  /* !ZSTD_NOCOMPRESS */
+
 #ifndef ZSTD_NODECOMPRESS
+    DISPLAYOUT( "\n");
+    DISPLAYOUT( "Advanced decompression arguments : \n");
+    DISPLAYOUT( " -l     : print information about zstd compressed files \n");
     DISPLAYOUT( "--test  : test compressed file integrity \n");
-#if ZSTD_SPARSE_DEFAULT
-    DISPLAYOUT( "--[no-]sparse : sparse mode (default: enabled on file, disabled on stdout)\n");
-#else
-    DISPLAYOUT( "--[no-]sparse : sparse mode (default: disabled)\n");
-#endif
-#endif
     DISPLAYOUT( " -M#    : Set a memory usage limit for decompression \n");
-    DISPLAYOUT( "--no-progress : do not display the progress bar \n");
-    DISPLAYOUT( "--      : All arguments after \"--\" are treated as files \n");
+# if ZSTD_SPARSE_DEFAULT
+    DISPLAYOUT( "--[no-]sparse : sparse mode (default: enabled on file, disabled on stdout) \n");
+# else
+    DISPLAYOUT( "--[no-]sparse : sparse mode (default: disabled) \n");
+# endif
+#endif  /* ZSTD_NODECOMPRESS */
+
 #ifndef ZSTD_NODICT
     DISPLAYOUT( "\n");
     DISPLAYOUT( "Dictionary builder : \n");
     DISPLAYOUT( "--train ## : create a dictionary from a training set of files \n");
-    DISPLAYOUT( "--train-cover[=k=#,d=#,steps=#,split=#,shrink[=#]] : use the cover algorithm with optional args\n");
-    DISPLAYOUT( "--train-fastcover[=k=#,d=#,f=#,steps=#,split=#,accel=#,shrink[=#]] : use the fast cover algorithm with optional args\n");
-    DISPLAYOUT( "--train-legacy[=s=#] : use the legacy algorithm with selectivity (default: %u)\n", g_defaultSelectivityLevel);
-    DISPLAYOUT( " -o file : `file` is dictionary name (default: %s) \n", g_defaultDictName);
+    DISPLAYOUT( "--train-cover[=k=#,d=#,steps=#,split=#,shrink[=#]] : use the cover algorithm with optional args \n");
+    DISPLAYOUT( "--train-fastcover[=k=#,d=#,f=#,steps=#,split=#,accel=#,shrink[=#]] : use the fast cover algorithm with optional args \n");
+    DISPLAYOUT( "--train-legacy[=s=#] : use the legacy algorithm with selectivity (default: %u) \n", g_defaultSelectivityLevel);
+    DISPLAYOUT( " -o DICT : DICT is dictionary name (default: %s) \n", g_defaultDictName);
     DISPLAYOUT( "--maxdict=# : limit dictionary to specified size (default: %u) \n", g_defaultMaxDictSize);
-    DISPLAYOUT( "--dictID=# : force dictionary ID to specified value (default: random)\n");
+    DISPLAYOUT( "--dictID=# : force dictionary ID to specified value (default: random) \n");
 #endif
+
 #ifndef ZSTD_NOBENCH
     DISPLAYOUT( "\n");
     DISPLAYOUT( "Benchmark arguments : \n");
     DISPLAYOUT( " -b#    : benchmark file(s), using # compression level (default: %d) \n", ZSTDCLI_CLEVEL_DEFAULT);
-    DISPLAYOUT( " -e#    : test all compression levels from -bX to # (default: 1)\n");
+    DISPLAYOUT( " -e#    : test all compression levels successively from -b# to -e# (default: 1) \n");
     DISPLAYOUT( " -i#    : minimum evaluation time in seconds (default: 3s) \n");
-    DISPLAYOUT( " -B#    : cut file into independent blocks of size # (default: no block)\n");
+    DISPLAYOUT( " -B#    : cut file into independent blocks of size # (default: no block) \n");
+    DISPLAYOUT( " -S     : output one benchmark result per input file (default: consolidated result) \n");
     DISPLAYOUT( "--priority=rt : set process priority to real-time \n");
 #endif
+
 }
 
 static void badusage(const char* programName)

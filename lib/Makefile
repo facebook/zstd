@@ -180,11 +180,14 @@ else
 endif
 
 
-.PHONY: default all clean install uninstall
+.PHONY: default lib-all all clean install uninstall
 
 default: lib-release
 
-all: lib
+# alias
+lib-all: all
+
+all: lib libzstd.pc
 
 libzstd.a: ARFLAGS = rcs
 libzstd.a: $(ZSTD_OBJ)

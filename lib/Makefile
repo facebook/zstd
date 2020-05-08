@@ -187,7 +187,7 @@ default: lib-release
 # alias
 lib-all: all
 
-all: lib libzstd.pc
+all: lib
 
 libzstd.a: ARFLAGS = rcs
 libzstd.a: $(ZSTD_OBJ)
@@ -252,6 +252,8 @@ clean:
 # make install is validated only for below listed environments
 #-----------------------------------------------------------------------------
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku))
+
+all: libzstd.pc
 
 DESTDIR     ?=
 # directory variables : GNU conventions prefer lowercase

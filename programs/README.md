@@ -10,7 +10,7 @@ There are however other Makefile targets that create different variations of CLI
 - `zstd-decompress` : version of CLI which can only decompress zstd format
 
 
-#### Compilation variables
+### Compilation variables
 `zstd` scope can be altered by modifying the following `make` variables :
 
 - __HAVE_THREAD__ : multithreading is automatically enabled when `pthread` is detected.
@@ -69,11 +69,11 @@ There are however other Makefile targets that create different variations of CLI
   Example : `make zstd BACKTRACE=1`
 
 
-#### Aggregation of parameters
+### Aggregation of parameters
 CLI supports aggregation of parameters i.e. `-b1`, `-e18`, and `-i1` can be joined into `-b1e18i1`.
 
 
-#### Symlink shortcuts
+### Symlink shortcuts
 It's possible to invoke `zstd` through a symlink.
 When the name of the symlink has a specific value, it triggers an associated behavior.
 - `zstdmt` : compress using all cores available on local system.
@@ -86,7 +86,7 @@ When the name of the symlink has a specific value, it triggers an associated beh
 - `ungz`, `unxz` and `unlzma` will do the same, and will also remove source file by default (use `--keep` to preserve).
 
 
-#### Dictionary builder in Command Line Interface
+### Dictionary builder in Command Line Interface
 Zstd offers a training mode, which can be used to tune the algorithm for a selected
 type of data, by providing it with a few samples. The result of the training is stored
 in a file selected with the `-o` option (default name is `dictionary`),
@@ -106,7 +106,7 @@ Usage of the dictionary builder and created dictionaries with CLI:
 3. Decompress with the dictionary: `zstd --decompress FILE.zst -D dictionaryName`
 
 
-#### Benchmark in Command Line Interface
+### Benchmark in Command Line Interface
 CLI includes in-memory compression benchmark module for zstd.
 The benchmark is conducted using given filenames. The files are read into memory and joined together.
 It makes benchmark more precise as it eliminates I/O overhead.
@@ -118,7 +118,7 @@ One can select compression levels starting from `-b` and ending with `-e`.
 The `-i` parameter selects minimal time used for each of tested levels.
 
 
-#### Usage of Command Line Interface
+### Usage of Command Line Interface
 The full list of options can be obtained with `-h` or `-H` parameter:
 ```
 Usage :
@@ -172,16 +172,19 @@ Benchmark arguments :
 --priority=rt : set process priority to real-time
 ```
 
-#### Restricted usage of Environment Variables
-Using environment variables to set parameters has security implications.
-Therefore, this avenue is intentionally restricted.
-Only `ZSTD_CLEVEL` is supported currently, for setting compression level.
-`ZSTD_CLEVEL` can be used to set the level between 1 and 19 (the "normal" range).
-If the value of `ZSTD_CLEVEL` is not a valid integer, it will be ignored with a warning message.
-`ZSTD_CLEVEL` just replaces the default compression level (`3`).
-It can be overridden by corresponding command line arguments.
+### Passing parameters through Environment Variables
+`ZSTD_CLEVEL` can be used to modify the default compression level of `zstd`
+(usually set to `3`) to another value between 1 and 19 (the "normal" range).
+This can be useful when `zstd` CLI is invoked in a way that doesn't allow passing arguments.
+One such scenario is `tar --zstd`.
+As `ZSTD_CLEVEL` only replaces the default compression level,
+it can then be overridden by corresponding command line arguments.
 
-#### Long distance matching mode
+There is no "generic" way to pass "any kind of parameter" to `zstd` in a pass-through manner.
+Using environment variables for this purpose has security implications.
+Therefore, this avenue is intentionally restricted and only supports `ZSTD_CLEVEL`.
+
+### Long distance matching mode
 The long distance matching mode, enabled with `--long`, is designed to improve
 the compression ratio for files with long matches at a large distance (up to the
 maximum window size, `128 MiB`) while still maintaining compression speed.
@@ -233,7 +236,7 @@ The below table illustrates this on the [Silesia compression corpus].
 | `zstd -10 --long`| `3.566` | `16.2 MB/s`       | `415.7 MB/s`   |
 
 
-#### zstdgrep
+### zstdgrep
 
 `zstdgrep` is a utility which makes it possible to `grep` directly a `.zst` compressed file.
 It's used the same way as normal `grep`, for example :

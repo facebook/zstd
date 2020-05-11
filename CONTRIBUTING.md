@@ -44,7 +44,7 @@ Our contribution process works in three main stages:
         git pull https://github.com/facebook/zstd dev
         git push origin dev
         ```
-    * Topic and deveopment:
+    * Topic and development:
         * Make a new branch on your fork about the topic you're developing for
         ```
         # branch names should be consise but sufficiently informative
@@ -80,7 +80,7 @@ Our contribution process works in three main stages:
         as the destination.
         * Examine the diff presented between the two branches to make sure there is nothing unexpected.
     * Write a good pull request description:
-        * While there is no strict template that our contributers follow, we would like them to
+        * While there is no strict template that our contributors follow, we would like them to
         sufficiently summarize and motivate the changes they are proposing. We recommend all pull requests,
         at least indirectly, address the following points.
             * Is this pull request important and why?
@@ -127,7 +127,7 @@ scan-build make -C contrib/largeNbDicts largeNbDicts
 ```
 
 ## Performance
-Performance is extermely important for zstd and we only merge pull requests whose performance
+Performance is extremely important for zstd and we only merge pull requests whose performance
 landscape and corresponding trade-offs have been adequately analyzed, reproduced, and presented.
 This high bar for performance means that every PR which has the potential to
 impact performance takes a very long time for us to properly review. That being said, we
@@ -139,7 +139,7 @@ very well documented via past Github issues and pull requests. It may be the cas
 particular performance optimization has already been considered in the past. Please take some
 time to search through old issues and pull requests using keywords specific to your
 would-be PR. Of course, just because a topic has already been discussed (and perhaps rejected
-on some grounds) in the past, doesn't mean it isn't worth brining up again. But even in that case,
+on some grounds) in the past, doesn't mean it isn't worth bringing up again. But even in that case,
 it will be helpful for you to have context from that topic's history before contributing.
 2. The distinction between noise and actual performance gains can unfortunately be very subtle
 especially when microbenchmarking extremely small wins or losses. The only remedy to getting
@@ -167,17 +167,17 @@ hands on a desktop, this is usually a better scenario.
 
 Of course, benchmarking can be done on non-hyper-stable machines as well. You will just have to
 do a little more work to ensure that you are in fact measuring the changes you've made not and
-nosie. Here are some simple things you can do to make your benchmarks more stable:
+noise. Here are some simple things you can do to make your benchmarks more stable:
 
 1. The most simple thing you can do to drastically improve the stability of your benchmark is
-to run it mulitple times and then aggregate the results of those runs. As a general rule of
+to run it multiple times and then aggregate the results of those runs. As a general rule of
 thumb, the smaller the change you are trying to measure, the more samples of benchmark runs
-you will have to aggregate over to get reliable results. Here are some additonal things to keep in
+you will have to aggregate over to get reliable results. Here are some additional things to keep in
 mind when running multiple trials:
     * How you aggregate your samples are important. You might be tempted to use the mean of your
     results. While this is certainly going to be a more stable number than a raw single sample
     benchmark number, you might have more luck by taking the median. The mean is not robust to
-    outliers wheas the median is. Better still, you could simply take the fastest speed your
+    outliers whereas the median is. Better still, you could simply take the fastest speed your
     benchmark achieved on each run since that is likely the fastest your process will be
     capable of running your code. In our experience, this (aggregating by just taking the sample
     with the fastest running time) has been the most stable approach.
@@ -191,7 +191,7 @@ mind when running multiple trials:
     address is directly by simply not including the first `n` iterations of your benchmark in
     your aggregations. You can determine `n` by simply looking at the results from each iteration
     and then hand picking a good threshold after which the variance in results seems to stabilize.
-2. You cannot really get reliable benchmarks if your host machine is simultaniously running
+2. You cannot really get reliable benchmarks if your host machine is simultaneously running
 another cpu/memory-intensive application in the background. If you are running benchmarks on your
 personal laptop for instance, you should close all applications (including your code editor and
 browser) before running your benchmarks. You might also have invisible background applications
@@ -203,9 +203,9 @@ on Windows. You will get more stable benchmark results of you end those processe
         * On linux boxes, you have use https://github.com/lpechacek/cpuset.
         * On Windows, you can "Set Processor Affinity" using https://www.thewindowsclub.com/processor-affinity-windows
         * On Mac, you can try to use their dedicated affinity API https://developer.apple.com/library/archive/releasenotes/Performance/RN-AffinityAPI/#//apple_ref/doc/uid/TP40006635-CH1-DontLinkElementID_2
-3. To benchmark, you will likely end up writing a seperate c/c++ program that will link libzstd.
+3. To benchmark, you will likely end up writing a separate c/c++ program that will link libzstd.
 Dynamically linking your library will introduce some added variation (not a large amount but
-definitly some). Statically linking libzstd will be more stable. Static libraries should
+definitely some). Statically linking libzstd will be more stable. Static libraries should
 be enabled by default when building zstd.
 
 Those are the low hanging fruit. You can also try the following more advanced techniques
@@ -219,12 +219,12 @@ tmpfs avoids touching a real storage system, which can have a pretty big variabi
 
 Also check our LLVM's guide on benchmarking here: https://llvm.org/docs/Benchmarking.html
 
-### zstdbench
+### Becnhzstd
 The fastest signal you can get regarding your performance changes is via the in-build zstd cli
 bench option. You can run Zstd as you typically would for your scenario using some set of options
-and thn additinally also specify the `-b#` option. Doing this will run our benchmarking pipeline
+and then additionally also specify the `-b#` option. Doing this will run our benchmarking pipeline
 for that options you have just provided. If you want to look at the internals of how this
-benchmarking script works, you can check out benchzstd.c file under tests.
+benchmarking script works, you can check out programs/benchzstd.c
 
 For example: say you have made a change that you believe improves the speed of zstd level 1. The
 very first thing you should use to asses whether you actually achieved any sort of improvement
@@ -243,8 +243,8 @@ $ zstd-new -i5 -b1 <your-test-data>
  1<your-test-data>         :      8990 ->      3992 (2.252), 302.8 MB/s , 628.4 MB/s
 ```
 
-Unless your performace win is large enough to be visibile despite the intrinsic noise
-on your computer, zstdbench alone will likely not be enough to validate the impact of your
+Unless your performance win is large enough to be visible despite the intrinsic noise
+on your computer, benchzstd alone will likely not be enough to validate the impact of your
 changes. For example, the results of the example above indicate that effectively nothing
 changed but there could be a small <3% improvement that the noise on the host machine
 obscured. So unless you see a large performance win (10-15% consistently) using just

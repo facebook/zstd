@@ -215,7 +215,7 @@ tmpfs avoids touching a real storage system, which can have a pretty big variabi
 
 Also check our LLVM's guide on benchmarking here: https://llvm.org/docs/Benchmarking.html
 
-### Becnhzstd
+### Zstd benchmark
 The fastest signal you can get regarding your performance changes is via the in-build zstd cli
 bench option. You can run Zstd as you typically would for your scenario using some set of options
 and then additionally also specify the `-b#` option. Doing this will run our benchmarking pipeline

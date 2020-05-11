@@ -1144,13 +1144,26 @@ size_t ZSTD_estimateCCtxSize_usingCCtxParams(const ZSTD_CCtx_params* params)
         size_t const ldmSpace = ZSTD_ldm_getTableSize(params->ldmParams);
         size_t const ldmSeqSpace = ZSTD_cwksp_alloc_size(ZSTD_ldm_getMaxNbSeq(params->ldmParams, blockSize) * sizeof(rawSeq));
 
-        size_t const neededSpace = entropySpace + blockStateSpace + tokenSpace +
-                                   matchStateSize + ldmSpace + ldmSeqSpace;
+        /* estimateCCtxSize is for one-shot compression. So no buffers should
+         * be needed. However, we still allocate two 0-sized buffers, which can
+         * take space under ASAN. */
+        size_t const bufferSpace = ZSTD_cwksp_alloc_size(0)
+                                 + ZSTD_cwksp_alloc_size(0);
+
         size_t const cctxSpace = ZSTD_cwksp_alloc_size(sizeof(ZSTD_CCtx));
 
-        DEBUGLOG(5, "sizeof(ZSTD_CCtx) : %u", (U32)cctxSpace);
+        size_t const neededSpace =
+            cctxSpace +
+            entropySpace +
+            blockStateSpace +
+            ldmSpace +
+            ldmSeqSpace +
+            matchStateSize +
+            tokenSpace +
+            bufferSpace;
+
         DEBUGLOG(5, "estimate workspace : %u", (U32)neededSpace);
-        return cctxSpace + neededSpace;
+        return neededSpace;
     }
 }
 

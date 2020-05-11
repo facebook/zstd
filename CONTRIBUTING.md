@@ -167,7 +167,7 @@ hands on a desktop, this is usually a better scenario.
 
 Of course, benchmarking can be done on non-hyper-stable machines as well. You will just have to
 do a little more work to ensure that you are in fact measuring the changes you've made not and
-noise. Here are some simple things you can do to make your benchmarks more stable:
+noise. Here are some things you can do to make your benchmarks more stable:
 
 1. The most simple thing you can do to drastically improve the stability of your benchmark is
 to run it multiple times and then aggregate the results of those runs. As a general rule of
@@ -207,14 +207,10 @@ on Windows. You will get more stable benchmark results of you end those processe
 Dynamically linking your library will introduce some added variation (not a large amount but
 definitely some). Statically linking libzstd will be more stable. Static libraries should
 be enabled by default when building zstd.
-
-Those are the low hanging fruit. You can also try the following more advanced techniques
-if you need to measure smaller changes:
-
-1. Use a profiler with a good high resolution timer. See the section below on profiling for
+4. Use a profiler with a good high resolution timer. See the section below on profiling for
 details on this.
-2. Disable frequency scaling, turbo boost and address space randomization (this will vary by OS)
-3. Try to avoid storage. On some systems you can use tmpfs. Putting the program, inputs and outputs on
+5. Disable frequency scaling, turbo boost and address space randomization (this will vary by OS)
+6. Try to avoid storage. On some systems you can use tmpfs. Putting the program, inputs and outputs on
 tmpfs avoids touching a real storage system, which can have a pretty big variability.
 
 Also check our LLVM's guide on benchmarking here: https://llvm.org/docs/Benchmarking.html

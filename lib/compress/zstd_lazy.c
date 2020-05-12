@@ -951,12 +951,13 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
         size_t offset=0;
         const BYTE* start=ip+1;
         U32 current = (U32)(ip-base);
+        U32 windowLow = ZSTD_getLowestMatchIndex(ms, current, ms->cParams.windowLog);
 
         /* check repCode */
         {   const U32 repIndex = (U32)(current+1 - offset_1);
             const BYTE* const repBase = repIndex < dictLimit ? dictBase : base;
             const BYTE* const repMatch = repBase + repIndex;
-            if (((U32)((dictLimit-1) - repIndex) >= 3) & (repIndex > lowestIndex))   /* intentional overflow */
+            if (((U32)((dictLimit-1) - repIndex) >= 3) & (repIndex > windowLow))   /* intentional overflow */
             if (MEM_read32(ip+1) == MEM_read32(repMatch)) {
                 /* repcode detected we should take it */
                 const BYTE* const repEnd = repIndex < dictLimit ? dictEnd : iend;
@@ -981,12 +982,14 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
         while (ip<ilimit) {
             ip ++;
             current++;
+            windowLow = ZSTD_getLowestMatchIndex(ms, current, ms->cParams.windowLog);
             /* check repCode */
             if (offset) {
                 const U32 repIndex = (U32)(current - offset_1);
                 const BYTE* const repBase = repIndex < dictLimit ? dictBase : base;
                 const BYTE* const repMatch = repBase + repIndex;
-                if (((U32)((dictLimit-1) - repIndex) >= 3) & (repIndex > lowestIndex))  /* intentional overflow */
+                windowLow = ZSTD_getLowestMatchIndex(ms, current, ms->cParams.windowLog);
+                if (((U32)((dictLimit-1) - repIndex) >= 3) & (repIndex > windowLow))  /* intentional overflow */
                 if (MEM_read32(ip) == MEM_read32(repMatch)) {
                     /* repcode detected */
                     const BYTE* const repEnd = repIndex < dictLimit ? dictEnd : iend;
@@ -1011,12 +1014,13 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
             if ((depth==2) && (ip<ilimit)) {
                 ip ++;
                 current++;
+                windowLow = ZSTD_getLowestMatchIndex(ms, current, ms->cParams.windowLog);
                 /* check repCode */
                 if (offset) {
                     const U32 repIndex = (U32)(current - offset_1);
                     const BYTE* const repBase = repIndex < dictLimit ? dictBase : base;
                     const BYTE* const repMatch = repBase + repIndex;
-                    if (((U32)((dictLimit-1) - repIndex) >= 3) & (repIndex > lowestIndex))  /* intentional overflow */
+                    if (((U32)((dictLimit-1) - repIndex) >= 3) & (repIndex > windowLow))  /* intentional overflow */
                     if (MEM_read32(ip) == MEM_read32(repMatch)) {
                         /* repcode detected */
                         const BYTE* const repEnd = repIndex < dictLimit ? dictEnd : iend;
@@ -1060,7 +1064,8 @@ _storeSequence:
             const U32 repIndex = (U32)((ip-base) - offset_2);
             const BYTE* const repBase = repIndex < dictLimit ? dictBase : base;
             const BYTE* const repMatch = repBase + repIndex;
-            if (((U32)((dictLimit-1) - repIndex) >= 3) & (repIndex > lowestIndex))  /* intentional overflow */
+            windowLow = ZSTD_getLowestMatchIndex(ms, current, ms->cParams.windowLog);
+            if (((U32)((dictLimit-1) - repIndex) >= 3) & (repIndex > windowLow))  /* intentional overflow */
             if (MEM_read32(ip) == MEM_read32(repMatch)) {
                 /* repcode detected we should take it */
                 const BYTE* const repEnd = repIndex < dictLimit ? dictEnd : iend;

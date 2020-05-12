@@ -946,6 +946,8 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
 
     U32 offset_1 = rep[0], offset_2 = rep[1];
 
+    DEBUGLOG(5, "ZSTD_compressBlock_lazy_extDict_generic");
+
     /* init */
     ip += (ip == prefixStart);
 
@@ -957,7 +959,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
         U32 current = (U32)(ip-base);
 
         /* check repCode */
-        {   const U32 windowLow = ZSTD_getLowestMatchIndex(ms, current, windowLog);
+        {   const U32 windowLow = ZSTD_getLowestMatchIndex(ms, current+1, windowLog);
             const U32 repIndex = (U32)(current+1 - offset_1);
             const BYTE* const repBase = repIndex < dictLimit ? dictBase : base;
             const BYTE* const repMatch = repBase + repIndex;
@@ -1064,8 +1066,9 @@ _storeSequence:
 
         /* check immediate repcode */
         while (ip <= ilimit) {
-            const U32 windowLow = ZSTD_getLowestMatchIndex(ms, current, windowLog);
-            const U32 repIndex = (U32)((ip-base) - offset_2);
+            const U32 repCurrent = (U32)(ip-base);
+            const U32 windowLow = ZSTD_getLowestMatchIndex(ms, repCurrent, windowLog);
+            const U32 repIndex = repCurrent - offset_2;
             const BYTE* const repBase = repIndex < dictLimit ? dictBase : base;
             const BYTE* const repMatch = repBase + repIndex;
             if (((U32)((dictLimit-1) - repIndex) >= 3) & (repIndex > windowLow))  /* intentional overflow */

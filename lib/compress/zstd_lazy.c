@@ -662,10 +662,14 @@ ZSTD_compressBlock_lazy_generic(
                                      0;
     const U32 dictAndPrefixLength = (U32)((ip - prefixLowest) + (dictEnd - dictLowest));
 
+    DEBUGLOG(5, "ZSTD_compressBlock_lazy_generic (dictMode=%u)", (U32)dictMode);
+
     /* init */
     ip += (dictAndPrefixLength == 0);
     if (dictMode == ZSTD_noDict) {
-        U32 const maxRep = (U32)(ip - prefixLowest);
+        U32 const current = (U32)(ip - base);
+        U32 const windowLow = ZSTD_getLowestPrefixIndex(ms, current, ms->cParams.windowLog);
+        U32 const maxRep = current - windowLow;
         if (offset_2 > maxRep) savedOffset = offset_2, offset_2 = 0;
         if (offset_1 > maxRep) savedOffset = offset_1, offset_1 = 0;
     }

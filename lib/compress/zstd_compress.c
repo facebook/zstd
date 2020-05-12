@@ -1129,6 +1129,7 @@ ZSTD_sizeof_matchState(const ZSTD_compressionParameters* const cParams,
 static size_t ZSTD_estimateCCtxSize_usingCCtxParams_internal(
         const ZSTD_compressionParameters* cParams,
         const ldmParams_t* ldmParams,
+        const int isStatic,
         const size_t buffInSize,
         const size_t buffOutSize,
         const size_t pledgedSrcSize)
@@ -1152,7 +1153,7 @@ static size_t ZSTD_estimateCCtxSize_usingCCtxParams_internal(
     size_t const bufferSpace = ZSTD_cwksp_alloc_size(buffInSize)
                              + ZSTD_cwksp_alloc_size(buffOutSize);
 
-    size_t const cctxSpace = ZSTD_cwksp_alloc_size(sizeof(ZSTD_CCtx));
+    size_t const cctxSpace = isStatic ? ZSTD_cwksp_alloc_size(sizeof(ZSTD_CCtx)) : 0;
 
     size_t const neededSpace =
         cctxSpace +
@@ -1178,7 +1179,7 @@ size_t ZSTD_estimateCCtxSize_usingCCtxParams(const ZSTD_CCtx_params* params)
      * be needed. However, we still allocate two 0-sized buffers, which can
      * take space under ASAN. */
     return ZSTD_estimateCCtxSize_usingCCtxParams_internal(
-        &cParams, &params->ldmParams, 0, 0, ZSTD_CONTENTSIZE_UNKNOWN);
+        &cParams, &params->ldmParams, 1, 0, 0, ZSTD_CONTENTSIZE_UNKNOWN);
 }
 
 size_t ZSTD_estimateCCtxSize_usingCParams(ZSTD_compressionParameters cParams)
@@ -1214,7 +1215,7 @@ size_t ZSTD_estimateCStreamSize_usingCCtxParams(const ZSTD_CCtx_params* params)
         size_t const outBuffSize = ZSTD_compressBound(blockSize) + 1;
 
         return ZSTD_estimateCCtxSize_usingCCtxParams_internal(
-            &cParams, &params->ldmParams, inBuffSize, outBuffSize,
+            &cParams, &params->ldmParams, 1, inBuffSize, outBuffSize,
             ZSTD_CONTENTSIZE_UNKNOWN);
     }
 }
@@ -1473,7 +1474,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         {
             size_t const neededSpace =
                 ZSTD_estimateCCtxSize_usingCCtxParams_internal(
-                    &params.cParams, &params.ldmParams,
+                    &params.cParams, &params.ldmParams, zc->staticSize != 0,
                     buffInSize, buffOutSize, pledgedSrcSize);
 
             int const workspaceTooSmall = ZSTD_cwksp_sizeof(ws) < neededSpace;

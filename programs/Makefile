@@ -213,13 +213,13 @@ zstd-noxz : LZMALD  :=
 zstd-noxz : LZMA_MSG := - xz/lzma support is disabled
 zstd-noxz : zstd
 
-# note : the following target doesn't build
+## zstd-dll: zstd executable linked to dynamic library libzstd (must already exist)
+# note : the following target doesn't link
 #        because zstd uses non-public symbols from libzstd
 #        such as XXH64 (for benchmark),
-#        ZDICT_trainFromBuffer_unsafe_legacy for dictionary builder
-#        and ZSTD_cycleLog (likely for --patch-from)
-#        It's unclear at this stage if this is a scenario we want to support
-## zstd-dll: zstd executable linked to dynamic library libzstd (must already exist)
+#        ZDICT_trainFromBuffer_unsafe_legacy (for dictionary builder)
+#        and ZSTD_cycleLog (likely for --patch-from).
+#        It's unclear at this stage if this is a scenario that must be supported
 .PHONY: zstd-dll
 zstd-dll : LDFLAGS+= -L$(ZSTDDIR) -lzstd
 zstd-dll : ZSTDLIB_FILES =
@@ -227,6 +227,7 @@ zstd-dll : $(ZSTD_CLI_OBJ)
 	$(CC) $(FLAGS) $^ -o $@$(EXT) $(LDFLAGS)
 
 
+## zstd-pgo: zstd executable optimized with pgo. `gcc` only.
 zstd-pgo :
 	$(MAKE) clean
 	$(MAKE) zstd MOREFLAGS=-fprofile-generate

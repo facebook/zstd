@@ -160,6 +160,10 @@ struct ZSTD_DCtx_s
     BYTE headerBuffer[ZSTD_FRAMEHEADERSIZE_MAX];
 
     size_t oversizedDuration;
+
+#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+    void const* dictContentEndForFuzzing;
+#endif
 };  /* typedef'd to ZSTD_DCtx within "zstd.h" */
 
 

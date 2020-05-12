@@ -65,6 +65,9 @@ void ZSTD_copyDDictParameters(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict)
     dctx->virtualStart = ddict->dictContent;
     dctx->dictEnd = (const BYTE*)ddict->dictContent + ddict->dictSize;
     dctx->previousDstEnd = dctx->dictEnd;
+#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+    dctx->dictContentEndForFuzzing = dctx->previousDstEnd;
+#endif
     if (ddict->entropyPresent) {
         dctx->litEntropy = 1;
         dctx->fseEntropy = 1;

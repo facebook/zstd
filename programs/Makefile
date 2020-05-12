@@ -238,6 +238,7 @@ zstd-pgo :
 	./zstd -b7i2 $(PROFILE_WITH)
 	./zstd -b5 $(PROFILE_WITH)
 	$(RM) zstd *.o $(ZSTDDECOMP_O) $(ZSTDDIR)/compress/*.o
+	case $(CC) in *clang*) if ! [ -e default.profdata ]; then llvm-profdata merge -output=default.profdata default*.profraw; fi ;; esac
 	$(MAKE) zstd MOREFLAGS=-fprofile-use
 
 ## zstd-small: minimal target, supporting only zstd compression and decompression. no bench. no legacy. no other format.
@@ -278,7 +279,7 @@ clean:
 	@$(RM) core *.o tmp* result* *.gcda dictionary *.zst \
         zstd$(EXT) zstd32$(EXT) zstd-compress$(EXT) zstd-decompress$(EXT) \
         zstd-small$(EXT) zstd-frugal$(EXT) zstd-nolegacy$(EXT) zstd4$(EXT) \
-        zstd-dictBuilder$(EXT) *.gcda default.profraw have_zlib$(EXT)
+        zstd-dictBuilder$(EXT) *.gcda default*.profraw default.profdata have_zlib$(EXT)
 	@echo Cleaning completed
 
 MD2ROFF = ronn

@@ -274,9 +274,9 @@ typedef enum {
                               * Default level is ZSTD_CLEVEL_DEFAULT==3.
                               * Special: value 0 means default, which is controlled by ZSTD_CLEVEL_DEFAULT.
                               * Note 1 : it's possible to pass a negative compression level.
-                              * Note 2 : setting a level does not automatically set all other compression parameters 
-                              *   to default. Setting this will however eventually dynamically impact the compression 
-                              *   parameters which have not been manually set. The manually set 
+                              * Note 2 : setting a level does not automatically set all other compression parameters
+                              *   to default. Setting this will however eventually dynamically impact the compression
+                              *   parameters which have not been manually set. The manually set
                               *   ones will 'stick'. */
     /* Advanced compression parameters :
      * It's possible to pin down compression parameters to some specific values.
@@ -1268,23 +1268,28 @@ ZSTDLIB_API size_t ZSTD_getSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
 ***************************************/
 
 /*! ZSTD_estimate*() :
- *  These functions make it possible to estimate memory usage of a future
- *  {D,C}Ctx, before its creation.
+ *  These functions make it possible to estimate memory usage
+ *  of a future {D,C}Ctx, before its creation.
  *
- *  ZSTD_estimateCCtxSize() will provide a budget large enough for any
- *  compression level up to selected one. Unlike ZSTD_estimateCStreamSize*(),
- *  this estimate does not include space for a window buffer, so this estimate
- *  is guaranteed to be enough for single-shot compressions, but not streaming
- *  compressions. It will however assume the input may be arbitrarily large,
- *  which is the worst case. If srcSize is known to always be small,
- *  ZSTD_estimateCCtxSize_usingCParams() can provide a tighter estimation.
- *  ZSTD_estimateCCtxSize_usingCParams() can be used in tandem with
- *  ZSTD_getCParams() to create cParams from compressionLevel.
- *  ZSTD_estimateCCtxSize_usingCCtxParams() can be used in tandem with
- *  ZSTD_CCtxParams_setParameter().
+ *  ZSTD_estimateCCtxSize() will provide a memory budget large enough
+ *  for any compression level up to selected one.
+ *  Note : Unlike ZSTD_estimateCStreamSize*(), this estimate
+ *         does not include space for a window buffer.
+ *         Therefore, the estimation is only guaranteed for single-shot compressions, not streaming.
+ *  The estimate will assume the input may be arbitrarily large,
+ *  which is the worst case.
  *
- *  Note: only single-threaded compression is supported. This function will
- *  return an error code if ZSTD_c_nbWorkers is >= 1. */
+ *  When srcSize can be bound by a known and rather "small" value,
+ *  this fact can be used to provide a tighter estimation
+ *  because the CCtx compression context will need less memory.
+ *  This tighter estimation can be provided by more advanced functions
+ *  ZSTD_estimateCCtxSize_usingCParams(), which can be used in tandem with ZSTD_getCParams(),
+ *  and ZSTD_estimateCCtxSize_usingCCtxParams(), which can be used in tandem with ZSTD_CCtxParams_setParameter().
+ *  Both can be used to estimate memory using custom compression parameters and arbitrary srcSize limits.
+ *
+ *  Note 2 : only single-threaded compression is supported.
+ *  ZSTD_estimateCCtxSize_usingCCtxParams() will return an error code if ZSTD_c_nbWorkers is >= 1.
+ */
 ZSTDLIB_API size_t ZSTD_estimateCCtxSize(int compressionLevel);
 ZSTDLIB_API size_t ZSTD_estimateCCtxSize_usingCParams(ZSTD_compressionParameters cParams);
 ZSTDLIB_API size_t ZSTD_estimateCCtxSize_usingCCtxParams(const ZSTD_CCtx_params* params);

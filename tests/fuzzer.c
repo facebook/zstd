@@ -1066,11 +1066,12 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
     /* Static CCtx tests */
 #define STATIC_CCTX_LEVEL 3
-    DISPLAYLEVEL(3, "test%3i : create static CCtx for level %u :", testNb++, STATIC_CCTX_LEVEL);
-    {   size_t const staticCCtxSize = ZSTD_estimateCStreamSize(STATIC_CCTX_LEVEL);
-        void* const staticCCtxBuffer = malloc(staticCCtxSize);
+    DISPLAYLEVEL(3, "test%3i : create static CCtx for level %u : ", testNb++, STATIC_CCTX_LEVEL);
+    {   size_t const staticCStreamSize = ZSTD_estimateCStreamSize(STATIC_CCTX_LEVEL);
+        void* const staticCCtxBuffer = malloc(staticCStreamSize);
         size_t const staticDCtxSize = ZSTD_estimateDCtxSize();
         void* const staticDCtxBuffer = malloc(staticDCtxSize);
+        DISPLAYLEVEL(4, "CStream size = %u, ", (U32)staticCStreamSize);
         if (staticCCtxBuffer==NULL || staticDCtxBuffer==NULL) {
             free(staticCCtxBuffer);
             free(staticDCtxBuffer);
@@ -1078,17 +1079,25 @@ static int basicUnitTests(U32 const seed, double compressibility)
             testResult = 1;
             goto _end;
         }
-        {   ZSTD_CCtx* staticCCtx = ZSTD_initStaticCCtx(staticCCtxBuffer, staticCCtxSize);
-            ZSTD_DCtx* staticDCtx = ZSTD_initStaticDCtx(staticDCtxBuffer, staticDCtxSize);
+        {   size_t const staticCCtxSize = ZSTD_estimateCCtxSize(STATIC_CCTX_LEVEL);
+            ZSTD_CCtx* staticCCtx = ZSTD_initStaticCCtx(staticCCtxBuffer, staticCCtxSize);
+            ZSTD_DCtx* const staticDCtx = ZSTD_initStaticDCtx(staticDCtxBuffer, staticDCtxSize);
             if ((staticCCtx==NULL) || (staticDCtx==NULL)) goto _output_error;
+            DISPLAYLEVEL(4, "CCtx size = %u, ", (U32)staticCCtxSize);
             DISPLAYLEVEL(3, "OK \n");
+
+            DISPLAYLEVEL(3, "test%3i : compress immediately with static CCtx : ", testNb++);
+            CHECK_VAR(cSize, ZSTD_compressCCtx(staticCCtx,
+                                  compressedBuffer, compressedBufferSize,
+                                  CNBuffer, CNBuffSize, STATIC_CCTX_LEVEL) );
+            DISPLAYLEVEL(3, "OK (%u bytes : %.2f%%)\n",
+                            (unsigned)cSize, (double)cSize/CNBuffSize*100);
 
             DISPLAYLEVEL(3, "test%3i : init CCtx for level %u : ", testNb++, STATIC_CCTX_LEVEL);
-            { size_t const r = ZSTD_compressBegin(staticCCtx, STATIC_CCTX_LEVEL);
-              if (ZSTD_isError(r)) goto _output_error; }
+            CHECK_Z( ZSTD_compressBegin(staticCCtx, STATIC_CCTX_LEVEL) );
             DISPLAYLEVEL(3, "OK \n");
 
-            DISPLAYLEVEL(3, "test%3i : simple compression test with static CCtx : ", testNb++);
+            DISPLAYLEVEL(3, "test%3i : compression again with static CCtx : ", testNb++);
             CHECK_VAR(cSize, ZSTD_compressCCtx(staticCCtx,
                                   compressedBuffer, compressedBufferSize,
                                   CNBuffer, CNBuffSize, STATIC_CCTX_LEVEL) );
@@ -1103,11 +1112,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
             DISPLAYLEVEL(3, "OK \n");
 
             DISPLAYLEVEL(3, "test%3i : check decompressed result : ", testNb++);
-            {   size_t u;
-                for (u=0; u<CNBuffSize; u++) {
-                    if (((BYTE*)decodedBuffer)[u] != ((BYTE*)CNBuffer)[u])
-                        goto _output_error;
-            }   }
+            if (memcmp(decodedBuffer, CNBuffer, CNBuffSize)) goto _output_error;
             DISPLAYLEVEL(3, "OK \n");
 
             DISPLAYLEVEL(3, "test%3i : init CCtx for too large level (must fail) : ", testNb++);
@@ -1119,8 +1124,30 @@ static int basicUnitTests(U32 const seed, double compressibility)
             CHECK( ZSTD_compressBegin(staticCCtx, 1) );
             DISPLAYLEVEL(3, "OK \n");
 
-            DISPLAYLEVEL(3, "test%3i : init CStream for small level %u : ", testNb++, 1);
-            CHECK( ZSTD_initCStream(staticCCtx, 1) );
+            DISPLAYLEVEL(3, "test%3i : use CStream on CCtx-sized static context (should fail) : ", testNb++);
+            CHECK_Z( ZSTD_initCStream(staticCCtx, STATIC_CCTX_LEVEL) ); /* note : doesn't allocate */
+            {   ZSTD_outBuffer output = { compressedBuffer, compressedBufferSize, 0 };
+                ZSTD_inBuffer input = { CNBuffer, CNBuffSize, 0 };
+                size_t const r = ZSTD_compressStream(staticCCtx, &output, &input); /* now allocates, should fail */
+                if (!ZSTD_isError(r)) goto _output_error;
+            }
+            DISPLAYLEVEL(3, "OK \n");
+
+            DISPLAYLEVEL(3, "test%3i : resize context to CStream size, then stream compress : ", testNb++);
+            staticCCtx = ZSTD_initStaticCStream(staticCCtxBuffer, staticCStreamSize);
+            CHECK_Z( ZSTD_initCStream(staticCCtx, STATIC_CCTX_LEVEL) ); /* note : doesn't allocate */
+            {   ZSTD_outBuffer output = { compressedBuffer, compressedBufferSize, 0 };
+                ZSTD_inBuffer input = { CNBuffer, CNBuffSize, 0 };
+                CHECK_Z( ZSTD_compressStream(staticCCtx, &output, &input) );
+            }
+            DISPLAYLEVEL(3, "OK \n");
+
+            DISPLAYLEVEL(3, "test%3i : CStream for small level %u : ", testNb++, 1);
+            CHECK_Z( ZSTD_initCStream(staticCCtx, 1) ); /* note : doesn't allocate */
+            {   ZSTD_outBuffer output = { compressedBuffer, compressedBufferSize, 0 };
+                ZSTD_inBuffer input = { CNBuffer, CNBuffSize, 0 };
+                CHECK_Z( ZSTD_compressStream(staticCCtx, &output, &input) );
+            }
             DISPLAYLEVEL(3, "OK \n");
 
             DISPLAYLEVEL(3, "test%3i : init static CStream with dictionary (should fail) : ", testNb++);
@@ -1128,9 +1155,8 @@ static int basicUnitTests(U32 const seed, double compressibility)
               if (!ZSTD_isError(r)) goto _output_error; }
             DISPLAYLEVEL(3, "OK \n");
 
-            DISPLAYLEVEL(3, "test%3i : init DStream (should fail) : ", testNb++);
-            { size_t const r = ZSTD_initDStream(staticDCtx);
-              if (ZSTD_isError(r)) goto _output_error; }
+            DISPLAYLEVEL(3, "test%3i : use DStream on DCtx-sized static context (should fail) : ", testNb++);
+            CHECK_Z( ZSTD_initDStream(staticDCtx) );
             {   ZSTD_outBuffer output = { decodedBuffer, CNBuffSize, 0 };
                 ZSTD_inBuffer input = { compressedBuffer, ZSTD_FRAMEHEADERSIZE_MAX+1, 0 };
                 size_t const r = ZSTD_decompressStream(staticDCtx, &output, &input);
@@ -1142,7 +1168,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         free(staticDCtxBuffer);
     }
 
-    DISPLAYLEVEL(3, "test%3i : Static negative levels : ", testNb++);
+    DISPLAYLEVEL(3, "test%3i : Static context sizes for negative levels : ", testNb++);
     {   size_t const cctxSizeN1 = ZSTD_estimateCCtxSize(-1);
         size_t const cctxSizeP1 = ZSTD_estimateCCtxSize(1);
         size_t const cstreamSizeN1 = ZSTD_estimateCStreamSize(-1);
@@ -2600,7 +2626,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 #ifdef ZSTD_MULTITHREAD
-    DISPLAYLEVEL(3, "test%3i passing wrong full dict should fail on compressStream2 refPrefix ", testNb++);
+    DISPLAYLEVEL(3, "test%3i : passing wrong full dict should fail on compressStream2 refPrefix ", testNb++);
     {
         ZSTD_CCtx* cctx = ZSTD_createCCtx();
          /* A little more than ZSTDMT_JOBSIZE_MIN */
@@ -2645,12 +2671,11 @@ static int basicUnitTests(U32 const seed, double compressibility)
          * this without ever reallocating, which would reset the indices. */
         size_t const staticCCtxSize = ZSTD_estimateCStreamSize(22);
         void* const staticCCtxBuffer = malloc(staticCCtxSize);
-        ZSTD_CCtx* cctx = ZSTD_initStaticCCtx(staticCCtxBuffer, staticCCtxSize);
+        ZSTD_CCtx* const cctx = ZSTD_initStaticCCtx(staticCCtxBuffer, staticCCtxSize);
 
         /* bump the indices so the following compressions happen at high
          * indices. */
-        {
-            ZSTD_outBuffer out = { compressedBuffer, compressedBufferSize, 0 };
+        {   ZSTD_outBuffer out = { compressedBuffer, compressedBufferSize, 0 };
             ZSTD_inBuffer in = { CNBuffer, CNBuffSize, 0 };
             ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters);
             CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, -500));
@@ -2666,7 +2691,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
         /* spew a bunch of stuff into the table area */
         for (cLevel = 1; cLevel <= 22; cLevel++) {
-            ZSTD_outBuffer out = { compressedBuffer, compressedBufferSize / cLevel, 0 };
+            ZSTD_outBuffer out = { compressedBuffer, compressedBufferSize / (unsigned)cLevel, 0 };
             ZSTD_inBuffer in = { CNBuffer, CNBuffSize, 0 };
             ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters);
             CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, cLevel));
@@ -2676,8 +2701,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         }
 
         /* now crank the indices so we overflow */
-        {
-            ZSTD_outBuffer out = { compressedBuffer, compressedBufferSize, 0 };
+        {   ZSTD_outBuffer out = { compressedBuffer, compressedBufferSize, 0 };
             ZSTD_inBuffer in = { CNBuffer, CNBuffSize, 0 };
             ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters);
             CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, -500));
@@ -2694,7 +2718,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         /* do a bunch of compressions again in low indices and ensure we don't
          * hit untracked invalid indices */
         for (cLevel = 1; cLevel <= 22; cLevel++) {
-            ZSTD_outBuffer out = { compressedBuffer, compressedBufferSize / cLevel, 0 };
+            ZSTD_outBuffer out = { compressedBuffer, compressedBufferSize / (unsigned)cLevel, 0 };
             ZSTD_inBuffer in = { CNBuffer, CNBuffSize, 0 };
             ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters);
             CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, cLevel));
@@ -2703,7 +2727,6 @@ static int basicUnitTests(U32 const seed, double compressibility)
             approxIndex += in.pos;
         }
 
-        ZSTD_freeCCtx(cctx);
         free(staticCCtxBuffer);
     }
     DISPLAYLEVEL(3, "OK \n");
@@ -2858,9 +2881,9 @@ static int fuzzerTests(U32 seed, unsigned nbTests, unsigned startTest, U32 const
         crcOrig = XXH64(sampleBuffer, sampleSize, 0);
 
         /* compression tests */
-        {   int const cLevelPositive =
+        {   int const cLevelPositive = (int)
                     ( FUZ_rand(&lseed) %
-                     (ZSTD_maxCLevel() - (FUZ_highbit32((U32)sampleSize) / cLevelLimiter)) )
+                     ((U32)ZSTD_maxCLevel() - (FUZ_highbit32((U32)sampleSize) / (U32)cLevelLimiter)) )
                     + 1;
             int const cLevel = ((FUZ_rand(&lseed) & 15) == 3) ?
                              - (int)((FUZ_rand(&lseed) & 7) + 1) :   /* test negative cLevel */

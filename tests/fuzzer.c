@@ -32,7 +32,7 @@
 #include "fse.h"
 #include "zstd.h"         /* ZSTD_VERSION_STRING */
 #include "zstd_errors.h"  /* ZSTD_getErrorCode */
-#include "zstd_internal.h"  /* ZSTD_WORKSPACETOOLARGE_MAXDURATION */
+#include "zstd_internal.h"  /* ZSTD_WORKSPACETOOLARGE_MAXDURATION, ZSTD_WORKSPACETOOLARGE_FACTOR, KB, MB */
 #include "zstdmt_compress.h"
 #define ZDICT_STATIC_LINKING_ONLY
 #include "zdict.h"        /* ZDICT_trainFromBuffer */
@@ -47,8 +47,6 @@
 /*-************************************
 *  Constants
 **************************************/
-#define KB *(1U<<10)
-#define MB *(1U<<20)
 #define GB *(1U<<30)
 
 static const int FUZ_compressibility_default = 50;
@@ -1081,20 +1079,44 @@ static int basicUnitTests(U32 const seed, double compressibility)
             goto _end;
         }
         {   size_t const smallInSize = 32 KB;
+            ZSTD_compressionParameters const cparams_small = ZSTD_getCParams(STATIC_CCTX_LEVEL, smallInSize, 0);
+            size_t const smallCCtxSize = ZSTD_estimateCCtxSize_usingCParams(cparams_small);
             size_t const staticCCtxSize = ZSTD_estimateCCtxSize(STATIC_CCTX_LEVEL);
-            ZSTD_CCtx* staticCCtx = ZSTD_initStaticCCtx(staticCCtxBuffer, staticCCtxSize);
+            ZSTD_CCtx* staticCCtx = ZSTD_initStaticCCtx(staticCCtxBuffer, smallCCtxSize);
             ZSTD_DCtx* const staticDCtx = ZSTD_initStaticDCtx(staticDCtxBuffer, staticDCtxSize);
-            DISPLAYLEVEL(4, "CCtx size = %u, ", (U32)staticCCtxSize);
+            DISPLAYLEVEL(4, "Full CCtx size = %u, ", (U32)staticCCtxSize);
+            DISPLAYLEVEL(4, "CCtx for 32 KB = %u, ", (U32)smallCCtxSize);
+            assert(staticCCtxSize > smallCCtxSize * ZSTD_WORKSPACETOOLARGE_FACTOR);  /* ensure size down scenario */
             if ((staticCCtx==NULL) || (staticDCtx==NULL)) goto _output_error;
             DISPLAYLEVEL(3, "OK \n");
-            /*
-            DISPLAYLEVEL(3, "test%3i : compress immediately with static CCtx : ", testNb++);
+
+            DISPLAYLEVEL(3, "test%3i : compress small input with small static CCtx : ", testNb++);
+            CHECK_VAR(cSize, ZSTD_compressCCtx(staticCCtx,
+                                  compressedBuffer, compressedBufferSize,
+                                  CNBuffer, smallInSize, STATIC_CCTX_LEVEL) );
+            DISPLAYLEVEL(3, "OK (%u bytes : %.2f%%)\n",
+                            (unsigned)cSize, (double)cSize/smallInSize*100);
+
+            DISPLAYLEVEL(3, "test%3i : compress large input with small static CCtx (must fail) : ", testNb++);
+            {   size_t const r = ZSTD_compressCCtx(staticCCtx,
+                                  compressedBuffer, compressedBufferSize,
+                                  CNBuffer, CNBuffSize, STATIC_CCTX_LEVEL);
+                if (ZSTD_getErrorCode((size_t)r) != ZSTD_error_memory_allocation) goto _output_error;
+            }
+            DISPLAYLEVEL(3, "OK \n");
+
+            DISPLAYLEVEL(3, "test%3i : resize context to full CCtx size : ", testNb++);
+            staticCCtx = ZSTD_initStaticCStream(staticCCtxBuffer, staticCCtxSize);
+            if ((void*)staticCCtx != staticCCtxBuffer) goto  _output_error;
+            DISPLAYLEVEL(3, "OK \n");
+
+            DISPLAYLEVEL(3, "test%3i : compress large input with static CCtx : ", testNb++);
             CHECK_VAR(cSize, ZSTD_compressCCtx(staticCCtx,
                                   compressedBuffer, compressedBufferSize,
                                   CNBuffer, CNBuffSize, STATIC_CCTX_LEVEL) );
             DISPLAYLEVEL(3, "OK (%u bytes : %.2f%%)\n",
                             (unsigned)cSize, (double)cSize/CNBuffSize*100);
-            */
+
             DISPLAYLEVEL(3, "test%3i : compress small input often enough to trigger context reduce : ", testNb++);
             {   int nbc;
                 assert(CNBuffSize > smallInSize + ZSTD_WORKSPACETOOLARGE_MAXDURATION + 3);
@@ -1148,6 +1170,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
             DISPLAYLEVEL(3, "test%3i : resize context to CStream size, then stream compress : ", testNb++);
             staticCCtx = ZSTD_initStaticCStream(staticCCtxBuffer, staticCStreamSize);
+            assert(staticCCtx != NULL);
             CHECK_Z( ZSTD_initCStream(staticCCtx, STATIC_CCTX_LEVEL) ); /* note : doesn't allocate */
             {   ZSTD_outBuffer output = { compressedBuffer, compressedBufferSize, 0 };
                 ZSTD_inBuffer input = { CNBuffer, CNBuffSize, 0 };

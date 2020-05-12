@@ -1043,6 +1043,7 @@ static size_t ZSTD_refDictContent(ZSTD_DCtx* dctx, const void* dict, size_t dict
     dctx->prefixStart = dict;
     dctx->previousDstEnd = (const char*)dict + dictSize;
 #ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+    dctx->dictContentBeginForFuzzing = dctx->prefixStart;
     dctx->dictContentEndForFuzzing = dctx->previousDstEnd;
 #endif
     return 0;

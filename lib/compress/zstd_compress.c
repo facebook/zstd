@@ -1578,6 +1578,12 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             ZSTD_window_clear(&zc->ldmState.window);
         }
 
+        /* Due to alignment, when reusing a workspace, we can actually consume
+         * up to 3 extra bytes for alignment. See the comments in zstd_cwksp.h
+         */
+        assert(ZSTD_cwksp_used(ws) >= neededSpace &&
+               ZSTD_cwksp_used(ws) <= neededSpace + 3);
+
         DEBUGLOG(3, "wksp: finished allocating, %zd bytes remain available", ZSTD_cwksp_available_space(ws));
         zc->initialized = 1;
 

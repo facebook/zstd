@@ -15,7 +15,7 @@
 #include <string.h>         /* memset */
 #include "../common/cpu.h"
 #include "../common/mem.h"
-#include "hist.h"       /* HIST_countFast_wksp */
+#include "hist.h"           /* HIST_countFast_wksp */
 #define FSE_STATIC_LINKING_ONLY   /* FSE_encodeSymbol */
 #include "../common/fse.h"
 #define HUF_STATIC_LINKING_ONLY
@@ -90,7 +90,7 @@ ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem)
     }
 }
 
-ZSTD_CCtx* ZSTD_initStaticCCtx(void *workspace, size_t workspaceSize)
+ZSTD_CCtx* ZSTD_initStaticCCtx(void* workspace, size_t workspaceSize)
 {
     ZSTD_cwksp ws;
     ZSTD_CCtx* cctx;
@@ -99,9 +99,8 @@ ZSTD_CCtx* ZSTD_initStaticCCtx(void *workspace, size_t workspaceSize)
     ZSTD_cwksp_init(&ws, workspace, workspaceSize);
 
     cctx = (ZSTD_CCtx*)ZSTD_cwksp_reserve_object(&ws, sizeof(ZSTD_CCtx));
-    if (cctx == NULL) {
-        return NULL;
-    }
+    if (cctx == NULL) return NULL;
+
     memset(cctx, 0, sizeof(ZSTD_CCtx));
     ZSTD_cwksp_move(&cctx->workspace, &ws);
     cctx->staticSize = workspaceSize;
@@ -110,8 +109,7 @@ ZSTD_CCtx* ZSTD_initStaticCCtx(void *workspace, size_t workspaceSize)
     if (!ZSTD_cwksp_check_available(&cctx->workspace, HUF_WORKSPACE_SIZE + 2 * sizeof(ZSTD_compressedBlockState_t))) return NULL;
     cctx->blockState.prevCBlock = (ZSTD_compressedBlockState_t*)ZSTD_cwksp_reserve_object(&cctx->workspace, sizeof(ZSTD_compressedBlockState_t));
     cctx->blockState.nextCBlock = (ZSTD_compressedBlockState_t*)ZSTD_cwksp_reserve_object(&cctx->workspace, sizeof(ZSTD_compressedBlockState_t));
-    cctx->entropyWorkspace = (U32*)ZSTD_cwksp_reserve_object(
-        &cctx->workspace, HUF_WORKSPACE_SIZE);
+    cctx->entropyWorkspace = (U32*)ZSTD_cwksp_reserve_object(&cctx->workspace, HUF_WORKSPACE_SIZE);
     cctx->bmi2 = ZSTD_cpuid_bmi2(ZSTD_cpuid());
     return cctx;
 }
@@ -421,9 +419,8 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
         return bounds;
 
     default:
-        {   ZSTD_bounds const boundError = { ERROR(parameter_unsupported), 0, 0 };
-            return boundError;
-        }
+        bounds.error = ERROR(parameter_unsupported);
+        return bounds;
     }
 }
 
@@ -1458,7 +1455,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             needsIndexReset = ZSTDirp_reset;
         }
 
-        ZSTD_cwksp_bump_oversized_duration(ws, 0);
+        if (!zc->staticSize) ZSTD_cwksp_bump_oversized_duration(ws, 0);
 
         /* Check if workspace is large enough, alloc a new one if needed */
         {   size_t const cctxSpace = zc->staticSize ? ZSTD_cwksp_alloc_size(sizeof(ZSTD_CCtx)) : 0;
@@ -1774,7 +1771,7 @@ static size_t ZSTD_copyCCtx_internal(ZSTD_CCtx* dstCCtx,
                             ZSTD_buffered_policy_e zbuff)
 {
     DEBUGLOG(5, "ZSTD_copyCCtx_internal");
-    RETURN_ERROR_IF(srcCCtx->stage!=ZSTDcs_init, stage_wrong, 
+    RETURN_ERROR_IF(srcCCtx->stage!=ZSTDcs_init, stage_wrong,
                     "Can't copy a ctx that's not in init stage.");
 
     memcpy(&dstCCtx->customMem, &srcCCtx->customMem, sizeof(ZSTD_customMem));

@@ -1087,7 +1087,6 @@ static int basicUnitTests(U32 const seed, double compressibility)
             ZSTD_DCtx* const staticDCtx = ZSTD_initStaticDCtx(staticDCtxBuffer, staticDCtxSize);
             DISPLAYLEVEL(4, "Full CCtx size = %u, ", (U32)staticCCtxSize);
             DISPLAYLEVEL(4, "CCtx for 32 KB = %u, ", (U32)smallCCtxSize);
-            assert(staticCCtxSize > smallCCtxSize * ZSTD_WORKSPACETOOLARGE_FACTOR);  /* ensure size down scenario */
             if ((staticCCtx==NULL) || (staticDCtx==NULL)) goto _output_error;
             DISPLAYLEVEL(3, "OK \n");
 
@@ -1108,7 +1107,8 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
             DISPLAYLEVEL(3, "test%3i : resize context to full CCtx size : ", testNb++);
             staticCCtx = ZSTD_initStaticCStream(staticCCtxBuffer, staticCCtxSize);
-            if ((void*)staticCCtx != staticCCtxBuffer) goto  _output_error;
+            DISPLAYLEVEL(4, "staticCCtxBuffer = %p,  staticCCtx = %p , ", staticCCtxBuffer, staticCCtx);
+            if (staticCCtx == NULL) goto _output_error;
             DISPLAYLEVEL(3, "OK \n");
 
             DISPLAYLEVEL(3, "test%3i : compress large input with static CCtx : ", testNb++);
@@ -1120,6 +1120,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
             DISPLAYLEVEL(3, "test%3i : compress small input often enough to trigger context reduce : ", testNb++);
             {   int nbc;
+                assert(staticCCtxSize > smallCCtxSize * ZSTD_WORKSPACETOOLARGE_FACTOR);  /* ensure size down scenario */
                 assert(CNBuffSize > smallInSize + ZSTD_WORKSPACETOOLARGE_MAXDURATION + 3);
                 for (nbc=0; nbc<ZSTD_WORKSPACETOOLARGE_MAXDURATION+2; nbc++) {
                     CHECK_Z(ZSTD_compressCCtx(staticCCtx,

@@ -162,6 +162,7 @@ struct ZSTD_DCtx_s
     size_t oversizedDuration;
 
 #ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+    void const* dictContentBeginForFuzzing;
     void const* dictContentEndForFuzzing;
 #endif
 };  /* typedef'd to ZSTD_DCtx within "zstd.h" */

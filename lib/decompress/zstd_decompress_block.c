@@ -953,6 +953,8 @@ static int ZSTD_dictionaryIsActive(ZSTD_DCtx const* dctx, BYTE const* prefixStar
     size_t const windowSize = dctx->fParams.windowSize;
     /* No dictionary used. */
     if (dctx->dictContentEndForFuzzing == NULL) return 0;
+    /* Dictionary is our prefix. */
+    if (prefixStart == dctx->dictContentBeginForFuzzing) return 1;
     /* Dictionary is not our ext-dict. */
     if (dctx->dictEnd != dctx->dictContentEndForFuzzing) return 0;
     /* Dictionary is not within our window size. */
@@ -970,11 +972,13 @@ MEM_STATIC void ZSTD_assertValidSequence(
     size_t const windowSize = dctx->fParams.windowSize;
     size_t const sequenceSize = seq.litLength + seq.matchLength;
     BYTE const* const oLitEnd = op + seq.litLength;
+    DEBUGLOG(6, "Checking sequence: litL=%u matchL=%u offset=%u",
+            (U32)seq.litLength, (U32)seq.matchLength, (U32)seq.offset);
     assert(op <= oend);
     assert((size_t)(oend - op) >= sequenceSize);
     assert(sequenceSize <= ZSTD_BLOCKSIZE_MAX);
     if (ZSTD_dictionaryIsActive(dctx, prefixStart, oLitEnd)) {
-        size_t const dictSize = (size_t)(prefixStart - virtualStart);
+        size_t const dictSize = (size_t)((char const*)dctx->dictContentEndForFuzzing - (char const*)dctx->dictContentBeginForFuzzing);
         /* Offset must be within the dictionary. */
         assert(seq.offset <= (size_t)(oLitEnd - virtualStart));
         assert(seq.offset <= windowSize + dictSize);
@@ -1071,6 +1075,7 @@ ZSTD_decompressSequences_body( ZSTD_DCtx* dctx,
             seq_t const sequence = ZSTD_decodeSequence(&seqState, isLongOffset, ZSTD_p_noPrefetch);
             size_t const oneSeqSize = ZSTD_execSequence(op, oend, sequence, &litPtr, litEnd, prefixStart, vBase, dictEnd);
 #if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) && defined(FUZZING_ASSERT_VALID_SEQUENCE)
+            assert(!ZSTD_isError(oneSeqSize));
             if (frame) ZSTD_assertValidSequence(dctx, op, oend, sequence, prefixStart, vBase);
 #endif
             DEBUGLOG(6, "regenerated sequence size : %u", (U32)oneSeqSize);
@@ -1174,6 +1179,7 @@ ZSTD_decompressSequencesLong_body(
             seq_t const sequence = ZSTD_decodeSequence(&seqState, isLongOffset, ZSTD_p_prefetch);
             size_t const oneSeqSize = ZSTD_execSequence(op, oend, sequences[(seqNb-ADVANCED_SEQS) & STORED_SEQS_MASK], &litPtr, litEnd, prefixStart, dictStart, dictEnd);
 #if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) && defined(FUZZING_ASSERT_VALID_SEQUENCE)
+            assert(!ZSTD_isError(oneSeqSize));
             if (frame) ZSTD_assertValidSequence(dctx, op, oend, sequences[(seqNb-ADVANCED_SEQS) & STORED_SEQS_MASK], prefixStart, dictStart);
 #endif
             if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
@@ -1188,6 +1194,7 @@ ZSTD_decompressSequencesLong_body(
         for ( ; seqNb<nbSeq ; seqNb++) {
             size_t const oneSeqSize = ZSTD_execSequence(op, oend, sequences[seqNb&STORED_SEQS_MASK], &litPtr, litEnd, prefixStart, dictStart, dictEnd);
 #if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) && defined(FUZZING_ASSERT_VALID_SEQUENCE)
+            assert(!ZSTD_isError(oneSeqSize));
             if (frame) ZSTD_assertValidSequence(dctx, op, oend, sequences[seqNb&STORED_SEQS_MASK], prefixStart, dictStart);
 #endif
             if (ZSTD_isError(oneSeqSize)) return oneSeqSize;

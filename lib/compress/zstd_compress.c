@@ -1462,26 +1462,22 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         size_t const buffInSize = (zbuff==ZSTDb_buffered) ? windowSize + blockSize : 0;
         size_t const maxNbLdmSeq = ZSTD_ldm_getMaxNbSeq(params.ldmParams, blockSize);
 
-        ZSTD_indexResetPolicy_e needsIndexReset = zc->initialized ? ZSTDirp_continue : ZSTDirp_reset;
+        int const indexTooClose = ZSTD_indexTooCloseToMax(zc->blockState.matchState.window);
+        ZSTD_indexResetPolicy_e needsIndexReset =
+            (!indexTooClose && zc->initialized) ? ZSTDirp_continue : ZSTDirp_reset;
 
-        if (ZSTD_indexTooCloseToMax(zc->blockState.matchState.window)) {
-            needsIndexReset = ZSTDirp_reset;
-        }
+        size_t const neededSpace =
+            ZSTD_estimateCCtxSize_usingCCtxParams_internal(
+                &params.cParams, &params.ldmParams, zc->staticSize != 0,
+                buffInSize, buffOutSize, pledgedSrcSize);
+        FORWARD_IF_ERROR(neededSpace, "cctx size estimate failed!");
 
         ZSTD_cwksp_bump_oversized_duration(ws, 0);
 
         /* Check if workspace is large enough, alloc a new one if needed */
         {
-            size_t const neededSpace =
-                ZSTD_estimateCCtxSize_usingCCtxParams_internal(
-                    &params.cParams, &params.ldmParams, zc->staticSize != 0,
-                    buffInSize, buffOutSize, pledgedSrcSize);
-
             int const workspaceTooSmall = ZSTD_cwksp_sizeof(ws) < neededSpace;
             int const workspaceWasteful = ZSTD_cwksp_check_wasteful(ws, neededSpace);
-
-
-            FORWARD_IF_ERROR(neededSpace, "cctx size estimate failed!");
 
             DEBUGLOG(4, "Need %zu B workspace", neededSpace);
             DEBUGLOG(4, "windowSize: %zu - blockSize: %zu", windowSize, blockSize);

@@ -272,19 +272,6 @@ It's used the same way as normal `grep`, for example :
 `zstdgrep pattern file.zst`
 
 `zstdgrep` is _not_ compatible with dictionary compression.
-`zstdgrep` does not support the following grep options
-
-```
---dereference-recursive (-R)
-    --directories (-d)
-    --exclude
-    --exclude-from
-    --exclude-dir
-    --include
-    --null (-Z),
-    --null-data (-z)
-    --recursive (-r)
-```
 
 To search into a file compressed with a dictionary,
 it's necessary to decompress it using `zstd` or `zstdcat`,

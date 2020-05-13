@@ -63,10 +63,8 @@ size_t ZSTD_compressBlock_doubleFast_generic(
     const BYTE* ip = istart;
     const BYTE* anchor = istart;
     const U32 endIndex = (U32)((size_t)(istart - base) + srcSize);
-    const U32 lowestValid = ms->window.dictLimit;
-    const U32 maxDistance = 1U << cParams->windowLog;
     /* presumes that, if there is a dictionary, it must be using Attach mode */
-    const U32 prefixLowestIndex = (endIndex - lowestValid > maxDistance) ? endIndex - maxDistance : lowestValid;
+    const U32 prefixLowestIndex = ZSTD_getLowestPrefixIndex(ms, endIndex, cParams->windowLog);
     const BYTE* const prefixLowest = base + prefixLowestIndex;
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - HASH_READ_SIZE;
@@ -104,13 +102,15 @@ size_t ZSTD_compressBlock_doubleFast_generic(
 
     /* if a dictionary is attached, it must be within window range */
     if (dictMode == ZSTD_dictMatchState) {
-        assert(lowestValid + maxDistance >= endIndex);
+        assert(ms->window.dictLimit + (1U << cParams->windowLog) >= endIndex);
     }
 
     /* init */
     ip += (dictAndPrefixLength == 0);
     if (dictMode == ZSTD_noDict) {
-        U32 const maxRep = (U32)(ip - prefixLowest);
+        U32 const current = (U32)(ip - base);
+        U32 const windowLow = ZSTD_getLowestPrefixIndex(ms, current, cParams->windowLog);
+        U32 const maxRep = current - windowLow;
         if (offset_2 > maxRep) offsetSaved = offset_2, offset_2 = 0;
         if (offset_1 > maxRep) offsetSaved = offset_1, offset_1 = 0;
     }

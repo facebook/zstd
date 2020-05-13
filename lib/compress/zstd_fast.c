@@ -61,9 +61,7 @@ ZSTD_compressBlock_fast_generic(
     const BYTE* ip1;
     const BYTE* anchor = istart;
     const U32   endIndex = (U32)((size_t)(istart - base) + srcSize);
-    const U32   maxDistance = 1U << cParams->windowLog;
-    const U32   validStartIndex = ms->window.dictLimit;
-    const U32   prefixStartIndex = (endIndex - validStartIndex > maxDistance) ? endIndex - maxDistance : validStartIndex;
+    const U32   prefixStartIndex = ZSTD_getLowestPrefixIndex(ms, endIndex, cParams->windowLog);
     const BYTE* const prefixStart = base + prefixStartIndex;
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - HASH_READ_SIZE;
@@ -74,7 +72,9 @@ ZSTD_compressBlock_fast_generic(
     DEBUGLOG(5, "ZSTD_compressBlock_fast_generic");
     ip0 += (ip0 == prefixStart);
     ip1 = ip0 + 1;
-    {   U32 const maxRep = (U32)(ip0 - prefixStart);
+    {   U32 const current = (U32)(ip0 - base);
+        U32 const windowLow = ZSTD_getLowestPrefixIndex(ms, current, cParams->windowLog);
+        U32 const maxRep = current - windowLow;
         if (offset_2 > maxRep) offsetSaved = offset_2, offset_2 = 0;
         if (offset_1 > maxRep) offsetSaved = offset_1, offset_1 = 0;
     }

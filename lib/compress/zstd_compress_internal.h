@@ -970,10 +970,26 @@ MEM_STATIC U32 ZSTD_window_update(ZSTD_window_t* window,
     return contiguous;
 }
 
+/**
+ * Returns the lowest allowed match index. It may either be in the ext-dict or the prefix.
+ */
 MEM_STATIC U32 ZSTD_getLowestMatchIndex(const ZSTD_matchState_t* ms, U32 current, unsigned windowLog)
 {
     U32    const maxDistance = 1U << windowLog;
     U32    const lowestValid = ms->window.lowLimit;
+    U32    const withinWindow = (current - lowestValid > maxDistance) ? current - maxDistance : lowestValid;
+    U32    const isDictionary = (ms->loadedDictEnd != 0);
+    U32    const matchLowest = isDictionary ? lowestValid : withinWindow;
+    return matchLowest;
+}
+
+/**
+ * Returns the lowest allowed match index in the prefix.
+ */
+MEM_STATIC U32 ZSTD_getLowestPrefixIndex(const ZSTD_matchState_t* ms, U32 current, unsigned windowLog)
+{
+    U32    const maxDistance = 1U << windowLog;
+    U32    const lowestValid = ms->window.dictLimit;
     U32    const withinWindow = (current - lowestValid > maxDistance) ? current - maxDistance : lowestValid;
     U32    const isDictionary = (ms->loadedDictEnd != 0);
     U32    const matchLowest = isDictionary ? lowestValid : withinWindow;

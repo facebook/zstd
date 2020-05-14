@@ -1,5 +1,5 @@
 .
-.TH "ZSTD" "1" "February 2020" "zstd 1.4.5" "User Commands"
+.TH "ZSTD" "1" "May 2020" "zstd 1.4.5" "User Commands"
 .
 .SH "NAME"
 \fBzstd\fR \- zstd, zstdmt, unzstd, zstdcat \- Compress or decompress \.zst files
@@ -114,7 +114,7 @@ Note: If \fBwindowLog\fR is set to larger than 27, \fB\-\-long=windowLog\fR or \
 \fB\-\-patch\-from=FILE\fR: Specify the file to be used as a reference point for zstd\'s diff engine\. This is effectively dictionary compression with some convenient parameter selection, namely that windowSize > srcSize\.
 .
 .IP
-Note: cannot use both this and \-D together
+Note: cannot use both this and \-D together Note: \fB\-\-long\fR mode will be automatically activated if chainLog < fileLog (fileLog being the windowLog requried to cover the whole file)\. You can also manually force it\. Node: for all levels, you can use \-\-patch\-from in \-\-single\-thread mode to improve compression ratio at the cost of speed Note: for level 19, you can get increased compression ratio at the cost of speed by specifying \fB\-\-zstd=targetLength=\fR to be something large (i\.e 4096), and by setting a large \fB\-\-zstd=chainLog=\fR
 .
 .IP "\(bu" 4
 \fB\-M#\fR, \fB\-\-memory=#\fR: Set a memory usage limit\. By default, Zstandard uses 128 MB for decompression as the maximum amount of memory the decompressor is allowed to use, but you can override this manually if need be in either direction (ie\. you can increase or decrease it)\.
@@ -157,6 +157,9 @@ This is also used during compression when using with \-\-patch\-from=\. In this 
 .
 .IP "\(bu" 4
 \fB\-\-[no\-]sparse\fR: enable / disable sparse FS support, to make files with many zeroes smaller on disk\. Creating sparse files may save disk space and speed up decompression by reducing the amount of disk I/O\. default: enabled when output is into a file, and disabled when output is stdout\. This setting overrides default and can force sparse mode over stdout\.
+.
+.IP "\(bu" 4
+\fB\-\-[no\-]content\-size\fR: enable / disable whether or not the original size of the file is placed in the header of the compressed file\. The default option is \-\-content\-size (meaning that the original size will be placed in the header)\.
 .
 .IP "\(bu" 4
 \fB\-\-rm\fR: remove source file(s) after successful compression or decompression
@@ -386,14 +389,11 @@ Larger search lengths usually decrease compression ratio but improve decompressi
 The minimum \fImml\fR is 3 and the maximum is 7\.
 .
 .TP
-\fBtargetLen\fR=\fItlen\fR, \fBtlen\fR=\fItlen\fR
+\fBtargetLength\fR=\fItlen\fR, \fBtlen\fR=\fItlen\fR
 The impact of this field vary depending on selected strategy\.
 .
 .IP
-For ZSTD_btopt, ZSTD_btultra and ZSTD_btultra2, it specifies the minimum match length that causes match finder to stop searching\. A larger \fBtargetLen\fR usually improves compression ratio but decreases compression speed\.
-.
-.IP
-For ZSTD_fast, it triggers ultra\-fast mode when > 0\. The value represents the amount of data skipped between match sampling\. Impact is reversed : a larger \fBtargetLen\fR increases compression speed but decreases compression ratio\.
+For ZSTD_btopt, ZSTD_btultra and ZSTD_btultra2, it specifies the minimum match length that causes match finder to stop searching\. A larger \fBtargetLength\fR usually improves compression ratio but decreases compression speed\. t For ZSTD_fast, it triggers ultra\-fast mode when > 0\. The value represents the amount of data skipped between match sampling\. Impact is reversed : a larger \fBtargetLength\fR increases compression speed but decreases compression ratio\.
 .
 .IP
 For all other strategies, this field has no impact\.

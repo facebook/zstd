@@ -1,0 +1,175 @@
+name: generic
+
+on:
+  pull_request:
+    branches: [ dev, master, actionsTest ]
+
+jobs:
+
+  benchmarking:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: make benchmarking
+      run: make benchmarking
+      
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: make test 
+      run: make test 
+  
+  gcc-6-7-libzstd:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: gcc-6 + gcc-7 + libzstdmt compilation
+      run: |
+        make gcc6install gcc7install
+        CC=gcc-6 CFLAGS=-Werror make -j all
+        make clean
+        CC=gcc-7 CFLAGS=-Werror make -j all
+        make clean
+        LDFLAGS=-Wl,--no-undefined make -C lib libzstd-mt
+        make -C tests zbufftest-dll
+    
+  gcc-8-asan-ubsan-testzstd:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: gcc-8 + ASan + UBSan + Test Zstd 
+      run: | 
+        make gcc8install
+        CC=gcc-8 CFLAGS="-Werror" make -j all
+        make clean
+        CC=gcc-8 make -j uasan-test-zstd </dev/null
+        
+  gcc-6-asan-ubsan-testzstd-32bit:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: gcc-6 + ASan + UBSan + Test Zstd, 32bit mode 
+      run: |
+        make gcc6install libc6install
+        CC=gcc-6 CFLAGS="-Werror -m32" make -j all32
+        make clean
+        CC=gcc-6 make -j uasan-test-zstd32
+        
+  clang-3.8-msan-testzstd:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: clang-3.8 + MSan + Test Zstd 
+      run: | 
+        make clang38install
+        CC=clang-3.8 make clean msan-test-zstd HAVE_ZLIB=0 HAVE_LZ4=0 HAVE_LZMA=0
+        
+  min-decomp-macros:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Minimal Decompressor Macros 
+      run: | 
+        make clean
+        make -j all check ZSTD_LIB_MINIFY=1 MOREFLAGS="-Werror"
+        make clean 
+        make -j all check MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X1 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT"
+        make clean
+        make -j all check MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X2 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG"
+        make clean
+        make -j all check MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
+        
+  cmake-build-and-test-check:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: cmake build and test check
+      run: make cmakebuild
+  
+  gcc-8-asan-ubsan-fuzz:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: gcc-8 + ASan + UBSan + Fuzz Test
+      run: | 
+        make gcc8install
+        CC=gcc-8 make clean uasan-fuzztest
+        
+  gcc-6-asan-ubsan-fuzz32:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: gcc-6 + ASan + UBSan + Fuzz Test 32bit 
+      run: | 
+        make gcc6install libc6install
+        CC=gcc-6 CFLAGS="-O2 -m32" make uasan-fuzztest
+        
+  clang-3.8-msan-fuzz:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: clang-3.8 + MSan + Fuzz Test
+      run: | 
+        make clang38install
+        CC=clang-3.8 make clean msan-fuzztest
+        
+  asan-ubsan-msan-regression:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: ASan + UBSan + MSan + Regression Test
+      run: | 
+        make -j uasanregressiontest
+        make clean
+        make -j msanregressiontest
+
+  cpp-gnu90-c99-compatibility:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: C++, gnu90 and c99 compatibility
+      run: | 
+        make cxxtest
+        make clean 
+        make gnu90build 
+        make clean 
+        make c99build 
+        make clean 
+        make travis-install
+        
+  mingw-cross-compilation:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: mingw cross-compilation
+      run: | 
+        sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix;
+        CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++ CFLAGS="-Werror -O1" make zstd
+        
+  valgrind-fuzz:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Valgrind + Fuzz Test Stack Mode
+      run: | 
+        make valgrindinstall
+        make -C tests clean valgrindTest
+        make clean
+        make -C tests test-fuzzer-stackmode
+        
+  qemu-arm-fuzz:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Qemu ARM emulation + Fuzz Test
+      run: | 
+        make arminstall
+        make armfuzz
+
+        
+  
+    
+       
+
+    

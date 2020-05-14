@@ -228,11 +228,13 @@ void ZSTD_ldm_fillHashTable(
             ldmState_t* state, const BYTE* ip,
             const BYTE* iend, ldmParams_t const* params)
 {
-    U64 startingHash = ZSTD_rollingHash_compute(ip, params->minMatchLength);
-    ZSTD_ldm_fillLdmHashTable(
-        state, startingHash, ip, iend - params->minMatchLength, state->window.base,
-        params->hashLog - params->bucketSizeLog,
-        *params);
+    if ((size_t)(iend - ip) >= params->minMatchLength) {
+        U64 startingHash = ZSTD_rollingHash_compute(ip, params->minMatchLength);
+        ZSTD_ldm_fillLdmHashTable(
+            state, startingHash, ip, iend - params->minMatchLength, state->window.base,
+            params->hashLog - params->bucketSizeLog,
+            *params);
+    }
 }
 
 

@@ -58,6 +58,7 @@ TARGET_INFO = {
     'simple_compress': TargetInfo(InputType.RAW_DATA),
     'dictionary_loader': TargetInfo(InputType.DICTIONARY_DATA),
     'raw_dictionary_round_trip': TargetInfo(InputType.RAW_DATA),
+    'dictionary_stream_round_trip': TargetInfo(InputType.RAW_DATA),
 }
 TARGETS = list(TARGET_INFO.keys())
 ALL_TARGETS = TARGETS + ['all']

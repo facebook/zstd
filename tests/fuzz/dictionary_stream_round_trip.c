@@ -194,6 +194,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
         FUZZ_ZASSERT(rSize);
         FUZZ_ASSERT_MSG(rSize == size, "Incorrect regenerated size");
         FUZZ_ASSERT_MSG(!FUZZ_memcmp(src, rBuf, size), "Corruption!");
+        free(dict.buff);
     }
 
     FUZZ_dataProducer_free(producer);

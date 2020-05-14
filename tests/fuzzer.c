@@ -2697,6 +2697,35 @@ static int basicUnitTests(U32 const seed, double compressibility)
         free(dict);
     }
     DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : small dictionary with multithreading and LDM ", testNb++);
+    {
+        ZSTD_CCtx* cctx = ZSTD_createCCtx();
+        /* A little more than ZSTDMT_JOBSIZE_MIN */
+        size_t const srcSize = 1 MB + 5;
+        size_t const dictSize = 10;
+        size_t const dstSize = ZSTD_compressBound(srcSize);
+        void* const src = CNBuffer;
+        void* const dst = compressedBuffer;
+        void* dict = (void*)malloc(dictSize);
+
+        RDG_genBuffer(src, srcSize, compressibility, 0.5, seed);
+        RDG_genBuffer(dict, dictSize, compressibility, 0., seed);
+
+        /* Make sure there is no ZSTD_MAGIC_NUMBER */
+        memset(dict, 0, sizeof(U32));
+
+        /* Enable MT, LDM, and use refPrefix() for a small dict */
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 2));
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, 1));
+        CHECK_Z(ZSTD_CCtx_refPrefix(cctx, dict, dictSize));
+
+        CHECK_Z(ZSTD_compress2(cctx, dst, dstSize, src, srcSize));
+
+        ZSTD_freeCCtx(cctx);
+        free(dict);
+    }
+    DISPLAYLEVEL(3, "OK \n");
 #endif
 
     /* note : this test is rather long, it would be great to find a way to speed up its execution */

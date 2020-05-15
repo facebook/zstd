@@ -94,7 +94,8 @@ FUZZ_TARGETS :=       \
 	zstd_frame_info \
 	simple_compress \
 	dictionary_loader \
-	raw_dictionary_round_trip
+	raw_dictionary_round_trip \
+	dictionary_stream_round_trip
 
 all: $(FUZZ_TARGETS)
 
@@ -163,6 +164,9 @@ dictionary_round_trip: $(FUZZ_HEADERS) $(FUZZ_ROUND_TRIP_OBJ) rt_fuzz_dictionary
 
 raw_dictionary_round_trip: $(FUZZ_HEADERS) $(FUZZ_ROUND_TRIP_OBJ) rt_fuzz_raw_dictionary_round_trip.o
 	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_ROUND_TRIP_OBJ) rt_fuzz_raw_dictionary_round_trip.o $(LIB_FUZZING_ENGINE) -o $@
+
+dictionary_stream_round_trip: $(FUZZ_HEADERS) $(FUZZ_ROUND_TRIP_OBJ) rt_fuzz_dictionary_stream_round_trip.o
+	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_ROUND_TRIP_OBJ) rt_fuzz_dictionary_stream_round_trip.o $(LIB_FUZZING_ENGINE) -o $@
 
 dictionary_decompress: $(FUZZ_HEADERS) $(FUZZ_DECOMPRESS_OBJ) d_fuzz_dictionary_decompress.o
 	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_DECOMPRESS_OBJ) d_fuzz_dictionary_decompress.o $(LIB_FUZZING_ENGINE) -o $@

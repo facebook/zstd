@@ -134,7 +134,8 @@ if (ZSTD_BUILD_STATIC)
             OUTPUT_NAME ${STATIC_LIBRARY_BASE_NAME})
 endif ()
 
-if (UNIX)
+find_package (PkgConfig)
+if (PkgConfig_FOUND)
     # pkg-config
     set(PREFIX "${CMAKE_INSTALL_PREFIX}")
     set(LIBDIR "${CMAKE_INSTALL_LIBDIR}")

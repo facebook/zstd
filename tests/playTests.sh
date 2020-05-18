@@ -267,7 +267,7 @@ test ! -f precompressedFilterTestDir/input.5.zst.zst
 test ! -f precompressedFilterTestDir/input.6.zst.zst
 file1timestamp=`$MTIME precompressedFilterTestDir/input.5.zst`
 file2timestamp=`$MTIME precompressedFilterTestDir/input.7.zst`
-if [[ $file2timestamp -ge $file1timestamp ]]; then
+if [ $file2timestamp -ge $file1timestamp ]; then
   println "Test is successful. input.5.zst is precompressed and therefore not compressed/modified again."
 else
   println "Test is not successful"

@@ -93,6 +93,12 @@ resolve_include() {
         echo "$relpath"
         return 0
       fi
+      # Fallback on Python to reduce the path if the above fails.
+      local relpath=$(python -c "import os,sys; print os.path.relpath(sys.argv[1])" "$root/$inc" 2>/dev/null)
+      if [ "$relpath" != "" ]; then # not all distros have realpath...
+        echo "$relpath"
+        return 0
+      fi
       # Worst case, fall back to just the root + relative include path. The
       # problem with this is that it is possible to emit multiple different
       # resolved paths to the same file, depending on exactly how its included.

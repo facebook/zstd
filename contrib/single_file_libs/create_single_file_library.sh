@@ -5,7 +5,7 @@ ZSTD_SRC_ROOT="../../lib"
 
 # Amalgamate the sources
 echo "Amalgamating files... this can take a while"
-./combine.sh -r "$ZSTD_SRC_ROOT" -k zstd.h -o zstd.c zstd-in.c
+./combine.sh -r "$ZSTD_SRC_ROOT" -o zstd.c zstd-in.c
 # Did combining work?
 if [ $? -ne 0 ]; then
   echo "Combine script: FAILED"

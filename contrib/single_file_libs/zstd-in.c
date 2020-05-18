@@ -4,7 +4,7 @@
  *
  * Generate using:
  * \code
- *	combine.sh -r ../../lib -k zstd.h -o zstd.c zstd-in.c
+ *	combine.sh -r ../../lib -o zstd.c zstd-in.c
  * \endcode
  */
 /*

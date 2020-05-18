@@ -493,7 +493,6 @@ static int ZSTDMT_serialState_reset(serialState_t* serialState,
         ZSTDMT_setNbSeq(seqPool, ZSTD_ldm_getMaxNbSeq(params.ldmParams, jobSize));
         /* Reset the window */
         ZSTD_window_init(&serialState->ldmState.window);
-        serialState->ldmWindow = serialState->ldmState.window;
         /* Resize tables and output space if necessary. */
         if (serialState->ldmState.hashTable == NULL || serialState->params.ldmParams.hashLog < hashLog) {
             ZSTD_free(serialState->ldmState.hashTable, cMem);
@@ -508,12 +507,20 @@ static int ZSTDMT_serialState_reset(serialState_t* serialState,
         /* Zero the tables */
         memset(serialState->ldmState.hashTable, 0, hashSize);
         memset(serialState->ldmState.bucketOffsets, 0, bucketSize);
+
+        /* Update window state and fill hash table with dict */
+        if (dictSize > 0) {
+            BYTE const* const dictEnd = (const BYTE*)dict + dictSize;
+            ZSTD_window_update(&serialState->ldmState.window, dict, dictSize);
+            ZSTD_ldm_fillHashTable(&serialState->ldmState, (const BYTE*)dict, dictEnd, &params.ldmParams);
+            serialState->ldmState.loadedDictEnd = params.forceWindow ? 0 : (U32)(dictEnd - serialState->ldmState.window.base);
+        }
+
+        /* Initialize serialState's copy of ldmWindow. */
+        serialState->ldmWindow = serialState->ldmState.window;
     }
 
-    /* Update window state and fill hash table with dict */
     if (params.ldmParams.enableLdm && dict) {
-        ZSTD_window_update(&serialState->ldmState.window, dict, dictSize);
-        ZSTD_ldm_fillHashTable(&serialState->ldmState, (const BYTE*)dict, (const BYTE*)dict + dictSize, &params.ldmParams);
     }
 
     serialState->params = params;

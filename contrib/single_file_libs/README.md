@@ -12,7 +12,7 @@ This is the most common use case. The decompression library is small, adding, fo
 Create `zstddeclib.c` from the Zstd source using:
 ```
 cd zstd/contrib/single_file_libs
-./combine.sh -r ../../lib -r ../../lib/common -r ../../lib/decompress -o zstddeclib.c zstddeclib-in.c
+./combine.sh -r ../../lib -o zstddeclib.c zstddeclib-in.c
 ```
 Then add the resulting file to your project (see the [example files](examples)).
 
@@ -21,12 +21,12 @@ Then add the resulting file to your project (see the [example files](examples)).
 Full Library
 ------------
 
-The same tool can amalgamate the entire Zstd library for ease of adding both compression and decompression to a project. The [roundtrip example](examples/roundtrip.c) uses the original `zstd.h` with the remaining source files combined into `zstd.c` (currently just over 1MB) created from `zstd-in.c`. As with the standalone decoder the most useful compile flags have already been rolled-in and the resulting file can be added to a project as-is.
+The same tool can amalgamate the entire Zstd library for ease of adding both compression and decompression to a project. The [roundtrip example](examples/roundtrip.c) uses the original `zstd.h` with the remaining source files combined into `zstd.c` (currently just over 1.2MB) created from `zstd-in.c`. As with the standalone decoder the most useful compile flags have already been rolled-in and the resulting file can be added to a project as-is.
 
 Create `zstd.c` from the Zstd source using:
 ```
 cd zstd/contrib/single_file_libs
-combine.sh -r ../../lib -r ../../lib/common -r ../../lib/compress -r ../../lib/decompress -k zstd.h -o zstd.c zstd-in.c
+./combine.sh -r ../../lib -o zstd.c zstd-in.c
 ```
 It's possible to create a compressor-only library but since the decompressor is so small in comparison this doesn't bring much of a gain (but for the curious, simply remove the files in the _decompress_ section at the end of `zstd-in.c`).
 

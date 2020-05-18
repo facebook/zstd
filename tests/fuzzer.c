@@ -631,17 +631,26 @@ static int basicUnitTests(U32 const seed, double compressibility)
     DISPLAYLEVEL(3, "test%3i : testing dict compression with enableLdm and forceMaxWindow : ", testNb++);
     {
         ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        ZSTD_DCtx* const dctx = ZSTD_createDCtx();
         void* dict = (void*)malloc(CNBuffSize);
+        int nbWorkers;
 
-        RDG_genBuffer(dict, CNBuffSize, 0.5, 0.5, seed);
-        RDG_genBuffer(CNBuffer, CNBuffSize, 0.6, 0.6, seed);
+        for (nbWorkers = 0; nbWorkers < 3; ++nbWorkers) {
+            RDG_genBuffer(dict, CNBuffSize, 0.5, 0.5, seed);
+            RDG_genBuffer(CNBuffer, CNBuffSize, 0.6, 0.6, seed);
 
-        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_forceMaxWindow, 1));
-        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, 1));
-        assert(!ZSTD_isError(ZSTD_compress_usingDict(cctx, compressedBuffer, compressedBufferSize,
-            CNBuffer, CNBuffSize, dict, CNBuffSize, 3)));
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, ZSTD_c_nbWorkers));
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1));
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_forceMaxWindow, 1));
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, 1));
+            CHECK_Z(ZSTD_CCtx_refPrefix(cctx, dict, CNBuffSize));
+            cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize);
+            CHECK_Z(cSize);
+            CHECK_Z(ZSTD_decompress_usingDict(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize, dict, CNBuffSize));
+        }
 
         ZSTD_freeCCtx(cctx);
+        ZSTD_freeDCtx(dctx);
         free(dict);
     }
     DISPLAYLEVEL(3, "OK \n");

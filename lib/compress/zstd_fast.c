@@ -398,7 +398,7 @@ static size_t ZSTD_compressBlock_fast_extDict_generic(
     const BYTE* const ilimit = iend - 8;
     U32 offset_1=rep[0], offset_2=rep[1];
 
-    DEBUGLOG(5, "ZSTD_compressBlock_fast_extDict_generic");
+    DEBUGLOG(5, "ZSTD_compressBlock_fast_extDict_generic (offset_1=%u)", offset_1);
 
     /* switch to "regular" variant if extDict is invalidated due to maxDistance */
     if (prefixStartIndex == dictStartIndex)
@@ -415,6 +415,7 @@ static size_t ZSTD_compressBlock_fast_extDict_generic(
         const BYTE* const repBase = repIndex < prefixStartIndex ? dictBase : base;
         const BYTE* const repMatch = repBase + repIndex;
         hashTable[h] = current;   /* update hash table */
+        DEBUGLOG(7, "offset_1 = %u , current = %u", offset_1, current);
         assert(offset_1 <= current +1);   /* check repIndex */
 
         if ( (((U32)((prefixStartIndex-1) - repIndex) >= 3) /* intentional underflow */ & (repIndex > dictStartIndex))

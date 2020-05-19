@@ -5,6 +5,8 @@ block_round_trip
 dictionary_decompress
 dictionary_loader
 dictionary_round_trip
+dictionary_stream_round_trip
+raw_dictionary_round_trip
 simple_compress
 simple_decompress
 simple_round_trip
@@ -12,3 +14,7 @@ stream_decompress
 stream_round_trip
 zstd_frame_info
 fuzz-*.log
+
+# misc
+trace
+tmp*

@@ -228,6 +228,7 @@ void ZSTD_ldm_fillHashTable(
             ldmState_t* state, const BYTE* ip,
             const BYTE* iend, ldmParams_t const* params)
 {
+    DEBUGLOG(5, "ZSTD_ldm_fillHashTable");
     if ((size_t)(iend - ip) >= params->minMatchLength) {
         U64 startingHash = ZSTD_rollingHash_compute(ip, params->minMatchLength);
         ZSTD_ldm_fillLdmHashTable(
@@ -594,7 +595,7 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
         ZSTD_ldm_limitTableUpdate(ms, ip);
         ZSTD_ldm_fillFastTables(ms, ip);
         /* Run the block compressor */
-        DEBUGLOG(5, "calling block compressor on segment of size %u", sequence.litLength);
+        DEBUGLOG(5, "pos %u : calling block compressor on segment of size %u", (unsigned)(ip-istart), sequence.litLength);
         {
             size_t const newLitLength =
                 blockCompressor(ms, seqStore, rep, ip, sequence.litLength);

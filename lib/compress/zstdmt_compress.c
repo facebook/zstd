@@ -461,9 +461,13 @@ typedef struct {
     ZSTD_window_t ldmWindow;  /* A thread-safe copy of ldmState.window */
 } serialState_t;
 
-static int ZSTDMT_serialState_reset(serialState_t* serialState, 
-                        ZSTDMT_seqPool* seqPool, ZSTD_CCtx_params params, 
-                        size_t jobSize, const void* dict, size_t const dictSize)
+static int
+ZSTDMT_serialState_reset(serialState_t* serialState,
+                         ZSTDMT_seqPool* seqPool,
+                         ZSTD_CCtx_params params,
+                         size_t jobSize,
+                         const void* dict, size_t const dictSize,
+                         ZSTD_dictContentType_e dictContentType)
 {
     /* Adjust parameters */
     if (params.ldmParams.enableLdm) {
@@ -510,10 +514,14 @@ static int ZSTDMT_serialState_reset(serialState_t* serialState,
 
         /* Update window state and fill hash table with dict */
         if (dictSize > 0) {
-            BYTE const* const dictEnd = (const BYTE*)dict + dictSize;
-            ZSTD_window_update(&serialState->ldmState.window, dict, dictSize);
-            ZSTD_ldm_fillHashTable(&serialState->ldmState, (const BYTE*)dict, dictEnd, &params.ldmParams);
-            serialState->ldmState.loadedDictEnd = params.forceWindow ? 0 : (U32)(dictEnd - serialState->ldmState.window.base);
+            if (dictContentType == ZSTD_dct_rawContent) {
+                BYTE const* const dictEnd = (const BYTE*)dict + dictSize;
+                ZSTD_window_update(&serialState->ldmState.window, dict, dictSize);
+                ZSTD_ldm_fillHashTable(&serialState->ldmState, (const BYTE*)dict, dictEnd, &params.ldmParams);
+                serialState->ldmState.loadedDictEnd = params.forceWindow ? 0 : (U32)(dictEnd - serialState->ldmState.window.base);
+            } else {
+                /* don't even load anything */
+            }
         }
 
         /* Initialize serialState's copy of ldmWindow. */
@@ -1251,7 +1259,8 @@ ZSTDMT_computeNbJobs(const ZSTD_CCtx_params* params, size_t srcSize, unsigned nb
 /* ZSTDMT_compress_advanced_internal() :
  * This is a blocking function : it will only give back control to caller after finishing its compression job.
  */
-static size_t ZSTDMT_compress_advanced_internal(
+static size_t
+ZSTDMT_compress_advanced_internal(
                 ZSTDMT_CCtx* mtctx,
                 void* dst, size_t dstCapacity,
           const void* src, size_t srcSize,
@@ -1283,7 +1292,8 @@ static size_t ZSTDMT_compress_advanced_internal(
 
     assert(avgJobSize >= 256 KB);  /* condition for ZSTD_compressBound(A) + ZSTD_compressBound(B) <= ZSTD_compressBound(A+B), required to compress directly into Dst (no additional buffer) */
     ZSTDMT_setBufferSize(mtctx->bufPool, ZSTD_compressBound(avgJobSize) );
-    if (ZSTDMT_serialState_reset(&mtctx->serial, mtctx->seqPool, params, avgJobSize, NULL, 0))
+    /* LDM doesn't even try to load the dictionary in single-ingestion mode */
+    if (ZSTDMT_serialState_reset(&mtctx->serial, mtctx->seqPool, params, avgJobSize, NULL, 0, ZSTD_dct_auto))
         return ERROR(memory_allocation);
 
     FORWARD_IF_ERROR( ZSTDMT_expandJobsTable(mtctx, nbJobs) , "");  /* only expands if necessary */
@@ -1516,7 +1526,8 @@ size_t ZSTDMT_initCStream_internal(
     mtctx->allJobsCompleted = 0;
     mtctx->consumed = 0;
     mtctx->produced = 0;
-    if (ZSTDMT_serialState_reset(&mtctx->serial, mtctx->seqPool, params, mtctx->targetSectionSize, dict, dictSize))
+    if (ZSTDMT_serialState_reset(&mtctx->serial, mtctx->seqPool, params, mtctx->targetSectionSize,
+                                 dict, dictSize, dictContentType))
         return ERROR(memory_allocation);
     return 0;
 }

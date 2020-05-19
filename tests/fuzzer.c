@@ -631,17 +631,77 @@ static int basicUnitTests(U32 const seed, double compressibility)
     DISPLAYLEVEL(3, "test%3i : testing dict compression with enableLdm and forceMaxWindow : ", testNb++);
     {
         ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        ZSTD_DCtx* const dctx = ZSTD_createDCtx();
         void* dict = (void*)malloc(CNBuffSize);
+        int nbWorkers;
 
-        RDG_genBuffer(dict, CNBuffSize, 0.5, 0.5, seed);
-        RDG_genBuffer(CNBuffer, CNBuffSize, 0.6, 0.6, seed);
+        for (nbWorkers = 0; nbWorkers < 3; ++nbWorkers) {
+            RDG_genBuffer(dict, CNBuffSize, 0.5, 0.5, seed);
+            RDG_genBuffer(CNBuffer, CNBuffSize, 0.6, 0.6, seed);
 
-        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_forceMaxWindow, 1));
-        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, 1));
-        assert(!ZSTD_isError(ZSTD_compress_usingDict(cctx, compressedBuffer, compressedBufferSize,
-            CNBuffer, CNBuffSize, dict, CNBuffSize, 3)));
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, ZSTD_c_nbWorkers));
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1));
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_forceMaxWindow, 1));
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, 1));
+            CHECK_Z(ZSTD_CCtx_refPrefix(cctx, dict, CNBuffSize));
+            cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize);
+            CHECK_Z(cSize);
+            CHECK_Z(ZSTD_decompress_usingDict(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize, dict, CNBuffSize));
+        }
 
         ZSTD_freeCCtx(cctx);
+        ZSTD_freeDCtx(dctx);
+        free(dict);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : testing ldm dictionary gets invalidated : ", testNb++);
+    {
+        ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+        void* dict = (void*)malloc(CNBuffSize);
+        size_t const kWindowLog = 10;
+        size_t const kWindowSize = (size_t)1 << kWindowLog;
+        size_t const dictSize = kWindowSize * 10;
+        size_t const srcSize1 = kWindowSize / 2;
+        size_t const srcSize2 = kWindowSize * 10;
+        int nbWorkers;
+
+        if (CNBuffSize < dictSize) goto _output_error;
+
+        RDG_genBuffer(dict, dictSize, 0.5, 0.5, seed);
+        RDG_genBuffer(CNBuffer, srcSize1 + srcSize2, 0.5, 0.5, seed);
+
+        /* Enable checksum to verify round trip. */
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1));
+        /* Disable content size to skip single-pass decompression. */
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_contentSizeFlag, 0));
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_windowLog, (int)kWindowLog));
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, 1));
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_ldmMinMatch, 32));
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_ldmHashRateLog, 1));
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_ldmHashLog, 12));
+
+        for (nbWorkers = 0; nbWorkers < 3; ++nbWorkers) {
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, nbWorkers));
+            /* Round trip once with a dictionary. */
+            CHECK_Z(ZSTD_CCtx_refPrefix(cctx, dict, dictSize));
+            cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, srcSize1);
+            CHECK_Z(cSize);
+            CHECK_Z(ZSTD_decompress_usingDict(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize, dict, dictSize));
+            cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, srcSize2);
+            /* Streaming decompression to catch out of bounds offsets. */
+            {
+                ZSTD_inBuffer in = {compressedBuffer, cSize, 0};
+                ZSTD_outBuffer out = {decodedBuffer, CNBuffSize, 0};
+                size_t const dSize = ZSTD_decompressStream(dctx, &out, &in);
+                CHECK_Z(dSize);
+                if (dSize != 0) goto _output_error;
+            }
+        }
+
+        ZSTD_freeCCtx(cctx);
+        ZSTD_freeDCtx(dctx);
         free(dict);
     }
     DISPLAYLEVEL(3, "OK \n");

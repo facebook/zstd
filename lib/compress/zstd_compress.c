@@ -1576,6 +1576,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
 
             ZSTD_window_init(&zc->ldmState.window);
             ZSTD_window_clear(&zc->ldmState.window);
+            zc->ldmState.loadedDictEnd = 0;
         }
 
         DEBUGLOG(3, "wksp: finished allocating, %zd bytes remain available", ZSTD_cwksp_available_space(ws));

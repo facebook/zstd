@@ -60,7 +60,7 @@ static size_t roundTripTest(void *result, size_t resultCapacity,
                 + 3 /* number of sequences */
                 + 1 /* symbol compression modes */;
             size_t const expectedExpansion = bytesPerBlock * (1 + (normalCSize / MAX(1, targetCBlockSize)));
-            size_t const allowedExpansion = (srcSize >> 4) + 3 * expectedExpansion + 10;
+            size_t const allowedExpansion = (srcSize >> 3) + 5 * expectedExpansion + 10;
             FUZZ_ASSERT(cSize <= normalCSize + allowedExpansion);
         }
     }

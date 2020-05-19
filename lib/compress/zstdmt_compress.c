@@ -513,6 +513,7 @@ ZSTDMT_serialState_reset(serialState_t* serialState,
         memset(serialState->ldmState.bucketOffsets, 0, bucketSize);
 
         /* Update window state and fill hash table with dict */
+        serialState->ldmState.loadedDictEnd = 0;
         if (dictSize > 0) {
             if (dictContentType == ZSTD_dct_rawContent) {
                 BYTE const* const dictEnd = (const BYTE*)dict + dictSize;
@@ -526,9 +527,6 @@ ZSTDMT_serialState_reset(serialState_t* serialState,
 
         /* Initialize serialState's copy of ldmWindow. */
         serialState->ldmWindow = serialState->ldmState.window;
-    }
-
-    if (params.ldmParams.enableLdm && dict) {
     }
 
     serialState->params = params;

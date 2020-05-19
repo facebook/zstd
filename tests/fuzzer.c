@@ -639,7 +639,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
             RDG_genBuffer(dict, CNBuffSize, 0.5, 0.5, seed);
             RDG_genBuffer(CNBuffer, CNBuffSize, 0.6, 0.6, seed);
 
-            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, ZSTD_c_nbWorkers));
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, nbWorkers));
             CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1));
             CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_forceMaxWindow, 1));
             CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, 1));
@@ -665,7 +665,6 @@ static int basicUnitTests(U32 const seed, double compressibility)
         size_t const dictSize = kWindowSize * 10;
         size_t const srcSize1 = kWindowSize / 2;
         size_t const srcSize2 = kWindowSize * 10;
-        int nbWorkers;
 
         if (CNBuffSize < dictSize) goto _output_error;
 
@@ -680,24 +679,49 @@ static int basicUnitTests(U32 const seed, double compressibility)
         CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, 1));
         CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_ldmMinMatch, 32));
         CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_ldmHashRateLog, 1));
-        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_ldmHashLog, 12));
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_ldmHashLog, 16));
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_ldmBucketSizeLog, 3));
 
-        for (nbWorkers = 0; nbWorkers < 3; ++nbWorkers) {
-            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, nbWorkers));
-            /* Round trip once with a dictionary. */
-            CHECK_Z(ZSTD_CCtx_refPrefix(cctx, dict, dictSize));
-            cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, srcSize1);
-            CHECK_Z(cSize);
-            CHECK_Z(ZSTD_decompress_usingDict(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize, dict, dictSize));
-            cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, srcSize2);
-            /* Streaming decompression to catch out of bounds offsets. */
-            {
-                ZSTD_inBuffer in = {compressedBuffer, cSize, 0};
-                ZSTD_outBuffer out = {decodedBuffer, CNBuffSize, 0};
-                size_t const dSize = ZSTD_decompressStream(dctx, &out, &in);
-                CHECK_Z(dSize);
-                if (dSize != 0) goto _output_error;
-            }
+        /* Round trip once with a dictionary. */
+        CHECK_Z(ZSTD_CCtx_refPrefix(cctx, dict, dictSize));
+        cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, srcSize1);
+        CHECK_Z(cSize);
+        CHECK_Z(ZSTD_decompress_usingDict(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize, dict, dictSize));
+        cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, srcSize2);
+        /* Streaming decompression to catch out of bounds offsets. */
+        {
+            ZSTD_inBuffer in = {compressedBuffer, cSize, 0};
+            ZSTD_outBuffer out = {decodedBuffer, CNBuffSize, 0};
+            size_t const dSize = ZSTD_decompressStream(dctx, &out, &in);
+            CHECK_Z(dSize);
+            if (dSize != 0) goto _output_error;
+        }
+
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 2));
+        /* Round trip once with a dictionary. */
+        CHECK_Z(ZSTD_CCtx_refPrefix(cctx, dict, dictSize));
+        {
+            ZSTD_inBuffer in = {CNBuffer, srcSize1, 0};
+            ZSTD_outBuffer out = {compressedBuffer, compressedBufferSize, 0};
+            CHECK_Z(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_flush));
+            CHECK_Z(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end));
+            cSize = out.pos;
+        }
+        CHECK_Z(ZSTD_decompress_usingDict(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize, dict, dictSize));
+        {
+            ZSTD_inBuffer in = {CNBuffer, srcSize2, 0};
+            ZSTD_outBuffer out = {compressedBuffer, compressedBufferSize, 0};
+            CHECK_Z(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_flush));
+            CHECK_Z(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end));
+            cSize = out.pos;
+        }
+        /* Streaming decompression to catch out of bounds offsets. */
+        {
+            ZSTD_inBuffer in = {compressedBuffer, cSize, 0};
+            ZSTD_outBuffer out = {decodedBuffer, CNBuffSize, 0};
+            size_t const dSize = ZSTD_decompressStream(dctx, &out, &in);
+            CHECK_Z(dSize);
+            if (dSize != 0) goto _output_error;
         }
 
         ZSTD_freeCCtx(cctx);

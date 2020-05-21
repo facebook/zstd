@@ -203,18 +203,19 @@ matrix:
         - CC=clang-3.8 make tsan-test-zstream
         - CC=clang-3.8 make tsan-fuzztest
 
-    - name: Qemu PPC64 + Fuzz test  # ~13mn
-      if: branch = master
-      script:
-        - make ppcinstall
-        - make ppc64fuzz
-
     - name: PPC64LE + Fuzz test  # ~13mn
       if: branch = master
       arch: ppc64le
       script:
         - cat /proc/cpuinfo
         - make test
+
+    - name: Qemu PPC64 + Fuzz test  # ~13mn, presumed Big-Endian (?)
+      dist: trusty  # note : PPC64 cross-compilation for Qemu tests seems broken on Xenial
+      if: branch = master
+      script:
+        - make ppcinstall
+        - make ppc64fuzz
 
     # note : we already have aarch64 tests on hardware
     - name: Qemu aarch64 + Fuzz Test (on Xenial)    # ~14mn

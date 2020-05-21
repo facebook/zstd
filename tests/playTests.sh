@@ -123,10 +123,10 @@ case "$UNAME" in
   SunOS) DIFF="gdiff" ;;
 esac
 
-println "\nStarting playTests.sh isWindows=$isWindows EXE_PREFIX='$EXE_PREFIX' ZSTD_BIN='$ZSTD_BIN'"
+println "\nStarting playTests.sh isWindows=$isWindows EXE_PREFIX='$EXE_PREFIX' ZSTD_BIN='$ZSTD_BIN' DATAGEN_BIN='$DATAGEN_BIN'"
 
-[ -n "$ZSTD_BIN" ] || die "$ZSTD_BIN variable must be defined!"
-[ -n "$DATAGEN_BIN" ] || die "$DATAGEN_BIN variable must be defined!"
+[ -n "$ZSTD_BIN" ] || die "\$ZSTD_BIN variable must be defined!"
+[ -n "$DATAGEN_BIN" ] || die "\$DATAGEN_BIN variable must be defined!"
 
 if echo hello | zstd -v -T2 2>&1 > $INTOVOID | grep -q 'multi-threading is disabled'
 then

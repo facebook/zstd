@@ -7,8 +7,8 @@
   branches:
     only:
     - master
-    - appveyorTest
-    - /visual*/
+    - /appveyorTest.*/
+    - /visual.*/
   environment:
     matrix:
     - COMPILER: "gcc"

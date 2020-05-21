@@ -158,7 +158,7 @@ if host_machine_os != os_windows
   test('test-zstd',
     playTests_sh,
     args: ZSTDRTTEST,
-    env: ['ZSTD=' + zstd.full_path()],
+    env: ['ZSTD_BIN=' + zstd.full_path(), 'DATAGEN_BIN=./datagen'],
     depends: [datagen],
     workdir: meson.current_build_dir(),
     timeout: 2800) # Timeout should work on HDD drive

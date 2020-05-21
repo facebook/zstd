@@ -169,7 +169,8 @@
   - SET "FUZZERTEST=-T30s"
   - if [%HOST%]==[visual] if [%CONFIGURATION%]==[Release] (
       CD tests &&
-      SET ZSTD=./zstd.exe &&
+      SET ZSTD_BIN=./zstd.exe &&
+      SET DATAGEN_BIN=./datagen.exe &&
       sh -e playTests.sh --test-large-data &&
       fullbench.exe -i1 &&
       fullbench.exe -i1 -P0 &&

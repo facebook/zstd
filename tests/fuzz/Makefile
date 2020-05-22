@@ -1,10 +1,11 @@
 # ################################################################
-# Copyright (c) 2016-present, Facebook, Inc.
+# Copyright (c) 2016-2020, Facebook, Inc.
 # All rights reserved.
 #
 # This source code is licensed under both the BSD-style license (found in the
 # LICENSE file in the root directory of this source tree) and the GPLv2 (found
 # in the COPYING file in the root directory of this source tree).
+# You may select, at your option, one of the above-listed licenses.
 # ################################################################
 
 # Optionally user defined flags
@@ -40,8 +41,10 @@ FUZZ_LDFLAGS := -pthread $(LDFLAGS)
 FUZZ_ARFLAGS := $(ARFLAGS)
 FUZZ_TARGET_FLAGS = $(FUZZ_CPPFLAGS) $(FUZZ_CXXFLAGS) $(FUZZ_LDFLAGS)
 
+FUZZ_ROUND_TRIP_FLAGS := -DFUZZING_ASSERT_VALID_SEQUENCE
+
 FUZZ_HEADERS := fuzz_helpers.h fuzz.h zstd_helpers.h fuzz_data_producer.h
-FUZZ_SRC := $(PRGDIR)/util.c zstd_helpers.c fuzz_data_producer.c
+FUZZ_SRC := $(PRGDIR)/util.c ./fuzz_helpers.c ./zstd_helpers.c ./fuzz_data_producer.c
 
 ZSTDCOMMON_SRC := $(ZSTDDIR)/common/*.c
 ZSTDCOMP_SRC   := $(ZSTDDIR)/compress/*.c
@@ -55,9 +58,25 @@ FUZZ_SRC       := \
 	$(ZSTDCOMP_SRC) \
 	$(ZSTDDICT_SRC) \
 	$(ZSTDLEGACY_SRC)
+FUZZ_SRC := $(wildcard $(FUZZ_SRC))
 
-FUZZ_OBJ := $(patsubst %.c,%.o, $(wildcard $(FUZZ_SRC)))
+FUZZ_D_OBJ1 := $(subst $(ZSTDDIR)/common/,d_lib_common_,$(FUZZ_SRC))
+FUZZ_D_OBJ2 := $(subst $(ZSTDDIR)/compress/,d_lib_compress_,$(FUZZ_D_OBJ1))
+FUZZ_D_OBJ3 := $(subst $(ZSTDDIR)/decompress/,d_lib_decompress_,$(FUZZ_D_OBJ2))
+FUZZ_D_OBJ4 := $(subst $(ZSTDDIR)/dictBuilder/,d_lib_dictBuilder_,$(FUZZ_D_OBJ3))
+FUZZ_D_OBJ5 := $(subst $(ZSTDDIR)/legacy/,d_lib_legacy_,$(FUZZ_D_OBJ4))
+FUZZ_D_OBJ6 := $(subst $(PRGDIR)/,d_prg_,$(FUZZ_D_OBJ5))
+FUZZ_D_OBJ7 := $(subst $\./,d_fuzz_,$(FUZZ_D_OBJ6))
+FUZZ_DECOMPRESS_OBJ := $(FUZZ_D_OBJ7:.c=.o)
 
+FUZZ_RT_OBJ1 := $(subst $(ZSTDDIR)/common/,rt_lib_common_,$(FUZZ_SRC))
+FUZZ_RT_OBJ2 := $(subst $(ZSTDDIR)/compress/,rt_lib_compress_,$(FUZZ_RT_OBJ1))
+FUZZ_RT_OBJ3 := $(subst $(ZSTDDIR)/decompress/,rt_lib_decompress_,$(FUZZ_RT_OBJ2))
+FUZZ_RT_OBJ4 := $(subst $(ZSTDDIR)/dictBuilder/,rt_lib_dictBuilder_,$(FUZZ_RT_OBJ3))
+FUZZ_RT_OBJ5 := $(subst $(ZSTDDIR)/legacy/,rt_lib_legacy_,$(FUZZ_RT_OBJ4))
+FUZZ_RT_OBJ6 := $(subst $(PRGDIR)/,rt_prg_,$(FUZZ_RT_OBJ5))
+FUZZ_RT_OBJ7 := $(subst $\./,rt_fuzz_,$(FUZZ_RT_OBJ6))
+FUZZ_ROUND_TRIP_OBJ := $(FUZZ_RT_OBJ7:.c=.o)
 
 .PHONY: default all clean cleanall
 
@@ -74,48 +93,95 @@ FUZZ_TARGETS :=       \
 	dictionary_decompress \
 	zstd_frame_info \
 	simple_compress \
-	dictionary_loader
+	dictionary_loader \
+	raw_dictionary_round_trip \
+	dictionary_stream_round_trip
 
 all: $(FUZZ_TARGETS)
 
-%.o: %.c
-	$(CC) $(FUZZ_CPPFLAGS) $(FUZZ_CFLAGS) $^ -c -o $@
+rt_lib_common_%.o: $(ZSTDDIR)/common/%.c
+	$(CC) $(FUZZ_CPPFLAGS) $(FUZZ_CFLAGS) $(FUZZ_ROUND_TRIP_FLAGS) $< -c -o $@
 
-simple_round_trip: $(FUZZ_HEADERS) $(FUZZ_OBJ) simple_round_trip.o
-	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_OBJ) simple_round_trip.o $(LIB_FUZZING_ENGINE) -o $@
+rt_lib_compress_%.o: $(ZSTDDIR)/compress/%.c
+	$(CC) $(FUZZ_CPPFLAGS) $(FUZZ_CFLAGS) $(FUZZ_ROUND_TRIP_FLAGS) $< -c -o $@
 
-stream_round_trip: $(FUZZ_HEADERS) $(FUZZ_OBJ) stream_round_trip.o
-	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_OBJ) stream_round_trip.o $(LIB_FUZZING_ENGINE) -o $@
+rt_lib_decompress_%.o: $(ZSTDDIR)/decompress/%.c
+	$(CC) $(FUZZ_CPPFLAGS) $(FUZZ_CFLAGS) $(FUZZ_ROUND_TRIP_FLAGS) $< -c -o $@
 
-block_round_trip: $(FUZZ_HEADERS) $(FUZZ_OBJ) block_round_trip.o
-	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_OBJ) block_round_trip.o $(LIB_FUZZING_ENGINE) -o $@
+rt_lib_dictBuilder_%.o: $(ZSTDDIR)/dictBuilder/%.c
+	$(CC) $(FUZZ_CPPFLAGS) $(FUZZ_CFLAGS) $(FUZZ_ROUND_TRIP_FLAGS) $< -c -o $@
 
-simple_decompress: $(FUZZ_HEADERS) $(FUZZ_OBJ) simple_decompress.o
-	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_OBJ) simple_decompress.o $(LIB_FUZZING_ENGINE) -o $@
+rt_lib_legacy_%.o: $(ZSTDDIR)/legacy/%.c
+	$(CC) $(FUZZ_CPPFLAGS) $(FUZZ_CFLAGS) $(FUZZ_ROUND_TRIP_FLAGS) $< -c -o $@
 
-stream_decompress: $(FUZZ_HEADERS) $(FUZZ_OBJ) stream_decompress.o
-	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_OBJ) stream_decompress.o $(LIB_FUZZING_ENGINE) -o $@
+rt_prg_%.o: $(PRGDIR)/%.c
+	$(CC) $(FUZZ_CPPFLAGS) $(FUZZ_CFLAGS) $(FUZZ_ROUND_TRIP_FLAGS) $< -c -o $@
 
-block_decompress: $(FUZZ_HEADERS) $(FUZZ_OBJ) block_decompress.o
-	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_OBJ) block_decompress.o $(LIB_FUZZING_ENGINE) -o $@
+rt_fuzz_%.o: %.c
+	$(CC) $(FUZZ_CPPFLAGS) $(FUZZ_CFLAGS) $(FUZZ_ROUND_TRIP_FLAGS) $< -c -o $@
 
-dictionary_round_trip: $(FUZZ_HEADERS) $(FUZZ_OBJ) dictionary_round_trip.o
-	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_OBJ) dictionary_round_trip.o $(LIB_FUZZING_ENGINE) -o $@
+d_lib_common_%.o: $(ZSTDDIR)/common/%.c
+	$(CC) $(FUZZ_CPPFLAGS) $(FUZZ_CFLAGS) $< -c -o $@
 
-dictionary_decompress: $(FUZZ_HEADERS) $(FUZZ_OBJ) dictionary_decompress.o
-	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_OBJ) dictionary_decompress.o $(LIB_FUZZING_ENGINE) -o $@
+d_lib_compress_%.o: $(ZSTDDIR)/compress/%.c
+	$(CC) $(FUZZ_CPPFLAGS) $(FUZZ_CFLAGS) $< -c -o $@
 
-simple_compress: $(FUZZ_HEADERS) $(FUZZ_OBJ) simple_compress.o
-	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_OBJ) simple_compress.o $(LIB_FUZZING_ENGINE) -o $@
+d_lib_decompress_%.o: $(ZSTDDIR)/decompress/%.c
+	$(CC) $(FUZZ_CPPFLAGS) $(FUZZ_CFLAGS) $< -c -o $@
 
-zstd_frame_info: $(FUZZ_HEADERS) $(FUZZ_OBJ) zstd_frame_info.o
-	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_OBJ) zstd_frame_info.o $(LIB_FUZZING_ENGINE) -o $@
+d_lib_dictBuilder_%.o: $(ZSTDDIR)/dictBuilder/%.c
+	$(CC) $(FUZZ_CPPFLAGS) $(FUZZ_CFLAGS) $< -c -o $@
 
-dictionary_loader: $(FUZZ_HEADERS) $(FUZZ_OBJ) dictionary_loader.o
-	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_OBJ) dictionary_loader.o $(LIB_FUZZING_ENGINE) -o $@
+d_lib_legacy_%.o: $(ZSTDDIR)/legacy/%.c
+	$(CC) $(FUZZ_CPPFLAGS) $(FUZZ_CFLAGS) $< -c -o $@
 
-libregression.a: $(FUZZ_HEADERS) $(PRGDIR)/util.h $(PRGDIR)/util.c regression_driver.o
-	$(AR) $(FUZZ_ARFLAGS) $@ regression_driver.o
+d_prg_%.o: $(PRGDIR)/%.c
+	$(CC) $(FUZZ_CPPFLAGS) $(FUZZ_CFLAGS) $< -c -o $@
+
+d_fuzz_%.o: %.c
+	$(CC) $(FUZZ_CPPFLAGS) $(FUZZ_CFLAGS) $< -c -o $@
+
+simple_round_trip: $(FUZZ_HEADERS) $(FUZZ_ROUND_TRIP_OBJ) rt_fuzz_simple_round_trip.o
+	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_ROUND_TRIP_OBJ) rt_fuzz_simple_round_trip.o $(LIB_FUZZING_ENGINE) -o $@
+
+stream_round_trip: $(FUZZ_HEADERS) $(FUZZ_ROUND_TRIP_OBJ) rt_fuzz_stream_round_trip.o
+	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_ROUND_TRIP_OBJ) rt_fuzz_stream_round_trip.o $(LIB_FUZZING_ENGINE) -o $@
+
+block_round_trip: $(FUZZ_HEADERS) $(FUZZ_ROUND_TRIP_OBJ) rt_fuzz_block_round_trip.o
+	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_ROUND_TRIP_OBJ) rt_fuzz_block_round_trip.o $(LIB_FUZZING_ENGINE) -o $@
+
+simple_decompress: $(FUZZ_HEADERS) $(FUZZ_DECOMPRESS_OBJ) d_fuzz_simple_decompress.o
+	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_DECOMPRESS_OBJ) d_fuzz_simple_decompress.o $(LIB_FUZZING_ENGINE) -o $@
+
+stream_decompress: $(FUZZ_HEADERS) $(FUZZ_DECOMPRESS_OBJ) d_fuzz_stream_decompress.o
+	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_DECOMPRESS_OBJ) d_fuzz_stream_decompress.o $(LIB_FUZZING_ENGINE) -o $@
+
+block_decompress: $(FUZZ_HEADERS) $(FUZZ_DECOMPRESS_OBJ) d_fuzz_block_decompress.o
+	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_DECOMPRESS_OBJ) d_fuzz_block_decompress.o $(LIB_FUZZING_ENGINE) -o $@
+
+dictionary_round_trip: $(FUZZ_HEADERS) $(FUZZ_ROUND_TRIP_OBJ) rt_fuzz_dictionary_round_trip.o
+	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_ROUND_TRIP_OBJ) rt_fuzz_dictionary_round_trip.o $(LIB_FUZZING_ENGINE) -o $@
+
+raw_dictionary_round_trip: $(FUZZ_HEADERS) $(FUZZ_ROUND_TRIP_OBJ) rt_fuzz_raw_dictionary_round_trip.o
+	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_ROUND_TRIP_OBJ) rt_fuzz_raw_dictionary_round_trip.o $(LIB_FUZZING_ENGINE) -o $@
+
+dictionary_stream_round_trip: $(FUZZ_HEADERS) $(FUZZ_ROUND_TRIP_OBJ) rt_fuzz_dictionary_stream_round_trip.o
+	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_ROUND_TRIP_OBJ) rt_fuzz_dictionary_stream_round_trip.o $(LIB_FUZZING_ENGINE) -o $@
+
+dictionary_decompress: $(FUZZ_HEADERS) $(FUZZ_DECOMPRESS_OBJ) d_fuzz_dictionary_decompress.o
+	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_DECOMPRESS_OBJ) d_fuzz_dictionary_decompress.o $(LIB_FUZZING_ENGINE) -o $@
+
+simple_compress: $(FUZZ_HEADERS) $(FUZZ_ROUND_TRIP_OBJ) rt_fuzz_simple_compress.o
+	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_ROUND_TRIP_OBJ) rt_fuzz_simple_compress.o $(LIB_FUZZING_ENGINE) -o $@
+
+zstd_frame_info: $(FUZZ_HEADERS) $(FUZZ_DECOMPRESS_OBJ) d_fuzz_zstd_frame_info.o
+	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_DECOMPRESS_OBJ) d_fuzz_zstd_frame_info.o $(LIB_FUZZING_ENGINE) -o $@
+
+dictionary_loader: $(FUZZ_HEADERS) $(FUZZ_ROUND_TRIP_OBJ) rt_fuzz_dictionary_loader.o
+	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_ROUND_TRIP_OBJ) rt_fuzz_dictionary_loader.o $(LIB_FUZZING_ENGINE) -o $@
+
+libregression.a: $(FUZZ_HEADERS) $(PRGDIR)/util.h $(PRGDIR)/util.c d_fuzz_regression_driver.o
+	$(AR) $(FUZZ_ARFLAGS) $@ d_fuzz_regression_driver.o
 
 corpora/%_seed_corpus.zip:
 	@mkdir -p corpora
@@ -135,7 +201,6 @@ regressiontest: corpora
 	$(PYTHON) ./fuzz.py regression all
 
 clean:
-	@$(MAKE) -C $(ZSTDDIR) clean
 	@$(RM) *.a *.o
 	@$(RM) simple_round_trip stream_round_trip simple_decompress \
            stream_decompress block_decompress block_round_trip \

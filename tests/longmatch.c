@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-present, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2017-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the

@@ -14,7 +14,7 @@
     - COMPILER: "gcc"
       HOST:     "mingw"
       PLATFORM: "x64"
-      SCRIPT:   "make allzstd MOREFLAGS=-static && make -C tests test-symbols fullbench-lib"
+      SCRIPT:   "make allzstd MOREFLAGS=-static && make -C tests fullbench-lib"
       ARTIFACT: "true"
       BUILD:    "true"
     - COMPILER: "gcc"
@@ -169,7 +169,8 @@
   - SET "FUZZERTEST=-T30s"
   - if [%HOST%]==[visual] if [%CONFIGURATION%]==[Release] (
       CD tests &&
-      SET ZSTD=./zstd.exe &&
+      SET ZSTD_BIN=./zstd.exe&&
+      SET DATAGEN_BIN=./datagen.exe&&
       sh -e playTests.sh --test-large-data &&
       fullbench.exe -i1 &&
       fullbench.exe -i1 -P0 &&
@@ -187,6 +188,9 @@
   version: 1.0.{build}
   environment:
     matrix:
+    - COMPILER: "gcc"
+      HOST:     "cygwin"
+      PLATFORM: "x64"
     - COMPILER: "gcc"
       HOST:     "mingw"
       PLATFORM: "x64"
@@ -220,6 +224,14 @@
   install:
   - ECHO Installing %COMPILER% %PLATFORM% %CONFIGURATION%
   - SET PATH_ORIGINAL=%PATH%
+  - if [%HOST%]==[cygwin] (
+      ECHO Installing Cygwin Packages &&
+      C:\cygwin64\setup-x86_64.exe -qnNdO -R "C:\cygwin64" -g -P ^
+        gcc-g++,^
+        gcc,^
+        cmake,^
+        make
+    )
   - if [%HOST%]==[mingw] (
       SET "PATH_MINGW32=C:\mingw-w64\i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32\bin" &&
       SET "PATH_MINGW64=C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64\bin" &&
@@ -232,6 +244,17 @@
 
   build_script:
   - ECHO Building %COMPILER% %PLATFORM% %CONFIGURATION%
+  - if [%HOST%]==[cygwin] (
+      set CHERE_INVOKING=yes &&
+      set CC=%COMPILER% &&
+      C:\cygwin64\bin\bash --login -c "
+        set -e;
+        cd build/cmake;
+        CFLAGS='-Werror' cmake -G 'Unix Makefiles' -DCMAKE_BUILD_TYPE=Debug -DZSTD_BUILD_TESTS:BOOL=ON -DZSTD_FUZZER_FLAGS=-T30s -DZSTD_ZSTREAM_FLAGS=-T30s .;
+        make -j4;
+        ctest -V -L Medium;
+      "
+    )
   - if [%HOST%]==[mingw] (
       ( if [%PLATFORM%]==[x64] (
         SET "PATH=%PATH_MINGW64%;%PATH_ORIGINAL%"

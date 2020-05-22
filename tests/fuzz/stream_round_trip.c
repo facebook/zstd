@@ -1,10 +1,11 @@
 /*
- * Copyright (c) 2016-present, Facebook, Inc.
+ * Copyright (c) 2016-2020, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
  * LICENSE file in the root directory of this source tree) and the GPLv2 (found
  * in the COPYING file in the root directory of this source tree).
+ * You may select, at your option, one of the above-listed licenses.
  */
 
 /**
@@ -96,6 +97,13 @@ static size_t compress(uint8_t *dst, size_t capacity,
                     }
                     break;
                 }
+                case 4: {
+                    ZSTD_inBuffer nullIn = { NULL, 0, 0 };
+                    ZSTD_outBuffer nullOut = { NULL, 0, 0 };
+                    size_t const ret = ZSTD_compressStream2(cctx, &nullOut, &nullIn, ZSTD_e_continue);
+                    FUZZ_ZASSERT(ret);
+                }
+                /* fall-through */
                 default: {
                     size_t const ret =
                         ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_continue);
@@ -138,10 +146,9 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     if (neededBufSize > bufSize) {
         free(cBuf);
         free(rBuf);
-        cBuf = (uint8_t*)malloc(neededBufSize);
-        rBuf = (uint8_t*)malloc(neededBufSize);
+        cBuf = (uint8_t*)FUZZ_malloc(neededBufSize);
+        rBuf = (uint8_t*)FUZZ_malloc(neededBufSize);
         bufSize = neededBufSize;
-        FUZZ_ASSERT(cBuf && rBuf);
     }
     if (!cctx) {
         cctx = ZSTD_createCCtx();
@@ -158,7 +165,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
             ZSTD_decompressDCtx(dctx, rBuf, neededBufSize, cBuf, cSize);
         FUZZ_ZASSERT(rSize);
         FUZZ_ASSERT_MSG(rSize == size, "Incorrect regenerated size");
-        FUZZ_ASSERT_MSG(!memcmp(src, rBuf, size), "Corruption!");
+        FUZZ_ASSERT_MSG(!FUZZ_memcmp(src, rBuf, size), "Corruption!");
     }
 
     FUZZ_dataProducer_free(producer);

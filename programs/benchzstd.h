@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -24,7 +24,7 @@ extern "C" {
 /* ===  Dependencies  === */
 #include <stddef.h>   /* size_t */
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_compressionParameters */
-#include "zstd.h"     /* ZSTD_compressionParameters */
+#include "../lib/zstd.h"     /* ZSTD_compressionParameters */
 
 
 /* ===  Constants  === */

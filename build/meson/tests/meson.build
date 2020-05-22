@@ -60,17 +60,6 @@ fuzzer = executable('fuzzer',
   dependencies: libzstd_dep,
   install: false)
 
-zbufftest_sources = [join_paths(zstd_rootdir, 'programs/datagen.c'),
-  join_paths(zstd_rootdir, 'programs/util.c'),
-  join_paths(zstd_rootdir, 'programs/timefn.c'),
-  join_paths(zstd_rootdir, 'tests/zbufftest.c')]
-zbufftest = executable('zbufftest',
-  zbufftest_sources,
-  c_args: ['-Wno-deprecated-declarations'],
-  include_directories: test_includes,
-  dependencies: libzstd_dep,
-  install: false)
-
 zstreamtest_sources = [join_paths(zstd_rootdir, 'programs/datagen.c'),
   join_paths(zstd_rootdir, 'programs/util.c'),
   join_paths(zstd_rootdir, 'programs/timefn.c'),
@@ -131,14 +120,6 @@ decodecorpus = executable('decodecorpus',
   dependencies: [ libzstd_dep, libm_dep ],
   install: false)
 
-symbols_sources = [join_paths(zstd_rootdir, 'tests/symbols.c')]
-symbols = executable('symbols',
-  symbols_sources,
-  include_directories: test_includes,
-  c_args: host_machine_os == os_windows ? '-DZSTD_DLL_IMPORT=1' : [],
-  dependencies: [ libzstd_dep ],
-  install: false)
-
 poolTests_sources = [join_paths(zstd_rootdir, 'programs/util.c'),
   join_paths(zstd_rootdir, 'programs/timefn.c'),
   join_paths(zstd_rootdir, 'tests/poolTests.c'),
@@ -177,7 +158,7 @@ if host_machine_os != os_windows
   test('test-zstd',
     playTests_sh,
     args: ZSTDRTTEST,
-    env: ['ZSTD=' + zstd.full_path()],
+    env: ['ZSTD_BIN=' + zstd.full_path(), 'DATAGEN_BIN=./datagen'],
     depends: [datagen],
     workdir: meson.current_build_dir(),
     timeout: 2800) # Timeout should work on HDD drive
@@ -201,10 +182,6 @@ if use_zlib
     timeout: 480)
 endif
 
-test('test-zbuff',
-  zbufftest,
-  args: [ZSTREAM_TESTTIME],
-  timeout: 120)
 test('test-zstream-1',
   zstreamtest,
   args: ['-v', ZSTREAM_TESTTIME] + FUZZER_FLAGS,
@@ -219,7 +196,6 @@ test('test-zstream-3',
   timeout: 120)
 test('test-longmatch', longmatch, timeout: 36)
 test('test-invalidDictionaries', invalidDictionaries) # should be fast
-test('test-symbols', symbols) # should be fast
 if 0 < legacy_level and legacy_level <= 4
   test('test-legacy', legacy) # should be fast
 endif

@@ -31,10 +31,10 @@ a list of known ports and bindings is provided on [Zstandard homepage](http://ww
 ## Benchmarks
 
 For reference, several fast compression algorithms were tested and compared
-on a server running Arch Linux (`Linux version 5.0.5-arch1-1`),
+on a server running Arch Linux (`Linux version 5.5.11-arch1-1`),
 with a Core i9-9900K CPU @ 5.0GHz,
 using [lzbench], an open-source in-memory benchmark by @inikep
-compiled with [gcc] 8.2.1,
+compiled with [gcc] 9.3.0,
 on the [Silesia compression corpus].
 
 [lzbench]: https://github.com/inikep/lzbench
@@ -43,17 +43,25 @@ on the [Silesia compression corpus].
 
 | Compressor name         | Ratio | Compression| Decompress.|
 | ---------------         | ------| -----------| ---------- |
-| **zstd 1.4.0 -1**       | 2.884 |   530 MB/s |  1360 MB/s |
-| zlib 1.2.11 -1          | 2.743 |   110 MB/s |   440 MB/s |
-| brotli 1.0.7 -0         | 2.701 |   430 MB/s |   470 MB/s |
-| quicklz 1.5.0 -1        | 2.238 |   600 MB/s |   800 MB/s |
-| lzo1x 2.09 -1           | 2.106 |   680 MB/s |   950 MB/s |
-| lz4 1.8.3               | 2.101 |   800 MB/s |  4220 MB/s |
-| snappy 1.1.4            | 2.073 |   580 MB/s |  2020 MB/s |
-| lzf 3.6 -1              | 2.077 |   440 MB/s |   930 MB/s |
+| **zstd 1.4.5 -1**       | 2.884 |   500 MB/s |  1660 MB/s |
+| zlib 1.2.11 -1          | 2.743 |    90 MB/s |   400 MB/s |
+| brotli 1.0.7 -0         | 2.703 |   400 MB/s |   450 MB/s |
+| **zstd 1.4.5 --fast=1** | 2.434 |   570 MB/s |  2200 MB/s |
+| **zstd 1.4.5 --fast=3** | 2.312 |   640 MB/s |  2300 MB/s |
+| quicklz 1.5.0 -1        | 2.238 |   560 MB/s |   710 MB/s |
+| **zstd 1.4.5 --fast=5** | 2.178 |   700 MB/s |  2420 MB/s |
+| lzo1x 2.10 -1           | 2.106 |   690 MB/s |   820 MB/s |
+| lz4 1.9.2               | 2.101 |   740 MB/s |  4530 MB/s |
+| **zstd 1.4.5 --fast=7** | 2.096 |   750 MB/s |  2480 MB/s |
+| lzf 3.6 -1              | 2.077 |   410 MB/s |   860 MB/s |
+| snappy 1.1.8            | 2.073 |   560 MB/s |  1790 MB/s |
 
 [zlib]: http://www.zlib.net/
 [LZ4]: http://www.lz4.org/
+
+The negative compression levels, specified with `--fast=#`,
+offer faster compression and decompression speed in exchange for some loss in
+compression ratio compared to level 1, as seen in the table above.
 
 Zstd can also offer stronger compression ratios at the cost of compression speed.
 Speed vs Compression trade-off is configurable by small increments.
@@ -142,6 +150,18 @@ You can also take a look at [`.travis.yml`](.travis.yml) file for an
 example about how Meson is used to build this project.
 
 Note that default build type is **release**.
+
+### VCPKG
+You can build and install zstd [vcpkg](https://github.com/Microsoft/vcpkg/) dependency manager:
+
+    git clone https://github.com/Microsoft/vcpkg.git
+    cd vcpkg
+    ./bootstrap-vcpkg.sh
+    ./vcpkg integrate install
+    ./vcpkg install zstd
+
+The zstd port in vcpkg is kept up to date by Microsoft team members and community contributors.
+If the version is out of date, please [create an issue or pull request](https://github.com/Microsoft/vcpkg) on the vcpkg repository.
 
 ### Visual Studio (Windows)
 

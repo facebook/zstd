@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-present, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2019-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -82,9 +82,10 @@ PTime UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd)
 }
 
 
-
+/* C11 requires timespec_get, but FreeBSD 11 lacks it, while still claiming C11 compliance.
+   Android also lacks it but does define TIME_UTC. */
 #elif (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) /* C11 */) \
-    && defined(TIME_UTC) /* C11 requires timespec_get, but FreeBSD 11 lacks it, while still claiming C11 compliance */
+    && defined(TIME_UTC) && !defined(__ANDROID__)
 
 #include <stdlib.h>   /* abort */
 #include <stdio.h>    /* perror */

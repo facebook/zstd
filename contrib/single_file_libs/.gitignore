@@ -1,0 +1,4 @@
+zstddeclib.c
+zstdenclib.c
+zstd.c
+zstd.h

@@ -1,10 +1,11 @@
 /*
- * Copyright (c) 2016-present, Facebook, Inc.
+ * Copyright (c) 2016-2020, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
  * LICENSE file in the root directory of this source tree) and the GPLv2 (found
  * in the COPYING file in the root directory of this source tree).
+ * You may select, at your option, one of the above-listed licenses.
  */
 
 /**
@@ -34,8 +35,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     }
 
     size_t const bufSize = FUZZ_dataProducer_uint32Range(producer, 0, 10 * size);
-    void *rBuf = malloc(bufSize);
-    FUZZ_ASSERT(rBuf);
+    void *rBuf = FUZZ_malloc(bufSize);
 
     ZSTD_decompressDCtx(dctx, rBuf, bufSize, src, size);
     free(rBuf);

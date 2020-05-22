@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -13,7 +13,7 @@
 #define FILEIO_H_23981798732
 
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_compressionParameters */
-#include "zstd.h"                  /* ZSTD_* */
+#include "../lib/zstd.h"           /* ZSTD_* */
 
 #if defined (__cplusplus)
 extern "C" {
@@ -94,6 +94,8 @@ void FIO_setLiteralCompressionMode(
 void FIO_setNoProgress(unsigned noProgress);
 void FIO_setNotificationLevel(int level);
 void FIO_setExcludeCompressedFile(FIO_prefs_t* const prefs, int excludeCompressedFiles);
+void FIO_setPatchFromMode(FIO_prefs_t* const prefs, int value);
+void FIO_setContentSize(FIO_prefs_t* const prefs, int value);
 
 /*-*************************************
 *  Single File functions

@@ -1,10 +1,11 @@
 # ################################################################
-# Copyright (c) 2015-present, Yann Collet, Facebook, Inc.
+# Copyright (c) 2015-2020, Yann Collet, Facebook, Inc.
 # All rights reserved.
 #
 # This source code is licensed under both the BSD-style license (found in the
 # LICENSE file in the root directory of this source tree) and the GPLv2 (found
 # in the COPYING file in the root directory of this source tree).
+# You may select, at your option, one of the above-listed licenses.
 # ################################################################
 
 PRGDIR   = programs
@@ -17,7 +18,16 @@ FUZZDIR  = $(TESTDIR)/fuzz
 # Define nul output
 VOID = /dev/null
 
-ifneq (,$(filter Windows%,$(OS)))
+# When cross-compiling from linux to windows, you might
+# need to specify this as "Windows." Fedora build fails
+# without it.
+#
+# Note: mingw-w64 build from linux to windows does not
+# fail on other tested distros (ubuntu, debian) even
+# without manually specifying the TARGET_SYSTEM.
+TARGET_SYSTEM ?= $(OS)
+
+ifneq (,$(filter Windows%,$(TARGET_SYSTEM)))
 EXT =.exe
 else
 EXT =
@@ -35,7 +45,7 @@ allmost: allzstd zlibwrapper
 
 # skip zwrapper, can't build that on alternate architectures without the proper zlib installed
 .PHONY: allzstd
-allzstd: lib
+allzstd: lib-all
 	$(MAKE) -C $(PRGDIR) all
 	$(MAKE) -C $(TESTDIR) all
 
@@ -45,7 +55,7 @@ all32:
 	$(MAKE) -C $(TESTDIR) all32
 
 .PHONY: lib lib-release libzstd.a
-lib lib-release :
+lib lib-release lib-all :
 	@$(MAKE) -C $(ZSTDDIR) $@
 
 .PHONY: zstd zstd-release
@@ -80,6 +90,13 @@ shortest:
 .PHONY: check
 check: shortest
 
+.PHONY: automated_benchmarking
+automated_benchmarking:
+	$(MAKE) -C $(TESTDIR) $@
+
+.PHONY: benchmarking
+benchmarking: automated_benchmarking
+
 ## examples: build all examples in `/examples` directory
 .PHONY: examples
 examples: lib
@@ -101,7 +118,8 @@ contrib: lib
 	$(MAKE) -C contrib/pzstd all
 	$(MAKE) -C contrib/seekable_format/examples all
 	$(MAKE) -C contrib/largeNbDicts all
-	cd contrib/single_file_decoder/ ; ./build_test.sh
+	cd contrib/single_file_libs/ ; ./build_decoder_test.sh
+	cd contrib/single_file_libs/ ; ./build_library_test.sh
 
 .PHONY: cleanTabs
 cleanTabs:
@@ -337,7 +355,7 @@ endif
 
 ifneq (,$(filter MSYS%,$(shell uname)))
 HOST_OS = MSYS
-CMAKE_PARAMS = -G"MSYS Makefiles" -DZSTD_MULTITHREAD_SUPPORT:BOOL=OFF -DZSTD_BUILD_STATIC:BOOL=ON -DZSTD_BUILD_TESTS:BOOL=ON
+CMAKE_PARAMS = -G"MSYS Makefiles" -DCMAKE_BUILD_TYPE=Debug -DZSTD_MULTITHREAD_SUPPORT:BOOL=OFF -DZSTD_BUILD_STATIC:BOOL=ON -DZSTD_BUILD_TESTS:BOOL=ON
 endif
 
 
@@ -349,11 +367,15 @@ cmakebuild:
 	cmake --version
 	$(RM) -r $(BUILDIR)/cmake/build
 	mkdir $(BUILDIR)/cmake/build
-	cd $(BUILDIR)/cmake/build ; cmake -DCMAKE_INSTALL_PREFIX:PATH=~/install_test_dir $(CMAKE_PARAMS) .. ; $(MAKE) install ; $(MAKE) uninstall
+	cd $(BUILDIR)/cmake/build; cmake -DCMAKE_INSTALL_PREFIX:PATH=~/install_test_dir $(CMAKE_PARAMS) ..
+	$(MAKE) -C $(BUILDIR)/cmake/build -j4;
+	$(MAKE) -C $(BUILDIR)/cmake/build install;
+	$(MAKE) -C $(BUILDIR)/cmake/build uninstall;
+	cd $(BUILDIR)/cmake/build; ctest -V -L Medium
 
-c90build: clean
+c89build: clean
 	$(CC) -v
-	CFLAGS="-std=c90 -Werror" $(MAKE) allmost  # will fail, due to missing support for `long long`
+	CFLAGS="-std=c89 -Werror" $(MAKE) allmost  # will fail, due to missing support for `long long`
 
 gnu90build: clean
 	$(CC) -v

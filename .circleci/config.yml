@@ -12,7 +12,8 @@ jobs:
       - run:
           name: Test
           command: |
-            cc -v; CFLAGS="-O0 -Werror" make all && make clean
+            ./tests/test-license.py
+            cc -v; CFLAGS="-O0 -Werror -pedantic" make all && make clean
             make c99build         ; make clean
             make c11build         ; make clean
             make aarch64build     ; make clean
@@ -33,7 +34,7 @@ jobs:
             make ppc64build; make clean
             make ppcbuild  ; make clean
             make armbuild  ; make clean
-            make -C tests test-legacy test-longmatch test-symbols; make clean
+            make -C tests test-legacy test-longmatch; make clean
             make -C lib libzstd-nomt; make clean
   # This step is only run on release tags.
   # It publishes the source tarball as artifacts and if the GITHUB_TOKEN

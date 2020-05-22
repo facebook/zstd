@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -19,7 +19,7 @@ extern "C" {
 *  Dependencies
 ***************************************/
 #include <stddef.h>   /* size_t */
-#include "mem.h"      /* U64, U32 */
+#include "../common/mem.h"      /* U64, U32 */
 
 
 /* *************************************

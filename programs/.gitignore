@@ -7,6 +7,7 @@ zstd-decompress
 zstd-frugal
 zstd-small
 zstd-nolegacy
+zstd-dictBuilder
 
 # Object files
 *.o

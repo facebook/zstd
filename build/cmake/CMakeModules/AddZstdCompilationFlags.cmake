@@ -33,6 +33,10 @@ macro(ADD_ZSTD_COMPILATION_FLAGS)
         EnableCompilerFlag("-Wcast-align" true true)
         EnableCompilerFlag("-Wcast-qual" true true)
         EnableCompilerFlag("-Wstrict-prototypes" true false)
+        # Enable asserts in Debug mode
+        if (CMAKE_BUILD_TYPE MATCHES "Debug")
+            EnableCompilerFlag("-DDEBUGLEVEL=1" true true)
+        endif ()
     elseif (MSVC) # Add specific compilation flags for Windows Visual
 
         set(ACTIVATE_MULTITHREADED_COMPILATION "ON" CACHE BOOL "activate multi-threaded compilation (/MP flag)")
@@ -43,6 +47,10 @@ macro(ADD_ZSTD_COMPILATION_FLAGS)
         # UNICODE SUPPORT
         EnableCompilerFlag("/D_UNICODE" true true)
         EnableCompilerFlag("/DUNICODE" true true)
+        # Enable asserts in Debug mode
+        if (CMAKE_BUILD_TYPE MATCHES "Debug")
+            EnableCompilerFlag("/DDEBUGLEVEL=1" true true)
+        endif ()
     endif ()
 
     # Remove duplicates compilation flags

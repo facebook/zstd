@@ -23,6 +23,8 @@ else()
 endif()
 cmake_policy(VERSION ${ZSTD_CMAKE_POLICY_VERSION})
 
+set(CMAKE_BUILD_WITH_INSTALL_RPATH on)
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules")
 set(ZSTD_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../..")
 set(LIBRARY_DIR ${ZSTD_SOURCE_DIR}/lib)
@@ -101,7 +103,14 @@ endif ()
 
 option(ZSTD_BUILD_PROGRAMS "BUILD PROGRAMS" ON)
 option(ZSTD_BUILD_CONTRIB "BUILD CONTRIB" OFF)
-option(ZSTD_BUILD_TESTS "BUILD TESTS" OFF)
+
+# Respect the conventional CMake option for enabling tests if it was specified on the first configure
+if (BUILD_TESTING)
+    set(ZSTD_BUILD_TESTS_default ON)
+else()
+    set(ZSTD_BUILD_TESTS_default OFF)
+endif()
+option(ZSTD_BUILD_TESTS "BUILD TESTS" ${ZSTD_BUILD_TESTS_default})
 if (MSVC)
     option(ZSTD_USE_STATIC_RUNTIME "LINK TO STATIC RUN-TIME LIBRARIES" OFF)
 endif ()
@@ -137,6 +146,7 @@ if (ZSTD_BUILD_PROGRAMS)
 endif ()
 
 if (ZSTD_BUILD_TESTS)
+    enable_testing()
     if (NOT ZSTD_BUILD_STATIC)
         message(SEND_ERROR "You need to build static library to build tests")
     endif ()
@@ -155,3 +165,39 @@ add_custom_target(clean-all
    COMMAND ${CMAKE_BUILD_TOOL} clean
    COMMAND rm -rf ${CMAKE_BINARY_DIR}/
 )
+
+#-----------------------------------------------------------------------------
+# Generate Package Config files
+#
+# This section is based on the boiler plate code from:
+# https://cmake.org/cmake/help/latest/manual/cmake-packages.7.html#creating-packages
+#-----------------------------------------------------------------------------
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/zstdConfigVersion.cmake"
+    VERSION ${zstd_VERSION}
+    COMPATIBILITY SameMajorVersion
+    )
+
+# A Package Config file that works from the build directory
+export(EXPORT zstdExports
+    FILE "${CMAKE_CURRENT_BINARY_DIR}/zstdTargets.cmake"
+    NAMESPACE zstd::
+    )
+configure_file(zstdConfig.cmake
+    "${CMAKE_CURRENT_BINARY_DIR}/zstdConfig.cmake"
+    COPYONLY
+    )
+
+# A Package Config file that works from the installation directory
+set(ConfigPackageLocation ${CMAKE_INSTALL_LIBDIR}/cmake/zstd)
+install(EXPORT zstdExports
+    FILE zstdTargets.cmake
+    NAMESPACE zstd::
+    DESTINATION ${ConfigPackageLocation}
+    )
+install(FILES
+    zstdConfig.cmake
+    "${CMAKE_CURRENT_BINARY_DIR}/zstdConfigVersion.cmake"
+    DESTINATION ${ConfigPackageLocation}
+    )

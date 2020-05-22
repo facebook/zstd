@@ -336,7 +336,6 @@ install-includes:
 	$(Q)$(INSTALL) -d -m 755 $(DESTDIR)$(INCLUDEDIR)/
 	$(Q)$(INSTALL_DATA) zstd.h $(DESTDIR)$(INCLUDEDIR)
 	$(Q)$(INSTALL_DATA) common/zstd_errors.h $(DESTDIR)$(INCLUDEDIR)
-	$(Q)$(INSTALL_DATA) deprecated/zbuff.h $(DESTDIR)$(INCLUDEDIR)     # prototypes generate deprecation warnings
 	$(Q)$(INSTALL_DATA) dictBuilder/zdict.h $(DESTDIR)$(INCLUDEDIR)
 
 uninstall:
@@ -347,7 +346,6 @@ uninstall:
 	$(Q)$(RM) $(DESTDIR)$(PKGCONFIGDIR)/libzstd.pc
 	$(Q)$(RM) $(DESTDIR)$(INCLUDEDIR)/zstd.h
 	$(Q)$(RM) $(DESTDIR)$(INCLUDEDIR)/zstd_errors.h
-	$(Q)$(RM) $(DESTDIR)$(INCLUDEDIR)/zbuff.h   # Deprecated streaming functions
 	$(Q)$(RM) $(DESTDIR)$(INCLUDEDIR)/zdict.h
 	@echo zstd libraries successfully uninstalled
 

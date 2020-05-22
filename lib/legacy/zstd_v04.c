@@ -74,7 +74,7 @@ extern "C" {
 /*-*************************************
 *  Debug
 ***************************************/
-#include "debug.h"
+#include "../common/debug.h"
 #ifndef assert
 #  define assert(condition) ((void)0)
 #endif

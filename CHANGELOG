@@ -1,3 +1,29 @@
+v1.4.5
+fix : Compression ratio regression on huge files (> 3 GB) using high levels (--ultra) and multithreading, by @terrelln
+perf: Improved decompression speed: x64 : +10% (clang) / +5% (gcc); ARM : from +15% to +50%, depending on SoC, by @terrelln
+perf: Automatically downsizes ZSTD_DCtx when too large for too long (#2069, by @bimbashreshta)
+perf: Improved fast compression speed on aarch64 (#2040, ~+3%, by @caoyzh)
+perf: Small level 1 compression speed gains (depending on compiler)
+cli : New --patch-from command, create and apply patches from files, by @bimbashreshta
+cli : New --filelist= : Provide a list of files to operate upon from a file
+cli : -b -d command can now benchmark decompression on multiple files
+cli : New --no-content-size command
+cli : New --show-default-cparams information command
+api : ZDICT_finalizeDictionary() is promoted to stable (#2111)
+api : new experimental parameter ZSTD_d_stableOutBuffer (#2094)
+build: Generate a single-file libzstd library (#2065, by @cwoffenden)
+build: Relative includes no longer require -I compiler flags for zstd lib subdirs (#2103, by @felixhandte)
+build: zstd now compiles cleanly under -pedantic (#2099)
+build: zstd now compiles with make-4.3
+build: Support mingw cross-compilation from Linux, by @Ericson2314
+build: Meson multi-thread build fix on windows
+build: Some misc icc fixes backed by new ci test on travis
+misc: bitflip analyzer tool, by @felixhandte
+misc: Extend largeNbDicts benchmark to compression
+misc: Edit-distance match finder in contrib/
+doc : Improved beginner CONTRIBUTING.md docs
+doc : New issue templates for zstd
+
 v1.4.4
 perf: Improved decompression speed, by > 10%, by @terrelln
 perf: Better compression speed when re-using a context, by @felixhandte
@@ -14,7 +40,8 @@ cli: commands --stream-size=# and --size-hint=#, by @nmagerko
 cli: command --exclude-compressed, by @shashank0791
 cli: faster `-t` test mode
 cli: improved some error messages, by @vangyzen
-cli: rare deadlock condition within dictionary builder, by @terrelln
+cli: fix command `-D dictionary` on Windows, reported by @artyompetrov
+cli: fix rare deadlock condition within dictionary builder, by @terrelln
 build: single-file decoder with emscripten compilation script, by @cwoffenden
 build: fixed zlibWrapper compilation on Visual Studio, reported by @bluenlive
 build: fixed deprecation warning for certain gcc version, reported by @jasonma163

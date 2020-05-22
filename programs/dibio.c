@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -30,8 +30,8 @@
 #include <assert.h>
 
 #include "timefn.h"         /* UTIL_time_t, UTIL_clockSpanMicro, UTIL_getTime */
-#include "mem.h"            /* read */
-#include "error_private.h"
+#include "../lib/common/mem.h"  /* read */
+#include "../lib/common/error_private.h"
 #include "dibio.h"
 
 

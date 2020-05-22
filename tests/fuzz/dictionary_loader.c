@@ -1,10 +1,11 @@
 /*
- * Copyright (c) 2016-present, Facebook, Inc.
+ * Copyright (c) 2016-2020, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
  * LICENSE file in the root directory of this source tree) and the GPLv2 (found
  * in the COPYING file in the root directory of this source tree).
+ * You may select, at your option, one of the above-listed licenses.
  */
 
 /**
@@ -27,10 +28,15 @@ static size_t compress(void* compressed, size_t compressedCapacity,
                        void const* source, size_t sourceSize,
                        void const* dict, size_t dictSize,
                        ZSTD_dictLoadMethod_e dictLoadMethod,
-                       ZSTD_dictContentType_e dictContentType)
+                       ZSTD_dictContentType_e dictContentType,
+                       int const refPrefix)
 {
     ZSTD_CCtx* cctx = ZSTD_createCCtx();
-    FUZZ_ZASSERT(ZSTD_CCtx_loadDictionary_advanced(
+    if (refPrefix)
+        FUZZ_ZASSERT(ZSTD_CCtx_refPrefix_advanced(
+            cctx, dict, dictSize, dictContentType));
+    else 
+        FUZZ_ZASSERT(ZSTD_CCtx_loadDictionary_advanced(
             cctx, dict, dictSize, dictLoadMethod, dictContentType));
     size_t const compressedSize = ZSTD_compress2(
             cctx, compressed, compressedCapacity, source, sourceSize);
@@ -42,10 +48,15 @@ static size_t decompress(void* result, size_t resultCapacity,
                          void const* compressed, size_t compressedSize,
                          void const* dict, size_t dictSize,
                        ZSTD_dictLoadMethod_e dictLoadMethod,
-                         ZSTD_dictContentType_e dictContentType)
+                         ZSTD_dictContentType_e dictContentType,
+                         int const refPrefix)
 {
     ZSTD_DCtx* dctx = ZSTD_createDCtx();
-    FUZZ_ZASSERT(ZSTD_DCtx_loadDictionary_advanced(
+    if (refPrefix)
+        FUZZ_ZASSERT(ZSTD_DCtx_refPrefix_advanced(
+            dctx, dict, dictSize, dictContentType));
+    else
+        FUZZ_ZASSERT(ZSTD_DCtx_loadDictionary_advanced(
             dctx, dict, dictSize, dictLoadMethod, dictContentType));
     size_t const resultSize = ZSTD_decompressDCtx(
             dctx, result, resultCapacity, compressed, compressedSize);
@@ -57,6 +68,7 @@ static size_t decompress(void* result, size_t resultCapacity,
 int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 {
     FUZZ_dataProducer_t *producer = FUZZ_dataProducer_create(src, size);
+    int const refPrefix = FUZZ_dataProducer_uint32Range(producer, 0, 1) != 0;
     ZSTD_dictLoadMethod_e const dlm =
     size = FUZZ_dataProducer_uint32Range(producer, 0, 1);
     ZSTD_dictContentType_e const dct =
@@ -67,23 +79,21 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     DEBUGLOG(2, "Dict content type %d", dct);
     DEBUGLOG(2, "Dict size %u", (unsigned)size);
 
-    void* const rBuf = malloc(size);
-    FUZZ_ASSERT(rBuf);
+    void* const rBuf = FUZZ_malloc(size);
     size_t const cBufSize = ZSTD_compressBound(size);
-    void* const cBuf = malloc(cBufSize);
-    FUZZ_ASSERT(cBuf);
+    void* const cBuf = FUZZ_malloc(cBufSize);
 
     size_t const cSize =
-            compress(cBuf, cBufSize, src, size, src, size, dlm, dct);
+            compress(cBuf, cBufSize, src, size, src, size, dlm, dct, refPrefix);
     /* compression failing is okay */
     if (ZSTD_isError(cSize)) {
       FUZZ_ASSERT_MSG(dct != ZSTD_dct_rawContent, "Raw must always succeed!");
       goto out;
     }
     size_t const rSize =
-            decompress(rBuf, size, cBuf, cSize, src, size, dlm, dct);
+            decompress(rBuf, size, cBuf, cSize, src, size, dlm, dct, refPrefix);
     FUZZ_ASSERT_MSG(rSize == size, "Incorrect regenerated size");
-    FUZZ_ASSERT_MSG(!memcmp(src, rBuf, size), "Corruption!");
+    FUZZ_ASSERT_MSG(!FUZZ_memcmp(src, rBuf, size), "Corruption!");
 
 out:
     free(cBuf);

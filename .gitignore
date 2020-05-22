@@ -31,6 +31,7 @@ projects/
 bin/
 .buckd/
 buck-out/
+build-*
 
 # Other files
 .directory
@@ -43,3 +44,6 @@ _zstdbench/
 googletest/
 *.d
 *.vscode
+*.code-workspace
+compile_commands.json
+.clangd

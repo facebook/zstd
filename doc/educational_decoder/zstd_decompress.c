@@ -1,34 +1,52 @@
 /*
- * Copyright (c) 2017-present, Facebook, Inc.
+ * Copyright (c) 2017-2020, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
  * LICENSE file in the root directory of this source tree) and the GPLv2 (found
  * in the COPYING file in the root directory of this source tree).
+ * You may select, at your option, one of the above-listed licenses.
  */
 
 /// Zstandard educational decoder implementation
 /// See https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md
 
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <stdint.h>   // uint8_t, etc.
+#include <stdlib.h>   // malloc, free, exit
+#include <stdio.h>    // fprintf
+#include <string.h>   // memset, memcpy
 #include "zstd_decompress.h"
 
-/******* UTILITY MACROS AND TYPES *********************************************/
-// Max block size decompressed size is 128 KB and literal blocks can't be
-// larger than their block
-#define MAX_LITERALS_SIZE ((size_t)128 * 1024)
 
+/******* IMPORTANT CONSTANTS *********************************************/
+
+// Zstandard frame
+// "Magic_Number
+// 4 Bytes, little-endian format. Value : 0xFD2FB528"
+#define ZSTD_MAGIC_NUMBER 0xFD2FB528U
+
+// The size of `Block_Content` is limited by `Block_Maximum_Size`,
+#define ZSTD_BLOCK_SIZE_MAX ((size_t)128 * 1024)
+
+// literal blocks can't be larger than their block
+#define MAX_LITERALS_SIZE ZSTD_BLOCK_SIZE_MAX
+
+
+/******* UTILITY MACROS AND TYPES *********************************************/
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
+
+#if defined(ZDEC_NO_MESSAGE)
+#define MESSAGE(...)
+#else
+#define MESSAGE(...)  fprintf(stderr, "" __VA_ARGS__)
+#endif
 
 /// This decoder calls exit(1) when it encounters an error, however a production
 /// library should propagate error codes
 #define ERROR(s)                                                               \
     do {                                                                       \
-        fprintf(stderr, "Error: %s\n", s);                                     \
+        MESSAGE("Error: %s\n", s);                                     \
         exit(1);                                                               \
     } while (0)
 #define INP_SIZE()                                                             \
@@ -39,12 +57,12 @@
 #define BAD_ALLOC() ERROR("Memory allocation error")
 #define IMPOSSIBLE() ERROR("An impossibility has occurred")
 
-typedef uint8_t u8;
+typedef uint8_t  u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
 
-typedef int8_t i8;
+typedef int8_t  i8;
 typedef int16_t i16;
 typedef int32_t i32;
 typedef int64_t i64;
@@ -176,10 +194,6 @@ static void HUF_init_dtable_usingweights(HUF_dtable *const table,
 
 /// Free the malloc'ed parts of a decoding table
 static void HUF_free_dtable(HUF_dtable *const dtable);
-
-/// Deep copy a decoding table, so that it can be used and free'd without
-/// impacting the source table.
-static void HUF_copy_dtable(HUF_dtable *const dst, const HUF_dtable *const src);
 /*** END HUFFMAN PRIMITIVES ***********/
 
 /*** FSE PRIMITIVES *******************/
@@ -241,10 +255,6 @@ static void FSE_init_dtable_rle(FSE_dtable *const dtable, const u8 symb);
 
 /// Free the malloc'ed parts of a decoding table
 static void FSE_free_dtable(FSE_dtable *const dtable);
-
-/// Deep copy a decoding table, so that it can be used and free'd without
-/// impacting the source table.
-static void FSE_copy_dtable(FSE_dtable *const dst, const FSE_dtable *const src);
 /*** END FSE PRIMITIVES ***************/
 
 /******* END IMPLEMENTATION PRIMITIVE PROTOTYPES ******************************/
@@ -373,7 +383,7 @@ static void execute_match_copy(frame_context_t *const ctx, size_t offset,
 
 size_t ZSTD_decompress(void *const dst, const size_t dst_len,
                        const void *const src, const size_t src_len) {
-    dictionary_t* uninit_dict = create_dictionary();
+    dictionary_t* const uninit_dict = create_dictionary();
     size_t const decomp_size = ZSTD_decompress_with_dict(dst, dst_len, src,
                                                          src_len, uninit_dict);
     free_dictionary(uninit_dict);
@@ -417,12 +427,7 @@ static void decompress_data(frame_context_t *const ctx, ostream_t *const out,
 static void decode_frame(ostream_t *const out, istream_t *const in,
                          const dictionary_t *const dict) {
     const u32 magic_number = (u32)IO_read_bits(in, 32);
-    // Zstandard frame
-    //
-    // "Magic_Number
-    //
-    // 4 Bytes, little-endian format. Value : 0xFD2FB528"
-    if (magic_number == 0xFD2FB528U) {
+    if (magic_number == ZSTD_MAGIC_NUMBER) {
         // ZSTD frame
         decode_data_frame(out, in, dict);
 
@@ -573,43 +578,6 @@ static void parse_frame_header(frame_header_t *const header,
         // distance is the content size itself, which can be any value from 1 to
         // 2^64-1 bytes (16 EB)."
         header->window_size = header->frame_content_size;
-    }
-}
-
-/// A dictionary acts as initializing values for the frame context before
-/// decompression, so we implement it by applying it's predetermined
-/// tables and content to the context before beginning decompression
-static void frame_context_apply_dict(frame_context_t *const ctx,
-                                     const dictionary_t *const dict) {
-    // If the content pointer is NULL then it must be an empty dict
-    if (!dict || !dict->content)
-        return;
-
-    // If the requested dictionary_id is non-zero, the correct dictionary must
-    // be present
-    if (ctx->header.dictionary_id != 0 &&
-        ctx->header.dictionary_id != dict->dictionary_id) {
-        ERROR("Wrong dictionary provided");
-    }
-
-    // Copy the dict content to the context for references during sequence
-    // execution
-    ctx->dict_content = dict->content;
-    ctx->dict_content_len = dict->content_size;
-
-    // If it's a formatted dict copy the precomputed tables in so they can
-    // be used in the table repeat modes
-    if (dict->dictionary_id != 0) {
-        // Deep copy the entropy tables so they can be freed independently of
-        // the dictionary struct
-        HUF_copy_dtable(&ctx->literals_dtable, &dict->literals_dtable);
-        FSE_copy_dtable(&ctx->ll_dtable, &dict->ll_dtable);
-        FSE_copy_dtable(&ctx->of_dtable, &dict->of_dtable);
-        FSE_copy_dtable(&ctx->ml_dtable, &dict->ml_dtable);
-
-        // Copy the repeated offsets
-        memcpy(ctx->previous_offsets, dict->previous_offsets,
-               sizeof(ctx->previous_offsets));
     }
 }
 
@@ -1411,7 +1379,7 @@ size_t ZSTD_get_decompressed_size(const void *src, const size_t src_len) {
     {
         const u32 magic_number = (u32)IO_read_bits(&in, 32);
 
-        if (magic_number == 0xFD2FB528U) {
+        if (magic_number == ZSTD_MAGIC_NUMBER) {
             // ZSTD frame
             frame_header_t header;
             parse_frame_header(&header, &in);
@@ -1431,16 +1399,32 @@ size_t ZSTD_get_decompressed_size(const void *src, const size_t src_len) {
 /******* END OUTPUT SIZE COUNTING *********************************************/
 
 /******* DICTIONARY PARSING ***************************************************/
-#define DICT_SIZE_ERROR() ERROR("Dictionary size cannot be less than 8 bytes")
-#define NULL_SRC() ERROR("Tried to create dictionary with pointer to null src");
-
 dictionary_t* create_dictionary() {
-    dictionary_t* dict = calloc(1, sizeof(dictionary_t));
+    dictionary_t* const dict = calloc(1, sizeof(dictionary_t));
     if (!dict) {
         BAD_ALLOC();
     }
     return dict;
 }
+
+/// Free an allocated dictionary
+void free_dictionary(dictionary_t *const dict) {
+    HUF_free_dtable(&dict->literals_dtable);
+    FSE_free_dtable(&dict->ll_dtable);
+    FSE_free_dtable(&dict->of_dtable);
+    FSE_free_dtable(&dict->ml_dtable);
+
+    free(dict->content);
+
+    memset(dict, 0, sizeof(dictionary_t));
+
+    free(dict);
+}
+
+
+#if !defined(ZDEC_NO_DICTIONARY)
+#define DICT_SIZE_ERROR() ERROR("Dictionary size cannot be less than 8 bytes")
+#define NULL_SRC() ERROR("Tried to create dictionary with pointer to null src");
 
 static void init_dictionary_content(dictionary_t *const dict,
                                     istream_t *const in);
@@ -1513,19 +1497,93 @@ static void init_dictionary_content(dictionary_t *const dict,
     memcpy(dict->content, content, dict->content_size);
 }
 
-/// Free an allocated dictionary
-void free_dictionary(dictionary_t *const dict) {
-    HUF_free_dtable(&dict->literals_dtable);
-    FSE_free_dtable(&dict->ll_dtable);
-    FSE_free_dtable(&dict->of_dtable);
-    FSE_free_dtable(&dict->ml_dtable);
+static void HUF_copy_dtable(HUF_dtable *const dst,
+                            const HUF_dtable *const src) {
+    if (src->max_bits == 0) {
+        memset(dst, 0, sizeof(HUF_dtable));
+        return;
+    }
 
-    free(dict->content);
+    const size_t size = (size_t)1 << src->max_bits;
+    dst->max_bits = src->max_bits;
 
-    memset(dict, 0, sizeof(dictionary_t));
+    dst->symbols = malloc(size);
+    dst->num_bits = malloc(size);
+    if (!dst->symbols || !dst->num_bits) {
+        BAD_ALLOC();
+    }
 
-    free(dict);
+    memcpy(dst->symbols, src->symbols, size);
+    memcpy(dst->num_bits, src->num_bits, size);
 }
+
+static void FSE_copy_dtable(FSE_dtable *const dst, const FSE_dtable *const src) {
+    if (src->accuracy_log == 0) {
+        memset(dst, 0, sizeof(FSE_dtable));
+        return;
+    }
+
+    size_t size = (size_t)1 << src->accuracy_log;
+    dst->accuracy_log = src->accuracy_log;
+
+    dst->symbols = malloc(size);
+    dst->num_bits = malloc(size);
+    dst->new_state_base = malloc(size * sizeof(u16));
+    if (!dst->symbols || !dst->num_bits || !dst->new_state_base) {
+        BAD_ALLOC();
+    }
+
+    memcpy(dst->symbols, src->symbols, size);
+    memcpy(dst->num_bits, src->num_bits, size);
+    memcpy(dst->new_state_base, src->new_state_base, size * sizeof(u16));
+}
+
+/// A dictionary acts as initializing values for the frame context before
+/// decompression, so we implement it by applying it's predetermined
+/// tables and content to the context before beginning decompression
+static void frame_context_apply_dict(frame_context_t *const ctx,
+                                     const dictionary_t *const dict) {
+    // If the content pointer is NULL then it must be an empty dict
+    if (!dict || !dict->content)
+        return;
+
+    // If the requested dictionary_id is non-zero, the correct dictionary must
+    // be present
+    if (ctx->header.dictionary_id != 0 &&
+        ctx->header.dictionary_id != dict->dictionary_id) {
+        ERROR("Wrong dictionary provided");
+    }
+
+    // Copy the dict content to the context for references during sequence
+    // execution
+    ctx->dict_content = dict->content;
+    ctx->dict_content_len = dict->content_size;
+
+    // If it's a formatted dict copy the precomputed tables in so they can
+    // be used in the table repeat modes
+    if (dict->dictionary_id != 0) {
+        // Deep copy the entropy tables so they can be freed independently of
+        // the dictionary struct
+        HUF_copy_dtable(&ctx->literals_dtable, &dict->literals_dtable);
+        FSE_copy_dtable(&ctx->ll_dtable, &dict->ll_dtable);
+        FSE_copy_dtable(&ctx->of_dtable, &dict->of_dtable);
+        FSE_copy_dtable(&ctx->ml_dtable, &dict->ml_dtable);
+
+        // Copy the repeated offsets
+        memcpy(ctx->previous_offsets, dict->previous_offsets,
+               sizeof(ctx->previous_offsets));
+    }
+}
+
+#else  // ZDEC_NO_DICTIONARY is defined
+
+static void frame_context_apply_dict(frame_context_t *const ctx,
+                                     const dictionary_t *const dict) {
+    (void)ctx;
+    if (dict && dict->content) ERROR("dictionary not supported");
+}
+
+#endif
 /******* END DICTIONARY PARSING ***********************************************/
 
 /******* IO STREAM OPERATIONS *************************************************/
@@ -1945,26 +2003,6 @@ static void HUF_free_dtable(HUF_dtable *const dtable) {
     free(dtable->num_bits);
     memset(dtable, 0, sizeof(HUF_dtable));
 }
-
-static void HUF_copy_dtable(HUF_dtable *const dst,
-                            const HUF_dtable *const src) {
-    if (src->max_bits == 0) {
-        memset(dst, 0, sizeof(HUF_dtable));
-        return;
-    }
-
-    const size_t size = (size_t)1 << src->max_bits;
-    dst->max_bits = src->max_bits;
-
-    dst->symbols = malloc(size);
-    dst->num_bits = malloc(size);
-    if (!dst->symbols || !dst->num_bits) {
-        BAD_ALLOC();
-    }
-
-    memcpy(dst->symbols, src->symbols, size);
-    memcpy(dst->num_bits, src->num_bits, size);
-}
 /******* END HUFFMAN PRIMITIVES ***********************************************/
 
 /******* FSE PRIMITIVES *******************************************************/
@@ -2278,26 +2316,5 @@ static void FSE_free_dtable(FSE_dtable *const dtable) {
     free(dtable->num_bits);
     free(dtable->new_state_base);
     memset(dtable, 0, sizeof(FSE_dtable));
-}
-
-static void FSE_copy_dtable(FSE_dtable *const dst, const FSE_dtable *const src) {
-    if (src->accuracy_log == 0) {
-        memset(dst, 0, sizeof(FSE_dtable));
-        return;
-    }
-
-    size_t size = (size_t)1 << src->accuracy_log;
-    dst->accuracy_log = src->accuracy_log;
-
-    dst->symbols = malloc(size);
-    dst->num_bits = malloc(size);
-    dst->new_state_base = malloc(size * sizeof(u16));
-    if (!dst->symbols || !dst->num_bits || !dst->new_state_base) {
-        BAD_ALLOC();
-    }
-
-    memcpy(dst->symbols, src->symbols, size);
-    memcpy(dst->num_bits, src->num_bits, size);
-    memcpy(dst->new_state_base, src->new_state_base, size * sizeof(u16));
 }
 /******* END FSE PRIMITIVES ***************************************************/

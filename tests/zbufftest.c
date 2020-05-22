@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-present, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2015-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -35,6 +35,7 @@
 #define XXH_STATIC_LINKING_ONLY
 #include "xxhash.h"       /* XXH64_* */
 #include "util.h"
+#include "assert.h"
 
 
 /*-************************************
@@ -179,6 +180,11 @@ static int basicUnitTests(U32 seed, double compressibility, ZSTD_customMem custo
     if (genSize != CNBufferSize) goto _output_error;   /* should regenerate the same amount */
     if (readSize+readSkipSize != cSize) goto _output_error;   /* should have read the entire frame */
     DISPLAYLEVEL(4, "OK \n");
+
+    DISPLAYLEVEL(4, "test%3i : ZBUFF_recommendedCInSize : ", testNb++); { assert(ZBUFF_recommendedCInSize() != 0); } DISPLAYLEVEL(4, "OK \n");
+    DISPLAYLEVEL(4, "test%3i : ZBUFF_recommendedCOutSize : ", testNb++); { assert(ZBUFF_recommendedCOutSize() != 0); } DISPLAYLEVEL(4, "OK \n");
+    DISPLAYLEVEL(4, "test%3i : ZBUFF_recommendedDInSize : ", testNb++); { assert(ZBUFF_recommendedDInSize() != 0); } DISPLAYLEVEL(4, "OK \n");
+    DISPLAYLEVEL(4, "test%3i : ZBUFF_recommendedDOutSize : ", testNb++); { assert(ZBUFF_recommendedDOutSize() != 0); } DISPLAYLEVEL(4, "OK \n");
 
     /* check regenerated data is byte exact */
     DISPLAYLEVEL(4, "test%3i : check decompressed result : ", testNb++);

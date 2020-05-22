@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -18,9 +18,9 @@ extern "C" {
 /* *************************************
 *  Includes
 ***************************************/
-#include "mem.h"            /* MEM_STATIC */
-#include "error_private.h"  /* ERROR */
-#include "zstd_internal.h"  /* ZSTD_inBuffer, ZSTD_outBuffer, ZSTD_frameSizeInfo */
+#include "../common/mem.h"            /* MEM_STATIC */
+#include "../common/error_private.h"  /* ERROR */
+#include "../common/zstd_internal.h"  /* ZSTD_inBuffer, ZSTD_outBuffer, ZSTD_frameSizeInfo */
 
 #if !defined (ZSTD_LEGACY_SUPPORT) || (ZSTD_LEGACY_SUPPORT == 0)
 #  undef ZSTD_LEGACY_SUPPORT

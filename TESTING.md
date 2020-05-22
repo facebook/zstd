@@ -11,7 +11,7 @@ They consist of the following tests:
 - Compilation on all supported targets (x86, x86_64, ARM, AArch64, PowerPC, and PowerPC64)
 - Compilation on various versions of gcc, clang, and g++
 - `tests/playTests.sh` on x86_64, without the tests on long data (CLI tests)
-- Small tests (`tests/legacy.c`, `tests/longmatch.c`, `tests/symbols.c`) on x64_64
+- Small tests (`tests/legacy.c`, `tests/longmatch.c`) on x64_64
 
 Medium Tests
 ------------
@@ -19,7 +19,7 @@ Medium tests run on every commit and pull request to `dev` branch, on TravisCI.
 They consist of the following tests:
 - The following tests run with UBsan and Asan on x86_64 and x86, as well as with
   Msan on x86_64
-  - `tests/playTests.sh --test-long-data`
+  - `tests/playTests.sh --test-large-data`
   - Fuzzer tests: `tests/fuzzer.c`, `tests/zstreamtest.c`, and `tests/decodecorpus.c`
 - `tests/zstreamtest.c` under Tsan (streaming mode, including multithreaded mode)
 - Valgrind Test (`make -C tests valgrindTest`) (testing CLI and fuzzer under valgrind)

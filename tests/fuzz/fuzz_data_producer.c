@@ -1,10 +1,11 @@
 /*
- * Copyright (c) 2016-present, Facebook, Inc.
+ * Copyright (c) 2016-2020, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
  * LICENSE file in the root directory of this source tree) and the GPLv2 (found
  * in the COPYING file in the root directory of this source tree).
+ * You may select, at your option, one of the above-listed licenses.
  */
 
 #include "fuzz_data_producer.h"
@@ -15,9 +16,7 @@ struct FUZZ_dataProducer_s{
 };
 
 FUZZ_dataProducer_t *FUZZ_dataProducer_create(const uint8_t *data, size_t size) {
-    FUZZ_dataProducer_t *producer = malloc(sizeof(FUZZ_dataProducer_t));
-
-    FUZZ_ASSERT(producer != NULL);
+    FUZZ_dataProducer_t *producer = FUZZ_malloc(sizeof(FUZZ_dataProducer_t));
 
     producer->data = data;
     producer->size = size;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-present, Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2016-2020, Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -17,12 +17,88 @@ extern "C" {
 *  Dependencies
 ******************************************/
 #include "util.h"       /* note : ensure that platform.h is included first ! */
+#include <stdlib.h>     /* malloc, realloc, free */
+#include <stdio.h>      /* fprintf */
+#include <time.h>       /* clock_t, clock, CLOCKS_PER_SEC, nanosleep */
 #include <errno.h>
 #include <assert.h>
+
+#if defined(_WIN32)
+#  include <sys/utime.h>  /* utime */
+#  include <io.h>         /* _chmod */
+#else
+#  include <unistd.h>     /* chown, stat */
+#  if PLATFORM_POSIX_VERSION < 200809L
+#    include <utime.h>    /* utime */
+#  else
+#    include <fcntl.h>    /* AT_FDCWD */
+#    include <sys/stat.h> /* utimensat */
+#  endif
+#endif
 
 #if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__)
 #include <direct.h>     /* needed for _mkdir in windows */
 #endif
+
+#if defined(__linux__) || (PLATFORM_POSIX_VERSION >= 200112L)  /* opendir, readdir require POSIX.1-2001 */
+#  include <dirent.h>       /* opendir, readdir */
+#  include <string.h>       /* strerror, memcpy */
+#endif /* #ifdef _WIN32 */
+
+
+/*-****************************************
+*  Internal Macros
+******************************************/
+
+/* CONTROL is almost like an assert(), but is never disabled.
+ * It's designed for failures that may happen rarely,
+ * but we don't want to maintain a specific error code path for them,
+ * such as a malloc() returning NULL for example.
+ * Since it's always active, this macro can trigger side effects.
+ */
+#define CONTROL(c)  {         \
+    if (!(c)) {               \
+        UTIL_DISPLAYLEVEL(1, "Error : %s, %i : %s",  \
+                          __FILE__, __LINE__, #c);   \
+        exit(1);              \
+}   }
+
+/* console log */
+#define UTIL_DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
+#define UTIL_DISPLAYLEVEL(l, ...) { if (g_utilDisplayLevel>=l) { UTIL_DISPLAY(__VA_ARGS__); } }
+
+/* A modified version of realloc().
+ * If UTIL_realloc() fails the original block is freed.
+ */
+UTIL_STATIC void* UTIL_realloc(void *ptr, size_t size)
+{
+    void *newptr = realloc(ptr, size);
+    if (newptr) return newptr;
+    free(ptr);
+    return NULL;
+}
+
+#if defined(_MSC_VER)
+    #define chmod _chmod
+#endif
+
+
+/*-****************************************
+*  Console log
+******************************************/
+int g_utilDisplayLevel;
+
+
+/*-*************************************
+*  Constants
+***************************************/
+#define LIST_SIZE_INCREASE   (8*1024)
+#define MAX_FILE_OF_FILE_NAMES_SIZE (1<<20)*50
+
+
+/*-*************************************
+*  Functions
+***************************************/
 
 int UTIL_fileExist(const char* filename)
 {
@@ -54,6 +130,13 @@ int UTIL_getFileStat(const char* infilename, stat_t *statbuf)
     return 1;
 }
 
+/* like chmod, but avoid changing permission of /dev/null */
+int UTIL_chmod(char const* filename, mode_t permissions)
+{
+    if (!strcmp(filename, "/dev/null")) return 0;   /* pretend success, but don't change anything */
+    return chmod(filename, permissions);
+}
+
 int UTIL_setFileStat(const char *filename, stat_t *statbuf)
 {
     int res = 0;
@@ -62,19 +145,23 @@ int UTIL_setFileStat(const char *filename, stat_t *statbuf)
         return -1;
 
     /* set access and modification times */
-#if defined(_WIN32) || (PLATFORM_POSIX_VERSION < 200809L)
-    {
-        struct utimbuf timebuf;
-        timebuf.actime = time(NULL);
-        timebuf.modtime = statbuf->st_mtime;
-        res += utime(filename, &timebuf);
-    }
-#else
+    /* We check that st_mtime is a macro here in order to give us confidence
+     * that struct stat has a struct timespec st_mtim member. We need this
+     * check because there are some platforms that claim to be POSIX 2008
+     * compliant but which do not have st_mtim... */
+#if (PLATFORM_POSIX_VERSION >= 200809L) && defined(st_mtime)
     {
         /* (atime, mtime) */
         struct timespec timebuf[2] = { {0, UTIME_NOW} };
         timebuf[1] = statbuf->st_mtim;
         res += utimensat(AT_FDCWD, filename, timebuf, 0);
+    }
+#else
+    {
+        struct utimbuf timebuf;
+        timebuf.actime = time(NULL);
+        timebuf.modtime = statbuf->st_mtime;
+        res += utime(filename, &timebuf);
     }
 #endif
 
@@ -82,21 +169,20 @@ int UTIL_setFileStat(const char *filename, stat_t *statbuf)
     res += chown(filename, statbuf->st_uid, statbuf->st_gid);  /* Copy ownership */
 #endif
 
-    res += chmod(filename, statbuf->st_mode & 07777);  /* Copy file permissions */
+    res += UTIL_chmod(filename, statbuf->st_mode & 07777);  /* Copy file permissions */
 
     errno = 0;
     return -res; /* number of errors is returned */
 }
 
-U32 UTIL_isDirectory(const char* infilename)
+int UTIL_isDirectory(const char* infilename)
 {
-    int r;
     stat_t statbuf;
 #if defined(_MSC_VER)
-    r = _stat64(infilename, &statbuf);
+    int const r = _stat64(infilename, &statbuf);
     if (!r && (statbuf.st_mode & _S_IFDIR)) return 1;
 #else
-    r = stat(infilename, &statbuf);
+    int const r = stat(infilename, &statbuf);
     if (!r && S_ISDIR(statbuf.st_mode)) return 1;
 #endif
     return 0;
@@ -126,28 +212,25 @@ int UTIL_isSameFile(const char* fName1, const char* fName2)
 #endif
 }
 
-#ifndef _MSC_VER
-/* Using this to distinguish named pipes */
-U32 UTIL_isFIFO(const char* infilename)
+/* UTIL_isFIFO : distinguish named pipes */
+int UTIL_isFIFO(const char* infilename)
 {
 /* macro guards, as defined in : https://linux.die.net/man/2/lstat */
 #if PLATFORM_POSIX_VERSION >= 200112L
     stat_t statbuf;
-    int r = UTIL_getFileStat(infilename, &statbuf);
+    int const r = UTIL_getFileStat(infilename, &statbuf);
     if (!r && S_ISFIFO(statbuf.st_mode)) return 1;
 #endif
     (void)infilename;
     return 0;
 }
-#endif
 
-U32 UTIL_isLink(const char* infilename)
+int UTIL_isLink(const char* infilename)
 {
 /* macro guards, as defined in : https://linux.die.net/man/2/lstat */
 #if PLATFORM_POSIX_VERSION >= 200112L
-    int r;
     stat_t statbuf;
-    r = lstat(infilename, &statbuf);
+    int const r = lstat(infilename, &statbuf);
     if (!r && S_ISLNK(statbuf.st_mode)) return 1;
 #endif
     (void)infilename;
@@ -176,28 +259,226 @@ U64 UTIL_getFileSize(const char* infilename)
 }
 
 
-U64 UTIL_getTotalFileSize(const char* const * const fileNamesTable, unsigned nbFiles)
+U64 UTIL_getTotalFileSize(const char* const * fileNamesTable, unsigned nbFiles)
 {
     U64 total = 0;
-    int error = 0;
     unsigned n;
     for (n=0; n<nbFiles; n++) {
         U64 const size = UTIL_getFileSize(fileNamesTable[n]);
-        error |= (size == UTIL_FILESIZE_UNKNOWN);
+        if (size == UTIL_FILESIZE_UNKNOWN) return UTIL_FILESIZE_UNKNOWN;
         total += size;
     }
-    return error ? UTIL_FILESIZE_UNKNOWN : total;
+    return total;
+}
+
+
+/* condition : @file must be valid, and not have reached its end.
+ * @return : length of line written into @buf, ended with `\0` instead of '\n',
+ *           or 0, if there is no new line */
+static size_t readLineFromFile(char* buf, size_t len, FILE* file)
+{
+    assert(!feof(file));
+    /* Work around Cygwin problem when len == 1 it returns NULL. */
+    if (len <= 1) return 0;
+    CONTROL( fgets(buf, (int) len, file) );
+    {   size_t linelen = strlen(buf);
+        if (strlen(buf)==0) return 0;
+        if (buf[linelen-1] == '\n') linelen--;
+        buf[linelen] = '\0';
+        return linelen+1;
+    }
+}
+
+/* Conditions :
+ *   size of @inputFileName file must be < @dstCapacity
+ *   @dst must be initialized
+ * @return : nb of lines
+ *       or -1 if there's an error
+ */
+static int
+readLinesFromFile(void* dst, size_t dstCapacity,
+            const char* inputFileName)
+{
+    int nbFiles = 0;
+    size_t pos = 0;
+    char* const buf = (char*)dst;
+    FILE* const inputFile = fopen(inputFileName, "r");
+
+    assert(dst != NULL);
+
+    if(!inputFile) {
+        if (g_utilDisplayLevel >= 1) perror("zstd:util:readLinesFromFile");
+        return -1;
+    }
+
+    while ( !feof(inputFile) ) {
+        size_t const lineLength = readLineFromFile(buf+pos, dstCapacity-pos, inputFile);
+        if (lineLength == 0) break;
+        assert(pos + lineLength < dstCapacity);
+        pos += lineLength;
+        ++nbFiles;
+    }
+
+    CONTROL( fclose(inputFile) == 0 );
+
+    return nbFiles;
+}
+
+/*Note: buf is not freed in case function successfully created table because filesTable->fileNames[0] = buf*/
+FileNamesTable*
+UTIL_createFileNamesTable_fromFileName(const char* inputFileName)
+{
+    size_t nbFiles = 0;
+    char* buf;
+    size_t bufSize;
+    size_t pos = 0;
+
+    if (!UTIL_fileExist(inputFileName) || !UTIL_isRegularFile(inputFileName))
+        return NULL;
+
+    {   U64 const inputFileSize = UTIL_getFileSize(inputFileName);
+        if(inputFileSize > MAX_FILE_OF_FILE_NAMES_SIZE)
+            return NULL;
+        bufSize = (size_t)(inputFileSize + 1); /* (+1) to add '\0' at the end of last filename */
+    }
+
+    buf = (char*) malloc(bufSize);
+    CONTROL( buf != NULL );
+
+    {   int const ret_nbFiles = readLinesFromFile(buf, bufSize, inputFileName);
+
+        if (ret_nbFiles <= 0) {
+          free(buf);
+          return NULL;
+        }
+        nbFiles = (size_t)ret_nbFiles;
+    }
+
+    {   const char** filenamesTable = (const char**) malloc(nbFiles * sizeof(*filenamesTable));
+        CONTROL(filenamesTable != NULL);
+
+        {   size_t fnb;
+            for (fnb = 0, pos = 0; fnb < nbFiles; fnb++) {
+                filenamesTable[fnb] = buf+pos;
+                pos += strlen(buf+pos)+1;  /* +1 for the finishing `\0` */
+        }   }
+        assert(pos <= bufSize);
+
+        return UTIL_assembleFileNamesTable(filenamesTable, nbFiles, buf);
+    }
+}
+
+static FileNamesTable*
+UTIL_assembleFileNamesTable2(const char** filenames, size_t tableSize, size_t tableCapacity, char* buf)
+{
+    FileNamesTable* const table = (FileNamesTable*) malloc(sizeof(*table));
+    CONTROL(table != NULL);
+    table->fileNames = filenames;
+    table->buf = buf;
+    table->tableSize = tableSize;
+    table->tableCapacity = tableCapacity;
+    return table;
+}
+
+FileNamesTable*
+UTIL_assembleFileNamesTable(const char** filenames, size_t tableSize, char* buf)
+{
+    return UTIL_assembleFileNamesTable2(filenames, tableSize, tableSize, buf);
+}
+
+void UTIL_freeFileNamesTable(FileNamesTable* table)
+{
+    if (table==NULL) return;
+    free((void*)table->fileNames);
+    free(table->buf);
+    free(table);
+}
+
+FileNamesTable* UTIL_allocateFileNamesTable(size_t tableSize)
+{
+    const char** const fnTable = (const char**)malloc(tableSize * sizeof(*fnTable));
+    FileNamesTable* fnt;
+    if (fnTable==NULL) return NULL;
+    fnt = UTIL_assembleFileNamesTable(fnTable, tableSize, NULL);
+    fnt->tableSize = 0;   /* the table is empty */
+    return fnt;
+}
+
+void UTIL_refFilename(FileNamesTable* fnt, const char* filename)
+{
+    assert(fnt->tableSize < fnt->tableCapacity);
+    fnt->fileNames[fnt->tableSize] = filename;
+    fnt->tableSize++;
+}
+
+static size_t getTotalTableSize(FileNamesTable* table)
+{
+    size_t fnb = 0, totalSize = 0;
+    for(fnb = 0 ; fnb < table->tableSize && table->fileNames[fnb] ; ++fnb) {
+        totalSize += strlen(table->fileNames[fnb]) + 1; /* +1 to add '\0' at the end of each fileName */
+    }
+    return totalSize;
+}
+
+FileNamesTable*
+UTIL_mergeFileNamesTable(FileNamesTable* table1, FileNamesTable* table2)
+{
+    unsigned newTableIdx = 0;
+    size_t pos = 0;
+    size_t newTotalTableSize;
+    char* buf;
+
+    FileNamesTable* const newTable = UTIL_assembleFileNamesTable(NULL, 0, NULL);
+    CONTROL( newTable != NULL );
+
+    newTotalTableSize = getTotalTableSize(table1) + getTotalTableSize(table2);
+
+    buf = (char*) calloc(newTotalTableSize, sizeof(*buf));
+    CONTROL ( buf != NULL );
+
+    newTable->buf = buf;
+    newTable->tableSize = table1->tableSize + table2->tableSize;
+    newTable->fileNames = (const char **) calloc(newTable->tableSize, sizeof(*(newTable->fileNames)));
+    CONTROL ( newTable->fileNames != NULL );
+
+    {   unsigned idx1;
+        for( idx1=0 ; (idx1 < table1->tableSize) && table1->fileNames[idx1] && (pos < newTotalTableSize); ++idx1, ++newTableIdx) {
+            size_t const curLen = strlen(table1->fileNames[idx1]);
+            memcpy(buf+pos, table1->fileNames[idx1], curLen);
+            assert(newTableIdx <= newTable->tableSize);
+            newTable->fileNames[newTableIdx] = buf+pos;
+            pos += curLen+1;
+    }   }
+
+    {   unsigned idx2;
+        for( idx2=0 ; (idx2 < table2->tableSize) && table2->fileNames[idx2] && (pos < newTotalTableSize) ; ++idx2, ++newTableIdx) {
+            size_t const curLen = strlen(table2->fileNames[idx2]);
+            memcpy(buf+pos, table2->fileNames[idx2], curLen);
+            assert(newTableIdx <= newTable->tableSize);
+            newTable->fileNames[newTableIdx] = buf+pos;
+            pos += curLen+1;
+    }   }
+    assert(pos <= newTotalTableSize);
+    newTable->tableSize = newTableIdx;
+
+    UTIL_freeFileNamesTable(table1);
+    UTIL_freeFileNamesTable(table2);
+
+    return newTable;
 }
 
 #ifdef _WIN32
-int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd, int followLinks)
+static int UTIL_prepareFileList(const char* dirName,
+                                char** bufStart, size_t* pos,
+                                char** bufEnd, int followLinks)
 {
     char* path;
-    int dirLength, fnameLength, pathLength, nbFiles = 0;
+    size_t dirLength, pathLength;
+    int nbFiles = 0;
     WIN32_FIND_DATAA cFile;
     HANDLE hFile;
 
-    dirLength = (int)strlen(dirName);
+    dirLength = strlen(dirName);
     path = (char*) malloc(dirLength + 3);
     if (!path) return 0;
 
@@ -214,7 +495,7 @@ int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char
     free(path);
 
     do {
-        fnameLength = (int)strlen(cFile.cFileName);
+        size_t const fnameLength = strlen(cFile.cFileName);
         path = (char*) malloc(dirLength + fnameLength + 2);
         if (!path) { FindClose(hFile); return 0; }
         memcpy(path, dirName, dirLength);
@@ -242,8 +523,7 @@ int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char
                 memcpy(*bufStart + *pos, path, pathLength+1 /* include final \0 */);
                 *pos += pathLength + 1;
                 nbFiles++;
-            }
-        }
+        }   }
         free(path);
     } while (FindNextFileA(hFile, &cFile));
 
@@ -253,12 +533,13 @@ int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char
 
 #elif defined(__linux__) || (PLATFORM_POSIX_VERSION >= 200112L)  /* opendir, readdir require POSIX.1-2001 */
 
-int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd, int followLinks)
+static int UTIL_prepareFileList(const char *dirName,
+                                char** bufStart, size_t* pos,
+                                char** bufEnd, int followLinks)
 {
-    DIR *dir;
-    struct dirent *entry;
-    char* path;
-    size_t dirLength, fnameLength, pathLength;
+    DIR* dir;
+    struct dirent * entry;
+    size_t dirLength;
     int nbFiles = 0;
 
     if (!(dir = opendir(dirName))) {
@@ -269,6 +550,8 @@ int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char
     dirLength = strlen(dirName);
     errno = 0;
     while ((entry = readdir(dir)) != NULL) {
+        char* path;
+        size_t fnameLength, pathLength;
         if (strcmp (entry->d_name, "..") == 0 ||
             strcmp (entry->d_name, ".") == 0) continue;
         fnameLength = strlen(entry->d_name);
@@ -302,14 +585,13 @@ int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char
                 memcpy(*bufStart + *pos, path, pathLength + 1);  /* with final \0 */
                 *pos += pathLength + 1;
                 nbFiles++;
-            }
-        }
+        }   }
         free(path);
         errno = 0; /* clear errno after UTIL_isDirectory, UTIL_prepareFileList */
     }
 
     if (errno != 0) {
-        UTIL_DISPLAYLEVEL(1, "readdir(%s) error: %s\n", dirName, strerror(errno));
+        UTIL_DISPLAYLEVEL(1, "readdir(%s) error: %s \n", dirName, strerror(errno));
         free(*bufStart);
         *bufStart = NULL;
     }
@@ -319,10 +601,12 @@ int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char
 
 #else
 
-int UTIL_prepareFileList(const char *dirName, char** bufStart, size_t* pos, char** bufEnd, int followLinks)
+static int UTIL_prepareFileList(const char *dirName,
+                                char** bufStart, size_t* pos,
+                                char** bufEnd, int followLinks)
 {
     (void)bufStart; (void)bufEnd; (void)pos; (void)followLinks;
-    UTIL_DISPLAYLEVEL(1, "Directory %s ignored (compiled without _WIN32 or _POSIX_C_SOURCE)\n", dirName);
+    UTIL_DISPLAYLEVEL(1, "Directory %s ignored (compiled without _WIN32 or _POSIX_C_SOURCE) \n", dirName);
     return 0;
 }
 
@@ -349,68 +633,70 @@ const char* UTIL_getFileExtension(const char* infilename)
    return extension;
 }
 
-/*
- * UTIL_createFileList - takes a list of files and directories (params: inputNames, inputNamesNb), scans directories,
- *                       and returns a new list of files (params: return value, allocatedBuffer, allocatedNamesNb).
- * After finishing usage of the list the structures should be freed with UTIL_freeFileList(params: return value, allocatedBuffer)
- * In case of error UTIL_createFileList returns NULL and UTIL_freeFileList should not be called.
- */
-const char**
-UTIL_createFileList(const char **inputNames, unsigned inputNamesNb,
-                    char** allocatedBuffer, unsigned* allocatedNamesNb,
-                    int followLinks)
+
+FileNamesTable*
+UTIL_createExpandedFNT(const char** inputNames, size_t nbIfns, int followLinks)
 {
-    size_t pos;
-    unsigned i, nbFiles;
+    unsigned nbFiles;
     char* buf = (char*)malloc(LIST_SIZE_INCREASE);
     char* bufend = buf + LIST_SIZE_INCREASE;
 
     if (!buf) return NULL;
 
-    for (i=0, pos=0, nbFiles=0; i<inputNamesNb; i++) {
-        if (!UTIL_isDirectory(inputNames[i])) {
-            size_t const len = strlen(inputNames[i]);
-            if (buf + pos + len >= bufend) {
-                ptrdiff_t newListSize = (bufend - buf) + LIST_SIZE_INCREASE;
-                assert(newListSize >= 0);
-                buf = (char*)UTIL_realloc(buf, (size_t)newListSize);
-                bufend = buf + newListSize;
-                if (!buf) return NULL;
-            }
-            if (buf + pos + len < bufend) {
-                memcpy(buf+pos, inputNames[i], len+1);  /* including final \0 */
-                pos += len + 1;
-                nbFiles++;
-            }
-        } else {
-            nbFiles += (unsigned)UTIL_prepareFileList(inputNames[i], &buf, &pos, &bufend, followLinks);
-            if (buf == NULL) return NULL;
-    }   }
+    {   size_t ifnNb, pos;
+        for (ifnNb=0, pos=0, nbFiles=0; ifnNb<nbIfns; ifnNb++) {
+            if (!UTIL_isDirectory(inputNames[ifnNb])) {
+                size_t const len = strlen(inputNames[ifnNb]);
+                if (buf + pos + len >= bufend) {
+                    ptrdiff_t newListSize = (bufend - buf) + LIST_SIZE_INCREASE;
+                    assert(newListSize >= 0);
+                    buf = (char*)UTIL_realloc(buf, (size_t)newListSize);
+                    if (!buf) return NULL;
+                    bufend = buf + newListSize;
+                }
+                if (buf + pos + len < bufend) {
+                    memcpy(buf+pos, inputNames[ifnNb], len+1);  /* including final \0 */
+                    pos += len + 1;
+                    nbFiles++;
+                }
+            } else {
+                nbFiles += (unsigned)UTIL_prepareFileList(inputNames[ifnNb], &buf, &pos, &bufend, followLinks);
+                if (buf == NULL) return NULL;
+    }   }   }
 
-    if (nbFiles == 0) { free(buf); return NULL; }
+    /* note : even if nbFiles==0, function returns a valid, though empty, FileNamesTable* object */
 
-    {   const char** const fileTable = (const char**)malloc((nbFiles + 1) * sizeof(*fileTable));
-        if (!fileTable) { free(buf); return NULL; }
+    {   size_t ifnNb, pos;
+        size_t const fntCapacity = nbFiles + 1;  /* minimum 1, allows adding one reference, typically stdin */
+        const char** const fileNamesTable = (const char**)malloc(fntCapacity * sizeof(*fileNamesTable));
+        if (!fileNamesTable) { free(buf); return NULL; }
 
-        for (i = 0, pos = 0; i < nbFiles; i++) {
-            fileTable[i] = buf + pos;
-            if (buf + pos > bufend) { free(buf); free((void*)fileTable); return NULL; }
-            pos += strlen(fileTable[i]) + 1;
+        for (ifnNb = 0, pos = 0; ifnNb < nbFiles; ifnNb++) {
+            fileNamesTable[ifnNb] = buf + pos;
+            if (buf + pos > bufend) { free(buf); free((void*)fileNamesTable); return NULL; }
+            pos += strlen(fileNamesTable[ifnNb]) + 1;
         }
-
-        *allocatedBuffer = buf;
-        *allocatedNamesNb = nbFiles;
-
-        return fileTable;
+        return UTIL_assembleFileNamesTable2(fileNamesTable, nbFiles, fntCapacity, buf);
     }
 }
 
 
-/*-****************************************
-*  Console log
-******************************************/
-int g_utilDisplayLevel;
+void UTIL_expandFNT(FileNamesTable** fnt, int followLinks)
+{
+    FileNamesTable* const newFNT = UTIL_createExpandedFNT((*fnt)->fileNames, (*fnt)->tableSize, followLinks);
+    CONTROL(newFNT != NULL);
+    UTIL_freeFileNamesTable(*fnt);
+    *fnt = newFNT;
+}
 
+FileNamesTable* UTIL_createFNT_fromROTable(const char** filenames, size_t nbFilenames)
+{
+    size_t const sizeof_FNTable = nbFilenames * sizeof(*filenames);
+    const char** const newFNTable = (const char**)malloc(sizeof_FNTable);
+    if (newFNTable==NULL) return NULL;
+    memcpy((void*)newFNTable, filenames, sizeof_FNTable);  /* void* : mitigate a Visual compiler bug or limitation */
+    return UTIL_assembleFileNamesTable(newFNTable, nbFilenames, NULL);
+}
 
 
 /*-****************************************
@@ -465,8 +751,7 @@ int UTIL_countPhysicalCores(void)
                 }
             } else {
                 done = TRUE;
-            }
-        }
+        }   }
 
         ptr = buffer;
 
@@ -578,8 +863,7 @@ int UTIL_countPhysicalCores(void)
             } else if (ferror(cpuinfo)) {
                 /* fall back on the sysconf value */
                 goto failed;
-            }
-        }
+        }   }
         if (siblings && cpu_cores) {
             ratio = siblings / cpu_cores;
         }
@@ -621,7 +905,7 @@ int UTIL_countPhysicalCores(void)
     return numPhysicalCores;
 }
 
-#elif defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+#elif defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || defined(__CYGWIN__)
 
 /* Use POSIX sysconf
  * see: man 3 sysconf */

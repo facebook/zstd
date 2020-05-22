@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-present, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2017-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -185,7 +185,7 @@ BYTE SEQUENCE_LLCODE[ZSTD_BLOCKSIZE_MAX];
 BYTE SEQUENCE_MLCODE[ZSTD_BLOCKSIZE_MAX];
 BYTE SEQUENCE_OFCODE[ZSTD_BLOCKSIZE_MAX];
 
-unsigned WKSP[1024];
+unsigned WKSP[HUF_WORKSPACE_SIZE_U32];
 
 typedef struct {
     size_t contentSize; /* 0 means unknown (unless contentSize == windowSize == 0) */

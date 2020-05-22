@@ -1,10 +1,11 @@
 /*
- * Copyright (c) 2016-present, Facebook, Inc.
+ * Copyright (c) 2016-2020, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
  * LICENSE file in the root directory of this source tree) and the GPLv2 (found
  * in the COPYING file in the root directory of this source tree).
+ * You may select, at your option, one of the above-listed licenses.
  */
 
 /**
@@ -41,16 +42,20 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
         ddict = ZSTD_createDDict(dict.buff, dict.size);
         FUZZ_ASSERT(ddict);
     } else {
-        FUZZ_ZASSERT(ZSTD_DCtx_loadDictionary_advanced(
+        if (FUZZ_dataProducer_uint32Range(producer, 0, 1) == 0)
+            FUZZ_ZASSERT(ZSTD_DCtx_loadDictionary_advanced(
                 dctx, dict.buff, dict.size,
                 (ZSTD_dictLoadMethod_e)FUZZ_dataProducer_uint32Range(producer, 0, 1),
+                (ZSTD_dictContentType_e)FUZZ_dataProducer_uint32Range(producer, 0, 2)));
+        else
+            FUZZ_ZASSERT(ZSTD_DCtx_refPrefix_advanced(
+                dctx, dict.buff, dict.size,
                 (ZSTD_dictContentType_e)FUZZ_dataProducer_uint32Range(producer, 0, 2)));
     }
 
     {
         size_t const bufSize = FUZZ_dataProducer_uint32Range(producer, 0, 10 * size);
-        void* rBuf = malloc(bufSize);
-        FUZZ_ASSERT(rBuf);
+        void* rBuf = FUZZ_malloc(bufSize);
         if (ddict) {
             ZSTD_decompress_usingDDict(dctx, rBuf, bufSize, src, size, ddict);
         } else {

@@ -1,5 +1,5 @@
 .
-.TH "ZSTD" "1" "October 2019" "zstd 1.4.4" "User Commands"
+.TH "ZSTD" "1" "May 2020" "zstd 1.4.5" "User Commands"
 .
 .SH "NAME"
 \fBzstd\fR \- zstd, zstdmt, unzstd, zstdcat \- Compress or decompress \.zst files
@@ -95,120 +95,115 @@ Display information related to a zstd compressed file, such as size, ratio, and 
 .
 .SS "Operation modifiers"
 .
-.TP
-\fB\-#\fR
-\fB#\fR compression level [1\-19] (default: 3)
+.IP "\(bu" 4
+\fB\-#\fR: \fB#\fR compression level [1\-19] (default: 3)
 .
-.TP
-\fB\-\-fast[=#]\fR
-switch to ultra\-fast compression levels\. If \fB=#\fR is not present, it defaults to \fB1\fR\. The higher the value, the faster the compression speed, at the cost of some compression ratio\. This setting overwrites compression level if one was set previously\. Similarly, if a compression level is set after \fB\-\-fast\fR, it overrides it\.
+.IP "\(bu" 4
+\fB\-\-fast[=#]\fR: switch to ultra\-fast compression levels\. If \fB=#\fR is not present, it defaults to \fB1\fR\. The higher the value, the faster the compression speed, at the cost of some compression ratio\. This setting overwrites compression level if one was set previously\. Similarly, if a compression level is set after \fB\-\-fast\fR, it overrides it\.
 .
-.TP
-\fB\-\-ultra\fR
-unlocks high compression levels 20+ (maximum 22), using a lot more memory\. Note that decompression will also require more memory when using these levels\.
+.IP "\(bu" 4
+\fB\-\-ultra\fR: unlocks high compression levels 20+ (maximum 22), using a lot more memory\. Note that decompression will also require more memory when using these levels\.
 .
-.TP
-\fB\-\-long[=#]\fR
-enables long distance matching with \fB#\fR \fBwindowLog\fR, if not \fB#\fR is not present it defaults to \fB27\fR\. This increases the window size (\fBwindowLog\fR) and memory usage for both the compressor and decompressor\. This setting is designed to improve the compression ratio for files with long matches at a large distance\.
+.IP "\(bu" 4
+\fB\-\-long[=#]\fR: enables long distance matching with \fB#\fR \fBwindowLog\fR, if not \fB#\fR is not present it defaults to \fB27\fR\. This increases the window size (\fBwindowLog\fR) and memory usage for both the compressor and decompressor\. This setting is designed to improve the compression ratio for files with long matches at a large distance\.
 .
 .IP
 Note: If \fBwindowLog\fR is set to larger than 27, \fB\-\-long=windowLog\fR or \fB\-\-memory=windowSize\fR needs to be passed to the decompressor\.
 .
-.TP
-\fB\-T#\fR, \fB\-\-threads=#\fR
-Compress using \fB#\fR working threads (default: 1)\. If \fB#\fR is 0, attempt to detect and use the number of physical CPU cores\. In all cases, the nb of threads is capped to ZSTDMT_NBTHREADS_MAX==200\. This modifier does nothing if \fBzstd\fR is compiled without multithread support\.
+.IP "\(bu" 4
+\fB\-\-patch\-from=FILE\fR: Specify the file to be used as a reference point for zstd\'s diff engine\. This is effectively dictionary compression with some convenient parameter selection, namely that windowSize > srcSize\.
 .
-.TP
-\fB\-\-single\-thread\fR
-Does not spawn a thread for compression, use a single thread for both I/O and compression\. In this mode, compression is serialized with I/O, which is slightly slower\. (This is different from \fB\-T1\fR, which spawns 1 compression thread in parallel of I/O)\. This mode is the only one available when multithread support is disabled\. Single\-thread mode features lower memory usage\. Final compressed result is slightly different from \fB\-T1\fR\.
+.IP
+Note: cannot use both this and \-D together Note: \fB\-\-long\fR mode will be automatically activated if chainLog < fileLog (fileLog being the windowLog requried to cover the whole file)\. You can also manually force it\. Node: for all levels, you can use \-\-patch\-from in \-\-single\-thread mode to improve compression ratio at the cost of speed Note: for level 19, you can get increased compression ratio at the cost of speed by specifying \fB\-\-zstd=targetLength=\fR to be something large (i\.e 4096), and by setting a large \fB\-\-zstd=chainLog=\fR
 .
-.TP
-\fB\-\-adapt[=min=#,max=#]\fR
-\fBzstd\fR will dynamically adapt compression level to perceived I/O conditions\. Compression level adaptation can be observed live by using command \fB\-v\fR\. Adaptation can be constrained between supplied \fBmin\fR and \fBmax\fR levels\. The feature works when combined with multi\-threading and \fB\-\-long\fR mode\. It does not work with \fB\-\-single\-thread\fR\. It sets window size to 8 MB by default (can be changed manually, see \fBwlog\fR)\. Due to the chaotic nature of dynamic adaptation, compressed result is not reproducible\. \fInote\fR : at the time of this writing, \fB\-\-adapt\fR can remain stuck at low speed when combined with multiple worker threads (>=2)\.
+.IP "\(bu" 4
+\fB\-M#\fR, \fB\-\-memory=#\fR: Set a memory usage limit\. By default, Zstandard uses 128 MB for decompression as the maximum amount of memory the decompressor is allowed to use, but you can override this manually if need be in either direction (ie\. you can increase or decrease it)\.
 .
-.TP
-\fB\-\-stream\-size=#\fR
-Sets the pledged source size of input coming from a stream\. This value must be exact, as it will be included in the produced frame header\. Incorrect stream sizes will cause an error\. This information will be used to better optimize compression parameters, resulting in better and potentially faster compression, especially for smaller source sizes\.
+.IP
+This is also used during compression when using with \-\-patch\-from=\. In this case, this parameter overrides that maximum size allowed for a dictionary\. (128 MB)\.
 .
-.TP
-\fB\-\-size\-hint=#\fR
-When handling input from a stream, \fBzstd\fR must guess how large the source size will be when optimizing compression parameters\. If the stream size is relatively small, this guess may be a poor one, resulting in a higher compression ratio than expected\. This feature allows for controlling the guess when needed\. Exact guesses result in better compression ratios\. Overestimates result in slightly degraded compression ratios, while underestimates may result in significant degradation\.
+.IP "\(bu" 4
+\fB\-T#\fR, \fB\-\-threads=#\fR: Compress using \fB#\fR working threads (default: 1)\. If \fB#\fR is 0, attempt to detect and use the number of physical CPU cores\. In all cases, the nb of threads is capped to ZSTDMT_NBTHREADS_MAX==200\. This modifier does nothing if \fBzstd\fR is compiled without multithread support\.
 .
-.TP
-\fB\-\-rsyncable\fR
-\fBzstd\fR will periodically synchronize the compression state to make the compressed file more rsync\-friendly\. There is a negligible impact to compression ratio, and the faster compression levels will see a small compression speed hit\. This feature does not work with \fB\-\-single\-thread\fR\. You probably don\'t want to use it with long range mode, since it will decrease the effectiveness of the synchronization points, but your milage may vary\.
+.IP "\(bu" 4
+\fB\-\-single\-thread\fR: Does not spawn a thread for compression, use a single thread for both I/O and compression\. In this mode, compression is serialized with I/O, which is slightly slower\. (This is different from \fB\-T1\fR, which spawns 1 compression thread in parallel of I/O)\. This mode is the only one available when multithread support is disabled\. Single\-thread mode features lower memory usage\. Final compressed result is slightly different from \fB\-T1\fR\.
 .
-.TP
-\fB\-D file\fR
-use \fBfile\fR as Dictionary to compress or decompress FILE(s)
+.IP "\(bu" 4
+\fB\-\-adapt[=min=#,max=#]\fR : \fBzstd\fR will dynamically adapt compression level to perceived I/O conditions\. Compression level adaptation can be observed live by using command \fB\-v\fR\. Adaptation can be constrained between supplied \fBmin\fR and \fBmax\fR levels\. The feature works when combined with multi\-threading and \fB\-\-long\fR mode\. It does not work with \fB\-\-single\-thread\fR\. It sets window size to 8 MB by default (can be changed manually, see \fBwlog\fR)\. Due to the chaotic nature of dynamic adaptation, compressed result is not reproducible\. \fInote\fR : at the time of this writing, \fB\-\-adapt\fR can remain stuck at low speed when combined with multiple worker threads (>=2)\.
 .
-.TP
-\fB\-\-no\-dictID\fR
-do not store dictionary ID within frame header (dictionary compression)\. The decoder will have to rely on implicit knowledge about which dictionary to use, it won\'t be able to check if it\'s correct\.
+.IP "\(bu" 4
+\fB\-\-stream\-size=#\fR : Sets the pledged source size of input coming from a stream\. This value must be exact, as it will be included in the produced frame header\. Incorrect stream sizes will cause an error\. This information will be used to better optimize compression parameters, resulting in better and potentially faster compression, especially for smaller source sizes\.
 .
-.TP
-\fB\-o file\fR
-save result into \fBfile\fR (only possible with a single \fIINPUT\-FILE\fR)
+.IP "\(bu" 4
+\fB\-\-size\-hint=#\fR: When handling input from a stream, \fBzstd\fR must guess how large the source size will be when optimizing compression parameters\. If the stream size is relatively small, this guess may be a poor one, resulting in a higher compression ratio than expected\. This feature allows for controlling the guess when needed\. Exact guesses result in better compression ratios\. Overestimates result in slightly degraded compression ratios, while underestimates may result in significant degradation\.
 .
-.TP
-\fB\-f\fR, \fB\-\-force\fR
-overwrite output without prompting, and (de)compress symbolic links
+.IP "\(bu" 4
+\fB\-\-rsyncable\fR : \fBzstd\fR will periodically synchronize the compression state to make the compressed file more rsync\-friendly\. There is a negligible impact to compression ratio, and the faster compression levels will see a small compression speed hit\. This feature does not work with \fB\-\-single\-thread\fR\. You probably don\'t want to use it with long range mode, since it will decrease the effectiveness of the synchronization points, but your milage may vary\.
 .
-.TP
-\fB\-c\fR, \fB\-\-stdout\fR
-force write to standard output, even if it is the console
+.IP "\(bu" 4
+\fB\-D file\fR: use \fBfile\fR as Dictionary to compress or decompress FILE(s)
 .
-.TP
-\fB\-\-[no\-]sparse\fR
-enable / disable sparse FS support, to make files with many zeroes smaller on disk\. Creating sparse files may save disk space and speed up decompression by reducing the amount of disk I/O\. default: enabled when output is into a file, and disabled when output is stdout\. This setting overrides default and can force sparse mode over stdout\.
+.IP "\(bu" 4
+\fB\-\-no\-dictID\fR: do not store dictionary ID within frame header (dictionary compression)\. The decoder will have to rely on implicit knowledge about which dictionary to use, it won\'t be able to check if it\'s correct\.
 .
-.TP
-\fB\-\-rm\fR
-remove source file(s) after successful compression or decompression
+.IP "\(bu" 4
+\fB\-o file\fR: save result into \fBfile\fR (only possible with a single \fIINPUT\-FILE\fR)
 .
-.TP
-\fB\-k\fR, \fB\-\-keep\fR
-keep source file(s) after successful compression or decompression\. This is the default behavior\.
+.IP "\(bu" 4
+\fB\-f\fR, \fB\-\-force\fR: overwrite output without prompting, and (de)compress symbolic links
 .
-.TP
-\fB\-r\fR
-operate recursively on directories
+.IP "\(bu" 4
+\fB\-c\fR, \fB\-\-stdout\fR: force write to standard output, even if it is the console
 .
-.TP
-\fB\-\-output\-dir\-flat[=dir]\fR
-resulting files are stored into target \fBdir\fR directory, instead of same directory as origin file\. Be aware that this command can introduce name collision issues, if multiple files, from different directories, end up having the same name\. Collision resolution ensures first file with a given name will be present in \fBdir\fR, while in combination with \fB\-f\fR, the last file will be present instead\.
+.IP "\(bu" 4
+\fB\-\-[no\-]sparse\fR: enable / disable sparse FS support, to make files with many zeroes smaller on disk\. Creating sparse files may save disk space and speed up decompression by reducing the amount of disk I/O\. default: enabled when output is into a file, and disabled when output is stdout\. This setting overrides default and can force sparse mode over stdout\.
 .
-.TP
-\fB\-\-format=FORMAT\fR
-compress and decompress in other formats\. If compiled with support, zstd can compress to or decompress from other compression algorithm formats\. Possibly available options are \fBzstd\fR, \fBgzip\fR, \fBxz\fR, \fBlzma\fR, and \fBlz4\fR\. If no such format is provided, \fBzstd\fR is the default\.
+.IP "\(bu" 4
+\fB\-\-[no\-]content\-size\fR: enable / disable whether or not the original size of the file is placed in the header of the compressed file\. The default option is \-\-content\-size (meaning that the original size will be placed in the header)\.
 .
-.TP
-\fB\-h\fR/\fB\-H\fR, \fB\-\-help\fR
-display help/long help and exit
+.IP "\(bu" 4
+\fB\-\-rm\fR: remove source file(s) after successful compression or decompression
 .
-.TP
-\fB\-V\fR, \fB\-\-version\fR
-display version number and exit\. Advanced : \fB\-vV\fR also displays supported formats\. \fB\-vvV\fR also displays POSIX support\.
+.IP "\(bu" 4
+\fB\-k\fR, \fB\-\-keep\fR: keep source file(s) after successful compression or decompression\. This is the default behavior\.
 .
-.TP
-\fB\-v\fR
-verbose mode
+.IP "\(bu" 4
+\fB\-r\fR: operate recursively on directories
 .
-.TP
-\fB\-q\fR, \fB\-\-quiet\fR
-suppress warnings, interactivity, and notifications\. specify twice to suppress errors too\.
+.IP "\(bu" 4
+\fB\-\-filelist=FILE\fR read a list of files to process as content from \fBFILE\fR\. Format is compatible with \fBls\fR output, with one file per line\.
 .
-.TP
-\fB\-\-no\-progress\fR
-do not display the progress bar, but keep all other messages\.
+.IP "\(bu" 4
+\fB\-\-output\-dir\-flat[=dir]\fR: resulting files are stored into target \fBdir\fR directory, instead of same directory as origin file\. Be aware that this command can introduce name collision issues, if multiple files, from different directories, end up having the same name\. Collision resolution ensures first file with a given name will be present in \fBdir\fR, while in combination with \fB\-f\fR, the last file will be present instead\.
 .
-.TP
-\fB\-C\fR, \fB\-\-[no\-]check\fR
-add integrity check computed from uncompressed data (default: enabled)
+.IP "\(bu" 4
+\fB\-\-format=FORMAT\fR: compress and decompress in other formats\. If compiled with support, zstd can compress to or decompress from other compression algorithm formats\. Possibly available options are \fBzstd\fR, \fBgzip\fR, \fBxz\fR, \fBlzma\fR, and \fBlz4\fR\. If no such format is provided, \fBzstd\fR is the default\.
 .
-.TP
-\fB\-\-\fR
-All arguments after \fB\-\-\fR are treated as files
+.IP "\(bu" 4
+\fB\-h\fR/\fB\-H\fR, \fB\-\-help\fR: display help/long help and exit
+.
+.IP "\(bu" 4
+\fB\-V\fR, \fB\-\-version\fR: display version number and exit\. Advanced : \fB\-vV\fR also displays supported formats\. \fB\-vvV\fR also displays POSIX support\.
+.
+.IP "\(bu" 4
+\fB\-v\fR, \fB\-\-verbose\fR: verbose mode
+.
+.IP "\(bu" 4
+\fB\-\-show\-default\-cparams\fR: Shows the default compresssion parameters that will be used for a particular src file\. If the provided src file is not a regular file (eg\. named pipe), the cli will just output the default paramters\. That is, the parameters that are used when the src size is unknown\.
+.
+.IP "\(bu" 4
+\fB\-q\fR, \fB\-\-quiet\fR: suppress warnings, interactivity, and notifications\. specify twice to suppress errors too\.
+.
+.IP "\(bu" 4
+\fB\-\-no\-progress\fR: do not display the progress bar, but keep all other messages\.
+.
+.IP "\(bu" 4
+\fB\-C\fR, \fB\-\-[no\-]check\fR: add integrity check computed from uncompressed data (default: enabled)
+.
+.IP "\(bu" 4
+\fB\-\-\fR: All arguments after \fB\-\-\fR are treated as files
+.
+.IP "" 0
 .
 .SS "Restricted usage of Environment Variables"
 Using environment variables to set parameters has security implications\. Therefore, this avenue is intentionally restricted\. Only \fBZSTD_CLEVEL\fR is supported currently, for setting compression level\. \fBZSTD_CLEVEL\fR can be used to set the level between 1 and 19 (the "normal" range)\. If the value of \fBZSTD_CLEVEL\fR is not a valid integer, it will be ignored with a warning message\. \fBZSTD_CLEVEL\fR just replaces the default compression level (\fB3\fR)\. It can be overridden by corresponding command line arguments\.
@@ -361,7 +356,7 @@ Specify the maximum number of bits for a hash table\.
 Bigger hash tables cause less collisions which usually makes compression faster, but requires more memory during compression\.
 .
 .IP
-The minimum \fIhlog\fR is 6 (64 B) and the maximum is 26 (128 MiB)\.
+The minimum \fIhlog\fR is 6 (64 B) and the maximum is 30 (1 GiB)\.
 .
 .TP
 \fBchainLog\fR=\fIclog\fR, \fBclog\fR=\fIclog\fR
@@ -371,7 +366,7 @@ Specify the maximum number of bits for a hash chain or a binary tree\.
 Higher numbers of bits increases the chance to find a match which usually improves compression ratio\. It also slows down compression speed and increases memory requirements for compression\. This option is ignored for the ZSTD_fast strategy\.
 .
 .IP
-The minimum \fIclog\fR is 6 (64 B) and the maximum is 28 (256 MiB)\.
+The minimum \fIclog\fR is 6 (64 B) and the maximum is 29 (524 Mib) on 32\-bit platforms and 30 (1 Gib) on 64\-bit platforms\.
 .
 .TP
 \fBsearchLog\fR=\fIslog\fR, \fBslog\fR=\fIslog\fR
@@ -381,7 +376,7 @@ Specify the maximum number of searches in a hash chain or a binary tree using lo
 More searches increases the chance to find a match which usually increases compression ratio but decreases compression speed\.
 .
 .IP
-The minimum \fIslog\fR is 1 and the maximum is 26\.
+The minimum \fIslog\fR is 1 and the maximum is \'windowLog\' \- 1\.
 .
 .TP
 \fBminMatch\fR=\fImml\fR, \fBmml\fR=\fImml\fR
@@ -394,20 +389,17 @@ Larger search lengths usually decrease compression ratio but improve decompressi
 The minimum \fImml\fR is 3 and the maximum is 7\.
 .
 .TP
-\fBtargetLen\fR=\fItlen\fR, \fBtlen\fR=\fItlen\fR
+\fBtargetLength\fR=\fItlen\fR, \fBtlen\fR=\fItlen\fR
 The impact of this field vary depending on selected strategy\.
 .
 .IP
-For ZSTD_btopt, ZSTD_btultra and ZSTD_btultra2, it specifies the minimum match length that causes match finder to stop searching\. A larger \fBtargetLen\fR usually improves compression ratio but decreases compression speed\.
-.
-.IP
-For ZSTD_fast, it triggers ultra\-fast mode when > 0\. The value represents the amount of data skipped between match sampling\. Impact is reversed : a larger \fBtargetLen\fR increases compression speed but decreases compression ratio\.
+For ZSTD_btopt, ZSTD_btultra and ZSTD_btultra2, it specifies the minimum match length that causes match finder to stop searching\. A larger \fBtargetLength\fR usually improves compression ratio but decreases compression speed\. t For ZSTD_fast, it triggers ultra\-fast mode when > 0\. The value represents the amount of data skipped between match sampling\. Impact is reversed : a larger \fBtargetLength\fR increases compression speed but decreases compression ratio\.
 .
 .IP
 For all other strategies, this field has no impact\.
 .
 .IP
-The minimum \fItlen\fR is 0 and the maximum is 999\.
+The minimum \fItlen\fR is 0 and the maximum is 128 Kib\.
 .
 .TP
 \fBoverlapLog\fR=\fIovlog\fR, \fBovlog\fR=\fIovlog\fR
@@ -427,7 +419,7 @@ This option is ignored unless long distance matching is enabled\.
 Bigger hash tables usually improve compression ratio at the expense of more memory during compression and a decrease in compression speed\.
 .
 .IP
-The minimum \fIlhlog\fR is 6 and the maximum is 26 (default: 20)\.
+The minimum \fIlhlog\fR is 6 and the maximum is 30 (default: 20)\.
 .
 .TP
 \fBldmMinMatch\fR=\fIlmml\fR, \fBlmml\fR=\fIlmml\fR
@@ -453,7 +445,7 @@ This option is ignored unless long distance matching is enabled\.
 Larger bucket sizes improve collision resolution but decrease compression speed\.
 .
 .IP
-The minimum \fIlblog\fR is 0 and the maximum is 8 (default: 3)\.
+The minimum \fIlblog\fR is 1 and the maximum is 8 (default: 3)\.
 .
 .TP
 \fBldmHashRateLog\fR=\fIlhrlog\fR, \fBlhrlog\fR=\fIlhrlog\fR

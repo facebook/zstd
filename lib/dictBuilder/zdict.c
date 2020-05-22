@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -37,17 +37,18 @@
 #include <stdio.h>         /* fprintf, fopen, ftello64 */
 #include <time.h>          /* clock */
 
-#include "mem.h"           /* read */
-#include "fse.h"           /* FSE_normalizeCount, FSE_writeNCount */
+#include "../common/mem.h"           /* read */
+#include "../common/fse.h"           /* FSE_normalizeCount, FSE_writeNCount */
 #define HUF_STATIC_LINKING_ONLY
-#include "huf.h"           /* HUF_buildCTable, HUF_writeCTable */
-#include "zstd_internal.h" /* includes zstd.h */
-#include "xxhash.h"        /* XXH64 */
+#include "../common/huf.h"           /* HUF_buildCTable, HUF_writeCTable */
+#include "../common/zstd_internal.h" /* includes zstd.h */
+#include "../common/xxhash.h"        /* XXH64 */
 #include "divsufsort.h"
 #ifndef ZDICT_STATIC_LINKING_ONLY
 #  define ZDICT_STATIC_LINKING_ONLY
 #endif
 #include "zdict.h"
+#include "../compress/zstd_compress_internal.h" /* ZSTD_loadCEntropy() */
 
 
 /*-*************************************
@@ -99,6 +100,29 @@ unsigned ZDICT_getDictID(const void* dictBuffer, size_t dictSize)
     return MEM_readLE32((const char*)dictBuffer + 4);
 }
 
+size_t ZDICT_getDictHeaderSize(const void* dictBuffer, size_t dictSize)
+{
+    size_t headerSize;
+    if (dictSize <= 8 || MEM_readLE32(dictBuffer) != ZSTD_MAGIC_DICTIONARY) return ERROR(dictionary_corrupted);
+
+    {   unsigned offcodeMaxValue = MaxOff;
+        ZSTD_compressedBlockState_t* bs = (ZSTD_compressedBlockState_t*)malloc(sizeof(ZSTD_compressedBlockState_t));
+        U32* wksp = (U32*)malloc(HUF_WORKSPACE_SIZE);
+        short* offcodeNCount = (short*)malloc((MaxOff+1)*sizeof(short));
+        if (!bs || !wksp || !offcodeNCount) {
+            headerSize = ERROR(memory_allocation);
+        } else {
+            ZSTD_reset_compressedBlockState(bs);
+            headerSize = ZSTD_loadCEntropy(bs, wksp, offcodeNCount, &offcodeMaxValue, dictBuffer, dictSize);
+        }
+
+        free(bs);
+        free(wksp);
+        free(offcodeNCount);
+    }
+
+    return headerSize;
+}
 
 /*-********************************************************
 *  Dictionary training functions
@@ -588,12 +612,12 @@ typedef struct
 
 #define MAXREPOFFSET 1024
 
-static void ZDICT_countEStats(EStats_ress_t esr, ZSTD_parameters params,
+static void ZDICT_countEStats(EStats_ress_t esr, const ZSTD_parameters* params,
                               unsigned* countLit, unsigned* offsetcodeCount, unsigned* matchlengthCount, unsigned* litlengthCount, U32* repOffsets,
                               const void* src, size_t srcSize,
                               U32 notificationLevel)
 {
-    size_t const blockSizeMax = MIN (ZSTD_BLOCKSIZE_MAX, 1 << params.cParams.windowLog);
+    size_t const blockSizeMax = MIN (ZSTD_BLOCKSIZE_MAX, 1 << params->cParams.windowLog);
     size_t cSize;
 
     if (srcSize > blockSizeMax) srcSize = blockSizeMax;   /* protection vs large samples */
@@ -731,7 +755,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
 
     /* collect stats on all samples */
     for (u=0; u<nbFiles; u++) {
-        ZDICT_countEStats(esr, params,
+        ZDICT_countEStats(esr, &params,
                           countLit, offcodeCount, matchLengthCount, litLengthCount, repOffset,
                          (const char*)srcBuffer + pos, fileSizes[u],
                           notificationLevel);

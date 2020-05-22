@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-present, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -61,9 +61,57 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer(void* dictBuffer, size_t dictBufferCap
                                     const void* samplesBuffer,
                                     const size_t* samplesSizes, unsigned nbSamples);
 
+typedef struct {
+    int      compressionLevel;   /*< optimize for a specific zstd compression level; 0 means default */
+    unsigned notificationLevel;  /*< Write log to stderr; 0 = none (default); 1 = errors; 2 = progression; 3 = details; 4 = debug; */
+    unsigned dictID;             /*< force dictID value; 0 means auto mode (32-bits random value) */
+} ZDICT_params_t;
+
+/*! ZDICT_finalizeDictionary():
+ * Given a custom content as a basis for dictionary, and a set of samples,
+ * finalize dictionary by adding headers and statistics according to the zstd
+ * dictionary format.
+ *
+ * Samples must be stored concatenated in a flat buffer `samplesBuffer`,
+ * supplied with an array of sizes `samplesSizes`, providing the size of each
+ * sample in order. The samples are used to construct the statistics, so they
+ * should be representative of what you will compress with this dictionary.
+ *
+ * The compression level can be set in `parameters`. You should pass the
+ * compression level you expect to use in production. The statistics for each
+ * compression level differ, so tuning the dictionary for the compression level
+ * can help quite a bit.
+ *
+ * You can set an explicit dictionary ID in `parameters`, or allow us to pick
+ * a random dictionary ID for you, but we can't guarantee no collisions.
+ *
+ * The dstDictBuffer and the dictContent may overlap, and the content will be
+ * appended to the end of the header. If the header + the content doesn't fit in
+ * maxDictSize the beginning of the content is truncated to make room, since it
+ * is presumed that the most profitable content is at the end of the dictionary,
+ * since that is the cheapest to reference.
+ *
+ * `dictContentSize` must be >= ZDICT_CONTENTSIZE_MIN bytes.
+ * `maxDictSize` must be >= max(dictContentSize, ZSTD_DICTSIZE_MIN).
+ *
+ * @return: size of dictionary stored into `dstDictBuffer` (<= `maxDictSize`),
+ *          or an error code, which can be tested by ZDICT_isError().
+ * Note: ZDICT_finalizeDictionary() will push notifications into stderr if
+ *       instructed to, using notificationLevel>0.
+ * NOTE: This function currently may fail in several edge cases including:
+ *         * Not enough samples
+ *         * Samples are uncompressible
+ *         * Samples are all exactly the same
+ */
+ZDICTLIB_API size_t ZDICT_finalizeDictionary(void* dstDictBuffer, size_t maxDictSize,
+                                const void* dictContent, size_t dictContentSize,
+                                const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
+                                ZDICT_params_t parameters);
+
 
 /*======   Helper functions   ======*/
 ZDICTLIB_API unsigned ZDICT_getDictID(const void* dictBuffer, size_t dictSize);  /**< extracts dictID; @return zero if error (not a valid dictionary) */
+ZDICTLIB_API size_t ZDICT_getDictHeaderSize(const void* dictBuffer, size_t dictSize);  /* returns dict header size; returns a ZSTD error code on failure */
 ZDICTLIB_API unsigned ZDICT_isError(size_t errorCode);
 ZDICTLIB_API const char* ZDICT_getErrorName(size_t errorCode);
 
@@ -78,11 +126,8 @@ ZDICTLIB_API const char* ZDICT_getErrorName(size_t errorCode);
  * Use them only in association with static linking.
  * ==================================================================================== */
 
-typedef struct {
-    int      compressionLevel;   /* optimize for a specific zstd compression level; 0 means default */
-    unsigned notificationLevel;  /* Write log to stderr; 0 = none (default); 1 = errors; 2 = progression; 3 = details; 4 = debug; */
-    unsigned dictID;             /* force dictID value; 0 means auto mode (32-bits random value) */
-} ZDICT_params_t;
+#define ZDICT_CONTENTSIZE_MIN 128
+#define ZDICT_DICTSIZE_MIN    256
 
 /*! ZDICT_cover_params_t:
  *  k and d are the only required parameters.
@@ -197,28 +242,6 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_fastCover(void* dictBuffer,
                     size_t dictBufferCapacity, const void* samplesBuffer,
                     const size_t* samplesSizes, unsigned nbSamples,
                     ZDICT_fastCover_params_t* parameters);
-
-/*! ZDICT_finalizeDictionary():
- * Given a custom content as a basis for dictionary, and a set of samples,
- * finalize dictionary by adding headers and statistics.
- *
- * Samples must be stored concatenated in a flat buffer `samplesBuffer`,
- * supplied with an array of sizes `samplesSizes`, providing the size of each sample in order.
- *
- * dictContentSize must be >= ZDICT_CONTENTSIZE_MIN bytes.
- * maxDictSize must be >= dictContentSize, and must be >= ZDICT_DICTSIZE_MIN bytes.
- *
- * @return: size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`),
- *          or an error code, which can be tested by ZDICT_isError().
- * Note: ZDICT_finalizeDictionary() will push notifications into stderr if instructed to, using notificationLevel>0.
- * Note 2: dictBuffer and dictContent can overlap
- */
-#define ZDICT_CONTENTSIZE_MIN 128
-#define ZDICT_DICTSIZE_MIN    256
-ZDICTLIB_API size_t ZDICT_finalizeDictionary(void* dictBuffer, size_t dictBufferCapacity,
-                                const void* dictContent, size_t dictContentSize,
-                                const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
-                                ZDICT_params_t parameters);
 
 typedef struct {
     unsigned selectivityLevel;   /* 0 means default; larger => select more => larger dictionary */

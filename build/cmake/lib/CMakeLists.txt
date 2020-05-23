@@ -152,9 +152,7 @@ endif ()
 # install target
 install(FILES
     "${LIBRARY_DIR}/zstd.h"
-    "${LIBRARY_DIR}/deprecated/zbuff.h"
     "${LIBRARY_DIR}/dictBuilder/zdict.h"
-    "${LIBRARY_DIR}/dictBuilder/cover.h"
     "${LIBRARY_DIR}/common/zstd_errors.h"
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 

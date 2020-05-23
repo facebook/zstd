@@ -41,7 +41,7 @@ class SharedState {
       auto parameters = options.determineParameters();
       cStreamPool.reset(new ResourcePool<ZSTD_CStream>{
           [this, parameters]() -> ZSTD_CStream* {
-            this->log(VERBOSE, "%s\n", "Creating new ZSTD_CStream");
+            this->log(kLogVerbose, "%s\n", "Creating new ZSTD_CStream");
             auto zcs = ZSTD_createCStream();
             if (zcs) {
               auto err = ZSTD_initCStream_advanced(
@@ -59,7 +59,7 @@ class SharedState {
     } else {
       dStreamPool.reset(new ResourcePool<ZSTD_DStream>{
           [this]() -> ZSTD_DStream* {
-            this->log(VERBOSE, "%s\n", "Creating new ZSTD_DStream");
+            this->log(kLogVerbose, "%s\n", "Creating new ZSTD_DStream");
             auto zds = ZSTD_createDStream();
             if (zds) {
               auto err = ZSTD_initDStream(zds);

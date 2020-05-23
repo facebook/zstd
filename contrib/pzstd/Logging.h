@@ -13,10 +13,10 @@
 
 namespace pzstd {
 
-constexpr int ERROR = 1;
-constexpr int INFO = 2;
-constexpr int DEBUG = 3;
-constexpr int VERBOSE = 4;
+constexpr int kLogError = 1;
+constexpr int kLogInfo = 2;
+constexpr int kLogDebug = 3;
+constexpr int kLogVerbose = 4;
 
 class Logger {
   std::mutex mutex_;

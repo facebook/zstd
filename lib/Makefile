@@ -221,14 +221,14 @@ libzstd : $(LIBZSTD)
 lib : libzstd.a libzstd
 
 .PHONY: lib-mt
-%-mt : CPPFLAGS += -DZSTD_MULTITHREAD
-%-mt : LDFLAGS  += -pthread
-%-mt : %
+% : CPPFLAGS += -DZSTD_MULTITHREAD
+% : LDFLAGS  += -pthread
+% : lib
 	@echo multi-threading build completed
 
 .PHONY: lib-release
-%-release : DEBUGFLAGS :=
-%-release : %
+% : DEBUGFLAGS :=
+% : lib
 	@echo release build completed
 
 

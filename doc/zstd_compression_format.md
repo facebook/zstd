@@ -3,7 +3,7 @@ Zstandard Compression Format
 
 ### Notices
 
-Copyright (c) 2016-present Yann Collet, Facebook, Inc.
+Copyright (c) 2016-2020 Yann Collet, Facebook, Inc.
 
 Permission is granted to copy and distribute this document
 for any purpose and without charge,
@@ -16,7 +16,7 @@ Distribution of this document is unlimited.
 
 ### Version
 
-0.3.5 (13/11/19)
+0.3.6 (25/05/20)
 
 
 Introduction
@@ -291,21 +291,10 @@ Format is __little-endian__.
 It's allowed to represent a small ID (for example `13`)
 with a large 4-bytes dictionary ID, even if it is less efficient.
 
-_Reserved ranges :_
-Within private environments, any `Dictionary_ID` can be used.
-
-However, for frames and dictionaries distributed in public space,
-`Dictionary_ID` must be attributed carefully.
-Rules for public environment are not yet decided,
-but the following ranges are reserved for some future registrar :
-- low range  : `<= 32767`
-- high range : `>= (1 << 31)`
-
-Outside of these ranges, any value of `Dictionary_ID`
-which is both `>= 32768` and `< (1<<31)` can be used freely,
-even in public environment.
-
-
+A value of `0` has same meaning as no `Dictionary_ID`,
+in which case the frame may or may not need a dictionary to be decoded,
+and the ID of such a dictionary is not specified.
+The decoder must know this information by other means.
 
 #### `Frame_Content_Size`
 
@@ -389,7 +378,7 @@ __`Block_Size`__
 The upper 21 bits of `Block_Header` represent the `Block_Size`.
 
 When `Block_Type` is `Compressed_Block` or `Raw_Block`,
-`Block_Size` is the size of `Block_Content` (hence excluding `Block_Header`).  
+`Block_Size` is the size of `Block_Content` (hence excluding `Block_Header`).
 
 When `Block_Type` is `RLE_Block`, since `Block_Content`’s size is always 1,
 `Block_Size` represents the number of times this byte must be repeated.
@@ -1429,13 +1418,17 @@ __`Dictionary_ID`__ : 4 bytes, stored in __little-endian__ format.
               It's used by decoders to check if they use the correct dictionary.
 
 _Reserved ranges :_
-              If the frame is going to be distributed in a private environment,
-              any `Dictionary_ID` can be used.
-              However, for public distribution of compressed frames,
-              the following ranges are reserved and shall not be used :
+              If the dictionary is going to be distributed in a public environment,
+              the following ranges of `Dictionary_ID` are reserved for some future registrar
+              and shall not be used :
 
               - low range  : <= 32767
               - high range : >= (2^31)
+
+              Outside of these ranges, any value of `Dictionary_ID`
+              which is both `>= 32768` and `< (1<<31)` can be used freely,
+              even in public environment.
+
 
 __`Entropy_Tables`__ : follow the same format as tables in [compressed blocks].
               See the relevant [FSE](#fse-table-description)
@@ -1455,7 +1448,7 @@ __`Content`__ : The rest of the dictionary is its content.
               As long as the amount of data decoded from this frame is less than or
               equal to `Window_Size`, sequence commands may specify offsets longer
               than the total length of decoded output so far to reference back to the
-              dictionary, even parts of the dictionary with offsets larger than `Window_Size`.  
+              dictionary, even parts of the dictionary with offsets larger than `Window_Size`.
               After the total output has surpassed `Window_Size` however,
               this is no longer allowed and the dictionary is no longer accessible.
 
@@ -1673,6 +1666,7 @@ or at least provide a meaningful error code explaining for which reason it canno
 
 Version changes
 ---------------
+- 0.3.6 : clarifications for Dictionary_ID
 - 0.3.5 : clarifications for Block_Maximum_Size
 - 0.3.4 : clarifications for FSE decoding table
 - 0.3.3 : clarifications for field Block_Size

@@ -220,13 +220,14 @@ libzstd : $(LIBZSTD)
 .PHONY: lib
 lib : libzstd.a libzstd
 
-.PHONY: lib-mt
+# note : do not define lib-mt or lib-release as .PHONY
+# make does not consider implicit pattern rule for .PHONY target
+
 %-mt : CPPFLAGS += -DZSTD_MULTITHREAD
 %-mt : LDFLAGS  += -pthread
 %-mt : %
 	@echo multi-threading build completed
 
-.PHONY: lib-release
 %-release : DEBUGFLAGS :=
 %-release : %
 	@echo release build completed

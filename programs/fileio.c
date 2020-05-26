@@ -772,8 +772,8 @@ static void FIO_adjustMemLimitForPatchFromMode(FIO_prefs_t* const prefs,
 {
     unsigned long long maxSize = MAX(prefs->memLimit, MAX(dictSize, maxSrcFileSize));
     assert(maxSize != UTIL_FILESIZE_UNKNOWN);
-    if (maxSize > UINT_MAX)
-        EXM_THROW(42, "Can't handle files larger than %u GB\n", UINT_MAX/(1 GB) + 1);
+    if (maxSize > INT_MAX)
+        EXM_THROW(42, "Can't handle files larger than %u GB\n", INT_MAX/(1 GB) + 1);
     FIO_setMemLimit(prefs, (unsigned)maxSize);
 }
 

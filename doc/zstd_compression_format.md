@@ -1418,16 +1418,16 @@ __`Dictionary_ID`__ : 4 bytes, stored in __little-endian__ format.
               It's used by decoders to check if they use the correct dictionary.
 
 _Reserved ranges :_
-              If the dictionary is going to be distributed in a public environment,
-              the following ranges of `Dictionary_ID` are reserved for some future registrar
-              and shall not be used :
+If the dictionary is going to be distributed in a public environment,
+the following ranges of `Dictionary_ID` are reserved for some future registrar
+and shall not be used :
 
-              - low range  : <= 32767
-              - high range : >= (2^31)
+    - low range  : <= 32767
+    - high range : >= (2^31)
 
-              Outside of these ranges, any value of `Dictionary_ID`
-              which is both `>= 32768` and `< (1<<31)` can be used freely,
-              even in public environment.
+Outside of these ranges, any value of `Dictionary_ID`
+which is both `>= 32768` and `< (1<<31)` can be used freely,
+even in public environment.
 
 
 __`Entropy_Tables`__ : follow the same format as tables in [compressed blocks].

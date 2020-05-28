@@ -1123,45 +1123,61 @@ ZSTD_sizeof_matchState(const ZSTD_compressionParameters* const cParams,
     return tableSpace + optSpace;
 }
 
+static size_t ZSTD_estimateCCtxSize_usingCCtxParams_internal(
+        const ZSTD_compressionParameters* cParams,
+        const ldmParams_t* ldmParams,
+        const int isStatic,
+        const size_t buffInSize,
+        const size_t buffOutSize,
+        const U64 pledgedSrcSize)
+{
+    size_t const windowSize = MAX(1, (size_t)MIN(((U64)1 << cParams->windowLog), pledgedSrcSize));
+    size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, windowSize);
+    U32    const divider = (cParams->minMatch==3) ? 3 : 4;
+    size_t const maxNbSeq = blockSize / divider;
+    size_t const tokenSpace = ZSTD_cwksp_alloc_size(WILDCOPY_OVERLENGTH + blockSize)
+                            + ZSTD_cwksp_alloc_size(maxNbSeq * sizeof(seqDef))
+                            + 3 * ZSTD_cwksp_alloc_size(maxNbSeq * sizeof(BYTE));
+    size_t const entropySpace = ZSTD_cwksp_alloc_size(HUF_WORKSPACE_SIZE);
+    size_t const blockStateSpace = 2 * ZSTD_cwksp_alloc_size(sizeof(ZSTD_compressedBlockState_t));
+    size_t const matchStateSize = ZSTD_sizeof_matchState(cParams, /* forCCtx */ 1);
+
+    size_t const ldmSpace = ZSTD_ldm_getTableSize(*ldmParams);
+    size_t const maxNbLdmSeq = ZSTD_ldm_getMaxNbSeq(*ldmParams, blockSize);
+    size_t const ldmSeqSpace = ldmParams->enableLdm ?
+        ZSTD_cwksp_alloc_size(maxNbLdmSeq * sizeof(rawSeq)) : 0;
+
+
+    size_t const bufferSpace = ZSTD_cwksp_alloc_size(buffInSize)
+                             + ZSTD_cwksp_alloc_size(buffOutSize);
+
+    size_t const cctxSpace = isStatic ? ZSTD_cwksp_alloc_size(sizeof(ZSTD_CCtx)) : 0;
+
+    size_t const neededSpace =
+        cctxSpace +
+        entropySpace +
+        blockStateSpace +
+        ldmSpace +
+        ldmSeqSpace +
+        matchStateSize +
+        tokenSpace +
+        bufferSpace;
+
+    DEBUGLOG(5, "estimate workspace : %u", (U32)neededSpace);
+    return neededSpace;
+}
+
 size_t ZSTD_estimateCCtxSize_usingCCtxParams(const ZSTD_CCtx_params* params)
 {
-    RETURN_ERROR_IF(params->nbWorkers > 0, GENERIC, "Estimate CCtx size is supported for single-threaded compression only.");
-    {   ZSTD_compressionParameters const cParams =
+    ZSTD_compressionParameters const cParams =
                 ZSTD_getCParamsFromCCtxParams(params, ZSTD_CONTENTSIZE_UNKNOWN, 0);
-        size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << cParams.windowLog);
-        U32    const divider = (cParams.minMatch==3) ? 3 : 4;
-        size_t const maxNbSeq = blockSize / divider;
-        size_t const tokenSpace = ZSTD_cwksp_alloc_size(WILDCOPY_OVERLENGTH + blockSize)
-                                + ZSTD_cwksp_alloc_size(maxNbSeq * sizeof(seqDef))
-                                + 3 * ZSTD_cwksp_alloc_size(maxNbSeq * sizeof(BYTE));
-        size_t const entropySpace = ZSTD_cwksp_alloc_size(HUF_WORKSPACE_SIZE);
-        size_t const blockStateSpace = 2 * ZSTD_cwksp_alloc_size(sizeof(ZSTD_compressedBlockState_t));
-        size_t const matchStateSize = ZSTD_sizeof_matchState(&cParams, /* forCCtx */ 1);
 
-        size_t const ldmSpace = ZSTD_ldm_getTableSize(params->ldmParams);
-        size_t const ldmSeqSpace = ZSTD_cwksp_alloc_size(ZSTD_ldm_getMaxNbSeq(params->ldmParams, blockSize) * sizeof(rawSeq));
-
-        /* estimateCCtxSize is for one-shot compression. So no buffers should
-         * be needed. However, we still allocate two 0-sized buffers, which can
-         * take space under ASAN. */
-        size_t const bufferSpace = ZSTD_cwksp_alloc_size(0)
-                                 + ZSTD_cwksp_alloc_size(0);
-
-        size_t const cctxSpace = ZSTD_cwksp_alloc_size(sizeof(ZSTD_CCtx));
-
-        size_t const neededSpace =
-            cctxSpace +
-            entropySpace +
-            blockStateSpace +
-            ldmSpace +
-            ldmSeqSpace +
-            matchStateSize +
-            tokenSpace +
-            bufferSpace;
-
-        DEBUGLOG(5, "estimate workspace : %u", (U32)neededSpace);
-        return neededSpace;
-    }
+    RETURN_ERROR_IF(params->nbWorkers > 0, GENERIC, "Estimate CCtx size is supported for single-threaded compression only.");
+    /* estimateCCtxSize is for one-shot compression. So no buffers should
+     * be needed. However, we still allocate two 0-sized buffers, which can
+     * take space under ASAN. */
+    return ZSTD_estimateCCtxSize_usingCCtxParams_internal(
+        &cParams, &params->ldmParams, 1, 0, 0, ZSTD_CONTENTSIZE_UNKNOWN);
 }
 
 size_t ZSTD_estimateCCtxSize_usingCParams(ZSTD_compressionParameters cParams)
@@ -1192,14 +1208,13 @@ size_t ZSTD_estimateCStreamSize_usingCCtxParams(const ZSTD_CCtx_params* params)
     RETURN_ERROR_IF(params->nbWorkers > 0, GENERIC, "Estimate CCtx size is supported for single-threaded compression only.");
     {   ZSTD_compressionParameters const cParams =
                 ZSTD_getCParamsFromCCtxParams(params, ZSTD_CONTENTSIZE_UNKNOWN, 0);
-        size_t const CCtxSize = ZSTD_estimateCCtxSize_usingCCtxParams(params);
         size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << cParams.windowLog);
         size_t const inBuffSize = ((size_t)1 << cParams.windowLog) + blockSize;
         size_t const outBuffSize = ZSTD_compressBound(blockSize) + 1;
-        size_t const streamingSize = ZSTD_cwksp_alloc_size(inBuffSize)
-                                   + ZSTD_cwksp_alloc_size(outBuffSize);
 
-        return CCtxSize + streamingSize;
+        return ZSTD_estimateCCtxSize_usingCCtxParams_internal(
+            &cParams, &params->ldmParams, 1, inBuffSize, outBuffSize,
+            ZSTD_CONTENTSIZE_UNKNOWN);
     }
 }
 
@@ -1441,45 +1456,28 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, windowSize);
         U32    const divider = (params.cParams.minMatch==3) ? 3 : 4;
         size_t const maxNbSeq = blockSize / divider;
-        size_t const tokenSpace = ZSTD_cwksp_alloc_size(WILDCOPY_OVERLENGTH + blockSize)
-                                + ZSTD_cwksp_alloc_size(maxNbSeq * sizeof(seqDef))
-                                + 3 * ZSTD_cwksp_alloc_size(maxNbSeq * sizeof(BYTE));
         size_t const buffOutSize = (zbuff==ZSTDb_buffered) ? ZSTD_compressBound(blockSize)+1 : 0;
         size_t const buffInSize = (zbuff==ZSTDb_buffered) ? windowSize + blockSize : 0;
-        size_t const matchStateSize = ZSTD_sizeof_matchState(&params.cParams, /* forCCtx */ 1);
         size_t const maxNbLdmSeq = ZSTD_ldm_getMaxNbSeq(params.ldmParams, blockSize);
 
-        ZSTD_indexResetPolicy_e needsIndexReset = zc->initialized ? ZSTDirp_continue : ZSTDirp_reset;
+        int const indexTooClose = ZSTD_indexTooCloseToMax(zc->blockState.matchState.window);
+        ZSTD_indexResetPolicy_e needsIndexReset =
+            (!indexTooClose && zc->initialized) ? ZSTDirp_continue : ZSTDirp_reset;
 
-        if (ZSTD_indexTooCloseToMax(zc->blockState.matchState.window)) {
-            needsIndexReset = ZSTDirp_reset;
-        }
+        size_t const neededSpace =
+            ZSTD_estimateCCtxSize_usingCCtxParams_internal(
+                &params.cParams, &params.ldmParams, zc->staticSize != 0,
+                buffInSize, buffOutSize, pledgedSrcSize);
+        FORWARD_IF_ERROR(neededSpace, "cctx size estimate failed!");
 
         if (!zc->staticSize) ZSTD_cwksp_bump_oversized_duration(ws, 0);
 
         /* Check if workspace is large enough, alloc a new one if needed */
-        {   size_t const cctxSpace = zc->staticSize ? ZSTD_cwksp_alloc_size(sizeof(ZSTD_CCtx)) : 0;
-            size_t const entropySpace = ZSTD_cwksp_alloc_size(HUF_WORKSPACE_SIZE);
-            size_t const blockStateSpace = 2 * ZSTD_cwksp_alloc_size(sizeof(ZSTD_compressedBlockState_t));
-            size_t const bufferSpace = ZSTD_cwksp_alloc_size(buffInSize) + ZSTD_cwksp_alloc_size(buffOutSize);
-            size_t const ldmSpace = ZSTD_ldm_getTableSize(params.ldmParams);
-            size_t const ldmSeqSpace = ZSTD_cwksp_alloc_size(maxNbLdmSeq * sizeof(rawSeq));
-
-            size_t const neededSpace =
-                cctxSpace +
-                entropySpace +
-                blockStateSpace +
-                ldmSpace +
-                ldmSeqSpace +
-                matchStateSize +
-                tokenSpace +
-                bufferSpace;
-
+        {
             int const workspaceTooSmall = ZSTD_cwksp_sizeof(ws) < neededSpace;
             int const workspaceWasteful = ZSTD_cwksp_check_wasteful(ws, neededSpace);
 
-            DEBUGLOG(4, "Need %zuKB workspace, including %zuKB for match state, and %zuKB for buffers",
-                        neededSpace>>10, matchStateSize>>10, bufferSpace>>10);
+            DEBUGLOG(4, "Need %zu B workspace", neededSpace);
             DEBUGLOG(4, "windowSize: %zu - blockSize: %zu", windowSize, blockSize);
 
             if (workspaceTooSmall || workspaceWasteful) {
@@ -1579,6 +1577,12 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             zc->ldmState.loadedDictEnd = 0;
         }
 
+        /* Due to alignment, when reusing a workspace, we can actually consume
+         * up to 3 extra bytes for alignment. See the comments in zstd_cwksp.h
+         */
+        assert(ZSTD_cwksp_used(ws) >= neededSpace &&
+               ZSTD_cwksp_used(ws) <= neededSpace + 3);
+
         DEBUGLOG(3, "wksp: finished allocating, %zd bytes remain available", ZSTD_cwksp_available_space(ws));
         zc->initialized = 1;
 
@@ -1638,7 +1642,7 @@ ZSTD_resetCCtx_byAttachingCDict(ZSTD_CCtx* cctx,
         assert(windowLog != 0);
         /* Resize working context table params for input only, since the dict
          * has its own tables. */
-        /* pledgeSrcSize == 0 means 0! */
+        /* pledgedSrcSize == 0 means 0! */
         params.cParams = ZSTD_adjustCParams_internal(*cdict_cParams, pledgedSrcSize, 0);
         params.cParams.windowLog = windowLog;
         FORWARD_IF_ERROR(ZSTD_resetCCtx_internal(cctx, params, pledgedSrcSize,

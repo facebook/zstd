@@ -8,6 +8,8 @@
 # You may select, at your option, one of the above-listed licenses.
 # ################################################################
 
+Q = $(if $(filter 1,$(V) $(VERBOSE)),,@)
+
 PRGDIR   = programs
 ZSTDDIR  = lib
 BUILDIR  = build
@@ -55,18 +57,19 @@ all32:
 	$(MAKE) -C $(TESTDIR) all32
 
 .PHONY: lib lib-release libzstd.a
+lib-all : lib
 lib lib-release lib-all :
-	@$(MAKE) -C $(ZSTDDIR) $@
+	$(Q)$(MAKE) -C $(ZSTDDIR) $@
 
 .PHONY: zstd zstd-release
 zstd zstd-release:
-	@$(MAKE) -C $(PRGDIR) $@
-	cp $(PRGDIR)/zstd$(EXT) .
+	$(Q)$(MAKE) -C $(PRGDIR) $@
+	$(Q)cp $(PRGDIR)/zstd$(EXT) .
 
 .PHONY: zstdmt
 zstdmt:
-	@$(MAKE) -C $(PRGDIR) $@
-	cp $(PRGDIR)/zstd$(EXT) ./zstdmt$(EXT)
+	$(Q)$(MAKE) -C $(PRGDIR) $@
+	$(Q)cp $(PRGDIR)/zstd$(EXT) ./zstdmt$(EXT)
 
 .PHONY: zlibwrapper
 zlibwrapper: lib
@@ -127,17 +130,17 @@ cleanTabs:
 
 .PHONY: clean
 clean:
-	@$(MAKE) -C $(ZSTDDIR) $@ > $(VOID)
-	@$(MAKE) -C $(PRGDIR) $@ > $(VOID)
-	@$(MAKE) -C $(TESTDIR) $@ > $(VOID)
-	@$(MAKE) -C $(ZWRAPDIR) $@ > $(VOID)
-	@$(MAKE) -C examples/ $@ > $(VOID)
-	@$(MAKE) -C contrib/gen_html $@ > $(VOID)
-	@$(MAKE) -C contrib/pzstd $@ > $(VOID)
-	@$(MAKE) -C contrib/seekable_format/examples $@ > $(VOID)
-	@$(MAKE) -C contrib/largeNbDicts $@ > $(VOID)
-	@$(RM) zstd$(EXT) zstdmt$(EXT) tmp*
-	@$(RM) -r lz4
+	$(Q)$(MAKE) -C $(ZSTDDIR) $@ > $(VOID)
+	$(Q)$(MAKE) -C $(PRGDIR) $@ > $(VOID)
+	$(Q)$(MAKE) -C $(TESTDIR) $@ > $(VOID)
+	$(Q)$(MAKE) -C $(ZWRAPDIR) $@ > $(VOID)
+	$(Q)$(MAKE) -C examples/ $@ > $(VOID)
+	$(Q)$(MAKE) -C contrib/gen_html $@ > $(VOID)
+	$(Q)$(MAKE) -C contrib/pzstd $@ > $(VOID)
+	$(Q)$(MAKE) -C contrib/seekable_format/examples $@ > $(VOID)
+	$(Q)$(MAKE) -C contrib/largeNbDicts $@ > $(VOID)
+	$(Q)$(RM) zstd$(EXT) zstdmt$(EXT) tmp*
+	$(Q)$(RM) -r lz4
 	@echo Cleaning completed
 
 #------------------------------------------------------------------------------
@@ -161,7 +164,7 @@ EGREP = egrep $(EGREP_OPTIONS)
 ## list: Print all targets and their descriptions (if provided)
 .PHONY: list
 list:
-	@TARGETS=$$($(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null \
+	$(Q)TARGETS=$$($(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null \
 		| awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' \
 		| $(EGREP) -v  -e '^[^[:alnum:]]' | sort); \
 	{ \
@@ -176,13 +179,13 @@ list:
 
 .PHONY: install armtest usan asan uasan
 install:
-	@$(MAKE) -C $(ZSTDDIR) $@
-	@$(MAKE) -C $(PRGDIR) $@
+	$(Q)$(MAKE) -C $(ZSTDDIR) $@
+	$(Q)$(MAKE) -C $(PRGDIR) $@
 
 .PHONY: uninstall
 uninstall:
-	@$(MAKE) -C $(ZSTDDIR) $@
-	@$(MAKE) -C $(PRGDIR) $@
+	$(Q)$(MAKE) -C $(ZSTDDIR) $@
+	$(Q)$(MAKE) -C $(PRGDIR) $@
 
 .PHONY: travis-install
 travis-install:

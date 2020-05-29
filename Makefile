@@ -8,6 +8,7 @@
 # You may select, at your option, one of the above-listed licenses.
 # ################################################################
 
+# verbose mode (print commands) on V=1 or VERBOSE=1
 Q = $(if $(filter 1,$(V) $(VERBOSE)),,@)
 
 PRGDIR   = programs
@@ -48,8 +49,8 @@ allmost: allzstd zlibwrapper
 # skip zwrapper, can't build that on alternate architectures without the proper zlib installed
 .PHONY: allzstd
 allzstd: lib-all
-	$(MAKE) -C $(PRGDIR) all
-	$(MAKE) -C $(TESTDIR) all
+	$(Q)$(MAKE) -C $(PRGDIR) all
+	$(Q)$(MAKE) -C $(TESTDIR) all
 
 .PHONY: all32
 all32:
@@ -82,12 +83,12 @@ test: MOREFLAGS += -g -DDEBUGLEVEL=$(DEBUGLEVEL) -Werror
 test:
 	MOREFLAGS="$(MOREFLAGS)" $(MAKE) -j -C $(PRGDIR) allVariants
 	$(MAKE) -C $(TESTDIR) $@
-	ZSTD=../../programs/zstd $(MAKE) -C doc/educational_decoder test
+	ZSTD=../../programs/zstd $(MAKE) -C doc/educational_decoder $@
 
 ## shortest: same as `make check`
 .PHONY: shortest
 shortest:
-	$(MAKE) -C $(TESTDIR) $@
+	$(Q)$(MAKE) -C $(TESTDIR) $@
 
 ## check: run basic tests for `zstd` cli
 .PHONY: check

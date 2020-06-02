@@ -78,6 +78,11 @@ println() {
     printf '%b\n' "${*}"
 }
 
+if [ -z "${size}" ]; then
+    size=
+else
+    size=${size}
+fi
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 PRGDIR="$SCRIPT_DIR/../programs"

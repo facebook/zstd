@@ -8,22 +8,22 @@ die() {
 }
 
 datagen() {
-    "$DATAGEN_BIN" $@
+    "$DATAGEN_BIN" "$@"
 }
 
 zstd() {
     if [ -z "$EXEC_PREFIX" ]; then
-        "$ZSTD_BIN" $@
+        "$ZSTD_BIN" "$@"
     else
-        "$EXEC_PREFIX" "$ZSTD_BIN" $@
+        "$EXEC_PREFIX" "$ZSTD_BIN" "$@"
     fi
 }
 
 sudoZstd() {
     if [ -z "$EXEC_PREFIX" ]; then
-        sudo "$ZSTD_BIN" $@
+        sudo "$ZSTD_BIN" "$@"
     else
-        sudo "$EXEC_PREFIX" "$ZSTD_BIN" $@
+        sudo "$EXEC_PREFIX" "$ZSTD_BIN" "$@"
     fi
 }
 

@@ -6,20 +6,20 @@ on:
 
 jobs:
 
-# Dev PR jobs that still have to be migrated from travis 
-# 
+# Dev PR jobs that still have to be migrated from travis
+#
 # icc (need self-hosted)
 # arm/qemu-arm (need self-hosted)
-# versionTag 
+# versionTag
 # valgrindTest (keeps failing for some reason. need investigation)
 # staticAnalyze (need trusty so need self-hosted)
 # pcc-fuzz: (need trusty so need self-hosted)
 # arm-build-test (need self-hosted)
-# 
-# setting up self-hosted is pretty straightforward, but 
+#
+# setting up self-hosted is pretty straightforward, but
 # I need admins permissions to the repo for that it looks like
 # So I'm tabling that for now
-# 
+#
 # The master branch exclusive jobs will be in a separate
 # workflow file (the osx tests and meson build that is)
 
@@ -29,14 +29,14 @@ jobs:
     - uses: actions/checkout@v2
     - name: make benchmarking
       run: make benchmarking
-      
+
   test:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: make test 
-      run: make test 
-  
+    - name: make test
+      run: make test
+
   gcc-6-7-libzstd:
     runs-on: ubuntu-latest
     steps:
@@ -50,18 +50,18 @@ jobs:
         make clean
         LDFLAGS=-Wl,--no-undefined make -C lib libzstd-mt
         make -C tests zbufftest-dll
-    
+
   gcc-8-asan-ubsan-testzstd:
-    runs-on: ubuntu-16.04 # fails on 18.04 
+    runs-on: ubuntu-16.04 # fails on 18.04
     steps:
     - uses: actions/checkout@v2
-    - name: gcc-8 + ASan + UBSan + Test Zstd 
-      run: | 
+    - name: gcc-8 + ASan + UBSan + Test Zstd
+      run: |
         make gcc8install
         CC=gcc-8 CFLAGS="-Werror" make -j all
         make clean
         CC=gcc-8 make -j uasan-test-zstd </dev/null
-        
+
   gcc-6-asan-ubsan-testzstd-32bit:
     runs-on: ubuntu-latest
     steps:
@@ -74,7 +74,7 @@ jobs:
         CC=gcc-6 make -j uasan-test-zstd32
 
   clang-38-msan-testzstd:
-    runs-on: ubuntu-16.04 # fails on 18.04 
+    runs-on: ubuntu-16.04 # fails on 18.04
     steps:
     - uses: actions/checkout@v2
     - name: clang-3.8 + MSan + Test Zstd
@@ -86,7 +86,7 @@ jobs:
         CC=clang-3.8 make clean msan-test-zstd HAVE_ZLIB=0 HAVE_LZ4=0 HAVE_LZMA=0
 
   min-decomp-macros:
-    runs-on: ubuntu-16.04 # fails on 18.04 
+    runs-on: ubuntu-16.04 # fails on 18.04
     steps:
     - uses: actions/checkout@v2
     - name: Minimal Decompressor Macros
@@ -146,7 +146,7 @@ jobs:
         make -j uasanregressiontest
         make clean
         make -j msanregressiontest
-        
+
   cpp-gnu90-c99-compatibility:
     runs-on: ubuntu-latest
     steps:

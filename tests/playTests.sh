@@ -130,13 +130,13 @@ esac
 
 
 # check if ZSTD_BIN is defined. if not, use the default value
-if [[ -z "${ZSTD_BIN}" ]]; then
+if [ -z "${ZSTD_BIN}" ]; then
   println "\nZSTD_BIN is not set. Using the default value..."
   ZSTD_BIN="$PRGDIR/zstd"
 fi
 
 # check if DATAGEN_BIN is defined. if not, use the default value
-if [[ -z "${DATAGEN_BIN}" ]]; then
+if [ -z "${DATAGEN_BIN}" ]; then
   println "\nDATAGEN_BIN is not set. Using the default value..."
   DATAGEN_BIN="$TESTDIR/datagen"
 fi

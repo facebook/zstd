@@ -128,10 +128,25 @@ case "$UNAME" in
   SunOS) DIFF="gdiff" ;;
 esac
 
-println "\nStarting playTests.sh isWindows=$isWindows EXE_PREFIX='$EXE_PREFIX' ZSTD_BIN='$ZSTD_BIN' DATAGEN_BIN='$DATAGEN_BIN'"
 
-[ -n "$ZSTD_BIN" ] || die "\$ZSTD_BIN variable must be defined!"
-[ -n "$DATAGEN_BIN" ] || die "\$DATAGEN_BIN variable must be defined!"
+# check if ZSTD_BIN is defined. if not, use the default value
+if [[ -z "${ZSTD_BIN}" ]]; then
+  println "\nZSTD_BIN is not set. Using the default value..."
+  ZSTD_BIN="$PRGDIR/zstd"
+fi
+
+# check if DATAGEN_BIN is defined. if not, use the default value
+if [[ -z "${DATAGEN_BIN}" ]]; then
+  println "\nDATAGEN_BIN is not set. Using the default value..."
+  DATAGEN_BIN="$TESTDIR/datagen"
+fi
+
+ZSTD_BIN="$EXE_PREFIX$ZSTD_BIN"
+
+# assertions
+[ -n "$ZSTD_BIN" ] || die "zstd not found at $ZSTD_BIN! \n Please define ZSTD_BIN pointing to the zstd binary. You might also consider rebuilding zstd follwing the instructions in README.md"
+[ -n "$DATAGEN_BIN" ] || die "datagen not found at $DATAGEN_BIN! \n Please define DATAGEN_BIN pointing to the datagen binary. You might also consider rebuilding zstd tests following the instructions in README.md. "
+println "\nStarting playTests.sh isWindows=$isWindows EXE_PREFIX='$EXE_PREFIX' ZSTD_BIN='$ZSTD_BIN' DATAGEN_BIN='$DATAGEN_BIN'"
 
 if echo hello | zstd -v -T2 2>&1 > $INTOVOID | grep -q 'multi-threading is disabled'
 then

@@ -176,6 +176,12 @@ Going into `build` directory, you will find additional possibilities:
 You can build the zstd binary via buck by executing: `buck build programs:zstd` from the root of the repo.
 The output binary will be in `buck-out/gen/programs/`.
 
+## Testing
+
+You can run quick local smoke tests by executing the `playTest.sh` script from the `src/tests` directory.
+Two env variables `$ZSTD_BIN` and `$DATAGEN_BIN` are needed for the test script to locate the zstd and datagen binary.
+For information on CI testing, please refer to TESTING.md
+
 ## Status
 
 Zstandard is currently deployed within Facebook. It is used continuously to compress large amounts of data in multiple formats and use cases.

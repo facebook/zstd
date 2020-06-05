@@ -129,12 +129,12 @@ the last one takes effect.
 
     Note: cannot use both this and -D together
     Note: `--long` mode will be automatically activated if chainLog < fileLog
-        (fileLog being the windowLog requried to cover the whole file). You 
+        (fileLog being the windowLog required to cover the whole file). You
         can also manually force it.
 	Node: for all levels, you can use --patch-from in --single-thread mode
 		to improve compression ratio at the cost of speed
-    Note: for level 19, you can get increased compression ratio at the cost 
-        of speed by specifying `--zstd=targetLength=` to be something large 
+    Note: for level 19, you can get increased compression ratio at the cost
+        of speed by specifying `--zstd=targetLength=` to be something large
         (i.e 4096), and by setting a large `--zstd=chainLog=`
 * `-M#`, `--memory=#`:
     Set a memory usage limit. By default, Zstandard uses 128 MB for decompression
@@ -208,7 +208,7 @@ the last one takes effect.
     This setting overrides default and can force sparse mode over stdout.
 * `--[no-]content-size`:
     enable / disable whether or not the original size of the file is placed in
-    the header of the compressed file. The default option is 
+    the header of the compressed file. The default option is
     --content-size (meaning that the original size will be placed in the header).
 * `--rm`:
     remove source file(s) after successful compression or decompression

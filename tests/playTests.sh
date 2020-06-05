@@ -1300,7 +1300,7 @@ println "\n===> patch-from long mode trigger larger file test"
 
 datagen -g5000000 > tmp_dict
 datagen -g5000000 > tmp_patch
-zstd -15 --patch-from=tmp_dict tmp_patch 2>&1 | grep "long mode automaticaly triggered"
+zstd -15 --patch-from=tmp_dict tmp_patch 2>&1 | grep "long mode automatically triggered"
 rm -rf tmp*
 
 println "\n===>   large files tests "

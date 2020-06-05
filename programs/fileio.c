@@ -810,7 +810,7 @@ static void FIO_adjustParamsForPatchFromMode(FIO_prefs_t* const prefs,
     comprParams->windowLog = MIN(ZSTD_WINDOWLOG_MAX, fileWindowLog);
     if (fileWindowLog > ZSTD_cycleLog(cParams.hashLog, cParams.strategy)) {
         if (!prefs->ldmFlag)
-            DISPLAYLEVEL(1, "long mode automaticaly triggered\n");
+            DISPLAYLEVEL(1, "long mode automatically triggered\n");
         FIO_setLdmFlag(prefs, 1);
     }
     if (cParams.strategy >= ZSTD_btopt) {
@@ -1506,7 +1506,7 @@ static int FIO_compressFilename_dstFile(FIO_prefs_t* const prefs,
         } else if ( strcmp(dstFileName, stdoutmark)
                  && strcmp(dstFileName, nulmark)
                  && transfer_permissions) {
-            DISPLAYLEVEL(6, "FIO_compressFilename_dstFile: transfering permissions into dst: %s \n", dstFileName);
+            DISPLAYLEVEL(6, "FIO_compressFilename_dstFile: transferring permissions into dst: %s \n", dstFileName);
             UTIL_setFileStat(dstFileName, &statbuf);
         } else {
             DISPLAYLEVEL(6, "FIO_compressFilename_dstFile: do not transfer permissions into dst: %s \n", dstFileName);

@@ -70,6 +70,11 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
      * buffers in a row. */
     int prevInWasZero = 0;
     int prevOutWasZero = 0;
+
+    /* To avoid case where out.size alternates between 0 and non-0 and the
+     * decompressed output is large enough to cause a fuzzer timeout */
+    #define MOVE_FORWARD_AMOUNT 10
+
     int stableOutBuffer;
     ZSTD_outBuffer out;
     size = FUZZ_dataProducer_reserveDataPrefix(producer);
@@ -99,7 +104,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
         prevInWasZero = in.size == 0;
         while (in.pos != in.size) {
             if (!stableOutBuffer || prevOutWasZero || FUZZ_dataProducer_uint32Range(producer, 0, 100) == 55) {
-              out = makeOutBuffer(producer, prevOutWasZero ? 1 : 0);
+              out = makeOutBuffer(producer, prevOutWasZero ? MOVE_FORWARD_AMOUNT : 0);
             }
             prevOutWasZero = out.size == 0;
             size_t const rc = ZSTD_decompressStream(dstream, &out, &in);

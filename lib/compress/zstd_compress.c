@@ -864,6 +864,9 @@ ZSTDLIB_API size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long lo
     return 0;
 }
 
+static ZSTD_compressionParameters ZSTD_dedicatedDictSearch_getCParams(int const compressionLevel, size_t const dictSize);
+static int ZSTD_dedicatedDictSearch_isSupported(int const compressionLevel, size_t const dictSize);
+
 /**
  * Initializes the local dict using the requested parameters.
  * NOTE: This does not use the pledged src size, because it may be used for more
@@ -4355,6 +4358,19 @@ ZSTD_dedicatedDictSearch_defaultCParameters[4][ZSTD_MAX_CLEVEL+1] = {
     { 0,  0,  0,             0,  0,  0, 0            }   /* level  22 (not adjusted) */
 },
 };
+
+static ZSTD_compressionParameters ZSTD_dedicatedDictSearch_getCParams(int const compressionLevel, size_t const dictSize)
+{
+    size_t const tableID = (dictSize <= 256 KB) + (dictSize <= 128 KB) + (dictSize <= 16 KB);
+    size_t const row = compressionLevel;
+    return ZSTD_dedicatedDictSearch_defaultCParameters[tableID][row];
+}
+
+static int ZSTD_dedicatedDictSearch_isSupported(int const compressionLevel, size_t const dictSize)
+{
+    ZSTD_compressionParameters const cParams = ZSTD_dedicatedDictSearch_getCParams(compressionLevel, dictSize);
+    return (cParams.strategy >= ZSTD_greedy) && (cParams.strategy <= ZSTD_lazy2);
+}
 
 /*! ZSTD_getCParams_internal() :
  * @return ZSTD_compressionParameters structure for a selected compression level, srcSize and dictSize.

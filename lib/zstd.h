@@ -356,6 +356,21 @@ typedef enum {
                               * Deviating far from default value will likely result in a compression ratio decrease.
                               * Special: value 0 means "automatically determine hashRateLog". */
 
+    ZSTD_c_enableDedicatedDictSearch=170, /* Enable the use of the match finder specifically for
+                                           * dictionaries. This has several implications:
+                                           * 1) We may override cDict params supplied using
+                                           *    ZSTD_refCDict because the dedicated match finder
+                                           *    needs to enforce some unique invariants on the
+                                           *    hashLog and chainLog.
+                                           * 2) We will force the dict to be attached
+                                           * 3) We will pick cParams based on ZSTD_c_compressionLevel
+                                           *    and the size of the dictionary which will increase
+                                           *    the cDict memory usage.
+                                           * 4) We will only do this for certain supported levels.
+                                           *    The exact levels which are supported are determined
+                                           *    by ZSTD_c_compressionLevel and dictionary size.
+                                           *    (only ZSTD_greedy, ZSTD_lazy and ZSTD_lazy2) */
+
     /* frame parameters */
     ZSTD_c_contentSizeFlag=200, /* Content size will be written into frame header _whenever known_ (default:1)
                               * Content size must be known at the beginning of compression.

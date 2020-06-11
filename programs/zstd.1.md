@@ -238,6 +238,7 @@ the last one takes effect.
     display version number and exit.
     Advanced : `-vV` also displays supported formats.
     `-vvV` also displays POSIX support.
+    `-q` will only display the version number, suitable for machine reading.
 * `-v`, `--verbose`:
     verbose mode
 * `--show-default-cparams`:

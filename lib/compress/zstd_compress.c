@@ -353,6 +353,11 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
 #endif
         return bounds;
 
+    case ZSTD_c_enableDedicatedDictSearch:
+        bounds.lowerBound = 0;
+        bounds.upperBound = 1;
+        return bounds;
+
     case ZSTD_c_enableLongDistanceMatching:
         bounds.lowerBound = 0;
         bounds.upperBound = 1;
@@ -464,6 +469,7 @@ static int ZSTD_isUpdateAuthorized(ZSTD_cParameter param)
     case ZSTD_c_jobSize:
     case ZSTD_c_overlapLog:
     case ZSTD_c_rsyncable:
+    case ZSTD_c_enableDedicatedDictSearch:
     case ZSTD_c_enableLongDistanceMatching:
     case ZSTD_c_ldmHashLog:
     case ZSTD_c_ldmMinMatch:
@@ -514,6 +520,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int value)
     case ZSTD_c_jobSize:
     case ZSTD_c_overlapLog:
     case ZSTD_c_rsyncable:
+    case ZSTD_c_enableDedicatedDictSearch:
     case ZSTD_c_enableLongDistanceMatching:
     case ZSTD_c_ldmHashLog:
     case ZSTD_c_ldmMinMatch:
@@ -667,6 +674,10 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
         return CCtxParams->rsyncable;
 #endif
 
+    case ZSTD_c_enableDedicatedDictSearch :
+        CCtxParams->enableDedicatedDictSearch = (value!=0);
+        return CCtxParams->enableDedicatedDictSearch;
+
     case ZSTD_c_enableLongDistanceMatching :
         CCtxParams->ldmParams.enableLdm = (value!=0);
         return CCtxParams->ldmParams.enableLdm;
@@ -794,6 +805,9 @@ size_t ZSTD_CCtxParams_getParameter(
         *value = CCtxParams->rsyncable;
         break;
 #endif
+    case ZSTD_c_enableDedicatedDictSearch :
+        *value = CCtxParams->enableDedicatedDictSearch;
+        break;
     case ZSTD_c_enableLongDistanceMatching :
         *value = CCtxParams->ldmParams.enableLdm;
         break;

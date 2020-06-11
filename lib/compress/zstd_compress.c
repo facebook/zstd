@@ -1640,7 +1640,11 @@ static int ZSTD_shouldAttachDict(const ZSTD_CDict* cdict,
                                  U64 pledgedSrcSize)
 {
     size_t cutoff = attachDictSizeCutoffs[cdict->matchState.cParams.strategy];
-    return ( pledgedSrcSize <= cutoff
+    int const useDedicatedDictSearch =
+        params->enableDedicatedDictSearch &&
+        ZSTD_dedicatedDictSearch_isSupported(params->compressionLevel, cdict->dictContentSize);
+    return ( useDedicatedDictSearch
+          || pledgedSrcSize <= cutoff
           || pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN
           || params->attachDictPref == ZSTD_dictForceAttach )
         && params->attachDictPref != ZSTD_dictForceCopy

@@ -544,6 +544,11 @@ static unsigned parseCompressionParameters(const char* stringPtr, ZSTD_compressi
 
 static void printVersion(void)
 {
+    if (g_displayLevel < DISPLAY_LEVEL_DEFAULT) {
+        DISPLAYOUT("%s\n", ZSTD_VERSION_STRING);
+        return;
+    }
+
     DISPLAYOUT(WELCOME_MESSAGE);
     if (g_displayLevel >= 3) {
     /* format support */

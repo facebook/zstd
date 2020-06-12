@@ -580,7 +580,7 @@ size_t ZSTD_HcFindBestMatch_generic (
             /* save best solution */
             if (currentMl > ml) {
                 ml = currentMl;
-                *offsetPtr = current - (matchIndex + dmsIndexDelta) + ZSTD_REP_MOVE;
+                *offsetPtr = curr - (matchIndex + dmsIndexDelta) + ZSTD_REP_MOVE;
                 if (ip+currentMl == iLimit) break; /* best possible, avoids read overflow on next attempt */
             }
 

@@ -3481,18 +3481,18 @@ ZSTD_CDict* ZSTD_createCDict_advanced(const void* dictBuffer, size_t dictSize,
 ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced2(const void* dict, size_t dictSize,
                                                   ZSTD_dictLoadMethod_e dictLoadMethod,
                                                   ZSTD_dictContentType_e dictContentType,
-                                                  ZSTD_CCtx_params cctxParams,
+                                                  ZSTD_CCtx_params* cctxParams,
                                                   ZSTD_customMem customMem)
 {
-    int const enableDedicatedDictSearch = cctxParams.enableDedicatedDictSearch &&
-        ZSTD_dedicatedDictSearch_isSupported(cctxParams.compressionLevel, dictSize);
+    int const enableDedicatedDictSearch = cctxParams->enableDedicatedDictSearch &&
+        ZSTD_dedicatedDictSearch_isSupported(cctxParams->compressionLevel, dictSize);
     if (!enableDedicatedDictSearch)
         return ZSTD_createCDict_advanced(dict, dictSize,
-            dictLoadMethod, dictContentType, cctxParams.cParams,
+            dictLoadMethod, dictContentType, cctxParams->cParams,
             customMem);
     {
         ZSTD_compressionParameters const cParams = ZSTD_dedicatedDictSearch_getCParams(
-            cctxParams.compressionLevel, dictSize);
+            cctxParams->compressionLevel, dictSize);
         ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dict, dictSize,
             dictLoadMethod, dictContentType, cParams, customMem);
         cdict->matchState.enableDedicatedDictSearch = enableDedicatedDictSearch;

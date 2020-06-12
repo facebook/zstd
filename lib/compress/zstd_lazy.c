@@ -475,7 +475,7 @@ U32 ZSTD_insertAndFindFirstIndex(ZSTD_matchState_t* ms, const BYTE* ip) {
     return ZSTD_insertAndFindFirstIndex_internal(ms, cParams, ip, ms->cParams.minMatch);
 }
 
-void ZSTD_lazy_loadDictionary(ZSTD_matchState_t* ms, const BYTE* const ip)
+void ZSTD_dedicatedDictSearch_lazy_loadDictionary(ZSTD_matchState_t* ms, const BYTE* const ip)
 {
     U32 const target = (U32)(ip - ms->window.base);
     U32* const chainTable = ms->chainTable;

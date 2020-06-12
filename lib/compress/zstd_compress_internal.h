@@ -153,6 +153,7 @@ struct ZSTD_matchState_t {
     U32* hashTable;
     U32* hashTable3;
     U32* chainTable;
+    int enableDedicatedDictSearch;
     optState_t opt;         /* optimal parser state */
     const ZSTD_matchState_t* dictMatchState;
     ZSTD_compressionParameters cParams;

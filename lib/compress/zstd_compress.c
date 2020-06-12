@@ -3484,8 +3484,10 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced2(const void* dict, size_t dict
     {
         ZSTD_compressionParameters const cParams = ZSTD_dedicatedDictSearch_getCParams(
             cctxParams.compressionLevel, dictSize);
-        return ZSTD_createCDict_advanced(dict, dictSize,
+        ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dict, dictSize,
             dictLoadMethod, dictContentType, cParams, customMem);
+        cdict->matchState.enableDedicatedDictSearch = enableDedicatedDictSearch;
+        return cdict;
     }
 }
 

@@ -4392,8 +4392,8 @@ ZSTD_dedicatedDictSearch_defaultCParameters[4][ZSTD_MAX_CLEVEL+1] = {
 
 static ZSTD_compressionParameters ZSTD_dedicatedDictSearch_getCParams(int const compressionLevel, size_t const dictSize)
 {
-    size_t const tableID = (dictSize <= 256 KB) + (dictSize <= 128 KB) + (dictSize <= 16 KB);
-    size_t const row = compressionLevel;
+    int const tableID = (dictSize <= 256 KB) + (dictSize <= 128 KB) + (dictSize <= 16 KB);
+    int const row = compressionLevel;
     return ZSTD_dedicatedDictSearch_defaultCParameters[tableID][row];
 }
 

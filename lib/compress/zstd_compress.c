@@ -2888,7 +2888,7 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
         case ZSTD_lazy:
         case ZSTD_lazy2:
             if (chunk >= HASH_READ_SIZE && params->enableDedicatedDictSearch)
-                ZSTD_lazy_loadDictionary(ms, ichunk-HASH_READ_SIZE);
+                ZSTD_dedicatedDictSearch_lazy_loadDictionary(ms, ichunk-HASH_READ_SIZE);
             else if (chunk >= HASH_READ_SIZE)
                 ZSTD_insertAndFindFirstIndex(ms, ichunk-HASH_READ_SIZE);
             break;

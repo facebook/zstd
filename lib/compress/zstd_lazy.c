@@ -475,6 +475,25 @@ U32 ZSTD_insertAndFindFirstIndex(ZSTD_matchState_t* ms, const BYTE* ip) {
     return ZSTD_insertAndFindFirstIndex_internal(ms, cParams, ip, ms->cParams.minMatch);
 }
 
+void ZSTD_lazy_loadDictionary(ZSTD_matchState_t* ms, const BYTE* const ip)
+{
+    U32 const target = (U32)(ip - ms->window.base);
+    U32* const chainTable = ms->chainTable;
+    U32 const chainMask = (1 << ms->cParams.chainLog) - 1;
+    for (U32 idx = ms->nextToUpdate; idx < target; idx++) {
+        U32 const h = ZSTD_hashPtr(
+            ms->window.base + idx,
+            ms->cParams.hashLog - DD_BLOG,
+            ms->cParams.minMatch) << DD_BLOG;
+        chainTable[idx & chainMask] = ms->hashTable[h];
+        ms->hashTable[h] = idx;
+        /* Same logic as before. But now, just copy the into bucket */
+        for (U32 i = 0; i < (1 << DD_BLOG); i++)
+            ms->hashTable[h + i] = chainTable[ms->hashTable[h + i] & chainMask];
+    }
+    ms->nextToUpdate = target;
+}
+
 
 /* inlining is important to hardwire a hot branch (template emulation) */
 FORCE_INLINE_TEMPLATE

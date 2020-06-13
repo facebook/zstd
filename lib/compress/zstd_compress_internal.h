@@ -1045,7 +1045,6 @@ MEM_STATIC void ZSTD_debugTable(const U32* table, U32 max)
  * assumptions : magic number supposed already checked
  *               and dictSize >= 8 */
 size_t ZSTD_loadCEntropy(ZSTD_compressedBlockState_t* bs, void* workspace,
-                         short* offcodeNCount, unsigned* offcodeMaxValue,
                          const void* const dict, size_t dictSize);
 
 void ZSTD_reset_compressedBlockState(ZSTD_compressedBlockState_t* bs);

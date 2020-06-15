@@ -126,6 +126,20 @@ just `contrib/largeNbDicts` and nothing else, you can run:
 scan-build make -C contrib/largeNbDicts largeNbDicts
 ```
 
+### Pitfalls of static analysis
+`scan-build` is part of our regular CI suite. Other static analyzers are not.
+
+It can be useful to look at additional static analyzers once in a while (and we do), but it's not a good idea to multiply the nb of analyzers run continuously at each commit and PR. The reasons are :
+
+- Static analyzers are full of false positive. The signal to noise ratio is actually pretty low.
+- A good CI policy is "zero-warning tolerance". That means that all issues must be solved, including false positives. This quickly becomes a tedious workload.
+- Multiple static analyzers will feature multiple kind of false positives, sometimes applying to the same code but in different ways leading to :
+   + torteous code, trying to please multiple constraints, hurting readability and therefore maintenance. Sometimes, such complexity introduce other more subtle bugs, that are just out of scope of the analyzers.
+   + sometimes, these constraints are mutually exclusive : if one try to solve one, the other static analyzer will complain, they can't be both happy at the same time.
+- As if that was not enough, the list of false positives change with each version. It's hard enough to follow one static analyzer, but multiple ones with their own update agenda, this quickly becomes a massive velocity reducer.
+
+This is different from running a static analyzer once in a while, looking at the output, and __cherry picking__ a few warnings that seem helpful, either because they detected a genuine risk of bug, or because it helps expressing the code in a way which is more readable or more difficult to misuse. These kind of reports can be useful, and are accepted.
+
 ## Performance
 Performance is extremely important for zstd and we only merge pull requests whose performance
 landscape and corresponding trade-offs have been adequately analyzed, reproduced, and presented.

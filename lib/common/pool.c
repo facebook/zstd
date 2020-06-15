@@ -244,10 +244,8 @@ int POOL_resize(POOL_ctx* ctx, size_t numThreads)
 static int isQueueFull(POOL_ctx const* ctx) {
     if (ctx->queueSize > 1) {
         return ctx->queueHead == ((ctx->queueTail + 1) % ctx->queueSize);
-    } else {
-        return (ctx->numThreadsBusy == ctx->threadLimit) ||
-               !ctx->queueEmpty;
     }
+    return (ctx->numThreadsBusy == ctx->threadLimit) || !ctx->queueEmpty;
 }
 
 

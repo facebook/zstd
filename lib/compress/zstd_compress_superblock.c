@@ -339,7 +339,9 @@ static size_t ZSTD_compressSubBlock_literal(const HUF_CElt* hufTable,
     if (litSize == 0 || hufMetadata->hType == set_basic) {
       DEBUGLOG(5, "ZSTD_compressSubBlock_literal using raw literal");
       return ZSTD_noCompressLiterals(dst, dstSize, literals, litSize);
-    } else if (hufMetadata->hType == set_rle) {
+    }
+
+    if (hufMetadata->hType == set_rle) {
       DEBUGLOG(5, "ZSTD_compressSubBlock_literal using rle literal");
       return ZSTD_compressRleLiteralsBlock(dst, dstSize, literals, litSize);
     }
@@ -587,8 +589,9 @@ static size_t ZSTD_estimateSubBlockSize_literal(const BYTE* literals, size_t lit
     size_t literalSectionHeaderSize = 3; /* Use hard coded size of 3 bytes */
 
     if (hufMetadata->hType == set_basic) return litSize;
-    else if (hufMetadata->hType == set_rle) return 1;
-    else if (hufMetadata->hType == set_compressed || hufMetadata->hType == set_repeat) {
+    if (hufMetadata->hType == set_rle) return 1;
+
+    if (hufMetadata->hType == set_compressed || hufMetadata->hType == set_repeat) {
         size_t const largest = HIST_count_wksp (countWksp, &maxSymbolValue, (const BYTE*)literals, litSize, workspace, wkspSize);
         if (ZSTD_isError(largest)) return litSize;
         {   size_t cLitSizeEstimate = HUF_estimateCompressedSize((const HUF_CElt*)huf->CTable, countWksp, maxSymbolValue);

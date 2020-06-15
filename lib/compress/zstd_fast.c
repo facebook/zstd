@@ -169,7 +169,7 @@ _match: /* Requires: ip0, match0, offcode */
                     ip0 += rLength;
                     ZSTD_storeSeq(seqStore, 0 /*litLen*/, anchor, iend, 0 /*offCode*/, rLength-MINMATCH);
                     anchor = ip0;
-                    continue;   /* faster when present (confirmed on gcc-8) ... (?) */
+                    /* faster when present (confirmed on gcc-8) ... (?) */
         }   }   }
         ip1 = ip0 + 1;
     }
@@ -282,18 +282,17 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
                 assert(stepSize >= 1);
                 ip += ((ip-anchor) >> kSearchStrength) + stepSize;
                 continue;
-            } else {
-                /* found a dict match */
-                U32 const offset = (U32)(current-dictMatchIndex-dictIndexDelta);
-                mLength = ZSTD_count_2segments(ip+4, dictMatch+4, iend, dictEnd, prefixStart) + 4;
-                while (((ip>anchor) & (dictMatch>dictStart))
-                     && (ip[-1] == dictMatch[-1])) {
-                    ip--; dictMatch--; mLength++;
-                } /* catch up */
-                offset_2 = offset_1;
-                offset_1 = offset;
-                ZSTD_storeSeq(seqStore, (size_t)(ip-anchor), anchor, iend, offset + ZSTD_REP_MOVE, mLength-MINMATCH);
             }
+            /* found a dict match */
+            U32 const offset = (U32)(current-dictMatchIndex-dictIndexDelta);
+            mLength = ZSTD_count_2segments(ip+4, dictMatch+4, iend, dictEnd, prefixStart) + 4;
+            while (((ip>anchor) & (dictMatch>dictStart))
+                 && (ip[-1] == dictMatch[-1])) {
+                ip--; dictMatch--; mLength++;
+            } /* catch up */
+            offset_2 = offset_1;
+            offset_1 = offset;
+            ZSTD_storeSeq(seqStore, (size_t)(ip-anchor), anchor, iend, offset + ZSTD_REP_MOVE, mLength-MINMATCH);
         } else if (MEM_read32(match) != MEM_read32(ip)) {
             /* it's not a match, and we're not going to check the dictionary */
             assert(stepSize >= 1);

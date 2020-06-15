@@ -113,7 +113,6 @@ static void RDG_genBlock(void* buffer, size_t buffSize, size_t prefixSize,
         memset(buffPtr+pos, 0, size0);
         pos += size0;
         buffPtr[pos-1] = RDG_genChar(seedPtr, ldt);
-        continue;
     }
 
     /* init */

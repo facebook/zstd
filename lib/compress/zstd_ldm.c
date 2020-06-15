@@ -91,9 +91,8 @@ static U32 ZSTD_ldm_getTag(U64 hash, U32 hbits, U32 numTagBits)
     assert(numTagBits < 32 && hbits <= 32);
     if (32 - hbits < numTagBits) {
         return hash & (((U32)1 << numTagBits) - 1);
-    } else {
-        return (hash >> (32 - hbits - numTagBits)) & (((U32)1 << numTagBits) - 1);
     }
+    return (hash >> (32 - hbits - numTagBits)) & (((U32)1 << numTagBits) - 1);
 }
 
 /** ZSTD_ldm_getBucket() :

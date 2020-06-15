@@ -303,7 +303,7 @@ _match_stored:
                     ZSTD_storeSeq(seqStore, 0, anchor, iend, 0, rLength-MINMATCH);
                     ip += rLength;
                     anchor = ip;
-                    continue;   /* faster when present ... (?) */
+                    /* faster when present ... (?) */
         }   }   }
     }   /* while (ip < ilimit) */
 

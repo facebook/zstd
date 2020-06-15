@@ -618,8 +618,7 @@ size_t FSE_compress_usingCTable (void* dst, size_t dstSize,
 
     if (fast)
         return FSE_compress_usingCTable_generic(dst, dstSize, src, srcSize, ct, 1);
-    else
-        return FSE_compress_usingCTable_generic(dst, dstSize, src, srcSize, ct, 0);
+    return FSE_compress_usingCTable_generic(dst, dstSize, src, srcSize, ct, 0);
 }
 
 

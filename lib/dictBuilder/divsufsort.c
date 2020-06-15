@@ -327,7 +327,7 @@ ss_median3(const unsigned char *Td, const int *PA,
   if(Td[PA[*v1]] > Td[PA[*v2]]) { SWAP(v1, v2); }
   if(Td[PA[*v2]] > Td[PA[*v3]]) {
     if(Td[PA[*v1]] > Td[PA[*v3]]) { return v1; }
-    else { return v3; }
+    return v3;
   }
   return v2;
 }
@@ -360,10 +360,9 @@ ss_pivot(const unsigned char *Td, const int *PA, int *first, int *last) {
   if(t <= 512) {
     if(t <= 32) {
       return ss_median3(Td, PA, first, middle, last - 1);
-    } else {
-      t >>= 2;
-      return ss_median5(Td, PA, first, first + t, middle, last - 1 - t, last - 1);
     }
+    t >>= 2;
+    return ss_median5(Td, PA, first, first + t, middle, last - 1 - t, last - 1);
   }
   t >>= 3;
   first  = ss_median3(Td, PA, first, first + t, first + (t << 1));
@@ -989,7 +988,7 @@ tr_median3(const int *ISAd, int *v1, int *v2, int *v3) {
   if(ISAd[*v1] > ISAd[*v2]) { SWAP(v1, v2); }
   if(ISAd[*v2] > ISAd[*v3]) {
     if(ISAd[*v1] > ISAd[*v3]) { return v1; }
-    else { return v3; }
+    return v3;
   }
   return v2;
 }
@@ -1022,10 +1021,9 @@ tr_pivot(const int *ISAd, int *first, int *last) {
   if(t <= 512) {
     if(t <= 32) {
       return tr_median3(ISAd, first, middle, last - 1);
-    } else {
-      t >>= 2;
-      return tr_median5(ISAd, first, first + t, middle, last - 1 - t, last - 1);
     }
+    t >>= 2;
+    return tr_median5(ISAd, first, first + t, middle, last - 1 - t, last - 1);
   }
   t >>= 3;
   first  = tr_median3(ISAd, first, first + t, first + (t << 1));
@@ -1851,9 +1849,9 @@ divsufsort(const unsigned char *T, int *SA, int n, int openMP) {
 
   /* Check arguments. */
   if((T == NULL) || (SA == NULL) || (n < 0)) { return -1; }
-  else if(n == 0) { return 0; }
-  else if(n == 1) { SA[0] = 0; return 0; }
-  else if(n == 2) { m = (T[0] < T[1]); SA[m ^ 1] = 0, SA[m] = 1; return 0; }
+  if(n == 0) { return 0; }
+  if(n == 1) { SA[0] = 0; return 0; }
+  if(n == 2) { m = (T[0] < T[1]); SA[m ^ 1] = 0, SA[m] = 1; return 0; }
 
   bucket_A = (int *)malloc(BUCKET_A_SIZE * sizeof(int));
   bucket_B = (int *)malloc(BUCKET_B_SIZE * sizeof(int));
@@ -1880,7 +1878,7 @@ divbwt(const unsigned char *T, unsigned char *U, int *A, int n, unsigned char * 
 
   /* Check arguments. */
   if((T == NULL) || (U == NULL) || (n < 0)) { return -1; }
-  else if(n <= 1) { if(n == 1) { U[0] = T[0]; } return n; }
+  if(n <= 1) { if(n == 1) { U[0] = T[0]; } return n; }
 
   if((B = A) == NULL) { B = (int *)malloc((size_t)(n + 1) * sizeof(int)); }
   bucket_A = (int *)malloc(BUCKET_A_SIZE * sizeof(int));

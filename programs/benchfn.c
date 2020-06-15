@@ -243,12 +243,12 @@ BMK_runOutcome_t BMK_benchTimedFn(BMK_timedFnState_t* cont,
                 /* don't report results for which benchmark run time was too small : increased risks of rounding errors */
                 assert(completed == 0);
                 continue;
-            } else {
-                if(newRunTime.nanoSecPerRun < bestRunTime.nanoSecPerRun) {
-                    bestRunTime = newRunTime;
-                }
-                completed = 1;
             }
+
+            if(newRunTime.nanoSecPerRun < bestRunTime.nanoSecPerRun) {
+                bestRunTime = newRunTime;
+            }
+            completed = 1;
         }
     }   /* while (!completed) */
 

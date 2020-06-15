@@ -856,7 +856,7 @@ _storeSequence:
                 ZSTD_storeSeq(seqStore, 0, anchor, iend, 0, matchLength-MINMATCH);
                 ip += matchLength;
                 anchor = ip;
-                continue;   /* faster when present ... (?) */
+                /* faster when present ... (?) */
     }   }   }
 
     /* Save reps for next block */

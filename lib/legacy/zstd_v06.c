@@ -224,10 +224,9 @@ MEM_STATIC U16 MEM_readLE16(const void* memPtr)
 {
     if (MEM_isLittleEndian())
         return MEM_read16(memPtr);
-    else {
-        const BYTE* p = (const BYTE*)memPtr;
-        return (U16)(p[0] + (p[1]<<8));
-    }
+
+    const BYTE* p = (const BYTE*)memPtr;
+    return (U16)(p[0] + (p[1]<<8));
 }
 
 MEM_STATIC void MEM_writeLE16(void* memPtr, U16 val)
@@ -245,8 +244,7 @@ MEM_STATIC U32 MEM_readLE32(const void* memPtr)
 {
     if (MEM_isLittleEndian())
         return MEM_read32(memPtr);
-    else
-        return MEM_swap32(MEM_read32(memPtr));
+    return MEM_swap32(MEM_read32(memPtr));
 }
 
 
@@ -254,8 +252,7 @@ MEM_STATIC U64 MEM_readLE64(const void* memPtr)
 {
     if (MEM_isLittleEndian())
         return MEM_read64(memPtr);
-    else
-        return MEM_swap64(MEM_read64(memPtr));
+    return MEM_swap64(MEM_read64(memPtr));
 }
 
 
@@ -263,8 +260,7 @@ MEM_STATIC size_t MEM_readLEST(const void* memPtr)
 {
     if (MEM_32bits())
         return (size_t)MEM_readLE32(memPtr);
-    else
-        return (size_t)MEM_readLE64(memPtr);
+    return (size_t)MEM_readLE64(memPtr);
 }
 
 

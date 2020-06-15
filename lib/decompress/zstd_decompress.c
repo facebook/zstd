@@ -347,9 +347,9 @@ unsigned long long ZSTD_getFrameContentSize(const void *src, size_t srcSize)
             return ZSTD_CONTENTSIZE_ERROR;
         if (zfh.frameType == ZSTD_skippableFrame) {
             return 0;
-        } else {
-            return zfh.frameContentSize;
-    }   }
+        }
+        return zfh.frameContentSize;
+      }
 }
 
 static size_t readSkippableFrameSize(void const* src, size_t srcSize)
@@ -474,54 +474,54 @@ static ZSTD_frameSizeInfo ZSTD_findFrameSizeInfo(const void* src, size_t srcSize
         assert(ZSTD_isError(frameSizeInfo.compressedSize) ||
                frameSizeInfo.compressedSize <= srcSize);
         return frameSizeInfo;
-    } else {
-        const BYTE* ip = (const BYTE*)src;
-        const BYTE* const ipstart = ip;
-        size_t remainingSize = srcSize;
-        size_t nbBlocks = 0;
-        ZSTD_frameHeader zfh;
-
-        /* Extract Frame Header */
-        {   size_t const ret = ZSTD_getFrameHeader(&zfh, src, srcSize);
-            if (ZSTD_isError(ret))
-                return ZSTD_errorFrameSizeInfo(ret);
-            if (ret > 0)
-                return ZSTD_errorFrameSizeInfo(ERROR(srcSize_wrong));
-        }
-
-        ip += zfh.headerSize;
-        remainingSize -= zfh.headerSize;
-
-        /* Iterate over each block */
-        while (1) {
-            blockProperties_t blockProperties;
-            size_t const cBlockSize = ZSTD_getcBlockSize(ip, remainingSize, &blockProperties);
-            if (ZSTD_isError(cBlockSize))
-                return ZSTD_errorFrameSizeInfo(cBlockSize);
-
-            if (ZSTD_blockHeaderSize + cBlockSize > remainingSize)
-                return ZSTD_errorFrameSizeInfo(ERROR(srcSize_wrong));
-
-            ip += ZSTD_blockHeaderSize + cBlockSize;
-            remainingSize -= ZSTD_blockHeaderSize + cBlockSize;
-            nbBlocks++;
-
-            if (blockProperties.lastBlock) break;
-        }
-
-        /* Final frame content checksum */
-        if (zfh.checksumFlag) {
-            if (remainingSize < 4)
-                return ZSTD_errorFrameSizeInfo(ERROR(srcSize_wrong));
-            ip += 4;
-        }
-
-        frameSizeInfo.compressedSize = ip - ipstart;
-        frameSizeInfo.decompressedBound = (zfh.frameContentSize != ZSTD_CONTENTSIZE_UNKNOWN)
-                                        ? zfh.frameContentSize
-                                        : nbBlocks * zfh.blockSizeMax;
-        return frameSizeInfo;
     }
+
+    const BYTE* ip = (const BYTE*)src;
+    const BYTE* const ipstart = ip;
+    size_t remainingSize = srcSize;
+    size_t nbBlocks = 0;
+    ZSTD_frameHeader zfh;
+
+    /* Extract Frame Header */
+    {   size_t const ret = ZSTD_getFrameHeader(&zfh, src, srcSize);
+        if (ZSTD_isError(ret))
+            return ZSTD_errorFrameSizeInfo(ret);
+        if (ret > 0)
+            return ZSTD_errorFrameSizeInfo(ERROR(srcSize_wrong));
+    }
+
+    ip += zfh.headerSize;
+    remainingSize -= zfh.headerSize;
+
+    /* Iterate over each block */
+    while (1) {
+        blockProperties_t blockProperties;
+        size_t const cBlockSize = ZSTD_getcBlockSize(ip, remainingSize, &blockProperties);
+        if (ZSTD_isError(cBlockSize))
+            return ZSTD_errorFrameSizeInfo(cBlockSize);
+
+        if (ZSTD_blockHeaderSize + cBlockSize > remainingSize)
+            return ZSTD_errorFrameSizeInfo(ERROR(srcSize_wrong));
+
+        ip += ZSTD_blockHeaderSize + cBlockSize;
+        remainingSize -= ZSTD_blockHeaderSize + cBlockSize;
+        nbBlocks++;
+
+        if (blockProperties.lastBlock) break;
+    }
+
+    /* Final frame content checksum */
+    if (zfh.checksumFlag) {
+        if (remainingSize < 4)
+            return ZSTD_errorFrameSizeInfo(ERROR(srcSize_wrong));
+        ip += 4;
+    }
+
+    frameSizeInfo.compressedSize = ip - ipstart;
+    frameSizeInfo.decompressedBound = (zfh.frameContentSize != ZSTD_CONTENTSIZE_UNKNOWN)
+                                    ? zfh.frameContentSize
+                                    : nbBlocks * zfh.blockSizeMax;
+    return frameSizeInfo;
 }
 
 /** ZSTD_findFrameCompressedSize() :

@@ -1756,10 +1756,9 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
     if (ZSTD_shouldAttachDict(cdict, params, pledgedSrcSize)) {
         return ZSTD_resetCCtx_byAttachingCDict(
             cctx, cdict, *params, pledgedSrcSize, zbuff);
-    } else {
-        return ZSTD_resetCCtx_byCopyingCDict(
-            cctx, cdict, *params, pledgedSrcSize, zbuff);
     }
+    return ZSTD_resetCCtx_byCopyingCDict(
+        cctx, cdict, *params, pledgedSrcSize, zbuff);
 }
 
 /*! ZSTD_copyCCtx_internal() :

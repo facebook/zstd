@@ -40,7 +40,7 @@ extern "C" {
     @return : the number of bytes decompressed into `dst` (<= `dstCapacity`),
               or an errorCode if it fails (which can be tested using ZSTDv06_isError()) */
 ZSTDLIBv06_API size_t ZSTDv06_decompress( void* dst, size_t dstCapacity,
-                                    const void* src, size_t compressedSize);
+                                    const void* src, size_t srcSize);
 
 /**
 ZSTDv06_findFrameSizeInfoLegacy() : get the source length and decompressed bound of a ZSTD frame compliant with v0.6.x format
@@ -99,7 +99,7 @@ typedef struct ZSTDv06_frameParams_s ZSTDv06_frameParams;
 
 ZSTDLIBv06_API size_t ZSTDv06_getFrameParams(ZSTDv06_frameParams* fparamsPtr, const void* src, size_t srcSize);   /**< doesn't consume input */
 ZSTDLIBv06_API size_t ZSTDv06_decompressBegin_usingDict(ZSTDv06_DCtx* dctx, const void* dict, size_t dictSize);
-ZSTDLIBv06_API void   ZSTDv06_copyDCtx(ZSTDv06_DCtx* dctx, const ZSTDv06_DCtx* preparedDCtx);
+ZSTDLIBv06_API void   ZSTDv06_copyDCtx(ZSTDv06_DCtx* dctx, const ZSTDv06_DCtx* srcDCtx);
 
 ZSTDLIBv06_API size_t ZSTDv06_nextSrcSizeToDecompress(ZSTDv06_DCtx* dctx);
 ZSTDLIBv06_API size_t ZSTDv06_decompressContinue(ZSTDv06_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
@@ -112,12 +112,12 @@ ZSTDLIBv06_API size_t ZSTDv06_decompressContinue(ZSTDv06_DCtx* dctx, void* dst, 
 
 typedef struct ZBUFFv06_DCtx_s ZBUFFv06_DCtx;
 ZSTDLIBv06_API ZBUFFv06_DCtx* ZBUFFv06_createDCtx(void);
-ZSTDLIBv06_API size_t         ZBUFFv06_freeDCtx(ZBUFFv06_DCtx* dctx);
+ZSTDLIBv06_API size_t         ZBUFFv06_freeDCtx(ZBUFFv06_DCtx* zbd);
 
-ZSTDLIBv06_API size_t ZBUFFv06_decompressInit(ZBUFFv06_DCtx* dctx);
-ZSTDLIBv06_API size_t ZBUFFv06_decompressInitDictionary(ZBUFFv06_DCtx* dctx, const void* dict, size_t dictSize);
+ZSTDLIBv06_API size_t ZBUFFv06_decompressInit(ZBUFFv06_DCtx* zbd);
+ZSTDLIBv06_API size_t ZBUFFv06_decompressInitDictionary(ZBUFFv06_DCtx* zbd, const void* dict, size_t dictSize);
 
-ZSTDLIBv06_API size_t ZBUFFv06_decompressContinue(ZBUFFv06_DCtx* dctx,
+ZSTDLIBv06_API size_t ZBUFFv06_decompressContinue(ZBUFFv06_DCtx* zbd,
                                                   void* dst, size_t* dstCapacityPtr,
                                             const void* src, size_t* srcSizePtr);
 

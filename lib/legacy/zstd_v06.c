@@ -328,7 +328,7 @@ extern "C" {
 *   `preparedDCtx` must have been properly initialized using ZSTDv06_decompressBegin_usingDict().
 *   Requires 2 contexts : 1 for reference (preparedDCtx), which will not be modified, and 1 to run the decompression operation (dctx) */
 ZSTDLIBv06_API size_t ZSTDv06_decompress_usingPreparedDCtx(
-                                           ZSTDv06_DCtx* dctx, const ZSTDv06_DCtx* preparedDCtx,
+                                           ZSTDv06_DCtx* dctx, const ZSTDv06_DCtx* refDCtx,
                                            void* dst, size_t dstCapacity,
                                      const void* src, size_t srcSize);
 
@@ -668,7 +668,7 @@ extern "C" {
     Why ? : making this distinction requires a header.
     Header management is intentionally delegated to the user layer, which can better manage special cases.
 */
-size_t FSEv06_decompress(void* dst,  size_t dstCapacity,
+size_t FSEv06_decompress(void* dst,  size_t maxDstSize,
                 const void* cSrc, size_t cSrcSize);
 
 
@@ -706,7 +706,7 @@ or to save and provide normalized distribution using external method.
     @return : size read from 'rBuffer',
               or an errorCode, which can be tested using FSEv06_isError().
               maxSymbolValuePtr[0] and tableLogPtr[0] will also be updated with their respective values */
-size_t FSEv06_readNCount (short* normalizedCounter, unsigned* maxSymbolValuePtr, unsigned* tableLogPtr, const void* rBuffer, size_t rBuffSize);
+size_t FSEv06_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr, const void* rBuffer, size_t hbSize);
 
 /*! Constructor and Destructor of FSEv06_DTable.
     Note that its size depends on 'tableLog' */
@@ -724,7 +724,7 @@ size_t FSEv06_buildDTable (FSEv06_DTable* dt, const short* normalizedCounter, un
     into `dst` which must be already allocated.
     @return : size of regenerated data (necessarily <= `dstCapacity`),
               or an errorCode, which can be tested using FSEv06_isError() */
-size_t FSEv06_decompress_usingDTable(void* dst, size_t dstCapacity, const void* cSrc, size_t cSrcSize, const FSEv06_DTable* dt);
+size_t FSEv06_decompress_usingDTable(void* dst, size_t originalSize, const void* cSrc, size_t cSrcSize, const FSEv06_DTable* dt);
 
 /*!
 Tutorial :

@@ -143,7 +143,7 @@ typedef struct BMK_timedFnState_s BMK_timedFnState_t;
  *         call BMK_benchTimedFn() repetitively, each measurement is supposed to last about run_ms
  *         Check if total time budget is spent or exceeded, using BMK_isCompleted_TimedFn()
  */
-BMK_runOutcome_t BMK_benchTimedFn(BMK_timedFnState_t* timedFnState,
+BMK_runOutcome_t BMK_benchTimedFn(BMK_timedFnState_t* cont,
                                   BMK_benchParams_t params);
 
 /* Tells if duration of all benchmark runs has exceeded total_ms

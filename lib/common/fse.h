@@ -102,7 +102,7 @@ FSE_PUBLIC_API const char* FSE_getErrorName(size_t code);   /* provides error co
                      if return == 1, srcData is a single byte symbol * srcSize times. Use RLE compression.
                      if FSE_isError(return), it's an error code.
 */
-FSE_PUBLIC_API size_t FSE_compress2 (void* dst, size_t dstSize, const void* src, size_t srcSize, unsigned maxSymbolValue, unsigned tableLog);
+FSE_PUBLIC_API size_t FSE_compress2 (void* dst, size_t dstCapacity, const void* src, size_t srcSize, unsigned maxSymbolValue, unsigned tableLog);
 
 
 /*-*****************************************
@@ -140,7 +140,7 @@ FSE_PUBLIC_API unsigned FSE_optimalTableLog(unsigned maxTableLog, size_t srcSize
     @return : tableLog,
               or an errorCode, which can be tested using FSE_isError() */
 FSE_PUBLIC_API size_t FSE_normalizeCount(short* normalizedCounter, unsigned tableLog,
-                    const unsigned* count, size_t srcSize, unsigned maxSymbolValue);
+                    const unsigned* count, size_t total, unsigned maxSymbolValue);
 
 /*! FSE_NCountWriteBound():
     Provides the maximum possible size of an FSE normalized table, given 'maxSymbolValue' and 'tableLog'.
@@ -171,7 +171,7 @@ FSE_PUBLIC_API size_t FSE_buildCTable(FSE_CTable* ct, const short* normalizedCou
     @return : size of compressed data (<= `dstCapacity`),
               or 0 if compressed data could not fit into `dst`,
               or an errorCode, which can be tested using FSE_isError() */
-FSE_PUBLIC_API size_t FSE_compress_usingCTable (void* dst, size_t dstCapacity, const void* src, size_t srcSize, const FSE_CTable* ct);
+FSE_PUBLIC_API size_t FSE_compress_usingCTable (void* dst, size_t dstSize, const void* src, size_t srcSize, const FSE_CTable* ct);
 
 /*!
 Tutorial :
@@ -225,8 +225,8 @@ If there is an error, the function will return an ErrorCode (which can be tested
               or an errorCode, which can be tested using FSE_isError().
               maxSymbolValuePtr[0] and tableLogPtr[0] will also be updated with their respective values */
 FSE_PUBLIC_API size_t FSE_readNCount (short* normalizedCounter,
-                           unsigned* maxSymbolValuePtr, unsigned* tableLogPtr,
-                           const void* rBuffer, size_t rBuffSize);
+                           unsigned* maxSVPtr, unsigned* tableLogPtr,
+                           const void* rBuffer, size_t hbSize);
 
 /*! Constructor and Destructor of FSE_DTable.
     Note that its size depends on 'tableLog' */
@@ -244,7 +244,7 @@ FSE_PUBLIC_API size_t FSE_buildDTable (FSE_DTable* dt, const short* normalizedCo
     into `dst` which must be already allocated.
     @return : size of regenerated data (necessarily <= `dstCapacity`),
               or an errorCode, which can be tested using FSE_isError() */
-FSE_PUBLIC_API size_t FSE_decompress_usingDTable(void* dst, size_t dstCapacity, const void* cSrc, size_t cSrcSize, const FSE_DTable* dt);
+FSE_PUBLIC_API size_t FSE_decompress_usingDTable(void* dst, size_t originalSize, const void* cSrc, size_t cSrcSize, const FSE_DTable* dt);
 
 /*!
 Tutorial :

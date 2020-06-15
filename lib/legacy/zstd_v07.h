@@ -47,7 +47,7 @@ unsigned long long ZSTDv07_getDecompressedSize(const void* src, size_t srcSize);
     @return : the number of bytes decompressed into `dst` (<= `dstCapacity`),
               or an errorCode if it fails (which can be tested using ZSTDv07_isError()) */
 ZSTDLIBv07_API size_t ZSTDv07_decompress( void* dst, size_t dstCapacity,
-                                    const void* src, size_t compressedSize);
+                                    const void* src, size_t srcSize);
 
 /**
 ZSTDv07_findFrameSizeInfoLegacy() : get the source length and decompressed bound of a ZSTD frame compliant with v0.7.x format
@@ -128,12 +128,12 @@ ZSTDLIBv07_API size_t ZSTDv07_getFrameParams(ZSTDv07_frameParams* fparamsPtr, co
 ***************************************/
 typedef struct ZBUFFv07_DCtx_s ZBUFFv07_DCtx;
 ZSTDLIBv07_API ZBUFFv07_DCtx* ZBUFFv07_createDCtx(void);
-ZSTDLIBv07_API size_t      ZBUFFv07_freeDCtx(ZBUFFv07_DCtx* dctx);
+ZSTDLIBv07_API size_t      ZBUFFv07_freeDCtx(ZBUFFv07_DCtx* zbd);
 
-ZSTDLIBv07_API size_t ZBUFFv07_decompressInit(ZBUFFv07_DCtx* dctx);
-ZSTDLIBv07_API size_t ZBUFFv07_decompressInitDictionary(ZBUFFv07_DCtx* dctx, const void* dict, size_t dictSize);
+ZSTDLIBv07_API size_t ZBUFFv07_decompressInit(ZBUFFv07_DCtx* zbd);
+ZSTDLIBv07_API size_t ZBUFFv07_decompressInitDictionary(ZBUFFv07_DCtx* zbd, const void* dict, size_t dictSize);
 
-ZSTDLIBv07_API size_t ZBUFFv07_decompressContinue(ZBUFFv07_DCtx* dctx,
+ZSTDLIBv07_API size_t ZBUFFv07_decompressContinue(ZBUFFv07_DCtx* zbd,
                                             void* dst, size_t* dstCapacityPtr,
                                       const void* src, size_t* srcSizePtr);
 

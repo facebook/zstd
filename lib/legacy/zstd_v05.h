@@ -30,8 +30,8 @@ extern "C" {
     `dstCapacity` must be large enough, equal or larger than originalSize.
     @return : the number of bytes decompressed into `dst` (<= `dstCapacity`),
               or an errorCode if it fails (which can be tested using ZSTDv05_isError()) */
-size_t ZSTDv05_decompress( void* dst, size_t dstCapacity,
-                     const void* src, size_t compressedSize);
+size_t ZSTDv05_decompress( void* dst, size_t maxDstSize,
+                     const void* src, size_t srcSize);
 
  /**
  ZSTDv05_findFrameSizeInfoLegacy() : get the source length and decompressed bound of a ZSTD frame compliant with v0.5.x format
@@ -64,7 +64,7 @@ size_t ZSTDv05_freeDCtx(ZSTDv05_DCtx* dctx);      /*!< @return : errorCode */
 
 /** ZSTDv05_decompressDCtx() :
 *   Same as ZSTDv05_decompress(), but requires an already allocated ZSTDv05_DCtx (see ZSTDv05_createDCtx()) */
-size_t ZSTDv05_decompressDCtx(ZSTDv05_DCtx* ctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
+size_t ZSTDv05_decompressDCtx(ZSTDv05_DCtx* ctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
 
 
 /*-***********************
@@ -75,7 +75,7 @@ size_t ZSTDv05_decompressDCtx(ZSTDv05_DCtx* ctx, void* dst, size_t dstCapacity, 
 *   Dictionary must be identical to the one used during compression, otherwise regenerated data will be corrupted.
 *   Note : dict can be NULL, in which case, it's equivalent to ZSTDv05_decompressDCtx() */
 size_t ZSTDv05_decompress_usingDict(ZSTDv05_DCtx* dctx,
-                                            void* dst, size_t dstCapacity,
+                                            void* dst, size_t maxDstSize,
                                       const void* src, size_t srcSize,
                                       const void* dict,size_t dictSize);
 
@@ -93,7 +93,7 @@ size_t ZSTDv05_getFrameParams(ZSTDv05_parameters* params, const void* src, size_
 size_t ZSTDv05_decompressBegin_usingDict(ZSTDv05_DCtx* dctx, const void* dict, size_t dictSize);
 void   ZSTDv05_copyDCtx(ZSTDv05_DCtx* dstDCtx, const ZSTDv05_DCtx* srcDCtx);
 size_t ZSTDv05_nextSrcSizeToDecompress(ZSTDv05_DCtx* dctx);
-size_t ZSTDv05_decompressContinue(ZSTDv05_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
+size_t ZSTDv05_decompressContinue(ZSTDv05_DCtx* dctx, void* dst, size_t maxDstSize, const void* src, size_t srcSize);
 
 
 /*-***********************
@@ -101,13 +101,13 @@ size_t ZSTDv05_decompressContinue(ZSTDv05_DCtx* dctx, void* dst, size_t dstCapac
 *************************/
 typedef struct ZBUFFv05_DCtx_s ZBUFFv05_DCtx;
 ZBUFFv05_DCtx* ZBUFFv05_createDCtx(void);
-size_t         ZBUFFv05_freeDCtx(ZBUFFv05_DCtx* dctx);
+size_t         ZBUFFv05_freeDCtx(ZBUFFv05_DCtx* zbc);
 
-size_t ZBUFFv05_decompressInit(ZBUFFv05_DCtx* dctx);
-size_t ZBUFFv05_decompressInitDictionary(ZBUFFv05_DCtx* dctx, const void* dict, size_t dictSize);
+size_t ZBUFFv05_decompressInit(ZBUFFv05_DCtx* zbc);
+size_t ZBUFFv05_decompressInitDictionary(ZBUFFv05_DCtx* zbc, const void* dict, size_t dictSize);
 
-size_t ZBUFFv05_decompressContinue(ZBUFFv05_DCtx* dctx,
-                                            void* dst, size_t* dstCapacityPtr,
+size_t ZBUFFv05_decompressContinue(ZBUFFv05_DCtx* zbc,
+                                            void* dst, size_t* maxDstSizePtr,
                                       const void* src, size_t* srcSizePtr);
 
 /*-***************************************************************************

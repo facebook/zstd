@@ -88,7 +88,7 @@ ZSTDLIBv07_API size_t ZSTDv07_sizeofDCtx(const ZSTDv07_DCtx* dctx);
 
 ZSTDLIBv07_API size_t ZSTDv07_decompressBegin(ZSTDv07_DCtx* dctx);
 ZSTDLIBv07_API size_t ZSTDv07_decompressBegin_usingDict(ZSTDv07_DCtx* dctx, const void* dict, size_t dictSize);
-ZSTDLIBv07_API void   ZSTDv07_copyDCtx(ZSTDv07_DCtx* dctx, const ZSTDv07_DCtx* preparedDCtx);
+ZSTDLIBv07_API void   ZSTDv07_copyDCtx(ZSTDv07_DCtx* dctx, const ZSTDv07_DCtx* srcDCtx);
 
 ZSTDLIBv07_API size_t ZSTDv07_nextSrcSizeToDecompress(ZSTDv07_DCtx* dctx);
 ZSTDLIBv07_API size_t ZSTDv07_decompressContinue(ZSTDv07_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
@@ -721,7 +721,7 @@ extern "C" {
     Why ? : making this distinction requires a header.
     Header management is intentionally delegated to the user layer, which can better manage special cases.
 */
-size_t FSEv07_decompress(void* dst,  size_t dstCapacity,
+size_t FSEv07_decompress(void* dst,  size_t maxDstSize,
                 const void* cSrc, size_t cSrcSize);
 
 
@@ -752,7 +752,7 @@ or to save and provide normalized distribution using external method.
     @return : size read from 'rBuffer',
               or an errorCode, which can be tested using FSEv07_isError().
               maxSymbolValuePtr[0] and tableLogPtr[0] will also be updated with their respective values */
-size_t FSEv07_readNCount (short* normalizedCounter, unsigned* maxSymbolValuePtr, unsigned* tableLogPtr, const void* rBuffer, size_t rBuffSize);
+size_t FSEv07_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr, const void* rBuffer, size_t hbSize);
 
 /*! Constructor and Destructor of FSEv07_DTable.
     Note that its size depends on 'tableLog' */
@@ -770,7 +770,7 @@ size_t FSEv07_buildDTable (FSEv07_DTable* dt, const short* normalizedCounter, un
     into `dst` which must be already allocated.
     @return : size of regenerated data (necessarily <= `dstCapacity`),
               or an errorCode, which can be tested using FSEv07_isError() */
-size_t FSEv07_decompress_usingDTable(void* dst, size_t dstCapacity, const void* cSrc, size_t cSrcSize, const FSEv07_DTable* dt);
+size_t FSEv07_decompress_usingDTable(void* dst, size_t originalSize, const void* cSrc, size_t cSrcSize, const FSEv07_DTable* dt);
 
 /*!
 Tutorial :

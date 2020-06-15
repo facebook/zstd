@@ -116,8 +116,8 @@ extern int g_utilDisplayLevel;
 int UTIL_fileExist(const char* filename);
 int UTIL_isRegularFile(const char* infilename);
 int UTIL_isDirectory(const char* infilename);
-int UTIL_isSameFile(const char* file1, const char* file2);
-int UTIL_isCompressedFile(const char* infilename, const char *extensionList[]);
+int UTIL_isSameFile(const char* fName1, const char* fName2);
+int UTIL_isCompressedFile(const char* inputName, const char *extensionList[]);
 int UTIL_isLink(const char* infilename);
 int UTIL_isFIFO(const char* infilename);
 
@@ -231,7 +231,7 @@ void UTIL_refFilename(FileNamesTable* fnt, const char* filename);
  *        or NULL in case of error
  */
 FileNamesTable*
-UTIL_createExpandedFNT(const char** filenames, size_t nbFilenames, int followLinks);
+UTIL_createExpandedFNT(const char** inputNames, size_t nbIfns, int followLinks);
 
 
 /*-****************************************

@@ -103,14 +103,14 @@ void FIO_setContentSize(FIO_prefs_t* const prefs, int value);
 /** FIO_compressFilename() :
  * @return : 0 == ok;  1 == pb with src file. */
 int FIO_compressFilename (FIO_prefs_t* const prefs,
-                          const char* outfilename, const char* infilename,
+                          const char* dstFileName, const char* srcFileName,
                           const char* dictFileName, int compressionLevel,
                           ZSTD_compressionParameters comprParams);
 
 /** FIO_decompressFilename() :
  * @return : 0 == ok;  1 == pb with src file. */
 int FIO_decompressFilename (FIO_prefs_t* const prefs,
-                            const char* outfilename, const char* infilename, const char* dictFileName);
+                            const char* dstFileName, const char* srcFileName, const char* dictFileName);
 
 int FIO_listMultipleFiles(unsigned numFiles, const char** filenameTable, int displayLevel);
 

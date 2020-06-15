@@ -318,8 +318,8 @@ extern "C" {
 *   `preparedDCtx` must have been properly initialized using ZSTDv05_decompressBegin_usingDict().
 *   Requires 2 contexts : 1 for reference, which will not be modified, and 1 to run the decompression operation */
 size_t ZSTDv05_decompress_usingPreparedDCtx(
-                                             ZSTDv05_DCtx* dctx, const ZSTDv05_DCtx* preparedDCtx,
-                                             void* dst, size_t dstCapacity,
+                                             ZSTDv05_DCtx* dctx, const ZSTDv05_DCtx* refDCtx,
+                                             void* dst, size_t maxDstSize,
                                        const void* src, size_t srcSize);
 
 
@@ -634,7 +634,7 @@ FSEv05_readNCount():
    return : size read from 'rBuffer'
             or an errorCode, which can be tested using FSEv05_isError()
             maxSymbolValuePtr[0] and tableLogPtr[0] will also be updated with their respective values */
-size_t FSEv05_readNCount (short* normalizedCounter, unsigned* maxSymbolValuePtr, unsigned* tableLogPtr, const void* rBuffer, size_t rBuffSize);
+size_t FSEv05_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr, const void* rBuffer, size_t hbSize);
 
 /*!
 Constructor and Destructor of type FSEv05_DTable
@@ -656,7 +656,7 @@ FSEv05_decompress_usingDTable():
    into `dst` which must be already allocated.
    @return : size of regenerated data (necessarily <= @dstCapacity)
              or an errorCode, which can be tested using FSEv05_isError() */
-size_t FSEv05_decompress_usingDTable(void* dst, size_t dstCapacity, const void* cSrc, size_t cSrcSize, const FSEv05_DTable* dt);
+size_t FSEv05_decompress_usingDTable(void* dst, size_t originalSize, const void* cSrc, size_t cSrcSize, const FSEv05_DTable* dt);
 
 
 

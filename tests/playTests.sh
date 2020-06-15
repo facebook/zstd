@@ -893,8 +893,9 @@ datagen | zstd -c | zstd -t
 
 println "\n===>  golden files tests "
 
-zstd -t -r "$TESTDIR/golden-compression"
+zstd -t -r "$TESTDIR/golden-decompression"
 zstd -c -r "$TESTDIR/golden-compression" | zstd -t
+zstd -D "$TESTDIR/golden-dictionaries/http-dict-missing-symbols" "$TESTDIR/golden-compression/http" -c | zstd -D "$TESTDIR/golden-dictionaries/http-dict-missing-symbols" -t
 
 
 println "\n===>  benchmark mode tests "

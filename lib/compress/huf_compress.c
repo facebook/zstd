@@ -712,7 +712,7 @@ HUF_compress_internal (void* dst, size_t dstSize,
         }   }
 
         /* Use the new huffman table */
-        if (hSize + 12ul >= srcSize) { return 0; }
+        if (hSize + 12UL >= srcSize) { return 0; }
         op += hSize;
         if (repeat) { *repeat = HUF_repeat_none; }
         if (oldHufTable)

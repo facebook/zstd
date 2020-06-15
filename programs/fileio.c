@@ -615,8 +615,8 @@ FIO_openDstFile(FIO_prefs_t* const prefs,
         if (f == NULL) {
             DISPLAYLEVEL(1, "zstd: %s: %s\n", dstFileName, strerror(errno));
         } else if (srcFileName != NULL
-               && strcmp (srcFileName, stdinmark)
-               && strcmp(dstFileName, nulmark) ) {
+               && strcmp (srcFileName, stdinmark) != 0
+               && strcmp(dstFileName, nulmark) != 0 ) {
             /* reduce rights on newly created dst file while compression is ongoing */
             UTIL_chmod(dstFileName, 00600);
         }
@@ -1477,7 +1477,7 @@ static int FIO_compressFilename_dstFile(FIO_prefs_t* const prefs,
          */
         addHandler(dstFileName);
 
-        if ( strcmp (srcFileName, stdinmark)
+        if ( strcmp (srcFileName, stdinmark) != 0
           && UTIL_getFileStat(srcFileName, &statbuf))
             transfer_permissions = 1;
     }
@@ -1496,11 +1496,11 @@ static int FIO_compressFilename_dstFile(FIO_prefs_t* const prefs,
             result=1;
         }
         if ( (result != 0)  /* operation failure */
-          && strcmp(dstFileName, nulmark)     /* special case : don't remove() /dev/null */
-          && strcmp(dstFileName, stdoutmark)  /* special case : don't remove() stdout */
+          && strcmp(dstFileName, nulmark) != 0     /* special case : don't remove() /dev/null */
+          && strcmp(dstFileName, stdoutmark) != 0  /* special case : don't remove() stdout */
           ) {
             FIO_remove(dstFileName); /* remove compression artefact; note don't do anything special if remove() fails */
-        } else if ( strcmp(dstFileName, stdoutmark)
+        } else if ( strcmp(dstFileName, stdoutmark) != 0
                  && strcmp(dstFileName, nulmark)
                  && transfer_permissions) {
             DISPLAYLEVEL(6, "FIO_compressFilename_dstFile: transferring permissions into dst: %s \n", dstFileName);
@@ -1573,7 +1573,7 @@ FIO_compressFilename_srcFile(FIO_prefs_t* const prefs,
     ress.srcFile = NULL;
     if ( prefs->removeSrcFile   /* --rm */
       && result == 0       /* success */
-      && strcmp(srcFileName, stdinmark)   /* exception : don't erase stdin */
+      && strcmp(srcFileName, stdinmark) != 0   /* exception : don't erase stdin */
       ) {
         /* We must clear the handler, since after this point calling it would
          * delete both the source and destination files.
@@ -2343,7 +2343,7 @@ static int FIO_decompressDstFile(FIO_prefs_t* const prefs,
          */
         addHandler(dstFileName);
 
-        if ( strcmp(srcFileName, stdinmark)   /* special case : don't transfer permissions from stdin */
+        if ( strcmp(srcFileName, stdinmark) != 0   /* special case : don't transfer permissions from stdin */
           && UTIL_getFileStat(srcFileName, &statbuf) )
             transfer_permissions = 1;
     }
@@ -2360,12 +2360,12 @@ static int FIO_decompressDstFile(FIO_prefs_t* const prefs,
         }
 
         if ( (result != 0)  /* operation failure */
-          && strcmp(dstFileName, nulmark)     /* special case : don't remove() /dev/null (#316) */
-          && strcmp(dstFileName, stdoutmark)  /* special case : don't remove() stdout */
+          && strcmp(dstFileName, nulmark) != 0     /* special case : don't remove() /dev/null (#316) */
+          && strcmp(dstFileName, stdoutmark) != 0  /* special case : don't remove() stdout */
           ) {
             FIO_remove(dstFileName);  /* remove decompression artefact; note: don't do anything special if remove() fails */
         } else {  /* operation success */
-            if ( strcmp(dstFileName, stdoutmark) /* special case : don't chmod stdout */
+            if ( strcmp(dstFileName, stdoutmark) != 0 /* special case : don't chmod stdout */
               && strcmp(dstFileName, nulmark)    /* special case : don't chmod /dev/null */
               && transfer_permissions )          /* file permissions correctly extracted from src */
                 UTIL_setFileStat(dstFileName, &statbuf);  /* transfer file permissions from src into dst */
@@ -2404,7 +2404,7 @@ static int FIO_decompressSrcFile(FIO_prefs_t* const prefs, dRess_t ress, const c
     }
     if ( prefs->removeSrcFile  /* --rm */
       && (result==0)      /* decompression successful */
-      && strcmp(srcFileName, stdinmark) ) /* not stdin */ {
+      && strcmp(srcFileName, stdinmark) != 0 ) /* not stdin */ {
         /* We must clear the handler, since after this point calling it would
          * delete both the source and destination files.
          */

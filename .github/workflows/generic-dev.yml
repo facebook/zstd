@@ -11,7 +11,6 @@ jobs:
 # icc (need self-hosted)
 # arm/qemu-arm (need self-hosted)
 # versionTag
-# valgrindTest (keeps failing for some reason. need investigation)
 # staticAnalyze (need trusty so need self-hosted)
 # pcc-fuzz: (need trusty so need self-hosted)
 # arm-build-test (need self-hosted)
@@ -180,3 +179,14 @@ jobs:
         wget https://github.com/koalaman/shellcheck/releases/download/v0.7.1/shellcheck-v0.7.1.linux.x86_64.tar.xz
         tar -xf shellcheck-v0.7.1.linux.x86_64.tar.xz
         shellcheck-v0.7.1/shellcheck --shell=sh --severity=warning --exclude=SC2010 tests/playTests.sh
+
+  valgrind-fuzz-stack-mode:
+    runs-on: ubuntu-16.04
+    steps:
+    - uses: actions/checkout@v2
+    - name: Valgrind + Fuzz Test Stack Mode
+      run: |
+        make valgrindinstall
+        make -C tests clean valgrindTest
+        make clean
+        make -C tests test-fuzzer-stackmode

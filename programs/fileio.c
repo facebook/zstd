@@ -772,6 +772,8 @@ static void FIO_adjustMemLimitForPatchFromMode(FIO_prefs_t* const prefs,
 {
     unsigned long long maxSize = MAX(prefs->memLimit, MAX(dictSize, maxSrcFileSize));
     unsigned const maxWindowSize = (1U << ZSTD_WINDOWLOG_MAX);
+    if (maxSize == UTIL_FILESIZE_UNKNOWN)
+        EXM_THROW(42, "Using --patch-from with stdin requires --stream-size");
     assert(maxSize != UTIL_FILESIZE_UNKNOWN);
     if (maxSize > maxWindowSize)
         EXM_THROW(42, "Can't handle files larger than %u GB\n", maxWindowSize/(1 GB));
@@ -839,8 +841,10 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
 
     /* need to update memLimit before calling createDictBuffer
      * because of memLimit check inside it */
-    if (prefs->patchFromMode)
-        FIO_adjustParamsForPatchFromMode(prefs, &comprParams, UTIL_getFileSize(dictFileName), maxSrcFileSize, cLevel);
+    if (prefs->patchFromMode) {
+        unsigned long long const ssSize = (unsigned long long)prefs->streamSrcSize;
+        FIO_adjustParamsForPatchFromMode(prefs, &comprParams, UTIL_getFileSize(dictFileName), ssSize > 0 ? ssSize : maxSrcFileSize, cLevel);
+    }
     ress.dstBuffer = malloc(ress.dstBufferSize);
     ress.dictBufferSize = FIO_createDictBuffer(&ress.dictBuffer, dictFileName, prefs);   /* works with dictFileName==NULL */
     if (!ress.srcBuffer || !ress.dstBuffer)

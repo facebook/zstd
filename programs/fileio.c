@@ -772,6 +772,8 @@ static void FIO_adjustMemLimitForPatchFromMode(FIO_prefs_t* const prefs,
 {
     unsigned long long maxSize = MAX(prefs->memLimit, MAX(dictSize, maxSrcFileSize));
     unsigned const maxWindowSize = (1U << ZSTD_WINDOWLOG_MAX);
+    if (maxSize == UTIL_FILESIZE_UNKNOWN)
+        EXM_THROW(42, "Using --patch-from with stdin requires --stream-size");
     assert(maxSize != UTIL_FILESIZE_UNKNOWN);
     if (maxSize > maxWindowSize)
         EXM_THROW(42, "Can't handle files larger than %u GB\n", maxWindowSize/(1 GB));

@@ -1304,6 +1304,13 @@ datagen -g5000000 > tmp_patch
 zstd -15 --patch-from=tmp_dict tmp_patch 2>&1 | grep "long mode automatically triggered"
 rm -rf tmp*
 
+println "\n===> patch-from --stream-size test"
+datagen -g1000 -P50 > tmp_dict
+datagen -g1000 -P10 > tmp_patch
+cat tmp_patch | zstd -f --patch-from=tmp_dict -c -o tmp_patch_diff && die
+cat tmp_patch | zstd -f --patch-from=tmp_dict --stream-size=1000 -c -o tmp_patch_diff
+rm -rf tmp*
+
 println "\n===>   large files tests "
 
 roundTripTest -g270000000 1

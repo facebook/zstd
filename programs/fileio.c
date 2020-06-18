@@ -839,8 +839,10 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
 
     /* need to update memLimit before calling createDictBuffer
      * because of memLimit check inside it */
-    if (prefs->patchFromMode)
-        FIO_adjustParamsForPatchFromMode(prefs, &comprParams, UTIL_getFileSize(dictFileName), maxSrcFileSize, cLevel);
+    if (prefs->patchFromMode) {
+        unsigned long long const ssSize = (unsigned long long)prefs->streamSrcSize;
+        FIO_adjustParamsForPatchFromMode(prefs, &comprParams, UTIL_getFileSize(dictFileName), ssSize > 0 ? ssSize : maxSrcFileSize, cLevel);
+    }
     ress.dstBuffer = malloc(ress.dstBufferSize);
     ress.dictBufferSize = FIO_createDictBuffer(&ress.dictBuffer, dictFileName, prefs);   /* works with dictFileName==NULL */
     if (!ress.srcBuffer || !ress.dstBuffer)

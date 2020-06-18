@@ -9,12 +9,10 @@ jobs:
 # Dev PR jobs that still have to be migrated from travis
 #
 # icc (need self-hosted)
-# arm/qemu-arm (need self-hosted)
 # versionTag
 # valgrindTest (keeps failing for some reason. need investigation)
 # staticAnalyze (need trusty so need self-hosted)
 # pcc-fuzz: (need trusty so need self-hosted)
-# arm-build-test (need self-hosted)
 #
 # setting up self-hosted is pretty straightforward, but
 # I need admins permissions to the repo for that it looks like
@@ -170,6 +168,24 @@ jobs:
         # sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix; (doesn't work)
         sudo apt-get install gcc-mingw-w64
         CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++ CFLAGS="-Werror -O1" make zstd
+
+  armbuild:
+    runs-on: ubuntu-16.04 # doesn't work on latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: ARM Build Test
+      run: |
+        make arminstall
+        make armbuild
+
+  armfuzz:
+    runs-on: ubuntu-16.04 # doesn't work on latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Qemu ARM emulation + Fuzz Test
+      run: |
+        make arminstall
+        make armfuzz
 
   bourne-shell:
     runs-on: ubuntu-latest

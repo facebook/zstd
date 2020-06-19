@@ -27,7 +27,6 @@
 #  define FORCE_INLINE_ATTR __attribute__((always_inline))
 #elif defined(_MSC_VER)
 #  define FORCE_INLINE_ATTR __forceinline
-
 #else
 #  define FORCE_INLINE_ATTR
 #endif

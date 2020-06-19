@@ -261,7 +261,7 @@ static int COVER_cmp8(COVER_ctx_t *ctx, const void *lp, const void *rp) {
  * NOTE: g_ctx must be set to call this function.  A global is required because
  * qsort doesn't take an opaque pointer.
  */
-static int COVER_strict_cmp(const void *lp, const void *rp) {
+static int WIN_CDECL COVER_strict_cmp(const void *lp, const void *rp) {
   int result = COVER_cmp(g_ctx, lp, rp);
   if (result == 0) {
     result = lp < rp ? -1 : 1;
@@ -271,7 +271,7 @@ static int COVER_strict_cmp(const void *lp, const void *rp) {
 /**
  * Faster version for d <= 8.
  */
-static int COVER_strict_cmp8(const void *lp, const void *rp) {
+static int WIN_CDECL COVER_strict_cmp8(const void *lp, const void *rp) {
   int result = COVER_cmp8(g_ctx, lp, rp);
   if (result == 0) {
     result = lp < rp ? -1 : 1;

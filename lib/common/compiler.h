@@ -27,6 +27,7 @@
 #  define FORCE_INLINE_ATTR __attribute__((always_inline))
 #elif defined(_MSC_VER)
 #  define FORCE_INLINE_ATTR __forceinline
+
 #else
 #  define FORCE_INLINE_ATTR
 #endif
@@ -36,6 +37,12 @@
 #define INLINE_KEYWORD
 #define FORCE_INLINE_ATTR
 
+#endif
+
+#if  defined(_MSC_VER)
+#  define WIN_CDECL __cdecl
+#else
+#  define WIN_CDECL 
 #endif
 
 /**

@@ -122,6 +122,7 @@ int FIO_listMultipleFiles(unsigned numFiles, const char** filenameTable, int dis
  * @return : nb of missing files */
 int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
                                   const char** inFileNamesTable, unsigned nbFiles,
+                                  const char* outMirroredDirName,
                                   const char* outDirName,
                                   const char* outFileName, const char* suffix,
                                   const char* dictFileName, int compressionLevel,
@@ -131,6 +132,7 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
  * @return : nb of missing or skipped files */
 int FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
                                     const char** srcNamesTable, unsigned nbFiles,
+                                    const char* outMirroredDirName,
                                     const char* outDirName,
                                     const char* outFileName,
                                     const char* dictFileName);

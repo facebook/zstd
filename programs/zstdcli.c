@@ -150,6 +150,10 @@ static void usage_advanced(const char* programName)
     DISPLAYOUT( "--output-dir-flat=DIR : all resulting files are stored into DIR \n");
 #endif
 
+#ifdef UTIL_HAS_MIRRORFILELIST
+    DISPLAYOUT( "--output-dir-mirror==DIR : all resulting files are stored into DIR in the original directory structure \n");
+#endif
+
     DISPLAYOUT( "--      : All arguments after \"--\" are treated as files \n");
 
 #ifndef ZSTD_NOCOMPRESS
@@ -645,6 +649,7 @@ int main(int const argCount, const char* argv[])
         rsyncable = 0,
         nextArgumentIsOutFileName = 0,
         nextArgumentIsOutDirName = 0,
+        nextArgumentIsMirroredOutDirName = 0,
         nextArgumentIsMaxDict = 0,
         nextArgumentIsDictID = 0,
         nextArgumentsAreFiles = 0,
@@ -672,6 +677,7 @@ int main(int const argCount, const char* argv[])
     const char* programName = argv[0];
     const char* outFileName = NULL;
     const char* outDirName = NULL;
+    const char* outMirroredDirName = NULL;
     const char* dictFileName = NULL;
     const char* patchFromDictFileName = NULL;
     const char* suffix = ZSTD_EXTENSION;
@@ -768,6 +774,9 @@ int main(int const argCount, const char* argv[])
                 if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(prefs, 1); continue; }
                 if (!strcmp(argument, "--priority=rt")) { setRealTimePrio = 1; continue; }
                 if (!strcmp(argument, "--output-dir-flat")) {nextArgumentIsOutDirName=1; lastCommand=1; continue; }
+#ifdef UTIL_HAS_MIRRORFILELIST
+                if (!strcmp(argument, "--output-dir-mirror")) {nextArgumentIsMirroredOutDirName=1; lastCommand=1; continue; }
+#endif
                 if (!strcmp(argument, "--show-default-cparams")) { showDefaultCParams = 1; continue; }
                 if (!strcmp(argument, "--content-size")) { contentSize = 1; continue; }
                 if (!strcmp(argument, "--no-content-size")) { contentSize = 0; continue; }
@@ -838,6 +847,7 @@ int main(int const argCount, const char* argv[])
                 if (longCommandWArg(&argument, "--target-compressed-block-size=")) { targetCBlockSize = readSizeTFromChar(&argument); continue; }
                 if (longCommandWArg(&argument, "--size-hint=")) { srcSizeHint = readSizeTFromChar(&argument); continue; }
                 if (longCommandWArg(&argument, "--output-dir-flat=")) { outDirName = argument; continue; }
+                if (longCommandWArg(&argument, "--output-dir-mirror=")) { outMirroredDirName = argument; continue; }
                 if (longCommandWArg(&argument, "--patch-from=")) { patchFromDictFileName = argument; continue; }
                 if (longCommandWArg(&argument, "--long")) {
                     unsigned ldmWindowLog = 0;
@@ -1063,6 +1073,13 @@ int main(int const argCount, const char* argv[])
             nextArgumentIsOutDirName = 0;
             lastCommand = 0;
             outDirName = argument;
+            continue;
+        }
+
+        if (nextArgumentIsMirroredOutDirName) {
+            nextArgumentIsMirroredOutDirName = 0;
+            lastCommand = 0;
+            outMirroredDirName = argument;
             continue;
         }
 
@@ -1330,7 +1347,7 @@ int main(int const argCount, const char* argv[])
         if ((filenames->tableSize==1) && outFileName)
           operationResult = FIO_compressFilename(prefs, outFileName, filenames->fileNames[0], dictFileName, cLevel, compressionParams);
         else
-          operationResult = FIO_compressMultipleFilenames(prefs, filenames->fileNames, (unsigned)filenames->tableSize, outDirName, outFileName, suffix, dictFileName, cLevel, compressionParams);
+          operationResult = FIO_compressMultipleFilenames(prefs, filenames->fileNames, (unsigned)filenames->tableSize, outMirroredDirName, outDirName, outFileName, suffix, dictFileName, cLevel, compressionParams);
 #else
         (void)contentSize; (void)suffix; (void)adapt; (void)rsyncable; (void)ultra; (void)cLevel; (void)ldmFlag; (void)literalCompressionMode; (void)targetCBlockSize; (void)streamSrcSize; (void)srcSizeHint; (void)ZSTD_strategyMap; /* not used when ZSTD_NOCOMPRESS set */
         DISPLAY("Compression not supported \n");
@@ -1340,7 +1357,7 @@ int main(int const argCount, const char* argv[])
         if (filenames->tableSize == 1 && outFileName) {
             operationResult = FIO_decompressFilename(prefs, outFileName, filenames->fileNames[0], dictFileName);
         } else {
-            operationResult = FIO_decompressMultipleFilenames(prefs, filenames->fileNames, (unsigned)filenames->tableSize, outDirName, outFileName, dictFileName);
+            operationResult = FIO_decompressMultipleFilenames(prefs, filenames->fileNames, (unsigned)filenames->tableSize, outMirroredDirName, outDirName, outFileName, dictFileName);
         }
 #else
         DISPLAY("Decompression not supported \n");

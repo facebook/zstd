@@ -227,6 +227,15 @@ the last one takes effect.
     if multiple files, from different directories, end up having the same name.
     Collision resolution ensures first file with a given name will be present in `dir`,
     while in combination with `-f`, the last file will be present instead.
+* `--output-dir-mirror[=dir]`:
+    similar to `--output-dir-flat`, the output files are stored underneath target
+    `dir` directory, but this option will preserve input directories structure in output `dir`.
+
+    If the input directory has "..", the files in this directory will be ignored. If
+    the input directory is absolute directory (i.e. "/var/tmp/abc"), it will be
+    stored into the "output-dir/var/tmp/abc".
+    If there is multiple input files or directories, the collision resolution will be same as
+    `--output-dir-flat`.
 * `--format=FORMAT`:
     compress and decompress in other formats. If compiled with
     support, zstd can compress to or decompress from other compression algorithm

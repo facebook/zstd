@@ -624,7 +624,6 @@ FIO_openDstFile(FIO_prefs_t* const prefs,
     }
 }
 
-
 /*! FIO_createDictBuffer() :
  *  creates a buffer, pointed by `*bufferPtr`,
  *  loads `filename` content into it, up to DICTSIZE_MAX bytes.
@@ -669,14 +668,8 @@ static size_t FIO_createDictBuffer(void** bufferPtr, const char* fileName, FIO_p
  * Checks for and warns if there are any files that would have the same output path
  */
 int FIO_checkFilenameCollisions(const char** filenameTable, unsigned nbFiles) {
-    const char **filenameTableSorted, *c, *prevElem, *filename;
+    const char **filenameTableSorted, *prevElem, *filename;
     unsigned u;
-
-    #if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__) /* windows support */
-    c = "\\";
-    #else
-    c = "/";
-    #endif
 
     filenameTableSorted = (const char**) malloc(sizeof(char*) * nbFiles);
     if (!filenameTableSorted) {
@@ -685,7 +678,7 @@ int FIO_checkFilenameCollisions(const char** filenameTable, unsigned nbFiles) {
     }
 
     for (u = 0; u < nbFiles; ++u) {
-        filename = strrchr(filenameTable[u], c[0]);
+        filename = strrchr(filenameTable[u], PATH_SEP);
         if (filename == NULL) {
             filenameTableSorted[u] = filenameTable[u];
         } else {
@@ -1599,6 +1592,7 @@ int FIO_compressFilename(FIO_prefs_t* const prefs, const char* dstFileName,
     cRess_t const ress = FIO_createCResources(prefs, dictFileName, UTIL_getFileSize(srcFileName), compressionLevel, comprParams);
     int const result = FIO_compressFilename_srcFile(prefs, ress, dstFileName, srcFileName, compressionLevel);
 
+#define DISPLAY_LEVEL_DEFAULT 2
 
     FIO_freeCResources(ress);
     return result;
@@ -1663,6 +1657,7 @@ static unsigned long long FIO_getLargestFileSize(const char** inFileNames, unsig
  */
 int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
                                   const char** inFileNamesTable, unsigned nbFiles,
+                                  const char* outMirroredRootDirName,
                                   const char* outDirName,
                                   const char* outFileName, const char* suffix,
                                   const char* dictFileName, int compressionLevel,
@@ -1689,12 +1684,30 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
             ress.dstFile = NULL;
         }
     } else {
-        unsigned u;
+        unsigned int u=0;
+        if (outMirroredRootDirName)
+            UTIL_mirrorSourceFilesDirectories(inFileNamesTable, nbFiles, outMirroredRootDirName);
+
         for (u=0; u<nbFiles; u++) {
             const char* const srcFileName = inFileNamesTable[u];
-            const char* const dstFileName = FIO_determineCompressedName(srcFileName, outDirName, suffix);  /* cannot fail */
+            const char* dstFileName = NULL;
+            if (outMirroredRootDirName) {
+                char* validMirroredDirName = UTIL_createMirroredDestDirName(srcFileName, outMirroredRootDirName);
+                if (validMirroredDirName) {
+                    dstFileName = FIO_determineCompressedName(srcFileName, validMirroredDirName, suffix);
+                    free(validMirroredDirName);
+                } else {
+                    DISPLAYLEVEL(2, "zstd: --output-dir-mirror cannot compress '%s' into '%s' \n", srcFileName, outMirroredRootDirName);
+                    error=1;
+                    continue;
+                }
+            } else {
+                dstFileName = FIO_determineCompressedName(srcFileName, outDirName, suffix);  /* cannot fail */
+            }
+
             error |= FIO_compressFilename_srcFile(prefs, ress, dstFileName, srcFileName, compressionLevel);
         }
+
         if (outDirName)
             FIO_checkFilenameCollisions(inFileNamesTable ,nbFiles);
     }
@@ -2536,10 +2549,10 @@ FIO_determineDstName(const char* srcFileName, const char* outDirName)
     /* note : dstFileNameBuffer memory is not going to be free */
 }
 
-
 int
 FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
                                 const char** srcNamesTable, unsigned nbFiles,
+                                const char* outMirroredRootDirName,
                                 const char* outDirName, const char* outFileName,
                                 const char* dictFileName)
 {
@@ -2558,12 +2571,25 @@ FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
             EXM_THROW(72, "Write error : %s : cannot properly close output file",
                         strerror(errno));
     } else {
-        unsigned u;
+        unsigned int u = 0;
+        if (outMirroredRootDirName)
+            UTIL_mirrorSourceFilesDirectories(srcNamesTable, nbFiles, outMirroredRootDirName);
+
         for (u=0; u<nbFiles; u++) {   /* create dstFileName */
             const char* const srcFileName = srcNamesTable[u];
-            const char* const dstFileName = FIO_determineDstName(srcFileName, outDirName);
+            const char* dstFileName = NULL;
+            if (outMirroredRootDirName) {
+                char* validMirroredDirName = UTIL_createMirroredDestDirName(srcFileName, outMirroredRootDirName);
+                if (validMirroredDirName) {
+                    dstFileName = FIO_determineDstName(srcFileName, validMirroredDirName);
+                    free(validMirroredDirName);
+                } else {
+                    DISPLAYLEVEL(2, "zstd: --output-dir-mirror cannot decompress '%s' into '%s'\n", srcFileName, outMirroredRootDirName);
+                }
+            } else {
+                dstFileName = FIO_determineDstName(srcFileName, outDirName);
+            }
             if (dstFileName == NULL) { error=1; continue; }
-
             error |= FIO_decompressSrcFile(prefs, ress, dstFileName, srcFileName);
         }
         if (outDirName)

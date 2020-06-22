@@ -40,23 +40,33 @@
 *  Constants
 ***************************************/
 #define COVER_MAX_SAMPLES_SIZE (sizeof(size_t) == 8 ? ((unsigned)-1) : ((unsigned)1 GB))
-#define DEFAULT_SPLITPOINT 1.0
+#define COVER_DEFAULT_SPLITPOINT 1.0
 
 /*-*************************************
 *  Console display
 ***************************************/
+#ifndef LOCALDISPLAYLEVEL
 static int g_displayLevel = 2;
+#endif
+#undef  DISPLAY
 #define DISPLAY(...)                                                           \
   {                                                                            \
     fprintf(stderr, __VA_ARGS__);                                              \
     fflush(stderr);                                                            \
   }
+#undef  LOCALDISPLAYLEVEL
 #define LOCALDISPLAYLEVEL(displayLevel, l, ...)                                \
   if (displayLevel >= l) {                                                     \
     DISPLAY(__VA_ARGS__);                                                      \
   } /* 0 : no display;   1: errors;   2: default;  3: details;  4: debug */
+#undef  DISPLAYLEVEL
 #define DISPLAYLEVEL(l, ...) LOCALDISPLAYLEVEL(g_displayLevel, l, __VA_ARGS__)
 
+#ifndef LOCALDISPLAYUPDATE
+static const clock_t refreshRate = CLOCKS_PER_SEC * 15 / 100;
+static clock_t g_time = 0;
+#endif
+#undef  LOCALDISPLAYUPDATE
 #define LOCALDISPLAYUPDATE(displayLevel, l, ...)                               \
   if (displayLevel >= l) {                                                     \
     if ((clock() - g_time > refreshRate) || (displayLevel >= 4)) {             \
@@ -64,9 +74,8 @@ static int g_displayLevel = 2;
       DISPLAY(__VA_ARGS__);                                                    \
     }                                                                          \
   }
+#undef  DISPLAYUPDATE
 #define DISPLAYUPDATE(l, ...) LOCALDISPLAYUPDATE(g_displayLevel, l, __VA_ARGS__)
-static const clock_t refreshRate = CLOCKS_PER_SEC * 15 / 100;
-static clock_t g_time = 0;
 
 /*-*************************************
 * Hash table
@@ -120,9 +129,9 @@ static int COVER_map_init(COVER_map_t *map, U32 size) {
 /**
  * Internal hash function
  */
-static const U32 prime4bytes = 2654435761U;
+static const U32 COVER_prime4bytes = 2654435761U;
 static U32 COVER_map_hash(COVER_map_t *map, U32 key) {
-  return (key * prime4bytes) >> (32 - map->sizeLog);
+  return (key * COVER_prime4bytes) >> (32 - map->sizeLog);
 }
 
 /**
@@ -1106,7 +1115,7 @@ ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
   /* constants */
   const unsigned nbThreads = parameters->nbThreads;
   const double splitPoint =
-      parameters->splitPoint <= 0.0 ? DEFAULT_SPLITPOINT : parameters->splitPoint;
+      parameters->splitPoint <= 0.0 ? COVER_DEFAULT_SPLITPOINT : parameters->splitPoint;
   const unsigned kMinD = parameters->d == 0 ? 6 : parameters->d;
   const unsigned kMaxD = parameters->d == 0 ? 8 : parameters->d;
   const unsigned kMinK = parameters->k == 0 ? 50 : parameters->k;

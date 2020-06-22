@@ -74,3 +74,8 @@
 #include "decompress/zstd_ddict.c"
 #include "decompress/zstd_decompress.c"
 #include "decompress/zstd_decompress_block.c"
+
+#include "dictBuilder/cover.c"
+#include "dictBuilder/divsufsort.c"
+#include "dictBuilder/fastcover.c"
+#include "dictBuilder/zdict.c"

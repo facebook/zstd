@@ -75,15 +75,15 @@ static clock_t g_time = 0;
 
 
 /*-*************************************
-* Hash Functions
+* Hash Functions (matching zstd_compress_internal.h)
 ***************************************/
-static const U64 prime6bytes = 227718039650203ULL;
-static size_t ZSTD_hash6(U64 u, U32 h) { return (size_t)(((u  << (64-48)) * prime6bytes) >> (64-h)) ; }
-static size_t ZSTD_hash6Ptr(const void* p, U32 h) { return ZSTD_hash6(MEM_readLE64(p), h); }
+static const U64 FASTCOVER_prime6bytes = 227718039650203ULL;
+static size_t FASTCOVER_hash6(U64 u, U32 h) { return (size_t)(((u  << (64-48)) * FASTCOVER_prime6bytes) >> (64-h)) ; }
+static size_t FASTCOVER_hash6Ptr(const void* p, U32 h) { return FASTCOVER_hash6(MEM_readLE64(p), h); }
 
-static const U64 prime8bytes = 0xCF1BBCDCB7A56463ULL;
-static size_t ZSTD_hash8(U64 u, U32 h) { return (size_t)(((u) * prime8bytes) >> (64-h)) ; }
-static size_t ZSTD_hash8Ptr(const void* p, U32 h) { return ZSTD_hash8(MEM_readLE64(p), h); }
+static const U64 FASTCOVER_prime8bytes = 0xCF1BBCDCB7A56463ULL;
+static size_t FASTCOVER_hash8(U64 u, U32 h) { return (size_t)(((u) * FASTCOVER_prime8bytes) >> (64-h)) ; }
+static size_t FASTCOVER_hash8Ptr(const void* p, U32 h) { return FASTCOVER_hash8(MEM_readLE64(p), h); }
 
 
 /**
@@ -91,9 +91,9 @@ static size_t ZSTD_hash8Ptr(const void* p, U32 h) { return ZSTD_hash8(MEM_readLE
  */
 static size_t FASTCOVER_hashPtrToIndex(const void* p, U32 h, unsigned d) {
   if (d == 6) {
-    return ZSTD_hash6Ptr(p, h) & ((1 << h) - 1);
+    return FASTCOVER_hash6Ptr(p, h) & ((1 << h) - 1);
   }
-  return ZSTD_hash8Ptr(p, h) & ((1 << h) - 1);
+  return FASTCOVER_hash8Ptr(p, h) & ((1 << h) - 1);
 }
 
 

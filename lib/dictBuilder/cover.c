@@ -129,9 +129,9 @@ static int COVER_map_init(COVER_map_t *map, U32 size) {
 /**
  * Internal hash function
  */
-static const U32 prime4bytes = 2654435761U;
+static const U32 COVER_prime4bytes = 2654435761U;
 static U32 COVER_map_hash(COVER_map_t *map, U32 key) {
-  return (key * prime4bytes) >> (32 - map->sizeLog);
+  return (key * COVER_prime4bytes) >> (32 - map->sizeLog);
 }
 
 /**

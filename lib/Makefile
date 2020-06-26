@@ -269,13 +269,13 @@ LIBDIR      ?= $(libdir)
 includedir  ?= $(PREFIX)/include
 INCLUDEDIR  ?= $(includedir)
 
-PCLIBDIR ?= $(shell echo "$(LIBDIR)" | sed -n -E -e "s@^$(EXEC_PREFIX)(/|$$)@@p")
-PCINCDIR ?= $(shell echo "$(INCLUDEDIR)" | sed -n -E -e "s@^$(PREFIX)(/|$$)@@p")
+PCLIBDIR ?= $(shell echo "$(LIBDIR)" | sed -n -r -e "s@^$(EXEC_PREFIX)(/|$$)@@p")
+PCINCDIR ?= $(shell echo "$(INCLUDEDIR)" | sed -n -r -e "s@^$(PREFIX)(/|$$)@@p")
 
 ifeq (,$(PCLIBDIR))
 # Additional prefix check is required, since the empty string is technically a
 # valid PCLIBDIR
-ifeq (,$(shell echo "$(LIBDIR)" | sed -n -E -e "\\@^$(EXEC_PREFIX)(/|$$)@ p"))
+ifeq (,$(shell echo "$(LIBDIR)" | sed -n -r -e "\\@^$(EXEC_PREFIX)(/|$$)@ p"))
 $(error configured libdir ($(LIBDIR)) is outside of prefix ($(PREFIX)), can't generate pkg-config file)
 endif
 endif
@@ -283,7 +283,7 @@ endif
 ifeq (,$(PCINCDIR))
 # Additional prefix check is required, since the empty string is technically a
 # valid PCINCDIR
-ifeq (,$(shell echo "$(INCLUDEDIR)" | sed -n -E -e "\\@^$(PREFIX)(/|$$)@ p"))
+ifeq (,$(shell echo "$(INCLUDEDIR)" | sed -n -r -e "\\@^$(PREFIX)(/|$$)@ p"))
 $(error configured includedir ($(INCLUDEDIR)) is outside of exec_prefix ($(EXEC_PREFIX)), can't generate pkg-config file)
 endif
 endif
@@ -307,7 +307,7 @@ INSTALL_DATA    ?= $(INSTALL) -m 644
 libzstd.pc:
 libzstd.pc: libzstd.pc.in
 	@echo creating pkgconfig
-	$(Q)@sed -E -e 's|@PREFIX@|$(PREFIX)|' \
+	$(Q)@sed -r -e 's|@PREFIX@|$(PREFIX)|' \
           -e 's|@LIBDIR@|$(PCLIBDIR)|' \
           -e 's|@INCLUDEDIR@|$(PCINCDIR)|' \
           -e 's|@VERSION@|$(VERSION)|' \

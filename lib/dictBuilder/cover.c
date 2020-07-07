@@ -224,7 +224,7 @@ typedef struct {
 } COVER_ctx_t;
 
 /* We need a global context for qsort... */
-static COVER_ctx_t *g_ctx = NULL;
+static COVER_ctx_t *g_coverCtx = NULL;
 
 /*-*************************************
 *  Helper functions
@@ -267,11 +267,11 @@ static int COVER_cmp8(COVER_ctx_t *ctx, const void *lp, const void *rp) {
 
 /**
  * Same as COVER_cmp() except ties are broken by pointer value
- * NOTE: g_ctx must be set to call this function.  A global is required because
+ * NOTE: g_coverCtx must be set to call this function.  A global is required because
  * qsort doesn't take an opaque pointer.
  */
 static int WIN_CDECL COVER_strict_cmp(const void *lp, const void *rp) {
-  int result = COVER_cmp(g_ctx, lp, rp);
+  int result = COVER_cmp(g_coverCtx, lp, rp);
   if (result == 0) {
     result = lp < rp ? -1 : 1;
   }
@@ -281,7 +281,7 @@ static int WIN_CDECL COVER_strict_cmp(const void *lp, const void *rp) {
  * Faster version for d <= 8.
  */
 static int WIN_CDECL COVER_strict_cmp8(const void *lp, const void *rp) {
-  int result = COVER_cmp8(g_ctx, lp, rp);
+  int result = COVER_cmp8(g_coverCtx, lp, rp);
   if (result == 0) {
     result = lp < rp ? -1 : 1;
   }
@@ -612,7 +612,7 @@ static size_t COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
     /* qsort doesn't take an opaque pointer, so pass as a global.
      * On OpenBSD qsort() is not guaranteed to be stable, their mergesort() is.
      */
-    g_ctx = ctx;
+    g_coverCtx = ctx;
 #if defined(__OpenBSD__)
     mergesort(ctx->suffix, ctx->suffixSize, sizeof(U32),
           (ctx->d <= 8 ? &COVER_strict_cmp8 : &COVER_strict_cmp));

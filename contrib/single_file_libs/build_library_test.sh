@@ -31,7 +31,7 @@ emscripten_docker_build() {
   docker container run --rm \
     --volume $PWD:/code \
     --workdir /code \
-    trzeci/emscripten \
+    emscripten/emsdk:latest \
     emcc $CC_FLAGS -s WASM=1 -I. -o $OUT_WASM $IN_FILES
   # Did compilation work?
   if [ $? -ne 0 ]; then

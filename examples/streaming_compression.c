@@ -39,6 +39,7 @@ static void compressFile_orDie(const char* fname, const char* outName, int cLeve
      */
     CHECK_ZSTD( ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, cLevel) );
     CHECK_ZSTD( ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1) );
+    ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 4);
 
     /* This loop read from the input file, compresses that entire chunk,
      * and writes all output produced to the output file.

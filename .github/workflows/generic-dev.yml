@@ -13,6 +13,7 @@ jobs:
 # valgrindTest (keeps failing for some reason. need investigation)
 # staticAnalyze (need trusty so need self-hosted)
 # pcc-fuzz: (need trusty so need self-hosted)
+# min-decomp-macros (flakey)
 #
 # setting up self-hosted is pretty straightforward, but
 # I need admins permissions to the repo for that it looks like
@@ -82,21 +83,6 @@ jobs:
         sudo apt-get update
         sudo apt-get install clang-3.8
         CC=clang-3.8 make clean msan-test-zstd HAVE_ZLIB=0 HAVE_LZ4=0 HAVE_LZMA=0
-
-  min-decomp-macros:
-    runs-on: ubuntu-16.04 # fails on 18.04
-    steps:
-    - uses: actions/checkout@v2
-    - name: Minimal Decompressor Macros
-      run: |
-        make clean
-        DEVNULLRIGHTS=test make -j all check ZSTD_LIB_MINIFY=1 MOREFLAGS="-Werror"
-        make clean
-        DEVNULLRIGHTS=test make -j all check MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X1 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT"
-        make clean
-        DEVNULLRIGHTS=test make -j all check MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X2 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG"
-        make clean
-        DEVNULLRIGHTS=test make -j all check MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
 
   cmake-build-and-test-check:
     runs-on: ubuntu-latest

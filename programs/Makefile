@@ -227,7 +227,7 @@ zstd-dll : $(ZSTD_CLI_OBJ)
 	$(CC) $(FLAGS) $^ -o $@$(EXT) $(LDFLAGS)
 
 
-## zstd-pgo: zstd executable optimized with pgo. `gcc` only.
+## zstd-pgo: zstd executable optimized with PGO.
 zstd-pgo :
 	$(MAKE) clean
 	$(MAKE) zstd MOREFLAGS=-fprofile-generate

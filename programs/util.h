@@ -104,6 +104,14 @@ extern int g_utilDisplayLevel;
     typedef struct stat stat_t;
 #endif
 
+#if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__) /* windows support */
+#define PATH_SEP '\\'
+#define STRDUP(s) _strdup(s)
+#else
+#define PATH_SEP '/'
+#include <libgen.h>
+#define STRDUP(s) strdup(s)
+#endif
 
 int UTIL_fileExist(const char* filename);
 int UTIL_isRegularFile(const char* infilename);
@@ -118,9 +126,13 @@ U64 UTIL_getFileSize(const char* infilename);
 U64 UTIL_getTotalFileSize(const char* const * fileNamesTable, unsigned nbFiles);
 int UTIL_getFileStat(const char* infilename, stat_t* statbuf);
 int UTIL_setFileStat(const char* filename, stat_t* statbuf);
+int UTIL_getDirectoryStat(const char* infilename, stat_t* statbuf);
 int UTIL_chmod(char const* filename, mode_t permissions);   /*< like chmod, but avoid changing permission of /dev/null */
 int UTIL_compareStr(const void *p1, const void *p2);
 const char* UTIL_getFileExtension(const char* infilename);
+void  UTIL_mirrorSourceFilesDirectories(const char** fileNamesTable, unsigned int nbFiles, const char *outDirName);
+char* UTIL_createMirroredDestDirName(const char* srcFileName, const char* outDirRootName);
+
 
 
 /*-****************************************
@@ -207,6 +219,7 @@ void UTIL_refFilename(FileNamesTable* fnt, const char* filename);
 #  define UTIL_HAS_CREATEFILELIST
 #elif defined(__linux__) || (PLATFORM_POSIX_VERSION >= 200112L)  /* opendir, readdir require POSIX.1-2001 */
 #  define UTIL_HAS_CREATEFILELIST
+#  define UTIL_HAS_MIRRORFILELIST
 #else
    /* do not define UTIL_HAS_CREATEFILELIST */
 #endif

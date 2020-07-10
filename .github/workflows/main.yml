@@ -5,6 +5,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Build Fuzzers
+      id: build
       uses: google/oss-fuzz/infra/cifuzz/actions/build_fuzzers@master
       with:
         oss-fuzz-project-name: 'zstd'
@@ -17,7 +18,7 @@ jobs:
         dry-run: false
     - name: Upload Crash
       uses: actions/upload-artifact@v1
-      if: failure()
+      if: failure() && steps.build.outcome == 'success'
       with:
         name: artifacts
         path: ./out/artifacts

@@ -79,7 +79,7 @@ extern "C" {
 #  include <assert.h>
 #else
 #  ifndef assert   /* assert may be already defined, due to prior #include <assert.h> */
-#    define assert(condition) ((void) (condition))   /* disable assert (default) */
+#    define assert(condition) ((void)0)   /* disable assert (default) */
 #  endif
 #endif
 

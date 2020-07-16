@@ -28,7 +28,7 @@ extern "C" {
 #  include <io.h>         /* _chmod */
 #else
 #  include <unistd.h>     /* chown, stat */
-#  if PLATFORM_POSIX_VERSION < 200809L
+#  if PLATFORM_POSIX_VERSION < 200809L || !defined(st_mtime)
 #    include <utime.h>    /* utime */
 #  else
 #    include <fcntl.h>    /* AT_FDCWD */

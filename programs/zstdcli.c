@@ -615,8 +615,17 @@ static int init_cLevel(void) {
     return ZSTDCLI_CLEVEL_DEFAULT;
 }
 
-#define ZSTD_NB_STRATEGIES 9
+#define NEXT_FIELD(ptr) {      \
+    argNb++;                   \
+    if (argNb >= argCount) {   \
+        DISPLAY("error: missing command argument \n"); \
+        exit(1);               \
+    }                          \
+    ptr = argv[argNb];         \
+    assert(ptr != NULL);       \
+}
 
+#define ZSTD_NB_STRATEGIES 9
 static const char* ZSTD_strategyMap[ZSTD_NB_STRATEGIES + 1] = { "", "ZSTD_fast",
                 "ZSTD_dfast", "ZSTD_greedy", "ZSTD_lazy", "ZSTD_lazy2", "ZSTD_btlazy2",
                 "ZSTD_btopt", "ZSTD_btultra", "ZSTD_btultra2"};
@@ -647,13 +656,9 @@ int main(int const argCount, const char* argv[])
         adaptMin = MINCLEVEL,
         adaptMax = MAXCLEVEL,
         rsyncable = 0,
-        nextArgumentIsOutFileName = 0,
-        nextArgumentIsOutDirName = 0,
-        nextArgumentIsMirroredOutDirName = 0,
         nextArgumentIsMaxDict = 0,
         nextArgumentIsDictID = 0,
         nextArgumentsAreFiles = 0,
-        nextEntryIsDictionary = 0,
         operationResult = 0,
         separateFiles = 0,
         setRealTimePrio = 0,
@@ -773,10 +778,12 @@ int main(int const argCount, const char* argv[])
                 if (!strcmp(argument, "--keep")) { FIO_setRemoveSrcFile(prefs, 0); continue; }
                 if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(prefs, 1); continue; }
                 if (!strcmp(argument, "--priority=rt")) { setRealTimePrio = 1; continue; }
-                if (!strcmp(argument, "--output-dir-flat")) {nextArgumentIsOutDirName=1; lastCommand=1; continue; }
+                if (!strcmp(argument, "--output-dir-flat")) { NEXT_FIELD(outDirName); continue; }
 #ifdef UTIL_HAS_MIRRORFILELIST
-                if (!strcmp(argument, "--output-dir-mirror")) {nextArgumentIsMirroredOutDirName=1; lastCommand=1; continue; }
+                if (!strcmp(argument, "--output-dir-mirror")) { NEXT_FIELD(outMirroredDirName); continue; }
 #endif
+                if (!strcmp(argument, "--patch-from")) { NEXT_FIELD(patchFromDictFileName); continue; }
+                if (!strcmp(argument, "--filelist")) { const char* listName; NEXT_FIELD(listName); UTIL_refFilename(file_of_names, listName); continue; }
                 if (!strcmp(argument, "--show-default-cparams")) { showDefaultCParams = 1; continue; }
                 if (!strcmp(argument, "--content-size")) { contentSize = 1; continue; }
                 if (!strcmp(argument, "--no-content-size")) { contentSize = 0; continue; }
@@ -936,7 +943,7 @@ int main(int const argCount, const char* argv[])
                 case 'c': forceStdout=1; outFileName=stdoutmark; argument++; break;
 
                     /* Use file content as dictionary */
-                case 'D': nextEntryIsDictionary = 1; lastCommand = 1; argument++; break;
+                case 'D': NEXT_FIELD(dictFileName); argument++; break;
 
                     /* Overwrite */
                 case 'f': FIO_overwriteMode(prefs); forceStdout=1; followLinks=1; argument++; break;
@@ -957,7 +964,10 @@ int main(int const argCount, const char* argv[])
                 case 't': operation=zom_test; argument++; break;
 
                     /* destination file name */
-                case 'o': nextArgumentIsOutFileName=1; lastCommand=1; argument++; break;
+                case 'o':
+                    NEXT_FIELD(outFileName);
+                    if (!strcmp(outFileName, "-")) outFileName = stdoutmark;
+                    argument++; break;
 
                     /* limit memory */
                 case 'M':
@@ -1051,35 +1061,6 @@ int main(int const argCount, const char* argv[])
             nextArgumentIsDictID = 0;
             lastCommand = 0;
             dictID = readU32FromChar(&argument);
-            continue;
-        }
-
-        if (nextEntryIsDictionary) {
-            nextEntryIsDictionary = 0;
-            lastCommand = 0;
-            dictFileName = argument;
-            continue;
-        }
-
-        if (nextArgumentIsOutFileName) {
-            nextArgumentIsOutFileName = 0;
-            lastCommand = 0;
-            outFileName = argument;
-            if (!strcmp(outFileName, "-")) outFileName = stdoutmark;
-            continue;
-        }
-
-        if (nextArgumentIsOutDirName) {
-            nextArgumentIsOutDirName = 0;
-            lastCommand = 0;
-            outDirName = argument;
-            continue;
-        }
-
-        if (nextArgumentIsMirroredOutDirName) {
-            nextArgumentIsMirroredOutDirName = 0;
-            lastCommand = 0;
-            outMirroredDirName = argument;
             continue;
         }
 

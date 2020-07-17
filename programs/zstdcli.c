@@ -619,10 +619,14 @@ static int init_cLevel(void) {
     argNb++;                   \
     if (argNb >= argCount) {   \
         DISPLAY("error: missing command argument \n"); \
-        exit(1);               \
+        CLEAN_RETURN(1);       \
     }                          \
     ptr = argv[argNb];         \
     assert(ptr != NULL);       \
+    if (ptr[0]=='-') {         \
+        DISPLAY("error: command cannot be separated from its argument by another command \n"); \
+        CLEAN_RETURN(1);       \
+    }                          \
 }
 
 #define ZSTD_NB_STRATEGIES 9

@@ -22,7 +22,6 @@ project('zstd',
 cc = meson.get_compiler('c')
 cxx = meson.get_compiler('cpp')
 pkgconfig = import('pkgconfig')
-python3 = import('python').find_installation()
 windows_mod = import('windows')
 
 host_machine_os = host_machine.system()
@@ -40,8 +39,8 @@ compiler_msvc = 'msvc'
 zstd_version = meson.project_version()
 
 zstd_h_file = join_paths(meson.current_source_dir(), '../../lib/zstd.h')
-GetZstdLibraryVersion_py = files('GetZstdLibraryVersion.py')
-r = run_command(python3, GetZstdLibraryVersion_py, zstd_h_file)
+GetZstdLibraryVersion_py = find_program('GetZstdLibraryVersion.py', native : true)
+r = run_command(GetZstdLibraryVersion_py, zstd_h_file)
 if r.returncode() == 0
   zstd_version = r.stdout().strip()
   message('Project version is now: @0@'.format(zstd_version))

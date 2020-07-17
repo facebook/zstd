@@ -648,7 +648,6 @@ int main(int const argCount, const char* argv[])
     int argNb,
         followLinks = 0,
         forceStdout = 0,
-        lastCommand = 0,
         ldmFlag = 0,
         main_pause = 0,
         nbWorkers = 0,
@@ -656,8 +655,6 @@ int main(int const argCount, const char* argv[])
         adaptMin = MINCLEVEL,
         adaptMax = MAXCLEVEL,
         rsyncable = 0,
-        nextArgumentIsMaxDict = 0,
-        nextArgumentIsDictID = 0,
         nextArgumentsAreFiles = 0,
         operationResult = 0,
         separateFiles = 0,
@@ -772,8 +769,8 @@ int main(int const argCount, const char* argv[])
                 if (!strcmp(argument, "--no-sparse")) { FIO_setSparseWrite(prefs, 0); continue; }
                 if (!strcmp(argument, "--test")) { operation=zom_test; continue; }
                 if (!strcmp(argument, "--train")) { operation=zom_train; if (outFileName==NULL) outFileName=g_defaultDictName; continue; }
-                if (!strcmp(argument, "--maxdict")) { nextArgumentIsMaxDict=1; lastCommand=1; continue; }  /* kept available for compatibility with old syntax ; will be removed one day */
-                if (!strcmp(argument, "--dictID")) { nextArgumentIsDictID=1; lastCommand=1; continue; }  /* kept available for compatibility with old syntax ; will be removed one day */
+                if (!strcmp(argument, "--maxdict")) { const char* nb; NEXT_FIELD(nb); maxDictSize=readU32FromChar(&nb); continue; }  /* kept available for compatibility with old syntax ; will be removed one day */
+                if (!strcmp(argument, "--dictID")) { const char* did; NEXT_FIELD(did); dictID=readU32FromChar(&did); continue; }  /* kept available for compatibility with old syntax ; will be removed one day */
                 if (!strcmp(argument, "--no-dictID")) { FIO_setDictIDFlag(prefs, 0); continue; }
                 if (!strcmp(argument, "--keep")) { FIO_setRemoveSrcFile(prefs, 0); continue; }
                 if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(prefs, 1); continue; }
@@ -909,10 +906,7 @@ int main(int const argCount, const char* argv[])
 
             argument++;
             while (argument[0]!=0) {
-                if (lastCommand) {
-                    DISPLAY("error : command must be followed by argument \n");
-                    CLEAN_RETURN(1);
-                }
+
 #ifndef ZSTD_NOCOMPRESS
                 /* compression Level */
                 if ((*argument>='0') && (*argument<='9')) {
@@ -1050,27 +1044,8 @@ int main(int const argCount, const char* argv[])
             continue;
         }   /* if (argument[0]=='-') */
 
-        if (nextArgumentIsMaxDict) {  /* kept available for compatibility with old syntax ; will be removed one day */
-            nextArgumentIsMaxDict = 0;
-            lastCommand = 0;
-            maxDictSize = readU32FromChar(&argument);
-            continue;
-        }
-
-        if (nextArgumentIsDictID) {  /* kept available for compatibility with old syntax ; will be removed one day */
-            nextArgumentIsDictID = 0;
-            lastCommand = 0;
-            dictID = readU32FromChar(&argument);
-            continue;
-        }
-
         /* none of the above : add filename to list */
         UTIL_refFilename(filenames, argument);
-    }
-
-    if (lastCommand) { /* forgotten argument */
-        DISPLAY("error : command must be followed by argument \n");
-        CLEAN_RETURN(1);
     }
 
     /* Welcome message (if verbose) */

@@ -288,12 +288,12 @@ If there is an error, the function will return an error code, which can be teste
 *******************************************/
 /* FSE buffer bounds */
 #define FSE_NCOUNTBOUND 512
-#define FSE_BLOCKBOUND(size) (size + (size>>7) + 4 /* fse states */ + sizeof(size_t) /* bitContainer */)
+#define FSE_BLOCKBOUND(size) ((size) + ((size)>>7) + 4 /* fse states */ + sizeof(size_t) /* bitContainer */)
 #define FSE_COMPRESSBOUND(size) (FSE_NCOUNTBOUND + FSE_BLOCKBOUND(size))   /* Macro version, useful for static allocation */
 
 /* It is possible to statically allocate FSE CTable/DTable as a table of FSE_CTable/FSE_DTable using below macros */
-#define FSE_CTABLE_SIZE_U32(maxTableLog, maxSymbolValue)   (1 + (1<<(maxTableLog-1)) + ((maxSymbolValue+1)*2))
-#define FSE_DTABLE_SIZE_U32(maxTableLog)                   (1 + (1<<maxTableLog))
+#define FSE_CTABLE_SIZE_U32(maxTableLog, maxSymbolValue)   (1 + (1<<((maxTableLog)-1)) + (((maxSymbolValue)+1)*2))
+#define FSE_DTABLE_SIZE_U32(maxTableLog)                   (1 + (1<<(maxTableLog)))
 
 /* or use the size to malloc() space directly. Pay attention to alignment restrictions though */
 #define FSE_CTABLE_SIZE(maxTableLog, maxSymbolValue)   (FSE_CTABLE_SIZE_U32(maxTableLog, maxSymbolValue) * sizeof(FSE_CTable))
@@ -644,6 +644,9 @@ MEM_STATIC unsigned FSE_endOfDState(const FSE_DState_t* DStatePtr)
 #ifndef FSE_DEFAULT_MEMORY_USAGE
 #  define FSE_DEFAULT_MEMORY_USAGE 13
 #endif
+#if (FSE_DEFAULT_MEMORY_USAGE > FSE_MAX_MEMORY_USAGE)
+#  error "FSE_DEFAULT_MEMORY_USAGE must be <= FSE_MAX_MEMORY_USAGE"
+#endif
 
 /*!FSE_MAX_SYMBOL_VALUE :
 *  Maximum symbol value authorized.
@@ -677,7 +680,7 @@ MEM_STATIC unsigned FSE_endOfDState(const FSE_DState_t* DStatePtr)
 #  error "FSE_MAX_TABLELOG > FSE_TABLELOG_ABSOLUTE_MAX is not supported"
 #endif
 
-#define FSE_TABLESTEP(tableSize) ((tableSize>>1) + (tableSize>>3) + 3)
+#define FSE_TABLESTEP(tableSize) (((tableSize)>>1) + ((tableSize)>>3) + 3)
 
 
 #endif /* FSE_STATIC_LINKING_ONLY */

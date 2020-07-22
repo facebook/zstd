@@ -615,8 +615,30 @@ static int init_cLevel(void) {
     return ZSTDCLI_CLEVEL_DEFAULT;
 }
 
-#define ZSTD_NB_STRATEGIES 9
+#define NEXT_FIELD(ptr) {         \
+    if (*argument == '=') {       \
+        ptr = ++argument;         \
+        argument += strlen(ptr);  \
+    } else {                      \
+        argNb++;                  \
+        if (argNb >= argCount) {  \
+            DISPLAY("error: missing command argument \n"); \
+            CLEAN_RETURN(1);      \
+        }                         \
+        ptr = argv[argNb];        \
+        assert(ptr != NULL);      \
+        if (ptr[0]=='-') {        \
+            DISPLAY("error: command cannot be separated from its argument by another command \n"); \
+            CLEAN_RETURN(1);      \
+}   }   }
 
+#define NEXT_UINT32(val32) {      \
+    const char* __nb;             \
+    NEXT_FIELD(__nb);             \
+    val32 = readU32FromChar(&__nb); \
+}
+
+#define ZSTD_NB_STRATEGIES 9
 static const char* ZSTD_strategyMap[ZSTD_NB_STRATEGIES + 1] = { "", "ZSTD_fast",
                 "ZSTD_dfast", "ZSTD_greedy", "ZSTD_lazy", "ZSTD_lazy2", "ZSTD_btlazy2",
                 "ZSTD_btopt", "ZSTD_btultra", "ZSTD_btultra2"};
@@ -639,7 +661,6 @@ int main(int const argCount, const char* argv[])
     int argNb,
         followLinks = 0,
         forceStdout = 0,
-        lastCommand = 0,
         ldmFlag = 0,
         main_pause = 0,
         nbWorkers = 0,
@@ -647,13 +668,7 @@ int main(int const argCount, const char* argv[])
         adaptMin = MINCLEVEL,
         adaptMax = MAXCLEVEL,
         rsyncable = 0,
-        nextArgumentIsOutFileName = 0,
-        nextArgumentIsOutDirName = 0,
-        nextArgumentIsMirroredOutDirName = 0,
-        nextArgumentIsMaxDict = 0,
-        nextArgumentIsDictID = 0,
         nextArgumentsAreFiles = 0,
-        nextEntryIsDictionary = 0,
         operationResult = 0,
         separateFiles = 0,
         setRealTimePrio = 0,
@@ -767,16 +782,10 @@ int main(int const argCount, const char* argv[])
                 if (!strcmp(argument, "--no-sparse")) { FIO_setSparseWrite(prefs, 0); continue; }
                 if (!strcmp(argument, "--test")) { operation=zom_test; continue; }
                 if (!strcmp(argument, "--train")) { operation=zom_train; if (outFileName==NULL) outFileName=g_defaultDictName; continue; }
-                if (!strcmp(argument, "--maxdict")) { nextArgumentIsMaxDict=1; lastCommand=1; continue; }  /* kept available for compatibility with old syntax ; will be removed one day */
-                if (!strcmp(argument, "--dictID")) { nextArgumentIsDictID=1; lastCommand=1; continue; }  /* kept available for compatibility with old syntax ; will be removed one day */
                 if (!strcmp(argument, "--no-dictID")) { FIO_setDictIDFlag(prefs, 0); continue; }
                 if (!strcmp(argument, "--keep")) { FIO_setRemoveSrcFile(prefs, 0); continue; }
                 if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(prefs, 1); continue; }
                 if (!strcmp(argument, "--priority=rt")) { setRealTimePrio = 1; continue; }
-                if (!strcmp(argument, "--output-dir-flat")) {nextArgumentIsOutDirName=1; lastCommand=1; continue; }
-#ifdef UTIL_HAS_MIRRORFILELIST
-                if (!strcmp(argument, "--output-dir-mirror")) {nextArgumentIsMirroredOutDirName=1; lastCommand=1; continue; }
-#endif
                 if (!strcmp(argument, "--show-default-cparams")) { showDefaultCParams = 1; continue; }
                 if (!strcmp(argument, "--content-size")) { contentSize = 1; continue; }
                 if (!strcmp(argument, "--no-content-size")) { contentSize = 0; continue; }
@@ -799,6 +808,7 @@ int main(int const argCount, const char* argv[])
                 if (!strcmp(argument, "--no-compress-literals")) { literalCompressionMode = ZSTD_lcm_uncompressed; continue; }
                 if (!strcmp(argument, "--no-progress")) { FIO_setNoProgress(1); continue; }
                 if (!strcmp(argument, "--exclude-compressed")) { FIO_setExcludeCompressedFile(prefs, 1); continue; }
+
                 /* long commands with arguments */
 #ifndef ZSTD_NODICT
                 if (longCommandWArg(&argument, "--train-cover")) {
@@ -835,20 +845,22 @@ int main(int const argCount, const char* argv[])
                   continue;
                 }
 #endif
-                if (longCommandWArg(&argument, "--threads=")) { nbWorkers = (int)readU32FromChar(&argument); continue; }
-                if (longCommandWArg(&argument, "--memlimit=")) { memLimit = readU32FromChar(&argument); continue; }
-                if (longCommandWArg(&argument, "--memory=")) { memLimit = readU32FromChar(&argument); continue; }
-                if (longCommandWArg(&argument, "--memlimit-decompress=")) { memLimit = readU32FromChar(&argument); continue; }
+                if (longCommandWArg(&argument, "--threads")) { NEXT_UINT32(nbWorkers); continue; }
+                if (longCommandWArg(&argument, "--memlimit")) { NEXT_UINT32(memLimit); continue; }
+                if (longCommandWArg(&argument, "--memory")) { NEXT_UINT32(memLimit); continue; }
+                if (longCommandWArg(&argument, "--memlimit-decompress")) { NEXT_UINT32(memLimit); continue; }
                 if (longCommandWArg(&argument, "--block-size=")) { blockSize = readSizeTFromChar(&argument); continue; }
-                if (longCommandWArg(&argument, "--maxdict=")) { maxDictSize = readU32FromChar(&argument); continue; }
-                if (longCommandWArg(&argument, "--dictID=")) { dictID = readU32FromChar(&argument); continue; }
+                if (longCommandWArg(&argument, "--maxdict")) { NEXT_UINT32(maxDictSize); continue; }
+                if (longCommandWArg(&argument, "--dictID")) { NEXT_UINT32(dictID); continue; }
                 if (longCommandWArg(&argument, "--zstd=")) { if (!parseCompressionParameters(argument, &compressionParams)) { badusage(programName); CLEAN_RETURN(1); } continue; }
                 if (longCommandWArg(&argument, "--stream-size=")) { streamSrcSize = readSizeTFromChar(&argument); continue; }
                 if (longCommandWArg(&argument, "--target-compressed-block-size=")) { targetCBlockSize = readSizeTFromChar(&argument); continue; }
                 if (longCommandWArg(&argument, "--size-hint=")) { srcSizeHint = readSizeTFromChar(&argument); continue; }
-                if (longCommandWArg(&argument, "--output-dir-flat=")) { outDirName = argument; continue; }
-                if (longCommandWArg(&argument, "--output-dir-mirror=")) { outMirroredDirName = argument; continue; }
-                if (longCommandWArg(&argument, "--patch-from=")) { patchFromDictFileName = argument; continue; }
+                if (longCommandWArg(&argument, "--output-dir-flat")) { NEXT_FIELD(outDirName); continue; }
+#ifdef UTIL_HAS_MIRRORFILELIST
+                if (longCommandWArg(&argument, "--output-dir-mirror")) { NEXT_FIELD(outMirroredDirName); continue; }
+#endif
+                if (longCommandWArg(&argument, "--patch-from")) { NEXT_FIELD(patchFromDictFileName); continue; }
                 if (longCommandWArg(&argument, "--long")) {
                     unsigned ldmWindowLog = 0;
                     ldmFlag = 1;
@@ -892,8 +904,10 @@ int main(int const argCount, const char* argv[])
                 }
 #endif
 
-                if (longCommandWArg(&argument, "--filelist=")) {
-                    UTIL_refFilename(file_of_names, argument);
+                if (longCommandWArg(&argument, "--filelist")) {
+                    const char* listName;
+                    NEXT_FIELD(listName);
+                    UTIL_refFilename(file_of_names, listName);
                     continue;
                 }
 
@@ -902,10 +916,7 @@ int main(int const argCount, const char* argv[])
 
             argument++;
             while (argument[0]!=0) {
-                if (lastCommand) {
-                    DISPLAY("error : command must be followed by argument \n");
-                    CLEAN_RETURN(1);
-                }
+
 #ifndef ZSTD_NOCOMPRESS
                 /* compression Level */
                 if ((*argument>='0') && (*argument<='9')) {
@@ -936,7 +947,7 @@ int main(int const argCount, const char* argv[])
                 case 'c': forceStdout=1; outFileName=stdoutmark; argument++; break;
 
                     /* Use file content as dictionary */
-                case 'D': nextEntryIsDictionary = 1; lastCommand = 1; argument++; break;
+                case 'D': argument++; NEXT_FIELD(dictFileName); break;
 
                     /* Overwrite */
                 case 'f': FIO_overwriteMode(prefs); forceStdout=1; followLinks=1; argument++; break;
@@ -957,7 +968,7 @@ int main(int const argCount, const char* argv[])
                 case 't': operation=zom_test; argument++; break;
 
                     /* destination file name */
-                case 'o': nextArgumentIsOutFileName=1; lastCommand=1; argument++; break;
+                case 'o': argument++; NEXT_FIELD(outFileName); break;
 
                     /* limit memory */
                 case 'M':
@@ -1028,10 +1039,9 @@ int main(int const argCount, const char* argv[])
 
                     /* Select compressibility of synthetic sample */
                 case 'P':
-                {   argument++;
+                    argument++;
                     compressibility = (double)readU32FromChar(&argument) / 100;
-                }
-                break;
+                    break;
 
                     /* unknown command */
                 default : badusage(programName); CLEAN_RETURN(1);
@@ -1040,56 +1050,8 @@ int main(int const argCount, const char* argv[])
             continue;
         }   /* if (argument[0]=='-') */
 
-        if (nextArgumentIsMaxDict) {  /* kept available for compatibility with old syntax ; will be removed one day */
-            nextArgumentIsMaxDict = 0;
-            lastCommand = 0;
-            maxDictSize = readU32FromChar(&argument);
-            continue;
-        }
-
-        if (nextArgumentIsDictID) {  /* kept available for compatibility with old syntax ; will be removed one day */
-            nextArgumentIsDictID = 0;
-            lastCommand = 0;
-            dictID = readU32FromChar(&argument);
-            continue;
-        }
-
-        if (nextEntryIsDictionary) {
-            nextEntryIsDictionary = 0;
-            lastCommand = 0;
-            dictFileName = argument;
-            continue;
-        }
-
-        if (nextArgumentIsOutFileName) {
-            nextArgumentIsOutFileName = 0;
-            lastCommand = 0;
-            outFileName = argument;
-            if (!strcmp(outFileName, "-")) outFileName = stdoutmark;
-            continue;
-        }
-
-        if (nextArgumentIsOutDirName) {
-            nextArgumentIsOutDirName = 0;
-            lastCommand = 0;
-            outDirName = argument;
-            continue;
-        }
-
-        if (nextArgumentIsMirroredOutDirName) {
-            nextArgumentIsMirroredOutDirName = 0;
-            lastCommand = 0;
-            outMirroredDirName = argument;
-            continue;
-        }
-
         /* none of the above : add filename to list */
         UTIL_refFilename(filenames, argument);
-    }
-
-    if (lastCommand) { /* forgotten argument */
-        DISPLAY("error : command must be followed by argument \n");
-        CLEAN_RETURN(1);
     }
 
     /* Welcome message (if verbose) */

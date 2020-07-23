@@ -146,12 +146,12 @@ static void usage_advanced(const char* programName)
 
 #ifdef UTIL_HAS_CREATEFILELIST
     DISPLAYOUT( " -r     : operate recursively on directories \n");
-    DISPLAYOUT( "--filelist=FILE : read list of files to operate upon from FILE \n");
-    DISPLAYOUT( "--output-dir-flat=DIR : all resulting files are stored into DIR \n");
+    DISPLAYOUT( "--filelist FILE : read list of files to operate upon from FILE \n");
+    DISPLAYOUT( "--output-dir-flat DIR : processed files are stored into DIR \n");
 #endif
 
 #ifdef UTIL_HAS_MIRRORFILELIST
-    DISPLAYOUT( "--output-dir-mirror==DIR : all resulting files are stored into DIR in the original directory structure \n");
+    DISPLAYOUT( "--output-dir-mirror DIR : processed files are stored into DIR respecting original directory structure \n");
 #endif
 
     DISPLAYOUT( "--      : All arguments after \"--\" are treated as files \n");

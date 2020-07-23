@@ -102,6 +102,9 @@ the last one takes effect.
 
 * `-#`:
     `#` compression level \[1-19] (default: 3)
+* `--ultra`:
+    unlocks high compression levels 20+ (maximum 22), using a lot more memory.
+    Note that decompression will also require more memory when using these levels.
 * `--fast[=#]`:
     switch to ultra-fast compression levels.
     If `=#` is not present, it defaults to `1`.
@@ -109,41 +112,6 @@ the last one takes effect.
     at the cost of some compression ratio.
     This setting overwrites compression level if one was set previously.
     Similarly, if a compression level is set after `--fast`, it overrides it.
-* `--ultra`:
-    unlocks high compression levels 20+ (maximum 22), using a lot more memory.
-    Note that decompression will also require more memory when using these levels.
-* `--long[=#]`:
-    enables long distance matching with `#` `windowLog`, if not `#` is not
-    present it defaults to `27`.
-    This increases the window size (`windowLog`) and memory usage for both the
-    compressor and decompressor.
-    This setting is designed to improve the compression ratio for files with
-    long matches at a large distance.
-
-    Note: If `windowLog` is set to larger than 27, `--long=windowLog` or
-    `--memory=windowSize` needs to be passed to the decompressor.
-* `--patch-from=FILE`:
-    Specify the file to be used as a reference point for zstd's diff engine.
-    This is effectively dictionary compression with some convenient parameter
-    selection, namely that windowSize > srcSize.
-
-    Note: cannot use both this and -D together
-    Note: `--long` mode will be automatically activated if chainLog < fileLog
-        (fileLog being the windowLog required to cover the whole file). You
-        can also manually force it.
-	Node: for all levels, you can use --patch-from in --single-thread mode
-		to improve compression ratio at the cost of speed
-    Note: for level 19, you can get increased compression ratio at the cost
-        of speed by specifying `--zstd=targetLength=` to be something large
-        (i.e 4096), and by setting a large `--zstd=chainLog=`
-* `-M#`, `--memory=#`:
-    Set a memory usage limit. By default, Zstandard uses 128 MB for decompression
-    as the maximum amount of memory the decompressor is allowed to use, but you can
-    override this manually if need be in either direction (ie. you can increase or
-    decrease it).
-
-    This is also used during compression when using with --patch-from=. In this case,
-    this parameter overrides that maximum size allowed for a dictionary. (128 MB).
 * `-T#`, `--threads=#`:
     Compress using `#` working threads (default: 1).
     If `#` is 0, attempt to detect and use the number of physical CPU cores.
@@ -166,6 +134,58 @@ the last one takes effect.
     Due to the chaotic nature of dynamic adaptation, compressed result is not reproducible.
     _note_ : at the time of this writing, `--adapt` can remain stuck at low speed
     when combined with multiple worker threads (>=2).
+* `--long[=#]`:
+    enables long distance matching with `#` `windowLog`, if not `#` is not
+    present it defaults to `27`.
+    This increases the window size (`windowLog`) and memory usage for both the
+    compressor and decompressor.
+    This setting is designed to improve the compression ratio for files with
+    long matches at a large distance.
+
+    Note: If `windowLog` is set to larger than 27, `--long=windowLog` or
+    `--memory=windowSize` needs to be passed to the decompressor.
+* `-D DICT`:
+    use `DICT` as Dictionary to compress or decompress FILE(s)
+* `--patch-from FILE`:
+    Specify the file to be used as a reference point for zstd's diff engine.
+    This is effectively dictionary compression with some convenient parameter
+    selection, namely that windowSize > srcSize.
+
+    Note: cannot use both this and -D together
+    Note: `--long` mode will be automatically activated if chainLog < fileLog
+        (fileLog being the windowLog required to cover the whole file). You
+        can also manually force it.
+	Node: for all levels, you can use --patch-from in --single-thread mode
+		to improve compression ratio at the cost of speed
+    Note: for level 19, you can get increased compression ratio at the cost
+        of speed by specifying `--zstd=targetLength=` to be something large
+        (i.e 4096), and by setting a large `--zstd=chainLog=`
+* `--rsyncable` :
+    `zstd` will periodically synchronize the compression state to make the
+    compressed file more rsync-friendly. There is a negligible impact to
+    compression ratio, and the faster compression levels will see a small
+    compression speed hit.
+    This feature does not work with `--single-thread`. You probably don't want
+    to use it with long range mode, since it will decrease the effectiveness of
+    the synchronization points, but your milage may vary.
+* `-C`, `--[no-]check`:
+    add integrity check computed from uncompressed data (default: enabled)
+* `--[no-]content-size`:
+    enable / disable whether or not the original size of the file is placed in
+    the header of the compressed file. The default option is
+    --content-size (meaning that the original size will be placed in the header).
+* `--no-dictID`:
+    do not store dictionary ID within frame header (dictionary compression).
+    The decoder will have to rely on implicit knowledge about which dictionary to use,
+    it won't be able to check if it's correct.
+* `-M#`, `--memory=#`:
+    Set a memory usage limit. By default, Zstandard uses 128 MB for decompression
+    as the maximum amount of memory the decompressor is allowed to use, but you can
+    override this manually if need be in either direction (ie. you can increase or
+    decrease it).
+
+    This is also used during compression when using with --patch-from=. In this case,
+    this parameter overrides that maximum size allowed for a dictionary. (128 MB).
 * `--stream-size=#` :
     Sets the pledged source size of input coming from a stream. This value must be exact, as it
     will be included in the produced frame header. Incorrect stream sizes will cause an error.
@@ -178,22 +198,8 @@ the last one takes effect.
     expected. This feature allows for controlling the guess when needed.
     Exact guesses result in better compression ratios. Overestimates result in slightly
     degraded compression ratios, while underestimates may result in significant degradation.
-* `--rsyncable` :
-    `zstd` will periodically synchronize the compression state to make the
-    compressed file more rsync-friendly. There is a negligible impact to
-    compression ratio, and the faster compression levels will see a small
-    compression speed hit.
-    This feature does not work with `--single-thread`. You probably don't want
-    to use it with long range mode, since it will decrease the effectiveness of
-    the synchronization points, but your milage may vary.
-* `-D file`:
-    use `file` as Dictionary to compress or decompress FILE(s)
-* `--no-dictID`:
-    do not store dictionary ID within frame header (dictionary compression).
-    The decoder will have to rely on implicit knowledge about which dictionary to use,
-    it won't be able to check if it's correct.
-* `-o file`:
-    save result into `file` (only possible with a single _INPUT-FILE_)
+* `-o FILE`:
+    save result into `FILE`
 * `-f`, `--force`:
     overwrite output without prompting, and (de)compress symbolic links
 * `-c`, `--stdout`:
@@ -206,10 +212,6 @@ the last one takes effect.
     default: enabled when output is into a file,
     and disabled when output is stdout.
     This setting overrides default and can force sparse mode over stdout.
-* `--[no-]content-size`:
-    enable / disable whether or not the original size of the file is placed in
-    the header of the compressed file. The default option is
-    --content-size (meaning that the original size will be placed in the header).
 * `--rm`:
     remove source file(s) after successful compression or decompression
 * `-k`, `--keep`:
@@ -217,25 +219,26 @@ the last one takes effect.
     This is the default behavior.
 * `-r`:
     operate recursively on directories
-* `--filelist=FILE`
+* `--filelist FILE`
     read a list of files to process as content from `FILE`.
     Format is compatible with `ls` output, with one file per line.
-* `--output-dir-flat[=dir]`:
-    resulting files are stored into target `dir` directory,
+* `--output-dir-flat DIR`:
+    resulting files are stored into target `DIR` directory,
     instead of same directory as origin file.
     Be aware that this command can introduce name collision issues,
     if multiple files, from different directories, end up having the same name.
-    Collision resolution ensures first file with a given name will be present in `dir`,
+    Collision resolution ensures first file with a given name will be present in `DIR`,
     while in combination with `-f`, the last file will be present instead.
-* `--output-dir-mirror[=dir]`:
-    similar to `--output-dir-flat`, the output files are stored underneath target
-    `dir` directory, but this option will preserve input directories structure in output `dir`.
+* `--output-dir-mirror DIR`:
+    similar to `--output-dir-flat`,
+    the output files are stored underneath target `DIR` directory,
+    but this option will replicate input directory hierarchy into output `DIR`.
 
-    If the input directory has "..", the files in this directory will be ignored. If
-    the input directory is absolute directory (i.e. "/var/tmp/abc"), it will be
-    stored into the "output-dir/var/tmp/abc".
-    If there is multiple input files or directories, the collision resolution will be same as
-    `--output-dir-flat`.
+    If input directory contains "..", the files in this directory will be ignored.
+    If input directory is an absolute directory (i.e. "/var/tmp/abc"),
+    it will be stored into the "output-dir/var/tmp/abc".
+    If there are multiple input files or directories,
+    name collision resolution will follow the same rules as `--output-dir-flat`.
 * `--format=FORMAT`:
     compress and decompress in other formats. If compiled with
     support, zstd can compress to or decompress from other compression algorithm
@@ -249,20 +252,17 @@ the last one takes effect.
     `-vvV` also displays POSIX support.
     `-q` will only display the version number, suitable for machine reading.
 * `-v`, `--verbose`:
-    verbose mode
-* `--show-default-cparams`:
-    Shows the default compresssion parameters that will be used for a
-    particular src file. If the provided src file is not a regular file
-    (eg. named pipe), the cli will just output the default paramters.
-    That is, the parameters that are used when the src size is
-    unknown.
+    verbose mode, display more information
 * `-q`, `--quiet`:
     suppress warnings, interactivity, and notifications.
     specify twice to suppress errors too.
 * `--no-progress`:
     do not display the progress bar, but keep all other messages.
-* `-C`, `--[no-]check`:
-    add integrity check computed from uncompressed data (default: enabled)
+* `--show-default-cparams`:
+    Shows the default compression parameters that will be used for a
+    particular src file. If the provided src file is not a regular file
+    (eg. named pipe), the cli will just output the default parameters.
+    That is, the parameters that are used when the src size is unknown.
 * `--`:
     All arguments after `--` are treated as files
 

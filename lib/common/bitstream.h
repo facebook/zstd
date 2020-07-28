@@ -141,8 +141,12 @@ MEM_STATIC unsigned BIT_highbit32 (U32 val)
     assert(val != 0);
     {
 #   if defined(_MSC_VER)   /* Visual */
-        unsigned long r=0;
-        return _BitScanReverse ( &r, val ) ? (unsigned)r : 0;
+#       if STATIC_BMI2 == 1
+		return _lzcnt_u32(val) ^ 31;
+#       else
+		unsigned long r = 0;
+		return _BitScanReverse(&r, val) ? (unsigned)r : 0;
+#       endif
 #   elif defined(__GNUC__) && (__GNUC__ >= 3)   /* Use GCC Intrinsic */
         return __builtin_clz (val) ^ 31;
 #   elif defined(__ICCARM__)    /* IAR Intrinsic */
@@ -324,16 +328,24 @@ MEM_STATIC size_t BIT_getUpperBits(size_t bitContainer, U32 const start)
 
 MEM_STATIC size_t BIT_getMiddleBits(size_t bitContainer, U32 const start, U32 const nbBits)
 {
+#if STATIC_BMI2 
+	return  _bextr_u64(bitContainer, start, nbBits);
+#else
     U32 const regMask = sizeof(bitContainer)*8 - 1;
     /* if start > regMask, bitstream is corrupted, and result is undefined */
     assert(nbBits < BIT_MASK_SIZE);
     return (bitContainer >> (start & regMask)) & BIT_mask[nbBits];
+#endif
 }
 
 MEM_STATIC size_t BIT_getLowerBits(size_t bitContainer, U32 const nbBits)
 {
+#if STATIC_BMI2 
+	return  _bzhi_u64(bitContainer, nbBits);
+#else
     assert(nbBits < BIT_MASK_SIZE);
     return bitContainer & BIT_mask[nbBits];
+#endif
 }
 
 /*! BIT_lookBits() :

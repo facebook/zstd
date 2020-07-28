@@ -201,6 +201,6 @@
 #   ifndef DYNAMIC_BMI2
 #       define DYNAMIC_BMI2 1 //Build it statically targeting BMI2, so enable DYNAMIC_BMI2 if it wasn't already on
 #   endif
-#else
+#endif
 
 #endif /* ZSTD_COMPILER_H */

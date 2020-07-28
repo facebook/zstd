@@ -193,10 +193,12 @@
 #endif
 
 /* If STATIC_BMI2 was enabled force DYNAMIC_BMI2 on */
-#if STATIC_BMI2
+#if STATIC_BMI2 == 1
 #   ifndef DYNAMIC_BMI2
 #       define DYNAMIC_BMI2 1 //Build it statically targeting BMI2, so enable DYNAMIC_BMI2 if it wasn't already on
 #   endif
+#else
+    #define STATIC_BMI2 0
 #endif
 
 #endif /* ZSTD_COMPILER_H */

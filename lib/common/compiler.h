@@ -188,7 +188,6 @@
 #  if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_I86))  
 #    ifdef __AVX2__  //MSVC does not have a BMI2 specific flag, but every CPU that supports AVX2 also supports BMI2
 #       define STATIC_BMI2 1
-
 #    endif
 #  endif
 #endif

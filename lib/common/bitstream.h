@@ -17,7 +17,6 @@
 #if defined (__cplusplus)
 extern "C" {
 #endif
-
 /*
 *  This API consists of small unitary functions, which must be inlined for best performance.
 *  Since link-time-optimization is not available for all compilers,
@@ -321,24 +320,20 @@ MEM_STATIC size_t BIT_initDStream(BIT_DStream_t* bitD, const void* srcBuffer, si
     return srcSize;
 }
 
-MEM_STATIC size_t BIT_getUpperBits(size_t bitContainer, U32 const start)
+MEM_STATIC FORCE_INLINE_ATTR size_t BIT_getUpperBits(size_t bitContainer, U32 const start)
 {
     return bitContainer >> start;
 }
 
-MEM_STATIC size_t BIT_getMiddleBits(size_t bitContainer, U32 const start, U32 const nbBits)
+MEM_STATIC FORCE_INLINE_ATTR size_t BIT_getMiddleBits(size_t bitContainer, U32 const start, U32 const nbBits)
 {
-#if STATIC_BMI2 
-	return  _bextr_u64(bitContainer, start, nbBits);
-#else
     U32 const regMask = sizeof(bitContainer)*8 - 1;
     /* if start > regMask, bitstream is corrupted, and result is undefined */
     assert(nbBits < BIT_MASK_SIZE);
     return (bitContainer >> (start & regMask)) & BIT_mask[nbBits];
-#endif
 }
 
-MEM_STATIC size_t BIT_getLowerBits(size_t bitContainer, U32 const nbBits)
+MEM_STATIC FORCE_INLINE_ATTR size_t BIT_getLowerBits(size_t bitContainer, U32 const nbBits)
 {
 #if STATIC_BMI2 
 	return  _bzhi_u64(bitContainer, nbBits);
@@ -354,7 +349,7 @@ MEM_STATIC size_t BIT_getLowerBits(size_t bitContainer, U32 const nbBits)
  *  On 32-bits, maxNbBits==24.
  *  On 64-bits, maxNbBits==56.
  * @return : value extracted */
-MEM_STATIC size_t BIT_lookBits(const BIT_DStream_t* bitD, U32 nbBits)
+MEM_STATIC  FORCE_INLINE_ATTR size_t BIT_lookBits(const BIT_DStream_t*  bitD, U32 nbBits)
 {
     /* arbitrate between double-shift and shift+mask */
 #if 1
@@ -377,7 +372,7 @@ MEM_STATIC size_t BIT_lookBitsFast(const BIT_DStream_t* bitD, U32 nbBits)
     return (bitD->bitContainer << (bitD->bitsConsumed & regMask)) >> (((regMask+1)-nbBits) & regMask);
 }
 
-MEM_STATIC void BIT_skipBits(BIT_DStream_t* bitD, U32 nbBits)
+MEM_STATIC FORCE_INLINE_ATTR void BIT_skipBits(BIT_DStream_t* bitD, U32 nbBits)
 {
     bitD->bitsConsumed += nbBits;
 }
@@ -386,7 +381,7 @@ MEM_STATIC void BIT_skipBits(BIT_DStream_t* bitD, U32 nbBits)
  *  Read (consume) next n bits from local register and update.
  *  Pay attention to not read more than nbBits contained into local register.
  * @return : extracted value. */
-MEM_STATIC size_t BIT_readBits(BIT_DStream_t* bitD, unsigned nbBits)
+MEM_STATIC FORCE_INLINE_ATTR size_t BIT_readBits(BIT_DStream_t* bitD, unsigned nbBits)
 {
     size_t const value = BIT_lookBits(bitD, nbBits);
     BIT_skipBits(bitD, nbBits);

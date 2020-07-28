@@ -535,10 +535,10 @@ static unsigned ZSTD_NbCommonBytes (size_t val)
         if (MEM_64bits()) {
 #       if defined(_MSC_VER) && defined(_WIN64)
 #           if STATIC_BMI2
-			    return _lzcnt_u64(val) >> 3;
+		return _lzcnt_u64(val) >> 3;
 #           else
-			    unsigned long r = 0;
-			    return _BitScanReverse64(&r, (U64)val) ? (unsigned)(r >> 3) : 0;
+		unsigned long r = 0;
+		return _BitScanReverse64(&r, (U64)val) ? (unsigned)(r >> 3) : 0;
 #           endif
 #       elif defined(__GNUC__) && (__GNUC__ >= 4)
             return (__builtin_clzll(val) >> 3);

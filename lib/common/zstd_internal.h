@@ -290,7 +290,7 @@ void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length, ZSTD_overlap_e 
         }
         while (op < oend);
 #else
-        memcpy(op, ip, 16);
+        ZSTD_copy16(op, ip);
         if (16 >= length) return;
         op += 16;
         ip += 16;

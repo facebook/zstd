@@ -15,7 +15,7 @@ IN_FILES="zstd.c examples/roundtrip.c"
 # Emscripten build using emcc.
 emscripten_emcc_build() {
   # Compile the the same example as above
-  CC_FLAGS="-Wall -Wextra -Werror -Os -g0 -flto"
+  CC_FLAGS="-Wall -Wextra -Wshadow -Werror -Os -g0 -flto"
   emcc $CC_FLAGS -s WASM=1 -I. -o $OUT_WASM $IN_FILES
   # Did compilation work?
   if [ $? -ne 0 ]; then
@@ -72,7 +72,7 @@ echo "Single file library creation script: PASSED"
 cp "$ZSTD_SRC_ROOT/zstd.h" zstd.h
 
 # Compile the generated output
-cc -Wall -Wextra -Werror -pthread -I. -Os -g0 -o $OUT_FILE zstd.c examples/roundtrip.c
+cc -Wall -Wextra -Werror -Wshadow -pthread -I. -Os -g0 -o $OUT_FILE zstd.c examples/roundtrip.c
 # Did compilation work?
 if [ $? -ne 0 ]; then
   echo "Compiling roundtrip.c: FAILED"

@@ -63,13 +63,13 @@ static int g_displayLevel = 2;
 #define DISPLAYLEVEL(l, ...) LOCALDISPLAYLEVEL(g_displayLevel, l, __VA_ARGS__)
 
 #ifndef LOCALDISPLAYUPDATE
-static const clock_t refreshRate = CLOCKS_PER_SEC * 15 / 100;
+static const clock_t g_refreshRate = CLOCKS_PER_SEC * 15 / 100;
 static clock_t g_time = 0;
 #endif
 #undef  LOCALDISPLAYUPDATE
 #define LOCALDISPLAYUPDATE(displayLevel, l, ...)                               \
   if (displayLevel >= l) {                                                     \
-    if ((clock() - g_time > refreshRate) || (displayLevel >= 4)) {             \
+    if ((clock() - g_time > g_refreshRate) || (displayLevel >= 4)) {             \
       g_time = clock();                                                        \
       DISPLAY(__VA_ARGS__);                                                    \
     }                                                                          \

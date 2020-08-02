@@ -60,9 +60,9 @@ typedef enum { trustInput, checkMaxSymbolValue } HIST_checkInput_e;
  * this design makes better use of OoO cpus,
  * and is noticeably faster when some values are heavily repeated.
  * But it needs some additional workspace for intermediate tables.
- * `workSpace` size must be a table of size >= HIST_WKSP_SIZE_U32.
+ * `workSpace` must be a U32 table of size >= HIST_WKSP_SIZE_U32.
  * @return : largest histogram frequency,
- *           or an error code (notably when histogram would be larger than *maxSymbolValuePtr). */
+ *           or an error code (notably when histogram's alphabet is larger than *maxSymbolValuePtr) */
 static size_t HIST_count_parallel_wksp(
                                 unsigned* count, unsigned* maxSymbolValuePtr,
                                 const void* source, size_t sourceSize,
@@ -71,22 +71,21 @@ static size_t HIST_count_parallel_wksp(
 {
     const BYTE* ip = (const BYTE*)source;
     const BYTE* const iend = ip+sourceSize;
-    unsigned maxSymbolValue = *maxSymbolValuePtr;
+    size_t const countSize = (*maxSymbolValuePtr + 1) * sizeof(*count);
     unsigned max=0;
     U32* const Counting1 = workSpace;
     U32* const Counting2 = Counting1 + 256;
     U32* const Counting3 = Counting2 + 256;
     U32* const Counting4 = Counting3 + 256;
 
-    memset(workSpace, 0, 4*256*sizeof(unsigned));
-
     /* safety checks */
+    assert(*maxSymbolValuePtr <= 255);
     if (!sourceSize) {
-        memset(count, 0, maxSymbolValue + 1);
+        memset(count, 0, countSize);
         *maxSymbolValuePtr = 0;
         return 0;
     }
-    if (!maxSymbolValue) maxSymbolValue = 255;            /* 0 == default */
+    memset(workSpace, 0, 4*256*sizeof(unsigned));
 
     /* by stripes of 16 bytes */
     {   U32 cached = MEM_read32(ip); ip += 4;
@@ -118,21 +117,18 @@ static size_t HIST_count_parallel_wksp(
     /* finish last symbols */
     while (ip<iend) Counting1[*ip++]++;
 
-    if (check) {   /* verify stats will fit into destination table */
-        U32 s; for (s=255; s>maxSymbolValue; s--) {
-            Counting1[s] += Counting2[s] + Counting3[s] + Counting4[s];
-            if (Counting1[s]) return ERROR(maxSymbolValue_tooSmall);
-    }   }
-
     {   U32 s;
-        if (maxSymbolValue > 255) maxSymbolValue = 255;
-        for (s=0; s<=maxSymbolValue; s++) {
-            count[s] = Counting1[s] + Counting2[s] + Counting3[s] + Counting4[s];
-            if (count[s] > max) max = count[s];
+        for (s=0; s<256; s++) {
+            Counting1[s] += Counting2[s] + Counting3[s] + Counting4[s];
+            if (Counting1[s] > max) max = Counting1[s];
     }   }
 
-    while (!count[maxSymbolValue]) maxSymbolValue--;
-    *maxSymbolValuePtr = maxSymbolValue;
+    {   unsigned maxSymbolValue = 255;
+        while (!Counting1[maxSymbolValue]) maxSymbolValue--;
+        if (check && maxSymbolValue > *maxSymbolValuePtr) return ERROR(maxSymbolValue_tooSmall);
+        *maxSymbolValuePtr = maxSymbolValue;
+        memmove(count, Counting1, countSize);   /* in case count & Counting1 are overlapping */
+    }
     return (size_t)max;
 }
 

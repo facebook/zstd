@@ -396,8 +396,12 @@ MEM_STATIC U32 ZSTD_highbit32(U32 val)   /* compress, dictBuilder, decodeCorpus 
     assert(val != 0);
     {
 #   if defined(_MSC_VER)   /* Visual */
-        unsigned long r=0;
-        return _BitScanReverse(&r, val) ? (unsigned)r : 0;
+#       if STATIC_BMI2 == 1
+            return _lzcnt_u32(val)^31;
+#       else
+            unsigned long r=0;
+            return _BitScanReverse(&r, val) ? (unsigned)r : 0;
+#       endif
 #   elif defined(__GNUC__) && (__GNUC__ >= 3)   /* GCC Intrinsic */
         return __builtin_clz (val) ^ 31;
 #   elif defined(__ICCARM__)    /* IAR Intrinsic */

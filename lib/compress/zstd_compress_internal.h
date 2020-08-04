@@ -498,8 +498,12 @@ static unsigned ZSTD_NbCommonBytes (size_t val)
     if (MEM_isLittleEndian()) {
         if (MEM_64bits()) {
 #       if defined(_MSC_VER) && defined(_WIN64)
-            unsigned long r = 0;
-            return _BitScanForward64( &r, (U64)val ) ? (unsigned)(r >> 3) : 0;
+#           if STATIC_BMI2
+                return _tzcnt_u64(val) >> 3;
+#           else
+                unsigned long r = 0;
+                return _BitScanForward64( &r, (U64)val ) ? (unsigned)(r >> 3) : 0;
+#           endif
 #       elif defined(__GNUC__) && (__GNUC__ >= 4)
             return (__builtin_ctzll((U64)val) >> 3);
 #       else
@@ -530,8 +534,12 @@ static unsigned ZSTD_NbCommonBytes (size_t val)
     } else {  /* Big Endian CPU */
         if (MEM_64bits()) {
 #       if defined(_MSC_VER) && defined(_WIN64)
-            unsigned long r = 0;
-            return _BitScanReverse64( &r, val ) ? (unsigned)(r >> 3) : 0;
+#           if STATIC_BMI2
+			    return _lzcnt_u64(val) >> 3;
+#           else
+			    unsigned long r = 0;
+			    return _BitScanReverse64(&r, (U64)val) ? (unsigned)(r >> 3) : 0;
+#           endif
 #       elif defined(__GNUC__) && (__GNUC__ >= 4)
             return (__builtin_clzll(val) >> 3);
 #       else

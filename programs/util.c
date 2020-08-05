@@ -209,8 +209,8 @@ int UTIL_isSameFile(const char* fName1, const char* fName2)
 #else
     {   stat_t file1Stat;
         stat_t file2Stat;
-        return UTIL_getFileStat(fName1, &file1Stat)
-            && UTIL_getFileStat(fName2, &file2Stat)
+        return UTIL_stat(fName1, &file1Stat)
+            && UTIL_stat(fName2, &file2Stat)
             && (file1Stat.st_dev == file2Stat.st_dev)
             && (file1Stat.st_ino == file2Stat.st_ino);
     }
@@ -223,8 +223,8 @@ int UTIL_isFIFO(const char* infilename)
 /* macro guards, as defined in : https://linux.die.net/man/2/lstat */
 #if PLATFORM_POSIX_VERSION >= 200112L
     stat_t statbuf;
-    int const r = UTIL_getFileStat(infilename, &statbuf);
-    if (!r && S_ISFIFO(statbuf.st_mode)) return 1;
+    int const r = UTIL_stat(infilename, &statbuf);
+    if (r && S_ISFIFO(statbuf.st_mode)) return 1;
 #endif
     (void)infilename;
     return 0;

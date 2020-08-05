@@ -149,7 +149,7 @@ int UTIL_chmod(char const* filename, mode_t permissions)
     return chmod(filename, permissions);
 }
 
-int UTIL_setFileStat(const char *filename, stat_t *statbuf)
+int UTIL_setFileStat(const char *filename, const stat_t *statbuf)
 {
     int res = 0;
 

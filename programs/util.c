@@ -113,12 +113,7 @@ int UTIL_stat(const char* filename, stat_t* statbuf)
 int UTIL_fileExist(const char* filename)
 {
     stat_t statbuf;
-#if defined(_MSC_VER)
-    int const stat_error = _stat64(filename, &statbuf);
-#else
-    int const stat_error = stat(filename, &statbuf);
-#endif
-    return !stat_error;
+    return UTIL_stat(filename, &statbuf);
 }
 
 int UTIL_isRegularFile(const char* infilename)
@@ -129,27 +124,22 @@ int UTIL_isRegularFile(const char* infilename)
 
 int UTIL_getFileStat(const char* infilename, stat_t *statbuf)
 {
-    int r;
+    const int r = UTIL_stat(infilename, statbuf);
 #if defined(_MSC_VER)
-    r = _stat64(infilename, statbuf);
-    if (r || !(statbuf->st_mode & S_IFREG)) return 0;   /* No good... */
+    return r && (statbuf->st_mode & S_IFREG);
 #else
-    r = stat(infilename, statbuf);
-    if (r || !S_ISREG(statbuf->st_mode)) return 0;   /* No good... */
+    return r && S_ISREG(statbuf->st_mode);
 #endif
-    return 1;
 }
 
 int UTIL_getDirectoryStat(const char* infilename, stat_t *statbuf)
 {
+    const int r = UTIL_stat(infilename, statbuf);
 #if defined(_MSC_VER)
-    int const r = _stat64(infilename, statbuf);
-    if (!r && (statbuf->st_mode & _S_IFDIR)) return 1;
+    return r && (statbuf->st_mode & _S_IFDIR);
 #else
-    int const r = stat(infilename, statbuf);
-    if (!r && S_ISDIR(statbuf->st_mode)) return 1;
+    return r && S_ISDIR(statbuf->st_mode);
 #endif
-    return 0;
 }
 
 /* like chmod, but avoid changing permission of /dev/null */
@@ -254,23 +244,17 @@ int UTIL_isLink(const char* infilename)
 
 U64 UTIL_getFileSize(const char* infilename)
 {
+    stat_t statbuf;
+    if (!UTIL_stat(infilename, &statbuf)) return UTIL_FILESIZE_UNKNOWN;
     if (!UTIL_isRegularFile(infilename)) return UTIL_FILESIZE_UNKNOWN;
-    {   int r;
 #if defined(_MSC_VER)
-        struct __stat64 statbuf;
-        r = _stat64(infilename, &statbuf);
-        if (r || !(statbuf.st_mode & S_IFREG)) return UTIL_FILESIZE_UNKNOWN;
+    if (!(statbuf.st_mode & S_IFREG)) return UTIL_FILESIZE_UNKNOWN;
 #elif defined(__MINGW32__) && defined (__MSVCRT__)
-        struct _stati64 statbuf;
-        r = _stati64(infilename, &statbuf);
-        if (r || !(statbuf.st_mode & S_IFREG)) return UTIL_FILESIZE_UNKNOWN;
+    if (!(statbuf.st_mode & S_IFREG)) return UTIL_FILESIZE_UNKNOWN;
 #else
-        struct stat statbuf;
-        r = stat(infilename, &statbuf);
-        if (r || !S_ISREG(statbuf.st_mode)) return UTIL_FILESIZE_UNKNOWN;
+    if (!S_ISREG(statbuf.st_mode)) return UTIL_FILESIZE_UNKNOWN;
 #endif
-        return (U64)statbuf.st_size;
-    }
+    return (U64)statbuf.st_size;
 }
 
 

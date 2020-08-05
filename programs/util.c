@@ -99,6 +99,17 @@ int g_utilDisplayLevel;
 *  Functions
 ***************************************/
 
+int UTIL_stat(const char* filename, stat_t* statbuf)
+{
+#if defined(_MSC_VER)
+    return !_stat64(filename, statbuf);
+#elif defined(__MINGW32__) && defined (__MSVCRT__)
+    return !_stati64(filename, statbuf);
+#else
+    return !stat(filename, statbuf);
+#endif
+}
+
 int UTIL_fileExist(const char* filename)
 {
     stat_t statbuf;

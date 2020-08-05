@@ -100,6 +100,8 @@ extern int g_utilDisplayLevel;
 #if defined(_MSC_VER)
     typedef struct __stat64 stat_t;
     typedef int mode_t;
+#elif defined(__MINGW32__) && defined (__MSVCRT__)
+    typedef struct _stati64 stat_t;
 #else
     typedef struct stat stat_t;
 #endif
@@ -113,6 +115,11 @@ extern int g_utilDisplayLevel;
 #define STRDUP(s) strdup(s)
 #endif
 
+/**
+ * Calls platform's equivalent of stat() on filename and writes info to statbuf.
+ * Returns success (1) or failure (0).
+ */
+int UTIL_stat(const char* filename, stat_t* statbuf);
 int UTIL_fileExist(const char* filename);
 int UTIL_isRegularFile(const char* infilename);
 int UTIL_isDirectory(const char* infilename);

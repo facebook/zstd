@@ -140,7 +140,12 @@ U64 UTIL_getFileSize(const char* infilename);
 U64 UTIL_getFileSizeStat(const stat_t* statbuf);
 U64 UTIL_getTotalFileSize(const char* const * fileNamesTable, unsigned nbFiles);
 int UTIL_setFileStat(const char* filename, const stat_t* statbuf);
-int UTIL_chmod(char const* filename, mode_t permissions);   /*< like chmod, but avoid changing permission of /dev/null */
+/**
+ * Like chmod, but only modifies regular files. Provided statbuf may be NULL,
+ * in which case this function will stat() the file internally, in order to
+ * check that it should be modified.
+ */
+int UTIL_chmod(char const* filename, const stat_t* statbuf, mode_t permissions);
 int UTIL_compareStr(const void *p1, const void *p2);
 const char* UTIL_getFileExtension(const char* infilename);
 void  UTIL_mirrorSourceFilesDirectories(const char** fileNamesTable, unsigned int nbFiles, const char *outDirName);

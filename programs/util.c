@@ -142,9 +142,14 @@ int UTIL_statDir(const char* infilename, stat_t *statbuf)
 }
 
 /* like chmod, but avoid changing permission of /dev/null */
-int UTIL_chmod(char const* filename, mode_t permissions)
+int UTIL_chmod(char const* filename, const stat_t* statbuf, mode_t permissions)
 {
-    if (!strcmp(filename, "/dev/null")) return 0;   /* pretend success, but don't change anything */
+    stat_t localStatBuf;
+    if (statbuf == NULL) {
+        if (!UTIL_stat(filename, &localStatBuf)) return 0;
+        statbuf = &localStatBuf;
+    }
+    if (!UTIL_isRegularFileStat(statbuf)) return 0; /* pretend success, but don't change anything */
     return chmod(filename, permissions);
 }
 
@@ -180,7 +185,7 @@ int UTIL_setFileStat(const char *filename, const stat_t *statbuf)
     res += chown(filename, statbuf->st_uid, statbuf->st_gid);  /* Copy ownership */
 #endif
 
-    res += UTIL_chmod(filename, statbuf->st_mode & 07777);  /* Copy file permissions */
+    res += UTIL_chmod(filename, NULL, statbuf->st_mode & 07777);  /* Copy file permissions */
 
     errno = 0;
     return -res; /* number of errors is returned */

@@ -519,6 +519,7 @@ static int FIO_remove(const char* path)
  * @result : FILE* to `srcFileName`, or NULL if it fails */
 static FILE* FIO_openSrcFile(const char* srcFileName)
 {
+    stat_t statbuf;
     assert(srcFileName != NULL);
     if (!strcmp (srcFileName, stdinmark)) {
         DISPLAYLEVEL(4,"Using stdin for input \n");
@@ -526,14 +527,14 @@ static FILE* FIO_openSrcFile(const char* srcFileName)
         return stdin;
     }
 
-    if (!UTIL_fileExist(srcFileName)) {
+    if (!UTIL_stat(srcFileName, &statbuf)) {
         DISPLAYLEVEL(1, "zstd: can't stat %s : %s -- ignored \n",
                         srcFileName, strerror(errno));
         return NULL;
     }
 
-    if (!UTIL_isRegularFile(srcFileName)
-     && !UTIL_isFIFO(srcFileName)
+    if (!UTIL_isRegularFileStat(&statbuf)
+     && !UTIL_isFIFOStat(&statbuf)
     ) {
         DISPLAYLEVEL(1, "zstd: %s is not a regular file -- ignored \n",
                         srcFileName);

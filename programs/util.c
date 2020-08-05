@@ -354,11 +354,12 @@ UTIL_createFileNamesTable_fromFileName(const char* inputFileName)
     char* buf;
     size_t bufSize;
     size_t pos = 0;
+    stat_t statbuf;
 
-    if (!UTIL_fileExist(inputFileName) || !UTIL_isRegularFile(inputFileName))
+    if (!UTIL_stat(inputFileName, &statbuf) || !UTIL_isRegularFileStat(&statbuf))
         return NULL;
 
-    {   U64 const inputFileSize = UTIL_getFileSize(inputFileName);
+    {   U64 const inputFileSize = UTIL_getFileSizeStat(&statbuf);
         if(inputFileSize > MAX_FILE_OF_FILE_NAMES_SIZE)
             return NULL;
         bufSize = (size_t)(inputFileSize + 1); /* (+1) to add '\0' at the end of last filename */

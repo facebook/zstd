@@ -122,24 +122,23 @@ int UTIL_isRegularFile(const char* infilename)
     return UTIL_statFile(infilename, &statbuf); /* Only need to know whether it is a regular file */
 }
 
+int UTIL_isRegularFileStat(const stat_t* statbuf)
+{
+#if defined(_MSC_VER)
+    return (statbuf->st_mode & S_IFREG) != 0;
+#else
+    return S_ISREG(statbuf->st_mode) != 0;
+#endif
+}
+
 int UTIL_statFile(const char* infilename, stat_t *statbuf)
 {
-    const int r = UTIL_stat(infilename, statbuf);
-#if defined(_MSC_VER)
-    return r && (statbuf->st_mode & S_IFREG);
-#else
-    return r && S_ISREG(statbuf->st_mode);
-#endif
+    return UTIL_stat(infilename, statbuf) && UTIL_isRegularFileStat(statbuf);
 }
 
 int UTIL_statDir(const char* infilename, stat_t *statbuf)
 {
-    const int r = UTIL_stat(infilename, statbuf);
-#if defined(_MSC_VER)
-    return r && (statbuf->st_mode & _S_IFDIR);
-#else
-    return r && S_ISDIR(statbuf->st_mode);
-#endif
+    return UTIL_stat(infilename, statbuf) && UTIL_isDirectoryStat(statbuf);
 }
 
 /* like chmod, but avoid changing permission of /dev/null */
@@ -193,6 +192,15 @@ int UTIL_isDirectory(const char* infilename)
     return UTIL_statDir(infilename, &statbuf);
 }
 
+int UTIL_isDirectoryStat(const stat_t* statbuf)
+{
+#if defined(_MSC_VER)
+    return (statbuf->st_mode & _S_IFDIR) != 0;
+#else
+    return S_ISDIR(statbuf->st_mode) != 0;
+#endif
+}
+
 int UTIL_compareStr(const void *p1, const void *p2) {
     return strcmp(* (char * const *) p1, * (char * const *) p2);
 }
@@ -223,10 +231,20 @@ int UTIL_isFIFO(const char* infilename)
 /* macro guards, as defined in : https://linux.die.net/man/2/lstat */
 #if PLATFORM_POSIX_VERSION >= 200112L
     stat_t statbuf;
-    int const r = UTIL_stat(infilename, &statbuf);
-    if (r && S_ISFIFO(statbuf.st_mode)) return 1;
+    if (UTIL_stat(infilename, &statbuf) && UTIL_isFIFOStat(&statbuf)) return 1;
 #endif
     (void)infilename;
+    return 0;
+}
+
+/* UTIL_isFIFO : distinguish named pipes */
+int UTIL_isFIFOStat(const stat_t* statbuf)
+{
+/* macro guards, as defined in : https://linux.die.net/man/2/lstat */
+#if PLATFORM_POSIX_VERSION >= 200112L
+    if (S_ISFIFO(statbuf->st_mode)) return 1;
+#endif
+    (void)statbuf;
     return 0;
 }
 
@@ -246,15 +264,20 @@ U64 UTIL_getFileSize(const char* infilename)
 {
     stat_t statbuf;
     if (!UTIL_stat(infilename, &statbuf)) return UTIL_FILESIZE_UNKNOWN;
-    if (!UTIL_isRegularFile(infilename)) return UTIL_FILESIZE_UNKNOWN;
+    return UTIL_getFileSizeStat(&statbuf);
+}
+
+U64 UTIL_getFileSizeStat(const stat_t* statbuf)
+{
+    if (!UTIL_isRegularFileStat(statbuf)) return UTIL_FILESIZE_UNKNOWN;
 #if defined(_MSC_VER)
-    if (!(statbuf.st_mode & S_IFREG)) return UTIL_FILESIZE_UNKNOWN;
+    if (!(statbuf->st_mode & S_IFREG)) return UTIL_FILESIZE_UNKNOWN;
 #elif defined(__MINGW32__) && defined (__MSVCRT__)
-    if (!(statbuf.st_mode & S_IFREG)) return UTIL_FILESIZE_UNKNOWN;
+    if (!(statbuf->st_mode & S_IFREG)) return UTIL_FILESIZE_UNKNOWN;
 #else
-    if (!S_ISREG(statbuf.st_mode)) return UTIL_FILESIZE_UNKNOWN;
+    if (!S_ISREG(statbuf->st_mode)) return UTIL_FILESIZE_UNKNOWN;
 #endif
-    return (U64)statbuf.st_size;
+    return (U64)statbuf->st_size;
 }
 
 

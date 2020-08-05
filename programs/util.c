@@ -119,10 +119,10 @@ int UTIL_fileExist(const char* filename)
 int UTIL_isRegularFile(const char* infilename)
 {
     stat_t statbuf;
-    return UTIL_getFileStat(infilename, &statbuf); /* Only need to know whether it is a regular file */
+    return UTIL_statFile(infilename, &statbuf); /* Only need to know whether it is a regular file */
 }
 
-int UTIL_getFileStat(const char* infilename, stat_t *statbuf)
+int UTIL_statFile(const char* infilename, stat_t *statbuf)
 {
     const int r = UTIL_stat(infilename, statbuf);
 #if defined(_MSC_VER)
@@ -132,7 +132,7 @@ int UTIL_getFileStat(const char* infilename, stat_t *statbuf)
 #endif
 }
 
-int UTIL_getDirectoryStat(const char* infilename, stat_t *statbuf)
+int UTIL_statDir(const char* infilename, stat_t *statbuf)
 {
     const int r = UTIL_stat(infilename, statbuf);
 #if defined(_MSC_VER)
@@ -190,7 +190,7 @@ int UTIL_setFileStat(const char *filename, const stat_t *statbuf)
 int UTIL_isDirectory(const char* infilename)
 {
     stat_t statbuf;
-    return UTIL_getDirectoryStat(infilename, &statbuf);
+    return UTIL_statDir(infilename, &statbuf);
 }
 
 int UTIL_compareStr(const void *p1, const void *p2) {
@@ -647,7 +647,7 @@ static int isFileNameValidForMirroredOutput(const char *filename)
 static mode_t getDirMode(const char *dirName)
 {
     stat_t st;
-    int ret = UTIL_getDirectoryStat(dirName, &st);
+    int ret = UTIL_statDir(dirName, &st);
     if (!ret) {
         UTIL_DISPLAY("zstd: failed to get DIR stats %s: %s\n", dirName, strerror(errno));
         return DIR_DEFAULT_MODE;

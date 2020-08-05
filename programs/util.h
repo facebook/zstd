@@ -120,18 +120,24 @@ extern int g_utilDisplayLevel;
  * Returns success (1) or failure (0).
  */
 int UTIL_stat(const char* filename, stat_t* statbuf);
-int UTIL_statFile(const char* infilename, stat_t* statbuf); /* also check it's a file */
-int UTIL_statDir(const char* infilename, stat_t* statbuf); /* also check it's a directory */
+/** Also checks that the target is a regular file. */
+int UTIL_statFile(const char* infilename, stat_t* statbuf);
+/** Also checks that the target is a directory. */
+int UTIL_statDir(const char* infilename, stat_t* statbuf);
 int UTIL_fileExist(const char* filename);
 int UTIL_isRegularFile(const char* infilename);
+int UTIL_isRegularFileStat(const stat_t* statbuf); /* same but takes existing statbuf */
 int UTIL_isDirectory(const char* infilename);
+int UTIL_isDirectoryStat(const stat_t* statbuf); /* same but takes existing statbuf */
 int UTIL_isSameFile(const char* file1, const char* file2);
 int UTIL_isCompressedFile(const char* infilename, const char *extensionList[]);
 int UTIL_isLink(const char* infilename);
 int UTIL_isFIFO(const char* infilename);
+int UTIL_isFIFOStat(const stat_t* statbuf); /* same but takes existing statbuf */
 
 #define UTIL_FILESIZE_UNKNOWN  ((U64)(-1))
 U64 UTIL_getFileSize(const char* infilename);
+U64 UTIL_getFileSizeStat(const stat_t* statbuf);
 U64 UTIL_getTotalFileSize(const char* const * fileNamesTable, unsigned nbFiles);
 int UTIL_setFileStat(const char* filename, const stat_t* statbuf);
 int UTIL_chmod(char const* filename, mode_t permissions);   /*< like chmod, but avoid changing permission of /dev/null */

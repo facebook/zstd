@@ -157,7 +157,8 @@ int UTIL_setFileStat(const char *filename, const stat_t *statbuf)
 {
     int res = 0;
 
-    if (!UTIL_isRegularFile(filename))
+    stat_t curStatBuf;
+    if (!UTIL_stat(filename, &curStatBuf) || !UTIL_isRegularFileStat(&curStatBuf))
         return -1;
 
     /* set access and modification times */
@@ -185,7 +186,7 @@ int UTIL_setFileStat(const char *filename, const stat_t *statbuf)
     res += chown(filename, statbuf->st_uid, statbuf->st_gid);  /* Copy ownership */
 #endif
 
-    res += UTIL_chmod(filename, NULL, statbuf->st_mode & 07777);  /* Copy file permissions */
+    res += UTIL_chmod(filename, &curStatBuf, statbuf->st_mode & 07777);  /* Copy file permissions */
 
     errno = 0;
     return -res; /* number of errors is returned */

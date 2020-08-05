@@ -502,14 +502,21 @@ void FIO_setContentSize(FIO_prefs_t* const prefs, int value)
  * @result : Unlink `fileName`, even if it's read-only */
 static int FIO_remove(const char* path)
 {
-    if (!UTIL_isRegularFile(path)) {
-        DISPLAYLEVEL(2, "zstd: Refusing to remove non-regular file %s \n", path);
+    stat_t statbuf;
+    if (!UTIL_stat(path, &statbuf)) {
+        DISPLAYLEVEL(2, "zstd: Failed to stat %s while trying to remove it\n", path);
+        return 0;
+    }
+    if (!UTIL_isRegularFileStat(&statbuf)) {
+        DISPLAYLEVEL(2, "zstd: Refusing to remove non-regular file %s\n", path);
         return 0;
     }
 #if defined(_WIN32) || defined(WIN32)
     /* windows doesn't allow remove read-only files,
      * so try to make it writable first */
-    UTIL_chmod(path, NULL, _S_IWRITE);
+    if (!(statbuf.mode & _S_IWRITE)) {
+        UTIL_chmod(path, &statbuf, _S_IWRITE);
+    }
 #endif
     return remove(path);
 }

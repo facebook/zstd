@@ -120,6 +120,8 @@ extern int g_utilDisplayLevel;
  * Returns success (1) or failure (0).
  */
 int UTIL_stat(const char* filename, stat_t* statbuf);
+int UTIL_statFile(const char* infilename, stat_t* statbuf); /* also check it's a file */
+int UTIL_statDir(const char* infilename, stat_t* statbuf); /* also check it's a directory */
 int UTIL_fileExist(const char* filename);
 int UTIL_isRegularFile(const char* infilename);
 int UTIL_isDirectory(const char* infilename);
@@ -131,9 +133,7 @@ int UTIL_isFIFO(const char* infilename);
 #define UTIL_FILESIZE_UNKNOWN  ((U64)(-1))
 U64 UTIL_getFileSize(const char* infilename);
 U64 UTIL_getTotalFileSize(const char* const * fileNamesTable, unsigned nbFiles);
-int UTIL_getFileStat(const char* infilename, stat_t* statbuf);
 int UTIL_setFileStat(const char* filename, const stat_t* statbuf);
-int UTIL_getDirectoryStat(const char* infilename, stat_t* statbuf);
 int UTIL_chmod(char const* filename, mode_t permissions);   /*< like chmod, but avoid changing permission of /dev/null */
 int UTIL_compareStr(const void *p1, const void *p2);
 const char* UTIL_getFileExtension(const char* infilename);

@@ -78,7 +78,8 @@ int ZSTD_pthread_join(ZSTD_pthread_t thread, void **value_ptr)
 
 #if defined(ZSTD_MULTITHREAD) && DEBUGLEVEL >= 1 && !defined(_WIN32)
 
-#include <stdlib.h>
+#define ZSTD_DEPS_NEED_MALLOC
+#include "zstd_deps.h"
 
 int ZSTD_pthread_mutex_init(ZSTD_pthread_mutex_t* mutex, pthread_mutexattr_t const* attr)
 {

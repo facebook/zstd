@@ -11,8 +11,7 @@
 /*-*************************************
 *  Dependencies
 ***************************************/
-#include <limits.h>         /* INT_MAX */
-#include <string.h>         /* memset */
+#include "../common/zstd_deps.h"  /* INT_MAX, memset, memcpy */
 #include "../common/cpu.h"
 #include "../common/mem.h"
 #include "hist.h"           /* HIST_countFast_wksp */

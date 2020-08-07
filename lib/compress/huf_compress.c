@@ -23,8 +23,7 @@
 /* **************************************************************
 *  Includes
 ****************************************************************/
-#include <string.h>     /* memcpy, memset */
-#include <stdio.h>      /* printf (debug) */
+#include "../common/zstd_deps.h"     /* memcpy, memset */
 #include "../common/compiler.h"
 #include "../common/bitstream.h"
 #include "hist.h"

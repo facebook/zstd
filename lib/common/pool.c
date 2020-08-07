@@ -10,7 +10,7 @@
 
 
 /* ======   Dependencies   ======= */
-#include <stddef.h>    /* size_t */
+#include "zstd_deps.h" /* size_t */
 #include "debug.h"     /* assert */
 #include "zstd_internal.h"  /* ZSTD_malloc, ZSTD_free */
 #include "pool.h"

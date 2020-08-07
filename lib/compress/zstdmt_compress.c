@@ -20,8 +20,7 @@
 
 
 /* ======   Dependencies   ====== */
-#include <string.h>      /* memcpy, memset */
-#include <limits.h>      /* INT_MAX, UINT_MAX */
+#include "../common/zstd_deps.h"   /* memcpy, memset, INT_MAX, UINT_MAX */
 #include "../common/mem.h"         /* MEM_STATIC */
 #include "../common/pool.h"        /* threadpool */
 #include "../common/threading.h"   /* mutex */

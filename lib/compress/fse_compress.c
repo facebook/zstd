@@ -15,8 +15,6 @@
 /* **************************************************************
 *  Includes
 ****************************************************************/
-#include <stdlib.h>     /* malloc, free, qsort */
-#include <string.h>     /* memcpy, memset */
 #include "../common/compiler.h"
 #include "../common/mem.h"        /* U32, U16, etc. */
 #include "../common/debug.h"      /* assert, DEBUGLOG */
@@ -25,6 +23,8 @@
 #define FSE_STATIC_LINKING_ONLY
 #include "../common/fse.h"
 #include "../common/error_private.h"
+#define ZSTD_DEPS_NEED_MALLOC
+#include "../common/zstd_deps.h"  /* malloc, free, memcpy, memset */
 
 
 /* **************************************************************

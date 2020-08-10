@@ -113,7 +113,7 @@ int UTIL_stat(const char* filename, stat_t* statbuf)
 int UTIL_isRegularFile(const char* infilename)
 {
     stat_t statbuf;
-    return UTIL_statFile(infilename, &statbuf); /* Only need to know whether it is a regular file */
+    return UTIL_stat(infilename, &statbuf) && UTIL_isRegularFileStat(&statbuf);
 }
 
 int UTIL_isRegularFileStat(const stat_t* statbuf)
@@ -123,16 +123,6 @@ int UTIL_isRegularFileStat(const stat_t* statbuf)
 #else
     return S_ISREG(statbuf->st_mode) != 0;
 #endif
-}
-
-int UTIL_statFile(const char* infilename, stat_t *statbuf)
-{
-    return UTIL_stat(infilename, statbuf) && UTIL_isRegularFileStat(statbuf);
-}
-
-int UTIL_statDir(const char* infilename, stat_t *statbuf)
-{
-    return UTIL_stat(infilename, statbuf) && UTIL_isDirectoryStat(statbuf);
 }
 
 /* like chmod, but avoid changing permission of /dev/null */
@@ -189,7 +179,7 @@ int UTIL_setFileStat(const char *filename, const stat_t *statbuf)
 int UTIL_isDirectory(const char* infilename)
 {
     stat_t statbuf;
-    return UTIL_statDir(infilename, &statbuf);
+    return UTIL_stat(infilename, &statbuf) && UTIL_isDirectoryStat(&statbuf);
 }
 
 int UTIL_isDirectoryStat(const stat_t* statbuf)
@@ -671,9 +661,12 @@ static int isFileNameValidForMirroredOutput(const char *filename)
 static mode_t getDirMode(const char *dirName)
 {
     stat_t st;
-    int ret = UTIL_statDir(dirName, &st);
-    if (!ret) {
+    if (!UTIL_stat(dirName, &st)) {
         UTIL_DISPLAY("zstd: failed to get DIR stats %s: %s\n", dirName, strerror(errno));
+        return DIR_DEFAULT_MODE;
+    }
+    if (!UTIL_isDirectoryStat(&st)) {
+        UTIL_DISPLAY("zstd: expected directory: %s\n", dirName);
         return DIR_DEFAULT_MODE;
     }
     return st.st_mode;

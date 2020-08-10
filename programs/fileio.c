@@ -1486,7 +1486,8 @@ static int FIO_compressFilename_dstFile(FIO_prefs_t* const prefs,
         addHandler(dstFileName);
 
         if ( strcmp (srcFileName, stdinmark)
-          && UTIL_statFile(srcFileName, &statbuf))
+          && UTIL_stat(srcFileName, &statbuf)
+          && UTIL_isRegularFileStat(&statbuf) )
             transfer_permissions = 1;
     }
 
@@ -2352,7 +2353,8 @@ static int FIO_decompressDstFile(FIO_prefs_t* const prefs,
         addHandler(dstFileName);
 
         if ( strcmp(srcFileName, stdinmark)   /* special case : don't transfer permissions from stdin */
-          && UTIL_statFile(srcFileName, &statbuf) )
+          && UTIL_stat(srcFileName, &statbuf)
+          && UTIL_isRegularFileStat(&statbuf) )
             transfer_permissions = 1;
     }
 

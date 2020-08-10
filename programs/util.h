@@ -120,10 +120,6 @@ extern int g_utilDisplayLevel;
  * Returns success (1) or failure (0).
  */
 int UTIL_stat(const char* filename, stat_t* statbuf);
-/** Also checks that the target is a regular file. */
-int UTIL_statFile(const char* infilename, stat_t* statbuf);
-/** Also checks that the target is a directory. */
-int UTIL_statDir(const char* infilename, stat_t* statbuf);
 
 /**
  * Instead of getting a file's stats, this updates them with the info in the

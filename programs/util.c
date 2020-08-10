@@ -110,12 +110,6 @@ int UTIL_stat(const char* filename, stat_t* statbuf)
 #endif
 }
 
-int UTIL_fileExist(const char* filename)
-{
-    stat_t statbuf;
-    return UTIL_stat(filename, &statbuf);
-}
-
 int UTIL_isRegularFile(const char* infilename)
 {
     stat_t statbuf;

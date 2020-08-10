@@ -82,7 +82,7 @@ ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem)
     ZSTD_STATIC_ASSERT(zcss_init==0);
     ZSTD_STATIC_ASSERT(ZSTD_CONTENTSIZE_UNKNOWN==(0ULL - 1));
     if (!customMem.customAlloc ^ !customMem.customFree) return NULL;
-    {   ZSTD_CCtx* const cctx = (ZSTD_CCtx*)ZSTD_malloc(sizeof(ZSTD_CCtx), customMem);
+    {   ZSTD_CCtx* const cctx = (ZSTD_CCtx*)ZSTD_customMalloc(sizeof(ZSTD_CCtx), customMem);
         if (!cctx) return NULL;
         ZSTD_initCCtx(cctx, customMem);
         return cctx;
@@ -118,7 +118,7 @@ ZSTD_CCtx* ZSTD_initStaticCCtx(void* workspace, size_t workspaceSize)
  */
 static void ZSTD_clearAllDicts(ZSTD_CCtx* cctx)
 {
-    ZSTD_free(cctx->localDict.dictBuffer, cctx->customMem);
+    ZSTD_customFree(cctx->localDict.dictBuffer, cctx->customMem);
     ZSTD_freeCDict(cctx->localDict.cdict);
     memset(&cctx->localDict, 0, sizeof(cctx->localDict));
     memset(&cctx->prefixDict, 0, sizeof(cctx->prefixDict));
@@ -152,7 +152,7 @@ size_t ZSTD_freeCCtx(ZSTD_CCtx* cctx)
         int cctxInWorkspace = ZSTD_cwksp_owns_buffer(&cctx->workspace, cctx);
         ZSTD_freeCCtxContent(cctx);
         if (!cctxInWorkspace) {
-            ZSTD_free(cctx, cctx->customMem);
+            ZSTD_customFree(cctx, cctx->customMem);
         }
     }
     return 0;
@@ -205,7 +205,7 @@ static ZSTD_CCtx_params* ZSTD_createCCtxParams_advanced(
 {
     ZSTD_CCtx_params* params;
     if (!customMem.customAlloc ^ !customMem.customFree) return NULL;
-    params = (ZSTD_CCtx_params*)ZSTD_calloc(
+    params = (ZSTD_CCtx_params*)ZSTD_customCalloc(
             sizeof(ZSTD_CCtx_params), customMem);
     if (!params) { return NULL; }
     params->customMem = customMem;
@@ -222,7 +222,7 @@ ZSTD_CCtx_params* ZSTD_createCCtxParams(void)
 size_t ZSTD_freeCCtxParams(ZSTD_CCtx_params* params)
 {
     if (params == NULL) { return 0; }
-    ZSTD_free(params, params->customMem);
+    ZSTD_customFree(params, params->customMem);
     return 0;
 }
 
@@ -902,7 +902,7 @@ size_t ZSTD_CCtx_loadDictionary_advanced(
     if (dictLoadMethod == ZSTD_dlm_byRef) {
         cctx->localDict.dict = dict;
     } else {
-        void* dictBuffer = ZSTD_malloc(dictSize, cctx->customMem);
+        void* dictBuffer = ZSTD_customMalloc(dictSize, cctx->customMem);
         RETURN_ERROR_IF(!dictBuffer, memory_allocation, "NULL pointer!");
         memcpy(dictBuffer, dict, dictSize);
         cctx->localDict.dictBuffer = dictBuffer;
@@ -2369,7 +2369,7 @@ size_t ZSTD_getSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
     size_t outSeqsSize, const void* src, size_t srcSize)
 {
     const size_t dstCapacity = ZSTD_compressBound(srcSize);
-    void* dst = ZSTD_malloc(dstCapacity, ZSTD_defaultCMem);
+    void* dst = ZSTD_customMalloc(dstCapacity, ZSTD_defaultCMem);
     SeqCollector seqCollector;
 
     RETURN_ERROR_IF(dst == NULL, memory_allocation, "NULL pointer!");
@@ -2381,7 +2381,7 @@ size_t ZSTD_getSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
     zc->seqCollector = seqCollector;
 
     ZSTD_compress2(zc, dst, dstCapacity, src, srcSize);
-    ZSTD_free(dst, ZSTD_defaultCMem);
+    ZSTD_customFree(dst, ZSTD_defaultCMem);
     return zc->seqCollector.seqIndex;
 }
 
@@ -3420,12 +3420,12 @@ ZSTD_CDict* ZSTD_createCDict_advanced(const void* dictBuffer, size_t dictSize,
             ZSTD_sizeof_matchState(&cParams, /* forCCtx */ 0) +
             (dictLoadMethod == ZSTD_dlm_byRef ? 0
              : ZSTD_cwksp_alloc_size(ZSTD_cwksp_align(dictSize, sizeof(void*))));
-        void* const workspace = ZSTD_malloc(workspaceSize, customMem);
+        void* const workspace = ZSTD_customMalloc(workspaceSize, customMem);
         ZSTD_cwksp ws;
         ZSTD_CDict* cdict;
 
         if (!workspace) {
-            ZSTD_free(workspace, customMem);
+            ZSTD_customFree(workspace, customMem);
             return NULL;
         }
 
@@ -3475,7 +3475,7 @@ size_t ZSTD_freeCDict(ZSTD_CDict* cdict)
         int cdictInWorkspace = ZSTD_cwksp_owns_buffer(&cdict->workspace, cdict);
         ZSTD_cwksp_free(&cdict->workspace, cMem);
         if (!cdictInWorkspace) {
-            ZSTD_free(cdict, cMem);
+            ZSTD_customFree(cdict, cMem);
         }
         return 0;
     }

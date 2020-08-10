@@ -105,11 +105,11 @@ typedef struct ZSTDMT_bufferPool_s {
 static ZSTDMT_bufferPool* ZSTDMT_createBufferPool(unsigned nbWorkers, ZSTD_customMem cMem)
 {
     unsigned const maxNbBuffers = 2*nbWorkers + 3;
-    ZSTDMT_bufferPool* const bufPool = (ZSTDMT_bufferPool*)ZSTD_calloc(
+    ZSTDMT_bufferPool* const bufPool = (ZSTDMT_bufferPool*)ZSTD_customCalloc(
         sizeof(ZSTDMT_bufferPool) + (maxNbBuffers-1) * sizeof(buffer_t), cMem);
     if (bufPool==NULL) return NULL;
     if (ZSTD_pthread_mutex_init(&bufPool->poolMutex, NULL)) {
-        ZSTD_free(bufPool, cMem);
+        ZSTD_customFree(bufPool, cMem);
         return NULL;
     }
     bufPool->bufferSize = 64 KB;
@@ -126,10 +126,10 @@ static void ZSTDMT_freeBufferPool(ZSTDMT_bufferPool* bufPool)
     if (!bufPool) return;   /* compatibility with free on NULL */
     for (u=0; u<bufPool->totalBuffers; u++) {
         DEBUGLOG(4, "free buffer %2u (address:%08X)", u, (U32)(size_t)bufPool->bTable[u].start);
-        ZSTD_free(bufPool->bTable[u].start, bufPool->cMem);
+        ZSTD_customFree(bufPool->bTable[u].start, bufPool->cMem);
     }
     ZSTD_pthread_mutex_destroy(&bufPool->poolMutex);
-    ZSTD_free(bufPool, bufPool->cMem);
+    ZSTD_customFree(bufPool, bufPool->cMem);
 }
 
 /* only works at initialization, not during compression */
@@ -200,13 +200,13 @@ static buffer_t ZSTDMT_getBuffer(ZSTDMT_bufferPool* bufPool)
         }
         /* size conditions not respected : scratch this buffer, create new one */
         DEBUGLOG(5, "ZSTDMT_getBuffer: existing buffer does not meet size conditions => freeing");
-        ZSTD_free(buf.start, bufPool->cMem);
+        ZSTD_customFree(buf.start, bufPool->cMem);
     }
     ZSTD_pthread_mutex_unlock(&bufPool->poolMutex);
     /* create new buffer */
     DEBUGLOG(5, "ZSTDMT_getBuffer: create a new buffer");
     {   buffer_t buffer;
-        void* const start = ZSTD_malloc(bSize, bufPool->cMem);
+        void* const start = ZSTD_customMalloc(bSize, bufPool->cMem);
         buffer.start = start;   /* note : start can be NULL if malloc fails ! */
         buffer.capacity = (start==NULL) ? 0 : bSize;
         if (start==NULL) {
@@ -228,7 +228,7 @@ static buffer_t ZSTDMT_resizeBuffer(ZSTDMT_bufferPool* bufPool, buffer_t buffer)
 {
     size_t const bSize = bufPool->bufferSize;
     if (buffer.capacity < bSize) {
-        void* const start = ZSTD_malloc(bSize, bufPool->cMem);
+        void* const start = ZSTD_customMalloc(bSize, bufPool->cMem);
         buffer_t newBuffer;
         newBuffer.start = start;
         newBuffer.capacity = start == NULL ? 0 : bSize;
@@ -260,7 +260,7 @@ static void ZSTDMT_releaseBuffer(ZSTDMT_bufferPool* bufPool, buffer_t buf)
     ZSTD_pthread_mutex_unlock(&bufPool->poolMutex);
     /* Reached bufferPool capacity (should not happen) */
     DEBUGLOG(5, "ZSTDMT_releaseBuffer: pool capacity reached => freeing ");
-    ZSTD_free(buf.start, bufPool->cMem);
+    ZSTD_customFree(buf.start, bufPool->cMem);
 }
 
 
@@ -353,7 +353,7 @@ static void ZSTDMT_freeCCtxPool(ZSTDMT_CCtxPool* pool)
     for (cid=0; cid<pool->totalCCtx; cid++)
         ZSTD_freeCCtx(pool->cctx[cid]);  /* note : compatible with free on NULL */
     ZSTD_pthread_mutex_destroy(&pool->poolMutex);
-    ZSTD_free(pool, pool->cMem);
+    ZSTD_customFree(pool, pool->cMem);
 }
 
 /* ZSTDMT_createCCtxPool() :
@@ -361,12 +361,12 @@ static void ZSTDMT_freeCCtxPool(ZSTDMT_CCtxPool* pool)
 static ZSTDMT_CCtxPool* ZSTDMT_createCCtxPool(int nbWorkers,
                                               ZSTD_customMem cMem)
 {
-    ZSTDMT_CCtxPool* const cctxPool = (ZSTDMT_CCtxPool*) ZSTD_calloc(
+    ZSTDMT_CCtxPool* const cctxPool = (ZSTDMT_CCtxPool*) ZSTD_customCalloc(
         sizeof(ZSTDMT_CCtxPool) + (nbWorkers-1)*sizeof(ZSTD_CCtx*), cMem);
     assert(nbWorkers > 0);
     if (!cctxPool) return NULL;
     if (ZSTD_pthread_mutex_init(&cctxPool->poolMutex, NULL)) {
-        ZSTD_free(cctxPool, cMem);
+        ZSTD_customFree(cctxPool, cMem);
         return NULL;
     }
     cctxPool->cMem = cMem;
@@ -498,12 +498,12 @@ ZSTDMT_serialState_reset(serialState_t* serialState,
         ZSTD_window_init(&serialState->ldmState.window);
         /* Resize tables and output space if necessary. */
         if (serialState->ldmState.hashTable == NULL || serialState->params.ldmParams.hashLog < hashLog) {
-            ZSTD_free(serialState->ldmState.hashTable, cMem);
-            serialState->ldmState.hashTable = (ldmEntry_t*)ZSTD_malloc(hashSize, cMem);
+            ZSTD_customFree(serialState->ldmState.hashTable, cMem);
+            serialState->ldmState.hashTable = (ldmEntry_t*)ZSTD_customMalloc(hashSize, cMem);
         }
         if (serialState->ldmState.bucketOffsets == NULL || prevBucketLog < bucketLog) {
-            ZSTD_free(serialState->ldmState.bucketOffsets, cMem);
-            serialState->ldmState.bucketOffsets = (BYTE*)ZSTD_malloc(bucketSize, cMem);
+            ZSTD_customFree(serialState->ldmState.bucketOffsets, cMem);
+            serialState->ldmState.bucketOffsets = (BYTE*)ZSTD_customMalloc(bucketSize, cMem);
         }
         if (!serialState->ldmState.hashTable || !serialState->ldmState.bucketOffsets)
             return 1;
@@ -551,8 +551,8 @@ static void ZSTDMT_serialState_free(serialState_t* serialState)
     ZSTD_pthread_cond_destroy(&serialState->cond);
     ZSTD_pthread_mutex_destroy(&serialState->ldmWindowMutex);
     ZSTD_pthread_cond_destroy(&serialState->ldmWindowCond);
-    ZSTD_free(serialState->ldmState.hashTable, cMem);
-    ZSTD_free(serialState->ldmState.bucketOffsets, cMem);
+    ZSTD_customFree(serialState->ldmState.hashTable, cMem);
+    ZSTD_customFree(serialState->ldmState.bucketOffsets, cMem);
 }
 
 static void ZSTDMT_serialState_update(serialState_t* serialState,
@@ -841,7 +841,7 @@ static void ZSTDMT_freeJobsTable(ZSTDMT_jobDescription* jobTable, U32 nbJobs, ZS
         ZSTD_pthread_mutex_destroy(&jobTable[jobNb].job_mutex);
         ZSTD_pthread_cond_destroy(&jobTable[jobNb].job_cond);
     }
-    ZSTD_free(jobTable, cMem);
+    ZSTD_customFree(jobTable, cMem);
 }
 
 /* ZSTDMT_allocJobsTable()
@@ -853,7 +853,7 @@ static ZSTDMT_jobDescription* ZSTDMT_createJobsTable(U32* nbJobsPtr, ZSTD_custom
     U32 const nbJobs = 1 << nbJobsLog2;
     U32 jobNb;
     ZSTDMT_jobDescription* const jobTable = (ZSTDMT_jobDescription*)
-                ZSTD_calloc(nbJobs * sizeof(ZSTDMT_jobDescription), cMem);
+                ZSTD_customCalloc(nbJobs * sizeof(ZSTDMT_jobDescription), cMem);
     int initError = 0;
     if (jobTable==NULL) return NULL;
     *nbJobsPtr = nbJobs;
@@ -902,7 +902,7 @@ MEM_STATIC ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced_internal(unsigned nbWorkers, 
         /* invalid custom allocator */
         return NULL;
 
-    mtctx = (ZSTDMT_CCtx*) ZSTD_calloc(sizeof(ZSTDMT_CCtx), cMem);
+    mtctx = (ZSTDMT_CCtx*) ZSTD_customCalloc(sizeof(ZSTDMT_CCtx), cMem);
     if (!mtctx) return NULL;
     ZSTDMT_CCtxParam_setNbWorkers(&mtctx->params, nbWorkers);
     mtctx->cMem = cMem;
@@ -992,8 +992,8 @@ size_t ZSTDMT_freeCCtx(ZSTDMT_CCtx* mtctx)
     ZSTDMT_serialState_free(&mtctx->serial);
     ZSTD_freeCDict(mtctx->cdictLocal);
     if (mtctx->roundBuff.buffer)
-        ZSTD_free(mtctx->roundBuff.buffer, mtctx->cMem);
-    ZSTD_free(mtctx, mtctx->cMem);
+        ZSTD_customFree(mtctx->roundBuff.buffer, mtctx->cMem);
+    ZSTD_customFree(mtctx, mtctx->cMem);
     return 0;
 }
 
@@ -1503,8 +1503,8 @@ size_t ZSTDMT_initCStream_internal(
         size_t const capacity = MAX(windowSize, sectionsSize) + slackSize;
         if (mtctx->roundBuff.capacity < capacity) {
             if (mtctx->roundBuff.buffer)
-                ZSTD_free(mtctx->roundBuff.buffer, mtctx->cMem);
-            mtctx->roundBuff.buffer = (BYTE*)ZSTD_malloc(capacity, mtctx->cMem);
+                ZSTD_customFree(mtctx->roundBuff.buffer, mtctx->cMem);
+            mtctx->roundBuff.buffer = (BYTE*)ZSTD_customMalloc(capacity, mtctx->cMem);
             if (mtctx->roundBuff.buffer == NULL) {
                 mtctx->roundBuff.capacity = 0;
                 return ERROR(memory_allocation);

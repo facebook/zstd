@@ -124,28 +124,49 @@ int UTIL_stat(const char* filename, stat_t* statbuf);
 int UTIL_statFile(const char* infilename, stat_t* statbuf);
 /** Also checks that the target is a directory. */
 int UTIL_statDir(const char* infilename, stat_t* statbuf);
+
+/**
+ * Instead of getting a file's stats, this updates them with the info in the
+ * provided stat_t. Currently sets owner, group, atime, and mtime. Will only
+ * update this info for regular files.
+ */
+int UTIL_setFileStat(const char* filename, const stat_t* statbuf);
+
+/*
+ * These helpers operate on a pre-populated stat_t, i.e., the result of
+ * calling one of the above functions.
+ */
+
+int UTIL_isRegularFileStat(const stat_t* statbuf);
+int UTIL_isDirectoryStat(const stat_t* statbuf);
+int UTIL_isFIFOStat(const stat_t* statbuf);
+U64 UTIL_getFileSizeStat(const stat_t* statbuf);
+
+/**
+ * Like chmod(), but only modifies regular files. Provided statbuf may be NULL,
+ * in which case this function will stat() the file internally, in order to
+ * check whether it should be modified.
+ */
+int UTIL_chmod(char const* filename, const stat_t* statbuf, mode_t permissions);
+
+/*
+ * In the absence of a pre-existing stat result on the file in question, these
+ * functions will do a stat() call internally and then use that result to
+ * compute the needed information.
+ */
+
 int UTIL_fileExist(const char* filename);
 int UTIL_isRegularFile(const char* infilename);
-int UTIL_isRegularFileStat(const stat_t* statbuf); /* same but takes existing statbuf */
 int UTIL_isDirectory(const char* infilename);
-int UTIL_isDirectoryStat(const stat_t* statbuf); /* same but takes existing statbuf */
 int UTIL_isSameFile(const char* file1, const char* file2);
 int UTIL_isCompressedFile(const char* infilename, const char *extensionList[]);
 int UTIL_isLink(const char* infilename);
 int UTIL_isFIFO(const char* infilename);
-int UTIL_isFIFOStat(const stat_t* statbuf); /* same but takes existing statbuf */
 
 #define UTIL_FILESIZE_UNKNOWN  ((U64)(-1))
 U64 UTIL_getFileSize(const char* infilename);
-U64 UTIL_getFileSizeStat(const stat_t* statbuf);
 U64 UTIL_getTotalFileSize(const char* const * fileNamesTable, unsigned nbFiles);
-int UTIL_setFileStat(const char* filename, const stat_t* statbuf);
-/**
- * Like chmod, but only modifies regular files. Provided statbuf may be NULL,
- * in which case this function will stat() the file internally, in order to
- * check that it should be modified.
- */
-int UTIL_chmod(char const* filename, const stat_t* statbuf, mode_t permissions);
+
 int UTIL_compareStr(const void *p1, const void *p2);
 const char* UTIL_getFileExtension(const char* infilename);
 void  UTIL_mirrorSourceFilesDirectories(const char** fileNamesTable, unsigned int nbFiles, const char *outDirName);

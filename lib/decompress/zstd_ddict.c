@@ -127,7 +127,7 @@ static size_t ZSTD_initDDict_internal(ZSTD_DDict* ddict,
         ddict->dictContent = dict;
         if (!dict) dictSize = 0;
     } else {
-        void* const internalBuffer = ZSTD_malloc(dictSize, ddict->cMem);
+        void* const internalBuffer = ZSTD_customMalloc(dictSize, ddict->cMem);
         ddict->dictBuffer = internalBuffer;
         ddict->dictContent = internalBuffer;
         if (!internalBuffer) return ERROR(memory_allocation);
@@ -149,7 +149,7 @@ ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize,
 {
     if (!customMem.customAlloc ^ !customMem.customFree) return NULL;
 
-    {   ZSTD_DDict* const ddict = (ZSTD_DDict*) ZSTD_malloc(sizeof(ZSTD_DDict), customMem);
+    {   ZSTD_DDict* const ddict = (ZSTD_DDict*) ZSTD_customMalloc(sizeof(ZSTD_DDict), customMem);
         if (ddict == NULL) return NULL;
         ddict->cMem = customMem;
         {   size_t const initResult = ZSTD_initDDict_internal(ddict,
@@ -213,8 +213,8 @@ size_t ZSTD_freeDDict(ZSTD_DDict* ddict)
 {
     if (ddict==NULL) return 0;   /* support free on NULL */
     {   ZSTD_customMem const cMem = ddict->cMem;
-        ZSTD_free(ddict->dictBuffer, cMem);
-        ZSTD_free(ddict, cMem);
+        ZSTD_customFree(ddict->dictBuffer, cMem);
+        ZSTD_customFree(ddict, cMem);
         return 0;
     }
 }

@@ -53,14 +53,14 @@ const char* ZSTD_getErrorString(ZSTD_ErrorCode code) { return ERR_getErrorString
 /*=**************************************************************
 *  Custom allocator
 ****************************************************************/
-void* ZSTD_malloc(size_t size, ZSTD_customMem customMem)
+void* ZSTD_customMalloc(size_t size, ZSTD_customMem customMem)
 {
     if (customMem.customAlloc)
         return customMem.customAlloc(customMem.opaque, size);
     return malloc(size);
 }
 
-void* ZSTD_calloc(size_t size, ZSTD_customMem customMem)
+void* ZSTD_customCalloc(size_t size, ZSTD_customMem customMem)
 {
     if (customMem.customAlloc) {
         /* calloc implemented as malloc+memset;
@@ -72,7 +72,7 @@ void* ZSTD_calloc(size_t size, ZSTD_customMem customMem)
     return calloc(1, size);
 }
 
-void ZSTD_free(void* ptr, ZSTD_customMem customMem)
+void ZSTD_customFree(void* ptr, ZSTD_customMem customMem)
 {
     if (ptr!=NULL) {
         if (customMem.customFree)

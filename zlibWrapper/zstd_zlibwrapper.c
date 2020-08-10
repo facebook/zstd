@@ -25,7 +25,7 @@
 #include "zstd_zlibwrapper.h"
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_isFrame, ZSTD_MAGICNUMBER */
 #include "zstd.h"
-#include "zstd_internal.h"         /* ZSTD_malloc, ZSTD_free */
+#include "zstd_internal.h"         /* ZSTD_customMalloc, ZSTD_customFree */
 
 
 /* ===   Constants   === */
@@ -107,7 +107,7 @@ static size_t ZWRAP_freeCCtx(ZWRAP_CCtx* zwc)
 {
     if (zwc==NULL) return 0;   /* support free on NULL */
     ZSTD_freeCStream(zwc->zbc);
-    ZSTD_free(zwc, zwc->customMem);
+    ZSTD_customFree(zwc, zwc->customMem);
     return 0;
 }
 
@@ -481,8 +481,8 @@ static size_t ZWRAP_freeDCtx(ZWRAP_DCtx* zwd)
 {
     if (zwd==NULL) return 0;   /* support free on null */
     ZSTD_freeDStream(zwd->zbd);
-    ZSTD_free(zwd->version, zwd->customMem);
-    ZSTD_free(zwd, zwd->customMem);
+    ZSTD_customFree(zwd->version, zwd->customMem);
+    ZSTD_customFree(zwd, zwd->customMem);
     return 0;
 }
 
@@ -524,7 +524,7 @@ ZEXTERN int ZEXPORT z_inflateInit_ OF((z_streamp strm,
         LOG_WRAPPERD("- inflateInit\n");
         if (zwd == NULL) return ZWRAPD_finishWithError(zwd, strm, 0);
 
-        zwd->version = (char*)ZSTD_malloc(strlen(version)+1, zwd->customMem);
+        zwd->version = (char*)ZSTD_customMalloc(strlen(version)+1, zwd->customMem);
         if (zwd->version == NULL) return ZWRAPD_finishWithError(zwd, strm, 0);
         strcpy(zwd->version, version);
 

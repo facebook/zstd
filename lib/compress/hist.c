@@ -34,7 +34,7 @@ unsigned HIST_count_simple(unsigned* count, unsigned* maxSymbolValuePtr,
     unsigned maxSymbolValue = *maxSymbolValuePtr;
     unsigned largestCount=0;
 
-    memset(count, 0, (maxSymbolValue+1) * sizeof(*count));
+    ZSTD_memset(count, 0, (maxSymbolValue+1) * sizeof(*count));
     if (srcSize==0) { *maxSymbolValuePtr = 0; return 0; }
 
     while (ip<end) {
@@ -81,11 +81,11 @@ static size_t HIST_count_parallel_wksp(
     /* safety checks */
     assert(*maxSymbolValuePtr <= 255);
     if (!sourceSize) {
-        memset(count, 0, countSize);
+        ZSTD_memset(count, 0, countSize);
         *maxSymbolValuePtr = 0;
         return 0;
     }
-    memset(workSpace, 0, 4*256*sizeof(unsigned));
+    ZSTD_memset(workSpace, 0, 4*256*sizeof(unsigned));
 
     /* by stripes of 16 bytes */
     {   U32 cached = MEM_read32(ip); ip += 4;
@@ -127,7 +127,7 @@ static size_t HIST_count_parallel_wksp(
         while (!Counting1[maxSymbolValue]) maxSymbolValue--;
         if (check && maxSymbolValue > *maxSymbolValuePtr) return ERROR(maxSymbolValue_tooSmall);
         *maxSymbolValuePtr = maxSymbolValue;
-        memmove(count, Counting1, countSize);   /* in case count & Counting1 are overlapping */
+        ZSTD_memmove(count, Counting1, countSize);   /* in case count & Counting1 are overlapping */
     }
     return (size_t)max;
 }

@@ -380,7 +380,7 @@ MEM_STATIC void ZSTD_cwksp_clean_tables(ZSTD_cwksp* ws) {
     assert(ws->tableValidEnd >= ws->objectEnd);
     assert(ws->tableValidEnd <= ws->allocStart);
     if (ws->tableValidEnd < ws->tableEnd) {
-        memset(ws->tableValidEnd, 0, (BYTE*)ws->tableEnd - (BYTE*)ws->tableValidEnd);
+        ZSTD_memset(ws->tableValidEnd, 0, (BYTE*)ws->tableEnd - (BYTE*)ws->tableValidEnd);
     }
     ZSTD_cwksp_mark_tables_clean(ws);
 }
@@ -466,7 +466,7 @@ MEM_STATIC size_t ZSTD_cwksp_create(ZSTD_cwksp* ws, size_t size, ZSTD_customMem 
 MEM_STATIC void ZSTD_cwksp_free(ZSTD_cwksp* ws, ZSTD_customMem customMem) {
     void *ptr = ws->workspace;
     DEBUGLOG(4, "cwksp: freeing workspace");
-    memset(ws, 0, sizeof(ZSTD_cwksp));
+    ZSTD_memset(ws, 0, sizeof(ZSTD_cwksp));
     ZSTD_customFree(ptr, customMem);
 }
 
@@ -476,7 +476,7 @@ MEM_STATIC void ZSTD_cwksp_free(ZSTD_cwksp* ws, ZSTD_customMem customMem) {
  */
 MEM_STATIC void ZSTD_cwksp_move(ZSTD_cwksp* dst, ZSTD_cwksp* src) {
     *dst = *src;
-    memset(src, 0, sizeof(ZSTD_cwksp));
+    ZSTD_memset(src, 0, sizeof(ZSTD_cwksp));
 }
 
 MEM_STATIC size_t ZSTD_cwksp_sizeof(const ZSTD_cwksp* ws) {

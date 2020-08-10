@@ -24,7 +24,7 @@
 #include "../common/fse.h"
 #include "../common/error_private.h"
 #define ZSTD_DEPS_NEED_MALLOC
-#include "../common/zstd_deps.h"  /* malloc, free, memcpy, memset */
+#include "../common/zstd_deps.h"  /* ZSTD_malloc, ZSTD_free, ZSTD_memcpy, ZSTD_memset */
 
 
 /* **************************************************************
@@ -89,7 +89,7 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct,
      * http://fastcompression.blogspot.fr/2014/02/fse-distributing-symbol-values.html */
 
      #ifdef __clang_analyzer__
-     memset(tableSymbol, 0, sizeof(*tableSymbol) * tableSize);   /* useless initialization, just to keep scan-build happy */
+     ZSTD_memset(tableSymbol, 0, sizeof(*tableSymbol) * tableSize);   /* useless initialization, just to keep scan-build happy */
      #endif
 
     /* symbol start positions */
@@ -307,10 +307,10 @@ FSE_CTable* FSE_createCTable (unsigned maxSymbolValue, unsigned tableLog)
     size_t size;
     if (tableLog > FSE_TABLELOG_ABSOLUTE_MAX) tableLog = FSE_TABLELOG_ABSOLUTE_MAX;
     size = FSE_CTABLE_SIZE_U32 (tableLog, maxSymbolValue) * sizeof(U32);
-    return (FSE_CTable*)malloc(size);
+    return (FSE_CTable*)ZSTD_malloc(size);
 }
 
-void FSE_freeCTable (FSE_CTable* ct) { free(ct); }
+void FSE_freeCTable (FSE_CTable* ct) { ZSTD_free(ct); }
 
 /* provides the minimum logSize to safely represent a distribution */
 static unsigned FSE_minTableLog(size_t srcSize, unsigned maxSymbolValue)

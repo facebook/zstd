@@ -14,7 +14,7 @@
 /*-*******************************************************
 *  Dependencies
 *********************************************************/
-#include "../common/zstd_deps.h"   /* memcpy, memmove, memset */
+#include "../common/zstd_deps.h"   /* ZSTD_memcpy, ZSTD_memmove, ZSTD_memset */
 #include "../common/cpu.h"         /* bmi2 */
 #include "../common/mem.h"         /* low level memory routines */
 #define FSE_STATIC_LINKING_ONLY
@@ -131,7 +131,7 @@ static size_t ZSTD_initDDict_internal(ZSTD_DDict* ddict,
         ddict->dictBuffer = internalBuffer;
         ddict->dictContent = internalBuffer;
         if (!internalBuffer) return ERROR(memory_allocation);
-        memcpy(internalBuffer, dict, dictSize);
+        ZSTD_memcpy(internalBuffer, dict, dictSize);
     }
     ddict->dictSize = dictSize;
     ddict->entropy.hufTable[0] = (HUF_DTable)((HufLog)*0x1000001);  /* cover both little and big endian */
@@ -198,7 +198,7 @@ const ZSTD_DDict* ZSTD_initStaticDDict(
     if ((size_t)sBuffer & 7) return NULL;   /* 8-aligned */
     if (sBufferSize < neededSpace) return NULL;
     if (dictLoadMethod == ZSTD_dlm_byCopy) {
-        memcpy(ddict+1, dict, dictSize);  /* local copy */
+        ZSTD_memcpy(ddict+1, dict, dictSize);  /* local copy */
         dict = ddict+1;
     }
     if (ZSTD_isError( ZSTD_initDDict_internal(ddict,

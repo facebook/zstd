@@ -18,7 +18,7 @@ extern "C" {
 /*-****************************************
 *  Dependencies
 ******************************************/
-#include "zstd_deps.h"  /* size_t, ptrdiff_t, memcpy */
+#include "zstd_deps.h"  /* size_t, ptrdiff_t, ZSTD_memcpy */
 
 
 /*-****************************************
@@ -201,37 +201,37 @@ MEM_STATIC void MEM_write64(void* memPtr, U64 value) { ((unalign64*)memPtr)->v =
 
 MEM_STATIC U16 MEM_read16(const void* memPtr)
 {
-    U16 val; memcpy(&val, memPtr, sizeof(val)); return val;
+    U16 val; ZSTD_memcpy(&val, memPtr, sizeof(val)); return val;
 }
 
 MEM_STATIC U32 MEM_read32(const void* memPtr)
 {
-    U32 val; memcpy(&val, memPtr, sizeof(val)); return val;
+    U32 val; ZSTD_memcpy(&val, memPtr, sizeof(val)); return val;
 }
 
 MEM_STATIC U64 MEM_read64(const void* memPtr)
 {
-    U64 val; memcpy(&val, memPtr, sizeof(val)); return val;
+    U64 val; ZSTD_memcpy(&val, memPtr, sizeof(val)); return val;
 }
 
 MEM_STATIC size_t MEM_readST(const void* memPtr)
 {
-    size_t val; memcpy(&val, memPtr, sizeof(val)); return val;
+    size_t val; ZSTD_memcpy(&val, memPtr, sizeof(val)); return val;
 }
 
 MEM_STATIC void MEM_write16(void* memPtr, U16 value)
 {
-    memcpy(memPtr, &value, sizeof(value));
+    ZSTD_memcpy(memPtr, &value, sizeof(value));
 }
 
 MEM_STATIC void MEM_write32(void* memPtr, U32 value)
 {
-    memcpy(memPtr, &value, sizeof(value));
+    ZSTD_memcpy(memPtr, &value, sizeof(value));
 }
 
 MEM_STATIC void MEM_write64(void* memPtr, U64 value)
 {
-    memcpy(memPtr, &value, sizeof(value));
+    ZSTD_memcpy(memPtr, &value, sizeof(value));
 }
 
 #endif /* MEM_FORCE_MEMORY_ACCESS */

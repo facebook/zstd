@@ -514,7 +514,7 @@ static int FIO_removeFile(const char* path)
 #if defined(_WIN32) || defined(WIN32)
     /* windows doesn't allow remove read-only files,
      * so try to make it writable first */
-    if (!(statbuf.mode & _S_IWRITE)) {
+    if (!(statbuf.st_mode & _S_IWRITE)) {
         UTIL_chmod(path, &statbuf, _S_IWRITE);
     }
 #endif

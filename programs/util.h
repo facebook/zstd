@@ -155,7 +155,6 @@ int UTIL_chmod(char const* filename, const stat_t* statbuf, mode_t permissions);
  * compute the needed information.
  */
 
-int UTIL_fileExist(const char* filename);
 int UTIL_isRegularFile(const char* infilename);
 int UTIL_isDirectory(const char* infilename);
 int UTIL_isSameFile(const char* file1, const char* file2);

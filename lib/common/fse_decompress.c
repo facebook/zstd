@@ -60,12 +60,12 @@
 FSE_DTable* FSE_createDTable (unsigned tableLog)
 {
     if (tableLog > FSE_TABLELOG_ABSOLUTE_MAX) tableLog = FSE_TABLELOG_ABSOLUTE_MAX;
-    return (FSE_DTable*)malloc( FSE_DTABLE_SIZE_U32(tableLog) * sizeof (U32) );
+    return (FSE_DTable*)ZSTD_malloc( FSE_DTABLE_SIZE_U32(tableLog) * sizeof (U32) );
 }
 
 void FSE_freeDTable (FSE_DTable* dt)
 {
-    free(dt);
+    ZSTD_free(dt);
 }
 
 size_t FSE_buildDTable(FSE_DTable* dt, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog) {
@@ -103,7 +103,7 @@ static size_t FSE_buildDTable_internal(FSE_DTable* dt, const short* normalizedCo
                     if (normalizedCounter[s] >= largeLimit) DTableH.fastMode=0;
                     symbolNext[s] = normalizedCounter[s];
         }   }   }
-        memcpy(dt, &DTableH, sizeof(DTableH));
+        ZSTD_memcpy(dt, &DTableH, sizeof(DTableH));
     }
 
     /* Spread symbols */

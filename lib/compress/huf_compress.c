@@ -23,7 +23,7 @@
 /* **************************************************************
 *  Includes
 ****************************************************************/
-#include "../common/zstd_deps.h"     /* memcpy, memset */
+#include "../common/zstd_deps.h"     /* ZSTD_memcpy, ZSTD_memset */
 #include "../common/compiler.h"
 #include "../common/bitstream.h"
 #include "hist.h"
@@ -236,7 +236,7 @@ static U32 HUF_setMaxHeight(nodeElt* huffNode, U32 lastNonNull, U32 maxNbBits)
             U32 rankLast[HUF_TABLELOG_MAX+2];
 
             /* Get pos of last (smallest) symbol per rank */
-            memset(rankLast, 0xF0, sizeof(rankLast));
+            ZSTD_memset(rankLast, 0xF0, sizeof(rankLast));
             {   U32 currentNbBits = maxNbBits;
                 int pos;
                 for (pos=n ; pos >= 0; pos--) {
@@ -307,7 +307,7 @@ static void HUF_sort(nodeElt* huffNode, const unsigned* count, U32 maxSymbolValu
 {
     U32 n;
 
-    memset(rankPosition, 0, sizeof(*rankPosition) * RANK_POSITION_TABLE_SIZE);
+    ZSTD_memset(rankPosition, 0, sizeof(*rankPosition) * RANK_POSITION_TABLE_SIZE);
     for (n=0; n<=maxSymbolValue; n++) {
         U32 r = BIT_highbit32(count[n] + 1);
         rankPosition[r].base ++;
@@ -351,7 +351,7 @@ size_t HUF_buildCTable_wksp (HUF_CElt* tree, const unsigned* count, U32 maxSymbo
     if (maxNbBits == 0) maxNbBits = HUF_TABLELOG_DEFAULT;
     if (maxSymbolValue > HUF_SYMBOLVALUE_MAX)
       return ERROR(maxSymbolValue_tooLarge);
-    memset(huffNode0, 0, sizeof(huffNodeTable));
+    ZSTD_memset(huffNode0, 0, sizeof(huffNodeTable));
 
     /* sort, decreasing order */
     HUF_sort(huffNode, count, maxSymbolValue, wksp_tables->rankPosition);
@@ -694,7 +694,7 @@ HUF_compress_internal (void* dst, size_t dstSize,
         CHECK_F(maxBits);
         huffLog = (U32)maxBits;
         /* Zero unused symbols in CTable, so we can check it for validity */
-        memset(table->CTable + (maxSymbolValue + 1), 0,
+        ZSTD_memset(table->CTable + (maxSymbolValue + 1), 0,
                sizeof(table->CTable) - ((maxSymbolValue + 1) * sizeof(HUF_CElt)));
     }
 
@@ -715,7 +715,7 @@ HUF_compress_internal (void* dst, size_t dstSize,
         op += hSize;
         if (repeat) { *repeat = HUF_repeat_none; }
         if (oldHufTable)
-            memcpy(oldHufTable, table->CTable, sizeof(table->CTable));  /* Save new table */
+            ZSTD_memcpy(oldHufTable, table->CTable, sizeof(table->CTable));  /* Save new table */
     }
     return HUF_compressCTable_internal(ostart, op, oend,
                                        src, srcSize,

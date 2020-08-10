@@ -20,7 +20,7 @@
 
 
 /* ======   Dependencies   ====== */
-#include "../common/zstd_deps.h"   /* memcpy, memset, INT_MAX, UINT_MAX */
+#include "../common/zstd_deps.h"   /* ZSTD_memcpy, ZSTD_memset, INT_MAX, UINT_MAX */
 #include "../common/mem.h"         /* MEM_STATIC */
 #include "../common/pool.h"        /* threadpool */
 #include "../common/threading.h"   /* mutex */
@@ -234,7 +234,7 @@ static buffer_t ZSTDMT_resizeBuffer(ZSTDMT_bufferPool* bufPool, buffer_t buffer)
         newBuffer.capacity = start == NULL ? 0 : bSize;
         if (start != NULL) {
             assert(newBuffer.capacity >= buffer.capacity);
-            memcpy(newBuffer.start, buffer.start, buffer.capacity);
+            ZSTD_memcpy(newBuffer.start, buffer.start, buffer.capacity);
             DEBUGLOG(5, "ZSTDMT_resizeBuffer: created buffer of size %u", (U32)bSize);
             return newBuffer;
         }
@@ -477,7 +477,7 @@ ZSTDMT_serialState_reset(serialState_t* serialState,
         serialState->ldmState.hashPower =
                 ZSTD_rollingHash_primePower(params.ldmParams.minMatchLength);
     } else {
-        memset(&params.ldmParams, 0, sizeof(params.ldmParams));
+        ZSTD_memset(&params.ldmParams, 0, sizeof(params.ldmParams));
     }
     serialState->nextJobID = 0;
     if (params.fParams.checksumFlag)
@@ -508,8 +508,8 @@ ZSTDMT_serialState_reset(serialState_t* serialState,
         if (!serialState->ldmState.hashTable || !serialState->ldmState.bucketOffsets)
             return 1;
         /* Zero the tables */
-        memset(serialState->ldmState.hashTable, 0, hashSize);
-        memset(serialState->ldmState.bucketOffsets, 0, bucketSize);
+        ZSTD_memset(serialState->ldmState.hashTable, 0, hashSize);
+        ZSTD_memset(serialState->ldmState.bucketOffsets, 0, bucketSize);
 
         /* Update window state and fill hash table with dict */
         serialState->ldmState.loadedDictEnd = 0;
@@ -536,7 +536,7 @@ ZSTDMT_serialState_reset(serialState_t* serialState,
 static int ZSTDMT_serialState_init(serialState_t* serialState)
 {
     int initError = 0;
-    memset(serialState, 0, sizeof(*serialState));
+    ZSTD_memset(serialState, 0, sizeof(*serialState));
     initError |= ZSTD_pthread_mutex_init(&serialState->mutex, NULL);
     initError |= ZSTD_pthread_cond_init(&serialState->cond, NULL);
     initError |= ZSTD_pthread_mutex_init(&serialState->ldmWindowMutex, NULL);
@@ -956,7 +956,7 @@ static void ZSTDMT_releaseAllJobResources(ZSTDMT_CCtx* mtctx)
         ZSTDMT_releaseBuffer(mtctx->bufPool, mtctx->jobs[jobID].dstBuff);
 
         /* Clear the job description, but keep the mutex/cond */
-        memset(&mtctx->jobs[jobID], 0, sizeof(mtctx->jobs[jobID]));
+        ZSTD_memset(&mtctx->jobs[jobID], 0, sizeof(mtctx->jobs[jobID]));
         mtctx->jobs[jobID].job_mutex = mutex;
         mtctx->jobs[jobID].job_cond = cond;
     }
@@ -1064,8 +1064,8 @@ static ZSTD_CCtx_params ZSTDMT_initJobCCtxParams(const ZSTD_CCtx_params* params)
     jobParams.jobSize = 0;
     jobParams.overlapLog = 0;
     jobParams.rsyncable = 0;
-    memset(&jobParams.ldmParams, 0, sizeof(ldmParams_t));
-    memset(&jobParams.customMem, 0, sizeof(ZSTD_customMem));
+    ZSTD_memset(&jobParams.ldmParams, 0, sizeof(ldmParams_t));
+    ZSTD_memset(&jobParams.customMem, 0, sizeof(ZSTD_customMem));
     return jobParams;
 }
 
@@ -1349,7 +1349,7 @@ ZSTDMT_compress_advanced_internal(
                 if ((!error) && (dstPos + cSize > dstCapacity)) error = ERROR(dstSize_tooSmall);
                 if (jobID) {   /* note : job 0 is written directly at dst, which is correct position */
                     if (!error)
-                        memmove((char*)dst + dstPos, mtctx->jobs[jobID].dstBuff.start, cSize);  /* may overlap when job compressed within dst */
+                        ZSTD_memmove((char*)dst + dstPos, mtctx->jobs[jobID].dstBuff.start, cSize);  /* may overlap when job compressed within dst */
                     if (jobID >= compressWithinDst) {  /* job compressed into its own buffer, which must be released */
                         DEBUGLOG(5, "releasing buffer %u>=%u", jobID, compressWithinDst);
                         ZSTDMT_releaseBuffer(mtctx->bufPool, mtctx->jobs[jobID].dstBuff);
@@ -1739,7 +1739,7 @@ static size_t ZSTDMT_flushProduced(ZSTDMT_CCtx* mtctx, ZSTD_outBuffer* output, u
             assert(cSize >= mtctx->jobs[wJobID].dstFlushed);
             assert(mtctx->jobs[wJobID].dstBuff.start != NULL);
             if (toFlush > 0) {
-                memcpy((char*)output->dst + output->pos,
+                ZSTD_memcpy((char*)output->dst + output->pos,
                     (const char*)mtctx->jobs[wJobID].dstBuff.start + mtctx->jobs[wJobID].dstFlushed,
                     toFlush);
             }
@@ -1893,7 +1893,7 @@ static int ZSTDMT_tryGetInputRange(ZSTDMT_CCtx* mtctx)
             return 0;
         }
         ZSTDMT_waitForLdmComplete(mtctx, buffer);
-        memmove(start, mtctx->inBuff.prefix.start, prefixSize);
+        ZSTD_memmove(start, mtctx->inBuff.prefix.start, prefixSize);
         mtctx->inBuff.prefix.start = start;
         mtctx->roundBuff.pos = prefixSize;
     }
@@ -2071,7 +2071,7 @@ size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
             assert(mtctx->inBuff.buffer.capacity >= mtctx->targetSectionSize);
             DEBUGLOG(5, "ZSTDMT_compressStream_generic: adding %u bytes on top of %u to buffer of size %u",
                         (U32)syncPoint.toLoad, (U32)mtctx->inBuff.filled, (U32)mtctx->targetSectionSize);
-            memcpy((char*)mtctx->inBuff.buffer.start + mtctx->inBuff.filled, (const char*)input->src + input->pos, syncPoint.toLoad);
+            ZSTD_memcpy((char*)mtctx->inBuff.buffer.start + mtctx->inBuff.filled, (const char*)input->src + input->pos, syncPoint.toLoad);
             input->pos += syncPoint.toLoad;
             mtctx->inBuff.filled += syncPoint.toLoad;
             forwardInputProgress = syncPoint.toLoad>0;

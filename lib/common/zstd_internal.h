@@ -231,7 +231,7 @@ static void ZSTD_copy8(void* dst, const void* src) {
 #ifdef __aarch64__
     vst1_u8((uint8_t*)dst, vld1_u8((const uint8_t*)src));
 #else
-    memcpy(dst, src, 8);
+    ZSTD_memcpy(dst, src, 8);
 #endif
 }
 
@@ -240,7 +240,7 @@ static void ZSTD_copy16(void* dst, const void* src) {
 #ifdef __aarch64__
     vst1q_u8((uint8_t*)dst, vld1q_u8((const uint8_t*)src));
 #else
-    memcpy(dst, src, 16);
+    ZSTD_memcpy(dst, src, 16);
 #endif
 }
 #define COPY16(d,s) { ZSTD_copy16(d,s); d+=16; s+=16; }
@@ -255,7 +255,7 @@ typedef enum {
 } ZSTD_overlap_e;
 
 /*! ZSTD_wildcopy() :
- *  Custom version of memcpy(), can over read/write up to WILDCOPY_OVERLENGTH bytes (if length==0)
+ *  Custom version of ZSTD_memcpy(), can over read/write up to WILDCOPY_OVERLENGTH bytes (if length==0)
  *  @param ovtype controls the overlap detection
  *         - ZSTD_no_overlap: The source and destination are guaranteed to be at least WILDCOPY_VECLEN bytes apart.
  *         - ZSTD_overlap_src_before_dst: The src and dst may overlap, but they MUST be at least 8 bytes apart.
@@ -307,7 +307,7 @@ MEM_STATIC size_t ZSTD_limitCopy(void* dst, size_t dstCapacity, const void* src,
 {
     size_t const length = MIN(dstCapacity, srcSize);
     if (length > 0) {
-        memcpy(dst, src, length);
+        ZSTD_memcpy(dst, src, length);
     }
     return length;
 }

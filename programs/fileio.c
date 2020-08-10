@@ -498,9 +498,9 @@ void FIO_setContentSize(FIO_prefs_t* const prefs, int value)
 /*-*************************************
 *  Functions
 ***************************************/
-/** FIO_remove() :
+/** FIO_removeFile() :
  * @result : Unlink `fileName`, even if it's read-only */
-static int FIO_remove(const char* path)
+static int FIO_removeFile(const char* path)
 {
     stat_t statbuf;
     if (!UTIL_stat(path, &statbuf)) {
@@ -616,7 +616,7 @@ FIO_openDstFile(FIO_prefs_t* const prefs,
                     while ((ch!=EOF) && (ch!='\n')) ch = getchar();
             }   }
             /* need to unlink */
-            FIO_remove(dstFileName);
+            FIO_removeFile(dstFileName);
     }   }
 
     {   FILE* const f = fopen( dstFileName, "wb" );
@@ -1505,13 +1505,10 @@ static int FIO_compressFilename_dstFile(FIO_prefs_t* const prefs,
             result=1;
         }
         if ( (result != 0)  /* operation failure */
-          && strcmp(dstFileName, nulmark)     /* special case : don't remove() /dev/null */
           && strcmp(dstFileName, stdoutmark)  /* special case : don't remove() stdout */
           ) {
-            FIO_remove(dstFileName); /* remove compression artefact; note don't do anything special if remove() fails */
-        } else if ( strcmp(dstFileName, stdoutmark)
-                 && strcmp(dstFileName, nulmark)
-                 && transfer_permissions) {
+            FIO_removeFile(dstFileName); /* remove compression artefact; note don't do anything special if remove() fails */
+        } else if (transfer_permissions) {
             DISPLAYLEVEL(6, "FIO_compressFilename_dstFile: transferring permissions into dst: %s \n", dstFileName);
             UTIL_setFileStat(dstFileName, &statbuf);
         } else {
@@ -1588,7 +1585,7 @@ FIO_compressFilename_srcFile(FIO_prefs_t* const prefs,
          * delete both the source and destination files.
          */
         clearHandler();
-        if (FIO_remove(srcFileName))
+        if (FIO_removeFile(srcFileName))
             EXM_THROW(1, "zstd: %s: %s", srcFileName, strerror(errno));
     }
     return result;
@@ -2370,15 +2367,11 @@ static int FIO_decompressDstFile(FIO_prefs_t* const prefs,
         }
 
         if ( (result != 0)  /* operation failure */
-          && strcmp(dstFileName, nulmark)     /* special case : don't remove() /dev/null (#316) */
           && strcmp(dstFileName, stdoutmark)  /* special case : don't remove() stdout */
           ) {
-            FIO_remove(dstFileName);  /* remove decompression artefact; note: don't do anything special if remove() fails */
-        } else {  /* operation success */
-            if ( strcmp(dstFileName, stdoutmark) /* special case : don't chmod stdout */
-              && strcmp(dstFileName, nulmark)    /* special case : don't chmod /dev/null */
-              && transfer_permissions )          /* file permissions correctly extracted from src */
-                UTIL_setFileStat(dstFileName, &statbuf);  /* transfer file permissions from src into dst */
+            FIO_removeFile(dstFileName);  /* remove decompression artefact; note: don't do anything special if remove() fails */
+        } else if ( transfer_permissions /* file permissions correctly extracted from src */ ) {
+            UTIL_setFileStat(dstFileName, &statbuf);  /* transfer file permissions from src into dst */
         }
     }
 
@@ -2419,7 +2412,7 @@ static int FIO_decompressSrcFile(FIO_prefs_t* const prefs, dRess_t ress, const c
          * delete both the source and destination files.
          */
         clearHandler();
-        if (FIO_remove(srcFileName)) {
+        if (FIO_removeFile(srcFileName)) {
             /* failed to remove src file */
             DISPLAYLEVEL(1, "zstd: %s: %s \n", srcFileName, strerror(errno));
             return 1;

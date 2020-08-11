@@ -2922,6 +2922,60 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : testing cdict compression with different attachment strategies : ", testNb++);
+    {
+        ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+        size_t dictSize = CNBuffSize > 110 KB ? 110 KB : CNBuffSize;
+        void* dict = (void*)malloc(dictSize);
+        ZSTD_CCtx_params* cctx_params = ZSTD_createCCtxParams();
+        ZSTD_dictAttachPref_e const attachPrefs[] = {
+            ZSTD_dictDefaultAttach,
+            ZSTD_dictForceAttach,
+            ZSTD_dictForceCopy,
+            ZSTD_dictForceLoad,
+            ZSTD_dictForceAttach
+        };
+        int const enableDedicatedDictSearch[] = {0, 0, 0, 0, 1};
+        int const cLevel = 6;
+        int i;
+
+        RDG_genBuffer(dict, dictSize, 0.5, 0.5, seed);
+        RDG_genBuffer(CNBuffer, CNBuffSize, 0.6, 0.6, seed);
+
+        CHECK(cctx_params != NULL);
+
+        for (i = 0; i < 5; ++i) {
+            ZSTD_dictAttachPref_e const attachPref = attachPrefs[i];
+            int const enableDDS = enableDedicatedDictSearch[i];
+            ZSTD_CDict* cdict;
+
+            DISPLAYLEVEL(5, "\n  iter %d ", i);
+
+            ZSTD_CCtxParams_init(cctx_params, cLevel);
+            CHECK_Z(ZSTD_CCtxParams_setParameter(cctx_params, ZSTD_c_enableDedicatedDictSearch, enableDDS));
+
+            cdict = ZSTD_createCDict_advanced2(dict, dictSize, ZSTD_dlm_byRef, ZSTD_dct_auto, cctx_params, ZSTD_defaultCMem);
+            CHECK(cdict != NULL);
+
+            CHECK_Z(ZSTD_CCtx_refCDict(cctx, cdict));
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_forceAttachDict, attachPref));
+
+            cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize);
+            CHECK_Z(cSize);
+            CHECK_Z(ZSTD_decompress_usingDict(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize, dict, CNBuffSize));
+
+            CHECK_Z(ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters));
+            ZSTD_freeCDict(cdict);
+        }
+
+        ZSTD_freeCCtx(cctx);
+        ZSTD_freeDCtx(dctx);
+        ZSTD_freeCCtxParams(cctx_params);
+        free(dict);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
 _end:
     free(CNBuffer);
     free(compressedBuffer);

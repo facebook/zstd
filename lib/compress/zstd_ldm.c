@@ -246,10 +246,10 @@ void ZSTD_ldm_fillHashTable(
  *  (after a long match, only update tables a limited amount). */
 static void ZSTD_ldm_limitTableUpdate(ZSTD_matchState_t* ms, const BYTE* anchor)
 {
-    U32 const current = (U32)(anchor - ms->window.base);
-    if (current > ms->nextToUpdate + 1024) {
+    U32 const curr = (U32)(anchor - ms->window.base);
+    if (curr > ms->nextToUpdate + 1024) {
         ms->nextToUpdate =
-            current - MIN(512, current - ms->nextToUpdate - 1024);
+            curr - MIN(512, curr - ms->nextToUpdate - 1024);
     }
 }
 
@@ -286,7 +286,7 @@ static size_t ZSTD_ldm_generateSequences_internal(
 
     while (ip <= ilimit) {
         size_t mLength;
-        U32 const current = (U32)(ip - base);
+        U32 const curr = (U32)(ip - base);
         size_t forwardMatchLength = 0, backwardMatchLength = 0;
         ldmEntry_t* bestEntry = NULL;
         if (ip != istart) {
@@ -365,7 +365,7 @@ static size_t ZSTD_ldm_generateSequences_internal(
         /* No match found -- continue searching */
         if (bestEntry == NULL) {
             ZSTD_ldm_makeEntryAndInsertByTag(ldmState, rollingHash,
-                                             hBits, current,
+                                             hBits, curr,
                                              *params);
             ip++;
             continue;
@@ -377,11 +377,11 @@ static size_t ZSTD_ldm_generateSequences_internal(
 
         {
             /* Store the sequence:
-             * ip = current - backwardMatchLength
+             * ip = curr - backwardMatchLength
              * The match is at (bestEntry->offset - backwardMatchLength)
              */
             U32 const matchIndex = bestEntry->offset;
-            U32 const offset = current - matchIndex;
+            U32 const offset = curr - matchIndex;
             rawSeq* const seq = rawSeqStore->seq + rawSeqStore->size;
 
             /* Out of sequence storage */

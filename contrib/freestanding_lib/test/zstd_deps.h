@@ -50,6 +50,13 @@ void* ZSTD_memmove(void* destination, const void* source, size_t num);
 void* ZSTD_memset(void* destination, int value, size_t num);
 #endif
 
+/* Define this macro because the kernel does.
+ * This will ensure we don't introduce new instances of 'current'
+ * in the code.
+ */
+int this_variable_name_is_not_allowed();
+#define current this_variable_name_is_not_allowed()
+
 #endif /* ZSTD_DEPS_COMMON */
 
 /* Need:

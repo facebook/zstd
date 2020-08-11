@@ -2267,10 +2267,10 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
     /* limited update after a very long match */
     {   const BYTE* const base = ms->window.base;
         const BYTE* const istart = (const BYTE*)src;
-        const U32 current = (U32)(istart-base);
+        const U32 curr = (U32)(istart-base);
         if (sizeof(ptrdiff_t)==8) assert(istart - base < (ptrdiff_t)(U32)(-1));   /* ensure no overflow */
-        if (current > ms->nextToUpdate + 384)
-            ms->nextToUpdate = current - MIN(192, (U32)(current - ms->nextToUpdate - 384));
+        if (curr > ms->nextToUpdate + 384)
+            ms->nextToUpdate = curr - MIN(192, (U32)(curr - ms->nextToUpdate - 384));
     }
 
     /* select and store sequences */

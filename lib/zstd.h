@@ -361,8 +361,6 @@ typedef enum {
                               * Deviating far from default value will likely result in a compression ratio decrease.
                               * Special: value 0 means "automatically determine hashRateLog". */
 
-    ZSTD_c_enableDedicatedDictSearch=170,
-
     /* frame parameters */
     ZSTD_c_contentSizeFlag=200, /* Content size will be written into frame header _whenever known_ (default:1)
                               * Content size must be known at the beginning of compression.
@@ -414,6 +412,7 @@ typedef enum {
      * ZSTD_c_literalCompressionMode
      * ZSTD_c_targetCBlockSize
      * ZSTD_c_srcSizeHint
+     * ZSTD_c_enableDedicatedDictSearch
      * Because they are not stable, it's necessary to define ZSTD_STATIC_LINKING_ONLY to access them.
      * note : never ever use experimentalParam? names directly;
      *        also, the enums values themselves are unstable and can still change.
@@ -424,7 +423,8 @@ typedef enum {
      ZSTD_c_experimentalParam4=1001,
      ZSTD_c_experimentalParam5=1002,
      ZSTD_c_experimentalParam6=1003,
-     ZSTD_c_experimentalParam7=1004
+     ZSTD_c_experimentalParam7=1004,
+     ZSTD_c_experimentalParam8=1005
 } ZSTD_cParameter;
 
 typedef struct {
@@ -1545,6 +1545,10 @@ ZSTDLIB_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* pre
  * There is no guarantee that hint is close to actual source size,
  * but compression ratio may regress significantly if guess considerably underestimates */
 #define ZSTD_c_srcSizeHint ZSTD_c_experimentalParam7
+
+/* TODO: document.
+ */
+#define ZSTD_c_enableDedicatedDictSearch ZSTD_c_experimentalParam8
 
 /*! ZSTD_CCtx_getParameter() :
  *  Get the requested compression parameter value, selected by enum ZSTD_cParameter,

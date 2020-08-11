@@ -1,43 +1,28 @@
 
-IFLAGS := -isystem include/ -I ../include/ -I ../lib/zstd/ -isystem googletest/googletest/include -isystem ../../../lib/common/
+LINUX := ../linux
+LINUX_ZSTDLIB := $(LINUX)/lib/zstd
 
-SOURCES := $(wildcard ../lib/zstd/*.c)
-OBJECTS := $(patsubst %.c,%.o,$(SOURCES))
+CPPFLAGS += -I$(LINUX)/include -I$(LINUX_ZSTDLIB) -Iinclude -DNDEBUG
+# Don't poison the workspace, it currently doesn't work with static allocation and workspace reuse
+CPPFLAGS += -DZSTD_ASAN_DONT_POISON_WORKSPACE
 
-ARFLAGS := rcs
-CXXFLAGS += -std=c++11 -g -O3 -Wcast-align
-CFLAGS += -g -O3 -Wframe-larger-than=400 -Wcast-align
-CPPFLAGS += $(IFLAGS)
+LINUX_ZSTD_COMMON     := $(wildcard $(LINUX_ZSTDLIB)/common/*.c) 
+LINUX_ZSTD_COMPRESS   := $(wildcard $(LINUX_ZSTDLIB)/compress/*.c) 
+LINUX_ZSTD_DECOMPRESS := $(wildcard $(LINUX_ZSTDLIB)/decompress/*.c) 
+LINUX_ZSTD_FILES      := $(LINUX_ZSTD_COMMON) $(LINUX_ZSTD_COMPRESS) $(LINUX_ZSTD_DECOMPRESS)
+LINUX_ZSTD_OBJECTS    := $(LINUX_ZSTD_FILES:.c=.o)
 
-../lib/zstd/libzstd.a: $(OBJECTS)
+liblinuxzstd.a: $(LINUX_ZSTD_OBJECTS)
 	$(AR) $(ARFLAGS) $@ $^
 
-DecompressCrash: DecompressCrash.o $(OBJECTS) libFuzzer.a
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(LDFLAGS) $^ -o $@
+test: test.c liblinuxzstd.a
+	$(CC) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) $^ -o $@
 
-RoundTripCrash: RoundTripCrash.o $(OBJECTS) ../lib/xxhash.o libFuzzer.a
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(LDFLAGS) $^ -o $@
+run-test: test
+	./test
 
-UserlandTest: UserlandTest.cpp ../lib/zstd/libzstd.a ../lib/xxhash.o
-	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $^ googletest/build/googlemock/gtest/libgtest.a googletest/build/googlemock/gtest/libgtest_main.a -o $@
-
-XXHashUserlandTest: XXHashUserlandTest.cpp ../lib/xxhash.o ../../../lib/common/xxhash.o
-	$(CXX) $(CXXFLAGS) $(CFLAGS) $(CPPFLAGS) $^ googletest/build/googlemock/gtest/libgtest.a googletest/build/googlemock/gtest/libgtest_main.a -o $@
-
-# Install libfuzzer
-libFuzzer.a:
-	@$(RM) -rf Fuzzer
-	@git clone https://chromium.googlesource.com/chromium/llvm-project/llvm/lib/Fuzzer
-	@./Fuzzer/build.sh
-
-# Install googletest
-.PHONY: googletest
-googletest:
-	@$(RM) -rf googletest
-	@git clone https://github.com/google/googletest
-	@mkdir -p googletest/build
-	@cd googletest/build && cmake .. && $(MAKE)
-
+.PHONY:
 clean:
-	$(RM) -f *.{o,a} ../lib/zstd/*.{o,a} ../lib/*.o
-	$(RM) -f DecompressCrash RoundTripCrash UserlandTest XXHashUserlandTest
+	$(RM) -f $(LINUX_ZSTDLIB)/**/*.o
+	$(RM) -f *.o *.a
+	$(RM) -f test

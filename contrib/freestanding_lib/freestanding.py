@@ -628,16 +628,6 @@ def main(name, args):
         if not external_xxhash:
             raise RuntimeError("--xxh64-state may only be used with --xxhash provided")
 
-    print(args.zstd_deps)
-    print(args.output_lib)
-    print(args.source_lib)
-    print(args.xxhash)
-    print(args.xxh64_state)
-    print(args.xxh64_prefix)
-    print(args.rewritten_includes)
-    print(args.defs)
-    print(args.undefs)
-
     Freestanding(
         args.zstd_deps,
         args.source_lib,

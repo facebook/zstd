@@ -7,9 +7,9 @@
  * in the COPYING file in the root directory of this source tree).
  * You may select, at your option, one of the above-listed licenses.
  */
-#ifndef LINUX_KERNEL_H
-#define LINUX_KERNEL_H
+#ifndef LINUX_LIMITS_H
+#define LINUX_LIMITS_H
 
-#define WARN_ON(x)
+#include <limits.h>
 
 #endif

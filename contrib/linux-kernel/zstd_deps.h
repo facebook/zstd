@@ -21,45 +21,33 @@
  * size_t
  * ptrdiff_t
  * INT_MAX
- * ...
+ * UINT_MAX
  */
 #ifndef ZSTD_DEPS_COMMON
 #define ZSTD_DEPS_COMMON
 
-#include <stddef.h>
+#include <linux/limits.h>
+#include <linux/types.h>
+#include <linux/stddef.h>
 
-typedef unsigned char      BYTE;
-typedef unsigned short      U16;
-typedef   signed short      S16;
-typedef unsigned int        U32;
-typedef   signed int        S32;
-typedef unsigned long long  U64;
-typedef   signed long long  S64;
+typedef uint8_t  BYTE;
+typedef uint16_t U16;
+typedef int16_t  S16;
+typedef uint32_t U32;
+typedef int32_t  S32;
+typedef uint64_t U64;
+typedef int64_t  S64;
 
-#ifndef INT_MAX
-# define INT_MAX ((int)((1u << 31) - 1))
-#endif
-
-#if defined(__GNUC__) && __GNUC__ >= 4
 #define ZSTD_memcpy(d,s,n) __builtin_memcpy((d),(s),(n))
 #define ZSTD_memmove(d,s,n) __builtin_memmove((d),(s),(n))
 #define ZSTD_memset(d,s,n) __builtin_memset((d),(s),(n))
-#else
-void* ZSTD_memcpy(void* destination, const void* source, size_t num);
-void* ZSTD_memmove(void* destination, const void* source, size_t num);
-void* ZSTD_memset(void* destination, int value, size_t num);
-#endif
-
-/* Define this macro because the kernel does.
- * This will ensure we don't introduce new instances of 'current'
- * in the code.
- */
-int this_variable_name_is_not_allowed();
-#define current this_variable_name_is_not_allowed()
 
 #endif /* ZSTD_DEPS_COMMON */
 
-/* Need:
+/*
+ * Define malloc as always failing. That means the user must
+ * either use ZSTD_customMem or statically allocate memory.
+ * Need:
  * ZSTD_malloc()
  * ZSTD_free()
  * ZSTD_calloc()
@@ -68,38 +56,67 @@ int this_variable_name_is_not_allowed();
 #ifndef ZSTD_DEPS_MALLOC
 #define ZSTD_DEPS_MALLOC
 
-void* ZSTD_malloc(size_t size);
-void ZSTD_free(void* ptr);
-void* ZSTD_calloc(size_t num, size_t size);
+#define ZSTD_malloc(s) (NULL)
+#define ZSTD_free(p) ((void)0)
+#define ZSTD_calloc(n,s) (NULL)
 
 #endif /* ZSTD_DEPS_MALLOC */
 #endif /* ZSTD_DEPS_NEED_MALLOC */
 
-/* Need:
+/*
+ * Provides 64-bit math support.
+ * Need:
+ * U64 ZSTD_div64(U64 dividend, U32 divisor)
+ */
+#ifdef ZSTD_DEPS_NEED_MATH64
+#ifndef ZSTD_DEPS_MATH64
+#define ZSTD_DEPS_MATH64
+
+#include <linux/math64.h>
+
+static U64 ZSTD_div64(U64 dividend, U32 divisor) {
+  return div_u64(dividend, divisor);
+}
+
+#endif /* ZSTD_DEPS_MATH64 */
+#endif /* ZSTD_DEPS_NEED_MATH64 */
+
+/* 
+ * This is only requested when DEBUGLEVEL >= 1, meaning
+ * it is disabled in production.
+ * Need:
  * assert()
  */
 #ifdef ZSTD_DEPS_NEED_ASSERT
 #ifndef ZSTD_DEPS_ASSERT
 #define ZSTD_DEPS_ASSERT
 
-#define assert(x) ((void)0)
+#include <linux/kernel.h>
+
+#define assert(x) WARN_ON((x))
 
 #endif /* ZSTD_DEPS_ASSERT */
 #endif /* ZSTD_DEPS_NEED_ASSERT */
 
-/* Need:
+/* 
+ * This is only requested when DEBUGLEVEL >= 2, meaning
+ * it is disabled in production.
+ * Need:
  * ZSTD_DEBUG_PRINT()
  */
 #ifdef ZSTD_DEPS_NEED_IO
 #ifndef ZSTD_DEPS_IO
 #define ZSTD_DEPS_IO
 
-#define ZSTD_DEBUG_PRINT(...) 
+#include <linux/printk.h>
+
+#define ZSTD_DEBUG_PRINT(...) pr_debug(__VA_ARGS__)
 
 #endif /* ZSTD_DEPS_IO */
 #endif /* ZSTD_DEPS_NEED_IO */
 
-/* Only requested when <stdint.h> is known to be present.
+/* 
+ * Only requested when MSAN is enabled.
  * Need:
  * intptr_t
  */
@@ -107,7 +124,11 @@ void* ZSTD_calloc(size_t num, size_t size);
 #ifndef ZSTD_DEPS_STDINT
 #define ZSTD_DEPS_STDINT
 
-#define intptr_t size_t
+/*
+ * The Linux Kernel doesn't provide intptr_t, only uintptr_t, which
+ * is an unsigned long.
+ */
+typedef long intptr_t
 
 #endif /* ZSTD_DEPS_STDINT */
 #endif /* ZSTD_DEPS_NEED_STDINT */

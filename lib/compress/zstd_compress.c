@@ -3403,6 +3403,7 @@ static size_t ZSTD_initCDict_internal(
     DEBUGLOG(3, "ZSTD_initCDict_internal (dictContentType:%u)", (unsigned)dictContentType);
     assert(!ZSTD_checkCParams(cParams));
     cdict->matchState.cParams = cParams;
+    cdict->matchState.enableDedicatedDictSearch = params.enableDedicatedDictSearch;
     if ((dictLoadMethod == ZSTD_dlm_byRef) || (!dictBuffer) || (!dictSize)) {
         cdict->dictContent = dictBuffer;
     } else {
@@ -3525,7 +3526,6 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced2(const void* dict, size_t dict
         ZSTD_CDict* cdict = ZSTD_createCDict_advanced_internal(dictSize,
                             dictLoadMethod, cParams,
                             customMem);
-        cdict->matchState.enableDedicatedDictSearch = enableDedicatedDictSearch;
 
         if (ZSTD_isError( ZSTD_initCDict_internal(cdict,
                                         dict, dictSize,

@@ -39,14 +39,14 @@
 #endif
 
 /**
-  On MSVC qsort requires that functions passed into it use the __cdecl calling conversion(CC). 
-  This explictly marks such functions as __cdecl so that the code will still compile 
+  On MSVC qsort requires that functions passed into it use the __cdecl calling conversion(CC).
+  This explictly marks such functions as __cdecl so that the code will still compile
   if a CC other than __cdecl has been made the default.
 */
 #if  defined(_MSC_VER)
 #  define WIN_CDECL __cdecl
 #else
-#  define WIN_CDECL 
+#  define WIN_CDECL
 #endif
 
 /**
@@ -125,12 +125,12 @@
 #    include <mmintrin.h>   /* https://msdn.microsoft.com/fr-fr/library/84szxsww(v=vs.90).aspx */
 #    define PREFETCH_L1(ptr)  _mm_prefetch((const char*)(ptr), _MM_HINT_T0)
 #    define PREFETCH_L2(ptr)  _mm_prefetch((const char*)(ptr), _MM_HINT_T1)
-#    elif defined(__aarch64__)
-#     define PREFETCH_L1(ptr)  __asm__ __volatile__("prfm pldl1keep, %0" ::"Q"(*(ptr)))
-#     define PREFETCH_L2(ptr)  __asm__ __volatile__("prfm pldl2keep, %0" ::"Q"(*(ptr)))
 #  elif defined(__GNUC__) && ( (__GNUC__ >= 4) || ( (__GNUC__ == 3) && (__GNUC_MINOR__ >= 1) ) )
 #    define PREFETCH_L1(ptr)  __builtin_prefetch((ptr), 0 /* rw==read */, 3 /* locality */)
 #    define PREFETCH_L2(ptr)  __builtin_prefetch((ptr), 0 /* rw==read */, 2 /* locality */)
+#  elif defined(__aarch64__)
+#    define PREFETCH_L1(ptr)  __asm__ __volatile__("prfm pldl1keep, %0" ::"Q"(*(ptr)))
+#    define PREFETCH_L2(ptr)  __asm__ __volatile__("prfm pldl2keep, %0" ::"Q"(*(ptr)))
 #  else
 #    define PREFETCH_L1(ptr) (void)(ptr)  /* disabled */
 #    define PREFETCH_L2(ptr) (void)(ptr)  /* disabled */
@@ -185,7 +185,7 @@
 
 /*Like DYNAMIC_BMI2 but for compile time determination of BMI2 support*/
 #ifndef STATIC_BMI2
-#  if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_I86))  
+#  if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_I86))
 #    ifdef __AVX2__  //MSVC does not have a BMI2 specific flag, but every CPU that supports AVX2 also supports BMI2
 #       define STATIC_BMI2 1
 #    endif

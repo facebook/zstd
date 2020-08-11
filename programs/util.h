@@ -100,6 +100,8 @@ extern int g_utilDisplayLevel;
 #if defined(_MSC_VER)
     typedef struct __stat64 stat_t;
     typedef int mode_t;
+#elif defined(__MINGW32__) && defined (__MSVCRT__)
+    typedef struct _stati64 stat_t;
 #else
     typedef struct stat stat_t;
 #endif
@@ -113,7 +115,42 @@ extern int g_utilDisplayLevel;
 #define STRDUP(s) strdup(s)
 #endif
 
-int UTIL_fileExist(const char* filename);
+/**
+ * Calls platform's equivalent of stat() on filename and writes info to statbuf.
+ * Returns success (1) or failure (0).
+ */
+int UTIL_stat(const char* filename, stat_t* statbuf);
+
+/**
+ * Instead of getting a file's stats, this updates them with the info in the
+ * provided stat_t. Currently sets owner, group, atime, and mtime. Will only
+ * update this info for regular files.
+ */
+int UTIL_setFileStat(const char* filename, const stat_t* statbuf);
+
+/*
+ * These helpers operate on a pre-populated stat_t, i.e., the result of
+ * calling one of the above functions.
+ */
+
+int UTIL_isRegularFileStat(const stat_t* statbuf);
+int UTIL_isDirectoryStat(const stat_t* statbuf);
+int UTIL_isFIFOStat(const stat_t* statbuf);
+U64 UTIL_getFileSizeStat(const stat_t* statbuf);
+
+/**
+ * Like chmod(), but only modifies regular files. Provided statbuf may be NULL,
+ * in which case this function will stat() the file internally, in order to
+ * check whether it should be modified.
+ */
+int UTIL_chmod(char const* filename, const stat_t* statbuf, mode_t permissions);
+
+/*
+ * In the absence of a pre-existing stat result on the file in question, these
+ * functions will do a stat() call internally and then use that result to
+ * compute the needed information.
+ */
+
 int UTIL_isRegularFile(const char* infilename);
 int UTIL_isDirectory(const char* infilename);
 int UTIL_isSameFile(const char* file1, const char* file2);
@@ -124,10 +161,7 @@ int UTIL_isFIFO(const char* infilename);
 #define UTIL_FILESIZE_UNKNOWN  ((U64)(-1))
 U64 UTIL_getFileSize(const char* infilename);
 U64 UTIL_getTotalFileSize(const char* const * fileNamesTable, unsigned nbFiles);
-int UTIL_getFileStat(const char* infilename, stat_t* statbuf);
-int UTIL_setFileStat(const char* filename, stat_t* statbuf);
-int UTIL_getDirectoryStat(const char* infilename, stat_t* statbuf);
-int UTIL_chmod(char const* filename, mode_t permissions);   /*< like chmod, but avoid changing permission of /dev/null */
+
 int UTIL_compareStr(const void *p1, const void *p2);
 const char* UTIL_getFileExtension(const char* infilename);
 void  UTIL_mirrorSourceFilesDirectories(const char** fileNamesTable, unsigned int nbFiles, const char *outDirName);

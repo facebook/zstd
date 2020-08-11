@@ -99,60 +99,50 @@ int g_utilDisplayLevel;
 *  Functions
 ***************************************/
 
-int UTIL_fileExist(const char* filename)
+int UTIL_stat(const char* filename, stat_t* statbuf)
 {
-    stat_t statbuf;
 #if defined(_MSC_VER)
-    int const stat_error = _stat64(filename, &statbuf);
+    return !_stat64(filename, statbuf);
+#elif defined(__MINGW32__) && defined (__MSVCRT__)
+    return !_stati64(filename, statbuf);
 #else
-    int const stat_error = stat(filename, &statbuf);
+    return !stat(filename, statbuf);
 #endif
-    return !stat_error;
 }
 
 int UTIL_isRegularFile(const char* infilename)
 {
     stat_t statbuf;
-    return UTIL_getFileStat(infilename, &statbuf); /* Only need to know whether it is a regular file */
+    return UTIL_stat(infilename, &statbuf) && UTIL_isRegularFileStat(&statbuf);
 }
 
-int UTIL_getFileStat(const char* infilename, stat_t *statbuf)
-{
-    int r;
-#if defined(_MSC_VER)
-    r = _stat64(infilename, statbuf);
-    if (r || !(statbuf->st_mode & S_IFREG)) return 0;   /* No good... */
-#else
-    r = stat(infilename, statbuf);
-    if (r || !S_ISREG(statbuf->st_mode)) return 0;   /* No good... */
-#endif
-    return 1;
-}
-
-int UTIL_getDirectoryStat(const char* infilename, stat_t *statbuf)
+int UTIL_isRegularFileStat(const stat_t* statbuf)
 {
 #if defined(_MSC_VER)
-    int const r = _stat64(infilename, statbuf);
-    if (!r && (statbuf->st_mode & _S_IFDIR)) return 1;
+    return (statbuf->st_mode & S_IFREG) != 0;
 #else
-    int const r = stat(infilename, statbuf);
-    if (!r && S_ISDIR(statbuf->st_mode)) return 1;
+    return S_ISREG(statbuf->st_mode) != 0;
 #endif
-    return 0;
 }
 
 /* like chmod, but avoid changing permission of /dev/null */
-int UTIL_chmod(char const* filename, mode_t permissions)
+int UTIL_chmod(char const* filename, const stat_t* statbuf, mode_t permissions)
 {
-    if (!strcmp(filename, "/dev/null")) return 0;   /* pretend success, but don't change anything */
+    stat_t localStatBuf;
+    if (statbuf == NULL) {
+        if (!UTIL_stat(filename, &localStatBuf)) return 0;
+        statbuf = &localStatBuf;
+    }
+    if (!UTIL_isRegularFileStat(statbuf)) return 0; /* pretend success, but don't change anything */
     return chmod(filename, permissions);
 }
 
-int UTIL_setFileStat(const char *filename, stat_t *statbuf)
+int UTIL_setFileStat(const char *filename, const stat_t *statbuf)
 {
     int res = 0;
 
-    if (!UTIL_isRegularFile(filename))
+    stat_t curStatBuf;
+    if (!UTIL_stat(filename, &curStatBuf) || !UTIL_isRegularFileStat(&curStatBuf))
         return -1;
 
     /* set access and modification times */
@@ -180,7 +170,7 @@ int UTIL_setFileStat(const char *filename, stat_t *statbuf)
     res += chown(filename, statbuf->st_uid, statbuf->st_gid);  /* Copy ownership */
 #endif
 
-    res += UTIL_chmod(filename, statbuf->st_mode & 07777);  /* Copy file permissions */
+    res += UTIL_chmod(filename, &curStatBuf, statbuf->st_mode & 07777);  /* Copy file permissions */
 
     errno = 0;
     return -res; /* number of errors is returned */
@@ -189,7 +179,16 @@ int UTIL_setFileStat(const char *filename, stat_t *statbuf)
 int UTIL_isDirectory(const char* infilename)
 {
     stat_t statbuf;
-    return UTIL_getDirectoryStat(infilename, &statbuf);
+    return UTIL_stat(infilename, &statbuf) && UTIL_isDirectoryStat(&statbuf);
+}
+
+int UTIL_isDirectoryStat(const stat_t* statbuf)
+{
+#if defined(_MSC_VER)
+    return (statbuf->st_mode & _S_IFDIR) != 0;
+#else
+    return S_ISDIR(statbuf->st_mode) != 0;
+#endif
 }
 
 int UTIL_compareStr(const void *p1, const void *p2) {
@@ -208,8 +207,8 @@ int UTIL_isSameFile(const char* fName1, const char* fName2)
 #else
     {   stat_t file1Stat;
         stat_t file2Stat;
-        return UTIL_getFileStat(fName1, &file1Stat)
-            && UTIL_getFileStat(fName2, &file2Stat)
+        return UTIL_stat(fName1, &file1Stat)
+            && UTIL_stat(fName2, &file2Stat)
             && (file1Stat.st_dev == file2Stat.st_dev)
             && (file1Stat.st_ino == file2Stat.st_ino);
     }
@@ -222,10 +221,20 @@ int UTIL_isFIFO(const char* infilename)
 /* macro guards, as defined in : https://linux.die.net/man/2/lstat */
 #if PLATFORM_POSIX_VERSION >= 200112L
     stat_t statbuf;
-    int const r = UTIL_getFileStat(infilename, &statbuf);
-    if (!r && S_ISFIFO(statbuf.st_mode)) return 1;
+    if (UTIL_stat(infilename, &statbuf) && UTIL_isFIFOStat(&statbuf)) return 1;
 #endif
     (void)infilename;
+    return 0;
+}
+
+/* UTIL_isFIFO : distinguish named pipes */
+int UTIL_isFIFOStat(const stat_t* statbuf)
+{
+/* macro guards, as defined in : https://linux.die.net/man/2/lstat */
+#if PLATFORM_POSIX_VERSION >= 200112L
+    if (S_ISFIFO(statbuf->st_mode)) return 1;
+#endif
+    (void)statbuf;
     return 0;
 }
 
@@ -243,23 +252,22 @@ int UTIL_isLink(const char* infilename)
 
 U64 UTIL_getFileSize(const char* infilename)
 {
-    if (!UTIL_isRegularFile(infilename)) return UTIL_FILESIZE_UNKNOWN;
-    {   int r;
+    stat_t statbuf;
+    if (!UTIL_stat(infilename, &statbuf)) return UTIL_FILESIZE_UNKNOWN;
+    return UTIL_getFileSizeStat(&statbuf);
+}
+
+U64 UTIL_getFileSizeStat(const stat_t* statbuf)
+{
+    if (!UTIL_isRegularFileStat(statbuf)) return UTIL_FILESIZE_UNKNOWN;
 #if defined(_MSC_VER)
-        struct __stat64 statbuf;
-        r = _stat64(infilename, &statbuf);
-        if (r || !(statbuf.st_mode & S_IFREG)) return UTIL_FILESIZE_UNKNOWN;
+    if (!(statbuf->st_mode & S_IFREG)) return UTIL_FILESIZE_UNKNOWN;
 #elif defined(__MINGW32__) && defined (__MSVCRT__)
-        struct _stati64 statbuf;
-        r = _stati64(infilename, &statbuf);
-        if (r || !(statbuf.st_mode & S_IFREG)) return UTIL_FILESIZE_UNKNOWN;
+    if (!(statbuf->st_mode & S_IFREG)) return UTIL_FILESIZE_UNKNOWN;
 #else
-        struct stat statbuf;
-        r = stat(infilename, &statbuf);
-        if (r || !S_ISREG(statbuf.st_mode)) return UTIL_FILESIZE_UNKNOWN;
+    if (!S_ISREG(statbuf->st_mode)) return UTIL_FILESIZE_UNKNOWN;
 #endif
-        return (U64)statbuf.st_size;
-    }
+    return (U64)statbuf->st_size;
 }
 
 
@@ -336,11 +344,12 @@ UTIL_createFileNamesTable_fromFileName(const char* inputFileName)
     char* buf;
     size_t bufSize;
     size_t pos = 0;
+    stat_t statbuf;
 
-    if (!UTIL_fileExist(inputFileName) || !UTIL_isRegularFile(inputFileName))
+    if (!UTIL_stat(inputFileName, &statbuf) || !UTIL_isRegularFileStat(&statbuf))
         return NULL;
 
-    {   U64 const inputFileSize = UTIL_getFileSize(inputFileName);
+    {   U64 const inputFileSize = UTIL_getFileSizeStat(&statbuf);
         if(inputFileSize > MAX_FILE_OF_FILE_NAMES_SIZE)
             return NULL;
         bufSize = (size_t)(inputFileSize + 1); /* (+1) to add '\0' at the end of last filename */
@@ -652,9 +661,12 @@ static int isFileNameValidForMirroredOutput(const char *filename)
 static mode_t getDirMode(const char *dirName)
 {
     stat_t st;
-    int ret = UTIL_getDirectoryStat(dirName, &st);
-    if (!ret) {
+    if (!UTIL_stat(dirName, &st)) {
         UTIL_DISPLAY("zstd: failed to get DIR stats %s: %s\n", dirName, strerror(errno));
+        return DIR_DEFAULT_MODE;
+    }
+    if (!UTIL_isDirectoryStat(&st)) {
+        UTIL_DISPLAY("zstd: expected directory: %s\n", dirName);
         return DIR_DEFAULT_MODE;
     }
     return st.st_mode;

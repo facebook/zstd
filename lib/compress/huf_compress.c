@@ -163,9 +163,9 @@ size_t HUF_readCTable (HUF_CElt* CTable, unsigned* maxSymbolValuePtr, const void
     /* Prepare base value per rank */
     {   U32 n, nextRankStart = 0;
         for (n=1; n<=tableLog; n++) {
-            U32 current = nextRankStart;
+            U32 curr = nextRankStart;
             nextRankStart += (rankVal[n] << (n-1));
-            rankVal[n] = current;
+            rankVal[n] = curr;
     }   }
 
     /* fill nbBits */
@@ -291,7 +291,7 @@ static U32 HUF_setMaxHeight(nodeElt* huffNode, U32 lastNonNull, U32 maxNbBits)
 
 typedef struct {
     U32 base;
-    U32 current;
+    U32 curr;
 } rankPos;
 
 typedef nodeElt huffNodeTable[HUF_CTABLE_WORKSPACE_SIZE_U32];
@@ -313,11 +313,11 @@ static void HUF_sort(nodeElt* huffNode, const unsigned* count, U32 maxSymbolValu
         rankPosition[r].base ++;
     }
     for (n=30; n>0; n--) rankPosition[n-1].base += rankPosition[n].base;
-    for (n=0; n<32; n++) rankPosition[n].current = rankPosition[n].base;
+    for (n=0; n<32; n++) rankPosition[n].curr = rankPosition[n].base;
     for (n=0; n<=maxSymbolValue; n++) {
         U32 const c = count[n];
         U32 const r = BIT_highbit32(c+1) + 1;
-        U32 pos = rankPosition[r].current++;
+        U32 pos = rankPosition[r].curr++;
         while ((pos > rankPosition[r].base) && (c > huffNode[pos-1].count)) {
             huffNode[pos] = huffNode[pos-1];
             pos--;

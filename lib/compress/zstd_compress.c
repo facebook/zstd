@@ -401,7 +401,7 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
         return bounds;
 
     case ZSTD_c_forceAttachDict:
-        ZSTD_STATIC_ASSERT(ZSTD_dictDefaultAttach < ZSTD_dictForceCopy);
+        ZSTD_STATIC_ASSERT(ZSTD_dictDefaultAttach < ZSTD_dictForceLoad);
         bounds.lowerBound = ZSTD_dictDefaultAttach;
         bounds.upperBound = ZSTD_dictForceLoad;       /* note : how to ensure at compile time that this is the highest value enum ? */
         return bounds;

@@ -153,7 +153,9 @@ struct ZSTD_matchState_t {
     U32* hashTable;
     U32* hashTable3;
     U32* chainTable;
-    int enableDedicatedDictSearch;
+    int dedicatedDictSearch;  /* Indicates whether this matchState is using the
+                               * dedicated dictionary search structure.
+                               */
     optState_t opt;         /* optimal parser state */
     const ZSTD_matchState_t* dictMatchState;
     ZSTD_compressionParameters cParams;
@@ -768,7 +770,7 @@ MEM_STATIC ZSTD_dictMode_e ZSTD_matchState_dictMode(const ZSTD_matchState_t *ms)
     return ZSTD_window_hasExtDict(ms->window) ?
         ZSTD_extDict :
         ms->dictMatchState != NULL ?
-            (ms->dictMatchState->enableDedicatedDictSearch ? ZSTD_dedicatedDictSearch : ZSTD_dictMatchState) :
+            (ms->dictMatchState->dedicatedDictSearch ? ZSTD_dedicatedDictSearch : ZSTD_dictMatchState) :
             ZSTD_noDict;
 }
 

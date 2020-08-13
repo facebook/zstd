@@ -499,7 +499,8 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
     if (nbSeq > 0x7F) {
         if (nbSeq == 0xFF) {
             RETURN_ERROR_IF(ip+2 > iend, srcSize_wrong, "");
-            nbSeq = MEM_readLE16(ip) + LONGNBSEQ, ip+=2;
+            nbSeq = MEM_readLE16(ip) + LONGNBSEQ;
+            ip+=2;
         } else {
             RETURN_ERROR_IF(ip >= iend, srcSize_wrong, "");
             nbSeq = ((nbSeq-0x80)<<8) + *ip++;

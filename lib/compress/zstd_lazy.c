@@ -531,13 +531,13 @@ size_t ZSTD_HcFindBestMatch_generic (
 
     U32 matchIndex;
 
-    /* HC4 match finder */
-    matchIndex = ZSTD_insertAndFindFirstIndex_internal(ms, cParams, ip, mls);
-
     if (dictMode == ZSTD_dedicatedDictSearch) {
         const U32* entry = &dms->hashTable[ddsIdx];
         PREFETCH_L1(entry);
     }
+
+    /* HC4 match finder */
+    matchIndex = ZSTD_insertAndFindFirstIndex_internal(ms, cParams, ip, mls);
 
     for ( ; (matchIndex>lowLimit) & (nbAttempts>0) ; nbAttempts--) {
         size_t currentMl=0;

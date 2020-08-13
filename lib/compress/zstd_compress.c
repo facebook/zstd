@@ -1640,10 +1640,8 @@ static int ZSTD_shouldAttachDict(const ZSTD_CDict* cdict,
                                  U64 pledgedSrcSize)
 {
     size_t cutoff = attachDictSizeCutoffs[cdict->matchState.cParams.strategy];
-    int const useDedicatedDictSearch =
-        params->enableDedicatedDictSearch &&
-        ZSTD_dedicatedDictSearch_isSupported(params->compressionLevel, cdict->dictContentSize);
-    return ( useDedicatedDictSearch
+    int const dedicatedDictSearch = cdict->matchState.dedicatedDictSearch;
+    return ( dedicatedDictSearch
           || pledgedSrcSize <= cutoff
           || pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN
           || params->attachDictPref == ZSTD_dictForceAttach )
@@ -1708,6 +1706,8 @@ static size_t ZSTD_resetCCtx_byCopyingCDict(ZSTD_CCtx* cctx,
                             ZSTD_buffered_policy_e zbuff)
 {
     const ZSTD_compressionParameters *cdict_cParams = &cdict->matchState.cParams;
+
+    assert(!cdict->matchState.dedicatedDictSearch);
 
     DEBUGLOG(4, "copying dictionary into context");
 

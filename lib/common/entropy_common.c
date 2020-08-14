@@ -50,6 +50,7 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
     U32 bitStream;
     int bitCount;
     unsigned charnum = 0;
+    unsigned const maxSV1 = *maxSVPtr + 1;
     int previous0 = 0;
 
     if (hbSize < 4) {
@@ -76,27 +77,39 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
     threshold = 1<<nbBits;
     nbBits++;
 
-    while ((remaining>1) & (charnum<=*maxSVPtr)) {
+    for (;;) {
         if (previous0) {
-            unsigned n0 = charnum;
-            while ((bitStream & 0xFFFF) == 0xFFFF) {
-                n0 += 24;
-                if (ip < iend-5) {
-                    ip += 2;
+            // TODO: Generalize to FSE_countTrailingZeros() or something
+            int repeats = __builtin_ctz(~bitStream) >> 1;
+            while (repeats >= 12) {
+                charnum += 3 * 12;
+                if (ip < iend-6) {
+                    ip += 3;
                     bitStream = MEM_readLE32(ip) >> bitCount;
                 } else {
-                    bitStream >>= 16;
-                    bitCount   += 16;
-            }   }
-            while ((bitStream & 3) == 3) {
-                n0 += 3;
-                bitStream >>= 2;
-                bitCount += 2;
+                    bitStream >>= 24;
+                    bitCount   += 24;
+                }
+                repeats = __builtin_ctz(~bitStream) >> 1;
             }
-            n0 += bitStream & 3;
+            charnum += 3 * repeats;
+            bitStream >>= 2 * repeats;
+            bitCount += 2 * repeats;
+
+            assert(bitCount < 30 && (bitStream & 3) != 3);
+            charnum += bitStream & 3;
             bitCount += 2;
-            if (n0 > *maxSVPtr) return ERROR(maxSymbolValue_tooSmall);
-            while (charnum < n0) normalizedCounter[charnum++] = 0;
+
+            /* This is an error, but break and return an error
+             * at the end, because returning out of a loop makes
+             * it harder for the compiler to optimize.
+             */
+            if (charnum >= maxSV1) break;
+
+            /* We don't need to set the normalized count to 0
+             * because we already memset the whole buffer to 0.
+             */
+
             if ((ip <= iend-7) || (ip + (bitCount>>3) <= iend-4)) {
                 assert((bitCount >> 3) <= 3); /* For first condition to work */
                 ip += bitCount>>3;
@@ -104,8 +117,10 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
                 bitStream = MEM_readLE32(ip) >> bitCount;
             } else {
                 bitStream >>= 2;
-        }   }
-        {   int const max = (2*threshold-1) - remaining;
+            }
+        }
+        {
+            int const max = (2*threshold-1) - remaining;
             int count;
 
             if ((bitStream & (threshold-1)) < (U32)max) {
@@ -118,15 +133,31 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
             }
 
             count--;   /* extra accuracy */
-            remaining -= count < 0 ? -count : count;   /* -1 means +1 */
+            /* When it matters (small blocks), this is a
+             * predictable branch, because we don't use -1.
+             */
+            if (count >= 0) {
+                remaining -= count;
+            } else {
+                assert(count == -1);
+                remaining += count;
+            }
             normalizedCounter[charnum++] = (short)count;
             previous0 = !count;
-            while (remaining < threshold) {
-                nbBits--;
-                threshold >>= 1;
-            }
 
-            if ((ip <= iend-7) || (ip + (bitCount>>3) <= iend-4)) {
+            assert(threshold > 1);
+            if (remaining < threshold) {
+                /* This branch can be folded into the
+                 * threshold update condition because we
+                 * know that threshold > 1.
+                 */
+                if (remaining <= 1) break;
+                nbBits = BIT_highbit32(remaining) + 1;
+                threshold = 1 << (nbBits - 1);
+            }
+            if (charnum >= maxSV1) break;
+
+            if (LIKELY((ip <= iend-7) || (ip + (bitCount>>3) <= iend-4))) {
                 ip += bitCount>>3;
                 bitCount &= 7;
             } else {
@@ -134,15 +165,16 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
                 ip = iend - 4;
             }
             bitStream = MEM_readLE32(ip) >> (bitCount & 31);
-    }   }   /* while ((remaining>1) & (charnum<=*maxSVPtr)) */
+    }   }
     if (remaining != 1) return ERROR(corruption_detected);
+    /* Only possible when there are too many zeros. */
+    if (charnum > maxSV1) return ERROR(maxSymbolValue_tooSmall);
     if (bitCount > 32) return ERROR(corruption_detected);
     *maxSVPtr = charnum-1;
 
     ip += (bitCount+7)>>3;
     return ip-istart;
 }
-
 
 /*! HUF_readStats() :
     Read compact Huffman tree, saved by HUF_writeCTable().

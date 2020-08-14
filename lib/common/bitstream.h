@@ -35,10 +35,12 @@ extern "C" {
 /*=========================================
 *  Target specific
 =========================================*/
-#if defined(__BMI__) && defined(__GNUC__)
-#  include <immintrin.h>   /* support for bextr (experimental) */
-#elif defined(__ICCARM__)
-#  include <intrinsics.h>
+#ifndef ZSTD_NO_INTRINSICS
+#  if defined(__BMI__) && defined(__GNUC__)
+#    include <immintrin.h>   /* support for bextr (experimental) */
+#  elif defined(__ICCARM__)
+#    include <intrinsics.h>
+#  endif
 #endif
 
 #define STREAM_ACCUMULATOR_MIN_32  25

@@ -894,8 +894,6 @@ size_t ZSTD_CCtx_loadDictionary_advanced(
 {
     RETURN_ERROR_IF(cctx->streamStage != zcss_init, stage_wrong,
                     "Can't load a dictionary when ctx is not in init stage.");
-    RETURN_ERROR_IF(cctx->staticSize, memory_allocation,
-                    "no malloc for static CCtx");
     DEBUGLOG(4, "ZSTD_CCtx_loadDictionary_advanced (size: %u)", (U32)dictSize);
     ZSTD_clearAllDicts(cctx);  /* in case one already exists */
     if (dict == NULL || dictSize == 0)  /* no dictionary mode */
@@ -903,7 +901,10 @@ size_t ZSTD_CCtx_loadDictionary_advanced(
     if (dictLoadMethod == ZSTD_dlm_byRef) {
         cctx->localDict.dict = dict;
     } else {
-        void* dictBuffer = ZSTD_customMalloc(dictSize, cctx->customMem);
+        void* dictBuffer;
+        RETURN_ERROR_IF(cctx->staticSize, memory_allocation,
+                        "no malloc for static CCtx");
+        dictBuffer = ZSTD_customMalloc(dictSize, cctx->customMem);
         RETURN_ERROR_IF(!dictBuffer, memory_allocation, "NULL pointer!");
         ZSTD_memcpy(dictBuffer, dict, dictSize);
         cctx->localDict.dictBuffer = dictBuffer;

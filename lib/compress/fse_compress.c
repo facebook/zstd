@@ -341,6 +341,8 @@ unsigned FSE_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxS
     return FSE_optimalTableLog_internal(maxTableLog, srcSize, maxSymbolValue, 2);
 }
 
+// TODO: Emit -1 based on # of symbols
+#define LOW_PROB 0
 
 /* Secondary normalization method.
    To be used when primary method fails. */
@@ -361,7 +363,7 @@ static size_t FSE_normalizeM2(short* norm, U32 tableLog, const unsigned* count, 
             norm[s]=0;
             continue;
         }
-        if (count[s] <= lowThreshold) {
+        if (LOW_PROB && count[s] <= lowThreshold) {
             norm[s] = -1;
             distributed++;
             total -= count[s];
@@ -431,7 +433,6 @@ static size_t FSE_normalizeM2(short* norm, U32 tableLog, const unsigned* count, 
     return 0;
 }
 
-
 size_t FSE_normalizeCount (short* normalizedCounter, unsigned tableLog,
                            const unsigned* count, size_t total,
                            unsigned maxSymbolValue)
@@ -455,7 +456,7 @@ size_t FSE_normalizeCount (short* normalizedCounter, unsigned tableLog,
         for (s=0; s<=maxSymbolValue; s++) {
             if (count[s] == total) return 0;   /* rle special case */
             if (count[s] == 0) { normalizedCounter[s]=0; continue; }
-            if (count[s] <= lowThreshold) {
+            if (LOW_PROB && count[s] <= lowThreshold) {
                 normalizedCounter[s] = -1;
                 stillToDistribute--;
             } else {
@@ -475,20 +476,6 @@ size_t FSE_normalizeCount (short* normalizedCounter, unsigned tableLog,
         }
         else normalizedCounter[largest] += (short)stillToDistribute;
     }
-
-#if 0
-    {   /* Print Table (debug) */
-        U32 s;
-        U32 nTotal = 0;
-        for (s=0; s<=maxSymbolValue; s++)
-            RAWLOG(2, "%3i: %4i \n", s, normalizedCounter[s]);
-        for (s=0; s<=maxSymbolValue; s++)
-            nTotal += abs(normalizedCounter[s]);
-        if (nTotal != (1U<<tableLog))
-            RAWLOG(2, "Warning !!! Total == %u != %u !!!", nTotal, 1U<<tableLog);
-        getchar();
-    }
-#endif
 
     return tableLog;
 }

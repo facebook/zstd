@@ -368,19 +368,18 @@ void
 ZSTD_buildFSETable(ZSTD_seqSymbol* dt,
             const short* normalizedCounter, unsigned maxSymbolValue,
             const U32* baseValue, const U32* nbAdditionalBits,
-            unsigned tableLog)
+            unsigned tableLog, U32* wksp, size_t wkspSize)
 {
     ZSTD_seqSymbol* const tableDecode = dt+1;
     U16 symbolNext[MaxSeq+1];
 
     U32 const maxSV1 = maxSymbolValue + 1;
     U32 const tableSize = 1 << tableLog;
-    U32 highThreshold = tableSize-1;
 
     /* Sanity Checks */
     assert(maxSymbolValue <= MaxSeq);
     assert(tableLog <= MaxFSELog);
-
+    U32 highThreshold = tableSize - 1;
     /* Init, lay down lowprob symbols */
     {   ZSTD_seqSymbol_header DTableH;
         DTableH.tableLog = tableLog;
@@ -400,12 +399,68 @@ ZSTD_buildFSETable(ZSTD_seqSymbol* dt,
     }
 
     /* Spread symbols */
-    {   U32 const tableMask = tableSize-1;
+    assert(tableSize <= 512);
+    /* Specialized symbol spreading for the case when there are
+     * no low probability (-1 count) symbols. When compressing
+     * small blocks we avoid low probability symbols to hit this
+     * case, since header decoding speed matters more.
+     */
+    if (highThreshold == tableSize - 1) {
+        size_t const tableMask = tableSize-1;
+        size_t const step = FSE_TABLESTEP(tableSize);
+        /* First lay down the symbols in order.
+         * We use a uint64_t to lay down 8 bytes at a time. This reduces branch
+         * misses since small blocks generally have small table logs, so nearly
+         * all symbols have counts <= 8. We ensure we have 8 bytes at the end of
+         * our buffer to handle the over-write.
+         */
+        BYTE* spread = (BYTE*)wksp;
+        assert(wkspSize >= (1u << MaxFSELog) + sizeof(U64));
+        (void)wkspSize;
+        {
+            U64 const add = 0x0101010101010101ull;
+            size_t pos = 0;
+            U64 sv = 0;
+            U32 s;
+            for (s=0; s<maxSV1; ++s, sv += add) {
+                int i;
+                int const n = normalizedCounter[s];
+                MEM_write64(spread + pos, sv);
+                for (i = 8; i < n; i += 8) {
+                    MEM_write64(spread + pos + i, sv);
+                }
+                pos += n;
+            }
+        }
+        /* Now we spread those positions across the table.
+         * The benefit of doing it in two stages is that we avoid the the
+         * variable size inner loop, which caused lots of branch misses.
+         * Now we can run through all the positions without any branch misses.
+         * We unroll the loop twice, since that is what emperically worked best.
+         */
+        {
+            size_t position = 0;
+            size_t s;
+            size_t const unroll = 2;
+            assert(tableSize % unroll == 0); /* FSE_MIN_TABLELOG is 5 */
+            for (s = 0; s < (size_t)tableSize; s += unroll) {
+                size_t u;
+                for (u = 0; u < unroll; ++u) {
+                    size_t const uPosition = (position + (u * step)) & tableMask;
+                    tableDecode[uPosition].baseValue = spread[s + u];
+                }
+                position = (position + (unroll * step)) & tableMask;
+            }
+            assert(position == 0);
+        }
+    } else {
+        U32 const tableMask = tableSize-1;
         U32 const step = FSE_TABLESTEP(tableSize);
         U32 s, position = 0;
         for (s=0; s<maxSV1; s++) {
             int i;
-            for (i=0; i<normalizedCounter[s]; i++) {
+            int const n = normalizedCounter[s];
+            for (i=0; i<n; i++) {
                 tableDecode[position].baseValue = s;
                 position = (position + step) & tableMask;
                 while (position > highThreshold) position = (position + step) & tableMask;   /* lowprob area */
@@ -414,7 +469,8 @@ ZSTD_buildFSETable(ZSTD_seqSymbol* dt,
     }
 
     /* Build Decoding table */
-    {   U32 u;
+    {
+        U32 u;
         for (u=0; u<tableSize; u++) {
             U32 const symbol = tableDecode[u].baseValue;
             U32 const nextState = symbolNext[symbol]++;
@@ -423,7 +479,8 @@ ZSTD_buildFSETable(ZSTD_seqSymbol* dt,
             assert(nbAdditionalBits[symbol] < 255);
             tableDecode[u].nbAdditionalBits = (BYTE)nbAdditionalBits[symbol];
             tableDecode[u].baseValue = baseValue[symbol];
-    }   }
+        }
+    }
 }
 
 
@@ -435,7 +492,7 @@ static size_t ZSTD_buildSeqTable(ZSTD_seqSymbol* DTableSpace, const ZSTD_seqSymb
                                  const void* src, size_t srcSize,
                                  const U32* baseValue, const U32* nbAdditionalBits,
                                  const ZSTD_seqSymbol* defaultTable, U32 flagRepeatTable,
-                                 int ddictIsCold, int nbSeq)
+                                 int ddictIsCold, int nbSeq, U32* wksp, size_t wkspSize)
 {
     switch(type)
     {
@@ -467,7 +524,7 @@ static size_t ZSTD_buildSeqTable(ZSTD_seqSymbol* DTableSpace, const ZSTD_seqSymb
             size_t const headerSize = FSE_readNCount(norm, &max, &tableLog, src, srcSize);
             RETURN_ERROR_IF(FSE_isError(headerSize), corruption_detected, "");
             RETURN_ERROR_IF(tableLog > maxLog, corruption_detected, "");
-            ZSTD_buildFSETable(DTableSpace, norm, max, baseValue, nbAdditionalBits, tableLog);
+            ZSTD_buildFSETable(DTableSpace, norm, max, baseValue, nbAdditionalBits, tableLog, wksp, wkspSize);
             *DTablePtr = DTableSpace;
             return headerSize;
         }
@@ -520,7 +577,8 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
                                                       ip, iend-ip,
                                                       LL_base, LL_bits,
                                                       LL_defaultDTable, dctx->fseEntropy,
-                                                      dctx->ddictIsCold, nbSeq);
+                                                      dctx->ddictIsCold, nbSeq,
+                                                      dctx->workspace, sizeof(dctx->workspace));
             RETURN_ERROR_IF(ZSTD_isError(llhSize), corruption_detected, "ZSTD_buildSeqTable failed");
             ip += llhSize;
         }
@@ -530,7 +588,8 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
                                                       ip, iend-ip,
                                                       OF_base, OF_bits,
                                                       OF_defaultDTable, dctx->fseEntropy,
-                                                      dctx->ddictIsCold, nbSeq);
+                                                      dctx->ddictIsCold, nbSeq,
+                                                      dctx->workspace, sizeof(dctx->workspace));
             RETURN_ERROR_IF(ZSTD_isError(ofhSize), corruption_detected, "ZSTD_buildSeqTable failed");
             ip += ofhSize;
         }
@@ -540,7 +599,8 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
                                                       ip, iend-ip,
                                                       ML_base, ML_bits,
                                                       ML_defaultDTable, dctx->fseEntropy,
-                                                      dctx->ddictIsCold, nbSeq);
+                                                      dctx->ddictIsCold, nbSeq,
+                                                      dctx->workspace, sizeof(dctx->workspace));
             RETURN_ERROR_IF(ZSTD_isError(mlhSize), corruption_detected, "ZSTD_buildSeqTable failed");
             ip += mlhSize;
         }

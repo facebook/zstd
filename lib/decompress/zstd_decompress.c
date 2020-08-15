@@ -579,11 +579,11 @@ static size_t ZSTD_copyRawBlock(void* dst, size_t dstCapacity,
                           const void* src, size_t srcSize)
 {
     DEBUGLOG(5, "ZSTD_copyRawBlock");
+    RETURN_ERROR_IF(srcSize > dstCapacity, dstSize_tooSmall, "");
     if (dst == NULL) {
         if (srcSize == 0) return 0;
         RETURN_ERROR(dstBuffer_null, "");
     }
-    RETURN_ERROR_IF(srcSize > dstCapacity, dstSize_tooSmall, "");
     memcpy(dst, src, srcSize);
     return srcSize;
 }
@@ -592,11 +592,11 @@ static size_t ZSTD_setRleBlock(void* dst, size_t dstCapacity,
                                BYTE b,
                                size_t regenSize)
 {
+    RETURN_ERROR_IF(regenSize > dstCapacity, dstSize_tooSmall, "");
     if (dst == NULL) {
         if (regenSize == 0) return 0;
         RETURN_ERROR(dstBuffer_null, "");
     }
-    RETURN_ERROR_IF(regenSize > dstCapacity, dstSize_tooSmall, "");
     memset(dst, b, regenSize);
     return regenSize;
 }

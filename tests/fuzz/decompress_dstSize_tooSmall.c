@@ -9,9 +9,9 @@
  */
 
 /**
- * This fuzz target attempts to comprss the fuzzed data with the simple
- * compression function with an output buffer that may be too small to
- * ensure that the compressor never crashes.
+ * This fuzz target attempts to decompress a valid compressed frame into
+ * an output buffer that is too small to ensure we always get
+ * ZSTD_error_dstSize_tooSmall.
  */
 
 #include <stddef.h>
@@ -24,33 +24,47 @@
 #include "fuzz_data_producer.h"
 
 static ZSTD_CCtx *cctx = NULL;
+static ZSTD_DCtx *dctx = NULL;
 
 int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 {
     /* Give a random portion of src data to the producer, to use for
     parameter generation. The rest will be used for (de)compression */
     FUZZ_dataProducer_t *producer = FUZZ_dataProducer_create(src, size);
-    size = FUZZ_dataProducer_reserveDataPrefix(producer);
-
-    size_t const maxSize = ZSTD_compressBound(size);
-    size_t const bufSize = FUZZ_dataProducer_uint32Range(producer, 0, maxSize);
-
-    int const cLevel = FUZZ_dataProducer_int32Range(producer, kMinClevel, kMaxClevel);
+    size_t rBufSize = FUZZ_dataProducer_uint32Range(producer, 0, size);
+    size = FUZZ_dataProducer_remainingBytes(producer);
+    /* Ensure the round-trip buffer is too small. */
+    if (rBufSize >= size) {
+        rBufSize = size > 0 ? size - 1 : 0;
+    }
+    size_t const cBufSize = ZSTD_compressBound(size);
 
     if (!cctx) {
         cctx = ZSTD_createCCtx();
         FUZZ_ASSERT(cctx);
     }
-
-    void *rBuf = FUZZ_malloc(bufSize);
-    size_t const ret = ZSTD_compressCCtx(cctx, rBuf, bufSize, src, size, cLevel);
-    if (ZSTD_isError(ret)) {
-        FUZZ_ASSERT(ZSTD_getErrorCode(ret) == ZSTD_error_dstSize_tooSmall);
+    if (!dctx) {
+        dctx = ZSTD_createDCtx();
+        FUZZ_ASSERT(dctx);
     }
+
+    void *cBuf = FUZZ_malloc(cBufSize);
+    void *rBuf = FUZZ_malloc(rBufSize);
+    size_t const cSize = ZSTD_compressCCtx(cctx, cBuf, cBufSize, src, size, 1);
+    FUZZ_ZASSERT(cSize);
+    size_t const rSize = ZSTD_decompressDCtx(dctx, rBuf, rBufSize, cBuf, cSize);
+    if (size == 0) {
+        FUZZ_ASSERT(rSize == 0);
+    } else {
+        FUZZ_ASSERT(ZSTD_isError(rSize));
+        FUZZ_ASSERT(ZSTD_getErrorCode(rSize) == ZSTD_error_dstSize_tooSmall);
+    }
+    free(cBuf);
     free(rBuf);
     FUZZ_dataProducer_free(producer);
 #ifndef STATEFUL_FUZZING
     ZSTD_freeCCtx(cctx); cctx = NULL;
+    ZSTD_freeDCtx(dctx); dctx = NULL;
 #endif
     return 0;
 }

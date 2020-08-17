@@ -575,7 +575,7 @@ size_t ZSTD_HcFindBestMatch_generic (
         const U32 ddsMinChain = ddsSize > ddsChainSize ? ddsSize - ddsChainSize : 0;
         const U32 bucketSize           = (1 << DD_BLOG);
 
-        U32 attemptNb = 0;
+        U32 attemptNb = 1;
 
         matchIndex = dms->hashTable[ddsIdx];
 
@@ -603,7 +603,7 @@ size_t ZSTD_HcFindBestMatch_generic (
                 break;
             }
 
-            if (attemptNb < bucketSize - 1) {
+            if (attemptNb < bucketSize) {
                 matchIndex = dms->hashTable[ddsIdx + attemptNb];
             } else {
                 matchIndex = dms->chainTable[matchIndex & ddsChainMask];

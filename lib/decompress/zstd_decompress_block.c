@@ -364,8 +364,8 @@ static void ZSTD_buildSeqTable_rle(ZSTD_seqSymbol* dt, U32 baseValue, U32 nbAddB
  * generate FSE decoding table for one symbol (ll, ml or off)
  * cannot fail if input is valid =>
  * all inputs are presumed validated at this stage */
-void
-ZSTD_buildFSETable(ZSTD_seqSymbol* dt,
+FORCE_INLINE_TEMPLATE
+void ZSTD_buildFSETable_body(ZSTD_seqSymbol* dt,
             const short* normalizedCounter, unsigned maxSymbolValue,
             const U32* baseValue, const U32* nbAdditionalBits,
             unsigned tableLog, void* wksp, size_t wkspSize)
@@ -378,6 +378,7 @@ ZSTD_buildFSETable(ZSTD_seqSymbol* dt,
     BYTE* spread = (BYTE*)(symbolNext + MaxSeq + 1);
 
     assert(wkspSize >= ZSTD_BUILD_FSE_TABLE_WKSP_SIZE);
+    (void)wkspSize;
 
     /* Sanity Checks */
     assert(maxSymbolValue <= MaxSeq);
@@ -483,6 +484,42 @@ ZSTD_buildFSETable(ZSTD_seqSymbol* dt,
     }
 }
 
+static void ZSTD_buildFSETable_body_default(ZSTD_seqSymbol* dt,
+            const short* normalizedCounter, unsigned maxSymbolValue,
+            const U32* baseValue, const U32* nbAdditionalBits,
+            unsigned tableLog, void* wksp, size_t wkspSize)
+{
+    return ZSTD_buildFSETable_body(dt, normalizedCounter, maxSymbolValue,
+            baseValue, nbAdditionalBits, tableLog, wksp, wkspSize);
+}
+
+#if DYNAMIC_BMI2
+TARGET_ATTRIBUTE("bmi2") static void ZSTD_buildFSETable_body_bmi2(ZSTD_seqSymbol* dt,
+            const short* normalizedCounter, unsigned maxSymbolValue,
+            const U32* baseValue, const U32* nbAdditionalBits,
+            unsigned tableLog, void* wksp, size_t wkspSize)
+{
+    return ZSTD_buildFSETable_body(dt, normalizedCounter, maxSymbolValue,
+            baseValue, nbAdditionalBits, tableLog, wksp, wkspSize);
+}
+#endif
+
+void ZSTD_buildFSETable(ZSTD_seqSymbol* dt,
+            const short* normalizedCounter, unsigned maxSymbolValue,
+            const U32* baseValue, const U32* nbAdditionalBits,
+            unsigned tableLog, void* wksp, size_t wkspSize, int bmi2)
+{
+#if DYNAMIC_BMI2
+    if (bmi2) {
+        return ZSTD_buildFSETable_body_bmi2(dt, normalizedCounter, maxSymbolValue,
+                baseValue, nbAdditionalBits, tableLog, wksp, wkspSize);
+    }
+#endif
+    (void)bmi2;
+    return ZSTD_buildFSETable_body_default(dt, normalizedCounter, maxSymbolValue,
+            baseValue, nbAdditionalBits, tableLog, wksp, wkspSize);
+}
+
 
 /*! ZSTD_buildSeqTable() :
  * @return : nb bytes read from src,
@@ -492,7 +529,8 @@ static size_t ZSTD_buildSeqTable(ZSTD_seqSymbol* DTableSpace, const ZSTD_seqSymb
                                  const void* src, size_t srcSize,
                                  const U32* baseValue, const U32* nbAdditionalBits,
                                  const ZSTD_seqSymbol* defaultTable, U32 flagRepeatTable,
-                                 int ddictIsCold, int nbSeq, U32* wksp, size_t wkspSize)
+                                 int ddictIsCold, int nbSeq, U32* wksp, size_t wkspSize,
+                                 int bmi2)
 {
     switch(type)
     {
@@ -524,7 +562,7 @@ static size_t ZSTD_buildSeqTable(ZSTD_seqSymbol* DTableSpace, const ZSTD_seqSymb
             size_t const headerSize = FSE_readNCount(norm, &max, &tableLog, src, srcSize);
             RETURN_ERROR_IF(FSE_isError(headerSize), corruption_detected, "");
             RETURN_ERROR_IF(tableLog > maxLog, corruption_detected, "");
-            ZSTD_buildFSETable(DTableSpace, norm, max, baseValue, nbAdditionalBits, tableLog, wksp, wkspSize);
+            ZSTD_buildFSETable(DTableSpace, norm, max, baseValue, nbAdditionalBits, tableLog, wksp, wkspSize, bmi2);
             *DTablePtr = DTableSpace;
             return headerSize;
         }
@@ -578,7 +616,8 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
                                                       LL_base, LL_bits,
                                                       LL_defaultDTable, dctx->fseEntropy,
                                                       dctx->ddictIsCold, nbSeq,
-                                                      dctx->workspace, sizeof(dctx->workspace));
+                                                      dctx->workspace, sizeof(dctx->workspace),
+                                                      dctx->bmi2);
             RETURN_ERROR_IF(ZSTD_isError(llhSize), corruption_detected, "ZSTD_buildSeqTable failed");
             ip += llhSize;
         }
@@ -589,7 +628,8 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
                                                       OF_base, OF_bits,
                                                       OF_defaultDTable, dctx->fseEntropy,
                                                       dctx->ddictIsCold, nbSeq,
-                                                      dctx->workspace, sizeof(dctx->workspace));
+                                                      dctx->workspace, sizeof(dctx->workspace),
+                                                      dctx->bmi2);
             RETURN_ERROR_IF(ZSTD_isError(ofhSize), corruption_detected, "ZSTD_buildSeqTable failed");
             ip += ofhSize;
         }
@@ -600,7 +640,8 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
                                                       ML_base, ML_bits,
                                                       ML_defaultDTable, dctx->fseEntropy,
                                                       dctx->ddictIsCold, nbSeq,
-                                                      dctx->workspace, sizeof(dctx->workspace));
+                                                      dctx->workspace, sizeof(dctx->workspace),
+                                                      dctx->bmi2);
             RETURN_ERROR_IF(ZSTD_isError(mlhSize), corruption_detected, "ZSTD_buildSeqTable failed");
             ip += mlhSize;
         }

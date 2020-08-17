@@ -181,6 +181,11 @@ typedef struct {
 // TODO: Template based on BMI2 (5% boost)
 size_t HUF_readDTableX1_wksp(HUF_DTable* DTable, const void* src, size_t srcSize, void* workSpace, size_t wkspSize)
 {
+    return HUF_readDTableX1_wksp_bmi2(DTable, src, srcSize, workSpace, wkspSize, /* bmi2 */ 0);
+}
+
+size_t HUF_readDTableX1_wksp_bmi2(HUF_DTable* DTable, const void* src, size_t srcSize, void* workSpace, size_t wkspSize, int bmi2)
+{
     U32 tableLog = 0;
     U32 nbSymbols = 0;
     size_t iSize;
@@ -194,7 +199,7 @@ size_t HUF_readDTableX1_wksp(HUF_DTable* DTable, const void* src, size_t srcSize
     DEBUG_STATIC_ASSERT(sizeof(DTableDesc) == sizeof(HUF_DTable));
     /* memset(huffWeight, 0, sizeof(huffWeight)); */   /* is not necessary, even though some analyzer complain ... */
 
-    iSize = HUF_readStats_wksp(wksp->huffWeight, HUF_SYMBOLVALUE_MAX + 1, wksp->rankVal, &nbSymbols, &tableLog, src, srcSize, wksp->statsWksp, sizeof(wksp->statsWksp));
+    iSize = HUF_readStats_wksp(wksp->huffWeight, HUF_SYMBOLVALUE_MAX + 1, wksp->rankVal, &nbSymbols, &tableLog, src, srcSize, wksp->statsWksp, sizeof(wksp->statsWksp), bmi2);
     if (HUF_isError(iSize)) return iSize;
 
     /* Table header */
@@ -220,13 +225,21 @@ size_t HUF_readDTableX1_wksp(HUF_DTable* DTable, const void* src, size_t srcSize
     {
         int n;
         int nextRankStart = 0;
+        int const unroll = 4;
+        int const nLimit = (int)nbSymbols - unroll + 1;
         for (n=0; n<(int)tableLog+1; n++) {
             U32 const current = nextRankStart;
             nextRankStart += wksp->rankVal[n];
             wksp->rankStart[n] = current;
         }
-        // TODO: This loop is now the bottleneck: Can this be made faster?
-        for (n=0; n < (int)nbSymbols; ++n) {
+        for (n=0; n < nLimit; n += unroll) {
+            int u;
+            for (u=0; u < unroll; ++u) {
+                size_t const w = wksp->huffWeight[n+u];
+                wksp->symbols[wksp->rankStart[w]++] = n+u;
+            }
+        }
+        for (; n < (int)nbSymbols; ++n) {
             size_t const w = wksp->huffWeight[n];
             wksp->symbols[wksp->rankStart[w]++] = n;
         }
@@ -540,8 +553,7 @@ static size_t HUF_decompress4X1_DCtx_wksp_bmi2(HUF_DTable* dctx, void* dst, size
 {
     const BYTE* ip = (const BYTE*) cSrc;
 
-    size_t const hSize = HUF_readDTableX1_wksp (dctx, cSrc, cSrcSize,
-                                                workSpace, wkspSize);
+    size_t const hSize = HUF_readDTableX1_wksp_bmi2(dctx, cSrc, cSrcSize, workSpace, wkspSize, bmi2);
     if (HUF_isError(hSize)) return hSize;
     if (hSize >= cSrcSize) return ERROR(srcSize_wrong);
     ip += hSize; cSrcSize -= hSize;
@@ -1320,7 +1332,7 @@ size_t HUF_decompress1X1_DCtx_wksp_bmi2(HUF_DTable* dctx, void* dst, size_t dstS
 {
     const BYTE* ip = (const BYTE*) cSrc;
 
-    size_t const hSize = HUF_readDTableX1_wksp(dctx, cSrc, cSrcSize, workSpace, wkspSize);
+    size_t const hSize = HUF_readDTableX1_wksp_bmi2(dctx, cSrc, cSrcSize, workSpace, wkspSize, bmi2);
     if (HUF_isError(hSize)) return hSize;
     if (hSize >= cSrcSize) return ERROR(srcSize_wrong);
     ip += hSize; cSrcSize -= hSize;

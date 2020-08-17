@@ -111,6 +111,8 @@ HUF_PUBLIC_API size_t HUF_compress4X_wksp (void* dst, size_t dstCapacity,
 
 /* *** Dependencies *** */
 #include "mem.h"   /* U32 */
+#define FSE_STATIC_LINKING_ONLY
+#include "fse.h"
 
 
 /* *** Constants *** */
@@ -225,6 +227,17 @@ size_t HUF_buildCTable_wksp (HUF_CElt* tree,
 size_t HUF_readStats(BYTE* huffWeight, size_t hwSize,
                      U32* rankStats, U32* nbSymbolsPtr, U32* tableLogPtr,
                      const void* src, size_t srcSize);
+
+/*! HUF_readStats_wksp() :
+ * Same as HUF_readStats() but takes an external workspace which must be
+ * 4-byte aligned and its size must be >= HUF_READ_STATS_WORKSPACE_SIZE.
+ */
+#define HUF_READ_STATS_WORKSPACE_SIZE_U32 FSE_DECOMPRESS_WKSP_SIZE_U32(6, HUF_TABLELOG_MAX-1)
+#define HUF_READ_STATS_WORKSPACE_SIZE (HUF_READ_STATS_WORKSPACE_SIZE_U32 * sizeof(unsigned))
+size_t HUF_readStats_wksp(BYTE* huffWeight, size_t hwSize,
+                          U32* rankStats, U32* nbSymbolsPtr, U32* tableLogPtr,
+                          const void* src, size_t srcSize,
+                          void* workspace, size_t wkspSize);
 
 /** HUF_readCTable() :
  *  Loading a CTable saved with HUF_writeCTable() */

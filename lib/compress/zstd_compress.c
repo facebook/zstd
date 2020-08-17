@@ -875,8 +875,6 @@ static int ZSTD_dedicatedDictSearch_isSupported(int const compressionLevel, size
 static size_t ZSTD_initLocalDict(ZSTD_CCtx* cctx)
 {
     ZSTD_localDict* const dl = &cctx->localDict;
-    ZSTD_compressionParameters const cParams = ZSTD_getCParamsFromCCtxParams(
-            &cctx->requestedParams, ZSTD_CONTENTSIZE_UNKNOWN, dl->dictSize);
     if (dl->dict == NULL) {
         /* No local dictionary. */
         assert(dl->dictBuffer == NULL);
@@ -893,12 +891,12 @@ static size_t ZSTD_initLocalDict(ZSTD_CCtx* cctx)
     assert(cctx->cdict == NULL);
     assert(cctx->prefixDict.dict == NULL);
 
-    dl->cdict = ZSTD_createCDict_advanced(
+    dl->cdict = ZSTD_createCDict_advanced2(
             dl->dict,
             dl->dictSize,
             ZSTD_dlm_byRef,
             dl->dictContentType,
-            cParams,
+            &cctx->requestedParams,
             cctx->customMem);
     RETURN_ERROR_IF(!dl->cdict, memory_allocation, "ZSTD_createCDict_advanced failed");
     cctx->cdict = dl->cdict;

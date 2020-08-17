@@ -368,13 +368,16 @@ void
 ZSTD_buildFSETable(ZSTD_seqSymbol* dt,
             const short* normalizedCounter, unsigned maxSymbolValue,
             const U32* baseValue, const U32* nbAdditionalBits,
-            unsigned tableLog, U32* wksp, size_t wkspSize)
+            unsigned tableLog, void* wksp, size_t wkspSize)
 {
     ZSTD_seqSymbol* const tableDecode = dt+1;
-    U16 symbolNext[MaxSeq+1];
-
     U32 const maxSV1 = maxSymbolValue + 1;
     U32 const tableSize = 1 << tableLog;
+
+    U16* symbolNext = (U16*)wksp;
+    BYTE* spread = (BYTE*)(symbolNext + MaxSeq + 1);
+
+    assert(wkspSize >= ZSTD_BUILD_FSE_TABLE_WKSP_SIZE);
 
     /* Sanity Checks */
     assert(maxSymbolValue <= MaxSeq);
@@ -414,9 +417,6 @@ ZSTD_buildFSETable(ZSTD_seqSymbol* dt,
          * all symbols have counts <= 8. We ensure we have 8 bytes at the end of
          * our buffer to handle the over-write.
          */
-        BYTE* spread = (BYTE*)wksp;
-        assert(wkspSize >= (1u << MaxFSELog) + sizeof(U64));
-        (void)wkspSize;
         {
             U64 const add = 0x0101010101010101ull;
             size_t pos = 0;

@@ -931,6 +931,7 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
     CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_targetLength, (int)comprParams.targetLength) );
     CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_strategy, comprParams.strategy) );
     CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_literalCompressionMode, (int)prefs->literalCompressionMode) );
+    CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_enableDedicatedDictSearch, 1) );
     /* multi-threading */
 #ifdef ZSTD_MULTITHREAD
     DISPLAYLEVEL(5,"set nb workers = %u \n", prefs->nbWorkers);

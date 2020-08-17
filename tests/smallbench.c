@@ -232,10 +232,11 @@ FORCE_NOINLINE size_t ZSTD_decodeLiteralsHeader(ZSTD_DCtx* dctx, void const* src
             }
             RETURN_ERROR_IF(litSize > ZSTD_BLOCKSIZE_MAX, corruption_detected, "");
             RETURN_ERROR_IF(litCSize + lhSize > srcSize, corruption_detected, "");
-            return HUF_readDTableX1_wksp(
+            return HUF_readDTableX1_wksp_bmi2(
                     dctx->entropy.hufTable,
                     istart+lhSize, litCSize,
-                    dctx->workspace, sizeof(dctx->workspace));
+                    dctx->workspace, sizeof(dctx->workspace),
+                    dctx->bmi2);
         }
     }
     return 0;

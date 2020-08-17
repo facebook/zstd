@@ -228,6 +228,13 @@ FSE_PUBLIC_API size_t FSE_readNCount (short* normalizedCounter,
                            unsigned* maxSymbolValuePtr, unsigned* tableLogPtr,
                            const void* rBuffer, size_t rBuffSize);
 
+/*! FSE_readNCount_bmi2():
+ * Same as FSE_readNCount() but pass bmi2=1 when your CPU supports BMI2 and 0 otherwise.
+ */
+FSE_PUBLIC_API size_t FSE_readNCount_bmi2(short* normalizedCounter,
+                           unsigned* maxSymbolValuePtr, unsigned* tableLogPtr,
+                           const void* rBuffer, size_t rBuffSize, int bmi2);
+
 /*! Constructor and Destructor of FSE_DTable.
     Note that its size depends on 'tableLog' */
 typedef unsigned FSE_DTable;   /* don't allocate that. It's just a way to be more restrictive than void* */
@@ -341,6 +348,9 @@ size_t FSE_buildDTable_rle (FSE_DTable* dt, unsigned char symbolValue);
 #define FSE_DECOMPRESS_WKSP_SIZE(maxTableLog, maxSymbolValue) (FSE_DECOMPRESS_WKSP_SIZE_U32(maxTableLog, maxSymbolValue) * sizeof(unsigned))
 size_t FSE_decompress_wksp(void* dst, size_t dstCapacity, const void* cSrc, size_t cSrcSize, unsigned maxLog, void* workSpace, size_t wkspSize);
 /**< same as FSE_decompress(), using an externally allocated `workSpace` produced with `FSE_DECOMPRESS_WKSP_SIZE_U32(maxLog, maxSymbolValue)` */
+
+size_t FSE_decompress_wksp_bmi2(void* dst, size_t dstCapacity, const void* cSrc, size_t cSrcSize, unsigned maxLog, void* workSpace, size_t wkspSize, int bmi2);
+/**< Same as FSE_decompress_wksp() but with dynamic BMI2 support. Pass 1 if your CPU supports BMI2 or 0 if it doesn't. */
 
 typedef enum {
    FSE_repeat_none,  /**< Cannot use the previous table */

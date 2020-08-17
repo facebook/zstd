@@ -72,7 +72,9 @@ static const U32 ML_base[MaxML+1] = {
  } ZSTD_seqSymbol;
 
  #define SEQSYMBOL_TABLE_SIZE(log)   (1 + (1 << (log)))
- #define ZSTD_FSE_WKSP_SIZE_U32 130
+
+#define ZSTD_BUILD_FSE_TABLE_WKSP_SIZE (sizeof(S16) * (MaxSeq + 1) + (1u << MaxFSELog) + sizeof(U64))
+#define ZSTD_BUILD_FSE_TABLE_WKSP_SIZE_U32 ((ZSTD_BUILD_FSE_TABLE_WKSP_SIZE + sizeof(U32) - 1) / sizeof(U32))
 
 typedef struct {
     ZSTD_seqSymbol LLTable[SEQSYMBOL_TABLE_SIZE(LLFSELog)];    /* Note : Space reserved for FSE Tables */
@@ -80,7 +82,7 @@ typedef struct {
     ZSTD_seqSymbol MLTable[SEQSYMBOL_TABLE_SIZE(MLFSELog)];    /* and therefore must be at least HUF_DECOMPRESS_WORKSPACE_SIZE large */
     HUF_DTable hufTable[HUF_DTABLE_SIZE(HufLog)];  /* can accommodate HUF_decompress4X */
     U32 rep[ZSTD_REP_NUM];
-    U32 workspace[ZSTD_FSE_WKSP_SIZE_U32];
+    U32 workspace[ZSTD_BUILD_FSE_TABLE_WKSP_SIZE];
 } ZSTD_entropyDTables_t;
 
 typedef enum { ZSTDds_getFrameHeaderSize, ZSTDds_decodeFrameHeader,

@@ -73,7 +73,7 @@ size_t FSE_buildDTable(FSE_DTable* dt, const short* normalizedCounter, unsigned 
     return FSE_buildDTable_wksp(dt, normalizedCounter, maxSymbolValue, tableLog, wksp, sizeof(wksp));
 }
 
-size_t FSE_buildDTable_wksp(FSE_DTable* dt, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog, void* workSpace, size_t wkspSize)
+static size_t FSE_buildDTable_internal(FSE_DTable* dt, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog, void* workSpace, size_t wkspSize)
 {
     void* const tdPtr = dt+1;   /* because *dt is unsigned, 32-bits aligned on 32-bits */
     FSE_DECODE_TYPE* const tableDecode = (FSE_DECODE_TYPE*) (tdPtr);
@@ -176,6 +176,11 @@ size_t FSE_buildDTable_wksp(FSE_DTable* dt, const short* normalizedCounter, unsi
     }   }
 
     return 0;
+}
+
+size_t FSE_buildDTable_wksp(FSE_DTable* dt, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog, void* workSpace, size_t wkspSize)
+{
+    return FSE_buildDTable_internal(dt, normalizedCounter, maxSymbolValue, tableLog, workSpace, wkspSize);
 }
 
 
@@ -307,6 +312,15 @@ size_t FSE_decompress_usingDTable(void* dst, size_t originalSize,
 
 size_t FSE_decompress_wksp(void* dst, size_t dstCapacity, const void* cSrc, size_t cSrcSize, unsigned maxLog, void* workSpace, size_t wkspSize)
 {
+    return FSE_decompress_wksp_bmi2(dst, dstCapacity, cSrc, cSrcSize, maxLog, workSpace, wkspSize, /* bmi2 */ 0);
+}
+
+FORCE_INLINE_TEMPLATE size_t FSE_decompress_wksp_body(
+        void* dst, size_t dstCapacity,
+        const void* cSrc, size_t cSrcSize,
+        unsigned maxLog, void* workSpace, size_t wkspSize,
+        int bmi2)
+{
     const BYTE* const istart = (const BYTE*)cSrc;
     const BYTE* ip = istart;
     short counting[FSE_MAX_SYMBOL_VALUE+1];
@@ -315,7 +329,7 @@ size_t FSE_decompress_wksp(void* dst, size_t dstCapacity, const void* cSrc, size
     FSE_DTable* const dtable = (FSE_DTable*)workSpace;
 
     /* normal FSE decoding mode */
-    size_t const NCountLength = FSE_readNCount (counting, &maxSymbolValue, &tableLog, istart, cSrcSize);
+    size_t const NCountLength = FSE_readNCount_bmi2(counting, &maxSymbolValue, &tableLog, istart, cSrcSize, bmi2);
     if (FSE_isError(NCountLength)) return NCountLength;
     if (tableLog > maxLog) return ERROR(tableLog_tooLarge);
     assert(NCountLength <= cSrcSize);
@@ -326,9 +340,40 @@ size_t FSE_decompress_wksp(void* dst, size_t dstCapacity, const void* cSrc, size
     workSpace = dtable + FSE_DTABLE_SIZE_U32(tableLog);
     wkspSize -= FSE_DTABLE_SIZE(tableLog);
 
-    CHECK_F( FSE_buildDTable_wksp(dtable, counting, maxSymbolValue, tableLog, workSpace, wkspSize) );
+    CHECK_F( FSE_buildDTable_internal(dtable, counting, maxSymbolValue, tableLog, workSpace, wkspSize) );
 
-    return FSE_decompress_usingDTable (dst, dstCapacity, ip, cSrcSize, dtable);   /* always return, even if it is an error code */
+    {
+        const void* ptr = dtable;
+        const FSE_DTableHeader* DTableH = (const FSE_DTableHeader*)ptr;
+        const U32 fastMode = DTableH->fastMode;
+
+        /* select fast mode (static) */
+        if (fastMode) return FSE_decompress_usingDTable_generic(dst, dstCapacity, ip, cSrcSize, dtable, 1);
+        return FSE_decompress_usingDTable_generic(dst, dstCapacity, ip, cSrcSize, dtable, 0);
+    }
+}
+
+static size_t FSE_decompress_wksp_body_default(void* dst, size_t dstCapacity, const void* cSrc, size_t cSrcSize, unsigned maxLog, void* workSpace, size_t wkspSize)
+{
+    return FSE_decompress_wksp_body(dst, dstCapacity, cSrc, cSrcSize, maxLog, workSpace, wkspSize, 0);
+}
+
+#if DYNAMIC_BMI2
+TARGET_ATTRIBUTE("bmi2") static size_t FSE_decompress_wksp_body_bmi2(void* dst, size_t dstCapacity, const void* cSrc, size_t cSrcSize, unsigned maxLog, void* workSpace, size_t wkspSize)
+{
+    return FSE_decompress_wksp_body(dst, dstCapacity, cSrc, cSrcSize, maxLog, workSpace, wkspSize, 1);
+}
+#endif
+
+size_t FSE_decompress_wksp_bmi2(void* dst, size_t dstCapacity, const void* cSrc, size_t cSrcSize, unsigned maxLog, void* workSpace, size_t wkspSize, int bmi2)
+{
+#if DYNAMIC_BMI2
+    if (bmi2) {
+        return FSE_decompress_wksp_body_bmi2(dst, dstCapacity, cSrc, cSrcSize, maxLog, workSpace, wkspSize);
+    }
+#endif
+    (void)bmi2;
+    return FSE_decompress_wksp_body_default(dst, dstCapacity, cSrc, cSrcSize, maxLog, workSpace, wkspSize);
 }
 
 

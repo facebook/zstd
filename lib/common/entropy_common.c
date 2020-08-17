@@ -38,8 +38,9 @@ const char* HUF_getErrorName(size_t code) { return ERR_getErrorName(code); }
 /*-**************************************************************
 *  FSE NCount encoding-decoding
 ****************************************************************/
-size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr,
-                 const void* headerBuffer, size_t hbSize)
+FORCE_INLINE_TEMPLATE
+size_t FSE_readNCount_body(short* normalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr,
+                           const void* headerBuffer, size_t hbSize)
 {
     const BYTE* const istart = (const BYTE*) headerBuffer;
     const BYTE* const iend = istart + hbSize;
@@ -175,6 +176,43 @@ size_t FSE_readNCount (short* normalizedCounter, unsigned* maxSVPtr, unsigned* t
     return ip-istart;
 }
 
+static size_t FSE_readNCount_body_default(
+        short* normalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr,
+        const void* headerBuffer, size_t hbSize)
+{
+    return FSE_readNCount_body(normalizedCounter, maxSVPtr, tableLogPtr, headerBuffer, hbSize);
+}
+
+#if DYNAMIC_BMI2
+TARGET_ATTRIBUTE("bmi2") static size_t FSE_readNCount_body_bmi2(
+        short* normalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr,
+        const void* headerBuffer, size_t hbSize)
+{
+    return FSE_readNCount_body(normalizedCounter, maxSVPtr, tableLogPtr, headerBuffer, hbSize);
+}
+#endif
+
+size_t FSE_readNCount_bmi2(
+        short* normalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr,
+        const void* headerBuffer, size_t hbSize, int bmi2)
+{
+#if DYNAMIC_BMI2
+    if (bmi2) {
+        return FSE_readNCount_body_bmi2(normalizedCounter, maxSVPtr, tableLogPtr, headerBuffer, hbSize);
+    }
+#endif
+    (void)bmi2;
+    return FSE_readNCount_body_default(normalizedCounter, maxSVPtr, tableLogPtr, headerBuffer, hbSize);
+}
+
+size_t FSE_readNCount(
+        short* normalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr,
+        const void* headerBuffer, size_t hbSize)
+{
+    return FSE_readNCount_bmi2(normalizedCounter, maxSVPtr, tableLogPtr, headerBuffer, hbSize, /* bmi2 */ 0);
+}
+
+
 /*! HUF_readStats() :
     Read compact Huffman tree, saved by HUF_writeCTable().
     `huffWeight` is destination buffer.
@@ -187,13 +225,14 @@ size_t HUF_readStats(BYTE* huffWeight, size_t hwSize, U32* rankStats,
                      const void* src, size_t srcSize)
 {
     U32 wksp[HUF_READ_STATS_WORKSPACE_SIZE_U32];
-    return HUF_readStats_wksp(huffWeight, hwSize, rankStats, nbSymbolsPtr, tableLogPtr, src, srcSize, wksp, sizeof(wksp));
+    return HUF_readStats_wksp(huffWeight, hwSize, rankStats, nbSymbolsPtr, tableLogPtr, src, srcSize, wksp, sizeof(wksp), /* bmi2 */ 0);
 }
 
-size_t HUF_readStats_wksp(BYTE* huffWeight, size_t hwSize, U32* rankStats,
+FORCE_INLINE_TEMPLATE size_t HUF_readStats_body(BYTE* huffWeight, size_t hwSize, U32* rankStats,
                      U32* nbSymbolsPtr, U32* tableLogPtr,
                      const void* src, size_t srcSize,
-                     void* workSpace, size_t wkspSize)
+                     void* workSpace, size_t wkspSize,
+                     int bmi2)
 {
     U32 weightTotal;
     const BYTE* ip = (const BYTE*) src;
@@ -217,7 +256,7 @@ size_t HUF_readStats_wksp(BYTE* huffWeight, size_t hwSize, U32* rankStats,
     }   }   }
     else  {   /* header compressed with FSE (normal case) */
         if (iSize+1 > srcSize) return ERROR(srcSize_wrong);
-        oSize = FSE_decompress_wksp(huffWeight, hwSize-1, ip+1, iSize, 6, workSpace, wkspSize);   /* max (hwSize-1) values decoded, as last one is implied */
+        oSize = FSE_decompress_wksp_bmi2(huffWeight, hwSize-1, ip+1, iSize, 6, workSpace, wkspSize, bmi2);   /* max (hwSize-1) values decoded, as last one is implied */
         if (FSE_isError(oSize)) return oSize;
     }
 
@@ -251,4 +290,37 @@ size_t HUF_readStats_wksp(BYTE* huffWeight, size_t hwSize, U32* rankStats,
     /* results */
     *nbSymbolsPtr = (U32)(oSize+1);
     return iSize+1;
+}
+
+static size_t HUF_readStats_body_default(BYTE* huffWeight, size_t hwSize, U32* rankStats,
+                     U32* nbSymbolsPtr, U32* tableLogPtr,
+                     const void* src, size_t srcSize,
+                     void* workSpace, size_t wkspSize)
+{
+    return HUF_readStats_body(huffWeight, hwSize, rankStats, nbSymbolsPtr, tableLogPtr, src, srcSize, workSpace, wkspSize, 0);
+}
+
+#if DYNAMIC_BMI2
+static TARGET_ATTRIBUTE("bmi2") size_t HUF_readStats_body_bmi2(BYTE* huffWeight, size_t hwSize, U32* rankStats,
+                     U32* nbSymbolsPtr, U32* tableLogPtr,
+                     const void* src, size_t srcSize,
+                     void* workSpace, size_t wkspSize)
+{
+    return HUF_readStats_body(huffWeight, hwSize, rankStats, nbSymbolsPtr, tableLogPtr, src, srcSize, workSpace, wkspSize, 1);
+}
+#endif
+
+size_t HUF_readStats_wksp(BYTE* huffWeight, size_t hwSize, U32* rankStats,
+                     U32* nbSymbolsPtr, U32* tableLogPtr,
+                     const void* src, size_t srcSize,
+                     void* workSpace, size_t wkspSize,
+                     int bmi2)
+{
+#if DYNAMIC_BMI2
+    if (bmi2) {
+        return HUF_readStats_body_bmi2(huffWeight, hwSize, rankStats, nbSymbolsPtr, tableLogPtr, src, srcSize, workSpace, wkspSize);
+    }
+#endif
+    (void)bmi2;
+    return HUF_readStats_body_default(huffWeight, hwSize, rankStats, nbSymbolsPtr, tableLogPtr, src, srcSize, workSpace, wkspSize);
 }

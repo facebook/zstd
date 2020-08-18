@@ -574,8 +574,7 @@ size_t ZSTD_HcFindBestMatch_generic (
         const U32 ddsIndexDelta        = dictLimit - ddsSize;
         const U32 ddsMinChain = ddsSize > ddsChainSize ? ddsSize - ddsChainSize : 0;
         const U32 bucketSize           = (1 << DD_BLOG);
-
-        U32 attemptNb = 1;
+        U32 attemptNb;
 
         matchIndex = dms->hashTable[ddsIdx];
 
@@ -583,7 +582,11 @@ size_t ZSTD_HcFindBestMatch_generic (
         if (!matchIndex)
             return ml;
 
-        for ( ; (matchIndex>ddsLowestIndex) & (nbAttempts>0) ; nbAttempts--, attemptNb++) {
+        for (attemptNb = 0; attemptNb < bucketSize; attemptNb++) {
+            PREFETCH_L1(ddsBase + dms->hashTable[ddsIdx + attemptNb]);
+        }
+
+        for (attemptNb = 1; (matchIndex>ddsLowestIndex) & (nbAttempts>0) ; nbAttempts--, attemptNb++) {
             size_t currentMl=0;
             const BYTE* const match = ddsBase + matchIndex;
             assert(match+4 <= ddsEnd);

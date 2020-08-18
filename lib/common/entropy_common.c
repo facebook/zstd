@@ -38,6 +38,28 @@ const char* HUF_getErrorName(size_t code) { return ERR_getErrorName(code); }
 /*-**************************************************************
 *  FSE NCount encoding-decoding
 ****************************************************************/
+static U32 FSE_ctz(U32 val)
+{
+    assert(val != 0);
+    {
+#   if defined(_MSC_VER)   /* Visual */
+        unsigned long r=0;
+        return _BitScanForward(&r, val) ? (unsigned)r : 0;
+#   elif defined(__GNUC__) && (__GNUC__ >= 3)   /* GCC Intrinsic */
+        return __builtin_ctz(val);
+#   elif defined(__ICCARM__)    /* IAR Intrinsic */
+        return __CTZ(val);
+#   else   /* Software version */
+        U32 count = 0;
+        while ((val & 1) == 0) {
+            val >>= 1;
+            ++count;
+        }
+        return count;
+#   endif
+    }
+}
+
 FORCE_INLINE_TEMPLATE
 size_t FSE_readNCount_body(short* normalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr,
                            const void* headerBuffer, size_t hbSize)
@@ -54,9 +76,9 @@ size_t FSE_readNCount_body(short* normalizedCounter, unsigned* maxSVPtr, unsigne
     unsigned const maxSV1 = *maxSVPtr + 1;
     int previous0 = 0;
 
-    if (hbSize < 4) {
+    if (hbSize < 8) {
         /* This function only works when hbSize >= 4 */
-        char buffer[4] = {0};
+        char buffer[8] = {0};
         memcpy(buffer, headerBuffer, hbSize);
         {   size_t const countSize = FSE_readNCount(normalizedCounter, maxSVPtr, tableLogPtr,
                                                     buffer, sizeof(buffer));
@@ -80,18 +102,17 @@ size_t FSE_readNCount_body(short* normalizedCounter, unsigned* maxSVPtr, unsigne
 
     for (;;) {
         if (previous0) {
-            // TODO: Generalize to FSE_countTrailingZeros() or something
-            int repeats = __builtin_ctz(~bitStream) >> 1;
+            int repeats = FSE_ctz(~bitStream | 0x80000000) >> 1;
             while (repeats >= 12) {
                 charnum += 3 * 12;
-                if (ip < iend-6) {
+                if (ip <= iend-7) {
                     ip += 3;
                     bitStream = MEM_readLE32(ip) >> bitCount;
                 } else {
                     bitStream >>= 24;
                     bitCount   += 24;
                 }
-                repeats = __builtin_ctz(~bitStream) >> 1;
+                repeats = FSE_ctz(~bitStream | 0x80000000) >> 1;
             }
             charnum += 3 * repeats;
             bitStream >>= 2 * repeats;

@@ -484,12 +484,12 @@ void ZSTD_dedicatedDictSearch_lazy_loadDictionary(ZSTD_matchState_t* ms, const B
     for (U32 idx = ms->nextToUpdate; idx < target; idx++) {
         U32 const h = ZSTD_hashPtr(
             ms->window.base + idx,
-            ms->cParams.hashLog - DD_BLOG,
-            ms->cParams.minMatch) << DD_BLOG;
+            ms->cParams.hashLog - ZSTD_LAZY_DDSS_BUCKET_LOG,
+            ms->cParams.minMatch) << ZSTD_LAZY_DDSS_BUCKET_LOG;
         chainTable[idx & chainMask] = ms->hashTable[h];
         ms->hashTable[h] = idx;
         /* Same logic as before. But now, just copy the chain into the bucket */
-        for (U32 i = 0; i < (1 << DD_BLOG) - 1; i++)
+        for (U32 i = 0; i < (1 << ZSTD_LAZY_DDSS_BUCKET_LOG) - 1; i++)
             ms->hashTable[h + i + 1] = chainTable[ms->hashTable[h + i] & chainMask];
     }
     ms->nextToUpdate = target;
@@ -525,9 +525,9 @@ size_t ZSTD_HcFindBestMatch_generic (
 
     const ZSTD_matchState_t* const dms = ms->dictMatchState;
     const U32 ddsHashLog = dictMode == ZSTD_dedicatedDictSearch
-                         ? dms->cParams.hashLog - DD_BLOG : 0;
+                         ? dms->cParams.hashLog - ZSTD_LAZY_DDSS_BUCKET_LOG : 0;
     const U32 ddsIdx = dictMode == ZSTD_dedicatedDictSearch
-                     ? ZSTD_hashPtr(ip, ddsHashLog, mls) << DD_BLOG : 0;
+                     ? ZSTD_hashPtr(ip, ddsHashLog, mls) << ZSTD_LAZY_DDSS_BUCKET_LOG : 0;
 
     U32 matchIndex;
 
@@ -573,7 +573,7 @@ size_t ZSTD_HcFindBestMatch_generic (
         const U32 ddsSize              = (U32)(ddsEnd - ddsBase);
         const U32 ddsIndexDelta        = dictLimit - ddsSize;
         const U32 ddsMinChain = ddsSize > ddsChainSize ? ddsSize - ddsChainSize : 0;
-        const U32 bucketSize           = (1 << DD_BLOG);
+        const U32 bucketSize           = (1 << ZSTD_LAZY_DDSS_BUCKET_LOG);
         U32 attemptNb;
 
         matchIndex = dms->hashTable[ddsIdx];

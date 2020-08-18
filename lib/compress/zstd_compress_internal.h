@@ -28,13 +28,6 @@
 extern "C" {
 #endif
 
-
-/* Dedicated dict search bucket log:
- * ---------------------------------
- * This determines the additional space we need for the hash table.
- * We will have 2^DD_BLOG slots in our bucket. */
-#define DD_BLOG 2
-
 /*-*************************************
 *  Constants
 ***************************************/

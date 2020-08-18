@@ -130,45 +130,6 @@ static U64 HUF_DEltX1_set4(BYTE symbol, BYTE nbBits) {
     return D4;
 }
 
-#if 0
-// TODO: Remove this
-/* BMI2 version that uses _pdep_u64() for weight 1 and 2 symbols.
- * This doesn't provide much gains, so not worth the complexity.
- * Leaving in for now but will remove before I commit.
- */
-#include <immintrin.h>
-
-static U64 HUF_DEltX1_pack4(BYTE const* symbols, BYTE nbBits) {
-    U64 D4;
-    if (MEM_isLittleEndian()) {
-        U64 const nbBits4 = nbBits * 0x0100010001000100ULL;
-        U64 const symbols4 = _pdep_u64(MEM_read32(symbols), 0x00FF00FF00FF00FFULL);
-        D4 = symbols4 | nbBits4;
-    } else {
-        U64 const nbBits4 = nbBits * 0x0001000100010001ULL;
-        U64 const symbols4 = _pdep_u64(MEM_read32(symbols), 0xFF00FF00FF00FF00ULL);
-        D4 = symbols4 | nbBits4;
-    }
-    return D4;
-}
-
-static U64 HUF_DEltX1_pack2(BYTE const* symbols, BYTE nbBits) {
-    U64 D4;
-    if (MEM_isLittleEndian()) {
-        U64 const nbBits4 = nbBits * 0x0100010001000100ULL;
-        U64 symbols4 = _pdep_u64(MEM_read16(symbols), 0x000000FF000000FFULL);
-        symbols4 = symbols4 * 0x00010001ULL;
-        D4 = symbols4 | nbBits4;
-    } else {
-        U64 const nbBits4 = nbBits * 0x0001000100010001ULL;
-        U64 symbols4 = _pdep_u64(MEM_read16(symbols), 0x0000FF000000FF00ULL);
-        symbols4 *= 0x00010001ULL;
-        D4 = symbols4 | nbBits4;
-    }
-    return D4;
-}
-#endif
-
 typedef struct {
         U32 rankVal[HUF_TABLELOG_ABSOLUTEMAX + 1];
         U32 rankStart[HUF_TABLELOG_ABSOLUTEMAX + 1];
@@ -178,7 +139,6 @@ typedef struct {
 } HUF_ReadDTableX1_Workspace;
 
 
-// TODO: Template based on BMI2 (5% boost)
 size_t HUF_readDTableX1_wksp(HUF_DTable* DTable, const void* src, size_t srcSize, void* workSpace, size_t wkspSize)
 {
     return HUF_readDTableX1_wksp_bmi2(DTable, src, srcSize, workSpace, wkspSize, /* bmi2 */ 0);
@@ -236,12 +196,12 @@ size_t HUF_readDTableX1_wksp_bmi2(HUF_DTable* DTable, const void* src, size_t sr
             int u;
             for (u=0; u < unroll; ++u) {
                 size_t const w = wksp->huffWeight[n+u];
-                wksp->symbols[wksp->rankStart[w]++] = n+u;
+                wksp->symbols[wksp->rankStart[w]++] = (BYTE)(n+u);
             }
         }
         for (; n < (int)nbSymbols; ++n) {
             size_t const w = wksp->huffWeight[n];
-            wksp->symbols[wksp->rankStart[w]++] = n;
+            wksp->symbols[wksp->rankStart[w]++] = (BYTE)n;
         }
     }
 
@@ -259,7 +219,7 @@ size_t HUF_readDTableX1_wksp_bmi2(HUF_DTable* DTable, const void* src, size_t sr
             int const symbolCount = wksp->rankVal[w];
             int const length = (1 << w) >> 1;
             int uStart = rankStart;
-            BYTE const nbBits = tableLog + 1 - w;
+            BYTE const nbBits = (BYTE)(tableLog + 1 - w);
             int s;
             int u;
             switch (length) {

@@ -137,10 +137,12 @@ FSE_PUBLIC_API unsigned FSE_optimalTableLog(unsigned maxTableLog, size_t srcSize
 /*! FSE_normalizeCount():
     normalize counts so that sum(count[]) == Power_of_2 (2^tableLog)
     'normalizedCounter' is a table of short, of minimum size (maxSymbolValue+1).
+    useLowProbCount is a bool param which is set to 1 to use count=-1 or set to 0 to
+    use count=1 instead, which speeds up FSE_readNCount() and FSE_buildDTable().
     @return : tableLog,
               or an errorCode, which can be tested using FSE_isError() */
 FSE_PUBLIC_API size_t FSE_normalizeCount(short* normalizedCounter, unsigned tableLog,
-                    const unsigned* count, size_t srcSize, unsigned maxSymbolValue);
+                    const unsigned* count, size_t srcSize, unsigned maxSymbolValue, unsigned useLowProbCount);
 
 /*! FSE_NCountWriteBound():
     Provides the maximum possible size of an FSE normalized table, given 'maxSymbolValue' and 'tableLog'.

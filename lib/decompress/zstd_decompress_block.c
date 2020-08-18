@@ -376,14 +376,14 @@ void ZSTD_buildFSETable_body(ZSTD_seqSymbol* dt,
 
     U16* symbolNext = (U16*)wksp;
     BYTE* spread = (BYTE*)(symbolNext + MaxSeq + 1);
+    U32 highThreshold = tableSize - 1;
 
-    assert(wkspSize >= ZSTD_BUILD_FSE_TABLE_WKSP_SIZE);
-    (void)wkspSize;
 
     /* Sanity Checks */
     assert(maxSymbolValue <= MaxSeq);
     assert(tableLog <= MaxFSELog);
-    U32 highThreshold = tableSize - 1;
+    assert(wkspSize >= ZSTD_BUILD_FSE_TABLE_WKSP_SIZE);
+    (void)wkspSize;
     /* Init, lay down lowprob symbols */
     {   ZSTD_seqSymbol_header DTableH;
         DTableH.tableLog = tableLog;

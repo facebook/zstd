@@ -85,7 +85,7 @@ static size_t HUF_compressWeights (void* dst, size_t dstSize, const void* weight
     }
 
     tableLog = FSE_optimalTableLog(tableLog, wtSize, maxSymbolValue);
-    CHECK_F( FSE_normalizeCount(norm, tableLog, count, wtSize, maxSymbolValue) );
+    CHECK_F( FSE_normalizeCount(norm, tableLog, count, wtSize, maxSymbolValue, /* useLowProbCount */ 0) );
 
     /* Write table description header */
     {   CHECK_V_F(hSize, FSE_writeNCount(op, (size_t)(oend-op), norm, maxSymbolValue, tableLog) );

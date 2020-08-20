@@ -611,10 +611,6 @@ size_t ZSTD_HcFindBestMatch_generic (
                     return ml;
                 }
             }
-
-            if (matchIndex <= ddsMinChain) {
-                return ml;
-            }
         }
 
         for ( ; (ddsAttempt < nbAttempts) & (matchIndex >= ddsMinChain); ddsAttempt++) {

@@ -481,17 +481,22 @@ void ZSTD_dedicatedDictSearch_lazy_loadDictionary(ZSTD_matchState_t* ms, const B
     U32 const target = (U32)(ip - ms->window.base);
     U32* const chainTable = ms->chainTable;
     U32 const chainMask = (1 << ms->cParams.chainLog) - 1;
-    for (U32 idx = ms->nextToUpdate; idx < target; idx++) {
+    U32 idx = ms->nextToUpdate;
+    U32 bucketSize = 1 << ZSTD_LAZY_DDSS_BUCKET_LOG;
+    for ( ; idx < target; idx++) {
+        U32 i;
         U32 const h = ZSTD_hashPtr(
             ms->window.base + idx,
             ms->cParams.hashLog - ZSTD_LAZY_DDSS_BUCKET_LOG,
             ms->cParams.minMatch) << ZSTD_LAZY_DDSS_BUCKET_LOG;
+        /* Shift hash cache down 1. */
+        for (i = bucketSize - 1; i; i--)
+            ms->hashTable[h + i] = ms->hashTable[h + i - 1];
+        /* Insert new position. */
         chainTable[idx & chainMask] = ms->hashTable[h];
         ms->hashTable[h] = idx;
-        /* Same logic as before. But now, just copy the chain into the bucket */
-        for (U32 i = 0; i < (1 << ZSTD_LAZY_DDSS_BUCKET_LOG) - 1; i++)
-            ms->hashTable[h + i + 1] = chainTable[ms->hashTable[h + i] & chainMask];
     }
+
     ms->nextToUpdate = target;
 }
 

@@ -1397,6 +1397,11 @@ size_t ZSTD_DCtx_setFormat(ZSTD_DCtx* dctx, ZSTD_format_e format)
     return ZSTD_DCtx_setParameter(dctx, ZSTD_d_format, format);
 }
 
+size_t ZSTD_DCtx_setForceSkipChecksum(ZSTD_DCtx* dctx, ZSTD_format_e format)
+{
+    return ZSTD_DCtx_setParameter(dctx, ZSTD_d_forceSkipChecksum, format);
+}
+
 ZSTD_bounds ZSTD_dParam_getBounds(ZSTD_dParameter dParam)
 {
     ZSTD_bounds bounds = { 0, 0, 0 };
@@ -1414,6 +1419,9 @@ ZSTD_bounds ZSTD_dParam_getBounds(ZSTD_dParameter dParam)
             bounds.lowerBound = (int)ZSTD_obm_buffered;
             bounds.upperBound = (int)ZSTD_obm_stable;
             return bounds;
+        case ZSTD_d_forceIgnoreChecksum:
+            bounds.lowerBound = (int)ZSTD_d_validateChecksum;
+            bounds.upperBound = (int)ZSTD_d_ignoreChecksum;
         default:;
     }
     bounds.error = ERROR(parameter_unsupported);
@@ -1453,6 +1461,9 @@ size_t ZSTD_DCtx_setParameter(ZSTD_DCtx* dctx, ZSTD_dParameter dParam, int value
             CHECK_DBOUNDS(ZSTD_d_stableOutBuffer, value);
             dctx->outBufferMode = (ZSTD_outBufferMode_e)value;
             return 0;
+        case ZSTD_d_forceIgnoreChecksum:
+            CHECK_DBOUNDS(ZSTD_d_forceIgnoreChecksum, value);
+            dctx->forceIgnoreChecksum = (ZSTD_ignoreChecksumMode_e)value;
         default:;
     }
     RETURN_ERROR(parameter_unsupported, "");
@@ -1524,7 +1535,7 @@ static void ZSTD_DCtx_updateOversizedDuration(ZSTD_DStream* zds, size_t const ne
 {
     if (ZSTD_DCtx_isOverflow(zds, neededInBuffSize, neededOutBuffSize))
         zds->oversizedDuration++;
-    else 
+    else
         zds->oversizedDuration = 0;
 }
 
@@ -1731,7 +1742,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
 
                 {   int const tooSmall = (zds->inBuffSize < neededInBuffSize) || (zds->outBuffSize < neededOutBuffSize);
                     int const tooLarge = ZSTD_DCtx_isOversizedTooLong(zds);
-                    
+
                     if (tooSmall || tooLarge) {
                         size_t const bufferSize = neededInBuffSize + neededOutBuffSize;
                         DEBUGLOG(4, "inBuff  : from %u to %u",

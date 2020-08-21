@@ -2963,7 +2963,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
             cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize);
             CHECK_Z(cSize);
-            CHECK_Z(ZSTD_decompress_usingDict(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize, dict, CNBuffSize));
+            CHECK_Z(ZSTD_decompress_usingDict(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize, dict, dictSize));
 
             CHECK_Z(ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters));
             ZSTD_freeCDict(cdict);

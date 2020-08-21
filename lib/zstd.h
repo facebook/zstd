@@ -528,7 +528,7 @@ typedef enum {
      * At the time of this writing, they include :
      * ZSTD_d_format
      * ZSTD_d_stableOutBuffer
-     * ZSTD_d_forceSkipChecksum
+     * ZSTD_d_forceIgnoreChecksum
      * Because they are not stable, it's necessary to define ZSTD_STATIC_LINKING_ONLY to access them.
      * note : never ever use experimentalParam? names directly
      */
@@ -1692,7 +1692,7 @@ ZSTDLIB_API size_t ZSTD_DCtx_setMaxWindowSize(ZSTD_DCtx* dctx, size_t maxWindowS
  */
 #define ZSTD_d_stableOutBuffer ZSTD_d_experimentalParam2
 
-/* ZSTD_d_forceSkipChecksum
+/* ZSTD_d_forceIgnoreChecksum
  * Experimental parameter.
  * Default is 0 == disabled. Set to 1 to enable
  *
@@ -1700,7 +1700,7 @@ ZSTDLIB_API size_t ZSTD_DCtx_setMaxWindowSize(ZSTD_DCtx* dctx, size_t maxWindowS
  * of whether or not checksumming was specified during decompression. This offers some
  * slight performance benefits, and may be useful for debugging.
  */
-#define ZSTD_d_forceSkipChecksum ZSTD_d_experimentalParam3
+#define ZSTD_d_forceIgnoreChecksum ZSTD_d_experimentalParam3
 
 /*! ZSTD_DCtx_setFormat() :
  *  Instruct the decoder context about what kind of data to decode next.

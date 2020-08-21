@@ -103,7 +103,7 @@ typedef enum {
 typedef enum {
     ZSTD_d_validateChecksum = 0,
     ZSTD_d_ignoreChecksum = 1
-} ZSTD_ignoreChecksumMode_e;
+} ZSTD_forceIgnoreChecksum_e;
 
 struct ZSTD_DCtx_s
 {
@@ -127,7 +127,7 @@ struct ZSTD_DCtx_s
     XXH64_state_t xxhState;
     size_t headerSize;
     ZSTD_format_e format;
-    ZSTD_ignoreChecksumMode_e forceIgnoreChecksum;   /* if enabled, will ignore checksums in compressed frame */
+    ZSTD_forceIgnoreChecksum_e forceIgnoreChecksum;   /* if == 1, will ignore checksums in compressed frame */
     const BYTE* litPtr;
     ZSTD_customMem customMem;
     size_t litSize;

@@ -1398,9 +1398,9 @@ size_t ZSTD_DCtx_setFormat(ZSTD_DCtx* dctx, ZSTD_format_e format)
     return ZSTD_DCtx_setParameter(dctx, ZSTD_d_format, format);
 }
 
-size_t ZSTD_DCtx_setForceIgnoreChecksum(ZSTD_DCtx* dctx, ZSTD_format_e format)
+size_t ZSTD_DCtx_setForceIgnoreChecksum(ZSTD_DCtx* dctx, ZSTD_forceIgnoreChecksum_e shouldIgnore)
 {
-    return ZSTD_DCtx_setParameter(dctx, ZSTD_d_forceIgnoreChecksum, format);
+    return ZSTD_DCtx_setParameter(dctx, ZSTD_d_forceIgnoreChecksum, shouldIgnore);
 }
 
 ZSTD_bounds ZSTD_dParam_getBounds(ZSTD_dParameter dParam)
@@ -1423,6 +1423,7 @@ ZSTD_bounds ZSTD_dParam_getBounds(ZSTD_dParameter dParam)
         case ZSTD_d_forceIgnoreChecksum:
             bounds.lowerBound = (int)ZSTD_d_validateChecksum;
             bounds.upperBound = (int)ZSTD_d_ignoreChecksum;
+            return bounds;
         default:;
     }
     bounds.error = ERROR(parameter_unsupported);
@@ -1465,6 +1466,7 @@ size_t ZSTD_DCtx_setParameter(ZSTD_DCtx* dctx, ZSTD_dParameter dParam, int value
         case ZSTD_d_forceIgnoreChecksum:
             CHECK_DBOUNDS(ZSTD_d_forceIgnoreChecksum, value);
             dctx->forceIgnoreChecksum = (ZSTD_forceIgnoreChecksum_e)value;
+            return 0;
         default:;
     }
     RETURN_ERROR(parameter_unsupported, "");

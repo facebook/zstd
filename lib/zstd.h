@@ -1163,6 +1163,11 @@ typedef enum {
 } ZSTD_format_e;
 
 typedef enum {
+    ZSTD_d_validateChecksum = 0,
+    ZSTD_d_ignoreChecksum = 1
+} ZSTD_forceIgnoreChecksum_e;
+
+typedef enum {
     /* Note: this enum and the behavior it controls are effectively internal
      * implementation details of the compressor. They are expected to continue
      * to evolve and should be considered only in the context of extremely
@@ -1712,7 +1717,7 @@ ZSTDLIB_API size_t ZSTD_DCtx_setFormat(ZSTD_DCtx* dctx, ZSTD_format_e format);
 /*! ZSTD_DCtx_setForceIgnoreChecksum() :
  *  Instruct the decoder context to ignore checksums in compressed frame.
  * @return : 0, or an error code (which can be tested using ZSTD_isError()). */
-ZSTDLIB_API size_t ZSTD_DCtx_setForceIgnoreChecksum(ZSTD_DCtx* dctx, ZSTD_format_e format);
+ZSTDLIB_API size_t ZSTD_DCtx_setForceIgnoreChecksum(ZSTD_DCtx* dctx, ZSTD_forceIgnoreChecksum_e format);
 
 /*! ZSTD_decompressStream_simpleArgs() :
  *  Same as ZSTD_decompressStream(),

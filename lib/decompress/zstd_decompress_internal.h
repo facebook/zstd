@@ -100,11 +100,6 @@ typedef enum {
     ZSTD_obm_stable = 1     /* ZSTD_outBuffer is stable */
 } ZSTD_outBufferMode_e;
 
-typedef enum {
-    ZSTD_d_validateChecksum = 0,
-    ZSTD_d_ignoreChecksum = 1
-} ZSTD_forceIgnoreChecksum_e;
-
 struct ZSTD_DCtx_s
 {
     const ZSTD_seqSymbol* LLTptr;

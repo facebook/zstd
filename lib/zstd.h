@@ -1709,6 +1709,11 @@ ZSTDLIB_API size_t ZSTD_DCtx_setMaxWindowSize(ZSTD_DCtx* dctx, size_t maxWindowS
  * @return : 0, or an error code (which can be tested using ZSTD_isError()). */
 ZSTDLIB_API size_t ZSTD_DCtx_setFormat(ZSTD_DCtx* dctx, ZSTD_format_e format);
 
+/*! ZSTD_DCtx_setForceIgnoreChecksum() :
+ *  Instruct the decoder context to ignore checksums in compressed frame.
+ * @return : 0, or an error code (which can be tested using ZSTD_isError()). */
+ZSTDLIB_API size_t ZSTD_DCtx_setForceIgnoreChecksum(ZSTD_DCtx* dctx, ZSTD_format_e format);
+
 /*! ZSTD_decompressStream_simpleArgs() :
  *  Same as ZSTD_decompressStream(),
  *  but using only integral types as arguments.

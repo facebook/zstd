@@ -2354,9 +2354,6 @@ static int basicUnitTests(U32 const seed, double compressibility)
         {   size_t const sr = ZSTD_DCtx_setParameter(dctx, ZSTD_d_format, (ZSTD_format_e)888);
             if (!ZSTD_isError(sr)) goto _output_error;
         }
-        {   size_t const sr = ZSTD_DCtx_setParameter(dctx, ZSTD_d_forceIgnoreChecksum, (ZSTD_forceIgnoreChecksum_e)888);
-            if (!ZSTD_isError(sr)) goto _output_error;
-        }
         DISPLAYLEVEL(3, "OK \n");
 
         ZSTD_freeDCtx(dctx);

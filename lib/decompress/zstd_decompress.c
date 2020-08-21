@@ -1398,7 +1398,7 @@ size_t ZSTD_DCtx_setFormat(ZSTD_DCtx* dctx, ZSTD_format_e format)
     return ZSTD_DCtx_setParameter(dctx, ZSTD_d_format, format);
 }
 
-size_t ZSTD_DCtx_setForceSkipChecksum(ZSTD_DCtx* dctx, ZSTD_format_e format)
+size_t ZSTD_DCtx_setForceIgnoreChecksum(ZSTD_DCtx* dctx, ZSTD_format_e format)
 {
     return ZSTD_DCtx_setParameter(dctx, ZSTD_d_forceIgnoreChecksum, format);
 }

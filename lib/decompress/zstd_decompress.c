@@ -114,6 +114,7 @@ static void ZSTD_initDCtx_internal(ZSTD_DCtx* dctx)
     dctx->oversizedDuration = 0;
     dctx->bmi2 = ZSTD_cpuid_bmi2(ZSTD_cpuid());
     dctx->outBufferMode = ZSTD_obm_buffered;
+    dctx->forceIgnoreChecksum = ZSTD_d_validateChecksum;
 #ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
     dctx->dictContentEndForFuzzing = NULL;
 #endif
@@ -661,7 +662,7 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
         }
 
         if (ZSTD_isError(decodedSize)) return decodedSize;
-        if (dctx->fParams.checksumFlag)
+        if (dctx->fParams.checksumFlag && !dctx->forceIgnoreChecksum)
             XXH64_update(&dctx->xxhState, op, decodedSize);
         if (decodedSize != 0)
             op += decodedSize;
@@ -675,7 +676,7 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
         RETURN_ERROR_IF((U64)(op-ostart) != dctx->fParams.frameContentSize,
                         corruption_detected, "");
     }
-    if (dctx->fParams.checksumFlag) { /* Frame content checksum verification */
+    if (dctx->fParams.checksumFlag && !dctx->forceIgnoreChecksum) { /* Frame content checksum verification */
         U32 const checkCalc = (U32)XXH64_digest(&dctx->xxhState);
         U32 checkRead;
         RETURN_ERROR_IF(remainingSrcSize<4, checksum_wrong, "");
@@ -1399,7 +1400,7 @@ size_t ZSTD_DCtx_setFormat(ZSTD_DCtx* dctx, ZSTD_format_e format)
 
 size_t ZSTD_DCtx_setForceSkipChecksum(ZSTD_DCtx* dctx, ZSTD_format_e format)
 {
-    return ZSTD_DCtx_setParameter(dctx, ZSTD_d_forceSkipChecksum, format);
+    return ZSTD_DCtx_setParameter(dctx, ZSTD_d_forceIgnoreChecksum, format);
 }
 
 ZSTD_bounds ZSTD_dParam_getBounds(ZSTD_dParameter dParam)
@@ -1463,7 +1464,7 @@ size_t ZSTD_DCtx_setParameter(ZSTD_DCtx* dctx, ZSTD_dParameter dParam, int value
             return 0;
         case ZSTD_d_forceIgnoreChecksum:
             CHECK_DBOUNDS(ZSTD_d_forceIgnoreChecksum, value);
-            dctx->forceIgnoreChecksum = (ZSTD_ignoreChecksumMode_e)value;
+            dctx->forceIgnoreChecksum = (ZSTD_forceIgnoreChecksum_e)value;
         default:;
     }
     RETURN_ERROR(parameter_unsupported, "");

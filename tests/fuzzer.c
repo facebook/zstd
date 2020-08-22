@@ -544,6 +544,40 @@ static int basicUnitTests(U32 const seed, double compressibility)
       if (ZSTD_getErrorCode(r) != ZSTD_error_dstSize_tooSmall) goto _output_error; }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : decompress with corrupted checksum : ", testNb++);
+    {   /* create compressed buffer with checksumming enabled */
+        ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1) );
+        CHECK_VAR(cSize, ZSTD_compress2(cctx,
+                            compressedBuffer, compressedBufferSize,
+                            CNBuffer, CNBuffSize) );
+        ZSTD_freeCCtx(cctx);
+    }
+    {   /* copy the compressed buffer and corrupt the checksum */
+        char* corruptedChecksumCompressedBuffer = (char*)malloc(cSize);
+        if (!corruptedChecksumCompressedBuffer) {
+            DISPLAY("Not enough memory, aborting\n");
+            testResult = 1;
+            goto _end;
+        }
+
+        memcpy(corruptedChecksumCompressedBuffer, compressedBuffer, cSize);
+        corruptedChecksumCompressedBuffer[cSize-1] += 1;
+        size_t r = ZSTD_decompress(decodedBuffer, CNBuffSize, corruptedChecksumCompressedBuffer, cSize);
+        if (!ZSTD_isError(r)) goto _output_error;
+        if (ZSTD_getErrorCode(r) != ZSTD_error_checksum_wrong) goto _output_error;
+
+        ZSTD_DCtx* dctx = ZSTD_createDCtx(); assert(dctx != NULL);
+        CHECK_Z(ZSTD_DCtx_setForceIgnoreChecksum(dctx, ZSTD_d_ignoreChecksum));
+        r = ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, corruptedChecksumCompressedBuffer, cSize);
+        if (ZSTD_isError(r)) goto _output_error;
+
+        ZSTD_freeDCtx(dctx);
+        free(corruptedChecksumCompressedBuffer);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+
     DISPLAYLEVEL(3, "test%3i : ZSTD_decompressBound test with content size missing : ", testNb++);
     {   /* create compressed buffer with content size missing */
         ZSTD_CCtx* const cctx = ZSTD_createCCtx();

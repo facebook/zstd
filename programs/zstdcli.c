@@ -196,6 +196,7 @@ static void usage_advanced(const char* programName)
     DISPLAYOUT( " -l     : print information about zstd compressed files \n");
     DISPLAYOUT( "--test  : test compressed file integrity \n");
     DISPLAYOUT( " -M#    : Set a memory usage limit for decompression \n");
+    DISPLAYOUT( "--no-check : disable validation of checksums in compressed frame \n");
 # if ZSTD_SPARSE_DEFAULT
     DISPLAYOUT( "--[no-]sparse : sparse mode (default: enabled on file, disabled on stdout) \n");
 # else

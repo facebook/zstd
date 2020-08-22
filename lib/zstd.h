@@ -1701,8 +1701,8 @@ ZSTDLIB_API size_t ZSTD_DCtx_setMaxWindowSize(ZSTD_DCtx* dctx, size_t maxWindowS
  * Experimental parameter.
  * Default is 0 == disabled. Set to 1 to enable
  *
- * Tells the decompressor to skip checksum validation during decompression, regardless.
- * of whether or not checksumming was specified during decompression. This offers some
+ * Tells the decompressor to skip checksum validation during decompression, regardless
+ * of whether checksumming was specified during compression. This offers some
  * slight performance benefits, and may be useful for debugging.
  */
 #define ZSTD_d_forceIgnoreChecksum ZSTD_d_experimentalParam3

@@ -260,6 +260,11 @@ zstd tmp -c --compress-literals    --fast=1 | zstd -t
 zstd tmp -c --compress-literals    -19      | zstd -t
 zstd -b --fast=1 -i0e1 tmp --compress-literals
 zstd -b --fast=1 -i0e1 tmp --no-compress-literals
+println "test: --no-check for decompression"
+zstd -f tmp --check
+zstd -f tmp -o tmp1.zst --no-check
+zstd -d -f tmp.zst --no-check
+zstd -d -f tmp1.zst --no-check
 
 println "\n===> zstdgrep tests"
 ln -sf "$ZSTD_BIN" zstdcat

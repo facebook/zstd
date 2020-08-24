@@ -261,8 +261,9 @@ zstd tmp -c --compress-literals    -19      | zstd -t
 zstd -b --fast=1 -i0e1 tmp --compress-literals
 zstd -b --fast=1 -i0e1 tmp --no-compress-literals
 println "test: --no-check for decompression"
-zstd -f tmp --check
+zstd -f tmp -o tmp.zst --check
 zstd -f tmp -o tmp1.zst --no-check
+printf '\xDE\xAD\xBE\xEF' | dd of=tmp.zst bs=1 seek=$(($(wc -c <"tmp.zst") - 4)) count=4 conv=notrunc # corrupt checksum in tmp
 zstd -d -f tmp.zst --no-check
 zstd -d -f tmp1.zst --no-check
 

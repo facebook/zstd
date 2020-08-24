@@ -1163,6 +1163,7 @@ typedef enum {
 } ZSTD_format_e;
 
 typedef enum {
+    /* Note: this enum controls ZSTD_d_forceIgnoreChecksum */
     ZSTD_d_validateChecksum = 0,
     ZSTD_d_ignoreChecksum = 1
 } ZSTD_forceIgnoreChecksum_e;
@@ -1704,6 +1705,7 @@ ZSTDLIB_API size_t ZSTD_DCtx_setMaxWindowSize(ZSTD_DCtx* dctx, size_t maxWindowS
  * Tells the decompressor to skip checksum validation during decompression, regardless
  * of whether checksumming was specified during compression. This offers some
  * slight performance benefits, and may be useful for debugging.
+ * Param has values of type ZSTD_forceIgnoreChecksum_e
  */
 #define ZSTD_d_forceIgnoreChecksum ZSTD_d_experimentalParam3
 
@@ -1713,11 +1715,6 @@ ZSTDLIB_API size_t ZSTD_DCtx_setMaxWindowSize(ZSTD_DCtx* dctx, size_t maxWindowS
  *  such ZSTD_f_zstd1_magicless for example.
  * @return : 0, or an error code (which can be tested using ZSTD_isError()). */
 ZSTDLIB_API size_t ZSTD_DCtx_setFormat(ZSTD_DCtx* dctx, ZSTD_format_e format);
-
-/*! ZSTD_DCtx_setForceIgnoreChecksum() :
- *  Instruct the decoder context to ignore checksums in compressed frame.
- * @return : 0, or an error code (which can be tested using ZSTD_isError()). */
-ZSTDLIB_API size_t ZSTD_DCtx_setForceIgnoreChecksum(ZSTD_DCtx* dctx, ZSTD_forceIgnoreChecksum_e value);
 
 /*! ZSTD_decompressStream_simpleArgs() :
  *  Same as ZSTD_decompressStream(),

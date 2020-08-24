@@ -677,10 +677,10 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
                         corruption_detected, "");
     }
     if (dctx->fParams.checksumFlag) { /* Frame content checksum verification */
+        RETURN_ERROR_IF(remainingSrcSize<4, checksum_wrong, "");
         if (!dctx->forceIgnoreChecksum) {
             U32 const checkCalc = (U32)XXH64_digest(&dctx->xxhState);
             U32 checkRead;
-            RETURN_ERROR_IF(remainingSrcSize<4, checksum_wrong, "");
             checkRead = MEM_readLE32(ip);
             RETURN_ERROR_IF(checkRead != checkCalc, checksum_wrong, "");
         }
@@ -1401,11 +1401,6 @@ size_t ZSTD_DCtx_setMaxWindowSize(ZSTD_DCtx* dctx, size_t maxWindowSize)
 size_t ZSTD_DCtx_setFormat(ZSTD_DCtx* dctx, ZSTD_format_e format)
 {
     return ZSTD_DCtx_setParameter(dctx, ZSTD_d_format, format);
-}
-
-size_t ZSTD_DCtx_setForceIgnoreChecksum(ZSTD_DCtx* dctx, ZSTD_forceIgnoreChecksum_e value)
-{
-    return ZSTD_DCtx_setParameter(dctx, ZSTD_d_forceIgnoreChecksum, value);
 }
 
 ZSTD_bounds ZSTD_dParam_getBounds(ZSTD_dParameter dParam)

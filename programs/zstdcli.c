@@ -154,6 +154,20 @@ static void usage_advanced(const char* programName)
     DISPLAYOUT( "--output-dir-mirror DIR : processed files are stored into DIR respecting original directory structure \n");
 #endif
 
+
+#ifndef ZSTD_NOCOMPRESS
+    DISPLAYOUT( "--[no-]check : during compression, add XXH64 integrity checksum to frame (default: enabled)");
+#ifndef ZSTD_NODECOMPRESS
+    DISPLAYOUT( ". If specified with -d, decompressor will ignore/validate checksums in compressed frame (default: validate).");
+#endif
+#endif /* ZSTD_NOCOMPRESS */
+#ifndef ZSTD_NODECOMPRESS
+#ifdef ZSTD_NOCOMPRESS
+    DISPLAYOUT( "--[no-]check : during decompression, ignore/validate checksums in compressed frame (default: validate).");
+#endif
+#endif /* ZSTD_NODECOMPRESS */
+    DISPLAYOUT( "\n");
+
     DISPLAYOUT( "--      : All arguments after \"--\" are treated as files \n");
 
 #ifndef ZSTD_NOCOMPRESS
@@ -174,7 +188,6 @@ static void usage_advanced(const char* programName)
     DISPLAYOUT( "--size-hint=# optimize compression parameters for streaming input of approximately this size \n");
     DISPLAYOUT( "--target-compressed-block-size=# : generate compressed block of approximately targeted size \n");
     DISPLAYOUT( "--no-dictID : don't write dictID into header (dictionary compression only) \n");
-    DISPLAYOUT( "--[no-]check : add XXH64 integrity checksum to frame (default: enabled) \n");
     DISPLAYOUT( "--[no-]compress-literals : force (un)compressed literals \n");
 
     DISPLAYOUT( "--format=zstd : compress files to the .zst format (default) \n");
@@ -196,7 +209,6 @@ static void usage_advanced(const char* programName)
     DISPLAYOUT( " -l     : print information about zstd compressed files \n");
     DISPLAYOUT( "--test  : test compressed file integrity \n");
     DISPLAYOUT( " -M#    : Set a memory usage limit for decompression \n");
-    DISPLAYOUT( "--no-check : disable validation of checksums in compressed frame \n");
 # if ZSTD_SPARSE_DEFAULT
     DISPLAYOUT( "--[no-]sparse : sparse mode (default: enabled on file, disabled on stdout) \n");
 # else

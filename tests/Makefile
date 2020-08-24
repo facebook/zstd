@@ -140,10 +140,6 @@ fullbench fullbench32 : $(ZSTD_FILES)
 fullbench fullbench32 : $(PRGDIR)/datagen.c $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/benchfn.c fullbench.c
 	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
-smallbench: DEBUGFLAGS = -DNDEBUG
-smallbench: $(ZSTD_OBJECTS) $(PRGDIR)/datagen.c $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/benchfn.c smallbench.c
-	$(CC) $(FLAGS) $^ -o $@$(EXT)
-
 fullbench-lib : CPPFLAGS += -DXXH_NAMESPACE=ZSTD_
 fullbench-lib : zstd-staticLib
 fullbench-lib : $(PRGDIR)/datagen.c $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/benchfn.c fullbench.c

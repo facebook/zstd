@@ -475,6 +475,20 @@ size_t FSE_normalizeCount (short* normalizedCounter, unsigned tableLog,
         else normalizedCounter[largest] += (short)stillToDistribute;
     }
 
+#if 0
+    {   /* Print Table (debug) */
+        U32 s;
+        U32 nTotal = 0;
+        for (s=0; s<=maxSymbolValue; s++)
+            RAWLOG(2, "%3i: %4i \n", s, normalizedCounter[s]);
+        for (s=0; s<=maxSymbolValue; s++)
+            nTotal += abs(normalizedCounter[s]);
+        if (nTotal != (1U<<tableLog))
+            RAWLOG(2, "Warning !!! Total == %u != %u !!!", nTotal, 1U<<tableLog);
+        getchar();
+    }
+#endif
+
     return tableLog;
 }
 

@@ -490,7 +490,7 @@ static void ZSTD_buildFSETable_body_default(ZSTD_seqSymbol* dt,
             const U32* baseValue, const U32* nbAdditionalBits,
             unsigned tableLog, void* wksp, size_t wkspSize)
 {
-    return ZSTD_buildFSETable_body(dt, normalizedCounter, maxSymbolValue,
+    ZSTD_buildFSETable_body(dt, normalizedCounter, maxSymbolValue,
             baseValue, nbAdditionalBits, tableLog, wksp, wkspSize);
 }
 
@@ -500,7 +500,7 @@ TARGET_ATTRIBUTE("bmi2") static void ZSTD_buildFSETable_body_bmi2(ZSTD_seqSymbol
             const U32* baseValue, const U32* nbAdditionalBits,
             unsigned tableLog, void* wksp, size_t wkspSize)
 {
-    return ZSTD_buildFSETable_body(dt, normalizedCounter, maxSymbolValue,
+    ZSTD_buildFSETable_body(dt, normalizedCounter, maxSymbolValue,
             baseValue, nbAdditionalBits, tableLog, wksp, wkspSize);
 }
 #endif
@@ -512,12 +512,13 @@ void ZSTD_buildFSETable(ZSTD_seqSymbol* dt,
 {
 #if DYNAMIC_BMI2
     if (bmi2) {
-        return ZSTD_buildFSETable_body_bmi2(dt, normalizedCounter, maxSymbolValue,
+        ZSTD_buildFSETable_body_bmi2(dt, normalizedCounter, maxSymbolValue,
                 baseValue, nbAdditionalBits, tableLog, wksp, wkspSize);
+        return;
     }
 #endif
     (void)bmi2;
-    return ZSTD_buildFSETable_body_default(dt, normalizedCounter, maxSymbolValue,
+    ZSTD_buildFSETable_body_default(dt, normalizedCounter, maxSymbolValue,
             baseValue, nbAdditionalBits, tableLog, wksp, wkspSize);
 }
 

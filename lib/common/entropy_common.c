@@ -77,7 +77,7 @@ size_t FSE_readNCount_body(short* normalizedCounter, unsigned* maxSVPtr, unsigne
     int previous0 = 0;
 
     if (hbSize < 8) {
-        /* This function only works when hbSize >= 4 */
+        /* This function only works when hbSize >= 8 */
         char buffer[8] = {0};
         memcpy(buffer, headerBuffer, hbSize);
         {   size_t const countSize = FSE_readNCount(normalizedCounter, maxSVPtr, tableLogPtr,
@@ -86,7 +86,7 @@ size_t FSE_readNCount_body(short* normalizedCounter, unsigned* maxSVPtr, unsigne
             if (countSize > hbSize) return ERROR(corruption_detected);
             return countSize;
     }   }
-    assert(hbSize >= 4);
+    assert(hbSize >= 8);
 
     /* init */
     memset(normalizedCounter, 0, (*maxSVPtr+1) * sizeof(normalizedCounter[0]));   /* all symbols not present in NCount have a frequency of 0 */
@@ -102,6 +102,11 @@ size_t FSE_readNCount_body(short* normalizedCounter, unsigned* maxSVPtr, unsigne
 
     for (;;) {
         if (previous0) {
+            /* Count the number of repeats. Each time the
+             * 2-bit repeat code is 0b11 there is another
+             * repeat.
+             * Avoid UB by setting the high bit to 1.
+             */
             int repeats = FSE_ctz(~bitStream | 0x80000000) >> 1;
             while (repeats >= 12) {
                 charnum += 3 * 12;
@@ -118,6 +123,7 @@ size_t FSE_readNCount_body(short* normalizedCounter, unsigned* maxSVPtr, unsigne
             bitStream >>= 2 * repeats;
             bitCount += 2 * repeats;
 
+            /* Add the final repeat which isn't 0b11. */
             charnum += bitStream & 3;
             bitCount += 2;
 

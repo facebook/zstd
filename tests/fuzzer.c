@@ -547,6 +547,11 @@ static int basicUnitTests(U32 const seed, double compressibility)
     DISPLAYLEVEL(3, "test%3i : decompress with corrupted checksum : ", testNb++);
     {   /* create compressed buffer with checksumming enabled */
         ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        if (!cctx) {
+            DISPLAY("Not enough memory, aborting\n");
+            testResult = 1;
+            goto _end;
+        }
         CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1) );
         CHECK_VAR(cSize, ZSTD_compress2(cctx,
                             compressedBuffer, compressedBufferSize,
@@ -555,26 +560,25 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     {   /* copy the compressed buffer and corrupt the checksum */
         size_t r;
-        char* const corruptedChecksumCompressedBuffer = (char*)malloc(cSize);
         ZSTD_DCtx* const dctx = ZSTD_createDCtx();
-        if (!corruptedChecksumCompressedBuffer || !dctx) {
+        if (!dctx) {
             DISPLAY("Not enough memory, aborting\n");
             testResult = 1;
             goto _end;
         }
 
-        memcpy(corruptedChecksumCompressedBuffer, compressedBuffer, cSize);
-        corruptedChecksumCompressedBuffer[cSize-1] += 1;
-        r = ZSTD_decompress(decodedBuffer, CNBuffSize, corruptedChecksumCompressedBuffer, cSize);
+        ((char*)compressedBuffer)[cSize-1] += 1;
+        r = ZSTD_decompress(decodedBuffer, CNBuffSize, compressedBuffer, cSize);
         if (!ZSTD_isError(r)) goto _output_error;
         if (ZSTD_getErrorCode(r) != ZSTD_error_checksum_wrong) goto _output_error;
 
         CHECK_Z(ZSTD_DCtx_setForceIgnoreChecksum(dctx, ZSTD_d_ignoreChecksum));
-        r = ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, corruptedChecksumCompressedBuffer, cSize);
+        r = ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize-1);
+        if (!ZSTD_isError(r)) goto _output_error;   /* wrong checksum size should still throw error */
+        r = ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize);
         if (ZSTD_isError(r)) goto _output_error;
 
         ZSTD_freeDCtx(dctx);
-        free(corruptedChecksumCompressedBuffer);
     }
     DISPLAYLEVEL(3, "OK \n");
 

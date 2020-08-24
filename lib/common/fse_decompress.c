@@ -353,6 +353,7 @@ FORCE_INLINE_TEMPLATE size_t FSE_decompress_wksp_body(
     }
 }
 
+/* Avoids the FORCE_INLINE of the _body() function. */
 static size_t FSE_decompress_wksp_body_default(void* dst, size_t dstCapacity, const void* cSrc, size_t cSrcSize, unsigned maxLog, void* workSpace, size_t wkspSize)
 {
     return FSE_decompress_wksp_body(dst, dstCapacity, cSrc, cSrcSize, maxLog, workSpace, wkspSize, 0);

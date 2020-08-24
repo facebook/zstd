@@ -484,6 +484,7 @@ void ZSTD_buildFSETable_body(ZSTD_seqSymbol* dt,
     }
 }
 
+/* Avoids the FORCE_INLINE of the _body() function. */
 static void ZSTD_buildFSETable_body_default(ZSTD_seqSymbol* dt,
             const short* normalizedCounter, unsigned maxSymbolValue,
             const U32* baseValue, const U32* nbAdditionalBits,

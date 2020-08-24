@@ -203,6 +203,7 @@ size_t FSE_readNCount_body(short* normalizedCounter, unsigned* maxSVPtr, unsigne
     return ip-istart;
 }
 
+/* Avoids the FORCE_INLINE of the _body() function. */
 static size_t FSE_readNCount_body_default(
         short* normalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr,
         const void* headerBuffer, size_t hbSize)
@@ -319,6 +320,7 @@ FORCE_INLINE_TEMPLATE size_t HUF_readStats_body(BYTE* huffWeight, size_t hwSize,
     return iSize+1;
 }
 
+/* Avoids the FORCE_INLINE of the _body() function. */
 static size_t HUF_readStats_body_default(BYTE* huffWeight, size_t hwSize, U32* rankStats,
                      U32* nbSymbolsPtr, U32* tableLogPtr,
                      const void* src, size_t srcSize,

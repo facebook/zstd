@@ -137,8 +137,12 @@ FSE_PUBLIC_API unsigned FSE_optimalTableLog(unsigned maxTableLog, size_t srcSize
 /*! FSE_normalizeCount():
     normalize counts so that sum(count[]) == Power_of_2 (2^tableLog)
     'normalizedCounter' is a table of short, of minimum size (maxSymbolValue+1).
-    useLowProbCount is a bool param which is set to 1 to use count=-1 or set to 0 to
-    use count=1 instead, which speeds up FSE_readNCount() and FSE_buildDTable().
+    useLowProbCount is a boolean parameter which trades off compressed size for
+    faster header decoding. When it is set to 1, the compressed data will be slightly
+    smaller. And when it is set to 0, FSE_readNCount() and FSE_buildDTable() will be
+    faster. If you are compressing a small amount of data (< 2 KB) then useLowProbCount=0
+    is a good default, since header deserialization makes a big speed difference.
+    Otherwise, useLowProbCount=1 is a good default, since the speed difference is small.
     @return : tableLog,
               or an errorCode, which can be tested using FSE_isError() */
 FSE_PUBLIC_API size_t FSE_normalizeCount(short* normalizedCounter, unsigned tableLog,

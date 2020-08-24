@@ -160,12 +160,11 @@ static void usage_advanced(const char* programName)
 #ifndef ZSTD_NODECOMPRESS
     DISPLAYOUT( ". If specified with -d, decompressor will ignore/validate checksums in compressed frame (default: validate).");
 #endif
-#endif /* ZSTD_NOCOMPRESS */
-#ifndef ZSTD_NODECOMPRESS
+#else
 #ifdef ZSTD_NOCOMPRESS
     DISPLAYOUT( "--[no-]check : during decompression, ignore/validate checksums in compressed frame (default: validate).");
 #endif
-#endif /* ZSTD_NODECOMPRESS */
+#endif /* ZSTD_NOCOMPRESS */
     DISPLAYOUT( "\n");
 
     DISPLAYOUT( "--      : All arguments after \"--\" are treated as files \n");

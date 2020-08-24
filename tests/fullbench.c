@@ -171,11 +171,18 @@ FORCE_NOINLINE size_t ZSTD_decodeLiteralsHeader(ZSTD_DCtx* dctx, void const* src
                 }
                 RETURN_ERROR_IF(litSize > ZSTD_BLOCKSIZE_MAX, corruption_detected, "");
                 RETURN_ERROR_IF(litCSize + lhSize > srcSize, corruption_detected, "");
+#ifndef HUF_FORCE_DECOMPRESS_X2
                 return HUF_readDTableX1_wksp_bmi2(
                         dctx->entropy.hufTable,
                         istart+lhSize, litCSize,
                         dctx->workspace, sizeof(dctx->workspace),
                         dctx->bmi2);
+#else
+                return HUF_readDTableX2_wksp(
+                        dctx->entropy.hufTable,
+                        istart+lhSize, litCSize,
+                        dctx->workspace, sizeof(dctx->workspace));
+#endif
             }
         }
     }

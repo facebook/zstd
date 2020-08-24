@@ -95,7 +95,8 @@ FUZZ_TARGETS :=       \
 	simple_compress \
 	dictionary_loader \
 	raw_dictionary_round_trip \
-	dictionary_stream_round_trip
+	dictionary_stream_round_trip \
+	decompress_dstSize_tooSmall
 
 all: $(FUZZ_TARGETS)
 
@@ -179,6 +180,9 @@ zstd_frame_info: $(FUZZ_HEADERS) $(FUZZ_DECOMPRESS_OBJ) d_fuzz_zstd_frame_info.o
 
 dictionary_loader: $(FUZZ_HEADERS) $(FUZZ_ROUND_TRIP_OBJ) rt_fuzz_dictionary_loader.o
 	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_ROUND_TRIP_OBJ) rt_fuzz_dictionary_loader.o $(LIB_FUZZING_ENGINE) -o $@
+
+decompress_dstSize_tooSmall: $(FUZZ_HEADERS) $(FUZZ_DECOMPRESS_OBJ) d_fuzz_decompress_dstSize_tooSmall.o
+	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_DECOMPRESS_OBJ) d_fuzz_decompress_dstSize_tooSmall.o $(LIB_FUZZING_ENGINE) -o $@
 
 libregression.a: $(FUZZ_HEADERS) $(PRGDIR)/util.h $(PRGDIR)/util.c d_fuzz_regression_driver.o
 	$(AR) $(FUZZ_ARFLAGS) $@ d_fuzz_regression_driver.o

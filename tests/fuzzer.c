@@ -3053,7 +3053,7 @@ static int fuzzerTests(U32 seed, unsigned nbTests, unsigned startTest, U32 const
                 DISPLAYLEVEL(5, "fuzzer t%u: compress into too small buffer of size %u (missing %u bytes) \n",
                             testNb, (unsigned)tooSmallSize, (unsigned)missing);
                 { size_t const errorCode = ZSTD_compressCCtx(ctx, dstBuffer, tooSmallSize, sampleBuffer, sampleSize, cLevel);
-                  CHECK(!ZSTD_isError(errorCode), "ZSTD_compressCCtx should have failed ! (buffer too small : %u < %u)", (unsigned)tooSmallSize, (unsigned)cSize); }
+                  CHECK(ZSTD_getErrorCode(errorCode) != ZSTD_error_dstSize_tooSmall, "ZSTD_compressCCtx should have failed ! (buffer too small : %u < %u)", (unsigned)tooSmallSize, (unsigned)cSize); }
                 { unsigned endCheck; memcpy(&endCheck, dstBuffer+tooSmallSize, sizeof(endCheck));
                   CHECK(endCheck != endMark, "ZSTD_compressCCtx : dst buffer overflow  (check.%08X != %08X.mark)", endCheck, endMark); }
         }   }
@@ -3100,7 +3100,7 @@ static int fuzzerTests(U32 seed, unsigned nbTests, unsigned startTest, U32 const
             static const BYTE token = 0xA9;
             dstBuffer[tooSmallSize] = token;
             { size_t const errorCode = ZSTD_decompress(dstBuffer, tooSmallSize, cBuffer, cSize);
-              CHECK(!ZSTD_isError(errorCode), "ZSTD_decompress should have failed : %u > %u (dst buffer too small)", (unsigned)errorCode, (unsigned)tooSmallSize); }
+              CHECK(ZSTD_getErrorCode(errorCode) != ZSTD_error_dstSize_tooSmall, "ZSTD_decompress should have failed : %u > %u (dst buffer too small)", (unsigned)errorCode, (unsigned)tooSmallSize); }
             CHECK(dstBuffer[tooSmallSize] != token, "ZSTD_decompress : dst buffer overflow");
         }
 

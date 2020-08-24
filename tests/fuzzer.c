@@ -571,8 +571,8 @@ static int basicUnitTests(U32 const seed, double compressibility)
         r = ZSTD_decompress(decodedBuffer, CNBuffSize, compressedBuffer, cSize);
         if (!ZSTD_isError(r)) goto _output_error;
         if (ZSTD_getErrorCode(r) != ZSTD_error_checksum_wrong) goto _output_error;
-
-        CHECK_Z(ZSTD_DCtx_setForceIgnoreChecksum(dctx, ZSTD_d_ignoreChecksum));
+        
+        CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_forceIgnoreChecksum, ZSTD_d_ignoreChecksum));
         r = ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize-1);
         if (!ZSTD_isError(r)) goto _output_error;   /* wrong checksum size should still throw error */
         r = ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize);

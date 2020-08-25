@@ -1261,7 +1261,7 @@ FIO_compressZstdFrame(FIO_prefs_t* const prefs,
 
                 /* display progress notifications */
                 if (g_display_prefs.displayLevel >= 3) {
-                    DISPLAYUPDATE(3, "\r(L%i) Buffered :%4u MB - Consumed :%4u MB - Compressed :%4u MB => %.2f%%\033 ",
+                    DISPLAYUPDATE(3, "\r(L%i) Buffered :%4u MB - Consumed :%4u MB - Compressed :%4u MB => %.2f%% ",
                                 compressionLevel,
                                 (unsigned)((zfp.ingested - zfp.consumed) >> 20),
                                 (unsigned)(zfp.consumed >> 20),
@@ -1725,8 +1725,6 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
                 dstFileName = FIO_determineCompressedName(srcFileName, outDirName, suffix);  /* cannot fail */
             }
 
-            /* No status message in pipe mode (stdin - stdout) or multi-files mode */
-            // if (!strcmp(inFileNamesTable[0], stdinmark) && outFileName && !strcmp(outFileName,stdoutmark) && (g_display_prefs.displayLevel==2)) g_displayLevel=1;
             if (nbFiles > 1)
                 DISPLAYLEVEL(2, "\rCompressing %u/%u files. Current source: %s | ", u+1, nbFiles, srcFileName);
             error |= FIO_compressFilename_srcFile(prefs, ress, dstFileName, srcFileName, compressionLevel);
@@ -2614,7 +2612,7 @@ FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
             }
             if (dstFileName == NULL) { error=1; continue; }
             if (nbFiles > 1)
-                DISPLAYLEVEL(2, "\rDecompressing %u/%u files. Current source: %s | ", u+1, nbFiles, srcFileName[u]);
+                DISPLAYLEVEL(2, "\rDecompressing %u/%u files. Current source: %s | ", u+1, nbFiles, srcFileName);
             error |= FIO_decompressSrcFile(prefs, ress, dstFileName, srcFileName);
         }
         if (outDirName)

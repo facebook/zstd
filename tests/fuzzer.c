@@ -544,6 +544,45 @@ static int basicUnitTests(U32 const seed, double compressibility)
       if (ZSTD_getErrorCode(r) != ZSTD_error_dstSize_tooSmall) goto _output_error; }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : decompress with corrupted checksum : ", testNb++);
+    {   /* create compressed buffer with checksumming enabled */
+        ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        if (!cctx) {
+            DISPLAY("Not enough memory, aborting\n");
+            testResult = 1;
+            goto _end;
+        }
+        CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1) );
+        CHECK_VAR(cSize, ZSTD_compress2(cctx,
+                            compressedBuffer, compressedBufferSize,
+                            CNBuffer, CNBuffSize) );
+        ZSTD_freeCCtx(cctx);
+    }
+    {   /* copy the compressed buffer and corrupt the checksum */
+        size_t r;
+        ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+        if (!dctx) {
+            DISPLAY("Not enough memory, aborting\n");
+            testResult = 1;
+            goto _end;
+        }
+
+        ((char*)compressedBuffer)[cSize-1] += 1;
+        r = ZSTD_decompress(decodedBuffer, CNBuffSize, compressedBuffer, cSize);
+        if (!ZSTD_isError(r)) goto _output_error;
+        if (ZSTD_getErrorCode(r) != ZSTD_error_checksum_wrong) goto _output_error;
+        
+        CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_forceIgnoreChecksum, ZSTD_d_ignoreChecksum));
+        r = ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize-1);
+        if (!ZSTD_isError(r)) goto _output_error;   /* wrong checksum size should still throw error */
+        r = ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize);
+        if (ZSTD_isError(r)) goto _output_error;
+
+        ZSTD_freeDCtx(dctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+
     DISPLAYLEVEL(3, "test%3i : ZSTD_decompressBound test with content size missing : ", testNb++);
     {   /* create compressed buffer with content size missing */
         ZSTD_CCtx* const cctx = ZSTD_createCCtx();

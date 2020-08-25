@@ -1754,6 +1754,8 @@ static dRess_t FIO_createDResources(FIO_prefs_t* const prefs, const char* dictFi
     if (ress.dctx==NULL)
         EXM_THROW(60, "Error: %s : can't create ZSTD_DStream", strerror(errno));
     CHECK( ZSTD_DCtx_setMaxWindowSize(ress.dctx, prefs->memLimit) );
+    CHECK( ZSTD_DCtx_setParameter(ress.dctx, ZSTD_d_forceIgnoreChecksum, !prefs->checksumFlag));
+    
     ress.srcBufferSize = ZSTD_DStreamInSize();
     ress.srcBuffer = malloc(ress.srcBufferSize);
     ress.dstBufferSize = ZSTD_DStreamOutSize();

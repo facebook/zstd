@@ -1672,14 +1672,23 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
     assert(outFileName != NULL || suffix != NULL);
     if (outFileName != NULL) {   /* output into a single destination (stdout typically) */
         if (nbFiles > 1 && !prefs->overwrite) {
-            if (!strcmp (outFileName, stdoutmark)) {
-                DISPLAY("zstd: WARNING: all input files will be processed and concatenated into stdout. ");
+            /* g_display_prefs.displayLevel <= 1 corresponds to -q flag */
+            DISPLAY("%d\n", g_display_prefs.displayLevel);
+            if (g_display_prefs.displayLevel <= 1) {
+                if (prefs->removeSrcFile) {
+                    DISPLAY("zstd: Aborting... not deleting files and processing into dst: %s", outFileName);
+                    return 1;
+                }
             } else {
-                DISPLAY("zstd: WARNING: all input files will be processed and concatenated into a single output file: %s ", outFileName);
+                if (!strcmp (outFileName, stdoutmark)) {
+                    DISPLAY("zstd: WARNING: all input files will be processed and concatenated into stdout. ");
+                } else {
+                    DISPLAY("zstd: WARNING: all input files will be processed and concatenated into a single output file: %s ", outFileName);
+                }
+                if (prefs->removeSrcFile)
+                    error = g_display_prefs.displayLevel > 1 && UTIL_requireUserConfirmationToProceed("Proceed? (y/n): ", "Aborting...", "yY");
+                DISPLAY("\n");
             }
-            if (prefs->removeSrcFile)
-                error = UTIL_requireUserConfirmationToProceed("Proceed? (y/n): ", "Aborting...", "yY");
-            DISPLAY("\n");
         }
         ress.dstFile = FIO_openDstFile(prefs, NULL, outFileName);
         if (ress.dstFile == NULL) {  /* could not open outFileName */

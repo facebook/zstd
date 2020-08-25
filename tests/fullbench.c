@@ -21,6 +21,7 @@
 #include "mem.h"         /* U32 */
 #ifndef ZSTD_DLL_IMPORT
     #include "zstd_internal.h"   /* ZSTD_decodeSeqHeaders, ZSTD_blockHeaderSize, ZSTD_getcBlockSize, blockType_e, KB, MB */
+    #include "decompress/zstd_decompress_internal.h"   /* ZSTD_DCtx struct */
 #else
     #define KB *(1 <<10)
     #define MB *(1 <<20)
@@ -133,6 +134,65 @@ static size_t local_ZSTD_decodeSeqHeaders(const void* src, size_t srcSize, void*
     int nbSeq;
     (void)src; (void)srcSize; (void)dst; (void)dstSize;
     return ZSTD_decodeSeqHeaders(g_zdc, &nbSeq, buff2, g_cSize);
+}
+
+FORCE_NOINLINE size_t ZSTD_decodeLiteralsHeader(ZSTD_DCtx* dctx, void const* src, size_t srcSize)
+{
+    RETURN_ERROR_IF(srcSize < MIN_CBLOCK_SIZE, corruption_detected, "");
+    {
+        BYTE const* istart = (BYTE const*)src;
+        symbolEncodingType_e const litEncType = (symbolEncodingType_e)(istart[0] & 3);
+        if (litEncType == set_compressed) {
+            RETURN_ERROR_IF(srcSize < 5, corruption_detected, "srcSize >= MIN_CBLOCK_SIZE == 3; here we need up to 5 for case 3");
+            {
+                size_t lhSize, litSize, litCSize;
+                U32 const lhlCode = (istart[0] >> 2) & 3;
+                U32 const lhc = MEM_readLE32(istart);
+                switch(lhlCode)
+                {
+                case 0: case 1: default:   /* note : default is impossible, since lhlCode into [0..3] */
+                    /* 2 - 2 - 10 - 10 */
+                    lhSize = 3;
+                    litSize  = (lhc >> 4) & 0x3FF;
+                    litCSize = (lhc >> 14) & 0x3FF;
+                    break;
+                case 2:
+                    /* 2 - 2 - 14 - 14 */
+                    lhSize = 4;
+                    litSize  = (lhc >> 4) & 0x3FFF;
+                    litCSize = lhc >> 18;
+                    break;
+                case 3:
+                    /* 2 - 2 - 18 - 18 */
+                    lhSize = 5;
+                    litSize  = (lhc >> 4) & 0x3FFFF;
+                    litCSize = (lhc >> 22) + ((size_t)istart[4] << 10);
+                    break;
+                }
+                RETURN_ERROR_IF(litSize > ZSTD_BLOCKSIZE_MAX, corruption_detected, "");
+                RETURN_ERROR_IF(litCSize + lhSize > srcSize, corruption_detected, "");
+#ifndef HUF_FORCE_DECOMPRESS_X2
+                return HUF_readDTableX1_wksp_bmi2(
+                        dctx->entropy.hufTable,
+                        istart+lhSize, litCSize,
+                        dctx->workspace, sizeof(dctx->workspace),
+                        dctx->bmi2);
+#else
+                return HUF_readDTableX2_wksp(
+                        dctx->entropy.hufTable,
+                        istart+lhSize, litCSize,
+                        dctx->workspace, sizeof(dctx->workspace));
+#endif
+            }
+        }
+    }
+    return 0;
+}
+
+static size_t local_ZSTD_decodeLiteralsHeader(const void* src, size_t srcSize, void* dst, size_t dstSize, void* buff2)
+{
+    (void)dst, (void)dstSize, (void)src, (void)srcSize;
+    return ZSTD_decodeLiteralsHeader(g_zdc, buff2, g_cSize);
 }
 #endif
 
@@ -358,6 +418,9 @@ static int benchMem(unsigned benchNb,
     case 13:
         benchFunction = local_ZSTD_decompressContinue; benchName = "decompressContinue";
         break;
+    case 30:
+        benchFunction = local_ZSTD_decodeLiteralsHeader; benchName = "decodeLiteralsHeader";
+        break;
     case 31:
         benchFunction = local_ZSTD_decodeLiteralsBlock; benchName = "decodeLiteralsBlock";
         break;
@@ -446,6 +509,8 @@ static int benchMem(unsigned benchNb,
     case 13 :
         g_cSize = ZSTD_compress(dstBuff2, dstBuffSize, src, srcSize, cLevel);
         break;
+    case 30:  /* ZSTD_decodeLiteralsHeader */
+        /* fall-through */
     case 31:  /* ZSTD_decodeLiteralsBlock : starts literals block in dstBuff2 */
         {   size_t frameHeaderSize;
             g_cSize = ZSTD_compress(dstBuff, dstBuffSize, src, srcSize, cLevel);

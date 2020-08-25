@@ -93,6 +93,12 @@ extern "C" {
 ******************************************/
 extern int g_utilDisplayLevel;
 
+/**
+ * Displays a message prompt and returns success (0) if first character from stdin
+ * matches any from acceptableLetters. Otherwise, returns failure (1) and displays abortMsg.
+ */
+int UTIL_requireUserConfirmationToProceed(const char* const prompt, const char* const abortMsg, const char* const acceptableLetters);
+
 
 /*-****************************************
 *  File functions

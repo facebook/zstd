@@ -110,13 +110,14 @@ size_t FSE_readNCount_body(short* normalizedCounter, unsigned* maxSVPtr, unsigne
             int repeats = FSE_ctz(~bitStream | 0x80000000) >> 1;
             while (repeats >= 12) {
                 charnum += 3 * 12;
-                if (ip <= iend-7) {
+                if (LIKELY(ip <= iend-7)) {
                     ip += 3;
-                    bitStream = MEM_readLE32(ip) >> bitCount;
                 } else {
-                    bitStream >>= 24;
-                    bitCount   += 24;
+                    bitCount -= (int)(8 * (iend - 7 - ip));
+                    bitCount &= 31;
+                    ip = iend - 4;
                 }
+                bitStream = MEM_readLE32(ip) >> bitCount;
                 repeats = FSE_ctz(~bitStream | 0x80000000) >> 1;
             }
             charnum += 3 * repeats;
@@ -124,6 +125,7 @@ size_t FSE_readNCount_body(short* normalizedCounter, unsigned* maxSVPtr, unsigne
             bitCount += 2 * repeats;
 
             /* Add the final repeat which isn't 0b11. */
+            assert((bitStream & 3) < 3);
             charnum += bitStream & 3;
             bitCount += 2;
 
@@ -137,14 +139,16 @@ size_t FSE_readNCount_body(short* normalizedCounter, unsigned* maxSVPtr, unsigne
              * because we already memset the whole buffer to 0.
              */
 
-            if ((ip <= iend-7) || (ip + (bitCount>>3) <= iend-4)) {
+            if (LIKELY(ip <= iend-7) || (ip + (bitCount>>3) <= iend-4)) {
                 assert((bitCount >> 3) <= 3); /* For first condition to work */
                 ip += bitCount>>3;
                 bitCount &= 7;
-                bitStream = MEM_readLE32(ip) >> bitCount;
             } else {
-                bitStream >>= 2;
+                bitCount -= (int)(8 * (iend - 4 - ip));
+                bitCount &= 31;
+                ip = iend - 4;
             }
+            bitStream = MEM_readLE32(ip) >> bitCount;
         }
         {
             int const max = (2*threshold-1) - remaining;
@@ -184,14 +188,15 @@ size_t FSE_readNCount_body(short* normalizedCounter, unsigned* maxSVPtr, unsigne
             }
             if (charnum >= maxSV1) break;
 
-            if (LIKELY((ip <= iend-7) || (ip + (bitCount>>3) <= iend-4))) {
+            if (LIKELY(ip <= iend-7) || (ip + (bitCount>>3) <= iend-4)) {
                 ip += bitCount>>3;
                 bitCount &= 7;
             } else {
                 bitCount -= (int)(8 * (iend - 4 - ip));
+                bitCount &= 31;
                 ip = iend - 4;
             }
-            bitStream = MEM_readLE32(ip) >> (bitCount & 31);
+            bitStream = MEM_readLE32(ip) >> bitCount;
     }   }
     if (remaining != 1) return ERROR(corruption_detected);
     /* Only possible when there are too many zeros. */

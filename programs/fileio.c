@@ -1695,7 +1695,7 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
             unsigned u;
             for (u=0; u<nbFiles; u++) {
                 if (nbFiles > 1)
-                    DISPLAYLEVEL(2, "\rCompressing %u/%u files. Current source: %s | ", u+1, nbFiles, inFileNamesTable[u]);
+                    DISPLAYLEVEL(2, "\rCompressing %u/%u files. Current source: %s ", u+1, nbFiles, inFileNamesTable[u]);
                 error |= FIO_compressFilename_srcFile(prefs, ress, outFileName, inFileNamesTable[u], compressionLevel);
             }
             if (fclose(ress.dstFile))
@@ -1726,7 +1726,7 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
             }
 
             if (nbFiles > 1)
-                DISPLAYLEVEL(2, "\rCompressing %u/%u files. Current source: %s | ", u+1, nbFiles, srcFileName);
+                DISPLAYLEVEL(2, "\rCompressing %u/%u files. Current source: %s ", u+1, nbFiles, srcFileName);
             error |= FIO_compressFilename_srcFile(prefs, ress, dstFileName, srcFileName, compressionLevel);
         }
 

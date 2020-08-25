@@ -349,24 +349,34 @@ rm tmp*
 println "\n===>  compress multiple files"
 println hello > tmp1
 println world > tmp2
-echo 'y' | zstd tmp1 tmp2 -o "$INTOVOID" -f  # echo 'y' confirms the warning prompt
-echo 'y' | zstd tmp1 tmp2 -c | zstd -t
-echo 'y' | zstd tmp1 tmp2 -o tmp.zst
+zstd tmp1 tmp2 -o "$INTOVOID" -f
+zstd tmp1 tmp2 -c | zstd -t
+zstd tmp1 tmp2 -o tmp.zst
 test ! -f tmp1.zst
 test ! -f tmp2.zst
 zstd tmp1 tmp2
 zstd -t tmp1.zst tmp2.zst
 zstd -dc tmp1.zst tmp2.zst
-echo 'y' | zstd tmp1.zst tmp2.zst -o "$INTOVOID" -f
-echo 'y' | zstd -d tmp1.zst tmp2.zst -o tmp
+zstd tmp1.zst tmp2.zst -o "$INTOVOID" -f
+zstd -d tmp1.zst tmp2.zst -o tmp
 touch tmpexists
-echo 'y' | zstd tmp1 tmp2 -f -o tmpexists
-echo 'y' | zstd tmp1 tmp2 -o tmpexists && die "should have refused to overwrite"
-zstd tmp1 tmp2 -o "$INTOVOID" --rm && die "should have refused to execute with --rm"
+zstd tmp1 tmp2 -f -o tmpexists
+zstd tmp1 tmp2 -o tmpexists && die "should have refused to overwrite"
 println gooder > tmp_rm1
 println boi > tmp_rm2
-echo 'y' | zstd tmp_rm1 tmp_rm2 -o tmp_rm3.zst -f --rm
-rm tmp_rm3.zst
+println worldly > tmp_rm3
+echo 'y' | zstd tmp_rm1 tmp_rm2 -o tmp_rm3.zst --rm     # tests the warning prompt for --rm with multiple inputs into once source
+test ! -f tmp_rm1
+test ! -f tmp_rm2
+cp tmp_rm3.zst tmp_rm4.zst
+echo 'Y' | zstd -d tmp_rm3.zst tmp_rm4.zst -o tmp_rm_out --rm
+test ! -f tmp_rm3.zst
+test ! -f tmp_rm4.zst
+echo 'yes' | zstd tmp_rm_out tmp_rm3 -c --rm
+test ! -f tmp_rm_out
+test ! -f tmp_rm3
+println gooder > tmpexists1
+zstd tmpexists1 tmpexists -c --rm -f
 
 # Bug: PR #972
 if [ "$?" -eq 139 ]; then
@@ -388,7 +398,7 @@ test -f tmp1
 test -f tmp2
 test -f tmp3
 println "compress tmp* into stdout > tmpall : "
-echo 'y' | zstd -c tmp1 tmp2 tmp3 > tmpall
+zstd -c tmp1 tmp2 tmp3 > tmpall
 test -f tmpall  # should check size of tmpall (should be tmp1.zst + tmp2.zst + tmp3.zst)
 println "decompress tmpall* into stdout > tmpdec : "
 cp tmpall tmpall2
@@ -926,7 +936,7 @@ datagen | zstd -c | zstd -t
 println "\n===>  golden files tests "
 
 zstd -t -r "$TESTDIR/golden-decompression"
-echo 'y' | zstd -c -r "$TESTDIR/golden-compression" | zstd -t
+zstd -c -r "$TESTDIR/golden-compression" | zstd -t
 zstd -D "$TESTDIR/golden-dictionaries/http-dict-missing-symbols" "$TESTDIR/golden-compression/http" -c | zstd -D "$TESTDIR/golden-dictionaries/http-dict-missing-symbols" -t
 
 

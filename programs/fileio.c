@@ -1677,28 +1677,26 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
     /* init */
     assert(outFileName != NULL || suffix != NULL);
     if (outFileName != NULL) {   /* output into a single destination (stdout typically) */
-        if (nbFiles > 1) {
+        if (nbFiles > 1 && !prefs->overwrite) {
             if (!strcmp (outFileName, stdoutmark)) {
                 DISPLAY("zstd: WARNING: all input files will be processed and concatenated into stdout. ");
             } else {
                 DISPLAY("zstd: WARNING: all input files will be processed and concatenated into a single output file: %s ", outFileName);
             }
-            if (prefs->removeSrcFile && !prefs->overwrite) {
-                DISPLAY("\nYou must specify -f as well in order to execute this command with --rm. Aborting...");
-                return 1;
-            }
-            
-            DISPLAY("Proceed? (y/n): ");
-            {
-                int ch = getchar();
-                if ((ch != 'y') && (ch != 'Y')) {
-                    DISPLAY("zstd: aborting...\n");
-                    return 1;
+            if (prefs->removeSrcFile) {
+                DISPLAY("Proceed? (y/n): ");
+                {
+                    int ch = getchar();
+                    if ((ch != 'y') && (ch != 'Y')) {
+                        DISPLAY("zstd: aborting...\n");
+                        return 1;
+                    }
+                    /* flush the rest */
+                    while ((ch!=EOF) && (ch!='\n'))
+                        ch = getchar();
                 }
-                /* flush the rest */
-                while ((ch!=EOF) && (ch!='\n'))
-                    ch = getchar();
             }
+            DISPLAY("\n");
         }
         ress.dstFile = FIO_openDstFile(prefs, NULL, outFileName);
         if (ress.dstFile == NULL) {  /* could not open outFileName */

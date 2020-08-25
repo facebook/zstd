@@ -126,6 +126,8 @@ struct ZSTD_DCtx_s
     XXH64_state_t xxhState;
     size_t headerSize;
     ZSTD_format_e format;
+    ZSTD_forceIgnoreChecksum_e forceIgnoreChecksum;   /* User specified: if == 1, will ignore checksums in compressed frame. Default == 0 */
+    U32 validateChecksum;         /* if == 1, will validate checksum. Is == 1 if (fParams.checksumFlag == 1) and (forceIgnoreChecksum == 0). */
     const BYTE* litPtr;
     ZSTD_customMem customMem;
     size_t litSize;

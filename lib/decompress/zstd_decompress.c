@@ -114,6 +114,8 @@ static void ZSTD_initDCtx_internal(ZSTD_DCtx* dctx)
     dctx->oversizedDuration = 0;
     dctx->bmi2 = ZSTD_cpuid_bmi2(ZSTD_cpuid());
     dctx->outBufferMode = ZSTD_obm_buffered;
+    dctx->forceIgnoreChecksum = ZSTD_d_validateChecksum;
+    dctx->validateChecksum = 1;
 #ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
     dctx->dictContentEndForFuzzing = NULL;
 #endif
@@ -446,7 +448,8 @@ static size_t ZSTD_decodeFrameHeader(ZSTD_DCtx* dctx, const void* src, size_t he
     RETURN_ERROR_IF(dctx->fParams.dictID && (dctx->dictID != dctx->fParams.dictID),
                     dictionary_wrong, "");
 #endif
-    if (dctx->fParams.checksumFlag) XXH64_reset(&dctx->xxhState, 0);
+    dctx->validateChecksum = (dctx->fParams.checksumFlag && !dctx->forceIgnoreChecksum) ? 1 : 0;
+    if (dctx->validateChecksum) XXH64_reset(&dctx->xxhState, 0);
     return 0;
 }
 
@@ -661,7 +664,7 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
         }
 
         if (ZSTD_isError(decodedSize)) return decodedSize;
-        if (dctx->fParams.checksumFlag)
+        if (dctx->validateChecksum)
             XXH64_update(&dctx->xxhState, op, decodedSize);
         if (decodedSize != 0)
             op += decodedSize;
@@ -676,11 +679,13 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
                         corruption_detected, "");
     }
     if (dctx->fParams.checksumFlag) { /* Frame content checksum verification */
-        U32 const checkCalc = (U32)XXH64_digest(&dctx->xxhState);
-        U32 checkRead;
         RETURN_ERROR_IF(remainingSrcSize<4, checksum_wrong, "");
-        checkRead = MEM_readLE32(ip);
-        RETURN_ERROR_IF(checkRead != checkCalc, checksum_wrong, "");
+        if (!dctx->forceIgnoreChecksum) {
+            U32 const checkCalc = (U32)XXH64_digest(&dctx->xxhState);
+            U32 checkRead;
+            checkRead = MEM_readLE32(ip);
+            RETURN_ERROR_IF(checkRead != checkCalc, checksum_wrong, "");
+        }
         ip += 4;
         remainingSrcSize -= 4;
     }
@@ -977,7 +982,7 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
             RETURN_ERROR_IF(rSize > dctx->fParams.blockSizeMax, corruption_detected, "Decompressed Block Size Exceeds Maximum");
             DEBUGLOG(5, "ZSTD_decompressContinue: decoded size from block : %u", (unsigned)rSize);
             dctx->decodedSize += rSize;
-            if (dctx->fParams.checksumFlag) XXH64_update(&dctx->xxhState, dst, rSize);
+            if (dctx->validateChecksum) XXH64_update(&dctx->xxhState, dst, rSize);
             dctx->previousDstEnd = (char*)dst + rSize;
 
             /* Stay on the same stage until we are finished streaming the block. */
@@ -1007,10 +1012,13 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
 
     case ZSTDds_checkChecksum:
         assert(srcSize == 4);  /* guaranteed by dctx->expected */
-        {   U32 const h32 = (U32)XXH64_digest(&dctx->xxhState);
-            U32 const check32 = MEM_readLE32(src);
-            DEBUGLOG(4, "ZSTD_decompressContinue: checksum : calculated %08X :: %08X read", (unsigned)h32, (unsigned)check32);
-            RETURN_ERROR_IF(check32 != h32, checksum_wrong, "");
+        {
+            if (dctx->validateChecksum) {
+                U32 const h32 = (U32)XXH64_digest(&dctx->xxhState);
+                U32 const check32 = MEM_readLE32(src);
+                DEBUGLOG(4, "ZSTD_decompressContinue: checksum : calculated %08X :: %08X read", (unsigned)h32, (unsigned)check32);
+                RETURN_ERROR_IF(check32 != h32, checksum_wrong, "");
+            }
             dctx->expected = 0;
             dctx->stage = ZSTDds_getFrameHeaderSize;
             return 0;
@@ -1420,6 +1428,10 @@ ZSTD_bounds ZSTD_dParam_getBounds(ZSTD_dParameter dParam)
             bounds.lowerBound = (int)ZSTD_obm_buffered;
             bounds.upperBound = (int)ZSTD_obm_stable;
             return bounds;
+        case ZSTD_d_forceIgnoreChecksum:
+            bounds.lowerBound = (int)ZSTD_d_validateChecksum;
+            bounds.upperBound = (int)ZSTD_d_ignoreChecksum;
+            return bounds;
         default:;
     }
     bounds.error = ERROR(parameter_unsupported);
@@ -1458,6 +1470,10 @@ size_t ZSTD_DCtx_setParameter(ZSTD_DCtx* dctx, ZSTD_dParameter dParam, int value
         case ZSTD_d_stableOutBuffer:
             CHECK_DBOUNDS(ZSTD_d_stableOutBuffer, value);
             dctx->outBufferMode = (ZSTD_outBufferMode_e)value;
+            return 0;
+        case ZSTD_d_forceIgnoreChecksum:
+            CHECK_DBOUNDS(ZSTD_d_forceIgnoreChecksum, value);
+            dctx->forceIgnoreChecksum = (ZSTD_forceIgnoreChecksum_e)value;
             return 0;
         default:;
     }

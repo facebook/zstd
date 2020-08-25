@@ -528,11 +528,13 @@ typedef enum {
      * At the time of this writing, they include :
      * ZSTD_d_format
      * ZSTD_d_stableOutBuffer
+     * ZSTD_d_forceIgnoreChecksum
      * Because they are not stable, it's necessary to define ZSTD_STATIC_LINKING_ONLY to access them.
      * note : never ever use experimentalParam? names directly
      */
      ZSTD_d_experimentalParam1=1000,
-     ZSTD_d_experimentalParam2=1001
+     ZSTD_d_experimentalParam2=1001,
+     ZSTD_d_experimentalParam3=1002
 
 } ZSTD_dParameter;
 
@@ -1161,6 +1163,12 @@ typedef enum {
 } ZSTD_format_e;
 
 typedef enum {
+    /* Note: this enum controls ZSTD_d_forceIgnoreChecksum */
+    ZSTD_d_validateChecksum = 0,
+    ZSTD_d_ignoreChecksum = 1
+} ZSTD_forceIgnoreChecksum_e;
+
+typedef enum {
     /* Note: this enum and the behavior it controls are effectively internal
      * implementation details of the compressor. They are expected to continue
      * to evolve and should be considered only in the context of extremely
@@ -1689,6 +1697,17 @@ ZSTDLIB_API size_t ZSTD_DCtx_setMaxWindowSize(ZSTD_DCtx* dctx, size_t maxWindowS
  * this flag tells zstd to use the user provided buffer.
  */
 #define ZSTD_d_stableOutBuffer ZSTD_d_experimentalParam2
+
+/* ZSTD_d_forceIgnoreChecksum
+ * Experimental parameter.
+ * Default is 0 == disabled. Set to 1 to enable
+ *
+ * Tells the decompressor to skip checksum validation during decompression, regardless
+ * of whether checksumming was specified during compression. This offers some
+ * slight performance benefits, and may be useful for debugging.
+ * Param has values of type ZSTD_forceIgnoreChecksum_e
+ */
+#define ZSTD_d_forceIgnoreChecksum ZSTD_d_experimentalParam3
 
 /*! ZSTD_DCtx_setFormat() :
  *  Instruct the decoder context about what kind of data to decode next.

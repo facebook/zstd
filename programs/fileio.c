@@ -1435,8 +1435,9 @@ FIO_compressFilename_internal(FIO_prefs_t* const prefs,
 
     /* Status */
     
+    DISPLAYLEVEL(2, "\r%79s\r", "");
+    /* No status message in pipe mode (stdin - stdout) or multi-files mode */
     if (prefs->nbFiles == 1 && !((!strcmp(srcFileName, stdinmark) && dstFileName && !strcmp(dstFileName,stdoutmark)))) {
-        DISPLAYLEVEL(2, "\r%79s\r", "");
         if (readsize == 0) {
             DISPLAYLEVEL(2,"%-20s :  (%6llu => %6llu bytes, %s) \n",
                 srcFileName,
@@ -1693,7 +1694,8 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
         } else {
             unsigned u;
             for (u=0; u<nbFiles; u++) {
-                DISPLAYUPDATE(2, "\r%u/%u files compressed", u+1, nbFiles);
+                if (nbFiles > 1)
+                    DISPLAYLEVEL(2, "\rCompressing %u/%u files. Current source: %s | ", u+1, nbFiles, inFileNamesTable[u]);
                 error |= FIO_compressFilename_srcFile(prefs, ress, outFileName, inFileNamesTable[u], compressionLevel);
             }
             if (fclose(ress.dstFile))
@@ -1726,7 +1728,7 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
             /* No status message in pipe mode (stdin - stdout) or multi-files mode */
             // if (!strcmp(inFileNamesTable[0], stdinmark) && outFileName && !strcmp(outFileName,stdoutmark) && (g_display_prefs.displayLevel==2)) g_displayLevel=1;
             if (nbFiles > 1)
-                DISPLAYUPDATE(2, "\rCompressing %u/%u files. Current source: %s |", u+1, nbFiles, srcFileName);
+                DISPLAYLEVEL(2, "\rCompressing %u/%u files. Current source: %s | ", u+1, nbFiles, srcFileName);
             error |= FIO_compressFilename_srcFile(prefs, ress, dstFileName, srcFileName, compressionLevel);
         }
 
@@ -2001,7 +2003,7 @@ FIO_decompressZstdFrame(dRess_t* ress, FILE* finput,
         /* Write block */
         storedSkips = FIO_fwriteSparse(ress->dstFile, ress->dstBuffer, outBuff.pos, prefs, storedSkips);
         frameSize += outBuff.pos;
-        DISPLAYUPDATE(2, "\r%-20.20s : %u MB...     ",
+        DISPLAYUPDATE(2, "\033[s%-20.20s : %u MB...     \033[u",
                          srcFileName, (unsigned)((alreadyDecoded+frameSize)>>20) );
 
         if (inBuff.pos > 0) {
@@ -2584,8 +2586,10 @@ FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
             ress.dstFile = FIO_openDstFile(prefs, NULL, outFileName);
             if (ress.dstFile == 0) EXM_THROW(19, "cannot open %s", outFileName);
         }
-        for (u=0; u<nbFiles; u++)
+        for (u=0; u<nbFiles; u++) {
+            DISPLAYLEVEL(2, "\rDecompressing %u/%u files. Current source: %s | ", u+1, nbFiles, srcNamesTable[u]);
             error |= FIO_decompressSrcFile(prefs, ress, outFileName, srcNamesTable[u]);
+        }
         if ((!prefs->testMode) && (fclose(ress.dstFile)))
             EXM_THROW(72, "Write error : %s : cannot properly close output file",
                         strerror(errno));
@@ -2609,6 +2613,8 @@ FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
                 dstFileName = FIO_determineDstName(srcFileName, outDirName);
             }
             if (dstFileName == NULL) { error=1; continue; }
+            if (nbFiles > 1)
+                DISPLAYLEVEL(2, "\rDecompressing %u/%u files. Current source: %s | ", u+1, nbFiles, srcFileName[u]);
             error |= FIO_decompressSrcFile(prefs, ress, dstFileName, srcFileName);
         }
         if (outDirName)

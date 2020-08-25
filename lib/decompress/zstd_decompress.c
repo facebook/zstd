@@ -1091,7 +1091,9 @@ ZSTD_loadDEntropy(ZSTD_entropyDTables_t* entropy,
         ZSTD_buildFSETable( entropy->OFTable,
                             offcodeNCount, offcodeMaxValue,
                             OF_base, OF_bits,
-                            offcodeLog);
+                            offcodeLog,
+                            entropy->workspace, sizeof(entropy->workspace),
+                            /* bmi2 */0);
         dictPtr += offcodeHeaderSize;
     }
 
@@ -1104,7 +1106,9 @@ ZSTD_loadDEntropy(ZSTD_entropyDTables_t* entropy,
         ZSTD_buildFSETable( entropy->MLTable,
                             matchlengthNCount, matchlengthMaxValue,
                             ML_base, ML_bits,
-                            matchlengthLog);
+                            matchlengthLog,
+                            entropy->workspace, sizeof(entropy->workspace),
+                            /* bmi2 */ 0);
         dictPtr += matchlengthHeaderSize;
     }
 
@@ -1117,7 +1121,9 @@ ZSTD_loadDEntropy(ZSTD_entropyDTables_t* entropy,
         ZSTD_buildFSETable( entropy->LLTable,
                             litlengthNCount, litlengthMaxValue,
                             LL_base, LL_bits,
-                            litlengthLog);
+                            litlengthLog,
+                            entropy->workspace, sizeof(entropy->workspace),
+                            /* bmi2 */ 0);
         dictPtr += litlengthHeaderSize;
     }
 

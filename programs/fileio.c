@@ -319,6 +319,7 @@ struct FIO_prefs_s {
     int excludeCompressedFiles;
     int patchFromMode;
     int contentSize;
+    int nbFiles;
 };
 
 
@@ -360,6 +361,7 @@ FIO_prefs_t* FIO_createPreferences(void)
     ret->testMode = 0;
     ret->literalCompressionMode = ZSTD_lcm_auto;
     ret->excludeCompressedFiles = 0;
+    ret->nbFiles = 1;
     return ret;
 }
 
@@ -493,6 +495,11 @@ void FIO_setPatchFromMode(FIO_prefs_t* const prefs, int value)
 void FIO_setContentSize(FIO_prefs_t* const prefs, int value)
 {
     prefs->contentSize = value != 0;
+}
+
+void FIO_setNbFiles(FIO_prefs_t* const prefs, int value)
+{
+    prefs->nbFiles = value;
 }
 
 /*-*************************************
@@ -1254,17 +1261,17 @@ FIO_compressZstdFrame(FIO_prefs_t* const prefs,
 
                 /* display progress notifications */
                 if (g_display_prefs.displayLevel >= 3) {
-                    DISPLAYUPDATE(3, "\r(L%i) Buffered :%4u MB - Consumed :%4u MB - Compressed :%4u MB => %.2f%% ",
+                    DISPLAYUPDATE(3, "\r(L%i) Buffered :%4u MB - Consumed :%4u MB - Compressed :%4u MB => %.2f%%\033 ",
                                 compressionLevel,
                                 (unsigned)((zfp.ingested - zfp.consumed) >> 20),
                                 (unsigned)(zfp.consumed >> 20),
                                 (unsigned)(zfp.produced >> 20),
                                 cShare );
                 } else {   /* summarized notifications if == 2; */
-                    DISPLAYLEVEL(2, "\rRead : %u ", (unsigned)(zfp.consumed >> 20));
+                    DISPLAYLEVEL(2, "\033[s Read : %u ", (unsigned)(zfp.consumed >> 20));
                     if (fileSize != UTIL_FILESIZE_UNKNOWN)
                         DISPLAYLEVEL(2, "/ %u ", (unsigned)(fileSize >> 20));
-                    DISPLAYLEVEL(2, "MB ==> %2.f%% ", cShare);
+                    DISPLAYLEVEL(2, "MB ==> %2.f%%\033[u", cShare);
                     DELAY_NEXT_UPDATE();
                 }
 
@@ -1427,18 +1434,21 @@ FIO_compressFilename_internal(FIO_prefs_t* const prefs,
     }
 
     /* Status */
-    DISPLAYLEVEL(2, "\r%79s\r", "");
-    if (readsize == 0) {
-        DISPLAYLEVEL(2,"%-20s :  (%6llu => %6llu bytes, %s) \n",
-            srcFileName,
-            (unsigned long long)readsize, (unsigned long long) compressedfilesize,
-            dstFileName);
-    } else {
-        DISPLAYLEVEL(2,"%-20s :%6.2f%%   (%6llu => %6llu bytes, %s) \n",
-            srcFileName,
-            (double)compressedfilesize / readsize * 100,
-            (unsigned long long)readsize, (unsigned long long) compressedfilesize,
-            dstFileName);
+    
+    if (prefs->nbFiles == 1 && !((!strcmp(srcFileName, stdinmark) && dstFileName && !strcmp(dstFileName,stdoutmark)))) {
+        DISPLAYLEVEL(2, "\r%79s\r", "");
+        if (readsize == 0) {
+            DISPLAYLEVEL(2,"%-20s :  (%6llu => %6llu bytes, %s) \n",
+                srcFileName,
+                (unsigned long long)readsize, (unsigned long long) compressedfilesize,
+                dstFileName);
+        } else {
+            DISPLAYLEVEL(2,"%-20s :%6.2f%%   (%6llu => %6llu bytes, %s) \n",
+                srcFileName,
+                (double)compressedfilesize / readsize * 100,
+                (unsigned long long)readsize, (unsigned long long) compressedfilesize,
+                dstFileName);
+        }
     }
 
     /* Elapsed Time and CPU Load */
@@ -1682,8 +1692,10 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
             error = 1;
         } else {
             unsigned u;
-            for (u=0; u<nbFiles; u++)
+            for (u=0; u<nbFiles; u++) {
+                DISPLAYUPDATE(2, "\r%u/%u files compressed", u+1, nbFiles);
                 error |= FIO_compressFilename_srcFile(prefs, ress, outFileName, inFileNamesTable[u], compressionLevel);
+            }
             if (fclose(ress.dstFile))
                 EXM_THROW(29, "Write error (%s) : cannot properly close %s",
                             strerror(errno), outFileName);
@@ -1711,6 +1723,10 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
                 dstFileName = FIO_determineCompressedName(srcFileName, outDirName, suffix);  /* cannot fail */
             }
 
+            /* No status message in pipe mode (stdin - stdout) or multi-files mode */
+            // if (!strcmp(inFileNamesTable[0], stdinmark) && outFileName && !strcmp(outFileName,stdoutmark) && (g_display_prefs.displayLevel==2)) g_displayLevel=1;
+            if (nbFiles > 1)
+                DISPLAYUPDATE(2, "\rCompressing %u/%u files. Current source: %s |", u+1, nbFiles, srcFileName);
             error |= FIO_compressFilename_srcFile(prefs, ress, dstFileName, srcFileName, compressionLevel);
         }
 

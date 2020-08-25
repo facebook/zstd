@@ -605,16 +605,10 @@ FIO_openDstFile(FIO_prefs_t* const prefs,
                             dstFileName);
                     return NULL;
                 }
-                DISPLAY("zstd: %s already exists; overwrite (y/N) ? ",
-                        dstFileName);
-                {   int ch = getchar();
-                    if ((ch!='Y') && (ch!='y')) {
-                        DISPLAY("    not overwritten  \n");
-                        return NULL;
-                    }
-                    /* flush rest of input line */
-                    while ((ch!=EOF) && (ch!='\n')) ch = getchar();
-            }   }
+                DISPLAY("zstd: %s already exists; ", dstFileName);
+                if (UTIL_requireUserConfirmationToProceed("overwrite (y/n) ? ", "Not overwritten  \n", "yY"))
+                    return NULL;
+            }
             /* need to unlink */
             FIO_removeFile(dstFileName);
     }   }
@@ -1683,19 +1677,8 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
             } else {
                 DISPLAY("zstd: WARNING: all input files will be processed and concatenated into a single output file: %s ", outFileName);
             }
-            if (prefs->removeSrcFile) {
-                DISPLAY("Proceed? (y/n): ");
-                {
-                    int ch = getchar();
-                    if ((ch != 'y') && (ch != 'Y')) {
-                        DISPLAY("zstd: aborting...\n");
-                        return 1;
-                    }
-                    /* flush the rest */
-                    while ((ch!=EOF) && (ch!='\n'))
-                        ch = getchar();
-                }
-            }
+            if (prefs->removeSrcFile)
+                error = UTIL_requireUserConfirmationToProceed("Proceed? (y/n): ", "Aborting...", "yY");
             DISPLAY("\n");
         }
         ress.dstFile = FIO_openDstFile(prefs, NULL, outFileName);

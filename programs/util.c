@@ -87,6 +87,22 @@ UTIL_STATIC void* UTIL_realloc(void *ptr, size_t size)
 ******************************************/
 int g_utilDisplayLevel;
 
+int UTIL_requireUserConfirmationToProceed(const char* prompt, const char* abortMsg,
+                                          const char* acceptableLetters) {
+    int ch;
+    UTIL_DISPLAY("%s", prompt);
+    ch = getchar();
+    if (strchr(acceptableLetters, ch) == NULL) {
+        UTIL_DISPLAY("%s", abortMsg);
+        return 1;
+    }
+    /* flush the rest */
+    while ((ch!=EOF) && (ch!='\n'))
+        ch = getchar();
+    
+    return 0;
+}
+
 
 /*-*************************************
 *  Constants

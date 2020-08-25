@@ -1437,7 +1437,7 @@ FIO_compressFilename_internal(FIO_prefs_t* const prefs,
     
     DISPLAYLEVEL(2, "\r%79s\r", "");
     /* No status message in pipe mode (stdin - stdout) or multi-files mode */
-    if (prefs->nbFiles == 1 && !((!strcmp(srcFileName, stdinmark) && dstFileName && !strcmp(dstFileName,stdoutmark)))) {
+    if (g_display_prefs.displayLevel > 2 || (prefs->nbFiles == 1 && !((!strcmp(srcFileName, stdinmark) && dstFileName && !strcmp(dstFileName,stdoutmark))))) {
         if (readsize == 0) {
             DISPLAYLEVEL(2,"%-20s :  (%6llu => %6llu bytes, %s) \n",
                 srcFileName,
@@ -2332,7 +2332,9 @@ static int FIO_decompressFrames(dRess_t ress, FILE* srcFile,
 
     /* Final Status */
     DISPLAYLEVEL(2, "\r%79s\r", "");
-    DISPLAYLEVEL(2, "%-20s: %llu bytes \n", srcFileName, filesize);
+    /* No status message in pipe mode (stdin - stdout) or multi-files mode */
+    if (g_display_prefs.displayLevel > 2 || (prefs->nbFiles == 1 && !((!strcmp(srcFileName, stdinmark) && dstFileName && !strcmp(dstFileName,stdoutmark)))))
+        DISPLAYLEVEL(2, "%-20s: %llu bytes \n", srcFileName, filesize);
 
     return 0;
 }
@@ -2585,7 +2587,7 @@ FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
             if (ress.dstFile == 0) EXM_THROW(19, "cannot open %s", outFileName);
         }
         for (u=0; u<nbFiles; u++) {
-            DISPLAYLEVEL(2, "\rDecompressing %u/%u files. Current source: %s | ", u+1, nbFiles, srcNamesTable[u]);
+            DISPLAYLEVEL(2, "\rDecompressing %u/%u files. Current source: ", u+1, nbFiles);
             error |= FIO_decompressSrcFile(prefs, ress, outFileName, srcNamesTable[u]);
         }
         if ((!prefs->testMode) && (fclose(ress.dstFile)))
@@ -2612,7 +2614,7 @@ FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
             }
             if (dstFileName == NULL) { error=1; continue; }
             if (nbFiles > 1)
-                DISPLAYLEVEL(2, "\rDecompressing %u/%u files. Current source: %s | ", u+1, nbFiles, srcFileName);
+                DISPLAYLEVEL(2, "\rDecompressing %u/%u files. Current source: ", u+1, nbFiles);
             error |= FIO_decompressSrcFile(prefs, ress, dstFileName, srcFileName);
         }
         if (outDirName)

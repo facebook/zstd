@@ -624,9 +624,10 @@ FIO_openDstFile(FIO_prefs_t* const prefs,
                 {   int ch = getchar();
                     if ((ch!='Y') && (ch!='y')) {
                         DISPLAY("    not overwritten  \n");
+                        /* flush rest of input line */
+                        while ((ch!=EOF) && (ch!='\n')) ch = getchar();
                         return NULL;
                     }
-                    /* flush rest of input line */
                     while ((ch!=EOF) && (ch!='\n')) ch = getchar();
             }   }
             /* need to unlink */

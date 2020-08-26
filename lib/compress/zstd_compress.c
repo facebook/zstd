@@ -864,8 +864,14 @@ ZSTDLIB_API size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long lo
     return 0;
 }
 
-static ZSTD_compressionParameters ZSTD_dedicatedDictSearch_getCParams(int const compressionLevel, size_t const dictSize);
-static int ZSTD_dedicatedDictSearch_isSupported(int const compressionLevel, size_t const dictSize);
+static ZSTD_compressionParameters ZSTD_dedicatedDictSearch_getCParams(
+        int const compressionLevel,
+        unsigned long long srcSizeHint,
+        size_t const dictSize);
+static int ZSTD_dedicatedDictSearch_isSupported(
+        int const compressionLevel,
+        unsigned long long srcSizeHint,
+        size_t const dictSize);
 
 /**
  * Initializes the local dict using the requested parameters.
@@ -3511,7 +3517,8 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced2(const void* dict, size_t dict
                                                   ZSTD_customMem customMem)
 {
     int const dedicatedDictSearch = cctxParams->enableDedicatedDictSearch &&
-        ZSTD_dedicatedDictSearch_isSupported(cctxParams->compressionLevel, dictSize);
+        ZSTD_dedicatedDictSearch_isSupported(
+            cctxParams->compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, dictSize);
     if (!dedicatedDictSearch) {
         ZSTD_compressionParameters cParams = ZSTD_getCParams_internal(
             cctxParams->compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, dictSize);
@@ -3520,7 +3527,7 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced2(const void* dict, size_t dict
             customMem);
     }
     {   ZSTD_compressionParameters const cParams = ZSTD_dedicatedDictSearch_getCParams(
-            cctxParams->compressionLevel, dictSize);
+            cctxParams->compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, dictSize);
         ZSTD_CDict* cdict = ZSTD_createCDict_advanced_internal(dictSize,
                             dictLoadMethod, cParams,
                             customMem);
@@ -4319,124 +4326,30 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
 },
 };
 
-static const ZSTD_compressionParameters
-ZSTD_dedicatedDictSearch_defaultCParameters[4][ZSTD_MAX_CLEVEL+1] = {
-{   /* "default" - for any dictSize > 256 KB */
-    /* W,  C,  H,  S,  L, TL, strat */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* base (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level  1 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level  2 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level  3 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level  4 (not adjusted) */
-    { 21, 18, 19 + ZSTD_LAZY_DDSS_BUCKET_LOG,  2,  5,  2, ZSTD_greedy      },  /* level  5 */
-    { 21, 19, 19 + ZSTD_LAZY_DDSS_BUCKET_LOG,  3,  5,  4, ZSTD_greedy      },  /* level  6 */
-    { 21, 19, 19 + ZSTD_LAZY_DDSS_BUCKET_LOG,  3,  5,  8, ZSTD_lazy        },  /* level  7 */
-    { 21, 19, 19 + ZSTD_LAZY_DDSS_BUCKET_LOG,  3,  5, 16, ZSTD_lazy2       },  /* level  8 */
-    { 21, 19, 20 + ZSTD_LAZY_DDSS_BUCKET_LOG,  4,  5, 16, ZSTD_lazy2       },  /* level  9 */
-    { 22, 20, 21 + ZSTD_LAZY_DDSS_BUCKET_LOG,  4,  5, 16, ZSTD_lazy2       },  /* level 10 */
-    { 22, 21, 22 + ZSTD_LAZY_DDSS_BUCKET_LOG,  4,  5, 16, ZSTD_lazy2       },  /* level 11 */
-    { 22, 21, 22 + ZSTD_LAZY_DDSS_BUCKET_LOG,  5,  5, 16, ZSTD_lazy2       },  /* level 12 */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level 13 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level 14 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level 15 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level 16 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level 17 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level 18 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level 19 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level 20 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level 21 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 }   /* level 22 (not adjusted) */
-},
-{   /* for dictSize <= 256 KB */
-    /* W,  C,  H,  S,  L,  T, strat */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* base (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level  1 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level  2 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level  3 (not adjusted) */
-    { 18, 16, 17 + ZSTD_LAZY_DDSS_BUCKET_LOG,  2,  5,  2, ZSTD_greedy      },  /* level  4 */
-    { 18, 18, 18 + ZSTD_LAZY_DDSS_BUCKET_LOG,  3,  5,  2, ZSTD_greedy      },  /* level  5 */
-    { 18, 18, 19 + ZSTD_LAZY_DDSS_BUCKET_LOG,  3,  5,  4, ZSTD_lazy        },  /* level  6 */
-    { 18, 18, 19 + ZSTD_LAZY_DDSS_BUCKET_LOG,  4,  4,  4, ZSTD_lazy        },  /* level  7 */
-    { 18, 18, 19 + ZSTD_LAZY_DDSS_BUCKET_LOG,  4,  4,  8, ZSTD_lazy2       },  /* level  8 */
-    { 18, 18, 19 + ZSTD_LAZY_DDSS_BUCKET_LOG,  5,  4,  8, ZSTD_lazy2       },  /* level  9 */
-    { 18, 18, 19 + ZSTD_LAZY_DDSS_BUCKET_LOG,  6,  4,  8, ZSTD_lazy2       },  /* level 10 */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level 11 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level 12 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level 13 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level 14 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level 15 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level 16 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level 17 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level 18 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level 19 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level 20 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level 21 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 }   /* level 22 (not adjusted) */
-},
-{   /* for dictSize <= 128 KB */
-    /* W,  C,  H,  S,  L,  T, strat */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* base (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level  1 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level  2 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level  3 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level  4 (not adjusted) */
-    { 17, 16, 17 + ZSTD_LAZY_DDSS_BUCKET_LOG,  3,  4,  2, ZSTD_greedy      },  /* level  5 */
-    { 17, 17, 17 + ZSTD_LAZY_DDSS_BUCKET_LOG,  3,  4,  4, ZSTD_lazy        },  /* level  6 */
-    { 17, 17, 17 + ZSTD_LAZY_DDSS_BUCKET_LOG,  3,  4,  8, ZSTD_lazy2       },  /* level  7 */
-    { 17, 17, 17 + ZSTD_LAZY_DDSS_BUCKET_LOG,  4,  4,  8, ZSTD_lazy2       },  /* level  8 */
-    { 17, 17, 17 + ZSTD_LAZY_DDSS_BUCKET_LOG,  5,  4,  8, ZSTD_lazy2       },  /* level  9 */
-    { 17, 17, 17 + ZSTD_LAZY_DDSS_BUCKET_LOG,  6,  4,  8, ZSTD_lazy2       },  /* level 10 */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level 11 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level 12 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level 13 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level 14 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level 15 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level 16 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level 17 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level 18 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level 19 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level 20 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level 21 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 }   /* level 22 (not adjusted) */
-},
-{   /* for dictSize <= 16 KB */
-    /* W,  C,  H,  S,  L,  T, strat */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* base (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level  1 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level  2 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level  3 (not adjusted) */
-    { 14, 14, 14 + ZSTD_LAZY_DDSS_BUCKET_LOG,  4,  4,  2, ZSTD_greedy      },  /* level  4 */
-    { 14, 14, 14 + ZSTD_LAZY_DDSS_BUCKET_LOG,  3,  4,  4, ZSTD_lazy        },  /* level  5 */
-    { 14, 14, 14 + ZSTD_LAZY_DDSS_BUCKET_LOG,  4,  4,  8, ZSTD_lazy2       },  /* level  6 */
-    { 14, 14, 14 + ZSTD_LAZY_DDSS_BUCKET_LOG,  6,  4,  8, ZSTD_lazy2       },  /* level  7 */
-    { 14, 14, 14 + ZSTD_LAZY_DDSS_BUCKET_LOG,  8,  4,  8, ZSTD_lazy2       },  /* level  8 */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level  9 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level  10 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level  11 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level  12 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level  13 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level  14 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level  15 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level  16 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level  17 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level  18 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level  19 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level  20 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 },  /* level  21 (not adjusted) */
-    { 0,  0,  0,                               0,  0,  0, (ZSTD_strategy)0 }   /* level  22 (not adjusted) */
-},
-};
-
-static ZSTD_compressionParameters ZSTD_dedicatedDictSearch_getCParams(int const compressionLevel, size_t const dictSize)
+static ZSTD_compressionParameters ZSTD_dedicatedDictSearch_getCParams(int const compressionLevel, unsigned long long srcSizeHint, size_t const dictSize)
 {
-    int const tableID = (dictSize <= 256 KB) + (dictSize <= 128 KB) + (dictSize <= 16 KB);
-    int const row = compressionLevel;
-    return ZSTD_dedicatedDictSearch_defaultCParameters[tableID][row];
+    ZSTD_compressionParameters cParams = ZSTD_getCParams_internal(compressionLevel, srcSizeHint, dictSize);
+    switch (cParams.strategy) {
+        case ZSTD_fast:
+        case ZSTD_dfast:
+            break;
+        case ZSTD_greedy:
+        case ZSTD_lazy:
+        case ZSTD_lazy2:
+            cParams.hashLog += ZSTD_LAZY_DDSS_BUCKET_LOG;
+            break;
+        case ZSTD_btlazy2:
+        case ZSTD_btopt:
+        case ZSTD_btultra:
+        case ZSTD_btultra2:
+            break;
+    }
+    return cParams;
 }
 
-static int ZSTD_dedicatedDictSearch_isSupported(int const compressionLevel, size_t const dictSize)
+static int ZSTD_dedicatedDictSearch_isSupported(int const compressionLevel, unsigned long long srcSizeHint, size_t const dictSize)
 {
-    ZSTD_compressionParameters const cParams = ZSTD_dedicatedDictSearch_getCParams(compressionLevel, dictSize);
+    ZSTD_compressionParameters const cParams = ZSTD_dedicatedDictSearch_getCParams(compressionLevel, srcSizeHint, dictSize);
     return (cParams.strategy >= ZSTD_greedy) && (cParams.strategy <= ZSTD_lazy2);
 }
 

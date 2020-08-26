@@ -361,7 +361,7 @@ zstd tmp1.zst tmp2.zst -o "$INTOVOID" -f
 zstd -d tmp1.zst tmp2.zst -o tmp
 touch tmpexists
 zstd tmp1 tmp2 -f -o tmpexists
-zstd tmp1 tmp2 -o tmpexists && die "should have refused to overwrite"
+zstd tmp1 tmp2 -q -o tmpexists && die "should have refused to overwrite"
 # Bug: PR #972
 if [ "$?" -eq 139 ]; then
   die "should not have segfaulted"

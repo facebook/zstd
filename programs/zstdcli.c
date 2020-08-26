@@ -154,6 +154,19 @@ static void usage_advanced(const char* programName)
     DISPLAYOUT( "--output-dir-mirror DIR : processed files are stored into DIR respecting original directory structure \n");
 #endif
 
+
+#ifndef ZSTD_NOCOMPRESS
+    DISPLAYOUT( "--[no-]check : during compression, add XXH64 integrity checksum to frame (default: enabled)");
+#ifndef ZSTD_NODECOMPRESS
+    DISPLAYOUT( ". If specified with -d, decompressor will ignore/validate checksums in compressed frame (default: validate).");
+#endif
+#else
+#ifdef ZSTD_NOCOMPRESS
+    DISPLAYOUT( "--[no-]check : during decompression, ignore/validate checksums in compressed frame (default: validate).");
+#endif
+#endif /* ZSTD_NOCOMPRESS */
+    DISPLAYOUT( "\n");
+
     DISPLAYOUT( "--      : All arguments after \"--\" are treated as files \n");
 
 #ifndef ZSTD_NOCOMPRESS
@@ -174,7 +187,6 @@ static void usage_advanced(const char* programName)
     DISPLAYOUT( "--size-hint=# optimize compression parameters for streaming input of approximately this size \n");
     DISPLAYOUT( "--target-compressed-block-size=# : generate compressed block of approximately targeted size \n");
     DISPLAYOUT( "--no-dictID : don't write dictID into header (dictionary compression only) \n");
-    DISPLAYOUT( "--[no-]check : add XXH64 integrity checksum to frame (default: enabled) \n");
     DISPLAYOUT( "--[no-]compress-literals : force (un)compressed literals \n");
 
     DISPLAYOUT( "--format=zstd : compress files to the .zst format (default) \n");
@@ -1243,12 +1255,12 @@ int main(int const argCount, const char* argv[])
         DISPLAY("error : can't use --patch-from=# on multiple files \n");
         CLEAN_RETURN(1);
     }
-
-    /* No status message in pipe mode (stdin - stdout) or multi-files mode */
+    
+    /* No status message in pipe mode (stdin - stdout) */	
     if (!strcmp(filenames->fileNames[0], stdinmark) && outFileName && !strcmp(outFileName,stdoutmark) && (g_displayLevel==2)) g_displayLevel=1;
-    if ((filenames->tableSize > 1) & (g_displayLevel==2)) g_displayLevel=1;
 
     /* IO Stream/File */
+    FIO_setNbFiles(prefs, (int)filenames->tableSize); 
     FIO_setNotificationLevel(g_displayLevel);
     FIO_setPatchFromMode(prefs, patchFromDictFileName != NULL);
     if (memLimit == 0) {
@@ -1307,9 +1319,9 @@ int main(int const argCount, const char* argv[])
         }
 
         if ((filenames->tableSize==1) && outFileName)
-          operationResult = FIO_compressFilename(prefs, outFileName, filenames->fileNames[0], dictFileName, cLevel, compressionParams);
+            operationResult = FIO_compressFilename(prefs, outFileName, filenames->fileNames[0], dictFileName, cLevel, compressionParams);
         else
-          operationResult = FIO_compressMultipleFilenames(prefs, filenames->fileNames, (unsigned)filenames->tableSize, outMirroredDirName, outDirName, outFileName, suffix, dictFileName, cLevel, compressionParams);
+            operationResult = FIO_compressMultipleFilenames(prefs, filenames->fileNames, outMirroredDirName, outDirName, outFileName, suffix, dictFileName, cLevel, compressionParams);
 #else
         (void)contentSize; (void)suffix; (void)adapt; (void)rsyncable; (void)ultra; (void)cLevel; (void)ldmFlag; (void)literalCompressionMode; (void)targetCBlockSize; (void)streamSrcSize; (void)srcSizeHint; (void)ZSTD_strategyMap; /* not used when ZSTD_NOCOMPRESS set */
         DISPLAY("Compression not supported \n");
@@ -1319,7 +1331,7 @@ int main(int const argCount, const char* argv[])
         if (filenames->tableSize == 1 && outFileName) {
             operationResult = FIO_decompressFilename(prefs, outFileName, filenames->fileNames[0], dictFileName);
         } else {
-            operationResult = FIO_decompressMultipleFilenames(prefs, filenames->fileNames, (unsigned)filenames->tableSize, outMirroredDirName, outDirName, outFileName, dictFileName);
+            operationResult = FIO_decompressMultipleFilenames(prefs, filenames->fileNames, outMirroredDirName, outDirName, outFileName, dictFileName);
         }
 #else
         DISPLAY("Decompression not supported \n");

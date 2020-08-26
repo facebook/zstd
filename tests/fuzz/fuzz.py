@@ -59,6 +59,8 @@ TARGET_INFO = {
     'dictionary_loader': TargetInfo(InputType.DICTIONARY_DATA),
     'raw_dictionary_round_trip': TargetInfo(InputType.RAW_DATA),
     'dictionary_stream_round_trip': TargetInfo(InputType.RAW_DATA),
+    'decompress_dstSize_tooSmall': TargetInfo(InputType.RAW_DATA),
+    'fse_read_ncount': TargetInfo(InputType.RAW_DATA),
 }
 TARGETS = list(TARGET_INFO.keys())
 ALL_TARGETS = TARGETS + ['all']

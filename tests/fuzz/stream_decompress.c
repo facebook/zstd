@@ -22,18 +22,19 @@
 #include "zstd.h"
 #include "fuzz_data_producer.h"
 
-static size_t const kBufSize = ZSTD_BLOCKSIZE_MAX;
-
 static ZSTD_DStream *dstream = NULL;
-static void* buf = NULL;
 uint32_t seed;
 
-static ZSTD_outBuffer makeOutBuffer(FUZZ_dataProducer_t *producer, uint32_t min)
+static ZSTD_outBuffer makeOutBuffer(FUZZ_dataProducer_t *producer, void* buf, size_t bufSize)
 {
   ZSTD_outBuffer buffer = { buf, 0, 0 };
 
-  buffer.size = (FUZZ_dataProducer_uint32Range(producer, min, kBufSize));
-  FUZZ_ASSERT(buffer.size <= kBufSize);
+  if (FUZZ_dataProducer_empty(producer)) {
+    buffer.size = bufSize;
+  } else {
+    buffer.size = (FUZZ_dataProducer_uint32Range(producer, 0, bufSize));
+  }
+  FUZZ_ASSERT(buffer.size <= bufSize);
 
   if (buffer.size == 0) {
     buffer.dst = NULL;
@@ -43,13 +44,16 @@ static ZSTD_outBuffer makeOutBuffer(FUZZ_dataProducer_t *producer, uint32_t min)
 }
 
 static ZSTD_inBuffer makeInBuffer(const uint8_t **src, size_t *size,
-                                  FUZZ_dataProducer_t *producer,
-                                  uint32_t min)
+                                  FUZZ_dataProducer_t *producer)
 {
   ZSTD_inBuffer buffer = { *src, 0, 0 };
 
   FUZZ_ASSERT(*size > 0);
-  buffer.size = (FUZZ_dataProducer_uint32Range(producer, min, *size));
+  if (FUZZ_dataProducer_empty(producer)) {
+    buffer.size = *size;
+  } else {
+    buffer.size = (FUZZ_dataProducer_uint32Range(producer, 0, *size));
+  }
   FUZZ_ASSERT(buffer.size <= *size);
   *src += buffer.size;
   *size -= buffer.size;
@@ -66,18 +70,15 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     /* Give a random portion of src data to the producer, to use for
     parameter generation. The rest will be used for (de)compression */
     FUZZ_dataProducer_t *producer = FUZZ_dataProducer_create(src, size);
-    /* Guarantee forward progress by refusing to generate 2 zero sized
-     * buffers in a row. */
-    int prevInWasZero = 0;
-    int prevOutWasZero = 0;
     int stableOutBuffer;
     ZSTD_outBuffer out;
+    void* buf;
+    size_t bufSize;
     size = FUZZ_dataProducer_reserveDataPrefix(producer);
+    bufSize = MAX(10 * size, ZSTD_BLOCKSIZE_MAX);
 
     /* Allocate all buffers and contexts if not already allocated */
-    if (!buf) {
-        buf = FUZZ_malloc(kBufSize);
-    }
+    buf = FUZZ_malloc(bufSize);
 
     if (!dstream) {
         dstream = ZSTD_createDStream();
@@ -90,18 +91,19 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     if (stableOutBuffer) {
       FUZZ_ZASSERT(ZSTD_DCtx_setParameter(dstream, ZSTD_d_stableOutBuffer, 1));
       out.dst = buf;
-      out.size = kBufSize;
+      out.size = bufSize;
       out.pos = 0;
+    } else {
+      out = makeOutBuffer(producer, buf, bufSize);
     }
 
     while (size > 0) {
-        ZSTD_inBuffer in = makeInBuffer(&src, &size, producer, prevInWasZero ? 1 : 0);
-        prevInWasZero = in.size == 0;
+        ZSTD_inBuffer in = makeInBuffer(&src, &size, producer);
         while (in.pos != in.size) {
-            if (!stableOutBuffer || prevOutWasZero || FUZZ_dataProducer_uint32Range(producer, 0, 100) == 55) {
-              out = makeOutBuffer(producer, prevOutWasZero ? 1 : 0);
+            if (out.pos == out.size) {
+                if (stableOutBuffer) goto error;
+                out = makeOutBuffer(producer, buf, bufSize);
             }
-            prevOutWasZero = out.size == 0;
             size_t const rc = ZSTD_decompressStream(dstream, &out, &in);
             if (ZSTD_isError(rc)) goto error;
         }
@@ -112,5 +114,6 @@ error:
     ZSTD_freeDStream(dstream); dstream = NULL;
 #endif
     FUZZ_dataProducer_free(producer);
+    free(buf);
     return 0;
 }

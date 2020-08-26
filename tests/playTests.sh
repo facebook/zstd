@@ -260,6 +260,13 @@ zstd tmp -c --compress-literals    --fast=1 | zstd -t
 zstd tmp -c --compress-literals    -19      | zstd -t
 zstd -b --fast=1 -i0e1 tmp --compress-literals
 zstd -b --fast=1 -i0e1 tmp --no-compress-literals
+println "test: --no-check for decompression"
+zstd -f tmp -o tmp_corrupt.zst --check
+zstd -f tmp -o tmp.zst --no-check
+printf '\xDE\xAD\xBE\xEF' | dd of=tmp_corrupt.zst bs=1 seek=$(($(wc -c < "tmp_corrupt.zst") - 4)) count=4 conv=notrunc # corrupt checksum in tmp
+zstd -d -f tmp_corrupt.zst --no-check
+zstd -d -f tmp_corrupt.zst --check --no-check # final flag overrides
+zstd -d -f tmp.zst --no-check
 
 println "\n===> zstdgrep tests"
 ln -sf "$ZSTD_BIN" zstdcat
@@ -361,7 +368,7 @@ zstd tmp1.zst tmp2.zst -o "$INTOVOID" -f
 zstd -d tmp1.zst tmp2.zst -o tmp
 touch tmpexists
 zstd tmp1 tmp2 -f -o tmpexists
-zstd tmp1 tmp2 -o tmpexists && die "should have refused to overwrite"
+zstd tmp1 tmp2 -q -o tmpexists && die "should have refused to overwrite"
 println gooder > tmp_rm1
 println boi > tmp_rm2
 println worldly > tmp_rm3

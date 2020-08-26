@@ -49,6 +49,9 @@ int32_t FUZZ_dataProducer_int32Range(FUZZ_dataProducer_t *producer,
 /* Returns the size of the remaining bytes of data in the producer */
 size_t FUZZ_dataProducer_remainingBytes(FUZZ_dataProducer_t *producer);
 
+/* Returns true if the data producer is out of bytes */
+int FUZZ_dataProducer_empty(FUZZ_dataProducer_t *producer);
+
 /* Restricts the producer to only the last newSize bytes of data.
 If newSize > current data size, nothing happens. Returns the number of bytes
 the producer won't use anymore, after contracting. */

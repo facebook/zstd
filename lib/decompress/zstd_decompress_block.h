@@ -48,12 +48,15 @@ size_t ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
  * this function must be called with valid parameters only
  * (dt is large enough, normalizedCounter distribution total is a power of 2, max is within range, etc.)
  * in which case it cannot fail.
+ * The workspace must be 4-byte aligned and at least ZSTD_BUILD_FSE_TABLE_WKSP_SIZE bytes, which is
+ * defined in zstd_decompress_internal.h.
  * Internal use only.
  */
 void ZSTD_buildFSETable(ZSTD_seqSymbol* dt,
              const short* normalizedCounter, unsigned maxSymbolValue,
              const U32* baseValue, const U32* nbAdditionalBits,
-                   unsigned tableLog);
+                   unsigned tableLog, void* wksp, size_t wkspSize,
+                   int bmi2);
 
 
 #endif /* ZSTD_DEC_BLOCK_H */

@@ -620,7 +620,7 @@ FIO_openDstFile(FIO_prefs_t* const prefs,
                     return NULL;
                 }
                 DISPLAY("zstd: %s already exists; ", dstFileName);
-                if (UTIL_requireUserConfirmationToProceed("overwrite (y/n) ? ", "Not overwritten  \n", "yY"))
+                if (UTIL_requireUserConfirmation("overwrite (y/n) ? ", "Not overwritten  \n", "yY"))
                     return NULL;
             }
             /* need to unlink */
@@ -787,6 +787,35 @@ static void FIO_adjustMemLimitForPatchFromMode(FIO_prefs_t* const prefs,
     if (maxSize > maxWindowSize)
         EXM_THROW(42, "Can't handle files larger than %u GB\n", maxWindowSize/(1 GB));
     FIO_setMemLimit(prefs, (unsigned)maxSize);
+}
+
+/* FIO_removeMultiFilesWarning() :
+ * Returns 1 if the console should abort, 0 if console should proceed.
+ * Based on displayLevelCutoff (typically == 1) and the global setting g_display_prefs.displayLevel, this
+ * function may print a warning message, a user prompt, both, or none.
+ */
+static int FIO_removeMultiFilesWarning(const FIO_prefs_t* const prefs, int displayLevelCutoff, const char* outFileName)
+{
+    int error;
+    error = 0;
+    if (prefs->nbFiles > 1 && !prefs->overwrite) {
+        if (g_display_prefs.displayLevel <= displayLevelCutoff) {
+            if (prefs->removeSrcFile) {
+                DISPLAYLEVEL(1, "zstd: Aborting... not deleting files and processing into dst: %s", outFileName);
+                error =  1;
+            }
+        } else {
+            if (!strcmp(outFileName, stdoutmark)) {
+                DISPLAYLEVEL(2, "zstd: WARNING: all input files will be processed and concatenated into stdout. ");
+            } else {
+                DISPLAYLEVEL(2, "zstd: WARNING: all input files will be processed and concatenated into a single output file: %s ", outFileName);
+            }
+            if (prefs->removeSrcFile)
+                error = g_display_prefs.displayLevel > displayLevelCutoff && UTIL_requireUserConfirmation("Proceed? (y/n): ", "Aborting...", "yY");
+            DISPLAY("\n");
+        }
+    }
+    return error;
 }
 
 #ifndef ZSTD_NOCOMPRESS
@@ -1693,25 +1722,8 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
     /* init */
     assert(outFileName != NULL || suffix != NULL);
     if (outFileName != NULL) {   /* output into a single destination (stdout typically) */
-        if (nbFiles > 1 && !prefs->overwrite) {
-            /* g_display_prefs.displayLevel <= 1 corresponds to -q flag */
-            DISPLAY("%d\n", g_display_prefs.displayLevel);
-            if (g_display_prefs.displayLevel <= 1) {
-                if (prefs->removeSrcFile) {
-                    DISPLAY("zstd: Aborting... not deleting files and processing into dst: %s", outFileName);
-                    return 1;
-                }
-            } else {
-                if (!strcmp (outFileName, stdoutmark)) {
-                    DISPLAY("zstd: WARNING: all input files will be processed and concatenated into stdout. ");
-                } else {
-                    DISPLAY("zstd: WARNING: all input files will be processed and concatenated into a single output file: %s ", outFileName);
-                }
-                if (prefs->removeSrcFile)
-                    error = g_display_prefs.displayLevel > 1 && UTIL_requireUserConfirmationToProceed("Proceed? (y/n): ", "Aborting...", "yY");
-                DISPLAY("\n");
-            }
-        }
+        if (FIO_removeMultiFilesWarning(prefs, 1 /* displayLevelCutoff */, outFileName))
+            return 1;
         ress.dstFile = FIO_openDstFile(prefs, NULL, outFileName);
         if (ress.dstFile == NULL) {  /* could not open outFileName */
             error = 1;
@@ -2606,6 +2618,8 @@ FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
     dRess_t ress = FIO_createDResources(prefs, dictFileName);
 
     if (outFileName) {
+        if (FIO_removeMultiFilesWarning(prefs, 1 /* displayLevelCutoff */, outFileName))
+            return 1;
         if (!prefs->testMode) {
             ress.dstFile = FIO_openDstFile(prefs, NULL, outFileName);
             if (ress.dstFile == 0) EXM_THROW(19, "cannot open %s", outFileName);

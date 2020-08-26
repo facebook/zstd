@@ -1319,7 +1319,6 @@ int main(int const argCount, const char* argv[])
         if (filenames->tableSize == 1 && outFileName) {
             operationResult = FIO_decompressFilename(prefs, outFileName, filenames->fileNames[0], dictFileName);
         } else {
-            FIO_setNbFiles(prefs, (int)filenames->tableSize);
             operationResult = FIO_decompressMultipleFilenames(prefs, filenames->fileNames, outMirroredDirName, outDirName, outFileName, dictFileName);
         }
 #else

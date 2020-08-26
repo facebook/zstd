@@ -1722,8 +1722,10 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
     /* init */
     assert(outFileName != NULL || suffix != NULL);
     if (outFileName != NULL) {   /* output into a single destination (stdout typically) */
-        if (FIO_removeMultiFilesWarning(prefs, 1 /* displayLevelCutoff */, outFileName))
+        if (FIO_removeMultiFilesWarning(prefs, 1 /* displayLevelCutoff */, outFileName)) {
+            FIO_freeCResources(ress);
             return 1;
+        }
         ress.dstFile = FIO_openDstFile(prefs, NULL, outFileName);
         if (ress.dstFile == NULL) {  /* could not open outFileName */
             error = 1;
@@ -2618,8 +2620,10 @@ FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
     dRess_t ress = FIO_createDResources(prefs, dictFileName);
 
     if (outFileName) {
-        if (FIO_removeMultiFilesWarning(prefs, 1 /* displayLevelCutoff */, outFileName))
+        if (FIO_removeMultiFilesWarning(prefs, 1 /* displayLevelCutoff */, outFileName)) {
+            FIO_freeDResources(ress);
             return 1;
+        }
         if (!prefs->testMode) {
             ress.dstFile = FIO_openDstFile(prefs, NULL, outFileName);
             if (ress.dstFile == 0) EXM_THROW(19, "cannot open %s", outFileName);

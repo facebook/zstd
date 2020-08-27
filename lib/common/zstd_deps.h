@@ -93,6 +93,22 @@
 #endif /* ZSTD_DEPS_MALLOC */
 #endif /* ZSTD_DEPS_NEED_MALLOC */
 
+/*
+ * Provides 64-bit math support.
+ * Need:
+ * U64 ZSTD_div64(U64 dividend, U32 divisor)
+ */
+#ifdef ZSTD_DEPS_NEED_MATH64
+#ifndef ZSTD_DEPS_MATH64
+#define ZSTD_DEPS_MATH64
+
+static U64 ZSTD_div64(U64 dividend, U32 divisor) {
+  return dividend / divisor;
+}
+
+#endif /* ZSTD_DEPS_MATH64 */
+#endif /* ZSTD_DEPS_NEED_MATH64 */
+
 /* Need:
  * assert()
  */

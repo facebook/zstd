@@ -335,8 +335,9 @@ size_t FSE_buildCTable_rle (FSE_CTable* ct, unsigned char symbolValue);
 
 /* FSE_buildCTable_wksp() :
  * Same as FSE_buildCTable(), but using an externally allocated scratch buffer (`workSpace`).
- * `wkspSize` must be >= `(1<<tableLog)`.
+ * `wkspSize` must be >= `FSE_BUILD_CTABLE_WORKSPACE_SIZE(maxSymbolValue, tableLog)`.
  */
+#define FSE_BUILD_CTABLE_WORKSPACE_SIZE(maxSymbolValue, tableLog) (sizeof(unsigned) * (maxSymbolValue + 2) + (1ull << tableLog))
 size_t FSE_buildCTable_wksp(FSE_CTable* ct, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog, void* workSpace, size_t wkspSize);
 
 #define FSE_BUILD_DTABLE_WKSP_SIZE(maxTableLog, maxSymbolValue) (sizeof(short) * (maxSymbolValue + 1) + (1ULL << maxTableLog) + 8)

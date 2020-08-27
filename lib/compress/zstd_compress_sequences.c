@@ -266,6 +266,7 @@ ZSTD_buildCTable(void* dst, size_t dstCapacity,
             nbSeq_1--;
         }
         assert(nbSeq_1 > 1);
+        assert(entropyWorkspaceSize >= FSE_BUILD_CTABLE_WORKSPACE_SIZE(MaxSeq, MaxFSELog));
         FORWARD_IF_ERROR(FSE_normalizeCount(norm, tableLog, count, nbSeq_1, max, ZSTD_useLowProbCount(nbSeq_1)), "");
         {   size_t const NCountSize = FSE_writeNCount(op, oend - op, norm, max, tableLog);   /* overflow protected */
             FORWARD_IF_ERROR(NCountSize, "FSE_writeNCount failed");

@@ -74,13 +74,15 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct,
     void* const FSCT = ((U32*)ptr) + 1 /* header */ + (tableLog ? tableSize>>1 : 1) ;
     FSE_symbolCompressionTransform* const symbolTT = (FSE_symbolCompressionTransform*) (FSCT);
     U32 const step = FSE_TABLESTEP(tableSize);
-    U32 cumul[FSE_MAX_SYMBOL_VALUE+2];
 
-    FSE_FUNCTION_TYPE* const tableSymbol = (FSE_FUNCTION_TYPE*)workSpace;
+    U32* cumul = (U32*)workSpace;
+    FSE_FUNCTION_TYPE* tableSymbol = (FSE_FUNCTION_TYPE*)(cumul + (maxSymbolValue + 2));
+
     U32 highThreshold = tableSize-1;
 
+    if ((size_t)workSpace & 3) return ERROR(GENERIC); /* Must be 4 byte aligned */
+    if (FSE_BUILD_CTABLE_WORKSPACE_SIZE(maxSymbolValue, tableLog) > wkspSize) return ERROR(tableLog_tooLarge);
     /* CTable header */
-    if (((size_t)1 << tableLog) * sizeof(FSE_FUNCTION_TYPE) > wkspSize) return ERROR(tableLog_tooLarge);
     tableU16[-2] = (U16) tableLog;
     tableU16[-1] = (U16) maxSymbolValue;
     assert(tableLog < 16);   /* required for threshold strategy to work */

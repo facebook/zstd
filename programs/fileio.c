@@ -791,13 +791,18 @@ static void FIO_adjustMemLimitForPatchFromMode(FIO_prefs_t* const prefs,
 
 /* FIO_removeMultiFilesWarning() :
  * Returns 1 if the console should abort, 0 if console should proceed.
- * Based on displayLevelCutoff (typically == 1) and the global setting g_display_prefs.displayLevel, this
- * function may print a warning message, a user prompt, both, or none.
+ * This function handles logic when processing multiple files with -o, displaying the appropriate warnings/prompts.
+ * 
+ * If -f is specified, or there is just 1 file, zstd will always proceed as usual.
+ * If --rm is specified, there will be a prompt asking for user confirmation.
+ *         If -f is specified with --rm, zstd will proceed as usual
+ *         If -q is specified with --rm, zstd will abort pre-emptively
+ *         If neither flag is specified, zstd will prompt the user for confirmation to proceed.
+ * If --rm is not specified, then zstd may print a warning to the user.
  */
 static int FIO_removeMultiFilesWarning(const FIO_prefs_t* const prefs, int displayLevelCutoff, const char* outFileName)
 {
-    int error;
-    error = 0;
+    int error = 0;
     if (prefs->nbFiles > 1 && !prefs->overwrite) {
         if (g_display_prefs.displayLevel <= displayLevelCutoff) {
             if (prefs->removeSrcFile) {
@@ -810,8 +815,10 @@ static int FIO_removeMultiFilesWarning(const FIO_prefs_t* const prefs, int displ
             } else {
                 DISPLAYLEVEL(2, "zstd: WARNING: all input files will be processed and concatenated into a single output file: %s ", outFileName);
             }
-            if (prefs->removeSrcFile)
+            if (prefs->removeSrcFile) {
+                DISPLAYLEVEL(2, "\nThe concatenated output CANNOT regenerate the original directory tree. This is a destructive operation. ")
                 error = g_display_prefs.displayLevel > displayLevelCutoff && UTIL_requireUserConfirmation("Proceed? (y/n): ", "Aborting...", "yY");
+            }
             DISPLAY("\n");
         }
     }

@@ -72,8 +72,12 @@
 
 <a name="Chapter2"></a><h2>Version</h2><pre></pre>
 
-<pre><b>unsigned ZSTD_versionNumber(void);   </b>/**< to check runtime library version */<b>
-</b></pre><BR>
+<pre><b>unsigned ZSTD_versionNumber(void);</b>
+<p>  Return runtime library version, the value is (MAJOR*100*100 + MINOR*100 + RELEASE).</p></pre>
+
+<pre><b>const char* ZSTD_versionString(void);</b>
+<p>  Return runtime library version, requires v1.3.0+.</p></pre><BR>
+
 <a name="Chapter3"></a><h2>Simple API</h2><pre></pre>
 
 <pre><b>size_t ZSTD_compress( void* dst, size_t dstCapacity,

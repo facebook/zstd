@@ -213,7 +213,8 @@ the last one takes effect.
     and disabled when output is stdout.
     This setting overrides default and can force sparse mode over stdout.
 * `--rm`:
-    remove source file(s) after successful compression or decompression
+    remove source file(s) after successful compression or decompression. If used in combination with
+    -o, will trigger a confirmation prompt (which can be silenced with -f), as this is a destructive operation. 
 * `-k`, `--keep`:
     keep source file(s) after successful compression or decompression.
     This is the default behavior.

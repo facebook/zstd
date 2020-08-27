@@ -38,7 +38,7 @@
 #endif
 
 /* ===   Dependencies   === */
-#include <stddef.h>                /* size_t */
+#include "../common/zstd_deps.h"   /* size_t */
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_parameters */
 #include "../zstd.h"            /* ZSTD_inBuffer, ZSTD_outBuffer, ZSTDLIB_API */
 

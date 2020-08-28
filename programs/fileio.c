@@ -319,8 +319,20 @@ struct FIO_prefs_s {
     int excludeCompressedFiles;
     int patchFromMode;
     int contentSize;
+};
+
+/*-*************************************
+*  Parameters: FIO_prefs_t
+***************************************/
+
+/* typedef'd to FIO_ctx_t within fileio.h */
+struct FIO_ctx_s {
+
+    /* multiple file processing info */
     int currFileIdx;
     int nbFiles;
+    size_t totalBytesInput;
+    size_t totalBytesOutput;
 };
 
 
@@ -362,14 +374,29 @@ FIO_prefs_t* FIO_createPreferences(void)
     ret->testMode = 0;
     ret->literalCompressionMode = ZSTD_lcm_auto;
     ret->excludeCompressedFiles = 0;
-    ret->nbFiles = 1;
+    return ret;
+}
+
+FIO_ctx_t* FIO_createContext(void)
+{
+    FIO_ctx_t* const ret = (FIO_ctx_t*)malloc(sizeof(FIO_ctx_t));
+    if (!ret) EXM_THROW(21, "Allocation error : not enough memory");
+
     ret->currFileIdx = 0;
+    ret->nbFiles = 1;
+    ret->totalBytesInput = 0;
+    ret->totalBytesOutput = 0;
     return ret;
 }
 
 void FIO_freePreferences(FIO_prefs_t* const prefs)
 {
     free(prefs);
+}
+
+void FIO_freeContext(FIO_ctx_t* const fCtx)
+{
+    free(fCtx);
 }
 
 
@@ -385,6 +412,8 @@ void FIO_setNoProgress(unsigned noProgress) { g_display_prefs.noProgress = noPro
 /*-*************************************
 *  Parameters: Setters
 ***************************************/
+
+/* FIO_prefs_t functions */
 
 void FIO_setCompressionType(FIO_prefs_t* const prefs, FIO_compressionType_t compressionType) { prefs->compressionType = compressionType; }
 
@@ -499,14 +528,26 @@ void FIO_setContentSize(FIO_prefs_t* const prefs, int value)
     prefs->contentSize = value != 0;
 }
 
-void FIO_setNbFiles(FIO_prefs_t* const prefs, int value)
+/* FIO_ctx_t functions */
+
+void FIO_setNbFiles(FIO_ctx_t* const fCtx, int value)
 {
-    prefs->nbFiles = value;
+    fCtx->nbFiles = value;
 }
 
-void FIO_setCurrFileIdx(FIO_prefs_t* const prefs, int value)
+void FIO_setCurrFileIdx(FIO_ctx_t* const fCtx, int value)
 {
-    prefs->currFileIdx = value;
+    fCtx->currFileIdx = value;
+}
+
+void FIO_setTotalBytesInput(FIO_ctx_t* const fCtx, size_t value)
+{
+    fCtx->totalBytesInput = value;
+}
+
+void FIO_setTotalBytesOutput(FIO_ctx_t* const fCtx, size_t value)
+{
+    fCtx->totalBytesOutput = value;
 }
 
 /*-*************************************
@@ -1685,6 +1726,7 @@ static unsigned long long FIO_getLargestFileSize(const char** inFileNames, unsig
  * or into a destination folder (specified with -O)
  */
 int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
+                                  FIO_ctx_t* const fCtx,
                                   const char** inFileNamesTable,
                                   const char* outMirroredRootDirName,
                                   const char* outDirName,
@@ -1694,7 +1736,7 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
 {
     int error = 0;
     cRess_t ress = FIO_createCResources(prefs, dictFileName,
-        FIO_getLargestFileSize(inFileNamesTable, prefs->nbFiles),
+        FIO_getLargestFileSize(inFileNamesTable, fCtx->nbFiles),
         compressionLevel, comprParams);
 
     /* init */
@@ -1704,8 +1746,8 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
         if (ress.dstFile == NULL) {  /* could not open outFileName */
             error = 1;
         } else {
-            for (; prefs->currFileIdx < prefs->nbFiles; ++prefs->currFileIdx) {
-                error |= FIO_compressFilename_srcFile(prefs, ress, outFileName, inFileNamesTable[prefs->currFileIdx], compressionLevel);
+            for (; fCtx->currFileIdx < fCtx->nbFiles; ++fCtx->currFileIdx) {
+                error |= FIO_compressFilename_srcFile(prefs, ress, outFileName, inFileNamesTable[fCtx->currFileIdx], compressionLevel);
             }
             if (fclose(ress.dstFile))
                 EXM_THROW(29, "Write error (%s) : cannot properly close %s",
@@ -1714,10 +1756,10 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
         }
     } else {
         if (outMirroredRootDirName)
-            UTIL_mirrorSourceFilesDirectories(inFileNamesTable, prefs->nbFiles, outMirroredRootDirName);
+            UTIL_mirrorSourceFilesDirectories(inFileNamesTable, fCtx->nbFiles, outMirroredRootDirName);
 
-        for (; prefs->currFileIdx < prefs->nbFiles; ++prefs->currFileIdx) {
-            const char* const srcFileName = inFileNamesTable[prefs->currFileIdx];
+        for (; fCtx->currFileIdx < fCtx->nbFiles; ++fCtx->currFileIdx) {
+            const char* const srcFileName = inFileNamesTable[fCtx->currFileIdx];
             const char* dstFileName = NULL;
             if (outMirroredRootDirName) {
                 char* validMirroredDirName = UTIL_createMirroredDestDirName(srcFileName, outMirroredRootDirName);
@@ -1736,7 +1778,7 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
         }
 
         if (outDirName)
-            FIO_checkFilenameCollisions(inFileNamesTable , prefs->nbFiles);
+            FIO_checkFilenameCollisions(inFileNamesTable , fCtx->nbFiles);
     }
 
     FIO_freeCResources(ress);

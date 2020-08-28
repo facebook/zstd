@@ -54,16 +54,24 @@ extern "C" {
 ***************************************/
 typedef enum { FIO_zstdCompression, FIO_gzipCompression, FIO_xzCompression, FIO_lzmaCompression, FIO_lz4Compression } FIO_compressionType_t;
 
+/* Immutable struct containing preferences for file I/O */
 typedef struct FIO_prefs_s FIO_prefs_t;
 
 FIO_prefs_t* FIO_createPreferences(void);
 void FIO_freePreferences(FIO_prefs_t* const prefs);
+
+/* Mutable struct containing relevant context and state of (de)compression with respect to file I/O */
+typedef struct FIO_ctx_s FIO_ctx_t;
+
+FIO_ctx_t* FIO_createContext(void);
+void FIO_freeContext(FIO_ctx_t* const fCtx);
 
 typedef struct FIO_display_prefs_s FIO_display_prefs_t;
 
 /*-*************************************
 *  Parameters
 ***************************************/
+/* FIO_prefs_t functions */
 void FIO_setCompressionType(FIO_prefs_t* const prefs, FIO_compressionType_t compressionType);
 void FIO_overwriteMode(FIO_prefs_t* const prefs);
 void FIO_setAdaptiveMode(FIO_prefs_t* const prefs, unsigned adapt);
@@ -96,8 +104,12 @@ void FIO_setNotificationLevel(int level);
 void FIO_setExcludeCompressedFile(FIO_prefs_t* const prefs, int excludeCompressedFiles);
 void FIO_setPatchFromMode(FIO_prefs_t* const prefs, int value);
 void FIO_setContentSize(FIO_prefs_t* const prefs, int value);
-void FIO_setNbFiles(FIO_prefs_t* const prefs, int value);
-void FIO_setCurrFileIdx(FIO_prefs_t* const prefs, int value);
+
+/* FIO_ctx_t functions */
+void FIO_setNbFiles(FIO_ctx_t* const fCtx, int value);
+void FIO_setCurrFileIdx(FIO_ctx_t* const fCtx, int value);
+void FIO_setTotalBytesInput(FIO_ctx_t* const fCtx, size_t value);
+void FIO_setTotalBytesOutput(FIO_ctx_t* const fCtx, size_t value);
 
 /*-*************************************
 *  Single File functions

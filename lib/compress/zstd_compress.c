@@ -872,6 +872,8 @@ static int ZSTD_dedicatedDictSearch_isSupported(
         int const compressionLevel,
         unsigned long long srcSizeHint,
         size_t const dictSize);
+static void ZSTD_dedicatedDictSearch_revertCParams(
+        ZSTD_compressionParameters* cParams);
 
 /**
  * Initializes the local dict using the requested parameters.
@@ -1661,17 +1663,23 @@ ZSTD_resetCCtx_byAttachingCDict(ZSTD_CCtx* cctx,
                         U64 pledgedSrcSize,
                         ZSTD_buffered_policy_e zbuff)
 {
-    {   const ZSTD_compressionParameters* const cdict_cParams = &cdict->matchState.cParams;
+    {
+        ZSTD_compressionParameters adjusted_cdict_cParams = cdict->matchState.cParams;
         unsigned const windowLog = params.cParams.windowLog;
         assert(windowLog != 0);
         /* Resize working context table params for input only, since the dict
          * has its own tables. */
         /* pledgedSrcSize == 0 means 0! */
-        params.cParams = ZSTD_adjustCParams_internal(*cdict_cParams, pledgedSrcSize, 0);
+
+        if (cdict->matchState.dedicatedDictSearch) {
+            ZSTD_dedicatedDictSearch_revertCParams(&adjusted_cdict_cParams);
+        }
+
+        params.cParams = ZSTD_adjustCParams_internal(adjusted_cdict_cParams, pledgedSrcSize, 0);
         params.cParams.windowLog = windowLog;
         FORWARD_IF_ERROR(ZSTD_resetCCtx_internal(cctx, params, pledgedSrcSize,
                                                  ZSTDcrp_makeClean, zbuff), "");
-        assert(cctx->appliedParams.cParams.strategy == cdict_cParams->strategy);
+        assert(cctx->appliedParams.cParams.strategy == adjusted_cdict_cParams.strategy);
     }
 
     {   const U32 cdictEnd = (U32)( cdict->matchState.window.nextSrc
@@ -4351,6 +4359,30 @@ static int ZSTD_dedicatedDictSearch_isSupported(int const compressionLevel, unsi
 {
     ZSTD_compressionParameters const cParams = ZSTD_dedicatedDictSearch_getCParams(compressionLevel, srcSizeHint, dictSize);
     return (cParams.strategy >= ZSTD_greedy) && (cParams.strategy <= ZSTD_lazy2);
+}
+
+/**
+ * Reverses the adjustment applied to cparams when enabling dedicated dict
+ * search. This is used to recover the params set to be used in the working
+ * context. (Otherwise, those tables would also grow.)
+ */
+static void ZSTD_dedicatedDictSearch_revertCParams(
+        ZSTD_compressionParameters* cParams) {
+    switch (cParams->strategy) {
+        case ZSTD_fast:
+        case ZSTD_dfast:
+            break;
+        case ZSTD_greedy:
+        case ZSTD_lazy:
+        case ZSTD_lazy2:
+            cParams->hashLog -= ZSTD_LAZY_DDSS_BUCKET_LOG;
+            break;
+        case ZSTD_btlazy2:
+        case ZSTD_btopt:
+        case ZSTD_btultra:
+        case ZSTD_btultra2:
+            break;
+    }
 }
 
 /*! ZSTD_getCParams_internal() :

@@ -278,13 +278,6 @@ size_t HUF_readDTableX1_wksp_bmi2(HUF_DTable* DTable, const void* src, size_t sr
     return iSize;
 }
 
-size_t HUF_readDTableX1(HUF_DTable* DTable, const void* src, size_t srcSize)
-{
-    U32 workSpace[HUF_DECOMPRESS_WORKSPACE_SIZE_U32];
-    return HUF_readDTableX1_wksp(DTable, src, srcSize,
-                                 workSpace, sizeof(workSpace));
-}
-
 FORCE_INLINE_TEMPLATE BYTE
 HUF_decodeSymbolX1(BIT_DStream_t* Dstream, const HUF_DEltX1* dt, const U32 dtLog)
 {
@@ -483,20 +476,6 @@ size_t HUF_decompress1X1_DCtx_wksp(HUF_DTable* DCtx, void* dst, size_t dstSize,
 }
 
 
-size_t HUF_decompress1X1_DCtx(HUF_DTable* DCtx, void* dst, size_t dstSize,
-                              const void* cSrc, size_t cSrcSize)
-{
-    U32 workSpace[HUF_DECOMPRESS_WORKSPACE_SIZE_U32];
-    return HUF_decompress1X1_DCtx_wksp(DCtx, dst, dstSize, cSrc, cSrcSize,
-                                       workSpace, sizeof(workSpace));
-}
-
-size_t HUF_decompress1X1 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize)
-{
-    HUF_CREATE_STATIC_DTABLEX1(DTable, HUF_TABLELOG_MAX);
-    return HUF_decompress1X1_DCtx (DTable, dst, dstSize, cSrc, cSrcSize);
-}
-
 size_t HUF_decompress4X1_usingDTable(
           void* dst,  size_t dstSize,
     const void* cSrc, size_t cSrcSize,
@@ -528,18 +507,6 @@ size_t HUF_decompress4X1_DCtx_wksp(HUF_DTable* dctx, void* dst, size_t dstSize,
     return HUF_decompress4X1_DCtx_wksp_bmi2(dctx, dst, dstSize, cSrc, cSrcSize, workSpace, wkspSize, 0);
 }
 
-
-size_t HUF_decompress4X1_DCtx (HUF_DTable* dctx, void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize)
-{
-    U32 workSpace[HUF_DECOMPRESS_WORKSPACE_SIZE_U32];
-    return HUF_decompress4X1_DCtx_wksp(dctx, dst, dstSize, cSrc, cSrcSize,
-                                       workSpace, sizeof(workSpace));
-}
-size_t HUF_decompress4X1 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize)
-{
-    HUF_CREATE_STATIC_DTABLEX1(DTable, HUF_TABLELOG_MAX);
-    return HUF_decompress4X1_DCtx(DTable, dst, dstSize, cSrc, cSrcSize);
-}
 
 #endif /* HUF_FORCE_DECOMPRESS_X2 */
 
@@ -739,13 +706,6 @@ size_t HUF_readDTableX2_wksp(HUF_DTable* DTable,
     dtd.tableType = 1;
     ZSTD_memcpy(DTable, &dtd, sizeof(dtd));
     return iSize;
-}
-
-size_t HUF_readDTableX2(HUF_DTable* DTable, const void* src, size_t srcSize)
-{
-  U32 workSpace[HUF_DECOMPRESS_WORKSPACE_SIZE_U32];
-  return HUF_readDTableX2_wksp(DTable, src, srcSize,
-                               workSpace, sizeof(workSpace));
 }
 
 
@@ -983,20 +943,6 @@ size_t HUF_decompress1X2_DCtx_wksp(HUF_DTable* DCtx, void* dst, size_t dstSize,
 }
 
 
-size_t HUF_decompress1X2_DCtx(HUF_DTable* DCtx, void* dst, size_t dstSize,
-                              const void* cSrc, size_t cSrcSize)
-{
-    U32 workSpace[HUF_DECOMPRESS_WORKSPACE_SIZE_U32];
-    return HUF_decompress1X2_DCtx_wksp(DCtx, dst, dstSize, cSrc, cSrcSize,
-                                       workSpace, sizeof(workSpace));
-}
-
-size_t HUF_decompress1X2 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize)
-{
-    HUF_CREATE_STATIC_DTABLEX2(DTable, HUF_TABLELOG_MAX);
-    return HUF_decompress1X2_DCtx(DTable, dst, dstSize, cSrc, cSrcSize);
-}
-
 size_t HUF_decompress4X2_usingDTable(
           void* dst,  size_t dstSize,
     const void* cSrc, size_t cSrcSize,
@@ -1029,20 +975,6 @@ size_t HUF_decompress4X2_DCtx_wksp(HUF_DTable* dctx, void* dst, size_t dstSize,
     return HUF_decompress4X2_DCtx_wksp_bmi2(dctx, dst, dstSize, cSrc, cSrcSize, workSpace, wkspSize, /* bmi2 */ 0);
 }
 
-
-size_t HUF_decompress4X2_DCtx(HUF_DTable* dctx, void* dst, size_t dstSize,
-                              const void* cSrc, size_t cSrcSize)
-{
-    U32 workSpace[HUF_DECOMPRESS_WORKSPACE_SIZE_U32];
-    return HUF_decompress4X2_DCtx_wksp(dctx, dst, dstSize, cSrc, cSrcSize,
-                                       workSpace, sizeof(workSpace));
-}
-
-size_t HUF_decompress4X2 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize)
-{
-    HUF_CREATE_STATIC_DTABLEX2(DTable, HUF_TABLELOG_MAX);
-    return HUF_decompress4X2_DCtx(DTable, dst, dstSize, cSrc, cSrcSize);
-}
 
 #endif /* HUF_FORCE_DECOMPRESS_X1 */
 
@@ -1144,67 +1076,6 @@ U32 HUF_selectDecoder (size_t dstSize, size_t cSrcSize)
 }
 
 
-typedef size_t (*decompressionAlgo)(void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize);
-
-size_t HUF_decompress (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize)
-{
-#if !defined(HUF_FORCE_DECOMPRESS_X1) && !defined(HUF_FORCE_DECOMPRESS_X2)
-    static const decompressionAlgo decompress[2] = { HUF_decompress4X1, HUF_decompress4X2 };
-#endif
-
-    /* validation checks */
-    if (dstSize == 0) return ERROR(dstSize_tooSmall);
-    if (cSrcSize > dstSize) return ERROR(corruption_detected);   /* invalid */
-    if (cSrcSize == dstSize) { ZSTD_memcpy(dst, cSrc, dstSize); return dstSize; }   /* not compressed */
-    if (cSrcSize == 1) { ZSTD_memset(dst, *(const BYTE*)cSrc, dstSize); return dstSize; }   /* RLE */
-
-    {   U32 const algoNb = HUF_selectDecoder(dstSize, cSrcSize);
-#if defined(HUF_FORCE_DECOMPRESS_X1)
-        (void)algoNb;
-        assert(algoNb == 0);
-        return HUF_decompress4X1(dst, dstSize, cSrc, cSrcSize);
-#elif defined(HUF_FORCE_DECOMPRESS_X2)
-        (void)algoNb;
-        assert(algoNb == 1);
-        return HUF_decompress4X2(dst, dstSize, cSrc, cSrcSize);
-#else
-        return decompress[algoNb](dst, dstSize, cSrc, cSrcSize);
-#endif
-    }
-}
-
-size_t HUF_decompress4X_DCtx (HUF_DTable* dctx, void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize)
-{
-    /* validation checks */
-    if (dstSize == 0) return ERROR(dstSize_tooSmall);
-    if (cSrcSize > dstSize) return ERROR(corruption_detected);   /* invalid */
-    if (cSrcSize == dstSize) { ZSTD_memcpy(dst, cSrc, dstSize); return dstSize; }   /* not compressed */
-    if (cSrcSize == 1) { ZSTD_memset(dst, *(const BYTE*)cSrc, dstSize); return dstSize; }   /* RLE */
-
-    {   U32 const algoNb = HUF_selectDecoder(dstSize, cSrcSize);
-#if defined(HUF_FORCE_DECOMPRESS_X1)
-        (void)algoNb;
-        assert(algoNb == 0);
-        return HUF_decompress4X1_DCtx(dctx, dst, dstSize, cSrc, cSrcSize);
-#elif defined(HUF_FORCE_DECOMPRESS_X2)
-        (void)algoNb;
-        assert(algoNb == 1);
-        return HUF_decompress4X2_DCtx(dctx, dst, dstSize, cSrc, cSrcSize);
-#else
-        return algoNb ? HUF_decompress4X2_DCtx(dctx, dst, dstSize, cSrc, cSrcSize) :
-                        HUF_decompress4X1_DCtx(dctx, dst, dstSize, cSrc, cSrcSize) ;
-#endif
-    }
-}
-
-size_t HUF_decompress4X_hufOnly(HUF_DTable* dctx, void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize)
-{
-    U32 workSpace[HUF_DECOMPRESS_WORKSPACE_SIZE_U32];
-    return HUF_decompress4X_hufOnly_wksp(dctx, dst, dstSize, cSrc, cSrcSize,
-                                         workSpace, sizeof(workSpace));
-}
-
-
 size_t HUF_decompress4X_hufOnly_wksp(HUF_DTable* dctx, void* dst,
                                      size_t dstSize, const void* cSrc,
                                      size_t cSrcSize, void* workSpace,
@@ -1259,14 +1130,6 @@ size_t HUF_decompress1X_DCtx_wksp(HUF_DTable* dctx, void* dst, size_t dstSize,
                                 cSrcSize, workSpace, wkspSize);
 #endif
     }
-}
-
-size_t HUF_decompress1X_DCtx(HUF_DTable* dctx, void* dst, size_t dstSize,
-                             const void* cSrc, size_t cSrcSize)
-{
-    U32 workSpace[HUF_DECOMPRESS_WORKSPACE_SIZE_U32];
-    return HUF_decompress1X_DCtx_wksp(dctx, dst, dstSize, cSrc, cSrcSize,
-                                      workSpace, sizeof(workSpace));
 }
 
 
@@ -1339,3 +1202,149 @@ size_t HUF_decompress4X_hufOnly_wksp_bmi2(HUF_DTable* dctx, void* dst, size_t ds
 #endif
     }
 }
+
+#ifndef ZSTD_NO_UNUSED_FUNCTIONS
+#ifndef HUF_FORCE_DECOMPRESS_X2
+size_t HUF_readDTableX1(HUF_DTable* DTable, const void* src, size_t srcSize)
+{
+    U32 workSpace[HUF_DECOMPRESS_WORKSPACE_SIZE_U32];
+    return HUF_readDTableX1_wksp(DTable, src, srcSize,
+                                 workSpace, sizeof(workSpace));
+}
+
+size_t HUF_decompress1X1_DCtx(HUF_DTable* DCtx, void* dst, size_t dstSize,
+                              const void* cSrc, size_t cSrcSize)
+{
+    U32 workSpace[HUF_DECOMPRESS_WORKSPACE_SIZE_U32];
+    return HUF_decompress1X1_DCtx_wksp(DCtx, dst, dstSize, cSrc, cSrcSize,
+                                       workSpace, sizeof(workSpace));
+}
+
+size_t HUF_decompress1X1 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize)
+{
+    HUF_CREATE_STATIC_DTABLEX1(DTable, HUF_TABLELOG_MAX);
+    return HUF_decompress1X1_DCtx (DTable, dst, dstSize, cSrc, cSrcSize);
+}
+#endif 
+
+#ifndef HUF_FORCE_DECOMPRESS_X1
+size_t HUF_readDTableX2(HUF_DTable* DTable, const void* src, size_t srcSize)
+{
+  U32 workSpace[HUF_DECOMPRESS_WORKSPACE_SIZE_U32];
+  return HUF_readDTableX2_wksp(DTable, src, srcSize,
+                               workSpace, sizeof(workSpace));
+}
+
+size_t HUF_decompress1X2_DCtx(HUF_DTable* DCtx, void* dst, size_t dstSize,
+                              const void* cSrc, size_t cSrcSize)
+{
+    U32 workSpace[HUF_DECOMPRESS_WORKSPACE_SIZE_U32];
+    return HUF_decompress1X2_DCtx_wksp(DCtx, dst, dstSize, cSrc, cSrcSize,
+                                       workSpace, sizeof(workSpace));
+}
+
+size_t HUF_decompress1X2 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize)
+{
+    HUF_CREATE_STATIC_DTABLEX2(DTable, HUF_TABLELOG_MAX);
+    return HUF_decompress1X2_DCtx(DTable, dst, dstSize, cSrc, cSrcSize);
+}
+#endif
+
+#ifndef HUF_FORCE_DECOMPRESS_X2
+size_t HUF_decompress4X1_DCtx (HUF_DTable* dctx, void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize)
+{
+    U32 workSpace[HUF_DECOMPRESS_WORKSPACE_SIZE_U32];
+    return HUF_decompress4X1_DCtx_wksp(dctx, dst, dstSize, cSrc, cSrcSize,
+                                       workSpace, sizeof(workSpace));
+}
+size_t HUF_decompress4X1 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize)
+{
+    HUF_CREATE_STATIC_DTABLEX1(DTable, HUF_TABLELOG_MAX);
+    return HUF_decompress4X1_DCtx(DTable, dst, dstSize, cSrc, cSrcSize);
+}
+#endif
+
+#ifndef HUF_FORCE_DECOMPRESS_X1
+size_t HUF_decompress4X2_DCtx(HUF_DTable* dctx, void* dst, size_t dstSize,
+                              const void* cSrc, size_t cSrcSize)
+{
+    U32 workSpace[HUF_DECOMPRESS_WORKSPACE_SIZE_U32];
+    return HUF_decompress4X2_DCtx_wksp(dctx, dst, dstSize, cSrc, cSrcSize,
+                                       workSpace, sizeof(workSpace));
+}
+
+size_t HUF_decompress4X2 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize)
+{
+    HUF_CREATE_STATIC_DTABLEX2(DTable, HUF_TABLELOG_MAX);
+    return HUF_decompress4X2_DCtx(DTable, dst, dstSize, cSrc, cSrcSize);
+}
+#endif
+
+typedef size_t (*decompressionAlgo)(void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize);
+
+size_t HUF_decompress (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize)
+{
+#if !defined(HUF_FORCE_DECOMPRESS_X1) && !defined(HUF_FORCE_DECOMPRESS_X2)
+    static const decompressionAlgo decompress[2] = { HUF_decompress4X1, HUF_decompress4X2 };
+#endif
+
+    /* validation checks */
+    if (dstSize == 0) return ERROR(dstSize_tooSmall);
+    if (cSrcSize > dstSize) return ERROR(corruption_detected);   /* invalid */
+    if (cSrcSize == dstSize) { ZSTD_memcpy(dst, cSrc, dstSize); return dstSize; }   /* not compressed */
+    if (cSrcSize == 1) { ZSTD_memset(dst, *(const BYTE*)cSrc, dstSize); return dstSize; }   /* RLE */
+
+    {   U32 const algoNb = HUF_selectDecoder(dstSize, cSrcSize);
+#if defined(HUF_FORCE_DECOMPRESS_X1)
+        (void)algoNb;
+        assert(algoNb == 0);
+        return HUF_decompress4X1(dst, dstSize, cSrc, cSrcSize);
+#elif defined(HUF_FORCE_DECOMPRESS_X2)
+        (void)algoNb;
+        assert(algoNb == 1);
+        return HUF_decompress4X2(dst, dstSize, cSrc, cSrcSize);
+#else
+        return decompress[algoNb](dst, dstSize, cSrc, cSrcSize);
+#endif
+    }
+}
+
+size_t HUF_decompress4X_DCtx (HUF_DTable* dctx, void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize)
+{
+    /* validation checks */
+    if (dstSize == 0) return ERROR(dstSize_tooSmall);
+    if (cSrcSize > dstSize) return ERROR(corruption_detected);   /* invalid */
+    if (cSrcSize == dstSize) { ZSTD_memcpy(dst, cSrc, dstSize); return dstSize; }   /* not compressed */
+    if (cSrcSize == 1) { ZSTD_memset(dst, *(const BYTE*)cSrc, dstSize); return dstSize; }   /* RLE */
+
+    {   U32 const algoNb = HUF_selectDecoder(dstSize, cSrcSize);
+#if defined(HUF_FORCE_DECOMPRESS_X1)
+        (void)algoNb;
+        assert(algoNb == 0);
+        return HUF_decompress4X1_DCtx(dctx, dst, dstSize, cSrc, cSrcSize);
+#elif defined(HUF_FORCE_DECOMPRESS_X2)
+        (void)algoNb;
+        assert(algoNb == 1);
+        return HUF_decompress4X2_DCtx(dctx, dst, dstSize, cSrc, cSrcSize);
+#else
+        return algoNb ? HUF_decompress4X2_DCtx(dctx, dst, dstSize, cSrc, cSrcSize) :
+                        HUF_decompress4X1_DCtx(dctx, dst, dstSize, cSrc, cSrcSize) ;
+#endif
+    }
+}
+
+size_t HUF_decompress4X_hufOnly(HUF_DTable* dctx, void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize)
+{
+    U32 workSpace[HUF_DECOMPRESS_WORKSPACE_SIZE_U32];
+    return HUF_decompress4X_hufOnly_wksp(dctx, dst, dstSize, cSrc, cSrcSize,
+                                         workSpace, sizeof(workSpace));
+}
+
+size_t HUF_decompress1X_DCtx(HUF_DTable* dctx, void* dst, size_t dstSize,
+                             const void* cSrc, size_t cSrcSize)
+{
+    U32 workSpace[HUF_DECOMPRESS_WORKSPACE_SIZE_U32];
+    return HUF_decompress1X_DCtx_wksp(dctx, dst, dstSize, cSrc, cSrcSize,
+                                      workSpace, sizeof(workSpace));
+}
+#endif

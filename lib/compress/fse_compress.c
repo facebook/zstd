@@ -171,12 +171,13 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct,
     return 0;
 }
 
-
+#ifndef ZSTD_NO_UNUSED_FUNCTIONS
 size_t FSE_buildCTable(FSE_CTable* ct, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog)
 {
     FSE_FUNCTION_TYPE tableSymbol[FSE_MAX_TABLESIZE];   /* memset() is not necessary, even if static analyzer complain about it */
     return FSE_buildCTable_wksp(ct, normalizedCounter, maxSymbolValue, tableLog, tableSymbol, sizeof(tableSymbol));
 }
+#endif
 
 
 
@@ -627,6 +628,7 @@ size_t FSE_compress_usingCTable (void* dst, size_t dstSize,
 
 size_t FSE_compressBound(size_t size) { return FSE_COMPRESSBOUND(size); }
 
+#ifndef ZSTD_NO_UNUSED_FUNCTIONS
 /* FSE_compress_wksp() :
  * Same as FSE_compress2(), but using an externally allocated scratch buffer (`workSpace`).
  * `wkspSize` size must be `(1<<tableLog)`.
@@ -698,6 +700,6 @@ size_t FSE_compress (void* dst, size_t dstCapacity, const void* src, size_t srcS
 {
     return FSE_compress2(dst, dstCapacity, src, srcSize, FSE_MAX_SYMBOL_VALUE, FSE_DEFAULT_TABLELOG);
 }
-
+#endif
 
 #endif   /* FSE_COMMONDEFS_ONLY */

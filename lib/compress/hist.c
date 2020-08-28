@@ -148,14 +148,6 @@ size_t HIST_countFast_wksp(unsigned* count, unsigned* maxSymbolValuePtr,
     return HIST_count_parallel_wksp(count, maxSymbolValuePtr, source, sourceSize, trustInput, (U32*)workSpace);
 }
 
-/* fast variant (unsafe : won't check if src contains values beyond count[] limit) */
-size_t HIST_countFast(unsigned* count, unsigned* maxSymbolValuePtr,
-                     const void* source, size_t sourceSize)
-{
-    unsigned tmpCounters[HIST_WKSP_SIZE_U32];
-    return HIST_countFast_wksp(count, maxSymbolValuePtr, source, sourceSize, tmpCounters, sizeof(tmpCounters));
-}
-
 /* HIST_count_wksp() :
  * Same as HIST_count(), but using an externally provided scratch buffer.
  * `workSpace` size must be table of >= HIST_WKSP_SIZE_U32 unsigned */
@@ -171,9 +163,19 @@ size_t HIST_count_wksp(unsigned* count, unsigned* maxSymbolValuePtr,
     return HIST_countFast_wksp(count, maxSymbolValuePtr, source, sourceSize, workSpace, workSpaceSize);
 }
 
+#ifndef ZSTD_NO_UNUSED_FUNCTIONS
+/* fast variant (unsafe : won't check if src contains values beyond count[] limit) */
+size_t HIST_countFast(unsigned* count, unsigned* maxSymbolValuePtr,
+                     const void* source, size_t sourceSize)
+{
+    unsigned tmpCounters[HIST_WKSP_SIZE_U32];
+    return HIST_countFast_wksp(count, maxSymbolValuePtr, source, sourceSize, tmpCounters, sizeof(tmpCounters));
+}
+
 size_t HIST_count(unsigned* count, unsigned* maxSymbolValuePtr,
                  const void* src, size_t srcSize)
 {
     unsigned tmpCounters[HIST_WKSP_SIZE_U32];
     return HIST_count_wksp(count, maxSymbolValuePtr, src, srcSize, tmpCounters, sizeof(tmpCounters));
 }
+#endif

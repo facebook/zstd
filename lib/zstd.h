@@ -1405,13 +1405,14 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictS
                                                   ZSTD_customMem customMem);
 
 /**
- * TODO: document!
+ * This API is temporary and is expected to change or disappear in the future!
  */
-ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced2(const void* dict, size_t dictSize,
-                                                  ZSTD_dictLoadMethod_e dictLoadMethod,
-                                                  ZSTD_dictContentType_e dictContentType,
-                                                  ZSTD_CCtx_params* cctxParams,
-                                                  ZSTD_customMem customMem);
+ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced2(
+    const void* dict, size_t dictSize,
+    ZSTD_dictLoadMethod_e dictLoadMethod,
+    ZSTD_dictContentType_e dictContentType,
+    ZSTD_CCtx_params* cctxParams,
+    ZSTD_customMem customMem);
 
 ZSTDLIB_API ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize,
                                                   ZSTD_dictLoadMethod_e dictLoadMethod,

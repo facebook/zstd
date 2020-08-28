@@ -485,7 +485,7 @@ void ZSTD_dedicatedDictSearch_lazy_loadDictionary(ZSTD_matchState_t* ms, const B
     U32 bucketSize = 1 << ZSTD_LAZY_DDSS_BUCKET_LOG;
     for ( ; idx < target; idx++) {
         U32 i;
-        U32 const h = ZSTD_hashPtr(
+        size_t const h = ZSTD_hashPtr(
             ms->window.base + idx,
             ms->cParams.hashLog - ZSTD_LAZY_DDSS_BUCKET_LOG,
             ms->cParams.minMatch) << ZSTD_LAZY_DDSS_BUCKET_LOG;
@@ -531,8 +531,8 @@ size_t ZSTD_HcFindBestMatch_generic (
     const ZSTD_matchState_t* const dms = ms->dictMatchState;
     const U32 ddsHashLog = dictMode == ZSTD_dedicatedDictSearch
                          ? dms->cParams.hashLog - ZSTD_LAZY_DDSS_BUCKET_LOG : 0;
-    const U32 ddsIdx = dictMode == ZSTD_dedicatedDictSearch
-                     ? ZSTD_hashPtr(ip, ddsHashLog, mls) << ZSTD_LAZY_DDSS_BUCKET_LOG : 0;
+    const size_t ddsIdx = dictMode == ZSTD_dedicatedDictSearch
+                        ? ZSTD_hashPtr(ip, ddsHashLog, mls) << ZSTD_LAZY_DDSS_BUCKET_LOG : 0;
 
     U32 matchIndex;
 

@@ -540,7 +540,9 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
 
     case ZSTD_c_compressionLevel : {
         FORWARD_IF_ERROR(ZSTD_cParam_clampBounds(param, &value), "");
-        if (value) {  /* 0 : does not change current level */
+        if (value == 0)
+            CCtxParams->compressionLevel = ZSTD_CLEVEL_DEFAULT; /* 0 == default */
+        else
             CCtxParams->compressionLevel = value;
         }
         if (CCtxParams->compressionLevel >= 0) return (size_t)CCtxParams->compressionLevel;

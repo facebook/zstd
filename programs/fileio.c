@@ -1508,7 +1508,8 @@ FIO_compressFilename_internal(FIO_prefs_t* const prefs,
                     (unsigned long long)readsize, (unsigned long long) compressedfilesize,
                     dstFileName);
             }
-        } else if (fCtx->nbFilesTotal > 1) {
+        }
+        if (fCtx->nbFilesTotal > 1) {
             fCtx->totalBytesInput += (size_t)readsize;
             fCtx->totalBytesOutput += (size_t)compressedfilesize;
         }
@@ -2418,7 +2419,8 @@ static int FIO_decompressFrames(dRess_t ress, FILE* srcFile,
     if (g_display_prefs.displayLevel >= 2) {
         if (fCtx->nbFilesTotal <= 1 || g_display_prefs.displayLevel >= 3) {
             DISPLAYLEVEL(2, "%-20s: %llu bytes \n", srcFileName, filesize);
-        } else if (fCtx->nbFilesTotal > 1) {
+        }
+        if (fCtx->nbFilesTotal > 1) {
             fCtx->totalBytesOutput += filesize;
         }
     }

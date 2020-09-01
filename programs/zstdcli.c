@@ -16,8 +16,8 @@
 #  define ZSTDCLI_CLEVEL_DEFAULT 3
 #endif
 
-#ifndef ZSTD_THREADS_DEFAULT
-#  define ZSTD_THREADS_DEFAULT 3
+#ifndef ZSTD_NUMTHREADS_DEFAULT
+#  define ZSTD_NUMTHREADS_DEFAULT 3
 #endif
 
 #ifndef ZSTDCLI_CLEVEL_MAX
@@ -590,7 +590,7 @@ static void printVersion(void)
 
 /* Environment variables for parameter setting */
 #define ENV_CLEVEL "ZSTD_CLEVEL"
-#define ENV_THREADS "ZSTD_THREADS"
+#define ENV_NUMTHREADS "ZSTD_NUMTHREADS"
 
 /* pick up environment variable */
 static int init_cLevel(void) {
@@ -622,22 +622,22 @@ static int init_cLevel(void) {
 
 /* pick up environment variable */
 static unsigned init_numThreads(void) {
-    const char* const env = getenv(ENV_THREADS);
+    const char* const env = getenv(ENV_NUMTHREADS);
     if (env != NULL) {
         const char* ptr = env;
         if ((*ptr>='0') && (*ptr<='9')) {
             unsigned numThreads;
             if (readU32FromCharChecked(&ptr, &numThreads)) {
-                DISPLAYLEVEL(2, "Ignore environment variable setting %s=%s: numeric value too large \n", ENV_THREADS, env);
-                return ZSTD_THREADS_DEFAULT;
+                DISPLAYLEVEL(2, "Ignore environment variable setting %s=%s: numeric value too large \n", ENV_NUMTHREADS, env);
+                return ZSTD_NUMTHREADS_DEFAULT;
             } else if (*ptr == 0) {
                 return numThreads;
             }
         }
-        DISPLAYLEVEL(2, "Ignore environment variable setting %s=%s: not a valid integer value \n", ENV_THREADS, env);
+        DISPLAYLEVEL(2, "Ignore environment variable setting %s=%s: not a valid unsigned value \n", ENV_NUMTHREADS, env);
     }
 
-    return ZSTD_THREADS_DEFAULT;
+    return ZSTD_NUMTHREADS_DEFAULT;
 }
 
 #define NEXT_FIELD(ptr) {         \

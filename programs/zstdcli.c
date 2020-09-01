@@ -17,7 +17,7 @@
 #endif
 
 #ifndef ZSTD_NUMTHREADS_DEFAULT
-#  define ZSTD_NUMTHREADS_DEFAULT 3
+#  define ZSTD_NUMTHREADS_DEFAULT 1
 #endif
 
 #ifndef ZSTDCLI_CLEVEL_MAX
@@ -620,7 +620,6 @@ static int init_cLevel(void) {
     return ZSTDCLI_CLEVEL_DEFAULT;
 }
 
-/* pick up environment variable */
 static unsigned init_numThreads(void) {
     const char* const env = getenv(ENV_NUMTHREADS);
     if (env != NULL) {
@@ -680,6 +679,7 @@ typedef enum { zom_compress, zom_decompress, zom_test, zom_bench, zom_train, zom
 # define MINCLEVEL  ZSTD_minCLevel()
 # define MAXCLEVEL  ZSTD_maxCLevel()
 #endif
+
 
 int main(int const argCount, const char* argv[])
 {

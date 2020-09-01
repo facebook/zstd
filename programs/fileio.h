@@ -54,7 +54,6 @@ extern "C" {
 ***************************************/
 typedef enum { FIO_zstdCompression, FIO_gzipCompression, FIO_xzCompression, FIO_lzmaCompression, FIO_lz4Compression } FIO_compressionType_t;
 
-/* Immutable struct containing preferences for file I/O */
 typedef struct FIO_prefs_s FIO_prefs_t;
 
 FIO_prefs_t* FIO_createPreferences(void);
@@ -106,7 +105,8 @@ void FIO_setPatchFromMode(FIO_prefs_t* const prefs, int value);
 void FIO_setContentSize(FIO_prefs_t* const prefs, int value);
 
 /* FIO_ctx_t functions */
-void FIO_setNbFiles(FIO_ctx_t* const fCtx, int value);
+void FIO_setNbFilesTotal(FIO_ctx_t* const fCtx, int value);
+void FIO_setNbFilesProcessed(FIO_ctx_t* const fCtx, int value);
 void FIO_setCurrFileIdx(FIO_ctx_t* const fCtx, int value);
 void FIO_setTotalBytesInput(FIO_ctx_t* const fCtx, size_t value);
 void FIO_setTotalBytesOutput(FIO_ctx_t* const fCtx, size_t value);

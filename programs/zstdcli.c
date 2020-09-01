@@ -1261,7 +1261,7 @@ int main(int const argCount, const char* argv[])
     if (!strcmp(filenames->fileNames[0], stdinmark) && outFileName && !strcmp(outFileName,stdoutmark) && (g_displayLevel==2)) g_displayLevel=1;
 
     /* IO Stream/File */
-    FIO_setNbFiles(fCtx, (int)filenames->tableSize); 
+    FIO_setNbFilesTotal(fCtx, (int)filenames->tableSize); 
     FIO_setNotificationLevel(g_displayLevel);
     FIO_setPatchFromMode(prefs, patchFromDictFileName != NULL);
     if (memLimit == 0) {

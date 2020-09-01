@@ -322,7 +322,7 @@ struct FIO_prefs_s {
 };
 
 /*-*************************************
-*  Parameters: FIO_prefs_t
+*  Parameters: FIO_ctx_t
 ***************************************/
 
 /* typedef'd to FIO_ctx_t within fileio.h */
@@ -532,9 +532,14 @@ void FIO_setContentSize(FIO_prefs_t* const prefs, int value)
 
 /* FIO_ctx_t functions */
 
-void FIO_setNbFiles(FIO_ctx_t* const fCtx, int value)
+void FIO_setNbFilesTotal(FIO_ctx_t* const fCtx, int value)
 {
     fCtx->nbFilesTotal = value;
+}
+
+void FIO_setNbFilesProcessed(FIO_ctx_t* const fCtx, int value)
+{
+    fCtx->nbFilesProcessed = value;
 }
 
 void FIO_setCurrFileIdx(FIO_ctx_t* const fCtx, int value)
@@ -2421,7 +2426,7 @@ static int FIO_decompressFrames(dRess_t ress, FILE* srcFile,
             DISPLAYLEVEL(2, "%-20s: %llu bytes \n", srcFileName, filesize);
         }
         if (fCtx->nbFilesTotal > 1) {
-            fCtx->totalBytesOutput += filesize;
+            fCtx->totalBytesOutput += (size_t)filesize;
         }
     }
 

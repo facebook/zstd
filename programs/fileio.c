@@ -798,7 +798,7 @@ static void FIO_adjustMemLimitForPatchFromMode(FIO_prefs_t* const prefs,
  *         If -f is specified with --rm, zstd will proceed as usual
  *         If -q is specified with --rm, zstd will abort pre-emptively
  *         If neither flag is specified, zstd will prompt the user for confirmation to proceed.
- * If --rm is not specified, then zstd may print a warning to the user.
+ * If --rm is not specified, then zstd will print a warning to the user (which can be silenced with -q).
  */
 static int FIO_removeMultiFilesWarning(const FIO_prefs_t* const prefs, int displayLevelCutoff, const char* outFileName)
 {
@@ -819,8 +819,8 @@ static int FIO_removeMultiFilesWarning(const FIO_prefs_t* const prefs, int displ
                 DISPLAYLEVEL(2, "\nThe concatenated output CANNOT regenerate the original directory tree. This is a destructive operation. ")
                 error = g_display_prefs.displayLevel > displayLevelCutoff && UTIL_requireUserConfirmation("Proceed? (y/n): ", "Aborting...", "yY");
             }
-            DISPLAY("\n");
         }
+        DISPLAY("\n");
     }
     return error;
 }

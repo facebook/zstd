@@ -1330,9 +1330,9 @@ int main(int const argCount, const char* argv[])
     } else {  /* decompression or test */
 #ifndef ZSTD_NODECOMPRESS
         if (filenames->tableSize == 1 && outFileName) {
-            operationResult = FIO_decompressFilename(prefs, outFileName, filenames->fileNames[0], dictFileName);
+            operationResult = FIO_decompressFilename(prefs, fCtx, outFileName, filenames->fileNames[0], dictFileName);
         } else {
-            operationResult = FIO_decompressMultipleFilenames(prefs, filenames->fileNames, outMirroredDirName, outDirName, outFileName, dictFileName);
+            operationResult = FIO_decompressMultipleFilenames(prefs, fCtx, filenames->fileNames, outMirroredDirName, outDirName, outFileName, dictFileName);
         }
 #else
         DISPLAY("Decompression not supported \n");

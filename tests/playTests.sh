@@ -369,6 +369,22 @@ zstd -d tmp1.zst tmp2.zst -o tmp
 touch tmpexists
 zstd tmp1 tmp2 -f -o tmpexists
 zstd tmp1 tmp2 -q -o tmpexists && die "should have refused to overwrite"
+println gooder > tmp_rm1
+println boi > tmp_rm2
+println worldly > tmp_rm3
+echo 'y' | zstd tmp_rm1 tmp_rm2 -o tmp_rm3.zst --rm     # tests the warning prompt for --rm with multiple inputs into once source
+test ! -f tmp_rm1
+test ! -f tmp_rm2
+cp tmp_rm3.zst tmp_rm4.zst
+echo 'Y' | zstd -d tmp_rm3.zst tmp_rm4.zst -o tmp_rm_out --rm
+test ! -f tmp_rm3.zst
+test ! -f tmp_rm4.zst
+echo 'yes' | zstd tmp_rm_out tmp_rm3 -c --rm
+test ! -f tmp_rm_out
+test ! -f tmp_rm3
+println gooder > tmpexists1
+zstd tmpexists1 tmpexists -c --rm -f
+
 # Bug: PR #972
 if [ "$?" -eq 139 ]; then
   die "should not have segfaulted"

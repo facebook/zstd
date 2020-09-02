@@ -762,12 +762,27 @@ ZSTD_compressBlock_lazy_generic(
     typedef size_t (*searchMax_f)(
                         ZSTD_matchState_t* ms,
                         const BYTE* ip, const BYTE* iLimit, size_t* offsetPtr);
-    searchMax_f const searchMax = dictMode == ZSTD_dictMatchState ?
-        (searchMethod==search_binaryTree ? ZSTD_BtFindBestMatch_dictMatchState_selectMLS
-                                         : ZSTD_HcFindBestMatch_dictMatchState_selectMLS) :
-        (dictMode == ZSTD_dedicatedDictSearch ? ZSTD_HcFindBestMatch_dedicatedDictSearch_selectMLS :
-        (searchMethod==search_binaryTree ? ZSTD_BtFindBestMatch_selectMLS
-                                         : ZSTD_HcFindBestMatch_selectMLS));
+
+    const searchMax_f searchFuncs[4][2] = {
+        {
+            ZSTD_HcFindBestMatch_selectMLS,
+            ZSTD_BtFindBestMatch_selectMLS
+        },
+        {
+            NULL,
+            NULL
+        },
+        {
+            ZSTD_HcFindBestMatch_dictMatchState_selectMLS,
+            ZSTD_BtFindBestMatch_dictMatchState_selectMLS
+        },
+        {
+            ZSTD_HcFindBestMatch_dedicatedDictSearch_selectMLS,
+            NULL
+        }
+    };
+
+    searchMax_f const searchMax = searchFuncs[dictMode][searchMethod == search_binaryTree];
     U32 offset_1 = rep[0], offset_2 = rep[1], savedOffset=0;
 
     const ZSTD_matchState_t* const dms = ms->dictMatchState;
@@ -783,6 +798,8 @@ ZSTD_compressBlock_lazy_generic(
                                      prefixLowestIndex - (U32)(dictEnd - dictBase) :
                                      0;
     const U32 dictAndPrefixLength = (U32)((ip - prefixLowest) + (dictEnd - dictLowest));
+
+    assert(searchMax != NULL);
 
     DEBUGLOG(5, "ZSTD_compressBlock_lazy_generic (dictMode=%u)", (U32)dictMode);
 

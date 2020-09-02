@@ -815,9 +815,9 @@ static int FIO_removeMultiFilesWarning(const FIO_prefs_t* const prefs, int displ
             } else {
                 DISPLAYLEVEL(2, "zstd: WARNING: all input files will be processed and concatenated into a single output file: %s ", outFileName);
             }
+            DISPLAYLEVEL(2, "\nThe concatenated output CANNOT regenerate the original directory tree. ")
             if (prefs->removeSrcFile) {
-                DISPLAYLEVEL(2, "\nThe concatenated output CANNOT regenerate the original directory tree. This is a destructive operation. ")
-                error = g_display_prefs.displayLevel > displayLevelCutoff && UTIL_requireUserConfirmation("Proceed? (y/n): ", "Aborting...", "yY");
+                error = g_display_prefs.displayLevel > displayLevelCutoff && UTIL_requireUserConfirmation("This is a destructive operation. Proceed? (y/n): ", "Aborting...", "yY");
             }
         }
         DISPLAY("\n");

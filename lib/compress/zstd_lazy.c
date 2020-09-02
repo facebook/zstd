@@ -447,7 +447,7 @@ static size_t ZSTD_BtFindBestMatch_extDict_selectMLS (
 
 /* Update chains up to ip (excluded)
    Assumption : always within prefix (i.e. not within extDict) */
-static U32 ZSTD_insertAndFindFirstIndex_internal(
+FORCE_INLINE_TEMPLATE U32 ZSTD_insertAndFindFirstIndex_internal(
                         ZSTD_matchState_t* ms,
                         const ZSTD_compressionParameters* const cParams,
                         const BYTE* ip, U32 const mls)

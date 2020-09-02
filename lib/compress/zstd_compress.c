@@ -2914,10 +2914,12 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
         case ZSTD_greedy:
         case ZSTD_lazy:
         case ZSTD_lazy2:
-            if (chunk >= HASH_READ_SIZE && ms->dedicatedDictSearch)
+            if (chunk >= HASH_READ_SIZE && ms->dedicatedDictSearch) {
+                assert(chunk == remaining); /* must load everything in one go */
                 ZSTD_dedicatedDictSearch_lazy_loadDictionary(ms, ichunk-HASH_READ_SIZE);
-            else if (chunk >= HASH_READ_SIZE)
+            } else if (chunk >= HASH_READ_SIZE) {
                 ZSTD_insertAndFindFirstIndex(ms, ichunk-HASH_READ_SIZE);
+            }
             break;
 
         case ZSTD_btlazy2:   /* we want the dictionary table fully sorted */
@@ -3416,6 +3418,9 @@ static size_t ZSTD_initCDict_internal(
     assert(!ZSTD_checkCParams(cParams));
     cdict->matchState.cParams = cParams;
     cdict->matchState.dedicatedDictSearch = params.enableDedicatedDictSearch;
+    if (cdict->matchState.dedicatedDictSearch && dictSize > ZSTD_CHUNKSIZE_MAX) {
+        cdict->matchState.dedicatedDictSearch = 0;
+    }
     if ((dictLoadMethod == ZSTD_dlm_byRef) || (!dictBuffer) || (!dictSize)) {
         cdict->dictContent = dictBuffer;
     } else {

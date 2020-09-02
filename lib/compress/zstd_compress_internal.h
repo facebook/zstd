@@ -255,6 +255,7 @@ struct ZSTD_CCtx_s {
     unsigned long long producedCSize;
     XXH64_state_t xxhState;
     ZSTD_customMem customMem;
+    ZSTD_customJobControl customJobControl;
     size_t staticSize;
     SeqCollector seqCollector;
     int isFirstBlock;

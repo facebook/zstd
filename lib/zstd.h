@@ -1394,7 +1394,25 @@ typedef void  (*ZSTD_freeFunction) (void* opaque, void* address);
 typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; void* opaque; } ZSTD_customMem;
 static ZSTD_customMem const ZSTD_defaultCMem = { NULL, NULL, NULL };  /**< this constant defers to stdlib's functions */
 
-ZSTDLIB_API ZSTD_CCtx*    ZSTD_createCCtx_advanced(ZSTD_customMem customMem);
+/*! Custom job control machanism :
+ * These functions help in situation where parallel compression contexts use multi-threaded mode and
+ * one needs to control maximum number of active threads. That keeps control of peak memory allocation
+ * for parallel contexts.
+ *
+ * ZSTD_canCreateJobFunction should be a non-blocking function that returns non-zero when a new compression thread
+ * can be started. Zero is returned otherwise.
+ *
+ * ZSTD_releaseJobFunction is called once a compression thread is finished.
+ *
+ * A straightforward implementation can utilize semaphore data structure.
+ */
+
+typedef int (*ZSTD_canCreateJobFunction) (void* opaque);
+typedef void (*ZSTD_releaseJobFunction) (void* opaque);
+typedef struct { ZSTD_canCreateJobFunction canCreateJob; ZSTD_releaseJobFunction releaseJob; void* opaque; } ZSTD_customJobControl;
+static ZSTD_customJobControl const ZSTD_defaultJobControl = { NULL, NULL, NULL };
+
+ZSTDLIB_API ZSTD_CCtx*    ZSTD_createCCtx_advanced(ZSTD_customMem customMem, ZSTD_customJobControl customJobControl);
 ZSTDLIB_API ZSTD_CStream* ZSTD_createCStream_advanced(ZSTD_customMem customMem);
 ZSTDLIB_API ZSTD_DCtx*    ZSTD_createDCtx_advanced(ZSTD_customMem customMem);
 ZSTDLIB_API ZSTD_DStream* ZSTD_createDStream_advanced(ZSTD_customMem customMem);

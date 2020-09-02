@@ -62,14 +62,15 @@ struct ZSTD_CDict_s {
 
 ZSTD_CCtx* ZSTD_createCCtx(void)
 {
-    return ZSTD_createCCtx_advanced(ZSTD_defaultCMem);
+    return ZSTD_createCCtx_advanced(ZSTD_defaultCMem, ZSTD_defaultJobControl);
 }
 
-static void ZSTD_initCCtx(ZSTD_CCtx* cctx, ZSTD_customMem memManager)
+static void ZSTD_initCCtx(ZSTD_CCtx* cctx, ZSTD_customMem memManager, ZSTD_customJobControl customJobControl)
 {
     assert(cctx != NULL);
     ZSTD_memset(cctx, 0, sizeof(*cctx));
     cctx->customMem = memManager;
+    cctx->customJobControl = customJobControl;
     cctx->bmi2 = ZSTD_cpuid_bmi2(ZSTD_cpuid());
     {   size_t const err = ZSTD_CCtx_reset(cctx, ZSTD_reset_parameters);
         assert(!ZSTD_isError(err));
@@ -77,14 +78,14 @@ static void ZSTD_initCCtx(ZSTD_CCtx* cctx, ZSTD_customMem memManager)
     }
 }
 
-ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem)
+ZSTD_CCtx* ZSTD_createCCtx_advanced(ZSTD_customMem customMem, ZSTD_customJobControl customJobControl)
 {
     ZSTD_STATIC_ASSERT(zcss_init==0);
     ZSTD_STATIC_ASSERT(ZSTD_CONTENTSIZE_UNKNOWN==(0ULL - 1));
     if (!customMem.customAlloc ^ !customMem.customFree) return NULL;
     {   ZSTD_CCtx* const cctx = (ZSTD_CCtx*)ZSTD_customMalloc(sizeof(ZSTD_CCtx), customMem);
         if (!cctx) return NULL;
-        ZSTD_initCCtx(cctx, customMem);
+        ZSTD_initCCtx(cctx, customMem, customJobControl);
         return cctx;
     }
 }
@@ -3371,7 +3372,7 @@ size_t ZSTD_compress(void* dst, size_t dstCapacity,
 {
     size_t result;
     ZSTD_CCtx ctxBody;
-    ZSTD_initCCtx(&ctxBody, ZSTD_defaultCMem);
+    ZSTD_initCCtx(&ctxBody, ZSTD_defaultCMem, ZSTD_defaultJobControl);
     result = ZSTD_compressCCtx(&ctxBody, dst, dstCapacity, src, srcSize, compressionLevel);
     ZSTD_freeCCtxContent(&ctxBody);   /* can't free ctxBody itself, as it's on stack; free only heap content */
     return result;
@@ -3741,7 +3742,7 @@ ZSTD_CStream* ZSTD_initStaticCStream(void *workspace, size_t workspaceSize)
 
 ZSTD_CStream* ZSTD_createCStream_advanced(ZSTD_customMem customMem)
 {   /* CStream and CCtx are now same object */
-    return ZSTD_createCCtx_advanced(customMem);
+    return ZSTD_createCCtx_advanced(customMem, ZSTD_defaultJobControl);
 }
 
 size_t ZSTD_freeCStream(ZSTD_CStream* zcs)
@@ -4115,7 +4116,8 @@ size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
             if (cctx->mtctx == NULL) {
                 DEBUGLOG(4, "ZSTD_compressStream2: creating new mtctx for nbWorkers=%u",
                             params.nbWorkers);
-                cctx->mtctx = ZSTDMT_createCCtx_advanced((U32)params.nbWorkers, cctx->customMem);
+                cctx->mtctx = ZSTDMT_createCCtx_advanced((U32)params.nbWorkers, cctx->customMem,
+                                                         cctx->customJobControl);
                 RETURN_ERROR_IF(cctx->mtctx == NULL, memory_allocation, "NULL pointer!");
             }
             /* mt compression */

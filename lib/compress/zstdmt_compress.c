@@ -343,6 +343,7 @@ typedef struct {
     int totalCCtx;
     int availCCtx;
     ZSTD_customMem cMem;
+    ZSTD_customJobControl cJobControl;
     ZSTD_CCtx* cctx[1];   /* variable size */
 } ZSTDMT_CCtxPool;
 
@@ -359,7 +360,8 @@ static void ZSTDMT_freeCCtxPool(ZSTDMT_CCtxPool* pool)
 /* ZSTDMT_createCCtxPool() :
  * implies nbWorkers >= 1 , checked by caller ZSTDMT_createCCtx() */
 static ZSTDMT_CCtxPool* ZSTDMT_createCCtxPool(int nbWorkers,
-                                              ZSTD_customMem cMem)
+                                              ZSTD_customMem cMem,
+                                              ZSTD_customJobControl cJobControl)
 {
     ZSTDMT_CCtxPool* const cctxPool = (ZSTDMT_CCtxPool*) ZSTD_customCalloc(
         sizeof(ZSTDMT_CCtxPool) + (nbWorkers-1)*sizeof(ZSTD_CCtx*), cMem);
@@ -370,9 +372,10 @@ static ZSTDMT_CCtxPool* ZSTDMT_createCCtxPool(int nbWorkers,
         return NULL;
     }
     cctxPool->cMem = cMem;
+    cctxPool->cJobControl = cJobControl;
     cctxPool->totalCCtx = nbWorkers;
     cctxPool->availCCtx = 1;   /* at least one cctx for single-thread mode */
-    cctxPool->cctx[0] = ZSTD_createCCtx_advanced(cMem);
+    cctxPool->cctx[0] = ZSTD_createCCtx_advanced(cMem, ZSTD_defaultJobControl);
     if (!cctxPool->cctx[0]) { ZSTDMT_freeCCtxPool(cctxPool); return NULL; }
     DEBUGLOG(3, "cctxPool created, with %u workers", nbWorkers);
     return cctxPool;
@@ -385,8 +388,9 @@ static ZSTDMT_CCtxPool* ZSTDMT_expandCCtxPool(ZSTDMT_CCtxPool* srcPool,
     if (nbWorkers <= srcPool->totalCCtx) return srcPool;   /* good enough */
     /* need a larger cctx pool */
     {   ZSTD_customMem const cMem = srcPool->cMem;
+        ZSTD_customJobControl const cJobControl = srcPool->cJobControl;
         ZSTDMT_freeCCtxPool(srcPool);
-        return ZSTDMT_createCCtxPool(nbWorkers, cMem);
+        return ZSTDMT_createCCtxPool(nbWorkers, cMem, cJobControl);
     }
 }
 
@@ -420,7 +424,7 @@ static ZSTD_CCtx* ZSTDMT_getCCtx(ZSTDMT_CCtxPool* cctxPool)
     }   }
     ZSTD_pthread_mutex_unlock(&cctxPool->poolMutex);
     DEBUGLOG(5, "create one more CCtx");
-    return ZSTD_createCCtx_advanced(cctxPool->cMem);   /* note : can be NULL, when creation fails ! */
+    return ZSTD_createCCtx_advanced(cctxPool->cMem, cctxPool->cJobControl);   /* note : can be NULL, when creation fails ! */
 }
 
 static void ZSTDMT_releaseCCtx(ZSTDMT_CCtxPool* pool, ZSTD_CCtx* cctx)
@@ -829,6 +833,7 @@ struct ZSTDMT_CCtx_s {
     unsigned long long consumed;
     unsigned long long produced;
     ZSTD_customMem cMem;
+    ZSTD_customJobControl cJobControl;
     ZSTD_CDict* cdictLocal;
     const ZSTD_CDict* cdict;
 };
@@ -889,7 +894,8 @@ size_t ZSTDMT_CCtxParam_setNbWorkers(ZSTD_CCtx_params* params, unsigned nbWorker
     return ZSTD_CCtxParams_setParameter(params, ZSTD_c_nbWorkers, (int)nbWorkers);
 }
 
-MEM_STATIC ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced_internal(unsigned nbWorkers, ZSTD_customMem cMem)
+MEM_STATIC ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced_internal(unsigned nbWorkers, ZSTD_customMem cMem,
+                                                            ZSTD_customJobControl cJobControl)
 {
     ZSTDMT_CCtx* mtctx;
     U32 nbJobs = nbWorkers + 2;
@@ -906,13 +912,14 @@ MEM_STATIC ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced_internal(unsigned nbWorkers, 
     if (!mtctx) return NULL;
     ZSTDMT_CCtxParam_setNbWorkers(&mtctx->params, nbWorkers);
     mtctx->cMem = cMem;
+    mtctx->cJobControl = cJobControl;
     mtctx->allJobsCompleted = 1;
     mtctx->factory = POOL_create_advanced(nbWorkers, 0, cMem);
     mtctx->jobs = ZSTDMT_createJobsTable(&nbJobs, cMem);
     assert(nbJobs > 0); assert((nbJobs & (nbJobs - 1)) == 0);  /* ensure nbJobs is a power of 2 */
     mtctx->jobIDMask = nbJobs - 1;
     mtctx->bufPool = ZSTDMT_createBufferPool(nbWorkers, cMem);
-    mtctx->cctxPool = ZSTDMT_createCCtxPool(nbWorkers, cMem);
+    mtctx->cctxPool = ZSTDMT_createCCtxPool(nbWorkers, cMem, cJobControl);
     mtctx->seqPool = ZSTDMT_createSeqPool(nbWorkers, cMem);
     initError = ZSTDMT_serialState_init(&mtctx->serial);
     mtctx->roundBuff = kNullRoundBuff;
@@ -924,20 +931,22 @@ MEM_STATIC ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced_internal(unsigned nbWorkers, 
     return mtctx;
 }
 
-ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced(unsigned nbWorkers, ZSTD_customMem cMem)
+ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced(unsigned nbWorkers, ZSTD_customMem cMem,
+                                        ZSTD_customJobControl cJobControl)
 {
 #ifdef ZSTD_MULTITHREAD
-    return ZSTDMT_createCCtx_advanced_internal(nbWorkers, cMem);
+    return ZSTDMT_createCCtx_advanced_internal(nbWorkers, cMem, cJobControl);
 #else
     (void)nbWorkers;
     (void)cMem;
+    (void)cJobControl;
     return NULL;
 #endif
 }
 
 ZSTDMT_CCtx* ZSTDMT_createCCtx(unsigned nbWorkers)
 {
-    return ZSTDMT_createCCtx_advanced(nbWorkers, ZSTD_defaultCMem);
+    return ZSTDMT_createCCtx_advanced(nbWorkers, ZSTD_defaultCMem, ZSTD_defaultJobControl);
 }
 
 
@@ -977,6 +986,8 @@ static void ZSTDMT_waitForAllJobsCompleted(ZSTDMT_CCtx* mtctx)
         }
         ZSTD_pthread_mutex_unlock(&mtctx->jobs[jobID].job_mutex);
         mtctx->doneJobID++;
+        if (mtctx->cJobControl.releaseJob)
+          mtctx->cJobControl.releaseJob(mtctx->cJobControl.opaque);
     }
 }
 
@@ -1612,6 +1623,11 @@ static size_t ZSTDMT_createCompressionJob(ZSTDMT_CCtx* mtctx, size_t srcSize, ZS
     }
 
     if (!mtctx->jobReady) {
+        if (mtctx->cJobControl.canCreateJob && !mtctx->cJobControl.canCreateJob (mtctx->cJobControl.opaque)) {
+          DEBUGLOG(5, "ZSTDMT_createCompressionJob: canCreateJob returned false");
+          return 0;
+        }
+
         BYTE const* src = (BYTE const*)mtctx->inBuff.buffer.start;
         DEBUGLOG(5, "ZSTDMT_createCompressionJob: preparing job %u to compress %u bytes with %u preload ",
                     mtctx->nextJobID, (U32)srcSize, (U32)mtctx->inBuff.prefix.size);
@@ -1757,6 +1773,8 @@ static size_t ZSTDMT_flushProduced(ZSTDMT_CCtx* mtctx, ZSTD_outBuffer* output, u
                 mtctx->consumed += srcSize;
                 mtctx->produced += cSize;
                 mtctx->doneJobID++;
+                if (mtctx->cJobControl.releaseJob)
+                    mtctx->cJobControl.releaseJob(mtctx->cJobControl.opaque);
         }   }
 
         /* return value : how many bytes left in buffer ; fake it to 1 when unknown but >0 */

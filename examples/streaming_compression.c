@@ -15,6 +15,32 @@
 #include <zstd.h>      // presumes zstd library is installed
 #include "common.h"    // Helper functions, CHECK(), and CHECK_ZSTD()
 
+#if defined(ZSTD_STATIC_LINKING_ONLY)
+#include <semaphore.h> // sem_t
+/* Job creation semaphore. */
+sem_t semaphore;
+
+static int canCreateJob (void *opaque)
+{
+  sem_t *semaphore = (sem_t *)opaque;
+
+  int r = sem_trywait(semaphore);
+  if (r == 0)
+    return 1;
+
+  /* Can't take semapthore. */
+  if (r < 0 && errno == EAGAIN)
+    return 0;
+
+  CHECK (0, "unexpected errno for sem_trywait!");
+}
+
+static void releaseJob (void *opaque)
+{
+  sem_t *semaphore = (sem_t *)opaque;
+  CHECK(sem_post (semaphore) == 0, "sem_post failed!");
+}
+#endif
 
 static void compressFile_orDie(const char* fname, const char* outName, int cLevel)
 {
@@ -31,7 +57,14 @@ static void compressFile_orDie(const char* fname, const char* outName, int cLeve
     void*  const buffOut = malloc_orDie(buffOutSize);
 
     /* Create the context. */
+#if defined(ZSTD_STATIC_LINKING_ONLY)
+    CHECK(sem_init (&semaphore, 0, 8) == 0, "sem_init failed!");
+    ZSTD_customJobControl jobControl = { &canCreateJob, &releaseJob, &semaphore};
+    ZSTD_CCtx* const cctx = ZSTD_createCCtx_advanced(ZSTD_defaultCMem, jobControl);
+#else
     ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+#endif
+
     CHECK(cctx != NULL, "ZSTD_createCCtx() failed!");
 
     /* Set any parameters you want.
@@ -39,7 +72,7 @@ static void compressFile_orDie(const char* fname, const char* outName, int cLeve
      */
     CHECK_ZSTD( ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, cLevel) );
     CHECK_ZSTD( ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1) );
-    ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 4);
+    ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 16);
 
     /* This loop read from the input file, compresses that entire chunk,
      * and writes all output produced to the output file.
@@ -116,7 +149,7 @@ int main(int argc, const char** argv)
     const char* const inFilename = argv[1];
 
     char* const outFilename = createOutFilename_orDie(inFilename);
-    compressFile_orDie(inFilename, outFilename, 1);
+    compressFile_orDie(inFilename, outFilename, 19);
 
     free(outFilename);   /* not strictly required, since program execution stops there,
                           * but some static analyzer main complain otherwise */

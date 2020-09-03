@@ -345,7 +345,7 @@ MEM_STATIC repcodes_t ZSTD_updateRep(U32 const rep[3], U32 const offset, U32 con
             newReps.rep[1] = rep[0];
             newReps.rep[0] = currentOffset;
         } else {   /* repCode == 0 */
-            memcpy(&newReps, rep, sizeof(newReps));
+            ZSTD_memcpy(&newReps, rep, sizeof(newReps));
         }
     }
     return newReps;
@@ -372,7 +372,7 @@ MEM_STATIC size_t ZSTD_noCompressBlock (void* dst, size_t dstCapacity, const voi
     RETURN_ERROR_IF(srcSize + ZSTD_blockHeaderSize > dstCapacity,
                     dstSize_tooSmall, "dst buf too small for uncompressed block");
     MEM_writeLE24(dst, cBlockHeader24);
-    memcpy((BYTE*)dst + ZSTD_blockHeaderSize, src, srcSize);
+    ZSTD_memcpy((BYTE*)dst + ZSTD_blockHeaderSize, src, srcSize);
     return ZSTD_blockHeaderSize + srcSize;
 }
 
@@ -927,7 +927,7 @@ ZSTD_checkDictValidity(const ZSTD_window_t* window,
 }
 
 MEM_STATIC void ZSTD_window_init(ZSTD_window_t* window) {
-    memset(window, 0, sizeof(*window));
+    ZSTD_memset(window, 0, sizeof(*window));
     window->base = (BYTE const*)"";
     window->dictBase = (BYTE const*)"";
     window->dictLimit = 1;    /* start from 1, so that 1st position is valid */

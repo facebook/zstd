@@ -31,6 +31,29 @@ LIBVER := $(shell echo $(LIBVER_SCRIPT))
 VERSION?= $(LIBVER)
 CCVER := $(shell $(CC) --version)
 
+# This is a helper variable that configures a bunch of other variables to new,
+# space-optimized defaults.
+ZSTD_LIB_MINIFY ?= 0
+ifneq ($(ZSTD_LIB_MINIFY), 0)
+	HAVE_CC_OZ ?= $(shell echo "" | $(CC) -Oz -x c -c - -o /dev/null 2> /dev/null && echo 1 || echo 0)
+	ZSTD_LEGACY_SUPPORT ?= 0
+	ZSTD_LIB_DEPRECATED ?= 0
+	HUF_FORCE_DECOMPRESS_X1 ?= 1
+	ZSTD_FORCE_DECOMPRESS_SHORT ?= 1
+	ZSTD_NO_INLINE ?= 1
+	ZSTD_STRIP_ERROR_STRINGS ?= 1
+	ifneq ($(HAVE_CC_OZ), 0)
+		# Some compilers (clang) support an even more space-optimized setting.
+		CFLAGS += -Oz
+	else
+		CFLAGS += -Os
+	endif
+	CFLAGS += -fno-stack-protector -fomit-frame-pointer -fno-ident \
+	          -DDYNAMIC_BMI2=0 -DNDEBUG
+else
+	CFLAGS += -O3
+endif
+
 CPPFLAGS+= -DXXH_NAMESPACE=ZSTD_
 ifeq ($(TARGET_SYSTEM),Windows_NT)   # MinGW assumed
 CPPFLAGS   += -D__USE_MINGW_ANSI_STDIO   # compatibility with %zu formatting
@@ -60,29 +83,6 @@ ZSTD_FILES := $(ZSTDCOMMON_FILES)
 
 ifeq ($(findstring GCC,$(CCVER)),GCC)
 decompress/zstd_decompress_block.o :	CFLAGS+=-fno-tree-vectorize
-endif
-
-# This is a helper variable that configures a bunch of other variables to new,
-# space-optimized defaults.
-ZSTD_LIB_MINIFY ?= 0
-ifneq ($(ZSTD_LIB_MINIFY), 0)
-	HAVE_CC_OZ ?= $(shell echo "" | $(CC) -Oz -x c -c - -o /dev/null 2> /dev/null && echo 1 || echo 0)
-	ZSTD_LEGACY_SUPPORT ?= 0
-	ZSTD_LIB_DEPRECATED ?= 0
-	HUF_FORCE_DECOMPRESS_X1 ?= 1
-	ZSTD_FORCE_DECOMPRESS_SHORT ?= 1
-	ZSTD_NO_INLINE ?= 1
-	ZSTD_STRIP_ERROR_STRINGS ?= 1
-	ifneq ($(HAVE_CC_OZ), 0)
-		# Some compilers (clang) support an even more space-optimized setting.
-		CFLAGS += -Oz
-	else
-		CFLAGS += -Os
-	endif
-	CFLAGS += -fno-stack-protector -fomit-frame-pointer -fno-ident \
-	          -DDYNAMIC_BMI2=0 -DNDEBUG
-else
-	CFLAGS += -O3
 endif
 
 # Modules

@@ -925,9 +925,9 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
             if (opt[cur].mlen != 0) {
                 U32 const prev = cur - opt[cur].mlen;
                 repcodes_t newReps = ZSTD_updateRep(opt[prev].rep, opt[cur].off, opt[cur].litlen==0);
-                memcpy(opt[cur].rep, &newReps, sizeof(repcodes_t));
+                ZSTD_memcpy(opt[cur].rep, &newReps, sizeof(repcodes_t));
             } else {
-                memcpy(opt[cur].rep, opt[cur - 1].rep, sizeof(repcodes_t));
+                ZSTD_memcpy(opt[cur].rep, opt[cur - 1].rep, sizeof(repcodes_t));
             }
 
             /* last match must start at a minimum distance of 8 from oend */
@@ -1010,9 +1010,9 @@ _shortestPath:   /* cur, last_pos, best_mlen, best_off have to be set */
          */
         if (lastSequence.mlen != 0) {
             repcodes_t reps = ZSTD_updateRep(opt[cur].rep, lastSequence.off, lastSequence.litlen==0);
-            memcpy(rep, &reps, sizeof(reps));
+            ZSTD_memcpy(rep, &reps, sizeof(reps));
         } else {
-            memcpy(rep, opt[cur].rep, sizeof(repcodes_t));
+            ZSTD_memcpy(rep, opt[cur].rep, sizeof(repcodes_t));
         }
 
         {   U32 const storeEnd = cur + 1;
@@ -1110,7 +1110,7 @@ ZSTD_initStats_ultra(ZSTD_matchState_t* ms,
                const void* src, size_t srcSize)
 {
     U32 tmpRep[ZSTD_REP_NUM];  /* updated rep codes will sink here */
-    memcpy(tmpRep, rep, sizeof(tmpRep));
+    ZSTD_memcpy(tmpRep, rep, sizeof(tmpRep));
 
     DEBUGLOG(4, "ZSTD_initStats_ultra (srcSize=%zu)", srcSize);
     assert(ms->opt.litLengthSum == 0);    /* first block */

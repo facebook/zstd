@@ -20,7 +20,7 @@ extern "C" {
 #define HUF_H_298734234
 
 /* *** Dependencies *** */
-#include <stddef.h>    /* size_t */
+#include "zstd_deps.h"    /* size_t */
 
 
 /* *** library symbols visibility *** */

@@ -328,9 +328,11 @@ struct FIO_prefs_s {
 /* typedef'd to FIO_ctx_t within fileio.h */
 struct FIO_ctx_s {
 
-    /* multiple file processing info */
-    int currFileIdx;
+    /* file i/o info */
     int nbFilesTotal;
+
+    /* file i/o state */
+    int currFileIdx;
     int nbFilesProcessed;
     size_t totalBytesInput;
     size_t totalBytesOutput;

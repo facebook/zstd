@@ -59,7 +59,7 @@ typedef struct FIO_prefs_s FIO_prefs_t;
 FIO_prefs_t* FIO_createPreferences(void);
 void FIO_freePreferences(FIO_prefs_t* const prefs);
 
-/* Mutable struct containing relevant context and state of (de)compression with respect to file I/O */
+/* Mutable struct containing relevant context and state regarding (de)compression with respect to file I/O */
 typedef struct FIO_ctx_s FIO_ctx_t;
 
 FIO_ctx_t* FIO_createContext(void);

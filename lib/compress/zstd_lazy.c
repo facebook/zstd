@@ -11,8 +11,6 @@
 #include "zstd_compress_internal.h"
 #include "zstd_lazy.h"
 
-#include <stdlib.h>
-
 
 /*-*************************************
 *  Binary Tree search
@@ -488,48 +486,75 @@ void ZSTD_dedicatedDictSearch_lazy_loadDictionary(ZSTD_matchState_t* ms, const B
     U32 idx = ms->nextToUpdate;
     U32 const minChain = chainSize < target ? target - chainSize : idx;
     U32 const bucketSize = 1 << ZSTD_LAZY_DDSS_BUCKET_LOG;
-    U32 const nbAttempts = (1 << ms->cParams.searchLog) - bucketSize + 1;
+    U32 const nbAttempts = 1 << ms->cParams.searchLog;
     U32 const chainLimit = nbAttempts > 255 ? 255 : nbAttempts;
-    U32* const chains = (U32*)malloc(chainSize * sizeof(U32));
-    assert(chains != NULL);
-    assert(idx != 0);
+
+    /* We know the hashtable is oversized by a factor of `bucketSize`.
+     * We are going to temporarily pretend `bucketSize == 1`, keeping only a
+     * single entry. We will use
+     * the rest of the space to construct a temporary chaintable.
+     */
+    U32 const hashLog = ms->cParams.hashLog - ZSTD_LAZY_DDSS_BUCKET_LOG;
+    U32* const tmpHashTable = hashTable;
+    U32* const tmpChainTable = hashTable + (1 << hashLog);
+
+    U32 hashIdx;
+
     assert(ms->cParams.chainLog <= 24);
+    assert(ms->cParams.hashLog >= ms->cParams.chainLog + 2);
+    assert(idx != 0);
+
+    /* fill tmp hash and tmp chain */
     for ( ; idx < target; idx++) {
-        U32 i;
-        size_t const h = ZSTD_hashPtr(
-            ms->window.base + idx,
-            ms->cParams.hashLog - ZSTD_LAZY_DDSS_BUCKET_LOG,
-            ms->cParams.minMatch) << ZSTD_LAZY_DDSS_BUCKET_LOG;
-        /* Shift hash cache down 1. */
-        for (i = bucketSize - 1; i; i--)
-            hashTable[h + i] = hashTable[h + i - 1];
-        /* Insert new position. */
+        U32 const h = ZSTD_hashPtr(
+            ms->window.base + idx, hashLog, ms->cParams.minMatch);
         if (idx >= minChain) {
-            chains[idx & chainMask] = hashTable[h];
+            tmpChainTable[idx & chainMask] = hashTable[h];
         }
-        hashTable[h] = idx;
+        tmpHashTable[h] = idx;
     }
 
+    /* sort chains into ddss chain table */
     {
         U32 chainPos = 0;
-        size_t hashIdx;
-        for (hashIdx = 0; hashIdx < (1U << ms->cParams.hashLog); hashIdx += (1 << ZSTD_LAZY_DDSS_BUCKET_LOG)) {
+        for (hashIdx = 0; hashIdx < (1U << hashLog); hashIdx++) {
             U32 count = 0;
-            U32 i = hashTable[hashIdx + bucketSize - 1];
-            while (i) {
+            U32 i = tmpHashTable[hashIdx];
+            while (i >= minChain && count < chainLimit) {
                 chainTable[chainPos++] = i;
                 count++;
-                if (i < minChain || count >= chainLimit) {
-                    break;
-                }
-                i = chains[i & chainMask];
+                i = tmpChainTable[i & chainMask];
             }
-            hashTable[hashIdx + bucketSize - 1] = ((chainPos - count) << 8) + count;
+            tmpHashTable[hashIdx] = ((chainPos - count) << 8) + count;
         }
     }
 
+    /* inflate hash table */
+    for (hashIdx = (1 << hashLog); hashIdx; ) {
+        U32 const bucketIdx = --hashIdx << ZSTD_LAZY_DDSS_BUCKET_LOG;
+        U32 const chainPackedPointer = tmpHashTable[hashIdx];
+        U32 const chainIdx = chainPackedPointer >> 8;
+        U32 const chainLength = chainPackedPointer & 0xFF;
+        U32 const cacheLength = chainLength < bucketSize - 1 ? chainLength : bucketSize - 1;
+        U32 i;
+        for (i = 0; i < cacheLength; i++) {
+            hashTable[bucketIdx + i] = chainTable[chainIdx + i];
+        }
+        for (; i < bucketSize - 1; i++) {
+            hashTable[bucketIdx + i] = 0;
+        }
+        if (chainLength < bucketSize) {
+            hashTable[bucketIdx + bucketSize - 1] = 0;
+        } else {
+            U32 const newChainPointer = ((chainIdx + bucketSize - 1) << 8) + (chainLength - bucketSize + 1);
+            hashTable[bucketIdx + bucketSize - 1] = newChainPointer;
+        }
+    }
+
+    /* densify chain table */
+    /* TODO */
+
     ms->nextToUpdate = target;
-    free(chains);
 }
 
 

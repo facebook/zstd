@@ -478,7 +478,8 @@ U32 ZSTD_insertAndFindFirstIndex(ZSTD_matchState_t* ms, const BYTE* ip) {
 
 void ZSTD_dedicatedDictSearch_lazy_loadDictionary(ZSTD_matchState_t* ms, const BYTE* const ip)
 {
-    U32 const target = (U32)(ip - ms->window.base);
+    const BYTE* const base = ms->window.base;
+    U32 const target = (U32)(ip - base);
     U32* const hashTable = ms->hashTable;
     U32* const chainTable = ms->chainTable;
     U32 const chainSize = 1 << ms->cParams.chainLog;
@@ -486,8 +487,9 @@ void ZSTD_dedicatedDictSearch_lazy_loadDictionary(ZSTD_matchState_t* ms, const B
     U32 idx = ms->nextToUpdate;
     U32 const minChain = chainSize < target ? target - chainSize : idx;
     U32 const bucketSize = 1 << ZSTD_LAZY_DDSS_BUCKET_LOG;
-    U32 const nbAttempts = 1 << ms->cParams.searchLog;
-    U32 const chainLimit = nbAttempts > 255 ? 255 : nbAttempts;
+    U32 const cacheSize = bucketSize - 1;
+    U32 const chainAttempts = (1 << ms->cParams.searchLog) - cacheSize;
+    U32 const chainLimit = chainAttempts > 255 ? 255 : chainAttempts;
 
     /* We know the hashtable is oversized by a factor of `bucketSize`.
      * We are going to temporarily pretend `bucketSize == 1`, keeping only a
@@ -501,13 +503,12 @@ void ZSTD_dedicatedDictSearch_lazy_loadDictionary(ZSTD_matchState_t* ms, const B
     U32 hashIdx;
 
     assert(ms->cParams.chainLog <= 24);
-    assert(ms->cParams.hashLog >= ms->cParams.chainLog + 2);
+    assert(ms->cParams.hashLog >= ms->cParams.chainLog);
     assert(idx != 0);
 
-    /* fill tmp hash and tmp chain */
+    /* fill conventional hash table and conventional chain table */
     for ( ; idx < target; idx++) {
-        U32 const h = ZSTD_hashPtr(
-            ms->window.base + idx, hashLog, ms->cParams.minMatch);
+        U32 const h = ZSTD_hashPtr(base + idx, hashLog, ms->cParams.minMatch);
         if (idx >= minChain) {
             tmpChainTable[idx & chainMask] = hashTable[h];
         }
@@ -518,41 +519,55 @@ void ZSTD_dedicatedDictSearch_lazy_loadDictionary(ZSTD_matchState_t* ms, const B
     {
         U32 chainPos = 0;
         for (hashIdx = 0; hashIdx < (1U << hashLog); hashIdx++) {
-            U32 count = 0;
+            U32 count;
             U32 i = tmpHashTable[hashIdx];
-            while (i >= minChain && count < chainLimit) {
-                chainTable[chainPos++] = i;
-                count++;
+            for (count = 0; i >= minChain && count < cacheSize; count++) {
+                /* skip through the chain to the first position that won't be
+                 * in the hash bucket */
                 i = tmpChainTable[i & chainMask];
             }
-            tmpHashTable[hashIdx] = ((chainPos - count) << 8) + count;
+            if (count == cacheSize) {
+                for (count = 0; count < chainLimit;) {
+                    chainTable[chainPos++] = i;
+                    count++;
+                    if (i < minChain) {
+                        break;
+                    }
+                    i = tmpChainTable[i & chainMask];
+                }
+            } else {
+                count = 0;
+            }
+            if (count) {
+                tmpHashTable[hashIdx] = ((chainPos - count) << 8) + count;
+            } else {
+                tmpHashTable[hashIdx] = 0;
+            }
         }
+        assert(chainPos <= chainSize); /* I believe this is guaranteed... */
     }
 
-    /* inflate hash table */
+    /* move chain pointers into the last entry of each hash bucket */
     for (hashIdx = (1 << hashLog); hashIdx; ) {
         U32 const bucketIdx = --hashIdx << ZSTD_LAZY_DDSS_BUCKET_LOG;
         U32 const chainPackedPointer = tmpHashTable[hashIdx];
-        U32 const chainIdx = chainPackedPointer >> 8;
-        U32 const chainLength = chainPackedPointer & 0xFF;
-        U32 const cacheLength = chainLength < bucketSize - 1 ? chainLength : bucketSize - 1;
         U32 i;
-        for (i = 0; i < cacheLength; i++) {
-            hashTable[bucketIdx + i] = chainTable[chainIdx + i];
-        }
-        for (; i < bucketSize - 1; i++) {
+        for (i = 0; i < cacheSize; i++) {
             hashTable[bucketIdx + i] = 0;
         }
-        if (chainLength < bucketSize) {
-            hashTable[bucketIdx + bucketSize - 1] = 0;
-        } else {
-            U32 const newChainPointer = ((chainIdx + bucketSize - 1) << 8) + (chainLength - bucketSize + 1);
-            hashTable[bucketIdx + bucketSize - 1] = newChainPointer;
-        }
+        hashTable[bucketIdx + bucketSize - 1] = chainPackedPointer;
     }
 
-    /* densify chain table */
-    /* TODO */
+    /* fill the buckets of the hash table */
+    for (idx = ms->nextToUpdate; idx < target; idx++) {
+        U32 const h = ZSTD_hashPtr(base + idx, hashLog, ms->cParams.minMatch)
+                   << ZSTD_LAZY_DDSS_BUCKET_LOG;
+        U32 i;
+        /* Shift hash cache down 1. */
+        for (i = cacheSize - 1; i; i--)
+            hashTable[h + i] = hashTable[h + i - 1];
+        hashTable[h] = idx;
+    }
 
     ms->nextToUpdate = target;
 }

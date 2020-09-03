@@ -3079,7 +3079,7 @@ ZSTD_compress_insertDictionary(ZSTD_compressedBlockState_t* bs,
 }
 
 #define ZSTD_USE_CDICT_PARAMS_SRCSIZE_CUTOFF (128 KB)
-#define ZSTD_USE_CDICT_PARAMS_DICTSIZE_MULTIPLIER (6)
+#define ZSTD_USE_CDICT_PARAMS_DICTSIZE_MULTIPLIER (6ULL)
 
 /*! ZSTD_compressBegin_internal() :
  * @return : 0, or an error code */

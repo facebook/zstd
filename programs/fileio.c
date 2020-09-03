@@ -1753,7 +1753,8 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
                                   const char* dictFileName, int compressionLevel,
                                   ZSTD_compressionParameters comprParams)
 {
-    int error = 0, status;
+    int status;
+    int error = 0;
     cRess_t ress = FIO_createCResources(prefs, dictFileName,
         FIO_getLargestFileSize(inFileNamesTable, fCtx->nbFilesTotal),
         compressionLevel, comprParams);
@@ -2669,7 +2670,8 @@ FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
                                 const char* outDirName, const char* outFileName,
                                 const char* dictFileName)
 {
-    int error = 0, status;
+    int status;
+    int error = 0;
     dRess_t ress = FIO_createDResources(prefs, dictFileName);
 
     if (outFileName) {

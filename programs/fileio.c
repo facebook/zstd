@@ -1751,7 +1751,7 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
                                   const char* dictFileName, int compressionLevel,
                                   ZSTD_compressionParameters comprParams)
 {
-    int error = 0, status = 0;
+    int error = 0, status;
     cRess_t ress = FIO_createCResources(prefs, dictFileName,
         FIO_getLargestFileSize(inFileNamesTable, fCtx->nbFilesTotal),
         compressionLevel, comprParams);
@@ -1765,7 +1765,7 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
         } else {
             for (; fCtx->currFileIdx < fCtx->nbFilesTotal; ++fCtx->currFileIdx) {
                 status = FIO_compressFilename_srcFile(prefs, fCtx, ress, outFileName, inFileNamesTable[fCtx->currFileIdx], compressionLevel);
-                fCtx->nbFilesProcessed = status ? fCtx->nbFilesProcessed : fCtx->nbFilesProcessed + 1;
+                if (!status) fCtx->nbFilesProcessed++;
                 error |= status;
             }
             if (fclose(ress.dstFile))
@@ -1794,7 +1794,7 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
                 dstFileName = FIO_determineCompressedName(srcFileName, outDirName, suffix);  /* cannot fail */
             }
             status = FIO_compressFilename_srcFile(prefs, fCtx, ress, dstFileName, srcFileName, compressionLevel);
-            fCtx->nbFilesProcessed = status ? fCtx->nbFilesProcessed : fCtx->nbFilesProcessed + 1;
+            if (!status) fCtx->nbFilesProcessed++;
             error |= status;
         }
 
@@ -1802,16 +1802,10 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
             FIO_checkFilenameCollisions(inFileNamesTable , fCtx->nbFilesTotal);
     }
 
-    if (fCtx->nbFilesProcessed > 1) {
-        if (fCtx->totalBytesInput != 0) {
-            DISPLAYLEVEL(2, "%d files compressed : %.2f%%  (%6zu => %6zu bytes)\n", fCtx->nbFilesProcessed,
+    if (fCtx->nbFilesProcessed >= 1 && fCtx->nbFilesTotal > 1 && fCtx->totalBytesInput != 0)
+        DISPLAYLEVEL(2, "%d files compressed : %.2f%%  (%6zu => %6zu bytes)\n", fCtx->nbFilesProcessed,
                         (double)fCtx->totalBytesOutput/((double)fCtx->totalBytesInput)*100,
                         fCtx->totalBytesInput, fCtx->totalBytesOutput);
-        } else {
-            DISPLAYLEVEL(2, "%d files compressed : (%6zu => %6zu bytes)\n", fCtx->nbFilesProcessed,
-                        fCtx->totalBytesInput, fCtx->totalBytesOutput);
-        }
-    }
 
     FIO_freeCResources(ress);
     return error;
@@ -2673,7 +2667,7 @@ FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
                                 const char* outDirName, const char* outFileName,
                                 const char* dictFileName)
 {
-    int error = 0, status = 0;
+    int error = 0, status;
     dRess_t ress = FIO_createDResources(prefs, dictFileName);
 
     if (outFileName) {
@@ -2683,7 +2677,7 @@ FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
         }
         for (; fCtx->currFileIdx < fCtx->nbFilesTotal; fCtx->currFileIdx++) {
             status = FIO_decompressSrcFile(prefs, fCtx, ress, outFileName, srcNamesTable[fCtx->currFileIdx]);
-            fCtx->nbFilesProcessed = status ? fCtx->nbFilesProcessed : fCtx->nbFilesProcessed + 1;
+            if (!status) fCtx->nbFilesProcessed++;
             error |= status;
         }
         if ((!prefs->testMode) && (fclose(ress.dstFile)))
@@ -2709,14 +2703,14 @@ FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
             }
             if (dstFileName == NULL) { error=1; continue; }
             status = FIO_decompressSrcFile(prefs, fCtx, ress, dstFileName, srcFileName);
-            fCtx->nbFilesProcessed = status ? fCtx->nbFilesProcessed : fCtx->nbFilesProcessed + 1;
+            if (!status) fCtx->nbFilesProcessed++;
             error |= status;
         }
         if (outDirName)
             FIO_checkFilenameCollisions(srcNamesTable , fCtx->nbFilesTotal);
     }
     
-    if (fCtx->nbFilesProcessed > 1)
+    if (fCtx->nbFilesProcessed >= 1  && fCtx->nbFilesTotal > 1 && fCtx->totalBytesInput != 0)
         DISPLAYLEVEL(2, "%d files decompressed : %6zu bytes total \n", fCtx->nbFilesProcessed, fCtx->totalBytesOutput);
 
     FIO_freeDResources(ress);

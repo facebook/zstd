@@ -850,10 +850,10 @@ static void FIO_adjustMemLimitForPatchFromMode(FIO_prefs_t* const prefs,
  *         If neither flag is specified, zstd will prompt the user for confirmation to proceed.
  * If --rm is not specified, then zstd will print a warning to the user (which can be silenced with -q).
  */
-static int FIO_removeMultiFilesWarning(const FIO_prefs_t* const prefs, int displayLevelCutoff, const char* outFileName)
+static int FIO_removeMultiFilesWarning(const FIO_prefs_t* const prefs, FIO_ctx_t* const fCtx, int displayLevelCutoff, const char* outFileName)
 {
     int error = 0;
-    if (prefs->nbFiles > 1 && !prefs->overwrite) {
+    if (fCtx->nbFilesTotal > 1 && !prefs->overwrite) {
         if (g_display_prefs.displayLevel <= displayLevelCutoff) {
             if (prefs->removeSrcFile) {
                 DISPLAYLEVEL(1, "zstd: Aborting... not deleting files and processing into dst: %s", outFileName);
@@ -1791,7 +1791,7 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
     /* init */
     assert(outFileName != NULL || suffix != NULL);
     if (outFileName != NULL) {   /* output into a single destination (stdout typically) */
-        if (FIO_removeMultiFilesWarning(prefs, 1 /* displayLevelCutoff */, outFileName)) {
+        if (FIO_removeMultiFilesWarning(prefs, fCtx, 1 /* displayLevelCutoff */, outFileName)) {
             FIO_freeCResources(ress);
             return 1;
         }
@@ -2708,7 +2708,7 @@ FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
     dRess_t ress = FIO_createDResources(prefs, dictFileName);
 
     if (outFileName) {
-        if (FIO_removeMultiFilesWarning(prefs, 1 /* displayLevelCutoff */, outFileName)) {
+        if (FIO_removeMultiFilesWarning(prefs, fCtx, 1 /* displayLevelCutoff */, outFileName)) {
             FIO_freeDResources(ress);
             return 1;
         }

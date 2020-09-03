@@ -11,6 +11,8 @@
 #include "zstd_compress_internal.h"
 #include "zstd_lazy.h"
 
+#include <stdlib.h>
+
 
 /*-*************************************
 *  Binary Tree search
@@ -479,12 +481,17 @@ U32 ZSTD_insertAndFindFirstIndex(ZSTD_matchState_t* ms, const BYTE* ip) {
 void ZSTD_dedicatedDictSearch_lazy_loadDictionary(ZSTD_matchState_t* ms, const BYTE* const ip)
 {
     U32 const target = (U32)(ip - ms->window.base);
+    U32* const hashTable = ms->hashTable;
     U32* const chainTable = ms->chainTable;
     U32 const chainSize = 1 << ms->cParams.chainLog;
     U32 const chainMask = chainSize - 1;
     U32 idx = ms->nextToUpdate;
-    U32 const minChain = chainSize > target ? 0 : target - chainSize;
+    U32 const minChain = chainSize < target ? target - chainSize : idx;
     U32 bucketSize = 1 << ZSTD_LAZY_DDSS_BUCKET_LOG;
+    U32* const chains = (U32*)malloc(chainSize * sizeof(U32));
+    assert(chains != NULL);
+    assert(idx != 0);
+    assert(ms->cParams.chainLog <= 24);
     for ( ; idx < target; idx++) {
         U32 i;
         size_t const h = ZSTD_hashPtr(
@@ -493,15 +500,34 @@ void ZSTD_dedicatedDictSearch_lazy_loadDictionary(ZSTD_matchState_t* ms, const B
             ms->cParams.minMatch) << ZSTD_LAZY_DDSS_BUCKET_LOG;
         /* Shift hash cache down 1. */
         for (i = bucketSize - 1; i; i--)
-            ms->hashTable[h + i] = ms->hashTable[h + i - 1];
+            hashTable[h + i] = hashTable[h + i - 1];
         /* Insert new position. */
         if (idx >= minChain) {
-            chainTable[idx & chainMask] = ms->hashTable[h];
+            chains[idx & chainMask] = hashTable[h];
         }
-        ms->hashTable[h] = idx;
+        hashTable[h] = idx;
+    }
+
+    {
+        U32 chainPos = 0;
+        size_t hashIdx;
+        for (hashIdx = 0; hashIdx < (1U << ms->cParams.hashLog); hashIdx += (1 << ZSTD_LAZY_DDSS_BUCKET_LOG)) {
+            U32 count = 0;
+            U32 i = hashTable[hashIdx + bucketSize - 1];
+            while (i) {
+                chainTable[chainPos++] = i;
+                count++;
+                if (i < minChain || count >= 255) {
+                    break;
+                }
+                i = chains[i & chainMask];
+            }
+            hashTable[hashIdx + bucketSize - 1] = ((chainPos - count) << 8) + count;
+        }
     }
 
     ms->nextToUpdate = target;
+    free(chains);
 }
 
 
@@ -574,20 +600,24 @@ size_t ZSTD_HcFindBestMatch_generic (
     }
 
     if (dictMode == ZSTD_dedicatedDictSearch) {
-        const U32 ddsChainSize    = (1 << dms->cParams.chainLog);
-        const U32 ddsChainMask    = ddsChainSize - 1;
         const U32 ddsLowestIndex  = dms->window.dictLimit;
         const BYTE* const ddsBase = dms->window.base;
         const BYTE* const ddsEnd  = dms->window.nextSrc;
         const U32 ddsSize         = (U32)(ddsEnd - ddsBase);
         const U32 ddsIndexDelta   = dictLimit - ddsSize;
-        const U32 ddsMinChain     = ddsSize > ddsChainSize ? ddsSize - ddsChainSize : 0;
         const U32 bucketSize      = (1 << ZSTD_LAZY_DDSS_BUCKET_LOG);
-        const U32 bucketLimit     = nbAttempts < bucketSize ? nbAttempts : bucketSize;
+        const U32 bucketLimit     = nbAttempts < bucketSize - 1 ? nbAttempts : bucketSize - 1;
         U32 ddsAttempt;
 
-        for (ddsAttempt = 0; ddsAttempt < bucketSize; ddsAttempt++) {
+        for (ddsAttempt = 0; ddsAttempt < bucketSize - 1; ddsAttempt++) {
             PREFETCH_L1(ddsBase + dms->hashTable[ddsIdx + ddsAttempt]);
+        }
+
+        {
+            U32 const chainPackedPointer = dms->hashTable[ddsIdx + bucketSize - 1];
+            U32 const chainIndex = chainPackedPointer >> 8;
+
+            PREFETCH_L1(&dms->chainTable[chainIndex]);
         }
 
         for (ddsAttempt = 0; ddsAttempt < bucketLimit; ddsAttempt++) {
@@ -617,27 +647,36 @@ size_t ZSTD_HcFindBestMatch_generic (
             }
         }
 
-        for ( ; (ddsAttempt < nbAttempts) & (matchIndex >= ddsMinChain); ddsAttempt++) {
-            size_t currentMl=0;
-            const BYTE* match;
-            matchIndex = dms->chainTable[matchIndex & ddsChainMask];
-            match = ddsBase + matchIndex;
+        {
+            U32 const chainPackedPointer = dms->hashTable[ddsIdx + bucketSize - 1];
+            U32 chainIndex = chainPackedPointer >> 8;
+            U32 const chainLength = chainPackedPointer & 0xFF;
+            U32 const chainAttempts = nbAttempts - ddsAttempt;
+            U32 const chainLimit = chainAttempts > chainLength ? chainLength : chainAttempts;
+            U32 chainAttempt = 0;
 
-            if (matchIndex < ddsLowestIndex) {
-                break;
-            }
+            for ( ; chainAttempt < chainLimit; chainAttempt++, chainIndex++) {
+                size_t currentMl=0;
+                const BYTE* match;
+                matchIndex = dms->chainTable[chainIndex];
+                match = ddsBase + matchIndex;
 
-            assert(match+4 <= ddsEnd);
-            if (MEM_read32(match) == MEM_read32(ip)) {
-                /* assumption : matchIndex <= dictLimit-4 (by table construction) */
-                currentMl = ZSTD_count_2segments(ip+4, match+4, iLimit, ddsEnd, prefixStart) + 4;
-            }
+                if (matchIndex < ddsLowestIndex) {
+                    break;
+                }
 
-            /* save best solution */
-            if (currentMl > ml) {
-                ml = currentMl;
-                *offsetPtr = curr - (matchIndex + ddsIndexDelta) + ZSTD_REP_MOVE;
-                if (ip+currentMl == iLimit) break; /* best possible, avoids read overflow on next attempt */
+                assert(match+4 <= ddsEnd);
+                if (MEM_read32(match) == MEM_read32(ip)) {
+                    /* assumption : matchIndex <= dictLimit-4 (by table construction) */
+                    currentMl = ZSTD_count_2segments(ip+4, match+4, iLimit, ddsEnd, prefixStart) + 4;
+                }
+
+                /* save best solution */
+                if (currentMl > ml) {
+                    ml = currentMl;
+                    *offsetPtr = curr - (matchIndex + ddsIndexDelta) + ZSTD_REP_MOVE;
+                    if (ip+currentMl == iLimit) break; /* best possible, avoids read overflow on next attempt */
+                }
             }
         }
     } else if (dictMode == ZSTD_dictMatchState) {

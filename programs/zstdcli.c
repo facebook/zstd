@@ -1341,6 +1341,7 @@ int main(int const argCount, const char* argv[])
 
 _end:
     FIO_freePreferences(prefs);
+    FIO_freeContext(fCtx);
     if (main_pause) waitEnter();
     UTIL_freeFileNamesTable(filenames);
     UTIL_freeFileNamesTable(file_of_names);

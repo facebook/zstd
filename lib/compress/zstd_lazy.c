@@ -653,9 +653,13 @@ size_t ZSTD_HcFindBestMatch_generic (
             U32 const chainLength = chainPackedPointer & 0xFF;
             U32 const chainAttempts = nbAttempts - ddsAttempt;
             U32 const chainLimit = chainAttempts > chainLength ? chainLength : chainAttempts;
-            U32 chainAttempt = 0;
+            U32 chainAttempt;
 
-            for ( ; chainAttempt < chainLimit; chainAttempt++, chainIndex++) {
+            for (chainAttempt = 0 ; chainAttempt < chainLimit; chainAttempt++) {
+                PREFETCH_L1(ddsBase + dms->chainTable[chainIndex + chainAttempt]);
+            }
+
+            for (chainAttempt = 0 ; chainAttempt < chainLimit; chainAttempt++, chainIndex++) {
                 size_t currentMl=0;
                 const BYTE* match;
                 matchIndex = dms->chainTable[chainIndex];

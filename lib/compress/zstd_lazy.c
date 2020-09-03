@@ -487,7 +487,9 @@ void ZSTD_dedicatedDictSearch_lazy_loadDictionary(ZSTD_matchState_t* ms, const B
     U32 const chainMask = chainSize - 1;
     U32 idx = ms->nextToUpdate;
     U32 const minChain = chainSize < target ? target - chainSize : idx;
-    U32 bucketSize = 1 << ZSTD_LAZY_DDSS_BUCKET_LOG;
+    U32 const bucketSize = 1 << ZSTD_LAZY_DDSS_BUCKET_LOG;
+    U32 const nbAttempts = (1 << ms->cParams.searchLog) - bucketSize + 1;
+    U32 const chainLimit = nbAttempts > 255 ? 255 : nbAttempts;
     U32* const chains = (U32*)malloc(chainSize * sizeof(U32));
     assert(chains != NULL);
     assert(idx != 0);
@@ -517,7 +519,7 @@ void ZSTD_dedicatedDictSearch_lazy_loadDictionary(ZSTD_matchState_t* ms, const B
             while (i) {
                 chainTable[chainPos++] = i;
                 count++;
-                if (i < minChain || count >= 255) {
+                if (i < minChain || count >= chainLimit) {
                     break;
                 }
                 i = chains[i & chainMask];

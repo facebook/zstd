@@ -535,8 +535,7 @@ void ZSTD_dedicatedDictSearch_lazy_loadDictionary(ZSTD_matchState_t* ms, const B
             if (count == cacheSize) {
                 for (count = 0; count < chainLimit;) {
                     if (i < minChain) {
-                        countBeyondMinChain++;
-                        if (countBeyondMinChain > cacheSize) {
+                        if (!i || countBeyondMinChain++ > cacheSize) {
                             /* only allow pulling `cacheSize` number of entries
                              * into the cache or chainTable beyond `minChain`,
                              * to replace the entries pulled out of the
@@ -688,10 +687,13 @@ size_t ZSTD_HcFindBestMatch_generic (
             matchIndex = dms->hashTable[ddsIdx + ddsAttempt];
             match = ddsBase + matchIndex;
 
-            if (matchIndex < ddsLowestIndex) {
+            if (!matchIndex) {
                 return ml;
             }
 
+            /* guaranteed by table construction */
+            (void)ddsLowestIndex;
+            assert(matchIndex >= ddsLowestIndex);
             assert(match+4 <= ddsEnd);
             if (MEM_read32(match) == MEM_read32(ip)) {
                 /* assumption : matchIndex <= dictLimit-4 (by table construction) */
@@ -727,10 +729,8 @@ size_t ZSTD_HcFindBestMatch_generic (
                 matchIndex = dms->chainTable[chainIndex];
                 match = ddsBase + matchIndex;
 
-                if (matchIndex < ddsLowestIndex) {
-                    break;
-                }
-
+                /* guaranteed by table construction */
+                assert(matchIndex >= ddsLowestIndex);
                 assert(match+4 <= ddsEnd);
                 if (MEM_read32(match) == MEM_read32(ip)) {
                     /* assumption : matchIndex <= dictLimit-4 (by table construction) */

@@ -539,26 +539,6 @@ void FIO_setNbFilesTotal(FIO_ctx_t* const fCtx, int value)
     fCtx->nbFilesTotal = value;
 }
 
-void FIO_setNbFilesProcessed(FIO_ctx_t* const fCtx, int value)
-{
-    fCtx->nbFilesProcessed = value;
-}
-
-void FIO_setCurrFileIdx(FIO_ctx_t* const fCtx, int value)
-{
-    fCtx->currFileIdx = value;
-}
-
-void FIO_setTotalBytesInput(FIO_ctx_t* const fCtx, size_t value)
-{
-    fCtx->totalBytesInput = value;
-}
-
-void FIO_setTotalBytesOutput(FIO_ctx_t* const fCtx, size_t value)
-{
-    fCtx->totalBytesOutput = value;
-}
-
 /*-*************************************
 *  Functions
 ***************************************/

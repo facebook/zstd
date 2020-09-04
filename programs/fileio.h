@@ -106,10 +106,6 @@ void FIO_setContentSize(FIO_prefs_t* const prefs, int value);
 
 /* FIO_ctx_t functions */
 void FIO_setNbFilesTotal(FIO_ctx_t* const fCtx, int value);
-void FIO_setNbFilesProcessed(FIO_ctx_t* const fCtx, int value);
-void FIO_setCurrFileIdx(FIO_ctx_t* const fCtx, int value);
-void FIO_setTotalBytesInput(FIO_ctx_t* const fCtx, size_t value);
-void FIO_setTotalBytesOutput(FIO_ctx_t* const fCtx, size_t value);
 
 /*-*************************************
 *  Single File functions

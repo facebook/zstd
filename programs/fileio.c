@@ -1508,7 +1508,8 @@ FIO_compressFilename_internal(FIO_prefs_t* const prefs,
     }
 
     /* Status */
-    
+    fCtx->totalBytesInput += (size_t)readsize;
+    fCtx->totalBytesOutput += (size_t)compressedfilesize;
     DISPLAYLEVEL(2, "\r%79s\r", "");
     if (g_display_prefs.displayLevel >= 2) {
         if (g_display_prefs.displayLevel >= 3 || fCtx->nbFilesTotal <= 1) {
@@ -1524,10 +1525,6 @@ FIO_compressFilename_internal(FIO_prefs_t* const prefs,
                     (unsigned long long)readsize, (unsigned long long) compressedfilesize,
                     dstFileName);
             }
-        }
-        if (fCtx->nbFilesTotal > 1) {
-            fCtx->totalBytesInput += (size_t)readsize;
-            fCtx->totalBytesOutput += (size_t)compressedfilesize;
         }
     }
 
@@ -2429,14 +2426,12 @@ static int FIO_decompressFrames(dRess_t ress, FILE* srcFile,
     }   }  /* for each frame */
 
     /* Final Status */
+    fCtx->totalBytesOutput += (size_t)filesize;
     DISPLAYLEVEL(2, "\r%79s\r", "");
     /* No status message in pipe mode (stdin - stdout) or multi-files mode */
     if (g_display_prefs.displayLevel >= 2) {
         if (fCtx->nbFilesTotal <= 1 || g_display_prefs.displayLevel >= 3) {
             DISPLAYLEVEL(2, "%-20s: %llu bytes \n", srcFileName, filesize);
-        }
-        if (fCtx->nbFilesTotal > 1) {
-            fCtx->totalBytesOutput += (size_t)filesize;
         }
     }
 

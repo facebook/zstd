@@ -483,7 +483,6 @@ void ZSTD_dedicatedDictSearch_lazy_loadDictionary(ZSTD_matchState_t* ms, const B
     U32* const hashTable = ms->hashTable;
     U32* const chainTable = ms->chainTable;
     U32 const chainSize = 1 << ms->cParams.chainLog;
-    U32 const chainMask = chainSize - 1;
     U32 idx = ms->nextToUpdate;
     U32 const minChain = chainSize < target ? target - chainSize : idx;
     U32 const bucketSize = 1 << ZSTD_LAZY_DDSS_BUCKET_LOG;
@@ -493,24 +492,27 @@ void ZSTD_dedicatedDictSearch_lazy_loadDictionary(ZSTD_matchState_t* ms, const B
 
     /* We know the hashtable is oversized by a factor of `bucketSize`.
      * We are going to temporarily pretend `bucketSize == 1`, keeping only a
-     * single entry. We will use
-     * the rest of the space to construct a temporary chaintable.
+     * single entry. We will use the rest of the space to construct a temporary
+     * chaintable.
      */
     U32 const hashLog = ms->cParams.hashLog - ZSTD_LAZY_DDSS_BUCKET_LOG;
     U32* const tmpHashTable = hashTable;
     U32* const tmpChainTable = hashTable + (1 << hashLog);
+    U32 const tmpChainSize = ((1 << ZSTD_LAZY_DDSS_BUCKET_LOG) - 1) << hashLog;
+    U32 const tmpMinChain = tmpChainSize < target ? target - tmpChainSize : idx;
 
     U32 hashIdx;
 
     assert(ms->cParams.chainLog <= 24);
     assert(ms->cParams.hashLog >= ms->cParams.chainLog);
     assert(idx != 0);
+    assert(tmpMinChain <= minChain);
 
     /* fill conventional hash table and conventional chain table */
     for ( ; idx < target; idx++) {
         U32 const h = ZSTD_hashPtr(base + idx, hashLog, ms->cParams.minMatch);
-        if (idx >= minChain) {
-            tmpChainTable[idx & chainMask] = hashTable[h];
+        if (idx >= tmpMinChain) {
+            tmpChainTable[idx - tmpMinChain] = hashTable[h];
         }
         tmpHashTable[h] = idx;
     }
@@ -520,20 +522,38 @@ void ZSTD_dedicatedDictSearch_lazy_loadDictionary(ZSTD_matchState_t* ms, const B
         U32 chainPos = 0;
         for (hashIdx = 0; hashIdx < (1U << hashLog); hashIdx++) {
             U32 count;
+            U32 countBeyondMinChain = 0;
             U32 i = tmpHashTable[hashIdx];
-            for (count = 0; i >= minChain && count < cacheSize; count++) {
+            for (count = 0; i >= tmpMinChain && count < cacheSize; count++) {
                 /* skip through the chain to the first position that won't be
-                 * in the hash bucket */
-                i = tmpChainTable[i & chainMask];
+                 * in the hash cache bucket */
+                if (i < minChain) {
+                    countBeyondMinChain++;
+                }
+                i = tmpChainTable[i - tmpMinChain];
             }
             if (count == cacheSize) {
                 for (count = 0; count < chainLimit;) {
+                    if (i < minChain) {
+                        countBeyondMinChain++;
+                        if (countBeyondMinChain > cacheSize) {
+                            /* only allow pulling `cacheSize` number of entries
+                             * into the cache or chainTable beyond `minChain`,
+                             * to replace the entries pulled out of the
+                             * chainTable into the cache. This lets us reach
+                             * back further without increasing the total number
+                             * of entries in the chainTable, guaranteeing the
+                             * DDSS chain table will fit into the space
+                             * allocated for the regular one. */
+                            break;
+                        }
+                    }
                     chainTable[chainPos++] = i;
                     count++;
-                    if (i < minChain) {
+                    if (i < tmpMinChain) {
                         break;
                     }
-                    i = tmpChainTable[i & chainMask];
+                    i = tmpChainTable[i - tmpMinChain];
                 }
             } else {
                 count = 0;

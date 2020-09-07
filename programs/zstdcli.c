@@ -588,7 +588,7 @@ static void printVersion(void)
 
 /* Environment variables for parameter setting */
 #define ENV_CLEVEL "ZSTD_CLEVEL"
-#define ENV_NUMTHREADS "ZSTD_NUMTHREADS"
+#define ENV_NUMTHREADS "ZSTD_NUMTHREADS"    /* takes lower precedence than directly specifying -T# in the CLI */
 
 /* pick up environment variable */
 static int init_cLevel(void) {

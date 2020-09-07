@@ -830,7 +830,7 @@ static void FIO_adjustMemLimitForPatchFromMode(FIO_prefs_t* const prefs,
  *         If neither flag is specified, zstd will prompt the user for confirmation to proceed.
  * If --rm is not specified, then zstd will print a warning to the user (which can be silenced with -q).
  */
-static int FIO_removeMultiFilesWarning(const FIO_prefs_t* const prefs, FIO_ctx_t* const fCtx, int displayLevelCutoff, const char* outFileName)
+static int FIO_removeMultiFilesWarning(FIO_ctx_t* const fCtx, const FIO_prefs_t* const prefs, const char* outFileName, int displayLevelCutoff)
 {
     int error = 0;
     if (fCtx->nbFilesTotal > 1 && !prefs->overwrite) {
@@ -1252,8 +1252,8 @@ FIO_compressLz4Frame(cRess_t* ress,
 
 
 static unsigned long long
-FIO_compressZstdFrame(FIO_prefs_t* const prefs,
-                      FIO_ctx_t* const fCtx,
+FIO_compressZstdFrame(FIO_ctx_t* const fCtx,
+                      FIO_prefs_t* const prefs,
                       const cRess_t* ressPtr,
                       const char* srcFileName, U64 fileSize,
                       int compressionLevel, U64* readsize)
@@ -1455,8 +1455,8 @@ FIO_compressZstdFrame(FIO_prefs_t* const prefs,
  *            1 : missing or pb opening srcFileName
  */
 static int
-FIO_compressFilename_internal(FIO_prefs_t* const prefs,
-                              FIO_ctx_t* const fCtx,
+FIO_compressFilename_internal(FIO_ctx_t* const fCtx,
+                              FIO_prefs_t* const prefs,
                               cRess_t ress,
                               const char* dstFileName, const char* srcFileName,
                               int compressionLevel)
@@ -1472,7 +1472,7 @@ FIO_compressFilename_internal(FIO_prefs_t* const prefs,
     switch (prefs->compressionType) {
         default:
         case FIO_zstdCompression:
-            compressedfilesize = FIO_compressZstdFrame(prefs, fCtx, &ress, srcFileName, fileSize, compressionLevel, &readsize);
+            compressedfilesize = FIO_compressZstdFrame(fCtx, prefs, &ress, srcFileName, fileSize, compressionLevel, &readsize);
             break;
 
         case FIO_gzipCompression:
@@ -1550,8 +1550,8 @@ FIO_compressFilename_internal(FIO_prefs_t* const prefs,
  *  @return : 0 : compression completed correctly,
  *            1 : pb
  */
-static int FIO_compressFilename_dstFile(FIO_prefs_t* const prefs,
-                                        FIO_ctx_t* const fCtx,
+static int FIO_compressFilename_dstFile(FIO_ctx_t* const fCtx,
+                                        FIO_prefs_t* const prefs,
                                         cRess_t ress,
                                         const char* dstFileName,
                                         const char* srcFileName,
@@ -1579,7 +1579,7 @@ static int FIO_compressFilename_dstFile(FIO_prefs_t* const prefs,
             transfer_permissions = 1;
     }
 
-    result = FIO_compressFilename_internal(prefs, fCtx, ress, dstFileName, srcFileName, compressionLevel);
+    result = FIO_compressFilename_internal(fCtx, prefs, ress, dstFileName, srcFileName, compressionLevel);
 
     if (closeDstFile) {
         FILE* const dstFile = ress.dstFile;
@@ -1628,8 +1628,8 @@ static const char *compressedFileExtensions[] = {
  *            1 : missing or pb opening srcFileName
  */
 static int
-FIO_compressFilename_srcFile(FIO_prefs_t* const prefs,
-                             FIO_ctx_t* const fCtx,
+FIO_compressFilename_srcFile(FIO_ctx_t* const fCtx,
+                             FIO_prefs_t* const prefs,
                              cRess_t ress,
                              const char* dstFileName,
                              const char* srcFileName,
@@ -1662,7 +1662,7 @@ FIO_compressFilename_srcFile(FIO_prefs_t* const prefs,
     ress.srcFile = FIO_openSrcFile(srcFileName);
     if (ress.srcFile == NULL) return 1;   /* srcFile could not be opened */
 
-    result = FIO_compressFilename_dstFile(prefs, fCtx, ress, dstFileName, srcFileName, compressionLevel);
+    result = FIO_compressFilename_dstFile(fCtx, prefs, ress, dstFileName, srcFileName, compressionLevel);
 
     fclose(ress.srcFile);
     ress.srcFile = NULL;
@@ -1680,12 +1680,12 @@ FIO_compressFilename_srcFile(FIO_prefs_t* const prefs,
     return result;
 }
 
-int FIO_compressFilename(FIO_prefs_t* const prefs, FIO_ctx_t* const fCtx, const char* dstFileName,
+int FIO_compressFilename(FIO_ctx_t* const fCtx, FIO_prefs_t* const prefs, const char* dstFileName,
                          const char* srcFileName, const char* dictFileName,
                          int compressionLevel, ZSTD_compressionParameters comprParams)
 {
     cRess_t const ress = FIO_createCResources(prefs, dictFileName, UTIL_getFileSize(srcFileName), compressionLevel, comprParams);
-    int const result = FIO_compressFilename_srcFile(prefs, fCtx, ress, dstFileName, srcFileName, compressionLevel);
+    int const result = FIO_compressFilename_srcFile(fCtx, prefs, ress, dstFileName, srcFileName, compressionLevel);
 
 #define DISPLAY_LEVEL_DEFAULT 2
 
@@ -1750,8 +1750,8 @@ static unsigned long long FIO_getLargestFileSize(const char** inFileNames, unsig
  * or into one file each (outFileName == NULL, but suffix != NULL),
  * or into a destination folder (specified with -O)
  */
-int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
-                                  FIO_ctx_t* const fCtx,
+int FIO_compressMultipleFilenames(FIO_ctx_t* const fCtx,
+                                  FIO_prefs_t* const prefs,
                                   const char** inFileNamesTable,
                                   const char* outMirroredRootDirName,
                                   const char* outDirName,
@@ -1768,7 +1768,7 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
     /* init */
     assert(outFileName != NULL || suffix != NULL);
     if (outFileName != NULL) {   /* output into a single destination (stdout typically) */
-        if (FIO_removeMultiFilesWarning(prefs, fCtx, 1 /* displayLevelCutoff */, outFileName)) {
+        if (FIO_removeMultiFilesWarning(fCtx, prefs, outFileName, 1 /* displayLevelCutoff */)) {
             FIO_freeCResources(ress);
             return 1;
         }
@@ -1777,7 +1777,7 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
             error = 1;
         } else {
             for (; fCtx->currFileIdx < fCtx->nbFilesTotal; ++fCtx->currFileIdx) {
-                status = FIO_compressFilename_srcFile(prefs, fCtx, ress, outFileName, inFileNamesTable[fCtx->currFileIdx], compressionLevel);
+                status = FIO_compressFilename_srcFile(fCtx, prefs, ress, outFileName, inFileNamesTable[fCtx->currFileIdx], compressionLevel);
                 if (!status) fCtx->nbFilesProcessed++;
                 error |= status;
             }
@@ -1806,7 +1806,7 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
             } else {
                 dstFileName = FIO_determineCompressedName(srcFileName, outDirName, suffix);  /* cannot fail */
             }
-            status = FIO_compressFilename_srcFile(prefs, fCtx, ress, dstFileName, srcFileName, compressionLevel);
+            status = FIO_compressFilename_srcFile(fCtx, prefs, ress, dstFileName, srcFileName, compressionLevel);
             if (!status) fCtx->nbFilesProcessed++;
             error |= status;
         }
@@ -2051,9 +2051,8 @@ FIO_zstdErrorHelp(const FIO_prefs_t* const prefs,
  */
 #define FIO_ERROR_FRAME_DECODING   ((unsigned long long)(-2))
 static unsigned long long
-FIO_decompressZstdFrame(dRess_t* ress, FILE* finput,
+FIO_decompressZstdFrame(FIO_ctx_t* const fCtx, dRess_t* ress, FILE* finput,
                         const FIO_prefs_t* const prefs,
-                        FIO_ctx_t* const fCtx,
                         const char* srcFileName,
                         U64 alreadyDecoded)  /* for multi-frames streams */
 {
@@ -2354,9 +2353,9 @@ FIO_decompressLz4Frame(dRess_t* ress, FILE* srcFile,
  * @return : 0 : OK
  *           1 : error
  */
-static int FIO_decompressFrames(dRess_t ress, FILE* srcFile,
+static int FIO_decompressFrames(FIO_ctx_t* const fCtx,
+                          dRess_t ress, FILE* srcFile,
                           const FIO_prefs_t* const prefs,
-                          FIO_ctx_t* const fCtx,
                           const char* dstFileName, const char* srcFileName)
 {
     unsigned readSomething = 0;
@@ -2384,7 +2383,7 @@ static int FIO_decompressFrames(dRess_t ress, FILE* srcFile,
             return 1;
         }
         if (ZSTD_isFrame(buf, ress.srcBufferLoaded)) {
-            unsigned long long const frameSize = FIO_decompressZstdFrame(&ress, srcFile, prefs, fCtx, srcFileName, filesize);
+            unsigned long long const frameSize = FIO_decompressZstdFrame(fCtx, &ress, srcFile, prefs, srcFileName, filesize);
             if (frameSize == FIO_ERROR_FRAME_DECODING) return 1;
             filesize += frameSize;
         } else if (buf[0] == 31 && buf[1] == 139) { /* gz magic number */
@@ -2445,8 +2444,8 @@ static int FIO_decompressFrames(dRess_t ress, FILE* srcFile,
     @return : 0 : OK
               1 : operation aborted
 */
-static int FIO_decompressDstFile(FIO_prefs_t* const prefs,
-                                 FIO_ctx_t* const fCtx,
+static int FIO_decompressDstFile(FIO_ctx_t* const fCtx,
+                                 FIO_prefs_t* const prefs,
                                  dRess_t ress, FILE* srcFile,
                                  const char* dstFileName, const char* srcFileName)
 {
@@ -2473,7 +2472,7 @@ static int FIO_decompressDstFile(FIO_prefs_t* const prefs,
             transfer_permissions = 1;
     }
 
-    result = FIO_decompressFrames(ress, srcFile, prefs, fCtx, dstFileName, srcFileName);
+    result = FIO_decompressFrames(fCtx, ress, srcFile, prefs, dstFileName, srcFileName);
 
     if (releaseDstFile) {
         FILE* const dstFile = ress.dstFile;
@@ -2502,7 +2501,7 @@ static int FIO_decompressDstFile(FIO_prefs_t* const prefs,
     @return : 0 : OK
               1 : error
 */
-static int FIO_decompressSrcFile(FIO_prefs_t* const prefs, FIO_ctx_t* const fCtx, dRess_t ress, const char* dstFileName, const char* srcFileName)
+static int FIO_decompressSrcFile(FIO_ctx_t* const fCtx, FIO_prefs_t* const prefs, dRess_t ress, const char* dstFileName, const char* srcFileName)
 {
     FILE* srcFile;
     int result;
@@ -2516,7 +2515,7 @@ static int FIO_decompressSrcFile(FIO_prefs_t* const prefs, FIO_ctx_t* const fCtx
     if (srcFile==NULL) return 1;
     ress.srcBufferLoaded = 0;
 
-    result = FIO_decompressDstFile(prefs, fCtx, ress, srcFile, dstFileName, srcFileName);
+    result = FIO_decompressDstFile(fCtx, prefs, ress, srcFile, dstFileName, srcFileName);
 
     /* Close file */
     if (fclose(srcFile)) {
@@ -2540,13 +2539,13 @@ static int FIO_decompressSrcFile(FIO_prefs_t* const prefs, FIO_ctx_t* const fCtx
 
 
 
-int FIO_decompressFilename(FIO_prefs_t* const prefs, FIO_ctx_t* const fCtx,
+int FIO_decompressFilename(FIO_ctx_t* const fCtx, FIO_prefs_t* const prefs,
                            const char* dstFileName, const char* srcFileName,
                            const char* dictFileName)
 {
     dRess_t const ress = FIO_createDResources(prefs, dictFileName);
 
-    int const decodingError = FIO_decompressSrcFile(prefs, fCtx, ress, dstFileName, srcFileName);
+    int const decodingError = FIO_decompressSrcFile(fCtx, prefs, ress, dstFileName, srcFileName);
 
     FIO_freeDResources(ress);
     return decodingError;
@@ -2671,8 +2670,8 @@ FIO_determineDstName(const char* srcFileName, const char* outDirName)
 }
 
 int
-FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
-                                FIO_ctx_t* const fCtx,
+FIO_decompressMultipleFilenames(FIO_ctx_t* const fCtx,
+                                FIO_prefs_t* const prefs,
                                 const char** srcNamesTable,
                                 const char* outMirroredRootDirName,
                                 const char* outDirName, const char* outFileName,
@@ -2683,7 +2682,7 @@ FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
     dRess_t ress = FIO_createDResources(prefs, dictFileName);
 
     if (outFileName) {
-        if (FIO_removeMultiFilesWarning(prefs, fCtx, 1 /* displayLevelCutoff */, outFileName)) {
+        if (FIO_removeMultiFilesWarning(fCtx, prefs, outFileName, 1 /* displayLevelCutoff */)) {
             FIO_freeDResources(ress);
             return 1;
         }
@@ -2692,7 +2691,7 @@ FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
             if (ress.dstFile == 0) EXM_THROW(19, "cannot open %s", outFileName);
         }
         for (; fCtx->currFileIdx < fCtx->nbFilesTotal; fCtx->currFileIdx++) {
-            status = FIO_decompressSrcFile(prefs, fCtx, ress, outFileName, srcNamesTable[fCtx->currFileIdx]);
+            status = FIO_decompressSrcFile(fCtx, prefs, ress, outFileName, srcNamesTable[fCtx->currFileIdx]);
             if (!status) fCtx->nbFilesProcessed++;
             error |= status;
         }
@@ -2718,7 +2717,7 @@ FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
                 dstFileName = FIO_determineDstName(srcFileName, outDirName);
             }
             if (dstFileName == NULL) { error=1; continue; }
-            status = FIO_decompressSrcFile(prefs, fCtx, ress, dstFileName, srcFileName);
+            status = FIO_decompressSrcFile(fCtx, prefs, ress, dstFileName, srcFileName);
             if (!status) fCtx->nbFilesProcessed++;
             error |= status;
         }

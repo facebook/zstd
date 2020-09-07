@@ -112,14 +112,14 @@ void FIO_setNbFilesTotal(FIO_ctx_t* const fCtx, int value);
 ***************************************/
 /** FIO_compressFilename() :
  * @return : 0 == ok;  1 == pb with src file. */
-int FIO_compressFilename (FIO_prefs_t* const prefs, FIO_ctx_t* const fCtx,
+int FIO_compressFilename (FIO_ctx_t* const fCtx, FIO_prefs_t* const prefs,
                           const char* outfilename, const char* infilename,
                           const char* dictFileName, int compressionLevel,
                           ZSTD_compressionParameters comprParams);
 
 /** FIO_decompressFilename() :
  * @return : 0 == ok;  1 == pb with src file. */
-int FIO_decompressFilename (FIO_prefs_t* const prefs, FIO_ctx_t* const fCtx,
+int FIO_decompressFilename (FIO_ctx_t* const fCtx, FIO_prefs_t* const prefs,
                             const char* outfilename, const char* infilename, const char* dictFileName);
 
 int FIO_listMultipleFiles(unsigned numFiles, const char** filenameTable, int displayLevel);
@@ -130,8 +130,8 @@ int FIO_listMultipleFiles(unsigned numFiles, const char** filenameTable, int dis
 ***************************************/
 /** FIO_compressMultipleFilenames() :
  * @return : nb of missing files */
-int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
-                                  FIO_ctx_t* const fCtx,
+int FIO_compressMultipleFilenames(FIO_ctx_t* const fCtx,
+                                  FIO_prefs_t* const prefs,
                                   const char** inFileNamesTable,
                                   const char* outMirroredDirName,
                                   const char* outDirName,
@@ -141,8 +141,8 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
 
 /** FIO_decompressMultipleFilenames() :
  * @return : nb of missing or skipped files */
-int FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
-                                    FIO_ctx_t* const fCtx,
+int FIO_decompressMultipleFilenames(FIO_ctx_t* const fCtx,
+                                    FIO_prefs_t* const prefs,
                                     const char** srcNamesTable,
                                     const char* outMirroredDirName,
                                     const char* outDirName,

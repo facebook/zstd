@@ -1320,9 +1320,9 @@ int main(int const argCount, const char* argv[])
         }
 
         if ((filenames->tableSize==1) && outFileName)
-            operationResult = FIO_compressFilename(prefs, fCtx, outFileName, filenames->fileNames[0], dictFileName, cLevel, compressionParams);
+            operationResult = FIO_compressFilename(fCtx, prefs, outFileName, filenames->fileNames[0], dictFileName, cLevel, compressionParams);
         else
-            operationResult = FIO_compressMultipleFilenames(prefs, fCtx, filenames->fileNames, outMirroredDirName, outDirName, outFileName, suffix, dictFileName, cLevel, compressionParams);
+            operationResult = FIO_compressMultipleFilenames(fCtx, prefs, filenames->fileNames, outMirroredDirName, outDirName, outFileName, suffix, dictFileName, cLevel, compressionParams);
 #else
         (void)contentSize; (void)suffix; (void)adapt; (void)rsyncable; (void)ultra; (void)cLevel; (void)ldmFlag; (void)literalCompressionMode; (void)targetCBlockSize; (void)streamSrcSize; (void)srcSizeHint; (void)ZSTD_strategyMap; /* not used when ZSTD_NOCOMPRESS set */
         DISPLAY("Compression not supported \n");
@@ -1330,9 +1330,9 @@ int main(int const argCount, const char* argv[])
     } else {  /* decompression or test */
 #ifndef ZSTD_NODECOMPRESS
         if (filenames->tableSize == 1 && outFileName) {
-            operationResult = FIO_decompressFilename(prefs, fCtx, outFileName, filenames->fileNames[0], dictFileName);
+            operationResult = FIO_decompressFilename(fCtx, prefs, outFileName, filenames->fileNames[0], dictFileName);
         } else {
-            operationResult = FIO_decompressMultipleFilenames(prefs, fCtx, filenames->fileNames, outMirroredDirName, outDirName, outFileName, dictFileName);
+            operationResult = FIO_decompressMultipleFilenames(fCtx, prefs, filenames->fileNames, outMirroredDirName, outDirName, outFileName, dictFileName);
         }
 #else
         DISPLAY("Decompression not supported \n");

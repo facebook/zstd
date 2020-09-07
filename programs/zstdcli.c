@@ -16,15 +16,13 @@
 #  define ZSTDCLI_CLEVEL_DEFAULT 3
 #endif
 
-#ifndef ZSTD_NUMTHREADS_DEFAULT
-#  define ZSTD_NUMTHREADS_DEFAULT 1
-#endif
-
 #ifndef ZSTDCLI_CLEVEL_MAX
 #  define ZSTDCLI_CLEVEL_MAX 19   /* without using --ultra */
 #endif
 
-
+#ifndef ZSTDCLI_NUMTHREADS_DEFAULT
+#  define ZSTDCLI_NUMTHREADS_DEFAULT 1
+#endif
 
 /*-************************************
 *  Dependencies
@@ -628,7 +626,7 @@ static unsigned init_numThreads(void) {
             unsigned numThreads;
             if (readU32FromCharChecked(&ptr, &numThreads)) {
                 DISPLAYLEVEL(2, "Ignore environment variable setting %s=%s: numeric value too large \n", ENV_NUMTHREADS, env);
-                return ZSTD_NUMTHREADS_DEFAULT;
+                return ZSTDCLI_NUMTHREADS_DEFAULT;
             } else if (*ptr == 0) {
                 return numThreads;
             }
@@ -636,7 +634,7 @@ static unsigned init_numThreads(void) {
         DISPLAYLEVEL(2, "Ignore environment variable setting %s=%s: not a valid unsigned value \n", ENV_NUMTHREADS, env);
     }
 
-    return ZSTD_NUMTHREADS_DEFAULT;
+    return ZSTDCLI_NUMTHREADS_DEFAULT;
 }
 
 #define NEXT_FIELD(ptr) {         \
@@ -679,7 +677,6 @@ typedef enum { zom_compress, zom_decompress, zom_test, zom_bench, zom_train, zom
 # define MINCLEVEL  ZSTD_minCLevel()
 # define MAXCLEVEL  ZSTD_maxCLevel()
 #endif
-
 
 int main(int const argCount, const char* argv[])
 {

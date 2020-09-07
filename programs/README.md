@@ -204,14 +204,19 @@ Benchmark arguments :
 ### Passing parameters through Environment Variables
 `ZSTD_CLEVEL` can be used to modify the default compression level of `zstd`
 (usually set to `3`) to another value between 1 and 19 (the "normal" range).
-This can be useful when `zstd` CLI is invoked in a way that doesn't allow passing arguments.
+`ZSTD_NUMTHREADS` can be used to specify number of threads that `zstd` will use during compression, which by default is `1`.
+This functionality only exists when `zstd` is compiled with multithread support.
+The max # of threads is capped at: `ZSTDMT_NBWORKERS_MAX==200`.
+
+This functionality can be useful when `zstd` CLI is invoked in a way that doesn't allow passing arguments.
 One such scenario is `tar --zstd`.
-As `ZSTD_CLEVEL` only replaces the default compression level,
-it can then be overridden by corresponding command line arguments.
+As `ZSTD_CLEVEL` and `ZSTD_NUMTHREADS` only replace the default compression level
+and number of threads, respectively, they can both be overridden by corresponding command line arguments:
+`-#` for compression level and `-T#` for number of threads.
 
 There is no "generic" way to pass "any kind of parameter" to `zstd` in a pass-through manner.
 Using environment variables for this purpose has security implications.
-Therefore, this avenue is intentionally restricted and only supports `ZSTD_CLEVEL`.
+Therefore, this avenue is intentionally restricted and only supports `ZSTD_CLEVEL` and `ZSTD_NUMTHREADS`.
 
 ### Long distance matching mode
 The long distance matching mode, enabled with `--long`, is designed to improve

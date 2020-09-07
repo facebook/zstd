@@ -270,11 +270,20 @@ the last one takes effect.
 
 Using environment variables to set parameters has security implications.
 Therefore, this avenue is intentionally restricted.
-Only `ZSTD_CLEVEL` is supported currently, for setting compression level.
+Only `ZSTD_CLEVEL` and `ZSTD_NUMTHREADS` are currently supported.
+They set the compression level and number of threads to use during compression, respectively.
+
 `ZSTD_CLEVEL` can be used to set the level between 1 and 19 (the "normal" range).
 If the value of `ZSTD_CLEVEL` is not a valid integer, it will be ignored with a warning message.
 `ZSTD_CLEVEL` just replaces the default compression level (`3`).
-It can be overridden by corresponding command line arguments.
+
+`ZSTD_NUMTHREADS` can be used to set the number of threads `zstd` will attempt to use during compression.
+If the value of `ZSTD_NUMTHREADS` is not a valid unsigned integer, it will be ignored with a warning message.
+'ZSTD_NUMTHREADS` has a default value of (`1`), and is capped at ZSTDMT_NBWORKERS_MAX==200. `zstd` must be
+compiled with multithread support for this to have any effect.
+
+They can both be overridden by corresponding command line arguments:
+`-#` for compression level and `-T#` for number of compression threads. 
 
 
 DICTIONARY BUILDER

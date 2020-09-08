@@ -497,7 +497,7 @@ void ZSTD_dedicatedDictSearch_lazy_loadDictionary(ZSTD_matchState_t* ms, const B
      */
     U32 const hashLog = ms->cParams.hashLog - ZSTD_LAZY_DDSS_BUCKET_LOG;
     U32* const tmpHashTable = hashTable;
-    U32* const tmpChainTable = hashTable + (1 << hashLog);
+    U32* const tmpChainTable = hashTable + ((size_t)1 << hashLog);
     U32 const tmpChainSize = ((1 << ZSTD_LAZY_DDSS_BUCKET_LOG) - 1) << hashLog;
     U32 const tmpMinChain = tmpChainSize < target ? target - tmpChainSize : idx;
 
@@ -510,7 +510,7 @@ void ZSTD_dedicatedDictSearch_lazy_loadDictionary(ZSTD_matchState_t* ms, const B
 
     /* fill conventional hash table and conventional chain table */
     for ( ; idx < target; idx++) {
-        U32 const h = ZSTD_hashPtr(base + idx, hashLog, ms->cParams.minMatch);
+        U32 const h = (U32)ZSTD_hashPtr(base + idx, hashLog, ms->cParams.minMatch);
         if (idx >= tmpMinChain) {
             tmpChainTable[idx - tmpMinChain] = hashTable[h];
         }
@@ -579,7 +579,7 @@ void ZSTD_dedicatedDictSearch_lazy_loadDictionary(ZSTD_matchState_t* ms, const B
 
     /* fill the buckets of the hash table */
     for (idx = ms->nextToUpdate; idx < target; idx++) {
-        U32 const h = ZSTD_hashPtr(base + idx, hashLog, ms->cParams.minMatch)
+        U32 const h = (U32)ZSTD_hashPtr(base + idx, hashLog, ms->cParams.minMatch)
                    << ZSTD_LAZY_DDSS_BUCKET_LOG;
         U32 i;
         /* Shift hash cache down 1. */

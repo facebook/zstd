@@ -618,6 +618,7 @@ static int init_cLevel(void) {
     return ZSTDCLI_CLEVEL_DEFAULT;
 }
 
+#ifdef ZSTD_MULTITHREAD
 static unsigned init_numThreads(void) {
     const char* const env = getenv(ENV_NUMTHREADS);
     if (env != NULL) {
@@ -636,6 +637,7 @@ static unsigned init_numThreads(void) {
 
     return ZSTDCLI_NUMTHREADS_DEFAULT;
 }
+#endif
 
 #define NEXT_FIELD(ptr) {         \
     if (*argument == '=') {       \

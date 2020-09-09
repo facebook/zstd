@@ -33,7 +33,7 @@ libzstd:
 		-DXXH_STATIC_LINKING_ONLY \
 		-DMEM_FORCE_MEMORY_ACCESS=0 \
 		-D__GNUC__ \
-		-USTATIC_BMI2 \
+		-DSTATIC_BMI2=0 \
 		-UZSTD_NO_INLINE \
 		-UNO_PREFETCH \
 		-U__cplusplus \

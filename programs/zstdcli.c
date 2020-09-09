@@ -20,8 +20,8 @@
 #  define ZSTDCLI_CLEVEL_MAX 19   /* without using --ultra */
 #endif
 
-#ifndef ZSTDCLI_NUMTHREADS_DEFAULT
-#  define ZSTDCLI_NUMTHREADS_DEFAULT 1
+#ifndef ZSTDCLI_NBTHREADS_DEFAULT
+#  define ZSTDCLI_NBTHREADS_DEFAULT 1
 #endif
 
 /*-************************************
@@ -588,7 +588,7 @@ static void printVersion(void)
 
 /* Environment variables for parameter setting */
 #define ENV_CLEVEL "ZSTD_CLEVEL"
-#define ENV_NUMTHREADS "ZSTD_NUMTHREADS"    /* takes lower precedence than directly specifying -T# in the CLI */
+#define ENV_NBTHREADS "ZSTD_NBTHREADS"    /* takes lower precedence than directly specifying -T# in the CLI */
 
 /* pick up environment variable */
 static int init_cLevel(void) {
@@ -619,23 +619,23 @@ static int init_cLevel(void) {
 }
 
 #ifdef ZSTD_MULTITHREAD
-static unsigned init_numThreads(void) {
-    const char* const env = getenv(ENV_NUMTHREADS);
+static unsigned init_nbThreads(void) {
+    const char* const env = getenv(ENV_NBTHREADS);
     if (env != NULL) {
         const char* ptr = env;
         if ((*ptr>='0') && (*ptr<='9')) {
-            unsigned numThreads;
-            if (readU32FromCharChecked(&ptr, &numThreads)) {
-                DISPLAYLEVEL(2, "Ignore environment variable setting %s=%s: numeric value too large \n", ENV_NUMTHREADS, env);
-                return ZSTDCLI_NUMTHREADS_DEFAULT;
+            unsigned nbThreads;
+            if (readU32FromCharChecked(&ptr, &nbThreads)) {
+                DISPLAYLEVEL(2, "Ignore environment variable setting %s=%s: numeric value too large \n", ENV_NBTHREADS, env);
+                return ZSTDCLI_NBTHREADS_DEFAULT;
             } else if (*ptr == 0) {
-                return numThreads;
+                return nbThreads;
             }
         }
-        DISPLAYLEVEL(2, "Ignore environment variable setting %s=%s: not a valid unsigned value \n", ENV_NUMTHREADS, env);
+        DISPLAYLEVEL(2, "Ignore environment variable setting %s=%s: not a valid unsigned value \n", ENV_NBTHREADS, env);
     }
 
-    return ZSTDCLI_NUMTHREADS_DEFAULT;
+    return ZSTDCLI_NBTHREADS_DEFAULT;
 }
 #endif
 
@@ -745,7 +745,7 @@ int main(int const argCount, const char* argv[])
     if ((filenames==NULL) || (file_of_names==NULL)) { DISPLAY("zstd: allocation error \n"); exit(1); }
     programName = lastNameFromPath(programName);
 #ifdef ZSTD_MULTITHREAD
-    nbWorkers = init_numThreads();
+    nbWorkers = init_nbThreads();
 #endif
 
     /* preset behaviors */

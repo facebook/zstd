@@ -815,7 +815,7 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
     BYTE* const oend = (BYTE*)frame->dataEnd;
     BYTE* op = (BYTE*)frame->data;
     BYTE* seqHead;
-    BYTE scratchBuffer[1<<MAX(MLFSELog,LLFSELog)];
+    BYTE scratchBuffer[FSE_BUILD_CTABLE_WORKSPACE_SIZE(MaxSeq, MaxFSELog)];
 
     /* literals compressing block removed so that can be done separately */
 
@@ -852,7 +852,7 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
             LLtype = set_rle;
         } else if (!(RAND(seed) & 3)) {
             /* maybe use the default distribution */
-            FSE_buildCTable_wksp(CTable_LitLength, LL_defaultNorm, MaxLL, LL_defaultNormLog, scratchBuffer, sizeof(scratchBuffer));
+            CHECKERR(FSE_buildCTable_wksp(CTable_LitLength, LL_defaultNorm, MaxLL, LL_defaultNormLog, scratchBuffer, sizeof(scratchBuffer)));
             LLtype = set_basic;
         } else {
             /* fall back on a full table */
@@ -863,7 +863,7 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
             { size_t const NCountSize = FSE_writeNCount(op, oend-op, norm, max, tableLog);   /* overflow protected */
               if (FSE_isError(NCountSize)) return ERROR(GENERIC);
               op += NCountSize; }
-            FSE_buildCTable_wksp(CTable_LitLength, norm, max, tableLog, scratchBuffer, sizeof(scratchBuffer));
+            CHECKERR(FSE_buildCTable_wksp(CTable_LitLength, norm, max, tableLog, scratchBuffer, sizeof(scratchBuffer)));
             LLtype = set_compressed;
     }   }
 

@@ -232,6 +232,9 @@ struct ZSTD_CCtx_params_s {
     ZSTD_customMem customMem;
 };  /* typedef'd to ZSTD_CCtx_params within "zstd.h" */
 
+#define COMPRESS_SEQUENCES_WORKSPACE_SIZE (sizeof(unsigned) * (MaxSeq + 2))
+#define ENTROPY_WORKSPACE_SIZE (HUF_WORKSPACE_SIZE + COMPRESS_SEQUENCES_WORKSPACE_SIZE)
+
 struct ZSTD_CCtx_s {
     ZSTD_compressionStage_e stage;
     int cParamsChanged;                  /* == 1 if cParams(except wlog) or compression level are changed in requestedParams. Triggers transmission of new params to ZSTDMT (if available) then reset to 0. */
@@ -258,7 +261,7 @@ struct ZSTD_CCtx_s {
     size_t maxNbLdmSequences;
     rawSeqStore_t externSeqStore; /* Mutable reference to external sequences */
     ZSTD_blockState_t blockState;
-    U32* entropyWorkspace;  /* entropy workspace of HUF_WORKSPACE_SIZE bytes */
+    U32* entropyWorkspace;  /* entropy workspace of ENTROPY_WORKSPACE_SIZE bytes */
 
     /* streaming */
     char*  inBuff;
@@ -762,8 +765,8 @@ MEM_STATIC ZSTD_dictMode_e ZSTD_matchState_dictMode(const ZSTD_matchState_t *ms)
 MEM_STATIC U32 ZSTD_window_needOverflowCorrection(ZSTD_window_t const window,
                                                   void const* srcEnd)
 {
-    U32 const current = (U32)((BYTE const*)srcEnd - window.base);
-    return current > ZSTD_CURRENT_MAX;
+    U32 const curr = (U32)((BYTE const*)srcEnd - window.base);
+    return curr > ZSTD_CURRENT_MAX;
 }
 
 /**
@@ -799,14 +802,14 @@ MEM_STATIC U32 ZSTD_window_correctOverflow(ZSTD_window_t* window, U32 cycleLog,
      *    windowLog <= 31 ==> 3<<29 + 1<<windowLog < 7<<29 < 1<<32.
      */
     U32 const cycleMask = (1U << cycleLog) - 1;
-    U32 const current = (U32)((BYTE const*)src - window->base);
-    U32 const currentCycle0 = current & cycleMask;
+    U32 const curr = (U32)((BYTE const*)src - window->base);
+    U32 const currentCycle0 = curr & cycleMask;
     /* Exclude zero so that newCurrent - maxDist >= 1. */
     U32 const currentCycle1 = currentCycle0 == 0 ? (1U << cycleLog) : currentCycle0;
     U32 const newCurrent = currentCycle1 + maxDist;
-    U32 const correction = current - newCurrent;
+    U32 const correction = curr - newCurrent;
     assert((maxDist & cycleMask) == 0);
-    assert(current > newCurrent);
+    assert(curr > newCurrent);
     /* Loose bound, should be around 1<<29 (see above) */
     assert(correction > 1<<28);
 
@@ -981,11 +984,11 @@ MEM_STATIC U32 ZSTD_window_update(ZSTD_window_t* window,
 /**
  * Returns the lowest allowed match index. It may either be in the ext-dict or the prefix.
  */
-MEM_STATIC U32 ZSTD_getLowestMatchIndex(const ZSTD_matchState_t* ms, U32 current, unsigned windowLog)
+MEM_STATIC U32 ZSTD_getLowestMatchIndex(const ZSTD_matchState_t* ms, U32 curr, unsigned windowLog)
 {
     U32    const maxDistance = 1U << windowLog;
     U32    const lowestValid = ms->window.lowLimit;
-    U32    const withinWindow = (current - lowestValid > maxDistance) ? current - maxDistance : lowestValid;
+    U32    const withinWindow = (curr - lowestValid > maxDistance) ? curr - maxDistance : lowestValid;
     U32    const isDictionary = (ms->loadedDictEnd != 0);
     U32    const matchLowest = isDictionary ? lowestValid : withinWindow;
     return matchLowest;
@@ -994,11 +997,11 @@ MEM_STATIC U32 ZSTD_getLowestMatchIndex(const ZSTD_matchState_t* ms, U32 current
 /**
  * Returns the lowest allowed match index in the prefix.
  */
-MEM_STATIC U32 ZSTD_getLowestPrefixIndex(const ZSTD_matchState_t* ms, U32 current, unsigned windowLog)
+MEM_STATIC U32 ZSTD_getLowestPrefixIndex(const ZSTD_matchState_t* ms, U32 curr, unsigned windowLog)
 {
     U32    const maxDistance = 1U << windowLog;
     U32    const lowestValid = ms->window.dictLimit;
-    U32    const withinWindow = (current - lowestValid > maxDistance) ? current - maxDistance : lowestValid;
+    U32    const withinWindow = (curr - lowestValid > maxDistance) ? curr - maxDistance : lowestValid;
     U32    const isDictionary = (ms->loadedDictEnd != 0);
     U32    const matchLowest = isDictionary ? lowestValid : withinWindow;
     return matchLowest;

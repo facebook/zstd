@@ -835,7 +835,7 @@ size_t ZSTD_compressSuperBlock(ZSTD_CCtx* zc,
           &zc->blockState.nextCBlock->entropy,
           &zc->appliedParams,
           &entropyMetadata,
-          zc->entropyWorkspace, HUF_WORKSPACE_SIZE /* statically allocated in resetCCtx */), "");
+          zc->entropyWorkspace, ENTROPY_WORKSPACE_SIZE /* statically allocated in resetCCtx */), "");
 
     return ZSTD_compressSubBlock_multi(&zc->seqStore,
             zc->blockState.prevCBlock,
@@ -845,5 +845,5 @@ size_t ZSTD_compressSuperBlock(ZSTD_CCtx* zc,
             dst, dstCapacity,
             src, srcSize,
             zc->bmi2, lastBlock,
-            zc->entropyWorkspace, HUF_WORKSPACE_SIZE /* statically allocated in resetCCtx */);
+            zc->entropyWorkspace, ENTROPY_WORKSPACE_SIZE /* statically allocated in resetCCtx */);
 }

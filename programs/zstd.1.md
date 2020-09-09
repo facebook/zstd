@@ -270,16 +270,16 @@ the last one takes effect.
 
 Using environment variables to set parameters has security implications.
 Therefore, this avenue is intentionally restricted.
-Only `ZSTD_CLEVEL` and `ZSTD_NUMTHREADS` are currently supported.
+Only `ZSTD_CLEVEL` and `ZSTD_NBTHREADS` are currently supported.
 They set the compression level and number of threads to use during compression, respectively.
 
 `ZSTD_CLEVEL` can be used to set the level between 1 and 19 (the "normal" range).
 If the value of `ZSTD_CLEVEL` is not a valid integer, it will be ignored with a warning message.
 `ZSTD_CLEVEL` just replaces the default compression level (`3`).
 
-`ZSTD_NUMTHREADS` can be used to set the number of threads `zstd` will attempt to use during compression.
-If the value of `ZSTD_NUMTHREADS` is not a valid unsigned integer, it will be ignored with a warning message.
-'ZSTD_NUMTHREADS` has a default value of (`1`), and is capped at ZSTDMT_NBWORKERS_MAX==200. `zstd` must be
+`ZSTD_NBTHREADS` can be used to set the number of threads `zstd` will attempt to use during compression.
+If the value of `ZSTD_NBTHREADS` is not a valid unsigned integer, it will be ignored with a warning message.
+'ZSTD_NBTHREADS` has a default value of (`1`), and is capped at ZSTDMT_NBWORKERS_MAX==200. `zstd` must be
 compiled with multithread support for this to have any effect.
 
 They can both be overridden by corresponding command line arguments:

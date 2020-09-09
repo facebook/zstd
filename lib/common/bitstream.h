@@ -337,7 +337,7 @@ MEM_STATIC FORCE_INLINE_ATTR size_t BIT_getMiddleBits(size_t bitContainer, U32 c
 
 MEM_STATIC FORCE_INLINE_ATTR size_t BIT_getLowerBits(size_t bitContainer, U32 const nbBits)
 {
-#if STATIC_BMI2 
+#if defined(STATIC_BMI2) && STATIC_BMI2 == 1
 	return  _bzhi_u64(bitContainer, nbBits);
 #else
     assert(nbBits < BIT_MASK_SIZE);

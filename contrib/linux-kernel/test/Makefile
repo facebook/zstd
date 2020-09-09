@@ -19,6 +19,7 @@ test: test.c liblinuxzstd.a
 	$(CC) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) $^ -o $@
 
 run-test: test
+	./macro-test.sh
 	./test
 
 .PHONY:

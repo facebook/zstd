@@ -1647,13 +1647,13 @@ static int ZSTD_shouldAttachDict(const ZSTD_CDict* cdict,
 {
     size_t cutoff = attachDictSizeCutoffs[cdict->matchState.cParams.strategy];
     int const dedicatedDictSearch = cdict->matchState.dedicatedDictSearch;
-    return ( dedicatedDictSearch
-          || pledgedSrcSize <= cutoff
-          || pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN
-          || params->attachDictPref == ZSTD_dictForceAttach )
-        && params->attachDictPref != ZSTD_dictForceCopy
-        && !params->forceWindow; /* dictMatchState isn't correctly
-                                 * handled in _enforceMaxDist */
+    return dedicatedDictSearch
+        || ( ( pledgedSrcSize <= cutoff
+            || pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN
+            || params->attachDictPref == ZSTD_dictForceAttach )
+          && params->attachDictPref != ZSTD_dictForceCopy
+          && !params->forceWindow ); /* dictMatchState isn't correctly
+                                      * handled in _enforceMaxDist */
 }
 
 static size_t

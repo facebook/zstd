@@ -2955,7 +2955,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
                     int const enableDDS = enableDedicatedDictSearch[i];
                     ZSTD_CDict* cdict;
 
-                    DISPLAYLEVEL(5, "\n  dictSize %lu cLevel %d iter %d ", dictSize, cLevel, i);
+                    DISPLAYLEVEL(5, "\n  dictSize %u cLevel %d iter %d ", (U32)dictSize, cLevel, i);
 
                     ZSTD_CCtxParams_init(cctx_params, cLevel);
                     CHECK_Z(ZSTD_CCtxParams_setParameter(cctx_params, ZSTD_c_enableDedicatedDictSearch, enableDDS));
@@ -2970,7 +2970,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
                     CHECK_Z(cSize);
                     CHECK_Z(ZSTD_decompress_usingDict(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize, dict, dictSize));
 
-                    DISPLAYLEVEL(5, "compressed to %lu bytes ", cSize);
+                    DISPLAYLEVEL(5, "compressed to %u bytes ", (U32)cSize);
 
                     CHECK_Z(ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters));
                     ZSTD_freeCDict(cdict);

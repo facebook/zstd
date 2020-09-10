@@ -1,3 +1,38 @@
+v1.4.6
+fix : Always return dstSize_tooSmall when that is the case
+fix : Fix ZSTD_initCStream_advanced() with static allocation and no dictionary
+perf: Improve small block decompression speed by 20%+, by @terrelln
+perf: Reduce compression stack usage by 1 KB, by @terrelln
+perf: Improve decompression speed by improving ZSTD_wildcopy, by @helloguo (#2252, #2256)
+perf: Improve histogram construction, by @cyan4973 (#2253)
+cli : Add --output-dir-mirror option, by @xxie24 (#2219)
+cli : Warn when (de)compressing multiple files into a single output, by @senhuang42 (#2279)
+cli : Improved progress bar and status summary when (de)compressing multiple files, by @senhuang42 (#2283)
+cli : Call stat less often, by @felixhandte (#2262)
+cli : Allow --patch-from XXX and --filelist XXX in addition to --patch-from=XXX and --filelist=XXX, by @cyan4973 (#2250)
+cli : Allow --patch-from to compress stdin with --stream-size, by @bimbashrestha (#2206)
+api : Do not install zbuff.h, since it has long been deprecated, by @cyan4973 (#2166).
+api : Fix ZSTD_CCtx_setParameter() with ZSTD_c_compressionLevel to make 0 mean default level, by @i-do-cpp (#2291)
+api : Rename ZSTDMT_NBTHREADS_MAX to ZSTDMT_NBWORKERS_MAX, by @marxin (#2228).
+build: Install pkg-config file with CMake and MinGW, by @tonytheodore (#2183)
+build: Install DLL with CMake on Windows, by @BioDataAnalysis (#2221)
+build: Fix DLL install location with CMake, by @xantares and @bimbashrestha (#2186)
+build: Add ZSTD_NO_UNUSED_FUNCTIONS macro to hide unused functions
+build: Add ZSTD_NO_INTRINSICS macro to avoid explicit intrinsics
+build: Add STATIC_BMI2 macro for compile time detection of BMI2 on MSVC, by @Niadb (#2258)
+build: Fix -Wcomma warnings, by @cwoffenden
+build: Remove distutils requirement for meson build, by @neheb (#2197)
+build: Fix cli compilation with uclibc
+build: Fix cli compilation without st_mtime, by @ffontaine (#2246)
+build: Fix shadowing warnings in library
+build: Fix single file library compilation with Enscripten, by @yoshihitoh (#2227)
+misc: Improve single file library and include dictBuilder, by @cwoffenden
+misc: Allow compression dictionaries with missing symbols
+misc: Add freestanding translation script in contrib/freestanding_lib
+misc: Collect all of zstd's libc dependencies into zstd_deps.h
+doc : Add ZSTD_versionString() to manual, by @animalize
+doc : Fix documentation for ZSTD_CCtxParams_setParameter(), by @felixhandte (#2270)
+
 v1.4.5
 fix : Compression ratio regression on huge files (> 3 GB) using high levels (--ultra) and multithreading, by @terrelln
 perf: Improved decompression speed: x64 : +10% (clang) / +5% (gcc); ARM : from +15% to +50%, depending on SoC, by @terrelln

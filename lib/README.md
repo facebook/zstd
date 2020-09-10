@@ -143,6 +143,14 @@ The file structure is designed to make this selection manually achievable for an
   Setting this macro will either force to generate the BMI2 dispatcher (1)
   or prevent it (0). It overrides automatic detection.
 
+- The build macro `ZSTD_NO_UNUSED_FUNCTIONS` can be defined to hide the definitions of functions
+  that zstd does not use. Not all unused functions are hidden, but they can be if needed.
+  Currently, this macro will hide function definitions in FSE and HUF that use an excessive
+  amount of stack space.
+
+- The build macro `ZSTD_NO_INTRINSICS` can be defined to disable all explicit intrinsics.
+  Compiler builtins are still used.
+
 
 #### Windows : using MinGW+MSYS to create DLL
 

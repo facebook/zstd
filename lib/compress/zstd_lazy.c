@@ -896,16 +896,13 @@ ZSTD_compressBlock_lazy_generic(
 
     const int isDMS = dictMode == ZSTD_dictMatchState;
     const int isDDS = dictMode == ZSTD_dedicatedDictSearch;
+    const int isDxS = isDMS || isDDS;
     const ZSTD_matchState_t* const dms = ms->dictMatchState;
-    const U32 dictLowestIndex      = isDMS || isDDS ?
-                                     dms->window.dictLimit : 0;
-    const BYTE* const dictBase     = isDMS || isDDS ?
-                                     dms->window.base : NULL;
-    const BYTE* const dictLowest   = isDMS || isDDS ?
-                                     dictBase + dictLowestIndex : NULL;
-    const BYTE* const dictEnd      = isDMS || isDDS ?
-                                     dms->window.nextSrc : NULL;
-    const U32 dictIndexDelta       = isDMS || isDDS ?
+    const U32 dictLowestIndex      = isDxS ? dms->window.dictLimit : 0;
+    const BYTE* const dictBase     = isDxS ? dms->window.base : NULL;
+    const BYTE* const dictLowest   = isDxS ? dictBase + dictLowestIndex : NULL;
+    const BYTE* const dictEnd      = isDxS ? dms->window.nextSrc : NULL;
+    const U32 dictIndexDelta       = isDxS ?
                                      prefixLowestIndex - (U32)(dictEnd - dictBase) :
                                      0;
     const U32 dictAndPrefixLength = (U32)((ip - prefixLowest) + (dictEnd - dictLowest));
@@ -923,7 +920,7 @@ ZSTD_compressBlock_lazy_generic(
         if (offset_2 > maxRep) savedOffset = offset_2, offset_2 = 0;
         if (offset_1 > maxRep) savedOffset = offset_1, offset_1 = 0;
     }
-    if (isDMS || isDDS) {
+    if (isDxS) {
         /* dictMatchState repCode checks don't currently handle repCode == 0
          * disabling. */
         assert(offset_1 <= dictAndPrefixLength);
@@ -943,7 +940,7 @@ ZSTD_compressBlock_lazy_generic(
         const BYTE* start=ip+1;
 
         /* check repCode */
-        if (isDMS || isDDS) {
+        if (isDxS) {
             const U32 repIndex = (U32)(ip - base) + 1 - offset_1;
             const BYTE* repMatch = ((dictMode == ZSTD_dictMatchState || dictMode == ZSTD_dedicatedDictSearch)
                                 && repIndex < prefixLowestIndex) ?
@@ -986,7 +983,7 @@ ZSTD_compressBlock_lazy_generic(
                 if ((mlRep >= 4) && (gain2 > gain1))
                     matchLength = mlRep, offset = 0, start = ip;
             }
-            if (isDMS || isDDS) {
+            if (isDxS) {
                 const U32 repIndex = (U32)(ip - base) - offset_1;
                 const BYTE* repMatch = repIndex < prefixLowestIndex ?
                                dictBase + (repIndex - dictIndexDelta) :
@@ -1021,7 +1018,7 @@ ZSTD_compressBlock_lazy_generic(
                     if ((mlRep >= 4) && (gain2 > gain1))
                         matchLength = mlRep, offset = 0, start = ip;
                 }
-                if (isDMS || isDDS) {
+                if (isDxS) {
                     const U32 repIndex = (U32)(ip - base) - offset_1;
                     const BYTE* repMatch = repIndex < prefixLowestIndex ?
                                    dictBase + (repIndex - dictIndexDelta) :
@@ -1059,7 +1056,7 @@ ZSTD_compressBlock_lazy_generic(
                      && (start[-1] == (start-(offset-ZSTD_REP_MOVE))[-1]) )  /* only search for offset within prefix */
                     { start--; matchLength++; }
             }
-            if (isDMS || isDDS) {
+            if (isDxS) {
                 U32 const matchIndex = (U32)((start-base) - (offset - ZSTD_REP_MOVE));
                 const BYTE* match = (matchIndex < prefixLowestIndex) ? dictBase + matchIndex - dictIndexDelta : base + matchIndex;
                 const BYTE* const mStart = (matchIndex < prefixLowestIndex) ? dictLowest : prefixLowest;
@@ -1075,7 +1072,7 @@ _storeSequence:
         }
 
         /* check immediate repcode */
-        if (isDMS || isDDS) {
+        if (isDxS) {
             while (ip <= ilimit) {
                 U32 const current2 = (U32)(ip-base);
                 U32 const repIndex = current2 - offset_2;

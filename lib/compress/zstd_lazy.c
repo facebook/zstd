@@ -872,6 +872,12 @@ ZSTD_compressBlock_lazy_generic(
                         ZSTD_matchState_t* ms,
                         const BYTE* ip, const BYTE* iLimit, size_t* offsetPtr);
 
+    /**
+     * This table is indexed first by the four ZSTD_dictMode_e values, and then
+     * by the two searchMethod_e values. NULLs are placed for configurations
+     * that should never occur (extDict modes go to the other implementation
+     * below and there is no DDSS for binary tree search yet).
+     */
     const searchMax_f searchFuncs[4][2] = {
         {
             ZSTD_HcFindBestMatch_selectMLS,

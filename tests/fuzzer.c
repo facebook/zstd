@@ -2948,8 +2948,8 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
         CHECK(cctx_params != NULL);
 
-        for (dictSize = CNBuffSize; dictSize; dictSize = dictSize >> 1) {
-            for (cLevel = 4; cLevel < 12; cLevel++) {
+        for (dictSize = CNBuffSize; dictSize; dictSize = dictSize >> 3) {
+            for (cLevel = 4; cLevel < 13; cLevel++) {
                 for (i = 0; i < 8; ++i) {
                     ZSTD_dictAttachPref_e const attachPref = attachPrefs[i];
                     int const enableDDS = enableDedicatedDictSearch[i];

@@ -478,23 +478,114 @@ U32 ZSTD_insertAndFindFirstIndex(ZSTD_matchState_t* ms, const BYTE* ip) {
 
 void ZSTD_dedicatedDictSearch_lazy_loadDictionary(ZSTD_matchState_t* ms, const BYTE* const ip)
 {
-    U32 const target = (U32)(ip - ms->window.base);
+    const BYTE* const base = ms->window.base;
+    U32 const target = (U32)(ip - base);
+    U32* const hashTable = ms->hashTable;
     U32* const chainTable = ms->chainTable;
-    U32 const chainMask = (1 << ms->cParams.chainLog) - 1;
+    U32 const chainSize = 1 << ms->cParams.chainLog;
     U32 idx = ms->nextToUpdate;
-    U32 bucketSize = 1 << ZSTD_LAZY_DDSS_BUCKET_LOG;
+    U32 const minChain = chainSize < target ? target - chainSize : idx;
+    U32 const bucketSize = 1 << ZSTD_LAZY_DDSS_BUCKET_LOG;
+    U32 const cacheSize = bucketSize - 1;
+    U32 const chainAttempts = (1 << ms->cParams.searchLog) - cacheSize;
+    U32 const chainLimit = chainAttempts > 255 ? 255 : chainAttempts;
+
+    /* We know the hashtable is oversized by a factor of `bucketSize`.
+     * We are going to temporarily pretend `bucketSize == 1`, keeping only a
+     * single entry. We will use the rest of the space to construct a temporary
+     * chaintable.
+     */
+    U32 const hashLog = ms->cParams.hashLog - ZSTD_LAZY_DDSS_BUCKET_LOG;
+    U32* const tmpHashTable = hashTable;
+    U32* const tmpChainTable = hashTable + ((size_t)1 << hashLog);
+    U32 const tmpChainSize = ((1 << ZSTD_LAZY_DDSS_BUCKET_LOG) - 1) << hashLog;
+    U32 const tmpMinChain = tmpChainSize < target ? target - tmpChainSize : idx;
+
+    U32 hashIdx;
+
+    assert(ms->cParams.chainLog <= 24);
+    assert(ms->cParams.hashLog >= ms->cParams.chainLog);
+    assert(idx != 0);
+    assert(tmpMinChain <= minChain);
+
+    /* fill conventional hash table and conventional chain table */
     for ( ; idx < target; idx++) {
+        U32 const h = (U32)ZSTD_hashPtr(base + idx, hashLog, ms->cParams.minMatch);
+        if (idx >= tmpMinChain) {
+            tmpChainTable[idx - tmpMinChain] = hashTable[h];
+        }
+        tmpHashTable[h] = idx;
+    }
+
+    /* sort chains into ddss chain table */
+    {
+        U32 chainPos = 0;
+        for (hashIdx = 0; hashIdx < (1U << hashLog); hashIdx++) {
+            U32 count;
+            U32 countBeyondMinChain = 0;
+            U32 i = tmpHashTable[hashIdx];
+            for (count = 0; i >= tmpMinChain && count < cacheSize; count++) {
+                /* skip through the chain to the first position that won't be
+                 * in the hash cache bucket */
+                if (i < minChain) {
+                    countBeyondMinChain++;
+                }
+                i = tmpChainTable[i - tmpMinChain];
+            }
+            if (count == cacheSize) {
+                for (count = 0; count < chainLimit;) {
+                    if (i < minChain) {
+                        if (!i || countBeyondMinChain++ > cacheSize) {
+                            /* only allow pulling `cacheSize` number of entries
+                             * into the cache or chainTable beyond `minChain`,
+                             * to replace the entries pulled out of the
+                             * chainTable into the cache. This lets us reach
+                             * back further without increasing the total number
+                             * of entries in the chainTable, guaranteeing the
+                             * DDSS chain table will fit into the space
+                             * allocated for the regular one. */
+                            break;
+                        }
+                    }
+                    chainTable[chainPos++] = i;
+                    count++;
+                    if (i < tmpMinChain) {
+                        break;
+                    }
+                    i = tmpChainTable[i - tmpMinChain];
+                }
+            } else {
+                count = 0;
+            }
+            if (count) {
+                tmpHashTable[hashIdx] = ((chainPos - count) << 8) + count;
+            } else {
+                tmpHashTable[hashIdx] = 0;
+            }
+        }
+        assert(chainPos <= chainSize); /* I believe this is guaranteed... */
+    }
+
+    /* move chain pointers into the last entry of each hash bucket */
+    for (hashIdx = (1 << hashLog); hashIdx; ) {
+        U32 const bucketIdx = --hashIdx << ZSTD_LAZY_DDSS_BUCKET_LOG;
+        U32 const chainPackedPointer = tmpHashTable[hashIdx];
         U32 i;
-        size_t const h = ZSTD_hashPtr(
-            ms->window.base + idx,
-            ms->cParams.hashLog - ZSTD_LAZY_DDSS_BUCKET_LOG,
-            ms->cParams.minMatch) << ZSTD_LAZY_DDSS_BUCKET_LOG;
+        for (i = 0; i < cacheSize; i++) {
+            hashTable[bucketIdx + i] = 0;
+        }
+        hashTable[bucketIdx + bucketSize - 1] = chainPackedPointer;
+    }
+
+    /* fill the buckets of the hash table */
+    for (idx = ms->nextToUpdate; idx < target; idx++) {
+        U32 const h = (U32)ZSTD_hashPtr(base + idx, hashLog, ms->cParams.minMatch)
+                   << ZSTD_LAZY_DDSS_BUCKET_LOG;
+        U32 i;
         /* Shift hash cache down 1. */
-        for (i = bucketSize - 1; i; i--)
-            ms->hashTable[h + i] = ms->hashTable[h + i - 1];
-        /* Insert new position. */
-        chainTable[idx & chainMask] = ms->hashTable[h];
-        ms->hashTable[h] = idx;
+        for (i = cacheSize - 1; i; i--)
+            hashTable[h + i] = hashTable[h + i - 1];
+        hashTable[h] = idx;
     }
 
     ms->nextToUpdate = target;
@@ -570,20 +661,24 @@ size_t ZSTD_HcFindBestMatch_generic (
     }
 
     if (dictMode == ZSTD_dedicatedDictSearch) {
-        const U32 ddsChainSize    = (1 << dms->cParams.chainLog);
-        const U32 ddsChainMask    = ddsChainSize - 1;
         const U32 ddsLowestIndex  = dms->window.dictLimit;
         const BYTE* const ddsBase = dms->window.base;
         const BYTE* const ddsEnd  = dms->window.nextSrc;
         const U32 ddsSize         = (U32)(ddsEnd - ddsBase);
         const U32 ddsIndexDelta   = dictLimit - ddsSize;
-        const U32 ddsMinChain     = ddsSize > ddsChainSize ? ddsSize - ddsChainSize : 0;
         const U32 bucketSize      = (1 << ZSTD_LAZY_DDSS_BUCKET_LOG);
-        const U32 bucketLimit     = nbAttempts < bucketSize ? nbAttempts : bucketSize;
+        const U32 bucketLimit     = nbAttempts < bucketSize - 1 ? nbAttempts : bucketSize - 1;
         U32 ddsAttempt;
 
-        for (ddsAttempt = 0; ddsAttempt < bucketSize; ddsAttempt++) {
+        for (ddsAttempt = 0; ddsAttempt < bucketSize - 1; ddsAttempt++) {
             PREFETCH_L1(ddsBase + dms->hashTable[ddsIdx + ddsAttempt]);
+        }
+
+        {
+            U32 const chainPackedPointer = dms->hashTable[ddsIdx + bucketSize - 1];
+            U32 const chainIndex = chainPackedPointer >> 8;
+
+            PREFETCH_L1(&dms->chainTable[chainIndex]);
         }
 
         for (ddsAttempt = 0; ddsAttempt < bucketLimit; ddsAttempt++) {
@@ -592,10 +687,13 @@ size_t ZSTD_HcFindBestMatch_generic (
             matchIndex = dms->hashTable[ddsIdx + ddsAttempt];
             match = ddsBase + matchIndex;
 
-            if (matchIndex < ddsLowestIndex) {
+            if (!matchIndex) {
                 return ml;
             }
 
+            /* guaranteed by table construction */
+            (void)ddsLowestIndex;
+            assert(matchIndex >= ddsLowestIndex);
             assert(match+4 <= ddsEnd);
             if (MEM_read32(match) == MEM_read32(ip)) {
                 /* assumption : matchIndex <= dictLimit-4 (by table construction) */
@@ -613,27 +711,38 @@ size_t ZSTD_HcFindBestMatch_generic (
             }
         }
 
-        for ( ; (ddsAttempt < nbAttempts) & (matchIndex >= ddsMinChain); ddsAttempt++) {
-            size_t currentMl=0;
-            const BYTE* match;
-            matchIndex = dms->chainTable[matchIndex & ddsChainMask];
-            match = ddsBase + matchIndex;
+        {
+            U32 const chainPackedPointer = dms->hashTable[ddsIdx + bucketSize - 1];
+            U32 chainIndex = chainPackedPointer >> 8;
+            U32 const chainLength = chainPackedPointer & 0xFF;
+            U32 const chainAttempts = nbAttempts - ddsAttempt;
+            U32 const chainLimit = chainAttempts > chainLength ? chainLength : chainAttempts;
+            U32 chainAttempt;
 
-            if (matchIndex < ddsLowestIndex) {
-                break;
+            for (chainAttempt = 0 ; chainAttempt < chainLimit; chainAttempt++) {
+                PREFETCH_L1(ddsBase + dms->chainTable[chainIndex + chainAttempt]);
             }
 
-            assert(match+4 <= ddsEnd);
-            if (MEM_read32(match) == MEM_read32(ip)) {
-                /* assumption : matchIndex <= dictLimit-4 (by table construction) */
-                currentMl = ZSTD_count_2segments(ip+4, match+4, iLimit, ddsEnd, prefixStart) + 4;
-            }
+            for (chainAttempt = 0 ; chainAttempt < chainLimit; chainAttempt++, chainIndex++) {
+                size_t currentMl=0;
+                const BYTE* match;
+                matchIndex = dms->chainTable[chainIndex];
+                match = ddsBase + matchIndex;
 
-            /* save best solution */
-            if (currentMl > ml) {
-                ml = currentMl;
-                *offsetPtr = curr - (matchIndex + ddsIndexDelta) + ZSTD_REP_MOVE;
-                if (ip+currentMl == iLimit) break; /* best possible, avoids read overflow on next attempt */
+                /* guaranteed by table construction */
+                assert(matchIndex >= ddsLowestIndex);
+                assert(match+4 <= ddsEnd);
+                if (MEM_read32(match) == MEM_read32(ip)) {
+                    /* assumption : matchIndex <= dictLimit-4 (by table construction) */
+                    currentMl = ZSTD_count_2segments(ip+4, match+4, iLimit, ddsEnd, prefixStart) + 4;
+                }
+
+                /* save best solution */
+                if (currentMl > ml) {
+                    ml = currentMl;
+                    *offsetPtr = curr - (matchIndex + ddsIndexDelta) + ZSTD_REP_MOVE;
+                    if (ip+currentMl == iLimit) break; /* best possible, avoids read overflow on next attempt */
+                }
             }
         }
     } else if (dictMode == ZSTD_dictMatchState) {
@@ -763,6 +872,12 @@ ZSTD_compressBlock_lazy_generic(
                         ZSTD_matchState_t* ms,
                         const BYTE* ip, const BYTE* iLimit, size_t* offsetPtr);
 
+    /**
+     * This table is indexed first by the four ZSTD_dictMode_e values, and then
+     * by the two searchMethod_e values. NULLs are placed for configurations
+     * that should never occur (extDict modes go to the other implementation
+     * below and there is no DDSS for binary tree search yet).
+     */
     const searchMax_f searchFuncs[4][2] = {
         {
             ZSTD_HcFindBestMatch_selectMLS,
@@ -787,16 +902,13 @@ ZSTD_compressBlock_lazy_generic(
 
     const int isDMS = dictMode == ZSTD_dictMatchState;
     const int isDDS = dictMode == ZSTD_dedicatedDictSearch;
+    const int isDxS = isDMS || isDDS;
     const ZSTD_matchState_t* const dms = ms->dictMatchState;
-    const U32 dictLowestIndex      = isDMS || isDDS ?
-                                     dms->window.dictLimit : 0;
-    const BYTE* const dictBase     = isDMS || isDDS ?
-                                     dms->window.base : NULL;
-    const BYTE* const dictLowest   = isDMS || isDDS ?
-                                     dictBase + dictLowestIndex : NULL;
-    const BYTE* const dictEnd      = isDMS || isDDS ?
-                                     dms->window.nextSrc : NULL;
-    const U32 dictIndexDelta       = isDMS || isDDS ?
+    const U32 dictLowestIndex      = isDxS ? dms->window.dictLimit : 0;
+    const BYTE* const dictBase     = isDxS ? dms->window.base : NULL;
+    const BYTE* const dictLowest   = isDxS ? dictBase + dictLowestIndex : NULL;
+    const BYTE* const dictEnd      = isDxS ? dms->window.nextSrc : NULL;
+    const U32 dictIndexDelta       = isDxS ?
                                      prefixLowestIndex - (U32)(dictEnd - dictBase) :
                                      0;
     const U32 dictAndPrefixLength = (U32)((ip - prefixLowest) + (dictEnd - dictLowest));
@@ -814,7 +926,7 @@ ZSTD_compressBlock_lazy_generic(
         if (offset_2 > maxRep) savedOffset = offset_2, offset_2 = 0;
         if (offset_1 > maxRep) savedOffset = offset_1, offset_1 = 0;
     }
-    if (isDMS || isDDS) {
+    if (isDxS) {
         /* dictMatchState repCode checks don't currently handle repCode == 0
          * disabling. */
         assert(offset_1 <= dictAndPrefixLength);
@@ -834,7 +946,7 @@ ZSTD_compressBlock_lazy_generic(
         const BYTE* start=ip+1;
 
         /* check repCode */
-        if (isDMS || isDDS) {
+        if (isDxS) {
             const U32 repIndex = (U32)(ip - base) + 1 - offset_1;
             const BYTE* repMatch = ((dictMode == ZSTD_dictMatchState || dictMode == ZSTD_dedicatedDictSearch)
                                 && repIndex < prefixLowestIndex) ?
@@ -877,7 +989,7 @@ ZSTD_compressBlock_lazy_generic(
                 if ((mlRep >= 4) && (gain2 > gain1))
                     matchLength = mlRep, offset = 0, start = ip;
             }
-            if (isDMS || isDDS) {
+            if (isDxS) {
                 const U32 repIndex = (U32)(ip - base) - offset_1;
                 const BYTE* repMatch = repIndex < prefixLowestIndex ?
                                dictBase + (repIndex - dictIndexDelta) :
@@ -912,7 +1024,7 @@ ZSTD_compressBlock_lazy_generic(
                     if ((mlRep >= 4) && (gain2 > gain1))
                         matchLength = mlRep, offset = 0, start = ip;
                 }
-                if (isDMS || isDDS) {
+                if (isDxS) {
                     const U32 repIndex = (U32)(ip - base) - offset_1;
                     const BYTE* repMatch = repIndex < prefixLowestIndex ?
                                    dictBase + (repIndex - dictIndexDelta) :
@@ -950,7 +1062,7 @@ ZSTD_compressBlock_lazy_generic(
                      && (start[-1] == (start-(offset-ZSTD_REP_MOVE))[-1]) )  /* only search for offset within prefix */
                     { start--; matchLength++; }
             }
-            if (isDMS || isDDS) {
+            if (isDxS) {
                 U32 const matchIndex = (U32)((start-base) - (offset - ZSTD_REP_MOVE));
                 const BYTE* match = (matchIndex < prefixLowestIndex) ? dictBase + matchIndex - dictIndexDelta : base + matchIndex;
                 const BYTE* const mStart = (matchIndex < prefixLowestIndex) ? dictLowest : prefixLowest;
@@ -966,7 +1078,7 @@ _storeSequence:
         }
 
         /* check immediate repcode */
-        if (isDMS || isDDS) {
+        if (isDxS) {
             while (ip <= ilimit) {
                 U32 const current2 = (U32)(ip-base);
                 U32 const repIndex = current2 - offset_2;

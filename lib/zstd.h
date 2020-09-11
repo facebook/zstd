@@ -412,6 +412,7 @@ typedef enum {
      * ZSTD_c_literalCompressionMode
      * ZSTD_c_targetCBlockSize
      * ZSTD_c_srcSizeHint
+     * ZSTD_c_enableDedicatedDictSearch
      * Because they are not stable, it's necessary to define ZSTD_STATIC_LINKING_ONLY to access them.
      * note : never ever use experimentalParam? names directly;
      *        also, the enums values themselves are unstable and can still change.
@@ -422,7 +423,8 @@ typedef enum {
      ZSTD_c_experimentalParam4=1001,
      ZSTD_c_experimentalParam5=1002,
      ZSTD_c_experimentalParam6=1003,
-     ZSTD_c_experimentalParam7=1004
+     ZSTD_c_experimentalParam7=1004,
+     ZSTD_c_experimentalParam8=1005
 } ZSTD_cParameter;
 
 typedef struct {
@@ -1402,6 +1404,16 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictS
                                                   ZSTD_compressionParameters cParams,
                                                   ZSTD_customMem customMem);
 
+/**
+ * This API is temporary and is expected to change or disappear in the future!
+ */
+ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced2(
+    const void* dict, size_t dictSize,
+    ZSTD_dictLoadMethod_e dictLoadMethod,
+    ZSTD_dictContentType_e dictContentType,
+    ZSTD_CCtx_params* cctxParams,
+    ZSTD_customMem customMem);
+
 ZSTDLIB_API ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize,
                                                   ZSTD_dictLoadMethod_e dictLoadMethod,
                                                   ZSTD_dictContentType_e dictContentType,
@@ -1534,6 +1546,54 @@ ZSTDLIB_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* pre
  * There is no guarantee that hint is close to actual source size,
  * but compression ratio may regress significantly if guess considerably underestimates */
 #define ZSTD_c_srcSizeHint ZSTD_c_experimentalParam7
+
+/* Controls whether the new and experimental "dedicated dictionary search
+ * structure" can be used.
+ *
+ * How to use it:
+ *
+ * When using a CDict, whether to use this feature or not is controlled at
+ * CDict creation, and it must be set in a CCtxParams set passed into that
+ * construction. A compression will then use the feature or not based on how
+ * the CDict was constructed; the value of this param, set in the CCtx, will
+ * have no effect.
+ *
+ * However, when a dictionary buffer is passed into a CCtx, such as via
+ * ZSTD_CCtx_loadDictionary(), this param can be set on the CCtx to control
+ * whether the CDict that is created internally can use the feature or not.
+ *
+ * What it does:
+ *
+ * Normally, the internal data structures of the CDict are analogous to what
+ * would be stored in a CCtx after compressing the contents of a dictionary.
+ * To an approximation, a compression using a dictionary can then use those
+ * data structures to simply continue what is effectively a streaming
+ * compression where the simulated compression of the dictionary left off.
+ * Which is to say, the search structures in the CDict are normally the same
+ * format as in the CCtx.
+ *
+ * It is possible to do better, since the CDict is not like a CCtx: the search
+ * structures are written once during CDict creation, and then are only read
+ * after that, while the search structures in the CCtx are both read and
+ * written as the compression goes along. This means we can choose a search
+ * structure for the dictionary that is read-optimized.
+ *
+ * This feature enables the use of that different structure. Note that this
+ * means that the CDict tables can no longer be copied into the CCtx, so
+ * the dict attachment mode ZSTD_dictForceCopy will no longer be useable. The
+ * dictionary can only be attached or reloaded.
+ *
+ * Effects:
+ *
+ * This will only have any effect when the selected ZSTD_strategy
+ * implementation supports this feature. Currently, that's limited to
+ * ZSTD_greedy, ZSTD_lazy, and ZSTD_lazy2.
+ *
+ * In general, you should expect compression to be faster, and CDict creation
+ * to be slightly slower. Eventually, we will probably make this mode the
+ * default.
+ */
+#define ZSTD_c_enableDedicatedDictSearch ZSTD_c_experimentalParam8
 
 /*! ZSTD_CCtx_getParameter() :
  *  Get the requested compression parameter value, selected by enum ZSTD_cParameter,

@@ -28,7 +28,6 @@
 extern "C" {
 #endif
 
-
 /*-*************************************
 *  Constants
 ***************************************/
@@ -147,6 +146,9 @@ struct ZSTD_matchState_t {
     U32* hashTable;
     U32* hashTable3;
     U32* chainTable;
+    int dedicatedDictSearch;  /* Indicates whether this matchState is using the
+                               * dedicated dictionary search structure.
+                               */
     optState_t opt;         /* optimal parser state */
     const ZSTD_matchState_t* dictMatchState;
     ZSTD_compressionParameters cParams;
@@ -228,6 +230,9 @@ struct ZSTD_CCtx_params_s {
     /* Long distance matching parameters */
     ldmParams_t ldmParams;
 
+    /* Dedicated dict search algorithm trigger */
+    int enableDedicatedDictSearch;
+
     /* Internal use, for createCCtxParams() and freeCCtxParams() only */
     ZSTD_customMem customMem;
 };  /* typedef'd to ZSTD_CCtx_params within "zstd.h" */
@@ -289,7 +294,12 @@ struct ZSTD_CCtx_s {
 
 typedef enum { ZSTD_dtlm_fast, ZSTD_dtlm_full } ZSTD_dictTableLoadMethod_e;
 
-typedef enum { ZSTD_noDict = 0, ZSTD_extDict = 1, ZSTD_dictMatchState = 2 } ZSTD_dictMode_e;
+typedef enum {
+    ZSTD_noDict = 0,
+    ZSTD_extDict = 1,
+    ZSTD_dictMatchState = 2,
+    ZSTD_dedicatedDictSearch = 3
+} ZSTD_dictMode_e;
 
 
 typedef size_t (*ZSTD_blockCompressor) (
@@ -753,7 +763,7 @@ MEM_STATIC ZSTD_dictMode_e ZSTD_matchState_dictMode(const ZSTD_matchState_t *ms)
     return ZSTD_window_hasExtDict(ms->window) ?
         ZSTD_extDict :
         ms->dictMatchState != NULL ?
-            ZSTD_dictMatchState :
+            (ms->dictMatchState->dedicatedDictSearch ? ZSTD_dedicatedDictSearch : ZSTD_dictMatchState) :
             ZSTD_noDict;
 }
 

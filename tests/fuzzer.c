@@ -2949,13 +2949,14 @@ static int basicUnitTests(U32 const seed, double compressibility)
         CHECK(cctx_params != NULL);
 
         for (dictSize = CNBuffSize; dictSize; dictSize = dictSize >> 3) {
+            DISPLAYLEVEL(3, "\n    Testing with dictSize %u ", (U32)dictSize);
             for (cLevel = 4; cLevel < 13; cLevel++) {
                 for (i = 0; i < 8; ++i) {
                     ZSTD_dictAttachPref_e const attachPref = attachPrefs[i];
                     int const enableDDS = enableDedicatedDictSearch[i];
                     ZSTD_CDict* cdict;
 
-                    DISPLAYLEVEL(5, "\n  dictSize %u cLevel %d iter %d ", (U32)dictSize, cLevel, i);
+                    DISPLAYLEVEL(5, "\n      dictSize %u cLevel %d iter %d ", (U32)dictSize, cLevel, i);
 
                     ZSTD_CCtxParams_init(cctx_params, cLevel);
                     CHECK_Z(ZSTD_CCtxParams_setParameter(cctx_params, ZSTD_c_enableDedicatedDictSearch, enableDDS));

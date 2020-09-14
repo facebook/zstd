@@ -44,13 +44,13 @@
         <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
           <ul class="nav navbar-nav navbar-nav">
             <li><a href="https://github.com/facebook/zstd/releases/latest">Latest Release</a></li>
-            <li><a href="#other-languages">Bindings</a></li>
+            <li><a href="#other-languages">Languages</a></li>
             <li class="dropdown">
               <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Index<span class="caret"></span></a>
               <ul class="dropdown-menu" role="menu">
                 <li><a href="#benchmarks">Benchmarks</a></li>
                 <li><a href="#GUI">GUI</a></li>
-                <li><a href="#other-languages">Bindings</a></li>
+                <li><a href="#other-languages">Languages</a></li>
                 <li><a href="#references">Reference usages</a></li>
                 <li><a href="http://facebook.github.io/zstd/zstd_manual.html">API documentation</a></li>
               </ul>
@@ -71,13 +71,12 @@
         <h1><img src="images/zstd85.png"/> Zstandard</h1>
         <iframe src="https://ghbtns.com/github-btn.html?user=facebook&repo=zstd&type=star&count=true&size=large&v=2" frameborder="0" scrolling="0" width="160px" height="30px"></iframe>
         <p>
-        Zstandard is a real-time compression algorithm,
-        providing high compression ratios.
-        It offers a very wide range of compression / speed trade-off,
-        while being backed by a very fast decoder (see <a href="#benchmarks">benchmarks</a> below).
-        It also offers a special mode for small data, called <a href="#small-data">dictionary compression</a>,
-        and can create dictionaries from any sample set.
+        Zstandard is a fast compression algorithm, providing high compression ratios.
+        It also offers a special mode for small data, called <a href="#small-data">dictionary compression</a>.
+        The reference library offers a very wide range of speed / compression trade-off,
+        and is backed by an extremely fast decoder (see <a href="#benchmarks">benchmarks</a> below).
         Zstandard library is provided as open source software using a BSD license.
+        Its format is stable and published as <a href="https://tools.ietf.org/html/rfc8478">IETF RFC 8478</a>.
       </div>
     </div>
 
@@ -175,17 +174,24 @@ You can learn more about Zstandard API by reading [its documentation](http://fac
 
 <br/>
 <a name="other-languages"></a>
-## Bindings for other languages
+## Multiple programming languages
 
-Should you need Zstandard in another language [than reference C],
-here is a list of known bindings and their authors :
+Should you need Zstandard in different language than [reference C],
+here is a list of known bindings and ports provided by great authors.
+All versions support the Zstandard [format specification]
+and are therefore interoperable.
+Most versions listed below are bindings to the [reference C] library.
+There are also a few Ports (explicitly labelled),
+which are full re-implementation of the algorithm in the target language.
 
 | Language      | Author              | URL                                   |
 | ------------- | ------------------- | ------------------------------------- |
 | __Java__      | Luben Karavelov     | https://github.com/luben/zstd-jni     |
+| __Java__ (Port) | Martin Traverso   | https://github.com/airlift/aircompressor/tree/master/src/main/java/io/airlift/compress/zstd
 | __Python__ (full) | Gregory Szorc   | https://pypi.python.org/pypi/zstandard
 | __Python__ (simple) | Sergey Dryabzhinsky | https://github.com/sergey-dryabzhinsky/python-zstd
 | __Rust__      | Alexandre Bury      | https://crates.io/crates/zstd         |
+| __Rust__ (decoder, Port) | Moritz Borcherding | https://github.com/KillingSpark/zstd-rs
 | __C#__        | SKB Kontur          | https://github.com/skbkontur/ZstdNet  |
 | __C#__ (streaming) | Bernhard Pichler | https://github.com/bp74/Zstandard.Net
 | __C#__ (signed) | Tyler Young       | https://github.com/ImpromptuNinjas/ZStd
@@ -193,42 +199,34 @@ here is a list of known bindings and their authors :
 | __Node.js__ streams | albertdb      | https://www.npmjs.com/package/node-zstandard
 | __Node.js__ buffers | Zwb           | https://www.npmjs.com/package/node-zstd
 | __PHP__       | Kamijo              | https://github.com/kjdev/php-ext-zstd |
+| __R__         | Konstantin Sorokin  | https://cran.r-project.org/web/packages/zstdr/index.html
+| __Go__ (Port) | Klaus Post          | https://github.com/klauspost/compress/tree/master/zstd#zstd
+| __Go__        | Vianney Tran        | https://github.com/DataDog/zstd       |
+| __Go__ (+dict) | Aliaksandr Valialkin | https://github.com/valyala/gozstd   |
 | __Swift__     | Anatoli Peredera    | https://github.com/omniprog/SwiftZSTD |
 | __Perl__      | Jiro Nishiguchi     | https://metacpan.org/release/Compress-Zstd
-| __Objective C__ | Micha Mazaheri    | https://github.com/luckymarmot/ZstdKit
 | __Ruby__      | SpringMT            | https://github.com/SpringMT/zstd-ruby |
 | __Ruby__ (FFI) | Michael Sievers    | https://github.com/msievers/zstandard-ruby
 | __Ruby__ (stream) | Andrew Aladjev  | https://rubygems.org/gems/ruby-zstds  |
-| __Go__        | Vianney Tran        | https://github.com/DataDog/zstd       |
-| __Go__ (+dict) | Aliaksandr Valialkin | https://github.com/valyala/gozstd   |
+| __Objective C__ | Micha Mazaheri    | https://github.com/luckymarmot/ZstdKit
+| __Visual Basic 6__ | Tanner Helland | https://github.com/tannerhelland/VB6-Compression
 | __D__         | Masahiro Nakagawa   | https://code.dlang.org/packages/zstd  |
+| __Julia__     | Kenta Sato          | https://github.com/bicycle1885/CodecZstd.jl
+| __Pascal__    | Denis Anisimov      | https://github.com/DenisAnisimov/ZSTD.pas
 | __Ada__       | John Marino         | https://github.com/jrmarino/zstd-ada  |
 | __Lua__       | Soojin Nam          | https://github.com/sjnam/lua-resty-zstd
 | __Haskell__   | Bryan O'Sullivan    | https://github.com/facebookexperimental/hs-zstd
 | __Erlang__    | Yuki Ito            | https://hex.pm/packages/zstd          |
-| __Visual Basic 6__ | Tanner Helland | https://github.com/tannerhelland/VB6-Compression
-| __Julia__     | Kenta Sato          | https://github.com/bicycle1885/CodecZstd.jl
 | __Tcl__       | D. Bohdan           | https://wiki.tcl-lang.org/48788       |
-| __R__         | Konstantin Sorokin  | https://cran.r-project.org/web/packages/zstdr/index.html
 | __SmallTalk__ | Instantiations      | http://www.instantiations.com/resources/goodies.html#instantiations
 | __Elixir__    | chenzhuoyu          | https://hex.pm/packages/ex_zstd       |
 | __OCaml__     | Jane Street         | https://opam.ocaml.org/packages/zstandard/
-| __Pascal__    | Denis Anisimov      | https://github.com/DenisAnisimov/ZSTD.pas
 | __Crystal__   | @didactic-drunk     | https://github.com/didactic-drunk/zstd.cr
 | __Nim__       | wltsmrz             | https://github.com/wltsmrz/nim_zstd
 
 
-[than reference C]:https://github.com/facebook/zstd
-
-## Ports into other languages
-
-These are independent implementations of Zstandard supporting its [format specification](https://github.com/facebook/zstd/blob/master/doc/zstd_compression_format.md)
-
-| Language          | Author              | URL                                   |
-| ----------------- | ------------------- | ------------------------------------- |
-| __Go__            | Klaus Post          | https://github.com/klauspost/compress/tree/master/zstd#zstd
-| __Java__          | Martin Traverso     | https://github.com/airlift/aircompressor/tree/master/src/main/java/io/airlift/compress/zstd
-| __Rust__ (decoder) | Moritz Borcherding | https://github.com/KillingSpark/zstd-rs
+[reference C]:https://github.com/facebook/zstd
+[format specification]:https://github.com/facebook/zstd/blob/master/doc/zstd_compression_format.md
 
 
 <br/>

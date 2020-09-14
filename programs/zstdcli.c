@@ -20,7 +20,9 @@
 #  define ZSTDCLI_CLEVEL_MAX 19   /* without using --ultra */
 #endif
 
-
+#ifndef ZSTDCLI_NBTHREADS_DEFAULT
+#  define ZSTDCLI_NBTHREADS_DEFAULT 1
+#endif
 
 /*-************************************
 *  Dependencies
@@ -598,6 +600,7 @@ static void printVersion(void)
 
 /* Environment variables for parameter setting */
 #define ENV_CLEVEL "ZSTD_CLEVEL"
+#define ENV_NBTHREADS "ZSTD_NBTHREADS"    /* takes lower precedence than directly specifying -T# in the CLI */
 
 /* pick up environment variable */
 static int init_cLevel(void) {
@@ -626,6 +629,27 @@ static int init_cLevel(void) {
 
     return ZSTDCLI_CLEVEL_DEFAULT;
 }
+
+#ifdef ZSTD_MULTITHREAD
+static unsigned init_nbThreads(void) {
+    const char* const env = getenv(ENV_NBTHREADS);
+    if (env != NULL) {
+        const char* ptr = env;
+        if ((*ptr>='0') && (*ptr<='9')) {
+            unsigned nbThreads;
+            if (readU32FromCharChecked(&ptr, &nbThreads)) {
+                DISPLAYLEVEL(2, "Ignore environment variable setting %s=%s: numeric value too large \n", ENV_NBTHREADS, env);
+                return ZSTDCLI_NBTHREADS_DEFAULT;
+            } else if (*ptr == 0) {
+                return nbThreads;
+            }
+        }
+        DISPLAYLEVEL(2, "Ignore environment variable setting %s=%s: not a valid unsigned value \n", ENV_NBTHREADS, env);
+    }
+
+    return ZSTDCLI_NBTHREADS_DEFAULT;
+}
+#endif
 
 #define NEXT_FIELD(ptr) {         \
     if (*argument == '=') {       \
@@ -733,7 +757,7 @@ int main(int const argCount, const char* argv[])
     if ((filenames==NULL) || (file_of_names==NULL)) { DISPLAY("zstd: allocation error \n"); exit(1); }
     programName = lastNameFromPath(programName);
 #ifdef ZSTD_MULTITHREAD
-    nbWorkers = 1;
+    nbWorkers = init_nbThreads();
 #endif
 
     /* preset behaviors */

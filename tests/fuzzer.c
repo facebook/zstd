@@ -439,6 +439,17 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }   }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3u : invalid endDirective : ", testNb++);
+    {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        ZSTD_inBuffer inb = { CNBuffer, CNBuffSize, 0 };
+        ZSTD_outBuffer outb = { compressedBuffer, compressedBufferSize, 0 };
+        if (cctx==NULL) goto _output_error;
+        CHECK( ZSTD_isError( ZSTD_compressStream2(cctx, &outb, &inb, (ZSTD_EndDirective) 3) ) );  /* must fail */
+        CHECK( ZSTD_isError( ZSTD_compressStream2(cctx, &outb, &inb, (ZSTD_EndDirective)-1) ) );  /* must fail */
+        ZSTD_freeCCtx(cctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     DISPLAYLEVEL(3, "test%3i : ZSTD_checkCParams : ", testNb++);
     {
         ZSTD_parameters params = ZSTD_getParams(3, 0, 0);
@@ -866,36 +877,35 @@ static int basicUnitTests(U32 const seed, double compressibility)
         assert(cctx != NULL);
         ZSTD_CCtx_setParameter(cctx, ZSTD_c_targetCBlockSize, 81);
 
-        { size_t read;
-          for (read = 0; read < streamCompressThreshold; read += streamCompressDelta) {
-            ZSTD_inBuffer in = {src, streamCompressDelta, 0};
-            ZSTD_outBuffer out = {dst, dstCapacity, 0};
-            CHECK_Z(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_continue));
-            CHECK_Z(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end));
-            src += streamCompressDelta; srcSize -= streamCompressDelta;
-            dst += out.pos; dstCapacity -= out.pos;}}
+        {   size_t read;
+            for (read = 0; read < streamCompressThreshold; read += streamCompressDelta) {
+                ZSTD_inBuffer in = {src, streamCompressDelta, 0};
+                ZSTD_outBuffer out = {dst, dstCapacity, 0};
+                CHECK_Z(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_continue));
+                CHECK_Z(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end));
+                src += streamCompressDelta; srcSize -= streamCompressDelta;
+                dst += out.pos; dstCapacity -= out.pos;
+        }   }
 
         /* This is trying to catch a dstSize_tooSmall error */
 
-        { ZSTD_inBuffer in = {src, srcSize, 0};
-          ZSTD_outBuffer out = {dst, dstCapacity, 0};
-          CHECK_Z(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end));}
+        {   ZSTD_inBuffer in = {src, srcSize, 0};
+            ZSTD_outBuffer out = {dst, dstCapacity, 0};
+            CHECK_Z(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end));
+        }
         ZSTD_freeCCtx(cctx);
     }
     DISPLAYLEVEL(3, "OK \n");
 
     DISPLAYLEVEL(3, "test%3d: superblock with no literals : ", testNb++);
     /* Generate the same data 20 times over */
-    {
-        size_t const avgChunkSize = CNBuffSize / 20;
+    {   size_t const avgChunkSize = CNBuffSize / 20;
         size_t b;
         for (b = 0; b < CNBuffSize; b += avgChunkSize) {
             size_t const chunkSize = MIN(CNBuffSize - b, avgChunkSize);
             RDG_genBuffer((char*)CNBuffer + b, chunkSize, compressibility, 0. /* auto */, seed);
-        }
-    }
-    {
-        ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+    }   }
+    {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
         size_t const normalCSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize);
         size_t const allowedExpansion = (CNBuffSize * 3 / 1000);
         size_t superCSize;
@@ -914,12 +924,11 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
     RDG_genBuffer(CNBuffer, CNBuffSize, compressibility, 0. /*auto*/, seed);
     DISPLAYLEVEL(3, "test%3d: superblock enough room for checksum : ", testNb++)
-    {
-        /* This tests whether or not we leave enough room for the checksum at the end
-         * of the dst buffer. The bug that motivated this test was found by the
-         * stream_round_trip fuzzer but this crashes for the same reason and is
-         * far more compact than re-creating the stream_round_trip fuzzer's code path */
-        ZSTD_CCtx *cctx = ZSTD_createCCtx();
+    /* This tests whether or not we leave enough room for the checksum at the end
+     * of the dst buffer. The bug that motivated this test was found by the
+     * stream_round_trip fuzzer but this crashes for the same reason and is
+     * far more compact than re-creating the stream_round_trip fuzzer's code path */
+    {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
         ZSTD_CCtx_setParameter(cctx, ZSTD_c_targetCBlockSize, 64);
         assert(!ZSTD_isError(ZSTD_compress2(cctx, compressedBuffer, 1339, CNBuffer, 1278)));
         ZSTD_freeCCtx(cctx);
@@ -2788,10 +2797,8 @@ static int basicUnitTests(U32 const seed, double compressibility)
     DISPLAYLEVEL(3, "OK \n");
 #ifdef ZSTD_MULTITHREAD
     DISPLAYLEVEL(3, "test%3i : passing wrong full dict should fail on compressStream2 refPrefix ", testNb++);
-    {
-        ZSTD_CCtx* cctx = ZSTD_createCCtx();
-         /* A little more than ZSTDMT_JOBSIZE_MIN */
-        size_t const srcSize = 1 MB + 5;
+    {   ZSTD_CCtx* cctx = ZSTD_createCCtx();
+        size_t const srcSize = 1 MB + 5;   /* A little more than ZSTDMT_JOBSIZE_MIN */
         size_t const dstSize = ZSTD_compressBound(srcSize);
         void* const src = CNBuffer;
         void* const dst = compressedBuffer;
@@ -2808,10 +2815,8 @@ static int basicUnitTests(U32 const seed, double compressibility)
         /* lie and claim this is a full dict */
         CHECK_Z(ZSTD_CCtx_refPrefix_advanced(cctx, dict, srcSize, ZSTD_dct_fullDict));
 
-        {
-            ZSTD_outBuffer out = {dst, dstSize, 0};
+        {   ZSTD_outBuffer out = {dst, dstSize, 0};
             ZSTD_inBuffer in = {src, srcSize, 0};
-
             /* should fail because its not a full dict like we said it was */
             assert(ZSTD_isError(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_flush)));
         }
@@ -2822,10 +2827,8 @@ static int basicUnitTests(U32 const seed, double compressibility)
     DISPLAYLEVEL(3, "OK \n");
 
     DISPLAYLEVEL(3, "test%3i : small dictionary with multithreading and LDM ", testNb++);
-    {
-        ZSTD_CCtx* cctx = ZSTD_createCCtx();
-        /* A little more than ZSTDMT_JOBSIZE_MIN */
-        size_t const srcSize = 1 MB + 5;
+    {   ZSTD_CCtx* cctx = ZSTD_createCCtx();
+        size_t const srcSize = 1 MB + 5;   /* A little more than ZSTDMT_JOBSIZE_MIN */
         size_t const dictSize = 10;
         size_t const dstSize = ZSTD_compressBound(srcSize);
         void* const src = CNBuffer;
@@ -2853,8 +2856,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
     /* note : this test is rather long, it would be great to find a way to speed up its execution */
     DISPLAYLEVEL(3, "test%3i : table cleanliness through index reduction : ", testNb++);
-    {
-        int cLevel;
+    {   int cLevel;
         size_t approxIndex = 0;
         size_t maxIndex = ((3U << 29) + (1U << ZSTD_WINDOWLOG_MAX)); /* ZSTD_CURRENT_MAX from zstd_compress_internal.h */
 
@@ -2923,8 +2925,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
     DISPLAYLEVEL(3, "OK \n");
 
     DISPLAYLEVEL(3, "test%3i : testing cdict compression with different attachment strategies : ", testNb++);
-    {
-        ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+    {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
         ZSTD_DCtx* const dctx = ZSTD_createDCtx();
         size_t dictSize = CNBuffSize;
         void* dict = (void*)malloc(dictSize);
@@ -2975,9 +2976,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
                     CHECK_Z(ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters));
                     ZSTD_freeCDict(cdict);
-                }
-            }
-        }
+        }   }   }
 
         ZSTD_freeCCtx(cctx);
         ZSTD_freeDCtx(dctx);

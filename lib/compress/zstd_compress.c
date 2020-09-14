@@ -3937,6 +3937,7 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
     assert(zcs->outBuffSize > 0);
     assert(output->pos <= output->size);
     assert(input->pos <= input->size);
+    assert((U32)flushMode <= (U32)ZSTD_e_end);
 
     while (someMoreWork) {
         switch(zcs->streamStage)
@@ -4083,9 +4084,10 @@ size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
 {
     DEBUGLOG(5, "ZSTD_compressStream2, endOp=%u ", (unsigned)endOp);
     /* check conditions */
-    RETURN_ERROR_IF(output->pos > output->size, GENERIC, "invalid buffer");
-    RETURN_ERROR_IF(input->pos  > input->size, GENERIC, "invalid buffer");
-    assert(cctx!=NULL);
+    RETURN_ERROR_IF(output->pos > output->size, dstSize_tooSmall, "invalid output buffer");
+    RETURN_ERROR_IF(input->pos  > input->size, srcSize_wrong, "invalid input buffer");
+    RETURN_ERROR_IF((U32)endOp > (U32)ZSTD_e_end, parameter_outOfBound, "invalid endDirective");
+    assert(cctx != NULL);
 
     /* transparent initialization stage */
     if (cctx->streamStage == zcss_init) {

@@ -677,8 +677,9 @@ typedef enum {
  *  - Compression parameters cannot be changed once compression is started (save a list of exceptions in multi-threading mode)
  *  - output->pos must be <= dstCapacity, input->pos must be <= srcSize
  *  - output->pos and input->pos will be updated. They are guaranteed to remain below their respective limit.
+ *  - endOp must be a valid directive
  *  - When nbWorkers==0 (default), function is blocking : it completes its job before returning to caller.
- *  - When nbWorkers>=1, function is non-blocking : it just acquires a copy of input, and distributes jobs to internal worker threads, flush whatever is available,
+ *  - When nbWorkers>=1, function is non-blocking : it copies a portion of input, distributes jobs to internal worker threads, flush to output whatever is available,
  *                                                  and then immediately returns, just indicating that there is some data remaining to be flushed.
  *                                                  The function nonetheless guarantees forward progress : it will return only after it reads or write at least 1+ byte.
  *  - Exception : if the first call requests a ZSTD_e_end directive and provides enough dstCapacity, the function delegates to ZSTD_compress2() which is always blocking.

@@ -1202,6 +1202,19 @@ then
     println "\n===>  zstdmt long distance matching round-trip tests "
     roundTripTest -g8M "3 --long=24 -T2"
 
+    println "\n===>  zstdmt environment variable tests "
+    echo "multifoo" >> mt_tmp
+    ZSTD_NBTHREADS=-3 zstd -f mt_tmp # negative value, warn and revert to default setting
+    ZSTD_NBTHREADS=''  zstd -f mt_tmp # empty env var, warn and revert to default setting
+    ZSTD_NBTHREADS=-   zstd -f mt_tmp # malformed env var, warn and revert to default setting
+    ZSTD_NBTHREADS=a   zstd -f mt_tmp # malformed env var, warn and revert to default setting
+    ZSTD_NBTHREADS=+a  zstd -f mt_tmp # malformed env var, warn and revert to default setting
+    ZSTD_NBTHREADS=3a7 zstd -f mt_tmp # malformed env var, warn and revert to default setting
+    ZSTD_NBTHREADS=50000000000 zstd -f mt_tmp # numeric value too large, warn and revert to default setting=
+    ZSTD_NBTHREADS=2  zstd -f mt_tmp # correct usage
+    ZSTD_NBTHREADS=1  zstd -f mt_tmp # correct usage: single thread
+    rm mt_tmp*
+
     println "\n===>  ovLog tests "
     datagen -g2MB > tmp
     refSize=$(zstd tmp -6 -c --zstd=wlog=18         | wc -c)

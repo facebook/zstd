@@ -444,8 +444,8 @@ static int basicUnitTests(U32 const seed, double compressibility)
         ZSTD_inBuffer inb = { CNBuffer, CNBuffSize, 0 };
         ZSTD_outBuffer outb = { compressedBuffer, compressedBufferSize, 0 };
         if (cctx==NULL) goto _output_error;
-        CHECK( ZSTD_isError( ZSTD_compressStream2(cctx, &outb, &inb,  3) ) );  /* must fail */
-        CHECK( ZSTD_isError( ZSTD_compressStream2(cctx, &outb, &inb, -1) ) );  /* must fail */
+        CHECK( ZSTD_isError( ZSTD_compressStream2(cctx, &outb, &inb, (ZSTD_EndDirective) 3) ) );  /* must fail */
+        CHECK( ZSTD_isError( ZSTD_compressStream2(cctx, &outb, &inb, (ZSTD_EndDirective)-1) ) );  /* must fail */
         ZSTD_freeCCtx(cctx);
     }
     DISPLAYLEVEL(3, "OK \n");

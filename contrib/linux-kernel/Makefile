@@ -49,6 +49,7 @@ libzstd:
 	mv linux/lib/zstd/common/zstd_errors.h linux/include/linux
 	cp zstd_compress_module.c linux/lib/zstd
 	cp zstd_decompress_module.c linux/lib/zstd
+	cp decompress_sources.h linux/lib/zstd
 	cp linux.mk linux/lib/zstd/Makefile
 
 LINUX ?= $(HOME)/repos/linux

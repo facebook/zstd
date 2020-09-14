@@ -18,9 +18,13 @@ liblinuxzstd.a: $(LINUX_ZSTD_OBJECTS)
 test: test.c liblinuxzstd.a
 	$(CC) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) $^ -o $@
 
-run-test: test
+static_test: static_test.c
+	$(CC) $(LDFLAGS) $(CPPFLAGS) $(CFLAGS) $^ -o $@
+
+run-test: test static_test
 	./macro-test.sh
 	./test
+	./static_test
 
 .PHONY:
 clean:

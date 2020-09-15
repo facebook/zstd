@@ -1337,24 +1337,23 @@ FIO_compressZstdFrame(FIO_ctx_t* const fCtx,
                                 (unsigned)(zfp.produced >> 20),
                                 cShare );
                 } else {   /* summarized notifications if == 2 */
+                    DISPLAYLEVEL(2, "\r%79s\r", "");    /* Clear out the current displayed line */
                     if (fCtx->nbFilesTotal > 1) {
                         size_t srcFileNameSize = strlen(srcFileName);
                         /* Ensure that the string we print is roughly the same size each time */
-                        if (srcFileNameSize > 20) {
-                            const char* truncatedSrcFileName = srcFileName + srcFileNameSize - 17;
-                            DISPLAYLEVEL(2, "\rCompressing %2u / %2u files. Current source: ...%s ",
+                        if (srcFileNameSize > 18) {
+                            const char* truncatedSrcFileName = srcFileName + srcFileNameSize - 15;
+                            DISPLAYLEVEL(2, "Compress: %2u/%2u files. Current: ...%s ",
                                          fCtx->currFileIdx+1, fCtx->nbFilesTotal, truncatedSrcFileName);
                         } else {
-                            DISPLAYLEVEL(2, "\rCompressing %2u / %2u files. Current source: %*s ",
-                                         fCtx->currFileIdx+1, fCtx->nbFilesTotal, (int)(20-srcFileNameSize), srcFileName);
+                            DISPLAYLEVEL(2, "Compress: %2u/%2u files. Current: %*s ",
+                                         fCtx->currFileIdx+1, fCtx->nbFilesTotal, (int)(18-srcFileNameSize), srcFileName);
                         }
-                    } else {
-                        DISPLAYLEVEL(2, "\r");
                     }
                     DISPLAYLEVEL(2, "Read : %2u ", (unsigned)(zfp.consumed >> 20));
                     if (fileSize != UTIL_FILESIZE_UNKNOWN)
                         DISPLAYLEVEL(2, "/ %2u ", (unsigned)(fileSize >> 20));
-                    DISPLAYLEVEL(2, "MB ==> %2.f%%      ", cShare);
+                    DISPLAYLEVEL(2, "MB ==> %2.f%%", cShare);
                     DELAY_NEXT_UPDATE();
                 }
 
@@ -1825,10 +1824,12 @@ int FIO_compressMultipleFilenames(FIO_ctx_t* const fCtx,
             FIO_checkFilenameCollisions(inFileNamesTable , fCtx->nbFilesTotal);
     }
 
-    if (fCtx->nbFilesProcessed >= 1 && fCtx->nbFilesTotal > 1 && fCtx->totalBytesInput != 0)
-        DISPLAYLEVEL(2, "%d files compressed : %.2f%%  (%6zu => %6zu %-40s\n", fCtx->nbFilesProcessed,
+    if (fCtx->nbFilesProcessed >= 1 && fCtx->nbFilesTotal > 1 && fCtx->totalBytesInput != 0) {
+        DISPLAYLEVEL(2, "\r%79s\r", "");
+        DISPLAYLEVEL(2, "%d files compressed : %.2f%%  (%6zu => %6zu bytes)\n", fCtx->nbFilesProcessed,
                         (double)fCtx->totalBytesOutput/((double)fCtx->totalBytesInput)*100,
-                        fCtx->totalBytesInput, fCtx->totalBytesOutput, "bytes)");
+                        fCtx->totalBytesInput, fCtx->totalBytesOutput);
+    }
 
     FIO_freeCResources(ress);
     return error;
@@ -2100,7 +2101,7 @@ FIO_decompressZstdFrame(FIO_ctx_t* const fCtx, dRess_t* ress, FILE* finput,
         storedSkips = FIO_fwriteSparse(ress->dstFile, ress->dstBuffer, outBuff.pos, prefs, storedSkips);
         frameSize += outBuff.pos;
         if (fCtx->nbFilesTotal > 1) {
-            DISPLAYUPDATE(2, "\rDecompressing %u/%u files. Current source: %-20.20s : %u MB...    ",
+            DISPLAYUPDATE(2, "\rDecompress: %u/%u files. Current source: %-20.20s : %u MB...    ",
                           fCtx->currFileIdx+1, fCtx->nbFilesTotal, srcFileName, (unsigned)((alreadyDecoded+frameSize)>>20) );
         } else {
             DISPLAYUPDATE(2, "\r%-20.20s : %u MB...     ",

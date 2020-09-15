@@ -3540,8 +3540,8 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced2(const void* dict, size_t dict
         ZSTD_dedicatedDictSearch_isSupported(
             cctxParams->compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, dictSize);
     if (!dedicatedDictSearch) {
-        ZSTD_compressionParameters cParams = ZSTD_getCParams_internal(
-            cctxParams->compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, dictSize);
+        ZSTD_compressionParameters cParams = ZSTD_getCParamsFromCCtxParams(
+            cctxParams, ZSTD_CONTENTSIZE_UNKNOWN, dictSize);
         return ZSTD_createCDict_advanced(dict, dictSize,
             dictLoadMethod, dictContentType, cParams,
             customMem);

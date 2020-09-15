@@ -3530,11 +3530,12 @@ ZSTD_CDict* ZSTD_createCDict_advanced(const void* dictBuffer, size_t dictSize,
 
 }
 
-ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced2(const void* dict, size_t dictSize,
-                                                  ZSTD_dictLoadMethod_e dictLoadMethod,
-                                                  ZSTD_dictContentType_e dictContentType,
-                                                  ZSTD_CCtx_params* cctxParams,
-                                                  ZSTD_customMem customMem)
+ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced2(
+        const void* dict, size_t dictSize,
+        ZSTD_dictLoadMethod_e dictLoadMethod,
+        ZSTD_dictContentType_e dictContentType,
+        const ZSTD_CCtx_params* cctxParams,
+        ZSTD_customMem customMem)
 {
     int const dedicatedDictSearch = cctxParams->enableDedicatedDictSearch &&
         ZSTD_dedicatedDictSearch_isSupported(

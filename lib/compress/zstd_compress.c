@@ -1098,6 +1098,19 @@ ZSTD_adjustCParams(ZSTD_compressionParameters cPar,
 static ZSTD_compressionParameters ZSTD_getCParams_internal(int compressionLevel, unsigned long long srcSizeHint, size_t dictSize);
 static ZSTD_parameters ZSTD_getParams_internal(int compressionLevel, unsigned long long srcSizeHint, size_t dictSize);
 
+static void ZSTD_overrideCParams(
+              ZSTD_compressionParameters* cParams,
+        const ZSTD_compressionParameters* overrides)
+{
+    if (overrides->windowLog)    cParams->windowLog    = overrides->windowLog;
+    if (overrides->hashLog)      cParams->hashLog      = overrides->hashLog;
+    if (overrides->chainLog)     cParams->chainLog     = overrides->chainLog;
+    if (overrides->searchLog)    cParams->searchLog    = overrides->searchLog;
+    if (overrides->minMatch)     cParams->minMatch     = overrides->minMatch;
+    if (overrides->targetLength) cParams->targetLength = overrides->targetLength;
+    if (overrides->strategy)     cParams->strategy     = overrides->strategy;
+}
+
 ZSTD_compressionParameters ZSTD_getCParamsFromCCtxParams(
         const ZSTD_CCtx_params* CCtxParams, U64 srcSizeHint, size_t dictSize)
 {
@@ -1107,13 +1120,7 @@ ZSTD_compressionParameters ZSTD_getCParamsFromCCtxParams(
     }
     cParams = ZSTD_getCParams_internal(CCtxParams->compressionLevel, srcSizeHint, dictSize);
     if (CCtxParams->ldmParams.enableLdm) cParams.windowLog = ZSTD_LDM_DEFAULT_WINDOW_LOG;
-    if (CCtxParams->cParams.windowLog) cParams.windowLog = CCtxParams->cParams.windowLog;
-    if (CCtxParams->cParams.hashLog) cParams.hashLog = CCtxParams->cParams.hashLog;
-    if (CCtxParams->cParams.chainLog) cParams.chainLog = CCtxParams->cParams.chainLog;
-    if (CCtxParams->cParams.searchLog) cParams.searchLog = CCtxParams->cParams.searchLog;
-    if (CCtxParams->cParams.minMatch) cParams.minMatch = CCtxParams->cParams.minMatch;
-    if (CCtxParams->cParams.targetLength) cParams.targetLength = CCtxParams->cParams.targetLength;
-    if (CCtxParams->cParams.strategy) cParams.strategy = CCtxParams->cParams.strategy;
+    ZSTD_overrideCParams(&cParams, &CCtxParams->cParams);
     assert(!ZSTD_checkCParams(cParams));
     /* srcSizeHint == 0 means 0 */
     return ZSTD_adjustCParams_internal(cParams, srcSizeHint, dictSize);

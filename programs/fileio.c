@@ -1338,14 +1338,23 @@ FIO_compressZstdFrame(FIO_ctx_t* const fCtx,
                                 cShare );
                 } else {   /* summarized notifications if == 2 */
                     if (fCtx->nbFilesTotal > 1) {
-                        DISPLAYLEVEL(2, "\rCompressing %u/%u files. Current source: %s ", fCtx->currFileIdx+1, fCtx->nbFilesTotal, srcFileName);
+                        size_t srcFileNameSize = strlen(srcFileName);
+                        /* Ensure that the string we print is roughly the same size each time */
+                        if (srcFileNameSize > 20) {
+                            const char* truncatedSrcFileName = srcFileName + srcFileNameSize - 17;
+                            DISPLAYLEVEL(2, "\rCompressing %2u / %2u files. Current source: ...%s ",
+                                         fCtx->currFileIdx+1, fCtx->nbFilesTotal, truncatedSrcFileName);
+                        } else {
+                            DISPLAYLEVEL(2, "\rCompressing %2u / %2u files. Current source: %*s ",
+                                         fCtx->currFileIdx+1, fCtx->nbFilesTotal, (int)(20-srcFileNameSize), srcFileName);
+                        }
                     } else {
                         DISPLAYLEVEL(2, "\r");
                     }
-                    DISPLAYLEVEL(2, "Read : %u ", (unsigned)(zfp.consumed >> 20));
+                    DISPLAYLEVEL(2, "Read : %2u ", (unsigned)(zfp.consumed >> 20));
                     if (fileSize != UTIL_FILESIZE_UNKNOWN)
-                        DISPLAYLEVEL(2, "/ %u ", (unsigned)(fileSize >> 20));
-                    DISPLAYLEVEL(2, "MB ==> %2.f%%", cShare);
+                        DISPLAYLEVEL(2, "/ %2u ", (unsigned)(fileSize >> 20));
+                    DISPLAYLEVEL(2, "MB ==> %2.f%%      ", cShare);
                     DELAY_NEXT_UPDATE();
                 }
 
@@ -1817,9 +1826,9 @@ int FIO_compressMultipleFilenames(FIO_ctx_t* const fCtx,
     }
 
     if (fCtx->nbFilesProcessed >= 1 && fCtx->nbFilesTotal > 1 && fCtx->totalBytesInput != 0)
-        DISPLAYLEVEL(2, "%d files compressed : %.2f%%  (%6zu => %6zu bytes)\n", fCtx->nbFilesProcessed,
+        DISPLAYLEVEL(2, "%d files compressed : %.2f%%  (%6zu => %6zu %-40s\n", fCtx->nbFilesProcessed,
                         (double)fCtx->totalBytesOutput/((double)fCtx->totalBytesInput)*100,
-                        fCtx->totalBytesInput, fCtx->totalBytesOutput);
+                        fCtx->totalBytesInput, fCtx->totalBytesOutput, "bytes)");
 
     FIO_freeCResources(ress);
     return error;

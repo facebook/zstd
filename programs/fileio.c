@@ -1343,10 +1343,10 @@ FIO_compressZstdFrame(FIO_ctx_t* const fCtx,
                         /* Ensure that the string we print is roughly the same size each time */
                         if (srcFileNameSize > 18) {
                             const char* truncatedSrcFileName = srcFileName + srcFileNameSize - 15;
-                            DISPLAYLEVEL(2, "Compress: %2u/%2u files. Current: ...%s ",
+                            DISPLAYLEVEL(2, "Compress: %u/%u files. Current: ...%s ",
                                          fCtx->currFileIdx+1, fCtx->nbFilesTotal, truncatedSrcFileName);
                         } else {
-                            DISPLAYLEVEL(2, "Compress: %2u/%2u files. Current: %*s ",
+                            DISPLAYLEVEL(2, "Compress: %u/%u files. Current: %*s ",
                                          fCtx->currFileIdx+1, fCtx->nbFilesTotal, (int)(18-srcFileNameSize), srcFileName);
                         }
                     }
@@ -2101,8 +2101,15 @@ FIO_decompressZstdFrame(FIO_ctx_t* const fCtx, dRess_t* ress, FILE* finput,
         storedSkips = FIO_fwriteSparse(ress->dstFile, ress->dstBuffer, outBuff.pos, prefs, storedSkips);
         frameSize += outBuff.pos;
         if (fCtx->nbFilesTotal > 1) {
-            DISPLAYUPDATE(2, "\rDecompress: %u/%u files. Current source: %-20.20s : %u MB...    ",
-                          fCtx->currFileIdx+1, fCtx->nbFilesTotal, srcFileName, (unsigned)((alreadyDecoded+frameSize)>>20) );
+            size_t srcFileNameSize = strlen(srcFileName);
+            if (srcFileNameSize > 18) {
+                const char* truncatedSrcFileName = srcFileName + srcFileNameSize - 15;
+                DISPLAYUPDATE(2, "\rDecompress: %2u/%2u files. Current: ...%s : %u MB...    ",
+                                fCtx->currFileIdx+1, fCtx->nbFilesTotal, truncatedSrcFileName, (unsigned)((alreadyDecoded+frameSize)>>20) );
+            } else {
+                DISPLAYUPDATE(2, "\rDecompress: %2u/%2u files. Current: %s : %u MB...    ",
+                            fCtx->currFileIdx+1, fCtx->nbFilesTotal, srcFileName, (unsigned)((alreadyDecoded+frameSize)>>20) );
+            }
         } else {
             DISPLAYUPDATE(2, "\r%-20.20s : %u MB...     ",
                             srcFileName, (unsigned)((alreadyDecoded+frameSize)>>20) );

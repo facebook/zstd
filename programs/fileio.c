@@ -2743,7 +2743,7 @@ FIO_decompressMultipleFilenames(FIO_ctx_t* const fCtx,
             FIO_checkFilenameCollisions(srcNamesTable , fCtx->nbFilesTotal);
     }
     
-    if (fCtx->nbFilesProcessed >= 1  && fCtx->nbFilesTotal > 1 && fCtx->totalBytesInput != 0)
+    if (fCtx->nbFilesProcessed >= 1  && fCtx->nbFilesTotal > 1 && fCtx->totalBytesOutput != 0)
         DISPLAYLEVEL(2, "%d files decompressed : %6zu bytes total \n", fCtx->nbFilesProcessed, fCtx->totalBytesOutput);
 
     FIO_freeDResources(ress);

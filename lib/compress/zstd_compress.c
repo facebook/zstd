@@ -192,11 +192,10 @@ static ZSTD_CCtx_params ZSTD_makeCCtxParamsFromCParams(
         ZSTD_compressionParameters cParams)
 {
     ZSTD_CCtx_params cctxParams;
-    ZSTD_memset(&cctxParams, 0, sizeof(cctxParams));
+    /* should not matter, as all cParams are presumed properly defined */
+    ZSTD_CCtxParams_init(&cctxParams, ZSTD_CLEVEL_DEFAULT);
     cctxParams.cParams = cParams;
-    cctxParams.compressionLevel = ZSTD_CLEVEL_DEFAULT;  /* should not matter, as all cParams are presumed properly defined */
     assert(!ZSTD_checkCParams(cParams));
-    cctxParams.fParams.contentSizeFlag = 1;
     return cctxParams;
 }
 
@@ -208,9 +207,8 @@ static ZSTD_CCtx_params* ZSTD_createCCtxParams_advanced(
     params = (ZSTD_CCtx_params*)ZSTD_customCalloc(
             sizeof(ZSTD_CCtx_params), customMem);
     if (!params) { return NULL; }
+    ZSTD_CCtxParams_init(params, ZSTD_CLEVEL_DEFAULT);
     params->customMem = customMem;
-    params->compressionLevel = ZSTD_CLEVEL_DEFAULT;
-    params->fParams.contentSizeFlag = 1;
     return params;
 }
 
@@ -3637,7 +3635,7 @@ const ZSTD_CDict* ZSTD_initStaticCDict(
         (unsigned)workspaceSize, (unsigned)neededSize, (unsigned)(workspaceSize < neededSize));
     if (workspaceSize < neededSize) return NULL;
 
-    ZSTD_memset(&params, 0, sizeof(params));
+    ZSTD_CCtxParams_init(&params, 0);
     params.cParams = cParams;
 
     if (ZSTD_isError( ZSTD_initCDict_internal(cdict,

@@ -3416,12 +3416,11 @@ static size_t ZSTD_initCDict_internal(
               const void* dictBuffer, size_t dictSize,
                     ZSTD_dictLoadMethod_e dictLoadMethod,
                     ZSTD_dictContentType_e dictContentType,
-                    ZSTD_compressionParameters cParams,
                     ZSTD_CCtx_params params)
 {
     DEBUGLOG(3, "ZSTD_initCDict_internal (dictContentType:%u)", (unsigned)dictContentType);
-    assert(!ZSTD_checkCParams(cParams));
-    cdict->matchState.cParams = cParams;
+    assert(!ZSTD_checkCParams(params.cParams));
+    cdict->matchState.cParams = params.cParams;
     cdict->matchState.dedicatedDictSearch = params.enableDedicatedDictSearch;
     if (cdict->matchState.dedicatedDictSearch && dictSize > ZSTD_CHUNKSIZE_MAX) {
         cdict->matchState.dedicatedDictSearch = 0;
@@ -3444,7 +3443,7 @@ static size_t ZSTD_initCDict_internal(
     FORWARD_IF_ERROR(ZSTD_reset_matchState(
         &cdict->matchState,
         &cdict->workspace,
-        &cParams,
+        &params.cParams,
         ZSTDcrp_makeClean,
         ZSTDirp_reset,
         ZSTD_resetTarget_CDict), "");
@@ -3453,7 +3452,6 @@ static size_t ZSTD_initCDict_internal(
      */
     {   params.compressionLevel = ZSTD_CLEVEL_DEFAULT;
         params.fParams.contentSizeFlag = 1;
-        params.cParams = cParams;
         {   size_t const dictID = ZSTD_compress_insertDictionary(
                     &cdict->cBlockState, &cdict->matchState, NULL, &cdict->workspace,
                     &params, cdict->dictContent, cdict->dictContentSize,
@@ -3547,14 +3545,16 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced2(
             &cctxParams, ZSTD_CONTENTSIZE_UNKNOWN, dictSize);
     }
 
+    cctxParams.cParams = cParams;
+
     cdict = ZSTD_createCDict_advanced_internal(dictSize,
-                        dictLoadMethod, cParams,
+                        dictLoadMethod, cctxParams.cParams,
                         customMem);
 
     if (ZSTD_isError( ZSTD_initCDict_internal(cdict,
                                     dict, dictSize,
                                     dictLoadMethod, dictContentType,
-                                    cParams, cctxParams) )) {
+                                    cctxParams) )) {
         ZSTD_freeCDict(cdict);
         return NULL;
     }
@@ -3638,11 +3638,12 @@ const ZSTD_CDict* ZSTD_initStaticCDict(
     if (workspaceSize < neededSize) return NULL;
 
     ZSTD_memset(&params, 0, sizeof(params));
+    params.cParams = cParams;
 
     if (ZSTD_isError( ZSTD_initCDict_internal(cdict,
                                               dict, dictSize,
                                               dictLoadMethod, dictContentType,
-                                              cParams, params) ))
+                                              params) ))
         return NULL;
 
     return cdict;

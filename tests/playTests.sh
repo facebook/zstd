@@ -1130,7 +1130,7 @@ fi
 
 touch tmp1
 zstd tmp1 -o tmp1.zstd
-zstd -d tmp1.zstd   # support .zstd suffix even though it's not the default suffix
+zstd -d -f tmp1.zstd   # support .zstd suffix even though it's not the default suffix
 
 println "\n===>  tar extension tests "
 

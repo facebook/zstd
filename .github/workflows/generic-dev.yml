@@ -98,7 +98,7 @@ jobs:
     - name: gcc-8 + ASan + UBSan + Fuzz Test
       run: |
         make gcc8install
-        CC=gcc-8 make clean uasan-fuzztest
+        CC=gcc-8 FUZZER_FLAGS="--long-tests" make clean uasan-fuzztest
 
   gcc-6-asan-ubsan-fuzz32:
     runs-on: ubuntu-latest
@@ -107,7 +107,7 @@ jobs:
     - name: gcc-6 + ASan + UBSan + Fuzz Test 32bit
       run: |
         make gcc6install libc6install
-        CC=gcc-6 CFLAGS="-O2 -m32" make uasan-fuzztest
+        CC=gcc-6 CFLAGS="-O2 -m32" FUZZER_FLAGS="--long-tests" make uasan-fuzztest
 
   clang-38-msan-fuzz:
     runs-on: ubuntu-16.04 # fails on 18.04

@@ -2854,8 +2854,39 @@ static int basicUnitTests(U32 const seed, double compressibility)
     DISPLAYLEVEL(3, "OK \n");
 #endif
 
+_end:
+    free(CNBuffer);
+    free(compressedBuffer);
+    free(decodedBuffer);
+    return testResult;
+
+_output_error:
+    testResult = 1;
+    DISPLAY("Error detected in Unit tests ! \n");
+    goto _end;
+}
+
+static int longUnitTests(U32 const seed, double compressibility)
+{
+    size_t const CNBuffSize = 5 MB;
+    void* const CNBuffer = malloc(CNBuffSize);
+    size_t const compressedBufferSize = ZSTD_compressBound(CNBuffSize);
+    void* const compressedBuffer = malloc(compressedBufferSize);
+    void* const decodedBuffer = malloc(CNBuffSize);
+    int testResult = 0;
+    unsigned testNb=0;
+    size_t cSize;
+
+    /* Create compressible noise */
+    if (!CNBuffer || !compressedBuffer || !decodedBuffer) {
+        DISPLAY("Not enough memory, aborting\n");
+        testResult = 1;
+        goto _end;
+    }
+    RDG_genBuffer(CNBuffer, CNBuffSize, compressibility, 0., seed);
+
     /* note : this test is rather long, it would be great to find a way to speed up its execution */
-    DISPLAYLEVEL(3, "test%3i : table cleanliness through index reduction : ", testNb++);
+    DISPLAYLEVEL(3, "longtest%3i : table cleanliness through index reduction : ", testNb++);
     {   int cLevel;
         size_t approxIndex = 0;
         size_t maxIndex = ((3U << 29) + (1U << ZSTD_WINDOWLOG_MAX)); /* ZSTD_CURRENT_MAX from zstd_compress_internal.h */
@@ -2924,7 +2955,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
-    DISPLAYLEVEL(3, "test%3i : testing cdict compression with different attachment strategies : ", testNb++);
+    DISPLAYLEVEL(3, "longtest%3i : testing cdict compression with different attachment strategies : ", testNb++);
     {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
         ZSTD_DCtx* const dctx = ZSTD_createDCtx();
         size_t dictSize = CNBuffSize;
@@ -3414,10 +3445,12 @@ int main(int argc, const char** argv)
     int nbTests = nbTestsDefault;
     int testNb = 0;
     int proba = FUZ_compressibility_default;
+    double probfloat;
     int result = 0;
     U32 mainPause = 0;
     U32 maxDuration = 0;
     int bigTests = 1;
+    int longTests = 0;
     U32 memTestsOnly = 0;
     const char* const programName = argv[0];
 
@@ -3433,6 +3466,8 @@ int main(int argc, const char** argv)
 
             if (!strcmp(argument, "--memtest")) { memTestsOnly=1; continue; }
             if (!strcmp(argument, "--no-big-tests")) { bigTests=0; continue; }
+            if (!strcmp(argument, "--long-tests")) { longTests=1; continue; }
+            if (!strcmp(argument, "--no-long-tests")) { longTests=0; continue; }
 
             argument++;
             while (*argument!=0) {
@@ -3503,15 +3538,22 @@ int main(int argc, const char** argv)
     DISPLAY("Seed = %u\n", (unsigned)seed);
     if (proba!=FUZ_compressibility_default) DISPLAY("Compressibility : %i%%\n", proba);
 
+    probfloat = ((double)proba) / 100;
+
     if (memTestsOnly) {
         g_displayLevel = MAX(3, g_displayLevel);
-        return FUZ_mallocTests(seed, ((double)proba) / 100, memTestsOnly);
+        return FUZ_mallocTests(seed, probfloat, memTestsOnly);
     }
 
     if (nbTests < testNb) nbTests = testNb;
 
-    if (testNb==0)
-        result = basicUnitTests(0, ((double)proba) / 100);  /* constant seed for predictability */
+    if (testNb==0) {
+        result = basicUnitTests(0, probfloat);  /* constant seed for predictability */
+
+        if (!result && longTests) {
+            result = longUnitTests(0, probfloat);
+        }
+    }
     if (!result)
         result = fuzzerTests(seed, nbTests, testNb, maxDuration, ((double)proba) / 100, bigTests);
     if (mainPause) {

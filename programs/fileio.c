@@ -2555,6 +2555,9 @@ int FIO_decompressFilename(FIO_ctx_t* const fCtx, FIO_prefs_t* const prefs,
 static const char *suffixList[] = {
     ZSTD_EXTENSION,
     TZSTD_EXTENSION,
+#ifndef ZSTD_NODECOMPRESS
+    ZSTD_ALT_EXTENSION,
+#endif
 #ifdef ZSTD_GZDECOMPRESS
     GZ_EXTENSION,
     TGZ_EXTENSION,

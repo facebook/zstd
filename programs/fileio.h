@@ -44,6 +44,7 @@ extern "C" {
 
 #define ZSTD_EXTENSION  ".zst"
 #define TZSTD_EXTENSION ".tzst"
+#define ZSTD_ALT_EXTENSION  ".zstd" /* allow decompression of .zstd files */
 
 #define LZ4_EXTENSION   ".lz4"
 #define TLZ4_EXTENSION  ".tlz4"

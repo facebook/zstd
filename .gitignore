@@ -23,6 +23,7 @@ zstdmt
 # Test artefacts
 tmp*
 *.zst
+*.zstd
 dictionary.
 dictionary
 NUL

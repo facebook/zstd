@@ -1440,7 +1440,7 @@ __`Entropy_Tables`__ : follow the same format as tables in [compressed blocks].
               Repeat distribution mode for sequence decoding.
               It's finally followed by 3 offset values, populating recent offsets (instead of using `{1,4,8}`),
               stored in order, 4-bytes __little-endian__ each, for a total of 12 bytes.
-              Each recent offset must have a value <= dictionary size, and cannot equal 0.
+              Each recent offset must have a value <= dictionary content size, and cannot equal 0.
 
 __`Content`__ : The rest of the dictionary is its content.
               The content act as a "past" in front of data to compress or decompress,

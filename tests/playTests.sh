@@ -309,6 +309,18 @@ test -f precompressedFilterTestDir/input.5.zst.zst
 test -f precompressedFilterTestDir/input.6.zst.zst
 println "Test completed"
 
+
+
+println "\n===>  warning prompt does not swallow characters"
+println "y" > tmpPrompt
+println "hello world" >> tmpPrompt
+zstd tmpPrompt
+zstd < tmpPrompt -o tmpPrompt.zst
+zstd -q -d tmpPrompt.zst -o tmpPromptRegenerated
+$DIFF tmpPromptRegenerated tmpPrompt
+println "Test completed"
+
+
 println "\n===>  recursive mode test "
 # combination of -r with empty list of input file
 zstd -c -r < tmp > tmp.zst

@@ -379,11 +379,11 @@ cp tmp_rm3.zst tmp_rm4.zst
 echo 'Y' | zstd -d tmp_rm3.zst tmp_rm4.zst -o tmp_rm_out --rm
 test ! -f tmp_rm3.zst
 test ! -f tmp_rm4.zst
-echo 'yes' | zstd tmp_rm_out tmp_rm3 -c --rm
+echo 'yes' | zstd tmp_rm_out tmp_rm3 -c --rm > $INTOVOID
 test ! -f tmp_rm_out
 test ! -f tmp_rm3
 println gooder > tmpexists1
-zstd tmpexists1 tmpexists -c --rm -f
+zstd tmpexists1 tmpexists -c --rm -f > $INTOVOID
 
 # Bug: PR #972
 if [ "$?" -eq 139 ]; then

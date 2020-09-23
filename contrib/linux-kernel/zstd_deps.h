@@ -56,9 +56,9 @@ typedef int64_t  S64;
 #ifndef ZSTD_DEPS_MALLOC
 #define ZSTD_DEPS_MALLOC
 
-#define ZSTD_malloc(s) (NULL)
-#define ZSTD_free(p) ((void)0)
-#define ZSTD_calloc(n,s) (NULL)
+#define ZSTD_malloc(s) ({ (void)(s); NULL; })
+#define ZSTD_free(p) ((void)(p))
+#define ZSTD_calloc(n,s) ({ (void)(n); (void)(s); NULL; })
 
 #endif /* ZSTD_DEPS_MALLOC */
 #endif /* ZSTD_DEPS_NEED_MALLOC */

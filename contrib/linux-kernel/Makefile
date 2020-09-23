@@ -65,7 +65,7 @@ import: libzstd
 
 .PHONY: test
 test: libzstd
-	$(MAKE) -C test run-test CFLAGS="-O3" -j
+	$(MAKE) -C test run-test CFLAGS="-O3 $(CFLAGS)" -j
 
 .PHONY: clean
 clean:

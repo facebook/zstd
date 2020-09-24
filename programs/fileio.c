@@ -662,7 +662,7 @@ FIO_openDstFile(FIO_ctx_t* fCtx, FIO_prefs_t* const prefs,
                     return NULL;
                 }
                 DISPLAY("zstd: %s already exists; ", dstFileName);
-                if (UTIL_requireUserConfirmation("overwrite (y/n) ? ", "Not overwritten  \n", "yY"))
+                if (UTIL_requireUserConfirmation("overwrite (y/n) ? ", "Not overwritten  \n", "yY", fCtx->hasStdinInput))
                     return NULL;
             }
             /* need to unlink */
@@ -859,7 +859,7 @@ static int FIO_removeMultiFilesWarning(FIO_ctx_t* const fCtx, const FIO_prefs_t*
             }
             DISPLAYLEVEL(2, "\nThe concatenated output CANNOT regenerate the original directory tree. ")
             if (prefs->removeSrcFile) {
-                error = g_display_prefs.displayLevel > displayLevelCutoff && UTIL_requireUserConfirmation("This is a destructive operation. Proceed? (y/n): ", "Aborting...", "yY");
+                error = g_display_prefs.displayLevel > displayLevelCutoff && UTIL_requireUserConfirmation("This is a destructive operation. Proceed? (y/n): ", "Aborting...", "yY", fCtx->hasStdinInput);
             }
         }
         DISPLAY("\n");

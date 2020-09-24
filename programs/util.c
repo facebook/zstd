@@ -90,9 +90,6 @@ int g_utilDisplayLevel;
 int UTIL_requireUserConfirmation(const char* prompt, const char* abortMsg,
                                           const char* acceptableLetters) {
     int ch, result;
-    /* If input is presented via stdin, dont use prompt as it may swallow characters */
-    if (!IS_CONSOLE(stdin))
-        return 0;
 
     UTIL_DISPLAY("%s", prompt);
     ch = getchar();

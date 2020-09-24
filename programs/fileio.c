@@ -603,8 +603,8 @@ static FILE* FIO_openSrcFile(const char* srcFileName)
  *  condition : `dstFileName` must be non-NULL.
  * @result : FILE* to `dstFileName`, or NULL if it fails */
 static FILE*
-FIO_openDstFile(FIO_prefs_t* const prefs,
-          const char* srcFileName, const char* dstFileName)
+FIO_openDstFile(FIO_ctx_t* fCtx, FIO_prefs_t* const prefs,
+                const char* srcFileName, const char* dstFileName)
 {
     if (prefs->testMode) return NULL;  /* do not open file in test mode */
 
@@ -1566,7 +1566,7 @@ static int FIO_compressFilename_dstFile(FIO_ctx_t* const fCtx,
     if (ress.dstFile == NULL) {
         closeDstFile = 1;
         DISPLAYLEVEL(6, "FIO_compressFilename_dstFile: opening dst: %s \n", dstFileName);
-        ress.dstFile = FIO_openDstFile(prefs, srcFileName, dstFileName);
+        ress.dstFile = FIO_openDstFile(fCtx, prefs, srcFileName, dstFileName);
         if (ress.dstFile==NULL) return 1;  /* could not open dstFileName */
         /* Must only be added after FIO_openDstFile() succeeds.
          * Otherwise we may delete the destination file if it already exists,
@@ -1773,7 +1773,7 @@ int FIO_compressMultipleFilenames(FIO_ctx_t* const fCtx,
             FIO_freeCResources(ress);
             return 1;
         }
-        ress.dstFile = FIO_openDstFile(prefs, NULL, outFileName);
+        ress.dstFile = FIO_openDstFile(fCtx, prefs, NULL, outFileName);
         if (ress.dstFile == NULL) {  /* could not open outFileName */
             error = 1;
         } else {
@@ -2458,7 +2458,7 @@ static int FIO_decompressDstFile(FIO_ctx_t* const fCtx,
     if ((ress.dstFile == NULL) && (prefs->testMode==0)) {
         releaseDstFile = 1;
 
-        ress.dstFile = FIO_openDstFile(prefs, srcFileName, dstFileName);
+        ress.dstFile = FIO_openDstFile(fCtx, prefs, srcFileName, dstFileName);
         if (ress.dstFile==NULL) return 1;
 
         /* Must only be added after FIO_openDstFile() succeeds.
@@ -2688,7 +2688,7 @@ FIO_decompressMultipleFilenames(FIO_ctx_t* const fCtx,
             return 1;
         }
         if (!prefs->testMode) {
-            ress.dstFile = FIO_openDstFile(prefs, NULL, outFileName);
+            ress.dstFile = FIO_openDstFile(fCtx, prefs, NULL, outFileName);
             if (ress.dstFile == 0) EXM_THROW(19, "cannot open %s", outFileName);
         }
         for (; fCtx->currFileIdx < fCtx->nbFilesTotal; fCtx->currFileIdx++) {

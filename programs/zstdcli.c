@@ -1286,6 +1286,7 @@ int main(int const argCount, const char* argv[])
 
     /* IO Stream/File */
     FIO_setNbFilesTotal(fCtx, (int)filenames->tableSize); 
+    FIO_determineHasStdinInput(fCtx, filenames);
     FIO_setNotificationLevel(g_displayLevel);
     FIO_setPatchFromMode(prefs, patchFromDictFileName != NULL);
     if (memLimit == 0) {

@@ -330,6 +330,7 @@ struct FIO_ctx_s {
 
     /* file i/o info */
     int nbFilesTotal;
+    int hasStdinInput;
 
     /* file i/o state */
     int currFileIdx;
@@ -386,6 +387,7 @@ FIO_ctx_t* FIO_createContext(void)
     if (!ret) EXM_THROW(21, "Allocation error : not enough memory");
 
     ret->currFileIdx = 0;
+    ret->hasStdinInput = 0;
     ret->nbFilesTotal = 1;
     ret->nbFilesProcessed = 0;
     ret->totalBytesInput = 0;
@@ -537,6 +539,16 @@ void FIO_setContentSize(FIO_prefs_t* const prefs, int value)
 void FIO_setNbFilesTotal(FIO_ctx_t* const fCtx, int value)
 {
     fCtx->nbFilesTotal = value;
+}
+
+void FIO_determineHasStdinInput(FIO_ctx_t* const fCtx, const FileNamesTable* const filenames) {
+    int i = 0;
+    for ( ; i < filenames->tableSize; ++i) {
+        if (!strcmp(stdinmark, filenames->fileNames[i])) {
+            fCtx->hasStdinInput = 1;
+            return;
+        }
+    }
 }
 
 /*-*************************************

@@ -1128,10 +1128,13 @@ if [ $LZ4MODE -ne 1 ]; then
     grep ".lz4" tmplg > $INTOVOID && die "Unsupported suffix listed"
 fi
 
+touch tmp1
+zstd tmp1 -o tmp1.zstd
+zstd -d -f tmp1.zstd   # support .zstd suffix even though it's not the default suffix
 
 println "\n===>  tar extension tests "
 
-rm -f tmp tmp.tar tmp.tzst tmp.tgz tmp.txz tmp.tlz4
+rm -f tmp tmp.tar tmp.tzst tmp.tgz tmp.txz tmp.tlz4 tmp1.zstd
 
 datagen > tmp
 tar cf tmp.tar tmp

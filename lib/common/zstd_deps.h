@@ -8,19 +8,18 @@
  * You may select, at your option, one of the above-listed licenses.
  */
 
+/* This file provides common libc dependencies that zstd requires.
+ * The purpose is to allow replacing this file with a custom implementation
+ * to compile zstd without libc support.
+ */
+
 /* Need:
+ * NULL
+ * INT_MAX
+ * UINT_MAX
  * ZSTD_memcpy()
  * ZSTD_memset()
  * ZSTD_memmove()
- * BYTE
- * S16
- * U16
- * U32
- * U64
- * size_t
- * ptrdiff_t
- * INT_MAX
- * ...
  */
 #ifndef ZSTD_DEPS_COMMON
 #define ZSTD_DEPS_COMMON
@@ -37,40 +36,6 @@
 # define ZSTD_memcpy(d,s,l) memcpy((d),(s),(l))
 # define ZSTD_memmove(d,s,l) memmove((d),(s),(l))
 # define ZSTD_memset(p,v,l) memset((p),(v),(l))
-#endif
-
-/*-**************************************************************
-*  Basic Types
-*****************************************************************/
-#if  !defined (__VMS) && (defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */) )
-# include <stdint.h>
-  typedef   uint8_t BYTE;
-  typedef  uint16_t U16;
-  typedef   int16_t S16;
-  typedef  uint32_t U32;
-  typedef   int32_t S32;
-  typedef  uint64_t U64;
-  typedef   int64_t S64;
-#else
-# include <limits.h>
-#if CHAR_BIT != 8
-#  error "this implementation requires char to be exactly 8-bit type"
-#endif
-  typedef unsigned char      BYTE;
-#if USHRT_MAX != 65535
-#  error "this implementation requires short to be exactly 16-bit type"
-#endif
-  typedef unsigned short      U16;
-  typedef   signed short      S16;
-#if UINT_MAX != 4294967295
-#  error "this implementation requires int to be exactly 32-bit type"
-#endif
-  typedef unsigned int        U32;
-  typedef   signed int        S32;
-/* note : there are no limits defined for long long type in C90.
- * limits exist in C99, however, in such case, <stdint.h> is preferred */
-  typedef unsigned long long  U64;
-  typedef   signed long long  S64;
 #endif
 
 #endif /* ZSTD_DEPS_COMMON */
@@ -102,9 +67,7 @@
 #ifndef ZSTD_DEPS_MATH64
 #define ZSTD_DEPS_MATH64
 
-static U64 ZSTD_div64(U64 dividend, U32 divisor) {
-  return dividend / divisor;
-}
+#define ZSTD_div64(dividend, divisor) ((dividend) / (divisor))
 
 #endif /* ZSTD_DEPS_MATH64 */
 #endif /* ZSTD_DEPS_NEED_MATH64 */

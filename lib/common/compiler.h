@@ -213,8 +213,7 @@
  * We therefore declare the functions we need ourselves, rather than trying to
  * include the header file... */
 #include <stddef.h>  /* size_t */
-
-#define ZS_DEPS_NEED_STDINT
+#define ZSTD_DEPS_NEED_STDINT
 #include "zstd_deps.h"  /* intptr_t */
 
 /* Make memory region fully initialized (without changing its contents). */

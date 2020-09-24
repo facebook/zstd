@@ -311,13 +311,19 @@ println "Test completed"
 
 
 
-println "\n===>  warning prompt does not swallow characters"
+println "\n===>  warning prompts should not occur if stdin is an input"
 println "y" > tmpPrompt
 println "hello world" >> tmpPrompt
-zstd tmpPrompt
-zstd < tmpPrompt -o tmpPrompt.zst
-zstd -q -d tmpPrompt.zst -o tmpPromptRegenerated
-$DIFF tmpPromptRegenerated tmpPrompt
+zstd tmpPrompt -f
+zstd < tmpPrompt -o tmpPrompt.zst && die "should have aborted immediately and failed to overwrite"
+zstd < tmpPrompt -o tmpPrompt.zst -f    # should successfully overwrite with -f
+zstd -q -d -f tmpPrompt.zst -o tmpPromptRegenerated
+$DIFF tmpPromptRegenerated tmpPrompt    # the first 'y' character should not be swallowed
+
+echo 'yes' | zstd tmpPrompt -o tmpPrompt.zst  # accept piped "y" input to force overwrite when using files
+echo 'yes' | zstd < tmpPrompt -o tmpPrompt.zst && die "should have aborted immediately and failed to overwrite"
+zstd tmpPrompt - < tmpPrompt -o tmpPromp.zst --rm && die "should have aborted immediately and failed to remove"
+
 println "Test completed"
 
 

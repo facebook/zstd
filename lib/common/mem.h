@@ -39,10 +39,6 @@ extern "C" {
 #  define MEM_STATIC static  /* this version may generate warnings for unused static functions; disable the relevant warning */
 #endif
 
-#ifndef __has_builtin
-#  define __has_builtin(x) 0  /* compat. with non-clang compilers */
-#endif
-
 /* code only tested on 32 and 64 bits systems */
 MEM_STATIC void MEM_check(void) { DEBUG_STATIC_ASSERT((sizeof(size_t)==4) || (sizeof(size_t)==8)); }
 

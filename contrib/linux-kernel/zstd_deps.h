@@ -128,7 +128,7 @@ static U64 ZSTD_div64(U64 dividend, U32 divisor) {
  * The Linux Kernel doesn't provide intptr_t, only uintptr_t, which
  * is an unsigned long.
  */
-typedef long intptr_t
+typedef long intptr_t;
 
 #endif /* ZSTD_DEPS_STDINT */
 #endif /* ZSTD_DEPS_NEED_STDINT */

@@ -8,35 +8,25 @@
  * You may select, at your option, one of the above-listed licenses.
  */
 
+/*
+ * This file provides common libc dependencies that zstd requires.
+ * The purpose is to allow replacing this file with a custom implementation
+ * to compile zstd without libc support.
+ */
+
 /* Need:
  * NULL
+ * INT_MAX
+ * UINT_MAX
  * ZSTD_memcpy()
  * ZSTD_memset()
  * ZSTD_memmove()
- * BYTE
- * S16
- * U16
- * U32
- * U64
- * size_t
- * ptrdiff_t
- * INT_MAX
- * UINT_MAX
  */
 #ifndef ZSTD_DEPS_COMMON
 #define ZSTD_DEPS_COMMON
 
 #include <linux/limits.h>
-#include <linux/types.h>
 #include <linux/stddef.h>
-
-typedef uint8_t  BYTE;
-typedef uint16_t U16;
-typedef int16_t  S16;
-typedef uint32_t U32;
-typedef int32_t  S32;
-typedef uint64_t U64;
-typedef int64_t  S64;
 
 #define ZSTD_memcpy(d,s,n) __builtin_memcpy((d),(s),(n))
 #define ZSTD_memmove(d,s,n) __builtin_memmove((d),(s),(n))
@@ -74,7 +64,7 @@ typedef int64_t  S64;
 
 #include <linux/math64.h>
 
-static U64 ZSTD_div64(U64 dividend, U32 divisor) {
+static uint64_t ZSTD_div64(uint64_t dividend, uint32_t divisor) {
   return div_u64(dividend, divisor);
 }
 

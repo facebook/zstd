@@ -18,8 +18,10 @@ extern "C" {
 /*-****************************************
 *  Dependencies
 ******************************************/
+#include <stddef.h>  /* size_t, ptrdiff_t */
+#include "compiler.h"  /* __has_builtin */
 #include "debug.h"  /* DEBUG_STATIC_ASSERT */
-#include "zstd_deps.h"  /* size_t, ptrdiff_t, ZSTD_memcpy */
+#include "zstd_deps.h"  /* ZSTD_memcpy */
 
 
 /*-****************************************
@@ -39,12 +41,89 @@ extern "C" {
 #  define MEM_STATIC static  /* this version may generate warnings for unused static functions; disable the relevant warning */
 #endif
 
-/* code only tested on 32 and 64 bits systems */
-MEM_STATIC void MEM_check(void) { DEBUG_STATIC_ASSERT((sizeof(size_t)==4) || (sizeof(size_t)==8)); }
+/*-**************************************************************
+*  Basic Types
+*****************************************************************/
+#if  !defined (__VMS) && (defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */) )
+# include <stdint.h>
+  typedef   uint8_t BYTE;
+  typedef  uint16_t U16;
+  typedef   int16_t S16;
+  typedef  uint32_t U32;
+  typedef   int32_t S32;
+  typedef  uint64_t U64;
+  typedef   int64_t S64;
+#else
+# include <limits.h>
+#if CHAR_BIT != 8
+#  error "this implementation requires char to be exactly 8-bit type"
+#endif
+  typedef unsigned char      BYTE;
+#if USHRT_MAX != 65535
+#  error "this implementation requires short to be exactly 16-bit type"
+#endif
+  typedef unsigned short      U16;
+  typedef   signed short      S16;
+#if UINT_MAX != 4294967295
+#  error "this implementation requires int to be exactly 32-bit type"
+#endif
+  typedef unsigned int        U32;
+  typedef   signed int        S32;
+/* note : there are no limits defined for long long type in C90.
+ * limits exist in C99, however, in such case, <stdint.h> is preferred */
+  typedef unsigned long long  U64;
+  typedef   signed long long  S64;
+#endif
 
 
 /*-**************************************************************
-*  Memory I/O
+*  Memory I/O API
+*****************************************************************/
+/*=== Static platform detection ===*/
+MEM_STATIC unsigned MEM_32bits(void);
+MEM_STATIC unsigned MEM_64bits(void);
+MEM_STATIC unsigned MEM_isLittleEndian(void);
+
+/*=== Native unaligned read/write ===*/
+MEM_STATIC U16 MEM_read16(const void* memPtr);
+MEM_STATIC U32 MEM_read32(const void* memPtr);
+MEM_STATIC U64 MEM_read64(const void* memPtr);
+MEM_STATIC size_t MEM_readST(const void* memPtr);
+
+MEM_STATIC void MEM_write16(void* memPtr, U16 value);
+MEM_STATIC void MEM_write32(void* memPtr, U32 value);
+MEM_STATIC void MEM_write64(void* memPtr, U64 value);
+
+/*=== Little endian unaligned read/write ===*/
+MEM_STATIC U16 MEM_readLE16(const void* memPtr);
+MEM_STATIC U32 MEM_readLE24(const void* memPtr);
+MEM_STATIC U32 MEM_readLE32(const void* memPtr);
+MEM_STATIC U64 MEM_readLE64(const void* memPtr);
+MEM_STATIC size_t MEM_readLEST(const void* memPtr);
+
+MEM_STATIC void MEM_writeLE16(void* memPtr, U16 val);
+MEM_STATIC void MEM_writeLE24(void* memPtr, U32 val);
+MEM_STATIC void MEM_writeLE32(void* memPtr, U32 val32);
+MEM_STATIC void MEM_writeLE64(void* memPtr, U64 val64);
+MEM_STATIC void MEM_writeLEST(void* memPtr, size_t val);
+
+/*=== Big endian unaligned read/write ===*/
+MEM_STATIC U32 MEM_readBE32(const void* memPtr);
+MEM_STATIC U64 MEM_readBE64(const void* memPtr);
+MEM_STATIC size_t MEM_readBEST(const void* memPtr);
+
+MEM_STATIC void MEM_writeBE32(void* memPtr, U32 val32);
+MEM_STATIC void MEM_writeBE64(void* memPtr, U64 val64);
+MEM_STATIC void MEM_writeBEST(void* memPtr, size_t val);
+
+/*=== Byteswap ===*/
+MEM_STATIC U32 MEM_swap32(U32 in);
+MEM_STATIC U64 MEM_swap64(U64 in);
+MEM_STATIC size_t MEM_swapST(size_t in);
+
+
+/*-**************************************************************
+*  Memory I/O Implementation
 *****************************************************************/
 /* MEM_FORCE_MEMORY_ACCESS :
  * By default, access to unaligned memory is controlled by `memcpy()`, which is safe and portable.
@@ -331,6 +410,9 @@ MEM_STATIC void MEM_writeBEST(void* memPtr, size_t val)
     else
         MEM_writeBE64(memPtr, (U64)val);
 }
+
+/* code only tested on 32 and 64 bits systems */
+MEM_STATIC void MEM_check(void) { DEBUG_STATIC_ASSERT((sizeof(size_t)==4) || (sizeof(size_t)==8)); }
 
 
 #if defined (__cplusplus)

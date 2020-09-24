@@ -21,6 +21,7 @@ from typing import Optional
 INCLUDED_SUBDIRS = ["common", "compress", "decompress"]
 
 SKIPPED_FILES = [
+    "common/mem.h",
     "common/zstd_deps.h",
     "common/pool.c",
     "common/pool.h",
@@ -386,13 +387,14 @@ class PartialPreprocessor(object):
 
 class Freestanding(object):
     def __init__(
-            self,zstd_deps: str, source_lib: str, output_lib: str,
+            self, zstd_deps: str, mem: str, source_lib: str, output_lib: str,
             external_xxhash: bool, xxh64_state: Optional[str],
             xxh64_prefix: Optional[str], rewritten_includes: [(str, str)],
             defs: [(str, Optional[str])], replaces: [(str, str)],
             undefs: [str], excludes: [str]
     ):
         self._zstd_deps = zstd_deps
+        self._mem = mem
         self._src_lib = source_lib
         self._dst_lib = output_lib
         self._external_xxhash = external_xxhash
@@ -452,6 +454,11 @@ class Freestanding(object):
         dst_zstd_deps = os.path.join(self._dst_lib, "common", "zstd_deps.h")
         self._log(f"Copying zstd_deps: {self._zstd_deps} -> {dst_zstd_deps}")
         shutil.copyfile(self._zstd_deps, dst_zstd_deps)
+
+    def _copy_mem(self):
+        dst_mem = os.path.join(self._dst_lib, "common", "mem.h")
+        self._log(f"Copying mem: {self._mem} -> {dst_mem}")
+        shutil.copyfile(self._mem, dst_mem)
 
     def _hardwire_preprocessor(self, name: str, value: Optional[str] = None, undef=False):
         """
@@ -553,6 +560,7 @@ class Freestanding(object):
     def go(self):
         self._copy_source_lib()
         self._copy_zstd_deps()
+        self._copy_mem()
         self._hardwire_defines()
         self._remove_excludes()
         self._rewrite_includes()
@@ -587,6 +595,7 @@ def parse_pair(rewritten_includes: [str]) -> [(str, str)]:
 def main(name, args):
     parser = argparse.ArgumentParser(prog=name)
     parser.add_argument("--zstd-deps", default="zstd_deps.h", help="Zstd dependencies file")
+    parser.add_argument("--mem", default="mem.h", help="Memory module")
     parser.add_argument("--source-lib", default="../../lib", help="Location of the zstd library")
     parser.add_argument("--output-lib", default="./freestanding_lib", help="Where to output the freestanding zstd library")
     parser.add_argument("--xxhash", default=None, help="Alternate external xxhash include e.g. --xxhash='<xxhash.h>'. If set xxhash is not included.")
@@ -630,6 +639,7 @@ def main(name, args):
 
     Freestanding(
         args.zstd_deps,
+        args.mem,
         args.source_lib,
         args.output_lib,
         external_xxhash,

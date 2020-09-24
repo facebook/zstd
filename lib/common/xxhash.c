@@ -93,32 +93,13 @@ static void* XXH_memcpy(void* dest, const void* src, size_t size) { return ZSTD_
 /* *************************************
 *  Compiler Specific Options
 ***************************************/
-#if (defined(__GNUC__) && !defined(__STRICT_ANSI__)) || defined(__cplusplus) || defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L   /* C99 */
-#  define INLINE_KEYWORD inline
-#else
-#  define INLINE_KEYWORD
-#endif
-
-#if defined(__GNUC__) || defined(__ICCARM__)
-#  define FORCE_INLINE_ATTR __attribute__((always_inline))
-#elif defined(_MSC_VER)
-#  define FORCE_INLINE_ATTR __forceinline
-#else
-#  define FORCE_INLINE_ATTR
-#endif
-
-#define FORCE_INLINE_TEMPLATE static INLINE_KEYWORD FORCE_INLINE_ATTR
-
-
-#ifdef _MSC_VER
-#  pragma warning(disable : 4127)      /* disable: C4127: conditional expression is constant */
-#endif
+#include "compiler.h"
 
 
 /* *************************************
 *  Basic Types
 ***************************************/
-
+#include "mem.h"  /* BYTE, U32, U64, size_t */
 
 #if (defined(XXH_FORCE_MEMORY_ACCESS) && (XXH_FORCE_MEMORY_ACCESS==2))
 

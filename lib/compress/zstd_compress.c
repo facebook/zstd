@@ -3503,7 +3503,7 @@ ZSTD_CDict* ZSTD_createCDict_advanced(const void* dictBuffer, size_t dictSize,
                                       ZSTD_customMem customMem)
 {
     ZSTD_CCtx_params cctxParams;
-    memset(&cctxParams, 0, sizeof(cctxParams));
+    ZSTD_memset(&cctxParams, 0, sizeof(cctxParams));
     ZSTD_CCtxParams_init(&cctxParams, 0);
     cctxParams.cParams = cParams;
     cctxParams.customMem = customMem;

@@ -542,7 +542,7 @@ void FIO_setNbFilesTotal(FIO_ctx_t* const fCtx, int value)
 }
 
 void FIO_determineHasStdinInput(FIO_ctx_t* const fCtx, const FileNamesTable* const filenames) {
-    int i = 0;
+    size_t i = 0;
     for ( ; i < filenames->tableSize; ++i) {
         if (!strcmp(stdinmark, filenames->fileNames[i])) {
             fCtx->hasStdinInput = 1;

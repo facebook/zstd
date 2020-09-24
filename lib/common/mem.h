@@ -18,6 +18,7 @@ extern "C" {
 /*-****************************************
 *  Dependencies
 ******************************************/
+#include "debug.h"  /* DEBUG_STATIC_ASSERT */
 #include "zstd_deps.h"  /* size_t, ptrdiff_t, ZSTD_memcpy */
 
 
@@ -43,8 +44,7 @@ extern "C" {
 #endif
 
 /* code only tested on 32 and 64 bits systems */
-#define MEM_STATIC_ASSERT(c)   { enum { MEM_static_assert = 1/(int)(!!(c)) }; }
-MEM_STATIC void MEM_check(void) { MEM_STATIC_ASSERT((sizeof(size_t)==4) || (sizeof(size_t)==8)); }
+MEM_STATIC void MEM_check(void) { DEBUG_STATIC_ASSERT((sizeof(size_t)==4) || (sizeof(size_t)==8)); }
 
 /* detects whether we are being compiled under msan */
 #if defined (__has_feature)

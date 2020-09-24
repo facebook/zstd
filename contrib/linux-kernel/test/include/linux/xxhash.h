@@ -301,7 +301,6 @@ XXH_API void xxh64_copy_state(struct xxh64_state *dst, const struct xxh64_state 
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/string.h>
 #include <linux/xxhash.h>
 
 /*-*************************************
@@ -336,12 +335,12 @@ static const uint64_t PRIME64_5 =  2870177450012600261ULL;
  ***************************/
 XXH_API void xxh32_copy_state(struct xxh32_state *dst, const struct xxh32_state *src)
 {
-	memcpy(dst, src, sizeof(*dst));
+	__builtin_memcpy(dst, src, sizeof(*dst));
 }
 
 XXH_API void xxh64_copy_state(struct xxh64_state *dst, const struct xxh64_state *src)
 {
-	memcpy(dst, src, sizeof(*dst));
+	__builtin_memcpy(dst, src, sizeof(*dst));
 }
 
 /*-***************************
@@ -498,12 +497,12 @@ XXH_API void xxh32_reset(struct xxh32_state *statePtr, const uint32_t seed)
 	/* use a local state for memcpy() to avoid strict-aliasing warnings */
 	struct xxh32_state state;
 
-	memset(&state, 0, sizeof(state));
+	__builtin_memset(&state, 0, sizeof(state));
 	state.v1 = seed + PRIME32_1 + PRIME32_2;
 	state.v2 = seed + PRIME32_2;
 	state.v3 = seed + 0;
 	state.v4 = seed - PRIME32_1;
-	memcpy(statePtr, &state, sizeof(state));
+	__builtin_memcpy(statePtr, &state, sizeof(state));
 }
 
 XXH_API void xxh64_reset(struct xxh64_state *statePtr, const uint64_t seed)
@@ -511,12 +510,12 @@ XXH_API void xxh64_reset(struct xxh64_state *statePtr, const uint64_t seed)
 	/* use a local state for memcpy() to avoid strict-aliasing warnings */
 	struct xxh64_state state;
 
-	memset(&state, 0, sizeof(state));
+	__builtin_memset(&state, 0, sizeof(state));
 	state.v1 = seed + PRIME64_1 + PRIME64_2;
 	state.v2 = seed + PRIME64_2;
 	state.v3 = seed + 0;
 	state.v4 = seed - PRIME64_1;
-	memcpy(statePtr, &state, sizeof(state));
+	__builtin_memcpy(statePtr, &state, sizeof(state));
 }
 
 XXH_API int xxh32_update(struct xxh32_state *state, const void *input, const size_t len)
@@ -531,7 +530,7 @@ XXH_API int xxh32_update(struct xxh32_state *state, const void *input, const siz
 	state->large_len |= (len >= 16) | (state->total_len_32 >= 16);
 
 	if (state->memsize + len < 16) { /* fill in tmp buffer */
-		memcpy((uint8_t *)(state->mem32) + state->memsize, input, len);
+		__builtin_memcpy((uint8_t *)(state->mem32) + state->memsize, input, len);
 		state->memsize += (uint32_t)len;
 		return 0;
 	}
@@ -539,7 +538,7 @@ XXH_API int xxh32_update(struct xxh32_state *state, const void *input, const siz
 	if (state->memsize) { /* some data left from previous update */
 		const uint32_t *p32 = state->mem32;
 
-		memcpy((uint8_t *)(state->mem32) + state->memsize, input,
+		__builtin_memcpy((uint8_t *)(state->mem32) + state->memsize, input,
 			16 - state->memsize);
 
 		state->v1 = xxh32_round(state->v1, get_unaligned_le32(p32));
@@ -580,7 +579,7 @@ XXH_API int xxh32_update(struct xxh32_state *state, const void *input, const siz
 	}
 
 	if (p < b_end) {
-		memcpy(state->mem32, p, (size_t)(b_end-p));
+		__builtin_memcpy(state->mem32, p, (size_t)(b_end-p));
 		state->memsize = (uint32_t)(b_end-p);
 	}
 
@@ -635,7 +634,7 @@ XXH_API int xxh64_update(struct xxh64_state *state, const void *input, const siz
 	state->total_len += len;
 
 	if (state->memsize + len < 32) { /* fill in tmp buffer */
-		memcpy(((uint8_t *)state->mem64) + state->memsize, input, len);
+		__builtin_memcpy(((uint8_t *)state->mem64) + state->memsize, input, len);
 		state->memsize += (uint32_t)len;
 		return 0;
 	}
@@ -643,7 +642,7 @@ XXH_API int xxh64_update(struct xxh64_state *state, const void *input, const siz
 	if (state->memsize) { /* tmp buffer is full */
 		uint64_t *p64 = state->mem64;
 
-		memcpy(((uint8_t *)p64) + state->memsize, input,
+		__builtin_memcpy(((uint8_t *)p64) + state->memsize, input,
 			32 - state->memsize);
 
 		state->v1 = xxh64_round(state->v1, get_unaligned_le64(p64));
@@ -683,7 +682,7 @@ XXH_API int xxh64_update(struct xxh64_state *state, const void *input, const siz
 	}
 
 	if (p < b_end) {
-		memcpy(state->mem64, p, (size_t)(b_end-p));
+		__builtin_memcpy(state->mem64, p, (size_t)(b_end-p));
 		state->memsize = (uint32_t)(b_end - p);
 	}
 

@@ -2,7 +2,6 @@
 #define ASM_UNALIGNED_H
 
 #include <assert.h>
-#include <linux/string.h>
 #include <linux/types.h>
 
 #define _LITTLE_ENDIAN 1
@@ -33,7 +32,7 @@ static uint64_t _swap64(uint64_t in)
 static uint16_t get_unaligned_le16(const void* memPtr)
 {
     uint16_t val;
-    memcpy(&val, memPtr, sizeof(val));
+    __builtin_memcpy(&val, memPtr, sizeof(val));
     if (!_isLittleEndian()) _swap16(val);
     return val;
 }
@@ -41,7 +40,7 @@ static uint16_t get_unaligned_le16(const void* memPtr)
 static uint32_t get_unaligned_le32(const void* memPtr)
 {
     uint32_t val;
-    memcpy(&val, memPtr, sizeof(val));
+    __builtin_memcpy(&val, memPtr, sizeof(val));
     if (!_isLittleEndian()) _swap32(val);
     return val;
 }
@@ -49,7 +48,7 @@ static uint32_t get_unaligned_le32(const void* memPtr)
 static uint64_t get_unaligned_le64(const void* memPtr)
 {
     uint64_t val;
-    memcpy(&val, memPtr, sizeof(val));
+    __builtin_memcpy(&val, memPtr, sizeof(val));
     if (!_isLittleEndian()) _swap64(val);
     return val;
 }
@@ -57,26 +56,26 @@ static uint64_t get_unaligned_le64(const void* memPtr)
 static void put_unaligned_le16(uint16_t value, void* memPtr)
 {
     if (!_isLittleEndian()) value = _swap16(value);
-    memcpy(memPtr, &value, sizeof(value));
+    __builtin_memcpy(memPtr, &value, sizeof(value));
 }
 
 static void put_unaligned_le32(uint32_t value, void* memPtr)
 {
     if (!_isLittleEndian()) value = _swap32(value);
-    memcpy(memPtr, &value, sizeof(value));
+    __builtin_memcpy(memPtr, &value, sizeof(value));
 }
 
 static void put_unaligned_le64(uint64_t value, void* memPtr)
 {
     if (!_isLittleEndian()) value = _swap64(value);
-    memcpy(memPtr, &value, sizeof(value));
+    __builtin_memcpy(memPtr, &value, sizeof(value));
 }
 
 /* big endian */
 static uint32_t get_unaligned_be32(const void* memPtr)
 {
     uint32_t val;
-    memcpy(&val, memPtr, sizeof(val));
+    __builtin_memcpy(&val, memPtr, sizeof(val));
     if (_isLittleEndian()) _swap32(val);
     return val;
 }
@@ -84,7 +83,7 @@ static uint32_t get_unaligned_be32(const void* memPtr)
 static uint64_t get_unaligned_be64(const void* memPtr)
 {
     uint64_t val;
-    memcpy(&val, memPtr, sizeof(val));
+    __builtin_memcpy(&val, memPtr, sizeof(val));
     if (_isLittleEndian()) _swap64(val);
     return val;
 }
@@ -92,13 +91,13 @@ static uint64_t get_unaligned_be64(const void* memPtr)
 static void put_unaligned_be32(uint32_t value, void* memPtr)
 {
     if (_isLittleEndian()) value = _swap32(value);
-    memcpy(memPtr, &value, sizeof(value));
+    __builtin_memcpy(memPtr, &value, sizeof(value));
 }
 
 static void put_unaligned_be64(uint64_t value, void* memPtr)
 {
     if (_isLittleEndian()) value = _swap64(value);
-    memcpy(memPtr, &value, sizeof(value));
+    __builtin_memcpy(memPtr, &value, sizeof(value));
 }
 
 /* generic */

@@ -201,14 +201,21 @@
 #  define __has_builtin(x) 0
 #endif
 
+/* compat. with non-clang compilers */
+#ifndef __has_feature
+#  define __has_feature(x) 0
+#endif
+
 /* detects whether we are being compiled under msan */
-#if defined (__has_feature)
+#ifndef ZSTD_MEMORY_SANITIZER
 #  if __has_feature(memory_sanitizer)
-#    define MEMORY_SANITIZER 1
+#    define ZSTD_MEMORY_SANITIZER 1
+#  else
+#    define ZSTD_MEMORY_SANITIZER 0
 #  endif
 #endif
 
-#if defined (MEMORY_SANITIZER)
+#if ZSTD_MEMORY_SANITIZER
 /* Not all platforms that support msan provide sanitizers/msan_interface.h.
  * We therefore declare the functions we need ourselves, rather than trying to
  * include the header file... */
@@ -230,15 +237,17 @@ intptr_t __msan_test_shadow(const volatile void *x, size_t size);
 #endif
 
 /* detects whether we are being compiled under asan */
-#if defined (__has_feature)
+#ifndef ZSTD_ADDRESS_SANITIZER
 #  if __has_feature(address_sanitizer)
-#    define ADDRESS_SANITIZER 1
+#    define ZSTD_ADDRESS_SANITIZER 1
+#  elif defined(__SANITIZE_ADDRESS__)
+#    define ZSTD_ADDRESS_SANITIZER 1
+#  else
+#    define ZSTD_ADDRESS_SANITIZER 0
 #  endif
-#elif defined(__SANITIZE_ADDRESS__)
-#  define ADDRESS_SANITIZER 1
 #endif
 
-#if defined (ADDRESS_SANITIZER)
+#if ZSTD_ADDRESS_SANITIZER
 /* Not all platforms that support asan provide sanitizers/asan_interface.h.
  * We therefore declare the functions we need ourselves, rather than trying to
  * include the header file... */

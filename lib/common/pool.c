@@ -105,6 +105,10 @@ static void* POOL_thread(void* opaque) {
     assert(0);  /* Unreachable */
 }
 
+POOL_ctx* ZSTD_createThreadPool(size_t numThreads) {
+    return POOL_create (numThreads, 0);
+}
+
 POOL_ctx* POOL_create(size_t numThreads, size_t queueSize) {
     return POOL_create_advanced(numThreads, queueSize, ZSTD_defaultCMem);
 }
@@ -184,7 +188,9 @@ void POOL_free(POOL_ctx *ctx) {
     ZSTD_customFree(ctx, ctx->customMem);
 }
 
-
+void ZSTD_freeThreadPool (ZSTD_threadPool* pool) {
+  POOL_free (pool);
+}
 
 size_t POOL_sizeof(POOL_ctx *ctx) {
     if (ctx==NULL) return 0;  /* supports sizeof NULL */

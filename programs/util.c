@@ -92,7 +92,7 @@ int UTIL_requireUserConfirmation(const char* prompt, const char* abortMsg,
     int ch, result;
 
     if (hasStdinInput) {
-        UTIL_DISPLAY("Stdin is an input - not proceeding.\n");
+        UTIL_DISPLAY("stdin is an input - not proceeding.\n");
         return 1;
     }
 

@@ -576,6 +576,13 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
     /* Input positions */
     BYTE const* ip = istart;
 
+    if (cParams->strategy >= ZSTD_btopt) {
+        size_t lastLLSize;
+        ms->ldmSeqStore = *rawSeqStore; /* copy current seqStore */
+        lastLLSize = blockCompressor(ms, seqStore, rep, src, srcSize);
+        return lastLLSize;
+    }
+
     DEBUGLOG(5, "ZSTD_ldm_blockCompress: srcSize=%zu", srcSize);
     assert(rawSeqStore->pos <= rawSeqStore->size);
     assert(rawSeqStore->size <= rawSeqStore->capacity);

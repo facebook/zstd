@@ -821,8 +821,20 @@ static rawSeq ldm_splitSequence(rawSeqStore_t* ldmSeqStore, U32 remainingBytes) 
 /* Returns 1 if the rest of the block is just LDM literals */
 static int ldm_getNextMatch(rawSeqStore_t* ldmSeqStore,
                             U32* matchStartPosInBlock, U32* matchEndPosInBlock,
+                            U32* matchOffset, U32 currPosInBlock,
                             U32 remainingBytes) {
-    int ret = ldm_splitSequence(ldmSeqStore, remainingBytes);
+    rawSeq seq = ldm_splitSequence(ldmSeqStore, remainingBytes);
+    if (seq.offset == 0) {
+        // Don't use the LDM for the rest of the block (there is none)
+        *matchStartPosInBlock = UINT32_MAX;
+        *matchEndPosInBlock = UINT32_MAX;
+        return 1;
+    }
+
+    *matchStartPosInBlock = currPosInBlock + seq.litLength;
+    *matchEndPosInBlock = *matchStartPosInBlock + seq.matchLength;
+    *matchOffset = seq.offset;
+    return 0;
 }
 
 /* Adds an LDM if it's long enough */
@@ -899,8 +911,9 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
     ZSTD_match_t* const matches = optStatePtr->matchTable;
     ZSTD_optimal_t lastSequence;
 
-    U32 matchStartPosInBlock = 0;
-    U32 matchEndPosInBlock = 0;
+    U32 ldmStartPosInBlock = 0;
+    U32 ldmEndPosInBlock = 0;
+    U32 ldmOffset = 0;
     ldm_getNextMatch(matchStartPosInBlock, matchEndPosInBlock, (U32)(iend - ip));
 
     /* init */

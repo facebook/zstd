@@ -87,6 +87,19 @@ typedef struct {
 } ZSTD_match_t;
 
 typedef struct {
+    U32 offset;
+    U32 litLength;
+    U32 matchLength;
+} rawSeq;
+
+typedef struct {
+  rawSeq* seq;     /* The start of the sequences */
+  size_t pos;      /* The position where reading stopped. <= size. */
+  size_t size;     /* The number of sequences. <= capacity. */
+  size_t capacity; /* The capacity starting from `seq` pointer */
+} rawSeqStore_t;
+
+typedef struct {
     int price;
     U32 off;
     U32 mlen;
@@ -152,6 +165,7 @@ struct ZSTD_matchState_t {
     optState_t opt;         /* optimal parser state */
     const ZSTD_matchState_t* dictMatchState;
     ZSTD_compressionParameters cParams;
+    rawSeqStore_t ldmSeqStore;
 };
 
 typedef struct {
@@ -182,19 +196,6 @@ typedef struct {
     U32 hashRateLog;       /* Log number of entries to skip */
     U32 windowLog;          /* Window log for the LDM */
 } ldmParams_t;
-
-typedef struct {
-    U32 offset;
-    U32 litLength;
-    U32 matchLength;
-} rawSeq;
-
-typedef struct {
-  rawSeq* seq;     /* The start of the sequences */
-  size_t pos;      /* The position where reading stopped. <= size. */
-  size_t size;     /* The number of sequences. <= capacity. */
-  size_t capacity; /* The capacity starting from `seq` pointer */
-} rawSeqStore_t;
 
 typedef struct {
     int collectSequences;

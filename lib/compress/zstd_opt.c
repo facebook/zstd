@@ -838,8 +838,20 @@ static int ldm_getNextMatch(rawSeqStore_t* ldmSeqStore,
 }
 
 /* Adds an LDM if it's long enough */
-static void ldm_maybeAddLdm() {
+static void ldm_maybeAddLdm(ZSTD_match_t* matches, U32 nbMatches,
+                            U32 matchStartPosInBlock, U32 matchEndPosInBlock,
+                            U32 matchOffset, U32 currPosInBlock) {
+    /* Check that current block position is not outside of the match */
+    if (currPosInBlock < matchStartPosInBlock || currPosInBlock >= matchEndPosInBlock)
+        return;
+    U32 posDiff = currPosInBlock - matchStartPosInBlock;
+    assert(posDiff < matchEndPosInBlock - matchStartPosInBlock);
+    U32 matchLengthAdjusted = matchEndPosInBlock - matchStartPosInBlock - posDiff;
+    U32 matchOffsetAdjusted = matchOffset + posDiff;
 
+    if (matchLengthAdjusted >= matches[nbMatches-1]) {
+        
+    }
 }
 
 /* Updates the pos field in rawSeqStore */
@@ -849,12 +861,12 @@ static void ldm_maybeUpdateSeqStoreReadPos() {
 
 /* Wrapper function to call ldm functions as needed */
 static void ldm_handleLdm(ZSTD_match_t* matches, int* nbMatches,
-                          U32* matchStartPosInBlock, U32* matchEndPosInBlock,
+                          U32* matchStartPosInBlock, U32* matchEndPosInBlock, U32* matchOffset,
                           U32 currPosInBlock, U32 remainingBytes) {
     if (currPosInBlock >= matchEndPosInBlock) {
         int noMoreLdms = ldm_getNextMatch(matchStartPosInBlock, matchEndPosInBlock, remainingBytes);
     }
-    ldm_maybeAddLdm(matches, currPosInBlock, matchStartPosInBlock, matchEndPosInBlock);
+    ldm_maybeAddLdm(matches, *nbMatches, *matchStartPosInBlock, *matchEndPosInBlock, *matchOffset, currPosInBlock);
 }
 
 

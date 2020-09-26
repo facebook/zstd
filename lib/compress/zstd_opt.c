@@ -788,7 +788,7 @@ static void ldm_maybeUpdateSeqStoreReadPos() {
 }
 
 /* Wrapper function to call ldm functions as needed */
-static void ldm_handleLdm() {
+static void ldm_handleLdm(int* nbMatches) {
     int noMoreLdms = getNextMatch();
 }
 
@@ -861,6 +861,7 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
         {   U32 const litlen = (U32)(ip - anchor);
             U32 const ll0 = !litlen;
             U32 const nbMatches = ZSTD_BtGetAllMatches(matches, ms, &nextToUpdate3, ip, iend, dictMode, rep, ll0, minMatch);
+            ldm_handleLdm(&nbMatches);
             if (!nbMatches) { ip++; continue; }
 
             /* initialize opt[0] */
@@ -975,6 +976,8 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
                 U32 const basePrice = previousPrice + ZSTD_litLengthPrice(0, optStatePtr, optLevel);
                 U32 const nbMatches = ZSTD_BtGetAllMatches(matches, ms, &nextToUpdate3, inr, iend, dictMode, opt[cur].rep, ll0, minMatch);
                 U32 matchNb;
+                
+                ldm_handleLdm(&nbMatches);
                 if (!nbMatches) {
                     DEBUGLOG(7, "rPos:%u : no match found", cur);
                     continue;

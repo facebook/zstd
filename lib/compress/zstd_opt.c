@@ -768,15 +768,61 @@ FORCE_INLINE_TEMPLATE U32 ZSTD_BtGetAllMatches (
 *  LDM util functions
 *********************************/
 
-// The only function that can update pos (i think, for now)
-static int ldm_splitSequence(rawSeqStore_t* ldmSeqStore, U32 remainingBytes) {
-    rawSeq currSeq = ldmSeqStore->seq[ldmSeqStore->pos];
 
+static void ldm_skipSequences(rawSeqStore_t* rawSeqStore, size_t srcSize, U32 const minMatch) {
+    while (srcSize > 0 && rawSeqStore->pos < rawSeqStore->size) {
+        rawSeq* seq = rawSeqStore->seq + rawSeqStore->pos;
+        if (srcSize <= seq->litLength) {
+            /* Skip past srcSize literals */
+            seq->litLength -= (U32)srcSize;
+            return;
+        }
+        srcSize -= seq->litLength;
+        seq->litLength = 0;
+        if (srcSize < seq->matchLength) {
+            /* Skip past the first srcSize of the match */
+            seq->matchLength -= (U32)srcSize;
+            if (seq->matchLength < minMatch) {
+                /* The match is too short, omit it */
+                if (rawSeqStore->pos + 1 < rawSeqStore->size) {
+                    seq[1].litLength += seq[0].matchLength;
+                }
+                rawSeqStore->pos++;
+            }
+            return;
+        }
+        srcSize -= seq->matchLength;
+        seq->matchLength = 0;
+        rawSeqStore->pos++;
+    }
+}
+
+// The only function that can update pos (i think, for now)
+static rawSeq ldm_splitSequence(rawSeqStore_t* ldmSeqStore, U32 remainingBytes) {
+    rawSeq currSeq = ldmSeqStore->seq[ldmSeqStore->pos];
+    /* No split */
+    if (remainingBytes >= currSeq.litLength + currSeq.matchLength) {
+        ldmSeqStore->pos++;
+        return currSeq;
+    }
+    /* Need a split */
+    if (remainingBytes <= currSeq.litLength) {
+        currSeq.offset = 0;
+    } else if (remainingBytes < currSeq.litLength + currSeq.matchLength) {
+        if (currSeq.matchLength < MINMATCH) {
+            currSeq.offset = 0;
+        }
+    }
+
+    ldm_skipSequences(ldmSeqStore, remainingBytes, MINMATCH);
+    return currSeq;
 }
 
 /* Returns 1 if the rest of the block is just LDM literals */
-static int ldm_getNextMatch(U32* matchStartPosInBlock, U32* matchEndPosInBlock, U32 remainingBytes) {
-    int ret = ldm_splitSequence();
+static int ldm_getNextMatch(rawSeqStore_t* ldmSeqStore,
+                            U32* matchStartPosInBlock, U32* matchEndPosInBlock,
+                            U32 remainingBytes) {
+    int ret = ldm_splitSequence(ldmSeqStore, remainingBytes);
 }
 
 /* Adds an LDM if it's long enough */

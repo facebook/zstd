@@ -768,12 +768,14 @@ FORCE_INLINE_TEMPLATE U32 ZSTD_BtGetAllMatches (
 *  LDM util functions
 *********************************/
 
-static int ldm_splitSequence() {
+// The only function that can update pos (i think, for now)
+static int ldm_splitSequence(rawSeqStore_t* ldmSeqStore, U32 remainingBytes) {
+    rawSeq currSeq = ldmSeqStore->seq[ldmSeqStore->pos];
 
 }
 
 /* Returns 1 if the rest of the block is just LDM literals */
-static int ldm_getNextMatch() {
+static int ldm_getNextMatch(U32* matchStartPosInBlock, U32* matchEndPosInBlock, U32 remainingBytes) {
     int ret = ldm_splitSequence();
 }
 
@@ -788,8 +790,13 @@ static void ldm_maybeUpdateSeqStoreReadPos() {
 }
 
 /* Wrapper function to call ldm functions as needed */
-static void ldm_handleLdm(int* nbMatches) {
-    int noMoreLdms = getNextMatch();
+static void ldm_handleLdm(ZSTD_match_t* matches, int* nbMatches,
+                          U32* matchStartPosInBlock, U32* matchEndPosInBlock,
+                          U32 currPosInBlock, U32 remainingBytes) {
+    if (currPosInBlock >= matchEndPosInBlock) {
+        int noMoreLdms = ldm_getNextMatch(matchStartPosInBlock, matchEndPosInBlock, remainingBytes);
+    }
+    ldm_maybeAddLdm(matches, currPosInBlock, matchStartPosInBlock, matchEndPosInBlock);
 }
 
 
@@ -845,6 +852,10 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
     ZSTD_optimal_t* const opt = optStatePtr->priceTable;
     ZSTD_match_t* const matches = optStatePtr->matchTable;
     ZSTD_optimal_t lastSequence;
+
+    U32 matchStartPosInBlock = 0;
+    U32 matchEndPosInBlock = 0;
+    ldm_getNextMatch(matchStartPosInBlock, matchEndPosInBlock, (U32)(iend - ip));
 
     /* init */
     DEBUGLOG(5, "ZSTD_compressBlock_opt_generic: current=%u, prefix=%u, nextToUpdate=%u",
@@ -976,7 +987,7 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
                 U32 const basePrice = previousPrice + ZSTD_litLengthPrice(0, optStatePtr, optLevel);
                 U32 const nbMatches = ZSTD_BtGetAllMatches(matches, ms, &nextToUpdate3, inr, iend, dictMode, opt[cur].rep, ll0, minMatch);
                 U32 matchNb;
-                
+
                 ldm_handleLdm(&nbMatches);
                 if (!nbMatches) {
                     DEBUGLOG(7, "rPos:%u : no match found", cur);

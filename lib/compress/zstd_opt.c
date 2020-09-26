@@ -764,6 +764,34 @@ FORCE_INLINE_TEMPLATE U32 ZSTD_BtGetAllMatches (
     }
 }
 
+/*-*******************************
+*  LDM util functions
+*********************************/
+
+static int ldm_splitSequence() {
+
+}
+
+/* Returns 1 if the rest of the block is just LDM literals */
+static int ldm_getNextMatch() {
+    int ret = ldm_splitSequence();
+}
+
+/* Adds an LDM if it's long enough */
+static void ldm_maybeAddLdm() {
+
+}
+
+/* Updates the pos field in rawSeqStore */
+static void ldm_maybeUpdateSeqStoreReadPos() {
+
+}
+
+/* Wrapper function to call ldm functions as needed */
+static void ldm_handleLdm() {
+    int noMoreLdms = getNextMatch();
+}
+
 
 /*-*******************************
 *  Optimal parser

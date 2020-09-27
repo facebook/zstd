@@ -940,7 +940,10 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
     U32 ldmEndPosInBlock = 0;
     U32 ldmOffset = 0;
     
-
+    if (ms->ldmSeqStore.size != 0) {
+        ldm_getNextMatch(&ms->ldmSeqStore, &ldmStartPosInBlock,
+                &ldmEndPosInBlock, &ldmOffset, (U32)(ip-istart), (U32)(iend-ip));
+    }
     /* init */
     DEBUGLOG(5, "ZSTD_compressBlock_opt_generic: current=%u, prefix=%u, nextToUpdate=%u",
                 (U32)(ip - base), ms->window.dictLimit, ms->nextToUpdate);

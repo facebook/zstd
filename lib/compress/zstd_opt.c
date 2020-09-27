@@ -850,7 +850,7 @@ static int ldm_getNextMatch(rawSeqStore_t* ldmSeqStore,
 /* Adds an LDM if it's long enough */
 static void ldm_maybeAddLdm(ZSTD_match_t* matches, U32* nbMatches,
                             U32 matchStartPosInBlock, U32 matchEndPosInBlock,
-                            U32 matchOffset, U32 currPosInBlock) {
+                            U32 matchOffset, U32 currPosInBlock, U32 curr) {
     /* Check that current block position is not outside of the match */
     if (currPosInBlock < matchStartPosInBlock || currPosInBlock >= matchEndPosInBlock)
         return;
@@ -862,10 +862,10 @@ static void ldm_maybeAddLdm(ZSTD_match_t* matches, U32* nbMatches,
     U32 matchOffsetAdjusted = matchOffset + posDiff;
 
     if (matchLengthAdjusted >= matches[*nbMatches-1].len) {
-        printf("Adding LDM with of: %u, ml: %u\n", matchOffsetAdjusted, matchLengthAdjusted);
+        printf("Adding LDM with of: %u, ml: %u @ currposinblock: %u, current: %u\n", matchOffsetAdjusted, matchLengthAdjusted, currPosInBlock, curr);
         /* Add sifting */
         matches[*nbMatches].len = matchLengthAdjusted;
-        matches[*nbMatches].off = matchOffsetAdjusted;
+        matches[*nbMatches].off = matchOffsetAdjusted + ZSTD_REP_MOVE;
         (*nbMatches)++;
     }
 }
@@ -873,13 +873,13 @@ static void ldm_maybeAddLdm(ZSTD_match_t* matches, U32* nbMatches,
 /* Wrapper function to call ldm functions as needed */
 static void ldm_handleLdm(rawSeqStore_t* ldmSeqStore, ZSTD_match_t* matches, U32* nbMatches,
                           U32* matchStartPosInBlock, U32* matchEndPosInBlock, U32* matchOffset,
-                          U32 currPosInBlock, U32 remainingBytes) {
+                          U32 currPosInBlock, U32 remainingBytes, U32 curr) {
     if (currPosInBlock >= *matchEndPosInBlock) {
         int noMoreLdms = ldm_getNextMatch(ldmSeqStore, matchStartPosInBlock,
                                           matchEndPosInBlock, matchOffset,
                                           currPosInBlock, remainingBytes);
     }
-    ldm_maybeAddLdm(matches, nbMatches, *matchStartPosInBlock, *matchEndPosInBlock, *matchOffset, currPosInBlock);
+    ldm_maybeAddLdm(matches, nbMatches, *matchStartPosInBlock, *matchEndPosInBlock, *matchOffset, currPosInBlock, curr);
 }
 
 
@@ -947,12 +947,7 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
     assert(optLevel <= 2);
     ZSTD_rescaleFreqs(optStatePtr, (const BYTE*)src, srcSize, optLevel);
     ip += (ip==prefixStart);
-    
-    if (ms->ldmSeqStore.size != 0) {
-        ldm_getNextMatch(&ms->ldmSeqStore, &ldmStartPosInBlock,
-                        &ldmEndPosInBlock, &ldmOffset,
-                        (U32)(ip-istart), (U32)(iend - ip));
-    }
+
     /* Match Loop */
     while (ip < ilimit) {
         U32 cur, last_pos = 0;
@@ -963,9 +958,9 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
             U32 nbMatches = ZSTD_BtGetAllMatches(matches, ms, &nextToUpdate3, ip, iend, dictMode, rep, ll0, minMatch);
             if (ms->ldmSeqStore.size != 0) {
                 ldm_handleLdm(&ms->ldmSeqStore, matches,
-                            &nbMatches, &ldmStartPosInBlock,
-                            &ldmEndPosInBlock, &ldmOffset,
-                            (U32)(ip-istart), (U32)(iend-ip));
+                              &nbMatches, &ldmStartPosInBlock,
+                              &ldmEndPosInBlock, &ldmOffset,
+                              (U32)(ip-istart), (U32)(iend - ip), (U32)(ip-base));
             }
             if (!nbMatches) { ip++; continue; }
 
@@ -1087,7 +1082,7 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
                     ldm_handleLdm(&ms->ldmSeqStore, matches,
                             &nbMatches, &ldmStartPosInBlock,
                             &ldmEndPosInBlock, &ldmOffset,
-                            (U32)(inr-istart), (U32)(iend-inr));
+                            (U32)(inr-istart), (U32)(iend-inr), (U32)(ip-base));
                 }
                 if (!nbMatches) {
                     DEBUGLOG(7, "rPos:%u : no match found", cur);

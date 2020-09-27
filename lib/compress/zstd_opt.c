@@ -806,6 +806,7 @@ static rawSeq ldm_splitSequence(rawSeqStore_t* ldmSeqStore, U32 remainingBytes) 
     if (remainingBytes >= currSeq.litLength + currSeq.matchLength) {
         printf("NO SPLIT\n");
         ldmSeqStore->pos++;
+        printf("pos is now: %u\n", ldmSeqStore->pos);
         return currSeq;
     }
     /* Need a split */
@@ -831,8 +832,9 @@ static int ldm_getNextMatch(rawSeqStore_t* ldmSeqStore,
                             U32* matchOffset, U32 currPosInBlock,
                             U32 remainingBytes) {
     rawSeq seq = ldm_splitSequence(ldmSeqStore, remainingBytes);
-    if (seq.offset == 0) {
+    if (seq.offset == 0 || ldmSeqStore->pos > ldmSeqStore->size) {
         // Don't use the LDM for the rest of the block (there is none)
+        printf("No ldm left in the block\n");
         *matchStartPosInBlock = UINT32_MAX;
         *matchEndPosInBlock = UINT32_MAX;
         return 1;
@@ -841,6 +843,7 @@ static int ldm_getNextMatch(rawSeqStore_t* ldmSeqStore,
     *matchStartPosInBlock = currPosInBlock + seq.litLength;
     *matchEndPosInBlock = *matchStartPosInBlock + seq.matchLength;
     *matchOffset = seq.offset;
+    printf("New match range in block is: (%u, %u) with of: %u where currPosInBlock: %u\n", *matchStartPosInBlock, *matchEndPosInBlock, *matchOffset, currPosInBlock);
     return 0;
 }
 
@@ -860,6 +863,7 @@ static void ldm_maybeAddLdm(ZSTD_match_t* matches, U32* nbMatches,
 
     if (matchLengthAdjusted >= matches[*nbMatches-1].len) {
         printf("Adding LDM with of: %u, ml: %u\n", matchOffsetAdjusted, matchLengthAdjusted);
+        /* Add sifting */
         matches[*nbMatches].len = matchLengthAdjusted;
         matches[*nbMatches].off = matchOffsetAdjusted;
         (*nbMatches)++;
@@ -875,8 +879,7 @@ static void ldm_handleLdm(rawSeqStore_t* ldmSeqStore, ZSTD_match_t* matches, U32
                                           matchEndPosInBlock, matchOffset,
                                           currPosInBlock, remainingBytes);
     }
-    if (ldmSeqStore->pos <= ldmSeqStore->size)
-        ldm_maybeAddLdm(matches, nbMatches, *matchStartPosInBlock, *matchEndPosInBlock, *matchOffset, currPosInBlock);
+    ldm_maybeAddLdm(matches, nbMatches, *matchStartPosInBlock, *matchEndPosInBlock, *matchOffset, currPosInBlock);
 }
 
 
@@ -936,11 +939,7 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
     U32 ldmStartPosInBlock = 0;
     U32 ldmEndPosInBlock = 0;
     U32 ldmOffset = 0;
-    if (ms->ldmSeqStore.size != 0) {
-        ldm_getNextMatch(&ms->ldmSeqStore, &ldmStartPosInBlock,
-                        &ldmEndPosInBlock, &ldmOffset,
-                        (U32)(ip-istart), (U32)(iend - ip));
-    }
+    
 
     /* init */
     DEBUGLOG(5, "ZSTD_compressBlock_opt_generic: current=%u, prefix=%u, nextToUpdate=%u",
@@ -948,7 +947,12 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
     assert(optLevel <= 2);
     ZSTD_rescaleFreqs(optStatePtr, (const BYTE*)src, srcSize, optLevel);
     ip += (ip==prefixStart);
-
+    
+    if (ms->ldmSeqStore.size != 0) {
+        ldm_getNextMatch(&ms->ldmSeqStore, &ldmStartPosInBlock,
+                        &ldmEndPosInBlock, &ldmOffset,
+                        (U32)(ip-istart), (U32)(iend - ip));
+    }
     /* Match Loop */
     while (ip < ilimit) {
         U32 cur, last_pos = 0;

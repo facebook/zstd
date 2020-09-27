@@ -580,6 +580,7 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
         size_t lastLLSize;
         ms->ldmSeqStore = *rawSeqStore; /* copy current seqStore */
         lastLLSize = blockCompressor(ms, seqStore, rep, src, srcSize);
+        rawSeqStore->pos = ms->ldmSeqStore.pos;
         return lastLLSize;
     }
 

@@ -799,11 +799,12 @@ static void ldm_skipSequences(rawSeqStore_t* rawSeqStore, size_t srcSize, U32 co
 
 // The only function that can update pos (i think, for now)
 static rawSeq ldm_splitSequence(rawSeqStore_t* ldmSeqStore, U32 remainingBytes) {
-    printf("Split Sequence with remaining = %u : ", remainingBytes);
     rawSeq currSeq = ldmSeqStore->seq[ldmSeqStore->pos];
+    printf("Current sequence: (of: %u, ml: %u, ll: %u)\n", currSeq.offset, currSeq.matchLength, currSeq.litLength);
+    printf("Split Sequence with remaining = %u : ", remainingBytes);
     /* No split */
     if (remainingBytes >= currSeq.litLength + currSeq.matchLength) {
-        printf("NO SPLIT\n", remainingBytes);
+        printf("NO SPLIT\n");
         ldmSeqStore->pos++;
         return currSeq;
     }
@@ -820,6 +821,7 @@ static rawSeq ldm_splitSequence(rawSeqStore_t* ldmSeqStore, U32 remainingBytes) 
     printf("\n");
 
     ldm_skipSequences(ldmSeqStore, remainingBytes, MINMATCH);
+    printf("Sequence final: (of: %u, ml: %u, ll: %u)\n", currSeq.offset, currSeq.matchLength, currSeq.litLength);
     return currSeq;
 }
 
@@ -850,20 +852,18 @@ static void ldm_maybeAddLdm(ZSTD_match_t* matches, U32* nbMatches,
     if (currPosInBlock < matchStartPosInBlock || currPosInBlock >= matchEndPosInBlock)
         return;
     U32 posDiff = currPosInBlock - matchStartPosInBlock;
+    if (posDiff > 0)
+        return; // dont deal with extra ldms for now
     assert(posDiff < matchEndPosInBlock - matchStartPosInBlock);
     U32 matchLengthAdjusted = matchEndPosInBlock - matchStartPosInBlock - posDiff;
     U32 matchOffsetAdjusted = matchOffset + posDiff;
 
     if (matchLengthAdjusted >= matches[*nbMatches-1].len) {
+        printf("Adding LDM with of: %u, ml: %u\n", matchOffsetAdjusted, matchLengthAdjusted);
         matches[*nbMatches].len = matchLengthAdjusted;
         matches[*nbMatches].off = matchOffsetAdjusted;
         (*nbMatches)++;
     }
-}
-
-/* Updates the pos field in rawSeqStore */
-static void ldm_maybeUpdateSeqStoreReadPos() {
-
 }
 
 /* Wrapper function to call ldm functions as needed */
@@ -875,7 +875,8 @@ static void ldm_handleLdm(rawSeqStore_t* ldmSeqStore, ZSTD_match_t* matches, U32
                                           matchEndPosInBlock, matchOffset,
                                           currPosInBlock, remainingBytes);
     }
-    ldm_maybeAddLdm(matches, nbMatches, *matchStartPosInBlock, *matchEndPosInBlock, *matchOffset, currPosInBlock);
+    if (ldmSeqStore->pos <= ldmSeqStore->size)
+        ldm_maybeAddLdm(matches, nbMatches, *matchStartPosInBlock, *matchEndPosInBlock, *matchOffset, currPosInBlock);
 }
 
 
@@ -935,9 +936,11 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
     U32 ldmStartPosInBlock = 0;
     U32 ldmEndPosInBlock = 0;
     U32 ldmOffset = 0;
-    ldm_getNextMatch(&ms->ldmSeqStore, &ldmStartPosInBlock,
-                     &ldmEndPosInBlock, &ldmOffset,
-                     (U32)(ip-istart), (U32)(iend - ip));
+    if (ms->ldmSeqStore.size != 0) {
+        ldm_getNextMatch(&ms->ldmSeqStore, &ldmStartPosInBlock,
+                        &ldmEndPosInBlock, &ldmOffset,
+                        (U32)(ip-istart), (U32)(iend - ip));
+    }
 
     /* init */
     DEBUGLOG(5, "ZSTD_compressBlock_opt_generic: current=%u, prefix=%u, nextToUpdate=%u",
@@ -954,10 +957,12 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
         {   U32 const litlen = (U32)(ip - anchor);
             U32 const ll0 = !litlen;
             U32 nbMatches = ZSTD_BtGetAllMatches(matches, ms, &nextToUpdate3, ip, iend, dictMode, rep, ll0, minMatch);
-            ldm_handleLdm(&ms->ldmSeqStore, matches,
-                          &nbMatches, &ldmStartPosInBlock,
-                          &ldmEndPosInBlock, &ldmOffset,
-                          (U32)(ip-istart), (U32)(iend-ip));
+            if (ms->ldmSeqStore.size != 0) {
+                ldm_handleLdm(&ms->ldmSeqStore, matches,
+                            &nbMatches, &ldmStartPosInBlock,
+                            &ldmEndPosInBlock, &ldmOffset,
+                            (U32)(ip-istart), (U32)(iend-ip));
+            }
             if (!nbMatches) { ip++; continue; }
 
             /* initialize opt[0] */
@@ -1073,10 +1078,13 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
                 U32 nbMatches = ZSTD_BtGetAllMatches(matches, ms, &nextToUpdate3, inr, iend, dictMode, opt[cur].rep, ll0, minMatch);
                 U32 matchNb;
 
-                ldm_handleLdm(&ms->ldmSeqStore, matches,
-                          &nbMatches, &ldmStartPosInBlock,
-                          &ldmEndPosInBlock, &ldmOffset,
-                          (U32)(inr-istart), (U32)(iend-inr));
+                
+                if (ms->ldmSeqStore.size != 0) {
+                    ldm_handleLdm(&ms->ldmSeqStore, matches,
+                            &nbMatches, &ldmStartPosInBlock,
+                            &ldmEndPosInBlock, &ldmOffset,
+                            (U32)(inr-istart), (U32)(iend-inr));
+                }
                 if (!nbMatches) {
                     DEBUGLOG(7, "rPos:%u : no match found", cur);
                     continue;

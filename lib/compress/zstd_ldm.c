@@ -579,8 +579,15 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
     if (cParams->strategy >= ZSTD_btopt) {
         size_t lastLLSize;
         ms->ldmSeqStore = *rawSeqStore; /* copy current seqStore */
+        const BYTE* const prevBase = (BYTE const*)ms->window.base;
         lastLLSize = blockCompressor(ms, seqStore, rep, src, srcSize);
         rawSeqStore->pos = ms->ldmSeqStore.pos;
+        ms->ldmSeqStore = *rawSeqStore;
+        if (prevBase != ms->window.base) {
+            int baseDiff = (int)(prevBase - ms->window.base);
+            printf("Bases were different, adjusting, diff = %d\n", baseDiff);
+            rawSeqStore->seq[rawSeqStore->pos].litLength += baseDiff;
+        }
         return lastLLSize;
     }
 

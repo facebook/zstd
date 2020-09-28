@@ -562,6 +562,13 @@ static rawSeq maybeSplitSequence(rawSeqStore_t* rawSeqStore,
     return sequence;
 }
 
+static void printSeqStore(rawSeqStore_t* rawSeqStore) {
+    printf("rawSeqStore: pos: %zu, bytesDiscarded: %zu\n", rawSeqStore->pos);
+    for (int i = 0; i < rawSeqStore->size; ++i) {
+        printf("(of:%u ml:%u ll: %u)\n", rawSeqStore->seq[i].offset, rawSeqStore->seq[i].matchLength, rawSeqStore->seq[i].litLength);
+    }
+}
+
 size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
     ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
     void const* src, size_t srcSize)
@@ -578,6 +585,7 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
 
     if (cParams->strategy >= ZSTD_btopt) {
         size_t lastLLSize;
+        printSeqStore(rawSeqStore);
         ms->ldmSeqStore = *rawSeqStore; /* copy current seqStore */
         const BYTE* const prevBase = (BYTE const*)ms->window.base;
         lastLLSize = blockCompressor(ms, seqStore, rep, src, srcSize);

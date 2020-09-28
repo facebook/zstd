@@ -768,7 +768,14 @@ FORCE_INLINE_TEMPLATE U32 ZSTD_BtGetAllMatches (
 *  LDM util functions
 *********************************/
 
-static void ldm_skipOvershotBytes(rawSeqStore_t* rawSeqStore, size_t posOvershoot) {
+/*
+static void ldm_skipOvershotBytes(rawSeqStore_t* rawSeqStore, U32 bytesOvershot) {
+    while (bytesOvershot > 0 && rawSeqStore->pos < rawSeqStore->size) {
+        rawSeq seq = rawSeqStore->seq[rawSeqStore->pos];
+        if (bytesOvershot <= seq.litLength) {
+            seq->litLength -= bytesOvershot;
+        }
+    }
     if (rawSeqStore->seq[rawSeqStore->pos].matchLength > posOvershoot) {
         rawSeqStore->seq[rawSeqStore->pos].matchLength -= posOvershoot;
         return;
@@ -780,14 +787,17 @@ static void ldm_skipOvershotBytes(rawSeqStore_t* rawSeqStore, size_t posOvershoo
     while (posOvershoot > 0 && rawSeqStore->pos < rawSeqStore->size) {
         
     }
-}
+}*/
 
 static void ldm_skipSequences(rawSeqStore_t* rawSeqStore, size_t srcSize, U32 const minMatch) {
     while (srcSize > 0 && rawSeqStore->pos < rawSeqStore->size) {
+        printf("ldm_skipSequences(): %u remaining\n", srcSize);
         rawSeq* seq = rawSeqStore->seq + rawSeqStore->pos;
+        printf("ldm_skipSequences(): before: (of: %u, ml: %u, ll: %u)\n", seq->offset, seq->matchLength, seq->litLength);
         if (srcSize <= seq->litLength) {
             /* Skip past srcSize literals */
             seq->litLength -= (U32)srcSize;
+            printf("ldm_skipSequences(): final: (of: %u, ml: %u, ll: %u)\n", seq->offset, seq->matchLength, seq->litLength);
             return;
         }
         srcSize -= seq->litLength;
@@ -804,6 +814,7 @@ static void ldm_skipSequences(rawSeqStore_t* rawSeqStore, size_t srcSize, U32 co
                 }
                 rawSeqStore->pos++;
             }
+            printf("ldm_skipSequences(): final: (of: %u, ml: %u, ll: %u)\n", seq->offset, seq->matchLength, seq->litLength);
             return;
         }
         srcSize -= seq->matchLength;
@@ -874,17 +885,46 @@ static void ldm_maybeAddLdm(ZSTD_match_t* matches, U32* nbMatches,
     if (posDiff > 0)
         return; // dont deal with extra ldms for now
     assert(posDiff < matchEndPosInBlock - matchStartPosInBlock);
-    U32 matchLengthAdjusted = matchEndPosInBlock - matchStartPosInBlock - posDiff;
-    U32 matchOffsetAdjusted = matchOffset + posDiff;
+    U32 candidateMatchLength = matchEndPosInBlock - matchStartPosInBlock - posDiff;
+    U32 candidateOffCode = matchOffset + posDiff + ZSTD_REP_MOVE;
 
-    if (*nbMatches == 0 || matchLengthAdjusted >= matches[*nbMatches-1].len) {
-        printf("Adding LDM with of: %u, ml: %u @ currposinblock: %u, current: %u, currposinblock+sbi: %u\n", matchOffsetAdjusted, matchLengthAdjusted, currPosInBlock, curr, currPosInBlock+sbi);
-        /* Add sifting */
-        matches[*nbMatches].len = matchLengthAdjusted;
-        matches[*nbMatches].off = matchOffsetAdjusted + ZSTD_REP_MOVE;
-        (*nbMatches)++;
-    } else {
-        printf("too small ldm\n");
+    if ((*nbMatches == 0 || candidateMatchLength >= matches[*nbMatches-1].len) && *nbMatches < ZSTD_OPT_NUM) {
+        printf("large enough, adding\n");
+        /*matches[*nbMatches].len = candidateMatchLength;
+        matches[*nbMatches].off = candidateOffCode;
+        (*nbMatches)++;*/
+        
+        if (*nbMatches == 0) {
+            matches[*nbMatches].len = candidateMatchLength;
+            matches[*nbMatches].off = candidateOffCode;
+            (*nbMatches)++;
+        } else {
+            if (candidateMatchLength == matches[*nbMatches-1].len) {
+                U32 candidateMatchIdx = *nbMatches;
+                matches[*nbMatches].len = candidateMatchLength;
+                matches[*nbMatches].off = candidateOffCode;
+                printf("Sifting...: idx: %u, len: %u, off: %u\n", candidateMatchIdx, candidateMatchLength, candidateOffCode);
+                //printf("Current best is...: idx: %u, len: %u, off: %u\n", *nbMatches-1,  matches[*nbMatches-1].len, matches[*nbMatches-1].off);
+                if (candidateOffCode != matches[*nbMatches].off)
+                    printf("DIFF: ldm: (len: %u, off: %u), best: (len: %u, off: %u)\n", candidateMatchLength, candidateOffCode, matches[*nbMatches-1].len, matches[*nbMatches-1].off);
+                //printf("Current best is...: idx: %u, len: %u, off: %u\n", *nbMatches-1,  matches[*nbMatches-1].len, matches[*nbMatches-1].off);
+                while (candidateMatchIdx > 0 &&
+                       matches[candidateMatchIdx].off > matches[candidateMatchIdx - 1].off &&
+                       matches[candidateMatchIdx].len == matches[candidateMatchIdx - 1].len) {
+                    //printf("Compared to: idx: %u, len: %u, off: %u", candidateMatchIdx - 1, matches[candidateMatchIdx - 1].len, matches[candidateMatchIdx - 1].off);
+                    ZSTD_match_t tmp = matches[candidateMatchIdx - 1];
+                    matches[candidateMatchIdx - 1] = matches[candidateMatchIdx];
+                    matches[candidateMatchIdx] = tmp;
+                    --candidateMatchIdx;
+                }
+                (*nbMatches)++;
+            } else {
+                printf("MATCHDIFF: ldm: (len: %u, off: %u), best: (len: %u, off: %u)\n", candidateMatchLength, candidateOffCode, matches[*nbMatches-1].len, matches[*nbMatches-1].off);
+                matches[*nbMatches].len = candidateMatchLength;
+                matches[*nbMatches].off = candidateOffCode;
+                (*nbMatches)++;
+            }
+        }
     }
 }
 
@@ -900,7 +940,7 @@ static void ldm_handleLdm(rawSeqStore_t* ldmSeqStore, ZSTD_match_t* matches, U32
             ldm_skipSequences(ldmSeqStore, posOvershoot, MINMATCH);
             int noMoreLdms = ldm_getNextMatch(ldmSeqStore, matchStartPosInBlock,
                                             matchEndPosInBlock, matchOffset,
-                                            matchEndPosInBlock, remainingBytes, sbi);
+                                            currPosInBlock, remainingBytes, sbi);
         } else {
             int noMoreLdms = ldm_getNextMatch(ldmSeqStore, matchStartPosInBlock,
                                             matchEndPosInBlock, matchOffset,

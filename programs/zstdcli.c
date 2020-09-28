@@ -1243,7 +1243,7 @@ int main(int const argCount, const char* argv[])
 
     /* Check if input/output defined as console; trigger an error in this case */
     if (!strcmp(filenames->fileNames[0], stdinmark) && IS_CONSOLE(stdin) ) {
-        badusage(programName);
+        DISPLAYLEVEL(1, "stdin is a console, aborting\n");
         CLEAN_RETURN(1);
     }
     if ( outFileName && !strcmp(outFileName, stdoutmark)
@@ -1251,7 +1251,7 @@ int main(int const argCount, const char* argv[])
       && !strcmp(filenames->fileNames[0], stdinmark)
       && !forceStdout
       && operation!=zom_decompress ) {
-        badusage(programName);
+        DISPLAYLEVEL(1, "stdout is a console, aborting\n");
         CLEAN_RETURN(1);
     }
 

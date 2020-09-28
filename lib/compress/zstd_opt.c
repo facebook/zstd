@@ -789,6 +789,15 @@ static void ldm_skipOvershotBytes(rawSeqStore_t* rawSeqStore, U32 bytesOvershot)
     }
 }*/
 
+
+static void ldm_voidSequences(rawSeqStore_t* ldmSeqStore, U32 overshotBytes) {
+    U32 posAdjustment;
+    U32 bytesAdjustment;
+    while (overshotBytes > 0 && ldmSeqStore->pos < ldmSeqStore->size) {
+
+    }
+}
+
 static void ldm_skipSequences(rawSeqStore_t* rawSeqStore, size_t srcSize, U32 const minMatch) {
     while (srcSize > 0 && rawSeqStore->pos < rawSeqStore->size) {
         printf("ldm_skipSequences(): %u remaining\n", srcSize);

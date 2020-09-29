@@ -94,6 +94,7 @@ typedef struct {
 
 typedef struct {
   rawSeq* seq;     /* The start of the sequences */
+  BYTE const* base;
   size_t pos;      /* The position where reading stopped. <= size. */
   size_t size;     /* The number of sequences. <= capacity. */
   size_t capacity; /* The capacity starting from `seq` pointer */

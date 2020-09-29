@@ -94,11 +94,18 @@ static size_t ZSTD_startingInputLength(ZSTD_format_e format)
     return startingInputLength;
 }
 
+static void ZSTD_DCtx_resetParameters(ZSTD_DCtx* dctx)
+{
+    assert(dctx->streamStage == zdss_init);
+    dctx->format = ZSTD_f_zstd1;
+    dctx->maxWindowSize = ZSTD_MAXWINDOWSIZE_DEFAULT;
+    dctx->outBufferMode = ZSTD_obm_buffered;
+    dctx->forceIgnoreChecksum = ZSTD_d_validateChecksum;
+}
+
 static void ZSTD_initDCtx_internal(ZSTD_DCtx* dctx)
 {
-    dctx->format = ZSTD_f_zstd1;  /* ZSTD_decompressBegin() invokes ZSTD_startingInputLength() with argument dctx->format */
     dctx->staticSize  = 0;
-    dctx->maxWindowSize = ZSTD_MAXWINDOWSIZE_DEFAULT;
     dctx->ddict       = NULL;
     dctx->ddictLocal  = NULL;
     dctx->dictEnd     = NULL;
@@ -113,8 +120,7 @@ static void ZSTD_initDCtx_internal(ZSTD_DCtx* dctx)
     dctx->noForwardProgress = 0;
     dctx->oversizedDuration = 0;
     dctx->bmi2 = ZSTD_cpuid_bmi2(ZSTD_cpuid());
-    dctx->outBufferMode = ZSTD_obm_buffered;
-    dctx->forceIgnoreChecksum = ZSTD_d_validateChecksum;
+    ZSTD_DCtx_resetParameters(dctx);
     dctx->validateChecksum = 1;
 #ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
     dctx->dictContentEndForFuzzing = NULL;
@@ -1454,6 +1460,26 @@ static int ZSTD_dParam_withinBounds(ZSTD_dParameter dParam, int value)
     RETURN_ERROR_IF(!ZSTD_dParam_withinBounds(p, v), parameter_outOfBound, ""); \
 }
 
+size_t ZSTD_DCtx_getParameter(ZSTD_DCtx* dctx, ZSTD_dParameter param, int* value)
+{
+    switch (param) {
+        case ZSTD_d_windowLogMax:
+            *value = ZSTD_highbit32((U32)dctx->maxWindowSize);
+            return 0;
+        case ZSTD_d_format:
+            *value = dctx->format;
+            return 0;
+        case ZSTD_d_stableOutBuffer:
+            *value = dctx->outBufferMode;
+            return 0;
+        case ZSTD_d_forceIgnoreChecksum:
+            *value = dctx->forceIgnoreChecksum;
+            return 0;
+        default:;
+    }
+    RETURN_ERROR(parameter_unsupported, "");
+}
+
 size_t ZSTD_DCtx_setParameter(ZSTD_DCtx* dctx, ZSTD_dParameter dParam, int value)
 {
     RETURN_ERROR_IF(dctx->streamStage != zdss_init, stage_wrong, "");
@@ -1491,8 +1517,7 @@ size_t ZSTD_DCtx_reset(ZSTD_DCtx* dctx, ZSTD_ResetDirective reset)
       || (reset == ZSTD_reset_session_and_parameters) ) {
         RETURN_ERROR_IF(dctx->streamStage != zdss_init, stage_wrong, "");
         ZSTD_clearDict(dctx);
-        dctx->format = ZSTD_f_zstd1;
-        dctx->maxWindowSize = ZSTD_MAXWINDOWSIZE_DEFAULT;
+        ZSTD_DCtx_resetParameters(dctx);
     }
     return 0;
 }

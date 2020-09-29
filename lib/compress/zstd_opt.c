@@ -824,19 +824,19 @@ static void ldm_getNextMatch(rawSeqStore_t* ldmSeqStore,
     if (ldmSeqStore->pos >= ldmSeqStore->size) {
         *matchStartPosInBlock = UINT32_MAX;
         *matchEndPosInBlock = UINT32_MAX;
-        return 1;
+        return;
     }
     rawSeq seq = ldm_splitSequenceAndUpdateSeqStore(ldmSeqStore, remainingBytes);
     if (seq.offset == 0) {
         *matchStartPosInBlock = UINT32_MAX;
         *matchEndPosInBlock = UINT32_MAX;
-        return 1;
+        return;
     }
 
     *matchStartPosInBlock = currPosInBlock + seq.litLength;
     *matchEndPosInBlock = *matchStartPosInBlock + seq.matchLength;
     *matchOffset = seq.offset;
-    return 0;
+    return;
 }
 
 /* Adds an LDM if it's long enough */

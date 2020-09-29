@@ -768,54 +768,24 @@ FORCE_INLINE_TEMPLATE U32 ZSTD_BtGetAllMatches (
 *  LDM util functions
 *********************************/
 
-/*
-static void ldm_skipOvershotBytes(rawSeqStore_t* rawSeqStore, U32 bytesOvershot) {
-    while (bytesOvershot > 0 && rawSeqStore->pos < rawSeqStore->size) {
-        rawSeq seq = rawSeqStore->seq[rawSeqStore->pos];
-        if (bytesOvershot <= seq.litLength) {
-            seq->litLength -= bytesOvershot;
-        }
-    }
-    if (rawSeqStore->seq[rawSeqStore->pos].matchLength > posOvershoot) {
-        rawSeqStore->seq[rawSeqStore->pos].matchLength -= posOvershoot;
-        return;
-    } else {
-        rawSeqStore->seq[rawSeqStore->pos].matchLength = 0;
-        rawSeqStore->pos++;
-    }
-
-    while (posOvershoot > 0 && rawSeqStore->pos < rawSeqStore->size) {
-        
-    }
-}*/
-
-
-static void ldm_voidSequences(rawSeqStore_t* ldmSeqStore, U32 overshotBytes) {
-    U32 posAdjustment;
-    U32 bytesAdjustment;
-    while (overshotBytes > 0 && ldmSeqStore->pos < ldmSeqStore->size) {
-
-    }
-}
-
 static void ldm_skipSequences(rawSeqStore_t* rawSeqStore, size_t srcSize, U32 const minMatch) {
     while (srcSize > 0 && rawSeqStore->pos < rawSeqStore->size) {
-        ////printf("ldm_skipSequences(): %u remaining\n", srcSize);
+        //////printf("ldm_skipSequences(): %u remaining\n", srcSize);
         rawSeq* seq = rawSeqStore->seq + rawSeqStore->pos;
-        ////printf("ldm_skipSequences(): before: (of: %u, ml: %u, ll: %u)\n", seq->offset, seq->matchLength, seq->litLength);
+        //////printf("ldm_skipSequences(): before: (of: %u, ml: %u, ll: %u)\n", seq->offset, seq->matchLength, seq->litLength);
         if (srcSize <= seq->litLength) {
             /* Skip past srcSize literals */
             seq->litLength -= (U32)srcSize;
-            ////printf("ldm_skipSequences(): seqstore final: (of: %u, ml: %u, ll: %u) at %u\n", seq->offset, seq->matchLength, seq->litLength, rawSeqStore->pos);
+            //////printf("ldm_skipSequences(): seqstore final: (of: %u, ml: %u, ll: %u) at %u\n", seq->offset, seq->matchLength, seq->litLength, rawSeqStore->pos);
             return;
         }
         srcSize -= seq->litLength;
         seq->litLength = 0;
         if (srcSize < seq->matchLength) {
-            ////printf("Splitting match: ml curr: %u ", seq->matchLength);
+            //////printf("Splitting match: ml curr: %u ", seq->matchLength);
             /* Skip past the first srcSize of the match */
             seq->matchLength -= (U32)srcSize;
-            ////printf("ml in store left: %u ", seq->matchLength);
+            //////printf("ml in store left: %u ", seq->matchLength);
             /*if (seq->matchLength < minMatch) {
                 // The match is too short, omit it
                 if (rawSeqStore->pos + 1 < rawSeqStore->size) {
@@ -823,12 +793,12 @@ static void ldm_skipSequences(rawSeqStore_t* rawSeqStore, size_t srcSize, U32 co
                 }
                 rawSeqStore->pos++;
             }*/
-            //printf("ldm_skipSequences(): seqstore final: (of: %u, ml: %u, ll: %u) at %u\n", seq->offset, seq->matchLength, seq->litLength, rawSeqStore->pos);
+            ////printf("ldm_skipSequences(): seqstore final: (of: %u, ml: %u, ll: %u) at %u\n", seq->offset, seq->matchLength, seq->litLength, rawSeqStore->pos);
             return;
         }
         srcSize -= seq->matchLength;
         seq->matchLength = 0;
-        //printf("ldm_skipSequences(): seqstore final: (of: %u, ml: %u, ll: %u) at %u\n", seq->offset, seq->matchLength, seq->litLength, rawSeqStore->pos);
+        ////printf("ldm_skipSequences(): seqstore final: (of: %u, ml: %u, ll: %u) at %u\n", seq->offset, seq->matchLength, seq->litLength, rawSeqStore->pos);
         rawSeqStore->pos++;
     }
 }
@@ -836,30 +806,30 @@ static void ldm_skipSequences(rawSeqStore_t* rawSeqStore, size_t srcSize, U32 co
 // The only function that can update pos (i think, for now)
 static rawSeq ldm_splitSequence(rawSeqStore_t* ldmSeqStore, U32* ldmSeqStoreBytesConsumed, U32 remainingBytes) {
     rawSeq currSeq = ldmSeqStore->seq[ldmSeqStore->pos];
-    //printf("ldm_splitSequence(): Current sequence: (of: %u, ml: %u, ll: %u) - remaining: %u\n", currSeq.offset, currSeq.matchLength, currSeq.litLength, remainingBytes);
+    ////printf("ldm_splitSequence(): Current sequence: (of: %u, ml: %u, ll: %u) - remaining: %u\n", currSeq.offset, currSeq.matchLength, currSeq.litLength, remainingBytes);
     /* No split */
     if (remainingBytes >= currSeq.litLength + currSeq.matchLength) {
-        ////printf("NO SPLIT\n");
+        //////printf("NO SPLIT\n");
         *ldmSeqStoreBytesConsumed += currSeq.litLength + currSeq.matchLength;
         ldmSeqStore->pos++;
-        ////printf("pos is now: %u\n", ldmSeqStore->pos);
+        //////printf("pos is now: %u\n", ldmSeqStore->pos);
         return currSeq;
     }
     /* Need a split */
     if (remainingBytes <= currSeq.litLength) {
-        ////printf("SPLITTING: all remaining bytes were literals");
+        //////printf("SPLITTING: all remaining bytes were literals");
         currSeq.offset = 0;
     } else if (remainingBytes < currSeq.litLength + currSeq.matchLength) {
         /*if (currSeq.matchLength < MINMATCH) {
-            ////printf("CurrSeq less than minmatch: all remaining bytes were literals");
+            //////printf("CurrSeq less than minmatch: all remaining bytes were literals");
             currSeq.offset = 0;
         }*/
         currSeq.matchLength = remainingBytes - currSeq.litLength;
     }
-    ////printf("\n");
+    //////printf("\n");
     *ldmSeqStoreBytesConsumed += remainingBytes;
     ldm_skipSequences(ldmSeqStore, remainingBytes, MINMATCH);
-    //printf("ldm_splitSequence(): Sequence final: (of: %u, ml: %u, ll: %u)\n", currSeq.offset, currSeq.matchLength, currSeq.litLength);
+    ////printf("ldm_splitSequence(): Sequence final: (of: %u, ml: %u, ll: %u)\n", currSeq.offset, currSeq.matchLength, currSeq.litLength);
     return currSeq;
 }
 
@@ -870,7 +840,7 @@ static int ldm_getNextMatch(rawSeqStore_t* ldmSeqStore, U32* ldmSeqStoreBytesCon
                             U32 remainingBytes, U32 sbi) {
     if (ldmSeqStore->pos >= ldmSeqStore->size) {
         // Don't use the LDM for the rest of the block (there is none)
-        //printf("No ldm left in the block, pos max reached\n");
+        ////printf("No ldm left in the block, pos max reached\n");
         *matchStartPosInBlock = UINT32_MAX;
         *matchEndPosInBlock = UINT32_MAX;
         return 1;
@@ -878,7 +848,7 @@ static int ldm_getNextMatch(rawSeqStore_t* ldmSeqStore, U32* ldmSeqStoreBytesCon
     rawSeq seq = ldm_splitSequence(ldmSeqStore, ldmSeqStoreBytesConsumed, remainingBytes);
     if (seq.offset == 0) {
         // Don't use the LDM for the rest of the block (there is none)
-        ////printf("No ldm left in the block, offset = 0\n");
+        //////printf("No ldm left in the block, offset = 0\n");
         *matchStartPosInBlock = UINT32_MAX;
         *matchEndPosInBlock = UINT32_MAX;
         return 1;
@@ -887,8 +857,30 @@ static int ldm_getNextMatch(rawSeqStore_t* ldmSeqStore, U32* ldmSeqStoreBytesCon
     *matchStartPosInBlock = currPosInBlock + seq.litLength;
     *matchEndPosInBlock = *matchStartPosInBlock + seq.matchLength;
     *matchOffset = seq.offset;
-    //printf("New match range in block is: (%u, %u) with of: %u where currPosInBlock: %u at adjusted absolute range: %u, %u\n", *matchStartPosInBlock, *matchEndPosInBlock, *matchOffset, currPosInBlock, *matchStartPosInBlock+sbi, *matchEndPosInBlock+sbi);
+    ////printf("New match range in block is: (%u, %u) with of: %u where currPosInBlock: %u at adjusted absolute range: %u, %u\n", *matchStartPosInBlock, *matchEndPosInBlock, *matchOffset, currPosInBlock, *matchStartPosInBlock+sbi, *matchEndPosInBlock+sbi);
     return 0;
+}
+
+static void printMatches(ZSTD_match_t* matches, U32 nbMatches) {
+    for (int i = 0; i < nbMatches; ++i) {
+        //printf("(of: %u ml: %u) ", matches[i].off, matches[i].len);
+    }
+    //printf("\n");
+}
+static void validateMatches(ZSTD_match_t* matches, U32 nbMatches) {
+    U32 prevLargestOffset = 0;
+    U32 prevLargestMatch = 0;
+    for (int i = 1; i < nbMatches; ++i) {
+        if (matches[i-1].len > matches[i].len) {
+            //printf("nope\n");
+            exit(1);
+        } else if (matches[i-1].len == matches[i].len) {
+            if (matches[i-1].off < matches[i].off) {
+                //printf("nopeOff\n");
+                exit(1);
+            }
+        }
+    }
 }
 
 /* Adds an LDM if it's long enough */
@@ -903,43 +895,48 @@ static void ldm_maybeAddLdm(ZSTD_match_t* matches, U32* nbMatches,
         return; // dont deal with extra ldms for now
     assert(posDiff < matchEndPosInBlock - matchStartPosInBlock);
     U32 candidateMatchLength = matchEndPosInBlock - matchStartPosInBlock - posDiff;
+    if (candidateMatchLength < ZSTD_LDM_MINMATCH_MIN)
+        return;
+
     U32 candidateOffCode = matchOffset + posDiff + ZSTD_REP_MOVE;
 
     if ((*nbMatches == 0 || candidateMatchLength >= matches[*nbMatches-1].len) && *nbMatches < ZSTD_OPT_NUM) {
         //printf("large enough: curr: %u currposinblock: %u (ofcode: %u, ml: %u) - range: (%u, %u) - (of: %u ml: %u ll: %u) @ pos: %u - \n",
-        //    curr, currPosInBlock, candidateOffCode, candidateMatchLength, matchStartPosInBlock, matchEndPosInBlock, rawSeqStore->seq[rawSeqStore->pos].offset, rawSeqStore->seq[rawSeqStore->pos].matchLength, rawSeqStore->seq[rawSeqStore->pos].litLength, rawSeqStore->pos);
+           // curr, currPosInBlock, candidateOffCode, candidateMatchLength, matchStartPosInBlock, matchEndPosInBlock, rawSeqStore->seq[rawSeqStore->pos].offset, rawSeqStore->seq[rawSeqStore->pos].matchLength, rawSeqStore->seq[rawSeqStore->pos].litLength, rawSeqStore->pos);
 
         if (*nbMatches == 0) {
+            //printf("HERE1\n");
             matches[*nbMatches].len = candidateMatchLength;
             matches[*nbMatches].off = candidateOffCode;
             (*nbMatches)++;
         } else {
             if (candidateMatchLength == matches[*nbMatches-1].len) {
+                //printf("HERE2\n");
                 U32 candidateMatchIdx = *nbMatches;
                 matches[*nbMatches].len = candidateMatchLength;
                 matches[*nbMatches].off = candidateOffCode;
-                ////printf("Sifting...: idx: %u, len: %u, off: %u\n", candidateMatchIdx, candidateMatchLength, candidateOffCode);
-                //////printf("Current best is...: idx: %u, len: %u, off: %u\n", *nbMatches-1,  matches[*nbMatches-1].len, matches[*nbMatches-1].off);
-                if (candidateOffCode != matches[*nbMatches].off)
-                    ////printf("DIFF: ldm: (len: %u, off: %u), best: (len: %u, off: %u)\n", candidateMatchLength, candidateOffCode, matches[*nbMatches-1].len, matches[*nbMatches-1].off);
-                //////printf("Current best is...: idx: %u, len: %u, off: %u\n", *nbMatches-1,  matches[*nbMatches-1].len, matches[*nbMatches-1].off);
-                while (candidateMatchIdx > 0 &&
-                       matches[candidateMatchIdx].off > matches[candidateMatchIdx - 1].off &&
-                       matches[candidateMatchIdx].len == matches[candidateMatchIdx - 1].len) {
-                    //////printf("Compared to: idx: %u, len: %u, off: %u", candidateMatchIdx - 1, matches[candidateMatchIdx - 1].len, matches[candidateMatchIdx - 1].off);
-                    ZSTD_match_t tmp = matches[candidateMatchIdx - 1];
-                    matches[candidateMatchIdx - 1] = matches[candidateMatchIdx];
-                    matches[candidateMatchIdx] = tmp;
-                    --candidateMatchIdx;
+                if (candidateOffCode != matches[*nbMatches-1].off) {
+                    //printf("offsets not equal\n");
+                    while (candidateMatchIdx > 0 &&
+                            matches[candidateMatchIdx].off > matches[candidateMatchIdx - 1].off &&
+                            matches[candidateMatchIdx].len == matches[candidateMatchIdx - 1].len) {
+                        //printf("sifting\n");
+                        ZSTD_match_t tmp = matches[candidateMatchIdx - 1];
+                        matches[candidateMatchIdx - 1] = matches[candidateMatchIdx];
+                        matches[candidateMatchIdx] = tmp;
+                        --candidateMatchIdx;
+                    }
                 }
                 (*nbMatches)++;
             } else {
-                ////printf("MATCHDIFF: ldm: (len: %u, off: %u), best: (len: %u, off: %u)\n", candidateMatchLength, candidateOffCode, matches[*nbMatches-1].len, matches[*nbMatches-1].off);
+                //printf("HERE3\n");
                 matches[*nbMatches].len = candidateMatchLength;
                 matches[*nbMatches].off = candidateOffCode;
                 (*nbMatches)++;
             }
         }
+        printMatches(matches, *nbMatches);
+        validateMatches(matches, *nbMatches);
     }
 }
 
@@ -947,12 +944,12 @@ static void ldm_maybeAddLdm(ZSTD_match_t* matches, U32* nbMatches,
 static void ldm_handleLdm(rawSeqStore_t* ldmSeqStore, U32* ldmSeqStoreBytesConsumed, ZSTD_match_t* matches, U32* nbMatches,
                           U32* matchStartPosInBlock, U32* matchEndPosInBlock, U32* matchOffset,
                           U32 currPosInBlock, U32 remainingBytes, U32 curr, U32 sbi) {
-    ////printf("currPosInBlock: %u, curr: %u, called ldm_handleLdm()", currPosInBlock, curr);
+    //////printf("currPosInBlock: %u, curr: %u, called ldm_handleLdm()", currPosInBlock, curr);
     if (currPosInBlock >= *matchEndPosInBlock) {
-        //printf("Went over match boundary: currPosInBlock: %u, %matchEndPosInBlock: %u\n", currPosInBlock, *matchEndPosInBlock);
+        ////printf("Went over match boundary: currPosInBlock: %u, %matchEndPosInBlock: %u\n", currPosInBlock, *matchEndPosInBlock);
         if (currPosInBlock > *matchEndPosInBlock) {
             U32 posOvershoot = currPosInBlock - *matchEndPosInBlock;
-            //printf("Overshot position by: %u\n", posOvershoot);
+            ////printf("Overshot position by: %u\n", posOvershoot);
             ldm_skipSequences(ldmSeqStore, posOvershoot, MINMATCH);
         } 
         int noMoreLdms = ldm_getNextMatch(ldmSeqStore, ldmSeqStoreBytesConsumed, matchStartPosInBlock,
@@ -1022,10 +1019,10 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
     U32 ldmOffset = 0;
     U32 ldmSeqStoreBytesConsumed = 0;
     
-    ////printf("SBI for this block: %u, base: %u\n", sbi, base);
+    //////printf("SBI for this block: %u, base: %u\n", sbi, base);
     if (ms->ldmSeqStore.size > 0 && ms->ldmSeqStore.base != base) {
         int baseDiff = (int)(ms->ldmSeqStore.base - base);
-        //printf("Bases were different, adjusting, diff = %d\n", baseDiff);
+        ////printf("Bases were different, adjusting, diff = %d\n", baseDiff);
         ms->ldmSeqStore.seq[ms->ldmSeqStore.pos].litLength += baseDiff;
         ms->ldmSeqStore.base = ms->window.base;
     }
@@ -1291,10 +1288,10 @@ _shortestPath:   /* cur, last_pos, best_mlen, best_off have to be set */
     }   /* while (ip < ilimit) */
 
     int i = ms->ldmSeqStore.pos;
-    //printf("pos %d (of:%u ml:%u ll: %u)\n", i, ms->ldmSeqStore.seq[i].offset, ms->ldmSeqStore.seq[i].matchLength, ms->ldmSeqStore.seq[i].litLength);
-    //printf("matchend: %u bytesconsumed: %u\n", ldmEndPosInBlock, ldmSeqStoreBytesConsumed);
+    ////printf("pos %d (of:%u ml:%u ll: %u)\n", i, ms->ldmSeqStore.seq[i].offset, ms->ldmSeqStore.seq[i].matchLength, ms->ldmSeqStore.seq[i].litLength);
+    ////printf("matchend: %u bytesconsumed: %u\n", ldmEndPosInBlock, ldmSeqStoreBytesConsumed);
     if (ldmEndPosInBlock < srcSize) {
-        //printf("Needs adjustment, endpos didn't reach end of block\n");
+        ////printf("Needs adjustment, endpos didn't reach end of block\n");
         ldm_skipSequences(&ms->ldmSeqStore, srcSize - ldmEndPosInBlock, MINMATCH);
     }
     /* Return the last literals size */

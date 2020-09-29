@@ -196,4 +196,93 @@
     #define STATIC_BMI2 0
 #endif
 
+/* compat. with non-clang compilers */
+#ifndef __has_builtin
+#  define __has_builtin(x) 0
+#endif
+
+/* compat. with non-clang compilers */
+#ifndef __has_feature
+#  define __has_feature(x) 0
+#endif
+
+/* detects whether we are being compiled under msan */
+#ifndef ZSTD_MEMORY_SANITIZER
+#  if __has_feature(memory_sanitizer)
+#    define ZSTD_MEMORY_SANITIZER 1
+#  else
+#    define ZSTD_MEMORY_SANITIZER 0
+#  endif
+#endif
+
+#if ZSTD_MEMORY_SANITIZER
+/* Not all platforms that support msan provide sanitizers/msan_interface.h.
+ * We therefore declare the functions we need ourselves, rather than trying to
+ * include the header file... */
+#include <stddef.h>  /* size_t */
+#define ZSTD_DEPS_NEED_STDINT
+#include "zstd_deps.h"  /* intptr_t */
+
+/* Make memory region fully initialized (without changing its contents). */
+void __msan_unpoison(const volatile void *a, size_t size);
+
+/* Make memory region fully uninitialized (without changing its contents).
+   This is a legacy interface that does not update origin information. Use
+   __msan_allocated_memory() instead. */
+void __msan_poison(const volatile void *a, size_t size);
+
+/* Returns the offset of the first (at least partially) poisoned byte in the
+   memory range, or -1 if the whole range is good. */
+intptr_t __msan_test_shadow(const volatile void *x, size_t size);
+#endif
+
+/* detects whether we are being compiled under asan */
+#ifndef ZSTD_ADDRESS_SANITIZER
+#  if __has_feature(address_sanitizer)
+#    define ZSTD_ADDRESS_SANITIZER 1
+#  elif defined(__SANITIZE_ADDRESS__)
+#    define ZSTD_ADDRESS_SANITIZER 1
+#  else
+#    define ZSTD_ADDRESS_SANITIZER 0
+#  endif
+#endif
+
+#if ZSTD_ADDRESS_SANITIZER
+/* Not all platforms that support asan provide sanitizers/asan_interface.h.
+ * We therefore declare the functions we need ourselves, rather than trying to
+ * include the header file... */
+#include <stddef.h>  /* size_t */
+
+/**
+ * Marks a memory region (<c>[addr, addr+size)</c>) as unaddressable.
+ *
+ * This memory must be previously allocated by your program. Instrumented
+ * code is forbidden from accessing addresses in this region until it is
+ * unpoisoned. This function is not guaranteed to poison the entire region -
+ * it could poison only a subregion of <c>[addr, addr+size)</c> due to ASan
+ * alignment restrictions.
+ *
+ * \note This function is not thread-safe because no two threads can poison or
+ * unpoison memory in the same memory region simultaneously.
+ *
+ * \param addr Start of memory region.
+ * \param size Size of memory region. */
+void __asan_poison_memory_region(void const volatile *addr, size_t size);
+
+/**
+ * Marks a memory region (<c>[addr, addr+size)</c>) as addressable.
+ *
+ * This memory must be previously allocated by your program. Accessing
+ * addresses in this region is allowed until this region is poisoned again.
+ * This function could unpoison a super-region of <c>[addr, addr+size)</c> due
+ * to ASan alignment restrictions.
+ *
+ * \note This function is not thread-safe because no two threads can
+ * poison or unpoison memory in the same memory region simultaneously.
+ *
+ * \param addr Start of memory region.
+ * \param size Size of memory region. */
+void __asan_unpoison_memory_region(void const volatile *addr, size_t size);
+#endif
+
 #endif /* ZSTD_COMPILER_H */

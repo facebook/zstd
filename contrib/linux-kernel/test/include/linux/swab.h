@@ -7,9 +7,10 @@
  * in the COPYING file in the root directory of this source tree).
  * You may select, at your option, one of the above-listed licenses.
  */
-#ifndef LINUX_STRING_H
-#define LINUX_STRING_H
+#ifndef LINUX_SWAB_H
+#define LINUX_SWAB_H
 
-#include <string.h>
+#define swab32(x) __builtin_bswap32((x))
+#define swab64(x) __builtin_bswap64((x))
 
 #endif

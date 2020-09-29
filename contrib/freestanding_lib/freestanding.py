@@ -21,6 +21,7 @@ from typing import Optional
 INCLUDED_SUBDIRS = ["common", "compress", "decompress"]
 
 SKIPPED_FILES = [
+    "common/mem.h",
     "common/zstd_deps.h",
     "common/pool.c",
     "common/pool.h",
@@ -77,13 +78,16 @@ class PartialPreprocessor(object):
             fr"\s*#\s*{ELIF_GROUP}if\s+(?P<not>!)?\s*defined\s*\(\s*{MACRO_GROUP}\s*\)\s*{OP_GROUP}"
         )
         self._if_defined_value = re.compile(
-            fr"\s*#\s*if\s+defined\s*\(\s*{MACRO_GROUP}\s*\)\s*"
+            fr"\s*#\s*{ELIF_GROUP}if\s+defined\s*\(\s*{MACRO_GROUP}\s*\)\s*"
             fr"(?P<op>&&)\s*"
             fr"(?P<openp>\()?\s*"
             fr"(?P<macro2>[a-zA-Z_][a-zA-Z_0-9]*)\s*"
             fr"(?P<cmp>[=><!]+)\s*"
             fr"(?P<value>[0-9]*)\s*"
             fr"(?P<closep>\))?\s*"
+        )
+        self._if_true = re.compile(
+            fr"\s*#\s*{ELIF_GROUP}if\s+{MACRO_GROUP}\s*{OP_GROUP}"
         )
 
         self._c_comment = re.compile(r"/\*.*?\*/")
@@ -261,10 +265,14 @@ class PartialPreprocessor(object):
             line = self._inlines[idx]
             sline = self._strip_comments(line)
             m = self._ifdef.fullmatch(sline)
+            if_true = False
             if m is None:
                 m = self._if_defined_value.fullmatch(sline)
             if m is None:
                 m = self._if_defined.match(sline)
+            if m is None:
+                m = self._if_true.match(sline)
+                if_true = (m is not None)
             if m is None:
                 outlines.append(line)
                 idx += 1
@@ -272,15 +280,7 @@ class PartialPreprocessor(object):
 
             groups = m.groupdict()
             macro = groups['macro']
-            ifdef = groups.get('not') is None
-            elseif = groups.get('elif') is not None
             op = groups.get('op')
-
-            macro2 = groups.get('macro2')
-            cmp = groups.get('cmp')
-            value = groups.get('value')
-            openp = groups.get('openp')
-            closep = groups.get('closep')
 
             if not (macro in self._defs or macro in self._undefs):
                 outlines.append(line)
@@ -288,68 +288,108 @@ class PartialPreprocessor(object):
                 continue
 
             defined = macro in self._defs
-            is_true = (ifdef == defined)
-            resolved = True
-            if op is not None:
-                if op == '&&':
-                    resolved = not is_true
-                else:
-                    assert op == '||'
-                    resolved = is_true
 
-            if macro2 is not None and not resolved:
-                assert ifdef and defined and op == '&&' and cmp is not None
-                # If the statment is true, but we have a single value check, then
-                # check the value.
+            # Needed variables set:
+            # resolved: Is the statement fully resolved?
+            # is_true: If resolved, is the statement true?
+            ifdef = False
+            if if_true:
+                if not defined:
+                    outlines.append(line)
+                    idx += 1
+                    continue
+
                 defined_value = self._defs[macro]
-                are_ints = True
+                is_int = True
                 try:
                     defined_value = int(defined_value)
-                    value = int(value)
                 except TypeError:
-                    are_ints = False
+                    is_int = False
                 except ValueError:
-                    are_ints = False
-                if (
-                        macro == macro2 and
-                        ((openp is None) == (closep is None)) and
-                        are_ints
-                ):
-                    resolved = True
-                    if cmp == '<':
-                        is_true = defined_value < value
-                    elif cmp == '<=':
-                        is_true = defined_value <= value
-                    elif cmp == '==':
-                        is_true = defined_value == value
-                    elif cmp == '!=':
-                        is_true = defined_value != value
-                    elif cmp == '>=':
-                        is_true = defined_value >= value
-                    elif cmp == '>':
-                        is_true = defined_value > value
+                    is_int = False
+
+                resolved = is_int
+                is_true = (defined_value != 0)
+
+                if resolved and op is not None:
+                    if op == '&&':
+                        resolved = not is_true
                     else:
-                        resolved = False
+                        assert op == '||'
+                        resolved = is_true
 
-            if op is not None and not resolved:
-                # Remove the first op in the line + spaces
-                if op == '&&':
-                    opre = op
-                else:
-                    assert op == '||'
-                    opre = r'\|\|'
-                needle = re.compile(fr"(?P<if>\s*#\s*(el)?if\s+).*?(?P<op>{opre}\s*)")
-                match = needle.match(line)
-                assert match is not None
-                newline = line[:match.end('if')] + line[match.end('op'):]
+            else:
+                ifdef = groups.get('not') is None
+                elseif = groups.get('elif') is not None
 
-                self._log(f"\tHardwiring partially resolved {macro}")
-                self._log(f"\t\t- {line[:-1]}")
-                self._log(f"\t\t+ {newline[:-1]}")
+                macro2 = groups.get('macro2')
+                cmp = groups.get('cmp')
+                value = groups.get('value')
+                openp = groups.get('openp')
+                closep = groups.get('closep')
 
-                outlines.append(newline)
-                idx += 1
-                continue
+                is_true = (ifdef == defined)
+                resolved = True
+                if op is not None:
+                    if op == '&&':
+                        resolved = not is_true
+                    else:
+                        assert op == '||'
+                        resolved = is_true
+
+                if macro2 is not None and not resolved:
+                    assert ifdef and defined and op == '&&' and cmp is not None
+                    # If the statment is true, but we have a single value check, then
+                    # check the value.
+                    defined_value = self._defs[macro]
+                    are_ints = True
+                    try:
+                        defined_value = int(defined_value)
+                        value = int(value)
+                    except TypeError:
+                        are_ints = False
+                    except ValueError:
+                        are_ints = False
+                    if (
+                            macro == macro2 and
+                            ((openp is None) == (closep is None)) and
+                            are_ints
+                    ):
+                        resolved = True
+                        if cmp == '<':
+                            is_true = defined_value < value
+                        elif cmp == '<=':
+                            is_true = defined_value <= value
+                        elif cmp == '==':
+                            is_true = defined_value == value
+                        elif cmp == '!=':
+                            is_true = defined_value != value
+                        elif cmp == '>=':
+                            is_true = defined_value >= value
+                        elif cmp == '>':
+                            is_true = defined_value > value
+                        else:
+                            resolved = False
+
+                if op is not None and not resolved:
+                    # Remove the first op in the line + spaces
+                    if op == '&&':
+                        opre = op
+                    else:
+                        assert op == '||'
+                        opre = r'\|\|'
+                    needle = re.compile(fr"(?P<if>\s*#\s*(el)?if\s+).*?(?P<op>{opre}\s*)")
+                    match = needle.match(line)
+                    assert match is not None
+                    newline = line[:match.end('if')] + line[match.end('op'):]
+
+                    self._log(f"\tHardwiring partially resolved {macro}")
+                    self._log(f"\t\t- {line[:-1]}")
+                    self._log(f"\t\t+ {newline[:-1]}")
+
+                    outlines.append(newline)
+                    idx += 1
+                    continue
 
             # Skip any statements we cannot fully compute
             if not resolved:
@@ -386,13 +426,14 @@ class PartialPreprocessor(object):
 
 class Freestanding(object):
     def __init__(
-            self,zstd_deps: str, source_lib: str, output_lib: str,
+            self, zstd_deps: str, mem: str, source_lib: str, output_lib: str,
             external_xxhash: bool, xxh64_state: Optional[str],
             xxh64_prefix: Optional[str], rewritten_includes: [(str, str)],
             defs: [(str, Optional[str])], replaces: [(str, str)],
             undefs: [str], excludes: [str]
     ):
         self._zstd_deps = zstd_deps
+        self._mem = mem
         self._src_lib = source_lib
         self._dst_lib = output_lib
         self._external_xxhash = external_xxhash
@@ -452,6 +493,11 @@ class Freestanding(object):
         dst_zstd_deps = os.path.join(self._dst_lib, "common", "zstd_deps.h")
         self._log(f"Copying zstd_deps: {self._zstd_deps} -> {dst_zstd_deps}")
         shutil.copyfile(self._zstd_deps, dst_zstd_deps)
+
+    def _copy_mem(self):
+        dst_mem = os.path.join(self._dst_lib, "common", "mem.h")
+        self._log(f"Copying mem: {self._mem} -> {dst_mem}")
+        shutil.copyfile(self._mem, dst_mem)
 
     def _hardwire_preprocessor(self, name: str, value: Optional[str] = None, undef=False):
         """
@@ -553,6 +599,7 @@ class Freestanding(object):
     def go(self):
         self._copy_source_lib()
         self._copy_zstd_deps()
+        self._copy_mem()
         self._hardwire_defines()
         self._remove_excludes()
         self._rewrite_includes()
@@ -587,6 +634,7 @@ def parse_pair(rewritten_includes: [str]) -> [(str, str)]:
 def main(name, args):
     parser = argparse.ArgumentParser(prog=name)
     parser.add_argument("--zstd-deps", default="zstd_deps.h", help="Zstd dependencies file")
+    parser.add_argument("--mem", default="mem.h", help="Memory module")
     parser.add_argument("--source-lib", default="../../lib", help="Location of the zstd library")
     parser.add_argument("--output-lib", default="./freestanding_lib", help="Where to output the freestanding zstd library")
     parser.add_argument("--xxhash", default=None, help="Alternate external xxhash include e.g. --xxhash='<xxhash.h>'. If set xxhash is not included.")
@@ -630,6 +678,7 @@ def main(name, args):
 
     Freestanding(
         args.zstd_deps,
+        args.mem,
         args.source_lib,
         args.output_lib,
         external_xxhash,

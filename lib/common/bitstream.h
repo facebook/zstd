@@ -203,7 +203,7 @@ MEM_STATIC size_t BIT_initCStream(BIT_CStream_t* bitC,
 MEM_STATIC void BIT_addBits(BIT_CStream_t* bitC,
                             size_t value, unsigned nbBits)
 {
-    MEM_STATIC_ASSERT(BIT_MASK_SIZE == 32);
+    DEBUG_STATIC_ASSERT(BIT_MASK_SIZE == 32);
     assert(nbBits < BIT_MASK_SIZE);
     assert(nbBits + bitC->bitPos < sizeof(bitC->bitContainer) * 8);
     bitC->bitContainer |= (value & BIT_mask[nbBits]) << bitC->bitPos;

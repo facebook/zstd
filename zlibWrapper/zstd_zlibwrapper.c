@@ -457,7 +457,7 @@ static void ZWRAP_initDCtx(ZWRAP_DCtx* zwd)
 static ZWRAP_DCtx* ZWRAP_createDCtx(z_streamp strm)
 {
     ZWRAP_DCtx* zwd;
-    MEM_STATIC_ASSERT(sizeof(zwd->headerBuf) >= ZSTD_HEADERSIZE);   /* check static buffer size condition */
+    DEBUG_STATIC_ASSERT(sizeof(zwd->headerBuf) >= ZSTD_HEADERSIZE);   /* check static buffer size condition */
 
     if (strm->zalloc && strm->zfree) {
         zwd = (ZWRAP_DCtx*)strm->zalloc(strm->opaque, 1, sizeof(ZWRAP_DCtx));

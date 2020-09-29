@@ -2336,7 +2336,7 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
         if (curr > ms->nextToUpdate + 384)
             ms->nextToUpdate = curr - MIN(192, (U32)(curr - ms->nextToUpdate - 384));
     }
-    //printf("--NEW BLOCK--\n");
+
     /* select and store sequences */
     {   ZSTD_dictMode_e const dictMode = ZSTD_matchState_dictMode(ms);
         size_t lastLLSize;

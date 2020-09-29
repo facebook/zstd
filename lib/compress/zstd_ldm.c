@@ -562,13 +562,6 @@ static rawSeq maybeSplitSequence(rawSeqStore_t* rawSeqStore,
     return sequence;
 }
 
-static void printSeqStore(rawSeqStore_t* rawSeqStore) {
-    printf("rawSeqStore: pos: %zu\n", rawSeqStore->pos);
-    for (int i = 0; i < rawSeqStore->size; ++i) {
-        printf("pos %d (of:%u ml:%u ll: %u)\n", i, rawSeqStore->seq[i].offset, rawSeqStore->seq[i].matchLength, rawSeqStore->seq[i].litLength);
-    }
-}
-
 size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
     ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
     void const* src, size_t srcSize)
@@ -582,19 +575,13 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
     BYTE const* const iend = istart + srcSize;
     /* Input positions */
     BYTE const* ip = istart;
-    //printSeqStore(rawSeqStore);
     if (cParams->strategy >= ZSTD_btopt) {
         size_t lastLLSize;
-        //printSeqStore(rawSeqStore);
-        ms->ldmSeqStore = *rawSeqStore; /* copy current seqStore */
+        ms->ldmSeqStore = *rawSeqStore;
         ms->ldmSeqStore.base = ms->window.base;
         lastLLSize = blockCompressor(ms, seqStore, rep, src, srcSize);
+        /* ldm seqstore will have changed during blockCompressor() call, make sure we copy those changes */
         *rawSeqStore = ms->ldmSeqStore;
-        /*if (prevBase != ms->window.base) {
-            int baseDiff = (int)(prevBase - ms->window.base);
-            printf("Bases were different, adjusting, diff = %d\n", baseDiff);
-            rawSeqStore->seq[rawSeqStore->pos].litLength += baseDiff;
-        }*/
         return lastLLSize;
     }
 

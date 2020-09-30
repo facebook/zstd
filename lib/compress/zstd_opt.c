@@ -820,16 +820,18 @@ static void ldm_getNextMatch(rawSeqStore_t* ldmSeqStore,
                             U32* matchStartPosInBlock, U32* matchEndPosInBlock,
                             U32* matchOffset, U32 currPosInBlock,
                             U32 remainingBytes) {
+    rawSeq seq;
     /* Setting match end position to MAX will ensure we never use an LDM during this block */
     if (ldmSeqStore->pos >= ldmSeqStore->size) {
-        *matchStartPosInBlock = UINT32_MAX;
-        *matchEndPosInBlock = UINT32_MAX;
+        *matchStartPosInBlock = UINT_MAX;
+        *matchEndPosInBlock = UINT_MAX;
         return;
     }
-    rawSeq seq = ldm_splitSequenceAndUpdateSeqStore(ldmSeqStore, remainingBytes);
+    
+    seq = ldm_splitSequenceAndUpdateSeqStore(ldmSeqStore, remainingBytes);
     if (seq.offset == 0) {
-        *matchStartPosInBlock = UINT32_MAX;
-        *matchEndPosInBlock = UINT32_MAX;
+        *matchStartPosInBlock = UINT_MAX;
+        *matchEndPosInBlock = UINT_MAX;
         return;
     }
 
@@ -843,20 +845,17 @@ static void ldm_getNextMatch(rawSeqStore_t* ldmSeqStore,
 static void ldm_maybeAddLdm(ZSTD_match_t* matches, U32* nbMatches,
                             U32 matchStartPosInBlock, U32 matchEndPosInBlock,
                             U32 matchOffset, U32 currPosInBlock) {
-    /* Check that current block position is not outside of the match */
-    if (currPosInBlock < matchStartPosInBlock || currPosInBlock >= matchEndPosInBlock)
-        return;
-
     U32 posDiff = currPosInBlock - matchStartPosInBlock;
-    /* TODO: Next step will enable adding LDMs in the middle of a match */
-    if (posDiff > 0)
-        return;
-
     /* Note: ZSTD_match_t actually contains offCode and matchLength (before subtracting MINMATCH) */
     U32 candidateMatchLength = matchEndPosInBlock - matchStartPosInBlock - posDiff;
-    if (candidateMatchLength < ZSTD_LDM_MINMATCH_MIN)
-        return;
     U32 candidateOffCode = matchOffset + posDiff + ZSTD_REP_MOVE;
+
+    /* Ensure that current block position is not outside of the match */
+    if (currPosInBlock < matchStartPosInBlock ||
+        currPosInBlock >= matchEndPosInBlock ||
+        posDiff > 0 ||  /* As a next evolution we can enable adding LDMs in the middle of a match */
+        candidateMatchLength < ZSTD_LDM_MINMATCH_MIN)
+        return;
 
     if (*nbMatches == 0) {
         matches[*nbMatches].len = candidateMatchLength;

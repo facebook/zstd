@@ -88,8 +88,14 @@ UTIL_STATIC void* UTIL_realloc(void *ptr, size_t size)
 int g_utilDisplayLevel;
 
 int UTIL_requireUserConfirmation(const char* prompt, const char* abortMsg,
-                                          const char* acceptableLetters) {
+                                 const char* acceptableLetters, int hasStdinInput) {
     int ch, result;
+
+    if (hasStdinInput) {
+        UTIL_DISPLAY("stdin is an input - not proceeding.\n");
+        return 1;
+    }
+
     UTIL_DISPLAY("%s", prompt);
     ch = getchar();
     result = 0;

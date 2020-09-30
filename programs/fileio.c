@@ -330,6 +330,7 @@ struct FIO_ctx_s {
 
     /* file i/o info */
     int nbFilesTotal;
+    int hasStdinInput;
 
     /* file i/o state */
     int currFileIdx;
@@ -386,6 +387,7 @@ FIO_ctx_t* FIO_createContext(void)
     if (!ret) EXM_THROW(21, "Allocation error : not enough memory");
 
     ret->currFileIdx = 0;
+    ret->hasStdinInput = 0;
     ret->nbFilesTotal = 1;
     ret->nbFilesProcessed = 0;
     ret->totalBytesInput = 0;
@@ -539,6 +541,16 @@ void FIO_setNbFilesTotal(FIO_ctx_t* const fCtx, int value)
     fCtx->nbFilesTotal = value;
 }
 
+void FIO_determineHasStdinInput(FIO_ctx_t* const fCtx, const FileNamesTable* const filenames) {
+    size_t i = 0;
+    for ( ; i < filenames->tableSize; ++i) {
+        if (!strcmp(stdinmark, filenames->fileNames[i])) {
+            fCtx->hasStdinInput = 1;
+            return;
+        }
+    }
+}
+
 /*-*************************************
 *  Functions
 ***************************************/
@@ -603,8 +615,8 @@ static FILE* FIO_openSrcFile(const char* srcFileName)
  *  condition : `dstFileName` must be non-NULL.
  * @result : FILE* to `dstFileName`, or NULL if it fails */
 static FILE*
-FIO_openDstFile(FIO_prefs_t* const prefs,
-          const char* srcFileName, const char* dstFileName)
+FIO_openDstFile(FIO_ctx_t* fCtx, FIO_prefs_t* const prefs,
+                const char* srcFileName, const char* dstFileName)
 {
     if (prefs->testMode) return NULL;  /* do not open file in test mode */
 
@@ -650,7 +662,7 @@ FIO_openDstFile(FIO_prefs_t* const prefs,
                     return NULL;
                 }
                 DISPLAY("zstd: %s already exists; ", dstFileName);
-                if (UTIL_requireUserConfirmation("overwrite (y/n) ? ", "Not overwritten  \n", "yY"))
+                if (UTIL_requireUserConfirmation("overwrite (y/n) ? ", "Not overwritten  \n", "yY", fCtx->hasStdinInput))
                     return NULL;
             }
             /* need to unlink */
@@ -847,7 +859,7 @@ static int FIO_removeMultiFilesWarning(FIO_ctx_t* const fCtx, const FIO_prefs_t*
             }
             DISPLAYLEVEL(2, "\nThe concatenated output CANNOT regenerate the original directory tree. ")
             if (prefs->removeSrcFile) {
-                error = g_display_prefs.displayLevel > displayLevelCutoff && UTIL_requireUserConfirmation("This is a destructive operation. Proceed? (y/n): ", "Aborting...", "yY");
+                error = g_display_prefs.displayLevel > displayLevelCutoff && UTIL_requireUserConfirmation("This is a destructive operation. Proceed? (y/n): ", "Aborting...", "yY", fCtx->hasStdinInput);
             }
         }
         DISPLAY("\n");
@@ -1574,7 +1586,7 @@ static int FIO_compressFilename_dstFile(FIO_ctx_t* const fCtx,
     if (ress.dstFile == NULL) {
         closeDstFile = 1;
         DISPLAYLEVEL(6, "FIO_compressFilename_dstFile: opening dst: %s \n", dstFileName);
-        ress.dstFile = FIO_openDstFile(prefs, srcFileName, dstFileName);
+        ress.dstFile = FIO_openDstFile(fCtx, prefs, srcFileName, dstFileName);
         if (ress.dstFile==NULL) return 1;  /* could not open dstFileName */
         /* Must only be added after FIO_openDstFile() succeeds.
          * Otherwise we may delete the destination file if it already exists,
@@ -1781,7 +1793,7 @@ int FIO_compressMultipleFilenames(FIO_ctx_t* const fCtx,
             FIO_freeCResources(ress);
             return 1;
         }
-        ress.dstFile = FIO_openDstFile(prefs, NULL, outFileName);
+        ress.dstFile = FIO_openDstFile(fCtx, prefs, NULL, outFileName);
         if (ress.dstFile == NULL) {  /* could not open outFileName */
             error = 1;
         } else {
@@ -2475,7 +2487,7 @@ static int FIO_decompressDstFile(FIO_ctx_t* const fCtx,
     if ((ress.dstFile == NULL) && (prefs->testMode==0)) {
         releaseDstFile = 1;
 
-        ress.dstFile = FIO_openDstFile(prefs, srcFileName, dstFileName);
+        ress.dstFile = FIO_openDstFile(fCtx, prefs, srcFileName, dstFileName);
         if (ress.dstFile==NULL) return 1;
 
         /* Must only be added after FIO_openDstFile() succeeds.
@@ -2708,7 +2720,7 @@ FIO_decompressMultipleFilenames(FIO_ctx_t* const fCtx,
             return 1;
         }
         if (!prefs->testMode) {
-            ress.dstFile = FIO_openDstFile(prefs, NULL, outFileName);
+            ress.dstFile = FIO_openDstFile(fCtx, prefs, NULL, outFileName);
             if (ress.dstFile == 0) EXM_THROW(19, "cannot open %s", outFileName);
         }
         for (; fCtx->currFileIdx < fCtx->nbFilesTotal; fCtx->currFileIdx++) {

@@ -96,8 +96,9 @@ extern int g_utilDisplayLevel;
 /**
  * Displays a message prompt and returns success (0) if first character from stdin
  * matches any from acceptableLetters. Otherwise, returns failure (1) and displays abortMsg.
+ * If any of the inputs are stdin itself, then automatically return failure (1).
  */
-int UTIL_requireUserConfirmation(const char* prompt, const char* abortMsg, const char* acceptableLetters);
+int UTIL_requireUserConfirmation(const char* prompt, const char* abortMsg, const char* acceptableLetters, int hasStdinInput);
 
 
 /*-****************************************

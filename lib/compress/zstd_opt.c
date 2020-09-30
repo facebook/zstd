@@ -868,6 +868,10 @@ static void ldm_maybeAddLdm(ZSTD_match_t* matches, U32* nbMatches,
          * the ldm match down as necessary.
          */
         if (candidateMatchLength == matches[*nbMatches-1].len) {
+            if (candidateOffCode == matches[*nbMatches-1].off) {
+                /* No need to insert the match if it's the exact same */
+                return;
+            }
             U32 candidateMatchIdx = *nbMatches;
             matches[*nbMatches].len = candidateMatchLength;
             matches[*nbMatches].off = candidateOffCode;

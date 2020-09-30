@@ -56,6 +56,7 @@ static void ZSTD_copy4(void* dst, const void* src) { ZSTD_memcpy(dst, src, 4); }
 size_t ZSTD_getcBlockSize(const void* src, size_t srcSize,
                           blockProperties_t* bpPtr)
 {
+    printf("getcblockSize: srcSize: %u\n", srcSize);
     RETURN_ERROR_IF(srcSize < ZSTD_blockHeaderSize, srcSize_wrong, "");
 
     {   U32 const cBlockHeader = MEM_readLE24(src);
@@ -419,6 +420,7 @@ void ZSTD_buildFSETable_body(ZSTD_seqSymbol* dt,
          * our buffer to handle the over-write.
          */
         {
+
             U64 const add = 0x0101010101010101ull;
             size_t pos = 0;
             U64 sv = 0;
@@ -1210,12 +1212,15 @@ ZSTD_decompressSequences_body( ZSTD_DCtx* dctx,
 
     /* last literal segment */
     {   size_t const lastLLSize = litEnd - litPtr;
+        printf("Last LL: %u\n", lastLLSize);
         RETURN_ERROR_IF(lastLLSize > (size_t)(oend-op), dstSize_tooSmall, "");
         if (op != NULL) {
             ZSTD_memcpy(op, litPtr, lastLLSize);
             op += lastLLSize;
         }
     }
+
+    printf("op - ostart: %u\n", (U32)(op-ostart));
 
     return op-ostart;
 }

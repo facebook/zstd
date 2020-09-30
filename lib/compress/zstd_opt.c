@@ -986,11 +986,11 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
      * since the base shifts back 131072 bytes (1 block) after the first block. The consequence is that
      * we should insert 35373 bytes into the 8th block, rather than 35373 bytes into the 7th block.
      */
-    if (ms->ldmSeqStore.size > 0) {
+    if (ms->ldmSeqStore.size > 0 && ms->ldmSeqStore.pos != ms->ldmSeqStore.size) {
         if (ms->ldmSeqStore.base != base) {
             int baseDiff = (int)(ms->ldmSeqStore.base - base);
             ms->ldmSeqStore.seq[ms->ldmSeqStore.pos].litLength += baseDiff;
-            ms->ldmSeqStore.base = ms->window.base;
+            ms->ldmSeqStore.base = base;
         }
         ldm_getNextMatch(&ms->ldmSeqStore, &ldmStartPosInBlock,
                          &ldmEndPosInBlock, &ldmOffset,

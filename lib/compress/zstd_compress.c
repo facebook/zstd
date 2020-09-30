@@ -2590,6 +2590,65 @@ size_t ZSTD_getSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
     return zc->seqCollector.seqIndex;
 }
 
+static void ZSTD_copySequencesToSeqStore(seqStore_t* seqStore,
+                                         const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
+                                         const void* src, size_t srcSize) {
+    int idx = 0;
+    BYTE const* ip = (BYTE const*)src;
+    const BYTE* const iend = ip + srcSize;
+
+    for (; idx < inSeqsSize; ++idx) {
+        U32 litLength = inSeqs[idx].litLength;
+        U32 matchLength = inSeqs[idx].matchLength;
+        U32 offCode = inSeqs[idx].offset + ZSTD_REP_MOVE;
+        RETURN_ERROR_IF(matchLength < MINMATCH, corruption_detected, "Matchlength too small!");
+
+        ZSTD_storeSeq(seqStore, litLength, ip, iend, offCode, matchLength - MINMATCH);
+        ip += matchLength;
+    }
+}
+
+size_t ZSTD_compressSequences_ext(void* dst, size_t dstSize,
+                                  const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
+                                  const void* src, size_t srcSize) {
+    ZSTD_CCtx* cctx = ZSTD_createCCtx();
+    size_t cSize;
+
+    if (dstSize < ZSTD_compressBound(srcSize))
+        RETURN_ERROR(dstSize_tooSmall, "Destination buffer too small!");
+
+    ZSTD_copySequencesToSeqStore(&cctx->seqStore, inSeqs, inSeqsSize, src, srcSize);
+    cSize = ZSTD_compressSequences(&cctx->seqStore,
+            &cctx->blockState.prevCBlock->entropy, &cctx->blockState.nextCBlock->entropy,
+            &cctx->appliedParams,
+            dst, dstSize,
+            srcSize,
+            cctx->entropyWorkspace, ENTROPY_WORKSPACE_SIZE /* statically allocated in resetCCtx */,
+            cctx->bmi2);
+
+    /* Error checking */
+    if (!ZSTD_isError(cSize) && cSize > 1) {
+        ZSTD_confirmRepcodesAndEntropyTables(cctx);
+    }
+    /* We check that dictionaries have offset codes available for the first
+     * block. After the first block, the offcode table might not have large
+     * enough codes to represent the offsets in the data.
+     */
+    if (cctx->blockState.prevCBlock->entropy.fse.offcode_repeatMode == FSE_repeat_valid)
+        cctx->blockState.prevCBlock->entropy.fse.offcode_repeatMode = FSE_repeat_check;
+
+    cctx->blockSize = cSize;
+    
+    /* Write block header */
+    U32 const cBlockHeader = cSize == 1 ?
+                        (((U32)bt_rle)<<1) + (U32)(cctx->blockSize << 3) :
+                        (((U32)bt_compressed)<<1) + (U32)(cSize << 3);
+    MEM_writeLE24(dst + cSize, cBlockHeader);
+    cSize += ZSTD_blockHeaderSize;
+
+    return cSize;
+}
+
 /* Returns true if the given block is a RLE block */
 static int ZSTD_isRLE(const BYTE *ip, size_t length) {
     size_t i;

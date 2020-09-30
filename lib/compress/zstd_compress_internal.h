@@ -94,8 +94,8 @@ typedef struct {
 
 typedef struct {
   rawSeq* seq;     /* The start of the sequences */
-  BYTE const* base; /* The match state window base when LDMs were generated */
   size_t pos;      /* The position where reading stopped. <= size. */
+  size_t posInSequence; /* The position to start at within the sequence when starting a new block */
   size_t size;     /* The number of sequences. <= capacity. */
   size_t capacity; /* The capacity starting from `seq` pointer */
 } rawSeqStore_t;

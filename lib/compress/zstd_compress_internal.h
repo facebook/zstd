@@ -647,7 +647,8 @@ static const U64 prime8bytes = 0xCF1BBCDCB7A56463ULL;
 static size_t ZSTD_hash8(U64 u, U32 h) { return (size_t)(((u) * prime8bytes) >> (64-h)) ; }
 static size_t ZSTD_hash8Ptr(const void* p, U32 h) { return ZSTD_hash8(MEM_readLE64(p), h); }
 
-MEM_STATIC size_t ZSTD_hashPtr(const void* p, U32 hBits, U32 mls)
+MEM_STATIC FORCE_INLINE_ATTR
+size_t ZSTD_hashPtr(const void* p, U32 hBits, U32 mls)
 {
     switch(mls)
     {

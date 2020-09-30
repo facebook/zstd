@@ -799,29 +799,29 @@ static void ldm_calculateMatchRange(rawSeqStore_t* ldmSeqStore,
                             U32* matchOffset, U32 currPosInBlock,
                             U32 remainingBytes, U32 currBlockEndPos) {
     rawSeq currSeq = ldmSeqStore->seq[ldmSeqStore->pos];
-    U32 blockPosInSequence = ldmSeqStore->posInSequence + currPosInBlock;
-    U32 literalsBytesLeft = blockPosInSequence < currSeq.litLength ?
-                                currSeq.litLength - blockPosInSequence : 0;
-    /* In this case, the match is further in the block than currPosInBlock */
+    U32 literalsBytesLeft = (ldmSeqStore->posInSequence < currSeq.litLength) ?
+                                    currSeq.litLength - ldmSeqStore->posInSequence :
+                                    0;
+    /* In this case, the match is further in the block than currPosInBlock, and we are
+       currently in the literals section of the LDM */
     if (literalsBytesLeft) {
         if (literalsBytesLeft >= remainingBytes) {
             /* If there are more literal bytes than bytes remaining in block, no ldm */
             *matchStartPosInBlock = UINT_MAX;
             *matchEndPosInBlock = UINT_MAX;
-            ldmSeqStore->pos++;
-            ldmSeqStore->posInSequence = 0;
+            ldm_moveForwardBytesInSeqStore(ldmSeqStore, remainingBytes);
             return;
         }  
     }
 
-    *matchStartPosInBlock = currPosInBlock + literalsBytesLeft;
+    *matchStartPosInBlock = currPosInBlock + currSeq.litLength;
     *matchEndPosInBlock = *matchStartPosInBlock + currSeq.matchLength;
     *matchOffset = currSeq.offset;
 
     /* Match ends after the block ends, we can't use the whole match */
     if (*matchEndPosInBlock > currBlockEndPos) {
         *matchEndPosInBlock = currBlockEndPos;
-        ldmSeqStore->posInSequence += (currBlockEndPos - currPosInBlock);
+        ldm_moveForwardBytesInSeqStore(ldmSeqStore, currBlockEndPos - currPosInBlock);
     } else {
         /* We can use the entire match */
         ldmSeqStore->posInSequence = 0;

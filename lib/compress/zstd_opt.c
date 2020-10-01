@@ -768,14 +768,13 @@ FORCE_INLINE_TEMPLATE U32 ZSTD_BtGetAllMatches (
 *  LDM helper functions
 *********************************/
 
-/* Moves forward in rawSeqStore by nbBytes, which will update the fields
- * 'pos' and 'posInSequence' accordingly.
+/* ldm_moveForwardBytesInSeqStore():
+ * Moves forward in rawSeqStore by nbBytes, which will update the fields 'pos' and 'posInSequence'.
  */
 static void ldm_moveForwardBytesInSeqStore(rawSeqStore_t* ldmSeqStore, size_t nbBytes) {
     while (nbBytes && ldmSeqStore->pos < ldmSeqStore->size) {
         rawSeq currSeq;
         currSeq = ldmSeqStore->seq[ldmSeqStore->pos];
-
         if (nbBytes <= currSeq.litLength) {
             ldmSeqStore->posInSequence += nbBytes;
             return;
@@ -783,7 +782,6 @@ static void ldm_moveForwardBytesInSeqStore(rawSeqStore_t* ldmSeqStore, size_t nb
             ldmSeqStore->posInSequence += currSeq.litLength;
             nbBytes -= currSeq.litLength;
         }
-
         if (nbBytes < currSeq.matchLength) {
             ldmSeqStore->posInSequence += nbBytes;
             return;
@@ -797,13 +795,14 @@ static void ldm_moveForwardBytesInSeqStore(rawSeqStore_t* ldmSeqStore, size_t nb
     }
 }
 
-/* Calculates the beginning and end of a match, and updates 'pos' and 'posInSequence'
- * of the ldmSeqStore.
+/* ldm_getNextMatchAndUpdateSeqStore():
+ * Calculates the beginning and end of the next match in the current block.
+ * Updates 'pos' and 'posInSequence' of the ldmSeqStore.
  */
-static void ldm_calculateNextMatch(rawSeqStore_t* ldmSeqStore,
-                                   U32* matchStartPosInBlock, U32* matchEndPosInBlock,
-                                   U32* matchOffset, U32 currPosInBlock,
-                                   U32 blockBytesRemaining) {
+static void ldm_getNextMatchAndUpdateSeqStore(rawSeqStore_t* ldmSeqStore,
+                                              U32* matchStartPosInBlock, U32* matchEndPosInBlock,
+                                              U32* matchOffset, U32 currPosInBlock,
+                                              U32 blockBytesRemaining) {
     rawSeq currSeq;
     U32 currBlockEndPos;
     U32 literalsBytesRemaining;
@@ -827,7 +826,7 @@ static void ldm_calculateNextMatch(rawSeqStore_t* ldmSeqStore,
             currSeq.matchLength - (ldmSeqStore->posInSequence - currSeq.litLength) :
             currSeq.matchLength;
 
-    /* If there are more literal bytes than bytes remaining in block, no ldm */
+    /* If there are more literal bytes than bytes remaining in block, no ldm is possible */
     if (literalsBytesRemaining >= blockBytesRemaining) {
         *matchStartPosInBlock = UINT_MAX;
         *matchEndPosInBlock = UINT_MAX;
@@ -852,7 +851,10 @@ static void ldm_calculateNextMatch(rawSeqStore_t* ldmSeqStore,
     }
 }
 
-/* Adds an LDM if it's long enough */
+/* ldm_maybeAddLdm():
+ * Adds a match if it's long enough, based on it's 'matchStartPosInBlock'
+ * and 'matchEndPosInBlock', into 'matches'. Maintains the correct ordering of 'matches'
+ */
 static void ldm_maybeAddLdm(ZSTD_match_t* matches, U32* nbMatches,
                             U32 matchStartPosInBlock, U32 matchEndPosInBlock,
                             U32 matchOffset, U32 currPosInBlock) {
@@ -865,7 +867,7 @@ static void ldm_maybeAddLdm(ZSTD_match_t* matches, U32* nbMatches,
     if (currPosInBlock < matchStartPosInBlock ||
         currPosInBlock >= matchEndPosInBlock ||
         posDiff > 0 ||  /* As a next evolution we can enable adding LDMs in the middle of a match */
-        candidateMatchLength < ZSTD_LDM_MINMATCH_MIN)
+        candidateMatchLength < MINMATCH)
         return;
 
     if (*nbMatches == 0) {
@@ -879,17 +881,18 @@ static void ldm_maybeAddLdm(ZSTD_match_t* matches, U32* nbMatches,
          * the ldm match down as necessary.
          */
         if (candidateMatchLength == matches[*nbMatches-1].len) {
+            U32 candidateMatchIdx;
             if (candidateOffCode == matches[*nbMatches-1].off) {
                 /* No need to insert the match if it's the exact same */
                 return;
             }
-            U32 candidateMatchIdx = *nbMatches;
+            candidateMatchIdx = *nbMatches;
             matches[*nbMatches].len = candidateMatchLength;
             matches[*nbMatches].off = candidateOffCode;
             if (candidateOffCode != matches[*nbMatches-1].off) {
                 while (candidateMatchIdx > 0 &&
-                        matches[candidateMatchIdx].off > matches[candidateMatchIdx - 1].off &&
-                        matches[candidateMatchIdx].len == matches[candidateMatchIdx - 1].len) {
+                       matches[candidateMatchIdx].off > matches[candidateMatchIdx - 1].off &&
+                       matches[candidateMatchIdx].len == matches[candidateMatchIdx - 1].len) {
                     ZSTD_match_t tmp = matches[candidateMatchIdx - 1];
                     matches[candidateMatchIdx - 1] = matches[candidateMatchIdx];
                     matches[candidateMatchIdx] = tmp;
@@ -918,9 +921,9 @@ static void ldm_handleLdm(rawSeqStore_t* ldmSeqStore, ZSTD_match_t* matches, U32
             U32 posOvershoot = currPosInBlock - *matchEndPosInBlock;
             ldm_moveForwardBytesInSeqStore(ldmSeqStore, posOvershoot);
         } 
-        ldm_calculateNextMatch(ldmSeqStore, matchStartPosInBlock,
-                         matchEndPosInBlock, matchOffset,
-                         currPosInBlock, remainingBytes);
+        ldm_getNextMatchAndUpdateSeqStore(ldmSeqStore, matchStartPosInBlock,
+                                          matchEndPosInBlock, matchOffset,
+                                          currPosInBlock, remainingBytes);
     }
     ldm_maybeAddLdm(matches, nbMatches, *matchStartPosInBlock, *matchEndPosInBlock, *matchOffset, currPosInBlock);
 }
@@ -985,9 +988,9 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
     
     /* Get first match from ldm seq store if long mode is enabled */
     if (ms->ldmSeqStore.size > 0 && ms->ldmSeqStore.pos < ms->ldmSeqStore.size) {
-        ldm_calculateNextMatch(&ms->ldmSeqStore, &ldmStartPosInBlock,
-                         &ldmEndPosInBlock, &ldmOffset,
-                         (U32)(ip-istart), (U32)(iend-ip));
+        ldm_getNextMatchAndUpdateSeqStore(&ms->ldmSeqStore, &ldmStartPosInBlock,
+                                          &ldmEndPosInBlock, &ldmOffset,
+                                          (U32)(ip-istart), (U32)(iend-ip));
     }
 
     /* init */
@@ -1249,7 +1252,7 @@ _shortestPath:   /* cur, last_pos, best_mlen, best_off have to be set */
     
     if (ldmEndPosInBlock < srcSize) {
         /* This can occur if after adding the final match in an ldm seq store within this block,
-        ip goes to the end of the block without activating a check for ldm_calculateNextMatch */
+           ip reaches end of the block without calling ldm_getNextMatchAndUpdateSeqStore() */
         ldm_moveForwardBytesInSeqStore(&ms->ldmSeqStore, srcSize - ldmEndPosInBlock);
     }
     /* Return the last literals size */

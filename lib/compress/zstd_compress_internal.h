@@ -82,7 +82,7 @@ typedef struct {
 } ZSTD_entropyCTables_t;
 
 typedef struct {
-    U32 off;            /* Offset code for the match */
+    U32 off;            /* Offset code (offset + ZSTD_REP_MOVE) for the match */
     U32 len;            /* Raw length of match */
 } ZSTD_match_t;
 

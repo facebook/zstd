@@ -579,8 +579,7 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
         size_t lastLLSize;
         ms->ldmSeqStore = *rawSeqStore;
         lastLLSize = blockCompressor(ms, seqStore, rep, src, srcSize);
-        /* ldm seqstore will have changed during blockCompressor() call, make sure we copy those changes */
-        *rawSeqStore = ms->ldmSeqStore;
+        *rawSeqStore = ms->ldmSeqStore;  /* Persist changes to ldmSeqStore during blockCompressor() */
         return lastLLSize;
     }
 

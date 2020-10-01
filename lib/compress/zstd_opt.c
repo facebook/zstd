@@ -768,67 +768,6 @@ FORCE_INLINE_TEMPLATE U32 ZSTD_BtGetAllMatches (
 *  LDM helper functions
 *********************************/
 
-/* Moves forward in rawSeqStore by nbBytes bytes, which will updating the fields
- * 'pos' and 'posInSequence' accordingly.
- */
-static void ldm_moveForwardBytesInSeqStore(rawSeqStore_t* ldmSeqStore, size_t nbBytes) {
-    while (nbBytes && ldmSeqStore->pos < ldmSeqStore->size) {
-        rawSeq currSeq;
-        currSeq = ldmSeqStore->seq[ldmSeqStore->pos];
-
-        if (nbBytes <= currSeq.litLength) {
-            ldmSeqStore->posInSequence += nbBytes;
-            return;
-        } else {
-            nbBytes -= currSeq.litLength;
-        }
-
-        if (nbBytes < currSeq.matchLength) {
-            ldmSeqStore->posInSequence += nbBytes;
-            return;
-        } else {
-            nbBytes -= currSeq.matchLength;
-            ldmSeqStore->pos++;
-            ldmSeqStore->posInSequence = 0;
-        }
-    }
-}
-
-static void ldm_calculateMatchRange(rawSeqStore_t* ldmSeqStore,
-                            U32* matchStartPosInBlock, U32* matchEndPosInBlock,
-                            U32* matchOffset, U32 currPosInBlock,
-                            U32 remainingBytes, U32 currBlockEndPos) {
-    rawSeq currSeq = ldmSeqStore->seq[ldmSeqStore->pos];
-    U32 literalsBytesLeft = (ldmSeqStore->posInSequence < currSeq.litLength) ?
-                                    currSeq.litLength - ldmSeqStore->posInSequence :
-                                    0;
-    /* In this case, the match is further in the block than currPosInBlock, and we are
-       currently in the literals section of the LDM */
-    if (literalsBytesLeft) {
-        if (literalsBytesLeft >= remainingBytes) {
-            /* If there are more literal bytes than bytes remaining in block, no ldm */
-            *matchStartPosInBlock = UINT_MAX;
-            *matchEndPosInBlock = UINT_MAX;
-            ldm_moveForwardBytesInSeqStore(ldmSeqStore, remainingBytes);
-            return;
-        }  
-    }
-
-    *matchStartPosInBlock = currPosInBlock + currSeq.litLength;
-    *matchEndPosInBlock = *matchStartPosInBlock + currSeq.matchLength;
-    *matchOffset = currSeq.offset;
-
-    /* Match ends after the block ends, we can't use the whole match */
-    if (*matchEndPosInBlock > currBlockEndPos) {
-        *matchEndPosInBlock = currBlockEndPos;
-        ldm_moveForwardBytesInSeqStore(ldmSeqStore, currBlockEndPos - currPosInBlock);
-    } else {
-        /* We can use the entire match */
-        ldmSeqStore->posInSequence = 0;
-        ldmSeqStore->pos++;
-    }
-}
-
 /* Skips past srcSize bytes in an ldm seqstore */
 static void ldm_skipBytesInSeqStore(rawSeqStore_t* ldmSeqStore, size_t bytesToSkip) {
     while (bytesToSkip > 0 && ldmSeqStore->pos < ldmSeqStore->size) {
@@ -876,6 +815,79 @@ static rawSeq ldm_splitSequenceAndUpdateSeqStore(rawSeqStore_t* ldmSeqStore, U32
     return currSeq;
 }
 
+/* Moves forward in rawSeqStore by nbBytes bytes, which will updating the fields
+ * 'pos' and 'posInSequence' accordingly.
+ */
+static void ldm_moveForwardBytesInSeqStore(rawSeqStore_t* ldmSeqStore, size_t nbBytes) {
+    while (nbBytes && ldmSeqStore->pos < ldmSeqStore->size) {
+        rawSeq currSeq;
+        currSeq = ldmSeqStore->seq[ldmSeqStore->pos];
+
+        if (nbBytes <= currSeq.litLength) {
+            ldmSeqStore->posInSequence += nbBytes;
+            return;
+        } else {
+            ldmSeqStore->posInSequence += currSeq.litLength;
+            nbBytes -= currSeq.litLength;
+        }
+
+        if (nbBytes < currSeq.matchLength) {
+            ldmSeqStore->posInSequence += nbBytes;
+            return;
+        } else {
+            nbBytes -= currSeq.matchLength;
+            /* We have moved through this entire sequence - move the read pos
+               forward to the next sequence, and reset posInSequence */
+            ldmSeqStore->pos++;
+            ldmSeqStore->posInSequence = 0;
+        }
+    }
+}
+
+/* Calculates the beginning and end of a match, and updates ldmSeqStore as
+ * necessary.
+ * posInSequence can be either within the literals section, or within a match.
+ * If 
+ */
+static void ldm_calculateMatchRange(rawSeqStore_t* ldmSeqStore,
+                            U32* matchStartPosInBlock, U32* matchEndPosInBlock,
+                            U32* matchOffset, U32 currPosInBlock,
+                            U32 blockBytesRemaining) {
+    rawSeq currSeq = ldmSeqStore->seq[ldmSeqStore->pos];
+    U32 currBlockEndPos = currPosInBlock + blockBytesRemaining;
+    U32 literalsBytesRemaining = (ldmSeqStore->posInSequence < currSeq.litLength) ?
+                                    currSeq.litLength - ldmSeqStore->posInSequence :
+                                    0;
+
+    /* In this case, the match is further in the block than currPosInBlock, and we are
+       currently in the literals section of the LDM */
+    if (literalsBytesRemaining) {
+        if (literalsBytesRemaining >= blockBytesRemaining) {
+            /* If there are more literal bytes than bytes remaining in block, no ldm */
+            *matchStartPosInBlock = UINT_MAX;
+            *matchEndPosInBlock = UINT_MAX;
+            ldm_moveForwardBytesInSeqStore(ldmSeqStore, blockBytesRemaining);
+            return;
+        }  
+    }
+
+    /* Matches may be < MINMATCH by this process. In that case, we will reject them
+       when we are deciding whether or not to add the ldm */
+    *matchStartPosInBlock = currPosInBlock + literalsBytesRemaining;
+    *matchEndPosInBlock = *matchStartPosInBlock + currSeq.matchLength;
+    *matchOffset = currSeq.offset;
+
+    if (*matchEndPosInBlock > currBlockEndPos) {
+        /* Match ends after the block ends, we can't use the whole match */
+        *matchEndPosInBlock = currBlockEndPos;
+        ldm_moveForwardBytesInSeqStore(ldmSeqStore, currBlockEndPos - currPosInBlock);
+    } else {
+        /* We can use the entire match */
+        ldmSeqStore->posInSequence = 0;
+        ldmSeqStore->pos++;
+    }
+}
+
 /* Fetch the next match in the ldm seq store */
 static void ldm_getNextMatch(rawSeqStore_t* ldmSeqStore,
                             U32* matchStartPosInBlock, U32* matchEndPosInBlock,
@@ -896,10 +908,7 @@ static void ldm_getNextMatch(rawSeqStore_t* ldmSeqStore,
         return;
     }*/
 
-    ldm_calculateMatchRange(ldmSeqStore, matchStartPosInBlock, matchEndPosInBlock, matchOffset, remainingBytes);
-    *matchStartPosInBlock = currPosInBlock + seq.litLength;
-    *matchEndPosInBlock = *matchStartPosInBlock + seq.matchLength;
-    *matchOffset = seq.offset;
+    ldm_calculateMatchRange(ldmSeqStore, matchStartPosInBlock, matchEndPosInBlock, matchOffset, currPosInBlock, remainingBytes);
     return;
 }
 
@@ -970,8 +979,8 @@ static void ldm_handleLdm(rawSeqStore_t* ldmSeqStore, ZSTD_match_t* matches, U32
             ldm_moveForwardBytesInSeqStore(ldmSeqStore, posOvershoot);
         } 
         ldm_getNextMatch(ldmSeqStore, matchStartPosInBlock,
-                                          matchEndPosInBlock, matchOffset,
-                                          currPosInBlock, remainingBytes);
+                         matchEndPosInBlock, matchOffset,
+                         currPosInBlock, remainingBytes);
     }
     ldm_maybeAddLdm(matches, nbMatches, *matchStartPosInBlock, *matchEndPosInBlock, *matchOffset, currPosInBlock);
 }
@@ -1034,16 +1043,16 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
     U32 ldmEndPosInBlock = 0;
     U32 ldmOffset = 0;
     
-    /*if (ms->ldmSeqStore.size > 0 && ms->ldmSeqStore.pos != ms->ldmSeqStore.size) {
-        if (ms->ldmSeqStore.base != base) {
+    if (ms->ldmSeqStore.size > 0 && ms->ldmSeqStore.pos != ms->ldmSeqStore.size) {
+        /*if (ms->ldmSeqStore.base != base) {
             int baseDiff = (int)(ms->ldmSeqStore.base - base);
             ms->ldmSeqStore.seq[ms->ldmSeqStore.pos].litLength += baseDiff;
             ms->ldmSeqStore.base = base;
-        }
+        }*/
         ldm_getNextMatch(&ms->ldmSeqStore, &ldmStartPosInBlock,
                          &ldmEndPosInBlock, &ldmOffset,
                          (U32)(ip-istart), (U32)(iend-ip));
-    }*/
+    }
     /* init */
     DEBUGLOG(5, "ZSTD_compressBlock_opt_generic: current=%u, prefix=%u, nextToUpdate=%u",
                 (U32)(ip - base), ms->window.dictLimit, ms->nextToUpdate);
@@ -1304,7 +1313,7 @@ _shortestPath:   /* cur, last_pos, best_mlen, best_off have to be set */
     if (ldmEndPosInBlock < srcSize) {
         /* This can occur if after adding the final match in an ldm seq store within this block,
         ip goes to the end of the block without activating a check for ldm_getNextMatch */
-        ldm_moveForwardBytesInSeqStore(ms->ldmSeqStore, srcSize - ldmEndPosInBlock);
+        ldm_moveForwardBytesInSeqStore(&ms->ldmSeqStore, srcSize - ldmEndPosInBlock);
     }
     /* Return the last literals size */
     return (size_t)(iend - anchor);

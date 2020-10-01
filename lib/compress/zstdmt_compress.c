@@ -819,7 +819,6 @@ struct ZSTDMT_CCtx_s {
     roundBuff_t roundBuff;
     serialState_t serial;
     rsyncState_t rsync;
-    unsigned singleBlockingThread;
     unsigned jobIDMask;
     unsigned doneJobID;
     unsigned nextJobID;
@@ -1441,16 +1440,6 @@ size_t ZSTDMT_initCStream_internal(
     if (params.jobSize != 0 && params.jobSize < ZSTDMT_JOBSIZE_MIN) params.jobSize = ZSTDMT_JOBSIZE_MIN;
     if (params.jobSize > (size_t)ZSTDMT_JOBSIZE_MAX) params.jobSize = (size_t)ZSTDMT_JOBSIZE_MAX;
 
-    mtctx->singleBlockingThread = (pledgedSrcSize <= ZSTDMT_JOBSIZE_MIN);  /* do not trigger multi-threading when srcSize is too small */
-    if (mtctx->singleBlockingThread) {
-        ZSTD_CCtx_params const singleThreadParams = ZSTDMT_initJobCCtxParams(&params);
-        DEBUGLOG(5, "ZSTDMT_initCStream_internal: switch to single blocking thread mode");
-        assert(singleThreadParams.nbWorkers == 0);
-        return ZSTD_initCStream_internal(mtctx->cctxPool->cctx[0],
-                                         dict, dictSize, cdict,
-                                         &singleThreadParams, pledgedSrcSize);
-    }
-
     DEBUGLOG(4, "ZSTDMT_initCStream_internal: %u workers", params.nbWorkers);
 
     if (mtctx->allJobsCompleted == 0) {   /* previous compression not correctly finished */
@@ -2031,10 +2020,6 @@ size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
     assert(output->pos <= output->size);
     assert(input->pos  <= input->size);
 
-    if (mtctx->singleBlockingThread) {  /* delegate to single-thread (synchronous) */
-        return ZSTD_compressStream2(mtctx->cctxPool->cctx[0], output, input, endOp);
-    }
-
     if ((mtctx->frameEnded) && (endOp==ZSTD_e_continue)) {
         /* current frame being ended. Only flush/end are allowed */
         return ERROR(stage_wrong);
@@ -2138,15 +2123,11 @@ static size_t ZSTDMT_flushStream_internal(ZSTDMT_CCtx* mtctx, ZSTD_outBuffer* ou
 size_t ZSTDMT_flushStream(ZSTDMT_CCtx* mtctx, ZSTD_outBuffer* output)
 {
     DEBUGLOG(5, "ZSTDMT_flushStream");
-    if (mtctx->singleBlockingThread)
-        return ZSTD_flushStream(mtctx->cctxPool->cctx[0], output);
     return ZSTDMT_flushStream_internal(mtctx, output, ZSTD_e_flush);
 }
 
 size_t ZSTDMT_endStream(ZSTDMT_CCtx* mtctx, ZSTD_outBuffer* output)
 {
     DEBUGLOG(4, "ZSTDMT_endStream");
-    if (mtctx->singleBlockingThread)
-        return ZSTD_endStream(mtctx->cctxPool->cctx[0], output);
     return ZSTDMT_flushStream_internal(mtctx, output, ZSTD_e_end);
 }

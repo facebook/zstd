@@ -849,6 +849,8 @@ static void ldm_getNextMatchAndUpdateSeqStore(rawSeqStore_t* ldmSeqStore,
         ldmSeqStore->posInSequence = 0;
         ldmSeqStore->pos++;
     }
+    DEBUGLOG(6, "ldm_getNextMatchAndUpdateSeqStore(): got an ldm that beginning at pos: %u, end at pos: %u, with offset: %u",
+             *matchStartPosInBlock, *matchEndPosInBlock, *matchOffset);
 }
 
 /* ldm_maybeAddLdm():
@@ -870,6 +872,8 @@ static void ldm_maybeAddLdm(ZSTD_match_t* matches, U32* nbMatches,
         candidateMatchLength < MINMATCH)
         return;
 
+    DEBUGLOG(6, "ldm_maybeAddLdm(): Adding ldm candidate match (offCode: %u matchLength %u) at block position=%u",
+             candidateOffCode, candidateMatchLength, currPosInBlock);
     if (*nbMatches == 0) {
         matches[*nbMatches].len = candidateMatchLength;
         matches[*nbMatches].off = candidateOffCode;
@@ -985,14 +989,14 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
     U32 ldmStartPosInBlock = 0;
     U32 ldmEndPosInBlock = 0;
     U32 ldmOffset = 0;
-    
+
     /* Get first match from ldm seq store if long mode is enabled */
     if (ms->ldmSeqStore.size > 0 && ms->ldmSeqStore.pos < ms->ldmSeqStore.size) {
         ldm_getNextMatchAndUpdateSeqStore(&ms->ldmSeqStore, &ldmStartPosInBlock,
                                           &ldmEndPosInBlock, &ldmOffset,
                                           (U32)(ip-istart), (U32)(iend-ip));
     }
-
+    
     /* init */
     DEBUGLOG(5, "ZSTD_compressBlock_opt_generic: current=%u, prefix=%u, nextToUpdate=%u",
                 (U32)(ip - base), ms->window.dictLimit, ms->nextToUpdate);

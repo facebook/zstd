@@ -372,6 +372,19 @@ static int basicUnitTests(U32 const seed, double compressibility)
         DISPLAYLEVEL(3, "%u (OK) \n", vn);
     }
 
+    DISPLAYLEVEL(3, "test%3u : ZSTD_adjustCParams : ", testNb++);
+    {
+        ZSTD_compressionParameters params;
+        memset(&params, 0, sizeof(params));
+        params.windowLog = 10;
+        params.hashLog = 19;
+        params.chainLog = 19;
+        params = ZSTD_adjustCParams(params, 1000, 100000);
+        if (params.hashLog != 18) goto _output_error;
+        if (params.chainLog != 17) goto _output_error;
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     DISPLAYLEVEL(3, "test%3u : compress %u bytes : ", testNb++, (unsigned)CNBuffSize);
     {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
         if (cctx==NULL) goto _output_error;

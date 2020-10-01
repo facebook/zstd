@@ -1901,6 +1901,8 @@ static int fuzzerTests_newAPI(U32 seed, int nbTests, int startTest,
         U32 resetAllowed = 1;
         size_t maxTestSize;
         ZSTD_parameters savedParams;
+        int isRefPrefix = 0;
+        U64 pledgedSrcSize = ZSTD_CONTENTSIZE_UNKNOWN;
 
         /* init */
         if (nbTests >= testNb) { DISPLAYUPDATE(2, "\r%6u/%6u    ", testNb, nbTests); }
@@ -1971,8 +1973,8 @@ static int fuzzerTests_newAPI(U32 seed, int nbTests, int startTest,
                 dict = srcBuffer + dictStart;
                 if (!dictSize) dict=NULL;
             }
-            {   U64 const pledgedSrcSize = (FUZ_rand(&lseed) & 3) ? ZSTD_CONTENTSIZE_UNKNOWN : maxTestSize;
-                ZSTD_compressionParameters cParams = ZSTD_getCParams(cLevel, pledgedSrcSize, dictSize);
+            pledgedSrcSize = (FUZ_rand(&lseed) & 3) ? ZSTD_CONTENTSIZE_UNKNOWN : maxTestSize;
+            {   ZSTD_compressionParameters cParams = ZSTD_getCParams(cLevel, pledgedSrcSize, dictSize);
                 const U32 windowLogMax = bigTests ? 24 : 20;
                 const U32 searchLogMax = bigTests ? 15 : 13;
                 if (dictSize)
@@ -2028,6 +2030,8 @@ static int fuzzerTests_newAPI(U32 seed, int nbTests, int startTest,
                 if (FUZ_rand(&lseed) & 1) {
                     DISPLAYLEVEL(5, "t%u: pledgedSrcSize : %u \n", testNb, (unsigned)pledgedSrcSize);
                     CHECK_Z( ZSTD_CCtx_setPledgedSrcSize(zc, pledgedSrcSize) );
+                } else {
+                    pledgedSrcSize = ZSTD_CONTENTSIZE_UNKNOWN;
                 }
 
                 /* multi-threading parameters. Only adjust occasionally for small tests. */
@@ -2061,6 +2065,7 @@ static int fuzzerTests_newAPI(U32 seed, int nbTests, int startTest,
                         CHECK_Z( ZSTD_CCtx_loadDictionary_byReference(zc, dict, dictSize) );
                     }
                 } else {
+                    isRefPrefix = 1;
                     CHECK_Z( ZSTD_CCtx_refPrefix(zc, dict, dictSize) );
                 }
         }   }
@@ -2068,45 +2073,96 @@ static int fuzzerTests_newAPI(U32 seed, int nbTests, int startTest,
         CHECK_Z(getCCtxParams(zc, &savedParams));
 
         /* multi-segments compression test */
-        XXH64_reset(&xxhState, 0);
-        {   ZSTD_outBuffer outBuff = { cBuffer, cBufferSize, 0 } ;
-            for (cSize=0, totalTestSize=0 ; (totalTestSize < maxTestSize) ; ) {
-                /* compress random chunks into randomly sized dst buffers */
-                size_t const randomSrcSize = FUZ_randomLength(&lseed, maxSampleLog);
-                size_t const srcSize = MIN(maxTestSize-totalTestSize, randomSrcSize);
-                size_t const srcStart = FUZ_rand(&lseed) % (srcBufferSize - srcSize);
-                size_t const randomDstSize = FUZ_randomLength(&lseed, maxSampleLog+1);
-                size_t const dstBuffSize = MIN(cBufferSize - cSize, randomDstSize);
-                ZSTD_EndDirective const flush = (FUZ_rand(&lseed) & 15) ? ZSTD_e_continue : ZSTD_e_flush;
-                ZSTD_inBuffer inBuff = { srcBuffer+srcStart, srcSize, 0 };
-                outBuff.size = outBuff.pos + dstBuffSize;
+        {   int iter;
+            int const startSeed = lseed;
+            XXH64_hash_t compressedCrcs[2];
+            for (iter = 0; iter < 2; ++iter, lseed = startSeed) {
+                ZSTD_outBuffer outBuff = { cBuffer, cBufferSize, 0 } ;
+                int const singlePass = (FUZ_rand(&lseed) & 3) == 0;
+                int nbWorkers;
 
-                CHECK_Z( ZSTD_compressStream2(zc, &outBuff, &inBuff, flush) );
-                DISPLAYLEVEL(6, "t%u: compress consumed %u bytes (total : %u) ; flush: %u (total : %u) \n",
-                    testNb, (unsigned)inBuff.pos, (unsigned)(totalTestSize + inBuff.pos), (unsigned)flush, (unsigned)outBuff.pos);
+                XXH64_reset(&xxhState, 0);
 
-                XXH64_update(&xxhState, srcBuffer+srcStart, inBuff.pos);
-                memcpy(copyBuffer+totalTestSize, srcBuffer+srcStart, inBuff.pos);
-                totalTestSize += inBuff.pos;
+                CHECK_Z( ZSTD_CCtx_setPledgedSrcSize(zc, pledgedSrcSize) );
+                if (isRefPrefix) {
+                    DISPLAYLEVEL(6, "t%u: Reloading prefix\n", testNb);
+                    /* Need to reload the prefix because it gets dropped after one compression */
+                    CHECK_Z( ZSTD_CCtx_refPrefix(zc, dict, dictSize) );
+                }
+
+                /* Adjust number of workers occassionally - result must be deterministic independent of nbWorkers */
+                CHECK_Z(ZSTD_CCtx_getParameter(zc, ZSTD_c_nbWorkers, &nbWorkers));
+                if (nbWorkers > 0 && (FUZ_rand(&lseed) & 7) == 0) {
+                    DISPLAYLEVEL(6, "t%u: Modify nbWorkers: %d -> %d \n", testNb, nbWorkers, nbWorkers + iter);
+                    CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_nbWorkers, nbWorkers + iter));
+                }
+
+                if (singlePass) {
+                    ZSTD_inBuffer inBuff = { srcBuffer, maxTestSize, 0 };
+                    CHECK_Z(ZSTD_compressStream2(zc, &outBuff, &inBuff, ZSTD_e_end));
+                    DISPLAYLEVEL(6, "t%u: Single pass compression: consumed %u bytes ; produced %u bytes \n",
+                        testNb, (unsigned)inBuff.pos, (unsigned)outBuff.pos);
+                    CHECK(inBuff.pos != inBuff.size, "Input not consumed!");
+                    crcOrig = XXH64(srcBuffer, maxTestSize, 0);
+                    totalTestSize = maxTestSize;
+                } else {
+                    outBuff.size = 0;
+                    for (totalTestSize=0 ; (totalTestSize < maxTestSize) ; ) {
+                        /* compress random chunks into randomly sized dst buffers */
+                        size_t const randomSrcSize = FUZ_randomLength(&lseed, maxSampleLog);
+                        size_t const srcSize = MIN(maxTestSize-totalTestSize, randomSrcSize);
+                        size_t const srcStart = FUZ_rand(&lseed) % (srcBufferSize - srcSize);
+                        ZSTD_EndDirective const flush = (FUZ_rand(&lseed) & 15) ? ZSTD_e_continue : ZSTD_e_flush;
+                        ZSTD_inBuffer inBuff = { srcBuffer+srcStart, srcSize, 0 };
+                        int forwardProgress;
+                        do {
+                            size_t const ipos = inBuff.pos;
+                            size_t const opos = outBuff.pos;
+                            size_t ret;
+                            if (outBuff.pos == outBuff.size) {
+                                size_t const randomDstSize = FUZ_randomLength(&lseed, maxSampleLog+1);
+                                size_t const dstBuffSize = MIN(cBufferSize - outBuff.pos, randomDstSize);
+                                outBuff.size = outBuff.pos + dstBuffSize;
+                            }
+                            CHECK_Z( ret = ZSTD_compressStream2(zc, &outBuff, &inBuff, flush) );
+                            DISPLAYLEVEL(6, "t%u: compress consumed %u bytes (total : %u) ; flush: %u (total : %u) \n",
+                                testNb, (unsigned)inBuff.pos, (unsigned)(totalTestSize + inBuff.pos), (unsigned)flush, (unsigned)outBuff.pos);
+
+                            /* We've completed the flush */
+                            if (flush == ZSTD_e_flush && ret == 0)
+                                break;
+
+                            /* Ensure maximal forward progress for determinism */
+                            forwardProgress = (inBuff.pos != ipos) || (outBuff.pos != opos);
+                        } while (forwardProgress);
+
+                        XXH64_update(&xxhState, srcBuffer+srcStart, inBuff.pos);
+                        memcpy(copyBuffer+totalTestSize, srcBuffer+srcStart, inBuff.pos);
+                        totalTestSize += inBuff.pos;
+                    }
+
+                    /* final frame epilogue */
+                    {   size_t remainingToFlush = 1;
+                        while (remainingToFlush) {
+                            ZSTD_inBuffer inBuff = { NULL, 0, 0 };
+                            size_t const randomDstSize = FUZ_randomLength(&lseed, maxSampleLog+1);
+                            size_t const adjustedDstSize = MIN(cBufferSize - outBuff.pos, randomDstSize);
+                            outBuff.size = outBuff.pos + adjustedDstSize;
+                            DISPLAYLEVEL(6, "t%u: End-flush into dst buffer of size %u \n", testNb, (unsigned)adjustedDstSize);
+                            /* ZSTD_e_end guarantees maximal forward progress */
+                            remainingToFlush = ZSTD_compressStream2(zc, &outBuff, &inBuff, ZSTD_e_end);
+                            DISPLAYLEVEL(6, "t%u: Total flushed so far : %u bytes \n", testNb, (unsigned)outBuff.pos);
+                            CHECK( ZSTD_isError(remainingToFlush),
+                                "ZSTD_compressStream2 w/ ZSTD_e_end error : %s",
+                                ZSTD_getErrorName(remainingToFlush) );
+                    }   }
+                    crcOrig = XXH64_digest(&xxhState);
+                }
+                cSize = outBuff.pos;
+                compressedCrcs[iter] = XXH64(cBuffer, cSize, 0);
+                DISPLAYLEVEL(5, "Frame completed : %zu bytes \n", cSize);
             }
-
-            /* final frame epilogue */
-            {   size_t remainingToFlush = 1;
-                while (remainingToFlush) {
-                    ZSTD_inBuffer inBuff = { NULL, 0, 0 };
-                    size_t const randomDstSize = FUZ_randomLength(&lseed, maxSampleLog+1);
-                    size_t const adjustedDstSize = MIN(cBufferSize - cSize, randomDstSize);
-                    outBuff.size = outBuff.pos + adjustedDstSize;
-                    DISPLAYLEVEL(6, "t%u: End-flush into dst buffer of size %u \n", testNb, (unsigned)adjustedDstSize);
-                    remainingToFlush = ZSTD_compressStream2(zc, &outBuff, &inBuff, ZSTD_e_end);
-                    DISPLAYLEVEL(6, "t%u: Total flushed so far : %u bytes \n", testNb, (unsigned)outBuff.pos);
-                    CHECK( ZSTD_isError(remainingToFlush),
-                          "ZSTD_compressStream2 w/ ZSTD_e_end error : %s",
-                           ZSTD_getErrorName(remainingToFlush) );
-            }   }
-            crcOrig = XXH64_digest(&xxhState);
-            cSize = outBuff.pos;
-            DISPLAYLEVEL(5, "Frame completed : %zu bytes \n", cSize);
+            CHECK(!(compressedCrcs[0] == compressedCrcs[1]), "Compression is not deterministic!");
         }
 
         CHECK(badParameters(zc, savedParams), "CCtx params are wrong");

@@ -578,7 +578,6 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
     if (cParams->strategy >= ZSTD_btopt) {
         size_t lastLLSize;
         ms->ldmSeqStore = *rawSeqStore;
-        ms->ldmSeqStore.base = ms->window.base;
         lastLLSize = blockCompressor(ms, seqStore, rep, src, srcSize);
         /* ldm seqstore will have changed during blockCompressor() call, make sure we copy those changes */
         *rawSeqStore = ms->ldmSeqStore;

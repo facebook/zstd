@@ -1364,6 +1364,7 @@ ZSTD_initStats_ultra(ZSTD_matchState_t* ms,
                const void* src, size_t srcSize)
 {
     U32 tmpRep[ZSTD_REP_NUM];  /* updated rep codes will sink here */
+    rawSeqStore_t tmpSeqStore = ms->ldmSeqStore;
     ZSTD_memcpy(tmpRep, rep, sizeof(tmpRep));
 
     DEBUGLOG(4, "ZSTD_initStats_ultra (srcSize=%zu)", srcSize);
@@ -1380,6 +1381,7 @@ ZSTD_initStats_ultra(ZSTD_matchState_t* ms,
     ms->window.dictLimit += (U32)srcSize;
     ms->window.lowLimit = ms->window.dictLimit;
     ms->nextToUpdate = ms->window.dictLimit;
+    ms->ldmSeqStore = tmpSeqStore;
 
     /* re-inforce weight of collected statistics */
     ZSTD_upscaleStats(&ms->opt);

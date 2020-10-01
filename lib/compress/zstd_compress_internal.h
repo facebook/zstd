@@ -82,23 +82,23 @@ typedef struct {
 } ZSTD_entropyCTables_t;
 
 typedef struct {
-    U32 off;
-    U32 len;
+    U32 off;            /* Offset code for the match */
+    U32 len;            /* Raw length of match */
 } ZSTD_match_t;
 
 typedef struct {
-    U32 offset;
-    U32 litLength;
-    U32 matchLength;
+    U32 offset;         /* Offset of sequence */
+    U32 litLength;      /* Length of literals prior to match */
+    U32 matchLength;    /* Raw length of match */
 } rawSeq;
 
 typedef struct {
-  rawSeq* seq;     /* The start of the sequences */
-  size_t pos;      /* The index in this seqStore where reading stopped. <= size. */
-  size_t posInSequence; /* The position within the rawSeq at index 'pos' where reading
-                           stopped. */
-  size_t size;     /* The number of sequences. <= capacity. */
-  size_t capacity; /* The capacity starting from `seq` pointer */
+  rawSeq* seq;          /* The start of the sequences */
+  size_t pos;           /* The index in seq where reading stopped. pos <= size. */
+  size_t posInSequence; /* The position within the sequence at seq[pos] where reading
+                           stopped. posInSequence <= seq[pos].litLength + seq[pos].matchLength */
+  size_t size;          /* The number of sequences. <= capacity. */
+  size_t capacity;      /* The capacity starting from `seq` pointer */
 } rawSeqStore_t;
 
 typedef struct {

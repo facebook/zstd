@@ -784,7 +784,7 @@ static void ZSTD_opt_skipBytesInLdmSeqStore(rawSeqStore_t* ldmSeqStore, size_t n
             ldmSeqStore->posInSequence += currSeq.litLength;
             nbBytes -= currSeq.litLength;
         }
-        
+
         if (nbBytes < currSeq.matchLength) {
             ldmSeqStore->posInSequence += nbBytes;
             return;
@@ -823,10 +823,10 @@ static void ZSTD_opt_getNextLdmAndUpdateSeqStore(rawSeqStore_t* ldmSeqStore,
     assert(ldmSeqStore->posInSequence <= currSeq.litLength + currSeq.matchLength);
     currBlockEndPos = currPosInBlock + blockBytesRemaining;
     literalsBytesRemaining = (ldmSeqStore->posInSequence < currSeq.litLength) ?
-            currSeq.litLength - ldmSeqStore->posInSequence :
+            currSeq.litLength - (U32)ldmSeqStore->posInSequence :
             0;
     matchBytesRemaining = (literalsBytesRemaining == 0) ?
-            currSeq.matchLength - (ldmSeqStore->posInSequence - currSeq.litLength) :
+            currSeq.matchLength - ((U32)ldmSeqStore->posInSequence - currSeq.litLength) :
             currSeq.matchLength;
 
     /* If there are more literal bytes than bytes remaining in block, no ldm is possible */

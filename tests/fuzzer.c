@@ -811,7 +811,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         if (cSizeLdm > cSizeNoLdm) {
             DISPLAY("Using long mode should not cause regressions for btopt+\n");
             testResult = 1;
-            goto _output_error;
+            goto _end;
         }
 
         ZSTD_freeCCtx(cctx);

@@ -2488,6 +2488,34 @@ static int basicUnitTests(U32 const seed, double compressibility)
         ZSTD_freeDCtx(dctx);
     }
 
+    DISPLAYLEVEL(3, "test%3i : Decompression parameter reset test : ", testNb++);
+    {
+        ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+        /* Attempt to future proof this to new parameters. */
+        int const maxParam = 2000;
+        int param;
+        if (ZSTD_d_experimentalParam3 > maxParam) goto _output_error;
+        for (param = 0; param < maxParam; ++param) {
+            ZSTD_dParameter dParam = (ZSTD_dParameter)param;
+            ZSTD_bounds bounds = ZSTD_dParam_getBounds(dParam);
+            int value1;
+            int value2;
+            int check;
+            if (ZSTD_isError(bounds.error))
+                continue;
+            CHECK(ZSTD_DCtx_getParameter(dctx, dParam, &value1));
+            value2 = (value1 != bounds.lowerBound) ? bounds.lowerBound : bounds.upperBound;
+            CHECK(ZSTD_DCtx_setParameter(dctx, dParam, value2));
+            CHECK(ZSTD_DCtx_getParameter(dctx, dParam, &check));
+            if (check != value2) goto _output_error;
+            CHECK(ZSTD_DCtx_reset(dctx, ZSTD_reset_parameters));
+            CHECK(ZSTD_DCtx_getParameter(dctx, dParam, &check));
+            if (check != value1) goto _output_error;
+        }
+        ZSTD_freeDCtx(dctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     /* block API tests */
     {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
         ZSTD_DCtx* const dctx = ZSTD_createDCtx();

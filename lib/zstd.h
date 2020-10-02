@@ -1739,6 +1739,13 @@ ZSTDLIB_API size_t ZSTD_DCtx_refPrefix_advanced(ZSTD_DCtx* dctx, const void* pre
  */
 ZSTDLIB_API size_t ZSTD_DCtx_setMaxWindowSize(ZSTD_DCtx* dctx, size_t maxWindowSize);
 
+/*! ZSTD_DCtx_getParameter() :
+ *  Get the requested decompression parameter value, selected by enum ZSTD_dParameter,
+ *  and store it into int* value.
+ * @return : 0, or an error code (which can be tested with ZSTD_isError()).
+ */
+ZSTDLIB_API size_t ZSTD_DCtx_getParameter(ZSTD_DCtx* dctx, ZSTD_dParameter param, int* value);
+
 /* ZSTD_d_format
  * experimental parameter,
  * allowing selection between ZSTD_format_e input compression formats

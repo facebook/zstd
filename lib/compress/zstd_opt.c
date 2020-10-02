@@ -866,7 +866,7 @@ static void ZSTD_opt_maybeAddLdm(ZSTD_match_t* matches, U32* nbMatches,
     U32 posDiff = currPosInBlock - matchStartPosInBlock;
     /* Note: ZSTD_match_t actually contains offCode and matchLength (before subtracting MINMATCH) */
     U32 candidateMatchLength = matchEndPosInBlock - matchStartPosInBlock - posDiff;
-    U32 candidateOffCode = matchOffset + posDiff + ZSTD_REP_MOVE;
+    U32 candidateOffCode = matchOffset + ZSTD_REP_MOVE;
 
     /* Ensure that current block position is not outside of the match */
     if (currPosInBlock < matchStartPosInBlock
@@ -1146,6 +1146,7 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
                                         &ldmEndPosInBlock, &ldmOffset,
                                         (U32)(inr-istart), (U32)(iend-inr));
                 }
+
                 if (!nbMatches) {
                     DEBUGLOG(7, "rPos:%u : no match found", cur);
                     continue;

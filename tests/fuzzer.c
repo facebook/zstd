@@ -32,7 +32,6 @@
 #include "fse.h"
 #include "zstd.h"         /* ZSTD_VERSION_STRING */
 #include "zstd_errors.h"  /* ZSTD_getErrorCode */
-#include "zstdmt_compress.h"
 #define ZDICT_STATIC_LINKING_ONLY
 #include "zdict.h"        /* ZDICT_trainFromBuffer */
 #include "mem.h"
@@ -1352,19 +1351,20 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
     /* ZSTDMT simple MT compression test */
     DISPLAYLEVEL(3, "test%3i : create ZSTDMT CCtx : ", testNb++);
-    {   ZSTDMT_CCtx* const mtctx = ZSTDMT_createCCtx(2);
+    {   ZSTD_CCtx* const mtctx = ZSTD_createCCtx();
         if (mtctx==NULL) {
             DISPLAY("mtctx : not enough memory, aborting \n");
             testResult = 1;
             goto _end;
         }
+        CHECK( ZSTD_CCtx_setParameter(mtctx, ZSTD_c_nbWorkers, 2) );
+        CHECK( ZSTD_CCtx_setParameter(mtctx, ZSTD_c_compressionLevel, 1) );
         DISPLAYLEVEL(3, "OK \n");
 
         DISPLAYLEVEL(3, "test%3u : compress %u bytes with 2 threads : ", testNb++, (unsigned)CNBuffSize);
-        CHECK_VAR(cSize, ZSTDMT_compressCCtx(mtctx,
+        CHECK_VAR(cSize, ZSTD_compress2(mtctx,
                                 compressedBuffer, compressedBufferSize,
-                                CNBuffer, CNBuffSize,
-                                1) );
+                                CNBuffer, CNBuffSize) );
         DISPLAYLEVEL(3, "OK (%u bytes : %.2f%%)\n", (unsigned)cSize, (double)cSize/CNBuffSize*100);
 
         DISPLAYLEVEL(3, "test%3i : decompressed size test : ", testNb++);
@@ -1388,14 +1388,12 @@ static int basicUnitTests(U32 const seed, double compressibility)
         DISPLAYLEVEL(3, "OK \n");
 
         DISPLAYLEVEL(3, "test%3i : compress -T2 with checksum : ", testNb++);
-        {   ZSTD_parameters params = ZSTD_getParams(1, CNBuffSize, 0);
-            params.fParams.checksumFlag = 1;
-            params.fParams.contentSizeFlag = 1;
-            CHECK_VAR(cSize, ZSTDMT_compress_advanced(mtctx,
-                                    compressedBuffer, compressedBufferSize,
-                                    CNBuffer, CNBuffSize,
-                                    NULL, params, 3 /*overlapRLog*/) );
-        }
+        CHECK( ZSTD_CCtx_setParameter(mtctx, ZSTD_c_checksumFlag, 1) );
+        CHECK( ZSTD_CCtx_setParameter(mtctx, ZSTD_c_contentSizeFlag, 1) );
+        CHECK( ZSTD_CCtx_setParameter(mtctx, ZSTD_c_overlapLog, 3) );
+        CHECK_VAR(cSize, ZSTD_compress2(mtctx,
+                                compressedBuffer, compressedBufferSize,
+                                CNBuffer, CNBuffSize) );
         DISPLAYLEVEL(3, "OK (%u bytes : %.2f%%)\n", (unsigned)cSize, (double)cSize/CNBuffSize*100);
 
         DISPLAYLEVEL(3, "test%3i : decompress %u bytes : ", testNb++, (unsigned)CNBuffSize);
@@ -1403,7 +1401,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
           if (r != CNBuffSize) goto _output_error; }
         DISPLAYLEVEL(3, "OK \n");
 
-        ZSTDMT_freeCCtx(mtctx);
+        ZSTD_freeCCtx(mtctx);
     }
 
     DISPLAYLEVEL(3, "test%3u : compress empty string and decompress with small window log : ", testNb++);

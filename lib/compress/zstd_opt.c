@@ -774,7 +774,9 @@ FORCE_INLINE_TEMPLATE U32 ZSTD_BtGetAllMatches (
 static void ZSTD_opt_skipBytesInLdmSeqStore(rawSeqStore_t* ldmSeqStore, size_t nbBytes) {
     while (nbBytes && ldmSeqStore->pos < ldmSeqStore->size) {
         rawSeq currSeq = ldmSeqStore->seq[ldmSeqStore->pos];
+        /* posInSequence necessarily must never represent a value beyond the sequence */
         assert(ldmSeqStore->posInSequence <= currSeq.matchLength + currSeq.litLength);
+
         if (nbBytes <= currSeq.litLength) {
             ldmSeqStore->posInSequence += nbBytes;
             return;
@@ -782,6 +784,7 @@ static void ZSTD_opt_skipBytesInLdmSeqStore(rawSeqStore_t* ldmSeqStore, size_t n
             ldmSeqStore->posInSequence += currSeq.litLength;
             nbBytes -= currSeq.litLength;
         }
+        
         if (nbBytes < currSeq.matchLength) {
             ldmSeqStore->posInSequence += nbBytes;
             return;

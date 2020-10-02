@@ -575,6 +575,8 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
     BYTE const* const iend = istart + srcSize;
     /* Input positions */
     BYTE const* ip = istart;
+
+    /* If using opt parser, use LDMs only as candidates rather than always accepting them */
     if (cParams->strategy >= ZSTD_btopt) {
         size_t lastLLSize;
         ms->ldmSeqStore = *rawSeqStore;

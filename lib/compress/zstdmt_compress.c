@@ -277,7 +277,7 @@ static size_t ZSTDMT_sizeof_seqPool(ZSTDMT_seqPool* seqPool)
 
 static rawSeqStore_t bufferToSeq(buffer_t buffer)
 {
-    rawSeqStore_t seq = {NULL, 0, 0, 0, 0};
+    rawSeqStore_t seq = kNullRawSeqStore;
     seq.seq = (rawSeq*)buffer.start;
     seq.capacity = buffer.capacity / sizeof(rawSeq);
     return seq;

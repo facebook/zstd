@@ -878,7 +878,6 @@ ZSTDLIB_API size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long lo
 
 static ZSTD_compressionParameters ZSTD_dedicatedDictSearch_getCParams(
         int const compressionLevel,
-        unsigned long long srcSizeHint,
         size_t const dictSize);
 static int ZSTD_dedicatedDictSearch_isSupported(
         const ZSTD_compressionParameters* cParams);
@@ -3559,7 +3558,7 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced2(
 
     if (cctxParams.enableDedicatedDictSearch) {
         cParams = ZSTD_dedicatedDictSearch_getCParams(
-            cctxParams.compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, dictSize);
+            cctxParams.compressionLevel, dictSize);
         ZSTD_overrideCParams(&cParams, &cctxParams.cParams);
     } else {
         cParams = ZSTD_getCParamsFromCCtxParams(
@@ -4362,9 +4361,9 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
 },
 };
 
-static ZSTD_compressionParameters ZSTD_dedicatedDictSearch_getCParams(int const compressionLevel, unsigned long long srcSizeHint, size_t const dictSize)
+static ZSTD_compressionParameters ZSTD_dedicatedDictSearch_getCParams(int const compressionLevel, size_t const dictSize)
 {
-    ZSTD_compressionParameters cParams = ZSTD_getCParams_internal(compressionLevel, srcSizeHint, dictSize);
+    ZSTD_compressionParameters cParams = ZSTD_getCParams_internal(compressionLevel, 0, dictSize);
     switch (cParams.strategy) {
         case ZSTD_fast:
         case ZSTD_dfast:

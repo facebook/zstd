@@ -1971,34 +1971,53 @@ static int basicUnitTests(U32 const seed, double compressibility)
         }
         DISPLAYLEVEL(3, "OK \n");
 
-        DISPLAYLEVEL(3, "test%3i : Loading rawContent starting with dict header w/ ZSTD_dct_auto should fail : ", testNb++);
-        {
-            size_t ret;
-            MEM_writeLE32((char*)dictBuffer+2, ZSTD_MAGIC_DICTIONARY);
-            /* Either operation is allowed to fail, but one must fail. */
-            ret = ZSTD_CCtx_loadDictionary_advanced(
-                    cctx, (const char*)dictBuffer+2, dictSize-2, ZSTD_dlm_byRef, ZSTD_dct_auto);
-            if (!ZSTD_isError(ret)) {
-                ret = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, MIN(CNBuffSize, 100));
-                if (!ZSTD_isError(ret)) goto _output_error;
-            }
-        }
-        DISPLAYLEVEL(3, "OK \n");
+        {   char* rawDictBuffer = (char*)malloc(dictSize);
+            assert(rawDictBuffer);
+            memcpy(rawDictBuffer, (char*)dictBuffer + 2, dictSize - 2);
+            memset(rawDictBuffer + dictSize - 2, 0, 2);
+            MEM_writeLE32((char*)rawDictBuffer, ZSTD_MAGIC_DICTIONARY);
 
-        DISPLAYLEVEL(3, "test%3i : Loading rawContent starting with dict header w/ ZSTD_dct_rawContent should pass : ", testNb++);
-        {
-            size_t ret;
-            MEM_writeLE32((char*)dictBuffer+2, ZSTD_MAGIC_DICTIONARY);
-            ret = ZSTD_CCtx_loadDictionary_advanced(
-                    cctx, (const char*)dictBuffer+2, dictSize-2, ZSTD_dlm_byRef, ZSTD_dct_rawContent);
-            if (ZSTD_isError(ret)) goto _output_error;
-            ret = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, MIN(CNBuffSize, 100));
-            if (ZSTD_isError(ret)) goto _output_error;
+            DISPLAYLEVEL(3, "test%3i : Loading rawContent starting with dict header w/ ZSTD_dct_auto should fail : ", testNb++);
+            {
+                size_t ret;
+                /* Either operation is allowed to fail, but one must fail. */
+                ret = ZSTD_CCtx_loadDictionary_advanced(
+                        cctx, (const char*)rawDictBuffer, dictSize, ZSTD_dlm_byRef, ZSTD_dct_auto);
+                if (!ZSTD_isError(ret)) {
+                    ret = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, MIN(CNBuffSize, 100));
+                    if (!ZSTD_isError(ret)) goto _output_error;
+                }
+            }
+            DISPLAYLEVEL(3, "OK \n");
+
+            DISPLAYLEVEL(3, "test%3i : Loading rawContent starting with dict header w/ ZSTD_dct_rawContent should pass : ", testNb++);
+            {
+                size_t ret;
+                ret = ZSTD_CCtx_loadDictionary_advanced(
+                        cctx, (const char*)rawDictBuffer, dictSize, ZSTD_dlm_byRef, ZSTD_dct_rawContent);
+                if (ZSTD_isError(ret)) goto _output_error;
+                ret = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, MIN(CNBuffSize, 100));
+                if (ZSTD_isError(ret)) goto _output_error;
+            }
+            DISPLAYLEVEL(3, "OK \n");
+
+            DISPLAYLEVEL(3, "test%3i : Testing non-attached CDict with ZSTD_dct_rawContent : ", testNb++);
+            {   size_t const srcSize = MIN(CNBuffSize, 100);
+                ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters);
+                /* Force the dictionary to be reloaded in raw content mode */
+                CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_forceAttachDict, ZSTD_dictForceLoad));
+                CHECK_Z(ZSTD_CCtx_loadDictionary_advanced(cctx, rawDictBuffer, dictSize, ZSTD_dlm_byRef, ZSTD_dct_rawContent));
+                cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, srcSize);
+                CHECK_Z(cSize);
+            }
+            DISPLAYLEVEL(3, "OK \n");
+
+            free(rawDictBuffer);
         }
-        DISPLAYLEVEL(3, "OK \n");
 
         DISPLAYLEVEL(3, "test%3i : ZSTD_CCtx_refCDict() then set parameters : ", testNb++);
         {   ZSTD_CDict* const cdict = ZSTD_createCDict(CNBuffer, dictSize, 1);
+            ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters);
             CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, 1) );
             CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_hashLog, 12 ));
             CHECK_Z( ZSTD_CCtx_refCDict(cctx, cdict) );

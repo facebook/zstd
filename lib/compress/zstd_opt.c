@@ -882,36 +882,13 @@ static void ZSTD_opt_maybeAddLdm(ZSTD_match_t* matches, U32* nbMatches,
         matches[*nbMatches].off = candidateOffCode;
         (*nbMatches)++;
     } else if ((candidateMatchLength >= matches[*nbMatches-1].len) && *nbMatches < ZSTD_OPT_NUM) {
-        /* Maintain order of matches, which is firstly - increasing in matchlength, 
-         * and secondly - decreasing in offCode. Since matches from the ldm seq store are likely
-         * to be the longest match found, we simply start at the end of the array and bubble
-         * the ldm match down as necessary.
-         */
-        if (candidateMatchLength == matches[*nbMatches-1].len) {
-            U32 candidateMatchIdx;
-            if (candidateOffCode == matches[*nbMatches-1].off) {
-                /* No need to insert the match if it's the exact same */
-                return;
-            }
-            candidateMatchIdx = *nbMatches;
-            matches[*nbMatches].len = candidateMatchLength;
-            matches[*nbMatches].off = candidateOffCode;
-            if (candidateOffCode != matches[*nbMatches-1].off) {
-                while (candidateMatchIdx > 0 &&
-                       matches[candidateMatchIdx].off > matches[candidateMatchIdx - 1].off &&
-                       matches[candidateMatchIdx].len == matches[candidateMatchIdx - 1].len) {
-                    ZSTD_match_t tmp = matches[candidateMatchIdx - 1];
-                    matches[candidateMatchIdx - 1] = matches[candidateMatchIdx];
-                    matches[candidateMatchIdx] = tmp;
-                    --candidateMatchIdx;
-                }
-            }
-            (*nbMatches)++;
-        } else {
-            matches[*nbMatches].len = candidateMatchLength;
-            matches[*nbMatches].off = candidateOffCode;
-            (*nbMatches)++;
+        /* No need to insert the match if it's the exact same, or offCode is larger with same matchLen */
+        if (candidateMatchLength == matches[*nbMatches-1].len && candidateOffCode >= matches[*nbMatches-1].off) {
+            return;
         }
+        matches[*nbMatches].len = candidateMatchLength;
+        matches[*nbMatches].off = candidateOffCode;
+        (*nbMatches)++;
     }
 }
 

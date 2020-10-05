@@ -871,7 +871,6 @@ static void ZSTD_opt_maybeAddLdm(ZSTD_match_t* matches, U32* nbMatches,
     /* Ensure that current block position is not outside of the match */
     if (currPosInBlock < matchStartPosInBlock
       || currPosInBlock >= matchEndPosInBlock
-      || posDiff > 0    /* As a next evolution we can enable adding LDMs in the middle of a match */
       || candidateMatchLength < MINMATCH) {
         return;
     }

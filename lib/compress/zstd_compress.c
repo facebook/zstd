@@ -2590,10 +2590,41 @@ size_t ZSTD_getSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
     return zc->seqCollector.seqIndex;
 }
 
-static void ZSTD_copySequencesToSeqStore(seqStore_t* seqStore,
+/* Returns true if the given block is a RLE block */
+static int ZSTD_isRLE(const BYTE *ip, size_t length) {
+    size_t i;
+    if (length < 2) return 1;
+    for (i = 1; i < length; ++i) {
+        if (ip[0] != ip[i]) return 0;
+    }
+    return 1;
+}
+
+/* Returns true if the given block may be RLE.
+ * This is just a heuristic based on the compressibility.
+ * It may return both false positives and false negatives.
+ */
+static int ZSTD_maybeRLE(seqStore_t const* seqStore)
+{
+    size_t const nbSeqs = (size_t)(seqStore->sequences - seqStore->sequencesStart);
+    size_t const nbLits = (size_t)(seqStore->lit - seqStore->litStart);
+
+    return nbSeqs < 4 && nbLits < 10;
+}
+
+static void ZSTD_confirmRepcodesAndEntropyTables(ZSTD_CCtx* zc)
+{
+    ZSTD_compressedBlockState_t* const tmp = zc->blockState.prevCBlock;
+    zc->blockState.prevCBlock = zc->blockState.nextCBlock;
+    zc->blockState.nextCBlock = tmp;
+}
+
+/* Returns 0 on success, otherwise ZSTD error code */
+static size_t ZSTD_copySequencesToSeqStore(seqStore_t* seqStore,
                                          const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
                                          const void* src, size_t srcSize) {
-    int idx = 0;
+    printf("ZSTD_copySequencesToSeqStore: numSeqs: %zu\n", inSeqsSize);
+    size_t idx = 0;
     BYTE const* ip = (BYTE const*)src;
     const BYTE* const iend = ip + srcSize;
 
@@ -2602,20 +2633,27 @@ static void ZSTD_copySequencesToSeqStore(seqStore_t* seqStore,
         U32 matchLength = inSeqs[idx].matchLength;
         U32 offCode = inSeqs[idx].offset + ZSTD_REP_MOVE;
         RETURN_ERROR_IF(matchLength < MINMATCH, corruption_detected, "Matchlength too small!");
-
+        printf("idx now: %zu, seq: (ll: %u, ml: %u, of: %u)\n", idx, litLength, matchLength, offCode);;
+        
         ZSTD_storeSeq(seqStore, litLength, ip, iend, offCode, matchLength - MINMATCH);
         ip += matchLength;
     }
+
+    printf("ZSTD_copySequencesToSeqStore: done\n");
+    return 0;
 }
 
 size_t ZSTD_compressSequences_ext(void* dst, size_t dstSize,
                                   const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
                                   const void* src, size_t srcSize) {
+    printf("ZSTD_compressSequences_ext()\n");
     ZSTD_CCtx* cctx = ZSTD_createCCtx();
+    ZSTD_CCtx_reset(cctx, ZSTD_reset_session_only);
     size_t cSize;
 
     if (dstSize < ZSTD_compressBound(srcSize))
         RETURN_ERROR(dstSize_tooSmall, "Destination buffer too small!");
+    printf("SeqStore: maxNbSeq: %u, maxNbLits: %u\n", cctx->seqStore.maxNbSeq, cctx->seqStore.maxNbLit);
 
     ZSTD_copySequencesToSeqStore(&cctx->seqStore, inSeqs, inSeqsSize, src, srcSize);
     cSize = ZSTD_compressSequences(&cctx->seqStore,
@@ -2646,36 +2684,9 @@ size_t ZSTD_compressSequences_ext(void* dst, size_t dstSize,
     MEM_writeLE24(dst + cSize, cBlockHeader);
     cSize += ZSTD_blockHeaderSize;
 
+    /* Write frame header */
+
     return cSize;
-}
-
-/* Returns true if the given block is a RLE block */
-static int ZSTD_isRLE(const BYTE *ip, size_t length) {
-    size_t i;
-    if (length < 2) return 1;
-    for (i = 1; i < length; ++i) {
-        if (ip[0] != ip[i]) return 0;
-    }
-    return 1;
-}
-
-/* Returns true if the given block may be RLE.
- * This is just a heuristic based on the compressibility.
- * It may return both false positives and false negatives.
- */
-static int ZSTD_maybeRLE(seqStore_t const* seqStore)
-{
-    size_t const nbSeqs = (size_t)(seqStore->sequences - seqStore->sequencesStart);
-    size_t const nbLits = (size_t)(seqStore->lit - seqStore->litStart);
-
-    return nbSeqs < 4 && nbLits < 10;
-}
-
-static void ZSTD_confirmRepcodesAndEntropyTables(ZSTD_CCtx* zc)
-{
-    ZSTD_compressedBlockState_t* const tmp = zc->blockState.prevCBlock;
-    zc->blockState.prevCBlock = zc->blockState.nextCBlock;
-    zc->blockState.nextCBlock = tmp;
 }
 
 static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,

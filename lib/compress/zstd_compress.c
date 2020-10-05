@@ -4109,7 +4109,9 @@ size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
             params.compressionLevel = cctx->cdict->compressionLevel; /* let cdict take priority in terms of compression level */
         DEBUGLOG(4, "ZSTD_compressStream2 : transparent init stage");
         if (endOp == ZSTD_e_end) cctx->pledgedSrcSizePlusOne = input->size + 1;  /* auto-fix pledgedSrcSize */
-        params.cParams = ZSTD_getCParamsFromCCtxParams(&params, cctx->pledgedSrcSizePlusOne-1, 0 /*dictSize*/);
+        params.cParams = ZSTD_getCParamsFromCCtxParams(
+                &params, cctx->pledgedSrcSizePlusOne-1,
+                cctx->prefixDict.dict ? cctx->prefixDict.dictSize : (cctx->cdict ? cctx->cdict->dictContentSize : 0));
 
 
 #ifdef ZSTD_MULTITHREAD

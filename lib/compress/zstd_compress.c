@@ -3793,34 +3793,6 @@ size_t ZSTD_CStreamOutSize(void)
     return ZSTD_compressBound(ZSTD_BLOCKSIZE_MAX) + ZSTD_blockHeaderSize + 4 /* 32-bits hash */ ;
 }
 
-static size_t ZSTD_resetCStream_internal(ZSTD_CStream* cctx,
-                    const void* const dict, size_t const dictSize, ZSTD_dictContentType_e const dictContentType,
-                    const ZSTD_CDict* const cdict,
-                    ZSTD_CCtx_params params, unsigned long long const pledgedSrcSize)
-{
-    DEBUGLOG(4, "ZSTD_resetCStream_internal");
-    /* Finalize the compression parameters */
-    params.cParams = ZSTD_getCParamsFromCCtxParams(&params, pledgedSrcSize, dictSize);
-    /* params are supposed to be fully validated at this point */
-    assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
-    assert(!((dict) && (cdict)));  /* either dict or cdict, not both */
-
-    FORWARD_IF_ERROR( ZSTD_compressBegin_internal(cctx,
-                                         dict, dictSize, dictContentType, ZSTD_dtlm_fast,
-                                         cdict,
-                                         &params, pledgedSrcSize,
-                                         ZSTDb_buffered) , "");
-
-    cctx->inToCompress = 0;
-    cctx->inBuffPos = 0;
-    cctx->inBuffTarget = cctx->blockSize
-                      + (cctx->blockSize == pledgedSrcSize);   /* for small input: avoid automatic flush on reaching end of block, since it would require to add a 3-bytes null block to end frame */
-    cctx->outBuffContentSize = cctx->outBuffFlushedSize = 0;
-    cctx->streamStage = zcss_load;
-    cctx->frameEnded = 0;
-    return 0;   /* ready to go */
-}
-
 /* ZSTD_resetCStream():
  * pledgedSrcSize == 0 means "unknown" */
 size_t ZSTD_resetCStream(ZSTD_CStream* zcs, unsigned long long pss)
@@ -4162,12 +4134,21 @@ size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
             cctx->appliedParams.nbWorkers = params.nbWorkers;
         } else
 #endif
-        {   FORWARD_IF_ERROR( ZSTD_resetCStream_internal(cctx,
-                            prefixDict.dict, prefixDict.dictSize, prefixDict.dictContentType,
-                            cctx->cdict,
-                            params, cctx->pledgedSrcSizePlusOne-1) , "");
-            assert(cctx->streamStage == zcss_load);
+        {   U64 const pledgedSrcSize = cctx->pledgedSrcSizePlusOne - 1;
+            assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
+            FORWARD_IF_ERROR( ZSTD_compressBegin_internal(cctx,
+                    prefixDict.dict, prefixDict.dictSize, prefixDict.dictContentType, ZSTD_dtlm_fast,
+                    cctx->cdict,
+                    &params, pledgedSrcSize,
+                    ZSTDb_buffered) , "");
             assert(cctx->appliedParams.nbWorkers == 0);
+            cctx->inToCompress = 0;
+            cctx->inBuffPos = 0;
+            /* for small input: avoid automatic flush on reaching end of block, since it would require to add a 3-bytes null block to end frame */
+            cctx->inBuffTarget = cctx->blockSize + (cctx->blockSize == pledgedSrcSize);
+            cctx->outBuffContentSize = cctx->outBuffFlushedSize = 0;
+            cctx->streamStage = zcss_load;
+            cctx->frameEnded = 0;
     }   }
     /* end of transparent initialization stage */
 

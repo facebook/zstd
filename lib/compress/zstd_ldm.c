@@ -27,13 +27,6 @@ void ZSTD_ldm_adjustParameters(ldmParams_t* params,
     DEBUGLOG(4, "ZSTD_ldm_adjustParameters");
     if (!params->bucketSizeLog) params->bucketSizeLog = LDM_BUCKET_SIZE_LOG;
     if (!params->minMatchLength) params->minMatchLength = LDM_MIN_MATCH_LENGTH;
-    if (cParams->strategy >= ZSTD_btopt) {
-      /* Get out of the way of the optimal parser */
-      U32 const minMatch = MAX(cParams->targetLength, params->minMatchLength);
-      assert(minMatch >= ZSTD_LDM_MINMATCH_MIN);
-      assert(minMatch <= ZSTD_LDM_MINMATCH_MAX);
-      params->minMatchLength = minMatch;
-    }
     if (params->hashLog == 0) {
         params->hashLog = MAX(ZSTD_HASHLOG_MIN, params->windowLog - LDM_HASH_RLOG);
         assert(params->hashLog <= ZSTD_HASHLOG_MAX);

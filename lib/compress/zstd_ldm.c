@@ -573,8 +573,6 @@ static void ZSTD_ldm_skipRawSeqStoreBytes(rawSeqStore_t* rawSeqStore, size_t nbB
     if (currPos == 0 || rawSeqStore->pos == rawSeqStore->size) {
         rawSeqStore->posInSequence = 0;
     }
-    assert(rawSeqStore->posInSequence <=
-           rawSeqStore->seq[rawSeqStore->pos].litLength + rawSeqStore->seq[rawSeqStore->pos].matchLength);
 }
 
 size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
@@ -591,20 +589,16 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
     /* Input positions */
     BYTE const* ip = istart;
 
+    DEBUGLOG(5, "ZSTD_ldm_blockCompress: srcSize=%zu", srcSize);
     /* If using opt parser, use LDMs only as candidates rather than always accepting them */
     if (cParams->strategy >= ZSTD_btopt) {
         size_t lastLLSize;
-        ms->ldmSeqStore = *rawSeqStore;
+        ms->ldmSeqStore = rawSeqStore;
         lastLLSize = blockCompressor(ms, seqStore, rep, src, srcSize);
         ZSTD_ldm_skipRawSeqStoreBytes(rawSeqStore, srcSize);
-        if (rawSeqStore->pos >= rawSeqStore->size) {
-            /* If we're done with rawSeqStore, invalidate the one in matchState as well */
-            ms->ldmSeqStore.size = 0;
-        }
         return lastLLSize;
     }
 
-    DEBUGLOG(5, "ZSTD_ldm_blockCompress: srcSize=%zu", srcSize);
     assert(rawSeqStore->pos <= rawSeqStore->size);
     assert(rawSeqStore->size <= rawSeqStore->capacity);
     /* Loop through each sequence and apply the block compressor to the lits */

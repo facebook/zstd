@@ -1687,6 +1687,16 @@ findSynchronizationPoint(ZSTDMT_CCtx const* mtctx, ZSTD_inBuffer const input)
         pos = 0;
         prev = (BYTE const*)mtctx->inBuff.buffer.start + mtctx->inBuff.filled - RSYNC_LENGTH;
         hash = ZSTD_rollingHash_compute(prev, RSYNC_LENGTH);
+        if ((hash & hitMask) == hitMask) {
+            /* We're already at a sync point so don't load any more until
+             * we're able to flush this sync point.
+             * This likely happened because the job table was full so we
+             * couldn't add our job.
+             */
+            syncPoint.toLoad = 0;
+            syncPoint.flush = 1;
+            return syncPoint;
+        }
     } else {
         /* We don't have enough bytes buffered to initialize the hash, but
          * we know we have at least RSYNC_LENGTH bytes total.

@@ -780,20 +780,22 @@ typedef struct {
  * Moves forward in rawSeqStore by nbBytes, which will update the fields 'pos' and 'posInSequence'.
  */
 static void ZSTD_optLdm_skipRawSeqStoreBytes(rawSeqStore_t* rawSeqStore, size_t nbBytes) {
-    U32 currPos = rawSeqStore->posInSequence + nbBytes;
+    U32 currPos = (U32)(rawSeqStore->posInSequence + nbBytes);
     while (currPos && rawSeqStore->pos < rawSeqStore->size) {
         rawSeq currSeq = rawSeqStore->seq[rawSeqStore->pos];
         if (currPos >= currSeq.litLength + currSeq.matchLength) {
             currPos -= currSeq.litLength + currSeq.matchLength;
             rawSeqStore->pos++;
-            if (currPos == 0) {
-                rawSeqStore->posInSequence = 0;
-            }
         } else {
             rawSeqStore->posInSequence = currPos;
             break;
         }
     }
+    if (currPos == 0 || rawSeqStore->pos == rawSeqStore->size) {
+        rawSeqStore->posInSequence = 0;
+    }
+    assert(rawSeqStore->posInSequence <=
+           rawSeqStore->seq[rawSeqStore->pos].litLength + rawSeqStore->seq[rawSeqStore->pos].matchLength);
 }
 
 /* ZSTD_opt_getNextMatchAndUpdateSeqStore():
@@ -854,7 +856,7 @@ static void ZSTD_opt_getNextMatchAndUpdateSeqStore(ZSTD_optLdm_t* optLdm, U32 cu
  * and 'matchEndPosInBlock', into 'matches'. Maintains the correct ordering of 'matches'
  */
 static void ZSTD_optLdm_maybeAddMatch(ZSTD_match_t* matches, U32* nbMatches,
-                                   ZSTD_optLdm_t* optLdm, U32 currPosInBlock) {
+                                      ZSTD_optLdm_t* optLdm, U32 currPosInBlock) {
     U32 posDiff = currPosInBlock - optLdm->startPosInBlock;
     /* Note: ZSTD_match_t actually contains offCode and matchLength (before subtracting MINMATCH) */
     U32 candidateMatchLength = optLdm->endPosInBlock - optLdm->startPosInBlock - posDiff;
@@ -891,7 +893,7 @@ static void ZSTD_optLdm_maybeAddMatch(ZSTD_match_t* matches, U32* nbMatches,
  * Wrapper function to update ldm seq store and call ldm functions as necessary.
  */
 static void ZSTD_optLdm_processMatchCandidate(ZSTD_optLdm_t* optLdm, ZSTD_match_t* matches, U32* nbMatches,
-                                U32 currPosInBlock, U32 remainingBytes) {
+                                              U32 currPosInBlock, U32 remainingBytes) {
     if (optLdm->seqStore.size == 0 && optLdm->seqStore.pos >= optLdm->seqStore.size) {
         return;
     }
@@ -983,7 +985,7 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
             U32 const ll0 = !litlen;
             U32 nbMatches = ZSTD_BtGetAllMatches(matches, ms, &nextToUpdate3, ip, iend, dictMode, rep, ll0, minMatch);
             ZSTD_optLdm_processMatchCandidate(&optLdm, matches, &nbMatches,
-                                           (U32)(ip-istart), (U32)(iend - ip));
+                                              (U32)(ip-istart), (U32)(iend - ip));
             if (!nbMatches) { ip++; continue; }
 
             /* initialize opt[0] */
@@ -1100,7 +1102,7 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
                 U32 matchNb;
 
                 ZSTD_optLdm_processMatchCandidate(&optLdm, matches, &nbMatches,
-                                               (U32)(inr-istart), (U32)(iend-inr));
+                                                  (U32)(inr-istart), (U32)(iend-inr));
 
                 if (!nbMatches) {
                     DEBUGLOG(7, "rPos:%u : no match found", cur);

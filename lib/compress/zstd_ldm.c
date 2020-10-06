@@ -559,20 +559,22 @@ static rawSeq maybeSplitSequence(rawSeqStore_t* rawSeqStore,
  * Moves forward in rawSeqStore by nbBytes, updating fields 'pos' and 'posInSequence'.
  */
 static void ZSTD_ldm_skipRawSeqStoreBytes(rawSeqStore_t* rawSeqStore, size_t nbBytes) {
-    U32 currPos = rawSeqStore->posInSequence + nbBytes;
+    U32 currPos = (U32)(rawSeqStore->posInSequence + nbBytes);
     while (currPos && rawSeqStore->pos < rawSeqStore->size) {
         rawSeq currSeq = rawSeqStore->seq[rawSeqStore->pos];
         if (currPos >= currSeq.litLength + currSeq.matchLength) {
             currPos -= currSeq.litLength + currSeq.matchLength;
             rawSeqStore->pos++;
-            if (currPos == 0) {
-                rawSeqStore->posInSequence = 0;
-            }
         } else {
             rawSeqStore->posInSequence = currPos;
             break;
         }
     }
+    if (currPos == 0 || rawSeqStore->pos == rawSeqStore->size) {
+        rawSeqStore->posInSequence = 0;
+    }
+    assert(rawSeqStore->posInSequence <=
+           rawSeqStore->seq[rawSeqStore->pos].litLength + rawSeqStore->seq[rawSeqStore->pos].matchLength);
 }
 
 size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
@@ -597,7 +599,7 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
         ZSTD_ldm_skipRawSeqStoreBytes(rawSeqStore, srcSize);
         if (rawSeqStore->pos >= rawSeqStore->size) {
             /* If we're done with rawSeqStore, invalidate the one in matchState as well */
-            ms->ldmSeqStore.pos = rawSeqStore->size;
+            ms->ldmSeqStore.size = 0;
         }
         return lastLLSize;
     }

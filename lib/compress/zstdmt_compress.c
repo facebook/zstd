@@ -1773,8 +1773,16 @@ size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
             mtctx->inBuff.filled += syncPoint.toLoad;
             forwardInputProgress = syncPoint.toLoad>0;
         }
-        if ((input->pos < input->size) && (endOp == ZSTD_e_end))
-            endOp = ZSTD_e_flush;   /* can't end now : not all input consumed */
+    }
+    if ((input->pos < input->size) && (endOp == ZSTD_e_end)) {
+        /* Can't end yet because the input is not fully consumed.
+            * We are in one of these cases:
+            * - Input buffer is NULL & empty
+            * - We filled the input buffer
+            * - We hit a synchronization point
+            */
+        assert(mtctx->inBuff.filled == 0 || mtctx->inBuff.filled == mtctx->targetSectionSize || mtctx->params.rsyncable);
+        endOp = ZSTD_e_flush;
     }
 
     if ( (mtctx->jobReady)

@@ -2048,7 +2048,11 @@ static int fuzzerTests_newAPI(U32 seed, int nbTests, int startTest,
                     }
                 }
                 /* Enable rsyncable mode 1 in 4 times. */
-                setCCtxParameter(zc, cctxParams, ZSTD_c_rsyncable, (FUZ_rand(&lseed) % 4 == 0), opaqueAPI);
+                {
+                    int const rsyncable = (FUZ_rand(&lseed) % 4 == 0);
+                    DISPLAYLEVEL(5, "t%u: rsyncable : %d \n", testNb, rsyncable);
+                    setCCtxParameter(zc, cctxParams, ZSTD_c_rsyncable, rsyncable, opaqueAPI);
+                }
 
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_c_forceMaxWindow, FUZ_rand(&lseed) & 1, opaqueAPI) );
 

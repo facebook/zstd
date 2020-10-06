@@ -874,8 +874,11 @@ static void ZSTD_optLdm_maybeAddMatch(ZSTD_match_t* matches, U32* nbMatches,
         matches[*nbMatches].off = candidateOffCode;
         (*nbMatches)++;
     } else if ((candidateMatchLength >= matches[*nbMatches-1].len) && *nbMatches < ZSTD_OPT_NUM) {
-        /* No need to insert the match if it's the exact same, or offCode is larger with same matchLen */
-        if (candidateMatchLength == matches[*nbMatches-1].len && candidateOffCode >= matches[*nbMatches-1].off) {
+        if (candidateMatchLength == matches[*nbMatches-1].len) {
+            /* No need to insert match with same matchLength. At most, replace offCode if it is smaller. */
+            if (candidateOffCode < matches[*nbMatches-1].off) {
+                matches[*nbMatches-1].off = candidateOffCode;
+            }
             return;
         }
         matches[*nbMatches].len = candidateMatchLength;

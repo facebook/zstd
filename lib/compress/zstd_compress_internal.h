@@ -101,6 +101,8 @@ typedef struct {
   size_t capacity;      /* The capacity starting from `seq` pointer */
 } rawSeqStore_t;
 
+UNUSED_ATTR static const rawSeqStore_t kNullRawSeqStore = {NULL, 0, 0, 0, 0};
+
 typedef struct {
     int price;
     U32 off;

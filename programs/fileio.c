@@ -2124,19 +2124,21 @@ FIO_decompressZstdFrame(FIO_ctx_t* const fCtx, dRess_t* ress, FILE* finput,
         /* Write block */
         storedSkips = FIO_fwriteSparse(ress->dstFile, ress->dstBuffer, outBuff.pos, prefs, storedSkips);
         frameSize += outBuff.pos;
-        if (fCtx->nbFilesTotal > 1) {
-            size_t srcFileNameSize = strlen(srcFileName);
-            if (srcFileNameSize > 18) {
-                const char* truncatedSrcFileName = srcFileName + srcFileNameSize - 15;
-                DISPLAYUPDATE(2, "\rDecompress: %2u/%2u files. Current: ...%s : %u MB...    ",
-                                fCtx->currFileIdx+1, fCtx->nbFilesTotal, truncatedSrcFileName, (unsigned)((alreadyDecoded+frameSize)>>20) );
+        if (!fCtx->hasStdoutOutput) {
+            if (fCtx->nbFilesTotal > 1) {
+                size_t srcFileNameSize = strlen(srcFileName);
+                if (srcFileNameSize > 18) {
+                    const char* truncatedSrcFileName = srcFileName + srcFileNameSize - 15;
+                    DISPLAYUPDATE(2, "\rDecompress: %2u/%2u files. Current: ...%s : %u MB...    ",
+                                    fCtx->currFileIdx+1, fCtx->nbFilesTotal, truncatedSrcFileName, (unsigned)((alreadyDecoded+frameSize)>>20) );
+                } else {
+                    DISPLAYUPDATE(2, "\rDecompress: %2u/%2u files. Current: %s : %u MB...    ",
+                                fCtx->currFileIdx+1, fCtx->nbFilesTotal, srcFileName, (unsigned)((alreadyDecoded+frameSize)>>20) );
+                }
             } else {
-                DISPLAYUPDATE(2, "\rDecompress: %2u/%2u files. Current: %s : %u MB...    ",
-                            fCtx->currFileIdx+1, fCtx->nbFilesTotal, srcFileName, (unsigned)((alreadyDecoded+frameSize)>>20) );
+                DISPLAYUPDATE(2, "\r%-20.20s : %u MB...     ",
+                                srcFileName, (unsigned)((alreadyDecoded+frameSize)>>20) );
             }
-        } else {
-            DISPLAYUPDATE(2, "\r%-20.20s : %u MB...     ",
-                            srcFileName, (unsigned)((alreadyDecoded+frameSize)>>20) );
         }
 
         if (inBuff.pos > 0) {

@@ -964,14 +964,8 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
     ZSTD_optimal_t lastSequence;
     ZSTD_optLdm_t optLdm;
 
-    if (ms->ldmSeqStore) {
-        optLdm.seqStore = *ms->ldmSeqStore;
-        optLdm.endPosInBlock = optLdm.startPosInBlock = optLdm.offset = 0;
-    } else {
-        optLdm.seqStore.size = optLdm.seqStore.pos = 0;
-    }
-
-    /* Get first match from ldm seq store if long mode is enabled */
+    optLdm.seqStore = ms->ldmSeqStore ? *ms->ldmSeqStore : kNullRawSeqStore;
+    optLdm.endPosInBlock = optLdm.startPosInBlock = optLdm.offset = 0;
     ZSTD_opt_getNextMatchAndUpdateSeqStore(&optLdm, (U32)(ip-istart), (U32)(iend-ip));
 
     /* init */

@@ -867,20 +867,9 @@ static void ZSTD_optLdm_maybeAddMatch(ZSTD_match_t* matches, U32* nbMatches,
         return;
     }
 
-    DEBUGLOG(6, "ZSTD_optLdm_maybeAddMatch(): Adding ldm candidate match (offCode: %u matchLength %u) at block position=%u",
-             candidateOffCode, candidateMatchLength, currPosInBlock);
-    if (*nbMatches == 0) {
-        matches[*nbMatches].len = candidateMatchLength;
-        matches[*nbMatches].off = candidateOffCode;
-        (*nbMatches)++;
-    } else if ((candidateMatchLength >= matches[*nbMatches-1].len) && *nbMatches < ZSTD_OPT_NUM) {
-        if (candidateMatchLength == matches[*nbMatches-1].len) {
-            /* No need to insert match with same matchLength. At most, replace offCode if it is smaller. */
-            if (candidateOffCode < matches[*nbMatches-1].off) {
-                matches[*nbMatches-1].off = candidateOffCode;
-            }
-            return;
-        }
+    if (*nbMatches == 0 || ((candidateMatchLength > matches[*nbMatches-1].len) && *nbMatches < ZSTD_OPT_NUM)) {
+        DEBUGLOG(6, "ZSTD_optLdm_maybeAddMatch(): Adding ldm candidate match (offCode: %u matchLength %u) at block position=%u",
+                 candidateOffCode, candidateMatchLength, currPosInBlock);
         matches[*nbMatches].len = candidateMatchLength;
         matches[*nbMatches].off = candidateOffCode;
         (*nbMatches)++;

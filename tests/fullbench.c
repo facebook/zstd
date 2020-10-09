@@ -232,23 +232,40 @@ local_ZSTD_compressStream_freshCCtx(const void* src, size_t srcSize,
     r = local_ZSTD_compressStream(src, srcSize, dst, dstCapacity, payload);
 
     ZSTD_freeCCtx(cctx);
-
     return r;
 }
 
 static size_t
-local_ZSTD_compress_generic_end(const void* src, size_t srcSize,
-                                void* dst, size_t dstCapacity,
-                                void* payload)
+local_ZSTD_compress2(const void* src, size_t srcSize,
+                           void* dst, size_t dstCapacity,
+                           void* payload)
 {
     (void)payload;
     return ZSTD_compress2(g_cstream, dst, dstCapacity, src, srcSize);
 }
 
 static size_t
-local_ZSTD_compress_generic_continue(const void* src, size_t srcSize,
-                                     void* dst, size_t dstCapacity,
-                                     void* payload)
+local_ZSTD_compressStream2_end(const void* src, size_t srcSize,
+    void* dst, size_t dstCapacity,
+    void* payload)
+{
+    ZSTD_outBuffer buffOut;
+    ZSTD_inBuffer buffIn;
+    (void)payload;
+    buffOut.dst = dst;
+    buffOut.size = dstCapacity;
+    buffOut.pos = 0;
+    buffIn.src = src;
+    buffIn.size = srcSize;
+    buffIn.pos = 0;
+    ZSTD_compressStream2(g_cstream, &buffOut, &buffIn, ZSTD_e_end);
+    return buffOut.pos;
+}
+
+static size_t
+local_ZSTD_compressStream2_continue(const void* src, size_t srcSize,
+                                 void* dst, size_t dstCapacity,
+                                 void* payload)
 {
     ZSTD_outBuffer buffOut;
     ZSTD_inBuffer buffIn;
@@ -437,11 +454,17 @@ static int benchMem(unsigned benchNb,
     case 43:
         benchFunction = local_ZSTD_compressStream_freshCCtx; benchName = "compressStream_freshCCtx";
         break;
+    case 50:
+        benchFunction = local_ZSTD_compress2; benchName = "compress2";
+        break;
     case 51:
-        benchFunction = local_ZSTD_compress_generic_continue; benchName = "compress_generic, continue";
+        benchFunction = local_ZSTD_compressStream2_end; benchName = "compressStream2, end";
         break;
     case 52:
-        benchFunction = local_ZSTD_compress_generic_end; benchName = "compress_generic, end";
+        benchFunction = local_ZSTD_compressStream2_end; benchName = "compressStream2, end & short";
+        break;
+    case 53:
+        benchFunction = local_ZSTD_compressStream2_continue; benchName = "compressStream2, continue";
         break;
     case 61:
         benchFunction = local_ZSTD_compress_generic_T2_continue; benchName = "compress_generic, -T2, continue";
@@ -571,6 +594,11 @@ static int benchMem(unsigned benchNb,
         break;
     case 43 :
         payload = &cparams;
+        break;
+
+    case 52 :
+        /* compressStream2, short dstCapacity */
+        dstBuffSize--;
         break;
 
     /* test functions */

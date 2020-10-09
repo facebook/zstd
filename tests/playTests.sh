@@ -396,9 +396,8 @@ cp tmp_rm3.zst tmp_rm4.zst
 echo 'Y' | zstd -d tmp_rm3.zst tmp_rm4.zst -o tmp_rm_out --rm
 test ! -f tmp_rm3.zst
 test ! -f tmp_rm4.zst
-echo 'yes' | zstd tmp_rm_out tmp_rm3 -c --rm > $INTOVOID
-test ! -f tmp_rm_out
-test ! -f tmp_rm3
+echo 'yes' | zstd tmp_rm_out tmp_rm3 -c --rm && die "compressing multiple files to stdout with --rm should fail unless -f is specified"
+echo 'yes' | zstd tmp_rm_out tmp_rm3 -c --rm -v && die "compressing multiple files to stdout with --rm should fail unless -f is specified"
 println gooder > tmpexists1
 zstd tmpexists1 tmpexists -c --rm -f > $INTOVOID
 

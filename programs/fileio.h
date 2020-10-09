@@ -107,6 +107,7 @@ void FIO_setContentSize(FIO_prefs_t* const prefs, int value);
 
 /* FIO_ctx_t functions */
 void FIO_setNbFilesTotal(FIO_ctx_t* const fCtx, int value);
+void FIO_setHasStdoutOutput(FIO_ctx_t* const fCtx, int value);
 void FIO_determineHasStdinInput(FIO_ctx_t* const fCtx, const FileNamesTable* const filenames);
 
 /*-*************************************

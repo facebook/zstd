@@ -39,31 +39,33 @@ extern "C" {
 /*! ZSTD_dict_in_stream_getDataSize() :
  *  Given a dict_in_stream header, of size ZSTD_DICT_IN_STREAM_HEADER_SIZE,
  *  determine how many bytes of dictionary data follow the header.
- *  Returns 0 if this is not a dict_in_stream header. */
+ *  Returns an error code if this is an invalid header
+ *  (which can be tested using ZSTD_isError()). */
 ZSTDLIB_API size_t ZSTD_dict_in_stream_getDataSize(const void* src, size_t srcSize);
 
 /*! ZSTD_dict_in_stream_getDictSize() :
  *  Given the (possibly compressed) dictionary data that follows a
  *  dict_in_stream header, determine the decompressed dictionary size.
- *  Returns 0 if this is not a valid dictionary. */
+ *  Returns an error code if this is invalid dictionary data
+ *  (which can be tested using ZSTD_isError()). */
 ZSTDLIB_API size_t ZSTD_dict_in_stream_getDictSize(const void* src, size_t srcSize);
 
 /*! ZSTD_dict_in_stream_getDict() :
  *  Given the (possibly compressed) dictionary data that follows a
- *  dict_in_stream header, decompress the dictionary. Returns 0 on error. */
+ *  dict_in_stream header, decompress the dictionary.
+ *  Returns an error code on error (which can be tested using ZSTD_isError()). */
 ZSTDLIB_API size_t ZSTD_dict_in_stream_getDict(void* dst, size_t dstCapacity,
                                          const void* src, size_t srcSize);
 
 /*! ZSTD_dict_in_stream_createCDict() :
- *  Given the (possibly compressed) dictionary data that follows a
- *  dict_in_stream header, load the dictionary as a CDict.
- *  Returns 0 on error or if this is not a valid dictionary. */
-ZSTDLIB_API ZSTD_CDict* ZSTD_dict_in_stream_createCDict(const void* src, size_t srcSize);
+ *  Convenience function to load the dictionary as a CDict.
+ *  Returns NULL on error or if this is not a valid dictionary. */
+ZSTDLIB_API ZSTD_CDict* ZSTD_dict_in_stream_createCDict(const void* src, size_t srcSize,
+                                                        int compressionLevel);
 
 /*! ZSTD_dict_in_stream_createDDict() :
- *  Given the (possibly compressed) dictionary data that follows a
- *  dict_in_stream header, load the dictionary as a DDict.
- *  Returns 0 on error or if this is not a valid dictionary. */
+ *  Convenience function to load the dictionary as a DDict.
+ *  Returns NULL on error or if this is not a valid dictionary. */
 ZSTDLIB_API ZSTD_DDict* ZSTD_dict_in_stream_createDDict(const void* src, size_t srcSize);
 
 /*-****************************************************************************

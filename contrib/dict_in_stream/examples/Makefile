@@ -18,7 +18,7 @@ CPPFLAGS += -I.. -I../../seekable_format -I../../../lib -I../../../lib/common
 CFLAGS ?= -O3
 CFLAGS += -g
 
-DIS_OBJS = ../zstddis_compress.c
+DIS_OBJS = ../zstddis_compress.c ../zstddis_decompress.c
 SEEKABLE_OBJS = ../../seekable_format/zstdseek_compress.c ../../seekable_format/zstdseek_decompress.c
 
 .PHONY: default all clean test

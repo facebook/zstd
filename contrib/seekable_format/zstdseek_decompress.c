@@ -377,6 +377,11 @@ size_t ZSTD_seekable_initAdvanced(ZSTD_seekable* zs, ZSTD_seekable_customFile sr
     return 0;
 }
 
+size_t ZSTD_seekable_refDDict(ZSTD_seekable* zs, const ZSTD_DDict* ddict)
+{
+    return ZSTD_DCtx_refDDict(zs->dstream, ddict);
+}
+
 size_t ZSTD_seekable_decompress(ZSTD_seekable* zs, void* dst, size_t len, unsigned long long offset)
 {
     U32 targetFrame = ZSTD_seekable_offsetToFrameIndex(zs, offset);

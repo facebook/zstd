@@ -168,6 +168,16 @@ size_t ZSTD_seekable_initCStream(ZSTD_seekable_CStream* zcs,
     return ZSTD_initCStream(zcs->cstream, compressionLevel);
 }
 
+size_t ZSTD_seekable_refCDict(ZSTD_seekable_CStream* zcs, const ZSTD_CDict* cdict)
+{
+    return ZSTD_CCtx_refCDict(zcs->cstream, cdict);
+}
+
+ZSTD_frameLog* ZSTD_seekable_getFrameLog(ZSTD_seekable_CStream* zcs)
+{
+    return &zcs->framelog;
+}
+
 size_t ZSTD_seekable_logFrame(ZSTD_frameLog* fl,
                               unsigned compressedSize,
                               unsigned decompressedSize,

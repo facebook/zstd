@@ -78,12 +78,15 @@ ZSTDLIB_API ZSTD_DDict* ZSTD_dict_in_stream_createDDict(const void* src, size_t 
 
 /*! ZSTD_dict_in_stream_maxFrameSize() :
  *  Determine the maximum possible size of the dictionary frame needed to store
- *  a dictionary. */
+ *  a dictionary.
+ *  Returns an error code if it fails (which can be tested using ZSTD_isError()). */
 ZSTDLIB_API size_t ZSTD_dict_in_stream_maxFrameSize(const void* dict, size_t dictSize);
 
 /*! ZSTD_dict_in_stream_createFrame() :
  *  Create a dictionary frame from a dictionary, with optional compression.
- *  compressionLevel can be 0 to disable compression. */
+ *  compressionLevel can be 0 to disable compression.
+ *  Returns the size of the frame,
+ *  or an error code if it fails (which can be tested using ZSTD_isError()). */
 ZSTDLIB_API size_t ZSTD_dict_in_stream_createFrame(void* dst, size_t dstCapacity,
                                              const void* dict, size_t dictSize,
                                                    int compressionLevel);

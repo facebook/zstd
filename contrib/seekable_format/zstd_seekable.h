@@ -83,6 +83,7 @@ ZSTDLIB_API size_t ZSTD_seekable_initCStream(ZSTD_seekable_CStream* zcs, int com
 ZSTDLIB_API size_t ZSTD_seekable_compressStream(ZSTD_seekable_CStream* zcs, ZSTD_outBuffer* output, ZSTD_inBuffer* input);
 ZSTDLIB_API size_t ZSTD_seekable_endFrame(ZSTD_seekable_CStream* zcs, ZSTD_outBuffer* output);
 ZSTDLIB_API size_t ZSTD_seekable_endStream(ZSTD_seekable_CStream* zcs, ZSTD_outBuffer* output);
+ZSTDLIB_API size_t ZSTD_seekable_refCDict(ZSTD_seekable_CStream* zcs, const ZSTD_CDict* cdict);
 
 /*= Raw seek table API
  *  These functions allow for the seek table to be constructed directly.
@@ -106,6 +107,7 @@ ZSTDLIB_API ZSTD_frameLog* ZSTD_seekable_createFrameLog(int checksumFlag);
 ZSTDLIB_API size_t ZSTD_seekable_freeFrameLog(ZSTD_frameLog* fl);
 ZSTDLIB_API size_t ZSTD_seekable_logFrame(ZSTD_frameLog* fl, unsigned compressedSize, unsigned decompressedSize, unsigned checksum);
 ZSTDLIB_API size_t ZSTD_seekable_writeSeekTable(ZSTD_frameLog* fl, ZSTD_outBuffer* output);
+ZSTDLIB_API ZSTD_frameLog* ZSTD_seekable_getFrameLog(ZSTD_seekable_CStream* zcs);
 
 /*-****************************************************************************
 *  Seekable decompression - HowTo

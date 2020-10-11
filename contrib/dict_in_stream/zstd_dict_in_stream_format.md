@@ -39,7 +39,7 @@ __`Magic_Number`__
 Little-endian value: 0x184D2A5D.
 Since it is legal for other Zstandard skippable frames to use the same
 magic number, it is not recommended for a decoder to recognize frames
-solely on this.
+using this field alone.
 
 __`Frame_Size`__
 

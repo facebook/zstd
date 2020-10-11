@@ -197,10 +197,10 @@ libzstd.a: $(ZSTD_OBJ)
 
 ifneq (,$(filter Windows%,$(TARGET_SYSTEM)))
 
-LIBZSTD = dll\libzstd.dll
+LIBZSTD = dll/libzstd.dll
 $(LIBZSTD): $(ZSTD_FILES)
 	@echo compiling dynamic library $(LIBVER)
-	$(CC) $(FLAGS) -DZSTD_DLL_EXPORT=1 -Wl,--out-implib,dll\libzstd.dll.a -shared $^ -o $@
+	$(CC) $(FLAGS) -DZSTD_DLL_EXPORT=1 -Wl,--out-implib,dll/libzstd.dll.a -shared $^ -o $@
 
 else
 

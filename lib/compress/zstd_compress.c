@@ -4064,7 +4064,8 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
 
         case zcss_load:
             if ( (flushMode == ZSTD_e_end)
-              && ((size_t)(oend-op) >= ZSTD_compressBound(iend-ip))  /* enough dstCapacity */
+              && ( (size_t)(oend-op) >= ZSTD_compressBound(iend-ip)     /* Enough output space */
+                || zcs->appliedParams.outBufferMode == ZSTD_bm_stable)  /* OR we are allowed to return dstSizeTooSmall */
               && (zcs->inBuffPos == 0) ) {
                 /* shortcut to compression pass directly into output buffer */
                 size_t const cSize = ZSTD_compressEnd(zcs,

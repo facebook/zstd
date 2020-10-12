@@ -4084,8 +4084,9 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                 ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);
                 someMoreWork = 0; break;
             }
-            /* complete loading into inBuffer */
-            {   size_t const toLoad = zcs->inBuffTarget - zcs->inBuffPos;
+            /* complete loading into inBuffer in buffered mode */
+            if (zcs->appliedParams.inBufferMode == ZSTD_bm_buffered) {
+                size_t const toLoad = zcs->inBuffTarget - zcs->inBuffPos;
                 size_t const loaded = ZSTD_limitCopy(
                                         zcs->inBuff + zcs->inBuffPos, toLoad,
                                         ip, iend-ip);
@@ -4105,31 +4106,49 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
             }
             /* compress current block (note : this stage cannot be stopped in the middle) */
             DEBUGLOG(5, "stream compression stage (flushMode==%u)", flushMode);
-            {   void* cDst;
+            {   int const inputBuffered = (zcs->appliedParams.inBufferMode == ZSTD_bm_buffered);
+                void* cDst;
                 size_t cSize;
-                size_t const iSize = zcs->inBuffPos - zcs->inToCompress;
                 size_t oSize = oend-op;
-                unsigned const lastBlock = (flushMode == ZSTD_e_end) && (ip==iend);
+                size_t const iSize = inputBuffered
+                    ? zcs->inBuffPos - zcs->inToCompress
+                    : MIN((size_t)(iend - ip), zcs->blockSize);
                 if (oSize >= ZSTD_compressBound(iSize) || zcs->appliedParams.outBufferMode == ZSTD_bm_stable)
                     cDst = op;   /* compress into output buffer, to skip flush stage */
                 else
                     cDst = zcs->outBuff, oSize = zcs->outBuffSize;
-                cSize = lastBlock ?
-                        ZSTD_compressEnd(zcs, cDst, oSize,
-                                    zcs->inBuff + zcs->inToCompress, iSize) :
-                        ZSTD_compressContinue(zcs, cDst, oSize,
-                                    zcs->inBuff + zcs->inToCompress, iSize);
-                FORWARD_IF_ERROR(cSize, "%s", lastBlock ? "ZSTD_compressEnd failed" : "ZSTD_compressContinue failed");
-                zcs->frameEnded = lastBlock;
-                /* prepare next block */
-                zcs->inBuffTarget = zcs->inBuffPos + zcs->blockSize;
-                if (zcs->inBuffTarget > zcs->inBuffSize)
-                    zcs->inBuffPos = 0, zcs->inBuffTarget = zcs->blockSize;
-                DEBUGLOG(5, "inBuffTarget:%u / inBuffSize:%u",
-                         (unsigned)zcs->inBuffTarget, (unsigned)zcs->inBuffSize);
-                if (!lastBlock)
-                    assert(zcs->inBuffTarget <= zcs->inBuffSize);
-                zcs->inToCompress = zcs->inBuffPos;
+                if (inputBuffered) {
+                    unsigned const lastBlock = (flushMode == ZSTD_e_end) && (ip==iend);
+                    cSize = lastBlock ?
+                            ZSTD_compressEnd(zcs, cDst, oSize,
+                                        zcs->inBuff + zcs->inToCompress, iSize) :
+                            ZSTD_compressContinue(zcs, cDst, oSize,
+                                        zcs->inBuff + zcs->inToCompress, iSize);
+                    FORWARD_IF_ERROR(cSize, "%s", lastBlock ? "ZSTD_compressEnd failed" : "ZSTD_compressContinue failed");
+                    zcs->frameEnded = lastBlock;
+                    /* prepare next block */
+                    zcs->inBuffTarget = zcs->inBuffPos + zcs->blockSize;
+                    if (zcs->inBuffTarget > zcs->inBuffSize)
+                        zcs->inBuffPos = 0, zcs->inBuffTarget = zcs->blockSize;
+                    DEBUGLOG(5, "inBuffTarget:%u / inBuffSize:%u",
+                            (unsigned)zcs->inBuffTarget, (unsigned)zcs->inBuffSize);
+                    if (!lastBlock)
+                        assert(zcs->inBuffTarget <= zcs->inBuffSize);
+                    zcs->inToCompress = zcs->inBuffPos;
+                } else {
+                    unsigned const lastBlock = (ip + iSize == iend);
+                    assert(flushMode == ZSTD_e_end /* Already validated */);
+                    cSize = lastBlock ?
+                            ZSTD_compressEnd(zcs, cDst, oSize, ip, iSize) :
+                            ZSTD_compressContinue(zcs, cDst, oSize, ip, iSize);
+                    /* Consume the input prior to error checking to mirror buffered mode. */
+                    if (iSize > 0)
+                        ip += iSize;
+                    FORWARD_IF_ERROR(cSize, "%s", lastBlock ? "ZSTD_compressEnd failed" : "ZSTD_compressContinue failed");
+                    zcs->frameEnded = lastBlock;
+                    if (lastBlock)
+                        assert(ip == iend);
+                }
                 if (cDst == op) {  /* no need to flush */
                     op += cSize;
                     if (zcs->frameEnded) {

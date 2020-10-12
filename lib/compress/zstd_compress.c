@@ -3590,24 +3590,32 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced2(
 
 ZSTD_CDict* ZSTD_createCDict(const void* dict, size_t dictSize, int compressionLevel)
 {
-    ZSTD_compressionParameters cParams = ZSTD_getCParams_internal(compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, dictSize);
-    ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dict, dictSize,
-                                                  ZSTD_dlm_byCopy, ZSTD_dct_auto,
-                                                  cParams, ZSTD_defaultCMem);
-    if (cdict)
-        cdict->compressionLevel = (compressionLevel == 0) ? ZSTD_CLEVEL_DEFAULT : compressionLevel;
-    return cdict;
+    if (ZSTD_isError(ZSTD_cParam_clampBounds(ZSTD_c_compressionLevel, &compressionLevel)))
+        return NULL;
+
+    {   ZSTD_compressionParameters cParams = ZSTD_getCParams_internal(compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, dictSize);
+        ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dict, dictSize,
+                                                    ZSTD_dlm_byCopy, ZSTD_dct_auto,
+                                                    cParams, ZSTD_defaultCMem);
+        if (cdict)
+            cdict->compressionLevel = (compressionLevel == 0) ? ZSTD_CLEVEL_DEFAULT : compressionLevel;
+        return cdict;
+    }
 }
 
 ZSTD_CDict* ZSTD_createCDict_byReference(const void* dict, size_t dictSize, int compressionLevel)
 {
-    ZSTD_compressionParameters cParams = ZSTD_getCParams_internal(compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, dictSize);
-    ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dict, dictSize,
-                                     ZSTD_dlm_byRef, ZSTD_dct_auto,
-                                     cParams, ZSTD_defaultCMem);
-    if (cdict)
-        cdict->compressionLevel = (compressionLevel == 0) ? ZSTD_CLEVEL_DEFAULT : compressionLevel;
-    return cdict;
+    if (ZSTD_isError(ZSTD_cParam_clampBounds(ZSTD_c_compressionLevel, &compressionLevel)))
+        return NULL;
+
+    {   ZSTD_compressionParameters cParams = ZSTD_getCParams_internal(compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, dictSize);
+        ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dict, dictSize,
+                                        ZSTD_dlm_byRef, ZSTD_dct_auto,
+                                        cParams, ZSTD_defaultCMem);
+        if (cdict)
+            cdict->compressionLevel = (compressionLevel == 0) ? ZSTD_CLEVEL_DEFAULT : compressionLevel;
+        return cdict;
+    }
 }
 
 size_t ZSTD_freeCDict(ZSTD_CDict* cdict)

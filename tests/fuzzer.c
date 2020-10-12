@@ -2083,6 +2083,40 @@ static int basicUnitTests(U32 const seed, double compressibility)
         }
         DISPLAYLEVEL(3, "OK \n");
 
+        DISPLAYLEVEL(3, "test%3i : compressionLevel in ZSTD_createCDict should be clamped : ", testNb++);
+        {
+            ZSTD_CDict_s* cdict;
+            int level;
+
+            cdict = ZSTD_createCDict(dictBuffer, dictSize, ZSTD_maxCLevel()+1);
+            level = cdict->compressionLevel;
+            ZSTD_freeCDict(cdict);
+            if (level != ZSTD_maxCLevel()) goto _output_error;
+
+            cdict = ZSTD_createCDict(dictBuffer, dictSize, ZSTD_minCLevel()-1);
+            level = cdict->compressionLevel;
+            ZSTD_freeCDict(cdict);
+            if (level != ZSTD_minCLevel()) goto _output_error;
+        }
+        DISPLAYLEVEL(3, "OK \n");
+
+        DISPLAYLEVEL(3, "test%3i : compressionLevel in ZSTD_createCDict_byReference should be clamped : ", testNb++);
+        {
+            ZSTD_CDict_s* cdict;
+            int level;
+
+            cdict = ZSTD_createCDict_byReference(dictBuffer, dictSize, ZSTD_maxCLevel()+1);
+            level = cdict->compressionLevel;
+            ZSTD_freeCDict(cdict);
+            if (level != ZSTD_maxCLevel()) goto _output_error;
+
+            cdict = ZSTD_createCDict_byReference(dictBuffer, dictSize, ZSTD_minCLevel()-1);
+            level = cdict->compressionLevel;
+            ZSTD_freeCDict(cdict);
+            if (level != ZSTD_minCLevel()) goto _output_error;
+        }
+        DISPLAYLEVEL(3, "OK \n");
+
         DISPLAYLEVEL(3, "test%3i : Loaded dictionary persists across reset session : ", testNb++);
         {
             size_t size1, size2;

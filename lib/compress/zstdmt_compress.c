@@ -1787,9 +1787,9 @@ size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
     if ((input->pos < input->size) && (endOp == ZSTD_e_end)) {
         /* Can't end yet because the input is not fully consumed.
             * We are in one of these cases:
-            * - Input buffer is NULL & empty
-            * - We filled the input buffer
-            * - We hit a synchronization point
+            * - mtctx->inBuff is NULL & empty: we couldn't get an input buffer so don't create a new job.
+            * - We filled the input buffer: flush this job but don't end the frame.
+            * - We hit a synchronization point: flush this job but don't end the frame.
             */
         assert(mtctx->inBuff.filled == 0 || mtctx->inBuff.filled == mtctx->targetSectionSize || mtctx->params.rsyncable);
         endOp = ZSTD_e_flush;

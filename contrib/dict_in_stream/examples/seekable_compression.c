@@ -165,7 +165,7 @@ int main(int argc, const char** argv) {
         unsigned const frameSize = (unsigned)atoi(argv[3]);
 
         char* const outFileName = createOutFilename_orDie(inFileName);
-        compressFile_orDie(dictFileName, inFileName, outFileName, 5, frameSize);
+        compressFile_orDie(dictFileName, inFileName, outFileName, 10, frameSize);
         free(outFileName);
     }
 

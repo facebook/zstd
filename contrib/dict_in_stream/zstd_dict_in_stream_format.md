@@ -56,8 +56,8 @@ particular, it must start with little-endian 0xEC30A437.
 Otherwise, this data must be a single Zstandard compressed frame that
 decompresses into data in the Dictionary Format. In particular, the compressed
 data must start with little-endian 0xFD2FB528. The frame __must__ include a
-`Frame_Content_Size` field. This field __must not__ contain any skippable
-frames.
+`Frame_Content_Size` field, and __must not__ require a dictionary. This field
+__must not__ contain any skippable frames.
 
 [Dictionary Format]: https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md#dictionary-format
 [Zstandard skippable frame]: https://github.com/facebook/zstd/blob/master/doc/zstd_compression_format.md#skippable-frames

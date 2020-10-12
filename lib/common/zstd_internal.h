@@ -336,6 +336,12 @@ MEM_STATIC size_t ZSTD_limitCopy(void* dst, size_t dstCapacity, const void* src,
  * In which case, resize it down to free some memory */
 #define ZSTD_WORKSPACETOOLARGE_MAXDURATION 128
 
+/* Controls whether the input/output buffer is buffered or stable. */
+typedef enum {
+    ZSTD_bm_buffered = 0,  /* Buffer the input/output */
+    ZSTD_bm_stable = 1     /* ZSTD_inBuffer/ZSTD_outBuffer is stable */
+} ZSTD_bufferMode_e;
+
 
 /*-*******************************************
 *  Private declarations

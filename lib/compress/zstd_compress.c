@@ -452,6 +452,12 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
         bounds.upperBound = ZSTD_SRCSIZEHINT_MAX;
         return bounds;
 
+    case ZSTD_c_stableInBuffer:
+    case ZSTD_c_stableOutBuffer:
+        bounds.lowerBound = (int)ZSTD_bm_buffered;
+        bounds.upperBound = (int)ZSTD_bm_stable;
+        return bounds;
+
     default:
         bounds.error = ERROR(parameter_unsupported);
         return bounds;
@@ -509,6 +515,8 @@ static int ZSTD_isUpdateAuthorized(ZSTD_cParameter param)
     case ZSTD_c_literalCompressionMode:
     case ZSTD_c_targetCBlockSize:
     case ZSTD_c_srcSizeHint:
+    case ZSTD_c_stableInBuffer:
+    case ZSTD_c_stableOutBuffer:
     default:
         return 0;
     }
@@ -557,6 +565,8 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int value)
     case ZSTD_c_ldmBucketSizeLog:
     case ZSTD_c_targetCBlockSize:
     case ZSTD_c_srcSizeHint:
+    case ZSTD_c_stableInBuffer:
+    case ZSTD_c_stableOutBuffer:
         break;
 
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
@@ -748,6 +758,16 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
         CCtxParams->srcSizeHint = value;
         return CCtxParams->srcSizeHint;
 
+    case ZSTD_c_stableInBuffer:
+        BOUNDCHECK(ZSTD_c_stableInBuffer, value);
+        CCtxParams->inBufferMode = (ZSTD_bufferMode_e)value;
+        return CCtxParams->inBufferMode;
+
+    case ZSTD_c_stableOutBuffer:
+        BOUNDCHECK(ZSTD_c_stableOutBuffer, value);
+        CCtxParams->outBufferMode = (ZSTD_bufferMode_e)value;
+        return CCtxParams->outBufferMode;
+
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
     }
 }
@@ -858,6 +878,12 @@ size_t ZSTD_CCtxParams_getParameter(
         break;
     case ZSTD_c_srcSizeHint :
         *value = (int)CCtxParams->srcSizeHint;
+        break;
+    case ZSTD_c_stableInBuffer :
+        *value = (int)CCtxParams->inBufferMode;
+        break;
+    case ZSTD_c_stableOutBuffer :
+        *value = (int)CCtxParams->outBufferMode;
         break;
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
     }

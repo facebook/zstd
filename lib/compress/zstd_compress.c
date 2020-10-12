@@ -2196,13 +2196,13 @@ ZSTD_entropyCompressSequences_internal(seqStore_t* seqStorePtr,
     FSE_CTable* CTable_MatchLength = nextEntropy->fse.matchlengthCTable;
     U32 LLtype, Offtype, MLtype;   /* compressed, raw or rle */
     const seqDef* const sequences = seqStorePtr->sequencesStart;
+    const size_t nbSeq = seqStorePtr->sequences - seqStorePtr->sequencesStart;
     const BYTE* const ofCodeTable = seqStorePtr->ofCode;
     const BYTE* const llCodeTable = seqStorePtr->llCode;
     const BYTE* const mlCodeTable = seqStorePtr->mlCode;
     BYTE* const ostart = (BYTE*)dst;
     BYTE* const oend = ostart + dstCapacity;
     BYTE* op = ostart;
-    size_t const nbSeq = (size_t)(seqStorePtr->sequences - seqStorePtr->sequencesStart);
     BYTE* seqHead;
     BYTE* lastNCount = NULL;
 
@@ -2472,6 +2472,16 @@ void ZSTD_resetSeqStore(seqStore_t* ssPtr)
 
 typedef enum { ZSTDbss_compress, ZSTDbss_noCompress } ZSTD_buildSeqStore_e;
 
+static U32 countLiteralsBytes2(const seqStore_t* seqStore) {
+    U32 literalsBytes = 0;
+    U32 nbSeqs = seqStore->sequences - seqStore->sequencesStart;
+    for (int i = 0; i < nbSeqs; ++i) {
+        seqDef seq = seqStore->sequencesStart[i];
+        literalsBytes += seq.litLength;
+    }
+    return literalsBytes;
+}
+
 static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
 {
     ZSTD_matchState_t* const ms = &zc->blockState.matchState;
@@ -2695,10 +2705,192 @@ static void ZSTD_confirmRepcodesAndEntropyTables(ZSTD_CCtx* zc)
 
 /* Writes the block header */
 static void writeBlockHeader(void* op, size_t cSize, size_t blockSize, U32 lastBlock) {
+    DEBUGLOG(3, "writeBlockHeader: cSize: %u blockSize: %u lastBlock: %u", cSize, blockSize, lastBlock);
     U32 const cBlockHeader = cSize == 1 ?
                         lastBlock + (((U32)bt_rle)<<1) + (U32)(blockSize << 3) :
                         lastBlock + (((U32)bt_compressed)<<1) + (U32)(cSize << 3);
     MEM_writeLE24(op, cBlockHeader);
+}
+
+static U32 countLiteralsBytes(const seqStore_t* seqStore) {
+    U32 literalsBytes = 0;
+    U32 nbSeqs = seqStore->sequences - seqStore->sequencesStart;
+    for (int i = 0; i < nbSeqs; ++i) {
+        seqDef seq = seqStore->sequencesStart[i];
+        literalsBytes += seq.litLength;
+        if (i == seqStore->longLengthPos && seqStore->longLengthID == 1) {
+            literalsBytes += 0x10000;
+        }
+    }
+    return literalsBytes;
+}
+
+static U32 countMatchBytes(const seqStore_t* seqStore) {
+    U32 matchBytes = 0;
+    U32 nbSeqs = seqStore->sequences - seqStore->sequencesStart;
+    for (int i = 0; i < nbSeqs; ++i) {
+        seqDef seq = seqStore->sequencesStart[i];
+        matchBytes += seq.matchLength + MINMATCH;
+        if (i == seqStore->longLengthPos && seqStore->longLengthID == 2) {
+            matchBytes += 0x10000;
+        }
+    }
+    return matchBytes;
+}
+
+/* The issue is with setting the end of the literals. Existence of last literals in the seq store make it so that
+   we have to be careful with where we put our litEnds and whatnot. */
+static void setUpSeqStores(seqStore_t* firstSeqStore, seqStore_t* secondSeqStore, U32 nbSeq, U32 srcSize) {
+    size_t nbSeqFirstHalf = nbSeq/2;
+    size_t nbSeqSecondHalf = (nbSeq % 2 == 0) ? nbSeq/2 : nbSeq/2 + 1;
+    DEBUGLOG(2, "first half nbseq: %u second half nbseq: %u", nbSeqFirstHalf, nbSeqSecondHalf);
+
+    const BYTE* const litEnd = firstSeqStore->lit;
+    const BYTE* const seqEnd = firstSeqStore->sequences;
+
+    if (firstSeqStore->longLengthID != 0) {
+        DEBUGLOG(2, "long lenght ID present");
+        if (firstSeqStore->longLengthPos < nbSeqFirstHalf) {
+            secondSeqStore->longLengthID = 0;
+        } else {
+            firstSeqStore->longLengthID = 0;
+            secondSeqStore->longLengthPos = secondSeqStore->longLengthPos - nbSeqFirstHalf;
+        }
+    }
+
+    firstSeqStore->sequences = firstSeqStore->sequencesStart+nbSeqFirstHalf;
+
+    U32 literalsBytesFirstHalf = countLiteralsBytes(firstSeqStore);
+    firstSeqStore->lit = firstSeqStore->litStart+literalsBytesFirstHalf;
+
+    secondSeqStore->sequencesStart += nbSeqFirstHalf;
+    secondSeqStore->sequences = seqEnd;
+    secondSeqStore->litStart += literalsBytesFirstHalf;
+    secondSeqStore->lit = litEnd;
+    secondSeqStore->llCode += nbSeqFirstHalf;
+    secondSeqStore->mlCode += nbSeqFirstHalf;
+    secondSeqStore->ofCode += nbSeqFirstHalf;
+
+}
+
+static size_t ZSTD_compressBlock_splitBlock(ZSTD_CCtx* zc,
+                                        void* dst, size_t dstCapacity,
+                                        const void* src, size_t srcSize, U32 frame, U32 lastBlock, U32 nbSeq) {
+    /* This the upper bound for the length of an rle block.
+     * This isn't the actual upper bound. Finding the real threshold
+     * needs further investigation.
+     */
+    const U32 rleMaxLength = 25;
+    size_t cSize;
+    const BYTE* ip = (const BYTE*)src;
+    BYTE* op = (BYTE*)dst;
+    DEBUGLOG(5, "ZSTD_compressBlock_splitBlock (dstCapacity=%u, dictLimit=%u, nextToUpdate=%u)",
+                (unsigned)dstCapacity, (unsigned)zc->blockState.matchState.window.dictLimit,
+                (unsigned)zc->blockState.matchState.nextToUpdate);
+
+    /* Attempt block splitting here */
+    DEBUGLOG(3, "Block size pre-split is: %u - lastBlock: %u, dst ptr: %u op: %u", srcSize, lastBlock, dst, op);
+    DEBUGLOG(3, "srcSize: %u seq store size: %u", srcSize, countLiteralsBytes(&zc->seqStore) + countMatchBytes(&zc->seqStore));
+    seqStore_t firstHalfSeqStore = zc->seqStore;
+    seqStore_t secondHalfSeqStore = zc->seqStore;
+
+    setUpSeqStores(&firstHalfSeqStore, &secondHalfSeqStore, nbSeq, srcSize);
+
+    assert((U32)(firstHalfSeqStore.lit - firstHalfSeqStore.litStart) + (U32)(secondHalfSeqStore.lit - secondHalfSeqStore.litStart) == (U32)(zc->seqStore.lit - zc->seqStore.litStart));
+    assert((U32)(firstHalfSeqStore.sequences - firstHalfSeqStore.sequencesStart) + (U32)(secondHalfSeqStore.sequences - secondHalfSeqStore.sequencesStart) == (U32)(zc->seqStore.sequences - zc->seqStore.sequencesStart));
+
+    size_t cSizeFirstHalf;
+    size_t cSizeSecondHalf;
+
+    size_t literalsBytesFirstHalf = countLiteralsBytes(&firstHalfSeqStore);
+    size_t srcBytesFirstHalf = literalsBytesFirstHalf + countMatchBytes(&firstHalfSeqStore);
+    size_t srcBytesSecondHalf = srcSize - srcBytesFirstHalf;
+    DEBUGLOG(3, "literals bytes first half: %zu literals bytes second half: %zu, orig: %zu", literalsBytesFirstHalf, countLiteralsBytes(&secondHalfSeqStore), countLiteralsBytes(&zc->seqStore));
+    DEBUGLOG(3, "match bytes first half: %zu match bytes second half: %zu, orig: %zu", countMatchBytes(&firstHalfSeqStore), countMatchBytes(&secondHalfSeqStore), countMatchBytes(&zc->seqStore));
+    DEBUGLOG(2, "Src bytes first half: %zu src bytes second half: %zu", srcBytesFirstHalf, srcBytesSecondHalf);
+
+    {   U32 cSeqsSizeFirstHalf = ZSTD_compressSequences(&firstHalfSeqStore,
+                &zc->blockState.prevCBlock->entropy, &zc->blockState.nextCBlock->entropy,
+                &zc->appliedParams,
+                op + ZSTD_blockHeaderSize, dstCapacity - ZSTD_blockHeaderSize,
+                srcBytesFirstHalf,
+                zc->entropyWorkspace, ENTROPY_WORKSPACE_SIZE /* statically allocated in resetCCtx */,
+                zc->bmi2);
+
+        if (!zc->isFirstBlock &&
+            ZSTD_maybeRLE(&firstHalfSeqStore) &&
+            ZSTD_isRLE((BYTE const*)src, srcSize)) {
+            /* We don't want to emit our first block as a RLE even if it qualifies because
+            * doing so will cause the decoder (cli only) to throw a "should consume all input error."
+            * This is only an issue for zstd <= v1.4.3
+            */
+            cSeqsSizeFirstHalf = 1;
+        }
+
+        if (cSeqsSizeFirstHalf == 0) {
+            cSizeFirstHalf = ZSTD_noCompressBlock(op, dstCapacity, ip, srcBytesFirstHalf, 0);
+            FORWARD_IF_ERROR(cSizeFirstHalf, "Nocompress block failed");
+            DEBUGLOG(2, "1: Writing out nocompress block, size: %zu", cSizeFirstHalf);
+        } else if (cSeqsSizeFirstHalf == 1) {
+            cSizeFirstHalf = ZSTD_rleCompressBlock(op, dstCapacity, *ip, srcBytesFirstHalf, 0);
+            FORWARD_IF_ERROR(cSizeFirstHalf, "RLE compress block failed");
+            DEBUGLOG(2, "1: Writing out RLE block, size: %zu", cSizeFirstHalf);
+        } else {
+            U32 cBlockHeader;
+            /* Error checking and repcodes update */
+            ZSTD_confirmRepcodesAndEntropyTables(zc);
+            if (zc->blockState.prevCBlock->entropy.fse.offcode_repeatMode == FSE_repeat_valid)
+                zc->blockState.prevCBlock->entropy.fse.offcode_repeatMode = FSE_repeat_check;
+            writeBlockHeader(op, cSeqsSizeFirstHalf, srcBytesFirstHalf, 0);
+            cSizeFirstHalf = ZSTD_blockHeaderSize + cSeqsSizeFirstHalf;
+            DEBUGLOG(3, "1: Writing out compressed block, size: %zu", cSizeFirstHalf);
+        }
+    }
+
+    {   int i;
+        for (i = 0; i < ZSTD_REP_NUM; ++i)
+            zc->blockState.nextCBlock->rep[i] = zc->blockState.prevCBlock->rep[i];
+    }
+
+    ip += srcBytesFirstHalf;
+    op += cSizeFirstHalf;
+    dstCapacity - cSizeFirstHalf;
+
+    {   U32 cSeqsSizeSecondHalf = ZSTD_compressSequences(&secondHalfSeqStore,
+                &zc->blockState.prevCBlock->entropy, &zc->blockState.nextCBlock->entropy,
+                &zc->appliedParams,
+                op + ZSTD_blockHeaderSize, dstCapacity - ZSTD_blockHeaderSize,
+                srcBytesSecondHalf,
+                zc->entropyWorkspace, ENTROPY_WORKSPACE_SIZE /* statically allocated in resetCCtx */,
+                zc->bmi2);
+        if (ZSTD_maybeRLE(&firstHalfSeqStore) &&
+            ZSTD_isRLE((BYTE const*)src, srcSize)) {
+            cSeqsSizeSecondHalf = 1;
+        }
+
+        if (cSeqsSizeSecondHalf == 0) {
+            cSizeSecondHalf = ZSTD_noCompressBlock(op, dstCapacity, ip, srcBytesSecondHalf, lastBlock);
+            FORWARD_IF_ERROR(cSizeFirstHalf, "Nocompress block failed");
+            DEBUGLOG(2, "2: Writing out nocompress block, size: %zu", cSizeSecondHalf);
+        } else if (cSeqsSizeSecondHalf == 1) {
+            cSizeSecondHalf = ZSTD_rleCompressBlock(op, dstCapacity, *ip, srcBytesSecondHalf, lastBlock);
+            FORWARD_IF_ERROR(cSizeFirstHalf, "RLE compress block failed");
+            DEBUGLOG(2, "2: Writing out RLE block, size: %zu", cSizeSecondHalf);
+        } else {
+            U32 cBlockHeader;
+            /* Error checking and repcodes update */
+            ZSTD_confirmRepcodesAndEntropyTables(zc);
+            if (zc->blockState.prevCBlock->entropy.fse.offcode_repeatMode == FSE_repeat_valid)
+                zc->blockState.prevCBlock->entropy.fse.offcode_repeatMode = FSE_repeat_check;
+            writeBlockHeader(op, cSeqsSizeSecondHalf,  srcBytesSecondHalf, lastBlock);
+            cSizeSecondHalf = ZSTD_blockHeaderSize + cSeqsSizeSecondHalf;
+            DEBUGLOG(3, "2: Writing out compressed block, size: %zu", cSizeSecondHalf);
+        }
+    }
+
+    DEBUGLOG(2, "cSizeFirstHalf: %u cSizeSecondHalf: %u", cSizeFirstHalf, cSizeSecondHalf);
+    cSize = cSizeFirstHalf + cSizeSecondHalf;
+    return cSize;
 }
 
 static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
@@ -2711,8 +2903,9 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
      */
     const U32 rleMaxLength = 25;
     size_t cSize;
+    size_t nbSeq;
     const BYTE* ip = (const BYTE*)src;
-    BYTE* op = (BYTE*)(dst + ZSTD_blockHeaderSize);
+    BYTE* op = (BYTE*)dst;
     DEBUGLOG(5, "ZSTD_compressBlock_internal (dstCapacity=%u, dictLimit=%u, nextToUpdate=%u)",
                 (unsigned)dstCapacity, (unsigned)zc->blockState.matchState.window.dictLimit,
                 (unsigned)zc->blockState.matchState.nextToUpdate);
@@ -2720,6 +2913,7 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
     {   const size_t bss = ZSTD_buildSeqStore(zc, src, srcSize);
         FORWARD_IF_ERROR(bss, "ZSTD_buildSeqStore failed");
         if (bss == ZSTDbss_noCompress) { cSize = 0; goto out; }
+        nbSeq = (size_t)(zc->seqStore.sequences - zc->seqStore.sequencesStart);
     }
 
     if (zc->seqCollector.collectSequences) {
@@ -2728,11 +2922,15 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
         return 0;
     }
 
+    if (nbSeq >= 2) {
+        return ZSTD_compressBlock_splitBlock(zc, dst, dstCapacity, src, srcSize, frame, lastBlock, nbSeq);
+    }
+    
     /* encode sequences and literals */
     cSize = ZSTD_entropyCompressSequences(&zc->seqStore,
             &zc->blockState.prevCBlock->entropy, &zc->blockState.nextCBlock->entropy,
             &zc->appliedParams,
-            op, dstCapacity,
+            op+ZSTD_blockHeaderSize, dstCapacity-ZSTD_blockHeaderSize,
             srcSize,
             zc->entropyWorkspace, ENTROPY_WORKSPACE_SIZE /* statically allocated in resetCCtx */,
             zc->bmi2);
@@ -2770,7 +2968,7 @@ out:
         cSize = ZSTD_noCompressBlock(op, dstCapacity, ip, srcSize, lastBlock);
         FORWARD_IF_ERROR(cSize, "ZSTD_noCompressBlock failed");
     } else {
-        writeBlockHeader(dst, cSize, srcSize, lastBlock);
+        writeBlockHeader(op, cSize, srcSize, lastBlock);
         cSize += ZSTD_blockHeaderSize;
     }
     return cSize;
@@ -2936,7 +3134,7 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
             assert(dstCapacity >= cSize);
             dstCapacity -= cSize;
             cctx->isFirstBlock = 0;
-            DEBUGLOG(5, "ZSTD_compress_frameChunk: adding a block of size %u",
+            DEBUGLOG(2, "ZSTD_compress_frameChunk: adding a block of size %u",
                         (unsigned)cSize);
     }   }
 

@@ -775,6 +775,9 @@ size_t ZSTD_execSequenceEnd(BYTE* op,
 
     /* bounds checks : careful of address space overflow in 32-bit mode */
     RETURN_ERROR_IF(sequenceLength > (size_t)(oend - op), dstSize_tooSmall, "last match must fit within dstBuffer");
+    DEBUGLOG(2, "sequence length: %u", sequenceLength);
+    DEBUGLOG(2, "oLitEnd: %u iLitEnd: %u match: %u", oLitEnd, iLitEnd, match);
+    DEBUGLOG(2, "seq ll: %u, condition: %u", sequence.litLength, (size_t)(litLimit - *litPtr));
     RETURN_ERROR_IF(sequence.litLength > (size_t)(litLimit - *litPtr), corruption_detected, "try to read beyond literal buffer");
     assert(op < op + sequenceLength);
     assert(oLitEnd < op + sequenceLength);
@@ -850,8 +853,13 @@ size_t ZSTD_execSequence(BYTE* op,
     op = oLitEnd;
     *litPtr = iLitEnd;   /* update for next sequence */
 
+    
     /* Copy Match */
     if (sequence.offset > (size_t)(oLitEnd - prefixStart)) {
+        /*DEBUGLOG(2, "oLitEnd: %u, oMatchEnd: %u iLitEnd: %u matchPos: %u", oLitEnd, oMatchEnd, iLitEnd, match);
+        DEBUGLOG(2, "off: %u ml: %u ll: %u", sequence.offset, sequence.matchLength, sequence.litLength);
+        DEBUGLOG(2, "first condition: %u", (size_t)(oLitEnd - prefixStart));
+        DEBUGLOG(2, "break condition: %u", (size_t)(oLitEnd - virtualStart));*/
         /* offset beyond prefix -> go into extDict */
         RETURN_ERROR_IF(UNLIKELY(sequence.offset > (size_t)(oLitEnd - virtualStart)), corruption_detected, "");
         match = dictEnd + (match - prefixStart);
@@ -1210,6 +1218,9 @@ ZSTD_decompressSequences_body( ZSTD_DCtx* dctx,
 
     /* last literal segment */
     {   size_t const lastLLSize = litEnd - litPtr;
+        if (lastLLSize > (size_t)(oend-op)) {
+            DEBUGLOG(2, "too small lastll");
+        }
         RETURN_ERROR_IF(lastLLSize > (size_t)(oend-op), dstSize_tooSmall, "");
         if (op != NULL) {
             ZSTD_memcpy(op, litPtr, lastLLSize);
@@ -1458,7 +1469,7 @@ ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
      * (note: but it could be evaluated from current-lowLimit)
      */
     ZSTD_longOffset_e const isLongOffset = (ZSTD_longOffset_e)(MEM_32bits() && (!frame || (dctx->fParams.windowSize > (1ULL << STREAM_ACCUMULATOR_MIN))));
-    DEBUGLOG(5, "ZSTD_decompressBlock_internal (size : %u)", (U32)srcSize);
+    DEBUGLOG(2, "ZSTD_decompressBlock_internal (size : %u)", (U32)srcSize);
 
     RETURN_ERROR_IF(srcSize >= ZSTD_BLOCKSIZE_MAX, srcSize_wrong, "");
 

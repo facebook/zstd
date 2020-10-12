@@ -2693,9 +2693,17 @@ static void ZSTD_confirmRepcodesAndEntropyTables(ZSTD_CCtx* zc)
     zc->blockState.nextCBlock = tmp;
 }
 
+/* Writes the block header */
+static void writeBlockHeader(void* op, size_t cSize, size_t blockSize, U32 lastBlock) {
+    U32 const cBlockHeader = cSize == 1 ?
+                        lastBlock + (((U32)bt_rle)<<1) + (U32)(blockSize << 3) :
+                        lastBlock + (((U32)bt_compressed)<<1) + (U32)(cSize << 3);
+    MEM_writeLE24(op, cBlockHeader);
+}
+
 static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
                                         void* dst, size_t dstCapacity,
-                                        const void* src, size_t srcSize, U32 frame)
+                                        const void* src, size_t srcSize, U32 frame, U32 lastBlock)
 {
     /* This the upper bound for the length of an rle block.
      * This isn't the actual upper bound. Finding the real threshold
@@ -2704,7 +2712,7 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
     const U32 rleMaxLength = 25;
     size_t cSize;
     const BYTE* ip = (const BYTE*)src;
-    BYTE* op = (BYTE*)dst;
+    BYTE* op = (BYTE*)(dst + ZSTD_blockHeaderSize);
     DEBUGLOG(5, "ZSTD_compressBlock_internal (dstCapacity=%u, dictLimit=%u, nextToUpdate=%u)",
                 (unsigned)dstCapacity, (unsigned)zc->blockState.matchState.window.dictLimit,
                 (unsigned)zc->blockState.matchState.nextToUpdate);
@@ -2724,7 +2732,7 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
     cSize = ZSTD_entropyCompressSequences(&zc->seqStore,
             &zc->blockState.prevCBlock->entropy, &zc->blockState.nextCBlock->entropy,
             &zc->appliedParams,
-            dst, dstCapacity,
+            op, dstCapacity,
             srcSize,
             zc->entropyWorkspace, ENTROPY_WORKSPACE_SIZE /* statically allocated in resetCCtx */,
             zc->bmi2);
@@ -2758,7 +2766,13 @@ out:
      */
     if (zc->blockState.prevCBlock->entropy.fse.offcode_repeatMode == FSE_repeat_valid)
         zc->blockState.prevCBlock->entropy.fse.offcode_repeatMode = FSE_repeat_check;
-
+    if (cSize == 0) {
+        cSize = ZSTD_noCompressBlock(op, dstCapacity, ip, srcSize, lastBlock);
+        FORWARD_IF_ERROR(cSize, "ZSTD_noCompressBlock failed");
+    } else {
+        writeBlockHeader(dst, cSize, srcSize, lastBlock);
+        cSize += ZSTD_blockHeaderSize;
+    }
     return cSize;
 }
 
@@ -2910,22 +2924,10 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
                 assert(cSize <= blockSize + ZSTD_blockHeaderSize);
             } else {
                 cSize = ZSTD_compressBlock_internal(cctx,
-                                        op+ZSTD_blockHeaderSize, dstCapacity-ZSTD_blockHeaderSize,
-                                        ip, blockSize, 1 /* frame */);
+                                        op, dstCapacity,
+                                        ip, blockSize, 1 /* frame */, lastBlock);
                 FORWARD_IF_ERROR(cSize, "ZSTD_compressBlock_internal failed");
-
-                if (cSize == 0) {  /* block is not compressible */
-                    cSize = ZSTD_noCompressBlock(op, dstCapacity, ip, blockSize, lastBlock);
-                    FORWARD_IF_ERROR(cSize, "ZSTD_noCompressBlock failed");
-                } else {
-                    U32 const cBlockHeader = cSize == 1 ?
-                        lastBlock + (((U32)bt_rle)<<1) + (U32)(blockSize << 3) :
-                        lastBlock + (((U32)bt_compressed)<<1) + (U32)(cSize << 3);
-                    MEM_writeLE24(op, cBlockHeader);
-                    cSize += ZSTD_blockHeaderSize;
-                }
             }
-
 
             ip += blockSize;
             assert(remaining >= blockSize);
@@ -3080,7 +3082,7 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* cctx,
     DEBUGLOG(5, "ZSTD_compressContinue_internal (blockSize=%u)", (unsigned)cctx->blockSize);
     {   size_t const cSize = frame ?
                              ZSTD_compress_frameChunk (cctx, dst, dstCapacity, src, srcSize, lastFrameChunk) :
-                             ZSTD_compressBlock_internal (cctx, dst, dstCapacity, src, srcSize, 0 /* frame */);
+                             ZSTD_compressBlock_internal (cctx, dst, dstCapacity, src, srcSize, 0 /* frame */, 0);
         FORWARD_IF_ERROR(cSize, "%s", frame ? "ZSTD_compress_frameChunk failed" : "ZSTD_compressBlock_internal failed");
         cctx->consumedSrcSize += srcSize;
         cctx->producedCSize += (cSize + fhSize);

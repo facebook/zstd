@@ -1352,7 +1352,9 @@ size_t ZSTD_estimateCStreamSize_usingCCtxParams(const ZSTD_CCtx_params* params)
                 ZSTD_getCParamsFromCCtxParams(params, ZSTD_CONTENTSIZE_UNKNOWN, 0, ZSTD_cpm_noAttachDict);
         size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << cParams.windowLog);
         size_t const inBuffSize = ((size_t)1 << cParams.windowLog) + blockSize;
-        size_t const outBuffSize = ZSTD_compressBound(blockSize) + 1;
+        size_t const outBuffSize = (params->outBufferMode == ZSTD_bm_buffered)
+                ? ZSTD_compressBound(blockSize) + 1
+                : 0;
 
         return ZSTD_estimateCCtxSize_usingCCtxParams_internal(
             &cParams, &params->ldmParams, 1, inBuffSize, outBuffSize,
@@ -1598,7 +1600,9 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, windowSize);
         U32    const divider = (params.cParams.minMatch==3) ? 3 : 4;
         size_t const maxNbSeq = blockSize / divider;
-        size_t const buffOutSize = (zbuff==ZSTDb_buffered) ? ZSTD_compressBound(blockSize)+1 : 0;
+        size_t const buffOutSize = (zbuff == ZSTDb_buffered && params.outBufferMode == ZSTD_bm_buffered)
+                ? ZSTD_compressBound(blockSize) + 1
+                : 0;
         size_t const buffInSize = (zbuff==ZSTDb_buffered) ? windowSize + blockSize : 0;
         size_t const maxNbLdmSeq = ZSTD_ldm_getMaxNbSeq(params.ldmParams, blockSize);
 
@@ -4050,8 +4054,10 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
     DEBUGLOG(5, "ZSTD_compressStream_generic, flush=%u", (unsigned)flushMode);
     assert(zcs->inBuff != NULL);
     assert(zcs->inBuffSize > 0);
-    assert(zcs->outBuff !=  NULL);
-    assert(zcs->outBuffSize > 0);
+    if (zcs->appliedParams.outBufferMode == ZSTD_bm_buffered) {
+        assert(zcs->outBuff !=  NULL);
+        assert(zcs->outBuffSize > 0);
+    }
     assert(output->pos <= output->size);
     assert(input->pos <= input->size);
     assert((U32)flushMode <= (U32)ZSTD_e_end);

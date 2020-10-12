@@ -37,7 +37,7 @@ size_t ZSTD_dict_in_stream_createFrame(void* dst, size_t dstCapacity,
         dataSize = ZSTD_compress(dataDst, dataCapacity, dict, dictSize, compressionLevel);
     if (ZSTD_isError(dataSize) && dataCapacity >= dictSize) {
         memcpy(dataDst, dict, dictSize);
-        dataCapacity = dictSize;
+        dataSize = dictSize;
     }
     if (ZSTD_isError(dataSize))
         return dataSize;

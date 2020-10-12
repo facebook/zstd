@@ -1064,11 +1064,12 @@ U32 ZSTD_cycleLog(U32 hashLog, ZSTD_strategy strat)
 }
 
 /** ZSTD_dictAndWindowLog() :
- *  Returns an adjusted window log that is large enough to fit the source and the dictionary.
- *  The zstd format says that the entire dictionary is valid if one byte of the dictionary
- *  is within the window. So the hashLog and chainLog should be large enough to reference both
- *  the dictionary and the window. So we must use this adjusted dictAndWindowLog when downsizing
- *  the hashLog and windowLog.
+ * Returns an adjusted window log that is large enough to fit the source and the dictionary.
+ * The zstd format says that the entire dictionary is valid if one byte of the dictionary
+ * is within the window. So the hashLog and chainLog should be large enough to reference both
+ * the dictionary and the window. So we must use this adjusted dictAndWindowLog when downsizing
+ * the hashLog and windowLog.
+ * NOTE: srcSize must not be ZSTD_CONTENTSIZE_UNKNOWN.
  */
 static U32 ZSTD_dictAndWindowLog(U32 windowLog, U64 srcSize, U64 dictSize)
 {
@@ -1077,6 +1078,7 @@ static U32 ZSTD_dictAndWindowLog(U32 windowLog, U64 srcSize, U64 dictSize)
     if (dictSize == 0) {
         return windowLog;
     }
+    assert(windowLog <= ZSTD_WINDOWLOG_MAX);
     assert(srcSize != ZSTD_CONTENTSIZE_UNKNOWN); /* Handled in ZSTD_adjustCParams_internal() */
     {
         U64 const windowSize = 1ULL << windowLog;

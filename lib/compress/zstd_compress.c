@@ -4193,6 +4193,41 @@ size_t ZSTD_compressStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output, ZSTD_inBuf
     return ZSTD_nextInputSizeHint_MTorST(zcs);
 }
 
+/* After a compression call set the expected input/output buffer.
+ * This is validated at the start of the next compression call.
+ */
+static void ZSTD_setBufferExpectations(ZSTD_CCtx* cctx, ZSTD_outBuffer const* output, ZSTD_inBuffer const* input)
+{
+    if (cctx->appliedParams.inBufferMode == ZSTD_bm_stable) {
+        cctx->expectedInBuffer = *input;
+    }
+    if (cctx->appliedParams.outBufferMode == ZSTD_bm_stable) {
+        cctx->expectedOutBufferSize = output->size - output->pos;
+    }
+}
+
+/* Validate that the input/output buffers match the expectations set by
+ * ZSTD_setBufferExpectations.
+ */
+static size_t ZSTD_checkBufferStability(ZSTD_CCtx const* cctx,
+                                        ZSTD_outBuffer const* output,
+                                        ZSTD_inBuffer const* input,
+                                        ZSTD_EndDirective endOp)
+{
+    if (cctx->appliedParams.inBufferMode == ZSTD_bm_stable) {
+        ZSTD_inBuffer const expect = cctx->expectedInBuffer;
+        if (expect.src != input->src || expect.pos != input->pos || expect.size != input->size)
+            RETURN_ERROR(srcBuffer_wrong, "ZSTD_c_stableInBuffer enabled but input differs!");
+        if (endOp != ZSTD_e_end)
+            RETURN_ERROR(srcBuffer_wrong, "ZSTD_c_stableInBuffer can only be used with ZSTD_e_end!");
+    }
+    if (cctx->appliedParams.outBufferMode == ZSTD_bm_stable) {
+        size_t const outBufferSize = output->size - output->pos;
+        if (cctx->expectedOutBufferSize != outBufferSize)
+            RETURN_ERROR(dstBuffer_wrong, "ZSTD_c_stableOutBuffer enabled but output size differs!");
+    }
+    return 0;
+}
 
 size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
                              ZSTD_outBuffer* output,
@@ -4270,9 +4305,13 @@ size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
             cctx->outBuffContentSize = cctx->outBuffFlushedSize = 0;
             cctx->streamStage = zcss_load;
             cctx->frameEnded = 0;
-    }   }
+        }
+        /* Set initial buffer expectations now that we've initialized */
+        ZSTD_setBufferExpectations(cctx, output, input);
+    }
     /* end of transparent initialization stage */
 
+    FORWARD_IF_ERROR(ZSTD_checkBufferStability(cctx, output, input, endOp), "invalid buffers");
     /* compression stage */
 #ifdef ZSTD_MULTITHREAD
     if (cctx->appliedParams.nbWorkers > 0) {
@@ -4296,11 +4335,13 @@ size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
          * flush, or we are out of output space.
          */
         assert(!forceMaxProgress || flushMin == 0 || output->pos == output->size);
+        ZSTD_setBufferExpectations(cctx, output, input);
         return flushMin;
     }
 #endif
     FORWARD_IF_ERROR( ZSTD_compressStream_generic(cctx, output, input, endOp) , "");
     DEBUGLOG(5, "completed ZSTD_compressStream2");
+    ZSTD_setBufferExpectations(cctx, output, input);
     return cctx->outBuffContentSize - cctx->outBuffFlushedSize; /* remaining to flush */
 }
 

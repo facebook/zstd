@@ -291,6 +291,10 @@ struct ZSTD_CCtx_s {
     ZSTD_cStreamStage streamStage;
     U32    frameEnded;
 
+    /* Stable in/out buffer verification */
+    ZSTD_inBuffer expectedInBuffer;
+    size_t expectedOutBufferSize;
+
     /* Dictionary */
     ZSTD_localDict localDict;
     const ZSTD_CDict* cdict;

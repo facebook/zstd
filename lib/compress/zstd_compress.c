@@ -1351,7 +1351,9 @@ size_t ZSTD_estimateCStreamSize_usingCCtxParams(const ZSTD_CCtx_params* params)
     {   ZSTD_compressionParameters const cParams =
                 ZSTD_getCParamsFromCCtxParams(params, ZSTD_CONTENTSIZE_UNKNOWN, 0, ZSTD_cpm_noAttachDict);
         size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, (size_t)1 << cParams.windowLog);
-        size_t const inBuffSize = ((size_t)1 << cParams.windowLog) + blockSize;
+        size_t const inBuffSize = (params->inBufferMode == ZSTD_bm_buffered)
+                ? ((size_t)1 << cParams.windowLog) + blockSize
+                : 0;
         size_t const outBuffSize = (params->outBufferMode == ZSTD_bm_buffered)
                 ? ZSTD_compressBound(blockSize) + 1
                 : 0;
@@ -1462,16 +1464,6 @@ static void ZSTD_invalidateMatchState(ZSTD_matchState_t* ms)
     ms->opt.litLengthSum = 0;  /* force reset of btopt stats */
     ms->dictMatchState = NULL;
 }
-
-/**
- * Indicates whether this compression proceeds directly from user-provided
- * source buffer to user-provided destination buffer (ZSTDb_not_buffered), or
- * whether the context needs to buffer the input/output (ZSTDb_buffered).
- */
-typedef enum {
-    ZSTDb_not_buffered,
-    ZSTDb_buffered
-} ZSTD_buffered_policy_e;
 
 /**
  * Controls, for this matchState reset, whether the tables need to be cleared /
@@ -1603,7 +1595,9 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         size_t const buffOutSize = (zbuff == ZSTDb_buffered && params.outBufferMode == ZSTD_bm_buffered)
                 ? ZSTD_compressBound(blockSize) + 1
                 : 0;
-        size_t const buffInSize = (zbuff==ZSTDb_buffered) ? windowSize + blockSize : 0;
+        size_t const buffInSize = (zbuff == ZSTDb_buffered && params.inBufferMode == ZSTD_bm_buffered)
+                ? windowSize + blockSize
+                : 0;
         size_t const maxNbLdmSeq = ZSTD_ldm_getMaxNbSeq(params.ldmParams, blockSize);
 
         int const indexTooClose = ZSTD_indexTooCloseToMax(zc->blockState.matchState.window);
@@ -1678,6 +1672,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         zc->seqStore.maxNbLit = blockSize;
 
         /* buffers */
+        zc->bufferedPolicy = zbuff;
         zc->inBuffSize = buffInSize;
         zc->inBuff = (char*)ZSTD_cwksp_reserve_buffer(ws, buffInSize);
         zc->outBuffSize = buffOutSize;
@@ -1995,7 +1990,7 @@ static size_t ZSTD_copyCCtx_internal(ZSTD_CCtx* dstCCtx,
 size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx, unsigned long long pledgedSrcSize)
 {
     ZSTD_frameParameters fParams = { 1 /*content*/, 0 /*checksum*/, 0 /*noDictID*/ };
-    ZSTD_buffered_policy_e const zbuff = (ZSTD_buffered_policy_e)(srcCCtx->inBuffSize>0);
+    ZSTD_buffered_policy_e const zbuff = srcCCtx->bufferedPolicy;
     ZSTD_STATIC_ASSERT((U32)ZSTDb_buffered==1);
     if (pledgedSrcSize==0) pledgedSrcSize = ZSTD_CONTENTSIZE_UNKNOWN;
     fParams.contentSizeFlag = (pledgedSrcSize != ZSTD_CONTENTSIZE_UNKNOWN);
@@ -4052,8 +4047,10 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
 
     /* check expectations */
     DEBUGLOG(5, "ZSTD_compressStream_generic, flush=%u", (unsigned)flushMode);
-    assert(zcs->inBuff != NULL);
-    assert(zcs->inBuffSize > 0);
+    if (zcs->appliedParams.inBufferMode == ZSTD_bm_buffered) {
+        assert(zcs->inBuff != NULL);
+        assert(zcs->inBuffSize > 0);
+    }
     if (zcs->appliedParams.outBufferMode == ZSTD_bm_buffered) {
         assert(zcs->outBuff !=  NULL);
         assert(zcs->outBuffSize > 0);
@@ -4327,8 +4324,14 @@ size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
             assert(cctx->appliedParams.nbWorkers == 0);
             cctx->inToCompress = 0;
             cctx->inBuffPos = 0;
-            /* for small input: avoid automatic flush on reaching end of block, since it would require to add a 3-bytes null block to end frame */
-            cctx->inBuffTarget = cctx->blockSize + (cctx->blockSize == pledgedSrcSize);
+            if (cctx->appliedParams.inBufferMode == ZSTD_bm_buffered) {
+                /* for small input: avoid automatic flush on reaching end of block, since
+                * it would require to add a 3-bytes null block to end frame
+                */
+                cctx->inBuffTarget = cctx->blockSize + (cctx->blockSize == pledgedSrcSize);
+            } else {
+                cctx->inBuffTarget = 0;
+            }
             cctx->outBuffContentSize = cctx->outBuffFlushedSize = 0;
             cctx->streamStage = zcss_load;
             cctx->frameEnded = 0;

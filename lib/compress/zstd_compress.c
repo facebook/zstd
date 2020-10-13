@@ -4226,7 +4226,7 @@ size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
                         prefixDict.dict, prefixDict.dictSize, prefixDict.dictContentType,
                         cctx->cdict, params, cctx->pledgedSrcSizePlusOne-1) , "");
             cctx->streamStage = zcss_load;
-            cctx->appliedParams.nbWorkers = params.nbWorkers;
+            cctx->appliedParams = params;
         } else
 #endif
         {   U64 const pledgedSrcSize = cctx->pledgedSrcSizePlusOne - 1;

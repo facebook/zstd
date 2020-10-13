@@ -266,8 +266,6 @@ static void ZSTDMT_releaseBuffer(ZSTDMT_bufferPool* bufPool, buffer_t buf)
 
 /* =====   Seq Pool Wrapper   ====== */
 
-static rawSeqStore_t kNullRawSeqStore = {NULL, 0, 0, 0};
-
 typedef ZSTDMT_bufferPool ZSTDMT_seqPool;
 
 static size_t ZSTDMT_sizeof_seqPool(ZSTDMT_seqPool* seqPool)
@@ -277,7 +275,7 @@ static size_t ZSTDMT_sizeof_seqPool(ZSTDMT_seqPool* seqPool)
 
 static rawSeqStore_t bufferToSeq(buffer_t buffer)
 {
-    rawSeqStore_t seq = {NULL, 0, 0, 0};
+    rawSeqStore_t seq = kNullRawSeqStore;
     seq.seq = (rawSeq*)buffer.start;
     seq.capacity = buffer.capacity / sizeof(rawSeq);
     return seq;

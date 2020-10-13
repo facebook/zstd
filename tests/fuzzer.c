@@ -793,6 +793,44 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : testing ldm no regressions in size for opt parser : ", testNb++);
+    {
+        size_t cSizeLdm;
+        size_t cSizeNoLdm;
+        ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+
+        RDG_genBuffer(CNBuffer, CNBuffSize, 0.5, 0.5, seed);
+
+        /* Enable checksum to verify round trip. */
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1));
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, 1));
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, 19));
+
+        /* Round trip once with ldm. */
+        cSizeLdm = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize);
+        CHECK_Z(cSizeLdm);
+        CHECK_Z(ZSTD_decompress(decodedBuffer, CNBuffSize, compressedBuffer, cSizeLdm));
+
+        ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters);
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1));
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, 0));
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, 19));
+
+        /* Round trip once without ldm. */
+        cSizeNoLdm = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize);
+        CHECK_Z(cSizeNoLdm);
+        CHECK_Z(ZSTD_decompress(decodedBuffer, CNBuffSize, compressedBuffer, cSizeNoLdm));
+
+        if (cSizeLdm > cSizeNoLdm) {
+            DISPLAY("Using long mode should not cause regressions for btopt+\n");
+            testResult = 1;
+            goto _end;
+        }
+
+        ZSTD_freeCCtx(cctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     /* Note: this test takes 0.5 seconds to run */
     DISPLAYLEVEL(3, "test%3i : testing refPrefx vs refPrefx + ldm (size comparison) : ", testNb++);
     {

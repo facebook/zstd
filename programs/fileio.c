@@ -897,7 +897,7 @@ static void FIO_adjustParamsForPatchFromMode(FIO_prefs_t* const prefs,
     if (fileWindowLog > ZSTD_WINDOWLOG_MAX)
         DISPLAYLEVEL(1, "Max window log exceeded by file (compression ratio will suffer)\n");
     comprParams->windowLog = MIN(ZSTD_WINDOWLOG_MAX, fileWindowLog);
-    if (fileWindowLog > ZSTD_cycleLog(cParams.hashLog, cParams.strategy)) {
+    if (fileWindowLog > ZSTD_cycleLog(cParams.chainLog, cParams.strategy)) {
         if (!prefs->ldmFlag)
             DISPLAYLEVEL(1, "long mode automatically triggered\n");
         FIO_setLdmFlag(prefs, 1);

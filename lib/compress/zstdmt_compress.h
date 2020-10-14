@@ -60,7 +60,8 @@ typedef struct ZSTDMT_CCtx_s ZSTDMT_CCtx;
 ZSTDMT_API ZSTDMT_CCtx* ZSTDMT_createCCtx(unsigned nbWorkers);
 /* Requires ZSTD_MULTITHREAD to be defined during compilation, otherwise it will return NULL. */
 ZSTDMT_API ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced(unsigned nbWorkers,
-                                                    ZSTD_customMem cMem);
+                                                    ZSTD_customMem cMem,
+                                                    ZSTD_threadPool *pool);
 ZSTDMT_API size_t ZSTDMT_freeCCtx(ZSTDMT_CCtx* mtctx);
 
 ZSTDMT_API size_t ZSTDMT_sizeof_CCtx(ZSTDMT_CCtx* mtctx);

@@ -764,6 +764,140 @@ FORCE_INLINE_TEMPLATE U32 ZSTD_BtGetAllMatches (
     }
 }
 
+/*************************
+*  LDM helper functions  *
+*************************/
+
+/* Struct containing info needed to make decision about ldm inclusion */
+typedef struct {
+    rawSeqStore_t seqStore;         /* External match candidates store for this block */
+    U32 startPosInBlock;            /* Start position of the current match candidate */
+    U32 endPosInBlock;              /* End position of the current match candidate */
+    U32 offset;                     /* Offset of the match candidate */
+} ZSTD_optLdm_t;
+
+/* ZSTD_optLdm_skipRawSeqStoreBytes():
+ * Moves forward in rawSeqStore by nbBytes, which will update the fields 'pos' and 'posInSequence'.
+ */
+static void ZSTD_optLdm_skipRawSeqStoreBytes(rawSeqStore_t* rawSeqStore, size_t nbBytes) {
+    U32 currPos = (U32)(rawSeqStore->posInSequence + nbBytes);
+    while (currPos && rawSeqStore->pos < rawSeqStore->size) {
+        rawSeq currSeq = rawSeqStore->seq[rawSeqStore->pos];
+        if (currPos >= currSeq.litLength + currSeq.matchLength) {
+            currPos -= currSeq.litLength + currSeq.matchLength;
+            rawSeqStore->pos++;
+        } else {
+            rawSeqStore->posInSequence = currPos;
+            break;
+        }
+    }
+    if (currPos == 0 || rawSeqStore->pos == rawSeqStore->size) {
+        rawSeqStore->posInSequence = 0;
+    }
+}
+
+/* ZSTD_opt_getNextMatchAndUpdateSeqStore():
+ * Calculates the beginning and end of the next match in the current block.
+ * Updates 'pos' and 'posInSequence' of the ldmSeqStore.
+ */
+static void ZSTD_opt_getNextMatchAndUpdateSeqStore(ZSTD_optLdm_t* optLdm, U32 currPosInBlock,
+                                                   U32 blockBytesRemaining) {
+    rawSeq currSeq;
+    U32 currBlockEndPos;
+    U32 literalsBytesRemaining;
+    U32 matchBytesRemaining;
+
+    /* Setting match end position to MAX to ensure we never use an LDM during this block */
+    if (optLdm->seqStore.size == 0 || optLdm->seqStore.pos >= optLdm->seqStore.size) {
+        optLdm->startPosInBlock = UINT_MAX;
+        optLdm->endPosInBlock = UINT_MAX;
+        return;
+    }
+    /* Calculate appropriate bytes left in matchLength and litLength after adjusting
+       based on ldmSeqStore->posInSequence */
+    currSeq = optLdm->seqStore.seq[optLdm->seqStore.pos];
+    assert(optLdm->seqStore.posInSequence <= currSeq.litLength + currSeq.matchLength);
+    currBlockEndPos = currPosInBlock + blockBytesRemaining;
+    literalsBytesRemaining = (optLdm->seqStore.posInSequence < currSeq.litLength) ?
+            currSeq.litLength - (U32)optLdm->seqStore.posInSequence :
+            0;
+    matchBytesRemaining = (literalsBytesRemaining == 0) ?
+            currSeq.matchLength - ((U32)optLdm->seqStore.posInSequence - currSeq.litLength) :
+            currSeq.matchLength;
+
+    /* If there are more literal bytes than bytes remaining in block, no ldm is possible */
+    if (literalsBytesRemaining >= blockBytesRemaining) {
+        optLdm->startPosInBlock = UINT_MAX;
+        optLdm->endPosInBlock = UINT_MAX;
+        ZSTD_optLdm_skipRawSeqStoreBytes(&optLdm->seqStore, blockBytesRemaining);
+        return;
+    }
+
+    /* Matches may be < MINMATCH by this process. In that case, we will reject them
+       when we are deciding whether or not to add the ldm */
+    optLdm->startPosInBlock = currPosInBlock + literalsBytesRemaining;
+    optLdm->endPosInBlock = optLdm->startPosInBlock + matchBytesRemaining;
+    optLdm->offset = currSeq.offset;
+
+    if (optLdm->endPosInBlock > currBlockEndPos) {
+        /* Match ends after the block ends, we can't use the whole match */
+        optLdm->endPosInBlock = currBlockEndPos;
+        ZSTD_optLdm_skipRawSeqStoreBytes(&optLdm->seqStore, currBlockEndPos - currPosInBlock);
+    } else {
+        /* Consume nb of bytes equal to size of sequence left */
+        ZSTD_optLdm_skipRawSeqStoreBytes(&optLdm->seqStore, literalsBytesRemaining + matchBytesRemaining);
+    }
+}
+
+/* ZSTD_optLdm_maybeAddMatch():
+ * Adds a match if it's long enough, based on it's 'matchStartPosInBlock'
+ * and 'matchEndPosInBlock', into 'matches'. Maintains the correct ordering of 'matches'
+ */
+static void ZSTD_optLdm_maybeAddMatch(ZSTD_match_t* matches, U32* nbMatches,
+                                      ZSTD_optLdm_t* optLdm, U32 currPosInBlock) {
+    U32 posDiff = currPosInBlock - optLdm->startPosInBlock;
+    /* Note: ZSTD_match_t actually contains offCode and matchLength (before subtracting MINMATCH) */
+    U32 candidateMatchLength = optLdm->endPosInBlock - optLdm->startPosInBlock - posDiff;
+    U32 candidateOffCode = optLdm->offset + ZSTD_REP_MOVE;
+
+    /* Ensure that current block position is not outside of the match */
+    if (currPosInBlock < optLdm->startPosInBlock
+      || currPosInBlock >= optLdm->endPosInBlock
+      || candidateMatchLength < MINMATCH) {
+        return;
+    }
+
+    if (*nbMatches == 0 || ((candidateMatchLength > matches[*nbMatches-1].len) && *nbMatches < ZSTD_OPT_NUM)) {
+        DEBUGLOG(6, "ZSTD_optLdm_maybeAddMatch(): Adding ldm candidate match (offCode: %u matchLength %u) at block position=%u",
+                 candidateOffCode, candidateMatchLength, currPosInBlock);
+        matches[*nbMatches].len = candidateMatchLength;
+        matches[*nbMatches].off = candidateOffCode;
+        (*nbMatches)++;
+    }
+}
+
+/* ZSTD_optLdm_processMatchCandidate():
+ * Wrapper function to update ldm seq store and call ldm functions as necessary.
+ */
+static void ZSTD_optLdm_processMatchCandidate(ZSTD_optLdm_t* optLdm, ZSTD_match_t* matches, U32* nbMatches,
+                                              U32 currPosInBlock, U32 remainingBytes) {
+    if (optLdm->seqStore.size == 0 || optLdm->seqStore.pos >= optLdm->seqStore.size) {
+        return;
+    }
+
+    if (currPosInBlock >= optLdm->endPosInBlock) {
+        if (currPosInBlock > optLdm->endPosInBlock) {
+            /* The position at which ZSTD_optLdm_processMatchCandidate() is called is not necessarily
+             * at the end of a match from the ldm seq store, and will often be some bytes
+             * over beyond matchEndPosInBlock. As such, we need to correct for these "overshoots"
+             */
+            U32 posOvershoot = currPosInBlock - optLdm->endPosInBlock;
+            ZSTD_optLdm_skipRawSeqStoreBytes(&optLdm->seqStore, posOvershoot);
+        } 
+        ZSTD_opt_getNextMatchAndUpdateSeqStore(optLdm, currPosInBlock, remainingBytes);
+    }
+    ZSTD_optLdm_maybeAddMatch(matches, nbMatches, optLdm, currPosInBlock);
+}
 
 /*-*******************************
 *  Optimal parser
@@ -817,6 +951,11 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
     ZSTD_optimal_t* const opt = optStatePtr->priceTable;
     ZSTD_match_t* const matches = optStatePtr->matchTable;
     ZSTD_optimal_t lastSequence;
+    ZSTD_optLdm_t optLdm;
+
+    optLdm.seqStore = ms->ldmSeqStore ? *ms->ldmSeqStore : kNullRawSeqStore;
+    optLdm.endPosInBlock = optLdm.startPosInBlock = optLdm.offset = 0;
+    ZSTD_opt_getNextMatchAndUpdateSeqStore(&optLdm, (U32)(ip-istart), (U32)(iend-ip));
 
     /* init */
     DEBUGLOG(5, "ZSTD_compressBlock_opt_generic: current=%u, prefix=%u, nextToUpdate=%u",
@@ -832,7 +971,9 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
         /* find first match */
         {   U32 const litlen = (U32)(ip - anchor);
             U32 const ll0 = !litlen;
-            U32 const nbMatches = ZSTD_BtGetAllMatches(matches, ms, &nextToUpdate3, ip, iend, dictMode, rep, ll0, minMatch);
+            U32 nbMatches = ZSTD_BtGetAllMatches(matches, ms, &nextToUpdate3, ip, iend, dictMode, rep, ll0, minMatch);
+            ZSTD_optLdm_processMatchCandidate(&optLdm, matches, &nbMatches,
+                                              (U32)(ip-istart), (U32)(iend - ip));
             if (!nbMatches) { ip++; continue; }
 
             /* initialize opt[0] */
@@ -945,8 +1086,12 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
                 U32 const litlen = (opt[cur].mlen == 0) ? opt[cur].litlen : 0;
                 U32 const previousPrice = opt[cur].price;
                 U32 const basePrice = previousPrice + ZSTD_litLengthPrice(0, optStatePtr, optLevel);
-                U32 const nbMatches = ZSTD_BtGetAllMatches(matches, ms, &nextToUpdate3, inr, iend, dictMode, opt[cur].rep, ll0, minMatch);
+                U32 nbMatches = ZSTD_BtGetAllMatches(matches, ms, &nextToUpdate3, inr, iend, dictMode, opt[cur].rep, ll0, minMatch);
                 U32 matchNb;
+
+                ZSTD_optLdm_processMatchCandidate(&optLdm, matches, &nbMatches,
+                                                  (U32)(inr-istart), (U32)(iend-inr));
+
                 if (!nbMatches) {
                     DEBUGLOG(7, "rPos:%u : no match found", cur);
                     continue;

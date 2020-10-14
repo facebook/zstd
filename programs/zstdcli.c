@@ -697,6 +697,7 @@ int main(int const argCount, const char* argv[])
     int argNb,
         followLinks = 0,
         forceStdout = 0,
+        hasStdout = 0,
         ldmFlag = 0,
         main_pause = 0,
         nbWorkers = 0,
@@ -1282,9 +1283,12 @@ int main(int const argCount, const char* argv[])
     }
     
     /* No status message in pipe mode (stdin - stdout) */	
-    if (!strcmp(filenames->fileNames[0], stdinmark) && outFileName && !strcmp(outFileName,stdoutmark) && (g_displayLevel==2)) g_displayLevel=1;
+    hasStdout = outFileName && !strcmp(outFileName,stdoutmark);
+
+    if (hasStdout && (g_displayLevel==2)) g_displayLevel=1;
 
     /* IO Stream/File */
+    FIO_setHasStdoutOutput(fCtx, hasStdout);
     FIO_setNbFilesTotal(fCtx, (int)filenames->tableSize); 
     FIO_determineHasStdinInput(fCtx, filenames);
     FIO_setNotificationLevel(g_displayLevel);

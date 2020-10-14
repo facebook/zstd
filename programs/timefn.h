@@ -28,7 +28,11 @@ extern "C" {
 ******************************************/
 
 #if !defined (__VMS) && (defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */) )
-# include <stdint.h>
+# if defined(_AIX)
+#  include <inttypes.h>
+# else
+#  include <stdint.h> /* intptr_t */
+# endif
   typedef uint64_t           PTime;  /* Precise Time */
 #else
   typedef unsigned long long PTime;  /* does not support compilers without long long support */

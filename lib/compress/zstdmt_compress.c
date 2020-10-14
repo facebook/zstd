@@ -266,8 +266,6 @@ static void ZSTDMT_releaseBuffer(ZSTDMT_bufferPool* bufPool, buffer_t buf)
 
 /* =====   Seq Pool Wrapper   ====== */
 
-static rawSeqStore_t kNullRawSeqStore = {NULL, 0, 0, 0};
-
 typedef ZSTDMT_bufferPool ZSTDMT_seqPool;
 
 static size_t ZSTDMT_sizeof_seqPool(ZSTDMT_seqPool* seqPool)
@@ -277,7 +275,7 @@ static size_t ZSTDMT_sizeof_seqPool(ZSTDMT_seqPool* seqPool)
 
 static rawSeqStore_t bufferToSeq(buffer_t buffer)
 {
-    rawSeqStore_t seq = {NULL, 0, 0, 0};
+    rawSeqStore_t seq = kNullRawSeqStore;
     seq.seq = (rawSeq*)buffer.start;
     seq.capacity = buffer.capacity / sizeof(rawSeq);
     return seq;
@@ -831,6 +829,7 @@ struct ZSTDMT_CCtx_s {
     ZSTD_customMem cMem;
     ZSTD_CDict* cdictLocal;
     const ZSTD_CDict* cdict;
+    unsigned providedFactory: 1;
 };
 
 static void ZSTDMT_freeJobsTable(ZSTDMT_jobDescription* jobTable, U32 nbJobs, ZSTD_customMem cMem)
@@ -889,7 +888,7 @@ size_t ZSTDMT_CCtxParam_setNbWorkers(ZSTD_CCtx_params* params, unsigned nbWorker
     return ZSTD_CCtxParams_setParameter(params, ZSTD_c_nbWorkers, (int)nbWorkers);
 }
 
-MEM_STATIC ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced_internal(unsigned nbWorkers, ZSTD_customMem cMem)
+MEM_STATIC ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced_internal(unsigned nbWorkers, ZSTD_customMem cMem, ZSTD_threadPool* pool)
 {
     ZSTDMT_CCtx* mtctx;
     U32 nbJobs = nbWorkers + 2;
@@ -907,7 +906,14 @@ MEM_STATIC ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced_internal(unsigned nbWorkers, 
     ZSTDMT_CCtxParam_setNbWorkers(&mtctx->params, nbWorkers);
     mtctx->cMem = cMem;
     mtctx->allJobsCompleted = 1;
-    mtctx->factory = POOL_create_advanced(nbWorkers, 0, cMem);
+    if (pool != NULL) {
+      mtctx->factory = pool;
+      mtctx->providedFactory = 1;
+    }
+    else {
+      mtctx->factory = POOL_create_advanced(nbWorkers, 0, cMem);
+      mtctx->providedFactory = 0;
+    }
     mtctx->jobs = ZSTDMT_createJobsTable(&nbJobs, cMem);
     assert(nbJobs > 0); assert((nbJobs & (nbJobs - 1)) == 0);  /* ensure nbJobs is a power of 2 */
     mtctx->jobIDMask = nbJobs - 1;
@@ -924,20 +930,21 @@ MEM_STATIC ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced_internal(unsigned nbWorkers, 
     return mtctx;
 }
 
-ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced(unsigned nbWorkers, ZSTD_customMem cMem)
+ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced(unsigned nbWorkers, ZSTD_customMem cMem, ZSTD_threadPool* pool)
 {
 #ifdef ZSTD_MULTITHREAD
-    return ZSTDMT_createCCtx_advanced_internal(nbWorkers, cMem);
+    return ZSTDMT_createCCtx_advanced_internal(nbWorkers, cMem, pool);
 #else
     (void)nbWorkers;
     (void)cMem;
+    (void)pool;
     return NULL;
 #endif
 }
 
 ZSTDMT_CCtx* ZSTDMT_createCCtx(unsigned nbWorkers)
 {
-    return ZSTDMT_createCCtx_advanced(nbWorkers, ZSTD_defaultCMem);
+    return ZSTDMT_createCCtx_advanced(nbWorkers, ZSTD_defaultCMem, NULL);
 }
 
 
@@ -983,7 +990,8 @@ static void ZSTDMT_waitForAllJobsCompleted(ZSTDMT_CCtx* mtctx)
 size_t ZSTDMT_freeCCtx(ZSTDMT_CCtx* mtctx)
 {
     if (mtctx==NULL) return 0;   /* compatible with free on NULL */
-    POOL_free(mtctx->factory);   /* stop and free worker threads */
+    if (!mtctx->providedFactory)
+        POOL_free(mtctx->factory);   /* stop and free worker threads */
     ZSTDMT_releaseAllJobResources(mtctx);  /* release job resources into pools first */
     ZSTDMT_freeJobsTable(mtctx->jobs, mtctx->jobIDMask+1, mtctx->cMem);
     ZSTDMT_freeBufferPool(mtctx->bufPool);
@@ -1097,7 +1105,7 @@ void ZSTDMT_updateCParams_whileCompressing(ZSTDMT_CCtx* mtctx, const ZSTD_CCtx_p
     DEBUGLOG(5, "ZSTDMT_updateCParams_whileCompressing (level:%i)",
                 compressionLevel);
     mtctx->params.compressionLevel = compressionLevel;
-    {   ZSTD_compressionParameters cParams = ZSTD_getCParamsFromCCtxParams(cctxParams, ZSTD_CONTENTSIZE_UNKNOWN, 0);
+    {   ZSTD_compressionParameters cParams = ZSTD_getCParamsFromCCtxParams(cctxParams, ZSTD_CONTENTSIZE_UNKNOWN, 0, ZSTD_cpm_noAttachDict);
         cParams.windowLog = saved_wlog;
         mtctx->params.cParams = cParams;
     }

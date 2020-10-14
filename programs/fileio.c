@@ -331,6 +331,7 @@ struct FIO_ctx_s {
     /* file i/o info */
     int nbFilesTotal;
     int hasStdinInput;
+    int hasStdoutOutput;
 
     /* file i/o state */
     int currFileIdx;
@@ -388,6 +389,7 @@ FIO_ctx_t* FIO_createContext(void)
 
     ret->currFileIdx = 0;
     ret->hasStdinInput = 0;
+    ret->hasStdoutOutput = 0;
     ret->nbFilesTotal = 1;
     ret->nbFilesProcessed = 0;
     ret->totalBytesInput = 0;
@@ -535,6 +537,10 @@ void FIO_setContentSize(FIO_prefs_t* const prefs, int value)
 }
 
 /* FIO_ctx_t functions */
+
+void FIO_setHasStdoutOutput(FIO_ctx_t* const fCtx, int value) {
+    fCtx->hasStdoutOutput = value;
+}
 
 void FIO_setNbFilesTotal(FIO_ctx_t* const fCtx, int value)
 {
@@ -841,6 +847,7 @@ static void FIO_adjustMemLimitForPatchFromMode(FIO_prefs_t* const prefs,
  *         If -q is specified with --rm, zstd will abort pre-emptively
  *         If neither flag is specified, zstd will prompt the user for confirmation to proceed.
  * If --rm is not specified, then zstd will print a warning to the user (which can be silenced with -q).
+ * However, if the output is stdout, we will always abort rather than displaying the warning prompt.
  */
 static int FIO_removeMultiFilesWarning(FIO_ctx_t* const fCtx, const FIO_prefs_t* const prefs, const char* outFileName, int displayLevelCutoff)
 {
@@ -859,7 +866,12 @@ static int FIO_removeMultiFilesWarning(FIO_ctx_t* const fCtx, const FIO_prefs_t*
             }
             DISPLAYLEVEL(2, "\nThe concatenated output CANNOT regenerate the original directory tree. ")
             if (prefs->removeSrcFile) {
-                error = g_display_prefs.displayLevel > displayLevelCutoff && UTIL_requireUserConfirmation("This is a destructive operation. Proceed? (y/n): ", "Aborting...", "yY", fCtx->hasStdinInput);
+                if (fCtx->hasStdoutOutput) {
+                    DISPLAYLEVEL(1, "\nAborting. Use -f if you really want to delete the files and output to stdout");
+                    error = 1;
+                } else {
+                    error = g_display_prefs.displayLevel > displayLevelCutoff && UTIL_requireUserConfirmation("This is a destructive operation. Proceed? (y/n): ", "Aborting...", "yY", fCtx->hasStdinInput);
+                }
             }
         }
         DISPLAY("\n");
@@ -1532,20 +1544,20 @@ FIO_compressFilename_internal(FIO_ctx_t* const fCtx,
     fCtx->totalBytesInput += (size_t)readsize;
     fCtx->totalBytesOutput += (size_t)compressedfilesize;
     DISPLAYLEVEL(2, "\r%79s\r", "");
-    if (g_display_prefs.displayLevel >= 2) {
-        if (g_display_prefs.displayLevel >= 3 || fCtx->nbFilesTotal <= 1) {
-            if (readsize == 0) {
-                DISPLAYLEVEL(2,"%-20s :  (%6llu => %6llu bytes, %s) \n",
-                    srcFileName,
-                    (unsigned long long)readsize, (unsigned long long) compressedfilesize,
-                    dstFileName);
-            } else {
-                DISPLAYLEVEL(2,"%-20s :%6.2f%%   (%6llu => %6llu bytes, %s) \n",
-                    srcFileName,
-                    (double)compressedfilesize / readsize * 100,
-                    (unsigned long long)readsize, (unsigned long long) compressedfilesize,
-                    dstFileName);
-            }
+    if (g_display_prefs.displayLevel >= 2 &&
+        !fCtx->hasStdoutOutput && 
+        (g_display_prefs.displayLevel >= 3 || fCtx->nbFilesTotal <= 1)) {
+        if (readsize == 0) {
+            DISPLAYLEVEL(2,"%-20s :  (%6llu => %6llu bytes, %s) \n",
+                srcFileName,
+                (unsigned long long)readsize, (unsigned long long) compressedfilesize,
+                dstFileName);
+        } else {
+            DISPLAYLEVEL(2,"%-20s :%6.2f%%   (%6llu => %6llu bytes, %s) \n",
+                srcFileName,
+                (double)compressedfilesize / readsize * 100,
+                (unsigned long long)readsize, (unsigned long long) compressedfilesize,
+                dstFileName);
         }
     }
 
@@ -2112,19 +2124,21 @@ FIO_decompressZstdFrame(FIO_ctx_t* const fCtx, dRess_t* ress, FILE* finput,
         /* Write block */
         storedSkips = FIO_fwriteSparse(ress->dstFile, ress->dstBuffer, outBuff.pos, prefs, storedSkips);
         frameSize += outBuff.pos;
-        if (fCtx->nbFilesTotal > 1) {
-            size_t srcFileNameSize = strlen(srcFileName);
-            if (srcFileNameSize > 18) {
-                const char* truncatedSrcFileName = srcFileName + srcFileNameSize - 15;
-                DISPLAYUPDATE(2, "\rDecompress: %2u/%2u files. Current: ...%s : %u MB...    ",
-                                fCtx->currFileIdx+1, fCtx->nbFilesTotal, truncatedSrcFileName, (unsigned)((alreadyDecoded+frameSize)>>20) );
+        if (!fCtx->hasStdoutOutput) {
+            if (fCtx->nbFilesTotal > 1) {
+                size_t srcFileNameSize = strlen(srcFileName);
+                if (srcFileNameSize > 18) {
+                    const char* truncatedSrcFileName = srcFileName + srcFileNameSize - 15;
+                    DISPLAYUPDATE(2, "\rDecompress: %2u/%2u files. Current: ...%s : %u MB...    ",
+                                    fCtx->currFileIdx+1, fCtx->nbFilesTotal, truncatedSrcFileName, (unsigned)((alreadyDecoded+frameSize)>>20) );
+                } else {
+                    DISPLAYUPDATE(2, "\rDecompress: %2u/%2u files. Current: %s : %u MB...    ",
+                                fCtx->currFileIdx+1, fCtx->nbFilesTotal, srcFileName, (unsigned)((alreadyDecoded+frameSize)>>20) );
+                }
             } else {
-                DISPLAYUPDATE(2, "\rDecompress: %2u/%2u files. Current: %s : %u MB...    ",
-                            fCtx->currFileIdx+1, fCtx->nbFilesTotal, srcFileName, (unsigned)((alreadyDecoded+frameSize)>>20) );
+                DISPLAYUPDATE(2, "\r%-20.20s : %u MB...     ",
+                                srcFileName, (unsigned)((alreadyDecoded+frameSize)>>20) );
             }
-        } else {
-            DISPLAYUPDATE(2, "\r%-20.20s : %u MB...     ",
-                            srcFileName, (unsigned)((alreadyDecoded+frameSize)>>20) );
         }
 
         if (inBuff.pos > 0) {

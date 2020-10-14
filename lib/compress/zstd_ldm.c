@@ -161,17 +161,15 @@ static size_t ZSTD_ldm_countBackwardsMatch(
  *  On reaching `pMatchBase`, start counting from mEnd */
 static size_t ZSTD_ldm_countBackwardsMatch_2segments(
             const BYTE* pIn, const BYTE* pAnchor,
-            const BYTE* pMatch, const BYTE* pMatchBase, const BYTE* mEnd)
+            const BYTE* pMatch, const BYTE* pMatchBase, const BYTE* dictStart, const BYTE* mEnd)
 {
-    const BYTE* const vBegin = MAX(pIn - (pMatch - pMatchBase), pAnchor);
-    size_t const matchLength = ZSTD_ldm_countBackwardsMatch(pIn, vBegin, pMatch, pMatchBase);
-    if (pMatch - matchLength != pMatchBase) {
+    size_t const matchLength = ZSTD_ldm_countBackwardsMatch(pIn, pAnchor, pMatch, pMatchBase);
+    if (pMatch - matchLength != pMatchBase || pMatchBase == dictStart) {
         return matchLength;
     }
     DEBUGLOG(7, "ZSTD_ldm_countBackwardsMatch_2segments: found a 2-parts backwards match (current length==%zu)", matchLength);
-    DEBUGLOG(7, "distance from pMatch to start = %zi", pMatch - pMatchBase);
     DEBUGLOG(7, "final backwards match length = %zu", matchLength + ZSTD_ldm_countBackwardsMatch(pIn - matchLength, pAnchor, mEnd, pMatchBase));
-    return matchLength + ZSTD_ldm_countBackwardsMatch(pIn - matchLength, pAnchor, mEnd, pMatchBase);
+    return matchLength + ZSTD_ldm_countBackwardsMatch(pIn - matchLength, pAnchor, mEnd, dictStart);
 }
 
 /** ZSTD_ldm_fillFastTables() :
@@ -350,7 +348,7 @@ static size_t ZSTD_ldm_generateSequences_internal(
                     }
                     curBackwardMatchLength =
                         ZSTD_ldm_countBackwardsMatch_2segments(ip, anchor, pMatch,
-                                                               lowMatchPtr, dictEnd);
+                                                               lowMatchPtr, dictStart, dictEnd);
                     curTotalMatchLength = curForwardMatchLength +
                                           curBackwardMatchLength;
                 } else { /* !extDict */

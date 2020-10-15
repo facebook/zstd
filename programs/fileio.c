@@ -1007,12 +1007,12 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
     return ress;
 }
 
-static void FIO_freeCResources(cRess_t ress)
+static void FIO_freeCResources(const cRess_t* const ress)
 {
-    free(ress.srcBuffer);
-    free(ress.dstBuffer);
-    free(ress.dictBuffer);
-    ZSTD_freeCStream(ress.cctx);   /* never fails */
+    free(ress->srcBuffer);
+    free(ress->dstBuffer);
+    free(ress->dictBuffer);
+    ZSTD_freeCStream(ress->cctx);   /* never fails */
 }
 
 
@@ -1722,7 +1722,7 @@ int FIO_compressFilename(FIO_ctx_t* const fCtx, FIO_prefs_t* const prefs, const 
 
 #define DISPLAY_LEVEL_DEFAULT 2
 
-    FIO_freeCResources(ress);
+    FIO_freeCResources(&ress);
     return result;
 }
 
@@ -1802,7 +1802,7 @@ int FIO_compressMultipleFilenames(FIO_ctx_t* const fCtx,
     assert(outFileName != NULL || suffix != NULL);
     if (outFileName != NULL) {   /* output into a single destination (stdout typically) */
         if (FIO_removeMultiFilesWarning(fCtx, prefs, outFileName, 1 /* displayLevelCutoff */)) {
-            FIO_freeCResources(ress);
+            FIO_freeCResources(&ress);
             return 1;
         }
         ress.dstFile = FIO_openDstFile(fCtx, prefs, NULL, outFileName);
@@ -1855,7 +1855,7 @@ int FIO_compressMultipleFilenames(FIO_ctx_t* const fCtx,
                         fCtx->totalBytesInput, fCtx->totalBytesOutput);
     }
 
-    FIO_freeCResources(ress);
+    FIO_freeCResources(&ress);
     return error;
 }
 

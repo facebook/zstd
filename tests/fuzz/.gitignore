@@ -13,7 +13,11 @@ simple_round_trip
 stream_decompress
 stream_round_trip
 zstd_frame_info
+decompress_dstSize_tooSmall
+fse_read_ncount
 fuzz-*.log
+rt_lib_*
+d_lib_*
 
 # misc
 trace

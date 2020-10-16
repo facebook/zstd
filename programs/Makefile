@@ -77,17 +77,19 @@ ZSTD_LEGACY_SUPPORT ?= 5
 ZSTDLEGACY_SRC :=
 ifneq ($(ZSTD_LEGACY_SUPPORT), 0)
 ifeq ($(shell test $(ZSTD_LEGACY_SUPPORT) -lt 8; echo $$?), 0)
-	ZSTDLEGACY_SRC += $(notdir $(shell ls $(ZSTDLEGACY_DIR)/*.c | $(GREP) 'v0[$(ZSTD_LEGACY_SUPPORT)-7]'))
+	ZSTDLEGACY_SRC += $(shell ls $(ZSTDLEGACY_DIR)/*.c | $(GREP) 'v0[$(ZSTD_LEGACY_SUPPORT)-7]')
 endif
 endif
 
 # Sort files in alphabetical order for reproducible builds
 ZSTDLIB_FULL_SRC = $(sort $(ZSTDLIB_CORE_SRC) $(ZSTDLEGACY_SRC) $(ZDICT_SRC))
-ZSTDLIB_LOCAL_SRC = $(notdir $(ZSTDLIB_FULL_SRC))
-ZSTDLIB_LOCAL_OBJ = $(ZSTDLIB_LOCAL_SRC:.c=.o)
+ZSTDLIB_LOCAL_SRC := $(notdir $(ZSTDLIB_FULL_SRC))
+ZSTDLIB_LOCAL_OBJ := $(ZSTDLIB_LOCAL_SRC:.c=.o)
 
-ZSTD_CLI_FILES := $(wildcard *.c)
-ZSTD_CLI_OBJ := $(ZSTD_CLI_FILES:.c=.o)
+ZSTD_CLI_SRC := $(wildcard *.c)
+ZSTD_CLI_OBJ := $(ZSTD_CLI_SRC:.c=.o)
+
+ZSTD_ALL_SRC := $(ZSTDLIB_LOCAL_SRC) $(ZSTD_CLI_SRC)
 
 # Define *.exe as extension for Windows systems
 ifneq (,$(filter Windows%,$(OS)))
@@ -198,7 +200,7 @@ zstd32 : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 ifneq (,$(filter Windows%,$(OS)))
 zstd32 : $(RES32_FILE)
 endif
-zstd32 : $(ZSTDLIB_FULL_SRC) $(ZSTD_CLI_FILES)
+zstd32 : $(ZSTDLIB_FULL_SRC) $(ZSTD_CLI_SRC)
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
 ## zstd-nolegacy: same scope as zstd, with just support of legacy formats removed
@@ -235,10 +237,6 @@ zstd-dll : $(ZSTD_CLI_OBJ)
 	$(CC) $(FLAGS) $^ -o $@$(EXT) $(LDFLAGS)
 
 
-ZSTDDECOMP_O = $(ZSTDDIR)/decompress/zstd_decompress.o
-
-$(ZSTDDECOMP_O): CFLAGS += $(ALIGN_LOOP)
-
 ## zstd-pgo: zstd executable optimized with PGO.
 zstd-pgo :
 	$(MAKE) clean
@@ -249,7 +247,7 @@ zstd-pgo :
 	./zstd -b $(PROFILE_WITH)
 	./zstd -b7i2 $(PROFILE_WITH)
 	./zstd -b5 $(PROFILE_WITH)
-	$(RM) zstd *.o $(ZSTDDECOMP_O) $(ZSTDDIR)/compress/*.o
+	$(RM) zstd *.o
 	case $(CC) in *clang*) if ! [ -e default.profdata ]; then llvm-profdata merge -output=default.profdata default*.profraw; fi ;; esac
 	$(MAKE) zstd MOREFLAGS=-fprofile-use
 
@@ -287,7 +285,6 @@ endif
 .PHONY: clean
 clean:
 	$(MAKE) -C $(ZSTDDIR) clean
-	$(Q)$(RM) $(ZSTDDIR)/decompress/*.o $(ZSTDDIR)/decompress/zstd_decompress.gcda
 	$(Q)$(RM) core *.o tmp* result* *.gcda dictionary *.zst \
         zstd$(EXT) zstd32$(EXT) zstd-compress$(EXT) zstd-decompress$(EXT) \
         zstd-small$(EXT) zstd-frugal$(EXT) zstd-nolegacy$(EXT) zstd4$(EXT) \
@@ -329,7 +326,7 @@ MKDIR = mkdir
 DEPDIR := .deps
 DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
 
-COMPILE.c = $(CC) $(DEPFLAGS) $(CFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c
+COMPILE.c = $(CC) $(DEPFLAGS) $(CFLAGS) $(CPPFLAGS) -c
 
 %.o : %.c
 %.o : %.c $(DEPDIR)/%.d | $(DEPDIR)
@@ -337,7 +334,7 @@ COMPILE.c = $(CC) $(DEPFLAGS) $(CFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c
 
 $(DEPDIR): ; $(Q)$(MKDIR) -p $@
 
-DEPFILES := $(ZSTDLIB_LOCAL_SRC:%.c=$(DEPDIR)/%.d)
+DEPFILES := $(ZSTD_ALL_SRC:%.c=$(DEPDIR)/%.d)
 $(DEPFILES):
 
 include $(wildcard $(DEPFILES))

@@ -15,6 +15,9 @@
 # zstd-decompress : decompressor-only version of zstd
 # ##########################################################################
 
+# verbose mode can be triggered by V=1 or VERBOSE=1
+Q = $(if $(filter 1,$(V) $(VERBOSE)),,@)
+
 ZSTDDIR := ../lib
 
 # Version numbers
@@ -317,6 +320,28 @@ preview-man: clean-man man
 	man ./zstd.1
 	man ./zstdgrep.1
 	man ./zstdless.1
+
+
+# Generate .h dependencies automatically
+
+MKDIR = mkdir
+
+DEPDIR := .deps
+DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
+
+COMPILE.c = $(CC) $(DEPFLAGS) $(CFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c
+
+%.o : %.c
+%.o : %.c $(DEPDIR)/%.d | $(DEPDIR)
+	$(COMPILE.c) $(OUTPUT_OPTION) $<
+
+$(DEPDIR): ; $(Q)$(MKDIR) -p $@
+
+DEPFILES := $(ZSTDLIB_LOCAL_SRC:%.c=$(DEPDIR)/%.d)
+$(DEPFILES):
+
+include $(wildcard $(DEPFILES))
+
 
 #-----------------------------------------------------------------------------
 # make install is validated only for Linux, macOS, BSD, Hurd and Solaris targets

@@ -285,5 +285,6 @@
   - ECHO Testing %COMPILER% %PLATFORM% %CONFIGURATION%
   - if [%HOST%]==[mingw] (
       set "CC=%COMPILER%" &&
+      make clean &&
       make check
     )

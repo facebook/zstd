@@ -99,7 +99,7 @@ FUZZ_TARGETS :=       \
 	decompress_dstSize_tooSmall \
 	fse_read_ncount
 
-all: $(FUZZ_TARGETS)
+all: libregression.a $(FUZZ_TARGETS)
 
 rt_lib_common_%.o: $(ZSTDDIR)/common/%.c
 	$(CC) $(FUZZ_CPPFLAGS) $(FUZZ_CFLAGS) $(FUZZ_ROUND_TRIP_FLAGS) $< -c -o $@
@@ -209,12 +209,10 @@ regressiontest: corpora
 	$(PYTHON) ./fuzz.py regression all
 
 clean:
-	@$(RM) *.a *.o
-	@$(RM) simple_round_trip stream_round_trip simple_decompress \
-           stream_decompress block_decompress block_round_trip \
-           simple_compress dictionary_round_trip dictionary_decompress \
-           zstd_frame_info
+	@$(RM) *.a *.o $(FUZZ_TARGETS)
+	@echo Cleaning completed
 
 cleanall:
 	@$(RM) -r Fuzzer
 	@$(RM) -r corpora
+	@echo Cleaning completed

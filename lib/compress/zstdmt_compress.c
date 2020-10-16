@@ -1192,8 +1192,8 @@ static unsigned ZSTDMT_computeTargetJobLog(const ZSTD_CCtx_params* params)
     if (params->ldmParams.enableLdm) {
         /* In Long Range Mode, the windowLog is typically oversized.
          * In which case, it's preferable to determine the jobSize
-         * based on chainLog instead. */
-        jobLog = MAX(21, params->cParams.chainLog + 4);
+         * based on cycleLog instead. */
+        jobLog = MAX(21, ZSTD_cycleLog(params->cParams.chainLog, params->cParams.strategy) + 3);
     } else {
         jobLog = MAX(20, params->cParams.windowLog + 2);
     }

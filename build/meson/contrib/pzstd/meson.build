@@ -19,9 +19,11 @@ pzstd_sources = [
   join_paths(zstd_rootdir, 'programs/util.c'),
 ]
 
+pzstd_cpp_args = cxx.get_supported_arguments([ '-DNDEBUG', '-Wno-shadow', '-pedantic' ])
+
 pzstd = executable('pzstd',
   pzstd_sources,
-  cpp_args: [ '-DNDEBUG', '-Wno-shadow', '-pedantic' ],
+  cpp_args: pzstd_cpp_args,
   include_directories: pzstd_includes,
   dependencies: [ libzstd_dep, thread_dep ],
   install: true)

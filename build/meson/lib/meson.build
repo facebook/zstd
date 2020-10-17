@@ -77,8 +77,12 @@ endif
 libzstd_c_args = []
 if cc_id == compiler_msvc
   if default_library_type != 'static'
-    libzstd_sources += [windows_mod.compile_resources(
-      join_paths(zstd_rootdir, 'build/VS2010/libzstd-dll/libzstd-dll.rc'))]
+    libzstd_sources += [
+      windows_mod.compile_resources(
+        join_paths(zstd_rootdir, 'build/VS2010/libzstd-dll/libzstd-dll.rc'),
+        include_directories: include_directories(join_paths(zstd_rootdir, 'lib')),
+      )
+    ]
     libzstd_c_args += ['-DZSTD_DLL_EXPORT=1',
       '-DZSTD_HEAPMODE=0',
       '-D_CONSOLE',

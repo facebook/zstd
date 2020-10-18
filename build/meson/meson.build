@@ -36,10 +36,6 @@ compiler_gcc = 'gcc'
 compiler_clang = 'clang'
 compiler_msvc = 'msvc'
 
-if cc_id == compiler_msvc
-  error('MSVC 2019 compiler is not supported and not tested in Zstd')
-endif
-
 zstd_version = meson.project_version()
 
 zstd_h_file = join_paths(meson.current_source_dir(), '../../lib/zstd.h')
@@ -88,6 +84,10 @@ feature_zlib = get_option('zlib')
 feature_lzma = get_option('lzma')
 feature_lz4 = get_option('lz4')
 
+if cc_id == compiler_msvc and default_library_type == 'shared'
+  error('Shared build for MSVC 2019 compiler is not tested by Zstd')
+endif
+
 # =============================================================================
 # Dependencies
 # =============================================================================
@@ -121,7 +121,7 @@ if [compiler_gcc, compiler_clang].contains(cc_id)
   add_project_arguments(cc_compile_flags, language : 'c')
   add_project_arguments(cxx_compile_flags, language : 'cpp')
 elif cc_id == compiler_msvc
-  msvc_compile_flags = [ '/D_UNICODE', '/DUNICODE' ]
+  msvc_compile_flags = [ '/D_UNICODE', '/DUNICODE', '/DNOMINMAX' ]
   if use_multi_thread
     msvc_compile_flags += '/MP'
   endif

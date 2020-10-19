@@ -209,6 +209,16 @@ static ZSTD_CCtx_params ZSTD_makeCCtxParamsFromCParams(
     /* should not matter, as all cParams are presumed properly defined */
     ZSTD_CCtxParams_init(&cctxParams, ZSTD_CLEVEL_DEFAULT);
     cctxParams.cParams = cParams;
+
+    if (cParams.strategy >= ZSTD_btopt && cParams.windowLog >= 27 && cctxParams.nbWorkers == 0) {
+        DEBUGLOG(4, "ZSTD_makeCCtxParamsFromCParams(): Including LDM into cctx params");
+        cctxParams.ldmParams.enableLdm = 1;
+        /* LDM is enabled by default for optimal parser and window size >= 128MB */
+        ZSTD_ldm_adjustParameters(&cctxParams.ldmParams, &cParams);
+        assert(cctxParams.ldmParams.hashLog >= cctxParams.ldmParams.bucketSizeLog);
+        assert(cctxParams.ldmParams.hashRateLog < 32);
+    }
+
     assert(!ZSTD_checkCParams(cParams));
     return cctxParams;
 }

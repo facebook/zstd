@@ -84,10 +84,6 @@ feature_zlib = get_option('zlib')
 feature_lzma = get_option('lzma')
 feature_lz4 = get_option('lz4')
 
-if cc_id == compiler_msvc and default_library_type == 'shared'
-  error('Shared build for MSVC 2019 compiler is not tested by Zstd')
-endif
-
 # =============================================================================
 # Dependencies
 # =============================================================================

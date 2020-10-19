@@ -339,7 +339,9 @@ typedef enum {
                                      * for large inputs, by finding large matches at long distance.
                                      * It increases memory usage and window size.
                                      * Note: enabling this parameter increases default ZSTD_c_windowLog to 128 MB
-                                     * except when expressly set to a different value. */
+                                     * except when expressly set to a different value. 
+                                     * Note: will be enabled by default if ZSTD_c_windowLog >= 128 MB and
+                                     * compression strategy >= ZSTD_btopt (== compression level 16+) */
     ZSTD_c_ldmHashLog=161,   /* Size of the table for long distance matching, as a power of 2.
                               * Larger values increase memory usage and compression ratio,
                               * but decrease compression speed.

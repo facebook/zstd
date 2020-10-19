@@ -1542,7 +1542,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
 
     zc->isFirstBlock = 1;
 
-    if (params.cParams.strategy >= ZSTD_btopt && params.cParams.windowLog >= 27) {
+    if (params.cParams.strategy >= ZSTD_btopt && params.cParams.windowLog >= 27 && params.nbWorkers == 0) {
         /* Enable LDM by default for optimal parser and window size >= 128MB */
         DEBUGLOG(4, "LDM enabled by default (window size >= 128MB, strategy >= btopt)");
         params.ldmParams.enableLdm = 1;

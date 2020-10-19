@@ -1459,6 +1459,13 @@ size_t ZSTDMT_initCStream_internal(
 
     mtctx->params = params;
     mtctx->frameContentSize = pledgedSrcSize;
+
+    if (params.cParams.strategy >= ZSTD_btopt && params.cParams.windowLog >= 27) {
+        /* Enable LDM by default for optimal parser and window size >= 128MB */
+        DEBUGLOG(4, "LDM enabled by default (window size >= 128MB, strategy >= btopt)");
+        params.ldmParams.enableLdm = 1;
+    }
+
     if (dict) {
         ZSTD_freeCDict(mtctx->cdictLocal);
         mtctx->cdictLocal = ZSTD_createCDict_advanced(dict, dictSize,

@@ -1552,12 +1552,6 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
 
     zc->isFirstBlock = 1;
 
-    if (params.cParams.strategy >= ZSTD_btopt && params.cParams.windowLog >= 27 && params.nbWorkers == 0) {
-        /* Enable LDM by default for optimal parser and window size >= 128MB */
-        DEBUGLOG(4, "LDM enabled by default (window size >= 128MB, strategy >= btopt)");
-        params.ldmParams.enableLdm = 1;
-    }
-
     if (params.ldmParams.enableLdm) {
         /* Adjust long distance matching parameters */
         ZSTD_ldm_adjustParameters(&params.ldmParams, &params.cParams);
@@ -4194,6 +4188,11 @@ size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
                     dictSize, mode);
         }
 
+        if (params.cParams.strategy >= ZSTD_btopt && params.cParams.windowLog >= 27) {
+            /* Enable LDM by default for optimal parser and window size >= 128MB */
+            DEBUGLOG(4, "LDM enabled by default (window size >= 128MB, strategy >= btopt)");
+            params.ldmParams.enableLdm = 1;
+        }
 
 #ifdef ZSTD_MULTITHREAD
         if ((cctx->pledgedSrcSizePlusOne-1) <= ZSTDMT_JOBSIZE_MIN) {

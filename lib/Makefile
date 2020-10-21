@@ -174,7 +174,10 @@ vpath %.c ./dictBuilder
 vpath %.c ./legacy
 vpath %.c ./deprecated
 
-ZSTD_DYNLIB_OBJ := $(ZSTD_LOCAL_OBJ)
+ZSTD_DYNLIB_DIR := obj/dynlib
+ZSTD_DYNLIB_OBJ := $(addprefix $(ZSTD_DYNLIB_DIR)/, $(ZSTD_LOCAL_OBJ))
+ZSTD_STATLIB_DIR := obj/statlib
+ZSTD_STATLIB_OBJ := $(addprefix $(ZSTD_STATLIB_DIR)/, $(ZSTD_LOCAL_OBJ))
 
 # macOS linker doesn't support -soname, and use different extension
 # see : https://developer.apple.com/library/mac/documentation/DeveloperTools/Conceptual/DynamicLibraries/100-Articles/DynamicLibraryDesignGuidelines.html
@@ -201,7 +204,7 @@ lib-all: all
 all: lib
 
 libzstd.a: ARFLAGS = rcs
-libzstd.a: $(ZSTD_FULL_OBJ)
+libzstd.a: $(ZSTD_STATLIB_OBJ)
 	@echo compiling static library
 	$(Q)$(AR) $(ARFLAGS) $@ $^
 
@@ -232,6 +235,7 @@ libzstd : $(LIBZSTD)
 .PHONY: lib
 lib : libzstd.a libzstd
 
+
 # note : do not define lib-mt or lib-release as .PHONY
 # make does not consider implicit pattern rule for .PHONY target
 
@@ -244,6 +248,13 @@ lib : libzstd.a libzstd
 %-release : %
 	@echo release build completed
 
+$(ZSTD_DYNLIB_DIR)/%.o : %.c | $(ZSTD_DYNLIB_DIR)
+	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
+$(ZSTD_STATLIB_DIR)/%.o : %.c | $(ZSTD_STATLIB_DIR)
+	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
+
+MKDIR ?= mkdir
+$(ZSTD_DYNLIB_DIR) $(ZSTD_STATLIB_DIR): ; $(Q)$(MKDIR) -p $@
 
 # Special case : building library in single-thread mode _and_ without zstdmt_compress.c
 ZSTDMT_FILES = compress/zstdmt_compress.c
@@ -259,6 +270,7 @@ clean:
 	$(Q)$(RM) core *.o *.a *.gcda *.$(SHARED_EXT) *.$(SHARED_EXT).* libzstd.pc
 	$(Q)$(RM) dll/libzstd.dll dll/libzstd.lib libzstd-nomt*
 	$(Q)$(RM) common/*.o compress/*.o decompress/*.o dictBuilder/*.o legacy/*.o deprecated/*.o
+	$(Q)$(RM) -r $(ZSTD_STATLIB_DIR)/*.o $(ZSTD_DYNLIB_DIR)/*.o
 	@echo Cleaning library completed
 
 #-----------------------------------------------------------------------------

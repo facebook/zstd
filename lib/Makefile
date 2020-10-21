@@ -10,13 +10,13 @@
 
 Q = $(if $(filter 1,$(V) $(VERBOSE)),,@)
 
-# When cross-compiling from linux to windows, you might
-# need to specify this as "Windows." Fedora build fails
-# without it.
+# When cross-compiling from linux to windows,
+# you might need to specify this as "Windows."
+# Fedora build fails without it.
 #
-# Note: mingw-w64 build from linux to windows does not
-# fail on other tested distros (ubuntu, debian) even
-# without manually specifying the TARGET_SYSTEM.
+# Note: mingw-w64 build from linux to windows
+# does not fail on other tested distros (ubuntu, debian)
+# even without manually specifying the TARGET_SYSTEM.
 TARGET_SYSTEM ?= $(OS)
 
 # Version numbers
@@ -167,12 +167,7 @@ CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 ZSTD_FULL_OBJ  := $(ZSTD_FILES:.c=.o)
 ZSTD_LOCAL_OBJ := $(notdir $(ZSTD_FULL_OBJ))
 
-vpath %.c ./common
-vpath %.c ./compress
-vpath %.c ./decompress
-vpath %.c ./dictBuilder
-vpath %.c ./legacy
-vpath %.c ./deprecated
+vpath %.c common compress decompress dictBuilder legacy deprecated
 
 ZSTD_DYNLIB_DIR := obj/dynlib
 ZSTD_DYNLIB_OBJ := $(addprefix $(ZSTD_DYNLIB_DIR)/, $(ZSTD_LOCAL_OBJ))

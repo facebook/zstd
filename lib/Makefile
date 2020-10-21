@@ -82,7 +82,7 @@ ZDEPR_FILES := $(sort $(wildcard deprecated/*.c))
 ZSTD_FILES := $(ZSTDCOMMON_FILES)
 
 ifeq ($(findstring GCC,$(CCVER)),GCC)
-decompress/zstd_decompress_block.o :	CFLAGS+=-fno-tree-vectorize
+decompress/zstd_decompress_block.o : CFLAGS+=-fno-tree-vectorize
 endif
 
 # Modules
@@ -164,20 +164,29 @@ endif
 endif
 CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 
-ZSTD_OBJ   := $(patsubst %.c,%.o,$(ZSTD_FILES))
+ZSTD_OBJ  := $(ZSTD_FILES:.c=.o)
+
+vpath %.c ./common
+vpath %.c ./compress
+vpath %.c ./decompress
+vpath %.c ./dictBuilder
+vpath %.c ./legacy
+vpath %.c ./deprecated
+
+ZSTD_DYNLIB_OBJ := $(notdir $(ZSTD_OBJ))
 
 # macOS linker doesn't support -soname, and use different extension
 # see : https://developer.apple.com/library/mac/documentation/DeveloperTools/Conceptual/DynamicLibraries/100-Articles/DynamicLibraryDesignGuidelines.html
 ifeq ($(shell uname), Darwin)
-	SHARED_EXT = dylib
-	SHARED_EXT_MAJOR = $(LIBVER_MAJOR).$(SHARED_EXT)
-	SHARED_EXT_VER = $(LIBVER).$(SHARED_EXT)
-	SONAME_FLAGS = -install_name $(LIBDIR)/libzstd.$(SHARED_EXT_MAJOR) -compatibility_version $(LIBVER_MAJOR) -current_version $(LIBVER)
+  SHARED_EXT = dylib
+  SHARED_EXT_MAJOR = $(LIBVER_MAJOR).$(SHARED_EXT)
+  SHARED_EXT_VER = $(LIBVER).$(SHARED_EXT)
+  SONAME_FLAGS = -install_name $(LIBDIR)/libzstd.$(SHARED_EXT_MAJOR) -compatibility_version $(LIBVER_MAJOR) -current_version $(LIBVER)
 else
-	SONAME_FLAGS = -Wl,-soname=libzstd.$(SHARED_EXT).$(LIBVER_MAJOR)
-	SHARED_EXT = so
-	SHARED_EXT_MAJOR = $(SHARED_EXT).$(LIBVER_MAJOR)
-	SHARED_EXT_VER = $(SHARED_EXT).$(LIBVER)
+  SONAME_FLAGS = -Wl,-soname=libzstd.$(SHARED_EXT).$(LIBVER_MAJOR)
+  SHARED_EXT = so
+  SHARED_EXT_MAJOR = $(SHARED_EXT).$(LIBVER_MAJOR)
+  SHARED_EXT_VER = $(SHARED_EXT).$(LIBVER)
 endif
 
 
@@ -205,8 +214,9 @@ $(LIBZSTD): $(ZSTD_FILES)
 else
 
 LIBZSTD = libzstd.$(SHARED_EXT_VER)
-$(LIBZSTD): LDFLAGS += -shared -fPIC -fvisibility=hidden
-$(LIBZSTD): $(ZSTD_FILES)
+$(LIBZSTD): CFLAGS += -fPIC
+$(LIBZSTD): LDFLAGS += -shared -fvisibility=hidden
+$(LIBZSTD): $(ZSTD_DYNLIB_OBJ)
 	@echo compiling dynamic library $(LIBVER)
 	$(Q)$(CC) $(FLAGS) $^ $(LDFLAGS) $(SONAME_FLAGS) -o $@
 	@echo creating versioned links

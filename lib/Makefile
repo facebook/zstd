@@ -35,28 +35,28 @@ CCVER := $(shell $(CC) --version)
 # space-optimized defaults.
 ZSTD_LIB_MINIFY ?= 0
 ifneq ($(ZSTD_LIB_MINIFY), 0)
-	HAVE_CC_OZ ?= $(shell echo "" | $(CC) -Oz -x c -c - -o /dev/null 2> /dev/null && echo 1 || echo 0)
-	ZSTD_LEGACY_SUPPORT ?= 0
-	ZSTD_LIB_DEPRECATED ?= 0
-	HUF_FORCE_DECOMPRESS_X1 ?= 1
-	ZSTD_FORCE_DECOMPRESS_SHORT ?= 1
-	ZSTD_NO_INLINE ?= 1
-	ZSTD_STRIP_ERROR_STRINGS ?= 1
-	ifneq ($(HAVE_CC_OZ), 0)
-		# Some compilers (clang) support an even more space-optimized setting.
-		CFLAGS += -Oz
-	else
-		CFLAGS += -Os
-	endif
-	CFLAGS += -fno-stack-protector -fomit-frame-pointer -fno-ident \
-	          -DDYNAMIC_BMI2=0 -DNDEBUG
+  HAVE_CC_OZ ?= $(shell echo "" | $(CC) -Oz -x c -c - -o /dev/null 2> /dev/null && echo 1 || echo 0)
+  ZSTD_LEGACY_SUPPORT ?= 0
+  ZSTD_LIB_DEPRECATED ?= 0
+  HUF_FORCE_DECOMPRESS_X1 ?= 1
+  ZSTD_FORCE_DECOMPRESS_SHORT ?= 1
+  ZSTD_NO_INLINE ?= 1
+  ZSTD_STRIP_ERROR_STRINGS ?= 1
+ifneq ($(HAVE_CC_OZ), 0)
+    # Some compilers (clang) support an even more space-optimized setting.
+    CFLAGS += -Oz
 else
-	CFLAGS += -O3
+    CFLAGS += -Os
+endif
+  CFLAGS += -fno-stack-protector -fomit-frame-pointer -fno-ident \
+            -DDYNAMIC_BMI2=0 -DNDEBUG
+else
+  CFLAGS += -O3
 endif
 
 CPPFLAGS+= -DXXH_NAMESPACE=ZSTD_
 ifeq ($(TARGET_SYSTEM),Windows_NT)   # MinGW assumed
-CPPFLAGS   += -D__USE_MINGW_ANSI_STDIO   # compatibility with %zu formatting
+  CPPFLAGS   += -D__USE_MINGW_ANSI_STDIO   # compatibility with %zu formatting
 endif
 DEBUGFLAGS= -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
             -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
@@ -69,7 +69,7 @@ FLAGS    = $(CPPFLAGS) $(CFLAGS)
 HAVE_COLORNEVER = $(shell echo a | grep --color=never a > /dev/null 2> /dev/null && echo 1 || echo 0)
 GREP_OPTIONS ?=
 ifeq ($HAVE_COLORNEVER, 1)
-GREP_OPTIONS += --color=never
+  GREP_OPTIONS += --color=never
 endif
 GREP = grep $(GREP_OPTIONS)
 SED_ERE_OPT ?= -E
@@ -104,67 +104,68 @@ ZSTD_NO_INLINE ?= 0
 ZSTD_STRIP_ERROR_STRINGS ?= 0
 
 ifeq ($(ZSTD_LIB_COMPRESSION), 0)
-	ZSTD_LIB_DICTBUILDER = 0
-	ZSTD_LIB_DEPRECATED = 0
+  ZSTD_LIB_DICTBUILDER = 0
+  ZSTD_LIB_DEPRECATED = 0
 endif
 
 ifeq ($(ZSTD_LIB_DECOMPRESSION), 0)
-	ZSTD_LEGACY_SUPPORT = 0
-	ZSTD_LIB_DEPRECATED = 0
+  ZSTD_LEGACY_SUPPORT = 0
+  ZSTD_LIB_DEPRECATED = 0
 endif
 
 ifneq ($(ZSTD_LIB_COMPRESSION), 0)
-	ZSTD_FILES += $(ZSTDCOMP_FILES)
+  ZSTD_FILES += $(ZSTDCOMP_FILES)
 endif
 
 ifneq ($(ZSTD_LIB_DECOMPRESSION), 0)
-	ZSTD_FILES += $(ZSTDDECOMP_FILES)
+  ZSTD_FILES += $(ZSTDDECOMP_FILES)
 endif
 
 ifneq ($(ZSTD_LIB_DEPRECATED), 0)
-	ZSTD_FILES += $(ZDEPR_FILES)
+  ZSTD_FILES += $(ZDEPR_FILES)
 endif
 
 ifneq ($(ZSTD_LIB_DICTBUILDER), 0)
-	ZSTD_FILES += $(ZDICT_FILES)
+  ZSTD_FILES += $(ZDICT_FILES)
 endif
 
 ifneq ($(HUF_FORCE_DECOMPRESS_X1), 0)
-	CFLAGS += -DHUF_FORCE_DECOMPRESS_X1
+  CFLAGS += -DHUF_FORCE_DECOMPRESS_X1
 endif
 
 ifneq ($(HUF_FORCE_DECOMPRESS_X2), 0)
-	CFLAGS += -DHUF_FORCE_DECOMPRESS_X2
+  CFLAGS += -DHUF_FORCE_DECOMPRESS_X2
 endif
 
 ifneq ($(ZSTD_FORCE_DECOMPRESS_SHORT), 0)
-	CFLAGS += -DZSTD_FORCE_DECOMPRESS_SHORT
+  CFLAGS += -DZSTD_FORCE_DECOMPRESS_SHORT
 endif
 
 ifneq ($(ZSTD_FORCE_DECOMPRESS_LONG), 0)
-	CFLAGS += -DZSTD_FORCE_DECOMPRESS_LONG
+  CFLAGS += -DZSTD_FORCE_DECOMPRESS_LONG
 endif
 
 ifneq ($(ZSTD_NO_INLINE), 0)
-	CFLAGS += -DZSTD_NO_INLINE
+  CFLAGS += -DZSTD_NO_INLINE
 endif
 
 ifneq ($(ZSTD_STRIP_ERROR_STRINGS), 0)
-	CFLAGS += -DZSTD_STRIP_ERROR_STRINGS
+  CFLAGS += -DZSTD_STRIP_ERROR_STRINGS
 endif
 
 ifneq ($(ZSTD_LEGACY_MULTITHREADED_API), 0)
-	CFLAGS += -DZSTD_LEGACY_MULTITHREADED_API
+  CFLAGS += -DZSTD_LEGACY_MULTITHREADED_API
 endif
 
 ifneq ($(ZSTD_LEGACY_SUPPORT), 0)
 ifeq ($(shell test $(ZSTD_LEGACY_SUPPORT) -lt 8; echo $$?), 0)
-	ZSTD_FILES += $(shell ls legacy/*.c | $(GREP) 'v0[$(ZSTD_LEGACY_SUPPORT)-7]')
+  ZSTD_FILES += $(shell ls legacy/*.c | $(GREP) 'v0[$(ZSTD_LEGACY_SUPPORT)-7]')
 endif
 endif
 CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 
-ZSTD_OBJ  := $(ZSTD_FILES:.c=.o)
+ZSTD_FULL_OBJ  := $(ZSTD_FILES:.c=.o)
+ZSTD_LOCAL_OBJ := $(notdir $(ZSTD_FULL_OBJ))
 
 vpath %.c ./common
 vpath %.c ./compress
@@ -173,7 +174,7 @@ vpath %.c ./dictBuilder
 vpath %.c ./legacy
 vpath %.c ./deprecated
 
-ZSTD_DYNLIB_OBJ := $(notdir $(ZSTD_OBJ))
+ZSTD_DYNLIB_OBJ := $(ZSTD_LOCAL_OBJ)
 
 # macOS linker doesn't support -soname, and use different extension
 # see : https://developer.apple.com/library/mac/documentation/DeveloperTools/Conceptual/DynamicLibraries/100-Articles/DynamicLibraryDesignGuidelines.html
@@ -200,7 +201,7 @@ lib-all: all
 all: lib
 
 libzstd.a: ARFLAGS = rcs
-libzstd.a: $(ZSTD_OBJ)
+libzstd.a: $(ZSTD_FULL_OBJ)
 	@echo compiling static library
 	$(Q)$(AR) $(ARFLAGS) $@ $^
 
@@ -300,15 +301,15 @@ endif
 endif
 
 ifneq (,$(filter $(shell uname),FreeBSD NetBSD DragonFly))
-PKGCONFIGDIR ?= $(PREFIX)/libdata/pkgconfig
+  PKGCONFIGDIR ?= $(PREFIX)/libdata/pkgconfig
 else
-PKGCONFIGDIR ?= $(LIBDIR)/pkgconfig
+  PKGCONFIGDIR ?= $(LIBDIR)/pkgconfig
 endif
 
 ifneq (,$(filter $(shell uname),SunOS))
-INSTALL ?= ginstall
+  INSTALL ?= ginstall
 else
-INSTALL ?= install
+  INSTALL ?= install
 endif
 
 INSTALL_PROGRAM ?= $(INSTALL)

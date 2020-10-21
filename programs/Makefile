@@ -65,7 +65,11 @@ ZSTDLIB_DECOMPRESS := $(ZSTDDIR)/decompress
 ZDICT_DIR := $(ZSTDDIR)/dictBuilder
 ZSTDLEGACY_DIR := $(ZSTDDIR)/legacy
 
-VPATH := $(ZSTDLIB_COMMON):$(ZSTDLIB_COMPRESS):$(ZSTDLIB_DECOMPRESS):$(ZDICT_DIR):$(ZSTDLEGACY_DIR)
+vpath %.c $(ZSTDLIB_COMMON)
+vpath %.c $(ZSTDLIB_COMPRESS)
+vpath %.c $(ZSTDLIB_DECOMPRESS)
+vpath %.c $(ZDICT_DIR)
+vpath %.c $(ZSTDLEGACY_DIR)
 
 ZSTDLIB_COMMON_C := $(wildcard $(ZSTDLIB_COMMON)/*.c)
 ZSTDLIB_COMPRESS_C := $(wildcard $(ZSTDLIB_COMPRESS)/*.c)
@@ -284,7 +288,6 @@ endif
 
 .PHONY: clean
 clean:
-	$(MAKE) -C $(ZSTDDIR) clean
 	$(Q)$(RM) core *.o tmp* result* *.gcda dictionary *.zst \
         zstd$(EXT) zstd32$(EXT) zstd-compress$(EXT) zstd-decompress$(EXT) \
         zstd-small$(EXT) zstd-frugal$(EXT) zstd-nolegacy$(EXT) zstd4$(EXT) \

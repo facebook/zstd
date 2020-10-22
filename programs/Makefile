@@ -91,6 +91,31 @@ ZSTD_CLI_SRC := $(wildcard *.c)
 ZSTD_CLI_OBJ := $(ZSTD_CLI_SRC:.c=.o)
 
 ZSTD_ALL_SRC := $(ZSTDLIB_LOCAL_SRC) $(ZSTD_CLI_SRC)
+ZSTD_ALL_OBJ := $(ZSTD_ALL_SRC:.c=.o)
+
+UNAME := $(shell uname)
+ifeq ($(UNAME), Darwin)
+  HASH ?= md5
+endif
+ifeq ($(UNAME), FreeBSD)
+  HASH ?= gmd5sum
+endif
+ifeq ($(UNAME), OpenBSD)
+  HASH ?= md5
+endif
+HASH ?= md5sum
+
+HAVE_HASH := $(shell echo 1 | $(HASH) > /dev/null && echo 1 || echo 0)
+ifeq ($(HAVE_HASH), 1)
+  HASH_VALUE := $(shell echo $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) | $(HASH) | head -c 16)
+  HASH_DIR := conf_$(HASH_VALUE)
+else
+  $(info warning : could not find hash function to differentiate builds with different flags)
+  HASH_DIR := 0
+endif
+
+BUILD_DIR ?= obj/$(HASH_DIR)
+ZSTD_OBJ := $(addprefix $(BUILD_DIR)/, $(ZSTD_ALL_OBJ))
 
 # Define *.exe as extension for Windows systems
 ifneq (,$(filter Windows%,$(OS)))
@@ -177,18 +202,23 @@ all: zstd
 .PHONY: allVariants
 allVariants: zstd zstd-compress zstd-decompress zstd-small zstd-nolegacy zstd-dictBuilder
 
+$(BUILD_DIR)/zstd : $(ZSTD_OBJ)
+	@echo "$(THREAD_MSG)"
+	@echo "$(ZLIB_MSG)"
+	@echo "$(LZMA_MSG)"
+	@echo "$(LZ4_MSG)"
+	$(Q)$(CC) $(FLAGS) $^ -o $@$(EXT) $(LDFLAGS)
+
+.PHONY: zstd
 zstd : CPPFLAGS += $(THREAD_CPP) $(ZLIBCPP) $(LZMACPP) $(LZ4CPP)
 zstd : LDFLAGS += $(THREAD_LD) $(ZLIBLD) $(LZMALD) $(LZ4LD) $(DEBUGFLAGS_LD)
 zstd : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 ifneq (,$(filter Windows%,$(OS)))
 zstd : $(RES_FILE)
 endif
-zstd : $(ZSTDLIB_LOCAL_OBJ) $(ZSTD_CLI_OBJ)
-	@echo "$(THREAD_MSG)"
-	@echo "$(ZLIB_MSG)"
-	@echo "$(LZMA_MSG)"
-	@echo "$(LZ4_MSG)"
-	$(CC) $(FLAGS) $^ -o $@$(EXT) $(LDFLAGS)
+zstd : $(BUILD_DIR)/zstd
+	$(Q)ln -sf $^ $@
+	@echo zstd build completed
 
 .PHONY: zstd-release
 zstd-release: DEBUGFLAGS := -DBACKTRACE_ENABLE=0
@@ -289,6 +319,7 @@ clean:
         zstd$(EXT) zstd32$(EXT) zstd-compress$(EXT) zstd-decompress$(EXT) \
         zstd-small$(EXT) zstd-frugal$(EXT) zstd-nolegacy$(EXT) zstd4$(EXT) \
         zstd-dictBuilder$(EXT) *.gcda default*.profraw default.profdata have_zlib$(EXT)
+	$(Q)$(RM) -r obj/*
 	@echo Cleaning completed
 
 MD2ROFF = ronn
@@ -321,35 +352,32 @@ preview-man: clean-man man
 
 # Generate .h dependencies automatically
 
-MKDIR = mkdir
+DEPFLAGS = -MT $@ -MMD -MP -MF
 
-DEPDIR := .deps
-DEPFLAGS = -MT $@ -MMD -MP -MF $(DEPDIR)/$*.d
-
-COMPILE.c = $(CC) $(DEPFLAGS) $(CFLAGS) $(CPPFLAGS) -c
-
-%.o : %.c
-%.o : %.c $(DEPDIR)/%.d | $(DEPDIR)
+$(BUILD_DIR)/%.o : %.c $(BUILD_DIR)/%.d | $(BUILD_DIR)
 	@echo $@
-	$(Q)$(COMPILE.c) $(OUTPUT_OPTION) $<
+	$(Q)$(COMPILE.c) $(DEPFLAGS) $(BUILD_DIR)/$*.d $(OUTPUT_OPTION) $<
 
-$(DEPDIR): ; $(Q)$(MKDIR) -p $@
+MKDIR ?= mkdir
+$(BUILD_DIR): ; $(Q)$(MKDIR) -p $@
 
-DEPFILES := $(ZSTD_ALL_SRC:%.c=$(DEPDIR)/%.d)
+DEPFILES := $(ZSTD_OBJ:.o=.d)
 $(DEPFILES):
 
 include $(wildcard $(DEPFILES))
 
 
+
 #-----------------------------------------------------------------------------
 # make install is validated only for Linux, macOS, BSD, Hurd and Solaris targets
 #-----------------------------------------------------------------------------
-ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku))
+UNAME := $(shell uname)
+ifneq (,$(filter $(UNAME),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku))
 
 HAVE_COLORNEVER = $(shell echo a | egrep --color=never a > /dev/null 2> /dev/null && echo 1 || echo 0)
 EGREP_OPTIONS ?=
 ifeq ($HAVE_COLORNEVER, 1)
-EGREP_OPTIONS += --color=never
+  EGREP_OPTIONS += --color=never
 endif
 EGREP = egrep $(EGREP_OPTIONS)
 AWK = awk
@@ -387,17 +415,17 @@ datarootdir ?= $(PREFIX)/share
 mandir      ?= $(datarootdir)/man
 man1dir     ?= $(mandir)/man1
 
-ifneq (,$(filter $(shell uname),OpenBSD FreeBSD NetBSD DragonFly SunOS))
-MANDIR  ?= $(PREFIX)/man
-MAN1DIR ?= $(MANDIR)/man1
+ifneq (,$(filter $(UNAME),OpenBSD FreeBSD NetBSD DragonFly SunOS))
+  MANDIR  ?= $(PREFIX)/man
+  MAN1DIR ?= $(MANDIR)/man1
 else
-MAN1DIR ?= $(man1dir)
+  MAN1DIR ?= $(man1dir)
 endif
 
-ifneq (,$(filter $(shell uname),SunOS))
-INSTALL ?= ginstall
+ifneq (,$(filter $(UNAME),SunOS))
+  INSTALL ?= ginstall
 else
-INSTALL ?= install
+  INSTALL ?= install
 endif
 
 INSTALL_PROGRAM ?= $(INSTALL)

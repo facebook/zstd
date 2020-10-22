@@ -201,7 +201,7 @@ ZSTD_STATLIB_OBJ := $(addprefix $(ZSTD_STATLIB_DIR)/, $(ZSTD_LOCAL_OBJ))
 
 # macOS linker doesn't support -soname, and use different extension
 # see : https://developer.apple.com/library/mac/documentation/DeveloperTools/Conceptual/DynamicLibraries/100-Articles/DynamicLibraryDesignGuidelines.html
-ifeq ($(shell uname), Darwin)
+ifeq ($(UNAME), Darwin)
   SHARED_EXT = dylib
   SHARED_EXT_MAJOR = $(LIBVER_MAJOR).$(SHARED_EXT)
   SHARED_EXT_VER = $(LIBVER).$(SHARED_EXT)
@@ -318,7 +318,7 @@ clean:
 #-----------------------------------------------------------------------------
 # make install is validated only for below listed environments
 #-----------------------------------------------------------------------------
-ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku))
+ifneq (,$(filter $(UNAME),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku))
 
 all: libzstd.pc
 
@@ -354,13 +354,13 @@ $(error configured includedir ($(INCLUDEDIR)) is outside of exec_prefix ($(PREFI
 endif
 endif
 
-ifneq (,$(filter $(shell uname),FreeBSD NetBSD DragonFly))
+ifneq (,$(filter $(UNAME),FreeBSD NetBSD DragonFly))
   PKGCONFIGDIR ?= $(PREFIX)/libdata/pkgconfig
 else
   PKGCONFIGDIR ?= $(LIBDIR)/pkgconfig
 endif
 
-ifneq (,$(filter $(shell uname),SunOS))
+ifneq (,$(filter $(UNAME),SunOS))
   INSTALL ?= ginstall
 else
   INSTALL ?= install

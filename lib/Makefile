@@ -224,6 +224,7 @@ lib-all: all
 all: lib
 
 $(ZSTD_STATLIB_DIR)/libzstd.a: ARFLAGS = rcs
+$(ZSTD_STATLIB_DIR)/libzstd.a: | $(ZSTD_STATLIB_DIR)
 $(ZSTD_STATLIB_DIR)/libzstd.a: $(ZSTD_STATLIB_OBJ)
 	@echo compiling static library
 	$(Q)$(AR) $(ARFLAGS) $@ $^
@@ -235,6 +236,7 @@ libzstd.a: $(ZSTD_STATLIB_DIR)/libzstd.a
 ifneq (,$(filter Windows%,$(TARGET_SYSTEM)))
 
 LIBZSTD = dll\libzstd.dll
+$(ZSTD_DYNLIB_DIR)/$(LIBZSTD): | $(ZSTD_DYNLIB_DIR)
 $(ZSTD_DYNLIB_DIR)/$(LIBZSTD): $(ZSTD_FILES)
 	@echo compiling dynamic library $(LIBVER)
 	$(CC) $(FLAGS) -DZSTD_DLL_EXPORT=1 -Wl,--out-implib,dll\libzstd.dll.a -shared $^ -o $@
@@ -244,6 +246,7 @@ else
 LIBZSTD = libzstd.$(SHARED_EXT_VER)
 $(ZSTD_DYNLIB_DIR)/$(LIBZSTD): CFLAGS += -fPIC
 $(ZSTD_DYNLIB_DIR)/$(LIBZSTD): LDFLAGS += -shared -fvisibility=hidden
+$(ZSTD_DYNLIB_DIR)/$(LIBZSTD): | $(ZSTD_DYNLIB_DIR)
 $(ZSTD_DYNLIB_DIR)/$(LIBZSTD): $(ZSTD_DYNLIB_OBJ)
 	@echo compiling dynamic library $(LIBVER)
 	$(Q)$(CC) $(FLAGS) $^ $(LDFLAGS) $(SONAME_FLAGS) -o $@

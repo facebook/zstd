@@ -164,14 +164,16 @@ endif
 endif
 CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 
-ZSTD_FULL_OBJ  := $(ZSTD_FILES:.c=.o)
-ZSTD_LOCAL_OBJ := $(notdir $(ZSTD_FULL_OBJ))
+ZSTD_LOCAL_SRC := $(notdir $(ZSTD_FILES))
+ZSTD_LOCAL_OBJ := $(ZSTD_LOCAL_SRC:.c=.o)
 
-vpath %.c common compress decompress dictBuilder legacy deprecated
+ZSTD_SUBDIR := common compress decompress dictBuilder legacy deprecated
+vpath %.c $(ZSTD_SUBDIR)
 
-ZSTD_DYNLIB_DIR := obj/dynlib
+BUILD_DIR ?= obj
+ZSTD_DYNLIB_DIR := $(BUILD_DIR)/dynlib
 ZSTD_DYNLIB_OBJ := $(addprefix $(ZSTD_DYNLIB_DIR)/, $(ZSTD_LOCAL_OBJ))
-ZSTD_STATLIB_DIR := obj/statlib
+ZSTD_STATLIB_DIR := $(BUILD_DIR)/statlib
 ZSTD_STATLIB_OBJ := $(addprefix $(ZSTD_STATLIB_DIR)/, $(ZSTD_LOCAL_OBJ))
 
 # macOS linker doesn't support -soname, and use different extension
@@ -243,13 +245,28 @@ lib : libzstd.a libzstd
 %-release : %
 	@echo release build completed
 
-$(ZSTD_DYNLIB_DIR)/%.o : %.c | $(ZSTD_DYNLIB_DIR)
-	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
-$(ZSTD_STATLIB_DIR)/%.o : %.c | $(ZSTD_STATLIB_DIR)
-	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
+
+# Generate .h dependencies automatically
+
+DEPFLAGS = -MT $@ -MMD -MP -MF
+
+$(ZSTD_DYNLIB_DIR)/%.o : %.c $(ZSTD_DYNLIB_DIR)/%.d | $(ZSTD_DYNLIB_DIR)
+	@echo $@
+	$(Q)$(COMPILE.c) $(DEPFLAGS) $(ZSTD_DYNLIB_DIR)/$*.d $(OUTPUT_OPTION) $<
+
+$(ZSTD_STATLIB_DIR)/%.o : %.c $(ZSTD_STATLIB_DIR)/%.d | $(ZSTD_STATLIB_DIR)
+	@echo $@
+	$(Q)$(COMPILE.c) $(DEPFLAGS) $(ZSTD_STATLIB_DIR)/$*.d $(OUTPUT_OPTION) $<
 
 MKDIR ?= mkdir
-$(ZSTD_DYNLIB_DIR) $(ZSTD_STATLIB_DIR): ; $(Q)$(MKDIR) -p $@
+$(ZSTD_DYNLIB_DIR) $(ZSTD_STATLIB_DIR):
+	$(Q)$(MKDIR) -p $@
+
+DEPFILES := $(ZSTD_DYNLIB_OBJ:.o=.d) $(ZSTD_STATLIB_OBJ:.o=.d)
+$(DEPFILES):
+
+include $(wildcard $(DEPFILES))
+
 
 # Special case : building library in single-thread mode _and_ without zstdmt_compress.c
 ZSTDMT_FILES = compress/zstdmt_compress.c
@@ -265,7 +282,7 @@ clean:
 	$(Q)$(RM) core *.o *.a *.gcda *.$(SHARED_EXT) *.$(SHARED_EXT).* libzstd.pc
 	$(Q)$(RM) dll/libzstd.dll dll/libzstd.lib libzstd-nomt*
 	$(Q)$(RM) common/*.o compress/*.o decompress/*.o dictBuilder/*.o legacy/*.o deprecated/*.o
-	$(Q)$(RM) -r $(ZSTD_STATLIB_DIR)/*.o $(ZSTD_DYNLIB_DIR)/*.o
+	$(Q)$(RM) -r $(ZSTD_STATLIB_DIR)/* $(ZSTD_DYNLIB_DIR)/*
 	@echo Cleaning library completed
 
 #-----------------------------------------------------------------------------
@@ -295,7 +312,7 @@ ifeq (,$(PCLIBDIR))
 # Additional prefix check is required, since the empty string is technically a
 # valid PCLIBDIR
 ifeq (,$(shell echo "$(LIBDIR)" | sed -n $(SED_ERE_OPT) -e "\\@^$(EXEC_PREFIX)(/|$$)@ p"))
-$(error configured libdir ($(LIBDIR)) is outside of prefix ($(PREFIX)), can't generate pkg-config file)
+$(error configured libdir ($(LIBDIR)) is outside of prefix ($(EXEC_PREFIX)), can't generate pkg-config file)
 endif
 endif
 
@@ -303,7 +320,7 @@ ifeq (,$(PCINCDIR))
 # Additional prefix check is required, since the empty string is technically a
 # valid PCINCDIR
 ifeq (,$(shell echo "$(INCLUDEDIR)" | sed -n $(SED_ERE_OPT) -e "\\@^$(PREFIX)(/|$$)@ p"))
-$(error configured includedir ($(INCLUDEDIR)) is outside of exec_prefix ($(EXEC_PREFIX)), can't generate pkg-config file)
+$(error configured includedir ($(INCLUDEDIR)) is outside of exec_prefix ($(PREFIX)), can't generate pkg-config file)
 endif
 endif
 

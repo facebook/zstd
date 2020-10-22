@@ -36,19 +36,20 @@ ZSTD_VERSION = $(LIBVER)
 HAVE_COLORNEVER = $(shell echo a | grep --color=never a > /dev/null 2> /dev/null && echo 1 || echo 0)
 GREP_OPTIONS ?=
 ifeq ($HAVE_COLORNEVER, 1)
-GREP_OPTIONS += --color=never
+  GREP_OPTIONS += --color=never
 endif
 GREP = grep $(GREP_OPTIONS)
 
 ifeq ($(shell $(CC) -v 2>&1 | $(GREP) -c "gcc version "), 1)
-ALIGN_LOOP = -falign-loops=32
+  ALIGN_LOOP = -falign-loops=32
 else
-ALIGN_LOOP =
+  ALIGN_LOOP =
 endif
 
-CPPFLAGS += -DXXH_NAMESPACE=ZSTD_
+DEBUGLEVEL ?= 0
+CPPFLAGS += -DXXH_NAMESPACE=ZSTD_ -DDEBUGLEVEL=$(DEBUGLEVEL)
 ifeq ($(OS),Windows_NT)   # MinGW assumed
-CPPFLAGS += -D__USE_MINGW_ANSI_STDIO   # compatibility with %zu formatting
+  CPPFLAGS += -D__USE_MINGW_ANSI_STDIO   # compatibility with %zu formatting
 endif
 CFLAGS   ?= -O3
 DEBUGFLAGS+=-Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
@@ -65,11 +66,7 @@ ZSTDLIB_DECOMPRESS := $(ZSTDDIR)/decompress
 ZDICT_DIR := $(ZSTDDIR)/dictBuilder
 ZSTDLEGACY_DIR := $(ZSTDDIR)/legacy
 
-vpath %.c $(ZSTDLIB_COMMON)
-vpath %.c $(ZSTDLIB_COMPRESS)
-vpath %.c $(ZSTDLIB_DECOMPRESS)
-vpath %.c $(ZDICT_DIR)
-vpath %.c $(ZSTDLEGACY_DIR)
+vpath %.c $(ZSTDLIB_COMMON) $(ZSTDLIB_COMPRESS) $(ZSTDLIB_DECOMPRESS) $(ZDICT_DIR) $(ZSTDLEGACY_DIR)
 
 ZSTDLIB_COMMON_C := $(wildcard $(ZSTDLIB_COMMON)/*.c)
 ZSTDLIB_COMPRESS_C := $(wildcard $(ZSTDLIB_COMPRESS)/*.c)
@@ -81,7 +78,7 @@ ZSTD_LEGACY_SUPPORT ?= 5
 ZSTDLEGACY_SRC :=
 ifneq ($(ZSTD_LEGACY_SUPPORT), 0)
 ifeq ($(shell test $(ZSTD_LEGACY_SUPPORT) -lt 8; echo $$?), 0)
-	ZSTDLEGACY_SRC += $(shell ls $(ZSTDLEGACY_DIR)/*.c | $(GREP) 'v0[$(ZSTD_LEGACY_SUPPORT)-7]')
+  ZSTDLEGACY_SRC += $(shell ls $(ZSTDLEGACY_DIR)/*.c | $(GREP) 'v0[$(ZSTD_LEGACY_SUPPORT)-7]')
 endif
 endif
 
@@ -97,16 +94,16 @@ ZSTD_ALL_SRC := $(ZSTDLIB_LOCAL_SRC) $(ZSTD_CLI_SRC)
 
 # Define *.exe as extension for Windows systems
 ifneq (,$(filter Windows%,$(OS)))
-EXT =.exe
-RES64_FILE = windres/zstd64.res
-RES32_FILE = windres/zstd32.res
+  EXT =.exe
+  RES64_FILE = windres/zstd64.res
+  RES32_FILE = windres/zstd32.res
 ifneq (,$(filter x86_64%,$(shell $(CC) -dumpmachine)))
     RES_FILE = $(RES64_FILE)
 else
     RES_FILE = $(RES32_FILE)
 endif
 else
-EXT =
+  EXT =
 endif
 
 VOID = /dev/null
@@ -119,54 +116,54 @@ NO_THREAD_MSG := ==> no threads, building without multithreading support
 HAVE_PTHREAD := $(shell printf '$(NUM_SYMBOL)include <pthread.h>\nint main(void) { return 0; }' > have_pthread.c && $(CC) $(FLAGS) -o have_pthread$(EXT) have_pthread.c -pthread 2> $(VOID) && rm have_pthread$(EXT) && echo 1 || echo 0; rm have_pthread.c)
 HAVE_THREAD := $(shell [ "$(HAVE_PTHREAD)" -eq "1" -o -n "$(filter Windows%,$(OS))" ] && echo 1 || echo 0)
 ifeq ($(HAVE_THREAD), 1)
-THREAD_MSG := ==> building with threading support
-THREAD_CPP := -DZSTD_MULTITHREAD
-THREAD_LD := -pthread
+  THREAD_MSG := ==> building with threading support
+  THREAD_CPP := -DZSTD_MULTITHREAD
+  THREAD_LD := -pthread
 else
-THREAD_MSG := $(NO_THREAD_MSG)
+  THREAD_MSG := $(NO_THREAD_MSG)
 endif
 
 # zlib detection
 NO_ZLIB_MSG := ==> no zlib, building zstd without .gz support
 HAVE_ZLIB := $(shell printf '$(NUM_SYMBOL)include <zlib.h>\nint main(void) { return 0; }' > have_zlib.c && $(CC) $(FLAGS) -o have_zlib$(EXT) have_zlib.c -lz 2> $(VOID) && rm have_zlib$(EXT) && echo 1 || echo 0; rm have_zlib.c)
 ifeq ($(HAVE_ZLIB), 1)
-ZLIB_MSG := ==> building zstd with .gz compression support
-ZLIBCPP = -DZSTD_GZCOMPRESS -DZSTD_GZDECOMPRESS
-ZLIBLD = -lz
+  ZLIB_MSG := ==> building zstd with .gz compression support
+  ZLIBCPP = -DZSTD_GZCOMPRESS -DZSTD_GZDECOMPRESS
+  ZLIBLD = -lz
 else
-ZLIB_MSG := $(NO_ZLIB_MSG)
+  ZLIB_MSG := $(NO_ZLIB_MSG)
 endif
 
 # lzma detection
 NO_LZMA_MSG := ==> no liblzma, building zstd without .xz/.lzma support
 HAVE_LZMA := $(shell printf '$(NUM_SYMBOL)include <lzma.h>\nint main(void) { return 0; }' > have_lzma.c && $(CC) $(FLAGS) -o have_lzma$(EXT) have_lzma.c -llzma 2> $(VOID) && rm have_lzma$(EXT) && echo 1 || echo 0; rm have_lzma.c)
 ifeq ($(HAVE_LZMA), 1)
-LZMA_MSG := ==> building zstd with .xz/.lzma compression support
-LZMACPP = -DZSTD_LZMACOMPRESS -DZSTD_LZMADECOMPRESS
-LZMALD = -llzma
+  LZMA_MSG := ==> building zstd with .xz/.lzma compression support
+  LZMACPP = -DZSTD_LZMACOMPRESS -DZSTD_LZMADECOMPRESS
+  LZMALD = -llzma
 else
-LZMA_MSG := $(NO_LZMA_MSG)
+  LZMA_MSG := $(NO_LZMA_MSG)
 endif
 
 # lz4 detection
 NO_LZ4_MSG := ==> no liblz4, building zstd without .lz4 support
 HAVE_LZ4 := $(shell printf '$(NUM_SYMBOL)include <lz4frame.h>\n$(NUM_SYMBOL)include <lz4.h>\nint main(void) { return 0; }' > have_lz4.c && $(CC) $(FLAGS) -o have_lz4$(EXT) have_lz4.c -llz4 2> $(VOID) && rm have_lz4$(EXT) && echo 1 || echo 0; rm have_lz4.c)
 ifeq ($(HAVE_LZ4), 1)
-LZ4_MSG := ==> building zstd with .lz4 compression support
-LZ4CPP = -DZSTD_LZ4COMPRESS -DZSTD_LZ4DECOMPRESS
-LZ4LD = -llz4
+  LZ4_MSG := ==> building zstd with .lz4 compression support
+  LZ4CPP = -DZSTD_LZ4COMPRESS -DZSTD_LZ4DECOMPRESS
+  LZ4LD = -llz4
 else
-LZ4_MSG := $(NO_LZ4_MSG)
+  LZ4_MSG := $(NO_LZ4_MSG)
 endif
 
 # explicit backtrace enable/disable for Linux & Darwin
 ifeq ($(BACKTRACE), 0)
-DEBUGFLAGS += -DBACKTRACE_ENABLE=0
+  DEBUGFLAGS += -DBACKTRACE_ENABLE=0
 endif
 ifeq (,$(filter Windows%, $(OS)))
 ifeq ($(BACKTRACE), 1)
-DEBUGFLAGS += -DBACKTRACE_ENABLE=1
-DEBUGFLAGS_LD += -rdynamic
+  DEBUGFLAGS += -DBACKTRACE_ENABLE=1
+  DEBUGFLAGS_LD += -rdynamic
 endif
 endif
 
@@ -333,7 +330,8 @@ COMPILE.c = $(CC) $(DEPFLAGS) $(CFLAGS) $(CPPFLAGS) -c
 
 %.o : %.c
 %.o : %.c $(DEPDIR)/%.d | $(DEPDIR)
-	$(COMPILE.c) $(OUTPUT_OPTION) $<
+	@echo $@
+	$(Q)$(COMPILE.c) $(OUTPUT_OPTION) $<
 
 $(DEPDIR): ; $(Q)$(MKDIR) -p $@
 

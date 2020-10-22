@@ -94,7 +94,7 @@ allnothread: fullbench fuzzer paramgrill datagen decodecorpus
 # note : broken : requires symbols unavailable from dynamic library
 dll: fuzzer-dll zstreamtest-dll
 
-PHONY: zstd zstd32 zstd-nolegacy  # must be phony, only external makefile knows how to build them, or if they need an update
+PHONY: zstd zstd32 zstd-nolegacy  # phony: only external makefile knows how to build or update them
 zstd zstd32 zstd-nolegacy:
 	$(MAKE) -C $(PRGDIR) $@ MOREFLAGS+="$(DEBUGFLAGS)" DEBUGLEVEL=$(DEBUGLEVEL)
 
@@ -103,14 +103,14 @@ gzstd:
 
 .PHONY: libzstd
 libzstd :
-	$(MAKE) -C $(ZSTDDIR) libzstd
+	$(MAKE) -C $(ZSTDDIR) libzstd DEBUGLEVEL=$(DEBUGLEVEL)
 
 %-dll : libzstd
 %-dll : LDFLAGS+= -L$(ZSTDDIR) -lzstd
 
 .PHONY: zstd-staticLib
 zstd-staticLib :
-	$(MAKE) -C $(ZSTDDIR) libzstd.a
+	$(MAKE) -C $(ZSTDDIR) libzstd.a DEBUGLEVEL=$(DEBUGLEVEL)
 
 zstdm_%.o : $(ZSTDDIR)/common/%.c
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@

@@ -217,7 +217,7 @@ ifneq (,$(filter Windows%,$(OS)))
 zstd : $(RES_FILE)
 endif
 zstd : $(BUILD_DIR)/zstd
-	$(Q)ln -sf $^ $@
+	$(Q)ln -sf $< $@
 	@echo zstd build completed
 
 .PHONY: zstd-release

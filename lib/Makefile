@@ -236,8 +236,8 @@ libzstd.a: $(ZSTD_STATLIB_DIR)/libzstd.a
 ifneq (,$(filter Windows%,$(TARGET_SYSTEM)))
 
 LIBZSTD = dll\libzstd.dll
-$(ZSTD_DYNLIB_DIR)/$(LIBZSTD): | $(ZSTD_DYNLIB_DIR)
-$(ZSTD_DYNLIB_DIR)/$(LIBZSTD): $(ZSTD_FILES)
+$(LIBZSTD):
+$(LIBZSTD): $(ZSTD_FILES)
 	@echo compiling dynamic library $(LIBVER)
 	$(CC) $(FLAGS) -DZSTD_DLL_EXPORT=1 -Wl,--out-implib,dll\libzstd.dll.a -shared $^ -o $@
 
@@ -254,11 +254,11 @@ $(ZSTD_DYNLIB_DIR)/$(LIBZSTD): $(ZSTD_DYNLIB_OBJ)
 	$(Q)ln -sf $@ libzstd.$(SHARED_EXT_MAJOR)
 	$(Q)ln -sf $@ libzstd.$(SHARED_EXT)
 
-endif
-
 .PHONY: $(LIBZSTD)  # must be run every time
 $(LIBZSTD): $(ZSTD_DYNLIB_DIR)/$(LIBZSTD)
 	$(Q)ln -sf $< $@
+
+endif
 
 .PHONY: libzstd
 libzstd : $(LIBZSTD)

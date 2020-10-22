@@ -96,7 +96,7 @@ dll: fuzzer-dll zstreamtest-dll
 
 PHONY: zstd zstd32 zstd-nolegacy  # must be phony, only external makefile knows how to build them, or if they need an update
 zstd zstd32 zstd-nolegacy:
-	$(MAKE) -C $(PRGDIR) $@ MOREFLAGS+="$(DEBUGFLAGS)"
+	$(MAKE) -C $(PRGDIR) $@ MOREFLAGS+="$(DEBUGFLAGS)" DEBUGLEVEL=$(DEBUGLEVEL)
 
 gzstd:
 	$(MAKE) -C $(PRGDIR) $@ HAVE_ZLIB=1 MOREFLAGS+="$(DEBUGFLAGS)"
@@ -255,7 +255,8 @@ clean:
 #----------------------------------------------------------------------------------
 # valgrind tests are validated only for some posix platforms
 #----------------------------------------------------------------------------------
-ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS))
+UNAME := $(shell uname)
+ifneq (,$(filter $(UNAME),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS))
 HOST_OS = POSIX
 
 valgrindTest: VALGRIND = valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1
@@ -275,8 +276,8 @@ valgrindTest: zstd datagen fuzzer fullbench
 endif
 
 
-ifneq (,$(filter MINGW% MSYS%,$(shell uname)))
-HOST_OS = MSYS
+ifneq (,$(filter MINGW% MSYS%,$(UNAME)))
+  HOST_OS = MSYS
 endif
 
 
@@ -286,8 +287,8 @@ endif
 ifneq (,$(filter $(HOST_OS),MSYS POSIX))
 
 DIFF:=diff
-ifneq (,$(filter $(shell uname),SunOS))
-DIFF:=gdiff
+ifneq (,$(filter $(UNAME),SunOS))
+  DIFF:=gdiff
 endif
 
 .PHONY: list

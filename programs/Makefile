@@ -15,8 +15,12 @@
 # zstd-decompress : decompressor-only version of zstd
 # ##########################################################################
 
-# verbose mode can be triggered by V=1 or VERBOSE=1
-Q = $(if $(filter 1,$(V) $(VERBOSE)),,@)
+.PHONY: default
+default: zstd-release
+
+# silent mode by default; verbose can be triggered by V=1 or VERBOSE=1
+$(V)$(VERBOSE).SILENT:
+
 
 ZSTDDIR := ../lib
 
@@ -193,9 +197,6 @@ endif
 endif
 
 
-.PHONY: default
-default: zstd-release
-
 .PHONY: all
 all: zstd
 
@@ -207,7 +208,7 @@ $(BUILD_DIR)/zstd : $(ZSTD_OBJ)
 	@echo "$(ZLIB_MSG)"
 	@echo "$(LZMA_MSG)"
 	@echo "$(LZ4_MSG)"
-	$(Q)$(CC) $(FLAGS) $^ -o $@$(EXT) $(LDFLAGS)
+	$(CC) $(FLAGS) $^ -o $@$(EXT) $(LDFLAGS)
 
 .PHONY: zstd
 zstd : CPPFLAGS += $(THREAD_CPP) $(ZLIBCPP) $(LZMACPP) $(LZ4CPP)
@@ -217,7 +218,7 @@ ifneq (,$(filter Windows%,$(OS)))
 zstd : $(RES_FILE)
 endif
 zstd : $(BUILD_DIR)/zstd
-	$(Q)ln -sf $< $@
+	ln -sf $< $@
 	@echo zstd build completed
 
 .PHONY: zstd-release
@@ -315,11 +316,11 @@ endif
 
 .PHONY: clean
 clean:
-	$(Q)$(RM) core *.o tmp* result* *.gcda dictionary *.zst \
+	$(RM) core *.o tmp* result* *.gcda dictionary *.zst \
         zstd$(EXT) zstd32$(EXT) zstd-compress$(EXT) zstd-decompress$(EXT) \
         zstd-small$(EXT) zstd-frugal$(EXT) zstd-nolegacy$(EXT) zstd4$(EXT) \
         zstd-dictBuilder$(EXT) *.gcda default*.profraw default.profdata have_zlib$(EXT)
-	$(Q)$(RM) -r obj/*
+	$(RM) -r obj/*
 	@echo Cleaning completed
 
 MD2ROFF = ronn
@@ -356,10 +357,10 @@ DEPFLAGS = -MT $@ -MMD -MP -MF
 
 $(BUILD_DIR)/%.o : %.c $(BUILD_DIR)/%.d | $(BUILD_DIR)
 	@echo $@
-	$(Q)$(COMPILE.c) $(DEPFLAGS) $(BUILD_DIR)/$*.d $(OUTPUT_OPTION) $<
+	$(COMPILE.c) $(DEPFLAGS) $(BUILD_DIR)/$*.d $(OUTPUT_OPTION) $<
 
 MKDIR ?= mkdir
-$(BUILD_DIR): ; $(Q)$(MKDIR) -p $@
+$(BUILD_DIR): ; $(MKDIR) -p $@
 
 DEPFILES := $(ZSTD_OBJ:.o=.d)
 $(DEPFILES):
@@ -388,7 +389,7 @@ AWK = awk
 ## list: Print all targets and their descriptions (if provided)
 .PHONY: list
 list:
-	$(Q)TARGETS=$$($(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null \
+	TARGETS=$$($(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null \
 		| $(AWK) -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' \
 		| $(EGREP) -v  -e '^[^[:alnum:]]' | sort); \
 	{ \
@@ -436,34 +437,34 @@ INSTALL_MAN     ?= $(INSTALL_DATA)
 .PHONY: install
 install: zstd
 	@echo Installing binaries
-	$(Q)$(INSTALL) -d -m 755 $(DESTDIR)$(BINDIR)/ $(DESTDIR)$(MAN1DIR)/
-	$(Q)$(INSTALL_PROGRAM) zstd$(EXT) $(DESTDIR)$(BINDIR)/zstd$(EXT)
-	$(Q)ln -sf zstd$(EXT) $(DESTDIR)$(BINDIR)/zstdcat$(EXT)
-	$(Q)ln -sf zstd$(EXT) $(DESTDIR)$(BINDIR)/unzstd$(EXT)
-	$(Q)ln -sf zstd$(EXT) $(DESTDIR)$(BINDIR)/zstdmt$(EXT)
-	$(Q)$(INSTALL_SCRIPT) zstdless $(DESTDIR)$(BINDIR)/zstdless
-	$(Q)$(INSTALL_SCRIPT) zstdgrep $(DESTDIR)$(BINDIR)/zstdgrep
+	$(INSTALL) -d -m 755 $(DESTDIR)$(BINDIR)/ $(DESTDIR)$(MAN1DIR)/
+	$(INSTALL_PROGRAM) zstd$(EXT) $(DESTDIR)$(BINDIR)/zstd$(EXT)
+	ln -sf zstd$(EXT) $(DESTDIR)$(BINDIR)/zstdcat$(EXT)
+	ln -sf zstd$(EXT) $(DESTDIR)$(BINDIR)/unzstd$(EXT)
+	ln -sf zstd$(EXT) $(DESTDIR)$(BINDIR)/zstdmt$(EXT)
+	$(INSTALL_SCRIPT) zstdless $(DESTDIR)$(BINDIR)/zstdless
+	$(INSTALL_SCRIPT) zstdgrep $(DESTDIR)$(BINDIR)/zstdgrep
 	@echo Installing man pages
-	$(Q)$(INSTALL_MAN) zstd.1 $(DESTDIR)$(MAN1DIR)/zstd.1
-	$(Q)ln -sf zstd.1 $(DESTDIR)$(MAN1DIR)/zstdcat.1
-	$(Q)ln -sf zstd.1 $(DESTDIR)$(MAN1DIR)/unzstd.1
-	$(Q)$(INSTALL_MAN) zstdgrep.1 $(DESTDIR)$(MAN1DIR)/zstdgrep.1
-	$(Q)$(INSTALL_MAN) zstdless.1 $(DESTDIR)$(MAN1DIR)/zstdless.1
+	$(INSTALL_MAN) zstd.1 $(DESTDIR)$(MAN1DIR)/zstd.1
+	ln -sf zstd.1 $(DESTDIR)$(MAN1DIR)/zstdcat.1
+	ln -sf zstd.1 $(DESTDIR)$(MAN1DIR)/unzstd.1
+	$(INSTALL_MAN) zstdgrep.1 $(DESTDIR)$(MAN1DIR)/zstdgrep.1
+	$(INSTALL_MAN) zstdless.1 $(DESTDIR)$(MAN1DIR)/zstdless.1
 	@echo zstd installation completed
 
 .PHONY: uninstall
 uninstall:
-	$(Q)$(RM) $(DESTDIR)$(BINDIR)/zstdgrep
-	$(Q)$(RM) $(DESTDIR)$(BINDIR)/zstdless
-	$(Q)$(RM) $(DESTDIR)$(BINDIR)/zstdcat
-	$(Q)$(RM) $(DESTDIR)$(BINDIR)/unzstd
-	$(Q)$(RM) $(DESTDIR)$(BINDIR)/zstdmt
-	$(Q)$(RM) $(DESTDIR)$(BINDIR)/zstd
-	$(Q)$(RM) $(DESTDIR)$(MAN1DIR)/zstdless.1
-	$(Q)$(RM) $(DESTDIR)$(MAN1DIR)/zstdgrep.1
-	$(Q)$(RM) $(DESTDIR)$(MAN1DIR)/zstdcat.1
-	$(Q)$(RM) $(DESTDIR)$(MAN1DIR)/unzstd.1
-	$(Q)$(RM) $(DESTDIR)$(MAN1DIR)/zstd.1
+	$(RM) $(DESTDIR)$(BINDIR)/zstdgrep
+	$(RM) $(DESTDIR)$(BINDIR)/zstdless
+	$(RM) $(DESTDIR)$(BINDIR)/zstdcat
+	$(RM) $(DESTDIR)$(BINDIR)/unzstd
+	$(RM) $(DESTDIR)$(BINDIR)/zstdmt
+	$(RM) $(DESTDIR)$(BINDIR)/zstd
+	$(RM) $(DESTDIR)$(MAN1DIR)/zstdless.1
+	$(RM) $(DESTDIR)$(MAN1DIR)/zstdgrep.1
+	$(RM) $(DESTDIR)$(MAN1DIR)/zstdcat.1
+	$(RM) $(DESTDIR)$(MAN1DIR)/unzstd.1
+	$(RM) $(DESTDIR)$(MAN1DIR)/zstd.1
 	@echo zstd programs successfully uninstalled
 
 endif

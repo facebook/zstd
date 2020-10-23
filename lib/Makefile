@@ -226,7 +226,7 @@ ifeq ($(BUILD_DIR),0)
 .PHONY: libzstd.a  # not the actual recipe
 libzstd.a:
 	$(MAKE) --no-print-directory $@ \
-        BUILD_DIR=obj/conf_$(shell echo $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) | $(HASH) | head -c 16) \
+        BUILD_DIR=obj/conf_$(shell echo $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(ZSTD_FILES) | $(HASH) | head -c 16) \
         CPPFLAGS="$(CPPFLAGS)"
 
 else
@@ -266,7 +266,7 @@ ifeq ($(BUILD_DIR),0)
 .PHONY: $(LIBZSTD)  # not the actual recipe
 $(LIBZSTD):
 	$(MAKE) --no-print-directory $@ \
-        BUILD_DIR=obj/conf_$(shell echo $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) | $(HASH) | head -c 16) \
+        BUILD_DIR=obj/conf_$(shell echo $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(ZSTD_FILES) | $(HASH) | head -c 16) \
         CPPFLAGS="$(CPPFLAGS)" \
         CFLAGS="$(CFLAGS)" \
         LDFLAGS="$(LDFLAGS)"

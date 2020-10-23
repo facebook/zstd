@@ -206,6 +206,7 @@ $(BUILD_DIR)/zstd : $(ZSTD_OBJ)
 	@echo "$(ZLIB_MSG)"
 	@echo "$(LZMA_MSG)"
 	@echo "$(LZ4_MSG)"
+	@echo LINK $@
 	$(CC) $(FLAGS) $^ -o $@$(EXT) $(LDFLAGS)
 
 .PHONY: zstd  # must always be run
@@ -371,7 +372,7 @@ preview-man: clean-man man
 DEPFLAGS = -MT $@ -MMD -MP -MF
 
 $(BUILD_DIR)/%.o : %.c $(BUILD_DIR)/%.d | $(BUILD_DIR)
-	@echo $@
+	@echo CC $@
 	$(COMPILE.c) $(DEPFLAGS) $(BUILD_DIR)/$*.d $(OUTPUT_OPTION) $<
 
 MKDIR ?= mkdir
@@ -449,9 +450,12 @@ INSTALL_DATA    ?= $(INSTALL) -m 644
 INSTALL_MAN     ?= $(INSTALL_DATA)
 
 .PHONY: install
-install: zstd
+install:
+	# generate zstd only if not already present
+	[ -e zstd ] || $(MAKE) zstd-release
+	[ -e $(DESTDIR)$(BINDIR) ] || $(INSTALL) -d -m 755 $(DESTDIR)$(BINDIR)/
+	[ -e $(DESTDIR)$(MAN1DIR) ] || $(INSTALL) -d -m 755 $(DESTDIR)$(MAN1DIR)/
 	@echo Installing binaries
-	$(INSTALL) -d -m 755 $(DESTDIR)$(BINDIR)/ $(DESTDIR)$(MAN1DIR)/
 	$(INSTALL_PROGRAM) zstd$(EXT) $(DESTDIR)$(BINDIR)/zstd$(EXT)
 	ln -sf zstd$(EXT) $(DESTDIR)$(BINDIR)/zstdcat$(EXT)
 	ln -sf zstd$(EXT) $(DESTDIR)$(BINDIR)/unzstd$(EXT)

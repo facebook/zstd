@@ -320,11 +320,11 @@ lib : libzstd.a libzstd
 DEPFLAGS = -MT $@ -MMD -MP -MF
 
 $(ZSTD_DYNLIB_DIR)/%.o : %.c $(ZSTD_DYNLIB_DIR)/%.d | $(ZSTD_DYNLIB_DIR)
-	@echo $@
+	@echo CC $@
 	$(COMPILE.c) $(DEPFLAGS) $(ZSTD_DYNLIB_DIR)/$*.d $(OUTPUT_OPTION) $<
 
 $(ZSTD_STATLIB_DIR)/%.o : %.c $(ZSTD_STATLIB_DIR)/%.d | $(ZSTD_STATLIB_DIR)
-	@echo $@
+	@echo CC $@
 	$(COMPILE.c) $(DEPFLAGS) $(ZSTD_STATLIB_DIR)/$*.d $(OUTPUT_OPTION) $<
 
 MKDIR ?= mkdir
@@ -421,24 +421,28 @@ install: install-pc install-static install-shared install-includes
 	@echo zstd static and shared library installed
 
 install-pc: libzstd.pc
-	$(INSTALL) -d -m 755 $(DESTDIR)$(PKGCONFIGDIR)/
+	[ -e $(DESTDIR)$(PKGCONFIGDIR) ] || $(INSTALL) -d -m 755 $(DESTDIR)$(PKGCONFIGDIR)/
 	$(INSTALL_DATA) libzstd.pc $(DESTDIR)$(PKGCONFIGDIR)/
 
-install-static: libzstd.a
+install-static:
+	# only generate libzstd.a if it's not already present
+	[ -e libzstd.a ] || $(MAKE) libzstd.a-release
+	[ -e $(DESTDIR)$(LIBDIR) ] || $(INSTALL) -d -m 755 $(DESTDIR)$(LIBDIR)/
 	@echo Installing static library
-	$(INSTALL) -d -m 755 $(DESTDIR)$(LIBDIR)/
 	$(INSTALL_DATA) libzstd.a $(DESTDIR)$(LIBDIR)
 
-install-shared: libzstd
+install-shared:
+	# only generate libzstd.so if it's not already present
+	[ -e $(LIBZSTD) ] || $(MAKE) libzstd-release
+	[ -e $(DESTDIR)$(LIBDIR) ] || $(INSTALL) -d -m 755 $(DESTDIR)$(LIBDIR)/
 	@echo Installing shared library
-	$(INSTALL) -d -m 755 $(DESTDIR)$(LIBDIR)/
 	$(INSTALL_PROGRAM) $(LIBZSTD) $(DESTDIR)$(LIBDIR)
 	ln -sf $(LIBZSTD) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_MAJOR)
 	ln -sf $(LIBZSTD) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT)
 
 install-includes:
+	[ -e $(DESTDIR)$(INCLUDEDIR) ] || $(INSTALL) -d -m 755 $(DESTDIR)$(INCLUDEDIR)/
 	@echo Installing includes
-	$(INSTALL) -d -m 755 $(DESTDIR)$(INCLUDEDIR)/
 	$(INSTALL_DATA) zstd.h $(DESTDIR)$(INCLUDEDIR)
 	$(INSTALL_DATA) common/zstd_errors.h $(DESTDIR)$(INCLUDEDIR)
 	$(INSTALL_DATA) dictBuilder/zdict.h $(DESTDIR)$(INCLUDEDIR)

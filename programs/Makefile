@@ -98,28 +98,25 @@ ZSTD_ALL_SRC := $(ZSTDLIB_LOCAL_SRC) $(ZSTD_CLI_SRC)
 ZSTD_ALL_OBJ := $(ZSTD_ALL_SRC:.c=.o)
 
 UNAME := $(shell uname)
+BUILD_DIR ?= 0
+
+ifeq ($(BUILD_DIR),0)
 ifeq ($(UNAME), Darwin)
   HASH ?= md5
-endif
-ifeq ($(UNAME), FreeBSD)
+else ifeq ($(UNAME), FreeBSD)
   HASH ?= gmd5sum
-endif
-ifeq ($(UNAME), OpenBSD)
+else ifeq ($(UNAME), OpenBSD)
   HASH ?= md5
 endif
 HASH ?= md5sum
 
-HAVE_HASH := $(shell echo 1 | $(HASH) > /dev/null && echo 1 || echo 0)
-ifeq ($(HAVE_HASH), 1)
-  HASH_VALUE := $(shell echo $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) | $(HASH) | head -c 16)
-  HASH_DIR := conf_$(HASH_VALUE)
-else
-  $(info warning : could not find hash function to differentiate builds with different flags)
-  HASH_DIR := 0
+HASH_DIR = conf_$(shell echo $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(ZSTD_FILES) | $(HASH) | head -c 16)
+HAVE_HASH :=$(shell echo 1 | $(HASH) > /dev/null && echo 1 || echo 0)
+ifeq ($(HAVE_HASH),0)
+  $(info warning : could not find HASH ($(HASH)), needed to differentiate builds using different flags)
+  BUILD_DIR := obj/generic_noconf
 endif
-
-BUILD_DIR ?= obj/$(HASH_DIR)
-ZSTD_OBJ := $(addprefix $(BUILD_DIR)/, $(ZSTD_ALL_OBJ))
+endif # $(BUILD_DIR) == 0
 
 # Define *.exe as extension for Windows systems
 ifneq (,$(filter Windows%,$(OS)))
@@ -203,6 +200,7 @@ all: zstd
 .PHONY: allVariants
 allVariants: zstd zstd-compress zstd-decompress zstd-small zstd-nolegacy zstd-dictBuilder
 
+ZSTD_OBJ := $(addprefix $(BUILD_DIR)/, $(ZSTD_ALL_OBJ))
 $(BUILD_DIR)/zstd : $(ZSTD_OBJ)
 	@echo "$(THREAD_MSG)"
 	@echo "$(ZLIB_MSG)"
@@ -210,16 +208,33 @@ $(BUILD_DIR)/zstd : $(ZSTD_OBJ)
 	@echo "$(LZ4_MSG)"
 	$(CC) $(FLAGS) $^ -o $@$(EXT) $(LDFLAGS)
 
-.PHONY: zstd
+.PHONY: zstd  # must always be run
 zstd : CPPFLAGS += $(THREAD_CPP) $(ZLIBCPP) $(LZMACPP) $(LZ4CPP)
 zstd : LDFLAGS += $(THREAD_LD) $(ZLIBLD) $(LZMALD) $(LZ4LD) $(DEBUGFLAGS_LD)
 zstd : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 ifneq (,$(filter Windows%,$(OS)))
 zstd : $(RES_FILE)
 endif
+
+ifeq ($(BUILD_DIR),0)
+# generate a BUILD_DIR from flags
+
+zstd:
+	$(MAKE) --no-print-directory $@ \
+        BUILD_DIR=obj/$(HASH_DIR) \
+        CPPFLAGS="$(CPPFLAGS)" \
+        CFLAGS="$(CFLAGS)" \
+        LDFLAGS="$(LDFLAGS)"
+
+else
+# BUILD_DIR is defined
+
 zstd : $(BUILD_DIR)/zstd
 	ln -sf $< $@
 	@echo zstd build completed
+
+endif
+
 
 .PHONY: zstd-release
 zstd-release: DEBUGFLAGS := -DBACKTRACE_ENABLE=0
@@ -372,7 +387,6 @@ include $(wildcard $(DEPFILES))
 #-----------------------------------------------------------------------------
 # make install is validated only for Linux, macOS, BSD, Hurd and Solaris targets
 #-----------------------------------------------------------------------------
-UNAME := $(shell uname)
 ifneq (,$(filter $(UNAME),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku))
 
 HAVE_COLORNEVER = $(shell echo a | egrep --color=never a > /dev/null 2> /dev/null && echo 1 || echo 0)

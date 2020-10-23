@@ -182,15 +182,14 @@ BUILD_DIR ?= 0
 ifeq ($(BUILD_DIR),0)
 ifeq ($(UNAME), Darwin)
   HASH ?= md5
-endif
-ifeq ($(UNAME), FreeBSD)
+else ifeq ($(UNAME), FreeBSD)
   HASH ?= gmd5sum
-endif
-ifeq ($(UNAME), OpenBSD)
+else ifeq ($(UNAME), OpenBSD)
   HASH ?= md5
 endif
 HASH ?= md5sum
 
+HASH_DIR = conf_$(shell echo $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(ZSTD_FILES) | $(HASH) | head -c 16)
 HAVE_HASH :=$(shell echo 1 | $(HASH) > /dev/null && echo 1 || echo 0)
 ifeq ($(HAVE_HASH),0)
   $(info warning : could not find HASH ($(HASH)), needed to differentiate builds using different flags)
@@ -229,7 +228,7 @@ ifeq ($(BUILD_DIR),0)
 .PHONY: libzstd.a  # not the actual recipe
 libzstd.a:
 	$(MAKE) --no-print-directory $@ \
-        BUILD_DIR=obj/conf_$(shell echo $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(ZSTD_FILES) | $(HASH) | head -c 16) \
+        BUILD_DIR=obj/$(HASH_DIR) \
         CPPFLAGS="$(CPPFLAGS)"
 
 else
@@ -269,7 +268,7 @@ ifeq ($(BUILD_DIR),0)
 .PHONY: $(LIBZSTD)  # not the actual recipe
 $(LIBZSTD):
 	$(MAKE) --no-print-directory $@ \
-        BUILD_DIR=obj/conf_$(shell echo $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(ZSTD_FILES) | $(HASH) | head -c 16) \
+        BUILD_DIR=obj/$(HASH_DIR) \
         CPPFLAGS="$(CPPFLAGS)" \
         CFLAGS="$(CFLAGS)" \
         LDFLAGS="$(LDFLAGS)"

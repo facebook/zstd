@@ -8,6 +8,9 @@
 # You may select, at your option, one of the above-listed licenses.
 # ################################################################
 
+.PHONY: default
+default: lib-release
+
 # define silent mode as default (verbose mode with V=1 or VERBOSE=1)
 $(V)$(VERBOSE).SILENT:
 
@@ -211,7 +214,7 @@ else
 endif
 
 
-.PHONY: default lib-all all clean install uninstall
+.PHONY: lib-all all clean install uninstall
 
 default: lib-release
 
@@ -235,7 +238,7 @@ else
 ZSTD_STATLIB_DIR := $(BUILD_DIR)/static
 ZSTD_STATLIB := $(ZSTD_STATLIB_DIR)/libzstd.a
 ZSTD_STATLIB_OBJ := $(addprefix $(ZSTD_STATLIB_DIR)/,$(ZSTD_LOCAL_OBJ))
-$(ZSTD_STATLIB): ARFLAGS ?= rcs
+$(ZSTD_STATLIB): ARFLAGS = rcs
 $(ZSTD_STATLIB): | $(ZSTD_STATLIB_DIR)
 $(ZSTD_STATLIB): $(ZSTD_STATLIB_OBJ)
 	@echo compiling static library

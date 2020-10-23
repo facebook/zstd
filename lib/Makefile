@@ -172,6 +172,10 @@ ZSTD_SUBDIR := common compress decompress dictBuilder legacy deprecated
 vpath %.c $(ZSTD_SUBDIR)
 
 UNAME := $(shell uname)
+
+BUILD_DIR ?= 0
+
+ifeq ($(BUILD_DIR),0)
 ifeq ($(UNAME), Darwin)
   HASH ?= md5
 endif
@@ -183,21 +187,13 @@ ifeq ($(UNAME), OpenBSD)
 endif
 HASH ?= md5sum
 
-HAVE_HASH := $(shell echo 1 | $(HASH) > /dev/null && echo 1 || echo 0)
-ifeq ($(HAVE_HASH), 1)
-  HASH_VALUE := $(shell echo $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) | $(HASH) | head -c 16)
-  HASH_DIR := conf_$(HASH_VALUE)
-else
-  $(info warning : could not find hash function to differentiate builds with different flags)
-  HASH_DIR := 0
+HAVE_HASH :=$(shell echo 1 | $(HASH) > /dev/null && echo 1 || echo 0)
+ifeq ($(HAVE_HASH),0)
+  $(info warning : could not find HASH ($(HASH)), needed to differentiate builds using different flags)
+  BUILD_DIR := obj/generic_noconf
 endif
+endif # $(BUILD_DIR) == 0
 
-
-BUILD_DIR ?= obj/$(HASH_DIR)
-ZSTD_DYNLIB_DIR := $(BUILD_DIR)/dynlib
-ZSTD_DYNLIB_OBJ := $(addprefix $(ZSTD_DYNLIB_DIR)/, $(ZSTD_LOCAL_OBJ))
-ZSTD_STATLIB_DIR := $(BUILD_DIR)/statlib
-ZSTD_STATLIB_OBJ := $(addprefix $(ZSTD_STATLIB_DIR)/, $(ZSTD_LOCAL_OBJ))
 
 # macOS linker doesn't support -soname, and use different extension
 # see : https://developer.apple.com/library/mac/documentation/DeveloperTools/Conceptual/DynamicLibraries/100-Articles/DynamicLibraryDesignGuidelines.html
@@ -223,20 +219,35 @@ lib-all: all
 
 all: lib
 
-$(ZSTD_STATLIB_DIR)/libzstd.a: ARFLAGS = rcs
-$(ZSTD_STATLIB_DIR)/libzstd.a: | $(ZSTD_STATLIB_DIR)
-$(ZSTD_STATLIB_DIR)/libzstd.a: $(ZSTD_STATLIB_OBJ)
+ifeq ($(BUILD_DIR),0)
+# determine a BUILD_DIR
+
+.PHONY: libzstd.a  # not the actual recipe
+libzstd.a:
+	$(Q)$(MAKE) $@ \
+        BUILD_DIR=obj/conf_$(shell echo $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) | $(HASH) | head -c 16) \
+        CPPFLAGS="$(CPPFLAGS)"
+
+else
+# $(BUILD_DIR) is defined
+
+ZSTD_STATLIB := $(BUILD_DIR)/libzstd.a
+ZSTD_STATLIB_OBJ := $(addprefix $(BUILD_DIR)/,$(ZSTD_LOCAL_OBJ))
+$(ZSTD_STATLIB): ARFLAGS = rcs
+$(ZSTD_STATLIB): | $(BUILD_DIR)
+$(ZSTD_STATLIB): $(ZSTD_STATLIB_OBJ)
 	@echo compiling static library
 	$(Q)$(AR) $(ARFLAGS) $@ $^
 
 .PHONY: libzstd.a  # must be run every time
-libzstd.a: $(ZSTD_STATLIB_DIR)/libzstd.a
+libzstd.a: $(BUILD_DIR)/libzstd.a
 	$(Q)ln -sf $< $@
+
+endif
 
 ifneq (,$(filter Windows%,$(TARGET_SYSTEM)))
 
 LIBZSTD = dll\libzstd.dll
-$(LIBZSTD):
 $(LIBZSTD): $(ZSTD_FILES)
 	@echo compiling dynamic library $(LIBVER)
 	$(CC) $(FLAGS) -DZSTD_DLL_EXPORT=1 -Wl,--out-implib,dll\libzstd.dll.a -shared $^ -o $@
@@ -244,10 +255,28 @@ $(LIBZSTD): $(ZSTD_FILES)
 else
 
 LIBZSTD = libzstd.$(SHARED_EXT_VER)
-$(ZSTD_DYNLIB_DIR)/$(LIBZSTD): CFLAGS += -fPIC
-$(ZSTD_DYNLIB_DIR)/$(LIBZSTD): LDFLAGS += -shared -fvisibility=hidden
-$(ZSTD_DYNLIB_DIR)/$(LIBZSTD): | $(ZSTD_DYNLIB_DIR)
-$(ZSTD_DYNLIB_DIR)/$(LIBZSTD): $(ZSTD_DYNLIB_OBJ)
+$(LIBZSTD): CFLAGS += -fPIC
+$(LIBZSTD): LDFLAGS += -shared -fvisibility=hidden
+
+ifeq ($(BUILD_DIR),0)
+# determine a BUILD_DIR
+
+.PHONY: $(LIBZSTD)  # not the actual recipe
+$(LIBZSTD):
+	$(Q)$(MAKE) $@ \
+        BUILD_DIR=obj/conf_$(shell echo $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) | $(HASH) | head -c 16) \
+        CPPFLAGS="$(CPPFLAGS)" \
+        CFLAGS="$(CFLAGS)" \
+        LDFLAGS="$(LDFLAGS)"
+
+else
+# $(BUILD_DIR) is defined
+
+ZSTD_DYNLIB := $(BUILD_DIR)/$(LIBZSTD)
+ZSTD_DYNLIB_OBJ := $(addprefix $(BUILD_DIR)/,$(ZSTD_LOCAL_OBJ))
+
+$(ZSTD_DYNLIB): | $(BUILD_DIR)
+$(ZSTD_DYNLIB): $(ZSTD_DYNLIB_OBJ)
 	@echo compiling dynamic library $(LIBVER)
 	$(Q)$(CC) $(FLAGS) $^ $(LDFLAGS) $(SONAME_FLAGS) -o $@
 	@echo creating versioned links
@@ -255,10 +284,11 @@ $(ZSTD_DYNLIB_DIR)/$(LIBZSTD): $(ZSTD_DYNLIB_OBJ)
 	$(Q)ln -sf $@ libzstd.$(SHARED_EXT)
 
 .PHONY: $(LIBZSTD)  # must be run every time
-$(LIBZSTD): $(ZSTD_DYNLIB_DIR)/$(LIBZSTD)
+$(LIBZSTD): $(ZSTD_DYNLIB)
 	$(Q)ln -sf $< $@
 
-endif
+endif  # if BUILD_DIR
+endif  # if windows
 
 .PHONY: libzstd
 libzstd : $(LIBZSTD)
@@ -284,16 +314,12 @@ lib : libzstd.a libzstd
 
 DEPFLAGS = -MT $@ -MMD -MP -MF
 
-$(ZSTD_DYNLIB_DIR)/%.o : %.c $(ZSTD_DYNLIB_DIR)/%.d | $(ZSTD_DYNLIB_DIR)
+$(BUILD_DIR)/%.o : %.c $(BUILD_DIR)/%.d | $(BUILD_DIR)
 	@echo $@
-	$(Q)$(COMPILE.c) $(DEPFLAGS) $(ZSTD_DYNLIB_DIR)/$*.d $(OUTPUT_OPTION) $<
-
-$(ZSTD_STATLIB_DIR)/%.o : %.c $(ZSTD_STATLIB_DIR)/%.d | $(ZSTD_STATLIB_DIR)
-	@echo $@
-	$(Q)$(COMPILE.c) $(DEPFLAGS) $(ZSTD_STATLIB_DIR)/$*.d $(OUTPUT_OPTION) $<
+	$(Q)$(COMPILE.c) $(DEPFLAGS) $(BUILD_DIR)/$*.d $(OUTPUT_OPTION) $<
 
 MKDIR ?= mkdir
-$(ZSTD_DYNLIB_DIR) $(ZSTD_STATLIB_DIR):
+$(BUILD_DIR):
 	$(Q)$(MKDIR) -p $@
 
 DEPFILES := $(ZSTD_DYNLIB_OBJ:.o=.d) $(ZSTD_STATLIB_OBJ:.o=.d)

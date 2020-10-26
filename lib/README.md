@@ -168,6 +168,26 @@ file it should be linked with `dll\libzstd.dll`. For example:
 The compiled executable will require ZSTD DLL which is available at `dll\libzstd.dll`.
 
 
+#### Advanced Build options
+
+The build system requires a hash function in order to
+separate object files created with different compilation flags.
+By default, it tries to use `md5sum` or equivalent.
+The hash function can be manually switched by setting the `HASH` variable.
+For example : `make HASH=xxhsum`
+The hash function needs to generate at least 64-bit using hexadecimal format.
+When no hash function is found,
+the Makefile just generates all object files into the same default directory,
+irrespective of compilation flags.
+This functionality only matters if `libzstd` is compiled multiple times
+with different build flags.
+
+The build directory, where object files are stored
+can also be manually controlled using variable `BUILD_DIR`,
+for example `make BUILD_DIR=objectDir/v1`.
+In which case, the hash function doesn't matter.
+
+
 #### Deprecated API
 
 Obsolete API on their way out are stored in directory `lib/deprecated`.

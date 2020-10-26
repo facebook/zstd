@@ -54,17 +54,18 @@ else
   CFLAGS += -O3
 endif
 
-CPPFLAGS+= -DXXH_NAMESPACE=ZSTD_
+DEBUGLEVEL ?= 0
+CPPFLAGS += -DXXH_NAMESPACE=ZSTD_ -DDEBUGLEVEL=$(DEBUGLEVEL)
 ifeq ($(TARGET_SYSTEM),Windows_NT)   # MinGW assumed
-  CPPFLAGS   += -D__USE_MINGW_ANSI_STDIO   # compatibility with %zu formatting
+  CPPFLAGS += -D__USE_MINGW_ANSI_STDIO   # compatibility with %zu formatting
 endif
 DEBUGFLAGS= -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
             -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
             -Wstrict-prototypes -Wundef -Wpointer-arith \
             -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings \
             -Wredundant-decls -Wmissing-prototypes -Wc++-compat
-CFLAGS  += $(DEBUGFLAGS) $(MOREFLAGS)
-FLAGS    = $(CPPFLAGS) $(CFLAGS)
+CFLAGS   += $(DEBUGFLAGS) $(MOREFLAGS)
+FLAGS     = $(CPPFLAGS) $(CFLAGS)
 
 HAVE_COLORNEVER = $(shell echo a | grep --color=never a > /dev/null 2> /dev/null && echo 1 || echo 0)
 GREP_OPTIONS ?=
@@ -170,7 +171,29 @@ ZSTD_LOCAL_OBJ := $(ZSTD_LOCAL_SRC:.c=.o)
 ZSTD_SUBDIR := common compress decompress dictBuilder legacy deprecated
 vpath %.c $(ZSTD_SUBDIR)
 
-BUILD_DIR ?= obj
+UNAME := $(shell uname)
+ifeq ($(UNAME), Darwin)
+  HASH ?= md5
+endif
+ifeq ($(UNAME), FreeBSD)
+  HASH ?= gmd5sum
+endif
+ifeq ($(UNAME), OpenBSD)
+  HASH ?= md5
+endif
+HASH ?= md5sum
+
+HAVE_HASH := $(shell echo 1 | $(HASH) > /dev/null && echo 1 || echo 0)
+ifeq ($(HAVE_HASH), 1)
+  HASH_VALUE := $(shell echo $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(ZSTD_FILES) | $(HASH) | head -c 16)
+  HASH_DIR := conf_$(HASH_VALUE)
+else
+  $(info warning : could not find hash function to differentiate builds with different flags)
+  HASH_DIR := 0
+endif
+
+
+BUILD_DIR ?= obj/$(HASH_DIR)
 ZSTD_DYNLIB_DIR := $(BUILD_DIR)/dynlib
 ZSTD_DYNLIB_OBJ := $(addprefix $(ZSTD_DYNLIB_DIR)/, $(ZSTD_LOCAL_OBJ))
 ZSTD_STATLIB_DIR := $(BUILD_DIR)/statlib
@@ -178,7 +201,7 @@ ZSTD_STATLIB_OBJ := $(addprefix $(ZSTD_STATLIB_DIR)/, $(ZSTD_LOCAL_OBJ))
 
 # macOS linker doesn't support -soname, and use different extension
 # see : https://developer.apple.com/library/mac/documentation/DeveloperTools/Conceptual/DynamicLibraries/100-Articles/DynamicLibraryDesignGuidelines.html
-ifeq ($(shell uname), Darwin)
+ifeq ($(UNAME), Darwin)
   SHARED_EXT = dylib
   SHARED_EXT_MAJOR = $(LIBVER_MAJOR).$(SHARED_EXT)
   SHARED_EXT_VER = $(LIBVER).$(SHARED_EXT)
@@ -200,14 +223,20 @@ lib-all: all
 
 all: lib
 
-libzstd.a: ARFLAGS = rcs
-libzstd.a: $(ZSTD_STATLIB_OBJ)
+$(ZSTD_STATLIB_DIR)/libzstd.a: ARFLAGS = rcs
+$(ZSTD_STATLIB_DIR)/libzstd.a: | $(ZSTD_STATLIB_DIR)
+$(ZSTD_STATLIB_DIR)/libzstd.a: $(ZSTD_STATLIB_OBJ)
 	@echo compiling static library
 	$(Q)$(AR) $(ARFLAGS) $@ $^
+
+.PHONY: libzstd.a  # must be run every time
+libzstd.a: $(ZSTD_STATLIB_DIR)/libzstd.a
+	$(Q)ln -sf $< $@
 
 ifneq (,$(filter Windows%,$(TARGET_SYSTEM)))
 
 LIBZSTD = dll\libzstd.dll
+$(LIBZSTD):
 $(LIBZSTD): $(ZSTD_FILES)
 	@echo compiling dynamic library $(LIBVER)
 	$(CC) $(FLAGS) -DZSTD_DLL_EXPORT=1 -Wl,--out-implib,dll\libzstd.dll.a -shared $^ -o $@
@@ -215,14 +244,19 @@ $(LIBZSTD): $(ZSTD_FILES)
 else
 
 LIBZSTD = libzstd.$(SHARED_EXT_VER)
-$(LIBZSTD): CFLAGS += -fPIC
-$(LIBZSTD): LDFLAGS += -shared -fvisibility=hidden
-$(LIBZSTD): $(ZSTD_DYNLIB_OBJ)
+$(ZSTD_DYNLIB_DIR)/$(LIBZSTD): CFLAGS += -fPIC
+$(ZSTD_DYNLIB_DIR)/$(LIBZSTD): LDFLAGS += -shared -fvisibility=hidden
+$(ZSTD_DYNLIB_DIR)/$(LIBZSTD): | $(ZSTD_DYNLIB_DIR)
+$(ZSTD_DYNLIB_DIR)/$(LIBZSTD): $(ZSTD_DYNLIB_OBJ)
 	@echo compiling dynamic library $(LIBVER)
 	$(Q)$(CC) $(FLAGS) $^ $(LDFLAGS) $(SONAME_FLAGS) -o $@
 	@echo creating versioned links
 	$(Q)ln -sf $@ libzstd.$(SHARED_EXT_MAJOR)
 	$(Q)ln -sf $@ libzstd.$(SHARED_EXT)
+
+.PHONY: $(LIBZSTD)  # must be run every time
+$(LIBZSTD): $(ZSTD_DYNLIB_DIR)/$(LIBZSTD)
+	$(Q)ln -sf $< $@
 
 endif
 
@@ -281,14 +315,13 @@ clean:
 	$(Q)$(RM) -r *.dSYM   # macOS-specific
 	$(Q)$(RM) core *.o *.a *.gcda *.$(SHARED_EXT) *.$(SHARED_EXT).* libzstd.pc
 	$(Q)$(RM) dll/libzstd.dll dll/libzstd.lib libzstd-nomt*
-	$(Q)$(RM) common/*.o compress/*.o decompress/*.o dictBuilder/*.o legacy/*.o deprecated/*.o
-	$(Q)$(RM) -r $(ZSTD_STATLIB_DIR)/* $(ZSTD_DYNLIB_DIR)/*
+	$(Q)$(RM) -r obj/*
 	@echo Cleaning library completed
 
 #-----------------------------------------------------------------------------
 # make install is validated only for below listed environments
 #-----------------------------------------------------------------------------
-ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku))
+ifneq (,$(filter $(UNAME),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku))
 
 all: libzstd.pc
 
@@ -324,13 +357,13 @@ $(error configured includedir ($(INCLUDEDIR)) is outside of exec_prefix ($(PREFI
 endif
 endif
 
-ifneq (,$(filter $(shell uname),FreeBSD NetBSD DragonFly))
+ifneq (,$(filter $(UNAME),FreeBSD NetBSD DragonFly))
   PKGCONFIGDIR ?= $(PREFIX)/libdata/pkgconfig
 else
   PKGCONFIGDIR ?= $(LIBDIR)/pkgconfig
 endif
 
-ifneq (,$(filter $(shell uname),SunOS))
+ifneq (,$(filter $(UNAME),SunOS))
   INSTALL ?= ginstall
 else
   INSTALL ?= install

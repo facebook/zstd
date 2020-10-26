@@ -31,9 +31,9 @@ VOID = /dev/null
 TARGET_SYSTEM ?= $(OS)
 
 ifneq (,$(filter Windows%,$(TARGET_SYSTEM)))
-EXT =.exe
+  EXT =.exe
 else
-EXT =
+  EXT =
 endif
 
 ## default: Build lib-release and zstd-release
@@ -65,7 +65,7 @@ lib lib-release lib-all :
 .PHONY: zstd zstd-release
 zstd zstd-release:
 	$(Q)$(MAKE) -C $(PRGDIR) $@
-	$(Q)cp $(PRGDIR)/zstd$(EXT) .
+	$(Q)ln -sf $(PRGDIR)/zstd$(EXT) zstd$(EXT)
 
 .PHONY: zstdmt
 zstdmt:
@@ -79,9 +79,9 @@ zlibwrapper: lib
 ## test: run long-duration tests
 .PHONY: test
 DEBUGLEVEL ?= 1
-test: MOREFLAGS += -g -DDEBUGLEVEL=$(DEBUGLEVEL) -Werror
+test: MOREFLAGS += -g -Werror
 test:
-	MOREFLAGS="$(MOREFLAGS)" $(MAKE) -j -C $(PRGDIR) allVariants
+	DEBUGLEVEL=$(DEBUGLEVEL) MOREFLAGS="$(MOREFLAGS)" $(MAKE) -j -C $(PRGDIR) allVariants
 	$(MAKE) -C $(TESTDIR) $@
 	ZSTD=../../programs/zstd $(MAKE) -C doc/educational_decoder $@
 

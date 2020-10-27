@@ -2506,11 +2506,11 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
 
     /* Insert last literals (if any exist) in the block as a sequence with ml == off == 0 */
     lastLLSize = seqStoreLiteralsSize - literalsRead;
-    if (lastLLSize) {
+    if (lastLLSize > 0) {
         outSeqs[i].litLength = lastLLSize;
         outSeqs[i].matchLength = outSeqs[i].offset = outSeqs[i].rep = 0;
+        seqStoreSeqSize++;
     }
-    
     zc->seqCollector.seqIndex += seqStoreSeqSize;
 }
 

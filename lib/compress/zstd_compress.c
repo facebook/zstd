@@ -2455,10 +2455,6 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
         outSeqs[i].litLength = seqStoreSeqs[i].litLength;
         outSeqs[i].matchLength = seqStoreSeqs[i].matchLength + MINMATCH;
 
-        /* matchLength and litLength are stored with U16. longLengthPos
-         * and longLengthID to allow us to represent a single litLength or matchLength
-         * in the seqStore that has a value larger than U16 (if it exists).
-         */
         if (i == seqStore->longLengthPos) {
             if (seqStore->longLengthID == 1) {
                 outSeqs[i].litLength += 0x10000;

@@ -341,23 +341,28 @@ MEM_STATIC size_t ZSTD_limitCopy(void* dst, size_t dstCapacity, const void* src,
 *  Private declarations
 *********************************************/
 typedef struct seqDef_s {
-    U32 offset;
+    U32 offset;         /* Offset code of the sequence */
     U16 litLength;
     U16 matchLength;
 } seqDef;
 
 typedef struct {
     seqDef* sequencesStart;
-    seqDef* sequences;
+    seqDef* sequences;      /* ptr to end of sequences */
     BYTE* litStart;
-    BYTE* lit;
+    BYTE* lit;              /* ptr to end of literals */
     BYTE* llCode;
     BYTE* mlCode;
     BYTE* ofCode;
     size_t maxNbSeq;
     size_t maxNbLit;
-    U32   longLengthID;   /* 0 == no longLength; 1 == Lit.longLength; 2 == Match.longLength; */
-    U32   longLengthPos;
+
+    /* longLengthPos and longLengthID to allow us to represent either a single litLength or matchLength
+     * in the seqStore that has a value larger than U16 (if it exists). To do so, we increment
+     * the existing value of the literal or match by 0x10000. 
+     */
+    U32   longLengthID;   /* 0 == no longLength; 1 == Represent the long literal; 2 == Represent the long match; */
+    U32   longLengthPos;  /* Index of the sequence to apply long length modification to */
 } seqStore_t;
 
 typedef struct {

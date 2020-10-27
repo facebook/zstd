@@ -185,7 +185,7 @@ HASH ?= md5sum
 
 HAVE_HASH := $(shell echo 1 | $(HASH) > /dev/null && echo 1 || echo 0)
 ifeq ($(HAVE_HASH), 1)
-  HASH_VALUE := $(shell echo $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(ZSTD_FILES) | $(HASH) | head -c 16)
+  HASH_VALUE := $(shell echo $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(ZSTD_FILES) | $(HASH) | dd bs=1 count=16 status=none)
   HASH_DIR := conf_$(HASH_VALUE)
 else
   $(info warning : could not find hash function to differentiate builds with different flags)

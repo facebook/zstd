@@ -2452,10 +2452,13 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
 
     assert(zc->seqCollector.seqIndex + 1 < zc->seqCollector.maxSequences);
     for (i = 0, position = 0; i < seqStoreSeqSize; ++i) {
-        outSeqs[i].offset = seqStoreSeqs[i].offset - ZSTD_REP_NUM;
         outSeqs[i].litLength = seqStoreSeqs[i].litLength;
         outSeqs[i].matchLength = seqStoreSeqs[i].matchLength + MINMATCH;
 
+        /* matchLength and litLength are stored with U16. longLengthPos
+         * and longLengthID to allow us to represent a single litLength or matchLength
+         * in the seqStore that has a value larger than U16 (if it exists).
+         */
         if (i == seqStore->longLengthPos) {
             if (seqStore->longLengthID == 1) {
                 outSeqs[i].litLength += 0x10000;
@@ -2465,14 +2468,15 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
         }
 
        /* Repcode handling:
+        * See docs/format.md for more detail about repeat offset codes
         * If litLength != 0:
-        *      rep == 1 --> offset == repeat offset 1
-        *      rep == 2 --> offset == repeat offset 2
-        *      rep == 3 --> offset == repeat offset 3
+        *      rep == 1 --> offset == repeat_offset_1
+        *      rep == 2 --> offset == repeat_offset_2
+        *      rep == 3 --> offset == repeat_offset_3
         * If litLength == 0:
-        *      rep == 1 --> offset == repeat offset 2
-        *      rep == 2 --> offset == repeat offset 3
-        *      rep == 3 --> offset == repeat offset 1 - 1
+        *      rep == 1 --> offset == repeat_offset_2
+        *      rep == 2 --> offset == repeat_offset_3
+        *      rep == 3 --> offset == repeat_offset_1 - 1
         */
         if (seqStoreSeqs[i].offset <= ZSTD_REP_NUM) {
             outSeqs[i].rep = seqStoreSeqs[i].offset;
@@ -2486,10 +2490,15 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
                 }
             }
             assert(repIdx >= -3);
+            /* Use default repcodes if repcode references an offset that doesn't exist yet 
+             * This can only occur within the first two sequences.
+             */
             outSeqs[i].offset = repIdx >= 0 ? outSeqs[repIdx].offset : repStartValue[-repIdx - 1];
             if (outSeqs[i].rep == 3 && outSeqs[i].litLength == 0) {
                 --outSeqs[i].offset;
             }
+        } else {
+            outSeqs[i].offset = seqStoreSeqs[i].offset - ZSTD_REP_NUM;
         }
         position += outSeqs[i].litLength + outSeqs[i].matchLength;
     }

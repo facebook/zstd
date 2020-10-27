@@ -2442,17 +2442,19 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
 static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
 {
     const seqStore_t* seqStore = ZSTD_getSeqStore(zc);
-    const seqDef* seqs = seqStore->sequencesStart;
-    size_t seqsSize = seqStore->sequences - seqs;
+    const seqDef* seqStoreSeqs = seqStore->sequencesStart;
+    size_t seqStoreSeqSize = seqStore->sequences - seqStoreSeqs;
 
     ZSTD_Sequence* outSeqs = &zc->seqCollector.seqStart[zc->seqCollector.seqIndex];
-    size_t i; size_t position; int repIdx;
+    size_t i;
+    size_t position;
+    int repIdx;
 
     assert(zc->seqCollector.seqIndex + 1 < zc->seqCollector.maxSequences);
-    for (i = 0, position = 0; i < seqsSize; ++i) {
-        outSeqs[i].offset = seqs[i].offset;
-        outSeqs[i].litLength = seqs[i].litLength;
-        outSeqs[i].matchLength = seqs[i].matchLength + MINMATCH;
+    for (i = 0, position = 0; i < seqStoreSeqSize; ++i) {
+        outSeqs[i].offset = seqStoreSeqs[i].offset - ZSTD_REP_NUM;
+        outSeqs[i].litLength = seqStoreSeqs[i].litLength;
+        outSeqs[i].matchLength = seqStoreSeqs[i].matchLength + MINMATCH;
 
         if (i == seqStore->longLengthPos) {
             if (seqStore->longLengthID == 1) {
@@ -2462,32 +2464,36 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
             }
         }
 
-        if (outSeqs[i].offset <= ZSTD_REP_NUM) {
-            outSeqs[i].rep = outSeqs[i].offset;
-            repIdx = (unsigned int)i - outSeqs[i].offset;
+       /* Repcode handling:
+        * If litLength != 0:
+        *      rep == 1 --> offset == repeat offset 1
+        *      rep == 2 --> offset == repeat offset 2
+        *      rep == 3 --> offset == repeat offset 3
+        * If litLength == 0:
+        *      rep == 1 --> offset == repeat offset 2
+        *      rep == 2 --> offset == repeat offset 3
+        *      rep == 3 --> offset == repeat offset 1 - 1
+        */
+        if (seqStoreSeqs[i].offset <= ZSTD_REP_NUM) {
+            outSeqs[i].rep = seqStoreSeqs[i].offset;
+            repIdx = (unsigned int)i - seqStoreSeqs[i].offset;
 
-            if (outSeqs[i].litLength == 0) {
-                if (outSeqs[i].offset < 3) {
+            if (seqStoreSeqs[i].litLength == 0) {
+                if (seqStoreSeqs[i].offset < 3) {
                     --repIdx;
                 } else {
                     repIdx = (unsigned int)i - 1;
                 }
-                ++outSeqs[i].rep;
             }
             assert(repIdx >= -3);
             outSeqs[i].offset = repIdx >= 0 ? outSeqs[repIdx].offset : repStartValue[-repIdx - 1];
-            if (outSeqs[i].rep == 4) {
+            if (outSeqs[i].rep == 3 && outSeqs[i].litLength == 0) {
                 --outSeqs[i].offset;
             }
-        } else {
-            outSeqs[i].offset -= ZSTD_REP_NUM;
         }
-
-        position += outSeqs[i].litLength;
-        outSeqs[i].matchPos = (unsigned int)position;
-        position += outSeqs[i].matchLength;
+        position += outSeqs[i].litLength + outSeqs[i].matchLength;
     }
-    zc->seqCollector.seqIndex += seqsSize;
+    zc->seqCollector.seqIndex += seqStoreSeqSize;
 }
 
 size_t ZSTD_getSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,

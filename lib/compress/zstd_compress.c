@@ -2444,6 +2444,9 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
     const seqStore_t* seqStore = ZSTD_getSeqStore(zc);
     const seqDef* seqStoreSeqs = seqStore->sequencesStart;
     size_t seqStoreSeqSize = seqStore->sequences - seqStoreSeqs;
+    size_t seqStoreLiteralsSize = (size_t)(seqStore->lit - seqStore->litStart);
+    size_t literalsRead = 0;
+    size_t lastLLSize;
 
     ZSTD_Sequence* outSeqs = &zc->seqCollector.seqStart[zc->seqCollector.seqIndex];
     size_t i;
@@ -2451,7 +2454,10 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
     int repIdx;
 
     assert(zc->seqCollector.seqIndex + 1 < zc->seqCollector.maxSequences);
-    for (i = 0, position = 0; i < seqStoreSeqSize; ++i) {
+    /* Ensure we have enough space for last literals "sequence" */
+    assert(zc->seqCollector.maxSequences >= seqStoreSeqSize + 1);
+    for (i = 0; i < seqStoreSeqSize; ++i) {
+        literalsRead += seqStoreSeqs[i].litLength;
         outSeqs[i].litLength = seqStoreSeqs[i].litLength;
         outSeqs[i].matchLength = seqStoreSeqs[i].matchLength + MINMATCH;
 
@@ -2496,8 +2502,15 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
         } else {
             outSeqs[i].offset = seqStoreSeqs[i].offset - ZSTD_REP_NUM;
         }
-        position += outSeqs[i].litLength + outSeqs[i].matchLength;
     }
+
+    /* Insert last literals (if any exist) in the block as a sequence with ml == off == 0 */
+    lastLLSize = seqStoreLiteralsSize - literalsRead;
+    if (lastLLSize) {
+        outSeqs[i].litLength = lastLLSize;
+        outSeqs[i].matchLength = outSeqs[i].offset = outSeqs[i].rep = 0;
+    }
+    
     zc->seqCollector.seqIndex += seqStoreSeqSize;
 }
 

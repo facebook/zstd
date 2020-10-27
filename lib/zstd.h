@@ -1115,7 +1115,7 @@ typedef struct ZSTD_CCtx_params_s ZSTD_CCtx_params;
 
 typedef struct {
     unsigned int offset;      /* The offset of the match.
-                               * If == 0, then represents a block of literals, determined by litLength
+                               * If == 0, then represents a section of literals of litLength size
                                */
 
     unsigned int litLength;   /* Literal length */
@@ -1278,7 +1278,8 @@ ZSTDLIB_API unsigned long long ZSTD_decompressBound(const void* src, size_t srcS
 ZSTDLIB_API size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize);
 
 /*! ZSTD_getSequences() :
- * Extract sequences from the sequence store
+ * Extract sequences from the sequence store. Any last literals in the block will be represented as a sequence
+ * with offset == 0, matchLength == 0, litLength == last literals size.
  * zc can be used to insert custom compression params.
  * This function invokes ZSTD_compress2
  * @return : number of sequences extracted

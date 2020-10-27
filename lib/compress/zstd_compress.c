@@ -2450,7 +2450,6 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
 
     ZSTD_Sequence* outSeqs = &zc->seqCollector.seqStart[zc->seqCollector.seqIndex];
     size_t i;
-    size_t position;
     int repIdx;
 
     assert(zc->seqCollector.seqIndex + 1 < zc->seqCollector.maxSequences);
@@ -2469,17 +2468,6 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
             }
         }
 
-       /* Repcode handling:
-        * See docs/format.md for more detail about repeat offset codes
-        * If litLength != 0:
-        *      rep == 1 --> offset == repeat_offset_1
-        *      rep == 2 --> offset == repeat_offset_2
-        *      rep == 3 --> offset == repeat_offset_3
-        * If litLength == 0:
-        *      rep == 1 --> offset == repeat_offset_2
-        *      rep == 2 --> offset == repeat_offset_3
-        *      rep == 3 --> offset == repeat_offset_1 - 1
-        */
         if (seqStoreSeqs[i].offset <= ZSTD_REP_NUM) {
             outSeqs[i].rep = seqStoreSeqs[i].offset;
             repIdx = (unsigned int)i - seqStoreSeqs[i].offset;

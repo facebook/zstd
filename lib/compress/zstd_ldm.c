@@ -577,10 +577,7 @@ static rawSeq maybeSplitSequence(rawSeqStore_t* rawSeqStore,
     return sequence;
 }
 
-/* ZSTD_ldm_skipRawSeqStoreBytes():
- * Moves forward in rawSeqStore by nbBytes, updating fields 'pos' and 'posInSequence'.
- */
-static void ZSTD_ldm_skipRawSeqStoreBytes(rawSeqStore_t* rawSeqStore, size_t nbBytes) {
+void ZSTD_ldm_skipRawSeqStoreBytes(rawSeqStore_t* rawSeqStore, size_t nbBytes) {
     U32 currPos = (U32)(rawSeqStore->posInSequence + nbBytes);
     while (currPos && rawSeqStore->pos < rawSeqStore->size) {
         rawSeq currSeq = rawSeqStore->seq[rawSeqStore->pos];

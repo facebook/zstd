@@ -1114,24 +1114,25 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 typedef struct ZSTD_CCtx_params_s ZSTD_CCtx_params;
 
 typedef struct {
-    unsigned int offset;  /* The offset of the match.
-                           * If == 0, then represents a block of literals, determined by litLength
-                           */
+    unsigned int offset;      /* The offset of the match.
+                              * If == 0, then represents a block of literals, determined by litLength
+                              */
 
     unsigned int litLength;   /* Literal length */
     unsigned int matchLength; /* Match length. */
-    unsigned int rep;     /* Represents which repeat offset is used. Ranges from [0, 3].
-                           * If rep == 0, then this sequence does not contain a repeat offset.
-                           * Otherwise:
-                           *  If litLength != 0:
-                           *      rep == 1 --> offset == repeat offset 1
-                           *      rep == 2 --> offset == repeat offset 2
-                           *      rep == 3 --> offset == repeat offset 3
-                           *  If litLength == 0:
-                           *      rep == 1 --> offset == repeat offset 2
-                           *      rep == 2 --> offset == repeat offset 3
-                           *      rep == 3 --> offset == repeat offset 1 - 1
-                           */
+    
+    unsigned int rep;         /* Represents which repeat offset is used. Ranges from [0, 3].
+                              * If rep == 0, then this sequence does not contain a repeat offset.
+                              * Otherwise:
+                              *  If litLength != 0:
+                              *      rep == 1 --> offset == repeat offset 1
+                              *      rep == 2 --> offset == repeat offset 2
+                              *      rep == 3 --> offset == repeat offset 3
+                              *  If litLength == 0:
+                              *      rep == 1 --> offset == repeat offset 2
+                              *      rep == 2 --> offset == repeat offset 3
+                              *      rep == 3 --> offset == repeat offset 1 - 1
+                              */
 } ZSTD_Sequence;
 
 typedef struct {

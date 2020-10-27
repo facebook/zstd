@@ -385,42 +385,6 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
-    DISPLAYLEVEL(3, "test%3i : LDM + opt parser with uncompressible block ", testNb++);
-    {   ZSTD_CCtx* cctx = ZSTD_createCCtx();
-        ZSTD_DCtx* dctx = ZSTD_createDCtx();
-        size_t const srcSize = 300 KB;
-        size_t const flushSize = 128 KB + 5;
-        size_t const dstSize = ZSTD_compressBound(srcSize);
-        char* src = CNBuffer;
-        char* dst = compressedBuffer;
-
-        ZSTD_outBuffer out = { dst, dstSize, 0 };
-        ZSTD_inBuffer in = { src, flushSize, 0 };
-
-        RDG_genBuffer(src, srcSize, 0.5, 0.5, seed);
-        /* Force an LDM to exist that crosses block boundary into uncompressible block */
-        memcpy(src + 125 KB, src, 3 KB + 5);
-
-        /* Enable MT, LDM, and opt parser */
-        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 1));
-        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, 1));
-        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1));
-        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, 19));
-
-        /* Flushes a block of 128 KB and block of 5 bytes */
-        CHECK_Z(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_flush));
-
-        /* Compress the rest */
-        in.size = 300 KB;
-        CHECK_Z(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end));
-
-        CHECK_Z(ZSTD_decompress(decodedBuffer, CNBuffSize, dst, out.pos));
-
-        ZSTD_freeCCtx(cctx);
-        ZSTD_freeDCtx(dctx);
-    }
-    DISPLAYLEVEL(3, "OK \n");
-
     DISPLAYLEVEL(3, "test%3u : compress %u bytes : ", testNb++, (unsigned)CNBuffSize);
     {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
         if (cctx==NULL) goto _output_error;
@@ -751,6 +715,42 @@ static int basicUnitTests(U32 const seed, double compressibility)
         ZSTD_freeCCtx(cctx);
         ZSTD_freeDCtx(dctx);
         free(dict);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : LDM + opt parser with small uncompressible block ", testNb++);
+    {   ZSTD_CCtx* cctx = ZSTD_createCCtx();
+        ZSTD_DCtx* dctx = ZSTD_createDCtx();
+        size_t const srcSize = 300 KB;
+        size_t const flushSize = 128 KB + 5;
+        size_t const dstSize = ZSTD_compressBound(srcSize);
+        char* src = CNBuffer;
+        char* dst = compressedBuffer;
+
+        ZSTD_outBuffer out = { dst, dstSize, 0 };
+        ZSTD_inBuffer in = { src, flushSize, 0 };
+
+        RDG_genBuffer(src, srcSize, 0.5, 0.5, seed);
+        /* Force an LDM to exist that crosses block boundary into uncompressible block */
+        memcpy(src + 125 KB, src, 3 KB + 5);
+
+        /* Enable MT, LDM, and opt parser */
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 1));
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, 1));
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1));
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, 19));
+
+        /* Flushes a block of 128 KB and block of 5 bytes */
+        CHECK_Z(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_flush));
+
+        /* Compress the rest */
+        in.size = 300 KB;
+        CHECK_Z(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end));
+
+        CHECK_Z(ZSTD_decompress(decodedBuffer, CNBuffSize, dst, out.pos));
+
+        ZSTD_freeCCtx(cctx);
+        ZSTD_freeDCtx(dctx);
     }
     DISPLAYLEVEL(3, "OK \n");
 

@@ -2480,9 +2480,6 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
                 }
             }
             assert(repIdx >= -3);
-            /* Use default repcodes if repcode references an offset that doesn't exist yet 
-             * This can only occur within the first two sequences.
-             */
             outSeqs[i].offset = repIdx >= 0 ? outSeqs[repIdx].offset : repStartValue[-repIdx - 1];
             if (outSeqs[i].rep == 3 && outSeqs[i].litLength == 0) {
                 --outSeqs[i].offset;
@@ -2493,6 +2490,7 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
     }
 
     /* Insert last literals (if any exist) in the block as a sequence with ml == off == 0 */
+    assert(seqStoreLiteralsSize >= literalsRead);
     lastLLSize = seqStoreLiteralsSize - literalsRead;
     if (lastLLSize > 0) {
         outSeqs[i].litLength = lastLLSize;

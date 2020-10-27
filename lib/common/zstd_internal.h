@@ -359,7 +359,7 @@ typedef struct {
 
     /* longLengthPos and longLengthID to allow us to represent either a single litLength or matchLength
      * in the seqStore that has a value larger than U16 (if it exists). To do so, we increment
-     * the existing value of the literal or match by 0x10000. 
+     * the existing value of the litLength or matchLength by 0x10000. 
      */
     U32   longLengthID;   /* 0 == no longLength; 1 == Represent the long literal; 2 == Represent the long match; */
     U32   longLengthPos;  /* Index of the sequence to apply long length modification to */

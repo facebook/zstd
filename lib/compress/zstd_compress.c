@@ -4505,7 +4505,11 @@ static size_t ZSTD_copySequencesToSeqStore(ZSTD_CCtx* zc,
         U32 offCode = inSeqs[idx].offset + ZSTD_REP_MOVE;
         RETURN_ERROR_IF(matchLength < MINMATCH, corruption_detected, "Matchlength too small!");
         DEBUGLOG(7, "Seqstore idx: %zu, seq: (ll: %u, ml: %u, of: %u)", idx, litLength, matchLength, offCode);
-        ZSTD_storeSeq(&zc->seqStore, litLength, ip, iend, offCode, matchLength - MINMATCH);
+        if (inSeqs[idx].rep) {
+            ZSTD_storeSeq(&zc->seqStore, litLength, ip, iend, inSeqs[idx].rep - 1, matchLength - MINMATCH);
+        } else {
+            ZSTD_storeSeq(&zc->seqStore, litLength, ip, iend, offCode, matchLength - MINMATCH);
+        }
         ip += matchLength + litLength;
     }
 

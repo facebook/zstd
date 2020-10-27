@@ -1114,21 +1114,24 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 typedef struct ZSTD_CCtx_params_s ZSTD_CCtx_params;
 
 typedef struct {
-    unsigned int matchPos; /* Match pos in dst */
-    /* If seqDef.offset > 3, then this is seqDef.offset - 3
-     * If seqDef.offset < 3, then this is the corresponding repeat offset
-     * But if seqDef.offset < 3 and litLength == 0, this is the
-     *   repeat offset before the corresponding repeat offset
-     * And if seqDef.offset == 3 and litLength == 0, this is the
-     *   most recent repeat offset - 1
-     */
-    unsigned int offset;
-    unsigned int litLength; /* Literal length */
-    unsigned int matchLength; /* Match length */
-    /* 0 when seq not rep and seqDef.offset otherwise
-     * when litLength == 0 this will be <= 4, otherwise <= 3 like normal
-     */
-    unsigned int rep;
+    unsigned int offset;  /* The offset of the match.
+                           * If == 0, then represents a block of literals, determined by litLength
+                           */
+
+    unsigned int litLength;   /* Literal length */
+    unsigned int matchLength; /* Match length. */
+    unsigned int rep;     /* Represents which repeat offset is used. Ranges from [0, 3].
+                           * If rep == 0, then this sequence does not contain a repeat offset.
+                           * Otherwise:
+                           *  If litLength != 0:
+                           *      rep == 1 --> offset == repeat offset 1
+                           *      rep == 2 --> offset == repeat offset 2
+                           *      rep == 3 --> offset == repeat offset 3
+                           *  If litLength == 0:
+                           *      rep == 1 --> offset == repeat offset 2
+                           *      rep == 2 --> offset == repeat offset 3
+                           *      rep == 3 --> offset == repeat offset 1 - 1
+                           */
 } ZSTD_Sequence;
 
 typedef struct {

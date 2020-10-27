@@ -202,6 +202,14 @@ size_t ZSTD_sizeof_CStream(const ZSTD_CStream* zcs)
 /* private API call, for dictBuilder only */
 const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx) { return &(ctx->seqStore); }
 
+/* Returns 1 if compression parameters are such that we should
+ * enable long distance matching (wlog >= 27, strategy >= btopt).
+ * Returns 0 otherwise.
+ */
+static U32 ZSTD_CParams_shouldEnableLdm(const ZSTD_compressionParameters* const cParams) {
+    return cParams->strategy >= ZSTD_btopt && cParams->windowLog >= 27;
+}
+
 static ZSTD_CCtx_params ZSTD_makeCCtxParamsFromCParams(
         ZSTD_compressionParameters cParams)
 {
@@ -209,6 +217,16 @@ static ZSTD_CCtx_params ZSTD_makeCCtxParamsFromCParams(
     /* should not matter, as all cParams are presumed properly defined */
     ZSTD_CCtxParams_init(&cctxParams, ZSTD_CLEVEL_DEFAULT);
     cctxParams.cParams = cParams;
+
+    if (ZSTD_CParams_shouldEnableLdm(&cParams)) {
+        DEBUGLOG(4, "ZSTD_makeCCtxParamsFromCParams(): Including LDM into cctx params");
+        cctxParams.ldmParams.enableLdm = 1;
+        /* LDM is enabled by default for optimal parser and window size >= 128MB */
+        ZSTD_ldm_adjustParameters(&cctxParams.ldmParams, &cParams);
+        assert(cctxParams.ldmParams.hashLog >= cctxParams.ldmParams.bucketSizeLog);
+        assert(cctxParams.ldmParams.hashRateLog < 32);
+    }
+
     assert(!ZSTD_checkCParams(cParams));
     return cctxParams;
 }
@@ -4183,6 +4201,11 @@ size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
                     dictSize, mode);
         }
 
+        if (ZSTD_CParams_shouldEnableLdm(&params.cParams)) {
+            /* Enable LDM by default for optimal parser and window size >= 128MB */
+            DEBUGLOG(4, "LDM enabled by default (window size >= 128MB, strategy >= btopt)");
+            params.ldmParams.enableLdm = 1;
+        }
 
 #ifdef ZSTD_MULTITHREAD
         if ((cctx->pledgedSrcSizePlusOne-1) <= ZSTDMT_JOBSIZE_MIN) {

@@ -110,7 +110,7 @@ else ifeq ($(UNAME), OpenBSD)
 endif
 HASH ?= md5sum
 
-HASH_DIR = conf_$(shell echo $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(ZSTD_FILES) | $(HASH) | head -c 16)
+HASH_DIR = conf_$(shell echo $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(ZSTD_FILES) | $(HASH) | cut -f 1 -d " ")
 HAVE_HASH :=$(shell echo 1 | $(HASH) > /dev/null && echo 1 || echo 0)
 ifeq ($(HAVE_HASH),0)
   $(info warning : could not find HASH ($(HASH)), needed to differentiate builds using different flags)

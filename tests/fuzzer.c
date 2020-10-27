@@ -1158,6 +1158,26 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3d : ldm conditionally enabled by default doesn't change cctx params: ", testNb++);
+    {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        ZSTD_outBuffer out = {NULL, 0, 0};
+        ZSTD_inBuffer in = {NULL, 0, 0};
+        int value;
+
+        /* Even if LDM will be enabled by default in the applied params (since wlog >= 27 and strategy >= btopt),
+         * we should not modify the actual parameter specified by the user within the CCtx
+         */
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_windowLog, 27));
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_strategy, ZSTD_btopt));
+
+        CHECK_Z(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_continue));
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_enableLongDistanceMatching, &value));
+        CHECK_EQ(value, 0);
+
+        ZSTD_freeCCtx(cctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     /* this test is really too long, and should be made faster */
     DISPLAYLEVEL(3, "test%3d : overflow protection with large windowLog : ", testNb++);
     {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();

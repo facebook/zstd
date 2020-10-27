@@ -1115,23 +1115,28 @@ typedef struct ZSTD_CCtx_params_s ZSTD_CCtx_params;
 
 typedef struct {
     unsigned int offset;      /* The offset of the match.
-                               * If == 0, then represents a section of literals of litLength size
+                               * If offset == 0 and matchLength == 0,
+                               * then this sequence represents last literals in the block of litLength size.
                                */
 
-    unsigned int litLength;   /* Literal length */
-    unsigned int matchLength; /* Match length. */
+    unsigned int litLength;   /* Literal length of the sequence. */
+    unsigned int matchLength; /* Match length of the sequence. */
+
+                              /* Note: Users of this API may provide a sequence with matchLength == litLength == offset == 0.
+                               * In this case, we will treat the "sequence" as a marker for a block boundary.
+                               */
     
     unsigned int rep;         /* Represents which repeat offset is used. Ranges from [0, 3].
                                * If rep == 0, then this sequence does not contain a repeat offset.
-                               * Otherwise:
+                               * If rep > 0:
                                *  If litLength != 0:
-                               *      rep == 1 --> offset == repeat offset 1
-                               *      rep == 2 --> offset == repeat offset 2
-                               *      rep == 3 --> offset == repeat offset 3
+                               *      rep == 1 --> offset == repeat_offset_1
+                               *      rep == 2 --> offset == repeat_offset_2
+                               *      rep == 3 --> offset == repeat_offset_3
                                *  If litLength == 0:
-                               *      rep == 1 --> offset == repeat offset 2
-                               *      rep == 2 --> offset == repeat offset 3
-                               *      rep == 3 --> offset == repeat offset 1 - 1
+                               *      rep == 1 --> offset == repeat_offset_2
+                               *      rep == 2 --> offset == repeat_offset_3
+                               *      rep == 3 --> offset == repeat_offset_1 - 1
                                */
 } ZSTD_Sequence;
 

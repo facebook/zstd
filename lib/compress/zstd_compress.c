@@ -4488,6 +4488,13 @@ size_t ZSTD_compress2(ZSTD_CCtx* cctx,
     }
 }
 
+typedef struct {
+    U32 startIdx;   /* Index in array of ZSTD_Sequence where range begins */
+    U32 startPos;   /* Absolute position within array of ZSTD_Sequence where range begins */
+    U32 endIdx;     /* Index in array of ZSTD_Sequence where range ends */
+    U32 endPos;     /* Absolute position within array of ZSTD_Sequence where range end */
+} ZSTD_sequenceRange;
+
 /* Returns 0 on success, otherwise ZSTD error code */
 static size_t ZSTD_copySequencesToSeqStore(ZSTD_CCtx* zc,
                                          const ZSTD_Sequence* inSeqs, size_t inSeqsSize,

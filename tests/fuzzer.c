@@ -721,19 +721,20 @@ static int basicUnitTests(U32 const seed, double compressibility)
     DISPLAYLEVEL(3, "test%3i : LDM + opt parser with small uncompressible block ", testNb++);
     {   ZSTD_CCtx* cctx = ZSTD_createCCtx();
         ZSTD_DCtx* dctx = ZSTD_createDCtx();
+        size_t const srcSize = 300 KB;
+        size_t const flushSize = 128 KB + 5;
+        size_t const dstSize = ZSTD_compressBound(srcSize);
+        char* src = (char*)CNBuffer;
+        char* dst = (char*)compressedBuffer;
+
+        ZSTD_outBuffer out = { dst, dstSize, 0 };
+        ZSTD_inBuffer in = { src, flushSize, 0 };
+
         if (!cctx || !dctx) {
             DISPLAY("Not enough memory, aborting\n");
             testResult = 1;
             goto _end;
         }
-        size_t const srcSize = 300 KB;
-        size_t const flushSize = 128 KB + 5;
-        size_t const dstSize = ZSTD_compressBound(srcSize);
-        char* src = CNBuffer;
-        char* dst = compressedBuffer;
-
-        ZSTD_outBuffer out = { dst, dstSize, 0 };
-        ZSTD_inBuffer in = { src, flushSize, 0 };
 
         RDG_genBuffer(src, srcSize, 0.5, 0.5, seed);
         /* Force an LDM to exist that crosses block boundary into uncompressible block */

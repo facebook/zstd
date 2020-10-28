@@ -4495,6 +4495,11 @@ typedef struct {
     U32 endPos;     /* Absolute position within array of ZSTD_Sequence where range end */
 } ZSTD_sequenceRange;
 
+
+static void ZSTD_updateSequenceRange(ZSTD_sequenceRange* sequenceRange, size_t nbBytes,
+                                     const ZSTD_Sequence* const inSeqs, size_t inSeqsSize) {
+}
+
 /* Returns 0 on success, otherwise ZSTD error code */
 static size_t ZSTD_copySequencesToSeqStore(ZSTD_CCtx* zc,
                                          const ZSTD_Sequence* inSeqs, size_t inSeqsSize,

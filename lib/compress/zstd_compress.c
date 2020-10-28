@@ -4489,15 +4489,17 @@ size_t ZSTD_compress2(ZSTD_CCtx* cctx,
 }
 
 typedef struct {
-    U32 startIdx;   /* Index in array of ZSTD_Sequence where range begins */
-    U32 startPos;   /* Absolute position within array of ZSTD_Sequence where range begins */
-    U32 endIdx;     /* Index in array of ZSTD_Sequence where range ends */
-    U32 endPos;     /* Absolute position within array of ZSTD_Sequence where range end */
+    U32 startIdx;             /* Index in array of ZSTD_Sequence where range begins */
+    U32 startPosInSequence;   /* Position within sequence at index 'startIdx' where range begins */
+    U32 endIdx;               /* Index in array of ZSTD_Sequence where range ends */
+    U32 endPosInSequence;     /* Position within sequence at index 'endIdx' where range ends */
 } ZSTD_sequenceRange;
 
 
 static void ZSTD_updateSequenceRange(ZSTD_sequenceRange* sequenceRange, size_t nbBytes,
                                      const ZSTD_Sequence* const inSeqs, size_t inSeqsSize) {
+    U32 newStartIdx = sequenceRange->endIdx;
+    U32 newStartPos = sequenceRange->endPos;
 }
 
 /* Returns 0 on success, otherwise ZSTD error code */

@@ -15,8 +15,12 @@
 # zstd-decompress : decompressor-only version of zstd
 # ##########################################################################
 
-# verbose mode can be triggered by V=1 or VERBOSE=1
-Q = $(if $(filter 1,$(V) $(VERBOSE)),,@)
+.PHONY: default
+default: zstd-release
+
+# silent mode by default; verbose can be triggered by V=1 or VERBOSE=1
+$(V)$(VERBOSE).SILENT:
+
 
 ZSTDDIR := ../lib
 
@@ -94,28 +98,24 @@ ZSTD_ALL_SRC := $(ZSTDLIB_LOCAL_SRC) $(ZSTD_CLI_SRC)
 ZSTD_ALL_OBJ := $(ZSTD_ALL_SRC:.c=.o)
 
 UNAME := $(shell uname)
+
+ifndef BUILD_DIR
 ifeq ($(UNAME), Darwin)
   HASH ?= md5
-endif
-ifeq ($(UNAME), FreeBSD)
+else ifeq ($(UNAME), FreeBSD)
   HASH ?= gmd5sum
-endif
-ifeq ($(UNAME), OpenBSD)
+else ifeq ($(UNAME), OpenBSD)
   HASH ?= md5
 endif
 HASH ?= md5sum
 
-HAVE_HASH := $(shell echo 1 | $(HASH) > /dev/null && echo 1 || echo 0)
-ifeq ($(HAVE_HASH), 1)
-  HASH_VALUE := $(shell echo $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) | $(HASH) | dd bs=1 count=16 status=none)
-  HASH_DIR := conf_$(HASH_VALUE)
-else
-  $(info warning : could not find hash function to differentiate builds with different flags)
-  HASH_DIR := 0
+HASH_DIR = conf_$(shell echo $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(ZSTD_FILES) | $(HASH) | cut -f 1 -d " ")
+HAVE_HASH :=$(shell echo 1 | $(HASH) > /dev/null && echo 1 || echo 0)
+ifeq ($(HAVE_HASH),0)
+  $(info warning : could not find HASH ($(HASH)), needed to differentiate builds using different flags)
+  BUILD_DIR := obj/generic_noconf
 endif
-
-BUILD_DIR ?= obj/$(HASH_DIR)
-ZSTD_OBJ := $(addprefix $(BUILD_DIR)/, $(ZSTD_ALL_OBJ))
+endif # BUILD_DIR
 
 # Define *.exe as extension for Windows systems
 ifneq (,$(filter Windows%,$(OS)))
@@ -192,9 +192,13 @@ ifeq ($(BACKTRACE), 1)
 endif
 endif
 
+SET_CACHE_DIRECTORY = \
+	$(MAKE) --no-print-directory $@ \
+    BUILD_DIR=obj/$(HASH_DIR) \
+    CPPFLAGS="$(CPPFLAGS)" \
+    CFLAGS="$(CFLAGS)" \
+    LDFLAGS="$(LDFLAGS)"
 
-.PHONY: default
-default: zstd-release
 
 .PHONY: all
 all: zstd
@@ -202,23 +206,38 @@ all: zstd
 .PHONY: allVariants
 allVariants: zstd zstd-compress zstd-decompress zstd-small zstd-nolegacy zstd-dictBuilder
 
-$(BUILD_DIR)/zstd : $(ZSTD_OBJ)
-	@echo "$(THREAD_MSG)"
-	@echo "$(ZLIB_MSG)"
-	@echo "$(LZMA_MSG)"
-	@echo "$(LZ4_MSG)"
-	$(Q)$(CC) $(FLAGS) $^ -o $@$(EXT) $(LDFLAGS)
-
-.PHONY: zstd
+.PHONY: zstd  # must always be run
 zstd : CPPFLAGS += $(THREAD_CPP) $(ZLIBCPP) $(LZMACPP) $(LZ4CPP)
 zstd : LDFLAGS += $(THREAD_LD) $(ZLIBLD) $(LZMALD) $(LZ4LD) $(DEBUGFLAGS_LD)
 zstd : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 ifneq (,$(filter Windows%,$(OS)))
 zstd : $(RES_FILE)
 endif
+
+ifndef BUILD_DIR
+# generate BUILD_DIR from flags
+
+zstd:
+	$(SET_CACHE_DIRECTORY)
+
+else
+# BUILD_DIR is defined
+
+ZSTD_OBJ := $(addprefix $(BUILD_DIR)/, $(ZSTD_ALL_OBJ))
+$(BUILD_DIR)/zstd : $(ZSTD_OBJ)
+	@echo "$(THREAD_MSG)"
+	@echo "$(ZLIB_MSG)"
+	@echo "$(LZMA_MSG)"
+	@echo "$(LZ4_MSG)"
+	@echo LINK $@
+	$(CC) $(FLAGS) $^ -o $@$(EXT) $(LDFLAGS)
+
 zstd : $(BUILD_DIR)/zstd
-	$(Q)ln -sf $< $@
+	ln -sf $< $@
 	@echo zstd build completed
+
+endif  # BUILD_DIR
+
 
 .PHONY: zstd-release
 zstd-release: DEBUGFLAGS := -DBACKTRACE_ENABLE=0
@@ -315,11 +334,11 @@ endif
 
 .PHONY: clean
 clean:
-	$(Q)$(RM) core *.o tmp* result* *.gcda dictionary *.zst \
+	$(RM) core *.o tmp* result* *.gcda dictionary *.zst \
         zstd$(EXT) zstd32$(EXT) zstd-compress$(EXT) zstd-decompress$(EXT) \
         zstd-small$(EXT) zstd-frugal$(EXT) zstd-nolegacy$(EXT) zstd4$(EXT) \
         zstd-dictBuilder$(EXT) *.gcda default*.profraw default.profdata have_zlib$(EXT)
-	$(Q)$(RM) -r obj/*
+	$(RM) -r obj/*
 	@echo Cleaning completed
 
 MD2ROFF = ronn
@@ -355,11 +374,11 @@ preview-man: clean-man man
 DEPFLAGS = -MT $@ -MMD -MP -MF
 
 $(BUILD_DIR)/%.o : %.c $(BUILD_DIR)/%.d | $(BUILD_DIR)
-	@echo $@
-	$(Q)$(COMPILE.c) $(DEPFLAGS) $(BUILD_DIR)/$*.d $(OUTPUT_OPTION) $<
+	@echo CC $@
+	$(COMPILE.c) $(DEPFLAGS) $(BUILD_DIR)/$*.d $(OUTPUT_OPTION) $<
 
 MKDIR ?= mkdir
-$(BUILD_DIR): ; $(Q)$(MKDIR) -p $@
+$(BUILD_DIR): ; $(MKDIR) -p $@
 
 DEPFILES := $(ZSTD_OBJ:.o=.d)
 $(DEPFILES):
@@ -371,7 +390,6 @@ include $(wildcard $(DEPFILES))
 #-----------------------------------------------------------------------------
 # make install is validated only for Linux, macOS, BSD, Hurd and Solaris targets
 #-----------------------------------------------------------------------------
-UNAME := $(shell uname)
 ifneq (,$(filter $(UNAME),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku))
 
 HAVE_COLORNEVER = $(shell echo a | egrep --color=never a > /dev/null 2> /dev/null && echo 1 || echo 0)
@@ -388,7 +406,7 @@ AWK = awk
 ## list: Print all targets and their descriptions (if provided)
 .PHONY: list
 list:
-	$(Q)TARGETS=$$($(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null \
+	TARGETS=$$($(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null \
 		| $(AWK) -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' \
 		| $(EGREP) -v  -e '^[^[:alnum:]]' | sort); \
 	{ \
@@ -434,36 +452,39 @@ INSTALL_DATA    ?= $(INSTALL) -m 644
 INSTALL_MAN     ?= $(INSTALL_DATA)
 
 .PHONY: install
-install: zstd
+install:
+	# generate zstd only if not already present
+	[ -e zstd ] || $(MAKE) zstd-release
+	[ -e $(DESTDIR)$(BINDIR) ] || $(INSTALL) -d -m 755 $(DESTDIR)$(BINDIR)/
+	[ -e $(DESTDIR)$(MAN1DIR) ] || $(INSTALL) -d -m 755 $(DESTDIR)$(MAN1DIR)/
 	@echo Installing binaries
-	$(Q)$(INSTALL) -d -m 755 $(DESTDIR)$(BINDIR)/ $(DESTDIR)$(MAN1DIR)/
-	$(Q)$(INSTALL_PROGRAM) zstd$(EXT) $(DESTDIR)$(BINDIR)/zstd$(EXT)
-	$(Q)ln -sf zstd$(EXT) $(DESTDIR)$(BINDIR)/zstdcat$(EXT)
-	$(Q)ln -sf zstd$(EXT) $(DESTDIR)$(BINDIR)/unzstd$(EXT)
-	$(Q)ln -sf zstd$(EXT) $(DESTDIR)$(BINDIR)/zstdmt$(EXT)
-	$(Q)$(INSTALL_SCRIPT) zstdless $(DESTDIR)$(BINDIR)/zstdless
-	$(Q)$(INSTALL_SCRIPT) zstdgrep $(DESTDIR)$(BINDIR)/zstdgrep
+	$(INSTALL_PROGRAM) zstd$(EXT) $(DESTDIR)$(BINDIR)/zstd$(EXT)
+	ln -sf zstd$(EXT) $(DESTDIR)$(BINDIR)/zstdcat$(EXT)
+	ln -sf zstd$(EXT) $(DESTDIR)$(BINDIR)/unzstd$(EXT)
+	ln -sf zstd$(EXT) $(DESTDIR)$(BINDIR)/zstdmt$(EXT)
+	$(INSTALL_SCRIPT) zstdless $(DESTDIR)$(BINDIR)/zstdless
+	$(INSTALL_SCRIPT) zstdgrep $(DESTDIR)$(BINDIR)/zstdgrep
 	@echo Installing man pages
-	$(Q)$(INSTALL_MAN) zstd.1 $(DESTDIR)$(MAN1DIR)/zstd.1
-	$(Q)ln -sf zstd.1 $(DESTDIR)$(MAN1DIR)/zstdcat.1
-	$(Q)ln -sf zstd.1 $(DESTDIR)$(MAN1DIR)/unzstd.1
-	$(Q)$(INSTALL_MAN) zstdgrep.1 $(DESTDIR)$(MAN1DIR)/zstdgrep.1
-	$(Q)$(INSTALL_MAN) zstdless.1 $(DESTDIR)$(MAN1DIR)/zstdless.1
+	$(INSTALL_MAN) zstd.1 $(DESTDIR)$(MAN1DIR)/zstd.1
+	ln -sf zstd.1 $(DESTDIR)$(MAN1DIR)/zstdcat.1
+	ln -sf zstd.1 $(DESTDIR)$(MAN1DIR)/unzstd.1
+	$(INSTALL_MAN) zstdgrep.1 $(DESTDIR)$(MAN1DIR)/zstdgrep.1
+	$(INSTALL_MAN) zstdless.1 $(DESTDIR)$(MAN1DIR)/zstdless.1
 	@echo zstd installation completed
 
 .PHONY: uninstall
 uninstall:
-	$(Q)$(RM) $(DESTDIR)$(BINDIR)/zstdgrep
-	$(Q)$(RM) $(DESTDIR)$(BINDIR)/zstdless
-	$(Q)$(RM) $(DESTDIR)$(BINDIR)/zstdcat
-	$(Q)$(RM) $(DESTDIR)$(BINDIR)/unzstd
-	$(Q)$(RM) $(DESTDIR)$(BINDIR)/zstdmt
-	$(Q)$(RM) $(DESTDIR)$(BINDIR)/zstd
-	$(Q)$(RM) $(DESTDIR)$(MAN1DIR)/zstdless.1
-	$(Q)$(RM) $(DESTDIR)$(MAN1DIR)/zstdgrep.1
-	$(Q)$(RM) $(DESTDIR)$(MAN1DIR)/zstdcat.1
-	$(Q)$(RM) $(DESTDIR)$(MAN1DIR)/unzstd.1
-	$(Q)$(RM) $(DESTDIR)$(MAN1DIR)/zstd.1
+	$(RM) $(DESTDIR)$(BINDIR)/zstdgrep
+	$(RM) $(DESTDIR)$(BINDIR)/zstdless
+	$(RM) $(DESTDIR)$(BINDIR)/zstdcat
+	$(RM) $(DESTDIR)$(BINDIR)/unzstd
+	$(RM) $(DESTDIR)$(BINDIR)/zstdmt
+	$(RM) $(DESTDIR)$(BINDIR)/zstd
+	$(RM) $(DESTDIR)$(MAN1DIR)/zstdless.1
+	$(RM) $(DESTDIR)$(MAN1DIR)/zstdgrep.1
+	$(RM) $(DESTDIR)$(MAN1DIR)/zstdcat.1
+	$(RM) $(DESTDIR)$(MAN1DIR)/unzstd.1
+	$(RM) $(DESTDIR)$(MAN1DIR)/zstd.1
 	@echo zstd programs successfully uninstalled
 
 endif

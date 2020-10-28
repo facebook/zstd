@@ -4537,7 +4537,7 @@ static size_t ZSTD_copySequencesToSeqStore(ZSTD_CCtx* zc,
         U32 matchLength = inSeqs[idx].matchLength;
         U32 offCode = inSeqs[idx].offset + ZSTD_REP_MOVE;
         RETURN_ERROR_IF(matchLength < MINMATCH, corruption_detected, "Matchlength too small!");
-        DEBUGLOG(7, "Seqstore idx: %zu, seq: (ll: %u, ml: %u, of: %u)", idx, litLength, matchLength, offCode);
+        DEBUGLOG(4, "Seqstore idx: %zu, seq: (ll: %u, ml: %u, of: %u)", idx, litLength, matchLength, offCode);
         if (inSeqs[idx].rep) {
             ZSTD_storeSeq(&zc->seqStore, litLength, ip, iend, inSeqs[idx].rep - 1, matchLength - MINMATCH);
         } else {
@@ -4560,15 +4560,45 @@ static size_t ZSTD_copySequencesToSeqStore(ZSTD_CCtx* zc,
     return 0;
 }
 
+size_t ZSTD_compressSequences_ext_internal(void* dst, size_t dstCapacity,
+                                           ZSTD_CCtx* cctx,
+                                           const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
+                                           const void* src, size_t srcSize) {
+    U32 cSize;
+    U32 lastBlock = 1;
+    ZSTD_copySequencesToSeqStore(cctx, inSeqs, inSeqsSize, src, srcSize);
+
+    cSize = ZSTD_compressSequences(&cctx->seqStore,
+            &cctx->blockState.prevCBlock->entropy, &cctx->blockState.nextCBlock->entropy,
+            &cctx->appliedParams,
+            dst + ZSTD_blockHeaderSize, dstCapacity - ZSTD_blockHeaderSize,
+            srcSize,
+            cctx->entropyWorkspace, ENTROPY_WORKSPACE_SIZE /* statically allocated in resetCCtx */,
+            cctx->bmi2);
+
+    DEBUGLOG(4, "Compressed sequences size : %u", cSize);
+    /* Error checking */
+    if (!ZSTD_isError(cSize) && cSize > 1) {
+        ZSTD_confirmRepcodesAndEntropyTables(cctx);
+    }
+    
+    /* Write block header */
+    U32 const cBlockHeader = cSize == 1 ?
+                        lastBlock + (((U32)bt_rle)<<1) + (U32)(cctx->blockSize << 3) :
+                        lastBlock + (((U32)bt_compressed)<<1) + (U32)(cSize << 3);
+    MEM_writeLE24(dst, cBlockHeader);
+    cSize += ZSTD_blockHeaderSize;
+    return cSize;
+}
+
 size_t ZSTD_compressSequences_ext(void* dst, size_t dstCapacity,
                                   const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
                                   const void* src, size_t srcSize, int compressionLevel) {
     DEBUGLOG(4, "ZSTD_compressSequences_ext()");
     BYTE* op = (BYTE*)dst;
     ZSTD_CCtx* cctx = ZSTD_createCCtx();
-    size_t cSize;
+    size_t cSize = 0;
     size_t frameHeaderSize = 0;
-    U32 lastBlock = 1;  /* Consider input as single block for now */
 
     ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters);
     ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1);
@@ -4600,7 +4630,7 @@ size_t ZSTD_compressSequences_ext(void* dst, size_t dstCapacity,
                     ZSTDb_buffered) , "");
         assert(cctx->appliedParams.nbWorkers == 0);
     }
-    printf("blcoksize: %u\n", cctx->blockSize);
+    printf("blocksize: %u\n", cctx->blockSize);
     if (dstCapacity < ZSTD_compressBound(srcSize))
         RETURN_ERROR(dstSize_tooSmall, "Destination buffer too small!");
     DEBUGLOG(4, "SeqStore: maxNbSeq: %u, maxNbLits: %u", cctx->seqStore.maxNbSeq, cctx->seqStore.maxNbLit);
@@ -4608,6 +4638,7 @@ size_t ZSTD_compressSequences_ext(void* dst, size_t dstCapacity,
     frameHeaderSize = ZSTD_writeFrameHeader(op, dstCapacity, &cctx->appliedParams, srcSize, cctx->dictID);
     op += frameHeaderSize;
     dstCapacity -= frameHeaderSize;
+    cSize += frameHeaderSize;
 
     if (cctx->appliedParams.ldmParams.enableLdm) {
         ZSTD_window_update(&cctx->ldmState.window, src, srcSize);
@@ -4616,29 +4647,11 @@ size_t ZSTD_compressSequences_ext(void* dst, size_t dstCapacity,
         XXH64_update(&cctx->xxhState, src, srcSize);
     }
 
-    ZSTD_copySequencesToSeqStore(cctx, inSeqs, inSeqsSize, src, srcSize);
-
-    cSize = ZSTD_compressSequences(&cctx->seqStore,
-            &cctx->blockState.prevCBlock->entropy, &cctx->blockState.nextCBlock->entropy,
-            &cctx->appliedParams,
-            op + ZSTD_blockHeaderSize, dstCapacity - ZSTD_blockHeaderSize,
-            srcSize,
-            cctx->entropyWorkspace, ENTROPY_WORKSPACE_SIZE /* statically allocated in resetCCtx */,
-            cctx->bmi2);
-
-    DEBUGLOG(4, "Compressed sequences size : %u", cSize);
-    /* Error checking */
-    if (!ZSTD_isError(cSize) && cSize > 1) {
-        ZSTD_confirmRepcodesAndEntropyTables(cctx);
-    }
-    
-    /* Write block header */
-    U32 const cBlockHeader = cSize == 1 ?
-                        lastBlock + (((U32)bt_rle)<<1) + (U32)(cctx->blockSize << 3) :
-                        lastBlock + (((U32)bt_compressed)<<1) + (U32)(cSize << 3);
-    MEM_writeLE24(op, cBlockHeader);
-    dstCapacity -= cSize + ZSTD_blockHeaderSize;
-    cSize += ZSTD_blockHeaderSize + frameHeaderSize;
+    /* cSize includes block header size and compressed sequences size */
+    cSize += ZSTD_compressSequences_ext_internal(op, dstCapacity,
+                                                cctx, inSeqs, inSeqsSize,
+                                                src, srcSize);
+    dstCapacity -= cSize;
 
     if (cctx->appliedParams.fParams.checksumFlag) {
         U32 const checksum = (U32) XXH64_digest(&cctx->xxhState);

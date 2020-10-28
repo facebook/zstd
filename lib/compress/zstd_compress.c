@@ -2493,7 +2493,7 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
     assert(seqStoreLiteralsSize >= literalsRead);
     lastLLSize = seqStoreLiteralsSize - literalsRead;
     if (lastLLSize > 0) {
-        outSeqs[i].litLength = lastLLSize;
+        outSeqs[i].litLength = (U32)lastLLSize;
         outSeqs[i].matchLength = outSeqs[i].offset = outSeqs[i].rep = 0;
         seqStoreSeqSize++;
     }

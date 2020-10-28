@@ -15,12 +15,9 @@ default: lib-release
 $(V)$(VERBOSE).SILENT:
 
 # When cross-compiling from linux to windows,
-# you might need to specify this as "Windows."
-# Fedora build fails without it.
-#
-# Note: mingw-w64 build from linux to windows
-# does not fail on other tested distros (ubuntu, debian)
-# even without manually specifying the TARGET_SYSTEM.
+# one might need to specify TARGET_SYSTEM as "Windows."
+# Building from Fedora fails without it.
+# (but Ubuntu and Debian don't need to set anything)
 TARGET_SYSTEM ?= $(OS)
 
 # Version numbers
@@ -35,8 +32,8 @@ LIBVER := $(shell echo $(LIBVER_SCRIPT))
 VERSION?= $(LIBVER)
 CCVER := $(shell $(CC) --version)
 
-# This is a helper variable that configures a bunch of other variables to new,
-# space-optimized defaults.
+# ZSTD_LIB_MINIFY is a helper variable that
+# configures a bunch of other variables to space-optimized defaults.
 ZSTD_LIB_MINIFY ?= 0
 ifneq ($(ZSTD_LIB_MINIFY), 0)
   HAVE_CC_OZ ?= $(shell echo "" | $(CC) -Oz -x c -c - -o /dev/null 2> /dev/null && echo 1 || echo 0)
@@ -177,9 +174,7 @@ vpath %.c $(ZSTD_SUBDIR)
 
 UNAME := $(shell uname)
 
-BUILD_DIR ?= 0
-
-ifeq ($(BUILD_DIR),0)
+ifndef BUILD_DIR
 ifeq ($(UNAME), Darwin)
   HASH ?= md5
 else ifeq ($(UNAME), FreeBSD)
@@ -195,7 +190,7 @@ ifeq ($(HAVE_HASH),0)
   $(info warning : could not find HASH ($(HASH)), needed to differentiate builds using different flags)
   BUILD_DIR := obj/generic_noconf
 endif
-endif # $(BUILD_DIR) == 0
+endif # BUILD_DIR
 
 
 # macOS linker doesn't support -soname, and use different extension
@@ -212,27 +207,31 @@ else
   SHARED_EXT_VER = $(SHARED_EXT).$(LIBVER)
 endif
 
+SET_CACHE_DIRECTORY = \
+	$(MAKE) --no-print-directory $@ \
+    BUILD_DIR=obj/$(HASH_DIR) \
+    CPPFLAGS="$(CPPFLAGS)" \
+    CFLAGS="$(CFLAGS)" \
+    LDFLAGS="$(LDFLAGS)"
+
 
 .PHONY: lib-all all clean install uninstall
-
-default: lib-release
 
 # alias
 lib-all: all
 
 all: lib
 
-ifeq ($(BUILD_DIR),0)
-# determine a BUILD_DIR
+.PHONY: libzstd.a  # must be run every time
 
-.PHONY: libzstd.a  # not the actual recipe
+ifndef BUILD_DIR
+# determine BUILD_DIR from compilation flags
+
 libzstd.a:
-	$(MAKE) --no-print-directory $@ \
-        BUILD_DIR=obj/$(HASH_DIR) \
-        CPPFLAGS="$(CPPFLAGS)"
+	$(SET_CACHE_DIRECTORY)
 
 else
-# $(BUILD_DIR) is defined
+# BUILD_DIR is defined
 
 ZSTD_STATLIB_DIR := $(BUILD_DIR)/static
 ZSTD_STATLIB := $(ZSTD_STATLIB_DIR)/libzstd.a
@@ -243,7 +242,6 @@ $(ZSTD_STATLIB): $(ZSTD_STATLIB_OBJ)
 	@echo compiling static library
 	$(AR) $(ARFLAGS) $@ $^
 
-.PHONY: libzstd.a  # must be run every time
 libzstd.a: $(ZSTD_STATLIB)
 	ln -sf $< $@
 
@@ -256,25 +254,21 @@ $(LIBZSTD): $(ZSTD_FILES)
 	@echo compiling dynamic library $(LIBVER)
 	$(CC) $(FLAGS) -DZSTD_DLL_EXPORT=1 -Wl,--out-implib,dll\libzstd.dll.a -shared $^ -o $@
 
-else
+else  # not Windows
 
 LIBZSTD = libzstd.$(SHARED_EXT_VER)
+.PHONY: $(LIBZSTD)  # must be run every time
 $(LIBZSTD): CFLAGS += -fPIC
 $(LIBZSTD): LDFLAGS += -shared -fvisibility=hidden
 
-ifeq ($(BUILD_DIR),0)
-# determine a BUILD_DIR
+ifndef BUILD_DIR
+# determine BUILD_DIR from compilation flags
 
-.PHONY: $(LIBZSTD)  # not the actual recipe
 $(LIBZSTD):
-	$(MAKE) --no-print-directory $@ \
-        BUILD_DIR=obj/$(HASH_DIR) \
-        CPPFLAGS="$(CPPFLAGS)" \
-        CFLAGS="$(CFLAGS)" \
-        LDFLAGS="$(LDFLAGS)"
+	$(SET_CACHE_DIRECTORY)
 
 else
-# $(BUILD_DIR) is defined
+# BUILD_DIR is defined
 
 ZSTD_DYNLIB_DIR := $(BUILD_DIR)/dynamic
 ZSTD_DYNLIB := $(ZSTD_DYNLIB_DIR)/$(LIBZSTD)
@@ -288,11 +282,10 @@ $(ZSTD_DYNLIB): $(ZSTD_DYNLIB_OBJ)
 	ln -sf $@ libzstd.$(SHARED_EXT_MAJOR)
 	ln -sf $@ libzstd.$(SHARED_EXT)
 
-.PHONY: $(LIBZSTD)  # must be run every time
 $(LIBZSTD): $(ZSTD_DYNLIB)
 	ln -sf $< $@
 
-endif  # if BUILD_DIR
+endif  # ifndef BUILD_DIR
 endif  # if windows
 
 .PHONY: libzstd

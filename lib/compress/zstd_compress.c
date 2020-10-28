@@ -4521,33 +4521,71 @@ static void ZSTD_updateSequenceRange(ZSTD_sequenceRange* sequenceRange, size_t n
     sequenceRange->endPosInSequence = endPosInSequence;
 }
 
-/* Returns 0 on success, otherwise ZSTD error code */
-static size_t ZSTD_copySequencesToSeqStore(ZSTD_CCtx* zc,
+/* Returns size of sequences range copied, otherwise ZSTD error code */
+static size_t ZSTD_copySequencesToSeqStore(ZSTD_CCtx* zc, const ZSTD_sequenceRange* seqRange,
                                          const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
                                          const void* src, size_t srcSize) {
     DEBUGLOG(4, "ZSTD_copySequencesToSeqStore: numSeqs: %zu", inSeqsSize);
-    size_t idx = 0;
+    size_t idx = seqRange->startIdx;
     BYTE const* istart = (BYTE const*)src;
     BYTE const* ip = (BYTE const*)src;
     const BYTE* const iend = ip + srcSize;
     ZSTD_resetSeqStore(&zc->seqStore);
 
-    for (; idx < inSeqsSize; ++idx) {
-        if (inSeqs[idx].matchLength == inSeqs[idx].offset == 0) {
-            /* Handle last literals case */
-            size_t lastLLSize = inSeqs[idx].litLength;
-            if (lastLLSize > 0) {
-                DEBUGLOG(4, "Storing last literals: %u bytes", lastLLSize);
-                const BYTE* const lastLiterals = (const BYTE*)src + srcSize - lastLLSize;
-                ZSTD_storeLastLiterals(&zc->seqStore, lastLiterals, lastLLSize);
-            } 
-            break;
-        }
+    for (; idx < inSeqsSize && idx <= seqRange->endIdx; ++idx) {
         U32 litLength = inSeqs[idx].litLength;
         U32 matchLength = inSeqs[idx].matchLength;
         U32 offCode = inSeqs[idx].offset + ZSTD_REP_MOVE;
-        RETURN_ERROR_IF(matchLength < MINMATCH, corruption_detected, "Matchlength too small!");
         DEBUGLOG(4, "Seqstore idx: %zu, seq: (ll: %u, ml: %u, of: %u)", idx, litLength, matchLength, offCode);
+
+        /* Adjust litLength and matchLength for the sequence at startIdx */
+        if (idx == seqRange->startIdx) {
+            U32 posInSequence = seqRange->startPosInSequence;
+            DEBUGLOG(4, "Reached startIdx. idx: %u PIS: %u", idx, posInSequence);
+            assert(posInSequence <= litLength + matchLength);
+            if (posInSequence >= litLength) {
+                litLength = 0;
+                posInSequence -= litLength;
+            } else {
+                litLength -= posInSequence;
+            }
+            matchLength -= posInSequence;
+            if (matchLength <= MINMATCH) {
+                RETURN_ERROR_IF(matchLength < MINMATCH, corruption_detected, "Matchlength too small! Start Idx");
+            }
+            DEBUGLOG(4, "final ll:%u ml: %u", litLength, matchLength);
+        }
+
+        /* Adjust litLength and matchLength for the sequence at endIdx */
+        // TODO: This is not quite right - we should be storing the inverse of startIdx
+        if (idx == seqRange->endIdx) {
+            U32 posInSequence = seqRange->endPosInSequence;
+            DEBUGLOG(4, "Reached endIdx. idx: %u PIS: %u", idx, posInSequence);
+            assert(posInSequence <= litLength + matchLength);
+            if (posInSequence < litLength) {
+                litLength = posInSequence;
+                matchLength = 0;
+            } else {
+                matchLength = posInSequence - litLength;
+                if (matchLength <= MINMATCH) {
+                    RETURN_ERROR_IF(matchLength < MINMATCH, corruption_detected, "Matchlength too small! Start Idx");
+                }
+            }
+            DEBUGLOG(4, "final ll:%u ml: %u", litLength, matchLength);
+        }
+
+        /* ML == 0 and Offset == 0 (or offCode == ZSTD_REP_MOVE) implies we have a last literals of block */
+        if (matchLength == 0 && offCode == 0) {
+            /* Handle last literals case */
+            if (litLength > 0) {
+                DEBUGLOG(4, "Storing last literals: %u bytes, idx: %u", litLength, idx);
+                const BYTE* const lastLiterals = (const BYTE*)src + srcSize - litLength;
+                ZSTD_storeLastLiterals(&zc->seqStore, lastLiterals, litLength);
+            }
+            break;
+        }
+
+        RETURN_ERROR_IF(matchLength < MINMATCH, corruption_detected, "Matchlength too small!");
         if (inSeqs[idx].rep) {
             ZSTD_storeSeq(&zc->seqStore, litLength, ip, iend, inSeqs[idx].rep - 1, matchLength - MINMATCH);
         } else {

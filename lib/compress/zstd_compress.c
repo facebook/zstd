@@ -4498,8 +4498,27 @@ typedef struct {
 
 static void ZSTD_updateSequenceRange(ZSTD_sequenceRange* sequenceRange, size_t nbBytes,
                                      const ZSTD_Sequence* const inSeqs, size_t inSeqsSize) {
-    U32 newStartIdx = sequenceRange->endIdx;
-    U32 newStartPos = sequenceRange->endPos;
+    U32 idx = sequenceRange->endIdx;
+    U32 endPosInSequence = sequenceRange->endPosInSequence + nbBytes;
+    
+    while (endPosInSequence && idx < inSeqsSize) {
+        ZSTD_Sequence currSeq = inSeqs[idx];
+        if (endPosInSequence >= currSeq.litLength + currSeq.matchLength) {
+            endPosInSequence -= currSeq.litLength + currSeq.matchLength;
+            idx++;
+        } else {
+            break;
+        }
+    }
+
+    if (idx == inSeqsSize) {
+        endPosInSequence = 0;
+    }
+
+    sequenceRange->startIdx = sequenceRange->endIdx;
+    sequenceRange->startPosInSequence = sequenceRange->endPosInSequence; /* Does this need +1? */
+    sequenceRange->endIdx = idx;
+    sequenceRange->endPosInSequence = endPosInSequence;
 }
 
 /* Returns 0 on success, otherwise ZSTD error code */

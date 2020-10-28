@@ -4533,6 +4533,16 @@ static size_t ZSTD_copySequencesToSeqStore(ZSTD_CCtx* zc,
     ZSTD_resetSeqStore(&zc->seqStore);
 
     for (; idx < inSeqsSize; ++idx) {
+        if (inSeqs[idx].matchLength == inSeqs[idx].offset == 0) {
+            /* Handle last literals case */
+            size_t lastLLSize = inSeqs[idx].litLength;
+            if (lastLLSize > 0) {
+                DEBUGLOG(4, "Storing last literals: %u bytes", lastLLSize);
+                const BYTE* const lastLiterals = (const BYTE*)src + srcSize - lastLLSize;
+                ZSTD_storeLastLiterals(&zc->seqStore, lastLiterals, lastLLSize);
+            } 
+            break;
+        }
         U32 litLength = inSeqs[idx].litLength;
         U32 matchLength = inSeqs[idx].matchLength;
         U32 offCode = inSeqs[idx].offset + ZSTD_REP_MOVE;
@@ -4545,16 +4555,6 @@ static size_t ZSTD_copySequencesToSeqStore(ZSTD_CCtx* zc,
         }
         ip += matchLength + litLength;
     }
-
-    /* Handle last literals */
-    size_t consumedSize = (U32)(ip - istart);
-    assert(consumedSize <= srcSize);
-    size_t lastLLSize = srcSize - consumedSize;
-    if (lastLLSize > 0) {
-        DEBUGLOG(4, "Storing last literals: %u bytes", lastLLSize);
-        const BYTE* const lastLiterals = (const BYTE*)src + srcSize - lastLLSize;
-        ZSTD_storeLastLiterals(&zc->seqStore, lastLiterals, lastLLSize);
-    } 
 
     DEBUGLOG(4, "ZSTD_copySequencesToSeqStore: done");
     return 0;

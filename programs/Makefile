@@ -98,9 +98,8 @@ ZSTD_ALL_SRC := $(ZSTDLIB_LOCAL_SRC) $(ZSTD_CLI_SRC)
 ZSTD_ALL_OBJ := $(ZSTD_ALL_SRC:.c=.o)
 
 UNAME := $(shell uname)
-BUILD_DIR ?= 0
 
-ifeq ($(BUILD_DIR),0)
+ifndef BUILD_DIR
 ifeq ($(UNAME), Darwin)
   HASH ?= md5
 else ifeq ($(UNAME), FreeBSD)
@@ -116,7 +115,7 @@ ifeq ($(HAVE_HASH),0)
   $(info warning : could not find HASH ($(HASH)), needed to differentiate builds using different flags)
   BUILD_DIR := obj/generic_noconf
 endif
-endif # $(BUILD_DIR) == 0
+endif # BUILD_DIR
 
 # Define *.exe as extension for Windows systems
 ifneq (,$(filter Windows%,$(OS)))
@@ -193,12 +192,36 @@ ifeq ($(BACKTRACE), 1)
 endif
 endif
 
+SET_CACHE_DIRECTORY = \
+	$(MAKE) --no-print-directory $@ \
+    BUILD_DIR=obj/$(HASH_DIR) \
+    CPPFLAGS="$(CPPFLAGS)" \
+    CFLAGS="$(CFLAGS)" \
+    LDFLAGS="$(LDFLAGS)"
+
 
 .PHONY: all
 all: zstd
 
 .PHONY: allVariants
 allVariants: zstd zstd-compress zstd-decompress zstd-small zstd-nolegacy zstd-dictBuilder
+
+.PHONY: zstd  # must always be run
+zstd : CPPFLAGS += $(THREAD_CPP) $(ZLIBCPP) $(LZMACPP) $(LZ4CPP)
+zstd : LDFLAGS += $(THREAD_LD) $(ZLIBLD) $(LZMALD) $(LZ4LD) $(DEBUGFLAGS_LD)
+zstd : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
+ifneq (,$(filter Windows%,$(OS)))
+zstd : $(RES_FILE)
+endif
+
+ifndef BUILD_DIR
+# generate BUILD_DIR from flags
+
+zstd:
+	$(SET_CACHE_DIRECTORY)
+
+else
+# BUILD_DIR is defined
 
 ZSTD_OBJ := $(addprefix $(BUILD_DIR)/, $(ZSTD_ALL_OBJ))
 $(BUILD_DIR)/zstd : $(ZSTD_OBJ)
@@ -209,32 +232,11 @@ $(BUILD_DIR)/zstd : $(ZSTD_OBJ)
 	@echo LINK $@
 	$(CC) $(FLAGS) $^ -o $@$(EXT) $(LDFLAGS)
 
-.PHONY: zstd  # must always be run
-zstd : CPPFLAGS += $(THREAD_CPP) $(ZLIBCPP) $(LZMACPP) $(LZ4CPP)
-zstd : LDFLAGS += $(THREAD_LD) $(ZLIBLD) $(LZMALD) $(LZ4LD) $(DEBUGFLAGS_LD)
-zstd : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
-ifneq (,$(filter Windows%,$(OS)))
-zstd : $(RES_FILE)
-endif
-
-ifeq ($(BUILD_DIR),0)
-# generate a BUILD_DIR from flags
-
-zstd:
-	$(MAKE) --no-print-directory $@ \
-        BUILD_DIR=obj/$(HASH_DIR) \
-        CPPFLAGS="$(CPPFLAGS)" \
-        CFLAGS="$(CFLAGS)" \
-        LDFLAGS="$(LDFLAGS)"
-
-else
-# BUILD_DIR is defined
-
 zstd : $(BUILD_DIR)/zstd
 	ln -sf $< $@
 	@echo zstd build completed
 
-endif
+endif  # BUILD_DIR
 
 
 .PHONY: zstd-release

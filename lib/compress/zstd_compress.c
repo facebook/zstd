@@ -2927,6 +2927,7 @@ static size_t ZSTD_writeFrameHeader(void* dst, size_t dstCapacity,
         case 3 : MEM_writeLE64(op+pos, (U64)(pledgedSrcSize)); pos+=8; break;
     }
     printBits(pos, op);
+    DEBUGLOG(4, "frame header size: %u", pos);
     return pos;
 }
 
@@ -4540,7 +4541,7 @@ static size_t ZSTD_copySequencesToSeqStore(ZSTD_CCtx* zc, const ZSTD_sequenceRan
         U32 litLength = inSeqs[idx].litLength;
         U32 matchLength = inSeqs[idx].matchLength;
         U32 offCode = inSeqs[idx].offset + ZSTD_REP_MOVE;
-        //DEBUGLOG(4, "Seqstore idx: %zu, seq: (ll: %u, ml: %u, of: %u)", idx, litLength, matchLength, offCode);
+        DEBUGLOG(4, "Seqstore idx: %zu, seq: (ll: %u, ml: %u, of: %u)", idx, litLength, matchLength, offCode);
 
         /* Adjust litLength and matchLength for the sequence at startIdx */
         if (idx == seqRange->startIdx) {
@@ -4609,8 +4610,15 @@ size_t ZSTD_compressSequences_ext_internal(void* dst, size_t dstCapacity,
                                            const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
                                            const void* src, size_t srcSize) {
     U32 cSize;
-    U32 lastBlock = 1;
+    U32 lastBlock;
     ZSTD_sequenceRange seqRange = {0, 0, 0, 0};
+    /* Derive the appropriate block size */
+    size_t const windowSize = MAX(1, (size_t)MIN(((U64)1 << cctx->appliedParams.cParams.windowLog), srcSize));
+    size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, windowSize);
+
+    BYTE const* ip = (BYTE const*)src;
+    BYTE* op = (BYTE*)dst;
+
     ZSTD_updateSequenceRange(&seqRange, srcSize, inSeqs, inSeqsSize);
 
     ZSTD_copySequencesToSeqStore(cctx, &seqRange, inSeqs, inSeqsSize, src, srcSize);
@@ -4622,7 +4630,13 @@ size_t ZSTD_compressSequences_ext_internal(void* dst, size_t dstCapacity,
             srcSize,
             cctx->entropyWorkspace, ENTROPY_WORKSPACE_SIZE /* statically allocated in resetCCtx */,
             cctx->bmi2);
-
+    if (ZSTD_isError(cSize)) {
+        printf("ERROR\n");
+    } else if (cSize == 0) {
+        DEBUGLOG(4, "NO compress BLOCK");
+        cSize = ZSTD_noCompressBlock(dst, dstCapacity, src, srcSize, lastBlock);
+        return cSize;
+    }
     DEBUGLOG(4, "Compressed sequences size : %u", cSize);
     /* Error checking */
     if (!ZSTD_isError(cSize) && cSize > 1) {
@@ -4698,6 +4712,7 @@ size_t ZSTD_compressSequences_ext(void* dst, size_t dstCapacity,
     cSize += ZSTD_compressSequences_ext_internal(op, dstCapacity,
                                                 cctx, inSeqs, inSeqsSize,
                                                 src, srcSize);
+    DEBUGLOG(4, "Final compressed size: %u\n", cSize);                            
     dstCapacity -= cSize;
 
     if (cctx->appliedParams.fParams.checksumFlag) {

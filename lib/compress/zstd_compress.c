@@ -2489,14 +2489,16 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
         literalsRead += outSeqs[i].litLength;
     }
 
-    /* Insert last literals (if any exist) in the block as a sequence with ml == off == 0 */
+    /* Insert last literals (if any exist) in the block as a sequence with ml == off == 0.
+     * If there are no last literals, then we'll emit (of: 0, ml: 0, ll: 0), which is a marker
+     * for the block boundary, according to the API.
+     */
     assert(seqStoreLiteralsSize >= literalsRead);
     lastLLSize = seqStoreLiteralsSize - literalsRead;
-    if (lastLLSize > 0) {
-        outSeqs[i].litLength = (U32)lastLLSize;
-        outSeqs[i].matchLength = outSeqs[i].offset = outSeqs[i].rep = 0;
-        seqStoreSeqSize++;
-    }
+    outSeqs[i].litLength = (U32)lastLLSize;
+    outSeqs[i].matchLength = outSeqs[i].offset = outSeqs[i].rep = 0;
+    seqStoreSeqSize++;
+
     zc->seqCollector.seqIndex += seqStoreSeqSize;
 }
 

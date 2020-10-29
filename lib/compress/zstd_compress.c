@@ -4510,9 +4510,13 @@ static void ZSTD_updateSequenceRange(ZSTD_sequenceRange* sequenceRange, size_t n
     U32 endPosInSequence = sequenceRange->endPosInSequence + nbBytes;
     DEBUGLOG(4, "ZSTD_updateSequenceRange: startidx %u startpos: %u endidx: %u endpos: %u",
              sequenceRange->startIdx, sequenceRange->startPosInSequence, sequenceRange->endIdx, sequenceRange->endPosInSequence);
-    
+    DEBUGLOG(4, "startidx: (of: %u ml: %u ll: %u", inSeqs[idx].offset, inSeqs[idx].matchLength, inSeqs[idx].litLength);
     while (endPosInSequence && idx < inSeqsSize) {
         ZSTD_Sequence currSeq = inSeqs[idx];
+        if (idx >= 3813572) {
+            DEBUGLOG(4, "endposinseq %u", endPosInSequence);
+            DEBUGLOG(4, "loop: of: %u ml: %u ll: %u", inSeqs[idx].offset, inSeqs[idx].matchLength, inSeqs[idx].litLength);
+        }
         if (endPosInSequence >= currSeq.litLength + currSeq.matchLength) {
             endPosInSequence -= currSeq.litLength + currSeq.matchLength;
             idx++;
@@ -4524,11 +4528,17 @@ static void ZSTD_updateSequenceRange(ZSTD_sequenceRange* sequenceRange, size_t n
     if (idx == inSeqsSize) {
         endPosInSequence = 0;
     }
+    if (endPosInSequence == inSeqs[idx].litLength + inSeqs[idx].matchLength) {
+        endPosInSequence = 0;
+        idx++;
+    }
 
     sequenceRange->startIdx = sequenceRange->endIdx;
     sequenceRange->startPosInSequence = sequenceRange->endPosInSequence; /* Does this need +1? */
     sequenceRange->endIdx = idx;
     sequenceRange->endPosInSequence = endPosInSequence;
+
+    DEBUGLOG(4, "endidx: (of: %u ml: %u ll: %u", inSeqs[sequenceRange->endIdx].offset, inSeqs[sequenceRange->endIdx].matchLength, inSeqs[sequenceRange->endIdx].litLength);
     DEBUGLOG(4, "finished update: startidx %u startpos: %u endidx: %u endpos: %u",
              sequenceRange->startIdx, sequenceRange->startPosInSequence, sequenceRange->endIdx, sequenceRange->endPosInSequence);
 }
@@ -4685,6 +4695,9 @@ size_t ZSTD_compressSequences_ext_internal(void* dst, size_t dstCapacity,
             DEBUGLOG(4, "Block header: %u", cBlockHeader);
             DEBUGLOG(4, "typical block, size: %u", compressedSeqsSize + ZSTD_blockHeaderSize);
             cBlockSize = ZSTD_blockHeaderSize + compressedSeqsSize;
+
+            //if (cctx->blockState.prevCBlock->entropy.fse.offcode_repeatMode == FSE_repeat_valid)
+                //cctx->blockState.prevCBlock->entropy.fse.offcode_repeatMode = FSE_repeat_check;
         }
         DEBUGLOG(4, "cumulative cSize: %u", cSize);
         

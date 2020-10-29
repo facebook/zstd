@@ -4513,10 +4513,6 @@ static void ZSTD_updateSequenceRange(ZSTD_sequenceRange* sequenceRange, size_t n
     DEBUGLOG(4, "startidx: (of: %u ml: %u ll: %u", inSeqs[idx].offset, inSeqs[idx].matchLength, inSeqs[idx].litLength);
     while (endPosInSequence && idx < inSeqsSize) {
         ZSTD_Sequence currSeq = inSeqs[idx];
-        if (idx >= 3813572) {
-            DEBUGLOG(4, "endposinseq %u", endPosInSequence);
-            DEBUGLOG(4, "loop: of: %u ml: %u ll: %u", inSeqs[idx].offset, inSeqs[idx].matchLength, inSeqs[idx].litLength);
-        }
         if (endPosInSequence >= currSeq.litLength + currSeq.matchLength) {
             endPosInSequence -= currSeq.litLength + currSeq.matchLength;
             idx++;
@@ -4534,7 +4530,7 @@ static void ZSTD_updateSequenceRange(ZSTD_sequenceRange* sequenceRange, size_t n
     }
 
     sequenceRange->startIdx = sequenceRange->endIdx;
-    sequenceRange->startPosInSequence = sequenceRange->endPosInSequence; /* Does this need +1? */
+    sequenceRange->startPosInSequence = sequenceRange->endPosInSequence;
     sequenceRange->endIdx = idx;
     sequenceRange->endPosInSequence = endPosInSequence;
 
@@ -4580,7 +4576,6 @@ static size_t ZSTD_copySequencesToSeqStore(ZSTD_CCtx* zc, const ZSTD_sequenceRan
         }
 
         /* Adjust litLength and matchLength for the sequence at endIdx */
-        // TODO: This is not quite right - we should be storing the inverse of startIdx
         if (idx == seqRange->endIdx) {
             U32 posInSequence = seqRange->endPosInSequence;
             DEBUGLOG(4, "Reached endIdx. idx: %u PIS: %u", idx, posInSequence);
@@ -4598,7 +4593,7 @@ static size_t ZSTD_copySequencesToSeqStore(ZSTD_CCtx* zc, const ZSTD_sequenceRan
             DEBUGLOG(4, "final ll:%u ml: %u", litLength, matchLength);
         }
 
-        /* ML == 0 and Offset == 0 (or offCode == ZSTD_REP_MOVE) implies we have a last literals of block */
+        /* ML == 0 and Offset == 0 (or offCode == ZSTD_REP_MOVE) implies we are ending a block */
         if (matchLength == 0 && offCode == ZSTD_REP_MOVE) {
             /* Handle last literals case */
             if (litLength > 0) {

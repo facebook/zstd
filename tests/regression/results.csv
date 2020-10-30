@@ -212,8 +212,8 @@ silesia.tar,                        level 16,                           advanced
 silesia.tar,                        level 19,                           advanced one pass,                  4281605
 silesia.tar,                        no source size,                     advanced one pass,                  4861425
 silesia.tar,                        long distance mode,                 advanced one pass,                  4848098
-silesia.tar,                        multithreaded,                      advanced one pass,                  4860781
-silesia.tar,                        multithreaded long distance mode,   advanced one pass,                  4847398
+silesia.tar,                        multithreaded,                      advanced one pass,                  4861508
+silesia.tar,                        multithreaded long distance mode,   advanced one pass,                  4853186
 silesia.tar,                        small window log,                   advanced one pass,                  7101530
 silesia.tar,                        small hash log,                     advanced one pass,                  6587951
 silesia.tar,                        small chain log,                    advanced one pass,                  4943307
@@ -221,7 +221,7 @@ silesia.tar,                        explicit params,                    advanced
 silesia.tar,                        uncompressed literals,              advanced one pass,                  5129458
 silesia.tar,                        uncompressed literals optimal,      advanced one pass,                  4320927
 silesia.tar,                        huffman literals,                   advanced one pass,                  5347335
-silesia.tar,                        multithreaded with advanced params, advanced one pass,                  5129777
+silesia.tar,                        multithreaded with advanced params, advanced one pass,                  5129555
 github,                             level -5,                           advanced one pass,                  205285
 github,                             level -5 with dict,                 advanced one pass,                  46718
 github,                             level -3,                           advanced one pass,                  190643
@@ -304,8 +304,8 @@ silesia.tar,                        level 16,                           advanced
 silesia.tar,                        level 19,                           advanced one pass small out,        4281605
 silesia.tar,                        no source size,                     advanced one pass small out,        4861425
 silesia.tar,                        long distance mode,                 advanced one pass small out,        4848098
-silesia.tar,                        multithreaded,                      advanced one pass small out,        4860781
-silesia.tar,                        multithreaded long distance mode,   advanced one pass small out,        4847398
+silesia.tar,                        multithreaded,                      advanced one pass small out,        4861508
+silesia.tar,                        multithreaded long distance mode,   advanced one pass small out,        4853186
 silesia.tar,                        small window log,                   advanced one pass small out,        7101530
 silesia.tar,                        small hash log,                     advanced one pass small out,        6587951
 silesia.tar,                        small chain log,                    advanced one pass small out,        4943307
@@ -313,7 +313,7 @@ silesia.tar,                        explicit params,                    advanced
 silesia.tar,                        uncompressed literals,              advanced one pass small out,        5129458
 silesia.tar,                        uncompressed literals optimal,      advanced one pass small out,        4320927
 silesia.tar,                        huffman literals,                   advanced one pass small out,        5347335
-silesia.tar,                        multithreaded with advanced params, advanced one pass small out,        5129777
+silesia.tar,                        multithreaded with advanced params, advanced one pass small out,        5129555
 github,                             level -5,                           advanced one pass small out,        205285
 github,                             level -5 with dict,                 advanced one pass small out,        46718
 github,                             level -3,                           advanced one pass small out,        190643

@@ -79,7 +79,6 @@ size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
     size_t const lhSize = 3 + (srcSize >= 1 KB) + (srcSize >= 16 KB);
     BYTE*  const ostart = (BYTE*)dst;
     U32 singleStream = srcSize < 256;
-    DEBUGLOG(4, "singleStream: %u", singleStream);
     symbolEncodingType_e hType = set_compressed;
     size_t cLitSize;
 

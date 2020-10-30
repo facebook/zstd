@@ -46,6 +46,20 @@
 **********************************************************/
 static void ZSTD_copy4(void* dst, const void* src) { ZSTD_memcpy(dst, src, 4); }
 
+void printBits1(size_t const size, void const * const ptr)
+{
+    unsigned char *b = (unsigned char*) ptr;
+    unsigned char byte;
+    int i, j;
+    
+    for (i = size-1; i >= 0; i--) {
+        for (j = 7; j >= 0; j--) {
+            byte = (b[i] >> j) & 1;
+            printf("%u", byte);
+        }
+        printf("\n");
+    }
+}
 
 /*-*************************************************************
  *   Block decoding
@@ -64,7 +78,12 @@ size_t ZSTD_getcBlockSize(const void* src, size_t srcSize,
         bpPtr->lastBlock = cBlockHeader & 1;
         bpPtr->blockType = (blockType_e)((cBlockHeader >> 1) & 3);
         bpPtr->origSize = cSize;   /* only useful for RLE */
-        if (bpPtr->blockType == bt_rle) return 1;
+        printBits1(3, &cBlockHeader);
+        if (bpPtr->blockType == bt_rle) {
+            printf("RLE BLOCK FOUND\n");
+            exit(1);
+            return 1;
+        }
         RETURN_ERROR_IF(bpPtr->blockType == bt_reserved, corruption_detected, "");
         return cSize;
     }
@@ -1212,15 +1231,12 @@ ZSTD_decompressSequences_body( ZSTD_DCtx* dctx,
 
     /* last literal segment */
     {   size_t const lastLLSize = litEnd - litPtr;
-        printf("Last LL: %u\n", lastLLSize);
         RETURN_ERROR_IF(lastLLSize > (size_t)(oend-op), dstSize_tooSmall, "");
         if (op != NULL) {
             ZSTD_memcpy(op, litPtr, lastLLSize);
             op += lastLLSize;
         }
     }
-
-    printf("op - ostart: %u\n", (U32)(op-ostart));
 
     return op-ostart;
 }

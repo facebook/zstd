@@ -178,6 +178,8 @@ MEM_STATIC size_t ZSTD_cwksp_align(size_t size, size_t const align) {
  * else is though.
  */
 MEM_STATIC size_t ZSTD_cwksp_alloc_size(size_t size) {
+    if (size == 0)
+        return 0;
 #if ZSTD_ADDRESS_SANITIZER && !defined (ZSTD_ASAN_DONT_POISON_WORKSPACE)
     return size + 2 * ZSTD_CWKSP_ASAN_REDZONE_SIZE;
 #else
@@ -227,6 +229,9 @@ MEM_STATIC void* ZSTD_cwksp_reserve_internal(
     void* bottom = ws->tableEnd;
     ZSTD_cwksp_internal_advance_phase(ws, phase);
     alloc = (BYTE *)ws->allocStart - bytes;
+
+    if (bytes == 0)
+        return NULL;
 
 #if ZSTD_ADDRESS_SANITIZER && !defined (ZSTD_ASAN_DONT_POISON_WORKSPACE)
     /* over-reserve space */

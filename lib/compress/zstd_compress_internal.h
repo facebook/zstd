@@ -238,12 +238,26 @@ struct ZSTD_CCtx_params_s {
     /* Dedicated dict search algorithm trigger */
     int enableDedicatedDictSearch;
 
+    /* Input/output buffer modes */
+    ZSTD_bufferMode_e inBufferMode;
+    ZSTD_bufferMode_e outBufferMode;
+
     /* Internal use, for createCCtxParams() and freeCCtxParams() only */
     ZSTD_customMem customMem;
 };  /* typedef'd to ZSTD_CCtx_params within "zstd.h" */
 
 #define COMPRESS_SEQUENCES_WORKSPACE_SIZE (sizeof(unsigned) * (MaxSeq + 2))
 #define ENTROPY_WORKSPACE_SIZE (HUF_WORKSPACE_SIZE + COMPRESS_SEQUENCES_WORKSPACE_SIZE)
+
+/**
+ * Indicates whether this compression proceeds directly from user-provided
+ * source buffer to user-provided destination buffer (ZSTDb_not_buffered), or
+ * whether the context needs to buffer the input/output (ZSTDb_buffered).
+ */
+typedef enum {
+    ZSTDb_not_buffered,
+    ZSTDb_buffered
+} ZSTD_buffered_policy_e;
 
 struct ZSTD_CCtx_s {
     ZSTD_compressionStage_e stage;
@@ -274,6 +288,9 @@ struct ZSTD_CCtx_s {
     ZSTD_blockState_t blockState;
     U32* entropyWorkspace;  /* entropy workspace of ENTROPY_WORKSPACE_SIZE bytes */
 
+    /* Wether we are streaming or not */
+    ZSTD_buffered_policy_e bufferedPolicy;
+
     /* streaming */
     char*  inBuff;
     size_t inBuffSize;
@@ -286,6 +303,10 @@ struct ZSTD_CCtx_s {
     size_t outBuffFlushedSize;
     ZSTD_cStreamStage streamStage;
     U32    frameEnded;
+
+    /* Stable in/out buffer verification */
+    ZSTD_inBuffer expectedInBuffer;
+    size_t expectedOutBufferSize;
 
     /* Dictionary */
     ZSTD_localDict localDict;

@@ -1143,7 +1143,7 @@ typedef struct {
                                *      rep == 2 --> offset == repeat_offset_3
                                *      rep == 3 --> offset == repeat_offset_1 - 1
                                * 
-                               * Note: This field is optional. ZSTD_getSequence() will calculate the value of
+                               * Note: This field is optional. ZSTD_getSequences() will calculate the value of
                                * 'rep', but repeat offsets do not necessarily need to be calculated from an external
                                * sequence provider's perspective.
                                */
@@ -1292,8 +1292,9 @@ ZSTDLIB_API unsigned long long ZSTD_decompressBound(const void* src, size_t srcS
 ZSTDLIB_API size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize);
 
 /*! ZSTD_getSequences() :
- * Extract sequences from the sequence store. Any last literals in the block will be represented as a sequence
- * with offset == 0, matchLength == 0, litLength == last literals size.
+ * Extract sequences from the sequence store.
+ * Each block will end with a dummy sequence with offset == 0, matchLength == 0, and litLength == length of last literals.
+ * 
  * zc can be used to insert custom compression params.
  * This function invokes ZSTD_compress2
  * @return : number of sequences extracted

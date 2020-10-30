@@ -2464,17 +2464,22 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
 static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
 {
     const seqStore_t* seqStore = ZSTD_getSeqStore(zc);
-    const seqDef* seqs = seqStore->sequencesStart;
-    size_t seqsSize = seqStore->sequences - seqs;
+    const seqDef* seqStoreSeqs = seqStore->sequencesStart;
+    size_t seqStoreSeqSize = seqStore->sequences - seqStoreSeqs;
+    size_t seqStoreLiteralsSize = (size_t)(seqStore->lit - seqStore->litStart);
+    size_t literalsRead = 0;
+    size_t lastLLSize;
 
     ZSTD_Sequence* outSeqs = &zc->seqCollector.seqStart[zc->seqCollector.seqIndex];
-    size_t i; size_t position; int repIdx;
+    size_t i;
+    int repIdx;
 
     assert(zc->seqCollector.seqIndex + 1 < zc->seqCollector.maxSequences);
-    for (i = 0, position = 0; i < seqsSize; ++i) {
-        outSeqs[i].offset = seqs[i].offset;
-        outSeqs[i].litLength = seqs[i].litLength;
-        outSeqs[i].matchLength = seqs[i].matchLength + MINMATCH;
+    /* Ensure we have enough space for last literals "sequence" */
+    assert(zc->seqCollector.maxSequences >= seqStoreSeqSize + 1);
+    for (i = 0; i < seqStoreSeqSize; ++i) {
+        outSeqs[i].litLength = seqStoreSeqs[i].litLength;
+        outSeqs[i].matchLength = seqStoreSeqs[i].matchLength + MINMATCH;
 
         if (i == seqStore->longLengthPos) {
             if (seqStore->longLengthID == 1) {
@@ -2484,32 +2489,39 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
             }
         }
 
-        if (outSeqs[i].offset <= ZSTD_REP_NUM) {
-            outSeqs[i].rep = outSeqs[i].offset;
-            repIdx = (unsigned int)i - outSeqs[i].offset;
+        if (seqStoreSeqs[i].offset <= ZSTD_REP_NUM) {
+            outSeqs[i].rep = seqStoreSeqs[i].offset;
+            repIdx = (unsigned int)i - seqStoreSeqs[i].offset;
 
-            if (outSeqs[i].litLength == 0) {
-                if (outSeqs[i].offset < 3) {
+            if (seqStoreSeqs[i].litLength == 0) {
+                if (seqStoreSeqs[i].offset < 3) {
                     --repIdx;
                 } else {
                     repIdx = (unsigned int)i - 1;
                 }
-                ++outSeqs[i].rep;
             }
             assert(repIdx >= -3);
             outSeqs[i].offset = repIdx >= 0 ? outSeqs[repIdx].offset : repStartValue[-repIdx - 1];
-            if (outSeqs[i].rep == 4) {
+            if (outSeqs[i].rep == 3 && outSeqs[i].litLength == 0) {
                 --outSeqs[i].offset;
             }
         } else {
-            outSeqs[i].offset -= ZSTD_REP_NUM;
+            outSeqs[i].offset = seqStoreSeqs[i].offset - ZSTD_REP_NUM;
         }
-
-        position += outSeqs[i].litLength;
-        outSeqs[i].matchPos = (unsigned int)position;
-        position += outSeqs[i].matchLength;
+        literalsRead += outSeqs[i].litLength;
     }
-    zc->seqCollector.seqIndex += seqsSize;
+
+    /* Insert last literals (if any exist) in the block as a sequence with ml == off == 0.
+     * If there are no last literals, then we'll emit (of: 0, ml: 0, ll: 0), which is a marker
+     * for the block boundary, according to the API.
+     */
+    assert(seqStoreLiteralsSize >= literalsRead);
+    lastLLSize = seqStoreLiteralsSize - literalsRead;
+    outSeqs[i].litLength = (U32)lastLLSize;
+    outSeqs[i].matchLength = outSeqs[i].offset = outSeqs[i].rep = 0;
+    seqStoreSeqSize++;
+
+    zc->seqCollector.seqIndex += seqStoreSeqSize;
 }
 
 size_t ZSTD_getSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
@@ -2584,6 +2596,7 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
 
     if (zc->seqCollector.collectSequences) {
         ZSTD_copyBlockSequences(zc);
+        ZSTD_confirmRepcodesAndEntropyTables(zc);
         return 0;
     }
 

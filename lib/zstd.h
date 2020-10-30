@@ -1116,21 +1116,39 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 typedef struct ZSTD_CCtx_params_s ZSTD_CCtx_params;
 
 typedef struct {
-    unsigned int matchPos; /* Match pos in dst */
-    /* If seqDef.offset > 3, then this is seqDef.offset - 3
-     * If seqDef.offset < 3, then this is the corresponding repeat offset
-     * But if seqDef.offset < 3 and litLength == 0, this is the
-     *   repeat offset before the corresponding repeat offset
-     * And if seqDef.offset == 3 and litLength == 0, this is the
-     *   most recent repeat offset - 1
-     */
-    unsigned int offset;
-    unsigned int litLength; /* Literal length */
-    unsigned int matchLength; /* Match length */
-    /* 0 when seq not rep and seqDef.offset otherwise
-     * when litLength == 0 this will be <= 4, otherwise <= 3 like normal
-     */
-    unsigned int rep;
+    unsigned int offset;      /* The offset of the match. (NOT the same as the offset code)
+                               * If offset == 0 and matchLength == 0, this sequence represents the last
+                               * literals in the block of litLength size.
+                               */
+
+    unsigned int litLength;   /* Literal length of the sequence. */
+    unsigned int matchLength; /* Match length of the sequence. */
+
+                              /* Note: Users of this API may provide a sequence with matchLength == litLength == offset == 0.
+                               * In this case, we will treat the sequence as a marker for a block boundary.
+                               */
+    
+    unsigned int rep;         /* Represents which repeat offset is represented by the field 'offset'.
+                               * Ranges from [0, 3].
+                               * 
+                               * Repeat offsets are essentially previous offsets from previous sequences sorted in
+                               * recency order. For more detail, see doc/zstd_compression_format.md
+                               * 
+                               * If rep == 0, then 'offset' does not contain a repeat offset.
+                               * If rep > 0:
+                               *  If litLength != 0:
+                               *      rep == 1 --> offset == repeat_offset_1
+                               *      rep == 2 --> offset == repeat_offset_2
+                               *      rep == 3 --> offset == repeat_offset_3
+                               *  If litLength == 0:
+                               *      rep == 1 --> offset == repeat_offset_2
+                               *      rep == 2 --> offset == repeat_offset_3
+                               *      rep == 3 --> offset == repeat_offset_1 - 1
+                               * 
+                               * Note: This field is optional. ZSTD_getSequences() will calculate the value of
+                               * 'rep', but repeat offsets do not necessarily need to be calculated from an external
+                               * sequence provider's perspective.
+                               */
 } ZSTD_Sequence;
 
 typedef struct {
@@ -1276,7 +1294,9 @@ ZSTDLIB_API unsigned long long ZSTD_decompressBound(const void* src, size_t srcS
 ZSTDLIB_API size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize);
 
 /*! ZSTD_getSequences() :
- * Extract sequences from the sequence store
+ * Extract sequences from the sequence store.
+ * Each block will end with a dummy sequence with offset == 0, matchLength == 0, and litLength == length of last literals.
+ * 
  * zc can be used to insert custom compression params.
  * This function invokes ZSTD_compress2
  * @return : number of sequences extracted

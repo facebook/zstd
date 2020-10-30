@@ -309,22 +309,23 @@ static void FUZ_decodeSequences(BYTE* dst, ZSTD_Sequence* seqs, size_t seqsSize,
 {
     size_t i;
     size_t j;
-    for(i = 0; i < seqsSize - 1; ++i) {
-        assert(dst + seqs[i].litLength + seqs[i].matchLength < dst + size);
-        assert(src + seqs[i].litLength + seqs[i].matchLength < src + size);
+    for(i = 0; i < seqsSize; ++i) {
+        assert(dst + seqs[i].litLength + seqs[i].matchLength <= dst + size);
+        assert(src + seqs[i].litLength + seqs[i].matchLength <= src + size);
 
         memcpy(dst, src, seqs[i].litLength);
         dst += seqs[i].litLength;
         src += seqs[i].litLength;
         size -= seqs[i].litLength;
 
-        for (j = 0; j < seqs[i].matchLength; ++j)
-            dst[j] = dst[j - seqs[i].offset];
-        dst += seqs[i].matchLength;
-        src += seqs[i].matchLength;
-        size -= seqs[i].matchLength;
+        if (seqs[i].offset != 0) {
+            for (j = 0; j < seqs[i].matchLength; ++j)
+                dst[j] = dst[j - seqs[i].offset];
+            dst += seqs[i].matchLength;
+            src += seqs[i].matchLength;
+            size -= seqs[i].matchLength;
+        }
     }
-    memcpy(dst, src, size);
 }
 
 /*=============================================
@@ -2726,6 +2727,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         ZSTD_freeCCtx(cctx);
         free(seqs);
     }
+    DISPLAYLEVEL(3, "OK \n");
 
     /* Multiple blocks of zeros test */
     #define LONGZEROSLENGTH 1000000 /* 1MB of zeros */

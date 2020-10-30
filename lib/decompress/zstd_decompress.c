@@ -645,8 +645,13 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
     while (1) {
         size_t decodedSize;
         blockProperties_t blockProperties;
+        printf("Getting blocksize\n");
         size_t const cBlockSize = ZSTD_getcBlockSize(ip, remainingSrcSize, &blockProperties);
-        if (ZSTD_isError(cBlockSize)) return cBlockSize;
+        printf("BlockSize: %u\n", cBlockSize);
+        if (ZSTD_isError(cBlockSize)) {
+            printf("Errored\n");
+            return cBlockSize;
+        }
 
         ip += ZSTD_blockHeaderSize;
         remainingSrcSize -= ZSTD_blockHeaderSize;

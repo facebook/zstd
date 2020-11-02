@@ -1319,7 +1319,7 @@ typedef enum {
  */
 
 ZSTDLIB_API size_t ZSTD_getSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
-    size_t outSeqsSize, const void* src, size_t srcSize);
+    size_t outSeqsSize, const void* src, size_t srcSize, ZSTD_sequenceFormat_e format);
 
 
 /***************************************

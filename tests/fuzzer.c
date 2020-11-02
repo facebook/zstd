@@ -2718,7 +2718,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         RDG_genBuffer(CNBuffer, srcSize, compressibility, 0., seed);
 
         /* get the sequences */
-        seqsSize = ZSTD_getSequences(cctx, seqs, srcSize, src, srcSize);
+        seqsSize = ZSTD_getSequences(cctx, seqs, srcSize, src, srcSize, ZSTD_sf_blockDelimiters);
 
         /* "decode" and compare the sequences */
         FUZ_decodeSequences(decoded, seqs, seqsSize, src, srcSize);

@@ -2505,6 +2505,7 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
     for (i = 0; i < seqStoreSeqSize; ++i) {
         outSeqs[i].litLength = seqStoreSeqs[i].litLength;
         outSeqs[i].matchLength = seqStoreSeqs[i].matchLength + MINMATCH;
+        outSeqs[i].rep = 0;
 
         if (i == seqStore->longLengthPos) {
             if (seqStore->longLengthID == 1) {

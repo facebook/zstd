@@ -1298,16 +1298,16 @@ ZSTDLIB_API unsigned long long ZSTD_decompressBound(const void* src, size_t srcS
 ZSTDLIB_API size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize);
 
 typedef enum {
-  ZSTD_sf_blockDelimiters = 0,
-  ZSTD_sf_noBlockDelimiters = 1,
+  ZSTD_sf_explicitBlockDelimiters = 0,  /* Representation of ZSTD_Sequence contains explicit block delimiters */
+  ZSTD_sf_noBlockDelimiters = 1,        /* Representation of ZSTD_Sequence has no block delimiters, sequences only */
 } ZSTD_sequenceFormat_e;
 
 /*! ZSTD_getSequences() :
  * Extract sequences from the sequence store.
- * If invoked with ZSTD_sf_blockDelimiters, block will end with a dummy sequence
+ * If invoked with ZSTD_sf_explicitBlockDelimiters, each block will end with a dummy sequence
  * with offset == 0, matchLength == 0, and litLength == length of last literals.
  * 
- * If invoked with ZSTD_sf_noBlockDelimiters, sequences will still be generated
+ * If invoked with ZSTD_sf_noBlockDelimiters, sequences will still be internally generated
  * on a per-block basis, but any last literals of a block will be merged into the
  * last literals of the first sequence in the next block.
  * As such, the final generated result has no explicit representation of block boundaries,

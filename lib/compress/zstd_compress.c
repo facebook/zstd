@@ -4582,10 +4582,8 @@ static size_t ZSTD_copySequencesToSeqStore(seqStore_t* seqStore, const ZSTD_sequ
             U32 posInSequence = seqRange->endPosInSequence;
             DEBUGLOG(4, "Reached endIdx. idx: %u PIS: %u", idx, posInSequence);
             if (posInSequence == 0) {
-                if (inSeqs[seqRange->endIdx - 1].matchLength != 0 || inSeqs[seqRange->endIdx - 1].matchLength != 0) {
-                    printf("Contract violated\n");
-                }
-                return 0;
+                RETURN_ERROR_IF(inSeqs[seqRange->endIdx - 1].matchLength != 0 || inSeqs[seqRange->endIdx - 1].matchLength != 0,
+                                corruption_detected, "Contract violation");
             }
             assert(posInSequence <= litLength + matchLength);
             if (posInSequence < litLength) {
@@ -4629,7 +4627,8 @@ static size_t ZSTD_copySequencesToSeqStore(seqStore_t* seqStore, const ZSTD_sequ
 size_t ZSTD_compressSequences_ext_internal(void* dst, size_t dstCapacity,
                                            ZSTD_CCtx* cctx,
                                            const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
-                                           const void* src, size_t srcSize) {
+                                           const void* src, size_t srcSize,
+                                           ZSTD_sequenceFormat_e format) {
     U32 cSize = 0;
     U32 lastBlock;
     U32 blockSize;
@@ -4719,7 +4718,8 @@ size_t ZSTD_compressSequences_ext_internal(void* dst, size_t dstCapacity,
 
 size_t ZSTD_compressSequences_ext(void* dst, size_t dstCapacity,
                                   const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
-                                  const void* src, size_t srcSize, int compressionLevel) {
+                                  const void* src, size_t srcSize, int compressionLevel,
+                                  ZSTD_sequenceFormat_e format) {
     DEBUGLOG(4, "ZSTD_compressSequences_ext()");
     BYTE* op = (BYTE*)dst;
     ZSTD_CCtx* const cctx = ZSTD_createCCtx();
@@ -4777,7 +4777,7 @@ size_t ZSTD_compressSequences_ext(void* dst, size_t dstCapacity,
     /* cSize includes block header size and compressed sequences size */
     compressedBlocksSize = ZSTD_compressSequences_ext_internal(op, dstCapacity,
                                                 cctx, inSeqs, inSeqsSize,
-                                                src, srcSize);
+                                                src, srcSize, format);
     if (ZSTD_isError(compressedBlocksSize)) {
         return compressedBlocksSize;
     }

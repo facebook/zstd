@@ -2577,7 +2577,7 @@ size_t ZSTD_getSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
                 if (i != totalSeqs-1) {
                     /* Add last literals to next sequence, then "delete" this sequence */
                     seqCollector.seqStart[i+1].litLength += seqCollector.seqStart[i].litLength;
-                    memmove(seqCollector.seqStart+i, seqCollector.seqStart+i+1, (totalSeqs-i-1)*sizeof(ZSTD_Sequence));
+                    ZSTD_memmove(seqCollector.seqStart+i, seqCollector.seqStart+i+1, (totalSeqs-i-1)*sizeof(ZSTD_Sequence));
                 }
                 totalSeqs--;
             } else {

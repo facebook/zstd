@@ -2562,7 +2562,6 @@ size_t ZSTD_getSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
     seqCollector.seqStart = outSeqs;
     seqCollector.seqIndex = 0;
     seqCollector.maxSequences = outSeqsSize;
-    seqCollector.format = format;
     zc->seqCollector = seqCollector;
 
     ZSTD_compress2(zc, dst, dstCapacity, src, srcSize);
@@ -2586,7 +2585,7 @@ size_t ZSTD_getSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
         }
         zc->seqCollector.seqIndex = totalSeqs;
     }
-    
+
     return zc->seqCollector.seqIndex;
 }
 

@@ -305,13 +305,17 @@ static int FUZ_mallocTests(unsigned seed, double compressibility, unsigned part)
 
 #endif
 
-static void FUZ_decodeSequences(BYTE* dst, ZSTD_Sequence* seqs, size_t seqsSize, BYTE* src, size_t size)
+static void FUZ_decodeSequences(BYTE* dst, ZSTD_Sequence* seqs, size_t seqsSize,
+                                BYTE* src, size_t size, ZSTD_sequenceFormat_e format)
 {
     size_t i;
     size_t j;
     for(i = 0; i < seqsSize; ++i) {
         assert(dst + seqs[i].litLength + seqs[i].matchLength <= dst + size);
         assert(src + seqs[i].litLength + seqs[i].matchLength <= src + size);
+        if (format == ZSTD_sf_noBlockDelimiters) {
+            assert(seqs[i].matchLength != 0 || seqs[i].offset != 0);
+        }
 
         memcpy(dst, src, seqs[i].litLength);
         dst += seqs[i].litLength;
@@ -325,6 +329,9 @@ static void FUZ_decodeSequences(BYTE* dst, ZSTD_Sequence* seqs, size_t seqsSize,
             src += seqs[i].matchLength;
             size -= seqs[i].matchLength;
         }
+    }
+    if (format == ZSTD_sf_noBlockDelimiters) {
+        memcpy(dst, src, size);
     }
 }
 
@@ -2703,7 +2710,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
     DISPLAYLEVEL(3, "test%3i : ZSTD_getSequences decode from sequences test : ", testNb++);
     {
-        size_t srcSize = 100 KB;
+        size_t srcSize = 150 KB;
         BYTE* src = (BYTE*)CNBuffer;
         BYTE* decoded = (BYTE*)compressedBuffer;
 
@@ -2715,13 +2722,16 @@ static int basicUnitTests(U32 const seed, double compressibility)
         assert(cctx != NULL);
 
         /* Populate src with random data */
-        RDG_genBuffer(CNBuffer, srcSize, compressibility, 0., seed);
+        RDG_genBuffer(CNBuffer, srcSize, 0.03, 0., seed);
 
-        /* get the sequences */
+        /* Test with block delimiters roundtrip */
         seqsSize = ZSTD_getSequences(cctx, seqs, srcSize, src, srcSize, ZSTD_sf_blockDelimiters);
+        FUZ_decodeSequences(decoded, seqs, seqsSize, src, srcSize, ZSTD_sf_blockDelimiters);
+        assert(!memcmp(CNBuffer, compressedBuffer, srcSize));
 
-        /* "decode" and compare the sequences */
-        FUZ_decodeSequences(decoded, seqs, seqsSize, src, srcSize);
+        /* Test no block delimiters roundtrip */
+        seqsSize = ZSTD_getSequences(cctx, seqs, srcSize, src, srcSize, ZSTD_sf_noBlockDelimiters);
+        FUZ_decodeSequences(decoded, seqs, seqsSize, src, srcSize, ZSTD_sf_noBlockDelimiters);
         assert(!memcmp(CNBuffer, compressedBuffer, srcSize));
 
         ZSTD_freeCCtx(cctx);

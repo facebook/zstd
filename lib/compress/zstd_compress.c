@@ -2569,22 +2569,22 @@ size_t ZSTD_getSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
     ZSTD_customFree(dst, ZSTD_defaultCMem);
 
     if (format == ZSTD_sf_noBlockDelimiters) {
-        size_t i = 0;
-        size_t totalSeqs = zc->seqCollector.seqIndex;
-        while(i < totalSeqs) {
-            if (seqCollector.seqStart[i].offset == 0 && seqCollector.seqStart[i].matchLength == 0) {
-                /* Merge the block boundary or last literals */
-                if (i != totalSeqs-1) {
-                    /* Add last literals to next sequence, then "delete" this sequence */
-                    seqCollector.seqStart[i+1].litLength += seqCollector.seqStart[i].litLength;
-                    ZSTD_memmove(seqCollector.seqStart+i, seqCollector.seqStart+i+1, (totalSeqs-i-1)*sizeof(ZSTD_Sequence));
+        /* Remove all block delimiters and append them to the next sequence's literals
+         * and do not emit last literals at all
+         */
+        size_t in = 0;
+        size_t out = 0;
+        for (; in < zc->seqCollector.seqIndex; ++in) {
+            if (seqCollector.seqStart[in].offset == 0 && seqCollector.seqStart[in].matchLength == 0) {
+                if (in != zc->seqCollector.seqIndex - 1) {
+                    seqCollector.seqStart[in+1].litLength += seqCollector.seqStart[in].litLength;
                 }
-                totalSeqs--;
             } else {
-                ++i;
+                seqCollector.seqStart[out] = seqCollector.seqStart[in];
+                ++out;
             }
         }
-        zc->seqCollector.seqIndex = totalSeqs;
+        zc->seqCollector.seqIndex = out;
     }
 
     return zc->seqCollector.seqIndex;

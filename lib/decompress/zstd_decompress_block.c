@@ -46,20 +46,6 @@
 **********************************************************/
 static void ZSTD_copy4(void* dst, const void* src) { ZSTD_memcpy(dst, src, 4); }
 
-void printBits1(size_t const size, void const * const ptr)
-{
-    unsigned char *b = (unsigned char*) ptr;
-    unsigned char byte;
-    int i, j;
-    
-    for (i = size-1; i >= 0; i--) {
-        for (j = 7; j >= 0; j--) {
-            byte = (b[i] >> j) & 1;
-            printf("%u", byte);
-        }
-        printf("\n");
-    }
-}
 
 /*-*************************************************************
  *   Block decoding
@@ -70,7 +56,6 @@ void printBits1(size_t const size, void const * const ptr)
 size_t ZSTD_getcBlockSize(const void* src, size_t srcSize,
                           blockProperties_t* bpPtr)
 {
-    printf("getcblockSize: srcSize: %u\n", srcSize);
     RETURN_ERROR_IF(srcSize < ZSTD_blockHeaderSize, srcSize_wrong, "");
 
     {   U32 const cBlockHeader = MEM_readLE24(src);
@@ -78,12 +63,7 @@ size_t ZSTD_getcBlockSize(const void* src, size_t srcSize,
         bpPtr->lastBlock = cBlockHeader & 1;
         bpPtr->blockType = (blockType_e)((cBlockHeader >> 1) & 3);
         bpPtr->origSize = cSize;   /* only useful for RLE */
-        printBits1(3, &cBlockHeader);
-        if (bpPtr->blockType == bt_rle) {
-            printf("RLE BLOCK FOUND\n");
-            exit(1);
-            return 1;
-        }
+        if (bpPtr->blockType == bt_rle) return 1;
         RETURN_ERROR_IF(bpPtr->blockType == bt_reserved, corruption_detected, "");
         return cSize;
     }
@@ -439,7 +419,6 @@ void ZSTD_buildFSETable_body(ZSTD_seqSymbol* dt,
          * our buffer to handle the over-write.
          */
         {
-
             U64 const add = 0x0101010101010101ull;
             size_t pos = 0;
             U64 sv = 0;

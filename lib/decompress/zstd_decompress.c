@@ -497,6 +497,7 @@ static ZSTD_frameSizeInfo ZSTD_findFrameSizeInfo(const void* src, size_t srcSize
             if (ret > 0)
                 return ZSTD_errorFrameSizeInfo(ERROR(srcSize_wrong));
         }
+
         ip += zfh.headerSize;
         remainingSize -= zfh.headerSize;
 
@@ -645,13 +646,8 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
     while (1) {
         size_t decodedSize;
         blockProperties_t blockProperties;
-        printf("Getting blocksize\n");
         size_t const cBlockSize = ZSTD_getcBlockSize(ip, remainingSrcSize, &blockProperties);
-        printf("BlockSize: %u\n", cBlockSize);
-        if (ZSTD_isError(cBlockSize)) {
-            printf("Errored\n");
-            return cBlockSize;
-        }
+        if (ZSTD_isError(cBlockSize)) return cBlockSize;
 
         ip += ZSTD_blockHeaderSize;
         remainingSrcSize -= ZSTD_blockHeaderSize;
@@ -1623,7 +1619,6 @@ static size_t ZSTD_decompressContinueStream(
             zds->streamStage = zdss_flush;
         }
     } else {
-        
         /* Write directly into the output buffer */
         size_t const dstSize = isSkipFrame ? 0 : oend - *op;
         size_t const decodedSize = ZSTD_decompressContinue(zds, *op, dstSize, src, srcSize);

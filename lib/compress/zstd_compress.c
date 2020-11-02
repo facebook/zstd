@@ -2148,14 +2148,14 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
     entropyWkspSize -= (MaxSeq + 1) * sizeof(*count);
 
     DEBUGLOG(4, "ZSTD_compressSequences_internal (nbSeq=%zu)", nbSeq);
-    DEBUGLOG(4, "First seqs:", nbSeq);
+    /*DEBUGLOG(4, "First seqs:", nbSeq);
     for (int i = 0; i < 5; ++i) {
         DEBUGLOG(4, "(of: %u ml: %u ll: %u)", seqStorePtr->sequencesStart[i].offset, seqStorePtr->sequencesStart[i].matchLength, seqStorePtr->sequencesStart[i].litLength);
     }
     DEBUGLOG(4, "Final seqs:", nbSeq);
     for (int i = 1; i < 5; ++i) {
         DEBUGLOG(4, "(of: %u ml: %u ll: %u)", seqStorePtr->sequencesStart[nbSeq-i].offset, seqStorePtr->sequencesStart[nbSeq-i].matchLength, seqStorePtr->sequencesStart[nbSeq-i].litLength);
-    }
+    }*/
     ZSTD_STATIC_ASSERT(HUF_WORKSPACE_SIZE >= (1<<MAX(MLFSELog,LLFSELog)));
     assert(entropyWkspSize >= HUF_WORKSPACE_SIZE);
 
@@ -4508,10 +4508,12 @@ static int ZSTD_updateSequenceRange(ZSTD_sequenceRange* sequenceRange, size_t nb
     U32 idx = sequenceRange->endIdx;
     U32 endPosInSequence = sequenceRange->endPosInSequence + nbBytes;
     int bytesAdjustment = 0;
-    DEBUGLOG(4, "ZSTD_updateSequenceRange: startidx %u startpos: %u endidx: %u endpos: %u",
+    DEBUGLOG(4, "ZSTD_updateSequenceRange: %u bytes, startidx %u startpos: %u endidx: %u endpos: %u", nbBytes,
              sequenceRange->startIdx, sequenceRange->startPosInSequence, sequenceRange->endIdx, sequenceRange->endPosInSequence);
+    DEBUGLOG(4, "endPosInSequence begin val: %u", endPosInSequence);
     while (endPosInSequence && idx < inSeqsSize) {
         ZSTD_Sequence currSeq = inSeqs[idx];
+        DEBUGLOG(4, "curr Seq: idx: %u ll: %u ml: %u, of: %u", idx, currSeq.litLength, currSeq.matchLength, currSeq.offset);
         if (endPosInSequence >= currSeq.litLength + currSeq.matchLength) {
             endPosInSequence -= currSeq.litLength + currSeq.matchLength;
             idx++;
@@ -4520,20 +4522,18 @@ static int ZSTD_updateSequenceRange(ZSTD_sequenceRange* sequenceRange, size_t nb
         }
     }
 
-    if (idx == inSeqsSize) {
-        endPosInSequence = 0;
-    }
-    if (endPosInSequence == inSeqs[idx].litLength + inSeqs[idx].matchLength) {
-        endPosInSequence = 0;
-        idx++;
-    }
-
     if (format == ZSTD_sf_noBlockDelimiters) {
         assert(endPosInSequence <= inSeqs[idx].litLength + inSeqs[idx].matchLength);
-        if (endPosInSequence <= inSeqs[idx].litLength) {
-            bytesAdjustment = inSeqs[idx].litLength - endPosInSequence;
-            endPosInSequence = inSeqs[idx].litLength;
+        DEBUGLOG(4, "idx: %u", idx);
+        if (idx == inSeqsSize) {
+            DEBUGLOG(4, "End reached");
+        } else if (endPosInSequence <= inSeqs[idx].litLength) {
+            DEBUGLOG(4, "endpos is less than litLength");
+            /*bytesAdjustment = inSeqs[idx].litLength - endPosInSequence;
+            endPosInSequence = inSeqs[idx].litLength;*/
+
         } else if (endPosInSequence <= inSeqs[idx].litLength + inSeqs[idx].matchLength) {
+            DEBUGLOG(4, "endpos is more than litLength");
             if (inSeqs[idx].matchLength >= nbBytes) {
                 U32 firstHalfMatchLength = endPosInSequence - inSeqs[idx].litLength;
                 U32 secondHalfMatchLength = inSeqs[idx].litLength - firstHalfMatchLength;
@@ -4568,7 +4568,7 @@ static int ZSTD_updateSequenceRange(ZSTD_sequenceRange* sequenceRange, size_t nb
 /* Returns size of sequences range copied, otherwise ZSTD error code */
 static size_t ZSTD_copySequencesToSeqStore(seqStore_t* seqStore, const ZSTD_sequenceRange* seqRange,
                                          const ZSTD_Sequence* const inSeqs, size_t inSeqsSize,
-                                         const void* src, size_t srcSize) {
+                                         const void* src, size_t srcSize, ZSTD_sequenceFormat_e format) {
     DEBUGLOG(4, "ZSTD_copySequencesToSeqStore: numSeqs: %zu srcSize: %zu", inSeqsSize, srcSize);
     size_t idx = seqRange->startIdx;
     BYTE const* istart = (BYTE const*)src;
@@ -4581,13 +4581,23 @@ static size_t ZSTD_copySequencesToSeqStore(seqStore_t* seqStore, const ZSTD_sequ
         U32 offCode = inSeqs[idx].offset + ZSTD_REP_MOVE;
 
         /* Adjust litLength and matchLength for the sequence at startIdx */
-        if (idx == seqRange->startIdx) {
+        if (seqRange->startIdx == seqRange->endIdx) {
+            U32 seqLength = seqRange->endPosInSequence - seqRange->startPosInSequence;
+            RETURN_ERROR_IF(seqLength > litLength + matchLength, corruption_detected, "SeqLength cannot be bigger than sequence length!");
+            if (seqLength <= litLength) {
+                /* Sequence of just literals */
+                litLength = seqLength;
+                continue;
+            } else if (seqLength <= litLength + matchLength) {
+                matchLength = seqLength - litLength;
+            }
+        } else if (idx == seqRange->startIdx) {
             U32 posInSequence = seqRange->startPosInSequence;
             DEBUGLOG(4, "At startIdx: idx: %u PIS: %u", idx, posInSequence);
             assert(posInSequence <= litLength + matchLength);
             if (posInSequence >= litLength) {
-                litLength = 0;
                 posInSequence -= litLength;
+                litLength = 0;
                 matchLength -= posInSequence;
             } else {
                 litLength -= posInSequence;
@@ -4597,10 +4607,7 @@ static size_t ZSTD_copySequencesToSeqStore(seqStore_t* seqStore, const ZSTD_sequ
                 RETURN_ERROR_IF(matchLength < MINMATCH, corruption_detected, "Matchlength too small! Start Idx");
             }
             DEBUGLOG(4, "startIdx seq finalized: ll: %u ml: %u", litLength, matchLength);
-        }
-
-        /* Adjust litLength and matchLength for the sequence at endIdx */
-        if (idx == seqRange->endIdx) {
+        } else if (idx == seqRange->endIdx) {
             U32 posInSequence = seqRange->endPosInSequence;
             DEBUGLOG(4, "Reached endIdx. idx: %u PIS: %u", idx, posInSequence);
             if (posInSequence == 0) {
@@ -4608,9 +4615,11 @@ static size_t ZSTD_copySequencesToSeqStore(seqStore_t* seqStore, const ZSTD_sequ
                                 corruption_detected, "Contract violation");
             }
             assert(posInSequence <= litLength + matchLength);
-            if (posInSequence < litLength) {
+            if (posInSequence <= litLength) {
                 litLength = posInSequence;
                 matchLength = 0;
+                offCode = ZSTD_REP_MOVE;
+                continue;
             } else {
                 matchLength = posInSequence - litLength;
                 if (matchLength <= MINMATCH && offCode != ZSTD_REP_MOVE) {
@@ -4623,6 +4632,7 @@ static size_t ZSTD_copySequencesToSeqStore(seqStore_t* seqStore, const ZSTD_sequ
 
         /* ML == 0 and Offset == 0 (or offCode == ZSTD_REP_MOVE) implies we are ending a block */
         if (matchLength == 0 && offCode == ZSTD_REP_MOVE) {
+            RETURN_ERROR_IF(format == ZSTD_sf_noBlockDelimiters, corruption_detected, "No block delimiters allowed!");
             /* Handle last literals case */
             if (litLength > 0) {
                 DEBUGLOG(4, "Storing last literals: %u bytes, idx: %u", litLength, idx);
@@ -4640,6 +4650,13 @@ static size_t ZSTD_copySequencesToSeqStore(seqStore_t* seqStore, const ZSTD_sequ
             ZSTD_storeSeq(seqStore, litLength, ip, iend, offCode, matchLength - MINMATCH);
         }
         ip += matchLength + litLength;
+    }
+
+    if (format == ZSTD_sf_noBlockDelimiters && ip != iend) {
+        assert(ip <= iend);
+        U32 lastLLSize = (U32)(iend - ip);
+        DEBUGLOG(4, "Storing last literals of size: %u", lastLLSize);
+        ZSTD_storeLastLiterals(seqStore, ip, lastLLSize);
     }
 
     DEBUGLOG(4, "ZSTD_copySequencesToSeqStore: done");
@@ -4691,7 +4708,7 @@ size_t ZSTD_compressSequences_ext_internal(void* dst, size_t dstCapacity,
             continue;
         }
 
-        ZSTD_copySequencesToSeqStore(&blockSeqStore, &seqRange, inSeqs, inSeqsSize, ip, blockSize);
+        ZSTD_copySequencesToSeqStore(&blockSeqStore, &seqRange, inSeqs, inSeqsSize, ip, blockSize, format);
         compressedSeqsSize = ZSTD_compressSequences(&blockSeqStore,
                                 &cctx->blockState.prevCBlock->entropy, &cctx->blockState.nextCBlock->entropy,
                                 &cctx->appliedParams,
@@ -4782,7 +4799,7 @@ size_t ZSTD_compressSequences_ext(void* dst, size_t dstCapacity,
                     ZSTDb_buffered) , "");
         assert(cctx->appliedParams.nbWorkers == 0);
     }
-    DEBUGLOG(4, "CCtx blockSize: %zu\n", cctx->blockSize);
+    DEBUGLOG(4, "CCtx blockSize: %zu", cctx->blockSize);
     if (dstCapacity < ZSTD_compressBound(srcSize))
         RETURN_ERROR(dstSize_tooSmall, "Destination buffer too small!");
 
@@ -4807,7 +4824,7 @@ size_t ZSTD_compressSequences_ext(void* dst, size_t dstCapacity,
     }
     cSize += compressedBlocksSize;
     dstCapacity -= compressedBlocksSize;
-    DEBUGLOG(4, "cSize after compressSequences_internal: %zu\n", cSize);    
+    DEBUGLOG(4, "cSize after compressSequences_internal: %zu", cSize);    
 
     if (cctx->appliedParams.fParams.checksumFlag) {
         U32 const checksum = (U32) XXH64_digest(&cctx->xxhState);
@@ -4817,7 +4834,7 @@ size_t ZSTD_compressSequences_ext(void* dst, size_t dstCapacity,
         cSize += 4;
     }
 
-    DEBUGLOG(4, "Final compressed size: %zu\n", cSize);
+    DEBUGLOG(4, "Final compressed size: %zu", cSize);
     ZSTD_freeCCtx(cctx);
     return cSize;
 }

@@ -1297,14 +1297,27 @@ ZSTDLIB_API unsigned long long ZSTD_decompressBound(const void* src, size_t srcS
  *           or an error code (if srcSize is too small) */
 ZSTDLIB_API size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize);
 
+typedef enum {
+  ZSTD_sf_blockDelimiters = 0,
+  ZSTD_sf_noBlockDelimiters = 1,
+} ZSTD_sequenceFormat_e;
+
 /*! ZSTD_getSequences() :
  * Extract sequences from the sequence store.
- * Each block will end with a dummy sequence with offset == 0, matchLength == 0, and litLength == length of last literals.
+ * If invoked with ZSTD_sf_blockDelimiters, block will end with a dummy sequence
+ * with offset == 0, matchLength == 0, and litLength == length of last literals.
+ * 
+ * If invoked with ZSTD_sf_noBlockDelimiters, sequences will still be generated
+ * on a per-block basis, but any last literals of a block will be merged into the
+ * last literals of the first sequence in the next block with the exception of the
+ * final segment of last literals. As such, the final generated result has no
+ * explicit representation of block boundaries.
  * 
  * zc can be used to insert custom compression params.
  * This function invokes ZSTD_compress2
  * @return : number of sequences extracted
  */
+
 ZSTDLIB_API size_t ZSTD_getSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
     size_t outSeqsSize, const void* src, size_t srcSize);
 

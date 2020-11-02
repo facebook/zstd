@@ -1309,9 +1309,9 @@ typedef enum {
  * 
  * If invoked with ZSTD_sf_noBlockDelimiters, sequences will still be generated
  * on a per-block basis, but any last literals of a block will be merged into the
- * last literals of the first sequence in the next block with the exception of the
- * final segment of last literals. As such, the final generated result has no
- * explicit representation of block boundaries.
+ * last literals of the first sequence in the next block.
+ * As such, the final generated result has no explicit representation of block boundaries,
+ * and the final last literals segment is not represented in the sequences.
  * 
  * zc can be used to insert custom compression params.
  * This function invokes ZSTD_compress2

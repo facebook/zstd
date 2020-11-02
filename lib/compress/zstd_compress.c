@@ -2567,6 +2567,24 @@ size_t ZSTD_getSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
 
     ZSTD_compress2(zc, dst, dstCapacity, src, srcSize);
     ZSTD_customFree(dst, ZSTD_defaultCMem);
+
+    if (format == ZSTD_sf_noBlockDelimiters) {
+        /* Merge the dummy block delimiters */
+        size_t i = 0;
+        size_t totalSeqs = zc->seqCollector.seqIndex;
+        for (; i < totalSeqs; ++i) {
+            if (seqCollector.seqStart[i].offset == 0 && seqCollector.seqStart[i].matchLength == 0) {
+                /* Merge the block boundary or last literals */
+                if (i != totalSeqs-1) {
+                    /* Add last literals to next sequence, then "delete" this sequence */
+                    seqCollector.seqStart[i+1].litLength += seqCollector.seqStart[i].litLength;
+                    memmove(seqCollector.seqStart+i, seqCollector.seqStart+i+1, (totalSeqs-i-1)*sizeof(ZSTD_sequence));
+                }
+                totalSeqs--;
+            }
+        }
+        zc->seqCollector.seqIndex = totalSeqs;
+    }
     return zc->seqCollector.seqIndex;
 }
 

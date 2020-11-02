@@ -206,6 +206,7 @@ typedef struct {
     ZSTD_Sequence* seqStart;
     size_t seqIndex;
     size_t maxSequences;
+    ZSTD_sequenceFormat_e format;
 } SeqCollector;
 
 struct ZSTD_CCtx_params_s {

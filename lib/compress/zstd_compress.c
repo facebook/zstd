@@ -4579,7 +4579,6 @@ static size_t ZSTD_copySequencesToSeqStore(seqStore_t* seqStore, const ZSTD_sequ
                                            const void* src, size_t srcSize, ZSTD_sequenceFormat_e format) {
     DEBUGLOG(4, "ZSTD_copySequencesToSeqStore: numSeqs: %zu srcSize: %zu", inSeqsSize, srcSize);
     size_t idx = seqRange->startIdx;
-    BYTE const* istart = (BYTE const*)src;
     BYTE const* ip = (BYTE const*)src;
     const BYTE* const iend = ip + srcSize;
 
@@ -4610,12 +4609,12 @@ static size_t ZSTD_copySequencesToSeqStore(seqStore_t* seqStore, const ZSTD_sequ
                             corruption_detected, "pos in sequence must == 0 when using block delimiters!");
             
             if (posInSequence >= litLength) {
-                /* Start position within sequence is within the match */
+                /* Start counting matchlength from beginning of match, and literal length == 0 since we start inside match segment */
                 posInSequence -= litLength;
                 litLength = 0;
                 matchLength -= posInSequence;
             } else {
-                /* Start position within sequence is within the literals */
+                /* Start counting literal length from posInSequence since we begin inside literals segment */
                 litLength -= posInSequence;
             }
 
@@ -4632,10 +4631,10 @@ static size_t ZSTD_copySequencesToSeqStore(seqStore_t* seqStore, const ZSTD_sequ
                             corruption_detected, "pos in sequence must == 0 when using block delimiters!");
 
             if (posInSequence <= litLength) {
-                /* End position within is within the literals, break and store last literals if any */
+                /* End position within sequence is within the literals, break and store as last literals if any */
                 break;
             } else {
-                /* End position is within the match */
+                /* End position within sequence is within the match, reduce matchLength if necessary */
                 matchLength = posInSequence - litLength;
             }
 
@@ -4771,24 +4770,22 @@ size_t ZSTD_compressSequences_ext_internal(void* dst, size_t dstCapacity,
     return cSize;
 }
 
-size_t ZSTD_compressSequences_ext(void* dst, size_t dstCapacity,
-                                  const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
-                                  const void* src, size_t srcSize, int compressionLevel,
-                                  ZSTD_sequenceFormat_e format) {
+size_t ZSTD_compressSequences_ext_CCtx(ZSTD_CCtx* const cctx, void* dst, size_t dstCapacity,
+                                       const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
+                                       const void* src, size_t srcSize,
+                                       ZSTD_sequenceFormat_e format) {
     BYTE* op = (BYTE*)dst;
-    ZSTD_CCtx* const cctx = ZSTD_createCCtx();
     size_t cSize = 0;
     size_t compressedBlocksSize = 0;
     size_t frameHeaderSize = 0;
 
     /* Transparent initialization stage, same as compressStream2() */
-    DEBUGLOG(4, "ZSTD_compressSequences_ext()");
-    ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters);
-    ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1);
-    ZSTD_CCtx_init_compressStream2(cctx, ZSTD_e_end, srcSize);
-    DEBUGLOG(4, "CCtx blockSize: %zu", cctx->blockSize);
-    if (dstCapacity < ZSTD_compressBound(srcSize))
+    DEBUGLOG(4, "ZSTD_compressSequences_ext_CCtx()");
+    assert(cctx != NULL);
+    FORWARD_IF_ERROR(ZSTD_CCtx_init_compressStream2(cctx, ZSTD_e_end, srcSize), "CCtx initialization failed");
+    if (dstCapacity < ZSTD_compressBound(srcSize)) {
         RETURN_ERROR(dstSize_tooSmall, "Destination buffer too small!");
+    }
 
     /* Begin writing output, starting with frame header */
     frameHeaderSize = ZSTD_writeFrameHeader(op, dstCapacity, &cctx->appliedParams, srcSize, cctx->dictID);
@@ -4796,6 +4793,7 @@ size_t ZSTD_compressSequences_ext(void* dst, size_t dstCapacity,
     dstCapacity -= frameHeaderSize;
     cSize += frameHeaderSize;
 
+    /* Update checksum if requested */
     if (cctx->appliedParams.fParams.checksumFlag && srcSize) {
         XXH64_update(&cctx->xxhState, src, srcSize);
     }
@@ -4818,6 +4816,25 @@ size_t ZSTD_compressSequences_ext(void* dst, size_t dstCapacity,
     }
 
     DEBUGLOG(4, "Final compressed size: %zu", cSize);
+    return cSize;
+}
+
+
+size_t ZSTD_compressSequences_ext(void* dst, size_t dstCapacity,
+                                  const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
+                                  const void* src, size_t srcSize, int compressionLevel,
+                                  ZSTD_sequenceFormat_e format)
+{
+    size_t cSize;
+    ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+
+    RETURN_ERROR_IF(!cctx, memory_allocation, "Couldn't allocate memory for CCtx!");
+    FORWARD_IF_ERROR(ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters), "CCtx reset failed");
+    FORWARD_IF_ERROR(ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, compressionLevel), "Parameter setting failed");
+
+    cSize = ZSTD_compressSequences_ext_CCtx(cctx, dst, dstCapacity, inSeqs, inSeqsSize, src, srcSize, format);
+    FORWARD_IF_ERROR(cSize, "ZSTD_compressSequences_ext_CCtx() failed");
+
     ZSTD_freeCCtx(cctx);
     return cSize;
 }

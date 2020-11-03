@@ -4334,6 +4334,81 @@ static size_t ZSTD_checkBufferStability(ZSTD_CCtx const* cctx,
     return 0;
 }
 
+static size_t ZSTD_CCtx_init_compressStream2(ZSTD_CCtx* cctx,
+                                             ZSTD_EndDirective endOp,
+                                             size_t inSize) {
+    ZSTD_CCtx_params params = cctx->requestedParams;
+    ZSTD_prefixDict const prefixDict = cctx->prefixDict;
+    FORWARD_IF_ERROR( ZSTD_initLocalDict(cctx) , ""); /* Init the local dict if present. */
+    ZSTD_memset(&cctx->prefixDict, 0, sizeof(cctx->prefixDict));   /* single usage */
+    assert(prefixDict.dict==NULL || cctx->cdict==NULL);    /* only one can be set */
+    if (cctx->cdict)
+        params.compressionLevel = cctx->cdict->compressionLevel; /* let cdict take priority in terms of compression level */
+    DEBUGLOG(4, "ZSTD_compressStream2 : transparent init stage");
+    if (endOp == ZSTD_e_end) cctx->pledgedSrcSizePlusOne = inSize + 1;  /* auto-fix pledgedSrcSize */
+    {
+        size_t const dictSize = prefixDict.dict
+                ? prefixDict.dictSize
+                : (cctx->cdict ? cctx->cdict->dictContentSize : 0);
+        ZSTD_cParamMode_e const mode = ZSTD_getCParamMode(cctx->cdict, &params, cctx->pledgedSrcSizePlusOne - 1);
+        params.cParams = ZSTD_getCParamsFromCCtxParams(
+                &params, cctx->pledgedSrcSizePlusOne-1,
+                dictSize, mode);
+    }
+
+    if (ZSTD_CParams_shouldEnableLdm(&params.cParams)) {
+        /* Enable LDM by default for optimal parser and window size >= 128MB */
+        DEBUGLOG(4, "LDM enabled by default (window size >= 128MB, strategy >= btopt)");
+        params.ldmParams.enableLdm = 1;
+    }
+
+#ifdef ZSTD_MULTITHREAD
+    if ((cctx->pledgedSrcSizePlusOne-1) <= ZSTDMT_JOBSIZE_MIN) {
+        params.nbWorkers = 0; /* do not invoke multi-threading when src size is too small */
+    }
+    if (params.nbWorkers > 0) {
+        /* mt context creation */
+        if (cctx->mtctx == NULL) {
+            DEBUGLOG(4, "ZSTD_compressStream2: creating new mtctx for nbWorkers=%u",
+                        params.nbWorkers);
+            cctx->mtctx = ZSTDMT_createCCtx_advanced((U32)params.nbWorkers, cctx->customMem, cctx->pool);
+            RETURN_ERROR_IF(cctx->mtctx == NULL, memory_allocation, "NULL pointer!");
+        }
+        /* mt compression */
+        DEBUGLOG(4, "call ZSTDMT_initCStream_internal as nbWorkers=%u", params.nbWorkers);
+        FORWARD_IF_ERROR( ZSTDMT_initCStream_internal(
+                    cctx->mtctx,
+                    prefixDict.dict, prefixDict.dictSize, prefixDict.dictContentType,
+                    cctx->cdict, params, cctx->pledgedSrcSizePlusOne-1) , "");
+        cctx->streamStage = zcss_load;
+        cctx->appliedParams = params;
+    } else
+#endif
+    {   U64 const pledgedSrcSize = cctx->pledgedSrcSizePlusOne - 1;
+        assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
+        FORWARD_IF_ERROR( ZSTD_compressBegin_internal(cctx,
+                prefixDict.dict, prefixDict.dictSize, prefixDict.dictContentType, ZSTD_dtlm_fast,
+                cctx->cdict,
+                &params, pledgedSrcSize,
+                ZSTDb_buffered) , "");
+        assert(cctx->appliedParams.nbWorkers == 0);
+        cctx->inToCompress = 0;
+        cctx->inBuffPos = 0;
+        if (cctx->appliedParams.inBufferMode == ZSTD_bm_buffered) {
+            /* for small input: avoid automatic flush on reaching end of block, since
+            * it would require to add a 3-bytes null block to end frame
+            */
+            cctx->inBuffTarget = cctx->blockSize + (cctx->blockSize == pledgedSrcSize);
+        } else {
+            cctx->inBuffTarget = 0;
+        }
+        cctx->outBuffContentSize = cctx->outBuffFlushedSize = 0;
+        cctx->streamStage = zcss_load;
+        cctx->frameEnded = 0;
+    }
+    return 0;
+}
+
 size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
                              ZSTD_outBuffer* output,
                              ZSTD_inBuffer* input,
@@ -4348,77 +4423,8 @@ size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
 
     /* transparent initialization stage */
     if (cctx->streamStage == zcss_init) {
-        ZSTD_CCtx_params params = cctx->requestedParams;
-        ZSTD_prefixDict const prefixDict = cctx->prefixDict;
-        FORWARD_IF_ERROR( ZSTD_initLocalDict(cctx) , ""); /* Init the local dict if present. */
-        ZSTD_memset(&cctx->prefixDict, 0, sizeof(cctx->prefixDict));   /* single usage */
-        assert(prefixDict.dict==NULL || cctx->cdict==NULL);    /* only one can be set */
-        if (cctx->cdict)
-            params.compressionLevel = cctx->cdict->compressionLevel; /* let cdict take priority in terms of compression level */
-        DEBUGLOG(4, "ZSTD_compressStream2 : transparent init stage");
-        if (endOp == ZSTD_e_end) cctx->pledgedSrcSizePlusOne = input->size + 1;  /* auto-fix pledgedSrcSize */
-        {
-            size_t const dictSize = prefixDict.dict
-                    ? prefixDict.dictSize
-                    : (cctx->cdict ? cctx->cdict->dictContentSize : 0);
-            ZSTD_cParamMode_e const mode = ZSTD_getCParamMode(cctx->cdict, &params, cctx->pledgedSrcSizePlusOne - 1);
-            params.cParams = ZSTD_getCParamsFromCCtxParams(
-                    &params, cctx->pledgedSrcSizePlusOne-1,
-                    dictSize, mode);
-        }
-
-        if (ZSTD_CParams_shouldEnableLdm(&params.cParams)) {
-            /* Enable LDM by default for optimal parser and window size >= 128MB */
-            DEBUGLOG(4, "LDM enabled by default (window size >= 128MB, strategy >= btopt)");
-            params.ldmParams.enableLdm = 1;
-        }
-
-#ifdef ZSTD_MULTITHREAD
-        if ((cctx->pledgedSrcSizePlusOne-1) <= ZSTDMT_JOBSIZE_MIN) {
-            params.nbWorkers = 0; /* do not invoke multi-threading when src size is too small */
-        }
-        if (params.nbWorkers > 0) {
-            /* mt context creation */
-            if (cctx->mtctx == NULL) {
-                DEBUGLOG(4, "ZSTD_compressStream2: creating new mtctx for nbWorkers=%u",
-                            params.nbWorkers);
-                cctx->mtctx = ZSTDMT_createCCtx_advanced((U32)params.nbWorkers, cctx->customMem, cctx->pool);
-                RETURN_ERROR_IF(cctx->mtctx == NULL, memory_allocation, "NULL pointer!");
-            }
-            /* mt compression */
-            DEBUGLOG(4, "call ZSTDMT_initCStream_internal as nbWorkers=%u", params.nbWorkers);
-            FORWARD_IF_ERROR( ZSTDMT_initCStream_internal(
-                        cctx->mtctx,
-                        prefixDict.dict, prefixDict.dictSize, prefixDict.dictContentType,
-                        cctx->cdict, params, cctx->pledgedSrcSizePlusOne-1) , "");
-            cctx->streamStage = zcss_load;
-            cctx->appliedParams = params;
-        } else
-#endif
-        {   U64 const pledgedSrcSize = cctx->pledgedSrcSizePlusOne - 1;
-            assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
-            FORWARD_IF_ERROR( ZSTD_compressBegin_internal(cctx,
-                    prefixDict.dict, prefixDict.dictSize, prefixDict.dictContentType, ZSTD_dtlm_fast,
-                    cctx->cdict,
-                    &params, pledgedSrcSize,
-                    ZSTDb_buffered) , "");
-            assert(cctx->appliedParams.nbWorkers == 0);
-            cctx->inToCompress = 0;
-            cctx->inBuffPos = 0;
-            if (cctx->appliedParams.inBufferMode == ZSTD_bm_buffered) {
-                /* for small input: avoid automatic flush on reaching end of block, since
-                * it would require to add a 3-bytes null block to end frame
-                */
-                cctx->inBuffTarget = cctx->blockSize + (cctx->blockSize == pledgedSrcSize);
-            } else {
-                cctx->inBuffTarget = 0;
-            }
-            cctx->outBuffContentSize = cctx->outBuffFlushedSize = 0;
-            cctx->streamStage = zcss_load;
-            cctx->frameEnded = 0;
-        }
-        /* Set initial buffer expectations now that we've initialized */
-        ZSTD_setBufferExpectations(cctx, output, input);
+        ZSTD_CCtx_init_compressStream2(cctx, endOp, input->size);
+        ZSTD_setBufferExpectations(cctx, output, input);    /* Set initial buffer expectations now that we've initialized */
     }
     /* end of transparent initialization stage */
 
@@ -4771,42 +4777,16 @@ size_t ZSTD_compressSequences_ext(void* dst, size_t dstCapacity,
     size_t compressedBlocksSize = 0;
     size_t frameHeaderSize = 0;
 
+    /* Transparent initialization stage, same as compressStream2() */
     DEBUGLOG(4, "ZSTD_compressSequences_ext()");
     ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters);
     ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1);
-    /* Initialization stage */
-    {
-        ZSTD_CCtx_params params = cctx->requestedParams;
-        ZSTD_prefixDict const prefixDict = cctx->prefixDict;
-        FORWARD_IF_ERROR( ZSTD_initLocalDict(cctx) , ""); /* Init the local dict if present. */
-        ZSTD_memset(&cctx->prefixDict, 0, sizeof(cctx->prefixDict));   /* single usage */
-        assert(prefixDict.dict==NULL || cctx->cdict==NULL);    /* only one can be set */
-        if (cctx->cdict)
-            params.compressionLevel = cctx->cdict->compressionLevel; /* let cdict take priority in terms of compression level */
-        cctx->pledgedSrcSizePlusOne = srcSize + 1;  /* auto-fix pledgedSrcSize */
-
-        size_t const dictSize = prefixDict.dict
-                ? prefixDict.dictSize
-                : (cctx->cdict ? cctx->cdict->dictContentSize : 0);
-        ZSTD_cParamMode_e const mode = ZSTD_getCParamMode(cctx->cdict, &params, cctx->pledgedSrcSizePlusOne - 1);
-        params.cParams = ZSTD_getCParamsFromCCtxParams(
-                &params, cctx->pledgedSrcSizePlusOne-1,
-                dictSize, mode);
-
-        U64 const pledgedSrcSize = cctx->pledgedSrcSizePlusOne - 1;
-        cctx->blockSize = srcSize;
-        assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
-            FORWARD_IF_ERROR( ZSTD_compressBegin_internal(cctx,
-                    prefixDict.dict, prefixDict.dictSize, prefixDict.dictContentType, ZSTD_dtlm_fast,
-                    cctx->cdict,
-                    &params, pledgedSrcSize,
-                    ZSTDb_buffered) , "");
-        assert(cctx->appliedParams.nbWorkers == 0);
-    }
+    ZSTD_CCtx_init_compressStream2(cctx, ZSTD_e_end, srcSize);
     DEBUGLOG(4, "CCtx blockSize: %zu", cctx->blockSize);
     if (dstCapacity < ZSTD_compressBound(srcSize))
         RETURN_ERROR(dstSize_tooSmall, "Destination buffer too small!");
 
+    /* Begin writing output */
     frameHeaderSize = ZSTD_writeFrameHeader(op, dstCapacity, &cctx->appliedParams, srcSize, cctx->dictID);
     op += frameHeaderSize;
     dstCapacity -= frameHeaderSize;

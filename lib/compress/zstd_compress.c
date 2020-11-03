@@ -1245,7 +1245,7 @@ ZSTD_adjustCParams_internal(ZSTD_compressionParameters cPar,
     if (srcSize != ZSTD_CONTENTSIZE_UNKNOWN) {
         U32 const dictAndWindowLog = ZSTD_dictAndWindowLog(cPar.windowLog, (U64)srcSize, (U64)dictSize);
         U32 const cycleLog = ZSTD_cycleLog(cPar.chainLog, cPar.strategy);
-        if (cPar.hashLog > dictAndWindowLog+1) cPar.hashLog = dictAndWindowLog+1;
+        if (cPar.hashLog > dictAndWindowLog+6) cPar.hashLog = dictAndWindowLog+1;
         if (cycleLog > dictAndWindowLog)
             cPar.chainLog -= (cycleLog - dictAndWindowLog);
     }
@@ -1571,7 +1571,12 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
         ZSTD_cwksp_mark_tables_dirty(ws);
     }
 
-    ms->hashLog3 = hashLog3;
+    if (cParams->strategy < ZSTD_btopt) {
+        ms->hashLog3 = ZSTD_highbit32((1u << cParams->hashLog) / kRowSizeU32);
+        assert((1u << ms->hashLog3) * kRowSizeU32 <= (1u << cParams->hashLog));
+    } else {
+        ms->hashLog3 = hashLog3;
+    }
 
     ZSTD_invalidateMatchState(ms);
 
@@ -1586,6 +1591,8 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
     ms->hashTable3 = (U32*)ZSTD_cwksp_reserve_table(ws, h3Size * sizeof(U32));
     RETURN_ERROR_IF(ZSTD_cwksp_reserve_failed(ws), memory_allocation,
                     "failed a workspace allocation in ZSTD_reset_matchState");
+    
+    // memset(ms->hashTable, 0, sizeof(U32) * (1u << cParams->hashLog));
 
     DEBUGLOG(4, "reset table : %u", crp!=ZSTDcrp_leaveDirty);
     if (crp!=ZSTDcrp_leaveDirty) {
@@ -5063,14 +5070,14 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
     { 20, 15, 16,  1,  6,  0, ZSTD_fast    },  /* level  2 */
     { 21, 16, 17,  1,  5,  0, ZSTD_dfast   },  /* level  3 */
     { 21, 18, 18,  1,  5,  0, ZSTD_dfast   },  /* level  4 */
-    { 21, 18, 19,  2,  5,  2, ZSTD_greedy  },  /* level  5 */
-    { 21, 19, 19,  3,  5,  4, ZSTD_greedy  },  /* level  6 */
-    { 21, 19, 19,  3,  5,  8, ZSTD_lazy    },  /* level  7 */
-    { 21, 19, 19,  3,  5, 16, ZSTD_lazy2   },  /* level  8 */
-    { 21, 19, 20,  4,  5, 16, ZSTD_lazy2   },  /* level  9 */
-    { 22, 20, 21,  4,  5, 16, ZSTD_lazy2   },  /* level 10 */
-    { 22, 21, 22,  4,  5, 16, ZSTD_lazy2   },  /* level 11 */
-    { 22, 21, 22,  5,  5, 16, ZSTD_lazy2   },  /* level 12 */
+    { 21, 18, 19+1,  2,  5,  2, ZSTD_greedy  },  /* level  5 */
+    { 21, 19, 19+1,  3,  5,  4, ZSTD_greedy  },  /* level  6 */
+    { 21, 19, 19+1,  3,  5,  8, ZSTD_lazy    },  /* level  7 */
+    { 21, 19, 19+1,  3,  5, 16, ZSTD_lazy2   },  /* level  8 */
+    { 21, 19, 20+1,  4,  5, 16, ZSTD_lazy2   },  /* level  9 */
+    { 22, 20, 21+1,  4,  5, 16, ZSTD_lazy2   },  /* level 10 */
+    { 22, 21, 22+1,  4,  5, 16, ZSTD_lazy2   },  /* level 11 */
+    { 22, 21, 22+1,  5,  5, 16, ZSTD_lazy2   },  /* level 12 */
     { 22, 21, 22,  5,  5, 32, ZSTD_btlazy2 },  /* level 13 */
     { 22, 22, 23,  5,  5, 32, ZSTD_btlazy2 },  /* level 14 */
     { 22, 23, 23,  6,  5, 32, ZSTD_btlazy2 },  /* level 15 */
@@ -5088,13 +5095,13 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
     { 18, 13, 14,  1,  6,  0, ZSTD_fast    },  /* level  1 */
     { 18, 14, 14,  1,  5,  0, ZSTD_dfast   },  /* level  2 */
     { 18, 16, 16,  1,  4,  0, ZSTD_dfast   },  /* level  3 */
-    { 18, 16, 17,  2,  5,  2, ZSTD_greedy  },  /* level  4.*/
-    { 18, 18, 18,  3,  5,  2, ZSTD_greedy  },  /* level  5.*/
-    { 18, 18, 19,  3,  5,  4, ZSTD_lazy    },  /* level  6.*/
-    { 18, 18, 19,  4,  4,  4, ZSTD_lazy    },  /* level  7 */
-    { 18, 18, 19,  4,  4,  8, ZSTD_lazy2   },  /* level  8 */
-    { 18, 18, 19,  5,  4,  8, ZSTD_lazy2   },  /* level  9 */
-    { 18, 18, 19,  6,  4,  8, ZSTD_lazy2   },  /* level 10 */
+    { 18, 16, 17+1,  2,  5,  2, ZSTD_greedy  },  /* level  4.*/
+    { 18, 18, 18+1,  3,  5,  2, ZSTD_greedy  },  /* level  5.*/
+    { 18, 18, 19+1,  3,  5,  4, ZSTD_lazy    },  /* level  6.*/
+    { 18, 18, 19+2,  4,  4,  4, ZSTD_lazy    },  /* level  7 */
+    { 18, 18, 19+3,  4,  4,  8, ZSTD_lazy2   },  /* level  8 */
+    { 18, 18, 19+4,  5,  4,  8, ZSTD_lazy2   },  /* level  9 */
+    { 18, 18, 19+5,  5,  4,  8, ZSTD_lazy2   },  /* level 10 */
     { 18, 18, 19,  5,  4, 12, ZSTD_btlazy2 },  /* level 11.*/
     { 18, 19, 19,  7,  4, 12, ZSTD_btlazy2 },  /* level 12.*/
     { 18, 18, 19,  4,  4, 16, ZSTD_btopt   },  /* level 13 */
@@ -5115,9 +5122,9 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
     { 17, 13, 15,  1,  5,  0, ZSTD_fast    },  /* level  2 */
     { 17, 15, 16,  2,  5,  0, ZSTD_dfast   },  /* level  3 */
     { 17, 17, 17,  2,  4,  0, ZSTD_dfast   },  /* level  4 */
-    { 17, 16, 17,  3,  4,  2, ZSTD_greedy  },  /* level  5 */
-    { 17, 17, 17,  3,  4,  4, ZSTD_lazy    },  /* level  6 */
-    { 17, 17, 17,  3,  4,  8, ZSTD_lazy2   },  /* level  7 */
+    { 17, 16, 17+3,  3,  4,  2, ZSTD_greedy  },  /* level  5 */
+    { 17, 17, 17+3,  3,  4,  4, ZSTD_lazy    },  /* level  6 */
+    { 17, 17, 17+3,  3,  4,  8, ZSTD_lazy2   },  /* level  7 */
     { 17, 17, 17,  4,  4,  8, ZSTD_lazy2   },  /* level  8 */
     { 17, 17, 17,  5,  4,  8, ZSTD_lazy2   },  /* level  9 */
     { 17, 17, 17,  6,  4,  8, ZSTD_lazy2   },  /* level 10 */

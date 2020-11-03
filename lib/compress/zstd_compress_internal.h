@@ -29,6 +29,27 @@
 extern "C" {
 #endif
 
+#define kUseHash 1
+#define kUseHead 1
+#define kRowLog 4
+static const U32 kRowEntries = 1u << kRowLog;
+static const U32 kRowMask = kRowEntries - 1;
+static const U32 kHashSizeU32 = kUseHash ? kRowEntries / sizeof(U32) : 0;
+static const U32 kHeadSizeU32 = kUseHead ? 1 : 0;
+static const U32 kHeadOffset = 0;
+static const U32 kHashOffset = kHeadOffset + kHeadSizeU32;
+static const U32 kEntriesOffset = kHashOffset + kHashSizeU32;
+static const U32 kRowSizeU32 = kHeadSizeU32 + kHashSizeU32 + kRowEntries;
+
+static const U32 kShortBits = 8;
+static const U32 kShortMask = (1u << kShortBits) - 1;
+static const U32 kLongBits = 8 - kShortBits;
+static const U32 kLongLength = 8;
+
+#if !kUseHead && kUseHash
+# error Unsupportee combination
+#endif
+
 /*-*************************************
 *  Constants
 ***************************************/
@@ -149,6 +170,15 @@ typedef struct {
     U32 lowLimit;           /* below that point, no more valid data */
 } ZSTD_window_t;
 
+#define kPrefetchLog 3
+#define kPrefetchAdv (1u << kPrefetchLog)
+#define kPrefetchMask (kPrefetchAdv - 1)
+
+typedef struct {
+    U32 row;
+    U32 tag;
+} ZS_RowHash;
+
 typedef struct ZSTD_matchState_t ZSTD_matchState_t;
 struct ZSTD_matchState_t {
     ZSTD_window_t window;   /* State for window round buffer management */
@@ -171,6 +201,7 @@ struct ZSTD_matchState_t {
     const ZSTD_matchState_t* dictMatchState;
     ZSTD_compressionParameters cParams;
     const rawSeqStore_t* ldmSeqStore;
+    ZS_RowHash hashCache[kPrefetchAdv];
 };
 
 typedef struct {

@@ -2739,6 +2739,61 @@ static int basicUnitTests(U32 const seed, double compressibility)
         free(seqs);
     }
     DISPLAYLEVEL(3, "OK \n");
+    
+    DISPLAYLEVEL(3, "test%3i : ZSTD_getSequences followed by ZSTD_compressSequences : ", testNb++);
+    {
+        size_t srcSize = 150 KB;
+        BYTE* src = (BYTE*)CNBuffer;
+        BYTE* dst = (BYTE*)compressedBuffer;
+        size_t dstSize = ZSTD_compressBound(srcSize);
+        size_t decompressSize = srcSize;
+        char* decompressBuffer = (char*)malloc(decompressSize);
+        size_t compressedSize;
+        size_t dSize;
+
+        ZSTD_CCtx* cctx = ZSTD_createCCtx();
+        ZSTD_Sequence* seqs = (ZSTD_Sequence*)malloc(srcSize * sizeof(ZSTD_Sequence));
+        size_t seqsSize;
+
+        if (seqs == NULL) goto _output_error;
+        assert(cctx != NULL);
+
+        /* Populate src with random data */
+        RDG_genBuffer(CNBuffer, srcSize, compressibility, 0., seed);
+
+        /* Test with block delimiters roundtrip */
+        seqsSize = ZSTD_getSequences(cctx, seqs, srcSize, src, srcSize, ZSTD_sf_explicitBlockDelimiters);
+        compressedSize = ZSTD_compressSequences(dst, dstSize, seqs, seqsSize, src, srcSize, 3 /* clevel */, ZSTD_sf_explicitBlockDelimiters);
+        if (ZSTD_isError(compressedSize)) {
+            DISPLAY("Error in sequence compression with block delims\n");
+            goto _output_error;
+        }
+        dSize = ZSTD_decompress(decompressBuffer, decompressSize, dst, compressedSize);
+        if (ZSTD_isError(dSize)) {
+            DISPLAY("Error in sequence compression roundtrip with block delims\n");
+            goto _output_error;
+        }
+        assert(!memcmp(decompressBuffer, src, srcSize));
+
+        /* Test with no block delimiters roundtrip */
+        seqsSize = ZSTD_getSequences(cctx, seqs, srcSize, src, srcSize, ZSTD_sf_noBlockDelimiters);
+        compressedSize = ZSTD_compressSequences(dst, dstSize, seqs, seqsSize, src, srcSize, 3 /* clevel */, ZSTD_sf_noBlockDelimiters);
+        if (ZSTD_isError(compressedSize)) {
+            DISPLAY("Error in sequence compression with no block delims\n");
+            goto _output_error;
+        }
+        dSize = ZSTD_decompress(decompressBuffer, decompressSize, dst, compressedSize);
+        if (ZSTD_isError(dSize)) {
+            DISPLAY("Error in sequence compression roundtrip with no block delims\n");
+            goto _output_error;
+        }
+        assert(!memcmp(decompressBuffer, src, srcSize));
+
+        ZSTD_freeCCtx(cctx);
+        free(decompressBuffer);
+        free(seqs);
+    }
+    DISPLAYLEVEL(3, "OK \n");
 
     /* Multiple blocks of zeros test */
     #define LONGZEROSLENGTH 1000000 /* 1MB of zeros */

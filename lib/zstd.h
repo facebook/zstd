@@ -1327,7 +1327,13 @@ ZSTDLIB_API size_t ZSTD_generateSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
  * @return : number of sequences left after merging
  */
 ZSTDLIB_API size_t ZSTD_mergeBlockDelimiters(ZSTD_Sequence* sequences, size_t seqsSize);
-ZSTDLIB_API size_t ZSTD_compressSequences_ext(void* dst, size_t dstSize,
+
+ZSTDLIB_API size_t ZSTD_compressSequencesCCtx(ZSTD_CCtx* const cctx, void* dst, size_t dstSize,
+                                  const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
+                                  const void* src, size_t srcSize,
+                                  ZSTD_sequenceFormat_e format);     
+
+ZSTDLIB_API size_t ZSTD_compressSequences(void* dst, size_t dstSize,
                                   const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
                                   const void* src, size_t srcSize, int compressionLevel,
                                   ZSTD_sequenceFormat_e format);                    

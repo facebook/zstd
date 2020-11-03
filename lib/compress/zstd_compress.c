@@ -2115,10 +2115,10 @@ static int ZSTD_useTargetCBlockSize(const ZSTD_CCtx_params* cctxParams)
     return (cctxParams->targetCBlockSize != 0);
 }
 
-/* ZSTD_compressSequences_internal():
+/* ZSTD_compressSeqs_internal():
  * actually compresses both literals and sequences */
 MEM_STATIC size_t
-ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
+ZSTD_compressSeqs_internal(seqStore_t* seqStorePtr,
                           const ZSTD_entropyCTables_t* prevEntropy,
                                 ZSTD_entropyCTables_t* nextEntropy,
                           const ZSTD_CCtx_params* cctxParams,
@@ -2147,15 +2147,7 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
     entropyWorkspace = count + (MaxSeq + 1);
     entropyWkspSize -= (MaxSeq + 1) * sizeof(*count);
 
-    DEBUGLOG(4, "ZSTD_compressSequences_internal (nbSeq=%zu)", nbSeq);
-    /*DEBUGLOG(4, "First seqs:", nbSeq);
-    for (int i = 0; i < 5; ++i) {
-        DEBUGLOG(4, "(of: %u ml: %u ll: %u)", seqStorePtr->sequencesStart[i].offset, seqStorePtr->sequencesStart[i].matchLength, seqStorePtr->sequencesStart[i].litLength);
-    }
-    DEBUGLOG(4, "Final seqs:", nbSeq);
-    for (int i = 1; i < 5; ++i) {
-        DEBUGLOG(4, "(of: %u ml: %u ll: %u)", seqStorePtr->sequencesStart[nbSeq-i].offset, seqStorePtr->sequencesStart[nbSeq-i].matchLength, seqStorePtr->sequencesStart[nbSeq-i].litLength);
-    }*/
+    DEBUGLOG(4, "ZSTD_compressSeqs_internal (nbSeq=%zu)", nbSeq);
     ZSTD_STATIC_ASSERT(HUF_WORKSPACE_SIZE >= (1<<MAX(MLFSELog,LLFSELog)));
     assert(entropyWkspSize >= HUF_WORKSPACE_SIZE);
 
@@ -2317,7 +2309,7 @@ ZSTD_compressSequences_internal(seqStore_t* seqStorePtr,
 }
 
 MEM_STATIC size_t
-ZSTD_compressSequences(seqStore_t* seqStorePtr,
+ZSTD_compressSeqs(seqStore_t* seqStorePtr,
                        const ZSTD_entropyCTables_t* prevEntropy,
                              ZSTD_entropyCTables_t* nextEntropy,
                        const ZSTD_CCtx_params* cctxParams,
@@ -2326,7 +2318,7 @@ ZSTD_compressSequences(seqStore_t* seqStorePtr,
                              void* entropyWorkspace, size_t entropyWkspSize,
                              int bmi2)
 {
-    size_t const cSize = ZSTD_compressSequences_internal(
+    size_t const cSize = ZSTD_compressSeqs_internal(
                             seqStorePtr, prevEntropy, nextEntropy, cctxParams,
                             dst, dstCapacity,
                             entropyWorkspace, entropyWkspSize, bmi2);
@@ -2336,13 +2328,13 @@ ZSTD_compressSequences(seqStore_t* seqStorePtr,
      */
     if ((cSize == ERROR(dstSize_tooSmall)) & (srcSize <= dstCapacity))
         return 0;  /* block not compressed */
-    FORWARD_IF_ERROR(cSize, "ZSTD_compressSequences_internal failed");
+    FORWARD_IF_ERROR(cSize, "ZSTD_compressSeqs_internal failed");
 
     /* Check compressibility */
     {   size_t const maxCSize = srcSize - ZSTD_minGain(srcSize, cctxParams->cParams.strategy);
         if (cSize >= maxCSize) return 0;  /* block not compressed */
     }
-    DEBUGLOG(4, "compressSequences cSize: %u\n", cSize);
+    DEBUGLOG(4, "compressSeqs cSize: %u\n", cSize);
     return cSize;
 }
 
@@ -2652,7 +2644,7 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
     }
 
     /* encode sequences and literals */
-    cSize = ZSTD_compressSequences(&zc->seqStore,
+    cSize = ZSTD_compressSeqs(&zc->seqStore,
             &zc->blockState.prevCBlock->entropy, &zc->blockState.nextCBlock->entropy,
             &zc->appliedParams,
             dst, dstCapacity,
@@ -4676,7 +4668,7 @@ static size_t ZSTD_copySequencesToSeqStore(seqStore_t* seqStore, const ZSTD_sequ
     return 0;
 }
 
-size_t ZSTD_compressSequences_ext_internal(void* dst, size_t dstCapacity,
+size_t ZSTD_compressSequences_internal(void* dst, size_t dstCapacity,
                                            ZSTD_CCtx* cctx,
                                            const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
                                            const void* src, size_t srcSize,
@@ -4692,7 +4684,7 @@ size_t ZSTD_compressSequences_ext_internal(void* dst, size_t dstCapacity,
     blockSeqStore.longLengthPos = 0;
     size_t origDstCapacity = dstCapacity;
     
-    DEBUGLOG(4, "ZSTD_compressSequences_ext_internal srcSize: %zu, inSeqsSize: %zu", srcSize, inSeqsSize);
+    DEBUGLOG(4, "ZSTD_compressSequences_internal srcSize: %zu, inSeqsSize: %zu", srcSize, inSeqsSize);
     BYTE const* ip = (BYTE const*)src;
     BYTE* op = (BYTE*)dst;
 
@@ -4722,7 +4714,7 @@ size_t ZSTD_compressSequences_ext_internal(void* dst, size_t dstCapacity,
 
         FORWARD_IF_ERROR(ZSTD_copySequencesToSeqStore(&blockSeqStore, &seqRange, inSeqs, inSeqsSize, ip, blockSize, format),
                          "Sequence copying failed");
-        compressedSeqsSize = ZSTD_compressSequences(&blockSeqStore,
+        compressedSeqsSize = ZSTD_compressSeqs(&blockSeqStore,
                                 &cctx->blockState.prevCBlock->entropy, &cctx->blockState.nextCBlock->entropy,
                                 &cctx->appliedParams,
                                 op + ZSTD_blockHeaderSize /* Leave space for block header */, dstCapacity - ZSTD_blockHeaderSize,
@@ -4770,7 +4762,7 @@ size_t ZSTD_compressSequences_ext_internal(void* dst, size_t dstCapacity,
     return cSize;
 }
 
-size_t ZSTD_compressSequences_ext_CCtx(ZSTD_CCtx* const cctx, void* dst, size_t dstCapacity,
+size_t ZSTD_compressSequencesCCtx(ZSTD_CCtx* const cctx, void* dst, size_t dstCapacity,
                                        const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
                                        const void* src, size_t srcSize,
                                        ZSTD_sequenceFormat_e format) {
@@ -4780,7 +4772,7 @@ size_t ZSTD_compressSequences_ext_CCtx(ZSTD_CCtx* const cctx, void* dst, size_t 
     size_t frameHeaderSize = 0;
 
     /* Transparent initialization stage, same as compressStream2() */
-    DEBUGLOG(4, "ZSTD_compressSequences_ext_CCtx()");
+    DEBUGLOG(4, "ZSTD_compressSequencesCCtx()");
     assert(cctx != NULL);
     FORWARD_IF_ERROR(ZSTD_CCtx_init_compressStream2(cctx, ZSTD_e_end, srcSize), "CCtx initialization failed");
     if (dstCapacity < ZSTD_compressBound(srcSize)) {
@@ -4799,13 +4791,12 @@ size_t ZSTD_compressSequences_ext_CCtx(ZSTD_CCtx* const cctx, void* dst, size_t 
     }
 
     /* cSize includes block header size and compressed sequences size */
-    compressedBlocksSize = ZSTD_compressSequences_ext_internal(op, dstCapacity,
+    compressedBlocksSize = ZSTD_compressSequences_internal(op, dstCapacity,
                                                                cctx, inSeqs, inSeqsSize,
                                                                src, srcSize, format);
     FORWARD_IF_ERROR(compressedBlocksSize, "Block compression failed!");
     cSize += compressedBlocksSize;
     dstCapacity -= compressedBlocksSize;
-    DEBUGLOG(4, "cSize after compressSequences_internal: %zu", cSize);    
 
     if (cctx->appliedParams.fParams.checksumFlag) {
         U32 const checksum = (U32) XXH64_digest(&cctx->xxhState);
@@ -4820,7 +4811,7 @@ size_t ZSTD_compressSequences_ext_CCtx(ZSTD_CCtx* const cctx, void* dst, size_t 
 }
 
 
-size_t ZSTD_compressSequences_ext(void* dst, size_t dstCapacity,
+size_t ZSTD_compressSequences(void* dst, size_t dstCapacity,
                                   const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
                                   const void* src, size_t srcSize, int compressionLevel,
                                   ZSTD_sequenceFormat_e format)
@@ -4832,8 +4823,8 @@ size_t ZSTD_compressSequences_ext(void* dst, size_t dstCapacity,
     FORWARD_IF_ERROR(ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters), "CCtx reset failed");
     FORWARD_IF_ERROR(ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, compressionLevel), "Parameter setting failed");
 
-    cSize = ZSTD_compressSequences_ext_CCtx(cctx, dst, dstCapacity, inSeqs, inSeqsSize, src, srcSize, format);
-    FORWARD_IF_ERROR(cSize, "ZSTD_compressSequences_ext_CCtx() failed");
+    cSize = ZSTD_compressSequencesCCtx(cctx, dst, dstCapacity, inSeqs, inSeqsSize, src, srcSize, format);
+    FORWARD_IF_ERROR(cSize, "ZSTD_compressSequencesCCtx() failed");
 
     ZSTD_freeCCtx(cctx);
     return cSize;

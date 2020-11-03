@@ -2785,23 +2785,6 @@ static void ZSTD_overflowCorrectIfNeeded(ZSTD_matchState_t* ms,
     }
 }
 
-
-/*void printBits(size_t const size, void const * const ptr)
-{
-    unsigned char *b = (unsigned char*) ptr;
-    unsigned char byte;
-    int i, j;
-    
-    for (i = size-1; i >= 0; i--) {
-        for (j = 7; j >= 0; j--) {
-            byte = (b[i] >> j) & 1;
-            printf("%u", byte);
-        }
-        printf("\n");
-    }
-    puts("");
-}*/
-
 /*! ZSTD_compress_frameChunk() :
 *   Compress a chunk of data into one or multiple blocks.
 *   All blocks will be terminated, all input will be consumed.
@@ -2864,7 +2847,6 @@ static size_t ZSTD_compress_frameChunk (ZSTD_CCtx* cctx,
                         lastBlock + (((U32)bt_rle)<<1) + (U32)(blockSize << 3) :
                         lastBlock + (((U32)bt_compressed)<<1) + (U32)(cSize << 3);
                     MEM_writeLE24(op, cBlockHeader);
-                    //printBits(ZSTD_blockHeaderSize, &cBlockHeader);
                     DEBUGLOG(4, "Block header: %u", cBlockHeader);
                     cSize += ZSTD_blockHeaderSize;
                 }
@@ -2930,8 +2912,7 @@ static size_t ZSTD_writeFrameHeader(void* dst, size_t dstCapacity,
         case 2 : MEM_writeLE32(op+pos, (U32)(pledgedSrcSize)); pos+=4; break;
         case 3 : MEM_writeLE64(op+pos, (U64)(pledgedSrcSize)); pos+=8; break;
     }
-    //printBits(pos, op);
-    DEBUGLOG(4, "frame header size: %u", pos);
+    DEBUGLOG(4, "Frame header size: %u", pos);
     return pos;
 }
 
@@ -2949,7 +2930,6 @@ size_t ZSTD_writeLastEmptyBlock(void* dst, size_t dstCapacity)
         return ZSTD_blockHeaderSize;
     }
 }
-
 
 size_t ZSTD_referenceExternalSequences(ZSTD_CCtx* cctx, rawSeq* seq, size_t nbSeq)
 {

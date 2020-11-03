@@ -3411,7 +3411,6 @@ static size_t ZSTD_writeEpilogue(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity)
     }
 
     if (cctx->stage != ZSTDcs_ending) {
-        DEBUGLOG(4, "did this\n");
         /* write one last empty block, make it the "last" block */
         U32 const cBlockHeader24 = 1 /* last block */ + (((U32)bt_raw)<<1) + 0;
         RETURN_ERROR_IF(dstCapacity<4, dstSize_tooSmall, "no room for epilogue");
@@ -4382,7 +4381,7 @@ size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
 
     /* transparent initialization stage */
     if (cctx->streamStage == zcss_init) {
-        ZSTD_CCtx_init_compressStream2(cctx, endOp, input->size);
+        FORWARD_IF_ERROR(ZSTD_CCtx_init_compressStream2(cctx, endOp, input->size), "CompressStream2 initialization failed");
         ZSTD_setBufferExpectations(cctx, output, input);    /* Set initial buffer expectations now that we've initialized */
     }
     /* end of transparent initialization stage */
@@ -4654,11 +4653,11 @@ static size_t ZSTD_copySequencesToSeqStore(seqStore_t* seqStore, const ZSTD_sequ
  *
  * Returns the cumulative size of all compressed blocks (including their headers), otherwise a ZSTD error
  */
-size_t ZSTD_compressSequences_internal(void* dst, size_t dstCapacity,
-                                       ZSTD_CCtx* cctx,
-                                       const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
-                                       const void* src, size_t srcSize,
-                                       ZSTD_sequenceFormat_e format) {
+static size_t ZSTD_compressSequences_internal(void* dst, size_t dstCapacity,
+                                              ZSTD_CCtx* cctx,
+                                              const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
+                                              const void* src, size_t srcSize,
+                                              ZSTD_sequenceFormat_e format) {
     U32 cSize = 0;
     U32 lastBlock;
     U32 blockSize;
@@ -4668,7 +4667,6 @@ size_t ZSTD_compressSequences_internal(void* dst, size_t dstCapacity,
     seqStore_t blockSeqStore; 
     blockSeqStore.longLengthID = 0;
     blockSeqStore.longLengthPos = 0;
-    size_t origDstCapacity = dstCapacity;
     
     DEBUGLOG(4, "ZSTD_compressSequences_internal srcSize: %zu, inSeqsSize: %zu", srcSize, inSeqsSize);
     BYTE const* ip = (BYTE const*)src;

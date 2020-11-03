@@ -1911,9 +1911,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
                                             cParams, ZSTD_defaultCMem);
             assert(cdict != NULL);
             DISPLAYLEVEL(3, "(size : %u) : ", (unsigned)ZSTD_sizeof_CDict(cdict));
-            const unsigned dict_id_from_dict = ZSTD_getDictID_fromDict(dictBuffer, dictSize);
-            const unsigned dict_id_from_cdict = ZSTD_getDictID_fromCDict(cdict);
-            assert(dict_id_from_dict == dict_id_from_cdict);
+            assert(ZSTD_getDictID_fromDict(dictBuffer, dictSize) == ZSTD_getDictID_fromCDict(cdict));
             cSize = ZSTD_compress_usingCDict(cctx, compressedBuffer, compressedBufferSize,
                                                  CNBuffer, CNBuffSize, cdict);
             ZSTD_freeCDict(cdict);

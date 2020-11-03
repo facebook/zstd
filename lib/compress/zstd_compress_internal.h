@@ -432,8 +432,6 @@ MEM_STATIC size_t ZSTD_noCompressBlock (void* dst, size_t dstCapacity, const voi
                     dstSize_tooSmall, "dst buf too small for uncompressed block");
     MEM_writeLE24(dst, cBlockHeader24);
     ZSTD_memcpy((BYTE*)dst + ZSTD_blockHeaderSize, src, srcSize);
-    DEBUGLOG(4, "nocompress: %u", ZSTD_blockHeaderSize + srcSize);
-    DEBUGLOG(4, "nocompress header: %u", cBlockHeader24);
     return ZSTD_blockHeaderSize + srcSize;
 }
 

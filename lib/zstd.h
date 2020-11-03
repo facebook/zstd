@@ -420,6 +420,7 @@ typedef enum {
      * ZSTD_c_blockDelimiters
      * ZSTD_c_validateSequences
      * ZSTD_c_splitBlocks
+     * ZSTD_c_useRowMatchFinder
      * Because they are not stable, it's necessary to define ZSTD_STATIC_LINKING_ONLY to access them.
      * note : never ever use experimentalParam? names directly;
      *        also, the enums values themselves are unstable and can still change.
@@ -436,7 +437,8 @@ typedef enum {
      ZSTD_c_experimentalParam10=1007,
      ZSTD_c_experimentalParam11=1008,
      ZSTD_c_experimentalParam12=1009,
-     ZSTD_c_experimentalParam13=1010
+     ZSTD_c_experimentalParam13=1010,
+     ZSTD_c_experimentalParam14=1011
 } ZSTD_cParameter;
 
 typedef struct {
@@ -1272,6 +1274,11 @@ typedef enum {
   ZSTD_lcm_uncompressed = 2   /**< Always emit uncompressed literals. */
 } ZSTD_literalCompressionMode_e;
 
+typedef enum {
+  ZSTD_urm_auto = 0,                   /* Automatically determine whether or not we use row matchfinder */
+  ZSTD_urm_disableRowMatchFinder = 1,  /* Never use row matchfinder */
+  ZSTD_urm_enableRowMatchFinder = 2    /* Always use row matchfinder when applicable */
+} ZSTD_useRowMatchFinderMode_e;
 
 /***************************************
 *  Frame size functions
@@ -1842,6 +1849,19 @@ ZSTDLIB_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* pre
  * Will attempt to split blocks in order to improve compression ratio at the cost of speed.
  */
 #define ZSTD_c_splitBlocks ZSTD_c_experimentalParam13
+
+/* ZSTD_c_useRowMatchFinder
+ * Default is ZSTD_urm_auto.
+ * Controlled with ZSTD_useRowMatchFinderMode_e enum.
+ * 
+ * By default, in ZSTD_urm_auto, when finalizing the compression parameters, the library
+ * will decide at runtime whether to use the row-based matchfinder based on support for SIMD
+ * instructions as well as the windowLog.
+ * 
+ * Set to ZSTD_urm_disableRowMatchFinder to never use row-based matchfinder.
+ * Set to ZSTD_urm_enableRowMatchFinder to force usage of row-based matchfinder.
+ */
+#define ZSTD_c_useRowMatchFinder ZSTD_c_experimentalParam14
 
 /*! ZSTD_CCtx_getParameter() :
  *  Get the requested compression parameter value, selected by enum ZSTD_cParameter,

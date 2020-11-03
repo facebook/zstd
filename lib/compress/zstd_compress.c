@@ -4501,14 +4501,14 @@ typedef struct {
     U32 endPosInSequence;     /* Position within sequence at index 'endIdx' where range ends */
 } ZSTD_sequenceRange;
 
-/* Returns the number of additional bytes consumed, after nbBytes. Can be negative */
-static int ZSTD_updateSequenceRange(ZSTD_sequenceRange* sequenceRange, size_t nbBytes,
+/* Returns the number of additional bytes consumed, after blockSize. Can be negative */
+static int ZSTD_updateSequenceRange(ZSTD_sequenceRange* sequenceRange, size_t blockSize,
                                     const ZSTD_Sequence* const inSeqs, size_t inSeqsSize,
                                     ZSTD_sequenceFormat_e format) {
     U32 idx = sequenceRange->endIdx;
-    U32 endPosInSequence = sequenceRange->endPosInSequence + nbBytes;
+    U32 endPosInSequence = sequenceRange->endPosInSequence + blockSize;
     int bytesAdjustment = 0;
-    DEBUGLOG(4, "ZSTD_updateSequenceRange: %u bytes, startidx %u startpos: %u endidx: %u endpos: %u", nbBytes,
+    DEBUGLOG(4, "ZSTD_updateSequenceRange: %u bytes, startidx %u startpos: %u endidx: %u endpos: %u", blockSize,
              sequenceRange->startIdx, sequenceRange->startPosInSequence, sequenceRange->endIdx, sequenceRange->endPosInSequence);
     DEBUGLOG(4, "endPosInSequence begin val: %u", endPosInSequence);
     while (endPosInSequence && idx < inSeqsSize) {
@@ -4525,28 +4525,24 @@ static int ZSTD_updateSequenceRange(ZSTD_sequenceRange* sequenceRange, size_t nb
     if (format == ZSTD_sf_noBlockDelimiters) {
         assert(endPosInSequence <= inSeqs[idx].litLength + inSeqs[idx].matchLength);
         DEBUGLOG(4, "idx: %u", idx);
-        if (idx == inSeqsSize) {
-            DEBUGLOG(4, "End reached");
-        } else if (endPosInSequence <= inSeqs[idx].litLength) {
-            DEBUGLOG(4, "endpos is less than litLength");
-            /*bytesAdjustment = inSeqs[idx].litLength - endPosInSequence;
-            endPosInSequence = inSeqs[idx].litLength;*/
-
-        } else if (endPosInSequence <= inSeqs[idx].litLength + inSeqs[idx].matchLength) {
-            DEBUGLOG(4, "endpos is more than litLength");
-            if (inSeqs[idx].matchLength >= nbBytes) {
+        if (idx != inSeqsSize && endPosInSequence > inSeqs[idx].litLength) {
+            DEBUGLOG(4, "Endpos is in the match");
+            if (inSeqs[idx].matchLength >= blockSize) {
+                /* Only split the match if it's too large */
                 U32 firstHalfMatchLength = endPosInSequence - inSeqs[idx].litLength;
                 U32 secondHalfMatchLength = inSeqs[idx].litLength - firstHalfMatchLength;
                 assert(firstHalfMatchLength >= MINMATCH || secondHalfMatchLength >= MINMATCH);
-                if (firstHalfMatchLength < MINMATCH) {
-                    endPosInSequence = MINMATCH;
+                if (firstHalfMatchLength < MINMATCH && firstHalfMatchLength != 0) {
+                    /* Move the endPos forward so that it creates match of at least MINMATCH length */
+                    endPosInSequence = MINMATCH + inSeqs[idx].litLength;
                     bytesAdjustment = MINMATCH - firstHalfMatchLength;
-                } else if (secondHalfMatchLength < MINMATCH) {
-                    endPosInSequence -= MINMATCH - secondHalfMatchLength;   /* Move endpos back to allow MINMATCH length */
+                } else if (secondHalfMatchLength < MINMATCH && secondHalfMatchLength != 0) {
+                    /* Move the endPos backward so that it creates match of at least MINMATCH length */
+                    endPosInSequence -= MINMATCH - secondHalfMatchLength;
                     bytesAdjustment = secondHalfMatchLength - MINMATCH;
                 }
             } else {
-                /* Don't split the match unless absolutely necessary */
+                /* If we can, prefer to simply move endPos to the end of the literals */
                 bytesAdjustment = (int)inSeqs[idx].litLength - (int)endPosInSequence;
                 endPosInSequence = inSeqs[idx].litLength;
             }
@@ -4585,9 +4581,8 @@ static size_t ZSTD_copySequencesToSeqStore(seqStore_t* seqStore, const ZSTD_sequ
             U32 seqLength = seqRange->endPosInSequence - seqRange->startPosInSequence;
             RETURN_ERROR_IF(seqLength > litLength + matchLength, corruption_detected, "SeqLength cannot be bigger than sequence length!");
             if (seqLength <= litLength) {
-                /* Sequence of just literals */
-                litLength = seqLength;
-                continue;
+                /* Sequence is entirely literals, break and store last literals */
+                break;
             } else if (seqLength <= litLength + matchLength) {
                 matchLength = seqLength - litLength;
             }
@@ -4596,10 +4591,12 @@ static size_t ZSTD_copySequencesToSeqStore(seqStore_t* seqStore, const ZSTD_sequ
             DEBUGLOG(4, "At startIdx: idx: %u PIS: %u", idx, posInSequence);
             assert(posInSequence <= litLength + matchLength);
             if (posInSequence >= litLength) {
+                /* position is within the match */
                 posInSequence -= litLength;
                 litLength = 0;
                 matchLength -= posInSequence;
             } else {
+                /* position is within the literals */
                 litLength -= posInSequence;
             }
             if (matchLength <= MINMATCH && offCode != ZSTD_REP_MOVE /* dont trigger this in lastLL case */) {
@@ -4616,12 +4613,12 @@ static size_t ZSTD_copySequencesToSeqStore(seqStore_t* seqStore, const ZSTD_sequ
             }
             assert(posInSequence <= litLength + matchLength);
             if (posInSequence <= litLength) {
-                litLength = posInSequence;
-                matchLength = 0;
-                offCode = ZSTD_REP_MOVE;
-                continue;
+                /* position is within the last literals, break and store last literals */
+                break;
             } else {
+                /* position is within the match */
                 matchLength = posInSequence - litLength;
+                /* ZSTD_updateSequenceRange should never give us a position such that we generate a match too small */
                 if (matchLength <= MINMATCH && offCode != ZSTD_REP_MOVE) {
                     DEBUGLOG(4, "start idx: %zu, seq: (ll: %u, ml: %u, of: %u)", idx, litLength, matchLength, offCode);
                     RETURN_ERROR_IF(matchLength < MINMATCH, corruption_detected, "Matchlength too small! Start Idx");
@@ -4630,7 +4627,7 @@ static size_t ZSTD_copySequencesToSeqStore(seqStore_t* seqStore, const ZSTD_sequ
             DEBUGLOG(4, "endIdx seq finalized: ll:%u ml: %u", litLength, matchLength);
         }
 
-        /* ML == 0 and Offset == 0 (or offCode == ZSTD_REP_MOVE) implies we are ending a block */
+        /* ML == 0 and Offset == 0 (or offCode == ZSTD_REP_MOVE) signals block delimiters */
         if (matchLength == 0 && offCode == ZSTD_REP_MOVE) {
             RETURN_ERROR_IF(format == ZSTD_sf_noBlockDelimiters, corruption_detected, "No block delimiters allowed!");
             /* Handle last literals case */
@@ -4761,13 +4758,13 @@ size_t ZSTD_compressSequences_ext(void* dst, size_t dstCapacity,
                                   const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
                                   const void* src, size_t srcSize, int compressionLevel,
                                   ZSTD_sequenceFormat_e format) {
-    DEBUGLOG(4, "ZSTD_compressSequences_ext()");
     BYTE* op = (BYTE*)dst;
     ZSTD_CCtx* const cctx = ZSTD_createCCtx();
     size_t cSize = 0;
     size_t compressedBlocksSize = 0;
     size_t frameHeaderSize = 0;
 
+    DEBUGLOG(4, "ZSTD_compressSequences_ext()");
     ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters);
     ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1);
     /* Initialization stage */
@@ -4808,9 +4805,6 @@ size_t ZSTD_compressSequences_ext(void* dst, size_t dstCapacity,
     dstCapacity -= frameHeaderSize;
     cSize += frameHeaderSize;
 
-    if (cctx->appliedParams.ldmParams.enableLdm) {
-        ZSTD_window_update(&cctx->ldmState.window, src, srcSize);
-    }
     if (cctx->appliedParams.fParams.checksumFlag && srcSize) {
         XXH64_update(&cctx->xxhState, src, srcSize);
     }

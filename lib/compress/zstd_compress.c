@@ -4542,11 +4542,13 @@ static int ZSTD_updateSequenceRange(ZSTD_sequenceRange* sequenceRange, size_t bl
     sequenceRange->endIdx = idx;
     sequenceRange->endPosInSequence = endPosInSequence;
 
-    assert(sequenceRange->startPosInSequence <= inSeqs[sequenceRange->startIdx].litLength + inSeqs[sequenceRange->startIdx].matchLength);
-    assert(sequenceRange->endPosInSequence <= inSeqs[sequenceRange->endIdx].litLength + inSeqs[sequenceRange->endIdx].matchLength);
+    if (idx < inSeqsSize) {
+        assert(sequenceRange->startPosInSequence <= inSeqs[sequenceRange->startIdx].litLength + inSeqs[sequenceRange->startIdx].matchLength);
+        assert(sequenceRange->endPosInSequence <= inSeqs[sequenceRange->endIdx].litLength + inSeqs[sequenceRange->endIdx].matchLength);
+        DEBUGLOG(5, "endidx: (of: %u ml: %u ll: %u)", inSeqs[sequenceRange->endIdx].offset, inSeqs[sequenceRange->endIdx].matchLength, inSeqs[sequenceRange->endIdx].litLength);
+    }
     DEBUGLOG(4, "finished update: startidx %u startpos: %u endidx: %u endpos: %u",
              sequenceRange->startIdx, sequenceRange->startPosInSequence, sequenceRange->endIdx, sequenceRange->endPosInSequence);
-    DEBUGLOG(5, "endidx: (of: %u ml: %u ll: %u)", inSeqs[sequenceRange->endIdx].offset, inSeqs[sequenceRange->endIdx].matchLength, inSeqs[sequenceRange->endIdx].litLength);
     DEBUGLOG(5, "final PIS was additionally adjusted by: %d bytes", bytesAdjustment);
     return bytesAdjustment;
 }

@@ -4493,7 +4493,7 @@ static int ZSTD_updateSequenceRange(ZSTD_sequenceRange* sequenceRange, size_t bl
     U32 idx = sequenceRange->endIdx;
     U32 endPosInSequence = sequenceRange->endPosInSequence + blockSize;
     int bytesAdjustment = 0;
-    DEBUGLOG(5, "ZSTD_updateSequenceRange: %zu bytes, startidx %u startpos: %u endidx: %u endpos: %u", blockSize,
+    DEBUGLOG(4, "ZSTD_updateSequenceRange: %zu bytes, startidx %u startpos: %u endidx: %u endpos: %u", blockSize,
              sequenceRange->startIdx, sequenceRange->startPosInSequence, sequenceRange->endIdx, sequenceRange->endPosInSequence);
     DEBUGLOG(5, "endPosInSequence begin val: %u", endPosInSequence);
     while (endPosInSequence && idx < inSeqsSize) {
@@ -4504,6 +4504,9 @@ static int ZSTD_updateSequenceRange(ZSTD_sequenceRange* sequenceRange, size_t bl
         } else {
             break;
         }
+    }
+    if (idx == inSeqsSize) {
+        endPosInSequence = 0;
     }
 
     if (format == ZSTD_sf_noBlockDelimiters) {
@@ -4541,9 +4544,9 @@ static int ZSTD_updateSequenceRange(ZSTD_sequenceRange* sequenceRange, size_t bl
 
     assert(sequenceRange->startPosInSequence <= inSeqs[sequenceRange->startIdx].litLength + inSeqs[sequenceRange->startIdx].matchLength);
     assert(sequenceRange->endPosInSequence <= inSeqs[sequenceRange->endIdx].litLength + inSeqs[sequenceRange->endIdx].matchLength);
-    DEBUGLOG(5, "endidx: (of: %u ml: %u ll: %u)", inSeqs[sequenceRange->endIdx].offset, inSeqs[sequenceRange->endIdx].matchLength, inSeqs[sequenceRange->endIdx].litLength);
-    DEBUGLOG(5, "finished update: startidx %u startpos: %u endidx: %u endpos: %u",
+    DEBUGLOG(4, "finished update: startidx %u startpos: %u endidx: %u endpos: %u",
              sequenceRange->startIdx, sequenceRange->startPosInSequence, sequenceRange->endIdx, sequenceRange->endPosInSequence);
+    DEBUGLOG(5, "endidx: (of: %u ml: %u ll: %u)", inSeqs[sequenceRange->endIdx].offset, inSeqs[sequenceRange->endIdx].matchLength, inSeqs[sequenceRange->endIdx].litLength);
     DEBUGLOG(5, "final PIS was additionally adjusted by: %d bytes", bytesAdjustment);
     return bytesAdjustment;
 }
@@ -4571,8 +4574,8 @@ static size_t ZSTD_copySequencesToSeqStore(seqStore_t* seqStore, const ZSTD_sequ
         if (seqRange->startIdx == seqRange->endIdx) {
             /* The sequence spans the entire block */
             U32 seqLength = seqRange->endPosInSequence - seqRange->startPosInSequence;
-            DEBUGLOG(5, "Range within single sequence: idx: %u (of: %u ml: %u ll: %u) rep: %u",
-                     seqRange->startIdx offCode, matchLength, litLength, inSeqs[idx].rep);
+            DEBUGLOG(5, "Range within single sequence: idx: %zu (of: %u ml: %u ll: %u) rep: %u",
+                     idx, offCode, matchLength, litLength, inSeqs[idx].rep);
             RETURN_ERROR_IF(seqLength > litLength + matchLength, corruption_detected,
                             "range length cannot be bigger than sequence length!");
             if (seqLength <= litLength) {
@@ -4582,6 +4585,11 @@ static size_t ZSTD_copySequencesToSeqStore(seqStore_t* seqStore, const ZSTD_sequ
                 /* Spanned range ends in the match section */
                 matchLength = seqLength - litLength;
             }
+
+            /* ZSTD_updateSequenceRange should never give us a position such that we generate a match too small */
+            RETURN_ERROR_IF(matchLength < MINMATCH && offCode != ZSTD_REP_MOVE, corruption_detected,
+                            "Matchlength too small for sequence spanning a whole block!");
+            DEBUGLOG(5, "seq finalized: (of: %u ml: %u ll: %u) rep: %u", offCode, matchLength, litLength, inSeqs[idx].rep);
         } else if (idx == seqRange->startIdx) {
             /* Modify the sequence at the start of the range as necessary */
             U32 posInSequence = seqRange->startPosInSequence;

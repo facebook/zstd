@@ -2742,7 +2742,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
     
     DISPLAYLEVEL(3, "test%3i : ZSTD_getSequences followed by ZSTD_compressSequences : ", testNb++);
     {
-        size_t srcSize = 150 KB;
+        size_t srcSize = 500 KB;
         BYTE* src = (BYTE*)CNBuffer;
         BYTE* dst = (BYTE*)compressedBuffer;
         size_t dstSize = ZSTD_compressBound(srcSize);

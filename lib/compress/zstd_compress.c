@@ -2333,7 +2333,7 @@ ZSTD_entropyCompressSequences(seqStore_t* seqStorePtr,
     {   size_t const maxCSize = srcSize - ZSTD_minGain(srcSize, cctxParams->cParams.strategy);
         if (cSize >= maxCSize) return 0;  /* block not compressed */
     }
-    DEBUGLOG(4, "ZSTD_entropyCompressSequences() cSize: %u\n", cSize);
+    DEBUGLOG(4, "ZSTD_entropyCompressSequences() cSize: %zu\n", cSize);
     return cSize;
 }
 
@@ -2650,7 +2650,6 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
             srcSize,
             zc->entropyWorkspace, ENTROPY_WORKSPACE_SIZE /* statically allocated in resetCCtx */,
             zc->bmi2);
-    DEBUGLOG(4, "cSize compressed seqs: %u\n", cSize);
 
     if (zc->seqCollector.collectSequences) {
         ZSTD_copyBlockSequences(zc);
@@ -4557,11 +4556,11 @@ static int ZSTD_updateSequenceRange(ZSTD_sequenceRange* sequenceRange, size_t bl
 static size_t ZSTD_copySequencesToSeqStore(seqStore_t* seqStore, const ZSTD_sequenceRange* seqRange,
                                            const ZSTD_Sequence* const inSeqs, size_t inSeqsSize,
                                            const void* src, size_t srcSize, ZSTD_sequenceFormat_e format) {
-    DEBUGLOG(4, "ZSTD_copySequencesToSeqStore: numSeqs: %zu srcSize: %zu", inSeqsSize, srcSize);
     size_t idx = seqRange->startIdx;
     BYTE const* ip = (BYTE const*)src;
     const BYTE* const iend = ip + srcSize;
 
+    DEBUGLOG(4, "ZSTD_copySequencesToSeqStore: numSeqs: %zu srcSize: %zu", inSeqsSize, srcSize);
     for (; idx < inSeqsSize && idx <= seqRange->endIdx; ++idx) {
         U32 litLength = inSeqs[idx].litLength;
         U32 matchLength = inSeqs[idx].matchLength;
@@ -4628,9 +4627,9 @@ static size_t ZSTD_copySequencesToSeqStore(seqStore_t* seqStore, const ZSTD_sequ
         if (matchLength == 0 && offCode == ZSTD_REP_MOVE) {
             RETURN_ERROR_IF(format == ZSTD_sf_noBlockDelimiters, corruption_detected, "No block delimiters allowed!");
             if (litLength > 0) {
-                DEBUGLOG(4, "Storing block delim last literals: %u bytes, idx: %u", litLength, idx);
                 const BYTE* const lastLiterals = (const BYTE*)src + srcSize - litLength;
                 ZSTD_storeLastLiterals(seqStore, lastLiterals, litLength);
+                DEBUGLOG(4, "Storing block delim last literals: %u bytes, idx: %u", litLength, idx);
             }
         } else {
             DEBUGLOG(4, "Storing: idx: %zu (ll: %u, ml: %u, of: %u) rep: %u", idx, litLength, matchLength - MINMATCH, offCode, inSeqs[idx].rep);
@@ -4646,8 +4645,8 @@ static size_t ZSTD_copySequencesToSeqStore(seqStore_t* seqStore, const ZSTD_sequ
     
     /* Store any last literals for ZSTD_sf_noBlockDelimiters mode */
     if (format == ZSTD_sf_noBlockDelimiters && ip != iend) {
-        assert(ip <= iend);
         U32 lastLLSize = (U32)(iend - ip);
+        assert(ip <= iend);
         DEBUGLOG(4, "Storing last literals of size: %u", lastLLSize);
         ZSTD_storeLastLiterals(seqStore, ip, lastLLSize);
     }
@@ -4671,14 +4670,12 @@ static size_t ZSTD_compressSequences_internal(void* dst, size_t dstCapacity,
     U32 compressedSeqsSize;
     size_t remaining = srcSize;
     ZSTD_sequenceRange seqRange = {0, 0, 0, 0};
-    seqStore_t blockSeqStore; 
-    blockSeqStore.longLengthID = 0;
-    blockSeqStore.longLengthPos = 0;
+    seqStore_t blockSeqStore;
     
-    DEBUGLOG(4, "ZSTD_compressSequences_internal srcSize: %zu, inSeqsSize: %zu", srcSize, inSeqsSize);
     BYTE const* ip = (BYTE const*)src;
     BYTE* op = (BYTE*)dst;
 
+    DEBUGLOG(4, "ZSTD_compressSequences_internal srcSize: %zu, inSeqsSize: %zu", srcSize, inSeqsSize);
     while (remaining) {
         U32 cBlockSize;
         int additionalByteAdjustment;
@@ -4721,6 +4718,7 @@ static size_t ZSTD_compressSequences_internal(void* dst, size_t dstCapacity,
             FORWARD_IF_ERROR(cBlockSize, "Nocompress block failed");
             DEBUGLOG(4, "Block uncompressible, writing out nocompress block, size: %u", cBlockSize);
         } else {
+            U32 cBlockHeader;
             /* Error checking and repcodes update */
             if (compressedSeqsSize > 1) {
                 ZSTD_confirmRepcodesAndEntropyTables(cctx);
@@ -4729,7 +4727,7 @@ static size_t ZSTD_compressSequences_internal(void* dst, size_t dstCapacity,
                 cctx->blockState.prevCBlock->entropy.fse.offcode_repeatMode = FSE_repeat_check;
 
             /* Write block header into beginning of block*/
-            U32 const cBlockHeader = compressedSeqsSize == 1 ?
+            cBlockHeader = compressedSeqsSize == 1 ?
                                 lastBlock + (((U32)bt_rle)<<1) + (U32)(blockSize << 3):
                                 lastBlock + (((U32)bt_compressed)<<1) + (U32)(compressedSeqsSize << 3);
             MEM_writeLE24(op, cBlockHeader);
@@ -4793,7 +4791,7 @@ size_t ZSTD_compressSequencesCCtx(ZSTD_CCtx* const cctx, void* dst, size_t dstCa
         U32 const checksum = (U32) XXH64_digest(&cctx->xxhState);
         RETURN_ERROR_IF(dstCapacity<4, dstSize_tooSmall, "no room for checksum");
         DEBUGLOG(4, "Write checksum : %08X", (unsigned)checksum);
-        MEM_writeLE32(dst + cSize, checksum);
+        MEM_writeLE32((char*)dst + cSize, checksum);
         cSize += 4;
     }
 

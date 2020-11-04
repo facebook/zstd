@@ -3798,6 +3798,17 @@ ZSTD_compressionParameters ZSTD_getCParamsFromCDict(const ZSTD_CDict* cdict)
     return cdict->matchState.cParams;
 }
 
+/*! ZSTD_getDictID_fromCDict() :
+ *  Provides the dictID of the dictionary loaded into `cdict`.
+ *  If @return == 0, the dictionary is not conformant to Zstandard specification, or empty.
+ *  Non-conformant dictionaries can still be loaded, but as content-only dictionaries. */
+unsigned ZSTD_getDictID_fromCDict(const ZSTD_CDict* cdict)
+{
+    if (cdict==NULL) return 0;
+    return cdict->dictID;
+}
+
+
 /* ZSTD_compressBegin_usingCDict_advanced() :
  * cdict must be != NULL */
 size_t ZSTD_compressBegin_usingCDict_advanced(

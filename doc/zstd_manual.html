@@ -749,12 +749,6 @@ size_t ZSTD_freeDStream(ZSTD_DStream* zds);
   It can still be loaded, but as a content-only dictionary. 
 </p></pre><BR>
 
-<pre><b>unsigned ZSTD_getDictID_fromCDict(const ZSTD_CDict* cdict);
-</b><p>  Provides the dictID of the dictionary loaded into `cdict`.
-  If @return == 0, the dictionary is not conformant to Zstandard specification, or empty.
-  Non-conformant dictionaries can still be loaded, but as content-only dictionaries. 
-</p></pre><BR>
-
 <pre><b>unsigned ZSTD_getDictID_fromDDict(const ZSTD_DDict* ddict);
 </b><p>  Provides the dictID of the dictionary loaded into `ddict`.
   If @return == 0, the dictionary is not conformant to Zstandard specification, or empty.
@@ -1162,6 +1156,12 @@ static ZSTD_customMem const ZSTD_defaultCMem = { NULL, NULL, NULL };  </b>/**< t
   As a consequence, `dictBuffer` **must** outlive CDict,
   and its content must remain unmodified throughout the lifetime of CDict.
   note: equivalent to ZSTD_createCDict_advanced(), with dictLoadMethod==ZSTD_dlm_byRef 
+</p></pre><BR>
+
+<pre><b>unsigned ZSTD_getDictID_fromCDict(const ZSTD_CDict* cdict);
+</b><p>  Provides the dictID of the dictionary loaded into `cdict`.
+  If @return == 0, the dictionary is not conformant to Zstandard specification, or empty.
+  Non-conformant dictionaries can still be loaded, but as content-only dictionaries. 
 </p></pre><BR>
 
 <pre><b>ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, unsigned long long estimatedSrcSize, size_t dictSize);

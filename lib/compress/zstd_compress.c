@@ -4561,7 +4561,8 @@ static int ZSTD_updateSequenceRange(ZSTD_sequenceRange* sequenceRange, size_t bl
  */
 static size_t ZSTD_copySequencesToSeqStore(seqStore_t* seqStore, const ZSTD_sequenceRange* seqRange,
                                            const ZSTD_Sequence* const inSeqs, size_t inSeqsSize,
-                                           const void* src, size_t srcSize, ZSTD_sequenceFormat_e format) {
+                                           const void* src, size_t srcSize, ZSTD_sequenceFormat_e format,
+                                           size_t windowSize) {
     size_t idx = seqRange->startIdx;
     BYTE const* ip = (BYTE const*)src;
     const BYTE* const iend = ip + srcSize;
@@ -4572,6 +4573,7 @@ static size_t ZSTD_copySequencesToSeqStore(seqStore_t* seqStore, const ZSTD_sequ
         U32 matchLength = inSeqs[idx].matchLength;
         U32 offCode = inSeqs[idx].offset + ZSTD_REP_MOVE;
 
+        RETURN_ERROR_IF(inSeqs[idx].offset > windowSize, corruption_detected, "Offset too large!");
         /* Adjust litLength and matchLength if we're at either the start or end index of the range */
         if (seqRange->startIdx == seqRange->endIdx) {
             /* The sequence spans the entire block */
@@ -4715,7 +4717,7 @@ static size_t ZSTD_compressSequences_internal(void* dst, size_t dstCapacity,
             continue;
         }
 
-        FORWARD_IF_ERROR(ZSTD_copySequencesToSeqStore(&blockSeqStore, &seqRange, inSeqs, inSeqsSize, ip, blockSize, format),
+        FORWARD_IF_ERROR(ZSTD_copySequencesToSeqStore(&blockSeqStore, &seqRange, inSeqs, inSeqsSize, ip, blockSize, format, 1 << cctx->appliedParams.cParams.windowLog),
                          "Sequence copying failed");
         compressedSeqsSize = ZSTD_entropyCompressSequences(&blockSeqStore,
                                 &cctx->blockState.prevCBlock->entropy, &cctx->blockState.nextCBlock->entropy,

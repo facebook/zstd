@@ -4792,9 +4792,6 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* const cctx, void* dst, size_t dstCapaci
     DEBUGLOG(3, "ZSTD_compressSequences()");
     assert(cctx != NULL);
     FORWARD_IF_ERROR(ZSTD_CCtx_init_compressStream2(cctx, ZSTD_e_end, srcSize), "CCtx initialization failed");
-    if (dstCapacity < ZSTD_compressBound(srcSize)) {
-        RETURN_ERROR(dstSize_tooSmall, "Destination buffer too small!");
-    }
 
     /* Begin writing output, starting with frame header */
     frameHeaderSize = ZSTD_writeFrameHeader(op, dstCapacity, &cctx->appliedParams, srcSize, cctx->dictID);

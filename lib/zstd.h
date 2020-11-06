@@ -1149,7 +1149,7 @@ typedef struct {
                                *      rep == 2 --> offset == repeat_offset_3
                                *      rep == 3 --> offset == repeat_offset_1 - 1
                                * 
-                               * Note: This field is optional. ZSTD_getSequences() will calculate the value of
+                               * Note: This field is optional. ZSTD_generateSequences() will calculate the value of
                                * 'rep', but repeat offsets do not necessarily need to be calculated from an external
                                * sequence provider's perspective.
                                */
@@ -1302,7 +1302,7 @@ typedef enum {
   ZSTD_sf_noBlockDelimiters         /* Representation of ZSTD_Sequence has no block delimiters, sequences only */
 } ZSTD_sequenceFormat_e;
 
-/*! ZSTD_getSequences() :
+/*! ZSTD_generateSequences() :
  * Extract sequences from the sequence store.
  * 
  * Each block will end with a dummy sequence
@@ -1313,11 +1313,11 @@ typedef enum {
  * @return : number of sequences generated
  */
 
-ZSTDLIB_API size_t ZSTD_getSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
-                       size_t outSeqsSize, const void* src, size_t srcSize);
+ZSTDLIB_API size_t ZSTD_generateSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
+                                          size_t outSeqsSize, const void* src, size_t srcSize);
 
 /*! ZSTD_mergeGeneratedSequences() :
- * Convert an array of ZSTD_Sequence in the representation specified in ZSTD_getSequences()
+ * Convert an array of ZSTD_Sequence in the representation specified in ZSTD_generateSequences()
  * and merge all "dummy" sequences that represent last literals and block boundaries.
  * 
  * Any last literals in the block will be merged into the literals of the next sequence.

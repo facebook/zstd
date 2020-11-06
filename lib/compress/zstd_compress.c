@@ -2550,7 +2550,7 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
     zc->seqCollector.seqIndex += seqStoreSeqSize;
 }
 
-size_t ZSTD_getSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
+size_t ZSTD_generateSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
     size_t outSeqsSize, const void* src, size_t srcSize, ZSTD_sequenceFormat_e format)
 {
     const size_t dstCapacity = ZSTD_compressBound(srcSize);

@@ -2708,7 +2708,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         DISPLAYLEVEL(3, "OK \n");
     }
 
-    DISPLAYLEVEL(3, "test%3i : ZSTD_getSequences decode from sequences test : ", testNb++);
+    DISPLAYLEVEL(3, "test%3i : ZSTD_generateSequences decode from sequences test : ", testNb++);
     {
         size_t srcSize = 150 KB;
         BYTE* src = (BYTE*)CNBuffer;
@@ -2725,12 +2725,12 @@ static int basicUnitTests(U32 const seed, double compressibility)
         RDG_genBuffer(CNBuffer, srcSize, compressibility, 0., seed);
 
         /* Test with block delimiters roundtrip */
-        seqsSize = ZSTD_getSequences(cctx, seqs, srcSize, src, srcSize, ZSTD_sf_explicitBlockDelimiters);
+        seqsSize = ZSTD_generateSequences(cctx, seqs, srcSize, src, srcSize, ZSTD_sf_explicitBlockDelimiters);
         FUZ_decodeSequences(decoded, seqs, seqsSize, src, srcSize, ZSTD_sf_explicitBlockDelimiters);
         assert(!memcmp(CNBuffer, compressedBuffer, srcSize));
 
         /* Test no block delimiters roundtrip */
-        seqsSize = ZSTD_getSequences(cctx, seqs, srcSize, src, srcSize, ZSTD_sf_noBlockDelimiters);
+        seqsSize = ZSTD_generateSequences(cctx, seqs, srcSize, src, srcSize, ZSTD_sf_noBlockDelimiters);
         FUZ_decodeSequences(decoded, seqs, seqsSize, src, srcSize, ZSTD_sf_noBlockDelimiters);
         assert(!memcmp(CNBuffer, compressedBuffer, srcSize));
 

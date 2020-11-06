@@ -1328,7 +1328,7 @@ ZSTDLIB_API size_t ZSTD_generateSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
  */
 ZSTDLIB_API size_t ZSTD_mergeBlockDelimiters(ZSTD_Sequence* sequences, size_t seqsSize);
 
-/*! ZSTD_compressSequencesCCtx() :
+/*! ZSTD_compressSequences() :
  * Compress sequences given by inSeqs, generated from source buffer 'src', using a cctx.
  * The entire source is compressed into a single frame. 
  * 
@@ -1341,20 +1341,10 @@ ZSTDLIB_API size_t ZSTD_mergeBlockDelimiters(ZSTD_Sequence* sequences, size_t se
  * 
  * @return : final compressed size.
  */
-ZSTDLIB_API size_t ZSTD_compressSequencesCCtx(ZSTD_CCtx* const cctx, void* dst, size_t dstSize,
+ZSTDLIB_API size_t ZSTD_compressSequences(ZSTD_CCtx* const cctx, void* dst, size_t dstSize,
                                   const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
                                   const void* src, size_t srcSize,
-                                  ZSTD_sequenceFormat_e format);     
-
-/*! ZSTD_compressSequences() :
- * Creates a default CCtx based on the given compression level, and invokes ZSTD_compressSequencesCCtx().
- * 
- * @return : final compressed size.
- */
-ZSTDLIB_API size_t ZSTD_compressSequences(void* dst, size_t dstSize,
-                                  const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
-                                  const void* src, size_t srcSize, int compressionLevel,
-                                  ZSTD_sequenceFormat_e format);                    
+                                  ZSTD_sequenceFormat_e format);
 
 
 /***************************************

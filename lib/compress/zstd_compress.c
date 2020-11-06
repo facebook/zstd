@@ -4779,7 +4779,7 @@ static size_t ZSTD_compressSequences_internal(void* dst, size_t dstCapacity,
     return cSize;
 }
 
-size_t ZSTD_compressSequencesCCtx(ZSTD_CCtx* const cctx, void* dst, size_t dstCapacity,
+size_t ZSTD_compressSequences(ZSTD_CCtx* const cctx, void* dst, size_t dstCapacity,
                                   const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
                                   const void* src, size_t srcSize,
                                   ZSTD_sequenceFormat_e format) {
@@ -4789,7 +4789,7 @@ size_t ZSTD_compressSequencesCCtx(ZSTD_CCtx* const cctx, void* dst, size_t dstCa
     size_t frameHeaderSize = 0;
 
     /* Transparent initialization stage, same as compressStream2() */
-    DEBUGLOG(3, "ZSTD_compressSequencesCCtx()");
+    DEBUGLOG(3, "ZSTD_compressSequences()");
     assert(cctx != NULL);
     FORWARD_IF_ERROR(ZSTD_CCtx_init_compressStream2(cctx, ZSTD_e_end, srcSize), "CCtx initialization failed");
     if (dstCapacity < ZSTD_compressBound(srcSize)) {
@@ -4824,26 +4824,6 @@ size_t ZSTD_compressSequencesCCtx(ZSTD_CCtx* const cctx, void* dst, size_t dstCa
     }
 
     DEBUGLOG(3, "Final compressed size: %zu", cSize);
-    return cSize;
-}
-
-
-size_t ZSTD_compressSequences(void* dst, size_t dstCapacity,
-                                  const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
-                                  const void* src, size_t srcSize, int compressionLevel,
-                                  ZSTD_sequenceFormat_e format)
-{
-    size_t cSize;
-    ZSTD_CCtx* const cctx = ZSTD_createCCtx();
-
-    RETURN_ERROR_IF(!cctx, memory_allocation, "Couldn't allocate memory for CCtx!");
-    FORWARD_IF_ERROR(ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters), "CCtx reset failed");
-    FORWARD_IF_ERROR(ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, compressionLevel), "Parameter setting failed");
-
-    cSize = ZSTD_compressSequencesCCtx(cctx, dst, dstCapacity, inSeqs, inSeqsSize, src, srcSize, format);
-    FORWARD_IF_ERROR(cSize, "ZSTD_compressSequencesCCtx() failed");
-
-    ZSTD_freeCCtx(cctx);
     return cSize;
 }
 

@@ -2551,7 +2551,7 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
 }
 
 size_t ZSTD_generateSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
-    size_t outSeqsSize, const void* src, size_t srcSize, ZSTD_sequenceFormat_e format)
+                              size_t outSeqsSize, const void* src, size_t srcSize)
 {
     const size_t dstCapacity = ZSTD_compressBound(srcSize);
     void* dst = ZSTD_customMalloc(dstCapacity, ZSTD_defaultCMem);
@@ -2567,27 +2567,23 @@ size_t ZSTD_generateSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
 
     ZSTD_compress2(zc, dst, dstCapacity, src, srcSize);
     ZSTD_customFree(dst, ZSTD_defaultCMem);
-
-    if (format == ZSTD_sf_noBlockDelimiters) {
-        /* Remove all block delimiters and append them to the next sequence's literals
-         * and do not emit last literals at all
-         */
-        size_t in = 0;
-        size_t out = 0;
-        for (; in < zc->seqCollector.seqIndex; ++in) {
-            if (seqCollector.seqStart[in].offset == 0 && seqCollector.seqStart[in].matchLength == 0) {
-                if (in != zc->seqCollector.seqIndex - 1) {
-                    seqCollector.seqStart[in+1].litLength += seqCollector.seqStart[in].litLength;
-                }
-            } else {
-                seqCollector.seqStart[out] = seqCollector.seqStart[in];
-                ++out;
-            }
-        }
-        zc->seqCollector.seqIndex = out;
-    }
-
     return zc->seqCollector.seqIndex;
+}
+
+size_t ZSTD_mergeGeneratedSequences(ZSTD_Sequence* sequences, size_t seqsSize) {
+    size_t in = 0;
+    size_t out = 0;
+    for (; in < seqsSize; ++in) {
+        if (sequences[in].offset == 0 && sequences[in].matchLength == 0) {
+            if (in != seqsSize - 1) {
+                sequences[in+1].litLength += sequences[in].litLength;
+            }
+        } else {
+            sequences[out] = sequences[in];
+            ++out;
+        }
+    }
+    return out;
 }
 
 /* Returns true if the given block is a RLE block */

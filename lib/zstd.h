@@ -1304,23 +1304,29 @@ typedef enum {
 
 /*! ZSTD_getSequences() :
  * Extract sequences from the sequence store.
- * If invoked with ZSTD_sf_explicitBlockDelimiters, each block will end with a dummy sequence
- * with offset == 0, matchLength == 0, and litLength == length of last literals.
  * 
- * If invoked with ZSTD_sf_noBlockDelimiters, sequences will still be internally generated
- * on a per-block basis, but any last literals of a block will be merged into the
- * last literals of the first sequence in the next block.
- * As such, the final generated result has no explicit representation of block boundaries,
- * and the final last literals segment is not represented in the sequences.
+ * Each block will end with a dummy sequence
+ * with offset == 0, matchLength == 0, and litLength == length of last literals.
  * 
  * zc can be used to insert custom compression params.
  * This function invokes ZSTD_compress2
- * @return : number of sequences extracted
+ * @return : number of sequences generated
  */
 
 ZSTDLIB_API size_t ZSTD_getSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
-    size_t outSeqsSize, const void* src, size_t srcSize, ZSTD_sequenceFormat_e format);
+                       size_t outSeqsSize, const void* src, size_t srcSize);
 
+/*! ZSTD_mergeGeneratedSequences() :
+ * Convert an array of ZSTD_Sequence in the representation specified in ZSTD_getSequences()
+ * and merge all "dummy" sequences that represent last literals and block boundaries.
+ * 
+ * Any last literals in the block will be merged into the literals of the next sequence.
+ * 
+ * As such, the final generated result has no explicit representation of block boundaries,
+ * and the final last literals segment is not represented in the sequences.
+ * @return : number of sequences in final result
+ */
+ZSTDLIB_API size_t ZSTD_mergeGeneratedSequences(ZSTD_Sequence* sequences, size_t seqsSize);
 
 /***************************************
 *  Memory management

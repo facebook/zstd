@@ -2570,7 +2570,7 @@ size_t ZSTD_generateSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
     return zc->seqCollector.seqIndex;
 }
 
-size_t ZSTD_mergeGeneratedSequences(ZSTD_Sequence* sequences, size_t seqsSize) {
+size_t ZSTD_mergeBlockDelimiters(ZSTD_Sequence* sequences, size_t seqsSize) {
     size_t in = 0;
     size_t out = 0;
     for (; in < seqsSize; ++in) {

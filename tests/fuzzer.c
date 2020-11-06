@@ -2725,12 +2725,12 @@ static int basicUnitTests(U32 const seed, double compressibility)
         RDG_genBuffer(CNBuffer, srcSize, compressibility, 0., seed);
 
         /* Test with block delimiters roundtrip */
-        seqsSize = ZSTD_generateSequences(cctx, seqs, srcSize, src, srcSize, ZSTD_sf_explicitBlockDelimiters);
+        seqsSize = ZSTD_generateSequences(cctx, seqs, srcSize, src, srcSize);
         FUZ_decodeSequences(decoded, seqs, seqsSize, src, srcSize, ZSTD_sf_explicitBlockDelimiters);
         assert(!memcmp(CNBuffer, compressedBuffer, srcSize));
 
         /* Test no block delimiters roundtrip */
-        seqsSize = ZSTD_generateSequences(cctx, seqs, srcSize, src, srcSize, ZSTD_sf_noBlockDelimiters);
+        seqsSize = ZSTD_mergeBlockDelimiters(seqs, seqsSize);
         FUZ_decodeSequences(decoded, seqs, seqsSize, src, srcSize, ZSTD_sf_noBlockDelimiters);
         assert(!memcmp(CNBuffer, compressedBuffer, srcSize));
 

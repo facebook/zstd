@@ -732,7 +732,7 @@ static size_t ZSTD_decompressMultiFrame(ZSTD_DCtx* dctx,
             decodedSize = ZSTD_decompressLegacy(dst, dstCapacity, src, frameSize, dict, dictSize);
             if (ZSTD_isError(decodedSize)) return decodedSize;
 
-            assert(decodedSize <=- dstCapacity);
+            assert(decodedSize <= dstCapacity);
             dst = (BYTE*)dst + decodedSize;
             dstCapacity -= decodedSize;
 
@@ -1571,7 +1571,7 @@ static void ZSTD_DCtx_updateOversizedDuration(ZSTD_DStream* zds, size_t const ne
 {
     if (ZSTD_DCtx_isOverflow(zds, neededInBuffSize, neededOutBuffSize))
         zds->oversizedDuration++;
-    else 
+    else
         zds->oversizedDuration = 0;
 }
 
@@ -1778,7 +1778,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
 
                 {   int const tooSmall = (zds->inBuffSize < neededInBuffSize) || (zds->outBuffSize < neededOutBuffSize);
                     int const tooLarge = ZSTD_DCtx_isOversizedTooLong(zds);
-                    
+
                     if (tooSmall || tooLarge) {
                         size_t const bufferSize = neededInBuffSize + neededOutBuffSize;
                         DEBUGLOG(4, "inBuff  : from %u to %u",

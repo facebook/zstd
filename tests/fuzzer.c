@@ -2762,8 +2762,9 @@ static int basicUnitTests(U32 const seed, double compressibility)
         RDG_genBuffer(CNBuffer, srcSize, compressibility, 0., seed);
 
         /* Test with block delimiters roundtrip */
-        seqsSize = ZSTD_getSequences(cctx, seqs, srcSize, src, srcSize, ZSTD_sf_explicitBlockDelimiters);
-        compressedSize = ZSTD_compressSequences(dst, dstSize, seqs, seqsSize, src, srcSize, 3 /* clevel */, ZSTD_sf_explicitBlockDelimiters);
+        seqsSize = ZSTD_generateSequences(cctx, seqs, srcSize, src, srcSize);
+        ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters);
+        compressedSize = ZSTD_compressSequences(cctx, dst, dstSize, seqs, seqsSize, src, srcSize, ZSTD_sf_explicitBlockDelimiters);
         if (ZSTD_isError(compressedSize)) {
             DISPLAY("Error in sequence compression with block delims\n");
             goto _output_error;
@@ -2776,8 +2777,9 @@ static int basicUnitTests(U32 const seed, double compressibility)
         assert(!memcmp(decompressBuffer, src, srcSize));
 
         /* Test with no block delimiters roundtrip */
-        seqsSize = ZSTD_getSequences(cctx, seqs, srcSize, src, srcSize, ZSTD_sf_noBlockDelimiters);
-        compressedSize = ZSTD_compressSequences(dst, dstSize, seqs, seqsSize, src, srcSize, 3 /* clevel */, ZSTD_sf_noBlockDelimiters);
+        seqsSize = ZSTD_mergeBlockDelimiters(seqs, seqsSize);
+        ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters);
+        compressedSize = ZSTD_compressSequences(cctx, dst, dstSize, seqs, seqsSize, src, srcSize, ZSTD_sf_noBlockDelimiters);
         if (ZSTD_isError(compressedSize)) {
             DISPLAY("Error in sequence compression with no block delims\n");
             goto _output_error;

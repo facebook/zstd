@@ -1149,7 +1149,7 @@ typedef struct {
                                *      rep == 2 --> offset == repeat_offset_3
                                *      rep == 3 --> offset == repeat_offset_1 - 1
                                * 
-                               * Note: This field is optional. ZSTD_getSequences() will calculate the value of
+                               * Note: This field is optional. ZSTD_generateSequences() will calculate the value of
                                * 'rep', but repeat offsets do not necessarily need to be calculated from an external
                                * sequence provider's perspective.
                                */
@@ -1297,17 +1297,36 @@ ZSTDLIB_API unsigned long long ZSTD_decompressBound(const void* src, size_t srcS
  *           or an error code (if srcSize is too small) */
 ZSTDLIB_API size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize);
 
-/*! ZSTD_getSequences() :
- * Extract sequences from the sequence store.
- * Each block will end with a dummy sequence with offset == 0, matchLength == 0, and litLength == length of last literals.
+typedef enum {
+  ZSTD_sf_explicitBlockDelimiters,  /* Representation of ZSTD_Sequence contains explicit block delimiters */
+  ZSTD_sf_noBlockDelimiters         /* Representation of ZSTD_Sequence has no block delimiters, sequences only */
+} ZSTD_sequenceFormat_e;
+
+/*! ZSTD_generateSequences() :
+ * Generate sequences using ZSTD_compress2, given a source buffer.
+ * 
+ * Each block will end with a dummy sequence
+ * with offset == 0, matchLength == 0, and litLength == length of last literals.
+ * litLength may be == 0, and if so, then the sequence of (of: 0 ml: 0 ll: 0)
+ * simply acts as a block delimiter.
  * 
  * zc can be used to insert custom compression params.
  * This function invokes ZSTD_compress2
- * @return : number of sequences extracted
+ * @return : number of sequences generated
  */
-ZSTDLIB_API size_t ZSTD_getSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
-    size_t outSeqsSize, const void* src, size_t srcSize);
 
+ZSTDLIB_API size_t ZSTD_generateSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
+                                          size_t outSeqsSize, const void* src, size_t srcSize);
+
+/*! ZSTD_mergeBlockDelimiters() :
+ * Given an array of ZSTD_Sequence, remove all sequences that represent block delimiters/last literals
+ * by merging them into into the literals of the next sequence.
+ * 
+ * As such, the final generated result has no explicit representation of block boundaries,
+ * and the final last literals segment is not represented in the sequences.
+ * @return : number of sequences left after merging
+ */
+ZSTDLIB_API size_t ZSTD_mergeBlockDelimiters(ZSTD_Sequence* sequences, size_t seqsSize);
 
 /***************************************
 *  Memory management

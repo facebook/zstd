@@ -2505,6 +2505,7 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
     for (i = 0; i < seqStoreSeqSize; ++i) {
         outSeqs[i].litLength = seqStoreSeqs[i].litLength;
         outSeqs[i].matchLength = seqStoreSeqs[i].matchLength + MINMATCH;
+        outSeqs[i].rep = 0;
 
         if (i == seqStore->longLengthPos) {
             if (seqStore->longLengthID == 1) {
@@ -2549,8 +2550,8 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
     zc->seqCollector.seqIndex += seqStoreSeqSize;
 }
 
-size_t ZSTD_getSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
-    size_t outSeqsSize, const void* src, size_t srcSize)
+size_t ZSTD_generateSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
+                              size_t outSeqsSize, const void* src, size_t srcSize)
 {
     const size_t dstCapacity = ZSTD_compressBound(srcSize);
     void* dst = ZSTD_customMalloc(dstCapacity, ZSTD_defaultCMem);
@@ -2567,6 +2568,22 @@ size_t ZSTD_getSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
     ZSTD_compress2(zc, dst, dstCapacity, src, srcSize);
     ZSTD_customFree(dst, ZSTD_defaultCMem);
     return zc->seqCollector.seqIndex;
+}
+
+size_t ZSTD_mergeBlockDelimiters(ZSTD_Sequence* sequences, size_t seqsSize) {
+    size_t in = 0;
+    size_t out = 0;
+    for (; in < seqsSize; ++in) {
+        if (sequences[in].offset == 0 && sequences[in].matchLength == 0) {
+            if (in != seqsSize - 1) {
+                sequences[in+1].litLength += sequences[in].litLength;
+            }
+        } else {
+            sequences[out] = sequences[in];
+            ++out;
+        }
+    }
+    return out;
 }
 
 /* Returns true if the given block is a RLE block */

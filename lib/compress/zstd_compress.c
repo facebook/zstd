@@ -4587,6 +4587,7 @@ static size_t ZSTD_copySequencesToSeqStore(seqStore_t* seqStore, const ZSTD_sequ
                 break;
             } else {
                 /* Spanned range ends in the match section */
+                litLength = seqRange->startPosInSequence > litLength ? 0 : litLength - seqRange->startPosInSequence;
                 matchLength = seqLength - litLength;
             }
 

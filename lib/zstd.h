@@ -1298,9 +1298,14 @@ ZSTDLIB_API unsigned long long ZSTD_decompressBound(const void* src, size_t srcS
 ZSTDLIB_API size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize);
 
 typedef enum {
-  ZSTD_sf_explicitBlockDelimiters,  /* Representation of ZSTD_Sequence contains explicit block delimiters */
-  ZSTD_sf_noBlockDelimiters         /* Representation of ZSTD_Sequence has no block delimiters, sequences only */
-} ZSTD_sequenceFormat_e;
+  ZSTD_sf_noBlockDelimiters,         /* Representation of ZSTD_Sequence has no block delimiters, sequences only */
+  ZSTD_sf_explicitBlockDelimiters    /* Representation of ZSTD_Sequence contains explicit block delimiters */
+} ZSTD_sequenceFormat_blockBoundaries_e;
+
+typedef enum {
+  ZSTD_sf_calculateRepcodes,
+  ZSTD_sf_noCalculateRepcodes
+} ZSTD_sequenceFormat_repcodes_e;
 
 /*! ZSTD_generateSequences() :
  * Generate sequences using ZSTD_compress2, given a source buffer.
@@ -1343,8 +1348,7 @@ ZSTDLIB_API size_t ZSTD_mergeBlockDelimiters(ZSTD_Sequence* sequences, size_t se
  */
 ZSTDLIB_API size_t ZSTD_compressSequences(ZSTD_CCtx* const cctx, void* dst, size_t dstSize,
                                   const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
-                                  const void* src, size_t srcSize,
-                                  ZSTD_sequenceFormat_e format);
+                                  const void* src, size_t srcSize);
 
 
 /***************************************

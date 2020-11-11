@@ -313,6 +313,10 @@ struct ZSTD_CCtx_s {
     const ZSTD_CDict* cdict;
     ZSTD_prefixDict prefixDict;   /* single-usage dictionary */
 
+    /* Sequence compression API */
+    ZSTD_sequenceFormat_blockBoundaries_e blockDelimiters;
+    ZSTD_sequenceFormat_repcodes_e calculateRepcodes;
+
     /* Multi-threading */
 #ifdef ZSTD_MULTITHREAD
     ZSTDMT_CCtx* mtctx;

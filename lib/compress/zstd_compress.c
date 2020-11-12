@@ -2497,14 +2497,12 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
 
     ZSTD_Sequence* outSeqs = &zc->seqCollector.seqStart[zc->seqCollector.seqIndex];
     size_t i;
-    U32 rep[ZSTD_REP_NUM];
+    U32* rep = zc->blockState.prevCBlock->rep;
     U32 shouldUpdateRep;
 
     assert(zc->seqCollector.seqIndex + 1 < zc->seqCollector.maxSequences);
     /* Ensure we have enough space for last literals "sequence" */
     assert(zc->seqCollector.maxSequences >= seqStoreSeqSize + 1);
-    ZSTD_memcpy(rep, zc->blockState.prevCBlock->rep, ZSTD_REP_NUM * sizeof(U32));
-    DEBUGLOG(2, "%u %u %u", rep[0], rep[1], rep[2]);
 
     for (i = 0; i < seqStoreSeqSize; ++i) {
         U32 rawOffset = seqStoreSeqs[i].offset - ZSTD_REP_NUM;
@@ -2558,15 +2556,13 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
         }
         outSeqs[i].offset = rawOffset;
         if (shouldUpdateRep) {
-            int j;
-            for (j = ZSTD_REP_NUM - 1; j > 0; j--) {
-                rep[j] = rep[j - 1];
-            }
+            /* Purge the last repcode, move in new offset */
+            rep[2] = rep[1];
+            rep[1] = rep[0];
             rep[0] = outSeqs[i].offset;
         }
         literalsRead += outSeqs[i].litLength;
     }
-
     /* Insert last literals (if any exist) in the block as a sequence with ml == off == 0.
      * If there are no last literals, then we'll emit (of: 0, ml: 0, ll: 0), which is a marker
      * for the block boundary, according to the API.
@@ -2577,6 +2573,9 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
     outSeqs[i].matchLength = outSeqs[i].offset = outSeqs[i].rep = 0;
     seqStoreSeqSize++;
 
+    zc->blockState.nextCBlock->rep[0] = zc->blockState.prevCBlock->rep[0];
+    zc->blockState.nextCBlock->rep[1] = zc->blockState.prevCBlock->rep[1];
+    zc->blockState.nextCBlock->rep[2] = zc->blockState.prevCBlock->rep[2];
     zc->seqCollector.seqIndex += seqStoreSeqSize;
 }
 

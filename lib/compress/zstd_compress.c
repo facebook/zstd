@@ -2497,19 +2497,17 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
 
     ZSTD_Sequence* outSeqs = &zc->seqCollector.seqStart[zc->seqCollector.seqIndex];
     size_t i;
+    repcodes_t updatedRepcodes;
     U32* rep = zc->blockState.prevCBlock->rep;
-    U32 shouldUpdateRep;
 
     assert(zc->seqCollector.seqIndex + 1 < zc->seqCollector.maxSequences);
     /* Ensure we have enough space for last literals "sequence" */
     assert(zc->seqCollector.maxSequences >= seqStoreSeqSize + 1);
-
     for (i = 0; i < seqStoreSeqSize; ++i) {
         U32 rawOffset = seqStoreSeqs[i].offset - ZSTD_REP_NUM;
         outSeqs[i].litLength = seqStoreSeqs[i].litLength;
         outSeqs[i].matchLength = seqStoreSeqs[i].matchLength + MINMATCH;
         outSeqs[i].rep = 0;
-        shouldUpdateRep = 1;
 
         if (i == seqStore->longLengthPos) {
             if (seqStore->longLengthID == 1) {
@@ -2519,50 +2517,26 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
             }
         }
 
-        /* Derive the correct offset from the repcode in seqStore_t */
         if (seqStoreSeqs[i].offset <= ZSTD_REP_NUM) {
+            /* Derive the correct offset corresponding to a repcode */
             outSeqs[i].rep = seqStoreSeqs[i].offset;
-            if (seqStoreSeqs[i].litLength != 0) {
-                if (seqStoreSeqs[i].offset == 1) {
-                    shouldUpdateRep = 0;
-                    rawOffset = rep[0];
-                } else if (seqStoreSeqs[i].offset == 2) {
-                    U32 tmp;
-                    rawOffset = rep[1];
-                    /* Swap ranks of rep[0] and rep[1] */
-                    tmp = rep[0];
-                    rep[0] = rep[1];
-                    rep[1] = tmp;
-                    shouldUpdateRep = 0;
-                } else if (seqStoreSeqs[i].offset == 3) {
-                    rawOffset = rep[2];
-                }
+            if (outSeqs[i].litLength != 0) {
+                rawOffset = rep[outSeqs[i].rep - 1];
             } else {
-                /* Litlength == 0 is a special case for repcode handling */
-                if (seqStoreSeqs[i].offset == 1) {
-                    U32 tmp;
-                    rawOffset = rep[1];
-                    /* Swap ranks of rep[0] and rep[1] */
-                    tmp = rep[0];
-                    rep[0] = rep[1];
-                    rep[1] = tmp;
-                    shouldUpdateRep = 0;
-                } else if (seqStoreSeqs[i].offset == 2) {
-                    rawOffset = rep[2];
-                } else if (seqStoreSeqs[i].offset == 3) {
+                if (outSeqs[i].rep == 3) {
                     rawOffset = rep[0] - 1;
+                } else {
+                    rawOffset = rep[outSeqs[i].rep];
                 }
             }
         }
         outSeqs[i].offset = rawOffset;
-        if (shouldUpdateRep) {
-            /* Purge the last repcode, move in new offset */
-            rep[2] = rep[1];
-            rep[1] = rep[0];
-            rep[0] = outSeqs[i].offset;
-        }
+        updatedRepcodes = ZSTD_updateRep(rep, seqStoreSeqs[i].offset - 1, seqStoreSeqs[i].litLength == 0);
+        ZSTD_memcpy(rep, updatedRepcodes.rep, sizeof(repcodes_t));
+
         literalsRead += outSeqs[i].litLength;
     }
+
     /* Insert last literals (if any exist) in the block as a sequence with ml == off == 0.
      * If there are no last literals, then we'll emit (of: 0, ml: 0, ll: 0), which is a marker
      * for the block boundary, according to the API.
@@ -2573,9 +2547,8 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
     outSeqs[i].matchLength = outSeqs[i].offset = outSeqs[i].rep = 0;
     seqStoreSeqSize++;
 
-    zc->blockState.nextCBlock->rep[0] = zc->blockState.prevCBlock->rep[0];
-    zc->blockState.nextCBlock->rep[1] = zc->blockState.prevCBlock->rep[1];
-    zc->blockState.nextCBlock->rep[2] = zc->blockState.prevCBlock->rep[2];
+    ZSTD_memcpy(zc->blockState.nextCBlock->rep, zc->blockState.prevCBlock->rep,
+                sizeof(zc->blockState.nextCBlock->rep));
     zc->seqCollector.seqIndex += seqStoreSeqSize;
 }
 

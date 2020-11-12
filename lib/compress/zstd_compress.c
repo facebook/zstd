@@ -2497,7 +2497,6 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
 
     ZSTD_Sequence* outSeqs = &zc->seqCollector.seqStart[zc->seqCollector.seqIndex];
     size_t i;
-    int repIdx;
     U32 rep[ZSTD_REP_NUM];
     U32 shouldUpdateRep;
 
@@ -2561,8 +2560,9 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
         }
         outSeqs[i].offset = rawOffset;
         if (shouldUpdateRep) {
-            for (int i = ZSTD_REP_NUM - 1; i > 0; i--) {
-                rep[i] = rep[i - 1];
+            int j;
+            for (j = ZSTD_REP_NUM - 1; j > 0; j--) {
+                rep[j] = rep[j - 1];
             }
             rep[0] = outSeqs[i].offset;
         }

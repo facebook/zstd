@@ -2503,7 +2503,8 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
     assert(zc->seqCollector.seqIndex + 1 < zc->seqCollector.maxSequences);
     /* Ensure we have enough space for last literals "sequence" */
     assert(zc->seqCollector.maxSequences >= seqStoreSeqSize + 1);
-    ZSTD_memcpy(rep, repStartValue, ZSTD_REP_NUM * sizeof(U32));
+    ZSTD_memcpy(rep, zc->blockState.prevCBlock->rep, ZSTD_REP_NUM * sizeof(U32));
+    DEBUGLOG(2, "%u %u %u", rep[0], rep[1], rep[2]);
 
     for (i = 0; i < seqStoreSeqSize; ++i) {
         U32 rawOffset = seqStoreSeqs[i].offset - ZSTD_REP_NUM;

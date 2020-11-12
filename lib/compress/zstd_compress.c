@@ -2498,14 +2498,20 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
     ZSTD_Sequence* outSeqs = &zc->seqCollector.seqStart[zc->seqCollector.seqIndex];
     size_t i;
     int repIdx;
+    U32 rep[ZSTD_REP_NUM];
+    U32 shouldUpdateRep;
 
     assert(zc->seqCollector.seqIndex + 1 < zc->seqCollector.maxSequences);
     /* Ensure we have enough space for last literals "sequence" */
     assert(zc->seqCollector.maxSequences >= seqStoreSeqSize + 1);
+    ZSTD_memcpy(rep, repStartValue, ZSTD_REP_NUM * sizeof(U32));
+
     for (i = 0; i < seqStoreSeqSize; ++i) {
+        U32 rawOffset = seqStoreSeqs[i].offset - ZSTD_REP_NUM;
         outSeqs[i].litLength = seqStoreSeqs[i].litLength;
         outSeqs[i].matchLength = seqStoreSeqs[i].matchLength + MINMATCH;
         outSeqs[i].rep = 0;
+        shouldUpdateRep = 1;
 
         if (i == seqStore->longLengthPos) {
             if (seqStore->longLengthID == 1) {
@@ -2515,24 +2521,50 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
             }
         }
 
+        /* Derive the correct offset from the repcode in seqStore_t */
         if (seqStoreSeqs[i].offset <= ZSTD_REP_NUM) {
-            outSeqs[i].rep = seqStoreSeqs[i].offset;
-            repIdx = (unsigned int)i - seqStoreSeqs[i].offset;
-
-            if (seqStoreSeqs[i].litLength == 0) {
-                if (seqStoreSeqs[i].offset < 3) {
-                    --repIdx;
-                } else {
-                    repIdx = (unsigned int)i - 1;
+            if (seqStoreSeqs[i].litLength != 0) {
+                if (seqStoreSeqs[i].offset == 1) {
+                    shouldUpdateRep = 0;
+                    rawOffset = rep[0];
+                } else if (seqStoreSeqs[i].offset == 2) {
+                    U32 tmp;
+                    rawOffset = rep[1];
+                    /* Swap ranks of rep[0] and rep[1] */
+                    tmp = rep[0];
+                    rep[0] = rep[1];
+                    rep[1] = tmp;
+                    shouldUpdateRep = 0;
+                } else if (seqStoreSeqs[i].offset == 3) {
+                    rawOffset = rep[2];
+                }
+                outSeqs[i].rep = seqStoreSeqs[i].offset;
+            } else {
+                /* Litlength == 0 is a special case for repcode handling */
+                if (seqStoreSeqs[i].offset == 1) {
+                    U32 tmp;
+                    outSeqs[i].rep = 1;
+                    rawOffset = rep[1];
+                    /* Swap ranks of rep[0] and rep[1] */
+                    tmp = rep[0];
+                    rep[0] = rep[1];
+                    rep[1] = tmp;
+                    shouldUpdateRep = 0;
+                } else if (seqStoreSeqs[i].offset == 2) {
+                    outSeqs[i].rep = 2;
+                    rawOffset = rep[2];
+                } else if (seqStoreSeqs[i].offset == 3) {
+                    outSeqs[i].rep = 1;
+                    rawOffset = rep[0] - 1;
                 }
             }
-            assert(repIdx >= -3);
-            outSeqs[i].offset = repIdx >= 0 ? outSeqs[repIdx].offset : repStartValue[-repIdx - 1];
-            if (outSeqs[i].rep == 3 && outSeqs[i].litLength == 0) {
-                --outSeqs[i].offset;
+        }
+        outSeqs[i].offset = rawOffset;
+        if (shouldUpdateRep) {
+            for (int i = ZSTD_REP_NUM - 1; i > 0; i--) {
+                rep[i] = rep[i - 1];
             }
-        } else {
-            outSeqs[i].offset = seqStoreSeqs[i].offset - ZSTD_REP_NUM;
+            rep[0] = outSeqs[i].offset;
         }
         literalsRead += outSeqs[i].litLength;
     }

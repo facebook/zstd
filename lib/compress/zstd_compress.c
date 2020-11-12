@@ -2522,6 +2522,7 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
 
         /* Derive the correct offset from the repcode in seqStore_t */
         if (seqStoreSeqs[i].offset <= ZSTD_REP_NUM) {
+            outSeqs[i].rep = seqStoreSeqs[i].offset;
             if (seqStoreSeqs[i].litLength != 0) {
                 if (seqStoreSeqs[i].offset == 1) {
                     shouldUpdateRep = 0;
@@ -2537,12 +2538,10 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
                 } else if (seqStoreSeqs[i].offset == 3) {
                     rawOffset = rep[2];
                 }
-                outSeqs[i].rep = seqStoreSeqs[i].offset;
             } else {
                 /* Litlength == 0 is a special case for repcode handling */
                 if (seqStoreSeqs[i].offset == 1) {
                     U32 tmp;
-                    outSeqs[i].rep = 1;
                     rawOffset = rep[1];
                     /* Swap ranks of rep[0] and rep[1] */
                     tmp = rep[0];
@@ -2550,10 +2549,8 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
                     rep[1] = tmp;
                     shouldUpdateRep = 0;
                 } else if (seqStoreSeqs[i].offset == 2) {
-                    outSeqs[i].rep = 2;
                     rawOffset = rep[2];
                 } else if (seqStoreSeqs[i].offset == 3) {
-                    outSeqs[i].rep = 1;
                     rawOffset = rep[0] - 1;
                 }
             }

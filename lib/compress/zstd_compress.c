@@ -2533,7 +2533,7 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
         outSeqs[i].offset = rawOffset;
         /* seqStoreSeqs[i].offset == offCode+1, and ZSTD_updateRep() expects offCode
            so we provide seqStoreSeqs[i].offset - 1 */
-        updatedRepcodes = ZSTD_updateRep(updatedRepcodes.rep,
+        updatedRepcodes = ZSTD_updateRep(rep,
                                          seqStoreSeqs[i].offset - 1,
                                          seqStoreSeqs[i].litLength == 0);
         literalsRead += outSeqs[i].litLength;

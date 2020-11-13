@@ -2498,11 +2498,11 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
     ZSTD_Sequence* outSeqs = &zc->seqCollector.seqStart[zc->seqCollector.seqIndex];
     size_t i;
     repcodes_t updatedRepcodes;
-    U32* rep = zc->blockState.prevCBlock->rep;
 
     assert(zc->seqCollector.seqIndex + 1 < zc->seqCollector.maxSequences);
     /* Ensure we have enough space for last literals "sequence" */
     assert(zc->seqCollector.maxSequences >= seqStoreSeqSize + 1);
+    ZSTD_memcpy(updatedRepcodes.rep, zc->blockState.prevCBlock->rep, sizeof(repcodes_t));
     for (i = 0; i < seqStoreSeqSize; ++i) {
         U32 rawOffset = seqStoreSeqs[i].offset - ZSTD_REP_NUM;
         outSeqs[i].litLength = seqStoreSeqs[i].litLength;
@@ -2521,22 +2521,23 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
             /* Derive the correct offset corresponding to a repcode */
             outSeqs[i].rep = seqStoreSeqs[i].offset;
             if (outSeqs[i].litLength != 0) {
-                rawOffset = rep[outSeqs[i].rep - 1];
+                rawOffset = updatedRepcodes.rep[outSeqs[i].rep - 1];
             } else {
                 if (outSeqs[i].rep == 3) {
-                    rawOffset = rep[0] - 1;
+                    rawOffset = updatedRepcodes.rep[0] - 1;
                 } else {
-                    rawOffset = rep[outSeqs[i].rep];
+                    rawOffset = updatedRepcodes.rep[outSeqs[i].rep];
                 }
             }
         }
         outSeqs[i].offset = rawOffset;
-        updatedRepcodes = ZSTD_updateRep(rep, seqStoreSeqs[i].offset - 1, seqStoreSeqs[i].litLength == 0);
-        ZSTD_memcpy(rep, updatedRepcodes.rep, sizeof(repcodes_t));
-
+        /* seqStoreSeqs[i].offset == offCode+1, and ZSTD_updateRep() expects offCode
+           so we provide seqStoreSeqs[i].offset - 1 */
+        updatedRepcodes = ZSTD_updateRep(updatedRepcodes.rep,
+                                         seqStoreSeqs[i].offset - 1,
+                                         seqStoreSeqs[i].litLength == 0);
         literalsRead += outSeqs[i].litLength;
     }
-
     /* Insert last literals (if any exist) in the block as a sequence with ml == off == 0.
      * If there are no last literals, then we'll emit (of: 0, ml: 0, ll: 0), which is a marker
      * for the block boundary, according to the API.
@@ -2546,9 +2547,6 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
     outSeqs[i].litLength = (U32)lastLLSize;
     outSeqs[i].matchLength = outSeqs[i].offset = outSeqs[i].rep = 0;
     seqStoreSeqSize++;
-
-    ZSTD_memcpy(zc->blockState.nextCBlock->rep, zc->blockState.prevCBlock->rep,
-                sizeof(zc->blockState.nextCBlock->rep));
     zc->seqCollector.seqIndex += seqStoreSeqSize;
 }
 

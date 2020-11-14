@@ -4681,13 +4681,21 @@ static ZSTD_compressionParameters ZSTD_getCParams_internal(int compressionLevel,
 {
     U64 const rSize = ZSTD_getCParamRowSize(srcSizeHint, dictSize, mode);
     U32 const tableID = (rSize <= 256 KB) + (rSize <= 128 KB) + (rSize <= 16 KB);
-    int row = compressionLevel;
+    int row;
     DEBUGLOG(5, "ZSTD_getCParams_internal (cLevel=%i)", compressionLevel);
+
+    /* row */
     if (compressionLevel == 0) row = ZSTD_CLEVEL_DEFAULT;   /* 0 == default */
-    if (compressionLevel < 0) row = 0;   /* entry 0 is baseline for fast mode */
-    if (compressionLevel > ZSTD_MAX_CLEVEL) row = ZSTD_MAX_CLEVEL;
+    else if (compressionLevel < 0) row = 0;   /* entry 0 is baseline for fast mode */
+    else if (compressionLevel > ZSTD_MAX_CLEVEL) row = ZSTD_MAX_CLEVEL;
+    else row = compressionLevel;
+
     {   ZSTD_compressionParameters cp = ZSTD_defaultCParameters[tableID][row];
-        if (compressionLevel < 0) cp.targetLength = (unsigned)(-compressionLevel);   /* acceleration factor */
+        /* acceleration factor */
+        if (compressionLevel < 0) {
+            int const clampedCompressionLevel = MAX(ZSTD_minCLevel(), compressionLevel);
+            cp.targetLength = (unsigned)(-clampedCompressionLevel);
+        }
         /* refine parameters based on srcSize & dictSize */
         return ZSTD_adjustCParams_internal(cp, srcSizeHint, dictSize, mode);
     }

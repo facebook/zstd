@@ -2721,9 +2721,9 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
         if (seqs == NULL) goto _output_error;
         assert(cctx != NULL);
-
+        ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, 19);
         /* Populate src with random data */
-        RDG_genBuffer(CNBuffer, srcSize, compressibility, 0., seed);
+        RDG_genBuffer(CNBuffer, srcSize, compressibility, 0.5, seed);
 
         /* Test with block delimiters roundtrip */
         seqsSize = ZSTD_generateSequences(cctx, seqs, srcSize, src, srcSize);

@@ -1340,12 +1340,14 @@ ZSTDLIB_API size_t ZSTD_mergeBlockDelimiters(ZSTD_Sequence* sequences, size_t se
  * Compress sequences given by inSeqs, generated from source buffer 'src', using a cctx.
  * The entire source is compressed into a single frame. 
  * 
- * If invoked with ZSTD_sf_noBlockDelimiters, the array of ZSTD_Sequence is expected to contain
+ * If ZSTD_c_blockDelimiters == ZSTD_sf_noBlockDelimiters, the array of ZSTD_Sequence is expected to contain
  * no block delimiters (defined in ZSTD_Sequence). Block boundaries are roughly determined based on
  * the block size derived from the cctx, and sequences may be split.
  * 
- * If invoked with ZSTD_sf_explicitBlockDelimiters, the array of ZSTD_Sequence is expected to contain
+ * If STD_c_blockDelimiters == ZSTD_sf_explicitBlockDelimiters, the array of ZSTD_Sequence is expected to contain
  * block delimiters.
+ * 
+ * Repcodes are, as of now, always re-calculated.
  * 
  * @return : final compressed size.
  */

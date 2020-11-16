@@ -457,6 +457,11 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
         bounds.lowerBound = (int)ZSTD_bm_buffered;
         bounds.upperBound = (int)ZSTD_bm_stable;
         return bounds;
+    
+    case ZSTD_c_blockDelimiters:
+        bounds.lowerBound = (int)ZSTD_sf_noBlockDelimiters;
+        bounds.upperBound = (int)ZSTD_sf_explicitBlockDelimiters;
+        return bounds;
 
     default:
         bounds.error = ERROR(parameter_unsupported);
@@ -517,6 +522,7 @@ static int ZSTD_isUpdateAuthorized(ZSTD_cParameter param)
     case ZSTD_c_srcSizeHint:
     case ZSTD_c_stableInBuffer:
     case ZSTD_c_stableOutBuffer:
+    case ZSTD_c_blockDelimiters:
     default:
         return 0;
     }
@@ -567,6 +573,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int value)
     case ZSTD_c_srcSizeHint:
     case ZSTD_c_stableInBuffer:
     case ZSTD_c_stableOutBuffer:
+    case ZSTD_c_blockDelimiters:
         break;
 
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
@@ -767,6 +774,11 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
         BOUNDCHECK(ZSTD_c_stableOutBuffer, value);
         CCtxParams->outBufferMode = (ZSTD_bufferMode_e)value;
         return CCtxParams->outBufferMode;
+    
+    case ZSTD_c_blockDelimiters:
+        BOUNDCHECK(ZSTD_c_blockDelimiters, value);
+        CCtxParams->blockDelimiters = (ZSTD_sequenceFormat_e)value;
+        return CCtxParams->blockDelimiters;
 
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
     }
@@ -884,6 +896,9 @@ size_t ZSTD_CCtxParams_getParameter(
         break;
     case ZSTD_c_stableOutBuffer :
         *value = (int)CCtxParams->outBufferMode;
+        break;
+    case ZSTD_c_blockDelimiters :
+        *value = (int)CCtxParams->blockDelimiters;
         break;
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
     }
@@ -1717,9 +1732,6 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             ZSTD_window_clear(&zc->ldmState.window);
             zc->ldmState.loadedDictEnd = 0;
         }
-
-        zc->blockDelimiters = ZSTD_sf_noBlockDelimiters;
-        zc->calculateRepcodes = ZSTD_sf_calculateRepcodes;
 
         /* Due to alignment, when reusing a workspace, we can actually consume
          * up to 3 extra bytes for alignment. See the comments in zstd_cwksp.h

@@ -242,6 +242,9 @@ struct ZSTD_CCtx_params_s {
     ZSTD_bufferMode_e inBufferMode;
     ZSTD_bufferMode_e outBufferMode;
 
+    /* Sequence compression API */
+    ZSTD_sequenceFormat_e blockDelimiters;
+
     /* Internal use, for createCCtxParams() and freeCCtxParams() only */
     ZSTD_customMem customMem;
 };  /* typedef'd to ZSTD_CCtx_params within "zstd.h" */
@@ -312,10 +315,6 @@ struct ZSTD_CCtx_s {
     ZSTD_localDict localDict;
     const ZSTD_CDict* cdict;
     ZSTD_prefixDict prefixDict;   /* single-usage dictionary */
-
-    /* Sequence compression API */
-    ZSTD_sequenceFormat_blockBoundaries_e blockDelimiters;
-    ZSTD_sequenceFormat_repcodes_e calculateRepcodes;
 
     /* Multi-threading */
 #ifdef ZSTD_MULTITHREAD

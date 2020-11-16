@@ -15,6 +15,7 @@ stream_round_trip
 zstd_frame_info
 decompress_dstSize_tooSmall
 fse_read_ncount
+sequence_compression_api
 fuzz-*.log
 rt_lib_*
 d_lib_*

@@ -4492,9 +4492,8 @@ typedef struct {
     U64 posInSrc;        /* Number of bytes given by sequences provided so far */
 } ZSTD_sequencePosition;
 
-#if defined(DEBUGLEVEL) && (DEBUGLEVEL >= 6)
 /* Returns a ZSTD error code if sequence is not valid */
-static size_t ZSTD_validateSequence(U32 offCode, U32 repCode, U32 matchLength,
+static size_t ZSTD_validateSequence(U32 offCode, U32 matchLength,
                                     size_t posInSrc, U32 windowLog, U32 dictSize) {
     U32 offsetBound;
     U32 windowSize = 1 << windowLog;
@@ -4504,11 +4503,10 @@ static size_t ZSTD_validateSequence(U32 offCode, U32 repCode, U32 matchLength,
      * window size. After output surpasses windowSize, we're limited to windowSize offsets again.
      */
     offsetBound = posInSrc > windowSize ? windowSize : posInSrc + dictSize;
-    RETURN_ERROR_IF(!repCode && offCode - ZSTD_REP_MOVE > offsetBound, corruption_detected, "Offset too large!");
+    RETURN_ERROR_IF(offCode > offsetBound + ZSTD_REP_MOVE, corruption_detected, "Offset too large!");
     RETURN_ERROR_IF(matchLength < MINMATCH, corruption_detected, "Matchlength too small");
     return 0;
 }
-#endif
 
 /* Returns an offset code, given a sequence's raw offset, the ongoing repcode array, and whether litLength == 0 */
 static U32 ZSTD_finalizeOffCode(U32 rawOffset, const U32* const rep, U32 ll0) {
@@ -4539,7 +4537,7 @@ static size_t ZSTD_copySequencesToSeqStoreBlockDelim(seqStore_t* seqStore, ZSTD_
                                            const void* src, size_t blockSize, ZSTD_CCtx* cctx) {
     size_t idx = seqPos->idx;
     BYTE const* ip = (BYTE const*)(src);
-    const BYTE const* iend = ip + blockSize;
+    const BYTE* const iend = ip + blockSize;
     repcodes_t updatedRepcodes;
     U32 dictSize;
     U32 litLength;
@@ -4563,14 +4561,11 @@ static size_t ZSTD_copySequencesToSeqStoreBlockDelim(seqStore_t* seqStore, ZSTD_
         updatedRepcodes = ZSTD_updateRep(updatedRepcodes.rep, offCode, ll0);
 
         DEBUGLOG(6, "Storing sequence: (of: %u, ml: %u, ll: %u)", offCode, matchLength, litLength);
-#if defined(DEBUGLEVEL) && (DEBUGLEVEL >= 6)
         seqPos->posInSrc += litLength;
-        FORWARD_IF_ERROR(ZSTD_validateSequence(offCode, repCode, matchLength,
-                                               seqPos->posInSrc, cctx->appliedParams.cParams.windowLog,
-                                               dictSize),
+        FORWARD_IF_ERROR(ZSTD_validateSequence(offCode, matchLength, seqPos->posInSrc,
+                                               cctx->appliedParams.cParams.windowLog, dictSize),
                          "Sequence validation failed");
         seqPos->posInSrc += matchLength;
-#endif
         ZSTD_storeSeq(seqStore, litLength, ip, iend, offCode, matchLength - MINMATCH);
         ip += matchLength + litLength;
     }
@@ -4580,9 +4575,7 @@ static size_t ZSTD_copySequencesToSeqStoreBlockDelim(seqStore_t* seqStore, ZSTD_
         DEBUGLOG(6, "Storing last literals of size: %u", inSeqs[idx].litLength);
         ZSTD_storeLastLiterals(seqStore, ip, inSeqs[idx].litLength);
         ip += inSeqs[idx].litLength;
-#if defined(DEBUGLEVEL) && (DEBUGLEVEL >= 6)
         seqPos->posInSrc += inSeqs[idx].litLength;
-#endif
     }
     RETURN_ERROR_IF(ip != iend, corruption_detected, "Blocksize doesn't agree with block delimiter!");
     seqPos->idx = idx+1;
@@ -4616,7 +4609,6 @@ static size_t ZSTD_copySequencesToSeqStore(seqStore_t* seqStore, ZSTD_sequencePo
     U32 matchLength;
     U32 rawOffset;
     U32 offCode;
-    U32 repCode;
     
     if (cctx->cdict) {
         dictSize = cctx->cdict->dictContentSize;
@@ -4625,15 +4617,14 @@ static size_t ZSTD_copySequencesToSeqStore(seqStore_t* seqStore, ZSTD_sequencePo
     } else {
         dictSize = 0;
     }
-    DEBUGLOG(5, "ZSTD_copySequencesToSeqStore: idx: %zu PIS: %u blockSize: %zu windowSize: %u", idx, startPosInSequence, blockSize, windowSize);
-    DEBUGLOG(5, "Start seq: idx: %u (of: %u ml: %u ll: %u)", idx, inSeqs[idx].offset, inSeqs[idx].matchLength, inSeqs[idx].litLength);
+    DEBUGLOG(5, "ZSTD_copySequencesToSeqStore: idx: %zu PIS: %zu blockSize: %zu", idx, startPosInSequence, blockSize);
+    DEBUGLOG(5, "Start seq: idx: %zu (of: %u ml: %u ll: %u)", idx, inSeqs[idx].offset, inSeqs[idx].matchLength, inSeqs[idx].litLength);
     ZSTD_memcpy(updatedRepcodes.rep, cctx->blockState.prevCBlock->rep, sizeof(repcodes_t));
     while (endPosInSequence && idx < inSeqsSize && !finalMatchSplit) {
         const ZSTD_Sequence currSeq = inSeqs[idx];
         litLength = currSeq.litLength;
         matchLength = currSeq.matchLength;
         rawOffset = currSeq.offset;
-        repCode =  0;
 
         /* Modify the sequence depending on where endPosInSequence lies */
         if (endPosInSequence >= currSeq.litLength + currSeq.matchLength) {
@@ -4651,11 +4642,12 @@ static size_t ZSTD_copySequencesToSeqStore(seqStore_t* seqStore, ZSTD_sequencePo
         } else {
             /* This is the final (partial) sequence we're adding from inSeqs, and endPosInSequence
                does not reach the end of the match. So, we have to split the sequence */
-            DEBUGLOG(6, "Require a split: diff: %u, idx: %u PIS: %u",
+            DEBUGLOG(6, "Require a split: diff: %zu, idx: %zu PIS: %zu",
                      currSeq.litLength + currSeq.matchLength - endPosInSequence, idx, endPosInSequence);
             if (endPosInSequence > litLength) {
+                U32 firstHalfMatchLength;
                 litLength = startPosInSequence >= litLength ? 0 : litLength - startPosInSequence;
-                U32 firstHalfMatchLength = endPosInSequence - startPosInSequence - litLength;
+                firstHalfMatchLength = endPosInSequence - startPosInSequence - litLength;
                 if (matchLength > blockSize && firstHalfMatchLength >= MINMATCH) {
                     /* Only ever split the match if it is larger than the block size */
                     U32 secondHalfMatchLength = currSeq.matchLength + currSeq.litLength - endPosInSequence;
@@ -4690,14 +4682,11 @@ static size_t ZSTD_copySequencesToSeqStore(seqStore_t* seqStore, ZSTD_sequencePo
             updatedRepcodes = ZSTD_updateRep(updatedRepcodes.rep, offCode, ll0);
         }
 
-#if defined(DEBUGLEVEL) && (DEBUGLEVEL >= 6)
         seqPos->posInSrc += litLength;
-        FORWARD_IF_ERROR(ZSTD_validateSequence(offCode, repCode,
-                                               matchLength, seqPos->posInSrc,
+        FORWARD_IF_ERROR(ZSTD_validateSequence(offCode, matchLength, seqPos->posInSrc,
                                                cctx->appliedParams.cParams.windowLog, dictSize),
                          "Sequence validation failed");
         seqPos->posInSrc += matchLength;
-#endif
         DEBUGLOG(6, "Storing sequence: (of: %u, ml: %u, ll: %u)", offCode, matchLength, litLength);
         ZSTD_storeSeq(seqStore, litLength, ip, iend, offCode, matchLength - MINMATCH);
         ip += matchLength + litLength;
@@ -4714,9 +4703,7 @@ static size_t ZSTD_copySequencesToSeqStore(seqStore_t* seqStore, ZSTD_sequencePo
         assert(ip <= iend);
         DEBUGLOG(6, "Storing last literals of size: %u", lastLLSize);
         ZSTD_storeLastLiterals(seqStore, ip, lastLLSize);
-#if defined(DEBUGLEVEL) && (DEBUGLEVEL >= 6)
         seqPos->posInSrc += lastLLSize;
-#endif
     }
 
     return bytesAdjustment;

@@ -4561,11 +4561,10 @@ static size_t ZSTD_copySequencesToSeqStoreBlockDelim(seqStore_t* seqStore, ZSTD_
         updatedRepcodes = ZSTD_updateRep(updatedRepcodes.rep, offCode, ll0);
 
         DEBUGLOG(6, "Storing sequence: (of: %u, ml: %u, ll: %u)", offCode, matchLength, litLength);
-        seqPos->posInSrc += litLength;
+        seqPos->posInSrc += litLength + matchLength;
         FORWARD_IF_ERROR(ZSTD_validateSequence(offCode, matchLength, seqPos->posInSrc,
                                                cctx->appliedParams.cParams.windowLog, dictSize),
                          "Sequence validation failed");
-        seqPos->posInSrc += matchLength;
         ZSTD_storeSeq(seqStore, litLength, ip, iend, offCode, matchLength - MINMATCH);
         ip += matchLength + litLength;
     }
@@ -4682,11 +4681,10 @@ static size_t ZSTD_copySequencesToSeqStore(seqStore_t* seqStore, ZSTD_sequencePo
             updatedRepcodes = ZSTD_updateRep(updatedRepcodes.rep, offCode, ll0);
         }
 
-        seqPos->posInSrc += litLength;
+        seqPos->posInSrc += litLength + matchLength;
         FORWARD_IF_ERROR(ZSTD_validateSequence(offCode, matchLength, seqPos->posInSrc,
                                                cctx->appliedParams.cParams.windowLog, dictSize),
                          "Sequence validation failed");
-        seqPos->posInSrc += matchLength;
         DEBUGLOG(6, "Storing sequence: (of: %u, ml: %u, ll: %u)", offCode, matchLength, litLength);
         ZSTD_storeSeq(seqStore, litLength, ip, iend, offCode, matchLength - MINMATCH);
         ip += matchLength + litLength;

@@ -134,6 +134,7 @@ static size_t generateRandomSequences(FUZZ_dataProducer_t* producer,
     uint32_t nbSeqGenerated = 0;
     uint32_t litLength;
     uint32_t matchLength;
+    uint32_t matchBound;
     uint32_t offset;
     uint32_t offsetBound;
     uint32_t repCode = 0;
@@ -143,6 +144,7 @@ static size_t generateRandomSequences(FUZZ_dataProducer_t* producer,
     while (nbSeqGenerated < ZSTD_FUZZ_MAX_NBSEQ 
          && bytesGenerated < ZSTD_FUZZ_GENERATED_SRC_MAXSIZE
          && !FUZZ_dataProducer_empty(producer)) {
+        matchBound = ZSTD_FUZZ_MATCHLENGTH_MAXSIZE;
         litLength = isFirstSequence && dictSize == 0 ? FUZZ_dataProducer_uint32Range(producer, 1, literalsSizeLimit)
                                                      : FUZZ_dataProducer_uint32Range(producer, 0, literalsSizeLimit);
         bytesGenerated += litLength;
@@ -151,7 +153,16 @@ static size_t generateRandomSequences(FUZZ_dataProducer_t* producer,
         }
         offsetBound = bytesGenerated > windowSize ? windowSize : bytesGenerated + dictSize;
         offset = FUZZ_dataProducer_uint32Range(producer, 1, offsetBound);
-        matchLength = FUZZ_dataProducer_uint32Range(producer, ZSTD_MINMATCH_MIN, ZSTD_FUZZ_MATCHLENGTH_MAXSIZE);
+        if (dictSize > 0 && bytesGenerated <= windowSize) {
+            uint32_t bytesToReachWindowSize = windowSize - bytesGenerated;
+            if (bytesToReachWindowSize < ZSTD_MINMATCH_MIN) {
+                offset = FUZZ_dataProducer_uint32Range(producer, 1, windowSize);
+            } else {
+                matchBound = bytesToReachWindowSize > ZSTD_FUZZ_MATCHLENGTH_MAXSIZE ?
+                             ZSTD_FUZZ_MATCHLENGTH_MAXSIZE : bytesToReachWindowSize;
+            }
+        }
+        matchLength = FUZZ_dataProducer_uint32Range(producer, ZSTD_MINMATCH_MIN, matchBound);
         bytesGenerated += matchLength;
         if (bytesGenerated > ZSTD_FUZZ_GENERATED_SRC_MAXSIZE) {
             break;

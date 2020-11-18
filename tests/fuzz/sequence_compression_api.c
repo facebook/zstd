@@ -9,8 +9,10 @@
  */
 
 /**
- * This fuzz target performs a zstd round-trip test (compress & decompress),
- * compares the result with the original, and calls abort() on corruption.
+ * This fuzz target performs a zstd round-trip test by generating an arbitrary
+ * array of sequences, generating the associated source buffer, calling
+ * ZSTD_compressSequences(), and then decompresses and compares the result with
+ * the original generated source buffer.
  */
 
 #define ZSTD_STATIC_LINKING_ONLY
@@ -30,12 +32,13 @@ static void* literalsBuffer = NULL;
 static void* generatedSrc = NULL;
 static ZSTD_Sequence* generatedSequences = NULL;
 
-#define ZSTD_FUZZ_GENERATED_SRC_MAXSIZE (1 << 25) /* Allow up to 32MB generated data */
+#define ZSTD_FUZZ_GENERATED_SRC_MAXSIZE (1 << 20) /* Allow up to 1MB generated data */
 #define ZSTD_FUZZ_MATCHLENGTH_MAXSIZE (1 << 18) /* Allow up to 256KB matches */
 #define ZSTD_FUZZ_GENERATED_DICT_MAXSIZE (1 << 18) /* Allow up to a 256KB dict */
 #define ZSTD_FUZZ_GENERATED_LITERALS_SIZE (1 << 18) /* Fixed size 256KB literals buffer */
 #define ZSTD_FUZZ_MAX_NBSEQ (1 << 17) /* Maximum of 128K sequences */
 
+/* Deterministic random number generator */
 #define FUZZ_RDG_rotl32(x,r) ((x << r) | (x >> (32 - r)))
 static uint32_t FUZZ_RDG_rand(uint32_t* src)
 {
@@ -50,7 +53,7 @@ static uint32_t FUZZ_RDG_rand(uint32_t* src)
 }
 
 /* Make a pseudorandom string - this simple function exists to avoid
- * taking a dependency on datagen.h to have RDG_genBuffer(). We don't need anything fancy.
+ * taking a dependency on datagen.h to have RDG_genBuffer().
  */
 static char *generatePseudoRandomString(char *str, size_t size) {
     const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJK1234567890!@#$^&*()_";
@@ -124,7 +127,7 @@ static size_t decodeSequences(void* dst, size_t nbSequences,
     return generatedSrcBufferSize;
 }
 
-/* Returns nb sequences generated 
+/* Returns nb sequences generated
  * TODO: Add repcode fuzzing once we support repcode match splits
  */
 static size_t generateRandomSequences(FUZZ_dataProducer_t* producer,
@@ -141,7 +144,7 @@ static size_t generateRandomSequences(FUZZ_dataProducer_t* producer,
     uint32_t isFirstSequence = 1;
     uint32_t windowSize = 1 << windowLog;
 
-    while (nbSeqGenerated < ZSTD_FUZZ_MAX_NBSEQ 
+    while (nbSeqGenerated < ZSTD_FUZZ_MAX_NBSEQ
          && bytesGenerated < ZSTD_FUZZ_GENERATED_SRC_MAXSIZE
          && !FUZZ_dataProducer_empty(producer)) {
         matchBound = ZSTD_FUZZ_MATCHLENGTH_MAXSIZE;
@@ -154,9 +157,14 @@ static size_t generateRandomSequences(FUZZ_dataProducer_t* producer,
         offsetBound = bytesGenerated > windowSize ? windowSize : bytesGenerated + dictSize;
         offset = FUZZ_dataProducer_uint32Range(producer, 1, offsetBound);
         if (dictSize > 0 && bytesGenerated <= windowSize) {
-            uint32_t bytesToReachWindowSize = windowSize - bytesGenerated;
+            /* Prevent match length from being such that it would be associated with an offset too large
+             * from the decoder's perspective. If not possible (match would be too small),
+             * then reduce the offset if necessary.
+             */
+            size_t bytesToReachWindowSize = windowSize - bytesGenerated;
             if (bytesToReachWindowSize < ZSTD_MINMATCH_MIN) {
-                offset = FUZZ_dataProducer_uint32Range(producer, 1, windowSize);
+                uint32_t newOffsetBound = offsetBound > windowSize ? windowSize : offsetBound;
+                offset = FUZZ_dataProducer_uint32Range(producer, 1, newOffsetBound);
             } else {
                 matchBound = bytesToReachWindowSize > ZSTD_FUZZ_MATCHLENGTH_MAXSIZE ?
                              ZSTD_FUZZ_MATCHLENGTH_MAXSIZE : bytesToReachWindowSize;
@@ -241,8 +249,8 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
         dictBuffer = generatePseudoRandomString(dictBuffer, dictSize);
     }
     /* Generate window log first so we dont generate offsets too large */
-    wLog = FUZZ_dataProducer_uint32Range(producer, ZSTD_WINDOWLOG_MIN, ZSTD_WINDOWLOG_MAX);
-    cLevel = FUZZ_dataProducer_int32Range(producer, (int)ZSTD_minCLevel, (int)ZSTD_maxCLevel);
+    wLog = FUZZ_dataProducer_uint32Range(producer, ZSTD_WINDOWLOG_MIN, ZSTD_WINDOWLOG_MAX_32);
+    cLevel = FUZZ_dataProducer_int32Range(producer, -3, 22);
 
     if (!generatedSequences) {
         generatedSequences = FUZZ_malloc(sizeof(ZSTD_Sequence)*ZSTD_FUZZ_MAX_NBSEQ);
@@ -252,7 +260,6 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     }
     nbSequences = generateRandomSequences(producer, ZSTD_FUZZ_GENERATED_LITERALS_SIZE, dictSize, wLog);
     generatedSrcSize = decodeSequences(generatedSrc, nbSequences, ZSTD_FUZZ_GENERATED_LITERALS_SIZE, dictBuffer, dictSize);
-
     cBufSize = ZSTD_compressBound(generatedSrcSize);
     cBuf = FUZZ_malloc(cBufSize);
 

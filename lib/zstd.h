@@ -1153,7 +1153,8 @@ typedef struct {
                                * 
                                * Note: This field is optional. ZSTD_generateSequences() will calculate the value of
                                * 'rep', but repeat offsets do not necessarily need to be calculated from an external
-                               * sequence provider's perspective.
+                               * sequence provider's perspective. For example, ZSTD_compressSequences() does not
+                               * use this 'rep' field at all (as of now).
                                */
 } ZSTD_Sequence;
 
@@ -1315,7 +1316,7 @@ typedef enum {
  * zc can be used to insert custom compression params.
  * This function invokes ZSTD_compress2
  * 
- * The output of this function can be fed into ZSTD_compressSequences() with ZSTD_c_explicitBlockDelimiters
+ * The output of this function can be fed into ZSTD_compressSequences() with ZSTD_c_blockDelimiters
  * set to ZSTD_sf_explicitBlockDelimiters
  * @return : number of sequences generated
  */
@@ -1337,19 +1338,27 @@ ZSTDLIB_API size_t ZSTD_generateSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
 ZSTDLIB_API size_t ZSTD_mergeBlockDelimiters(ZSTD_Sequence* sequences, size_t seqsSize);
 
 /*! ZSTD_compressSequences() :
- * Compress sequences given by inSeqs, generated from source buffer 'src', using a cctx.
+ * Compress an array of ZSTD_Sequence, generated from the original source buffer, into dst.
+ * If a dictionary is included, then the cctx should reference the dict. (see: ZSTD_CCtx_refCDict(), ZSTD_CCtx_loadDictionary(), etc.)
  * The entire source is compressed into a single frame. 
  * 
- * If ZSTD_c_blockDelimiters == ZSTD_sf_noBlockDelimiters, the array of ZSTD_Sequence is expected to contain
- * no block delimiters (defined in ZSTD_Sequence). Block boundaries are roughly determined based on
- * the block size derived from the cctx, and sequences may be split.
+ * The compression behavior changes based on cctx params. In particular:
+ *    If ZSTD_c_blockDelimiters == ZSTD_sf_noBlockDelimiters, the array of ZSTD_Sequence is expected to contain
+ *    no block delimiters (defined in ZSTD_Sequence). Block boundaries are roughly determined based on
+ *    the block size derived from the cctx, and sequences may be split. This is the default setting.
  * 
- * If STD_c_blockDelimiters == ZSTD_sf_explicitBlockDelimiters, the array of ZSTD_Sequence is expected to contain
- * block delimiters.
+ *    If ZSTD_c_blockDelimiters == ZSTD_sf_explicitBlockDelimiters, the array of ZSTD_Sequence is expected to contain
+ *    block delimiters (defined in ZSTD_Sequence).
  * 
- * Repcodes are, as of now, always re-calculated.
+ *    In addition to ZSTD_c_blockDelimiters, other noteworthy cctx parameters are the compression level and window log.
+ *    - The compression level accordingly adjusts the strength of the entropy coder, as it would in typical compression.
+ *    - The window log affects offset validation: this function will return an error at higher debug levels if a provided offset
+ *      is larger than what the spec allows for a given window log and dictionary (if present). See: doc/zstd_compression_format.md
  * 
- * @return : final compressed size.
+ * Note:
+ * - Repcodes are, as of now, always re-calculated, so ZSTD_Sequence::rep is never used.
+ * 
+ * @return : final compressed size or a ZSTD error.
  */
 ZSTDLIB_API size_t ZSTD_compressSequences(ZSTD_CCtx* const cctx, void* dst, size_t dstSize,
                                   const ZSTD_Sequence* inSeqs, size_t inSeqsSize,

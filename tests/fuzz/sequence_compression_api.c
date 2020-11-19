@@ -59,7 +59,6 @@ static char *generatePseudoRandomString(char *str, size_t size) {
     const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJK1234567890!@#$^&*()_";
     uint32_t seed = 0;
     if (size) {
-        --size;
         for (size_t n = 0; n < size; n++) {
             int key = FUZZ_RDG_rand(&seed) % (int) (sizeof charset - 1);
             str[n] = charset[key];

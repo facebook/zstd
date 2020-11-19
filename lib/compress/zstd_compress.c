@@ -2586,12 +2586,27 @@ size_t ZSTD_mergeBlockDelimiters(ZSTD_Sequence* sequences, size_t seqsSize) {
     return out;
 }
 
-/* Returns true if the given block is a RLE block */
-static int ZSTD_isRLE(const BYTE *ip, size_t length) {
+/* Unrolled loop to read four size_ts of input at a time. Returns 1 if is RLE, 0 if not. */
+static int ZSTD_isRLE(const BYTE* src, size_t length) {
+    const BYTE* ip = src;
+    const BYTE value = ip[0];
+    const size_t valueST = value * 0x0101010101010101ULL;
+    const size_t unrollSize = sizeof(size_t) * 4;
+    const size_t unrollMask = unrollSize - 1;
+    const size_t prefixLength = length & unrollMask;
     size_t i;
-    if (length < 2) return 1;
-    for (i = 1; i < length; ++i) {
-        if (ip[0] != ip[i]) return 0;
+    size_t u;
+    if (length == 1) return 1;
+    /* Check if prefix is RLE first before using unrolled loop */
+    if (prefixLength && ZSTD_count(ip+1, ip, ip+prefixLength) != prefixLength-1) {
+        return 0;
+    }
+    for (i = prefixLength; i != length; i += unrollSize) {
+        for (u = 0; u < unrollSize; u += sizeof(size_t)) {
+            if (MEM_readST(ip + i + u) != valueST) {
+                return 0;
+            }
+        }
     }
     return 1;
 }

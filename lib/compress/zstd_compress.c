@@ -2590,7 +2590,7 @@ size_t ZSTD_mergeBlockDelimiters(ZSTD_Sequence* sequences, size_t seqsSize) {
 static int ZSTD_isRLE(const BYTE* src, size_t length) {
     const BYTE* ip = src;
     const BYTE value = ip[0];
-    const size_t valueST = value * 0x0101010101010101ULL;
+    const size_t valueST = (size_t)((U64)value * 0x0101010101010101ULL);
     const size_t unrollSize = sizeof(size_t) * 4;
     const size_t unrollMask = unrollSize - 1;
     const size_t prefixLength = length & unrollMask;

@@ -244,6 +244,7 @@ struct ZSTD_CCtx_params_s {
 
     /* Sequence compression API */
     ZSTD_sequenceFormat_e blockDelimiters;
+    int validateSequences;
 
     /* Internal use, for createCCtxParams() and freeCCtxParams() only */
     ZSTD_customMem customMem;

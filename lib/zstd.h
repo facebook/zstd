@@ -418,6 +418,7 @@ typedef enum {
      * ZSTD_c_stableInBuffer
      * ZSTD_c_stableOutBuffer
      * ZSTD_c_blockDelimiters
+     * ZSTD_c_validateSequences
      * Because they are not stable, it's necessary to define ZSTD_STATIC_LINKING_ONLY to access them.
      * note : never ever use experimentalParam? names directly;
      *        also, the enums values themselves are unstable and can still change.
@@ -432,7 +433,8 @@ typedef enum {
      ZSTD_c_experimentalParam8=1005,
      ZSTD_c_experimentalParam9=1006,
      ZSTD_c_experimentalParam10=1007,
-     ZSTD_c_experimentalParam11=1008
+     ZSTD_c_experimentalParam11=1008,
+     ZSTD_c_experimentalParam12=1009
 } ZSTD_cParameter;
 
 typedef struct {
@@ -1316,8 +1318,8 @@ typedef enum {
  * zc can be used to insert custom compression params.
  * This function invokes ZSTD_compress2
  * 
- * The output of this function can be fed into ZSTD_compressSequences() with ZSTD_c_blockDelimiters
- * set to ZSTD_sf_explicitBlockDelimiters
+ * The output of this function can be fed into ZSTD_compressSequences() with CCtx
+ * setting of ZSTD_c_blockDelimiters as ZSTD_sf_explicitBlockDelimiters
  * @return : number of sequences generated
  */
 
@@ -1331,8 +1333,8 @@ ZSTDLIB_API size_t ZSTD_generateSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
  * As such, the final generated result has no explicit representation of block boundaries,
  * and the final last literals segment is not represented in the sequences.
  * 
- * The output of this function can be fed into ZSTD_compressSequences() with ZSTD_c_blockDelimiters
- * set to ZSTD_sf_noBlockDelimiters
+ * The output of this function can be fed into ZSTD_compressSequences() with CCtx
+ * setting of ZSTD_c_blockDelimiters as ZSTD_sf_noBlockDelimiters
  * @return : number of sequences left after merging
  */
 ZSTDLIB_API size_t ZSTD_mergeBlockDelimiters(ZSTD_Sequence* sequences, size_t seqsSize);
@@ -1348,16 +1350,20 @@ ZSTDLIB_API size_t ZSTD_mergeBlockDelimiters(ZSTD_Sequence* sequences, size_t se
  *    the block size derived from the cctx, and sequences may be split. This is the default setting.
  * 
  *    If ZSTD_c_blockDelimiters == ZSTD_sf_explicitBlockDelimiters, the array of ZSTD_Sequence is expected to contain
- *    block delimiters (defined in ZSTD_Sequence).
+ *    block delimiters (defined in ZSTD_Sequence). Behavior is undefined if no block delimiters are provided.
  * 
- *    In addition to ZSTD_c_blockDelimiters, other noteworthy cctx parameters are the compression level and window log.
+ *    If ZSTD_c_validateSequences == 0, this function will blindly accept the sequences provided. Invalid sequences cause undefined
+ *    behavior. If ZSTD_c_validateSequences == 1, then if sequence is invalid (see doc/zstd_compression_format.md for
+ *    specifics regarding offset/matchlength requirements) then the function will bail out and return an error.
+ * 
+ *    In addition to the two adjustable experimental params, other noteworthy cctx parameters are the compression level and window log.
  *    - The compression level accordingly adjusts the strength of the entropy coder, as it would in typical compression.
  *    - The window log affects offset validation: this function will return an error at higher debug levels if a provided offset
  *      is larger than what the spec allows for a given window log and dictionary (if present). See: doc/zstd_compression_format.md
  * 
- * Note:
- * - Repcodes are, as of now, always re-calculated, so ZSTD_Sequence::rep is never used.
- * 
+ * Note: Repcodes are, as of now, always re-calculated within this function, so ZSTD_Sequence::rep is unused.
+ * Note 2: Once we integrate ability to ingest repcodes, the explicit block delims mode must respect those repcodes exactly,
+ *         and cannot emit an RLE block that disagrees with the repcode history
  * @return : final compressed size or a ZSTD error.
  */
 ZSTDLIB_API size_t ZSTD_compressSequences(ZSTD_CCtx* const cctx, void* dst, size_t dstSize,
@@ -1766,10 +1772,29 @@ ZSTDLIB_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* pre
  * Default is 0 == ZSTD_sf_noBlockDelimiters.
  * 
  * For use with sequence compression API: ZSTD_compressSequences().
+ * 
  * Designates whether or not the given array of ZSTD_Sequence contains block delimiters
- * which are defined as sequences with offset == 0 and matchLength == 0.
+ * and last literals, which are defined as sequences with offset == 0 and matchLength == 0.
+ * See the definition of ZSTD_Sequence for more specifics.
  */
 #define ZSTD_c_blockDelimiters ZSTD_c_experimentalParam11
+
+/* ZSTD_c_validateSequences
+ * Default is 0 == disabled. Set to 1 to enable sequence validation.
+ * 
+ * For use with sequence compression API: ZSTD_compressSequences().
+ * Designates whether or not we validate sequences provided to ZSTD_compressSequences()
+ * during function execution.
+ * 
+ * Without validation, providing a sequence that does not conform to the zstd spec will cause
+ * undefined behavior, and may produce a corrupted block.
+ * 
+ * With validation enabled, a if sequence is invalid (see doc/zstd_compression_format.md for
+ * specifics regarding offset/matchlength requirements) then the function will bail out and
+ * return an error.
+ * 
+ */
+#define ZSTD_c_validateSequences ZSTD_c_experimentalParam12
 
 /*! ZSTD_CCtx_getParameter() :
  *  Get the requested compression parameter value, selected by enum ZSTD_cParameter,

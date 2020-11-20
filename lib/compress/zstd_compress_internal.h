@@ -242,6 +242,10 @@ struct ZSTD_CCtx_params_s {
     ZSTD_bufferMode_e inBufferMode;
     ZSTD_bufferMode_e outBufferMode;
 
+    /* Sequence compression API */
+    ZSTD_sequenceFormat_e blockDelimiters;
+    int validateSequences;
+
     /* Internal use, for createCCtxParams() and freeCCtxParams() only */
     ZSTD_customMem customMem;
 };  /* typedef'd to ZSTD_CCtx_params within "zstd.h" */

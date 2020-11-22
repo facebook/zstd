@@ -97,7 +97,8 @@ FUZZ_TARGETS :=       \
 	raw_dictionary_round_trip \
 	dictionary_stream_round_trip \
 	decompress_dstSize_tooSmall \
-	fse_read_ncount
+	fse_read_ncount \
+	sequence_compression_api
 
 all: libregression.a $(FUZZ_TARGETS)
 
@@ -187,6 +188,9 @@ decompress_dstSize_tooSmall: $(FUZZ_HEADERS) $(FUZZ_DECOMPRESS_OBJ) d_fuzz_decom
 
 fse_read_ncount: $(FUZZ_HEADERS) $(FUZZ_ROUND_TRIP_OBJ) rt_fuzz_fse_read_ncount.o
 	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_ROUND_TRIP_OBJ) rt_fuzz_fse_read_ncount.o $(LIB_FUZZING_ENGINE) -o $@
+
+sequence_compression_api: $(FUZZ_HEADERS) $(FUZZ_ROUND_TRIP_OBJ) rt_fuzz_sequence_compression_api.o
+	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_ROUND_TRIP_OBJ) rt_fuzz_sequence_compression_api.o $(LIB_FUZZING_ENGINE) -o $@
 
 libregression.a: $(FUZZ_HEADERS) $(PRGDIR)/util.h $(PRGDIR)/util.c d_fuzz_regression_driver.o
 	$(AR) $(FUZZ_ARFLAGS) $@ d_fuzz_regression_driver.o

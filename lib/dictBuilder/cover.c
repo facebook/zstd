@@ -955,7 +955,7 @@ void COVER_dictSelectionFree(COVER_dictSelection_t selection){
   free(selection.dictContent);
 }
 
-COVER_dictSelection_t COVER_selectDict(BYTE* customDictContent,
+COVER_dictSelection_t COVER_selectDict(BYTE* customDictContent, size_t dictBufferCapacity,
         size_t dictContentSize, const BYTE* samplesBuffer, const size_t* samplesSizes, unsigned nbFinalizeSamples,
         size_t nbCheckSamples, size_t nbSamples, ZDICT_cover_params_t params, size_t* offsets, size_t totalCompressedSize) {
 
@@ -963,8 +963,8 @@ COVER_dictSelection_t COVER_selectDict(BYTE* customDictContent,
   size_t largestCompressed = 0;
   BYTE* customDictContentEnd = customDictContent + dictContentSize;
 
-  BYTE * largestDictbuffer = (BYTE *)malloc(dictContentSize);
-  BYTE * candidateDictBuffer = (BYTE *)malloc(dictContentSize);
+  BYTE * largestDictbuffer = (BYTE *)malloc(dictBufferCapacity);
+  BYTE * candidateDictBuffer = (BYTE *)malloc(dictBufferCapacity);
   double regressionTolerance = ((double)params.shrinkDictMaxRegression / 100.0) + 1.00;
 
   if (!largestDictbuffer || !candidateDictBuffer) {
@@ -976,7 +976,7 @@ COVER_dictSelection_t COVER_selectDict(BYTE* customDictContent,
   /* Initial dictionary size and compressed size */
   memcpy(largestDictbuffer, customDictContent, dictContentSize);
   dictContentSize = ZDICT_finalizeDictionary(
-    largestDictbuffer, dictContentSize, customDictContent, dictContentSize,
+    largestDictbuffer, dictBufferCapacity, customDictContent, dictContentSize,
     samplesBuffer, samplesSizes, nbFinalizeSamples, params.zParams);
 
   if (ZDICT_isError(dictContentSize)) {
@@ -1010,7 +1010,7 @@ COVER_dictSelection_t COVER_selectDict(BYTE* customDictContent,
   while (dictContentSize < largestDict) {
     memcpy(candidateDictBuffer, largestDictbuffer, largestDict);
     dictContentSize = ZDICT_finalizeDictionary(
-      candidateDictBuffer, dictContentSize, customDictContentEnd - dictContentSize, dictContentSize,
+      candidateDictBuffer, dictBufferCapacity, customDictContentEnd - dictContentSize, dictContentSize,
       samplesBuffer, samplesSizes, nbFinalizeSamples, params.zParams);
 
     if (ZDICT_isError(dictContentSize)) {
@@ -1088,7 +1088,7 @@ static void COVER_tryParameters(void *opaque) {
   {
     const size_t tail = COVER_buildDictionary(ctx, freqs, &activeDmers, dict,
                                               dictBufferCapacity, parameters);
-    selection = COVER_selectDict(dict + tail, dictBufferCapacity - tail,
+    selection = COVER_selectDict(dict + tail, dictBufferCapacity, dictBufferCapacity - tail,
         ctx->samples, ctx->samplesSizes, (unsigned)ctx->nbTrainSamples, ctx->nbTrainSamples, ctx->nbSamples, parameters, ctx->offsets,
         totalCompressedSize);
 

@@ -24,18 +24,13 @@
 #  include "zstdmt_compress.h"
 #endif
 
-#if defined _WIN32 || defined __CYGWIN__
-  #ifdef __GNUC__
-    #define ZSTD_COMPRESS_DLL_PUBLIC __attribute__ ((dllexport))
-  #else
-    #define ZSTD_COMPRESS_DLL_PUBLIC __declspec(dllexport) // Note: actually gcc seems to also supports this syntax.
-  #endif
+#if defined(_MSC_VER)
+  /* Note: actually gcc seems to also supports this syntax. */
+  #define ZSTD_COMPRESS_DLL_PUBLIC __declspec(dllexport)
+#elif defined(__CYGWIN__)
+  #define ZSTD_COMPRESS_DLL_PUBLIC __attribute__ ((dllexport))
 #else
-  #if __GNUC__ >= 4
-    #define ZSTD_COMPRESS_DLL_PUBLIC __attribute__ ((visibility ("default")))
-  #else
-    #define ZSTD_COMPRESS_DLL_PUBLIC
-  #endif
+  #define ZSTD_COMPRESS_DLL_PUBLIC
 #endif
 
 #if defined (__cplusplus)

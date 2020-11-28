@@ -91,7 +91,7 @@ typedef enum { XXH_OK=0, XXH_ERROR } XXH_errorcode;
 #if defined(_MSC_VER)
   /* Note: actually gcc seems to also supports this syntax. */
   #define XXHASH_DLL_PUBLIC __declspec(dllexport)
-#elif defined(__CYGWIN__)
+#elif defined(_WIN32)
   #define XXHASH_DLL_PUBLIC __attribute__ ((dllexport))
 #else
   #define XXHASH_DLL_PUBLIC

@@ -27,7 +27,7 @@
 #if defined(_MSC_VER)
   /* Note: actually gcc seems to also supports this syntax. */
   #define ZSTD_COMPRESS_DLL_PUBLIC __declspec(dllexport)
-#elif defined(__CYGWIN__)
+#elif defined(_WIN32)
   #define ZSTD_COMPRESS_DLL_PUBLIC __attribute__ ((dllexport))
 #else
   #define ZSTD_COMPRESS_DLL_PUBLIC

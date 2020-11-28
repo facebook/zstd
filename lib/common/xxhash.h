@@ -88,15 +88,6 @@ typedef enum { XXH_OK=0, XXH_ERROR } XXH_errorcode;
 #  define XXH_PUBLIC_API   /* do nothing */
 #endif /* XXH_PRIVATE_API */
 
-#if defined(_MSC_VER)
-  /* Note: actually gcc seems to also supports this syntax. */
-  #define XXHASH_DLL_PUBLIC __declspec(dllexport)
-#elif defined(_WIN32)
-  #define XXHASH_DLL_PUBLIC __attribute__ ((dllexport))
-#else
-  #define XXHASH_DLL_PUBLIC
-#endif
-
 /*!XXH_NAMESPACE, aka Namespace Emulation :
 
 If you want to include _and expose_ xxHash functions from within your own library,
@@ -150,7 +141,7 @@ typedef unsigned int       XXH32_hash_t;
 typedef unsigned long long XXH64_hash_t;
 
 XXH_PUBLIC_API XXH32_hash_t XXH32 (const void* input, size_t length, unsigned int seed);
-XXHASH_DLL_PUBLIC XXH_PUBLIC_API XXH64_hash_t XXH64 (const void* input, size_t length, unsigned long long seed);
+XXH_PUBLIC_API XXH64_hash_t XXH64 (const void* input, size_t length, unsigned long long seed);
 
 /*!
 XXH32() :

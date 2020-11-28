@@ -969,16 +969,15 @@ static size_t ZDICT_addEntropyTablesFromBuffer_advanced(
 }
 
 /* Hidden declaration for dbio.c */
-ZDICTLIB_API size_t ZDICT_trainFromBuffer_unsafe_legacy(
+size_t ZDICT_trainFromBuffer_unsafe_legacy(
                             void* dictBuffer, size_t maxDictSize,
                             const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
                             ZDICT_legacy_params_t params);
-
 /*! ZDICT_trainFromBuffer_unsafe_legacy() :
 *   Warning : `samplesBuffer` must be followed by noisy guard band.
 *   @return : size of dictionary, or an error code which can be tested with ZDICT_isError()
 */
-ZDICTLIB_API size_t ZDICT_trainFromBuffer_unsafe_legacy(
+size_t ZDICT_trainFromBuffer_unsafe_legacy(
                             void* dictBuffer, size_t maxDictSize,
                             const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
                             ZDICT_legacy_params_t params)

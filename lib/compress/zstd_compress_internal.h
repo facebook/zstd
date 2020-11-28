@@ -24,15 +24,6 @@
 #  include "zstdmt_compress.h"
 #endif
 
-#if defined(_MSC_VER)
-  /* Note: actually gcc seems to also supports this syntax. */
-  #define ZSTD_COMPRESS_DLL_PUBLIC __declspec(dllexport)
-#elif defined(_WIN32)
-  #define ZSTD_COMPRESS_DLL_PUBLIC __attribute__ ((dllexport))
-#else
-  #define ZSTD_COMPRESS_DLL_PUBLIC
-#endif
-
 #if defined (__cplusplus)
 extern "C" {
 #endif
@@ -1182,6 +1173,6 @@ size_t ZSTD_referenceExternalSequences(ZSTD_CCtx* cctx, rawSeq* seq, size_t nbSe
 
 /** ZSTD_cycleLog() :
  *  condition for correct operation : hashLog > 1 */
-ZSTD_COMPRESS_DLL_PUBLIC U32 ZSTD_cycleLog(U32 hashLog, ZSTD_strategy strat);
+U32 ZSTD_cycleLog(U32 hashLog, ZSTD_strategy strat);
 
 #endif /* ZSTD_COMPRESS_H */

@@ -3,17 +3,17 @@ name: generic-release
 on:
   pull_request:
     # This will eventually only be for pushes to master
-    # but for dogfooding purposes, I'm running it even 
+    # but for dogfooding purposes, I'm running it even
     # on dev pushes
     branches: [ dev, master, actionsTest ]
 
 jobs:
   # missing jobs
-  # 
+  #
   # ppc64le + fuzz test
   # Qemu PPC64 + Fuzz test
   # Qemu aarch64 + Fuzz Test (on Xenial)
-  # versions comp   
+  # versions comp
   # meson test
 
   osx:
@@ -24,7 +24,7 @@ jobs:
       run: |
         make test
         # make -c lib all (need to fix. not working right now)
-  
+
   zbuff:
     runs-on: ubuntu-16.04
     steps:
@@ -32,7 +32,7 @@ jobs:
     - name: zbuff test
       run: |
         make -C tests test-zbuff
-        
+
   tsan:
     runs-on: ubuntu-16.04
     steps:
@@ -53,7 +53,7 @@ jobs:
         make gpp6install valgrindinstall
         make -C zlibWrapper test
         make -C zlibWrapper valgrindTest
-  
+
   lz4-threadpool-partial-libs:
     runs-on: ubuntu-16.04
     steps:
@@ -62,6 +62,7 @@ jobs:
       run: |
         make lz4install
         make -C tests test-lz4
+        make check < /dev/null | tee   # mess with lz4 console detection
         make clean
         make -C tests test-pool
         make clean

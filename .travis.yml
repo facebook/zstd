@@ -216,11 +216,12 @@ matrix:
         - make -C zlibWrapper test
         - make -C zlibWrapper valgrindTest
 
-    - name: LZ4, thread pool, and partial libs tests    # ~2mn
+    - name: LZ4, thread pool, and partial libs tests    # ~4mn
       if: branch = master
       script:
         - make lz4install
         - make -C tests test-lz4
+        - make check < /dev/null | tee    # mess with lz4 console detection
         - make clean
         - make -C tests test-pool
         - make clean

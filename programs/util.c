@@ -788,7 +788,7 @@ static char* mallocAndJoin2Dir(const char *dir1, const char *dir2)
     outDirBuffer = (char *) malloc(dir1Size + dir2Size + 2);
     CONTROL(outDirBuffer != NULL);
 
-    strncpy(outDirBuffer, dir1, dir1Size);
+    memcpy(outDirBuffer, dir1, dir1Size);
     outDirBuffer[dir1Size] = '\0';
 
     if (dir2[0] == '.')
@@ -800,7 +800,7 @@ static char* mallocAndJoin2Dir(const char *dir1, const char *dir2)
         *buffer = PATH_SEP;
         buffer++;
     }
-    strncpy(buffer, dir2, dir2Size);
+    memcpy(buffer, dir2, dir2Size);
     buffer[dir2Size] = '\0';
 
     return outDirBuffer;

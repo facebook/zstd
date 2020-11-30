@@ -82,6 +82,62 @@ typedef struct {
     ZSTD_fseCTables_t fse;
 } ZSTD_entropyCTables_t;
 
+/*-*************************************
+*  Entropy buffer statistics structs
+***************************************/
+/** ZSTD_hufCTablesMetadata_t :
+ *  Stores Literals Block Type for a super-block in hType, and
+ *  huffman tree description in hufDesBuffer.
+ *  hufDesSize refers to the size of huffman tree description in bytes.
+ *  This metadata is populated in ZSTD_buildSuperBlockEntropy_literal() */
+typedef struct {
+    symbolEncodingType_e hType;
+    BYTE hufDesBuffer[ZSTD_MAX_HUF_HEADER_SIZE];
+    size_t hufDesSize;
+} ZSTD_hufCTablesMetadata_t;
+
+/** ZSTD_fseCTablesMetadata_t :
+ *  Stores symbol compression modes for a super-block in {ll, ol, ml}Type, and
+ *  fse tables in fseTablesBuffer.
+ *  fseTablesSize refers to the size of fse tables in bytes.
+ *  This metadata is populated in ZSTD_buildSuperBlockEntropy_sequences() */
+typedef struct {
+    symbolEncodingType_e llType;
+    symbolEncodingType_e ofType;
+    symbolEncodingType_e mlType;
+    BYTE fseTablesBuffer[ZSTD_MAX_FSE_HEADERS_SIZE];
+    size_t fseTablesSize;
+    size_t lastCountSize; /* This is to account for bug in 1.3.4. More detail in ZSTD_compressSubBlock_sequences() */
+} ZSTD_fseCTablesMetadata_t;
+
+typedef struct {
+    ZSTD_hufCTablesMetadata_t hufMetadata;
+    ZSTD_fseCTablesMetadata_t fseMetadata;
+} ZSTD_entropyCTablesMetadata_t;
+
+/** ZSTD_buildSuperBlockEntropy() :
+ *  Builds entropy for the super-block.
+ *  @return : 0 on success or error code */
+size_t ZSTD_buildSuperBlockEntropy(seqStore_t* seqStorePtr,
+                             const ZSTD_entropyCTables_t* prevEntropy,
+                                   ZSTD_entropyCTables_t* nextEntropy,
+                             const ZSTD_CCtx_params* cctxParams,
+                                   ZSTD_entropyCTablesMetadata_t* entropyMetadata,
+                                   void* workspace, size_t wkspSize);
+
+/** ZSTD_estimateSubBlockSize() :
+ *  Estimates the size that the block will be, based on literals and sequences.
+ *  @return : estimated size or error code */
+size_t ZSTD_estimateSubBlockSize(const BYTE* literals, size_t litSize,
+                                 const BYTE* ofCodeTable,
+                                 const BYTE* llCodeTable,
+                                 const BYTE* mlCodeTable,
+                                 size_t nbSeq,
+                                 const ZSTD_entropyCTables_t* entropy,
+                                 const ZSTD_entropyCTablesMetadata_t* entropyMetadata,
+                                 void* workspace, size_t wkspSize,
+                                 int writeLitEntropy, int writeSeqEntropy);
+
 typedef struct {
     U32 off;            /* Offset code (offset + ZSTD_REP_MOVE) for the match */
     U32 len;            /* Raw length of match */

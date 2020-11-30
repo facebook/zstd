@@ -487,7 +487,7 @@ static void FASTCOVER_tryParameters(void *opaque)
                                                     parameters, segmentFreqs);
 
     const unsigned nbFinalizeSamples = (unsigned)(ctx->nbTrainSamples * ctx->accelParams.finalize / 100);
-    selection = COVER_selectDict(dict + tail, dictBufferCapacity - tail,
+    selection = COVER_selectDict(dict + tail, dictBufferCapacity, dictBufferCapacity - tail,
          ctx->samples, ctx->samplesSizes, nbFinalizeSamples, ctx->nbTrainSamples, ctx->nbSamples, parameters, ctx->offsets,
          totalCompressedSize);
 

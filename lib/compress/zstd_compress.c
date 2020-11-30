@@ -4524,7 +4524,7 @@ typedef struct {
 
 /* Returns a ZSTD error code if sequence is not valid */
 static size_t ZSTD_validateSequence(U32 offCode, U32 matchLength,
-                                    size_t posInSrc, U32 windowLog, size_t dictSize) {
+                                    size_t posInSrc, U32 windowLog, size_t dictSize, U32 minMatch) {
     size_t offsetBound;
     U32 windowSize = 1 << windowLog;
     /* posInSrc represents the amount of data the the decoder would decode up to this point.
@@ -4534,7 +4534,7 @@ static size_t ZSTD_validateSequence(U32 offCode, U32 matchLength,
      */
     offsetBound = posInSrc > windowSize ? (size_t)windowSize : posInSrc + (size_t)dictSize;
     RETURN_ERROR_IF(offCode > offsetBound + ZSTD_REP_MOVE, corruption_detected, "Offset too large!");
-    RETURN_ERROR_IF(matchLength < MINMATCH, corruption_detected, "Matchlength too small");
+    RETURN_ERROR_IF(matchLength < minMatch, corruption_detected, "Matchlength too small");
     return 0;
 }
 
@@ -4594,7 +4594,8 @@ static size_t ZSTD_copySequencesToSeqStoreExplicitBlockDelim(ZSTD_CCtx* cctx, ZS
         if (cctx->appliedParams.validateSequences) {
             seqPos->posInSrc += litLength + matchLength;
             FORWARD_IF_ERROR(ZSTD_validateSequence(offCode, matchLength, seqPos->posInSrc,
-                                                cctx->appliedParams.cParams.windowLog, dictSize),
+                                                cctx->appliedParams.cParams.windowLog, dictSize,
+                                                cctx->appliedParams.cParams.minMatch),
                                                 "Sequence validation failed");
         }
         ZSTD_storeSeq(&cctx->seqStore, litLength, ip, iend, offCode, matchLength - MINMATCH);
@@ -4716,7 +4717,8 @@ static size_t ZSTD_copySequencesToSeqStoreNoBlockDelim(ZSTD_CCtx* cctx, ZSTD_seq
         if (cctx->appliedParams.validateSequences) {
             seqPos->posInSrc += litLength + matchLength;
             FORWARD_IF_ERROR(ZSTD_validateSequence(offCode, matchLength, seqPos->posInSrc,
-                                                   cctx->appliedParams.cParams.windowLog, dictSize),
+                                                   cctx->appliedParams.cParams.windowLog, dictSize,
+                                                   cctx->appliedParams.cParams.minMatch),
                                                    "Sequence validation failed");
         }
         DEBUGLOG(6, "Storing sequence: (of: %u, ml: %u, ll: %u)", offCode, matchLength, litLength);

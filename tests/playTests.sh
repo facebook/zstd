@@ -1103,7 +1103,7 @@ if [ $LZ4MODE -eq 1 ]; then
         datagen > tmp
         zstd --format=lz4 -f tmp
         lz4 -t -v tmp.lz4
-        lz4 -f tmp
+        lz4 -f -m tmp   # ensure result is sent into tmp.lz4, not stdout
         zstd -d -f -v tmp.lz4
         rm tmp*
     else

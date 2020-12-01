@@ -4524,7 +4524,7 @@ typedef struct {
 
 /* Returns a ZSTD error code if sequence is not valid */
 static size_t ZSTD_validateSequence(U32 offCode, U32 matchLength,
-                                    size_t posInSrc, U32 windowLog, size_t dictSize) {
+                                    size_t posInSrc, U32 windowLog, size_t dictSize, U32 minMatch) {
     size_t offsetBound;
     U32 windowSize = 1 << windowLog;
     /* posInSrc represents the amount of data the the decoder would decode up to this point.
@@ -4534,7 +4534,7 @@ static size_t ZSTD_validateSequence(U32 offCode, U32 matchLength,
      */
     offsetBound = posInSrc > windowSize ? (size_t)windowSize : posInSrc + (size_t)dictSize;
     RETURN_ERROR_IF(offCode > offsetBound + ZSTD_REP_MOVE, corruption_detected, "Offset too large!");
-    RETURN_ERROR_IF(matchLength < MINMATCH, corruption_detected, "Matchlength too small");
+    RETURN_ERROR_IF(matchLength < minMatch, corruption_detected, "Matchlength too small");
     return 0;
 }
 
@@ -4594,7 +4594,8 @@ static size_t ZSTD_copySequencesToSeqStoreExplicitBlockDelim(ZSTD_CCtx* cctx, ZS
         if (cctx->appliedParams.validateSequences) {
             seqPos->posInSrc += litLength + matchLength;
             FORWARD_IF_ERROR(ZSTD_validateSequence(offCode, matchLength, seqPos->posInSrc,
-                                                cctx->appliedParams.cParams.windowLog, dictSize),
+                                                cctx->appliedParams.cParams.windowLog, dictSize,
+                                                cctx->appliedParams.cParams.minMatch),
                                                 "Sequence validation failed");
         }
         ZSTD_storeSeq(&cctx->seqStore, litLength, ip, iend, offCode, matchLength - MINMATCH);
@@ -4679,13 +4680,13 @@ static size_t ZSTD_copySequencesToSeqStoreNoBlockDelim(ZSTD_CCtx* cctx, ZSTD_seq
                 U32 firstHalfMatchLength;
                 litLength = startPosInSequence >= litLength ? 0 : litLength - startPosInSequence;
                 firstHalfMatchLength = endPosInSequence - startPosInSequence - litLength;
-                if (matchLength > blockSize && firstHalfMatchLength >= MINMATCH) {
+                if (matchLength > blockSize && firstHalfMatchLength >= cctx->appliedParams.cParams.minMatch) {
                     /* Only ever split the match if it is larger than the block size */
                     U32 secondHalfMatchLength = currSeq.matchLength + currSeq.litLength - endPosInSequence;
-                    if (secondHalfMatchLength < MINMATCH) {
-                        /* Move the endPosInSequence backward so that it creates match of MINMATCH length */
-                        endPosInSequence -= MINMATCH - secondHalfMatchLength;
-                        bytesAdjustment = MINMATCH - secondHalfMatchLength;
+                    if (secondHalfMatchLength < cctx->appliedParams.cParams.minMatch) {
+                        /* Move the endPosInSequence backward so that it creates match of minMatch length */
+                        endPosInSequence -= cctx->appliedParams.cParams.minMatch - secondHalfMatchLength;
+                        bytesAdjustment = cctx->appliedParams.cParams.minMatch - secondHalfMatchLength;
                         firstHalfMatchLength -= bytesAdjustment;
                     }
                     matchLength = firstHalfMatchLength;
@@ -4716,7 +4717,8 @@ static size_t ZSTD_copySequencesToSeqStoreNoBlockDelim(ZSTD_CCtx* cctx, ZSTD_seq
         if (cctx->appliedParams.validateSequences) {
             seqPos->posInSrc += litLength + matchLength;
             FORWARD_IF_ERROR(ZSTD_validateSequence(offCode, matchLength, seqPos->posInSrc,
-                                                   cctx->appliedParams.cParams.windowLog, dictSize),
+                                                   cctx->appliedParams.cParams.windowLog, dictSize,
+                                                   cctx->appliedParams.cParams.minMatch),
                                                    "Sequence validation failed");
         }
         DEBUGLOG(6, "Storing sequence: (of: %u, ml: %u, ll: %u)", offCode, matchLength, litLength);
@@ -4884,6 +4886,7 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* const cctx, void* dst, size_t dstCapaci
     DEBUGLOG(3, "ZSTD_compressSequences()");
     assert(cctx != NULL);
     FORWARD_IF_ERROR(ZSTD_CCtx_init_compressStream2(cctx, ZSTD_e_end, srcSize), "CCtx initialization failed");
+    RETURN_ERROR_IF(inSeqsSize > cctx->seqStore.maxNbSeq, memory_allocation, "Not enough memory allocated. Try adjusting ZSTD_c_minMatch.");
     /* Begin writing output, starting with frame header */
     frameHeaderSize = ZSTD_writeFrameHeader(op, dstCapacity, &cctx->appliedParams, srcSize, cctx->dictID);
     op += frameHeaderSize;

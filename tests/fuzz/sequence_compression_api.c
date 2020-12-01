@@ -199,6 +199,7 @@ static size_t roundTripTest(void *result, size_t resultCapacity,
     ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, cLevel);
     ZSTD_CCtx_setParameter(cctx, ZSTD_c_windowLog, wLog);
     ZSTD_CCtx_setParameter(cctx, ZSTD_c_minMatch, ZSTD_MINMATCH_MIN);
+    ZSTD_CCtx_setParameter(cctx, ZSTD_c_validateSequences, 1);
     /* TODO: Add block delim mode fuzzing */
     ZSTD_CCtx_setParameter(cctx, ZSTD_c_blockDelimiters, ZSTD_sf_noBlockDelimiters);
     if (hasDict) {

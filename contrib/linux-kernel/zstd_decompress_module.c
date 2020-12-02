@@ -2,78 +2,117 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/string.h>
 #include <linux/zstd.h>
-#include <linux/zstd_errors.h>
 
-// Common symbols. zstd_compress must depend on zstd_decompress.
-EXPORT_SYMBOL(ZSTD_versionNumber);
-EXPORT_SYMBOL(ZSTD_versionString);
-EXPORT_SYMBOL(ZSTD_isError);
-EXPORT_SYMBOL(ZSTD_getErrorName);
-EXPORT_SYMBOL(ZSTD_getErrorCode);
-EXPORT_SYMBOL(ZSTD_getErrorString);
+#include "zstd.h"
+#include "common/zstd_deps.h"
+#include "common/zstd_errors.h"
 
-// Decompression symbols.
-EXPORT_SYMBOL(ZSTD_getFrameContentSize);
-EXPORT_SYMBOL(ZSTD_getDecompressedSize);
-EXPORT_SYMBOL(ZSTD_findFrameCompressedSize);
-EXPORT_SYMBOL(ZSTD_freeDCtx);
-EXPORT_SYMBOL(ZSTD_decompressDCtx);
-EXPORT_SYMBOL(ZSTD_dParam_getBounds);
-EXPORT_SYMBOL(ZSTD_DCtx_setParameter);
-EXPORT_SYMBOL(ZSTD_DCtx_reset);
-EXPORT_SYMBOL(ZSTD_freeDStream);
-EXPORT_SYMBOL(ZSTD_initDStream);
-EXPORT_SYMBOL(ZSTD_decompressStream);
-EXPORT_SYMBOL(ZSTD_DStreamInSize);
-EXPORT_SYMBOL(ZSTD_DStreamOutSize);
-EXPORT_SYMBOL(ZSTD_decompress_usingDict);
-EXPORT_SYMBOL(ZSTD_freeDDict);
-EXPORT_SYMBOL(ZSTD_decompress_usingDDict);
-EXPORT_SYMBOL(ZSTD_getDictID_fromDict);
-EXPORT_SYMBOL(ZSTD_getDictID_fromDDict);
-EXPORT_SYMBOL(ZSTD_getDictID_fromFrame);
-EXPORT_SYMBOL(ZSTD_DCtx_refDDict);
-EXPORT_SYMBOL(ZSTD_DCtx_refPrefix);
-EXPORT_SYMBOL(ZSTD_sizeof_DCtx);
-EXPORT_SYMBOL(ZSTD_sizeof_DStream);
-EXPORT_SYMBOL(ZSTD_sizeof_DDict);
-EXPORT_SYMBOL(ZSTD_findDecompressedSize);
-EXPORT_SYMBOL(ZSTD_decompressBound);
-EXPORT_SYMBOL(ZSTD_frameHeaderSize);
-EXPORT_SYMBOL(ZSTD_estimateDCtxSize);
-EXPORT_SYMBOL(ZSTD_estimateDStreamSize);
-EXPORT_SYMBOL(ZSTD_estimateDStreamSize_fromFrame);
-EXPORT_SYMBOL(ZSTD_estimateDDictSize);
-EXPORT_SYMBOL(ZSTD_initStaticDCtx);
-EXPORT_SYMBOL(ZSTD_initStaticDStream);
-EXPORT_SYMBOL(ZSTD_initStaticDDict);
-EXPORT_SYMBOL(ZSTD_createDCtx_advanced);
-EXPORT_SYMBOL(ZSTD_createDStream_advanced);
-EXPORT_SYMBOL(ZSTD_createDDict_advanced);
-EXPORT_SYMBOL(ZSTD_isFrame);
-EXPORT_SYMBOL(ZSTD_createDDict_byReference);
-EXPORT_SYMBOL(ZSTD_DCtx_loadDictionary_byReference);
-EXPORT_SYMBOL(ZSTD_DCtx_loadDictionary_advanced);
-EXPORT_SYMBOL(ZSTD_DCtx_refPrefix_advanced);
-EXPORT_SYMBOL(ZSTD_DCtx_setMaxWindowSize);
-EXPORT_SYMBOL(ZSTD_DCtx_setFormat);
-EXPORT_SYMBOL(ZSTD_decompressStream_simpleArgs);
-EXPORT_SYMBOL(ZSTD_initDStream_usingDict);
-EXPORT_SYMBOL(ZSTD_initDStream_usingDDict);
-EXPORT_SYMBOL(ZSTD_resetDStream);
-EXPORT_SYMBOL(ZSTD_getFrameHeader);
-EXPORT_SYMBOL(ZSTD_getFrameHeader_advanced);
-EXPORT_SYMBOL(ZSTD_decodingBufferSize_min);
-EXPORT_SYMBOL(ZSTD_decompressBegin);
-EXPORT_SYMBOL(ZSTD_decompressBegin_usingDict);
-EXPORT_SYMBOL(ZSTD_decompressBegin_usingDDict);
-EXPORT_SYMBOL(ZSTD_nextSrcSizeToDecompress);
-EXPORT_SYMBOL(ZSTD_decompressContinue);
-EXPORT_SYMBOL(ZSTD_copyDCtx);
-EXPORT_SYMBOL(ZSTD_nextInputType);
-EXPORT_SYMBOL(ZSTD_decompressBlock);
-EXPORT_SYMBOL(ZSTD_insertBlock);
+/* Common symbols. zstd_compress must depend on zstd_decompress. */
+
+unsigned int zstd_is_error(size_t code)
+{
+	return ZSTD_isError(code);
+}
+EXPORT_SYMBOL(zstd_is_error);
+
+int zstd_get_error_code(size_t code)
+{
+	return ZSTD_getErrorCode(code);
+}
+EXPORT_SYMBOL(zstd_get_error_code);
+
+const char *zstd_get_error_name(size_t code)
+{
+	return ZSTD_getErrorName(code);
+}
+EXPORT_SYMBOL(zstd_get_error_name);
+
+/* Decompression symbols. */
+
+size_t zstd_dctx_workspace_bound(void)
+{
+	return ZSTD_estimateDCtxSize();
+}
+EXPORT_SYMBOL(zstd_dctx_workspace_bound);
+
+zstd_dctx* zstd_init_dctx(void *workspace, size_t workspace_size)
+{
+	if (workspace == NULL)
+		return NULL;
+	return ZSTD_initStaticDCtx(workspace, workspace_size);
+}
+EXPORT_SYMBOL(zstd_init_dctx);
+
+size_t zstd_decompress_dctx(zstd_dctx *dctx, void *dst, size_t dst_capacity, const void *src, size_t src_size)
+{
+	return ZSTD_decompressDCtx(dctx, dst, dst_capacity, src, src_size);
+}
+EXPORT_SYMBOL(zstd_decompress_dctx);
+
+size_t zstd_dstream_workspace_bound(size_t max_window_size)
+{
+	return ZSTD_estimateDStreamSize(max_window_size);
+}
+EXPORT_SYMBOL(zstd_dstream_workspace_bound);
+
+zstd_dstream *zstd_init_dstream(size_t max_window_size, void *workspace, size_t workspace_size)
+{
+	if (workspace == NULL)
+		return NULL;
+	(void)max_window_size;
+	return ZSTD_initStaticDStream(workspace, workspace_size);
+}
+EXPORT_SYMBOL(zstd_init_dstream);
+
+size_t zstd_reset_dstream(zstd_dstream *dstream)
+{
+	return ZSTD_resetDStream(dstream);
+}
+EXPORT_SYMBOL(zstd_reset_dstream);
+
+size_t zstd_decompress_stream(zstd_dstream *dstream, struct zstd_out_buffer *output, struct zstd_in_buffer *input)
+{
+	ZSTD_outBuffer o;
+	ZSTD_inBuffer i;
+	size_t ret;
+
+	ZSTD_memcpy(&o, output, sizeof(o));
+	ZSTD_memcpy(&i, input, sizeof(i));
+	ret = ZSTD_decompressStream(dstream, &o, &i);
+	ZSTD_memcpy(output, &o, sizeof(o));
+	ZSTD_memcpy(input, &i, sizeof(i));
+	return ret;
+}
+EXPORT_SYMBOL(zstd_decompress_stream);
+
+size_t zstd_find_frame_compressed_size(const void *src, size_t src_size)
+{
+	return ZSTD_findFrameCompressedSize(src, src_size);
+}
+EXPORT_SYMBOL(zstd_find_frame_compressed_size);
+
+size_t zstd_get_frame_params(struct zstd_frame_params *params, const void *src, size_t src_size)
+{
+	ZSTD_frameHeader h;
+	const size_t ret = ZSTD_getFrameHeader(&h, src, src_size);
+
+	if (ret != 0)
+		return ret;
+
+	if (h.frameContentSize != ZSTD_CONTENTSIZE_UNKNOWN)
+		params->frame_content_size = h.frameContentSize;
+	else
+		params->frame_content_size = 0;
+
+	params->window_size = h.windowSize;
+	params->dict_id = h.dictID;
+	params->checksum_flag = h.checksumFlag;
+
+	return ret;
+}
+EXPORT_SYMBOL(zstd_get_frame_params);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("Zstd Decompressor");

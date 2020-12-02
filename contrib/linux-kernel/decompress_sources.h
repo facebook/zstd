@@ -16,3 +16,4 @@
 #include "decompress/zstd_ddict.c"
 #include "decompress/zstd_decompress.c"
 #include "decompress/zstd_decompress_block.c"
+#include "zstd_decompress_module.c"

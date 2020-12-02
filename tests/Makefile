@@ -152,7 +152,7 @@ fuzzer : LDFLAGS += $(MULTITHREAD_LD)
 fuzzer : $(ZSTDMT_OBJECTS)
 fuzzer fuzzer32 : $(ZDICT_FILES) $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/datagen.c fuzzer.c
 
-fuzzer32 : CFLAGS += -m32
+fuzzer32 : CFLAGS += -m32 $(MULTITHREAD)
 fuzzer32 : $(ZSTD_FILES)
 	$(LINK.c) $^ -o $@$(EXT)
 

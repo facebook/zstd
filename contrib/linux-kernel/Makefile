@@ -62,6 +62,25 @@ import: libzstd
 	cp linux/include/linux/zstd.h $(LINUX)/include/linux
 	cp -r linux/lib/zstd $(LINUX)/lib
 
+import-upstream:
+	rm -f $(LINUX)/include/linux/zstd.h
+	rm -f $(LINUX)/include/linux/zstd_errors.h
+	rm -rf $(LINUX)/lib/zstd
+	mkdir $(LINUX)/lib/zstd
+	cp linux_zstd.h $(LINUX)/include/linux/zstd.h
+	cp zstd_compress_module.c $(LINUX)/lib/zstd
+	cp zstd_decompress_module.c $(LINUX)/lib/zstd
+	cp decompress_sources.h $(LINUX)/lib/zstd
+	cp linux.mk $(LINUX)/lib/zstd/Makefile
+	cp ../../lib/zstd.h $(LINUX)/lib/zstd
+	cp -r ../../lib/common $(LINUX)/lib/zstd
+	cp -r ../../lib/compress $(LINUX)/lib/zstd
+	cp -r ../../lib/decompress $(LINUX)/lib/zstd
+	rm $(LINUX)/lib/zstd/common/threading.*
+	rm $(LINUX)/lib/zstd/common/pool.*
+	rm $(LINUX)/lib/zstd/common/xxhash.*
+	rm $(LINUX)/lib/zstd/compress/zstdmt_*
+
 .PHONY: test
 test: libzstd
 	$(MAKE) -C test run-test CFLAGS="-O3 $(CFLAGS)" -j

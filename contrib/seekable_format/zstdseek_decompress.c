@@ -420,8 +420,10 @@ size_t ZSTD_seekable_decompress(ZSTD_seekable* zs, void* dst, size_t len, unsign
                              outTmp.pos - prevOutPos);
             }
             forwardProgress = outTmp.pos - prevOutPos;
-            if (!forwardProgress && noOutputProgressCount++ > ZSTD_SEEKABLE_NO_OUTPUT_PROGRESS_MAX) {
-                return ERROR(seekableIO);
+            if (forwardProgress == 0) {
+                if (noOutputProgressCount++ > ZSTD_SEEKABLE_NO_OUTPUT_PROGRESS_MAX) {
+                    return ERROR(seekableIO);
+                }
             } else {
                 noOutputProgressCount = 0;
             }

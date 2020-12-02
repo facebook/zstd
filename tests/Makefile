@@ -82,8 +82,7 @@ DECODECORPUS_TESTTIME ?= -T30
 default: fullbench
 
 .PHONY: all
-all: fullbench fuzzer zstreamtest paramgrill datagen decodecorpus roundTripCrash \
-     fullbench-lib poolTests
+all: fullbench fuzzer zstreamtest paramgrill datagen decodecorpus roundTripCrash poolTests
 
 .PHONY: all32
 all32: fullbench32 fuzzer32 zstreamtest32

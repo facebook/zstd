@@ -25,6 +25,7 @@ PYTHON ?= python3
 TESTARTEFACT := versionsTest
 
 DEBUGLEVEL ?= 1
+export DEBUGLEVEL  # transmit value to sub-makefiles
 DEBUGFLAGS  = -g -DDEBUGLEVEL=$(DEBUGLEVEL)
 CPPFLAGS   += -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
               -I$(ZSTDDIR)/dictBuilder -I$(ZSTDDIR)/deprecated -I$(PRGDIR)
@@ -77,40 +78,38 @@ FUZZERTEST ?= -T200s
 ZSTDRTTEST = --test-large-data
 DECODECORPUS_TESTTIME ?= -T30
 
-.PHONY: default all all32 allnothread dll clean test test32 test-all versionsTest
-
+.PHONY: default
 default: fullbench
-	@echo $(ZSTDMT_OBJECTS)
 
-all: fullbench fuzzer zstreamtest paramgrill datagen decodecorpus roundTripCrash \
-     fullbench-lib poolTests
+.PHONY: all
+all: fullbench fuzzer zstreamtest paramgrill datagen decodecorpus roundTripCrash poolTests
 
+.PHONY: all32
 all32: fullbench32 fuzzer32 zstreamtest32
 
+.PHONY: allnothread
 allnothread: MULTITHREAD_CPP=
 allnothread: MULTITHREAD_LD=
 allnothread: fullbench fuzzer paramgrill datagen decodecorpus
 
 # note : broken : requires symbols unavailable from dynamic library
+.PHONY: dll
 dll: fuzzer-dll zstreamtest-dll
 
-PHONY: zstd zstd32 zstd-nolegacy  # phony: only external makefile knows how to build or update them
+.PHONY: zstd zstd32 zstd-nolegacy  # only external makefile knows how to build or update them
 zstd zstd32 zstd-nolegacy:
-	$(MAKE) -C $(PRGDIR) $@ MOREFLAGS+="$(DEBUGFLAGS)" DEBUGLEVEL=$(DEBUGLEVEL)
-
-gzstd:
-	$(MAKE) -C $(PRGDIR) $@ HAVE_ZLIB=1 MOREFLAGS+="$(DEBUGFLAGS)" DEBUGLEVEL=$(DEBUGLEVEL)
+	$(MAKE) -C $(PRGDIR) $@ MOREFLAGS+="$(DEBUGFLAGS)"
 
 .PHONY: libzstd
 libzstd :
-	$(MAKE) -C $(ZSTDDIR) libzstd DEBUGLEVEL=$(DEBUGLEVEL)
+	$(MAKE) -C $(ZSTDDIR) libzstd MOREFLAGS+="$(DEBUGFLAGS)"
 
 %-dll : libzstd
-%-dll : LDFLAGS+= -L$(ZSTDDIR) -lzstd
+%-dll : LDFLAGS += -L$(ZSTDDIR) -lzstd
 
-.PHONY: zstd-staticLib
-zstd-staticLib :
-	$(MAKE) -C $(ZSTDDIR) libzstd.a DEBUGLEVEL=$(DEBUGLEVEL)
+.PHONY: $(ZSTDDIR)/libzstd.a
+$(ZSTDDIR)/libzstd.a :
+	$(MAKE) -C $(ZSTDDIR) libzstd.a
 
 zstdm_%.o : $(ZSTDDIR)/common/%.c
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
@@ -138,25 +137,25 @@ fullbench fullbench32 : LDFLAGS += $(MULTITHREAD_LD)
 fullbench fullbench32 : DEBUGFLAGS = -DNDEBUG  # turn off assert() for speed measurements
 fullbench fullbench32 : $(ZSTD_FILES)
 fullbench fullbench32 : $(PRGDIR)/datagen.c $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/benchfn.c fullbench.c
-	$(CC) $(FLAGS) $^ -o $@$(EXT)
+	$(LINK.c) $^ -o $@$(EXT)
 
 fullbench-lib : CPPFLAGS += -DXXH_NAMESPACE=ZSTD_
-fullbench-lib : zstd-staticLib
-fullbench-lib : $(PRGDIR)/datagen.c $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/benchfn.c fullbench.c
-	$(CC) $(FLAGS) $(filter %.c,$^) -o $@$(EXT) $(ZSTDDIR)/libzstd.a
+fullbench-lib : $(PRGDIR)/datagen.c $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/benchfn.c $(ZSTDDIR)/libzstd.a fullbench.c
+	$(LINK.c) $^ -o $@$(EXT)
 
 # note : broken : requires symbols unavailable from dynamic library
 fullbench-dll: $(PRGDIR)/datagen.c $(PRGDIR)/util.c $(PRGDIR)/benchfn.c $(PRGDIR)/timefn.c fullbench.c
 #	$(CC) $(FLAGS) $(filter %.c,$^) -o $@$(EXT) -DZSTD_DLL_IMPORT=1 $(ZSTDDIR)/dll/libzstd.dll
 	$(CC) $(FLAGS) $(filter %.c,$^) -o $@$(EXT)
 
-fuzzer  : CPPFLAGS += $(MULTITHREAD_CPP)
-fuzzer  : LDFLAGS += $(MULTITHREAD_LD)
-fuzzer32: CFLAGS += -m32
-fuzzer  : $(ZSTDMT_OBJECTS)
-fuzzer32: $(ZSTD_FILES)
+fuzzer : CPPFLAGS += $(MULTITHREAD_CPP)
+fuzzer : LDFLAGS += $(MULTITHREAD_LD)
+fuzzer : $(ZSTDMT_OBJECTS)
 fuzzer fuzzer32 : $(ZDICT_FILES) $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/datagen.c fuzzer.c
-	$(CC) $(FLAGS) $^ -o $@$(EXT)
+
+fuzzer32 : CFLAGS += -m32 $(MULTITHREAD)
+fuzzer32 : $(ZSTD_FILES)
+	$(LINK.c) $^ -o $@$(EXT)
 
 # note : broken : requires symbols unavailable from dynamic library
 fuzzer-dll : $(ZSTDDIR)/common/xxhash.c $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/datagen.c fuzzer.c
@@ -180,66 +179,65 @@ zstreamtest zstreamtest32 : LDFLAGS += $(MULTITHREAD_LD)
 zstreamtest : $(ZSTDMT_OBJECTS) $(ZSTREAM_PROPER_FILES)
 zstreamtest32 : $(ZSTREAMFILES)
 zstreamtest zstreamtest32 :
-	$(CC) $(FLAGS) $^ -o $@$(EXT)
+	$(LINK.c) $^ -o $@$(EXT)
 
 zstreamtest_asan : CFLAGS += -fsanitize=address
 zstreamtest_asan : $(ZSTREAMFILES)
-	$(CC) $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
+	$(LINK.c) $(MULTITHREAD) $^ -o $@$(EXT)
 
 zstreamtest_tsan : CFLAGS += -fsanitize=thread
 zstreamtest_tsan : $(ZSTREAMFILES)
-	$(CC) $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
+	$(LINK.c) $(MULTITHREAD) $^ -o $@$(EXT)
 
 # note : broken : requires symbols unavailable from dynamic library
 zstreamtest-dll : $(ZSTDDIR)/common/xxhash.c  # xxh symbols not exposed from dll
 zstreamtest-dll : $(ZSTREAM_LOCAL_FILES)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(filter %.c,$^) $(LDFLAGS) -o $@$(EXT)
 
-paramgrill : DEBUGFLAGS =  # turn off assert() by default for speed measurements
+paramgrill : DEBUGFLAGS =   # turn off debug for speed measurements
+paramgrill : LDLIBS += -lm
 paramgrill : $(ZSTD_FILES) $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/benchfn.c $(PRGDIR)/benchzstd.c $(PRGDIR)/datagen.c paramgrill.c
-	$(CC) $(FLAGS) $^ -lm -o $@$(EXT)
 
 datagen : $(PRGDIR)/datagen.c datagencli.c
-	$(CC) $(FLAGS) $^ -o $@$(EXT)
+	$(LINK.c) $^ -o $@$(EXT)
 
+roundTripCrash: CFLAGS += $(MULTITHREAD)
 roundTripCrash : $(ZSTD_OBJECTS) roundTripCrash.c
-	$(CC) $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
 
-longmatch  : $(ZSTD_OBJECTS) longmatch.c
-	$(CC) $(FLAGS) $^ -o $@$(EXT)
+longmatch : $(ZSTD_OBJECTS) longmatch.c
 
+bigdict: CFLAGS += $(MULTITHREAD)
 bigdict: $(ZSTDMT_OBJECTS) $(PRGDIR)/datagen.c bigdict.c
-	$(CC) $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
 
 invalidDictionaries : $(ZSTD_OBJECTS) invalidDictionaries.c
-	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
 legacy : CPPFLAGS += -I$(ZSTDDIR)/legacy -DZSTD_LEGACY_SUPPORT=4
 legacy : $(ZSTD_FILES) $(wildcard $(ZSTDDIR)/legacy/*.c) legacy.c
-	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
+decodecorpus : LDLIBS += -lm
 decodecorpus : $(filter-out zstdc_zstd_compress.o, $(ZSTD_OBJECTS)) $(ZDICT_FILES) $(PRGDIR)/util.c $(PRGDIR)/timefn.c decodecorpus.c
-	$(CC) $(FLAGS) $^ -o $@$(EXT) -lm
 
 poolTests : $(PRGDIR)/util.c $(PRGDIR)/timefn.c poolTests.c $(ZSTDDIR)/common/pool.c $(ZSTDDIR)/common/threading.c $(ZSTDDIR)/common/zstd_common.c $(ZSTDDIR)/common/error_private.c
-	$(CC) $(FLAGS) $(MULTITHREAD) $^ -o $@$(EXT)
+	$(LINK.c) $(MULTITHREAD) $^ -o $@$(EXT)
 
 .PHONY: versionsTest
 versionsTest: clean
 	$(PYTHON) test-zstd-versions.py
 
+.PHONY: automated_benchmarking
 automated_benchmarking: clean
 	$(PYTHON) automated_benchmarking.py
 
-checkTag: checkTag.c $(ZSTDDIR)/zstd.h
-	$(CC) $(FLAGS) $< -o $@$(EXT)
+# make checkTag
+checkTag.o : $(ZSTDDIR)/zstd.h
 
+.PHONY: clean
 clean:
 	$(MAKE) -C $(ZSTDDIR) clean
 	$(MAKE) -C $(PRGDIR) clean
-	@$(RM) -fR $(TESTARTEFACT)
-	@$(RM) -rf tmp*  # some test directories are named tmp*
-	@$(RM) core *.o *.tmp result* *.gcda dictionary *.zst \
+	$(RM) -fR $(TESTARTEFACT)
+	$(RM) -rf tmp*  # some test directories are named tmp*
+	$(RM) core *.o *.tmp result* *.gcda dictionary *.zst \
         $(PRGDIR)/zstd$(EXT) $(PRGDIR)/zstd32$(EXT) \
         fullbench$(EXT) fullbench32$(EXT) \
         fullbench-lib$(EXT) fullbench-dll$(EXT) \
@@ -296,8 +294,11 @@ list:
 	@$(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null | awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' | sort | egrep -v -e '^[^[:alnum:]]' -e '^$@$$' | xargs
 
 .PHONY: shortest
-shortest: ZSTDRTTEST=
+shortest: ZSTDRTTEST=  # remove long tests
 shortest: test-zstd
+
+.PHONY: check
+check: shortest
 
 .PHONY: fuzztest
 fuzztest: test-fuzzer test-zstream test-decodecorpus
@@ -308,10 +309,11 @@ ifeq ($(QEMU_SYS),)
 test: test-pool
 endif
 
+.PHONY: test32
 test32: test-zstd32 test-fullbench32 test-fuzzer32 test-zstream32
 
+.PHONY: test-all
 test-all: test test32 valgrindTest test-decodecorpus-cli
-
 
 .PHONY: test-zstd test-zstd32 test-zstd-nolegacy test-zstdgrep
 test-zstd: ZSTD = $(PRGDIR)/zstd
@@ -326,35 +328,6 @@ test-zstd-nolegacy: zstd-nolegacy
 test-zstd test-zstd32 test-zstd-nolegacy: datagen
 	file $(ZSTD)
 	EXE_PREFIX="$(QEMU_SYS)" ZSTD_BIN="$(ZSTD)" DATAGEN_BIN=./datagen ./playTests.sh $(ZSTDRTTEST)
-
-
-test-gzstd: gzstd
-	$(PRGDIR)/zstd -f README.md test-zstd-speed.py
-	gzip -f README.md test-zstd-speed.py
-	cat README.md.zst test-zstd-speed.py.gz >zstd_gz.zst
-	cat README.md.gz test-zstd-speed.py.zst >gz_zstd.gz
-	$(PRGDIR)/zstd -df README.md.gz -o README2.md
-	$(PRGDIR)/zstd -df README.md.gz test-zstd-speed.py.gz
-	$(PRGDIR)/zstd -df zstd_gz.zst gz_zstd.gz
-	$(DIFF) -q zstd_gz gz_zstd
-	echo Hello World ZSTD | $(PRGDIR)/zstd -c - >hello.zst
-	echo Hello World GZIP | gzip -c - >hello.gz
-	echo Hello World TEXT >hello.txt
-	cat hello.zst hello.gz hello.txt >hello_zst_gz_txt.gz
-	$(PRGDIR)/zstd -dcf hello.*
-	$(PRGDIR)/zstd -dcf - <hello_zst_gz_txt.gz
-	$(RM) *.gz *.zst README2.md gz_zstd zstd_gz hello.txt
-
-test-zstdgrep: gzstd
-	-[ -f /tmp/zstdcat ] || ln -s $(PWD)/$(PRGDIR)/zstd /tmp/zstdcat
-	echo a | $(PRGDIR)/zstd | env ZCAT=/tmp/zstdcat $(PRGDIR)/zstdgrep a
-	echo a | $(PRGDIR)/zstd | env ZCAT=/tmp/zstdcat $(PRGDIR)/zstdgrep b && return 1 || return 0
-	-echo 'hello world' > test.txt && $(PRGDIR)/zstd test.txt
-	env ZCAT=/tmp/zstdcat $(PRGDIR)/zstdgrep hello test.txt.zst
-	env ZCAT=/tmp/zstdcat $(PRGDIR)/zstdgrep weird test.txt.zst && return 1 || return 0
-	-echo 'hello' > pattern.txt
-	env ZCAT=/tmp/zstdcat $(PRGDIR)/zstdgrep -f pattern.txt test.txt.zst
-	$(RM) test.txt test.txt.zst pattern.txt
 
 test-fullbench: fullbench datagen
 	$(QEMU_SYS) ./fullbench -i1

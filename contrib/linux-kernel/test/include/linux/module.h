@@ -12,8 +12,7 @@
 
 #define EXPORT_SYMBOL(symbol)                                                  \
   void* __##symbol = symbol
-#define MODULE_LICENSE(license) static char const *const LICENSE = license
-#define MODULE_DESCRIPTION(description)                                        \
-  static char const *const DESCRIPTION = description
+#define MODULE_LICENSE(license)
+#define MODULE_DESCRIPTION(description)
 
 #endif

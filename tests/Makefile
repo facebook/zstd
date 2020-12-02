@@ -149,12 +149,12 @@ fullbench-dll: $(PRGDIR)/datagen.c $(PRGDIR)/util.c $(PRGDIR)/benchfn.c $(PRGDIR
 #	$(CC) $(FLAGS) $(filter %.c,$^) -o $@$(EXT) -DZSTD_DLL_IMPORT=1 $(ZSTDDIR)/dll/libzstd.dll
 	$(CC) $(FLAGS) $(filter %.c,$^) -o $@$(EXT)
 
-fuzzer  : CPPFLAGS += $(MULTITHREAD_CPP)
 fuzzer  : LDFLAGS += $(MULTITHREAD_LD)
-fuzzer32: CFLAGS += -m32
 fuzzer  : $(ZSTDMT_OBJECTS)
-fuzzer32: $(ZSTD_FILES)
 fuzzer fuzzer32 : $(ZDICT_FILES) $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/datagen.c fuzzer.c
+
+fuzzer32: CFLAGS += -m32
+fuzzer32: $(ZSTD_FILES)
 	$(LINK.c) $^ -o $@$(EXT)
 
 # note : broken : requires symbols unavailable from dynamic library
@@ -314,7 +314,6 @@ test32: test-zstd32 test-fullbench32 test-fuzzer32 test-zstream32
 
 .PHONY: test-all
 test-all: test test32 valgrindTest test-decodecorpus-cli
-
 
 .PHONY: test-zstd test-zstd32 test-zstd-nolegacy test-zstdgrep
 test-zstd: ZSTD = $(PRGDIR)/zstd

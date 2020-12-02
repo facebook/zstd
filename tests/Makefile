@@ -149,12 +149,12 @@ fullbench-dll: $(PRGDIR)/datagen.c $(PRGDIR)/util.c $(PRGDIR)/benchfn.c $(PRGDIR
 #	$(CC) $(FLAGS) $(filter %.c,$^) -o $@$(EXT) -DZSTD_DLL_IMPORT=1 $(ZSTDDIR)/dll/libzstd.dll
 	$(CC) $(FLAGS) $(filter %.c,$^) -o $@$(EXT)
 
-fuzzer  : LDFLAGS += $(MULTITHREAD_LD)
-fuzzer  : $(ZSTDMT_OBJECTS)
+fuzzer : LDFLAGS += $(MULTITHREAD_LD)
+fuzzer : $(ZSTDMT_OBJECTS)
 fuzzer fuzzer32 : $(ZDICT_FILES) $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/datagen.c fuzzer.c
 
-fuzzer32: CFLAGS += -m32
-fuzzer32: $(ZSTD_FILES)
+fuzzer32 : CFLAGS += -m32
+fuzzer32 : $(ZSTD_FILES)
 	$(LINK.c) $^ -o $@$(EXT)
 
 # note : broken : requires symbols unavailable from dynamic library
